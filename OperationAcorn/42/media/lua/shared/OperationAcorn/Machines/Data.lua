@@ -81,6 +81,27 @@ Data.KINDS = {
     },
 }
 
+-- The light a machine gives off around it at night (OA.Lights), by its look: `running`, and `ready` (switched on and
+-- waiting: its lamps lit, nothing moving). { r, g, b, radius in squares }, in the colour of what is lit on its tiles:
+-- the shredder's amber beacon, the cutter's panel lamps, the saw's work lamp, the propane refiner's flare, the oil
+-- refiner's furnace lamps. The kinds not here give none (the bench, the locker, the rain storage, the lure).
+Data.LIGHTS = {
+    bulkShredder = { running = { 0.95, 0.6, 0.2, 4 }, ready = { 0.45, 0.3, 0.1, 2 } },
+    cutter = { running = { 0.5, 0.65, 0.5, 3 }, ready = { 0.3, 0.4, 0.3, 2 } },
+    woodSaw = { running = { 1.0, 0.92, 0.75, 6 }, ready = { 0.45, 0.42, 0.34, 2 } },
+    propaneRefiner = { running = { 1.0, 0.55, 0.15, 6 }, ready = { 0.3, 0.4, 0.3, 2 } },
+    oilRefiner = { running = { 0.95, 0.5, 0.18, 4 }, ready = { 0.45, 0.25, 0.1, 2 } },
+}
+
+-- The light of a kind in a look (Machines.refreshLook's: true running, "ready", or false), or nil.
+function Data.lightOf(kind, look)
+    local lights = Data.LIGHTS[kind]
+    if not lights then return nil end
+    if look == true then return lights.running end
+    if look == "ready" then return lights.ready end
+    return nil
+end
+
 -- The object modData key of the other squares of a multi-tile machine, pointing to its anchor.
 Data.ANCHOR_KEY = "OA_Anchor"
 -- The anchor's modData keys the PZ Tools API reads: OA_Capacity, a number (0 here), lifts the vanilla container cap for

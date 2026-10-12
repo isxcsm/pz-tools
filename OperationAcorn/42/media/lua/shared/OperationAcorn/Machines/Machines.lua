@@ -20,6 +20,7 @@ require "OperationAcorn/Store"
 require "OperationAcorn/Sync"
 require "OperationAcorn/Sprites"
 require "OperationAcorn/Chunks"
+require "OperationAcorn/Lights"
 require "OperationAcorn/Machines/Data"
 require "OperationAcorn/Machines/Logic"
 local OA = OperationAcorn
@@ -340,18 +341,31 @@ function Machines.declareAnim()
     return ok
 end
 
--- Shows the look the state calls for on every loaded square of the machine, where it is not already shown. Also
--- brings the load multiplier up to date (every change of running goes through here).
+-- The look the state calls for: true running (the lure: working), "ready" (switched on and waiting: the lamps lit,
+-- nothing moving) or false.
+local function lookOf(object, state)
+    if state.kind == "lure" then return not state.spent end
+    local look = state.running == true
+    if not look and Data.processes(state.kind) and state.on ~= false
+        and not Logic.effects(state.kind, state.parts).stopped and Machines.hasPower(object:getSquare()) then
+        look = "ready"
+    end
+    return look
+end
+
+-- The machine's light (Data.LIGHTS) as its look calls for. A chunk loading brings it back (the game keeps none).
+function Machines.light(object, state, look)
+    if look == nil then look = lookOf(object, state) end
+    OA.Lights.set(object, Data.lightOf(state.kind, look))
+end
+
+-- Shows the look the state calls for on every loaded square of the machine, where it is not already shown, and its
+-- light. Also brings the load multiplier up to date (every change of running goes through here).
 function Machines.refreshLook(object, state)
     Machines.syncLoad(object, state)
-    local look = state.running == true
-    if state.kind == "lure" then
-        look = not state.spent
-        Machines.lureFx(object, look)
-    elseif not look and Data.processes(state.kind) and state.on ~= false
-        and not Logic.effects(state.kind, state.parts).stopped and Machines.hasPower(object:getSquare()) then
-        look = "ready"   -- switched on and waiting: the lamps lit, nothing moving
-    end
+    local look = lookOf(object, state)
+    if state.kind == "lure" then Machines.lureFx(object, look) end
+    Machines.light(object, state, look)
     local parts
     for _, tile in ipairs(Machines.tiles(state.kind, state.dir, look)) do
         if tile.dx == 0 and tile.dy == 0 then
@@ -1123,6 +1137,7 @@ function Machines.onChunk(chunk)
                 Machines.addMissingContainers(object, square, rolesAt(state.kind, state.dir, 0, 0))
                 applyAccept(object, Data.KINDS[state.kind].containers)
                 if state.kind == "lure" then Machines.lureFx(object, not state.spent) end
+                Machines.light(object, state)
                 local ok, err = pcall(Machines.update, object, { catchUp = true })
                 if not ok then OA.log("machine", id, "catch-up failed:", tostring(err)) end
             end

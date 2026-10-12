@@ -1,5 +1,6 @@
 -- The console of the terminal window's boot sequence (DESIGN-terminal 12, Trade/BootSeq): a black panel over the strip
--- and the body, the lines printed one at a time (the words, a blinking cursor, then what the line ends with), then
+-- and the body, the screen coming on, the terminal's static behind it all (Trade/TerminalStatic's tiles, scrolling as
+-- they do in the window), the lines printed one at a time (the words, a blinking cursor, then what the line ends with), then
 -- the switch-off. The crude terminal's console flickers, garbles and now and then jolts (Seq.shake). The window owns the
 -- run and takes this panel off when the fade-in starts (the fade itself is drawn by the window, over its tabs, so
 -- that the tabs are usable through it). A click or a key skips it.
@@ -7,6 +8,7 @@ require "ISUI/ISPanel"
 require "OperationAcorn/Client"
 require "OperationAcorn/Trade/BootSeq"
 require "OperationAcorn/Trade/UI"
+require "OperationAcorn/Trade/TerminalStatic"
 local OA = OperationAcorn
 local Seq, UI = OA.Trade.BootSeq, OA.Trade.UI
 
@@ -32,7 +34,38 @@ function OATerminalBoot:new(x, y, width, height, window, run)
     o.background = false
     local record = OA.Client.record(window.character)
     o.number = string.format("%04d", record and record.number or 0)
+    o.tiles = { getTexture(OATerminalStatic.TILES[1]), getTexture(OATerminalStatic.TILES[2]) }
     return o
+end
+
+-- The static at `e` ms over the rows y to y + h (k: how much of it shows), as the window's static panel draws it: its
+-- tiles keep their own size in pixels.
+function OATerminalBoot:drawStatic(e, y, h, k)
+    local S = OATerminalStatic
+    local tex = self.tiles[math.floor(e / S.SWAP_MS) % 2 + 1]
+    if not tex or h <= 0 or k <= 0 then return end
+    local c = self.window.palette.text
+    local tile = S.TILE / UI.S
+    local off = (math.floor(e * S.SPEED / 1000) % S.TILE) / UI.S - tile
+    self:setStencilRect(0, y, self.width, h)
+    self:drawTextureTiled(tex, 0, y + off, self.width, h + tile, c[1], c[2], c[3], S.alphaOf(self.window.tier) * k)
+    self:clearStencilRect()
+end
+
+-- The screen coming on (Seq.powerOn): the bright line from a dot across the middle, opening into the screen in a flash
+-- that dies down, the static showing in what is open.
+function OATerminalBoot:drawPowerOn(e, lineW, band, lineA, flash)
+    local p = self.window.palette
+    local cy = self.height / 2
+    local open = band * self.height
+    if open > 0 then
+        self:drawStatic(e, cy - open / 2, open, 1)
+        if flash > 0 then UI.fill(self, 0, cy - open / 2, self.width, open, p.bright, flash) end
+    end
+    if lineA > 0 then
+        local w = math.max(OATerminalBoot.DOT, self.width * lineW)
+        UI.fill(self, (self.width - w) / 2, cy - OATerminalBoot.LINE / 2, w, OATerminalBoot.LINE, p.bright, lineA)
+    end
 end
 
 -- The rows, worked out when the panel is laid out: the words, where what the line ends with (and the cursor before
@@ -97,6 +130,8 @@ function OATerminalBoot:prerender()
     local phase, shown, t, e = Seq.state(run, getTimestampMs())
     UI.fill(self, 0, 0, self.width, self.height, BLACK)
     if phase == "fade" or phase == "done" then return end
+    local lineW, band, lineA, flash = Seq.powerOn(e)
+    if lineW then return self:drawPowerOn(e, lineW, band, lineA, flash) end
     self:layout()
     local p = self.window.palette
     local a = run.crude and Seq.flicker(e) or 1
@@ -109,6 +144,9 @@ function OATerminalBoot:prerender()
         -- The lines fall towards the middle, seen through a band that narrows to the line.
         local k, lineW, lineA = Seq.switchOff(t)
         local band = math.max(OATerminalBoot.LINE, self.blockH * k)
+        -- the static goes with the picture: the whole screen's, falling to the line
+        local screen = self.height * k
+        self:drawStatic(e, cy - screen / 2, screen, k)
         self:setStencilRect(0, cy - band / 2, self.width, band)
         for i = 1, shown do
             local row = self.rows[i]
@@ -120,6 +158,7 @@ function OATerminalBoot:prerender()
         UI.fill(self, (self.width - w) / 2, cy - OATerminalBoot.LINE / 2, w, OATerminalBoot.LINE, p.bright, lineA)
         return
     end
+    self:drawStatic(e, 0, self.height, a)
     for i = 1, shown do
         local row = self.rows[i]
         self:drawRow(row, i, self.by + shiftY + row.y, a, e - Seq.appearAt(run, i), e >= Seq.statusAt(run, i))

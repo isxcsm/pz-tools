@@ -168,8 +168,8 @@ function OATerminalWindow:createChildren()
     end
     UI.closeBox(self, p)
     local th = self:titleBarHeight()
-    -- the crude terminal's static, behind everything the window holds
-    if self.tier == "crude" then self.static = OATerminalStatic.attach(self, th, self:resizeWidgetHeight()) end
+    -- the terminal's static, behind everything the window holds
+    self.static = OATerminalStatic.attach(self, th, self:resizeWidgetHeight())
     -- The strip and the views are ours, in design units: the title bar's pixels are given to them as such.
     self.tabHeight = UI.fontHeight() + 6
     self.strip = OATerminalTabs:new(0, UI.dp(th), UI.dp(self.width), self.tabHeight, self)

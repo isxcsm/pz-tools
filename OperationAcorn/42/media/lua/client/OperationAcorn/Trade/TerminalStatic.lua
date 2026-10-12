@@ -1,5 +1,6 @@
--- The crude terminal's static: specks and streaks laid very faintly over the window's body, behind the tabs, scrolling
--- down and flickering between two tiles (tools/static_art.py): the screen of a set with a weak signal. A panel of its
+-- The terminals' static: specks and streaks laid very faintly over the window's body, behind the tabs, scrolling
+-- down and flickering between two tiles (tools/static_art.py): the crude terminal's a set with a weak signal, the field
+-- terminal's fainter, an old screen still. The boot sequence draws the same behind its console (Trade/TerminalBoot). A panel of its
 -- own, behind the strip and the views, followed each frame (Trade/UI live): with PZ Optimization only it is drawn
 -- afresh while the views' drawings are reused. It takes no clicks. The window's own weak-signal spells fade it with the
 -- rest (they are drawn over the children).
@@ -10,10 +11,15 @@ local UI = OperationAcorn.Trade.UI
 OATerminalStatic = ISPanel:derive("OATerminalStatic")
 
 OATerminalStatic.TILES = { "media/textures/OA_Static_1.png", "media/textures/OA_Static_2.png" }
--- The tiles' side (pixels), how faint the static is (its tint's alpha), how fast it scrolls (pixels a second) and how
--- often the two tiles swap (ms).
+-- The tiles' side (pixels), how faint the static is on each terminal (its tint's alpha), how fast it scrolls (pixels a
+-- second) and how often the two tiles swap (ms).
 OATerminalStatic.TILE = 256
-OATerminalStatic.ALPHA, OATerminalStatic.SPEED, OATerminalStatic.SWAP_MS = 0.2, 40, 90
+OATerminalStatic.ALPHAS = { crude = 0.2, field = 0.07 }
+OATerminalStatic.SPEED, OATerminalStatic.SWAP_MS = 40, 90
+
+function OATerminalStatic.alphaOf(tier)
+    return OATerminalStatic.ALPHAS[tier] or OATerminalStatic.ALPHAS.crude
+end
 
 -- In the window's pixels (a plain game panel, not one of our scaled ones).
 function OATerminalStatic:new(x, y, width, height, window)
@@ -49,7 +55,7 @@ function OATerminalStatic:prerender()
     local c = self.window.palette.text
     self:setStencilRect(0, 0, self.width, self.height)
     local y = (self.offset or 0) - S.TILE
-    self:drawTextureTiled(tex, 0, y, self.width, self.height + S.TILE, c[1], c[2], c[3], S.ALPHA)
+    self:drawTextureTiled(tex, 0, y, self.width, self.height + S.TILE, c[1], c[2], c[3], S.alphaOf(self.window.tier))
     self:clearStencilRect()
 end
 

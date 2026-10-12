@@ -11,35 +11,36 @@ local function phaseAt(run, e)
     return phase, shown, t
 end
 
-test("an ordinary open: black, each line with its cursor then its status, a beat, the welcome, the switch-off, the fade-in", function()
+test("an ordinary open: the screen comes on, a black beat, each line with its cursor then its status, a beat, the welcome, the switch-off, the fade-in", function()
     local run = Seq.new(false, false)
+    eq(Seq.POWER_MS, 1000, "the screen comes on in a second")
     eq(#run.lines, 4, "check, link, collection point, welcome")
     eq(run.lines[1].key, "IGUI_OA_Boot_Check")
     eq(run.lines[4].key, "IGUI_OA_Boot_Welcome")
     eq(run.lines[4].bright, true, "the last line is the bright one")
     local phase, shown = phaseAt(run, 0)
-    eq(phase, "console"); eq(shown, 0, "a black beat first")
-    eq(select(2, phaseAt(run, 499)), 0)
-    eq(select(2, phaseAt(run, 500)), 1)
-    eq(Seq.statusAt(run, 1), 1400, "the cursor blinks 0.9 s before the status")
-    eq(select(2, phaseAt(run, 2499)), 1)
-    eq(select(2, phaseAt(run, 2500)), 2, "the status is seen 1.1 s before the next line")
-    eq(Seq.appearAt(run, 3), 4500); eq(Seq.statusAt(run, 3), 5400)
-    eq(select(2, phaseAt(run, 6199)), 3, "a beat before the welcome")
-    eq(select(2, phaseAt(run, 6200)), 4)
-    eq(Seq.statusAt(run, 4), 6200, "the welcome has no cursor")
-    eq(phaseAt(run, 9199), "console", "the welcome is held 3 s")
-    eq(run.consoleEnd, 9200)
-    phase, shown = phaseAt(run, 9200)
+    eq(phase, "console"); eq(shown, 0, "the screen coming on first")
+    eq(select(2, phaseAt(run, 1499)), 0, "then a black beat")
+    eq(select(2, phaseAt(run, 1500)), 1)
+    eq(Seq.statusAt(run, 1), 2400, "the cursor blinks 0.9 s before the status")
+    eq(select(2, phaseAt(run, 3499)), 1)
+    eq(select(2, phaseAt(run, 3500)), 2, "the status is seen 1.1 s before the next line")
+    eq(Seq.appearAt(run, 3), 5500); eq(Seq.statusAt(run, 3), 6400)
+    eq(select(2, phaseAt(run, 7199)), 3, "a beat before the welcome")
+    eq(select(2, phaseAt(run, 7200)), 4)
+    eq(Seq.statusAt(run, 4), 7200, "the welcome has no cursor")
+    eq(phaseAt(run, 10199), "console", "the welcome is held 3 s")
+    eq(run.consoleEnd, 10200)
+    phase, shown = phaseAt(run, 10200)
     eq(phase, "collapse"); eq(shown, 4, "all the lines are still there as the switch-off starts")
-    eq(run.fadeAt, 9480)
-    local _, _, t = phaseAt(run, 9340)
+    eq(run.fadeAt, 10480)
+    local _, _, t = phaseAt(run, 10340)
     near(t, 0.5, 1e-9, "halfway through the switch-off")
-    phase, _, t = phaseAt(run, 9480)
+    phase, _, t = phaseAt(run, 10480)
     eq(phase, "fade"); eq(t, 0)
-    near(select(3, phaseAt(run, 9655)), 0.5, 1e-9)
-    eq(phaseAt(run, 9829), "fade")
-    eq(phaseAt(run, 9830), "done", "the fade-in lasts 0.35 s")
+    near(select(3, phaseAt(run, 10655)), 0.5, 1e-9)
+    eq(phaseAt(run, 10829), "fade")
+    eq(phaseAt(run, 10830), "done", "the fade-in lasts 0.35 s")
     eq(phaseAt(run, 99999), "done")
 end)
 
@@ -56,7 +57,7 @@ test("the run counts from the first frame that asks, and a clock gone back is th
     local phase, shown = Seq.state(run, 5000)
     eq(run.start, 5000); eq(phase, "console"); eq(shown, 0)
     eq(select(2, Seq.state(run, 4000)), 0, "an earlier time reads as the start")
-    eq(select(2, Seq.state(run, 5000 + 4500)), 3)
+    eq(select(2, Seq.state(run, 5000 + 5500)), 3)
 end)
 
 test("a click or a key skips straight to the fade-in, once", function()
@@ -73,27 +74,27 @@ test("a click or a key skips straight to the fade-in, once", function()
     -- during the switch-off too
     run = Seq.new(false, false)
     Seq.state(run, 0)
-    eq((Seq.state(run, 9300)), "collapse")
-    Seq.skip(run, 9300)
-    eq((Seq.state(run, 9300)), "fade")
+    eq((Seq.state(run, 10300)), "collapse")
+    Seq.skip(run, 10300)
+    eq((Seq.state(run, 10300)), "fade")
     -- before the first frame
     run = Seq.new(false, false)
     Seq.skip(run, 700)
     eq((Seq.state(run, 700)), "fade")
 end)
 
-test("the first open of a field terminal is the long version, about 15.5 s (skippable, and only once)", function()
+test("the first open of a field terminal is the long version, about 16.5 s (skippable, and only once)", function()
     local run = Seq.new(true, false)
     eq(#run.lines, 7, "three more self-tests than an ordinary open")
     local keys = {}
     for i, line in ipairs(run.lines) do keys[i] = line.key end
     eq(keys[2], "IGUI_OA_Boot_Storage"); eq(keys[3], "IGUI_OA_Boot_Clock"); eq(keys[5], "IGUI_OA_Boot_Server")
     eq(keys[7], "IGUI_OA_Boot_Welcome")
-    truthy(run.fadeAt >= 15000 and run.fadeAt <= 16000, "fade-in starts at " .. run.fadeAt)
-    eq(select(2, phaseAt(run, 599)), 0)
-    eq(select(2, phaseAt(run, 600)), 1)
-    eq(select(2, phaseAt(run, 12299)), 6)
-    eq(select(2, phaseAt(run, 12300)), 7, "the welcome at 12.3 s")
+    truthy(run.fadeAt >= 16000 and run.fadeAt <= 17000, "fade-in starts at " .. run.fadeAt)
+    eq(select(2, phaseAt(run, 1599)), 0)
+    eq(select(2, phaseAt(run, 1600)), 1)
+    eq(select(2, phaseAt(run, 13299)), 6)
+    eq(select(2, phaseAt(run, 13300)), 7, "the welcome at 13.3 s")
     eq(phaseAt(run, run.consoleEnd - 1), "console")
     eq(phaseAt(run, run.consoleEnd), "collapse")
     Seq.skip(run, 1000 + 300)
@@ -179,32 +180,39 @@ test("the switch-off: the content falls to a line, the line shrinks to a dot and
     end
 end)
 
-test("what the console shows changes exactly when its drawing does: a line, its end, the cursor's blink", function()
-    local run = Seq.new(false, false)
-    run.start = 0
-    local last, lastSig, changes = nil, nil, 0
-    for e = 0, run.consoleEnd - 1, 5 do
-        local phase, shown = Seq.state(run, e)
-        eq(phase, "console")
-        local sig = tostring(shown)
-        if shown > 0 then
-            if e >= Seq.statusAt(run, shown) then sig = sig .. ":ended"
-            else sig = sig .. ":" .. tostring(Seq.cursorOn(e - Seq.appearAt(run, shown))) end
+test("what the console shows moves every frame: the screen coming on, the static behind the lines, the switch-off", function()
+    for _, crude in ipairs({ false, true }) do
+        local run = Seq.new(false, crude)
+        run.start = 0
+        for _, at in ipairs({ 0, 300, 1234, run.consoleEnd + 10 }) do
+            local phase, shown, _, e = Seq.state(run, at)
+            eq(Seq.look(run, phase, shown, e), at)
         end
-        local look = Seq.look(run, phase, shown, e)
-        eq(look ~= last, sig ~= lastSig, "at " .. e .. " ms")
-        if look ~= last then changes = changes + 1 end
-        last, lastSig = look, sig
     end
-    truthy(changes > 8 and changes < 40, "a few dozen changes, not one a frame")
-    local phase, shown, _, e = Seq.state(run, run.consoleEnd + 10)
-    eq(phase, "collapse")
-    eq(Seq.look(run, phase, shown, e), e, "the switch-off moves every frame")
-    truthy(e > last)
-    local crude = Seq.new(false, true)
-    crude.start = 0
-    phase, shown, _, e = Seq.state(crude, 1234)
-    eq(Seq.look(crude, phase, shown, e), 1234, "the crude console flickers: every frame")
+end)
+
+test("the screen comes on: a dot, a line across, the picture opening in a flash that dies down, then nothing", function()
+    local w, band, a, flash = Seq.powerOn(0)
+    eq(w, 0, "a dot"); eq(band, 0); eq(a, 0, "out at first"); eq(flash, 0)
+    w, band, a = Seq.powerOn(Seq.DOT_MS - 1)
+    eq(w, 0); truthy(a > 0.9, "the dot bright")
+    w, band, a = Seq.powerOn(Seq.DOT_MS + Seq.LINE_MS / 2)
+    truthy(w > 0.5 and w < 1, "the line drawing out"); eq(band, 0); eq(a, 1)
+    local at = Seq.DOT_MS + Seq.LINE_MS
+    w, band, a, flash = Seq.powerOn(at + Seq.OPEN_MS / 2)
+    eq(w, 1); truthy(band > 0.5 and band < 1, "opening"); near(a, 0.5, 1e-9); eq(flash, Seq.FLASH)
+    w, band, a, flash = Seq.powerOn(at + Seq.OPEN_MS)
+    eq(band, 1); eq(a, 0); near(flash, Seq.FLASH, 1e-9, "the flash at its height once open")
+    local _, _, _, later = Seq.powerOn(Seq.POWER_MS - 1)
+    truthy(later < 0.01, "and died down")
+    eq(Seq.powerOn(Seq.POWER_MS), nil, "on")
+    local last = 0
+    for e = 0, Seq.POWER_MS - 1, 10 do
+        local ww, bb = Seq.powerOn(e)
+        truthy(ww + bb >= last, "never closes again")
+        last = ww + bb
+    end
+    truthy(Seq.POWER_MS < Seq.appearAt(Seq.new(false, false), 1), "the first line comes after it")
 end)
 
 test("the crude screen jolts now and then: short bursts, a few units, dying out, the same every time", function()

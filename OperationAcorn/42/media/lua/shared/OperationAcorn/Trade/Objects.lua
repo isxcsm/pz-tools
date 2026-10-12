@@ -8,6 +8,7 @@ require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Sprites"
 require "OperationAcorn/Chunks"
+require "OperationAcorn/Lights"
 require "OperationAcorn/Trade/Trade"
 local OA = OperationAcorn
 local Trade = OA.Trade
@@ -241,12 +242,21 @@ function Objects.isUpgraded(object)
     return object:getModData()[Objects.UPGRADED] == true
 end
 
--- Shows a terminal's power: its lit or dark tile, when that changed.
+-- The light a terminal's screen gives off around it at night while it has power (OA.Lights): the crude one's phosphor
+-- green, the field terminal's warm white. { r, g, b, radius in squares }.
+Objects.TERMINAL_LIGHTS = {
+    crude = { 0.2, 0.5, 0.25, 3 },
+    field = { 0.5, 0.46, 0.34, 3 },
+}
+
+-- Shows a terminal's power: its lit or dark tile, when that changed, and the light of its screen.
 function Objects.showTerminal(object)
     local square = object:getSquare()
     if not square then return end
     local facing = object:getModData().OA_Facing or "S"
-    Objects.setSprite(object, Objects.terminalSprite(facing, Objects.powered(square), Objects.isUpgraded(object)))
+    local on, upgraded = Objects.powered(square), Objects.isUpgraded(object)
+    Objects.setSprite(object, Objects.terminalSprite(facing, on, upgraded))
+    OA.Lights.set(object, on and Objects.TERMINAL_LIGHTS[upgraded and "field" or "crude"] or nil)
 end
 
 -- What the delivery box's container takes: items the team accepts (P1's rule), nothing otherwise.

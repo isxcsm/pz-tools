@@ -1,5 +1,6 @@
 -- The terminal window's boot sequence (DESIGN-terminal 12): the timing and the state of it, with no drawing and no
--- game calls (Trade/TerminalBoot draws it, Trade/TerminalWindow runs it). Every open the window body is black and
+-- game calls (Trade/TerminalBoot draws it, Trade/TerminalWindow runs it). Every open the screen comes on first (a tube
+-- warming up: a dot, a line across, the picture opening in a flash), its static running behind all of the boot; then
 -- console lines print one at a time; then the content collapses into a bright line that shrinks to a dot (the switch-off
 -- of a tube), and the tabs fade in from black. Each check line prints its words, a cursor blinks after them, and then
 -- what it ends with stands where the cursor was. The first open of a field terminal is the long version, with a few more
@@ -17,7 +18,14 @@ OA.Trade.BootSeq = Seq
 
 local floor, ceil, min, max = math.floor, math.ceil, math.min, math.max
 
--- The console, paced for the eye: a black beat, then each line: its words and the cursor blinking WAIT_MS (time to read
+-- The screen coming on, before anything is printed: a dot brightens in the middle (DOT_MS), draws out into a line
+-- across (LINE_MS), the line opens into the whole screen in a flash (OPEN_MS) that dies down to the dark screen and its
+-- static (the rest of POWER_MS). The eye is on the screen when the first line comes.
+Seq.POWER_MS, Seq.DOT_MS, Seq.LINE_MS, Seq.OPEN_MS = 1000, 160, 200, 240
+-- The flash's brightness as the screen opens.
+Seq.FLASH = 0.35
+
+-- The console, paced for the eye: after the screen came on a black beat, then each line: its words and the cursor blinking WAIT_MS (time to read
 -- them and wait; the crude terminal's weak signal WEAK_WAIT_MS), what it ends with, held GAP_MS before the next line
 -- takes the eye away (time to see the result); WELCOME_MS after the last result the welcome, held `hold` before the
 -- switch-off. The long one is the first open of a field terminal. The cursor is on and off BLINK_MS each (a blink, not
@@ -69,7 +77,7 @@ function Seq.new(first, crude)
     run.lines = Seq.lines(first, crude)
     -- when each line appears and when what it ends with replaces the cursor (ms after the start)
     run.at, run.statusAt = {}, {}
-    local now = t.black
+    local now = Seq.POWER_MS + t.black
     for i, line in ipairs(run.lines) do
         if line.status then
             run.at[i] = now
@@ -121,14 +129,29 @@ function Seq.state(run, now)
 end
 
 -- What the console shows at `e` ms in `phase` with `shown` lines, as a number that changes when the drawing does: the
--- normal console's lines, whether the last one has ended and its cursor's blink; the crude console's flicker and
--- garbling and the switch-off move every frame, so for them it is the time itself (always above the console's few
--- states, since the switch-off starts at consoleEnd).
+-- screen coming on, the static scrolling behind the lines and the switch-off move every frame, so it is the time
+-- itself.
 function Seq.look(run, phase, shown, e)
-    if phase ~= "console" or run.crude then return e end
-    if shown == 0 then return 0 end
-    if e >= Seq.statusAt(run, shown) then return shown * 4 + 2 end
-    return shown * 4 + (Seq.cursorOn(e - Seq.appearAt(run, shown)) and 1 or 0)
+    return e
+end
+
+-- The screen coming on at `e` ms: the line's width (0: the dot, to 1: across), how much of the height is open (0 to 1),
+-- the line's brightness and the flash over what is open; nil once it is on.
+function Seq.powerOn(e)
+    if e >= Seq.POWER_MS then return nil end
+    if e < Seq.DOT_MS then return 0, 0, e / Seq.DOT_MS, 0 end
+    e = e - Seq.DOT_MS
+    if e < Seq.LINE_MS then
+        local u = 1 - e / Seq.LINE_MS
+        return 1 - u * u, 0, 1, 0
+    end
+    e = e - Seq.LINE_MS
+    if e < Seq.OPEN_MS then
+        local v = 1 - e / Seq.OPEN_MS
+        return 1, 1 - v * v * v, v, Seq.FLASH
+    end
+    local u = 1 - (e - Seq.OPEN_MS) / (Seq.POWER_MS - Seq.DOT_MS - Seq.LINE_MS - Seq.OPEN_MS)
+    return 1, 1, 0, Seq.FLASH * u * u
 end
 
 -- A click or a key: the fade-in starts now (a run that is already fading or done is left alone).
