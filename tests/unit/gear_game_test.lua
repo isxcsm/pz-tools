@@ -11,6 +11,8 @@ require "OperationAcorn/Gear/Server"
 local OA = OperationAcorn
 local Gear = OA.Gear
 local Rules = Gear.Rules
+-- the game's body locations a bag is worn at (registry objects in the game; any distinct values do here)
+ItemBodyLocation = ItemBodyLocation or { BACK = "back", FANNY_PACK_FRONT = "fannypackfront" }
 local K = Rules.KEY
 
 -- ---------------------------------------------------------------------------------------------------------------------
@@ -61,6 +63,7 @@ local function newItem(fullType, opts)
     opts = opts or {}
     nextId = nextId + 1
     local item = { id = nextId, fullType = fullType, weight = opts.weight or 0.5, bag = opts.capacity ~= nil,
+        slot = opts.slot or (opts.capacity ~= nil and ItemBodyLocation.BACK or nil),
         reduction = opts.reduction or 0, inner = { capacity = opts.capacity or 0 }, synced = 0 }
     function item:getID() return self.id end
     function item:getFullType() return self.fullType end
@@ -75,6 +78,8 @@ local function newItem(fullType, opts)
     function item:getContainer() return self.container end
     function item:getActualWeight() return self.weight end
     function item:IsInventoryContainer() return self.bag end
+    function item:canBeEquipped() return self.slot end
+    if opts.noSlot then item.slot = nil end
     function item:getItemContainer() return self.inner end
     function item:setCapacity(n) self.inner.capacity = n end
     function item:getWeightReduction() return self.reduction end
@@ -625,8 +630,19 @@ test("the shop's targets are the bags the character has, by id, and a second bag
     player.inventory:AddItem(second)
     local hammer = newItem("Base.Hammer")
     player.inventory:AddItem(hammer)
+    -- a key ring and a fanny pack are containers, not backpacks: no bag kit goes to them
+    local ring = newItem("Base.KeyRing", { capacity = 1, noSlot = true })
+    local fanny = newItem("Base.Bag_FannyPackFront", { capacity = 4, slot = ItemBodyLocation.FANNY_PACK_FRONT })
+    player.inventory:AddItem(ring)
+    player.inventory:AddItem(fanny)
     local targets = Gear.bagTargets(player)
-    eq(#targets, 2, "the hammer is not a bag")
+    eq(#targets, 2, "the hammer, the key ring and the fanny pack are not backpacks")
+    eq(Gear.isBackpack(ring), false)
+    eq(Gear.isBackpack(fanny), false)
+    local kit = newItem("OperationAcorn.KitBagCapacity")
+    player.inventory:AddItem(kit)
+    local ok, why = Gear.fitBag(player, kit, ring)
+    eq(ok, false); eq(why, "bag", "a kit is not fitted to a key ring")
     eq(targets[1].target, Gear.bagKey(first))
     eq(targets[2].target, Gear.bagKey(second))
     eq(targets[1].name, "Pack #1")

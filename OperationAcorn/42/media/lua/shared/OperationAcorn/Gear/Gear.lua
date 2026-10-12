@@ -223,13 +223,21 @@ local function numbered(list)
     return list
 end
 
--- The bags a character has (top level and worn): { { target = key, name }, ... } for the shop's order.
+-- Whether an item is a bag the bag kits go to: one worn on the back (a backpack; not a key ring, a fanny pack, a
+-- satchel or a bag held in the hand).
+function Gear.isBackpack(item)
+    if not (item and item:IsInventoryContainer()) then return false end
+    local slot = item.canBeEquipped and item:canBeEquipped()
+    return slot ~= nil and ItemBodyLocation ~= nil and slot == ItemBodyLocation.BACK
+end
+
+-- The backpacks a character has (top level and worn): { { target = key, name }, ... } for the shop's order.
 function Gear.bagTargets(character)
     local found = {}
     local items = character:getInventory():getItems()
     for i = 0, items:size() - 1 do
         local item = items:get(i)
-        if item:IsInventoryContainer() then
+        if Gear.isBackpack(item) then
             found[#found + 1] = { target = Gear.bagKey(item), name = item:getDisplayName() }
         end
     end
@@ -254,7 +262,7 @@ function Gear.vehicleTargets(character, kind, radius)
     return numbered(found)
 end
 
--- The bags and the kits a character carries, in any container: { key, bags = { item }, kits = { [kind] = { item } } }.
+-- The backpacks and the kits a character carries, in any container: { key, bags = { item }, kits = { [kind] = { item } } }.
 -- Found in one pass through the inventory, and kept while the inventory's signature (OA.signature) is the same: the
 -- menus and tooltips that need them are drawn again and again, and the inventory may hold thousands of items. A kit or
 -- a bag moved between two bags of the inventory changes no signature, but is still carried, and that is all this says.
@@ -277,7 +285,7 @@ function Gear.carried(character)
             found.kits[kind] = found.kits[kind] or {}
             table.insert(found.kits[kind], item)
         end
-        if item:IsInventoryContainer() then table.insert(found.bags, item) end
+        if Gear.isBackpack(item) then table.insert(found.bags, item) end
     end
     carriedCache[character] = found
     return found
@@ -387,12 +395,12 @@ function Gear.refreshBag(bag)
 end
 
 -- Fits a bag kit to a bag: counts it, writes it into the bag, uses the kit up. Returns true and the bag's new value
--- (the capacity, or the weight reduction), or false and the reason: "kit" (not a bag kit), "bag" (not a bag),
+-- (the capacity, or the weight reduction), or false and the reason: "kit" (not a bag kit), "bag" (not a backpack),
 -- "target" (the kit was ordered for another bag).
 function Gear.fitBag(character, kit, bag)
     local kind = Gear.kindOfItem(kit)
     if Rules.SCOPE[kind] ~= "bag" then return false, "kit" end
-    if not bag or not bag.IsInventoryContainer or not bag:IsInventoryContainer() or bag == kit then return false, "bag" end
+    if not bag or not bag.IsInventoryContainer or not Gear.isBackpack(bag) or bag == kit then return false, "bag" end
     if not Rules.matches(Gear.targetOf(kit), Gear.bagKey(bag)) then return false, "target" end
     local md = bag:getModData()
     if md[K.BAG_BASE_CAP] == nil then

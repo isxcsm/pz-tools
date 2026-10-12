@@ -200,7 +200,7 @@ local function onFillInventory(playerNum, context, items)
             done.bag = true
             -- a bag that was fitted before is written again from its kits (the API may have come or gone since)
             if item:hasModData() then pcall(Gear.refreshBag, item) end
-            adders[#adders + 1] = function() addFitKitMenu(context, player, item) end
+            if Gear.isBackpack(item) then adders[#adders + 1] = function() addFitKitMenu(context, player, item) end end
         end
     end
     for i = #adders, 1, -1 do adders[i]() end
