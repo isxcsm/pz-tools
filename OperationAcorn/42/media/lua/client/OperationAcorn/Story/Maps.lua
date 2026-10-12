@@ -1,7 +1,8 @@
 -- What this mod draws on the maps (DESIGN-terminal 6.6, 8): the mission's area as a soft disc in a ring of dashes that
 -- slowly march round it (teal; a story mission's sky blue) with a pulse running out of it, a pin dropped on its middle,
 -- the way from the player to it as thick dashes marching toward it, the player's own pin, and the supply crates left
--- by the helicopter; and the world map opened to show the player and the circle together. The minimap shows less of
+-- by the helicopter; once a piece is found, a pin where its item is instead of the circle (on the player while the
+-- player carries it); and the world map opened to show the player and the circle together. The minimap shows less of
 -- it, smaller: the disc, the ring, the way and the pin, still.
 -- It is drawn by this mod over the game's map every frame a map is open: after the world map's own prerender (above
 -- the map, its symbols and its darkening; below the map's panels and buttons, which are its children), and after the
@@ -84,10 +85,17 @@ local shownAt = {}
 -- difference).
 local BASE = getTimestampMs()
 
+-- Where a found piece's item is now, in a game that has the items (single player: the missions' Game); elsewhere the
+-- place the mission last kept.
+local function whereNow()
+    local game = OA.Missions and OA.Missions.game
+    return game and game.whereNow or nil
+end
+
 -- Worked out again for a player: when a map opens, and when the mission or the crates change.
 function Maps.rebuild(playerNum)
     local character = getSpecificPlayer(playerNum)
-    scenes[playerNum] = character and View.scene(OA.Client.record(character)) or nil
+    scenes[playerNum] = character and View.scene(OA.Client.record(character), whereNow()) or nil
 end
 
 function Maps.refresh()
@@ -337,8 +345,18 @@ local function draw(el, scene, character, style, since)
     local UI = OA.Trade.UI
     local s = UI and UI.S or 1
     local now = getTimestampMs() - BASE
-    local circles = scene.circles
+    local circles, points = scene.circles, scene.points
     for i = 1, #circles do place(circles[i], style, s) end
+    -- A piece the player carries is where the player is, this frame.
+    local carried = false
+    for i = 1, #points do
+        local point = points[i]
+        if point.carried then
+            point.x, point.y = px, py
+            carried = true
+        end
+        place(point, style, s)
+    end
     for i = 1, #circles do drawFill(circles[i], style, now) end
     for i = 1, #circles do drawRing(circles[i], style, s, now) end
     if scene.lead then drawPath(scene.lead, style, s, now) end
@@ -351,7 +369,12 @@ local function draw(el, scene, character, style, since)
             drawPin(circle, index, style, s, since)
         end
     end
-    if style.me and #circles > 0 then drawMe(s, now) end
+    -- The pieces' pins; the one the player carries stands in for the player's own pin.
+    for i = 1, #points do
+        index = index + 1
+        drawPin(points[i], index, style, s, since)
+    end
+    if style.me and not carried and (#circles > 0 or #points > 0) then drawMe(s, now) end
 end
 
 -- After the world map's prerender (which draws over the map: its print media, stash maps and darkening).
@@ -403,13 +426,24 @@ local function viewOf()
     }
 end
 
+-- The area of FOUND_R squares round a found piece's item that the world map is fitted to.
+local FOUND_R = 30
+
 -- Opens the world map centred between the character and the circle of its mission (the special request's when `which`
--- is "special"), at the zoom that shows both.
+-- is "special"), or the place of a piece found, at the zoom that shows both.
 function Maps.show(character, which)
     local record = OA.Client.record(character)
-    local circle = View.circles(which == "special" and View.shownSpecial(record) or View.shown(record))[1]
-    if not circle or not (ISWorldMap and ISWorldMap.ShowWorldMap) then return end
+    local m = which == "special" and View.shownSpecial(record) or View.shown(record)
     local px, py = character:getX(), character:getY()
+    local circle = View.circles(m)[1]
+    if not circle then
+        local point = View.points(record, m, whereNow())[1]
+        if point then
+            if point.carried then point.x, point.y = px, py end
+            circle = { x = point.x + 0.5, y = point.y + 0.5, r = FOUND_R }
+        end
+    end
+    if not circle or not (ISWorldMap and ISWorldMap.ShowWorldMap) then return end
     local cx, cy, zoom = View.fit(px, py, circle, viewOf())
     ISWorldMap.ShowWorldMap(character:getPlayerNum(), cx, cy, zoom)
     -- What the map has now (its saved view setting is applied as it opens): fitted again when that changes the zoom.

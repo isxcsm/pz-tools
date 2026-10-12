@@ -322,15 +322,16 @@ test("the cooler's clock starts as it is picked up, not at the next look", funct
     local record, m = coolerMission()
     M.game.holds = function(item, id) return item.mission == id end
     TEST.hours = 10
-    M.pickedUp(record, { mission = "other" })
+    local function noData() return false end
+    M.pickedUp(record, { mission = "other", hasModData = noData })
     eq(m.carry.start, nil, "another item")
-    M.pickedUp(record, { mission = m.id })
+    M.pickedUp(record, { mission = m.id, hasModData = noData })
     eq(m.carry.start, 10)
     TEST.hours = 11
     M.game.cooler = {}
     M.tick(record)
     eq(m.carry.start, 10, "the look keeps the pickup's time")
-    M.pickedUp(record, { mission = m.id })
+    M.pickedUp(record, { mission = m.id, hasModData = noData })
     eq(m.carry.start, 10, "only the first pickup")
 end)
 
@@ -672,4 +673,38 @@ test("a piece destroyed is got again the way it was got, with as much time as th
     eq(M.pieceOf(record, "M0-999"), nil, "another mission's item")
     m.state = "sealed"
     eq(M.pieceOf(record, M.itemId(m, it.key)), nil, "a sealed mission's")
+end)
+
+test("a piece picked up is found and followed; a bag is looked into only while a piece is to be found", function()
+    local record = setup(1)
+    M.tick(record)
+    local m = M.active(record)
+    local it = m.items[1]
+    local tracked, bags = {}, 0
+    M.game.track = function(mission, piece, item) tracked[piece] = item end
+    M.game.whereNow = function(rec, mission, piece) if tracked[piece] then return 3, 4, 0, true end end
+    M.game.pieceIn = function(bag, id) bags = bags + 1; return bag.inner end
+    local function thing(id, inner)
+        local data = { OA_Mission = id }
+        return { inner = inner, hasModData = function() return id ~= nil end, getModData = function() return data end }
+    end
+    -- An item of no mission, then a bag holding the piece.
+    local bag = thing(nil, thing(M.itemId(m, it.key)))
+    local was = instanceof
+    instanceof = function(o, cls) return o == bag and cls == "InventoryContainer" end
+    M.lookForPiece(record, thing("M0-77"))
+    eq(it.found, nil)
+    M.lookForPiece(record, bag)
+    eq(bags, 1)
+    eq(it.found, true)
+    eq(it.where.x, 3)
+    eq(it.where.carried, true)
+    M.lookForPiece(record, bag)
+    eq(bags, 1, "every piece found: a bag is not looked into")
+    -- A destroyed piece is to be found again.
+    M.game.placeAgain = function() end
+    M.replacePiece(record, m, it)
+    eq(it.found, nil)
+    eq(it.where, nil)
+    instanceof = was
 end)

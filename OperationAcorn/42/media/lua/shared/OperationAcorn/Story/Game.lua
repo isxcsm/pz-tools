@@ -497,6 +497,7 @@ end
 -- The mission is over (or sealed): nothing of it waits any more. Items already placed stay in the world.
 function Game.release(m)
     Game.unregisterPiece(m.id, nil)
+    for _, it in ipairs(m.items or {}) do Game.untrack(m, it) end
 end
 
 -- Memory of what waits for containers is not saved: rebuilt from the records when the world starts.
@@ -557,6 +558,89 @@ OA.Chunks.handle("oa_place", function(entry, chunk)
     -- Placed: all its chunk entries go (unregisterPiece did it); this entry goes too.
     return done == true
 end)
+
+-- ---------------------------------------------------------------------------------------------------------------
+-- The items of the pieces found, followed for the maps (Missions.found). Not saved: a world loaded since follows an
+-- item again once the player carries it or picks it up.
+
+local followed = {}  -- "mission/key" -> the item
+local missed = {}    -- "mission/key" -> the inventory's signature when a search for it in the player's things failed
+
+local function pieceKey(m, it)
+    return m.id .. "/" .. tostring(it.key)
+end
+
+function Game.track(m, it, item)
+    local key = pieceKey(m, it)
+    followed[key], missed[key] = item, nil
+end
+
+function Game.untrack(m, it)
+    local key = pieceKey(m, it)
+    followed[key], missed[key] = nil, nil
+end
+
+-- Where an item is: the square it lies on, the object or vehicle whose container holds it (through the bags it is in),
+-- or the character who carries it (carried true). Nil when it is nowhere in the world (sealed away, burnt).
+function Game.whereIs(item)
+    for _ = 1, 16 do
+        local world = item:getWorldItem()
+        if world then
+            local sq = world:getSquare()
+            if not sq then return nil end
+            return sq:getX(), sq:getY(), sq:getZ(), false
+        end
+        local container = item:getContainer()
+        if not container then return nil end
+        local holder = container:getContainingItem()
+        if holder then
+            item = holder
+        else
+            local parent = container:getParent()
+            if parent and instanceof(parent, "IsoGameCharacter") then
+                return math.floor(parent:getX()), math.floor(parent:getY()), math.floor(parent:getZ()), true
+            end
+            local part = container:getVehiclePart()
+            local vehicle = part and part:getVehicle()
+            if vehicle then return math.floor(vehicle:getX()), math.floor(vehicle:getY()), math.floor(vehicle:getZ()), false end
+            local sq = container:getSourceGrid()
+            if not sq then return nil end
+            return sq:getX(), sq:getY(), sq:getZ(), false
+        end
+    end
+    return nil
+end
+
+-- Where a found piece is now: its item followed, or, when none is (a world loaded since), the player's things are
+-- searched for it, and again only once they changed (OA.signature). Nil when it is not known.
+function Game.whereNow(record, m, it)
+    local key = pieceKey(m, it)
+    local item = followed[key]
+    if item then
+        local x, y, z, carried = Game.whereIs(item)
+        if x then return x, y, z, carried end
+        followed[key] = nil
+    end
+    local p = Game.character(record)
+    if not p then return nil end
+    local inventory = p:getInventory()
+    local signature = OA.signature(inventory)
+    if missed[key] == signature then return nil end
+    -- oa-scan: ok (a found piece not followed, once for each change of the player's things)
+    item = inventory:getFirstEvalArgRecurse(predicateMission, Missions.itemId(m, it.key))
+    if not item then
+        missed[key] = signature
+        return nil
+    end
+    followed[key] = item
+    return Game.whereIs(item)
+end
+
+-- The piece of a mission in a bag the player picked up, or nil.
+function Game.pieceIn(bag, missionId)
+    -- oa-scan: ok (a bag picked up while a piece is still to be found)
+    return bag:getInventory():getFirstEvalArgRecurse(predicateMission, missionId)
+end
 
 -- ---------------------------------------------------------------------------------------------------------------
 -- A piece destroyed (Missions.replacePiece).
@@ -622,7 +706,8 @@ function Game.deliverInside(record, m, it)
     if not item then
         local character = Game.character(record)
         if character then
-            Game.giveMissionItem(character, it.type, Missions.itemId(m, it.key), it.mods)
+            local given = Game.giveMissionItem(character, it.type, Missions.itemId(m, it.key), it.mods)
+            if given then Missions.found(record, m, it, given) end
         end
     end
     it.placed = true

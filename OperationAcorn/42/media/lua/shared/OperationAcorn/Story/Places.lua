@@ -98,12 +98,17 @@ function Places.pickCandidate(cands, anchorX, anchorY, lo, hi, opts, int)
     return best, "nearest"
 end
 
--- The map circle: centre moved off the place by up to a third of the radius, so that the building is somewhere in
--- the circle and not in its middle. Returns x, y, radius (squares).
+-- How far the map circle's centre may be from the place, of the radius: the place is anywhere in the circle but its
+-- outer ring (a building there still lies inside).
+Places.CIRCLE_OFF = 0.7
+
+-- The map circle: centre moved off the place so that the place is anywhere in the inner CIRCLE_OFF of the circle with
+-- the same chance (the offset's square root of a uniform draw; a uniform offset keeps the place near the middle, and the
+-- middle would tell it). Returns x, y, radius (squares).
 function Places.circle(x, y, radius, float)
     float = float or OA.randomFloat
     local angle = float(0, 2 * math.pi)
-    local off = float(0, radius / 3)
+    local off = radius * Places.CIRCLE_OFF * math.sqrt(float(0, 1))
     return math.floor(x + math.cos(angle) * off + 0.5), math.floor(y + math.sin(angle) * off + 0.5), radius
 end
 

@@ -13,6 +13,7 @@ require "OperationAcorn/Story/Rewards"
 require "OperationAcorn/Story/Places"
 require "OperationAcorn/Story/Story"
 require "OperationAcorn/Story/Docs"
+require "OperationAcorn/Story/View"
 local OA = OperationAcorn
 local Data, Rewards, Places, Story, Docs = OA.StoryData, OA.Rewards, OA.Places, OA.Story, OA.StoryDocs
 local Missions = {}
@@ -167,6 +168,30 @@ local function circleFor(m, x, y)
     local r = Places.circleRadius(m.level)
     local cx, cy = Places.circle(x, y, r)
     m.area = { x = cx, y = cy, r = r }
+end
+
+-- How far from the first building a scattered mission's other buildings may be, of the circle's radius.
+local SCATTER_REACH = 0.5
+
+-- One circle that holds several places (a scattered mission's buildings), 10 squares in from its edge: moved off their
+-- middle as Places.circle moves it off one place, tried a few times; their middle when no try holds them.
+local function circleAround(m, places, level)
+    local r = Places.circleRadius(level)
+    local sx, sy = 0, 0
+    for _, p in ipairs(places) do sx, sy = sx + p.x, sy + p.y end
+    local mx, my = sx / #places, sy / #places
+    for _ = 1, 8 do
+        local cx, cy = Places.circle(mx, my, r)
+        local holds = true
+        for _, p in ipairs(places) do
+            if Places.distance(p.x, p.y, cx, cy) > r - 10 then holds = false end
+        end
+        if holds then
+            m.area = { x = cx, y = cy, r = r }
+            return
+        end
+    end
+    m.area = { x = math.floor(mx + 0.5), y = math.floor(my + 0.5), r = r }
 end
 
 -- The points a mission's zombie density is read at: the middle of its circle and four points round it (a few chunks of
@@ -518,22 +543,22 @@ local function createScatter(record, level, kind)
     local m = newMission(record, "regular", level, nil)
     m.title = kind.item
     m.anchor = { x = ax, y = ay }
-    circleFor(m, p.x, p.y)
     local pieces = { p }
     local want = OA.random(Data.SCATTER_PIECES[1], Data.SCATTER_PIECES[2])
-    local area = m.area
+    local reach = Places.circleRadius(level) * SCATTER_REACH
     local function at(i)
         local x, y, ok = g.building(i)
         if x and usedBuilding(pieces, x, y) then return nil end
         return x, y, ok
     end
     for _ = 2, want do
-        local idx = Places.pickBuilding(g.buildingCount(), at, area.x, area.y, 0, area.r - 10, 200)
+        local idx = Places.pickBuilding(g.buildingCount(), at, p.x, p.y, 0, reach, 200)
         local info = idx and g.buildingInfo(idx)
-        -- a building the search had to take from outside the circle is not one of the area
-        if not info or Places.distance(info.x, info.y, area.x, area.y) > area.r - 10 then break end
+        -- a building the search had to take from farther is not one of the area
+        if not info or Places.distance(info.x, info.y, p.x, p.y) > reach then break end
         pieces[#pieces + 1] = buildingPlace(info)
     end
+    circleAround(m, pieces, level)
     local mods = { OA_Note = Data.ITEMS[kind.item].note and fieldNoteId(record) or nil }
     for i, piece in ipairs(pieces) do
         m.items[i] = placementFrom(kind.item, string.sub("ABC", i, i), piece, i == 1 and mods or {})
@@ -777,6 +802,7 @@ function Missions.tickOne(record, m, now)
     if m.swap and m.swap.stage == "waiting" then Missions.tickSwap(record, m, now) end
     if m.carry and g and g.findItem then Missions.tickCarry(record, m, now) end
     if m.field and m.field.stage == "calling" then Missions.tickField(record, m, now) end
+    if m.state == "open" and Missions.lookWhere(record, m) then OA.Sync.changed("missions", record.id) end
 end
 
 -- ---------------------------------------------------------------------------------------------------------------
@@ -809,6 +835,8 @@ end
 -- mission had from the start (never less than it had), and a cooler's warming starts again with the new one.
 function Missions.replacePiece(record, m, it)
     local g = game()
+    it.found, it.where = nil, nil
+    if g and g.untrack then g.untrack(m, it) end
     local sub
     if it.mode == "container" or it.mode == "floor" or it.mode == "case" then
         it.placed, it.at = false, nil
@@ -1001,10 +1029,71 @@ end
 function Missions.pickedUp(record, item)
     -- A survivor's things (Story/Scene): the first one taken says a line.
     if OA.Scene then OA.Scene.pickedUp(record, item) end
+    Missions.lookForPiece(record, item)
     local m = record.missions and record.missions.active
     if not (m and m.carry) or m.carry.start then return end
     local g = game()
     if g and g.holds and g.holds(item, m.id) then m.carry.start = OA.hours() end
+end
+
+-- ---------------------------------------------------------------------------------------------------------------
+-- A piece found: from then on the maps show where the item is instead of the mission's circle.
+
+Missions.fetched, Missions.allFound = OA.StoryView.fetched, OA.StoryView.allFound
+
+-- A piece is in the player's hands for the first time (picked up, taken, handed over): it is found, and its item is
+-- followed (Game.track) for the maps.
+function Missions.found(record, m, it, item)
+    local g = game()
+    if g and g.track then g.track(m, it, item) end
+    if it.found then return end
+    it.found = true
+    Missions.lookWhere(record, m)
+    OA.Sync.changed("missions", record.id)
+end
+
+-- An item came into the player's things: a running mission's piece, or a bag that holds one not found yet. A bag is
+-- looked into only while a piece is still to be found.
+function Missions.lookForPiece(record, item)
+    local md = item:hasModData() and item:getModData() or nil
+    local id = md and md.OA_Mission
+    if id then
+        local m, it = Missions.pieceOf(record, id)
+        if it then Missions.found(record, m, it, item) end
+        return
+    end
+    local g = game()
+    if not (g and g.pieceIn and instanceof(item, "InventoryContainer")) then return end
+    for _, m in ipairs(Missions.live(record)) do
+        if m.state == "open" and not Missions.allFound(m) then
+            local inner = g.pieceIn(item, m.id)
+            local innerId = inner and inner:getModData().OA_Mission
+            local found, it = Missions.pieceOf(record, innerId)
+            if it then Missions.found(record, found, it, inner) end
+        end
+    end
+end
+
+-- Where the found pieces are now (Game.whereNow: the item followed), kept on each piece as `where` = { x, y, z,
+-- carried } for the maps and saved with the mission. A piece whose item is not followed (a world loaded since) keeps
+-- the last place until its item is followed again: carried, or picked up. True when a place changed.
+function Missions.lookWhere(record, m)
+    local g = game()
+    if not (g and g.whereNow) then return false end
+    local changed = false
+    for _, it in ipairs(m.items or {}) do
+        if it.found then
+            local x, y, z, carried = g.whereNow(record, m, it)
+            if x then
+                local w = it.where
+                if not w or w.x ~= x or w.y ~= y or w.z ~= z or (w.carried == true) ~= carried then
+                    it.where = { x = x, y = y, z = z, carried = carried or nil }
+                    changed = true
+                end
+            end
+        end
+    end
+    return changed
 end
 
 -- Real milliseconds at least between two looks for the sample cooler in a character's things. A look walks the whole
@@ -1140,11 +1229,13 @@ function Missions.soil(record, character)
         local x, y = g.playerPosition(record)
         if not x or Places.distance(x, y, m.soil.x, m.soil.y) > 25 then return false end
     end
+    local item
     if g.giveMissionItem then
-        g.giveMissionItem(character, Data.fullType("SoilSample"), m.id, { OA_Stake = m.soil.stake })
+        item = g.giveMissionItem(character, Data.fullType("SoilSample"), m.id, { OA_Stake = m.soil.stake })
     end
     m.soil.taken = true
     m.items[1] = { key = "A", type = Data.fullType("SoilSample"), mode = "given", placed = true }
+    if item then Missions.found(record, m, m.items[1], item) end
     OA.Sync.changed("missions", record.id)
     return true
 end

@@ -64,12 +64,57 @@ function View.live(record)
     return list
 end
 
+-- Whether a piece is one the player fetches (the map's circle goes once each of these is found): not a plain one (the
+-- key of a locked room) and not the case a swap is left in.
+function View.fetched(m, it)
+    if it.plain then return false end
+    if m.swap and it.key == "CASE" then return false end
+    return true
+end
+
+-- Whether every piece the player fetches is found (false for a mission with none yet: a swap before its record).
+function View.allFound(m)
+    local any = false
+    for _, it in ipairs(m.items or {}) do
+        if View.fetched(m, it) then
+            if not it.found then return false end
+            any = true
+        end
+    end
+    return any
+end
+
 -- The circles to draw for a mission: { { x =, y =, r =, dim = bool }, ... } (a sealed or finished mission has none).
+-- A circle goes once what it is for is found, and the maps show the item instead (View.points): a second circle (two
+-- buildings compared) is the second piece's, the first is the first piece's then, else every piece's. A field mission
+-- keeps its circle: the call is made in it.
 function View.circles(m)
     local list = {}
     if not m or m.state == "sealed" then return list end
-    if m.area then list[#list + 1] = { x = m.area.x, y = m.area.y, r = m.area.r } end
-    if m.area2 then list[#list + 1] = { x = m.area2.x, y = m.area2.y, r = m.area2.r, dim = true } end
+    local keep = m.field ~= nil
+    local items = m.items or {}
+    local first
+    if m.area2 then first = items[1] and items[1].found else first = View.allFound(m) end
+    if m.area and (keep or not first) then list[#list + 1] = { x = m.area.x, y = m.area.y, r = m.area.r } end
+    if m.area2 and (keep or not (items[2] and items[2].found)) then
+        list[#list + 1] = { x = m.area2.x, y = m.area2.y, r = m.area2.r, dim = true }
+    end
+    return list
+end
+
+-- Where the found pieces of a mission are: { { x =, y =, z =, carried = bool }, ... } (a sealed mission has none). `where`
+-- (optional; Game.whereNow in a game that has the items) tells it now; else the place the mission last kept.
+function View.points(record, m, where)
+    local list = {}
+    if not m or m.state == "sealed" then return list end
+    for _, it in ipairs(m.items or {}) do
+        if it.found and View.fetched(m, it) then
+            local x, y, z, carried
+            if where then x, y, z, carried = where(record, m, it) end
+            if not x and it.where then x, y, z, carried = it.where.x, it.where.y, it.where.z, it.where.carried end
+            if x then list[#list + 1] = { x = x, y = y, z = z, carried = carried == true } end
+        end
+    end
     return list
 end
 
@@ -89,8 +134,8 @@ end
 -- else the special request's), the crates left ({ x, y }), and whether there is nothing (`empty`: the maps draw
 -- nothing then). Places are the middles of their squares. Worked out when a map opens and when the mission or the
 -- crates change; the maps draw it every frame (the way from where the player stands then).
-function View.scene(record)
-    local scene = { circles = {}, crates = {} }
+function View.scene(record, where)
+    local scene = { circles = {}, crates = {}, points = {} }
     for _, m in ipairs(View.shownList(record)) do
         local color = View.mapColor(m.kind)
         for _, c in ipairs(View.circles(m)) do
@@ -98,11 +143,25 @@ function View.scene(record)
             scene.circles[#scene.circles + 1] = circle
             if not scene.lead and not circle.dim then scene.lead = circle end
         end
+        local carried = false
+        for _, p in ipairs(View.points(record, m, where)) do
+            -- What the player carries is one pin on the player, however many pieces.
+            if not (p.carried and carried) then
+                carried = carried or p.carried
+                scene.points[#scene.points + 1] = { x = p.x + 0.5, y = p.y + 0.5, r = 0, color = color, carried = p.carried }
+            end
+        end
+    end
+    -- With no circle to go to, the way leads to the first piece the player does not carry.
+    if not scene.lead then
+        for _, p in ipairs(scene.points) do
+            if not p.carried then scene.lead = p; break end
+        end
     end
     for _, c in ipairs(View.crates(record)) do
         scene.crates[#scene.crates + 1] = { x = c.x + 0.5, y = c.y + 0.5 }
     end
-    scene.empty = #scene.circles == 0 and #scene.crates == 0
+    scene.empty = #scene.circles == 0 and #scene.crates == 0 and #scene.points == 0
     return scene
 end
 

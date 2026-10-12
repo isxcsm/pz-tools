@@ -99,6 +99,52 @@ test("the second circle is dim and the way never leads to it", function()
     eq(scene.lead, scene.circles[1])
 end)
 
+test("once its piece is found a circle goes and the item's place is shown; the carried ones are one pin", function()
+    local m = mission()
+    m.items = { { key = "A", found = true, where = { x = 40, y = 50, z = 1 } }, { key = "KEY", plain = true } }
+    eq(#View.circles(m), 0, "the key is no piece to fetch")
+    local points = View.points({}, m)
+    eq(#points, 1)
+    eq(points[1].x, 40)
+    eq(points[1].carried, false)
+    -- The game's place now goes before the place kept.
+    points = View.points({}, m, function() return 7, 8, 0, true end)
+    eq(points[1].x, 7)
+    eq(points[1].carried, true)
+    local scene = View.scene({ missions = { active = m } })
+    eq(#scene.circles, 0)
+    eq(#scene.points, 1)
+    eq(scene.points[1].x, 40.5)
+    eq(scene.lead, scene.points[1], "the way leads to the item")
+    eq(scene.empty, false)
+    m.items[2] = { key = "B", found = true, where = { x = 1, y = 2, z = 0, carried = true } }
+    m.items[1].where.carried = true
+    scene = View.scene({ missions = { active = m } })
+    eq(#scene.points, 1, "the carried pieces are one pin")
+    eq(scene.lead, nil, "no way to what the player carries")
+    -- A piece not yet found keeps the circle.
+    m.items[2].found = nil
+    eq(#View.circles(m), 1)
+    -- Two buildings compared: each circle goes with its own piece.
+    m.items = { { key = "A", found = true }, { key = "B" } }
+    m.area2 = { x = 5, y = 6, r = 70 }
+    local list = View.circles(m)
+    eq(#list, 1)
+    eq(list[1].dim, true)
+    -- A field mission keeps its circle: the call is made in it.
+    m.area2 = nil
+    m.items = { { key = "A", found = true } }
+    m.field = { stage = "needdevice" }
+    eq(#View.circles(m), 1)
+    -- A swap's case is not fetched: before its record there is nothing found, and the circle stays.
+    m.field = nil
+    m.swap = { stage = "needcase" }
+    m.items = { { key = "CASE", found = true } }
+    eq(#View.circles(m), 1)
+    eq(#View.points({}, m), 0)
+    eq(#View.points({}, mission("regular", "sealed")), 0)
+end)
+
 -- The zoom: the game's scale in pixels a square is 2^zoom * height / EARTH.
 local function scaleOf(zoom, height) return 2 ^ zoom * height / View.EARTH end
 

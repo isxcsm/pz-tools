@@ -99,12 +99,17 @@ test("closed candidates are not offered", function()
     eq(P.pickCandidate({ { x = 300, y = 0, closed = true } }, 0, 0, 150, 600), nil)
 end)
 
-test("the map circle holds the place", function()
-    for _ = 1, 30 do
+test("the map circle holds the place, anywhere but its outer ring and not kept near the middle", function()
+    local outer = 0
+    for i = 1, 400 do
         local cx, cy, r = P.circle(1000, 2000, 60)
-        truthy(P.distance(cx, cy, 1000, 2000) <= 60 / 3 + 1.5, "inside a third of the radius")
+        local d = P.distance(cx, cy, 1000, 2000)
+        truthy(d <= 60 * P.CIRCLE_OFF + 1.5, "inside the circle's inner part")
+        if d > 60 * P.CIRCLE_OFF / 2 then outer = outer + 1 end
         eq(r, 60)
     end
+    -- The same chance over the area: three quarters of the draws lie past half the offset.
+    truthy(outer > 400 * 0.6, "the middle is no hint: " .. outer)
 end)
 
 test("drop sites are spaced over the map", function()
