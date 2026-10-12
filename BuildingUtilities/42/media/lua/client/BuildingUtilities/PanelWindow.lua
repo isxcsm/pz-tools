@@ -300,8 +300,10 @@ function ISBUPanelWindow:createChildren()
     self:refresh()
 end
 
--- The body's width (design units).
-function ISBUPanelWindow:bodyWidth() return self.body:getWidth() end
+-- The body's width (design units): the window's, which the body spans. Read off the window: the body follows a
+-- width set in code only a frame later (its anchor), and the panes laid out meanwhile took the old one (seen in game:
+-- the list as wide as with the plan after the plan was hidden).
+function ISBUPanelWindow:bodyWidth() return UI.dp(self:getWidth()) end
 
 -- The list and, beside it, the plan with its share of the window, each at least so wide; the divider between them;
 -- the buttons at the right of the load bar (design units, across the body).
@@ -409,7 +411,10 @@ end
 function ISBUPanelWindow:setPlanShown(shown)
     PanelWindow.planShown = shown
     if self.plan:getIsVisible() == shown then return end
+    -- the list keeps its width; alone, it is at least as wide as a new window's (the plan takes all it can, so the
+    -- list beside it is often at its least)
     local listW = self.tabs:getWidth()
+    if not shown then listW = math.max(listW, LIST_W) end
     self.plan:setVisible(shown)
     self.splitter:setVisible(shown)
     local maxW = screenRoom()

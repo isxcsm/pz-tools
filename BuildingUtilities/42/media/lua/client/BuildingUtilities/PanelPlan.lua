@@ -45,10 +45,11 @@ local MIN_ZOOM, MAX_ZOOM, MAX_ZOOM_SCALE, DRAG = 0.5, 8, 48, 4
 -- Wheel notches over the floor strip scroll it by so many floors.
 local STRIP_SCROLL = 3
 -- The supply lines are drawn at fixed pixel widths, whatever the zoom (a bundle of them stays tidy): the line LINE_PX
--- wide over a dark casing CASING_PX wide, so that it reads over any room or the grid; the flow runs along it as dashes
--- DASH_PX wide in a dark rim DASH_RIM_PX wide (so they show over a producer or the box of their own light colour),
--- DASH_LEN_PX long and DASH_GAP_PX apart, moving FLOW_PX pixels a second. The rooms' outlines are WALL_PX wide.
-local LINE_PX, CASING_PX, DASH_PX, DASH_RIM_PX, DASH_LEN_PX, DASH_GAP_PX, FLOW_PX, WALL_PX = 1, 3, 2, 4, 7, 6, 28, 2
+-- wide over a dark casing CASING_PX wide, so that it reads over any room or the grid; the flow runs along it as square
+-- beads BEAD_PX wide, BEAD_GAP_PX apart, moving FLOW_PX pixels a second, and none over the squares at its ends (dashes
+-- there, drawn at any angle, came out spiky, and over a producer's or the box's light colour needed a dark rim that made
+-- a bundle of them a tangle). The rooms' outlines are WALL_PX wide.
+local LINE_PX, CASING_PX, BEAD_PX, BEAD_GAP_PX, FLOW_PX, WALL_PX = 1, 3, 3, 11, 22, 2
 -- The lines out to devices outside the building: a cool cyan, apart from the rooms' greens.
 local OUTSIDE_LINE = { 0.45, 0.78, 0.86 }
 -- The legend: its header's fold mark so wide, and it folds or opens over LEGEND_MS.
@@ -536,7 +537,8 @@ function ISBUPlan:layout()
     -- The box's place, on its floor; on another, the riser's under or over it.
     local boxFloor = data.box.z == self.floor
     local boxX, boxY = ox + (data.box.x + 0.5 - minX) * scale, oy + (data.box.y + 0.5 - minY) * scale
-    -- The dots' path along points, to the box's end (flow 1) or from it (-1), brighter than the line.
+    -- The beads' path along points, to the box's end (flow 1) or from it (-1), brighter than the line; none within
+    -- `margin` of its ends (the squares there).
     local function addFlow(points, colour, flow)
         local length, lengths = 0, {}
         for index = 2, #points do
@@ -547,6 +549,7 @@ function ISBUPlan:layout()
         end
         if length < 1 then return end
         self.flows[#self.flows + 1] = { points = points, lengths = lengths, length = length, toBox = flow > 0,
+            margin = math.max(scale, 8) / 2 + 2,
             r = math.min(1, colour[1] + 0.3), g = math.min(1, colour[2] + 0.3), b = math.min(1, colour[3] + 0.3) }
     end
     -- A line, drawn when shown: from the thing to the building, and for a producer on another floor than the box's on
@@ -858,21 +861,20 @@ local function legendFrame(plan, now)
     return math.floor(t * 100)
 end
 
--- A line between two places along a path (points and the lengths of its pieces), as far as it goes on each piece.
-local function drawSpan(plan, points, lengths, from, to, w, a, r, g, b)
+-- The place so far along a path (points and the lengths of its pieces).
+local function pointAt(points, lengths, along)
     local at = 0
     for index = 2, #points do
         local len = lengths[index]
-        local s, e = math.max(from, at), math.min(to, at + len)
-        if e > s and len > 0 then
+        if along <= at + len and len > 0 then
             local p, q = points[index - 1], points[index]
-            local t0, t1 = (s - at) / len, (e - at) / len
-            plan:drawLine(WHITE, p[1] + (q[1] - p[1]) * t0, p[2] + (q[2] - p[2]) * t0,
-                p[1] + (q[1] - p[1]) * t1, p[2] + (q[2] - p[2]) * t1, w, a, r, g, b)
+            local t = (along - at) / len
+            return p[1] + (q[1] - p[1]) * t, p[2] + (q[2] - p[2]) * t
         end
         at = at + len
-        if at >= to then return end
     end
+    local last = points[#points]
+    return last[1], last[2]
 end
 
 -- The legend's fold mark: a small solid triangle drawn pixel by pixel (lines drawn this small blur into a blob),
@@ -1032,34 +1034,23 @@ function ISBUPlan:render()
             UI.frame(self, square.x - 4, square.y - 4, size + 8, size + 8, P.bright, 1)
         end
     end
-    -- The flow: dashes running along each path with the clock, over the squares they run between (none laid out
-    -- while the switch shows no flow).
+    -- The flow: beads running along each path with the clock, whole pixels, between the squares at its ends (none
+    -- laid out while the switch shows no flow).
     if #self.flows > 0 then
         UI.live(self, flowFrame)
-        local dash, period = DASH_LEN_PX * px, (DASH_LEN_PX + DASH_GAP_PX) * px
-        local offset = BU.remainder(now / 1000 * FLOW_PX * px, period)
-        -- the dark rims first, then the dashes in a light tint of their line's colour
-        for pass = 1, 2 do
-            local dw = (pass == 1 and DASH_RIM_PX or DASH_PX) * px
-            local ext = pass == 1 and px or 0 -- a rim reaches a pixel past its dash's ends
-            for _, flow in ipairs(self.flows) do
-                local length = flow.length
-                local r, g, b, a = 0.02, 0.03, 0.05, 0.85
-                if pass == 2 then
-                    r, g, b, a = flow.r + (1 - flow.r) * 0.5, flow.g + (1 - flow.g) * 0.5, flow.b + (1 - flow.b) * 0.5, 1
+        local S, bead, gap = 1 / px, BEAD_PX * px, BEAD_GAP_PX * px
+        local offset = BU.remainder(now / 1000 * FLOW_PX * px, gap)
+        for _, flow in ipairs(self.flows) do
+            local length, margin = flow.length, flow.margin
+            local r, g, b = flow.r + (1 - flow.r) * 0.45, flow.g + (1 - flow.g) * 0.45, flow.b + (1 - flow.b) * 0.45
+            local along = offset
+            while along < length - margin do
+                if along > margin then
+                    local x, y = pointAt(flow.points, flow.lengths, flow.toBox and along or length - along)
+                    x, y = math.floor(x * S + 0.5) * px - bead / 2, math.floor(y * S + 0.5) * px - bead / 2
+                    self:drawRect(x, y, bead, bead, 1, r, g, b)
                 end
-                local start = offset - period
-                while start < length do
-                    local from, to = math.max(0, start - ext), math.min(length, start + dash + ext)
-                    if to > from then
-                        if flow.toBox then
-                            drawSpan(self, flow.points, flow.lengths, from, to, dw, a, r, g, b)
-                        else
-                            drawSpan(self, flow.points, flow.lengths, length - to, length - from, dw, a, r, g, b)
-                        end
-                    end
-                    start = start + period
-                end
+                along = along + gap
             end
         end
     end
