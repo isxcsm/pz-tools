@@ -1,6 +1,7 @@
--- The terminals' static: specks and streaks laid very faintly over the window's body, behind the tabs, scrolling
--- down and flickering between two tiles (tools/static_art.py): the crude terminal's a set with a weak signal, the field
--- terminal's fainter, an old screen still. The boot sequence draws the same behind its console (Trade/TerminalBoot). A panel of its
+-- The terminals' static: specks and streaks laid very faintly over the window's body, scrolling down and flickering
+-- between two tiles (tools/static_art.py): the crude terminal's behind the tabs, a set with a weak signal; the field
+-- terminal's over its screen, fainter (its panels are solid, and would hide it): an old tube's grain. The boot sequence
+-- draws the same behind its console, louder (Trade/TerminalBoot). A panel of its
 -- own, behind the strip and the views, followed each frame (Trade/UI live): with PZ Optimization only it is drawn
 -- afresh while the views' drawings are reused. It takes no clicks. The window's own weak-signal spells fade it with the
 -- rest (they are drawn over the children).
@@ -14,7 +15,11 @@ OATerminalStatic.TILES = { "media/textures/OA_Static_1.png", "media/textures/OA_
 -- The tiles' side (pixels), how faint the static is on each terminal (its tint's alpha), how fast it scrolls (pixels a
 -- second) and how often the two tiles swap (ms).
 OATerminalStatic.TILE = 256
-OATerminalStatic.ALPHAS = { crude = 0.2, field = 0.07 }
+OATerminalStatic.ALPHAS = { crude = 0.2, field = 0.08 }
+-- The terminals whose static goes over the screen (drawn by the window, OATerminalStatic.drawOver); this panel then
+-- only keeps the time. And how much louder the boot's empty screen shows it.
+OATerminalStatic.OVER = { field = true }
+OATerminalStatic.BOOT = 1.5
 OATerminalStatic.SPEED, OATerminalStatic.SWAP_MS = 40, 90
 
 function OATerminalStatic.alphaOf(tier)
@@ -49,6 +54,7 @@ function OATerminalStatic.frame(self, now)
 end
 
 function OATerminalStatic:prerender()
+    if OATerminalStatic.OVER[self.window.tier] then return end
     local tex = self.tiles[self.tileIndex or 1]
     if not tex then return end
     local S = OATerminalStatic
@@ -57,6 +63,20 @@ function OATerminalStatic:prerender()
     local y = (self.offset or 0) - S.TILE
     self:drawTextureTiled(tex, 0, y, self.width, self.height + S.TILE, c[1], c[2], c[3], S.alphaOf(self.window.tier))
     self:clearStencilRect()
+end
+
+-- The static of a field terminal, over the window's strip and body (the window's render, in its pixels), as the panel
+-- keeps it scrolling.
+function OATerminalStatic.drawOver(panel, window)
+    local tex = panel.tiles[panel.tileIndex or 1]
+    if not tex then return end
+    local S = OATerminalStatic
+    local c = window.palette.text
+    local top, h = panel:getY(), panel:getHeight()
+    window:setStencilRect(0, top, window.width, h)
+    window:drawTextureTiled(tex, 0, top + (panel.offset or 0) - S.TILE, window.width, h + S.TILE, c[1], c[2], c[3],
+        S.alphaOf(window.tier))
+    window:clearStencilRect()
 end
 
 -- The static for a window, put behind what the window holds (call it before the strip and the views are added) and

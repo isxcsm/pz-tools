@@ -1,6 +1,7 @@
 -- The terminal window's boot sequence (DESIGN-terminal 12): the timing and the state of it, with no drawing and no
 -- game calls (Trade/TerminalBoot draws it, Trade/TerminalWindow runs it). Every open the screen comes on first (a tube
--- warming up: a dot, a line across, the picture opening in a flash), its static running behind all of the boot; then
+-- warming up: the raster opening from the middle, its static loud, settling), the static running behind all of the
+-- boot; then
 -- console lines print one at a time; then the content collapses into a bright line that shrinks to a dot (the switch-off
 -- of a tube), and the tabs fade in from black. Each check line prints its words, a cursor blinks after them, and then
 -- what it ends with stands where the cursor was. The first open of a field terminal is the long version, with a few more
@@ -18,12 +19,13 @@ OA.Trade.BootSeq = Seq
 
 local floor, ceil, min, max = math.floor, math.ceil, math.min, math.max
 
--- The screen coming on, before anything is printed: a dot brightens in the middle (DOT_MS), draws out into a line
--- across (LINE_MS), the line opens into the whole screen in a flash (OPEN_MS) that dies down to the dark screen and its
--- static (the rest of POWER_MS). The eye is on the screen when the first line comes.
-Seq.POWER_MS, Seq.DOT_MS, Seq.LINE_MS, Seq.OPEN_MS = 1000, 160, 200, 240
--- The flash's brightness as the screen opens.
-Seq.FLASH = 0.35
+-- The screen coming on, before anything is printed: dark for CLICK_MS (the switch), then the raster opens from the
+-- middle over OPEN_MS, its leading edges softly lit and its static loud, a faint warmth over it; over the rest of
+-- POWER_MS the static quiets to its own level, the warmth goes, and a lighter band rolls down once as the picture
+-- catches its sync. The eye is on the screen when the first line comes.
+Seq.POWER_MS, Seq.CLICK_MS, Seq.OPEN_MS = 1000, 100, 350
+-- The leading edges' brightness, the warmth's, and how loud the static is as it opens (times its own level).
+Seq.EDGE, Seq.WARM, Seq.LOUD = 0.35, 0.10, 2.2
 
 -- The console, paced for the eye: after the screen came on a black beat, then each line: its words and the cursor blinking WAIT_MS (time to read
 -- them and wait; the crude terminal's weak signal WEAK_WAIT_MS), what it ends with, held GAP_MS before the next line
@@ -135,23 +137,21 @@ function Seq.look(run, phase, shown, e)
     return e
 end
 
--- The screen coming on at `e` ms: the line's width (0: the dot, to 1: across), how much of the height is open (0 to 1),
--- the line's brightness and the flash over what is open; nil once it is on.
+-- The screen coming on at `e` ms: how much of the height is open (0 to 1, from the middle), the edges' brightness, the
+-- warmth over what is open, the static's loudness (1 its own level) and where the rolling band is (0 to 1 down the
+-- screen, nil when there is none); nil once it is on.
 function Seq.powerOn(e)
     if e >= Seq.POWER_MS then return nil end
-    if e < Seq.DOT_MS then return 0, 0, e / Seq.DOT_MS, 0 end
-    e = e - Seq.DOT_MS
-    if e < Seq.LINE_MS then
-        local u = 1 - e / Seq.LINE_MS
-        return 1 - u * u, 0, 1, 0
-    end
-    e = e - Seq.LINE_MS
+    if e < Seq.CLICK_MS then return 0, 0, 0, 0, nil end
+    e = e - Seq.CLICK_MS
     if e < Seq.OPEN_MS then
-        local v = 1 - e / Seq.OPEN_MS
-        return 1, 1 - v * v * v, v, Seq.FLASH
+        local u = e / Seq.OPEN_MS
+        local v = 1 - u
+        return 1 - v * v * v, Seq.EDGE * (1 - u * 0.5), Seq.WARM * u, Seq.LOUD, nil
     end
-    local u = 1 - (e - Seq.OPEN_MS) / (Seq.POWER_MS - Seq.DOT_MS - Seq.LINE_MS - Seq.OPEN_MS)
-    return 1, 1, 0, Seq.FLASH * u * u
+    local t = (e - Seq.OPEN_MS) / (Seq.POWER_MS - Seq.CLICK_MS - Seq.OPEN_MS)
+    local v = 1 - t
+    return 1, Seq.EDGE * 0.5 * v * v * v, Seq.WARM * v * v, 1 + (Seq.LOUD - 1) * v * v, t
 end
 
 -- A click or a key: the fade-in starts now (a run that is already fading or done is left alone).

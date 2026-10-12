@@ -527,6 +527,10 @@ function OATerminalWindow:render()
     for i = 0, 2 do
         for j = 0, i do UI.fill(self, w - 5 - 4 * j, h - rh + 3 + 4 * (2 - i), 2, 2, p.dim) end
     end
+    -- a field terminal's static, over its screen (OATerminalStatic.OVER; the boot's console draws its own)
+    if self.static and not self.bootOverlay and OATerminalStatic.OVER[self.tier] then
+        OATerminalStatic.drawOver(self.static, self)
+    end
     -- The fade-in: black over the strip and the body, thinning out (over the tabs, which take clicks through it).
     local fade = self.bootAlpha
     if fade and fade > 0 then

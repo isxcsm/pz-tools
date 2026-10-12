@@ -38,8 +38,21 @@ function OATerminalBoot:new(x, y, width, height, window, run)
     return o
 end
 
--- The static at `e` ms over the rows y to y + h (k: how much of it shows), as the window's static panel draws it: its
--- tiles keep their own size in pixels.
+-- The lit screen over the rows y to y + h: the window's background and, on a screen that has them, its scan lines (as
+-- the window draws them behind its tabs).
+function OATerminalBoot:drawScreen(y, h)
+    if h <= 0 then return end
+    local p = self.window.palette
+    UI.fill(self, 0, y, self.width, h, p.bg)
+    local lines = self.window.scanline
+    if p.scanlines and lines then
+        local c = p.text
+        self:drawTextureTiled(lines, 0, y, self.width, h, c[1], c[2], c[3], 0.07)
+    end
+end
+
+-- The static at `e` ms over the rows y to y + h (k: how loud, 1 its level in the boot), as the window's static panel
+-- draws it: its tiles keep their own size in pixels. The boot's empty screen shows it louder than the window does.
 function OATerminalBoot:drawStatic(e, y, h, k)
     local S = OATerminalStatic
     local tex = self.tiles[math.floor(e / S.SWAP_MS) % 2 + 1]
@@ -47,24 +60,39 @@ function OATerminalBoot:drawStatic(e, y, h, k)
     local c = self.window.palette.text
     local tile = S.TILE / UI.S
     local off = (math.floor(e * S.SPEED / 1000) % S.TILE) / UI.S - tile
+    local a = math.min(1, S.alphaOf(self.window.tier) * S.BOOT * k)
     self:setStencilRect(0, y, self.width, h)
-    self:drawTextureTiled(tex, 0, y + off, self.width, h + tile, c[1], c[2], c[3], S.alphaOf(self.window.tier) * k)
+    self:drawTextureTiled(tex, 0, y + off, self.width, h + tile, c[1], c[2], c[3], a)
     self:clearStencilRect()
 end
 
--- The screen coming on (Seq.powerOn): the bright line from a dot across the middle, opening into the screen in a flash
--- that dies down, the static showing in what is open.
-function OATerminalBoot:drawPowerOn(e, lineW, band, lineA, flash)
+-- The screen coming on (Seq.powerOn): the raster opening from the middle, its static loud, its leading edges a soft
+-- glow in the screen's colour (a few rows thinning inwards, no hard line), a faint warmth over it, then the band that
+-- rolls down once.
+OATerminalBoot.EDGE_ROWS = 5
+
+function OATerminalBoot:drawPowerOn(e, open, edge, warm, loud, roll)
     local p = self.window.palette
-    local cy = self.height / 2
-    local open = band * self.height
-    if open > 0 then
-        self:drawStatic(e, cy - open / 2, open, 1)
-        if flash > 0 then UI.fill(self, 0, cy - open / 2, self.width, open, p.bright, flash) end
+    local band = open * self.height
+    if band <= 0 then return end
+    local top = (self.height - band) / 2
+    self:drawScreen(top, band)
+    self:drawStatic(e, top, band, loud)
+    if warm > 0 then UI.fill(self, 0, top, self.width, band, p.text, warm) end
+    if roll then
+        local rh = self.height / 5
+        local ry = roll * (self.height + rh) - rh
+        local y0, y1 = math.max(top, ry), math.min(top + band, ry + rh)
+        if y1 > y0 then UI.fill(self, 0, y0, self.width, y1 - y0, p.text, 0.05 * (1 - roll * 0.5)) end
     end
-    if lineA > 0 then
-        local w = math.max(OATerminalBoot.DOT, self.width * lineW)
-        UI.fill(self, (self.width - w) / 2, cy - OATerminalBoot.LINE / 2, w, OATerminalBoot.LINE, p.bright, lineA)
+    if edge > 0 then
+        local n = OATerminalBoot.EDGE_ROWS
+        local row = math.max(1, math.min(3, band / (2 * n)))
+        for i = 0, n - 1 do
+            local a = edge * (1 - i / n) * (1 - i / n)
+            UI.fill(self, 0, top + i * row, self.width, row, p.text, a)
+            UI.fill(self, 0, top + band - (i + 1) * row, self.width, row, p.text, a)
+        end
     end
 end
 
@@ -130,8 +158,8 @@ function OATerminalBoot:prerender()
     local phase, shown, t, e = Seq.state(run, getTimestampMs())
     UI.fill(self, 0, 0, self.width, self.height, BLACK)
     if phase == "fade" or phase == "done" then return end
-    local lineW, band, lineA, flash = Seq.powerOn(e)
-    if lineW then return self:drawPowerOn(e, lineW, band, lineA, flash) end
+    local open, edge, warm, loud, roll = Seq.powerOn(e)
+    if open then return self:drawPowerOn(e, open, edge, warm, loud, roll) end
     self:layout()
     local p = self.window.palette
     local a = run.crude and Seq.flicker(e) or 1
@@ -146,6 +174,7 @@ function OATerminalBoot:prerender()
         local band = math.max(OATerminalBoot.LINE, self.blockH * k)
         -- the static goes with the picture: the whole screen's, falling to the line
         local screen = self.height * k
+        self:drawScreen(cy - screen / 2, screen)
         self:drawStatic(e, cy - screen / 2, screen, k)
         self:setStencilRect(0, cy - band / 2, self.width, band)
         for i = 1, shown do
@@ -158,6 +187,7 @@ function OATerminalBoot:prerender()
         UI.fill(self, (self.width - w) / 2, cy - OATerminalBoot.LINE / 2, w, OATerminalBoot.LINE, p.bright, lineA)
         return
     end
+    self:drawScreen(0, self.height)
     self:drawStatic(e, 0, self.height, a)
     for i = 1, shown do
         local row = self.rows[i]

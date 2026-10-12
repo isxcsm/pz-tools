@@ -191,26 +191,25 @@ test("what the console shows moves every frame: the screen coming on, the static
     end
 end)
 
-test("the screen comes on: a dot, a line across, the picture opening in a flash that dies down, then nothing", function()
-    local w, band, a, flash = Seq.powerOn(0)
-    eq(w, 0, "a dot"); eq(band, 0); eq(a, 0, "out at first"); eq(flash, 0)
-    w, band, a = Seq.powerOn(Seq.DOT_MS - 1)
-    eq(w, 0); truthy(a > 0.9, "the dot bright")
-    w, band, a = Seq.powerOn(Seq.DOT_MS + Seq.LINE_MS / 2)
-    truthy(w > 0.5 and w < 1, "the line drawing out"); eq(band, 0); eq(a, 1)
-    local at = Seq.DOT_MS + Seq.LINE_MS
-    w, band, a, flash = Seq.powerOn(at + Seq.OPEN_MS / 2)
-    eq(w, 1); truthy(band > 0.5 and band < 1, "opening"); near(a, 0.5, 1e-9); eq(flash, Seq.FLASH)
-    w, band, a, flash = Seq.powerOn(at + Seq.OPEN_MS)
-    eq(band, 1); eq(a, 0); near(flash, Seq.FLASH, 1e-9, "the flash at its height once open")
-    local _, _, _, later = Seq.powerOn(Seq.POWER_MS - 1)
-    truthy(later < 0.01, "and died down")
+test("the screen comes on: dark, the raster opening from the middle with its static loud, settling, then nothing", function()
+    local open, edge, warm, loud, roll = Seq.powerOn(0)
+    eq(open, 0, "dark at the switch"); eq(edge, 0); eq(warm, 0); eq(roll, nil)
+    open, edge, warm, loud = Seq.powerOn(Seq.CLICK_MS + Seq.OPEN_MS / 2)
+    truthy(open > 0.5 and open < 1, "opening")
+    truthy(edge > 0, "its edges lit"); eq(loud, Seq.LOUD, "the static loud")
+    truthy(warm < 0.2, "a faint warmth, not a flash")
+    local at = Seq.CLICK_MS + Seq.OPEN_MS
+    open, edge, warm, loud, roll = Seq.powerOn(at)
+    eq(open, 1); eq(roll, 0, "the band starts rolling once open")
+    open, edge, warm, loud, roll = Seq.powerOn(Seq.POWER_MS - 1)
+    truthy(edge < 0.01 and warm < 0.01, "settled"); truthy(loud < 1.01, "the static at its own level")
+    truthy(roll > 0.99, "the band rolled down")
     eq(Seq.powerOn(Seq.POWER_MS), nil, "on")
     local last = 0
     for e = 0, Seq.POWER_MS - 1, 10 do
-        local ww, bb = Seq.powerOn(e)
-        truthy(ww + bb >= last, "never closes again")
-        last = ww + bb
+        local o = Seq.powerOn(e)
+        truthy(o >= last, "never closes again")
+        last = o
     end
     truthy(Seq.POWER_MS < Seq.appearAt(Seq.new(false, false), 1), "the first line comes after it")
 end)
