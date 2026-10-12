@@ -10,6 +10,7 @@ require "OperationAcorn/Sync"
 require "OperationAcorn/Machines/Machines"
 require "OperationAcorn/Machines/Actions"
 require "OperationAcorn/Machines/Window"
+require "PZUIKit/Menu"
 local OA = OperationAcorn
 local Machines = OA.Machines
 local Data = Machines.Data
@@ -93,14 +94,16 @@ local function onShredMenu(playerObj, object)
 end
 
 -- A lure is taken back while it works (with the hours it has left) or cleared away once it is spent; a machine is taken
--- up with the game's furniture tool (Moveables.lua).
-local function lureOption(menu, playerObj, object, onTop)
-    local add = onTop and menu.addOptionOnTop or menu.addOption
+-- up with the game's furniture tool (Moveables.lua). In the world menu itself it goes to the menu's end, over the game's
+-- destroy line (PZUIKit.Menu); in a submenu, after what else is done to the machine.
+local function lureOption(menu, playerObj, object, atEnd)
+    local option
     if Machines.canTakeLure(object) then
-        add(menu, getText("ContextMenu_OA_Machine_TakeLure"), playerObj, onTakeLure, object)
+        option = menu:addOption(getText("ContextMenu_OA_Machine_TakeLure"), playerObj, onTakeLure, object)
     else
-        add(menu, getText("ContextMenu_OA_Machine_RemoveShell"), playerObj, onPickUp, object)
+        option = menu:addOption(getText("ContextMenu_OA_Machine_RemoveShell"), playerObj, onPickUp, object)
     end
+    if atEnd then PZUIKit.Menu.beforeTail(menu, { option }) end
 end
 
 -- The game's water submenu for a machine that is also a fluid container (the rain storage), or nil: the one whose
@@ -136,7 +139,6 @@ local function addMachineOptions(context, playerObj, object)
             tooltip(manage, getText("Tooltip_OA_Machine_" .. kind))
             return
         end
-        -- added from the last, each on top: the name comes first
         if kind == "lure" then lureOption(context, playerObj, object, true) end
         local open = context:addOptionOnTop(Machines.name(kind), playerObj, onOpen, object)
         tooltip(open, getText("Tooltip_OA_Machine_" .. kind))

@@ -7,6 +7,7 @@ require "OperationAcorn/Trade/Actions"
 require "OperationAcorn/Trade/Reader"
 require "OperationAcorn/Trade/Estimate"
 require "PZUIKit/Confirm"
+require "PZUIKit/Menu"
 local OA = OperationAcorn
 local Trade, UI, Text = OA.Trade, OA.Trade.UI, OA.Trade.Text
 local Objects, Things = Trade.Objects, Trade.Things
@@ -108,9 +109,10 @@ local function boxOptions(context, object, player)
     local md = object:getModData()
     local side = Things.boxSide(getSpecificPlayer(player), md)
     if side ~= "own" then
-        -- added on top in reverse: the name, then what can be done
+        -- the name on top; taking an abandoned box apart at the menu's end, over the game's destroy line
         if side == "abandoned" then
-            context:addOptionOnTop(getText("ContextMenu_OA_Trade_DismantleBox"), object, Menus.dismantle, player)
+            local dismantle = context:addOption(getText("ContextMenu_OA_Trade_DismantleBox"), object, Menus.dismantle, player)
+            PZUIKit.Menu.beforeTail(context, { dismantle })
         end
         local info = context:addOptionOnTop(getText(side == "abandoned" and "ContextMenu_OA_Trade_BoxAbandoned"
             or "ContextMenu_OA_Trade_BoxOther"), nil, nil)
