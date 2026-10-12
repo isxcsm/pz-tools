@@ -987,6 +987,8 @@ function UI.list(parent, x, y, width, height, drawRow, target, onclick)
     end
     if onclick then list:setOnMouseDownFunction(target, onclick) end
     parent:addChild(list)
+    -- its scroll bar in the palette of the window it is in (UI.styleScrollBar)
+    if list.vscroll then UI.styleScrollBar(list.vscroll) end
     return list
 end
 
@@ -1134,6 +1136,142 @@ function UI.live(el, frame)
         liveHooked = true
     end
     live[#live + 1] = { el = el, frame = frame }
+end
+
+-- Fading in and out ---------------------------------------------------------------------------------------------------
+-- A window comes up over FADE_IN_MS (UI.fadeIn) and goes over FADE_OUT_MS (UI.fadeOut): all it and its children draw
+-- is the more transparent the nearer the fade's dark end. While it fades, each element in it draws through wrappers of
+-- its draws, instance fields over its class's that scale their alpha by the window's uiFade; they go once it is whole
+-- again, so a window that is not fading draws as ever at no cost. Going, it takes no clicks and its elements do
+-- nothing each frame (update); it is taken away at the end.
+UI.FADE_IN_MS, UI.FADE_OUT_MS = 160, 140
+
+-- The draws, by the place of their alpha among their arguments.
+local FADED = { drawRect = 5, drawRectBorder = 5, drawRectStatic = 5, drawRectBorderStatic = 5, drawText = 7,
+    drawTextCentre = 7, drawTextRight = 7, drawTextUntrimmed = 7, drawTextZoomed = 8, drawTexture = 4,
+    drawTextureScaled = 6, drawTextureScaledAspect = 6, drawTextureScaledAspect2 = 6, drawTextureScaledAspect3 = 6,
+    drawTextureScaledUniform = 5, drawTextureTiled = 9, drawTextureTiledX = 9, drawTextureTiledY = 9, drawLine = 7 }
+-- What a going window's elements stop doing.
+local STILLED = { "onMouseDown", "onMouseUp", "onRightMouseDown", "onRightMouseUp", "onMouseWheel",
+    "onMouseDoubleClick", "update" }
+
+local function swallow() return true end
+
+-- A draw whose alpha (its at-th argument) is scaled by the window's fade.
+local function fadedDraw(fn, at, root)
+    if at == 4 then
+        return function(el, p1, p2, p3, a, ...) return fn(el, p1, p2, p3, (a or 1) * root.uiFade, ...) end
+    elseif at == 5 then
+        return function(el, p1, p2, p3, p4, a, ...) return fn(el, p1, p2, p3, p4, (a or 1) * root.uiFade, ...) end
+    elseif at == 6 then
+        return function(el, p1, p2, p3, p4, p5, a, ...) return fn(el, p1, p2, p3, p4, p5, (a or 1) * root.uiFade, ...) end
+    elseif at == 7 then
+        return function(el, p1, p2, p3, p4, p5, p6, a, ...)
+            return fn(el, p1, p2, p3, p4, p5, p6, (a or 1) * root.uiFade, ...)
+        end
+    elseif at == 8 then
+        return function(el, p1, p2, p3, p4, p5, p6, p7, a, ...)
+            return fn(el, p1, p2, p3, p4, p5, p6, p7, (a or 1) * root.uiFade, ...)
+        end
+    end
+    return function(el, p1, p2, p3, p4, p5, p6, p7, p8, a)
+        return fn(el, p1, p2, p3, p4, p5, p6, p7, p8, (a or 1) * root.uiFade)
+    end
+end
+
+local fadeFrame
+
+-- An instance field set over the class's, kept to be put back (false: there was none). The element's own fields are
+-- read by going over them (the game's rawget reads through to the class), once when it is wrapped.
+local function override(el, name, fn)
+    local kept = el.uiFadeKept
+    if kept[name] == nil then kept[name] = el.uiFadeOwn[name] or false end
+    el[name] = fn
+end
+
+-- The window's elements, each wrapped once (new ones as they come); going, stilled too.
+local function wrap(el, root, going)
+    if el.uiFadeRoot ~= root then
+        local owned = {}
+        for key, value in pairs(el) do
+            if type(value) == "function" then owned[key] = value end
+        end
+        el.uiFadeRoot, el.uiFadeKept, el.uiFadeOwn = root, {}, owned
+        for name, at in pairs(FADED) do
+            local fn = el[name]
+            if fn then override(el, name, fadedDraw(fn, at, root)) end
+        end
+        if el ~= root then UI.live(el, fadeFrame) end
+    end
+    if going and not el.uiStilled then
+        el.uiStilled = true
+        for _, name in ipairs(STILLED) do override(el, name, name == "update" and function() end or swallow) end
+    end
+    for _, child in pairs(el.children or {}) do wrap(child, root, going) end
+end
+
+local function unwrap(el)
+    local kept = el.uiFadeKept
+    if kept then
+        for name, prev in pairs(kept) do
+            if prev then el[name] = prev else el[name] = nil end
+        end
+        el.uiFadeKept, el.uiFadeRoot, el.uiFadeOwn, el.uiStilled = nil, nil, nil, nil
+    end
+    for _, child in pairs(el.children or {}) do unwrap(child) end
+end
+
+-- The window's step of its fade, which its elements follow to be drawn again.
+fadeFrame = function(el, now)
+    local root = el.uiFadeRoot
+    return root and root.uiFadeKey or nil
+end
+
+local function fadeStep(root, now)
+    local fade = root.uiFading
+    if not fade then return nil end
+    local t = fade.ms > 0 and (now - fade.at) / fade.ms or 1
+    if t >= 1 then
+        root.uiFading, root.uiFadeKey = nil, nil
+        if fade.done then
+            root.uiGone = true
+            root.uiFade = 0
+            fade.done(root)
+        end
+        unwrap(root)
+        root.uiFade = nil
+        return nil
+    end
+    root.uiFade = fade.from + (fade.to - fade.from) * t
+    root.uiFadeKey = math.floor(t * 100)
+    wrap(root, root, fade.done ~= nil)
+    return root.uiFadeKey
+end
+
+-- Fades a window in from nothing, from now (called as it is put up).
+function UI.fadeIn(el, ms)
+    el.uiFade, el.uiGone = 0, nil
+    el.uiFading = { at = getTimestampMs(), ms = ms or UI.FADE_IN_MS, from = 0, to = 1 }
+    el.uiFadeKey = 0
+    wrap(el, el, false)
+    UI.live(el, fadeStep)
+end
+
+-- Fades a window out and then takes it away (`done`, by default hidden and out of the UI manager); from where it
+-- is when it was still fading in. Once: again while it goes, or once it is gone, nothing.
+function UI.fadeOut(el, done, ms)
+    local fading = el.uiFading
+    if el.uiGone or fading and fading.done then return end
+    local from = fading and el.uiFade or 1
+    el.uiFade = from
+    el.uiFading = { at = getTimestampMs(), ms = (ms or UI.FADE_OUT_MS) * from, from = from, to = 0,
+        done = done or function(window)
+            window:setVisible(false)
+            window:removeFromUIManager()
+        end }
+    el.uiFadeKey = 0
+    wrap(el, el, true)
+    UI.live(el, fadeStep)
 end
 
 -- Hover and press lights ----------------------------------------------------------------------------------------------
