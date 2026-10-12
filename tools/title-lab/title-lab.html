@@ -153,6 +153,8 @@ function leaveState(kind, o, st) {
   return st;
 }
 const IMPACT = 0.16;
+// The backdrop's fade in, in seconds from the title's start: dust's fade, for every style.
+const BACKDROP_IN = 1.2;
 
 // ---------------------------------------------------------------- Dust.java's arithmetic
 const M64 = (1n << 64n) - 1n;
@@ -913,7 +915,9 @@ function frame(now) {
   // the backdrop: over the title and its line, as strong as the title is seen (a crumbling one takes it with it)
   const first = states[0];
   if (P.backdrop && first) {
-    const tp = pieces[0], seen = crumbles(tp.spec) ? first.a * (1 - smooth(first.out)) : first.a;
+    // (it fades in as dust's title does, over BACKDROP_IN, whatever the title's own enter)
+    const tp = pieces[0], fadeIn = smooth(clamp(first.secs / BACKDROP_IN, 0, 1));
+    const seen = Math.min(fadeIn, crumbles(tp.spec) ? first.a * (1 - smooth(first.out)) : first.a);
     const low = tp.cx - Math.max(...pieces.map(p => p.ink)) / 2, high = tp.cx + Math.max(...pieces.map(p => p.ink)) / 2;
     const top = tp.cy - tp.line / 2, lastP = pieces[pieces.length - 1], bottom = lastP.cy + lastP.line / 2;
     const side = 2.6 * tp.line, endH = 1.0 * tp.line;
