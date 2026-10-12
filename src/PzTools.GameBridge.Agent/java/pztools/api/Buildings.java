@@ -140,6 +140,11 @@ final class Buildings {
             attachedTable(Arguments.string(arguments, 0, AREA + "attached", "key")) }));
         lua.set(table, "attachedObjects", lua.function(AREA + "attachedObjects", arguments -> attachedObjects(
             Arguments.string(arguments, 0, AREA + "attachedObjects", "key"), Filter.of(arguments, 1, AREA + "attachedObjects"))));
+        lua.set(table, "name", lua.function(AREA + "name", arguments -> {
+            Object object = arguments.length > 0 ? arguments[0] : null;
+            if (!game.objectType.isInstance(object)) throw new IllegalArgumentException(AREA + "name: object must be a world object");
+            return new Object[] { sprite(object) };
+        }));
     }
 
     /** Which objects a call reports: those that use power, water, or either. */

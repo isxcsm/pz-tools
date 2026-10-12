@@ -148,6 +148,7 @@ buildings by such a square.
 | `buildings.version()` | A number that stays the same while no building and none of the game's region data can have changed: a mod keeps what it read of buildings until it differs. |
 | `buildings.attached(key)` | The rooms players built onto the building, which the game leaves out of it: a list of `level`, `host` (the id of the building's room the space touches most), `count` (squares), `extent` (the larger side of its box) and `rects`; empty for a building players built; `nil` without such a building, without the game's region data, or where a space grows past 1500 squares. |
 | `buildings.attachedObjects(key, filter)` | The objects on those rooms' squares that belong to no building, as `near` gives them, each with the `room` and `roomId` of its space's host; and whether every square was loaded. `nil, false` when `attached` is `nil`. |
+| `buildings.name(object)` | The name a world object is known by in `objects`, `near` and the networks: its sprite's, or the one `machine.spriteName` gives it. A mod keys its own records of objects by it, so a machine that changes its look stays the one it recorded. |
 
 A room a player builds against a map building belongs to no building: the game drops a player-built
 building that touches a map one (`WorldRegionToMetaGrid`), so its squares have no room. `attached`

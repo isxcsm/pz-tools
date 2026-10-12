@@ -135,6 +135,10 @@ final class SystemsTest {
         check(buildings.sprite(lit).equals("mymod_press_0"), "A look was not known by the name given: " + buildings.sprite(lit));
         check(buildings.sprite(press).equals("mymod_press_9") && buildings.sprite(plain).equals("walls_01_0"),
             "A name given was looked up again, or an object without one changed: " + buildings.sprite(press));
+        // The same to a mod: buildings.name, so it keys an object as the API does.
+        var named = (KahluaTable)api.rawget("buildings");
+        check(FormulasTest.call(named, "name", lit).get(0).equals("mymod_press_0"), "buildings.name did not give the name given");
+        rejects(named, "buildings.name: object must be a world object", "name", "mymod_press_1");
         // Another mod naming a sprite otherwise: the first mod's name (by mod id) stands; a sprite only it names takes its.
         FormulasTest.call(formulas, "set", second, "machine.spriteName", table("mymod_press_1", "mymod_other_0", "mymod_saw_1", "mymod_saw_0"));
         var sawLit = machine(cell, "mymod_saw_1", 25, 20, 1);
