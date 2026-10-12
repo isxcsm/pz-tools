@@ -183,8 +183,11 @@ function Objects.findBeside(x, y, z, maxRadius)
     end)
 end
 
--- Whether a square has power: a generator in range (or the mod's power through the API), or the grid while it lasts.
-function Objects.powered(square)
+-- Whether a terminal has power, as the game asks of any appliance (IsoObject.checkObjectPowered): a generator in
+-- range, the grid while it lasts, or a network of the extension API that it is a consumer of (a breaker box's
+-- outside line). Without the object yet (being put down), its square's.
+function Objects.powered(square, object)
+    if object and object:getSquare() then return object:checkObjectPowered() end
     if not square then return false end
     return square:haveElectricity() or square:hasGridPower()
 end
@@ -254,7 +257,7 @@ function Objects.showTerminal(object)
     local square = object:getSquare()
     if not square then return end
     local facing = object:getModData().OA_Facing or "S"
-    local on, upgraded = Objects.powered(square), Objects.isUpgraded(object)
+    local on, upgraded = Objects.powered(square, object), Objects.isUpgraded(object)
     Objects.setSprite(object, Objects.terminalSprite(facing, on, upgraded))
     OA.Lights.set(object, on and Objects.TERMINAL_LIGHTS[upgraded and "field" or "crude"] or nil)
 end

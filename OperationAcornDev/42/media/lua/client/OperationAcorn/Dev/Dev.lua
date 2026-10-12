@@ -584,7 +584,8 @@ end
 -- ---- the titles and the take --------------------------------------------------------------------------------
 
 -- Shows an event title the way the server sends it: kind "capstone" (arg: a tree), "tree" (a tree opened, arg: the
--- tree), "board" (the second board opened). Returns how it was shown ("title", "halo") or nil.
+-- tree), "board" (the second board opened), "line" (the field terminal's line opened, Things.lineOpened), "request" (a new
+-- request, Missions). Returns how it was shown ("title", "halo") or nil.
 function Dev.title(kind, arg)
     local Data = OA.Upgrades.Data
     if kind == "capstone" then
@@ -597,6 +598,11 @@ function Dev.title(kind, arg)
         local hooks = OA.Upgrades.Hooks
         if hooks and hooks.treeOpened then hooks.treeOpened(nil, arg or "scout", true) end
         return "tree"
+    elseif kind == "line" then
+        return OA.Titles.show(nil, { key = "IGUI_OA_Title_LineOpened", sub = "IGUI_OA_Title_LineOpenedSub", style = "stamp",
+            tone = "gold", fallback = "good" })
+    elseif kind == "request" then
+        return OA.Titles.show(nil, { key = "IGUI_OA_Title_NewRequest", sub = "IGUI_OA_Title_CheckTerminal", style = "notice" })
     elseif kind == "board" then
         local detail = { key = "IGUI_OA_Title_BoardOpened", sub = "IGUI_OA_Title_BoardOpenedSub", style = "dust",
             tone = "gold", fallback = "good" }

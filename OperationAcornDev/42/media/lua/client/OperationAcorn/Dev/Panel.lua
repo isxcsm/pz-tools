@@ -257,8 +257,10 @@ local function effectsPage(page, w)
     button(page, T("Fx_Capstone"), PAD, rowY(2), 0, function() Dev.title("capstone", tree()) end)
     button(page, T("Fx_TreeOpened"), PAD, rowY(3), 0, function() Dev.title("tree", tree()) end)
     button(page, T("Fx_BoardOpened"), PAD, rowY(4), 0, function() Dev.title("board") end)
-    button(page, T("Fx_Take"), PAD, rowY(5), 0, function() Dev.replayTake() end)
-    label(page, T("Fx_TakeHint"), PAD, rowY(6) + 2, 0.7, 0.7, 0.7)
+    button(page, T("Fx_LineOpened"), PAD, rowY(5), 0, function() Dev.title("line") end)
+    button(page, T("Fx_NewRequest"), PAD, rowY(6), 0, function() Dev.title("request") end)
+    button(page, T("Fx_Take"), PAD, rowY(7), 0, function() Dev.replayTake() end)
+    label(page, T("Fx_TakeHint"), PAD, rowY(8) + 2, 0.7, 0.7, 0.7)
 end
 
 local function missionPage(page, w)

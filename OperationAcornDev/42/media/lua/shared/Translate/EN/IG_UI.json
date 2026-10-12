@@ -25,6 +25,8 @@
     "IGUI_OADev_Fx_Capstone": "Title: capstone taken",
     "IGUI_OADev_Fx_TreeOpened": "Title: tree opened",
     "IGUI_OADev_Fx_BoardOpened": "Title: second board opened",
+    "IGUI_OADev_Fx_LineOpened": "Title: field line opened (first field terminal)",
+    "IGUI_OADev_Fx_NewRequest": "Title: new request",
     "IGUI_OADev_Fx_Take": "Replay the take (applied plan)",
     "IGUI_OADev_Fx_TakeHint": "Opens the Enhancement tab and plays on its first nodes.",
     "IGUI_OADev_Ms_None": "No mission running (or no record yet)",

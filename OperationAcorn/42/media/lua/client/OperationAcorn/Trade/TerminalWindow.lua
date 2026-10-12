@@ -564,7 +564,7 @@ function OATerminalWindow:update()
     local object = square and Objects.find(square, Objects.TERMINAL)
     if not object or self.character:isDead() then return self:close() end
     if not Things.near(self.character, self.tx, self.ty) then return self:close() end
-    if not Objects.powered(square) then
+    if not Objects.powered(square, object) then
         OA.Sync.deliver("notice", OA.Client.id(self.character), { key = "IGUI_OA_Trade_Reason_noPower" })
         return self:close()
     end

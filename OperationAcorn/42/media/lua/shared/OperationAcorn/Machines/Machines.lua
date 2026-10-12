@@ -30,6 +30,8 @@ local Data, Logic = Machines.Data, Machines.Logic
 
 Machines.SAMPLE = "OperationAcorn.SampleBundle"
 Machines.SELECTED = "OperationAcorn.SelectedSample"
+-- What a field terminal draws, declared with the machines (declarePower): a screen and its set.
+Machines.TERMINAL_LOAD = 0.05
 
 local function text(key, ...) return getText(key, ...) end
 
@@ -308,6 +310,14 @@ function Machines.declarePower()
                     end
                 end
             end
+        end
+    end
+    -- The terminals too (a screen and its set): each look of the screen on (lit) known by the look with it off.
+    for _, upgraded in ipairs({ false, true }) do
+        for _, dir in ipairs(Sprites.DIRECTIONS) do
+            local off = Sprites.terminal(dir, false, upgraded)
+            base[off] = Machines.TERMINAL_LOAD
+            names[Sprites.terminal(dir, true, upgraded)] = off
         end
     end
     local ok1, err1 = pcall(api.formulas.set, handle, "machine.baseConsumption", base)

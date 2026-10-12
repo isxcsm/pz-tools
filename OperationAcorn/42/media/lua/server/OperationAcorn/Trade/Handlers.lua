@@ -22,7 +22,7 @@ function Handlers.terminalFor(character, args)
     local object = Objects.find(square, Objects.TERMINAL)
     if not object then return nil, "noTerminal" end
     if not Things.near(character, x, y) then return nil, "far" end
-    if not Objects.powered(square) then return nil, "noPower" end
+    if not Objects.powered(square, object) then return nil, "noPower" end
     return object
 end
 
