@@ -90,8 +90,8 @@ const STYLES = {
     title: { weight: 700, size: 0.08, color: [1, 0.8, 0.38], outline: 0.35, lit: true, enter: "torch", enterTime: 2.2, leave: "dim", leaveTime: 4.5 },
     line: { weight: 400, size: 0.042, color: [1, 0.93, 0.78], lit: true, delay: 1.5, enter: "slideup", enterTime: 0.8, leave: "dim", leaveTime: 4.3 } },
   "notice-new": { label: "notice 새안: 무전", y: 0.2, gap: 0.3, trail: 0.1, backdrop: 0.3,
-    title: { weight: 700, size: 0.04, color: [0.88, 0.93, 1], radio: true, enter: "signal", enterTime: 0.7, leave: "lost", leaveTime: 3.5 },
-    line: { weight: 400, size: 0.028, color: [0.76, 0.82, 0.9], radio: true, delay: 0.25, enter: "signal", enterTime: 0.7, leave: "lost", leaveTime: 3.3 } },
+    title: { weight: 700, size: 0.04, color: [0.88, 0.93, 1], radio: true, enter: "signal", enterTime: 0.7, leave: "lost", leaveTime: 4.5 },
+    line: { weight: 400, size: 0.028, color: [0.76, 0.82, 0.9], radio: true, delay: 0.25, enter: "signal", enterTime: 0.7, leave: "lost", leaveTime: 4.3 } },
   "notice": { label: "notice (게임 현재)", y: 0.2, gap: 0.3, trail: 0, backdrop: 0.3,
     title: { weight: 700, size: 0.036, color: [0.92, 0.95, 1], enter: "drop", enterTime: 0.35, leave: "fade", leaveTime: 0.6 },
     line: { weight: 400, size: 0.026, color: [0.8, 0.84, 0.9], delay: 0.1, enter: "fade", enterTime: 0.35, leave: "fade", leaveTime: 0.6 } },
@@ -670,8 +670,9 @@ function drawTorch(p, st) {
 function signalAt(p, st) {
   const E = p.spec.enterTime, secs = st.secs, o = st.out, H = P.RADIO_HICCUP;
   let sig;
-  if (o > 0) sig = (1 - smooth(o)) * (1 - H * (0.5 * bump(o, 0.06, 0.012) + 0.4 * bump(o, 0.13, 0.01)));
-  else sig = smooth(clamp(secs / E, 0, 1)) * (1 - H * 0.35 * bump(secs, E * 0.55, 0.03)) * (1 - H * 0.3 * bump(secs, E + 2.6, 0.04));
+  // (whole at first but for the two cuts, then sinking into the grain)
+  if (o > 0) sig = (1 - smooth(clamp((o - 0.2) / 0.8, 0, 1))) * (1 - H * (0.5 * bump(o, 0.05, 0.01) + 0.4 * bump(o, 0.11, 0.008)));
+  else sig = smooth(clamp(secs / E, 0, 1)) * (1 - H * 0.35 * bump(secs, E * 0.55, 0.03)) * (1 - H * 0.15 * bump(secs, E + 2.6, 0.03));
   return clamp(sig, 0, 1);
 }
 function drawSignal(p, st) {
