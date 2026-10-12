@@ -845,6 +845,10 @@ def trim(image):
 
 
 def write_pack(path, images):
+    write_pack_named(path, SHEET, images)
+
+
+def write_pack_named(path, sheet, images):
     """The header-less pack the game reads for mods: one page, an entry per sprite (its place in the page and its
     offset in the full tile), the page as PNG, the end mark."""
     pieces = [(name, *trim(image)) for name, image in images]
@@ -866,7 +870,7 @@ def write_pack(path, images):
         data = text.encode('latin1')
         out.write(struct.pack('<i', len(data)) + data)
     out.write(struct.pack('<i', 1))
-    string(SHEET + '0')
+    string(sheet + '0')
     out.write(struct.pack('<ii', len(placed), 1))
     for name, crop, px, py, ox, oy in placed:
         string(name)
