@@ -1539,10 +1539,11 @@ which override the jar's; it overrides none of the text classes):
 | `dustSize` | 0.25 to 8 | With `leave = "dust"`: the size of the dust's cells, as a share of the usual (1: 4% of the line's height, 4.3 pixels for a line a tenth of a 1080-pixel screen). |
 | `dustSweep` | `"right"`, `"left"`, `"up"`, `"down"`, `"upright"`, `"upleft"`, `"downright"`, `"downleft"` | With `leave = "dust"`: the way the front goes (`"right"` when left out: the text breaks from its left side first; `"downleft"` from its top right corner, the front at 45 degrees in cells). A side's flakes go the front's way; a corner's go back towards the corner, away from what is left. |
 | `dustDrift` | 0 to 4 | With `leave = "dust"`: how far the dust drifts, as a share of the usual (1: about two lines up, and up to four and a half lines to the side; 0: the cells fade where they are). |
+| `dustBurn` | a colour `{ r, g, b }` or `{ r, g, b, a }` | With `leave = "dust"`: it burns instead of weathering, like embers: ahead of the front it takes this colour and glows, and its flakes leave glowing and cool to dark ash of the colour (see [dust](#dust)). Left out, it weathers to grey ash. |
 
 `title`'s spec: `text` (the title), `subtitle` (the line under it), `style` (`"stamp"` when left out), and to change the style's
 `color`, `subtitleColor`, `hold` (seconds), `y`, `player`, `leave` and `leaveTime` (for the title and its line alike: any style
-can leave as dust), `backdrop` (0 for none), `dustSize`, `dustSweep` and `dustDrift` (with `leave = "dust"`, the style's or the
+can leave as dust), `backdrop` (0 for none), `dustSize`, `dustSweep`, `dustDrift` and `dustBurn` (with `leave = "dust"`, the style's or the
 spec's), and `now`. A title's backdrop reaches over its line: one backdrop for both. Every style stays 5 s and has a backdrop of
 0.3. A style is a pair of `show` specs:
 
@@ -1717,6 +1718,7 @@ At the start of the leave the text is a quad for each lane and looks as it did.
 | Its path | At its age `a` (0 to 1): for its first 12% it sags `0.08` line heights (smoothly) as it comes loose; then the wind catches it (`w`, 0 to 1 over the rest), eased in as `w (0.25 + 0.75 w)`: up by `2 x (0.5 to 1.5)` line heights and to the side (the sweep's way, or back towards a corner's; either way for `"up"` and `"down"`) by `4.5 x` (half a gust that changes slowly across the sweep, 0.7 to 1, and half its own, 0.45 to 1) of that ease, times `dustDrift`; and a billow of `0.15 w` line heights to the side and `0.3 w` up and down, 0.5 to 1.1 turns over its life. |
 | Its size and alpha | As a flake it is a chip (three in five: 80% to 100% of its worn side) or a grain of dust (40% to 60%), wearing down to 45% of that; it stays whole for a quarter of its life, then fades: `1 - smooth((a - 0.25) / 0.75)`. |
 | Its colour | Drawn premultiplied, its colour below its alpha darkens it: it glows warm as it comes loose (green times 0.84 and blue times 0.62 at most, up over 8% of its life and out by a third), and greys to half its worn colour by 70% of its life (smoothly). |
+| Burning (`dustBurn`) | In place of the wearing's grey and the flakes' colour: over the 0.12 before it starts, a cell takes the burn's colour (times its own) and its alpha falls to 55% while its colour stays (smoothly), so that the light adds to what is behind it and the text glows ahead of the front; a flake leaves so and cools over its first 40% (smoothly) to 30% of the burn's colour, its alpha back to its own: dark ash of that colour. |
 
 **When it cannot.** Dust fades as `"fade"` does when the game has no frame buffers, the box is too large or has no ink, a step
 fails (once in the game's log), or the text's box moved after its picture was made (the screen's size changed). While the

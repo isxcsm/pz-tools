@@ -393,6 +393,12 @@ final class DustTest {
         rejects(text, "spec.dustSize must be a number from 0.25 to 8", "show", mod, table("text", "x", "leave", "dust", "dustSize", 9.0));
         rejects(text, "spec.dustDrift must be a number from 0 to 4", "show", mod, table("text", "x", "leave", "dust", "dustDrift", -1.0));
         rejects(text, "spec.dustDrift goes with leave = \"dust\"", "title", mod, table("text", "x", "dustDrift", 2.0));
+        rejects(text, "spec.dustBurn goes with leave = \"dust\"", "title", mod, table("text", "x", "dustBurn", table("r", 1.0, "g", 0.3, "b", 0.1)));
+        rejects(text, "spec.dustBurn must be a table", "show", mod, table("text", "x", "leave", "dust", "dustBurn", "red"));
+        rejects(text, "spec.dustBurn must be a table", "show", mod, table("text", "x", "leave", "dust", "dustBurn", table("r", 2.0, "g", 0.3, "b", 0.1)));
+        double burning = (Double)FormulasTest.call(text, "title", mod, table("text", "Burning", "style", "dust", "dustBurn", table("r", 0.9, "g", 0.3, "b", 0.1))).get(0);
+        check((Boolean)FormulasTest.call(text, "shown", mod, burning).get(0), "A dust title did not take the burn");
+        FormulasTest.call(text, "hide", mod, burning, true);
         rejects(text, "spec.leave must be one of", "title", mod, table("text", "x", "leave", "explode"));
         double key = (Double)FormulasTest.call(text, "title", mod, table("text", "Stamped", "style", "stamp", "leave", "dust", "leaveTime", 2.0, "dustSweep", "up")).get(0);
         check((Boolean)FormulasTest.call(text, "shown", mod, key).get(0), "A stamp title did not take the dust");
@@ -442,12 +448,14 @@ final class DustTest {
     /** A newer API takes the dust's fields over, and lets go the older one's pictures from its own drawing. */
     private static void takeover(KahluaTable api, KahluaTable text, Object mod) throws Exception {
         GL11.ink = (x, y) -> 255;
-        show(text, mod, "text", "Kept", "hold", 100.0, "leave", "dust", "leaveTime", 1.0, "dustSweep", "up", "dustSize", 1.5, "dustDrift", 0.5);
+        show(text, mod, "text", "Kept", "hold", 100.0, "leave", "dust", "leaveTime", 1.0, "dustSweep", "up", "dustSize", 1.5, "dustDrift", 0.5,
+            "dustBurn", table("r", 1.0, "g", 0.5, "b", 0.25));
         Texture picture = prepare();
         ClassLoader game = DustTest.class.getClassLoader();
         GameApi.frame(game);
         KahluaTable meta = api.getMetatable();
-        check(((String)meta.rawget("texts")).contains("\t1.5\tUP\t0.5"), "The dust's fields are not kept for a newer API");
+        String kept = (String)meta.rawget("texts");
+        check(kept.contains("\t1.5\tUP\t0.5") && kept.contains("\t1.0,0.5,0.25,1.0"), "The dust's fields are not kept for a newer API: " + kept);
         GameApi.register(LuaManager.class);
         useClock();
         render();

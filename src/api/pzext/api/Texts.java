@@ -30,7 +30,8 @@ import pzext.boot.Hooks;
  */
 final class Texts implements Hooks.Text {
     private static final String AREA = "PZExtAPI.text.";
-    private static final String MIRROR = "texts", FORMAT = "pzext-texts 4", FORMAT_BEFORE_BACKDROP = "pzext-texts 3", FORMAT_BEFORE_DUST = "pzext-texts 2",
+    private static final String MIRROR = "texts", FORMAT = "pzext-texts 5", FORMAT_BEFORE_BURN = "pzext-texts 4",
+        FORMAT_BEFORE_BACKDROP = "pzext-texts 3", FORMAT_BEFORE_DUST = "pzext-texts 2",
         FORMAT_BEFORE_TYPING = "pzext-texts 1",
         GENERATION = "textsGeneration", HANDOVER = "textsHandover";
     /** The hook that draws, as {@code PZExtAPI.hooks()} names it. */
@@ -116,9 +117,11 @@ final class Texts implements Hooks.Text {
         Object face;
         Object coveredBy;
         boolean covered;
-        // Dust: its cells' size and its drift (shares of the default), the way its front goes; its piece on each screen.
+        // Dust: its cells' size and its drift (shares of the default), the way its front goes, the colour it burns with (null:
+        // it weathers to ash instead); its piece on each screen.
         double dustSize = 1, dustDrift = 1;
         Dust.Sweep dustSweep = Dust.Sweep.RIGHT;
+        float[] dustBurn;
         Dust.Piece[] pieces;
         // A dark backdrop behind it with a soft edge: its strength in the middle (0 for none), and how far it reaches below the
         // text's lines (a share of the screen's height: a title's reaches over its line).
@@ -682,10 +685,10 @@ final class Texts implements Hooks.Text {
                 case "speed" -> text.speed = number(value, call, name, 1, MAX_SPEED);
                 case "cursor" -> text.cursor = flag(value, call, name);
                 case "backdrop" -> text.backdrop = number(value, call, name, 0, 1);
-                case "dustSize", "dustSweep", "dustDrift" -> { dust(text, field, value, call, name); dusty = field; }
+                case "dustSize", "dustSweep", "dustDrift", "dustBurn" -> { dust(text, field, value, call, name); dusty = field; }
                 default -> throw new IllegalArgumentException(call + ": " + prefix + " has no field " + field + "; it takes text, font, scale, size,"
                     + " color, x, y, align, shadow, outline, outlineColor, delay, enter, enterTime, hold, leave, leaveTime, player, queue,"
-                    + " markup, width, speed, cursor, backdrop, dustSize, dustSweep and dustDrift");
+                    + " markup, width, speed, cursor, backdrop, dustSize, dustSweep, dustDrift and dustBurn");
             }
         }
         if (text.enter != Enter.TYPE && (text.speed != 0 || text.cursor))
@@ -697,11 +700,12 @@ final class Texts implements Hooks.Text {
         else if (text.lines != null && text.fontName == null) font(text, text.font, call, prefix + ".font");
     }
 
-    /** One of the dust's fields: the cells' size and the drift as shares of the default, the way the front goes. */
-    private static void dust(Shown text, String field, Object value, String call, String name) {
+    /** One of the dust's fields: the cells' size and the drift as shares of the default, the way the front goes, its burn. */
+    private void dust(Shown text, String field, Object value, String call, String name) throws ReflectiveOperationException {
         switch (field) {
             case "dustSize" -> text.dustSize = number(value, call, name, MIN_DUST_SIZE, MAX_DUST_SIZE);
             case "dustDrift" -> text.dustDrift = number(value, call, name, 0, MAX_DUST_DRIFT);
+            case "dustBurn" -> text.dustBurn = color(value, call, name);
             default -> text.dustSweep = effect(Dust.Sweep.class, value, call, name);
         }
     }
@@ -1056,13 +1060,14 @@ final class Texts implements Hooks.Text {
                 case "leave" -> leave = value;
                 case "leaveTime" -> leaveTime = value;
                 case "backdrop" -> backdrop = value;
-                case "dustSize", "dustSweep", "dustDrift" -> dusts.put(field, value);
+                case "dustSize", "dustSweep", "dustDrift", "dustBurn" -> dusts.put(field, value);
                 case "now" -> {
                     if (!(value instanceof Boolean on)) throw new IllegalArgumentException(call + ": spec.now must be true or false");
                     now = on;
                 }
                 default -> throw new IllegalArgumentException(call + ": spec has no field " + field
-                    + "; it takes text, subtitle, style, color, subtitleColor, hold, y, player, leave, leaveTime, backdrop, dustSize, dustSweep, dustDrift and now");
+                    + "; it takes text, subtitle, style, color, subtitleColor, hold, y, player, leave, leaveTime, backdrop, dustSize, dustSweep, dustDrift,"
+                    + " dustBurn and now");
             }
         }
         if (text == null) throw new IllegalArgumentException(call + ": spec.text must be a string of 1 to " + MAX_LENGTH + " characters");
@@ -1086,7 +1091,7 @@ final class Texts implements Hooks.Text {
         if (small != null) {
             if (leave != null) small.leave = big.leave;
             if (leaveTime != null) small.leaveTime = big.leaveTime;
-            small.dustSize = big.dustSize; small.dustDrift = big.dustDrift; small.dustSweep = big.dustSweep;
+            small.dustSize = big.dustSize; small.dustDrift = big.dustDrift; small.dustSweep = big.dustSweep; small.dustBurn = big.dustBurn;
             small.lines = lines(line, call, "spec.subtitle");
             font(small, chosen.line().get("font"), call, "spec.font");
             if (lineColor != null) { float[] parts = color(lineColor, call, "spec.subtitleColor"); small.red = parts[0]; small.green = parts[1]; small.blue = parts[2]; small.alpha = parts[3]; }
@@ -1150,7 +1155,7 @@ final class Texts implements Hooks.Text {
         to.leaveTime = from.leaveTime; to.player = from.player; to.queued = from.queued; to.cell = from.cell;
         to.source = from.source; to.markup = from.markup; to.width = from.width; to.speed = from.speed; to.cursor = from.cursor;
         to.script = from.script;
-        to.dustSize = from.dustSize; to.dustDrift = from.dustDrift; to.dustSweep = from.dustSweep;
+        to.dustSize = from.dustSize; to.dustDrift = from.dustDrift; to.dustSweep = from.dustSweep; to.dustBurn = from.dustBurn;
         to.backdrop = from.backdrop; to.backdropBelow = from.backdropBelow;
     }
 
@@ -1699,10 +1704,21 @@ final class Texts implements Hooks.Text {
                 .append('\t').append(s.player).append('\t').append(s.queued).append('\t').append(s.waiting).append('\t').append(s.start)
                 .append('\t').append(s.hidden).append('\t').append(s.markup).append('\t').append(s.width).append('\t').append(s.speed)
                 .append('\t').append(s.cursor).append('\t').append(s.dustSize).append('\t').append(s.dustSweep.name()).append('\t').append(s.dustDrift)
-                .append('\t').append(s.backdrop).append('\t').append(s.backdropBelow);
+                .append('\t').append(s.backdrop).append('\t').append(s.backdropBelow).append('\t').append(burnText(s.dustBurn));
         }
         lua.set(meta, MIRROR, text.toString());
         dirty = false;
+    }
+
+    /** A burn's colour in the kept text: its parts by commas, "-" for none. */
+    private static String burnText(float[] burn) {
+        return burn == null ? "-" : burn[0] + "," + burn[1] + "," + burn[2] + "," + burn[3];
+    }
+
+    private static float[] burnOf(String field) {
+        if ("-".equals(field)) return null;
+        String[] parts = field.split(",");
+        return new float[] { Float.parseFloat(parts[0]), Float.parseFloat(parts[1]), Float.parseFloat(parts[2]), Float.parseFloat(parts[3]) };
     }
 
     private static String escape(String value) {
@@ -1739,17 +1755,19 @@ final class Texts implements Hooks.Text {
         if (!(kept instanceof String text)) return;
         String[] lines = text.split("\n");
         // The format before typing has the fields up to hidden; the text of those has no markup, typing or width. The format
-        // before dust has the fields up to cursor; its texts have no dust. The format before backdrops has none.
+        // before dust has the fields up to cursor; its texts have no dust. The format before backdrops has none; the one before burns, no burn.
         boolean before = FORMAT_BEFORE_TYPING.equals(lines[0]), beforeDust = before || FORMAT_BEFORE_DUST.equals(lines[0]);
         boolean beforeBackdrop = beforeDust || FORMAT_BEFORE_BACKDROP.equals(lines[0]);
-        if (!beforeBackdrop && !FORMAT.equals(lines[0])) {
+        boolean beforeBurn = beforeBackdrop || FORMAT_BEFORE_BURN.equals(lines[0]);
+        if (!beforeBurn && !FORMAT.equals(lines[0])) {
             System.err.println("[PZExt] text: what was shown is kept in another format; it is not shown again");
             return;
         }
         for (int index = 1; index < lines.length; index++) {
             String[] fields = lines[index].split("\t", -1);
             if ("N".equals(fields[0])) { next = Math.max(next, Long.parseLong(fields[1])); continue; }
-            if (fields.length != (before ? 31 : beforeDust ? 35 : beforeBackdrop ? 38 : 40) || !"T".equals(fields[0])) throw new IllegalStateException("Unknown line in the kept text: " + lines[index]);
+            if (fields.length != (before ? 31 : beforeDust ? 35 : beforeBackdrop ? 38 : beforeBurn ? 40 : 41) || !"T".equals(fields[0]))
+                throw new IllegalStateException("Unknown line in the kept text: " + lines[index]);
             var s = new Shown(unescape(fields[1]), Long.parseLong(fields[2]));
             s.lines = unescape(fields[3]).split("\n", -1);
             s.fontName = fields[4];
@@ -1771,6 +1789,7 @@ final class Texts implements Hooks.Text {
                     s.dustSize = Double.parseDouble(fields[35]); s.dustSweep = Dust.Sweep.valueOf(fields[36]); s.dustDrift = Double.parseDouble(fields[37]);
                 }
                 if (!beforeBackdrop) { s.backdrop = Double.parseDouble(fields[38]); s.backdropBelow = Double.parseDouble(fields[39]); }
+                if (!beforeBurn) s.dustBurn = burnOf(fields[40]);
                 if (s.markup || s.width > 0 || s.enter == Enter.TYPE) {
                     // Read again: the script is not kept, and gives the same as when it was shown.
                     s.source = unescape(fields[3]);

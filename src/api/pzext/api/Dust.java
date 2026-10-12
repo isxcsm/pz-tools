@@ -21,7 +21,8 @@ import pzext.boot.Boot;
  * and a clumpy noise over the text, so holes open and spread before the front comes); each flake, a chip or a grain of dust,
  * glows faintly warm as it comes loose, sags, and is caught by the wind and taken ever faster a long way up and to the side,
  * billowing, greying as it fades.
- * The part the sweep has not reached stays as it was.
+ * The part the sweep has not reached stays as it was. A text given a burn ({@code dustBurn}) burns instead of weathering:
+ * ahead of the front it glows in the burn's colour, and its flakes leave glowing and cool to dark ash of that colour.
  *
  * <p>Once the text stands still (its enter is over, or it began to leave), it is drawn once, shadow, outline and colours with it,
  * into a picture of its own: a frame buffer of the game's ({@code TextureFBO}) the size of the text's box, drawn into from the
@@ -62,6 +63,15 @@ final class Dust {
     static final double HOLD = 0.25;
     /** The colour a flake glows with as it comes loose (times the text's), and the share of its colour left as ash at its end. */
     static final double EMBER_G = 0.84, EMBER_B = 0.62, ASH = 0.5;
+    /**
+     * A text that burns ({@code dustBurn}): ahead of the front it takes the burn's colour and glows (its alpha gives up to
+     * {@link #GLOW}, its colour stays, so the light adds to what is behind it, as embers); a flake leaves glowing and cools over
+     * the first {@link #COOL} of its life to its ash, {@link #BURN_ASH} of the burn's colour.
+     */
+    static final double GLOW = 0.45, COOL = 0.4, BURN_ASH = 0.3;
+
+    /** How hot a burning flake still is at its age, 1 to 0. */
+    static double heat(double age) { return age <= 0 ? 1 : age >= COOL ? 0 : 1 - smooth(age / COOL); }
     /** A cell is ink when the alpha of a texel of it is at least this (of 255). */
     static final int INK = 10;
     /** The largest picture, on each side, in pixels: a larger text fades instead. */
@@ -688,6 +698,7 @@ final class Dust {
          */
         void draw(Piece piece, double progress, double fade, double drift) throws Throwable {
             Cells cells = piece.cells;
+            float[] burn = piece.owner.dustBurn;
             Object renderer = (Object)this.renderer.invokeExact();
             Object state = (Object)populating.invokeExact((Object)states.invokeExact(renderer));
             Object before = (Object)styleOf.invokeExact(state);
@@ -717,8 +728,17 @@ final class Dust {
                         double right = Math.min(width, left + size), bottom = Math.min(height, top + size);
                         double age = age(progress, cells.start[cell], cells.life[cell]);
                         if (age <= 0) {
-                            // Wearing in place: greying and thinning (pitted, as its neighbours thin too).
                             double wear = worn(progress, cells.start[cell]);
+                            if (burn != null) {
+                                // Burning in place: taking the burn's colour and glowing as it thins.
+                                double hot = smooth(wear);
+                                float alpha = (float)(fade * (1 - GLOW * hot));
+                                drawPart(renderer, texture, piece, left, top, right, bottom, 0, 0, 1 - THIN * wear,
+                                    (float)(fade * (1 + (burn[0] - 1) * hot)), (float)(fade * (1 + (burn[1] - 1) * hot)),
+                                    (float)(fade * (1 + (burn[2] - 1) * hot)), alpha);
+                                continue;
+                            }
+                            // Wearing in place: greying and thinning (pitted, as its neighbours thin too).
                             float kept = (float)(fade * (1 - WEATHERED * wear));
                             drawPart(renderer, texture, piece, left, top, right, bottom, 0, 0, 1 - THIN * wear, kept, kept, kept, (float)fade);
                             continue;
@@ -728,10 +748,18 @@ final class Dust {
                         if (shown <= 0.002f) continue;
                         double dx = reach * driftX(age, cells.side[cell], cells.freq[cell], cells.phase[cell]);
                         double dy = reach * driftY(age, cells.rise[cell], cells.freq[cell], cells.phase2[cell]);
+                        double scale = (1 - THIN) * cells.flake[cell] * size(age);
+                        if (burn != null) {
+                            // Glowing as it leaves (its colour over its alpha adds light), cooling to dark ash.
+                            double hot = heat(age), keep = BURN_ASH + (1 - BURN_ASH) * hot;
+                            drawPart(renderer, texture, piece, left, top, right, bottom, dx, dy, scale, (float)(shown * burn[0] * keep),
+                                (float)(shown * burn[1] * keep), (float)(shown * burn[2] * keep), (float)(shown * (1 - GLOW * hot)));
+                            continue;
+                        }
                         // Premultiplied: a colour below the alpha darkens the flake, warm as it comes loose, grey as it goes.
                         double grey = (1 - WEATHERED) * ash(age), warm = ember(age);
                         float red = (float)(shown * grey), green = (float)(red * (1 - (1 - EMBER_G) * warm)), blue = (float)(red * (1 - (1 - EMBER_B) * warm));
-                        drawPart(renderer, texture, piece, left, top, right, bottom, dx, dy, (1 - THIN) * cells.flake[cell] * size(age), red, green, blue, shown);
+                        drawPart(renderer, texture, piece, left, top, right, bottom, dx, dy, scale, red, green, blue, shown);
                     }
                 }
             } finally {
