@@ -644,6 +644,57 @@ reset.addEventListener("click", () => {
   makeBackground(); rebuild();
 });
 
+// ---------------------------------------------------------------- presets: the effect's values (not the text, background or zoom)
+const NOT_EFFECT = new Set(["title", "sub", "bg", "zoom"]);
+const effectOf = values => Object.fromEntries(Object.entries(values).filter(([k]) => !NOT_EFFECT.has(k)));
+const BUILT_IN = {
+  "종이 연소 1": effectOf(DEFAULTS),
+  "숯불 셀 (지금 게임)": { ...effectOf(DEFAULTS), paper: false, leaveTime: 6, CHAR_ASH: 0.2 },
+};
+const STORE = "dust-preview-presets";
+function ownPresets() { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } }
+function saveOwn(presets) { try { localStorage.setItem(STORE, JSON.stringify(presets)); return true; } catch { return false; } }
+function apply(values) {
+  Object.assign(P, values);
+  for (const [key, c] of Object.entries(controls)) {
+    if (c.kind === "check") c.input.checked = P[key]; else c.input.value = P[key];
+    if (c.kind === "range") c.value.textContent = P[key];
+  }
+  makeBackground(); rebuild(); t = leaveStart(); playing = true;
+}
+const presetBar = document.createElement("div"); presetBar.className = "bar";
+const presetList = document.createElement("select"); presetList.style.flex = "1";
+const presetSave = document.createElement("button"); presetSave.textContent = "현재 상태 저장";
+const presetDelete = document.createElement("button"); presetDelete.textContent = "삭제";
+function fillPresets(selected) {
+  presetList.innerHTML = "";
+  const add = (name, label) => { const o = document.createElement("option"); o.value = name; o.textContent = label; presetList.appendChild(o); };
+  for (const name of Object.keys(BUILT_IN)) add("b:" + name, name);
+  for (const name of Object.keys(ownPresets())) add("o:" + name, name + " (저장함)");
+  if (selected) presetList.value = selected;
+}
+presetList.addEventListener("change", () => {
+  const v = presetList.value, name = v.slice(2);
+  apply(v.startsWith("b:") ? BUILT_IN[name] : ownPresets()[name]);
+});
+presetSave.addEventListener("click", () => {
+  let name = null;
+  try { name = prompt("프리셋 이름", "프리셋 " + (Object.keys(ownPresets()).length + 1)); } catch { }
+  name = name || "프리셋 " + (Object.keys(ownPresets()).length + 1);
+  const own = ownPresets(); own[name] = effectOf(P);
+  if (saveOwn(own)) { fillPresets("o:" + name); return; }
+  // This window keeps nothing (a page opened from a file in some viewers): the values go below, to be put into the file.
+  copyBox.value = "이 창에서는 저장이 막혀 있습니다. 이 값을 파일의 BUILT_IN에 넣으면 프리셋이 됩니다.\n" + JSON.stringify({ [name]: effectOf(P) });
+});
+presetDelete.addEventListener("click", () => {
+  const v = presetList.value; if (!v.startsWith("o:")) return;
+  const own = ownPresets(); delete own[v.slice(2)]; saveOwn(own); fillPresets();
+});
+presetBar.append(presetList, presetSave, presetDelete);
+const presetHead = document.createElement("h2"); presetHead.textContent = "프리셋";
+side.prepend(presetHead, presetBar);
+fillPresets();
+
 document.getElementById("play").addEventListener("click", () => { t = 0; playing = true; });
 document.getElementById("leaveNow").addEventListener("click", () => { t = leaveStart(); playing = true; });
 document.getElementById("pause").addEventListener("click", e => { playing = !playing; e.target.textContent = playing ? "일시정지" : "계속"; });
