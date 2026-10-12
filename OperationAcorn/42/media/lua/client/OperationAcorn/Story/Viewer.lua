@@ -124,7 +124,7 @@ function ISOAViewer:onPrev() self:show(self.index - 1) end
 function ISOAViewer:onNext() self:show(self.index + 1) end
 
 function ISOAViewer:close()
-    self:removeFromUIManager()
+    UI.fadeOut(self)
     Viewer.instance = nil
 end
 
@@ -141,6 +141,7 @@ function Viewer.open(character, docs)
     ui:initialise()
     ui:addToUIManager()
     ui:bringToTop()
+    UI.fadeIn(ui)
     ui.docs = docs
     ui:show(1)
     Viewer.instance = ui

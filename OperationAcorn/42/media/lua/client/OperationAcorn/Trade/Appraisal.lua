@@ -130,19 +130,28 @@ function OAEstimatePanel:fill(container)
     self.weight = plan.weight
 end
 
--- Twice a second: shown only while the loot window shows an open box; redone only when its contents changed.
+-- Shown only while the loot window shows an open box and is not folded to its title bar: beside it on the right, on
+-- its left where the screen ends first. Its folding or closing hides the panel at once; the box is looked for twice a
+-- second, the rows redone only when its contents changed.
 function OAEstimatePanel:update()
+    local page = self.page
+    local folded = page.isCollapsed or not page:isVisible()
+    if folded and self:isVisible() then
+        self:setVisible(false)
+        self.signature = nil
+    end
     self.ticks = (self.ticks or 0) + 1
     if self.ticks < 30 then return end
     self.ticks = 0
-    local page = self.page
     local object, container = boxOf(page)
-    if not object or not page:isVisible() then
+    if not object or folded then
         self:setVisible(false)
         self.signature = nil
         return
     end
-    self:setX(page:getX() + page:getWidth() + 4)
+    local x = page:getX() + page:getWidth() + 4
+    if x + self:getWidth() > getCore():getScreenWidth() then x = math.max(0, page:getX() - self:getWidth() - 4) end
+    self:setX(x)
     self:setY(page:getY())
     self:setHeight(page:getHeight())
     self:setVisible(true)

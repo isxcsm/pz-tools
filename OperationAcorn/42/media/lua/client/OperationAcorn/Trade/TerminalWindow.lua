@@ -576,8 +576,7 @@ function OATerminalWindow:close()
         if view.onWindowClose then view:onWindowClose() end
     end
     OATerminalWindow.instances[self.playerNum] = nil
-    self:setVisible(false)
-    self:removeFromUIManager()
+    UI.fadeOut(self)
 end
 
 -- The window's default and smallest sizes in pixels: the design sizes times the scale, kept to a share of the screen.

@@ -291,8 +291,7 @@ end
 
 function OAMachineWindow:close()
     if self.picker then self.picker:close() end
-    self:setVisible(false)
-    self:removeFromUIManager()
+    UI.fadeOut(self)
     if OAMachineWindow.windows[self.machineId] == self then OAMachineWindow.windows[self.machineId] = nil end
 end
 

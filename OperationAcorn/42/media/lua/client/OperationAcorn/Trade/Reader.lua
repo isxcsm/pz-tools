@@ -42,8 +42,7 @@ end
 
 function OAReaderWindow:close()
     OAReaderWindow.instances[self.playerNum] = nil
-    self:setVisible(false)
-    self:removeFromUIManager()
+    PZUIKit.UI.fadeOut(self)
 end
 
 function OAReaderWindow:new(character, title, richText)
@@ -76,6 +75,7 @@ function Reader.open(character, title, richText)
     window:initialise()
     window:addToUIManager()
     window:setVisible(true)
+    PZUIKit.UI.fadeIn(window)
     OAReaderWindow.instances[character:getPlayerNum()] = window
     return window
 end

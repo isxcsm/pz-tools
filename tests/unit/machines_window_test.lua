@@ -489,6 +489,7 @@ local function gameClasses()
     function E:isMouseOver() return false end
     function E:setAlwaysOnTop(v) self.alwaysOnTop = v end
     function E:setVisible(v) self.visible = v end
+    function E:isVisible() return self.visible ~= false end
     function E:getIsVisible() return self.visible end
     function E:setAnchorRight(v) self.anchorRight = v end
     function E:setAnchorBottom(v) self.anchorBottom = v end
@@ -682,12 +683,14 @@ end
 test("the window closes when the character walks away from the machine", function()
     local now = 5000
     _G.getTimestampMs = function() return now end
-    local _, window = openWindow(19)
+    local UI, window = openWindow(19)
     window:update()
     truthy(not window.removed, "open while near")
     window.character.getX = function() return 30 end
     now = now + OAMachineWindow.NEAR_MS
     window:update()
+    now = now + UI.FADE_OUT_MS -- it fades out, then is taken away
+    UI.liveFrame()
     truthy(window.removed, "gone once out of reach")
 end)
 
@@ -754,6 +757,8 @@ test("an open window reads its machine a few times a second, and each frame only
     -- the machine is gone: the window closes
     window.object.index = -1
     window:update()
+    now = now + UI.FADE_OUT_MS
+    UI.liveFrame()
     truthy(window.removed)
 end)
 
