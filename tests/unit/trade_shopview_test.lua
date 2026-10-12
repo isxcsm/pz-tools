@@ -28,8 +28,8 @@ test("the shelf holds the serum group and the serum-special entries in the fixed
         entry("serum_load", "serum", { special = "serum" }),
         entry("box_reissue", "box", { special = "reissue" }),
     })
-    eq(ids(blocks[1].entries), "cure_serum,delay_drug")
-    eq(ids(blocks[2].entries), "serum_load")
+    eq(ids(blocks[2].entries), "cure_serum,delay_drug")
+    eq(ids(blocks[1].entries), "serum_load")
     eq(V.shelfCount(blocks), 3)
     -- five treatments: the order is the fixed one whatever the catalog's
     local full = {
@@ -43,8 +43,8 @@ test("the shelf holds the serum group and the serum-special entries in the fixed
         entry("serum_load", "serum", { special = "serum" }),
     }
     blocks = V.shelf(full)
-    eq(ids(blocks[1].entries), "cure_serum,reversal,delay_long,delay_drug,test_kit")
-    eq(ids(blocks[2].entries), "serum_scout,serum_load,serum_survival")
+    eq(ids(blocks[2].entries), "cure_serum,reversal,delay_long,delay_drug,test_kit")
+    eq(ids(blocks[1].entries), "serum_scout,serum_load,serum_survival")
     eq(V.shelfCount(blocks), 8)
 end)
 
@@ -54,8 +54,8 @@ test("an entry the order does not name still lands on the shelf, by what it is",
         entry("new_drug", "serum"),
         entry("serum_extra", "resource", { special = "serum" }),
     })
-    eq(ids(blocks[1].entries), "cure_serum,new_drug")
-    eq(ids(blocks[2].entries), "serum_extra")
+    eq(ids(blocks[2].entries), "cure_serum,new_drug")
+    eq(ids(blocks[1].entries), "serum_extra")
 end)
 
 test("the sections leave out the shelf and the box reissue and keep the catalog's order", function()
@@ -68,8 +68,8 @@ test("the sections leave out the shelf and the box reissue and keep the catalog'
     eq(#sections.byGroup.machine, 10)
     -- the real catalog's shelf: the five treatments and the three serums
     local blocks = V.shelf(OA.Shop.catalog())
-    eq(ids(blocks[1].entries), "cure_serum,reversal,delay_long,delay_drug,test_kit")
-    eq(ids(blocks[2].entries), "serum_scout,serum_load,serum_survival")
+    eq(ids(blocks[2].entries), "cure_serum,reversal,delay_long,delay_drug,test_kit")
+    eq(ids(blocks[1].entries), "serum_scout,serum_load,serum_survival")
 end)
 
 test("a section is locked on the crude terminal when all its entries are for the field terminal", function()

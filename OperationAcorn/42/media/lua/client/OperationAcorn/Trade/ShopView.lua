@@ -9,7 +9,8 @@ local OA = OperationAcorn
 local ShopView = {}
 OA.Trade.ShopView = ShopView
 
--- The serum shelf (DESIGN-terminal 4.1) in its fixed order: the treatments, then the upgrade serums. An id the
+-- The serum shelf (DESIGN-terminal 4.1) in its fixed order: the upgrade serums (bought far more often), then the
+-- treatments. An id the
 -- catalog does not have is skipped; any other entry of the serum group, or that is a serum, is
 -- put after them in the catalog's order.
 ShopView.TREAT_IDS = { "cure_serum", "reversal", "delay_long", "delay_drug", "test_kit" }
@@ -44,14 +45,15 @@ local function isEnhance(entry)
     return entry.special == "serum"
 end
 
--- The shelf as two blocks { { id = "treat", entries }, { id = "enhance", entries } } from a catalog (a list of entries).
+-- The shelf as two blocks { { id = "enhance", entries }, { id = "treat", entries } } from a catalog (a list of entries).
 function ShopView.shelf(catalog)
     local byId, shelf = {}, {}
     for _, e in ipairs(catalog) do
         byId[e.id] = e
         if ShopView.listed(e) and ShopView.onShelf(e) then shelf[e.id] = e end
     end
-    local blocks = { { id = "treat", entries = {} }, { id = "enhance", entries = {} } }
+    local blocks = { { id = "enhance", entries = {} }, { id = "treat", entries = {} } }
+    local enhance, treat = blocks[1], blocks[2]
     local placed = {}
     local function put(block, id)
         local e = shelf[id]
@@ -60,10 +62,10 @@ function ShopView.shelf(catalog)
             table.insert(block.entries, e)
         end
     end
-    for _, id in ipairs(ShopView.TREAT_IDS) do put(blocks[1], id) end
-    for _, id in ipairs(ShopView.ENHANCE_IDS) do put(blocks[2], id) end
+    for _, id in ipairs(ShopView.ENHANCE_IDS) do put(enhance, id) end
+    for _, id in ipairs(ShopView.TREAT_IDS) do put(treat, id) end
     for _, e in ipairs(catalog) do
-        if shelf[e.id] and not placed[e.id] then put(isEnhance(e) and blocks[2] or blocks[1], e.id) end
+        if shelf[e.id] and not placed[e.id] then put(isEnhance(e) and enhance or treat, e.id) end
     end
     return blocks
 end

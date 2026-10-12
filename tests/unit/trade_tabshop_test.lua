@@ -203,11 +203,11 @@ local function clickCard(tab, id)
     return false
 end
 
-test("the shop opens on the serum shelf with the five treatments and the three serums, and a card selected", function()
+test("the shop opens on the serum shelf with the three serums above the five treatments, the first serum selected", function()
     local tab = open("crude")
     local seen = draw(tab)
     eq(tab.cat, "serums")
-    eq(tab.sel, "cure_serum")
+    eq(tab.sel, "serum_scout", "the upgrade serums come first: they are bought far more often")
     truthy(has(seen.tab, "IGUI_OA_Terminal_Shop_Serum"), "the serum box")
     truthy(has(seen.tab, "IGUI_OA_Terminal_Shop_Sections"))
     truthy(has(seen.cards, "IGUI_OA_Terminal_Shop_Treat"), "the treatment head")
@@ -215,7 +215,7 @@ test("the shop opens on the serum shelf with the five treatments and the three s
     truthy(has(seen.cards, "IGUI_OA_Econ_Shop_Item_cure_serum"))
     truthy(has(seen.cards, "IGUI_OA_Econ_Shop_Item_serum_load"))
     truthy(has(seen.cards, "IGUI_OA_Terminal_Shop_Nth 1"), "the first serum of a tree")
-    eq(#tab.cards.rows, 2 + 3 + 2, "two heads, three card rows for the five treatments and two for the three serums")
+    eq(#tab.cards.rows, 2 + 3 + 2, "two heads, two card rows for the three serums and three for the five treatments")
 end)
 
 test("the sections list the groups, the locked ones with a padlock, on the crude terminal", function()
@@ -504,7 +504,7 @@ end)
 test("a long description takes the taller detail", function()
     local real = getText
     getText = function(key, ...)
-        if string.find(key, "Shop_Desc_cure_serum", 1, true) then
+        if string.find(key, "Shop_Desc_serum_scout", 1, true) then
             return string.rep("word ", 100)
         end
         return real(key, ...)
