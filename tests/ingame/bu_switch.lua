@@ -1,5 +1,5 @@
--- The box's main switch, at the test panel: switched off and on by its timed action (valid, then complete, as when the
--- player's walk ends at the box), with the network, the status line, the look, the log and the window's row read each
+-- The box's main switch, at the test panel: switched off and on by its lever in the window (the setLever command, at
+-- once), with the network, the status line, the look, the log and the window's row read each
 -- time; quiet hours, a change of units, the breaker's reset and two game minutes of the server's rules leave it off,
 -- with no producer running and no outage counted; a minute after it is on, the producer that carried the power
 -- before carries it again; a trip and the switch together. Then the generators' rows for a faked network state
@@ -68,12 +68,8 @@ function BU.onNotice(panelId, key, args)
 end
 local function toldOf(key) return told[key] or 0 end
 
--- The action as the player's walk ends at the box.
-local function throw(off)
-    local action = ISBUMainSwitch:new(player, panel, off)
-    if not action:isValid() then say("BAD the action is not valid, off", off); return end
-    action:complete()
-end
+-- The lever thrown from the window: down (off true) or up.
+local function throw(off) BU.Sync.send(player, "setLever", { panel = panel.id, up = not off }) end
 
 -- The window's rows, filled from the network now: the first of a kind, and its tooltip.
 local window = PanelWindow.open(player, panel)
@@ -102,7 +98,9 @@ if not grid then check("off: reason", PanelWindow.status(panel, "power").reason,
 check("off: look", PanelLook.wanted(panel), "off")
 check("off: box sprite", sprite(), spriteFor("off"))
 check("off: log", lastLog(), "IGUI_BU_Notice_SwitchedOff")
-check("off: switching off again is not valid", ISBUMainSwitch:new(player, panel, true):isValid(), false)
+local offNotices = toldOf("IGUI_BU_Notice_SwitchedOff")
+throw(true)
+check("off: pulling it down again does nothing", toldOf("IGUI_BU_Notice_SwitchedOff"), offNotices)
 check("off: lever down", Panels.leverUp(panel), false)
 
 -- What could switch it on again leaves it off. A change of units lifts a quiet cut only without a bank: none, here.
@@ -184,7 +182,8 @@ end
 local function tripChecks()
     Changes.trip(panel)
     check("tripped: lever down", Panels.leverUp(panel), false)
-    check("tripped: pulling it down is not valid", ISBUMainSwitch:new(player, panel, true):isValid(), false)
+    throw(true)
+    check("tripped: pulling it down does not switch it off", panel.switchedOff == true, false)
     check("tripped: enabled", enabled(), false)
     check("tripped: look", PanelLook.wanted(panel), "tripped")
     checkStatus("tripped", "IGUI_BU_St_Tripped")

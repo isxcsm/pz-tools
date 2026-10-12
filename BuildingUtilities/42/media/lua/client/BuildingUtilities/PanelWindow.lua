@@ -204,8 +204,8 @@ PanelWindow.LEVER_W, PanelWindow.GAUGE_W = 22, 4
 
 -- The box's lever (Changes.setLever): up while its breaker holds and its main switch is on. Drawn as a breaker's
 -- toggle: a dark housing with a slot, the handle with its grip sliding along it (LEVER_MS) and a strip on it in the
--- state's colour (green up and live, amber up without supply, red tripped, grey pulled down). Clicked, the player
--- throws it at the box (a timed action); its tooltip says which way.
+-- state's colour (green up and live, amber up without supply, red tripped, grey pulled down). Clicked, it is
+-- thrown at once (as a device's tick in the window); its tooltip says which way.
 ISBULever = ISBUTipArea:derive("ISBULever")
 ISBULever.LEVER_MS = 140
 
@@ -1464,11 +1464,9 @@ function ISBUPanelWindow:onRenamed(button)
     Sync.send(self.playerObj, "rename", { panel = self.panel.id, name = button.parent.entry:getText() })
 end
 
--- The lever thrown the other way, by the player at the box.
+-- The lever thrown the other way, at once, as a device's tick in the window is.
 function ISBUPanelWindow:onLever()
-    local panel = self.panel
-    BU.ContextMenu.queueAt(self.playerObj, panel.x, panel.y, panel.z,
-        ISBUMainSwitch:new(self.playerObj, panel, Panels.leverUp(panel)))
+    Sync.send(self.playerObj, "setLever", { panel = self.panel.id, up = not Panels.leverUp(self.panel) })
 end
 
 function ISBUPanelWindow:onUpgrade()

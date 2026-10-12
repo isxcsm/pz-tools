@@ -21,6 +21,13 @@ end
 
 function commands.setAllInside(player, panel, args) Changes.setAllInside(panel, args.utility, args.on == true) end
 
+-- The box's lever thrown from its window, at once like a device's tick there: down switches the power off, up resets
+-- a tripped breaker and switches it on (Changes.setLever). Thrown the way it already is, nothing.
+function commands.setLever(player, panel, args)
+    local up = args.up == true
+    if Panels.leverUp(panel) ~= up then Changes.setLever(panel, up) end
+end
+
 function commands.setRoomInside(player, panel, args)
     if type(args.room) == "string" then Changes.setRoomInside(panel, args.utility, args.room, args.on == true) end
 end

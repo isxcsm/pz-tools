@@ -280,28 +280,6 @@ function ISBUUpgradePanel:new(character, panel)
     return o
 end
 
--- The box's lever thrown, down (off true) or up: a moment at the box (Changes.setLever).
-ISBUMainSwitch = base("ISBUMainSwitch", 50)
-
-function ISBUMainSwitch:isValid()
-    local panel = Store.get(self.panelId)
-    return panel ~= nil and Panels.leverUp(panel) == self.off
-end
-
-function ISBUMainSwitch:complete()
-    local panel = Store.get(self.panelId)
-    if not panel then return false end
-    Changes.setLever(panel, not self.off)
-    return true
-end
-
-function ISBUMainSwitch:new(character, panel, off)
-    local o = ISBaseTimedAction.new(self, character)
-    o.panelId, o.x, o.y, o.off = panel.id, panel.x, panel.y, off == true
-    o.maxTime = o:getDuration()
-    return o
-end
-
 -- Putting a unit down (Units.canInstall).
 ISBUInstallUnit = base("ISBUInstallUnit", 250)
 
