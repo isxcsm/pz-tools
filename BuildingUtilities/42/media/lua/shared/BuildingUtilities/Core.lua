@@ -198,7 +198,7 @@ local function reach(name, default, tier)
     local perTier = math.max(0, BU.sandbox("RangePerTier", 50))
     return math.floor(BU.sandbox(name, default) * (1 + (tier - 1) * perTier / 100))
 end
-function BU.exteriorRange(tier) return math.max(0, math.min(32, reach("ExteriorRange", 10, tier))) end
+function BU.exteriorRange(tier) return math.max(0, math.min(32, reach("ExteriorRange", 5, tier))) end
 function BU.producerRange(tier) return math.max(1, reach("ProducerRange", 20, tier)) end
 function BU.subPanelRange(tier) return math.max(1, reach("SubPanelRange", 50, tier)) end
 

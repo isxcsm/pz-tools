@@ -58,8 +58,8 @@ ISBUPanelWindow = ISCollapsableWindow:derive("ISBUPanelWindow")
 local function planByDefault() return UI.dp(getCore():getScreenWidth()) >= 900 end
 
 -- The window's width for a list so wide, with the plan or without (design units). Alone, the list is at least TOP_W
--- wide: the load's top and the plan's and range's buttons beside it take that.
-local TOP_W = 600
+-- wide: the load's top, its lever and the plan's button beside it take that.
+local TOP_W = 520
 
 local function windowWidth(listW, shown)
     if not shown then return math.max(listW, TOP_W) end
@@ -201,11 +201,14 @@ UI.scaled(ISBUTipArea, ISPanel)
 -- The top's sizes (design units): its height (the load's big percent, its bar and its text), the bar's height and
 -- what it shows at most (BAR_MOST of the limit; more stays at its end), the lever's width and the breaker's gauge's.
 PanelWindow.LOAD_H, PanelWindow.BAR_H, PanelWindow.BAR_MOST = 30, 6, 1.5
-PanelWindow.LEVER_W, PanelWindow.GAUGE_W = 16, 4
+PanelWindow.LEVER_W, PanelWindow.GAUGE_W = 22, 4
 
--- The box's lever (Changes.setLever): up while its breaker holds and its main switch is on. Clicked, the player
+-- The box's lever (Changes.setLever): up while its breaker holds and its main switch is on. Drawn as a breaker's
+-- toggle: a dark housing with a slot, the handle with its grip sliding along it (LEVER_MS) and a strip on it in the
+-- state's colour (green up and live, amber up without supply, red tripped, grey pulled down). Clicked, the player
 -- throws it at the box (a timed action); its tooltip says which way.
 ISBULever = ISBUTipArea:derive("ISBULever")
+ISBULever.LEVER_MS = 140
 
 function ISBULever:new(x, y, window)
     local o = ISBUTipArea.new(self, x, y, PanelWindow.LEVER_W, PanelWindow.LOAD_H)
@@ -213,21 +216,50 @@ function ISBULever:new(x, y, window)
     return o
 end
 
+-- Redrawn frame by frame while the handle slides.
+local function leverFrame(lever, now)
+    if lever.pos == nil or lever.pos == lever.target then return nil end
+    return math.floor(now / 16)
+end
+
 function ISBULever:prerender()
     ISBUTipArea.prerender(self)
-    local panel = self.window.panel
+    local window = self.window
+    local panel = window.panel
     local w, h = self.width, self.height
     local up = Panels.leverUp(panel)
     local over = self:isMouseOver()
+    -- the handle's place, 0 up to 1 down, sliding to where the lever is
+    local now = getTimestampMs()
+    local target = up and 0 or 1
+    self.target = target
+    local pos = self.pos or target
+    if pos ~= target then
+        local step = math.min(100, now - (self.movedAt or now)) / ISBULever.LEVER_MS
+        pos = pos < target and math.min(target, pos + step) or math.max(target, pos - step)
+        UI.live(self, leverFrame)
+    end
+    self.pos, self.movedAt = pos, now
+    -- the housing and its slot
+    UI.fill(self, 0, 0, w, h, P.panel)
+    UI.frame(self, 0, 0, w, h, over and P.value or P.border)
     local slotX = math.floor((w - 4) / 2)
-    UI.fill(self, slotX, 3, 4, h - 6, P.inset)
-    UI.frame(self, slotX, 3, 4, h - 6, P.border)
-    local handleH = 9
-    local handleY = up and 1 or h - handleH - 1
-    local colour = up and P.text or panel.tripped and P.bad or P.off
-    UI.fill(self, 1, handleY, w - 2, handleH, colour, over and 1 or 0.85)
-    UI.fill(self, 1, handleY, w - 2, 1, P.bright, 0.35)
-    UI.frame(self, 1, handleY, w - 2, handleH, over and P.bright or P.border)
+    UI.fill(self, slotX, 4, 4, h - 8, P.inset)
+    -- the handle: light, its top lit and its foot shaded, two grip lines and the state's strip
+    local handleH = 11
+    local handleY = math.floor(2 + (h - 4 - handleH) * ease(pos) + 0.5)
+    local hx, hw = 3, w - 6
+    UI.fill(self, hx, handleY, hw, handleH, P.text, over and 1 or 0.92)
+    UI.fill(self, hx, handleY, hw, 1, P.bright, 0.6)
+    UI.fill(self, hx, handleY + handleH - 1, hw, 1, P.inset, 0.6)
+    local strip = P.off
+    if panel.tripped then strip = P.bad
+    elseif up then strip = window.live and P.good or P.warn end
+    local stripY = up and handleY + handleH - 4 or handleY + 2
+    UI.fill(self, hx + 2, stripY, hw - 4, 2, strip)
+    local gripY = up and handleY + 2 or handleY + handleH - 5
+    UI.fill(self, hx + 3, gripY, hw - 6, 1, P.inset, 0.5)
+    UI.fill(self, hx + 3, gripY + 2, hw - 6, 1, P.inset, 0.5)
 end
 
 function ISBULever:onMouseUp()
@@ -265,8 +297,7 @@ function ISBUPanelWindow:createChildren()
     local buttonsY = self.bannerY + ROW + 4
     -- Placed by layoutPanes at the right, as the window's width changes.
     local buttonY = self.loadY + (PanelWindow.LOAD_H - ROW) / 2
-    self.rangeButton = button(self, bw - PAD - 130, buttonY, 130, ROW, ISBUPanelWindow.onRange)
-    self.planButton = button(self, bw - PAD - 130 - 4 - 110, buttonY, 110, ROW, ISBUPanelWindow.onPlan)
+    self.planButton = button(self, bw - PAD - 110, buttonY, 110, ROW, ISBUPanelWindow.onPlan)
     self.renameButton = button(self, PAD, buttonsY, 100, ROW, ISBUPanelWindow.onRename)
     titled(self.renameButton, getText("IGUI_BU_Rename"))
     self.mainButton = button(self, PAD + 106, buttonsY, 170, ROW, ISBUPanelWindow.onMainPanel)
@@ -356,7 +387,7 @@ function ISBUPanelWindow:layoutPanes()
     if not (self.tabs and self.plan) then return end
     local shown = self.plan:getIsVisible()
     local bw = self:bodyWidth()
-    self:placeTopButtons(shown)
+    self:placeTopButtons()
     self:placePanelTabs()
     local listW = bw
     if shown then
@@ -474,17 +505,12 @@ function ISBUPanelWindow:setPlanShown(shown)
         self:outlineDevice(nil)
     end
     titled(self.planButton, getText(shown and "IGUI_BU_PlanHide" or "IGUI_BU_PlanShow"))
-    self:placeTopButtons(shown)
+    self:placeTopButtons()
 end
 
--- The plan and range buttons at the right of the load bar. With the plan shown the range is a switch on it: only the
--- plan button stays.
-function ISBUPanelWindow:placeTopButtons(planShown)
-    local right = self:bodyWidth() - PAD
-    self.rangeButton:setVisible(not planShown)
-    self.rangeButton:setX(right - self.rangeButton:getWidth())
-    local planW = self.planButton:getWidth()
-    self.planButton:setX(planShown and right - planW or right - self.rangeButton:getWidth() - 4 - planW)
+-- The plan's button at the right of the load's top. (The range is a switch on the plan.)
+function ISBUPanelWindow:placeTopButtons()
+    self.planButton:setX(self:bodyWidth() - PAD - self.planButton:getWidth())
 end
 
 function ISBUPanelWindow:onPlan() self:setPlanShown(not self.plan:getIsVisible()) end
@@ -829,10 +855,8 @@ function ISBUPanelWindow:refresh()
         self.banner = nil
     end
     if self.banner and self.banner.pulse then UI.live(self.body, bodyFrame) end
-    titled(self.rangeButton, getText(self.rangeShown and "IGUI_BU_RangeHide" or "IGUI_BU_RangeShow"))
-    self.rangeButton:setTooltip(getText("IGUI_BU_RangeNote") .. "\n" .. Panels.rangesText(panel.tier))
     titled(self.planButton, getText(self.plan:getIsVisible() and "IGUI_BU_PlanHide" or "IGUI_BU_PlanShow"))
-    self:placeTopButtons(self.plan:getIsVisible())
+    self:placeTopButtons()
     local parent = Store.get(panel.parent)
     titled(self.mainButton, parent and getText("IGUI_BU_LeaveMain", Panels.name(parent)) or getText("IGUI_BU_JoinMain"))
     local tier = panel.tier or 1

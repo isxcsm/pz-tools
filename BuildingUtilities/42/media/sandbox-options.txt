@@ -62,7 +62,7 @@ option BuildingUtilities.ProducerRange
 
 option BuildingUtilities.ExteriorRange
 {
-    type = integer, min = 0, max = 32, default = 10,
+    type = integer, min = 0, max = 32, default = 5,
     page = BuildingUtilities, translation = BuildingUtilities_ExteriorRange,
 }
 

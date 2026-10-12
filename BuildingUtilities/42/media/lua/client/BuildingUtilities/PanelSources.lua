@@ -74,8 +74,8 @@ function ISBUPanelWindow:sourceRows(state)
             local status = getText("IGUI_BU_Standby")
             if flow > 0.0005 then status = getText("IGUI_BU_BankCharging", load2(flow))
             elseif flow < -0.0005 then status = getText("IGUI_BU_BankDrawn", load2(-flow)) end
-            text = getText("IGUI_BU_BankRow", BU.percent(bank.charge * 100), string.format("%.1f", bank.energy),
-                string.format("%.1f", bank.capacity), status)
+            text = getText("IGUI_BU_BankRow", #racks, BU.percent(bank.charge * 100), string.format("%.1f", bank.energy),
+                string.format("%.1f", bank.capacity), load2(Energy.boost(panel, bank)), status)
             if bank.weak > 0 then text = text .. "  " .. getText("IGUI_BU_BankWeak", bank.weak) end
             if panel.quietCut then text = text .. "  " .. getText("IGUI_BU_QuietCut") end
             if bank.cold > 0.005 then text = text .. "  " .. getText("IGUI_BU_BankCold", BU.percent(bank.cold * 100)) end
