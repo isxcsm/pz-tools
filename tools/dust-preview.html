@@ -60,7 +60,7 @@ const P = {
   GLOW: 0.45, COOL: 0.4, BURN_ASH: 0.3, SCORCH_END: 0.4, GLOW_PEAK: 0.62, GLOW_END: 0.85, SPARKS: 0.25, CHAR_ASH: 0.45,
   SCORCH_R: 0.34, SCORCH_G: 0.18, SCORCH_B: 0.1, CHAR_R: 0.07, CHAR_G: 0.055, CHAR_B: 0.05, FLICKER: 9, FLICKER_DEPTH: 0.3,
   // paper (a new way: the text burns spot by spot, its ash shards tumbling)
-  IMPACT_COOL: 4, IMPACT_GLOW: 1, IMPACT_STREAK: 0.8, IMPACT_DUST: 1, SHINE_AT: 0.8, SHINE: 1, TRACK: 0.22, TRACK_BLUR: 1, TRACK_RISE: 0.12,
+  IMPACT_COOL: 4, IMPACT_GLOW: 1, IMPACT_STREAK: 0.8, IMPACT_DUST: 1, SHINE_AT: 0.8, SHINE: 0.45, TRACK: 0.07, TRACK_BLUR: 0.6, TRACK_RISE: 0.05, TRACK_STAGGER: 0.12,
   zoom: 2, FRONT: 0.52, SPREAD: 0.07, EDGE_W: 0.012, CHAR_W: 0.02, SCORCH_W: 0.07, RAGGED: 0.03, CURL: 0.6,
   FLAKES: 0.5, FLAKE_SIZE: 1.1, SPIN: 7, GREYING: 0.35, PAPER_ASH: 0.55,
 };
@@ -81,8 +81,8 @@ const STYLES = {
     title: { weight: 700, size: 0.1, color: [1, 1, 1], outline: 0.45, enter: "slam", enterTime: 0.22, leave: "grow", leaveTime: 0.7 },
     line: { weight: 400, size: 0.045, color: [0.88, 0.88, 0.88], delay: 0.2, enter: "fade", enterTime: 0.35, leave: "fade", leaveTime: 0.7 } },
   "stamp-new": { label: "stamp 새안: 각인", y: 0.28, gap: 0.25, trail: 0.12, backdrop: 0.3,
-    title: { weight: 700, size: 0.1, color: [0.9, 0.89, 0.86], outline: 0.45, enter: "impact", enterTime: 0.6, leave: "trackout", leaveTime: 1.4 },
-    line: { weight: 400, size: 0.045, color: [0.9, 0.9, 0.88], delay: 0.45, enter: "slideup", enterTime: 0.5, leave: "trackout", leaveTime: 1.2 } },
+    title: { weight: 700, size: 0.1, color: [0.9, 0.89, 0.86], outline: 0.45, enter: "impact", enterTime: 0.6, leave: "trackout", leaveTime: 2.4 },
+    line: { weight: 400, size: 0.045, color: [0.9, 0.9, 0.88], delay: 0.45, enter: "slideup", enterTime: 0.5, leave: "trackout", leaveTime: 2.2 } },
   "discovery": { label: "discovery (게임 현재)", y: 0.28, gap: 0.3, trail: 0, backdrop: 0.3,
     title: { weight: 700, italic: true, size: 0.08, color: [1, 0.8, 0.38], enter: "rise", enterTime: 0.6, leave: "rise", leaveTime: 0.9 },
     line: { weight: 400, size: 0.042, color: [1, 0.93, 0.78], delay: 0.25, enter: "rise", enterTime: 0.6, leave: "rise", leaveTime: 0.9 } },
@@ -259,7 +259,7 @@ void main() { vUv = uv; vCol = col; vAux = aux; vec2 p = (pos - camera.xy) * cam
 // mode 2: a flake of ash, an irregular shard.
 const FS = `precision highp float;
 uniform sampler2D tex; uniform sampler2D burnMap; uniform float mode, progress, edgeW, charW, scorchW, glow, flickerN, flickerD;
-uniform vec3 burn, scorched, charred; uniform vec2 picSize; uniform vec2 inner;
+uniform vec3 burn, scorched, charred; uniform vec2 picSize; uniform vec2 inner; uniform vec2 blurR;
 varying vec2 vUv; varying vec4 vCol; varying vec3 vAux;
 float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -307,6 +307,13 @@ void main() {
   if (mode < 4.5) {                       // a soft round puff
     float m = 1.0 - smoothstep(0.0, 1.0, length(vAux.xy));
     gl_FragColor = vCol * m * m;
+    return;
+  }
+  if (mode > 6.5) {                       // the picture blurred: a centre and two rings, weighted as a bell
+    vec4 sum = texture2D(tex, vUv) * 0.25;
+    for (int i = 0; i < 6; i++) { float a = float(i) / 6.0 * 6.2831; sum += texture2D(tex, vUv + vec2(cos(a), sin(a)) * blurR * 0.5) * (0.35 / 6.0); }
+    for (int i = 0; i < 12; i++) { float a = (float(i) + 0.5) / 12.0 * 6.2831; sum += texture2D(tex, vUv + vec2(cos(a), sin(a)) * blurR) * (0.4 / 12.0); }
+    gl_FragColor = sum * vCol;
     return;
   }
   if (mode < 5.5) {                       // a band of light passing over the picture's shape
@@ -556,24 +563,21 @@ function drawTrackout(p, st, o) {
   mode = 0;
   for (const g of p.glyphs) {
     const d = (g.mid - p.w / 2) / half;                  // -1 at the left end, 1 at the right
-    const k = clamp((o - 0.22 * (1 - Math.abs(d))) / 0.78, 0, 1);
+    const k = clamp((o - P.TRACK_STAGGER * (1 - Math.abs(d))) / (1 - P.TRACK_STAGGER), 0, 1);
     const a = 1 - smooth(k);
     if (a <= 0.003) continue;
-    const dx = (g.mid - p.w / 2) * s * P.TRACK * cubicOut(o), dy = -P.TRACK_RISE * p.line * smooth(k);
+    const dx = (g.mid - p.w / 2) * s * P.TRACK * smooth(o), dy = -P.TRACK_RISE * p.line * smooth(k);
     const x0 = p.cx + (g.x0 - p.w / 2) * s + dx, x1 = p.cx + (g.x1 - p.w / 2) * s + dx, y0 = top + dy, y1 = top + p.h * s + dy;
     const u0 = g.x0 / p.w, u1 = g.x1 / p.w;
     // the letter, sharp at first; copies around it take over as it softens
-    const blur = P.TRACK_BLUR * smooth(k), sharp = a * (1 - 0.7 * blur / Math.max(1, P.TRACK_BLUR));
-    quad(x0, y0, x1, y1, u0, 0, u1, 1, sharp, sharp, sharp, sharp);
-    if (blur > 0.01) {
-      const r = p.line * 0.06 * blur, each = a * 0.7 * blur / Math.max(1, P.TRACK_BLUR) / 8;
-      for (let i = 0; i < 8; i++) {
-        const ang = i / 8 * 2 * Math.PI, ox = Math.cos(ang) * r, oy = Math.sin(ang) * r;
-        quad(x0 + ox, y0 + oy, x1 + ox, y1 + oy, u0, 0, u1, 1, each, each, each, each);
-      }
-    }
+    // softening as out of focus: the shader's blur, its radius growing
+    const r = p.line * 0.035 * P.TRACK_BLUR * smooth(k);
+    mode = 7;
+    gl.uniform2f(U("blurR"), r / p.w, r / p.h);
+    quad(x0, y0, x1, y1, u0, 0, u1, 1, a, a, a, a);
+    flush(p.tex);
   }
-  flush(p.tex);
+  mode = 0;
 }
 
 // The impact's light and dust over the title (secs since it began, la: how much of it is left as it leaves).
@@ -614,7 +618,7 @@ function drawImpact(p, st, secs, la) {
   if (at > 0 && at < 1) {
     mode = 5;
     gl.uniform1f(U("progress"), -0.3 + 1.6 * at); gl.uniform1f(U("edgeW"), 0.12);
-    const s = 0.85 * P.SHINE * la, r = p.line * 0.035, halo = 0.22 * s;
+    const s = 0.85 * P.SHINE * la, r = p.line * 0.035, halo = 0.12 * s;
     box(0, 0, s, 0.97 * s, 0.9 * s);
     for (let i = 0; i < 12; i++) { const a = i / 12 * 2 * Math.PI; box(Math.cos(a) * r, Math.sin(a) * r, halo, 0.95 * halo, 0.85 * halo); }
     flush(p.tex);
@@ -812,6 +816,7 @@ control("SHINE_AT", "광택 시작(초)", "range", [0.2, 3, 0.1]);
 control("TRACK", "퇴장: 자간 벌어짐", "range", [0, 0.8, 0.01]);
 control("TRACK_BLUR", "퇴장: 번짐", "range", [0, 3, 0.05]);
 control("TRACK_RISE", "퇴장: 떠오름", "range", [0, 0.6, 0.01]);
+control("TRACK_STAGGER", "퇴장: 바깥 글자 먼저", "range", [0, 0.5, 0.01]);
 control("SHINE", "광택 세기", "range", [0, 2, 0.05]);
 heading("dust 새안: 종이 연소");
 control("FRONT", "번지는 시간 몫", "range", [0.1, 0.6, 0.01]);
