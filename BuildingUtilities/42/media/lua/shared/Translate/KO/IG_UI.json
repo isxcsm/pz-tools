@@ -3,7 +3,7 @@
     "IGUI_BU_Tab_water": "물",
     "IGUI_BU_Rename": "이름 변경",
     "IGUI_BU_RenamePrompt": "이 제어반 이름 (비우면 자동 이름):",
-    "IGUI_BU_JoinMain": "주 제어반에서 공급받기...",
+    "IGUI_BU_JoinMain": "보조 제어반으로 연결...",
     "IGUI_BU_LeaveMain": "%1에서 공급받기 중단",
     "IGUI_BU_NoMainInRange": "%1칸 안에 주 제어반이 없습니다",
     "IGUI_BU_Steps": "%1칸",

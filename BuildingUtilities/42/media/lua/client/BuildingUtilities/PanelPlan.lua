@@ -35,6 +35,8 @@ local FONT_HGT_SMALL = BU.PanelUi.FONT_HGT_SMALL
 local PAD = 8
 local MAX_SCALE = 14
 local DOT = 6
+-- A producer's, a unit's and the box's square, a little larger than a device's dot: its colour tells what it is.
+local SQUARE = 9
 local HIT = 5
 local STRIP_W = 34
 local CELL_H = FONT_HGT_SMALL + 4
@@ -137,7 +139,7 @@ end
 local COLOURS = {
     other = { 0.6, 0.4, 0.8 }, off = { 0.45, 0.45, 0.45 }, shed = { 1, 0.6, 0.2 }, timer = { 0.4, 0.6, 1 },
     unsupplied = { 0.6, 0.65, 0.75 }, using = { 0.4, 1, 0.4 }, idle = { 0.25, 0.6, 0.3 },
-    producer = { 1, 0.85, 0.2 }, tank = { 0.3, 0.6, 1 }, box = { 1, 1, 1 },
+    producer = { 1, 0.5, 0.15 }, tank = { 0.3, 0.6, 1 }, box = { 0.95, 0.45, 0.8 },
     rangeOutside = { 0.3, 0.6, 1 }, rangeProducer = { 1, 0.85, 0.2 }, rangeNoise = { 1, 0.35, 0.3 },
     rangeNoiseIdle = { 0.6, 0.3, 0.3 },
     zoneMine = { 0.2, 0.5, 0.6 }, zoneFree = { 0.25, 0.25, 0.25 }, zoneTaken = { 0.5, 0.3, 0.6 },
@@ -550,7 +552,7 @@ function ISBUPlan:layout()
         end
         if length < 1 then return end
         self.flows[#self.flows + 1] = { points = points, lengths = lengths, length = length, toBox = flow > 0,
-            margin = math.max(scale, 8) / 2 + 2,
+            margin = SQUARE / 2 + 2,
             r = math.min(1, colour[1] + 0.3), g = math.min(1, colour[2] + 0.3), b = math.min(1, colour[3] + 0.3) }
     end
     -- A line, drawn when shown: from the thing to the building, and for a producer on another floor than the box's on
@@ -594,7 +596,7 @@ function ISBUPlan:layout()
             h = FONT_HGT_SMALL + 2, text = riser.text, tip = riser.tip, level = data.box.z }
     end
     if boxFloor then
-        local badgeX, badgeY = math.floor(boxX + math.max(scale, 8) / 2 + 16), math.floor(boxY - FONT_HGT_SMALL / 2 - 1)
+        local badgeX, badgeY = math.floor(boxX + SQUARE / 2 + 16), math.floor(boxY - FONT_HGT_SMALL / 2 - 1)
         for index, group in ipairs(self.arrivals) do
             local badge = { x = badgeX, y = badgeY + (index - 1) * (FONT_HGT_SMALL + 4), w = group.w, h = FONT_HGT_SMALL + 2,
                 text = group.text, tip = group.tip, colour = group.colour, level = group.level }
@@ -676,13 +678,15 @@ function ISBUPlan:layout()
     for index, producer in ipairs(data.producers) do
         if producer.z == self.floor then
             local colour = producerColour(data, producer)
-            self.squares[#self.squares + 1] = { x = sx(producer.x), y = sy(producer.y), size = math.max(scale, 8),
+            self.squares[#self.squares + 1] = { x = math.floor(sx(producer.x) + (scale - SQUARE) / 2),
+                y = math.floor(sy(producer.y) + (scale - SQUARE) / 2), size = SQUARE,
                 r = colour[1], g = colour[2], b = colour[3], ring = producer.inUse, text = producer.text,
                 line = producerLines[index] }
         end
     end
     if data.box.z == self.floor then
-        self.squares[#self.squares + 1] = { x = sx(data.box.x), y = sy(data.box.y), size = math.max(scale, 8),
+        self.squares[#self.squares + 1] = { x = math.floor(sx(data.box.x) + (scale - SQUARE) / 2),
+            y = math.floor(sy(data.box.y) + (scale - SQUARE) / 2), size = SQUARE,
             r = 1, g = 1, b = 1, ring = false, text = data.boxText }
     end
     self:layoutStrip()

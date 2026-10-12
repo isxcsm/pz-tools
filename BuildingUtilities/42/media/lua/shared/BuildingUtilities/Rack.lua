@@ -162,7 +162,7 @@ Units.define("rack", {
     utility = "power",
     minTier = BU.BANK_TIER,
     tierReason = "rackTier",
-    colour = { 0.35, 0.85, 0.45 },
+    colour = { 0.4, 0.75, 1 },
     canPlace = function(square)
         if not Panels.buildingAt(square:getX(), square:getY(), square:getZ()) then return nil, "notInBuilding" end
         return true

@@ -198,9 +198,10 @@ end
 
 UI.scaled(ISBUTipArea, ISPanel)
 
--- The top's sizes (design units): its height (the load's big percent, its bar and its text), the bar's height and
--- what it shows at most (BAR_MOST of the limit; more stays at its end), the lever's width and the breaker's gauge's.
-PanelWindow.LOAD_H, PanelWindow.BAR_H, PanelWindow.BAR_MOST = 30, 6, 1.5
+-- The top's sizes (design units): its card's height (the load's big percent, its bar and its text), the bar's height
+-- and what it shows at most (BAR_MOST of the limit; more stays at its end), the card's inner margin, the lever's width
+-- and the breaker's gauge's.
+PanelWindow.LOAD_H, PanelWindow.BAR_H, PanelWindow.BAR_MOST, PanelWindow.CARD_PAD = 40, 6, 1.5, 10
 PanelWindow.LEVER_W, PanelWindow.GAUGE_W = 22, 4
 
 -- The box's lever (Changes.setLever): up while its breaker holds and its main switch is on. Drawn as a breaker's
@@ -211,7 +212,7 @@ ISBULever = ISBUTipArea:derive("ISBULever")
 ISBULever.LEVER_MS = 140
 
 function ISBULever:new(x, y, window)
-    local o = ISBUTipArea.new(self, x, y, PanelWindow.LEVER_W, PanelWindow.LOAD_H)
+    local o = ISBUTipArea.new(self, x, y, PanelWindow.LEVER_W, PanelWindow.LOAD_H - 10)
     o.window = window
     return o
 end
@@ -241,7 +242,7 @@ function ISBULever:prerender()
     end
     self.pos, self.movedAt = pos, now
     -- the housing and its slot
-    UI.fill(self, 0, 0, w, h, P.panel)
+    UI.fill(self, 0, 0, w, h, P.bg)
     UI.frame(self, 0, 0, w, h, over and P.value or P.border)
     local slotX = math.floor((w - 4) / 2)
     UI.fill(self, slotX, 4, 4, h - 8, P.inset)
@@ -354,10 +355,10 @@ function ISBUPanelWindow:createChildren()
     self.loadArea = ISBUTipArea:new(PAD, self.loadY, BAR_W, PanelWindow.LOAD_H)
     self.loadArea:initialise()
     body:addChild(self.loadArea)
-    self.lever = ISBULever:new(PAD, self.loadY, self)
+    self.lever = ISBULever:new(PAD, self.loadY + 5, self)
     self.lever:initialise()
     body:addChild(self.lever)
-    self.gauge = ISBUTipArea:new(PAD, self.loadY, PanelWindow.GAUGE_W + 4, PanelWindow.LOAD_H)
+    self.gauge = ISBUTipArea:new(PAD, self.loadY + 5, PanelWindow.GAUGE_W + 4, PanelWindow.LOAD_H - 10)
     self.gauge:initialise()
     body:addChild(self.gauge)
     -- Placed by placeOptions as the list's width changes: an anchor would move them again a frame later.
@@ -511,6 +512,7 @@ end
 -- The plan's button at the right of the load's top. (The range is a switch on the plan.)
 function ISBUPanelWindow:placeTopButtons()
     self.planButton:setX(self:bodyWidth() - PAD - self.planButton:getWidth())
+    if self.lever then self:placeLever(self.loadTextW or 0) end
 end
 
 function ISBUPanelWindow:onPlan() self:setPlanShown(not self.plan:getIsVisible()) end
@@ -650,15 +652,20 @@ function ISBUPanelWindow:measureLoad(panel, power)
     self:placeLever(width)
 end
 
--- The lever and the gauge after the load's text (or its bar, where that is longer), and the area of its tooltip.
+-- The top's card: from the body's left to the plan's button, its parts inside it: the percent and the bar with its
+-- text from the left, the lever at its right end and the breaker's gauge beside the lever; the area of the load's
+-- tooltip over the left part. Placed again as the window's width changes (placeTopButtons).
 function ISBUPanelWindow:placeLever(textW)
+    self.loadTextW = textW
     local bigW = UI.textWidth("000", UIFont.Large) + UI.textWidth("%") + 4
     self.bigW = bigW
-    local meterW = math.max(BAR_W, textW)
-    local leverX = PAD + bigW + 8 + meterW + 12
+    local inner = PanelWindow.CARD_PAD
+    local cardW = math.max(self.planButton:getX() - 8 - PAD, inner * 3 + bigW + BAR_W + PanelWindow.LEVER_W)
+    self.cardW = cardW
+    local leverX = PAD + cardW - inner - PanelWindow.LEVER_W
     self.lever:setX(leverX)
-    self.gauge:setX(leverX + PanelWindow.LEVER_W + 4)
-    self.loadArea:setWidth(bigW + 8 + meterW)
+    self.gauge:setX(leverX - 6 - PanelWindow.GAUGE_W - 4)
+    self.loadArea:setWidth(inner + bigW + 8 + math.max(BAR_W, textW))
 end
 
 -- How much of the bar the load fills now (0 to 1: BAR_MOST of the limit fills it).
@@ -681,17 +688,22 @@ function ISBUPanelWindow:drawBody(body)
             UI.text(body, status.reason, status.reasonX, self.statusY, P.dim)
         end
     end
+    -- the top's card, with the lever on it (also while the network has no state yet)
+    if self.cardW and self.lever:getIsVisible() then
+        UI.fill(body, PAD, self.loadY, self.cardW, PanelWindow.LOAD_H, P.panel)
+        UI.frame(body, PAD, self.loadY, self.cardW, PanelWindow.LOAD_H, P.border)
+    end
     if self.load then
-        local top, colour = self.loadY, self.loadColour
+        local top, colour, inner = self.loadY, self.loadColour, PanelWindow.CARD_PAD
         -- the percent, large, its sign small on its baseline, both at the right of their room
         local bigY = top + math.floor((PanelWindow.LOAD_H - UI.fontHeight(UIFont.Large)) / 2)
-        local right = PAD + self.bigW
+        local right = PAD + inner + self.bigW
         UI.textRight(body, "%", right, bigY + UI.baselineDrop(UIFont.Large, UIFont.Small), colour)
         UI.textRight(body, self.percentText, right - UI.textWidth("%") - 1, bigY, colour, UIFont.Large)
         -- the bar: the load's share up to BAR_MOST of the limit, in the state's colour, the limit marked
         local x = right + 8
         local barH = PanelWindow.BAR_H
-        local barY = top + 4
+        local barY = top + math.floor((PanelWindow.LOAD_H - barH - 3 - FONT_HGT_SMALL) / 2)
         local target = self:loadShare()
         local shown = self.loadShown or target
         shown = math.abs(shown - target) > 0.002 and approach(shown, target, ms, ISBUPanelWindow.LOAD_TAU) or target
@@ -709,8 +721,8 @@ function ISBUPanelWindow:drawBody(body)
         for _, part in ipairs(self.loadParts) do UI.text(body, part[1], x + part.x, textY, part[2]) end
         -- the breaker's gauge, filled from below: amber while it holds, red near the trip, dimmer while tripped
         if self.gaugeShown then
-            local gx, gy = UI.dp(self.gauge:getX()) + 2, top + 3
-            local gw, gh = PanelWindow.GAUGE_W, PanelWindow.LOAD_H - 6
+            local gx, gy = self.gauge:getX() + 2, self.gauge:getY()
+            local gw, gh = PanelWindow.GAUGE_W, self.gauge:getHeight()
             local value = math.max(0, math.min(1, self.gaugeValue or 1))
             local c = (self.panel.tripped or value <= Panels.BREAKER_SHED_AT) and P.bad or P.warn
             UI.fill(body, gx, gy, gw, gh, P.inset)
@@ -857,7 +869,14 @@ function ISBUPanelWindow:refresh()
     if self.banner and self.banner.pulse then UI.live(self.body, bodyFrame) end
     titled(self.planButton, getText(self.plan:getIsVisible() and "IGUI_BU_PlanHide" or "IGUI_BU_PlanShow"))
     self:placeTopButtons()
+    -- Taking supply from another box: offered only to a box that could (no producers or units of its own, another in
+    -- reach, Panels.linkCandidates); a sub-panel can stop it.
     local parent = Store.get(panel.parent)
+    local canJoin = false
+    if not parent and #panel.power.producers == 0 and #panel.water.producers == 0 and #Store.unitList(nil, panel.id) == 0 then
+        canJoin = #Panels.linkCandidates(panel) > 0
+    end
+    self.mainButton:setVisible(parent ~= nil or canJoin)
     titled(self.mainButton, parent and getText("IGUI_BU_LeaveMain", Panels.name(parent)) or getText("IGUI_BU_JoinMain"))
     local tier = panel.tier or 1
     self.upgradeButton:setVisible(tier < BU.TIERS)

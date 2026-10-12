@@ -3,7 +3,7 @@
     "IGUI_BU_Tab_water": "Water",
     "IGUI_BU_Rename": "Rename",
     "IGUI_BU_RenamePrompt": "Name of this utility panel (empty for the automatic name):",
-    "IGUI_BU_JoinMain": "Take supply from a main panel...",
+    "IGUI_BU_JoinMain": "Link as a sub-panel...",
     "IGUI_BU_LeaveMain": "Stop taking supply from %1",
     "IGUI_BU_NoMainInRange": "No main panel within %1 tiles",
     "IGUI_BU_Steps": "%1 tiles",
