@@ -243,6 +243,8 @@ end
 -- z, radius, running } } } while the range is shown, rangeKey (the building, tier and generators' noise the ranges
 -- are of), choosing (devices outside are being chosen) }. A device may be chosen and choosable.
 function ISBUPlan:setData(data)
+    -- Another utility shown: the plan fades in anew.
+    if self.data and self.data.utility ~= data.utility then self.switchedAt = getTimestampMs() end
     self.data = data
     local levels = {}
     for _, room in ipairs(data.rooms) do levels[room.level] = true end
@@ -880,6 +882,12 @@ function ISBUPlan:render()
     end
     -- taken back with repaintStencilRect too: the game leaves a clip inside the window's a level up, where a later
     -- clip in the window would let drawing through
+    -- Fading in after a switch of utility or floor.
+    local t = self.switchedAt and (getTimestampMs() - self.switchedAt) / BU.PanelUi.SWITCH_MS or 1
+    if t >= 1 then self.switchedAt = nil end
+    if map and t < 1 then
+        self:drawRect(map.left, map.top, map.w, map.h, (1 - BU.PanelUi.ease(t)) * 0.9, 0.04, 0.04, 0.05)
+    end
     if map then
         self:clearStencilRect()
         self:repaintStencilRect(map.left, map.top, map.w, map.h)
@@ -1024,6 +1032,7 @@ end
 function ISBUPlan:showFloor(level)
     if level == nil or level == self.floor then return end
     self.floor = level
+    self.switchedAt = getTimestampMs()
     -- The strip centres on it again.
     self.stripFirst = nil
     self:layout()

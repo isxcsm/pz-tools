@@ -13,7 +13,14 @@ local BAR_W = 220
 local SCROLLBAR = 16
 local LOG = "log"
 -- The list's width alone; with the plan, the plan takes its share of the window beside it (at least so wide each).
-local LIST_W, MIN_LIST, MIN_PLAN = 560, 470, 260
+local LIST_W, MIN_LIST, MIN_PLAN = 640, 470, 300
+-- The window's height at first, kept clear of the screen's edges.
+local WINDOW_H = 680
+-- Motion: a tab's content sliding in (so far, so long), a row lit under the mouse (its time to come and go), the
+-- accent the window marks what is current and hovered with.
+local SWITCH_MS, SLIDE = 180, 18
+local HOVER_IN_MS, HOVER_OUT_MS = 50, 90
+local ACCENT = { 0.4, 0.75, 1 }
 local OPTION_W = 84
 local SEEN = "BuildingUtilitiesSeen"
 local OUTSIDE = "outside"
@@ -23,6 +30,19 @@ local BATCH_BUTTONS = { "Connect", "All", "None" }
 local BATCH_W = 70
 
 local function load2(value) return string.format("%.2f", value) end
+
+-- Eased out: fast at first, settling (t from 0 to 1).
+local function ease(t)
+    t = math.max(0, math.min(1, t))
+    local u = 1 - t
+    return 1 - u * u * u
+end
+
+-- A value moved toward a target over a frame of so many milliseconds, by a time constant: the same speed at any
+-- frame rate.
+local function approach(value, target, ms, tau)
+    return target + (value - target) * math.exp(-ms / tau)
+end
 
 local function percent(value, most)
     if not value or not most or most <= 0 then return "-" end
@@ -101,6 +121,14 @@ Ui.LOG = LOG
 Ui.LIST_W = LIST_W
 Ui.MIN_LIST = MIN_LIST
 Ui.MIN_PLAN = MIN_PLAN
+Ui.WINDOW_H = WINDOW_H
+Ui.SWITCH_MS = SWITCH_MS
+Ui.SLIDE = SLIDE
+Ui.HOVER_IN_MS = HOVER_IN_MS
+Ui.HOVER_OUT_MS = HOVER_OUT_MS
+Ui.ACCENT = ACCENT
+Ui.ease = ease
+Ui.approach = approach
 Ui.OPTION_W = OPTION_W
 Ui.SEEN = SEEN
 Ui.OUTSIDE = OUTSIDE

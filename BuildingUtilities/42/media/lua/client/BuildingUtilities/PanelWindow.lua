@@ -99,9 +99,12 @@ function ISBUPanelWindow:new(x, y, playerObj, panel, anchor)
     local shown = PanelWindow.planShown
     if shown == nil then shown = planByDefault() end
     local width = math.min(windowWidth(LIST_W, shown), getCore():getScreenWidth())
-    local o = ISCollapsableWindow.new(self, x, y, math.max(width, minimumWidth(shown)), 610)
+    local height = math.max(400, math.min(Ui.WINDOW_H, getCore():getScreenHeight() - 120))
+    local o = ISCollapsableWindow.new(self, x, y, math.max(width, minimumWidth(shown)), height)
     o.playerObj = playerObj
     o.panel = panel
+    -- Nearly opaque: the world behind does not show through the list's words.
+    o.backgroundColor = { r = 0.05, g = 0.05, b = 0.06, a = 0.93 }
     o.anchor = anchor or { x = panel.x, y = panel.y, z = panel.z }
     o.tree = PanelWindow.tree(panel)
     o.treeKey = treeKey(o.tree)
@@ -157,7 +160,7 @@ function ISBUPanelWindow:createChildren()
     local listW = self.width
     local height = self.height - tabsY - self:resizeWidgetHeight()
     -- The list and the plan are placed by layoutPanes, not by anchors: across, only their heights follow the window.
-    self.tabs = ISTabPanel:new(0, tabsY, listW, height)
+    self.tabs = ISBUTabPanel:new(0, tabsY, listW, height)
     self.tabs:initialise()
     self.tabs:setAnchorBottom(true)
     self.tabs:setEqualTabWidth(false)
@@ -390,7 +393,15 @@ end
 
 function ISBUPanelWindow:prerender()
     ISCollapsableWindow.prerender(self)
-    if self.tabs and self.tabs.activeView then PanelWindow.lastTab = self.tabs.activeView.name end
+    if self.tabs and self.tabs.activeView then
+        PanelWindow.lastTab = self.tabs.activeView.name
+        -- A tab opened: its list slides in from that side.
+        local index = self.tabs:getActiveViewIndex()
+        if self.shownTab and index ~= self.shownTab and self.tabs.activeView.view.switched then
+            self.tabs.activeView.view:switched(index > self.shownTab and 1 or -1)
+        end
+        self.shownTab = index
+    end
     -- A tab opened that the last refresh left: its rows, before the plan shows its devices.
     if self.pending[self:activeUtility()] then self:refill(self:activeUtility()) end
     if self.plan and self.plan:getIsVisible() and self.planUtility ~= self:activeUtility() then self:updatePlan() end
