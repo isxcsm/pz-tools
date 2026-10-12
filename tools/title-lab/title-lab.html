@@ -990,7 +990,7 @@ const BUILT_IN = {
   "각인 (stamp 새안)": { ...effectOf(DEFAULTS), style: "stamp-new" },
   "손전등 (discovery 새안)": { ...effectOf(DEFAULTS), style: "discovery-new" },
 };
-const STORE = "dust-preview-presets";
+const STORE = "title-lab-presets";
 function ownPresets() { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } }
 function saveOwn(presets) { try { localStorage.setItem(STORE, JSON.stringify(presets)); return true; } catch { return false; } }
 function apply(values) {
