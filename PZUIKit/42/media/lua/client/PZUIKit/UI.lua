@@ -264,6 +264,28 @@ local function faceWidth(face, str)
     return w
 end
 
+-- What a window's fade (UI.fadeIn, UI.fadeOut) leaves of an alpha drawn on one of its elements: the alpha itself while
+-- it is not fading. For what goes to the game's draws or a face straight (UI.textAtPx, UI.iconPx, a list of baked
+-- steps), past the element's own draws, which the fade wraps.
+function UI.faded(el, a)
+    local root = el.uiFadeRoot
+    local f = type(root) == "table" and root.uiFade
+    if type(f) == "number" then return (a or 1) * f end
+    return a or 1
+end
+
+-- An element's class's draws, not its own fields (where a fading window's element has the fade's wrappers): the base
+-- class's on our scaled classes (in pixels), the class's on others (what its metatable reads through).
+function UI.rawDraws(el)
+    local base = el.uiBase
+    if type(base) == "table" then return base end
+    local mt = getmetatable(el)
+    local index = mt and mt.__index
+    if type(index) == "table" then return index end
+    return el
+end
+local rawDraws = UI.rawDraws
+
 local function textPx(el, base, str, px, py, r, g, b, a, font, align, ox, oy)
     local face = faceOf(font)
     local key = face.key
@@ -290,7 +312,7 @@ UI.textPx = textPx
 -- of another part): a text at px, py in colour `c` ({ r, g, b }), and a text's width and a line's height in a face.
 -- In design units, on our scaled classes, UI.text / textCentre / textRight and UI.textWidth / fontHeight are the same.
 function UI.textAtPx(el, text, px, py, c, font, a, align)
-    return textPx(el, el.uiBase or el, text, px, py, c[1], c[2], c[3], a or 1, font, align or 0)
+    return textPx(el, rawDraws(el), text, px, py, c[1], c[2], c[3], UI.faded(el, a), font, align or 0)
 end
 
 function UI.faceWidthPx(text, font)
@@ -1011,8 +1033,7 @@ end
 function UI.iconPx(el, texture, px, py, pw, ph, a, tint)
     if not texture then return end
     local t = tint or WHITE
-    local base = el.uiBase or el
-    base.drawTextureScaledAspect(el, texture, px, py, pw, ph, a or 1, t[1], t[2], t[3])
+    rawDraws(el).drawTextureScaledAspect(el, texture, px, py, pw, ph, UI.faded(el, a), t[1], t[2], t[3])
 end
 
 function UI.icon(el, texture, x, y, size, a, tint)
@@ -1043,14 +1064,15 @@ end
 function UI.windowTitle(win, title, c, a)
     if not title or title == "" then return end
     local th = win:titleBarHeight()
-    textPx(win, win, title, floor(win.width / 2), floor((th - Faces.height()) / 2 + 0.5), c[1], c[2], c[3], a or 1,
-        nil, 1)
+    textPx(win, rawDraws(win), title, floor(win.width / 2), floor((th - Faces.height()) / 2 + 0.5), c[1], c[2], c[3],
+        UI.faded(win, a), nil, 1)
 end
 
 -- The close box: an "x" in our face (the game's button with its picture and title taken off), in the palette.
 local function closeBoxRender(self)
     local c = self.uiGlyphColour
-    textPx(self, self, "x", floor(self.width / 2), floor((self.height - Faces.height()) / 2), c[1], c[2], c[3], 1, nil, 1)
+    textPx(self, rawDraws(self), "x", floor(self.width / 2), floor((self.height - Faces.height()) / 2), c[1], c[2], c[3],
+        UI.faded(self, 1), nil, 1)
 end
 
 function UI.closeBox(win, p)
