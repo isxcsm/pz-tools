@@ -17,6 +17,7 @@ The design, in Korean, is [DESIGN.md](DESIGN.md).
 
 - PZ Extension API installed. The mod runs its networks through it (`PZExtAPI`). Without it a panel cannot be installed and the panels already placed do
   nothing; their menus say why.
+- PZ UI Kit (`PZUIKit`, [pz-ui-kit](../pz-ui-kit)), which the panel's window is drawn with.
 - Water needs the API's plumbing hooks in the game, and the "pipes do not purify" risk option also its purification
   hooks. When they are missing the panel's window says water is unavailable, or the filter says why it rests.
 - Multiplayer is not supported or tested.

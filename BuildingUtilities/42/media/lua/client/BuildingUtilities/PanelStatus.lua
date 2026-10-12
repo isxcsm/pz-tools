@@ -237,10 +237,10 @@ function ISBUPanelWindow:updateStatus()
     local textX = PAD + FONT_HGT_SMALL
     self.status = { text = text, textX = textX, colour = PanelWindow.STATUS_COLOURS[status.level] }
     if status.reason then
-        local measure = getTextManager()
+        local UI = Ui.UI
         self.status.reason = "- " .. status.reason
-        self.status.reasonX = textX + measure:MeasureStringX(UIFont.Small, text) + 12
-        self.status.reasonEnd = self.status.reasonX + measure:MeasureStringX(UIFont.Small, self.status.reason)
+        self.status.reasonX = textX + UI.textWidth(text) + 12
+        self.status.reasonEnd = self.status.reasonX + UI.textWidth(self.status.reason)
     end
     local lines = {}
     for _, utility in ipairs(self.utilities) do

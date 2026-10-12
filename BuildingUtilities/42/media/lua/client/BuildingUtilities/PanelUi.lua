@@ -1,11 +1,18 @@
--- What the breaker box window's files share: sizes, the list's ids and helpers that format numbers and outline
--- objects in the world (BuildingUtilities/PanelWindow and its parts).
+-- What the breaker box window's files share: sizes, the palette, the list's ids and helpers that format numbers and
+-- outline objects in the world (BuildingUtilities/PanelWindow and its parts).
+-- The window is drawn with the shared UI kit (PZUIKit, as Operation Acorn's terminal is): its title bar and frame in
+-- the palette below, its body and every part of it in the kit's design units (made for a 16 unit Small font, one scale
+-- for the screen) and its texts in the kit's faces (the PZ Extension API's sharp UI fonts). The numbers here are design
+-- units.
+require "PZUIKit/UI"
 local BU = BuildingUtilities
 local Panels = BU.Panels
+local UI = PZUIKit.UI
 local Ui = {}
 BU.PanelUi = Ui
+Ui.UI = UI
 
-local FONT_HGT_SMALL = getTextManager():getFontHeight(UIFont.Small)
+local FONT_HGT_SMALL = 16
 local ROW = FONT_HGT_SMALL + 6
 local PAD = 8
 local REFRESH_MS = 5000
@@ -13,14 +20,26 @@ local BAR_W = 220
 local SCROLLBAR = 16
 local LOG = "log"
 -- The list's width alone; with the plan, the plan takes its share of the window beside it (at least so wide each).
-local LIST_W, MIN_LIST, MIN_PLAN = 640, 470, 300
--- The window's height at first, kept clear of the screen's edges.
-local WINDOW_H = 680
+local LIST_W, MIN_LIST, MIN_PLAN = 520, 470, 280
+-- The window's height at first, kept clear of the screen's edges; the share of the screen it takes at most.
+local WINDOW_H = 470
+local SCREEN_SHARE = 0.92
 -- Motion: a tab's content sliding in (so far, so long), a row lit under the mouse (its time to come and go), the
 -- accent the window marks what is current and hovered with.
 local SWITCH_MS, SLIDE = 180, 18
 local HOVER_IN_MS, HOVER_OUT_MS = 50, 90
 local ACCENT = { 0.4, 0.75, 1 }
+
+-- The window's colours (the kit's palette names): dark steel with the electric blue accent, amber headings.
+local PALETTE = {
+    bg = { 0.065, 0.075, 0.09 }, bgAlpha = 0.97, panel = { 0.11, 0.13, 0.16 },
+    text = { 0.88, 0.9, 0.92 }, dim = { 0.55, 0.58, 0.62 }, bright = { 1, 1, 1 },
+    value = ACCENT, head = { 1, 0.82, 0.45 }, border = { 0.27, 0.32, 0.39 },
+    warn = { 1, 0.75, 0.3 }, bad = { 1, 0.42, 0.38 }, good = { 0.5, 0.95, 0.55 },
+    sel = ACCENT, title = { 0.12, 0.15, 0.19 }, dark = { 0.065, 0.075, 0.09 },
+    inset = { 0.035, 0.04, 0.05 }, off = { 0.4, 0.42, 0.45 }, tabStrip = { 0.1, 0.12, 0.15 },
+    water = { 0.45, 0.72, 1 },
+}
 local OPTION_W = 84
 local SEEN = "BuildingUtilitiesSeen"
 local OUTSIDE = "outside"
@@ -119,6 +138,8 @@ Ui.LIST_W = LIST_W
 Ui.MIN_LIST = MIN_LIST
 Ui.MIN_PLAN = MIN_PLAN
 Ui.WINDOW_H = WINDOW_H
+Ui.SCREEN_SHARE = SCREEN_SHARE
+Ui.PALETTE = PALETTE
 Ui.SWITCH_MS = SWITCH_MS
 Ui.SLIDE = SLIDE
 Ui.HOVER_IN_MS = HOVER_IN_MS

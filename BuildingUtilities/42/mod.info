@@ -4,6 +4,7 @@ author=PZ Tools
 description=A utility panel powers and waters a whole building from generators, water storage and solar panels outside it, with battery racks to store power and pumps, sprinklers, filters and booster pumps for its water. Needs PZ Extension API installed. Multiplayer is untested.
 modversion=0.1.0
 versionMin=42.0.0
+require=PZUIKit
 pack=BuildingUtilitiesSolar
 tiledef=bu_solar 5432
 pack=BuildingUtilitiesWater

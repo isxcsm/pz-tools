@@ -18,14 +18,19 @@
 -- scrolls the floors (arrows page them); the floor's name at the top lists every floor to jump to. A room is drawn as
 -- one shape, its outline only where it meets another room or the outside. The top bar also shows the range (as the
 -- window's range button would). Everything is laid out when the window refreshes or the plan is resized; a frame only
--- draws the rectangles laid out, inside the map.
+-- draws the rectangles laid out, inside the map. The plan is drawn with the shared UI kit (PZUIKit), as the window: in
+-- design units (its numbers, its mouse) and the kit's faces.
 require "ISUI/ISPanel"
 require "PZAPI/ModOptions"
+require "PZUIKit/UI"
 require "BuildingUtilities/Geometry"
+require "BuildingUtilities/PanelUi"
 local BU = BuildingUtilities
 local Geometry = BU.Geometry
+local UI = PZUIKit.UI
+local P = BU.PanelUi.PALETTE
 
-local FONT_HGT_SMALL = getTextManager():getFontHeight(UIFont.Small)
+local FONT_HGT_SMALL = BU.PanelUi.FONT_HGT_SMALL
 local PAD = 8
 local MAX_SCALE = 14
 local DOT = 6
@@ -33,10 +38,9 @@ local HIT = 5
 local STRIP_W = 34
 local CELL_H = FONT_HGT_SMALL + 4
 local LEGEND_ROW = FONT_HGT_SMALL + 2
-local ZONE_W = getTextManager():MeasureStringX(UIFont.Small, getText("IGUI_BU_Zone")) + 10
-local FIT_W = getTextManager():MeasureStringX(UIFont.Small, getText("IGUI_BU_PlanFit")) + 10
+-- The top bar's switches' widths, measured in the kit's faces for the scale they were made in (measureSwitches).
+local ZONE_W, FIT_W, RANGE_W, FLOW_W, measuredEra = 0, 0, 0, 0, nil
 local MIN_ZOOM, MAX_ZOOM, MAX_ZOOM_SCALE, DRAG = 0.5, 8, 48, 4
-local RANGE_W = getTextManager():MeasureStringX(UIFont.Small, getText("IGUI_BU_PlanRange")) + 10
 -- Wheel notches over the floor strip scroll it by so many floors.
 local STRIP_SCROLL = 3
 -- Flow dots: so far apart, so many pixels a second, so big.
@@ -51,9 +55,17 @@ ISBUPlan = ISPanel:derive("ISBUPlan")
 -- that screen too. Without that API, for the session.
 ISBUPlan.FLOW_STATES = { "flow", "lines", "off" }
 local FLOW_STATES = ISBUPlan.FLOW_STATES
-local FLOW_W = 0
-for _, state in ipairs(FLOW_STATES) do
-    FLOW_W = math.max(FLOW_W, getTextManager():MeasureStringX(UIFont.Small, getText("IGUI_BU_PlanFlow_" .. state)) + 10)
+
+local function measureSwitches()
+    if measuredEra == UI.era then return end
+    measuredEra = UI.era
+    ZONE_W = UI.textWidth(getText("IGUI_BU_Zone")) + 10
+    FIT_W = UI.textWidth(getText("IGUI_BU_PlanFit")) + 10
+    RANGE_W = UI.textWidth(getText("IGUI_BU_PlanRange")) + 10
+    FLOW_W = 0
+    for _, state in ipairs(FLOW_STATES) do
+        FLOW_W = math.max(FLOW_W, UI.textWidth(getText("IGUI_BU_PlanFlow_" .. state)) + 10)
+    end
 end
 local flowOption, flowSession = nil, 1
 if PZAPI and PZAPI.ModOptions then
@@ -94,8 +106,8 @@ function ISBUPlan:new(x, y, width, height, window)
     local o = ISPanel.new(self, x, y, width, height)
     o.window = window
     o.background = true
-    o.backgroundColor = { r = 0, g = 0, b = 0, a = 0.55 }
-    o.borderColor = { r = 0.4, g = 0.4, b = 0.4, a = 1 }
+    o.backgroundColor = { r = P.inset[1], g = P.inset[2], b = P.inset[3], a = 0.92 }
+    o.borderColor = { r = P.border[1], g = P.border[2], b = P.border[3], a = 1 }
     o.cells, o.labels, o.dots, o.squares, o.strip, o.legend, o.lines, o.edges = {}, {}, {}, {}, {}, {}, {}, {}
     o.rangeCache = {}
     return o
@@ -305,15 +317,14 @@ function ISBUPlan:layoutFloors()
         end
     end
     table.sort(self.arrivals, function(a, b) return a.level > b.level end)
-    local measure = getTextManager()
     for _, group in ipairs(self.arrivals) do
         local parts = {}
         for _, kind in ipairs(group.kindOrder) do parts[#parts + 1] = getText("IGUI_BU_PlanKindCount", kind, group.kinds[kind]) end
         group.text = getText("IGUI_BU_PlanArrive", arrow(group.level, boxZ), BU.floorName(group.level), group.count)
-        group.w = measure:MeasureStringX(UIFont.Small, group.text) + 6
+        group.w = UI.textWidth(group.text) + 6
         group.tip = getText("IGUI_BU_PlanArriveTip", BU.floorName(group.level), table.concat(parts, ", "))
         local text = getText("IGUI_BU_PlanRiser", arrow(boxZ, group.level), BU.floorName(boxZ))
-        self.risers[group.level] = { text = text, w = measure:MeasureStringX(UIFont.Small, text) + 6,
+        self.risers[group.level] = { text = text, w = UI.textWidth(text) + 6,
             tip = getText("IGUI_BU_PlanRiserTip", BU.floorName(boxZ)) }
     end
 end
@@ -323,15 +334,14 @@ function ISBUPlan:legendShown() return BU.PanelWindow.legendShown ~= false end
 -- The legend's box from x: its header (the fold), and while it is open its entries in columns. Returns the height
 -- it takes above the status line, with the gap over it.
 function ISBUPlan:layoutLegend(x, entries)
-    local measure = getTextManager()
     local shown = self:legendShown()
     local header = getText("IGUI_BU_LegendTitle") .. (shown and "  v" or "  >")
     local columnW = 0
-    for _, entry in ipairs(entries) do columnW = math.max(columnW, measure:MeasureStringX(UIFont.Small, entry.text) + 14 + PAD * 2) end
+    for _, entry in ipairs(entries) do columnW = math.max(columnW, UI.textWidth(entry.text) + 14 + PAD * 2) end
     local maxW = math.max(40, self.width - x - PAD)
     local columns = math.max(1, math.min(3, #entries, math.floor((maxW - PAD * 2) / math.max(1, columnW))))
     local rows = shown and math.ceil(#entries / columns) or 0
-    local headerW = measure:MeasureStringX(UIFont.Small, header) + PAD * 2
+    local headerW = UI.textWidth(header) + PAD * 2
     local w = math.min(maxW, math.max(headerW, shown and columns * columnW + PAD * 2 - PAD or headerW))
     local h = LEGEND_ROW + 4 + (rows > 0 and rows * LEGEND_ROW + 4 or 0)
     local y = self.height - FONT_HGT_SMALL - PAD * 2 - h
@@ -606,7 +616,7 @@ function ISBUPlan:layout()
                 self.walls[#self.walls + 1] = { room = room.id, dim = dim, x = x1, y = y1,
                     w = edge.across and sx(edge.x + edge.len) - x1 or 1, h = edge.across and 1 or sy(edge.y + edge.len) - y1 }
             end
-            if largest and getTextManager():MeasureStringX(UIFont.Small, room.title) < largest.w - 4
+            if largest and UI.textWidth(room.title) < largest.w - 4
                     and largest.h > FONT_HGT_SMALL + 2 then
                 self.labels[#self.labels + 1] = { text = room.title, x = largest.x + largest.w / 2,
                     y = largest.y + (largest.h - FONT_HGT_SMALL) / 2, dim = dim }
@@ -683,9 +693,9 @@ end
 -- moves into the room they leave, without the load where that is too narrow (the status line then has it all), and
 -- takes a row of its own above them when even its name does not fit. The bar's height is topH.
 function ISBUPlan:layoutTop()
+    measureSwitches()
     local data = self.data
-    local measure = getTextManager()
-    local function width(text) return measure:MeasureStringX(UIFont.Small, text) end
+    local function width(text) return UI.textWidth(text) end
     local name = BU.floorName(self.floor or 0)
     local full = name
     if data and data.utility == "power" then
@@ -1141,3 +1151,6 @@ function ISBUPlan:onResize()
     if ISPanel.onResize then ISPanel.onResize(self) end
     self:layout()
 end
+
+-- The plan is the kit's: in design units (UI.lua).
+UI.scaled(ISBUPlan, ISPanel)

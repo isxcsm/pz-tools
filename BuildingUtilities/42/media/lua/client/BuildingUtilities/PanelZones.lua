@@ -397,6 +397,7 @@ end
 
 function ISBUPanelWindow:onRange()
     self:showRange(not self.rangeShown)
-    self.rangeButton:setTitle(getText(self.rangeShown and "IGUI_BU_RangeHide" or "IGUI_BU_RangeShow"))
+    BU.PanelWindow.titled(self.rangeButton, getText(self.rangeShown and "IGUI_BU_RangeHide" or "IGUI_BU_RangeShow"))
+    self:placeTopButtons(self.plan:getIsVisible())
     self:updatePlan()
 end

@@ -1,15 +1,19 @@
--- The breaker box window's list (one per tab) and the divider between the list and the plan. Each row is a table
--- with a kind; the list draws it and passes clicks on to the window (ISBUPanelWindow:onRow). A frame draws only the
--- rows in view, with their buttons placed and their words measured once for the row.
+-- The breaker box window's list (one per tab), the strip of tabs over the lists and the divider between the list and
+-- the plan. Each row is a table with a kind; the list draws it and passes clicks on to the window
+-- (ISBUPanelWindow:onRow). A frame draws only the rows in view, with their buttons placed and their words measured once
+-- for the row. The list is the game's (ISScrollingListBox, for its scrolling, in pixels); its rows are drawn in the UI
+-- kit's design units and faces (PZUIKit: UI.designCanvas), as the window's other parts.
 require "ISUI/ISScrollingListBox"
-require "ISUI/ISTabPanel"
+require "ISUI/ISPanel"
+require "PZUIKit/RichText"
 require "BuildingUtilities/PanelUi"
 local BU = BuildingUtilities
 local Store = BU.Store
 local Ui = BU.PanelUi
+local UI = Ui.UI
 local FONT_HGT_SMALL, ROW, PAD, SCROLLBAR, ROOM_TICK_X, rowObjects, outline, unoutline = Ui.FONT_HGT_SMALL, Ui.ROW,
     Ui.PAD, Ui.SCROLLBAR, Ui.ROOM_TICK_X, Ui.rowObjects, Ui.outline, Ui.unoutline
-local ACCENT, ease, approach = Ui.ACCENT, Ui.ease, Ui.approach
+local ACCENT, ease, approach, P = Ui.ACCENT, Ui.ease, Ui.approach, Ui.PALETTE
 -- Rows that only tell: no light under the mouse.
 local STILL = { header = true, note = true, filter = true, log = true, graph = true, levels = true }
 
@@ -33,6 +37,7 @@ local function label(key)
     return text
 end
 
+-- x, y, width and height given in design units (the window's body is in them).
 function ISBUPanelList:new(x, y, width, height, window, utility)
     local o = ISScrollingListBox.new(self, x, y, width, height)
     -- its clip taken back fully (inside the window's, the game leaves it a level up and the plan's would draw
@@ -40,16 +45,22 @@ function ISBUPanelList:new(x, y, width, height, window, utility)
     o.doRepaintStencil = true
     o.window = window
     o.utility = utility
-    o.itemheight = ROW
     o.font = UIFont.Small
     o.drawBorder = true
+    o.backgroundColor = { r = P.inset[1], g = P.inset[2], b = P.inset[3], a = 0.9 }
+    o.borderColor = { r = P.border[1], g = P.border[2], b = P.border[3], a = 1 }
     o.highlighted = {}
     return o
 end
 
+function ISBUPanelList:createChildren()
+    ISScrollingListBox.createChildren(self)
+    UI.rowHeight(self, ROW)
+end
+
 -- The buttons at the end of a device's row, from the right: a water fixture's group (with more than one); for power,
 -- whether the box may shed it (where it sheds), and its timer. Also where the row's own text on the right ends. Kept
--- on the row for the list's width.
+-- on the row for the list's width (design units).
 local function deviceButtons(width, row)
     if row.buttonsWidth == width then return row.buttons, row.textRight end
     local right = width - PAD - SCROLLBAR
@@ -112,26 +123,30 @@ local function under(list, x, w)
     return mx ~= nil and mx >= x and mx < x + w
 end
 
-local function smallButton(list, x, y, w, text, r, g, b)
-    local hot = under(list, x, w)
-    if hot then list:drawRect(x, y + 2, w, ROW - 4, 0.16, 1, 1, 1) end
-    local edge = hot and 0.95 or 0.6
-    list:drawRectBorder(x, y + 2, w, ROW - 4, 1, edge, edge, edge)
-    list:drawTextCentre(text, x + w / 2, y + (ROW - FONT_HGT_SMALL) / 2, r, g, b, 1, UIFont.Small)
+-- A small button on a row, drawn as the kit's buttons are: a well with a border, lit as the mouse comes onto it and
+-- flashed by a click (its light is keyed by the row and the button). c is { r, g, b } for its text.
+local function smallButton(list, c, key, x, y, w, text, tc)
+    local k = UI.hoverLight(list, key, under(list, x, w))
+    local f = UI.flashLevel(list, key)
+    UI.fill(c, x, y + 2, w, ROW - 4, P.panel)
+    if k > 0 or f > 0 then UI.fill(c, x, y + 2, w, ROW - 4, P.sel, 0.14 * k + 0.3 * f) end
+    UI.frame(c, x, y + 2, w, ROW - 4, P.border)
+    if k > 0 then UI.frame(c, x, y + 2, w, ROW - 4, P.sel, 0.75 * k) end
+    UI.textCentre(c, text, x + w / 2, y + (ROW - FONT_HGT_SMALL) / 2, tc)
 end
 
--- A tick: "on", "off", or "some" for a room whose devices are partly connected.
-local function tick(list, x, y, state)
-    if under(list, x, ROW - 6) then
-        list:drawRect(x, y + 3, ROW - 6, ROW - 6, 0.18, 1, 1, 1)
-        list:drawRectBorder(x, y + 3, ROW - 6, ROW - 6, 1, ACCENT[1], ACCENT[2], ACCENT[3])
-    else
-        list:drawRectBorder(x, y + 3, ROW - 6, ROW - 6, 1, 0.8, 0.8, 0.8)
-    end
+-- A tick: "on", "off", or "some" for a room whose devices are partly connected; lit under the mouse.
+local GREEN = { 0.45, 0.92, 0.5 }
+local function tick(list, c, key, x, y, state)
+    local size = ROW - 6
+    local k = UI.hoverLight(list, key, under(list, x, size))
+    UI.fill(c, x, y + 3, size, size, P.inset)
+    if k > 0 then UI.fill(c, x, y + 3, size, size, P.sel, 0.18 * k) end
+    UI.frame(c, x, y + 3, size, size, k > 0.5 and P.sel or P.dim)
     if state == "on" then
-        list:drawRect(x + 3, y + 6, ROW - 12, ROW - 12, 1, 0.4, 0.9, 0.4)
+        UI.fill(c, x + 3, y + 6, size - 6, size - 6, GREEN)
     elseif state == "some" then
-        list:drawRect(x + 4, y + ROW / 2 - 2, ROW - 14, 4, 1, 0.4, 0.9, 0.4)
+        UI.fill(c, x + 4, y + ROW / 2 - 2, size - 8, 4, GREEN)
     end
 end
 
@@ -139,15 +154,17 @@ end
 -- panels made (yellow) and the load supplied (grey) against the largest of them, and the bank's charge (green, of
 -- the full height).
 local GRAPH_H = 96
-local function drawGraph(list, y, width, row)
+local SUN, USED, CHARGE = { 1, 0.85, 0.2 }, { 0.75, 0.75, 0.75 }, { 0.3, 0.9, 0.4 }
+local function drawGraph(c, y, width, row)
     local hours = row.hours
     local left, right = PAD, width - PAD - SCROLLBAR
     local top, bottom = y + FONT_HGT_SMALL + 6, y + GRAPH_H - 6
     local plotH = bottom - top
     local most = 0.05
     for _, hour in ipairs(hours) do most = math.max(most, hour.made or 0, hour.used or 0) end
-    list:drawText(getText("IGUI_BU_GraphTitle", #hours, string.format("%.2f", most)), left, y + 2, 0.9, 0.9, 0.9, 1, UIFont.Small)
-    list:drawRectBorder(left, top, right - left, plotH, 0.6, 0.5, 0.5, 0.5)
+    UI.text(c, getText("IGUI_BU_GraphTitle", #hours, string.format("%.2f", most)), left, y + 2, P.text)
+    UI.fill(c, left, top, right - left, plotH, P.inset, 0.8)
+    UI.frame(c, left, top, right - left, plotH, P.border)
     local columns = Store.ENERGY_HOURS + 1
     local w = (right - left) / columns
     local first = columns - #hours
@@ -155,202 +172,207 @@ local function drawGraph(list, y, width, row)
         local x = left + (first + index - 1) * w
         local made = (hour.made or 0) / most * plotH
         local used = (hour.used or 0) / most * plotH
-        if made > 0 then list:drawRect(x + 1, bottom - made, math.max(1, w / 2 - 1), made, 0.85, 1, 0.85, 0.2) end
-        if used > 0 then list:drawRect(x + w / 2, bottom - used, math.max(1, w / 2 - 1), used, 0.7, 0.75, 0.75, 0.75) end
-        if hour.charge then
-            list:drawRect(x, bottom - hour.charge * plotH - 1, math.max(2, w), 3, 1, 0.3, 0.9, 0.4)
-        end
+        if made > 0 then UI.fill(c, x + 1, bottom - made, math.max(1, w / 2 - 1), made, SUN, 0.85) end
+        if used > 0 then UI.fill(c, x + w / 2, bottom - used, math.max(1, w / 2 - 1), used, USED, 0.7) end
+        if hour.charge then UI.fill(c, x, bottom - hour.charge * plotH - 1, math.max(2, w), 3, CHARGE) end
     end
 end
 
 -- The water level graph: a column an hour, each group's tanks as a share of their capacity, in the group's colour.
-local function drawLevels(list, y, width, row)
+local function drawLevels(c, y, width, row)
     local left, right = PAD, width - PAD - SCROLLBAR
     local top, bottom = y + FONT_HGT_SMALL + 6, y + GRAPH_H - 6
     local plotH = bottom - top
-    list:drawText(getText("IGUI_BU_LevelTitle", Store.ENERGY_HOURS), left, y + 2, 0.9, 0.9, 0.9, 1, UIFont.Small)
-    list:drawRectBorder(left, top, right - left, plotH, 0.6, 0.5, 0.5, 0.5)
+    UI.text(c, getText("IGUI_BU_LevelTitle", Store.ENERGY_HOURS), left, y + 2, P.text)
+    UI.fill(c, left, top, right - left, plotH, P.inset, 0.8)
+    UI.frame(c, left, top, right - left, plotH, P.border)
     local columns = Store.ENERGY_HOURS
     local w = (right - left) / columns
     local now = math.floor(getGameTime():getWorldAgeHours())
     for _, line in ipairs(row.lines) do
-        local c = line.colour
         for _, hour in ipairs(line.hours) do
             local column = columns - 1 - (now - hour.hour)
             if column >= 0 and (hour.capacity or 0) > 0 then
                 local share = math.max(0, math.min(1, hour.amount / hour.capacity))
-                list:drawRect(left + column * w, bottom - share * plotH - 1, math.max(2, w), 3, 1, c[1], c[2], c[3])
+                UI.fill(c, left + column * w, bottom - share * plotH - 1, math.max(2, w), 3, line.colour)
             end
         end
     end
 end
 
+-- Colours of the rows' texts.
+local HEAD, LINK, LINK_HEAD, OPEN = P.head, { 0.75, 0.85, 1 }, P.head, { 0.5, 0.75, 1 }
+local NOTE, FILTER, LOG_TEXT, LOG_BAD, LOG_GOOD = { 0.7, 0.7, 0.7 }, { 1, 1, 0.6 }, { 0.9, 0.9, 0.9 }, { 1, 0.55, 0.5 },
+    { 0.6, 1, 0.6 }
+local IN_USE, OUT, PLAIN, MUTED, FLOOR_TEXT = { 0.5, 1, 0.5 }, { 1, 0.65, 0.3 }, { 0.9, 0.9, 0.9 }, { 0.5, 0.5, 0.5 },
+    { 0.75, 0.9, 1 }
+local HELD, DIM, RIGHT, FRESH = { 1, 0.65, 0.3 }, { 0.55, 0.55, 0.55 }, { 0.8, 0.8, 0.8 }, { 0.3, 0.9, 1 }
+local TIMED, UNTIMED, ESSENTIAL, NOT_ESSENTIAL = { 0.6, 0.8, 1 }, { 0.8, 0.8, 0.8 }, { 1, 0.85, 0.3 }, { 0.45, 0.45, 0.45 }
+local ROOM_RIGHT, FLOOR_BG, FLOOR_LINE = { 0.9, 0.85, 0.6 }, { 0.12, 0.2, 0.3 }, { 0.35, 0.5, 0.65 }
+local WHITE = { 1, 1, 1 }
+
 function ISBUPanelList:doDrawItem(y, item, alt)
     local row = item.item
-    item.height = (row.kind == "graph" or row.kind == "levels") and GRAPH_H or ROW
-    -- Out of view: only its place, as the game's list does.
+    local design = (row.kind == "graph" or row.kind == "levels") and GRAPH_H or ROW
+    item.height = UI.px(design)
+    -- Out of view: only its place, as the game's list does (y and the height in the list's pixels).
+    local nextY = y + item.height
     local top = y + self:getYScroll()
-    if top + item.height < 0 or top >= self:getHeight() then return y + item.height end
+    if top + item.height < 0 or top >= self:getHeight() then return nextY end
+    local c = UI.designCanvas(self)
+    local yd = c == self and y or UI.dp(y)
+    local width = c == self and self:getWidth() or c.width
     if row.kind == "graph" or row.kind == "levels" then
-        if row.kind == "graph" then drawGraph(self, y, self:getWidth(), row) else drawLevels(self, y, self:getWidth(), row) end
-        return y + GRAPH_H
+        if row.kind == "graph" then drawGraph(c, yd, width, row) else drawLevels(c, yd, width, row) end
+        return nextY
     end
-    local width = self:getWidth()
+    y = yd
     local textY = y + (ROW - FONT_HGT_SMALL) / 2
-    -- The row under the mouse lit, coming in and fading as the mouse moves on, an accent at its left; its buttons
-    -- light as the mouse goes over them. A device chosen stays lit.
-    local lit = item.index == self.hoverIndex and self.hoverAlpha or item.index == self.fadeIndex and self.fadeAlpha or 0
-    if self.selected == item.index and row.device then lit = math.max(lit, 1) end
-    if lit > 0.01 then
-        self:drawRect(0, y, width, ROW, 0.13 * lit, 1, 1, 1)
-        self:drawRect(0, y + 1, 3, ROW - 2, 0.9 * lit, ACCENT[1], ACCENT[2], ACCENT[3])
+    local index = item.index
+    -- The row under the mouse lit, coming in and fading as the mouse moves on (UI.placeLight), an accent at its left;
+    -- a click flashes it; its buttons light as the mouse goes over them. A device chosen stays lit.
+    local lit, flash = UI.placeLevels(self, index)
+    if self.selected == index and row.device then lit = math.max(lit, 1) end
+    if lit > 0.01 or flash > 0.01 then
+        UI.fill(c, 0, y, width, ROW, P.sel, 0.1 * lit + 0.22 * flash)
+        UI.fill(c, 0, y + 1, 3, ROW - 2, P.sel, 0.9 * math.max(lit, flash))
     end
-    self.rowMouseX = item.index == self.hoverIndex and self:getMouseX() or nil
+    self.rowMouseX = index == self.hoverIndex and self.mouseDX or nil
     -- What the mouse is over on the plan.
     local window = self.window
     local planned = row.device and row.device.key == window.planHoverKey
         or row.kind == "room" and window.planHoverRoom ~= nil and row.id == window.planHoverRoom
-    if planned then self:drawRectBorder(1, y, width - SCROLLBAR - 2, ROW, 1, 1, 1, 0.6) end
+    if planned then UI.frame(c, 1, y, width - SCROLLBAR - 2, ROW, P.warn) end
+    local rightX = width - PAD - SCROLLBAR
     if row.kind == "header" then
-        self:drawRect(0, y, width, ROW, 0.3, 0.3, 0.3, 0.3)
-        self:drawText(row.text, PAD, textY, 1, 0.85, 0.5, 1, UIFont.Small)
+        UI.fill(c, 0, y, width, ROW, P.panel, 0.95)
+        UI.fill(c, 0, y + ROW - 1, width, 1, P.border, 0.8)
+        UI.text(c, row.text, PAD, textY, HEAD)
     elseif row.kind == "floor" then
-        self:drawRect(0, y, width, ROW, 0.5, 0.12, 0.2, 0.3)
-        self:drawRect(0, y + ROW - 1, width, 1, 0.6, 0.35, 0.5, 0.65)
-        self:drawText(row.folded and "+" or "-", PAD, textY, 0.7, 0.85, 1, 1, UIFont.Small)
-        self:drawText(row.text, PAD * 3, textY, 0.75, 0.9, 1, 1, UIFont.Small)
-        if row.right then self:drawTextRight(row.right, width - PAD - SCROLLBAR, textY, 0.75, 0.9, 1, 1, UIFont.Small) end
+        UI.fill(c, 0, y, width, ROW, FLOOR_BG, 0.6)
+        UI.fill(c, 0, y + ROW - 1, width, 1, FLOOR_LINE, 0.7)
+        UI.text(c, row.folded and "+" or "-", PAD, textY, FLOOR_TEXT)
+        UI.text(c, row.text, PAD * 3, textY, FLOOR_TEXT)
+        if row.right then UI.textRight(c, row.right, rightX, textY, FLOOR_TEXT) end
     elseif row.kind == "room" then
-        self:drawRect(0, y, width, ROW, 0.3, 0.3, 0.3, 0.3)
-        self:drawText(row.folded and "+" or "-", PAD, textY, 1, 0.85, 0.5, 1, UIFont.Small)
+        UI.fill(c, 0, y, width, ROW, P.panel, 0.7)
+        UI.text(c, row.folded and "+" or "-", PAD, textY, HEAD)
         local x = ROOM_TICK_X
         if row.state then
-            tick(self, x, y, row.state)
+            tick(self, c, index .. "tick", x, y, row.state)
             x = x + ROW + 4
         end
-        self:drawText(row.text, x, textY, 1, 0.85, 0.5, 1, UIFont.Small)
-        if row.right then self:drawTextRight(row.right, width - PAD - SCROLLBAR, textY, 0.9, 0.85, 0.6, 1, UIFont.Small) end
+        UI.text(c, row.text, x, textY, HEAD)
+        if row.right then UI.textRight(c, row.right, rightX, textY, ROOM_RIGHT) end
     elseif row.kind == "link" then
-        if row.header then self:drawRect(0, y, width, ROW, 0.3, 0.3, 0.3, 0.3) end
-        local r, g, b = 0.75, 0.85, 1
-        if row.header then r, g, b = 1, 0.85, 0.5 end
-        self:drawText(row.text, row.header and PAD or PAD * 2, textY, r, g, b, 1, UIFont.Small)
-        self:drawTextRight(label("IGUI_BU_Open"), width - PAD - SCROLLBAR, textY, 0.5, 0.75, 1, 1, UIFont.Small)
+        if row.header then UI.fill(c, 0, y, width, ROW, P.panel, 0.95) end
+        UI.text(c, row.text, row.header and PAD or PAD * 2, textY, row.header and LINK_HEAD or LINK)
+        UI.textRight(c, label("IGUI_BU_Open"), rightX, textY, OPEN)
     elseif row.kind == "note" or row.kind == "filter" then
-        local shade = row.kind == "filter" and 1 or 0.7
-        self:drawText(row.text, PAD * 2, textY, shade, shade, row.kind == "filter" and 0.6 or shade, 1, UIFont.Small)
+        UI.text(c, row.text, PAD * 2, textY, row.kind == "filter" and FILTER or NOTE)
     elseif row.kind == "log" then
-        local r, g, b = 0.9, 0.9, 0.9
-        if row.bad then r, g, b = 1, 0.55, 0.5 elseif row.good then r, g, b = 0.6, 1, 0.6 end
-        self:drawText(row.text, PAD, textY, r, g, b, 1, UIFont.Small)
-        self:drawTextRight(row.right, width - PAD - SCROLLBAR, textY, 0.7, 0.7, 0.7, 1, UIFont.Small)
+        UI.text(c, row.text, PAD, textY, row.bad and LOG_BAD or row.good and LOG_GOOD or LOG_TEXT)
+        UI.textRight(c, row.right, rightX, textY, NOTE)
     elseif row.kind == "source" then
-        self:drawText(row.text, PAD * 2, textY, row.inUse and 0.5 or 0.9, row.inUse and 1 or 0.9, row.inUse and 0.5 or 0.9, 1, UIFont.Small)
+        UI.text(c, row.text, PAD * 2, textY, row.inUse and IN_USE or PLAIN)
         for _, button in ipairs(sourceButtons(width, row)) do
             -- Switching to solar before the source is ready is greyed (its tooltip says why).
-            local shade = (button.name ~= "UseSource" or row.useSourceReady) and 1 or 0.5
-            smallButton(self, button.x, y, button.w, label(button.name == "UseSource" and "IGUI_BU_UseSource" or "IGUI_BU_Settings"),
-                shade, shade, shade)
+            local ready = button.name ~= "UseSource" or row.useSourceReady
+            smallButton(self, c, index .. button.name, button.x, y, button.w,
+                label(button.name == "UseSource" and "IGUI_BU_UseSource" or "IGUI_BU_Settings"), ready and WHITE or MUTED)
         end
     elseif row.kind == "producer" then
         -- In use in green, out of service (switched off by hand) in amber.
-        local r, g, b = 0.9, 0.9, 0.9
-        if row.inUse then r, g, b = 0.5, 1, 0.5 elseif row.out then r, g, b = 1, 0.65, 0.3 end
-        self:drawText(row.text, PAD * 2, textY, r, g, b, 1, UIFont.Small)
+        UI.text(c, row.text, PAD * 2, textY, row.inUse and IN_USE or row.out and OUT or PLAIN)
         for _, button in ipairs(producerButtons(width, row)) do
             if button.name == "Group" then
-                local c = row.groupColour
-                smallButton(self, button.x, y, button.w, row.groupText, c[1], c[2], c[3])
+                smallButton(self, c, index .. "Group", button.x, y, button.w, row.groupText, row.groupColour)
             else
-                smallButton(self, button.x, y, button.w, label("IGUI_BU_" .. button.name), 1, 1, 1)
+                smallButton(self, c, index .. button.name, button.x, y, button.w, label("IGUI_BU_" .. button.name), WHITE)
             end
         end
     elseif row.kind == "waterGroup" then
-        local c = row.colour
-        self:drawRect(PAD * 2, y + 6, ROW - 12, ROW - 12, 1, c[1], c[2], c[3])
-        self:drawText(row.text, PAD * 2 + ROW - 6, textY, 1, 1, 1, 1, UIFont.Small)
+        UI.fill(c, PAD * 2, y + 6, ROW - 12, ROW - 12, row.colour)
+        UI.text(c, row.text, PAD * 2 + ROW - 6, textY, WHITE)
         local buttons = groupButtons(width, row)
         for _, button in ipairs(buttons) do
-            smallButton(self, button.x, y, button.w, label("IGUI_BU_" .. button.name), 1, 1, 1)
+            smallButton(self, c, index .. button.name, button.x, y, button.w, label("IGUI_BU_" .. button.name), WHITE)
         end
-        if row.right then self:drawTextRight(row.right, buttons[1].x - 8, textY, 0.8, 0.85, 1, 1, UIFont.Small) end
+        if row.right then UI.textRight(c, row.right, buttons[1].x - 8, textY, LINK) end
     elseif row.kind == "addGroup" then
-        self:drawText(row.text, PAD * 2, textY, 0.5, 0.75, 1, 1, UIFont.Small)
+        UI.text(c, row.text, PAD * 2, textY, OPEN)
     elseif row.kind == "device" or row.kind == "all" or row.kind == "blackout" or row.kind == "mainSwitch" then
         local indent = row.kind == "device" and PAD * 3 or PAD * 2
-        tick(self, indent, y, row.state == "on" and "on" or "off")
-        local shade = row.state ~= "other" and 1 or 0.5
-        self:drawText(row.text, indent + ROW + 4, textY, shade, shade, shade, 1, UIFont.Small)
+        tick(self, c, index .. "tick", indent, y, row.state == "on" and "on" or "off")
+        UI.text(c, row.text, indent + ROW + 4, textY, row.state ~= "other" and PLAIN or MUTED)
         if row.fresh then
-            if not row.freshX then row.freshX = indent + ROW + 4 + getTextManager():MeasureStringX(UIFont.Small, row.text) + 6 end
-            self:drawText(label("IGUI_BU_New"), row.freshX, textY, 0.3, 0.9, 1, 1, UIFont.Small)
+            if not row.freshX or row.freshEra ~= UI.era then
+                row.freshX, row.freshEra = indent + ROW + 4 + UI.textWidth(row.text) + 6, UI.era
+            end
+            UI.text(c, label("IGUI_BU_New"), row.freshX, textY, FRESH)
         end
         local buttons, textRight = deviceButtons(width, row)
         for _, button in ipairs(buttons) do
+            local key = index .. button.name
             if button.name == "group" then
-                local c = row.groupColour
-                smallButton(self, button.x, y, button.w, row.groupText, c[1], c[2], c[3])
+                smallButton(self, c, key, button.x, y, button.w, row.groupText, row.groupColour)
             elseif button.name == "timer" then
                 local timed = row.device.schedule ~= "always"
-                smallButton(self, button.x, y, button.w, label("IGUI_BU_Schedule_" .. row.device.schedule),
-                    timed and 0.6 or 0.8, timed and 0.8 or 0.8, timed and 1 or 0.8)
+                smallButton(self, c, key, button.x, y, button.w, label("IGUI_BU_Schedule_" .. row.device.schedule),
+                    timed and TIMED or UNTIMED)
             else
-                local on = row.device.essential
-                smallButton(self, button.x, y, button.w, label("IGUI_BU_Essential"), on and 1 or 0.45, on and 0.85 or 0.45, on and 0.3 or 0.45)
+                smallButton(self, c, key, button.x, y, button.w, label("IGUI_BU_Essential"),
+                    row.device.essential and ESSENTIAL or NOT_ESSENTIAL)
             end
         end
         if row.right then
-            local r, g, b = 0.8, 0.8, 0.8
-            if row.held then r, g, b = 1, 0.65, 0.3 elseif row.dim then r, g, b = 0.55, 0.55, 0.55 end
-            self:drawTextRight(row.right, textRight, textY, r, g, b, 1, UIFont.Small)
+            UI.textRight(c, row.right, textRight, textY, row.held and HELD or row.dim and DIM or RIGHT)
         end
     end
-    return y + ROW
+    return nextY
 end
 
 -- The list's content slides in from the side it came from as its tab opens (dir: 1 from the right, -1 from the
--- left), fading in.
+-- left), fading in; followed each frame while it moves (UI.live).
+local function slideFrame(list, now)
+    local t = list.switchedAt and (now - list.switchedAt) / Ui.SWITCH_MS or 1
+    if t >= 1 then return nil end
+    return math.floor(t * 100)
+end
+
 function ISBUPanelList:switched(dir)
     self.switchedAt, self.switchDir = getTimestampMs(), dir
+    UI.live(self, slideFrame)
 end
 
--- The row under the mouse lit, and the one it left fading (both eased by the frame's time).
-function ISBUPanelList:stepHover(now)
-    local ms = math.min(100, now - (self.frameAt or now))
-    self.frameAt = now
-    local index = self:isVisible() and self:isMouseOver() and self.mouseoverselected or nil
-    local item = index and self.items[index]
-    if not (item and not STILL[item.item.kind]) then index = nil end
-    if index ~= self.hoverIndex then
-        if self.hoverIndex then self.fadeIndex, self.fadeAlpha = self.hoverIndex, self.hoverAlpha or 0 end
-        self.hoverIndex, self.hoverAlpha = index, 0
-    end
-    if self.hoverIndex then self.hoverAlpha = approach(self.hoverAlpha, 1, ms, Ui.HOVER_IN_MS) end
-    if self.fadeIndex then
-        self.fadeAlpha = approach(self.fadeAlpha, 0, ms, Ui.HOVER_OUT_MS)
-        if self.fadeAlpha < 0.01 then self.fadeIndex = nil end
-    end
-end
-
--- The row under the mouse outlines its objects in the world and marks them on the plan, until the mouse leaves it.
+-- The row under the mouse outlines its objects in the world and marks them on the plan, until the mouse leaves it;
+-- it is lit (UI.placeLight) unless it only tells, and its tooltip (row.tip, rich text) shows in the kit's
+-- (PZUIRichTip).
 function ISBUPanelList:prerender()
-    local index = self:isVisible() and self:isMouseOver() and self.mouseoverselected or nil
-    local row = index and self.items[index] and self.items[index].item
+    local index = self:isVisible() and self:isMouseOver() and not self:isMouseOverScrollBar() and self.mouseoverselected or nil
+    local item = index and self.items[index]
+    local row = item and item.item
+    self.mouseDX = UI.dp(self:getMouseX())
     self.window.listHoverKey = row and row.device and row.device.key or nil
     self.window.listHoverRoom = row and (row.device and row.device.roomId or row.kind == "room" and row.id) or nil
-    if not (row and (row.device or row.at)) then index = nil end
-    if index ~= self.hovered then
+    local lit = row and not STILL[row.kind] and index or nil
+    self.hoverIndex = lit
+    UI.placeLight(self, lit)
+    if row and row.tip then PZUIRichTip.show(self, row.tip, P) else PZUIRichTip.hide(self) end
+    local outlined = row and (row.device or row.at) and index or nil
+    if outlined ~= self.hovered then
         self:unhighlight()
-        self.hovered = index
-        if row then outline(self.window.playerObj:getPlayerNum(), rowObjects(row), getCore():getGoodHighlitedColor(), self.highlighted) end
+        self.hovered = outlined
+        if outlined then
+            outline(self.window.playerObj:getPlayerNum(), rowObjects(row), getCore():getGoodHighlitedColor(), self.highlighted)
+        end
     end
     local now = getTimestampMs()
-    self:stepHover(now)
     -- Its content slid by the game's scroll across (its drawing moves, its scroll bar and its clip stay); the
     -- background and the border drawn here in place meanwhile.
     local t = self.switchedAt and (now - self.switchedAt) / Ui.SWITCH_MS or 1
     if t >= 1 then self.switchedAt = nil end
-    local slide = t < 1 and math.floor((1 - ease(t)) * Ui.SLIDE * (self.switchDir or 1)) or 0
+    local slide = t < 1 and math.floor((1 - ease(t)) * UI.px(Ui.SLIDE) * (self.switchDir or 1)) or 0
     -- straight on the game's element: the list's own setXScroll keeps it within what it can scroll (none)
     if self:getXScroll() ~= slide then self.javaObject:setXScroll(slide) end
     local bg, yScroll = self.backgroundColor, -self:getYScroll()
@@ -364,12 +386,10 @@ function ISBUPanelList:prerender()
     if t < 1 then
         self:drawRect(-slide, yScroll, self.width, self.height, (1 - ease(t)) * 0.85, bg.r, bg.g, bg.b)
         if border then
-            local c = self.borderColor
-            self:drawRectBorder(-slide, yScroll, self.width, self.height, c.a, c.r, c.g, c.b)
+            local b = self.borderColor
+            self:drawRectBorder(-slide, yScroll, self.width, self.height, b.a, b.r, b.g, b.b)
         end
     end
-    -- The list's tooltip does not wrap; the units' explanations are long.
-    if self.tooltipUI then self.tooltipUI.maxLineWidth = 460 end
 end
 
 function ISBUPanelList:unhighlight()
@@ -378,45 +398,144 @@ function ISBUPanelList:unhighlight()
 end
 
 function ISBUPanelList:hideTooltip()
-    if self.tooltipUI and self.tooltipUI:getIsVisible() then
-        self.tooltipUI:setVisible(false)
-        self.tooltipUI:removeFromUIManager()
-    end
+    PZUIRichTip.hide(self)
 end
 
+-- A click: the row flashes, its button too, and the window acts on it (x in design units, as the rows are drawn).
 function ISBUPanelList:onMouseDown(x, y)
     local index = self:rowAt(x, y)
     local item = index and index > 0 and self.items[index]
-    if item then self.window:onRow(self.utility, item.item, x, self:getWidth()) end
+    if item then
+        local dx, width = UI.dp(x), UI.dp(self:getWidth())
+        UI.placeFlash(self, index)
+        for _, button in ipairs(item.item.buttons or {}) do
+            if dx >= button.x and dx < button.x + button.w then UI.flash(self, index .. button.name) end
+        end
+        self.window:onRow(self.utility, item.item, dx, width)
+    end
     return true
 end
 
--- The window's tabs: as the game's, with the open one underlined in the accent, the line gliding to a tab as it
--- opens, and the tab under the mouse lit.
-ISBUTabPanel = ISTabPanel:derive("ISBUTabPanel")
+-- The window's tabs: a strip over the lists in the window's palette, as Operation Acorn's terminal draws its tabs (the
+-- open one on the background with the accent line under it, gliding to a tab as it opens; the one under the mouse
+-- lit, a click flashing). It keeps the lists as its views below the strip (game lists, placed in pixels from design
+-- units). The calls the window makes are the game's tab panel's: addView, activateView, getActiveViewIndex,
+-- activeView, tabHeight, getWidthOfAllTabs.
+ISBUTabs = ISPanel:derive("ISBUTabs")
 
-function ISBUTabPanel:render()
-    ISTabPanel.render(self)
+function ISBUTabs:new(x, y, width, height)
+    local o = ISPanel.new(self, x, y, width, height)
+    o.background = false
+    o.tabHeight = ROW + 2
+    o.viewList, o.slots = {}, {}
+    return o
+end
+
+function ISBUTabs:addView(name, view)
+    local entry = { name = name, view = view, w = UI.textWidth(name) + 28 }
+    self.viewList[#self.viewList + 1] = entry
+    self:addChild(view)
+    UI.place(view, 0, self.tabHeight, self.width, self.height - self.tabHeight)
+    view:setVisible(#self.viewList == 1)
+    if #self.viewList == 1 then self.activeView = entry end
+end
+
+function ISBUTabs:getActiveViewIndex()
+    for index, entry in ipairs(self.viewList) do
+        if entry == self.activeView then return index end
+    end
+    return nil
+end
+
+function ISBUTabs:activateView(name)
+    for _, entry in ipairs(self.viewList) do
+        if entry.name == name then
+            if self.activeView ~= entry then
+                if self.activeView then self.activeView.view:setVisible(false) end
+                self.activeView = entry
+                entry.view:setVisible(true)
+                UI.live(self, ISBUTabs.glideFrame)
+            end
+            return true
+        end
+    end
+    return false
+end
+
+function ISBUTabs:getWidthOfAllTabs()
+    local w = 4
+    for _, entry in ipairs(self.viewList) do w = w + entry.w + 3 end
+    return w
+end
+
+-- The strip and its views made so wide and high (design units in, the lists' pixels out).
+function ISBUTabs:resize(w, h)
+    self:setWidth(w)
+    self:setHeight(h)
+    for _, entry in ipairs(self.viewList) do UI.place(entry.view, 0, self.tabHeight, w, h - self.tabHeight) end
+end
+
+-- The accent line's place, gliding toward the open tab (followed each frame while it moves). The open tab's slot is
+-- found by its index: a tab just opened is followed before it is drawn (its slot still the last one drawn open).
+function ISBUTabs.glideFrame(self, now)
+    local index = self:getActiveViewIndex()
+    local slot = index and self.slots[index]
+    if not (slot and self.lineX) then return nil end
+    if math.abs(self.lineX - slot.x) < 0.5 and math.abs(self.lineW - slot.w) < 0.5 then return nil end
+    return math.floor(self.lineX * 10)
+end
+
+function ISBUTabs:prerender()
+    local h = self.tabHeight
+    UI.fill(self, 0, 0, self.width, h, P.tabStrip)
+    local fh = FONT_HGT_SMALL
+    local mx = self:isMouseOver() and self:getMouseY() < h and self:getMouseX() or -1
+    local x = 4
+    local slots = self.slots
     local now = getTimestampMs()
     local ms = math.min(100, now - (self.frameAt or now))
     self.frameAt = now
-    local index = self:getActiveViewIndex()
-    local view = index and self.viewList[index]
-    if not view then return end
-    local x, w = self:getTabX(index, self.scrollX), view.tabWidth or self.maxLength
-    if not self.lineX then self.lineX, self.lineW = x, w end
-    self.lineX, self.lineW = approach(self.lineX, x, ms, 45), approach(self.lineW, w, ms, 45)
-    self:drawRect(self.lineX + 2, self.tabHeight - 3, self.lineW - 4, 2, 1, ACCENT[1], ACCENT[2], ACCENT[3])
-    local mx, my = self:getMouseX(), self:getMouseY()
-    if self:isMouseOver() and my >= 0 and my < self.tabHeight then
-        local over = self:getTabIndexAtX(mx, self.scrollX)
-        local hovered = over and self.viewList[over]
-        if hovered and over ~= index then
-            self:drawRect(self:getTabX(over, self.scrollX), 0, hovered.tabWidth or self.maxLength, self.tabHeight - 1,
-                0.1, 1, 1, 1)
+    for index, entry in ipairs(self.viewList) do
+        local on = entry == self.activeView
+        local tw = entry.w
+        local k = UI.hoverLight(self, index, not on and mx >= x and mx < x + tw)
+        local f = UI.flashLevel(self, index)
+        if on then
+            UI.fill(self, x, 2, tw, h - 2, P.bg)
+        elseif k > 0 then
+            UI.fill(self, x, 2, tw, h - 2, P.bg, 0.6 * k)
+        end
+        if f > 0 then UI.fill(self, x, 2, tw, h - 2, P.sel, 0.25 * f) end
+        UI.textCentre(self, entry.name, x + tw / 2, (h - fh) / 2 + 1, (on or k > 0.5) and P.bright or P.dim)
+        local slot = slots[index] or {}
+        slots[index] = slot
+        slot.x, slot.w, slot.name = x, tw, entry.name
+        if on then self.activeSlot = slot end
+        x = x + tw + 3
+    end
+    for i = #slots, #self.viewList + 1, -1 do slots[i] = nil end
+    local slot = self.activeSlot
+    if slot then
+        if not self.lineX then self.lineX, self.lineW = slot.x, slot.w end
+        self.lineX, self.lineW = approach(self.lineX, slot.x, ms, 45), approach(self.lineW, slot.w, ms, 45)
+        UI.fill(self, self.lineX + 2, h - 3, self.lineW - 4, 2, P.value)
+    end
+    UI.fill(self, 0, h - 1, self.width, 1, P.border)
+end
+
+function ISBUTabs:onMouseDown(x, y)
+    if y >= self.tabHeight then return false end
+    for index, slot in ipairs(self.slots) do
+        if x >= slot.x and x < slot.x + slot.w then
+            UI.flash(self, index)
+            self:activateView(slot.name)
+            return true
         end
     end
+    return true
 end
+
+UI.scaled(ISBUTabs, ISPanel)
 
 -- The divider between the list and the plan: dragged, it moves the share of the window the plan takes.
 ISBUSplitter = ISPanel:derive("ISBUSplitter")
@@ -429,21 +548,25 @@ function ISBUSplitter:new(x, y, width, height, window)
 end
 
 function ISBUSplitter:render()
-    local shade = (self.dragging or self:isMouseOver()) and 0.9 or 0.45
+    local k = UI.hoverLight(self, "hover", self.dragging or self:isMouseOver())
     local middle = self.height / 2
-    for i = -2, 2 do self:drawRect(self.width / 2 - 1, middle + i * 6, 2, 3, 1, shade, shade, shade) end
+    if k > 0 then UI.fill(self, self.width / 2 - 1, 0, 2, self.height, P.sel, 0.25 * k) end
+    for i = -2, 2 do UI.fill(self, self.width / 2 - 1, middle + i * 6, 2, 3, k > 0.5 and P.sel or P.dim) end
 end
 
 function ISBUSplitter:onMouseDown(x, y) self.dragging = true; return true end
 
+-- The window's mouse in the body's design units.
 function ISBUSplitter:drag()
-    if self.dragging then self.window:dragDivider(self.window:getMouseX() - self.width / 2) end
+    if self.dragging then self.window:dragDivider(UI.dp(self.window:getMouseX()) - self.width / 2) end
 end
 
 function ISBUSplitter:onMouseMove(dx, dy) self:drag() end
 function ISBUSplitter:onMouseMoveOutside(dx, dy) self:drag() end
 function ISBUSplitter:onMouseUp(x, y) self.dragging = false; return true end
 function ISBUSplitter:onMouseUpOutside(x, y) self.dragging = false end
+
+UI.scaled(ISBUSplitter, ISPanel)
 
 Ui.deviceButtons = deviceButtons
 Ui.producerButtons = producerButtons
