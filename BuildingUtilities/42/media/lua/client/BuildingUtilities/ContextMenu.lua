@@ -88,9 +88,9 @@ end
 
 local function queueAt(playerObj, x, y, z, action) ContextMenu.queueAt(playerObj, x, y, z, action) end
 
-local function onInstall(playerObj, square, item)
+local function onInstall(playerObj, square, item, sprite)
     ISInventoryPaneContextMenu.transferIfNeeded(playerObj, item)
-    queueAt(playerObj, square:getX(), square:getY(), square:getZ(), ISBUInstallPanel:new(playerObj, square, item))
+    queueAt(playerObj, square:getX(), square:getY(), square:getZ(), ISBUInstallPanel:new(playerObj, square, item, sprite))
 end
 
 local function onOpen(playerObj, panel) queueAt(playerObj, panel.x, panel.y, panel.z, ISBUOpenPanel:new(playerObj, panel)) end
@@ -188,33 +188,35 @@ end
 
 -- Units.
 
-local function onInstallUnit(playerObj, kind, square, item)
+local function onInstallUnit(playerObj, kind, square, item, sprite)
     ISInventoryPaneContextMenu.transferIfNeeded(playerObj, item)
-    queueAt(playerObj, square:getX(), square:getY(), square:getZ(), ISBUInstallUnit:new(playerObj, kind, square, item))
+    queueAt(playerObj, square:getX(), square:getY(), square:getZ(),
+        ISBUInstallUnit:new(playerObj, kind, square, item, sprite))
 end
 
 local function onUnitAction(playerObj, unit, action) queueAt(playerObj, unit.x, unit.y, unit.z, action(playerObj, unit)) end
 
 local function onOpenRack(playerObj, unit) queueAt(playerObj, unit.x, unit.y, unit.z, ISBUOpenRack:new(playerObj, unit)) end
 
--- A unit's lines, no submenu: its name and state, which opens the window of the box it is wired to (a rack's own
--- window, BU.RackWindow); what its kind offers now (Units.define: clearing snow, a new filter charge); wired, taking
--- its line away; not wired, the boxes in reach it can be wired to. The unit is taken up with the furniture tool. One
--- of a kind that is off (BU.enabled) is only named.
+-- A unit's lines, no submenu: a rack's name, which opens its window (BU.RackWindow); another's state, when its kind
+-- shows one (Units.define title); what its kind offers now (Units.define: clearing snow, a new filter charge); wired,
+-- taking its line away; not wired, the boxes in reach it can be wired to. The unit is taken up with the furniture
+-- tool. One of a kind that is off (BU.enabled) is only named.
 local function addUnitOptions(context, playerObj, unit)
     local definition = Units.definition(unit.kind)
     local on = BU.enabled(unit.kind)
     local panel = Store.get(unit.panel)
-    local title = Units.name(unit)
-    if on and definition.title then title = definition.title(unit, title) end
-    title = panel and getText("IGUI_BU_UnitWired", title, Panels.name(panel)) or title
-    if not on then title = getText("IGUI_BU_UnitOff", title) end
-    if unit.kind == "rack" and on then
+    local name = Units.name(unit)
+    local title = on and definition.title and definition.title(unit, name) or name
+    if not on then
+        context:addOptionOnTop(getText("IGUI_BU_UnitOff", name), nil, nil).isDisabled = true
+    elseif unit.kind == "rack" then
         -- A rack opens its own window, wired or not (BU.RackWindow).
-        context:addOptionOnTop(title, playerObj, onOpenRack, unit)
-    else
-        local option = context:addOptionOnTop(title, panel and playerObj or nil, panel and onOpen or nil, panel)
-        if panel and not BU.api() then unavailable(option, apiMissingText()) end
+        context:addOptionOnTop(panel and getText("IGUI_BU_UnitWired", title, Panels.name(panel)) or title, playerObj,
+            onOpenRack, unit)
+    elseif title ~= name then
+        -- What it is doing (snow on it, running, its filter's charge); the box it is wired to is in the line below.
+        context:addOptionOnTop(title, nil, nil).isDisabled = true
     end
     if not on then return end
     for _, entry in ipairs(definition.options and definition.options(unit, playerObj) or {}) do
@@ -344,9 +346,13 @@ end
 Events.OnFillWorldObjectContextMenu.Add(ContextMenu.fill)
 
 -- Putting a box or a unit down from the inventory: the game's building cursor (ISBuildingObject) shows its sprite at
--- the square under the mouse, facing as it would be put there, red where it cannot go; a click walks there and puts it
--- down (the actions the world's menu queues), and the cursor goes. Made on first use: the game's cursor comes with the
--- server Lua, which the main menu has not loaded.
+-- the square under the mouse, red where it cannot go; a click walks there and puts it down (the actions the world's
+-- menu queues), and the cursor goes. It faces the player until it is turned as the game's furniture is (the rotate
+-- key, the gamepad's bumper, or a drag with the button held: the cursor's nSprite, 1 to 4 for BU.SIDES); a turn that
+-- would show the same look (a kind with fewer looks than sides) goes on to the next look. Made on first use: the
+-- game's cursor comes with the server Lua, which the main menu has not loaded.
+local NUMBER_OF = { W = 1, N = 2, E = 3, S = 4 }
+
 local function defineCursor()
     if ISBUPlaceCursor then return ISBUPlaceCursor end
     ISBUPlaceCursor = ISBuildingObject:derive("ISBUPlaceCursor")
@@ -357,41 +363,78 @@ local function defineCursor()
         o.player, o.kind, o.item = player, kind, item
         o.skipBuildAction = true
         o:setDragNilAfterPlace(true)
-        o:face(getSpecificPlayer(player):getCurrentSquare())
         return o
     end
 
-    -- Its sprite as it would face on a square, the same whichever way the rotate key turns it.
-    function ISBUPlaceCursor:face(square)
-        if not square then return end
-        local playerObj = getSpecificPlayer(self.player)
-        local sprite = self.kind == "panel" and BU.panelSpriteFacing(square, playerObj)
-            or Units.spriteFor(self.kind, square, playerObj)
-        self.sprite, self.northSprite = sprite, sprite
+    -- Its sprite on a square, facing a side.
+    function ISBUPlaceCursor:facing(square, side)
+        if self.kind == "panel" then return BU.panelSprite(side) end
+        return Units.spriteFacing(self.kind, square, side)
     end
 
-    -- Whether it can go on a square, worked out once a square.
+    function ISBUPlaceCursor:getSprite()
+        local square = self.at
+        if not square then return self.chosenSprite end
+        if not self.turned and self.autoNumber and self.nSprite ~= self.autoNumber then self.turned = true end
+        local sprite
+        if self.turned then
+            sprite = self:facing(square, BU.SIDES[self.nSprite] or "S")
+            local last = self.lastNumber
+            if last and self.nSprite ~= last and sprite == self.chosenSprite then
+                local step = (self.nSprite == last + 1 or self.nSprite == 1 and last == 4) and 1 or -1
+                for _ = 1, 3 do
+                    local n = self.nSprite + step
+                    if n > 4 then n = 1 elseif n < 1 then n = 4 end
+                    self.nSprite = n
+                    sprite = self:facing(square, BU.SIDES[n])
+                    if sprite ~= self.chosenSprite then break end
+                end
+            end
+        else
+            local side = BU.sideOf(square, getSpecificPlayer(self.player))
+            self.nSprite, self.autoNumber = NUMBER_OF[side], NUMBER_OF[side]
+            sprite = self:facing(square, side)
+        end
+        self.lastNumber = self.nSprite
+        self.chosenSprite = sprite
+        return sprite
+    end
+
+    -- Whether it can go on a square, worked out once a square, and why not.
     function ISBUPlaceCursor:isValid(square)
         if not square then return false end
         if square ~= self.checkedSquare then
             self.checkedSquare = square
-            if self.kind == "panel" then self.valid = Panels.canInstall(square) ~= nil
-            else self.valid = Units.canInstall(self.kind, square) ~= nil end
+            local ok, reason
+            if self.kind == "panel" then ok, reason = Panels.canInstall(square)
+            else ok, reason = Units.canInstall(self.kind, square) end
+            self.valid, self.reason = ok ~= nil, reason
         end
         return self.valid
     end
 
+    -- A click where it cannot go says why over the character.
     function ISBUPlaceCursor:render(x, y, z, square)
-        self:face(square)
+        self.at = square
         ISBuildingObject.render(self, x, y, z, square)
+        local playerObj = getSpecificPlayer(self.player)
+        if playerObj:isBuildButtonReleased() and square and not self:isValid(square) and self.reason then
+            local now = getTimestampMs()
+            if not self.saidAt or now - self.saidAt > 1000 then
+                self.saidAt = now
+                HaloTextHelper.addBadText(playerObj, getText("IGUI_BU_Reason_" .. self.reason))
+            end
+        end
     end
 
     function ISBUPlaceCursor:tryBuild(x, y, z)
         local square = getCell():getGridSquare(x, y, z)
         local playerObj = getSpecificPlayer(self.player)
         if not square or not playerObj:getInventory():containsRecursive(self.item) then return end
-        if self.kind == "panel" then onInstall(playerObj, square, self.item)
-        else onInstallUnit(playerObj, self.kind, square, self.item) end
+        self.at = square
+        local sprite = self:getSprite()
+        if self.kind == "panel" then onInstall(playerObj, square, self.item, sprite)
+        else onInstallUnit(playerObj, self.kind, square, self.item, sprite) end
     end
     return ISBUPlaceCursor
 end

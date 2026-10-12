@@ -141,6 +141,22 @@ function RackWindow.drawBattery(c, y, battery, x)
     UI.text(c, load2(battery.output), x + cols.output, textY, battery.output > 0 and P.text or P.dim)
 end
 
+-- A rack's line in sum, in the battery columns from x (the box's battery tab): its title from titleX, its state, what
+-- it stores and gives; at rightX how long the flow lasts and its charge.
+function RackWindow.drawSummary(c, y, view, title, x, titleX, rightX)
+    local cols = RackWindow.COLUMNS
+    local textY = y + math.floor((ROW - FONT_HGT_SMALL) / 2)
+    UI.text(c, UI.fitMemo(title, x + cols.condition - titleX - 8), titleX, textY, P.head)
+    UI.text(c, getText(STATE_TEXT[view.state]), x + cols.condition, textY, stateColour(view.state))
+    UI.text(c, string.format("%.1f", view.capacity), x + cols.stored, textY, P.text)
+    UI.text(c, load2(view.output), x + cols.output, textY, view.output > 0 and P.text or P.dim)
+    local charge = BU.percent(view.charge * 100)
+    UI.textRight(c, charge, rightX, textY, P.head)
+    if view.hours then
+        UI.textRight(c, Ui.duration(view.hours), rightX - UI.textWidth(charge) - 12, textY, stateColour(view.state))
+    end
+end
+
 function ISBURackWindow:createChildren()
     ISCollapsableWindow.createChildren(self)
     for _, b in ipairs({ self.pinButton, self.collapseButton, self.infoButton }) do
@@ -221,7 +237,7 @@ function ISBURackWindow:refresh()
         { getText("IGUI_BU_Rack_Output"), getText("IGUI_BU_Rack_OutputBoost", load2(view.output)),
             (muted or not view.boosting) and P.dim or P.value },
     }
-    local foot = getText("IGUI_BU_Rack_Count", #view.batteries, Rack.SIZE)
+    local foot = getText("IGUI_BU_Rack_Count", #view.batteries)
     if view.cold > 0 then foot = foot .. "  " .. getText("IGUI_BU_Rack_Cold", BU.percent(view.cold * 100)) end
     self.foot = foot
 end

@@ -11,9 +11,9 @@ BU.Rack = Rack
 
 -- It stands against a W wall.
 Rack.SPRITE = "bu_solar_01_0"
--- It holds this many batteries: its container takes car batteries only (Rack.acceptBattery), by weight up to WEIGHT
--- (a battery weighs 5).
-Rack.SIZE, Rack.WEIGHT = 20, 100
+-- What it holds: its container takes car batteries only (Rack.acceptBattery), by weight up to WEIGHT (a battery of the
+-- game weighs 5; another mod's may weigh otherwise).
+Rack.WEIGHT = 100
 Rack.CONTAINER = "BuildingUtilitiesRack"
 Rack.ACCEPT = "BuildingUtilities.Rack.acceptBattery"
 -- Reconditioning: a battery below this condition, so much better, so many times (counted in the item's modData under
@@ -44,9 +44,9 @@ function Rack.container(object)
     return container
 end
 
--- What a rack's container takes: car batteries, SIZE of them.
+-- What a rack's container takes: car batteries (its capacity is the weight it holds).
 function Rack.acceptBattery(container, item)
-    return Rack.isBattery(item) and container:getCountTag(ItemTag.CAR_BATTERY) < Rack.SIZE
+    return Rack.isBattery(item)
 end
 
 -- The record the save keeps of a battery in a rack: the item's id, type, charge and condition.
@@ -188,7 +188,7 @@ Units.define("rack", {
     end,
     sync = Rack.sync,
     title = function(unit, text)
-        text = getText("IGUI_BU_RackTitle", text, #unit.batteries, Rack.SIZE)
+        text = getText("IGUI_BU_RackTitle", text, #unit.batteries)
         if #unit.batteries > 0 then text = text .. "  " .. BU.percent(Rack.charge(unit) * 100) end
         return text
     end,

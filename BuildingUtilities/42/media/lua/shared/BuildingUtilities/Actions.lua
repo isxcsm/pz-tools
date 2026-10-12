@@ -11,13 +11,12 @@ local Store, Panels, Units, Changes, Costs = BU.Store, BU.Panels, BU.Units, BU.C
 local Actions = {}
 BU.Actions = Actions
 
--- The box faces the player who puts it down: S, E, N or W.
-function BU.panelSpriteFacing(square, character)
-    local dx, dy = character:getX() - (square:getX() + 0.5), character:getY() - (square:getY() + 0.5)
-    if math.abs(dx) > math.abs(dy) then
-        return dx > 0 and BU.PANEL_SPRITES[2] or BU.PANEL_SPRITES[4]
+-- Whether the box can stand as a sprite (one asked for from a client).
+local function panelFacing(sprite)
+    for _, name in ipairs(BU.PANEL_SPRITES) do
+        if name == sprite then return true end
     end
-    return dy > 0 and BU.PANEL_SPRITES[1] or BU.PANEL_SPRITES[3]
+    return false
 end
 
 local function giveItem(character, itemType)
@@ -128,14 +127,16 @@ function ISBUInstallPanel:complete()
         container:DoRemoveItem(self.item)
         sendRemoveItemFromContainer(container, self.item)
     end
-    Changes.install(self.square, BU.panelSpriteFacing(self.square, self.character))
+    local sprite = panelFacing(self.sprite) and self.sprite or BU.panelSpriteFacing(self.square, self.character)
+    Changes.install(self.square, sprite)
     BU.giveXp(self.character, 5)
     return true
 end
 
-function ISBUInstallPanel:new(character, square, item)
+-- sprite: the facing the player turned it to (the place cursor), else it faces them.
+function ISBUInstallPanel:new(character, square, item, sprite)
     local o = ISBaseTimedAction.new(self, character)
-    o.square, o.item = square, item
+    o.square, o.item, o.sprite = square, item, sprite
     o.x, o.y = square:getX(), square:getY()
     o.maxTime = o:getDuration()
     return o
@@ -294,14 +295,19 @@ function ISBUInstallUnit:complete()
         container:DoRemoveItem(self.item)
         sendRemoveItemFromContainer(container, self.item)
     end
-    Changes.installUnit(self.kind, self.square, Units.spriteFor(self.kind, self.square, self.character))
+    local sprite = self.sprite
+    if not (sprite and Units.canFace(self.kind, self.square, sprite)) then
+        sprite = Units.spriteFor(self.kind, self.square, self.character)
+    end
+    Changes.installUnit(self.kind, self.square, sprite)
     BU.giveXp(self.character, 5)
     return true
 end
 
-function ISBUInstallUnit:new(character, kind, square, item)
+-- sprite: as the box's (ISBUInstallPanel:new).
+function ISBUInstallUnit:new(character, kind, square, item, sprite)
     local o = ISBaseTimedAction.new(self, character)
-    o.kind, o.square, o.item = kind, square, item
+    o.kind, o.square, o.item, o.sprite = kind, square, item, sprite
     o.x, o.y = square:getX(), square:getY()
     o.maxTime = o:getDuration()
     return o

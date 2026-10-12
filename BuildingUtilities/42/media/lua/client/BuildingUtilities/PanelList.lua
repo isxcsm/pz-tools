@@ -299,6 +299,10 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         UI.text(c, label("IGUI_BU_Rack_ColCondition"), PAD + cols.condition, textY, NOTE)
         UI.text(c, label("IGUI_BU_Rack_ColStored"), PAD + cols.stored, textY, NOTE)
         UI.text(c, label("IGUI_BU_Rack_ColOutput"), PAD + cols.output, textY, NOTE)
+    elseif row.kind == "rack" then
+        UI.fill(c, 0, y, width, ROW, P.panel, 0.7)
+        UI.text(c, row.folded and "+" or "-", PAD, textY, HEAD)
+        BU.RackWindow.drawSummary(c, y, row.view, row.text, PAD, PAD * 3, rightX)
     elseif row.kind == "battery" then
         BU.RackWindow.drawBattery(c, y, row.battery, PAD)
     elseif row.kind == "note" or row.kind == "filter" then

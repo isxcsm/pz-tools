@@ -103,6 +103,9 @@ function WaterUnits.group(unit)
     return Water.FIRST
 end
 
+-- The side across a square from a side.
+local OPPOSITE = { E = "W", W = "E", N = "S", S = "N" }
+
 -- The water beside a square and the side it is on: "Water" from a well (clean, as the game's wells), "TaintedWater"
 -- from a river or lake; nil when there is none.
 local SIDES = { { 1, 0, "E" }, { 0, 1, "S" }, { -1, 0, "W" }, { 0, -1, "N" } }
@@ -131,14 +134,10 @@ Units.define("pump", {
     tierReason = "waterUnitTier",
     colour = { 0.35, 0.6, 1 },
     canPlace = function() return true end,
-    -- Its suction on the water's side; without water, on the side away from the character.
-    sprite = function(square, character)
-        local _, side = WaterUnits.waterBeside(square)
-        if not side then
-            local dx, dy = square:getX() + 0.5 - character:getX(), square:getY() + 0.5 - character:getY()
-            if math.abs(dx) > math.abs(dy) then side = dx > 0 and "E" or "W" else side = dy > 0 and "S" or "N" end
-        end
-        return WaterUnits.PUMP_SPRITES[side]
+    -- Its suction on the water's side; without water, on the side away from the one it faces.
+    sprite = function(square, side)
+        local _, water = WaterUnits.waterBeside(square)
+        return WaterUnits.PUMP_SPRITES[water or OPPOSITE[side]]
     end,
     -- The water it lifts; nil while there is none beside it (the server looks again while its square is loaded).
     create = function(unit, object)
@@ -194,10 +193,9 @@ Units.define("filter", {
     tierReason = "waterUnitTier",
     colour = { 0.85, 0.9, 1 },
     canPlace = function() return true end,
-    -- Its pipe runs across the character's view.
-    sprite = function(square, character)
-        local dx, dy = character:getX() - (square:getX() + 0.5), character:getY() - (square:getY() + 0.5)
-        return math.abs(dx) > math.abs(dy) and WaterUnits.FILTER_SPRITES.along or WaterUnits.FILTER_SPRITES.across
+    -- Its pipe runs across the side it faces.
+    sprite = function(square, side)
+        return (side == "E" or side == "W") and WaterUnits.FILTER_SPRITES.along or WaterUnits.FILTER_SPRITES.across
     end,
     -- Put down with a fresh charge.
     create = function(unit) unit.media = WaterUnits.FILTER_HOURS end,
@@ -224,13 +222,8 @@ Units.define("booster", {
     tierReason = "waterUnitTier",
     colour = { 0.3, 0.75, 0.95 },
     canPlace = function() return true end,
-    -- Its front to the character.
-    sprite = function(square, character)
-        local dx, dy = character:getX() - (square:getX() + 0.5), character:getY() - (square:getY() + 0.5)
-        local side
-        if math.abs(dx) > math.abs(dy) then side = dx > 0 and "E" or "W" else side = dy > 0 and "S" or "N" end
-        return WaterUnits.BOOSTER_SPRITES[side]
-    end,
+    -- Its front to the side it faces.
+    sprite = function(square, side) return WaterUnits.BOOSTER_SPRITES[side] end,
     sync = function(unit, object)
         Units.showLook(object, WaterUnits.BOOSTER_LOOKS, WaterUnits.boosterLook(unit), BOOSTER_LOOK_OF)
     end,

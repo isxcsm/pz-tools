@@ -268,6 +268,23 @@ BU.OLD_PANEL_SPRITE_SET = {}
 for _, name in ipairs(BU.OLD_PANEL_SPRITES) do BU.OLD_PANEL_SPRITE_SET[name] = true end
 BU.PANEL_ITEM = "BuildingUtilities.BreakerBox"
 
+-- The sides of a square, in the order the game's building cursor turns through them (its nSprite, 1 to 4).
+BU.SIDES = { "W", "N", "E", "S" }
+
+-- The side of a square a character stands on: S, E, N or W (a thing put down there faces them by it).
+function BU.sideOf(square, character)
+    local dx, dy = character:getX() - (square:getX() + 0.5), character:getY() - (square:getY() + 0.5)
+    if math.abs(dx) > math.abs(dy) then return dx > 0 and "E" or "W" end
+    return dy > 0 and "S" or "N"
+end
+
+-- The box's sprite facing a side.
+local PANEL_SPRITE_OF = { S = 1, E = 2, N = 3, W = 4 }
+function BU.panelSprite(side) return BU.PANEL_SPRITES[PANEL_SPRITE_OF[side] or 1] end
+
+-- The box faces the player who puts it down.
+function BU.panelSpriteFacing(square, character) return BU.panelSprite(BU.sideOf(square, character)) end
+
 -- A water producer: an object the game fills with rain or water (rain barrels, metal drums), with a fluid container.
 function BU.isWaterContainer(object)
     if not object or instanceof(object, "IsoGenerator") then return false end

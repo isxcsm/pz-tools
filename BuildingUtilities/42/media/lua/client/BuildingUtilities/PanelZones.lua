@@ -79,8 +79,16 @@ function ISBUPanelWindow:updatePlan()
             rangeKey = rangeKey .. "|" .. noiseKey(ranges.noise)
         end
     end
+    -- The boxes of the building (this one alone where it stands in none).
+    local boxes, subBoxes = {}, false
+    for _, other in ipairs(self.building and Panels.ofBuilding(self.building.key) or { panel }) do
+        boxes[#boxes + 1] = { x = other.x, y = other.y, z = other.z, sub = other.parent ~= nil, own = other.id == panel.id,
+            text = Panels.name(other) }
+        subBoxes = subBoxes or other.parent ~= nil
+    end
     self.plan:setData({ utility = utility, supplied = view.state and view.state.supplied, rooms = rooms, devices = devices,
-        producers = producers, box = { x = panel.x, y = panel.y, z = panel.z }, boxText = Panels.name(panel), filter = self.roomFilter,
+        producers = producers, box = { x = panel.x, y = panel.y, z = panel.z }, boxes = boxes, subBoxes = subBoxes,
+        filter = self.roomFilter,
         zone = zone, zoneEditable = editable, zoneEdit = self.zoneEditing == true, zoneNote = getText("IGUI_BU_ZoneNote", inZone),
         farNote = self.building and self:farNote() or nil,
         reached = self.building and { Panels.floorsInReach(panel, self.building) } or nil,
@@ -140,7 +148,7 @@ end
 function ISBUPanelWindow:zoneMenu(level)
     local states = Panels.zoneStates(self.panel, self.building, self.rooms or {})
     local menu = ISContextMenu.get(self.playerObj:getPlayerNum(), getMouseX(), getMouseY())
-    menu:addOption(BU.floorName(level), nil, nil).notAvailable = true
+    menu:addOption(BU.floorName(level), nil, nil).isDisabled = true
     local function floorSet(keepOthers, take)
         local set = keepOthers and self:zoneSet() or {}
         for _, room in ipairs(self.rooms or {}) do
@@ -240,9 +248,9 @@ function ISBUPanelWindow:deviceMenu(key)
     if not device then return end
     local panel, playerObj = self.panel, self.playerObj
     local menu = ISContextMenu.get(playerObj:getPlayerNum(), getMouseX(), getMouseY())
-    menu:addOption(view.names[key] or "", nil, nil).notAvailable = true
+    menu:addOption(view.names[key] or "", nil, nil).isDisabled = true
     if device.state == "other" then
-        menu:addOption(view.status[key] or "", nil, nil).notAvailable = true
+        menu:addOption(view.status[key] or "", nil, nil).isDisabled = true
     else
         local on = device.state == "on"
         menu:addOption(getText(on and "IGUI_BU_Menu_Disconnect" or "IGUI_BU_Menu_Connect"), self, ISBUPanelWindow.switchDevice, utility, device)
@@ -253,7 +261,7 @@ function ISBUPanelWindow:deviceMenu(key)
             for _, schedule in ipairs(BU.SCHEDULES) do
                 local option = sub:addOption(getText("IGUI_BU_Schedule_" .. schedule), playerObj, Sync.send, "setSchedule",
                     { panel = panel.id, key = key, schedule = schedule })
-                if schedule == device.schedule then option.notAvailable = true end
+                if schedule == device.schedule then option.isDisabled = true end
             end
         end
         if on and utility == "power" and Panels.sheds(panel) then
@@ -271,7 +279,7 @@ function ISBUPanelWindow:roomMenu(id)
     local totals = view and view.totals[id]
     local playerObj = self.playerObj
     local menu = ISContextMenu.get(playerObj:getPlayerNum(), getMouseX(), getMouseY())
-    menu:addOption(totals and totals.title or (self.titles[id] or ""), nil, nil).notAvailable = true
+    menu:addOption(totals and totals.title or (self.titles[id] or ""), nil, nil).isDisabled = true
     if totals and totals.count > 0 then
         local send = function(on) Sync.send(playerObj, "setRoomInside", { panel = self.panel.id, utility = utility, room = id, on = on }) end
         if totals.on < totals.count then menu:addOption(getText("IGUI_BU_Menu_RoomOn"), true, send) end

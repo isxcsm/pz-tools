@@ -16,7 +16,8 @@ local definitions = {}
 -- A kind of unit. Its definition:
 --   item: the item the player puts down and gets back.
 --   canPlace(square): whether it may stand there besides a free floor: true, or nil and a reason.
---   sprite(square, character): the sprite it stands as when put down there.
+--   sprite(square, side): the sprite it stands as when put down there, facing a side (BU.SIDES: the one the
+--     character stands on, or the one the player turned it to; a kind with fewer looks gives one for several).
 --   sprites: each sprite it can stand as, in each of its looks (the server learns of them as their squares load:
 --     onLoad).
 --   utility: what it is wired for: "power" (a source of the panel's power) or "water" (it works for one of the
@@ -149,8 +150,16 @@ function Units.canInstall(kind, square)
     return true
 end
 
--- The sprite for a unit put on a square by a character.
-function Units.spriteFor(kind, square, character) return definitions[kind].sprite(square, character) end
+-- The sprite for a unit put on a square by a character (facing them), or facing a side; whether it can stand as a
+-- sprite there (a sprite asked for from a client, BU.SIDES).
+function Units.spriteFor(kind, square, character) return definitions[kind].sprite(square, BU.sideOf(square, character)) end
+function Units.spriteFacing(kind, square, side) return definitions[kind].sprite(square, side) end
+function Units.canFace(kind, square, sprite)
+    for _, side in ipairs(BU.SIDES) do
+        if definitions[kind].sprite(square, side) == sprite then return true end
+    end
+    return false
+end
 
 -- The panels a unit could be wired to, as for a generator (Panels.producerCandidates).
 function Units.candidates(unit) return Panels.producerCandidates(unit.x, unit.y, unit.z) end

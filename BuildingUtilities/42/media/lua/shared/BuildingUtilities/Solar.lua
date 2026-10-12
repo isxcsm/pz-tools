@@ -36,11 +36,10 @@ Units.define("solar", {
         if not square:isOutside() then return nil, "notOutside" end
         return true
     end,
-    -- Above the ground it lies flat; on the ground its frame faces the side the character stands on more.
-    sprite = function(square, character)
+    -- Above the ground it lies flat; on the ground its frame faces a side: west and east as one, north and south.
+    sprite = function(square, side)
         if square:getZ() > 0 then return Solar.SPRITES.flat end
-        local dx, dy = character:getX() - (square:getX() + 0.5), character:getY() - (square:getY() + 0.5)
-        return math.abs(dx) > math.abs(dy) and Solar.SPRITES.W or Solar.SPRITES.N
+        return (side == "E" or side == "W") and Solar.SPRITES.W or Solar.SPRITES.N
     end,
     -- Its snow, as its square loads (on the server) and each minute.
     onLoad = function(unit, object)

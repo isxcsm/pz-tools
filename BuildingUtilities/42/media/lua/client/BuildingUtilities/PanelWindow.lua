@@ -26,6 +26,7 @@ require "PZUIKit/RichText"
 require "BuildingUtilities/ContextMenu"
 require "BuildingUtilities/PanelPlan"
 require "BuildingUtilities/PanelList"
+require "BuildingUtilities/ControllerPopup"
 local BU = BuildingUtilities
 local Store, Panels, Networks, Costs, Actions, Sync, Energy = BU.Store, BU.Panels, BU.Networks, BU.Costs, BU.Actions,
     BU.Sync, BU.Energy
@@ -1388,8 +1389,9 @@ function ISBUPanelWindow:fillLog()
     list:setYScroll(scroll)
 end
 
--- The battery tab: each rack wired to the box (its name, how many it holds and its charge) over its batteries, the
--- columns named once at the top; each battery as in the rack's own window (RackWindow.drawBattery).
+-- The battery tab: a row per rack wired to the box, folded at first, with what it holds in sum (its state, what it
+-- stores and gives, how long that lasts, its charge: RackWindow.drawSummary); unfolded, its batteries under it, as in
+-- the rack's own window (RackWindow.drawBattery). The columns are named once at the top.
 function ISBUPanelWindow:fillBatteries()
     local list = self.lists[BATTERIES]
     local scroll = list:getYScroll()
@@ -1397,9 +1399,13 @@ function ISBUPanelWindow:fillBatteries()
     list:addItem("", { kind = "columns" })
     for _, unit in ipairs(Store.unitList("rack", self.panel.id)) do
         local view = BU.RackWindow.measure(unit)
-        local text = getText("IGUI_BU_RackTitle", BU.Units.name(unit), #view.batteries, BU.Rack.SIZE)
-        list:addItem("", { kind = "header", text = text, right = BU.percent(view.charge * 100) })
-        for _, battery in ipairs(view.batteries) do list:addItem("", { kind = "battery", battery = battery }) end
+        local foldKey = self.panel.id .. "|rack|" .. unit.id
+        local folded = PanelWindow.folded[foldKey] ~= false
+        list:addItem("", { kind = "rack", view = view, folded = folded, foldKey = foldKey,
+            text = getText("IGUI_BU_RackRow", BU.Units.name(unit), #view.batteries) })
+        if not folded then
+            for _, battery in ipairs(view.batteries) do list:addItem("", { kind = "battery", battery = battery }) end
+        end
     end
     list:setYScroll(scroll)
 end
@@ -1436,7 +1442,7 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
         for _, button in ipairs(Ui.sourceButtons(width, row)) do
             if x >= button.x and x <= button.x + button.w then
                 if button.name == "Settings" then
-                    self:controllerMenu()
+                    ISBUControllerPopup.open(self)
                 elseif row.useSourceReady then
                     Sync.send(playerObj, "useSource", { panel = panel.id })
                 else
@@ -1468,6 +1474,9 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
         Sync.send(playerObj, "setBlackout", { panel = panel.id, on = row.state ~= "on" })
     elseif row.kind == "filter" then
         self:filterRoom(nil)
+    elseif row.kind == "rack" then
+        PanelWindow.folded[row.foldKey] = not row.folded
+        self:fillBatteries()
     elseif row.kind == "floor" then
         PanelWindow.folded[row.foldKey] = not row.folded
         -- Unfolded, the plan shows that floor (which fills the list again, planFloorChanged); else the list alone.
