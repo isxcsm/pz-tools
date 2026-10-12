@@ -1471,6 +1471,15 @@ def fbx_write(ver, nodes, footer_id):
     return bytes(buf)
 
 
+def fbx_strings(nodes):
+    """Every string property of the nodes and their children."""
+    out = []
+    for n in nodes:
+        out += [p[1] for p in n[1] if p[0] == 'S']
+        out += fbx_strings(n[2])
+    return out
+
+
 def fbx_find(nodes, name):
     for n in nodes:
         if n[0] == name:
@@ -1493,14 +1502,26 @@ def ground_raw(P, zc, ybot):
 
 
 def write_fbx(mesh):
-    with open(VANILLA_GROUND, 'rb') as f:
-        data = f.read()
-    ver, nodes = fbx_read(data)
-    footer_id = bytes.fromhex('fabcae04d8c1d86dbe7ef38519f5227c')
     P, N, UV, F = mesh.arrays()
     zc = (P[:, 2].min() + P[:, 2].max()) / 2
     raw = ground_raw(P, zc, P[:, 1].min())
     rawN = np.stack([-N[:, 2], N[:, 0], N[:, 1]], axis=1)
+
+    def rename(s):   # names and texture paths: nothing of the vanilla file's author or art remains
+        s = s.replace(b'ALICE_Pack_Ground', (NAME + '_Ground').encode())
+        s = re.sub(rb'[^\x00\x01"]*ALICEpack\.png', TEX_REF.encode(), s)
+        s = re.sub(rb'[A-Za-z]:\\[^\x00]*\.FBX', (NAME + '_Ground.fbx').encode(), s, flags=re.I)
+        return s.replace(b'Material #180', (NAME + '_Mat').encode()).replace(b'Map #91', (NAME + '_Map').encode())
+    return ground_fbx(VANILLA_GROUND, OUT['G'], raw, rawN, UV, F, rename)
+
+
+def ground_fbx(vanilla, out_path, raw, rawN, UV, F, rename):
+    """A floor model: the vanilla ground model `vanilla` with its geometry replaced by raw positions and normals (its
+    own axes and units), the atlas uvs and the triangles F; rename(bytes) -> bytes rewrites every string property."""
+    with open(vanilla, 'rb') as f:
+        data = f.read()
+    ver, nodes = fbx_read(data)
+    footer_id = bytes.fromhex('fabcae04d8c1d86dbe7ef38519f5227c')
     nf = len(F)
     F = F.copy()
     c = np.cross(raw[F[:, 1]] - raw[F[:, 0]], raw[F[:, 2]] - raw[F[:, 0]])
@@ -1555,23 +1576,18 @@ def write_fbx(mesh):
         layer('LayerElementTangent', 101, b'UVChannel_1', b'ByPolygonVertex', b'Direct', 'Tangents', tang),
         uvlayer, smooth, mat, old_kids['Layer']]
 
-    def rename(nd):   # names and texture paths: nothing of the vanilla file's author or art remains
+    def walk(nd):   # and any absolute path left (the author's project and scene folders) goes
         nm, props, kids = nd
         for i, p in enumerate(props):
             if p[0] == 'S':
-                s = p[1]
-                s = s.replace(b'ALICE_Pack_Ground', (NAME + '_Ground').encode())
-                s = re.sub(rb'[^\x00\x01"]*ALICEpack\.png', TEX_REF.encode(), s)
-                s = re.sub(rb'[A-Za-z]:\\[^\x00]*\.FBX', (NAME + '_Ground.fbx').encode(), s, flags=re.I)
-                s = s.replace(b'Material #180', (NAME + '_Mat').encode()).replace(b'Map #91', (NAME + '_Map').encode())
-                props[i] = ('S', s)
+                props[i] = ('S', re.sub(rb'^[A-Za-z]:\\[^\x00]*$', b'', rename(p[1])))
         for k in kids:
-            rename(k)
-    rename(nodes[0])
-    rename(objects)
+            walk(k)
+    walk(nodes[0])
+    walk(objects)
     out = fbx_write(ver, nodes, footer_id)
-    os.makedirs(os.path.dirname(OUT['G']), exist_ok=True)
-    with open(OUT['G'], 'wb') as f:
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    with open(out_path, 'wb') as f:
         f.write(out)
     return len(raw), nf
 
@@ -1986,9 +2002,21 @@ def write_clothing():
             '\t<textureChoices>clothes\\bag\\%s</textureChoices>\n'
             '</clothingItem>') % (male, female, guid, NAME.lower())
         write_text(os.path.join(CLOTHING_DIR, fname + '.xml'), text, bom=True)
-    entries = ''.join('\t<files>\n\t\t<path>media/clothing/clothingItems/%s.xml</path>\n\t\t<guid>%s</guid>\n\t</files>\n'
-                      % (f, g[0]) for f, g in CLOTHING.items())
-    write_text(OUT['GUID'], '<?xml version="1.0" encoding="utf-8"?>\n<fileGuidTable>\n' + entries + '</fileGuidTable>\n')
+    merge_guid_table(OUT['GUID'], {f: g[0] for f, g in CLOTHING.items()})
+
+
+def merge_guid_table(path, items):
+    """Puts the clothing items {file name: guid} into media/fileGuidTable.xml, keeping the entries other tools wrote
+    (tools/fuelcan_mesh.py registers its own there too)."""
+    entries = {}
+    if os.path.exists(path):
+        old = open(path, encoding='utf-8-sig').read()
+        for m in re.finditer(r'<path>media/clothing/clothingItems/([^<]+)\.xml</path>\s*<guid>([^<]+)</guid>', old):
+            entries[m.group(1)] = m.group(2)
+    entries.update(items)
+    text = ''.join('\t<files>\n\t\t<path>media/clothing/clothingItems/%s.xml</path>\n\t\t<guid>%s</guid>\n\t</files>\n'
+                   % (f, g) for f, g in entries.items())
+    write_text(path, '<?xml version="1.0" encoding="utf-8"?>\n<fileGuidTable>\n' + text + '</fileGuidTable>\n')
 
 
 def write_script():
@@ -2439,6 +2467,7 @@ def check_fbx():
     need(data.startswith(MAGIC), 'fbx magic')
     need(data.endswith(bytes.fromhex('f85a8c6adef5d97eece90ce3758f290b')), 'fbx footer magic')
     ver, nodes = fbx_read(data)
+    need(not any(re.match(rb'[A-Za-z]:\\', s) for s in fbx_strings(nodes)), 'an absolute path of the vanilla file is left')
     need(ver == 7300, 'fbx version')
     objects = fbx_find(nodes, 'Objects')
     geo = [c for c in objects[2] if c[0] == 'Geometry'][0]

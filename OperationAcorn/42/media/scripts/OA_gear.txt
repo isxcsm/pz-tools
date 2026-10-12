@@ -56,17 +56,18 @@ module OperationAcorn
     /* The improved fuel cans: larger tanks than the vanilla petrol can, the same empty weight on the scale. Carried,
        they weigh less (the extension API's carrying efficiency, Gear.FUEL_CANS: full, Mk.I weighs what a full plain can
        does, Mk.II and Mk.III less). The shop sends them empty. The base:petrol tag is what the vehicle and generator
-       menus look for. */
+       menus look for. Their own jerry can models (tools/fuelcan_mesh.py, scripts/OA_fuelcan_models.txt); the hand
+       holds them where it holds the vanilla can. */
     item FuelCanMk1
     {
         DisplayCategory = VehicleMaintenance,
         Weight = 1.6,
         ItemType = base:normal,
         Icon = OA_FuelCanMk1,
-        StaticModel = Base.GasCan,
-        ReplaceInSecondHand = Bag_GasCan_LHand holdingbagleft,
-        ReplaceInPrimaryHand = Bag_GasCan_RHand holdingbagright,
-        WorldStaticModel = Base.GasCan_Ground,
+        StaticModel = OperationAcorn.OA_FuelCanMk1,
+        ReplaceInSecondHand = OA_Bag_FuelCanMk1_LHand holdingbagleft,
+        ReplaceInPrimaryHand = OA_Bag_FuelCanMk1_RHand holdingbagright,
+        WorldStaticModel = OperationAcorn.OA_FuelCanMk1_Ground,
         Tags = base:petrol;base:cookablemicrowave,
         component FluidContainer
         {
@@ -85,10 +86,10 @@ module OperationAcorn
         Weight = 1.6,
         ItemType = base:normal,
         Icon = OA_FuelCanMk2,
-        StaticModel = Base.GasCan,
-        ReplaceInSecondHand = Bag_GasCan_LHand holdingbagleft,
-        ReplaceInPrimaryHand = Bag_GasCan_RHand holdingbagright,
-        WorldStaticModel = Base.GasCan_Ground,
+        StaticModel = OperationAcorn.OA_FuelCanMk2,
+        ReplaceInSecondHand = OA_Bag_FuelCanMk2_LHand holdingbagleft,
+        ReplaceInPrimaryHand = OA_Bag_FuelCanMk2_RHand holdingbagright,
+        WorldStaticModel = OperationAcorn.OA_FuelCanMk2_Ground,
         Tags = base:petrol;base:cookablemicrowave,
         component FluidContainer
         {
@@ -107,10 +108,10 @@ module OperationAcorn
         Weight = 1.6,
         ItemType = base:normal,
         Icon = OA_FuelCanMk3,
-        StaticModel = Base.GasCan,
-        ReplaceInSecondHand = Bag_GasCan_LHand holdingbagleft,
-        ReplaceInPrimaryHand = Bag_GasCan_RHand holdingbagright,
-        WorldStaticModel = Base.GasCan_Ground,
+        StaticModel = OperationAcorn.OA_FuelCanMk3,
+        ReplaceInSecondHand = OA_Bag_FuelCanMk3_LHand holdingbagleft,
+        ReplaceInPrimaryHand = OA_Bag_FuelCanMk3_RHand holdingbagright,
+        WorldStaticModel = OperationAcorn.OA_FuelCanMk3_Ground,
         Tags = base:petrol;base:cookablemicrowave,
         component FluidContainer
         {

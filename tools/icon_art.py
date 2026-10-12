@@ -602,7 +602,12 @@ def field_terminal():
 def backpack():
     """The research team backpack: its floor model itself, rendered by tools/backpack_mesh.py (backpack_icon_source.png,
     remade with the model or alone with --icon), so the icon is the bag the player sees on the floor and on the back."""
-    big = Image.open(os.path.join(HERE, 'backpack_icon_source.png')).convert('RGBA')
+    return model_icon('backpack_icon_source.png')
+
+
+def model_icon(source):
+    """An icon from a model render in tools/ (on a clear background)."""
+    big = Image.open(os.path.join(HERE, source)).convert('RGBA')
     # the preview's lighting is for looking at the model: lifted to sit with the other item icons
     alpha = big.getchannel('A')
     big = ImageEnhance.Contrast(ImageEnhance.Brightness(big.convert('RGB')).enhance(1.25)).enhance(1.1).convert('RGBA')
@@ -612,25 +617,9 @@ def backpack():
 
 
 def jerrycan(mk):
-    body = {1: OD, 2: (120, 128, 90), 3: (190, 196, 200)}[mk]
-    top = {1: OD_LIGHT, 2: (146, 156, 112), 3: (214, 220, 224)}[mk]
-    s = Scene(0)
-    s.box(0.2, 0.32, 0.0, 0.8, 0.68, 0.56, body, top=top, shine=0.5 if mk == 3 else 0.1)
-    # the three channels and the handle
-    s.box(0.2, 0.32, 0.56, 0.42, 0.68, 0.64, body, top=top)
-    s.box(0.58, 0.32, 0.56, 0.8, 0.68, 0.64, body, top=top)
-    s.box(0.4, 0.4, 0.56, 0.6, 0.6, 0.6, (30, 30, 30))
-    s.tube((0.68, 0.5, 0.56), (0.68, 0.5, 0.74), 0.045, STEEL_DARK, segments=14, shine=0.5)
-    s.tube((0.68, 0.5, 0.74), (0.68, 0.5, 0.78), 0.06, (208, 70, 50) if mk < 3 else (230, 190, 70), segments=14, shine=0.4)
-    s.tube((0.3, 0.5, 0.64), (0.58, 0.5, 0.64), 0.03, STEEL_DARK, segments=10)
-    # stripes: one, two or three bands in the tier's colours
-    cols = {1: [(230, 190, 50)], 2: [(236, 232, 214), (236, 232, 214)], 3: [(196, 50, 40), (196, 50, 40), (230, 190, 70)]}[mk]
-    for i, c in enumerate(cols):
-        z = 0.08 + i * 0.07
-        s.box(0.2, 0.68, z, 0.8, 0.682, z + 0.04, c)
-        s.box(0.8, 0.32, z, 0.802, 0.68, z + 0.04, c)
-    front_decal(s, 0.34, 0.7, 0.30, 0.46, 0.683, stencil_text('MK%d' % mk, 50, 24, (30, 30, 28) if mk == 3 else STENCIL), offset=0.0)
-    return from_scene(s)
+    """A fuel can: its model itself, rendered by tools/fuelcan_mesh.py (fuelcan_icon_source_mk<n>.png), so the icon is
+    the can the player sees on the floor and in the hand."""
+    return model_icon('fuelcan_icon_source_mk%d.png' % mk)
 
 
 def torch(mk):

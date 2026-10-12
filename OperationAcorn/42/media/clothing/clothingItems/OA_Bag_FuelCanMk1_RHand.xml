@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<clothingItem>
+	<m_MaleModel>media\models_X\Skinned\BackPacks\OA_FuelCanMk1_RHand.X</m_MaleModel>
+	<m_FemaleModel>media\models_X\Skinned\BackPacks\OA_FuelCanMk1_RHand.X</m_FemaleModel>
+	<m_GUID>5d189b2f-5fda-4341-ab49-cbb740ea02ce</m_GUID>
+	<m_Static>false</m_Static>
+	<m_AllowRandomHue>false</m_AllowRandomHue>
+	<m_AllowRandomTint>false</m_AllowRandomTint>
+	<m_AttachBone></m_AttachBone>
+	<textureChoices>OA_FuelCan\OA_FuelCanMk1</textureChoices>
+</clothingItem>
