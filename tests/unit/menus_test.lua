@@ -135,19 +135,13 @@ test("the terminal's option is on top of the world menu", function()
     eq(menu:names(), "ContextMenu_OA_Trade_UseTerminal,Vanilla")
 end)
 
-test("a delivery box's seal and load options go on top in that order, and nothing nearby is searched for them", function()
+test("a delivery box's seal option goes on top", function()
     setup()
     loadFile("OperationAcorn/Trade/ContextMenu")
-    OA.Trade.Things.bulkPlan = function() error("the box's surroundings were searched for the menu") end
     local menu = newMenu()
     menu:addOption("Vanilla")
     TEST.fire("OnFillWorldObjectContextMenu", 0, menu, { thing("box") }, false)
-    eq(menu:names(), "ContextMenu_OA_Trade_SealBox,ContextMenu_OA_Trade_LoadBox,Vanilla")
-    -- picking "load" looks, and says so when nothing is there
-    OA.Trade.Things.bulkPlan = function() return { count = 0, moves = {}, weight = 0 } end
-    local loadOption = menu.options[2]
-    loadOption.onSelect(loadOption.target, loadOption.param1)
-    eq(TEST.halo, "ContextMenu_OA_Trade_LoadNothing")
+    eq(menu:names(), "ContextMenu_OA_Trade_SealBox,Vanilla")
 end)
 
 test("breaking a crate's seal is on top, its tip does not depend on a crowbar being carried", function()

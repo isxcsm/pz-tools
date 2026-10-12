@@ -18,8 +18,6 @@
     "ContextMenu_OA_Trade_UseTerminal": "통신 단말 사용",
     "ContextMenu_OA_Trade_NeedPower": "단말에는 전기가 필요합니다.",
     "ContextMenu_OA_Trade_SealBox": "납품 상자 밀봉...",
-    "ContextMenu_OA_Trade_LoadBox": "근처 물건 담기",
-    "ContextMenu_OA_Trade_LoadNothing": "근처에 연구팀이 받는 물건이 없습니다.",
     "ContextMenu_OA_Trade_BoxSealed": "밀봉된 납품 상자",
     "ContextMenu_OA_Trade_BoxSealedTip": "헬기가 가져갑니다.",
     "ContextMenu_OA_Trade_BoxAbandoned": "버려진 납품 상자",

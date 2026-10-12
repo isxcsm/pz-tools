@@ -548,7 +548,6 @@
     "IGUI_OA_Trade_OrderReason_credits": "정산 잔액 부족",
     "IGUI_OA_Trade_OrderReason_unavailable": "지금은 받을 수 없음",
     "IGUI_OA_Trade_OrderReason_limit": "이번 기간 한도 도달",
-    "IGUI_OA_Trade_Notice_Loaded": "%1점을 담았습니다",
     "IGUI_OA_Trade_Notice_Sealed": "상자를 밀봉했습니다: %1점",
     "IGUI_OA_Trade_Notice_BoxLost": "납품 상자를 잃었습니다",
     "IGUI_OA_Terminal_Title": "통신 단말 · 채집점 %1",

@@ -548,7 +548,6 @@
     "IGUI_OA_Trade_OrderReason_credits": "balance too short",
     "IGUI_OA_Trade_OrderReason_unavailable": "not available",
     "IGUI_OA_Trade_OrderReason_limit": "limit for this period reached",
-    "IGUI_OA_Trade_Notice_Loaded": "Loaded %1 items",
     "IGUI_OA_Trade_Notice_Sealed": "Box sealed: %1 items",
     "IGUI_OA_Trade_Notice_BoxLost": "The delivery box is lost",
     "IGUI_OA_Terminal_Title": "Communication terminal · collection point %1",

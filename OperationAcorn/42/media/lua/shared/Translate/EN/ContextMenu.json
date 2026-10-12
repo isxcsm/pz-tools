@@ -18,8 +18,6 @@
     "ContextMenu_OA_Trade_UseTerminal": "Use the terminal",
     "ContextMenu_OA_Trade_NeedPower": "The terminal needs electricity.",
     "ContextMenu_OA_Trade_SealBox": "Seal the delivery box...",
-    "ContextMenu_OA_Trade_LoadBox": "Load nearby items",
-    "ContextMenu_OA_Trade_LoadNothing": "Nothing nearby that the team takes.",
     "ContextMenu_OA_Trade_BoxSealed": "Sealed delivery box",
     "ContextMenu_OA_Trade_BoxSealedTip": "The helicopter will take it.",
     "ContextMenu_OA_Trade_BoxAbandoned": "Abandoned delivery box",

@@ -52,18 +52,6 @@ function Menus.unseal(object, player)
     end
 end
 
-function Menus.bulk(object, player)
-    local character = getSpecificPlayer(player)
-    local square = object:getSquare()
-    local plan = Things.bulkPlan(character, object)
-    if plan.count == 0 then
-        HaloTextHelper.addBadText(character, getText("ContextMenu_OA_Trade_LoadNothing"))
-        return
-    end
-    if luautils.walkAdj(character, square) then
-        ISTimedActionQueue.add(ISOABulkLoad:new(character, square, plan.count))
-    end
-end
 
 -- The words of a seal confirmation: what is in the box, what it would earn, and what the team will not take (which
 -- goes back to the player's inventory).
@@ -136,9 +124,6 @@ local function boxOptions(context, object, player)
         tooltip(info, getText("ContextMenu_OA_Trade_BoxSealedTip"))
         return
     end
-    -- seal, then load: added on top in reverse. What lies nearby is not counted here (that would search the
-    -- inventory and every container in reach at every right-click): Menus.bulk looks when the option is picked.
-    context:addOptionOnTop(getText("ContextMenu_OA_Trade_LoadBox"), object, Menus.bulk, player)
     context:addOptionOnTop(getText("ContextMenu_OA_Trade_SealBox"), object, Menus.seal, player)
 end
 

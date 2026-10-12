@@ -1,5 +1,5 @@
 -- Timed actions of the trade part: putting the terminal, a delivery box and a crate down and taking them up, opening
--- the terminal, sealing a box, loading a box in bulk, opening and breaking a crate. Each names squares and kinds, not
+-- the terminal, sealing a box, opening and breaking a crate. Each names squares and kinds, not
 -- objects, and checks again as it completes, where the world is decided (Trade.Things).
 require "TimedActions/ISBaseTimedAction"
 require "OperationAcorn/Store"
@@ -155,31 +155,6 @@ function ISOADismantleBox:new(character, square)
     local o = ISBaseTimedAction.new(self, character)
     o.x, o.y, o.z = square:getX(), square:getY(), square:getZ()
     o.maxTime = o:getDuration()
-    return o
-end
-
--- Loading a box from the containers and the trunk around it: one action for all the items.
-ISOABulkLoad = base("ISOABulkLoad", nil)
-
-function ISOABulkLoad:isValid()
-    local square = squareOf(self)
-    local object = square and Objects.find(square, Objects.DELIVERY_BOX)
-    return object ~= nil and not object:getModData()[Objects.SEALED]
-end
-
-function ISOABulkLoad:complete()
-    local object = Objects.find(squareOf(self), Objects.DELIVERY_BOX)
-    if not object then return false end
-    local moved = Things.bulkLoad(self.character, object)
-    OA.Sync.notice(OA.Store.idOf(self.character), "IGUI_OA_Trade_Notice_Loaded", { moved })
-    return true
-end
-
--- A load takes longer for more items: 40 ticks and 2 more for each item, no more than 600.
-function ISOABulkLoad:new(character, square, count)
-    local o = ISBaseTimedAction.new(self, character)
-    o.x, o.y, o.z = square:getX(), square:getY(), square:getZ()
-    o.maxTime = character:isTimedActionInstant() and 1 or math.min(600, 40 + 2 * (count or 0))
     return o
 end
 
