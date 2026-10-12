@@ -144,6 +144,11 @@ local function newObject(square, kind)
     function obj:hasModData() return not OA.isEmpty(self.mod) end
     function obj:getModData() return self.mod end
     function obj:getSquare() return self.square end
+    -- the game's appliance question: a generator's electricity, or the grid's inside a room
+    function obj:checkObjectPowered()
+        local sq = self.square
+        return sq:haveElectricity() or (sq:hasGridPower() and sq:getRoom() ~= nil)
+    end
     function obj:getX() return self.square.x end
     function obj:getY() return self.square.y end
     function obj:getZ() return self.square.z end
@@ -885,17 +890,25 @@ test("sprites follow the state and the kind", function()
     eq(Machines.itemFullType("woodSaw"), "OperationAcorn.LogSaw")
 end)
 
-test("the unpowered grid: a square needs a generator or the grid inside a room", function()
+test("a machine has power as the game's appliances do: the object is asked, not its square", function()
     setup()
     local sq = newSquare(1, 1, 0)
-    eq(Machines.hasPower(sq), false)
+    local obj = newObject(sq)
+    eq(Machines.hasPower(obj), false)
     sq.power = true
-    eq(Machines.hasPower(sq), true)
+    eq(Machines.hasPower(obj), true)
     sq.power = false
     sq.hasGridPower = function() return true end
-    eq(Machines.hasPower(sq), true, "grid power in a room")
+    eq(Machines.hasPower(obj), true, "grid power in a room")
     sq.room = false
-    eq(Machines.hasPower(sq), false, "not outside")
+    eq(Machines.hasPower(obj), false, "not outside")
+    -- a power network's consumer outdoors: the square has nothing, the object is powered (the extension API's answer)
+    obj.checkObjectPowered = function() return true end
+    eq(sq:haveElectricity(), false)
+    eq(Machines.hasPower(obj), true, "a network's consumer")
+    eq(Machines.hasPower(nil), false)
+    obj.square = nil
+    eq(Machines.hasPower(obj), false, "off the map")
 end)
 
 test("status for the window", function()
@@ -1471,6 +1484,33 @@ test("the machines' generator load is declared to the API: the anchors' sprites 
     end
     eq(base[Machines.spriteName("researchStorage", "S", false)], nil, "no load, no entry")
     eq(base[Machines.spriteName("rainStorage", "S", false)], nil)
+    -- every look is one object: each tile of a lit or running look is known by the same tile at rest
+    local names = sets["machine.spriteName"].value
+    for _, kind in ipairs({ "woodSaw", "propaneRefiner", "bulkShredder" }) do
+        for _, dir in ipairs(OA.Sprites.DIRECTIONS) do
+            local rest = {}
+            for _, tile in ipairs(Machines.tiles(kind, dir, false)) do
+                rest[tile.dx .. "," .. tile.dy] = tile.sprite
+                eq(names[tile.sprite], nil, "a tile at rest keeps its own name")
+            end
+            for _, look in ipairs({ true, "ready" }) do
+                for _, tile in ipairs(Machines.tiles(kind, dir, look)) do
+                    local want = rest[tile.dx .. "," .. tile.dy]
+                    if want ~= tile.sprite then eq(names[tile.sprite], want, kind .. " " .. dir .. " " .. tostring(look)) end
+                end
+            end
+        end
+    end
+    eq(names[Machines.spriteName("researchStorage", "S", false)], nil, "no load, no name")
+    local count = 0
+    for _ in pairs(names) do count = count + 1 end
+    truthy(count > 0 and count <= 256, "within what the API takes: " .. count)
+    -- an API from before the names: the load still declared
+    PZToolsAPI.formulas.set = function(handle, point, value)
+        if point == "machine.spriteName" then error("there is no point machine.spriteName") end
+        sets[point] = { handle = handle, value = value }
+    end
+    truthy(Machines.declarePower())
     PZToolsAPI = nil
     eq(Machines.declarePower(), false, "no API")
 end)

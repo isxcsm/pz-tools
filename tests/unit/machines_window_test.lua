@@ -363,6 +363,7 @@ local function fakeMachine(state, opts)
     function object:hasModData() return true end
     function object:getModData() return self.mod end
     function object:getSquare() return square end
+    function object:checkObjectPowered() return opts.power ~= false end
     function object:getContainerByType(t) return self.containers[t] end
     function object:getObjectIndex() return self.index end
     return object

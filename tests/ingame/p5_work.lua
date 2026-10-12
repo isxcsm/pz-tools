@@ -175,7 +175,7 @@ section("power rule", function()
     P5T.realPower()
     local object = P5T.place("woodSaw", 11, 8, "S")
     if not check("placed", object ~= nil) then return end
-    local on = M.hasPower(object:getSquare())
+    local on = M.hasPower(object)
     say("info hasPower here (outside, no generator):", tostring(on))
     check("no electricity out here without a generator", on == false)
     P5T.fakePower()

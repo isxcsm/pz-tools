@@ -283,18 +283,29 @@ end
 
 -- Tells the extension API what each machine draws from a generator: the base load (NUMBERS 11) on the anchor's
 -- sprites of every facing and state, times the anchor's OA_Load (the motor's multiplier while it runs, else 0). The
--- other squares of a machine draw nothing. Once a game; returns true when the API took it.
+-- other squares of a machine draw nothing. And that a machine is one object whatever it shows: each tile of a lit or
+-- running look is known by its tile of the machine at rest (machine.spriteName), so that a Building Utilities box
+-- keeps a machine it connected outdoors while it lights up and runs. Once a game; returns true when the API took the
+-- load (an API from before the names leaves a lit machine a new object to a box).
 function Machines.declarePower()
     local api = OA.api()
     local handle = OA.handle()
     if not (api and handle and type(api.formulas) == "table" and type(api.formulas.set) == "function") then return false end
-    local base = {}
+    local base, names = {}, {}
     for kind, def in pairs(Data.KINDS) do
         if def.load and Sprites.MACHINE_KINDS[kind] then
             for _, dir in ipairs(Sprites.DIRECTIONS) do
+                local rest = {}
+                for _, tile in ipairs(Machines.tiles(kind, dir, false)) do rest[tile.dx .. "," .. tile.dy] = tile.sprite end
                 for _, look in ipairs(Sprites.LOOKS) do
                     local name = Machines.spriteName(kind, dir, look)
                     if name then base[name] = def.load end
+                    if look ~= false then
+                        for _, tile in ipairs(Machines.tiles(kind, dir, look)) do
+                            local at = rest[tile.dx .. "," .. tile.dy]
+                            if at and at ~= tile.sprite then names[tile.sprite] = at end
+                        end
+                    end
                 end
             end
         end
@@ -302,6 +313,8 @@ function Machines.declarePower()
     local ok1, err1 = pcall(api.formulas.set, handle, "machine.baseConsumption", base)
     local ok2, err2 = pcall(api.formulas.set, handle, "machine.loadKey", Data.LOAD_KEY)
     if not (ok1 and ok2) then OA.log("machine power not declared:", tostring(err1), tostring(err2)) end
+    local ok3, err3 = pcall(api.formulas.set, handle, "machine.spriteName", names)
+    if not ok3 then OA.log("machine looks not named as one:", tostring(err3)) end
     return ok1 and ok2
 end
 
@@ -348,7 +361,7 @@ local function lookOf(object, state)
     if state.kind == "lure" then return not state.spent end
     local look = state.running == true
     if not look and Data.processes(state.kind) and state.on ~= false
-        and not Logic.effects(state.kind, state.parts).stopped and Machines.hasPower(object:getSquare()) then
+        and not Logic.effects(state.kind, state.parts).stopped and Machines.hasPower(object) then
         look = "ready"
     end
     return look
@@ -383,13 +396,13 @@ end
 -- ---------------------------------------------------------------------------------------------------------------------
 -- Power
 
--- Whether a square has electricity for a machine: a generator's, or the grid's inside a room (as the game's
--- appliances, ItemContainer.isSquarePowered). The generator's load itself is the extension API's to count
+-- Whether a machine has electricity: the game's question for an appliance (IsoObject.checkObjectPowered, once a tick:
+-- a generator's, or the grid's inside a room), which the extension API also answers yes for a consumer of a power
+-- network, a machine outdoors connected to a Building Utilities box among them (its square has no electricity: a
+-- network powers the squares of the buildings it supplies only). The generator's load itself is the API's to count
 -- (Machines.declarePower); without the API a machine runs on a generator without burning more of its fuel.
-function Machines.hasPower(square)
-    if not square then return false end
-    if square:haveElectricity() then return true end
-    return square:hasGridPower() and square:getRoom() ~= nil
+function Machines.hasPower(object)
+    return object ~= nil and object:getSquare() ~= nil and object:checkObjectPowered()
 end
 
 -- The generator load of a machine object now (NUMBERS 11); 0 when it is not running. The extension API's power
@@ -935,7 +948,7 @@ function Machines.update(object, opts)
     if not square then return nil end
     local catchUp = opts and opts.catchUp
     local now = OA.hours()
-    local powered = Machines.hasPower(square)
+    local powered = Machines.hasPower(object)
     if catchUp and (state.idle ~= false or state.on == false or not powered) then return nil end
 
     -- What a client reads of an idle machine: whether it runs, why it does not, the product waiting in the buffer.
@@ -1020,7 +1033,7 @@ function Machines.progress(object)
     if not state or state.idle ~= false or state.on == false or not ACCEPT[state.kind] then return nil end
     local fx = Logic.effects(state.kind, state.parts)
     local square = object:getSquare()
-    if fx.stopped or not square or not Machines.hasPower(square) then return nil end
+    if fx.stopped or not square or not Machines.hasPower(object) then return nil end
     local inC = Machines.container(object, "in")
     local entries = inC and firstTaken(inC, state.kind, fx.lanes) or {}
     if #entries == 0 then return nil end
@@ -1199,7 +1212,7 @@ function Machines.status(object)
     local def = Data.KINDS[state.kind]
     local status = {
         kind = state.kind, name = Machines.name(state.kind), on = state.on ~= false, running = state.running == true,
-        reason = state.reason, powered = def.power and Machines.hasPower(object:getSquare()) or nil,
+        reason = state.reason, powered = def.power and Machines.hasPower(object) or nil,
         speed = fx.speed * fx.lanes, lanes = fx.lanes, load = Logic.load(state.kind, state.parts, true),
         noise = Logic.noiseRadius(state.kind, fx), stopped = fx.stopped, missing = fx.missing, broken = fx.broken,
         worn = fx.worn, parts = state.parts, rate = def.rate and def.rate * fx.speed * fx.lanes or nil,
