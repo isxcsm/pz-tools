@@ -473,7 +473,7 @@
     "IGUI_OA_Tree_NeedOpen": "%1 열림",
     "IGUI_OA_Tree_NeedRow": "%1에 %2포인트 이상 사용 (지금 %3)",
     "IGUI_OA_Tree_NeedNode": "%1 %2포인트 이상 (지금 %3)",
-    "IGUI_OA_Tree_NeedApproval": "연구팀 승인",
+    "IGUI_OA_Tree_CapstoneHidden": "아직 알려지지 않은 연구입니다.",
     "IGUI_OA_Tree_NeedsApi": "PZ Tools가 있어야 적용됩니다.",
     "IGUI_OA_Tree_NeedsPoint": "설치된 PZ Tools가 이 효과를 아직 지원하지 않습니다. PZ Tools를 업데이트하세요.",
     "IGUI_OA_Tree_Approved": "강화 적용: %1단계",

@@ -473,7 +473,7 @@
     "IGUI_OA_Tree_NeedOpen": "%1 is open",
     "IGUI_OA_Tree_NeedRow": "Spend %2 or more points in %1 (now %3)",
     "IGUI_OA_Tree_NeedNode": "%1 at rank %2 or more (now %3)",
-    "IGUI_OA_Tree_NeedApproval": "Research team approval",
+    "IGUI_OA_Tree_CapstoneHidden": "A line of research not yet known.",
     "IGUI_OA_Tree_NeedsApi": "Needs PZ Tools to take effect.",
     "IGUI_OA_Tree_NeedsPoint": "Your PZ Tools does not support this effect yet. Update PZ Tools.",
     "IGUI_OA_Tree_Approved": "Enhancement applied: %1 rank(s)",

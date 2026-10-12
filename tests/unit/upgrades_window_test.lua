@@ -806,3 +806,22 @@ test("the flow's rectangles are drawn before a picture asked after them, and a f
     eq(#log >= 1, true)
     PZToolsAPI = nil
 end)
+
+test("a sealed capstone is an outline: no name, no way into it, no rank; unsealed it shows as any node", function()
+    local Rules = OA.Upgrades.Rules
+    local u = scoutSection()
+    local view = onSection(u)
+    eq(view.nodes.nightEye.hidden, true)
+    eq(view.nodes.armor.hidden, true, "every tree's")
+    for _, line in ipairs(view.lines) do
+        if line.to == "nightEye" then eq(line.state, "hidden") end
+    end
+    local rows = View.tipRows(view, "nightEye")
+    eq(rows[1].text, "???")
+    eq(#rows, 2, "a title and one line, nothing of what it does or needs")
+    Rules.unseal(u, "scout")
+    view:refresh()
+    eq(view.nodes.nightEye.hidden, nil)
+    eq(view.nodes.armor.hidden, true)
+    truthy(View.tipRows(view, "nightEye")[1].text ~= "???")
+end)

@@ -131,14 +131,11 @@ test("the conditions list what a node needs, each with its state", function()
     end
     truthy(open, "the tree is open")
     eq(node, false, "needs the hunch at 2")
-    local function approved()
-        for _, c in ipairs(Texts.conditions(u, Data.byId.nightEye)) do
-            if string.find(c.text, "NeedApproval", 1, true) then return c.ok end
-        end
+    -- a capstone's conditions name nothing of what unseals it: it is an outline until then (the window)
+    for _, c in ipairs(Texts.conditions(u, Data.byId.nightEye)) do
+        eq(string.find(c.text, "Approval", 1, true), nil, c.text)
+        eq(string.find(c.text, "Sample", 1, true), nil, c.text)
     end
-    eq(approved(), false)
-    Rules.unseal(u, "scout")
-    eq(approved(), true)
 end)
 
 test("moving an item takes the time of its weight up to 3", function()

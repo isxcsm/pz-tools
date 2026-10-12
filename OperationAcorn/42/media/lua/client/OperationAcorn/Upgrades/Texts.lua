@@ -224,10 +224,6 @@ function Texts.conditions(sim, node)
         local have = Rules.rank(sim, req[1])
         add(have >= req[2], getText("IGUI_OA_Tree_NeedNode", Texts.nodeName(req[1]), req[2], have))
     end
-    if node.capstone then
-        -- what opens it is told only when it happens (the research memo): the line names no fragment
-        add(Rules.unsealed(sim, node.tree), getText("IGUI_OA_Tree_NeedApproval"))
-    end
     if not Rules.maxed(sim, node.id) then
         local free = Rules.free(sim, node.tree)
         add(free >= 1, getText("IGUI_OA_Tree_NeedPoints", 1, math.min(free, Rules.treeRoom(sim, node.tree))))

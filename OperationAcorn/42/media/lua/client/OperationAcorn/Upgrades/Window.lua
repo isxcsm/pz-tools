@@ -789,7 +789,11 @@ function View:workOut()
     local u, sim = self.u, self.sim
     for _, line in ipairs(self.lines) do
         local need, k = line.need[1], line.need[2]
-        if Rules.rank(u, need) >= k then
+        local into = nodes[line.to]
+        if into and into.hidden then
+            -- a sealed capstone shows no way into it
+            line.state = "hidden"
+        elseif Rules.rank(u, need) >= k then
             line.state = "lit"
             litLines[#litLines + 1] = line
             local n = nodes[line.to]
@@ -833,6 +837,9 @@ function View:nodeStates(sim, counts)
                 end
             else
                 n.treeLocked = not Rules.treeOpen(u, node.tree)
+                -- a capstone is an outline (???) until its tree is unsealed: what opens it, and what it does, are
+                -- told when it happens (the research team's memo)
+                n.hidden = node.capstone and not Rules.unsealed(sim, node.tree) or nil
                 local why = Rules.blocked(sim, node.id, "A")
                 if planned > 0 then
                     n.state = "planned"
@@ -1044,6 +1051,11 @@ function View:tipRows(id)
     if node.board and not Rules.boardOpen(sim) then
         add({ kind = "title", text = self.revealed[node.group] and Texts.nodeName(id) or "???" })
         add({ kind = "para", text = getText("IGUI_OA_Tree_BoardHidden", Rules.capstones(sim), #Data.TREES), c = P.text })
+        return rows
+    end
+    if node.capstone and not Rules.unsealed(sim, node.tree) then
+        add({ kind = "title", text = "???", sub = getText("IGUI_OA_Tree_Short_" .. tree), subc = tc.light })
+        add({ kind = "para", text = getText("IGUI_OA_Tree_CapstoneHidden"), c = P.text })
         return rows
     end
     local sub = node.board and Texts.treeName(Data.BOARD) or getText("IGUI_OA_Tree_Short_" .. tree)
@@ -1612,7 +1624,7 @@ end
 -- A prerequisite line as the body draws it: lit in the tree's colour, or dim. A line only the selection meets is the
 -- flow's (its cyan dashes move: View:paintFlow), as are the lit lines' lights. In the opening it draws itself down.
 function View:paintLine(el, line)
-    if line.state == "plan" then return end
+    if line.state == "plan" or line.state == "hidden" then return end
     local upto = lineUpto(line)
     if upto == 0 then return end
     local dy = RISE[line.col]
