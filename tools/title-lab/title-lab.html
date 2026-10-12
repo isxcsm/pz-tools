@@ -328,14 +328,16 @@ void main() {
   }
   if (mode > 11.5) {                      // mist drifting over a band around the text (its own quad, aux its place in it): large, soft
     vec2 l = vAux.xy;
-    vec2 q = l * fogHalf / noiseScale * 0.35 + vec2(clock * 0.05, clock * 0.015);
+    vec2 q = l * fogHalf / noiseScale * 0.35;
+    // two layers drifting their own ways and speeds: the mist flows and changes as it goes
+    float flow = 0.6 * fbm(q + vec2(clock * 0.22, clock * 0.03)) + 0.4 * fbm(q * 1.7 + vec2(-clock * 0.13, clock * 0.06) + 5.0);
     float band = (1.0 - smoothstep(0.3, 1.0, abs(l.x))) * (1.0 - smoothstep(0.1, 1.0, abs(l.y)));
-    float m = smoothstep(0.3, 0.85, fbm(q)) * band * fogAmt * 0.55;
+    float m = smoothstep(0.3, 0.85, flow) * band * fogAmt * 0.55;
     gl_FragColor = vec4(vec3(0.62, 0.66, 0.7) * m, m);
     return;
   }
   if (mode > 10.5) {                      // the text seen through mist: out of focus and faint where it has not cleared (clear 0 to 1)
-    vec2 q = vUv * picSize / noiseScale * 0.6 + vec2(clock * 0.06, clock * 0.02);
+    vec2 q = vUv * picSize / noiseScale * 0.6 + vec2(clock * 0.2, clock * 0.03);
     float n = fbm(q);
     float vis = smoothstep(n - 0.35, n + 0.35, clear * 1.7 - 0.35);
     vec2 r = blurR * (1.0 - vis);
@@ -718,7 +720,7 @@ function drawFog(p, st) {
   const E = p.spec.enterTime, secs = st.secs, o = st.out;
   const clear = o > 0 ? 1 - smooth(clamp(o / 0.75, 0, 1)) : smooth(clamp(secs / E, 0, 1));
   const fog = o > 0 ? (P.FOG_STAY + (0.9 - P.FOG_STAY) * smooth(clamp(o / 0.5, 0, 1))) * (1 - smooth(clamp((o - 0.55) / 0.45, 0, 1)))
-    : 1 - (1 - P.FOG_STAY) * smooth(clamp(secs / E, 0, 1));
+    : smooth(clamp(secs / 0.8, 0, 1)) * (1 - (1 - P.FOG_STAY) * smooth(clamp(secs / E, 0, 1)));
   const s = st.s, cx = p.cx + st.x, cy = p.cy + st.y * p.line * s, hw = p.w * s / 2, hh = p.h * s / 2;
   gl.uniform1f(U("clock"), t * P.FOG_DRIFT); gl.uniform1f(U("noiseScale"), p.line * 0.5); gl.uniform2f(U("picSize"), p.w, p.h);
   mode = 11;
