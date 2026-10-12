@@ -268,11 +268,11 @@ local function showSprite(object, want)
 end
 
 -- Keeps the load multiplier the generator hook reads (the anchor's modData OA_Load) as the state says: the motor's
--- power multiplier while it runs, 0 otherwise. It is written only when it changes.
+-- power multiplier while it is switched on, 0 when off. It is written only when it changes.
 function Machines.syncLoad(object, state)
     local def = Data.KINDS[state.kind]
     if not def or not def.load then return end
-    local multiplier = Logic.loadMultiplier(state.kind, state.parts, state.running == true)
+    local multiplier = Logic.loadMultiplier(state.kind, state.parts, state.on ~= false)
     local data = object:getModData()
     if data[Data.LOAD_KEY] ~= multiplier then
         data[Data.LOAD_KEY] = multiplier
@@ -284,7 +284,7 @@ function Machines.syncLoad(object, state)
 end
 
 -- Tells the extension API what each machine draws from a generator: the base load (NUMBERS 11) on the anchor's
--- sprites of every facing and state, times the anchor's OA_Load (the motor's multiplier while it runs, else 0). The
+-- sprites of every facing and state, times the anchor's OA_Load (the motor's multiplier while it is switched on, else 0). The
 -- other squares of a machine draw nothing. And that a machine is one object whatever it shows: each tile of a lit or
 -- running look is known by its tile of the machine at rest (machine.spriteName), so that a Building Utilities box
 -- keeps a machine it connected outdoors while it lights up and runs. Once a game; returns true when the API took the
@@ -417,17 +417,17 @@ function Machines.hasPower(object)
     return object ~= nil and object:getSquare() ~= nil and object:checkObjectPowered()
 end
 
--- The generator load of a machine object now (NUMBERS 11); 0 when it is not running. The extension API's power
+-- The generator load of a machine object now (NUMBERS 11); 0 when it is switched off. The extension API's power
 -- hook reads this per machine.
 function Machines.load(object)
     local state = Machines.state(object)
-    if not state or not state.running then return 0 end
+    if not state or state.on == false then return 0 end
     return Logic.load(state.kind, state.parts, true)
 end
 
 -- The same for a state table that is not in the world (a window, the tests).
 function Machines.loadOf(state)
-    return Logic.load(state.kind, state.parts, state.running == true)
+    return Logic.load(state.kind, state.parts, state.on ~= false)
 end
 
 -- Every machine with a load, as { object, kind, load } for the ones running on loaded squares: what the API's

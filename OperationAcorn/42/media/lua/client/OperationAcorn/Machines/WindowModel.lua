@@ -245,7 +245,7 @@ local function perfOf(input)
     local load = status.load or 0
     local powerSub
     if not input.hook then powerSub = text("IGUI_OA_Machine_Perf_NoHook")
-    elseif running then powerSub = text("IGUI_OA_Machine_Perf_Fridges", math.max(1, OA.round(load / Model.FRIDGE_LOAD)))
+    elseif status.on then powerSub = text("IGUI_OA_Machine_Perf_Fridges", math.max(1, OA.round(load / Model.FRIDGE_LOAD)))
     else powerSub = text("IGUI_OA_Machine_Perf_NotNow") end
     cells[2] = { value = text("IGUI_OA_Machine_Perf_Power", Model.decimal(load, 2)), sub = powerSub,
         tip = { { s = text("IGUI_OA_Machine_Perf_PowerHead"), tone = "head" }, text("IGUI_OA_Machine_Perf_TipPower"),

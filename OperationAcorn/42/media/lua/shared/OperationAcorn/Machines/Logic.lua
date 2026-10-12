@@ -127,18 +127,19 @@ function Logic.wear(kind, parts, hours)
 end
 
 -- The generator load a machine puts on its generator now (NUMBERS 11: the kind's load times the motor's power
--- multiplier, only while it runs). This is the one function the extension API's power hook will read.
-function Logic.load(kind, parts, running)
+-- multiplier, while it is switched on, as the game's appliances draw while on, working or not). This is the one
+-- function the extension API's power hook will read.
+function Logic.load(kind, parts, on)
     local def = Data.KINDS[kind]
     if not def or not def.load then return 0 end
-    return def.load * Logic.loadMultiplier(kind, parts, running)
+    return def.load * Logic.loadMultiplier(kind, parts, on)
 end
 
 -- The factor the API's power hook multiplies a machine's base consumption by (the base per sprite is the API's):
--- the motor's power multiplier while the machine runs, 0 when it does not. Load = base load x this.
-function Logic.loadMultiplier(kind, parts, running)
+-- the motor's power multiplier while the machine is switched on, 0 when it is off. Load = base load x this.
+function Logic.loadMultiplier(kind, parts, on)
     local def = Data.KINDS[kind]
-    if not def or not def.load or not running then return 0 end
+    if not def or not def.load or not on then return 0 end
     local motor = parts and parts.motor
     local tier = motor and Logic.partDef(kind, "motor", motor.tier)
     return tier and tier.power or 1

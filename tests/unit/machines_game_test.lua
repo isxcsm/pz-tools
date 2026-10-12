@@ -682,12 +682,13 @@ end)
 test("the generator load of machines", function()
     setup()
     local obj, state, sq = addMachine("bulkShredder", 10, 10)
-    eq(Machines.load(obj), 0, "not running")
-    state.running = true
-    near(Machines.load(obj), 0.6)
+    state.on = false
+    eq(Machines.load(obj), 0, "switched off")
+    state.on = true
+    near(Machines.load(obj), 0.6) -- switched on, working or not
     state.parts.motor = { tier = "modern", cond = 100 }
     near(Machines.load(obj), 0.9)
-    near(Machines.loadOf({ kind = "cutter", parts = Machines.Logic.newParts("cutter"), running = true }), 0.4)
+    near(Machines.loadOf({ kind = "cutter", parts = Machines.Logic.newParts("cutter") }), 0.4)
     local loads = Machines.loads()
     eq(#loads, 1)
     near(loads[1].load, 0.9)
@@ -1436,11 +1437,12 @@ test("the anchor keeps the load multiplier and the capacity flag for the API", f
     local p = player()
     square(11, 10, 0)
     local a = Machines.place("bulkShredder", square(10, 10, 0), p, newItem("OperationAcorn.BulkShredder"), "S")
-    eq(a.mod[Data.LOAD_KEY], 0, "a machine that does not run draws nothing")
+    eq(a.mod[Data.LOAD_KEY], 1.0, "put down switched on: the old motor's, working or not")
     local state = Machines.state(a)
-    state.running = true
+    state.on = false
     Machines.refreshLook(a, state)
-    eq(a.mod[Data.LOAD_KEY], 1.0, "old motor")
+    eq(a.mod[Data.LOAD_KEY], 0, "switched off: nothing")
+    state.on = true
     state.parts.motor = { tier = "modern", cond = 100 }
     Machines.refreshLook(a, state)
     eq(a.mod[Data.LOAD_KEY], 1.5)
@@ -1448,9 +1450,6 @@ test("the anchor keeps the load multiplier and the capacity flag for the API", f
     state.parts.motor = { tier = "normal", cond = 100 }
     Machines.syncLoad(a, state)
     eq(a.mod[Data.LOAD_KEY], 1.25)
-    state.running = false
-    Machines.refreshLook(a, state)
-    eq(a.mod[Data.LOAD_KEY], 0)
     eq(a.mod[Data.CAPACITY_KEY], nil, "only the research storage lifts its cap")
     square(21, 20, 0)
     local store = Machines.place("researchStorage", square(20, 20, 0), p, newItem("OperationAcorn.TeamLocker"), "S")
@@ -1533,7 +1532,7 @@ test("a change of the load key makes the generators near count again", function(
     local state = Machines.state(a)
     Machines.syncLoad(a, state)
     eq(#updated, n, "nothing changed")
-    state.running = true
+    state.on = state.on == false  -- switched the other way
     Machines.syncLoad(a, state)
     eq(#updated, n + 1)
     eq(updated[#updated], square(10, 10, 0))

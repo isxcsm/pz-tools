@@ -227,7 +227,7 @@ test("stopped, switched off, without power: the light, the strip and the switch 
     eq(m.light.text, "Stopped: the Blade is broken"); eq(m.light.tone, "bad")
     eq(m.strip.text, "The Blade is broken: replace it below to run again.")
     eq(m.perf.right, "while running")
-    eq(m.perf.cells[2].sub, "none now")
+    eq(m.perf.cells[2].sub, "about 3 fridges", "switched on, stopped or not, it draws")
     eq(m.perf.cells[3].sub, "quiet now")
     eq(m.perf.cells[1].sub, "half: worn part"); eq(m.perf.cells[1].subTone, "warn")
     eq(m.jobs.empty[1], "Work has stopped."); eq(m.jobs.empty[2], "14 left in the input.")
@@ -239,6 +239,7 @@ test("stopped, switched off, without power: the light, the strip and the switch 
     m = Model.build(input)
     eq(m.switch.label, "Turn on"); eq(m.switch.enabled, false)
     eq(m.switch.tip, "Cannot switch on: the Blade is broken")
+    eq(m.perf.cells[2].sub, "none while off")
     truthy(m.light.hollow)
     -- the saw switched off, no extension API: no fuel is burnt without it
     m = Model.build(SCENES.saw())
