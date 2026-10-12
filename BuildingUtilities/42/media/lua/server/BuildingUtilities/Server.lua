@@ -11,15 +11,16 @@ local Store, Panels, Networks, Changes, Sync, Energy = BU.Store, BU.Panels, BU.N
 -- Commands: the free changes a player makes at a box. Each names the panel; the rest is checked here.
 local commands = {}
 
+-- A device of the box's building switched at the box (connected or excluded), free: one, a room's or all.
+function commands.setInside(player, panel, args)
+    local device = Panels.device(panel, args.utility, args.key)
+    if device and device.inside and device.state ~= "other" then Changes.setInside(panel, args.utility, device, args.on == true) end
+end
 
--- Devices and units marked to connect, or the marks taken away: a list of keys (BU.registerKey).
-function commands.register(player, panel, args)
-    if type(args.keys) ~= "table" then return end
-    local keys = {}
-    for _, key in ipairs(args.keys) do
-        if type(key) == "string" then keys[#keys + 1] = key end
-    end
-    Changes.register(panel, keys, args.on == true)
+function commands.setAllInside(player, panel, args) Changes.setAllInside(panel, args.utility, args.on == true) end
+
+function commands.setRoomInside(player, panel, args)
+    if type(args.room) == "string" then Changes.setRoomInside(panel, args.utility, args.room, args.on == true) end
 end
 
 -- A window saw devices in a room built onto the building that the networks do not have yet.
@@ -35,7 +36,6 @@ function commands.setZone(player, panel, args)
     end
     Changes.setZone(panel, ids)
 end
-
 
 function commands.moveProducer(player, panel, args)
     Changes.moveProducer(panel, args.utility, tonumber(args.index) or 0, args.delta == -1 and -1 or 1)

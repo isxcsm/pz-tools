@@ -268,18 +268,6 @@ BU.OLD_PANEL_SPRITE_SET = {}
 for _, name in ipairs(BU.OLD_PANEL_SPRITES) do BU.OLD_PANEL_SPRITE_SET[name] = true end
 BU.PANEL_ITEM = "BuildingUtilities.BreakerBox"
 
--- The key a device or a unit is registered by at a box (Changes.register): a device of the building ("inside") or one
--- outside by its utility and its key (Panels.devices), a unit by its id.
-function BU.registerKey(kind, utility, key)
-    if kind == "unit" then return "unit|" .. tostring(key) end
-    return kind .. "|" .. utility .. "|" .. key
-end
-
--- Whether a box has the device or the unit registered.
-function BU.isRegistered(panel, kind, utility, key)
-    return panel ~= nil and panel.registered ~= nil and panel.registered[BU.registerKey(kind, utility, key)] == true
-end
-
 -- A water producer: an object the game fills with rain or water (rain barrels, metal drums), with a fluid container.
 function BU.isWaterContainer(object)
     if not object or instanceof(object, "IsoGenerator") then return false end

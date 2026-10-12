@@ -4,8 +4,8 @@
 -- devices room by room, and a tab with what happened to the box; beside them the floor plan
 -- (BuildingUtilities/PanelPlan). A row under the mouse outlines its objects in the world, marks them on the plan and
 -- tells what switching it would do to the load. Free changes go to the server as commands; lines are laid and taken
--- away, and the main switch thrown, by the player at the place, as timed actions. Devices outside can be chosen
--- several at a time (the Choose button on their group) and connected in one walk, with what they all take shown first. The search box keeps the
+-- away, and the main switch thrown, by the player at the place, as timed actions: a device outside is wired at itself
+-- (its world menu), and listed here once it is. The search box keeps the
 -- rows whose device or room has the words; devices new since the window was last closed are marked. The load bar
 -- tells what makes the load. With sub-panels, a tab per box of the supply tree (the main panel, then each sub-panel
 -- after the one it hangs from) shows that box in the same window, as a main or sub-panel row does. The window is the
@@ -27,10 +27,10 @@ local Store, Panels, Networks, Costs, Actions, Sync, Energy = BU.Store, BU.Panel
     BU.Sync, BU.Energy
 local Units, Ui = BU.Units, BU.PanelUi
 local FONT_HGT_SMALL, ROW, PAD, REFRESH_MS, BAR_W, LOG, LIST_W, MIN_LIST, MIN_PLAN, OPTION_W, SEEN, OUTSIDE,
-    ROOM_TICK_X, CHOOSE_W, BATCH_BUTTONS, BATCH_W, load2, percent, count, nextSchedule = Ui.FONT_HGT_SMALL, Ui.ROW,
+    ROOM_TICK_X, load2, percent, count, nextSchedule = Ui.FONT_HGT_SMALL, Ui.ROW,
     Ui.PAD, Ui.REFRESH_MS, Ui.BAR_W, Ui.LOG, Ui.LIST_W, Ui.MIN_LIST, Ui.MIN_PLAN, Ui.OPTION_W, Ui.SEEN, Ui.OUTSIDE,
-    Ui.ROOM_TICK_X, Ui.CHOOSE_W, Ui.BATCH_BUTTONS, Ui.BATCH_W, Ui.load2, Ui.percent, Ui.count, Ui.nextSchedule
-local deviceButtons, chooseButtonX, batchButtonX = Ui.deviceButtons, Ui.chooseButtonX, Ui.batchButtonX
+    Ui.ROOM_TICK_X, Ui.load2, Ui.percent, Ui.count, Ui.nextSchedule
+local deviceButtons = Ui.deviceButtons
 
 local PanelWindow = {}
 BU.PanelWindow = PanelWindow
@@ -117,8 +117,6 @@ function ISBUPanelWindow:new(x, y, playerObj, panel, anchor)
     o.views = {}
     -- The networks' states the last refresh read, by utility; the tabs not shown since then, filled as they open.
     o.states, o.pending = {}, {}
-    -- Devices outside being chosen to connect together, by utility.
-    o.choosing, o.chosen = {}, { power = {}, water = {} }
     o:setTitle(getText("IGUI_BU_TierName", Panels.name(panel), panel.tier or 1))
     return o
 end
@@ -593,11 +591,11 @@ function ISBUPanelWindow:refresh()
 end
 
 -- The window opens anew in its place, as large, with what the player had set here: the search, the room shown, the
--- zone editing, the devices outside being chosen, the plan's floor, zoom and pan, and the range shown.
+-- zone editing, the plan's floor, zoom and pan, and the range shown.
 function ISBUPanelWindow:reopen()
     local kept = { x = self:getX(), y = self:getY(), w = self:getWidth(), h = self:getHeight(),
         text = self.search:getText(), query = self.query, roomFilter = self.roomFilter, zoneEditing = self.zoneEditing,
-        choosing = self.choosing, chosen = self.chosen, range = self.rangeShown,
+        range = self.rangeShown,
         floor = self.plan.floor, zoom = self.plan.zoom, panX = self.plan.panX, panY = self.plan.panY }
     self:close()
     local window = PanelWindow.open(self.playerObj, self.panel, self.anchor)
@@ -607,7 +605,6 @@ function ISBUPanelWindow:reopen()
     window:setHeight(math.max(kept.h, window.minimumHeight))
     if kept.text and kept.text ~= "" then window.search:setText(kept.text) end
     window.query, window.roomFilter, window.zoneEditing = kept.query, kept.roomFilter, kept.zoneEditing
-    window.choosing, window.chosen = kept.choosing, kept.chosen
     window.plan.floor, window.plan.zoom, window.plan.panX, window.plan.panY = kept.floor, kept.zoom, kept.panX, kept.panY
     if kept.range then window:showRange(true) end
     window:refresh()
@@ -763,6 +760,12 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
         devices, complete = Panels.devices(panel, utility)
         self:askAttached(devices)
     end
+    -- The building's devices, and those outside that are wired to the box (wired at themselves).
+    local listed = {}
+    for _, device in ipairs(devices) do
+        if device.inside or device.state == "on" then listed[#listed + 1] = device end
+    end
+    devices = listed
     local view = { state = state, devices = devices, complete = complete, names = {}, status = {}, totals = {},
         producerText = {}, fresh = {} }
     self.views[utility] = view
@@ -829,7 +832,6 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
             add(row, utility == "power" and getText("IGUI_BU_GeneratorTip") or nil)
         end
         if utility == "water" then self:waterUnitRows(add) end
-        self:unitCandidateRows(utility, add)
     end
     local children = Store.children(panel.id)
     if #children > 0 then
@@ -847,16 +849,6 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
         if not seen[device.key] then view.fresh[device.key] = true end
     end
     local query = self.query or ""
-    -- Devices outside chosen to connect: only those still not connected stay chosen.
-    local choosing = self.choosing[utility] == true
-    local chosen = self.chosen[utility]
-    local stillOff = {}
-    for _, device in ipairs(devices) do
-        if not device.inside and device.state == "off" then stillOff[device.key] = device end
-    end
-    for key in pairs(chosen) do
-        if not stillOff[key] then chosen[key] = nil end
-    end
     -- Switching on every device of the building that is off: what the load would be.
     local allTip, offPower = nil, 0
     for _, device in ipairs(devices) do
@@ -939,16 +931,7 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
             roomState = group.off == 0 and "on" or group.on == 0 and "off" or "some"
         end
         local right = utility == "power" and load2(group.total) or (group.on .. " / " .. (group.on + group.off))
-        local choosable = group.id == OUTSIDE and group.off > 0
-        add({ kind = "room", id = group.id, text = title(group.id), right = right, state = roomState, folded = folded, foldKey = foldKey,
-            choosable = choosable, choosing = choosable and choosing })
-        if choosable and choosing and not folded then
-            local count, cost = self:chosenCost(utility)
-            local affords = count > 0 and Costs.affords(playerObj, cost)
-            local text = count > 0 and getText("IGUI_BU_BatchText", count, self:costShort(cost)) or getText("IGUI_BU_BatchEmpty")
-            add({ kind = "batch", text = text, count = count, affords = affords, utility = utility },
-                count > 0 and Costs.describe(playerObj, cost) or getText("IGUI_BU_BatchHint"))
-        end
+        add({ kind = "room", id = group.id, text = title(group.id), right = right, state = roomState, folded = folded, foldKey = foldKey })
         if not folded then
             table.sort(group.devices, function(a, b)
                 if options.byLoad and (a.device.power or 0) ~= (b.device.power or 0) then return (a.device.power or 0) > (b.device.power or 0) end
@@ -957,26 +940,20 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
             for _, shown in ipairs(group.devices) do
                 local device = shown.device
                 local tooltip = utility == "power" and self:preview(device) or nil
-                if not device.inside and device.state == "off" then
-                    local cost = Actions.outsideCost(panel, utility, device)
-                    if cost then tooltip = (tooltip and tooltip .. " <LINE> " or "") .. Costs.describe(playerObj, cost) end
+                if not device.inside then
+                    tooltip = (tooltip and tooltip .. " <LINE> " or "") .. getText("IGUI_BU_OutsideTip")
                 end
                 local controls = timers and utility == "power" and device.state == "on"
                 if controls then
                     tooltip = (tooltip and tooltip .. " <LINE> " or "") .. " <RGB:0.7,0.7,0.7> "
                         .. getText(sheds and "IGUI_BU_ControlsNoteSmart" or "IGUI_BU_ControlsNote")
                 end
-                local choosableDevice = choosing and not device.inside and device.state == "off"
                 local groupText, groupColour
                 if device.group and device.state == "on" and #BU.Water.groups(panel) > 1 then
                     groupText, groupColour = BU.Water.groupName(panel, device.group), PanelWindow.groupColour(panel, device.group)
                 end
-                local registered = device.state == "off" and BU.isRegistered(panel, device.inside and "inside" or "outside", utility, device.key)
-                if registered then tooltip = getText("IGUI_BU_RegisteredTip") .. (tooltip and " <LINE> " .. tooltip or "") end
-                add({ kind = "device", text = shown.name, right = registered and getText("IGUI_BU_Registered") or shown.status,
-                    registered = registered, dim = shown.dim, device = device,
+                add({ kind = "device", text = shown.name, right = shown.status, dim = shown.dim, device = device,
                     state = device.state, held = device.held, controls = controls, sheds = sheds,
-                    choosable = choosableDevice, chosen = choosableDevice and chosen[device.key] == true,
                     fresh = view.fresh[device.key], groupText = groupText, groupColour = groupColour }, tooltip)
             end
         end
@@ -1095,56 +1072,14 @@ function ISBUPanelWindow:allInside(devices)
     return true
 end
 
--- A device's tick: one not connected is registered (or its registration taken back), and connected at itself (its
--- world menu, with the tool); one connected is wired out at itself too.
+-- A device's tick: one of the building switched at the box, free; one outside is wired out at itself.
 function ISBUPanelWindow:switchDevice(utility, device)
-    local panel, playerObj = self.panel, self.playerObj
     if device.state == "other" then return end
-    if device.state == "on" then
-        HaloTextHelper.addBadText(playerObj, getText("IGUI_BU_DisconnectAtDevice"))
-        return
-    end
-    local kind = device.inside and "inside" or "outside"
-    if kind == "outside" and utility == "power" and not BU.exteriorPower() then
-        HaloTextHelper.addBadText(playerObj, getText("IGUI_BU_Reason_exteriorOff"))
-        return
-    end
-    Sync.send(playerObj, "register", { panel = panel.id, keys = { BU.registerKey(kind, utility, device.key) },
-        on = not BU.isRegistered(panel, kind, utility, device.key) })
-end
-
--- Registers the devices of the building that are not connected, of one room (roomId) or all (nil); a tick that is
--- on is not taken off here: the devices are wired out at themselves.
-function ISBUPanelWindow:registerInside(utility, roomId, on)
-    if not on then
+    if not device.inside then
         HaloTextHelper.addBadText(self.playerObj, getText("IGUI_BU_DisconnectAtDevice"))
         return
     end
-    local keys = {}
-    local view = self.views[utility]
-    for _, device in ipairs(view and view.devices or {}) do
-        if device.inside and device.state == "off" and (roomId == nil or device.roomId == roomId) then
-            keys[#keys + 1] = BU.registerKey("inside", utility, device.key)
-        end
-    end
-    if #keys > 0 then Sync.send(self.playerObj, "register", { panel = self.panel.id, keys = keys, on = true }) end
-end
-
--- The units in reach that are not wired (Units.canConnect to this box), as rows to register them.
-function ISBUPanelWindow:unitCandidateRows(utility, add)
-    local panel, first = self.panel, true
-    for _, unit in pairs(Store.units() or {}) do
-        if not unit.panel and Units.utility(unit) == utility and Units.canConnect(unit, panel) then
-            if first then
-                add({ kind = "header", text = getText("IGUI_BU_UnitCandidates") })
-                first = false
-            end
-            local registered = BU.isRegistered(panel, "unit", nil, unit.id)
-            add({ kind = "unitCandidate", unit = unit, text = getText("IGUI_BU_PanelChoice", Units.name(unit), Panels.where(panel, unit.x, unit.y)),
-                registered = registered, right = registered and getText("IGUI_BU_Registered") or nil },
-                getText(registered and "IGUI_BU_RegisteredTip" or "IGUI_BU_RegisterTip"))
-        end
-    end
+    Sync.send(self.playerObj, "setInside", { panel = self.panel.id, utility = utility, key = device.key, on = device.state ~= "on" })
 end
 
 -- A click on a row: free changes as commands; lines laid or taken away by walking there.
@@ -1181,38 +1116,25 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
         local target = Store.get(row.target)
         if target then self:switchTo(target) end
     elseif row.kind == "all" then
-        self:registerInside(utility, nil, row.state ~= "on")
-    elseif row.kind == "unitCandidate" then
-        Sync.send(playerObj, "register", { panel = panel.id, keys = { BU.registerKey("unit", nil, row.unit.id) }, on = not row.registered })
+        Sync.send(playerObj, "setAllInside", { panel = panel.id, utility = utility, on = row.state ~= "on" })
     elseif row.kind == "blackout" then
         Sync.send(playerObj, "setBlackout", { panel = panel.id, on = row.state ~= "on" })
     elseif row.kind == "mainSwitch" then
         BU.ContextMenu.queueAt(playerObj, panel.x, panel.y, panel.z, ISBUMainSwitch:new(playerObj, panel, row.state == "on"))
     elseif row.kind == "filter" then
         self:filterRoom(nil)
-    elseif row.kind == "batch" then
-        for index, name in ipairs(BATCH_BUTTONS) do
-            local bx = batchButtonX(width, index)
-            if x >= bx and x <= bx + BATCH_W then
-                if name == "Connect" then self:connectChosen(utility) else self:chooseAll(utility, name == "All") end
-            end
-        end
     elseif row.kind == "floor" then
         PanelWindow.folded[row.foldKey] = not row.folded
         -- Unfolded, the plan shows that floor (which fills the list again, planFloorChanged); else the list alone.
         if row.folded and self.plan and self.plan.floor ~= row.level then self.plan:showFloor(row.level)
         else self:refill(utility) end
-    elseif row.kind == "room" and row.choosable and x >= chooseButtonX(row) and x <= chooseButtonX(row) + CHOOSE_W then
-        self:setChoosing(utility, not row.choosing)
     elseif row.kind == "room" then
         if row.state and x >= ROOM_TICK_X and x <= ROOM_TICK_X + ROW then
-            self:registerInside(utility, row.id, row.state ~= "on")
+            Sync.send(playerObj, "setRoomInside", { panel = panel.id, utility = utility, room = row.id, on = row.state ~= "on" })
         else
             PanelWindow.folded[row.foldKey] = (not row.folded) or nil
             self:refill(utility)
         end
-    elseif row.kind == "device" and row.choosable then
-        self:toggleChosen(row.device.key)
     elseif row.kind == "device" and row.state ~= "other" then
         local device = row.device
         for _, button in ipairs((deviceButtons(width, row))) do

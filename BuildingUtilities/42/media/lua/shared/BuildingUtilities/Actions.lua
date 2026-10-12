@@ -51,12 +51,6 @@ function Actions.lineCost(kind, panel, utility, x, y, z, extra)
         -- one inside the box's building takes no line
         if Actions.inBuilding(panel, x, y, z) then return Costs.tool(Units.utility(unit)), unit end
         return Costs.producer(Units.utility(unit), Panels.wire(panel, x, y, z)), unit
-    elseif kind == "inside" then
-        local device = Panels.device(panel, utility, extra)
-        if not device or not device.inside then return nil, "noDevice" end
-        if device.state == "other" then return nil, "connectedElsewhere" end
-        if device.state == "on" then return nil, "connected" end
-        return Costs.tool(utility), device
     end
     return nil, "noPanel"
 end
@@ -155,22 +149,11 @@ function ISBUConnect:cost()
     return Actions.lineCost(self.kind, Store.get(self.panelId), self.utility, self.x, self.y, self.z, self.extra)
 end
 
--- The key a device or a unit is registered by at the box (nil for a producer or a link, which are not).
-function ISBUConnect:registerKey()
-    if self.kind == "outside" then return BU.registerKey("outside", self.utility, BU.thingKey(self.x, self.y, self.z, self.extra)) end
-    if self.kind == "inside" then return BU.registerKey("inside", self.utility, self.extra) end
-    if self.kind == "unit" then return BU.registerKey("unit", nil, self.extra) end
-    return nil
-end
-
 function ISBUConnect:isValid()
     local panel = Store.get(self.panelId)
     if not panel or not self.costNow or not Costs.affords(self.character, self.costNow) then return false end
-    local key = self:registerKey()
-    if key and not (panel.registered and panel.registered[key]) then return false end
     if self.kind == "producer" then return Store.producerOwner(self.x, self.y, self.z) == nil end
     if self.kind == "outside" then return Store.inclusionOwner(self.utility, BU.thingKey(self.x, self.y, self.z, self.extra)) == nil end
-    if self.kind == "inside" then return true end
     if self.kind == "unit" then
         local unit = Store.unit(self.extra)
         return unit ~= nil and unit.panel == nil
@@ -191,13 +174,9 @@ function ISBUConnect:complete()
     local panel = Store.get(self.panelId)
     local cost, other = self:cost()
     if not cost or not Costs.affords(self.character, cost) then return false end
-    local key = self:registerKey()
-    if key and not (panel.registered and panel.registered[key]) then return false end
     local paid = Costs.take(self.character, cost)
-    if key then Changes.unregister(panel, key) end
     if self.kind == "producer" then Changes.connectProducer(panel, self.utility, self.x, self.y, self.z, paid)
     elseif self.kind == "outside" then Changes.includeOutside(panel, self.utility, other, paid)
-    elseif self.kind == "inside" then Changes.setInside(panel, self.utility, other, true)
     elseif self.kind == "unit" then Changes.connectUnit(other, panel, paid)
     else Changes.link(panel, other, paid) end
     -- Wiring teaches; plumbing has no skill of its own. Two for each piece of wire the line takes.
@@ -206,7 +185,6 @@ function ISBUConnect:complete()
 end
 
 function ISBUConnect:getDuration()
-    if self.kind == "inside" then return lineDuration(self.character, 0) end
     return lineDuration(self.character, self.steps)
 end
 
@@ -219,8 +197,7 @@ function ISBUConnect:new(character, kind, panel, utility, x, y, z, extra)
     return o
 end
 
--- Taking a line away, with a share of what it took back; a device of the building wired out at itself. With the tool
--- of its utility, at once (no mark at the box first).
+-- Taking a line away, with a share of what it took back, with the tool of its utility.
 ISBUDisconnect = base("ISBUDisconnect", 120)
 
 function ISBUDisconnect:connected()
@@ -232,9 +209,6 @@ function ISBUDisconnect:connected()
     elseif self.kind == "outside" then
         local device = Panels.device(panel, self.utility, BU.thingKey(self.x, self.y, self.z, self.extra))
         return device ~= nil and not device.inside and device.state == "on"
-    elseif self.kind == "inside" then
-        local device = Panels.device(panel, self.utility, self.extra)
-        return device ~= nil and device.inside and device.state == "on"
     elseif self.kind == "unit" then
         local unit = Store.unit(self.extra)
         return unit ~= nil and unit.panel == panel.id
@@ -263,8 +237,6 @@ function ISBUDisconnect:complete()
     if self.kind == "producer" then paid = Changes.disconnectProducer(panel, self.utility, self.x, self.y, self.z)
     elseif self.kind == "outside" then
         paid = Changes.excludeOutside(panel, self.utility, Panels.device(panel, self.utility, BU.thingKey(self.x, self.y, self.z, self.extra)))
-    elseif self.kind == "inside" then
-        Changes.setInside(panel, self.utility, Panels.device(panel, self.utility, self.extra), false)
     elseif self.kind == "unit" then paid = Changes.disconnectUnit(Store.unit(self.extra))
     else paid = Changes.unlink(panel) end
     Costs.refund(self.character, paid)

@@ -1,9 +1,9 @@
 -- The world context menu: install a breaker box, and open its window (one line, no submenu: what a box does is in
 -- its window); put down solar panels and battery racks (a rack's batteries go in and out in the loot window). A
--- device, a unit or a producer is wired in and out at itself, with the tool of its utility (Actions.work): a device of
--- the building or a unit once it is registered at its box (the window), a generator or a water container (which the
--- window cannot list before it has a line) straight away; wired out at once. A box and the units are taken up with the
--- game's furniture tool (BU.Moveables). The inventory menu: recondition a battery.
+-- device of the box's building is the box's without a line: switched on or off there at once, as at the box. A device
+-- outside, a unit or a producer is wired in and out at itself, with the tool of its utility (Actions.work); the box's
+-- window lists it once it is wired. A box and the units are taken up with the game's furniture tool (BU.Moveables).
+-- The inventory menu: recondition a battery.
 require "ISUI/ISWorldObjectContextMenu"
 require "BuildingUtilities/Actions"
 local BU = BuildingUtilities
@@ -81,16 +81,17 @@ local function addDisconnectOption(context, playerObj, panel, kind, utility, x, 
     costed(option, playerObj, Actions.workCost(utility))
 end
 
--- "Connect to <box>" for a device or a unit: laid when it is registered at the box, else told where to register it.
-local function addRegisteredConnect(context, playerObj, panel, kind, utility, x, y, z, extra, registerKey)
+-- "Connect to <box>" for a device outside or a unit: what its line takes, or why it cannot be laid.
+local function addLineConnect(context, playerObj, panel, kind, utility, x, y, z, extra)
     local option = context:addOption(getText("ContextMenu_BU_ConnectToPanel", Panels.name(panel), Panels.where(panel, x, y)),
         playerObj, onConnect, kind, panel, utility, x, y, z, extra)
-    if not BU.isRegistered(panel, kind, utility, registerKey) then
-        unavailable(option, getText("IGUI_BU_Reason_notRegistered", Panels.name(panel)))
-        return
-    end
     local cost, reason = Actions.lineCost(kind, panel, utility, x, y, z, extra)
     if cost then costed(option, playerObj, cost) else unavailable(option, getText("IGUI_BU_Reason_" .. reason)) end
+end
+
+-- A device of the box's building switched at once, as its tick in the window.
+local function onSwitchInside(playerObj, panel, utility, key, on)
+    Sync.send(playerObj, "setInside", { panel = panel.id, utility = utility, key = key, on = on })
 end
 
 -- The box's line: its name (a tripped breaker told), which walks there and opens its window. The breaker, the main
@@ -163,8 +164,8 @@ local function onUnitAction(playerObj, unit, action) queueAt(playerObj, unit.x, 
 
 -- A unit's lines, no submenu: its name and state, which opens the window of the box it is wired to; what its kind
 -- offers now (Units.define: clearing snow, a new filter charge); wired, taking its line away; not wired, the boxes in
--- reach it can be wired to (once registered there). The unit is taken up with the furniture tool. One of a kind that
--- is off (BU.enabled) is only named.
+-- reach it can be wired to. The unit is taken up with the furniture tool. One of a kind that is off (BU.enabled) is
+-- only named.
 local function addUnitOptions(context, playerObj, unit)
     local definition = Units.definition(unit.kind)
     local on = BU.enabled(unit.kind)
@@ -192,7 +193,7 @@ local function addUnitOptions(context, playerObj, unit)
             getText("IGUI_BU_NoPanelInRange", BU.producerRange(BU.TIERS)))
     end
     for _, candidate in ipairs(candidates) do
-        addRegisteredConnect(context, playerObj, candidate.panel, "unit", utility, unit.x, unit.y, unit.z, unit.id, unit.id)
+        addLineConnect(context, playerObj, candidate.panel, "unit", utility, unit.x, unit.y, unit.z, unit.id)
     end
 end
 
@@ -219,23 +220,18 @@ local function addDeviceOption(context, playerObj, utility, panel, device)
         unavailable(option, getText("IGUI_BU_ConnectedTo", other and Panels.name(other) or ""))
         return
     end
-    local kind = device.inside and "inside" or "outside"
-    -- an outside device is named by its square and sprite; a device of the building by its key (its parts')
-    local extra = device.inside and device.key or entry.sprite
-    if device.state == "on" then
-        local option = context:addOption(getText("ContextMenu_BU_DeviceOff", name, label, Panels.name(panel)), playerObj,
-            onDisconnect, kind, panel, utility, entry.x, entry.y, entry.z, extra)
+    local on = device.state == "on"
+    local text = getText(on and "ContextMenu_BU_DeviceOff" or "ContextMenu_BU_DeviceOn", name, label, Panels.name(panel))
+    if device.inside then
+        context:addOption(text, playerObj, onSwitchInside, panel, utility, device.key, not on)
+    elseif on then
+        local option = context:addOption(text, playerObj, onDisconnect, "outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite)
         costed(option, playerObj, Actions.workCost(utility))
-        return
+    else
+        local option = context:addOption(text, playerObj, onConnect, "outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite)
+        local cost, reason = Actions.lineCost("outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite)
+        if cost then costed(option, playerObj, cost) else unavailable(option, getText("IGUI_BU_Reason_" .. reason)) end
     end
-    local option = context:addOption(getText("ContextMenu_BU_DeviceOn", name, label, Panels.name(panel)), playerObj, onConnect,
-        kind, panel, utility, entry.x, entry.y, entry.z, extra)
-    if not BU.isRegistered(panel, kind, utility, device.key) then
-        unavailable(option, getText("IGUI_BU_Reason_notRegistered", Panels.name(panel)))
-        return
-    end
-    local cost, reason = Actions.lineCost(kind, panel, utility, entry.x, entry.y, entry.z, extra)
-    if cost then costed(option, playerObj, cost) else unavailable(option, getText("IGUI_BU_Reason_" .. reason)) end
 end
 
 local function uses(object, utility)

@@ -7,9 +7,8 @@ require "BuildingUtilities/PanelUi"
 local BU = BuildingUtilities
 local Store = BU.Store
 local Ui = BU.PanelUi
-local FONT_HGT_SMALL, ROW, PAD, SCROLLBAR, ROOM_TICK_X, CHOOSE_W, BATCH_BUTTONS, BATCH_W, rowObjects, outline,
-    unoutline = Ui.FONT_HGT_SMALL, Ui.ROW, Ui.PAD, Ui.SCROLLBAR, Ui.ROOM_TICK_X, Ui.CHOOSE_W, Ui.BATCH_BUTTONS,
-    Ui.BATCH_W, Ui.rowObjects, Ui.outline, Ui.unoutline
+local FONT_HGT_SMALL, ROW, PAD, SCROLLBAR, ROOM_TICK_X, rowObjects, outline, unoutline = Ui.FONT_HGT_SMALL, Ui.ROW,
+    Ui.PAD, Ui.SCROLLBAR, Ui.ROOM_TICK_X, Ui.rowObjects, Ui.outline, Ui.unoutline
 local ACCENT, ease, approach = Ui.ACCENT, Ui.ease, Ui.approach
 -- Rows that only tell: no light under the mouse.
 local STILL = { header = true, note = true, filter = true, log = true, graph = true, levels = true }
@@ -121,23 +120,6 @@ local function smallButton(list, x, y, w, text, r, g, b)
     list:drawTextCentre(text, x + w / 2, y + (ROW - FONT_HGT_SMALL) / 2, r, g, b, 1, UIFont.Small)
 end
 
--- The Choose button of the outside group, right of its title; measured once for the row.
-local function chooseButtonX(row)
-    if not row.chooseX then row.chooseX = ROOM_TICK_X + getTextManager():MeasureStringX(UIFont.Small, row.text) + 12 end
-    return row.chooseX
-end
-
--- The buttons of the chosen row, from the right.
-local function batchButtonX(width, index)
-    return width - PAD - SCROLLBAR - (#BATCH_BUTTONS - index + 1) * (BATCH_W + 4)
-end
-
--- A box for choosing a device: empty, or chosen.
-local function chooseBox(list, x, y, chosen)
-    list:drawRectBorder(x, y + 3, ROW - 6, ROW - 6, 1, 0.4, 0.8, 1)
-    if chosen then list:drawTextCentre("v", x + (ROW - 6) / 2, y + (ROW - FONT_HGT_SMALL) / 2, 0.4, 0.8, 1, 1, UIFont.Small) end
-end
-
 -- A tick: "on", "off", or "some" for a room whose devices are partly connected.
 local function tick(list, x, y, state)
     if under(list, x, ROW - 6) then
@@ -150,9 +132,6 @@ local function tick(list, x, y, state)
         list:drawRect(x + 3, y + 6, ROW - 12, ROW - 12, 1, 0.4, 0.9, 0.4)
     elseif state == "some" then
         list:drawRect(x + 4, y + ROW / 2 - 2, ROW - 14, 4, 1, 0.4, 0.9, 0.4)
-    elseif state == "registered" then
-        -- registered, to be connected at the device: a hollow cyan square
-        list:drawRectBorder(x + 3, y + 6, ROW - 12, ROW - 12, 1, 0.35, 0.8, 1)
     end
 end
 
@@ -250,20 +229,7 @@ function ISBUPanelList:doDrawItem(y, item, alt)
             x = x + ROW + 4
         end
         self:drawText(row.text, x, textY, 1, 0.85, 0.5, 1, UIFont.Small)
-        if row.choosable then
-            local on = row.choosing
-            self:drawRect(chooseButtonX(row), y + 2, CHOOSE_W, ROW - 4, on and 0.8 or 0, 0.15, 0.35, 0.5)
-            smallButton(self, chooseButtonX(row), y, CHOOSE_W, label(on and "IGUI_BU_ChooseDone" or "IGUI_BU_Choose"), 0.6, 0.85, 1)
-        end
         if row.right then self:drawTextRight(row.right, width - PAD - SCROLLBAR, textY, 0.9, 0.85, 0.6, 1, UIFont.Small) end
-    elseif row.kind == "batch" then
-        self:drawRect(0, y, width, ROW, 0.25, 0.15, 0.35, 0.5)
-        self:drawText(row.text, PAD * 2, textY, row.affords and 0.7 or 1, row.affords and 0.9 or 0.55, row.affords and 1 or 0.5, 1, UIFont.Small)
-        for index, name in ipairs(BATCH_BUTTONS) do
-            local enabled = name ~= "Connect" or row.count > 0
-            smallButton(self, batchButtonX(width, index), y, BATCH_W, label("IGUI_BU_Batch" .. name),
-                enabled and 1 or 0.5, enabled and 1 or 0.5, enabled and 1 or 0.5)
-        end
     elseif row.kind == "link" then
         if row.header then self:drawRect(0, y, width, ROW, 0.3, 0.3, 0.3, 0.3) end
         local r, g, b = 0.75, 0.85, 1
@@ -310,10 +276,9 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         if row.right then self:drawTextRight(row.right, buttons[1].x - 8, textY, 0.8, 0.85, 1, 1, UIFont.Small) end
     elseif row.kind == "addGroup" then
         self:drawText(row.text, PAD * 2, textY, 0.5, 0.75, 1, 1, UIFont.Small)
-    elseif row.kind == "device" or row.kind == "unitCandidate" or row.kind == "all" or row.kind == "blackout" or row.kind == "mainSwitch" then
-        local indent = (row.kind == "device" or row.kind == "unitCandidate") and PAD * 3 or PAD * 2
-        if row.choosable then chooseBox(self, indent, y, row.chosen)
-        else tick(self, indent, y, row.state == "on" and "on" or row.registered and "registered" or "off") end
+    elseif row.kind == "device" or row.kind == "all" or row.kind == "blackout" or row.kind == "mainSwitch" then
+        local indent = row.kind == "device" and PAD * 3 or PAD * 2
+        tick(self, indent, y, row.state == "on" and "on" or "off")
         local shade = row.state ~= "other" and 1 or 0.5
         self:drawText(row.text, indent + ROW + 4, textY, shade, shade, shade, 1, UIFont.Small)
         if row.fresh then
@@ -336,8 +301,7 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         end
         if row.right then
             local r, g, b = 0.8, 0.8, 0.8
-            if row.registered then r, g, b = 0.35, 0.8, 1
-            elseif row.held then r, g, b = 1, 0.65, 0.3 elseif row.dim then r, g, b = 0.55, 0.55, 0.55 end
+            if row.held then r, g, b = 1, 0.65, 0.3 elseif row.dim then r, g, b = 0.55, 0.55, 0.55 end
             self:drawTextRight(row.right, textRight, textY, r, g, b, 1, UIFont.Small)
         end
     end
@@ -486,5 +450,3 @@ Ui.producerButtons = producerButtons
 Ui.groupButtons = groupButtons
 Ui.sourceButtons = sourceButtons
 Ui.GROUP_COLOURS = GROUP_COLOURS
-Ui.chooseButtonX = chooseButtonX
-Ui.batchButtonX = batchButtonX

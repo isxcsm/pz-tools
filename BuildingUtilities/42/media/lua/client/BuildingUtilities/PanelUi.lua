@@ -25,9 +25,6 @@ local OPTION_W = 84
 local SEEN = "BuildingUtilitiesSeen"
 local OUTSIDE = "outside"
 local ROOM_TICK_X = PAD + 14
-local CHOOSE_W = 90
-local BATCH_BUTTONS = { "Connect", "All", "None" }
-local BATCH_W = 70
 
 local function load2(value) return string.format("%.2f", value) end
 
@@ -133,9 +130,6 @@ Ui.OPTION_W = OPTION_W
 Ui.SEEN = SEEN
 Ui.OUTSIDE = OUTSIDE
 Ui.ROOM_TICK_X = ROOM_TICK_X
-Ui.CHOOSE_W = CHOOSE_W
-Ui.BATCH_BUTTONS = BATCH_BUTTONS
-Ui.BATCH_W = BATCH_W
 Ui.load2 = load2
 Ui.percent = percent
 Ui.deviceObjects = deviceObjects

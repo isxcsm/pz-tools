@@ -400,18 +400,6 @@ function Changes.setQuietCut(panel, cut)
 end
 
 -- Wired to a panel; to a sub-panel, it is its main panel's (Panels.root) through that one.
--- Registrations: the devices and units a player marked at the box to be connected (BU.registerKey). The line is
--- laid at the device (ISBUConnect), which takes the mark away. { [key] = true } on the panel.
-function Changes.register(panel, keys, on)
-    panel.registered = panel.registered or {}
-    for _, key in ipairs(keys) do panel.registered[key] = on and true or nil end
-    Sync.changed(panel.id)
-end
-
-function Changes.unregister(panel, key)
-    if panel.registered and panel.registered[key] then panel.registered[key] = nil end
-end
-
 function Changes.connectUnit(unit, panel, paid)
     local root = Panels.root(panel)
     unit.panel, unit.paid, unit.via = root.id, paid or {}, root ~= panel and panel.id or nil
@@ -490,6 +478,25 @@ end
 
 function Changes.setInside(panel, utility, device, connected)
     setInside(panel, utility, device, connected)
+    Sync.changed(panel.id)
+end
+
+function Changes.setAllInside(panel, utility, connected)
+    for _, device in ipairs(Panels.devices(panel, utility)) do
+        if device.inside and (device.state == "on") ~= connected and device.state ~= "other" then
+            setInside(panel, utility, device, connected)
+        end
+    end
+    Sync.changed(panel.id)
+end
+
+-- Every device of one room of the building at once ("" for those in no room).
+function Changes.setRoomInside(panel, utility, roomId, connected)
+    for _, device in ipairs(Panels.devices(panel, utility)) do
+        if device.inside and device.roomId == roomId and (device.state == "on") ~= connected and device.state ~= "other" then
+            setInside(panel, utility, device, connected)
+        end
+    end
     Sync.changed(panel.id)
 end
 

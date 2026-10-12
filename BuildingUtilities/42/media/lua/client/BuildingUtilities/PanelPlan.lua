@@ -13,8 +13,8 @@
 -- dots or lines, the mouse over a producer shows its line. Supply that crosses floors shows too: on a producer's
 -- floor its line runs on to a riser under (or over) the box, which tells the box's floor; by the box, a badge for each
 -- other floor that supplies it tells how many come from there (the mouse over it, what); a click on either goes to
--- that floor. The floor strip marks the floors with producers, in their colour. While devices outside are chosen to
--- connect, a click on one chooses it. The wheel zooms at the mouse, dragging moves the plan, Fit goes back. Over the floor strip the wheel
+-- that floor. The floor strip marks the floors with producers, in their colour. The wheel zooms at the mouse, dragging
+-- moves the plan, Fit goes back. Over the floor strip the wheel
 -- scrolls the floors (arrows page them); the floor's name at the top lists every floor to jump to. A room is drawn as
 -- one shape, its outline only where it meets another room or the outside. The top bar also shows the range (as the
 -- window's range button would). Everything is laid out when the window refreshes or the plan is resized; a frame only
@@ -115,7 +115,7 @@ end
 local COLOURS = {
     other = { 0.6, 0.4, 0.8 }, off = { 0.45, 0.45, 0.45 }, shed = { 1, 0.6, 0.2 }, timer = { 0.4, 0.6, 1 },
     unsupplied = { 0.6, 0.65, 0.75 }, using = { 0.4, 1, 0.4 }, idle = { 0.25, 0.6, 0.3 },
-    producer = { 1, 0.85, 0.2 }, tank = { 0.3, 0.6, 1 }, box = { 1, 1, 1 }, chosen = { 0.4, 0.8, 1 },
+    producer = { 1, 0.85, 0.2 }, tank = { 0.3, 0.6, 1 }, box = { 1, 1, 1 },
     rangeOutside = { 0.3, 0.6, 1 }, rangeProducer = { 1, 0.85, 0.2 }, rangeNoise = { 1, 0.35, 0.3 },
     rangeNoiseIdle = { 0.6, 0.3, 0.3 },
     zoneMine = { 0.2, 0.5, 0.6 }, zoneFree = { 0.25, 0.25, 0.25 }, zoneTaken = { 0.5, 0.3, 0.6 },
@@ -241,7 +241,7 @@ end
 -- room cannot be taken), reached = { lowest, highest } (the floors the box's zone can take), waterSupply (by floor,
 -- "dry" or "boosted", for water), ranges = { exterior = steps, producer = steps or nil, noise = for power { { x, y,
 -- z, radius, running } } } while the range is shown, rangeKey (the building, tier and generators' noise the ranges
--- are of), choosing (devices outside are being chosen) }. A device may be chosen and choosable.
+-- are of) }.
 function ISBUPlan:setData(data)
     -- Another utility shown: the plan fades in anew.
     if self.data and self.data.utility ~= data.utility then self.switchedAt = getTimestampMs() end
@@ -618,8 +618,7 @@ function ISBUPlan:layout()
             local r, g, b = dotColour(device, data.supplied)
             self.dots[#self.dots + 1] = { key = device.key, room = device.inside and device.roomId or nil,
                 x = math.floor(sx(device.x) + scale / 2), y = math.floor(sy(device.y) + scale / 2), r = r, g = g, b = b,
-                text = device.name .. "  " .. (device.status or ""), hollow = device.state == "off",
-                chosen = device.chosen, choosable = device.choosable, fresh = device.fresh }
+                text = device.name .. "  " .. (device.status or ""), hollow = device.state == "off", fresh = device.fresh }
         end
     end
     for index, producer in ipairs(data.producers) do
@@ -848,21 +847,12 @@ function ISBUPlan:render()
             distance = distance + gap
         end
     end
-    local choosing = self.data and self.data.choosing
     for _, dot in ipairs(self.dots) do
         if dot.hollow then
             self:drawRect(dot.x - DOT / 2, dot.y - DOT / 2, DOT, DOT, 0.6, 0, 0, 0)
             self:drawRectBorder(dot.x - DOT / 2, dot.y - DOT / 2, DOT, DOT, 1, dot.r, dot.g, dot.b)
         else
             self:drawRect(dot.x - DOT / 2, dot.y - DOT / 2, DOT, DOT, 1, dot.r, dot.g, dot.b)
-        end
-        if dot.chosen then
-            local c = COLOURS.chosen
-            self:drawRectBorder(dot.x - DOT + 1, dot.y - DOT + 1, DOT * 2 - 2, DOT * 2 - 2, 1, c[1], c[2], c[3])
-            self:drawRectBorder(dot.x - DOT, dot.y - DOT, DOT * 2, DOT * 2, 1, c[1], c[2], c[3])
-        elseif choosing and dot.choosable then
-            local c = COLOURS.chosen
-            self:drawRectBorder(dot.x - DOT, dot.y - DOT, DOT * 2, DOT * 2, 0.5, c[1], c[2], c[3])
         end
         if dot.fresh then self:drawRect(dot.x + DOT / 2, dot.y - DOT / 2 - 3, 3, 3, 1, 0.3, 0.9, 1) end
         if dot.key == hoverKey then self:drawRectBorder(dot.x - DOT - 1, dot.y - DOT - 1, DOT * 2 + 2, DOT * 2 + 2, 1, 1, 1, 1) end
@@ -1124,8 +1114,6 @@ function ISBUPlan:click(x, y)
         self:scrollStrip(thing.arrow * thing.page)
     elseif kind == "floor" or kind == "badge" then
         self:showFloor(thing.level)
-    elseif kind == "dot" and self.data.choosing and thing.choosable then
-        self.window:toggleChosen(thing.key)
     elseif kind == "dot" then
         self.window:showDevice(thing.key)
     elseif kind == "room" then
