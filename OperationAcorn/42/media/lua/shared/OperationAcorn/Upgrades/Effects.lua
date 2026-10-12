@@ -64,13 +64,14 @@ Effects.MAP = {
     armor = { "discomfort" }, stiff = { "stiffness" }, fall = { "height" }, brush = { "treeSlow", "treeScratch" },
     gear = { "hole" }, resist = { "poison", "cold", "corpseCount", "corpseSickness" }, walk = { "walk" },
     resistPlus = { "woundChance", "biteShield" },
-    bHeavy = { "carryCategory", "carryItem" }, bFamily = { "carryCategory" }, bGear = { "discomfort" },
+    bHeavy = { "carryCategory", "carryItem" }, bGear = { "discomfort" },
     bSpeedPen = { "runPenalty", "combatPenalty" }, bOverload = { "overload" },
     bLimit = { "maxWeightAdd", "limitAdd" }, bStorage = { "storage" }, bWound = { "woundChance" },
     bIllness = { "poison", "cold", "corpseCount", "corpseSickness" }, bStiff = { "stiffness" },
     bEndurance = { "endurance" }, bSleep = { "fatigue" }, bGearLoss = { "hole" }, bFall = { "impact" },
     bWalk = { "walk" }, bLoot = { "loot" },
 }
+for _, family in ipairs(Data.FAMILY_ORDER) do Effects.MAP["bFamily" .. family] = { "carryCategory" } end
 
 -- The cone the sight node may add at most (degrees), whatever the effect option says.
 local MAX_CONE = 90
@@ -93,8 +94,8 @@ function Effects.darknessCap(nightVision, eagleEyed)
 end
 -- The share of a fall's height 낙법 counts by its rank: the game works out everything of a landing from its height
 -- (the kind of landing and its animation, being thrown down, the damage, the lethal height of 3.5 floors), so all of it
--- follows. The damage is linear in the height.
-local FALL_HEIGHT = { 0.5, 0.25, 0.125 }
+-- follows. The damage is linear in the height, so the ranks take a third, two thirds and three quarters off it.
+local FALL_HEIGHT = { 2 / 3, 1 / 3, 1 / 4 }
 -- Every fall lands with at least the light landing, and from rank 2 faster (media/AnimSets/player/falling/
 -- oa_land_*_r<rank>.xml, written by tools/land_nodes.py): the character variable they ask for, set to the rank.
 Effects.LAND_VARIABLE = "OALandRank"
@@ -158,7 +159,7 @@ function Effects.compute(u, now, options)
         for _, name in ipairs(Data.MATERIAL_CATEGORIES) do category[name] = material end
     end
     for _, family in ipairs(Data.FAMILY_ORDER) do
-        local amount = R.familyAmount(u, family)
+        local amount = board("bFamily" .. family)
         if amount > 0 then
             for _, name in ipairs(Data.FAMILIES[family]) do category[name] = (category[name] or 0) + amount end
         end

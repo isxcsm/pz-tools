@@ -622,8 +622,8 @@ function View:layout()
         local gx, gy = px, py + L.STRIP
         self.panels[#self.panels + 1] = { tree = tree, x = px, y = py, gx = gx, gy = gy }
         if self.mode == "board" then
-            for k, node in ipairs(Data.boardGroup(tree)) do
-                local c, r = (k - 1) % Data.COLS + 1, floor((k - 1) / Data.COLS) + 1
+            for _, node in ipairs(Data.boardGroup(tree)) do
+                local c, r = (node.row - 1) % Data.COLS + 1, floor((node.row - 1) / Data.COLS) + 1
                 local x, y, s = cell(c, r)
                 items[#items + 1] = { key = node.id, id = node.id, tree = tree, x = gx + x, y = gy + y, w = s, h = s,
                     col = i, row = r }
@@ -897,13 +897,9 @@ end
 
 -- ---- planning --------------------------------------------------------------------------------------------------
 
-function View:plan(id, choice)
+function View:plan(id)
     if not self.sim then return end
-    local node = Data.byId[id]
-    if node.board and node.choose and not choice then
-        return self:chooseFamily(id)
-    end
-    local steps, why = Plan.add(self.u, self.steps, id, choice)
+    local steps, why = Plan.add(self.u, self.steps, id)
     if not steps then
         self.refusal = { id = id, why = why }
         self:startFx(id, "shake")
@@ -946,26 +942,6 @@ function View:markChange(id, back)
     local seg = Rules.treeSpent(self.u, tree) + planned - (back and 0 or 1)
     self.bump = { tree = tree, seg = seg, at = getTimestampMs() }
     self:animate()
-end
-
--- The family weight node asks which family the point is for.
-function View:chooseFamily(id)
-    local context = ISContextMenu.get(self.playerNum, getMouseX(), getMouseY())
-    for _, family in ipairs(Data.FAMILY_ORDER) do
-        local n = self.sim.board.family[family] or 0
-        local label = Texts.familyName(family)
-        if n > 0 then label = label .. " (" .. Texts.number(Rules.familyAmount(self.sim, family) * 100) .. "%)" end
-        -- oa-menu: bottom (the window's own menu at the mouse, not one of the game's)
-        context:addOption(label, self, View.onFamily, id, family)
-    end
-    if self.joypad then
-        context.origin = self
-        setJoypadFocus(self.playerNum, context)
-    end
-end
-
-function View:onFamily(id, family)
-    self:plan(id, family)
 end
 
 -- A yes-or-no question: ours with the mouse; the game's dialog with the gamepad (ours takes no gamepad).
@@ -1079,20 +1055,16 @@ function View:tipRows(id)
     local now = Texts.lines(node, rank, sim)
     local nextLines = {}
     if not maxed then
-        if node.board and node.choose then
-            nextLines[1] = getText("IGUI_OA_Tree_NextFamily")
+        -- the next rank as it would read: on a copy of the plan that takes it
+        local after = Plan.add(self.u, self.steps, id)
+        local lines
+        if after then
+            local simAfter = Plan.simulate(self.u, after)
+            lines = Texts.lines(node, Rules.rank(simAfter, id), simAfter)
         else
-            -- the next rank as it would read: on a copy of the plan that takes it
-            local after = Plan.add(self.u, self.steps, id, node.choose and "A" or nil)
-            local lines
-            if after then
-                local simAfter = Plan.simulate(self.u, after)
-                lines = Texts.lines(node, Rules.rank(simAfter, id), simAfter)
-            else
-                lines = Texts.lines(node, math.min(rank + 1, node.ranks or rank + 1), sim)
-            end
-            nextLines = Texts.newLines(now, lines)
+            lines = Texts.lines(node, math.min(rank + 1, node.ranks or rank + 1), sim)
         end
+        nextLines = Texts.newLines(now, lines)
     end
     if #now > 0 and #nextLines > 0 then
         for i, one in ipairs(now) do

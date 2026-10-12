@@ -1,6 +1,6 @@
--- The plan on the research screen: ranks chosen but not yet approved. A plan is a list of steps { id, choice }, each
--- taking one rank; it is shown on a copy of the record's upgrades (the simulation) so that the screen sees what the
--- plan would make true. Pure; the screen only draws what these give.
+-- The plan on the research screen: ranks chosen but not yet approved. A plan is a list of steps { id }, each taking
+-- one rank; it is shown on a copy of the record's upgrades (the simulation) so that the screen sees what the plan
+-- would make true. Pure; the screen only draws what these give.
 require "OperationAcorn/Upgrades/Rules"
 local OA = OperationAcorn
 local Data = OA.Upgrades.Data
@@ -14,19 +14,19 @@ function Plan.simulate(u, steps)
     local sim = Rules.copy(u)
     local kept = {}
     for _, step in ipairs(steps) do
-        if Rules.buy(sim, step.id, step.choice) then kept[#kept + 1] = step end
+        if Rules.buy(sim, step.id) then kept[#kept + 1] = step end
     end
     return sim, kept
 end
 
 -- The plan with one more rank of a node, or nil and the reason it cannot be taken now.
-function Plan.add(u, steps, id, choice)
+function Plan.add(u, steps, id)
     local sim, kept = Plan.simulate(u, steps)
-    local why = Rules.blocked(sim, id, choice)
+    local why = Rules.blocked(sim, id)
     if why then return nil, why end
     local out = {}
     for i, step in ipairs(kept) do out[i] = step end
-    out[#out + 1] = { id = id, choice = choice }
+    out[#out + 1] = { id = id }
     return out
 end
 

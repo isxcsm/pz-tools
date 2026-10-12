@@ -34,10 +34,6 @@ function Texts.treeName(tree)
     return name
 end
 
-function Texts.familyName(family)
-    return getText("IGUI_OA_Tree_Family_" .. family)
-end
-
 function Texts.nodeName(id)
     local name = nodeNames[id]
     if name == nil then
@@ -76,8 +72,9 @@ local function lighter(sum)
     return math.floor((1 - 1 / (1 + sum)) * 100 + 0.5)
 end
 
--- The board's carrying efficiencies (Data: divide over a weight): shown as set, as the tree's lighter nodes are.
-local EFFICIENCY = { bHeavy = true, bFamily = true }
+-- The board's carrying efficiencies (Data: divide over a weight; the heavy-load node and a node a family): shown as
+-- set, as the tree's lighter nodes are.
+local function efficiency(node) return node.id == "bHeavy" or node.family ~= nil end
 
 local function shown(node, value)
     local v = value * Rules.mult()
@@ -91,7 +88,7 @@ function Texts.args(node, rank, u)
     local args = {}
     if node.board then
         local amount = Rules.boardAmount(u, node.id)
-        if node.form == "divide" and EFFICIENCY[node.id] then
+        if node.form == "divide" and efficiency(node) then
             -- a carrying efficiency, as it is set (the weight is divided by 1 + it)
             args[1] = Texts.percent(amount * 100)
         elseif node.form == "divide" then
@@ -107,16 +104,6 @@ function Texts.args(node, rank, u)
         else
             args[1] = Texts.percent(amount * 100)
             args[2] = Texts.percent(node.limit * Rules.mult() * 100)
-        end
-        if node.id == "bFamily" then
-            local parts = {}
-            for _, family in ipairs(Data.FAMILY_ORDER) do
-                local n = u.board.family[family]
-                if n and n > 0 then
-                    parts[#parts + 1] = Texts.familyName(family) .. " " .. Texts.percent(Rules.familyAmount(u, family) * 100)
-                end
-            end
-            args[1] = #parts > 0 and table.concat(parts, ", ") or "-"
         end
         return args
     end

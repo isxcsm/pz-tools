@@ -38,7 +38,7 @@ Data.CAPSTONE_COST = 12
 Data.ROWS = 5
 -- The columns of a tree.
 Data.COLS = 4
--- The distance the sense nodes watch (tiles) before the 2nd board adds to it. Sixth sense has its own, per rank.
+-- The distance 기척 감지 watches (tiles). Sixth sense has its own, per rank.
 Data.SENSE_RADIUS = 20
 -- A reset costs this share of what the tree's serums cost (NUMBERS 6).
 Data.RESET_SHARE = 0.10
@@ -55,8 +55,8 @@ Data.ADAPT_HOURS = 0.5
 -- node).
 Data.FIRST_EFFECT = { "sense", "ledger", "overload", "furniture", "crowbar", "dash" }
 
--- Item display categories by family, for the 2nd board's family weight (NUMBERS 12). Materials and furniture are the
--- heavy-load node's, so they are not here.
+-- Item display categories by family, for the 2nd board's family nodes, one a family (NUMBERS 12). Materials and
+-- furniture are the heavy-load node's, so they are not here.
 Data.FAMILIES = {
     A = { "Food" },
     B = { "Clothing", "Accessory", "ProtectiveGear", "Ears" },
@@ -138,7 +138,8 @@ node("survival", "dash", 5, 2, 1, "lua", { { "walk", 3 } }, { capstone = true })
 -- ---- The 2nd board: endless nodes, rank k costs ceil(k / 5) points -------------------------------------------------
 -- form "divide": the effect is a reduction sum, a value is divided by (1 + sum); "add": the amount adds up;
 -- "approach": the sum is 0.1 per rank and the bonus is limit * sum / (1 + sum). step is per rank (a fraction, or the
--- amount itself for "add"). group: the column of the board.
+-- amount itself for "add"). group: the column of the board; row: the node's cell in it, counted four a line (a cell
+-- left out stays empty).
 local function board(id, group, row, form, step, kind, extra)
     local n = { id = id, tree = Data.BOARD, group = group, row = row, form = form, step = step, kind = kind, req = {},
                 board = true }
@@ -149,13 +150,16 @@ local function board(id, group, row, form, step, kind, extra)
 end
 
 board("bHeavy", "load", 1, "divide", 0.20, "api")
-board("bFamily", "load", 2, "divide", 0.10, "api", { choose = true })
-board("bGear", "load", 3, "divide", 0.10, "api")
-board("bSpeedPen", "load", 4, "divide", 0.10, "api")
-board("bOverload", "load", 5, "divide", 0.10, "api")
-board("bTransfer", "load", 6, "divide", 0.10, "lua")
-board("bLimit", "load", 7, "add", 1, "api", { unit = "num" })
-board("bStorage", "load", 8, "add", 0.05, "api", { unit = "pct100" })
+board("bGear", "load", 2, "divide", 0.10, "api")
+board("bSpeedPen", "load", 3, "divide", 0.10, "api")
+board("bOverload", "load", 4, "divide", 0.10, "api")
+board("bTransfer", "load", 5, "divide", 0.10, "lua")
+board("bLimit", "load", 6, "add", 1, "api", { unit = "num" })
+board("bStorage", "load", 7, "add", 0.05, "api", { unit = "pct100" })
+-- a node a family (bFamilyA ...), from the third line on
+for i, family in ipairs(Data.FAMILY_ORDER) do
+    board("bFamily" .. family, "load", 8 + i, "divide", 0.10, "api", { family = family })
+end
 board("bWound", "survival", 1, "divide", 0.10, "api")
 board("bIllness", "survival", 2, "divide", 0.10, "api")
 board("bBite", "survival", 3, "divide", 0.10, "lua")
@@ -169,8 +173,6 @@ board("bWalk", "survival", 10, "approach", 0.10, "api", { limit = 0.40 })
 board("bLoot", "scout", 1, "approach", 0.10, "api", { limit = 1.00 })
 board("bShard", "scout", 2, "approach", 0.10, "lua", { limit = 0.30 })
 board("bBundle", "scout", 3, "add", 0.02, "lua", { unit = "num" })
-board("bSense", "scout", 4, "add", 1, "lua", { unit = "tiles" })
-board("bSixth", "scout", 5, "add", 1, "lua", { unit = "tiles" })
 
 -- Node icons (media/textures, made by the assets part; the file name is OA_Node_<slug>.png).
 local ICONS = {
@@ -185,14 +187,16 @@ local ICONS = {
     stiff = "LimbStiffness", fall = "BreakFall", lock = "LockPick",
     brush = "BrushClear", gear = "GearCare", resist = "InfectionResist",
     walk = "WalkSpeed", resistPlus = "InfectionResistPlus", dash = "BreakSprint",
-    bHeavy = "B2HeavyLoad", bFamily = "B2CategoryWeight", bGear = "B2GearAdapt",
+    bHeavy = "B2HeavyLoad", bGear = "B2GearAdapt",
     bSpeedPen = "B2GearSpeed", bOverload = "B2OverloadPenalty", bTransfer = "B2TransferTime",
     bLimit = "B2CarryLimit", bStorage = "B2StorageCapacity", bWound = "B2ScratchInfect",
     bIllness = "B2SicknessRate", bBite = "B2BiteCooldown", bStiff = "B2LimbFatigue",
     bEndurance = "B2Stamina", bSleep = "B2SleepFatigue", bGearLoss = "B2GearDamage",
     bFall = "B2FallDamage", bDash = "B2SprintStamina", bWalk = "B2WalkSpeed",
     bLoot = "B2LootChance", bShard = "B2SelectedSample", bBundle = "B2SampleBundle",
-    bSense = "B2PresenceRadius", bSixth = "B2HunchRadius",
+    bFamilyA = "B2FamilyFood", bFamilyB = "B2FamilyClothing", bFamilyC = "B2FamilyBags", bFamilyD = "B2FamilyMedia",
+    bFamilyE = "B2FamilyJunk", bFamilyF = "B2FamilyHousehold", bFamilyG = "B2FamilyElectronics",
+    bFamilyH = "B2FamilyTools", bFamilyI = "B2FamilyMedical", bFamilyJ = "B2FamilyWeapons",
 }
 for id, slug in pairs(ICONS) do
     local n = byId[id]

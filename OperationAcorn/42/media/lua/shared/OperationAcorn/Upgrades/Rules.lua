@@ -10,10 +10,9 @@
 --   unsealed[tree]  the tree's capstone may be taken: its meteorite fragment reached the research team. Kept for good
 --                   (a reset leaves it)
 --   own[tree], sharedUsed[tree]   points spent in the tree, from its own serums and from shared ones
---   board           the 2nd board: ranks[id], family[letter] (the family weight's choices), total (points that
---                   went into the board, ever), spent (points in ranks now), fromTree[tree], fromShared (where the
---                   board's points came from, so the pools stay right when the board closes and gives them back
---                   as "points left")
+--   board           the 2nd board: ranks[id], total (points that went into the board, ever), spent (points in
+--                   ranks now), fromTree[tree], fromShared (where the board's points came from, so the pools stay
+--                   right when the board closes and gives them back as "points left")
 --   biteAt          the world age hour the bite shield last saved a bite
 --   adapt           doses injected and not yet adapted to: { endsAt = world age hour, doses = { [tree or "shared"] = n } },
 --                   gone when the adaptation ends and the points come (nil when there is none)
@@ -79,12 +78,32 @@ function Rules.fill(u)
         u.board = b
     end
     b.ranks = b.ranks or {}
-    b.family = b.family or {}
     b.total = b.total or 0
     b.spent = b.spent or 0
     b.fromTree = b.fromTree or perTree(0)
     fillTree(b.fromTree, 0)
     b.fromShared = b.fromShared or 0
+    if u.v < 2 then
+        -- version 1 had one family weight node with a family chosen for each point (a node a family now) and the
+        -- board's sense radius nodes (gone): the points move to their family's node, and what the ranks gone cost is
+        -- left to spend again
+        for family, n in pairs(b.family or {}) do
+            local id = "bFamily" .. tostring(family)
+            if Data.byId[id] and n > 0 then b.ranks[id] = (b.ranks[id] or 0) + n end
+        end
+        b.family = nil
+        local gone, spent = {}, 0
+        for id, r in pairs(b.ranks) do
+            if Data.byId[id] and Data.byId[id].board then
+                for k = 1, r do spent = spent + math.ceil(k / Data.BOARD_STEP) end
+            else
+                gone[#gone + 1] = id
+            end
+        end
+        for _, id in ipairs(gone) do b.ranks[id] = nil end
+        b.spent = spent
+        u.v = 2
+    end
     -- the delay drug's window of the first version: the drug is kept in the infection section now (Infection.lua)
     u.delayStart, u.delayUntil = nil, nil
     return u
@@ -235,13 +254,12 @@ end
 
 -- Why a node cannot take its next rank, or nil when it can: "unknown", "treeClosed", "boardClosed", "maxed",
 -- "row" (not enough points spent in the tree), "prereq", "points", "sealed" (a capstone whose fragment has not reached
--- the research team), "choice".
-function Rules.blocked(u, id, choice)
+-- the research team).
+function Rules.blocked(u, id)
     local node = Data.byId[id]
     if not node then return "unknown" end
     if node.board then
         if not Rules.boardOpen(u) then return "boardClosed" end
-        if node.choose and not Data.FAMILIES[choice] then return "choice" end
         if Rules.boardFree(u) < Rules.cost(u, id) then return "points" end
         return nil
     end
@@ -257,8 +275,8 @@ function Rules.blocked(u, id, choice)
 end
 
 -- Takes the next rank of a node, paying its points. Returns true, or false and the reason (as blocked).
-function Rules.buy(u, id, choice)
-    local why = Rules.blocked(u, id, choice)
+function Rules.buy(u, id)
+    local why = Rules.blocked(u, id)
     if why then return false, why end
     local node = Data.byId[id]
     if node.board then
@@ -276,7 +294,6 @@ function Rules.buy(u, id, choice)
         b.total = b.total + need
         b.spent = b.spent + cost
         b.ranks[id] = (b.ranks[id] or 0) + 1
-        if node.choose then b.family[choice] = (b.family[choice] or 0) + 1 end
         return true
     end
     if Rules.ownPool(u, node.tree) >= 1 then
@@ -288,13 +305,13 @@ function Rules.buy(u, id, choice)
     return true
 end
 
--- Applies a plan, a list of steps { id = ..., choice = ... } each taking one rank, in order (a later step may need an
--- earlier one). All or nothing: returns true and a new section; or false, the reason, the step's number. u itself is
--- not touched.
+-- Applies a plan, a list of steps { id = ... } each taking one rank, in order (a later step may need an earlier
+-- one). All or nothing: returns true and a new section; or false, the reason, the step's number. u itself is not
+-- touched.
 function Rules.approve(u, steps)
     local copy = Rules.copy(u)
     for i, step in ipairs(steps) do
-        local ok, why = Rules.buy(copy, step.id, step.choice)
+        local ok, why = Rules.buy(copy, step.id)
         if not ok then return false, why, i end
     end
     return true, copy
@@ -466,7 +483,6 @@ function Rules.reset(u, tree, credits)
     u.sharedUsed[tree] = 0
     -- The capstone is gone, so the board closed: its ranks go and what they cost is left to spend again.
     u.board.ranks = {}
-    u.board.family = {}
     u.board.spent = 0
     return true, cost
 end
@@ -538,14 +554,6 @@ function Rules.boardAmount(u, id)
     return node.step * r * m
 end
 
--- The family weight node's amount for one family (+10% a point it was chosen for).
-function Rules.familyAmount(u, family)
-    local node = Data.byId["bFamily"]
-    local n = u.board.family[family] or 0
-    if n < 1 or Rules.rank(u, "bFamily") < 1 then return 0 end
-    return node.step * n * Rules.mult()
-end
-
 -- Sample bundles a shred adds on top (the board's bundle node), as an expected count.
 function Rules.bundleBonus(u)
     return Rules.boardAmount(u, "bBundle")
@@ -559,13 +567,13 @@ end
 -- The distance 육감 watches, in tiles (0 without the node).
 function Rules.sixthRadius(u)
     if Rules.rank(u, "sixth") < 1 then return 0 end
-    return Rules.value(u, "sixth") + Rules.boardAmount(u, "bSixth")
+    return Rules.value(u, "sixth")
 end
 
 -- The distance 기척 감지 watches, in tiles (0 without the node).
 function Rules.senseRadius(u)
     if Rules.rank(u, "sense") < 1 then return 0 end
-    return Data.SENSE_RADIUS * Rules.mult() + Rules.boardAmount(u, "bSense")
+    return Data.SENSE_RADIUS * Rules.mult()
 end
 
 -- Hours between two bites the shield saves you from.

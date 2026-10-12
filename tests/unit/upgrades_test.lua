@@ -24,9 +24,9 @@ local function inject(u, tree, n)
 end
 
 -- Buys the nodes by ids in order, one rank each time a name appears; fails the test on a refusal.
-local function buy(u, ids, choice)
+local function buy(u, ids)
     for _, id in ipairs(ids) do
-        local ok, why = Rules.buy(u, id, choice)
+        local ok, why = Rules.buy(u, id)
         if not ok then error("could not buy " .. id .. ": " .. tostring(why), 2) end
     end
 end
@@ -110,7 +110,7 @@ test("data is consistent: prerequisites, values, places, api map", function()
         if n.kind == "api" then truthy(Effects.MAP[n.id], n.id .. " has no api points") end
     end
     for id in pairs(Effects.MAP) do truthy(Data.byId[id], "map names an unknown node " .. id) end
-    eq(#Data.boardGroup("load") + #Data.boardGroup("survival") + #Data.boardGroup("scout"), 23)
+    eq(#Data.boardGroup("load") + #Data.boardGroup("survival") + #Data.boardGroup("scout"), 30, "17 load, 10 survival, 3 scout")
     local places = {}
     for _, n in ipairs(Data.nodes) do
         if not n.board then
@@ -336,19 +336,43 @@ test("2nd board points come from what it has left, then the trees' leftovers, th
     eq(Rules.blocked(u, "bWound", nil), "points")
 end)
 
-test("the family weight node needs a family choice and counts per family", function()
+test("each family is a node of its own, in the load column from its third line", function()
     local u = fresh()
     openBoard(u)
     for _ = 1, 3 do Rules.injectShared(u) end
-    eq(Rules.blocked(u, "bFamily", nil), "choice")
-    eq(Rules.blocked(u, "bFamily", "Z"), "choice")
-    truthy(Rules.buy(u, "bFamily", "A"))
-    truthy(Rules.buy(u, "bFamily", "A"))
-    truthy(Rules.buy(u, "bFamily", "G"))
-    eq(u.board.family.A, 2)
-    near(Rules.familyAmount(u, "A"), 0.2, 1e-9)
-    near(Rules.familyAmount(u, "G"), 0.1, 1e-9)
-    eq(Rules.familyAmount(u, "B"), 0)
+    buy(u, { "bFamilyA", "bFamilyA", "bFamilyG" })
+    eq(Rules.rank(u, "bFamilyA"), 2)
+    near(Rules.boardAmount(u, "bFamilyA"), 0.2, 1e-9)
+    near(Rules.boardAmount(u, "bFamilyG"), 0.1, 1e-9)
+    eq(Rules.boardAmount(u, "bFamilyB"), 0)
+    local rows = {}
+    for _, n in ipairs(Data.boardGroup("load")) do
+        truthy(not rows[n.row], "one node a cell: " .. n.id)
+        rows[n.row] = true
+        if n.family then truthy(n.row > 2 * Data.COLS, n.id .. " below the general nodes") end
+    end
+    for _, family in ipairs(Data.FAMILY_ORDER) do truthy(Data.byId["bFamily" .. family], family) end
+end)
+
+test("a first version record: family points move to their nodes, the gone nodes' points are left to spend", function()
+    local u = fresh()
+    openBoard(u)
+    u.v = nil
+    u.board.ranks = { bFamily = 7, bSense = 2, bWound = 1 }
+    u.board.family = { A = 4, G = 3 }
+    -- bFamily 7 cost 1+1+1+1+1+2+2, bSense 2 cost 1+1, bWound 1
+    u.board.spent, u.board.total = 12, 12
+    Rules.fill(u)
+    eq(u.board.family, nil)
+    eq(u.board.ranks.bFamily, nil)
+    eq(u.board.ranks.bSense, nil)
+    eq(u.board.ranks.bFamilyA, 4)
+    eq(u.board.ranks.bFamilyG, 3)
+    eq(u.board.ranks.bWound, 1)
+    eq(u.board.spent, 8)
+    eq(Rules.boardLeft(u), 4)
+    Rules.fill(u)
+    eq(u.board.spent, 8, "once")
 end)
 
 test("diminishing formulas: divide never reaches zero, approach never reaches its limit", function()
@@ -653,13 +677,11 @@ test("effects: the board adds to the tree's sum, which divides", function()
     near(v["carry.itemEfficiency"]["base:moveable"], 2.0, 1e-9)
 end)
 
-test("effects: family weight lands on the family's display categories", function()
+test("effects: a family node lands on its family's display categories", function()
     local u = fresh()
     openBoard(u)
     for _ = 1, 3 do Rules.injectShared(u) end
-    truthy(Rules.buy(u, "bFamily", "A"))
-    truthy(Rules.buy(u, "bFamily", "A"))
-    truthy(Rules.buy(u, "bFamily", "G"))
+    buy(u, { "bFamilyA", "bFamilyA", "bFamilyG" })
     local c = Effects.compute(u, 0)["carry.categoryEfficiency"]
     near(c.Food, 0.2, 1e-9)
     near(c.Electronics, 0.1, 1e-9)
@@ -686,7 +708,7 @@ test("effects: infection resistance, walking, trees, falls and the bite shield p
     near(v["move.walkMultiplier"], 1.15, 1e-9)
     near(v["move.treeSlowMultiplier"], 0, 1e-9)
     eq(v["move.treeScratchChance"], 0.5)
-    near(v["fall.heightMultiplier"], 0.125, 1e-9)
+    near(v["fall.heightMultiplier"], 0.25, 1e-9, "three quarters off")
     eq(v["fall.impactMultiplier"], nil)
     eq(v["fall.landingRemap"], nil)
     eq(Effects.landRank(u), "3")
@@ -751,7 +773,7 @@ test("the hidden zombie fix is declared by default, and not with the option off"
     PZExtAPI = nil
 end)
 
-test("the sense radii read the board", function()
+test("the sense radii are the tree nodes' alone", function()
     local u = fresh()
     eq(Rules.sixthRadius(u), 0)
     eq(Rules.senseRadius(u), 0)
@@ -761,9 +783,8 @@ test("the sense radii read the board", function()
     local v = fresh()
     openBoard(v)
     eq(Rules.senseRadius(v), Data.SENSE_RADIUS)
-    for _ = 1, 3 do Rules.injectShared(v) end
-    buy(v, rep("bSense", 3))
-    eq(Rules.senseRadius(v), Data.SENSE_RADIUS + 3)
+    eq(Data.byId.bSense, nil, "the board has no sense radius node")
+    eq(Data.byId.bSixth, nil)
 end)
 
 test("the bundle bonus is the board's, the selected sample chance 시료 감별's and the board's", function()

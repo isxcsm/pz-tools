@@ -20,14 +20,14 @@ OA.Upgrades.Server = UpgradesServer
 -- A plan longer than this is not read (the board has no end, but nobody approves this many at once).
 UpgradesServer.MAX_STEPS = 500
 
--- A plan from a command's arguments: a list of { id, choice } with only strings in it.
+-- A plan from a command's arguments: a list of { id } with only strings in it.
 function UpgradesServer.readSteps(raw)
     local steps = {}
     if type(raw) ~= "table" then return steps end
     for i = 1, math.min(#raw, UpgradesServer.MAX_STEPS) do
         local s = raw[i]
         if type(s) == "table" and type(s.id) == "string" then
-            steps[#steps + 1] = { id = s.id, choice = type(s.choice) == "string" and s.choice or nil }
+            steps[#steps + 1] = { id = s.id }
         end
     end
     return steps

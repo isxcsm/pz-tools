@@ -36,13 +36,22 @@
 하중	봉인된 연구	OA_Node_SealedLoad.png
 생존	봉인된 연구	OA_Node_SealedSurvival.png
 2차-하중	무거운 짐 무게	OA_Node_B2HeavyLoad.png
-2차-하중	계열 무게	OA_Node_B2CategoryWeight.png
 2차-하중	장비 적응	OA_Node_B2GearAdapt.png
 2차-하중	장비 속도 벌칙	OA_Node_B2GearSpeed.png
 2차-하중	과적 벌칙	OA_Node_B2OverloadPenalty.png
 2차-하중	옮기기 시간	OA_Node_B2TransferTime.png
 2차-하중	운반 한도	OA_Node_B2CarryLimit.png
 2차-하중	저장소 용량	OA_Node_B2StorageCapacity.png
+2차-하중	식품 경량화	OA_Node_B2FamilyFood.png
+2차-하중	의류 경량화	OA_Node_B2FamilyClothing.png
+2차-하중	가방·용기 경량화	OA_Node_B2FamilyBags.png
+2차-하중	문서·미디어 경량화	OA_Node_B2FamilyMedia.png
+2차-하중	잡동사니 경량화	OA_Node_B2FamilyJunk.png
+2차-하중	생활용품 경량화	OA_Node_B2FamilyHousehold.png
+2차-하중	전자기기 경량화	OA_Node_B2FamilyElectronics.png
+2차-하중	공구 경량화	OA_Node_B2FamilyTools.png
+2차-하중	의료용품 경량화	OA_Node_B2FamilyMedical.png
+2차-하중	무기 경량화	OA_Node_B2FamilyWeapons.png
 2차-생존	긁힘·찢김 감염 확률	OA_Node_B2ScratchInfect.png
 2차-생존	병이 쌓이는 속도	OA_Node_B2SicknessRate.png
 2차-생존	물림 버티기 대기	OA_Node_B2BiteCooldown.png
@@ -56,5 +65,3 @@
 2차-정찰	전리품 확률	OA_Node_B2LootChance.png
 2차-정찰	선별 시료	OA_Node_B2SelectedSample.png
 2차-정찰	시료 묶음	OA_Node_B2SampleBundle.png
-2차-정찰	기척 감지 반경	OA_Node_B2PresenceRadius.png
-2차-정찰	육감 반경	OA_Node_B2HunchRadius.png
