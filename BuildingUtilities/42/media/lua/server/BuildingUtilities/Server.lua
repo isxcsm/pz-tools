@@ -17,7 +17,7 @@ local commands = {}
 -- A device of the box's building switched at the box (connected or excluded), free: one, a room's or all.
 function commands.setInside(player, panel, args)
     local device = Panels.device(panel, args.utility, args.key)
-    if device and device.inside and device.state ~= "other" then Changes.setInside(panel, args.utility, device, args.on == true) end
+    if device and device.wired then Changes.setInside(panel, args.utility, device, args.on == true) end
 end
 
 function commands.setAllInside(player, panel, args) Changes.setAllInside(panel, args.utility, args.on == true) end

@@ -347,8 +347,9 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         UI.text(c, row.text, PAD * 2, textY, OPEN)
     elseif row.kind == "device" or row.kind == "all" or row.kind == "blackout" then
         local indent = row.kind == "device" and PAD * 3 or PAD * 2
-        tick(self, c, index .. "tick", indent, y, row.state == "on" and "on" or "off")
-        UI.text(c, row.text, indent + ROW + 4, textY, row.state ~= "other" and PLAIN or MUTED)
+        -- a device outside the box has no line to has no tick: there is nothing to switch at the box
+        if not row.unwired then tick(self, c, index .. "tick", indent, y, row.state == "on" and "on" or "off") end
+        UI.text(c, row.text, indent + ROW + 4, textY, (row.state == "other" or row.unwired) and MUTED or PLAIN)
         if row.fresh then
             if not row.freshX or row.freshEra ~= UI.era then
                 row.freshX, row.freshEra = indent + ROW + 4 + UI.textWidth(row.text) + 6, UI.era

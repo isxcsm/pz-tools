@@ -566,7 +566,7 @@ function ISBUPlan:layout()
             self.dots[#self.dots + 1] = { key = device.key, room = device.inside and device.roomId or nil,
                 x = math.floor(sx(device.x) + scale / 2), y = math.floor(sy(device.y) + scale / 2), r = r, g = g, b = b,
                 text = device.name .. "  " .. (device.status or ""), fresh = device.fresh,
-                line = not device.inside and device.state == "on" and lineOf(device.x, device.y, OUTSIDE_LINE) or nil }
+                line = not device.inside and device.wired and lineOf(device.x, device.y, OUTSIDE_LINE) or nil }
         end
     end
     for _, producer in ipairs(data.producers) do

@@ -642,11 +642,16 @@ function Panels.devices(panel, utility)
             device.attached = true
             device.pending = not (data.attached and data.attached[first.key])
         end
+        -- wired: the box reaches it (one of the building always, one outside by its line); its state is whether the
+        -- box supplies it ("on", "off"), or "other" when another box's line is laid to it
         if group.inside then
+            device.wired = true
             device.state = anyKey(data.excluded, group.keys) and "off" or "on"
         else
             local owner = inclusionOwner(utility, group.keys)
-            device.state = owner == panel and "on" or owner and "other" or "off"
+            device.wired = owner == panel
+            if owner == panel then device.state = anyKey(data.excluded, group.keys) and "off" or "on"
+            else device.state = owner and "other" or "off" end
         end
         if utility == "water" then device.group = BU.Water.deviceGroup(panel, group.keys) end
         if utility == "power" and device.state == "on" then
@@ -849,8 +854,8 @@ function Panels.deviceOf(object, utility, cache)
 end
 
 -- For a device that uses both power and water and is connected for one utility: the other when the panel lacks it
--- there (excluded inside, not added outside, or its network, otherState, without supply), else nil; nil too while
--- the other is off (BU.enabled).
+-- there (its supply cut, no line outside, or its network, otherState, without supply), else nil; nil too while the
+-- other is off (BU.enabled).
 function Panels.missingOther(panel, utility, device, otherState)
     local entry = device.entry
     if not (entry.power and entry.water) then return nil end
@@ -858,7 +863,7 @@ function Panels.missingOther(panel, utility, device, otherState)
     if not BU.enabled(other) then return nil end
     local excluded, included = false, false
     for _, key in ipairs(device.keys) do
-        excluded = excluded or device.inside and panel[other].excluded[key] ~= nil
+        excluded = excluded or panel[other].excluded[key] ~= nil
         included = included or not device.inside and panel[other].included[key] ~= nil
     end
     if excluded or (not device.inside and not included) or not (otherState and otherState.supplied) then return other end

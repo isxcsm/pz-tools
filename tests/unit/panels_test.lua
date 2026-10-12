@@ -160,3 +160,21 @@ test("a device another box connected outside before the room was built stays out
     eq(Changes.syncAttached(panel), false)
     eq(panel.power.attached[LAMP], nil)
 end)
+
+test("a device outside with its line is supplied unless cut, and the line taken up takes the cut with it", function()
+    local Networks = BU.Networks
+    local panel = Store.newPanel(201, 201, 0, "box")
+    local data = panel.water
+    local TAP = "210,201,0,tap"
+    eq(Networks.rule(panel, "water", TAP), "reset", "no line: the building's rule")
+    data.included[TAP] = {}
+    eq(Networks.rule(panel, "water", TAP), "include", "its line laid")
+    data.excluded[TAP] = true
+    eq(Networks.rule(panel, "water", TAP), "exclude", "its supply cut at the box, the line kept")
+    local device = { key = TAP, keys = { TAP }, inside = false }
+    truthy(Changes.excludeOutside(panel, "water", device), "the line taken up")
+    eq(data.excluded[TAP], nil, "its cut gone with it")
+    data.excluded[TAP] = true
+    Changes.includeOutside(panel, "water", device, {})
+    eq(Networks.rule(panel, "water", TAP), "include", "a line laid again supplies it")
+end)

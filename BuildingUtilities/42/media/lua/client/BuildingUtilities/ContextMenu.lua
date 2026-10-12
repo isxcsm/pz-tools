@@ -250,12 +250,13 @@ local function addDeviceOption(context, playerObj, utility, panel, device)
     end
     local on = device.state == "on"
     local text = getText(on and "ContextMenu_BU_DeviceOff" or "ContextMenu_BU_DeviceOn", name, label, Panels.name(panel))
-    if device.inside then
-        return tie(context:addOption(text, playerObj, onSwitchInside, panel, utility, device.key, not on))
-    elseif on then
-        local option = removal(context:addOption(text, playerObj, onDisconnect, "outside", panel, utility, entry.x, entry.y,
-            entry.z, entry.sprite))
-        costed(option, playerObj, Actions.workCost(utility))
+    if device.wired then
+        local option = tie(context:addOption(text, playerObj, onSwitchInside, panel, utility, device.key, not on))
+        if not device.inside then
+            local line = removal(context:addOption(getText("ContextMenu_BU_LineRemove", name, label, Panels.name(panel)),
+                playerObj, onDisconnect, "outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite))
+            costed(line, playerObj, Actions.workCost(utility))
+        end
         return option
     else
         local option = tie(context:addOption(text, playerObj, onConnect, "outside", panel, utility, entry.x, entry.y, entry.z,

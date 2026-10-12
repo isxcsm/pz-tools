@@ -739,7 +739,7 @@
     "IGUI_BU_Menu_NotEssential": "Not essential",
     "IGUI_BU_Menu_ShowInList": "Show in the list",
     "IGUI_BU_Menu_RoomOn": "Connect the whole room",
-    "IGUI_BU_OutsideTip": "Disconnect it at the device (right-click).",
+    "IGUI_BU_OutsideTip": "Unticked, only its supply is cut and the line stays. Take the line up at the device (right-click).",
     "IGUI_BU_Menu_RoomOff": "Disconnect the whole room",
     "IGUI_BU_Menu_OnlyRoom": "Only this room in the list",
     "IGUI_BU_Menu_AllRooms": "All rooms in the list",
@@ -1010,5 +1010,7 @@
     "IGUI_BU_Reason_exteriorOff": "The sandbox option 'Generator Working in Exterior' is off: generators power nothing outdoors.",
     "IGUI_BU_HeldExterior": "off (no power outdoors)",
     "IGUI_BU_Attached": "extension",
-    "IGUI_BU_DisconnectAtDevice": "Disconnect it at the device."
+    "IGUI_BU_UnwiredTip": "Lay its line at the device (right-click).",
+    "IGUI_BU_NotWired": "Not connected",
+    "IGUI_BU_ConnectAtDevice": "Connect it at the device."
 }

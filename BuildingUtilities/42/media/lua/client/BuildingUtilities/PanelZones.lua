@@ -35,7 +35,7 @@ function ISBUPanelWindow:updatePlan()
     for _, device in ipairs(view.devices) do
         local entry = device.entry
         devices[#devices + 1] = { key = device.key, x = entry.x, y = entry.y, z = entry.z, roomId = device.roomId, inside = device.inside,
-            state = device.state, held = device.held, power = device.power, utility = utility,
+            state = device.state, wired = device.wired, held = device.held, power = device.power, utility = utility,
             name = view.names[device.key] or "", status = view.status[device.key],
             fresh = view.fresh[device.key] }
     end
@@ -249,7 +249,7 @@ function ISBUPanelWindow:deviceMenu(key)
     local panel, playerObj = self.panel, self.playerObj
     local menu = ISContextMenu.get(playerObj:getPlayerNum(), getMouseX(), getMouseY())
     menu:addOption(view.names[key] or "", nil, nil).isDisabled = true
-    if device.state == "other" then
+    if device.state == "other" or not device.wired then
         menu:addOption(view.status[key] or "", nil, nil).isDisabled = true
     else
         local on = device.state == "on"

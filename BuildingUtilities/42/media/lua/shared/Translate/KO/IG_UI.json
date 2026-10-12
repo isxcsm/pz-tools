@@ -739,7 +739,7 @@
     "IGUI_BU_Menu_NotEssential": "필수 해제",
     "IGUI_BU_Menu_ShowInList": "목록에서 보기",
     "IGUI_BU_Menu_RoomOn": "방 전체 연결",
-    "IGUI_BU_OutsideTip": "해제는 기기에서 우클릭으로 합니다.",
+    "IGUI_BU_OutsideTip": "체크를 풀면 공급만 끊기고 선은 남습니다. 선은 기기에서 우클릭으로 걷습니다.",
     "IGUI_BU_Menu_RoomOff": "방 전체 연결 해제",
     "IGUI_BU_Menu_OnlyRoom": "목록에 이 방만 보기",
     "IGUI_BU_Menu_AllRooms": "목록에 모든 방 보기",
@@ -1010,5 +1010,7 @@
     "IGUI_BU_Reason_exteriorOff": "샌드박스 옵션 '외부에서 발전기 사용 가능'이 꺼져 있어 발전기가 바깥에 전기를 주지 못합니다.",
     "IGUI_BU_HeldExterior": "꺼짐(바깥 전기 없음)",
     "IGUI_BU_Attached": "증축",
-    "IGUI_BU_DisconnectAtDevice": "해제는 기기에 가서 합니다."
+    "IGUI_BU_UnwiredTip": "선은 기기에서 우클릭으로 깝니다.",
+    "IGUI_BU_NotWired": "연결 안 됨",
+    "IGUI_BU_ConnectAtDevice": "연결은 기기에 가서 합니다."
 }

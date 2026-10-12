@@ -1059,7 +1059,7 @@ function ISBUPanelWindow:preview(device)
     if device.state == "on" then
         after, key = self.load - power, "IGUI_BU_PreviewOff"
     else
-        after, key = self.load + power, device.inside and "IGUI_BU_PreviewOn" or "IGUI_BU_PreviewConnect"
+        after, key = self.load + power, device.wired and "IGUI_BU_PreviewOn" or "IGUI_BU_PreviewConnect"
     end
     local text = getText(key, load2(after), load2(self.limit))
     if device.state ~= "on" and BU.overloadEnabled() and after > self.limit + 1e-6 then
@@ -1080,6 +1080,7 @@ function ISBUPanelWindow:deviceStatus(utility, device)
         for _, key in ipairs(device.keys) do other = other or Store.inclusionOwner(utility, key) end
         return getText("IGUI_BU_ConnectedTo", other and Panels.name(other) or ""), false
     end
+    if not device.wired then return getText("IGUI_BU_NotWired"), true end
     if utility == "power" then
         local power = device.power or 0
         if device.state ~= "on" then
@@ -1132,10 +1133,11 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
         devices, complete = Panels.devices(panel, utility)
         self:askAttached(devices)
     end
-    -- The building's devices, and those outside that are wired to the box (wired at themselves).
+    -- The building's devices, and those outside in reach: wired to the box (at themselves), or not yet; not those
+    -- another box's line reaches.
     local listed = {}
     for _, device in ipairs(devices) do
-        if device.inside or device.state == "on" then listed[#listed + 1] = device end
+        if device.inside or device.state ~= "other" then listed[#listed + 1] = device end
     end
     devices = listed
     local view = { state = state, devices = devices, complete = complete, names = {}, status = {}, totals = {},
@@ -1261,7 +1263,7 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
         if device.state == "on" then
             g.on = g.on + 1
             if not device.held then g.total = g.total + (device.power or 0) end
-        elseif device.state == "off" then
+        elseif device.state == "off" and device.wired then
             g.off = g.off + 1
         end
         local shown = not options.activeOnly or utility ~= "power" or (device.power or 0) > 0 or device.held ~= nil
@@ -1314,7 +1316,8 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
                 local device = shown.device
                 local tooltip = utility == "power" and self:preview(device) or nil
                 if not device.inside then
-                    tooltip = (tooltip and tooltip .. " <LINE> " or "") .. getText("IGUI_BU_OutsideTip")
+                    tooltip = (tooltip and tooltip .. " <LINE> " or "")
+                        .. getText(device.wired and "IGUI_BU_OutsideTip" or "IGUI_BU_UnwiredTip")
                 end
                 -- its timer and essential buttons tell what they do over themselves (ISBUPanelList.BUTTON_TIPS)
                 local controls = timers and utility == "power" and device.state == "on"
@@ -1329,7 +1332,8 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
                     groupText, groupColour = BU.Water.groupName(panel, device.group), PanelWindow.groupColour(panel, device.group)
                 end
                 add({ kind = "device", text = shown.name, right = shown.status, dim = shown.dim, device = device,
-                    state = device.state, held = device.held, controls = controls, sheds = sheds, switchOn = switchOn,
+                    state = device.state, unwired = not device.wired, held = device.held, controls = controls,
+                    sheds = sheds, switchOn = switchOn,
                     fresh = view.fresh[device.key], groupText = groupText, groupColour = groupColour }, tooltip)
             end
         end
@@ -1469,11 +1473,11 @@ function ISBUPanelWindow:allInside(devices)
     return true
 end
 
--- A device's tick: one of the building switched at the box, free; one outside is wired out at itself.
+-- A device's tick: its supply switched at the box, free; one outside without its line is wired at itself.
 function ISBUPanelWindow:switchDevice(utility, device)
     if device.state == "other" then return end
-    if not device.inside then
-        HaloTextHelper.addBadText(self.playerObj, getText("IGUI_BU_DisconnectAtDevice"))
+    if not device.wired then
+        HaloTextHelper.addBadText(self.playerObj, getText("IGUI_BU_ConnectAtDevice"))
         return
     end
     Sync.send(self.playerObj, "setInside", { panel = self.panel.id, utility = utility, key = device.key, on = device.state ~= "on" })

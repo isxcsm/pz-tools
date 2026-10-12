@@ -459,8 +459,8 @@ end
 
 -- Devices.
 
--- A device of the panel's building connected (the default) or excluded: a switch at the box, free. Kept under its
--- key; a part's key a save may have is cleared. Switched on by the player, the box no longer keeps it off for an
+-- A device the box reaches (of its building, or outside with its line) supplied (the default) or cut (excluded): a
+-- switch at the box, free. Kept under its key; a part's key a save may have is cleared. Switched on by the player, the box no longer keeps it off for an
 -- overload (it sheds again if it must).
 local function setInside(panel, utility, device, connected)
     local data = panel[utility]
@@ -566,9 +566,10 @@ function Changes.syncAttached(panel)
     return changed
 end
 
--- A device outside any building wired or piped to the panel.
+-- A device outside any building wired or piped to the panel, supplied as its line is laid.
 function Changes.includeOutside(panel, utility, device, paid)
     panel[utility].included[device.key] = paid or {}
+    panel[utility].excluded[device.key] = nil
     Networks.apply(panel, utility, device.key)
     Sync.changed(panel.id)
 end
@@ -586,7 +587,7 @@ function Changes.excludeOutside(panel, utility, device)
         end
     end
     if not paid then return nil end
-    for _, name in ipairs({ "essential", "schedule", "shed", "saving", "blackout", "timed", "groupOf" }) do
+    for _, name in ipairs({ "excluded", "essential", "schedule", "shed", "saving", "blackout", "timed", "groupOf" }) do
         if data[name] then data[name][device.key] = nil end
     end
     Networks.apply(panel, utility, device.key)

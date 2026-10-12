@@ -16,5 +16,6 @@
     "ContextMenu_BU_ReplaceMedia": "필터 매체 교체",
     "ContextMenu_BU_Install_booster": "가압 펌프 설치",
     "ContextMenu_BU_DisconnectFrom": "%1에서 연결 해제",
-    "ContextMenu_BU_DeviceOff": "%3에서 %1 해제 (%2)"
+    "ContextMenu_BU_DeviceOff": "%3에서 %1 해제 (%2)",
+    "ContextMenu_BU_LineRemove": "%3에서 %1 선 걷기 (%2)"
 }

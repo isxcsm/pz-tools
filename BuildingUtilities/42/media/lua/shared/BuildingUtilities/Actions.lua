@@ -68,7 +68,7 @@ end
 function Actions.outsideCost(panel, utility, device)
     if not device or device.inside then return nil, "noDevice" end
     if device.state == "other" then return nil, "connectedElsewhere" end
-    if device.state == "on" then return nil, "connected" end
+    if device.wired then return nil, "connected" end
     if utility == "power" and not BU.exteriorPower() then return nil, "exteriorOff" end
     return Costs.outside(utility, Panels.wire(panel, device.entry.x, device.entry.y, device.entry.z)), device
 end
@@ -172,7 +172,7 @@ function ISBUDisconnect:connected()
         return owner == panel and utility == self.utility
     elseif self.kind == "outside" then
         local device = Panels.device(panel, self.utility, BU.thingKey(self.x, self.y, self.z, self.extra))
-        return device ~= nil and not device.inside and device.state == "on"
+        return device ~= nil and not device.inside and device.wired
     elseif self.kind == "unit" then
         local unit = Store.unit(self.extra)
         return unit ~= nil and unit.panel == panel.id
