@@ -11,8 +11,9 @@ A Project Zomboid (Build 42) Lua mod that other mods draw their windows with. It
   `off`, and `tabStrip`. `PZUIKit.UI.DEFAULT_PALETTE` is used outside a window.
 - **Lights.** A thing under the mouse lights up and a click flashes (`UI.hoverLight`, `UI.flash`, `UI.placeLight`),
   followed frame by frame only while they move (`UI.live`).
-- **Widgets.** `PZUIButton`, `PZUICombo`, `PZUIConfirm` (`UI.confirm`), `PZUIRichText`, `PZUISubTabs`, and lists of the
-  game's `ISScrollingListBox` with rows drawn in design units (`UI.list`).
+- **Widgets.** `PZUIButton`, `PZUICombo`, `PZUIConfirm` (`UI.confirm`), `PZUIRichText`, `PZUIRichTip` (a rich-text
+  tooltip that follows the mouse), `PZUISubTabs` (with a tooltip per tab), and lists of the game's
+  `ISScrollingListBox` with rows drawn in design units (`UI.list`).
 - **Text that fits.** `PZUIKit.Text.wrap`, `fitText` and `cutFor` (shared, so they also run on a server and in tests).
 
 `PZUIKit/42/media/lua/client/PZUIKit/UI.lua` starts with the rules for design units, faces and the scale.

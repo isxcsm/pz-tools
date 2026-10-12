@@ -330,4 +330,72 @@ function UI.setRich(panel, text)
     panel:paginate()
 end
 
+-- A tooltip of rich text (the game's tags: <LINE>, <RGB:r,g,b> and the rest), the kit's in place of the game's
+-- ISToolTip, which draws in the game's font: one panel over everything, shown for one owner at a time by the mouse, in
+-- the owner's palette, as wide as its widest line up to PZUIRichTip.MAX_W (design units), laid out once a text.
+PZUIRichTip = {}
+PZUIRichTip.MAX_W = 360
+
+local tip
+
+local function widest(panel)
+    local w = 0
+    for c, line in ipairs(panel.lines) do
+        if line ~= "" then w = math.max(w, panel.cX[c] + panel:measure(line, panel.cFont[c])) end
+    end
+    return w
+end
+
+function PZUIRichTip.show(owner, text, palette)
+    if not tip then
+        tip = PZUIRichText:new(0, 0, PZUIRichTip.MAX_W, 20)
+        tip:initialise()
+        tip:instantiate()
+        tip:setAlwaysOnTop(true)
+        tip.clip = false
+        -- it goes once its owner is no longer under the mouse or on show (a tab switched, a window closed)
+        tip.prerender = function(self)
+            local o = self.owner
+            if not (o and o:isReallyVisible() and o:isMouseOver()) then return PZUIRichTip.hide(o) end
+            return PZUIRichText.prerender(self)
+        end
+    end
+    if tip.tipText ~= text or tip.era ~= UI.era then
+        tip.tipText, tip.era = text, UI.era
+        tip:setWidth(PZUIRichTip.MAX_W)
+        tip:setText(text)
+        tip:paginate()
+        local w = math.ceil(widest(tip) + tip.marginRight + PZUIRichText.BAR_ROOM + 1)
+        if w < PZUIRichTip.MAX_W then
+            tip:setWidth(w)
+            tip:paginate()
+        end
+        tip:setHeight(tip.contentH)
+    end
+    local p = palette or UI.DEFAULT_PALETTE
+    tip.backgroundColor = { r = p.bg[1], g = p.bg[2], b = p.bg[3], a = 0.97 }
+    tip.borderColor = { r = p.border[1], g = p.border[2], b = p.border[3], a = 1 }
+    tip.owner = owner
+    local screenW, screenH = UI.dp(getCore():getScreenWidth()), UI.dp(getCore():getScreenHeight())
+    local mx, my = UI.dp(getMouseX()), UI.dp(getMouseY())
+    local x = math.max(0, math.min(mx + 14, screenW - tip.width))
+    local y = my + 20
+    if y + tip.height > screenH then y = math.max(0, my - tip.height - 6) end
+    tip:setX(x)
+    tip:setY(y)
+    if not tip.shown then
+        tip.shown = true
+        tip:addToUIManager()
+        tip:setVisible(true)
+    end
+end
+
+-- Hides the tooltip if it is `owner`'s (nil: whoever's).
+function PZUIRichTip.hide(owner)
+    if not (tip and tip.shown) or (owner and tip.owner ~= owner) then return end
+    tip.shown, tip.owner = false, nil
+    tip:setVisible(false)
+    tip:removeFromUIManager()
+end
+
 return PZUIRichText

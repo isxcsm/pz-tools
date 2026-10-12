@@ -351,6 +351,12 @@ SCALED.drawTextureTiled = tiledIn("drawTextureTiled")
 SCALED.drawTextureTiledX = tiledIn("drawTextureTiledX")
 SCALED.drawTextureTiledY = tiledIn("drawTextureTiledY")
 
+-- A line from x, y to x2, y2 (the game's drawLine), its thickness scaled too (a whole number of pixels, at least one).
+function SCALED:drawLine(texture, x, y, x2, y2, thickness, a, r, g, b)
+    return self.uiBase.drawLine(self, texture, floor(x * S + 0.5), floor(y * S + 0.5), floor(x2 * S + 0.5),
+        floor(y2 * S + 0.5), math.max(1, floor((thickness or 1) * S + 0.5)), a, r, g, b)
+end
+
 function SCALED:setStencilRect(x, y, w, h)
     local rx, rw = span(x, w)
     local ry, rh = span(y, h)
@@ -366,7 +372,7 @@ end
 -- The drawing ones (a canvas over a game widget has these, and no place of its own).
 local DRAWS = { "drawRect", "drawRectBorder", "drawRectStatic", "drawRectBorderStatic", "drawText", "drawTextCentre",
     "drawTextRight", "drawTextUntrimmed", "drawTexture", "drawTextureScaled", "drawTextureScaledAspect", "drawTextureScaledAspect2", "drawTextureScaledAspect3",
-    "drawTextureScaledUniform", "drawTextureTiled", "drawTextureTiledX", "drawTextureTiledY", "setStencilRect",
+    "drawTextureScaledUniform", "drawTextureTiled", "drawTextureTiledX", "drawTextureTiledY", "drawLine", "setStencilRect",
     "repaintStencilRect" }
 
 -- The classes made with UI.scaled, and which of the names above each takes (not one it defines itself).
@@ -722,9 +728,9 @@ function UI.lock(el, x, y, c, a)
     UI.fill(el, x, y + 4 * u, 8 * u, 5 * u, c, a)
 end
 
--- A row of sub-tabs: boxes side by side, the
--- chosen one filled. `items` = { { id, label, lock (a padlock before the name), badge (a text on a filled chip after
--- it), dot ("new" or "bad") } }; a click calls onSelect(target, id).
+-- A row of sub-tabs: boxes side by side, the chosen one filled. `items` = { { id, label, lock (a padlock before the
+-- name), badge (a text on a filled chip after it), dot ("new" or "bad"), tip (a tooltip, PZUITip: Button.lua) } }; a
+-- click calls onSelect(target, id).
 PZUISubTabs = ISPanel:derive("PZUISubTabs")
 
 function PZUISubTabs:new(x, y, width, palette, target, onSelect)
@@ -749,6 +755,7 @@ function PZUISubTabs:prerender()
     local x = 0
     local mx = self:isMouseOver() and self:getMouseX() or -1
     local slots, n = self.slots, 0
+    local tipped = nil
     for _, item in ipairs(self.items) do
         local on = item.id == self.active
         local lw = UI.textWidth(item.label)
@@ -757,7 +764,9 @@ function PZUISubTabs:prerender()
         local badgeW = item.badge and UI.textWidth(item.badge) + 10 or 0
         if item.badge then bw = bw + badgeW + 4 end
         -- one under the mouse lights up, a clicked one flashes (the hover and press lights below)
-        local k = UI.hoverLight(self, item.id, not on and mx >= x and mx < x + bw)
+        local over = mx >= x and mx < x + bw
+        if over and item.tip then tipped = item.tip end
+        local k = UI.hoverLight(self, item.id, not on and over)
         local f = UI.flashLevel(self, item.id)
         if on then
             UI.fill(self, x, 0, bw, h, p.sel, 0.2)
@@ -791,6 +800,9 @@ function PZUISubTabs:prerender()
         x = x + bw + 4
     end
     for i = #slots, n + 1, -1 do slots[i] = nil end
+    if PZUITip then
+        if tipped then PZUITip.show(self, tipped, p) else PZUITip.hide(self) end
+    end
 end
 
 function PZUISubTabs:onMouseDown(x, y)
