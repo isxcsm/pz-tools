@@ -60,6 +60,14 @@ test("the run counts from the first frame that asks, and a clock gone back is th
     eq(select(2, Seq.state(run, 5000 + 5500)), 3)
 end)
 
+test("a locked run (the terminal's first open) is not skipped", function()
+    local run = Seq.new(false, false)
+    run.locked = true
+    Seq.state(run, 1000)
+    Seq.skip(run, 1200)
+    eq((Seq.state(run, 1200)), "console", "the click changes nothing")
+end)
+
 test("a click or a key skips straight to the fade-in, once", function()
     local run = Seq.new(false, false)
     Seq.state(run, 1000)

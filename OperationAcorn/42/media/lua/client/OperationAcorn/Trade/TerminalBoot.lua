@@ -3,7 +3,7 @@
 -- they do in the window), the lines printed one at a time (the words, a blinking cursor, then what the line ends with), then
 -- the switch-off. The crude terminal's console flickers, garbles and now and then jolts (Seq.shake). The window owns the
 -- run and takes this panel off when the fade-in starts (the fade itself is drawn by the window, over its tabs, so
--- that the tabs are usable through it). A click or a key skips it.
+-- that the tabs are usable through it). A click or a key skips it, from the terminal's second open on.
 require "ISUI/ISPanel"
 require "OperationAcorn/Client"
 require "OperationAcorn/Trade/BootSeq"
@@ -129,7 +129,7 @@ function OATerminalBoot:layout()
     self.bw = math.min(bw, self.width - 40)
     self.bx = math.floor((self.width - self.bw) / 2)
     self.by = math.max(0, math.floor((self.height - self.blockH) / 2))
-    self.skipText = self.run.first and getText("IGUI_OA_Status_Boot_Skip") or nil
+    self.skipText = not self.run.locked and getText("IGUI_OA_Status_Boot_Skip") or nil
     self.laidW, self.laidH = self.width, self.height
 end
 

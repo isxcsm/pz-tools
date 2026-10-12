@@ -6,7 +6,8 @@
 -- of a tube), and the tabs fade in from black. Each check line prints its words, a cursor blinks after them, and then
 -- what it ends with stands where the cursor was. The first open of a field terminal is the long version, with a few more
 -- self-test lines; the crude terminal reads rougher (an extra line, garbled letters that settle, a flicker). It plays on
--- every open, slow enough to be read; a click or a key skips the console. Nothing is saved.
+-- every open, slow enough to be read; a click or a key skips the console, except on the terminal's first open (a locked
+-- run). Nothing is saved.
 --
 -- It is all arithmetic on the time since the run began, which the draw works out from the clock each frame while the
 -- sequence lasts: no timer, nothing after it has ended. Times are in ms, taken by subtracting timestamps only
@@ -154,8 +155,10 @@ function Seq.powerOn(e)
     return 1, Seq.EDGE * 0.5 * v * v * v, Seq.WARM * v * v, 1 + (Seq.LOUD - 1) * v * v, t
 end
 
--- A click or a key: the fade-in starts now (a run that is already fading or done is left alone).
+-- A click or a key: the fade-in starts now (a run that is already fading or done is left alone, and a locked one, the
+-- terminal's first open, plays out whole).
 function Seq.skip(run, now)
+    if run.locked then return end
     local phase = Seq.state(run, now)
     if phase == "console" or phase == "collapse" then run.start = now - run.fadeAt end
 end

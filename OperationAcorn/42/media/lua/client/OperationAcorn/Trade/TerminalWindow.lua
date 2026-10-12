@@ -602,9 +602,20 @@ function OATerminalWindow.claimFirst(object, tier)
     return true
 end
 
+-- Whether this is the terminal's first open at all, either tier (its modData OA_Opened is not set yet): sets it. The
+-- boot of a first open plays out whole; from the next open on a click skips it.
+function OATerminalWindow.claimOpened(object)
+    if not object then return false end
+    local data = object:getModData()
+    if data.OA_Opened then return false end
+    data.OA_Opened = true
+    if isClient() then object:transmitModData() end
+    return true
+end
+
 -- `tier` is "crude" or "field": which terminal the window is open at. `first`: its first open as a field terminal (the
--- long boot, then the board of what it opened).
-function OATerminalWindow:new(character, x, y, z, tier, first)
+-- long boot, then the board of what it opened). `locked`: a boot that cannot be skipped (a first open).
+function OATerminalWindow:new(character, x, y, z, tier, first, locked)
     UI.refreshScale()
     local width, height, minW, minH = OATerminalWindow.sizes()
     local sx = (getCore():getScreenWidth() - width) / 2
@@ -623,6 +634,7 @@ function OATerminalWindow:new(character, x, y, z, tier, first)
     o.tx, o.ty, o.tz = x, y, z
     o.firstBoot = first and true or false
     o.boot = Seq.new(first, tier == "crude")
+    o.boot.locked = locked and true or false
     o.wantKeyEvents = #o.boot.lines > 0
     o.marks = {}
     o.blink = {}
@@ -642,8 +654,9 @@ function Terminal.open(character, x, y, z)
     local square = getCell():getGridSquare(x, y, z)
     local object = square and Objects.find(square, Objects.TERMINAL)
     local tier = object and Objects.isUpgraded(object) and "field" or "crude"
+    local opened = OATerminalWindow.claimOpened(object)
     local first = OATerminalWindow.claimFirst(object, tier)
-    window = OATerminalWindow:new(character, x, y, z, tier, first)
+    window = OATerminalWindow:new(character, x, y, z, tier, first, opened or first)
     window:initialise()
     window:addToUIManager()
     window:setVisible(true)

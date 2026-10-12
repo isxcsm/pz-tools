@@ -17,3 +17,12 @@ local function onGeneratorPower(_, _, after)
 end
 
 if Events.OnPZExtGeneratorPower then Events.OnPZExtGeneratorPower.Add(onGeneratorPower) end
+
+-- A network of the API changed (any mod's: supply started or stopped, another producer, a consumer joined or left and
+-- its load moved): the terminals show the power they have now. The API raises it after the change, never per frame.
+local function onNetworkChange()
+    local ok, err = pcall(OA.Trade.Handlers.refreshTerminals)
+    if not ok then OA.log("terminals on a network's change failed:", tostring(err)) end
+end
+
+if Events.OnPZExtNetworkChange then Events.OnPZExtNetworkChange.Add(onNetworkChange) end

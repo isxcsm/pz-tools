@@ -174,6 +174,17 @@ test("the first open of a field terminal is claimed once, in the object's modDat
     eq(Window.claimFirst(nil, "field"), false)
 end)
 
+test("a terminal's first open at all, either tier, is claimed once (its boot cannot be skipped)", function()
+    local data = {}
+    local object = { getModData = function() return data end, transmitModData = function() end }
+    _G.isClient = function() return false end
+    local Window = loadWindow()
+    eq(Window.claimOpened(object), true)
+    eq(data.OA_Opened, true)
+    eq(Window.claimOpened(object), false, "only the first")
+    eq(Window.claimOpened(nil), false)
+end)
+
 test("the window keeps the console up, takes it off when the fade starts, and lets the run go when it is over", function()
     local window, setNow, heard = bootWindow(false, false)
     setNow(1000)

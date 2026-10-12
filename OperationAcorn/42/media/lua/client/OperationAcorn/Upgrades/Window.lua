@@ -393,10 +393,10 @@ function OAResearchFlow:prerender()
     local view = self.view
     -- shown again some way that did not register it (its window shown as a whole): followed from now on
     if self.pulses then
-        if view.pulsingOn and self.liveLook == nil then UI.live(self, View.pulseTick) end
+        if view.pulsingOn then UI.live(self, View.pulseTick) end
         view:paintPulses(self)
     else
-        if view.lighting and self.liveLook == nil then UI.live(self, View.flowTick) end
+        if view.lighting then UI.live(self, View.flowTick) end
         view:paintFlow(self)
     end
 end

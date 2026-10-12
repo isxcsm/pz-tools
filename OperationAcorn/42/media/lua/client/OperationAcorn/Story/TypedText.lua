@@ -150,7 +150,7 @@ function OATypedText:render()
     if self.reveal and run and not run.done then
         self:advance(run)
         -- followed each frame from now on (again after the panel was let go, not on show)
-        if self.liveLook == nil and not run.done then UI.live(self, OATypedText.tick) end
+        if not run.done then UI.live(self, OATypedText.tick) end
     end
     if self.rowFirst and self.reveal and self.cursorColor then self:drawFreshRow(run) end
     PZUIRichText.render(self)
