@@ -602,7 +602,8 @@ function rebuild() {
   const S = STYLES[P.style], H = view.height, tl = S.title.size * H, sl = S.line.size * H, anchor = S.y * H;
   const tone = P.tone === "style" ? [S.title.color, S.line.color] : TONES[P.tone];
   const seed = BigInt(P.seed) * 0x9E3779B97F4A7C15n & M64;
-  const leaving = S.title.enterTime + P.hold;
+  // it leaves hold seconds after it began to come in, whatever its enter: every style is seen as long
+  const leaving = Math.max(S.title.enterTime, P.hold);
   const title = piece(P.title, tl, tone[0], anchor, seed, S.title);
   title.delay = 0; title.leaveAt = leaving;
   pieces = [title];
@@ -941,7 +942,7 @@ control("zoom", "확대", "range", [1, 4, 0.25]);
 heading("머무름과 dust 사라짐");
 control("sweep", "방향", "select", SWEEPS.map(s => [s, s]));
 control("leaveTime", "dust 사라지는 시간(초)", "range", [1, 20, 0.5]);
-control("hold", "머무름(초)", "range", [0, 6, 0.5]);
+control("hold", "보이는 시간(초, 등장 포함)", "range", [1, 10, 0.5]);
 control("dustSize", "셀 크기", "range", [0.25, 4, 0.05]);
 control("dustDrift", "날림 거리", "range", [0, 4, 0.05]);
 control("seed", "시드", "range", [1, 99999, 1]);
