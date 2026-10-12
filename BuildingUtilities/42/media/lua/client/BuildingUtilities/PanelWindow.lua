@@ -1100,11 +1100,8 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
                 if not device.inside then
                     tooltip = (tooltip and tooltip .. " <LINE> " or "") .. getText("IGUI_BU_OutsideTip")
                 end
+                -- its timer and essential buttons tell what they do over themselves (ISBUPanelList.BUTTON_TIPS)
                 local controls = timers and utility == "power" and device.state == "on"
-                if controls then
-                    tooltip = (tooltip and tooltip .. " <LINE> " or "") .. " <RGB:0.7,0.7,0.7> "
-                        .. getText(sheds and "IGUI_BU_ControlsNoteSmart" or "IGUI_BU_ControlsNote")
-                end
                 local groupText, groupColour
                 if device.group and device.state == "on" and #BU.Water.groups(panel) > 1 then
                     groupText, groupColour = BU.Water.groupName(panel, device.group), PanelWindow.groupColour(panel, device.group)

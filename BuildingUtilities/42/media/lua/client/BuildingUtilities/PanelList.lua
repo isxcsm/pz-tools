@@ -19,6 +19,8 @@ local STILL = { header = true, note = true, filter = true, log = true, graph = t
 
 -- One tab's list. Each item is a row table with a kind; clicks act on the row and the part of it clicked.
 ISBUPanelList = ISScrollingListBox:derive("ISBUPanelList")
+-- The tooltips of a device row's buttons, by button: what a click does, over the button itself.
+ISBUPanelList.BUTTON_TIPS = { timer = "IGUI_BU_TimerTip", essential = "IGUI_BU_EssentialTip" }
 
 local BUTTONS = { "Up", "Down" }
 local BUTTON_W = 60
@@ -358,7 +360,13 @@ function ISBUPanelList:prerender()
     local lit = row and not STILL[row.kind] and index or nil
     self.hoverIndex = lit
     UI.placeLight(self, lit)
-    if row and row.tip then PZUIRichTip.show(self, row.tip, P) else PZUIRichTip.hide(self) end
+    -- over a button that says what it does, its own tooltip; else the row's
+    local tip = row and row.tip
+    for _, button in ipairs(row and row.buttons or {}) do
+        local key = ISBUPanelList.BUTTON_TIPS[button.name]
+        if key and self.mouseDX >= button.x and self.mouseDX < button.x + button.w then tip = getText(key) end
+    end
+    if tip then PZUIRichTip.show(self, tip, P) else PZUIRichTip.hide(self) end
     local outlined = row and (row.device or row.at) and index or nil
     if outlined ~= self.hovered then
         self:unhighlight()
