@@ -194,7 +194,7 @@ local ICONS = {
     bEndurance = "B2Stamina", bSleep = "B2SleepFatigue", bGearLoss = "B2GearDamage",
     bFall = "B2FallDamage", bDash = "B2SprintStamina", bWalk = "B2WalkSpeed",
     bLoot = "B2LootChance", bShard = "B2SelectedSample", bBundle = "B2SampleBundle",
-    bFamilyGear = "B2FamilyTools", bFamilySupply = "B2FamilyFood", bFamilyMisc = "B2FamilyJunk",
+    bFamilyGear = "B2FamilyGear", bFamilySupply = "B2FamilySupply", bFamilyMisc = "B2FamilyMisc",
 }
 for id, slug in pairs(ICONS) do
     local n = byId[id]

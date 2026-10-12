@@ -81,6 +81,25 @@ def fit(image, size=SIZE, margin=1, source=None):
     return icon
 
 
+def draw_tier_mark(img, tier):
+    """A tier's mark in a fitted icon's lower right (any size), so the three tiers tell apart by more than their
+    colour: worn ones a rust crack, modern ones two blue chevrons, standard ones none."""
+    img = img.copy()
+    k = img.width / 32.0
+    d = ImageDraw.Draw(img)
+    dark = (24, 22, 20, 255)
+    if tier == 'Modern':
+        for dy in (0, 4):
+            pts = [(24 * k, (26 + dy) * k), (27 * k, (23 + dy) * k), (30 * k, (26 + dy) * k)]
+            d.line(pts, fill=dark, width=max(2, round(3.0 * k)), joint='curve')
+            d.line(pts, fill=(110, 190, 250, 255), width=max(1, round(1.4 * k)), joint='curve')
+    elif tier == 'Old':
+        pts = [(25 * k, 22 * k), (27.5 * k, 25.5 * k), (25.5 * k, 27.5 * k), (29 * k, 31 * k)]
+        d.line(pts, fill=dark, width=max(2, round(3.0 * k)), joint='curve')
+        d.line(pts, fill=(204, 118, 52, 255), width=max(1, round(1.4 * k)), joint='curve')
+    return img
+
+
 def hires(icon, size):
     """A high-res copy of an icon made by fit(): its source fitted to size x size the same way (the margin and the
     outline grow with the size, so it reads as the 32 px icon, only sharper). Shrunk with premultiplied alpha, so the
@@ -102,6 +121,9 @@ def hires(icon, size):
     ring = Image.new('RGBA', out.size, (22, 24, 22, 0))
     ring.putalpha(Image.eval(grown, lambda v: min(215, v * 3)))
     ring.alpha_composite(out)
+    tier = getattr(icon, 'oa_tier', None)
+    if tier:
+        ring = draw_tier_mark(ring, tier)
     return ring, max(crop.width, crop.height)
 
 
@@ -333,8 +355,8 @@ def meteor_fragment(kind='stony'):
                            (0.66, 0.36, 0.38, 0.08), (0.32, 0.58, 0.34, 0.07)):
             s.rock((x, y, z), r, 7, (132, 196, 72), squash=(1, 1, 0.7), detail=0, jitter=0.2, shine=0.9)
     else:
-        s.rock((0.5, 0.5, 0.2), 0.34, 11, (66, 58, 54), squash=(1.1, 0.95, 0.9), detail=1, jitter=0.3,
-               colour2=(130, 82, 50), shine=0.2)
+        s.rock((0.5, 0.5, 0.2), 0.34, 11, (66, 58, 54), squash=(1.1, 0.95, 0.9), detail=2, jitter=0.2,
+               colour2=(130, 82, 50), shine=0.2, patches=True)
         s.rock((0.58, 0.46, 0.34), 0.1, 12, (170, 164, 158), squash=(1, 0.8, 0.5), detail=0, jitter=0.15, shine=0.8)
     return from_scene(s)
 
@@ -665,17 +687,9 @@ def torch(mk):
 
 
 def lure_icon():
-    s = Scene(0)
-    cx, cy = 0.5, 0.5
-    s.box(0.22, 0.4, 0.0, 0.78, 0.7, 0.2, OD, top=OD_LIGHT, shine=0.1)
-    s.box(0.22, 0.4, 0.14, 0.78, 0.7, 0.2, OD_DARK, top=OD, shine=0.1)
-    front_decal(s, 0.3, 0.7, 0.03, 0.12, 0.701, stencil_text('LURE', 40, 12, STENCIL), offset=0.0)
-    s.tube((0.3, 0.55, 0.2), (0.3, 0.55, 0.55), 0.02, GREY, segments=8)
-    s.tube((0.3, 0.55, 0.55), (0.55, 0.55, 0.62), 0.12, (104, 108, 114), r2=0.28, cap=(150, 154, 160), segments=28, shine=0.5)
-    s.tube((0.3, 0.55, 0.55), (0.3, 0.55, 0.9), 0.008, STEEL, segments=6)
-    s.tube((0.68, 0.5, 0.2), (0.68, 0.5, 0.36), 0.015, STEEL, segments=6)
-    s.tube((0.68, 0.5, 0.36), (0.68, 0.5, 0.42), 0.04, (255, 160, 40), cap=(255, 230, 170), segments=12, emit=True)
-    return from_scene(s)
+    """The lure as it stands (its tile, switched off): the horns on the mast read as a loudspeaker, where a box with one
+    horn read as a gravestone."""
+    return fit(brighten(A.M2.lure(False)))
 
 
 PICTURES = {
@@ -716,10 +730,20 @@ PICTURES = {
     'fuel_can_1': lambda: jerrycan(1), 'fuel_can_2': lambda: jerrycan(2), 'fuel_can_3': lambda: jerrycan(3),
     'torch_1': lambda: torch(1), 'torch_2': lambda: torch(2), 'torch_3': lambda: torch(3),
 }
+def tier_mark(image, tier):
+    """A tiered part's icon with its tier's mark (draw_tier_mark); the high-res copies get it drawn at their size."""
+    if tier == 'Normal':
+        return image
+    out = draw_tier_mark(image, tier)
+    out.oa_source = getattr(image, 'oa_source', None)
+    out.oa_tier = tier
+    return out
+
+
 for _tier in TIERS:
     for _key, _fn in (('motor', motor), ('shredder_blade', shredder_blade), ('cutting_blade', cutting_blade),
                       ('saw_blade', saw_blade_item), ('catalyst', catalyst), ('cover', cover)):
-        PICTURES['%s_%s' % (_key, _tier.lower())] = (lambda f=_fn, t=_tier: f(t))
+        PICTURES['%s_%s' % (_key, _tier.lower())] = (lambda f=_fn, t=_tier: tier_mark(f(t), t))
 
 import icon_story  # noqa: E402
 PICTURES.update(icon_story.pictures(sys.modules[__name__]))

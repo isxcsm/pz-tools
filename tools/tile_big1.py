@@ -10,7 +10,7 @@ from tile_engine import (Scene, shadow, compose, unit, rotation, apply, add, mul
                          SS)
 from tile_objects import (OD, OD_DARK, OD_LIGHT, TAN, CANVAS, BLACK, RUBBER, GREY, STEEL, STEEL_DARK, PIPE, WHITE,
                           STENCIL, YELLOW, RED, BRASS, WOOD, WOOD_DARK, BLUE, LIT, UNLIT, BEZEL, lamp, lamp_y, lamp_x,
-                          front_decal, side_decal, flat_decal, noise_texture)
+                          front_decal, side_decal, back_decal, flat_decal, noise_texture)
 from tile_trade import hazard_strip, plank_lines
 from tile_machines import (GRAPHITE, GRAPHITE_DARK, GRAPHITE_LIGHT, double_poly, ring_top, disc, gauge_image,
                            valve_wheel, cutting_mat_image)
@@ -55,6 +55,21 @@ def board_image(w=256, h=60):
     return img
 
 
+def warning_sign(size=48):
+    """A yellow warning triangle with a black border and its mark: a hand caught between two blades."""
+    img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    pts = [(size / 2, 2), (size - 2, size - 4), (2, size - 4)]
+    d.polygon(pts, fill=(28, 28, 26, 255))
+    inset = [(size / 2, 8), (size - 8, size - 7), (8, size - 7)]
+    d.polygon(inset, fill=(226, 188, 40, 255))
+    c = size / 2
+    d.polygon([(c - 7, size - 12), (c - 1, size - 26), (c + 1, size - 26), (c - 3, size - 12)], fill=(28, 28, 26, 255))
+    d.polygon([(c + 7, size - 12), (c + 1, size - 26), (c + 3, size - 26), (c + 3, size - 12)], fill=(28, 28, 26, 255))
+    d.ellipse([c - 4, size - 33, c + 4, size - 25], fill=(28, 28, 26, 255))
+    return img
+
+
 def shred_bench(turns):
     """The shred bench: a long steel workbench (2 x 1) with a plank top, a shadow board of tools behind, a big vise at
     one end, a teardown in the middle (a radio chassis opened up, a tray of small parts), a drawer unit at the other
@@ -93,6 +108,26 @@ def shred_bench(turns):
     s.box(x0, y0, zt + 0.08, x1, y0 + 0.02, zt + 0.62, OD_DARK)
     front_decal(s, x0 + 0.02, x1 - 0.02, zt + 0.12, zt + 0.60, y0 + 0.02, board_image())
     s.box(x0, y0 + 0.02, zt + 0.62, x1, y0 + 0.05, zt + 0.645, STEEL_DARK, shine=0.3)
+    # the board's back: its frame of studs and rails, a clipboard of the day's teardowns, a coiled cord on a hook
+    b = y0 - 0.014
+    for sx in (x0 + 0.02, 0.98, x1 - 0.05):
+        s.box(sx, b, zt + 0.08, sx + 0.04, y0, zt + 0.62, OD, top=OD_LIGHT)
+    for rz in (zt + 0.14, zt + 0.56):
+        s.box(x0 + 0.02, b, rz, x1 - 0.02, y0, rz + 0.035, OD, top=OD_LIGHT)
+    s.box(0.36, b - 0.012, zt + 0.2, 0.62, b, zt + 0.5, (120, 92, 60), shine=0.2)
+    sheet = Image.new('RGBA', (52, 64), (226, 222, 204, 255))
+    sd = ImageDraw.Draw(sheet)
+    for k in range(6):
+        sd.line([(6, 10 + k * 9), (44, 10 + k * 9)], fill=(90, 90, 96, 255), width=2)
+        sd.rectangle([2, 8 + k * 9, 5, 12 + k * 9], outline=(60, 60, 64, 255))
+    back_decal(s, 0.38, 0.60, zt + 0.22, zt + 0.46, b - 0.012, sheet)
+    s.box(0.44, b - 0.02, zt + 0.46, 0.54, b - 0.012, zt + 0.5, STEEL, shine=0.6)
+    s.tube((1.5, b, zt + 0.48), (1.5, b - 0.06, zt + 0.48), 0.01, STEEL, segments=8, shine=0.6)
+    for k in range(3):
+        s.tube((1.42 + k * 0.012, b - 0.05, zt + 0.47), (1.42 + k * 0.012, b - 0.05, zt + 0.25 + k * 0.02), 0.018,
+               (196, 110, 30), segments=10, shine=0.3)
+    s.tube((1.42, b - 0.05, zt + 0.47), (1.58, b - 0.05, zt + 0.47), 0.018, (196, 110, 30), segments=10, shine=0.3)
+    back_decal(s, 1.0, 1.34, zt + 0.3, zt + 0.4, b, stencil_text('OAK-D1', 70, 18, STENCIL))
     # shelf with tins on the board
     s.box(0.50, y0 + 0.02, zt + 0.35, 1.18, y0 + 0.12, zt + 0.37, WOOD_DARK)
     for i, c in enumerate(((176, 70, 56), (200, 190, 150), (72, 110, 160), (150, 140, 120))):
@@ -174,14 +209,15 @@ def bulk_shredder(turns, look):
         j = (i + 1) % 4
         mid = ((top[i][0] + top[j][0]) / 2, (top[i][1] + top[j][1]) / 2)
         out = unit((mid[0] - cx_, mid[1] - cy_, 0.0))
-        double_poly(s, [low[i], low[j], top[j], top[i]], OD, (92, 98, 80), (out[0], out[1], 0.3), shine=0.1)
-    s.box(low[0][0], low[0][1], zb - 0.001, low[2][0], low[2][1], zb + 0.0005, (20, 20, 20))
+        double_poly(s, [low[i], low[j], top[j], top[i]], OD, (58, 62, 50), (out[0], out[1], 0.3), shine=0.1)
+    s.box(low[0][0], low[0][1], zb - 0.001, low[2][0], low[2][1], zb + 0.0005, (14, 14, 14))
+    # two shafts of hooked cutter discs in the throat, turning toward each other, and wear on the walls above them
     for i in range(2):
-        y = 0.32 + i * 0.2
-        s.tube((x0 + 0.14, y, zb + 0.03), (x1 - 0.14, y, zb + 0.03), 0.03, STEEL_DARK, shine=0.4, segments=12)
+        y = 0.34 + i * 0.16
+        s.tube((x0 + 0.12, y, zb + 0.1), (x1 - 0.12, y, zb + 0.1), 0.03, STEEL_DARK, shine=0.4, segments=12)
         for k in range(9):
-            xx = x0 + 0.17 + k * 0.08
-            s.tube((xx, y, zb + 0.03), (xx + 0.045, y, zb + 0.03), 0.07, STEEL, cap=STEEL_DARK, shine=0.6, segments=14)
+            xx = x0 + 0.15 + k * 0.08 + i * 0.04
+            s.tube((xx, y, zb + 0.1), (xx + 0.035, y, zb + 0.1), 0.085, STEEL, cap=(150, 154, 158), shine=0.7, segments=8)
     rim_h = 0.09
     for i in range(4):
         j = (i + 1) % 4
@@ -312,6 +348,7 @@ def cutter(turns, look):
     lamp_y(s, glows, 1.56, y1 + 0.12, 0.52, 0.024, 'green', on)
     lamp_y(s, glows, 1.56, y1 + 0.12, 0.44, 0.024, 'red', not on)
     s.box(1.51, y1 + 0.12, 0.26, 1.61, y1 + 0.124, 0.38, GRAPHITE_DARK)
-    front_decal(s, 0.5, 1.2, 0.20, 0.34, y1 + 0.001, stencil_text('CUTTER', 100, 24, STENCIL))
+    front_decal(s, 0.62, 0.98, 0.22, 0.32, y1 + 0.001, stencil_text('OAK-C1', 70, 20, STENCIL))
+    front_decal(s, 1.08, 1.22, 0.2, 0.34, y1 + 0.002, warning_sign())
     ground = shadow((1.0, 0.5), 1.0, 0.36, 120)
     return compose(s, ground=ground, seed=120 + turns + 4 * int(look), glows=glows)

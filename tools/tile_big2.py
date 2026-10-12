@@ -3,30 +3,72 @@
 import math
 import random
 
+import numpy as np
 from PIL import Image, ImageDraw
 
 from tile_engine import OWNERS, Scene, shadow, compose, unit, rotation, apply, add, mul, stencil_text, acorn_mark, project, SS
 from tile_objects import (OD, OD_DARK, OD_LIGHT, TAN, CANVAS, BLACK, RUBBER, GREY, STEEL, STEEL_DARK, PIPE, WHITE,
                           STENCIL, YELLOW, RED, BRASS, WOOD, WOOD_DARK, BLUE, LIT, UNLIT, BEZEL, lamp, lamp_y,
-                          front_decal, side_decal, flat_decal, noise_texture)
+                          front_decal, side_decal, back_decal, west_decal, flat_decal, noise_texture)
 from tile_trade import hazard_strip, plank_lines
 from tile_machines import GRAPHITE, GRAPHITE_DARK, GRAPHITE_LIGHT, double_poly, ring_top, disc, valve_wheel
 
 
-def blade(s, cx, y, cz, r, colour, teeth=36):
-    """A big circular saw blade standing in the plane y = const, seen from both sides: teeth round the rim, an arbor
-    flange in the middle."""
+def blade(s, cx, y, cz, r, colour, teeth=24):
+    """A big circular saw blade standing in the plane y = const, seen from both sides: hooked teeth round the rim with
+    deep gullets, a dark band where the teeth are set, the blade's polished body, expansion slots, an arbor flange and
+    its bolts in the middle."""
     pts = []
-    for i in range(teeth * 2):
-        a = 2 * math.pi * i / (teeth * 2)
-        rr = r if i % 2 == 0 else r * 0.93
-        pts.append((cx + rr * math.cos(a), y, cz + rr * math.sin(a)))
+    for i in range(teeth):
+        a0 = 2 * math.pi * i / teeth
+        step = 2 * math.pi / teeth
+        # the tooth's tip, its hooked face falling to the gullet, the gullet's floor, the back rising to the next tip
+        for da, rr in ((0.0, r), (step * 0.12, r * 0.84), (step * 0.35, r * 0.82), (step * 0.75, r * 0.95)):
+            pts.append((cx + rr * math.cos(a0 + da), y, cz + rr * math.sin(a0 + da)))
     double_poly(s, pts, colour, colour, (0, 1, 0), shine=0.8)
+    body = tuple(int(c * 0.82) for c in colour)
+    band = tuple(int(c * 0.6) for c in colour)
+    seg = 40
     for sign in (1, -1):
-        for rr, col in ((r * 0.55, tuple(int(c * 0.88) for c in colour)), (r * 0.2, STEEL_DARK)):
-            seg = 32
-            s.poly([(cx + rr * math.cos(2 * math.pi * i / seg), y + 0.003 * sign, cz + rr * math.sin(2 * math.pi * i / seg))
+        def ring(rr, col, z=0.003):
+            s.poly([(cx + rr * math.cos(2 * math.pi * i / seg), y + z * sign, cz + rr * math.sin(2 * math.pi * i / seg))
                     for i in range(seg)], col, (0, sign, 0), 0.5)
+        ring(r * 0.8, band)
+        ring(r * 0.74, body, 0.004)
+        # expansion slots, from the band in toward the middle
+        for k in range(4):
+            a = 2 * math.pi * k / 4 + 0.3
+            s.poly([(cx + rr * math.cos(a + da), y + 0.005 * sign, cz + rr * math.sin(a + da))
+                    for rr, da in ((r * 0.78, -0.02), (r * 0.78, 0.02), (r * 0.6, 0.015), (r * 0.6, -0.015))],
+                   band, (0, sign, 0), 0.3)
+        ring(r * 0.26, STEEL_DARK, 0.006)
+        ring(r * 0.1, (40, 40, 42), 0.008)
+        for k in range(4):
+            a = 2 * math.pi * k / 4 + 0.785
+            bx, bz = cx + r * 0.18 * math.cos(a), cz + r * 0.18 * math.sin(a)
+            s.poly([(bx + 0.012 * math.cos(2 * math.pi * i / 8), y + 0.009 * sign, bz + 0.012 * math.sin(2 * math.pi * i / 8))
+                    for i in range(8)], STEEL, (0, sign, 0), 0.7)
+
+
+def end_grain(size=96, seed=3):
+    """A log's sawn end: pale wood with growth rings round an off-centre pith, a few checks, the bark's dark edge."""
+    rn = random.Random(seed)
+    img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    c = size / 2
+    d.ellipse([1, 1, size - 2, size - 2], fill=(70, 50, 32, 255))
+    d.ellipse([5, 5, size - 6, size - 6], fill=(206, 168, 112, 255))
+    px, py = c + 4, c - 3
+    for k in range(4, int(c) - 6, 4):
+        tone = (176, 136, 86, 255) if (k // 4) % 2 else (190, 150, 98, 255)
+        d.ellipse([px - k, py - k, px + k, py + k], outline=tone, width=2)
+    for _ in range(3):
+        a = rn.random() * 2 * math.pi
+        d.line([(px, py), (px + math.cos(a) * c * 0.8, py + math.sin(a) * c * 0.8)], fill=(120, 88, 56, 255), width=1)
+    mask = Image.new('L', (size, size), 0)
+    ImageDraw.Draw(mask).ellipse([1, 1, size - 2, size - 2], fill=255)
+    img.putalpha(mask)
+    return img
 
 
 def wood_saw(turns, look):
@@ -55,6 +97,9 @@ def wood_saw(turns, look):
     lx1 = 0.84 if not running else 0.96
     s.tube((lx0, 0.5, 0.67), (lx1, 0.5, 0.67), 0.17, (92, 66, 44), cap=(206, 168, 112), segments=26, shine=0.05,
            bands=[(0, 0.5, (92, 66, 44)), (0.5, 0.52, (74, 52, 34)), (0.52, 1, (100, 72, 48))])
+    grain = end_grain()
+    west_decal(s, 0.33, 0.67, 0.5, 0.84, lx0, grain, offset=0.004)
+    side_decal(s, 0.33, 0.67, 0.5, 0.84, lx1, end_grain(seed=5), offset=0.004)
     # bark scars
     for _ in range(8):
         t = rn.random()
@@ -82,7 +127,7 @@ def wood_saw(turns, look):
     s.tube((1.06, y0, 0.92), (1.06, y1, 0.92), 0.03, STEEL, shine=0.7, segments=14)
     # the blade: stopped = clean steel, running = pale and bright
     bz, br = 0.92, 0.38
-    blade(s, 1.06, 0.50, bz, br, (226, 230, 234) if running else (176, 180, 184))
+    blade(s, 1.06, 0.50, bz, br, (232, 236, 240) if running else (196, 200, 206))
     s.box(1.02, 0.46, 0.50, 1.10, 0.54, bz - br * 0.9, OD_DARK)
     # a guard over the blade's rear half and a splitter behind it
     s.box(1.08, y0 + 0.03, bz + 0.12, 1.20, y1 - 0.03, bz + br + 0.06, OD_DARK, top=OD, shine=0.1)
@@ -166,14 +211,38 @@ def research_storage(turns):
     for i in range(6):
         s.box(x1, y0 + 0.06, 0.2 + i * 0.18, x1 + 0.01, y1 - 0.06, 0.22 + i * 0.18, OD_DARK)
     side_decal(s, y0 + 0.1, y1 - 0.1, 0.56, 0.72, x1 + 0.012, stencil_text('OAK-R', 52, 20, STENCIL))
+    # the back: stiffeners between three panels, a louvred vent high at each end, a data plate and a cable gland
+    b = y0 - 0.012
+    for sx in (0.66, 1.32):
+        s.box(sx - 0.02, b, 0.16, sx + 0.02, y0, zt - 0.05, OD_DARK, top=OD)
+    s.box(x0 + 0.04, b, 0.16, x1 - 0.04, y0, 0.19, OD_DARK, top=OD)
+    for vx0, vx1 in ((0.16, 0.5), (1.5, 1.84)):
+        s.box(vx0 - 0.02, b - 0.002, zt - 0.36, vx1 + 0.02, y0, zt - 0.08, OD_DARK)
+        for i in range(6):
+            z = zt - 0.33 + i * 0.04
+            s.box(vx0, b - 0.012, z, vx1, b - 0.002, z + 0.018, (28, 30, 28), top=OD_LIGHT)
+    s.box(0.86, b - 0.004, 0.62, 1.12, y0, 0.78, (176, 166, 120), shine=0.4)
+    back_decal(s, 0.88, 1.10, 0.64, 0.76, b - 0.004, stencil_text('OAK-R1  LOT 07', 80, 30, (40, 38, 30)))
+    s.tube((1.62, b, 0.34), (1.62, b - 0.05, 0.34), 0.03, GRAPHITE, cap=GRAPHITE_DARK, segments=12, shine=0.3)
+    s.tube((1.62, b - 0.05, 0.34), (1.62, b - 0.05, 0.08), 0.012, (30, 30, 30), segments=8)
+    back_decal(s, 0.2, 0.56, 0.3, 0.44, b, stencil_text('OAK', 60, 24, STENCIL))
+    # the west end: ribs as on the east, a recessed carrying handle
+    for i in range(6):
+        s.box(x0 - 0.01, y0 + 0.06, 0.2 + i * 0.18, x0, y1 - 0.06, 0.22 + i * 0.18, OD_DARK)
+    s.box(x0 - 0.012, 0.4, 0.86, x0, 0.62, 0.94, (26, 28, 26))
+    s.box(x0 - 0.03, 0.42, 0.9, x0 - 0.012, 0.6, 0.92, STEEL_DARK, shine=0.5)
+    # lifting eyes at the lid's corners
+    for ex, ey in ((x0 + 0.1, y0 + 0.08), (x1 - 0.1, y0 + 0.08), (x0 + 0.1, y1 - 0.08), (x1 - 0.1, y1 - 0.08)):
+        s.box(ex - 0.03, ey - 0.03, zt, ex + 0.03, ey + 0.03, zt + 0.015, STEEL_DARK, top=STEEL)
+        s.tube((ex - 0.025, ey, zt + 0.04), (ex + 0.025, ey, zt + 0.04), 0.022, STEEL, segments=12, shine=0.6, caps=False)
     ground = shadow((1.0, 0.52), 1.0, 0.38, 125)
     return compose(s, ground=ground, seed=160 + turns, glows=[])
 
 
 def rain_storage(level=3):
-    """The big rain storage (2 x 2): a 4000 litre open-topped round plastic tank, blue-grey and ribbed, a thick lip
-    with a hand rail of steel loops, a ladder up the south-east side, a downspout pipe feeding it from above, a brass
-    tap with its valve low on the front and an overflow pipe. level 0..3 is how much water it holds: empty (a dry
+    """The big rain storage (2 x 2): a 4000 litre open-topped round plastic tank, blue-grey and ribbed, a thick lip,
+    two steel hoops with their buckles round it, a rain funnel on a post at the back that pipes what it catches over the
+    rim, a brass tap with its valve low on the front, an overflow pipe and a stencilled plate, on a timber pallet. level 0..3 is how much water it holds: empty (a dry
     floor with a little dirt and leaves), a quarter, a half, full (the water a hand below the rim)."""
     if level and 'rainStorage' not in OWNERS:
         rain_storage(0)    # the empty tank's split of the pixels into tiles is the one every level uses
@@ -185,8 +254,12 @@ def rain_storage(level=3):
     floor_z = 0.09
     full_z = 0.66
     wz = floor_z + (full_z - floor_z) * (0.0, 0.25, 0.5, 1.0)[level]
-    # the base ring, a pallet of timber under the tank
-    s.box(0.12, 0.12, 0.0, 1.88, 1.88, 0.06, WOOD_DARK, top=WOOD)
+    # the pallet under the tank: bearers, then deck boards with gaps between them
+    for by in (0.16, 0.96, 1.76):
+        s.box(0.12, by - 0.05, 0.0, 1.88, by + 0.05, 0.035, WOOD_DARK, top=WOOD_DARK)
+    for i in range(9):
+        bx = 0.12 + i * 0.2
+        s.box(bx, 0.12, 0.035, bx + 0.17, 1.88, 0.06, WOOD_DARK, top=WOOD if i % 2 else (150, 112, 70))
     # the far inside wall (dry above the water, dark and wet below it), then the outer wall with its ribs
     wet_top = wz if level else floor_z
     if level:
@@ -244,26 +317,50 @@ def rain_storage(level=3):
     for q in (0.25, 0.5, 0.75, 1.0):
         zq = g0 + (g1 - g0) * q
         s.box(gx + 0.026, gy + 0.05, zq - 0.006, gx + 0.075, gy + 0.075, zq + 0.006, (232, 232, 220), top=(232, 232, 220))
-    fy = cy + r
-    # the ladder up the south-east side
-    a = math.radians(55)
-    lx, ly = cx + r * math.cos(a) * 1.02, cy + r * math.sin(a) * 1.02
-    for side in (-0.07, 0.07):
-        s.tube((lx + side * -math.sin(a), ly + side * math.cos(a), 0.06), (lx + side * -math.sin(a), ly + side * math.cos(a), h + 0.34), 0.012, STEEL, segments=8, shine=0.6)
-    for i in range(10):
-        z = 0.14 + i * 0.1
-        s.tube((lx + 0.07 * math.sin(a), ly - 0.07 * math.cos(a), z), (lx - 0.07 * math.sin(a), ly + 0.07 * math.cos(a), z), 0.01, STEEL, segments=6, shine=0.6)
+    # two steel hoops round the wall, each with a buckle and its bolt on the south-east side
+    for hz in (0.24, 0.56):
+        s.tube((cx, cy, hz), (cx, cy, hz + 0.035), r + 0.014, STEEL_DARK, segments=64, shine=0.5, caps=False)
+        a = math.radians(40)
+        bx, by = cx + (r + 0.02) * math.cos(a), cy + (r + 0.02) * math.sin(a)
+        s.xbox((bx, by, hz + 0.0175), (0.08, 0.03, 0.06), rotation((0, 0, 1), 40 + 90), STEEL, top=STEEL, shine=0.6)
+        s.tube((bx - 0.03 * math.sin(a), by + 0.03 * math.cos(a), hz + 0.0175),
+               (bx + 0.03 * math.sin(a), by - 0.03 * math.cos(a), hz + 0.0175), 0.012, BRASS, segments=8, shine=0.6)
+    # the plate on the front: what it is and holds
+    plate = stencil_text('OAK-W  4000 L', 96, 16, STENCIL)
+    a = math.radians(112)
+    px, py = cx + (r + 0.004) * math.cos(a), cy + (r + 0.004) * math.sin(a)
+    tangent = (-math.sin(a), math.cos(a), 0)
+    s.decal((px - tangent[0] * 0.2, py - tangent[1] * 0.2, 0.5), (tangent[0] * 0.4, tangent[1] * 0.4, 0), (0, 0, -0.08),
+            plate, (math.cos(a), math.sin(a), 0), 0.006)
     # the tap low on the front, a gate valve with a wheel, the pipe down
     tx, ty = cx - 0.3, cy + r * 0.955
     s.tube((tx, ty, 0.2), (tx, ty + 0.1, 0.2), 0.04, BRASS, segments=14, shine=0.6)
     s.tube((tx, ty + 0.1, 0.2), (tx, ty + 0.1, 0.12), 0.034, BRASS, segments=14, shine=0.6)
     s.tube((tx, ty + 0.04, 0.2), (tx, ty + 0.04, 0.3), 0.014, STEEL, segments=8, shine=0.6)
     valve_wheel(s, (tx, ty + 0.04, 0.32), 0.05, RED, axis='y')
-    # the downspout from above at the back, bent over the rim; an overflow pipe on the east side
-    dx, dy = cx + 0.45, cy - r * 0.8
-    s.tube((dx, dy, 1.62), (dx, dy, h + 0.12), 0.04, GRAPHITE, segments=14, shine=0.3)
-    s.tube((dx, dy, h + 0.12), (dx - 0.1, dy + 0.16, h + 0.02), 0.04, GRAPHITE, segments=14, shine=0.3)
-    s.tube((dx, dy, 1.58), (dx, dy, 1.62), 0.055, GRAPHITE_DARK, segments=14)
+    # the rain funnel at the back corner: a post on a foot, a wide funnel with a leaf screen on top, its pipe bent
+    # over the rim into the tank; an overflow pipe on the east side
+    fx, fy = 1.74, 0.26
+    s.box(fx - 0.09, fy - 0.09, 0.0, fx + 0.09, fy + 0.09, 0.05, GRAPHITE_DARK, top=GRAPHITE)
+    s.box(fx - 0.025, fy - 0.025, 0.05, fx + 0.025, fy + 0.025, 1.2, GRAPHITE, top=GRAPHITE_LIGHT, shine=0.3)
+    for k in (-1, 1):
+        s.tube((fx, fy, 0.9), (fx + k * 0.1, fy, 1.2), 0.012, GRAPHITE_DARK, segments=6)
+    s.tube((fx, fy, 1.16), (fx, fy, 1.42), 0.05, (52, 58, 64), r2=0.26, segments=28, shine=0.4, caps=False)
+    s.tube((fx, fy, 1.18), (fx, fy, 1.42), 0.045, (34, 38, 42), r2=0.25, segments=28, inward=True, caps=False)
+    s.tube((fx, fy, 1.40), (fx, fy, 1.44), 0.27, GRAPHITE_LIGHT, segments=28, shine=0.4, caps=False)
+    screen = Image.new('RGBA', (128, 128), (0, 0, 0, 0))
+    sd = ImageDraw.Draw(screen)
+    sd.ellipse([2, 2, 125, 125], fill=(30, 34, 36, 120))
+    for k in range(8, 128, 10):
+        sd.line([(k, 0), (k, 127)], fill=(150, 156, 160, 200), width=1)
+        sd.line([(0, k), (127, k)], fill=(150, 156, 160, 200), width=1)
+    mask = Image.new('L', (128, 128), 0)
+    ImageDraw.Draw(mask).ellipse([2, 2, 125, 125], fill=255)
+    screen.putalpha(Image.fromarray(np.minimum(np.array(screen.getchannel('A')), np.array(mask))))
+    flat_decal(s, fx - 0.25, fy - 0.25, fx + 0.25, fy + 0.25, 1.43, screen)
+    s.tube((fx, fy, 1.18), (fx, fy, 1.06), 0.035, GRAPHITE, segments=14, shine=0.3)
+    s.tube((fx, fy, 1.06), (cx + 0.5, cy - 0.5, h + 0.14), 0.035, GRAPHITE, segments=14, shine=0.3)
+    s.tube((cx + 0.5, cy - 0.5, h + 0.14), (cx + 0.42, cy - 0.42, h - 0.02), 0.035, GRAPHITE, segments=14, shine=0.3)
     ox, oy = cx + r * 0.98, cy - 0.15
     s.tube((ox - 0.03, oy, h - 0.16), (ox + 0.13, oy, h - 0.16), 0.05, PLASTIC_DARK, segments=16, shine=0.3)
     s.tube((ox + 0.13, oy, h - 0.16), (ox + 0.13, oy, 0.18), 0.05, PLASTIC_DARK, segments=16, shine=0.3)

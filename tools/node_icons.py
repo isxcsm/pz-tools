@@ -553,11 +553,16 @@ def g_break_sprint(g):  # capstone
 
 
 # ---- second board: load
-def g_b2_heavy_load(g):
-    g.ring(32, 22, 8.4, 3.8)
-    g.poly([(22, 28), (42, 28), (51, 51), (13, 51)])
-    g.line(20, 43, 44, 43, 2.2, g.ink)
-    g.line(24, 35, 40, 35, 2.2, g.ink)
+def g_b2_heavy_load(g):  # materials and furniture: a chair on a stack of planks
+    g.rrect(8, 41, 52, 47.5, 1.5)
+    g.rrect(12, 49, 56, 55.5, 1.5)
+    g.line(8, 44.2, 52, 44.2, 1.2, g.ink)
+    g.line(12, 52.2, 56, 52.2, 1.2, g.ink)
+    g.rect(22, 10, 27, 37)
+    g.rect(22, 27, 44, 32)
+    g.rect(39, 32, 44, 40)
+    g.rect(22, 32, 27, 40)
+    g.line(27, 16, 27, 22, 1.6, g.ink)
 
 
 def g_b2_gear_adapt(g):  # helmet
@@ -736,88 +741,44 @@ def g_b2_sample_bundle(g):
     g.rrect(14.8, 29.8, 49.2, 34.2, 1.2)
 
 
-def g_b2_family_food(g):  # a tin can
-    g.rrect(17, 14, 47, 52, 4)
-    g.line(17, 21, 47, 21, 2.2, g.ink)
-    g.line(17, 45, 47, 45, 2.2, g.ink)
-    g.rect(22, 27, 42, 39, g.ink)
-    g.rect(24.5, 29.5, 39.5, 36.5)
-
-
-def g_b2_family_clothing(g):  # a T-shirt
-    g.poly([(23, 13), (28, 13), (32, 18), (36, 13), (41, 13), (54, 23), (48, 32), (44, 29), (44, 52), (20, 52),
-            (20, 29), (16, 32), (10, 23)])
-    g.arc(32, 13, 5, 0, 180, 2.2, g.ink)
-
-
-def g_b2_family_bags(g):  # a duffel bag with its handle
-    g.arc(32, 25, 9, 180, 360, 3.6)
-    g.rrect(10, 24, 54, 51, 7)
-    g.line(14, 33, 50, 33, 2.0, g.ink)
-    g.rect(29, 30, 35, 37, g.ink)
-
-
-def g_b2_family_media(g):  # an open book
-    g.poly([(9, 17), (31, 21), (31, 51), (9, 47)])
-    g.poly([(33, 21), (55, 17), (55, 47), (33, 51)])
-    for y in (27, 33, 39):
-        g.line(13, y, 27, y + 2.5, 1.7, g.ink)
-        g.line(37, y + 2.5, 51, y, 1.7, g.ink)
-
-
-def g_b2_family_junk(g):  # a teddy bear's head
-    for x in (19, 45):
-        g.circle(x, 20, 6.5)
-        g.circle(x, 20, 2.8, g.ink)
-    g.circle(32, 35, 16)
-    g.circle(26, 31, 2.2, g.ink)
-    g.circle(38, 31, 2.2, g.ink)
-    g.ell(32, 41, 6, 4.5, g.ink)
-    g.circle(32, 39.5, 1.8)
-
-
-def g_b2_family_household(g):  # a cooking pot with its lid
-    g.circle(32, 19, 3.4)
-    g.rrect(12, 23, 52, 28, 2)
-    g.rrect(15, 30, 49, 51, 4)
-    g.rrect(6, 33, 15, 37.5, 2)
-    g.rrect(49, 33, 58, 37.5, 2)
-    g.line(15, 38, 49, 38, 2.0, g.ink)
-
-
-def g_b2_family_electronics(g):  # a radio
-    g.line(20, 23, 44, 11, 2.6)
-    g.rrect(9, 23, 55, 51, 4)
-    g.ring(22, 37, 7.5, 2.4, g.ink)
-    g.circle(22, 37, 2.6, g.ink)
-    g.rect(35, 30, 49, 35, g.ink)
-    g.circle(38.5, 43, 2.5, g.ink)
-    g.circle(45.5, 43, 2.5, g.ink)
-
-
-def g_b2_family_tools(g):  # a wrench
+def g_b2_family_gear(g):  # gear: a wrench and a knife crossed
     g.rot(32, 32, 45)
-    g.rrect(28, 22, 36, 55, 3.5)
-    g.circle(32, 17, 10.5)
-    g.rect(28.2, 4, 35.8, 17, g.er)
-    g.circle(32, 49, 2.2, g.ink)
+    g.rrect(28.5, 24, 35.5, 56, 3)
+    g.circle(32, 18, 10)
+    g.rect(28.6, 5, 35.4, 18, g.er)
+    g.norot()
+    g.rot(32, 32, -45)
+    g.rrect(28.2, 40, 35.8, 57, 2.5)
+    g.rect(24.5, 36.5, 39.5, 40)
+    g.poly([(28.5, 36.5), (35.5, 36.5), (35.5, 15), (32, 7), (28.5, 13)])
+    g.line(32, 43, 32, 54, 1.5, g.ink)
     g.norot()
 
 
-def g_b2_family_medical(g):  # a first aid kit
-    g.frame(24, 12, 40, 24, 3, 3)
-    g.rrect(10, 21, 54, 52, 4)
-    g.rect(29, 27, 35, 47, g.ink)
-    g.rect(22, 34, 42, 40, g.ink)
+def g_b2_family_supply(g):  # supplies: a tin with a cross on its label and a water bottle
+    g.rrect(7, 26, 31, 55, 3)
+    g.line(7, 31.5, 31, 31.5, 2.0, g.ink)
+    g.line(7, 49.5, 31, 49.5, 2.0, g.ink)
+    g.rect(16.5, 35, 21.5, 46, g.ink)
+    g.rect(13.5, 38, 24.5, 43, g.ink)
+    g.rrect(39.5, 6, 49.5, 11, 1.5)
+    g.rect(41.5, 11, 47.5, 16)
+    g.rrect(35, 16, 54, 55, 5)
+    g.line(35, 30, 54, 30, 1.8, g.ink)
+    g.line(35, 44, 54, 44, 1.8, g.ink)
 
 
-def g_b2_family_weapons(g):  # a baseball bat
-    g.rot(32, 32, 40)
-    g.poly([(30, 50), (34, 50), (36.5, 30), (37.5, 14), (32, 9.5), (26.5, 14), (27.5, 30)])
-    g.ell(32, 52.5, 5, 2.4)
-    g.line(29, 42, 35, 42, 1.6, g.ink)
-    g.line(29.3, 45.5, 34.7, 45.5, 1.6, g.ink)
-    g.norot()
+def g_b2_family_misc(g):  # odds and ends: an open box, a book and a bear's ear showing over its flaps
+    g.rrect(36, 10, 46, 30, 1.2)
+    g.line(39, 13, 39, 27, 1.2, g.ink)
+    g.circle(25, 22, 6.5)
+    g.circle(25, 22, 2.8, g.ink)
+    g.poly([(8, 30), (2, 22), (20, 22), (26, 30)])
+    g.poly([(38, 30), (44, 22), (62, 22), (56, 30)])
+    g.rrect(8, 29, 56, 55, 2)
+    g.line(8, 36, 56, 36, 2.0, g.ink)
+    g.rect(28, 29, 36, 55, g.ink)
+    g.rect(29.5, 29, 34.5, 55)
 
 
 def g_sealed(g):  # a capstone not yet known: a question mark
@@ -866,23 +827,16 @@ ICONS = [
     ("하중", "봉인된 연구", "SealedLoad", g_sealed, "cap"),
     ("생존", "봉인된 연구", "SealedSurvival", g_sealed, "cap"),
     # second board (source tree order as in TREES.md)
-    ("2차-하중", "무거운 짐 무게", "B2HeavyLoad", g_b2_heavy_load, "b2"),
+    ("2차-하중", "자재·가구 경량화", "B2HeavyLoad", g_b2_heavy_load, "b2"),
     ("2차-하중", "장비 적응", "B2GearAdapt", g_b2_gear_adapt, "b2"),
     ("2차-하중", "장비 속도 벌칙", "B2GearSpeed", g_b2_gear_speed, "b2"),
     ("2차-하중", "과적 벌칙", "B2OverloadPenalty", g_b2_overload_penalty, "b2"),
     ("2차-하중", "옮기기 시간", "B2TransferTime", g_b2_transfer_time, "b2"),
     ("2차-하중", "운반 한도", "B2CarryLimit", g_b2_carry_limit, "b2"),
     ("2차-하중", "저장소 용량", "B2StorageCapacity", g_b2_storage_capacity, "b2"),
-    ("2차-하중", "보급품 경량화", "B2FamilyFood", g_b2_family_food, "b2"),
-    ("2차-하중", "의류 경량화", "B2FamilyClothing", g_b2_family_clothing, "b2"),
-    ("2차-하중", "가방·용기 경량화", "B2FamilyBags", g_b2_family_bags, "b2"),
-    ("2차-하중", "문서·미디어 경량화", "B2FamilyMedia", g_b2_family_media, "b2"),
-    ("2차-하중", "잡동사니 경량화", "B2FamilyJunk", g_b2_family_junk, "b2"),
-    ("2차-하중", "생활용품 경량화", "B2FamilyHousehold", g_b2_family_household, "b2"),
-    ("2차-하중", "전자기기 경량화", "B2FamilyElectronics", g_b2_family_electronics, "b2"),
-    ("2차-하중", "장비 경량화", "B2FamilyTools", g_b2_family_tools, "b2"),
-    ("2차-하중", "의료용품 경량화", "B2FamilyMedical", g_b2_family_medical, "b2"),
-    ("2차-하중", "무기 경량화", "B2FamilyWeapons", g_b2_family_weapons, "b2"),
+    ("2차-하중", "장비 경량화", "B2FamilyGear", g_b2_family_gear, "b2"),
+    ("2차-하중", "보급품 경량화", "B2FamilySupply", g_b2_family_supply, "b2"),
+    ("2차-하중", "잡동사니 경량화", "B2FamilyMisc", g_b2_family_misc, "b2"),
     ("2차-생존", "긁힘·찢김 감염 확률", "B2ScratchInfect", g_b2_scratch_infect, "b2"),
     ("2차-생존", "병이 쌓이는 속도", "B2SicknessRate", g_b2_sickness_rate, "b2"),
     ("2차-생존", "물림 버티기 대기", "B2BiteCooldown", g_b2_bite_cooldown, "b2"),

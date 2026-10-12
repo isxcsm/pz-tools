@@ -22,8 +22,26 @@ def pipe(s, pts, r=0.02, colour=PIPE):
         s.sphere(p, (r * 1.15, r * 1.15, r * 1.15), colour, rings=4, segments=10, shine=0.4)
 
 
+def tread_plate(w=256, h=256, base=(74, 78, 82)):
+    """Steel checker plate: raised diamond lugs in alternating rows over worn grey."""
+    img = noise_texture(w, h, 21, base, spread=10)
+    d = ImageDraw.Draw(img)
+    light = tuple(min(255, c + 34) for c in base) + (255,)
+    dark = tuple(int(c * 0.7) for c in base) + (255,)
+    for row, y in enumerate(range(6, h, 12)):
+        for x in range(6 + (row % 2) * 6, w, 12):
+            if row % 2:
+                d.line([(x - 3, y + 2), (x + 3, y - 2)], fill=light, width=2)
+                d.line([(x - 2, y + 3), (x + 4, y - 1)], fill=dark, width=1)
+            else:
+                d.line([(x - 3, y - 2), (x + 3, y + 2)], fill=light, width=2)
+                d.line([(x - 2, y - 1), (x + 4, y + 3)], fill=dark, width=1)
+    return img
+
+
 def skid(s, x0, y0, x1, y1):
     s.box(x0, y0, 0.0, x1, y1, 0.08, GRAPHITE_DARK, top=GRAPHITE, shine=0.15)
+    flat_decal(s, x0, y0, x1, y1, 0.08, tread_plate())
     front_decal(s, x0, x1, 0.0, 0.08, y1 + 0.001, hazard_strip(300, 12, YELLOW, (30, 30, 28), 7))
     s.poly([(x1, y0, 0.0), (x1, y1, 0.0), (x1, y1, 0.08), (x1, y0, 0.08)], YELLOW, (1, 0, 0))
 
@@ -60,6 +78,18 @@ def propane_refiner(turns, look):
     s.tube((cx, cy, top + 0.17), (cx, cy, top + 0.3), 0.04, STEEL_DARK, segments=12, shine=0.4)
     for z in (0.3, 0.7, 1.1):
         s.tube((cx, cy, z), (cx, cy, z + 0.025), r + 0.015, CREAM_DARK, segments=44, shine=0.2)
+    # a manway low on the column's south-east: a round hatch on a short neck, its bolts round the flange
+    ma = math.radians(70)
+    mx, my, mz = cx + r * math.cos(ma), cy + r * math.sin(ma), 0.19
+    out = (math.cos(ma), math.sin(ma), 0)
+    s.tube((mx - out[0] * 0.02, my - out[1] * 0.02, mz), (mx + out[0] * 0.06, my + out[1] * 0.06, mz), 0.085,
+           CREAM_DARK, cap=CREAM, segments=24, shine=0.3)
+    for k in range(8):
+        a = 2 * math.pi * k / 8
+        tx, ty = -math.sin(ma), math.cos(ma)
+        bx = mx + out[0] * 0.062 + tx * 0.065 * math.cos(a)
+        by = my + out[1] * 0.062 + ty * 0.065 * math.cos(a)
+        s.sphere((bx, by, mz + 0.065 * math.sin(a)), (0.011, 0.011, 0.011), STEEL_DARK, rings=3, segments=6, shine=0.5)
     # a railed platform half way up
     pz = 1.04
     ring_top(s, (cx, cy), r, r + 0.17, pz, STEEL_DARK, segments=44, shine=0.3)
@@ -71,14 +101,33 @@ def propane_refiner(turns, look):
         a0, a1 = 2 * math.pi * i / 44, 2 * math.pi * (i + 1) / 44
         s.tube((cx + (r + 0.16) * math.cos(a0), cy + (r + 0.16) * math.sin(a0), pz + 0.3),
                (cx + (r + 0.16) * math.cos(a1), cy + (r + 0.16) * math.sin(a1), pz + 0.3), 0.007, STEEL, segments=5, shine=0.5)
-    # the ladder up the column's south-east
+    # the caged ladder up the column's south-east to the platform: heavy rails and rungs, a safety cage of hoops and
+    # bars from head height up (a thin bare ladder read as a toy at the tile's size)
     la = math.radians(60)
-    lx, ly = cx + (r + 0.02) * math.cos(la), cy + (r + 0.02) * math.sin(la)
-    for side in (-0.06, 0.06):
-        s.tube((lx - side * math.sin(la), ly + side * math.cos(la), 0.08), (lx - side * math.sin(la), ly + side * math.cos(la), pz), 0.008, STEEL_DARK, segments=6)
-    for i in range(11):
-        z = 0.14 + i * 0.085
-        s.tube((lx + 0.06 * math.sin(la), ly - 0.06 * math.cos(la), z), (lx - 0.06 * math.sin(la), ly + 0.06 * math.cos(la), z), 0.007, STEEL_DARK, segments=5)
+    out = (math.cos(la), math.sin(la))
+    across = (-math.sin(la), math.cos(la))
+    lx, ly = cx + (r + 0.03) * out[0], cy + (r + 0.03) * out[1]
+    for side in (-0.065, 0.065):
+        s.tube((lx + side * across[0], ly + side * across[1], 0.08), (lx + side * across[0], ly + side * across[1], pz + 0.3),
+               0.014, YELLOW, segments=8, shine=0.3)
+    for i in range(10):
+        z = 0.16 + i * 0.09
+        s.tube((lx - 0.065 * across[0], ly - 0.065 * across[1], z), (lx + 0.065 * across[0], ly + 0.065 * across[1], z),
+               0.01, STEEL_DARK, segments=6)
+    hx, hy = lx + out[0] * 0.1, ly + out[1] * 0.1
+    for hz in (0.5, 0.72, 0.94, pz + 0.2):
+        pts = []
+        for k in range(9):
+            a = math.pi * k / 8
+            pts.append((hx + across[0] * 0.1 * math.cos(a) + out[0] * 0.1 * math.sin(a) - out[0] * 0.03,
+                        hy + across[1] * 0.1 * math.cos(a) + out[1] * 0.1 * math.sin(a) - out[1] * 0.03, hz))
+        for a_, b_ in zip(pts, pts[1:]):
+            s.tube(a_, b_, 0.009, YELLOW, segments=5, shine=0.3)
+    for k in (2, 4, 6):
+        a = math.pi * k / 8
+        bx = hx + across[0] * 0.1 * math.cos(a) + out[0] * 0.1 * math.sin(a) - out[0] * 0.03
+        by = hy + across[1] * 0.1 * math.cos(a) + out[1] * 0.1 * math.sin(a) - out[1] * 0.03
+        s.tube((bx, by, 0.5), (bx, by, pz + 0.2), 0.007, YELLOW, segments=5, shine=0.3)
     # the gauge on the column's south face and a stencil
     gz = 0.86
     front_decal(s, cx - 0.2, cx + 0.0, 0.38, 0.5, cy + r + 0.0, stencil_text('PROPANE', 80, 20, (40, 70, 130)))
@@ -86,8 +135,10 @@ def propane_refiner(turns, look):
     front_decal(s, cx - 0.12 - 0.065, cx - 0.12 + 0.065, gz - 0.065, gz + 0.065, cy + r + 0.021, gauge_image(0.8 if running else 0.12, 56), offset=0.0)
     # the bullet tank on two saddles, along x, south of the column
     ty, tz, tr = 1.46, 0.46, 0.27
+    seam = (160, 158, 148)
     s.tube((0.78, ty, tz), (1.66, ty, tz), tr, (188, 186, 176), cap=(166, 164, 154), segments=36, shine=0.35,
-           bands=[(0, 0.46, (188, 186, 176)), (0.46, 0.52, BLUE), (0.52, 1, (188, 186, 176))])
+           bands=[(0, 0.22, (188, 186, 176)), (0.22, 0.235, seam), (0.235, 0.46, (188, 186, 176)), (0.46, 0.52, BLUE),
+                  (0.52, 0.765, (188, 186, 176)), (0.765, 0.78, seam), (0.78, 1, (188, 186, 176))])
     s.sphere((0.78, ty, tz), (0.14, tr, tr), (200, 198, 186), rings=7, segments=36, z_from=-90, z_to=90, shine=0.35)
     s.sphere((1.66, ty, tz), (0.14, tr, tr), (200, 198, 186), rings=7, segments=36, z_from=-90, z_to=90, shine=0.35)
     for x in (0.98, 1.46):
@@ -113,8 +164,10 @@ def propane_refiner(turns, look):
     s.box(1.32, 0.3, 0.60, 1.92, 0.8, 0.63, STEEL_DARK)
     # the flare stack at the north-east corner, braced, a flame when running
     sx, sy = 1.78, 0.2
-    s.tube((sx, sy, 0.08), (sx, sy, 2.0), 0.04, GRAPHITE, segments=14, shine=0.3)
-    s.tube((sx, sy, 2.0), (sx, sy, 2.1), 0.055, GRAPHITE_DARK, r2=0.035, segments=14)
+    s.tube((sx, sy, 0.08), (sx, sy, 2.0), 0.055, GRAPHITE, segments=16, shine=0.3,
+           bands=[(0, 0.84, GRAPHITE), (0.84, 0.88, RED), (0.88, 0.92, WHITE), (0.92, 0.96, RED), (0.96, 1, WHITE)])
+    s.tube((sx, sy, 2.0), (sx, sy, 2.1), 0.07, GRAPHITE_DARK, r2=0.045, segments=16)
+    s.tube((sx, sy, 0.08), (sx, sy, 0.14), 0.1, GRAPHITE_DARK, cap=GRAPHITE, segments=16)
     for ang in (30, 150, 270):
         a = math.radians(ang)
         s.tube((sx + 0.4 * math.cos(a), sy + 0.4 * math.sin(a), 0.08), (sx, sy, 1.4), 0.004, STEEL_DARK, segments=4)
@@ -177,11 +230,18 @@ def oil_refiner(turns, look):
     for z in (0.4, 0.85, 1.3, 1.7):
         s.tube((cx, cy, z), (cx, cy, z + 0.03), cr + 0.025, GRAPHITE_DARK, segments=36, shine=0.2)
     s.tube((cx, cy, ctop + 0.1), (cx, cy, ctop + 0.3), 0.015, STEEL_DARK, segments=6)
-    # a ladder on the column's east side
-    for side in (-0.05, 0.05):
-        s.tube((cx + cr + 0.02, cy + side, 0.1), (cx + cr + 0.02, cy + side, 1.7), 0.007, STEEL_DARK, segments=6)
-    for i in range(18):
-        s.tube((cx + cr + 0.02, cy - 0.05, 0.16 + i * 0.087), (cx + cr + 0.02, cy + 0.05, 0.16 + i * 0.087), 0.006, STEEL_DARK, segments=5)
+    # a level bridle on the column's east side: two nozzles out of the column, a standpipe between them with its
+    # sight glass and the oil's level in it, a drain valve at its foot (where a bare ladder led nowhere)
+    bx = cx + cr + 0.09
+    for nz in (0.34, 1.34):
+        s.tube((cx + cr - 0.02, cy, nz), (bx, cy, nz), 0.024, GRAPHITE_DARK, segments=10, shine=0.3)
+        s.tube((cx + cr + 0.03, cy, nz), (cx + cr + 0.045, cy, nz), 0.045, GRAPHITE_DARK, segments=12)
+    s.tube((bx, cy, 0.26), (bx, cy, 1.42), 0.026, GRAPHITE, cap=GRAPHITE_DARK, segments=12, shine=0.4)
+    s.box(bx - 0.03, cy - 0.034, 0.62, bx + 0.03, cy + 0.034, 1.1, STEEL_DARK, top=STEEL, shine=0.4)
+    s.box(bx + 0.03, cy - 0.016, 0.66, bx + 0.036, cy + 0.016, 1.06, (196, 206, 210), shine=0.6)
+    s.box(bx + 0.031, cy - 0.016, 0.66, bx + 0.037, cy + 0.016, 0.66 + (0.32 if running else 0.18), (40, 30, 18), shine=0.6)
+    s.tube((bx, cy, 0.26), (bx, cy, 0.18), 0.016, STEEL, segments=8, shine=0.5)
+    valve_wheel(s, (bx, cy, 0.16), 0.035, RED, axis='x')
     # the pipe rack from vessel to column, with wheels
     pipe(s, [(1.2, vy, vz), (1.34, vy, vz), (1.34, cy, vz), (cx - cr, cy, vz)], 0.04, PIPE)
     valve_wheel(s, (1.34, 0.4, vz + 0.12), 0.05, YELLOW, axis='y')

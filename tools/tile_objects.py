@@ -114,6 +114,18 @@ def front_decal(s, x0, x1, z0, z1, y, image, emit=False, offset=0.003):
     s.decal((x0, y, z1), (x1 - x0, 0, 0), (0, 0, -(z1 - z0)), image, (0, 1, 0), offset, emit)
 
 
+def back_decal(s, x0, x1, z0, z1, y, image, emit=False, offset=0.003):
+    """An image on a face looking north (-y) at depth y, spanning x0..x1 and z0..z1, reading left to right as seen from
+    the north (x1 to x0)."""
+    s.decal((x1, y, z1), (-(x1 - x0), 0, 0), (0, 0, -(z1 - z0)), image, (0, -1, 0), offset, emit)
+
+
+def west_decal(s, y0, y1, z0, z1, x, image, emit=False, offset=0.003):
+    """An image on a face looking west (-x) at x, spanning y0..y1 and z0..z1, reading left to right as seen from the
+    west (y0 to y1)."""
+    s.decal((x, y0, z1), (0, y1 - y0, 0), (0, 0, -(z1 - z0)), image, (-1, 0, 0), offset, emit)
+
+
 def side_decal(s, y0, y1, z0, z1, x, image, emit=False, offset=0.003):
     """An image on a face looking east (+x) at x, spanning y0..y1 (left to right on screen: y1 to y0) and z0..z1."""
     s.decal((x, y1, z1), (0, y0 - y1, 0), (0, 0, -(z1 - z0)), image, (1, 0, 0), offset, emit)

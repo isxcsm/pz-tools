@@ -14,6 +14,21 @@ from tile_objects import (OD, OD_DARK, OD_LIGHT, TAN, CANVAS, BLACK, RUBBER, GRE
                           side_decal, noise_texture, face_frame, lamp_y, knob_y, dial_image)
 
 FOAM = (58, 64, 56)
+
+
+def egg_crate(w=96, h=96, cell=12, base=FOAM):
+    """Egg-crate packing foam: rows of soft bumps, each lit on its upper left and shaded on its lower right."""
+    img = Image.new('RGBA', (w, h), base + (255,))
+    d = ImageDraw.Draw(img)
+    light = tuple(min(255, c + 22) for c in base) + (255,)
+    dark = tuple(int(c * 0.72) for c in base) + (255,)
+    for row, y in enumerate(range(0, h + cell, cell)):
+        for x in range(-cell, w + cell, cell):
+            ox = x + (cell // 2 if row % 2 else 0)
+            d.ellipse([ox + 2, y + 2, ox + cell - 1, y + cell - 1], fill=dark)
+            d.ellipse([ox + 1, y + 1, ox + cell - 3, y + cell - 3], fill=light)
+            d.ellipse([ox + 3, y + 3, ox + cell - 4, y + cell - 4], fill=base + (255,))
+    return img
 STRAW = (190, 168, 110)
 ORANGE = (196, 104, 46)
 
@@ -101,7 +116,7 @@ def delivery_box(sealed):
         centre = add(hinge, apply(rot, (0, -0.045, size[2] / 2)))
         # inside the lid: foam
         s.xbox(centre, size, rot, OD, top=OD_DARK, shine=0.15)
-        stick(s, centre, rot, size, '+y', noise_texture(40, 40, 3, FOAM, spread=22), margin=0.02, offset=0.002)
+        stick(s, centre, rot, size, '+y', egg_crate(), margin=0.02, offset=0.002)
         stick(s, centre, rot, size, '-y', acorn_mark(50, STENCIL), margin=0.14, offset=0.003)
         # the body's inside: the foam bed with the cut-outs
         s.box(x0 + 0.02, y0 + 0.02, zb - 0.03, x1 - 0.02, y1 - 0.02, zb - 0.01, (28, 30, 28))
@@ -300,8 +315,8 @@ def meteor_rocks():
     img[..., :3] = (34, 30, 28)
     img[..., 3] = (a * 255).astype(np.uint8)
     flat_decal(s, 0.1, 0.1, 0.9, 0.9, 0.0, Image.fromarray(img, 'RGBA').filter(ImageFilter.GaussianBlur(2)), offset=0.0)
-    s.rock((0.46, 0.50, 0.17), 0.27, 11, base, squash=(1.1, 0.95, 0.85), detail=1, jitter=0.30, colour2=crust, shine=0.12)
-    s.rock((0.70, 0.62, 0.07), 0.13, 12, base, squash=(1.0, 1.0, 0.75), detail=1, jitter=0.30, colour2=crust, shine=0.12)
+    s.rock((0.46, 0.50, 0.17), 0.27, 11, base, squash=(1.1, 0.95, 0.85), detail=2, jitter=0.2, colour2=crust, shine=0.22, patches=True)
+    s.rock((0.70, 0.62, 0.07), 0.13, 12, base, squash=(1.0, 1.0, 0.75), detail=2, jitter=0.22, colour2=crust, shine=0.2, patches=True)
     s.rock((0.30, 0.72, 0.05), 0.10, 13, (74, 64, 58), squash=(1.2, 0.9, 0.7), detail=1, jitter=0.30, colour2=crust, shine=0.1)
     s.rock((0.66, 0.30, 0.04), 0.075, 14, (60, 54, 52), squash=(1.0, 1.0, 0.7), detail=0, jitter=0.25, colour2=crust)
     s.rock((0.24, 0.36, 0.03), 0.06, 15, (70, 62, 58), squash=(1.0, 1.0, 0.7), detail=0, jitter=0.25)

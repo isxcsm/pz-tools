@@ -252,8 +252,10 @@ class Scene:
                 self.face(pts, col, n, shine, emit)
 
     def rock(self, centre, radius, seed, colour, squash=(1.0, 1.0, 0.7), detail=1, jitter=0.28, shine=0.05,
-             colour2=None):
-        """A rough lump: an icosphere pushed about, each face flat with a slightly different tone."""
+             colour2=None, patches=False):
+        """A rough lump: an icosphere pushed about, each face flat with a slightly different tone. colour2 is a second
+        colour on some faces: scattered one by one, or with patches in smooth patches over the surface (a crust) and the
+        tones closer together, so a finely divided lump reads as one stone, not a checkerboard."""
         rnd = random.Random(seed)
         t = (1 + 5 ** 0.5) / 2
         verts = [(-1, t, 0), (1, t, 0), (-1, -t, 0), (1, -t, 0), (0, -1, t), (0, 1, t), (0, -1, -t), (0, 1, -t),
@@ -288,8 +290,15 @@ class Scene:
             mid_p = mul(add(add(pa, pb), pc), 1 / 3)
             if dot(n, sub(mid_p, centre)) < 0:
                 n = mul(n, -1)
-            tone = 0.82 + rnd.random() * 0.3
-            base = colour2 if (colour2 and rnd.random() < 0.18) else colour
+            if patches:
+                d = sub(mid_p, centre)
+                field = math.sin(d[0] * 9 / radius + seed) + math.sin(d[1] * 7 / radius - seed * 0.7) \
+                    + math.sin(d[2] * 11 / radius + seed * 1.3)
+                tone = 0.9 + rnd.random() * 0.14
+                base = colour2 if (colour2 and field > 1.1) else colour
+            else:
+                tone = 0.82 + rnd.random() * 0.3
+                base = colour2 if (colour2 and rnd.random() < 0.18) else colour
             col = tuple(max(0, min(255, int(ch * tone))) for ch in base)
             self.face([pa, pb, pc], col, n, shine)
 
@@ -420,6 +429,7 @@ def compose(scene, ground=None, over=None, seed=1, glows=None, owner_key=None):
         small = finish(small, solid.getchannel('A').resize((cw, ch), Image.LANCZOS), seed)
         if glows:
             small = glow(small, scene, glows)
+        small = trim_faint(small)
         if (fw, fh) == (1, 1):
             return small
         # which tile does each finished pixel belong to: the mean of the points its subpixels show, else the ground
@@ -472,6 +482,20 @@ def compose(scene, ground=None, over=None, seed=1, glows=None, owner_key=None):
         return tiles
     finally:
         reset_canvas()
+
+
+# The faintest alpha a finished tile keeps: the tails of the soft shadow, of a lamp's haze and of the scaling's ringing
+# are taken away below it and the rest stretched to meet it, so no edge shows. The game draws a tile the player stands
+# behind dithered (its see-through circle), and a faint pixel comes out there as a lone black dot: seen in game as a
+# speckled ring round the oil refiner and its smoke.
+FAINT = 32
+
+
+def trim_faint(image):
+    a = np.array(image)
+    alpha = a[..., 3].astype(np.float64)
+    a[..., 3] = np.clip((alpha - FAINT) * 255.0 / (255 - FAINT) + 0.5, 0, 255).astype(np.uint8)
+    return Image.fromarray(a, 'RGBA')
 
 
 # How far the finish greys the colours toward their own lightness: the game's tiles are muted, and a clean saturated
