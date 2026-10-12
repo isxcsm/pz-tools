@@ -1823,8 +1823,6 @@
     "IGUI_OA_Title_Reversal": "증상이 가라앉았습니다",
     "IGUI_OA_Title_GuideSub": "단말 수신함에 안내가 왔습니다",
     "IGUI_OA_Tree_GuideSent": "단말 수신함에 안내가 왔습니다",
-    "IGUI_OA_Status_SendFeeReleased": "감염 처리 수수료 해제",
-    "IGUI_OA_Trade_Rc_FeeReleased": "감염 처리 수수료 해제.",
     "IGUI_OA_Story_DocTitle_infection_guide": "감염자 취급 안내",
     "IGUI_OA_Story_DocTitle_cure_cert_short": "치료 확인서",
     "IGUI_OA_Story_DocTitle_cure_cert_normal": "치료 확인서",

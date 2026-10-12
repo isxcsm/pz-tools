@@ -1823,8 +1823,6 @@
     "IGUI_OA_Title_Reversal": "The symptoms ease",
     "IGUI_OA_Title_GuideSub": "A notice has come to the terminal's inbox",
     "IGUI_OA_Tree_GuideSent": "A notice has come to the terminal's inbox",
-    "IGUI_OA_Status_SendFeeReleased": "Infection handling fee lifted",
-    "IGUI_OA_Trade_Rc_FeeReleased": "Infection handling fee lifted.",
     "IGUI_OA_Story_DocTitle_infection_guide": "Infected person handling notice",
     "IGUI_OA_Story_DocTitle_cure_cert_short": "Cure certificate",
     "IGUI_OA_Story_DocTitle_cure_cert_normal": "Cure certificate",

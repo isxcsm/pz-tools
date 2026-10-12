@@ -122,8 +122,6 @@ function Text.receipt(receipt)
     end
     if (receipt.fee or 0) > 0 then
         add("bad", "IGUI_OA_Trade_Rc_Fee", math.floor((receipt.feeRate or 0) * 100 + 0.5), Text.credits(receipt.fee))
-    elseif receipt.feeReleased then
-        add("good", "IGUI_OA_Trade_Rc_FeeReleased")
     end
     -- A filled line names its request group (an older receipt's, an item type: its own name).
     local requestName = OA.Requests and OA.Requests.nameOf or Text.itemName

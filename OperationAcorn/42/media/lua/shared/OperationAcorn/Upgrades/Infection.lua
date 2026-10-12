@@ -12,7 +12,6 @@
 --   doses     the delay drugs taken since then (the cure's stamp tells how many it took)
 --   positives the positive tests ever made (the first one is told differently, and brings the handling notice)
 --   told      { delay = true } what was said once and never again
---   released  true from a cure that lifted the fee until the settlement that tells so
 -- The rules here are pure (a record and a clock); the body is touched by Serums.lua and by the client's watch
 -- (Upgrades/Hooks.lua), which use the wound detection at the end of this file.
 require "OperationAcorn/Core"
@@ -76,26 +75,6 @@ function Infection.fee(record, credits)
     local rate = Infection.feeRate(record)
     if rate <= 0 or (credits or 0) <= 0 then return 0, rate end
     return OA.round(credits * rate), rate
-end
-
--- Whether a cure lifted the fee and no settlement has said so yet, for a flight worth `credits` (the waybill and the
--- receipt tell it once; a fee that is back, or a flight that carries nothing, does not).
-function Infection.releasing(record, credits)
-    local inf = record and record.infection
-    return inf ~= nil and inf.released == true and Infection.feeRate(record) <= 0 and (credits or 0) > 0
-end
-
--- The settlement that tells it: true once (and the note is spent); a fee that came back spends it without telling.
-function Infection.takeRelease(record, credits)
-    local inf = record and record.infection
-    if not (inf and inf.released) then return false end
-    if Infection.feeRate(record) > 0 then
-        inf.released = nil
-        return false
-    end
-    if (credits or 0) <= 0 then return false end
-    inf.released = nil
-    return true
 end
 
 -- How a cured infection is told: whole days since it was first noticed (at least 1), the delay drugs taken since, and
@@ -191,12 +170,12 @@ function Infection.reversed(record)
     if inf.drug and inf.drug.age then inf.drug.age = 0 end
 end
 
--- The cure: nothing is left to test, know or hold, and a fee that was taken is lifted (the next settlement says so).
+-- The cure: nothing is left to test, know or hold, and no fee is taken. (An older save's note that a settlement would
+-- say the fee was lifted goes too.)
 function Infection.cured(record)
     local inf = Infection.section(record)
-    if Infection.feeRate(record) > 0 then inf.released = true end
     inf.known, inf.untested, inf.progress, inf.drug = nil, nil, nil, nil
-    inf.since, inf.doses = nil, nil
+    inf.since, inf.doses, inf.released = nil, nil, nil
 end
 
 -- The percent a progress shows as, a whole number (rounded, so 0.29 is 29 and not 28).

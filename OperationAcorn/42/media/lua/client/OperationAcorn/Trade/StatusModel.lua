@@ -554,8 +554,6 @@ function M.waybill(record, flight)
         end
         if fee > 0 then
             subs[#subs + 1] = tr("IGUI_OA_Status_SendFee", percent(flight.feeRate or 0), credits(fee))
-        elseif flight.feeReleased then
-            subs[#subs + 1] = tr("IGUI_OA_Status_SendFeeReleased")
         end
         w.send[1] = { icon = Shop.TYPES.box, name = tr("IGUI_OA_Status_SendSealed", sealed),
             worth = credits(flight.net or (flight.sealed or 0) - fee), sub = #subs > 0 and table.concat(subs, Text.DOT) or nil }

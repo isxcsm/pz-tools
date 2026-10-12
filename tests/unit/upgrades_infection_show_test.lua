@@ -342,34 +342,6 @@ test("a second cure of the same length sends no second paper and no second notic
     eq(told.says[2].id, "Cured")
 end)
 
-test("the fee is lifted by a cure that took one, and the first settlement with credits says so once", function()
-    local c = newCharacter()
-    local r = record()
-    Infection.tested(r, true, 0.4, 0)
-    truthy(cure(c))
-    eq(Infection.feeRate(r), 0)
-    eq(Infection.releasing(r, 0), false, "a flight with nothing to carry does not tell")
-    eq(Infection.takeRelease(r, 0), false)
-    truthy(Infection.releasing(r, 500))
-    eq(Infection.takeRelease(r, 500), true)
-    eq(Infection.takeRelease(r, 500), false, "once")
-    eq(Infection.releasing(r, 500), false)
-end)
-
-test("no fee was taken, no fee is lifted; a fee that comes back spends the note without telling", function()
-    local c = newCharacter()
-    local r = record()
-    truthy(cure(c))
-    eq(Infection.releasing(r, 500), false, "nothing was known of the infection: no fee to lift")
-    local r2 = record("two")
-    Infection.tested(r2, true, 0.1, 0)
-    cure(newCharacter(), "two")
-    Infection.wounded(r2, "bite", 10)
-    eq(Infection.takeRelease(r2, 500), false)
-    Infection.tested(r2, false)
-    eq(Infection.releasing(r2, 500), false)
-end)
-
 -- ---- the actions -------------------------------------------------------------------------------------------------
 
 -- Loads the upgrade actions with a stand-in for the game's timed action base.
