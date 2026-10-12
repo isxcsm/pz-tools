@@ -796,7 +796,6 @@ GC 運作：區間中垃圾回收器在工作的時間比例。它與遊戲同�
   <data name="StartupLoaderReverted" xml:space="preserve"><value>它的部分檔案已從遊戲資料夾中消失。若要使用，請重新開啟。</value></data>
   <data name="StartupLoaderGameWithout" xml:space="preserve"><value>目前執行中的遊戲啟動時沒有載入它。若要使用，請重新啟動遊戲。</value></data>
   <data name="StartupLoaderGameFailed" xml:space="preserve"><value>它未能載入目前執行中的遊戲。詳細資訊在記錄中。</value></data>
-  <data name="StartupLoaderHooksMissing" xml:space="preserve"><value>在目前執行中的遊戲裡，擴充 API 的部分鉤子無法置入，可能是因為其他模組修改了相同的遊戲程式碼：{0}。在這些位置，模組會取得遊戲原本的結果。詳細資訊在記錄中。</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>另一個工具修改了遊戲的 projectzomboid.jar。請先在 Steam 中驗證遊戲檔案的完整性。</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>請關閉遊戲以及從其資料夾啟動的伺服器，然後再試一次。</value></data>
   <data name="StartupLoaderUnsupported" xml:space="preserve"><value>不支援此版本的遊戲。</value></data>
@@ -804,4 +803,11 @@ GC 運作：區間中垃圾回收器在工作的時間比例。它與遊戲同�
   <data name="StartupLoaderFailed" xml:space="preserve"><value>無法修改遊戲資料夾。詳細資訊在記錄中。</value></data>
   <data name="StartupLoaderInstalling" xml:space="preserve"><value>正在將 PZ Tools 安裝到遊戲</value></data>
   <data name="StartupLoaderRemoving" xml:space="preserve"><value>正在從遊戲中移除 PZ Tools</value></data>
+  <data name="ExtensionApiHeader" xml:space="preserve"><value>PZ Extension API</value></data>
+  <data name="ExtensionApiNotBundled" xml:space="preserve"><value>此 PZ Tools 未附帶 PZ Extension API。</value></data>
+  <data name="ExtensionApiNotInstalled" xml:space="preserve"><value>PZ Extension API 是部分模組需要的獨立程式。開啟後，會將 PZ Tools 附帶的副本安裝到遊戲資料夾；之後不需要 PZ Tools 也能運作。關閉則將其移除。</value></data>
+  <data name="ExtensionApiInstalled" xml:space="preserve"><value>已安裝。無論 PZ Tools 是否在執行，遊戲啟動時都會載入 PZ Extension API。</value></data>
+  <data name="ExtensionApiHooksMissing" xml:space="preserve"><value>在目前執行中的遊戲裡，PZ Extension API 的部分鉤子無法置入，可能是因為其他模組修改了相同的遊戲程式碼：{0}。在這些位置，模組會取得遊戲原本的結果。詳細資訊在記錄中。</value></data>
+  <data name="ExtensionApiInstalling" xml:space="preserve"><value>正在將 PZ Extension API 安裝到遊戲</value></data>
+  <data name="ExtensionApiRemoving" xml:space="preserve"><value>正在從遊戲中移除 PZ Extension API</value></data>
 </root>

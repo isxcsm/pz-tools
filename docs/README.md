@@ -62,7 +62,7 @@ first; the [glossary](design/glossary.md) explains the terms the other pages use
 - [Vehicle model](design/vehicle-drivetrain.md): how the vehicle extension computes and applies driving forces
 - [Component updates](design/module-reload.md): replacing code inside a running game
 - [Startup loader](design/startup-loader.md) (hidden, experimental): an optional install that loads the bridge as the game starts
-- [Extension API](design/extension-api.md) (in progress): game facts and utility networks for Lua mods, starting with power and water
+- [PZ Extension API install](design/extension-api-install.md): how the app helps install PZ Extension API, a program of its own
 - [Extension distribution](design/extension-distribution.md) (plan): releasing the extension side apart from the app
 
 **Interface**

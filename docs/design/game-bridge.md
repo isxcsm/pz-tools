@@ -19,7 +19,7 @@ The build puts these files in `game-bridge\` next to the workers:
 | --- | --- | --- |
 | `runtime\` | Attach helper | A `jlink` image of the build JDK with `jdk.attach`, `jdk.jfr` and `jdk.zipfs`. It runs the attach helper and the [startup loader](startup-loader.md) install, and is never loaded into the game. |
 | `pztools-game-bridge.jar` | Helper and game | `pztools.bridge.AttachMain` (the helper's main class) and the payload (`pztools.bridge.runtime.*`) |
-| `pztools-game-bootstrap.jar` | Game | The [bootstrap](#layers): `AgentEntry`, `ControlServer`, `GameHook`, `Payload`, `ApiHooks` (the hooks of the [extension API](extension-api.md) for Lua mods, whose runtime is in the payload) and the module API of the [game extensions](game-extensions.md) (`pztools.extensions.api`). Loaded once per game process; built with fixed timestamps so its bytes do not change between builds. |
+| `pztools-game-bootstrap.jar` | Game | The [bootstrap](#layers): `AgentEntry`, `ControlServer`, `GameHook`, `Payload` and the module API of the [game extensions](game-extensions.md) (`pztools.extensions.api`). Loaded once per game process; built with fixed timestamps so its bytes do not change between builds. |
 | `pztools-attach-bootstrap.dll` | Game | A JVMTI agent that loads the game's own `jli.dll` |
 | `extensions\` | Game | Extension runtime, modules and catalogue ([game extensions](game-extensions.md)) |
 
@@ -126,7 +126,6 @@ go:
 | Job | Held by | While |
 | --- | --- | --- |
 | Profiler | `ProfileControl` | A recording runs; it marks the frames ([profiler](profiler.md)) |
-| Extension API | `ResidentApi` | Always, in a game the [startup loader](startup-loader.md) started: the API jar's `GameApi.frame` (through `ApiHost`) sets the API into a Lua environment that predates it and runs the power and water networks |
 | Notes | `GameNotices` | A note the app asked for waits to be shown ([hotkeys](profiler.md#hotkeys)) |
 | State observer | `RuntimeObserver` | A WATCH stream is open |
 | Extension lifecycle | The `ExtensionControl.Session` that holds the extensions | An app's extension control is connected, or the [resident controller](startup-loader.md#resident-extensions) holds them |
@@ -142,7 +141,7 @@ frame.
 | Layer | Holds | Replaced while the game runs? |
 | --- | --- | --- |
 | [Bootstrap](glossary.md#bootstrap) | `AgentEntry` (the agent's arguments, the calls a payload makes, the startup), `ControlServer` (the control listener and its sessions), `GameHook` (the game-loop hook and its two callbacks), `Payload` (loading and switching the payload) | No |
-| [Payload](glossary.md#payload) | Its one entry (`PayloadEntry`), the frame router, save requests, state stream, extension control, the extension runtime's loading, the loading of the extension API and the resident extensions of a startup game, profiling, notes, leases | Yes |
+| [Payload](glossary.md#payload) | Its one entry (`PayloadEntry`), the frame router, save requests, state stream, extension control, the extension runtime's loading, the resident extensions of a startup game, profiling, notes, leases | Yes |
 | [Extension runtime](glossary.md#extension-runtime-host) and modules | Game extensions | Yes, each on its own |
 
 The bootstrap holds no feature, so that a new one never needs a game restart. The payload has one entry,
@@ -169,7 +168,7 @@ Changed, in memory only, until the game exits:
 - one static call at the start of `GameWindow.logic()`;
 - the system properties `pztools.bridge.control.v1` and `pztools.bridge.bootstrap.api`;
 - daemon threads: the control listener and one per open session; in a game the startup loader started, also the
-  extension API's and the resident extensions' own;
+  resident extensions' own;
 - the per-frame state read and, for a living character, the `pztools.recovery.*` keys in the player's
   modData ([character recovery](character-recovery.md#the-identity-stamp));
 - a halo note above the player during a save, when notices are on;

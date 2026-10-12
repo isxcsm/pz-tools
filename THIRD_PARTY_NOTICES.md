@@ -54,15 +54,15 @@ and build releases: https://github.com/adoptium/temurin25-binaries/releases
 and https://github.com/adoptium/jdk25u. No Project Zomboid classes are distributed
 with the bridge.
 
-## Noto fonts
+## PZ Extension API
 
-`game-bridge/fonts/pztools-font-*.ttf` are subsets of Noto Sans and Noto Sans KR, JP, SC and TC
-from Google Fonts (https://github.com/google/fonts), static SemiBold instances cut down by
-`scripts/fonts/build-api-fonts.py`. The extension API draws large text with them. They are
-licensed under the SIL Open Font License 1.1: Copyright 2022 The Noto Project Authors
-(https://github.com/notofonts/latin-greek-cyrillic) for Noto Sans, and Copyright 2014-2021
-Adobe (http://www.adobe.com/), with Reserved Font Name 'Source', for the CJK fonts. The license
-text is in `game-bridge/fonts/OFL.txt`.
+`extension-api/` is a release of PZ Extension API, a separate program under the MIT License
+(`extension-api/LICENSE`). Its fonts, `extension-api/fonts/pzext-font-*.ttf`, are subsets of Noto
+Sans and Noto Sans KR, JP, SC and TC from Google Fonts (https://github.com/google/fonts), licensed
+under the SIL Open Font License 1.1: Copyright 2022 The Noto Project Authors
+(https://github.com/notofonts/latin-greek-cyrillic) for Noto Sans, and Copyright 2014-2021 Adobe
+(http://www.adobe.com/), with Reserved Font Name 'Source', for the CJK fonts. The license text is
+in `extension-api/fonts/OFL.txt`.
 
 ## pzmonitor players.db layout
 

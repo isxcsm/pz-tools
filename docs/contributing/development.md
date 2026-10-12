@@ -84,27 +84,6 @@ A published app has none of this: [`publish-app.ps1`](../../scripts/publish-app.
 `PzToolsDistribution=true`, which drops the `PZTOOLS_DEV_TOOLS` symbol, and
 `PublishedDistributionTests` checks that.
 
-### The extension API's fonts
-
-The fonts the extension API draws large text with are committed in
-`src/PzTools.GameBridge.Agent/fonts`, and the build copies them beside the payload. Make them again
-only to change their characters or typeface; what they hold and why is in
-[the embedded font](../design/extension-api.md#the-embedded-font).
-
-1. Download the originals from https://github.com/google/fonts into a folder outside the
-   repository: `ofl/notosans/NotoSans[wdth,wght].ttf`, `ofl/notosanskr/NotoSansKR[wght].ttf`,
-   `ofl/notosansjp/NotoSansJP[wght].ttf`, `ofl/notosanssc/NotoSansSC[wght].ttf`,
-   `ofl/notosanstc/NotoSansTC[wght].ttf`, and each folder's `OFL.txt` saved as
-   `OFL-<folder>.txt` (`OFL-notosans.txt`, `OFL-notosanskr.txt`, ...).
-2. Install fontTools (`pip install fonttools`). Only this script needs it.
-3. When the game's or a mod's translations changed, write the characters in use again:
-   `python -X utf8 scripts/fonts/build-api-fonts.py --scan --game <ProjectZomboid folder> --mods <mod folder>`.
-4. Build the packs: `python -X utf8 scripts/fonts/build-api-fonts.py --source <download folder>`. It
-   prints each pack's size, characters and kerning pairs. The same inputs give the same bytes.
-
-Run the `api` suite of the [game bridge tests](#game-bridge-tests) after: it checks the Korean
-pack's characters and bakes one pack.
-
 ## Unit tests
 
 ```powershell
@@ -176,7 +155,6 @@ the test variables. Then it runs its suites. None of it touches a real game.
 | `control` | `ExtensionControlTest`: the extension control channel, its concurrency, the resident extensions |
 | `profiler` | `ProfileFramesTest` (no flight recorder) and `ProfileRollingTest` (a real one) |
 | `startup` | `StartupInstallTest`: install into a synthetic game's jar, start it, update, uninstall, the app attaching first |
-| `api` | `GameApiTest`: the extension API against the synthetic game, its hooks put in by a test agent as the bootstrap does |
 | `dotnet` | `GameSaveClientTests` against a synthetic JVM that imitates the game |
 
 Every suite asked for runs, whatever an earlier one did, and a table at the end gives each
@@ -185,7 +163,7 @@ not hide the others.
 
 | Option | Effect |
 | --- | --- |
-| `-Suite api,startup` | Runs only these suites, after the preparation |
+| `-Suite control,startup` | Runs only these suites, after the preparation |
 | `-DotnetFilter <filter>` | The `dotnet` suite runs this `dotnet test` filter instead, with the test variables set, for example `FullyQualifiedName~StartupLoader` |
 | `-Configuration Debug` | Uses `artifacts/game-bridge/Debug` |
 | `-ReuseBuild` | Uses the bridge from the last solution build instead of building it, and runs `dotnet test --no-build` |
@@ -199,10 +177,9 @@ For one change, run the suites that cover what it touched. A change elsewhere ne
 | Changed | Suites |
 | --- | --- |
 | `PzTools.GameExtensions.Java`, `PzTools.GameExtensions.VehicleDrivetrain`, `config/game-extensions/`, `tests/game-extensions*`, `tests/vehicle-drivetrain-fixture/` | `extensions`, `control`, `dotnet` |
-| Bridge runtime `ExtensionControl`, `ResidentExtensions`, `ResidentApi`, `ApiHost`, `ExtensionHost`, `Frames`, `Leases`; `tests/extension-control/` | `control`, `dotnet` |
+| Bridge runtime `ExtensionControl`, `ResidentExtensions`, `ExtensionHost`, `Frames`, `Leases`; `tests/extension-control/` | `control`, `dotnet` |
 | Bridge runtime `Profile*` | `profiler`, `dotnet` |
-| The extension API (`java/pztools/api/`, its own jar); `tests/extension-api/` | `api` |
-| The bootstrap (`AgentEntry`, `ControlServer`, `GameHook`, `Payload`), `ApiHooks`, `AttachMain`, `StartupInstall`, `pztools/startup/`, `PzTools.GameBridge.Native`; `tests/startup-loader/` | `startup`, `api`, `control`, `dotnet` |
+| The bootstrap (`AgentEntry`, `ControlServer`, `GameHook`, `Payload`), `AttachMain`, `StartupInstall`, `pztools/startup/`, `PzTools.GameBridge.Native`; `tests/startup-loader/` | `startup`, `control`, `dotnet` |
 | The rest of the bridge runtime, `PzTools.GameBridge`, `PzTools.GameExtensions` (C#), `tests/game-bridge/` | `dotnet` |
 | `scripts/test-game-*.ps1`, the bridge build | all |
 
@@ -408,7 +385,7 @@ base.
 | Only `docs/`, `*.md`, `.gitignore`, `.gitattributes` | Nothing; the `windows` job is skipped |
 | Anything else | The `windows` job, with `GameSaveClientTests` filtered out |
 | `.github/`, `build/`, project, solution, `.props` and `.targets` files, `global.json`, `NuGet.config`, `config/defaults/`, `config/game-extensions/`, `scripts/publish-*`, `*.Cli`, `*.Runner`, `*.Scheduler` projects, tests named `*IntegrationTests*`, `*Distribution*`, `*StateStartup*` | Publication to `artifacts/ci-app`, with `PZTOOLS_DISTRIBUTION_DIR` and `PZTOOLS_TOOLS_DIR` set for the tests, plus everything in the next row |
-| The bridge and extension projects, their Java tests (`tests/game-bridge`, `game-extensions*`, `extension-control`, `extension-api`, `startup-loader`, `vehicle-drivetrain-fixture`) and scripts, `Backup.Engine`, `Zomboid.Backup`, `Scheduling`, `Process.Hosting`, `Process.Contracts`, every file of the `GameSaveClientTests` class (a removed test file counts), and two other bridge test files | `test-game-bridge.ps1 -ReuseBuild -PrepareOnly`, and the bridge tests in the same test run |
+| The bridge and extension projects, their Java tests (`tests/game-bridge`, `game-extensions*`, `extension-control`, `startup-loader`, `vehicle-drivetrain-fixture`) and scripts, `Backup.Engine`, `Zomboid.Backup`, `Scheduling`, `Process.Hosting`, `Process.Contracts`, every file of the `GameSaveClientTests` class (a removed test file counts), and two other bridge test files | `test-game-bridge.ps1 -ReuseBuild -PrepareOnly`, and the bridge tests in the same test run |
 
 Unknown paths count as code. NuGet packages are cached; build output is not. A newer push
 to a pull request cancels the running one. TRX files are kept for seven days when a run

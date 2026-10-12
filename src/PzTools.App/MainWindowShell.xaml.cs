@@ -1034,7 +1034,8 @@ public sealed partial class MainWindowShell : UserControl
         QueueOperationCardFit();
         // Local deletion and background cleanup report no worker progress worth polling for.
         if (cards.Any(card => card.Operation.Status == OperationStatus.Running
-                && card.Group is not (OperationCardGroup.DeleteSave or OperationCardGroup.Maintenance or OperationCardGroup.StartupLoader)))
+                && card.Group is not (OperationCardGroup.DeleteSave or OperationCardGroup.Maintenance or OperationCardGroup.StartupLoader
+                    or OperationCardGroup.ExtensionApi)))
             StartOperationProgressRefresh();
         else StopOperationProgressRefresh();
         UpdateOperationActions();
@@ -1190,6 +1191,8 @@ public sealed partial class MainWindowShell : UserControl
                 OperationCardGroup.Profile => "ProfileRecordingTitle",
                 OperationCardGroup.StartupLoader => card.Operation.Kind == "startup-loader-uninstall"
                     ? "StartupLoaderRemoving" : "StartupLoaderInstalling",
+                OperationCardGroup.ExtensionApi => card.Operation.Kind == "extension-api-uninstall"
+                    ? "ExtensionApiRemoving" : "ExtensionApiInstalling",
                 _ => "MaintenanceRunning",
             });
         // Several finished cards can be stacked, so each one names its work.
@@ -1203,6 +1206,7 @@ public sealed partial class MainWindowShell : UserControl
             OperationCardGroup.CharacterRecovery => "HealCharacterTitle",
             OperationCardGroup.Profile => "LogActivity.Profile",
             OperationCardGroup.StartupLoader => "StartupLoaderHeader",
+            OperationCardGroup.ExtensionApi => "ExtensionApiHeader",
             _ => "LogActivity.Maintenance",
         });
         // The outcome is the icon beside the title and, when it needs words, the line below it;
@@ -1421,6 +1425,35 @@ public sealed partial class MainWindowShell : UserControl
             });
             CompleteLocalOperationProgress(OperationStatus.Failed, error: message);
             App.Host?.RecordActionIssue(Localizer.Get("StartupLoaderHeader"), message, failed: true, cause: exception);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Installs or removes PZ Extension API (the release the app carries) with its own card, which says how it went; the
+    /// failure's cause goes to the log. Returns whether it went through.
+    /// </summary>
+    internal async Task<bool> ChangeExtensionApiAsync(ExtensionApiInstall api, bool install)
+    {
+        StartLocalOperationProgress(install ? "extension-api-install" : "extension-api-uninstall");
+        try
+        {
+            if (install) await api.InstallAsync();
+            else await api.UninstallAsync();
+            CompleteLocalOperationProgress(OperationStatus.Succeeded);
+            return true;
+        }
+        catch (Exception exception)
+        {
+            var message = Localizer.Get((exception as ExtensionApiException)?.Code switch
+            {
+                "game-running" => "StartupLoaderGameRunning",
+                "game-not-found" => "StartupLoaderNotFound",
+                "not-bundled" => "ExtensionApiNotBundled",
+                _ => "StartupLoaderFailed",
+            });
+            CompleteLocalOperationProgress(OperationStatus.Failed, error: message);
+            App.Host?.RecordActionIssue(Localizer.Get("ExtensionApiHeader"), message, failed: true, cause: exception);
             return false;
         }
     }

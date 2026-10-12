@@ -8,9 +8,7 @@
 > ([`BootProvider`](../../src/PzTools.GameBridge.Agent/java/pztools/startup/BootProvider.java)), the
 > delayed endpoint, a switch on the game extensions page, the
 > [resident extensions](#resident-extensions)
-> ([`ResidentExtensions`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/ResidentExtensions.java))
-> and the extension API's own runner
-> ([`ResidentApi`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/ResidentApi.java)).
+> ([`ResidentExtensions`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/ResidentExtensions.java)).
 > It shows only with `[experimental] startup_loader = true` in the app's advanced settings
 > (`%LOCALAPPDATA%\PzTools\config\app\default.toml`); the shipped file does not list it. Not built:
 > extensions that declare they need the install.
@@ -51,17 +49,14 @@ is the path that exists today.
    `BOOTSTRAP1:<base64 payload path>`, the same one the helper passes
    ([`AttachMain`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/AttachMain.java)).
 4. **The bootstrap** (`AgentEntry.agentmain`) gets its `Instrumentation` exactly as after an attach.
-   In installed mode it also adds the [extension API](extension-api.md)'s hooks, to `LuaManager.init()`
-   before the game loads its Lua and to the game's power and water questions. Once the game loads
-   `GameWindow` it loads the payload and runs the payload's startup (`PayloadEntry`, kind `STARTUP`),
-   once per payload: the extension API starts from its own jar (`ResidentApi`, `ApiHost`), and the payload's
-   [resident controller](#resident-extensions) runs the extensions the app last asked for, without
-   waiting for the app.
+   Once the game loads `GameWindow` it loads the payload and runs the payload's startup (`PayloadEntry`,
+   kind `STARTUP`), once per payload: the payload's [resident controller](#resident-extensions) runs the
+   extensions the app last asked for, without waiting for the app.
 5. **When the app starts later**, its helper attaches, finds `pztools.bridge.control.v1` already set,
    skips loading anything and connects. `AgentEntry` refuses a second load, so a reuse is the only
    path that can succeed.
 
-The entry never contains feature code. Hooks into the game (the game loop, vehicles, power, water)
+The entry never contains feature code. Hooks into the game (the game loop, vehicles)
 are installed at run time through `Instrumentation`, as they are today, so a new feature never
 changes the entry.
 
@@ -153,18 +148,15 @@ when it did not go well; each new finding also goes to the log once, as a warnin
 | --- | --- |
 | Started without the loader | `startup.log` is older than the game process: the game started before the entry was in its folder, or did not run it |
 | Did not load | `startup.log` is this run's and says why (a missing file, a bootstrap that does not match) |
-| Hooks missing | `api.tsv` names this process and some of the [extension API's hooks](extension-api.md#how-the-game-is-answered) did not go in, with why |
 
 The app reads them on its own rounds (every two minutes) and when the page opens, not as they
-happen: most hooks go in as the first world loads.
+happen.
 
 ### After a game update
 
 A game update or Steam's file check replaces the game's own files and leaves files it does not know,
 so the entry stays and the game keeps loading PZ Tools. The entry holds no game code: it runs the
-same in a new game version. The hooks the bootstrap installs check the game's classes as they load
-and give vanilla's answer where a method is not shaped as expected, one hook at a time; the app
-says which ([The game that runs](#the-game-that-runs)).
+same in a new game version.
 
 ## Files
 
@@ -174,13 +166,12 @@ the old one is deleted later, so a path into the app folder would break at the n
 | File | Content |
 | --- | --- |
 | Install folder | `%ProgramData%\PzTools\startup\s-<account digest>`, one per user: only the player's account and the administrators may change it |
-| `bridge-<digest>\` | Copies of the bootstrap jar, the payload, the native loader (`pztools-attach-bootstrap.dll`) the app's `extensions` folder (the extension API, the extension runtime, the modules, the catalogue) and its `fonts` folder (the extension API's [embedded font](extension-api.md#the-embedded-font)), named by content digest |
+| `bridge-<digest>\` | Copies of the bootstrap jar, the payload, the native loader (`pztools-attach-bootstrap.dll`) the app's `extensions` folder (the extension runtime, the modules, the catalogue), named by content digest |
 | `current` | Which `bridge-<digest>` the next game start loads, with the bootstrap's SHA-256 |
 | `resident.tsv` | The [resident request](#resident-extensions): the settings revision and each continuous module, on or off, with its configuration as the app would send it in `APPLY` |
 | `install.tsv` | The game's folder and the entry's SHA-256 (while an earlier version's jar patch is still in place: the jar's SHA-256 before and after it) |
 | `original.jar` | Only while an earlier version's jar patch is in place: the game's jar as it was before it |
 | `startup.log` | One line from the loader per game start: what it loaded, or why it did not |
-| `api.tsv` | Written by the game: its process id, and each of the extension API's hooks, applied, not loaded yet, or why it did not go in. Rewritten when that changes. |
 
 The entry's `install.properties` holds the install folder's path. The app rewrites `current` and
 `resident.tsv`; it never rewrites the entry to point somewhere new. The status the install tool
@@ -230,11 +221,6 @@ In installed mode, extensions stay in the game until it exits.
 - **Revisions.** The resident request carries the settings revision the app uses, so a module the
   resident controller applied is already at the app's revision when the app connects, and the app's
   reconciliation finds nothing to do.
-- **The extension API.** It does not depend on the extensions: its own thread (`ResidentApi`) holds
-  the frame router's API job, which runs the API's per-frame work (setting the API into a Lua
-  environment the game made before the API loaded, and the power and water networks), takes a
-  changed API jar, and writes `api.tsv` once a second, with or without the app and whether or not
-  any extension runs.
 - **Not installed.** Nothing changes: the lease and the revoke on disconnect stay.
 
 Whether resident becomes the rule for both modes is decided after the installed mode has been in
@@ -260,10 +246,9 @@ An app that is already open finds the game's process as soon as it exists, and i
 before `main` reaches the loader. Its bootstrap is then loaded first, and the loader's
 `Agent_OnAttach` reaches the same `AgentEntry` (the system class loader has it already). Until 7
 October 2026 that call failed (`the bootstrap did not load (102)`), and the game ran as if the app had
-attached to a vanilla game: no resident extensions, no extension API, and the secret in the log. Now
-the bootstrap takes the loader's call as making the game one the loader started: it takes the
-install folder, adds the extension API's hook, and starts the resident extensions once the endpoint is
-set. The startup loader test covers it by loading the bootstrap before `main` with an agent that stands
+attached to a vanilla game: no resident extensions and the secret in the log. Now the bootstrap
+takes the loader's call as making the game one the loader started: it takes the install folder and
+starts the resident extensions once the endpoint is set. The startup loader test covers it by loading the bootstrap before `main` with an agent that stands
 in for the helper.
 
 ## Agents loaded into a running JVM
@@ -350,9 +335,8 @@ seconds after `main`). The lookups before it, through the system class loader:
 PZ Optimize's own `MainScreenState` calls `ZipLogs.addZipFile` the same way.
 
 On 8 October 2026 the game was started with its original jar and the entry on the class path: the
-JDK created the provider 0.48 seconds after `main`, the loader logged `loaded bridge-…`, the game
-zipped its logs as usual, and at the main menu the extension API's classes were loaded (`jcmd`) after
-`LuaManager.init` 14 seconds later.
+JDK created the provider 0.48 seconds after `main`, the loader logged `loaded bridge-…`, and the
+game zipped its logs as usual.
 
 Not tested yet:
 

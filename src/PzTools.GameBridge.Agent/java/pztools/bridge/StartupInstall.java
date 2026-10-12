@@ -34,8 +34,6 @@ public final class StartupInstall {
     static final String RECORD = "install.tsv", ORIGINAL = "original.jar";
     static final String[] BRIDGE_FILES = { StartupLoader.BOOTSTRAP, StartupLoader.PAYLOAD, StartupLoader.NATIVE };
     static final String EXTENSIONS = "extensions";
-    /** The extension API's embedded fonts (pztools.api.EmbeddedFont), copied as the extensions are. */
-    static final String FONTS = "fonts";
     static final String GAME_RUNNING = "game-running";
 
     /** A failure with a code the app turns into a message. */
@@ -274,19 +272,16 @@ public final class StartupInstall {
     }
 
     /**
-     * Copies the app's bootstrap, payload, native library, extensions (the files of its {@code extensions} folder) and the API's
-     * fonts (its {@code fonts} folder) to bridge-<digest>, then points {@code current} at it. The extensions are what the game runs
-     * without the app.
+     * Copies the app's bootstrap, payload, native library and extensions (the files of its {@code extensions} folder) to
+     * bridge-<digest>, then points {@code current} at it. The extensions are what the game runs without the app.
      */
     static Path copyBridge(Path root, Path bridge) throws Exception {
         var files = new ArrayList<String>(List.of(BRIDGE_FILES));
-        for (String folder : new String[] { EXTENSIONS, FONTS }) {
-            Path from = bridge.resolve(folder);
-            if (Files.isDirectory(from)) try (var entries = Files.list(from)) {
-                for (Path file : entries.sorted().toList()) {
-                    String name = file.getFileName().toString();
-                    if (Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS) && name.matches("[A-Za-z0-9._-]+")) files.add(folder + "/" + name);
-                }
+        Path from = bridge.resolve(EXTENSIONS);
+        if (Files.isDirectory(from)) try (var entries = Files.list(from)) {
+            for (Path file : entries.sorted().toList()) {
+                String name = file.getFileName().toString();
+                if (Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS) && name.matches("[A-Za-z0-9._-]+")) files.add(EXTENSIONS + "/" + name);
             }
         }
         var digests = new StringBuilder();
@@ -294,7 +289,6 @@ public final class StartupInstall {
         String id = "bridge-" + sha256(digests.toString().getBytes(StandardCharsets.US_ASCII)).substring(0, 16);
         Path target = root.resolve(id);
         Files.createDirectories(target.resolve(EXTENSIONS));
-        if (files.stream().anyMatch(name -> name.startsWith(FONTS + "/"))) Files.createDirectories(target.resolve(FONTS));
         UserPrincipal[] owners = AttachMain.principals();
         for (String name : files) {
             Path file = target.resolve(name);

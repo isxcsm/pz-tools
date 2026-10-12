@@ -91,22 +91,19 @@ public sealed class PublishedDistributionTests
         string[] payload = ["pztools-extension-runtime.jar",
             "pztools-vehicle-drivetrain.jar", "catalog.tsv", "vehicle-drivetrain.toml"];
         foreach (var name in payload) Assert.True(File.Exists(Path.Combine(extensions, name)), name);
-        // The extension API's code is its own jar there too: it answers the bootstrap's hooks, not the extension host.
-        const string api = "pztools-extension-api.jar";
-        Assert.Equal(payload.Where(name => name.EndsWith(".jar", StringComparison.Ordinal)).Append(api).Order(),
+        Assert.Equal(payload.Where(name => name.EndsWith(".jar", StringComparison.Ordinal)).Order(),
             Directory.GetFiles(extensions, "*.jar").Select(Path.GetFileName).Order());
-        using (var apiJar = ZipFile.OpenRead(Path.Combine(extensions, api)))
+        // The extension API is PZ Extension API now, a program of its own: none of it is in the bridge. The app only
+        // carries a release of it beside the bridge, to help install it.
+        Assert.False(Directory.Exists(Path.Combine(bridge, "fonts")));
+        foreach (var name in new[] { "pzext-install.jar", "pzext-boot.jar", "pzext-api.jar", "pzext-loader.dll", "LICENSE", "fonts/OFL.txt" })
+            Assert.True(File.Exists(Path.Combine(Root, "extension-api", name)), name);
+        foreach (var name in new[] { "pztools-game-bootstrap.jar", "pztools-game-bridge.jar" })
         {
-            Assert.Equal("12", Manifest(apiJar)["PzTools-Bootstrap-Api"]);
-            Assert.NotNull(apiJar.GetEntry("pztools/api/GameApi.class"));
-            Assert.All(apiJar.Entries, entry => Assert.True(entry.FullName.StartsWith("META-INF/", StringComparison.Ordinal)
-                || entry.FullName.StartsWith("pztools/api/", StringComparison.Ordinal), entry.FullName));
+            using var jar = ZipFile.OpenRead(Path.Combine(bridge, name));
+            Assert.DoesNotContain(jar.Entries, entry => entry.FullName.StartsWith("pztools/api/", StringComparison.Ordinal)
+                || entry.FullName.StartsWith("pztools/bridge/ApiHooks", StringComparison.Ordinal));
         }
-        // The API's embedded fonts, one pack a script, with their license, beside the payload where the API looks for them.
-        Assert.Equal(new[] { "OFL.txt", "pztools-font-ja.ttf", "pztools-font-ko.ttf", "pztools-font-latin.ttf", "pztools-font-sc.ttf", "pztools-font-tc.ttf" },
-            Directory.GetFiles(Path.Combine(bridge, "fonts")).Select(Path.GetFileName).Order(StringComparer.Ordinal));
-        using (var bridgeJar = ZipFile.OpenRead(Path.Combine(bridge, "pztools-game-bridge.jar")))
-            Assert.DoesNotContain(bridgeJar.Entries, entry => entry.FullName.StartsWith("pztools/api/", StringComparison.Ordinal));
         Assert.False(File.Exists(Path.Combine(extensions, "pztools-seamless-save.jar")));
         Assert.False(File.Exists(Path.Combine(extensions, "pztools-test-save.jar")));
         // The retired screen look ships nothing any more.
@@ -142,18 +139,16 @@ public sealed class PublishedDistributionTests
         foreach (var name in new[] { "pztools-game-bootstrap.jar", "pztools-game-bridge.jar" })
         {
             using var jar = ZipFile.OpenRead(Path.Combine(bridge, name));
-            Assert.Equal("12", Manifest(jar)["PzTools-Bootstrap-Api"]);
+            Assert.Equal("13", Manifest(jar)["PzTools-Bootstrap-Api"]);
             if (name == "pztools-game-bootstrap.jar")
             {
                 Assert.NotNull(jar.GetEntry("pztools/bridge/AgentEntry.class"));
-                Assert.NotNull(jar.GetEntry("pztools/bridge/ApiHooks.class"));
                 Assert.NotNull(jar.GetEntry("pztools/extensions/api/ControlPoints.class"));
                 Assert.Null(jar.GetEntry("pztools/extensions/vehicle/VehicleDrivetrainProvider.class"));
             }
             else
             {
                 Assert.NotNull(jar.GetEntry("pztools/bridge/AttachMain.class"));
-                Assert.Null(jar.GetEntry("pztools/bridge/ApiHooks.class"));
             }
         }
         using var temporaryRuntime = new TempDirectory();

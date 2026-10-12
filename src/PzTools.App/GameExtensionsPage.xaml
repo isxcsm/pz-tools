@@ -24,6 +24,11 @@
           <toolkit:SettingsCard.HeaderIcon><FontIcon Glyph="&#xE7B5;" /></toolkit:SettingsCard.HeaderIcon>
           <ToggleSwitch x:Name="StartupLoaderSwitch" Toggled="StartupLoaderSwitch_Toggled" />
         </toolkit:SettingsCard>
+        <!-- PZ Extension API, a program of its own that the app helps install; shown with the startup loader. -->
+        <toolkit:SettingsCard x:Name="ExtensionApiCard" Visibility="Collapsed">
+          <toolkit:SettingsCard.HeaderIcon><FontIcon Glyph="&#xE943;" /></toolkit:SettingsCard.HeaderIcon>
+          <ToggleSwitch x:Name="ExtensionApiSwitch" Toggled="ExtensionApiSwitch_Toggled" />
+        </toolkit:SettingsCard>
         <ItemsControl ItemsSource="{x:Bind Sections}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>

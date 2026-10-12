@@ -47,7 +47,6 @@ public final class ExtensionControlTest {
         worldIdentity();
         worldsWithoutLocalSave();
         FramesTest.run();
-        ApiHostTest.run();
         ResidentExtensionsTest.run();
         ExtensionControlConcurrencyTest.run();
         System.out.println("PASS: extension wire map bounds, STATE fields, command replay, controller epochs and bounded lease");

@@ -21,7 +21,7 @@ public final class StartupInstallTest {
         try (var payload = new JarFile(bridge.resolve("pztools-game-bridge.jar").toFile())) {
             api = payload.getManifest().getMainAttributes().getValue("PzTools-Bootstrap-Api");
         }
-        String loaded = "STARTUP-FIXTURE\t" + api + "\tfalse\ttrue\ttrue\t1.0";
+        String loaded = "STARTUP-FIXTURE\t" + api + "\tfalse\ttrue\ttrue";
         String java = args[2];
         Path attachFirst = Path.of(args[3]);
         Path work = Files.createTempDirectory("pztools-startup-test");
@@ -51,13 +51,6 @@ public final class StartupInstallTest {
                 for (Path file : files.toList())
                     assert StartupInstall.sha256(copied.resolve(StartupInstall.EXTENSIONS).resolve(file.getFileName())).equals(StartupInstall.sha256(file)) : file;
             }
-            // So do the API's fonts, which it finds beside the payload.
-            try (var files = Files.list(bridge.resolve(StartupInstall.FONTS))) {
-                var fonts = files.toList();
-                assert fonts.stream().anyMatch(file -> file.getFileName().toString().endsWith(".ttf")) : "the bridge has no fonts";
-                for (Path file : fonts)
-                    assert StartupInstall.sha256(copied.resolve(StartupInstall.FONTS).resolve(file.getFileName())).equals(StartupInstall.sha256(file)) : file;
-            }
 
             // The game loads the bootstrap at its log zip and gets the endpoint only after its property list.
             expect(start(java, game), loaded);
@@ -74,7 +67,7 @@ public final class StartupInstallTest {
 
             // A broken install folder: the game starts as vanilla, its zip files work, and the loader says why.
             Files.delete(root.resolve("current"));
-            expect(start(java, game), "STARTUP-FIXTURE\tnull\tfalse\tfalse\tfalse\tnull");
+            expect(start(java, game), "STARTUP-FIXTURE\tnull\tfalse\tfalse\tfalse");
             assert log(root).contains("current file is not readable") : log(root);
             assert run(root, "refresh", bridge).startsWith("refreshed\tbridge-");
             expect(start(java, game), loaded);
@@ -101,7 +94,7 @@ public final class StartupInstallTest {
             for (String name : new String[] { "pztools", "META-INF" }) assert !Files.exists(game.resolve(name)) : name;
             assert StartupInstall.sha256(jar).equals(vanillaDigest);
             expect(run(root, "status", game), "not-installed");
-            expect(start(java, game), "STARTUP-FIXTURE\tnull\tfalse\tfalse\tfalse\tnull");
+            expect(start(java, game), "STARTUP-FIXTURE\tnull\tfalse\tfalse\tfalse");
 
             // An earlier version patched the jar and kept the original: it reads as installed until a refresh, which
             // puts the game's own jar back and makes the entry; an install does the same.

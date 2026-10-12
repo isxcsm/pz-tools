@@ -16,8 +16,6 @@ final class Frames {
     enum Job {
         /** The profiler's frame marks, first, so that a frame's mark covers all the work in it. */
         PROFILE,
-        /** The extension API's per-frame work ({@code GameApi.frame}), in a game the startup loader started. */
-        API,
         /** A note over the player the app asked for. */
         NOTICES,
         /** The state observer's sample, which WATCH streams. */

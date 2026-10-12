@@ -7,7 +7,7 @@ param(
     [switch] $PrepareOnly,
     [switch] $CheckIncrementalBuild,
     # The suites to run; all by default. See docs/contributing/development.md#game-bridge-tests for which code each covers.
-    [ValidateSet('extensions', 'control', 'profiler', 'startup', 'api', 'dotnet')][string[]] $Suite,
+    [ValidateSet('extensions', 'control', 'profiler', 'startup', 'dotnet')][string[]] $Suite,
     # The dotnet suite's test filter, in place of the bridge tests (GameSaveClientTests).
     [string] $DotnetFilter = 'FullyQualifiedName~GameSaveClientTests'
 )
@@ -18,7 +18,7 @@ $bridgeRoot = Join-Path $repositoryRoot $GameBridgeOutput
 $java = Join-Path $JdkPath 'bin/java.exe'
 $javac = Join-Path $JdkPath 'bin/javac.exe'
 $jar = Join-Path $JdkPath 'bin/jar.exe'
-if (-not $Suite) { $Suite = @('extensions', 'control', 'profiler', 'startup', 'api', 'dotnet') }
+if (-not $Suite) { $Suite = @('extensions', 'control', 'profiler', 'startup', 'dotnet') }
 if ($PrepareOnly) { $Suite = @($Suite | Where-Object { $_ -ne 'dotnet' }) }
 
 # Preparation, shared by every suite: the bridge, the synthetic game, the fixture modules and the test variables.
@@ -101,7 +101,7 @@ $suites = [ordered]@{
     startup = {
         Build-StartupGame
         $startupJar = Join-Path $startupOutput 'projectzomboid.jar'
-        & $jar --create --file $startupJar -C (Join-Path $startupOutput 'game') zombie -C (Join-Path $startupOutput 'game') se
+        & $jar --create --file $startupJar -C (Join-Path $startupOutput 'game') zombie
         if ($LASTEXITCODE -ne 0) { throw 'Startup loader game fixture packaging failed' }
         $startupClasspath = @($startupOutput, (Join-Path $bridgeRoot 'pztools-game-bridge.jar')) -join ';'
         & $javac --release 25 -encoding UTF-8 -cp $startupClasspath -d $startupOutput (Join-Path $repositoryRoot 'tests/startup-loader/pztools/bridge/StartupInstallTest.java')
@@ -116,23 +116,6 @@ $suites = [ordered]@{
         # The install runs on the app's own runtime, which has only the modules the bridge needs.
         & (Join-Path $bridgeRoot 'runtime/bin/java.exe') -ea -cp $startupClasspath pztools.bridge.StartupInstallTest $startupJar $bridgeRoot $java $attachFirstJar
         if ($LASTEXITCODE -ne 0) { throw 'Startup loader tests failed' }
-    }
-    # The extension API as Lua mods see it, against the startup loader's synthetic game.
-    api = {
-        Build-StartupGame
-        $apiOutput = Join-Path $fixtureOutput 'extension-api'
-        New-Item -ItemType Directory -Path $apiOutput -Force | Out-Null
-        $apiClasspath = @($apiOutput, (Join-Path $startupOutput 'game'), (Join-Path $bridgeRoot 'extensions/pztools-extension-api.jar'), (Join-Path $bridgeRoot 'pztools-game-bootstrap.jar')) -join ';'
-        $apiSources = @(Get-ChildItem (Join-Path $repositoryRoot 'tests/extension-api') -Recurse -Filter '*.java' | Select-Object -ExpandProperty FullName)
-        & $javac --release 25 -encoding UTF-8 -cp $apiClasspath -d $apiOutput @apiSources
-        if ($LASTEXITCODE -ne 0) { throw 'Extension API test compilation failed' }
-        # Puts the API's hooks into the synthetic game as its classes load, as the startup loader's bootstrap does.
-        $apiAgent = Join-Path $fixtureOutput 'extension-api-agent.jar'
-        & $jar --create --file $apiAgent --manifest (Join-Path $repositoryRoot 'tests/extension-api/API-TEST-AGENT.MF') -C $apiOutput pztools/bridge/ApiTestAgent.class
-        if ($LASTEXITCODE -ne 0) { throw 'Extension API test agent packaging failed' }
-        # The embedded font's tests read the packs from the repository and bake one with the API's jar.
-        Invoke-Java 'Extension API tests failed' @("-javaagent:$apiAgent", '-ea', "-Dpztools.test.repository=$repositoryRoot",
-            "-Dpztools.test.apiJar=$(Join-Path $bridgeRoot 'extensions/pztools-extension-api.jar')", '-cp', $apiClasspath, 'pztools.api.GameApiTest')
     }
     # The app's side against a synthetic JVM that imitates the game.
     dotnet = {

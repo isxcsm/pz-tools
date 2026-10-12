@@ -44,7 +44,7 @@ def plan(paths, *, full=False, manual=False, benchmarks=False, read=read_text):
     bridge = full or publish or any(
         path.startswith(("src/PzTools.GameBridge", "tests/game-bridge/",
                          "src/PzTools.GameExtensions", "config/game-extensions/", "tests/game-extensions", "scripts/test-game-extensions",
-                         "tests/extension-control/", "tests/extension-api/", "tests/startup-loader/", "tests/vehicle-drivetrain-fixture/",
+                         "tests/extension-control/", "tests/startup-loader/", "tests/vehicle-drivetrain-fixture/",
                          "src/PzTools.Backup.Engine/", "src/PzTools.Zomboid.Backup/",
                          "src/PzTools.Scheduling/", "src/PzTools.Process.Hosting/",
                          "src/PzTools.Process.Contracts/", "scripts/build-game-bridge",

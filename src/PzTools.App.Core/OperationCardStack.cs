@@ -2,7 +2,7 @@ using PzTools.Projections;
 
 namespace PzTools.App.Core;
 
-public enum OperationCardGroup { Backup, Restore, Export, Import, CharacterRecovery, DeleteSave, Maintenance, Profile, Notice, StartupLoader }
+public enum OperationCardGroup { Backup, Restore, Export, Import, CharacterRecovery, DeleteSave, Maintenance, Profile, Notice, StartupLoader, ExtensionApi }
 
 /// <summary>Ascending order is the stacking order: a higher tier sits lower, next to the fixed schedule line.</summary>
 public enum OperationCardTier { Other, Backup, User }
@@ -42,6 +42,7 @@ public static class OperationCardStack
         {
             "delete-save" => OperationCardGroup.DeleteSave,
             "startup-loader-install" or "startup-loader-uninstall" => OperationCardGroup.StartupLoader,
+            "extension-api-install" or "extension-api-uninstall" => OperationCardGroup.ExtensionApi,
             "character-recovery" => OperationCardGroup.CharacterRecovery,
             "profile" => OperationCardGroup.Profile,
             "export" => OperationCardGroup.Export,

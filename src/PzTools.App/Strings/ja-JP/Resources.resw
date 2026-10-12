@@ -796,7 +796,6 @@ GC 稼働: 区間のうちメモリ整理が動いていた時間の割合です
   <data name="StartupLoaderReverted" xml:space="preserve"><value>ゲームのフォルダーから一部のファイルがなくなっています。使うには再度オンにしてください。</value></data>
   <data name="StartupLoaderGameWithout" xml:space="preserve"><value>実行中のゲームはこれなしで起動されています。使うにはゲームを再起動してください。</value></data>
   <data name="StartupLoaderGameFailed" xml:space="preserve"><value>実行中のゲームに読み込まれませんでした。詳細はログにあります。</value></data>
-  <data name="StartupLoaderHooksMissing" xml:space="preserve"><value>実行中のゲームで、拡張 API のフックの一部（{0}）を組み込めませんでした。別の MOD が同じゲームコードを変更しているためと思われます。その箇所では、MOD にはゲーム本来の結果が返ります。詳細はログにあります。</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>別のツールがゲームの projectzomboid.jar を変更しています。先に Steam でゲームファイルの整合性を確認してください。</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>ゲームと、そのフォルダーから起動したサーバーを閉じてから、もう一度お試しください。</value></data>
   <data name="StartupLoaderUnsupported" xml:space="preserve"><value>このバージョンのゲームには対応していません。</value></data>
@@ -804,4 +803,11 @@ GC 稼働: 区間のうちメモリ整理が動いていた時間の割合です
   <data name="StartupLoaderFailed" xml:space="preserve"><value>ゲームのフォルダーを変更できませんでした。詳細はログにあります。</value></data>
   <data name="StartupLoaderInstalling" xml:space="preserve"><value>ゲームに PZ Tools をインストール中</value></data>
   <data name="StartupLoaderRemoving" xml:space="preserve"><value>ゲームから PZ Tools を削除中</value></data>
+  <data name="ExtensionApiHeader" xml:space="preserve"><value>PZ Extension API</value></data>
+  <data name="ExtensionApiNotBundled" xml:space="preserve"><value>この PZ Tools には PZ Extension API が含まれていません。</value></data>
+  <data name="ExtensionApiNotInstalled" xml:space="preserve"><value>PZ Extension API は一部の MOD が必要とする独立したプログラムです。オンにすると、PZ Tools に同梱されたものをゲームのフォルダーにインストールします。インストール後は PZ Tools なしでも動きます。オフにすると削除します。</value></data>
+  <data name="ExtensionApiInstalled" xml:space="preserve"><value>インストール済み。PZ Tools を起動していなくても、ゲームは起動時に PZ Extension API を読み込みます。</value></data>
+  <data name="ExtensionApiHooksMissing" xml:space="preserve"><value>実行中のゲームで、PZ Extension API のフックの一部（{0}）を組み込めませんでした。別の MOD が同じゲームコードを変更しているためと思われます。その箇所では、MOD にはゲーム本来の結果が返ります。詳細はログにあります。</value></data>
+  <data name="ExtensionApiInstalling" xml:space="preserve"><value>ゲームに PZ Extension API をインストール中</value></data>
+  <data name="ExtensionApiRemoving" xml:space="preserve"><value>ゲームから PZ Extension API を削除中</value></data>
 </root>

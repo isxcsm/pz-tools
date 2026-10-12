@@ -233,8 +233,8 @@ Java's mechanism for loading an agent into a running Java program. A helper proc
 
 ### Bootstrap
 
-The part of the bridge that stays loaded until the game exits (`pztools-game-bootstrap.jar`: `AgentEntry`, `ControlServer`, `GameHook`, `Payload`, `ApiHooks`):
-the control socket, the game-loop hook, the hooks of the extension API and the extensions' module API. A PZ Tools update with a different bootstrap
+The part of the bridge that stays loaded until the game exits (`pztools-game-bootstrap.jar`: `AgentEntry`, `ControlServer`, `GameHook`, `Payload`):
+the control socket, the game-loop hook and the extensions' module API. A PZ Tools update with a different bootstrap
 API needs one game restart. Also called the *resident* part. See [module reload](module-reload.md).
 
 ### Payload
@@ -303,7 +303,7 @@ frame, and to close.
 <a id="control-point"></a>
 ### Control point
 
-A named place in game code where a module may take a decision over (`ControlPoints`, part of the extension API).
+A named place in game code where a module may take a decision over (`ControlPoints`, part of the extensions' module API).
 The module's own bytecode calls the point, and the module answers it while it is active; with no answer, or after
 the answer failed, the game's own code runs. See [game extensions](game-extensions.md#control-points).
 

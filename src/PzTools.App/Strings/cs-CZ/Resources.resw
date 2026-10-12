@@ -796,7 +796,6 @@ Podrobný: zaznamenává každých 0,001 až 0,0015 s a ukládá i čekání a z
   <data name="StartupLoaderReverted" xml:space="preserve"><value>Některé jeho soubory ze složky hry zmizely. Chcete-li to používat, znovu to zapněte.</value></data>
   <data name="StartupLoaderGameWithout" xml:space="preserve"><value>Právě běžící hra byla spuštěna bez něj. Chcete-li to používat, spusťte hru znovu.</value></data>
   <data name="StartupLoaderGameFailed" xml:space="preserve"><value>Do právě běžící hry se nenačetlo. Podrobnosti jsou v protokolech.</value></data>
-  <data name="StartupLoaderHooksMissing" xml:space="preserve"><value>V právě běžící hře se nepodařilo vložit některé háčky rozhraní API pro rozšíření, nejspíš proto, že stejný kód hry mění jiný mod: {0}. Mody tam dostávají původní odpovědi hry. Podrobnosti jsou v protokolech.</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>Jiný nástroj změnil soubor projectzomboid.jar hry. Nejprve ověřte soubory hry ve službě Steam.</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Zavřete hru i každý server spuštěný z její složky a zkuste to znovu.</value></data>
   <data name="StartupLoaderUnsupported" xml:space="preserve"><value>Tato verze hry není podporována.</value></data>
@@ -804,4 +803,11 @@ Podrobný: zaznamenává každých 0,001 až 0,0015 s a ukládá i čekání a z
   <data name="StartupLoaderFailed" xml:space="preserve"><value>Složku hry se nepodařilo změnit. Podrobnosti jsou v protokolech.</value></data>
   <data name="StartupLoaderInstalling" xml:space="preserve"><value>Instalace PZ Tools do hry</value></data>
   <data name="StartupLoaderRemoving" xml:space="preserve"><value>Odebírání PZ Tools ze hry</value></data>
+  <data name="ExtensionApiHeader" xml:space="preserve"><value>PZ Extension API</value></data>
+  <data name="ExtensionApiNotBundled" xml:space="preserve"><value>Tato kopie PZ Tools neobsahuje PZ Extension API.</value></data>
+  <data name="ExtensionApiNotInstalled" xml:space="preserve"><value>PZ Extension API je samostatný program, který potřebují některé mody. Zapnutím se nainstaluje do složky hry z kopie, kterou PZ Tools obsahuje; pak funguje i bez PZ Tools. Vypnutím se odebere.</value></data>
+  <data name="ExtensionApiInstalled" xml:space="preserve"><value>Nainstalováno. Hra při spuštění načte PZ Extension API, i když PZ Tools neběží.</value></data>
+  <data name="ExtensionApiHooksMissing" xml:space="preserve"><value>V právě běžící hře se nepodařilo vložit některé háčky PZ Extension API, nejspíš proto, že stejný kód hry mění jiný mod: {0}. Mody tam dostávají původní odpovědi hry. Podrobnosti jsou v protokolech.</value></data>
+  <data name="ExtensionApiInstalling" xml:space="preserve"><value>Instalace PZ Extension API do hry</value></data>
+  <data name="ExtensionApiRemoving" xml:space="preserve"><value>Odebírání PZ Extension API ze hry</value></data>
 </root>

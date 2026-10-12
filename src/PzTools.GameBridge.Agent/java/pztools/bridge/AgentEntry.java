@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.*;
 public final class AgentEntry {
     public static final String CONTROL_PROPERTY = "pztools.bridge.control.v1";
     /** The bootstrap API: the helper and every payload jar must name this one. */
-    static final String API = "12";
+    static final String API = "13";
     private static Instrumentation instrumentation;
     // In a game the startup loader started: the install's payload, <install folder>\bridge-<id>\<payload>.
     private static volatile Path startupPayload;
@@ -61,18 +61,13 @@ public final class AgentEntry {
         }
     }
 
-    /**
-     * Makes this a game the startup loader started: its install, the extension API's Lua hook (before the game's Lua
-     * loads), and, once the endpoint is set, the payload's startup work.
-     */
+    /** Makes this a game the startup loader started: its install, and, once the endpoint is set, the payload's startup work. */
     private static void becomeStartup(Path installPayload) {
         boolean ready;
         synchronized (AgentEntry.class) {
             startupPayload = installPayload;
             ready = endpointPublished;
         }
-        try { ApiHooks.install(instrumentation); }
-        catch (Throwable failure) { System.err.println("[PzTools API] " + failure); }
         if (ready) launchStartup();
     }
 
@@ -116,7 +111,7 @@ public final class AgentEntry {
 
     /**
      * Loads the payload and runs its startup work, away from the class loading that calls this. A game started without
-     * the app gets its extension API and resident extensions this way; they wait for the game's first frames.
+     * the app gets its resident extensions this way; they wait for the game's first frames.
      */
     private static void launchStartup() {
         Thread starter = new Thread(() -> {
@@ -133,8 +128,6 @@ public final class AgentEntry {
                 try { Thread.sleep(1000); } catch (InterruptedException stopped) { break; }
                 if (Payload.started()) return;
             }
-            // No payload: the game's Lua stops waiting for the API.
-            ApiHooks.set(null);
         }, "PzTools-startup");
         starter.setDaemon(true);
         starter.start();

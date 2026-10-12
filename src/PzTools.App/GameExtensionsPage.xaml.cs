@@ -35,6 +35,13 @@ public sealed partial class GameExtensionsPage : UserControl
                 ApplyStartupLoader();
                 _ = RefreshStartupLoaderAsync(loader);
             }
+            if (App.ExtensionApi is { } api)
+            {
+                api.Changed -= ExtensionApiChanged;
+                api.Changed += ExtensionApiChanged;
+                ApplyExtensionApi();
+                _ = RefreshExtensionApiAsync(api);
+            }
             await RefreshForNavigationAsync();
         };
         Unloaded += (_, _) =>
@@ -42,6 +49,7 @@ public sealed partial class GameExtensionsPage : UserControl
             subscription?.Dispose();
             subscription = null;
             if (App.StartupLoader is { } loader) loader.Changed -= StartupLoaderChanged;
+            if (App.ExtensionApi is { } api) api.Changed -= ExtensionApiChanged;
         };
     }
 
@@ -50,6 +58,7 @@ public sealed partial class GameExtensionsPage : UserControl
         Language = Localizer.Culture.Name;
         PageTitle.Text = Localizer.Get("GameExtensions.Title");
         ApplyStartupLoader();
+        ApplyExtensionApi();
         if (snapshot is not null) UpdateView(snapshot);
     }
 
@@ -91,14 +100,22 @@ public sealed partial class GameExtensionsPage : UserControl
             && status is StartupLoaderStatus.NotInstalled or StartupLoaderStatus.Installed or StartupLoaderStatus.Reverted;
     }
 
-    /// <summary>What to say about the game that runs now: it started without the loader, the loader did not load, or
-    /// some of the extension API's hooks did not go in. Null when all is well or nothing is known.</summary>
+    /// <summary>What to say about the game that runs now: it started without the loader, or the loader did not load.
+    /// Null when all is well or nothing is known.</summary>
     internal static string? StartupGameText(StartupGameReport? game) => game switch
     {
         null or { HasProblem: false } => null,
         { Status: StartupGameStatus.StartedWithout } => Localizer.Get("StartupLoaderGameWithout"),
+        _ => Localizer.Get("StartupLoaderGameFailed"),
+    };
+
+    /// <summary>The same for PZ Extension API, and the hooks it could not put in.</summary>
+    internal static string? ExtensionApiGameText(StartupGameReport? game) => game switch
+    {
+        null or { HasProblem: false } => null,
+        { Status: StartupGameStatus.StartedWithout } => Localizer.Get("StartupLoaderGameWithout"),
         { Status: StartupGameStatus.LoadFailed } => Localizer.Get("StartupLoaderGameFailed"),
-        _ => Localizer.Format("StartupLoaderHooksMissing", string.Join(", ", game.MissingHookNames)),
+        _ => Localizer.Format("ExtensionApiHooksMissing", string.Join(", ", game.MissingHookNames)),
     };
 
     private bool reflectingStartupLoader;
@@ -125,6 +142,64 @@ public sealed partial class GameExtensionsPage : UserControl
         {
             changingStartupLoader = false;
             ApplyStartupLoader();
+        }
+    }
+
+    // ---- PZ Extension API (shown with the startup loader) ----
+
+    private bool changingExtensionApi, reflectingExtensionApi;
+
+    private void ExtensionApiChanged() => DispatcherQueue.Enqueue(ApplyExtensionApi);
+
+    // Called from the Loaded handler without being awaited: nothing may escape it.
+    private async Task RefreshExtensionApiAsync(ExtensionApiInstall api)
+    {
+        try { await api.RefreshAsync(); }
+        catch (Exception exception) { System.Diagnostics.Debug.WriteLine(exception); }
+    }
+
+    private void ApplyExtensionApi()
+    {
+        if (App.ExtensionApi is not { } api) { ExtensionApiCard.Visibility = Visibility.Collapsed; return; }
+        var status = api.State.Status;
+        ExtensionApiCard.Visibility = Visibility.Visible;
+        ExtensionApiCard.Header = Localizer.Get("ExtensionApiHeader");
+        var description = Localizer.Get(status switch
+        {
+            ExtensionApiStatus.NotBundled => "ExtensionApiNotBundled",
+            ExtensionApiStatus.NotFound => "StartupLoaderNotFound",
+            ExtensionApiStatus.NotInstalled => "ExtensionApiNotInstalled",
+            ExtensionApiStatus.Installed => "ExtensionApiInstalled",
+            ExtensionApiStatus.Reverted => "StartupLoaderReverted",
+            _ => "StartupLoaderChecking",
+        });
+        ExtensionApiCard.Description = ExtensionApiGameText(api.State.Game) is { } game ? description + "\n" + game : description;
+        ExtensionApiSwitch.OnContent = Localizer.Get("SettingEnabled");
+        ExtensionApiSwitch.OffContent = Localizer.Get("SettingDisabled");
+        AutomationProperties.SetName(ExtensionApiSwitch, Localizer.Get("ExtensionApiHeader"));
+        if (!changingExtensionApi && ExtensionApiSwitch.IsOn != (status == ExtensionApiStatus.Installed))
+        {
+            reflectingExtensionApi = true;
+            try { ExtensionApiSwitch.IsOn = status == ExtensionApiStatus.Installed; }
+            finally { reflectingExtensionApi = false; }
+        }
+        ExtensionApiSwitch.IsEnabled = !changingExtensionApi
+            && status is ExtensionApiStatus.NotInstalled or ExtensionApiStatus.Installed or ExtensionApiStatus.Reverted;
+    }
+
+    private async void ExtensionApiSwitch_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (reflectingExtensionApi || changingExtensionApi || App.ExtensionApi is not { } api) return;
+        if (App.MainWindow.Content is not MainWindowShell shell) { ApplyExtensionApi(); return; }
+        changingExtensionApi = true;
+        ApplyExtensionApi();
+        // An async event handler: nothing may escape it. The shell reports every failure on the card.
+        try { await shell.ChangeExtensionApiAsync(api, ExtensionApiSwitch.IsOn); }
+        catch (Exception exception) { System.Diagnostics.Debug.WriteLine(exception); }
+        finally
+        {
+            changingExtensionApi = false;
+            ApplyExtensionApi();
         }
     }
 

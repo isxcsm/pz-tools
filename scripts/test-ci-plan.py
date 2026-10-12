@@ -28,8 +28,7 @@ class PlanTests(unittest.TestCase):
 
     def test_bridge_fixture_tests_keep_jvm_tests(self):
         for path in ["tests/extension-control/pztools/bridge/runtime/ProfileRollingTest.java",
-                     "tests/extension-api/pztools/bridge/runtime/api/GameApiTest.java",
-                     "tests/startup-loader/game/zombie/Lua/LuaManager.java",
+                     "tests/startup-loader/game/zombie/GameWindow.java",
                      "tests/vehicle-drivetrain-fixture/zombie/core/Core.java"]:
             with self.subTest(path=path):
                 self.assertTrue(plan([path])["bridge"])

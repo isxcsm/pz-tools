@@ -151,17 +151,14 @@ public sealed class StartupLoaderTests
     public void Parse_AnUnknownState_IsAnIoFailure() =>
         Assert.Equal("io", Assert.Throws<StartupLoaderException>(() => StartupLoader.Parse("half-installed")).Code);
 
-    /// <summary>An install folder with the loader's line and the API's status file as a game would leave them.</summary>
+    /// <summary>An install folder with the loader's line as a game would leave it.</summary>
     private sealed class InstallFolder : IDisposable
     {
         public string Path { get; } = Directory.CreateTempSubdirectory("pztools-startup-game").FullName;
-        public void Log(string line, DateTime written) => Write("startup.log", line + "\r\n", written);
-        public void Api(int pid, DateTime written, params string[] hooks) =>
-            Write("api.tsv", $"PZTOOLS-API\t1\npid\t{pid}\n" + string.Concat(hooks.Select(hook => "hook\t" + hook + "\n")), written);
-        private void Write(string name, string text, DateTime written)
+        public void Log(string line, DateTime written)
         {
-            var file = System.IO.Path.Combine(Path, name);
-            File.WriteAllText(file, text);
+            var file = System.IO.Path.Combine(Path, "startup.log");
+            File.WriteAllText(file, line + "\r\n");
             File.SetLastWriteTimeUtc(file, written);
         }
         public void Dispose() => Directory.Delete(Path, recursive: true);
@@ -191,23 +188,13 @@ public sealed class StartupLoaderTests
     }
 
     [Fact]
-    public void ReadGame_Loaded_NamesTheHooksThatDidNotGoIn_OfThisGameOnly()
+    public void ReadGame_Loaded_IsWellWithItsLine()
     {
         using var folder = new InstallFolder();
         folder.Log("2026-10-08T12:00:00Z loaded bridge-0123456789abcdef", Started.AddSeconds(0.5));
-        var game = new RunningGame(42, Started);
-        Assert.Equal(new StartupGameReport(StartupGameStatus.Loaded, 42, "2026-10-08T12:00:00Z loaded bridge-0123456789abcdef"),
-            StartupLoader.ReadGame(folder.Path, game));
-        // Another process's file says nothing about this game.
-        folder.Api(7, Started.AddSeconds(20), "IsoGenerator.update\twhy");
-        Assert.False(StartupLoader.ReadGame(folder.Path, game)!.HasProblem);
-        folder.Api(42, Started.AddSeconds(20), "LuaManager.init\tapplied", "Food.updateAge:hours\tnot-loaded",
-            "IsoGenerator.update\texpected one update()V, found 0", "IsoGridSquare.haveElectricity\tits code could not be built: x");
-        var report = StartupLoader.ReadGame(folder.Path, game)!;
-        Assert.Equal(StartupGameStatus.Loaded, report.Status);
-        Assert.Equal("IsoGenerator.update: expected one update()V, found 0\nIsoGridSquare.haveElectricity: its code could not be built: x",
-            report.MissingHooks);
-        Assert.Equal(["IsoGenerator.update", "IsoGridSquare.haveElectricity"], report.MissingHookNames);
+        var report = StartupLoader.ReadGame(folder.Path, new RunningGame(42, Started));
+        Assert.Equal(new StartupGameReport(StartupGameStatus.Loaded, 42, "2026-10-08T12:00:00Z loaded bridge-0123456789abcdef"), report);
+        Assert.False(report!.HasProblem);
     }
 
     [Fact]

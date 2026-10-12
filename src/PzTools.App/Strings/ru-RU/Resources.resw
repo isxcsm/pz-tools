@@ -796,7 +796,6 @@ GC работает: доля отрезка, когда работал сбор
   <data name="StartupLoaderReverted" xml:space="preserve"><value>Некоторые его файлы пропали из папки игры. Включите снова, чтобы пользоваться.</value></data>
   <data name="StartupLoaderGameWithout" xml:space="preserve"><value>Игра, которая работает сейчас, запущена без него. Перезапустите игру, чтобы пользоваться.</value></data>
   <data name="StartupLoaderGameFailed" xml:space="preserve"><value>В игру, которая работает сейчас, он не загрузился. Подробности в журнале.</value></data>
-  <data name="StartupLoaderHooksMissing" xml:space="preserve"><value>В игре, которая работает сейчас, не удалось встроить некоторые хуки API расширений — вероятно, другой мод изменяет тот же код игры: {0}. Там моды получают исходные ответы игры. Подробности в журнале.</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>Другая программа изменила файл projectzomboid.jar игры. Сначала проверьте целостность файлов игры в Steam.</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Закройте игру и все серверы, запущенные из её папки, и повторите попытку.</value></data>
   <data name="StartupLoaderUnsupported" xml:space="preserve"><value>Эта версия игры не поддерживается.</value></data>
@@ -804,4 +803,11 @@ GC работает: доля отрезка, когда работал сбор
   <data name="StartupLoaderFailed" xml:space="preserve"><value>Не удалось изменить папку игры. Подробности в журнале.</value></data>
   <data name="StartupLoaderInstalling" xml:space="preserve"><value>Установка PZ Tools в игру</value></data>
   <data name="StartupLoaderRemoving" xml:space="preserve"><value>Удаление PZ Tools из игры</value></data>
+  <data name="ExtensionApiHeader" xml:space="preserve"><value>PZ Extension API</value></data>
+  <data name="ExtensionApiNotBundled" xml:space="preserve"><value>В этой копии PZ Tools нет PZ Extension API.</value></data>
+  <data name="ExtensionApiNotInstalled" xml:space="preserve"><value>PZ Extension API — отдельная программа, которая нужна некоторым модам. При включении она устанавливается в папку игры из копии, входящей в PZ Tools; после этого работает и без PZ Tools. При выключении удаляется.</value></data>
+  <data name="ExtensionApiInstalled" xml:space="preserve"><value>Установлено. Игра загружает PZ Extension API при запуске, даже если PZ Tools не запущен.</value></data>
+  <data name="ExtensionApiHooksMissing" xml:space="preserve"><value>В игре, которая работает сейчас, не удалось встроить некоторые хуки PZ Extension API — вероятно, другой мод изменяет тот же код игры: {0}. Там моды получают исходные ответы игры. Подробности в журнале.</value></data>
+  <data name="ExtensionApiInstalling" xml:space="preserve"><value>Установка PZ Extension API в игру</value></data>
+  <data name="ExtensionApiRemoving" xml:space="preserve"><value>Удаление PZ Extension API из игры</value></data>
 </root>

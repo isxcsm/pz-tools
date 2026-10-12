@@ -21,29 +21,29 @@ final class FramesTest {
 
     private static void orderAndIsolation() {
         var order = new ArrayList<String>();
-        Object api = new Object(), observer = new Object(), lifecycle = new Object();
+        Object notices = new Object(), observer = new Object(), lifecycle = new Object();
         // Added out of order: they run in the router's.
         check(Frames.add(Frames.Job.LIFECYCLE, lifecycle, () -> order.add("lifecycle")), "Lifecycle job refused");
         check(Frames.add(Frames.Job.OBSERVER, observer, () -> order.add("observer")), "Observer job refused");
-        var apiRuns = new AtomicInteger();
-        check(Frames.add(Frames.Job.API, api, () -> { apiRuns.incrementAndGet(); order.add("api"); }), "API job refused");
+        var noticeRuns = new AtomicInteger();
+        check(Frames.add(Frames.Job.NOTICES, notices, () -> { noticeRuns.incrementAndGet(); order.add("notices"); }), "Notices job refused");
         check(!Frames.add(Frames.Job.LIFECYCLE, new Object(), () -> { }), "A held job was given to another owner");
         try {
             AgentEntry.poll();
-            check(order.equals(List.of("api", "observer", "lifecycle")), "Jobs ran out of order: " + order);
+            check(order.equals(List.of("notices", "observer", "lifecycle")), "Jobs ran out of order: " + order);
 
             // A job that throws is dropped; the others go on, and its owner still holds it.
             order.clear();
-            check(Frames.add(Frames.Job.API, api, () -> { apiRuns.incrementAndGet(); throw new LinkageError("synthetic"); }),
+            check(Frames.add(Frames.Job.NOTICES, notices, () -> { noticeRuns.incrementAndGet(); throw new LinkageError("synthetic"); }),
                 "The owner could not replace its own job");
             AgentEntry.poll();
             AgentEntry.poll();
-            check(apiRuns.get() == 2 && order.equals(List.of("observer", "lifecycle", "observer", "lifecycle")),
+            check(noticeRuns.get() == 2 && order.equals(List.of("observer", "lifecycle", "observer", "lifecycle")),
                 "A failing job stopped the others or kept running: " + order);
-            check(Frames.holds(Frames.Job.API, api) && !Frames.add(Frames.Job.API, new Object(), () -> { }),
+            check(Frames.holds(Frames.Job.NOTICES, notices) && !Frames.add(Frames.Job.NOTICES, new Object(), () -> { }),
                 "A dropped job was taken from its owner");
         } finally {
-            Frames.remove(Frames.Job.API, api);
+            Frames.remove(Frames.Job.NOTICES, notices);
             Frames.remove(Frames.Job.OBSERVER, observer);
             Frames.remove(Frames.Job.LIFECYCLE, lifecycle);
         }

@@ -796,7 +796,6 @@ Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşa
   <data name="StartupLoaderReverted" xml:space="preserve"><value>Dosyalarının bazıları oyun klasöründe artık yok. Kullanmak için yeniden açın.</value></data>
   <data name="StartupLoaderGameWithout" xml:space="preserve"><value>Şu anda çalışan oyun bu özellik olmadan başlatıldı. Kullanmak için oyunu yeniden başlatın.</value></data>
   <data name="StartupLoaderGameFailed" xml:space="preserve"><value>Şu anda çalışan oyuna yüklenemedi. Ayrıntılar günlüklerde.</value></data>
-  <data name="StartupLoaderHooksMissing" xml:space="preserve"><value>Şu anda çalışan oyunda uzantı API'sinin bazı kancaları eklenemedi; muhtemelen başka bir mod oyunun aynı kodunu değiştiriyor: {0}. Modlar orada oyunun kendi yanıtlarını alır. Ayrıntılar günlüklerde.</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>Başka bir araç oyunun projectzomboid.jar dosyasını değiştirmiş. Önce Steam'de oyun dosyalarını doğrulayın.</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Oyunu ve klasöründen başlatılan tüm sunucuları kapatıp yeniden deneyin.</value></data>
   <data name="StartupLoaderUnsupported" xml:space="preserve"><value>Oyunun bu sürümü desteklenmiyor.</value></data>
@@ -804,4 +803,11 @@ Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşa
   <data name="StartupLoaderFailed" xml:space="preserve"><value>Oyun klasörü değiştirilemedi. Ayrıntılar günlüklerde.</value></data>
   <data name="StartupLoaderInstalling" xml:space="preserve"><value>PZ Tools oyuna yükleniyor</value></data>
   <data name="StartupLoaderRemoving" xml:space="preserve"><value>PZ Tools oyundan kaldırılıyor</value></data>
+  <data name="ExtensionApiHeader" xml:space="preserve"><value>PZ Extension API</value></data>
+  <data name="ExtensionApiNotBundled" xml:space="preserve"><value>Bu PZ Tools kopyası PZ Extension API'yi içermiyor.</value></data>
+  <data name="ExtensionApiNotInstalled" xml:space="preserve"><value>PZ Extension API, bazı modların ihtiyaç duyduğu ayrı bir programdır. Açıldığında PZ Tools'un getirdiği kopyadan oyun klasörüne yüklenir; ardından PZ Tools olmadan da çalışır. Kapatıldığında kaldırılır.</value></data>
+  <data name="ExtensionApiInstalled" xml:space="preserve"><value>Yüklendi. PZ Tools açık olsun ya da olmasın, oyun başlarken PZ Extension API'yi yükler.</value></data>
+  <data name="ExtensionApiHooksMissing" xml:space="preserve"><value>Şu anda çalışan oyunda PZ Extension API'nin bazı kancaları eklenemedi; muhtemelen başka bir mod oyunun aynı kodunu değiştiriyor: {0}. Modlar orada oyunun kendi yanıtlarını alır. Ayrıntılar günlüklerde.</value></data>
+  <data name="ExtensionApiInstalling" xml:space="preserve"><value>PZ Extension API oyuna yükleniyor</value></data>
+  <data name="ExtensionApiRemoving" xml:space="preserve"><value>PZ Extension API oyundan kaldırılıyor</value></data>
 </root>

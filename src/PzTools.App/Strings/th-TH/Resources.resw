@@ -803,7 +803,6 @@ GC ทำงาน: สัดส่วนของช่วงที่ตัว
   <data name="StartupLoaderReverted" xml:space="preserve"><value>ไฟล์บางส่วนหายไปจากโฟลเดอร์ของเกม เปิดอีกครั้งเพื่อใช้งาน</value></data>
   <data name="StartupLoaderGameWithout" xml:space="preserve"><value>เกมที่กำลังทำงานอยู่ตอนนี้เริ่มโดยไม่มีฟีเจอร์นี้ เริ่มเกมใหม่เพื่อใช้งาน</value></data>
   <data name="StartupLoaderGameFailed" xml:space="preserve"><value>ไม่ได้โหลดเข้าไปในเกมที่กำลังทำงานอยู่ รายละเอียดอยู่ในบันทึก</value></data>
-  <data name="StartupLoaderHooksMissing" xml:space="preserve"><value>ในเกมที่กำลังทำงานอยู่ ใส่ฮุกบางส่วนของ API ส่วนขยายไม่ได้ อาจเป็นเพราะม็อดอื่นแก้ไขโค้ดเกมส่วนเดียวกัน: {0} ในส่วนนั้นม็อดจะได้รับผลลัพธ์เดิมของเกม รายละเอียดอยู่ในบันทึก</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>เครื่องมืออื่นได้แก้ไขไฟล์ projectzomboid.jar ของเกม โปรดตรวจสอบความสมบูรณ์ของไฟล์เกมใน Steam ก่อน</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>ปิดเกมและเซิร์ฟเวอร์ที่เปิดจากโฟลเดอร์ของเกม แล้วลองอีกครั้ง</value></data>
   <data name="StartupLoaderUnsupported" xml:space="preserve"><value>ไม่รองรับเกมเวอร์ชันนี้</value></data>
@@ -811,4 +810,11 @@ GC ทำงาน: สัดส่วนของช่วงที่ตัว
   <data name="StartupLoaderFailed" xml:space="preserve"><value>แก้ไขโฟลเดอร์ของเกมไม่ได้ รายละเอียดอยู่ในบันทึก</value></data>
   <data name="StartupLoaderInstalling" xml:space="preserve"><value>กำลังติดตั้ง PZ Tools ลงในเกม</value></data>
   <data name="StartupLoaderRemoving" xml:space="preserve"><value>กำลังนำ PZ Tools ออกจากเกม</value></data>
+  <data name="ExtensionApiHeader" xml:space="preserve"><value>PZ Extension API</value></data>
+  <data name="ExtensionApiNotBundled" xml:space="preserve"><value>PZ Tools ชุดนี้ไม่มี PZ Extension API มาด้วย</value></data>
+  <data name="ExtensionApiNotInstalled" xml:space="preserve"><value>PZ Extension API เป็นโปรแกรมแยกต่างหากที่ม็อดบางตัวต้องใช้ เมื่อเปิด จะติดตั้งลงในโฟลเดอร์ของเกมจากชุดที่มากับ PZ Tools หลังจากนั้นจะทำงานได้แม้ไม่มี PZ Tools เมื่อปิด จะถอนออก</value></data>
+  <data name="ExtensionApiInstalled" xml:space="preserve"><value>ติดตั้งแล้ว เกมจะโหลด PZ Extension API ตอนเริ่ม ไม่ว่า PZ Tools จะเปิดอยู่หรือไม่</value></data>
+  <data name="ExtensionApiHooksMissing" xml:space="preserve"><value>ในเกมที่กำลังทำงานอยู่ ใส่ฮุกบางส่วนของ PZ Extension APIไม่ได้ อาจเป็นเพราะม็อดอื่นแก้ไขโค้ดเกมส่วนเดียวกัน: {0} ในส่วนนั้นม็อดจะได้รับผลลัพธ์เดิมของเกม รายละเอียดอยู่ในบันทึก</value></data>
+  <data name="ExtensionApiInstalling" xml:space="preserve"><value>กำลังติดตั้ง PZ Extension API ลงในเกม</value></data>
+  <data name="ExtensionApiRemoving" xml:space="preserve"><value>กำลังนำ PZ Extension API ออกจากเกม</value></data>
 </root>

@@ -12,9 +12,8 @@ change is detected, and what survives the switch.
 | Layer | File in `game-bridge\` | Replaced while the game runs? |
 | --- | --- | --- |
 | Native attach bootstrap | `pztools-attach-bootstrap.dll` | No. Loaded on the first attach only. |
-| [Bootstrap](glossary.md#bootstrap) | `pztools-game-bootstrap.jar`: `AgentEntry`, `ControlServer`, `GameHook`, `Payload`, `ApiHooks`, `RuntimeCharacterIdentity` and the module API of the extensions (`pztools.extensions.api`) | No. Needs a game restart. |
-| [Payload](glossary.md#payload) | `pztools-game-bridge.jar`: its entry and frame router, save requests, WATCH, extension control and the loading of the extension runtime and of the extension API, the resident extensions of a startup game, profiler, notices, leases | Yes |
-| [Extension API](extension-api.md) | `extensions\pztools-extension-api.jar`: `GameApi`, buildings, power and water networks (`pztools.api`); loaded only in a game the [startup loader](startup-loader.md) started | Yes |
+| [Bootstrap](glossary.md#bootstrap) | `pztools-game-bootstrap.jar`: `AgentEntry`, `ControlServer`, `GameHook`, `Payload`, `RuntimeCharacterIdentity` and the module API of the extensions (`pztools.extensions.api`) | No. Needs a game restart. |
+| [Payload](glossary.md#payload) | `pztools-game-bridge.jar`: its entry and frame router, save requests, WATCH, extension control and the loading of the extension runtime, the resident extensions of a startup game, profiler, notices, leases | Yes |
 | [Extension runtime](glossary.md#extension-runtime-host) | `extensions\pztools-extension-runtime.jar`: `ModuleHost`, `ContinuousRuntime` | Yes |
 | [Modules](glossary.md#extension-module) | `extensions\pztools-vehicle-drivetrain.jar`, listed in `extensions\catalog.tsv` | Yes, each in its own [slot](glossary.md#slot) |
 
@@ -34,13 +33,8 @@ The bootstrap owns everything that has to outlive a replacement, and no feature
   ([the game-loop hook](game-bridge.md#the-game-loop-hook)).
 - What a payload keeps for the next one (`AgentEntry.kept`): the extension runtime's host. The payload loads it;
   the bootstrap only holds it.
-- In a game the [startup loader](startup-loader.md) started, the [extension API](extension-api.md)'s hooks: a
-  call to `ApiHooks.luaStarted` added at the end of `LuaManager.init()` before the game loads its Lua, and the
-  power hooks in `IsoGridSquare`, `ItemContainer`, `IsoLightSwitch`, `DeviceData`, `LightingJNI`, `Food` and
-  `IsoGenerator`, and the water hooks in `IsoObject`, added as those classes load. Each payload sets the handlers that answer them, replacing the
-  last one's.
 - `RuntimeCharacterIdentity` (character and death ids, for WATCH).
-- The extension API classes, including `RuntimeIdentity` (process and world ids) and `ControlPoints` (the
+- The extensions' module API classes, including `RuntimeIdentity` (process and world ids) and `ControlPoints` (the
   [control points](game-extensions.md#control-points) modules' bytecode calls). Payload and module archives are
   loaded with their own copies of these packages skipped, so every generation sees the same classes.
 
@@ -105,11 +99,11 @@ sends `PING`, which reloads nothing. A backup or a WATCH connection never touche
    class or a link error alike), before anything is stopped.
 4. Ask the payload's sessions and threads to let go (`runtimeReloadRequested`) and pause the game-loop callbacks;
    nothing new may take them until the switch ends. WATCH, extension control, the resident controller, the
-   extension API's thread, the profiler's monitor and the notes' relay check the request at least every 250 ms.
+   profiler's monitor and the notes' relay check the request at least every 250 ms.
 5. Wait up to 3 seconds for every session to end and every per-frame job to be let go. If they do not, answer
    `BUSY` and keep the old payload; what let go takes its work up again.
-6. Switch to the new entry. In a game the startup loader started, the new payload's startup runs (its extension API
-   and resident controller), then the client that asked gets the new payload's session.
+6. Switch to the new entry. In a game the startup loader started, the new payload's startup runs (its
+   resident controller), then the client that asked gets the new payload's session.
 
 The state scheduler reconnects WATCH and extension control on its own. Ending the app's extension-control session
 retires every continuous module, so a payload update turns vehicle controls off until the next `APPLY` reaches a
@@ -119,7 +113,7 @@ running, and the new payload's [resident controller](startup-loader.md#resident-
 | Kept in the bootstrap | Lost with the old payload |
 | --- | --- |
 | Process, world, character and death ids | The app runs' [leases](game-bridge.md#leases) |
-| The extension runtime and its host, the extension API | Running profiler recordings and a note still waiting to be shown |
+| The extension runtime and its host | Running profiler recordings and a note still waiting to be shown |
 | The game-loop hook and the control socket | The last save report |
 | | The continuous modules' generations (retired as above, unless the game was started by the startup loader) |
 
@@ -139,25 +133,6 @@ If the old host cannot be closed, the new one is discarded and the old one stays
 session instead. A runtime jar refused for its extension ABI is answered `RestartRequired` (`bootstrap-update`)
 to all four. The new host starts no module by itself; modules return with the next `APPLY`.
 Replacing the runtime leaves WATCH running.
-
-### Extension API
-
-`ApiHost.current` (payload) reads the API jar beside the extension runtime, checks that its manifest names the
-bootstrap API the game loaded (`PzTools-Bootstrap-Api`), and loads it under its own class loader (namespace
-`pztools.api`). The bootstrap keeps the loaded API with the jar's digest (`AgentEntry.kept`), so a payload switch
-leaves it running and the new payload's `ResidentApi` takes its frame job up again. The payload looks at the jar
-about once a second (its size and time; it reads the jar only when they changed): a new digest loads and starts the
-new API, which sets its hooks and takes the game's Lua environment over on its next frame, as described in the
-[extension API](extension-api.md). Only a game the startup loader started loads it.
-
-On 8 October 2026 this was checked in a running game, the app started again over it each time: the app switched
-from a build with the API inside the payload to one with it in its own jar, and Building Utilities' networks kept
-their state. With the API jar rewritten (the same classes, other bytes), a function read from `PZToolsAPI` before
-raised "the API was updated" within a second, and the networks went on. With the jar put back and the payload jar
-rewritten instead, the payload switched (its threads started again) and a function read before still worked: the
-API was not loaded again. After a full collection (`jcmd <pid> GC.run`) the class loaders of the API replaced by
-another and of the payload replaced by another were gone, but for the API whose function a Lua global still held.
-The payload from before the split stayed loaded; it is not looked into, as no game switches from it again.
 
 ### Continuous modules
 

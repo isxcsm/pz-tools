@@ -25,8 +25,8 @@ public final class PayloadEntry {
     }
 
     /**
-     * A game the startup loader started (docs/design/startup-loader.md): the extension API and the resident extensions
-     * run in it with or without the app. Each starts on its own, and a failure of one leaves the other.
+     * A game the startup loader started (docs/design/startup-loader.md): the resident extensions run in it with or
+     * without the app.
      */
     private static void startup(String installPayload, Instrumentation instrumentation) {
         Path payload = Path.of(installPayload);
@@ -34,8 +34,6 @@ public final class PayloadEntry {
         // <install folder>\bridge-<id>\<payload>
         Path bridge = payload.getParent(), install = bridge.getParent();
         ExtensionHost.install(bridge);
-        try { ResidentApi.start(install); }
-        catch (Throwable failure) { System.err.println("[PzTools API] " + failure); }
         try { ResidentExtensions.start(install, instrumentation); }
         catch (Throwable failure) { System.err.println("[PzTools resident extensions] " + failure); }
     }

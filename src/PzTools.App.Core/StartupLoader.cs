@@ -41,9 +41,9 @@ public enum StartupGameStatus
     LoadFailed,
 }
 
-/// <summary>What the loader and the extension API say about one game run, from the install folder.</summary>
+/// <summary>What a loader (PZ Tools' startup loader, or PZ Extension API's) says about one game run, from its install folder.</summary>
 /// <param name="Detail">The loader's own line, for the log.</param>
-/// <param name="MissingHooks">The extension API's hooks the game could not put in, one per line as
+/// <param name="MissingHooks">PZ Extension API's hooks the game could not put in, one per line as
 /// <c>Class.method: why</c>; empty when all went in, or the game has not said yet.</param>
 public sealed record StartupGameReport(StartupGameStatus Status, int ProcessId, string Detail = "", string MissingHooks = "")
 {
@@ -78,9 +78,8 @@ public sealed class StartupLoader
     public delegate Task<(int ExitCode, string Output)> Tool(IReadOnlyList<string> arguments, CancellationToken cancellationToken);
 
     private const string Mark = "PZTOOLS-STARTUP", Failed = "PZTOOLS-STARTUP-FAILED";
-    // In the install folder: the loader's line for the last game start, and the extension API's hooks in the game that
-    // runs (pztools.startup.StartupLoader.LOG, pztools.api.GameApi.STATUS).
-    private const string LoaderLog = "startup.log", ApiStatus = "api.tsv";
+    // In the install folder: the loader's line for the last game start (pztools.startup.StartupLoader.LOG).
+    private const string LoaderLog = "startup.log";
     // File times against a process's start: the loader writes its line about half a second after the game starts.
     private static readonly TimeSpan StartSlack = TimeSpan.FromSeconds(2);
     private const int MaxStatusBytes = 1 << 16;
@@ -268,9 +267,8 @@ public sealed class StartupLoader
     }
 
     /// <summary>
-    /// What the install folder says about this game run: whether the loader's line is this run's, and what it says; and
-    /// which hooks the extension API could not put in, from the file the game writes as its classes load. Null when the
-    /// files cannot be read.
+    /// What the install folder says about this game run: whether the loader's line is this run's, and what it says.
+    /// Null when the file cannot be read.
     /// </summary>
     internal static StartupGameReport? ReadGame(string installFolder, RunningGame game)
     {
@@ -281,16 +279,7 @@ public sealed class StartupLoader
         var line = logText.Split('\n')[0].TrimEnd('\r');
         // "<time> loaded bridge-<id>"; anything else is why it did not load.
         if (!line.Contains(" loaded bridge-", StringComparison.Ordinal)) return new(StartupGameStatus.LoadFailed, game.ProcessId, line);
-        var missing = new List<string>();
-        var status = new FileInfo(Path.Combine(installFolder, ApiStatus));
-        if (status.Exists && status.LastWriteTimeUtc >= game.StartedUtc - StartSlack && ReadSmall(status) is { } text)
-        {
-            var lines = text.Split('\n').Select(entry => entry.TrimEnd('\r')).ToArray();
-            if (lines is ["PZTOOLS-API\t1", var pid, ..] && pid == "pid\t" + game.ProcessId)
-                foreach (var fields in lines.Skip(2).Select(entry => entry.Split('\t')))
-                    if (fields is ["hook", var hook, var state] && state is not ("applied" or "not-loaded")) missing.Add(hook + ": " + state);
-        }
-        return new(StartupGameStatus.Loaded, game.ProcessId, line, string.Join('\n', missing));
+        return new(StartupGameStatus.Loaded, game.ProcessId, line);
     }
 
     private static string? ReadSmall(FileInfo file)

@@ -11,7 +11,6 @@
 | The backup folder chosen in **Settings** (default `%USERPROFILE%\Zomboid\Backups`) | Your backups. See [the backup folder](#the-backup-folder). |
 | The saves folder chosen in **Settings** (default `%USERPROFILE%\Zomboid\Saves`) | The game's saves. PZ Tools changes them only when you restore, revive, import or delete. See [saves](#what-pz-tools-changes-in-a-save). |
 | The game folder | `ProjectZomboid64.json`, and only when you set **Game memory**. See [the game folder](#what-pz-tools-changes-in-the-game-folder). |
-| `%USERPROFILE%\Zomboid\PZTools\fonts` | Large text for mods that use the extension API, made once for your game language (16 to 32 MB a language). The game makes it again if it is deleted. See [the embedded font](../design/extension-api.md#the-embedded-font). |
 | `%USERPROFILE%\.pztools-bridge\bootstrap.lock` | An empty lock file that lets one program at a time connect to the game. |
 | `%TEMP%\PzTools` or `%ProgramData%\PzTools` | Used only when a path has letters outside ASCII. See [non-ASCII paths](#folders-used-only-for-non-ascii-paths). |
 
@@ -28,7 +27,8 @@ The release is `PzTools-v<version>-win-x64.zip`, with a `.sha256` file beside it
 | `*.dll`, `*.winmd`, `*.pri`, `Microsoft.UI.Xaml\`, the language folders (`af-ZA` to `zh-TW`) | .NET libraries and the Windows App SDK (WinUI), which is included. |
 | `Assets\` | Icons and images. |
 | `defaults\<component>\default.toml` | The packaged default settings for each part of the app. Don't edit them; a new release replaces them. Your own changes go in the data folder (see [advanced settings](advanced-settings.md)). |
-| `game-bridge\` | What the game loads to save on request, record performance and run extensions: two jars and a DLL, `runtime\` (a small Java runtime used to connect to the game), `extensions\` (the in-game extensions and their packaged settings), and `fonts\` (the fonts the extension API draws large text with, and their license). |
+| `game-bridge\` | What the game loads to save on request, record performance and run extensions: two jars and a DLL, `runtime\` (a small Java runtime used to connect to the game), and `extensions\` (the in-game extensions and their packaged settings). |
+| `extension-api\` | A release of [PZ Extension API](../design/extension-api-install.md), a program of its own, which the app installs into the game when asked. |
 | `pztools-files.txt` | Every file above with its size and SHA-256. The app checks its folder against it. |
 | `START-HERE.txt` | Install steps. |
 | `LICENSE`, `THIRD_PARTY_NOTICES.md`, `licenses\` | Licenses. |

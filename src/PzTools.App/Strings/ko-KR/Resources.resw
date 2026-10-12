@@ -795,7 +795,6 @@ GC 작동: 구간 중 메모리 정리가 돌고 있던 시간의 비율입니�
   <data name="StartupLoaderReverted" xml:space="preserve"><value>게임 폴더에서 파일 일부가 사라졌습니다. 쓰려면 다시 켜세요.</value></data>
   <data name="StartupLoaderGameWithout" xml:space="preserve"><value>지금 실행 중인 게임은 이 기능 없이 시작되었습니다. 사용하려면 게임을 다시 시작하세요.</value></data>
   <data name="StartupLoaderGameFailed" xml:space="preserve"><value>지금 실행 중인 게임에 불러오지 못했습니다. 자세한 내용은 로그에 있습니다.</value></data>
-  <data name="StartupLoaderHooksMissing" xml:space="preserve"><value>지금 실행 중인 게임에서 확장 API의 훅 일부({0})를 넣지 못했습니다. 다른 모드가 같은 게임 코드를 바꾸기 때문일 수 있습니다. 그 부분에서는 모드가 게임 원래의 결과를 받습니다. 자세한 내용은 로그에 있습니다.</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>다른 도구가 게임의 projectzomboid.jar를 바꿨습니다. 먼저 Steam에서 게임 파일 무결성을 확인하세요.</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>게임과, 게임 폴더에서 실행한 서버를 모두 끈 뒤 다시 시도하세요.</value></data>
   <data name="StartupLoaderUnsupported" xml:space="preserve"><value>이 게임 버전은 지원하지 않습니다.</value></data>
@@ -803,4 +802,11 @@ GC 작동: 구간 중 메모리 정리가 돌고 있던 시간의 비율입니�
   <data name="StartupLoaderFailed" xml:space="preserve"><value>게임 폴더를 바꾸지 못했습니다. 자세한 내용은 로그에 있습니다.</value></data>
   <data name="StartupLoaderInstalling" xml:space="preserve"><value>게임에 PZ Tools 설치 중</value></data>
   <data name="StartupLoaderRemoving" xml:space="preserve"><value>게임에서 PZ Tools 제거 중</value></data>
+  <data name="ExtensionApiHeader" xml:space="preserve"><value>PZ Extension API</value></data>
+  <data name="ExtensionApiNotBundled" xml:space="preserve"><value>이 PZ Tools에는 PZ Extension API가 들어 있지 않습니다.</value></data>
+  <data name="ExtensionApiNotInstalled" xml:space="preserve"><value>PZ Extension API는 일부 모드에 필요한 별도 프로그램입니다. 켜면 PZ Tools에 들어 있는 사본을 게임 폴더에 설치하고, 설치한 뒤에는 PZ Tools 없이도 동작합니다. 끄면 제거합니다.</value></data>
+  <data name="ExtensionApiInstalled" xml:space="preserve"><value>설치됨. PZ Tools를 켜 두지 않아도 게임이 시작할 때 PZ Extension API를 불러옵니다.</value></data>
+  <data name="ExtensionApiHooksMissing" xml:space="preserve"><value>지금 실행 중인 게임에서 PZ Extension API의 훅 일부({0})를 넣지 못했습니다. 다른 모드가 같은 게임 코드를 바꾸기 때문일 수 있습니다. 그 부분에서는 모드가 게임 원래의 결과를 받습니다. 자세한 내용은 로그에 있습니다.</value></data>
+  <data name="ExtensionApiInstalling" xml:space="preserve"><value>게임에 PZ Extension API 설치 중</value></data>
+  <data name="ExtensionApiRemoving" xml:space="preserve"><value>게임에서 PZ Extension API 제거 중</value></data>
 </root>

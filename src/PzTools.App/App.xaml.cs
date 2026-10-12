@@ -36,6 +36,9 @@ public partial class App : Application
     private StartupLoader? startupLoader;
     /// <summary>The startup loader install; null unless the advanced setting [experimental] startup_loader is on.</summary>
     internal StartupLoader? StartupLoader => startupLoader;
+    private ExtensionApiInstall? extensionApi;
+    /// <summary>Help to install PZ Extension API, a program of its own; null unless the same advanced setting is on.</summary>
+    internal ExtensionApiInstall? ExtensionApi => extensionApi;
 
     public App()
     {
@@ -148,6 +151,11 @@ public partial class App : Application
             startupLoader = new StartupLoader(host.BridgeDirectory,
                 () => gameMemory?.State.ConfigPath is { } launchFile ? Path.GetDirectoryName(launchFile) : null);
             startupLoader.Changed += () => window?.DispatcherQueue.Enqueue(RecordStartupGame);
+            // PZ Extension API: the release this app carries, installed by its own installer with the bridge's runtime.
+            extensionApi = new ExtensionApiInstall(host.ExtensionApiDirectory,
+                Path.Combine(host.BridgeDirectory, "runtime", "bin", "java.exe"),
+                () => gameMemory?.State.ConfigPath is { } apiLaunchFile ? Path.GetDirectoryName(apiLaunchFile) : null);
+            extensionApi.Changed += () => window?.DispatcherQueue.Enqueue(RecordExtensionApiGame);
         }
         window = new MainWindow();
         // Log entries the app wrote in another language are shown in today's; the table for that takes a second.
@@ -255,22 +263,39 @@ public partial class App : Application
                         System.Diagnostics.Debug.WriteLine(exception);
                     }
                 }
+                if (extensionApi is { } api)
+                {
+                    try { await api.RefreshAsync(cancellationToken); }
+                    catch (Exception exception) when (exception is not OperationCanceledException)
+                    {
+                        System.Diagnostics.Debug.WriteLine(exception);
+                    }
+                }
             }
             while (await timer.WaitForNextTickAsync(cancellationToken));
         }
         catch (OperationCanceledException) { }
     }
 
-    private StartupGameReport? recordedStartupGame;
+    private StartupGameReport? recordedStartupGame, recordedExtensionApiGame;
 
-    // A game the loader did not load into, or that lacks some of the extension API's hooks, goes to the log once: the card
-    // says it only while the page is open. On the UI thread.
+    // A game the loader did not load into goes to the log once: the card says it only while the page is open. On the UI
+    // thread.
     private void RecordStartupGame()
     {
         if (startupLoader?.State.Game is not { } game || game == recordedStartupGame) return;
         recordedStartupGame = game;
         if (GameExtensionsPage.StartupGameText(game) is not { } message) return;
-        Host?.RecordActionIssue(Localizer.Get("StartupLoaderHeader"), message, failed: false,
+        Host?.RecordActionIssue(Localizer.Get("StartupLoaderHeader"), message, failed: false, diagnostics: game.Detail);
+    }
+
+    // The same for PZ Extension API, with the hooks it could not put in.
+    private void RecordExtensionApiGame()
+    {
+        if (extensionApi?.State.Game is not { } game || game == recordedExtensionApiGame) return;
+        recordedExtensionApiGame = game;
+        if (GameExtensionsPage.ExtensionApiGameText(game) is not { } message) return;
+        Host?.RecordActionIssue(Localizer.Get("ExtensionApiHeader"), message, failed: false,
             diagnostics: string.Join('\n', new[] { game.Detail, game.MissingHooks }.Where(text => text.Length > 0)));
     }
 

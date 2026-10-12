@@ -796,7 +796,6 @@ Auf Speicher gewartet: wie oft ein Thread anhielt, bis Speicher frei wurde, weil
   <data name="StartupLoaderReverted" xml:space="preserve"><value>Einige seiner Dateien fehlen im Spielordner. Schalte es wieder ein, um es zu verwenden.</value></data>
   <data name="StartupLoaderGameWithout" xml:space="preserve"><value>Das laufende Spiel wurde ohne diese Funktion gestartet. Starte das Spiel neu, um sie zu verwenden.</value></data>
   <data name="StartupLoaderGameFailed" xml:space="preserve"><value>Es wurde nicht in das laufende Spiel geladen. Die Details stehen in den Protokollen.</value></data>
-  <data name="StartupLoaderHooksMissing" xml:space="preserve"><value>Im laufenden Spiel konnten einige Hooks der Erweiterungs-API nicht eingefügt werden, vermutlich weil ein anderer Mod denselben Spielcode ändert: {0}. Mods erhalten dort die ursprünglichen Antworten des Spiels. Die Details stehen in den Protokollen.</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>Ein anderes Werkzeug hat die projectzomboid.jar des Spiels geändert. Überprüfe zuerst die Spieldateien in Steam.</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Schließe das Spiel und jeden aus seinem Ordner gestarteten Server und versuche es dann erneut.</value></data>
   <data name="StartupLoaderUnsupported" xml:space="preserve"><value>Diese Spielversion wird nicht unterstützt.</value></data>
@@ -804,4 +803,11 @@ Auf Speicher gewartet: wie oft ein Thread anhielt, bis Speicher frei wurde, weil
   <data name="StartupLoaderFailed" xml:space="preserve"><value>Der Spielordner konnte nicht geändert werden. Die Details stehen in den Protokollen.</value></data>
   <data name="StartupLoaderInstalling" xml:space="preserve"><value>PZ Tools wird ins Spiel installiert</value></data>
   <data name="StartupLoaderRemoving" xml:space="preserve"><value>PZ Tools wird aus dem Spiel entfernt</value></data>
+  <data name="ExtensionApiHeader" xml:space="preserve"><value>PZ Extension API</value></data>
+  <data name="ExtensionApiNotBundled" xml:space="preserve"><value>Diese Kopie von PZ Tools enthält PZ Extension API nicht.</value></data>
+  <data name="ExtensionApiNotInstalled" xml:space="preserve"><value>PZ Extension API ist ein eigenes Programm, das manche Mods brauchen. Beim Einschalten wird es aus der Kopie, die PZ Tools mitbringt, in den Spielordner installiert; danach läuft es auch ohne PZ Tools. Beim Ausschalten wird es entfernt.</value></data>
+  <data name="ExtensionApiInstalled" xml:space="preserve"><value>Installiert. Das Spiel lädt PZ Extension API beim Start, auch wenn PZ Tools nicht läuft.</value></data>
+  <data name="ExtensionApiHooksMissing" xml:space="preserve"><value>Im laufenden Spiel konnten einige Hooks von PZ Extension API nicht eingefügt werden, vermutlich weil ein anderer Mod denselben Spielcode ändert: {0}. Mods erhalten dort die ursprünglichen Antworten des Spiels. Die Details stehen in den Protokollen.</value></data>
+  <data name="ExtensionApiInstalling" xml:space="preserve"><value>PZ Extension API wird ins Spiel installiert</value></data>
+  <data name="ExtensionApiRemoving" xml:space="preserve"><value>PZ Extension API wird aus dem Spiel entfernt</value></data>
 </root>
