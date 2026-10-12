@@ -104,3 +104,22 @@ test("a window closed while it fades in goes from where it was", function()
     UI.liveFrame()
     eq(window.removed, true)
 end)
+
+test("what goes past an element's draws (an icon, a text at pixels) takes the window's fade once, through the class", function()
+    local UI = load()
+    function Element:drawTextureScaledAspect(texture, x, y, w, h, a) self.icon = a end
+    local window = element(nil)
+    local child = element(window)
+    UI.fadeIn(window, 100)
+    now = 1050
+    UI.liveFrame()
+    eq(UI.faded(child, 0.8), 0.4, "half way")
+    UI.iconPx(child, "tex", 0, 0, 32, 32, 0.8)
+    eq(child.icon, 0.4, "the class's draw, faded once")
+    UI.textAtPx(child, "x", 0, 0, { 1, 1, 1 }, nil, 0.8)
+    eq(child.text, 0.4, "a text at pixels, faded once")
+    now = 1100
+    UI.liveFrame()
+    eq(UI.faded(child, 0.8), 0.8, "whole again")
+    Element.drawTextureScaledAspect = nil
+end)

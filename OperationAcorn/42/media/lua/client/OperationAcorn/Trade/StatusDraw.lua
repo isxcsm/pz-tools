@@ -337,13 +337,15 @@ end
 -- Draws a list on one of our elements (each frame): the baked pixels go to the game's drawing as they are (the
 -- element's class without the scaling, el.uiBase), the texts in their faces (UI.textPx, the element's place on the
 -- screen asked once a frame), the icons through UI.iconPx. `dy`: pixels the whole list is moved down by (a list that
--- scrolls in its element gives minus its scroll; nil: 0). `fade`: what every alpha is multiplied by (nil: 1).
+-- scrolls in its element gives minus its scroll; nil: 0). `fade`: what every alpha is multiplied by (nil: 1), with
+-- the window's own fade (UI.faded: these draws go past the element's, which the fade wraps).
 function Draw.paint(el, L, dy, fade)
     if not L then return end
     if L.scale ~= UI.S then Draw.bake(L) end
     dy = dy or 0
-    local f = fade or 1
-    local B = el.uiBase or el
+    local f = UI.faded(el, fade)
+    local iconFade = fade or 1
+    local B = UI.rawDraws(el)
     -- the clip on, painted back when it comes off (UI.unclip)
     local clip
     local rect, border, textPx, iconPx = B.drawRect, B.drawRectBorder, UI.textPx, UI.iconPx
@@ -363,7 +365,7 @@ function Draw.paint(el, L, dy, fade)
             local c = op[5]
             textPx(el, B, op[2], op.rx, op.ry + dy, c[1], c[2], c[3], op[6] * f, op[7], 0, ox, oy)
         elseif k == TEX then
-            iconPx(el, op[2], op.rx, op.ry + dy, op.rw, op.rh, op[7] * f, op[8])
+            iconPx(el, op[2], op.rx, op.ry + dy, op.rw, op.rh, op[7] * iconFade, op[8])
         elseif k == CLIP then
             B.setStencilRect(el, op.rx, op.ry + dy, op.rw, op.rh)
             clip = op
