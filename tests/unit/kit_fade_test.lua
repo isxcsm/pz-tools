@@ -123,3 +123,23 @@ test("what goes past an element's draws (an icon, a text at pixels) takes the wi
     eq(UI.faded(child, 0.8), 0.8, "whole again")
     Element.drawTextureScaledAspect = nil
 end)
+
+test("a game text box in a fading window has its text colour faded, and whole again at the end", function()
+    local UI = load()
+    ColorInfo = { new = function(r, g, b, a)
+        local c = { r = r, g = g, b = b, a = a }
+        function c:set(r2, g2, b2, a2) self.r, self.g, self.b, self.a = r2, g2, b2, a2; return self end
+        return c
+    end }
+    local window = element(nil)
+    local box = element(window)
+    box.Type = "ISTextEntryBox"
+    box.javaObject = { setTextColor = function(_, c) box.textAlpha = c.a end }
+    UI.fadeIn(window, 100)
+    now = 1050
+    UI.liveFrame()
+    eq(box.textAlpha, 0.5, "half way")
+    now = 1100
+    UI.liveFrame()
+    eq(box.textAlpha, 1, "whole again")
+end)
