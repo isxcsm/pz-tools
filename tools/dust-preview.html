@@ -1,0 +1,657 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dust Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #15171a; --panel: #1e2125; --line: #33373d; --text: #d9dde2; --dim: #8a9099; --accent: #e0a050; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.45 "Noto Sans KR", "Malgun Gothic", sans-serif; }
+  .wrap { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; padding: 12px; height: 100vh; }
+  @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; height: auto; } }
+  .stage { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  canvas#view { width: 100%; aspect-ratio: 16 / 9; background: #000; border: 1px solid var(--line); border-radius: 6px; display: block; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .bar input[type=range] { flex: 1; min-width: 160px; }
+  button { background: #2a2e34; color: var(--text); border: 1px solid var(--line); border-radius: 5px; padding: 5px 10px; font: inherit; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: #4a3520; border-color: #8a5a2a; }
+  .side { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px; overflow-y: auto; }
+  h2 { font-size: 12px; margin: 14px 0 6px; color: var(--accent); font-weight: 700; letter-spacing: 0.02em; }
+  h2:first-child { margin-top: 0; }
+  label.row { display: grid; grid-template-columns: 112px 1fr 52px; gap: 6px; align-items: center; margin: 3px 0; }
+  label.row span.v { color: var(--dim); text-align: right; font-variant-numeric: tabular-nums; }
+  input[type=text], select { width: 100%; background: #121417; color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 4px 6px; font: inherit; }
+  .hint { color: var(--dim); font-size: 12px; }
+  .time { font-variant-numeric: tabular-nums; color: var(--dim); min-width: 120px; }
+  textarea { width: 100%; height: 120px; background: #121417; color: var(--text); border: 1px solid var(--line); border-radius: 4px; font: 11px/1.4 Consolas, monospace; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="stage">
+    <canvas id="view" width="1280" height="720"></canvas>
+    <div class="bar">
+      <button class="primary" id="play">처음부터 재생</button>
+      <button id="leaveNow">바로 사라지기</button>
+      <button id="pause">일시정지</button>
+      <label class="hint">속도 <select id="speed"><option>0.1</option><option>0.25</option><option>0.5</option><option selected>1</option><option>2</option></select></label>
+      <span class="time" id="time"></span>
+    </div>
+    <div class="bar"><input type="range" id="scrub" min="0" max="1000" value="0"><span class="hint">사라지는 진행도 직접 조절</span></div>
+    <div class="hint">PZ Extension API의 Dust.java와 같은 수식(셀, 시드, 바람, 연소)과 같은 합성(premultiplied)으로 그립니다. 글꼴 모양, 그림자, 외곽선, 배경 띠만 근사치입니다.</div>
+  </div>
+  <div class="side" id="side"></div>
+</div>
+<script>
+"use strict";
+// ---------------------------------------------------------------- parameters (Dust.java's constants, editable)
+const P = {
+  // text
+  title: "2차 강화판 열림", sub: "세 트리의 마지막 강화를 모두 시험해",
+  tone: "gold", sweep: "downleft", dustSize: 1, dustDrift: 1, leaveTime: 6, hold: 1.5, seed: 12345,
+  burnOn: true, burnR: 1.0, burnG: 0.32, burnB: 0.10, backdrop: true, bg: "night",
+  // schedule
+  SWEEP: 0.35, JITTER: 0.25, WEATHER: 0.12, WEATHERED: 0.4, THIN: 0.22, HOLD: 0.25,
+  // burn
+  GLOW: 0.45, COOL: 0.4, BURN_ASH: 0.3, SCORCH_END: 0.4, GLOW_PEAK: 0.62, GLOW_END: 0.85, SPARKS: 0.25, CHAR_ASH: 0.45,
+  SCORCH_R: 0.34, SCORCH_G: 0.18, SCORCH_B: 0.1, CHAR_R: 0.07, CHAR_G: 0.055, CHAR_B: 0.05, FLICKER: 9, FLICKER_DEPTH: 0.3,
+  // paper (a new way: the text burns spot by spot, its ash shards tumbling)
+  zoom: 2, paper: true, EDGE_W: 0.012, CHAR_W: 0.02, SCORCH_W: 0.07, RAGGED: 0.03, CURL: 0.6,
+  FLAKES: 0.5, FLAKE_SIZE: 1.1, SPIN: 7, GREYING: 0.35, PAPER_ASH: 0.55,
+};
+const CUTS = new Set(["title", "sub", "tone", "sweep", "dustSize", "seed", "SWEEP", "JITTER", "RAGGED", "CURL"]);
+const TONES = {
+  dust: [[0.97, 0.95, 0.9], [0.86, 0.85, 0.82]],
+  gold: [[1.00, 0.86, 0.50], [0.95, 0.88, 0.70]],
+  green: [[0.62, 1.00, 0.70], [0.78, 0.95, 0.82]],
+  red: [[1.00, 0.55, 0.50], [0.95, 0.75, 0.72]],
+};
+// fixed ones
+const RISE = 2.0, SIDE = 4.5, SWIRL_X = 0.15, SWIRL_Y = 0.3, CATCH = 0.12, SAG = 0.08, CELL = 0.04, MIN_CELL = 1.5,
+  MAX_CELLS = 4500, INK = 10, MARGIN = 0.2, PATCH = 6, FINE_PATCH = 2.5, EMBER_G = 0.84, EMBER_B = 0.62, ASH = 0.5;
+const STYLE = { titleSize: 0.085, subSize: 0.04, y: 0.28, gap: 0.3, trail: 0.3, enterTime: 1.2, subDelay: 0.35 };
+
+// ---------------------------------------------------------------- Dust.java's arithmetic
+const M64 = (1n << 64n) - 1n;
+function unit(seed, index, salt) {
+  let z = (seed + 0x9E3779B97F4A7C15n * BigInt(index + 1) + 0xD1B54A32D192ED03n * BigInt(salt + 1)) & M64;
+  z = ((z ^ (z >> 30n)) * 0xBF58476D1CE4E5B9n) & M64;
+  z = ((z ^ (z >> 27n)) * 0x94D049BB133111EBn) & M64;
+  z ^= z >> 31n;
+  return Number(z >> 11n) * 2 ** -53;
+}
+const smooth = p => p * p * (3 - 2 * p);
+const clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
+const point = (x, y, seed) => unit(seed, (Math.imul(x, 7919) + Math.imul(y, 104729)) | 0, 11);
+function noise(x, y, seed) {
+  const ix = Math.floor(x), iy = Math.floor(y), fx = smooth(x - ix), fy = smooth(y - iy);
+  const a = point(ix, iy, seed), b = point(ix + 1, iy, seed), c = point(ix, iy + 1, seed), d = point(ix + 1, iy + 1, seed);
+  const top = a + (b - a) * fx, bottom = c + (d - c) * fx;
+  return top + (bottom - top) * fy;
+}
+const grain = (col, row, seed) => 0.7 * noise(col / PATCH, row / PATCH, seed) + 0.3 * noise(col / FINE_PATCH, row / FINE_PATCH, seed ^ 0x2545F491n);
+const start = (along, g, seed, index) => P.SWEEP * clamp(along, 0, 1) + P.JITTER * (0.75 * clamp(g, 0, 1) + 0.25 * unit(seed, index, 1));
+const life = (seed, index) => (1 - P.SWEEP - P.JITTER) * (0.75 + 0.25 * unit(seed, index, 2));
+const worn = (progress, st) => smooth(clamp((progress - st + P.WEATHER) / P.WEATHER, 0, 1));
+const alphaAt = age => age <= 0 ? 1 : age >= 1 ? 0 : 1 - smooth(clamp((age - P.HOLD) / (1 - P.HOLD), 0, 1));
+const sizeAt = age => 1 - 0.55 * clamp(age, 0, 1);
+const caught = age => clamp((age - CATCH) / (1 - CATCH), 0, 1);
+const ease = age => { const a = clamp(age, 0, 1); return a * (0.25 + 0.75 * a); };
+const ember = age => age <= 0 || age >= 1 / 3 ? 0 : age < 0.08 ? age / 0.08 : 1 - (age - 0.08) / (1 / 3 - 0.08);
+const ash = age => 1 - (1 - ASH) * smooth(clamp(age / 0.7, 0, 1));
+function wobble(turns) { const f = turns - Math.floor(turns); const t = f < 0.25 ? 4 * f : f < 0.75 ? 2 - 4 * f : 4 * f - 4; return t * (1.5 - 0.5 * t * t); }
+function driftX(age, side, freq, phase) { const a = clamp(age, 0, 1), w = caught(a); return SIDE * side * ease(w) + SWIRL_X * w * wobble(freq * a + phase); }
+function driftY(age, rise, freq, phase) { const a = clamp(age, 0, 1), w = caught(a); return SAG * smooth(clamp(a / CATCH, 0, 1)) - RISE * rise * ease(w) + SWIRL_Y * w * wobble(0.8 * freq * a + phase); }
+function wave(across, seed) { const x = clamp(across, 0, 1) * 3, at = Math.floor(x); const from = unit(seed, at, 7), to = unit(seed, at + 1, 7); return from + (to - from) * smooth(x - at); }
+const heat = age => age <= 0 ? 1 : age >= P.COOL ? 0 : 1 - smooth(age / P.COOL);
+function burning(wear, burn, flicker, into) {
+  const glow = 1 - P.FLICKER_DEPTH * flicker, S = [P.SCORCH_R, P.SCORCH_G, P.SCORCH_B], C = [P.CHAR_R, P.CHAR_G, P.CHAR_B];
+  let from, to, s, hot;
+  if (wear < P.SCORCH_END) { s = wear / P.SCORCH_END; hot = 0; from = [1, 1, 1]; to = S; }
+  else if (wear < P.GLOW_PEAK) { s = smooth((wear - P.SCORCH_END) / (P.GLOW_PEAK - P.SCORCH_END)); hot = s * glow; from = S; to = burn.map(v => v * glow); }
+  else if (wear < P.GLOW_END) { s = smooth((wear - P.GLOW_PEAK) / (P.GLOW_END - P.GLOW_PEAK)); hot = (1 - s) * glow; from = burn.map(v => v * glow); to = C; }
+  else { s = 1; hot = 0; from = C; to = C; }
+  for (let i = 0; i < 3; i++) into[i] = from[i] + (to[i] - from[i]) * s;
+  return hot;
+}
+
+const SWEEPS = ["right", "left", "up", "down", "upright", "upleft", "downright", "downleft"];
+const fromLeft = s => s === "right" || s === "upright" || s === "downright";
+const diagonal = s => SWEEPS.indexOf(s) >= 4;
+const fromTop = s => s === "downright" || s === "downleft";
+
+function cut(alpha, width, height, size, sweep, seed) {
+  let ink, columns, rows, count = 0;
+  for (let attempt = 0; attempt < 12; attempt++) {
+    columns = Math.ceil(width / size); rows = Math.ceil(height / size);
+    ink = new Uint8Array(columns * rows); count = 0;
+    const across = new Int32Array(width);
+    for (let x = 0; x < width; x++) across[x] = Math.min(columns - 1, Math.floor(x / size));
+    for (let y = 0; y < height; y++) {
+      const base = Math.min(rows - 1, Math.floor(y / size)) * columns;
+      for (let x = 0; x < width; x++) { const at = base + across[x]; if (!ink[at] && alpha[(y * width + x) * 4 + 3] >= INK) { ink[at] = 1; count++; } }
+    }
+    if (count <= MAX_CELLS) break;
+    size *= Math.sqrt(count / MAX_CELLS) * 1.02;
+  }
+  if (count === 0 || count > MAX_CELLS) return null;
+  const byRows = sweep === "right" || sweep === "left" || diagonal(sweep);
+  const lanes = byRows ? rows : columns, steps = byRows ? columns : rows;
+  const c = { size, columns, rows, lanes, count, sweep, column: new Int32Array(count), row: new Int32Array(count),
+    start: new Float32Array(count), life: new Float32Array(count), side: new Float32Array(count), rise: new Float32Array(count),
+    freq: new Float32Array(count), phase: new Float32Array(count), phase2: new Float32Array(count), flake: new Float32Array(count),
+    laneFrom: new Int32Array(lanes + 1), suffix: new Float32Array(count) };
+  let at = 0;
+  for (let lane = 0; lane < lanes; lane++) {
+    c.laneFrom[lane] = at;
+    for (let step = 0; step < steps; step++) {
+      let column, row;
+      if (byRows) { row = lane; column = fromLeft(sweep) ? step : columns - 1 - step; }
+      else { column = lane; row = sweep === "down" ? step : rows - 1 - step; }
+      const index = row * columns + column;
+      if (!ink[index]) continue;
+      c.column[at] = column; c.row[at] = row;
+      const along = diagonal(sweep) ? (step + 0.5 + (fromTop(sweep) ? row + 0.5 : rows - row - 0.5)) / (columns + rows) : (step + 0.5) / steps;
+      c.start[at] = start(along, grain(column, row, seed), seed, index);
+      c.life[at] = life(seed, index);
+      const way = unit(seed, index, 3);
+      const gust = 0.7 + 0.3 * wave((lane + 0.5) / lanes, seed ^ 0x5BD1E995n);
+      const windward = diagonal(sweep) ? (fromLeft(sweep) ? -1 : 1) : sweep === "right" ? 1 : -1;
+      c.side[at] = byRows ? windward * (0.5 * gust + 0.5 * (0.45 + 0.55 * way)) : (2 * way - 1) * 0.6;
+      c.rise[at] = 0.5 + 1.0 * unit(seed, index, 4);
+      const kind = unit(seed, index, 10);
+      c.flake[at] = kind < 0.6 ? 0.8 + 0.2 * kind / 0.6 : 0.4 + 0.2 * (kind - 0.6) / 0.4;
+      c.freq[at] = 0.5 + 0.6 * unit(seed, index, 5);
+      c.phase[at] = unit(seed, index, 6);
+      c.phase2[at] = unit(seed, index, 8);
+      at++;
+    }
+    let earliest = Infinity;
+    for (let cell = at - 1; cell >= c.laneFrom[lane]; cell--) earliest = c.suffix[cell] = Math.min(earliest, c.start[cell]);
+  }
+  c.laneFrom[lanes] = at;
+  c.unreached = (lane, progress) => {
+    let low = c.laneFrom[lane], high = c.laneFrom[lane + 1];
+    while (low < high) { const mid = (low + high) >>> 1; if (c.suffix[mid] > progress) high = mid; else low = mid + 1; }
+    return low;
+  };
+  return c;
+}
+
+// ---------------------------------------------------------------- WebGL: the game's interface drawing (premultiplied)
+const view = document.getElementById("view");
+const gl = view.getContext("webgl", { premultipliedAlpha: false, alpha: false, antialias: false });
+const VS = `attribute vec2 pos; attribute vec2 uv; attribute vec4 col; attribute vec3 aux; uniform vec2 screen; uniform vec3 camera;
+varying vec2 vUv; varying vec4 vCol; varying vec3 vAux;
+void main() { vUv = uv; vCol = col; vAux = aux; vec2 p = (pos - camera.xy) * camera.z + screen * 0.5;
+  gl_Position = vec4(p.x / screen.x * 2.0 - 1.0, 1.0 - p.y / screen.y * 2.0, 0.0, 1.0); }`;
+// mode 0: the picture times the colour (the game's own drawing). mode 1: a text burning as paper, by its burn map.
+// mode 2: a flake of ash, an irregular shard.
+const FS = `precision highp float;
+uniform sampler2D tex; uniform sampler2D burnMap; uniform float mode, progress, edgeW, charW, scorchW, glow, flickerN, flickerD;
+uniform vec3 burn, scorched, charred; uniform vec2 picSize;
+varying vec2 vUv; varying vec4 vCol; varying vec3 vAux;
+float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(h(i), h(i + vec2(1.0, 0.0)), f.x), mix(h(i + vec2(0.0, 1.0)), h(i + vec2(1.0, 1.0)), f.x), f.y); }
+void main() {
+  if (mode < 0.5) { gl_FragColor = texture2D(tex, vUv) * vCol; return; }
+  if (mode < 1.5) {
+    vec4 c = texture2D(tex, vUv);
+    vec4 bm = texture2D(burnMap, vUv);
+    float B = (bm.r * 255.0 * 256.0 + bm.g * 255.0) / 65535.0;
+    float x = B - progress;               // how long before this spot burns away
+    if (x <= 0.0) discard;
+    float a = c.a;
+    vec3 col = a > 0.0 ? c.rgb / a : vec3(0.0);
+    float fl = 1.0 - flickerD * (0.5 + 0.5 * sin(6.2831 * (progress * flickerN + vn(vUv * picSize / 7.0))));
+    vec3 outc = col; float hot = 0.0;
+    if (x < edgeW) {                      // the flame's edge: a hot core at the hole, the burn's colour outside it
+      float e = x / edgeW;
+      vec3 core = mix(vec3(1.0, 0.92, 0.65), burn, 0.3);
+      outc = mix(core, burn, smoothstep(0.0, 1.0, e)) * fl;
+      hot = (1.0 - 0.4 * e) * fl;
+    } else if (x < edgeW + charW) {       // char behind the edge, the last embers dying in it
+      float s = smoothstep(0.0, 0.6, (x - edgeW) / charW);
+      outc = mix(burn * 0.4 * fl, charred, s);
+      hot = 0.35 * (1.0 - s) * fl;
+    } else if (x < edgeW + charW + scorchW) {   // scorching ahead of it
+      float s = 1.0 - (x - edgeW - charW) / scorchW;
+      outc = col * mix(vec3(1.0), scorched, s * s);
+    }
+    gl_FragColor = vec4(outc * a, a * (1.0 - glow * hot)) * vCol.a;
+    return;
+  }
+  vec2 l = vAux.xy;
+  float n = vn(l * 2.3 + vAux.z * 37.0) + 0.5 * vn(l * 5.0 + vAux.z * 11.0);
+  float m = smoothstep(0.95, 0.6, length(l) + (n - 0.75) * 0.75);
+  gl_FragColor = vCol * m;
+}`;
+function shader(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw gl.getShaderInfoLog(s); return s; }
+const prog = gl.createProgram();
+gl.attachShader(prog, shader(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, shader(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(prog); gl.useProgram(prog);
+const loc = { pos: gl.getAttribLocation(prog, "pos"), uv: gl.getAttribLocation(prog, "uv"), col: gl.getAttribLocation(prog, "col"),
+  aux: gl.getAttribLocation(prog, "aux"), screen: gl.getUniformLocation(prog, "screen") };
+const U = name => gl.getUniformLocation(prog, name);
+const buf = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+const FLOATS = 11, STRIDE = FLOATS * 4;
+gl.enableVertexAttribArray(loc.pos); gl.vertexAttribPointer(loc.pos, 2, gl.FLOAT, false, STRIDE, 0);
+gl.enableVertexAttribArray(loc.uv); gl.vertexAttribPointer(loc.uv, 2, gl.FLOAT, false, STRIDE, 8);
+gl.enableVertexAttribArray(loc.col); gl.vertexAttribPointer(loc.col, 4, gl.FLOAT, false, STRIDE, 16);
+gl.enableVertexAttribArray(loc.aux); gl.vertexAttribPointer(loc.aux, 3, gl.FLOAT, false, STRIDE, 32);
+gl.uniform1i(U("tex"), 0); gl.uniform1i(U("burnMap"), 1);
+let verts = new Float32Array(FLOATS * 6 * 20000), nv = 0;
+function texture(source, raw) {
+  const t = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, !raw);
+  if (raw) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, raw.w, raw.h, 0, gl.RGBA, gl.UNSIGNED_BYTE, raw.data);
+  else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
+  const filter = raw ? gl.NEAREST : gl.LINEAR;
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return t;
+}
+function vertex(x, y, u, w, r, g, b, a, l0, l1, s) {
+  const v = verts; let o = nv * FLOATS;
+  v[o++] = x; v[o++] = y; v[o++] = u; v[o++] = w; v[o++] = r; v[o++] = g; v[o++] = b; v[o++] = a; v[o++] = l0; v[o++] = l1; v[o++] = s;
+  nv++;
+}
+function quad(x0, y0, x1, y1, u0, v0, u1, v1, r, g, b, a) {
+  if (nv + 6 > verts.length / FLOATS) return;
+  vertex(x0, y0, u0, v0, r, g, b, a, -1, -1, 0); vertex(x1, y0, u1, v0, r, g, b, a, 1, -1, 0); vertex(x1, y1, u1, v1, r, g, b, a, 1, 1, 0);
+  vertex(x0, y0, u0, v0, r, g, b, a, -1, -1, 0); vertex(x1, y1, u1, v1, r, g, b, a, 1, 1, 0); vertex(x0, y1, u0, v1, r, g, b, a, -1, 1, 0);
+}
+// A flake: a shard around (cx, cy), half its side hs, turned by angle, tumbling (its height times tumble).
+function shard(cx, cy, hs, angle, tumble, r, g, b, a, seed) {
+  if (nv + 6 > verts.length / FLOATS) return;
+  const cs = Math.cos(angle), sn = Math.sin(angle);
+  const at = (lx, ly) => { const x = lx * hs, y = ly * hs * tumble; return [cx + x * cs - y * sn, cy + x * sn + y * cs]; };
+  const c = [[-1, -1], [1, -1], [1, 1], [-1, -1], [1, 1], [-1, 1]];
+  for (const [lx, ly] of c) { const [x, y] = at(lx, ly); vertex(x, y, 0, 0, r, g, b, a, lx, ly, seed); }
+}
+let mode = 0;
+function flush(tex, burnTex) {
+  if (!nv) return;
+  gl.uniform1f(U("mode"), mode);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, burnTex || null);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.bufferData(gl.ARRAY_BUFFER, verts.subarray(0, nv * FLOATS), gl.STREAM_DRAW);
+  gl.drawArrays(gl.TRIANGLES, 0, nv);
+  nv = 0;
+}
+
+// ---------------------------------------------------------------- paper: when each spot of a text burns away
+function hash(x, y, s) {
+  let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(s, 1442695041)) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+function vnoise(x, y, s) {
+  const ix = Math.floor(x), iy = Math.floor(y), fx = smooth(x - ix), fy = smooth(y - iy);
+  const a = hash(ix, iy, s), b = hash(ix + 1, iy, s), c = hash(ix, iy + 1, s), d = hash(ix + 1, iy + 1, s);
+  return (a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy;
+}
+function alongAt(x, y, W, H, sweep) {
+  switch (sweep) {
+    case "right": return x / W; case "left": return 1 - x / W; case "down": return y / H; case "up": return 1 - y / H;
+    case "upright": return (x + (H - y)) / (W + H); case "upleft": return ((W - x) + (H - y)) / (W + H);
+    case "downright": return (x + y) / (W + H); default: return ((W - x) + y) / (W + H);
+  }
+}
+// The burn map: the sweep, clumps a few cells wide (holes open ahead of the front), and fine fibres that make the edge ragged.
+function burnMap(W, H, cell, seed) {
+  const map = new Float32Array(W * H), s = Number(seed & 0xFFFFFFn) | 0;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    // a warp of the place, so the edge curls instead of following the noise's grid
+    const wx = x + (vnoise(x / 23, y / 23, s + 5) - 0.5) * P.CURL * cell * 4, wy = y + (vnoise(x / 23, y / 23, s + 6) - 0.5) * P.CURL * cell * 4;
+    const clump = 0.7 * vnoise(wx / (PATCH * cell), wy / (PATCH * cell), s) + 0.3 * vnoise(wx / (FINE_PATCH * cell), wy / (FINE_PATCH * cell), s + 1);
+    const fibre = 0.6 * vnoise(wx / 3, wy / 3, s + 2) + 0.4 * vnoise(wx / 1.4, wy / 1.4, s + 3);
+    map[y * W + x] = P.SWEEP * alongAt(x, y, W, H, P.sweep) + P.JITTER * clump + P.RAGGED * (fibre - 0.5);
+  }
+  return map;
+}
+function encode(map, W, H) {
+  const data = new Uint8Array(W * H * 4);
+  for (let i = 0; i < W * H; i++) {
+    const v = Math.round(clamp(map[i], 0, 1) * 65535);
+    data[i * 4] = v >> 8; data[i * 4 + 1] = v & 255; data[i * 4 + 3] = 255;
+  }
+  return { w: W, h: H, data };
+}
+
+// ---------------------------------------------------------------- the scene
+let bgTex = null, bgImage = null;
+function makeBackground() {
+  const c = document.createElement("canvas"); c.width = view.width; c.height = view.height;
+  const g = c.getContext("2d");
+  if (bgImage) { g.drawImage(bgImage, 0, 0, c.width, c.height); }
+  else if (P.bg === "night") {
+    const sky = g.createLinearGradient(0, 0, 0, c.height); sky.addColorStop(0, "#1b2a22"); sky.addColorStop(1, "#0d130f"); g.fillStyle = sky; g.fillRect(0, 0, c.width, c.height);
+    g.fillStyle = "#3a3630"; g.fillRect(c.width * 0.05, c.height * 0.1, c.width * 0.32, c.height * 0.6);
+    g.fillStyle = "#24282b";
+    for (let i = 0; i < 7; i++) { g.save(); g.translate(c.width * (0.45 + 0.08 * i), c.height * (0.55 + 0.05 * (i % 3))); g.rotate(-0.35); g.fillRect(-60, -28, 120, 56); g.restore(); }
+  } else if (P.bg === "bright") { g.fillStyle = "#7d8a6a"; g.fillRect(0, 0, c.width, c.height); g.fillStyle = "#b9b09a"; g.fillRect(0, c.height * 0.55, c.width, c.height); }
+  else { g.fillStyle = P.bg === "black" ? "#000" : "#888"; g.fillRect(0, 0, c.width, c.height); }
+  if (bgTex) gl.deleteTexture(bgTex);
+  bgTex = texture(c);
+}
+let bandTex = null;
+function makeBand() {
+  const c = document.createElement("canvas"); c.width = 256; c.height = 64;
+  const g = c.getContext("2d");
+  const h = g.createLinearGradient(0, 0, 256, 0); h.addColorStop(0, "rgba(0,0,0,0)"); h.addColorStop(0.2, "rgba(0,0,0,1)"); h.addColorStop(0.8, "rgba(0,0,0,1)"); h.addColorStop(1, "rgba(0,0,0,0)");
+  g.fillStyle = h; g.fillRect(0, 0, 256, 64);
+  g.globalCompositeOperation = "destination-in";
+  const v = g.createLinearGradient(0, 0, 0, 64); v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(0.3, "rgba(0,0,0,1)"); v.addColorStop(0.7, "rgba(0,0,0,1)"); v.addColorStop(1, "rgba(0,0,0,0)");
+  g.fillStyle = v; g.fillRect(0, 0, 256, 64);
+  bandTex = texture(c);
+}
+
+// A text's picture: drawn with its shadow and outline into a box with the margin, cut into cells.
+function piece(text, line, colour, centreY, seed) {
+  const fontPx = line * 0.78, margin = MARGIN * line;
+  const m = document.createElement("canvas").getContext("2d");
+  m.font = `400 ${fontPx}px "Noto Sans KR", "Malgun Gothic", sans-serif`;
+  const w = Math.ceil(m.measureText(text).width + 2 * margin), h = Math.ceil(line + 2 * margin);
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  const g = c.getContext("2d");
+  g.font = m.font; g.textAlign = "center"; g.textBaseline = "middle";
+  const cx = w / 2, cy = h / 2, sh = Math.max(1, line * 0.025);
+  g.fillStyle = "rgba(0,0,0,0.75)"; g.fillText(text, cx + sh, cy + sh);
+  g.lineJoin = "round"; g.lineWidth = Math.max(2, line * 0.025); g.strokeStyle = "rgba(0,0,0,0.35)"; g.strokeText(text, cx, cy);
+  g.fillStyle = `rgb(${colour.map(v => Math.round(v * 255)).join(",")})`; g.fillText(text, cx, cy);
+  const data = g.getImageData(0, 0, w, h).data;
+  const cellSide = Math.max(MIN_CELL, line * CELL * P.dustSize);
+  const cells = cut(data, w, h, cellSide, P.sweep, seed);
+  const p = { x: Math.round(view.width / 2 - w / 2), y: Math.round(centreY - h / 2), w, h, line, cells, tex: texture(c) };
+  // Paper: each spot burns at its time on the map; a cell's flake leaves as its middle burns.
+  const map = burnMap(w, h, cellSide, seed);
+  p.burnTex = texture(null, encode(map, w, h));
+  if (cells) {
+    for (let i = 0; i < cells.count; i++) {
+      const cx = Math.min(w - 1, Math.floor((cells.column[i] + 0.5) * cells.size)), cy = Math.min(h - 1, Math.floor((cells.row[i] + 0.5) * cells.size));
+      cells.start[i] = map[cy * w + cx];
+    }
+  }
+  return p;
+}
+let pieces = [];
+// Paper: the text burns away spot by spot (the shader, by its map); the flakes are shards of ash that tumble on the wind,
+// a few of them sparks.
+function drawPaper(p, progress, fade) {
+  const c = p.cells; if (!c) return;
+  const burn = [P.burnR, P.burnG, P.burnB];
+  gl.uniform1f(U("progress"), progress);
+  gl.uniform1f(U("edgeW"), P.EDGE_W); gl.uniform1f(U("charW"), P.CHAR_W); gl.uniform1f(U("scorchW"), P.SCORCH_W);
+  gl.uniform1f(U("glow"), P.GLOW); gl.uniform1f(U("flickerN"), P.FLICKER); gl.uniform1f(U("flickerD"), P.FLICKER_DEPTH);
+  gl.uniform3f(U("burn"), ...burn); gl.uniform3f(U("scorched"), P.SCORCH_R, P.SCORCH_G, P.SCORCH_B);
+  gl.uniform3f(U("charred"), P.CHAR_R, P.CHAR_G, P.CHAR_B); gl.uniform2f(U("picSize"), p.w, p.h);
+  mode = 1;
+  quad(p.x, p.y, p.x + p.w, p.y + p.h, 0, 0, 1, 1, fade, fade, fade, fade);
+  flush(p.tex, p.burnTex);
+  mode = 2;
+  const reach = p.line * P.dustDrift, size = c.size;
+  for (let cell = 0; cell < c.count; cell++) {
+    const kind = c.phase2[cell];
+    const spark = kind < P.SPARKS, flake = !spark && kind < P.SPARKS + (1 - P.SPARKS) * P.FLAKES;
+    if (!spark && !flake) continue;
+    const age = (progress - c.start[cell]) / c.life[cell];
+    if (age <= 0 || age >= 1) continue;
+    const shown = alphaAt(age) * fade;
+    if (shown <= 0.002) continue;
+    const cx = p.x + (c.column[cell] + 0.5) * size + reach * driftX(age, c.side[cell], c.freq[cell], c.phase[cell]);
+    const cy = p.y + (c.row[cell] + 0.5) * size + reach * driftY(age, c.rise[cell], c.freq[cell], c.phase2[cell]);
+    const turn = (c.phase[cell] < 0.5 ? -1 : 1) * P.SPIN * age + c.phase[cell] * 6.28;
+    const tumble = 0.25 + 0.75 * Math.abs(Math.cos(P.SPIN * 0.7 * age * c.freq[cell] + c.phase2[cell] * 6.28));
+    if (spark) {
+      const hot = heat(age), keep = P.BURN_ASH + (1 - P.BURN_ASH) * hot, hs = size * 0.35 * c.flake[cell];
+      shard(cx, cy, hs, turn, 1, shown * burn[0] * keep, shown * burn[1] * keep, shown * burn[2] * keep, shown * (1 - P.GLOW * hot), c.phase[cell]);
+      continue;
+    }
+    // ash: char as it leaves, greying fast; its rim still glowing a moment
+    const grey = P.CHAR_R + (P.PAPER_ASH - P.CHAR_R) * smooth(clamp(age / P.GREYING, 0, 1)), warm = 1 - smooth(clamp(age / 0.15, 0, 1));
+    const hs = size * P.FLAKE_SIZE * c.flake[cell] * (1 - 0.4 * clamp(age, 0, 1));
+    shard(cx, cy, hs, turn, tumble, shown * (grey + (burn[0] * 0.6 - grey) * warm), shown * (grey + (burn[1] * 0.6 - grey) * warm),
+      shown * (grey + (burn[2] * 0.6 - grey) * warm), shown, c.phase[cell]);
+  }
+  flush(p.tex);
+  mode = 0;
+}
+
+function rebuild() {
+  for (const p of pieces) { gl.deleteTexture(p.tex); gl.deleteTexture(p.burnTex); }
+  const H = view.height, tl = STYLE.titleSize * H, sl = STYLE.subSize * H;
+  const tone = TONES[P.tone], anchor = STYLE.y * H;
+  const seed = BigInt(P.seed) * 0x9E3779B97F4A7C15n & M64;
+  pieces = [piece(P.title, tl, tone[0], anchor, seed)];
+  if (P.sub) pieces.push(piece(P.sub, sl, tone[1], anchor + tl / 2 + STYLE.gap * tl + sl / 2, seed ^ 0x1234567n));
+  pieces[0].enter = 0; pieces[0].trail = 0;
+  if (pieces[1]) { pieces[1].enter = STYLE.subDelay; pieces[1].trail = STYLE.trail; }
+}
+
+const tint = [0, 0, 0];
+function drawDust(p, progress, fade) {
+  const c = p.cells; if (!c) return;
+  const burn = P.burnOn ? [P.burnR, P.burnG, P.burnB] : null;
+  const size = c.size, W = p.w, H = p.h, reach = p.line * P.dustDrift;
+  const part = (left, top, right, bottom, dx, dy, scale, r, g, b, a) => {
+    const hx = (right - left) * scale / 2, hy = (bottom - top) * scale / 2;
+    const x = p.x + (left + right) / 2 + dx, y = p.y + (top + bottom) / 2 + dy;
+    quad(x - hx, y - hy, x + hx, y + hy, left / W, top / H, right / W, bottom / H, r, g, b, a);
+  };
+  for (let lane = 0; lane < c.lanes; lane++) {
+    const from = c.laneFrom[lane], unreached = c.unreached(lane, progress + P.WEATHER);
+    if (unreached < c.laneFrom[lane + 1]) {
+      const column = c.column[unreached], row = c.row[unreached];
+      let left, top, right, bottom;
+      switch (c.sweep) {
+        case "right": case "upright": case "downright": left = column * size; right = W; top = row * size; bottom = Math.min(H, top + size); break;
+        case "left": case "upleft": case "downleft": left = 0; right = Math.min(W, (column + 1) * size); top = row * size; bottom = Math.min(H, top + size); break;
+        case "down": top = row * size; bottom = H; left = column * size; right = Math.min(W, left + size); break;
+        default: top = 0; bottom = Math.min(H, (row + 1) * size); left = column * size; right = Math.min(W, left + size);
+      }
+      part(left, top, right, bottom, 0, 0, 1, fade, fade, fade, fade);
+    }
+    for (let cell = from; cell < unreached; cell++) {
+      const left = c.column[cell] * size, top = c.row[cell] * size, right = Math.min(W, left + size), bottom = Math.min(H, top + size);
+      const age = (progress - c.start[cell]) / c.life[cell];
+      if (age <= 0) {
+        const wear = worn(progress, c.start[cell]);
+        if (burn) {
+          const flicker = 0.5 + 0.5 * Math.sin(2 * Math.PI * (progress * P.FLICKER + c.phase[cell]));
+          const hot = burning(wear, burn, flicker, tint);
+          const thin = wear > P.GLOW_END ? P.THIN * (wear - P.GLOW_END) / (1 - P.GLOW_END) : 0;
+          part(left, top, right, bottom, 0, 0, 1 - thin, fade * tint[0], fade * tint[1], fade * tint[2], fade * (1 - P.GLOW * hot));
+          continue;
+        }
+        const kept = fade * (1 - P.WEATHERED * wear);
+        part(left, top, right, bottom, 0, 0, 1 - P.THIN * wear, kept, kept, kept, fade);
+        continue;
+      }
+      if (age >= 1) continue;
+      const shown = alphaAt(age) * fade;
+      if (shown <= 0.002) continue;
+      const dx = reach * driftX(age, c.side[cell], c.freq[cell], c.phase[cell]);
+      const dy = reach * driftY(age, c.rise[cell], c.freq[cell], c.phase2[cell]);
+      const scale = (1 - P.THIN) * c.flake[cell] * sizeAt(age);
+      if (burn && c.phase2[cell] >= P.SPARKS) {
+        const grey = shown * (P.CHAR_R + (P.CHAR_ASH - P.CHAR_R) * smooth(clamp(age / 0.7, 0, 1)));
+        part(left, top, right, bottom, dx, dy, scale, grey, grey, grey, shown);
+        continue;
+      }
+      if (burn) {
+        const hot = heat(age), keep = P.BURN_ASH + (1 - P.BURN_ASH) * hot;
+        part(left, top, right, bottom, dx, dy, scale, shown * burn[0] * keep, shown * burn[1] * keep, shown * burn[2] * keep, shown * (1 - P.GLOW * hot));
+        continue;
+      }
+      const grey = (1 - P.WEATHERED) * ash(age), warm = ember(age);
+      const red = shown * grey;
+      part(left, top, right, bottom, dx, dy, scale, red, red * (1 - (1 - EMBER_G) * warm), red * (1 - (1 - EMBER_B) * warm), shown);
+    }
+  }
+}
+
+// ---------------------------------------------------------------- the clock
+let t = 0, playing = true, last = performance.now(), scrubbing = false;
+const leaveStart = () => STYLE.enterTime + P.hold;
+const total = () => leaveStart() + STYLE.trail + P.leaveTime + 0.5;
+function frame(now) {
+  const dt = (now - last) / 1000; last = now;
+  if (playing && !scrubbing) { t += dt * Number(document.getElementById("speed").value); if (t > total()) t = total(); }
+  gl.viewport(0, 0, view.width, view.height);
+  gl.uniform2f(loc.screen, view.width, view.height);
+  gl.disable(gl.BLEND);
+  gl.uniform3f(U("camera"), view.width / 2, view.height / 2, 1);
+  quad(0, 0, view.width, view.height, 0, 0, 1, 1, 1, 1, 1, 1); flush(bgTex);
+  gl.uniform3f(U("camera"), view.width / 2, P.zoom > 1 ? STYLE.y * view.height + STYLE.titleSize * view.height * 0.6 : view.height / 2, P.zoom);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+  const first = pieces[0];
+  if (P.backdrop && first) {
+    const enterA = clamp(t / STYLE.enterTime, 0, 1), out = clamp((t - leaveStart()) / P.leaveTime, 0, 1);
+    const seen = 0.3 * smooth(enterA) * (1 - smooth(out));
+    const last = pieces[pieces.length - 1], top = first.y, bottom = last.y + last.h, wide = Math.max(...pieces.map(p => p.w)) * 1.5;
+    quad(view.width / 2 - wide / 2, top - 10, view.width / 2 + wide / 2, bottom + 10, 0, 0, 1, 1, seen, seen, seen, seen); flush(bandTex);
+  }
+  for (const p of pieces) {
+    const enterA = smooth(clamp((t - p.enter) / STYLE.enterTime, 0, 1));
+    const out = (t - leaveStart() - p.trail) / P.leaveTime;
+    if (out <= 0) { if (enterA > 0) { quad(p.x, p.y, p.x + p.w, p.y + p.h, 0, 0, 1, 1, enterA, enterA, enterA, enterA); flush(p.tex); } }
+    else if (out < 1) { if (P.paper) drawPaper(p, out, 1); else { drawDust(p, out, 1); flush(p.tex); } }
+  }
+  const out = clamp((t - leaveStart()) / P.leaveTime, 0, 1);
+  document.getElementById("time").textContent = `${t.toFixed(2)}s · 사라짐 ${(out * 100).toFixed(0)}%`;
+  if (!scrubbing) document.getElementById("scrub").value = Math.round(out * 1000);
+  requestAnimationFrame(frame);
+}
+
+// ---------------------------------------------------------------- controls
+const side = document.getElementById("side");
+function heading(text) { const h = document.createElement("h2"); h.textContent = text; side.appendChild(h); }
+function control(key, label, kind, opts) {
+  const row = document.createElement("label"); row.className = "row";
+  const name = document.createElement("span"); name.textContent = label; row.appendChild(name);
+  let input, value = document.createElement("span"); value.className = "v";
+  if (kind === "range") {
+    input = document.createElement("input"); input.type = "range"; input.min = opts[0]; input.max = opts[1]; input.step = opts[2]; input.value = P[key];
+    value.textContent = P[key];
+  } else if (kind === "select") {
+    input = document.createElement("select");
+    for (const [v, t] of opts) { const o = document.createElement("option"); o.value = v; o.textContent = t; input.appendChild(o); }
+    input.value = P[key];
+  } else if (kind === "check") {
+    input = document.createElement("input"); input.type = "checkbox"; input.checked = P[key];
+  } else { input = document.createElement("input"); input.type = "text"; input.value = P[key]; }
+  input.addEventListener("input", () => {
+    P[key] = kind === "range" ? Number(input.value) : kind === "check" ? input.checked : input.value;
+    if (kind === "range") value.textContent = P[key];
+    if (key === "bg") makeBackground();
+    if (CUTS.has(key)) rebuild();
+  });
+  row.appendChild(input); row.appendChild(value); side.appendChild(row);
+  controls[key] = { input, value, kind };
+}
+const controls = {};
+heading("글자");
+control("title", "제목", "text");
+control("sub", "부제", "text");
+control("tone", "색", "select", [["gold", "금색 (gold)"], ["green", "초록 (green)"], ["red", "빨강 (red)"], ["dust", "dust 기본"]]);
+control("bg", "배경", "select", [["night", "밤 장면"], ["bright", "낮 장면"], ["black", "검정"], ["grey", "회색"]]);
+const file = document.createElement("label"); file.className = "row";
+file.innerHTML = '<span>배경 이미지</span><input type="file" accept="image/*"><span class="v"></span>';
+file.querySelector("input").addEventListener("change", e => {
+  const f = e.target.files[0]; if (!f) return;
+  const img = new Image(); img.onload = () => { bgImage = img; makeBackground(); }; img.src = URL.createObjectURL(f);
+});
+side.appendChild(file);
+control("backdrop", "배경 띠", "check");
+control("zoom", "확대", "range", [1, 4, 0.25]);
+heading("사라짐");
+control("sweep", "방향", "select", SWEEPS.map(s => [s, s]));
+control("leaveTime", "시간(초)", "range", [1, 12, 0.5]);
+control("hold", "머무름(초)", "range", [0, 6, 0.5]);
+control("dustSize", "셀 크기", "range", [0.25, 4, 0.05]);
+control("dustDrift", "날림 거리", "range", [0, 4, 0.05]);
+control("seed", "시드", "range", [1, 99999, 1]);
+control("SWEEP", "SWEEP", "range", [0.05, 0.7, 0.01]);
+control("JITTER", "JITTER", "range", [0, 0.4, 0.01]);
+control("WEATHER", "WEATHER", "range", [0.02, 0.4, 0.01]);
+control("THIN", "THIN", "range", [0, 0.6, 0.01]);
+control("WEATHERED", "WEATHERED", "range", [0, 1, 0.01]);
+heading("종이처럼 타기 (새 방식)");
+control("paper", "종이 방식", "check");
+control("EDGE_W", "불꽃 테두리 폭", "range", [0.002, 0.05, 0.001]);
+control("CHAR_W", "숯 폭", "range", [0, 0.08, 0.001]);
+control("SCORCH_W", "그을림 폭", "range", [0, 0.2, 0.005]);
+control("RAGGED", "가장자리 거칠기", "range", [0, 0.12, 0.002]);
+control("CURL", "가장자리 굽이", "range", [0, 2, 0.05]);
+control("FLAKES", "재 조각 비율", "range", [0, 1, 0.01]);
+control("FLAKE_SIZE", "재 조각 크기", "range", [0.3, 3, 0.05]);
+control("SPIN", "재 회전", "range", [0, 20, 0.5]);
+control("PAPER_ASH", "재 밝기", "range", [0, 1, 0.01]);
+control("GREYING", "재가 바래는 시간", "range", [0.05, 1, 0.01]);
+heading("타기 (dustBurn, 지금 게임 방식은 '종이 방식' 끄기)");
+control("burnOn", "타기 켜기", "check");
+control("burnR", "불씨 R", "range", [0, 1, 0.01]);
+control("burnG", "불씨 G", "range", [0, 1, 0.01]);
+control("burnB", "불씨 B", "range", [0, 1, 0.01]);
+control("SCORCH_END", "그을림 끝", "range", [0.05, 0.9, 0.01]);
+control("GLOW_PEAK", "불씨 최고", "range", [0.1, 0.95, 0.01]);
+control("GLOW_END", "불씨 끝", "range", [0.15, 1, 0.01]);
+control("GLOW", "빛 세기", "range", [0, 1, 0.01]);
+control("SCORCH_R", "그을림 R", "range", [0, 1, 0.01]);
+control("SCORCH_G", "그을림 G", "range", [0, 1, 0.01]);
+control("SCORCH_B", "그을림 B", "range", [0, 1, 0.01]);
+control("CHAR_R", "숯 R", "range", [0, 0.5, 0.005]);
+control("CHAR_G", "숯 G", "range", [0, 0.5, 0.005]);
+control("CHAR_B", "숯 B", "range", [0, 0.5, 0.005]);
+control("CHAR_ASH", "재 밝기", "range", [0, 0.8, 0.01]);
+control("SPARKS", "불티 비율", "range", [0, 1, 0.01]);
+control("COOL", "불티 식는 시간", "range", [0.05, 1, 0.01]);
+control("BURN_ASH", "불티 남는 색", "range", [0, 1, 0.01]);
+control("FLICKER", "깜빡임 횟수", "range", [0, 40, 1]);
+control("FLICKER_DEPTH", "깜빡임 깊이", "range", [0, 1, 0.01]);
+heading("게임에 넣을 값");
+const copyBox = document.createElement("textarea"); copyBox.readOnly = true; side.appendChild(copyBox);
+const copy = document.createElement("button"); copy.textContent = "Java 상수 만들기"; side.appendChild(copy);
+const reset = document.createElement("button"); reset.textContent = "기본값으로"; reset.style.marginLeft = "6px"; side.appendChild(reset);
+const DEFAULTS = { ...P };
+copy.addEventListener("click", () => {
+  const f = v => String(v);
+  copyBox.value =
+`static final double GLOW = ${f(P.GLOW)}, COOL = ${f(P.COOL)}, BURN_ASH = ${f(P.BURN_ASH)}, SCORCH_END = ${f(P.SCORCH_END)}, GLOW_PEAK = ${f(P.GLOW_PEAK)}, GLOW_END = ${f(P.GLOW_END)},
+    SPARKS = ${f(P.SPARKS)}, CHAR_ASH = ${f(P.CHAR_ASH)};
+static final double[] SCORCHED = { ${f(P.SCORCH_R)}, ${f(P.SCORCH_G)}, ${f(P.SCORCH_B)} }, CHARRED = { ${f(P.CHAR_R)}, ${f(P.CHAR_G)}, ${f(P.CHAR_B)} };
+static final double FLICKER = ${f(P.FLICKER)}, FLICKER_DEPTH = ${f(P.FLICKER_DEPTH)};
+static final double SWEEP = ${f(P.SWEEP)}, JITTER = ${f(P.JITTER)};  WEATHER = ${f(P.WEATHER)}, WEATHERED = ${f(P.WEATHERED)}, THIN = ${f(P.THIN)}
+-- OA Titles.BURN = { ${f(P.burnR)}, ${f(P.burnG)}, ${f(P.burnB)} }`;
+  copyBox.select();
+});
+reset.addEventListener("click", () => {
+  Object.assign(P, DEFAULTS);
+  for (const [key, c] of Object.entries(controls)) {
+    if (c.kind === "check") c.input.checked = P[key]; else c.input.value = P[key];
+    if (c.kind === "range") c.value.textContent = P[key];
+  }
+  makeBackground(); rebuild();
+});
+
+document.getElementById("play").addEventListener("click", () => { t = 0; playing = true; });
+document.getElementById("leaveNow").addEventListener("click", () => { t = leaveStart(); playing = true; });
+document.getElementById("pause").addEventListener("click", e => { playing = !playing; e.target.textContent = playing ? "일시정지" : "계속"; });
+const scrub = document.getElementById("scrub");
+scrub.addEventListener("input", () => { scrubbing = true; t = leaveStart() + scrub.value / 1000 * P.leaveTime; });
+scrub.addEventListener("change", () => { scrubbing = false; playing = false; document.getElementById("pause").textContent = "계속"; });
+
+makeBand();
+makeBackground();
+document.fonts.load('400 40px "Noto Sans KR"').finally(() => { rebuild(); requestAnimationFrame(frame); });
+</script>
+</body>
+</html>
