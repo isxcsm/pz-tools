@@ -21,7 +21,6 @@ for _, at in ipairs({ { 3577, 10890 }, { 3578, 10890 } }) do
     local plant = system:getLuaObjectAt(at[1], at[2], 0)
     say("crop", at[1], at[2], plant and plant.state, "water", plant and plant.waterLvl, "needs", plant and plant.waterNeeded)
 end
-PanelWindow.planShown = true
 PanelWindow.open(getPlayer(), panel)
 local window = PanelWindow.get(panel.id)
 window.tabs:activateView(getText("IGUI_BU_Tab_water"))

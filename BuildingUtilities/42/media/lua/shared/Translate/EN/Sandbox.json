@@ -1,9 +1,7 @@
 {
     "Sandbox_BuildingUtilities": "Building Utilities",
-    "Sandbox_BuildingUtilities_ProducerRange": "Generator and water storage range",
-    "Sandbox_BuildingUtilities_ProducerRange_tooltip": "How far from a building's outline, in tiles, a generator, water storage or a unit (solar panel, battery rack, pump, sprinkler, filter) can be connected to its main utility panel at tier 1. Higher tiers reach further (Range gain per tier).",
-    "Sandbox_BuildingUtilities_ExteriorRange": "Outside device range",
-    "Sandbox_BuildingUtilities_ExteriorRange_tooltip": "How far from a building's outline, in tiles, a device outside any building can be connected to its utility panel at tier 1. Higher tiers reach further, at most 32 tiles. 0: no outside devices.",
+    "Sandbox_BuildingUtilities_ConnectRange": "Connection range",
+    "Sandbox_BuildingUtilities_ConnectRange_tooltip": "How far from a building's outline, in tiles, a device outside, a generator, water storage or a unit (solar panel, battery rack, pump, sprinkler, filter, booster pump) can be connected to a tier 1 utility panel. Higher tiers reach further (Range gain per tier), at most 32 tiles.",
     "Sandbox_BuildingUtilities_SubPanelRange": "Sub-panel range",
     "Sandbox_BuildingUtilities_SubPanelRange_tooltip": "How far apart, in tiles, two buildings can be for one's utility panel to take supply from the other's, before the supplying panel's tier adds to it (Range gain per tier). A panel gives supply from tier 2.",
     "Sandbox_BuildingUtilities_CostsEnabled": "Lines cost materials",

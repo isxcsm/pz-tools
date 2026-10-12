@@ -187,14 +187,6 @@ Units.define("rack", {
         if object:getContainer() then Rack.container(object) end
     end,
     sync = Rack.sync,
-    -- Drawn: to the box; charged: from it.
-    flow = function(unit, panel, state)
-        if #(unit.batteries or {}) == 0 then return nil end
-        local flow = panel.bankFlow or 0
-        if flow < -0.0005 and state.supplied then return 1 end
-        if flow > 0.0005 then return -1 end
-        return nil
-    end,
     title = function(unit, text)
         text = getText("IGUI_BU_RackTitle", text, #unit.batteries, Rack.SIZE)
         if #unit.batteries > 0 then text = text .. "  " .. BU.percent(Rack.charge(unit) * 100) end

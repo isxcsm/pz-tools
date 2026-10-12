@@ -15,7 +15,8 @@ local FONT_HGT_SMALL, ROW, PAD, SCROLLBAR, ROOM_TICK_X, rowObjects, outline, uno
     Ui.PAD, Ui.SCROLLBAR, Ui.ROOM_TICK_X, Ui.rowObjects, Ui.outline, Ui.unoutline
 local ACCENT, ease, approach, P = Ui.ACCENT, Ui.ease, Ui.approach, Ui.PALETTE
 -- Rows that only tell: no light under the mouse.
-local STILL = { header = true, note = true, filter = true, log = true, graph = true, levels = true }
+local STILL = { header = true, note = true, filter = true, log = true, graph = true, levels = true, columns = true,
+    battery = true }
 
 -- One tab's list. Each item is a row table with a kind; clicks act on the row and the part of it clicked.
 ISBUPanelList = ISScrollingListBox:derive("ISBUPanelList")
@@ -23,6 +24,7 @@ ISBUPanelList = ISScrollingListBox:derive("ISBUPanelList")
 ISBUPanelList.BUTTON_TIPS = { timer = "IGUI_BU_TimerTip", essential = "IGUI_BU_EssentialTip" }
 
 local BUTTONS = { "Up", "Down" }
+local OPTIONS, OPTION_NAMES = { "ActiveOnly", "ByLoad" }, { ActiveOnly = true, ByLoad = true }
 local BUTTON_W = 60
 local TIMER_W, ESSENTIAL_W, GROUP_W, SOURCE_W = 64, 48, 90, 110
 -- Water groups' colours, by their place in the panel's list.
@@ -92,7 +94,9 @@ local function buttonsAtRight(width, row, names)
     if row.buttonsWidth == width then return row.buttons end
     local result, x = {}, width - PAD - SCROLLBAR
     for index = #names, 1, -1 do
-        local w = names[index] == "Group" and GROUP_W or names[index] == "UseSource" and SOURCE_W or BUTTON_W
+        local name = names[index]
+        local w = name == "Group" and GROUP_W or name == "UseSource" and SOURCE_W or OPTION_NAMES[name] and Ui.OPTION_W
+            or BUTTON_W
         x = x - w - 4
         result[index] = { name = names[index], x = x, w = w }
     end
@@ -111,6 +115,10 @@ local function groupButtons(width, row)
     return buttonsAtRight(width, row, row.removable and { "Settings", "Rename", "Remove" } or { "Settings", "Rename" })
 end
 
+-- The view options on the list's first header (the supply's, or a sub-panel's line to its main panel), left to right:
+-- devices drawing only, and by what they draw.
+local function optionButtons(width, row) return buttonsAtRight(width, row, OPTIONS) end
+
 -- A source row's buttons, left to right: "Switch to solar" (while offered) and the charge controller's Settings.
 local function sourceButtons(width, row)
     local names = {}
@@ -126,15 +134,27 @@ local function under(list, x, w)
 end
 
 -- A small button on a row, drawn as the kit's buttons are: a well with a border, lit as the mouse comes onto it and
--- flashed by a click (its light is keyed by the row and the button). c is { r, g, b } for its text.
-local function smallButton(list, c, key, x, y, w, text, tc)
+-- flashed by a click (its light is keyed by the row and the button). tc is { r, g, b } for its text; on, it is lit in
+-- the accent (an option that is on).
+local function smallButton(list, c, key, x, y, w, text, tc, on)
     local k = UI.hoverLight(list, key, under(list, x, w))
     local f = UI.flashLevel(list, key)
     UI.fill(c, x, y + 2, w, ROW - 4, P.panel)
+    if on then UI.fill(c, x, y + 2, w, ROW - 4, P.sel, 0.35) end
     if k > 0 or f > 0 then UI.fill(c, x, y + 2, w, ROW - 4, P.sel, 0.14 * k + 0.3 * f) end
-    UI.frame(c, x, y + 2, w, ROW - 4, P.border)
+    UI.frame(c, x, y + 2, w, ROW - 4, on and P.value or P.border)
     if k > 0 then UI.frame(c, x, y + 2, w, ROW - 4, P.sel, 0.75 * k) end
     UI.textCentre(c, text, x + w / 2, y + (ROW - FONT_HGT_SMALL) / 2, tc)
+end
+
+-- A row's view options (optionButtons), each lit while it is on.
+local function drawOptions(list, c, index, width, y, row)
+    local options = BU.PanelWindow.options
+    for _, button in ipairs(optionButtons(width, row)) do
+        local on = button.name == "ActiveOnly" and options.activeOnly or button.name == "ByLoad" and options.byLoad
+        local text = label(button.name == "ActiveOnly" and "IGUI_BU_ActiveOnly" or "IGUI_BU_ByLoad")
+        smallButton(list, c, index .. button.name, button.x, y, button.w, text, on and P.bright or P.text, on)
+    end
 end
 
 -- A tick: "on", "off", or "some" for a room whose devices are partly connected; lit under the mouse.
@@ -239,7 +259,7 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         UI.fill(c, 0, y, width, ROW, P.sel, 0.1 * lit + 0.22 * flash)
         UI.fill(c, 0, y + 1, 3, ROW - 2, P.sel, 0.9 * math.max(lit, flash))
     end
-    self.rowMouseX = index == self.hoverIndex and self.mouseDX or nil
+    self.rowMouseX = (index == self.hoverIndex or row.options and index == self.overIndex) and self.mouseDX or nil
     -- What the mouse is over on the plan.
     local window = self.window
     local planned = row.device and row.device.key == window.planHoverKey
@@ -250,6 +270,8 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         UI.fill(c, 0, y, width, ROW, P.panel, 0.95)
         UI.fill(c, 0, y + ROW - 1, width, 1, P.border, 0.8)
         UI.text(c, row.text, PAD, textY, HEAD)
+        if row.options then drawOptions(self, c, index, width, y, row) end
+        if row.right then UI.textRight(c, row.right, rightX, textY, HEAD) end
     elseif row.kind == "floor" then
         UI.fill(c, 0, y, width, ROW, FLOOR_BG, 0.6)
         UI.fill(c, 0, y + ROW - 1, width, 1, FLOOR_LINE, 0.7)
@@ -269,7 +291,16 @@ function ISBUPanelList:doDrawItem(y, item, alt)
     elseif row.kind == "link" then
         if row.header then UI.fill(c, 0, y, width, ROW, P.panel, 0.95) end
         UI.text(c, row.text, row.header and PAD or PAD * 2, textY, row.header and LINK_HEAD or LINK)
-        UI.textRight(c, label("IGUI_BU_Open"), rightX, textY, OPEN)
+        if row.options then drawOptions(self, c, index, width, y, row) end
+        UI.textRight(c, label("IGUI_BU_Open"), row.options and row.buttons[1].x - 8 or rightX, textY, OPEN)
+    elseif row.kind == "columns" then
+        local cols = BU.RackWindow.COLUMNS
+        UI.text(c, label("IGUI_BU_Rack_ColKind"), PAD + cols.kind, textY, NOTE)
+        UI.text(c, label("IGUI_BU_Rack_ColCondition"), PAD + cols.condition, textY, NOTE)
+        UI.text(c, label("IGUI_BU_Rack_ColStored"), PAD + cols.stored, textY, NOTE)
+        UI.text(c, label("IGUI_BU_Rack_ColOutput"), PAD + cols.output, textY, NOTE)
+    elseif row.kind == "battery" then
+        BU.RackWindow.drawBattery(c, y, row.battery, PAD)
     elseif row.kind == "note" or row.kind == "filter" then
         UI.text(c, row.text, PAD * 2, textY, row.kind == "filter" and FILTER or NOTE)
     elseif row.kind == "log" then
@@ -358,6 +389,7 @@ function ISBUPanelList:prerender()
     self.window.listHoverKey = row and row.device and row.device.key or nil
     self.window.listHoverRoom = row and (row.device and row.device.roomId or row.kind == "room" and row.id) or nil
     local lit = row and not STILL[row.kind] and index or nil
+    self.overIndex = index
     self.hoverIndex = lit
     UI.placeLight(self, lit)
     -- over a button that says what it does, its own tooltip; else the row's
@@ -415,7 +447,7 @@ function ISBUPanelList:onMouseDown(x, y)
     local item = index and index > 0 and self.items[index]
     if item then
         local dx, width = UI.dp(x), UI.dp(self:getWidth())
-        UI.placeFlash(self, index)
+        if not STILL[item.item.kind] then UI.placeFlash(self, index) end
         for _, button in ipairs(item.item.buttons or {}) do
             if dx >= button.x and dx < button.x + button.w then UI.flash(self, index .. button.name) end
         end
@@ -545,11 +577,9 @@ end
 
 UI.scaled(ISBUTabs, ISPanel)
 
--- The divider between the list and the plan: dragged, it moves the share of the window the plan takes. The tab in its
--- middle folds the plan away; with the plan folded the divider stays at the window's right edge, its tab opening it
--- again. The tab shows a small arrow the way the plan goes.
+-- The divider between the list and the plan: dragged, it moves the share of the window the plan takes. A grip in its
+-- middle, lit under the mouse and while dragged.
 ISBUSplitter = ISPanel:derive("ISBUSplitter")
-ISBUSplitter.TAB_H = 40
 
 function ISBUSplitter:new(x, y, width, height, window)
     local o = ISPanel.new(self, x, y, width, height)
@@ -558,47 +588,15 @@ function ISBUSplitter:new(x, y, width, height, window)
     return o
 end
 
-function ISBUSplitter:planShown() return self.window.plan and self.window.plan:getIsVisible() end
-
--- Whether a height on the divider is on its tab.
-function ISBUSplitter:onTab(y) return math.abs(y - self.height / 2) <= ISBUSplitter.TAB_H / 2 end
-
 function ISBUSplitter:render()
-    local shown = self:planShown()
-    local mouse = self:isMouseOver()
-    local overTab = mouse and self:onTab(self:getMouseY())
-    local k = UI.hoverLight(self, "hover", shown and (self.dragging or mouse and not overTab))
-    local t = UI.hoverLight(self, "tab", overTab and not self.dragging)
-    local w, middle, tabH = self.width, self.height / 2, ISBUSplitter.TAB_H
+    local k = UI.hoverLight(self, "hover", self.dragging or self:isMouseOver())
+    local w, middle = self.width, math.floor(self.height / 2)
     if k > 0 then UI.fill(self, w / 2 - 1, 0, 2, self.height, P.sel, 0.25 * k) end
-    -- the grip above and below the tab, while the divider can be dragged
-    if shown then
-        for _, at in ipairs({ middle - tabH / 2 - 14, middle + tabH / 2 + 6 }) do
-            for i = 0, 2 do UI.fill(self, w / 2 - 1, at + i * 4, 2, 2, k > 0.5 and P.sel or P.dim) end
-        end
-    end
-    -- the tab: a slim box with the arrow, lit under the mouse
-    local top = math.floor(middle - tabH / 2)
-    UI.fill(self, 0, top, w, tabH, P.panel)
-    if t > 0 then UI.fill(self, 0, top, w, tabH, P.sel, 0.2 * t) end
-    UI.frame(self, 0, top, w, tabH, t > 0.5 and P.sel or P.border)
-    if overTab then PZUIRichTip.show(self, getText(shown and "IGUI_BU_PlanHide" or "IGUI_BU_PlanShow"), P)
-    else PZUIRichTip.hide(self) end
-    local c = t > 0.5 and P.bright or P.text
-    local cx, cy = math.floor(w / 2), math.floor(middle)
-    for i = 0, 3 do
-        local h = 7 - i * 2
-        local x = shown and cx - 2 + i or cx + 1 - i
-        UI.fill(self, x, cy - 3 + i, 1, h, c)
-    end
+    for i = -2, 2 do UI.fill(self, w / 2 - 1, middle - 1 + i * 5, 2, 2, k > 0.5 and P.sel or P.dim) end
 end
 
 function ISBUSplitter:onMouseDown(x, y)
-    if self:onTab(y) then
-        self.pressedTab = true
-    elseif self:planShown() then
-        self.dragging = true
-    end
+    self.dragging = true
     return true
 end
 
@@ -611,12 +609,11 @@ function ISBUSplitter:onMouseMove(dx, dy) self:drag() end
 function ISBUSplitter:onMouseMoveOutside(dx, dy) self:drag() end
 
 function ISBUSplitter:onMouseUp(x, y)
-    if self.pressedTab and self:onTab(y) then self.window:setPlanShown(not self:planShown()) end
-    self.pressedTab, self.dragging = false, false
+    self.dragging = false
     return true
 end
 
-function ISBUSplitter:onMouseUpOutside(x, y) self.pressedTab, self.dragging = false, false end
+function ISBUSplitter:onMouseUpOutside(x, y) self.dragging = false end
 
 UI.scaled(ISBUSplitter, ISPanel)
 
@@ -624,4 +621,5 @@ Ui.deviceButtons = deviceButtons
 Ui.producerButtons = producerButtons
 Ui.groupButtons = groupButtons
 Ui.sourceButtons = sourceButtons
+Ui.optionButtons = optionButtons
 Ui.GROUP_COLOURS = GROUP_COLOURS

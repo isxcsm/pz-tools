@@ -96,6 +96,7 @@ function ISBURackWindow:new(x, y, playerObj, unit)
     o.unitId = unit.id
     o.unit = unit
     o.era = UI.era
+    o.palette = P
     o.resizable = true
     o.minimumWidth = UI.px(RackWindow.WIDTH)
     o.minimumHeight = UI.px(240) + chrome
@@ -120,22 +121,24 @@ function ISBURackBody:prerender() self.window:drawBody(self) end
 
 UI.scaled(ISBURackBody, ISPanel)
 
--- A battery's line: its kind (the larger kinds lit), its condition with a short bar, what it stores and gives.
-local function drawBattery(c, y, item)
-    local battery = item.item
+-- A battery's line from x (0 when not given; the box's battery tab too): its kind (the larger kinds lit), its condition
+-- with a short bar, what it stores and gives.
+function RackWindow.drawBattery(c, y, battery, x)
+    x = x or 0
     local cols = RackWindow.COLUMNS
     local textY = y + math.floor((ROW - FONT_HGT_SMALL) / 2)
-    UI.text(c, getText("IGUI_VehicleType_" .. battery.kind), cols.kind, textY, battery.kind == 1 and P.text or P.value)
+    UI.text(c, getText("IGUI_VehicleType_" .. battery.kind), x + cols.kind, textY, battery.kind == 1 and P.text or P.value)
     local condition = math.floor(battery.condition + 0.5)
     local colour = conditionColour(battery.condition)
     local barW = 40
     local barY = y + math.floor(ROW / 2) - 2
-    UI.fill(c, cols.condition, barY, barW, 4, P.inset)
-    UI.fill(c, cols.condition, barY, math.floor(barW * math.max(0, math.min(100, battery.condition)) / 100), 4, colour, 0.9)
-    UI.frame(c, cols.condition, barY, barW, 4, P.border)
-    UI.text(c, tostring(condition), cols.condition + barW + 6, textY, colour)
-    UI.text(c, string.format("%.1f", battery.capacity), cols.stored, textY, P.text)
-    UI.text(c, load2(battery.output), cols.output, textY, battery.output > 0 and P.text or P.dim)
+    UI.fill(c, x + cols.condition, barY, barW, 4, P.inset)
+    local filled = math.floor(barW * math.max(0, math.min(100, battery.condition)) / 100)
+    UI.fill(c, x + cols.condition, barY, filled, 4, colour, 0.9)
+    UI.frame(c, x + cols.condition, barY, barW, 4, P.border)
+    UI.text(c, tostring(condition), x + cols.condition + barW + 6, textY, colour)
+    UI.text(c, string.format("%.1f", battery.capacity), x + cols.stored, textY, P.text)
+    UI.text(c, load2(battery.output), x + cols.output, textY, battery.output > 0 and P.text or P.dim)
 end
 
 function ISBURackWindow:createChildren()
@@ -157,7 +160,8 @@ function ISBURackWindow:createChildren()
     self.columnsY = self.headY + RackWindow.HEAD_H + 6
     local listY = self.columnsY + FONT_HGT_SMALL + 4
     local listH = body:getHeight() - listY - FONT_HGT_SMALL - PAD - 6
-    local list = UI.list(body, PAD, listY, body:getWidth() - PAD * 2, listH, drawBattery)
+    local list = UI.list(body, PAD, listY, body:getWidth() - PAD * 2, listH,
+        function(c, y, item) RackWindow.drawBattery(c, y, item.item) end)
     list:setAnchorRight(true)
     list:setAnchorBottom(true)
     list.backgroundColor = { r = P.inset[1], g = P.inset[2], b = P.inset[3], a = 1 }
@@ -295,11 +299,10 @@ function ISBURackWindow:changed() self.changedAt = self.changedAt or getTimestam
 
 function ISBURackWindow:close()
     open[self.unitId] = nil
-    self:setVisible(false)
-    self:removeFromUIManager()
+    UI.fadeOut(self)
 end
 
--- A rack's window: brought up where it is open, else made in the middle of the screen.
+-- A rack's window: brought up where it is open, else made in the middle of the screen, fading in.
 function RackWindow.open(playerObj, unit)
     local window = open[unit.id]
     if window then
@@ -313,6 +316,7 @@ function RackWindow.open(playerObj, unit)
     window:initialise()
     window:addToUIManager()
     window:setVisible(true)
+    UI.fadeIn(window)
     open[unit.id] = window
     return window
 end

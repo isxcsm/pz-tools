@@ -56,7 +56,7 @@ local pump, pumpSquare = put("pump")
 WaterRun.pumps(panel, 1)
 local power = Networks.state(panel, "power")
 say("dry: fluid", pump.fluid, "running", pump.running, "idle", pump.idle, "load", panel.extraLoads and panel.extraLoads.pumps,
-    "flow", Units.definition("pump").flow(pump), "status", status(nil, pump))
+    "status", status(nil, pump))
 local well = getCell():getGridSquare(pump.x + 1, pump.y, 0)
 local wellObject = IsoObject.new(well, "camping_01_16", nil, false)
 well:AddTileObject(wellObject)
@@ -65,7 +65,7 @@ local group = Networks.groupState(panel, WaterUnits.group(pump))
 local before = group and group.amount
 WaterRun.pumps(panel, 60)
 say("wet: fluid", pump.fluid, "running", pump.running, "idle", pump.idle, "load", panel.extraLoads and panel.extraLoads.pumps,
-    "flow", Units.definition("pump").flow(pump), "status", status(nil, pump), "held before", litres(before),
+    "status", status(nil, pump), "held before", litres(before),
     "of", litres(group and group.capacity))
 panel.tripped = true
 WaterRun.pumps(panel, 1)

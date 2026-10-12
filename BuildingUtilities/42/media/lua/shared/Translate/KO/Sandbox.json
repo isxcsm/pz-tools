@@ -1,9 +1,7 @@
 {
     "Sandbox_BuildingUtilities": "건물 유틸리티",
-    "Sandbox_BuildingUtilities_ProducerRange": "발전기·물 저장소 거리",
-    "Sandbox_BuildingUtilities_ProducerRange_tooltip": "건물 외곽에서 몇 칸 안의 발전기·물 저장소와 설비(태양광 패널, 배터리 랙, 펌프, 스프링클러, 필터, 가압 펌프)를 1단계 주 제어반에 연결할 수 있는지. 단계가 오르면 더 멀리 닿습니다(단계마다 늘어나는 거리).",
-    "Sandbox_BuildingUtilities_ExteriorRange": "바깥 기기 거리",
-    "Sandbox_BuildingUtilities_ExteriorRange_tooltip": "건물 외곽에서 몇 칸 안의 바깥 기기를 1단계 제어반에 연결할 수 있는지. 단계가 오르면 더 멀리 닿고, 32칸을 넘지 않습니다. 0이면 바깥 기기를 잇지 않습니다.",
+    "Sandbox_BuildingUtilities_ConnectRange": "연결 거리",
+    "Sandbox_BuildingUtilities_ConnectRange_tooltip": "건물 외곽에서 몇 칸 안의 바깥 기기, 발전기·물 저장소와 설비(태양광 패널, 배터리 랙, 펌프, 스프링클러, 필터, 가압 펌프)를 1단계 제어반에 연결할 수 있는지. 단계가 오르면 더 멀리 닿고(단계마다 늘어나는 거리), 32칸을 넘지 않습니다.",
     "Sandbox_BuildingUtilities_SubPanelRange": "보조 제어반 거리",
     "Sandbox_BuildingUtilities_SubPanelRange_tooltip": "한 건물의 제어반이 다른 건물의 제어반에서 공급받을 수 있는 두 건물 사이 거리(칸). 공급하는 제어반의 단계만큼 늘어납니다(단계마다 늘어나는 거리). 공급은 2단계부터 할 수 있습니다.",
     "Sandbox_BuildingUtilities_CostsEnabled": "연결에 재료 필요",

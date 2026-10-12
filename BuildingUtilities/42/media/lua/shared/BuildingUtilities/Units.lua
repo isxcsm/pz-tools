@@ -31,8 +31,6 @@ local definitions = {}
 --   title(unit, text): its line on the world menu, from its name.
 --   options(unit, character): world menu options, each { text, action = function(character, unit) a timed action,
 --     reason (why it cannot now, or nil) }.
---   flow(unit, panel, state): which way power or water runs on its line on the plan now, given its panel's
---     network state: 1 to the box, -1 from it, nil none.
 -- Its texts: IGUI_BU_Unit_<kind> (its name) and ContextMenu_BU_Install_<kind>.
 function Units.define(kind, definition)
     if not definitions[kind] then Units.KINDS[#Units.KINDS + 1] = kind end
@@ -168,12 +166,6 @@ function Units.canConnect(unit, panel)
         if candidate.panel == panel then return true end
     end
     return false, "tooFar"
-end
-
--- Which way power runs on a unit's line now (its definition's flow), or nil.
-function Units.flow(unit, panel, state)
-    local flow = definitions[unit.kind].flow
-    return flow and flow(unit, panel, state) or nil
 end
 
 -- Whether a unit holds nothing, so that it can be taken down.

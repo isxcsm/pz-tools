@@ -73,13 +73,11 @@ end
 say("building objects", #objects, "on outer walls", outside)
 
 -- The plan: rooms by their outlines; the range shown and hidden, timed.
-PanelWindow.planShown = true
 PanelWindow.open(getPlayer(), panel)
 local window = PanelWindow.get(panel.id)
-window:setPlanShown(true)
 window:refresh()
 local plan = window.plan
-say("plan cells", #plan.cells, "walls", #plan.walls, "floors", #(plan.levels or {}), "range button shown", window.rangeButton:getIsVisible())
+say("plan cells", #plan.cells, "walls", #plan.walls, "floors", #(plan.levels or {}))
 local started = getTimestampMs()
 window:onRange()
 local shown = getTimestampMs() - started

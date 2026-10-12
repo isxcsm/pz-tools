@@ -191,15 +191,15 @@ for recipe, feature in pairs(BU.RECIPE_FEATURES) do
 end
 
 -- How far a box of a tier reaches, in squares from its building's outline: the sandbox's range at tier 1, and
--- RangePerTier percent of it more for each tier above. Devices outside join within the exterior range of their own
--- box (the API reads at most 32); producers and sub-panels within the producer and sub-panel range of the main box.
+-- RangePerTier percent of it more for each tier above. Devices outside, producers and units join within the connect
+-- range (the API reads at most 32) of a box: devices of their own, the rest of any (taken on to its main box);
+-- sub-panels within the sub-panel range of the main box.
 local function reach(name, default, tier)
     tier = math.max(1, math.min(BU.TIERS, tier or 1))
     local perTier = math.max(0, BU.sandbox("RangePerTier", 50))
     return math.floor(BU.sandbox(name, default) * (1 + (tier - 1) * perTier / 100))
 end
-function BU.exteriorRange(tier) return math.max(0, math.min(32, reach("ExteriorRange", 5, tier))) end
-function BU.producerRange(tier) return math.max(1, reach("ProducerRange", 20, tier)) end
+function BU.connectRange(tier) return math.max(1, math.min(32, reach("ConnectRange", 5, tier))) end
 function BU.subPanelRange(tier) return math.max(1, reach("SubPanelRange", 50, tier)) end
 
 -- How many floors above and below its own a box's zone takes, the sandbox's at tier 1 and more by RangePerTier as

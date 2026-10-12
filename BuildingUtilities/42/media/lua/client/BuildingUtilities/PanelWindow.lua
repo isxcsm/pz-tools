@@ -1,22 +1,24 @@
--- The breaker box window: its name and tier as its title, a status line (BuildingUtilities/PanelStatus), its load
--- against its limit with the lever and the breaker's gauge beside it, a banner when the breaker is down or devices are
--- shed, then a tab per utility with its producers (each generator running, on standby or out of service) or the main
--- panel that supplies it, its sub-panels, and its devices room by room, and a tab with what happened to the box;
--- beside them the floor plan (BuildingUtilities/PanelPlan). A row under the mouse outlines its objects in the world, marks them on the plan and
--- tells what switching it would do to the load. Free changes go to the server as commands; lines are laid and taken
--- away, and the lever thrown, by the player at the place, as timed actions: a device outside is wired at itself
--- (its world menu), and listed here once it is. The search box keeps the
--- rows whose device or room has the words; devices new since the window was last closed are marked. The load bar
+-- The breaker box window: its name and tier as its title (its rename button at the title bar's end), a status line
+-- (BuildingUtilities/PanelStatus), its load against its limit with the lever and the breaker's gauge beside it, a row
+-- with the buttons to take supply from another box and to upgrade and a banner when the breaker is down or devices are
+-- shed (only while it has any), then a tab per utility with its producers (each generator running, on standby or out
+-- of service) or the main panel that supplies it, its sub-panels, and its devices room by room, a tab with the
+-- batteries of its racks, and a tab with what happened to the box; beside them the floor plan
+-- (BuildingUtilities/PanelPlan). A row under the mouse outlines its objects in the world, marks them on the plan and
+-- tells what switching it would do to the load. Free changes, the lever among them, go to the server as commands;
+-- lines are laid and taken away by the player at the place, as timed actions: a device outside is wired at itself
+-- (its world menu), and listed here once it is. The search box keeps the rows whose device or room has the words; the
+-- view options sit on the list's first header; devices new since the window was last closed are marked. The load bar
 -- tells what makes the load. With sub-panels, a tab per box of the supply tree (the main panel, then each sub-panel
--- after the one it hangs from) shows that box in the same window, as a main or sub-panel row does. The window is the
--- player's at the box
--- they opened it at (its anchor; a window opened from another's row keeps that one's): it closes once they are far
--- from it (PanelWindow.CLOSE_RANGE), die or another character takes their place.
+-- after the one it hangs from) shows that box in the same window, as a main or sub-panel row does. The window fades in
+-- and out (the kit's UI.fadeIn, UI.fadeOut) and is the player's at the box they opened it at (its anchor; a window
+-- opened from another's row keeps that one's): it closes once they are far from it (PanelWindow.CLOSE_RANGE), die
+-- or another character takes their place.
 require "TimedActions/ISBaseTimedAction"
 require "ISUI/ISCollapsableWindow"
 require "ISUI/ISScrollingListBox"
 require "ISUI/ISPanel"
-require "ISUI/ISTextBox"
+require "PZUIKit/Prompt"
 require "ISUI/ISTextEntryBox"
 require "PZUIKit/UI"
 require "PZUIKit/Button"
@@ -28,9 +30,9 @@ local BU = BuildingUtilities
 local Store, Panels, Networks, Costs, Actions, Sync, Energy = BU.Store, BU.Panels, BU.Networks, BU.Costs, BU.Actions,
     BU.Sync, BU.Energy
 local Units, Ui = BU.Units, BU.PanelUi
-local FONT_HGT_SMALL, ROW, PAD, REFRESH_MS, BAR_W, LOG, LIST_W, MIN_LIST, MIN_PLAN, OPTION_W, SEEN, OUTSIDE,
+local FONT_HGT_SMALL, ROW, PAD, REFRESH_MS, BAR_W, LOG, BATTERIES, LIST_W, MIN_LIST, MIN_PLAN, SEEN, OUTSIDE,
     ROOM_TICK_X, load2, percent, count, nextSchedule = Ui.FONT_HGT_SMALL, Ui.ROW,
-    Ui.PAD, Ui.REFRESH_MS, Ui.BAR_W, Ui.LOG, Ui.LIST_W, Ui.MIN_LIST, Ui.MIN_PLAN, Ui.OPTION_W, Ui.SEEN, Ui.OUTSIDE,
+    Ui.PAD, Ui.REFRESH_MS, Ui.BAR_W, Ui.LOG, Ui.BATTERIES, Ui.LIST_W, Ui.MIN_LIST, Ui.MIN_PLAN, Ui.SEEN, Ui.OUTSIDE,
     Ui.ROOM_TICK_X, Ui.load2, Ui.percent, Ui.count, Ui.nextSchedule
 local deviceButtons = Ui.deviceButtons
 local UI, P, ease, approach = Ui.UI, Ui.PALETTE, Ui.ease, Ui.approach
@@ -41,8 +43,8 @@ local open = {}
 -- A change told (BU.onChanged, a notice, a network event) refreshes the window once it settles: one action often
 -- tells it twice within a few frames.
 local SETTLE_MS = 100
--- What the player chose, kept while the game runs: view options, folded rooms, the plan shown, its share of the
--- window and its legend.
+-- What the player chose, kept while the game runs: view options, folded rooms, the plan's share of the window and
+-- its legend.
 PanelWindow.options = { activeOnly = false, byLoad = false }
 PanelWindow.folded = {}
 -- The plan takes all it can at first (the list at its least, MIN_LIST); the divider moves it. The window is made as
@@ -53,18 +55,10 @@ local WINDOW_SHARE = 0.42
 -- The window.
 ISBUPanelWindow = ISCollapsableWindow:derive("ISBUPanelWindow")
 
--- Shown at first on a screen wide enough for the window and the game beside it (design units: the screen's pixels
--- over the kit's scale).
-local function planByDefault() return UI.dp(getCore():getScreenWidth()) >= 900 end
+-- The window's width for a list so wide beside the plan (design units), and the least it may be.
+local function windowWidth(listW) return math.floor(listW / (1 - WINDOW_SHARE)) + PAD end
 
--- The window's width for a list so wide, with the plan or without (design units): the divider's strip beside the list
--- either way (with the plan folded, at the window's edge, its tab opens it).
-local function windowWidth(listW, shown)
-    if not shown then return listW + PAD end
-    return math.floor(listW / (1 - WINDOW_SHARE)) + PAD
-end
-
-local function minimumWidth(shown) return MIN_LIST + PAD + (shown and MIN_PLAN or 0) end
+local MINIMUM_W = MIN_LIST + PAD + MIN_PLAN
 
 -- The most a window may take of the screen, in pixels.
 local function screenRoom()
@@ -84,6 +78,16 @@ function PanelWindow.tree(panel)
     end
     walk(Panels.root(panel), 0)
     return result
+end
+
+-- Whether a box shows the battery tab: a main box with racks wired to it, while racks are on (BU.enabled).
+local function batteriesShown(panel)
+    return BU.enabled("rack") and not panel.parent and #Store.unitList("rack", panel.id) > 0
+end
+
+-- The window's tabs, as a key: the utilities that are on and the battery tab.
+local function viewsKey(panel)
+    return table.concat(BU.utilities(), ",") .. (batteriesShown(panel) and ",batteries" or "")
 end
 
 local function treeKey(tree)
@@ -114,12 +118,10 @@ end
 -- another opens anew (update).
 function ISBUPanelWindow:new(x, y, playerObj, panel, anchor)
     UI.refreshScale()
-    local shown = PanelWindow.planShown
-    if shown == nil then shown = planByDefault() end
     local maxW, maxH = screenRoom()
     local chrome = UI.titleBarHeight() + UI.resizeWidgetHeight()
-    local minW = math.min(UI.px(minimumWidth(shown)), maxW)
-    local width = math.max(minW, math.min(UI.px(windowWidth(LIST_W, shown)), maxW))
+    local minW = math.min(UI.px(MINIMUM_W), maxW)
+    local width = math.max(minW, math.min(UI.px(windowWidth(LIST_W)), maxW))
     local height = math.max(math.min(UI.px(340) + chrome, maxH), math.min(UI.px(Ui.WINDOW_H) + chrome, maxH))
     local o = ISCollapsableWindow.new(self, x, y, width, height)
     o.playerObj = playerObj
@@ -129,7 +131,6 @@ function ISBUPanelWindow:new(x, y, playerObj, panel, anchor)
     o.anchor = anchor or { x = panel.x, y = panel.y, z = panel.z }
     o.tree = PanelWindow.tree(panel)
     o.treeKey = treeKey(o.tree)
-    o.planWanted = shown
     o.resizable = true
     o.minimumWidth = minW
     o.minimumHeight = math.min(UI.px(340 + (#o.tree > 1 and ROW + PAD or 0)) + chrome, maxH)
@@ -273,6 +274,16 @@ function ISBUPanelWindow:createChildren()
         if b then b:setVisible(false) end
     end
     UI.closeBox(self, P)
+    -- The box's name is changed from a small button at the title bar's right end, not a row of its own.
+    local titleH = UI.dp(self:titleBarHeight())
+    local renameText = getText("IGUI_BU_Rename")
+    local renameW = UI.textWidth(renameText) + 16
+    self.renameButton = PZUIButton:new(UI.dp(self.width) - renameW - 3, 2, renameW, titleH - 4, renameText, P, self,
+        ISBUPanelWindow.onRename)
+    self.renameButton:initialise()
+    self.renameButton:setAnchorLeft(false)
+    self.renameButton:setAnchorRight(true)
+    self:addChild(self.renameButton)
     local th, rh = self:titleBarHeight(), self:resizeWidgetHeight()
     local body = ISBUBody:new(0, UI.dp(th), UI.dp(self.width), UI.dp(self.height - th - rh), self)
     body:initialise()
@@ -292,13 +303,12 @@ function ISBUPanelWindow:createChildren()
     end
     self.statusY = top
     self.loadY = top + FONT_HGT_SMALL + 6
-    self.bannerY = self.loadY + PanelWindow.LOAD_H + 4
-    local buttonsY = self.bannerY + ROW + 4
-    self.renameButton = button(self, PAD, buttonsY, 100, ROW, ISBUPanelWindow.onRename)
-    titled(self.renameButton, getText("IGUI_BU_Rename"))
-    self.mainButton = button(self, PAD + 106, buttonsY, 170, ROW, ISBUPanelWindow.onMainPanel)
-    self.upgradeButton = button(self, PAD + 282, buttonsY, 160, ROW, ISBUPanelWindow.onUpgrade)
-    local tabsY = buttonsY + ROW + PAD
+    -- Under the load's card, a row while it has something: the buttons to take supply from another box and to
+    -- upgrade, and the banner beside them (placeRows); the tabs right under the card without it.
+    self.actionY = self.loadY + PanelWindow.LOAD_H + 6
+    self.mainButton = button(self, PAD, self.actionY, 170, ROW, ISBUPanelWindow.onMainPanel)
+    self.upgradeButton = button(self, PAD + 176, self.actionY, 160, ROW, ISBUPanelWindow.onUpgrade)
+    local tabsY = self.actionY + ROW + PAD
     local listW = bw
     local height = body:getHeight() - tabsY
     -- The list and the plan are placed by layoutPanes, not by anchors: across, only their heights follow the window.
@@ -308,11 +318,13 @@ function ISBUPanelWindow:createChildren()
     self.tabs:setAnchorBottom(true)
     body:addChild(self.tabs)
     self.lists = {}
-    -- A tab for each utility that is on (BU.enabled), and the log; the window opens anew when that changes (refresh).
+    -- A tab for each utility that is on (BU.enabled), the batteries' (batteriesShown) and the log; the window opens anew
+    -- when that changes (refresh).
     self.utilities = BU.utilities()
-    self.utilitiesKey = table.concat(self.utilities, ",")
+    self.utilitiesKey = viewsKey(self.panel)
     local views = {}
     for _, utility in ipairs(self.utilities) do views[#views + 1] = utility end
+    if batteriesShown(self.panel) then views[#views + 1] = BATTERIES end
     views[#views + 1] = LOG
     for _, view in ipairs(views) do
         local list = ISBUPanelList:new(0, 0, listW, height - self.tabs.tabHeight, self, view)
@@ -322,13 +334,7 @@ function ISBUPanelWindow:createChildren()
         UI.rowHeight(list, ROW)
         self.lists[view] = list
     end
-    -- View options on the tab strip, at the right end of the list.
-    local optionH = self.tabs.tabHeight - 4
-    self.activeButton = button(self, 0, tabsY + 2, OPTION_W, optionH, ISBUPanelWindow.onActiveOnly)
-    titled(self.activeButton, getText("IGUI_BU_ActiveOnly"))
-    self.loadSortButton = button(self, 0, tabsY + 2, OPTION_W, optionH, ISBUPanelWindow.onByLoad)
-    titled(self.loadSortButton, getText("IGUI_BU_ByLoad"))
-    -- The search, between the tabs and the options: the game's entry box (placed from design units), in the palette.
+    -- The search, from the tabs to the strip's end: the game's entry box (placed from design units), in the palette.
     self.search = ISTextEntryBox:new("", 0, 0, 100, 20)
     self.search:initialise()
     self.search:instantiate()
@@ -338,7 +344,7 @@ function ISBUPanelWindow:createChildren()
     self.search.backgroundColor = { r = P.inset[1], g = P.inset[2], b = P.inset[3], a = 1 }
     self.search.borderColor = { r = P.border[1], g = P.border[2], b = P.border[3], a = 1 }
     body:addChild(self.search)
-    UI.place(self.search, 0, tabsY + 3, 100, optionH - 2)
+    UI.place(self.search, 0, tabsY + 3, 100, self.tabs.tabHeight - 6)
     self.searchHint = getText("IGUI_BU_Search")
     -- Over the status line: both utilities in full, as a tooltip.
     self.statusArea = ISBUTipArea:new(PAD, self.statusY, bw - PAD * 2, FONT_HGT_SMALL)
@@ -364,7 +370,6 @@ function ISBUPanelWindow:createChildren()
     self.plan:initialise()
     self.plan:setAnchorBottom(true)
     body:addChild(self.plan)
-    self.plan:setVisible(self.planWanted)
     self:layoutPanes()
     if PanelWindow.lastTab then self.tabs:activateView(PanelWindow.lastTab) end
     self:refresh()
@@ -372,24 +377,20 @@ end
 
 -- The body's width (design units): the window's, which the body spans. Read off the window: the body follows a
 -- width set in code only a frame later (its anchor), and the panes laid out meanwhile took the old one (seen in game:
--- the list as wide as with the plan after the plan was hidden).
+-- the list as wide as before the window was widened).
 function ISBUPanelWindow:bodyWidth() return UI.dp(self:getWidth()) end
 
 -- The left column (the boxes' tabs, the status line, the load's card, the buttons, the list) and, beside it, the plan
--- from the body's top with its share of the window, each at least so wide; the divider between them, or with the plan
--- folded at the window's right edge (design units, across the body).
+-- from the body's top with its share of the window, each at least so wide, the divider between them (design units,
+-- across the body).
 function ISBUPanelWindow:layoutPanes()
     if not (self.tabs and self.plan) then return end
-    local shown = self.plan:getIsVisible()
     local bw = self:bodyWidth()
-    local listW = bw - PAD
-    if shown then
-        local planW = math.floor((bw - PAD) * PanelWindow.planShare)
-        planW = math.max(MIN_PLAN, math.min(planW, bw - PAD - MIN_LIST))
-        listW = bw - PAD - planW
-        self.plan:setX(listW + PAD)
-        if self.plan:getWidth() ~= planW then self.plan:setWidth(planW) end
-    end
+    local planW = math.floor((bw - PAD) * PanelWindow.planShare)
+    planW = math.max(MIN_PLAN, math.min(planW, bw - PAD - MIN_LIST))
+    local listW = bw - PAD - planW
+    self.plan:setX(listW + PAD)
+    if self.plan:getWidth() ~= planW then self.plan:setWidth(planW) end
     self.listW = listW
     self.splitter:setX(listW)
     self.statusArea:setWidth(listW - PAD * 2)
@@ -441,8 +442,9 @@ function ISBUPanelWindow:switchTo(target)
     if target.id == self.panel.id then return end
     local x, y, w, h = self:getX(), self:getY(), self:getWidth(), self:getHeight()
     local anchor = self.anchor
+    self.still = true
     self:close()
-    local window = PanelWindow.open(self.playerObj, target, anchor)
+    local window = PanelWindow.open(self.playerObj, target, anchor, true)
     window:setX(x)
     window:setY(y)
     window:setWidth(math.max(w, window.minimumWidth))
@@ -463,62 +465,52 @@ function ISBUPanelWindow:dragDivider(x)
     self:layoutPanes()
 end
 
+-- The row under the load's card: its buttons shown left to right and the banner after them to the list's end; the
+-- tabs right under the card while the row has nothing (laid out again only when that changes).
+function ISBUPanelWindow:placeRows()
+    local x = PAD
+    for _, shown in ipairs({ self.mainButton, self.upgradeButton }) do
+        if shown:getIsVisible() then
+            shown:setX(x)
+            x = x + shown:getWidth() + 6
+        end
+    end
+    self.bannerX = x
+    local row = self.banner ~= nil or x > PAD
+    local tabsY = row and self.actionY + ROW + PAD or self.actionY
+    if tabsY == self.tabsY then return end
+    self.tabsY = tabsY
+    self.tabs:setY(tabsY)
+    self.tabs:resize(self.tabs:getWidth(), self.body:getHeight() - tabsY)
+    self:placeOptions()
+end
+
+-- The search between the tabs and the strip's end, while there is room for it.
 function ISBUPanelWindow:placeOptions()
-    local right = self.tabs:getX() + self.tabs:getWidth() - PAD
-    local sortW, activeW = self.loadSortButton:getWidth(), self.activeButton:getWidth()
-    self.loadSortButton:setX(right - sortW)
-    self.activeButton:setX(right - sortW - 4 - activeW)
-    if self.search then
-        local x = self.tabs:getX() + self.tabs:getWidthOfAllTabs() + PAD
-        local w = right - sortW - 4 - activeW - PAD - x
-        UI.place(self.search, x, self.tabsY + 3, math.max(10, w), self.tabs.tabHeight - 6)
-        self.search:setVisible(w >= 60)
-    end
-    self.activeButton:setStyle(PanelWindow.options.activeOnly and "strong" or "normal")
-    self.loadSortButton:setStyle(PanelWindow.options.byLoad and "strong" or "normal")
+    if not self.search then return end
+    local x = self.tabs:getX() + self.tabs:getWidthOfAllTabs() + PAD
+    local w = self.tabs:getX() + self.tabs:getWidth() - PAD - x
+    UI.place(self.search, x, self.tabsY + 3, math.max(10, w), self.tabs.tabHeight - 6)
+    self.search:setVisible(w >= 60)
 end
 
--- The plan beside the list, or not: the window grows or shrinks by it and the list keeps its width. A frame later
--- the game moves the window's anchored children (its title bar's buttons, the resize grips, the status line) by the
--- difference and calls onResize, which lays the panes out again as here: what layoutPanes places has no anchor across.
-function ISBUPanelWindow:setPlanShown(shown)
-    PanelWindow.planShown = shown
-    if self.plan:getIsVisible() == shown then return end
-    -- the list keeps its width; alone, it is at least as wide as a new window's (the plan takes all it can, so the
-    -- list beside it is often at its least)
-    local listW = self.tabs:getWidth()
-    if not shown then listW = math.max(listW, LIST_W) end
-    self.plan:setVisible(shown)
-    local maxW = screenRoom()
-    self.minimumWidth = math.min(UI.px(minimumWidth(shown)), maxW)
-    self:setWidth(math.max(self.minimumWidth, math.min(UI.px(windowWidth(listW, shown)), maxW)))
-    self:layoutPanes()
-    if shown then
-        local overflow = self:getX() + self.width - getCore():getScreenWidth()
-        if overflow > 0 then self:setX(math.max(0, self:getX() - overflow)) end
-        self:updatePlan()
-    else
-        self:outlineDevice(nil)
-    end
-end
-
+-- The view options, on the list's first header (PanelList's optionButtons).
 function ISBUPanelWindow:onActiveOnly()
     PanelWindow.options.activeOnly = not PanelWindow.options.activeOnly
-    self:placeOptions()
     self:redraw()
 end
 
 function ISBUPanelWindow:onByLoad()
     PanelWindow.options.byLoad = not PanelWindow.options.byLoad
-    self:placeOptions()
     self:redraw()
 end
 
--- The utility the list shows now: the plan follows it (the first tab's while the log is shown; nil with both off).
+-- The utility the list shows now: the plan follows it (the first tab's while the log or the batteries are shown; nil
+-- with both off).
 function ISBUPanelWindow:activeUtility()
     local view = self.tabs and self.tabs.activeView and self.tabs.activeView.view
     local utility = view and view.utility
-    if utility == nil or utility == LOG then return self.utilities and self.utilities[1] end
+    if utility == nil or utility == LOG or utility == BATTERIES then return self.utilities and self.utilities[1] end
     return utility
 end
 
@@ -561,7 +553,7 @@ function ISBUPanelWindow:prerender()
     end
     -- A tab opened that the last refresh left: its rows, before the plan shows its devices.
     if self.pending[self:activeUtility()] then self:refill(self:activeUtility()) end
-    if self.plan and self.plan:getIsVisible() and self.planUtility ~= self:activeUtility() then self:updatePlan() end
+    if self.plan and self.planUtility ~= self:activeUtility() then self:updatePlan() end
     if self.statusUtility ~= self:activeUtility() then self:updateStatus() end
     -- The range is outlined a slice a frame: here, as update runs only a few times a second.
     if self.rangeJob then self:stepRange() end
@@ -637,9 +629,10 @@ function ISBUPanelWindow:measureLoad(panel, power)
     self:placeLever(width)
 end
 
--- The top's card: across the left column, its parts inside it: the percent and the bar with its
--- text from the left, the lever at its right end and the breaker's gauge beside the lever; the area of the load's
--- tooltip over the left part. Placed again as the left column's width changes (layoutPanes).
+-- The top's card: across the left column, its parts inside it: the percent and the bar with its text from the left,
+-- the lever at its right end and the breaker's gauge beside the lever; the bar reaches to the gauge's place (at least
+-- BAR_W); the area of the load's tooltip over the left part. Placed again as the left column's width changes
+-- (layoutPanes).
 function ISBUPanelWindow:placeLever(textW)
     self.loadTextW = textW
     local bigW = UI.textWidth("000", UIFont.Large) + UI.textWidth("%") + 4
@@ -648,9 +641,11 @@ function ISBUPanelWindow:placeLever(textW)
     local cardW = math.max((self.listW or self:bodyWidth()) - PAD * 2, inner * 3 + bigW + BAR_W + PanelWindow.LEVER_W)
     self.cardW = cardW
     local leverX = PAD + cardW - inner - PanelWindow.LEVER_W
+    local gaugeX = leverX - 6 - PanelWindow.GAUGE_W - 4
     self.lever:setX(leverX)
-    self.gauge:setX(leverX - 6 - PanelWindow.GAUGE_W - 4)
-    self.loadArea:setWidth(inner + bigW + 8 + math.max(BAR_W, textW))
+    self.gauge:setX(gaugeX)
+    self.barW = math.max(BAR_W, gaugeX - 10 - (PAD + inner + bigW + 8))
+    self.loadArea:setWidth(inner + bigW + 8 + math.max(self.barW, textW))
 end
 
 -- How much of the bar the load fills now (0 to 1: BAR_MOST of the limit fills it).
@@ -693,14 +688,15 @@ function ISBUPanelWindow:drawBody(body)
         local shown = self.loadShown or target
         shown = math.abs(shown - target) > 0.002 and approach(shown, target, ms, ISBUPanelWindow.LOAD_TAU) or target
         self.loadShown = shown
-        local filled = math.floor(BAR_W * shown)
-        UI.fill(body, x, barY, BAR_W, barH, P.inset)
+        local barW = self.barW or BAR_W
+        local filled = math.floor(barW * shown)
+        UI.fill(body, x, barY, barW, barH, P.inset)
         if filled > 0 then
             UI.fill(body, x, barY, filled, barH, colour, 0.9)
             UI.fill(body, x, barY, filled, 1, P.bright, 0.25)
         end
-        UI.frame(body, x, barY, BAR_W, barH, P.border)
-        UI.fill(body, x + math.floor(BAR_W / PanelWindow.BAR_MOST), barY - 2, 1, barH + 4, P.bright, 0.85)
+        UI.frame(body, x, barY, barW, barH, P.border)
+        UI.fill(body, x + math.floor(barW / PanelWindow.BAR_MOST), barY - 2, 1, barH + 4, P.bright, 0.85)
         -- the load and the limit, and what the limit is made of
         local textY = barY + barH + 3
         for _, part in ipairs(self.loadParts) do UI.text(body, part[1], x + part.x, textY, part[2]) end
@@ -720,10 +716,11 @@ function ISBUPanelWindow:drawBody(body)
     if banner then
         local a = 0.85
         if banner.pulse then a = 0.7 + 0.2 * (0.5 + 0.5 * math.sin(now / 260)) end
-        local c = banner.colour
-        UI.fill(body, PAD, self.bannerY, (self.listW or body.width) - PAD * 2, ROW, c, a)
-        UI.fill(body, PAD, self.bannerY, 3, ROW, P.bright, 0.8)
-        UI.text(body, banner.text, PAD * 2, self.bannerY + (ROW - FONT_HGT_SMALL) / 2, P.bright)
+        local c, x = banner.colour, self.bannerX or PAD
+        local w = (self.listW or body.width) - PAD - x
+        UI.fill(body, x, self.actionY, w, ROW, c, a)
+        UI.fill(body, x, self.actionY, 3, ROW, P.bright, 0.8)
+        UI.text(body, UI.fitMemo(banner.text, w - PAD * 2), x + PAD, self.actionY + (ROW - FONT_HGT_SMALL) / 2, P.bright)
     end
 end
 
@@ -770,7 +767,24 @@ function ISBUPanelWindow:update()
         return
     end
     local now = getTimestampMs()
-    if self.changedAt and now - self.changedAt >= SETTLE_MS or now - (self.refreshedAt or 0) > REFRESH_MS then self:refresh() end
+    if self.changedAt and now - self.changedAt >= SETTLE_MS or now - (self.refreshedAt or 0) > Ui.FULL_MS then
+        self:refresh()
+    elseif now - (self.tickedAt or 0) > REFRESH_MS then
+        self:tick()
+    end
+end
+
+-- Between full refreshes: the load's card and the status line read again from the networks' states, the rows and
+-- the plan left as they are (what changes them is told, BU.onChanged).
+function ISBUPanelWindow:tick()
+    self.tickedAt = getTimestampMs()
+    local panel = Store.get(self.panel.id)
+    if not panel then return end
+    local power, water = Networks.state(panel, "power"), Networks.state(panel, "water")
+    self.states = { power = power, water = water }
+    self:measureLoad(panel, power)
+    if self.load and math.abs((self.loadShown or 0) - self:loadShare()) > 0.002 then UI.live(self.body, bodyFrame) end
+    self:updateStatus()
 end
 
 -- How far the player is from the nearest of the box it was opened at and the boxes of its supply tree: the larger of
@@ -807,22 +821,27 @@ function ISBUPanelWindow:close()
     self:showRange(false)
     self:outlineDevice(nil)
     open[self.panel.id] = nil
-    self:setVisible(false)
-    self:removeFromUIManager()
+    -- It fades out (UI.fadeOut), but when another takes its place at once.
+    if self.still then
+        self:setVisible(false)
+        self:removeFromUIManager()
+    else
+        UI.fadeOut(self)
+    end
 end
 
 -- What the panel and its networks are now, as rows, and the plan. The tab shown is filled now (and power's, which
 -- the load bar's tooltip tells), the other as it opens.
 function ISBUPanelWindow:refresh()
-    self.refreshedAt, self.changedAt = getTimestampMs(), nil
+    self.refreshedAt, self.tickedAt, self.changedAt = getTimestampMs(), getTimestampMs(), nil
     -- On a client in multiplayer the data is received anew: the panel by its id.
     local panel = Store.get(self.panel.id)
     if not panel then return end
     self.panel = panel
-    -- A utility turned on or off in the sandbox, or a box joined or left the supply tree: the window opens anew where
-    -- it is, with its tabs (reopen).
+    -- A utility turned on or off in the sandbox, the first rack wired or the last taken away, or a box joined or left
+    -- the supply tree: the window opens anew where it is, with its tabs (reopen).
     local tree = PanelWindow.tree(panel)
-    if table.concat(BU.utilities(), ",") ~= self.utilitiesKey or treeKey(tree) ~= self.treeKey then
+    if viewsKey(panel) ~= self.utilitiesKey or treeKey(tree) ~= self.treeKey then
         self:reopen()
         return
     end
@@ -869,14 +888,7 @@ function ISBUPanelWindow:refresh()
         self.upgradeButton:setTooltip(Panels.upgradeNote(tier + 1, true) .. "\n" .. Costs.describe(self.playerObj, cost, true))
         self.upgradeButton:setEnable(Costs.affords(self.playerObj, cost))
     end
-    -- The buttons shown, left to right.
-    local x = PAD
-    for _, shown in ipairs({ self.renameButton, self.mainButton, self.upgradeButton }) do
-        if shown:getIsVisible() then
-            shown:setX(x)
-            x = x + shown:getWidth() + 6
-        end
-    end
+    self:placeRows()
     local building = Panels.building(panel)
     self.building = building
     self.rooms = Panels.rooms(building)
@@ -888,6 +900,7 @@ function ISBUPanelWindow:refresh()
         else self.pending[utility] = { state = self.states[utility] } end
     end
     self:fillLog()
+    if self.lists[BATTERIES] then self:fillBatteries() end
     -- How water reaches the floors with fixtures, from the rows just filled: the status line and the plan both tell.
     self.waterSupply = self:workOutWaterSupply()
     self:updateStatus()
@@ -903,8 +916,9 @@ function ISBUPanelWindow:reopen()
         text = self.search:getText(), query = self.query, roomFilter = self.roomFilter, zoneEditing = self.zoneEditing,
         range = self.rangeShown,
         floor = self.plan.floor, zoom = self.plan.zoom, panX = self.plan.panX, panY = self.plan.panY }
+    self.still = true
     self:close()
-    local window = PanelWindow.open(self.playerObj, self.panel, self.anchor)
+    local window = PanelWindow.open(self.playerObj, self.panel, self.anchor, true)
     window:setX(kept.x)
     window:setY(kept.y)
     window:setWidth(math.max(kept.w, window.minimumWidth))
@@ -1080,7 +1094,8 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
     self.views[utility] = view
     local parent = Store.get(panel.parent)
     if parent then
-        add({ kind = "link", header = true, text = getText("IGUI_BU_SuppliedBy", Panels.name(parent)), target = parent.id },
+        add({ kind = "link", header = true, text = getText("IGUI_BU_SuppliedBy", Panels.name(parent)), target = parent.id,
+            options = true },
             getText("IGUI_BU_OpenTip"))
         -- What is wired through it on to its main panel, which lists them.
         local root, routed = Panels.root(panel), 0
@@ -1097,14 +1112,12 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
     else
         -- Water groups first: the tanks' and fixtures' rows name theirs (with more than one).
         if utility == "water" then self:waterGroupRows(add, state, devices) end
-        add({ kind = "header", text = getText("IGUI_BU_Producers") })
+        add({ kind = "header", text = getText("IGUI_BU_Producers"), options = true })
         local producers = panel[utility].producers
         local source = utility == "power" and Energy.hasSource(panel)
         if #producers == 0 and not source then add({ kind = "note", text = getText("IGUI_BU_NoProducers_" .. utility) }) end
         if source then
-            local rows = self:sourceRows(state)
-            view.sourceText = rows[1] and rows[1].row.text
-            for _, entry in ipairs(rows) do add(entry.row, entry.tooltip) end
+            for _, entry in ipairs(self:sourceRows(state)) do add(entry.row, entry.tooltip) end
         end
         for index, at in ipairs(producers) do
             local seen = PanelWindow.seenProducer(state, at)
@@ -1171,9 +1184,17 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
     -- Rooms by their id (rooms of one name stay apart), devices in no room after them, then those outside.
     local options = PanelWindow.options
     local groups, order = {}, {}
+    self.displayNames = self.displayNames or {}
+    local names = self.displayNames
     for _, device in ipairs(devices) do
         local entry = device.entry
-        local name = BU.displayName(entry.x, entry.y, entry.z, entry.sprite)
+        -- its name looked up once a window (a square's objects searched, a translation read)
+        local base = names[device.key]
+        if not base then
+            base = BU.displayName(entry.x, entry.y, entry.z, entry.sprite)
+            names[device.key] = base
+        end
+        local name = base
         if not device.inside then
             name = name .. "  (" .. Panels.where(panel, entry.x, entry.y) .. ")"
         elseif device.attached then
@@ -1365,6 +1386,22 @@ function ISBUPanelWindow:fillLog()
     list:setYScroll(scroll)
 end
 
+-- The battery tab: each rack wired to the box (its name, how many it holds and its charge) over its batteries, the
+-- columns named once at the top; each battery as in the rack's own window (RackWindow.drawBattery).
+function ISBUPanelWindow:fillBatteries()
+    local list = self.lists[BATTERIES]
+    local scroll = list:getYScroll()
+    list:clear()
+    list:addItem("", { kind = "columns" })
+    for _, unit in ipairs(Store.unitList("rack", self.panel.id)) do
+        local view = BU.RackWindow.measure(unit)
+        local text = getText("IGUI_BU_RackTitle", BU.Units.name(unit), #view.batteries, BU.Rack.SIZE)
+        list:addItem("", { kind = "header", text = text, right = BU.percent(view.charge * 100) })
+        for _, battery in ipairs(view.batteries) do list:addItem("", { kind = "battery", battery = battery }) end
+    end
+    list:setYScroll(scroll)
+end
+
 function ISBUPanelWindow:allInside(devices)
     for _, device in ipairs(devices) do
         if device.inside and device.state ~= "on" then return false end
@@ -1385,6 +1422,14 @@ end
 -- A click on a row: free changes as commands; lines laid or taken away by walking there.
 function ISBUPanelWindow:onRow(utility, row, x, width)
     local panel, playerObj = self.panel, self.playerObj
+    if row.options then
+        for _, button in ipairs(Ui.optionButtons(width, row)) do
+            if x >= button.x and x < button.x + button.w then
+                if button.name == "ActiveOnly" then self:onActiveOnly() else self:onByLoad() end
+                return
+            end
+        end
+    end
     if row.kind == "source" then
         for _, button in ipairs(Ui.sourceButtons(width, row)) do
             if x >= button.x and x <= button.x + button.w then
@@ -1452,16 +1497,13 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
 end
 
 function ISBUPanelWindow:onRename()
-    -- Empty unless the player named it: confirming the automatic name must not fix it.
-    local box = ISTextBox:new(self:getAbsoluteX() + (self.width - 280) / 2, self:getAbsoluteY() + 40, 280, 180,
-        getText("IGUI_BU_RenamePrompt"), self.panel.name or "", self, ISBUPanelWindow.onRenamed, self.playerObj:getPlayerNum())
-    box:initialise()
-    box:addToUIManager()
+    -- Empty unless the player named it: confirming the automatic name must not fix it. The kit's prompt, over the
+    -- window.
+    UI.prompt(self.playerObj, getText("IGUI_BU_RenamePrompt"), self.panel.name or "", self, ISBUPanelWindow.onRenamed, self)
 end
 
-function ISBUPanelWindow:onRenamed(button)
-    if button.internal ~= "OK" then return end
-    Sync.send(self.playerObj, "rename", { panel = self.panel.id, name = button.parent.entry:getText() })
+function ISBUPanelWindow:onRenamed(name)
+    Sync.send(self.playerObj, "rename", { panel = self.panel.id, name = name })
 end
 
 -- The lever thrown the other way, at once, as a device's tick in the window is.
@@ -1517,8 +1559,9 @@ end
 -- How far from the box it was opened at, in tiles (a floor up or down counting as TILES_PER_FLOOR), a window stays open.
 PanelWindow.CLOSE_RANGE, PanelWindow.TILES_PER_FLOOR = 12, 3
 
--- A box's window, opened at a box (anchor, { x, y, z }: the panel's own when not given).
-function PanelWindow.open(playerObj, panel, anchor)
+-- A box's window, opened at a box (anchor, { x, y, z }: the panel's own when not given); it fades in (UI.fadeIn)
+-- unless `still` (one window put in another's place).
+function PanelWindow.open(playerObj, panel, anchor, still)
     local window = open[panel.id]
     if window then
         if anchor or not window.anchor then window.anchor = anchor or { x = panel.x, y = panel.y, z = panel.z } end
@@ -1532,6 +1575,7 @@ function PanelWindow.open(playerObj, panel, anchor)
     window:initialise()
     window:addToUIManager()
     window:setVisible(true)
+    if not still then UI.fadeIn(window) end
     open[panel.id] = window
     return window
 end

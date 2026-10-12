@@ -41,10 +41,8 @@ say("not loaded (far away) noise", Panels.generatorNoise(1, 1, 0, true))
 
 -- Connected to the test panel: the range shows its noise.
 Changes.connectProducer(panel, "power", outside:getX(), outside:getY(), 0, true)
-PanelWindow.planShown = true
 PanelWindow.open(getPlayer(), panel)
 local window = PanelWindow.get(panel.id)
-window:setPlanShown(true)
 -- The whole plan, as the edges counted are those on the map.
 window.plan.zoom, window.plan.panX, window.plan.panY = nil, nil, nil
 if window:activeUtility() ~= "power" then window.tabs:activateView(getText("IGUI_BU_Tab_power")) end

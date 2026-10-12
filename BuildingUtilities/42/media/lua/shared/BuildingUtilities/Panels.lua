@@ -354,9 +354,9 @@ function Panels.powerLine(panel, state)
     return pieces, pieces * BU.lossPerPiece(panel.tier)
 end
 
--- How far a box of a tier reaches, for the player: producers, outside devices, sub-panels.
+-- How far a box of a tier reaches, for the player: devices outside and producers, sub-panels.
 function Panels.rangesText(tier)
-    local text = getText("IGUI_BU_Ranges", BU.producerRange(tier), BU.exteriorRange(tier), BU.subPanelRange(tier))
+    local text = getText("IGUI_BU_Ranges", BU.connectRange(tier), BU.subPanelRange(tier))
     local floors = BU.floorReach(tier)
     if floors then text = text .. " " .. getText("IGUI_BU_FloorReach", floors) end
     return text
@@ -481,7 +481,7 @@ function Panels.routeWire(panel, x, y, z, via)
     return Panels.wire(panel, x, y, z)
 end
 
--- The lowest tier whose range (BU.producerRange and the like) reaches so many squares; nil when none does.
+-- The lowest tier whose range (BU.connectRange and the like) reaches so many squares; nil when none does.
 function Panels.tierReaching(range, steps)
     for tier = 1, BU.TIERS do
         if steps <= range(tier) then return tier end
@@ -490,17 +490,19 @@ function Panels.tierReaching(range, steps)
 end
 
 -- The panels a producer square could be connected to: on a level of their building or on the ground, within the
--- producer range of the top tier from its outline. Each with its distance, its line's length (Panels.wire) and the
--- tier that reaches it; the shortest line first. A sub-panel takes the line on to its main panel (Panels.root), whose
--- producer it is: a producer near a sub-panel, up a tall building or by another building, needs no line of its own
--- all the way to the main box.
+-- connect range of the top tier from its outline on the square's own level, as a device outside is reached (the whole
+-- outline where that level has no rooms, as on a roof). Each with its distance, its line's length (Panels.wire) and
+-- the tier that reaches it; the shortest line first. A sub-panel takes the line on to its main panel (Panels.root),
+-- whose producer it is: a producer near a sub-panel, up a tall building or by another building, needs no line of its
+-- own all the way to the main box.
 function Panels.producerCandidates(x, y, z)
     local result = {}
     for _, panel in ipairs(Store.list()) do
         local building = Panels.building(panel)
         if building and (z == 0 or z >= building.minLevel and z <= building.maxLevel) then
-            local steps = Geometry.toBuilding(x, y, Panels.rooms(building))
-            local tier = steps and Panels.tierReaching(BU.producerRange, steps)
+            local rooms = Panels.rooms(building)
+            local steps = Geometry.toLevel(x, y, z, rooms) or Geometry.toBuilding(x, y, rooms)
+            local tier = steps and Panels.tierReaching(BU.connectRange, steps)
             if tier then
                 result[#result + 1] = { panel = panel, steps = steps, building = building, tier = tier,
                     inRange = tier <= (panel.tier or 1), wire = steps + math.abs(z - panel.z) * BU.tilesPerFloor() }
@@ -603,7 +605,7 @@ function Panels.devices(panel, utility)
     -- The devices of built-on rooms are the API's attachedObjects, each with its space's host as its room. The API
     -- lists them among those outside too: the others are sought within the range of the outline with the rooms, as far
     -- as the rooms reach past the map's rooms the API counts from.
-    local reach = BU.exteriorRange(panel.tier)
+    local reach = BU.connectRange(panel.tier)
     local spaces = Panels.attached(building)
     local extent = 0
     for _, space in ipairs(spaces or {}) do extent = math.max(extent, space.extent) end
@@ -807,7 +809,7 @@ local function devicePanels(x, y, z)
     for _, panel in ipairs(Store.list()) do
         local own = Panels.building(panel)
         local steps = own and Geometry.toBuilding(x, y, Panels.rooms(own))
-        if own and (building and own.key == building.key or steps and steps <= BU.exteriorRange(panel.tier)) then
+        if own and (building and own.key == building.key or steps and steps <= BU.connectRange(panel.tier)) then
             result[#result + 1] = panel
         end
     end

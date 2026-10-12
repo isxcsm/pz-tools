@@ -91,7 +91,7 @@ look; `BU22_CLEAN()` takes them away.
   `BUREVIVE_DONE=true` then running it again puts the level back.
 - `bu_reload.lua`: loads changed mod files (`BU_RELOAD`, paths under `media/lua`) again in the running game, from the
   active mod's folder or `BU_LUA_DIR`.
-- The rest look at one thing: `bu_diag` (the save's store), `bu_net` (the test panel's power network), `bu_rackdiag`
-  (each rack's container and records), `bu_flowdiag` (the open plan's flow paths).
+- The rest look at one thing: `bu_diag` (the save's store), `bu_net` (the test panel's power network) and `bu_rackdiag`
+  (each rack's container and records).
 
 Files read with `getFileReader` lose non-ASCII letters: take Korean strings from `getText`.

@@ -85,8 +85,7 @@ function ISBUPanelWindow:sourceRows(state)
                 tooltip = tooltip .. " " .. getText("IGUI_BU_BankWeakTip", Energy.WEAK, BU.percent(Energy.WEAK_PER_DAY * 100))
             end
             if Energy.coldLockEnabled() then tooltip = tooltip .. " " .. getText("IGUI_BU_BankColdTip") end
-            tooltip = tooltip .. " " .. getText("IGUI_BU_BankEmptyTip") .. " <LINE> "
-            for _, battery in ipairs(bank.batteries) do tooltip = tooltip .. " <LINE> " .. BU.Rack.batteryText(battery) end
+            tooltip = tooltip .. " " .. getText("IGUI_BU_BankEmptyTip")
         else
             text = getText("IGUI_BU_BankEmpty", #racks)
         end

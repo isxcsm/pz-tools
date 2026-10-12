@@ -6,6 +6,7 @@ require "BuildingUtilities/WaterUnits"
 local BU = BuildingUtilities
 local Water, Sync, Units, WaterUnits, Panels = BU.Water, BU.Sync, BU.Units, BU.WaterUnits, BU.Panels
 local Ui = BU.PanelUi
+local UI = Ui.UI
 local PanelWindow = BU.PanelWindow
 
 -- A group's colour, by its place in the panel's list.
@@ -60,21 +61,16 @@ function ISBUPanelWindow:groupMenu(current, choose)
     end
 end
 
--- A name asked for, then sent: a new group's (id nil) or a group's new name.
+-- A name asked for (the kit's prompt, over the window), then sent: a new group's (id nil) or a group's new name.
 function ISBUPanelWindow:askGroupName(id)
     local group = id and Water.group(self.panel, id)
-    local box = ISTextBox:new(self:getAbsoluteX() + (self.width - 280) / 2, self:getAbsoluteY() + 40, 280, 180,
-        getText("IGUI_BU_GroupNamePrompt"), group and group.name or "", self, function(window, button)
-            if button.internal ~= "OK" then return end
-            local name = button.parent.entry:getText()
-            if id then
-                Sync.send(window.playerObj, "renameWaterGroup", { panel = window.panel.id, group = id, name = name })
-            else
-                Sync.send(window.playerObj, "addWaterGroup", { panel = window.panel.id, name = name })
-            end
-        end, self.playerObj:getPlayerNum())
-    box:initialise()
-    box:addToUIManager()
+    UI.prompt(self.playerObj, getText("IGUI_BU_GroupNamePrompt"), group and group.name or "", self, function(window, name)
+        if id then
+            Sync.send(window.playerObj, "renameWaterGroup", { panel = window.panel.id, group = id, name = name })
+        else
+            Sync.send(window.playerObj, "addWaterGroup", { panel = window.panel.id, name = name })
+        end
+    end, self)
 end
 
 -- A group's settings in a menu: how full its tanks stay for its people (sprinklers stop there), and where its pumps

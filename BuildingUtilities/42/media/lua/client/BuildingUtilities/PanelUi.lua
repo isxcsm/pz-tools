@@ -15,10 +15,14 @@ Ui.UI = UI
 local FONT_HGT_SMALL = 16
 local ROW = FONT_HGT_SMALL + 6
 local PAD = 8
-local REFRESH_MS = 5000
+-- A box's window reads its load and status line again every REFRESH_MS, and everything every FULL_MS; a change told
+-- refreshes it at once (what the box and its networks do is told as it changes).
+local REFRESH_MS, FULL_MS = 5000, 30000
 local BAR_W = 220
 local SCROLLBAR = 16
 local LOG = "log"
+-- The box's battery tab's view (a main box with racks wired to it).
+local BATTERIES = "batteries"
 -- The list's width alone; with the plan, the plan takes its share of the window beside it (at least so wide each).
 local LIST_W, MIN_LIST, MIN_PLAN = 520, 470, 280
 -- The window's height at first, kept clear of the screen's edges; the share of the screen it takes at most.
@@ -40,6 +44,7 @@ local PALETTE = {
     inset = { 0.035, 0.04, 0.05 }, off = { 0.4, 0.42, 0.45 }, tabStrip = { 0.1, 0.12, 0.15 },
     water = { 0.45, 0.72, 1 },
 }
+-- The view options' buttons on a list's first header (PanelList's optionButtons).
 local OPTION_W = 84
 local SEEN = "BuildingUtilitiesSeen"
 local OUTSIDE = "outside"
@@ -130,10 +135,10 @@ end
 Ui.FONT_HGT_SMALL = FONT_HGT_SMALL
 Ui.ROW = ROW
 Ui.PAD = PAD
-Ui.REFRESH_MS = REFRESH_MS
+Ui.REFRESH_MS, Ui.FULL_MS = REFRESH_MS, FULL_MS
 Ui.BAR_W = BAR_W
 Ui.SCROLLBAR = SCROLLBAR
-Ui.LOG = LOG
+Ui.LOG, Ui.BATTERIES = LOG, BATTERIES
 Ui.LIST_W = LIST_W
 Ui.MIN_LIST = MIN_LIST
 Ui.MIN_PLAN = MIN_PLAN

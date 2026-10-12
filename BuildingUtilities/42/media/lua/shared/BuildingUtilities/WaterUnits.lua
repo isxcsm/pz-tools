@@ -148,8 +148,6 @@ Units.define("pump", {
     title = function(unit, text)
         return text .. "  " .. getText(unit.running and "IGUI_BU_PumpRunning" or "IGUI_BU_PumpStopped")
     end,
-    -- What it lifts runs to the box's tanks.
-    flow = function(unit) return unit.running and unit.fluid and 1 or nil end,
 })
 
 local sprinklerSprites = { WaterUnits.SPRINKLER_SPRITES.idle }
@@ -174,7 +172,6 @@ Units.define("sprinkler", {
         if spraying == WaterUnits.isSprayFrame(current) then return end
         Units.setSprite(object, spraying and WaterUnits.SPRINKLER_SPRITES.spraying[1] or WaterUnits.SPRINKLER_SPRITES.idle)
     end,
-    flow = function(unit) return WaterUnits.spraying(unit) and -1 or nil end,
 })
 
 -- How much of its media a filter has left, 0 to 1.

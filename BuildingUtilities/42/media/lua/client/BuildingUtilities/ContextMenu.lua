@@ -1,11 +1,12 @@
--- The world context menu: install a breaker box, and open its window (one line, no submenu: what a box does is in
--- its window); put down solar panels and battery racks (a rack's batteries go in and out in the loot window). A
--- device of the box's building is the box's without a line: switched on or off there at once, as at the box. A device
--- outside, a unit or a producer is wired in and out at itself, with the tool of its utility (Actions.work); the box's
--- window lists it once it is wired. A box and the units are taken up with the game's furniture tool (BU.Moveables).
--- The inventory menu: recondition a battery.
+-- The world context menu: a box's line, which opens its window (no submenu: what a box does is in its window), and a
+-- unit's (a rack's batteries go in and out in the loot window). A device of the box's building is the box's without a
+-- line: switched on or off there at once, as at the box. A device outside, a unit or a producer is wired in and out at
+-- itself, with the tool of its utility (Actions.work); the box's window lists it once it is wired. The mod's options
+-- go to the top of the menu. A box and the units are taken up with the game's furniture tool (BU.Moveables).
+-- The inventory menu: put a box or a unit down (the building cursor, ISBUPlaceCursor), recondition a battery.
 require "ISUI/ISWorldObjectContextMenu"
 require "BuildingUtilities/Actions"
+require "BuildingObjects/ISBuildingObject"
 local BU = BuildingUtilities
 local Store, Panels, Units, Rack, Costs, Actions, Sync = BU.Store, BU.Panels, BU.Units, BU.Rack, BU.Costs, BU.Actions,
     BU.Sync
@@ -31,27 +32,6 @@ local function costed(option, playerObj, cost, note)
     if not Costs.affords(playerObj, cost) then option.notAvailable = true end
 end
 
--- A device's line moved up to its object: right under the options for that object at the top of the menu (another
--- mod's "use" put on top), else on top. A mod whose options come later and go on top still lands above it.
-local function placeByObject(context, option, object)
-    local options = context.options
-    local at, from, leading = 1, nil, true
-    for index, other in ipairs(options) do
-        if other == option then
-            from = index
-        elseif leading and other.target == object then
-            at = index + 1
-        else
-            leading = false
-        end
-    end
-    if not from or from == at then return end
-    table.remove(options, from)
-    if at > from then at = at - 1 end
-    table.insert(options, at, option)
-    for index, other in ipairs(options) do other.id = index end
-end
-
 local function apiMissingText()
     local _, reason = BU.api()
     return getText(reason == "version" and "IGUI_BU_ApiVersion" or "IGUI_BU_ApiMissing")
@@ -65,10 +45,39 @@ local function clickedSquare(worldobjects)
     return nil
 end
 
+-- The objects on the square clicked, and with each object of several tiles (a sprite grid: a large rain collector, a
+-- double fridge, a machine) the objects of its other tiles, each once: a click on any tile of it offers what its one
+-- tile with the container, the power or the box's record would.
 local function squareObjects(square)
-    local result = {}
+    local result, seen = {}, {}
+    local function add(object)
+        if seen[object] then return end
+        seen[object] = true
+        result[#result + 1] = object
+    end
     local objects = square:getObjects()
-    for i = 0, objects:size() - 1 do result[#result + 1] = objects:get(i) end
+    for i = 0, objects:size() - 1 do add(objects:get(i)) end
+    local cell, z = getCell(), square:getZ()
+    for index = 1, #result do
+        local object = result[index]
+        local sprite = object:getSprite()
+        local grid = sprite and sprite:getSpriteGrid()
+        if grid then
+            local left = object:getSquare():getX() - grid:getSpriteGridPosX(sprite)
+            local top = object:getSquare():getY() - grid:getSpriteGridPosY(sprite)
+            for gx = 0, grid:getWidth() - 1 do
+                for gy = 0, grid:getHeight() - 1 do
+                    local other = cell:getGridSquare(left + gx, top + gy, z)
+                    local list = other and other ~= square and other:getObjects()
+                    for i = 0, list and list:size() - 1 or -1 do
+                        local part = list:get(i)
+                        local partSprite = part:getSprite()
+                        if partSprite and partSprite:getSpriteGrid() == grid then add(part) end
+                    end
+                end
+            end
+        end
+    end
     return result
 end
 
@@ -125,16 +134,6 @@ local function addPanelOptions(context, playerObj, panel)
     if not BU.api() then unavailable(option, apiMissingText()) end
 end
 
-local function addInstallOption(context, playerObj, square)
-    local item = BU.enabled("panel") and playerObj:getInventory():getFirstTypeRecurse(BU.PANEL_ITEM)
-    if not item then return end
-    local option = context:addOption(getText("ContextMenu_BU_Install"), playerObj, onInstall, square, item)
-    local building, reason = Panels.canInstall(square)
-    if not building then
-        unavailable(option, reason == "noApi" and apiMissingText() or getText("IGUI_BU_Reason_" .. reason))
-    end
-end
-
 -- "Connect to a panel": a line a panel in reach of the top tier (Panels.producerCandidates), each with what its line
 -- costs, or why not; a sub-panel named with the main panel it takes the line on to. A producer's line (kind
 -- "producer") or a unit's ("unit", extra its id). No submenu: there are seldom more than one or two.
@@ -142,7 +141,7 @@ local function addConnectOption(context, playerObj, kind, utility, x, y, z, extr
     local candidates = Panels.producerCandidates(x, y, z)
     if #candidates == 0 then
         local option = context:addOption(getText("ContextMenu_BU_ConnectTo"), nil, nil)
-        unavailable(option, getText("IGUI_BU_NoPanelInRange", BU.producerRange(BU.TIERS)))
+        unavailable(option, getText("IGUI_BU_NoPanelInRange", BU.connectRange(BU.TIERS)))
         return
     end
     for _, candidate in ipairs(candidates) do
@@ -162,8 +161,22 @@ local function addConnectOption(context, playerObj, kind, utility, x, y, z, extr
     end
 end
 
-local function addProducerOptions(context, playerObj, square)
-    local utility = Panels.producerOn(square)
+-- The producer among the objects (Panels.producerOn of their squares), with its square.
+local function producerAmong(objects)
+    local checked = {}
+    for _, object in ipairs(objects) do
+        local square = object:getSquare()
+        if square and not checked[square] then
+            checked[square] = true
+            local utility = Panels.producerOn(square)
+            if utility then return utility, square end
+        end
+    end
+    return nil
+end
+
+local function addProducerOptions(context, playerObj, objects)
+    local utility, square = producerAmong(objects)
     if not utility then return end
     local x, y, z = square:getX(), square:getY(), square:getZ()
     local owner, ownedUtility = Store.producerOwner(x, y, z)
@@ -218,23 +231,10 @@ local function addUnitOptions(context, playerObj, unit)
     local candidates = Units.candidates(unit)
     if #candidates == 0 then
         unavailable(context:addOption(getText("ContextMenu_BU_ConnectTo"), nil, nil),
-            getText("IGUI_BU_NoPanelInRange", BU.producerRange(BU.TIERS)))
+            getText("IGUI_BU_NoPanelInRange", BU.connectRange(BU.TIERS)))
     end
     for _, candidate in ipairs(candidates) do
         addLineConnect(context, playerObj, candidate.panel, "unit", utility, unit.x, unit.y, unit.z, unit.id)
-    end
-end
-
-local function addInstallUnitOptions(context, playerObj, square)
-    for _, kind in ipairs(Units.KINDS) do
-        local item = BU.enabled(kind) and playerObj:getInventory():getFirstTypeRecurse(Units.definition(kind).item)
-        if item then
-            local option = context:addOption(getText("ContextMenu_BU_Install_" .. kind), playerObj, onInstallUnit, kind, square, item)
-            local ok, reason = Units.canInstall(kind, square)
-            if not ok then
-                unavailable(option, reason == "noApi" and apiMissingText() or getText("IGUI_BU_Reason_" .. reason))
-            end
-        end
     end
 end
 
@@ -269,11 +269,11 @@ local function uses(object, utility)
     return object:getProperties() ~= nil and object:getProperties():has(IsoFlagType.waterPiped)
 end
 
--- The square's objects that are devices of a panel, each once: { panel, device, utility }. The panels near the square
+-- The objects that are devices of a panel, each once: { panel, device, utility }. The panels near each object's square
 -- and their devices are found once for the menu (Panels.deviceOf).
-local function squareDevices(square)
+local function squareDevices(objects)
     local result, seen, cache = {}, {}, {}
-    for _, object in ipairs(squareObjects(square)) do
+    for _, object in ipairs(objects) do
         for _, utility in ipairs(BU.UTILITIES) do
             if uses(object, utility) then
                 local panel, device = Panels.deviceOf(object, utility, cache)
@@ -287,24 +287,34 @@ local function squareDevices(square)
     return result
 end
 
-local function addDeviceOptions(context, playerObj, square)
-    for _, found in ipairs(squareDevices(square)) do
-        placeByObject(context, addDeviceOption(context, playerObj, found.utility, found.panel, found.device), found.object)
+local function addDeviceOptions(context, playerObj, objects)
+    for _, found in ipairs(squareDevices(objects)) do
+        addDeviceOption(context, playerObj, found.utility, found.panel, found.device)
     end
 end
 
 -- Whether the menu has an option of this mod for the square, without building it: the controller's test pass.
-local function hasOptions(playerObj, square)
-    for _, object in ipairs(squareObjects(square)) do
+local function hasOptions(objects)
+    for _, object in ipairs(objects) do
         if Panels.ofObject(object) or Units.ofObject(object) then return true end
     end
-    local inventory = playerObj:getInventory()
-    if BU.enabled("panel") and inventory:getFirstTypeRecurse(BU.PANEL_ITEM) then return true end
-    for _, kind in ipairs(Units.KINDS) do
-        if BU.enabled(kind) and inventory:getFirstTypeRecurse(Units.definition(kind).item) then return true end
-    end
     if not BU.api() then return false end
-    return Panels.producerOn(square) ~= nil or #squareDevices(square) > 0
+    return producerAmong(objects) ~= nil or #squareDevices(objects) > 0
+end
+
+-- The options the mod added to the menu (those not in `before`, the options it had), moved to its top in their order:
+-- the game puts its own (take apart, sit, walk here) and other mods' before them, which left the mod's at the bottom.
+local function liftAdded(context, before)
+    local options = context.options
+    local added, others = {}, {}
+    for _, option in ipairs(options) do
+        if before[option] then others[#others + 1] = option else added[#added + 1] = option end
+    end
+    if #added == 0 then return end
+    for index = #options, 1, -1 do options[index] = nil end
+    for _, option in ipairs(added) do options[#options + 1] = option end
+    for _, option in ipairs(others) do options[#options + 1] = option end
+    for index, option in ipairs(options) do option.id = index end
 end
 
 function ContextMenu.fill(player, context, worldobjects, test)
@@ -313,23 +323,88 @@ function ContextMenu.fill(player, context, worldobjects, test)
     local square = clickedSquare(worldobjects)
     if not playerObj or not square then return end
     if test then
-        if hasOptions(playerObj, square) then return ISWorldObjectContextMenu.setTest() end
+        if hasOptions(squareObjects(square)) then return ISWorldObjectContextMenu.setTest() end
         return
     end
-    for _, object in ipairs(squareObjects(square)) do
+    local objects = squareObjects(square)
+    local before = {}
+    for _, option in ipairs(context.options) do before[option] = true end
+    for _, object in ipairs(objects) do
         local panel = Panels.ofObject(object)
         if panel then addPanelOptions(context, playerObj, panel) end
         local unit = Units.ofObject(object)
         if unit then addUnitOptions(context, playerObj, unit) end
     end
-    addInstallOption(context, playerObj, square)
-    addInstallUnitOptions(context, playerObj, square)
-    if not BU.api() then return end
-    addProducerOptions(context, playerObj, square)
-    addDeviceOptions(context, playerObj, square)
+    if BU.api() then
+        addProducerOptions(context, playerObj, objects)
+        addDeviceOptions(context, playerObj, objects)
+    end
+    liftAdded(context, before)
 end
 
 Events.OnFillWorldObjectContextMenu.Add(ContextMenu.fill)
+
+-- Putting a box or a unit down from the inventory: the game's building cursor (ISBuildingObject) shows its sprite at
+-- the square under the mouse, facing as it would be put there, red where it cannot go; a click walks there and puts it
+-- down (the actions the world's menu queues), and the cursor goes.
+ISBUPlaceCursor = ISBuildingObject:derive("ISBUPlaceCursor")
+
+function ISBUPlaceCursor:new(player, kind, item)
+    local o = ISBuildingObject.new(self)
+    o:init()
+    o.player, o.kind, o.item = player, kind, item
+    o.skipBuildAction = true
+    o:setDragNilAfterPlace(true)
+    o:face(getSpecificPlayer(player):getCurrentSquare())
+    return o
+end
+
+-- Its sprite as it would face on a square, the same whichever way the rotate key turns it.
+function ISBUPlaceCursor:face(square)
+    if not square then return end
+    local playerObj = getSpecificPlayer(self.player)
+    local sprite = self.kind == "panel" and BU.panelSpriteFacing(square, playerObj)
+        or Units.spriteFor(self.kind, square, playerObj)
+    self.sprite, self.northSprite = sprite, sprite
+end
+
+-- Whether it can go on a square, worked out once a square.
+function ISBUPlaceCursor:isValid(square)
+    if not square then return false end
+    if square ~= self.checkedSquare then
+        self.checkedSquare = square
+        if self.kind == "panel" then self.valid = Panels.canInstall(square) ~= nil
+        else self.valid = Units.canInstall(self.kind, square) ~= nil end
+    end
+    return self.valid
+end
+
+function ISBUPlaceCursor:render(x, y, z, square)
+    self:face(square)
+    ISBuildingObject.render(self, x, y, z, square)
+end
+
+function ISBUPlaceCursor:tryBuild(x, y, z)
+    local square = getCell():getGridSquare(x, y, z)
+    local playerObj = getSpecificPlayer(self.player)
+    if not square or not playerObj:getInventory():containsRecursive(self.item) then return end
+    if self.kind == "panel" then onInstall(playerObj, square, self.item)
+    else onInstallUnit(playerObj, self.kind, square, self.item) end
+end
+
+-- What an item puts down: "panel" for a box, a unit's kind, or nil; only what is on (BU.enabled).
+local function placedKind(item)
+    local fullType = item:getFullType()
+    if fullType == BU.PANEL_ITEM then return BU.enabled("panel") and "panel" or nil end
+    for _, kind in ipairs(Units.KINDS) do
+        if Units.definition(kind).item == fullType then return BU.enabled(kind) and kind or nil end
+    end
+    return nil
+end
+
+local function onPlace(playerObj, kind, item)
+    getCell():setDrag(ISBUPlaceCursor:new(playerObj:getPlayerNum(), kind, item), playerObj:getPlayerNum())
+end
 
 -- Reconditioning a car battery (Rack.canRevive), from the inventory.
 local function reviveReason(reason)
@@ -349,8 +424,15 @@ function ContextMenu.fillInventory(player, context, items)
     if not playerObj or #items ~= 1 then return end
     local item = items[1]
     if not instanceof(item, "InventoryItem") then item = item.items and item.items[1] end
+    if not item then return end
+    local kind = placedKind(item)
+    if kind then
+        local text = getText(kind == "panel" and "ContextMenu_BU_Install" or "ContextMenu_BU_Install_" .. kind)
+        local option = context:addOptionOnTop(text, playerObj, onPlace, kind, item)
+        if not BU.api() then unavailable(option, apiMissingText()) end
+    end
     if not Rack.isBattery(item) or not BU.enabled("rack") then return end
-    local option = context:addOption(getText("ContextMenu_BU_ReviveBattery"), playerObj, onRevive, item)
+    local option = context:addOptionOnTop(getText("ContextMenu_BU_ReviveBattery"), playerObj, onRevive, item)
     local ok, reason = Rack.canRevive(playerObj, item)
     if ok then
         local left = Rack.REVIVE_TIMES - (item:getModData()[Rack.REVIVED] or 0)

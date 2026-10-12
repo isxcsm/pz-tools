@@ -1,27 +1,22 @@
 -- The floor plan beside a breaker box window: the building's rooms on one floor from above, north up, coloured by
--- what their devices do; the devices as dots, the producers as squares and the box itself. A strip on the left picks
--- the floor, a legend in a box at the bottom tells the colours (its header folds it). It shares hover and clicks with the
--- window's list: a row under the mouse marks its room or dot here and the other way round, a room clicked here shows
--- only that room there, a dot clicked here finds its row, and a right click offers what the row would. Rooms of the
--- building outside the box's zone are dim; the Zone switch at the top shows the zones instead, and a click there
--- takes a room in or out. Devices not connected are hollow; lines run from the building to the producers and the
--- devices outside it is connected to; dashes run along them the way power or water goes now, from the producers in
--- use (or a bank charged from the box) through the building to the box, and out to devices outside. While the
--- window shows the range, the plan does too: an outline where devices outside join (blue) and where producers do
--- (yellow), and on the power plan how far each generator is heard (red, dim while it is off). The supply lines' switch
--- at the top shows them with their dashes, the lines alone, or none (the player's choice, kept between games); without
--- dashes or lines, the mouse over a producer or a device outside shows its line. Supply that crosses floors shows too: on a producer's
--- floor its line runs on to a riser under (or over) the box, which tells the box's floor; by the box, a badge for each
--- other floor that supplies it tells how many come from there (the mouse over it, what); a click on either goes to
--- that floor. The floor strip marks the floors with producers, in their colour. The wheel zooms at the mouse, dragging
--- moves the plan, Fit goes back. Over the floor strip the wheel
--- scrolls the floors (arrows page them); the floor's name at the top lists every floor to jump to. A room is drawn as
--- one shape, its outline only where it meets another room or the outside. The top bar also shows the range (as the
--- window's range button would). Everything is laid out when the window refreshes or the plan is resized; a frame only
--- draws the rectangles laid out, inside the map. The plan is drawn with the shared UI kit (PZUIKit), as the window: in
--- design units (its numbers, its mouse) and the kit's faces.
+-- what their devices do; the devices as dots, the producers as squares and the box itself, each told by its colour.
+-- A strip on the left picks the floor, a legend in a box at the bottom tells the colours (its header folds it). It
+-- shares hover and clicks with the window's list: a row under the mouse marks its room or dot here and the other way
+-- round, a room clicked here shows only that room there, a dot clicked here finds its row, and a right click offers
+-- what the row would. Rooms of the building outside the box's zone are dim; the Zone switch at the top shows the zones
+-- instead, and a click there takes a room in or out. Devices not connected are hollow; the mouse over a producer or a
+-- device outside shows its line to the building (a producer's on to the riser away from the box's floor). The Range
+-- switch shows the range here and in the world: an outline where devices outside, producers and units join, and on
+-- the power plan how far each generator is heard (red, dim while it is off). Supply that crosses floors shows too: on
+-- a producer's floor a riser marks where the box is, under (or over) it, and tells the box's floor; by the box, a
+-- badge for each other floor that supplies it tells how many come from there (the mouse over it, what); a click on
+-- either goes to that floor. The floor strip marks the floors with producers, in their colour. The wheel zooms at the
+-- mouse, dragging moves the plan, Fit goes back. Over the floor strip the wheel scrolls the floors (arrows page
+-- them); the floor's name at the top lists every floor to jump to. A room is drawn as one shape, its outline only
+-- where it meets another room or the outside. Everything is laid out when the window refreshes or the plan is
+-- resized; a frame only draws the rectangles laid out, inside the map. The plan is drawn with the shared UI kit
+-- (PZUIKit), as the window: in design units (its numbers, its mouse) and the kit's faces.
 require "ISUI/ISPanel"
-require "PZAPI/ModOptions"
 require "PZUIKit/UI"
 require "PZUIKit/RichText"
 require "BuildingUtilities/Geometry"
@@ -42,17 +37,13 @@ local STRIP_W = 34
 local CELL_H = FONT_HGT_SMALL + 4
 local LEGEND_ROW = FONT_HGT_SMALL + 2
 -- The top bar's switches' widths, measured in the kit's faces for the scale they were made in (measureSwitches).
-local ZONE_W, FIT_W, RANGE_W, FLOW_W, measuredEra = 0, 0, 0, 0, nil
+local ZONE_W, FIT_W, RANGE_W, measuredEra = 0, 0, 0, nil
 local MIN_ZOOM, MAX_ZOOM, MAX_ZOOM_SCALE, DRAG = 0.5, 8, 48, 4
 -- Wheel notches over the floor strip scroll it by so many floors.
 local STRIP_SCROLL = 3
--- The supply lines are drawn at fixed pixel widths, whatever the zoom (a bundle of them stays tidy): the line LINE_PX
--- wide over a thin dark casing CASING_PX wide, so that it reads over any room or the grid; a producer's flow to the
--- box runs along it as square beads BEAD_PX wide, BEAD_GAP_PX apart, moving FLOW_PX pixels a second, under the squares
--- (dashes, drawn at any angle, came out spiky; thicker beads and casings, or a dark rim on the beads, made a bundle of
--- lines a heavy tangle). A device's line has no flow: the line alone says it draws. The rooms' outlines are WALL_PX
--- wide.
-local LINE_PX, CASING_PX, BEAD_PX, BEAD_GAP_PX, FLOW_PX, WALL_PX = 1, 2, 2, 10, 22, 2
+-- The rooms' outlines are WALL_PX wide, whatever the zoom; the line of the thing under the mouse LINE_PX over a dark
+-- casing CASING_PX wide, so that it reads over any room or the grid.
+local WALL_PX, LINE_PX, CASING_PX = 2, 1, 3
 -- The lines out to devices outside the building: a cool cyan, apart from the rooms' greens.
 local OUTSIDE_LINE = { 0.45, 0.78, 0.86 }
 -- The legend: its header's fold mark so wide, and it folds or opens over LEGEND_MS.
@@ -60,56 +51,12 @@ local CHEVRON_W, LEGEND_MS = 12, 220
 
 ISBUPlan = ISPanel:derive("ISBUPlan")
 
--- How the plan shows the producers' supply lines, a view preference of the player's: "flow" (the lines and dots
--- running along them, the default), "lines" (the lines alone) or "off" (none, but the line of the producer under the
--- mouse). The game's mod options keep it (PZAPI.ModOptions, by its place in FLOW_STATES, in Zomboid\Lua\ModOptions.ini
--- as their screen writes it), so it lasts between games and saves, is the player's own in multiplayer, and shows on
--- that screen too. Without that API, for the session.
-ISBUPlan.FLOW_STATES = { "flow", "lines", "off" }
-local FLOW_STATES = ISBUPlan.FLOW_STATES
-
 local function measureSwitches()
     if measuredEra == UI.era then return end
     measuredEra = UI.era
     ZONE_W = UI.textWidth(getText("IGUI_BU_Zone")) + 10
     FIT_W = UI.textWidth(getText("IGUI_BU_PlanFit")) + 10
     RANGE_W = UI.textWidth(getText("IGUI_BU_PlanRange")) + 10
-    FLOW_W = 0
-    for _, state in ipairs(FLOW_STATES) do
-        FLOW_W = math.max(FLOW_W, UI.textWidth(getText("IGUI_BU_PlanFlow_" .. state)) + 10)
-    end
-end
-local flowOption, flowSession = nil, 1
-if PZAPI and PZAPI.ModOptions then
-    local options = PZAPI.ModOptions:getOptions(BU.MOD) or PZAPI.ModOptions:create(BU.MOD, "IGUI_BU_ModOptions")
-    flowOption = options:getOption("planFlow")
-    if not flowOption then
-        flowOption = options:addComboBox("planFlow", "IGUI_BU_PlanFlowOption", "IGUI_BU_PlanFlowHint")
-        for index, state in ipairs(FLOW_STATES) do flowOption:addItem("IGUI_BU_PlanFlow_" .. state, index == 1) end
-    end
-end
-
-function ISBUPlan.flowState()
-    local index = flowOption and tonumber(flowOption:getValue()) or flowSession
-    return FLOW_STATES[index] or FLOW_STATES[1]
-end
-
-function ISBUPlan.setFlowState(state)
-    local index = 1
-    for each, name in ipairs(FLOW_STATES) do
-        if name == state then index = each end
-    end
-    if not flowOption then flowSession = index; return end
-    flowOption:setValue(index)
-    PZAPI.ModOptions:save()
-end
-
--- The state after a state, as the switch goes round.
-local function nextFlowState(state)
-    for index, name in ipairs(FLOW_STATES) do
-        if name == state then return FLOW_STATES[index % #FLOW_STATES + 1] end
-    end
-    return FLOW_STATES[1]
 end
 
 local WHITE = Texture.getWhite()
@@ -120,7 +67,7 @@ function ISBUPlan:new(x, y, width, height, window)
     o.background = true
     o.backgroundColor = { r = P.inset[1], g = P.inset[2], b = P.inset[3], a = 0.92 }
     o.borderColor = { r = P.border[1], g = P.border[2], b = P.border[3], a = 1 }
-    o.cells, o.labels, o.dots, o.squares, o.strip, o.legend, o.lines, o.edges = {}, {}, {}, {}, {}, {}, {}, {}
+    o.cells, o.labels, o.dots, o.squares, o.strip, o.legend, o.edges = {}, {}, {}, {}, {}, {}, {}
     o.rangeCache = {}
     return o
 end
@@ -140,7 +87,7 @@ local COLOURS = {
     other = { 0.6, 0.4, 0.8 }, off = { 0.45, 0.45, 0.45 }, shed = { 1, 0.6, 0.2 }, timer = { 0.4, 0.6, 1 },
     unsupplied = { 0.6, 0.65, 0.75 }, using = { 0.4, 1, 0.4 }, idle = { 0.25, 0.6, 0.3 },
     producer = { 1, 0.5, 0.15 }, tank = { 0.3, 0.6, 1 }, box = { 0.95, 0.45, 0.8 },
-    rangeOutside = { 0.3, 0.6, 1 }, rangeProducer = { 1, 0.85, 0.2 }, rangeNoise = { 1, 0.35, 0.3 },
+    range = { 0.3, 0.6, 1 }, rangeNoise = { 1, 0.35, 0.3 },
     rangeNoiseIdle = { 0.6, 0.3, 0.3 },
     zoneMine = { 0.2, 0.5, 0.6 }, zoneFree = { 0.25, 0.25, 0.25 }, zoneTaken = { 0.5, 0.3, 0.6 },
     zoneFar = { 0.12, 0.12, 0.12 },
@@ -200,8 +147,7 @@ local function legendEntries(utility, zones, ranges)
     end
     add("box", true)
     if ranges and not zones then
-        if ranges.exterior then add("rangeOutside", "line") end
-        if ranges.producer then add("rangeProducer", "line") end
+        add("range", "line")
         if ranges.noise and #ranges.noise > 0 then add("rangeNoise", "line") end
     end
     return result
@@ -258,12 +204,13 @@ local function nearestPoint(rects, x, y)
     return bestX, bestY
 end
 
+
 -- data: { utility, supplied, rooms = { { id, title, level, rects } }, devices = { { key, x, y, z, roomId, inside,
 -- state, held, power, name, status } }, producers = { { x, y, z, inUse, text, unit = its kind for a unit, colour
--- or nil, flow } } (flow: 1 to the box, -1 from it, nil none), box = { x, y, z }, filter = room id, zone = room id to
+-- or nil } }, box = { x, y, z }, filter = room id, zone = room id to
 -- { state = "mine", "free", "taken" or "far", owner = a name }, zoneEditable, zoneEdit, zoneNote, farNote (why a far
 -- room cannot be taken), reached = { lowest, highest } (the floors the box's zone can take), waterSupply (by floor,
--- "dry" or "boosted", for water), ranges = { exterior = steps, producer = steps or nil, noise = for power { { x, y,
+-- "dry" or "boosted", for water), ranges = { reach = steps, noise = for power { { x, y,
 -- z, radius, running } } } while the range is shown, rangeKey (the building, tier and generators' noise the ranges
 -- are of) }.
 function ISBUPlan:setData(data)
@@ -323,9 +270,6 @@ function ISBUPlan:layoutFloors()
                 group.kindOrder[#group.kindOrder + 1] = kind
             end
             group.kinds[kind] = group.kinds[kind] + 1
-            -- Dots run to the box while any of them supplies it, from it while one takes from it.
-            if (producer.flow or 0) > 0 then group.flow = 1
-            elseif producer.flow and not group.flow then group.flow = -1 end
         end
     end
     table.sort(self.arrivals, function(a, b) return a.level > b.level end)
@@ -385,9 +329,9 @@ function ISBUPlan:ranges(floor)
     local cached = self.rangeCache[floor]
     if cached then return cached end
     local floorRects, allRects = Geometry.roomRects(data.rooms, floor)
-    -- Devices outside join by the floor's own rooms (as the API finds them); producers by the whole outline.
-    cached = { exterior = rangeEdges(floorRects, data.ranges.exterior or 0),
-        producer = data.ranges.producer and rangeEdges(allRects, data.ranges.producer) or {}, noise = {} }
+    -- Devices outside, producers and units join by the floor's own rooms (as the API finds devices), the whole outline
+    -- on a floor without rooms (a roof).
+    cached = { reach = rangeEdges(#floorRects > 0 and floorRects or allRects, data.ranges.reach), noise = {} }
     -- How far the generators on this floor are heard.
     for _, noise in ipairs(data.ranges.noise or {}) do
         if noise.z == floor then
@@ -453,8 +397,8 @@ end
 
 function ISBUPlan:layout()
     local data = self.data
-    self.cells, self.labels, self.dots, self.squares, self.strip, self.legend, self.lines, self.edges = {}, {}, {}, {}, {}, {}, {}, {}
-    self.flows, self.walls, self.hoverLine, self.badges, self.riser, self.legendBox = {}, {}, nil, {}, nil, nil
+    self.cells, self.labels, self.dots, self.squares, self.strip, self.legend, self.edges = {}, {}, {}, {}, {}, {}, {}
+    self.walls, self.badges, self.riser, self.legendBox, self.hoverLine = {}, {}, nil, nil, nil
     self.grid = {}
     self:layoutTop()
     if not data then return end
@@ -473,7 +417,7 @@ function ISBUPlan:layout()
     if not minX then return end
     -- With the range shown, the plan takes in where devices outside and producers join, and where generators are heard.
     local ranges = self:ranges(self.floor)
-    local rangeSets = ranges and { ranges.exterior, ranges.producer } or {}
+    local rangeSets = ranges and { ranges.reach } or {}
     for _, noise in ipairs(ranges and ranges.noise or {}) do rangeSets[#rangeSets + 1] = noise.edges end
     for _, edges in ipairs(rangeSets) do
         for _, edge in ipairs(edges) do cover(edge.x, edge.y, edge.across and edge.len or 0, edge.across and 0 or edge.len) end
@@ -530,66 +474,13 @@ function ISBUPlan:layout()
         for _, noise in ipairs(ranges.noise) do
             addEdges(noise.edges, noise.running and COLOURS.rangeNoise or COLOURS.rangeNoiseIdle)
         end
-        addEdges(ranges.producer, COLOURS.rangeProducer)
-        addEdges(ranges.exterior, COLOURS.rangeOutside)
+        addEdges(ranges.reach, COLOURS.range)
     end
-    -- The lines: from the building's outline (this floor's, else any) to each producer and device outside it takes;
-    -- the producers' as the supply lines' switch has them (ISBUPlan.flowState).
-    local floorRects, allRects = Geometry.roomRects(data.rooms, self.floor)
-    local flowState = ISBUPlan.flowState()
     -- The box's place, on its floor; on another, the riser's under or over it.
     local boxFloor = data.box.z == self.floor
     local boxX, boxY = ox + (data.box.x + 0.5 - minX) * scale, oy + (data.box.y + 0.5 - minY) * scale
-    -- The beads' path along points, to the box's end (flow 1) or from it (-1), brighter than the line; none within
-    -- `margin` of its ends (the squares there).
-    local function addFlow(points, colour, flow)
-        local length, lengths = 0, {}
-        for index = 2, #points do
-            local a, b = points[index - 1], points[index]
-            local dx, dy = b[1] - a[1], b[2] - a[2]
-            lengths[index] = math.sqrt(dx * dx + dy * dy)
-            length = length + lengths[index]
-        end
-        if length < 1 then return end
-        self.flows[#self.flows + 1] = { points = points, lengths = lengths, length = length, toBox = flow > 0,
-            margin = SQUARE / 2 + 2,
-            r = math.min(1, colour[1] + 0.3), g = math.min(1, colour[2] + 0.3), b = math.min(1, colour[3] + 0.3) }
-    end
-    -- A line, drawn when shown: from the thing to the building, and for a producer on another floor than the box's on
-    -- to its riser (x3, y3); while the switch shows the flow, with a flow, dots run along it, on to the box (or the
-    -- riser). Returns the line, for the mouse over a producer.
-    local function addLine(x, y, colour, flow, shown, producer)
-        local px, py = nearestPoint(#floorRects > 0 and floorRects or allRects, x + 0.5, y + 0.5)
-        if not px then return nil end
-        local line = { x1 = ox + (x + 0.5 - minX) * scale, y1 = oy + (y + 0.5 - minY) * scale,
-            x2 = ox + (px - minX) * scale, y2 = oy + (py - minY) * scale, r = colour[1], g = colour[2], b = colour[3] }
-        local onward = boxFloor or producer
-        if onward and not boxFloor then line.x3, line.y3 = boxX, boxY end
-        if shown then self.lines[#self.lines + 1] = line end
-        if flow and shown and flowState == "flow" then
-            local points = { { line.x1, line.y1 }, { line.x2, line.y2 } }
-            if onward then points[3] = { boxX, boxY } end
-            addFlow(points, colour, flow)
-            line.flowing = true
-        end
-        return line
-    end
-    -- the lines out to devices outside, shown as the switch has them (each kept for the mouse over its dot)
-    local deviceLines = {}
-    for _, device in ipairs(data.devices) do
-        if device.z == self.floor and not device.inside and device.state == "on" then
-            deviceLines[device.key] = addLine(device.x, device.y, OUTSIDE_LINE, nil, flowState ~= "off")
-        end
-    end
-    local producerLines = {}
-    for index, producer in ipairs(data.producers) do
-        if producer.z == self.floor then
-            producerLines[index] = addLine(producer.x, producer.y, producerColour(data, producer), producer.flow,
-                flowState ~= "off", true)
-        end
-    end
-    -- On a floor of producers away from the box, the riser their lines end at; on the box's, a badge for each other
-    -- floor that supplies it, with a stub into the box (and its dots) while the switch shows lines.
+    -- On a floor of producers away from the box, the riser where the box is; on the box's, a badge for each other
+    -- floor that supplies it.
     local riser = not boxFloor and self.risers[self.floor]
     if riser then
         self.riser = { x = math.floor(boxX - riser.w / 2), y = math.floor(boxY - FONT_HGT_SMALL / 2 - 1), w = riser.w,
@@ -598,19 +489,20 @@ function ISBUPlan:layout()
     if boxFloor then
         local badgeX, badgeY = math.floor(boxX + SQUARE / 2 + 16), math.floor(boxY - FONT_HGT_SMALL / 2 - 1)
         for index, group in ipairs(self.arrivals) do
-            local badge = { x = badgeX, y = badgeY + (index - 1) * (FONT_HGT_SMALL + 4), w = group.w, h = FONT_HGT_SMALL + 2,
-                text = group.text, tip = group.tip, colour = group.colour, level = group.level }
-            self.badges[#self.badges + 1] = badge
-            if flowState ~= "off" then
-                local c = group.colour
-                local stub = { x1 = badge.x, y1 = badge.y + badge.h / 2, x2 = boxX, y2 = boxY, r = c[1], g = c[2], b = c[3] }
-                self.lines[#self.lines + 1] = stub
-                if flowState == "flow" and group.flow then
-                    addFlow({ { stub.x1, stub.y1 }, { boxX, boxY } }, c, group.flow)
-                    stub.flowing = true
-                end
-            end
+            self.badges[#self.badges + 1] = { x = badgeX, y = badgeY + (index - 1) * (FONT_HGT_SMALL + 4), w = group.w,
+                h = FONT_HGT_SMALL + 2, text = group.text, tip = group.tip, colour = group.colour, level = group.level }
         end
+    end
+    -- The line of a producer or a device outside, shown while the mouse is over it: from it to the building's outline
+    -- (this floor's, else any), and for a producer on another floor than the box's on to the riser.
+    local floorRects, allRects = Geometry.roomRects(data.rooms, self.floor)
+    local function lineOf(x, y, colour, producer)
+        local px, py = nearestPoint(#floorRects > 0 and floorRects or allRects, x + 0.5, y + 0.5)
+        if not px then return nil end
+        local line = { x1 = ox + (x + 0.5 - minX) * scale, y1 = oy + (y + 0.5 - minY) * scale,
+            x2 = ox + (px - minX) * scale, y2 = oy + (py - minY) * scale, r = colour[1], g = colour[2], b = colour[3] }
+        if producer and not boxFloor then line.x3, line.y3 = boxX, boxY end
+        return line
     end
     -- Rooms on this floor, with what their devices do.
     local roomState = {}
@@ -672,22 +564,22 @@ function ISBUPlan:layout()
             self.dots[#self.dots + 1] = { key = device.key, room = device.inside and device.roomId or nil,
                 x = math.floor(sx(device.x) + scale / 2), y = math.floor(sy(device.y) + scale / 2), r = r, g = g, b = b,
                 text = device.name .. "  " .. (device.status or ""), hollow = device.state == "off", fresh = device.fresh,
-                line = deviceLines[device.key] }
+                line = not device.inside and device.state == "on" and lineOf(device.x, device.y, OUTSIDE_LINE) or nil }
         end
     end
-    for index, producer in ipairs(data.producers) do
+    for _, producer in ipairs(data.producers) do
         if producer.z == self.floor then
             local colour = producerColour(data, producer)
             self.squares[#self.squares + 1] = { x = math.floor(sx(producer.x) + (scale - SQUARE) / 2),
                 y = math.floor(sy(producer.y) + (scale - SQUARE) / 2), size = SQUARE,
                 r = colour[1], g = colour[2], b = colour[3], ring = producer.inUse, text = producer.text,
-                line = producerLines[index] }
+                line = lineOf(producer.x, producer.y, colour, true) }
         end
     end
     if data.box.z == self.floor then
         self.squares[#self.squares + 1] = { x = math.floor(sx(data.box.x) + (scale - SQUARE) / 2),
             y = math.floor(sy(data.box.y) + (scale - SQUARE) / 2), size = SQUARE,
-            r = 1, g = 1, b = 1, ring = false, text = data.boxText }
+            r = COLOURS.box[1], g = COLOURS.box[2], b = COLOURS.box[3], ring = false, text = data.boxText }
     end
     self:layoutStrip()
 end
@@ -733,8 +625,8 @@ function ISBUPlan:layoutStrip()
 end
 
 -- The top bar, laid out with the rest: the floor shown with what its devices draw (with several floors, a click on
--- it lists them) and the switches, right to left: the zone (where zones can be edited), the range, the supply
--- lines, Fit (zoomed or moved), each { name, x, y, w, text }. Nothing overlaps at any width or font size: the
+-- it lists them) and the switches, right to left: the zone (where zones can be edited), the range, Fit (zoomed or
+-- moved), each { name, x, y, w, text }. Nothing overlaps at any width or font size: the
 -- switches that do not fit go to a row below, and the floor's name keeps the middle while it fits beside them, else
 -- moves into the room they leave, without the load where that is too narrow (the status line then has it all), and
 -- takes a row of its own above them when even its name does not fit. The bar's height is topH.
@@ -759,7 +651,6 @@ function ISBUPlan:layoutTop()
     end
     if data and data.zoneEditable then add("zone", ZONE_W, getText("IGUI_BU_Zone")) end
     add("range", RANGE_W, getText("IGUI_BU_PlanRange"))
-    add("flow", FLOW_W, getText("IGUI_BU_PlanFlow_" .. ISBUPlan.flowState()))
     if (self.zoom or 1) ~= 1 or (self.panX or 0) ~= 0 or (self.panY or 0) ~= 0 then add("fit", FIT_W, getText("IGUI_BU_PlanFit")) end
     -- The floor's name: beside the first row's switches, else a row of its own (cut short only if even that is too
     -- narrow).
@@ -803,8 +694,7 @@ function ISBUPlan:prerender()
     end
     local h = FONT_HGT_SMALL + 2
     for _, toggle in ipairs(self.toggles) do
-        local on = toggle.name == "zone" and self.data.zoneEdit or toggle.name == "range" and self.window.rangeShown
-            or toggle.name == "flow" and ISBUPlan.flowState() ~= "off"
+        local on = toggle.name == "zone" and self.data.zoneEdit or toggle.name == "range" and self.window.rangeShown == true
         local k = UI.hoverLight(self, toggle.fx, over == toggle.name)
         local f = UI.flashLevel(self, toggle.fx)
         UI.fill(self, toggle.x, toggle.y, toggle.w, h, on and P.sel or P.panel, on and 0.75 or 0.6)
@@ -848,11 +738,6 @@ function ISBUPlan:zoomAt(x, y, factor)
     self:layout()
 end
 
--- Followed each frame while dashes run along the lines (PZ Optimization's retained UI would hold them still).
-local function flowFrame(plan, now)
-    if #plan.flows == 0 then return nil end
-    return math.floor(now / 33)
-end
 
 -- Followed while the legend folds or opens.
 local function legendFrame(plan, now)
@@ -864,22 +749,6 @@ local function legendFrame(plan, now)
         return nil
     end
     return math.floor(t * 100)
-end
-
--- The place so far along a path (points and the lengths of its pieces).
-local function pointAt(points, lengths, along)
-    local at = 0
-    for index = 2, #points do
-        local len = lengths[index]
-        if along <= at + len and len > 0 then
-            local p, q = points[index - 1], points[index]
-            local t = (along - at) / len
-            return p[1] + (q[1] - p[1]) * t, p[2] + (q[2] - p[2]) * t
-        end
-        at = at + len
-    end
-    local last = points[#points]
-    return last[1], last[2]
 end
 
 -- The legend's fold mark: a small solid triangle drawn pixel by pixel (lines drawn this small blur into a blob),
@@ -1004,45 +873,16 @@ function ISBUPlan:render()
         self:drawTextCentre(label.text, label.x, label.y, P.text[1], P.text[2], P.text[3], label.dim and 0.35 or 0.8, UIFont.Small)
     end
     for _, edge in ipairs(self.edges) do self:drawRect(edge.x, edge.y, edge.w, edge.h, 0.7, edge.r, edge.g, edge.b) end
-    -- The supply lines at their fixed widths: a dark casing first, then the line in its colour (dimmer under running
-    -- dashes, which carry the eye).
-    local lw, cw = LINE_PX * px, CASING_PX * px
-    for _, line in ipairs(self.lines) do
-        self:drawLine(WHITE, line.x1, line.y1, line.x2, line.y2, cw, 0.7, 0.02, 0.03, 0.05)
-        if line.x3 then self:drawLine(WHITE, line.x2, line.y2, line.x3, line.y3, cw, 0.7, 0.02, 0.03, 0.05) end
-    end
-    for _, line in ipairs(self.lines) do
-        local a = line.flowing and 0.55 or 0.9
-        self:drawLine(WHITE, line.x1, line.y1, line.x2, line.y2, lw, a, line.r, line.g, line.b)
-        if line.x3 then self:drawLine(WHITE, line.x2, line.y2, line.x3, line.y3, lw, a, line.r, line.g, line.b) end
-    end
-    -- The line of the producer under the mouse, brighter, while the switch shows no dashes.
+    -- The line of the thing under the mouse, at its fixed widths: a dark casing, then the line in a light tint of its
+    -- colour, under the squares.
     local hover = self.hoverLine
     if hover then
+        local lw, cw = LINE_PX * px, CASING_PX * px
         local r, g, b = hover.r + (1 - hover.r) * 0.45, hover.g + (1 - hover.g) * 0.45, hover.b + (1 - hover.b) * 0.45
+        self:drawLine(WHITE, hover.x1, hover.y1, hover.x2, hover.y2, cw, 0.7, 0.02, 0.03, 0.05)
+        if hover.x3 then self:drawLine(WHITE, hover.x2, hover.y2, hover.x3, hover.y3, cw, 0.7, 0.02, 0.03, 0.05) end
         self:drawLine(WHITE, hover.x1, hover.y1, hover.x2, hover.y2, lw, 1, r, g, b)
         if hover.x3 then self:drawLine(WHITE, hover.x2, hover.y2, hover.x3, hover.y3, lw, 1, r, g, b) end
-    end
-    -- The flow: beads running along each path with the clock, whole pixels, under the squares (they pass behind a
-    -- producer, or a solar panel the path crosses, rather than vanish over its light colour; none while the switch
-    -- shows no flow).
-    if #self.flows > 0 then
-        UI.live(self, flowFrame)
-        local S, bead, gap = 1 / px, BEAD_PX * px, BEAD_GAP_PX * px
-        local offset = BU.remainder(now / 1000 * FLOW_PX * px, gap)
-        for _, flow in ipairs(self.flows) do
-            local length, margin = flow.length, flow.margin
-            local r, g, b = flow.r + (1 - flow.r) * 0.45, flow.g + (1 - flow.g) * 0.45, flow.b + (1 - flow.b) * 0.45
-            local along = offset
-            while along < length - margin do
-                if along > margin then
-                    local x, y = pointAt(flow.points, flow.lengths, flow.toBox and along or length - along)
-                    x, y = math.floor(x * S + 0.5) * px - bead / 2, math.floor(y * S + 0.5) * px - bead / 2
-                    self:drawRect(x, y, bead, bead, 1, r, g, b)
-                end
-                along = along + gap
-            end
-        end
     end
     -- The legend's entry under the mouse marks what it names.
     local marked = self.legendHover
@@ -1173,8 +1013,7 @@ end
 function ISBUPlan:onMouseMove(dx, dy)
     local kind, thing = self:hit(self:getMouseX(), self:getMouseY())
     self:setHover(kind == "dot" and thing.key or nil, (kind == "room" or kind == "dot") and thing.room or nil)
-    -- A producer's line, as laid out with the rest, while the switch shows no dots.
-    self.hoverLine = (kind == "square" or kind == "dot") and ISBUPlan.flowState() ~= "flow" and thing.line or nil
+    self.hoverLine = (kind == "square" or kind == "dot") and thing.line or nil
     if kind == "dot" or kind == "square" then
         self.status = thing.text
     elseif kind == "badge" then
@@ -1197,8 +1036,6 @@ function ISBUPlan:onMouseMove(dx, dy)
         if thing.far and self.data.farNote then self.status = self.status .. "  (" .. self.data.farNote .. ")" end
     elseif self:toggleAt(self:getMouseX(), self:getMouseY()) == "zone" then
         self.status = self.data.zoneNote
-    elseif self:toggleAt(self:getMouseX(), self:getMouseY()) == "flow" then
-        self.status = getText("IGUI_BU_PlanFlowHint")
     elseif self:toggleAt(self:getMouseX(), self:getMouseY()) == "range" then
         self.status = getText("IGUI_BU_PlanRangeHint")
     elseif self:onLegendHeader(self:getMouseX(), self:getMouseY()) then
@@ -1290,10 +1127,6 @@ function ISBUPlan:onMouseDown(x, y)
         return true
     elseif toggle == "range" then
         self.window:onRange()
-        return true
-    elseif toggle == "flow" then
-        ISBUPlan.setFlowState(nextFlowState(ISBUPlan.flowState()))
-        self:layout()
         return true
     elseif toggle == "title" then
         if #(self.levels or {}) > 1 then self:floorMenu() end
