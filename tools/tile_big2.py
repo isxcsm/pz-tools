@@ -136,8 +136,8 @@ def research_storage(turns):
             s.box(fx, fy, 0.0, fx + 0.07, fy + 0.07, 0.06, GRAPHITE_DARK)
     s.box(x0, y0, 0.06, x1, y1, zt, OD, top=OD_LIGHT, shine=0.1)
     s.box(x0 - 0.01, y0 - 0.01, 0.06, x1 + 0.01, y1 + 0.01, 0.13, OD_DARK)
-    # the lid's rim in the dark trim, its top the body's olive (all dark it read as a shadow painted on)
-    s.box(x0 - 0.012, y0 - 0.012, zt - 0.05, x1 + 0.012, y1 + 0.012, zt, OD_DARK, top=OD, shine=0.1)
+    # the lid: a thin rim in the body's olive under a light top (a dark rim or top read as a shadow painted on)
+    s.box(x0 - 0.012, y0 - 0.012, zt - 0.03, x1 + 0.012, y1 + 0.012, zt, OD, top=OD_LIGHT, shine=0.1)
     f = y1 + 0.007
     # four doors with their seams, ribs and louvres; each pair shares a central post
     xs = [x0 + 0.04, 0.54, 1.00, 1.46, x1 - 0.04]
@@ -145,7 +145,7 @@ def research_storage(turns):
     xs = [x0 + 0.04, 0.50, 0.98, 1.02, 1.50, x1 - 0.04]
     doors = [(xs[0], xs[1]), (xs[1], xs[2]), (xs[3], xs[4]), (xs[4], xs[5])]
     for (a, b) in doors:
-        s.box(a + 0.004, y1, 0.17, b - 0.004, f, zt - 0.08, OD_LIGHT, shine=0.1)
+        s.box(a + 0.004, y1, 0.17, b - 0.004, f, zt - 0.04, OD_LIGHT, shine=0.1)
         for z in (0.34, 0.6):
             s.box(a + 0.04, f, z, b - 0.04, f + 0.01, z + 0.012, OD_DARK)
         for i in range(6):
@@ -153,7 +153,7 @@ def research_storage(turns):
         # a handle near the post
         hx = b - 0.07 if a < 0.96 else a + 0.045
         s.box(hx, f, 0.66, hx + 0.02, f + 0.035, 0.84, STEEL_DARK, shine=0.5)
-    s.box(xs[2], y1, 0.15, xs[3], f + 0.012, zt - 0.06, OD_DARK)
+    s.box(xs[2], y1, 0.15, xs[3], f + 0.012, zt - 0.04, OD_DARK)
     # the locking bar across the middle with two padlocks
     s.box(0.72, f + 0.012, 0.70, 1.28, f + 0.035, 0.76, STEEL, shine=0.6)
     for px in (0.78, 1.16):
