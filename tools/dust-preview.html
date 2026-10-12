@@ -648,11 +648,12 @@ function drawImpact(p, st, secs, la) {
   flush(p.tex);
   // a gleam passing over the letters once they have settled
   // once, slowly, over the whole time it stays: from settled to leaving
-  const at = (secs - P.SHINE_AT) / Math.max(0.5, p.leaveAt - p.delay - P.SHINE_AT);
+  const at = (secs - P.SHINE_AT) / Math.max(0.5, p.leaveAt - p.delay - P.SHINE_AT - 0.3);
   if (at > 0 && at < 1) {
     mode = 5;
-    gl.uniform1f(U("progress"), -0.3 + 1.6 * at); gl.uniform1f(U("edgeW"), 0.12);
-    const s = 0.85 * P.SHINE * la, r = p.line * 0.035, halo = 0.12 * s;
+    gl.uniform1f(U("progress"), -0.45 + 2.2 * at); gl.uniform1f(U("edgeW"), 0.12);
+    // (the band starts and ends wholly off the letters, a slant of 0.35 and its width in; it comes and goes softly too)
+    const s = 0.85 * P.SHINE * la * smooth(clamp(at / 0.15, 0, 1)) * smooth(clamp((1 - at) / 0.15, 0, 1)), r = p.line * 0.035, halo = 0.12 * s;
     box(0, 0, s, 0.97 * s, 0.9 * s);
     for (let i = 0; i < 12; i++) { const a = i / 12 * 2 * Math.PI; box(Math.cos(a) * r, Math.sin(a) * r, halo, 0.95 * halo, 0.85 * halo); }
     flush(p.tex);
