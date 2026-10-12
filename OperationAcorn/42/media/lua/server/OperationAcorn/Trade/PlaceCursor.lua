@@ -1,6 +1,8 @@
 -- The cursor for putting down the terminal, a delivery box or a supply crate: a ghost of the tile, green where it can
 -- stand and red where it cannot, and for a box the squares around it that have a building or a tree in the way. The
--- terminal faces the player. Clicking queues the walk and the timed action that does it.
+-- terminal faces the player until it is turned as the game's furniture is (the rotate key, the gamepad's bumper, or a
+-- drag with the button held: the building cursor's nSprite, 1 to 4 for W N E S). Clicking queues the walk and the
+-- timed action that does it.
 require "BuildingObjects/ISBuildingObject"
 require "OperationAcorn/Trade/Actions"
 local OA = OperationAcorn
@@ -24,9 +26,22 @@ local function spriteFor(kind, facing, item)
     return Sprites.supplyCrate(false)
 end
 
+-- The building cursor's sprite numbers as facings, and back.
+local FACING_OF = { "W", "N", "E", "S" }
+local NUMBER_OF = { W = 1, N = 2, E = 3, S = 4 }
+
 function ISOAPlaceCursor:getSprite()
-    local square = self.square
-    local facing = square and facingToward(self.character, square:getX(), square:getY()) or "S"
+    -- turned by the player once the number is not the one set here
+    if not self.turned and self.nSprite ~= self.autoNumber then self.turned = true end
+    local facing
+    if self.turned then
+        facing = FACING_OF[self.nSprite] or "S"
+    else
+        local square = self.square
+        facing = square and facingToward(self.character, square:getX(), square:getY()) or "S"
+        self.nSprite = NUMBER_OF[facing]
+        self.autoNumber = self.nSprite
+    end
     self.facing = facing
     self.chosenSprite = spriteFor(self.kind, facing, self.item)
     return self.chosenSprite
@@ -101,6 +116,7 @@ function ISOAPlaceCursor:new(character, kind, item)
     o.canBeAlwaysPlaced = false
     o:setSprite(spriteFor(kind, "S"))
     o:setNorthSprite(spriteFor(kind, "N"))
+    o.autoNumber = o.nSprite
     return o
 end
 
