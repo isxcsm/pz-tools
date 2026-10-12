@@ -76,6 +76,9 @@ local function lighter(sum)
     return math.floor((1 - 1 / (1 + sum)) * 100 + 0.5)
 end
 
+-- The board's carrying efficiencies (Data: divide over a weight): shown as set, as the tree's lighter nodes are.
+local EFFICIENCY = { bHeavy = true, bFamily = true }
+
 local function shown(node, value)
     local v = value * Rules.mult()
     if node.cap and v > node.cap then v = node.cap end
@@ -88,7 +91,10 @@ function Texts.args(node, rank, u)
     local args = {}
     if node.board then
         local amount = Rules.boardAmount(u, node.id)
-        if node.form == "divide" then
+        if node.form == "divide" and EFFICIENCY[node.id] then
+            -- a carrying efficiency, as it is set (the weight is divided by 1 + it)
+            args[1] = Texts.percent(amount * 100)
+        elseif node.form == "divide" then
             -- what the reduction takes off, as the player meets it (a value divided by 1 + sum)
             args[1] = Texts.percent(lighter(amount))
             if node.id == "bBite" then args[2] = Texts.number(Rules.biteHours(u) / 24) end
@@ -107,7 +113,7 @@ function Texts.args(node, rank, u)
             for _, family in ipairs(Data.FAMILY_ORDER) do
                 local n = u.board.family[family]
                 if n and n > 0 then
-                    parts[#parts + 1] = Texts.familyName(family) .. " " .. Texts.percent(lighter(Rules.familyAmount(u, family)))
+                    parts[#parts + 1] = Texts.familyName(family) .. " " .. Texts.percent(Rules.familyAmount(u, family) * 100)
                 end
             end
             args[1] = #parts > 0 and table.concat(parts, ", ") or "-"
@@ -121,7 +127,8 @@ function Texts.args(node, rank, u)
         -- the values are the share of the excess still counted
         text = Texts.percent(100 - shown({ cap = 95 }, 100 - v))
     elseif node.lighter then
-        text = Texts.percent(lighter(shown(node, v) / 100))
+        -- a carrying efficiency as it is set, not the weight it takes off (which does not add up across nodes)
+        text = Texts.percent(shown(node, v))
     elseif node.unit == "pct" then
         text = Texts.percent(shown(node, v))
     else

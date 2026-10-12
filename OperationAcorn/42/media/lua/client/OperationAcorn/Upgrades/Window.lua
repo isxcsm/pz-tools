@@ -1050,7 +1050,7 @@ end
 -- ---- the tooltip -----------------------------------------------------------------------------------------------
 
 -- The rows of a node's tooltip: its name and tree, its rank, what it does now and what the next rank does, where it
--- does not apply, the conditions of the next rank as a checklist, the research team's line on a capstone.
+-- does not apply, the conditions of the next rank still missing, the research team's line on a capstone.
 function View:tipRows(id)
     local sim = self.sim
     local node = Data.byId[id]
@@ -1118,10 +1118,16 @@ function View:tipRows(id)
     local bite, armed = Texts.biteStatus(node, self.u, OA.hours())
     if bite then add({ kind = "para", text = bite, c = armed and P.good or P.warn }) end
     if not maxed then
-        local conditions = Texts.conditions(sim, node, { fragments = self.fragmentsLeft })
-        if #conditions > 0 then
-            add({ kind = "sep" })
-            for _, c in ipairs(conditions) do add({ kind = "check", ok = c.ok, text = c.text }) end
+        -- only what is still missing: a condition met is noise
+        local sep = false
+        for _, c in ipairs(Texts.conditions(sim, node, { fragments = self.fragmentsLeft })) do
+            if not c.ok then
+                if not sep then
+                    add({ kind = "sep" })
+                    sep = true
+                end
+                add({ kind = "check", ok = false, text = c.text })
+            end
         end
     end
     local note = Texts.note(id)

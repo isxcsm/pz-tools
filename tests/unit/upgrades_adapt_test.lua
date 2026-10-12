@@ -495,7 +495,7 @@ test("lifting a furniture is 가구 운반's first effect, with the rank taken, 
     eq(#told.notices, 1, "once")
 end)
 
-test("a pried lock is 빠루 따기's first effect, from the action that decides it", function()
+test("a pried lock is 쇠지렛대로 따기's first effect, from the action that decides it", function()
     local real = require
     ISBaseTimedAction = { derive = function(self) return setmetatable({}, { __index = self }) end,
                           new = function(self) return setmetatable({}, { __index = self }) end }

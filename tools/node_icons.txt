@@ -22,7 +22,7 @@
 하중	저장소 용량	OA_Node_StorageCapacity.png
 하중	갑옷 체질	OA_Node_ArmorBody.png
 생존	혈청 적응	OA_Node_SerumAdapt.png
-생존	빠루 따기	OA_Node_CrowbarPry.png
+생존	쇠지렛대로 따기	OA_Node_CrowbarPry.png
 생존	부위 피로	OA_Node_LimbStiffness.png
 생존	낙법	OA_Node_BreakFall.png
 생존	자물쇠 따기	OA_Node_LockPick.png

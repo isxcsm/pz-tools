@@ -94,11 +94,11 @@ test("rank line numbers follow the effect option", function()
     eq(Texts.args(Data.byId.moveSpeed, 3, u)[1], "95%")
 end)
 
-test("a carrying efficiency shows the weight it takes off", function()
+test("a carrying efficiency shows as it is set, not the weight it takes off", function()
     local u = Rules.blank()
-    -- +100% efficiency halves the weight
-    eq(Texts.args(Data.byId.furniture, 2, u)[1], "50%")
-    eq(Texts.args(Data.byId.materials, 1, u)[1], "13%")
+    eq(Texts.args(Data.byId.furniture, 2, u)[1], "100%")
+    eq(Texts.args(Data.byId.materials, 1, u)[1], "15%")
+    eq(Texts.args(Data.byId.materialsPlus, 1, u)[1], "70%")
 end)
 
 test("overload shows the share of the excess that still counts", function()
@@ -166,9 +166,9 @@ test("a tooltip lists what every rank taken gives, and of the next rank only wha
     -- a rank that adds keeps the lines before it
     eq(keys(Texts.lines(Data.byId.sense, 2, u)), P .. "sense_Rank1," .. P .. "sense_Rank2")
     eq(keys(Texts.lines(Data.byId.sensePlus, 3, u)), P .. "sensePlus_Rank1," .. P .. "sensePlus_Rank2," .. P .. "sensePlus_Rank3")
-    -- a rank that does not replaces them: no damage from one floor replaces half damage, two floors adds to it
+    -- a rank that does not replaces them: each fall rank says the whole of its effect
     eq(keys(Texts.lines(Data.byId.fall, 2, u)), P .. "fall_Rank2")
-    eq(keys(Texts.lines(Data.byId.fall, 3, u)), P .. "fall_Rank2," .. P .. "fall_Rank3")
+    eq(keys(Texts.lines(Data.byId.fall, 3, u)), P .. "fall_Rank3")
     eq(keys(Texts.lines(Data.byId.overload, 2, u)), P .. "overload_Rank2")
     -- the numbers are the rank's: the first line of a crowbar at rank 2 reads its rank 2 chance
     local crowbar = Texts.lines(Data.byId.crowbar, 2, u)

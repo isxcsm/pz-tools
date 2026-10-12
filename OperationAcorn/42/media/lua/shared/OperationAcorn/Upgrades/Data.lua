@@ -114,7 +114,7 @@ node("load", "armor", 5, 2, 1, "api", { { "combatSpeed", 2 } }, { capstone = tru
 node("survival", "serumAdapt", 1, 1, 2, "lua", {}, { rankText = true })
 node("survival", "crowbar", 1, 2, 2, "lua", {}, { cap = 100, unit = "pct", values = { 35, 50 }, rankText = true, adds = true })
 node("survival", "stiff", 1, 3, 3, "api", {}, { cap = 95, unit = "pct", values = { 20, 40, 60 } })
-node("survival", "fall", 2, 1, 3, "api", {}, { rankText = true, adds = { [3] = true } })
+node("survival", "fall", 2, 1, 3, "api", {}, { rankText = true })
 node("survival", "lock", 2, 4, 2, "lua", {}, { cap = 100, unit = "pct", values = { 50, 90 }, rankText = true, adds = true })
 node("survival", "brush", 2, 2, 2, "api", {}, { cap = 100, unit = "pct", values = { 50, 100 }, rankText = true })
 node("survival", "gear", 3, 3, 3, "api", {}, { cap = 95, unit = "pct", values = { 20, 40, 60 } })
