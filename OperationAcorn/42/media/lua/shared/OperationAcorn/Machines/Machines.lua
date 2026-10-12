@@ -268,12 +268,17 @@ local function showSprite(object, want)
 end
 
 -- Keeps the load multiplier the generator hook reads (the anchor's modData OA_Load) as the state says: the motor's
--- power multiplier while it runs, 0 otherwise. It is written only when it changes.
+-- power multiplier while it runs, 0 otherwise; and OA_On, 1 while it is switched on. Written only when they change.
 function Machines.syncLoad(object, state)
     local def = Data.KINDS[state.kind]
     if not def or not def.load then return end
     local multiplier = Logic.loadMultiplier(state.kind, state.parts, state.running == true)
+    local on = state.on ~= false and 1 or 0
     local data = object:getModData()
+    if data[Data.ON_KEY] ~= on then
+        data[Data.ON_KEY] = on
+        if isServer() and data[Data.LOAD_KEY] == multiplier then object:transmitModData() end
+    end
     if data[Data.LOAD_KEY] ~= multiplier then
         data[Data.LOAD_KEY] = multiplier
         if isServer() then object:transmitModData() end
@@ -287,7 +292,8 @@ end
 -- sprites of every facing and state, times the anchor's OA_Load (the motor's multiplier while it runs, else 0). The
 -- other squares of a machine draw nothing. And that a machine is one object whatever it shows: each tile of a lit or
 -- running look is known by its tile of the machine at rest (machine.spriteName), so that a Building Utilities box
--- keeps a machine it connected outdoors while it lights up and runs. Once a game; returns true when the API took the
+-- keeps a machine it connected outdoors while it lights up and runs; and that one switched on is on while at rest
+-- (OA_On, machine.onKey). Once a game; returns true when the API took the
 -- load (an API from before the names leaves a lit machine a new object to a box).
 function Machines.declarePower()
     local api = OA.api()
@@ -327,6 +333,8 @@ function Machines.declarePower()
     if not (ok1 and ok2) then OA.log("machine power not declared:", tostring(err1), tostring(err2)) end
     local ok3, err3 = pcall(api.formulas.set, handle, "machine.spriteName", names)
     if not ok3 then OA.log("machine looks not named as one:", tostring(err3)) end
+    local ok4, err4 = pcall(api.formulas.set, handle, "machine.onKey", Data.ON_KEY)
+    if not ok4 then OA.log("machine switches not declared:", tostring(err4)) end
     return ok1 and ok2
 end
 
@@ -1152,7 +1160,7 @@ function Machines.tick()
     end
 end
 
--- The LoadChunk handler: the machines on the chunk catch up the time they were away.
+-- The LoadChunk handler: the machines on the chunk catch up the time they were away, their keys for the API kept.
 function Machines.onChunk(chunk)
     local reg = Store.world("machines")
     if not reg.byChunk or OA.isEmpty(reg.byChunk) then return end
@@ -1175,6 +1183,7 @@ function Machines.onChunk(chunk)
                 applyAccept(object, Data.KINDS[state.kind].containers)
                 if state.kind == "lure" then Machines.lureFx(object, not state.spent) end
                 Machines.light(object, state)
+                Machines.syncLoad(object, state) -- one placed before OA_On gets it
                 local ok, err = pcall(Machines.update, object, { catchUp = true })
                 if not ok then OA.log("machine", id, "catch-up failed:", tostring(err)) end
             end

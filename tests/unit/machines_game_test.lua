@@ -1438,6 +1438,13 @@ test("the anchor keeps the load multiplier and the capacity flag for the API", f
     local a = Machines.place("bulkShredder", square(10, 10, 0), p, newItem("OperationAcorn.BulkShredder"), "S")
     eq(a.mod[Data.LOAD_KEY], 0, "a machine that does not run draws nothing")
     local state = Machines.state(a)
+    state.on = false
+    Machines.refreshLook(a, state)
+    eq(a.mod[Data.ON_KEY], 0, "switched off")
+    state.on = true
+    Machines.refreshLook(a, state)
+    eq(a.mod[Data.ON_KEY], 1, "switched on")
+    eq(a.mod[Data.LOAD_KEY], 0, "on, at rest: still drawing nothing")
     state.running = true
     Machines.refreshLook(a, state)
     eq(a.mod[Data.LOAD_KEY], 1.0, "old motor")
@@ -1472,6 +1479,7 @@ test("the machines' generator load is declared to the API: the anchors' sprites 
     truthy(Machines.declarePower())
     eq(sets["machine.loadKey"].value, Data.LOAD_KEY)
     eq(sets["machine.loadKey"].handle, "h")
+    eq(sets["machine.onKey"].value, Data.ON_KEY)
     local base = sets["machine.baseConsumption"].value
     for _, dir in ipairs(OA.Sprites.DIRECTIONS) do
         eq(base[Machines.spriteName("woodSaw", dir, true)], 0.8)
