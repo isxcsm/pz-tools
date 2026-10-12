@@ -803,26 +803,35 @@ function Missions.pieceOf(record, id)
     return nil
 end
 
--- A piece of a running mission was destroyed (a fire emptied the container it was in): the mission goes on. A piece the
--- team laid out is laid out again where it was, one handed to the player is handed again, and the deadline leaves as
--- much time as the mission had from the start (never less than it had). A cooler's warming starts again with the new one.
+-- A piece of a running mission was destroyed (a fire emptied the container it was in): the mission goes on, and the
+-- player gets the piece again the way it was got. One to be found turns up again at its place; the soil sample is taken
+-- again; the exchanged record is waited for again where it was handed over. The deadline leaves as much time as the
+-- mission had from the start (never less than it had), and a cooler's warming starts again with the new one.
 function Missions.replacePiece(record, m, it)
     local g = game()
+    local sub
+    if it.mode == "container" or it.mode == "floor" or it.mode == "case" then
+        it.placed, it.at = false, nil
+        if g and g.placeAgain then g.placeAgain(record, m, it) end
+        sub = "IGUI_OA_Title_LostSub_Find"
+    elseif m.soil and it.mode == "given" then
+        m.soil.taken = false
+        sub = "IGUI_OA_Title_LostSub_Soil"
+    elseif m.swap and it.mode == "inside" then
+        for i = #m.items, 1, -1 do
+            if m.items[i] == it then table.remove(m.items, i) end
+        end
+        m.swap.stage, m.swap.waited, m.swap.at = "waiting", 0, nil
+        sub = "IGUI_OA_Title_LostSub_Swap"
+    else
+        return
+    end
     local now = OA.hours()
     -- The time the mission had, as the first loss found it: a second loss gives no more than the first.
     m.span = m.span or (m.deadline - (m.issued or now))
     m.deadline = math.max(m.deadline, now + m.span)
     if m.carry then
         m.carry.start, m.carry.looked = nil, nil
-    end
-    local sub
-    if it.mode == "container" or it.mode == "floor" or it.mode == "case" then
-        it.placed, it.at = false, nil
-        if g and g.placeAgain then g.placeAgain(record, m, it) end
-        sub = "IGUI_OA_Title_LostSub_Placed"
-    else
-        if g and g.giveAgain then g.giveAgain(record, m, it) end
-        sub = "IGUI_OA_Title_LostSub_Given"
     end
     OA.log("mission", m.id, "piece", tostring(it.key), "destroyed: replaced")
     OA.Sync.title(record.id, { key = "IGUI_OA_Title_Lost", sub = sub, style = "notice", fallback = "bad" })

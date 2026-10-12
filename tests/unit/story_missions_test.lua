@@ -624,7 +624,7 @@ test("the handover mission's item is its own paper, the revisits' items carry th
     end
 end)
 
-test("a piece destroyed is laid out again, or handed again, with as much time as the mission had", function()
+test("a piece destroyed is got again the way it was got, with as much time as the mission had", function()
     local record = setup(2)
     record.story = nil
     M.tick(record)
@@ -633,7 +633,6 @@ test("a piece destroyed is laid out again, or handed again, with as much time as
     it.placed, it.at = true, { x = 1, y = 2, z = 0 }
     local again = {}
     M.game.placeAgain = function(rec, mission, piece) again[#again + 1] = piece end
-    M.game.giveAgain = function(rec, mission, piece) M.game.handed = piece end
     local told = listenTitles()
     local span = m.deadline - m.issued
     TEST.hours = TEST.hours + 6 * 24
@@ -646,14 +645,29 @@ test("a piece destroyed is laid out again, or handed again, with as much time as
     eq(again[1], it)
     near(m.deadline, TEST.hours + span, 1e-6, "as much time as it had from the start")
     eq(told[#told].key, "IGUI_OA_Title_Lost")
-    eq(told[#told].sub, "IGUI_OA_Title_LostSub_Placed")
-    -- Early, the deadline it has is kept: never less time.
+    eq(told[#told].sub, "IGUI_OA_Title_LostSub_Find")
+    -- A soil sample is taken again; the deadline it has now is kept (a second loss gives no more time).
     local deadline = m.deadline
+    m.soil = { taken = true }
     it.mode = "given"
     M.replacePiece(record, m, it)
-    eq(M.game.handed, it, "handed again")
+    eq(m.soil.taken, false, "taken again")
     eq(m.deadline, deadline)
-    eq(told[#told].sub, "IGUI_OA_Title_LostSub_Given")
+    eq(told[#told].sub, "IGUI_OA_Title_LostSub_Soil")
+    m.soil = nil
+    -- The exchanged record is waited for again; the piece goes, a new one comes with the wait.
+    m.swap = { stage = "done", waited = 9, at = 1 }
+    it.mode = "inside"
+    M.replacePiece(record, m, it)
+    eq(m.swap.stage, "waiting")
+    eq(m.swap.waited, 0)
+    eq(#m.items, 0, "the old piece went")
+    eq(told[#told].sub, "IGUI_OA_Title_LostSub_Swap")
+    -- A piece of no known way: left as it is.
+    local count = #told
+    M.replacePiece(record, m, { key = "Z", mode = "other" })
+    eq(#told, count)
+    m.items[1] = it
     eq(M.state(record).active, m, "the mission goes on")
     eq(M.pieceOf(record, "M0-999"), nil, "another mission's item")
     m.state = "sealed"

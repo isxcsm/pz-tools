@@ -568,13 +568,6 @@ function Game.placeAgain(record, m, it)
     Game.request(record, m, it)
 end
 
--- Hands the piece to the player again.
-function Game.giveAgain(record, m, it)
-    local character = Game.character(record)
-    if character then Game.giveMissionItem(character, it.type, Missions.itemId(m, it.key), it.mods) end
-    it.placed = true
-end
-
 -- OnPZToolsContainerBurning: a fire is about to empty a container (and take it away). It is looked into only while a
 -- mission is running; a fire is rare, and the look is one search of the container. Each piece found is replaced once,
 -- however many of its items (a case and the record in it) burn.
