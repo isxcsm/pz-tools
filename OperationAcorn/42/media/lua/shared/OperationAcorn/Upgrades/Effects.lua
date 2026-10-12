@@ -76,10 +76,10 @@ for _, family in ipairs(Data.FAMILY_ORDER) do Effects.MAP["bFamily" .. family] =
 -- The cone the sight node may add at most (degrees), whatever the effect option says.
 local MAX_CONE = 90
 -- Night sight (PZ Extension API: the dark is lifted to the value, in grey; what a light lights keeps its colour) by the rank of
--- 밤눈, and with 야행성 눈. Measured at 2 a.m. in an office with no light: 0.1 barely lifts it, 0.3 showed all of it
--- (too much for a rank before the capstone), 0.5 shows it plainly.
-local NIGHT_SIGHT = { 0.1, 0.2, 0.25 }
-local NIGHT_SIGHT_EYE = 0.5
+-- 밤눈, and with 야행성 눈. Measured at 2 a.m. in an office with no light: 0.1 barely lifts it, 0.3 shows all of it
+-- (the last rank before the capstone), 0.5 shows it plainly; the capstone goes a step past that.
+local NIGHT_SIGHT = { 0.15, 0.25, 0.3 }
+local NIGHT_SIGHT_EYE = 0.6
 -- The cone the dark takes back (vision.darknessRestore) never brings the night's cone up to the day's: in the full dark
 -- 야행성 눈 leaves it NIGHT_MARGIN degrees under the character's day cone. Vanilla (LightingJNI.calculateVisionCone): the
 -- dark takes up to DARK_CONE degrees; the Night Vision trait adds TRAIT_CONE by the dark and Eagle Eyed TRAIT_CONE by the
