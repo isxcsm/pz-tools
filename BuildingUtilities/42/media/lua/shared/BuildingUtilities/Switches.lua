@@ -1,8 +1,11 @@
 -- A device's own switch, thrown from its box's window as the game's actions throw it (ISToggleLightAction,
 -- ISToggleStoveAction, ISToggleClothingWasher, ISToggleClothingDryer, ISToggleComboWasherDryer,
 -- ISActivateCarBatteryChargerAction, ISRadioAction's ToggleOnOff): lights, stoves and microwaves, washers and dryers,
--- battery chargers, televisions and radios. A fridge or a machine has none, nor a stacked washer and dryer (two
--- switches).
+-- battery chargers, televisions and radios. A fridge or the game's machines have none, nor a stacked washer and dryer
+-- (two switches). Another mod's things with a switch of their own come in through the global list
+-- BuildingUtilitiesSwitches: each entry { state = function(object) -> true, false, or nil when not its thing,
+-- set = function(object, on) } (set runs where the world is decided), added as that mod loads, in any order.
+BuildingUtilitiesSwitches = BuildingUtilitiesSwitches or {}
 local BU = BuildingUtilities
 local Switches = {}
 BU.Switches = Switches
@@ -16,6 +19,15 @@ local function activated(object)
     return false
 end
 
+-- Another mod's switch for an object, and whether it is on; nil when none of them has it.
+local function hooked(object)
+    for _, hook in ipairs(BuildingUtilitiesSwitches) do
+        local on = hook.state(object)
+        if on ~= nil then return hook, on end
+    end
+    return nil
+end
+
 -- Whether an object's switch is on; nil when it has none.
 function Switches.state(object)
     if instanceof(object, "IsoLightSwitch") then return object:isActivated() end
@@ -24,8 +36,10 @@ function Switches.state(object)
     if instanceof(object, "IsoWaveSignal") then
         local data = object:getDeviceData()
         if data then return data:getIsTurnedOn() end
+        return nil
     end
-    return nil
+    local _, on = hooked(object)
+    return on
 end
 
 -- Throws an object's switch to on or off. Returns whether it moved.
@@ -48,6 +62,8 @@ function Switches.set(object, on)
         local washer = instanceof(object, "IsoClothingWasher")
             or instanceof(object, "IsoCombinationWasherDryer") and object:isModeWasher()
         object:sendObjectChange(washer and IsoObjectChange.WASHER_STATE or IsoObjectChange.DRYER_STATE)
+    elseif not instanceof(object, "IsoWaveSignal") then
+        hooked(object).set(object, on)
     else
         local data = object:getDeviceData()
         if data:getIsTelevision() then data:playSoundSend(on and "TelevisionOn" or "TelevisionOff", false)
