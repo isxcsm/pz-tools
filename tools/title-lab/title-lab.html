@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Title Preview</title>
+<title>Title Lab</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -60,7 +60,7 @@ const P = {
   GLOW: 0.45, COOL: 0.4, BURN_ASH: 0.3, SCORCH_END: 0.4, GLOW_PEAK: 0.62, GLOW_END: 0.85, SPARKS: 0.25, CHAR_ASH: 0.45,
   SCORCH_R: 0.34, SCORCH_G: 0.18, SCORCH_B: 0.1, CHAR_R: 0.07, CHAR_G: 0.055, CHAR_B: 0.05, FLICKER: 9, FLICKER_DEPTH: 0.3,
   // paper (a new way: the text burns spot by spot, its ash shards tumbling)
-  IMPACT_COOL: 4, IMPACT_GLOW: 1, IMPACT_STREAK: 0.8, IMPACT_DUST: 1, SHINE_AT: 0.8, SHINE: 0.45, ERODE_GRAIN: 9, ERODE_DRAIN: 0.8, TRACK: 0.07, TRACK_BLUR: 0.6, TRACK_RISE: 0.05, TRACK_STAGGER: 0.12,
+  IMPACT_COOL: 4, IMPACT_GLOW: 1, IMPACT_STREAK: 0.8, IMPACT_DUST: 1, SHINE_AT: 0.8, SHINE: 0.45, ERODE_GRAIN: 9, ERODE_DRAIN: 0.8, TORCH_POOL: 1, TORCH_STUTTER: 1, TRACK: 0.07, TRACK_BLUR: 0.6, TRACK_RISE: 0.05, TRACK_STAGGER: 0.12,
   zoom: 2, FRONT: 0.52, SPREAD: 0.07, EDGE_W: 0.012, CHAR_W: 0.02, SCORCH_W: 0.07, RAGGED: 0.03, CURL: 0.6,
   FLAKES: 0.5, FLAKE_SIZE: 1.1, SPIN: 7, GREYING: 0.35, PAPER_ASH: 0.55,
 };
@@ -86,6 +86,9 @@ const STYLES = {
   "discovery": { label: "discovery (게임 현재)", y: 0.28, gap: 0.3, trail: 0, backdrop: 0.3,
     title: { weight: 700, italic: true, size: 0.08, color: [1, 0.8, 0.38], enter: "rise", enterTime: 0.6, leave: "rise", leaveTime: 0.9 },
     line: { weight: 400, size: 0.042, color: [1, 0.93, 0.78], delay: 0.25, enter: "rise", enterTime: 0.6, leave: "rise", leaveTime: 0.9 } },
+  "discovery-new": { label: "discovery 새안: 손전등", y: 0.28, gap: 0.3, trail: 0.15, backdrop: 0.3,
+    title: { weight: 700, size: 0.08, color: [1, 0.8, 0.38], outline: 0.35, lit: true, enter: "torch", enterTime: 2.2, leave: "dim", leaveTime: 4.5 },
+    line: { weight: 400, size: 0.042, color: [1, 0.93, 0.78], lit: true, delay: 1.5, enter: "slideup", enterTime: 0.8, leave: "dim", leaveTime: 4.3 } },
   "notice": { label: "notice (게임 현재)", y: 0.2, gap: 0.3, trail: 0, backdrop: 0.3,
     title: { weight: 700, size: 0.036, color: [0.92, 0.95, 1], enter: "drop", enterTime: 0.35, leave: "fade", leaveTime: 0.6 },
     line: { weight: 400, size: 0.026, color: [0.8, 0.84, 0.9], delay: 0.1, enter: "fade", enterTime: 0.35, leave: "fade", leaveTime: 0.6 } },
@@ -137,6 +140,7 @@ function leaveState(kind, o, st) {
     case "lift": st.a *= 1 - smooth(o); st.y -= 0.25 * cubicOut(o); st.s *= 1 + 0.05 * o; break;
     case "trackout": st.a *= 1 - smooth(o); break;   // its letters are drawn by drawTrackout
     case "erode": st.a *= 1 - smooth(o); break;      // drawn by drawErode
+    case "dim": st.a *= 1 - smooth(clamp((o - 0.4) / 0.6, 0, 1)); break;   // drawn by drawTorch
   }
   return st;
 }
@@ -261,6 +265,7 @@ void main() { vUv = uv; vCol = col; vAux = aux; vec2 p = (pos - camera.xy) * cam
 const FS = `precision highp float;
 uniform sampler2D tex; uniform sampler2D burnMap; uniform float mode, progress, edgeW, charW, scorchW, glow, flickerN, flickerD;
 uniform vec3 burn, scorched, charred; uniform vec2 picSize; uniform vec2 inner; uniform vec2 blurR; uniform float grainSize, drainBy;
+uniform vec3 torch; uniform float reveal, remain, light, ember;
 varying vec2 vUv; varying vec4 vCol; varying vec3 vAux;
 float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -308,6 +313,19 @@ void main() {
   if (mode < 4.5) {                       // a soft round puff
     float m = 1.0 - smoothstep(0.0, 1.0, length(vAux.xy));
     gl_FragColor = vCol * m * m;
+    return;
+  }
+  if (mode > 8.5) {                       // lit by a torch: the beam, the trail it has lit; light dims its colour to embers, ember its alpha
+    vec4 c = texture2D(tex, vUv);
+    float a = c.a;
+    if (a <= 0.0) discard;
+    vec3 col = c.rgb / a;
+    vec2 d = (vUv - torch.xy) * vec2(1.0, picSize.y / picSize.x);
+    float beam = 1.0 - smoothstep(0.35, 1.0, length(d) / torch.z);
+    float trail = smoothstep(reveal + 0.02, reveal - 0.3, vUv.x) * remain;
+    float seen = clamp(max(beam, trail), 0.0, 1.0);
+    col = col * mix(vec3(0.55, 0.32, 0.14), vec3(1.0), light) * light + vec3(1.0, 0.86, 0.6) * beam * 0.22 * light;
+    gl_FragColor = vec4(col * a * seen, a * seen) * ember * vCol.a;
     return;
   }
   if (mode > 7.5) {                       // weathering away: its colour drains, it wears off in pits from its edges, the last of it fades
@@ -579,6 +597,50 @@ function rebuild() {
 }
 const timeline = () => Math.max(...pieces.map(p => p.leaveAt + leaveTimeOf(p.spec))) + 0.4;
 
+// The torch: a beam swaying in from the left over the title, lighting what it passes, then settling in the middle and
+// opening over all of it (secs since the title began). x, y in the picture's shares, r the beam's radius in its width.
+const bump = (x, at, width) => Math.exp(-(((x - at) / width) ** 2));
+function torchAt(secs) {
+  const e = smooth(clamp(secs / 1.7, 0, 1)), sway = 1 - e;
+  let x = -0.2 + 0.75 * e, y = 0.55 + (0.1 * Math.sin(secs * 3.1) + 0.04 * Math.sin(secs * 7.3)) * sway, r = 0.2;
+  const v = smooth(clamp((secs - 1.6) / 0.6, 0, 1));
+  x += (0.5 - x) * v; y += (0.5 - y) * v; r += 1.3 * v;
+  return { x, y, r, reveal: -0.2 + 0.75 * e, remain: 0.75 + 0.25 * v, pool: 1 - 0.55 * v, open: v };
+}
+// How bright the torch is (it flickers once while the title stays; as it leaves it stutters and dies down to embers),
+// and how much of the text is still there (ember).
+function torchLight(p, st) {
+  const title = pieces[0], secs = t - title.delay, o = st.out;
+  let light = 1 - 0.25 * bump(secs, title.spec.enterTime + 1.4, 0.05) - 0.15 * bump(secs, title.spec.enterTime + 1.55, 0.03);
+  if (o > 0) {
+    light = Math.max(0.22, 1 - 0.85 * smooth(clamp(o / 0.6, 0, 1)));
+    light *= 1 - P.TORCH_STUTTER * (0.75 * bump(o, 0.08, 0.012) + 0.6 * bump(o, 0.16, 0.01) + 0.5 * bump(o, 0.21, 0.008));
+  }
+  return { light, ember: 1 - smooth(clamp((o - 0.4) / 0.6, 0, 1)) };
+}
+function drawTorch(p, st) {
+  const { light, ember } = torchLight(p, st);
+  const isTitle = p === pieces[0];
+  const torch = isTitle ? torchAt(Math.min(st.secs, p.leaveAt - p.delay)) : { x: 0.5, y: 0.5, r: 10, reveal: 2, remain: 1, pool: 0, open: 1 };
+  const s = st.s, cx = p.cx + st.x, cy = p.cy + st.y * p.line * s, hw = p.w * s / 2, hh = p.h * s / 2;
+  // the light it throws on what is behind
+  if (isTitle && P.TORCH_POOL > 0) {
+    const I = 0.09 * P.TORCH_POOL * torch.pool * light * ember * st.a;
+    if (I > 0.002) {
+      mode = 4;
+      shard(cx + (torch.x - 0.5) * p.w * s, cy + (torch.y - 0.5) * p.h * s, p.line * 1.3 * (1 + 1.2 * torch.open), 0, 0.6, I, 0.82 * I, 0.55 * I, 0, 0);
+      flush(p.tex);
+    }
+  }
+  mode = 9;
+  gl.uniform3f(U("torch"), torch.x, torch.y, torch.r); gl.uniform1f(U("reveal"), torch.reveal); gl.uniform1f(U("remain"), torch.remain);
+  gl.uniform1f(U("light"), light); gl.uniform1f(U("ember"), ember); gl.uniform2f(U("picSize"), p.w, p.h);
+  const a = isTitle ? 1 : enterState(p.spec.enter, Math.min(1, st.secs / p.spec.enterTime), st.secs, p.line).a;
+  quad(cx - hw, cy - hh, cx + hw, cy + hh, 0, 0, 1, 1, a, a, a, a);
+  flush(p.tex);
+  mode = 0;
+}
+
 // Weathering away, in place: the shader drains its colour and wears it off from its edges in pits.
 function drawErode(p, st, o) {
   const s = st.s, hw = p.w * s / 2, hh = p.h * s / 2, r = Math.max(1, p.line * 0.03);
@@ -772,7 +834,8 @@ function frame(now) {
       return;
     }
     const cx = p.cx + st.x, cy = p.cy + st.y * p.line * st.s, hw = p.w * st.s * st.sx / 2, hh = p.h * st.s * st.sy / 2;
-    if (p.spec.leave === "trackout" && st.out > 0) drawTrackout(p, st, st.out);
+    if (p.spec.lit) drawTorch(p, st);
+    else if (p.spec.leave === "trackout" && st.out > 0) drawTrackout(p, st, st.out);
     else if (p.spec.leave === "erode" && st.out > 0) drawErode(p, st, st.out);
     else if (st.a > 0.002) { quad(cx - hw, cy - hh, cx + hw, cy + hh, 0, 0, 1, 1, st.a, st.a, st.a, st.a); flush(p.tex); }
     if (p.spec.enter === "impact") drawImpact(p, st, st.secs, st.left);
@@ -856,6 +919,9 @@ control("TRACK_BLUR", "퇴장: 번짐", "range", [0, 3, 0.05]);
 control("TRACK_RISE", "퇴장: 떠오름", "range", [0, 0.6, 0.01]);
 control("TRACK_STAGGER", "퇴장: 바깥 글자 먼저", "range", [0, 0.5, 0.01]);
 control("SHINE", "광택 세기", "range", [0, 2, 0.05]);
+heading("discovery 새안: 손전등");
+control("TORCH_POOL", "벽에 비친 빛", "range", [0, 3, 0.05]);
+control("TORCH_STUTTER", "꺼질 때 깜빡임", "range", [0, 1.3, 0.05]);
 heading("dust 새안: 종이 연소");
 control("FRONT", "번지는 시간 몫", "range", [0.1, 0.6, 0.01]);
 control("SPREAD", "앞질러 붙는 정도", "range", [0, 0.3, 0.005]);
@@ -922,6 +988,7 @@ const BUILT_IN = {
   "종이 연소 1": effectOf(DEFAULTS),
   "숯불 셀 (dust 게임 현재)": { ...effectOf(DEFAULTS), style: "dust", leaveTime: 6, CHAR_ASH: 0.2 },
   "각인 (stamp 새안)": { ...effectOf(DEFAULTS), style: "stamp-new" },
+  "손전등 (discovery 새안)": { ...effectOf(DEFAULTS), style: "discovery-new" },
 };
 const STORE = "dust-preview-presets";
 function ownPresets() { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } }
