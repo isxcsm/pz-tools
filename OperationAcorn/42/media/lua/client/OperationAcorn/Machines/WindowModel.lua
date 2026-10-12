@@ -338,6 +338,8 @@ local function partsOf(input)
             card.empty = true
             card.tier = text("IGUI_OA_Machine_Part_None")
             local optional = def.empty and def.empty[slot]
+            -- an empty slot the machine runs without (the cover) is one slim row: its name, what one would do, the button
+            card.slim = optional or nil
             card.effect = text(optional and "IGUI_OA_Machine_Part_Optional" or "IGUI_OA_Machine_Part_Needed")
             card.effectTone = not optional and "bad" or nil
             card.buttons[1] = { id = "install", label = text("IGUI_OA_Machine_Install"), strong = not optional }

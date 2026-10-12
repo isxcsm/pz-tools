@@ -234,7 +234,7 @@
     "IGUI_OA_Machine_Part_RemoveTip": "Removing it switches the machine off. The part goes to your bag.",
     "IGUI_OA_Machine_Part_None": "empty",
     "IGUI_OA_Machine_Part_Needed": "It runs once one is installed.",
-    "IGUI_OA_Machine_Part_Optional": "It runs without one. With one it is quieter.",
+    "IGUI_OA_Machine_Part_Optional": "optional · quieter",
     "IGUI_OA_Machine_Fx_motor": "%1 at a time · speed x%2 · power x%3",
     "IGUI_OA_Machine_Fx_shredBase": "the usual bundles",
     "IGUI_OA_Machine_Fx_shred": "bundles x%1",

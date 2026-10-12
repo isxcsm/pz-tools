@@ -4,11 +4,11 @@
 -- palette. Laid out when the model changes; each frame only paints the list. From the top: the name plate (icon,
 -- name, number, the light and the switch), the strip (what it does or what to do), then per kind: the jobs a lane each,
 -- the two bins, the three numbers of its performance, the water gauge, the lure's hours, and a card a part.
--- A machine with parts is wide, in two columns under the plate and the strip (one column of the jobs, the bins, the
--- performance and three parts was taller than a 900p screen allows): on the left the jobs and under them the bins one
--- above the other, on the right the performance (its three numbers on a row) and the parts, so that both columns begin
--- with a heading on the same line. The others (no
--- parts: the locker, the rain storage, the lure) are one column. The window's width is the layout's (Layout.widthOf).
+-- A machine with parts is wide (one column of the jobs, the bins, the performance and three parts was taller than a
+-- 900p screen allows): under the plate and the strip the performance across the window (its three numbers on a row),
+-- then two columns: on the left the jobs and under them the bins one above the other, on the right the parts, so that
+-- both columns begin with a heading on the same line and end about level. An empty slot the machine runs without (the
+-- sound cover) is a slim row, not a card. The others (no parts: the locker, the rain storage, the lure) are one column. The window's width is the layout's (Layout.widthOf).
 require "OperationAcorn/Trade/UI"
 require "OperationAcorn/Trade/StatusDraw"
 require "OperationAcorn/Machines/Machines"
@@ -204,14 +204,16 @@ local function perf(L, pf, x, y, w)
 end
 
 -- A card a part: its icon (no well: a whole multiple of its pixels, UI.iconSize), the slot and the tier, the buttons that make sense, its condition with the line under which
--- it is worn, the hours of running it has left, and what it does (or what is wrong with it).
+-- it is worn, the hours of running it has left, and what it does (or what is wrong with it). An empty slot the machine
+-- runs without is a slim row: its name and what one would do, on the button's line.
 local function parts(L, list, x, y, w)
     local p, fh = L.p, L.fh
     local btn = Layout.buttonHeight()
     y = head(L, x, y, w, getText("IGUI_OA_Machine_Parts"), getText("IGUI_OA_Machine_Parts_WornLine"))
-    local h = 3 + btn + 1 + fh + fh + 3
-    local ib = UI.iconSize(40, h - 12)
+    local full = 3 + btn + 1 + fh + fh + 3
+    local ib = UI.iconSize(40, full - 12)
     for _, c in ipairs(list) do
+        local h = c.slim and 3 + btn + 3 or full
         Draw.panel(L, x, y, w, h)
         if c.icon then Draw.item(L, c.icon, x + 10, y + floor((h - ib) / 2), ib, c.broken and 0.55 or 1) end
         local tx = x + 10 + ib + 10
@@ -228,26 +230,31 @@ local function parts(L, list, x, y, w)
         end
         local ry = y + 3 + floor((btn - fh) / 2)
         local nw = Draw.fit(L, c.name, tx, ry, math.max(0, bx - 4 - tx), p.bright)
-        local chipW = UI.textWidth(c.tier) + 12
-        local cx = tx + nw + 6
-        if cx + chipW <= bx - 4 then
-            Draw.rect(L, cx, ry + 1, chipW, fh - 2, c.empty and p.inset or p.title)
-            Draw.fit(L, c.tier, cx, ry, chipW, c.empty and p.dim or p.text, nil, nil, "centre")
-        end
-        local y2 = y + 3 + btn + 1
-        if c.empty then
-            Draw.fit(L, c.effect, tx, y2, right - tx, colour(p, c.effectTone))
+        if c.slim then
+            local ex = tx + nw + 10
+            Draw.fit(L, c.effect, ex, ry, math.max(0, bx - 6 - ex), p.dim)
         else
-            local tone = colour(p, c.tone)
-            local pctW = UI.textWidth("100%") + 4
-            local lifeW = math.min(UI.textWidth(c.life), floor((right - tx) / 2))
-            local barW = right - tx - pctW - lifeW - 16
-            local by = y2 + floor((fh - BAR) / 2)
-            Draw.progress(L, tx, by, barW, BAR, c.frac, tone)
-            Draw.rect(L, tx + floor(barW * Data.WORN_BELOW / Data.CONDITION_MAX), by - 3, 1, BAR + 6, p.warn, 0.9)
-            Draw.fit(L, c.pct, tx + barW + 4, y2, pctW, tone, nil, nil, "right")
-            Draw.fit(L, c.life, right - lifeW, y2, lifeW, colour(p, c.lifeTone), nil, nil, "right")
-            Draw.fit(L, c.effect, tx, y2 + fh, right - tx, colour(p, c.effectTone))
+            local chipW = UI.textWidth(c.tier) + 12
+            local cx = tx + nw + 6
+            if cx + chipW <= bx - 4 then
+                Draw.rect(L, cx, ry + 1, chipW, fh - 2, c.empty and p.inset or p.title)
+                Draw.fit(L, c.tier, cx, ry, chipW, c.empty and p.dim or p.text, nil, nil, "centre")
+            end
+            local y2 = y + 3 + btn + 1
+            if c.empty then
+                Draw.fit(L, c.effect, tx, y2, right - tx, colour(p, c.effectTone))
+            else
+                local tone = colour(p, c.tone)
+                local pctW = UI.textWidth("100%") + 4
+                local lifeW = math.min(UI.textWidth(c.life), floor((right - tx) / 2))
+                local barW = right - tx - pctW - lifeW - 16
+                local by = y2 + floor((fh - BAR) / 2)
+                Draw.progress(L, tx, by, barW, BAR, c.frac, tone)
+                Draw.rect(L, tx + floor(barW * Data.WORN_BELOW / Data.CONDITION_MAX), by - 3, 1, BAR + 6, p.warn, 0.9)
+                Draw.fit(L, c.pct, tx + barW + 4, y2, pctW, tone, nil, nil, "right")
+                Draw.fit(L, c.life, right - lifeW, y2, lifeW, colour(p, c.lifeTone), nil, nil, "right")
+                Draw.fit(L, c.effect, tx, y2 + fh, right - tx, colour(p, c.effectTone))
+            end
         end
         y = y + h + CARD_GAP
     end
@@ -343,7 +350,7 @@ local function lure(L, u, x, y, w)
 end
 
 -- The two columns of a machine with parts, from y: the jobs and the bins (and the rain's or the lure's section, which no
--- kind with parts has) on the left, the performance and the parts on the right. Returns the lower end.
+-- kind with parts has) on the left, the parts on the right. Returns the lower end.
 local function columns(L, m, x, y, w)
     local lw = Layout.LEFT
     local rx = x + lw + Layout.COLUMN_GAP
@@ -353,8 +360,7 @@ local function columns(L, m, x, y, w)
     if m.boxes and #m.boxes > 0 then ly = boxes(L, m.boxes, x, ly + (ly > y and Layout.GAP or 0), lw) end
     if m.rain then ly = rain(L, m.rain, x, ly + Layout.SECTION, lw) end
     if m.lure then ly = lure(L, m.lure, x, ly + Layout.SECTION, lw) end
-    if m.perf then ry = perf(L, m.perf, rx, ry, rw) end
-    if m.parts then ry = parts(L, m.parts, rx, ry + (ry > y and Layout.SECTION or 0), rw) end
+    if m.parts then ry = parts(L, m.parts, rx, ry, rw) end
     return math.max(ly, ry)
 end
 
@@ -363,7 +369,10 @@ function Layout.build(L, m, width)
     local x, w = Layout.PAD, width - 2 * Layout.PAD
     local y = plate(L, m, x, Layout.PAD, w) + Layout.GAP
     y = strip(L, m.strip, x, y, w)
-    if m.parts then return columns(L, m, x, y + Layout.SECTION, w) + Layout.PAD end
+    if m.parts then
+        if m.perf then y = perf(L, m.perf, x, y + Layout.SECTION, w) end
+        return columns(L, m, x, y + Layout.SECTION, w) + Layout.PAD
+    end
     if m.jobs then y = jobs(L, m.jobs, x, y + Layout.SECTION, w) end
     if m.boxes and #m.boxes > 0 then y = boxes(L, m.boxes, x, y + Layout.GAP, w) end
     if m.perf then y = perf(L, m.perf, x, y + Layout.SECTION, w) end

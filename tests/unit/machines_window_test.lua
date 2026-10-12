@@ -832,8 +832,9 @@ for _, screenH in ipairs({ 300, 400, 720, 900, 1080, 1440 }) do
 end
 
 -- The wide window of a machine with parts ------------------------------------------------------------------------------
--- A machine with parts is two columns (jobs and performance left, bins and parts right) and wide enough for the
--- longest lines of both languages in a column; none scrolls at 720p, 900p or 1080p at the 16 px font.
+-- A machine with parts has its performance across the window, then two columns (the jobs and the bins left, the parts
+-- right), wide enough for the longest lines of both languages in a column; none scrolls at 720p, 900p or 1080p at the
+-- 16 px font.
 
 local WIDE_KINDS = { "bulkShredder", "cutter", "propaneRefiner", "oilRefiner", "woodSaw" }
 local BOX_TYPES = { ["in"] = "OAMachineIn", out = "OAMachineOut", tank = "OAMachineTank" }
@@ -953,7 +954,7 @@ for _, lang in ipairs({ "EN", "KO" }) do
     end
 end
 
-test("in two columns: the jobs and the bins on the left, the performance and the parts on the right, none across", function()
+test("the performance across, then two columns: the jobs and the bins on the left, the parts on the right", function()
     local UI, Draw, Model, Layout = loadWindow(16)
     useFonts(UI, 16)
     for _, kind in ipairs(WIDE_KINDS) do
@@ -966,13 +967,15 @@ test("in two columns: the jobs and the bins on the left, the performance and the
         truthy(rightStart < Layout.PAD + w and w - Layout.LEFT - Layout.COLUMN_GAP >= 380,
             kind .. ": the right column is wide enough for a part's card")
                 -- the columns start at the Jobs head; the plate and the strip above are the whole width
-        local top, perfTop
+        local top, perfTop, partsTop
         for _, t in ipairs(textBoxes(UI, L)) do
             if t.s == getText("IGUI_OA_Machine_Jobs") then top = t.y end
             if t.s == getText("IGUI_OA_Machine_Perf") then perfTop = t.y end
+            if t.s == getText("IGUI_OA_Machine_Parts") then partsTop = t.y end
         end
         truthy(top, kind .. ": the jobs head")
-        eq(perfTop, top, kind .. ": both columns begin with a head on the same line")
+        truthy(perfTop and perfTop < top, kind .. ": the performance above the columns")
+        eq(partsTop, top, kind .. ": both columns begin with a head on the same line")
         for _, t in ipairs(textBoxes(UI, L)) do
             if t.y >= top then
                 truthy(t.x + t.w <= leftEnd + 0.5 or t.x >= rightStart - 0.5, kind .. ": '" .. t.s .. "' across the columns")
@@ -986,7 +989,7 @@ test("in two columns: the jobs and the bins on the left, the performance and the
             if hit.hover and not hit.id then
                 perfs = perfs + 1
                 perfYs[#perfYs + 1] = hit.y
-                truthy(hit.x >= rightStart, kind .. ": a performance cell on the right")
+                truthy(hit.y < top, kind .. ": a performance cell above the columns")
             elseif hit.id == "open" then
                 opens = opens + 1
                 ys[#ys + 1] = hit.y
@@ -1002,6 +1005,45 @@ test("in two columns: the jobs and the bins on the left, the performance and the
         truthy(ys[2] > ys[1], kind .. ": the bins one above the other")
         truthy(perfYs[1] == perfYs[2] and perfYs[2] == perfYs[3], kind .. ": the performance on one row")
         truthy(h > top, kind .. ": a body")
+    end
+end)
+
+test("an empty sound cover is a slim row: its name, what one does and the button on one line; the columns end about level", function()
+    local UI, Draw, Model, Layout = loadWindow(16)
+    useFonts(UI, 16)
+    for _, kind in ipairs(WIDE_KINDS) do
+        local width = Layout.widthOf(kind)
+        local covered = Layout.build(Draw.list(UI.palette("field")), Model.build(partsScene(kind, "modern", 82)), width)
+        local scene = partsScene(kind, "modern", 82)
+        scene.status.parts.cover = nil
+        local m = Model.build(scene)
+        local card = m.parts[#m.parts]
+        eq(card.slot, "cover")
+        truthy(card.slim and card.empty, kind .. ": the empty cover is slim")
+        eq(m.parts[1].slim, nil, kind .. ": a part the machine needs is a card")
+        local L = Draw.list(UI.palette("field"))
+        local h = Layout.build(L, m, width)
+        truthy(h <= covered, kind .. ": no taller than with a cover (" .. h .. " / " .. covered .. ")")
+        local install
+        for _, hit in ipairs(L.hits) do
+            if hit.id == "part" and hit.slot == "cover" then install = hit end
+        end
+        truthy(install and install.action == "install", kind .. ": the cover's install button")
+        local name, note
+        for _, t in ipairs(textBoxes(UI, L)) do
+            if t.s == getText("IGUI_OA_Machine_Slot_cover") then name = t end
+            if t.s == getText("IGUI_OA_Machine_Part_Optional") then note = t end
+        end
+        truthy(name and note and name.y == note.y, kind .. ": the name and the note on one line")
+        truthy(note.y < install.y + install.h and note.y + UI.fontHeight() > install.y, kind .. ": on the button's line")
+        truthy(note.x > name.x + name.w and note.x + note.w <= install.x, kind .. ": between the name and the button")
+        -- the two columns end about level: the lowest bin's button and the cover row are near
+        local lowestOpen = 0
+        for _, hit in ipairs(L.hits) do
+            if hit.id == "open" then lowestOpen = math.max(lowestOpen, hit.y) end
+        end
+        truthy(math.abs(install.y - lowestOpen) <= 3 * UI.fontHeight(),
+            kind .. ": the columns end about level (" .. install.y .. " / " .. lowestOpen .. ")")
     end
 end)
 

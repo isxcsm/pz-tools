@@ -234,7 +234,7 @@
     "IGUI_OA_Machine_Part_RemoveTip": "분리하면 기계가 꺼집니다. 부품은 가방으로 들어옵니다.",
     "IGUI_OA_Machine_Part_None": "비어 있음",
     "IGUI_OA_Machine_Part_Needed": "장착해야 돕니다.",
-    "IGUI_OA_Machine_Part_Optional": "없어도 돕니다. 달면 소음이 줄어듭니다.",
+    "IGUI_OA_Machine_Part_Optional": "선택 부품 · 달면 조용해집니다",
     "IGUI_OA_Machine_Fx_motor": "동시에 %1개 · 속도 %2배 · 전기 %3배",
     "IGUI_OA_Machine_Fx_shredBase": "기본 묶음 수",
     "IGUI_OA_Machine_Fx_shred": "묶음 %1배",
