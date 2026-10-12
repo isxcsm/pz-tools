@@ -60,7 +60,7 @@ const P = {
   GLOW: 0.45, COOL: 0.4, BURN_ASH: 0.3, SCORCH_END: 0.4, GLOW_PEAK: 0.62, GLOW_END: 0.85, SPARKS: 0.25, CHAR_ASH: 0.45,
   SCORCH_R: 0.34, SCORCH_G: 0.18, SCORCH_B: 0.1, CHAR_R: 0.07, CHAR_G: 0.055, CHAR_B: 0.05, FLICKER: 9, FLICKER_DEPTH: 0.3,
   // paper (a new way: the text burns spot by spot, its ash shards tumbling)
-  IMPACT_COOL: 4, IMPACT_GLOW: 1, IMPACT_STREAK: 0.8, IMPACT_DUST: 1, SHINE_AT: 0.8, SHINE: 0.45, ERODE_GRAIN: 9, ERODE_DRAIN: 0.8, TORCH_POOL: 1, TORCH_STUTTER: 1, RADIO_STATIC: 1, RADIO_HICCUP: 1, TRACK: 0.07, TRACK_BLUR: 0.6, TRACK_RISE: 0.05, TRACK_STAGGER: 0.12,
+  IMPACT_COOL: 4, IMPACT_GLOW: 1, IMPACT_STREAK: 0.8, IMPACT_DUST: 1, SHINE_AT: 0.8, SHINE: 0.45, ERODE_GRAIN: 9, ERODE_DRAIN: 0.8, TORCH_POOL: 1, TORCH_STUTTER: 1, RADIO_STATIC: 1, RADIO_HICCUP: 1, FOG_THICK: 1, FOG_DRIFT: 1, TRACK: 0.07, TRACK_BLUR: 0.6, TRACK_RISE: 0.05, TRACK_STAGGER: 0.12,
   zoom: 2, FRONT: 0.52, SPREAD: 0.07, EDGE_W: 0.012, CHAR_W: 0.02, SCORCH_W: 0.07, RAGGED: 0.03, CURL: 0.6,
   FLAKES: 0.5, FLAKE_SIZE: 1.1, SPIN: 7, GREYING: 0.35, PAPER_ASH: 0.55,
 };
@@ -95,6 +95,9 @@ const STYLES = {
   "notice": { label: "notice (게임 현재)", y: 0.2, gap: 0.3, trail: 0, backdrop: 0.3,
     title: { weight: 700, size: 0.036, color: [0.92, 0.95, 1], enter: "drop", enterTime: 0.35, leave: "fade", leaveTime: 0.6 },
     line: { weight: 400, size: 0.026, color: [0.8, 0.84, 0.9], delay: 0.1, enter: "fade", enterTime: 0.35, leave: "fade", leaveTime: 0.6 } },
+  "unveil-new": { label: "unveil 새안: 안개 걷힘", y: 0.28, gap: 0.35, trail: 0.3, backdrop: 0.3,
+    title: { weight: 400, size: 0.075, color: [0.96, 0.93, 0.86], outline: 0.35, fog: true, enter: "mist", enterTime: 2.4, leave: "mistin", leaveTime: 5 },
+    line: { weight: 400, size: 0.036, color: [0.84, 0.83, 0.8], fog: true, delay: 0.9, enter: "mist", enterTime: 2.0, leave: "mistin", leaveTime: 4.8 } },
   "unveil": { label: "unveil (게임 현재)", y: 0.28, gap: 0.35, trail: 0, backdrop: 0.3,
     title: { weight: 400, size: 0.075, color: [0.96, 0.93, 0.86], outline: 0.35, enter: "settle", enterTime: 1.4, leave: "fade", leaveTime: 1.0 },
     line: { weight: 400, size: 0.036, color: [0.84, 0.83, 0.8], delay: 0.6, enter: "fade", enterTime: 1.0, leave: "fade", leaveTime: 1.0 } },
@@ -145,6 +148,7 @@ function leaveState(kind, o, st) {
     case "erode": st.a *= 1 - smooth(o); break;      // drawn by drawErode
     case "dim": st.a *= 1 - smooth(clamp((o - 0.4) / 0.6, 0, 1)); break;   // drawn by drawTorch
     case "lost": st.a *= 1 - smooth(o); break;       // drawn by drawSignal
+    case "mistin": st.a *= 1 - smooth(o); break;     // drawn by drawFog
   }
   return st;
 }
@@ -271,10 +275,12 @@ uniform sampler2D tex; uniform sampler2D burnMap; uniform float mode, progress, 
 uniform vec3 burn, scorched, charred; uniform vec2 picSize; uniform vec2 inner; uniform vec2 blurR; uniform float grainSize, drainBy;
 uniform vec3 torch; uniform float reveal, remain, light, ember;
 uniform float sig, clock, staticBy;
+uniform float clear, fogAmt, noiseScale; uniform vec2 fogHalf;
 varying vec2 vUv; varying vec4 vCol; varying vec3 vAux;
 float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(h(i), h(i + vec2(1.0, 0.0)), f.x), mix(h(i + vec2(0.0, 1.0)), h(i + vec2(1.0, 1.0)), f.x), f.y); }
+float fbm(vec2 q) { return 0.5 * vn(q) + 0.3 * vn(q * 2.1 + 3.0) + 0.2 * vn(q * 4.3 + 7.0); }
 void main() {
   if (mode < 0.5) { gl_FragColor = texture2D(tex, vUv) * vCol; return; }
   if (mode < 1.5) {
@@ -318,6 +324,25 @@ void main() {
   if (mode < 4.5) {                       // a soft round puff
     float m = 1.0 - smoothstep(0.0, 1.0, length(vAux.xy));
     gl_FragColor = vCol * m * m;
+    return;
+  }
+  if (mode > 11.5) {                      // mist drifting over a band around the text (its own quad, aux its place in it)
+    vec2 l = vAux.xy;
+    vec2 q = l * fogHalf / noiseScale * 0.6 + vec2(clock * 0.1, clock * 0.03);
+    float band = (1.0 - smoothstep(0.4, 1.0, abs(l.x))) * (1.0 - smoothstep(0.2, 1.0, abs(l.y)));
+    float m = smoothstep(0.35, 0.8, fbm(q)) * band * fogAmt * 0.45;
+    gl_FragColor = vec4(vec3(0.62, 0.66, 0.7) * m, m);
+    return;
+  }
+  if (mode > 10.5) {                      // the text seen through mist: shown where the drifting mist has cleared (clear 0 to 1)
+    vec4 c = texture2D(tex, vUv);
+    if (c.a <= 0.0) discard;
+    vec2 q = vUv * picSize / noiseScale + vec2(clock * 0.12, clock * 0.04);
+    float n = fbm(q);
+    float vis = smoothstep(n - 0.18, n + 0.18, clear * 1.36 - 0.18);
+    vec3 col = c.rgb / c.a;
+    col = mix(col, vec3(dot(col, vec3(0.3, 0.55, 0.15))) * vec3(0.86, 0.9, 0.95), (1.0 - vis) * 0.6);
+    gl_FragColor = vec4(col * c.a, c.a) * vis * vCol.a;
     return;
   }
   if (mode > 9.5) {                       // a radio signal: rows torn sideways, colours apart and grain as it is weak (sig 0 to 1)
@@ -685,6 +710,27 @@ function drawSignal(p, st) {
   mode = 0;
 }
 
+// Mist: it clears off the text over its enter, a thin veil of it drifting on as it stays; as it leaves the mist rolls
+// back in over the text and then thins away itself.
+function drawFog(p, st) {
+  const E = p.spec.enterTime, secs = st.secs, o = st.out;
+  const clear = o > 0 ? 1 - smooth(clamp(o / 0.75, 0, 1)) : smooth(clamp(secs / E, 0, 1));
+  const fog = o > 0 ? (0.15 + 0.75 * smooth(clamp(o / 0.5, 0, 1))) * (1 - smooth(clamp((o - 0.55) / 0.45, 0, 1)))
+    : 1 - 0.85 * smooth(clamp(secs / E, 0, 1));
+  const s = st.s, cx = p.cx + st.x, cy = p.cy + st.y * p.line * s, hw = p.w * s / 2, hh = p.h * s / 2;
+  gl.uniform1f(U("clock"), t * P.FOG_DRIFT); gl.uniform1f(U("noiseScale"), p.line * 0.5); gl.uniform2f(U("picSize"), p.w, p.h);
+  mode = 11;
+  gl.uniform1f(U("clear"), clear);
+  quad(cx - hw, cy - hh, cx + hw, cy + hh, 0, 0, 1, 1, 1, 1, 1, 1);
+  flush(p.tex);
+  const fx = p.ink * 0.5 + p.line * 1.5, fy = p.line * 1.3;
+  mode = 12;
+  gl.uniform1f(U("fogAmt"), fog * P.FOG_THICK); gl.uniform2f(U("fogHalf"), fx, fy);
+  shard(cx, cy, fx, 0, fy / fx, 0, 0, 0, 0, 0);
+  flush(p.tex);
+  mode = 0;
+}
+
 // Weathering away, in place: the shader drains its colour and wears it off from its edges in pits.
 function drawErode(p, st, o) {
   const s = st.s, hw = p.w * s / 2, hh = p.h * s / 2, r = Math.max(1, p.line * 0.03);
@@ -880,6 +926,7 @@ function frame(now) {
     const cx = p.cx + st.x, cy = p.cy + st.y * p.line * st.s, hw = p.w * st.s * st.sx / 2, hh = p.h * st.s * st.sy / 2;
     if (p.spec.lit) drawTorch(p, st);
     else if (p.spec.radio) drawSignal(p, st);
+    else if (p.spec.fog) drawFog(p, st);
     else if (p.spec.leave === "trackout" && st.out > 0) drawTrackout(p, st, st.out);
     else if (p.spec.leave === "erode" && st.out > 0) drawErode(p, st, st.out);
     else if (st.a > 0.002) { quad(cx - hw, cy - hh, cx + hw, cy + hh, 0, 0, 1, 1, st.a, st.a, st.a, st.a); flush(p.tex); }
@@ -970,6 +1017,9 @@ control("TORCH_STUTTER", "꺼질 때 깜빡임", "range", [0, 1.3, 0.05]);
 heading("notice 새안: 무전");
 control("RADIO_STATIC", "잡음 알갱이", "range", [0, 3, 0.05]);
 control("RADIO_HICCUP", "신호 튐", "range", [0, 1.5, 0.05]);
+heading("unveil 새안: 안개 걷힘");
+control("FOG_THICK", "안개 짙기", "range", [0, 2.5, 0.05]);
+control("FOG_DRIFT", "안개 흐름", "range", [0, 4, 0.05]);
 heading("dust 새안: 종이 연소");
 control("FRONT", "번지는 시간 몫", "range", [0.1, 0.6, 0.01]);
 control("SPREAD", "앞질러 붙는 정도", "range", [0, 0.3, 0.005]);
@@ -1038,6 +1088,7 @@ const BUILT_IN = {
   "각인 (stamp 새안)": { ...effectOf(DEFAULTS), style: "stamp-new" },
   "손전등 (discovery 새안)": { ...effectOf(DEFAULTS), style: "discovery-new" },
   "무전 (notice 새안)": { ...effectOf(DEFAULTS), style: "notice-new" },
+  "안개 걷힘 (unveil 새안)": { ...effectOf(DEFAULTS), style: "unveil-new" },
 };
 const STORE = "title-lab-presets";
 function ownPresets() { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } }

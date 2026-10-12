@@ -16,6 +16,8 @@ no build).
     stutters and dies down to embers as it leaves.
   - `notice` 무전: comes in as a radio signal tuned in (rows torn sideways, colours apart, grain), hiccups once as it
     stays, and is lost as it leaves, cutting out twice and sinking into the grain.
+  - `unveil` 안개 걷힘: drifting mist clears off it, a thin veil of it drifting on as it stays; as it leaves the mist
+    rolls back in over it and then thins away itself.
   - `dust` 종이 연소: burns spot by spot from its corner (a noise map of when each spot burns), a ragged glowing edge,
     ash shards tumbling on the wind.
 
