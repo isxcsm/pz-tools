@@ -20,5 +20,11 @@
     "Moodles_OperationAcorn:untested_lvl1": "Untested",
     "Moodles_OperationAcorn:untested_desc_lvl1": "A wound from a zombie that has not been tested for infection. Until it is, 30%% of each delivery goes to the infection handling fee.",
     "Moodles_OperationAcorn:adapting_lvl1": "Adapting",
-    "Moodles_OperationAcorn:adapting_desc_lvl1": "Your body is adapting to the serum you took. The enhancement point comes when it is over."
+    "Moodles_OperationAcorn:adapting_desc_lvl1": "Your body is adapting to the serum. The upgrade point comes when it is over. Almost done.",
+    "Moodles_OperationAcorn:adapting_lvl2": "Adapting",
+    "Moodles_OperationAcorn:adapting_desc_lvl2": "Your body is adapting to the serum. The upgrade point comes when it is over. About 10 minutes left.",
+    "Moodles_OperationAcorn:adapting_lvl3": "Adapting",
+    "Moodles_OperationAcorn:adapting_desc_lvl3": "Your body is adapting to the serum. The upgrade point comes when it is over. About 20 minutes left.",
+    "Moodles_OperationAcorn:adapting_lvl4": "Adapting",
+    "Moodles_OperationAcorn:adapting_desc_lvl4": "Your body is adapting to the serum. The upgrade point comes when it is over. About 30 minutes left."
 }

@@ -19,9 +19,12 @@ local Adapt = OA.Upgrades.Adapt
 local Serums = {}
 OA.Upgrades.Serums = Serums
 
--- The side effects of an upgrade serum before 혈청 적응: food sickness (0 to 100) and fatigue (0 to 1) it raises to.
-Serums.NAUSEA = 30
-Serums.FATIGUE = 0.15
+-- The side effects of an upgrade serum before 혈청 적응: the pain in the arm it went into (the game's pain units, which
+-- fade by themselves within the hour) and the tiredness it adds (fatigue, 0 to 1: enough to show the moodle on a rested
+-- character), never past FATIGUE_MAX (the character does not drop asleep from a dose).
+Serums.PAIN = 25
+Serums.FATIGUE = 0.5
+Serums.FATIGUE_MAX = 0.95
 -- The infection must be this young (hours) for the polling bite shield to count it as the bite's.
 Serums.BITE_FRESH_HOURS = 2
 
@@ -58,15 +61,18 @@ end
 
 -- ---- upgrade serums ---------------------------------------------------------------------------------------------
 
--- The side effects: a short nausea and tiredness, smaller with 혈청 적응 (none at rank 2). Set, not added, so the
--- API's endurance and infection hooks do not see them.
+-- The side effects: a sore arm and tiredness, smaller with 혈청 적응 (none at rank 2). Set, not added, so the API's
+-- hooks do not see them. A character already as tired as FATIGUE_MAX or more is left as tired as it is.
 function Serums.sideEffects(character, share)
     if share <= 0 then return end
+    local arm = character:getBodyDamage():getBodyPart(BodyPartType.UpperArm_L)
+    local pain = Serums.PAIN * share
+    if arm and arm:getAdditionalPain() < pain then arm:setAdditionalPain(pain) end
     local stats = character:getStats()
-    local nausea = Serums.NAUSEA * share
-    if stats:get(CharacterStat.FOOD_SICKNESS) < nausea then stats:set(CharacterStat.FOOD_SICKNESS, nausea) end
-    local tired = math.min(1, stats:get(CharacterStat.FATIGUE) + Serums.FATIGUE * share)
-    stats:set(CharacterStat.FATIGUE, tired)
+    local now = stats:get(CharacterStat.FATIGUE)
+    if now < Serums.FATIGUE_MAX then
+        stats:set(CharacterStat.FATIGUE, math.min(Serums.FATIGUE_MAX, now + Serums.FATIGUE * share))
+    end
 end
 
 -- Injects an upgrade or shared serum: the item goes, the body reacts, and the body adapts (Adapt.lua): the point comes,

@@ -10,14 +10,15 @@ local Moodles = OA.Upgrades.Moodles
 local Adapting = {}
 OA.Upgrades.Adapting = Adapting
 
--- The moodle follows the record (call when the record changed, and at the start).
-function Adapting.moodle(u)
-    Moodles.set("adapting", (u and u.adapt) and 1 or 0)
+-- The moodle follows the record (call when the record changed, and at the start): its level says about how long is
+-- left (Rules.adaptLevel).
+function Adapting.moodle(u, now)
+    Moodles.set("adapting", u and Rules.adaptLevel(u, now or OA.hours()) or 0)
 end
 
 -- Once a game minute for the local character: asks the server for the end when it has come, and keeps the moodle.
 function Adapting.minute(player, u, now)
-    Adapting.moodle(u)
+    Adapting.moodle(u, now)
     if Rules.adaptDone(u, now) then OA.Sync.send(player, "upgrades.adapt", {}) end
 end
 

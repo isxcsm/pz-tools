@@ -333,7 +333,15 @@ end
 
 -- ---- adaptation -----------------------------------------------------------------------------------------------
 
--- A dose of an upgrade serum of a tree (or "shared") is taken at world age hour `now`: it adapts for Data.ADAPT_HOURS,
+-- Hours a dose adapts for: Data.ADAPT_HOURS, a half of it with 혈청 적응 and a quarter at its second rank.
+function Rules.adaptHours(u)
+    local r = Rules.rank(u, "serumAdapt")
+    if r >= 2 then return Data.ADAPT_HOURS / 4 end
+    if r == 1 then return Data.ADAPT_HOURS / 2 end
+    return Data.ADAPT_HOURS
+end
+
+-- A dose of an upgrade serum of a tree (or "shared") is taken at world age hour `now`: it adapts for Rules.adaptHours,
 -- and doses taken meanwhile share the time (the end is the latest dose's, not a sum). The point comes at the end
 -- (finishAdapt).
 function Rules.startAdapt(u, key, now)
@@ -343,7 +351,19 @@ function Rules.startAdapt(u, key, now)
         u.adapt = a
     end
     a.doses[key] = (a.doses[key] or 0) + 1
-    a.endsAt = math.max(a.endsAt or 0, now + Data.ADAPT_HOURS)
+    a.endsAt = math.max(a.endsAt or 0, now + Rules.adaptHours(u))
+end
+
+-- The level of the moodle 적응 중 for the time left (hours): 4 above 20 game minutes, 3 above 10, 2 above 5, 1 within
+-- the last 5 (its text says about how long is left); 0 when nothing adapts.
+function Rules.adaptLevel(u, now)
+    local left = Rules.adaptLeft(u, now)
+    if not left then return 0 end
+    local minutes = left * 60
+    if minutes > 20 then return 4 end
+    if minutes > 10 then return 3 end
+    if minutes > 5 then return 2 end
+    return 1
 end
 
 -- Hours of adaptation left at `now` (0 when it is over), or nil when no dose is adapting.

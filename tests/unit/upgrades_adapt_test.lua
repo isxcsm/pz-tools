@@ -19,12 +19,17 @@ local Serums = OA.Upgrades.Serums
 local Docs = OA.StoryDocs
 
 CharacterStat = { FOOD_SICKNESS = "sick", FATIGUE = "fatigue" }
+BodyPartType = { UpperArm_L = "upperArmL" }
 
--- A character with the stats a dose touches, and an upgrade serum of a type in a bag.
+-- A character with the stats and the arm a dose touches, and an upgrade serum of a type in a bag.
 local function character(id)
     local stats = {}
     local data = { OA_Id = id }
+    local arm = { pain = 0 }
+    function arm:getAdditionalPain() return self.pain end
+    function arm:setAdditionalPain(v) self.pain = v end
     return {
+        stats = stats, arm = arm,
         getUsername = function() return "tester" end,
         getModData = function() return data end,
         getStats = function()
@@ -32,6 +37,9 @@ local function character(id)
                 get = function(_, stat) return stats[stat] or 0 end,
                 set = function(_, stat, v) stats[stat] = v end,
             }
+        end,
+        getBodyDamage = function()
+            return { getBodyPart = function(_, part) return part == BodyPartType.UpperArm_L and arm or nil end }
         end,
     }
 end
@@ -454,8 +462,14 @@ test("the moodle follows the record and the server is asked once the end has pas
     eq(set[#set], "adapting=0")
     eq(#TEST.sent, 0)
     Rules.startAdapt(u, "scout", 10)
+    Adapting.minute(c, u, 10)
+    eq(set[#set], "adapting=4", "about 30 minutes left")
     Adapting.minute(c, u, 10.2)
-    eq(set[#set], "adapting=1")
+    eq(set[#set], "adapting=3", "about 20")
+    Adapting.minute(c, u, 10.4)
+    eq(set[#set], "adapting=2", "about 10")
+    Adapting.minute(c, u, 10.45)
+    eq(set[#set], "adapting=1", "almost done")
     eq(#TEST.sent, 0, "not yet")
     Adapting.minute(c, u, 10 + Data.ADAPT_HOURS)
     eq(set[#set], "adapting=1", "the moodle stays until the server has finished it")
@@ -532,4 +546,31 @@ test("a pried lock is 쇠지렛대로 따기's first effect, from the action tha
     eq(firsts(), 1)
     action:complete()
     eq(firsts(), 1, "once")
+end)
+
+test("a dose makes the arm sore and the character drowsy, never asleep; 혈청 적응 halves both and the time, then ends them", function()
+    local c = character()
+    OA.Store.ensure("se1", "tester")
+    TEST.hours = 10
+    c.stats.fatigue = 0.1
+    Serums.inject(c, serum("UpgradeSerumScout"), "se1")
+    near(c.arm.pain, Serums.PAIN, 1e-9, "a sore arm")
+    near(c.stats.fatigue, 0.6, 1e-9, "drowsy enough for the moodle")
+    Serums.inject(c, serum("UpgradeSerumScout"), "se1")
+    near(c.arm.pain, Serums.PAIN, 1e-9, "the pain does not pile up")
+    near(c.stats.fatigue, Serums.FATIGUE_MAX, 1e-9, "never past the most a dose brings")
+    c.stats.fatigue = 0.98
+    Serums.inject(c, serum("UpgradeSerumScout"), "se1")
+    near(c.stats.fatigue, 0.98, 1e-9, "one more tired than that is left as tired as it is")
+    local u = Rules.blank()
+    near(Rules.adaptHours(u), Data.ADAPT_HOURS)
+    local half = Rules.blank()
+    half.ranks.serumAdapt = 1
+    near(Rules.adaptHours(half), Data.ADAPT_HOURS / 2)
+    local none = Rules.blank()
+    none.ranks.serumAdapt = 2
+    near(Rules.adaptHours(none), Data.ADAPT_HOURS / 4)
+    Rules.startAdapt(half, "scout", 5)
+    near(half.adapt.endsAt, 5 + Data.ADAPT_HOURS / 2, 1e-9, "a shorter adaptation")
+    eq(Rules.adaptLevel(Rules.blank(), 5), 0, "nothing adapting: no moodle")
 end)
