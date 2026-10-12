@@ -45,7 +45,10 @@ local SETTLE_MS = 100
 -- window and its legend.
 PanelWindow.options = { activeOnly = false, byLoad = false }
 PanelWindow.folded = {}
-PanelWindow.planShare = 0.42
+-- The plan takes all it can at first (the list at its least, MIN_LIST); the divider moves it. The window is made as
+-- wide as a list of LIST_W with the plan WINDOW_SHARE of it beside.
+PanelWindow.planShare = 1
+local WINDOW_SHARE = 0.42
 
 -- The window.
 ISBUPanelWindow = ISCollapsableWindow:derive("ISBUPanelWindow")
@@ -57,7 +60,7 @@ local function planByDefault() return UI.dp(getCore():getScreenWidth()) >= 900 e
 -- The window's width for a list so wide, with the plan or without (design units).
 local function windowWidth(listW, shown)
     if not shown then return listW end
-    return math.floor(listW / (1 - PanelWindow.planShare)) + PAD
+    return math.floor(listW / (1 - WINDOW_SHARE)) + PAD
 end
 
 local function minimumWidth(shown) return MIN_LIST + (shown and PAD + MIN_PLAN or 0) end

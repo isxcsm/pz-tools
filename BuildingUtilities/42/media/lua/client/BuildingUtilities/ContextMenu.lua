@@ -31,6 +31,27 @@ local function costed(option, playerObj, cost, note)
     if not Costs.affords(playerObj, cost) then option.notAvailable = true end
 end
 
+-- A device's line moved up to its object: right under the options for that object at the top of the menu (another
+-- mod's "use" put on top), else on top. A mod whose options come later and go on top still lands above it.
+local function placeByObject(context, option, object)
+    local options = context.options
+    local at, from, leading = 1, nil, true
+    for index, other in ipairs(options) do
+        if other == option then
+            from = index
+        elseif leading and other.target == object then
+            at = index + 1
+        else
+            leading = false
+        end
+    end
+    if not from or from == at then return end
+    table.remove(options, from)
+    if at > from then at = at - 1 end
+    table.insert(options, at, option)
+    for index, other in ipairs(options) do other.id = index end
+end
+
 local function apiMissingText()
     local _, reason = BU.api()
     return getText(reason == "version" and "IGUI_BU_ApiVersion" or "IGUI_BU_ApiMissing")
@@ -218,19 +239,21 @@ local function addDeviceOption(context, playerObj, utility, panel, device)
         local option = context:addOption(getText("ContextMenu_BU_DeviceOn", name, label, Panels.name(panel)), nil, nil)
         local other = Store.inclusionOwner(utility, device.key)
         unavailable(option, getText("IGUI_BU_ConnectedTo", other and Panels.name(other) or ""))
-        return
+        return option
     end
     local on = device.state == "on"
     local text = getText(on and "ContextMenu_BU_DeviceOff" or "ContextMenu_BU_DeviceOn", name, label, Panels.name(panel))
     if device.inside then
-        context:addOption(text, playerObj, onSwitchInside, panel, utility, device.key, not on)
+        return context:addOption(text, playerObj, onSwitchInside, panel, utility, device.key, not on)
     elseif on then
         local option = context:addOption(text, playerObj, onDisconnect, "outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite)
         costed(option, playerObj, Actions.workCost(utility))
+        return option
     else
         local option = context:addOption(text, playerObj, onConnect, "outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite)
         local cost, reason = Actions.lineCost("outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite)
         if cost then costed(option, playerObj, cost) else unavailable(option, getText("IGUI_BU_Reason_" .. reason)) end
+        return option
     end
 end
 
@@ -249,7 +272,7 @@ local function squareDevices(square)
                 local panel, device = Panels.deviceOf(object, utility, cache)
                 if panel and not seen[device.key .. utility] then
                     seen[device.key .. utility] = true
-                    result[#result + 1] = { panel = panel, device = device, utility = utility }
+                    result[#result + 1] = { panel = panel, device = device, utility = utility, object = object }
                 end
             end
         end
@@ -259,7 +282,7 @@ end
 
 local function addDeviceOptions(context, playerObj, square)
     for _, found in ipairs(squareDevices(square)) do
-        addDeviceOption(context, playerObj, found.utility, found.panel, found.device)
+        placeByObject(context, addDeviceOption(context, playerObj, found.utility, found.panel, found.device), found.object)
     end
 end
 

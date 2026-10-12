@@ -27,27 +27,27 @@ PACK = 'BuildingUtilitiesSolar'
 COLS, ROWS = 8, 5
 
 # Colours.
-ALU = (178, 184, 190)
-ALU_DARK = (128, 134, 140)
-CELL = (30, 48, 104)
-CELL_EDGE = (22, 36, 80)
-BACKSHEET = (206, 210, 216)
-BUSBAR = (150, 160, 178)
+ALU = (160, 163, 164)
+ALU_DARK = (112, 116, 118)
+CELL = (34, 44, 74)
+CELL_EDGE = (24, 30, 52)
+BACKSHEET = (188, 188, 184)
+BUSBAR = (118, 124, 134)
 CONCRETE = (150, 146, 138)
 RUBBER = (34, 34, 36)
 CABLE = (28, 28, 30)
-UPRIGHT = (62, 68, 76)
-BEAM = (196, 120, 34)
-DECK = (140, 146, 150)
-CASE = (40, 42, 46)
-LID = (58, 60, 64)
-LABEL = (208, 212, 216)
-STRIPE = (44, 96, 170)
+UPRIGHT = (66, 70, 74)
+BEAM = (150, 96, 48)
+DECK = (126, 126, 122)
+CASE = (54, 55, 57)
+LID = (68, 69, 71)
+LABEL = (182, 180, 172)
+STRIPE = (72, 92, 118)
 PLUS = (190, 40, 34)
 MINUS = (30, 30, 32)
 COPPER = (196, 128, 74)
-BOX = (204, 206, 202)
-BOX_DARK = (150, 152, 150)
+BOX = (184, 184, 176)
+BOX_DARK = (134, 134, 128)
 SCREEN_OFF = (40, 52, 48)
 SCREEN_ON = (130, 214, 180)
 LED_OFF = (52, 56, 54)
@@ -60,7 +60,11 @@ def grain(image, solid, seed):
     a = np.asarray(image).astype(np.float64)
     gy, gx = np.mgrid[0:H, 0:W]
     h = np.sin(gx * 12.9898 + gy * 78.233 + seed * 37.719) * 43758.5453
-    n = 1 + ((h - np.floor(h)) - 0.5) * 0.06
+    # a worn finish, as the game's tiles have: a grain, blotches of wear a few pixels across, and grime gathering
+    # toward the floor
+    n = 1 + ((h - np.floor(h)) - 0.5) * 0.09
+    n *= 1 + 0.045 * np.sin(gx * 0.41 + gy * 0.17 + seed) * np.sin(gy * 0.37 - gx * 0.23 + seed * 1.7)
+    n *= 1 - 0.1 * np.clip((gy - 150) / 80, 0, 1)
     s = np.asarray(solid).astype(np.float64)
     inner = np.asarray(solid.filter(ImageFilter.MinFilter(3))).astype(np.float64)
     n = np.where(inner < 128, n * 0.7, n)
@@ -159,10 +163,10 @@ def sheen(scene, corners):
         gy, gx = np.mgrid[0:big.size[1], 0:big.size[0]]
         # across the glass from its top left on screen to its bottom right
         t = ((gx - xs.min()) / max(1, xs.max() - xs.min()) * 0.55 + (gy - ys.min()) / max(1, ys.max() - ys.min()) * 0.45)
-        band = np.exp(-((t - 0.32) / 0.13) ** 2) * 0.30 + np.exp(-((t - 0.58) / 0.05) ** 2) * 0.10 + (1 - t) * 0.08
+        band = np.exp(-((t - 0.32) / 0.13) ** 2) * 0.18 + np.exp(-((t - 0.58) / 0.05) ** 2) * 0.06 + (1 - t) * 0.05
         a = np.asarray(big).astype(np.float64)
         k = (band * m)[..., None]
-        sky = np.array([214, 228, 246], dtype=np.float64)
+        sky = np.array([196, 204, 214], dtype=np.float64)
         a[..., :3] = a[..., :3] * (1 - k) + sky * k
         big.paste(Image.fromarray(a.astype(np.uint8), 'RGBA'))
     return over

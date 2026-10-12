@@ -5,12 +5,12 @@
 -- only that room there, a dot clicked here finds its row, and a right click offers what the row would. Rooms of the
 -- building outside the box's zone are dim; the Zone switch at the top shows the zones instead, and a click there
 -- takes a room in or out. Devices not connected are hollow; lines run from the building to the producers and the
--- devices outside it is connected to; dots run along them the way power or water goes now, from the producers in
+-- devices outside it is connected to; dashes run along them the way power or water goes now, from the producers in
 -- use (or a bank charged from the box) through the building to the box, and out to devices outside. While the
 -- window shows the range, the plan does too: an outline where devices outside join (blue) and where producers do
 -- (yellow), and on the power plan how far each generator is heard (red, dim while it is off). The supply lines' switch
--- at the top shows them with their dots, the lines alone, or none (the player's choice, kept between games); without
--- dots or lines, the mouse over a producer shows its line. Supply that crosses floors shows too: on a producer's
+-- at the top shows them with their dashes, the lines alone, or none (the player's choice, kept between games); without
+-- dashes or lines, the mouse over a producer shows its line. Supply that crosses floors shows too: on a producer's
 -- floor its line runs on to a riser under (or over) the box, which tells the box's floor; by the box, a badge for each
 -- other floor that supplies it tells how many come from there (the mouse over it, what); a click on either goes to
 -- that floor. The floor strip marks the floors with producers, in their colour. The wheel zooms at the mouse, dragging
@@ -43,8 +43,13 @@ local ZONE_W, FIT_W, RANGE_W, FLOW_W, measuredEra = 0, 0, 0, 0, nil
 local MIN_ZOOM, MAX_ZOOM, MAX_ZOOM_SCALE, DRAG = 0.5, 8, 48, 4
 -- Wheel notches over the floor strip scroll it by so many floors.
 local STRIP_SCROLL = 3
--- Flow dots: so far apart, so many pixels a second, so big.
-local FLOW_GAP, FLOW_SPEED, FLOW_DOT = 14, 24, 4
+-- The supply lines follow the zoom: a pixel or two or three wide (a tenth of a square), so many pixels at the least
+-- and the most. The flow runs along them as dashes, each DASH dash units long and DASH_GAP apart; a dash unit is a
+-- third of a square, at least and at most so many design units; they move FLOW_SPEED units a second.
+local LINE_PX, MIN_LINE_PX, MAX_LINE_PX = 0.1, 1, 3
+local DASH, DASH_GAP, MIN_DASH_UNIT, MAX_DASH_UNIT, FLOW_SPEED = 2.2, 1.6, 2.5, 5, 22
+-- The legend: its header's fold mark so wide, and it folds or opens over LEGEND_MS.
+local CHEVRON_W, LEGEND_MS = 12, 220
 
 ISBUPlan = ISPanel:derive("ISBUPlan")
 
@@ -116,12 +121,12 @@ end
 -- The colour of a room: kept off by the box (amber), supplied and in use (green), connected without supply (grey
 -- blue), all switched off at the box (dark).
 local function roomColour(room, supplied)
-    if room.held > 0 then return 0.75, 0.45, 0.1 end
+    if room.held > 0 then return 0.85, 0.55, 0.15 end
     if room.on > 0 then
-        if supplied then return 0.2, 0.55, 0.25 end
-        return 0.3, 0.35, 0.45
+        if supplied then return 0.25, 0.68, 0.45 end
+        return 0.38, 0.46, 0.6
     end
-    return 0.22, 0.22, 0.22
+    return 0.3, 0.33, 0.38
 end
 
 local COLOURS = {
@@ -329,19 +334,20 @@ function ISBUPlan:layoutFloors()
     end
 end
 
-function ISBUPlan:legendShown() return BU.PanelWindow.legendShown ~= false end
+-- The legend is folded until the player opens it (kept while the game runs).
+function ISBUPlan:legendShown() return BU.PanelWindow.legendShown == true end
 
 -- The legend's box from x: its header (the fold), and while it is open its entries in columns. Returns the height
 -- it takes above the status line, with the gap over it.
 function ISBUPlan:layoutLegend(x, entries)
     local shown = self:legendShown()
-    local header = getText("IGUI_BU_LegendTitle") .. (shown and "  v" or "  >")
+    local header = getText("IGUI_BU_LegendTitle")
     local columnW = 0
     for _, entry in ipairs(entries) do columnW = math.max(columnW, UI.textWidth(entry.text) + 14 + PAD * 2) end
     local maxW = math.max(40, self.width - x - PAD)
     local columns = math.max(1, math.min(3, #entries, math.floor((maxW - PAD * 2) / math.max(1, columnW))))
     local rows = shown and math.ceil(#entries / columns) or 0
-    local headerW = UI.textWidth(header) + PAD * 2
+    local headerW = UI.textWidth(header) + PAD * 2 + CHEVRON_W
     local w = math.min(maxW, math.max(headerW, shown and columns * columnW + PAD * 2 - PAD or headerW))
     local h = LEGEND_ROW + 4 + (rows > 0 and rows * LEGEND_ROW + 4 or 0)
     local y = self.height - FONT_HGT_SMALL - PAD * 2 - h
@@ -350,6 +356,7 @@ function ISBUPlan:layoutLegend(x, entries)
         for index, entry in ipairs(entries) do
             local column, row = (index - 1) % columns, math.floor((index - 1) / columns)
             entry.x, entry.y = x + PAD + column * columnW, y + LEGEND_ROW + 4 + row * LEGEND_ROW
+            entry.w, entry.fx = columnW - PAD, "e" .. index
             self.legend[#self.legend + 1] = entry
         end
     end
@@ -359,7 +366,8 @@ end
 -- Whether a point is on the legend's header, which folds it.
 function ISBUPlan:onLegendHeader(x, y)
     local box = self.legendBox
-    return box ~= nil and x >= box.x and x < box.x + box.w and y >= box.y and y < box.y + box.headerH
+    local top = box and (box.top or box.y)
+    return box ~= nil and x >= box.x and x < box.x + (box.drawnW or box.w) and y >= top and y < top + box.headerH
 end
 
 -- The range outlines of a floor, worked out once for a building, tier and floor.
@@ -440,6 +448,7 @@ function ISBUPlan:layout()
     local data = self.data
     self.cells, self.labels, self.dots, self.squares, self.strip, self.legend, self.lines, self.edges = {}, {}, {}, {}, {}, {}, {}, {}
     self.flows, self.walls, self.hoverLine, self.badges, self.riser, self.legendBox = {}, {}, nil, {}, nil, nil
+    self.grid = {}
     self:layoutTop()
     if not data then return end
     -- One scale for every floor: the building and all that is connected around it.
@@ -481,6 +490,23 @@ function ISBUPlan:layout()
     local function sx(x) return math.floor(ox + (x - minX) * scale) end
     local function sy(y) return math.floor(oy + (y - minY) * scale) end
     self.scale = scale
+    local px = UI.S or 1
+    self.lineW = math.max(MIN_LINE_PX, math.min(MAX_LINE_PX, math.floor(scale * px * LINE_PX + 0.5))) / px
+    self.dashUnit = math.max(MIN_DASH_UNIT, math.min(MAX_DASH_UNIT, scale / 3))
+    -- A faint grid of the squares under the plan, as on drawing paper: every square once they are big enough to tell
+    -- apart, else every fifth; none when even those crowd.
+    local step = scale >= 7 and 1 or 5
+    self.grid = {}
+    if scale * step >= 7 then
+        local first = math.ceil((minX + (left - ox) / scale) / step) * step
+        for x = first, minX + (left + availW - ox) / scale, step do
+            self.grid[#self.grid + 1] = { x = sx(x), y = top, w = 1, h = availH, major = x % 10 == 0 }
+        end
+        first = math.ceil((minY + (top - oy) / scale) / step) * step
+        for y = first, minY + (top + availH - oy) / scale, step do
+            self.grid[#self.grid + 1] = { x = left, y = sy(y), w = availW, h = 1, major = y % 10 == 0 }
+        end
+    end
     -- The range outlines, cut to the map.
     local mapLeft, mapTop, mapRight, mapBottom = left, top, left + availW, top + availH
     local function addEdges(edges, colour)
@@ -537,6 +563,7 @@ function ISBUPlan:layout()
             local points = { { line.x1, line.y1 }, { line.x2, line.y2 } }
             if onward then points[3] = { boxX, boxY } end
             addFlow(points, colour, flow)
+            line.flowing = true
         end
         return line
     end
@@ -571,6 +598,7 @@ function ISBUPlan:layout()
                 self.lines[#self.lines + 1] = stub
                 if flowState == "flow" and group.flow then
                     addFlow({ { stub.x1, stub.y1 }, { boxX, boxY } }, c, group.flow)
+                    stub.flowing = true
                 end
             end
         end
@@ -604,16 +632,19 @@ function ISBUPlan:layout()
                 r, g, b = colour[1] * 0.5, colour[2] * 0.5, colour[3] * 0.5
             end
             local dim = state ~= "mine" and not data.zoneEdit
+            -- its light's key, and its outline in a light tint of its colour
+            local fx = "r" .. tostring(room.id)
+            local wr, wg, wb = r + (1 - r) * 0.45, g + (1 - g) * 0.45, b + (1 - b) * 0.45
             local largest
             for _, rect in ipairs(room.rects) do
-                local cell = { x = sx(rect.x), y = sy(rect.y), room = room.id, r = r, g = g, b = b, dim = dim }
+                local cell = { x = sx(rect.x), y = sy(rect.y), room = room.id, r = r, g = g, b = b, dim = dim, fx = fx }
                 cell.w, cell.h = sx(rect.x + rect.w) - cell.x, sy(rect.y + rect.h) - cell.y
                 self.cells[#self.cells + 1] = cell
                 if not largest or cell.w * cell.h > largest.w * largest.h then largest = cell end
             end
             for _, edge in ipairs(self:roomOutline(room)) do
                 local x1, y1 = sx(edge.x), sy(edge.y)
-                self.walls[#self.walls + 1] = { room = room.id, dim = dim, x = x1, y = y1,
+                self.walls[#self.walls + 1] = { room = room.id, dim = dim, x = x1, y = y1, r = wr, g = wg, b = wb,
                     w = edge.across and sx(edge.x + edge.len) - x1 or 1, h = edge.across and 1 or sy(edge.y + edge.len) - y1 }
             end
             if largest and UI.textWidth(room.title) < largest.w - 4
@@ -671,7 +702,7 @@ function ISBUPlan:layoutStrip()
     local y = top
     local function arrow(direction, enabled)
         self.strip[#self.strip + 1] = { arrow = direction, page = fit, enabled = enabled, x = PAD, y = y, w = STRIP_W - 6,
-            h = CELL_H - 2, text = direction < 0 and "^" or "v" }
+            h = CELL_H - 2, text = direction < 0 and "^" or "v", fx = direction < 0 and "sUp" or "sDown" }
         y = y + CELL_H
     end
     if overflow then arrow(-1, first > 1) end
@@ -680,7 +711,7 @@ function ISBUPlan:layoutStrip()
         self.strip[#self.strip + 1] = { level = level, x = PAD, y = y, w = STRIP_W - 6, h = CELL_H - 2,
             text = BU.floorShort(level), on = (self.floorOn[level] or 0) > 0, box = self.data and self.data.box.z == level,
             producer = self.floorProducers and self.floorProducers[level], far = self:farFloor(level),
-            supply = self.data and self.data.waterSupply and self.data.waterSupply[level] }
+            supply = self.data and self.data.waterSupply and self.data.waterSupply[level], fx = "s" .. level }
         y = y + CELL_H
     end
     if overflow then arrow(1, first + fit - 1 < #downward) end
@@ -707,7 +738,7 @@ function ISBUPlan:layoutTop()
     local function add(toggleName, w, label)
         if right - w < PAD and #toggles > 0 then row, right = row + 1, self.width - PAD end
         right = right - w
-        toggles[#toggles + 1] = { name = toggleName, x = right, row = row, w = w, text = label }
+        toggles[#toggles + 1] = { name = toggleName, x = right, row = row, w = w, text = label, fx = "t" .. toggleName }
         right = right - 4
         rights[row] = right
     end
@@ -746,13 +777,25 @@ end
 function ISBUPlan:prerender()
     ISPanel.prerender(self)
     if not self.floorTitle then self:layoutTop() end
-    self:drawText(self.floorTitle, self.titleX, PAD, 1, 1, 1, 1, UIFont.Small)
+    -- The top bar: the floor's name (a menu of the floors under the mouse) and the switches, in the window's buttons'
+    -- look: on ones in the accent, the one under the mouse lit, a click flashing.
+    local over = self:isMouseOver() and self:toggleAt(self:getMouseX(), self:getMouseY()) or nil
+    local titleLit = UI.hoverLight(self, "title", over == "title" and #(self.levels or {}) > 1)
+    local shade = 0.85 + 0.15 * titleLit
+    self:drawText(self.floorTitle, self.titleX, PAD, shade, shade, shade, 1, UIFont.Small)
+    if titleLit > 0 then
+        UI.fill(self, self.titleX, PAD + FONT_HGT_SMALL + 1, self.titleW, 1, P.value, titleLit)
+    end
+    local h = FONT_HGT_SMALL + 2
     for _, toggle in ipairs(self.toggles) do
         local on = toggle.name == "zone" and self.data.zoneEdit or toggle.name == "range" and self.window.rangeShown
             or toggle.name == "flow" and ISBUPlan.flowState() ~= "off"
-        if on then self:drawRect(toggle.x, toggle.y, toggle.w, FONT_HGT_SMALL + 2, 0.8, 0.2, 0.5, 0.6) end
-        self:drawRectBorder(toggle.x, toggle.y, toggle.w, FONT_HGT_SMALL + 2, 1, 0.6, 0.6, 0.6)
-        self:drawTextCentre(toggle.text, toggle.x + toggle.w / 2, toggle.y + 1, 1, 0.9, 0.5, 0.9, UIFont.Small)
+        local k = UI.hoverLight(self, toggle.fx, over == toggle.name)
+        local f = UI.flashLevel(self, toggle.fx)
+        UI.fill(self, toggle.x, toggle.y, toggle.w, h, on and P.sel or P.panel, on and 0.75 or 0.6)
+        if k > 0 or f > 0 then UI.fill(self, toggle.x, toggle.y, toggle.w, h, P.bright, 0.1 * k + 0.25 * f) end
+        UI.frame(self, toggle.x, toggle.y, toggle.w, h, (on or k > 0.5) and P.value or P.border, 1)
+        UI.textCentre(self, toggle.text, toggle.x + toggle.w / 2, toggle.y + 1, (on or k > 0.5) and P.bright or P.text)
     end
 end
 
@@ -790,6 +833,117 @@ function ISBUPlan:zoomAt(x, y, factor)
     self:layout()
 end
 
+-- Followed each frame while dashes run along the lines (PZ Optimization's retained UI would hold them still).
+local function flowFrame(plan, now)
+    if #plan.flows == 0 then return nil end
+    return math.floor(now / 33)
+end
+
+-- Followed while the legend folds or opens.
+local function legendFrame(plan, now)
+    local anim = plan.legendAnim
+    if not anim then return nil end
+    local t = (now - anim.at) / LEGEND_MS
+    if t >= 1 then
+        plan.legendAnim = nil
+        return nil
+    end
+    return math.floor(t * 100)
+end
+
+-- A line between two places along a path (points and the lengths of its pieces), as far as it goes on each piece.
+local function drawSpan(plan, points, lengths, from, to, w, a, r, g, b)
+    local at = 0
+    for index = 2, #points do
+        local len = lengths[index]
+        local s, e = math.max(from, at), math.min(to, at + len)
+        if e > s and len > 0 then
+            local p, q = points[index - 1], points[index]
+            local t0, t1 = (s - at) / len, (e - at) / len
+            plan:drawLine(WHITE, p[1] + (q[1] - p[1]) * t0, p[2] + (q[2] - p[2]) * t0,
+                p[1] + (q[1] - p[1]) * t1, p[2] + (q[2] - p[2]) * t1, w, a, r, g, b)
+        end
+        at = at + len
+        if at >= to then return end
+    end
+end
+
+-- The legend's fold mark: a chevron pointing right while folded, turning down as it opens (open 0 to 1).
+local function drawChevron(plan, cx, cy, open, w, c, a)
+    local angle = open * math.pi / 2
+    local cos, sin = math.cos(angle), math.sin(angle)
+    local function at(x, y) return cx + x * cos - y * sin, cy + x * sin + y * cos end
+    local tipX, tipY = at(2.5, 0)
+    local x1, y1 = at(-1.5, -3.5)
+    local x2, y2 = at(-1.5, 3.5)
+    plan:drawLine(WHITE, x1, y1, tipX, tipY, w, a, c[1], c[2], c[3])
+    plan:drawLine(WHITE, x2, y2, tipX, tipY, w, a, c[1], c[2], c[3])
+end
+
+-- The legend: a box rising from the status line, its header (a fold mark and the title) lit under the mouse and
+-- flashing on a click; it grows or shrinks over LEGEND_MS as it opens or folds, the entries showing as it uncovers
+-- them. The entry under the mouse is lit, and marks on the plan the dots or squares it names (legendHover).
+function ISBUPlan:drawLegend(now, mx, my, px)
+    local box = self.legendBox
+    self.legendHover = nil
+    if not box then return end
+    local anim = self.legendAnim
+    local e = anim and BU.PanelUi.ease(math.min(1, (now - anim.at) / LEGEND_MS)) or 1
+    local h = anim and anim.fromH + (box.h - anim.fromH) * e or box.h
+    local w = anim and anim.fromW + (box.w - anim.fromW) * e or box.w
+    local top = box.y + box.h - h
+    box.top, box.drawnW = top, w
+    local headerH = box.headerH
+    local overHeader = mx >= box.x and mx < box.x + w and my >= top and my < top + headerH
+    local k = UI.hoverLight(self, "legend", overHeader)
+    local f = UI.flashLevel(self, "legend")
+    UI.fill(self, box.x, top, w, h, P.panel, 0.88)
+    if k > 0 or f > 0 then UI.fill(self, box.x + 1, top + 1, w - 2, headerH - 2, P.sel, 0.25 * k + 0.35 * f) end
+    UI.frame(self, box.x, top, w, h, k > 0.5 and P.value or P.border, 1)
+    local open = box.shown and e or 1 - e
+    local head = P.head
+    local c = { head[1] + (1 - head[1]) * 0.4 * k, head[2] + (1 - head[2]) * 0.4 * k, head[3] + (1 - head[3]) * 0.4 * k }
+    drawChevron(self, box.x + PAD + 3, top + headerH / 2, open, 1.5 * px, c, 1)
+    self:drawText(box.header, box.x + PAD + CHEVRON_W, top + 2, c[1], c[2], c[3], 1, UIFont.Small)
+    if h > headerH + 1 then UI.fill(self, box.x + 1, top + headerH - 1, w - 2, 1, P.border, 0.8) end
+    -- The entries: those laid out while it is open, or, while it folds, the ones it had.
+    local entries, alpha = self.legend, box.shown and e or 1
+    if anim and not box.shown then entries, alpha = anim.entries, 1 - e end
+    for _, entry in ipairs(entries) do
+        if entry.y >= top + headerH - 1 then
+            local over = box.shown and not anim and mx >= entry.x - 3 and mx < entry.x - 3 + entry.w and my >= entry.y
+                and my < entry.y + LEGEND_ROW
+            if over then self.legendHover = entry end
+            local lit = UI.hoverLight(self, entry.fx, over)
+            if lit > 0 then UI.fill(self, entry.x - 3, entry.y, entry.w, LEGEND_ROW, P.sel, 0.22 * lit) end
+            local middle = entry.y + LEGEND_ROW / 2
+            if entry.square == "line" then
+                self:drawRect(entry.x, middle, 10, 1, alpha, entry.r, entry.g, entry.b)
+            elseif entry.square then
+                self:drawRect(entry.x, middle - 4, 8, 8, alpha, entry.r, entry.g, entry.b)
+            elseif entry.hollow then
+                self:drawRectBorder(entry.x + 1, middle - DOT / 2, DOT, DOT, alpha, entry.r, entry.g, entry.b)
+            else
+                self:drawRect(entry.x + 1, middle - DOT / 2, DOT, DOT, alpha, entry.r, entry.g, entry.b)
+            end
+            local shade = 0.8 + 0.2 * lit
+            self:drawText(entry.text, entry.x + 14, entry.y + 1, shade, shade, shade, alpha, UIFont.Small)
+        end
+    end
+end
+
+-- Folds or opens the legend, from the box it has now.
+function ISBUPlan:toggleLegend()
+    local box = self.legendBox
+    local shown = self:legendShown()
+    self.legendAnim = box and { at = getTimestampMs(), fromH = box.top and box.y + box.h - box.top or box.h,
+        fromW = box.drawnW or box.w, entries = shown and self.legend or {} } or nil
+    BU.PanelWindow.legendShown = not shown
+    UI.flash(self, "legend")
+    self:layout()
+    if self.legendAnim then UI.live(self, legendFrame) end
+end
+
 function ISBUPlan:render()
     ISPanel.render(self)
     local window = self.window
@@ -797,81 +951,109 @@ function ISBUPlan:render()
     local hoverKey = self.hoverKey or window.listHoverKey
     local filter = self.data and self.data.filter
     local map = self.map
-    if map then self:setStencilRect(map.left, map.top, map.w, map.h) end
-    for _, cell in ipairs(self.cells) do
-        local bright = cell.room == hoverRoom or cell.room == filter
-        self:drawRect(cell.x, cell.y, cell.w, cell.h, bright and 0.85 or cell.dim and 0.4 or 0.6, cell.r, cell.g, cell.b)
+    local now = getTimestampMs()
+    local px = 1 / (UI.S or 1)
+    local mx, my = -1, -1
+    if self:isMouseOver() then mx, my = self:getMouseX(), self:getMouseY() end
+    if map then
+        self:setStencilRect(map.left, map.top, map.w, map.h)
+        for _, line in ipairs(self.grid) do
+            UI.fill(self, line.x, line.y, line.w, line.h, P.border, line.major and 0.2 or 0.09)
+        end
     end
-    -- The rooms' outlines; the room under the mouse or filtered drawn last, bright.
+    -- The rooms: a wash of what their devices do, the one under the mouse coming up.
+    for _, cell in ipairs(self.cells) do
+        local k = UI.hoverLight(self, cell.fx, cell.room == hoverRoom)
+        local a = (cell.dim and 0.14 or 0.3) + (cell.room == filter and 0.2 or 0) + 0.25 * k
+        self:drawRect(cell.x, cell.y, cell.w, cell.h, a, cell.r, cell.g, cell.b)
+    end
+    -- The rooms' outlines in a light tint of their colour; the room under the mouse or filtered drawn last, bright.
     local brightWalls = {}
     for _, wall in ipairs(self.walls) do
         if wall.room == hoverRoom or wall.room == filter then
             brightWalls[#brightWalls + 1] = wall
         else
-            local edge = wall.dim and 0.3 or 0.55
-            self:drawRect(wall.x, wall.y, wall.w, wall.h, 1, edge, edge, edge)
+            self:drawRect(wall.x, wall.y, wall.w, wall.h, wall.dim and 0.35 or 0.8, wall.r, wall.g, wall.b)
         end
     end
-    for _, wall in ipairs(brightWalls) do self:drawRect(wall.x, wall.y, wall.w, wall.h, 1, 1, 1, 1) end
+    for _, wall in ipairs(brightWalls) do UI.fill(self, wall.x, wall.y, wall.w, wall.h, P.bright, 1) end
     for _, label in ipairs(self.labels) do
-        self:drawTextCentre(label.text, label.x, label.y, 1, 1, 1, label.dim and 0.4 or 0.85, UIFont.Small)
+        self:drawTextCentre(label.text, label.x, label.y, P.text[1], P.text[2], P.text[3], label.dim and 0.35 or 0.8, UIFont.Small)
     end
     for _, edge in ipairs(self.edges) do self:drawRect(edge.x, edge.y, edge.w, edge.h, 0.7, edge.r, edge.g, edge.b) end
+    -- The supply lines, as wide as the zoom makes them: faint under running dashes, plain without.
+    local lw = self.lineW or px
     for _, line in ipairs(self.lines) do
-        self:drawLine(WHITE, line.x1, line.y1, line.x2, line.y2, 1, 0.8, line.r, line.g, line.b)
-        if line.x3 then self:drawLine(WHITE, line.x2, line.y2, line.x3, line.y3, 1, 0.8, line.r, line.g, line.b) end
+        local a = line.flowing and 0.28 or 0.75
+        self:drawLine(WHITE, line.x1, line.y1, line.x2, line.y2, lw, a, line.r, line.g, line.b)
+        if line.x3 then self:drawLine(WHITE, line.x2, line.y2, line.x3, line.y3, lw, a, line.r, line.g, line.b) end
     end
-    -- The line of the producer under the mouse, brighter, while the switch shows no dots.
+    -- The line of the producer under the mouse, brighter and a pixel wider, while the switch shows no dashes.
     local hover = self.hoverLine
     if hover then
         local r, g, b = math.min(1, hover.r + 0.3), math.min(1, hover.g + 0.3), math.min(1, hover.b + 0.3)
-        self:drawLine(WHITE, hover.x1, hover.y1, hover.x2, hover.y2, 2, 1, r, g, b)
-        if hover.x3 then self:drawLine(WHITE, hover.x2, hover.y2, hover.x3, hover.y3, 2, 1, r, g, b) end
+        self:drawLine(WHITE, hover.x1, hover.y1, hover.x2, hover.y2, lw + px, 1, r, g, b)
+        if hover.x3 then self:drawLine(WHITE, hover.x2, hover.y2, hover.x3, hover.y3, lw + px, 1, r, g, b) end
     end
+    -- The legend's entry under the mouse marks what it names.
+    local marked = self.legendHover
     for _, square in ipairs(self.squares) do
         local size = square.size
+        self:drawRect(square.x - 1, square.y - 1, size + 2, size + 2, 0.9, 0.02, 0.03, 0.05)
         self:drawRect(square.x, square.y, size, size, 1, square.r, square.g, square.b)
-        if square.ring then self:drawRectBorder(square.x - 2, square.y - 2, size + 4, size + 4, 1, 1, 1, 1) end
+        self:drawRect(square.x, square.y, size, px, 0.45, 1, 1, 1)
+        if square.ring then
+            self:drawRectBorder(square.x - 3, square.y - 3, size + 6, size + 6, 0.9,
+                math.min(1, square.r + 0.3), math.min(1, square.g + 0.3), math.min(1, square.b + 0.3))
+        end
+        if marked and marked.square and marked.square ~= "line" and marked.r == square.r and marked.g == square.g
+                and marked.b == square.b then
+            UI.frame(self, square.x - 4, square.y - 4, size + 8, size + 8, P.bright, 1)
+        end
     end
-    -- The flows: dots along each path, moving with the clock, over the squares they run between (none laid out while
-    -- the Flow switch is off).
-    local moved = #self.flows > 0 and getTimestampMs() / 1000 * FLOW_SPEED
-    for _, flow in ipairs(self.flows) do
-        local points, lengths = flow.points, flow.lengths
-        -- A short path closer, so that it still shows a few.
-        local gap = math.max(5, math.min(FLOW_GAP, flow.length / 3))
-        local distance = BU.remainder(moved, gap)
-        while distance < flow.length do
-            local along = flow.toBox and distance or flow.length - distance
-            local index = 2
-            while index < #points and along > lengths[index] do
-                along = along - lengths[index]
-                index = index + 1
+    -- The flow: dashes running along each path with the clock, over the squares they run between (none laid out
+    -- while the switch shows no flow).
+    if #self.flows > 0 then
+        UI.live(self, flowFrame)
+        local unit = self.dashUnit or 3
+        local dash, period = unit * DASH, unit * (DASH + DASH_GAP)
+        local offset = BU.remainder(now / 1000 * FLOW_SPEED, period)
+        local dw = math.max(lw, 2 * px)
+        for _, flow in ipairs(self.flows) do
+            local length = flow.length
+            local start = offset - period
+            while start < length do
+                local from, to = math.max(0, start), math.min(length, start + dash)
+                if to > from then
+                    if flow.toBox then
+                        drawSpan(self, flow.points, flow.lengths, from, to, dw, 1, flow.r, flow.g, flow.b)
+                    else
+                        drawSpan(self, flow.points, flow.lengths, length - to, length - from, dw, 1, flow.r, flow.g, flow.b)
+                    end
+                end
+                start = start + period
             end
-            local a, b = points[index - 1], points[index]
-            local t = lengths[index] > 0 and math.min(1, along / lengths[index]) or 0
-            local x, y = a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t
-            -- A dark rim, so a dot shows on a square of its own colour too.
-            self:drawRect(x - FLOW_DOT / 2 - 1, y - FLOW_DOT / 2 - 1, FLOW_DOT + 2, FLOW_DOT + 2, 0.8, 0, 0, 0)
-            self:drawRect(x - FLOW_DOT / 2, y - FLOW_DOT / 2, FLOW_DOT, FLOW_DOT, 1, flow.r, flow.g, flow.b)
-            distance = distance + gap
         end
     end
     for _, dot in ipairs(self.dots) do
+        local half = DOT / 2
+        self:drawRect(dot.x - half - 1, dot.y - half - 1, DOT + 2, DOT + 2, 0.85, 0.02, 0.03, 0.05)
         if dot.hollow then
-            self:drawRect(dot.x - DOT / 2, dot.y - DOT / 2, DOT, DOT, 0.6, 0, 0, 0)
-            self:drawRectBorder(dot.x - DOT / 2, dot.y - DOT / 2, DOT, DOT, 1, dot.r, dot.g, dot.b)
+            self:drawRectBorder(dot.x - half, dot.y - half, DOT, DOT, 1, dot.r, dot.g, dot.b)
         else
-            self:drawRect(dot.x - DOT / 2, dot.y - DOT / 2, DOT, DOT, 1, dot.r, dot.g, dot.b)
+            self:drawRect(dot.x - half, dot.y - half, DOT, DOT, 1, dot.r, dot.g, dot.b)
         end
-        if dot.fresh then self:drawRect(dot.x + DOT / 2, dot.y - DOT / 2 - 3, 3, 3, 1, 0.3, 0.9, 1) end
-        if dot.key == hoverKey then self:drawRectBorder(dot.x - DOT - 1, dot.y - DOT - 1, DOT * 2 + 2, DOT * 2 + 2, 1, 1, 1, 1) end
+        if dot.fresh then self:drawRect(dot.x + half, dot.y - half - 3, 3, 3, 1, 0.3, 0.9, 1) end
+        if dot.key == hoverKey or marked and not marked.square and marked.hollow == dot.hollow and marked.r == dot.r
+                and marked.g == dot.g and marked.b == dot.b then
+            UI.frame(self, dot.x - DOT - 1, dot.y - DOT - 1, DOT * 2 + 2, DOT * 2 + 2, P.bright, 1)
+        end
     end
     -- The riser and the badges: a dark box, framed in their colour, with their text.
     local riser = self.riser
     if riser then
         self:drawRect(riser.x, riser.y, riser.w, riser.h, 0.85, 0, 0, 0)
-        self:drawRectBorder(riser.x, riser.y, riser.w, riser.h, 1, 1, 1, 1)
+        UI.frame(self, riser.x, riser.y, riser.w, riser.h, P.bright, 1)
         self:drawText(riser.text, riser.x + 3, riser.y + 1, 1, 1, 1, 1, UIFont.Small)
     end
     for _, badge in ipairs(self.badges) do
@@ -880,22 +1062,24 @@ function ISBUPlan:render()
         self:drawRectBorder(badge.x, badge.y, badge.w, badge.h, 1, c[1], c[2], c[3])
         self:drawText(badge.text, badge.x + 3, badge.y + 1, c[1], c[2], c[3], 1, UIFont.Small)
     end
-    -- taken back with repaintStencilRect too: the game leaves a clip inside the window's a level up, where a later
-    -- clip in the window would let drawing through
     -- Fading in after a switch of utility or floor.
-    local t = self.switchedAt and (getTimestampMs() - self.switchedAt) / BU.PanelUi.SWITCH_MS or 1
+    local t = self.switchedAt and (now - self.switchedAt) / BU.PanelUi.SWITCH_MS or 1
     if t >= 1 then self.switchedAt = nil end
     if map and t < 1 then
         self:drawRect(map.left, map.top, map.w, map.h, (1 - BU.PanelUi.ease(t)) * 0.9, 0.04, 0.04, 0.05)
     end
+    -- taken back with repaintStencilRect too: the game leaves a clip inside the window's a level up, where a later
+    -- clip in the window would let drawing through
     if map then
         self:clearStencilRect()
         self:repaintStencilRect(map.left, map.top, map.w, map.h)
     end
     for _, cell in ipairs(self.strip) do
         local current = cell.level ~= nil and cell.level == self.floor
-        self:drawRect(cell.x, cell.y, cell.w, cell.h, current and 0.8 or 0.4, current and 0.35 or 0.15, current and 0.35 or 0.15, current and 0.35 or 0.15)
-        self:drawRectBorder(cell.x, cell.y, cell.w, cell.h, 1, 0.5, 0.5, 0.5)
+        local k = UI.hoverLight(self, cell.fx, not current and mx >= cell.x and mx <= cell.x + cell.w and my >= cell.y
+            and my <= cell.y + cell.h)
+        UI.fill(self, cell.x, cell.y, cell.w, cell.h, current and P.sel or P.panel, current and 0.55 or 0.5 + 0.3 * k)
+        UI.frame(self, cell.x, cell.y, cell.w, cell.h, current and P.value or P.border, 1)
         if cell.on then self:drawRect(cell.x + 1, cell.y + 1, 3, cell.h - 2, 1, 0.4, 0.9, 0.4) end
         -- Water: a floor boosters lift to (blue) or that no water reaches (red), along its foot.
         if cell.supply == "boosted" then self:drawRect(cell.x + 5, cell.y + cell.h - 3, cell.w - 12, 2, 1, 0.3, 0.75, 0.95)
@@ -905,29 +1089,10 @@ function ISBUPlan:render()
         -- Its producers, in their colour.
         local producer = cell.producer
         if producer then self:drawRect(cell.x + cell.w - 5, cell.y + cell.h - 5, 3, 3, 1, producer[1], producer[2], producer[3]) end
-        local shade = cell.arrow and (cell.enabled and 1 or 0.35) or current and 1 or cell.far and 0.4 or 0.75
+        local shade = cell.arrow and (cell.enabled and 1 or 0.35) or current and 1 or cell.far and 0.4 or 0.75 + 0.25 * k
         self:drawTextCentre(cell.text, cell.x + cell.w / 2, cell.y + 1, 1, 1, 1, shade, UIFont.Small)
     end
-    local box = self.legendBox
-    if box then
-        self:drawRect(box.x, box.y, box.w, box.h, 0.6, 0.06, 0.06, 0.06)
-        self:drawRectBorder(box.x, box.y, box.w, box.h, 0.8, 0.4, 0.4, 0.4)
-        if box.shown then self:drawRect(box.x + 1, box.y + box.headerH - 1, box.w - 2, 1, 0.6, 0.4, 0.4, 0.4) end
-        self:drawText(box.header, box.x + PAD, box.y + 2, 0.9, 0.85, 0.6, 1, UIFont.Small)
-    end
-    for _, entry in ipairs(self.legend) do
-        local middle = entry.y + LEGEND_ROW / 2
-        if entry.square == "line" then
-            self:drawRect(entry.x, middle, 10, 1, 1, entry.r, entry.g, entry.b)
-        elseif entry.square then
-            self:drawRect(entry.x, middle - 4, 8, 8, 1, entry.r, entry.g, entry.b)
-        elseif entry.hollow then
-            self:drawRectBorder(entry.x + 1, middle - DOT / 2, DOT, DOT, 1, entry.r, entry.g, entry.b)
-        else
-            self:drawRect(entry.x + 1, middle - DOT / 2, DOT, DOT, 1, entry.r, entry.g, entry.b)
-        end
-        self:drawText(entry.text, entry.x + 14, entry.y + 1, 0.85, 0.85, 0.85, 1, UIFont.Small)
-    end
+    self:drawLegend(now, mx, my, px)
     local status = self.status or (self.data and self.data.zoneEdit and getText("IGUI_BU_ZoneHint"))
     if status then
         self:drawText(status, PAD, self.height - FONT_HGT_SMALL - PAD, 1, 1, 1, 1, UIFont.Small)
@@ -1073,9 +1238,9 @@ end
 
 function ISBUPlan:onMouseDown(x, y)
     local toggle = self:toggleAt(x, y)
+    if toggle and toggle ~= "title" then UI.flash(self, "t" .. toggle) end
     if self:onLegendHeader(x, y) then
-        BU.PanelWindow.legendShown = not self:legendShown()
-        self:layout()
+        self:toggleLegend()
         return true
     elseif toggle == "zone" then
         self.window:setZoneEditing(not self.data.zoneEdit)
