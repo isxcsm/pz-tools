@@ -225,7 +225,8 @@ function Texts.conditions(sim, node)
         add(have >= req[2], getText("IGUI_OA_Tree_NeedNode", Texts.nodeName(req[1]), req[2], have))
     end
     if node.capstone then
-        add(Rules.unsealed(sim, node.tree), getText("IGUI_OA_Tree_NeedSample", getItemNameFromFullType(Data.FRAGMENTS[node.tree])))
+        -- what opens it is told only when it happens (the research memo): the line names no fragment
+        add(Rules.unsealed(sim, node.tree), getText("IGUI_OA_Tree_NeedApproval"))
     end
     if not Rules.maxed(sim, node.id) then
         local free = Rules.free(sim, node.tree)

@@ -2,7 +2,7 @@
 -- ask here: they never keep their own formula. The yield is a count with a fraction; what is not a whole bundle yet is
 -- kept on the record and adds up (Shred.carry), so every bit of weight counts.
 --   base  = weight * 0.5 / (1 + c / ShredDecay)       c: shreds of this kind lately (x0.9 a day)
---   extra = keen eye + 0.02 * 2nd-board points + base * (blade multiplier - 1)
+--   extra = the upgrades' added bundles + 0.02 * 2nd-board points + base * (blade multiplier - 1)
 --   final = base + min(extra, base)                   so never more than twice the base
 -- Rotten food gives half the base. A kind shredded for the first time pays 200 credits (and enters the codex).
 -- The record's `shred` section: counts { [base type] = { c, day } }, first { [base type] = true }, rest (the part of a
@@ -57,15 +57,16 @@ local function decay()
 end
 
 -- The expected sample bundles one thing of this kind gives now, and the first-shred bonus it would pay (0 if the
--- kind was shredded before). `extras` = { keen = bundles (0..3), board = points of the 2nd board, blade = the
--- blade's multiplier (1.0, 1.1, 1.2) }, any of them may be missing. `c` overrides the record's count (batches).
+-- kind was shredded before). `extras` = { bundles = the upgrades' added bundles, board = points of the 2nd board,
+-- blade = the blade's multiplier (1.0, 1.1, 1.2) }, any of them may be missing. `c` overrides the record's count
+-- (batches).
 function Shred.yield(info, record, extras, c)
     local weight = math.max(info.weight or 0, 0)
     c = c or Shred.count(record, info.baseType)
     local base = weight * Shred.PER_WEIGHT / (1 + c / decay())
     if info.food == "rotten" then base = base * Shred.ROTTEN end
     extras = extras or {}
-    local extra = (extras.keen or 0) + Shred.BOARD_PER_POINT * (extras.board or 0)
+    local extra = (extras.bundles or 0) + Shred.BOARD_PER_POINT * (extras.board or 0)
         + base * ((extras.blade or 1.0) - 1.0)
     if extra < 0 then extra = 0 end
     if extra > base then extra = base end

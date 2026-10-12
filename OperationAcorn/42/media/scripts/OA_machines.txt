@@ -102,6 +102,15 @@ module OperationAcorn
         Icon = OA_SampleBundle,
     }
 
+    /* A sample bundle's better part, sorted out as it is shredded (시료 감별): the research team pays twice as much. */
+    item SelectedSample
+    {
+        DisplayCategory = Material,
+        ItemType = base:normal,
+        Weight = 0.5,
+        Icon = OA_SelectedSample,
+    }
+
     item MotorOld
     {
         DisplayCategory = Electronics,

@@ -245,7 +245,7 @@ say(blank == 0 and given > 0 and "ok" or "BAD", "every item of the mod has its i
 -- Tree node icons.
 local NODES = {
     "OA_Node_SightCone.png", "OA_Node_Hunch.png", "OA_Node_AlarmRead.png", "OA_Node_SearchLog.png",
-    "OA_Node_RichSearch.png", "OA_Node_NightEye.png", "OA_Node_Presence.png", "OA_Node_KeenEye.png",
+    "OA_Node_RichSearch.png", "OA_Node_NightEye.png", "OA_Node_Presence.png", "OA_Node_SampleGrade.png",
     "OA_Node_AmmoSearch.png", "OA_Node_PresenceRadar.png", "OA_Node_NocturnalEye.png", "OA_Node_Overload.png",
     "OA_Node_TransferSpeed.png", "OA_Node_KeyRing.png", "OA_Node_FurnitureWeight.png", "OA_Node_MaterialWeight.png",
     "OA_Node_RunSpeed.png", "OA_Node_CarryCapacity.png", "OA_Node_CombatSpeed.png", "OA_Node_MaterialWeightPlus.png",
@@ -258,7 +258,7 @@ local NODES = {
     "OA_Node_B2StorageCapacity.png", "OA_Node_B2ScratchInfect.png", "OA_Node_B2SicknessRate.png",
     "OA_Node_B2BiteCooldown.png", "OA_Node_B2LimbFatigue.png", "OA_Node_B2Stamina.png", "OA_Node_B2SleepFatigue.png",
     "OA_Node_B2GearDamage.png", "OA_Node_B2FallDamage.png", "OA_Node_B2SprintStamina.png", "OA_Node_B2WalkSpeed.png",
-    "OA_Node_B2LootChance.png", "OA_Node_B2MeteorShard.png", "OA_Node_B2SampleBundle.png",
+    "OA_Node_B2LootChance.png", "OA_Node_B2SelectedSample.png", "OA_Node_B2SampleBundle.png",
     "OA_Node_B2PresenceRadius.png", "OA_Node_B2HunchRadius.png",
 }
 local noNode = 0

@@ -275,12 +275,12 @@ def g_presence(g):
         g.arc(24, 34, r, -40, 40, 3.2)
 
 
-def g_keen_eye(g):  # gem + sparkle
-    g.poly([(13, 27), (21, 17), (43, 17), (51, 27), (32, 52)])
-    for (a, b) in (((13, 27), (51, 27)), ((27, 27), (32, 17)), ((37, 27), (32, 17)),
-                   ((27, 27), (32, 52)), ((37, 27), (32, 52))):
-        g.line(a[0], a[1], b[0], b[1], 1.9, g.ink)
-    g.star4(48, 13, 6.0)
+def g_sample_grade(g):  # one sample bag picked out of the rest, with sparkles
+    g.rrect(16, 15, 35, 54, 8.0)
+    g.rrect(19.8, 19, 31.2, 50.2, 4.6, g.er)
+    g.rrect(19.8, 34, 31.2, 50.2, 4.6)
+    g.star4(46, 21, 10.5)
+    g.star4(49, 42, 5.5)
 
 
 def bullet(g, cx, top, bot, w=10.0):
@@ -728,19 +728,14 @@ def g_b2_loot_chance(g):  # die
     g.norot()
 
 
-def g_b2_meteor_shard(g):
-    c = 38.0
-    k = math.sqrt(0.5)
-    for d, ln in ((-7.5, 13), (0, 25), (7.5, 13)):
-        px, py = c + d * k, c - d * k
-        g.line(px - 9 * k, py - 9 * k, px - (9 + ln) * k, py - (9 + ln) * k, 3.6)
-    pts = []
-    for i, (rr, a) in enumerate(((11.5, 0), (9.5, 50), (12, 100), (10, 150), (11.5, 205), (9.5, 255), (12, 305))):
-        pts.append((c + 1 + rr * math.cos(math.radians(a)), c + 1 + rr * math.sin(math.radians(a))))
-    g.poly(pts)
-    g.circle(41, 36, 2.6, g.ink)
-    g.circle(35, 44, 1.8, g.ink)
-    g.circle(45, 45, 1.4, g.ink)
+def g_b2_selected_sample(g):  # the selected sample with a grade tag
+    g.rrect(14, 15, 33, 54, 8.0)
+    g.rrect(17.8, 19, 29.2, 50.2, 4.6, g.er)
+    g.rrect(17.8, 34, 29.2, 50.2, 4.6)
+    g.line(31, 24, 41, 30, 2.6)
+    g.rrect(38, 27, 53, 41, 2.4)
+    g.circle(42.2, 31.2, 1.7, g.er)
+    g.star4(47, 14, 7.0)
 
 
 def g_b2_sample_bundle(g):
@@ -781,7 +776,7 @@ ICONS = [
     ("정찰", "알찬 수색", "RichSearch", g_thorough_search, ""),
     ("정찰", "밤눈", "NightEye", g_night_eye, ""),
     ("정찰", "기척 감지", "Presence", g_presence, ""),
-    ("정찰", "눈썰미", "KeenEye", g_keen_eye, ""),
+    ("정찰", "시료 감별", "SampleGrade", g_sample_grade, ""),
     ("정찰", "탄약 수색", "AmmoSearch", g_ammo_search, ""),
     ("정찰", "기척 감지 강화", "PresenceRadar", g_presence_boost, ""),
     ("정찰", "야행성 눈", "NocturnalEye", g_nocturnal_eye, "cap"),
@@ -827,7 +822,7 @@ ICONS = [
     ("2차-생존", "돌파 질주 지구력 소모", "B2SprintStamina", g_b2_sprint_stamina, "b2"),
     ("2차-생존", "걷는 속도", "B2WalkSpeed", g_b2_walk_speed, "b2"),
     ("2차-정찰", "전리품 확률", "B2LootChance", g_b2_loot_chance, "b2"),
-    ("2차-정찰", "낙하 지점에서 줍는 운석 파편", "B2MeteorShard", g_b2_meteor_shard, "b2"),
+    ("2차-정찰", "선별 시료", "B2SelectedSample", g_b2_selected_sample, "b2"),
     ("2차-정찰", "시료 묶음", "B2SampleBundle", g_b2_sample_bundle, "b2"),
     ("2차-정찰", "기척 감지 반경", "B2PresenceRadius", g_b2_presence_radius, "b2"),
     ("2차-정찰", "육감 반경", "B2HunchRadius", g_b2_hunch_radius, "b2"),

@@ -80,7 +80,7 @@ test("rank line numbers: a percentage carries its sign, a count does not", funct
     local sight = Data.byId.sight
     eq(Texts.args(sight, 3, u)[1], "72")
     local keen = Data.byId.keen
-    eq(Texts.args(keen, 2, u)[1], "0.2", "bundles for each thing: a fifth of a bundle")
+    eq(Texts.args(keen, 2, u)[1], "20%", "the chance of a selected sample")
 end)
 
 test("rank line numbers follow the effect option", function()
@@ -131,17 +131,14 @@ test("the conditions list what a node needs, each with its state", function()
     end
     truthy(open, "the tree is open")
     eq(node, false, "needs the hunch at 2")
-    local was = getItemNameFromFullType
-    getItemNameFromFullType = function(t) return t end
-    local function sample()
+    local function approved()
         for _, c in ipairs(Texts.conditions(u, Data.byId.nightEye)) do
-            if string.find(c.text, "NeedSample", 1, true) then return c.ok end
+            if string.find(c.text, "NeedApproval", 1, true) then return c.ok end
         end
     end
-    eq(sample(), false)
+    eq(approved(), false)
     Rules.unseal(u, "scout")
-    eq(sample(), true)
-    getItemNameFromFullType = was
+    eq(approved(), true)
 end)
 
 test("moving an item takes the time of its weight up to 3", function()

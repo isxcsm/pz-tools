@@ -31,11 +31,13 @@ Value.HIGH, Value.LOW = 1.10, 0.90   -- index marks "high" / "low" past these
 Value.CASH = { ["Base.Money"] = 1, ["Base.MoneyBundle"] = 100 }
 
 -- The mod's own goods that are taken: credits and trust for one, no market. Other goods of the mod (serums, kits,
--- machines, parts, gear) are shop goods and not taken. "MissionItem" is worth what its mission pays (the story
--- part settles it); "ExpiredMission" is a mission item past its time. A meteorite fragment is not sold: it goes to
+-- machines, parts, gear) are shop goods and not taken. A selected sample (시료 감별) is a sample bundle of a better
+-- grade. "MissionItem" is worth what its mission pays (the story part settles it); "ExpiredMission" is a mission item
+-- past its time. A meteorite fragment is not sold: it goes to
 -- the research team and opens a capstone (the story part tells the upgrades when it settles: Story.onSettled).
 Value.OWN = {
     SampleBundle = { credits = 600, trust = 6 },
+    SelectedSample = { credits = 1200, trust = 12 },
     MeteorFragment = { credits = 0, trust = 10, fragment = true },
     MeteorFragmentIron = { credits = 0, trust = 10, fragment = true },
     MeteorFragmentStonyIron = { credits = 0, trust = 10, fragment = true },

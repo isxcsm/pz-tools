@@ -16,6 +16,7 @@ local ITEMS = {
     ["Base.Log"] = { weight = 9 },
     ["Base.Plank"] = { weight = 3 },
     ["OperationAcorn.SampleBundle"] = { weight = 1.0 },
+    ["OperationAcorn.SelectedSample"] = { weight = 0.5 },
     ["Base.RippedSheets"] = { weight = 0.1 },
     ["Base.RippedSheetsDirty"] = { weight = 0.1 },
     ["Base.LeatherStrips"] = { weight = 0.1 },
@@ -844,6 +845,29 @@ test("hand shredding takes the items and gives bundles, booked to the record", f
     eq(countOf(p.inv, "Base.Hammer"), 0)
     eq(#OA.Shred.committed, 1)
     near(Machines.benchMinutesFor(entries), 10)
+end)
+
+test("a selected sample comes with a bundle by the record's chance, by hand and in the bulk shredder", function()
+    setup()
+    local record = OA.Store.player("p1")
+    local was = OA.Upgrades
+    OA.Upgrades = { selectedChance = function() return 0.25 end }
+    local rolls = { 0.1, 0.9, 0.24, 0.25 }
+    local i = 0
+    local function roll() i = i + 1 return rolls[i] end
+    eq(Machines.selectedOf(record, 4, roll), 2, "under the chance: 0.1 and 0.24")
+    eq(Machines.selectedOf(record, 0, roll), 0, "no bundle, no roll")
+    OA.Upgrades = { selectedChance = function() return 1 end }
+    local p = player()
+    local hammer = newItem("Base.Hammer", { weight = 4 })
+    p.inv:AddItem(hammer)
+    local n, selected = Machines.shredByHand(p, record, { hammer })
+    eq(n, 2)
+    eq(selected, 2)
+    eq(countOf(p.inv, "OperationAcorn.SelectedSample"), 2)
+    OA.Upgrades = nil
+    eq(Machines.selectedOf(record, 3), 0, "without the upgrades part there is none")
+    OA.Upgrades = was
 end)
 
 test("sprites follow the state and the kind", function()

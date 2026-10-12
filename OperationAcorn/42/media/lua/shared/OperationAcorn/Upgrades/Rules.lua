@@ -546,9 +546,14 @@ function Rules.familyAmount(u, family)
     return node.step * n * Rules.mult()
 end
 
--- Sample bundles a shred adds on top (눈썰미 and the board's bundle node), as an expected count.
+-- Sample bundles a shred adds on top (the board's bundle node), as an expected count.
 function Rules.bundleBonus(u)
-    return Rules.value(u, "keen") + Rules.boardAmount(u, "bBundle")
+    return Rules.boardAmount(u, "bBundle")
+end
+
+-- The chance that a sample bundle a shred gives comes with a selected sample (시료 감별 and the board's node), 0..1.
+function Rules.selectedChance(u)
+    return math.min(1, Rules.fraction(u, "keen") + Rules.boardAmount(u, "bShard"))
 end
 
 -- The distance 육감 watches, in tiles (0 without the node).

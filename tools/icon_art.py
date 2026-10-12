@@ -307,6 +307,17 @@ def bundle():
     return from_scene(s)
 
 
+def selected_sample():
+    s = Scene(0)
+    # one sample bag of the bundle, picked out: its contents packed tight, a yellow grade tag on the twine
+    s.box(0.24, 0.2, 0.0, 0.62, 0.74, 0.12, (214, 224, 228), top=(232, 240, 242), shine=0.7)
+    s.box(0.29, 0.27, 0.12, 0.57, 0.6, 0.15, (96, 136, 92))
+    s.box(0.27, 0.66, 0.12, 0.59, 0.71, 0.145, (186, 40, 36))
+    s.tube((0.56, 0.68, 0.15), (0.7, 0.74, 0.15), 0.012, TAN, segments=6)
+    s.box(0.64, 0.68, 0.12, 0.86, 0.88, 0.14, (232, 192, 64))
+    return from_scene(s)
+
+
 def meteor_fragment(kind='stony'):
     """The three kinds a drop site holds: stony (a dark fusion crust, rust-brown, a pale broken face), iron (dense
     dark metal with a bright cut face), stony-iron (metal holding green olivine crystals)."""
@@ -676,6 +687,7 @@ PICTURES = {
     'document': document_generic,
     'mission': mission_item,
     'bundle': bundle,
+    'selected_sample': selected_sample,
     'meteor': meteor_fragment, 'meteor_iron': lambda: meteor_fragment('iron'),
     'meteor_stony_iron': lambda: meteor_fragment('stonyIron'),
     'serum_scout': lambda: vial('Scout'),

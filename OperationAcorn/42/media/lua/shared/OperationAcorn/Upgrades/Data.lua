@@ -102,8 +102,8 @@ node("scout", "ledger", 1, 4, 3, "lua", {}, { rankText = true, adds = true, unit
 node("scout", "rich", 2, 3, 3, "api", {}, { unit = "pct", values = { 15, 30, 50 } })
 node("scout", "night", 2, 2, 3, "api", {}, { cap = 100, unit = "pct", values = { 20, 40, 60 } })
 node("scout", "sense", 3, 1, 2, "lua", { { "sixth", 2 } }, { rankText = true, adds = true })
-node("scout", "keen", 3, 3, 3, "lua", { { "rich", 2 } }, { unit = "num", values = { 0.1, 0.2, 0.3 } })
-node("scout", "ammo", 4, 3, 2, "api", { { "keen", 2 } }, { unit = "pct", values = { 50, 100 } })
+node("scout", "keen", 3, 4, 3, "lua", {}, { unit = "pct", values = { 10, 20, 30 } })
+node("scout", "ammo", 4, 3, 2, "api", { { "rich", 2 } }, { unit = "pct", values = { 50, 100 } })
 node("scout", "sensePlus", 4, 1, 3, "lua", { { "sense", 2 } }, { rankText = true, adds = true })
 node("scout", "nightEye", 5, 2, 1, "api", { { "night", 3 } }, { capstone = true })
 
@@ -167,7 +167,7 @@ board("bFall", "survival", 8, "divide", 0.10, "api")
 board("bDash", "survival", 9, "divide", 0.10, "lua")
 board("bWalk", "survival", 10, "approach", 0.10, "api", { limit = 0.40 })
 board("bLoot", "scout", 1, "approach", 0.10, "api", { limit = 1.00 })
-board("bShard", "scout", 2, "approach", 0.10, "lua", { limit = 2.00 })
+board("bShard", "scout", 2, "approach", 0.10, "lua", { limit = 0.30 })
 board("bBundle", "scout", 3, "add", 0.02, "lua", { unit = "num" })
 board("bSense", "scout", 4, "add", 1, "lua", { unit = "tiles" })
 board("bSixth", "scout", 5, "add", 1, "lua", { unit = "tiles" })
@@ -176,7 +176,7 @@ board("bSixth", "scout", 5, "add", 1, "lua", { unit = "tiles" })
 local ICONS = {
     sight = "SightCone", sixth = "Hunch", alarm = "AlarmRead",
     ledger = "SearchLog", rich = "RichSearch", night = "NightEye",
-    sense = "Presence", keen = "KeenEye", ammo = "AmmoSearch",
+    sense = "Presence", keen = "SampleGrade", ammo = "AmmoSearch",
     sensePlus = "PresenceRadar", nightEye = "NocturnalEye", overload = "Overload",
     moveSpeed = "TransferSpeed", keyring = "KeyRing", furniture = "FurnitureWeight",
     materials = "MaterialWeight", runSpeed = "RunSpeed", capacity = "CarryCapacity",
@@ -191,7 +191,7 @@ local ICONS = {
     bIllness = "B2SicknessRate", bBite = "B2BiteCooldown", bStiff = "B2LimbFatigue",
     bEndurance = "B2Stamina", bSleep = "B2SleepFatigue", bGearLoss = "B2GearDamage",
     bFall = "B2FallDamage", bDash = "B2SprintStamina", bWalk = "B2WalkSpeed",
-    bLoot = "B2LootChance", bShard = "B2MeteorShard", bBundle = "B2SampleBundle",
+    bLoot = "B2LootChance", bShard = "B2SelectedSample", bBundle = "B2SampleBundle",
     bSense = "B2PresenceRadius", bSixth = "B2HunchRadius",
 }
 for id, slug in pairs(ICONS) do

@@ -6,7 +6,7 @@
 정찰	알찬 수색	OA_Node_RichSearch.png
 정찰	밤눈	OA_Node_NightEye.png
 정찰	기척 감지	OA_Node_Presence.png
-정찰	눈썰미	OA_Node_KeenEye.png
+정찰	시료 감별	OA_Node_SampleGrade.png
 정찰	탄약 수색	OA_Node_AmmoSearch.png
 정찰	기척 감지 강화	OA_Node_PresenceRadar.png
 정찰	야행성 눈	OA_Node_NocturnalEye.png
@@ -22,7 +22,7 @@
 하중	저장소 용량	OA_Node_StorageCapacity.png
 하중	갑옷 체질	OA_Node_ArmorBody.png
 생존	혈청 적응	OA_Node_SerumAdapt.png
-생존	쇠지렛대로 따기	OA_Node_CrowbarPry.png
+생존	빠루 따기	OA_Node_CrowbarPry.png
 생존	부위 피로	OA_Node_LimbStiffness.png
 생존	낙법	OA_Node_BreakFall.png
 생존	자물쇠 따기	OA_Node_LockPick.png
@@ -51,7 +51,7 @@
 2차-생존	돌파 질주 지구력 소모	OA_Node_B2SprintStamina.png
 2차-생존	걷는 속도	OA_Node_B2WalkSpeed.png
 2차-정찰	전리품 확률	OA_Node_B2LootChance.png
-2차-정찰	낙하 지점에서 줍는 운석 파편	OA_Node_B2MeteorShard.png
+2차-정찰	선별 시료	OA_Node_B2SelectedSample.png
 2차-정찰	시료 묶음	OA_Node_B2SampleBundle.png
 2차-정찰	기척 감지 반경	OA_Node_B2PresenceRadius.png
 2차-정찰	육감 반경	OA_Node_B2HunchRadius.png

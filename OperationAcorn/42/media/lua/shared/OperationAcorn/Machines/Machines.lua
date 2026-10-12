@@ -29,6 +29,7 @@ local Machines = OA.Machines
 local Data, Logic = Machines.Data, Machines.Logic
 
 Machines.SAMPLE = "OperationAcorn.SampleBundle"
+Machines.SELECTED = "OperationAcorn.SelectedSample"
 
 local function text(key, ...) return getText(key, ...) end
 
@@ -676,24 +677,34 @@ end
 -- ---------------------------------------------------------------------------------------------------------------------
 -- Shredding (P1's yield, P3's bonus)
 
--- The extras the shred yield takes (P1: keen = added bundles, blade = the blade's multiplier).
+-- The extras the shred yield takes (P1: bundles = the upgrades' added bundles, blade = the blade's multiplier).
 local function shredExtras(record, fx)
-    local keen = 0
-    if OA.Upgrades then
-        if OA.Upgrades.bundleBonus then keen = OA.Upgrades.bundleBonus(record) or 0
-        elseif OA.Upgrades.rank then keen = OA.Upgrades.rank(record, "keen") or 0 end
+    local bundles = 0
+    if OA.Upgrades and OA.Upgrades.bundleBonus then bundles = OA.Upgrades.bundleBonus(record) or 0 end
+    return { bundles = bundles, blade = fx and fx.shred or 1 }
+end
+
+-- How many of `count` sample bundles come with a selected sample: each by the record's chance (시료 감별).
+function Machines.selectedOf(record, count, roll)
+    local chance = 0
+    if count > 0 and OA.Upgrades and OA.Upgrades.selectedChance then chance = OA.Upgrades.selectedChance(record) or 0 end
+    if chance <= 0 then return 0 end
+    roll = roll or OA.randomFloat
+    local n = 0
+    for _ = 1, count do
+        if roll(0, 1) < chance then n = n + 1 end
     end
-    return { keen = keen, blade = fx and fx.shred or 1 }
+    return n
 end
 
 -- Shreds one item for a record: books it (the repeat count, the first-shred bonus) and returns how many sample
--- bundles it gives now (its yield times the wear multiplier, with what the record kept from before; the rest is kept).
--- The item is not taken here.
+-- bundles it gives now (its yield times the wear multiplier, with what the record kept from before; the rest is kept)
+-- and how many selected samples come with them. The item is not taken here.
 function Machines.shredYield(record, info, fx)
     local amount = OA.Shred.yield(info, record, shredExtras(record, fx))
     local count = OA.Shred.carry(record, amount * (fx and fx.yield or 1))
     OA.Shred.commit(record, info, 1)
-    return count
+    return count, Machines.selectedOf(record, count)
 end
 
 -- ---------------------------------------------------------------------------------------------------------------------
@@ -823,9 +834,10 @@ local function makeIO(object, state, record)
             return { cost = jobCost(kind, entry), entry = entry }
         end
         io.finish = function(job, fx)
-            local count = Machines.shredYield(record, job.entry.data, fx)
+            local count, selected = Machines.shredYield(record, job.entry.data, fx)
             takeOut(job.entry)
             putInType(outC, Machines.SAMPLE, count)
+            putInType(outC, Machines.SELECTED, selected)
         end
 
     elseif kind == "cutter" then
@@ -1619,30 +1631,35 @@ function Machines.benchCandidates(character, limit)
 end
 
 -- Shreds the given items by hand for a character: every one still in their inventory is taken, and the sample
--- bundles go into it. Returns the number of bundles. `record` is the character's.
+-- bundles (and the selected samples with them) go into it. Returns the number of bundles and of selected samples.
+-- `record` is the character's.
 function Machines.shredByHand(character, record, items)
     local inventory = character:getInventory()
-    local total = 0
+    local total, selectedTotal = 0, 0
+    local function give(fullType, n)
+        for _ = 1, n do
+            local made = instanceItem(fullType)
+            if made then
+                inventory:AddItem(made)
+                sendAddItemToContainer(inventory, made)
+            end
+        end
+    end
     for _, item in ipairs(items) do
         if inventory:containsRecursive(item) and not item:isEquipped() then
             local info = Machines.shreddable(item)
             if info then
-                local count = Machines.shredYield(record, info, nil)
+                local count, selected = Machines.shredYield(record, info, nil)
                 local container = item:getContainer()
                 container:Remove(item)
                 sendRemoveItemFromContainer(container, item)
-                for _ = 1, count do
-                    local bundle = instanceItem(Machines.SAMPLE)
-                    if bundle then
-                        inventory:AddItem(bundle)
-                        sendAddItemToContainer(inventory, bundle)
-                    end
-                end
-                total = total + count
+                give(Machines.SAMPLE, count)
+                give(Machines.SELECTED, selected)
+                total, selectedTotal = total + count, selectedTotal + selected
             end
         end
     end
-    return total
+    return total, selectedTotal
 end
 
 -- The game minutes shredding these items takes by hand (the bench's rule, per item).

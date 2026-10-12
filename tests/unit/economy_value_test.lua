@@ -46,6 +46,13 @@ test("a box of sample bundles: 50 of them are 30,000 credits and 300 trust", fun
     near(line.trust, 300, 1e-6)
 end)
 
+test("a selected sample is worth two sample bundles", function()
+    local line = V.appraiseLine(info("OperationAcorn.SelectedSample", "Material", 0.5, { own = "SelectedSample" }), 3,
+        ctx())
+    near(line.credits, 3600, 1e-6)
+    near(line.trust, 36, 1e-6)
+end)
+
 test("the market index multiplies credits and never trust", function()
     local c = ctx({ index = { B = 1.5 } })
     local a = V.appraise(info("Base.Shirt", "Clothing", 1.0), c)
