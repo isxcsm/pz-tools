@@ -39,7 +39,8 @@ local function wearOf(work) return rateOf(work) / Data.WEAR_WEIGHT end
 --   power: true when it runs only with electricity. load: the generator load (NUMBERS 11: the unit is the vanilla
 --     generator's per-device consumption, a fridge is 0.13). work: the kind of work (Data.WORK_SECONDS) of a machine
 --     that works on things by weight. rate: work units an hour with the old motor (weight for those, litres for the
---     refiners). noise: the radius of the sound it makes while it runs. wear: the multiplier of its parts' wear an hour
+--     refiners). noise: the radius of the sound it makes while it runs (40, the saw 60: twice a vanilla generator's
+--     20, so that it counts; a soundproof cover halves it). wear: the multiplier of its parts' wear an hour
 --     (1 when missing; by weight, rate / Data.WEAR_WEIGHT).
 --   slots: the part slots, in the order a window lists them. A slot a machine ships without is in `empty`.
 --   inputs/outputs: the containers (titles IGUI_ContainerTitle_<type>); `in` is where things are put, `out` where
@@ -49,23 +50,23 @@ Data.KINDS = {
         item = "ShredBench", weight = 20, hand = true, slots = {}, containers = {},
     },
     bulkShredder = {
-        item = "BulkShredder", weight = 60, power = true, load = 0.6, work = "shred", rate = rateOf("shred"), wear = wearOf("shred"), noise = 20,
-        slots = { "motor", "blade" }, containers = { "in", "out" }, containerAt = { out = { 1, 0 } },
+        item = "BulkShredder", weight = 60, power = true, load = 0.6, work = "shred", rate = rateOf("shred"), wear = wearOf("shred"), noise = 40,
+        slots = { "motor", "blade", "cover" }, empty = { cover = true }, containers = { "in", "out" }, containerAt = { out = { 1, 0 } },
     },
     cutter = {
-        item = "FabricCutter", weight = 35, power = true, load = 0.4, work = "cut", rate = rateOf("cut"), wear = wearOf("cut"), noise = 10,
-        slots = { "motor", "blade" }, containers = { "in", "out" }, containerAt = { out = { 1, 0 } },
+        item = "FabricCutter", weight = 35, power = true, load = 0.4, work = "cut", rate = rateOf("cut"), wear = wearOf("cut"), noise = 40,
+        slots = { "motor", "blade", "cover" }, empty = { cover = true }, containers = { "in", "out" }, containerAt = { out = { 1, 0 } },
     },
     propaneRefiner = {
-        item = "PropaneRefinery", weight = 50, power = true, load = 0.3, rate = 2, noise = 8,
-        slots = { "motor", "catalyst" }, containers = { "in", "tank" },
+        item = "PropaneRefinery", weight = 50, power = true, load = 0.3, rate = 2, noise = 40,
+        slots = { "motor", "catalyst", "cover" }, empty = { cover = true }, containers = { "in", "tank" },
     },
     oilRefiner = {
-        item = "OilRefinery", weight = 55, power = true, load = 0.3, rate = 0.5, noise = 8,
-        slots = { "motor", "catalyst" }, containers = { "in", "tank" },
+        item = "OilRefinery", weight = 55, power = true, load = 0.3, rate = 0.5, noise = 40,
+        slots = { "motor", "catalyst", "cover" }, empty = { cover = true }, containers = { "in", "tank" },
     },
     woodSaw = {
-        item = "LogSaw", weight = 55, power = true, load = 0.8, work = "saw", rate = rateOf("saw"), wear = wearOf("saw"), noise = 40,
+        item = "LogSaw", weight = 55, power = true, load = 0.8, work = "saw", rate = rateOf("saw"), wear = wearOf("saw"), noise = 60,
         slots = { "motor", "blade", "cover" }, empty = { cover = true }, containers = { "in", "out" },
         containerAt = { out = { 1, 0 } },
     },
@@ -243,7 +244,8 @@ Data.PARTS = {
         },
     },
     cover = {
-        slot = "cover", name = "SoundproofCover", item = "SoundproofCover", role = "cover", kinds = { "woodSaw" },
+        slot = "cover", name = "SoundproofCover", item = "SoundproofCover", role = "cover",
+        kinds = { "bulkShredder", "cutter", "propaneRefiner", "oilRefiner", "woodSaw" },
         tiers = {
             normal = { noise = 0.5, speed = 0.85, wear = 1.5 },
         },

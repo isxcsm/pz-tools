@@ -1193,7 +1193,7 @@
     "IGUI_OA_Terminal_Shop_Desc_saw_blade_modern": "A blade for the log saw.",
     "IGUI_OA_Terminal_Shop_Desc_filter_normal": "A catalyst filter for the refineries.",
     "IGUI_OA_Terminal_Shop_Desc_filter_modern": "A catalyst filter for the refineries.",
-    "IGUI_OA_Terminal_Shop_Desc_soundproof_cover": "A soundproof cover for the log saw. It halves the noise radius but slows the saw a little.",
+    "IGUI_OA_Terminal_Shop_Desc_soundproof_cover": "A soundproof cover for any powered machine. It halves the noise radius but slows the machine a little.",
     "IGUI_OA_Terminal_Shop_Desc_fuelcan_mk1": "Holds 15L and weighs the same as a normal fuel can. It comes empty.",
     "IGUI_OA_Terminal_Shop_Desc_fuelcan_mk2": "Holds 20L. It comes empty.",
     "IGUI_OA_Terminal_Shop_Desc_fuelcan_mk3": "Holds 25L. It comes empty.",

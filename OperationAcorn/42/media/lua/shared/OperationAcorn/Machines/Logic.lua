@@ -24,7 +24,7 @@ end
 -- Parts
 
 -- The parts a new machine of a kind ships with: the old tier at full condition for every slot, except the slots the
--- kind ships without (a saw's sound cover).
+-- kind ships without (the soundproof cover).
 function Logic.newParts(kind)
     local def = Data.KINDS[kind]
     local parts = {}

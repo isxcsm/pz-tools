@@ -14,7 +14,7 @@
     "Tooltip_OA_Machine_Part_cutBlade": "A blade for the fabric cutter. Better tiers cut more pieces. Wears while it runs.",
     "Tooltip_OA_Machine_Part_sawBlade": "A blade for the log saw. Better tiers give more planks. Wears while it runs.",
     "Tooltip_OA_Machine_Part_catalyst": "A catalyst filter for the refineries. Better tiers use less material. Wears while it runs.",
-    "Tooltip_OA_Machine_Part_cover": "A soundproof cover for the log saw. Halves the noise radius but works a little slower. Wears while it runs.",
+    "Tooltip_OA_Machine_Part_cover": "A soundproof cover for any powered machine. Halves the noise radius but works a little slower. Wears while it runs.",
     "Tooltip_OA_Tree_CureLeft": "%1 days of shelf life left. Only the person it was issued to can use it.",
     "Tooltip_OA_Tree_CureExpired": "Past its shelf life. It does nothing.",
     "Tooltip_OA_Tree_CureNotOwner": "Issued to someone else. It does nothing for you.",

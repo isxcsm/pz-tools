@@ -313,7 +313,7 @@ test("a bulk shredder shreds a box of items into sample bundles over time", func
     eq(OA.Shred.committed[1].record.id, "p1")
     eq(inC.items[1], box, "the box stays")
     truthy(#sounds >= 1, "it made noise")
-    eq(sounds[1].radius, 20)
+    eq(sounds[1].radius, 40)
 end)
 
 test("the progress a window shows: the first job's share by now, nil when it is not working", function()
@@ -507,7 +507,7 @@ test("the saw cuts logs into six planks", function()
     Machines.update(obj)
     eq(#inC.items, 0)
     eq(countOf(outC, "Base.Plank"), 18)
-    eq(sounds[1].radius, 40)
+    eq(sounds[1].radius, 60)
 end)
 
 test("the saw stops when the planks have no room", function()
@@ -664,9 +664,9 @@ test("installing and removing parts", function()
     TEST.hours = 2
     Machines.update(obj)
     eq(#Machines.container(obj, "in").items, 3)
-    -- The cover goes in the saw only.
+    -- The cover goes in every powered machine.
     local cover = newItem("OperationAcorn.SoundproofCover", {})
-    eq(Machines.canInstall(obj, "cover", cover), nil)
+    truthy(Machines.canInstall(obj, "cover", cover))
     local saw = addMachine("woodSaw", 12, 12)
     truthy(Machines.canInstall(saw, "cover", cover))
     -- A vanilla item named like a part is not one.
@@ -907,11 +907,11 @@ test("status for the window", function()
     near(st.rate, 180)
     eq(st.lanes, 1)
     near(st.load, 0.8)
-    eq(st.noise, 40)
+    eq(st.noise, 60)
     eq(st.stopped, false)
     state.parts.cover = { tier = "normal", cond = 100 }
     st = Machines.status(obj)
-    eq(st.noise, 20)
+    eq(st.noise, 30)
     near(st.rate, 180 * 0.85)
     state.parts.motor = { tier = "modern", cond = 100 }
     st = Machines.status(obj)

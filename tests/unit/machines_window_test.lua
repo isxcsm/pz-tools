@@ -160,7 +160,7 @@ test("a running cutter: rate in weight an hour with no unit, times the old motor
     eq(m.perf.cells[2].value, "Power load 0.6")
     eq(m.perf.cells[2].sub, "about 5 fridges")
     truthy(string.find(m.perf.cells[2].tip[3], "On a generator it burns about 0.06 L of fuel an hour (load 0.6 ", 1, true), "the fuel in the tip")
-    eq(m.perf.cells[3].value, "Noise 10 tiles")
+    eq(m.perf.cells[3].value, "Noise 40 tiles")
     eq(m.perf.cells[3].sub, "generator: 20")
     eq(m.perf.right, nil, "no 'while running' note while it runs")
     truthy(not string.find(texts(m), "kg", 1, true), "no weight unit anywhere")
@@ -617,7 +617,8 @@ test("the window fits a 1280 x 720 screen at the 16 px font, with room to spare;
             truthy(font.S + 1 + UI.px(h2) <= size[2] * 0.85, name .. " at " .. size[1] .. " px")
         end
     end
-    truthy(tallestAt == "saw", "the saw with three parts is the tallest: " .. tostring(tallestAt) .. " " .. tallest)
+    local slots = #OperationAcorn.Machines.Data.KINDS[SCENES[tallestAt]().kind].slots
+    eq(slots, 3, "a machine with three parts is the tallest: " .. tostring(tallestAt) .. " " .. tallest)
 end)
 
 test("the section heights do not jump as jobs come and go (the lanes' room is kept)", function()
