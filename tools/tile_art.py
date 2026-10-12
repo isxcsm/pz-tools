@@ -192,7 +192,21 @@ def compose(scene, ground=None, over=None, seed=1, glows=None):
     small = finish(small, solid.getchannel('A').resize((W, H), Image.LANCZOS), seed)
     if glows:
         small = glow(small, scene, glows)
-    return small
+    return trim_faint(small)
+
+
+# The faintest alpha a finished tile keeps: the tails of the soft shadow, of a lamp's haze and of the scaling's ringing
+# are taken away below it and the rest stretched to meet it, so no edge shows. The game draws a tile the player stands
+# behind dithered (its see-through circle), and a faint pixel comes out there as a lone black dot (seen in game as a
+# speckled ring round a machine).
+FAINT = 32
+
+
+def trim_faint(image):
+    a = np.array(image)
+    alpha = a[..., 3].astype(np.float64)
+    a[..., 3] = np.clip((alpha - FAINT) * 255.0 / (255 - FAINT) + 0.5, 0, 255).astype(np.uint8)
+    return Image.fromarray(a, 'RGBA')
 
 
 def finish(image, solid, seed):
@@ -746,26 +760,53 @@ def solar_tile(index):
     return SOLAR_TILES['bu_solar_01_%d' % index]
 
 
+def hull(points):
+    """The convex hull of points (x, y), counter-clockwise (Andrew's monotone chain)."""
+    pts = sorted(set(points))
+    if len(pts) < 3:
+        return pts
+
+    def cross(o, a, b):
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+    lower, upper = [], []
+    for q in pts:
+        while len(lower) >= 2 and cross(lower[-2], lower[-1], q) <= 0:
+            lower.pop()
+        lower.append(q)
+    for q in reversed(pts):
+        while len(upper) >= 2 and cross(upper[-2], upper[-1], q) <= 0:
+            upper.pop()
+        upper.append(q)
+    return lower[:-1] + upper[:-1]
+
+
 def snow(index, heavy):
     """Snow over the cells of a solar panel tile: a thin dusting the cells show through, thicker toward the low edge,
     or a cover all over it."""
     panel = np.asarray(solar_tile(index)).astype(np.int32)
     r, g, b, a = panel[..., 0], panel[..., 1], panel[..., 2], panel[..., 3]
-    cells = ((b > r + 30) & (b > 60) & (a > 200)).astype(np.uint8) * 255
-    mask = Image.fromarray(cells).filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.MinFilter(5))
-    mask = np.asarray(mask.filter(ImageFilter.GaussianBlur(0.6))).astype(np.float64) / 255
+    cells = ((b > r + 30) & (b > 60) & (a > 200))
+    # the face is the hull of the cells found (a cell under the panel's sheen is too pale to be found by its colour,
+    # and was left as a dark square in the snow), drawn a pixel in from the frame
+    ys, xs = np.nonzero(cells)
+    face = Image.new('L', (W, H), 0)
+    ImageDraw.Draw(face).polygon(hull(list(zip(xs.tolist(), ys.tolist()))), fill=255)
+    mask = face.filter(ImageFilter.MinFilter(3))
+    mask = np.asarray(mask.filter(ImageFilter.GaussianBlur(0.6))).astype(np.float64) / 255 * (a > 200)
     rnd = np.random.RandomState(50 + index * 2 + heavy)
-    noise = Image.fromarray((rnd.rand(H // 4, W // 4) * 255).astype(np.uint8)).resize((W, H), Image.BICUBIC)
-    noise = np.asarray(noise.filter(ImageFilter.GaussianBlur(1.5))).astype(np.float64) / 255
-    fine = rnd.rand(H, W)
+    # soft drifts a few cells across (a finer noise read as static on the cells)
+    noise = Image.fromarray((rnd.rand(H // 16, W // 16) * 255).astype(np.uint8)).resize((W, H), Image.BICUBIC)
+    noise = np.asarray(noise.filter(ImageFilter.GaussianBlur(4))).astype(np.float64) / 255
+    fine = np.asarray(Image.fromarray((rnd.rand(H // 4, W // 4) * 255).astype(np.uint8)).resize((W, H), Image.BICUBIC)
+                      .filter(ImageFilter.GaussianBlur(1.2))).astype(np.float64) / 255
     # Lower on the screen is lower on the panel: snow slides down and lies thicker there.
     rows = np.nonzero(mask.max(axis=1) > 0.5)[0]
     low = np.clip((np.arange(H)[:, None] - rows.min()) / max(1, rows.max() - rows.min()), 0, 1)
     if heavy:
-        cover = mask * np.clip(0.93 + 0.1 * noise, 0, 1)
+        cover = mask * np.clip(0.94 + 0.06 * noise, 0, 1)
     else:
-        cover = mask * np.clip(0.34 + 0.5 * (noise - 0.5) + 0.04 * fine + 0.45 * low ** 2, 0, 0.9)
-    light = 0.88 + 0.1 * noise + 0.03 * fine
+        cover = mask * np.clip(0.3 + 0.35 * (noise - 0.5) + 0.05 * (fine - 0.5) + 0.5 * low ** 2, 0, 0.9)
+    light = 0.9 + 0.07 * noise + 0.02 * fine
     rgb = np.stack([238 * light, 243 * light, 251 * light], axis=2)
     out = np.concatenate([np.clip(rgb, 0, 255), (cover * 255)[..., None]], axis=2)
     return Image.fromarray(out.astype(np.uint8), 'RGBA')
@@ -884,18 +925,33 @@ def write_pack_named(path, sheet, images):
         f.write(out.getvalue())
 
 
-# The items' icons: a tile's thing, fitted into 64x64.
+# The items' icons: a tile's thing at the game's 32 px, a little brighter, with a dark outline (as Operation Acorn's
+# items have; a 64 px tile shrunk by the game read soft and grey beside them).
 ICONS = {'BUWaterPump': 1, 'BUSprinkler': 4, 'BUWaterFilter': 6, 'BUBreakerBox': 32, 'BUBoosterPump': 56}
+ICON = 32
+
+
+def item_icon(image):
+    crop = trim(image)[0]
+    a = np.asarray(crop).astype(np.float64)
+    a[..., :3] = np.clip(a[..., :3] * 1.18, 0, 255)
+    crop = Image.fromarray(a.astype(np.uint8), 'RGBA')
+    inner = ICON - 4
+    scale = inner / max(crop.width, crop.height)
+    small = crop.convert('RGBa').resize((max(1, round(crop.width * scale)), max(1, round(crop.height * scale))),
+                                        Image.LANCZOS).convert('RGBA')
+    out = Image.new('RGBA', (ICON, ICON), (0, 0, 0, 0))
+    out.alpha_composite(small, ((ICON - small.width) // 2, (ICON - small.height) // 2))
+    grown = out.getchannel('A').filter(ImageFilter.MaxFilter(3))
+    ring = Image.new('RGBA', out.size, (22, 24, 22, 0))
+    ring.putalpha(Image.eval(grown, lambda v: 215 if v > 20 else 0))
+    ring.alpha_composite(out)
+    return ring
 
 
 def write_icons(images):
     for name, index in ICONS.items():
-        crop = trim(images[index])[0]
-        scale = 60 / max(crop.width, crop.height)
-        crop = crop.resize((max(1, round(crop.width * scale)), max(1, round(crop.height * scale))), Image.LANCZOS)
-        icon = Image.new('RGBA', (64, 64), (0, 0, 0, 0))
-        icon.alpha_composite(crop, ((64 - crop.width) // 2, (64 - crop.height) // 2))
-        icon.save(os.path.join(ROOT, 'textures', 'Item_%s.png' % name))
+        item_icon(images[index]).save(os.path.join(ROOT, 'textures', 'Item_%s.png' % name))
 
 
 def preview(images, path):

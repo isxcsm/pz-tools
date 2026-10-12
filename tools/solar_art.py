@@ -87,7 +87,7 @@ def compose(scene, ground=None, over=None, glows=None, seed=1):
     small = grain(small, solid.getchannel('A').resize((W, H), Image.LANCZOS), seed)
     if glows:
         small = glow(small, scene, glows)
-    return small
+    return T.trim_faint(small)
 
 
 # Oriented solids: a box along three axes from a corner, and a flat piece on a plane.
@@ -362,13 +362,13 @@ def write_tiles(path, props):
         f.write(out.getvalue())
 
 
-def icon(image, name):
-    crop = T.trim(image)[0]
-    scale = 60 / max(crop.width, crop.height)
-    crop = crop.resize((max(1, round(crop.width * scale)), max(1, round(crop.height * scale))), Image.LANCZOS)
-    out = Image.new('RGBA', (64, 64), (0, 0, 0, 0))
-    out.alpha_composite(crop, ((64 - crop.width) // 2, (64 - crop.height) // 2))
-    out.save(os.path.join(T.ROOT, 'textures', 'Item_%s.png' % name))
+def icon(image, name, top=0.0):
+    """An item's icon from a tile (tile_art.item_icon); top: the share of the thing's height cut from its top first (the
+    tall rack shows its batteries and monitor then, not a thin column)."""
+    if top:
+        crop = T.trim(image)[0]
+        image = crop.crop((0, int(crop.height * top), crop.width, crop.height))
+    T.item_icon(image).save(os.path.join(T.ROOT, 'textures', 'Item_%s.png' % name))
 
 
 # The panel as an item on the ground: a slab (DirectX text model, Y up, metres, its bottom at 0) under a texture of
@@ -594,7 +594,7 @@ def main():
                        [('%s_%d' % (SHEET, index), images[index]) for index in sorted(images)])
     full = images[0].copy()
     full.alpha_composite(images[16 + 3 + 16])
-    icon(full, 'BUBatteryRack')
+    icon(full, 'BUBatteryRack', top=0.3)
     icon(images[10], 'BUSolarPanel')
     model_texture().save(os.path.join(T.ROOT, 'textures', 'WorldItems', 'BUSolarPanel.png'))
     with open(os.path.join(T.ROOT, 'models_X', 'WorldItems', 'BUSolarPanel.x'), 'w', newline='\n') as f:
