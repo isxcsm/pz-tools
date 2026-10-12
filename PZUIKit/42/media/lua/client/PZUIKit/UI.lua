@@ -1082,6 +1082,9 @@ local function onShow(el)
     return true
 end
 
+-- An element may be followed for several things at once (its lights, a slide, a glide), each its own entry: one
+-- that stops does not let the others go. The element's liveLook is the look of one entry still going (the last that
+-- changed), nil once none is; its liveTick changes with any.
 local function liveFrame()
     if live[1] == nil then return end
     local now = getTimestampMs()
@@ -1089,9 +1092,19 @@ local function liveFrame()
         local entry = live[i]
         local el = entry.el
         local look = onShow(el) and entry.frame(el, now) or nil
-        if look ~= el.liveLook then
-            el.liveLook = look
+        if look ~= entry.look then
+            entry.look = look
             liveCount = liveCount + 1
+            el.liveTick = liveCount
+            if look ~= nil then
+                el.liveLook = look
+            else
+                local other
+                for _, each in ipairs(live) do
+                    if each.el == el and each ~= entry and each.look ~= nil then other = each.look end
+                end
+                el.liveLook = other
+            end
             local parent = el.parent
             while parent do
                 parent.liveCount = liveCount
@@ -1103,12 +1116,10 @@ local function liveFrame()
 end
 UI.liveFrame = liveFrame
 
+-- Follows an element for a frame function from the next frame on; the same element and function once.
 function UI.live(el, frame)
     for _, entry in ipairs(live) do
-        if entry.el == el then
-            entry.frame = frame
-            return
-        end
+        if entry.el == el and entry.frame == frame then return end
     end
     if not liveHooked then
         Events.OnPreUIDraw.Add(liveFrame)
