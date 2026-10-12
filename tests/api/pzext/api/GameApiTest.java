@@ -528,6 +528,11 @@ public final class GameApiTest {
         rejects(networks, "include", "there is no network nothing", mod, "nothing", 1.0, 1.0, 0.0, "lamp");
         check(call(networks, "state", "nothing").get(0) == null && call(networks, "consumers", "nothing").get(0) == null,
             "A network that does not exist has a state");
+        // Every network's id, as defined: what a look in the game lists.
+        KahluaTable ids = (KahluaTable)call(networks, "ids").get(0);
+        boolean listed = false;
+        for (int i = 1; i <= ids.len(); i++) listed |= "grid".equals(ids.rawget(i));
+        check(listed, "The ids leave out a network");
 
         // Removed: the generators are the game's again. A mod's handle clears what it defined.
         check(call(networks, "remove", mod, "grid").get(0).equals(true) && call(networks, "remove", mod, "grid").get(0).equals(false),

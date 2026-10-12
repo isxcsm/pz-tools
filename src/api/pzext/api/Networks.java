@@ -372,6 +372,7 @@ final class Networks {
             else power(result, network);
             return new Object[] { result };
         });
+        function(table, "ids", (call, arguments) -> new Object[] { lua.list(new ArrayList<Object>(networks.keySet())) });
         function(table, "consumers", (call, arguments) -> {
             Network network = networks.get(Arguments.string(arguments, 0, call, "id"));
             if (network == null || game.cell() == null) return new Object[] { null, false };

@@ -43,6 +43,11 @@ Events.OnGameStart.Add(function()
 end)
 ```
 
+`dev/PZExtDev` is a dev mod, never published, that works only in debug mode: a debug window (F8) with the game's
+environment (time, weather, the character, zombies) and pages that read and try each area of the API. A mod's own dev
+mod adds its section to the same window with `PZExtDev.section(...)` (see `dev/PZExtDev/42/media/lua/client/PZExtDev/Panel.lua`).
+Its texts come from `dev/tools/strings.py`.
+
 ## License
 
 MIT; the embedded fonts are Noto Sans under the SIL Open Font License (fonts/OFL.txt).
