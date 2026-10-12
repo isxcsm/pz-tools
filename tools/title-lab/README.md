@@ -14,6 +14,8 @@ no build).
     its hold; it weathers away in place (its colour drains, it wears off in pits from its edges).
   - `discovery` 손전등: a torch sways in from the left and lights the title as it passes, then opens over it; it
     stutters and dies down to embers as it leaves.
+  - `notice` 무전: comes in as a radio signal tuned in (rows torn sideways, colours apart, grain), hiccups once as it
+    stays, and is lost as it leaves, cutting out twice and sinking into the grain.
   - `dust` 종이 연소: burns spot by spot from its corner (a noise map of when each spot burns), a ragged glowing edge,
     ash shards tumbling on the wind.
 

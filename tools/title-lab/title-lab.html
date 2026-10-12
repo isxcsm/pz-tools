@@ -60,7 +60,7 @@ const P = {
   GLOW: 0.45, COOL: 0.4, BURN_ASH: 0.3, SCORCH_END: 0.4, GLOW_PEAK: 0.62, GLOW_END: 0.85, SPARKS: 0.25, CHAR_ASH: 0.45,
   SCORCH_R: 0.34, SCORCH_G: 0.18, SCORCH_B: 0.1, CHAR_R: 0.07, CHAR_G: 0.055, CHAR_B: 0.05, FLICKER: 9, FLICKER_DEPTH: 0.3,
   // paper (a new way: the text burns spot by spot, its ash shards tumbling)
-  IMPACT_COOL: 4, IMPACT_GLOW: 1, IMPACT_STREAK: 0.8, IMPACT_DUST: 1, SHINE_AT: 0.8, SHINE: 0.45, ERODE_GRAIN: 9, ERODE_DRAIN: 0.8, TORCH_POOL: 1, TORCH_STUTTER: 1, TRACK: 0.07, TRACK_BLUR: 0.6, TRACK_RISE: 0.05, TRACK_STAGGER: 0.12,
+  IMPACT_COOL: 4, IMPACT_GLOW: 1, IMPACT_STREAK: 0.8, IMPACT_DUST: 1, SHINE_AT: 0.8, SHINE: 0.45, ERODE_GRAIN: 9, ERODE_DRAIN: 0.8, TORCH_POOL: 1, TORCH_STUTTER: 1, RADIO_STATIC: 1, RADIO_HICCUP: 1, TRACK: 0.07, TRACK_BLUR: 0.6, TRACK_RISE: 0.05, TRACK_STAGGER: 0.12,
   zoom: 2, FRONT: 0.52, SPREAD: 0.07, EDGE_W: 0.012, CHAR_W: 0.02, SCORCH_W: 0.07, RAGGED: 0.03, CURL: 0.6,
   FLAKES: 0.5, FLAKE_SIZE: 1.1, SPIN: 7, GREYING: 0.35, PAPER_ASH: 0.55,
 };
@@ -89,6 +89,9 @@ const STYLES = {
   "discovery-new": { label: "discovery 새안: 손전등", y: 0.28, gap: 0.3, trail: 0.15, backdrop: 0.3,
     title: { weight: 700, size: 0.08, color: [1, 0.8, 0.38], outline: 0.35, lit: true, enter: "torch", enterTime: 2.2, leave: "dim", leaveTime: 4.5 },
     line: { weight: 400, size: 0.042, color: [1, 0.93, 0.78], lit: true, delay: 1.5, enter: "slideup", enterTime: 0.8, leave: "dim", leaveTime: 4.3 } },
+  "notice-new": { label: "notice 새안: 무전", y: 0.2, gap: 0.3, trail: 0.1, backdrop: 0.3,
+    title: { weight: 700, size: 0.04, color: [0.88, 0.93, 1], radio: true, enter: "signal", enterTime: 0.7, leave: "lost", leaveTime: 3.5 },
+    line: { weight: 400, size: 0.028, color: [0.76, 0.82, 0.9], radio: true, delay: 0.25, enter: "signal", enterTime: 0.7, leave: "lost", leaveTime: 3.3 } },
   "notice": { label: "notice (게임 현재)", y: 0.2, gap: 0.3, trail: 0, backdrop: 0.3,
     title: { weight: 700, size: 0.036, color: [0.92, 0.95, 1], enter: "drop", enterTime: 0.35, leave: "fade", leaveTime: 0.6 },
     line: { weight: 400, size: 0.026, color: [0.8, 0.84, 0.9], delay: 0.1, enter: "fade", enterTime: 0.35, leave: "fade", leaveTime: 0.6 } },
@@ -141,6 +144,7 @@ function leaveState(kind, o, st) {
     case "trackout": st.a *= 1 - smooth(o); break;   // its letters are drawn by drawTrackout
     case "erode": st.a *= 1 - smooth(o); break;      // drawn by drawErode
     case "dim": st.a *= 1 - smooth(clamp((o - 0.4) / 0.6, 0, 1)); break;   // drawn by drawTorch
+    case "lost": st.a *= 1 - smooth(o); break;       // drawn by drawSignal
   }
   return st;
 }
@@ -266,6 +270,7 @@ const FS = `precision highp float;
 uniform sampler2D tex; uniform sampler2D burnMap; uniform float mode, progress, edgeW, charW, scorchW, glow, flickerN, flickerD;
 uniform vec3 burn, scorched, charred; uniform vec2 picSize; uniform vec2 inner; uniform vec2 blurR; uniform float grainSize, drainBy;
 uniform vec3 torch; uniform float reveal, remain, light, ember;
+uniform float sig, clock, staticBy;
 varying vec2 vUv; varying vec4 vCol; varying vec3 vAux;
 float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -313,6 +318,25 @@ void main() {
   if (mode < 4.5) {                       // a soft round puff
     float m = 1.0 - smoothstep(0.0, 1.0, length(vAux.xy));
     gl_FragColor = vCol * m * m;
+    return;
+  }
+  if (mode > 9.5) {                       // a radio signal: rows torn sideways, colours apart and grain as it is weak (sig 0 to 1)
+    vec2 px = vUv * picSize;
+    float weak = 1.0 - sig;
+    float row = floor(px.y / 3.0), tick = floor(clock * 24.0);
+    float tear = (h(vec2(row, tick)) - 0.5) * weak * weak * 0.12 + (h(vec2(floor(px.y / 11.0), tick + 7.0)) - 0.5) * weak * 0.05;
+    float apart = weak * 0.006;
+    vec4 cr = texture2D(tex, vUv + vec2(tear + apart, 0.0));
+    vec4 cg = texture2D(tex, vUv + vec2(tear, 0.0));
+    vec4 cb = texture2D(tex, vUv + vec2(tear - apart, 0.0));
+    vec4 c = vec4(cr.r, cg.g, cb.b, max(cg.a, max(cr.a, cb.a)));
+    float grain = h(floor(px / 1.5) + vec2(tick * 3.1, tick * 1.7));
+    float keep = smoothstep(grain - 0.12, grain + 0.12, sig * 1.15 - 0.05);
+    float scan = 1.0 - 0.18 * weak * step(0.5, fract(px.y / 3.0));
+    c *= keep * scan;
+    c.rgb = mix(c.rgb, c.rgb * vec3(0.78, 0.92, 1.05), weak);
+    float speck = step(0.992, h(floor(px / 2.0) + vec2(tick * 5.3, tick))) * weak * sig * 4.0 * staticBy;
+    gl_FragColor = (c + vec4(vec3(0.75, 0.85, 0.95) * speck * 0.5, 0.0)) * vCol.a;
     return;
   }
   if (mode > 8.5) {                       // lit by a torch: the beam, the trail it has lit; light dims its colour to embers, ember its alpha
@@ -641,6 +665,25 @@ function drawTorch(p, st) {
   mode = 0;
 }
 
+// A radio message: the signal comes in over its enter (a hiccup on the way), hiccups once as it stays, and is lost as it
+// leaves, cutting out twice before it sinks into the grain.
+function signalAt(p, st) {
+  const E = p.spec.enterTime, secs = st.secs, o = st.out, H = P.RADIO_HICCUP;
+  let sig;
+  if (o > 0) sig = (1 - smooth(o)) * (1 - H * (0.5 * bump(o, 0.06, 0.012) + 0.4 * bump(o, 0.13, 0.01)));
+  else sig = smooth(clamp(secs / E, 0, 1)) * (1 - H * 0.35 * bump(secs, E * 0.55, 0.03)) * (1 - H * 0.3 * bump(secs, E + 2.6, 0.04));
+  return clamp(sig, 0, 1);
+}
+function drawSignal(p, st) {
+  const s = st.s, cx = p.cx + st.x, cy = p.cy + st.y * p.line * s, hw = p.w * s / 2, hh = p.h * s / 2;
+  mode = 10;
+  gl.uniform1f(U("sig"), signalAt(p, st)); gl.uniform1f(U("clock"), t); gl.uniform1f(U("staticBy"), P.RADIO_STATIC);
+  gl.uniform2f(U("picSize"), p.w, p.h);
+  quad(cx - hw, cy - hh, cx + hw, cy + hh, 0, 0, 1, 1, 1, 1, 1, 1);
+  flush(p.tex);
+  mode = 0;
+}
+
 // Weathering away, in place: the shader drains its colour and wears it off from its edges in pits.
 function drawErode(p, st, o) {
   const s = st.s, hw = p.w * s / 2, hh = p.h * s / 2, r = Math.max(1, p.line * 0.03);
@@ -835,6 +878,7 @@ function frame(now) {
     }
     const cx = p.cx + st.x, cy = p.cy + st.y * p.line * st.s, hw = p.w * st.s * st.sx / 2, hh = p.h * st.s * st.sy / 2;
     if (p.spec.lit) drawTorch(p, st);
+    else if (p.spec.radio) drawSignal(p, st);
     else if (p.spec.leave === "trackout" && st.out > 0) drawTrackout(p, st, st.out);
     else if (p.spec.leave === "erode" && st.out > 0) drawErode(p, st, st.out);
     else if (st.a > 0.002) { quad(cx - hw, cy - hh, cx + hw, cy + hh, 0, 0, 1, 1, st.a, st.a, st.a, st.a); flush(p.tex); }
@@ -922,6 +966,9 @@ control("SHINE", "광택 세기", "range", [0, 2, 0.05]);
 heading("discovery 새안: 손전등");
 control("TORCH_POOL", "벽에 비친 빛", "range", [0, 3, 0.05]);
 control("TORCH_STUTTER", "꺼질 때 깜빡임", "range", [0, 1.3, 0.05]);
+heading("notice 새안: 무전");
+control("RADIO_STATIC", "잡음 알갱이", "range", [0, 3, 0.05]);
+control("RADIO_HICCUP", "신호 튐", "range", [0, 1.5, 0.05]);
 heading("dust 새안: 종이 연소");
 control("FRONT", "번지는 시간 몫", "range", [0.1, 0.6, 0.01]);
 control("SPREAD", "앞질러 붙는 정도", "range", [0, 0.3, 0.005]);
@@ -989,6 +1036,7 @@ const BUILT_IN = {
   "숯불 셀 (dust 게임 현재)": { ...effectOf(DEFAULTS), style: "dust", leaveTime: 6, CHAR_ASH: 0.2 },
   "각인 (stamp 새안)": { ...effectOf(DEFAULTS), style: "stamp-new" },
   "손전등 (discovery 새안)": { ...effectOf(DEFAULTS), style: "discovery-new" },
+  "무전 (notice 새안)": { ...effectOf(DEFAULTS), style: "notice-new" },
 };
 const STORE = "title-lab-presets";
 function ownPresets() { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } }
