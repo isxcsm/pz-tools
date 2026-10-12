@@ -463,7 +463,9 @@ function piece(text, line, colour, centreY, seed, spec) {
   if (spec.outline) { g.lineJoin = "round"; g.lineWidth = Math.max(2, line * 0.025); g.strokeStyle = `rgba(0,0,0,${spec.outline})`; g.strokeText(text, cx, cy); }
   g.fillStyle = `rgb(${colour.map(v => Math.round(v * 255)).join(",")})`; g.fillText(text, cx, cy);
   const p = { x: Math.round(view.width / 2 - w / 2), y: Math.round(centreY - h / 2), w, h, line, tex: texture(c), spec,
-    cx: view.width / 2, cy: centreY, ink: m.measureText(text).width };
+    ink: m.measureText(text).width };
+  // its middle from the whole-pixel box, the same place it crumbles from (no jump as it starts to)
+  p.cx = p.x + w / 2; p.cy = p.y + h / 2;
   // each letter's span across the picture, for a leave that moves them apart
   // (cut at the advances, the first from the picture's left side, the last to its right: no letter shows twice)
   const chars = Array.from(text), left = w / 2 - p.ink / 2;
