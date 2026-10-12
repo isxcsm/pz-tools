@@ -1558,7 +1558,7 @@
     "IGUI_OA_Status_News_SupportNow": "%1 can be applied for right now.",
     "IGUI_OA_Status_News_SupportLater": "Levels to apply for open as trust rises.",
     "IGUI_OA_Status_Ok": "OK",
-    "IGUI_OA_Boot_Check": "Startup check",
+    "IGUI_OA_Boot_Check": "Self-test",
     "IGUI_OA_Boot_Storage": "Storage check",
     "IGUI_OA_Boot_Clock": "Clock sync",
     "IGUI_OA_Boot_Weak": "Weak signal, retry",
