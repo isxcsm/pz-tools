@@ -545,8 +545,11 @@ end
 
 UI.scaled(ISBUTabs, ISPanel)
 
--- The divider between the list and the plan: dragged, it moves the share of the window the plan takes.
+-- The divider between the list and the plan: dragged, it moves the share of the window the plan takes. The tab in its
+-- middle folds the plan away; with the plan folded the divider stays at the window's right edge, its tab opening it
+-- again. The tab shows a small arrow the way the plan goes.
 ISBUSplitter = ISPanel:derive("ISBUSplitter")
+ISBUSplitter.TAB_H = 40
 
 function ISBUSplitter:new(x, y, width, height, window)
     local o = ISPanel.new(self, x, y, width, height)
@@ -555,14 +558,49 @@ function ISBUSplitter:new(x, y, width, height, window)
     return o
 end
 
+function ISBUSplitter:planShown() return self.window.plan and self.window.plan:getIsVisible() end
+
+-- Whether a height on the divider is on its tab.
+function ISBUSplitter:onTab(y) return math.abs(y - self.height / 2) <= ISBUSplitter.TAB_H / 2 end
+
 function ISBUSplitter:render()
-    local k = UI.hoverLight(self, "hover", self.dragging or self:isMouseOver())
-    local middle = self.height / 2
-    if k > 0 then UI.fill(self, self.width / 2 - 1, 0, 2, self.height, P.sel, 0.25 * k) end
-    for i = -2, 2 do UI.fill(self, self.width / 2 - 1, middle + i * 6, 2, 3, k > 0.5 and P.sel or P.dim) end
+    local shown = self:planShown()
+    local mouse = self:isMouseOver()
+    local overTab = mouse and self:onTab(self:getMouseY())
+    local k = UI.hoverLight(self, "hover", shown and (self.dragging or mouse and not overTab))
+    local t = UI.hoverLight(self, "tab", overTab and not self.dragging)
+    local w, middle, tabH = self.width, self.height / 2, ISBUSplitter.TAB_H
+    if k > 0 then UI.fill(self, w / 2 - 1, 0, 2, self.height, P.sel, 0.25 * k) end
+    -- the grip above and below the tab, while the divider can be dragged
+    if shown then
+        for _, at in ipairs({ middle - tabH / 2 - 14, middle + tabH / 2 + 6 }) do
+            for i = 0, 2 do UI.fill(self, w / 2 - 1, at + i * 4, 2, 2, k > 0.5 and P.sel or P.dim) end
+        end
+    end
+    -- the tab: a slim box with the arrow, lit under the mouse
+    local top = math.floor(middle - tabH / 2)
+    UI.fill(self, 0, top, w, tabH, P.panel)
+    if t > 0 then UI.fill(self, 0, top, w, tabH, P.sel, 0.2 * t) end
+    UI.frame(self, 0, top, w, tabH, t > 0.5 and P.sel or P.border)
+    if overTab then PZUIRichTip.show(self, getText(shown and "IGUI_BU_PlanHide" or "IGUI_BU_PlanShow"), P)
+    else PZUIRichTip.hide(self) end
+    local c = t > 0.5 and P.bright or P.text
+    local cx, cy = math.floor(w / 2), math.floor(middle)
+    for i = 0, 3 do
+        local h = 7 - i * 2
+        local x = shown and cx - 2 + i or cx + 1 - i
+        UI.fill(self, x, cy - 3 + i, 1, h, c)
+    end
 end
 
-function ISBUSplitter:onMouseDown(x, y) self.dragging = true; return true end
+function ISBUSplitter:onMouseDown(x, y)
+    if self:onTab(y) then
+        self.pressedTab = true
+    elseif self:planShown() then
+        self.dragging = true
+    end
+    return true
+end
 
 -- The window's mouse in the body's design units.
 function ISBUSplitter:drag()
@@ -571,8 +609,14 @@ end
 
 function ISBUSplitter:onMouseMove(dx, dy) self:drag() end
 function ISBUSplitter:onMouseMoveOutside(dx, dy) self:drag() end
-function ISBUSplitter:onMouseUp(x, y) self.dragging = false; return true end
-function ISBUSplitter:onMouseUpOutside(x, y) self.dragging = false end
+
+function ISBUSplitter:onMouseUp(x, y)
+    if self.pressedTab and self:onTab(y) then self.window:setPlanShown(not self:planShown()) end
+    self.pressedTab, self.dragging = false, false
+    return true
+end
+
+function ISBUSplitter:onMouseUpOutside(x, y) self.pressedTab, self.dragging = false, false end
 
 UI.scaled(ISBUSplitter, ISPanel)
 

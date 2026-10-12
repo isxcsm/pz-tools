@@ -57,16 +57,14 @@ ISBUPanelWindow = ISCollapsableWindow:derive("ISBUPanelWindow")
 -- over the kit's scale).
 local function planByDefault() return UI.dp(getCore():getScreenWidth()) >= 900 end
 
--- The window's width for a list so wide, with the plan or without (design units). Alone, the list is at least TOP_W
--- wide: the load's top, its lever and the plan's button beside it take that.
-local TOP_W = 520
-
+-- The window's width for a list so wide, with the plan or without (design units): the divider's strip beside the list
+-- either way (with the plan folded, at the window's edge, its tab opens it).
 local function windowWidth(listW, shown)
-    if not shown then return math.max(listW, TOP_W) end
+    if not shown then return listW + PAD end
     return math.floor(listW / (1 - WINDOW_SHARE)) + PAD
 end
 
-local function minimumWidth(shown) return shown and MIN_LIST + PAD + MIN_PLAN or math.max(MIN_LIST, TOP_W) end
+local function minimumWidth(shown) return MIN_LIST + PAD + (shown and MIN_PLAN or 0) end
 
 -- The most a window may take of the screen, in pixels.
 local function screenRoom()
@@ -296,9 +294,6 @@ function ISBUPanelWindow:createChildren()
     self.loadY = top + FONT_HGT_SMALL + 6
     self.bannerY = self.loadY + PanelWindow.LOAD_H + 4
     local buttonsY = self.bannerY + ROW + 4
-    -- Placed by layoutPanes at the right, as the window's width changes.
-    local buttonY = self.loadY + (PanelWindow.LOAD_H - ROW) / 2
-    self.planButton = button(self, bw - PAD - 110, buttonY, 110, ROW, ISBUPanelWindow.onPlan)
     self.renameButton = button(self, PAD, buttonsY, 100, ROW, ISBUPanelWindow.onRename)
     titled(self.renameButton, getText("IGUI_BU_Rename"))
     self.mainButton = button(self, PAD + 106, buttonsY, 170, ROW, ISBUPanelWindow.onMainPanel)
@@ -348,7 +343,6 @@ function ISBUPanelWindow:createChildren()
     -- Over the status line: both utilities in full, as a tooltip.
     self.statusArea = ISBUTipArea:new(PAD, self.statusY, bw - PAD * 2, FONT_HGT_SMALL)
     self.statusArea:initialise()
-    self.statusArea:setAnchorRight(true)
     body:addChild(self.statusArea)
     -- Over the load's percent, bar and text: what makes the load, as a tooltip. Beside them the lever, and the
     -- breaker's gauge while it is not full (placed by placeLever).
@@ -362,16 +356,15 @@ function ISBUPanelWindow:createChildren()
     self.gauge:initialise()
     body:addChild(self.gauge)
     -- Placed by placeOptions as the list's width changes: an anchor would move them again a frame later.
-    self.splitter = ISBUSplitter:new(listW, tabsY, PAD, height, self)
+    self.splitter = ISBUSplitter:new(listW, PAD, PAD, body:getHeight() - PAD, self)
     self.splitter:initialise()
     self.splitter:setAnchorBottom(true)
     body:addChild(self.splitter)
-    self.plan = ISBUPlan:new(listW, tabsY, MIN_PLAN, height, self)
+    self.plan = ISBUPlan:new(listW, PAD, MIN_PLAN, body:getHeight() - PAD, self)
     self.plan:initialise()
     self.plan:setAnchorBottom(true)
     body:addChild(self.plan)
     self.plan:setVisible(self.planWanted)
-    self.splitter:setVisible(self.planWanted)
     self:layoutPanes()
     if PanelWindow.lastTab then self.tabs:activateView(PanelWindow.lastTab) end
     self:refresh()
@@ -382,23 +375,26 @@ end
 -- the list as wide as with the plan after the plan was hidden).
 function ISBUPanelWindow:bodyWidth() return UI.dp(self:getWidth()) end
 
--- The list and, beside it, the plan with its share of the window, each at least so wide; the divider between them;
--- the buttons at the right of the load bar (design units, across the body).
+-- The left column (the boxes' tabs, the status line, the load's card, the buttons, the list) and, beside it, the plan
+-- from the body's top with its share of the window, each at least so wide; the divider between them, or with the plan
+-- folded at the window's right edge (design units, across the body).
 function ISBUPanelWindow:layoutPanes()
     if not (self.tabs and self.plan) then return end
     local shown = self.plan:getIsVisible()
     local bw = self:bodyWidth()
-    self:placeTopButtons()
-    self:placePanelTabs()
-    local listW = bw
+    local listW = bw - PAD
     if shown then
         local planW = math.floor((bw - PAD) * PanelWindow.planShare)
         planW = math.max(MIN_PLAN, math.min(planW, bw - PAD - MIN_LIST))
         listW = bw - PAD - planW
-        self.splitter:setX(listW)
         self.plan:setX(listW + PAD)
         if self.plan:getWidth() ~= planW then self.plan:setWidth(planW) end
     end
+    self.listW = listW
+    self.splitter:setX(listW)
+    self.statusArea:setWidth(listW - PAD * 2)
+    self:placePanelTabs()
+    if self.lever then self:placeLever(self.loadTextW or 0) end
     if self.tabs:getWidth() ~= listW then self.tabs:resize(listW, self.tabs:getHeight()) end
     self:placeOptions()
 end
@@ -412,12 +408,12 @@ function ISBUPanelWindow:measurePanelTabs()
     end
 end
 
--- The boxes' tabs across the top: each as wide as its title; where they do not all fit, each an equal share with its
--- title cut (the whole one its tooltip). This box's lit. Laid out again only when the window's width changed (a
--- divider dragged does not), or when asked (a refresh).
+-- The boxes' tabs across the left column's top: each as wide as its title; where they do not all fit, each an equal
+-- share with its title cut (the whole one its tooltip). This box's lit. Laid out again only when the left column's
+-- width changed, or when asked (a refresh).
 function ISBUPanelWindow:placePanelTabs(force)
     local tabs = self.panelTabs
-    local bw = self:bodyWidth()
+    local bw = self.listW or self:bodyWidth()
     if not tabs or not force and self.tabsPlacedAt == bw then return end
     if not self.tabTitles then self:measurePanelTabs() end
     self.tabsPlacedAt = bw
@@ -493,7 +489,6 @@ function ISBUPanelWindow:setPlanShown(shown)
     local listW = self.tabs:getWidth()
     if not shown then listW = math.max(listW, LIST_W) end
     self.plan:setVisible(shown)
-    self.splitter:setVisible(shown)
     local maxW = screenRoom()
     self.minimumWidth = math.min(UI.px(minimumWidth(shown)), maxW)
     self:setWidth(math.max(self.minimumWidth, math.min(UI.px(windowWidth(listW, shown)), maxW)))
@@ -505,17 +500,7 @@ function ISBUPanelWindow:setPlanShown(shown)
     else
         self:outlineDevice(nil)
     end
-    titled(self.planButton, getText(shown and "IGUI_BU_PlanHide" or "IGUI_BU_PlanShow"))
-    self:placeTopButtons()
 end
-
--- The plan's button at the right of the load's top. (The range is a switch on the plan.)
-function ISBUPanelWindow:placeTopButtons()
-    self.planButton:setX(self:bodyWidth() - PAD - self.planButton:getWidth())
-    if self.lever then self:placeLever(self.loadTextW or 0) end
-end
-
-function ISBUPanelWindow:onPlan() self:setPlanShown(not self.plan:getIsVisible()) end
 
 function ISBUPanelWindow:onActiveOnly()
     PanelWindow.options.activeOnly = not PanelWindow.options.activeOnly
@@ -652,15 +637,15 @@ function ISBUPanelWindow:measureLoad(panel, power)
     self:placeLever(width)
 end
 
--- The top's card: from the body's left to the plan's button, its parts inside it: the percent and the bar with its
+-- The top's card: across the left column, its parts inside it: the percent and the bar with its
 -- text from the left, the lever at its right end and the breaker's gauge beside the lever; the area of the load's
--- tooltip over the left part. Placed again as the window's width changes (placeTopButtons).
+-- tooltip over the left part. Placed again as the left column's width changes (layoutPanes).
 function ISBUPanelWindow:placeLever(textW)
     self.loadTextW = textW
     local bigW = UI.textWidth("000", UIFont.Large) + UI.textWidth("%") + 4
     self.bigW = bigW
     local inner = PanelWindow.CARD_PAD
-    local cardW = math.max(self.planButton:getX() - 8 - PAD, inner * 3 + bigW + BAR_W + PanelWindow.LEVER_W)
+    local cardW = math.max((self.listW or self:bodyWidth()) - PAD * 2, inner * 3 + bigW + BAR_W + PanelWindow.LEVER_W)
     self.cardW = cardW
     local leverX = PAD + cardW - inner - PanelWindow.LEVER_W
     self.lever:setX(leverX)
@@ -684,7 +669,7 @@ function ISBUPanelWindow:drawBody(body)
         local c, dot = status.colour, FONT_HGT_SMALL - 6
         UI.fill(body, PAD, self.statusY + 3, dot, dot, c)
         UI.text(body, status.text, status.textX, self.statusY, c)
-        if status.reason and status.reasonEnd <= body.width - PAD then
+        if status.reason and status.reasonEnd <= (self.listW or body.width) - PAD then
             UI.text(body, status.reason, status.reasonX, self.statusY, P.dim)
         end
     end
@@ -736,7 +721,7 @@ function ISBUPanelWindow:drawBody(body)
         local a = 0.85
         if banner.pulse then a = 0.7 + 0.2 * (0.5 + 0.5 * math.sin(now / 260)) end
         local c = banner.colour
-        UI.fill(body, PAD, self.bannerY, body.width - PAD * 2, ROW, c, a)
+        UI.fill(body, PAD, self.bannerY, (self.listW or body.width) - PAD * 2, ROW, c, a)
         UI.fill(body, PAD, self.bannerY, 3, ROW, P.bright, 0.8)
         UI.text(body, banner.text, PAD * 2, self.bannerY + (ROW - FONT_HGT_SMALL) / 2, P.bright)
     end
@@ -867,8 +852,6 @@ function ISBUPanelWindow:refresh()
         self.banner = nil
     end
     if self.banner and self.banner.pulse then UI.live(self.body, bodyFrame) end
-    titled(self.planButton, getText(self.plan:getIsVisible() and "IGUI_BU_PlanHide" or "IGUI_BU_PlanShow"))
-    self:placeTopButtons()
     -- Taking supply from another box: offered only to a box that could (no producers or units of its own, another in
     -- reach, Panels.linkCandidates); a sub-panel can stop it.
     local parent = Store.get(panel.parent)
