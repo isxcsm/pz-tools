@@ -1,13 +1,16 @@
 -- The world context menu: a box's line, which opens its window (no submenu: what a box does is in its window), and a
 -- unit's (a rack's batteries go in and out in the loot window). A device of the box's building is the box's without a
 -- line: switched on or off there at once, as at the box. A device outside, a unit or a producer is wired in and out at
--- itself, with the tool of its utility (Actions.work); the box's window lists it once it is wired. The mod's options
--- go to the top of the menu. A box and the units are taken up with the game's furniture tool (BU.Moveables).
+-- itself, with the tool of its utility (Actions.work); the box's window lists it once it is wired. What is done with
+-- the thing itself (a box's or a rack's window, a unit's state and work) goes to the top of the menu; tying it to a
+-- box and taking a line away go to its end, over the game's destroy and walk lines (PZUIKit.Menu), the ties first. A
+-- box and the units are taken up with the game's furniture tool (BU.Moveables).
 -- The inventory menu: put a box or a unit down (the game's furniture cursor, Moveables.lua), recondition a battery.
 require "ISUI/ISWorldObjectContextMenu"
 require "ISUI/ISMoveableContextMenu"
 require "BuildingUtilities/Actions"
 require "BuildingUtilities/Moveables"
+require "PZUIKit/Menu"
 local BU = BuildingUtilities
 local Store, Panels, Units, Rack, Costs, Actions, Sync = BU.Store, BU.Panels, BU.Units, BU.Rack, BU.Costs, BU.Actions,
     BU.Sync
@@ -24,6 +27,11 @@ local function unavailable(option, text)
     option.notAvailable = true
     tooltip(option, text)
 end
+
+-- An option that ties a thing to a box, or takes a line away: placed at the menu's end (ContextMenu.fill). The game
+-- wipes a menu's options when it reuses them.
+local function tie(option) option.buPlace = "tie"; return option end
+local function removal(option) option.buPlace = "removal"; return option end
 
 -- An option that lays a line or upgrades: what it needs, and not available when the player lacks it.
 local function costed(option, playerObj, cost, note)
@@ -102,15 +110,15 @@ end
 
 -- "Disconnect from <box>": what it takes (the tool), and not available without it.
 local function addDisconnectOption(context, playerObj, panel, kind, utility, x, y, z, extra)
-    local option = context:addOption(getText("ContextMenu_BU_DisconnectFrom", Panels.name(panel)), playerObj, onDisconnect,
-        kind, panel, utility, x, y, z, extra)
+    local option = removal(context:addOption(getText("ContextMenu_BU_DisconnectFrom", Panels.name(panel)), playerObj,
+        onDisconnect, kind, panel, utility, x, y, z, extra))
     costed(option, playerObj, Actions.workCost(utility))
 end
 
 -- "Connect to <box>" for a device outside or a unit: what its line takes, or why it cannot be laid.
 local function addLineConnect(context, playerObj, panel, kind, utility, x, y, z, extra)
-    local option = context:addOption(getText("ContextMenu_BU_ConnectToPanel", Panels.name(panel), Panels.where(panel, x, y)),
-        playerObj, onConnect, kind, panel, utility, x, y, z, extra)
+    local option = tie(context:addOption(getText("ContextMenu_BU_ConnectToPanel", Panels.name(panel),
+        Panels.where(panel, x, y)), playerObj, onConnect, kind, panel, utility, x, y, z, extra))
     local cost, reason = Actions.lineCost(kind, panel, utility, x, y, z, extra)
     if cost then costed(option, playerObj, cost) else unavailable(option, getText("IGUI_BU_Reason_" .. reason)) end
 end
@@ -136,7 +144,7 @@ end
 local function addConnectOption(context, playerObj, kind, utility, x, y, z, extra)
     local candidates = Panels.producerCandidates(x, y, z)
     if #candidates == 0 then
-        local option = context:addOption(getText("ContextMenu_BU_ConnectTo"), nil, nil)
+        local option = tie(context:addOption(getText("ContextMenu_BU_ConnectTo"), nil, nil))
         unavailable(option, getText("IGUI_BU_NoPanelInRange", BU.connectRange(BU.TIERS)))
         return
     end
@@ -144,8 +152,8 @@ local function addConnectOption(context, playerObj, kind, utility, x, y, z, extr
         local panel = candidate.panel
         local root = Panels.root(panel)
         local name = root ~= panel and getText("IGUI_BU_PanelVia", Panels.name(panel), Panels.name(root)) or Panels.name(panel)
-        local choice = context:addOption(getText("ContextMenu_BU_ConnectToPanel", name, Panels.where(panel, x, y)),
-            playerObj, onConnect, kind, panel, utility, x, y, z, extra)
+        local choice = tie(context:addOption(getText("ContextMenu_BU_ConnectToPanel", name, Panels.where(panel, x, y)),
+            playerObj, onConnect, kind, panel, utility, x, y, z, extra))
         local cost, reason = Actions.lineCost(kind, panel, utility, x, y, z, extra)
         if not candidate.inRange then
             unavailable(choice, getText("IGUI_BU_NeedsTier", candidate.tier))
@@ -222,7 +230,7 @@ local function addUnitOptions(context, playerObj, unit)
     end
     local candidates = Units.candidates(unit)
     if #candidates == 0 then
-        unavailable(context:addOption(getText("ContextMenu_BU_ConnectTo"), nil, nil),
+        unavailable(tie(context:addOption(getText("ContextMenu_BU_ConnectTo"), nil, nil)),
             getText("IGUI_BU_NoPanelInRange", BU.connectRange(BU.TIERS)))
     end
     for _, candidate in ipairs(candidates) do
@@ -235,7 +243,7 @@ local function addDeviceOption(context, playerObj, utility, panel, device)
     local name = BU.displayName(entry.x, entry.y, entry.z, entry.sprite)
     local label = getText("ContextMenu_BU_Utility_" .. utility)
     if device.state == "other" then
-        local option = context:addOption(getText("ContextMenu_BU_DeviceOn", name, label, Panels.name(panel)), nil, nil)
+        local option = tie(context:addOption(getText("ContextMenu_BU_DeviceOn", name, label, Panels.name(panel)), nil, nil))
         local other = Store.inclusionOwner(utility, device.key)
         unavailable(option, getText("IGUI_BU_ConnectedTo", other and Panels.name(other) or ""))
         return option
@@ -243,13 +251,15 @@ local function addDeviceOption(context, playerObj, utility, panel, device)
     local on = device.state == "on"
     local text = getText(on and "ContextMenu_BU_DeviceOff" or "ContextMenu_BU_DeviceOn", name, label, Panels.name(panel))
     if device.inside then
-        return context:addOption(text, playerObj, onSwitchInside, panel, utility, device.key, not on)
+        return tie(context:addOption(text, playerObj, onSwitchInside, panel, utility, device.key, not on))
     elseif on then
-        local option = context:addOption(text, playerObj, onDisconnect, "outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite)
+        local option = removal(context:addOption(text, playerObj, onDisconnect, "outside", panel, utility, entry.x, entry.y,
+            entry.z, entry.sprite))
         costed(option, playerObj, Actions.workCost(utility))
         return option
     else
-        local option = context:addOption(text, playerObj, onConnect, "outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite)
+        local option = tie(context:addOption(text, playerObj, onConnect, "outside", panel, utility, entry.x, entry.y, entry.z,
+            entry.sprite))
         local cost, reason = Actions.lineCost("outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite)
         if cost then costed(option, playerObj, cost) else unavailable(option, getText("IGUI_BU_Reason_" .. reason)) end
         return option
@@ -294,19 +304,28 @@ local function hasOptions(objects)
     return producerAmong(objects) ~= nil or #squareDevices(objects) > 0
 end
 
--- The options the mod added to the menu (those not in `before`, the options it had), moved to its top in their order:
--- the game puts its own (take apart, sit, walk here) and other mods' before them, which left the mod's at the bottom.
-local function liftAdded(context, before)
+-- The options the mod added to the menu (those not in `before`, the options it had) in their places: what is done with
+-- the thing itself to the top in their order (the game puts its own and other mods' before them), the ties and then the
+-- removals over the menu's end (PZUIKit.Menu).
+local function placeAdded(context, before)
     local options = context.options
-    local added, others = {}, {}
+    local added, others, ends, removals = {}, {}, {}, {}
     for _, option in ipairs(options) do
-        if before[option] then others[#others + 1] = option else added[#added + 1] = option end
+        if before[option] then others[#others + 1] = option
+        elseif option.buPlace == "tie" then ends[#ends + 1] = option
+        elseif option.buPlace == "removal" then removals[#removals + 1] = option
+        else added[#added + 1] = option end
     end
-    if #added == 0 then return end
-    for index = #options, 1, -1 do options[index] = nil end
-    for _, option in ipairs(added) do options[#options + 1] = option end
-    for _, option in ipairs(others) do options[#options + 1] = option end
-    for index, option in ipairs(options) do option.id = index end
+    if #added > 0 then
+        for index = #options, 1, -1 do options[index] = nil end
+        for _, option in ipairs(added) do options[#options + 1] = option end
+        for _, option in ipairs(ends) do options[#options + 1] = option end
+        for _, option in ipairs(removals) do options[#options + 1] = option end
+        for _, option in ipairs(others) do options[#options + 1] = option end
+        for index, option in ipairs(options) do option.id = index end
+    end
+    for _, option in ipairs(removals) do ends[#ends + 1] = option end
+    PZUIKit.Menu.beforeTail(context, ends)
 end
 
 function ContextMenu.fill(player, context, worldobjects, test)
@@ -331,7 +350,7 @@ function ContextMenu.fill(player, context, worldobjects, test)
         addProducerOptions(context, playerObj, objects)
         addDeviceOptions(context, playerObj, objects)
     end
-    liftAdded(context, before)
+    placeAdded(context, before)
 end
 
 Events.OnFillWorldObjectContextMenu.Add(ContextMenu.fill)
