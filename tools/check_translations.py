@@ -363,7 +363,7 @@ def script_keys():
 
 
 DEV_PREFIX = 'IGUI_OADev_'
-DEV_KEY = re.compile(r'\bT\("(\w+)"\)')
+DEV_KEY = re.compile(r'\bT\("(\w+)"\s*[,)]')
 DEV_STEM = re.compile(r'\bT\("(\w+_)"\s*\.\.')
 
 
