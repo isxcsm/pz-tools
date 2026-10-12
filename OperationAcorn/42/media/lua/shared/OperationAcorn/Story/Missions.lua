@@ -730,7 +730,7 @@ end
 -- The reward goes in, and the player sees the request done (before the title of a stage its trust may bring).
 function Missions.pay(record, m)
     local credits, trust = m.pay and m.pay.credits or m.credits, m.pay and m.pay.trust or m.trust
-    local detail = { key = "IGUI_OA_Title_Paid", sub = (Missions.keys(m)), style = "stamp", fallback = "good" }
+    local detail = { key = "IGUI_OA_Title_Paid", sub = (Missions.keys(m)), style = "dust", fallback = "good" }
     if credits and credits > 0 then
         detail.sub, detail.subArgs = "IGUI_OA_Title_PaidSub", { { key = detail.sub }, math.floor(credits + 0.5) }
     end

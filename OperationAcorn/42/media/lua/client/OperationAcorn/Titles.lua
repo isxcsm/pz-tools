@@ -13,6 +13,12 @@ Titles.TONES = {
     red = { { 1.00, 0.55, 0.50 }, { 0.95, 0.75, 0.72 } },
 }
 
+-- A dust title burns away like charcoal: dark red embers ahead of the front, dark red ash flying off.
+Titles.BURN = { 1.00, 0.32, 0.10 }
+
+-- Every title goes first, the one on the screen leaving at once (the dev panel's switch for trying titles).
+Titles.now = false
+
 -- A text by key and arguments; an argument that is itself a text ({ key, args }: a mission's or a capstone's name) is
 -- translated here, on the player's side.
 local function text(key, args)
@@ -46,12 +52,12 @@ local function textApi()
 end
 Titles.textApi = textApi
 
--- The style to ask the API for: the detail's when the API has it (an older PZ Extension API may not have "dust" or "unveil"),
--- else "stamp".
+-- The style to ask the API for: the detail's (else "dust") when the API has it (an older PZ Extension API may not have "dust" or
+-- "unveil"), else "stamp".
 -- The API's styles are asked once (again for another API's text).
 local styles, stylesOf
 local function styleFor(t, wanted)
-    wanted = wanted or "stamp"
+    wanted = wanted or "dust"
     if stylesOf ~= t then
         styles, stylesOf = {}, t
         local ok, list = pcall(t.styles)
@@ -86,10 +92,17 @@ function Titles.show(playerId, detail, noHalo)
     for _, character in ipairs(characters) do
         local done = false
         if handle then
-            local spec = { text = title, subtitle = sub, style = styleFor(t, detail.style), player = character:getPlayerNum() }
+            local spec = { text = title, subtitle = sub, style = styleFor(t, detail.style), player = character:getPlayerNum(),
+                now = Titles.now or nil }
             local tone = Titles.TONES[detail.tone]
             if tone then spec.color, spec.subtitleColor = tone[1], tone[2] end
+            if spec.style == "dust" then spec.dustBurn = Titles.BURN end
             local ok, err = pcall(t.title, handle, spec)
+            -- an API older than the burn: the dust as it weathers
+            if not ok and spec.dustBurn then
+                spec.dustBurn = nil
+                ok, err = pcall(t.title, handle, spec)
+            end
             if ok then done = true else OA.log("title:", tostring(err)) end
         end
         if done then

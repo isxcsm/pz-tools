@@ -354,7 +354,7 @@ function Story.completeHandover(record)
     Story.queueSupply(record, "HandoverFile", nil)
     Story.queueSupply(record, "KitVoucher", nil)
     OA.Sync.title(record.id, { key = "IGUI_OA_Title_Handover", sub = "IGUI_OA_Title_HandoverSub",
-        subArgs = { { key = Story.callSignKey(record) } }, style = "stamp" })
+        subArgs = { { key = Story.callSignKey(record) } }, style = "dust" })
     Story.scene(record, "handover")
     OA.log("story: handover for", record.number)
     OA.Sync.changed("story", record.id)
@@ -460,7 +460,7 @@ function Story.stageTitle(record, level)
     elseif level == Data.LAST_STAGE + 3 then
         nameKey = "IGUI_OA_Terminal_LevelHandover"
     end
-    local detail = { key = "IGUI_OA_Title_Stage", args = { level }, sub = "IGUI_OA_Title_NewItems", style = "stamp",
+    local detail = { key = "IGUI_OA_Title_Stage", args = { level }, sub = "IGUI_OA_Title_NewItems", style = "dust",
         fallback = "good" }
     if nameKey then
         detail.key = "IGUI_OA_Title_StageNamed"

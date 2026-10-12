@@ -36,8 +36,8 @@ function Sync.notice(playerId, key, args)
 end
 
 -- A title over a player's screen for an event (a request done, a building searched): `detail` is { key, args (the
--- title's translation and its arguments), sub, subArgs (the line under it, optional), style ("stamp", "discovery" or
--- "notice", as PZExtAPI.text.title has them), tone ("gold", "green", "red" or nil for the style's own colour),
+-- title's translation and its arguments), sub, subArgs (the line under it, optional), style ("dust", the default, "discovery",
+-- "notice" or "unveil", as PZExtAPI.text.title has them), tone ("gold", "green", "red" or nil for the style's own colour),
 -- fallback ("good", "bad" or nil), subLead (the line under it is a longer text, cut to its first sentences within this
 -- many characters) }. An argument may itself be a text, { key, args }, translated on the player's side
 -- (a name the server cannot put in the player's language). Shown by client/OperationAcorn/Titles.lua; without the

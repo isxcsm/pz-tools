@@ -6,6 +6,7 @@
 if not isDebugEnabled() then return end
 require "PZExtDev/Panel"
 require "OperationAcorn/Core"
+require "OperationAcorn/Titles"
 require "OperationAcorn/Dev/Dev"
 require "OperationAcorn/Dev/Features"
 local OA = OperationAcorn
@@ -338,6 +339,8 @@ local function effectsPage(page, ui)
     ui.label(page, T("Up_Tree"), ui.PAD, ui.row(1) + 2)
     local treeBox = ui.combo(page, ui.PAD + 70, ui.row(1), 200, treeItems(false))
     local function tree() return treeBox:getSelectedData() end
+    local now = ui.tick(page, T("Fx_TitlesNow"), ui.PAD + 290, ui.row(1), function(on) OA.Titles.now = on end)
+    now:setSelected(1, OA.Titles.now == true)
     ui.heading(page, T("Fx_Titles"), 2)
     local rows = ui.buttons(page, 3, {
         { T("Fx_Capstone"), function() Dev.title("capstone", tree()) end },

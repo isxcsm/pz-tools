@@ -516,7 +516,7 @@ function Dev.title(kind, arg)
         if hooks and hooks.treeOpened then hooks.treeOpened(nil, arg or "scout", true) end
         return "tree"
     elseif kind == "line" then
-        return OA.Titles.show(nil, { key = "IGUI_OA_Title_LineOpened", sub = "IGUI_OA_Title_LineOpenedSub", style = "stamp",
+        return OA.Titles.show(nil, { key = "IGUI_OA_Title_LineOpened", sub = "IGUI_OA_Title_LineOpenedSub", style = "dust",
             tone = "gold", fallback = "good" })
     elseif kind == "request" then
         return OA.Titles.show(nil, { key = "IGUI_OA_Title_NewRequest", sub = "IGUI_OA_Title_CheckTerminal", style = "notice" })

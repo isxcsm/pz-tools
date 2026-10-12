@@ -70,7 +70,7 @@ function Things.lineOpened(record)
     local heli = Trade.heli(record)
     if heli.line then return false end
     heli.line = true
-    OA.Sync.title(record.id, { key = "IGUI_OA_Title_LineOpened", sub = "IGUI_OA_Title_LineOpenedSub", style = "stamp",
+    OA.Sync.title(record.id, { key = "IGUI_OA_Title_LineOpened", sub = "IGUI_OA_Title_LineOpenedSub", style = "dust",
         tone = "gold", fallback = "good" })
     return true
 end

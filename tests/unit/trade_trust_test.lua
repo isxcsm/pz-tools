@@ -57,7 +57,7 @@ test("a stage passed is dealt with once: story told, one title and no radio line
     eq(heard[1].key, "IGUI_OA_Title_Stage")
     eq(heard[1].args[1], 2)
     eq(heard[1].sub, "IGUI_OA_Title_NewItems")
-    eq(heard[1].style, "stamp")
+    eq(heard[1].style, "dust")
     eq(Trade.account(record).sharedSerums, 1, "the economy put it there; the next crate carries it")
     eq(Trade.account(record).trust, 900)
 end)

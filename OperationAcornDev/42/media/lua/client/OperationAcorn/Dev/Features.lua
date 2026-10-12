@@ -385,11 +385,12 @@ end
 -- More titles the mod shows, by kind: each the detail the mod's own code sends.
 local TITLES = {
     debt = { key = "IGUI_OA_Title_Debt", sub = "IGUI_OA_Title_DebtSub", style = "notice", tone = "red", fallback = "bad" },
-    paid = { key = "IGUI_OA_Title_Paid", style = "stamp", fallback = "good" },
-    cured = { key = "IGUI_OA_Title_Cured", sub = "IGUI_OA_Title_CuredSub", style = "stamp", fallback = "good" },
-    positive = { key = "IGUI_OA_Title_TestPositive", style = "stamp", tone = "red", fallback = "bad" },
+    paid = { key = "IGUI_OA_Title_Paid", style = "dust", fallback = "good" },
+    cured = { key = "IGUI_OA_Title_Cured", sub = "IGUI_OA_Title_CuredSubDrugs", subArgs = { 12, 3 }, style = "dust",
+        tone = "green", fallback = "good" },
+    positive = { key = "IGUI_OA_Title_TestPositive", style = "dust", tone = "red", fallback = "bad" },
     negative = { key = "IGUI_OA_Title_TestNegative", sub = "IGUI_OA_Title_TestNegativeSub", style = "notice",
-        fallback = "good" },
+        tone = "green", fallback = "good" },
     firstSupply = { key = "IGUI_OA_Title_FirstSupply", style = "notice", fallback = "good" },
 }
 

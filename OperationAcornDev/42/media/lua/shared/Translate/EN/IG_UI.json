@@ -107,6 +107,7 @@
     "IGUI_OADev_Ms_Documents": "Documents",
     "IGUI_OADev_Ms_StageHint": "Story stages follow trust: set them on the trade page.",
     "IGUI_OADev_Fx_Titles": "Titles",
+    "IGUI_OADev_Fx_TitlesNow": "Titles at once (the one shown goes, no queue)",
     "IGUI_OADev_Fx_Capstone": "Capstone",
     "IGUI_OADev_Fx_TreeOpened": "Tree opened",
     "IGUI_OADev_Fx_BoardOpened": "Second board",
