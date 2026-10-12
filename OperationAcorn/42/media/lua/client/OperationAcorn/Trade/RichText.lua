@@ -293,7 +293,7 @@ function OARichText:render()
             self:drawText(v, cX[c], ly, rgb[1], rgb[2], rgb[3], a, font)
         end
     end
-    if self.clip then self:clearStencilRect() end
+    if self.clip then UI.unclip(self, 0, 0, self.width, h) end
     self:drawBar()
 end
 

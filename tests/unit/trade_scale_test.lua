@@ -118,6 +118,7 @@ local function gameClasses()
     E.drawText, E.drawTextCentre, E.drawTextRight = rec("text"), rec("centre"), rec("right")
     E.drawTextureScaledAspect, E.drawTextureScaled, E.drawTextureTiled = rec("icon"), rec("texture"), rec("tiled")
     E.setStencilRect, E.clearStencilRect = rec("clip"), rec("unclip")
+    function E.repaintStencilRect() end
     local Panel = E:derive("ISPanel")
     local Button = Panel:derive("ISButton")
     function Button:new(x, y, w, h, title, target, onclick)

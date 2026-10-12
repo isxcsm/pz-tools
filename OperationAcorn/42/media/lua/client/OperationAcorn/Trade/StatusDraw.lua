@@ -333,6 +333,8 @@ function Draw.paint(el, L, dy)
     if L.scale ~= UI.S then Draw.bake(L) end
     dy = dy or 0
     local B = el.oaBase or el
+    -- the clip on, painted back when it comes off (UI.unclip)
+    local clip
     local rect, border, textPx, iconPx = B.drawRect, B.drawRectBorder, UI.textPx, UI.iconPx
     local ox, oy
     if UI.facesOn then ox, oy = UI.origin(el) end
@@ -353,8 +355,10 @@ function Draw.paint(el, L, dy)
             iconPx(el, op[2], op.rx, op.ry + dy, op.rw, op.rh, op[7], op[8])
         elseif k == CLIP then
             B.setStencilRect(el, op.rx, op.ry + dy, op.rw, op.rh)
+            clip = op
         elseif k == UNCLIP then
             B.clearStencilRect(el)
+            if clip then B.repaintStencilRect(el, clip.rx, clip.ry + dy, clip.rw, clip.rh) end
         end
     end
 end

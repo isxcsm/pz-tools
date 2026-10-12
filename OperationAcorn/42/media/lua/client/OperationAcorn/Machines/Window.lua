@@ -98,7 +98,7 @@ function OAMachineBody:prerender()
     if self.scroll == 0 and self:maxScroll() == 0 then return Draw.paint(self, self.list) end
     self:setStencilRect(0, 0, self.width, self.height)
     Draw.paint(self, self.list, -UI.px(self.scroll))
-    self:clearStencilRect()
+    UI.unclip(self, 0, 0, self.width, self.height)
     -- where the part on show is: a thin bar on the right
     local p, h = self.window.palette, self.height
     local ty, th = UI.thumb(h, self.contentH, self.scroll, self:maxScroll(), 16)

@@ -63,7 +63,7 @@ function OATerminalBoot:drawStatic(e, y, h, k)
     local a = math.min(1, S.alphaOf(self.window.tier) * S.BOOT * k)
     self:setStencilRect(0, y, self.width, h)
     self:drawTextureTiled(tex, 0, y + off, self.width, h + tile, c[1], c[2], c[3], a)
-    self:clearStencilRect()
+    UI.unclip(self, 0, y, self.width, h)
 end
 
 -- The screen coming on (Seq.powerOn): the raster opening from the middle, its static loud, its leading edges a soft
@@ -182,7 +182,7 @@ function OATerminalBoot:prerender()
             local y = cy + (self.by + row.y + row.h / 2 - cy) * k - row.h / 2
             self:drawRow(row, i, y, a * k, 1e9, true)
         end
-        self:clearStencilRect()
+        UI.unclip(self, 0, cy - band / 2, self.width, band)
         local w = math.max(OATerminalBoot.DOT, self.width * lineW)
         UI.fill(self, (self.width - w) / 2, cy - OATerminalBoot.LINE / 2, w, OATerminalBoot.LINE, p.bright, lineA)
         return

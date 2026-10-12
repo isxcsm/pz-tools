@@ -62,7 +62,7 @@ function OATerminalStatic:prerender()
     self:setStencilRect(0, 0, self.width, self.height)
     local y = (self.offset or 0) - S.TILE
     self:drawTextureTiled(tex, 0, y, self.width, self.height + S.TILE, c[1], c[2], c[3], S.alphaOf(self.window.tier))
-    self:clearStencilRect()
+    UI.unclip(self, 0, 0, self.width, self.height)
 end
 
 -- The static of a field terminal, over the window's strip and body (the window's render, in its pixels), as the panel
@@ -76,7 +76,7 @@ function OATerminalStatic.drawOver(panel, window)
     window:setStencilRect(0, top, window.width, h)
     window:drawTextureTiled(tex, 0, top + (panel.offset or 0) - S.TILE, window.width, h + S.TILE, c[1], c[2], c[3],
         S.alphaOf(window.tier))
-    window:clearStencilRect()
+    UI.unclip(window, 0, top, window.width, h)
 end
 
 -- The static for a window, put behind what the window holds (call it before the strip and the views are added) and

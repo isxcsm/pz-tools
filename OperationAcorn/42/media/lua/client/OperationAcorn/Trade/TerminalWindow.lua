@@ -504,7 +504,7 @@ function OATerminalWindow:drawWeakSignal(th, rh)
         local shift = (step * 37) % OATerminalStatic.TILE
         self:setStencilRect(0, th, w, bodyH)
         self:drawTextureTiled(tex, 0, th - shift, w, bodyH + shift, p.text[1], p.text[2], p.text[3], 0.32 * k)
-        self:clearStencilRect()
+        UI.unclip(self, 0, th, w, bodyH)
     end
     local rollH = math.max(8, math.floor(bodyH / 7))
     local rollY = math.floor((self.signalThrough or 0) * (bodyH + rollH)) - rollH

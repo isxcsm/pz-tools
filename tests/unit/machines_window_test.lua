@@ -503,6 +503,7 @@ local function gameClasses()
     E.drawText, E.drawTextCentre, E.drawTextRight = rec("text"), rec("centre"), rec("right")
     E.drawTextureScaledAspect, E.drawTextureScaled = rec("icon"), rec("texture")
     E.setStencilRect, E.clearStencilRect = rec("clip"), rec("unclip")
+    function E.repaintStencilRect() end
     local Panel = E:derive("ISPanel")
     local Window = Panel:derive("ISCollapsableWindow")
     function Window:titleBarHeight() return font.S + 1 end

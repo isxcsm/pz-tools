@@ -511,6 +511,14 @@ function UI.palette(tier)
 end
 
 -- Drawing with a palette colour: a filled rectangle, a border, a text (alpha optional).
+-- Takes back a clip set with setStencilRect, given its rectangle again: inside another clip (a window's) the game
+-- leaves its squares a level up, where a later clip in the window would let drawing through, so they are painted
+-- back (as the game's lists do with doRepaintStencil).
+function UI.unclip(el, x, y, w, h)
+    el:clearStencilRect()
+    el:repaintStencilRect(x, y, w, h)
+end
+
 function UI.fill(el, x, y, w, h, c, a)
     el:drawRect(x, y, w, h, a or 1, c[1], c[2], c[3])
 end

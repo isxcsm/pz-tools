@@ -41,6 +41,7 @@ local function panelClass()
     function P:getMouseY() return self.mouseAt and self.mouseAt[2] or 0 end
     function P:setStencilRect() end
     function P:clearStencilRect() end
+    function P:repaintStencilRect() end
     function P:drawRect(x, y, w, h, a, r, g, b) table.insert(self.drawn, { "rect", x, y, w, h, a }) end
     function P:drawRectBorder(x, y, w, h, a) table.insert(self.drawn, { "frame", x, y, w, h, a }) end
     function P:drawText(t, x, y, r, g, b, a, font) table.insert(self.drawn, { "text", t, x, y, font }) end

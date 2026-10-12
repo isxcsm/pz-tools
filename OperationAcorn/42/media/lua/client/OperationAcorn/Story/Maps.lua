@@ -402,7 +402,9 @@ function ISMiniMapInner:prerender()
     if not character then return end
     self:setStencilRect(0, 0, self.width, self.height)
     local ok, err = pcall(draw, self, scene, character, MINI, nil)
+    -- taken back fully: inside another clip the game leaves it a level up (Trade.UI.unclip)
     self:clearStencilRect()
+    self:repaintStencilRect(0, 0, self.width, self.height)
     if not ok and not miniFailed then
         miniFailed = true
         OA.log("minimap overlay failed:", tostring(err))

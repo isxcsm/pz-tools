@@ -77,7 +77,7 @@ function OAShopScroll:prerender()
         local y = row.y - self.scroll
         if y + row.h > 0 and y < self.height then self.drawRow(self, row, y, p) end
     end
-    self:clearStencilRect()
+    UI.unclip(self, 0, 0, self.width, self.height)
     if self.full > self.height then
         local bar = OAShopScroll.BAR
         local ty, th = self:thumb()
