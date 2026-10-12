@@ -32,6 +32,9 @@ end
 
 function ISBUPanelList:new(x, y, width, height, window, utility)
     local o = ISScrollingListBox.new(self, x, y, width, height)
+    -- its clip taken back fully (inside the window's, the game leaves it a level up and the plan's would draw
+    -- through it)
+    o.doRepaintStencil = true
     o.window = window
     o.utility = utility
     o.itemheight = ROW

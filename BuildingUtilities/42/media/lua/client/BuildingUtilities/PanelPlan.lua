@@ -878,7 +878,12 @@ function ISBUPlan:render()
         self:drawRectBorder(badge.x, badge.y, badge.w, badge.h, 1, c[1], c[2], c[3])
         self:drawText(badge.text, badge.x + 3, badge.y + 1, c[1], c[2], c[3], 1, UIFont.Small)
     end
-    if map then self:clearStencilRect() end
+    -- taken back with repaintStencilRect too: the game leaves a clip inside the window's a level up, where a later
+    -- clip in the window would let drawing through
+    if map then
+        self:clearStencilRect()
+        self:repaintStencilRect(map.left, map.top, map.w, map.h)
+    end
     for _, cell in ipairs(self.strip) do
         local current = cell.level ~= nil and cell.level == self.floor
         self:drawRect(cell.x, cell.y, cell.w, cell.h, current and 0.8 or 0.4, current and 0.35 or 0.15, current and 0.35 or 0.15, current and 0.35 or 0.15)
