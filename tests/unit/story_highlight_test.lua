@@ -2,6 +2,7 @@
 -- paint, and that the work stops with the mission. The game's objects are fakes that record what they are told.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
+require "OperationAcorn/Say"
 local OA = OperationAcorn
 
 local function list(items)
@@ -47,7 +48,8 @@ local function setup(mission, where)
     player.getZ = function() return player.z end
     player.getPlayerNum = function() return 0 end
     player.isDead = function() return player.dead end
-    player.getModData = function() return { OA_Id = "p1" } end
+    local data = { OA_Id = "p1" }
+    player.getModData = function() return data end
     state.player = player
     state.record = record
     getNumActivePlayers = function() return 1 end
@@ -394,4 +396,41 @@ test("with the API's timers the look is a timer, not a handler of OnTick, and go
     eq(cancelled, 1, "the mission over: the timer cancelled")
     eq(desk.on, false, "and the outline taken back")
     PZToolsAPI = nil
+end)
+
+test("the first time a piece is lit the character says so, once, in a container's words or the floor's", function()
+    local said = {}
+    local say = OA.Say.say
+    OA.Say.say = function(character, id, ctx) said[#said + 1] = { id = id, ctx = ctx } end
+    setup(regular())
+    local desk = furniture({ container({ item("M1-1") }) })
+    state.squares["100,100,0"] = square({ desk })
+    load()
+    tick()
+    tick()
+    OA.Say.say = say
+    eq(#said, 1, "once")
+    eq(said[1].id, "Spotted"); eq(said[1].ctx.container, true)
+    truthy(state.player:getModData().OA_Spotted["M1-1"])
+end)
+
+test("a piece lying on the floor is spotted in the floor's words; what was spotted for a mission no longer open is let go", function()
+    local said = {}
+    local say = OA.Say.say
+    OA.Say.say = function(character, id, ctx) said[#said + 1] = { id = id, ctx = ctx } end
+    local m2 = regular({ id = "M1-2" })
+    m2.items[1].mode = "floor"
+    setup(m2)
+    state.player:getModData().OA_Spotted = { ["M1-1"] = true }
+    local lying = furniture({})
+    lying.getItem = function() return item("M1-2") end
+    state.squares["100,100,0"] = square({}, { lying })
+    load()
+    tick()
+    OA.Say.say = say
+    eq(#said, 1)
+    eq(said[1].ctx.container, false)
+    eq(state.player:getModData().OA_Spotted["M1-1"], nil, "the old mission's piece let go")
+    truthy(OA.Say.fits("Spotted", 4, { container = true }))
+    eq(OA.Say.fits("Spotted", 5, { container = true }), false)
 end)

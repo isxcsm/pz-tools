@@ -5,17 +5,21 @@
 -- and wrote its square (piece.at) in the record, so every half second (real time) the pieces' squares are measured
 -- against the character, and only for one that is near is its square looked at, for the container that holds the item.
 -- A piece taken out of its container is not found there, and the outline goes. The work stops when there is no mission
--- to look for.
+-- to look for. The first time a piece is lit, the character says so (Spotted).
 require "ISUI/ISInventoryPane"
 require "OperationAcorn/Core"
 require "OperationAcorn/Client"
 require "OperationAcorn/Sync"
+require "OperationAcorn/Say"
 require "OperationAcorn/Story/View"
 require "OperationAcorn/Story/Missions"
 local OA = OperationAcorn
 local View, Missions = OA.StoryView, OA.Missions
 local Highlight = {}
 OA.StoryHighlight = Highlight
+
+-- Spotted: a piece first seen lit. Line 4 for one in a container, 5 for one on the floor, the rest either.
+OA.Say.define("Spotted", { tags = { [4] = { container = true }, [5] = { container = false } } })
 
 -- The objects lit now, by the character's number: object -> its colour. The search ledger leaves these to this part.
 local lit = {}
@@ -65,14 +69,16 @@ end
 
 -- Puts into `want` the objects of a square that hold a piece, with the colour to light them: the furniture whose
 -- container has it, the item on the floor that is it (or, for a case that holds the piece, the case while the piece is
--- in it).
+-- in it). Returns "container" or "floor" when something holds it, else nil.
 local function find(square, id, inner, want, color)
+    local found
     local objects = square:getObjects()
     for j = 0, objects:size() - 1 do
         local object = objects:get(j)
         for k = 0, object:getContainerCount() - 1 do
             if holds(object:getContainerByIndex(k), id) then
                 want[object] = color
+                found = "container"
                 break
             end
         end
@@ -84,14 +90,17 @@ local function find(square, id, inner, want, color)
         if item and item:hasModData() and item:getModData().OA_Mission == id then
             if not inner or (instanceof(item, "InventoryContainer") and holds(item:getInventory(), inner)) then
                 want[world] = color
+                found = found or "floor"
             end
         end
     end
+    return found
 end
 
 -- Adds the objects to light for a mission seen from a character to `want` (object -> colour; made here when nothing is
--- there yet and something is near, so that nothing is made while nothing is near). Returns `want`.
-local function wanted(m, player, want)
+-- there yet and something is near, so that nothing is made while nothing is near), and the pieces lit to `seen`
+-- ({ id, container }). Returns `want`.
+local function wanted(m, player, want, seen)
     local color = View.color(m.kind)
     local n = player:getPlayerNum()
     local px, py, pz = player:getX(), player:getY(), player:getZ()
@@ -102,7 +111,9 @@ local function wanted(m, player, want)
             if square and square:isCouldSee(n) then
                 want = want or {}
                 local inner = it.inside and Missions.itemId(m, "A") or nil
-                find(square, Missions.itemId(m, it.key), inner, want, color)
+                local id = Missions.itemId(m, it.key)
+                local found = find(square, id, inner, want, color)
+                if found then seen[#seen + 1] = { id = id, container = found == "container" } end
             end
         end
     end
@@ -157,6 +168,31 @@ local function openMissions(record)
     return list
 end
 
+-- The first piece in `seen` the character has not spotted before: it says so (one line a look). What it has spotted
+-- is kept in its mod data by piece, only for the missions open (the others are let go when one is added).
+local function spotted(player, seen, missions)
+    local data = player:getModData()
+    local said = data.OA_Spotted
+    for _, s in ipairs(seen) do
+        if not (said and said[s.id]) then
+            local keep = {}
+            for id in pairs(said or EMPTY) do
+                for _, m in ipairs(missions) do
+                    if View.owns(m, id) then
+                        keep[id] = true
+                        break
+                    end
+                end
+            end
+            keep[s.id] = true
+            data.OA_Spotted = keep
+            OA.Say.say(player, "Spotted", { container = s.container })
+            return
+        end
+    end
+end
+Highlight.spotted = spotted
+
 local function look()
     for n = 0, getNumActivePlayers() - 1 do
         local player = getSpecificPlayer(n)
@@ -165,7 +201,9 @@ local function look()
         local page = getPlayerLoot(n)
         if #missions > 0 then
             local want
-            for _, m in ipairs(missions) do want = wanted(m, player, want) end
+            local seen = {}
+            for _, m in ipairs(missions) do want = wanted(m, player, want, seen) end
+            if seen[1] then spotted(player, seen, missions) end
             local inventory = page and page.inventoryPane and page.inventoryPane.inventory
             lightOnly(n, want or EMPTY, inventory and inventory:getParent() or nil)
             local pane, names = tintOf(page, missions, player)

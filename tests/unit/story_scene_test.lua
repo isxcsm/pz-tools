@@ -341,3 +341,46 @@ test("self-talk the server asks for is said by the player's own client", functio
     OA.Say.tell("p2", "SiteFirst", nil)
     eq(#said, 1, "another player's")
 end)
+
+test("in the piece's building the character makes out its floor: once on entering, again when the floor changes it", function()
+    local g = fakeWorld()
+    local record = OA.Store.ensure("p1", "P")
+    local m = mission(record, nil)
+    m.scene = Scene.plan(record, m, 0)
+    m.scene.arrived = true
+    m.items[1].placed, m.items[1].at = true, { x = 100, y = 100, z = 1 }
+    g.px, g.py = 300, 300
+    local pz, inside = 0, false
+    g.playerPosition = function() return g.px, g.py, pz end
+    g.inBuildingOf = function(rec, at)
+        eq(at, m.items[1].at)
+        return inside
+    end
+    Scene.minute(record)
+    eq(#g.said, 0, "outside the building")
+    inside = true
+    Scene.minute(record)
+    eq(g.said[1].id, "InBuilding"); eq(g.said[1].ctx.where, "up", "the piece is a floor up")
+    Scene.minute(record)
+    eq(#g.said, 1, "said once")
+    inside = false
+    Scene.minute(record)
+    inside = true
+    Scene.minute(record)
+    eq(#g.said, 1, "out and in again on the same floor: nothing")
+    pz = 1.4
+    Scene.minute(record)
+    eq(g.said[2].id, "Floor"); eq(g.said[2].ctx.where, "here")
+    pz = 2
+    Scene.minute(record)
+    eq(g.said[3].ctx.where, "down")
+    m.items[1].found = true
+    pz = 0
+    Scene.minute(record)
+    eq(#g.said, 3, "a piece found is not hinted")
+    for n = 1, 6 do
+        local where = n <= 2 and "up" or (n <= 4 and "here" or "down")
+        truthy(OA.Say.fits("Floor", n, { where = where }))
+        eq(OA.Say.fits("InBuilding", n, { where = where == "up" and "down" or "up" }), false)
+    end
+end)

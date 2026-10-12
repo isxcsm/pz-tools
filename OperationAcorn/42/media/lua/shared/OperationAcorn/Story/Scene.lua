@@ -136,6 +136,14 @@ OA.Say.define("Arrive", { tags = {
 OA.Say.define("ArrivePlace", { tags = placeTags })
 OA.Say.define("Survivor", {})
 OA.Say.define("SiteFirst", {})
+-- InBuilding: the building that holds a piece not found yet, first entered: the character makes out where in it the
+-- piece is. Floor: the floor changed that. Lines 1-2 the floor above, 3-4 this one, 5-6 below.
+local whereTags = {
+    [1] = { where = "up" }, [2] = { where = "up" }, [3] = { where = "here" }, [4] = { where = "here" },
+    [5] = { where = "down" }, [6] = { where = "down" },
+}
+OA.Say.define("InBuilding", { tags = whereTags })
+OA.Say.define("Floor", { tags = whereTags })
 
 -- A record's section: { last = whether the last mission had a survivor, survivors = { { mission, outfit, x, y, z,
 -- carried } } not yet dead, places = { [place id] = true } whose own line was said, sites = { [n] = true } drop sites
@@ -397,24 +405,58 @@ function Scene.touchSite(record, x, y, sites)
     return nil
 end
 
+-- The floor hint: for the first piece not found yet whose building the player stands in (g.inBuildingOf), where it is
+-- from the player's floor (`z`): "up", "down" or "here". The bundle and its context when that is new for the piece
+-- (InBuilding the first time, then Floor), else nil. The last answer is kept with the piece, so walking out and in
+-- again on the same floor says nothing.
+function Scene.floorHint(record, m, z)
+    local g = Scene.game
+    if not (g and g.inBuildingOf) then return nil end
+    for _, it in ipairs(m.items or {}) do
+        if it.placed and it.at and not it.plain and not it.found and g.inBuildingOf(record, it.at) then
+            local floor = math.floor(z or 0)
+            local where = it.at.z > floor and "up" or (it.at.z < floor and "down" or "here")
+            local hints = m.scene.hints or {}
+            m.scene.hints = hints
+            local last = hints[it.key]
+            if last == where then return nil end
+            hints[it.key] = where
+            return last == nil and "InBuilding" or "Floor", { where = where }
+        end
+    end
+    return nil
+end
+
 local looks = {}  -- by record id: the real time (ms) of the last look
 
--- Every game minute, for each record: the circle entered (the line), the scene put in place, a drop site stood at.
--- Each mission running is looked at: the regular one and a special request beside it.
+-- Every game minute, for each record: the circle entered (the line), the scene put in place, the floor hint in the
+-- piece's building, a drop site stood at. Each mission running is looked at: the regular one and a special request
+-- beside it. One line a look.
 function Scene.minute(record)
     local g = Scene.game
     if not g then return end
     if not OA.due(looks, record.id, getTimestampMs(), Scene.LOOK_MS) then return end
-    local x, y = g.playerPosition(record)
+    local x, y, z = g.playerPosition(record)
     if not x then return end
+    local said = false
     for _, m in ipairs(OA.Missions.live(record)) do
-        if m.scene and m.state == "open" and (inCircle(m.area, x, y) or inCircle(m.area2, x, y)) then
-            if not m.scene.arrived then
-                m.scene.arrived = true
-                local id, ctx = Scene.arrivalLine(record, m, g.isNight())
-                g.say(record, id, ctx)
+        if m.scene and m.state == "open" then
+            if inCircle(m.area, x, y) or inCircle(m.area2, x, y) then
+                if not m.scene.arrived then
+                    m.scene.arrived = true
+                    local id, ctx = Scene.arrivalLine(record, m, g.isNight())
+                    g.say(record, id, ctx)
+                    said = true
+                end
+                if not m.scene.built then Scene.build(record, m, x, y) end
             end
-            if not m.scene.built then Scene.build(record, m, x, y) end
+            if not said then
+                local id, ctx = Scene.floorHint(record, m, z)
+                if id then
+                    g.say(record, id, ctx)
+                    said = true
+                end
+            end
         end
     end
     if OA.Sites and Scene.touchSite(record, x, y, OA.Sites.list()) then g.say(record, "SiteFirst", nil) end

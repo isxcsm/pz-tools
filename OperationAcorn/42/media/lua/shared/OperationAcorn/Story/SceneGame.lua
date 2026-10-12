@@ -36,6 +36,17 @@ function SceneGame.say(record, id, ctx)
     OA.Say.tell(record.id, id, ctx)
 end
 
+-- Whether the player stands inside the building a square is in (the square loaded: the same building).
+function SceneGame.inBuildingOf(record, at)
+    local p = OA.StoryGame.character(record)
+    local here = p and p:getCurrentSquare()
+    local building = here and here:getBuilding()
+    if not building then return false end
+    local square = getCell():getGridSquare(at.x, at.y, at.z)
+    local there = square and square:getBuilding()
+    return there ~= nil and there:getDef() == building:getDef()
+end
+
 function SceneGame.loaded(at)
     return getCell():getGridSquare(at.x, at.y, at.z) ~= nil
 end
