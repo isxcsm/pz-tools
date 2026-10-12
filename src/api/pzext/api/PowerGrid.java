@@ -464,6 +464,7 @@ final class PowerGrid implements Hooks.Power {
         var changes = new ArrayList<Change>();
         double hours = game.hours();
         var fresh = new HashSet<Network>();
+        var regathered = new HashSet<Network>(); // the consumers it supplies are others now
         supplyHours.clear();
         var totals = new HashMap<Network, Float>();
         List<Network> powered = networks.of(UTILITY);
@@ -474,7 +475,7 @@ final class PowerGrid implements Hooks.Power {
             else network.inUse = null;
             if (network.loadChanged || !network.loadComplete && now - network.loadAt >= INCOMPLETE_LOAD_NANOS) {
                 if (network.loadAt == 0) fresh.add(network);
-                load(network, cells, now);
+                if (load(network, cells, now)) regathered.add(network);
             }
         }
         // A child has supply while its parent has, and its parent carries its load; switched off, neither.
@@ -491,7 +492,7 @@ final class PowerGrid implements Hooks.Power {
             network.total = total(network, powered);
         }
         for (Network network : powered)
-            if (!fresh.contains(network) && Math.abs(network.total - totals.get(network)) > 1e-6f)
+            if (!fresh.contains(network) && (Math.abs(network.total - totals.get(network)) > 1e-6f || regathered.contains(network)))
                 changes.add(new Change(network.id, "load", hours));
         stale = false;
         snapshot = build();
@@ -832,9 +833,10 @@ final class PowerGrid implements Hooks.Power {
 
     /**
      * The network's load: what its consumers use, the ones on squares that are not loaded as they used it when last
-     * seen loaded.
+     * seen loaded. Whether the consumers are others than before (one that joined or left can use nothing, so the load
+     * alone does not tell).
      */
-    private void load(Network network, Object cells, long now) throws ReflectiveOperationException {
+    private boolean load(Network network, Object cells, long now) throws ReflectiveOperationException {
         boolean[] complete = { true };
         var next = new LinkedHashMap<Thing, Float>();
         for (var consumer : members.consumers(network, Members.POWER, complete))
@@ -846,11 +848,14 @@ final class PowerGrid implements Hooks.Power {
         }
         float load = network.extraLoad;
         for (float value : next.values()) load += value;
+        boolean regathered = network.regathered || !next.keySet().equals(network.consumption.keySet());
+        network.regathered = false;
         network.consumption = next;
         network.load = load;
         network.loadComplete = complete[0];
         network.loadAt = now;
         network.loadChanged = false;
+        return regathered;
     }
 
     private boolean squarePowered(Object square) throws ReflectiveOperationException {

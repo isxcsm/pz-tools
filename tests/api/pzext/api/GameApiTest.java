@@ -439,6 +439,17 @@ public final class GameApiTest {
         frame();
         check(ItemContainer.isObjectPowered(light, true) && !ItemContainer.isObjectPowered(light, false), "An added object has no power");
         check(near(load(networks), 0.012), "The added object does not count: " + load(networks));
+        // One that uses nothing joining or leaving is told too: the load alone does not say the consumers changed.
+        var sign = place(16, 11, 0, powered("sign", 0f));
+        LuaEventManager.raised.clear();
+        call(networks, "include", mod, "grid", 16.0, 11.0, 0.0, "sign");
+        frame();
+        check(raised("grid", "load", GameTime.getInstance().hours), "A consumer that uses nothing joined untold: " + LuaEventManager.raised);
+        call(networks, "reset", mod, "grid", 16.0, 11.0, 0.0, "sign");
+        frame();
+        check(raised("grid", "load", GameTime.getInstance().hours), "A consumer that uses nothing left untold: " + LuaEventManager.raised);
+        sign.square.objects.remove(sign);
+        frame();
         // The game says when something that uses power changed.
         radio.consumption = 0.03f;
         IsoGenerator.updateGenerator(radio.square);

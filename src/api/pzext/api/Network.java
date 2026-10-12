@@ -142,6 +142,8 @@ final class Network {
     boolean loadComplete;
     long loadAt;
     volatile boolean loadChanged = true;
+    /** A consumer joined or left since the load was last worked out (told as a change of load even when it used nothing). */
+    volatile boolean regathered;
 
     Network(String id, String owner, String utility, String policy) {
         this.id = id; this.owner = owner; this.utility = utility; this.policy = policy;

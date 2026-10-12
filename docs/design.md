@@ -236,7 +236,7 @@ id per network across all mods. Squares are `x, y, z`; objects are a square and 
 
 One event, `OnPZExtNetworkChange(id, what, hour)`, raised through `LuaEventManager` after the
 change, never per frame. `what` is `"supply"` (it started or stopped), `"producer"` (another producer
-carries it) or `"load"` (power only); `hour` is the world age in hours when it happened, which is in the past when
+carries it) or `"load"` (power only: its load changed, or a consumer joined or left, also one that uses nothing); `hour` is the world age in hours when it happened, which is in the past when
 a producer ran out while its square was not loaded. A mod reads the rest with `networks.state(id)`.
 
 A second event, `OnPZExtGeneratorPower(generator, on, after)`, is about any generator, in a network or

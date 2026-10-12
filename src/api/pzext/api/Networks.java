@@ -652,6 +652,7 @@ final class Networks {
             consumption.remove(thing);
             network.consumption = consumption;
         }
+        network.regathered = true;
         network.loadChanged = true;
         changed();
     }
