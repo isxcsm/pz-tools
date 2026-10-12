@@ -206,7 +206,10 @@ def finish(image, solid, seed):
             r, g, b, a = px[x, y]
             if a == 0 or sp[x, y] < 40:
                 continue
-            n = 1 + (rnd.random() - 0.5) * 0.06
+            # a grain, blotches of wear a few pixels across, and grime gathering toward the floor
+            n = 1 + (rnd.random() - 0.5) * 0.09
+            n *= 1 + 0.045 * math.sin(x * 0.41 + y * 0.17 + seed) * math.sin(y * 0.37 - x * 0.23 + seed * 1.7)
+            n *= 1 - 0.1 * min(1, max(0, (y - 150) / 80))
             if inner[x, y] < 128:
                 n *= 0.7
             px[x, y] = (min(255, int(r * n)), min(255, int(g * n)), min(255, int(b * n)), a)
@@ -247,18 +250,18 @@ def glow(image, scene, glows):
 # Colours.
 CONCRETE = (156, 152, 144)
 FRAME = (64, 66, 70)
-MOTOR = (46, 88, 124)
-MOTOR_DARK = (34, 66, 94)
-CASING = (170, 52, 40)
-CASING_DARK = (128, 40, 32)
-STEEL = (160, 164, 168)
+MOTOR = (58, 80, 98)
+MOTOR_DARK = (44, 60, 74)
+CASING = (132, 58, 46)
+CASING_DARK = (98, 44, 36)
+STEEL = (146, 148, 148)
 PIPE = (84, 88, 92)
-BRASS = (200, 158, 70)
-BRASS_DARK = (150, 112, 48)
+BRASS = (170, 138, 74)
+BRASS_DARK = (126, 100, 56)
 RUBBER = (36, 36, 38)
-HOSE = (54, 128, 66)
-WHITE = (228, 232, 234)
-BLUE = (52, 104, 168)
+HOSE = (62, 100, 64)
+WHITE = (196, 196, 190)
+BLUE = (66, 92, 124)
 # Lamps: their lens lit, and the dark glass of an unlit one.
 LIT = {'green': (80, 255, 120), 'amber': (255, 150, 30), 'red': (255, 60, 44)}
 UNLIT = {'green': (36, 74, 46), 'amber': (96, 60, 24), 'red': (92, 32, 28)}
@@ -461,10 +464,10 @@ def water_filter(turns, look='resting'):
 # The booster pump's looks: its lamp dark and its display dark (stopped: no power, or its pipes frozen under rime),
 # green with the display lit (boosting), amber with the display lit (powered, but no water reaches its floor).
 BOOSTER_LAMP = {'stopped': None, 'running': 'green', 'dry': 'amber', 'frozen': None}
-STAINLESS = (186, 190, 194)
-STAINLESS_DARK = (134, 138, 142)
-VESSEL = (36, 92, 168)
-VESSEL_DARK = (26, 66, 124)
+STAINLESS = (164, 166, 166)
+STAINLESS_DARK = (118, 120, 122)
+VESSEL = (60, 86, 120)
+VESSEL_DARK = (44, 62, 88)
 DISPLAY_LIT = (90, 230, 210)
 DISPLAY_DARK = (24, 40, 40)
 
@@ -580,12 +583,12 @@ HOUSING_DARK = (104, 109, 112)
 DOOR = (150, 156, 158)
 TRIM = (66, 69, 72)
 PLINTH = (44, 46, 48)
-MODULE = (214, 214, 208)
+MODULE = (196, 194, 186)
 TOGGLE = (40, 40, 42)
-HANDLE = (196, 44, 34)
-DIAL = (238, 234, 218)
-LABEL = (224, 222, 210)
-HAZARD = (230, 186, 40)
+HANDLE = (160, 52, 40)
+DIAL = (220, 216, 200)
+LABEL = (204, 200, 188)
+HAZARD = (196, 160, 52)
 BOX_LAMPS = {'off': (), 'on': ('green', 'amber'), 'tripped': ('red',), 'tripped_dim': ()}
 
 

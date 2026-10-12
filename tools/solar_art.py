@@ -48,8 +48,10 @@ MINUS = (30, 30, 32)
 COPPER = (196, 128, 74)
 BOX = (184, 184, 176)
 BOX_DARK = (134, 134, 128)
+CONTROLLER = (82, 86, 88)
+CONTROLLER_TRIM = (56, 59, 62)
 SCREEN_OFF = (40, 52, 48)
-SCREEN_ON = (130, 214, 180)
+SCREEN_ON = (112, 196, 166)
 LED_OFF = (52, 56, 54)
 LED = {'red': (255, 64, 46), 'amber': (255, 160, 40), 'yellow': (236, 226, 60), 'green': (80, 255, 120)}
 
@@ -248,23 +250,27 @@ def rack(shelves=-1, level=None):
         if z < TOP - 0.1:
             s.box(XS[0] + 0.012, YS[0] + 0.02, z - 0.016, XS[1] - 0.012, YS[1] - 0.02, z, DECK, shine=0.35)
     # The charge controller on the S side: a box, its screen and four lamps, its conduit up to the wall.
-    bx0, bx1, by, bz0, bz1 = 0.13, 0.43, YS[1] + POST / 2, 0.92, 1.32
-    s.box(bx0, by, bz0, bx1, by + 0.07, bz1, BOX, top=BOX, shine=0.2)
-    s.box(bx0 + 0.02, by + 0.07, bz1 - 0.025, bx1 - 0.02, by + 0.074, bz1 - 0.012, BOX_DARK)
+    # A small wall-box controller, as sold for battery banks: a dark case the size of a book, a little screen, a row
+    # of small lamps under it.
+    bx0, bx1, by, bz0, bz1 = 0.17, 0.37, YS[1] + POST / 2, 1.0, 1.24
+    s.box(bx0, by, bz0, bx1, by + 0.045, bz1, CONTROLLER, top=CONTROLLER, shine=0.15)
+    s.box(bx0 + 0.012, by + 0.045, bz1 - 0.018, bx1 - 0.012, by + 0.048, bz1 - 0.01, CONTROLLER_TRIM)
     lit = shelves >= 0 and level is not None
-    s.box(bx0 + 0.04, by + 0.07, 1.17, bx1 - 0.04, by + 0.075, 1.27, SCREEN_ON if lit else SCREEN_OFF, emit=lit)
+    s.box(bx0 + 0.03, by + 0.045, 1.13, bx1 - 0.03, by + 0.049, 1.2, SCREEN_ON if lit else SCREEN_OFF, emit=lit)
     lamps = {0: ['red'], 1: ['amber'], 2: ['yellow', 'yellow'], 3: ['green'] * 3, 4: ['green'] * 4}.get(level, []) if lit else []
+    step = (bx1 - bx0 - 0.06) / 4
     for i in range(4):
-        x = bx0 + 0.055 + i * 0.065
+        x = bx0 + 0.03 + i * step + step * 0.25
         on = i < len(lamps)
-        s.box(x, by + 0.07, 1.05, x + 0.04, by + 0.078, 1.09, LED[lamps[i]] if on else LED_OFF, emit=on, shine=0.0 if on else 0.6)
+        s.box(x, by + 0.045, 1.05, x + step * 0.5, by + 0.05, 1.075, LED[lamps[i]] if on else LED_OFF, emit=on,
+              shine=0.0 if on else 0.6)
         if on:
-            glows.append(((x + 0.02, by + 0.09, 1.07), LED[lamps[i]], 0.07))
+            glows.append(((x + step * 0.25, by + 0.06, 1.062), LED[lamps[i]], 0.045))
     if lit:
-        glows.append((((bx0 + bx1) / 2, by + 0.09, 1.22), SCREEN_ON, 0.06))
+        glows.append((((bx0 + bx1) / 2, by + 0.06, 1.165), SCREEN_ON, 0.04))
     # its conduit up the side into the top beam (the rack may stand away from a wall)
-    s.tube(((bx0 + bx1) / 2, by + 0.03, bz1), ((bx0 + bx1) / 2, by + 0.03, TOP - 0.06), 0.016, BOX_DARK, segments=16)
-    s.tube(((bx0 + bx1) / 2, by + 0.03, TOP - 0.06), ((bx0 + bx1) / 2, YS[1], TOP - 0.06), 0.016, BOX_DARK, segments=16)
+    s.tube(((bx0 + bx1) / 2, by + 0.02, bz1), ((bx0 + bx1) / 2, by + 0.02, TOP - 0.06), 0.011, BOX_DARK, segments=16)
+    s.tube(((bx0 + bx1) / 2, by + 0.02, TOP - 0.06), ((bx0 + bx1) / 2, YS[1], TOP - 0.06), 0.011, BOX_DARK, segments=16)
     # The batteries: four to a shelf, linked in a row, their bus down the back to the controller.
     for shelf in range(shelves + 1):
         z = SHELVES[shelf]

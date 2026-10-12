@@ -43,11 +43,12 @@ local ZONE_W, FIT_W, RANGE_W, FLOW_W, measuredEra = 0, 0, 0, 0, nil
 local MIN_ZOOM, MAX_ZOOM, MAX_ZOOM_SCALE, DRAG = 0.5, 8, 48, 4
 -- Wheel notches over the floor strip scroll it by so many floors.
 local STRIP_SCROLL = 3
--- The supply lines follow the zoom: a pixel or two or three wide (a tenth of a square), so many pixels at the least
--- and the most. The flow runs along them as dashes, each DASH dash units long and DASH_GAP apart; a dash unit is a
--- third of a square, at least and at most so many design units; they move FLOW_SPEED units a second.
-local LINE_PX, MIN_LINE_PX, MAX_LINE_PX = 0.1, 1, 3
-local DASH, DASH_GAP, MIN_DASH_UNIT, MAX_DASH_UNIT, FLOW_SPEED = 2.2, 1.6, 2.5, 5, 22
+-- The supply lines are drawn at fixed pixel widths, whatever the zoom: the line LINE_PX wide over a dark casing
+-- CASING_PX wide, so that it reads over any room or the grid; the flow runs along it as dashes DASH_PX wide, DASH_LEN_PX
+-- long and DASH_GAP_PX apart, moving FLOW_PX pixels a second. The rooms' outlines are WALL_PX wide.
+local LINE_PX, CASING_PX, DASH_PX, DASH_LEN_PX, DASH_GAP_PX, FLOW_PX, WALL_PX = 2, 4, 2, 7, 6, 28, 2
+-- The lines out to devices outside the building: a cool cyan, apart from the rooms' greens.
+local OUTSIDE_LINE = { 0.45, 0.78, 0.86 }
 -- The legend: its header's fold mark so wide, and it folds or opens over LEGEND_MS.
 local CHEVRON_W, LEGEND_MS = 12, 220
 
@@ -490,9 +491,7 @@ function ISBUPlan:layout()
     local function sx(x) return math.floor(ox + (x - minX) * scale) end
     local function sy(y) return math.floor(oy + (y - minY) * scale) end
     self.scale = scale
-    local px = UI.S or 1
-    self.lineW = math.max(MIN_LINE_PX, math.min(MAX_LINE_PX, math.floor(scale * px * LINE_PX + 0.5))) / px
-    self.dashUnit = math.max(MIN_DASH_UNIT, math.min(MAX_DASH_UNIT, scale / 3))
+    local wall = WALL_PX / (UI.S or 1)
     -- A faint grid of the squares under the plan, as on drawing paper: every square once they are big enough to tell
     -- apart, else every fifth; none when even those crowd.
     local step = scale >= 7 and 1 or 5
@@ -569,7 +568,7 @@ function ISBUPlan:layout()
     end
     for _, device in ipairs(data.devices) do
         if device.z == self.floor and not device.inside and device.state == "on" then
-            addLine(device.x, device.y, COLOURS.idle, device.flow, true)
+            addLine(device.x, device.y, OUTSIDE_LINE, device.flow, true)
         end
     end
     local producerLines = {}
@@ -644,8 +643,11 @@ function ISBUPlan:layout()
             end
             for _, edge in ipairs(self:roomOutline(room)) do
                 local x1, y1 = sx(edge.x), sy(edge.y)
-                self.walls[#self.walls + 1] = { room = room.id, dim = dim, x = x1, y = y1, r = wr, g = wg, b = wb,
-                    w = edge.across and sx(edge.x + edge.len) - x1 or 1, h = edge.across and 1 or sy(edge.y + edge.len) - y1 }
+                -- centred on the edge, and on over the corners so that two walls meet square
+                self.walls[#self.walls + 1] = { room = room.id, dim = dim, r = wr, g = wg, b = wb,
+                    x = x1 - wall / 2, y = y1 - wall / 2,
+                    w = edge.across and sx(edge.x + edge.len) - x1 + wall or wall,
+                    h = edge.across and wall or sy(edge.y + edge.len) - y1 + wall }
             end
             if largest and UI.textWidth(room.title) < largest.w - 4
                     and largest.h > FONT_HGT_SMALL + 2 then
@@ -868,16 +870,25 @@ local function drawSpan(plan, points, lengths, from, to, w, a, r, g, b)
     end
 end
 
--- The legend's fold mark: a chevron pointing right while folded, turning down as it opens (open 0 to 1).
-local function drawChevron(plan, cx, cy, open, w, c, a)
-    local angle = open * math.pi / 2
-    local cos, sin = math.cos(angle), math.sin(angle)
-    local function at(x, y) return cx + x * cos - y * sin, cy + x * sin + y * cos end
-    local tipX, tipY = at(2.5, 0)
-    local x1, y1 = at(-1.5, -3.5)
-    local x2, y2 = at(-1.5, 3.5)
-    plan:drawLine(WHITE, x1, y1, tipX, tipY, w, a, c[1], c[2], c[3])
-    plan:drawLine(WHITE, x2, y2, tipX, tipY, w, a, c[1], c[2], c[3])
+-- The legend's fold mark: a small solid triangle drawn pixel by pixel (lines drawn this small blur into a blob),
+-- pointing right while folded and down while open, the one fading into the other as it opens (open 0 to 1). `px`: a
+-- pixel in design units.
+local function drawChevron(plan, cx, cy, open, px, c)
+    local S = 1 / px
+    cx, cy = math.floor(cx * S + 0.5) * px, math.floor(cy * S + 0.5) * px
+    local size = 4
+    if open < 1 then
+        for i = 0, size - 1 do
+            local h = (size - 1 - i) * 2 + 1
+            plan:drawRect(cx + (i - 2) * px, cy - (size - 1 - i) * px, px, h * px, 1 - open, c[1], c[2], c[3])
+        end
+    end
+    if open > 0 then
+        for i = 0, size - 1 do
+            local w = (size - 1 - i) * 2 + 1
+            plan:drawRect(cx - (size - 1 - i) * px, cy + (i - 2) * px, w * px, px, open, c[1], c[2], c[3])
+        end
+    end
 end
 
 -- The legend: a box rising from the status line, its header (a fold mark and the title) lit under the mouse and
@@ -903,7 +914,7 @@ function ISBUPlan:drawLegend(now, mx, my, px)
     local open = box.shown and e or 1 - e
     local head = P.head
     local c = { head[1] + (1 - head[1]) * 0.4 * k, head[2] + (1 - head[2]) * 0.4 * k, head[3] + (1 - head[3]) * 0.4 * k }
-    drawChevron(self, box.x + PAD + 3, top + headerH / 2, open, 1.5 * px, c, 1)
+    drawChevron(self, box.x + PAD + 3, top + headerH / 2, open, px, c)
     self:drawText(box.header, box.x + PAD + CHEVRON_W, top + 2, c[1], c[2], c[3], 1, UIFont.Small)
     if h > headerH + 1 then UI.fill(self, box.x + 1, top + headerH - 1, w - 2, 1, P.border, 0.8) end
     -- The entries: those laid out while it is open, or, while it folds, the ones it had.
@@ -981,19 +992,24 @@ function ISBUPlan:render()
         self:drawTextCentre(label.text, label.x, label.y, P.text[1], P.text[2], P.text[3], label.dim and 0.35 or 0.8, UIFont.Small)
     end
     for _, edge in ipairs(self.edges) do self:drawRect(edge.x, edge.y, edge.w, edge.h, 0.7, edge.r, edge.g, edge.b) end
-    -- The supply lines, as wide as the zoom makes them: faint under running dashes, plain without.
-    local lw = self.lineW or px
+    -- The supply lines at their fixed widths: a dark casing first, then the line in its colour (dimmer under running
+    -- dashes, which carry the eye).
+    local lw, cw = LINE_PX * px, CASING_PX * px
     for _, line in ipairs(self.lines) do
-        local a = line.flowing and 0.28 or 0.75
+        self:drawLine(WHITE, line.x1, line.y1, line.x2, line.y2, cw, 0.7, 0.02, 0.03, 0.05)
+        if line.x3 then self:drawLine(WHITE, line.x2, line.y2, line.x3, line.y3, cw, 0.7, 0.02, 0.03, 0.05) end
+    end
+    for _, line in ipairs(self.lines) do
+        local a = line.flowing and 0.55 or 0.9
         self:drawLine(WHITE, line.x1, line.y1, line.x2, line.y2, lw, a, line.r, line.g, line.b)
         if line.x3 then self:drawLine(WHITE, line.x2, line.y2, line.x3, line.y3, lw, a, line.r, line.g, line.b) end
     end
-    -- The line of the producer under the mouse, brighter and a pixel wider, while the switch shows no dashes.
+    -- The line of the producer under the mouse, brighter, while the switch shows no dashes.
     local hover = self.hoverLine
     if hover then
-        local r, g, b = math.min(1, hover.r + 0.3), math.min(1, hover.g + 0.3), math.min(1, hover.b + 0.3)
-        self:drawLine(WHITE, hover.x1, hover.y1, hover.x2, hover.y2, lw + px, 1, r, g, b)
-        if hover.x3 then self:drawLine(WHITE, hover.x2, hover.y2, hover.x3, hover.y3, lw + px, 1, r, g, b) end
+        local r, g, b = hover.r + (1 - hover.r) * 0.45, hover.g + (1 - hover.g) * 0.45, hover.b + (1 - hover.b) * 0.45
+        self:drawLine(WHITE, hover.x1, hover.y1, hover.x2, hover.y2, lw, 1, r, g, b)
+        if hover.x3 then self:drawLine(WHITE, hover.x2, hover.y2, hover.x3, hover.y3, lw, 1, r, g, b) end
     end
     -- The legend's entry under the mouse marks what it names.
     local marked = self.legendHover
@@ -1015,20 +1031,20 @@ function ISBUPlan:render()
     -- while the switch shows no flow).
     if #self.flows > 0 then
         UI.live(self, flowFrame)
-        local unit = self.dashUnit or 3
-        local dash, period = unit * DASH, unit * (DASH + DASH_GAP)
-        local offset = BU.remainder(now / 1000 * FLOW_SPEED, period)
-        local dw = math.max(lw, 2 * px)
+        local dash, period = DASH_LEN_PX * px, (DASH_LEN_PX + DASH_GAP_PX) * px
+        local offset = BU.remainder(now / 1000 * FLOW_PX * px, period)
+        local dw = DASH_PX * px
         for _, flow in ipairs(self.flows) do
             local length = flow.length
+            local r, g, b = flow.r + (1 - flow.r) * 0.5, flow.g + (1 - flow.g) * 0.5, flow.b + (1 - flow.b) * 0.5
             local start = offset - period
             while start < length do
                 local from, to = math.max(0, start), math.min(length, start + dash)
                 if to > from then
                     if flow.toBox then
-                        drawSpan(self, flow.points, flow.lengths, from, to, dw, 1, flow.r, flow.g, flow.b)
+                        drawSpan(self, flow.points, flow.lengths, from, to, dw, 1, r, g, b)
                     else
-                        drawSpan(self, flow.points, flow.lengths, length - to, length - from, dw, 1, flow.r, flow.g, flow.b)
+                        drawSpan(self, flow.points, flow.lengths, length - to, length - from, dw, 1, r, g, b)
                     end
                 end
                 start = start + period
