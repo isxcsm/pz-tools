@@ -264,7 +264,21 @@ end
 -- looks are BU.PanelLook's. Boxes of older saves stood as a vanilla terminal, and take the console as they load.
 BU.PANEL_SPRITES = { "bu_water_01_32", "bu_water_01_33", "bu_water_01_34", "bu_water_01_35" }
 BU.OLD_PANEL_SPRITES = { "security_01_0", "security_01_1", "security_01_2", "security_01_3" }
+BU.OLD_PANEL_SPRITE_SET = {}
+for _, name in ipairs(BU.OLD_PANEL_SPRITES) do BU.OLD_PANEL_SPRITE_SET[name] = true end
 BU.PANEL_ITEM = "BuildingUtilities.BreakerBox"
+
+-- The key a device or a unit is registered by at a box (Changes.register): a device of the building ("inside") or one
+-- outside by its utility and its key (Panels.devices), a unit by its id.
+function BU.registerKey(kind, utility, key)
+    if kind == "unit" then return "unit|" .. tostring(key) end
+    return kind .. "|" .. utility .. "|" .. key
+end
+
+-- Whether a box has the device or the unit registered.
+function BU.isRegistered(panel, kind, utility, key)
+    return panel ~= nil and panel.registered ~= nil and panel.registered[BU.registerKey(kind, utility, key)] == true
+end
 
 -- A water producer: an object the game fills with rain or water (rain barrels, metal drums), with a fluid container.
 function BU.isWaterContainer(object)
@@ -275,6 +289,16 @@ function BU.isWaterContainer(object)
     return container ~= nil and container:getCapacity() > 0
 end
 
+-- The name an object is known by, as the API's networks know it (buildings.name): its sprite's, or the one a mod
+-- gives that sprite, so a machine that changes its look (lit, running) stays the device it was. The sprite's own
+-- without the API.
+function BU.objectName(object)
+    local api = PZToolsAPI
+    local name = type(api) == "table" and api.buildings and api.buildings.name
+    if name then return name(object) end
+    return object:getSpriteName() or (object:getSprite() and object:getSprite():getName())
+end
+
 -- The objects on a square with a sprite name, as a device entry names them.
 function BU.objectsWithSprite(x, y, z, sprite)
     local result = {}
@@ -283,8 +307,7 @@ function BU.objectsWithSprite(x, y, z, sprite)
     local objects = square:getObjects()
     for i = 0, objects:size() - 1 do
         local object = objects:get(i)
-        local name = object:getSpriteName() or (object:getSprite() and object:getSprite():getName())
-        if name == sprite then result[#result + 1] = object end
+        if BU.objectName(object) == sprite then result[#result + 1] = object end
     end
     return result
 end
@@ -304,7 +327,7 @@ function BU.partKeys(object)
     local keys = {}
     for _, part in ipairs(BU.objectParts(object)) do
         local square = part:getSquare()
-        local sprite = part:getSpriteName() or (part:getSprite() and part:getSprite():getName())
+        local sprite = BU.objectName(part)
         if square and sprite then keys[#keys + 1] = BU.thingKey(square:getX(), square:getY(), square:getZ(), sprite) end
     end
     table.sort(keys)

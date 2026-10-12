@@ -13,7 +13,7 @@ local FONT_HGT_SMALL, ROW, PAD, SCROLLBAR, ROOM_TICK_X, CHOOSE_W, BATCH_BUTTONS,
 -- One tab's list. Each item is a row table with a kind; clicks act on the row and the part of it clicked.
 ISBUPanelList = ISScrollingListBox:derive("ISBUPanelList")
 
-local BUTTONS = { "Up", "Down", "Remove" }
+local BUTTONS = { "Up", "Down" }
 local BUTTON_W = 60
 local TIMER_W, ESSENTIAL_W, GROUP_W, SOURCE_W = 64, 48, 90, 110
 -- Water groups' colours, by their place in the panel's list.
@@ -84,7 +84,7 @@ end
 -- The buttons at the end of a producer's row, left to right: for power Up, Down and Remove; for water the tank's
 -- group (with more than one) and Remove.
 local function producerButtons(width, row)
-    return buttonsAtRight(width, row, not row.water and BUTTONS or row.groupText and { "Group", "Remove" } or { "Remove" })
+    return buttonsAtRight(width, row, not row.water and BUTTONS or row.groupText and { "Group" } or {})
 end
 
 -- A water group's row's buttons, left to right: Settings, Rename, and Remove but for the first group.
@@ -129,6 +129,9 @@ local function tick(list, x, y, state)
         list:drawRect(x + 3, y + 6, ROW - 12, ROW - 12, 1, 0.4, 0.9, 0.4)
     elseif state == "some" then
         list:drawRect(x + 4, y + ROW / 2 - 2, ROW - 14, 4, 1, 0.4, 0.9, 0.4)
+    elseif state == "registered" then
+        -- registered, to be connected at the device: a hollow cyan square
+        list:drawRectBorder(x + 3, y + 6, ROW - 12, ROW - 12, 1, 0.35, 0.8, 1)
     end
 end
 
@@ -233,7 +236,7 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         self:drawRect(0, y, width, ROW, 0.25, 0.15, 0.35, 0.5)
         self:drawText(row.text, PAD * 2, textY, row.affords and 0.7 or 1, row.affords and 0.9 or 0.55, row.affords and 1 or 0.5, 1, UIFont.Small)
         for index, name in ipairs(BATCH_BUTTONS) do
-            local enabled = name ~= "Connect" or (row.count > 0 and row.affords)
+            local enabled = name ~= "Connect" or row.count > 0
             smallButton(self, batchButtonX(width, index), y, BATCH_W, label("IGUI_BU_Batch" .. name),
                 enabled and 1 or 0.5, enabled and 1 or 0.5, enabled and 1 or 0.5)
         end
@@ -283,9 +286,10 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         if row.right then self:drawTextRight(row.right, buttons[1].x - 8, textY, 0.8, 0.85, 1, 1, UIFont.Small) end
     elseif row.kind == "addGroup" then
         self:drawText(row.text, PAD * 2, textY, 0.5, 0.75, 1, 1, UIFont.Small)
-    elseif row.kind == "device" or row.kind == "all" or row.kind == "blackout" or row.kind == "mainSwitch" then
-        local indent = row.kind == "device" and PAD * 3 or PAD * 2
-        if row.choosable then chooseBox(self, indent, y, row.chosen) else tick(self, indent, y, row.state == "on" and "on" or "off") end
+    elseif row.kind == "device" or row.kind == "unitCandidate" or row.kind == "all" or row.kind == "blackout" or row.kind == "mainSwitch" then
+        local indent = (row.kind == "device" or row.kind == "unitCandidate") and PAD * 3 or PAD * 2
+        if row.choosable then chooseBox(self, indent, y, row.chosen)
+        else tick(self, indent, y, row.state == "on" and "on" or row.registered and "registered" or "off") end
         local shade = row.state ~= "other" and 1 or 0.5
         self:drawText(row.text, indent + ROW + 4, textY, shade, shade, shade, 1, UIFont.Small)
         if row.fresh then
@@ -308,7 +312,8 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         end
         if row.right then
             local r, g, b = 0.8, 0.8, 0.8
-            if row.held then r, g, b = 1, 0.65, 0.3 elseif row.dim then r, g, b = 0.55, 0.55, 0.55 end
+            if row.registered then r, g, b = 0.35, 0.8, 1
+            elseif row.held then r, g, b = 1, 0.65, 0.3 elseif row.dim then r, g, b = 0.55, 0.55, 0.55 end
             self:drawTextRight(row.right, textRight, textY, r, g, b, 1, UIFont.Small)
         end
     end

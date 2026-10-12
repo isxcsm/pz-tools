@@ -19,6 +19,11 @@ local function lineCost(utility, steps)
     return { tools = { "screwdriver" }, items = { { Costs.WIRE, pieces(steps) } } }
 end
 
+-- A device or a unit inside the box's building: no line to lay, the tool of its utility to wire it in or out.
+function Costs.tool(utility)
+    return { tools = { utility == "water" and "pipewrench" or "screwdriver" }, items = {} }
+end
+
 -- A generator or a water container to a box, the line as long as the producer is from the building.
 function Costs.producer(utility, steps) return lineCost(utility, steps) end
 

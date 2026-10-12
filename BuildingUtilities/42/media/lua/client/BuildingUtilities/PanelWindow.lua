@@ -818,6 +818,7 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
             add(row, utility == "power" and getText("IGUI_BU_GeneratorTip") or nil)
         end
         if utility == "water" then self:waterUnitRows(add) end
+        self:unitCandidateRows(utility, add)
     end
     local children = Store.children(panel.id)
     if #children > 0 then
@@ -959,7 +960,10 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
                 if device.group and device.state == "on" and #BU.Water.groups(panel) > 1 then
                     groupText, groupColour = BU.Water.groupName(panel, device.group), PanelWindow.groupColour(panel, device.group)
                 end
-                add({ kind = "device", text = shown.name, right = shown.status, dim = shown.dim, device = device,
+                local registered = device.state == "off" and BU.isRegistered(panel, device.inside and "inside" or "outside", utility, device.key)
+                if registered then tooltip = getText("IGUI_BU_RegisteredTip") .. (tooltip and " <LINE> " .. tooltip or "") end
+                add({ kind = "device", text = shown.name, right = registered and getText("IGUI_BU_Registered") or shown.status,
+                    registered = registered, dim = shown.dim, device = device,
                     state = device.state, held = device.held, controls = controls, sheds = sheds,
                     choosable = choosableDevice, chosen = choosableDevice and chosen[device.key] == true,
                     fresh = view.fresh[device.key], groupText = groupText, groupColour = groupColour }, tooltip)
@@ -1080,23 +1084,55 @@ function ISBUPanelWindow:allInside(devices)
     return true
 end
 
--- A device connected or not: a building's by a switch at the box, one outside by laying or taking away its line.
+-- A device's tick: one not connected is registered (or its registration taken back), and connected at itself (its
+-- world menu, with the tool); one connected is wired out at itself too.
 function ISBUPanelWindow:switchDevice(utility, device)
-    local panel, playerObj, entry = self.panel, self.playerObj, device.entry
+    local panel, playerObj = self.panel, self.playerObj
     if device.state == "other" then return end
-    if device.inside then
-        Sync.send(playerObj, "setInside", { panel = panel.id, utility = utility, key = device.key, on = device.state ~= "on" })
-    elseif device.state == "on" then
-        BU.ContextMenu.queueAt(playerObj, entry.x, entry.y, entry.z,
-            ISBUDisconnect:new(playerObj, "outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite))
-    else
-        local cost, reason = Actions.outsideCost(panel, utility, device)
-        if not cost or not Costs.affords(playerObj, cost) then
-            HaloTextHelper.addBadText(playerObj, cost and getText("IGUI_BU_Reason_cantAfford") or getText("IGUI_BU_Reason_" .. reason))
-            return
+    if device.state == "on" then
+        HaloTextHelper.addBadText(playerObj, getText("IGUI_BU_DisconnectAtDevice"))
+        return
+    end
+    local kind = device.inside and "inside" or "outside"
+    if kind == "outside" and utility == "power" and not BU.exteriorPower() then
+        HaloTextHelper.addBadText(playerObj, getText("IGUI_BU_Reason_exteriorOff"))
+        return
+    end
+    Sync.send(playerObj, "register", { panel = panel.id, keys = { BU.registerKey(kind, utility, device.key) },
+        on = not BU.isRegistered(panel, kind, utility, device.key) })
+end
+
+-- Registers the devices of the building that are not connected, of one room (roomId) or all (nil); a tick that is
+-- on is not taken off here: the devices are wired out at themselves.
+function ISBUPanelWindow:registerInside(utility, roomId, on)
+    if not on then
+        HaloTextHelper.addBadText(self.playerObj, getText("IGUI_BU_DisconnectAtDevice"))
+        return
+    end
+    local keys = {}
+    local view = self.views[utility]
+    for _, device in ipairs(view and view.devices or {}) do
+        if device.inside and device.state == "off" and (roomId == nil or device.roomId == roomId) then
+            keys[#keys + 1] = BU.registerKey("inside", utility, device.key)
         end
-        BU.ContextMenu.queueAt(playerObj, entry.x, entry.y, entry.z,
-            ISBUConnect:new(playerObj, "outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite))
+    end
+    if #keys > 0 then Sync.send(self.playerObj, "register", { panel = self.panel.id, keys = keys, on = true }) end
+end
+
+-- The units in reach that are not wired (Units.canConnect to this box), as rows to register them.
+function ISBUPanelWindow:unitCandidateRows(utility, add)
+    local panel, first = self.panel, true
+    for _, unit in pairs(Store.units() or {}) do
+        if not unit.panel and Units.utility(unit) == utility and Units.canConnect(unit, panel) then
+            if first then
+                add({ kind = "header", text = getText("IGUI_BU_UnitCandidates") })
+                first = false
+            end
+            local registered = BU.isRegistered(panel, "unit", nil, unit.id)
+            add({ kind = "unitCandidate", unit = unit, text = getText("IGUI_BU_PanelChoice", Units.name(unit), Panels.where(panel, unit.x, unit.y)),
+                registered = registered, right = registered and getText("IGUI_BU_Registered") or nil },
+                getText(registered and "IGUI_BU_RegisteredTip" or "IGUI_BU_RegisterTip"))
+        end
     end
 end
 
@@ -1120,10 +1156,7 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
     elseif row.kind == "producer" then
         for _, button in ipairs(Ui.producerButtons(width, row)) do
             if x >= button.x and x <= button.x + button.w then
-                if button.name == "Remove" then
-                    BU.ContextMenu.queueAt(playerObj, row.at.x, row.at.y, row.at.z,
-                        ISBUDisconnect:new(playerObj, "producer", panel, utility, row.at.x, row.at.y, row.at.z))
-                elseif button.name == "Group" then
+                if button.name == "Group" then
                     self:producerGroupMenu(row)
                 else
                     Sync.send(playerObj, "moveProducer", { panel = panel.id, utility = utility, index = row.index,
@@ -1137,7 +1170,9 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
         local target = Store.get(row.target)
         if target then self:switchTo(target) end
     elseif row.kind == "all" then
-        Sync.send(playerObj, "setAllInside", { panel = panel.id, utility = utility, on = row.state ~= "on" })
+        self:registerInside(utility, nil, row.state ~= "on")
+    elseif row.kind == "unitCandidate" then
+        Sync.send(playerObj, "register", { panel = panel.id, keys = { BU.registerKey("unit", nil, row.unit.id) }, on = not row.registered })
     elseif row.kind == "blackout" then
         Sync.send(playerObj, "setBlackout", { panel = panel.id, on = row.state ~= "on" })
     elseif row.kind == "mainSwitch" then
@@ -1160,7 +1195,7 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
         self:setChoosing(utility, not row.choosing)
     elseif row.kind == "room" then
         if row.state and x >= ROOM_TICK_X and x <= ROOM_TICK_X + ROW then
-            Sync.send(playerObj, "setRoomInside", { panel = panel.id, utility = utility, room = row.id, on = row.state ~= "on" })
+            self:registerInside(utility, row.id, row.state ~= "on")
         else
             PanelWindow.folded[row.foldKey] = (not row.folded) or nil
             self:refill(utility)

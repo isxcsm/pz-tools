@@ -1,5 +1,6 @@
--- Timed actions: putting a box or a unit down and taking it up, laying and taking away lines, upgrading a box,
--- throwing its main switch, brushing snow off a solar panel, replacing a filter's media, reconditioning a battery.
+-- Timed actions: putting a box down, laying and taking away lines, upgrading a box, throwing its main switch,
+-- brushing snow off a solar panel, replacing a filter's media, reconditioning a battery. A device, a unit or a
+-- producer is wired in and out at itself, with the tool of its utility in hand (Actions.work).
 -- Each names panels and squares, not objects, and checks again as it completes, where the world is decided
 -- (BU.Changes).
 require "TimedActions/ISBaseTimedAction"
@@ -47,9 +48,34 @@ function Actions.lineCost(kind, panel, utility, x, y, z, extra)
         if not unit then return nil, "noUnit" end
         local ok, reason = Units.canConnect(unit, panel)
         if not ok then return nil, reason end
+        -- one inside the box's building takes no line
+        if Actions.inBuilding(panel, x, y, z) then return Costs.tool(Units.utility(unit)), unit end
         return Costs.producer(Units.utility(unit), Panels.wire(panel, x, y, z)), unit
+    elseif kind == "inside" then
+        local device = Panels.device(panel, utility, extra)
+        if not device or not device.inside then return nil, "noDevice" end
+        if device.state == "other" then return nil, "connectedElsewhere" end
+        if device.state == "on" then return nil, "connected" end
+        return Costs.tool(utility), device
     end
     return nil, "noPanel"
+end
+
+-- Whether a square is in the box's building.
+function Actions.inBuilding(panel, x, y, z)
+    local building, own = Panels.buildingAt(x, y, z), Panels.building(panel)
+    return building ~= nil and own ~= nil and building.key == own.key
+end
+
+-- What wiring a device or a unit out takes: the tool of its utility.
+function Actions.workCost(utility) return Costs.tool(utility) end
+
+-- The work at a device: facing it, the tool of its utility in hand (a screwdriver, a pipe wrench).
+function Actions.work(action, utility)
+    action:setActionAnim("VehicleWorkOnMid")
+    local tag = ItemTag[utility == "water" and "PIPE_WRENCH" or "SCREWDRIVER"]
+    local tool = tag and action.character:getInventory():getFirstTagRecurse(tag)
+    if tool then action:setOverrideHandModels(tool, nil) end
 end
 
 -- What the line of a device outside costs, from the device as Panels.devices gives it (a menu or a window that has
@@ -121,31 +147,6 @@ function ISBUInstallPanel:new(character, square, item)
     return o
 end
 
--- Taking a box down: the box back, and a share of what its lines took.
-ISBURemovePanel = base("ISBURemovePanel", 200)
-
-function ISBURemovePanel:isValid()
-    local panel = Store.get(self.panelId)
-    return panel ~= nil and Panels.object(panel) ~= nil
-end
-
-function ISBURemovePanel:complete()
-    local panel = Store.get(self.panelId)
-    if not panel then return false end
-    local paid = Changes.paidFor(panel)
-    Changes.remove(panel)
-    Costs.refund(self.character, paid)
-    giveItem(self.character, BU.PANEL_ITEM)
-    return true
-end
-
-function ISBURemovePanel:new(character, panel)
-    local o = ISBaseTimedAction.new(self, character)
-    o.panelId, o.x, o.y = panel.id, panel.x, panel.y
-    o.maxTime = o:getDuration()
-    return o
-end
-
 -- Laying a line: a producer, an outside device or a sub-panel's link (see Actions.lineCost). The cost is worked out
 -- as the action is made; each tick only checks that nothing took the place meanwhile, and complete checks it all.
 ISBUConnect = base("ISBUConnect")
@@ -154,11 +155,22 @@ function ISBUConnect:cost()
     return Actions.lineCost(self.kind, Store.get(self.panelId), self.utility, self.x, self.y, self.z, self.extra)
 end
 
+-- The key a device or a unit is registered by at the box (nil for a producer or a link, which are not).
+function ISBUConnect:registerKey()
+    if self.kind == "outside" then return BU.registerKey("outside", self.utility, BU.thingKey(self.x, self.y, self.z, self.extra)) end
+    if self.kind == "inside" then return BU.registerKey("inside", self.utility, self.extra) end
+    if self.kind == "unit" then return BU.registerKey("unit", nil, self.extra) end
+    return nil
+end
+
 function ISBUConnect:isValid()
     local panel = Store.get(self.panelId)
     if not panel or not self.costNow or not Costs.affords(self.character, self.costNow) then return false end
+    local key = self:registerKey()
+    if key and not (panel.registered and panel.registered[key]) then return false end
     if self.kind == "producer" then return Store.producerOwner(self.x, self.y, self.z) == nil end
     if self.kind == "outside" then return Store.inclusionOwner(self.utility, BU.thingKey(self.x, self.y, self.z, self.extra)) == nil end
+    if self.kind == "inside" then return true end
     if self.kind == "unit" then
         local unit = Store.unit(self.extra)
         return unit ~= nil and unit.panel == nil
@@ -166,13 +178,26 @@ function ISBUConnect:isValid()
     return panel.parent == nil and Store.get(self.extra) ~= nil
 end
 
+function ISBUConnect:start()
+    if self.kind == "link" then
+        self:setActionAnim("Loot")
+        self.character:SetVariable("LootPosition", "Low")
+    else
+        Actions.work(self, self.utility)
+    end
+end
+
 function ISBUConnect:complete()
     local panel = Store.get(self.panelId)
     local cost, other = self:cost()
     if not cost or not Costs.affords(self.character, cost) then return false end
+    local key = self:registerKey()
+    if key and not (panel.registered and panel.registered[key]) then return false end
     local paid = Costs.take(self.character, cost)
+    if key then Changes.unregister(panel, key) end
     if self.kind == "producer" then Changes.connectProducer(panel, self.utility, self.x, self.y, self.z, paid)
     elseif self.kind == "outside" then Changes.includeOutside(panel, self.utility, other, paid)
+    elseif self.kind == "inside" then Changes.setInside(panel, self.utility, other, true)
     elseif self.kind == "unit" then Changes.connectUnit(other, panel, paid)
     else Changes.link(panel, other, paid) end
     -- Wiring teaches; plumbing has no skill of its own. Two for each piece of wire the line takes.
@@ -180,7 +205,10 @@ function ISBUConnect:complete()
     return true
 end
 
-function ISBUConnect:getDuration() return lineDuration(self.character, self.steps) end
+function ISBUConnect:getDuration()
+    if self.kind == "inside" then return lineDuration(self.character, 0) end
+    return lineDuration(self.character, self.steps)
+end
 
 function ISBUConnect:new(character, kind, panel, utility, x, y, z, extra)
     local o = ISBaseTimedAction.new(self, character)
@@ -191,8 +219,9 @@ function ISBUConnect:new(character, kind, panel, utility, x, y, z, extra)
     return o
 end
 
--- Taking a line away, with a share of what it took back.
-ISBUDisconnect = base("ISBUDisconnect", 80)
+-- Taking a line away, with a share of what it took back; a device of the building wired out at itself. With the tool
+-- of its utility, at once (no mark at the box first).
+ISBUDisconnect = base("ISBUDisconnect", 120)
 
 function ISBUDisconnect:connected()
     local panel = Store.get(self.panelId)
@@ -203,6 +232,9 @@ function ISBUDisconnect:connected()
     elseif self.kind == "outside" then
         local device = Panels.device(panel, self.utility, BU.thingKey(self.x, self.y, self.z, self.extra))
         return device ~= nil and not device.inside and device.state == "on"
+    elseif self.kind == "inside" then
+        local device = Panels.device(panel, self.utility, self.extra)
+        return device ~= nil and device.inside and device.state == "on"
     elseif self.kind == "unit" then
         local unit = Store.unit(self.extra)
         return unit ~= nil and unit.panel == panel.id
@@ -210,7 +242,19 @@ function ISBUDisconnect:connected()
     return panel.parent ~= nil
 end
 
-function ISBUDisconnect:isValid() return self:connected() end
+function ISBUDisconnect:isValid()
+    if self.kind ~= "link" and not Costs.affords(self.character, Actions.workCost(self.utility)) then return false end
+    return self:connected()
+end
+
+function ISBUDisconnect:start()
+    if self.kind == "link" then
+        self:setActionAnim("Loot")
+        self.character:SetVariable("LootPosition", "Low")
+    else
+        Actions.work(self, self.utility)
+    end
+end
 
 function ISBUDisconnect:complete()
     if not self:connected() then return false end
@@ -219,6 +263,8 @@ function ISBUDisconnect:complete()
     if self.kind == "producer" then paid = Changes.disconnectProducer(panel, self.utility, self.x, self.y, self.z)
     elseif self.kind == "outside" then
         paid = Changes.excludeOutside(panel, self.utility, Panels.device(panel, self.utility, BU.thingKey(self.x, self.y, self.z, self.extra)))
+    elseif self.kind == "inside" then
+        Changes.setInside(panel, self.utility, Panels.device(panel, self.utility, self.extra), false)
     elseif self.kind == "unit" then paid = Changes.disconnectUnit(Store.unit(self.extra))
     else paid = Changes.unlink(panel) end
     Costs.refund(self.character, paid)
@@ -307,30 +353,6 @@ function ISBUInstallUnit:new(character, kind, square, item)
     local o = ISBaseTimedAction.new(self, character)
     o.kind, o.square, o.item = kind, square, item
     o.x, o.y = square:getX(), square:getY()
-    o.maxTime = o:getDuration()
-    return o
-end
-
--- Taking a unit down: the unit back, and a share of what its line took. A rack is emptied first.
-ISBURemoveUnit = base("ISBURemoveUnit", 200)
-
-function ISBURemoveUnit:isValid()
-    local unit = Store.unit(self.unitId)
-    return unit ~= nil and Units.isEmpty(unit) and Units.object(unit) ~= nil
-end
-
-function ISBURemoveUnit:complete()
-    local unit = Store.unit(self.unitId)
-    if not unit or not Units.isEmpty(unit) then return false end
-    local kind = unit.kind
-    Costs.refund(self.character, Changes.removeUnit(unit))
-    giveItem(self.character, Units.definition(kind).item)
-    return true
-end
-
-function ISBURemoveUnit:new(character, unit)
-    local o = ISBaseTimedAction.new(self, character)
-    o.unitId, o.x, o.y = unit.id, unit.x, unit.y
     o.maxTime = o:getDuration()
     return o
 end

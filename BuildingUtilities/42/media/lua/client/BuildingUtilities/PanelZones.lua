@@ -288,10 +288,9 @@ function ISBUPanelWindow:roomMenu(id)
     local playerObj = self.playerObj
     local menu = ISContextMenu.get(playerObj:getPlayerNum(), getMouseX(), getMouseY())
     menu:addOption(totals and totals.title or (self.titles[id] or ""), nil, nil).notAvailable = true
-    if totals and totals.count > 0 then
-        local send = function(on) Sync.send(playerObj, "setRoomInside", { panel = self.panel.id, utility = utility, room = id, on = on }) end
-        if totals.on < totals.count then menu:addOption(getText("IGUI_BU_Menu_RoomOn"), true, send) end
-        if totals.on > 0 then menu:addOption(getText("IGUI_BU_Menu_RoomOff"), false, send) end
+    -- the room's devices not connected registered, to be connected each at itself
+    if totals and totals.on < totals.count then
+        menu:addOption(getText("IGUI_BU_Menu_RoomOn"), self, function(window) window:registerInside(utility, id, true) end)
     end
     if self.roomFilter == id then
         menu:addOption(getText("IGUI_BU_Menu_AllRooms"), self, ISBUPanelWindow.filterRoom, nil)

@@ -41,6 +41,10 @@ end
 -- The objects a row stands for: a device's, or what is on a producer's square.
 local function rowObjects(row)
     if row.device then return deviceObjects(row.device) end
+    if row.unit then
+        local object = BU.Units.object(row.unit)
+        return object and { object } or {}
+    end
     if row.at then
         local square = getCell():getGridSquare(row.at.x, row.at.y, row.at.z)
         local _, object = Panels.producerOn(square)

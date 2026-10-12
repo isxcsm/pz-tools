@@ -792,7 +792,7 @@ end
 function Panels.deviceOf(object, utility, cache)
     local square = object:getSquare()
     if not square then return nil end
-    local sprite = object:getSprite() and object:getSprite():getName()
+    local sprite = BU.objectName(object)
     if not sprite then return nil end
     local x, y, z = square:getX(), square:getY(), square:getZ()
     local key = BU.thingKey(x, y, z, sprite)

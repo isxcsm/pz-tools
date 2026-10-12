@@ -1,16 +1,10 @@
 {
     "ContextMenu_BU_Install": "설비 제어반 설치",
-    "ContextMenu_BU_Open": "열기",
-    "ContextMenu_BU_Remove": "떼어내기",
     "ContextMenu_BU_ResetBreaker": "차단기 올리기",
-    "ContextMenu_BU_SwitchOff": "전원 끄기",
-    "ContextMenu_BU_SwitchOn": "전원 켜기",
-    "ContextMenu_BU_UseSource": "태양광으로 전환",
     "ContextMenu_BU_Upgrade": "%1단계로 업그레이드",
     "ContextMenu_BU_ConnectTo": "제어반에 연결",
-    "ContextMenu_BU_DisconnectFrom": "%1에서 연결 해제",
+    "ContextMenu_BU_ConnectToPanel": "%1에 연결 (%2)",
     "ContextMenu_BU_DeviceOn": "%1을(를) %3에 연결 (%2)",
-    "ContextMenu_BU_DeviceOff": "%1을(를) %3에서 해제 (%2)",
     "ContextMenu_BU_Utility_power": "전기",
     "ContextMenu_BU_Utility_water": "물",
     "ContextMenu_BU_Install_solar": "태양광 패널 설치",
@@ -21,5 +15,7 @@
     "ContextMenu_BU_Install_sprinkler": "스프링클러 설치",
     "ContextMenu_BU_Install_filter": "정수 필터 설치",
     "ContextMenu_BU_ReplaceMedia": "필터 매체 교체",
-    "ContextMenu_BU_Install_booster": "가압 펌프 설치"
+    "ContextMenu_BU_Install_booster": "가압 펌프 설치",
+    "ContextMenu_BU_DisconnectFrom": "%1에서 연결 해제",
+    "ContextMenu_BU_DeviceOff": "%1을(를) %3에서 해제 (%2)"
 }

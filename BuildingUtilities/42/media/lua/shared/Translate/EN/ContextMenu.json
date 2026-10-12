@@ -1,16 +1,10 @@
 {
     "ContextMenu_BU_Install": "Install Utility Panel",
-    "ContextMenu_BU_Open": "Open",
-    "ContextMenu_BU_Remove": "Take Down",
     "ContextMenu_BU_ResetBreaker": "Reset Breaker",
-    "ContextMenu_BU_SwitchOff": "Switch Power Off",
-    "ContextMenu_BU_SwitchOn": "Switch Power On",
-    "ContextMenu_BU_UseSource": "Switch to Solar",
     "ContextMenu_BU_Upgrade": "Upgrade to Tier %1",
     "ContextMenu_BU_ConnectTo": "Connect to Utility Panel",
-    "ContextMenu_BU_DisconnectFrom": "Disconnect from %1",
+    "ContextMenu_BU_ConnectToPanel": "Connect to %1 (%2)",
     "ContextMenu_BU_DeviceOn": "Connect %1 to %3 (%2)",
-    "ContextMenu_BU_DeviceOff": "Disconnect %1 from %3 (%2)",
     "ContextMenu_BU_Utility_power": "power",
     "ContextMenu_BU_Utility_water": "water",
     "ContextMenu_BU_Install_solar": "Install Solar Panel",
@@ -21,5 +15,7 @@
     "ContextMenu_BU_Install_sprinkler": "Install Sprinkler",
     "ContextMenu_BU_Install_filter": "Install Water Filter",
     "ContextMenu_BU_ReplaceMedia": "Replace Filter Media",
-    "ContextMenu_BU_Install_booster": "Install Booster Pump"
+    "ContextMenu_BU_Install_booster": "Install Booster Pump",
+    "ContextMenu_BU_DisconnectFrom": "Disconnect from %1",
+    "ContextMenu_BU_DeviceOff": "Disconnect %1 from %3 (%2)"
 }

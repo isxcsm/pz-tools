@@ -182,7 +182,7 @@ function ISBUPanelWindow:waterUnitRows(add)
     end
 end
 
--- A click on a water unit's row: its group, or its line taken away.
+-- A click on a water unit's row: its group (its line is taken away at the unit).
 function ISBUPanelWindow:onWaterUnitRow(row, x, width)
     local unit = row.unit
     for _, button in ipairs(Ui.producerButtons(width, row)) do
@@ -191,9 +191,6 @@ function ISBUPanelWindow:onWaterUnitRow(row, x, width)
                 self:groupMenu(row.group, function(id)
                     Sync.send(self.playerObj, "setUnitGroup", { panel = self.panel.id, unit = unit.id, group = id })
                 end)
-            else
-                BU.ContextMenu.queueAt(self.playerObj, unit.x, unit.y, unit.z,
-                    ISBUDisconnect:new(self.playerObj, "unit", self.panel, "water", unit.x, unit.y, unit.z, unit.id))
             end
         end
     end

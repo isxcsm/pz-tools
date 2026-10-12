@@ -1,4 +1,5 @@
--- The breaker box window: devices outside chosen several at a time and connected in one walk.
+-- The breaker box window: devices outside chosen several at a time and registered together; each is then connected
+-- at itself (its world menu), what the chosen ones take told before.
 require "BuildingUtilities/PanelWindow"
 local BU = BuildingUtilities
 local Costs, Actions = BU.Costs, BU.Actions
@@ -51,31 +52,13 @@ function ISBUPanelWindow:chooseAll(utility, on)
     self:updatePlan()
 end
 
--- The chosen devices connected: the player walks to each in turn, the nearest next, laying its line there.
+-- The chosen devices registered at the box, to be connected each at itself.
 function ISBUPanelWindow:connectChosen(utility)
-    local playerObj, panel = self.playerObj, self.panel
-    local count, cost = self:chosenCost(utility)
-    if count == 0 then return end
-    if not Costs.affords(playerObj, cost) then
-        HaloTextHelper.addBadText(playerObj, getText("IGUI_BU_Reason_cantAfford"))
-        return
-    end
-    local left = {}
+    local keys = {}
     for _, device in ipairs(self.views[utility].devices) do
-        if self.chosen[utility][device.key] then left[#left + 1] = device end
+        if self.chosen[utility][device.key] then keys[#keys + 1] = BU.registerKey("outside", utility, device.key) end
     end
-    local x, y = playerObj:getX(), playerObj:getY()
-    while #left > 0 do
-        local best, bestDistance
-        for index, device in ipairs(left) do
-            local dx, dy = device.entry.x - x, device.entry.y - y
-            local distance = dx * dx + dy * dy
-            if not bestDistance or distance < bestDistance then best, bestDistance = index, distance end
-        end
-        local entry = table.remove(left, best).entry
-        BU.ContextMenu.queueAt(playerObj, entry.x, entry.y, entry.z,
-            ISBUConnect:new(playerObj, "outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite))
-        x, y = entry.x, entry.y
-    end
+    if #keys == 0 then return end
+    BU.Sync.send(self.playerObj, "register", { panel = self.panel.id, keys = keys, on = true })
     self:setChoosing(utility, false)
 end
