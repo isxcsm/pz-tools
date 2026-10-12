@@ -487,6 +487,7 @@ local function gameClasses()
     function E:getMouseX() return 0 end
     function E:getMouseY() return 0 end
     function E:isMouseOver() return false end
+    function E:setAlwaysOnTop(v) self.alwaysOnTop = v end
     function E:setVisible(v) self.visible = v end
     function E:getIsVisible() return self.visible end
     function E:setAnchorRight(v) self.anchorRight = v end
@@ -781,8 +782,43 @@ test("the bags are looked through for parts only when a part's button is pressed
     eq(#picker.entries, 2, "the two blades that fit, not the motor")
     eq(picker.entries[1].item:getType(), "CutBladeModern", "the best first")
     truthy(picker.y >= 0 and picker.y + picker.height <= UI.dp(720), "inside the screen")
+    truthy(picker.alwaysOnTop, "over the window, which the click brings to the front")
     picker:onMouseDownOutside()
     eq(window.picker, nil)
+end)
+
+test("the window steps aside while its part action is under way, back after it or under a moving mouse", function()
+    local now = 1
+    _G.getTimestampMs = function() return now end
+    local mx, my = 100, 100
+    local saved = { getMouseX, getMouseY, ISTimedActionQueue, luautils, Machines.nearSquare }
+    _G.getMouseX = function() return mx end
+    _G.getMouseY = function() return my end
+    local queued = {}
+    _G.ISTimedActionQueue = { add = function(a) queued[a] = true end, hasAction = function(a) return queued[a] == true end }
+    _G.luautils = { walkAdj = function() return true end }
+    Machines.nearSquare = function()
+        return { getX = function() return 1 end, getY = function() return 1 end, getZ = function() return 0 end }
+    end
+    local _, window = openWindow(16)
+    window.isMouseOver = function() return true end
+    _G.ISOAMachinePartOut = { new = function() return {} end }
+    local function frames(n) for _ = 1, n do now = now + 100; window:stepAside(now) end end
+    window:doRemove("blade")
+    frames(5)
+    eq(window.fade, OAMachineWindow.ASIDE, "thin, though the mouse rests on the button it pressed")
+    mx = 140
+    frames(3)
+    eq(window.fade, 1, "back under a moving mouse")
+    window.isMouseOver = function() return false end
+    frames(5)
+    eq(window.fade, OAMachineWindow.ASIDE)
+    queued = {}
+    frames(5)
+    eq(window.fade, 1, "back when the action is done")
+    eq(window.busy, nil)
+    _G.getMouseX, _G.getMouseY, _G.ISTimedActionQueue, _G.luautils, Machines.nearSquare =
+        saved[1], saved[2], saved[3], saved[4], saved[5]
 end)
 
 -- With the extension API's UI fonts the window follows the screen (Trade/UI.lua): it keeps to nine tenths of the

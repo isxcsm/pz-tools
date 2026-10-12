@@ -50,6 +50,12 @@ function OAMachineWindow.within(px, py, x, y, w, h, reach)
     return dx * dx + dy * dy <= reach * reach
 end
 
+-- While the character walks to the machine and puts a part in or takes one out, the window (in the middle of the
+-- screen, over the character) steps aside: its body thins to this much, so the action shows through it; the mouse
+-- over it brings it back. FADE_MS: the time a full change takes.
+OAMachineWindow.ASIDE = 0.15
+OAMachineWindow.FADE_MS = 200
+
 -- The most of the screen's height the window takes; a wheel step of a body that scrolls, and its bar's width.
 OAMachineWindow.SCREEN_SHARE = 0.9
 OAMachineWindow.WHEEL = 36
@@ -95,14 +101,15 @@ function OAMachineBody:setScroll(v)
 end
 
 function OAMachineBody:prerender()
-    if self.scroll == 0 and self:maxScroll() == 0 then return Draw.paint(self, self.list) end
+    local fade = self.window.fade
+    if self.scroll == 0 and self:maxScroll() == 0 then return Draw.paint(self, self.list, 0, fade) end
     self:setStencilRect(0, 0, self.width, self.height)
-    Draw.paint(self, self.list, -UI.px(self.scroll))
+    Draw.paint(self, self.list, -UI.px(self.scroll), fade)
     UI.unclip(self, 0, 0, self.width, self.height)
     -- where the part on show is: a thin bar on the right
     local p, h = self.window.palette, self.height
     local ty, th = UI.thumb(h, self.contentH, self.scroll, self:maxScroll(), 16)
-    UI.fill(self, self.width - OAMachineWindow.BAR - 1, ty, OAMachineWindow.BAR, th, p.border, 0.9)
+    UI.fill(self, self.width - OAMachineWindow.BAR - 1, ty, OAMachineWindow.BAR, th, p.border, 0.9 * fade)
 end
 
 function OAMachineBody:render()
@@ -242,12 +249,30 @@ function OAMachineWindow:update()
         self:refresh()
         self:askWork(now)
     end
+    self:stepAside(now)
+end
+
+-- The window thins while its action is queued or under way (OAMachineWindow.ASIDE) and comes back after it, or at
+-- once when the mouse moves over it (not while it rests where it pressed the button).
+function OAMachineWindow:stepAside(now)
+    if self.busy and not ISTimedActionQueue.hasAction(self.busy) then self.busy = nil end
+    local still = self.busyMouse
+    if still and (math.abs(getMouseX() - still[1]) > 6 or math.abs(getMouseY() - still[2]) > 6) then
+        self.busyMouse = nil
+    end
+    local back = not self.busyMouse and self:isMouseOver()
+    local want = (self.busy and not back and not self.picker) and OAMachineWindow.ASIDE or 1
+    local last = self.fadeAt or now
+    self.fadeAt = now
+    if self.fade == want then return end
+    local step = (now - last) / OAMachineWindow.FADE_MS
+    if self.fade < want then self.fade = math.min(want, self.fade + step) else self.fade = math.max(want, self.fade - step) end
 end
 
 function OAMachineWindow:prerender()
     local p = self.palette
     local th = self:titleBarHeight()
-    UI.fill(self, 0, 0, self.width, self.height, p.bg, p.bgAlpha)
+    UI.fill(self, 0, th, self.width, self.height - th, p.bg, p.bgAlpha * self.fade)
     UI.fill(self, 0, 0, self.width, th, p.title)
     UI.windowTitle(self, self.title, p.text)
     UI.fill(self, 0, th - 1, self.width, 1, p.border)
@@ -266,7 +291,7 @@ function OAMachineWindow:render()
             UI.fill(self, 0, th, self.width, self.height - th, { 0, 0, 0 }, 1 - t)
         end
     end
-    UI.frame(self, 0, 0, self.width, self.height, self.palette.border)
+    UI.frame(self, 0, 0, self.width, self.height, self.palette.border, self.fade)
 end
 
 function OAMachineWindow:close()
@@ -278,9 +303,13 @@ end
 
 -- The buttons -----------------------------------------------------------------------------------------------------------
 
--- Walks next to a square, then does the action.
+-- Walks next to a square, then does the action. Returns the action when it was queued, and where the mouse is.
 local function queueAt(character, square, action)
-    if square and luautils.walkAdj(character, square, true) then ISTimedActionQueue.add(action) end
+    if square and luautils.walkAdj(character, square, true) then
+        ISTimedActionQueue.add(action)
+        return action, { getMouseX(), getMouseY() }
+    end
+    return nil
 end
 
 function OAMachineWindow:onHit(hit)
@@ -378,6 +407,8 @@ function OAMachineWindow:openPicker(hit)
     picker.x, picker.y = x, y
     picker:initialise()
     picker:addToUIManager()
+    -- over the window: the click that opened it brings the window to the front once it is handled
+    picker:setAlwaysOnTop(true)
     picker:setVisible(true)
     self.picker = picker
 end
@@ -387,14 +418,14 @@ function OAMachineWindow:doInstall(slot, item)
     local square = Machines.nearSquare(self.object, self.character)
     if not square then return end
     ISInventoryPaneContextMenu.transferIfNeeded(self.character, item)
-    queueAt(self.character, square,
+    self.busy, self.busyMouse = queueAt(self.character, square,
         ISOAMachinePartIn:new(self.character, self.machineId, square:getX(), square:getY(), square:getZ(), slot, item))
 end
 
 function OAMachineWindow:doRemove(slot)
     local square = Machines.nearSquare(self.object, self.character)
     if not square then return end
-    queueAt(self.character, square,
+    self.busy, self.busyMouse = queueAt(self.character, square,
         ISOAMachinePartOut:new(self.character, self.machineId, square:getX(), square:getY(), square:getZ(), slot))
 end
 
@@ -418,6 +449,7 @@ function OAMachineWindow:new(x, y, character, object)
     o.title = Machines.name(state.kind)
     o:setResizable(false)
     o.fading = true
+    o.fade = 1
     return o
 end
 
