@@ -194,14 +194,15 @@ def oil_refiner(turns, look):
            bands=[(0, 0.1, GRAPHITE), (0.1, 0.9, GRAPHITE_LIGHT), (0.9, 1, GRAPHITE)])
     s.tube((hx, hy, 0.75), (hx, hy, 0.82), 0.05, STEEL_DARK, segments=12)
     pipe(s, [(1.0, hy - 0.1, 0.75), (1.0, 0.95, 0.75), (1.34, 0.95, 0.75)], 0.018)
-    # the row of drums at the front, draw-off pipes over them
+    # the row of drums at the front, draw-off pipes over them: painted steel, a worn blue-grey (black they read as holes)
+    DRUM, DRUM_RIB, DRUM_HOLE = (70, 78, 86), (52, 58, 64), (30, 32, 34)
     for i, dx in enumerate((0.40, 0.78, 1.16, 1.54)):
         dy = 1.62
-        s.tube((dx, dy, 0.08), (dx, dy, 0.58), 0.15, (32, 34, 36), cap=(22, 24, 26), segments=26, shine=0.35,
-               bands=[(0, 0.07, (24, 26, 28)), (0.07, 0.33, (34, 36, 38)), (0.33, 0.37, (24, 26, 28)), (0.37, 0.63, (34, 36, 38)),
-                      (0.63, 0.67, (24, 26, 28)), (0.67, 0.93, (34, 36, 38)), (0.93, 1, (24, 26, 28))])
+        s.tube((dx, dy, 0.08), (dx, dy, 0.58), 0.15, DRUM, cap=DRUM_RIB, segments=26, shine=0.35,
+               bands=[(0, 0.07, DRUM_RIB), (0.07, 0.33, DRUM), (0.33, 0.37, DRUM_RIB), (0.37, 0.63, DRUM),
+                      (0.63, 0.67, DRUM_RIB), (0.67, 0.93, DRUM), (0.93, 1, DRUM_RIB)])
         if i in (0, 1) or running:
-            disc(s, (dx, dy), 0.12, 0.581, (60, 40, 14) if running and i < 3 else (12, 12, 12), segments=22, shine=0.7)
+            disc(s, (dx, dy), 0.12, 0.581, (60, 40, 14) if running and i < 3 else DRUM_HOLE, segments=22, shine=0.7)
     pipe(s, [(1.34, 1.05, 1.0), (1.34, 1.05, 1.12)], 0.02)
     for i, dx in enumerate((0.40, 0.78, 1.16, 1.54)):
         if i < 3:
