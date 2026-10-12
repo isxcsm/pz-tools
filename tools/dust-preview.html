@@ -60,7 +60,7 @@ const P = {
   GLOW: 0.45, COOL: 0.4, BURN_ASH: 0.3, SCORCH_END: 0.4, GLOW_PEAK: 0.62, GLOW_END: 0.85, SPARKS: 0.25, CHAR_ASH: 0.45,
   SCORCH_R: 0.34, SCORCH_G: 0.18, SCORCH_B: 0.1, CHAR_R: 0.07, CHAR_G: 0.055, CHAR_B: 0.05, FLICKER: 9, FLICKER_DEPTH: 0.3,
   // paper (a new way: the text burns spot by spot, its ash shards tumbling)
-  IMPACT_COOL: 4, IMPACT_GLOW: 1, IMPACT_STREAK: 0.8, IMPACT_DUST: 1, SHINE_AT: 0.8, SHINE: 0.45, TRACK: 0.07, TRACK_BLUR: 0.6, TRACK_RISE: 0.05, TRACK_STAGGER: 0.12,
+  IMPACT_COOL: 4, IMPACT_GLOW: 1, IMPACT_STREAK: 0.8, IMPACT_DUST: 1, SHINE_AT: 0.8, SHINE: 0.45, ERODE_GRAIN: 9, ERODE_DRAIN: 0.8, TRACK: 0.07, TRACK_BLUR: 0.6, TRACK_RISE: 0.05, TRACK_STAGGER: 0.12,
   zoom: 2, FRONT: 0.52, SPREAD: 0.07, EDGE_W: 0.012, CHAR_W: 0.02, SCORCH_W: 0.07, RAGGED: 0.03, CURL: 0.6,
   FLAKES: 0.5, FLAKE_SIZE: 1.1, SPIN: 7, GREYING: 0.35, PAPER_ASH: 0.55,
 };
@@ -80,9 +80,9 @@ const STYLES = {
   "stamp": { label: "stamp (게임 현재)", y: 0.28, gap: 0.25, trail: 0, backdrop: 0.3,
     title: { weight: 700, size: 0.1, color: [1, 1, 1], outline: 0.45, enter: "slam", enterTime: 0.22, leave: "grow", leaveTime: 0.7 },
     line: { weight: 400, size: 0.045, color: [0.88, 0.88, 0.88], delay: 0.2, enter: "fade", enterTime: 0.35, leave: "fade", leaveTime: 0.7 } },
-  "stamp-new": { label: "stamp 새안: 각인", y: 0.28, gap: 0.25, trail: 0.12, backdrop: 0.3,
-    title: { weight: 700, size: 0.1, color: [0.9, 0.89, 0.86], outline: 0.45, enter: "impact", enterTime: 0.6, leave: "trackout", leaveTime: 2.4 },
-    line: { weight: 400, size: 0.045, color: [0.9, 0.9, 0.88], delay: 0.45, enter: "slideup", enterTime: 0.5, leave: "trackout", leaveTime: 2.2 } },
+  "stamp-new": { label: "stamp 새안: 각인", y: 0.28, gap: 0.25, trail: 0.4, backdrop: 0.3,
+    title: { weight: 700, size: 0.1, color: [0.9, 0.89, 0.86], outline: 0.45, enter: "impact", enterTime: 0.6, leave: "erode", leaveTime: 6 },
+    line: { weight: 400, size: 0.045, color: [0.9, 0.9, 0.88], delay: 0.45, enter: "slideup", enterTime: 0.5, leave: "erode", leaveTime: 5.6 } },
   "discovery": { label: "discovery (게임 현재)", y: 0.28, gap: 0.3, trail: 0, backdrop: 0.3,
     title: { weight: 700, italic: true, size: 0.08, color: [1, 0.8, 0.38], enter: "rise", enterTime: 0.6, leave: "rise", leaveTime: 0.9 },
     line: { weight: 400, size: 0.042, color: [1, 0.93, 0.78], delay: 0.25, enter: "rise", enterTime: 0.6, leave: "rise", leaveTime: 0.9 } },
@@ -136,6 +136,7 @@ function leaveState(kind, o, st) {
     case "shrink": st.a *= 1 - o; st.s *= 1 - 0.5 * o; break;
     case "lift": st.a *= 1 - smooth(o); st.y -= 0.25 * cubicOut(o); st.s *= 1 + 0.05 * o; break;
     case "trackout": st.a *= 1 - smooth(o); break;   // its letters are drawn by drawTrackout
+    case "erode": st.a *= 1 - smooth(o); break;      // drawn by drawErode
   }
   return st;
 }
@@ -259,7 +260,7 @@ void main() { vUv = uv; vCol = col; vAux = aux; vec2 p = (pos - camera.xy) * cam
 // mode 2: a flake of ash, an irregular shard.
 const FS = `precision highp float;
 uniform sampler2D tex; uniform sampler2D burnMap; uniform float mode, progress, edgeW, charW, scorchW, glow, flickerN, flickerD;
-uniform vec3 burn, scorched, charred; uniform vec2 picSize; uniform vec2 inner; uniform vec2 blurR;
+uniform vec3 burn, scorched, charred; uniform vec2 picSize; uniform vec2 inner; uniform vec2 blurR; uniform float grainSize, drainBy;
 varying vec2 vUv; varying vec4 vCol; varying vec3 vAux;
 float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -307,6 +308,26 @@ void main() {
   if (mode < 4.5) {                       // a soft round puff
     float m = 1.0 - smoothstep(0.0, 1.0, length(vAux.xy));
     gl_FragColor = vCol * m * m;
+    return;
+  }
+  if (mode > 7.5) {                       // weathering away: its colour drains, it wears off in pits from its edges, the last of it fades
+    vec4 c = texture2D(tex, vUv);
+    float a = c.a;
+    if (a <= 0.0) discard;
+    vec3 col = c.rgb / a;
+    float cover = 0.0;
+    for (int i = 0; i < 8; i++) { float t = float(i) / 8.0 * 6.2831; cover += texture2D(tex, vUv + vec2(cos(t), sin(t)) * blurR).a; }
+    cover /= 8.0;
+    vec2 px = vUv * picSize;
+    float n = 0.5 * vn(px / grainSize) + 0.3 * vn(px / (grainSize * 0.4)) + 0.2 * vn(px / (grainSize * 0.15));
+    float keep = n * 0.7 + cover * 0.3;
+    float wear = 0.22 + 0.7 * smoothstep(0.08, 0.92, progress);
+    float mask = smoothstep(wear - 0.05, wear + 0.05, keep);
+    float drain = smoothstep(0.0, 0.45, progress) * drainBy;
+    float lum = dot(col, vec3(0.3, 0.55, 0.15));
+    col = mix(col, vec3(lum) * vec3(0.86, 0.8, 0.72) * 0.8, drain);
+    float last = 1.0 - smoothstep(0.7, 1.0, progress);
+    gl_FragColor = vec4(col * a, a) * mask * last * vCol.a;
     return;
   }
   if (mode > 6.5) {                       // the picture blurred: a centre and two rings, weighted as a bell
@@ -558,6 +579,17 @@ function rebuild() {
 }
 const timeline = () => Math.max(...pieces.map(p => p.leaveAt + leaveTimeOf(p.spec))) + 0.4;
 
+// Weathering away, in place: the shader drains its colour and wears it off from its edges in pits.
+function drawErode(p, st, o) {
+  const s = st.s, hw = p.w * s / 2, hh = p.h * s / 2, r = Math.max(1, p.line * 0.03);
+  mode = 8;
+  gl.uniform1f(U("progress"), o); gl.uniform2f(U("picSize"), p.w, p.h); gl.uniform2f(U("blurR"), r / p.w, r / p.h);
+  gl.uniform1f(U("grainSize"), P.ERODE_GRAIN * p.line / 72); gl.uniform1f(U("drainBy"), P.ERODE_DRAIN);
+  quad(p.cx - hw, p.cy - hh, p.cx + hw, p.cy + hh, 0, 0, 1, 1, 1, 1, 1, 1);
+  flush(p.tex);
+  mode = 0;
+}
+
 // Tracking out: the letters drift apart from the middle, softening as if out of focus, rising a little, the outer ones
 // a moment ahead.
 function drawTrackout(p, st, o) {
@@ -740,6 +772,7 @@ function frame(now) {
     }
     const cx = p.cx + st.x, cy = p.cy + st.y * p.line * st.s, hw = p.w * st.s * st.sx / 2, hh = p.h * st.s * st.sy / 2;
     if (p.spec.leave === "trackout" && st.out > 0) drawTrackout(p, st, st.out);
+    else if (p.spec.leave === "erode" && st.out > 0) drawErode(p, st, st.out);
     else if (st.a > 0.002) { quad(cx - hw, cy - hh, cx + hw, cy + hh, 0, 0, 1, 1, st.a, st.a, st.a, st.a); flush(p.tex); }
     if (p.spec.enter === "impact") drawImpact(p, st, st.secs, st.left);
   });
@@ -815,7 +848,9 @@ control("IMPACT_GLOW", "번짐 빛", "range", [0, 3, 0.05]);
 control("IMPACT_STREAK", "가로 섬광", "range", [0, 2, 0.05]);
 control("IMPACT_DUST", "먼지", "range", [0, 3, 0.05]);
 control("SHINE_AT", "광택 시작(초)", "range", [0.2, 3, 0.1]);
-control("TRACK", "퇴장: 자간 벌어짐", "range", [0, 0.8, 0.01]);
+control("ERODE_GRAIN", "퇴장: 풍화 결 크기(px)", "range", [2, 30, 0.5]);
+control("ERODE_DRAIN", "퇴장: 색 바램", "range", [0, 1, 0.01]);
+control("TRACK", "(자간 퇴장) 자간 벌어짐", "range", [0, 0.8, 0.01]);
 control("TRACK_BLUR", "퇴장: 번짐", "range", [0, 3, 0.05]);
 control("TRACK_RISE", "퇴장: 떠오름", "range", [0, 0.6, 0.01]);
 control("TRACK_STAGGER", "퇴장: 바깥 글자 먼저", "range", [0, 0.5, 0.01]);
