@@ -82,7 +82,7 @@ test("a window fading out takes no clicks, stills its elements and is taken away
     now = 1060
     UI.liveFrame()
     window:drawRect(0, 0, 1, 1, 1)
-    truthy(math.abs(window.drawn - 0.4) < 1e-6, "fading")
+    truthy(math.abs(window.drawn - 0.352) < 1e-6, "fading, eased: 1 - smoothstep(0.6)")
     eq(window.removed, nil)
     now = 1100
     UI.liveFrame()
@@ -99,7 +99,7 @@ test("a window closed while it fades in goes from where it was", function()
     now = 1030
     UI.liveFrame()
     UI.fadeOut(window, nil, 100)
-    eq(window.uiFading.ms, 30, "the share it had shown")
+    truthy(math.abs(window.uiFading.ms - 21.6) < 1e-6, "the share it had shown (eased: smoothstep(0.3))")
     now = 1060
     UI.liveFrame()
     eq(window.removed, true)
