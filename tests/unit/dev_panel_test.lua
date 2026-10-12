@@ -1,233 +1,228 @@
--- The developer sub-mod (OperationAcornDev): its debug panel built on fake game widgets, every control driving a
--- function of OperationAcorn.Dev (the panel and tools/pzdev.py run the same code), and the helpers the panel added to
--- Dev with a fake world: the clock held, the mission's scene made without the distance rule.
+-- The developer sub-mod (OperationAcornDev): its "OA" section of the shared debug window (PZExtDev), its pages built
+-- on a fake `ui` with every control driving a function of OperationAcorn.Dev (the panel and tools/pzdev.py run the
+-- same code), and Dev's helpers with a fake world: the mission's scene made without the distance rule.
 isDebugEnabled = function() return true end
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
+require "OperationAcorn/Economy/Categories"
+require "OperationAcorn/Economy/Requests"
 require "OperationAcorn/Story/Missions"
 require "OperationAcorn/Story/Scene"
 require "OperationAcorn/Upgrades/Texts"
 local OA = OperationAcorn
 local Data = OA.Upgrades.Data
 
--- ---------------------------------------------------------------------------------------------------------------------
--- Fake widgets: they keep what they were made with and their children, and can be clicked, ticked, moved and chosen.
-
-local function noop() end
-local function class(parent)
-    local c = {}
-    c.__index = c
-    if parent then setmetatable(c, { __index = parent }) end
-    function c:derive() return class(self) end
-    function c:new(x, y, w, h, ...)
-        local o = setmetatable({ x = x, y = y, width = w, height = h, args = { ... }, children = {}, visible = true }, self)
-        if self.made then self.made(o) end
-        return o
-    end
-    return c
-end
-
-local Widget = class()
-for _, name in ipairs({ "initialise", "setWidth", "setHeight", "setY", "addToUIManager", "bringToTop", "removeFromUIManager",
-    "setWidthToFit", "setValues", "createChildren" }) do
-    Widget[name] = noop
-end
-function Widget:instantiate() self.javaObject = true self:createChildren() end
-function Widget:addChild(child) self.children[#self.children + 1] = child end
-function Widget:setVisible(on) self.visible = on end
-function Widget:getIsVisible() return self.visible end
-function Widget:isVisible() return self.visible ~= false end
-function Widget:getY() return 0 end
-function Widget:getHeight() return 0 end
-function Widget:titleBarHeight() return 16 end
-
-ISPanel = class(Widget)
-ISLabel = class(Widget)
-ISLabel.made = function(o) o.name = o.args[1] end
-function ISLabel:setName(name) self.name = name end
-ISButton = class(Widget)
-ISButton.made = function(o) o.title = o.args[1] end
-function ISButton:click() self.args[3](self.args[2], self) end
-ISTickBox = class(Widget)
-ISTickBox.made = function(o) o.state = false o.options = {} end
-function ISTickBox:addOption(text) self.options[#self.options + 1] = text end
-function ISTickBox:setSelected(_, on) self.state = on end
-function ISTickBox:isSelected() return self.state end
-function ISTickBox:tick(on)
-    self.state = on
-    self.args[3](self.args[2], 1, on)
-end
-ISSliderPanel = class(Widget)
-function ISSliderPanel:setCurrentValue(value) self.value = value end
-function ISSliderPanel:move(value)
-    self.value = value
-    self.args[2](self.args[1], value, self)
-end
-ISComboBox = class(Widget)
-ISComboBox.made = function(o) o.items = {} o.selected = 1 end
-function ISComboBox:addOptionWithData(text, data) self.items[#self.items + 1] = { text = text, data = data } end
-function ISComboBox:getSelectedData() return self.items[self.selected].data end
-function ISComboBox:choose(i)
-    self.selected = i
-    self.args[2](self.args[1], self)
-end
-ISTabPanel = class(Widget)
-ISTabPanel.made = function(o) o.tabHeight = 20 o.views = {} end
-function ISTabPanel:addView(name, view)
-    self.views[#self.views + 1] = { name = name, view = view }
-    self.children[#self.children + 1] = view
-end
-function ISTabPanel:getActiveView() return self.active or self.views[1].view end
-ISCollapsableWindow = class(Widget)
-ISCollapsableWindow.prerender = noop
-
-UIFont = { Small = 1 }
-Keyboard = { KEY_F8 = 66 }
-getTextManager = function()
-    return { getFontHeight = function() return 14 end, MeasureStringX = function(_, _, text) return 7 * #tostring(text) end }
-end
-getCore = function() return { getScreenWidth = function() return 1920 end } end
 local player = { mod = { OA_Id = "p1" } }
 function player:getModData() return self.mod end
 getPlayer = function() return player end
 
-require "OperationAcorn/Dev/Dev"
-local Dev = OA.Dev
+-- The window takes the section; the test builds its pages itself.
+local section
+PZExtDev = { section = function(def) section = def end }
 do
     local real = require
     require = function(file)
-        if string.find(file, "^ISUI/") or string.find(file, "^RadioCom/") then return true end
+        if file == "PZExtDev/Panel" then return true end
         return real(file)
     end
+    require "OperationAcorn/Dev/Dev"
+    require "OperationAcorn/Dev/Features"
     require "OperationAcorn/Dev/Panel"
     require = real
 end
-local Panel = OA.DevPanel
+local Dev = OA.Dev
+local real = {}
+for k, v in pairs(Dev) do real[k] = v end
 
--- every control by walking the window
-local function all(root, kind)
-    local found = {}
-    local function walk(w)
-        for _, child in ipairs(w.children or {}) do
-            if child.visible ~= false then
-                if getmetatable(child) == kind then found[#found + 1] = child end
-                walk(child)
-            end
+-- ---------------------------------------------------------------------------------------------------------------------
+-- A fake `ui`: each control is kept on its page in order, and can be clicked, ticked and chosen.
+
+local function control(page, kind, fields)
+    fields.kind = kind
+    fields.visible = true
+    function fields:setVisible(on) self.visible = on end
+    function fields:setName(name) self.text = name end
+    page.controls[#page.controls + 1] = fields
+    return fields
+end
+
+local ui = { PAD = 10, GAP = 6, W = 600 }
+function ui.row(n) return n * 20 end
+function ui.num(v, decimals) return string.format("%." .. tostring(decimals or 0) .. "f", v or 0) end
+function ui.fit() end
+function ui.say() end
+function ui.act(fn) return fn end
+function ui.label(page, text) return control(page, "label", { text = text }) end
+function ui.heading(page, text) return control(page, "label", { text = text }) end
+function ui.hint(page, text) return control(page, "label", { text = text }) end
+function ui.button(page, text, x, _, _, fn)
+    local b = control(page, "button", { text = text, click = function() fn() end })
+    return b, x + 50
+end
+function ui.buttons(page, _, list)
+    for _, item in ipairs(list) do ui.button(page, item[1], 0, 0, 0, item[2]) end
+    return math.ceil(#list / 4)
+end
+function ui.tick(page, text, _, _, fn)
+    local t = control(page, "tick", { text = text, on = false })
+    function t:setSelected(_, on) self.on = on end
+    function t:tick(on) self.on = on fn(on) end
+    return t
+end
+function ui.combo(page, _, _, _, items, fn)
+    local c = control(page, "combo", { items = items, selected = 1 })
+    function c:getSelectedData() return self.items[self.selected][2] end
+    function c:choose(i)
+        self.selected = i
+        if fn then fn(self.items[i][2]) end
+    end
+    return c
+end
+function ui.lines(page, _, count)
+    local l = control(page, "lines", { count = count, shown = {} })
+    function l:set(list) self.shown = list end
+    return l
+end
+
+local function build(id)
+    for _, def in ipairs(section.pages) do
+        if def.id == id then
+            local page = { controls = {} }
+            def.build(page, ui)
+            return page
         end
     end
-    walk(root)
+    error("no page " .. id)
+end
+
+local function all(page, kind)
+    local found = {}
+    for _, c in ipairs(page.controls) do
+        if c.kind == kind and c.visible then found[#found + 1] = c end
+    end
     return found
 end
 
-local function buttonNamed(window, title)
-    for _, b in ipairs(all(window, ISButton)) do
-        if b.title == title then return b end
+local function button(page, text)
+    for _, b in ipairs(all(page, "button")) do
+        if b.text == text then return b end
     end
-    error("no button " .. title)
+    error("no button " .. text)
 end
 
--- Dev's functions the panel calls, replaced by recorders; `calls` lists them as "name(args)".
+-- Dev's functions the pages call, replaced by recorders; `calls` lists them as "name(args)".
 local calls
 local function record(name, result)
     Dev[name] = function(...)
         local parts = {}
-        for i = 1, select("#", ...) do parts[#parts + 1] = tostring(select(i, ...)) end
+        for i = 1, select("#", ...) do
+            local v = select(i, ...)
+            parts[#parts + 1] = type(v) ~= "table" and tostring(v) or (v.solar and "solar" or table.concat(v, "+"))
+        end
         calls[#calls + 1] = name .. "(" .. table.concat(parts, ",") .. ")"
         return result
     end
 end
 local function fakeDev()
     calls = {}
-    for _, name in ipairs({ "time", "freeze", "speed", "clearWeather", "rain", "storm", "nightSight", "setRank", "points",
-        "clearResearch", "title", "replayTake", "gotoMission", "buildScene", "spawn", "clearZombies", "godMode",
-        "invisible", "noClip", "heal" }) do
+    for _, name in ipairs({ "addCredits", "debt", "stage", "giveAll", "heliNow", "heliReady", "crateHere",
+        "firstSupply", "shopWeekReset", "redrawRequests", "daily", "marketEvent", "resetCodex", "resetSearch",
+        "resetShred", "giveMachine", "advanceMachines", "nightSight", "points", "setRank", "clearResearch", "endAdapt",
+        "resetFirstEffects", "sound", "alarmHouse", "alarmCar", "clearAlarms", "bite", "infectionAhead", "test", "cure",
+        "startMission", "finishMission", "gotoMission", "buildScene", "hallucinate", "title", "titleMore",
+        "replayTake", "showroom", "clearShowroom" }) do
         record(name)
     end
-    record("zombiesInBuilding")
-    local counted = Dev.zombiesInBuilding
-    Dev.zombiesInBuilding = function(...)
-        counted(...)
+    Dev.zombiesInBuilding = function()
+        calls[#calls + 1] = "zombiesInBuilding()"
         return 7, true
     end
     Dev.record = function() return { id = "p1" } end
     Dev.rank = function() return 0 end
-    Dev.hour = function() return 12.5 end
-    Dev.frozen = function() return false end
     Dev.nightSightOn = function() return false end
-    Dev.flags = function() return false, true, false end
+    Dev.alarmsNear = function() return 1, 2 end
+    Dev.adaptLeft = function() return nil end
+    Dev.tradeState = function()
+        return { credits = 1500, trust = 30, stage = 2, milestones = 0, arrive = 1.5, wait = nil, first = true }
+    end
+    Dev.marketLine = function() return "A 1.0" end
+    Dev.machineLines = function() return {} end
+    Dev.deliveryOf = function(kind) return { kind .. "Kit" } end
+    Dev.infectionLines = function() return { "infected false" } end
     Dev.mission = function() return nil, nil end
     Dev.missionPlace = function() return nil end
 end
 
-test("the panel opens from the key (F8) and shuts from it", function()
+test("the OA section: eight pages in order, each built and refreshed", function()
     fakeDev()
-    TEST.fire("OnGameStart")
-    TEST.fire("OnKeyPressed", 66)
-    local window = Panel.window()
-    truthy(window and window:getIsVisible(), "opened")
-    TEST.fire("OnKeyPressed", 66)
-    eq(window:getIsVisible(), false, "shut")
-    TEST.fire("OnKeyPressed", 12)
-    eq(window:getIsVisible(), false, "another key does nothing")
-end)
-
-test("six pages, each following the game when it is refreshed", function()
-    fakeDev()
-    Panel.toggle()
-    local window = Panel.window()
-    eq(#window.tabs.views, 6)
-    for i, v in ipairs(window.tabs.views) do
-        window.tabs.active = v.view
-        window:refresh()
+    eq(section.id, "OA")
+    local ids = {}
+    for _, def in ipairs(section.pages) do ids[#ids + 1] = def.id end
+    eq(table.concat(ids, " "), "Trade Economy Machines Gear Upgrades Infection Missions Effects")
+    for _, id in ipairs(ids) do
+        local page = build(id)
+        if page.refresh then page.refresh() end
     end
 end)
 
-test("time page: the slider, the freeze, the speeds and the weather", function()
+test("trade page: credits, stages, things and the helicopter, and its state", function()
     fakeDev()
-    Panel.toggle()
-    local window = Panel.window()
-    all(window, ISSliderPanel)[1]:move(21)
-    all(window, ISTickBox)[1]:tick(true)
-    buttonNamed(window, "2x"):click()
-    buttonNamed(window, "||"):click()
-    buttonNamed(window, "IGUI_OADev_Weather_Clear"):click()
-    buttonNamed(window, "IGUI_OADev_Weather_Rain"):click()
-    buttonNamed(window, "IGUI_OADev_Weather_Storm"):click()
-    eq(table.concat(calls, " "), "time(21) freeze(true) speed(2) speed(0) clearWeather() rain(3) storm(3)")
+    local page = build("Trade")
+    button(page, "+1000"):click()
+    button(page, "IGUI_OADev_Tr_Debt"):click()
+    button(page, "IGUI_OADev_Tr_Stage 0"):click()
+    button(page, "IGUI_OADev_Tr_Terminal"):click()
+    button(page, "IGUI_OADev_Tr_Parachute"):click()
+    button(page, "IGUI_OADev_Tr_FirstReset"):click()
+    eq(table.concat(calls, " "), "addCredits(1000) debt() stage(0) giveAll(CommTerminal) crateHere(true) firstSupply(true)")
+    page.refresh()
+    eq(#all(page, "lines")[1].shown, 2, "credits and the helicopter")
+    Dev.tradeState = function() return nil end
+    page.refresh()
+    eq(all(page, "lines")[1].shown[1], "IGUI_OADev_NoRecord")
 end)
 
-test("upgrades page: night sight, a node's rank by - and +, points, reset", function()
+test("economy page: a market event on the chosen category, resets", function()
     fakeDev()
-    Panel.toggle()
-    local window = Panel.window()
-    local page = window.tabs.views[2].view
-    window.tabs.active = page
-    window:refresh()
-    local ticks = all(page, ISTickBox)
-    ticks[1]:tick(true)
-    local first = Data.treeNodes("scout")[1]
-    local plus
-    for _, b in ipairs(all(page, ISButton)) do
-        if b.title == "+" and not plus then plus = b end
-    end
-    plus:click()
-    buttonNamed(page, "+5"):click()
-    buttonNamed(page, "IGUI_OADev_Up_Reset"):click()
-    eq(table.concat(calls, " "), "nightSight(true) setRank(" .. first.id .. ",1) points(scout,5) clearResearch()")
+    local page = build("Economy")
+    all(page, "combo")[1]:choose(3)
+    button(page, "IGUI_OADev_Ec_Demand"):click()
+    button(page, "IGUI_OADev_Ec_Glut"):click()
+    button(page, "IGUI_OADev_Ec_Search"):click()
+    eq(table.concat(calls, " "), "marketEvent(C,1.5) marketEvent(C,0.6) resetSearch()")
+end)
+
+test("machines page: give the chosen machine, advance the clock, the delivery form shows", function()
+    fakeDev()
+    local page = build("Machines")
+    all(page, "combo")[1]:choose(2)
+    button(page, "IGUI_OADev_Mc_Give"):click()
+    button(page, "IGUI_OADev_Mc_Hour"):click()
+    eq(table.concat(calls, " "), "giveMachine(" .. Dev.MACHINES[2] .. ") advanceMachines(1)")
+    page.refresh()
+    local lines = all(page, "lines")
+    eq(lines[1].shown[1], "IGUI_OADev_Mc_None")
+    eq(lines[2].shown[1], "IGUI_OADev_Mc_Form " .. Dev.MACHINES[2] .. "Kit")
+end)
+
+test("upgrades page: night sight, points, a node's rank by +, reset", function()
+    fakeDev()
+    local page = build("Upgrades")
+    page.refresh()
+    all(page, "tick")[1]:tick(true)
+    button(page, "+5"):click()
+    local first = Data.treeNodes(Data.TREES[1])[1]
+    button(page, "+"):click()
+    button(page, "IGUI_OADev_Up_Reset"):click()
+    eq(table.concat(calls, " "), "nightSight(true) points(" .. Data.TREES[1] .. ",5) setRank(" .. first.id .. ",1) clearResearch()")
 end)
 
 test("upgrades page: the second board lists its own nodes, and a - at rank 0 stays at 0", function()
     fakeDev()
-    Panel.toggle()
-    local window = Panel.window()
-    local page = window.tabs.views[2].view
-    window.tabs.active = page
-    all(page, ISComboBox)[2]:choose(4)  -- the points combo comes first, then the tree
-    local minus
-    for _, b in ipairs(all(page, ISButton)) do
-        if b.title == "-" and not minus then minus = b end
-    end
-    minus:click()
+    local page = build("Upgrades")
+    local combos = all(page, "combo")
+    combos[2]:choose(#combos[2].items)  -- the points combo comes first, then the tree; the board is last
+    button(page, "-"):click()
     local boardFirst
     for _, n in ipairs(Data.nodes) do
         if n.board and not boardFirst then boardFirst = n.id end
@@ -235,107 +230,71 @@ test("upgrades page: the second board lists its own nodes, and a - at rank 0 sta
     eq(calls[1], "setRank(" .. boardFirst .. ",0)")
 end)
 
-test("effects page: each title kind and the take", function()
+test("upgrades page: no record hides the node rows", function()
     fakeDev()
-    Panel.toggle()
-    local window = Panel.window()
-    local page = window.tabs.views[3].view
-    all(page, ISComboBox)[1]:choose(2)
-    buttonNamed(page, "IGUI_OADev_Fx_Capstone"):click()
-    buttonNamed(page, "IGUI_OADev_Fx_TreeOpened"):click()
-    buttonNamed(page, "IGUI_OADev_Fx_BoardOpened"):click()
-    buttonNamed(page, "IGUI_OADev_Fx_Take"):click()
-    eq(table.concat(calls, " "), "title(capstone,load) title(tree,load) title(board) replayTake()")
+    Dev.record = function() return nil end
+    local page = build("Upgrades")
+    page.refresh()
+    for _, b in ipairs(page.controls) do
+        if b.text == "+" or b.text == "-" then eq(b.visible, false) end
+    end
 end)
 
-test("mission page: go, build, count, and the count shows", function()
+test("infection page: bites, the clock, test and cure", function()
     fakeDev()
-    Panel.toggle()
-    local window = Panel.window()
-    local page = window.tabs.views[4].view
-    window.tabs.active = page
-    buttonNamed(page, "IGUI_OADev_Ms_Goto"):click()
-    buttonNamed(page, "IGUI_OADev_Ms_Build"):click()
-    buttonNamed(page, "IGUI_OADev_Ms_Count"):click()
-    eq(table.concat(calls, " "), "gotoMission() buildScene() zombiesInBuilding()")
+    local page = build("Infection")
+    button(page, "IGUI_OADev_If_Bite"):click()
+    button(page, "IGUI_OADev_If_BiteClean"):click()
+    button(page, "IGUI_OADev_If_Ahead"):click()
+    button(page, "IGUI_OADev_If_Test"):click()
+    button(page, "IGUI_OADev_If_Cure"):click()
+    eq(table.concat(calls, " "), "bite(true) bite(false) infectionAhead(12) test() cure()")
+end)
+
+test("missions page: start, finish, go, build, count, and the count shows", function()
+    fakeDev()
+    local page = build("Missions")
+    button(page, "IGUI_OADev_Ms_Start"):click()
+    button(page, "IGUI_OADev_Ms_Expire"):click()
+    button(page, "IGUI_OADev_Ms_Goto"):click()
+    button(page, "IGUI_OADev_Ms_Build"):click()
+    button(page, "IGUI_OADev_Ms_Count"):click()
+    button(page, "IGUI_OADev_Ms_HallucinationLong"):click()
+    eq(table.concat(calls, " "),
+        "startMission() finishMission(expired) gotoMission() buildScene() zombiesInBuilding() hallucinate(true)")
     Dev.mission = function() return { place = "clinic", state = "open", scene = { built = false } },
         { placed = true, at = { x = 5, y = 6, z = 0 } } end
     Dev.missionPlace = function() return 5, 6, 0 end
-    window:refresh()
-    local text = {}
-    for _, l in ipairs(all(page, ISLabel)) do text[#text + 1] = l.name end
-    local joined = table.concat(text, "|")
+    page.refresh()
+    local joined = table.concat(all(page, "lines")[1].shown, "|")
     truthy(string.find(joined, "clinic", 1, true), "the mission")
     truthy(string.find(joined, "5, 6, 0", 1, true), "its place")
     truthy(string.find(joined, "IGUI_OADev_Ms_Zombies: 7", 1, true), "the count: " .. joined)
 end)
 
-test("zombies page: spawn with the count, outfit and harmless; clear", function()
+test("effects page: each title kind on the chosen tree, and the take", function()
     fakeDev()
-    Panel.toggle()
-    local window = Panel.window()
-    local page = window.tabs.views[5].view
-    local combos = all(page, ISComboBox)
-    combos[1]:choose(3)
-    buttonNamed(page, "IGUI_OADev_Z_Spawn"):click()
-    combos[2]:choose(3)
-    all(page, ISTickBox)[1]:tick(false)
-    buttonNamed(page, "IGUI_OADev_Z_Spawn"):click()
-    buttonNamed(page, "IGUI_OADev_Z_Clear30"):click()
-    buttonNamed(page, "IGUI_OADev_Z_ClearAll"):click()
-    eq(table.concat(calls, " "), "spawn(10,nil,true) spawn(10,Survivalist,false) clearZombies(30) clearZombies()")
-end)
-
-test("player page: the toggles follow the character and drive Dev", function()
-    fakeDev()
-    Panel.toggle()
-    local window = Panel.window()
-    local page = window.tabs.views[6].view
-    window.tabs.active = page
-    window:refresh()
-    local ticks = all(page, ISTickBox)
-    eq(ticks[2].state, true, "invisible is on in the fake")
-    ticks[1]:tick(true)
-    ticks[3]:tick(true)
-    buttonNamed(page, "IGUI_OADev_P_Heal"):click()
-    eq(table.concat(calls, " "), "godMode(true) noClip(true) heal()")
-end)
-
-test("a failing control shows on the status line instead of breaking the click", function()
-    fakeDev()
-    Dev.heal = function() error("boom") end
-    Panel.toggle()
-    local window = Panel.window()
-    buttonNamed(window.tabs.views[6].view, "IGUI_OADev_P_Heal"):click()
-    truthy(string.find(window.statusLabel.name, "boom", 1, true), "status: " .. tostring(window.statusLabel.name))
+    local page = build("Effects")
+    all(page, "combo")[1]:choose(2)
+    button(page, "IGUI_OADev_Fx_Capstone"):click()
+    button(page, "IGUI_OADev_Fx_BoardOpened"):click()
+    button(page, "IGUI_OADev_Fx_LineOpened"):click()
+    button(page, "IGUI_OADev_Fx_Debt"):click()
+    button(page, "IGUI_OADev_Fx_Take"):click()
+    button(page, "IGUI_OADev_Fx_ShowroomSolar"):click()
+    eq(table.concat(calls, " "), "title(capstone," .. Data.TREES[2] .. ") title(board) title(line) titleMore(debt) "
+        .. "replayTake() showroom(solar)")
 end)
 
 -- ---------------------------------------------------------------------------------------------------------------------
--- Dev's helpers with a fake world
+-- Dev's helpers with a fake world (the real ones back)
 
-test("freeze holds the clock at the hour it had, Dev.time moves the held hour, release lets go", function()
-    local hour = 13
-    getGameTime = function()
-        return { getTimeOfDay = function() return hour end, setTimeOfDay = function(_, h) hour = h end }
-    end
-    Dev.freeze(true)
-    hour = 14.5
-    TEST.fire("OnTick")
-    eq(hour, 13, "held")
-    Dev.time(22)
-    eq(hour, 22, "set")
-    hour = 23
-    TEST.fire("OnTick")
-    eq(hour, 22, "held at the new hour")
-    Dev.time(24)
-    eq(hour, 23.99, "24 is the last minute of the day")
-    Dev.freeze(false)
-    hour = 5
-    TEST.fire("OnTick")
-    eq(hour, 5, "released")
-end)
+local function realDev()
+    for k, v in pairs(real) do Dev[k] = v end
+end
 
 test("the scene is made without the distance rule, and the rule is back after", function()
+    realDev()
     local made = {}
     OA.Store.players()["p1"] = { id = "p1" }
     local record = OA.Store.player("p1")
@@ -358,6 +317,7 @@ test("the scene is made without the distance rule, and the rule is back after", 
 end)
 
 test("the scene is not made, and says why, when the building is not loaded", function()
+    realDev()
     OA.Store.players()["p1"] = { id = "p1" }
     local record = OA.Store.player("p1")
     local piece = { x1 = 1, x2 = 6, y1 = 1, y2 = 6, placed = true, at = { x = 3, y = 3, z = 0 } }

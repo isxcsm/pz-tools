@@ -109,32 +109,7 @@ function Dev.trust(amount)
     say("trust", amount, "stage", trade.stage, "milestones", trade.milestones)
 end
 
--- ---- the world -------------------------------------------------------------------------------------------------
-
--- The hour of the day (0..24), at once.
-function Dev.time(hour)
-    if hour >= 24 then hour = 23.99 end
-    getGameTime():setTimeOfDay(hour)
-    if Dev.frozen and Dev.frozen() then Dev.freeze(true) end
-    say("time", hour)
-end
-
--- The hour of the day now (0..24).
-function Dev.hour()
-    return getGameTime():getTimeOfDay()
-end
-
--- The game speed: 1 normal, 2..4 the fast-forward steps (the speed buttons), 0 paused.
-function Dev.speed(n)
-    UIManager.getSpeedControls():SetCurrentGameSpeed(n)
-    say("speed", n)
-end
-
--- Stops rain, snow and thunder.
-function Dev.clearWeather()
-    getClimateManager():stopWeatherAndThunder()
-    say("weather cleared")
-end
+-- ---- the world (the time, weather, character and zombie spawns are PZExtDev.Env's) --------------------------------
 
 local DIRS = { N = "N", NE = "NE", E = "E", SE = "SE", S = "S", SW = "SW", W = "W", NW = "NW" }
 
@@ -163,23 +138,6 @@ function Dev.zombies(spots)
     end
     say("zombies", made)
     return made
-end
-
--- Removes the zombies within a radius of the character (all loaded ones without a radius). Returns how many.
-function Dev.clearZombies(radius)
-    local player = getPlayer()
-    local list = getCell():getZombieList()
-    local gone = 0
-    for i = list:size() - 1, 0, -1 do
-        local z = list:get(i)
-        if not radius or IsoUtils.DistanceTo(z:getX(), z:getY(), player:getX(), player:getY()) <= radius then
-            z:removeFromWorld()
-            z:removeFromSquare()
-            gone = gone + 1
-        end
-    end
-    say("zombies removed", gone)
-    return gone
 end
 
 -- A world sound at an offset from the character (what zombies and the presence marks hear).
@@ -510,47 +468,6 @@ function Dev.clearShowroom()
     end
     show = nil
     say("showroom cleared, items taken back", taken)
-end
-
--- ---- the panel's helpers: time, weather, effects, the mission, the character ------------------------------------
--- Everything the panel (Dev/Panel.lua) does is one of these, so the command channel can do the same.
-
-local frozenAt = nil   -- the hour the clock is held at, or nil
-
--- Holds the clock at the hour it is now while the game runs on (the light stays; the day does not move).
--- Dev.freeze(false) lets it go.
-function Dev.freeze(on)
-    if on == false then
-        frozenAt = nil
-        say("time released")
-    else
-        frozenAt = getGameTime():getTimeOfDay()
-        say("time held at", string.format("%.2f", frozenAt))
-    end
-    return frozenAt ~= nil
-end
-
-function Dev.frozen()
-    return frozenAt ~= nil
-end
-
-local function holdTime()
-    if frozenAt then getGameTime():setTimeOfDay(frozenAt) end
-end
-Events.OnTick.Add(holdTime)
-
--- Rain (showers) for some hours.
-function Dev.rain(hours)
-    local stage = WeatherPeriod and WeatherPeriod.STAGE_SHOWERS or 1
-    getClimateManager():triggerCustomWeatherStage(stage, hours or 3)
-    say("rain", hours or 3)
-end
-
--- A thunderstorm for some hours.
-function Dev.storm(hours)
-    local stage = WeatherPeriod and WeatherPeriod.STAGE_STORM or 3
-    getClimateManager():triggerCustomWeatherStage(stage, hours or 3)
-    say("storm", hours or 3)
 end
 
 -- ---- research, by node ------------------------------------------------------------------------------------------
@@ -893,66 +810,6 @@ function Dev.resetSearch()
     Dev.changed()
     say("search reset: building", scan.key, "-", #scan.containers, "containers unopened")
     return #scan.containers
-end
-
--- ---- zombies ----------------------------------------------------------------------------------------------------
-
--- n zombies 4..9 tiles from the character (an outfit name, or nil for any), made harmless and still when `harmless`.
--- Returns how many.
-function Dev.spawn(n, outfit, harmless)
-    local player = getPlayer()
-    local px, py, pz = math.floor(player:getX()), math.floor(player:getY()), math.floor(player:getZ())
-    local made = 0
-    for _ = 1, n do
-        for _ = 1, 12 do
-            local dx, dy = ZombRand(4, 10), ZombRand(4, 10)
-            if ZombRand(2) == 0 then dx = -dx end
-            if ZombRand(2) == 0 then dy = -dy end
-            local sq = getCell():getGridSquare(px + dx, py + dy, pz)
-            if sq and sq:isFree(false) then
-                local list = addZombiesInOutfit(px + dx, py + dy, pz, 1, outfit, 50)
-                for i = 0, list:size() - 1 do
-                    if harmless then list:get(i):setUseless(true) end
-                    made = made + 1
-                end
-                break
-            end
-        end
-    end
-    say("zombies spawned", made)
-    return made
-end
-
--- ---- the character ----------------------------------------------------------------------------------------------
-
--- Whether god mode, invisibility and no clip are on: three booleans.
-function Dev.flags()
-    local player = getPlayer()
-    return player:isGodMod(), player:isInvisible(), player:isNoClip()
-end
-
-function Dev.godMode(on)
-    getPlayer():setGodMod(on == true)
-    say("god mode", on == true)
-    return getPlayer():isGodMod()
-end
-
-function Dev.invisible(on)
-    getPlayer():setInvisible(on == true)
-    say("invisible", on == true)
-    return getPlayer():isInvisible()
-end
-
-function Dev.noClip(on)
-    getPlayer():setNoClip(on == true)
-    say("no clip", on == true)
-    return getPlayer():isNoClip()
-end
-
--- Heals every wound and refills the character's health.
-function Dev.heal()
-    getPlayer():getBodyDamage():RestoreToFullHealth()
-    say("healed")
 end
 
 -- ---- screens ---------------------------------------------------------------------------------------------------
