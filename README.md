@@ -48,6 +48,9 @@ strip marks floors with producers.
 
 - `BuildingUtilities/`: the mod (`42/media/lua/{shared,client,server}/BuildingUtilities`, scripts, sandbox options,
   translations in EN and KO).
+- `BuildingUtilitiesDev/`: a dev mod, never published, that works only in debug mode: the "BU" section of the PZ Extension
+  API Dev window (F8), to bring each part of the mod to the state a test needs (needs PZExtDev). Its texts come from
+  `tools/dev_strings.py`.
 - `tests/ingame/`: checks run from the game's debug console ([README](tests/ingame/README.md)).
 - `tests/unit/`: Lua unit tests on the game's Kahlua, the game and the PZ Extension API stubbed (`harness.lua`). From the
   repository root: `java -cp <ProjectZomboid>/projectzomboid.jar tools/LuaTest.java [file name filter]` (a JDK, not the

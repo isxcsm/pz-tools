@@ -1,0 +1,7 @@
+name=Building Utilities Dev
+id=BuildingUtilitiesDev
+author=PZ Tools
+description=Developer tools for Building Utilities: its section of the PZ Extension API Dev window (F8). Never published; works only in debug mode.
+modversion=0.1.0
+versionMin=42.0.0
+require=BuildingUtilities,PZExtDev

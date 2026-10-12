@@ -3,7 +3,8 @@
 -- fresh save and a fresh API. Run through tools/LuaTest.java (it gives readfile, listfiles and TEST_FILTER).
 
 local MEDIA = "BuildingUtilities/42/media/"
-local ROOTS = { MEDIA .. "lua/shared/", MEDIA .. "lua/server/", MEDIA .. "lua/client/" }
+local ROOTS = { MEDIA .. "lua/shared/", MEDIA .. "lua/server/", MEDIA .. "lua/client/",
+    "BuildingUtilitiesDev/42/media/lua/client/" }
 
 -- The game's Lua has no next(), and neither has the test VM: a use of it fails here as it does there.
 next = nil
