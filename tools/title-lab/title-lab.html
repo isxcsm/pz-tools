@@ -941,7 +941,7 @@ control("zoom", "확대", "range", [1, 4, 0.25]);
 heading("머무름과 dust 사라짐");
 control("sweep", "방향", "select", SWEEPS.map(s => [s, s]));
 control("leaveTime", "dust 사라지는 시간(초)", "range", [1, 20, 0.5]);
-control("hold", "머무름(초)", "range", [0, 6, 0.5]);
+control("hold", "본 표시(초, 등장·퇴장 제외)", "range", [1, 10, 0.5]);
 control("dustSize", "셀 크기", "range", [0.25, 4, 0.05]);
 control("dustDrift", "날림 거리", "range", [0, 4, 0.05]);
 control("seed", "시드", "range", [1, 99999, 1]);
