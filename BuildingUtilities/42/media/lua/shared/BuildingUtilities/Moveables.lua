@@ -225,3 +225,25 @@ function ISMoveableSpriteProps:getInfoPanelDescription(square, object, player, m
     end
     return info
 end
+
+-- The game gives a furniture item its tile (what the cursor puts down, and how the tool finds the item in the
+-- inventory) only when the tile is IsMoveAble; CustomItem names the item, so that it keeps its own name, icon and weight.
+-- The tiles get both once they are loaded.
+Events.OnLoadedTileDefinitions.Add(function()
+    kindOf(nil)
+    for name, kind in pairs(kinds) do
+        local sprite = getSprite(name)
+        if sprite then
+            local props = sprite:getProperties()
+            props:set("IsMoveAble", "true")
+            props:set("CustomItem", itemType(kind))
+        end
+    end
+end)
+
+-- An item made before its tile was IsMoveAble has no tile: it takes its script's.
+function BU.giveTile(item)
+    if instanceof(item, "Moveable") and (item:getWorldSprite() or "") == "" then
+        item:ReadFromWorldSprite(item:getScriptItem():getWorldObjectSprite())
+    end
+end

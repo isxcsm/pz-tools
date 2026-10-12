@@ -145,6 +145,8 @@ end
 
 -- require as the game does it: by path under media/lua/shared, server or client, each file once.
 local loaded
+-- A file of the game itself a test stands in for (its globals set by the test): required as if loaded.
+function TEST.gameFile(name) loaded[name] = true end
 function require(name)
     if loaded[name] ~= nil then return loaded[name] end
     for _, root in ipairs(ROOTS) do

@@ -7,6 +7,7 @@
 require "ISUI/ISWorldObjectContextMenu"
 require "ISUI/ISMoveableContextMenu"
 require "BuildingUtilities/Actions"
+require "BuildingUtilities/Moveables"
 local BU = BuildingUtilities
 local Store, Panels, Units, Rack, Costs, Actions, Sync = BU.Store, BU.Panels, BU.Units, BU.Rack, BU.Costs, BU.Actions,
     BU.Sync
@@ -338,6 +339,7 @@ Events.OnFillWorldObjectContextMenu.Add(ContextMenu.fill)
 -- Putting a box or a unit down from the inventory: its item is the game's furniture (Moveables.lua), put down with the
 -- game's furniture cursor in its place mode, turned with its rotate key.
 local function onPlace(playerObj, item)
+    BU.giveTile(item)
     ISMoveableContextMenu.openMovableCursor(item, playerObj)
 end
 
