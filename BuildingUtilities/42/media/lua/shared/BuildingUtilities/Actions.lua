@@ -1,4 +1,4 @@
--- Timed actions: putting a box down, laying and taking away lines, upgrading a box, throwing its lever,
+-- Timed actions: laying and taking away lines, upgrading a box, throwing its lever,
 -- brushing snow off a solar panel, replacing a filter's media, reconditioning a battery. A device, a unit or a
 -- producer is wired in and out at itself, with the tool of its utility in hand (Actions.work).
 -- Each names panels and squares, not objects, and checks again as it completes, where the world is decided
@@ -10,14 +10,6 @@ local BU = BuildingUtilities
 local Store, Panels, Units, Changes, Costs = BU.Store, BU.Panels, BU.Units, BU.Changes, BU.Costs
 local Actions = {}
 BU.Actions = Actions
-
--- Whether the box can stand as a sprite (one asked for from a client).
-local function panelFacing(sprite)
-    for _, name in ipairs(BU.PANEL_SPRITES) do
-        if name == sprite then return true end
-    end
-    return false
-end
 
 local function giveItem(character, itemType)
     local inventory = character:getInventory()
@@ -111,35 +103,6 @@ local function base(name, ticks)
     end
     function action:perform() ISBaseTimedAction.perform(self) end
     return action
-end
-
--- Putting a box down.
-ISBUInstallPanel = base("ISBUInstallPanel", 200)
-
-function ISBUInstallPanel:isValid()
-    return self.character:getInventory():contains(self.item) and Panels.canInstall(self.square) ~= nil
-end
-
-function ISBUInstallPanel:complete()
-    if not Panels.canInstall(self.square) then return false end
-    local container = self.item:getContainer()
-    if container then
-        container:DoRemoveItem(self.item)
-        sendRemoveItemFromContainer(container, self.item)
-    end
-    local sprite = panelFacing(self.sprite) and self.sprite or BU.panelSpriteFacing(self.square, self.character)
-    Changes.install(self.square, sprite)
-    BU.giveXp(self.character, 5)
-    return true
-end
-
--- sprite: the facing the player turned it to (the place cursor), else it faces them.
-function ISBUInstallPanel:new(character, square, item, sprite)
-    local o = ISBaseTimedAction.new(self, character)
-    o.square, o.item, o.sprite = square, item, sprite
-    o.x, o.y = square:getX(), square:getY()
-    o.maxTime = o:getDuration()
-    return o
 end
 
 -- Laying a line: a producer, an outside device or a sub-panel's link (see Actions.lineCost). The cost is worked out
@@ -277,38 +240,6 @@ end
 function ISBUUpgradePanel:new(character, panel)
     local o = ISBaseTimedAction.new(self, character)
     o.panelId, o.x, o.y = panel.id, panel.x, panel.y
-    o.maxTime = o:getDuration()
-    return o
-end
-
--- Putting a unit down (Units.canInstall).
-ISBUInstallUnit = base("ISBUInstallUnit", 250)
-
-function ISBUInstallUnit:isValid()
-    return self.character:getInventory():contains(self.item) and Units.canInstall(self.kind, self.square) ~= nil
-end
-
-function ISBUInstallUnit:complete()
-    if not Units.canInstall(self.kind, self.square) then return false end
-    local container = self.item:getContainer()
-    if container then
-        container:DoRemoveItem(self.item)
-        sendRemoveItemFromContainer(container, self.item)
-    end
-    local sprite = self.sprite
-    if not (sprite and Units.canFace(self.kind, self.square, sprite)) then
-        sprite = Units.spriteFor(self.kind, self.square, self.character)
-    end
-    Changes.installUnit(self.kind, self.square, sprite)
-    BU.giveXp(self.character, 5)
-    return true
-end
-
--- sprite: as the box's (ISBUInstallPanel:new).
-function ISBUInstallUnit:new(character, kind, square, item, sprite)
-    local o = ISBaseTimedAction.new(self, character)
-    o.kind, o.square, o.item, o.sprite = kind, square, item, sprite
-    o.x, o.y = square:getX(), square:getY()
     o.maxTime = o:getDuration()
     return o
 end

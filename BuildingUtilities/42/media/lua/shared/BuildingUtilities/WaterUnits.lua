@@ -136,7 +136,8 @@ Units.define("pump", {
     canPlace = function() return true end,
     -- Its suction on the water's side; without water, on the side away from the one it faces.
     sprite = function(square, side)
-        local _, water = WaterUnits.waterBeside(square)
+        local _, water
+        if square then _, water = WaterUnits.waterBeside(square) end
         return WaterUnits.PUMP_SPRITES[water or OPPOSITE[side]]
     end,
     -- The water it lifts; nil while there is none beside it (the server looks again while its square is loaded).

@@ -3,8 +3,9 @@
 -- line: switched on or off there at once, as at the box. A device outside, a unit or a producer is wired in and out at
 -- itself, with the tool of its utility (Actions.work); the box's window lists it once it is wired. The mod's options
 -- go to the top of the menu. A box and the units are taken up with the game's furniture tool (BU.Moveables).
--- The inventory menu: put a box or a unit down (the building cursor, ISBUPlaceCursor), recondition a battery.
+-- The inventory menu: put a box or a unit down (the game's furniture cursor, Moveables.lua), recondition a battery.
 require "ISUI/ISWorldObjectContextMenu"
+require "ISUI/ISMoveableContextMenu"
 require "BuildingUtilities/Actions"
 local BU = BuildingUtilities
 local Store, Panels, Units, Rack, Costs, Actions, Sync = BU.Store, BU.Panels, BU.Units, BU.Rack, BU.Costs, BU.Actions,
@@ -87,11 +88,6 @@ function ContextMenu.queueAt(playerObj, x, y, z, action)
 end
 
 local function queueAt(playerObj, x, y, z, action) ContextMenu.queueAt(playerObj, x, y, z, action) end
-
-local function onInstall(playerObj, square, item, sprite)
-    ISInventoryPaneContextMenu.transferIfNeeded(playerObj, item)
-    queueAt(playerObj, square:getX(), square:getY(), square:getZ(), ISBUInstallPanel:new(playerObj, square, item, sprite))
-end
 
 local function onOpen(playerObj, panel) queueAt(playerObj, panel.x, panel.y, panel.z, ISBUOpenPanel:new(playerObj, panel)) end
 
@@ -187,12 +183,6 @@ local function addProducerOptions(context, playerObj, objects)
 end
 
 -- Units.
-
-local function onInstallUnit(playerObj, kind, square, item, sprite)
-    ISInventoryPaneContextMenu.transferIfNeeded(playerObj, item)
-    queueAt(playerObj, square:getX(), square:getY(), square:getZ(),
-        ISBUInstallUnit:new(playerObj, kind, square, item, sprite))
-end
 
 local function onUnitAction(playerObj, unit, action) queueAt(playerObj, unit.x, unit.y, unit.z, action(playerObj, unit)) end
 
@@ -345,112 +335,31 @@ end
 
 Events.OnFillWorldObjectContextMenu.Add(ContextMenu.fill)
 
--- Putting a box or a unit down from the inventory: the game's building cursor (ISBuildingObject) shows its sprite at
--- the square under the mouse, red where it cannot go; a click walks there and puts it down (the actions the world's
--- menu queues), and the cursor goes. It faces the player until it is turned as the game's furniture is (the rotate
--- key, the gamepad's bumper, or a drag with the button held: the cursor's nSprite, 1 to 4 for BU.SIDES); a turn that
--- would show the same look (a kind with fewer looks than sides) goes on to the next look. Made on first use: the
--- game's cursor comes with the server Lua, which the main menu has not loaded.
-local NUMBER_OF = { W = 1, N = 2, E = 3, S = 4 }
-
-local function defineCursor()
-    if ISBUPlaceCursor then return ISBUPlaceCursor end
-    ISBUPlaceCursor = ISBuildingObject:derive("ISBUPlaceCursor")
-
-    function ISBUPlaceCursor:new(player, kind, item)
-        local o = ISBuildingObject.new(self)
-        o:init()
-        o.player, o.kind, o.item = player, kind, item
-        o.skipBuildAction = true
-        o:setDragNilAfterPlace(true)
-        return o
-    end
-
-    -- Its sprite on a square, facing a side.
-    function ISBUPlaceCursor:facing(square, side)
-        if self.kind == "panel" then return BU.panelSprite(side) end
-        return Units.spriteFacing(self.kind, square, side)
-    end
-
-    function ISBUPlaceCursor:getSprite()
-        local square = self.at
-        if not square then return self.chosenSprite end
-        if not self.turned and self.autoNumber and self.nSprite ~= self.autoNumber then self.turned = true end
-        local sprite
-        if self.turned then
-            sprite = self:facing(square, BU.SIDES[self.nSprite] or "S")
-            local last = self.lastNumber
-            if last and self.nSprite ~= last and sprite == self.chosenSprite then
-                local step = (self.nSprite == last + 1 or self.nSprite == 1 and last == 4) and 1 or -1
-                for _ = 1, 3 do
-                    local n = self.nSprite + step
-                    if n > 4 then n = 1 elseif n < 1 then n = 4 end
-                    self.nSprite = n
-                    sprite = self:facing(square, BU.SIDES[n])
-                    if sprite ~= self.chosenSprite then break end
-                end
-            end
-        else
-            local side = BU.sideOf(square, getSpecificPlayer(self.player))
-            self.nSprite, self.autoNumber = NUMBER_OF[side], NUMBER_OF[side]
-            sprite = self:facing(square, side)
-        end
-        self.lastNumber = self.nSprite
-        self.chosenSprite = sprite
-        return sprite
-    end
-
-    -- Whether it can go on a square, worked out once a square, and why not.
-    function ISBUPlaceCursor:isValid(square)
-        if not square then return false end
-        if square ~= self.checkedSquare then
-            self.checkedSquare = square
-            local ok, reason
-            if self.kind == "panel" then ok, reason = Panels.canInstall(square)
-            else ok, reason = Units.canInstall(self.kind, square) end
-            self.valid, self.reason = ok ~= nil, reason
-        end
-        return self.valid
-    end
-
-    -- A click where it cannot go says why over the character.
-    function ISBUPlaceCursor:render(x, y, z, square)
-        self.at = square
-        ISBuildingObject.render(self, x, y, z, square)
-        local playerObj = getSpecificPlayer(self.player)
-        if playerObj:isBuildButtonReleased() and square and not self:isValid(square) and self.reason then
-            local now = getTimestampMs()
-            if not self.saidAt or now - self.saidAt > 1000 then
-                self.saidAt = now
-                HaloTextHelper.addBadText(playerObj, getText("IGUI_BU_Reason_" .. self.reason))
-            end
-        end
-    end
-
-    function ISBUPlaceCursor:tryBuild(x, y, z)
-        local square = getCell():getGridSquare(x, y, z)
-        local playerObj = getSpecificPlayer(self.player)
-        if not square or not playerObj:getInventory():containsRecursive(self.item) then return end
-        self.at = square
-        local sprite = self:getSprite()
-        if self.kind == "panel" then onInstall(playerObj, square, self.item, sprite)
-        else onInstallUnit(playerObj, self.kind, square, self.item, sprite) end
-    end
-    return ISBUPlaceCursor
+-- Putting a box or a unit down from the inventory: its item is the game's furniture (Moveables.lua), put down with the
+-- game's furniture cursor in its place mode, turned with its rotate key.
+local function onPlace(playerObj, item)
+    ISMoveableContextMenu.openMovableCursor(item, playerObj)
 end
 
--- What an item puts down: "panel" for a box, a unit's kind, or nil; only what is on (BU.enabled).
+-- What an item puts down: "panel" for a box, a unit's kind, or nil.
 local function placedKind(item)
     local fullType = item:getFullType()
-    if fullType == BU.PANEL_ITEM then return BU.enabled("panel") and "panel" or nil end
+    if fullType == BU.PANEL_ITEM then return "panel" end
     for _, kind in ipairs(Units.KINDS) do
-        if Units.definition(kind).item == fullType then return BU.enabled(kind) and kind or nil end
+        if Units.definition(kind).item == fullType then return kind end
     end
     return nil
 end
 
-local function onPlace(playerObj, kind, item)
-    getCell():setDrag(defineCursor():new(playerObj:getPlayerNum(), kind, item), playerObj:getPlayerNum())
+-- Takes out of the menu the game's own place option for the item (it opens the same cursor; this mod's stays).
+local function dropGamesOwn(context, item)
+    local name = getText("IGUI_PlaceObject")
+    for _, option in ipairs(context.options) do
+        if option.name == name and option.target == item and option.onSelect == ISMoveableContextMenu.openMovableCursor then
+            context:removeOptionByName(name)
+            return
+        end
+    end
 end
 
 -- Reconditioning a car battery (Rack.canRevive), from the inventory.
@@ -472,11 +381,17 @@ function ContextMenu.fillInventory(player, context, items)
     local item = items[1]
     if not instanceof(item, "InventoryItem") then item = item.items and item.items[1] end
     if not item then return end
+    -- The game offers placing only from the inventory proper and not from the hands (ISMoveableContextMenu); so here.
     local kind = placedKind(item)
     if kind then
-        local text = getText(kind == "panel" and "ContextMenu_BU_Install" or "ContextMenu_BU_Install_" .. kind)
-        local option = context:addOptionOnTop(text, playerObj, onPlace, kind, item)
-        if not BU.api() then unavailable(option, apiMissingText()) end
+        dropGamesOwn(context, item)
+        if BU.enabled(kind) and item:getContainer() == playerObj:getInventory()
+            and playerObj:getPrimaryHandItem() ~= item and playerObj:getSecondaryHandItem() ~= item then
+            local text = getText(kind == "panel" and "ContextMenu_BU_Install" or "ContextMenu_BU_Install_" .. kind)
+            local option = context:addOptionOnTop(text, playerObj, onPlace, item)
+            option.itemForTexture = item
+            if not BU.api() then unavailable(option, apiMissingText()) end
+        end
     end
     if not Rack.isBattery(item) or not BU.enabled("rack") then return end
     local option = context:addOptionOnTop(getText("ContextMenu_BU_ReviveBattery"), playerObj, onRevive, item)

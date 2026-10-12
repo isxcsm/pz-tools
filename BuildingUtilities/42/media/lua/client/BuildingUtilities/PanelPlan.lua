@@ -602,7 +602,8 @@ function ISBUPlan:layoutStrip()
     self.strip = {}
     if #self.levels < 2 then return end
     local top = self.topH or FONT_HGT_SMALL + PAD * 2
-    local rows = math.max(3, math.floor((self.height - top - PAD) / CELL_H))
+    -- down to the status line at the bottom, which it leaves clear
+    local rows = math.max(3, math.floor((self.height - top - FONT_HGT_SMALL - PAD * 2) / CELL_H))
     local downward = {}
     for index = #self.levels, 1, -1 do downward[#downward + 1] = self.levels[index] end
     local overflow = #downward > rows

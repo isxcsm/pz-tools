@@ -8,7 +8,8 @@ module BuildingUtilities
     item BreakerBox
     {
         DisplayCategory = Electronics,
-        ItemType = base:normal,
+        ItemType = base:moveable,
+        WorldObjectSprite = bu_water_01_32,
         Weight = 3.0,
         Icon = BUBreakerBox,
     }
@@ -16,7 +17,8 @@ module BuildingUtilities
     item SolarPanel
     {
         DisplayCategory = Electronics,
-        ItemType = base:normal,
+        ItemType = base:moveable,
+        WorldObjectSprite = bu_solar_01_10,
         Weight = 8.0,
         Icon = BUSolarPanel,
         WorldStaticModel = BuildingUtilities.SolarPanelModel,
@@ -25,7 +27,8 @@ module BuildingUtilities
     item BatteryRack
     {
         DisplayCategory = Electronics,
-        ItemType = base:normal,
+        ItemType = base:moveable,
+        WorldObjectSprite = bu_solar_01_0,
         Weight = 15.0,
         Icon = BUBatteryRack,
     }
@@ -33,7 +36,8 @@ module BuildingUtilities
     item WaterPump
     {
         DisplayCategory = Electronics,
-        ItemType = base:normal,
+        ItemType = base:moveable,
+        WorldObjectSprite = bu_water_01_1,
         Weight = 12.0,
         Icon = BUWaterPump,
     }
@@ -41,7 +45,8 @@ module BuildingUtilities
     item Sprinkler
     {
         DisplayCategory = Gardening,
-        ItemType = base:normal,
+        ItemType = base:moveable,
+        WorldObjectSprite = bu_water_01_4,
         Weight = 2.0,
         Icon = BUSprinkler,
     }
@@ -49,7 +54,8 @@ module BuildingUtilities
     item BoosterPump
     {
         DisplayCategory = Electronics,
-        ItemType = base:normal,
+        ItemType = base:moveable,
+        WorldObjectSprite = bu_water_01_56,
         Weight = 18.0,
         Icon = BUBoosterPump,
     }
@@ -57,7 +63,8 @@ module BuildingUtilities
     item WaterFilter
     {
         DisplayCategory = Electronics,
-        ItemType = base:normal,
+        ItemType = base:moveable,
+        WorldObjectSprite = bu_water_01_6,
         Weight = 6.0,
         Icon = BUWaterFilter,
     }

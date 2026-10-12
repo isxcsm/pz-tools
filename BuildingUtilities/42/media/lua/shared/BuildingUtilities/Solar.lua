@@ -38,7 +38,7 @@ Units.define("solar", {
     end,
     -- Above the ground it lies flat; on the ground its frame faces a side: west and east as one, north and south.
     sprite = function(square, side)
-        if square:getZ() > 0 then return Solar.SPRITES.flat end
+        if square and square:getZ() > 0 then return Solar.SPRITES.flat end
         return (side == "E" or side == "W") and Solar.SPRITES.W or Solar.SPRITES.N
     end,
     -- Its snow, as its square loads (on the server) and each minute.

@@ -1,6 +1,5 @@
--- How a box and the units face as they are put down: toward the character, or to the side the player turned the place
--- cursor to (BU.SIDES), a kind with fewer looks giving one look for several sides; and which sprites a kind may stand as
--- on a square (a sprite a client asks for is checked).
+-- How a box and the units face as they are put down: toward the character, or to the side the furniture cursor is
+-- turned to (BU.SIDES), a kind with fewer looks giving one look for several sides.
 require "BuildingUtilities/Core"
 require "BuildingUtilities/Solar"
 require "BuildingUtilities/WaterUnits"
@@ -27,16 +26,17 @@ test("a solar panel has two looks on the ground and one above it", function()
     eq(Units.spriteFacing("solar", s, "N"), Units.spriteFacing("solar", s, "S"))
     truthy(Units.spriteFacing("solar", s, "N") ~= Units.spriteFacing("solar", s, "W"))
     eq(Units.spriteFor("solar", s, at(13, 10.5)), Solar.SPRITES.W, "facing the character")
-    truthy(Units.canFace("solar", s, Solar.SPRITES.N))
-    eq(Units.canFace("solar", s, Solar.SPRITES.flat), false, "flat only above the ground")
-    eq(Units.spriteFacing("solar", square(10, 10, 1), "N"), Solar.SPRITES.flat)
+    eq(Units.spriteFacing("solar", square(10, 10, 1), "N"), Solar.SPRITES.flat, "flat above the ground")
+    eq(Units.spriteFacing("solar", nil, "N"), Solar.SPRITES.N, "the furniture tool's faces: no square")
 end)
 
 test("a booster faces any side; a pump without water turns its suction away", function()
     local s = square(10, 10)
-    for _, side in ipairs(BU.SIDES) do
-        truthy(Units.canFace("booster", s, Units.spriteFacing("booster", s, side)), side)
-    end
+    local seen = {}
+    for _, side in ipairs(BU.SIDES) do seen[Units.spriteFacing("booster", s, side)] = true end
+    local count = 0
+    for _ in pairs(seen) do count = count + 1 end
+    eq(count, 4, "four looks")
     WaterUnits.waterBeside = function() return nil end
     eq(Units.spriteFacing("pump", s, "W"), WaterUnits.PUMP_SPRITES.E)
 end)

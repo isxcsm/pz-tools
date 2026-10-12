@@ -1,10 +1,14 @@
--- The game's furniture tool takes a breaker box and the units (solar panels, battery racks, pumps, filters, boosters,
--- sprinklers) up (its 떼어내기, pick up mode) the way this mod's own taking down did: the object's lines and its
--- record go, a share of what its lines took comes back, and its item goes into the hands, when it fits the inventory
--- as the game asks of its own furniture of one tile. A rack holding batteries, or a unit that is not empty, is not
--- taken up (Units.isEmpty). Left to itself the tool would make a generic Moveable of the tile, or scrap it, and lose
--- the item and the record: this mod's tiles are told they move, and the tool's check and pick-up are this mod's. Its
--- other modes leave them alone (no faces to rotate, nothing to scrap).
+-- A breaker box and the units (solar panels, battery racks, pumps, filters, boosters, sprinklers) are the game's
+-- furniture: their items are Moveables, put down with the game's furniture cursor (the inventory's 배치하기), turned
+-- with its rotate key through the looks a kind has, and taken up with its pick up mode. This file adds what the game
+-- does not know:
+--   - taking up: the object's lines and its record go, a share of what its lines took comes back, and its item goes
+--     into the inventory, when it fits as the game asks of its own furniture of one tile; a rack holding batteries, or
+--     a unit that is not empty, is not taken up (Units.isEmpty);
+--   - putting down obeys the kind's rules (Panels.canInstall, Units.canInstall: the tool's panel says why not) and
+--     makes the box or the unit as this mod does (BU.Changes), facing as the cursor was turned;
+--   - the faces: each kind's looks for the sides (BU.panelSprite, the units' sprite(nil, side)) as the tool's offsets.
+-- A placed one is not turned with the tool (its record keeps how it faces), nor scrapped.
 require "Moveables/ISMoveableSpriteProps"
 require "BuildingUtilities/Units"
 require "BuildingUtilities/Panels"
@@ -68,6 +72,48 @@ local function find(kind, square, object)
     return nil
 end
 
+-- A kind's look for each side it can face, by side (BU.SIDES), each look once: worked out once a kind.
+local facesByKind = {}
+local function facesOf(kind)
+    local faces = facesByKind[kind]
+    if faces then return faces end
+    faces = {}
+    local seen = {}
+    for _, side in ipairs(BU.SIDES) do
+        local sprite = kind == "panel" and BU.panelSprite(side) or BU.Units.spriteFacing(kind, nil, side)
+        if sprite and not seen[sprite] then
+            seen[sprite] = true
+            faces[side] = sprite
+        end
+    end
+    facesByKind[kind] = faces
+    return faces
+end
+
+-- The side a look of a kind faces, or nil.
+local function sideOf(kind, spriteName)
+    for side, sprite in pairs(facesOf(kind)) do
+        if sprite == spriteName then return side end
+    end
+    return nil
+end
+
+-- The tool turns a tile through its faces by offsets in its sheet (the game reads them from the tile's properties).
+local OFFSET = { N = "Noffset", E = "Eoffset", S = "Soffset", W = "Woffset" }
+local function setFaces(s, kind)
+    local own = sideOf(kind, s.spriteName)
+    if not own or not s.sheetName or not s.spriteID then return end
+    local any = false
+    for side, sprite in pairs(facesOf(kind)) do
+        local id = string.sub(sprite, 1, #s.sheetName) == s.sheetName and tonumber(string.sub(sprite, #s.sheetName + 1))
+        if side ~= own and id then
+            s[OFFSET[side]] = id - s.spriteID
+            any = true
+        end
+    end
+    if any then s.facing = own end
+end
+
 local new = ISMoveableSpriteProps.new
 function ISMoveableSpriteProps.new(sprite)
     local s = new(sprite)
@@ -90,6 +136,7 @@ function ISMoveableSpriteProps.new(sprite)
             s.weight = item:getActualWeight()
             s.rawWeight = s.weight * 10
         end
+        setFaces(s, kind)
     end
     return s
 end
@@ -123,4 +170,58 @@ function ISMoveableSpriteProps:pickUpMoveable(character, square, createItem, for
     local item = inventory:AddItem(itemType(kind))
     if item then sendAddItemToContainer(inventory, item) end
     return {}
+end
+
+-- Why the kind cannot be put down on a square: nil when it can (a reason of IGUI_BU_Reason_).
+local function placeProblem(kind, square)
+    local ok, reason
+    if kind == "panel" then ok, reason = BU.Panels.canInstall(square)
+    else ok, reason = BU.Units.canInstall(kind, square) end
+    if ok then return nil end
+    return reason or "blocked"
+end
+
+local canPlace = ISMoveableSpriteProps.canPlaceMoveable
+function ISMoveableSpriteProps:canPlaceMoveable(character, square, item)
+    if self.buKind and placeProblem(self.buKind, square) then return false end
+    return canPlace(self, character, square, item)
+end
+
+-- Put down: the item goes and the box or the unit is made, facing the side the cursor was turned to (the look the
+-- props are of; else the character).
+local place = ISMoveableSpriteProps.placeMoveable
+function ISMoveableSpriteProps:placeMoveable(character, square, origSpriteName, forceAllow)
+    local kind = self.buKind
+    if not kind then return place(self, character, square, origSpriteName, forceAllow) end
+    if not square or placeProblem(kind, square) then return end
+    local item = self:findInInventory(character, origSpriteName)
+    if not item then return end
+    local side = sideOf(kind, self.spriteName) or BU.sideOf(square, character)
+    local inventory = character:getInventory()
+    inventory:Remove(item)
+    sendRemoveItemFromContainer(inventory, item)
+    if kind == "panel" then BU.Changes.install(square, BU.panelSprite(side))
+    else BU.Changes.installUnit(kind, square, BU.Units.spriteFacing(kind, square, side)) end
+    BU.giveXp(character, 5)
+    if ISMoveableCursor then ISMoveableCursor.clearCacheForAllPlayers() end
+end
+
+local canRotate = ISMoveableSpriteProps.canRotateMoveable
+function ISMoveableSpriteProps:canRotateMoveable(square, object, origProps)
+    if self.buKind or origProps and origProps.buKind then return false end
+    return canRotate(self, square, object, origProps)
+end
+
+-- The tool's panel says why it cannot be put down here.
+local describe = ISMoveableSpriteProps.getInfoPanelDescription
+function ISMoveableSpriteProps:getInfoPanelDescription(square, object, player, mode)
+    local info = describe(self, square, object, player, mode)
+    if not self.buKind or mode ~= "place" or type(info) ~= "table" then return info end
+    local reason = square and placeProblem(self.buKind, square)
+    if reason then
+        local c = ISMoveableSpriteProps.bhc
+        ISMoveableSpriteProps.addLineToInfoTable(info, "- " .. getText("IGUI_BU_Reason_" .. reason),
+            c:getR() * 255, c:getG() * 255, c:getB() * 255)
+    end
+    return info
 end
