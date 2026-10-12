@@ -212,7 +212,7 @@ function Serums.reverse(character, item, id)
         Infection.reversed(record)
         OA.Sync.changed("infection", id, { kind = "reversed" })
     end
-    OA.Sync.title(id, { key = "IGUI_OA_Title_Reversal", style = "notice", tone = "green", fallback = "good" })
+    OA.Sync.title(id, { key = "IGUI_OA_Title_Reversal", style = "dust", tone = "green", fallback = "good" })
     OA.Say.tell(id, "Reversal")
     return true
 end
@@ -233,7 +233,7 @@ function Serums.test(character, item, id)
         OA.Say.tell(id, "TestPositive", { first = positives == 1 })
         if Guides.deliver(record, Guides.NOTICE) then Guides.title(id, Guides.NOTICE) end
     else
-        OA.Sync.title(id, { key = "IGUI_OA_Title_TestNegative", sub = "IGUI_OA_Title_TestNegativeSub", style = "notice",
+        OA.Sync.title(id, { key = "IGUI_OA_Title_TestNegative", sub = "IGUI_OA_Title_TestNegativeSub", style = "dust",
             tone = "green", fallback = "good" })
         OA.Say.tell(id, "TestNegative")
     end

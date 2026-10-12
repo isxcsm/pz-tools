@@ -34,7 +34,7 @@ test("a drop at the loud moment has a title, marked when its crate came down", f
     eq(record.radio, nil, "no radio line is written")
 end)
 
-test("the first supply put down is a find on the map, once", function()
+test("the first supply put down is a strange thing on the map, once", function()
     local record = OA.Store.ensure("f", "F")
     record.first = { mode = "test" }
     local told = listenTitles()
@@ -51,7 +51,7 @@ test("the first supply put down is a find on the map, once", function()
     eq(#told, 1)
     eq(told[1].id, record.id)
     eq(told[1].detail.key, "IGUI_OA_Title_FirstSupply")
-    eq(told[1].detail.style, "discovery")
+    eq(told[1].detail.style, "unveil")
     eq(told[1].detail.sub, "IGUI_OA_Title_Marked")
     FirstSupply.drop, OA.Trade.characterOf, OA.Trade.Rules.firstDue, getGameTime = real.drop, real.characterOf, real.due,
         real.time

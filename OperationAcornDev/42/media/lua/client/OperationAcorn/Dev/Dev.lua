@@ -521,7 +521,7 @@ function Dev.title(kind, arg)
     elseif kind == "request" then
         return OA.Titles.show(nil, { key = "IGUI_OA_Title_NewRequest", sub = "IGUI_OA_Title_CheckTerminal", style = "notice" })
     elseif kind == "board" then
-        local detail = { key = "IGUI_OA_Title_BoardOpened", sub = "IGUI_OA_Title_BoardOpenedSub", style = "unveil",
+        local detail = { key = "IGUI_OA_Title_BoardOpened", sub = "IGUI_OA_Title_BoardOpenedSub", style = "dust",
             tone = "gold", fallback = "good" }
         return OA.Titles.show(nil, detail)
     end

@@ -215,14 +215,14 @@ test("one big step that crosses several milestones has one title: the last count
     eq(told[1].detail.key, "IGUI_OA_Title_CodexKills")
     eq(told[1].detail.args[1], 1000)
     eq(told[1].detail.subArgs[1], 2000 + 5000 + 10000)
-    eq(told[1].detail.style, "stamp")
+    eq(told[1].detail.style, "dust")
     C.kill(r, 1)
     eq(#told, 1, "no milestone, no title")
     for i = 1, 25 do C.buildingSearched(r, "b" .. i, 0) end
     eq(#told, 2)
     eq(told[2].detail.key, "IGUI_OA_Title_CodexBuildings")
     eq(told[2].detail.args[1], 25)
-    eq(told[2].detail.style, "stamp")
+    eq(told[2].detail.style, "dust")
 end)
 
 test("a category's title names it as a text the player's side translates", function()

@@ -147,7 +147,7 @@ end
 function Hooks.treeOpened(playerId, tree, guide)
     local name = "IGUI_OA_Tree_Name_" .. tree
     local line = guide and "IGUI_OA_Title_GuideSub" or nil
-    local detail = { key = "IGUI_OA_Title_TreeOpened", args = { { key = name } }, sub = line, style = "unveil" }
+    local detail = { key = "IGUI_OA_Title_TreeOpened", args = { { key = name } }, sub = line, style = "dust" }
     if OA.Titles.show(playerId, detail, true) == "title" then return end
     local text = getText("IGUI_OA_Title_TreeOpened", getText(name))
     if line then text = text .. "<LINE>" .. getText(line) end
@@ -506,7 +506,7 @@ local function biteShield(player, u, now)
     local level = Rules.biteLevel(u, now)
     OA.Upgrades.Moodles.set("biteShield", level)
     if level == 0 and lastBiteLevel and lastBiteLevel > 0 and Rules.rank(u, "resistPlus") >= 2 then
-        OA.Titles.show(OA.Client.id(player), { key = "IGUI_OA_Title_BiteReady", style = "notice", tone = "green",
+        OA.Titles.show(OA.Client.id(player), { key = "IGUI_OA_Title_BiteReady", style = "dust", tone = "green",
             fallback = "good" })
     end
     lastBiteLevel = level

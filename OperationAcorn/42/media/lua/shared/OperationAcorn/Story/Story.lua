@@ -460,7 +460,7 @@ function Story.stageTitle(record, level)
     elseif level == Data.LAST_STAGE + 3 then
         nameKey = "IGUI_OA_Terminal_LevelHandover"
     end
-    local detail = { key = "IGUI_OA_Title_Stage", args = { level }, sub = "IGUI_OA_Title_NewItems", style = "unveil",
+    local detail = { key = "IGUI_OA_Title_Stage", args = { level }, sub = "IGUI_OA_Title_NewItems", style = "dust",
         fallback = "good" }
     if nameKey then
         detail.key = "IGUI_OA_Title_StageNamed"

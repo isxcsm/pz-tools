@@ -49,13 +49,13 @@ local function textApi()
 end
 Titles.textApi = textApi
 
--- The style to ask the API for: the detail's (else "stamp") when the API has it (an older PZ Extension API may not have "dust" or
--- "unveil"), else "stamp". The styles' kinds: stamp a thing done, discovery a thing found, notice word from the radio, unveil
--- a thing that opens, dust a thing that ends or is lost.
+-- The style to ask the API for: the detail's (else "dust") when the API has it (an older PZ Extension API may not have "dust" or
+-- "unveil"), else "stamp". The styles' kinds: dust anything not plainly another, discovery a thing found, unveil a thing
+-- strange, notice word from the radio, stamp a great thing done.
 -- The API's styles are asked once (again for another API's text).
 local styles, stylesOf
 local function styleFor(t, wanted)
-    wanted = wanted or "stamp"
+    wanted = wanted or "dust"
     if stylesOf ~= t then
         styles, stylesOf = {}, t
         local ok, list = pcall(t.styles)

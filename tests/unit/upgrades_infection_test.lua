@@ -305,7 +305,7 @@ test("a reversal without an infection is used up and the player is told the same
     eq(c.time, -1, "nothing was set")
     eq(told.notices[1], nil, "no notice: the title and a line")
     eq(told.titles[1].key, "IGUI_OA_Title_Reversal")
-    eq(told.titles[1].style, "notice")
+    eq(told.titles[1].style, "dust")
     eq(told.says[1].id, "Reversal")
 end)
 
@@ -337,7 +337,7 @@ test("a test kit finds the real infection: positive is known with its progress, 
     eq(Infection.feeRate(r), 0)
     local negative = titleOf(told, "IGUI_OA_Title_TestNegative")
     eq(negative.sub, "IGUI_OA_Title_TestNegativeSub")
-    eq(negative.style, "notice")
+    eq(negative.style, "dust")
     eq(told.says[#told.says].id, "TestNegative")
     Infection.wounded(r, "bite", 0)
     eq(Infection.feeRate(r), 0.3)

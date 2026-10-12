@@ -385,13 +385,13 @@ end
 -- More titles the mod shows, by kind: each the detail the mod's own code sends.
 local TITLES = {
     debt = { key = "IGUI_OA_Title_Debt", sub = "IGUI_OA_Title_DebtSub", style = "notice", tone = "red", fallback = "bad" },
-    paid = { key = "IGUI_OA_Title_Paid", style = "stamp", fallback = "good" },
+    paid = { key = "IGUI_OA_Title_Paid", style = "dust", fallback = "good" },
     cured = { key = "IGUI_OA_Title_Cured", sub = "IGUI_OA_Title_CuredSubDrugs", subArgs = { 12, 3 }, style = "stamp",
         tone = "green", fallback = "good" },
     positive = { key = "IGUI_OA_Title_TestPositive", style = "dust", tone = "red", fallback = "bad" },
-    negative = { key = "IGUI_OA_Title_TestNegative", sub = "IGUI_OA_Title_TestNegativeSub", style = "notice",
+    negative = { key = "IGUI_OA_Title_TestNegative", sub = "IGUI_OA_Title_TestNegativeSub", style = "dust",
         tone = "green", fallback = "good" },
-    firstSupply = { key = "IGUI_OA_Title_FirstSupply", sub = "IGUI_OA_Title_Marked", style = "discovery", fallback = "good" },
+    firstSupply = { key = "IGUI_OA_Title_FirstSupply", sub = "IGUI_OA_Title_Marked", style = "unveil", fallback = "good" },
 }
 
 -- Shows a title: the kinds of Dev.title, "stage" and "milestone" (the stage title the radio leads), or one of TITLES.

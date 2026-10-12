@@ -45,7 +45,7 @@ test("with the API's text a title goes to it, in its style and tone, on the play
     eq(OA.Titles.show("p1", { key = "IGUI_OA_Title_Capstone", args = { "x" }, tone = "gold" }), "title")
     eq(#halo, 0)
     eq(called[1].handle, "handle")
-    eq(called[1].spec.style, "stamp", "stamp unless said")
+    eq(called[1].spec.style, "dust", "dust unless said")
     eq(called[1].spec.dustBurn, nil, "the API burns in its own colour")
     eq(called[1].spec.now, nil, "queued")
     eq(called[1].spec.text, "IGUI_OA_Title_Capstone x")
@@ -119,7 +119,7 @@ test("the dev panel's switch lets every title go first", function()
     }
     OA.Titles.now = true
     eq(OA.Titles.show("p1", { key = "IGUI_OA_Title_Capstone" }), "title")
-    eq(called[1].style, "stamp")
+    eq(called[1].style, "dust")
     eq(called[1].now, true)
     OA.Titles.now = false
     OA.Titles.show("p1", { key = "IGUI_OA_Title_Capstone", style = "notice" })
