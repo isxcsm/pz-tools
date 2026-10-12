@@ -4,7 +4,7 @@
 -- shares hover and clicks with the window's list: a row under the mouse marks its room or dot here and the other way
 -- round, a room clicked here shows only that room there, a dot clicked here finds its row, and a right click offers
 -- what the row would. Rooms of the building outside the box's zone are dim; the Zone switch at the top shows the zones
--- instead, and a click there takes a room in or out. Devices not connected are hollow; the mouse over a producer or a
+-- instead, and a click there takes a room in or out. Devices in reach not connected are grey; the mouse over a producer or a
 -- device outside shows its line to the building (a producer's on to the riser away from the box's floor). The Range
 -- switch shows the range here and in the world: an outline where devices outside, producers and units join, and on
 -- the power plan how far each generator is heard (red, dim while it is off). Supply that crosses floors shows too: on
@@ -119,7 +119,7 @@ local function dotColour(device, supplied)
     elseif device.state ~= "on" then colour = COLOURS.off
     elseif device.held == "shed" or device.held == "saving" then colour = COLOURS.shed
     elseif device.held == "timer" or device.held == "blackout" then colour = COLOURS.timer
-    elseif device.held == "exterior" then colour = COLOURS.off
+    elseif device.held == "exterior" then colour = COLOURS.unsupplied
     elseif not supplied then colour = COLOURS.unsupplied
     elseif (device.power or 0) > 0 or device.utility == "water" then colour = COLOURS.using
     else colour = COLOURS.idle end
@@ -129,20 +129,20 @@ end
 -- What the legend lists for a utility, or for the zones: a colour, dot or square, and its text.
 local function legendEntries(utility, zones, ranges, subBoxes)
     local result = {}
-    local function add(name, square, hollow)
+    local function add(name, square)
         local colour = COLOURS[name]
-        result[#result + 1] = { r = colour[1], g = colour[2], b = colour[3], square = square, hollow = hollow,
+        result[#result + 1] = { r = colour[1], g = colour[2], b = colour[3], square = square,
             text = getText("IGUI_BU_Legend_" .. name) }
     end
     if zones then
         for _, name in ipairs({ "zoneMine", "zoneFree", "zoneTaken", "zoneFar" }) do add(name, true) end
     elseif utility == "power" then
         for _, name in ipairs({ "using", "idle", "shed", "timer", "unsupplied", "other" }) do add(name) end
-        add("off", false, true)
+        add("off")
         add("producer", true)
     else
         for _, name in ipairs({ "using", "other" }) do add(name) end
-        add("off", false, true)
+        add("off")
         add("tank", true)
     end
     add("box", true)
@@ -565,7 +565,7 @@ function ISBUPlan:layout()
             local r, g, b = dotColour(device, data.supplied)
             self.dots[#self.dots + 1] = { key = device.key, room = device.inside and device.roomId or nil,
                 x = math.floor(sx(device.x) + scale / 2), y = math.floor(sy(device.y) + scale / 2), r = r, g = g, b = b,
-                text = device.name .. "  " .. (device.status or ""), hollow = device.state == "off", fresh = device.fresh,
+                text = device.name .. "  " .. (device.status or ""), fresh = device.fresh,
                 line = not device.inside and device.state == "on" and lineOf(device.x, device.y, OUTSIDE_LINE) or nil }
         end
     end
@@ -820,8 +820,6 @@ function ISBUPlan:drawLegend(now, mx, my, px)
                 self:drawRect(entry.x, middle, 10, 1, alpha, entry.r, entry.g, entry.b)
             elseif entry.square then
                 self:drawRect(entry.x, middle - 4, 8, 8, alpha, entry.r, entry.g, entry.b)
-            elseif entry.hollow then
-                self:drawRectBorder(entry.x + 1, middle - DOT / 2, DOT, DOT, alpha, entry.r, entry.g, entry.b)
             else
                 self:drawRect(entry.x + 1, middle - DOT / 2, DOT, DOT, alpha, entry.r, entry.g, entry.b)
             end
@@ -910,13 +908,9 @@ function ISBUPlan:render()
     for _, dot in ipairs(self.dots) do
         local half = DOT / 2
         self:drawRect(dot.x - half - 1, dot.y - half - 1, DOT + 2, DOT + 2, 0.85, 0.02, 0.03, 0.05)
-        if dot.hollow then
-            self:drawRectBorder(dot.x - half, dot.y - half, DOT, DOT, 1, dot.r, dot.g, dot.b)
-        else
-            self:drawRect(dot.x - half, dot.y - half, DOT, DOT, 1, dot.r, dot.g, dot.b)
-        end
+        self:drawRect(dot.x - half, dot.y - half, DOT, DOT, 1, dot.r, dot.g, dot.b)
         if dot.fresh then self:drawRect(dot.x + half, dot.y - half - 3, 3, 3, 1, 0.3, 0.9, 1) end
-        if dot.key == hoverKey or marked and not marked.square and marked.hollow == dot.hollow and marked.r == dot.r
+        if dot.key == hoverKey or marked and not marked.square and marked.r == dot.r
                 and marked.g == dot.g and marked.b == dot.b then
             UI.frame(self, dot.x - DOT - 1, dot.y - DOT - 1, DOT * 2 + 2, DOT * 2 + 2, P.bright, 1)
         end
