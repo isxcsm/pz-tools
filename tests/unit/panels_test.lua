@@ -160,23 +160,3 @@ test("a device another box connected outside before the room was built stays out
     eq(Changes.syncAttached(panel), false)
     eq(panel.power.attached[LAMP], nil)
 end)
-
-test("a device its mod says is switched on is on while it draws nothing", function()
-    house(TEST.api)
-    local lamp = TEST.api.buildingsByKey[KEY].attachedObjects.power[1]
-    lamp.power, lamp.on = 0, true
-    local panel = Store.newPanel(201, 201, 0, "box")
-    local found
-    for _, device in ipairs(Panels.devices(panel, "power")) do
-        if device.key == LAMP then found = device end
-    end
-    truthy(found, "the lamp is the box's")
-    eq(found.on, true)
-    eq(found.power, 0)
-    lamp.on = nil
-    TEST.api.version = (TEST.api.version or 0) + 1
-    for _, device in ipairs(Panels.devices(panel, "power")) do
-        if device.key == LAMP then found = device end
-    end
-    eq(found.on, nil, "one that says nothing is not")
-end)

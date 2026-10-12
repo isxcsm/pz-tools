@@ -1040,8 +1040,6 @@ function ISBUPanelWindow:deviceStatus(utility, device)
             text = getText(HELD_TEXT[device.held])
         elseif power > 0 then
             text = string.format("%.3f", power) .. " (" .. percent(power, self.limit) .. ")"
-        elseif device.on then
-            text, dim = getText("IGUI_BU_Standby"), true
         else
             text, dim = getText("IGUI_BU_Idle"), true
         end
