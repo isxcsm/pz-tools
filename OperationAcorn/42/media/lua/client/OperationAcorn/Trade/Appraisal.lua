@@ -97,7 +97,8 @@ local function boxOf(page)
     local pane = page.inventoryPane
     local inventory = pane and pane.inventory
     local object = inventory and inventory:getParent()
-    if object and Objects.kindOf(object) == Objects.DELIVERY_BOX and not object:getModData()[Objects.SEALED] then
+    if object and Objects.kindOf(object) == Objects.DELIVERY_BOX and not object:getModData()[Objects.SEALED]
+        and not Objects.abandoned(object) then
         return object, inventory
     end
     return nil

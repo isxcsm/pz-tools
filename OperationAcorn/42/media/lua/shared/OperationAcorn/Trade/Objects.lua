@@ -35,9 +35,12 @@ Objects.ITEMS = {
 -- terminal (DESIGN-terminal 3).
 Objects.UPGRADED = "OA_Upgraded"
 Objects.BOX_CONTAINER, Objects.CRATE_CONTAINER = "OADeliveryBox", "OASupplyCrate"
+-- The container of a box whose owner's character died (Objects.abandoned): its own title in the loot window.
+Objects.ABANDONED_CONTAINER = "OAAbandonedBox"
 -- The texts of those titles; named here so that the translation check sees them used.
 Objects.TITLE_KEYS = {
     box = "IGUI_ContainerTitle_OADeliveryBox",
+    abandoned = "IGUI_ContainerTitle_OAAbandonedBox",
     crate = "IGUI_ContainerTitle_OASupplyCrate",
 }
 
@@ -248,6 +251,8 @@ end
 
 -- What the delivery box's container takes: items the team accepts (P1's rule), nothing otherwise.
 function Objects.acceptItem(container, item)
+    -- an abandoned box takes nothing: what is in it can only be taken out
+    if Objects.abandoned(container:getParent()) then return false end
     if not (OA.Value and OA.Value.info and OA.Value.accepts) then return false end
     local ok, info = pcall(OA.Value.info, item)
     if not ok or not info then return false end
@@ -285,7 +290,7 @@ function Objects.setupBox(object, record)
     end
     -- (a box of an older save may have kept its tile's container unexplored)
     if not container:isExplored() then container:setExplored(true) end
-    Objects.nameContainer(container, Objects.BOX_CONTAINER)
+    Objects.nameContainer(container, Objects.abandoned(object) and Objects.ABANDONED_CONTAINER or Objects.BOX_CONTAINER)
     -- The PZ Tools API lifts the vanilla cap of 100 for containers whose object carries modData OA_Capacity as a number
     -- (the upgrades part declares that key) and adds the number to the raw capacity; without it the game holds the
     -- box to 100. The raw capacity stays within 100 (the game warns on every larger one, and this runs on every
@@ -313,6 +318,16 @@ end
 -- taken away, now and again whenever its chunk loads.
 function Objects.closeFor(object)
     if object:getContainer() then object:removeAllContainers() end
+end
+
+-- Whether a box (an object, or the mod data of a box item) is abandoned: its owner's character died. No one deals
+-- through it any more: it takes nothing, is not sealed or taken up, and can be dismantled (Things.dismantleBox).
+function Objects.abandoned(thing)
+    if not thing then return false end
+    local md = thing.getModData and thing:getModData() or thing
+    local id = md and md[Objects.OWNER]
+    local owner = id and OA.Store.player(id)
+    return owner ~= nil and not OA.Store.alive(owner)
 end
 
 -- The same for a record that is looked for by the box's owner id.

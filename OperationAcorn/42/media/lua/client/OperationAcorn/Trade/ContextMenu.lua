@@ -108,8 +108,28 @@ local function terminalOptions(context, object, player)
     -- taken up with the game's furniture tool (Trade/Moveables.lua)
 end
 
+function Menus.dismantle(object, player)
+    local character = getSpecificPlayer(player)
+    local square = object:getSquare()
+    if square and luautils.walkAdj(character, square) then
+        ISTimedActionQueue.add(ISOADismantleBox:new(character, square))
+    end
+end
+
 local function boxOptions(context, object, player)
     local md = object:getModData()
+    local side = Things.boxSide(getSpecificPlayer(player), md)
+    if side ~= "own" then
+        -- added on top in reverse: the name, then what can be done
+        if side == "abandoned" then
+            context:addOptionOnTop(getText("ContextMenu_OA_Trade_DismantleBox"), object, Menus.dismantle, player)
+        end
+        local info = context:addOptionOnTop(getText(side == "abandoned" and "ContextMenu_OA_Trade_BoxAbandoned"
+            or "ContextMenu_OA_Trade_BoxOther"), nil, nil)
+        info.notAvailable = true
+        tooltip(info, getText(side == "abandoned" and "ContextMenu_OA_Trade_BoxAbandonedTip" or "ContextMenu_OA_Trade_BoxOtherTip"))
+        return
+    end
     if md[Objects.SEALED] then
         local info = context:addOptionOnTop(getText("ContextMenu_OA_Trade_BoxSealed"), nil, nil)
         info.notAvailable = true

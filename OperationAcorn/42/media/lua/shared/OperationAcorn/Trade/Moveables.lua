@@ -76,6 +76,8 @@ function ISMoveableSpriteProps:canPickUpMoveable(character, square, object)
     if not character:getInventory():hasRoomFor(character, self.weight) then return false end
     if kind == Objects.TERMINAL then return true end
     if thing:getModData()[Objects.SEALED] then return false end
+    -- another's box, or an abandoned one (that is dismantled instead), is not taken up
+    if Things.boxSide(character, thing:getModData()) ~= "own" then return false end
     local container = thing:getContainer()
     return container == nil or container:isEmpty()
 end

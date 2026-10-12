@@ -105,9 +105,21 @@ local function ownerOf(modData, fallback)
     return (id and OA.Store.player(id)) or fallback
 end
 
+-- Whose a box (its object's or item's mod data) is to a character: "own" (the character's record, or none named: a box
+-- made by hand), "abandoned" (its owner's character died) or "other" (another living one's). Only an own box is
+-- loaded, sealed, taken up or put down; an abandoned one is dismantled; another's is left alone.
+function Things.boxSide(character, md)
+    local id = md and md[Objects.OWNER]
+    if not id or id == OA.Store.idOf(character) then return "own" end
+    local owner = OA.Store.player(id)
+    if not owner then return "own" end
+    return OA.Store.alive(owner) and "other" or "abandoned"
+end
+
 -- Puts a delivery box item down. A box the record does not know (made by hand, say) is entered as a previous box
 -- unless the record has no active box.
 function Things.placeBox(character, record, square, item)
+    if Things.boxSide(character, item:getModData()) ~= "own" then return false, "notOwner" end
     local owner = ownerOf(item:getModData(), record)
     local ok, why = Objects.clearSquare(square)
     if not ok then return false, why end
@@ -132,6 +144,7 @@ end
 function Things.takeBox(character, object)
     local md = object:getModData()
     if md[Objects.SEALED] then return false, "sealed" end
+    if Things.boxSide(character, md) ~= "own" then return false, "notOwner" end
     local owner = ownerOf(md, nil)
     local container = object:getContainer()
     if container and not container:isEmpty() then return false, "notEmpty" end
@@ -179,6 +192,8 @@ end
 function Things.seal(character, record, object)
     local md = object:getModData()
     if Objects.kindOf(object) ~= Objects.DELIVERY_BOX or md[Objects.SEALED] then return false, "state" end
+    -- what is in another's box is not this character's sale, and an abandoned box no longer reaches the team
+    if Things.boxSide(character, md) ~= "own" then return false, "notOwner" end
     local owner = ownerOf(md, record)
     local square = object:getSquare()
     if not square or not near(character, square:getX(), square:getY()) then return false, "far" end
@@ -210,6 +225,31 @@ function Things.seal(character, record, object)
     Trade.fireSealed(owner, box.id, entries)
     changed(owner)
     return true, entries, plan
+end
+
+-- Dismantles an abandoned box (sealed or not): it is taken out of the world, what an open one holds is left on its
+-- square, and its record forgets it. Returns true, or false and a reason.
+function Things.dismantleBox(character, object)
+    if Objects.kindOf(object) ~= Objects.DELIVERY_BOX then return false, "state" end
+    local md = object:getModData()
+    if Things.boxSide(character, md) ~= "abandoned" then return false, "notOwner" end
+    local square = object:getSquare()
+    if not square or not near(character, square:getX(), square:getY()) then return false, "far" end
+    local container = object:getContainer()
+    if container and not md[Objects.SEALED] then
+        for _, item in ipairs(itemsOf(container)) do
+            container:DoRemoveItem(item)
+            sendRemoveItemFromContainer(container, item)
+            square:AddWorldInventoryItem(item, OA.randomFloat(0.1, 0.9), OA.randomFloat(0.1, 0.9), 0)
+        end
+    end
+    unwatch("trade.box", square:getX(), square:getY(), square:getZ())
+    Objects.remove(object)
+    local owner = ownerOf(md, nil)
+    local id = md[Objects.BOX]
+    if owner and id then Boxes.remove(owner, id) end
+    if owner then changed(owner) end
+    return true
 end
 
 -- A box or terminal removed without us (sledgehammer, fire): the record forgets it. Its contents are lost. For an
@@ -347,6 +387,7 @@ end
 -- Moves the items of a plan into the box, in one go: no transfer action per item. Returns how many moved.
 function Things.bulkLoad(character, boxObject)
     if Objects.kindOf(boxObject) ~= Objects.DELIVERY_BOX or boxObject:getModData()[Objects.SEALED] then return 0 end
+    if Things.boxSide(character, boxObject:getModData()) ~= "own" then return 0 end
     local square = boxObject:getSquare()
     if not square or not near(character, square:getX(), square:getY()) then return 0 end
     local box = Objects.setupBoxOf(boxObject)

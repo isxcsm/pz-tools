@@ -134,6 +134,30 @@ function ISOASeal:new(character, square)
     return o
 end
 
+-- Dismantling an abandoned box (its owner's character died).
+ISOADismantleBox = base("ISOADismantleBox", 200)
+
+function ISOADismantleBox:isValid()
+    local square = squareOf(self)
+    local object = square and Objects.find(square, Objects.DELIVERY_BOX)
+    return object ~= nil and Objects.abandoned(object)
+end
+
+function ISOADismantleBox:complete()
+    local object = Objects.find(squareOf(self), Objects.DELIVERY_BOX)
+    if not object then return false end
+    local ok, why = Things.dismantleBox(self.character, object)
+    if not ok then refuse(self.character, why) end
+    return true
+end
+
+function ISOADismantleBox:new(character, square)
+    local o = ISBaseTimedAction.new(self, character)
+    o.x, o.y, o.z = square:getX(), square:getY(), square:getZ()
+    o.maxTime = o:getDuration()
+    return o
+end
+
 -- Loading a box from the containers and the trunk around it: one action for all the items.
 ISOABulkLoad = base("ISOABulkLoad", nil)
 
