@@ -460,16 +460,44 @@ local function designParent(parent)
     return on and parent ~= nil and parent.uiScaled == true
 end
 
+-- The draws, by the place of their alpha among their arguments.
+local FADED = { drawRect = 5, drawRectBorder = 5, drawRectStatic = 5, drawRectBorderStatic = 5, drawText = 7,
+    drawTextCentre = 7, drawTextRight = 7, drawTextUntrimmed = 7, drawTextZoomed = 8, drawTexture = 4,
+    drawTextureScaled = 6, drawTextureScaledAspect = 6, drawTextureScaledAspect2 = 6, drawTextureScaledAspect3 = 6,
+    drawTextureScaledUniform = 5, drawTextureTiled = 9, drawTextureTiledX = 9, drawTextureTiledY = 9, drawLine = 7 }
+-- A draw whose alpha (its at-th argument) goes through scale(el, a): a window's fade on what is drawn in it.
+local function fadedDraw(fn, at, scale)
+    if at == 4 then
+        return function(el, p1, p2, p3, a, ...) return fn(el, p1, p2, p3, scale(el, a), ...) end
+    elseif at == 5 then
+        return function(el, p1, p2, p3, p4, a, ...) return fn(el, p1, p2, p3, p4, scale(el, a), ...) end
+    elseif at == 6 then
+        return function(el, p1, p2, p3, p4, p5, a, ...) return fn(el, p1, p2, p3, p4, p5, scale(el, a), ...) end
+    elseif at == 7 then
+        return function(el, p1, p2, p3, p4, p5, p6, a, ...) return fn(el, p1, p2, p3, p4, p5, p6, scale(el, a), ...) end
+    elseif at == 8 then
+        return function(el, p1, p2, p3, p4, p5, p6, p7, a, ...)
+            return fn(el, p1, p2, p3, p4, p5, p6, p7, scale(el, a), ...)
+        end
+    end
+    return function(el, p1, p2, p3, p4, p5, p6, p7, p8, a) return fn(el, p1, p2, p3, p4, p5, p6, p7, p8, scale(el, a)) end
+end
+
 -- A canvas to draw on a game widget in design units (a row of a game list inside our element): the widget's fields
--- show through it, its width and height are in design units and its drawing converts (its texts in their faces). While
+-- show through it, its width and height are in design units and its drawing converts (its texts in their faces),
+-- through the widget's class's draws with the window's fade taken once (UI.faded: the canvas is no element of the
+-- window, so the fade's wrappers do not reach it). While
 -- our classes do not convert, or outside our
 -- elements, the widget itself.
 function UI.designCanvas(el)
     if not designParent(el.parent) then return el end
     local c = el.uiCanvas
     if not c then
-        c = setmetatable({ uiBase = el, uiDesign = true }, { __index = el })
-        for _, name in ipairs(DRAWS) do c[name] = SCALED[name] end
+        c = setmetatable({ uiBase = UI.rawDraws(el), uiDesign = true }, { __index = el })
+        for _, name in ipairs(DRAWS) do
+            local at = FADED[name]
+            c[name] = at and fadedDraw(SCALED[name], at, UI.faded) or SCALED[name]
+        end
         el.uiCanvas = c
     end
     c.width, c.height = el.width / S, el.height / S
@@ -1169,38 +1197,11 @@ end
 -- nothing each frame (update); it is taken away at the end.
 UI.FADE_IN_MS, UI.FADE_OUT_MS = 300, 240
 
--- The draws, by the place of their alpha among their arguments.
-local FADED = { drawRect = 5, drawRectBorder = 5, drawRectStatic = 5, drawRectBorderStatic = 5, drawText = 7,
-    drawTextCentre = 7, drawTextRight = 7, drawTextUntrimmed = 7, drawTextZoomed = 8, drawTexture = 4,
-    drawTextureScaled = 6, drawTextureScaledAspect = 6, drawTextureScaledAspect2 = 6, drawTextureScaledAspect3 = 6,
-    drawTextureScaledUniform = 5, drawTextureTiled = 9, drawTextureTiledX = 9, drawTextureTiledY = 9, drawLine = 7 }
 -- What a going window's elements stop doing.
 local STILLED = { "onMouseDown", "onMouseUp", "onRightMouseDown", "onRightMouseUp", "onMouseWheel",
     "onMouseDoubleClick", "update" }
 
 local function swallow() return true end
-
--- A draw whose alpha (its at-th argument) is scaled by the window's fade.
-local function fadedDraw(fn, at, root)
-    if at == 4 then
-        return function(el, p1, p2, p3, a, ...) return fn(el, p1, p2, p3, (a or 1) * root.uiFade, ...) end
-    elseif at == 5 then
-        return function(el, p1, p2, p3, p4, a, ...) return fn(el, p1, p2, p3, p4, (a or 1) * root.uiFade, ...) end
-    elseif at == 6 then
-        return function(el, p1, p2, p3, p4, p5, a, ...) return fn(el, p1, p2, p3, p4, p5, (a or 1) * root.uiFade, ...) end
-    elseif at == 7 then
-        return function(el, p1, p2, p3, p4, p5, p6, a, ...)
-            return fn(el, p1, p2, p3, p4, p5, p6, (a or 1) * root.uiFade, ...)
-        end
-    elseif at == 8 then
-        return function(el, p1, p2, p3, p4, p5, p6, p7, a, ...)
-            return fn(el, p1, p2, p3, p4, p5, p6, p7, (a or 1) * root.uiFade, ...)
-        end
-    end
-    return function(el, p1, p2, p3, p4, p5, p6, p7, p8, a)
-        return fn(el, p1, p2, p3, p4, p5, p6, p7, p8, (a or 1) * root.uiFade)
-    end
-end
 
 local fadeFrame
 
@@ -1220,11 +1221,17 @@ local function wrap(el, root, going)
             if type(value) == "function" then owned[key] = value end
         end
         el.uiFadeRoot, el.uiFadeKept, el.uiFadeOwn = root, {}, owned
+        local scale = function(_, a) return (a or 1) * root.uiFade end
         for name, at in pairs(FADED) do
             local fn = el[name]
-            if fn then override(el, name, fadedDraw(fn, at, root)) end
+            if fn then override(el, name, fadedDraw(fn, at, scale)) end
         end
         if el ~= root then UI.live(el, fadeFrame) end
+        if el.Type == "ISTextEntryBox" then
+            local boxes = root.uiTextBoxes or {}
+            root.uiTextBoxes = boxes
+            boxes[#boxes + 1] = el
+        end
     end
     if going and not el.uiStilled then
         el.uiStilled = true
@@ -1244,6 +1251,18 @@ local function unwrap(el)
     for _, child in pairs(el.children or {}) do unwrap(child) end
 end
 
+-- The game's text boxes in a fading window draw their text in Java, past every draw here: their text colour (white, as
+-- the game makes it) takes the fade, and is whole again at its end.
+local function fadeTextBoxes(root, f)
+    local boxes = root.uiTextBoxes
+    if not boxes then return end
+    local colour = root.uiTextColour or ColorInfo.new(1, 1, 1, 1)
+    root.uiTextColour = colour
+    for _, box in ipairs(boxes) do
+        if box.javaObject then box.javaObject:setTextColor(colour:set(1, 1, 1, f)) end
+    end
+end
+
 -- The window's step of its fade, which its elements follow to be drawn again.
 fadeFrame = function(el, now)
     local root = el.uiFadeRoot
@@ -1261,6 +1280,8 @@ local function fadeStep(root, now)
             root.uiFade = 0
             fade.done(root)
         end
+        fadeTextBoxes(root, 1)
+        root.uiTextBoxes = nil
         unwrap(root)
         root.uiFade = nil
         return nil
@@ -1269,6 +1290,7 @@ local function fadeStep(root, now)
     root.uiFade = fade.from + (fade.to - fade.from) * e
     root.uiFadeKey = math.floor(t * 100)
     wrap(root, root, fade.done ~= nil)
+    fadeTextBoxes(root, root.uiFade)
     return root.uiFadeKey
 end
 
