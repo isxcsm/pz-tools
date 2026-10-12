@@ -10,7 +10,7 @@
 -- window shows the range, the plan does too: an outline where devices outside join (blue) and where producers do
 -- (yellow), and on the power plan how far each generator is heard (red, dim while it is off). The supply lines' switch
 -- at the top shows them with their dashes, the lines alone, or none (the player's choice, kept between games); without
--- dashes or lines, the mouse over a producer shows its line. Supply that crosses floors shows too: on a producer's
+-- dashes or lines, the mouse over a producer or a device outside shows its line. Supply that crosses floors shows too: on a producer's
 -- floor its line runs on to a riser under (or over) the box, which tells the box's floor; by the box, a badge for each
 -- other floor that supplies it tells how many come from there (the mouse over it, what); a click on either goes to
 -- that floor. The floor strip marks the floors with producers, in their colour. The wheel zooms at the mouse, dragging
@@ -23,6 +23,7 @@
 require "ISUI/ISPanel"
 require "PZAPI/ModOptions"
 require "PZUIKit/UI"
+require "PZUIKit/RichText"
 require "BuildingUtilities/Geometry"
 require "BuildingUtilities/PanelUi"
 local BU = BuildingUtilities
@@ -43,10 +44,11 @@ local ZONE_W, FIT_W, RANGE_W, FLOW_W, measuredEra = 0, 0, 0, 0, nil
 local MIN_ZOOM, MAX_ZOOM, MAX_ZOOM_SCALE, DRAG = 0.5, 8, 48, 4
 -- Wheel notches over the floor strip scroll it by so many floors.
 local STRIP_SCROLL = 3
--- The supply lines are drawn at fixed pixel widths, whatever the zoom: the line LINE_PX wide over a dark casing
--- CASING_PX wide, so that it reads over any room or the grid; the flow runs along it as dashes DASH_PX wide, DASH_LEN_PX
--- long and DASH_GAP_PX apart, moving FLOW_PX pixels a second. The rooms' outlines are WALL_PX wide.
-local LINE_PX, CASING_PX, DASH_PX, DASH_LEN_PX, DASH_GAP_PX, FLOW_PX, WALL_PX = 2, 4, 2, 7, 6, 28, 2
+-- The supply lines are drawn at fixed pixel widths, whatever the zoom (a bundle of them stays tidy): the line LINE_PX
+-- wide over a dark casing CASING_PX wide, so that it reads over any room or the grid; the flow runs along it as dashes
+-- DASH_PX wide in a dark rim DASH_RIM_PX wide (so they show over a producer or the box of their own light colour),
+-- DASH_LEN_PX long and DASH_GAP_PX apart, moving FLOW_PX pixels a second. The rooms' outlines are WALL_PX wide.
+local LINE_PX, CASING_PX, DASH_PX, DASH_RIM_PX, DASH_LEN_PX, DASH_GAP_PX, FLOW_PX, WALL_PX = 1, 3, 2, 4, 7, 6, 28, 2
 -- The lines out to devices outside the building: a cool cyan, apart from the rooms' greens.
 local OUTSIDE_LINE = { 0.45, 0.78, 0.86 }
 -- The legend: its header's fold mark so wide, and it folds or opens over LEGEND_MS.
@@ -566,9 +568,11 @@ function ISBUPlan:layout()
         end
         return line
     end
+    -- the lines out to devices outside, shown as the switch has them (each kept for the mouse over its dot)
+    local deviceLines = {}
     for _, device in ipairs(data.devices) do
         if device.z == self.floor and not device.inside and device.state == "on" then
-            addLine(device.x, device.y, OUTSIDE_LINE, device.flow, true)
+            deviceLines[device.key] = addLine(device.x, device.y, OUTSIDE_LINE, device.flow, flowState ~= "off")
         end
     end
     local producerLines = {}
@@ -661,7 +665,8 @@ function ISBUPlan:layout()
             local r, g, b = dotColour(device, data.supplied)
             self.dots[#self.dots + 1] = { key = device.key, room = device.inside and device.roomId or nil,
                 x = math.floor(sx(device.x) + scale / 2), y = math.floor(sy(device.y) + scale / 2), r = r, g = g, b = b,
-                text = device.name .. "  " .. (device.status or ""), hollow = device.state == "off", fresh = device.fresh }
+                text = device.name .. "  " .. (device.status or ""), hollow = device.state == "off", fresh = device.fresh,
+                line = deviceLines[device.key] }
         end
     end
     for index, producer in ipairs(data.producers) do
@@ -1033,21 +1038,28 @@ function ISBUPlan:render()
         UI.live(self, flowFrame)
         local dash, period = DASH_LEN_PX * px, (DASH_LEN_PX + DASH_GAP_PX) * px
         local offset = BU.remainder(now / 1000 * FLOW_PX * px, period)
-        local dw = DASH_PX * px
-        for _, flow in ipairs(self.flows) do
-            local length = flow.length
-            local r, g, b = flow.r + (1 - flow.r) * 0.5, flow.g + (1 - flow.g) * 0.5, flow.b + (1 - flow.b) * 0.5
-            local start = offset - period
-            while start < length do
-                local from, to = math.max(0, start), math.min(length, start + dash)
-                if to > from then
-                    if flow.toBox then
-                        drawSpan(self, flow.points, flow.lengths, from, to, dw, 1, r, g, b)
-                    else
-                        drawSpan(self, flow.points, flow.lengths, length - to, length - from, dw, 1, r, g, b)
-                    end
+        -- the dark rims first, then the dashes in a light tint of their line's colour
+        for pass = 1, 2 do
+            local dw = (pass == 1 and DASH_RIM_PX or DASH_PX) * px
+            local ext = pass == 1 and px or 0 -- a rim reaches a pixel past its dash's ends
+            for _, flow in ipairs(self.flows) do
+                local length = flow.length
+                local r, g, b, a = 0.02, 0.03, 0.05, 0.85
+                if pass == 2 then
+                    r, g, b, a = flow.r + (1 - flow.r) * 0.5, flow.g + (1 - flow.g) * 0.5, flow.b + (1 - flow.b) * 0.5, 1
                 end
-                start = start + period
+                local start = offset - period
+                while start < length do
+                    local from, to = math.max(0, start - ext), math.min(length, start + dash + ext)
+                    if to > from then
+                        if flow.toBox then
+                            drawSpan(self, flow.points, flow.lengths, from, to, dw, a, r, g, b)
+                        else
+                            drawSpan(self, flow.points, flow.lengths, length - to, length - from, dw, a, r, g, b)
+                        end
+                    end
+                    start = start + period
+                end
             end
         end
     end
@@ -1109,9 +1121,23 @@ function ISBUPlan:render()
         self:drawTextCentre(cell.text, cell.x + cell.w / 2, cell.y + 1, 1, 1, 1, shade, UIFont.Small)
     end
     self:drawLegend(now, mx, my, px)
+    -- The status line; a text too long for it shows whole in a tooltip at the mouse instead (measured once a text).
     local status = self.status or (self.data and self.data.zoneEdit and getText("IGUI_BU_ZoneHint"))
+    local long = false
     if status then
-        self:drawText(status, PAD, self.height - FONT_HGT_SMALL - PAD, 1, 1, 1, 1, UIFont.Small)
+        if status ~= self.statusText or self.statusEra ~= UI.era or self.statusW ~= self.width then
+            self.statusText, self.statusEra, self.statusW = status, UI.era, self.width
+            self.statusLong = UI.textWidth(status) > self.width - PAD * 2
+        end
+        long = self.statusLong
+        if not long then self:drawText(status, PAD, self.height - FONT_HGT_SMALL - PAD, 1, 1, 1, 1, UIFont.Small) end
+    end
+    if long then
+        PZUIRichTip.show(self, status, P)
+        self.statusTipped = true
+    elseif self.statusTipped then
+        PZUIRichTip.hide(self)
+        self.statusTipped = false
     end
 end
 
@@ -1151,7 +1177,7 @@ function ISBUPlan:onMouseMove(dx, dy)
     local kind, thing = self:hit(self:getMouseX(), self:getMouseY())
     self:setHover(kind == "dot" and thing.key or nil, (kind == "room" or kind == "dot") and thing.room or nil)
     -- A producer's line, as laid out with the rest, while the switch shows no dots.
-    self.hoverLine = kind == "square" and ISBUPlan.flowState() ~= "flow" and thing.line or nil
+    self.hoverLine = (kind == "square" or kind == "dot") and ISBUPlan.flowState() ~= "flow" and thing.line or nil
     if kind == "dot" or kind == "square" then
         self.status = thing.text
     elseif kind == "badge" then
