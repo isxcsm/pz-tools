@@ -1,10 +1,11 @@
--- The meteor drop sites (DESIGN 3, NUMBERS 6, LORE 2 and 7). Where they are is decided once, when the world is first
--- opened: 24 times the MeteorSites option of them, over the whole map, more than 300 squares apart, in the world
--- section "sites". Whether a place is really land is found out when its chunk first loads (never by scanning squares):
--- a place that is not gets a new one elsewhere. A site then gets its props (scorched ground, rocks, a survey stake with
--- its number and a date, and round them 2 or 3 things someone left) and 1 to 3 meteorite fragments numbered by the
--- stake, all through OA.Chunks. No sound is changed around a site and nothing there gives light (FEASIBILITY: visual
--- clues only).
+-- The meteor drop sites (DESIGN 3, NUMBERS 6, LORE 2 and 7). Three of them, decided once, when the first character
+-- has a place in the world: in the ring of RING_LO to RING_HI squares around where it started, SPACING apart, so that
+-- wherever a game starts the three are about as far (the capstones need them). Each holds one meteorite fragment of
+-- its own kind, and each kind opens one tree's capstone (Upgrades Data.FRAGMENTS). They are kept in the world section
+-- "sites". Whether a place is really land is found out when its chunk first loads (never by scanning squares): a
+-- place that is not gets a new one in the ring. A site then gets its props (scorched ground, rocks, a survey stake with
+-- its number and a date, and round them 2 or 3 things someone left) and its fragment, all through OA.Chunks. No sound
+-- is changed around a site and nothing there gives light (FEASIBILITY: visual clues only).
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Sync"
@@ -16,8 +17,18 @@ local OA = OperationAcorn
 local Sites = {}
 OA.Sites = Sites
 
-Sites.COUNT = 24
-Sites.SPACING = 300
+Sites.COUNT = 3
+Sites.RING_LO, Sites.RING_HI = 500, 1500
+Sites.SPACING = 400
+-- The layout's version: a world laid out before (24 sites over the whole map) has its sites taken away and is laid
+-- out again (Sites.ensure).
+Sites.VERSION = 2
+-- The kinds of fragment, one site each, and the item each leaves (Story Data names). The kinds look different on the
+-- ground too: how many squares the fall scorched round the middle (the stony one broke up and spread; the iron one
+-- punched in).
+Sites.KINDS = { "stony", "iron", "stonyIron" }
+Sites.FRAGMENT = { stony = "MeteorFragment", iron = "MeteorFragmentIron", stonyIron = "MeteorFragmentStonyIron" }
+Sites.SCORCH = { stony = 9, iron = 5, stonyIron = 7 }
 -- Zone types a site never lies in (judged where the zones are known: B42 loads a cell's zones with the cell).
 Sites.NOT = { TownZone = true, WaterZone = true, WaterFlow = true, Basement = true, TrailerPark = true, Nav = false }
 Sites.DATES = 8
@@ -32,9 +43,11 @@ local function section()
     return OA.Store.world("sites")
 end
 
--- The sites, in number order: { { n =, x =, y =, stake =, date =, state = "pending" | "placed" | "failed" } }.
+-- The sites, in number order: { { n =, x =, y =, kind =, stake =, date =, state = "pending" | "placed" | "failed" } }.
 function Sites.list()
-    return section().list or {}
+    local sec = section()
+    if sec.v ~= Sites.VERSION then return {} end
+    return sec.list or {}
 end
 
 function Sites.byNumber(n)
@@ -44,22 +57,24 @@ function Sites.byNumber(n)
     return nil
 end
 
--- How many sites a world gets.
-function Sites.count()
-    local scale = OA.option("MeteorSites") or 1
-    return math.max(0, OA.round(Sites.COUNT * scale))
+-- The layout the sites are of (a number that changes when they are laid out again), or nil before there are any. A
+-- record keeps the sites it has seen under it (Sites.seenOf).
+function Sites.generation()
+    local sec = section()
+    return sec.v == Sites.VERSION and sec.gen or nil
 end
 
--- The fragments one site holds: 1 to 3, multiplied by 1 plus the upgrade bonus (눈썰미 and the research board; +0.5
--- is half as many again), rounded at random so that the expectation is kept.
-function Sites.fragmentCount(bonus, int, float)
-    int = int or OA.random
-    float = float or OA.randomFloat
-    local base = int(1, 3)
-    local expected = base * (1 + (bonus or 0))
-    local whole = math.floor(expected)
-    if float(0, 1) < expected - whole then whole = whole + 1 end
-    return whole
+-- The sites a record has been near (site number -> true) and the stakes it has read: emptied when the sites were laid
+-- out again since.
+function Sites.seenOf(record)
+    local s = OA.Story.section(record)
+    local gen = Sites.generation()
+    if s.sitesGen ~= gen then
+        s.sitesGen = gen
+        s.sitesSeen = {}
+        s.sitesSearched = {}
+    end
+    return s.sitesSeen
 end
 
 -- The things left round a site: 2 or 3 different kinds of Sites.PROPS.
@@ -80,68 +95,17 @@ function Sites.otherDate(date, int)
     return d
 end
 
--- The best fragment bonus among the living records (the site is the world's, the fragments are placed once).
-function Sites.bestBonus()
-    local best = 0
-    if not (OA.Upgrades and OA.Upgrades.fragmentBonus) then return 0 end
-    for _, record in pairs(OA.Store.players()) do
-        if OA.Store.alive(record) then
-            local ok, bonus = pcall(OA.Upgrades.fragmentBonus, record)
-            if ok and type(bonus) == "number" and bonus > best then best = bonus end
-        end
-    end
-    return best
+-- `n` different picks of a list, in a random order.
+local function shuffled(list, n, int)
+    local pool = {}
+    for i, v in ipairs(list) do pool[i] = v end
+    local out = {}
+    for _ = 1, math.min(n, #pool) do out[#out + 1] = table.remove(pool, int(1, #pool)) end
+    return out
 end
 
 -- The map's cell size in squares (B42).
 local CELL = 256
-
--- The extent, in cells, of the cells that hold map data (the hand-made map; B42 reports a metagrid of +-250 cells
--- around it, generated where nothing was drawn). Found once a session: a coarse look every STEP cells, then the
--- edges to the cell. nil when no cell has data.
-local extent
-local function mapExtent()
-    if extent ~= nil then return extent or nil end
-    local grid = getWorld():getMetaGrid()
-    local x1, y1, x2, y2 = grid:getMinX(), grid:getMinY(), grid:getMaxX(), grid:getMaxY()
-    local STEP = 8
-    local minX, minY, maxX, maxY
-    for cx = x1, x2, STEP do
-        for cy = y1, y2, STEP do
-            if grid:getCellData(cx, cy) then
-                minX, maxX = math.min(minX or cx, cx), math.max(maxX or cx, cx)
-                minY, maxY = math.min(minY or cy, cy), math.max(maxY or cy, cy)
-            end
-        end
-    end
-    if not minX then
-        extent = false
-        return nil
-    end
-    -- the coarse look may stop up to STEP - 1 cells short of an edge
-    local yLo, yHi = math.max(y1, minY - STEP + 1), math.min(y2, maxY + STEP - 1)
-    local xLo, xHi = math.max(x1, minX - STEP + 1), math.min(x2, maxX + STEP - 1)
-    local function column(cx)
-        for cy = yLo, yHi do if grid:getCellData(cx, cy) then return true end end
-        return false
-    end
-    local function row(cy)
-        for cx = xLo, xHi do if grid:getCellData(cx, cy) then return true end end
-        return false
-    end
-    local lo = xLo
-    while lo < minX and not column(lo) do lo = lo + 1 end
-    local hi = xHi
-    while hi > maxX and not column(hi) do hi = hi - 1 end
-    minX, maxX = lo, hi
-    lo = yLo
-    while lo < minY and not row(lo) do lo = lo + 1 end
-    hi = yHi
-    while hi > maxY and not row(hi) do hi = hi - 1 end
-    minY, maxY = lo, hi
-    extent = { minX = minX, minY = minY, maxX = maxX, maxY = maxY }
-    return extent
-end
 
 -- A map point that may hold a site: a cell of the drawn map, and no zone there that says town or water. B42 keeps a
 -- cell's zones only once the cell has loaded, so far from the player there are mostly none: the land is then judged
@@ -158,56 +122,121 @@ local function acceptPoint(x, y)
     return true
 end
 
--- The map's extent in squares: the cells that hold map data, else the whole metagrid.
-function Sites.bounds()
-    local e = mapExtent()
-    if e then
-        return { minX = e.minX * CELL, minY = e.minY * CELL, maxX = (e.maxX + 1) * CELL - 1, maxY = (e.maxY + 1) * CELL - 1 }
-    end
-    local grid = getWorld():getMetaGrid()
-    return { minX = grid:getMinX() * CELL, minY = grid:getMinY() * CELL, maxX = (grid:getMaxX() + 1) * CELL - 1,
-        maxY = (grid:getMaxY() + 1) * CELL - 1 }
-end
-
--- Forget the extent (a test).
-function Sites.resetExtent()
-    extent = nil
-end
-
+-- Work for a site's square: done now when its chunk is loaded (LoadChunk will not come for it), else when it loads.
 local function register(site)
-    OA.Chunks.add({ kind = "oa_site", site = site.n, x = site.x, y = site.y, z = 0 })
+    local entry = { kind = "oa_site", site = site.n, x = site.x, y = site.y, z = 0 }
+    local sq = getCell and getCell() and getCell():getGridSquare(site.x, site.y, 0)
+    if sq and sq:getChunk() then
+        Sites.onChunk(entry, sq:getChunk())
+    else
+        OA.Chunks.add(entry)
+    end
 end
 
--- A new site's marks: a stake number nobody else has, and the date on the stake.
-local function newMarks(list)
+-- A new site's stake number: one nobody else has.
+local function newStake(list, int)
     local taken = {}
     for _, s in ipairs(list) do taken[s.stake or 0] = true end
     local stake
-    repeat stake = OA.random(101, 987) until not taken[stake]
-    return stake, OA.random(1, Sites.DATES)
+    repeat stake = int(101, 987) until not taken[stake]
+    return stake
 end
 
--- Decides the sites, once. Returns the list.
-function Sites.ensure(bounds, accept)
+-- ---------------------------------------------------------------------------------------------------------------
+-- The sites of the first layout (24 over the whole map, before VERSION 2): what was put down at them goes when their
+-- chunk loads, and the work still waiting for them is dropped.
+
+local oldSpriteSet
+
+local function oldSprites()
+    if not oldSpriteSet then
+        oldSpriteSet = {}
+        for _, name in ipairs({ OA.Sprites.SCORCHED_GROUND, OA.Sprites.METEOR_ROCKS, OA.Sprites.SITE_STAKE,
+                                OA.Sprites.DAMP_SOIL, OA.Sprites.CUT_TAPE, OA.Sprites.SAMPLE_BAG, OA.Sprites.STONE_ROW }) do
+            oldSpriteSet[name] = true
+        end
+    end
+    return oldSpriteSet
+end
+
+-- Takes away the props and the fragments of an old site around x, y (its chunk is loaded).
+function Sites.clearOld(x, y)
+    local cell = getCell()
+    local sprites = oldSprites()
+    local fragment = OA.StoryData.fullType(Sites.FRAGMENT.stony)
+    for dx = -4, 4 do
+        for dy = -4, 4 do
+            local sq = cell:getGridSquare(x + dx, y + dy, 0)
+            if sq then
+                local objects = sq:getObjects()
+                for i = objects:size() - 1, 0, -1 do
+                    local obj = objects:get(i)
+                    local sprite = obj:getSprite() and obj:getSprite():getName()
+                    local item = instanceof(obj, "IsoWorldInventoryObject") and obj:getItem()
+                    if (sprite and sprites[sprite]) or (item and item:getFullType() == fragment) then
+                        sq:transmitRemoveItemFromSquare(obj)
+                    end
+                end
+            end
+        end
+    end
+end
+
+local function migrate(sec)
+    OA.Chunks.remove(function(e) return e.kind == "oa_site" end)
+    for _, site in ipairs(sec.list or {}) do
+        if site.state == "placed" then
+            local sq = getCell and getCell() and getCell():getGridSquare(site.x, site.y, 0)
+            if sq then
+                Sites.clearOld(site.x, site.y)
+            else
+                OA.Chunks.add({ kind = "oa_site_old", x = site.x, y = site.y, z = 0 })
+            end
+        end
+    end
+    OA.log("meteor sites: the first layout's", #(sec.list or {}), "sites taken away")
+    sec.list, sec.made, sec.spacing = nil, nil, nil
+end
+
+OA.Chunks.handle("oa_site_old", function(entry)
+    local ok, err = pcall(Sites.clearOld, entry.x, entry.y)
+    if not ok then OA.log("old meteor site not cleared:", tostring(err)) end
+    return true
+end)
+
+-- ---------------------------------------------------------------------------------------------------------------
+-- Laying them out.
+
+-- Decides the sites around `origin` { x, y } (the first character's place), once a world. Returns the list, or nil
+-- while there is no origin yet (the caller asks again later).
+function Sites.ensure(origin, accept, int)
     local sec = section()
-    if sec.made then return sec.list end
-    bounds = bounds or Sites.bounds()
-    local points, spacing = OA.Places.layoutSites(bounds, Sites.count(), Sites.SPACING, accept or acceptPoint, nil)
+    if sec.v == Sites.VERSION and sec.made then return sec.list end
+    if sec.made and sec.v ~= Sites.VERSION then migrate(sec) end
+    if not (origin and origin.x and origin.y) then return nil end
+    int = int or OA.random
+    local points = OA.Places.ringSites(origin, Sites.COUNT, Sites.RING_LO, Sites.RING_HI, Sites.SPACING,
+        accept or acceptPoint, nil, int)
+    local kinds = shuffled(Sites.KINDS, #points, int)
+    local dates = {}
+    for i = 1, Sites.DATES do dates[i] = i end
+    dates = shuffled(dates, #points, int)
+    sec.v = Sites.VERSION
+    sec.gen = (sec.gen or 0) + 1
+    sec.origin = { x = origin.x, y = origin.y }
     sec.list = {}
-    sec.spacing = spacing
     for i, p in ipairs(points) do
-        local stake, date = newMarks(sec.list)
-        local site = { n = i, x = p.x, y = p.y, stake = stake, date = date, state = "pending", tries = 0 }
-        sec.list[#sec.list + 1] = site
-        register(site)
+        sec.list[i] = { n = i, x = p.x, y = p.y, kind = kinds[i], stake = newStake(sec.list, int), date = dates[i],
+                        state = "pending", tries = 0 }
     end
     sec.made = true
-    OA.log("meteor sites:", #sec.list, "spacing", spacing)
+    OA.log("meteor sites:", #sec.list, "around", origin.x, origin.y)
+    for _, site in ipairs(sec.list) do register(site) end
     return sec.list
 end
 
--- A site whose place is not land gets a new place elsewhere, as far from the others as the rest are from each other.
-function Sites.replace(site, bounds, accept, int)
+-- A site whose place is not land gets a new place in the ring, as far from the others as they are from each other.
+function Sites.replace(site, accept, int)
     local sec = section()
     site.tries = (site.tries or 0) + 1
     if site.tries > Sites.MAX_RETRIES then
@@ -218,13 +247,13 @@ function Sites.replace(site, bounds, accept, int)
     for _, s in ipairs(sec.list) do
         if s ~= site then others[#others + 1] = { x = s.x, y = s.y } end
     end
-    local points = OA.Places.layoutSites(bounds or Sites.bounds(), #others + 1, sec.spacing or Sites.SPACING,
+    local points = OA.Places.ringSites(sec.origin, #others + 1, Sites.RING_LO, Sites.RING_HI, Sites.SPACING,
         accept or acceptPoint, others, int)
-    local p = points[#points]
     if #points <= #others then
         site.state = "failed"
         return false
     end
+    local p = points[#points]
     site.x, site.y = p.x, p.y
     return true
 end
@@ -232,12 +261,12 @@ end
 -- Has the player been near a site (within `range`): the soil sample mission may then use it. A site seen for the first
 -- time has a title (one, however many came into range at once).
 function Sites.visit(record, x, y, range)
-    local s = OA.Story.section(record)
+    local seen = Sites.seenOf(record)
     local changed = false
     for _, site in ipairs(Sites.list()) do
-        if site.state == "placed" and not s.sitesSeen[site.n]
+        if site.state == "placed" and not seen[site.n]
             and OA.Places.distance(x, y, site.x, site.y) <= (range or 80) then
-            s.sitesSeen[site.n] = true
+            seen[site.n] = true
             changed = true
         end
     end
@@ -261,7 +290,7 @@ local function isLand(sq)
             if Sites.NOT[zones:get(i):getType()] then return false end
         end
     end
-    if not sq:isFree(false) or not sq:TreatAsSolidFloor() then return false end
+    if not sq:isFree(false) or not sq:TreatAsSolidFloor() or sq:HasTree() then return false end
     local ok, water = pcall(function() return sq:isWaterSquare() end)
     if ok and water then return false end
     local floor = sq:getFloor()
@@ -290,17 +319,17 @@ local function addObject(sq, spriteName, modData)
     return obj
 end
 
--- The props and fragments of one site at the chosen square.
-local function build(site, sq, chunkSquare)
+-- The squares round the middle the fall scorched, nearest first.
+local SCORCH_AROUND = { { 0, 0 }, { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }, { 1, 1 }, { -1, -1 }, { 1, -1 }, { -1, 1 } }
+
+-- The props and the fragment of one site at the chosen square.
+local function build(site, sq)
     local c = getCell()
     local x, y, z = sq:getX(), sq:getY(), sq:getZ()
-    -- Scorched ground over a few squares around the middle.
-    local offsets = { { 0, 0 }, { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }, { 1, 1 }, { -1, -1 } }
-    for i, o in ipairs(offsets) do
-        if i <= 4 or OA.random(1, 2) == 1 then
-            local s = c:getGridSquare(x + o[1], y + o[2], z)
-            if s and s:isOutside() and not s:getBuilding() then addObject(s, OA.Sprites.SCORCHED_GROUND) end
-        end
+    for i = 1, Sites.SCORCH[site.kind] or 5 do
+        local o = SCORCH_AROUND[i]
+        local s = c:getGridSquare(x + o[1], y + o[2], z)
+        if s and s:isOutside() and not s:getBuilding() then addObject(s, OA.Sprites.SCORCHED_GROUND) end
     end
     addObject(sq, OA.Sprites.METEOR_ROCKS, { OA_Site = site.n })
     local stakeSq
@@ -332,18 +361,9 @@ local function build(site, sq, chunkSquare)
             addObject(s, Sites.PROP_SPRITES[kind])
         end
     end
-    local count = Sites.fragmentCount(Sites.bestBonus())
-    site.fragments = count
-    for _ = 1, count do
-        local item = sq:AddWorldInventoryItem(OA.StoryData.fullType("MeteorFragment"), 0.2 + OA.randomFloat(0, 0.6),
-            0.2 + OA.randomFloat(0, 0.6), 0)
-        if item then
-            item:getModData().OA_Stake = site.stake
-            item:setName(getText("IGUI_OA_Story_FragmentName", site.stake))
-            item:setCustomName(true)
-            pcall(function() item:getWorldItem():setIgnoreRemoveSandbox(true) end)
-        end
-    end
+    local item = sq:AddWorldInventoryItem(OA.StoryData.fullType(Sites.FRAGMENT[site.kind]),
+        0.2 + OA.randomFloat(0, 0.6), 0.2 + OA.randomFloat(0, 0.6), 0)
+    if item then pcall(function() item:getWorldItem():setIgnoreRemoveSandbox(true) end) end
 end
 
 -- LoadChunk work: the chunk of a pending site loaded. A land square near the site's point is looked for in the
@@ -368,7 +388,7 @@ function Sites.onChunk(entry, chunk)
         site.x, site.y = sq:getX(), sq:getY()
         build(site, sq)
         site.state = "placed"
-        OA.log("meteor site", site.n, "placed at", site.x, site.y, "fragments", site.fragments)
+        OA.log("meteor site", site.n, site.kind, "placed at", site.x, site.y)
         OA.Sync.changed("sites", nil)
         return true
     end

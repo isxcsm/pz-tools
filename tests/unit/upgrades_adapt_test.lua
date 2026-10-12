@@ -1,6 +1,6 @@
 -- What follows an upgrade serum dose (DESIGN-terminal 19): the adaptation (shared time, the points at the end, kept in
--- world time across a reload), the research team's papers (the plan with the first dose, a memo when a tree opens and
--- another at its capstone, each once), the first effect of six nodes (once each), the timing of the body taking an
+-- world time across a reload), the research team's papers (the plan with the first dose, a memo when a tree opens, one
+-- when its meteorite fragment arrives and another at its capstone, each once), the first effect of six nodes (once each), the timing of the body taking an
 -- applied selection, and that every new text is there in both languages.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
@@ -213,12 +213,31 @@ test("a capstone approved brings the tree's follow-up memo, once", function()
     eq(Adapt.approved(record, Adapt.capstones(u)), false, "a capstone taken before is not new")
 end)
 
+test("a fragment received unseals its tree once and brings the sample memo", function()
+    local record = OA.Store.ensure("f1", "tester")
+    local u = Rules.section(record)
+    local told = listen()
+    eq(OA.Upgrades.fragmentReceived(record, "Base.Rock"), false, "not a fragment")
+    eq(OA.Upgrades.fragmentReceived(record, Data.FRAGMENTS.load), true)
+    eq(Rules.unsealed(u, "load"), true)
+    eq(Rules.unsealed(u, "scout"), false)
+    truthy(OA.Story.section(record).docs.memo_load_sample)
+    eq(told.changed[#told.changed].kind, "unseal")
+    eq(told.changed[#told.changed].tree, "load")
+    eq(told.notices[#told.notices].key, "IGUI_OA_Tree_GuideSent")
+    local n = #told.notices
+    eq(OA.Upgrades.fragmentReceived(record, Data.FRAGMENTS.load), false, "a second one of the kind changes nothing")
+    eq(#told.notices, n)
+    eq(Data.treeOfFragment(Data.FRAGMENTS.scout), "scout")
+    eq(Data.treeOfFragment(Data.FRAGMENTS.survival), "survival")
+end)
+
 test("the papers are guide documents with a title and a text in both languages", function()
     local ids = { Adapt.GUIDE }
     for _, tree in ipairs(Data.TREES) do
         for _, which in ipairs(Adapt.MEMOS) do ids[#ids + 1] = Adapt.memoId(tree, which) end
     end
-    eq(#ids, 7)
+    eq(#ids, 10)
     for _, lang in ipairs({ "KO", "EN" }) do
         local text = readfile("OperationAcorn/42/media/lua/shared/Translate/" .. lang .. "/IG_UI.json")
         for _, id in ipairs(ids) do

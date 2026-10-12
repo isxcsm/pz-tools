@@ -3,7 +3,7 @@
 -- trees side by side, each a column with a header strip in its colour (its name, its points as a bar, a reset button)
 -- over a grid of icon nodes (four columns, five rows opened by the points spent in the tree, the capstone last and a
 -- little larger) with the prerequisite lines between them; the 2nd board in their place. Above: the two modes and
--- chips for the shared points and the meteorite fragments; below: a bar that says what approving the selection spends,
+-- a chip for the shared points; below: a bar that says what approving the selection spends,
 -- with the approve and clear buttons.
 -- A node shows its state at a glance: grey with a padlock while it cannot be taken, a frame in its tree's colour that
 -- pulses gently when it can, gold when it is full, a cyan dashed frame with "+n" for selected ranks; its ranks are pips
@@ -504,7 +504,6 @@ function View:new(playerNum)
     o.palette = P
     o.mode = "trees"
     o.steps, o.counts = {}, {}
-    o.fragments, o.fragmentsLeft = 0, 0
     o.revealed = {}
     o.items, o.lines, o.panels = {}, {}, {}
     o.nodes = {}
@@ -757,11 +756,9 @@ function View:refresh()
     local record = self.player and self:record()
     if not record then return end
     self.u = Rules.section(record)
-    self:countFragments(true)
-    local sim, kept, used = Plan.simulate(self.u, self.steps, self.fragments)
+    local sim, kept = Plan.simulate(self.u, self.steps)
     self.sim, self.steps = sim, kept
     self.counts = Plan.counts(kept)
-    self.fragmentsLeft = self.fragments - used
     self.spentPlan = Plan.spent(self.u, sim)
     self.revealed = {}
     for _, tree in ipairs(Data.TREES) do
@@ -782,7 +779,7 @@ end
 -- moves by itself, which the flow draws (View:paintFlow walks only these lists): the nodes that pulse, the lines in
 -- dashes, the lit lines with their lights.
 function View:workOut()
-    local nodes = self:nodeStates(self.sim, self.counts, self.fragmentsLeft)
+    local nodes = self:nodeStates(self.sim, self.counts)
     self.nodes = nodes
     local pulsing, planLines, litLines = {}, {}, {}
     for _, item in ipairs(self.items) do
@@ -810,8 +807,8 @@ function View:workOut()
     self.flowing = self.pulsingOn or self.lighting
 end
 
--- The state of each node on the screen on a simulation, with `counts` ranks of each selected and `fragments` at hand.
-function View:nodeStates(sim, counts, fragments)
+-- The state of each node on the screen on a simulation, with `counts` ranks of each selected.
+function View:nodeStates(sim, counts)
     local u = self.u
     local nodes = {}
     local boardOpen = Rules.boardOpen(sim)
@@ -827,7 +824,7 @@ function View:nodeStates(sim, counts, fragments)
                     n.state = "locked"
                 elseif planned > 0 then
                     n.state = "planned"
-                elseif not Rules.blocked(sim, node.id, { fragments = fragments }, "A") then
+                elseif not Rules.blocked(sim, node.id, "A") then
                     n.state = "avail"
                 elseif rank > 0 then
                     n.state = "owned"
@@ -836,7 +833,7 @@ function View:nodeStates(sim, counts, fragments)
                 end
             else
                 n.treeLocked = not Rules.treeOpen(u, node.tree)
-                local why = Rules.blocked(sim, node.id, { fragments = fragments }, "A")
+                local why = Rules.blocked(sim, node.id, "A")
                 if planned > 0 then
                     n.state = "planned"
                 elseif rank >= node.ranks then
@@ -854,20 +851,6 @@ function View:nodeStates(sim, counts, fragments)
         end
     end
     return nodes
-end
-
--- The fragments the character carries, in any bag. The window looks again every second, and the inventory may hold
--- thousands of items: the count is made again only when the inventory's signature (OA.signature: how many items, what
--- they weigh) is not the one it was made under, or when `force` is given (the window opens, the plan is changed).
-function View:countFragments(force)
-    local inventory = self.player:getInventory()
-    local key = OA.signature(inventory)
-    if force or key ~= self.fragmentKey then
-        self.fragmentKey = key
-        -- oa-scan: ok (a new signature, or the player's own act)
-        self.fragments = inventory:getCountTypeRecurse(Data.FRAGMENT)
-    end
-    self.nextCount = getTimestampMs() + 1000
 end
 
 function View:onMode(button)
@@ -913,7 +896,7 @@ function View:plan(id, choice)
     if node.board and node.choose and not choice then
         return self:chooseFamily(id)
     end
-    local steps, why = Plan.add(self.u, self.steps, id, choice, self.fragments)
+    local steps, why = Plan.add(self.u, self.steps, id, choice)
     if not steps then
         self.refusal = { id = id, why = why }
         self:startFx(id, "shake")
@@ -934,7 +917,7 @@ end
 -- Takes a selected rank back (the node shrinks a moment), or shakes the node when it has none selected.
 function View:unplan(id)
     if not self.sim then return end
-    local steps = Plan.remove(self.u, self.steps, id, self.fragments)
+    local steps = Plan.remove(self.u, self.steps, id)
     local back = steps ~= self.steps
     self:startFx(id, back and "shrink" or "shake")
     self.steps = steps
@@ -1088,10 +1071,10 @@ function View:tipRows(id)
             nextLines[1] = getText("IGUI_OA_Tree_NextFamily")
         else
             -- the next rank as it would read: on a copy of the plan that takes it
-            local after = Plan.add(self.u, self.steps, id, node.choose and "A" or nil, self.fragments)
+            local after = Plan.add(self.u, self.steps, id, node.choose and "A" or nil)
             local lines
             if after then
-                local simAfter = Plan.simulate(self.u, after, self.fragments)
+                local simAfter = Plan.simulate(self.u, after)
                 lines = Texts.lines(node, Rules.rank(simAfter, id), simAfter)
             else
                 lines = Texts.lines(node, math.min(rank + 1, node.ranks or rank + 1), sim)
@@ -1120,7 +1103,7 @@ function View:tipRows(id)
     if not maxed then
         -- only what is still missing: a condition met is noise
         local sep = false
-        for _, c in ipairs(Texts.conditions(sim, node, { fragments = self.fragmentsLeft })) do
+        for _, c in ipairs(Texts.conditions(sim, node)) do
             if not c.ok then
                 if not sep then
                     add({ kind = "sep" })
@@ -1360,7 +1343,6 @@ function View:paintTop(el)
     end
     local y, h = L.PAD + 1, L.TOP - 2
     local right = L.VIEW_W - L.PAD
-    right = chip(el, right, y, h, "MeteorFragment", "IGUI_OA_Tree_BadgeFragments", self.fragmentsLeft) - 6
     right = chip(el, right, y, h, "UpgradeSerumShared", "IGUI_OA_Tree_BadgeShared", Rules.sharedPool(self.sim)) - 6
     if self.mode == "board" and Rules.boardOpen(self.sim) then
         right = chip(el, right, y, h, nil, "IGUI_OA_Tree_BadgeBoard", Rules.boardLeft(self.sim)) - 6
@@ -2073,7 +2055,7 @@ end
 function View:lockedOnRecord()
     local locked = {}
     if not self.u then return locked end
-    for id, n in pairs(self:nodeStates(self.u, {}, self.fragments)) do
+    for id, n in pairs(self:nodeStates(self.u, {})) do
         if greyed(n) then locked[id] = true end
     end
     return locked
@@ -2452,15 +2434,6 @@ function View:drawTake(el)
                 traceFrame(el, panel.x, top, L.COL_W, h, along, tc.light, line, tc.core, tex)
             end
         end
-    end
-end
-
-function View:update()
-    ISPanelJoypad.update(self)
-    if self.nextCount and getTimestampMs() >= self.nextCount and self.player then
-        local before = self.fragments
-        self:countFragments()
-        if before ~= self.fragments then self:refresh() end
     end
 end
 

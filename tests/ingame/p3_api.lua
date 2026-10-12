@@ -29,7 +29,7 @@ local ids = { "sight", "sight", "sight", "night", "night", "night", "rich", "ric
     "overload", "overload", "runSpeed", "runSpeed", "materials", "materials", "materials", "furniture", "keyring",
     "stiff", "stiff", "stiff", "resist", "resist", "resist" }
 for _, id in ipairs(ids) do
-    local ok, why = Rules.buy(u, id, { fragments = 0 })
+    local ok, why = Rules.buy(u, id)
     if not ok then say("could not buy", id, why) end
 end
 Effects.reset()

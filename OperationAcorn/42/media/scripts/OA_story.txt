@@ -5,6 +5,8 @@ module OperationAcorn
         Base
     }
 
+    /* The meteorite fragments, one at each drop site (Story/Sites.lua): sent to the research team, each opens one
+       tree's capstone. MeteorFragment is the stony one. */
     item MeteorFragment
     {
         DisplayCategory = Material,
@@ -12,6 +14,26 @@ module OperationAcorn
         Weight = 0.5,
         Icon = OA_MeteorFragment,
         Tooltip = Tooltip_OA_Story_MeteorFragment,
+        WorldStaticModel = ChippedStone,
+    }
+
+    item MeteorFragmentIron
+    {
+        DisplayCategory = Material,
+        ItemType = base:normal,
+        Weight = 0.8,
+        Icon = OA_MeteorFragmentIron,
+        Tooltip = Tooltip_OA_Story_MeteorFragmentIron,
+        WorldStaticModel = ChippedStone,
+    }
+
+    item MeteorFragmentStonyIron
+    {
+        DisplayCategory = Material,
+        ItemType = base:normal,
+        Weight = 0.6,
+        Icon = OA_MeteorFragmentStonyIron,
+        Tooltip = Tooltip_OA_Story_MeteorFragmentStonyIron,
         WorldStaticModel = ChippedStone,
     }
 

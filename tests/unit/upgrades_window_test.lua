@@ -219,10 +219,10 @@ end
 local function onSection(u)
     local Plan = OA.Upgrades.Plan
     local view = laidOut("trees")
-    view.u, view.steps, view.fragments = u, {}, 0
+    view.u, view.steps = u, {}
     view.refresh = function(v)
-        local sim, kept = Plan.simulate(v.u, v.steps, 0)
-        v.sim, v.steps, v.counts, v.fragmentsLeft, v.revealed = sim, kept, Plan.counts(kept), 0, {}
+        local sim, kept = Plan.simulate(v.u, v.steps)
+        v.sim, v.steps, v.counts, v.revealed = sim, kept, Plan.counts(kept), {}
         v.spentPlan = Plan.spent(v.u, sim)
         View.workOut(v)
     end
@@ -383,7 +383,7 @@ end)
 test("a lit line's light is followed each frame by the flow, and the take holds it still", function()
     local UI = OA.Trade.UI
     local u = scoutSection()
-    for _ = 1, 2 do truthy(OA.Upgrades.Rules.buy(u, "sixth", { fragments = 0 })) end
+    for _ = 1, 2 do truthy(OA.Upgrades.Rules.buy(u, "sixth")) end
     local view = onSection(u)
     local body, flow = shown(view)
     eq(view.lighting, true, "sixth at its second rank lights its line")
@@ -462,7 +462,7 @@ end)
 test("a taken node's light runs up its lit lines to its tree's header, through the nodes on the way", function()
     local u = scoutSection()
     for _, id in ipairs({ "sixth", "sixth", "sight", "sight", "sight", "alarm", "sense", "sense" }) do
-        truthy(OA.Upgrades.Rules.buy(u, id, { fragments = 0 }), id)
+        truthy(OA.Upgrades.Rules.buy(u, id), id)
     end
     local view = onSection(u)
     view:refresh()
@@ -490,7 +490,7 @@ test("the padlocks an approval took off come off once its take is over, not on t
     -- the approval as View.approve makes it, then the server's answer: the ranks on the record, the selection gone
     local steps = view.steps
     view.approved = { steps = steps, at = clock.now, locked = View.lockedOnRecord(view) }
-    for _, step in ipairs(steps) do truthy(Rules.buy(u, step.id, { fragments = 0 }, step.choice)) end
+    for _, step in ipairs(steps) do truthy(Rules.buy(u, step.id, step.choice)) end
     view.steps = {}
     view:refresh()
     View.startTake(view)
@@ -681,9 +681,9 @@ test("every motion paints, frame after frame, with strengths between 0 and 1 and
         return head, a, tail, after, arrive
     end
     view.approved = { steps = view.steps, at = clock.now, locked = View.lockedOnRecord(view), spent = view.spentPlan }
-    for _, step in ipairs(view.steps) do OA.Upgrades.Rules.buy(u, step.id, { fragments = 0 }, step.choice) end
+    for _, step in ipairs(view.steps) do OA.Upgrades.Rules.buy(u, step.id, step.choice) end
     -- (and a prerequisite met: sixth at its second rank lights its line to sense)
-    for _ = 1, 2 do truthy(OA.Upgrades.Rules.buy(u, "sixth", { fragments = 0 })) end
+    for _ = 1, 2 do truthy(OA.Upgrades.Rules.buy(u, "sixth")) end
     -- (and sense in what the take plays, to send a light up that line: the take draws what it is given)
     local applied = view.approved.steps
     applied[#applied + 1] = { id = "sense" }
@@ -765,7 +765,7 @@ end)
 
 test("the flow's rectangles are drawn before a picture asked after them, and a failing call is drawn one by one", function()
     local u = scoutSection()
-    for _ = 1, 2 do truthy(OA.Upgrades.Rules.buy(u, "sixth", { fragments = 0 })) end
+    for _ = 1, 2 do truthy(OA.Upgrades.Rules.buy(u, "sixth")) end
     local view = onSection(u)
     shown(view)
     getTexture = function(path) return { path = path } end

@@ -47,8 +47,6 @@
     "Sandbox_OperationAcorn_SharedSerumMilestones_tooltip": "최고 단계 뒤로 신뢰도 이정표 몇 개마다 공용 강화 혈청을 받을지 정합니다.",
     "Sandbox_OperationAcorn_ShredDecay": "분해 반복 감소",
     "Sandbox_OperationAcorn_ShredDecay_tooltip": "같은 종류를 최근에 이만큼 분해하면 시료 묶음이 절반만 나옵니다. 낮을수록 빨리 줄어듭니다.",
-    "Sandbox_OperationAcorn_MeteorSites": "운석 낙하지",
-    "Sandbox_OperationAcorn_MeteorSites_tooltip": "운석 낙하지 수의 배율입니다. 1이면 24곳입니다.",
     "Sandbox_OperationAcorn_MissionGuards": "임무 장소를 지키는 좀비",
     "Sandbox_OperationAcorn_MissionGuards_tooltip": "임무 건물에 처음 다가가면 임무 단계에 따라 정해진 수만큼 건물 안에 좀비가 채워집니다. 1단계는 10마리 안팎, 5단계는 30마리 안팎이고 좀비 인구 설정에 비례합니다. 경찰서에서는 경찰, 진료소에서는 의료진처럼 장소에 맞는 복장이며, 일부는 쓰러져 있거나 앉아 있어 건물을 떠나지 않습니다. 기본값: 켬."
 }

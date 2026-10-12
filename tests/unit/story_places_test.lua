@@ -112,41 +112,59 @@ test("the map circle holds the place, anywhere but its outer ring and not kept n
     truthy(outer > 400 * 0.6, "the middle is no hint: " .. outer)
 end)
 
-test("drop sites are spaced over the map", function()
-    local bounds = { minX = 0, minY = 0, maxX = 16000, maxY = 14000 }
-    local sites, spacing = P.layoutSites(bounds, 24, 300, nil, nil, rng(11))
-    eq(#sites, 24)
-    eq(spacing, 300, "enough room, no relaxing")
+local START = { x = 8000, y = 7000 }
+
+test("drop sites lie in the ring round the start, spaced", function()
+    local sites = P.ringSites(START, 3, 500, 1500, 400, nil, nil, rng(11))
+    eq(#sites, 3)
     for i = 1, #sites do
+        local d = P.distance(START.x, START.y, sites[i].x, sites[i].y)
+        truthy(d >= 499 and d <= 1501, "in the ring: " .. d)
         for j = i + 1, #sites do
-            truthy(P.distance(sites[i].x, sites[i].y, sites[j].x, sites[j].y) >= 300, "apart")
+            truthy(P.distance(sites[i].x, sites[i].y, sites[j].x, sites[j].y) >= 400, "apart")
         end
     end
 end)
 
 test("sites only land where the map accepts them", function()
-    local bounds = { minX = 0, minY = 0, maxX = 16000, maxY = 14000 }
-    local sites = P.layoutSites(bounds, 12, 300, function(x, y) return x < 8000 end, nil, rng(5))
-    eq(#sites, 12)
-    for _, s in ipairs(sites) do truthy(s.x < 8000, "on land") end
+    local sites = P.ringSites(START, 3, 500, 1500, 400, function(x, y) return x < START.x end, nil, rng(5))
+    eq(#sites, 3)
+    for _, s in ipairs(sites) do truthy(s.x < START.x, "on land") end
 end)
 
-test("a small map relaxes the spacing instead of failing", function()
-    local bounds = { minX = 0, minY = 0, maxX = 1500, maxY = 1500 }
-    local sites, spacing = P.layoutSites(bounds, 24, 300, nil, nil, rng(3))
-    truthy(#sites >= 20, "most are placed: " .. #sites)
-    truthy(spacing < 300, "spacing relaxed")
-    truthy(spacing >= 100, "not below a third")
+test("a crowded ring relaxes the spacing, down to a third", function()
+    -- land only in a thin strip east of the start: three sites 800 apart do not fit in it
+    local function strip(x, y) return x > START.x and math.abs(y - START.y) <= 40 end
+    local sites = P.ringSites(START, 3, 500, 1500, 800, strip, nil, rng(3))
+    eq(#sites, 3)
+    local closest = math.huge
+    for i = 1, #sites do
+        for j = i + 1, #sites do
+            closest = math.min(closest, P.distance(sites[i].x, sites[i].y, sites[j].x, sites[j].y))
+        end
+    end
+    truthy(closest < 800, "spacing relaxed: " .. closest)
+    truthy(closest >= 800 / 3 - 1, "not below a third: " .. closest)
+end)
+
+test("a ring with no land widens outward, up to three times its edge", function()
+    local function beyond(x, y) return P.distance(START.x, START.y, x, y) > 2000 end
+    local sites = P.ringSites(START, 3, 500, 1500, 400, beyond, nil, rng(7))
+    eq(#sites, 3)
+    for _, s in ipairs(sites) do
+        local d = P.distance(START.x, START.y, s.x, s.y)
+        truthy(d > 2000 and d <= 4501, "widened: " .. d)
+    end
+    eq(#P.ringSites(START, 3, 500, 1500, 400, function() return false end, nil, rng(9)), 0, "gives up")
 end)
 
 test("existing sites stay and new ones keep apart from them", function()
-    local bounds = { minX = 0, minY = 0, maxX = 5000, maxY = 5000 }
-    local first = P.layoutSites(bounds, 3, 300, nil, nil, rng(9))
-    local more = P.layoutSites(bounds, 6, 300, nil, first, rng(13))
-    eq(#more, 6)
-    for i = 1, 3 do eq(more[i], first[i]) end
-    for i = 4, 6 do
-        truthy(P.farEnough({ more[1], more[2], more[3] }, more[i].x, more[i].y, 300), "apart from old")
+    local first = P.ringSites(START, 1, 500, 1500, 400, nil, nil, rng(9))
+    local more = P.ringSites(START, 3, 500, 1500, 400, nil, first, rng(13))
+    eq(#more, 3)
+    eq(more[1], first[1])
+    for i = 2, 3 do
+        truthy(P.farEnough({ more[1] }, more[i].x, more[i].y, 400), "apart from the old")
     end
 end)
 

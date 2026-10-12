@@ -64,19 +64,43 @@ local function eachRecord(fn)
     end
 end
 
+-- The drop sites go round the first character's place (Sites.ensure): asked again until there is one (a server
+-- with nobody on it yet).
+local sitesMade = false
+local function ensureSites()
+    if sitesMade then return end
+    local origin
+    for _, record in pairs(OA.Store.players()) do
+        if OA.Store.alive(record) then
+            local x, y = Game.playerPosition(record)
+            if x then
+                origin = { x = math.floor(x), y = math.floor(y) }
+                break
+            end
+        end
+    end
+    local ok, list = pcall(Sites.ensure, origin)
+    if not ok then
+        OA.log("meteor sites failed:", tostring(list))
+        sitesMade = true
+    elseif list then
+        sitesMade = true
+    end
+end
+
 local function start()
     if started then return end
     started = true
     Missions.game = Game
     Scene.game = SceneGame
-    local ok, err = pcall(Sites.ensure)
-    if not ok then OA.log("meteor sites failed:", tostring(err)) end
+    ensureSites()
     Game.rebuildWaiting()
     subscribe()
 end
 
 local function onTenMinutes()
     if not started then start() end
+    ensureSites()
     subscribe()
     eachRecord(function(record)
         Missions.tick(record)

@@ -479,6 +479,43 @@ test("after the handover a contract mission pool replaces the regular one", func
     truthy(count >= 3, "several kinds come: " .. count)
 end)
 
+test("the drop site check leads to a site not yet seen while there is one", function()
+    require "OperationAcorn/Story/Sites"
+    local Sites = OA.Sites
+    local record = setup(5, 3)
+    local s = Story.section(record)
+    s.seenStage = 5; s.seenMilestones = 3; s.handover = true
+    s.done.ward, s.done.cells, s.done.soil, s.done.handover = "done", "done", "done", "done"
+    local sec = OA.Store.world("sites")
+    sec.v, sec.gen, sec.made, sec.origin = Sites.VERSION, 1, true, { x = 0, y = 0 }
+    sec.list = { { n = 1, x = 900, y = 0, stake = 211, state = "placed" },
+                 { n = 2, x = -900, y = 0, stake = 322, state = "placed" },
+                 { n = 3, x = 0, y = 900, stake = 433, state = "failed" } }
+    local contracts = OA.StoryData.CONTRACTS
+    OA.StoryData.CONTRACTS = { { id = "stake", kind = "stake", item = "StakeTag", weight = 1 } }
+    local function nextStake()
+        M.tick(record)
+        local m = M.active(record)
+        truthy(m and m.title == "stake", "a drop site check")
+        M.finish(record, m, "expired")
+        TEST.hours = TEST.hours + 4 * 24
+        return m
+    end
+    Sites.seenOf(record)[1] = true
+    for _ = 1, 3 do
+        local m = nextStake()
+        eq(m.stake, 2, "the one not seen")
+        eq(m.stakeNo, 322)
+    end
+    Sites.seenOf(record)[2] = true
+    local any = {}
+    for _ = 1, 12 do any[nextStake().stake] = true end
+    truthy(any[1] or any[2], "all seen: any of them")
+    eq(any[3], nil, "never a failed one")
+    OA.StoryData.CONTRACTS = contracts
+    for k in pairs(sec) do sec[k] = nil end
+end)
+
 test("a mission is one at a time", function()
     local record = setup(1)
     M.tick(record)

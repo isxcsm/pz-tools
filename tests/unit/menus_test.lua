@@ -94,6 +94,9 @@ local function character(id)
     function c:getModData() return self.md end
     function c:getVehicle() return nil end
     function c:getPlayerNum() return 0 end
+    function c:getX() return 10.5 end
+    function c:getY() return 10.5 end
+    function c:getZ() return 0 end
     function c:getPrimaryHandItem() return nil end
     function c:getSecondaryHandItem() return nil end
     c.inventory = setmetatable({}, { __index = function(_, key)
@@ -219,7 +222,8 @@ end)
 local function lockedDoor()
     return { classes = { IsoDoor = true }, isLocked = function() return true end, isLockedByKey = function() return false end,
         getSprite = function() return nil end, getProperties = function() return { has = function() return false end } end,
-        getSquare = function() return nil end }
+        getSquare = function() return { getX = function() return 10 end, getY = function() return 11 end,
+            getZ = function() return 0 end } end }
 end
 
 test("the pry and pick options go on top in that order and do not search the inventory for the tools", function()
@@ -380,39 +384,4 @@ test("a machine with a window is one option, its name, that opens the window; a 
     menu = newMenu()
     TEST.fire("OnFillWorldObjectContextMenu", 0, menu, { clicked }, false)
     eq(menu:names(), "IGUI_OA_Machine_Name_lure,ContextMenu_OA_Machine_TakeLure")
-end)
-
--- ---------------------------------------------------------------------------------------------------------------------
--- The research window's fragment count
-
-test("the research window counts the fragments again only when the inventory changed", function()
-    setup()
-    loadFile("OperationAcorn/Upgrades/Window", { ["OperationAcorn/Client"] = true })
-    local View
-    for _, class in ipairs(derived) do
-        if rawget(class, "countFragments") then View = class end
-    end
-    truthy(View, "the window's class")
-    local searches, items, weight = 0, 5, 10
-    local inventory = {
-        getItems = function() return { size = function() return items end } end,
-        getContentsWeight = function() return weight end,
-        getCountTypeRecurse = function() searches = searches + 1 return 7 end,
-    }
-    local view = { player = { getInventory = function() return inventory end } }
-    getTimestampMs = function() return 1000 end
-    View.countFragments(view)
-    eq(searches, 1)
-    eq(view.fragments, 7)
-    View.countFragments(view)
-    View.countFragments(view)
-    eq(searches, 1, "the same inventory: not searched again")
-    items = 6
-    View.countFragments(view)
-    eq(searches, 2, "an item came: searched")
-    weight = 11
-    View.countFragments(view)
-    eq(searches, 3, "the weight changed: searched")
-    View.countFragments(view, true)
-    eq(searches, 4, "asked for: searched")
 end)

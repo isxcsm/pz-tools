@@ -14,10 +14,9 @@ local function inject(u, tree, n)
     for _ = 1, n do Rules.inject(u, tree) end
 end
 
-local function buy(u, ids, ctx)
-    ctx = ctx or { fragments = 0 }
+local function buy(u, ids)
     for _, id in ipairs(ids) do
-        local ok, why = Rules.buy(u, id, ctx)
+        local ok, why = Rules.buy(u, id)
         if not ok then error("could not buy " .. id .. ": " .. tostring(why), 2) end
     end
 end
@@ -244,33 +243,33 @@ test("plan: adding, removing and dependants", function()
     local u = fresh()
     inject(u, "scout", 6)
     local steps = {}
-    for _ = 1, 3 do steps = Plan.add(u, steps, "sight", nil, 0) end
+    for _ = 1, 3 do steps = Plan.add(u, steps, "sight") end
     eq(#steps, 3)
-    local again, why = Plan.add(u, steps, "sight", nil, 0)
+    local again, why = Plan.add(u, steps, "sight")
     eq(again, nil)
     eq(why, "maxed")
-    steps = Plan.add(u, steps, "rich", nil, 0)
+    steps = Plan.add(u, steps, "rich")
     eq(#steps, 4, "the row opens on the plan's own points")
-    local removed = Plan.remove(u, steps, "sight", 0)
+    local removed = Plan.remove(u, steps, "sight")
     eq(#removed, 2, "taking a sight back drops the step that needed the row")
-    local sim, _, used = Plan.simulate(u, steps, 0)
+    local sim, kept = Plan.simulate(u, steps)
     eq(Rules.rank(sim, "rich"), 1)
-    eq(used, 0)
+    eq(#kept, 4)
     eq(Plan.counts(steps).sight, 3)
     local spent = Plan.spent(u, sim)
     eq(spent.scout, 4)
     eq(spent.board, 0)
 end)
 
-test("plan: a capstone in the plan uses a fragment", function()
+test("plan: a capstone joins the plan once its tree is unsealed", function()
     local u = fresh()
     inject(u, "scout", 26)
     buy(u, SCOUT)
-    local steps = Plan.add(u, {}, "nightEye", nil, 1)
-    truthy(steps)
-    local _, _, used = Plan.simulate(u, steps, 1)
-    eq(used, 1)
-    local none, why = Plan.add(u, {}, "nightEye", nil, 0)
+    local none, why = Plan.add(u, {}, "nightEye")
     eq(none, nil)
-    eq(why, "fragment")
+    eq(why, "sealed")
+    Rules.unseal(u, "scout")
+    local steps = Plan.add(u, {}, "nightEye")
+    truthy(steps)
+    eq(Rules.rank(Plan.simulate(u, steps), "nightEye"), 1)
 end)

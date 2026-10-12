@@ -125,33 +125,39 @@ function Places.farEnough(list, x, y, spacing)
     return true
 end
 
--- Meteor drop sites (NUMBERS 6): `count` points over the map's bounds { minX, minY, maxX, maxY } (squares), at least
--- `spacing` apart, each one passing accept(x, y) (the map has land there). `existing` points stay. A map too small
--- or crowded for the spacing relaxes it by a tenth every few hundred misses, down to a third, then gives up with what
--- it has. Returns the list (existing + new) and the spacing used.
-function Places.layoutSites(bounds, count, spacing, accept, existing, int)
+-- Meteor drop sites (NUMBERS 6): `count` points in the ring from `lo` to `hi` squares around `origin` { x, y } (the
+-- first character's start), at least `spacing` apart, each one passing accept(x, y) (the map has land there).
+-- `existing` points stay. Where the ring is too crowded (water, town, the map's edge) the spacing relaxes by a tenth
+-- every few hundred misses, down to a third, and then the ring widens outward, up to three times `hi`; past that it
+-- gives up with what it has. Returns the list (existing + new).
+function Places.ringSites(origin, count, lo, hi, spacing, accept, existing, int)
     int = int or randomInt
     local sites = {}
     for _, p in ipairs(existing or {}) do sites[#sites + 1] = p end
-    local floor = spacing / 3
-    local misses = 0
-    local total = 0
+    local floor, far = spacing / 3, hi * 3
+    local misses, total = 0, 0
     while #sites < count and total < 30000 do
         total = total + 1
-        local x = int(bounds.minX, bounds.maxX)
-        local y = int(bounds.minY, bounds.maxY)
+        local a = math.rad(int(0, 359))
+        local r = int(lo, math.floor(hi))
+        local x = math.floor(origin.x + r * math.cos(a) + 0.5)
+        local y = math.floor(origin.y + r * math.sin(a) + 0.5)
         if (not accept or accept(x, y)) and Places.farEnough(sites, x, y, spacing) then
             sites[#sites + 1] = { x = x, y = y }
             misses = 0
         else
             misses = misses + 1
-            if misses >= 400 and spacing > floor then
-                spacing = math.max(floor, spacing * 0.9)
+            if misses >= 400 then
                 misses = 0
+                if spacing > floor then
+                    spacing = math.max(floor, spacing * 0.9)
+                elseif hi < far then
+                    hi = math.min(far, hi * 1.25)
+                end
             end
         end
     end
-    return sites, spacing
+    return sites
 end
 
 -- The compass point (one of "N", "NE", "E", "SE", "S", "SW", "W", "NW") of a place seen from another. The game's y

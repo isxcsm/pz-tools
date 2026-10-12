@@ -71,7 +71,7 @@ local function recordWith(ranks)
         sensePlus = 3 }
     for _, id in ipairs({ "sight", "sixth", "alarm", "night", "rich", "ledger", "sense", "keen", "ammo", "sensePlus" }) do
         for _ = 1, order[id] do
-            local ok, why = Rules.buy(u, id, { fragments = 0 })
+            local ok, why = Rules.buy(u, id)
             if not ok then error("could not buy " .. id .. ": " .. tostring(why)) end
         end
     end

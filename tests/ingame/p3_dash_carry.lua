@@ -13,10 +13,10 @@ local record, player, u = P3T.record()
 P3T.points(u, "survival", 24)
 P3T.points(u, "load", 24)
 for _, id in ipairs({ "brush", "brush", "walk", "walk", "walk", "moveSpeed", "moveSpeed", "moveSpeed" }) do
-    local ok, why = Rules.buy(u, id, { fragments = 0 })
+    local ok, why = Rules.buy(u, id)
     if not ok then say("could not buy", id, why) end
 end
--- the capstone needs a fragment and 12 points: take the rank directly for the test
+-- the capstone needs its tree unsealed and 12 points: take the rank directly for the test
 u.ranks.dash = 1
 P3T.changed(record)
 OA.Upgrades.Hooks.refresh()

@@ -138,8 +138,3 @@ option OperationAcorn.ShredDecay
     page = OperationAcornUpgrades, translation = OperationAcorn_ShredDecay,
 }
 
-option OperationAcorn.MeteorSites
-{
-    type = double, min = 0.0, max = 4.0, default = 1.0,
-    page = OperationAcornUpgrades, translation = OperationAcorn_MeteorSites,
-}

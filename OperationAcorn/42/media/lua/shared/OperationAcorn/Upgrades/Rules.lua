@@ -7,6 +7,8 @@
 --   opened[tree]    the tree has been opened by its first serum
 --   bought[tree]    serums bought in the tree: only grows, the price follows it. spend[tree]: credits paid for them
 --   ranks[id]       the rank of each tree node (the capstone's is 1 once approved)
+--   unsealed[tree]  the tree's capstone may be taken: its meteorite fragment reached the research team. Kept for good
+--                   (a reset leaves it)
 --   own[tree], sharedUsed[tree]   points spent in the tree, from its own serums and from shared ones
 --   board           the 2nd board: ranks[id], family[letter] (the family weight's choices), total (points that
 --                   went into the board, ever), spent (points in ranks now), fromTree[tree], fromShared (where the
@@ -62,6 +64,14 @@ function Rules.fill(u)
     u.sharedUsed = u.sharedUsed or perTree(0)
     fillTree(u.sharedUsed, 0)
     u.firstEffect = u.firstEffect or {}
+    if not u.unsealed then
+        -- a record from before the capstones were opened by sending a fragment: a capstone it took paid one then
+        u.unsealed = {}
+        for _, tree in ipairs(Data.TREES) do
+            local cap = Data.capstone(tree)
+            if cap and (u.ranks[cap.id] or 0) >= 1 then u.unsealed[tree] = true end
+        end
+    end
     if type(u.adapt) ~= "table" or type(u.adapt.doses) ~= "table" then u.adapt = nil end
     local b = u.board
     if not b then
@@ -211,10 +221,22 @@ function Rules.maxed(u, id)
     return Rules.rank(u, id) >= node.ranks
 end
 
+-- Whether a tree's capstone is open to take (its fragment reached the research team).
+function Rules.unsealed(u, tree)
+    return u.unsealed[tree] == true
+end
+
+-- A fragment of a tree reached the research team: its capstone opens for good. True when it opened now.
+function Rules.unseal(u, tree)
+    if not tree or u.unsealed[tree] then return false end
+    u.unsealed[tree] = true
+    return true
+end
+
 -- Why a node cannot take its next rank, or nil when it can: "unknown", "treeClosed", "boardClosed", "maxed",
--- "row" (not enough points spent in the tree), "prereq", "points", "fragment", "choice". ctx.fragments is the
--- meteor fragments at hand (a capstone needs one).
-function Rules.blocked(u, id, ctx, choice)
+-- "row" (not enough points spent in the tree), "prereq", "points", "sealed" (a capstone whose fragment has not reached
+-- the research team), "choice".
+function Rules.blocked(u, id, choice)
     local node = Data.byId[id]
     if not node then return "unknown" end
     if node.board then
@@ -229,15 +251,14 @@ function Rules.blocked(u, id, ctx, choice)
     for _, need in ipairs(node.req) do
         if Rules.rank(u, need[1]) < need[2] then return "prereq" end
     end
+    if node.capstone and not Rules.unsealed(u, node.tree) then return "sealed" end
     if Rules.free(u, node.tree) < 1 then return "points" end
-    if node.capstone and ((ctx and ctx.fragments) or 0) < 1 then return "fragment" end
     return nil
 end
 
--- Takes the next rank of a node, paying its points (a capstone also takes a fragment from ctx.fragments). Returns
--- true, or false and the reason (as blocked).
-function Rules.buy(u, id, ctx, choice)
-    local why = Rules.blocked(u, id, ctx, choice)
+-- Takes the next rank of a node, paying its points. Returns true, or false and the reason (as blocked).
+function Rules.buy(u, id, choice)
+    local why = Rules.blocked(u, id, choice)
     if why then return false, why end
     local node = Data.byId[id]
     if node.board then
@@ -264,22 +285,19 @@ function Rules.buy(u, id, ctx, choice)
         u.sharedUsed[node.tree] = u.sharedUsed[node.tree] + 1
     end
     u.ranks[id] = (u.ranks[id] or 0) + 1
-    if node.capstone then ctx.fragments = ctx.fragments - 1 end
     return true
 end
 
 -- Applies a plan, a list of steps { id = ..., choice = ... } each taking one rank, in order (a later step may need an
--- earlier one). All or nothing: returns true, a new section and the fragments it used; or false, the reason, the
--- step's number. u itself is not touched.
-function Rules.approve(u, steps, ctx)
+-- earlier one). All or nothing: returns true and a new section; or false, the reason, the step's number. u itself is
+-- not touched.
+function Rules.approve(u, steps)
     local copy = Rules.copy(u)
-    local fragments = (ctx and ctx.fragments) or 0
-    local run = { fragments = fragments }
     for i, step in ipairs(steps) do
-        local ok, why = Rules.buy(copy, step.id, run, step.choice)
+        local ok, why = Rules.buy(copy, step.id, step.choice)
         if not ok then return false, why, i end
     end
-    return true, copy, fragments - run.fragments
+    return true, copy
 end
 
 -- ---- serums ---------------------------------------------------------------------------------------------------
@@ -438,8 +456,8 @@ function Rules.resetBlocked(u, tree, credits)
 end
 
 -- Resets a tree: every point in it comes back (shared ones as shared points), its ranks go, and the 2nd board
--- closes with its spent points returned as the board's own "points left". The serum count and the fragments do not
--- come back. Returns true and the credits it costs (the caller takes them), or false and the reason.
+-- closes with its spent points returned as the board's own "points left". The serum count does not come back, and the
+-- tree stays unsealed. Returns true and the credits it costs (the caller takes them), or false and the reason.
 function Rules.reset(u, tree, credits)
     local why, cost = Rules.resetBlocked(u, tree, credits)
     if why then return false, why end
@@ -492,14 +510,6 @@ function Rules.value(u, id)
     return node.values[r] * Rules.mult()
 end
 
--- The second series of a node (the fragment bonus of 눈썰미 has the sample bundles as its second).
-function Rules.value2(u, id)
-    local node = Data.byId[id]
-    local r = Rules.rank(u, id)
-    if not node or r < 1 or not node.values2 then return 0 end
-    return node.values2[r] * Rules.mult()
-end
-
 -- A percent value as a fraction.
 function Rules.fraction(u, id)
     return Rules.value(u, id) / 100
@@ -536,14 +546,9 @@ function Rules.familyAmount(u, family)
     return node.step * n * Rules.mult()
 end
 
--- Meteor fragments found at a drop site are multiplied by 1 + this (눈썰미 and the board's fragment node).
-function Rules.fragmentBonus(u)
-    return Rules.fraction(u, "keen") + Rules.boardAmount(u, "bShard")
-end
-
 -- Sample bundles a shred adds on top (눈썰미 and the board's bundle node), as an expected count.
 function Rules.bundleBonus(u)
-    return Rules.value2(u, "keen") + Rules.boardAmount(u, "bBundle")
+    return Rules.value(u, "keen") + Rules.boardAmount(u, "bBundle")
 end
 
 -- The distance 육감 watches, in tiles (0 without the node).

@@ -1,5 +1,5 @@
--- What the other parts of the mod call (ARCHITECTURE section 5): ranks, the serum purchase count, the bonuses the
--- shredder and the meteor drops read. Everything takes a player's record, as Store.player gives it. The parts that
+-- What the other parts of the mod call (ARCHITECTURE section 5): ranks, the serum purchase count, the bonus the
+-- shredder reads, a meteorite fragment settled. Everything takes a player's record, as Store.player gives it. The parts that
 -- build the screen and the effects are in the client folder.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
@@ -9,6 +9,7 @@ require "OperationAcorn/Upgrades/Effects"
 require "OperationAcorn/Upgrades/Serums"
 require "OperationAcorn/Upgrades/Plan"
 require "OperationAcorn/Upgrades/Sense"
+require "OperationAcorn/Upgrades/Adapt"
 local OA = OperationAcorn
 local Upgrades = OA.Upgrades
 local Rules = Upgrades.Rules
@@ -35,9 +36,14 @@ function Upgrades.serumPrice(n)
     return Rules.serumPrice(n)
 end
 
--- Meteor fragments from a drop site are multiplied by 1 + this (눈썰미 and the board).
-function Upgrades.fragmentBonus(record)
-    return Rules.fragmentBonus(Rules.section(record))
+-- A meteorite fragment reached the research team (a delivery box settled it): the capstone of its tree opens for
+-- good and the team's memo on the sample comes to the folder. True when it opened a capstone now.
+function Upgrades.fragmentReceived(record, fullType)
+    local tree = Upgrades.Data.treeOfFragment(fullType)
+    if not (tree and Rules.unseal(Rules.section(record), tree)) then return false end
+    OA.Sync.changed("upgrades", record.id, { kind = "unseal", tree = tree })
+    Upgrades.Adapt.unsealed(record, tree)
+    return true
 end
 
 -- Sample bundles the shredder adds to its yield, as an expected count (눈썰미 and the board).

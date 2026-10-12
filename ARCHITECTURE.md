@@ -157,8 +157,8 @@ python tools/check_translations.py                          # 번역 키, 샌드
 
 ### P3, P4, P5가 내놓는 것
 
-- P3: `OA.Upgrades.rank(record, nodeId)`(찍은 단계), `OA.Upgrades.open()`(트리 화면). 눈썰미는 P1의 `extras`와 P4의 파편 굴림이 읽는다.
-- P4: `OA.Story.onStage(record, stage)`(P2가 단계가 오르면 부른다), 운석 파편 아이템 `OperationAcorn.MeteorFragment`.
+- P3: `OA.Upgrades.rank(record, nodeId)`(찍은 단계), `OA.Upgrades.open()`(트리 화면). 눈썰미는 P1의 `extras`가 읽는다.
+- P4: `OA.Story.onStage(record, stage)`(P2가 단계가 오르면 부른다), 운석 파편 아이템 셋(`OperationAcorn.MeteorFragment` 석질, `MeteorFragmentIron`, `MeteorFragmentStonyIron`). 정산에 파편이 오르면 P3의 `OA.Upgrades.fragmentReceived(record, fullType)`를 불러 그 트리의 캡스톤을 연다.
 - P5: 시료 묶음 아이템 `OperationAcorn.SampleBundle`, 분해는 P1 `OA.Shred`를 쓴다.
 
 다른 묶음의 함수가 아직 없을 수 있다 (동시에 만든다). 부를 때는 있는지 보고(`if OA.Story and OA.Story.onStage then`), 없으면

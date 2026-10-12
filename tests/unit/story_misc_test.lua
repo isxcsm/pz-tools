@@ -1,4 +1,4 @@
--- Drop sites, documents, the overlay's arithmetic, the radio frequency, the compass, and the texts the data names.
+-- Drop sites round the start, documents, the overlay's arithmetic, the radio frequency, the compass, and the texts the data names.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Story/Story"
@@ -9,75 +9,66 @@ require "OperationAcorn/Story/Radio"
 local OA = OperationAcorn
 local Data, Story, Docs, Sites = OA.StoryData, OA.Story, OA.StoryDocs, OA.Sites
 
-local BOUNDS = { minX = 0, minY = 0, maxX = 14000, maxY = 12000 }
+local ORIGIN = { x = 8000, y = 7000 }
+local function yes() return true end
 
-test("the sites are decided once, spread out, each with its own stake number", function()
-    local list = Sites.ensure(BOUNDS, function() return true end)
-    eq(#list, 24)
-    eq(Sites.ensure(BOUNDS, function() return false end), list, "once")
-    local stakes = {}
+-- An empty sites section and no work waiting for chunks.
+local function clearSites()
+    local sec = OA.Store.world("sites")
+    for k in pairs(sec) do sec[k] = nil end
+    OA.Chunks.remove(function() return true end)
+end
+
+test("the sites are laid out once round the start, one of each kind, each with its own stake and date", function()
+    clearSites()
+    eq(Sites.ensure(nil, yes), nil, "no start yet")
+    eq(#Sites.list(), 0)
+    local list = Sites.ensure(ORIGIN, yes)
+    eq(#list, Sites.COUNT)
+    eq(Sites.ensure({ x = 100, y = 100 }, yes), list, "once")
+    local kinds, stakes, dates = {}, {}, {}
     for i, a in ipairs(list) do
         eq(a.n, i)
         eq(a.state, "pending")
+        truthy(Sites.FRAGMENT[a.kind], a.kind)
+        eq(kinds[a.kind], nil, "kinds differ")
+        kinds[a.kind] = true
         eq(stakes[a.stake], nil, "stake numbers differ")
         stakes[a.stake] = true
         truthy(a.date >= 1 and a.date <= Sites.DATES)
+        eq(dates[a.date], nil, "dates differ")
+        dates[a.date] = true
+        local d = OA.Places.distance(ORIGIN.x, ORIGIN.y, a.x, a.y)
+        truthy(d >= Sites.RING_LO - 1 and d <= Sites.RING_HI + 1, "in the ring: " .. d)
         for j = i + 1, #list do
-            local b = list[j]
-            truthy(OA.Places.distance(a.x, a.y, b.x, b.y) >= OA.Store.world("sites").spacing - 1, "spaced")
+            truthy(OA.Places.distance(a.x, a.y, list[j].x, list[j].y) >= Sites.SPACING - 1, "spaced")
         end
     end
+    eq(#OA.Chunks.list("oa_site"), Sites.COUNT, "each waits for its chunk")
     eq(Sites.byNumber(3), list[3])
     eq(Sites.byNumber(99), nil)
 end)
 
-test("the site count follows the option", function()
-    SandboxVars.OperationAcorn = SandboxVars.OperationAcorn or {}
-    SandboxVars.OperationAcorn.MeteorSites = 0.5
-    eq(Sites.count(), 12)
-end)
-
-test("a site that is not land is moved, and gives up after a number of tries", function()
-    local list = Sites.ensure(BOUNDS, function() return true end)
+test("a site that is not land is moved within the ring, and gives up after a number of tries", function()
+    clearSites()
+    local list = Sites.ensure(ORIGIN, yes)
     local site = list[1]
     local ox, oy = site.x, site.y
-    truthy(Sites.replace(site, BOUNDS, function() return true end))
+    truthy(Sites.replace(site, yes))
     truthy(site.x ~= ox or site.y ~= oy, "a new place")
-    for _ = 1, Sites.MAX_RETRIES do Sites.replace(site, BOUNDS, function() return true end) end
-    eq(Sites.replace(site, BOUNDS, function() return true end), false)
+    local d = OA.Places.distance(ORIGIN.x, ORIGIN.y, site.x, site.y)
+    truthy(d >= Sites.RING_LO - 1 and d <= Sites.RING_HI + 1, "still in the ring: " .. d)
+    for k = 2, 3 do
+        truthy(OA.Places.distance(site.x, site.y, list[k].x, list[k].y) >= Sites.SPACING - 1, "apart from the others")
+    end
+    for _ = 1, Sites.MAX_RETRIES do Sites.replace(site, yes) end
+    eq(Sites.replace(site, yes), false)
     eq(site.state, "failed")
 end)
 
-test("fragments: one to three, more with the upgrade, the expectation kept", function()
-    eq(Sites.fragmentCount(0, function() return 2 end, function() return 0.5 end), 2)
-    eq(Sites.fragmentCount(0.5, function() return 3 end, function() return 0.1 end), 5, "4.5 rounds up on a low roll")
-    eq(Sites.fragmentCount(0.5, function() return 3 end, function() return 0.99 end), 4)
-    eq(Sites.fragmentCount(0.5, function() return 3 end, function() return 0.6 end), 4)
-    local sum, n = 0, 400
-    local seed = 12345
-    local function rnd(a, b)
-        seed = OA.remainder(seed * 69069 + 1, 4294967296)
-        return a + OA.remainder(math.floor(seed / 65536), b - a + 1)
-    end
-    local function rndf()
-        seed = OA.remainder(seed * 69069 + 1, 4294967296)
-        return seed / 4294967296
-    end
-    for _ = 1, n do sum = sum + Sites.fragmentCount(0.5, rnd, rndf) end
-    near(sum / n, 3.0, 0.35, "2 x 1.5 on average")
-end)
-
-test("the best upgrade bonus among the records, and none without the upgrade part", function()
-    eq(Sites.bestBonus(), 0)
-    local a = OA.Store.ensure("a", "A")
-    local b = OA.Store.ensure("b", "B")
-    OA.Upgrades = { fragmentBonus = function(rec) return rec == a and 0.25 or 0.5 end }
-    eq(Sites.bestBonus(), 0.5)
-    OA.Upgrades = nil
-end)
-
 test("a player near a site has seen it", function()
-    local list = Sites.ensure(BOUNDS, function() return true end)
+    clearSites()
+    local list = Sites.ensure(ORIGIN, yes)
     list[2].state = "placed"
     local record = OA.Store.ensure("p1", "P")
     local told = {}
@@ -85,12 +76,43 @@ test("a player near a site has seen it", function()
     eq(Sites.visit(record, list[2].x + 200, list[2].y), false)
     eq(#told, 0)
     truthy(Sites.visit(record, list[2].x + 20, list[2].y))
-    eq(Story.section(record).sitesSeen[2], true)
+    eq(Sites.seenOf(record)[2], true)
     eq(#told, 1)
     eq(told[1].key, "IGUI_OA_Title_Site")
     eq(told[1].style, "discovery")
     eq(Sites.visit(record, list[2].x, list[2].y), false, "once")
     eq(#told, 1, "a title the first time only")
+end)
+
+test("what a record has seen belongs to one layout: a new layout starts it empty", function()
+    clearSites()
+    Sites.ensure(ORIGIN, yes)
+    local record = OA.Store.ensure("g1", "G")
+    Sites.seenOf(record)[1] = true
+    Story.section(record).sitesSearched[1] = true
+    eq(Sites.seenOf(record)[1], true, "the same layout keeps it")
+    OA.Store.world("sites").gen = Sites.generation() + 1
+    eq(Sites.seenOf(record)[1], nil)
+    eq(Story.section(record).sitesSearched[1], nil)
+end)
+
+test("the first layout's sites are taken away and the new ones laid out round the start", function()
+    clearSites()
+    local sec = OA.Store.world("sites")
+    sec.made, sec.spacing = true, 900
+    sec.list = { { n = 1, x = 300, y = 300, stake = 101, state = "pending" },
+                 { n = 2, x = 5000, y = 5000, stake = 102, state = "placed" } }
+    OA.Chunks.add({ kind = "oa_site", site = 1, x = 300, y = 300, z = 0 })
+    eq(#Sites.list(), 0, "the old list is not this version's")
+    eq(Sites.generation(), nil)
+    eq(Sites.ensure(nil, yes), nil, "taken away even before there is a start")
+    eq(#OA.Chunks.list("oa_site"), 0, "the old work waiting is dropped")
+    local old = OA.Chunks.list("oa_site_old")
+    eq(#old, 1, "the placed one is cleared when its chunk loads")
+    eq(old[1].x, 5000)
+    eq(sec.spacing, nil)
+    eq(#Sites.ensure(ORIGIN, yes), Sites.COUNT)
+    eq(sec.v, Sites.VERSION)
 end)
 
 test("documents of an item: its own id first, its data ones, a field note", function()
@@ -358,25 +380,4 @@ test("the world's texts keep LORE's rules: no dates outside documents, no empty-
         eq(string.find(value, "공란", 1, true) == nil, true, key .. " says 공란")
         eq(string.find(value, "구조", 1, true) == nil, true, key .. " talks of rescue")
     end
-end)
-
--- B42: the metagrid spans +-250 cells, the drawn map only some; zones are known only for loaded cells.
-test("the sites' bounds are the drawn map's cells, found to the cell", function()
-    local savedWorld = getWorld
-    getWorld = function()
-        return { getMetaGrid = function()
-            return {
-                getMinX = function() return -250 end, getMinY = function() return -250 end,
-                getMaxX = function() return 250 end, getMaxY = function() return 250 end,
-                getCellData = function(_, cx, cy) return (cx >= 3 and cx <= 21 and cy >= 5 and cy <= 9) or nil end,
-                getZonesAt = function() return nil end,
-            }
-        end }
-    end
-    Sites.resetExtent()
-    local b = Sites.bounds()
-    eq(b.minX, 3 * 256); eq(b.maxX, 22 * 256 - 1)
-    eq(b.minY, 5 * 256); eq(b.maxY, 10 * 256 - 1)
-    getWorld = savedWorld
-    Sites.resetExtent()
 end)

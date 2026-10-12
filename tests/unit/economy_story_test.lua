@@ -89,13 +89,15 @@ test("a refused big meteorite carries the story receipt note and a mark", functi
     eq(OA.Value.markKeys(line.marks)[1], "STORY_BIG_RECEIPT")
 end)
 
-test("a drop site fragment carries the fragment note and pays its own rate", function()
+test("each drop site fragment carries the fragment note and pays nothing: it goes to the research team", function()
     fakeStory()
-    local fragment = info("OperationAcorn.MeteorFragment", "Junk", 0.5, { own = "MeteorFragment" })
-    local line = OA.Value.appraiseLine(fragment, 2, { rate = 1, trustAccel = 1 })
-    eq(line.credits, 60000)
-    eq(line.note, "STORY_FRAGMENT_RECEIPT")
-    eq(OA.Value.markKeys(line.marks)[1], "STORY_FRAGMENT_RECEIPT")
+    for _, own in ipairs({ "MeteorFragment", "MeteorFragmentIron", "MeteorFragmentStonyIron" }) do
+        local fragment = info("OperationAcorn." .. own, "Junk", 0.5, { own = own })
+        local line = OA.Value.appraiseLine(fragment, 1, { rate = 1, trustAccel = 1 })
+        eq(line.credits, 0, own)
+        eq(line.note, "STORY_FRAGMENT_RECEIPT", own)
+        eq(OA.Value.markKeys(line.marks)[1], "STORY_FRAGMENT_RECEIPT", own)
+    end
 end)
 
 test("the notes fall back to this part's keys without the story part", function()

@@ -478,6 +478,20 @@ test("the fragment reply goes after a fragment has been on a receipt", function(
     eq(Story.takePaper(record).mod.OA_Doc, "reply_fragment")
 end)
 
+test("each fragment on a receipt goes to the upgrades by its kind", function()
+    local record = setup(3)
+    local was, got = OA.Upgrades, {}
+    OA.Upgrades = { fragmentReceived = function(rec, fullType) got[#got + 1] = fullType end }
+    Story.onSettled(record, { lines = {
+        { marks = { fragment = true }, fullType = "OperationAcorn.MeteorFragmentIron" },
+        { marks = { newRegion = true }, fullType = "Base.Hammer" },
+        { marks = { fragment = true }, fullType = "OperationAcorn.MeteorFragment" },
+    } })
+    OA.Upgrades = was
+    eq(table.concat(got, ","), "OperationAcorn.MeteorFragmentIron,OperationAcorn.MeteorFragment")
+    eq(Story.section(record).fragmentSeen, true)
+end)
+
 test("the fifth stage's appendix and the milestones' lists go before the others", function()
     local record = setup(5)
     Story.section(record).seenStage = 4

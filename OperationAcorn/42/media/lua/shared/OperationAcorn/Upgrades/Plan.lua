@@ -9,21 +9,20 @@ local Plan = {}
 OA.Upgrades.Plan = Plan
 
 -- Runs the steps on a copy of u. Steps that cannot be taken in their place (a step after one that was removed) are
--- left out. Returns the simulation, the steps that held, and the fragments the plan uses.
-function Plan.simulate(u, steps, fragments)
+-- left out. Returns the simulation and the steps that held.
+function Plan.simulate(u, steps)
     local sim = Rules.copy(u)
-    local run = { fragments = fragments or 0 }
     local kept = {}
     for _, step in ipairs(steps) do
-        if Rules.buy(sim, step.id, run, step.choice) then kept[#kept + 1] = step end
+        if Rules.buy(sim, step.id, step.choice) then kept[#kept + 1] = step end
     end
-    return sim, kept, (fragments or 0) - run.fragments
+    return sim, kept
 end
 
 -- The plan with one more rank of a node, or nil and the reason it cannot be taken now.
-function Plan.add(u, steps, id, choice, fragments)
-    local sim, kept, used = Plan.simulate(u, steps, fragments)
-    local why = Rules.blocked(sim, id, { fragments = (fragments or 0) - used }, choice)
+function Plan.add(u, steps, id, choice)
+    local sim, kept = Plan.simulate(u, steps)
+    local why = Rules.blocked(sim, id, choice)
     if why then return nil, why end
     local out = {}
     for i, step in ipairs(kept) do out[i] = step end
@@ -33,7 +32,7 @@ end
 
 -- The plan without the last planned rank of a node, and without the steps that depended on it. Returns the new plan
 -- (the same one when the node has no planned rank).
-function Plan.remove(u, steps, id, fragments)
+function Plan.remove(u, steps, id)
     local last
     for i, step in ipairs(steps) do
         if step.id == id then last = i end
@@ -43,7 +42,7 @@ function Plan.remove(u, steps, id, fragments)
     for i, step in ipairs(steps) do
         if i ~= last then rest[#rest + 1] = step end
     end
-    local _, kept = Plan.simulate(u, rest, fragments)
+    local _, kept = Plan.simulate(u, rest)
     return kept
 end
 

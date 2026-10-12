@@ -16,9 +16,9 @@ local function inject(u, tree, n)
     for _ = 1, n do Rules.inject(u, tree) end
 end
 
-local function buy(u, id, n, ctx)
+local function buy(u, id, n)
     for _ = 1, n or 1 do
-        local ok, why = Rules.buy(u, id, ctx or { fragments = 0 })
+        local ok, why = Rules.buy(u, id)
         if not ok then error("could not buy " .. id .. ": " .. tostring(why), 2) end
     end
 end
@@ -80,9 +80,7 @@ test("rank line numbers: a percentage carries its sign, a count does not", funct
     local sight = Data.byId.sight
     eq(Texts.args(sight, 3, u)[1], "72")
     local keen = Data.byId.keen
-    local keenArgs = Texts.args(keen, 2, u)
-    eq(keenArgs[1], "100%")
-    eq(keenArgs[2], "0.2", "bundles for each thing: a fifth of a bundle")
+    eq(Texts.args(keen, 2, u)[1], "0.2", "bundles for each thing: a fifth of a bundle")
 end)
 
 test("rank line numbers follow the effect option", function()
@@ -125,7 +123,7 @@ test("the conditions list what a node needs, each with its state", function()
     local u = Rules.blank()
     inject(u, "scout", 4)
     buy(u, "sixth", 1)
-    local conditions = Texts.conditions(u, Data.byId.sense, { fragments = 0 })
+    local conditions = Texts.conditions(u, Data.byId.sense)
     local open, node = false, false
     for _, c in ipairs(conditions) do
         if string.find(c.text, "NeedNode", 1, true) then node = c.ok end
@@ -133,12 +131,17 @@ test("the conditions list what a node needs, each with its state", function()
     end
     truthy(open, "the tree is open")
     eq(node, false, "needs the hunch at 2")
-    local capstone = Texts.conditions(u, Data.byId.nightEye, { fragments = 0 })
-    local fragment
-    for _, c in ipairs(capstone) do
-        if string.find(c.text, "NeedFragment", 1, true) then fragment = c.ok end
+    local was = getItemNameFromFullType
+    getItemNameFromFullType = function(t) return t end
+    local function sample()
+        for _, c in ipairs(Texts.conditions(u, Data.byId.nightEye)) do
+            if string.find(c.text, "NeedSample", 1, true) then return c.ok end
+        end
     end
-    eq(fragment, false)
+    eq(sample(), false)
+    Rules.unseal(u, "scout")
+    eq(sample(), true)
+    getItemNameFromFullType = was
 end)
 
 test("moving an item takes the time of its weight up to 3", function()

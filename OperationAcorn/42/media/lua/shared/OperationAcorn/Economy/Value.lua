@@ -32,10 +32,13 @@ Value.CASH = { ["Base.Money"] = 1, ["Base.MoneyBundle"] = 100 }
 
 -- The mod's own goods that are taken: credits and trust for one, no market. Other goods of the mod (serums, kits,
 -- machines, parts, gear) are shop goods and not taken. "MissionItem" is worth what its mission pays (the story
--- part settles it); "ExpiredMission" is a mission item past its time.
+-- part settles it); "ExpiredMission" is a mission item past its time. A meteorite fragment is not sold: it goes to
+-- the research team and opens a capstone (the story part tells the upgrades when it settles: Story.onSettled).
 Value.OWN = {
     SampleBundle = { credits = 600, trust = 6 },
-    MeteorFragment = { credits = 30000, trust = 10 },
+    MeteorFragment = { credits = 0, trust = 10, fragment = true },
+    MeteorFragmentIron = { credits = 0, trust = 10, fragment = true },
+    MeteorFragmentStonyIron = { credits = 0, trust = 10, fragment = true },
     ExpiredMission = { credits = 1000, trust = 5 },
     MissionItem = { credits = 0, trust = 0 },
 }
@@ -172,7 +175,7 @@ function Value.appraiseLine(info, count, ctx, taken)
             line.trust = def.trust * count * (ctx.trustAccel or 1.0)
         end
         line.own = info.own
-        if info.own == "MeteorFragment" then
+        if def and def.fragment then
             line.marks.fragment = true
             line.note = Value.FRAGMENT_NOTE()
         end

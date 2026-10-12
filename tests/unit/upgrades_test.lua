@@ -1,4 +1,4 @@
--- The upgrade rules: data shape, points, row and prerequisite unlocks, capstones and fragments, the 2nd board's costs,
+-- The upgrade rules: data shape, points, row and prerequisite unlocks, sealed capstones, the 2nd board's costs,
 -- the diminishing formulas, reset, serum prices, the cure serum's shelf life and owner, the values
 -- the effects hand to the API, and the server's commands.
 require "OperationAcorn/Core"
@@ -20,10 +20,9 @@ local function inject(u, tree, n)
 end
 
 -- Buys the nodes by ids in order, one rank each time a name appears; fails the test on a refusal.
-local function buy(u, ids, ctx)
-    ctx = ctx or { fragments = 0 }
+local function buy(u, ids, choice)
     for _, id in ipairs(ids) do
-        local ok, why = Rules.buy(u, id, ctx)
+        local ok, why = Rules.buy(u, id, choice)
         if not ok then error("could not buy " .. id .. ": " .. tostring(why), 2) end
     end
 end
@@ -56,7 +55,8 @@ local function maxTree(u, tree, withCapstone)
     inject(u, tree, 25 + (withCapstone and 1 or 0))
     buy(u, ORDER[tree])
     if withCapstone then
-        buy(u, { Data.capstone(tree).id }, { fragments = 1 })
+        Rules.unseal(u, tree)
+        buy(u, { Data.capstone(tree).id })
     end
 end
 
@@ -96,7 +96,6 @@ test("data is consistent: prerequisites, values, places, api map", function()
             truthy(n.row >= 1 and n.row <= Data.ROWS and n.col >= 1 and n.col <= Data.COLS, n.id .. " place")
             if n.capstone then eq(n.row, 5, n.id) end
             if n.values then eq(#n.values, n.ranks, n.id .. " values") end
-            if n.values2 then eq(#n.values2, n.ranks, n.id .. " values2") end
             for _, need in ipairs(n.req) do
                 local other = Data.byId[need[1]]
                 truthy(other and other.tree == n.tree, n.id .. " needs a node of its own tree")
@@ -239,28 +238,41 @@ test("a node cannot go past its ranks, or be bought without a point", function()
     eq(Rules.blocked(u, "sixth", nil), "points")
 end)
 
-test("a capstone needs 12 points in its tree and a fragment, which it takes", function()
+test("a capstone needs 12 points in its tree and its tree unsealed", function()
     local u = fresh()
     inject(u, "scout", 26)
     buy(u, ORDER.scout)
     eq(Rules.treeSpent(u, "scout"), 25)
-    eq(Rules.blocked(u, "nightEye", { fragments = 0 }), "fragment")
-    local ctx = { fragments = 2 }
-    buy(u, { "nightEye" }, ctx)
-    eq(ctx.fragments, 1, "one fragment taken")
+    eq(Rules.blocked(u, "nightEye"), "sealed")
+    truthy(Rules.unseal(u, "scout"))
+    eq(Rules.unseal(u, "scout"), false, "unsealed once")
+    eq(Rules.unseal(u, nil), false)
+    eq(Rules.unsealed(u, "load"), false, "the other trees stay sealed")
+    buy(u, { "nightEye" })
     eq(Rules.rank(u, "nightEye"), 1)
     -- 12 points are enough
     local v = fresh()
+    Rules.unseal(v, "scout")
     inject(v, "scout", 13)
     buy(v, cat(rep("sight", 3), rep("night", 3), rep("alarm", 1), rep("sixth", 2), rep("ledger", 3)))
     eq(Rules.treeSpent(v, "scout"), 12)
-    eq(Rules.blocked(v, "nightEye", { fragments = 1 }), nil)
+    eq(Rules.blocked(v, "nightEye"), nil)
     -- 11 are not
     local w = fresh()
+    Rules.unseal(w, "scout")
     inject(w, "scout", 13)
     buy(w, cat(rep("sight", 3), rep("night", 3), rep("alarm", 1), rep("sixth", 2), rep("ledger", 2)))
     eq(Rules.treeSpent(w, "scout"), 11)
-    eq(Rules.blocked(w, "nightEye", { fragments = 1 }), "row")
+    eq(Rules.blocked(w, "nightEye"), "row")
+end)
+
+test("an old record with a capstone taken has its tree unsealed", function()
+    local u = fresh()
+    u.ranks.armor = 1
+    u.unsealed = nil
+    Rules.fill(u)
+    eq(Rules.unsealed(u, "load"), true)
+    eq(Rules.unsealed(u, "scout"), false)
 end)
 
 test("the capstone needs its node at rank", function()
@@ -268,7 +280,8 @@ test("the capstone needs its node at rank", function()
     inject(u, "scout", 13)
     buy(u, cat(rep("sight", 3), rep("night", 2), rep("alarm", 1), rep("sixth", 2), rep("ledger", 3), rep("rich", 1)))
     eq(Rules.treeSpent(u, "scout"), 12)
-    eq(Rules.blocked(u, "nightEye", { fragments = 1 }), "prereq")
+    Rules.unseal(u, "scout")
+    eq(Rules.blocked(u, "nightEye"), "prereq")
 end)
 
 test("the 2nd board opens when all three capstones are approved", function()
@@ -320,11 +333,11 @@ test("the family weight node needs a family choice and counts per family", funct
     local u = fresh()
     openBoard(u)
     for _ = 1, 3 do Rules.injectShared(u) end
-    eq(Rules.blocked(u, "bFamily", nil, nil), "choice")
-    eq(Rules.blocked(u, "bFamily", nil, "Z"), "choice")
-    truthy(Rules.buy(u, "bFamily", nil, "A"))
-    truthy(Rules.buy(u, "bFamily", nil, "A"))
-    truthy(Rules.buy(u, "bFamily", nil, "G"))
+    eq(Rules.blocked(u, "bFamily", nil), "choice")
+    eq(Rules.blocked(u, "bFamily", "Z"), "choice")
+    truthy(Rules.buy(u, "bFamily", "A"))
+    truthy(Rules.buy(u, "bFamily", "A"))
+    truthy(Rules.buy(u, "bFamily", "G"))
     eq(u.board.family.A, 2)
     near(Rules.familyAmount(u, "A"), 0.2, 1e-9)
     near(Rules.familyAmount(u, "G"), 0.1, 1e-9)
@@ -368,30 +381,30 @@ end)
 test("a plan is approved all or nothing, in order", function()
     local u = fresh()
     inject(u, "scout", 4)
-    local ok, result = Rules.approve(u, { { id = "sight" }, { id = "sight" }, { id = "sight" }, { id = "rich" } },
-        { fragments = 0 })
+    local ok, result = Rules.approve(u, { { id = "sight" }, { id = "sight" }, { id = "sight" }, { id = "rich" } })
     truthy(ok, "the second row opens by the first three")
     eq(Rules.rank(result, "sight"), 3)
     eq(Rules.rank(u, "sight"), 0, "the original is untouched")
-    local ok2, why, index = Rules.approve(u, { { id = "sight" }, { id = "rich" } }, { fragments = 0 })
+    local ok2, why, index = Rules.approve(u, { { id = "sight" }, { id = "rich" } })
     eq(ok2, false)
     eq(why, "row")
     eq(index, 2)
-    local ok3, why3 = Rules.approve(u, { { id = "nope" } }, { fragments = 0 })
+    local ok3, why3 = Rules.approve(u, { { id = "nope" } })
     eq(ok3, false)
     eq(why3, "unknown")
 end)
 
-test("approving a capstone reports the fragments it uses", function()
+test("approving a capstone needs its tree unsealed", function()
     local u = fresh()
     inject(u, "scout", 26)
     buy(u, ORDER.scout)
-    local ok, _, used = Rules.approve(u, { { id = "nightEye" } }, { fragments = 3 })
-    truthy(ok)
-    eq(used, 1)
-    local ok2, why = Rules.approve(u, { { id = "nightEye" } }, { fragments = 0 })
-    eq(ok2, false)
-    eq(why, "fragment")
+    local ok, why = Rules.approve(u, { { id = "nightEye" } })
+    eq(ok, false)
+    eq(why, "sealed")
+    Rules.unseal(u, "scout")
+    local ok2, result = Rules.approve(u, { { id = "nightEye" } })
+    truthy(ok2)
+    eq(Rules.rank(result, "nightEye"), 1)
 end)
 
 test("serum prices follow NUMBERS 6", function()
@@ -479,10 +492,10 @@ test("resetting a tree with a capstone closes the 2nd board and returns its poin
     eq(Rules.boardLeft(u), 7, "2nd board points left")
     eq(Rules.sharedPool(u), 0, "they are not shared points any more")
     eq(Rules.rank(u, "nightEye"), 0, "the capstone is gone")
-    -- the fragment is not given back: a new capstone needs one again
+    -- the tree stays unsealed: the capstone can be taken again
     buy(u, ORDER.scout)
-    eq(Rules.blocked(u, "nightEye", { fragments = 0 }), "fragment")
-    buy(u, { "nightEye" }, { fragments = 1 })
+    eq(Rules.blocked(u, "nightEye"), nil)
+    buy(u, { "nightEye" })
     eq(Rules.boardOpen(u), true, "the board is back")
     -- the left points are spent first and need no shared ones
     buy(u, rep("bStiff", 6))
@@ -534,12 +547,15 @@ test("bite shield: armed at rank 2, rests for seven days, shorter with the board
     eq(Rules.biteLevel(fresh(), 100), 0, "no shield, no moodle")
     inject(u, "scout", 26)
     buy(u, ORDER.scout)
-    buy(u, { "nightEye" }, { fragments = 1 })
+    Rules.unseal(u, "scout")
+    buy(u, { "nightEye" })
     inject(u, "load", 26)
     buy(u, ORDER.load)
-    buy(u, { "armor" }, { fragments = 1 })
+    Rules.unseal(u, "load")
+    buy(u, { "armor" })
     inject(u, "survival", 1)
-    buy(u, { "dash" }, { fragments = 1 })
+    Rules.unseal(u, "survival")
+    buy(u, { "dash" })
     for _ = 1, 5 do Rules.injectShared(u) end
     buy(u, rep("bBite", 5))
     near(Rules.biteHours(u), 168 / 1.5, 1e-9)
@@ -570,7 +586,8 @@ test("effects: the capstone night eye keeps the night's cone under the day's, by
     local u = fresh()
     inject(u, "scout", 26)
     buy(u, ORDER.scout)
-    buy(u, { "nightEye" }, { fragments = 1 })
+    Rules.unseal(u, "scout")
+    buy(u, { "nightEye" })
     -- the cone in the full dark at night and in full daylight, as calculateVisionCone works it out (rested, on foot)
     local function cones(nv, eagle)
         local restore = Effects.compute(u, 0, { nightVision = nv, eagleEyed = eagle })["vision.darknessRestore"]
@@ -633,9 +650,9 @@ test("effects: family weight lands on the family's display categories", function
     local u = fresh()
     openBoard(u)
     for _ = 1, 3 do Rules.injectShared(u) end
-    truthy(Rules.buy(u, "bFamily", nil, "A"))
-    truthy(Rules.buy(u, "bFamily", nil, "A"))
-    truthy(Rules.buy(u, "bFamily", nil, "G"))
+    truthy(Rules.buy(u, "bFamily", "A"))
+    truthy(Rules.buy(u, "bFamily", "A"))
+    truthy(Rules.buy(u, "bFamily", "G"))
     local c = Effects.compute(u, 0)["carry.categoryEfficiency"]
     near(c.Food, 0.2, 1e-9)
     near(c.Electronics, 0.1, 1e-9)
@@ -742,16 +759,13 @@ test("the sense radii read the board", function()
     eq(Rules.senseRadius(v), Data.SENSE_RADIUS + 3)
 end)
 
-test("the fragment bonus and the bundle bonus", function()
+test("the bundle bonus", function()
     local u = fresh()
     openBoard(u)
-    near(Rules.fragmentBonus(u), 1.5, 1e-9, "눈썰미 3 gives +150%")
-    near(Rules.bundleBonus(u), 0.3, 1e-9)
+    near(Rules.bundleBonus(u), 0.3, 1e-9, "눈썰미 3")
     for _ = 1, 10 do Rules.injectShared(u) end
     buy(u, rep("bBundle", 5))
     near(Rules.bundleBonus(u), 0.4, 1e-9)
-    buy(u, rep("bShard", 4))
-    truthy(Rules.fragmentBonus(u) > 1.5)
 end)
 
 test("lock chances, times and side effects follow the ranks", function()
@@ -785,36 +799,20 @@ end)
 
 -- ---- the server's commands ---------------------------------------------------------------------------------------
 
--- A character with an inventory that holds fragments, for the commands.
-local function fakeCharacter(fragments)
-    local items = {}
-    for i = 1, fragments do items[#items + 1] = { id = i } end
-    local container
-    container = {
-        getCountTypeRecurse = function() return #items end,
-        getFirstTypeRecurse = function()
-            local item = items[1]
-            if not item then return nil end
-            item.getContainer = function() return container end
-            return item
-        end,
-        DoRemoveItem = function(_, item)
-            for i, v in ipairs(items) do if v == item then table.remove(items, i) return end end
-        end,
-    }
+-- A character for the commands.
+local function fakeCharacter()
     return {
         getUsername = function() return "tester" end,
-        getInventory = function() return container end,
         getModData = function() return {} end,
-        fragments = function() return #items end,
     }
 end
 
-test("server: approve spends points and fragments, and refuses a bad plan whole", function()
+test("server: approve spends points, and refuses a bad plan whole", function()
     require "OperationAcorn/Upgrades/Server"
-    local character = fakeCharacter(2)
+    local character = fakeCharacter()
     local record = OA.Store.ensure("srv", "tester")
     local u = Rules.section(record)
+    Rules.unseal(u, "scout")
     inject(u, "scout", 26)
     local steps = {}
     for _, id in ipairs(ORDER.scout) do steps[#steps + 1] = { id = id } end
@@ -823,15 +821,14 @@ test("server: approve spends points and fragments, and refuses a bad plan whole"
     eq(Rules.rank(u, "nightEye"), 1)
     eq(Rules.rank(u, "sight"), 3)
     eq(Rules.ownPool(u, "scout"), 0)
-    eq(character:fragments(), 1, "one fragment taken")
     -- a plan with one bad step changes nothing
     local before = Rules.rank(u, "alarm")
     sendClientCommand(character, OA.MOD, "upgrades.approve", { id = "srv", steps = { { id = "alarm" }, { id = "nope" } } })
     eq(Rules.rank(u, "alarm"), before)
-    -- a capstone without a fragment is refused
+    -- a sealed capstone is refused
     local v = Rules.section(OA.Store.ensure("srv2", "t2"))
     inject(v, "scout", 26)
-    local c2 = fakeCharacter(0)
+    local c2 = fakeCharacter()
     local plan = {}
     for _, id in ipairs(ORDER.scout) do plan[#plan + 1] = { id = id } end
     plan[#plan + 1] = { id = "nightEye" }
@@ -841,12 +838,13 @@ end)
 
 test("server: a capstone approved has a gold title with its name; the last one opens the board, one title", function()
     require "OperationAcorn/Upgrades/Server"
-    local character = fakeCharacter(3)
+    local character = fakeCharacter()
     local record = OA.Store.ensure("cap", "tester")
     local u = Rules.section(record)
     local told = {}
     OA.Sync.listen("title", function(id, detail) told[#told + 1] = detail end)
     local function approveTree(tree)
+        Rules.unseal(u, tree)
         inject(u, tree, 26)
         local steps = {}
         for _, id in ipairs(ORDER[tree]) do steps[#steps + 1] = { id = id } end

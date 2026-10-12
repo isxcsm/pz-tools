@@ -7,7 +7,7 @@
 -- adds (with rankText): the ranks whose text adds to the lines before rather than replacing them (true: every rank after
 -- the first), so a tooltip lists what each rank taken gives; a rank not added replaces the lines before it.
 -- kind: "lua" works with this mod alone; "api" needs the extension API (PZ Tools) to change the game's numbers.
--- values: the effect of each rank in its unit (cumulative: the value at that rank), values2 a second series.
+-- values: the effect of each rank in its unit (cumulative: the value at that rank).
 -- lighter: the values are carrying efficiencies (a weight is divided by 1 + sum); the text shows the weight taken off.
 require "OperationAcorn/Core"
 OperationAcorn.Upgrades = OperationAcorn.Upgrades or {}
@@ -19,7 +19,19 @@ Data.BOARD = "board"
 -- The upgrade serum item of each tree (module OperationAcorn).
 Data.SERUM_ITEM = { scout = "UpgradeSerumScout", load = "UpgradeSerumLoad", survival = "UpgradeSerumSurvival" }
 Data.SHARED_ITEM = "UpgradeSerumShared"
-Data.FRAGMENT = "OperationAcorn.MeteorFragment"
+-- The meteorite fragment that opens each tree's capstone (sent to the research team in a delivery box: Rules.unseal).
+-- Three kinds fall, one at each drop site (Story/Sites.lua). MeteorFragment is the stony one (the name it had when
+-- there was one kind).
+Data.FRAGMENTS = { scout = "OperationAcorn.MeteorFragmentStonyIron", load = "OperationAcorn.MeteorFragmentIron",
+                   survival = "OperationAcorn.MeteorFragment" }
+
+-- The tree a fragment's full type opens, or nil.
+function Data.treeOfFragment(fullType)
+    for tree, ft in pairs(Data.FRAGMENTS) do
+        if ft == fullType then return tree end
+    end
+    return nil
+end
 -- Points that must be spent in a tree to open its rows 1 to 4, and its capstone (TREES rules).
 Data.ROW_COST = { 0, 3, 6, 9 }
 Data.CAPSTONE_COST = 12
@@ -90,7 +102,7 @@ node("scout", "ledger", 1, 4, 3, "lua", {}, { rankText = true, adds = true, unit
 node("scout", "rich", 2, 3, 3, "api", {}, { unit = "pct", values = { 15, 30, 50 } })
 node("scout", "night", 2, 2, 3, "api", {}, { cap = 100, unit = "pct", values = { 20, 40, 60 } })
 node("scout", "sense", 3, 1, 2, "lua", { { "sixth", 2 } }, { rankText = true, adds = true })
-node("scout", "keen", 3, 3, 3, "lua", { { "rich", 2 } }, { unit = "pct", values = { 50, 100, 150 }, values2 = { 0.1, 0.2, 0.3 } })
+node("scout", "keen", 3, 3, 3, "lua", { { "rich", 2 } }, { unit = "num", values = { 0.1, 0.2, 0.3 } })
 node("scout", "ammo", 4, 3, 2, "api", { { "keen", 2 } }, { unit = "pct", values = { 50, 100 } })
 node("scout", "sensePlus", 4, 1, 3, "lua", { { "sense", 2 } }, { rankText = true, adds = true })
 node("scout", "nightEye", 5, 2, 1, "api", { { "night", 3 } }, { capstone = true })

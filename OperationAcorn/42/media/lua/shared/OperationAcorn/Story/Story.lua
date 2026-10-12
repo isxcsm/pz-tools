@@ -164,15 +164,15 @@ function Story.crateSpecs(record)
     return spec and { spec } or nil
 end
 
--- The trade part tells the story what a settlement settled: a meteorite fragment on a receipt lets the fragment reply
--- go in a later crate.
+-- The trade part tells the story what a settlement settled: a meteorite fragment on a receipt has reached the
+-- research team (its capstone opens: Upgrades.fragmentReceived), and the first one lets the fragment reply go in a
+-- later crate.
 function Story.onSettled(record, result)
     local s = Story.section(record)
-    if s.fragmentSeen then return end
     for _, line in ipairs(result and result.lines or {}) do
         if line.marks and line.marks.fragment then
             s.fragmentSeen = true
-            return
+            if OA.Upgrades and OA.Upgrades.fragmentReceived then OA.Upgrades.fragmentReceived(record, line.fullType) end
         end
     end
 end
@@ -892,6 +892,7 @@ end
 -- The survey stakes the player has read, as one record: the stake number and the date on it (an index of the dates
 -- the stakes carry), by number. The server notes a stake when it is read (the site's own date).
 function Story.noteStake(record, stake, date)
+    if OA.Sites then OA.Sites.seenOf(record) end
     local s = Story.section(record)
     if type(stake) ~= "number" or type(date) ~= "number" then return false end
     if s.sitesSearched[stake] == date then return false end

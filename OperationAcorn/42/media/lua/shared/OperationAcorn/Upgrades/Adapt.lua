@@ -19,9 +19,10 @@ local Adapt = {}
 OA.Upgrades.Adapt = Adapt
 
 -- The documents the research team sends to the folder (Docs.addGuide): the plan, and for each tree its memo when it
--- opens ("open") and when its capstone is approved ("cap").
+-- opens ("open"), when its meteorite fragment has reached the team and its capstone may be taken ("sample"), and
+-- when its capstone is approved ("cap").
 Adapt.GUIDE = "research_guide"
-Adapt.MEMOS = { "open", "cap" }
+Adapt.MEMOS = { "open", "sample", "cap" }
 
 function Adapt.memoId(tree, which)
     return "memo_" .. tree .. "_" .. which
@@ -86,6 +87,15 @@ function Adapt.capstones(u)
         if cap and Rules.rank(u, cap.id) >= 1 then done[tree] = true end
     end
     return done
+end
+
+-- A tree's fragment reached the research team: its memo on the sample comes, and the player is told.
+function Adapt.unsealed(record, tree)
+    if Adapt.deliver(record, Adapt.memoId(tree, "sample")) then
+        OA.Sync.notice(record.id, "IGUI_OA_Tree_GuideSent", {})
+        return true
+    end
+    return false
 end
 
 -- A plan is approved: each capstone newly taken (not in `before`, as Adapt.capstones gave it) brings its memo. The

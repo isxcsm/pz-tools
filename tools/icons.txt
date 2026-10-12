@@ -8,7 +8,9 @@ TerminalManual	manual	assembly manual booklet (P2)
 FieldTerminal	field_terminal	the team's field terminal in its open olive case, ordered from the shop (P2)
 SupplyManifest	manifest	supply manifest on a clipboard (P2)
 SampleBundle	bundle	sample bundle (P5)
-MeteorFragment	meteor	meteor fragment (P4)
+MeteorFragment	meteor	stony meteorite fragment: opens the survival capstone
+MeteorFragmentIron	meteor_iron	iron meteorite fragment: opens the load capstone
+MeteorFragmentStonyIron	meteor_stony_iron	stony-iron meteorite fragment: opens the scout capstone
 UpgradeSerumScout	serum_scout	scout tree serum (P3)
 UpgradeSerumLoad	serum_load	load tree serum (P3)
 UpgradeSerumSurvival	serum_survival	survival tree serum (P3)

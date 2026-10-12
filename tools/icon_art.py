@@ -307,11 +307,24 @@ def bundle():
     return from_scene(s)
 
 
-def meteor_fragment():
+def meteor_fragment(kind='stony'):
+    """The three kinds a drop site holds: stony (a dark fusion crust, rust-brown, a pale broken face), iron (dense
+    dark metal with a bright cut face), stony-iron (metal holding green olivine crystals)."""
     s = Scene(0)
-    s.rock((0.5, 0.5, 0.2), 0.34, 11, (66, 58, 54), squash=(1.1, 0.95, 0.9), detail=1, jitter=0.3, colour2=(130, 82, 50),
-           shine=0.2)
-    s.rock((0.58, 0.46, 0.34), 0.1, 12, (170, 164, 158), squash=(1, 0.8, 0.5), detail=0, jitter=0.15, shine=0.8)
+    if kind == 'iron':
+        s.rock((0.5, 0.5, 0.18), 0.3, 9, (52, 50, 50), squash=(1.15, 0.9, 0.75), detail=1, jitter=0.18,
+               colour2=(92, 70, 56), shine=0.55)
+        s.rock((0.56, 0.46, 0.3), 0.11, 10, (196, 198, 200), squash=(1.1, 0.8, 0.35), detail=0, jitter=0.08, shine=1.0)
+    elif kind == 'stonyIron':
+        s.rock((0.5, 0.5, 0.2), 0.32, 10, (88, 86, 82), squash=(1.05, 0.95, 0.85), detail=1, jitter=0.25,
+               colour2=(60, 56, 52), shine=0.6)
+        for x, y, z, r in ((0.42, 0.44, 0.46, 0.11), (0.6, 0.52, 0.46, 0.1), (0.48, 0.64, 0.4, 0.085),
+                           (0.66, 0.36, 0.38, 0.08), (0.32, 0.58, 0.34, 0.07)):
+            s.rock((x, y, z), r, 7, (132, 196, 72), squash=(1, 1, 0.7), detail=0, jitter=0.2, shine=0.9)
+    else:
+        s.rock((0.5, 0.5, 0.2), 0.34, 11, (66, 58, 54), squash=(1.1, 0.95, 0.9), detail=1, jitter=0.3,
+               colour2=(130, 82, 50), shine=0.2)
+        s.rock((0.58, 0.46, 0.34), 0.1, 12, (170, 164, 158), squash=(1, 0.8, 0.5), detail=0, jitter=0.15, shine=0.8)
     return from_scene(s)
 
 
@@ -663,7 +676,8 @@ PICTURES = {
     'document': document_generic,
     'mission': mission_item,
     'bundle': bundle,
-    'meteor': meteor_fragment,
+    'meteor': meteor_fragment, 'meteor_iron': lambda: meteor_fragment('iron'),
+    'meteor_stony_iron': lambda: meteor_fragment('stonyIron'),
     'serum_scout': lambda: vial('Scout'),
     'serum_load': lambda: vial('Load'),
     'serum_survival': lambda: vial('Survival'),

@@ -135,7 +135,6 @@ function Texts.args(node, rank, u)
         text = Texts.number(shown(node, v))
     end
     args[1] = text
-    if node.values2 then args[2] = Texts.number(node.values2[rank] * Rules.mult()) end
     if node.id == "resistPlus" then args[2] = Texts.number(Rules.biteHours(u) / 24) end
     return args
 end
@@ -206,8 +205,7 @@ function Texts.apiNote(id)
 end
 
 -- The conditions to take the next rank of a node, each { ok, text }, with the state the plan would make (sim).
--- ctx.fragments is the fragments the plan leaves in the bag.
-function Texts.conditions(sim, node, ctx)
+function Texts.conditions(sim, node)
     local list = {}
     local function add(ok, text) list[#list + 1] = { ok = ok, text = text } end
     if node.board then
@@ -227,8 +225,7 @@ function Texts.conditions(sim, node, ctx)
         add(have >= req[2], getText("IGUI_OA_Tree_NeedNode", Texts.nodeName(req[1]), req[2], have))
     end
     if node.capstone then
-        local have = (ctx and ctx.fragments) or 0
-        add(have >= 1, getText("IGUI_OA_Tree_NeedFragment", have))
+        add(Rules.unsealed(sim, node.tree), getText("IGUI_OA_Tree_NeedSample", getItemNameFromFullType(Data.FRAGMENTS[node.tree])))
     end
     if not Rules.maxed(sim, node.id) then
         local free = Rules.free(sim, node.tree)

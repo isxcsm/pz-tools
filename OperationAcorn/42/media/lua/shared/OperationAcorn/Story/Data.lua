@@ -96,6 +96,8 @@ Data.ITEMS = {
     HandoverFile = { supply = true, docs = { "handover_notice", "status_table" }, weight = 0.2 },
     KitVoucher = { weight = 0.05 },
     MeteorFragment = { weight = 0.5 },
+    MeteorFragmentIron = { weight = 0.8 },
+    MeteorFragmentStonyIron = { weight = 0.6 },
 }
 
 function Data.fullType(name)

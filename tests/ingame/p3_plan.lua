@@ -27,27 +27,23 @@ ok, why = Server.approve(player, record, P3T.steps({ "sensePlus", "sensePlus", "
 P3T.check(say, "a plan with an unmet capstone is refused whole", not ok, why)
 P3T.check(say, "...and changed nothing", Rules.rank(u, "sensePlus") == 0)
 
--- a capstone: needs 12 points in the tree and a fragment
-local fragmentKnown = getScriptManager():FindItem(Data.FRAGMENT) ~= nil
-say("meteor fragment item exists", fragmentKnown)
--- fragments an earlier check gave (p8 gives every item of the mod) would pay for the capstone
-local held = player:getInventory():getAllTypeRecurse(Data.FRAGMENT)
-for i = 0, held:size() - 1 do
-    local item = held:get(i)
-    item:getContainer():DoRemoveItem(item)
+-- a capstone: needs 12 points in the tree and the tree unsealed (its meteorite fragment reached the research team)
+for tree, fullType in pairs(Data.FRAGMENTS) do
+    P3T.check(say, "the " .. tree .. " fragment item exists", getScriptManager():FindItem(fullType) ~= nil, fullType)
 end
+u.unsealed.scout = nil
 -- 7 spent so far; five more make the 12 the capstone needs, and it takes the 13th
 ok, why = Server.approve(player, record, P3T.steps({ "night", "night", "night", "rich", "rich" }))
 P3T.check(say, "five more points of the scout tree", ok, why)
 say("scout points spent", Rules.treeSpent(u, "scout"))
-if fragmentKnown then
-    ok, why = Server.approve(player, record, P3T.steps({ "nightEye" }))
-    P3T.check(say, "the capstone is refused without a fragment", not ok, why)
-    P3T.give(Data.FRAGMENT)
-    ok, why = Server.approve(player, record, P3T.steps({ "nightEye" }))
-    P3T.check(say, "the capstone is approved with a fragment", ok, why)
-    P3T.check(say, "the fragment is consumed", player:getInventory():getCountTypeRecurse(Data.FRAGMENT) == 0)
-end
+ok, why = Server.approve(player, record, P3T.steps({ "nightEye" }))
+P3T.check(say, "the capstone is refused while sealed", not ok and why == "sealed", why)
+OA.Upgrades.fragmentReceived(record, Data.FRAGMENTS.survival)
+P3T.check(say, "a stony fragment does not unseal the scout tree", not Rules.unsealed(u, "scout"))
+P3T.check(say, "the stony-iron fragment unseals it", OA.Upgrades.fragmentReceived(record, Data.FRAGMENTS.scout))
+P3T.check(say, "the sample memo is in the folder", OA.Story.section(record).docs.memo_scout_sample ~= nil)
+ok, why = Server.approve(player, record, P3T.steps({ "nightEye" }))
+P3T.check(say, "the capstone is approved once unsealed", ok, why)
 
 -- reset
 local cost = Rules.resetCost(u, "scout")
@@ -58,6 +54,7 @@ P3T.check(say, "reset works", ok, why)
 P3T.check(say, "the cost was taken", trade.credits == before - cost)
 P3T.check(say, "ranks are back to 0", Rules.rank(u, "sight") == 0)
 P3T.check(say, "the points are back", Rules.ownPool(u, "scout") == 13)
+P3T.check(say, "the tree stays unsealed", Rules.unsealed(u, "scout"))
 P3T.check(say, "the serum count never decreases", u.injected.scout == 13)
 Server.approve(player, record, P3T.steps({ "sight" }))
 trade.credits = -5

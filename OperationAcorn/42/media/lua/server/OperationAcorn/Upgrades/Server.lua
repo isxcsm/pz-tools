@@ -1,5 +1,5 @@
--- The server side of the upgrades: the research approval (a plan of ranks, paid in points and meteor fragments), the
--- reset of a tree, the bite shield's rest, and what the client's watch saw of the infection (a zombie's wound, the body's
+-- The server side of the upgrades: the research approval (a plan of ranks, paid in points), a capstone opened by its
+-- meteorite fragment reaching the research team, the reset of a tree, the bite shield's rest, and what the client's watch saw of the infection (a zombie's wound, the body's
 -- state). The screen asks, the server decides and saves, then tells what changed. Alone, the game is its own server and
 -- the same code runs at once.
 require "OperationAcorn/Server"
@@ -20,23 +20,6 @@ OA.Upgrades.Server = UpgradesServer
 -- A plan longer than this is not read (the board has no end, but nobody approves this many at once).
 UpgradesServer.MAX_STEPS = 500
 
--- The fragments a character carries (in any bag).
-function UpgradesServer.fragments(character)
-    return character:getInventory():getCountTypeRecurse(Data.FRAGMENT)
-end
-
-local function takeFragments(character, count)
-    local inventory = character:getInventory()
-    for _ = 1, count do
-        local item = inventory:getFirstTypeRecurse(Data.FRAGMENT)
-        if not item then return false end
-        local container = item:getContainer()
-        container:DoRemoveItem(item)
-        if sendRemoveItemFromContainer then sendRemoveItemFromContainer(container, item) end
-    end
-    return true
-end
-
 -- A plan from a command's arguments: a list of { id, choice } with only strings in it.
 function UpgradesServer.readSteps(raw)
     local steps = {}
@@ -55,9 +38,8 @@ function UpgradesServer.approve(character, record, rawSteps)
     local u = Rules.section(record)
     local steps = UpgradesServer.readSteps(rawSteps)
     if #steps == 0 then return false, "empty" end
-    local ok, result, used = Rules.approve(u, steps, { fragments = UpgradesServer.fragments(character) })
+    local ok, result = Rules.approve(u, steps)
     if not ok then return false, result end
-    if used > 0 and not takeFragments(character, used) then return false, "fragment" end
     local wasOpen, capstones, taken = Rules.boardOpen(u), Rules.capstones(u), Adapt.capstones(u)
     Rules.assign(u, result)
     OA.Sync.changed("upgrades", record.id, { kind = "approve" })

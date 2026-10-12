@@ -415,17 +415,24 @@ local function createCompare(record, entry, level, kind)
     return m
 end
 
--- A contract mission at a drop site's stake: the number tag lies by the stake.
+-- A contract mission at a drop site's stake: the number tag lies by the stake. It leads to a site the player has not
+-- been to while there is one (the three sites are how the capstones open).
 local function createStake(record, entry, level)
     local sites = OA.Sites
     if not (sites and sites.list) then return nil end
     local ax, ay = Missions.anchor(record)
     if not ax then return nil end
     local lo, hi = Rewards.band(level)
-    local cands = {}
+    local seen = sites.seenOf(record)
+    local cands, fresh = {}, {}
     for _, site in ipairs(sites.list()) do
-        if site.state ~= "failed" then cands[#cands + 1] = { x = site.x, y = site.y, id = site.n } end
+        if site.state ~= "failed" then
+            local c = { x = site.x, y = site.y, id = site.n }
+            cands[#cands + 1] = c
+            if not seen[site.n] then fresh[#fresh + 1] = c end
+        end
     end
+    if #fresh > 0 then cands = fresh end
     if #cands == 0 then return nil end
     local i = Places.pickCandidate(cands, ax, ay, lo, hi, { exclusion = 0 })
     if not i then return nil end
@@ -479,10 +486,9 @@ end
 -- The soil sample (milestone choice): from a drop site the player has been to, or from any bare ground.
 local function createSoil(record, def, id, level)
     local m = storyMission(record, def, id, level)
-    local s = Story.section(record)
     local sites = OA.Sites
     local seen = {}
-    for n in pairs(s.sitesSeen) do
+    for n in pairs(sites and sites.seenOf and sites.seenOf(record) or {}) do
         local site = sites and sites.byNumber and sites.byNumber(n)
         if site then seen[#seen + 1] = site end
     end
