@@ -1502,6 +1502,13 @@ test("the machines' generator load is declared to the API: the anchors' sprites 
         end
     end
     eq(names[Machines.spriteName("researchStorage", "S", false)], nil, "no load, no name")
+    -- a terminal draws lit or not (the API asks the sprite it shows), and lit it is known by its look off
+    for _, upgraded in ipairs({ false, true }) do
+        local off, lit = OA.Sprites.terminal("S", false, upgraded), OA.Sprites.terminal("S", true, upgraded)
+        eq(base[off], Machines.TERMINAL_LOAD)
+        eq(base[lit], Machines.TERMINAL_LOAD, "lit, still an appliance")
+        eq(names[lit], off)
+    end
     local count = 0
     for _ in pairs(names) do count = count + 1 end
     truthy(count > 0 and count <= 256, "within what the API takes: " .. count)

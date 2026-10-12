@@ -312,12 +312,14 @@ function Machines.declarePower()
             end
         end
     end
-    -- The terminals too (a screen and its set): each look of the screen on (lit) known by the look with it off.
+    -- The terminals too (a screen and its set), lit or not: each look of the screen on (lit) known by the look with it
+    -- off. The API asks its consumption of the sprite a terminal shows, so the lit one draws as well (declared off only,
+    -- a terminal that lit up was no appliance to a box: gone from its list and its menu).
     for _, upgraded in ipairs({ false, true }) do
         for _, dir in ipairs(Sprites.DIRECTIONS) do
-            local off = Sprites.terminal(dir, false, upgraded)
-            base[off] = Machines.TERMINAL_LOAD
-            names[Sprites.terminal(dir, true, upgraded)] = off
+            local off, lit = Sprites.terminal(dir, false, upgraded), Sprites.terminal(dir, true, upgraded)
+            base[off], base[lit] = Machines.TERMINAL_LOAD, Machines.TERMINAL_LOAD
+            names[lit] = off
         end
     end
     local ok1, err1 = pcall(api.formulas.set, handle, "machine.baseConsumption", base)
