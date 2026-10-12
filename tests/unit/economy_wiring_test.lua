@@ -591,7 +591,7 @@ test("the API, when there, names the building and lists its rooms", function()
     getCell = function()
         return { getGridSquare = function(_, x, y, z) return squares[x .. "," .. y .. "," .. z] end }
     end
-    PZToolsAPI = {
+    PZExtAPI = {
         version = 1,
         client = function() return {} end,
         buildings = {
@@ -609,10 +609,10 @@ test("the API, when there, names the building and lists its rooms", function()
     OA.Buildings.reset()
     key, searched, total, complete = OA.Buildings.tick(w)
     eq(complete, false, "a square that is not loaded")
-    PZToolsAPI.buildings.at = function() return { key = "10,10,0", playerBuilt = true } end
+    PZExtAPI.buildings.at = function() return { key = "10,10,0", playerBuilt = true } end
     OA.Buildings.reset()
     eq(OA.Buildings.tick(w), nil, "a player-built building is never counted")
-    PZToolsAPI = nil
+    PZExtAPI = nil
 end)
 
 test("a big building is counted a part at a time, and only its unloaded squares are looked at again", function()
@@ -635,7 +635,7 @@ test("a big building is counted a part at a time, and only its unloaded squares 
             return squares[key]
         end }
     end
-    PZToolsAPI = {
+    PZExtAPI = {
         version = 1,
         client = function() return {} end,
         buildings = {
@@ -659,7 +659,7 @@ test("a big building is counted a part at a time, and only its unloaded squares 
     OA.Buildings.tick(w)
     eq(looks["0,0,0"], 1, "a complete building is not walked again")
     OA.Buildings.BUDGET = saved
-    PZToolsAPI = nil
+    PZExtAPI = nil
 end)
 
 test("a container the game rolled is not searched until the loot window shows it", function()
@@ -752,7 +752,7 @@ test("with the API's containers a look is one call, and only the changed contain
     OA.Buildings.reset()
     local a, b, c = box(false), box(false), box(false)
     local world = { entries = { entry(a, 10, 10), entry(b, 11, 10), entry(c, 12, 10) } }
-    PZToolsAPI = fakeContainersApi(world)
+    PZExtAPI = fakeContainersApi(world)
     local w = walker({})
     local key, searched, total, complete = OA.Buildings.tick(w)
     eq(key, "b1"); eq(searched, 0); eq(total, 3); eq(complete, true)
@@ -785,14 +785,14 @@ test("with the API's containers a look is one call, and only the changed contain
     OA.Buildings.tick(w)
     OA.Buildings.tick(w)
     eq(world.calls, calls, "a building counted whole and all opened is not looked at again")
-    PZToolsAPI = nil
+    PZExtAPI = nil
 end)
 
 test("the API's walk keeps the player's and the mod's own objects out and says when a square is not loaded", function()
     OA.Buildings.reset()
     local a, mine, ours = box(false), box(false), box(false)
     local world = { entries = { entry(a, 1, 1), entry(mine, 2, 1, { thumpable = true }), entry(ours, 3, 1, { modKind = true }) } }
-    PZToolsAPI = fakeContainersApi(world)
+    PZExtAPI = fakeContainersApi(world)
     world.complete = false
     local w = walker({})
     local _, searched, total, complete = OA.Buildings.tick(w)
@@ -804,14 +804,14 @@ test("the API's walk keeps the player's and the mod's own objects out and says w
     a.set(true)
     _, searched, total, complete = OA.Buildings.tick(w)
     eq(complete, true); eq(searched, 1)
-    PZToolsAPI = nil
+    PZExtAPI = nil
 end)
 
 test("when the API lists everything again (its stamp let go) the unopened list is made again, not added to", function()
     OA.Buildings.reset()
     local a, b = box(false), box(false)
     local world = { entries = { entry(a, 1, 1), entry(b, 2, 1) } }
-    PZToolsAPI = fakeContainersApi(world)
+    PZExtAPI = fakeContainersApi(world)
     local w = walker({})
     OA.Buildings.tick(w)
     eq(#OA.Buildings.unopened(w), 2)
@@ -823,7 +823,7 @@ test("when the API lists everything again (its stamp let go) the unopened list i
     local open = OA.Buildings.unopened(w)
     eq(#open, 1)
     eq(open[1], a)
-    PZToolsAPI = nil
+    PZExtAPI = nil
 end)
 
 test("an API whose containers call fails, or knows no such building, leaves the Lua walk of its rooms", function()
@@ -834,8 +834,8 @@ test("an API whose containers call fails, or knows no such building, leaves the 
         return { getGridSquare = function(_, x, y, z) return squares[x .. "," .. y .. "," .. z] end }
     end
     local world = { entries = {}, nobuilding = true }
-    PZToolsAPI = fakeContainersApi(world)
-    PZToolsAPI.buildings.rooms = function()
+    PZExtAPI = fakeContainersApi(world)
+    PZExtAPI.buildings.rooms = function()
         return { { id = 1, level = 0, rects = { { x = 10, y = 10, w = 2, h = 1 } } } }
     end
     local w = walker({})
@@ -854,27 +854,27 @@ test("an API whose containers call fails, or knows no such building, leaves the 
     world.fail = false
     OA.Buildings.tick(w)
     eq(world.calls, 3, "after a reset the API's walk is tried again")
-    PZToolsAPI = nil
+    PZExtAPI = nil
 end)
 
 test("a scan of the building lists its containers through the API too", function()
     OA.Buildings.reset()
     local a, b = box(true), box(false)
     local world = { entries = { entry(a, 1, 1), entry(b, 2, 1) } }
-    PZToolsAPI = fakeContainersApi(world)
+    PZExtAPI = fakeContainersApi(world)
     local square = { getX = function() return 1 end, getY = function() return 1 end, getZ = function() return 0 end,
         getBuilding = function() return nil end }
     local scanned = OA.Buildings.scan(square, nil)
     eq(scanned.key, "b1"); eq(#scanned.containers, 2); eq(scanned.complete, true)
     eq(OA.Buildings.searched(scanned.containers), 1)
-    PZToolsAPI = nil
+    PZExtAPI = nil
 end)
 
 test("the API's walk keeps the containers and the unopened ones of each floor", function()
     OA.Buildings.reset()
     local a, b, c = box(false), box(true), box(false)
     local world = { entries = { entry(a, 1, 1), entry(b, 2, 1), entry(c, 3, 1, { z = 1 }) } }
-    PZToolsAPI = fakeContainersApi(world)
+    PZExtAPI = fakeContainersApi(world)
     local w = walker({})
     OA.Buildings.tick(w)
     local left, total = OA.Buildings.floor(w, 0)
@@ -886,7 +886,7 @@ test("the API's walk keeps the containers and the unopened ones of each floor", 
     left, total = OA.Buildings.floor(w, 0)
     eq(left, 0, "an opened one leaves its floor's count"); eq(total, 2)
     eq(OA.Buildings.floor(w, 2), 0, "a floor with none")
-    PZToolsAPI = nil
+    PZExtAPI = nil
 end)
 
 test("a basement goes with the house above it: one key, one walk over both, its floor apart", function()
@@ -914,7 +914,7 @@ test("a basement goes with the house above it: one key, one walk over both, its 
             return { getBuildingsIntersecting = function(_, x, y, w, h, out) out:add(houseDef) out:add(cellarDef) end }
         end }
     end
-    PZToolsAPI = { version = 1, client = function() return {} end, buildings = {
+    PZExtAPI = { version = 1, client = function() return {} end, buildings = {
         at = function(x, y, z) return { key = z < 0 and "cellar" or "house", playerBuilt = false } end,
         containers = function(key, opts)
             return (key == "cellar" and cellar or house).buildings.containers(key, opts)
@@ -933,5 +933,5 @@ test("a basement goes with the house above it: one key, one walk over both, its 
     eq(OA.Buildings.unopened(w)[1], up, "the unopened ones of the part the character's floor is in")
     local scanned = OA.Buildings.scan(cellarSquare, {})
     eq(scanned.key, "house"); eq(#scanned.containers, 2, "a scan from the basement takes the house in too")
-    PZToolsAPI, ArrayList, getWorld = nil, arrayList, world
+    PZExtAPI, ArrayList, getWorld = nil, arrayList, world
 end)

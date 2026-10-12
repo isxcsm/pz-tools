@@ -170,7 +170,7 @@ test("the zombie scan asks the API for each level with the player's sight, and r
     local closer, far = zombie(105, 100, 0), zombie(110, 100, 1)
     local hidden = zombie(103, 100, 0)
     local log = nearApi({ closer, far, hidden }, { [hidden] = true })
-    PZToolsAPI = log.api
+    PZExtAPI = log.api
     recordWith({ sixth = 2 })
     local p = player(100, 100, 0.0)
     getPlayer = function() return p end
@@ -185,11 +185,11 @@ test("the zombie scan asks the API for each level with the player's sight, and r
     eq(moodles.sixth, 1)
     eq(closer.reads.alpha + closer.reads.target + closer.reads.state, 0, "nothing is asked of a zombie the API described")
     -- everything seen: no hunch
-    PZToolsAPI = nearApi({ closer, far }, {}).api
+    PZExtAPI = nearApi({ closer, far }, {}).api
     advance(600)
     eq(Senses.state.sixth, false)
     eq(moodles.sixth, 0)
-    PZToolsAPI = nil
+    PZExtAPI = nil
     OA.Upgrades.Pulse.enable(false)
 end)
 
@@ -198,7 +198,7 @@ test("a zombie the API says is lunging is heard striking, one that has a target 
     standIns()
     local z = zombie(103, 100, 0)
     local log = nearApi({ z }, {})
-    PZToolsAPI = log.api
+    PZExtAPI = log.api
     recordWith({ sense = 2, sensePlus = 3 })
     local p = player(100, 100, 0)
     getPlayer = function() return p end
@@ -214,7 +214,7 @@ test("a zombie the API says is lunging is heard striking, one that has a target 
     local kinds = {}
     for _, m in ipairs(Senses.state.zombies) do kinds[m.kind] = true end
     truthy(kinds.attack, "a lunge")
-    PZToolsAPI = nil
+    PZExtAPI = nil
     OA.Upgrades.Pulse.enable(false)
 end)
 
@@ -223,7 +223,7 @@ test("an API from before the zombie options, or a failing one, leaves the old sc
     standIns()
     local unseen = zombie(103, 100, 0, { alpha = 0 })
     -- an API whose near ignores the options: it answers a new table
-    PZToolsAPI = { version = 1, client = function() return {} end, zombies = { near = function() return 0, {} end } }
+    PZExtAPI = { version = 1, client = function() return {} end, zombies = { near = function() return 0, {} end } }
     getCell = function()
         return { getZombieList = function() return { size = function() return 1 end, get = function() return unseen end } end }
     end
@@ -235,10 +235,10 @@ test("an API from before the zombie options, or a failing one, leaves the old sc
     eq(Senses.state.sixth, true, "found by the old scan")
     truthy(unseen.reads.alpha > 0, "its sight asked of the zombie")
     unseen.alpha = 1
-    PZToolsAPI.zombies.near = function() error("boom") end
+    PZExtAPI.zombies.near = function() error("boom") end
     advance(600)
     eq(Senses.state.sixth, false, "a failing call: the old scan again")
-    PZToolsAPI = nil
+    PZExtAPI = nil
     OA.Upgrades.Pulse.enable(false)
 end)
 
@@ -271,7 +271,7 @@ test("the ledger outlines the unopened containers near the character, and asks a
     local entries = { { c = nearBox, x = 103, y = 100, z = 0 }, { c = farBox, x = 130, y = 100, z = 0 },
         { c = upstairs, x = 102, y = 100, z = 1 } }
     local calls = 0
-    PZToolsAPI = { version = 1, client = function() return {} end, buildings = {
+    PZExtAPI = { version = 1, client = function() return {} end, buildings = {
         at = function() return { key = "house", playerBuilt = false } end,
         containers = function(key, opts)
             calls = calls + 1
@@ -305,7 +305,7 @@ test("the ledger outlines the unopened containers near the character, and asks a
     Senses.ledgerOutline(p)
     eq(nearBox.object.outlined, false)
     Senses.ledgerLeave()
-    PZToolsAPI = nil
+    PZExtAPI = nil
 end)
 
 test("the ledger tells on entering how much is left, then a floor's further stage as a line for the watch", function()
@@ -375,11 +375,11 @@ test("a mark is drawn as one call of two quads through the API, the same numbers
     local hud = ISOASenseHud:new(0)
     hud.javaObject = ui
     hud.playerNum = 0
-    PZToolsAPI = nil
+    PZExtAPI = nil
     ISOASenseHud.render(hud)
     truthy(#plain >= 2, "drawn one by one without the API")
     local quads = {}
-    PZToolsAPI = { version = 1, client = function() return {} end, draw = { quads = function(el, texture, list, count)
+    PZExtAPI = { version = 1, client = function() return {} end, draw = { quads = function(el, texture, list, count)
         quads[#quads + 1] = { el = el, tex = texture, count = count, list = { unpack(list, 1, count * 12) } }
     end } }
     ISOASenseHud.render(hud)
@@ -393,16 +393,16 @@ test("a mark is drawn as one call of two quads through the API, the same numbers
         end
     end
     -- a call that fails: told once, and the marks are drawn one by one from then on
-    PZToolsAPI.draw.quads = function() error("bad number") end
+    PZExtAPI.draw.quads = function() error("bad number") end
     plain = {}
     ISOASenseHud.render(hud)
     local tried = 0
-    PZToolsAPI.draw.quads = function() tried = tried + 1 end
+    PZExtAPI.draw.quads = function() tried = tried + 1 end
     plain = {}
     ISOASenseHud.render(hud)
     truthy(#plain >= 2, "one by one after the failure")
     eq(tried, 0, "the API's call is not tried again")
-    PZToolsAPI = nil
+    PZExtAPI = nil
 end)
 
 -- ---- the shared timer on the API's timers ----------------------------------------------------------------------
@@ -449,7 +449,7 @@ test("with the API's timers each job is a timer of its period, the first run com
     loadSenses()
     standIns()
     local t = timersApi()
-    PZToolsAPI = t.api
+    PZExtAPI = t.api
     local ran = {}
     local Pulse = OA.Upgrades.Pulse
     Pulse.job("probe", 700, function(now) ran[#ran + 1] = now end)
@@ -485,13 +485,13 @@ test("with the API's timers each job is a timer of its period, the first run com
     Pulse.enable(true)
     truthy(t.count() >= 5, "made again for the new world")
     Pulse.enable(false)
-    PZToolsAPI = nil
+    PZExtAPI = nil
 end)
 
 test("without the API's timers the jobs run on one OnTick handler, as before", function()
     loadSenses()
     standIns()
-    PZToolsAPI = nil
+    PZExtAPI = nil
     local Pulse = OA.Upgrades.Pulse
     local ran = 0
     Pulse.job("probe2", 700, function() ran = ran + 1 end)

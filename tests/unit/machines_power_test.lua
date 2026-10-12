@@ -1,4 +1,4 @@
--- A generator switched (the API's OnPZToolsGeneratorPower): the machines and terminals take its power at once
+-- A generator switched (the API's OnPZExtGeneratorPower): the machines and terminals take its power at once
 -- (server/OperationAcorn/Machines/Power.lua), the machines working up to then with the power they had.
 require "OperationAcorn/Core"
 local OA = OperationAcorn
@@ -11,8 +11,8 @@ test("a generator switched works the machines before, and shows the power of all
     OA.Machines.tick = function() log[#log + 1] = "machines" end
     OA.Trade.Handlers = { refreshTerminals = function() log[#log + 1] = "terminals" end }
     local handler
-    local event = Events.OnPZToolsGeneratorPower
-    Events.OnPZToolsGeneratorPower = { Add = function(f) handler = f end }
+    local event = Events.OnPZExtGeneratorPower
+    Events.OnPZExtGeneratorPower = { Add = function(f) handler = f end }
     local real = require
     require = function(file)
         if file == "OperationAcorn/Machines/Machines" or file == "OperationAcorn/Trade/Handlers" then return true end
@@ -20,7 +20,7 @@ test("a generator switched works the machines before, and shows the power of all
     end
     local ok, err = pcall(real, "OperationAcorn/Machines/Power")
     require = real
-    Events.OnPZToolsGeneratorPower = event
+    Events.OnPZExtGeneratorPower = event
     if not ok then error(err, 0) end
     eq(type(handler), "function", "the event has a handler")
     handler({}, false, false)

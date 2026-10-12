@@ -160,13 +160,13 @@ local function setApi(applied)
         end,
         points = function() return status end,
     }
-    PZToolsAPI = api
+    PZExtAPI = api
     TEST.hours = (TEST.hours or 0) + 1      -- the answer is kept for a few minutes of game time
     return api
 end
 
 local function noApi()
-    PZToolsAPI = nil
+    PZExtAPI = nil
     TEST.hours = (TEST.hours or 0) + 1
 end
 
@@ -187,7 +187,7 @@ end
 local function setup()
     TEST.vehicles = {}
     nextId = 100
-    PZToolsAPI = nil
+    PZExtAPI = nil
     getVehicleById = function(id) return TEST.vehicles[id] end
     instanceItem = function(fullType) return newItem(fullType) end
     sendRemoveItemFromContainer = function() end
@@ -267,7 +267,7 @@ test("with the API the original stays and OA_Capacity adds the kits, past the li
     eq(Gear.bagInfo(bag).cut, false)
     eq(#Gear.bagLines(bag), 1, "no word about a limit")
     local declared = false
-    for _, s in ipairs(PZToolsAPI.sets) do if s.name == "capacity.modDataKey" and s.value == "OA_Capacity" then declared = true end end
+    for _, s in ipairs(PZExtAPI.sets) do if s.name == "capacity.modDataKey" and s.value == "OA_Capacity" then declared = true end end
     truthy(declared, "the key is declared when the upgrades part has not yet")
 end)
 

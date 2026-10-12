@@ -20,7 +20,7 @@ local function world()
 end
 
 local function api(show, status)
-    PZToolsAPI = {
+    PZExtAPI = {
         version = OA.API_VERSION,
         client = function() return "handle" end,
         text = {
@@ -64,7 +64,7 @@ test("an API from before typing gets the plain scene: no markup, the lines in ro
     local shown = {}
     api(function(handle, spec)
         if spec.enter == "type" or spec.markup or spec.speed or spec.cursor or spec.width then
-            error("PZToolsAPI.text.show: spec has no field enter")
+            error("PZExtAPI.text.show: spec has no field enter")
         end
         shown[#shown + 1] = spec
     end)
@@ -85,7 +85,7 @@ end)
 
 test("without the API's text, or its hook, there is no scene", function()
     world()
-    PZToolsAPI = nil
+    PZExtAPI = nil
     eq(OA.RadioScene.show("p1", DETAIL), nil)
     api(function() error("must not be called") end, "not-loaded")
     eq(OA.RadioScene.show("p1", DETAIL), nil)
@@ -104,7 +104,7 @@ test("a title's line is stripped of markup, and cut to its first sentences when 
         addGoodText = function(_, t) halo[#halo + 1] = t end,
         addBadText = function() end,
     }
-    PZToolsAPI = nil
+    PZExtAPI = nil
     getText = function(key) return key == "Sub" and "Oak.{p:0.5} Contact. A longer sentence follows here." or key end
     OA.Titles.show("p1", { key = "Head", sub = "Sub", fallback = "good" })
     eq(halo[1], "Head - Oak. Contact. A longer sentence follows here.")
@@ -112,7 +112,7 @@ test("a title's line is stripped of markup, and cut to its first sentences when 
     eq(halo[2], "Head - Oak. Contact.")
     local called = {}
     api(nil)
-    PZToolsAPI.text.title = function(_, spec) called[#called + 1] = spec end
+    PZExtAPI.text.title = function(_, spec) called[#called + 1] = spec end
     OA.Titles.show("p1", { key = "Head", sub = "Sub", subLead = 8 })
     eq(called[1].subtitle, "Oak. Contact.")
 end)

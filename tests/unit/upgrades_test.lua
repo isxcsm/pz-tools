@@ -10,6 +10,10 @@ local Data = OA.Upgrades.Data
 local Rules = OA.Upgrades.Rules
 local Effects = OA.Upgrades.Effects
 
+-- The test files share one VM: a player left by an earlier file must not decide the traits here. No character has
+-- the traits; Effects.compute is given them directly where a test needs them.
+getPlayer = function() return nil end
+
 local function fresh()
     return Rules.blank()
 end
@@ -691,7 +695,7 @@ end)
 
 test("effects are declared once, only what changed, and cleared with nil", function()
     local sets = {}
-    PZToolsAPI = {
+    PZExtAPI = {
         version = OA.API_VERSION,
         client = function() return "handle" end,
         formulas = {
@@ -725,7 +729,7 @@ test("effects are declared once, only what changed, and cleared with nil", funct
     Rules.assign(u, Rules.blank())
     eq(Effects.apply(record), 1)
     eq(last("vision.coneAdd"), nil)
-    PZToolsAPI = nil
+    PZExtAPI = nil
     Effects.reset()
     eq(Effects.apply(record), nil)
     eq((Effects.status("sight")), "noApi")
@@ -733,7 +737,7 @@ end)
 
 test("the hidden zombie fix is declared by default, and not with the option off", function()
     local sets = {}
-    PZToolsAPI = {
+    PZExtAPI = {
         version = OA.API_VERSION,
         client = function() return "handle" end,
         formulas = { set = function(handle, name, value) sets[name] = value end },
@@ -744,7 +748,7 @@ test("the hidden zombie fix is declared by default, and not with the option off"
     SandboxVars.OperationAcorn.HiddenZombieFix = false
     Effects.apply(record)
     eq(sets["vision.hiddenZombieFix"], nil)
-    PZToolsAPI = nil
+    PZExtAPI = nil
 end)
 
 test("the sense radii read the board", function()

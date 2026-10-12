@@ -73,13 +73,13 @@ test("a ring's and a way's dashes are one call of quads through the API, the num
     local expected = dashes(plain)
     truthy(#expected > 10, "a ring of dashes and the way")
     local drawn, calls, lists = {}, 0, {}
-    PZToolsAPI = { version = 1, client = function() return {} end, draw = { quads = function(el, tex, list, count)
+    PZExtAPI = { version = 1, client = function() return {} end, draw = { quads = function(el, tex, list, count)
         calls = calls + 1
         lists[#lists + 1] = { tex = tex.path, count = count, list = { unpack(list, 1, count * 12) } }
     end } }
     local el = mapElement(drawn)
     ISWorldMap.prerender(el)
-    PZToolsAPI = nil
+    PZExtAPI = nil
     eq(#dashes(drawn), 0, "no dash by DrawTexture")
     local all = {}
     for _, l in ipairs(lists) do
@@ -100,7 +100,7 @@ end)
 test("a failing quads call draws the dashes one by one and is not tried again", function()
     setup()
     local tried = 0
-    PZToolsAPI = { version = 1, client = function() return {} end, draw = { quads = function() tried = tried + 1 error("bad") end } }
+    PZExtAPI = { version = 1, client = function() return {} end, draw = { quads = function() tried = tried + 1 error("bad") end } }
     local drawn = {}
     ISWorldMap.prerender(mapElement(drawn))
     truthy(#dashes(drawn) > 10, "drawn one by one")
@@ -110,5 +110,5 @@ test("a failing quads call draws the dashes one by one and is not tried again", 
     ISWorldMap.prerender(mapElement(drawn))
     eq(tried, first, "not tried again")
     truthy(#dashes(drawn) > 10)
-    PZToolsAPI = nil
+    PZExtAPI = nil
 end)

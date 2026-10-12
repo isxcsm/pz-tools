@@ -18,7 +18,7 @@
 ### 주요 위험
 
 1. **API 원칙과 충돌.** `extension-api.md`의 "Adds to vanilla"(답은 바닐라 이상만)는 특성 효과와 맞지 않는다. 특성 효과는 대부분 비용을 줄이는 쪽(무게, 지구력, 감염, 낙하 피해)이다. 특성 훅을 넣기 전에 원칙을 "그 모드가 선언한 플레이어 단위 배율만 답을 바꾼다"로 다시 써야 한다.
-2. **PZ Optimize 덮어쓰기.** `IsoGameCharacter`, `IsoPlayer`, `Stats`, `IsoMovingObject`, `IsoChunk`, `IsoObject`, `AmbientStreamManager` 등이 설치 폴더에서 덮어씌워져 있다. 의미는 같지만 분기 모양과 return 수가 다르다. API 훅이 "모양이 다르면 건너뜀" 규칙이라 효과가 조용히 빠질 수 있다. 훅은 시그니처 기준으로 찾고 모든 return을 처리해야 한다. 모드는 `PZToolsAPI.hooks()` 결과를 플레이어에게 보여 준다.
+2. **PZ Optimize 덮어쓰기.** `IsoGameCharacter`, `IsoPlayer`, `Stats`, `IsoMovingObject`, `IsoChunk`, `IsoObject`, `AmbientStreamManager` 등이 설치 폴더에서 덮어씌워져 있다. 의미는 같지만 분기 모양과 return 수가 다르다. API 훅이 "모양이 다르면 건너뜀" 규칙이라 효과가 조용히 빠질 수 있다. 훅은 시그니처 기준으로 찾고 모든 return을 처리해야 한다. 모드는 `PZExtAPI.hooks()` 결과를 플레이어에게 보여 준다.
 3. **시야 보정과 가려진 좀비 버그를 나눴다 (2026-10-09).** 노드 '시야 보정'은 `LightingJNI.calculateVisionCone`(Java) 반환값에 각도를 더해 그림자와 좀비가 함께 넓어지게 한다. 원뿔 안인데 안 그려지는 좀비는 B42 버그라 특성이 아니라 모드 기본 기능으로 고친다: Zombie Visibility Fix(워크숍 3814073243, wgetJane)처럼 안 보이는 좀비만 골라 선을 긋고 트이면 `setTargetAlpha`로 그린다. 같은 층은 칸보다 정밀한 선, 바로 위·아래 층은 `LosUtil.lineClear`(z0, z1을 따로 받음).
 4. **달리기 속도 노드가 줄일 대상이 없을 수 있다.** 옷의 `RunSpeedModifier`가 B42에서 속도에 들어가지 않는다(`calcRunSpeedModByClothing` 호출 0건). 실제로 작동하는 것은 가방 감속과 신발 x0.85뿐이다.
 5. **캐릭터 용량과 하드 한도 50.** 설계의 "상한 50"은 `maxWeight` 상한이 아니다. 캐릭터 인벤토리 `ItemContainer.capacity`의 기본값 50이고, `hasRoomFor`가 이 값과 비교해 더 줍지 못하게 막는다. 용량만 올리면 과적 사다리 위쪽이 이 한도 밖으로 밀린다.
@@ -173,7 +173,7 @@ API 요구 칸의 영역 이름은 4장의 묶음과 같다.
 | 몸 상태 | 인자 배율 | `IsoGameCharacter.addStiffness(BodyPartType, float)` | 부위 피로 | 없음 |
 | 몸 상태 | 확률 게이트(호출 취소) | `IsoGameCharacter.addHole(BloodBodyPartType, boolean)` | 장비 아끼기 | 없음 |
 | 감염 (infection) | 확률 게이트 | `BodyPart.generateZombieInfection(int)` 진입 | 감염 저항 강화(긁힘·찢김) | 없음 |
-| 감염 | 물림 방패(무장/해제, 후처리로 플래그 해제) + 이벤트 `OnPZToolsBiteSurvived` | `BodyPart.SetBitten(boolean)` 반환 직후 | 감염 저항 강화(물림) | 없음 (이벤트 방식은 `OnPZToolsNetworkChange`와 같은 형태) |
+| 감염 | 물림 방패(무장/해제, 후처리로 플래그 해제) + 이벤트 `OnPZExtBiteSurvived` | `BodyPart.SetBitten(boolean)` 반환 직후 | 감염 저항 강화(물림) | 없음 (이벤트 방식은 `OnPZExtNetworkChange`와 같은 형태) |
 | 낙하 (fall) | 인자 재매핑(치명 구간 제외) | `IsoGameCharacter.DoLand(float)` | 낙법 | 없음 |
 | 낙하 | 호출 결과 배율(sqrt k) | `handleLandingImpact` 안 `FallDamage.getImpactIsoSpeed()` 호출 | 낙법, 2차 낙법 | 없음 (같은 메서드에 과적 훅이 있으므로 한 소유자로) |
 | 전리품 (loot) | 확률 배율 | `ItemPickerJava.getActualSpawnChance(...)` 반환 | 알찬 수색 | 없음 |
@@ -183,12 +183,12 @@ API 요구 칸의 영역 이름은 4장의 묶음과 같다.
 | 감지 (sensing, 선택) | 공간 질의 `zombies.near(x,y,z,r)` | `IsoCell.getZombieList()` | 육감, 기척 감지 | 없음 (문서 22행 "spatial queries" 계획만) |
 | 감지 (선택) | 건물 진입/이탈 이벤트 | 플레이어 칸 변화 + `IsoMetaGrid.getRoomAt` | 털이 기록 | 일부: `buildings.at(x,y,z)`가 있어 키 판정은 가능 |
 | 칸/청크 로드 알림 | 요구에서 뺌(Lua `LoadChunk`). 실측 병목이 보이면 좌표 등록 알림을 다시 올림 | `IsoChunk.doLoadGridsquare` 끝 | 상자 제거·생성, 임무 아이템, 낙하지, 허용 규칙 재설정 | 없음 |
-| 헬기 (heli) | 상태 이벤트 `OnPZToolsHelicopter(상태, 표적, x, y)` + 선택 상태 읽기 | `Helicopter.setTarget` 끝, `changeState`, `deactivate` | 첫 보급 | 없음 (이벤트 방식은 기존과 같음) |
+| 헬기 (heli) | 상태 이벤트 `OnPZExtHelicopter(상태, 표적, x, y)` + 선택 상태 읽기 | `Helicopter.setTarget` 끝, `changeState`, `deactivate` | 첫 보급 | 없음 (이벤트 방식은 기존과 같음) |
 | 발전기 부하 (power) | 스프라이트별 기본 소비 선언, 객체별 부하 배율 | `IsoObject.couldBePoweredByGenerator()` 반환 OR, `getGeneratorPowerConsumption()` 반환 | 분해기, 재단기, 정제기, 목재 절단기, 단말, 모터 부품 | 일부: power 영역이 이미 `IsoGenerator.setSurroundingElectricity`/`updateGenerator`를 훅하고, `buildings.objects`와 망 부하가 같은 두 메서드를 읽는다. 같은 영역에 넣어야 한다(한 소유자). 넣으면 망 부하에도 자동 반영된다 |
 | 차량 (vehicle) | 트렁크는 capacity 묶음에서 처리. 엔진은 API 없음 | `getCapacity`(vehiclePart). 대비책으로 `BaseVehicle.getEnginePower` 반환 배율(save 경로 제외) | 트렁크 키트, 엔진 튜닝 키트 | 없음. PZ Tools 차량 주행 확장이 `getEnginePower`를 읽는지 확인 필요 |
 | 소리 (audio, 선택) | 등록 좌표 거리별 환경음 감쇠 | `AmbientStreamManager.updateWorldAmbiance`의 `setVolume` | 낙하지 환경음 | 없음 |
 
-이미 있는 것 중 이 모드가 그대로 쓰는 것: `PZToolsAPI.client(name)` handle, `hooks()`, `buildings.at`(건물 키), 이벤트 올리는 방식(`OnPZToolsNetworkChange`). 무게, 용량, 전리품, 시야, 몸 상태 영역은 아직 하나도 없다.
+이미 있는 것 중 이 모드가 그대로 쓰는 것: `PZExtAPI.client(name)` handle, `hooks()`, `buildings.at`(건물 키), 이벤트 올리는 방식(`OnPZExtNetworkChange`). 무게, 용량, 전리품, 시야, 몸 상태 영역은 아직 하나도 없다.
 
 ## 5. 구현 순서 제안
 

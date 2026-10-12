@@ -1293,14 +1293,14 @@ end)
 
 test("the lures' rings are declared to the API's attached animation stepping", function()
     local sets = {}
-    PZToolsAPI = { version = OA.API_VERSION, client = function() return "h" end,
+    PZExtAPI = { version = OA.API_VERSION, client = function() return "h" end,
         formulas = { set = function(handle, point, value) sets[point] = { handle = handle, value = value } end } }
     truthy(Machines.declareAnim())
     eq(sets["anim.stepKey"].value, Machines.Data.ANIM_KEY)
     eq(sets["anim.stepKey"].handle, "h")
-    PZToolsAPI.formulas.set = function() error("unknown point") end
+    PZExtAPI.formulas.set = function() error("unknown point") end
     eq(Machines.declareAnim(), false, "an API without the point")
-    PZToolsAPI = nil
+    PZExtAPI = nil
     eq(Machines.declareAnim(), false, "no API")
 end)
 
@@ -1467,7 +1467,7 @@ end)
 
 test("the machines' generator load is declared to the API: the anchors' sprites and the load key", function()
     local sets = {}
-    PZToolsAPI = { version = OA.API_VERSION, client = function() return "h" end,
+    PZExtAPI = { version = OA.API_VERSION, client = function() return "h" end,
         formulas = { set = function(handle, point, value) sets[point] = { handle = handle, value = value } end } }
     truthy(Machines.declarePower())
     eq(sets["machine.loadKey"].value, Data.LOAD_KEY)
@@ -1506,12 +1506,12 @@ test("the machines' generator load is declared to the API: the anchors' sprites 
     for _ in pairs(names) do count = count + 1 end
     truthy(count > 0 and count <= 256, "within what the API takes: " .. count)
     -- an API from before the names: the load still declared
-    PZToolsAPI.formulas.set = function(handle, point, value)
+    PZExtAPI.formulas.set = function(handle, point, value)
         if point == "machine.spriteName" then error("there is no point machine.spriteName") end
         sets[point] = { handle = handle, value = value }
     end
     truthy(Machines.declarePower())
-    PZToolsAPI = nil
+    PZExtAPI = nil
     eq(Machines.declarePower(), false, "no API")
 end)
 

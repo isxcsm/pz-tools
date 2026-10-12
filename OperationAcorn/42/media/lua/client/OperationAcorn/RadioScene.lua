@@ -1,6 +1,6 @@
 -- The radio scenes (DESIGN-terminal 14 F2, story-improvements 8): when the first contact comes, a trust stage or milestone
 -- is entered, or the department is handed over, the radio lines of that copy are typed over the game, a character at a time
--- with the pauses their translation marks, by the extension API's text (PZToolsAPI.text.show with enter = "type": the
+-- with the pauses their translation marks, by the extension API's text (PZExtAPI.text.show with enter = "type": the
 -- Java side draws it, no Lua runs per character). They come after the stage's title. An API from before typing refuses
 -- the typed spec; the scene is then shown plain, whole, in rows of its own breaking. Without the API's text there is no
 -- scene; the copy is in the terminal's folder in any case.

@@ -406,7 +406,7 @@ local function ended(count)
     return collected
 end
 
--- The zombies near the character from the extension API's spatial query (PZToolsAPI.zombies.near: `count, list`, one
+-- The zombies near the character from the extension API's spatial query (PZExtAPI.zombies.near: `count, list`, one
 -- whole level a call, the nearest `limit`), on its floor and the ones beside it; nil when the API has none or its
 -- answer is not what it should be (then the scan below does it). The query is asked for what the scan reads from each
 -- zombie (whether it has a target, its state, and for the sixth sense whether the character sees it: the game's own
@@ -954,15 +954,15 @@ end
 local soundHooked = false
 local zombiesListened = 0   -- the radius the API listens for zombie sounds within, 0 when it does not
 
--- Has the extension API tell the zombies' sounds within the sense's reach (PZToolsAPI.zombies.listen and the event
--- OnPZToolsZombieSound), when it can: taking a target, a lunge, a strike, a fall as they happen. A zombie's groan is
+-- Has the extension API tell the zombies' sounds within the sense's reach (PZExtAPI.zombies.listen and the event
+-- OnPZExtZombieSound), when it can: taking a target, a lunge, a strike, a fall as they happen. A zombie's groan is
 -- one looping sound to the game (the API tells it once, as it starts: seen in game), so the groans now and then are
 -- still told from the zombie list (Sense.voices).
 local function listenZombies(want, u)
     local api, handle = OA.api(), OA.handle()
     local zombies = api and api.zombies
     local can = handle and type(zombies) == "table" and type(zombies.listen) == "function"
-        and Events.OnPZToolsZombieSound ~= nil
+        and Events.OnPZExtZombieSound ~= nil
     local radius = (want and can) and math.ceil(Rules.senseRadius(u) * 1.2) or 0
     if radius == zombiesListened then return end
     if can then
@@ -972,8 +972,8 @@ local function listenZombies(want, u)
             radius = 0
         end
     end
-    if radius > 0 and zombiesListened == 0 then Events.OnPZToolsZombieSound.Add(onZombieSound) end
-    if radius == 0 and zombiesListened > 0 then Events.OnPZToolsZombieSound.Remove(onZombieSound) end
+    if radius > 0 and zombiesListened == 0 then Events.OnPZExtZombieSound.Add(onZombieSound) end
+    if radius == 0 and zombiesListened > 0 then Events.OnPZExtZombieSound.Remove(onZombieSound) end
     zombiesListened = radius
 end
 

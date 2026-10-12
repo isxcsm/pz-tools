@@ -1324,7 +1324,7 @@ local function setupContainers(object, square, roles)
             container = ItemContainer.new(spec.type, square, object)
             object:addSecondaryContainer(container)
         end
-        -- within the game's cap of 100 (it warns on more); the rest is OA_Capacity, which the PZ Tools API adds
+        -- within the game's cap of 100 (it warns on more); the rest is OA_Capacity, which the PZ Extension API adds
         local raw = math.min(spec.capacity, 100)
         if spec.capacity > raw then object:getModData()[Data.CAPACITY_KEY] = spec.capacity - raw end
         container:setCapacity(raw)

@@ -14,10 +14,10 @@ function OA.log(...)
     print("[OperationAcorn] " .. table.concat(parts, " "))
 end
 
--- The extension API, or nil with the reason it is missing: PZ Tools not installed in startup mode, or another
+-- The extension API, or nil with the reason it is missing: PZ Extension API not installed, or another
 -- version. Without it the mod changes nothing and only explains (DESIGN 2).
 function OA.api()
-    local api = PZToolsAPI
+    local api = PZExtAPI
     if type(api) ~= "table" or type(api.client) ~= "function" then return nil, "missing" end
     if api.version ~= OA.API_VERSION then return nil, "version" end
     return api
@@ -29,7 +29,7 @@ function OA.handle()
     return api and api.client(OA.MOD) or nil
 end
 
--- One of the API's drawing calls (PZToolsAPI.draw.rects, draw.quads: many shapes from one flat list of numbers, drawn
+-- One of the API's drawing calls (PZExtAPI.draw.rects, draw.quads: many shapes from one flat list of numbers, drawn
 -- by a window's prerender, render or postrender), or nil when the API or an older one lacks it. Read again for each
 -- frame that uses it: a function kept from an API that was replaced refuses to be called.
 function OA.drawCall(name)
@@ -83,7 +83,7 @@ function OA.due(last, key, now, ms)
 end
 
 -- ---- the API's timers ------------------------------------------------------------------------------------------
--- A function called every so many milliseconds of real time (PZToolsAPI.timers.every), counted in Java: a frame with
+-- A function called every so many milliseconds of real time (PZExtAPI.timers.every), counted in Java: a frame with
 -- nothing due costs the API a clock read, where a handler of OnTick wakes Lua every frame to compare the clock. Unlike
 -- OnTick it goes on while the game is paused, so it is for work that only looks (and draws), never for work that
 -- changes the world. The timers belong to the world: leaving it drops them, so a slot (the caller's table, which keeps

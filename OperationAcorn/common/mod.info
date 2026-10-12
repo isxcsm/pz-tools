@@ -1,7 +1,7 @@
 name=Operation Acorn
 id=OperationAcorn
 author=PZ Tools
-description=A research team on the radio trades with you for what you gather: deliver by helicopter, earn credits and trust, buy supplies and upgrade serums, and grow three upgrade trees. Needs PZ Tools installed (its startup loader). Multiplayer is untested.
+description=A research team on the radio trades with you for what you gather: deliver by helicopter, earn credits and trust, buy supplies and upgrade serums, and grow three upgrade trees. Needs PZ Extension API installed. Multiplayer is untested.
 modversion=0.1.0
 versionMin=42.0.0
 pack=OperationAcornTrade

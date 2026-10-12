@@ -134,8 +134,8 @@ Events.OnFillContainer.Add(function(roomName, containerType, container)
     if Game then Game.onFill(roomName, containerType, container) end
 end)
 -- A fire empties a container (the API's event; without the API a burnt piece waits for the deadline).
-if Events.OnPZToolsContainerBurning then
-    Events.OnPZToolsContainerBurning.Add(function(container, object)
+if Events.OnPZExtContainerBurning then
+    Events.OnPZExtContainerBurning.Add(function(container, object)
         if Game then Game.onBurning(container, object) end
     end)
 end

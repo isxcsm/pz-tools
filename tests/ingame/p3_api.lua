@@ -1,6 +1,6 @@
 -- P3: the adapter to the extension API. Declares the character's values and prints, per point, what was declared and
--- the API's status for it ("applied" is working; "planned" or "partial" means the node's tooltip says it needs PZ Tools).
--- Setup: PZ Tools on (with the formulas area). Gives the character points in the record: use a throwaway save.
+-- the API's status for it ("applied" is working; "planned" or "partial" means the node's tooltip says it needs PZ Extension API).
+-- Setup: PZ Extension API on (with the formulas area). Gives the character points in the record: use a throwaway save.
 -- Prints "[p3api]" lines.
 RUN("p3_lib.lua")
 local OA = OperationAcorn

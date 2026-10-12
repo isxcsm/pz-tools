@@ -1,5 +1,5 @@
 -- Helpers the P3 (upgrades) checks share (P3T). Each check runs RUN("p3_lib.lua") first.
--- Run from the debug console after defining RUN (see the README of tests/ingame). Single player, the mod and PZ Tools on.
+-- Run from the debug console after defining RUN (see the README of tests/ingame). Single player, the mod and PZ Extension API on.
 P3T = {}
 
 -- A print function for a check's lines: its arguments as text with spaces between, after the tag ("[p3api] ").

@@ -10,7 +10,7 @@
 --                              engine's own features (BaseVehicle.setEngineFeature), which the game saves with the
 --                              vehicle.
 --
--- Past the game's own capacity limits a container needs the extension API (PZ Tools): it adds the number in the
+-- Past the game's own capacity limits a container needs PZ Extension API: it adds the number in the
 -- holder's modData OA_Capacity to the raw capacity and lifts the limits (docs/design/extension-api.md,
 -- capacity.modDataKey). Without it the kits are written into the raw capacity and the game cuts them at its limits;
 -- the tooltip says so. The count of kits stays either way, and the value is worked out again from it (refresh*), so a

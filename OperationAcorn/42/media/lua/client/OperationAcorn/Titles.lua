@@ -1,5 +1,5 @@
 -- The titles of events (OA.Sync.title): drawn big over the player's screen by the extension API's text
--- (PZToolsAPI.text.title, queued one at a time), or, without it, as a text over the character.
+-- (PZExtAPI.text.title, queued one at a time), or, without it, as a text over the character.
 require "OperationAcorn/Client"
 require "OperationAcorn/Markup"
 local OA = OperationAcorn
@@ -46,7 +46,7 @@ local function textApi()
 end
 Titles.textApi = textApi
 
--- The style to ask the API for: the detail's when the API has it (an older PZ Tools may not have "dust" or "unveil"),
+-- The style to ask the API for: the detail's when the API has it (an older PZ Extension API may not have "dust" or "unveil"),
 -- else "stamp".
 -- The API's styles are asked once (again for another API's text).
 local styles, stylesOf

@@ -788,7 +788,7 @@ end)
 -- With the extension API's UI fonts the window follows the screen (Trade/UI.lua): it keeps to nine tenths of the
 -- screen's height, and a body taller than that scrolls.
 local function koApi()
-    _G.PZToolsAPI = { version = OA.API_VERSION, client = function() return "h" end, text = {
+    _G.PZExtAPI = { version = OA.API_VERSION, client = function() return "h" end, text = {
         font = function(_, px) return px end,
         fontHeight = function(_, key) return key end,
         -- a letter 5.5 wide at 16, a Hangul syllable 10.5: the API's Small measured in game (a letter about 5.1 on

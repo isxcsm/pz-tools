@@ -1,4 +1,4 @@
--- A generator switched on or off, by the player, out of fuel or broken (the API's OnPZToolsGeneratorPower): the machines
+-- A generator switched on or off, by the player, out of fuel or broken (the API's OnPZExtGeneratorPower): the machines
 -- and the terminals take the power they have now, instead of at the next ten-minute step (some 25 s of real time at the
 -- default day length). The API tells it twice: before the squares around the generator change, when the machines work up
 -- to now with the power they had, and after, when all take the new one, so no work is lost or given. Without the API the
@@ -16,4 +16,4 @@ local function onGeneratorPower(_, _, after)
     if not ok then OA.log("terminals on a generator's change failed:", tostring(err)) end
 end
 
-if Events.OnPZToolsGeneratorPower then Events.OnPZToolsGeneratorPower.Add(onGeneratorPower) end
+if Events.OnPZExtGeneratorPower then Events.OnPZExtGeneratorPower.Add(onGeneratorPower) end

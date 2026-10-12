@@ -537,7 +537,7 @@ end
 local function onGameStart()
     Effects.reset()
     Hooks.refresh()
-    if Events.OnPZToolsBiteSurvived then Events.OnPZToolsBiteSurvived.Add(onBiteSurvived) end
+    if Events.OnPZExtBiteSurvived then Events.OnPZExtBiteSurvived.Add(onBiteSurvived) end
 end
 Events.OnGameStart.Add(onGameStart)
 

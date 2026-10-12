@@ -8,7 +8,7 @@
 -- character comes into a building and when the loot window marks a container, both told by the loot window's own
 -- refresh.
 --
--- With the PZ Tools API the building comes from it (buildings.at: a stable key, player-built buildings known as such)
+-- With the PZ Extension API the building comes from it (buildings.at: a stable key, player-built buildings known as such)
 -- and so do its containers (buildings.containers: the squares walked in Java in one call, which lists only the
 -- containers whose item count or opened flag changed since the last look, so a look makes next to no tables and a
 -- counted building costs no call into the game for each container). An API without that call gives the rooms'

@@ -1,4 +1,4 @@
--- The mod's moodles (육감, 물림 내성 회복 중, 억제 중, 검사 전, 적응 중): in the game's own column through the extension API (PZToolsAPI.moodles):
+-- The mod's moodles (육감, 물림 내성 회복 중, 억제 중, 검사 전, 적응 중): in the game's own column through the extension API (PZExtAPI.moodles):
 -- the game draws them, places them, wiggles them and shows their tooltips (Translate/<lang>/Moodles.json, a name and
 -- a text for each level). In a game without the API's moodle hooks they are drawn as stand-ins left of the game's
 -- column instead, one under the other, on the game's moodle background tinted as the game tints it, with the name and
@@ -183,12 +183,12 @@ function Moodles.set(id, level)
     local way = decide()
     if way == nil then return end          -- the API's classes not loaded yet: the next call decides
     if way == "api" and inColumn[id] == nil then
-        local ok, err = pcall(PZToolsAPI.moodles.define, OA.handle(), id, { kind = def.kind, picture = def.picture })
+        local ok, err = pcall(PZExtAPI.moodles.define, OA.handle(), id, { kind = def.kind, picture = def.picture })
         inColumn[id] = ok
         if not ok then OA.log("moodle", id, tostring(err)) end
     end
     if inColumn[id] then
-        local ok, err = pcall(PZToolsAPI.moodles.set, OA.handle(), id, level)
+        local ok, err = pcall(PZExtAPI.moodles.set, OA.handle(), id, level)
         if not ok then
             OA.log("moodle", id, tostring(err))
             return

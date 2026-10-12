@@ -4,7 +4,7 @@
     "Sandbox_OperationAcornShop": "Operation Acorn: shop",
     "Sandbox_OperationAcornUpgrades": "Operation Acorn: upgrades",
     "Sandbox_OperationAcorn_HiddenZombieFix": "Hidden zombie fix",
-    "Sandbox_OperationAcorn_HiddenZombieFix_tooltip": "Draws zombies that stand in plain view but are left undrawn, and lets them see you too. Needs PZ Tools. Does nothing while the Zombie Visibility Fix mod is on. Default: on.",
+    "Sandbox_OperationAcorn_HiddenZombieFix_tooltip": "Draws zombies that stand in plain view but are left undrawn, and lets them see you too. Needs PZ Extension API. Does nothing while the Zombie Visibility Fix mod is on. Default: on.",
     "Sandbox_OperationAcorn_Monologue": "Self-talk",
     "Sandbox_OperationAcorn_Monologue_tooltip": "The character says a short line over their head at moments such as a cure, a test or reaching a mission's place. Default: on.",
     "Sandbox_OperationAcorn_CreditMultiplier": "Credit rate",

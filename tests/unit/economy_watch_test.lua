@@ -86,7 +86,7 @@ local function load()
 end
 
 local function setup()
-    PZToolsAPI = nil
+    PZExtAPI = nil
     OA.Buildings.reset()
     ch = character()
     getSpecificPlayer = function() return ch end

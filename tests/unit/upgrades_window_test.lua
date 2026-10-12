@@ -717,15 +717,15 @@ local function frameOf(paint, view, el, api)
         drawTextureScaled = function(_, tex) log[#log + 1] = { "texture", tex } end,
     }
     local calls = 0
-    PZToolsAPI = nil
+    PZExtAPI = nil
     if api then
-        PZToolsAPI = { version = 1, client = function() return {} end, draw = { rects = function(e, list, count)
+        PZExtAPI = { version = 1, client = function() return {} end, draw = { rects = function(e, list, count)
             calls = calls + 1
             log[#log + 1] = { "batch", e, count, { unpack(list, 1, count * 8) } }
         end } }
     end
     paint(view, el)
-    PZToolsAPI = nil
+    PZExtAPI = nil
     return log, calls
 end
 
@@ -794,7 +794,7 @@ test("the flow's rectangles are drawn before a picture asked after them, and a f
     ISUIElement = { drawRect = function(_, x, y, w, h, a) log[#log + 1] = { x, y, w, h } end,
         drawTextureScaled = function() end }
     local tried = 0
-    PZToolsAPI = { version = 1, client = function() return {} end, draw = { rects = function() tried = tried + 1 error("bad") end } }
+    PZExtAPI = { version = 1, client = function() return {} end, draw = { rects = function() tried = tried + 1 error("bad") end } }
     View.paintFlow(view, el)
     eq(#log >= 1, true, "drawn one by one after the failure")
     local first = #log
@@ -804,7 +804,7 @@ test("the flow's rectangles are drawn before a picture asked after them, and a f
     View.paintFlow(view, el)
     eq(tried, seen, "not tried again")
     eq(#log >= 1, true)
-    PZToolsAPI = nil
+    PZExtAPI = nil
 end)
 
 test("a sealed capstone is an outline: no name, no way into it, no rank; unsealed it shows as any node", function()

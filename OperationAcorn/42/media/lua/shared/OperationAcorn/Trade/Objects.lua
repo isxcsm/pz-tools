@@ -304,7 +304,7 @@ function Objects.setupBox(object, record)
     -- (a box of an older save may have kept its tile's container unexplored)
     if not container:isExplored() then container:setExplored(true) end
     Objects.nameContainer(container, Objects.abandoned(object) and Objects.ABANDONED_CONTAINER or Objects.BOX_CONTAINER)
-    -- The PZ Tools API lifts the vanilla cap of 100 for containers whose object carries modData OA_Capacity as a number
+    -- The PZ Extension API lifts the vanilla cap of 100 for containers whose object carries modData OA_Capacity as a number
     -- (the upgrades part declares that key) and adds the number to the raw capacity; without it the game holds the
     -- box to 100. The raw capacity stays within 100 (the game warns on every larger one, and this runs on every
     -- refresh of the loot window): the rest is OA_Capacity. Only what differs is written.

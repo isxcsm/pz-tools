@@ -146,7 +146,7 @@ end
 local function loadUI(px)
     stubFonts(px or 16)
     gameClasses()
-    _G.PZToolsAPI = nil
+    _G.PZExtAPI = nil
     local real = require
     require = function(name)
         if string.find(name, "^ISUI/") then return true end
@@ -680,7 +680,7 @@ local function koApi()
         end
         return best or px
     end
-    _G.PZToolsAPI = { version = OA.API_VERSION, client = function() return "h" end, text = {
+    _G.PZExtAPI = { version = OA.API_VERSION, client = function() return "h" end, text = {
         font = function(_, px) return pick(px) end,
         fontHeight = function(_, key) return key end,
         measure = function(_, key, s) return #tostring(s) * key * 7 / 16 end,
@@ -695,7 +695,7 @@ for _, screenH in ipairs({ 720, 900, 1080, 1440 }) do
             for _, size in ipairs({ { 700, 312 }, { 580, 252 } }) do
                 for _, name in ipairs(STATUS) do
                     local what = screenH .. "p " .. tier .. " " .. name .. " " .. size[1]
-                    _G.PZToolsAPI = nil
+                    _G.PZExtAPI = nil
                     useFonts(UI, 16)
                     local base = statusTexts(UI, name, tier, size)
                     koApi()

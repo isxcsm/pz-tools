@@ -1,5 +1,5 @@
 -- The one timer the upgrade effects share (FEASIBILITY: throttled timers, never per tick). With the extension API each
--- job is a timer of its own period (PZToolsAPI.timers.every: counted in Java, so no frame wakes Lua until a job is due);
+-- job is a timer of its own period (PZExtAPI.timers.every: counted in Java, so no frame wakes Lua until a job is due);
 -- without its timers a single OnTick handler does the same, comparing the clock until a job is due. Either way it runs
 -- only while the character has a node that needs it. Jobs: Pulse.job(name, period in ms, function(now)). The jobs look
 -- and tell and draw; none changes the world (the timers go on while the game is paused, an OnTick does not).

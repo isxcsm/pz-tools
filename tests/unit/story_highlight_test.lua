@@ -368,7 +368,7 @@ test("with the API's timers the look is a timer, not a handler of OnTick, and go
     local desk = furniture({ container({ item("M1-1") }) })
     state.squares["100,100,0"] = square({ desk })
     local timers, cancelled = {}, 0
-    PZToolsAPI = { version = 1, client = function() return "h" end, timers = {
+    PZExtAPI = { version = 1, client = function() return "h" end, timers = {
         every = function(handle, spec, fn)
             timers[#timers + 1] = { spec = spec, fn = fn }
             return #timers
@@ -395,7 +395,7 @@ test("with the API's timers the look is a timer, not a handler of OnTick, and go
     H.update()
     eq(cancelled, 1, "the mission over: the timer cancelled")
     eq(desk.on, false, "and the outline taken back")
-    PZToolsAPI = nil
+    PZExtAPI = nil
 end)
 
 test("the first time a piece is lit the character says so, once, in a container's words or the floor's", function()

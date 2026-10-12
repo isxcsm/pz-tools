@@ -1,9 +1,9 @@
--- The adapter to the extension API (PZ Tools): what the character's ranks mean for the game's own numbers. The API
+-- The adapter to PZ Extension API: what the character's ranks mean for the game's own numbers. The API
 -- changes the game where its hooks are; this file only declares, per point, one value for the local character:
---   PZToolsAPI.formulas.set(handle, pointName, value)   value nil clears the point
---   PZToolsAPI.formulas.points()  ->  { [pointName] = "applied" | another status }
+--   PZExtAPI.formulas.set(handle, pointName, value)   value nil clears the point
+--   PZExtAPI.formulas.points()  ->  { [pointName] = "applied" | another status }
 -- POINTS below is the one place that names the points (a rename is one line). MAP says which nodes feed which.
--- Without the API, or without a point, the node's tooltip says it needs PZ Tools, and nothing else changes: this mod
+-- Without the API, or without a point, the node's tooltip says it needs PZ Extension API, and nothing else changes: this mod
 -- never changes vanilla numbers itself.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
@@ -74,7 +74,7 @@ Effects.MAP = {
 
 -- The cone the sight node may add at most (degrees), whatever the effect option says.
 local MAX_CONE = 90
--- Night sight (PZ Tools: the dark is lifted to the value, in grey; what a light lights keeps its colour) by the rank of
+-- Night sight (PZ Extension API: the dark is lifted to the value, in grey; what a light lights keeps its colour) by the rank of
 -- 밤눈, and with 야행성 눈. Measured at 2 a.m. in an office with no light: 0.1 barely lifts it, 0.3 showed all of it
 -- (too much for a rank before the capstone), 0.5 shows it plainly.
 local NIGHT_SIGHT = { 0.1, 0.2, 0.25 }

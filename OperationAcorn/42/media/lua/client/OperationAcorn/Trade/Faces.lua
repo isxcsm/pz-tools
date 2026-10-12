@@ -1,12 +1,12 @@
 -- The faces our windows' texts are drawn in (Trade/UI.lua's rule block): a face is one of the game's font names
--- (UIFont.Small, Medium, Large) at the scale now. With the extension API's UI fonts (PZToolsAPI.text) a face is the
+-- (UIFont.Small, Medium, Large) at the scale now. With the extension API's UI fonts (PZExtAPI.text) a face is the
 -- API's font of the name's design height times the scale (Small 16, Medium 20, Large 24 design units: 32, 40 and 48
 -- pixels at 1080p; Massive 32, for a title, only through UI.titleFont: the game's Massive has no Korean letters),
 -- whatever the game's font option says; without them it is the game's own font of that name, as the
 -- font option made it. This file only finds the faces, measures and draws with them; UI.lua decides the scale and
 -- where a text goes.
 --
--- The API may be missing (an older PZ Tools) or one of its calls may throw: then the faces are the game's fonts again,
+-- The API may be missing (an older PZ Extension API) or one of its calls may throw: then the faces are the game's fonts again,
 -- for the rest of the session, said once in the log (Faces.onFail tells UI.lua, which goes back to the font's scale).
 -- A frame asks only tables made when the scale was set: a face of a font, its key and height.
 require "OperationAcorn/Core"

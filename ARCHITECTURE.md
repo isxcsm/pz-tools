@@ -56,7 +56,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
 | `shared/OperationAcorn/Sprites.lua` | 이 모드 타일 이름 (`Sprites.terminal(dir, on)`, `Sprites.machineTiles(kind, dir, running)`, `Sprites.footprint(kind, dir)` ...). 시트 자리는 바꾸지 않는다 |
 | `server/OperationAcorn/Server.lua` | 클라이언트 명령 받기: `OA.Server.on(name, function(character, record, args) ... end)`. `LoadChunk`를 `Chunks`에 잇는다 |
 | `client/OperationAcorn/Client.lua` | 서버가 보낸 것을 `Sync` 듣는 쪽으로. `OA.Client.record(character)`(이 클라이언트가 보는 내 기록), 첫 접속 때 `hello` |
-| `client/OperationAcorn/RadioScene.lua` | 큰 장면의 화면 타이핑 (`OA.RadioScene`): 첫 교신, 단계 진입, 이관의 교신 줄을 `PZToolsAPI.text.show` `enter = "type"`으로 찍는다 (`Sync.scene`). 옛 API는 같은 글을 표시 없이 한 번에 띄운다 |
+| `client/OperationAcorn/RadioScene.lua` | 큰 장면의 화면 타이핑 (`OA.RadioScene`): 첫 교신, 단계 진입, 이관의 교신 줄을 `PZExtAPI.text.show` `enter = "type"`으로 찍는다 (`Sync.scene`). 옛 API는 같은 글을 표시 없이 한 번에 띄운다 |
 | `client/OperationAcorn/Story/TypedText.lua` | 수신함의 글 패널 `OATypedText`: 프레임마다 시계를 더하고 글자 수가 바뀔 때만 줄을 갱신한다. 글은 보일 때마다 같은 속도로 찍고, 클릭하면 이미 본 최대 지점(`seen`)까지 한 번에 보여 준다(처음 보는 부분은 넘기지 못한다). 항목을 떠나거나 창이 닫히면 `story_typed`(`seen`, `done`, 중간에 멈췄으면 `t`)로 서버 기록(`story.typed`)에 남기고, 끝까지 못 본 글은 교신 사본과 문서 모두 멈춘 시계에서 이어 찍는다(자리를 비운 동안 게임 시간은 치지 않는다). 다 본 글은 시계를 저장하지 않고 매번 처음부터 찍으며 클릭하면 끝까지 보인다 |
 
 - **변경은 서버에서만 한다.** 화면은 `OA.Sync.send`로 서버에 부탁하고, 서버 핸들러가 기록을 고친 뒤 `OA.Sync.changed`를 부른다.

@@ -81,12 +81,12 @@ test("a tree opened is a title with the folder line under it when a memo came, o
     getNumActivePlayers = function() return 1 end
     getSpecificPlayer = function() return character end
     HaloTextHelper = { addText = function(_, t) halo[#halo + 1] = t end }
-    PZToolsAPI = nil
+    PZExtAPI = nil
     Hooks.treeOpened("p1", "scout", true)
     eq(#banners, 1)
     eq(banners[1], "IGUI_OA_Title_TreeOpened IGUI_OA_Tree_Name_scout<LINE>IGUI_OA_Title_GuideSub")
     eq(#halo, 0, "the banner, not a text over the character")
-    PZToolsAPI = {
+    PZExtAPI = {
         version = OA.API_VERSION,
         client = function() return "handle" end,
         text = {
@@ -101,7 +101,7 @@ test("a tree opened is a title with the folder line under it when a memo came, o
     -- no memo (the story part is not there): nothing under the title
     Hooks.treeOpened("p1", "survival", false)
     eq(called[2].subtitle, nil)
-    PZToolsAPI = nil
+    PZExtAPI = nil
 end)
 
 test("the notices of an adaptation and a first effect are said over the head with their names", function()

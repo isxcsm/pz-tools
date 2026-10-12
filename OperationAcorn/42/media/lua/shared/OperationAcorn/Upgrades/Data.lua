@@ -6,7 +6,7 @@
 --   _Note (the research team's line, capstones only).
 -- adds (with rankText): the ranks whose text adds to the lines before rather than replacing them (true: every rank after
 -- the first), so a tooltip lists what each rank taken gives; a rank not added replaces the lines before it.
--- kind: "lua" works with this mod alone; "api" needs the extension API (PZ Tools) to change the game's numbers.
+-- kind: "lua" works with this mod alone; "api" needs PZ Extension API to change the game's numbers.
 -- values: the effect of each rank in its unit (cumulative: the value at that rank).
 -- lighter: the values are carrying efficiencies (a weight is divided by 1 + sum); the text shows the weight taken off.
 require "OperationAcorn/Core"

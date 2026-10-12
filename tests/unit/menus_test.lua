@@ -123,7 +123,7 @@ local function thing(kind, md)
     md.OA_Kind = kind
     local square = { haveElectricity = function() return true end, hasGridPower = function() return false end }
     return { hasModData = function() return true end, getModData = function() return md end,
-        getSquare = function() return square end }
+        getSquare = function() return square end, checkObjectPowered = function() return true end }
 end
 
 test("the terminal's option is on top of the world menu", function()

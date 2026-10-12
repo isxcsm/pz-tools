@@ -113,9 +113,9 @@ local function anyMission(item)
     return item:hasModData() and item:getModData().OA_Mission ~= nil
 end
 
--- The API's mark on what the sandbox's world item removal must leave on the floor (PZToolsAPI "World items"): a mission
+-- The API's mark on what the sandbox's world item removal must leave on the floor (PZExtAPI "World items"): a mission
 -- piece dropped by hand is not flagged by the game, as a placed one is.
-local KEEP = "PZToolsKeep"
+local KEEP = "PZExtKeep"
 
 -- What the last look for a mission's item found, by record id: { mission, item (found, or nil), miss (the inventory's
 -- signature when it was not found) }.
@@ -652,7 +652,7 @@ function Game.placeAgain(record, m, it)
     Game.request(record, m, it)
 end
 
--- OnPZToolsContainerBurning: a fire is about to empty a container (and take it away). It is looked into only while a
+-- OnPZExtContainerBurning: a fire is about to empty a container (and take it away). It is looked into only while a
 -- mission is running; a fire is rare, and the look is one search of the container. Each piece found is replaced once,
 -- however many of its items (a case and the record in it) burn.
 function Game.onBurning(container, object)

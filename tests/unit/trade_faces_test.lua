@@ -1,6 +1,6 @@
 -- Our windows' faces and widgets (client Trade/Faces, Trade/UI, Trade/RichText, Trade/Button, Trade/Combo,
 -- Trade/Confirm, and the folder's list in Story/TabFolder), against stand-ins of the game's elements and of the
--- extension API's UI fonts (PZToolsAPI.text): the scale by the screen in eighths, a text drawn in the API's face at the
+-- extension API's UI fonts (PZExtAPI.text): the scale by the screen in eighths, a text drawn in the API's face at the
 -- screen pixel the game's text would take, the game's fonts and the font's scale without the API or when one of its
 -- calls fails (said once), our rich text's lines, our buttons, combo box and confirm, and a folder list that is not
 -- built again when nothing it lists changed.
@@ -43,7 +43,7 @@ local function stubApi(opts)
             seen.draws[#seen.draws + 1] = { key = key, s = s, x = x, y = y }
         end,
     }
-    _G.PZToolsAPI = { version = OA.API_VERSION, client = function() return "handle" end,
+    _G.PZExtAPI = { version = OA.API_VERSION, client = function() return "handle" end,
         text = not opts.missing and text or nil }
     return seen
 end
@@ -187,7 +187,7 @@ local logged
 local function load(px, files)
     stubFonts(px or 16)
     gameClasses()
-    _G.PZToolsAPI = nil
+    _G.PZExtAPI = nil
     _G.OATab = ISPanel:derive("OATab")
     _G.getCore = function()
         return { getScreenWidth = function() return screen.w end, getScreenHeight = function() return screen.h end }
@@ -355,7 +355,7 @@ test("an API without UI fonts leaves the game's fonts and the font's scale, and 
     UI.refreshScale()
     eq(UI.S, 26 / 16)
     eq(UI.facesOn, false)
-    eq(#logged, 0, "an older PZ Tools is not an error")
+    eq(#logged, 0, "an older PZ Extension API is not an error")
 end)
 
 test("an API whose font call fails leaves the game's fonts and the font's scale, said once", function()

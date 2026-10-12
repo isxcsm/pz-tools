@@ -1,6 +1,6 @@
 -- P1: the building watch. Stand inside a house (and run it again after opening some containers): prints the
 -- building's key, how many containers it has, how many were opened, and whether every square is loaded. Compares
--- the PZ Tools API path with the game's own (vanilla) path. Changes nothing but the watch's own cache.
+-- the PZ Extension API path with the game's own (vanilla) path. Changes nothing but the watch's own cache.
 -- Prints "[p1bld]" lines.
 RUN("p1_lib.lua")
 local OA = OperationAcorn
@@ -11,7 +11,7 @@ local room = square and square:getRoom()
 if not room then say("stand inside a building first"); return end
 
 local api = OA.api()
-say("PZ Tools API", api and "present" or "absent", "buildings", api and api.buildings and "yes" or "no")
+say("PZ Extension API", api and "present" or "absent", "buildings", api and api.buildings and "yes" or "no")
 OA.Buildings.reset()
 -- the watch counts BUDGET squares a look: look until it has the whole building (or 400 looks), timing each look
 local key, searched, total, complete

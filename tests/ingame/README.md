@@ -29,7 +29,7 @@ Then `RUN("p1_all.lua")` runs the economy checks one after another (an error in 
 
 ## P1 economy (`p1_*.lua`)
 
-Setup: a single-player world with the mod and PZ Tools on, one character with a record (the first hello makes it).
+Setup: a single-player world with the mod and PZ Extension API installed, one character with a record (the first hello makes it).
 Some checks change the save's market or the record (they say so in their header): use a throwaway save.
 
 | File | What it checks | Setup |

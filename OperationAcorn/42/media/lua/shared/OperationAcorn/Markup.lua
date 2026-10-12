@@ -1,5 +1,5 @@
 -- The markup of typed texts (DESIGN-terminal 14 F2): the same small language the extension API's text.show reads with
--- `markup = true` (PZ Tools, docs/design/extension-api.md, "Typing, markup and fitting a width"), read here by Lua for
+-- `markup = true` (PZ Extension API, docs/design.md, "Typing, markup and fitting a width"), read here by Lua for
 -- the texts the terminal's own window types, and for the places that show such a text plain.
 --
 --   {p:seconds}    a pause before the next character (0 to 30, up to three decimals)

@@ -4,7 +4,7 @@
 -- Sizes: design units and one scale (DESIGN-terminal 1.2, worklist 3-2) ------------------------------------------
 -- The terminal's screens are laid out in DESIGN UNITS: the numbers written in the code, made for a 16 unit Small font.
 -- UI.S is the scale from them to the screen's pixels, worked out again when a window opens (UI.refreshScale):
---   * with the extension API's UI fonts (PZToolsAPI.text): by the SCREEN, its height / 540 down to an eighth
+--   * with the extension API's UI fonts (PZExtAPI.text): by the SCREEN, its height / 540 down to an eighth
 --     (720p 1.25, 900p 1.625, 1080p 2, 1440p 2.625, 2160p 4), or by the game's font where that is larger, so that the
 --     windows look as big at the 16 pixel font as at the 26 pixel one;
 --   * without them: by the game's FONT, the Small font's height / 16 (the font option follows the window's height:

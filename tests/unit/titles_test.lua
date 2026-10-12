@@ -21,7 +21,7 @@ end
 
 test("without the API's text a title is a text over the character, in its fallback's colour", function()
     local halo = world()
-    PZToolsAPI = nil
+    PZExtAPI = nil
     OA.Sync.title("p1", { key = "IGUI_OA_Title_Searched", sub = "IGUI_OA_Title_SearchedBonus", subArgs = { 300 },
         style = "discovery", fallback = "good" })
     eq(#halo, 1)
@@ -33,7 +33,7 @@ end)
 test("with the API's text a title goes to it, in its style and tone, on the player's screen", function()
     local halo = world()
     local called = {}
-    PZToolsAPI = {
+    PZExtAPI = {
         version = OA.API_VERSION,
         client = function() return "handle" end,
         text = {
@@ -50,15 +50,15 @@ test("with the API's text a title goes to it, in its style and tone, on the play
     eq(called[1].spec.player, 0)
     eq(called[1].spec.color, OA.Titles.TONES.gold[1])
     -- a hook that is not in: the text over the character instead
-    PZToolsAPI.text.status = function() return "not-loaded" end
+    PZExtAPI.text.status = function() return "not-loaded" end
     eq(OA.Titles.show("p1", { key = "IGUI_OA_Title_Capstone" }), "halo")
     eq(halo[1], "plain:IGUI_OA_Title_Capstone")
-    PZToolsAPI = nil
+    PZExtAPI = nil
 end)
 
 test("an argument that is a text is translated on the player's side", function()
     local halo = world()
-    PZToolsAPI = nil
+    PZExtAPI = nil
     OA.Sync.title("p1", { key = "IGUI_OA_Title_Paid", sub = "IGUI_OA_Title_PaidSub",
         subArgs = { { key = "IGUI_OA_Story_Title_x", args = { 2 } }, 300 } })
     eq(halo[1], "plain:IGUI_OA_Title_Paid - IGUI_OA_Title_PaidSub IGUI_OA_Story_Title_x 2 300")
@@ -66,24 +66,24 @@ end)
 
 test("with noHalo a title the API cannot draw is not shown, for the caller's own way", function()
     local halo = world()
-    PZToolsAPI = nil
+    PZExtAPI = nil
     eq(OA.Titles.show("p1", { key = "IGUI_OA_Title_TreeOpened" }, true), nil)
     eq(#halo, 0)
-    PZToolsAPI = {
+    PZExtAPI = {
         version = OA.API_VERSION,
         client = function() return "handle" end,
         text = { status = function() return "applied" end, title = function() error("broken") end },
     }
     eq(OA.Titles.show("p1", { key = "IGUI_OA_Title_TreeOpened" }, true), nil, "a failed draw is not a title")
     eq(#halo, 0)
-    PZToolsAPI = nil
+    PZExtAPI = nil
 end)
 
-test("a style the API does not have (an older PZ Tools) is asked as stamp", function()
+test("a style the API does not have (an older PZ Extension API) is asked as stamp", function()
     world()
     local called = {}
     local function api(styles)
-        PZToolsAPI = {
+        PZExtAPI = {
             version = OA.API_VERSION,
             client = function() return "handle" end,
             text = {
@@ -99,5 +99,5 @@ test("a style the API does not have (an older PZ Tools) is asked as stamp", func
     api({ "stamp" })
     OA.Titles.show("p1", { key = "IGUI_OA_Title_Capstone", style = "dust" })
     eq(called[2], "stamp", "not there: stamp")
-    PZToolsAPI = nil
+    PZExtAPI = nil
 end)
