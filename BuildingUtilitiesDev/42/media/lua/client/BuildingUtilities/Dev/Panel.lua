@@ -118,6 +118,7 @@ local function panelPage(page, ui)
         { T("Pn_SwitchOff"), onPanel(function(p) Dev.mainSwitch(p, true) end) },
         { T("Pn_SwitchOn"), onPanel(function(p) Dev.mainSwitch(p, false) end) },
         { T("Pn_Overload"), onPanel(function(p) Dev.overload(p, true) end) },
+        { T("Pn_OverloadMild"), onPanel(function(p) Dev.overload(p, true, 1.1) end) },
         { T("Pn_OverloadOff"), onPanel(function(p) Dev.overload(p, false) end) },
     })
     ui.buttons(page, 10 + rows, {

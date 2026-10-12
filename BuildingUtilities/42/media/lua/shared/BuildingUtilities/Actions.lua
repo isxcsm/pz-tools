@@ -1,4 +1,4 @@
--- Timed actions: putting a box down, laying and taking away lines, upgrading a box, throwing its main switch,
+-- Timed actions: putting a box down, laying and taking away lines, upgrading a box, throwing its lever,
 -- brushing snow off a solar panel, replacing a filter's media, reconditioning a battery. A device, a unit or a
 -- producer is wired in and out at itself, with the tool of its utility in hand (Actions.work).
 -- Each names panels and squares, not objects, and checks again as it completes, where the world is decided
@@ -280,18 +280,18 @@ function ISBUUpgradePanel:new(character, panel)
     return o
 end
 
--- The box's main switch thrown, off (off true) or on: a moment at the box (Changes.setSwitchedOff).
+-- The box's lever thrown, down (off true) or up: a moment at the box (Changes.setLever).
 ISBUMainSwitch = base("ISBUMainSwitch", 50)
 
 function ISBUMainSwitch:isValid()
     local panel = Store.get(self.panelId)
-    return panel ~= nil and (panel.switchedOff == true) ~= self.off
+    return panel ~= nil and Panels.leverUp(panel) == self.off
 end
 
 function ISBUMainSwitch:complete()
     local panel = Store.get(self.panelId)
     if not panel then return false end
-    Changes.setSwitchedOff(panel, self.off)
+    Changes.setLever(panel, not self.off)
     return true
 end
 

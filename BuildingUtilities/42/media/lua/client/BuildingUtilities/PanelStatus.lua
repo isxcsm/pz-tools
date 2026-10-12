@@ -64,12 +64,21 @@ end
 
 -- A box whose breaker is down, or whose main switch a player has off, as its own status (a sub-panel's too).
 local function trippedStatus(panel)
-    return { text = getText("IGUI_BU_St_Tripped"), reason = getText("IGUI_BU_Why_Tripped", load2(Panels.capacity(panel))),
+    return { text = getText("IGUI_BU_St_Tripped"), reason = getText("IGUI_BU_Why_Tripped", load2(Panels.limit(panel))),
         level = BAD }
 end
 
 local function switchedOffStatus()
     return { text = getText("IGUI_BU_St_Off"), reason = getText("IGUI_BU_Why_SwitchedOff"), level = WARN }
+end
+
+-- A box over its limit, while its power is on: how long its breaker holds as now (a reason, amber), or nil.
+local function overloaded(result, panel, load, limit)
+    if not BU.overloadEnabled() or load <= limit + 1e-6 then return result end
+    local hours = Panels.breakerHoursLeft(Panels.breaker(panel), load / math.max(limit, 1e-6))
+    result.reason = getText("IGUI_BU_Why_Overload", Ui.shortDuration(hours or 0))
+    result.level = WARN
+    return result
 end
 
 -- A main panel's power: { text, left, reason, level }.
@@ -102,19 +111,26 @@ local function powerStatus(panel, state)
         end
         local saving = count(panel.power.saving)
         if saving > 0 then result.reason = getText("IGUI_BU_Why_Saving", saving) end
-        return result
+        return overloaded(result, panel, rules.load, Panels.limit(panel, bank or false))
     end
     if state.supplied then
         local index = producerIndex(panel, state)
         local result = { text = getText("IGUI_BU_St_Generator", index or "?"), level = OK }
+        -- The bank gives what goes over the box's own share, down to its own floor (Energy.overDraw).
+        local over = hasSource and Energy.overDraw(panel, state, rules, bank) or 0
+        local bankRules = over > 0 and { floor = Energy.boostFloor(panel) } or rules
         if state.hoursLeft then
             local fuel = getText("IGUI_BU_Left_Fuel", duration(state.hoursLeft))
             if state.hoursLeft < SOON then result.level = WARN end
-            local left = bankLeft(panel, bank, rules)
+            local left = bankLeft(panel, bank, bankRules)
             result.left = left and left .. "  " .. fuel or fuel
+        elseif over > 0 then
+            result.left = bankLeft(panel, bank, bankRules)
         end
         local controller = Energy.hasController(panel)
-        if hasSource and bank and controller and Energy.charging(panel) > 0 then
+        if over > 0 then
+            result.reason = getText("IGUI_BU_Why_OverDraw", load2(over))
+        elseif hasSource and bank and controller and Energy.charging(panel) > 0 then
             result.reason = getText("IGUI_BU_Why_Charging", BU.percent(rules.settings.stop))
         elseif hasSource and bank and controller then
             result.reason = getText("IGUI_BU_Why_BankLow", BU.percent(rules.settings.start), BU.percent(rules.settings.stop))
@@ -125,7 +141,7 @@ local function powerStatus(panel, state)
         elseif index and index > 1 then
             result.reason = getText("IGUI_BU_Why_Priority")
         end
-        return result
+        return overloaded(result, panel, rules.load, Panels.limit(panel, bank or false))
     end
     -- Without supply the bank carries nothing: what the solar panels make charges it.
     local result = { text = getText("IGUI_BU_St_None"), level = BAD,
@@ -199,6 +215,9 @@ function PanelWindow.status(panel, utility, supply)
             if reason then result.reason = reason end
             if warn then result.level = warn end
         end
+        -- A sub-panel carries its own share of the main panel's power.
+        local own = utility == "power" and result.level ~= BAD and Networks.state(panel, "power")
+        if own and own.supplied and own.load then overloaded(result, panel, own.load, Panels.limit(panel)) end
         return result
     end
     local state = Networks.state(panel, utility)

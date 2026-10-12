@@ -191,7 +191,7 @@ Units.define("rack", {
     flow = function(unit, panel, state)
         if #(unit.batteries or {}) == 0 then return nil end
         local flow = panel.bankFlow or 0
-        if flow < -0.0005 and Energy.inUse(state) and state.supplied then return 1 end
+        if flow < -0.0005 and state.supplied then return 1 end
         if flow > 0.0005 then return -1 end
         return nil
     end,

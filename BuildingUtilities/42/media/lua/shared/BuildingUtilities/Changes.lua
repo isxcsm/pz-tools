@@ -902,4 +902,39 @@ function Changes.setSwitchedOff(panel, off)
     Sync.notice(panel, off and "IGUI_BU_Notice_SwitchedOff" or "IGUI_BU_Notice_SwitchedOn", Panels.name(panel))
 end
 
+-- The lever: the breaker and the main switch in one. Down, the box's power is off (Changes.setSwitchedOff); up, a
+-- tripped breaker is reset and the power switched on again. The breaker's gauge stays where it cooled to.
+function Changes.setLever(panel, up)
+    if not up then
+        Changes.setSwitchedOff(panel, true)
+        return
+    end
+    local tripped = panel.tripped
+    if tripped then
+        panel.tripped = false
+        Store.record(panel, "IGUI_BU_Log_Reset")
+    end
+    if panel.switchedOff then
+        Changes.setSwitchedOff(panel, false)
+    elseif tripped then
+        Networks.applyEnabled(panel)
+        Sync.changed(panel.id)
+        Sync.sound(panel, "LightSwitch")
+    end
+end
+
+-- The breaker's gauge (BU.Panels.breaker): told to players by steps of BREAKER_STEP, and as it is full or empty.
+Changes.BREAKER_STEP = 0.02
+local breakerTold = {}
+
+function Changes.setBreaker(panel, gauge)
+    gauge = math.max(0, math.min(1, gauge))
+    panel.power.breaker = gauge < 1 and gauge or nil
+    local told = breakerTold[panel.id] or 1
+    if math.abs(told - gauge) >= Changes.BREAKER_STEP or (gauge >= 1 or gauge <= 0) and told ~= gauge then
+        breakerTold[panel.id] = gauge
+        Sync.changed(panel.id)
+    end
+end
+
 return Changes

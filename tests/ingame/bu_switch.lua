@@ -103,10 +103,7 @@ check("off: look", PanelLook.wanted(panel), "off")
 check("off: box sprite", sprite(), spriteFor("off"))
 check("off: log", lastLog(), "IGUI_BU_Notice_SwitchedOff")
 check("off: switching off again is not valid", ISBUMainSwitch:new(player, panel, true):isValid(), false)
-local row, tooltip = rowOf("mainSwitch")
-check("off: row state", row and row.state, "off")
-check("off: row text", row and row.text, getText("IGUI_BU_MainSwitchOff"))
-check("off: row tooltip", tooltip, getText("IGUI_BU_MainSwitchTip"))
+check("off: lever down", Panels.leverUp(panel), false)
 
 -- What could switch it on again leaves it off. A change of units lifts a quiet cut only without a bank: none, here.
 Changes.setQuietCut(panel, true)
@@ -182,19 +179,20 @@ local function generatorChecks()
     window:refresh()
 end
 
--- A trip and the switch together.
+-- A trip and the lever: tripped, the lever is down; pushed up, the breaker is reset and the power is on. Reset
+-- elsewhere (the dev page) while the lever is pulled down, the power stays off until it is pushed up.
 local function tripChecks()
     Changes.trip(panel)
-    throw(true)
-    check("tripped, switched off: tripped", panel.tripped, true)
-    check("tripped, switched off: enabled", enabled(), false)
-    check("tripped, switched off: look", PanelLook.wanted(panel), "tripped")
-    checkStatus("tripped, switched off", "IGUI_BU_St_Tripped")
+    check("tripped: lever down", Panels.leverUp(panel), false)
+    check("tripped: pulling it down is not valid", ISBUMainSwitch:new(player, panel, true):isValid(), false)
+    check("tripped: enabled", enabled(), false)
+    check("tripped: look", PanelLook.wanted(panel), "tripped")
+    checkStatus("tripped", "IGUI_BU_St_Tripped")
     throw(false)
-    check("switched on while tripped: still tripped", panel.tripped, true)
-    check("switched on while tripped: enabled", enabled(), false)
-    checkStatus("switched on while tripped", "IGUI_BU_St_Tripped")
+    check("lever up: tripped", panel.tripped, false)
+    check("lever up: enabled", enabled(), true)
     throw(true)
+    Changes.trip(panel)
     Changes.resetBreaker(panel)
     check("reset while switched off: tripped", panel.tripped, false)
     check("reset while switched off: enabled", enabled(), false)
@@ -276,9 +274,7 @@ steps[#steps + 1] = function()
     check("on: switchedOff", panel.switchedOff, nil)
     check("on: network enabled", enabled(), true)
     check("on: log", lastLog(), "IGUI_BU_Notice_SwitchedOn")
-    local onRow = rowOf("mainSwitch")
-    check("on: row state", onRow and onRow.state, "on")
-    check("on: row text", onRow and onRow.text, getText("IGUI_BU_MainSwitchOn"))
+    check("on: lever up", Panels.leverUp(panel), true)
 end
 
 -- 3: the same carries it again; the trip; the faked rows. Then the generator scene is set up.

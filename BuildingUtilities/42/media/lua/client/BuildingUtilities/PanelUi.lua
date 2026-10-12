@@ -161,4 +161,10 @@ Ui.count = count
 Ui.duration = duration
 Ui.nextSchedule = nextSchedule
 
+-- A shorter time, as the breaker holds: minutes under an hour, else as duration.
+function Ui.shortDuration(hours)
+    if hours < 1 then return getText("IGUI_BU_DurMinutes", math.max(1, math.floor(hours * 60 + 0.5))) end
+    return duration(hours)
+end
+
 return Ui

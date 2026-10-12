@@ -1,6 +1,5 @@
 {
     "ContextMenu_BU_Install": "설비 제어반 설치",
-    "ContextMenu_BU_ResetBreaker": "차단기 올리기",
     "ContextMenu_BU_Upgrade": "%1단계로 업그레이드",
     "ContextMenu_BU_ConnectTo": "제어반에 연결",
     "ContextMenu_BU_ConnectToPanel": "%1에 연결 (%2)",

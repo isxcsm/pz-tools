@@ -1,10 +1,10 @@
--- The breaker box window: its name and tier as its title, a status line (BuildingUtilities/PanelStatus), its load against what it carries and a banner when the breaker is
--- down or devices are shed, then a tab per utility (power's led by the box's main switch) with its producers (each
--- generator running, on standby or out of service) or the main panel that supplies it, its sub-panels, and its
--- devices room by room, and a tab with what happened to the box; beside them the floor plan
--- (BuildingUtilities/PanelPlan). A row under the mouse outlines its objects in the world, marks them on the plan and
+-- The breaker box window: its name and tier as its title, a status line (BuildingUtilities/PanelStatus), its load
+-- against its limit with the lever and the breaker's gauge beside it, a banner when the breaker is down or devices are
+-- shed, then a tab per utility with its producers (each generator running, on standby or out of service) or the main
+-- panel that supplies it, its sub-panels, and its devices room by room, and a tab with what happened to the box;
+-- beside them the floor plan (BuildingUtilities/PanelPlan). A row under the mouse outlines its objects in the world, marks them on the plan and
 -- tells what switching it would do to the load. Free changes go to the server as commands; lines are laid and taken
--- away, and the main switch thrown, by the player at the place, as timed actions: a device outside is wired at itself
+-- away, and the lever thrown, by the player at the place, as timed actions: a device outside is wired at itself
 -- (its world menu), and listed here once it is. The search box keeps the
 -- rows whose device or room has the words; devices new since the window was last closed are marked. The load bar
 -- tells what makes the load. With sub-panels, a tab per box of the supply tree (the main panel, then each sub-panel
@@ -57,13 +57,16 @@ ISBUPanelWindow = ISCollapsableWindow:derive("ISBUPanelWindow")
 -- over the kit's scale).
 local function planByDefault() return UI.dp(getCore():getScreenWidth()) >= 900 end
 
--- The window's width for a list so wide, with the plan or without (design units).
+-- The window's width for a list so wide, with the plan or without (design units). Alone, the list is at least TOP_W
+-- wide: the load's top and the plan's and range's buttons beside it take that.
+local TOP_W = 600
+
 local function windowWidth(listW, shown)
-    if not shown then return listW end
+    if not shown then return math.max(listW, TOP_W) end
     return math.floor(listW / (1 - WINDOW_SHARE)) + PAD
 end
 
-local function minimumWidth(shown) return MIN_LIST + (shown and PAD + MIN_PLAN or 0) end
+local function minimumWidth(shown) return shown and MIN_LIST + PAD + MIN_PLAN or math.max(MIN_LIST, TOP_W) end
 
 -- The most a window may take of the screen, in pixels.
 local function screenRoom()
@@ -195,6 +198,43 @@ end
 
 UI.scaled(ISBUTipArea, ISPanel)
 
+-- The top's sizes (design units): its height (the load's big percent, its bar and its text), the bar's height and
+-- what it shows at most (BAR_MOST of the limit; more stays at its end), the lever's width and the breaker's gauge's.
+PanelWindow.LOAD_H, PanelWindow.BAR_H, PanelWindow.BAR_MOST = 30, 6, 1.5
+PanelWindow.LEVER_W, PanelWindow.GAUGE_W = 16, 4
+
+-- The box's lever (Changes.setLever): up while its breaker holds and its main switch is on. Clicked, the player
+-- throws it at the box (a timed action); its tooltip says which way.
+ISBULever = ISBUTipArea:derive("ISBULever")
+
+function ISBULever:new(x, y, window)
+    local o = ISBUTipArea.new(self, x, y, PanelWindow.LEVER_W, PanelWindow.LOAD_H)
+    o.window = window
+    return o
+end
+
+function ISBULever:prerender()
+    ISBUTipArea.prerender(self)
+    local panel = self.window.panel
+    local w, h = self.width, self.height
+    local up = Panels.leverUp(panel)
+    local over = self:isMouseOver()
+    local slotX = math.floor((w - 4) / 2)
+    UI.fill(self, slotX, 3, 4, h - 6, P.inset)
+    UI.frame(self, slotX, 3, 4, h - 6, P.border)
+    local handleH = 9
+    local handleY = up and 1 or h - handleH - 1
+    local colour = up and P.text or panel.tripped and P.bad or P.off
+    UI.fill(self, 1, handleY, w - 2, handleH, colour, over and 1 or 0.85)
+    UI.fill(self, 1, handleY, w - 2, 1, P.bright, 0.35)
+    UI.frame(self, 1, handleY, w - 2, handleH, over and P.bright or P.border)
+end
+
+function ISBULever:onMouseUp()
+    self.window:onLever()
+    return true
+end
+
 function ISBUPanelWindow:createChildren()
     ISCollapsableWindow.createChildren(self)
     -- Only the close box stays of the game's title bar, drawn in the palette and the kit's face.
@@ -220,19 +260,17 @@ function ISBUPanelWindow:createChildren()
         top = top + self.panelTabs:getHeight() + PAD
     end
     self.statusY = top
-    self.loadY = top + FONT_HGT_SMALL + 4
-    self.bannerY = self.loadY + ROW + 4
+    self.loadY = top + FONT_HGT_SMALL + 6
+    self.bannerY = self.loadY + PanelWindow.LOAD_H + 4
     local buttonsY = self.bannerY + ROW + 4
     -- Placed by layoutPanes at the right, as the window's width changes.
-    self.rangeButton = button(self, bw - PAD - 130, self.loadY, 130, ROW, ISBUPanelWindow.onRange)
-    self.planButton = button(self, bw - PAD - 130 - 4 - 110, self.loadY, 110, ROW, ISBUPanelWindow.onPlan)
+    local buttonY = self.loadY + (PanelWindow.LOAD_H - ROW) / 2
+    self.rangeButton = button(self, bw - PAD - 130, buttonY, 130, ROW, ISBUPanelWindow.onRange)
+    self.planButton = button(self, bw - PAD - 130 - 4 - 110, buttonY, 110, ROW, ISBUPanelWindow.onPlan)
     self.renameButton = button(self, PAD, buttonsY, 100, ROW, ISBUPanelWindow.onRename)
     titled(self.renameButton, getText("IGUI_BU_Rename"))
     self.mainButton = button(self, PAD + 106, buttonsY, 170, ROW, ISBUPanelWindow.onMainPanel)
-    self.resetButton = button(self, PAD + 312, buttonsY, 110, ROW, ISBUPanelWindow.onReset)
-    self.resetButton:setStyle("strong")
-    titled(self.resetButton, getText("ContextMenu_BU_ResetBreaker"))
-    self.upgradeButton = button(self, PAD + 428, buttonsY, 160, ROW, ISBUPanelWindow.onUpgrade)
+    self.upgradeButton = button(self, PAD + 282, buttonsY, 160, ROW, ISBUPanelWindow.onUpgrade)
     local tabsY = buttonsY + ROW + PAD
     local listW = bw
     local height = body:getHeight() - tabsY
@@ -280,10 +318,17 @@ function ISBUPanelWindow:createChildren()
     self.statusArea:initialise()
     self.statusArea:setAnchorRight(true)
     body:addChild(self.statusArea)
-    -- Over the load bar and its text: what makes the load, as a tooltip.
-    self.loadArea = ISBUTipArea:new(PAD, self.loadY, BAR_W, ROW)
+    -- Over the load's percent, bar and text: what makes the load, as a tooltip. Beside them the lever, and the
+    -- breaker's gauge while it is not full (placed by placeLever).
+    self.loadArea = ISBUTipArea:new(PAD, self.loadY, BAR_W, PanelWindow.LOAD_H)
     self.loadArea:initialise()
     body:addChild(self.loadArea)
+    self.lever = ISBULever:new(PAD, self.loadY, self)
+    self.lever:initialise()
+    body:addChild(self.lever)
+    self.gauge = ISBUTipArea:new(PAD, self.loadY, PanelWindow.GAUGE_W + 4, PanelWindow.LOAD_H)
+    self.gauge:initialise()
+    body:addChild(self.gauge)
     -- Placed by placeOptions as the list's width changes: an anchor would move them again a frame later.
     self.splitter = ISBUSplitter:new(listW, tabsY, PAD, height, self)
     self.splitter:initialise()
@@ -520,12 +565,83 @@ function ISBUPanelWindow:render()
     UI.frame(self, 0, 0, w, h, P.border)
 end
 
--- The share of what the box carries that the load is now (0 to 1).
-function ISBUPanelWindow:loadShare()
-    return math.min(1, (self.load or 0) / math.max(self.capacity or 0, 1e-6))
+-- The load against the box's limit, for the top (drawBody): the load (charging its bank aside, as the breaker counts
+-- it), the box's own share and what its bank adds (Panels.limit), whether the power is live (the lever up and the
+-- network supplied; else the percent is 0 and the text tells what is switched on), the colour of its state (green
+-- within the box's share, blue drawing on the bank, red over the limit), the text under the bar in parts, the
+-- breaker's gauge (shown while it is not full) and the tooltips of the lever and the gauge.
+function ISBUPanelWindow:measureLoad(panel, power)
+    self.capacity = Panels.capacity(panel)
+    local bank = not panel.parent and Energy.bank(panel) or nil
+    self.boost = Energy.boost(panel, bank)
+    self.limit = self.capacity + self.boost
+    self.load = nil
+    self.gaugeShown = false
+    self.loadArea:setVisible(power ~= nil and power.load ~= nil)
+    self.lever:setVisible(BU.enabled("power"))
+    self.lever:setTooltip(getText(panel.tripped and "IGUI_BU_LeverTripTip"
+        or Panels.leverUp(panel) and (panel.parent and "IGUI_BU_LeverUpTipSub" or "IGUI_BU_LeverUpTip")
+        or "IGUI_BU_LeverDownTip"))
+    if not (power and power.load) then
+        self.gauge:setVisible(false)
+        self:placeLever(0)
+        return
+    end
+    local factor = power.loadFactor or 1
+    self.loadFactor = factor
+    self.load = math.max(0, power.load - Energy.charging(panel) * factor)
+    self.live = Panels.leverUp(panel) and power.supplied == true
+    local ratio = self.live and self.load / math.max(self.limit, 1e-6) or 0
+    self.ratio = ratio
+    local colour = P.good
+    if not self.live then colour = P.dim
+    elseif ratio > 1 + 1e-6 then colour = P.bad
+    elseif self.load > self.capacity + 1e-6 then colour = P.value end
+    self.loadColour = colour
+    self.percentText = tostring(math.min(999, math.floor(ratio * 100 + 0.5)))
+    local parts = { { getText(self.live and "IGUI_BU_Load" or "IGUI_BU_LoadIdle", load2(self.load), load2(self.limit)), P.text } }
+    if bank then
+        parts[#parts + 1] = { " = ", P.dim }
+        parts[#parts + 1] = { load2(self.capacity), P.good }
+        parts[#parts + 1] = { " + ", P.dim }
+        parts[#parts + 1] = { self.boost > 0 and load2(self.boost) or "0", self.boost > 0 and P.value or P.dim }
+    end
+    local width = 0
+    for _, part in ipairs(parts) do
+        part.x = width
+        width = width + UI.textWidth(part[1])
+    end
+    self.loadParts = parts
+    -- The breaker's gauge: while it drains, how long it holds as now; while it fills, that it cools.
+    local gauge = Panels.breaker(panel)
+    self.gaugeValue = gauge
+    self.gaugeShown = BU.overloadEnabled() and gauge < 1
+    local tip = getText("IGUI_BU_BreakerCooling")
+    local hours = self.live and Panels.breakerHoursLeft(gauge, ratio)
+    if hours then tip = getText("IGUI_BU_BreakerHolds", Ui.shortDuration(hours)) end
+    self.gauge:setTooltip(tip)
+    self.gauge:setVisible(self.gaugeShown)
+    self:placeLever(width)
 end
 
--- Under the body's parts (design units): the status line with its dot, the load bar and its text, the banner.
+-- The lever and the gauge after the load's text (or its bar, where that is longer), and the area of its tooltip.
+function ISBUPanelWindow:placeLever(textW)
+    local bigW = UI.textWidth("000", UIFont.Large) + UI.textWidth("%") + 4
+    self.bigW = bigW
+    local meterW = math.max(BAR_W, textW)
+    local leverX = PAD + bigW + 8 + meterW + 12
+    self.lever:setX(leverX)
+    self.gauge:setX(leverX + PanelWindow.LEVER_W + 4)
+    self.loadArea:setWidth(bigW + 8 + meterW)
+end
+
+-- How much of the bar the load fills now (0 to 1: BAR_MOST of the limit fills it).
+function ISBUPanelWindow:loadShare()
+    return math.min(1, (self.ratio or 0) / PanelWindow.BAR_MOST)
+end
+
+-- Under the body's parts (design units): the status line with its dot, the load's big percent, its bar and text, the
+-- breaker's gauge, the banner.
 function ISBUPanelWindow:drawBody(body)
     local now = getTimestampMs()
     local ms = math.min(100, now - (self.bodyFrameAt or now))
@@ -540,20 +656,42 @@ function ISBUPanelWindow:drawBody(body)
         end
     end
     if self.load then
-        local barY = self.loadY + (ROW - FONT_HGT_SMALL) / 2
+        local top, colour = self.loadY, self.loadColour
+        -- the percent, large, its sign small on its baseline, both at the right of their room
+        local bigY = top + math.floor((PanelWindow.LOAD_H - UI.fontHeight(UIFont.Large)) / 2)
+        local right = PAD + self.bigW
+        UI.textRight(body, "%", right, bigY + UI.baselineDrop(UIFont.Large, UIFont.Small), colour)
+        UI.textRight(body, self.percentText, right - UI.textWidth("%") - 1, bigY, colour, UIFont.Large)
+        -- the bar: the load's share up to BAR_MOST of the limit, in the state's colour, the limit marked
+        local x = right + 8
+        local barH = PanelWindow.BAR_H
+        local barY = top + 4
         local target = self:loadShare()
         local shown = self.loadShown or target
         shown = math.abs(shown - target) > 0.002 and approach(shown, target, ms, ISBUPanelWindow.LOAD_TAU) or target
         self.loadShown = shown
-        local colour = P.good
-        if self.panel.tripped or self.load > self.capacity then colour = P.bad elseif target > 0.8 then colour = P.warn end
-        UI.fill(body, PAD, barY, BAR_W, FONT_HGT_SMALL, P.inset)
-        UI.fill(body, PAD, barY, BAR_W * shown, FONT_HGT_SMALL, colour, 0.85)
-        UI.fill(body, PAD, barY, BAR_W * shown, 1, P.bright, 0.25)
-        -- the mark where the load comes near what the box carries
-        UI.fill(body, PAD + math.floor(BAR_W * 0.8), barY, 1, FONT_HGT_SMALL, P.warn, 0.45)
-        UI.frame(body, PAD, barY, BAR_W, FONT_HGT_SMALL, P.border)
-        UI.text(body, self.loadText, PAD + BAR_W + 8, barY, P.text)
+        local filled = math.floor(BAR_W * shown)
+        UI.fill(body, x, barY, BAR_W, barH, P.inset)
+        if filled > 0 then
+            UI.fill(body, x, barY, filled, barH, colour, 0.9)
+            UI.fill(body, x, barY, filled, 1, P.bright, 0.25)
+        end
+        UI.frame(body, x, barY, BAR_W, barH, P.border)
+        UI.fill(body, x + math.floor(BAR_W / PanelWindow.BAR_MOST), barY - 2, 1, barH + 4, P.bright, 0.85)
+        -- the load and the limit, and what the limit is made of
+        local textY = barY + barH + 3
+        for _, part in ipairs(self.loadParts) do UI.text(body, part[1], x + part.x, textY, part[2]) end
+        -- the breaker's gauge, filled from below: amber while it holds, red near the trip, dimmer while tripped
+        if self.gaugeShown then
+            local gx, gy = UI.dp(self.gauge:getX()) + 2, top + 3
+            local gw, gh = PanelWindow.GAUGE_W, PanelWindow.LOAD_H - 6
+            local value = math.max(0, math.min(1, self.gaugeValue or 1))
+            local c = (self.panel.tripped or value <= Panels.BREAKER_SHED_AT) and P.bad or P.warn
+            UI.fill(body, gx, gy, gw, gh, P.inset)
+            local fill = math.floor(gh * value + 0.5)
+            if fill > 0 then UI.fill(body, gx, gy + gh - fill, gw, fill, c, self.panel.tripped and 0.6 or 0.9) end
+            UI.frame(body, gx, gy, gw, gh, P.border)
+        end
     end
     local banner = self.banner
     if banner then
@@ -679,30 +817,14 @@ function ISBUPanelWindow:refresh()
     self.states = { power = power, water = water }
     self:setTitle(getText("IGUI_BU_TierName", Panels.name(panel), panel.tier or 1))
     self:placePanelTabs(true)
-    self.capacity = Panels.capacity(panel)
-    self.load = power and power.load or nil
-    self.loadFactor = power and power.loadFactor or 1
-    self.loadText = self.load and getText(panel.tripped and "IGUI_BU_LoadTripped" or "IGUI_BU_Load", load2(self.load),
-        load2(self.capacity)) or ""
-    -- What the line into the box loses, counted in the load.
-    local pieces, loss = Panels.powerLine(panel, power)
-    if self.load and pieces and loss > 0 and power.loadFactor then
-        local withLoss = self.loadText .. "   " .. getText("IGUI_BU_LineLoss", string.format("%.1f", loss), pieces)
-        local room = self.planButton:getX() - (PAD + BAR_W + 8) - PAD
-        if UI.textWidth(withLoss) <= room then self.loadText = withLoss end
-    end
-    self.loadArea:setVisible(self.load ~= nil)
-    self.loadArea:setWidth(BAR_W + 8 + UI.textWidth(self.loadText))
+    self:measureLoad(panel, power)
     if self.load and math.abs((self.loadShown or 0) - self:loadShare()) > 0.002 then UI.live(self.body, bodyFrame) end
-    -- The banner: the breaker down, devices shed, or the load near what the box carries.
+    -- The banner: the breaker down, or devices shed.
     local shed = count(panel.power.shed)
     if powerOn and panel.tripped then
-        self.banner = { text = getText("IGUI_BU_BannerTripped", load2(self.capacity)), colour = { 0.6, 0.1, 0.1 }, pulse = true }
+        self.banner = { text = getText("IGUI_BU_BannerTripped", load2(self.limit)), colour = { 0.6, 0.1, 0.1 }, pulse = true }
     elseif powerOn and shed > 0 then
         self.banner = { text = getText("IGUI_BU_BannerShed", shed), colour = { 0.6, 0.35, 0.05 } }
-    elseif self.load and BU.overloadEnabled() and self.load > self.capacity * 0.8 then
-        self.banner = { text = getText("IGUI_BU_BannerNear", string.format("%.0f", self.load * 100 / self.capacity)),
-            colour = { 0.45, 0.4, 0.05 } }
     else
         self.banner = nil
     end
@@ -713,7 +835,6 @@ function ISBUPanelWindow:refresh()
     self:placeTopButtons(self.plan:getIsVisible())
     local parent = Store.get(panel.parent)
     titled(self.mainButton, parent and getText("IGUI_BU_LeaveMain", Panels.name(parent)) or getText("IGUI_BU_JoinMain"))
-    self.resetButton:setVisible(powerOn and panel.tripped == true)
     local tier = panel.tier or 1
     self.upgradeButton:setVisible(tier < BU.TIERS)
     if tier < BU.TIERS then
@@ -722,9 +843,9 @@ function ISBUPanelWindow:refresh()
         self.upgradeButton:setTooltip(Panels.upgradeNote(tier + 1, true) .. "\n" .. Costs.describe(self.playerObj, cost, true))
         self.upgradeButton:setEnable(Costs.affords(self.playerObj, cost))
     end
-    -- The buttons shown, left to right: the reset only while the breaker is down, so the row fits the narrowest window.
+    -- The buttons shown, left to right.
     local x = PAD
-    for _, shown in ipairs({ self.renameButton, self.mainButton, self.resetButton, self.upgradeButton }) do
+    for _, shown in ipairs({ self.renameButton, self.mainButton, self.upgradeButton }) do
         if shown:getIsVisible() then
             shown:setX(x)
             x = x + shown:getWidth() + 6
@@ -796,7 +917,7 @@ function ISBUPanelWindow:loadBreakdown()
     if factor > 1 then
         lines[#lines + 1] = "  " .. getText("IGUI_BU_BreakdownLoss") .. "  " .. load2(self.load - self.load / factor)
     end
-    lines[#lines + 1] = getText("IGUI_BU_BreakdownTotal", load2(self.load), load2(self.capacity))
+    lines[#lines + 1] = getText("IGUI_BU_BreakdownTotal", load2(self.load), load2(self.limit))
     return table.concat(lines, "\n")
 end
 
@@ -851,8 +972,8 @@ function ISBUPanelWindow:preview(device)
     else
         after, key = self.load + power, device.inside and "IGUI_BU_PreviewOn" or "IGUI_BU_PreviewConnect"
     end
-    local text = getText(key, load2(after), load2(self.capacity))
-    if device.state ~= "on" and BU.overloadEnabled() and after > self.capacity + 1e-6 then
+    local text = getText(key, load2(after), load2(self.limit))
+    if device.state ~= "on" and BU.overloadEnabled() and after > self.limit + 1e-6 then
         text = text .. " <LINE> <RGB:1,0.4,0.4> " .. getText(Panels.sheds(self.panel) and "IGUI_BU_PreviewShed" or "IGUI_BU_PreviewTrip")
     end
     return text
@@ -877,7 +998,7 @@ function ISBUPanelWindow:deviceStatus(utility, device)
         elseif device.held then
             text = getText(HELD_TEXT[device.held])
         elseif power > 0 then
-            text = string.format("%.3f", power) .. " (" .. percent(power, self.capacity) .. ")"
+            text = string.format("%.3f", power) .. " (" .. percent(power, self.limit) .. ")"
         else
             text, dim = getText("IGUI_BU_Idle"), true
         end
@@ -931,12 +1052,6 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
     local view = { state = state, devices = devices, complete = complete, names = {}, status = {}, totals = {},
         producerText = {}, fresh = {} }
     self.views[utility] = view
-    -- The box's main switch first: all its power, thrown at the box.
-    if utility == "power" then
-        local off = panel.switchedOff == true
-        add({ kind = "mainSwitch", text = getText(off and "IGUI_BU_MainSwitchOff" or "IGUI_BU_MainSwitchOn"),
-            state = off and "off" or "on" }, getText(panel.parent and "IGUI_BU_MainSwitchTipSub" or "IGUI_BU_MainSwitchTip"))
-    end
     local parent = Store.get(panel.parent)
     if parent then
         add({ kind = "link", header = true, text = getText("IGUI_BU_SuppliedBy", Panels.name(parent)), target = parent.id },
@@ -1017,7 +1132,7 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
         if device.inside and device.state == "off" then offPower = offPower + (device.power or 0) end
     end
     if utility == "power" and self.load and offPower > 0 then
-        allTip = getText("IGUI_BU_PreviewAll", load2(self.load + offPower), load2(self.capacity))
+        allTip = getText("IGUI_BU_PreviewAll", load2(self.load + offPower), load2(self.limit))
     end
     add({ kind = "all", text = getText("IGUI_BU_AllInside"), state = self:allInside(devices) and "on" or "off" }, allTip)
     if utility == "power" then
@@ -1278,8 +1393,6 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
         Sync.send(playerObj, "setAllInside", { panel = panel.id, utility = utility, on = row.state ~= "on" })
     elseif row.kind == "blackout" then
         Sync.send(playerObj, "setBlackout", { panel = panel.id, on = row.state ~= "on" })
-    elseif row.kind == "mainSwitch" then
-        BU.ContextMenu.queueAt(playerObj, panel.x, panel.y, panel.z, ISBUMainSwitch:new(playerObj, panel, row.state == "on"))
     elseif row.kind == "filter" then
         self:filterRoom(nil)
     elseif row.kind == "floor" then
@@ -1325,7 +1438,12 @@ function ISBUPanelWindow:onRenamed(button)
     Sync.send(self.playerObj, "rename", { panel = self.panel.id, name = button.parent.entry:getText() })
 end
 
-function ISBUPanelWindow:onReset() Sync.send(self.playerObj, "resetBreaker", { panel = self.panel.id }) end
+-- The lever thrown the other way, by the player at the box.
+function ISBUPanelWindow:onLever()
+    local panel = self.panel
+    BU.ContextMenu.queueAt(self.playerObj, panel.x, panel.y, panel.z,
+        ISBUMainSwitch:new(self.playerObj, panel, Panels.leverUp(panel)))
+end
 
 function ISBUPanelWindow:onUpgrade()
     local panel = self.panel

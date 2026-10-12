@@ -702,6 +702,43 @@ end
 
 -- Overload.
 
+-- What a box carries before it overloads: its own share (Panels.capacity) and what its bank's batteries add while it
+-- has charge (Energy.boost; a main panel's). `bank`: the panel's, when the caller has it (else it is looked up).
+function Panels.limit(panel, bank)
+    local capacity = Panels.capacity(panel)
+    if panel.parent or not BU.Energy then return capacity end
+    if bank == nil then bank = BU.Energy.bank(panel) end
+    return capacity + BU.Energy.boost(panel, bank or nil)
+end
+
+-- The breaker holds an overload for a while, as a real one heats: its gauge (1 full, panel.power.breaker) drains at
+-- (r - 1)^2 / BREAKER_K an hour, r the load over the limit (105% in two hours, 110% in half an hour, 150% in a little
+-- over a minute), and empties at once from BREAKER_INSTANT. Under the limit it fills again in BREAKER_FILL_HOURS. A
+-- box that sheds turns devices off as the gauge reaches BREAKER_SHED_AT, and on again once it is back to
+-- BREAKER_RESTORE_AT.
+Panels.BREAKER_K, Panels.BREAKER_INSTANT, Panels.BREAKER_FILL_HOURS = 0.005, 2, 2
+Panels.BREAKER_SHED_AT, Panels.BREAKER_RESTORE_AT = 0.5, 0.9
+
+-- Whether the box's lever is up: its breaker holds and its main switch is on (Changes.setLever).
+function Panels.leverUp(panel) return not (panel.tripped or panel.switchedOff) end
+
+-- The breaker's gauge now (1 full).
+function Panels.breaker(panel) return panel.power.breaker or 1 end
+
+-- What the gauge loses an hour at a load so many times the limit (0 at or under it; math.huge from INSTANT).
+function Panels.breakerDrain(ratio)
+    if ratio <= 1 then return 0 end
+    if ratio >= Panels.BREAKER_INSTANT then return math.huge end
+    return (ratio - 1) * (ratio - 1) / Panels.BREAKER_K
+end
+
+-- The game hours the gauge lasts at that ratio from where it is, down to `to` (0: the trip); nil when it does not drain.
+function Panels.breakerHoursLeft(gauge, ratio, to)
+    local drain = Panels.breakerDrain(ratio)
+    if drain <= 0 then return nil end
+    return math.max(0, gauge - (to or 0)) / drain
+end
+
 -- Whether a box sheds devices under overload before its breaker trips.
 function Panels.sheds(panel) return BU.overloadEnabled() and (panel.tier or 1) >= BU.SMART_TIER end
 

@@ -303,7 +303,7 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         if row.right then UI.textRight(c, row.right, buttons[1].x - 8, textY, LINK) end
     elseif row.kind == "addGroup" then
         UI.text(c, row.text, PAD * 2, textY, OPEN)
-    elseif row.kind == "device" or row.kind == "all" or row.kind == "blackout" or row.kind == "mainSwitch" then
+    elseif row.kind == "device" or row.kind == "all" or row.kind == "blackout" then
         local indent = row.kind == "device" and PAD * 3 or PAD * 2
         tick(self, c, index .. "tick", indent, y, row.state == "on" and "on" or "off")
         UI.text(c, row.text, indent + ROW + 4, textY, row.state ~= "other" and PLAIN or MUTED)

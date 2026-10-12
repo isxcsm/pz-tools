@@ -3,6 +3,7 @@
 require "BuildingUtilities/ContextMenu"
 require "BuildingUtilities/PanelWindow"
 require "BuildingUtilities/PanelStatus"
+require "BuildingUtilities/RackWindow"
 require "BuildingUtilities/Moveables"
 require "BuildingUtilities/Batteries"
 require "BuildingUtilities/Lights"
@@ -28,6 +29,7 @@ local summaries = {}
 function BU.onChanged()
     giveSummaries()
     PanelWindow.refreshAll()
+    BU.RackWindow.refreshAll()
     summaries = {}
     -- A client's data is the server's only once received (onReceiveGlobalModData).
     if not isClient() then PanelWindow.forgetRemoved() end
@@ -54,6 +56,7 @@ function BU.onNotice(panelId, key, args)
         end
     end
     PanelWindow.refreshAll()
+    BU.RackWindow.refreshAll()
 end
 
 -- The mouse over a box: its name and tier, the breaker and main switch, power and water as its window's status line
@@ -87,11 +90,12 @@ local function summaryOf(panel)
     if powerOn then statusLine(lines, getText("IGUI_BU_TipPower"), PanelWindow.status(panel, "power")) end
     local power = BU.Networks.state(panel, "power")
     if power and power.load then
-        local capacity = Panels.capacity(panel)
-        -- Amber near what the box carries, as its window's banner, where overload trips it.
-        local near = BU.overloadEnabled() and power.load > capacity * 0.8
-        lines[#lines + 1] = { label = getText("IGUI_BU_TipLoad"), value = string.format("%.2f / %.2f", power.load, capacity),
-            r = 1, g = near and 0.7 or 1, b = near and 0.4 or 1 }
+        -- As the window's top tells it: the load (charging the bank aside) against the limit, red over it.
+        local load = math.max(0, power.load - BU.Energy.charging(panel) * (power.loadFactor or 1))
+        local limit = Panels.limit(panel)
+        local over = BU.overloadEnabled() and load > limit + 1e-6
+        lines[#lines + 1] = { label = getText("IGUI_BU_TipLoad"), value = string.format("%.2f / %.2f", load, limit),
+            r = 1, g = over and 0.42 or 1, b = over and 0.38 or 1 }
     end
     -- Water where the box, or the main panel it takes its supply from, has tanks.
     local top, steps = panel, 0

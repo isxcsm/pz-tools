@@ -1,6 +1,5 @@
 {
     "ContextMenu_BU_Install": "Install Utility Panel",
-    "ContextMenu_BU_ResetBreaker": "Reset Breaker",
     "ContextMenu_BU_Upgrade": "Upgrade to Tier %1",
     "ContextMenu_BU_ConnectTo": "Connect to Utility Panel",
     "ContextMenu_BU_ConnectToPanel": "Connect to %1 (%2)",

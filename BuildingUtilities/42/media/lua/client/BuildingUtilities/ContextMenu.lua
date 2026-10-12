@@ -183,10 +183,12 @@ end
 
 local function onUnitAction(playerObj, unit, action) queueAt(playerObj, unit.x, unit.y, unit.z, action(playerObj, unit)) end
 
--- A unit's lines, no submenu: its name and state, which opens the window of the box it is wired to; what its kind
--- offers now (Units.define: clearing snow, a new filter charge); wired, taking its line away; not wired, the boxes in
--- reach it can be wired to. The unit is taken up with the furniture tool. One of a kind that is off (BU.enabled) is
--- only named.
+local function onOpenRack(playerObj, unit) queueAt(playerObj, unit.x, unit.y, unit.z, ISBUOpenRack:new(playerObj, unit)) end
+
+-- A unit's lines, no submenu: its name and state, which opens the window of the box it is wired to (a rack's own
+-- window, BU.RackWindow); what its kind offers now (Units.define: clearing snow, a new filter charge); wired, taking
+-- its line away; not wired, the boxes in reach it can be wired to. The unit is taken up with the furniture tool. One
+-- of a kind that is off (BU.enabled) is only named.
 local function addUnitOptions(context, playerObj, unit)
     local definition = Units.definition(unit.kind)
     local on = BU.enabled(unit.kind)
@@ -195,8 +197,13 @@ local function addUnitOptions(context, playerObj, unit)
     if on and definition.title then title = definition.title(unit, title) end
     title = panel and getText("IGUI_BU_UnitWired", title, Panels.name(panel)) or title
     if not on then title = getText("IGUI_BU_UnitOff", title) end
-    local option = context:addOptionOnTop(title, panel and playerObj or nil, panel and onOpen or nil, panel)
-    if panel and not BU.api() then unavailable(option, apiMissingText()) end
+    if unit.kind == "rack" and on then
+        -- A rack opens its own window, wired or not (BU.RackWindow).
+        context:addOptionOnTop(title, playerObj, onOpenRack, unit)
+    else
+        local option = context:addOptionOnTop(title, panel and playerObj or nil, panel and onOpen or nil, panel)
+        if panel and not BU.api() then unavailable(option, apiMissingText()) end
+    end
     if not on then return end
     for _, entry in ipairs(definition.options and definition.options(unit, playerObj) or {}) do
         local choice = context:addOption(entry.text, playerObj, onUnitAction, unit, entry.action)

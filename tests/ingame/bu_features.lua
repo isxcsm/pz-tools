@@ -220,7 +220,7 @@ window:refresh()
 window = PanelWindow.get(panel.id)
 check("window power off: power tab", window.lists.power ~= nil, false)
 check("window power off: water tab", window.lists.water ~= nil, true)
-check("window power off: reset shown", window.resetButton:getIsVisible(), false)
+check("window power off: lever shown", window.lever:getIsVisible(), false)
 
 -- Both off: the box can no longer be put down, its window has the log only, nothing of the mod runs.
 page.EnableWater = false

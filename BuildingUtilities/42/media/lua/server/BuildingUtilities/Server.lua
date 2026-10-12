@@ -1,12 +1,14 @@
 -- Where the world is decided (the server, or the game alone): the networks from the save as the world starts, the
--- players' commands, breakers that trip under overload, what players near a box should hear, and each minute the
+-- players' commands, breakers under overload (BU.Overload), what players near a box should hear, and each minute the
 -- units (solar panels, the bank and its charge controller) and the water units (BU.WaterRun), with the records the
 -- window shows.
 require "BuildingUtilities/Changes"
 require "BuildingUtilities/Moveables"
 require "BuildingUtilities/WaterRun"
+require "BuildingUtilities/Overload"
 local BU = BuildingUtilities
 local Store, Panels, Networks, Changes, Sync, Energy = BU.Store, BU.Panels, BU.Networks, BU.Changes, BU.Sync, BU.Energy
+local Overload = BU.Overload
 
 -- Commands: the free changes a player makes at a box. Each names the panel; the rest is checked here.
 local commands = {}
@@ -83,10 +85,6 @@ function commands.setGroupOverflow(player, panel, args)
     Changes.setGroupOverflow(panel, tonumber(args.group), tonumber(args.target))
 end
 
-function commands.resetBreaker(player, panel, args)
-    if panel.tripped then Changes.resetBreaker(panel) end
-end
-
 -- "Switch to solar" (Energy.sourceOffer): the source takes the load over from the generator in use, which the API
 -- switches off, on standby.
 function commands.useSource(player, panel, args)
@@ -114,7 +112,7 @@ end
 
 -- The feature a command needs on (BU.enabled), besides its utility's; one of a feature that is off is ignored, as
 -- the window no longer offers it.
-local NEEDS = { setBlackout = "power", resetBreaker = "power", setEssential = "power", setSchedule = "power",
+local NEEDS = { setBlackout = "power", setEssential = "power", setSchedule = "power",
     setController = "controller", addWaterGroup = "water", renameWaterGroup = "water", removeWaterGroup = "water",
     setProducerGroup = "water", setDeviceGroup = "water", setUnitGroup = "water", setGroupReserve = "water",
     setGroupOverflow = "water" }
@@ -131,38 +129,6 @@ end
 local function any(set)
     for _ in pairs(set) do return true end
     return false
-end
-
--- Overload: a box whose power network draws more than it carries trips its breaker; one that sheds first turns off
--- devices that are not essential, if that is enough, and turns them on again when there is room. The room last
--- tried, by panel: restoring is tried again once it is another.
-local restoreTried = {}
-
-local function checkLoad(panel)
-    local shed = panel.power.shed
-    if not Panels.sheds(panel) and any(shed) then
-        local keys = {}
-        for key in pairs(shed) do keys[#keys + 1] = key end
-        Changes.restore(panel, keys)
-    end
-    if not BU.overloadEnabled() or panel.tripped then return end
-    local state = Networks.state(panel, "power")
-    if not (state and state.supplied and state.load) then return end
-    -- The load counts what the line loses; a device takes that much more of it.
-    local capacity, factor = Panels.capacity(panel), math.max(state.loadFactor or 1, 1e-6)
-    if state.load > capacity + 1e-6 then
-        local keys, powers
-        if Panels.sheds(panel) then keys, powers = Panels.shedPlan(panel, (state.load - capacity) / factor) end
-        if keys then Changes.shed(panel, keys, powers) else Changes.trip(panel) end
-    elseif any(shed) then
-        local room = (capacity - state.load) / factor
-        local tried = restoreTried[panel.id]
-        if tried == nil or math.abs(tried - room) > 1e-6 then
-            restoreTried[panel.id] = room
-            local keys = Panels.restorePlan(panel, room)
-            if #keys > 0 then Changes.restore(panel, keys) end
-        end
-    end
 end
 
 -- What players hear: the generator in use changed (and the relay's click), power or water ran out, fuel runs low.
@@ -257,14 +223,12 @@ local function checkSource(panel, hours)
         if can or rules.generators then Networks.setSource(panel, true, true) else panel.sourceOn = nil end
         return
     end
-    -- Charging from a generator (tier 3): what the bank lacks, at most CHARGE_RATE a battery, and within what the box
-    -- carries over its devices' load, since charging counts toward overload.
+    -- Charging from a generator (tier 3): what the bank lacks, within what the box's own share leaves over its devices'
+    -- load (Panels.capacity, with a margin).
     local charging = 0
     if controller and bank and state.supplied and not inUse then
-        charging = math.min(Energy.CHARGE_RATE * #bank.batteries, (bank.capacity - bank.energy) / math.max(0.01, Energy.efficiency()))
-        if BU.overloadEnabled() then
-            charging = math.min(charging, math.max(0, Panels.capacity(panel) * 0.9 - rules.load) / math.max(state.loadFactor or 1, 1e-6))
-        end
+        charging = math.min((bank.capacity - bank.energy) / math.max(0.01, Energy.efficiency()),
+            math.max(0, Panels.capacity(panel) * 0.9 - rules.load) / math.max(state.loadFactor or 1, 1e-6))
         if charging < 0.001 then charging = 0 end
     end
     Changes.setExtraLoad(panel, "charging", charging)
@@ -311,7 +275,7 @@ local function onNetworkChange(id, what)
     local state = utility == "water" and Networks.groupState(panel, group, floors) or Networks.state(panel, utility)
     -- Another producer carries it: its line is another length.
     if utility == "power" and what == "producer" and not panel.parent then Networks.applyLoss(panel) end
-    if utility == "power" then checkLoad(panel) end
+    if utility == "power" then Overload.check(panel) end
     if panel.parent or not state then return end
     -- The relay clicks over to another producer, or as power comes or goes: heard at the box.
     if (what == "producer" or what == "supply") and utility == "power" then Sync.sound(panel, "LightSwitch") end
@@ -415,7 +379,7 @@ local function everyMinute()
     for _, panel in ipairs(Store.list()) do
         Changes.syncAttached(panel)
         if power then
-            checkLoad(panel)
+            Overload.check(panel, hours)
             checkFuel(panel)
             checkResumed(panel)
             hourEnded = recordEnergy(panel) or hourEnded

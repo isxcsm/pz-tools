@@ -17,7 +17,8 @@ local KEY = "BuildingUtilities"
 --   BU.thingKey), included (BU.thingKey to what connecting it cost) and attached (a set: devices in rooms built onto
 --   the building, which the box takes as its building's though the API has them as single objects, BU.Panels.attached);
 --   for power also essential (a set: the box
---   never sheds them), schedule (BU.thingKey to a timer of BU.SCHEDULES), and what the box keeps off on its own:
+--   never sheds them), schedule (BU.thingKey to a timer of BU.SCHEDULES), breaker (its breaker's gauge under
+--   overload, 0 to 1, nil while full: BU.Panels.breaker), and what the box keeps off on its own:
 --   shed (under overload: BU.thingKey to what the device drew as it was shed, or true from an older version), saving
 --   (a set, keeping a low battery bank), blackout (a set: its lights, off by the player at the box) and timed (a set,
 --   by their timers).

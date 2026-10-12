@@ -88,12 +88,22 @@ end
 
 function Dev.trip(panel) Changes.trip(panel) end
 function Dev.resetBreaker(panel) Changes.resetBreaker(panel) end
-function Dev.mainSwitch(panel, off) Changes.setSwitchedOff(panel, off) end
+function Dev.mainSwitch(panel, off) Changes.setLever(panel, not off) end
 
--- A load twice what the panel's tier carries, added at the box: with overload on, the breaker trips (or a tier 4
--- box sheds devices) at the next minute.
-function Dev.overload(panel, on)
-    Changes.setExtraLoad(panel, "dev", on and BU.capacity(panel.tier or 1) * 2 or 0)
+-- A load added at the box that brings the panel's to so many times its limit (Panels.limit; twice by default): with
+-- overload on, twice trips the breaker at the next minute, a little over drains its gauge (a tier 4 box sheds
+-- devices as it runs low).
+function Dev.overload(panel, on, ratio)
+    local extra = 0
+    if on then
+        -- what the breaker counts without this load (charging the bank aside), at the box
+        local state = BU.Networks.state(panel, "power")
+        local factor = state and state.loadFactor or 1
+        local extras = panel.extraLoads or {}
+        local base = state and state.load and state.load / factor - (extras.dev or 0) - (extras.charging or 0) or 0
+        extra = math.max(0.01, BU.Panels.limit(panel) * (ratio or 2) / factor - math.max(0, base))
+    end
+    Changes.setExtraLoad(panel, "dev", extra)
     Sync.changed(panel.id)
 end
 

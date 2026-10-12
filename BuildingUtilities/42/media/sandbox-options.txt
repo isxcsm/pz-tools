@@ -186,6 +186,12 @@ option BuildingUtilities.BatteryCapacity
     page = BuildingUtilities, translation = BuildingUtilities_BatteryCapacity,
 }
 
+option BuildingUtilities.BatteryOutput
+{
+    type = double, min = 0.0, max = 5.0, default = 0.15,
+    page = BuildingUtilities, translation = BuildingUtilities_BatteryOutput,
+}
+
 option BuildingUtilities.ChargeEfficiency
 {
     type = integer, min = 10, max = 100, default = 85,
