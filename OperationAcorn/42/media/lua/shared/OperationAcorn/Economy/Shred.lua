@@ -53,7 +53,7 @@ function Shred.count(record, baseType)
 end
 
 local function decay()
-    return OA.option("ShredDecay") or 50
+    return OA.scaled(50, "ShredDecayMultiplier")
 end
 
 -- The expected sample bundles one thing of this kind gives now, and the first-shred bonus it would pay (0 if the

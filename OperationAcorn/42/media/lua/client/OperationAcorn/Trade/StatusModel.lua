@@ -541,7 +541,7 @@ function M.waybill(record, flight)
     local account = Trade.account(record)
     local heli = record.heli or {}
     local w = { serial = Ledger.nextSerial(record), send = {}, recv = {}, calc = {} }
-    local reissueCost = OA.option("BoxReissueCost") or 10000
+    local reissueCost = OA.reissueCost()
     -- What goes up.
     local sealed = flight.boxes or #Boxes.sealed(record)
     local fee = flight.fee or 0

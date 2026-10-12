@@ -99,8 +99,9 @@ test("the discount is an upgrade: the stage alone gives none", function()
     eq(S.price(find("battery_pack"), r), 3600, "level 2 is 10% off")
 end)
 
-test("the cure serum price is a sandbox option", function()
-    SandboxVars.OperationAcorn.CureSerumPrice = 50000
+test("the cure serum price is the mod's, times its option", function()
+    eq(S.price(find("cure_serum"), record(0)), 500000)
+    SandboxVars.OperationAcorn.CureSerumPriceMultiplier = 0.1
     eq(S.price(find("cure_serum"), record(0)), 50000)
 end)
 
@@ -146,7 +147,7 @@ test("serums and the box ignore the multiplier and the discount", function()
     local r = record(5, 2)
     eq(S.price(find("serum_scout"), r), 8000)
     eq(S.price(find("box_reissue"), r), 10000)
-    SandboxVars.OperationAcorn.BoxReissueCost = 7000
+    SandboxVars.OperationAcorn.BoxReissueCostMultiplier = 0.7
     eq(S.price(find("box_reissue"), r), 7000)
 end)
 
@@ -159,7 +160,7 @@ end)
 test("after the 26th the price goes straight up by 30,000", function()
     eq(S.serumPriceAt(27), 263400 + 30000)
     eq(S.serumPriceAt(30), 263400 + 120000)
-    SandboxVars.OperationAcorn.UpgradeSerumPrice = 16000
+    SandboxVars.OperationAcorn.UpgradeSerumPriceMultiplier = 2
     eq(S.serumPriceAt(1), 16000)
     eq(S.serumPriceAt(27) - S.serumPriceAt(26), 60000, "the straight part scales with the base")
 end)
@@ -176,8 +177,8 @@ test("each tree counts its own serums", function()
     eq(S.serumPrice("scout", r, 9), S.serumPriceAt(10))
 end)
 
-test("serum growth is a sandbox option", function()
-    SandboxVars.OperationAcorn.UpgradeSerumGrowth = 1.0
+test("serum growth scales with its option", function()
+    SandboxVars.OperationAcorn.UpgradeSerumGrowthMultiplier = 0
     eq(S.serumPriceAt(20), 8000)
 end)
 

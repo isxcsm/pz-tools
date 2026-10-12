@@ -419,7 +419,7 @@ test("serum prices follow NUMBERS 6", function()
     eq(Rules.serumPrice(26), 263400)
     eq(Rules.serumPrice(27), 293400)
     eq(Rules.serumPrice(30), 383400)
-    SandboxVars.OperationAcorn.UpgradeSerumPrice = 16000
+    SandboxVars.OperationAcorn.UpgradeSerumPriceMultiplier = 2
     eq(Rules.serumPrice(1), 16000)
 end)
 

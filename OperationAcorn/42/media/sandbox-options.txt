@@ -36,46 +36,40 @@ option OperationAcorn.RequestPrice
     page = OperationAcornTrade, translation = OperationAcorn_RequestPrice,
 }
 
-option OperationAcorn.HelicopterArrivalMin
+option OperationAcorn.HelicopterArrivalMultiplier
 {
-    type = integer, min = 1, max = 48, default = 4,
-    page = OperationAcornTrade, translation = OperationAcorn_HelicopterArrivalMin,
+    type = double, min = 0.1, max = 10.0, default = 1.0,
+    page = OperationAcornTrade, translation = OperationAcorn_HelicopterArrivalMultiplier,
 }
 
-option OperationAcorn.HelicopterArrivalMax
+option OperationAcorn.CallIntervalMultiplier
 {
-    type = integer, min = 1, max = 48, default = 6,
-    page = OperationAcornTrade, translation = OperationAcorn_HelicopterArrivalMax,
+    type = double, min = 0.1, max = 10.0, default = 1.0,
+    page = OperationAcornTrade, translation = OperationAcorn_CallIntervalMultiplier,
 }
 
-option OperationAcorn.CallInterval
+option OperationAcorn.HelicopterNoiseMultiplier
 {
-    type = double, min = 0.25, max = 30.0, default = 3.0,
-    page = OperationAcornTrade, translation = OperationAcorn_CallInterval,
+    type = double, min = 0.0, max = 3.0, default = 1.0,
+    page = OperationAcornTrade, translation = OperationAcorn_HelicopterNoiseMultiplier,
 }
 
-option OperationAcorn.HelicopterNoiseRadius
+option OperationAcorn.BoxReissueCostMultiplier
 {
-    type = integer, min = 0, max = 300, default = 100,
-    page = OperationAcornTrade, translation = OperationAcorn_HelicopterNoiseRadius,
+    type = double, min = 0.0, max = 10.0, default = 1.0,
+    page = OperationAcornTrade, translation = OperationAcorn_BoxReissueCostMultiplier,
 }
 
-option OperationAcorn.BoxReissueCost
+option OperationAcorn.MissionDeadlineMultiplier
 {
-    type = integer, min = 0, max = 1000000, default = 10000,
-    page = OperationAcornTrade, translation = OperationAcorn_BoxReissueCost,
+    type = double, min = 0.1, max = 10.0, default = 1.0,
+    page = OperationAcornTrade, translation = OperationAcorn_MissionDeadlineMultiplier,
 }
 
-option OperationAcorn.MissionDeadline
+option OperationAcorn.MissionIntervalMultiplier
 {
-    type = integer, min = 1, max = 60, default = 7,
-    page = OperationAcornTrade, translation = OperationAcorn_MissionDeadline,
-}
-
-option OperationAcorn.MissionInterval
-{
-    type = integer, min = 0, max = 60, default = 3,
-    page = OperationAcornTrade, translation = OperationAcorn_MissionInterval,
+    type = double, min = 0.0, max = 10.0, default = 1.0,
+    page = OperationAcornTrade, translation = OperationAcorn_MissionIntervalMultiplier,
 }
 
 option OperationAcorn.MissionGuards
@@ -96,28 +90,28 @@ option OperationAcorn.KitsForSale
     page = OperationAcornShop, translation = OperationAcorn_KitsForSale,
 }
 
-option OperationAcorn.CureSerumPrice
+option OperationAcorn.CureSerumPriceMultiplier
 {
-    type = integer, min = 0, max = 2000000, default = 500000,
-    page = OperationAcornShop, translation = OperationAcorn_CureSerumPrice,
+    type = double, min = 0.0, max = 10.0, default = 1.0,
+    page = OperationAcornShop, translation = OperationAcorn_CureSerumPriceMultiplier,
 }
 
-option OperationAcorn.CureSerumShelfLife
+option OperationAcorn.CureSerumShelfLifeMultiplier
 {
-    type = integer, min = 1, max = 365, default = 7,
-    page = OperationAcornShop, translation = OperationAcorn_CureSerumShelfLife,
+    type = double, min = 0.1, max = 10.0, default = 1.0,
+    page = OperationAcornShop, translation = OperationAcorn_CureSerumShelfLifeMultiplier,
 }
 
-option OperationAcorn.UpgradeSerumPrice
+option OperationAcorn.UpgradeSerumPriceMultiplier
 {
-    type = integer, min = 0, max = 1000000, default = 8000,
-    page = OperationAcornUpgrades, translation = OperationAcorn_UpgradeSerumPrice,
+    type = double, min = 0.0, max = 10.0, default = 1.0,
+    page = OperationAcornUpgrades, translation = OperationAcorn_UpgradeSerumPriceMultiplier,
 }
 
-option OperationAcorn.UpgradeSerumGrowth
+option OperationAcorn.UpgradeSerumGrowthMultiplier
 {
-    type = double, min = 1.0, max = 2.0, default = 1.15,
-    page = OperationAcornUpgrades, translation = OperationAcorn_UpgradeSerumGrowth,
+    type = double, min = 0.0, max = 3.0, default = 1.0,
+    page = OperationAcornUpgrades, translation = OperationAcorn_UpgradeSerumGrowthMultiplier,
 }
 
 option OperationAcorn.UpgradeEffectMultiplier
@@ -132,9 +126,8 @@ option OperationAcorn.SharedSerumMilestones
     page = OperationAcornUpgrades, translation = OperationAcorn_SharedSerumMilestones,
 }
 
-option OperationAcorn.ShredDecay
+option OperationAcorn.ShredDecayMultiplier
 {
-    type = integer, min = 1, max = 1000, default = 50,
-    page = OperationAcornUpgrades, translation = OperationAcorn_ShredDecay,
+    type = double, min = 0.1, max = 10.0, default = 1.0,
+    page = OperationAcornUpgrades, translation = OperationAcorn_ShredDecayMultiplier,
 }
-

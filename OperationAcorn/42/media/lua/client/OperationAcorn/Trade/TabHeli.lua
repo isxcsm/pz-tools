@@ -31,7 +31,7 @@ function OATabHeli:model(record)
         infection = M.infection(M.infectionState(record)),
         guide = Folder.newGuide(record),
         waybill = M.waybill(record, flight),
-        reissueCost = OA.option("BoxReissueCost") or 10000,
+        reissueCost = OA.reissueCost(),
     }
 end
 

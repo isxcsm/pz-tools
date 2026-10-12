@@ -240,8 +240,8 @@ end
 -- Upgrade serum price by how many of the tree were bought before (n = 1 for the first): 8000 * 1.15^(n - 1) to the
 -- nearest 100, straight up after the 26th (NUMBERS 6). The sandbox base price scales the straight part.
 function Shop.serumPriceAt(n)
-    local base = OA.option("UpgradeSerumPrice") or 8000
-    local growth = OA.option("UpgradeSerumGrowth") or 1.15
+    local base = OA.scaled(8000, "UpgradeSerumPriceMultiplier")
+    local growth = 1 + OA.scaled(0.15, "UpgradeSerumGrowthMultiplier")
     local limit = Shop.SERUM_LINEAR_FROM
     local function rounded(x) return OA.round(x / 100) * 100 end
     if n <= limit then return rounded(base * growth ^ (n - 1)) end
@@ -276,9 +276,9 @@ end
 function Shop.price(entry, record)
     if entry.special == "serum" then return Shop.serumPrice(entry.tree, record) end
     if entry.special == "kit" then return Shop.kitPrice(entry.kit, "", record) end
-    if entry.special == "reissue" then return OA.option("BoxReissueCost") or entry.price end
+    if entry.special == "reissue" then return OA.reissueCost() end
     local base = entry.price
-    if entry.special == "cure" then base = OA.option("CureSerumPrice") or base end
+    if entry.special == "cure" then base = OA.scaled(base, "CureSerumPriceMultiplier") end
     if entry.fixed then return OA.round(base) end
     local multiplier = OA.option("ShopPriceMultiplier") or 1.0
     local discount = OA.Trust.rewards(record).discount

@@ -53,7 +53,7 @@ if cure then
     Serums.use(player, cure, id)
     P3T.check(say, "a cure serum of another owner does nothing", Serums.infected(player))
     cure:getModData().OA_Owner = id
-    cure:getModData().OA_Issued = OA.hours() - (OA.option("CureSerumShelfLife") or 7) * 24 - 1
+    cure:getModData().OA_Issued = OA.hours() - OA.scaled(7, "CureSerumShelfLifeMultiplier") * 24 - 1
     Serums.use(player, cure, id)
     P3T.check(say, "an expired cure serum does nothing", Serums.infected(player))
     cure:getModData().OA_Issued = OA.hours()

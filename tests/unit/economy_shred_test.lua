@@ -42,8 +42,8 @@ test("repeats decay: 1 / (1 + c / 50)", function()
     near((Sh.yield(pan, r, nil, 0)), 0.5, 1e-9)
     near((Sh.yield(pan, r, nil, 50)), 0.25, 1e-9, "50 recent shreds halve it")
     near((Sh.yield(pan, r, nil, 150)), 0.125, 1e-9)
-    SandboxVars.OperationAcorn.ShredDecay = 10
-    near((Sh.yield(pan, r, nil, 10)), 0.25, 1e-9, "ShredDecay sets the half point")
+    SandboxVars.OperationAcorn.ShredDecayMultiplier = 0.2
+    near((Sh.yield(pan, r, nil, 10)), 0.25, 1e-9, "the option scales the half point")
 end)
 
 test("five a day halve the yield in the long run", function()

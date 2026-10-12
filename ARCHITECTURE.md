@@ -174,7 +174,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
   `IGUI_OA_Gear_`. 우클릭 메뉴는 `ContextMenu_OA_<묶음>_`, 툴팁은 `Tooltip_OA_<묶음>_`. 파일은 게임의 정해진 이름
   (`IG_UI.json`, `ContextMenu.json`, `Tooltip.json`, `ItemName.json`, `Recipes.json`)이고, 합칠 때 키를 모은다.
 - **한국어 용어:** 물 저장소(탱크 아님), 강화(특성 아님), 납품 상자, 보급 상자, 통신 단말, 채집점 번호, 연구 승인. 설정집의 이름을 따른다.
-- **샌드박스 옵션:** `sandbox-options.txt`의 22개가 전부다. 새 옵션이 필요하면 이 문서와 NUMBERS를 같이 고친다.
+- **샌드박스 옵션:** `sandbox-options.txt`의 22개가 전부다. 숫자 옵션은 배율(기본 1.0, `OA.scaled(base, option)`)이나 백분율(기본 100)이고, 밸런스 숫자 자체는 코드에 둔다 (세이브는 만든 날의 옵션 값을 갖고 있다). 새 옵션이 필요하면 이 문서와 NUMBERS를 같이 고친다.
 
 ## 7. 합치기
 

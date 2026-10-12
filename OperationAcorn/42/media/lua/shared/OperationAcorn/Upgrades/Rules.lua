@@ -324,8 +324,8 @@ end
 -- its price is the one asked when it is there; the same formula stands in for it when it is not (tests).
 function Rules.serumPrice(n)
     if OA.Shop and OA.Shop.serumPriceAt then return OA.Shop.serumPriceAt(n) end
-    local base = OA.option("UpgradeSerumPrice") or 8000
-    local growth = OA.option("UpgradeSerumGrowth") or 1.15
+    local base = OA.scaled(8000, "UpgradeSerumPriceMultiplier")
+    local growth = 1 + OA.scaled(0.15, "UpgradeSerumGrowthMultiplier")
     local function grown(k) return round100(base * growth ^ (k - 1)) end
     if n <= 26 then return grown(n) end
     return grown(26) + round100(30000 * base / 8000) * (n - 26)

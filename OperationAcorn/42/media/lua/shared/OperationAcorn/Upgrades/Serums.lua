@@ -128,7 +128,7 @@ end
 -- Whether a cure serum item works for the character now: "ok" and the days left, "expired" or "notOwner".
 function Serums.cureStatus(item, id, now)
     local data = item:getModData()
-    return Rules.cureStatus(data.OA_Issued, data.OA_Owner, id, now or OA.hours(), OA.option("CureSerumShelfLife") or 7)
+    return Rules.cureStatus(data.OA_Issued, data.OA_Owner, id, now or OA.hours(), OA.scaled(7, "CureSerumShelfLifeMultiplier"))
 end
 
 -- The infection's progress (0 to 1) as the body has it.

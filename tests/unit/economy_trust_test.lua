@@ -178,10 +178,9 @@ test("rewardsFor takes the levels as they are, whatever the tier", function()
 end)
 
 test("the options set the starting values and the rewards keep their proportion", function()
-    SandboxVars.OperationAcorn.CallInterval = 6.0
+    SandboxVars.OperationAcorn.CallIntervalMultiplier = 2
     SandboxVars.OperationAcorn.RequestPrice = 150
-    SandboxVars.OperationAcorn.HelicopterArrivalMin = 8
-    SandboxVars.OperationAcorn.HelicopterArrivalMax = 12
+    SandboxVars.OperationAcorn.HelicopterArrivalMultiplier = 2
     local r0 = T.rewardsFor(0, 0)
     eq(r0.callInterval, 6); near(r0.requestPrice, 1.5); eq(r0.arrival.min, 8); eq(r0.arrival.max, 12)
     local r4 = T.rewardsFor(4, 0, OA.Support.levelsForTier(4))

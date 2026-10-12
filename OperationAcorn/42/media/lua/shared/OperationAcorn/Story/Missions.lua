@@ -81,11 +81,11 @@ local function creditScale()
 end
 
 local function deadlineHours()
-    return Rewards.hours(OA.option("MissionDeadline") or 7)
+    return Rewards.hours(OA.scaled(7, "MissionDeadlineMultiplier"))
 end
 
 local function intervalHours()
-    return Rewards.hours(OA.option("MissionInterval") or 3)
+    return Rewards.hours(OA.scaled(3, "MissionIntervalMultiplier"))
 end
 
 -- The terminal's position (the base), for the distance band: the trade part's if it tells, else the record's own

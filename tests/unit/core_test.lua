@@ -17,9 +17,27 @@ test("day changes at midnight", function()
 end)
 
 test("sandbox defaults load", function()
-    eq(OA.option("CallInterval"), 3.0)
+    eq(OA.option("CallIntervalMultiplier"), 1.0)
     eq(OA.option("HiddenZombieFix"), true)
-    eq(OA.option("BoxReissueCost"), 10000)
+    eq(OA.reissueCost(), 10000)
+end)
+
+test("the balance options are multipliers of the mod's numbers, never the numbers", function()
+    eq(OA.scaled(7, "MissionDeadlineMultiplier"), 7)
+    SandboxVars.OperationAcorn.MissionDeadlineMultiplier = 2
+    eq(OA.scaled(7, "MissionDeadlineMultiplier"), 14)
+    SandboxVars.OperationAcorn.MissionDeadlineMultiplier = 1.0
+    eq(OA.scaled(5, "NoSuchOption"), 5, "a missing option is 1")
+    local text = readfile("OperationAcorn/42/media/sandbox-options.txt")
+    for name, body in string.gmatch(text, "option OperationAcorn%.(%w+)%s*(%b{})") do
+        local kind = string.match(body, "type = (%w+)")
+        local default = string.match(body, "default = ([%w%.]+)")
+        -- a number option is a multiplier (default 1) or a percentage (default 100); counts are named as such
+        if kind == "double" then eq(default, "1.0", name .. " is a multiplier") end
+        if kind == "integer" then
+            truthy(default == "100" or name == "SharedSerumMilestones", name .. " keeps a number of the mod's balance")
+        end
+    end
 end)
 
 test("player records get unique numbers", function()

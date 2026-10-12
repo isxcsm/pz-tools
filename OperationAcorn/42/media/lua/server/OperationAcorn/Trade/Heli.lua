@@ -48,8 +48,9 @@ function Heli.rewards(record)
     end
     rewards = rewards or {}
     return {
-        arrival = rewards.arrival or { min = OA.option("HelicopterArrivalMin") or 4, max = OA.option("HelicopterArrivalMax") or 6 },
-        callInterval = rewards.callInterval or OA.option("CallInterval") or 3,
+        arrival = rewards.arrival or { min = OA.scaled(OA.BALANCE.arrival[1], "HelicopterArrivalMultiplier"),
+            max = OA.scaled(OA.BALANCE.arrival[2], "HelicopterArrivalMultiplier") },
+        callInterval = rewards.callInterval or OA.scaled(OA.BALANCE.callDays, "CallIntervalMultiplier"),
         nightDrop = rewards.nightDrop == true,
     }
 end
@@ -78,7 +79,7 @@ function Heli.call(character, record, kind, x, y)
     local arrive = Rules.arrival(now, getGameTime():getTimeOfDay(), delay, rewards.nightDrop, OA.randomFloat(0, Rules.MORNING_SPREAD))
     local account = Trade.account(record)
     if kind == "reissue" then
-        account.credits = account.credits - (OA.option("BoxReissueCost") or 10000)
+        account.credits = account.credits - OA.reissueCost()
     end
     -- The cart goes with this flight (and is paid on arrival); an empty cart is a flight for the delivery alone.
     call.orders = Trade.copy(Orders.cart(record))
@@ -127,7 +128,7 @@ end
 
 -- The noise of the helicopter for zombies, at a place.
 function Heli.noise(x, y, z)
-    local radius = OA.option("HelicopterNoiseRadius") or 0
+    local radius = OA.scaled(OA.BALANCE.noiseRadius, "HelicopterNoiseMultiplier")
     if radius <= 0 then return end
     local ok, err = pcall(function() getWorldSoundManager():addSound(nil, x, y, z, radius, radius) end)
     if not ok then OA.log("noise failed:", tostring(err)) end

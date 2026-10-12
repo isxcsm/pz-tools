@@ -45,6 +45,26 @@ function OA.option(name)
     return vars and vars[name]
 end
 
+-- A balance number scaled by its world option. The options that tune balance are multipliers (1 = the mod's number):
+-- a save keeps its options from the day it was made, so a number kept there would never follow a balance patch.
+function OA.scaled(base, option)
+    local f = OA.option(option)
+    if type(f) ~= "number" then f = 1 end
+    return base * f
+end
+
+-- The balance numbers more than one part reads (the trade part also runs without the economy part).
+OA.BALANCE = {
+    reissueCost = 10000,    -- credits for a new delivery box
+    callDays = 3,           -- days between helicopter calls, at the start
+    arrival = { 4, 6 },     -- hours from a call to the helicopter, at the start
+    noiseRadius = 100,      -- squares the helicopter is heard by zombies
+}
+
+function OA.reissueCost()
+    return OA.round(OA.scaled(OA.BALANCE.reissueCost, "BoxReissueCostMultiplier"))
+end
+
 -- Time. The world age in hours is the clock every record uses: it grows while the game runs and is saved.
 function OA.hours()
     return getGameTime():getWorldAgeHours()

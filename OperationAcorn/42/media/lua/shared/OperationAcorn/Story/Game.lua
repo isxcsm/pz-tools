@@ -222,7 +222,7 @@ end
 
 -- The helicopter's noise, as the economy's option says how far it carries.
 function Game.noise(record, x, y, z)
-    local radius = OA.option("HelicopterNoiseRadius") or 100
+    local radius = OA.scaled(OA.BALANCE.noiseRadius, "HelicopterNoiseMultiplier")
     if radius <= 0 then return end
     addSound(Game.character(record), math.floor(x), math.floor(y), math.floor(z or 0), radius, radius)
 end
