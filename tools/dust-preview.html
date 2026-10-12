@@ -323,7 +323,7 @@ void main() {
     float keep = n * 0.7 + cover * 0.3;
     float wear = 0.22 + 0.7 * smoothstep(0.08, 0.92, progress);
     float mask = smoothstep(wear - 0.05, wear + 0.05, keep);
-    float drain = smoothstep(0.0, 0.45, progress) * drainBy;
+    float drain = smoothstep(0.3, 0.85, progress) * drainBy;
     float lum = dot(col, vec3(0.3, 0.55, 0.15));
     col = mix(col, vec3(lum) * vec3(0.86, 0.8, 0.72) * 0.8, drain);
     float last = 1.0 - smoothstep(0.7, 1.0, progress);
