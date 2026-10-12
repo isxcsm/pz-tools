@@ -148,6 +148,11 @@ function ui.combo(page, x, y, w, items, fn)
     local c = ISComboBox:new(x, y, w, ui.ROW, page, ui.act(function(_, box) if fn then fn(box:getSelectedData()) end end))
     c:initialise()
     c:instantiate()
+    -- nil while the list is empty (a list not loaded yet, or cleared): the game's indexes the missing option and throws
+    function c:getSelectedData()
+        local option = self.options[self.selected]
+        return option and option.data
+    end
     for _, item in ipairs(items) do c:addOptionWithData(item[1], item[2]) end
     page:addChild(c)
     return c
