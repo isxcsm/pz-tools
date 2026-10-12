@@ -540,6 +540,14 @@ function UI.fontHeight(font)
     return h / S
 end
 
+-- Texts of two faces on one baseline (a big number and its smaller unit): how far below the top of the line of `font`
+-- the top of a line of `other` goes (design units, whole). UI.BASELINE is where the baseline sits in a face's line,
+-- from its top.
+UI.BASELINE = 0.8
+function UI.baselineDrop(font, other)
+    return math.floor((UI.fontHeight(font) - UI.fontHeight(other)) * UI.BASELINE + 0.5)
+end
+
 -- The same in pixels (our game windows' bars, a face's lines in pixels).
 function UI.faceHeightPx(font)
     return Faces.height(font)
