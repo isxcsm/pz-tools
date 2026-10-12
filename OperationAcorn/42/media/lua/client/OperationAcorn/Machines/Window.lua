@@ -51,8 +51,8 @@ function OAMachineWindow.within(px, py, x, y, w, h, reach)
 end
 
 -- While the character walks to the machine and puts a part in or takes one out, the window (in the middle of the
--- screen, over the character) steps aside: its body thins to this much, so the action shows through it; the mouse
--- over it brings it back. FADE_MS: the time a full change takes.
+-- screen, over the character) steps aside: its body thins to this much, so the action shows through it, until it is
+-- done. FADE_MS: the time a full change takes.
 OAMachineWindow.ASIDE = 0.15
 OAMachineWindow.FADE_MS = 200
 
@@ -252,16 +252,11 @@ function OAMachineWindow:update()
     self:stepAside(now)
 end
 
--- The window thins while its action is queued or under way (OAMachineWindow.ASIDE) and comes back after it, or at
--- once when the mouse moves over it (not while it rests where it pressed the button).
+-- The window thins while its action is queued or under way (OAMachineWindow.ASIDE) and comes back after it (done or
+-- cancelled), whatever the mouse does meanwhile; not while a part is being picked.
 function OAMachineWindow:stepAside(now)
     if self.busy and not ISTimedActionQueue.hasAction(self.busy) then self.busy = nil end
-    local still = self.busyMouse
-    if still and (math.abs(getMouseX() - still[1]) > 6 or math.abs(getMouseY() - still[2]) > 6) then
-        self.busyMouse = nil
-    end
-    local back = not self.busyMouse and self:isMouseOver()
-    local want = (self.busy and not back and not self.picker) and OAMachineWindow.ASIDE or 1
+    local want = (self.busy and not self.picker) and OAMachineWindow.ASIDE or 1
     local last = self.fadeAt or now
     self.fadeAt = now
     if self.fade == want then return end
@@ -303,11 +298,11 @@ end
 
 -- The buttons -----------------------------------------------------------------------------------------------------------
 
--- Walks next to a square, then does the action. Returns the action when it was queued, and where the mouse is.
+-- Walks next to a square, then does the action. Returns the action when it was queued.
 local function queueAt(character, square, action)
     if square and luautils.walkAdj(character, square, true) then
         ISTimedActionQueue.add(action)
-        return action, { getMouseX(), getMouseY() }
+        return action
     end
     return nil
 end
@@ -418,14 +413,14 @@ function OAMachineWindow:doInstall(slot, item)
     local square = Machines.nearSquare(self.object, self.character)
     if not square then return end
     ISInventoryPaneContextMenu.transferIfNeeded(self.character, item)
-    self.busy, self.busyMouse = queueAt(self.character, square,
+    self.busy = queueAt(self.character, square,
         ISOAMachinePartIn:new(self.character, self.machineId, square:getX(), square:getY(), square:getZ(), slot, item))
 end
 
 function OAMachineWindow:doRemove(slot)
     local square = Machines.nearSquare(self.object, self.character)
     if not square then return end
-    self.busy, self.busyMouse = queueAt(self.character, square,
+    self.busy = queueAt(self.character, square,
         ISOAMachinePartOut:new(self.character, self.machineId, square:getX(), square:getY(), square:getZ(), slot))
 end
 

@@ -787,7 +787,7 @@ test("the bags are looked through for parts only when a part's button is pressed
     eq(window.picker, nil)
 end)
 
-test("the window steps aside while its part action is under way, back after it or under a moving mouse", function()
+test("the window steps aside while its part action is under way, whatever the mouse does, and is back after it", function()
     local now = 1
     _G.getTimestampMs = function() return now end
     local mx, my = 100, 100
@@ -809,10 +809,7 @@ test("the window steps aside while its part action is under way, back after it o
     eq(window.fade, OAMachineWindow.ASIDE, "thin, though the mouse rests on the button it pressed")
     mx = 140
     frames(3)
-    eq(window.fade, 1, "back under a moving mouse")
-    window.isMouseOver = function() return false end
-    frames(5)
-    eq(window.fade, OAMachineWindow.ASIDE)
+    eq(window.fade, OAMachineWindow.ASIDE, "still thin under a moving mouse")
     queued = {}
     frames(5)
     eq(window.fade, 1, "back when the action is done")
