@@ -199,6 +199,10 @@ end
 -- character, the cure among them, kits, parts, fuel cans, documents to read). The character is put south of it all.
 -- Dev.clearShowroom() takes everything away again, after a reload too (the area is kept in the character's modData).
 -- Returns the area's corner, or nil when no clear ground is near.
+-- Dev.showroom({ solar = true }) powers it without a generator (one left running for days catches fire): a Building
+-- Utilities box of the top tier in the nearest building, solar panels outside it, battery racks inside it full of
+-- charged batteries, the terminal inside, the machines connected to the box as outside devices; the area is the open
+-- ground nearest the box. Needs Building Utilities.
 local SHOW_W, SHOW_H = 16, 11
 local SHOW_ITEMS = {
     { "UpgradeSerumScout", 2 }, { "UpgradeSerumLoad", 2 }, { "UpgradeSerumSurvival", 2 }, { "UpgradeSerumShared", 2 },
@@ -237,12 +241,111 @@ local function openArea(x, y)
     return true
 end
 
-function Dev.showroom()
+-- The solar power of the showroom (Dev.showroom({ solar = true })).
+local SOLAR_PANELS, RACKS, RACK_BATTERIES = 12, 2, 15
+
+-- The square of the nearest building to (x, y) a box can go on, or nil.
+local function boxSquare(x, y)
+    local BU = BuildingUtilities
+    local cell, best, bestD = getCell(), nil, nil
+    for dx = -40, 40 do
+        for dy = -40, 40 do
+            local sq = cell:getGridSquare(x + dx, y + dy, 0)
+            if sq and sq:getRoom() and sq:isFree(false) and BU.Panels.canInstall(sq) then
+                local d = dx * dx + dy * dy
+                if not bestD or d < bestD then best, bestD = sq, d end
+            end
+        end
+    end
+    return best
+end
+
+-- Up to n squares around (x, y), nearest first, that test(square) takes (each square once).
+local function squaresNear(x, y, n, radius, test)
+    local cell, found = getCell(), {}
+    for r = 1, radius do
+        for dx = -r, r do
+            for dy = -r, r do
+                if math.max(math.abs(dx), math.abs(dy)) == r then
+                    local sq = cell:getGridSquare(x + dx, y + dy, 0)
+                    if sq and test(sq) then
+                        found[#found + 1] = sq
+                        if #found >= n then return found end
+                    end
+                end
+            end
+        end
+    end
+    return found
+end
+
+-- The box, its solar panels and racks (batteries full), wired; the showroom's machines connected as outside devices
+-- and the units' power in use. Returns the panel and how many devices it connected.
+local function solarPower(boxSq, x0, y0)
+    local BU = BuildingUtilities
+    local C, U = BU.Changes, BU.Units
+    local player = getPlayer()
+    local panel = C.install(boxSq, BU.PANEL_SPRITES[1])
+    while (panel.tier or 1) < BU.TIERS do C.upgrade(panel) end
+    local function inShowroom(sq)
+        local dx, dy = sq:getX() - x0, sq:getY() - y0
+        return dx >= -1 and dx <= SHOW_W and dy >= -1 and dy <= SHOW_H
+    end
+    local solar = squaresNear(boxSq:getX(), boxSq:getY(), SOLAR_PANELS, 30, function(sq)
+        return sq:isOutside() and not inShowroom(sq) and U.canInstall("solar", sq) == true
+    end)
+    for _, sq in ipairs(solar) do
+        C.connectUnit(C.installUnit("solar", sq, U.spriteFor("solar", sq, player)), panel, {})
+    end
+    local racks = squaresNear(boxSq:getX(), boxSq:getY(), RACKS, 12, function(sq)
+        return sq ~= boxSq and U.canInstall("rack", sq) == true
+    end)
+    for _, sq in ipairs(racks) do
+        local rack = C.installUnit("rack", sq, U.spriteFor("rack", sq, player))
+        C.connectUnit(rack, panel, {})
+        local box = BU.Rack.container(U.object(rack))
+        for _ = 1, RACK_BATTERIES do
+            local battery = instanceItem("Base.CarBattery2")
+            battery:setUsedDelta(1)
+            battery:setCondition(100)
+            box:AddItem(battery)
+        end
+        BU.Rack.sync(rack)
+    end
+    local connected = 0
+    for _, device in ipairs(BU.Panels.devices(panel, "power")) do
+        if not device.inside and device.state ~= "on" and device.state ~= "other" then
+            C.includeOutside(panel, "power", device, {})
+            connected = connected + 1
+        end
+    end
+    C.useSource(panel)
+    say("showroom power: box", panel.id, "tier", panel.tier, "solar panels", #solar, "racks", #racks, "devices", connected)
+    return panel, connected
+end
+
+-- A free square inside the box's building near it for the terminal, or nil.
+local function terminalSquare(boxSq)
+    return squaresNear(boxSq:getX(), boxSq:getY(), 1, 10, function(sq)
+        return sq ~= boxSq and sq:getRoom() ~= nil and sq:isFree(false) and OA.Trade.Objects.free(sq)
+            and sq:getObjects():size() == 1
+    end)[1]
+end
+
+function Dev.showroom(opts)
+    opts = opts or {}
     Dev.clearShowroom()
     local player = getPlayer()
     local record = Dev.record()
     if not record then say("showroom: no record yet") return nil end
     local px, py = math.floor(player:getX()), math.floor(player:getY())
+    local boxSq
+    if opts.solar then
+        if not BuildingUtilities then say("showroom: solar power needs Building Utilities") return nil end
+        boxSq = boxSquare(px, py)
+        if not boxSq then say("showroom: no building for a box within 40") return nil end
+        px, py = boxSq:getX(), boxSq:getY()
+    end
     local corner = OA.Trade.Objects.search(px, py, 0, 40, function(sq) return openArea(sq:getX(), sq:getY()) end)
     if not corner then say("showroom: no clear", SHOW_W, "x", SHOW_H, "ground within 40") return nil end
     local cell = getCell()
@@ -251,15 +354,18 @@ function Dev.showroom()
     local inv = player:getInventory()
     show = { objects = {}, machines = {}, ground = {}, items = {} }
 
-    -- power first: a generator, fuelled and running, in the middle of the first row
-    local gen = IsoGenerator.new(instanceItem("Base.Generator"), cell, at(7, 1))
-    gen:setConnected(true)
-    gen:setFuel(100)
-    gen:setActivated(true)
-    show.generator = gen
+    -- power first: a generator, fuelled and running, in the middle of the first row (with solar power, none)
+    if not opts.solar then
+        local gen = IsoGenerator.new(instanceItem("Base.Generator"), cell, at(7, 1))
+        gen:setConnected(true)
+        gen:setFuel(100)
+        gen:setActivated(true)
+        show.generator = gen
+    end
 
     local T = OA.Trade
-    local okT, terminal = T.Things.placeTerminal(player, at(1, 1), "S", inv:AddItem("OperationAcorn.CommTerminal"))
+    local terminalAt = opts.solar and terminalSquare(boxSq) or at(1, 1)
+    local okT, terminal = T.Things.placeTerminal(player, terminalAt, "S", inv:AddItem("OperationAcorn.CommTerminal"))
     if okT then show.objects[#show.objects + 1] = terminal end
     local okB, box = T.Things.placeBox(player, record, at(13, 1), inv:AddItem("OperationAcorn.DeliveryBox"))
     if okB then show.objects[#show.objects + 1] = box end
@@ -306,7 +412,12 @@ function Dev.showroom()
         end
     end
 
-    player:getModData().OA_Showroom = { x = x0, y = y0 }
+    if opts.solar then
+        local panel = solarPower(boxSq, x0, y0)
+        show.panel = panel.id
+    end
+    player:getModData().OA_Showroom = { x = x0, y = y0, panel = show.panel,
+        terminal = opts.solar and okT and { x = terminalAt:getX(), y = terminalAt:getY() } or nil }
     -- the character south of it all, facing it
     player:setX(x0 + 8.5)
     player:setY(y0 + SHOW_H - 0.5)
@@ -314,7 +425,7 @@ function Dev.showroom()
     player:setLastY(player:getY())
     player:setDir(IsoDirections.N)
     say("showroom at", x0, y0, "terminal", tostring(okT), "box", tostring(okB), "machines", placed, "of",
-        #SHOW_MACHINES, "items", #show.items, "powered", tostring(OA.Trade.Objects.powered(at(1, 1))))
+        #SHOW_MACHINES, "items", #show.items, "powered", tostring(OA.Trade.Objects.powered(terminalAt)))
     return x0, y0
 end
 
@@ -326,33 +437,45 @@ function Dev.clearShowroom()
     local area = player:getModData().OA_Showroom
     player:getModData().OA_Showroom = nil
     if not show and not area then return end
+    -- the solar power's box and its units (the racks' batteries with them)
+    local panelId = (show and show.panel) or (area and area.panel)
+    local BU = BuildingUtilities
+    local panel = panelId and BU and BU.Store.get(panelId)
+    if panel then
+        for _, unit in ipairs(BU.Store.unitList(nil, panel.id)) do BU.Changes.removeUnit(unit) end
+        BU.Changes.remove(panel)
+        say("showroom power taken away", panelId)
+    end
     local T = OA.Trade
     if not show then
         local cell, swept = getCell(), 0
+        local squares = {}
         for dx = 0, SHOW_W - 1 do
-            for dy = 0, SHOW_H - 1 do
-                local sq = cell:getGridSquare(area.x + dx, area.y + dy, 0)
-                local anchor = sq and OA.Machines.at(sq)
-                if anchor and OA.Machines.state(anchor) then
-                    OA.Machines.remove(anchor)
+            for dy = 0, SHOW_H - 1 do squares[#squares + 1] = cell:getGridSquare(area.x + dx, area.y + dy, 0) or false end
+        end
+        -- the terminal the solar power put inside
+        if area.terminal then squares[#squares + 1] = cell:getGridSquare(area.terminal.x, area.terminal.y, 0) or false end
+        for _, sq in ipairs(squares) do
+            local anchor = sq and OA.Machines.at(sq)
+            if anchor and OA.Machines.state(anchor) then
+                OA.Machines.remove(anchor)
+                swept = swept + 1
+            end
+            local objects = sq and sq:getObjects()
+            for i = (objects and objects:size() or 0) - 1, 0, -1 do
+                local o = objects:get(i)
+                if T.Objects.kindOf(o) then
+                    T.Things.destroyed(o)
+                    T.Objects.remove(o)
                     swept = swept + 1
-                end
-                local objects = sq and sq:getObjects()
-                for i = (objects and objects:size() or 0) - 1, 0, -1 do
-                    local o = objects:get(i)
-                    if T.Objects.kindOf(o) then
-                        T.Things.destroyed(o)
-                        T.Objects.remove(o)
-                        swept = swept + 1
-                    elseif instanceof(o, "IsoGenerator") then
-                        o:setActivated(false)
-                        sq:transmitRemoveItemFromSquare(o)
-                        swept = swept + 1
-                    elseif instanceof(o, "IsoWorldInventoryObject") and o:getItem()
-                        and o:getItem():getModule() == "OperationAcorn" then
-                        sq:transmitRemoveItemFromSquare(o)
-                        swept = swept + 1
-                    end
+                elseif instanceof(o, "IsoGenerator") then
+                    o:setActivated(false)
+                    sq:transmitRemoveItemFromSquare(o)
+                    swept = swept + 1
+                elseif instanceof(o, "IsoWorldInventoryObject") and o:getItem()
+                    and o:getItem():getModule() == "OperationAcorn" then
+                    sq:transmitRemoveItemFromSquare(o)
+                    swept = swept + 1
                 end
             end
         end
