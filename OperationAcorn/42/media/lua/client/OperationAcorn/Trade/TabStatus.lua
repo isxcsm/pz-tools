@@ -171,10 +171,12 @@ function OATabStatus:prerender()
     else
         UI.textRight(self, getText("IGUI_OA_Terminal_Balance"), right, 3, p.dim)
         local uw = UI.textWidth(unit) + UI.UNIT_GAP
-        UI.textRight(self, unit, right, 21, p.dim)
         if field then
+            -- the big balance and its unit on one baseline
+            UI.textRight(self, unit, right, 17 + UI.baselineDrop(UIFont.Medium, nf), p.dim, nf)
             UI.textRight(self, t.balance, right - uw, 17, p.value, UIFont.Medium)
         else
+            UI.textRight(self, unit, right, 21, p.dim)
             UI.textRight(self, t.balance, right - uw, 21, p.text, nf)
         end
     end

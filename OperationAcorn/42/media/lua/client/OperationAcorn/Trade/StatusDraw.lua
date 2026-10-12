@@ -91,11 +91,19 @@ function Draw.runWidth(parts)
     return w
 end
 
+-- Parts in different faces stand on one baseline (a big number and its unit): y is the top of the tallest face's
+-- line, the others set down to it (UI.baselineDrop).
 function Draw.run(L, parts, x, y, w, align)
     local total = Draw.runWidth(parts)
     if w and align == "right" and total < w then x = x + w - total end
     if w and align == "centre" and total < w then x = x + math.floor((w - total) / 2) end
     local left = w and math.min(w, total) or total
+    local tallest
+    for _, part in ipairs(parts) do
+        if not part.arrow and (not tallest or UI.fontHeight(part.font) > UI.fontHeight(tallest)) then
+            tallest = part.font or UIFont.Small
+        end
+    end
     local cx = x
     for _, part in ipairs(parts) do
         local pw = partWidth(part)
@@ -103,13 +111,14 @@ function Draw.run(L, parts, x, y, w, align)
         cx, pw, left = cx + pad, pw - pad, left - pad
         if part.arrow then
             if pw > left + EPS then break end
-            Draw.arrow(L, cx + 3, y, L.fh, part.c, part.a)
+            Draw.arrow(L, cx + 3, y + UI.baselineDrop(tallest, nil), L.fh, part.c, part.a)
         else
             local before = widened(part)
+            local py = y + UI.baselineDrop(tallest, part.font)
             if pw <= left + EPS then
-                Draw.text(L, part.s, cx + before, y, part.c, part.font, part.a)
+                Draw.text(L, part.s, cx + before, py, part.c, part.font, part.a)
             else
-                if left - before > 0 then Draw.fit(L, part.s, cx + before, y, left - before, part.c, part.font, part.a) end
+                if left - before > 0 then Draw.fit(L, part.s, cx + before, py, left - before, part.c, part.font, part.a) end
                 cx = cx + left
                 break
             end
@@ -170,10 +179,11 @@ function Draw.itemTexture(fullType, px)
 end
 
 -- An item's icon, tinted on the crude terminal (its texture is picked for its pixels when the list is baked).
-function Draw.item(L, fullType, x, y, size, a)
+-- `tint` (a colour) stands for the palette's own, as for the ghost of a part not there.
+function Draw.item(L, fullType, x, y, size, a, tint)
     local tex = Draw.itemTexture(fullType)
     if not tex then return end
-    local t = L.p.iconTint or { 1, 1, 1 }
+    local t = tint or L.p.iconTint or { 1, 1, 1 }
     add(L, { TEX, tex, x, y, size, size, a or 1, t, item = fullType })
 end
 

@@ -227,8 +227,8 @@ end
 
 -- A card a part: its icon (no well: a whole multiple of its pixels, UI.iconSize), the slot and the tier, the buttons that
 -- make sense, its condition with the line under which it is worn, the hours of running it has left, and what it does
--- (or what is wrong with it). An empty slot shows the part it takes, faint, and what it is for. Drawn `h` high, its
--- lines in the middle.
+-- (or what is wrong with it). An empty slot shows a bare socket, the part it takes a dark ghost in it, and what it is
+-- for. Drawn `h` high, its lines in the middle.
 local function cardHeight(L)
     return 3 + Layout.buttonHeight() + 1 + L.fh + L.fh + 3
 end
@@ -239,7 +239,22 @@ local function card(L, c, x, y, w, h)
     local ch = cardHeight(L)
     local ib = UI.iconSize(40, ch - 12)
     Draw.panel(L, x, y, w, h)
-    if c.icon then Draw.item(L, c.icon, x + 10, y + floor((h - ib) / 2), ib, (c.broken or c.empty) and 0.45 or 1) end
+    local iy = y + floor((h - ib) / 2)
+    if c.empty then
+        -- a sunken well in a dashed frame (3 on, 3 off), the part it takes a dark ghost in it
+        local sx, sy, ss = x + 7, iy - 3, ib + 6
+        Draw.rect(L, sx, sy, ss, ss, p.inset)
+        for d = 0, ss - 1, 6 do
+            local n = math.min(3, ss - d)
+            Draw.rect(L, sx + d, sy, n, 1, p.dim, 0.7)
+            Draw.rect(L, sx + d, sy + ss - 1, n, 1, p.dim, 0.7)
+            Draw.rect(L, sx, sy + d, 1, n, p.dim, 0.7)
+            Draw.rect(L, sx + ss - 1, sy + d, 1, n, p.dim, 0.7)
+        end
+        if c.icon then Draw.item(L, c.icon, x + 10, iy, ib, 0.35, { p.dim[1] * 0.5, p.dim[2] * 0.5, p.dim[3] * 0.5 }) end
+    elseif c.icon then
+        Draw.item(L, c.icon, x + 10, iy, ib, c.broken and 0.45 or 1)
+    end
     y = y + floor((h - ch) / 2)
     local tx = x + 10 + ib + 10
     local right = x + w - 6

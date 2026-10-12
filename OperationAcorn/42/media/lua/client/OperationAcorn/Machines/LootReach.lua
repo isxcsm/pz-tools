@@ -1,8 +1,9 @@
 -- A machine of several squares is one thing in the loot window. Its containers are listed when the player stands by
 -- any of its squares (the game lists the containers of the squares around the player only, and a machine's are on one
--- or two of them), and when one of them is chosen every square of the machine that holds no container of its own is
--- lit with it (a refiner's four, not only the one its containers are on). Both are done when the window changes, not
--- each frame: the list when the game refreshes it, the light when the chosen container changes.
+-- or two of them), and when one of them is chosen every square of the machine is lit with it (a refiner's four, not only
+-- the one its containers are on; a cabinet with a container on each square lights the chosen half alone, as the game's
+-- wardrobes do). Both are done when the window changes, not each frame: the list when the game refreshes it, the light
+-- when the chosen container changes.
 require "ISUI/ISInventoryPage"
 require "OperationAcorn/Machines/Machines"
 local OA = OperationAcorn
@@ -77,11 +78,15 @@ local function light(page, object, on, colour)
     if on then object:setHighlightColor(page.player, colour) end
 end
 
--- The squares of the machine an object belongs to, or nil when it is not a machine's.
+-- The squares lit with a container of the machine an object belongs to, or nil when it is not a machine's: the whole
+-- machine; for a kind with a container on every square (Data everyTile: the research storage, a cabinet of two
+-- halves as the game's wardrobes), the container's own square alone.
 local function machineSquares(object)
     if not object or not Machines.isMachineObject(object) then return nil end
     local anchor, state = Machines.anchorOf(object)
     if not anchor or not state then return nil end
+    local def = Machines.Data.KINDS[state.kind]
+    if def and def.everyTile then return { object } end
     return squaresOf(anchor, state)
 end
 

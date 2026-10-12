@@ -136,7 +136,8 @@ def research_storage(turns):
             s.box(fx, fy, 0.0, fx + 0.07, fy + 0.07, 0.06, GRAPHITE_DARK)
     s.box(x0, y0, 0.06, x1, y1, zt, OD, top=OD_LIGHT, shine=0.1)
     s.box(x0 - 0.01, y0 - 0.01, 0.06, x1 + 0.01, y1 + 0.01, 0.13, OD_DARK)
-    s.box(x0 - 0.012, y0 - 0.012, zt - 0.05, x1 + 0.012, y1 + 0.012, zt, OD_DARK, top=OD_DARK)
+    # the lid's rim in the dark trim, its top the body's olive (all dark it read as a shadow painted on)
+    s.box(x0 - 0.012, y0 - 0.012, zt - 0.05, x1 + 0.012, y1 + 0.012, zt, OD_DARK, top=OD, shine=0.1)
     f = y1 + 0.007
     # four doors with their seams, ribs and louvres; each pair shares a central post
     xs = [x0 + 0.04, 0.54, 1.00, 1.46, x1 - 0.04]

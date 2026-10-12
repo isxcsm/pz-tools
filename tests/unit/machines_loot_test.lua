@@ -53,13 +53,16 @@ local function load()
         return { getObjectHighlitedColor = function() return CHOSEN end,
             getWorldItemHighlightColor = function() return HOVER end }
     end
-    -- two machines: A of two squares (its bins on each), B of one
-    local a1, a2, b1 = object("a1"), object("a2"), object("b1")
-    local machineOf = { [a1] = "A", [a2] = "A", [b1] = "B" }
-    local squares = { A = { a1, a2 }, B = { b1 } }
+    -- three machines: A of two squares (its bins on each), B of one, C a cabinet of two halves (a container on each
+    -- square: Data everyTile)
+    local a1, a2, b1, c1, c2 = object("a1"), object("a2"), object("b1"), object("c1"), object("c2")
+    local machineOf = { [a1] = "A", [a2] = "A", [b1] = "B", [c1] = "C", [c2] = "C" }
+    local squares = { A = { a1, a2 }, B = { b1 }, C = { c1, c2 } }
+    local kinds = { A = "refiner", B = "saw", C = "cabinet" }
     OA.Machines = OA.Machines or {}
     OA.Machines.isMachineObject = function(o) return machineOf[o] ~= nil end
-    OA.Machines.anchorOf = function(o) local m = machineOf[o]; return squares[m][1], { machine = m } end
+    OA.Machines.anchorOf = function(o) local m = machineOf[o]; return squares[m][1], { machine = m, kind = kinds[m] } end
+    OA.Machines.Data = { KINDS = { refiner = {}, saw = {}, cabinet = { everyTile = true } } }
     OA.Machines.partsOf = function(state)
         local list = {}
         for i = 2, #squares[state.machine] do list[#list + 1] = { object = squares[state.machine][i] } end
@@ -74,7 +77,7 @@ local function load()
     require = real
     if not ok then error(err, 0) end
     local p = setmetatable({ player = 0, isCollapsed = false }, { __index = ISInventoryPage })
-    return p, a1, a2, b1
+    return p, a1, a2, b1, c1, c2
 end
 
 test("the chosen bin's machine is lit whole in the chosen colour, without outlines", function()
@@ -151,4 +154,15 @@ test("a collapsed window lights nothing", function()
     page.isCollapsed = true
     page:updateContainerHighlight()
     truthy(not a2.lit, "the machine's other square goes dark with the window")
+end)
+
+test("a cabinet with a container on each square lights the chosen half alone, as the game's wardrobes", function()
+    local page, _, _, _, c1, c2 = load()
+    page.inventory = { parent = c2 }
+    page:updateContainerHighlight()
+    truthy(c2.lit and not c1.lit, "the chosen half only")
+    eq(c2.colour, CHOSEN)
+    page.inventory = { parent = c1 }
+    page:updateContainerHighlight()
+    truthy(c1.lit and not c2.lit, "the other half when it is chosen")
 end)
