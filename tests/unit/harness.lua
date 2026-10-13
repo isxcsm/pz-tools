@@ -4,7 +4,9 @@
 
 local MEDIA = "BuildingUtilities/42/media/"
 local ROOTS = { MEDIA .. "lua/shared/", MEDIA .. "lua/server/", MEDIA .. "lua/client/",
-    "BuildingUtilitiesDev/42/media/lua/client/" }
+    "BuildingUtilitiesDev/42/media/lua/client/",
+    -- the shared UI kit (PZUIKit), from its repository beside this one
+    "../pz-ui-kit/PZUIKit/42/media/lua/shared/", "../pz-ui-kit/PZUIKit/42/media/lua/client/" }
 
 -- The game's Lua has no next(), and neither has the test VM: a use of it fails here as it does there.
 next = nil

@@ -146,6 +146,8 @@ Ui.REFRESH_MS, Ui.FULL_MS = REFRESH_MS, FULL_MS
 Ui.BAR_W = BAR_W
 Ui.SCROLLBAR = SCROLLBAR
 Ui.LOG, Ui.BATTERIES = LOG, BATTERIES
+-- The manual's tab (BuildingUtilities/PanelManual).
+Ui.MANUAL = "manual"
 Ui.LIST_W = LIST_W
 Ui.MIN_LIST = MIN_LIST
 Ui.MIN_PLAN = MIN_PLAN

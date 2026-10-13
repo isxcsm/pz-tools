@@ -7,6 +7,7 @@ require "BuildingUtilities/RackWindow"
 require "BuildingUtilities/Moveables"
 require "BuildingUtilities/Batteries"
 require "BuildingUtilities/Finds"
+require "BuildingUtilities/Titles"
 require "BuildingUtilities/Lights"
 local BU = BuildingUtilities
 local Store, Panels, PanelWindow = BU.Store, BU.Panels, BU.PanelWindow
@@ -141,7 +142,8 @@ local function onServerCommand(module, command, args)
     if module ~= BU.MOD then return end
     if command == "changed" then BU.onChanged(args and args.panel)
     elseif command == "notice" and args then BU.onNotice(args.panel, args.key, args.args)
-    elseif command == "sound" and args then BU.onSound(args.panel, args.name) end
+    elseif command == "sound" and args then BU.onSound(args.panel, args.name)
+    elseif command == "title" and args then BU.onTitle(getPlayer(), args.kind, args.tier) end
 end
 
 local function onReceiveGlobalModData(key, data)

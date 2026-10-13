@@ -40,6 +40,15 @@ function Sync.sound(panel, name)
     end
 end
 
+-- A title on a player's screen (client/BuildingUtilities/Titles.lua): kind "tier" with the tier a box was raised to.
+function Sync.title(player, kind, tier)
+    if isServer() then
+        sendServerCommand(player, BU.MOD, "title", { kind = kind, tier = tier })
+    elseif BU.onTitle then
+        BU.onTitle(player, kind, tier)
+    end
+end
+
 -- What a client asks of the server: a command and its arguments, as the player who asks. Alone, the game's own
 -- server part answers it.
 function Sync.send(player, command, args)

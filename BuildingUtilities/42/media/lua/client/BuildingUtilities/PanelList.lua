@@ -470,7 +470,8 @@ end
 -- open one on the background with the accent line under it, gliding to a tab as it opens; the one under the mouse
 -- lit, a click flashing). It keeps the lists as its views below the strip (game lists, placed in pixels from design
 -- units), under the open tab's head (setHead). The calls the window makes are the game's tab panel's: addView,
--- activateView, getActiveViewIndex, activeView, tabHeight, getWidthOfAllTabs.
+-- activateView, getActiveViewIndex, activeView, tabHeight, getWidthOfAllTabs; and setDot, a tab marked for something
+-- new in it.
 ISBUTabs = ISPanel:derive("ISBUTabs")
 
 function ISBUTabs:new(x, y, width, height)
@@ -527,6 +528,13 @@ function ISBUTabs:resize(w, h)
     for _, entry in ipairs(self.viewList) do UI.place(entry.view, 0, top, w, h - top) end
 end
 
+-- A view's tab marked (a small square at its corner) or not.
+function ISBUTabs:setDot(view, on)
+    for _, entry in ipairs(self.viewList) do
+        if entry.view == view then entry.dot = on or nil end
+    end
+end
+
 -- Room under the strip for the open tab's head (the window draws it there); the views start under it.
 function ISBUTabs:setHead(h)
     if self.headH == h then return end
@@ -566,6 +574,7 @@ function ISBUTabs:prerender()
         end
         if f > 0 then UI.fill(self, x, 2, tw, h - 2, P.sel, 0.25 * f) end
         UI.textCentre(self, entry.name, x + tw / 2, (h - fh) / 2 + 1, (on or k > 0.5) and P.bright or P.dim)
+        if entry.dot then UI.fill(self, x + tw - 8, 5, 4, 4, P.warn) end
         local slot = slots[index] or {}
         slots[index] = slot
         slot.x, slot.w, slot.name = x, tw, entry.name

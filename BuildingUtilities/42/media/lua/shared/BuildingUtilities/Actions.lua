@@ -219,6 +219,7 @@ function ISBUUpgradePanel:complete()
     local panel = Store.get(self.panelId)
     Changes.upgrade(panel)
     BU.giveXp(self.character, 15 * (panel.tier - 1))
+    BU.Sync.title(self.character, "tier", panel.tier)
     return true
 end
 

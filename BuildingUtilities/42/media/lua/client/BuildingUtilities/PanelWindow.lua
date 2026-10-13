@@ -1,7 +1,8 @@
 -- The breaker box window: its name and tier as its title (its rename button at the title bar's end), a row with the
 -- upgrade button and a banner when the breaker is down (only while it has either), then a tab per utility with its
 -- producers (each generator running, on standby or out of service) and its devices room by room, a tab with the
--- batteries of its racks, and from BU.LOG_TIER a tab with what happened to the box. Under the tabs the open one's head: its utility's status
+-- batteries of its racks, from BU.LOG_TIER a tab with what happened to the box, and the manual (BuildingUtilities/
+-- PanelManual). Under the tabs the open one's head: its utility's status
 -- line (BuildingUtilities/PanelStatus; the batteries' is power's, the log has none) and, on the power tab, the load
 -- against the limit with the lever and the breaker's gauge beside it. Beside them the floor plan
 -- (BuildingUtilities/PanelPlan). A row under the mouse outlines its objects in the world, marks them on the plan and
@@ -25,11 +26,13 @@ require "PZUIKit/RichText"
 require "BuildingUtilities/ContextMenu"
 require "BuildingUtilities/PanelPlan"
 require "BuildingUtilities/PanelList"
+require "BuildingUtilities/PanelManual"
 require "BuildingUtilities/LineOverlay"
 local BU = BuildingUtilities
 local Store, Panels, Networks, Costs, Actions, Sync, Energy = BU.Store, BU.Panels, BU.Networks, BU.Costs, BU.Actions,
     BU.Sync, BU.Energy
 local Units, Ui, Geometry, Links = BU.Units, BU.PanelUi, BU.Geometry, BU.Links
+local MANUAL = Ui.MANUAL
 local FONT_HGT_SMALL, ROW, PAD, REFRESH_MS, BAR_W, LOG, BATTERIES, LIST_W, MIN_LIST, MIN_PLAN, SEEN, OUTSIDE,
     ROOM_TICK_X, load2, percent, nextSchedule = Ui.FONT_HGT_SMALL, Ui.ROW,
     Ui.PAD, Ui.REFRESH_MS, Ui.BAR_W, Ui.LOG, Ui.BATTERIES, Ui.LIST_W, Ui.MIN_LIST, Ui.MIN_PLAN, Ui.SEEN, Ui.OUTSIDE,
@@ -302,6 +305,12 @@ function ISBUPanelWindow:createChildren()
         UI.rowHeight(list, ROW)
         self.lists[view] = list
     end
+    -- The manual last, with something in it whatever is on.
+    self.manual = ISBUManual:new(0, 0, listW, height - self.tabs.tabHeight, self)
+    self.manual:initialise()
+    self.manual:instantiate()
+    self.manual:setAnchorBottom(true)
+    self.tabs:addView(getText("IGUI_BU_Tab_" .. MANUAL), self.manual)
     -- The search, from the tabs to the strip's end: the game's entry box (placed from design units), in the palette.
     self.search = ISTextEntryBox:new("", 0, 0, 100, 20)
     self.search:initialise()
@@ -417,7 +426,7 @@ function ISBUPanelWindow:placeHead()
     local view = tabs.activeView and tabs.activeView.view
     local shown = view and view.utility
     local gap = PanelWindow.HEAD_GAP
-    local status = shown ~= nil and shown ~= LOG
+    local status = shown ~= nil and shown ~= LOG and shown ~= MANUAL
     local card = shown == "power" and BU.enabled("power")
     local waterCard = shown == "water" and self.waterView ~= nil
     local top = self.tabsY + tabs.tabHeight
@@ -472,7 +481,9 @@ end
 function ISBUPanelWindow:activeUtility()
     local view = self.tabs and self.tabs.activeView and self.tabs.activeView.view
     local utility = view and view.utility
-    if utility == nil or utility == LOG or utility == BATTERIES then return self.utilities and self.utilities[1] end
+    if utility == nil or utility == LOG or utility == BATTERIES or utility == MANUAL then
+        return self.utilities and self.utilities[1]
+    end
     return utility
 end
 
@@ -903,6 +914,7 @@ function ISBUPanelWindow:close()
         list:unhighlight()
         list:hideTooltip()
     end
+    if self.manual then self.manual:leave() end
     self:showRange(false)
     self:outlineDevice(nil)
     open[self.panel.id] = nil
@@ -924,6 +936,9 @@ function ISBUPanelWindow:refresh()
     local panel = Store.get(self.panel.id)
     if not panel then return end
     self.panel = panel
+    -- The first box this character sees powered.
+    if BU.Titles then BU.Titles.lit(self.playerObj, panel) end
+    if self.manual then self.manual:refresh(panel) end
     -- A utility turned on or off in the sandbox, the first rack wired or the last taken away, or the log shown by an
     -- upgrade: the window opens anew where it is, with its tabs (reopen).
     if viewsKey(panel) ~= self.utilitiesKey then
@@ -989,7 +1004,7 @@ end
 function ISBUPanelWindow:reopen()
     local kept = { x = self:getX(), y = self:getY(), w = self:getWidth(), h = self:getHeight(),
         text = self.search:getText(), query = self.query, roomFilter = self.roomFilter, zoneEditing = self.zoneEditing,
-        range = self.rangeShown,
+        range = self.rangeShown, chapter = self.manual and self.manual.key,
         floor = self.plan.floor, zoom = self.plan.zoom, panX = self.plan.panX, panY = self.plan.panY }
     self.still = true
     self:close()
@@ -1002,6 +1017,7 @@ function ISBUPanelWindow:reopen()
     window.query, window.roomFilter, window.zoneEditing = kept.query, kept.roomFilter, kept.zoneEditing
     window.plan.floor, window.plan.zoom, window.plan.panX, window.plan.panY = kept.floor, kept.zoom, kept.panX, kept.panY
     if kept.range then window:showRange(true) end
+    if kept.chapter then window.manual:show(kept.chapter) end
     window:refresh()
 end
 
