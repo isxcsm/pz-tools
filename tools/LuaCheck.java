@@ -8,6 +8,9 @@
 //
 // And it flags, outside the tests, a name of Lua 5.1's base library that the game's Lua does not have (next: found in
 // game, the alarm reading failed on its first run).
+//
+// It compiles as the game does in debug mode: there a function holds at most 200 locals declared in it in all, not
+// only 200 at a time (found in game: the panel plan failed to load with an index 200 the plain compile passed).
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -50,6 +53,7 @@ public class LuaCheck {
             for (String arg : args) files.add(Path.of(arg));
         }
         int failed = 0;
+        zombie.core.Core.debug = true;
         var platform = new se.krka.kahlua.j2se.J2SEPlatform();
         var kahlua = kahluaGlobals(platform);
         for (Path file : files) {
