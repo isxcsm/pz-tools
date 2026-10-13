@@ -258,7 +258,7 @@ function ISBUPanelList:doDrawItem(y, item, alt)
     self.rowMouseX = (index == self.hoverIndex or row.options and index == self.overIndex) and self.mouseDX or nil
     -- What the mouse is over on the plan.
     local window = self.window
-    local planned = row.device and row.device.key == window.planHoverKey
+    local planned = row.key ~= nil and row.key == window.planHoverKey
         or row.kind == "room" and window.planHoverRoom ~= nil and row.id == window.planHoverRoom
     if planned then UI.frame(c, 1, y, width - SCROLLBAR - 2, ROW, P.warn) end
     local rightX = width - PAD - SCROLLBAR
@@ -394,7 +394,7 @@ function ISBUPanelList:prerender()
     local item = index and self.items[index]
     local row = item and item.item
     self.mouseDX = UI.dp(self:getMouseX())
-    self.window.listHoverKey = row and row.device and row.device.key or nil
+    self.window.listHoverKey = row and row.key or nil
     self.window.listHoverRoom = row and (row.device and row.device.roomId or row.kind == "room" and row.id) or nil
     local lit = row and not STILL[row.kind] and index or nil
     self.overIndex = index
@@ -460,7 +460,7 @@ function ISBUPanelList:onMouseDown(x, y)
         local dx, width = UI.dp(x), UI.dp(self:getWidth())
         if not STILL[item.item.kind] then UI.placeFlash(self, index) end
         -- the row clicked is the one chosen now (none, for a row that stands for no thing)
-        self.window:chooseRow(self.utility, ISBUPanelWindow.rowKey(item.item), true)
+        self.window:chooseRow(self.utility, item.item.key, true)
         for _, button in ipairs(item.item.buttons or {}) do
             if dx >= button.x and dx < button.x + button.w then UI.flash(self, index .. button.name) end
         end

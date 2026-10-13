@@ -55,7 +55,7 @@ function ISBUPanelWindow:updatePlan()
         local cut = Links.reason(panel, ref) ~= nil
         local colour = pipes and BU.Water.colour(BU.Water.producerPipe(panel, at)) or nil
         producers[#producers + 1] = { x = at.x, y = at.y, z = at.z, inUse = inUse and not cut, colour = colour, cut = cut,
-            ref = ref, text = (view.producerText[index] or "") .. (cut and "  " .. getText("IGUI_BU_LineNotSupplied") or "") }
+            ref = ref, key = ISBUPanelWindow.squareKey(at), text = (view.producerText[index] or "") .. (cut and "  " .. getText("IGUI_BU_LineNotSupplied") or "") }
     end
     -- The units: power's as its source, water's each on its own (in its inlet's colour, a pump in its outlet's); one
     -- whose line supplies nothing grey.
@@ -72,8 +72,10 @@ function ISBUPanelWindow:updatePlan()
                 local inlet, outlet = BU.Water.unitPipes(panel, unit)
                 colour = BU.Water.colour(inlet or outlet)
             end
+            -- power's units share their kind's source row
+            local key = utility == "power" and ISBUPanelWindow.sourceKey(unit.kind) or ISBUPanelWindow.squareKey(unit)
             producers[#producers + 1] = { x = unit.x, y = unit.y, z = unit.z, unit = unit.kind, colour = colour, ref = ref,
-                cut = not live, inUse = live and (inUse or unit.running == true), text = text }
+                key = key, cut = not live, inUse = live and (inUse or unit.running == true), text = text }
         end
     end
     -- What it could take and no box has: grey, as devices not connected are.
@@ -82,7 +84,7 @@ function ISBUPanelWindow:updatePlan()
             local name = at.unit and Units.name(at.unit) or utility == "water" and getText("IGUI_BU_Legend_tank")
                 or BU.displayName(at.x, at.y, at.z, at.sprite)
             producers[#producers + 1] = { x = at.x, y = at.y, z = at.z, unwired = true, unit = at.unit and at.unit.kind,
-                text = name .. "  " .. getText("IGUI_BU_NotWired") }
+                key = ISBUPanelWindow.squareKey(at), text = name .. "  " .. getText("IGUI_BU_NotWired") }
         end
     end
     -- The relays of this utility, and the lines: each from its thing to what it hangs on (its wall square, a relay, a
@@ -93,6 +95,7 @@ function ISBUPanelWindow:updatePlan()
             local ref = Links.unitRef(unit)
             local live = Links.live(panel, ref)
             relays[#relays + 1] = { x = unit.x, y = unit.y, z = unit.z, kind = unit.kind, ref = ref, cut = not live,
+                key = ISBUPanelWindow.squareKey(unit),
                 text = Units.name(unit) .. "  " .. (live and self:relayRooms(unit) or getText("IGUI_BU_LineNotSupplied")) }
             if live then liveRelays[#liveRelays + 1] = { x = unit.x, y = unit.y, z = unit.z } end
         end
@@ -349,15 +352,37 @@ function ISBUPanelWindow:roomStatus(id)
     return title .. "  " .. totals.on .. " / " .. totals.count
 end
 
--- The device under the mouse on the plan, outlined in the world.
-function ISBUPanelWindow:outlineDevice(key)
+-- What a thing is known by in the list and on the plan alike, so that hovering, clicking and choosing go one way for
+-- all: a device's key; a producer's, unit's or relay's square; power's units by their kind's source row (the solar
+-- panels share one). A row carries its key (ISBUPanelWindow:fill), a dot or square of the plan its own.
+function ISBUPanelWindow.squareKey(at) return at.x .. "," .. at.y .. "," .. at.z end
+function ISBUPanelWindow.sourceKey(kind) return "source|" .. kind end
+function ISBUPanelWindow.rowKey(row)
+    if row.device then return row.device.key end
+    if row.source then return ISBUPanelWindow.sourceKey(row.source) end
+    local at = row.relay or row.unit or row.at
+    return at and at.x and ISBUPanelWindow.squareKey(at) or nil
+end
+
+-- The thing under the mouse on the plan, outlined in the world: a device, else what its row stands for.
+function ISBUPanelWindow:outlineThing(key)
     local playerNum = self.playerObj:getPlayerNum()
     unoutline(playerNum, self.planOutlined)
     self.planOutlined = {}
     if not key then return end
-    local view = self.views[self:activeUtility()]
+    local utility = self:activeUtility()
+    local view = self.views[utility]
     for _, device in ipairs(view and view.devices or {}) do
-        if device.key == key then outline(playerNum, deviceObjects(device), getCore():getGoodHighlitedColor(), self.planOutlined) end
+        if device.key == key then
+            outline(playerNum, deviceObjects(device), getCore():getGoodHighlitedColor(), self.planOutlined)
+            return
+        end
+    end
+    for _, item in ipairs(self.lists[utility].items) do
+        if item.item.key == key then
+            outline(playerNum, Ui.rowObjects(item.item), getCore():getGoodHighlitedColor(), self.planOutlined)
+            return
+        end
     end
 end
 
@@ -371,32 +396,28 @@ function ISBUPanelWindow:outlineRows(rows)
     outline(playerNum, Ui.rowObjects({ members = rows }), getCore():getGoodHighlitedColor(), self.planOutlined)
 end
 
--- A dot clicked on the plan: its row, unfolded and shown.
-function ISBUPanelWindow:showDevice(key)
+-- A thing clicked on the plan (or "show in list"): its row, chosen and shown. A device's room and floor unfold and a
+-- filter that hides it lifts; a row hidden as not connected is listed again.
+function ISBUPanelWindow:showThing(key)
     local utility = self:activeUtility()
     local view = self.views[utility]
-    local roomId, level
     for _, device in ipairs(view and view.devices or {}) do
-        if device.key == key then
-            roomId, level = Ui.groupOf(device)
-            level = level or device.entry.z
+        local roomId, level = nil, nil
+        if device.key == key then roomId, level = Ui.groupOf(device) end
+        if roomId then
+            PanelWindow.folded[self.panel.id .. "|" .. utility .. "|" .. roomId] = nil
+            PanelWindow.folded[self.panel.id .. "|" .. utility .. "|floor|" .. (level or device.entry.z)] = false
+            if self.roomFilter and self.roomFilter ~= roomId then self.roomFilter = nil end
+            if PanelWindow.options.activeOnly then PanelWindow.options.activeOnly = false; self:placeOptions() end
+            self:redraw()
         end
     end
-    if not roomId then return end
-    PanelWindow.folded[self.panel.id .. "|" .. utility .. "|" .. roomId] = nil
-    PanelWindow.folded[self.panel.id .. "|" .. utility .. "|floor|" .. level] = false
-    if self.roomFilter and self.roomFilter ~= roomId then self.roomFilter = nil end
-    if PanelWindow.options.activeOnly then PanelWindow.options.activeOnly = false; self:placeOptions() end
+    if self:chooseRow(utility, key) or not PanelWindow.options.hideUnwired then return end
+    PanelWindow.options.hideUnwired = false
+    self:placeOptions()
     self:redraw()
+    self:updatePlan()
     self:chooseRow(utility, key)
-end
-
--- What a row stands for, to find it again as the list fills anew: a device's key, else its producer's, unit's or
--- relay's square; nil for a row of neither.
-function ISBUPanelWindow.rowKey(row)
-    if row.device then return row.device.key end
-    local at = row.relay or row.unit or row.at
-    return at and at.x and (at.x .. "," .. at.y .. "," .. at.z) or nil
 end
 
 -- A row chosen: selected, scrolled to and flashed (from the plan); it stays selected as the list fills anew
@@ -405,8 +426,9 @@ function ISBUPanelWindow:chooseRow(utility, key, quiet)
     self.chosenRow = key and { utility = utility, key = key } or nil
     local list = self.lists[utility]
     list.selected = -1
+    if not key then return false end
     for index, item in ipairs(list.items) do
-        if key and ISBUPanelWindow.rowKey(item.item) == key then
+        if item.item.key == key then
             list.selected = index
             if not quiet then
                 list:ensureVisible(index)
@@ -416,19 +438,6 @@ function ISBUPanelWindow:chooseRow(utility, key, quiet)
         end
     end
     return false
-end
-
--- A producer's, unit's or relay's square clicked on the plan: its row, shown; one not connected at the box is
--- listed again if the list hid it.
-function ISBUPanelWindow:showAt(at)
-    local utility = self:activeUtility()
-    local key = at.x .. "," .. at.y .. "," .. at.z
-    if self:chooseRow(utility, key) or not PanelWindow.options.hideUnwired then return end
-    PanelWindow.options.hideUnwired = false
-    self:placeOptions()
-    self:redraw()
-    self:updatePlan()
-    self:chooseRow(utility, key)
 end
 
 -- A room clicked on the plan: the list shows only it; nil shows them all again.
@@ -466,7 +475,7 @@ function ISBUPanelWindow:deviceMenu(key)
             end
         end
     end
-    menu:addOption(getText("IGUI_BU_Menu_ShowInList"), self, ISBUPanelWindow.showDevice, key)
+    menu:addOption(getText("IGUI_BU_Menu_ShowInList"), self, ISBUPanelWindow.showThing, key)
 end
 
 -- The menu of a room right-clicked on the plan: all of it on or off, or only it in the list.

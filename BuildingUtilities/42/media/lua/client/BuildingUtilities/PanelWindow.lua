@@ -919,7 +919,7 @@ function ISBUPanelWindow:close()
     end
     if self.manual then self.manual:leave() end
     self:showRange(false)
-    self:outlineDevice(nil)
+    self:outlineThing(nil)
     open[self.panel.id] = nil
     BU.LineOverlay.refresh()
     -- It fades out (UI.fadeOut), but when another takes its place at once.
@@ -1165,6 +1165,8 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
     local panel, playerObj = self.panel, self.playerObj
     local function add(row, tooltip)
         row.tip = tooltip
+        -- what it stands for, as the plan knows it too (ISBUPanelWindow.rowKey)
+        row.key = ISBUPanelWindow.rowKey(row)
         list:addItem(row.text or "", row)
     end
     if not devices then

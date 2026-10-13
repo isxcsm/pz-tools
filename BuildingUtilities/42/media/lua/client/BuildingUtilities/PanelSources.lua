@@ -1,7 +1,7 @@
 -- The breaker box window's rows for the units' source (solar panels, the bank), and what each generator does.
 require "BuildingUtilities/PanelWindow"
 local BU = BuildingUtilities
-local Store, Sync, Energy = BU.Store, BU.Sync, BU.Energy
+local Store, Sync, Energy, Units = BU.Store, BU.Sync, BU.Energy, BU.Units
 local Ui = BU.PanelUi
 local load2 = Ui.load2
 local PanelWindow = BU.PanelWindow
@@ -42,6 +42,13 @@ function PanelWindow.generatorStateText(state)
     return state and getText(GENERATOR_STATE_TEXT[state]) or "-"
 end
 
+-- Units as a row's members (outlined in the world with it).
+local function unitRows(units)
+    local rows = {}
+    for _, unit in ipairs(units) do rows[#rows + 1] = { unit = unit } end
+    return rows
+end
+
 -- The units' source, a row each for { row, tooltip }: the solar panels (how many, what they make, whether they carry
 -- the load, snow on them) and the bank (its charge, charging or drawn, worn batteries, cold).
 function ISBUPanelWindow:sourceRows(state)
@@ -63,7 +70,8 @@ function ISBUPanelWindow:sourceRows(state)
         local tooltip = getText("IGUI_BU_SolarLightTip", load2(Energy.rated()), BU.percent(Energy.sunlight() * 100))
         if Energy.snowEnabled() then tooltip = tooltip .. " " .. getText("IGUI_BU_SolarSnowTip") end
         tooltip = tooltip .. " " .. getText(bank and "IGUI_BU_SolarBankTip" or "IGUI_BU_SolarTip", load2(state and state.load or 0))
-        rows[#rows + 1] = { row = { kind = "source", text = text, inUse = inUse and not bank }, tooltip = tooltip }
+        rows[#rows + 1] = { row = { kind = "source", text = text, inUse = inUse and not bank, source = "solar",
+            members = unitRows(Units.working(panel, "solar")) }, tooltip = tooltip }
     end
     local racks = BU.enabled("rack") and Store.unitList("rack", panel.id) or {}
     if #racks > 0 then
@@ -93,7 +101,8 @@ function ISBUPanelWindow:sourceRows(state)
         else
             text = getText("IGUI_BU_BankEmpty", #racks)
         end
-        rows[#rows + 1] = { row = { kind = "source", text = text, inUse = inUse and bank ~= nil }, tooltip = tooltip }
+        rows[#rows + 1] = { row = { kind = "source", text = text, inUse = inUse and bank ~= nil, source = "rack",
+            members = unitRows(racks) }, tooltip = tooltip }
     end
     -- "Switch to solar" on the first row, while something else carries the load (Energy.sourceOffer).
     local offered, ready, rules = Energy.sourceOffer(panel, state)

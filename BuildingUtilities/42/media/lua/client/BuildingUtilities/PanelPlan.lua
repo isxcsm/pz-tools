@@ -5,8 +5,8 @@
 -- A strip on the left picks the floor, a legend in a box at the bottom tells the colours (its header folds it). It
 -- shares hover and clicks with the window's list: a row under the mouse marks its room or dot here and the other way
 -- round, a room clicked here shows only that room there, a dot or a producer's, unit's or relay's square clicked here
--- finds its row (selected, kept so as the list fills again), and a right click offers
--- what the row would. Rooms of the building outside the box's zone are dim; the Zone switch at the top shows the zones
+-- finds its row (selected, kept so as the list fills again; one key for both, ISBUPanelWindow.rowKey), and a right
+-- click offers what the row would. Rooms of the building outside the box's zone are dim; the Zone switch at the top shows the zones
 -- instead, and a click there takes a room in or out. Devices in reach not connected are grey; the mouse over a thing
 -- with a line brings its line up. The Range switch shows the range here and in the world: an outline where devices
 -- outside, producers and units join from the zone's walls and from the relays, and on the power plan how far each
@@ -634,7 +634,7 @@ function ISBUPlan:layoutThings(sx, sy, scale)
             self.squares[#self.squares + 1] = { x = math.floor(sx(producer.x) + (scale - SQUARE) / 2),
                 y = math.floor(sy(producer.y) + (scale - SQUARE) / 2), size = SQUARE,
                 r = colour[1], g = colour[2], b = colour[3], ring = producer.inUse, text = producer.text, ref = producer.ref,
-                at = producer }
+                key = producer.key }
         end
     end
     -- The relays: a square in their kind's colour (grey while they supply nothing), a post mark on it.
@@ -643,7 +643,7 @@ function ISBUPlan:layoutThings(sx, sy, scale)
             local colour = relay.cut and COLOURS.off or COLOURS[relay.kind]
             self.squares[#self.squares + 1] = { x = math.floor(sx(relay.x) + (scale - SQUARE) / 2),
                 y = math.floor(sy(relay.y) + (scale - SQUARE) / 2), size = SQUARE, relay = true,
-                r = colour[1], g = colour[2], b = colour[3], text = relay.text, ref = relay.ref, at = relay }
+                r = colour[1], g = colour[2], b = colour[3], text = relay.text, ref = relay.ref, key = relay.key }
         end
     end
     -- The boxes of the building; this window's ringed.
@@ -1043,8 +1043,8 @@ function ISBUPlan:render()
             self:drawRectBorder(square.x - 3, square.y - 3, size + 6, size + 6, 0.9,
                 math.min(1, square.r + 0.3), math.min(1, square.g + 0.3), math.min(1, square.b + 0.3))
         end
-        if marked and marked.square and marked.square ~= "line" and marked.r == square.r and marked.g == square.g
-                and marked.b == square.b then
+        if square.key and square.key == hoverKey or marked and marked.square and marked.square ~= "line"
+                and marked.r == square.r and marked.g == square.g and marked.b == square.b then
             UI.frame(self, square.x - 4, square.y - 4, size + 8, size + 8, P.bright, 1)
         end
     end
@@ -1157,16 +1157,17 @@ function ISBUPlan:hit(x, y)
     return nil
 end
 
--- The thing under the mouse, for the plan and for the list: its dot and room.
+-- The thing under the mouse, for the plan and for the list: its dot or square (by its key), and its room.
 function ISBUPlan:setHover(key, room)
-    if key ~= self.hoverKey then self.window:outlineDevice(key) end
+    if key ~= self.hoverKey then self.window:outlineThing(key) end
     self.hoverKey, self.hoverRoom = key, room
     self.window.planHoverKey, self.window.planHoverRoom = key, room
 end
 
 function ISBUPlan:onMouseMove(dx, dy)
     local kind, thing = self:hit(self:getMouseX(), self:getMouseY())
-    self:setHover(kind == "dot" and thing.key or nil, (kind == "room" or kind == "dot") and thing.room or nil)
+    self:setHover((kind == "dot" or kind == "square") and thing.key or nil,
+        (kind == "room" or kind == "dot") and thing.room or nil)
     self.hoverLine = (kind == "square" or kind == "dot") and thing.ref and self.lineByRef[thing.ref] or nil
     if kind == "dot" or kind == "square" then
         self.status = thing.text
@@ -1320,11 +1321,9 @@ function ISBUPlan:click(x, y)
         self:scrollStrip(thing.arrow * thing.page)
     elseif kind == "floor" or kind == "badge" then
         self:showFloor(thing.level)
-    elseif kind == "dot" then
-        self.window:showDevice(thing.key)
-    elseif kind == "square" and thing.at then
-        -- a producer, a unit or a relay: its row
-        self.window:showAt(thing.at)
+    elseif (kind == "dot" or kind == "square") and thing.key then
+        -- a device, a producer, a unit or a relay: its row
+        self.window:showThing(thing.key)
     elseif kind == "room" then
         self.window:filterRoom(thing.room ~= (self.data and self.data.filter) and thing.room or nil)
     elseif kind == nil then
