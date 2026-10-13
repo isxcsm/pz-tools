@@ -1,0 +1,397 @@
+module BuildingUtilities
+{
+    imports
+    {
+        Base
+    }
+
+    item BreakerBox
+    {
+        DisplayCategory = Electronics,
+        ItemType = base:moveable,
+        WorldObjectSprite = bu_water_01_72,
+        Weight = 3.0,
+        Icon = BUBreakerBox,
+    }
+
+    item BreakerBox2
+    {
+        DisplayCategory = Electronics,
+        ItemType = base:moveable,
+        WorldObjectSprite = bu_water_01_88,
+        Weight = 4.0,
+        Icon = BUBreakerBox2,
+    }
+
+    item BreakerBox3
+    {
+        DisplayCategory = Electronics,
+        ItemType = base:moveable,
+        WorldObjectSprite = bu_water_01_104,
+        Weight = 5.0,
+        Icon = BUBreakerBox3,
+    }
+
+    item BreakerBox4
+    {
+        DisplayCategory = Electronics,
+        ItemType = base:moveable,
+        WorldObjectSprite = bu_water_01_32,
+        Weight = 7.0,
+        Icon = BUBreakerBox4,
+    }
+
+    item ControlBoard
+    {
+        DisplayCategory = Electronics,
+        ItemType = base:normal,
+        Weight = 0.2,
+        Icon = BUControlBoard,
+    }
+
+    item SolarPanel
+    {
+        DisplayCategory = Electronics,
+        ItemType = base:moveable,
+        WorldObjectSprite = bu_solar_01_10,
+        Weight = 8.0,
+        Icon = BUSolarPanel,
+        WorldStaticModel = BuildingUtilities.SolarPanelModel,
+    }
+
+    item BatteryRack
+    {
+        DisplayCategory = Electronics,
+        ItemType = base:moveable,
+        WorldObjectSprite = bu_solar_01_0,
+        Weight = 15.0,
+        Icon = BUBatteryRack,
+    }
+
+    item WaterPump
+    {
+        DisplayCategory = Electronics,
+        ItemType = base:moveable,
+        WorldObjectSprite = bu_water_01_1,
+        Weight = 12.0,
+        Icon = BUWaterPump,
+    }
+
+    item Sprinkler
+    {
+        DisplayCategory = Gardening,
+        ItemType = base:moveable,
+        WorldObjectSprite = bu_water_01_4,
+        Weight = 2.0,
+        Icon = BUSprinkler,
+    }
+
+    item BoosterPump
+    {
+        DisplayCategory = Electronics,
+        ItemType = base:moveable,
+        WorldObjectSprite = bu_water_01_56,
+        Weight = 18.0,
+        Icon = BUBoosterPump,
+    }
+
+    item WaterFilter
+    {
+        DisplayCategory = Electronics,
+        ItemType = base:moveable,
+        WorldObjectSprite = bu_water_01_6,
+        Weight = 6.0,
+        Icon = BUWaterFilter,
+    }
+
+    item JunctionBox
+    {
+        DisplayCategory = Electronics,
+        ItemType = base:moveable,
+        WorldObjectSprite = bu_water_01_54,
+        Weight = 12.0,
+        Icon = BUJunctionBox,
+    }
+
+    item YardHydrant
+    {
+        DisplayCategory = Electronics,
+        ItemType = base:moveable,
+        WorldObjectSprite = bu_water_01_55,
+        Weight = 6.0,
+        Icon = BUYardHydrant,
+    }
+
+    item WaterSystemsMag1
+    {
+        DisplayCategory = RecipeResource,
+        ItemType = base:literature,
+        Weight = 0.5,
+        Icon = MagazineFarming1,
+        BoredomChange = -20,
+        StressChange = -15,
+        LearnedRecipes = MakeWaterPump;MakeSprinkler,
+        StaticModel = Magazine,
+        WorldStaticModel = MagazineFarming1,
+        Tags = base:magazine,
+    }
+
+    item WaterSystemsMag2
+    {
+        DisplayCategory = RecipeResource,
+        ItemType = base:literature,
+        Weight = 0.5,
+        Icon = MagazineMechanic2,
+        BoredomChange = -20,
+        StressChange = -15,
+        LearnedRecipes = MakeBoosterPump;MakeWaterFilter,
+        StaticModel = Magazine,
+        WorldStaticModel = MagazineMec2Ground,
+        Tags = base:magazine,
+    }
+
+    model SolarPanelModel
+    {
+        mesh = WorldItems/BUSolarPanel,
+        texture = WorldItems/BUSolarPanel,
+        scale = 0.7,
+    }
+
+    craftRecipe MakeSolarPanel
+    {
+        timedAction = MakingElectrical,
+        time = 400,
+        SkillRequired = Electricity:3,
+        OnTest = BuildingUtilities.RecipeTest.MakeSolarPanel,
+        OnAddToMenu = BuildingUtilitiesRecipeShown,
+        Tags = AnySurfaceCraft,
+        category = Electrical,
+        xpAward = Electricity:15,
+        inputs
+        {
+            item 1 tags[base:screwdriver] mode:keep flags[Prop1],
+            item 2 [Base.GlassPanel],
+            item 6 [Base.ElectronicsScrap],
+            item 2 [Base.ElectricWire],
+            item 3 [Base.AluminumScrap],
+            item 2 [Base.MetalBar],
+            item 6 [Base.Screws],
+        }
+        outputs
+        {
+            item 1 BuildingUtilities.SolarPanel,
+        }
+    }
+
+    craftRecipe MakeBatteryRack
+    {
+        timedAction = MakingElectrical,
+        time = 500,
+        SkillRequired = Electricity:4,
+        OnTest = BuildingUtilities.RecipeTest.MakeBatteryRack,
+        OnAddToMenu = BuildingUtilitiesRecipeShown,
+        Tags = AnySurfaceCraft,
+        category = Electrical,
+        xpAward = Electricity:20,
+        inputs
+        {
+            item 1 tags[base:screwdriver] mode:keep flags[Prop1],
+            item 1 tags[base:pliers] mode:keep flags[MayDegradeVeryLight],
+            item 4 [Base.MetalBar],
+            item 2 [Base.SheetMetal],
+            item 4 [Base.ElectricWire],
+            item 4 [Base.ElectronicsScrap],
+            item 8 [Base.Screws],
+        }
+        outputs
+        {
+            item 1 BuildingUtilities.BatteryRack,
+        }
+    }
+
+    craftRecipe MakeBreakerBox
+    {
+        timedAction = MakingElectrical,
+        time = 300,
+        SkillRequired = Electricity:3,
+        NeedToBeLearn = true,
+        OnTest = BuildingUtilities.RecipeTest.MakeBreakerBox,
+        OnAddToMenu = BuildingUtilitiesRecipeShown,
+        Tags = AnySurfaceCraft,
+        category = Electrical,
+        xpAward = Electricity:15,
+        inputs
+        {
+            item 1 tags[base:screwdriver] mode:keep flags[Prop1],
+            item 1 tags[base:pliers] mode:keep flags[MayDegradeVeryLight],
+            item 1 [BuildingUtilities.ControlBoard],
+            item 4 [Base.ElectronicsScrap],
+            item 3 [Base.ElectricWire],
+            item 1 [Base.SmallSheetMetal],
+            item 4 [Base.Screws],
+        }
+        outputs
+        {
+            item 1 BuildingUtilities.BreakerBox,
+        }
+    }
+
+    craftRecipe MakeWaterPump
+    {
+        timedAction = MakingElectrical,
+        time = 400,
+        SkillRequired = Electricity:2,
+        NeedToBeLearn = true,
+        AutoLearnAny = Electricity:4,
+        OnTest = BuildingUtilities.RecipeTest.MakeWaterPump,
+        OnAddToMenu = BuildingUtilitiesRecipeShown,
+        Tags = AnySurfaceCraft,
+        category = Electrical,
+        xpAward = Electricity:10,
+        inputs
+        {
+            item 1 tags[base:screwdriver] mode:keep flags[Prop1],
+            item 1 tags[base:wrench] mode:keep flags[MayDegradeVeryLight],
+            item 2 [Base.MetalPipe],
+            item 1 [Base.RubberHose],
+            item 1 [Base.SmallSheetMetal],
+            item 4 [Base.ElectronicsScrap],
+            item 3 [Base.ElectricWire],
+            item 6 [Base.Screws],
+        }
+        outputs
+        {
+            item 1 BuildingUtilities.WaterPump,
+        }
+    }
+
+    craftRecipe MakeBoosterPump
+    {
+        timedAction = MakingElectrical,
+        time = 500,
+        SkillRequired = Electricity:4,
+        NeedToBeLearn = true,
+        AutoLearnAny = Electricity:7,
+        OnTest = BuildingUtilities.RecipeTest.MakeBoosterPump,
+        OnAddToMenu = BuildingUtilitiesRecipeShown,
+        Tags = AnySurfaceCraft,
+        category = Electrical,
+        xpAward = Electricity:15,
+        inputs
+        {
+            item 1 tags[base:screwdriver] mode:keep flags[Prop1],
+            item 1 tags[base:wrench] mode:keep flags[MayDegradeVeryLight],
+            item 3 [Base.MetalPipe],
+            item 1 [Base.RubberHose],
+            item 2 [Base.SmallSheetMetal],
+            item 1 [Base.SheetMetal],
+            item 6 [Base.ElectronicsScrap],
+            item 4 [Base.ElectricWire],
+            item 8 [Base.Screws],
+        }
+        outputs
+        {
+            item 1 BuildingUtilities.BoosterPump,
+        }
+    }
+
+    craftRecipe MakeJunctionBox
+    {
+        timedAction = Making,
+        time = 300,
+        SkillRequired = Electricity:2,
+        OnTest = BuildingUtilities.RecipeTest.MakeJunctionBox,
+        OnAddToMenu = BuildingUtilitiesRecipeShown,
+        Tags = AnySurfaceCraft,
+        category = Electrical,
+        xpAward = Electricity:5,
+        inputs
+        {
+            item 1 tags[base:screwdriver] mode:keep flags[Prop1],
+            item 1 [Base.SheetMetal],
+            item 4 [Base.Screws],
+            item 2 [Base.ElectricWire],
+            item 2 [Base.ElectronicsScrap],
+        }
+        outputs
+        {
+            item 1 BuildingUtilities.JunctionBox,
+        }
+    }
+
+    craftRecipe MakeYardHydrant
+    {
+        timedAction = Making,
+        time = 200,
+        SkillRequired = Maintenance:2,
+        OnTest = BuildingUtilities.RecipeTest.MakeYardHydrant,
+        OnAddToMenu = BuildingUtilitiesRecipeShown,
+        Tags = AnySurfaceCraft,
+        category = Farming,
+        xpAward = Maintenance:5,
+        inputs
+        {
+            item 1 tags[base:wrench] mode:keep flags[MayDegradeVeryLight],
+            item 2 [Base.MetalPipe],
+            item 1 [Base.SmallSheetMetal],
+            item 4 [Base.Screws],
+        }
+        outputs
+        {
+            item 1 BuildingUtilities.YardHydrant,
+        }
+    }
+
+    craftRecipe MakeSprinkler
+    {
+        timedAction = Making,
+        time = 150,
+        NeedToBeLearn = true,
+        AutoLearnAny = Farming:4;Maintenance:4,
+        OnTest = BuildingUtilities.RecipeTest.MakeSprinkler,
+        OnAddToMenu = BuildingUtilitiesRecipeShown,
+        Tags = AnySurfaceCraft,
+        category = Farming,
+        xpAward = Maintenance:5,
+        inputs
+        {
+            item 1 tags[base:wrench] mode:keep flags[MayDegradeVeryLight],
+            item 1 [Base.MetalPipe],
+            item 1 [Base.RubberHose],
+            item 2 [Base.ScrapMetal],
+            item 2 [Base.Screws],
+        }
+        outputs
+        {
+            item 1 BuildingUtilities.Sprinkler,
+        }
+    }
+
+    craftRecipe MakeWaterFilter
+    {
+        timedAction = Making,
+        time = 250,
+        SkillRequired = Maintenance:3,
+        NeedToBeLearn = true,
+        AutoLearnAny = Maintenance:6,
+        OnTest = BuildingUtilities.RecipeTest.MakeWaterFilter,
+        OnAddToMenu = BuildingUtilitiesRecipeShown,
+        Tags = AnySurfaceCraft,
+        category = Electrical,
+        xpAward = Maintenance:10,
+        inputs
+        {
+            item 1 tags[base:wrench] mode:keep flags[MayDegradeVeryLight],
+            item 2 [Base.MetalPipe],
+            item 1 [Base.SmallSheetMetal],
+            item 1 [Base.RubberHose],
+            item 2 [Base.Charcoal],
+            item 1 [Base.RippedSheets],
+            item 4 [Base.Screws],
+        }
+        outputs
+        {
+            item 1 BuildingUtilities.WaterFilter,
+        }
+    }
+}

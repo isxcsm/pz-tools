@@ -1,0 +1,13 @@
+Files from Immersive Solar Arrays (https://github.com/Poltergeist-ix/ImmersiveSolarArrays, branch update-to-b42),
+licensed under the Apache License 2.0 (LICENSE here). Original creator RadX5; rework by Poltergeist; see Contributors.txt.
+Building Utilities is not Immersive Solar Arrays and is not made by its authors.
+
+Used, with these changes:
+- media/texturepacks/BuildingUtilitiesSolar.pack: from solarmod_tileset.pack. Page and sprite names renamed
+  (solarmod_tileset_01 -> bu_solar_01). Images unchanged.
+- media/bu_solar.tiles: from solarmodtiledefs.tiles. Tileset renamed as above; properties for picking up, scrapping
+  and containers removed; unused tiles carry no properties; "Battery Bank" and "Solar Roof Tile" names changed.
+- media/textures/Item_BUSolarPanel.png: Item_SolarPanel.png, unchanged.
+- media/textures/Item_BUBatteryRack.png: .archive/obsolete/Item_BatteryBank.png, scaled into a 64x64 square.
+- media/models_X/WorldItems/BUSolarPanel.fbx and media/textures/WorldItems/BUSolarPanel.png: SolarPanelModel.fbx and
+  WorldItems/SolarPanelModel.png, renamed only.

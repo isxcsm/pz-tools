@@ -1,0 +1,17 @@
+{
+    "BuildingUtilities.BreakerBox": "설비 제어반",
+    "BuildingUtilities.BreakerBox2": "설비 제어반 (2단계)",
+    "BuildingUtilities.BreakerBox3": "설비 제어반 (3단계)",
+    "BuildingUtilities.BreakerBox4": "설비 제어반 (4단계)",
+    "BuildingUtilities.SolarPanel": "태양광 패널",
+    "BuildingUtilities.BatteryRack": "배터리 랙",
+    "BuildingUtilities.WaterPump": "양수 펌프",
+    "BuildingUtilities.Sprinkler": "스프링클러",
+    "BuildingUtilities.WaterFilter": "정수 필터",
+    "BuildingUtilities.WaterSystemsMag1": "농촌 급수 설비 1권",
+    "BuildingUtilities.WaterSystemsMag2": "농촌 급수 설비 2권",
+    "BuildingUtilities.BoosterPump": "가압 펌프",
+    "BuildingUtilities.JunctionBox": "분기함",
+    "BuildingUtilities.ControlBoard": "제어 기판",
+    "BuildingUtilities.YardHydrant": "야외 수전"
+}

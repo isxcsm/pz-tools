@@ -1,0 +1,17 @@
+{
+    "BuildingUtilities.BreakerBox": "Utility Panel",
+    "BuildingUtilities.BreakerBox2": "Utility Panel (Tier 2)",
+    "BuildingUtilities.BreakerBox3": "Utility Panel (Tier 3)",
+    "BuildingUtilities.BreakerBox4": "Utility Panel (Tier 4)",
+    "BuildingUtilities.SolarPanel": "Solar Panel",
+    "BuildingUtilities.BatteryRack": "Battery Rack",
+    "BuildingUtilities.WaterPump": "Water Pump",
+    "BuildingUtilities.Sprinkler": "Sprinkler",
+    "BuildingUtilities.WaterFilter": "Water Filter",
+    "BuildingUtilities.WaterSystemsMag1": "Rural Water Systems Vol. 1",
+    "BuildingUtilities.WaterSystemsMag2": "Rural Water Systems Vol. 2",
+    "BuildingUtilities.BoosterPump": "Booster Pump",
+    "BuildingUtilities.JunctionBox": "Junction Box",
+    "BuildingUtilities.YardHydrant": "Yard Hydrant",
+    "BuildingUtilities.ControlBoard": "Control Board"
+}
