@@ -21,6 +21,8 @@ import zombie.iso.sprite.IsoSpriteInstance;
  */
 public class IsoObject {
     public IsoSprite sprite;
+    /** Where the sprite is drawn, moved from the square's place (a floor's are what its decals are drawn with). */
+    public float offsetX, offsetY;
     public IsoGridSquare square;
     public boolean powered;
     public float consumption;

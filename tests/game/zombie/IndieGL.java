@@ -9,4 +9,8 @@ public final class IndieGL {
 
     public static void StartShader(Shader shader) { if (TextManager.record) TextManager.log("start", shader); }
     public static void EndShader() { if (TextManager.record) TextManager.log("end"); }
+
+    /** Whether what is drawn writes the depth, as last set. */
+    public static boolean depthMask = true;
+    public static void glDepthMask(boolean on) { depthMask = on; }
 }

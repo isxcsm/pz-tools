@@ -58,7 +58,7 @@ the game exits. Its functions are Kahlua `JavaFunction`s, so no class has to be 
 | `PZExtAPI.version` | Integer, raised on any incompatible change. A mod refuses a version it was not written for. Now 1. |
 | `PZExtAPI.hooks()` | A table of the API's hooks in this game, by game class and method (`IsoGridSquare.haveElectricity`): `"applied"`, `"not-loaded"` (its class has not loaded yet; most load with the first world), or why it did not go in. Where a hook is missing, that question gets the game's own answer. |
 | `PZExtAPI.client(name)` | A handle for one mod; everything it defines belongs to it. `handle:clear()` removes it all. The name is 1 to 64 letters, digits, `_`, `.` or `-`; the same name gives the same handle. |
-| `buildings`, `networks`, `formulas`, `moodles`, `text`, `zombies`, `helicopter`, `timers`, `chunks`, `draw` | The areas below. Later areas are added as fields; an area a mod does not use is ignored. `moodles`, `text`, `zombies` and `helicopter` are left out, with a line in the game's log, in a game that lacks what they read (`moodles` and `text` also in a game started by an install from before them). |
+| `buildings`, `networks`, `formulas`, `moodles`, `text`, `zombies`, `helicopter`, `timers`, `chunks`, `squares`, `draw`, `floor` | The areas below. Later areas are added as fields; an area a mod does not use is ignored. `moodles`, `text`, `zombies` and `helicopter` are left out, with a line in the game's log, in a game that lacks what they read (`moodles` and `text` also in a game started by an install from before them). |
 
 Functions are called with a dot (`PZExtAPI.buildings.at(x, y, z)`); a handle's functions with a
 colon (`handle:clear()`). A wrong argument is a Lua error that names the function and the argument.
@@ -805,6 +805,8 @@ hook only. `PZExtAPI.hooks()` names each by game class and method.
 | `FBORenderCell.sanitizeLightInfo` | each return | The light a square's objects are drawn with: a lifted copy (the square's own, which the game also asks for its zombies and its vision, is never changed). |
 | `FBORenderCell.*:stale` | after each call of `LightingJNI.getChunkDirty(player, wx, wy, z)`, in any method | Also true while a square of the chunk level was last read with another lift, so that the renderer reads the level's squares again (given up for 3 s once the squares are not drawn); the call's arguments are kept in new locals. |
 | `FBORenderCell.renderOneLevel_Blood:blood` | after each call of `IsoGridSquare.getVertLight(corner, player)` | The corner light floor blood is tinted with, unlifted, so that blood is not lit by night sight. |
+| `FBORenderCell.renderFloor(IsoGridSquare)` | each return | The square's [floor decals](#floor-decals) are drawn over its floor objects, into the chunk level's picture. |
+| `IsoGridSquare.RecalcProperties()` | the return | The square, if a mod [watches](#square-watches) it, is marked to be told at the next frame. |
 | `ModelInstance$PlayerData.updateLights` (two), `ModelSlotRenderData.initModel:light`, `ItemModelRenderer.init`, `FBORenderCorpses$BodyParams.initAmbient` | after each call of `IsoGridSquare.interpolateLight(info, x, y)`, or of PZ Optimization's `ModelInstance.pzoptInterpolateLight(square, info, x, y)` (its copy of `ModelInstance$PlayerData`, which the game loads before its own, reads the light with that) | A character's, an animal's, a vehicle's, an item's and a corpse's light, worked out again from the corners before night sight's lift (see [night sight](#night-sight)); the call's arguments are kept in new locals. |
 | `IsoObjectModelDrawer.renderMain:still`, `:animated` | the start | A model object's light: the square's own when it is the lifted copy `sanitizeLightInfo` handed. |
 | `pzopt/BloodDecals.squares` (PZ Optimization's blood, when installed) | after its `SquareRules.fill` | The same for the colours of the squares it hands the GPU. |
@@ -1288,6 +1290,30 @@ of an empty list. A chunk reloaded between two looks is a new chunk: an unload (
 the rest are called in the next frames, none lost. A mod has at most 32 watches and all mods 128. Watches belong to the world and are
 kept in the API table's metatable like the timers.
 
+### Square watches
+
+A Lua function called when what stands on a square a mod watches changes: something built on it or beside it, taken away, its
+floor changed, or the square loaded. The game has no event for most of these (`OnObjectAdded` is sent only for a few objects and in
+multiplayer), and looking at the squares again and again costs every tick whether anything changed or not.
+([`SquareWatches`](../src/api/pzext/api/SquareWatches.java))
+
+| Call | Effect |
+| --- | --- |
+| `squares.watch(handle, list, fn)` | Watches the squares of `list`, a flat list `x1, y1, z1, x2, y2, z2, ...` (at most 16384 squares; `z` from -32 to 31), and returns the watch's `id`. When one of them changes, `fn(id, x, y, z)` is called from the frame job at the next frame, once however often it changed meanwhile. |
+| `squares.unwatch(handle, id)` | Stops the mod's own watch; `true` when there was one. |
+
+What counts as a change: the game works a square's properties out again from its objects (`IsoGridSquare.RecalcProperties`), which it
+does when an object is put on it or taken off (`AddTileObject`, `AddSpecialObject`, `RemoveTileObject`, `ClearTileObjects`), its floor
+is put down (`addFloor`), a wall goes up or down beside it (`RecalcAllWithNeighbours` works out the neighbours too), a fire burns it,
+and when it loads. A mod takes it as "look again": what changed is for it to find. A sprite changed in place without the game working
+the square out again is not told.
+
+Cost: with no square watched the hook is not set and the game's call costs a null test (5 ns in the tests); with squares watched, a box
+test and a hash probe in an immutable index, safe on the threads that load chunks (12 ns with 1000 watched near the squares changing).
+A watched square that changes is marked once and queued under a lock only it takes. Nothing is allocated. At most 64 functions are
+called a frame; the rest in the next frames, none lost. A mod has at most 32 watches, all mods 128 and 65536 squares. Watches belong
+to the world and are kept in the API table's metatable like the chunk watches; a newer API takes them over.
+
 ### Drawing many shapes
 
 For the interface that draws hundreds of rectangles or quads a frame (a ring of dashes, a graph, a grid) and would make a Lua call
@@ -1305,6 +1331,34 @@ element's place plus its scroll, in whole pixels (cut), skipped when above the s
 hidden element. The element's place is asked once for the call, not once for each rectangle. Every number is checked before
 anything is drawn: a bad one (not a number, infinite, NaN) is a Lua error naming its place (`list[12] must be a number`) and no
 shape is drawn. The numbers are read into a buffer kept between calls, so a call allocates nothing for the shapes.
+
+### Floor decals
+
+For what lies on the ground without being an object of the world: a cable or a pipe laid along the floor, a painted line. A
+mod sets pictures (sprites the game knows, by name) on the floor of squares; nothing is saved, nothing can be picked up, walked
+into or searched, and the game's objects are left as they are. A mod sets them again as its world loads.
+([`FloorDecals`](../src/api/pzext/api/FloorDecals.java))
+
+| Call | Effect |
+| --- | --- |
+| `floor.set(handle, x, y, z, list)` | The mod's decals on the square: `list` holds 5 values for each, the sprite's name and `r, g, b, a` (0 to 1), drawn in its order; at most 8. `nil` or an empty list takes the mod's decals on the square away. |
+| `floor.clear(handle)` | Takes all the mod's decals away (`handle:clear()` does too). |
+
+- **How they are drawn.** The chunk renderer draws a square's floor into its chunk level's picture
+  (`FBORenderCell.renderFloor(square)`) as the level is drawn again, not each frame. The hook at its return draws the square's
+  decals there, as `renderFloor` draws a floor object: the square's floor object as the object drawn (its depth, offsets and
+  alpha), the square's light for the player times the decal's tint, with the depth not written (`IndieGL.glDepthMask(false)`,
+  then `true` as `renderFloor` has it): the floor's depth stays, so whoever stands on a decal is drawn over it. So a decal lies over the floor and its overlays, under the
+  snow, the blood, the items and everything standing on the floor, lit as the floor is. A square with no floor gets none.
+- **When they show.** A call that changes a loaded square's decals has its chunk level drawn again
+  (`invalidateRenderChunkLevel(DIRTY_REDRAW)`); the same decals again change nothing. A square not loaded is drawn with them as
+  its chunk loads.
+- **Several mods.** Each mod's decals on a square are its own; they are drawn in the order the mods first set the square.
+- **Limits.** 8 decals a mod on a square, 16,384 squares a mod, 65,536 squares for all mods. A sprite the game does not know,
+  a tint outside 0 to 1 or a list that is not whole decals is a Lua error, and nothing changes.
+- **The world.** The decals belong to the world they were set in; leaving it takes them away. A newer API takes them over.
+- **Cost.** A floor drawn costs one test while no mod has decals (the hook is not set), and a probe of the squares' table
+  otherwise; a square with decals costs a draw of each. Nothing is allocated.
 
 ### Outlines
 

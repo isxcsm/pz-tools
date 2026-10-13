@@ -390,6 +390,24 @@ public final class Hooks {
         boolean kept(boolean vanilla, Object worldItem) throws Throwable;
     }
 
+    /**
+     * Set by the API while mods have floor decals (docs/design.md, "Floor decals"): what is drawn on a square's floor besides its
+     * objects, into the chunk level's picture with them.
+     */
+    public interface FloorDecals {
+        /** {@code FBORenderCell.renderFloor(square)}, after the square's floor objects are drawn: the square's decals drawn over them. */
+        void square(Object square) throws Throwable;
+    }
+
+    /**
+     * The squares mods watch (docs/design.md, "Square watches"): told when the game works a square's properties out again from its
+     * objects. On whatever thread the game does that (chunks load off the game's thread): it must be quick and safe there.
+     */
+    public interface SquareChanges {
+        /** {@code IsoGridSquare.RecalcProperties()}, at its end: the square at x, y, z took its properties again from its objects. */
+        void changed(int x, int y, int z) throws Throwable;
+    }
+
     /** The kinds of {@link Power#object}. */
     public static final int APPLIANCE = 0, LIGHT_SWITCH = 1, DEVICE = 2, ROOM_LIGHT = 3, FOOD = 4;
 
@@ -410,6 +428,8 @@ public final class Hooks {
     private static volatile ZombieHits zombieHits;
     private static volatile Outlines outlines;
     private static volatile WorldItems worldItems;
+    private static volatile FloorDecals floorDecals;
+    private static volatile SquareChanges squareChanges;
     // Where IsoObject reads usesExternalWaterSource for itself and keeps the game's flag: saving it, and finding the
     // game's own source (whose return the network's source replaces).
     private static final Set<String> PLUMBING_KEPT = Set.of("save", "checkExternalFluidSource");
@@ -444,7 +464,8 @@ public final class Hooks {
         ZOMBIE_LANDED("zombieLanded", Group.ZOMBIE_SOUNDS), ZOMBIE_HIT("zombieHit", Group.ZOMBIE_HITS),
         MODEL_OUTLINE("modelOutline", Group.OUTLINES), VEHICLE_OUTLINE("vehicleOutline", Group.OUTLINES),
         VEHICLE_OUTLINE_DRAW("vehicleOutlineDraw", Group.OUTLINES), CONTAINER_BURNING("containerBurning", Group.WORLD_ITEMS),
-        FLOOR_KEPT("floorKept", Group.WORLD_ITEMS);
+        FLOOR_KEPT("floorKept", Group.WORLD_ITEMS), FLOOR_DECALS("floorDecals", Group.FLOOR_DECALS),
+        SQUARE_CHANGED("squareChanged", Group.SQUARE_CHANGES);
 
         final String label;
         final Group group;
@@ -453,7 +474,7 @@ public final class Hooks {
     }
 
     /** The handler a call belongs to: a newer one of that handler reports its faults again. */
-    private enum Group { POWER, WATER, FORMULAS, MOODLES, TEXT, ZOMBIE_SOUNDS, ZOMBIE_HITS, OUTLINES, WORLD_ITEMS }
+    private enum Group { POWER, WATER, FORMULAS, MOODLES, TEXT, ZOMBIE_SOUNDS, ZOMBIE_HITS, OUTLINES, WORLD_ITEMS, FLOOR_DECALS, SQUARE_CHANGES }
 
     // Guarded by itself. A fault in a call the game makes 40,000 times a second must not flood its log.
     private static final Set<Call> reported = EnumSet.noneOf(Call.class);
@@ -483,6 +504,13 @@ public final class Hooks {
                 for (String axis : new String[] { "x", "y", "z" }) { code.aload(0); code.getfield(owner, axis, ConstantDescs.CD_int); }
                 code.invokestatic(HOOKS, "squarePowered", MethodTypeDesc.of(ConstantDescs.CD_boolean, ConstantDescs.CD_boolean,
                     ConstantDescs.CD_int, ConstantDescs.CD_int, ConstantDescs.CD_int));
+            }).reading("x", "y", "z"),
+            // The square's properties taken again from its objects: an object put on it or taken off (or on a neighbour, for the
+            // walls between), its floor changed, or the square loaded. For the squares mods watch.
+            Site.atReturns("RecalcProperties", "()V", 1, (code, owner) -> {
+                for (String axis : new String[] { "x", "y", "z" }) { code.aload(0); code.getfield(owner, axis, ConstantDescs.CD_int); }
+                code.invokestatic(HOOKS, "squareChanged", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_int,
+                    ConstantDescs.CD_int, ConstantDescs.CD_int));
             }).reading("x", "y", "z"),
             // A fire takes the items of a container (docs/design.md, "World items"): BurnWalls gives a burnt object
             // its burnt sprite, empties each of its containers (removeItemsFromProcessItems, then removeAllItems) and takes them
@@ -610,7 +638,13 @@ public final class Hooks {
                 4, null, (code, element, kind) -> {
                     code.with(element);
                     code.invokestatic(HOOKS, "bloodLight", MethodTypeDesc.of(ConstantDescs.CD_int, ConstantDescs.CD_int));
-                })).named("blood") }),
+                })).named("blood"),
+            // A square's floor, drawn into its chunk level's picture: the mods' decals go over its floor objects, under the snow,
+            // the blood and everything standing on it.
+            Site.atReturns("renderFloor", "(Lzombie/iso/IsoGridSquare;)V", 2, (code, owner) -> {
+                code.aload(1);
+                code.invokestatic(HOOKS, "floorDecals", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_Object));
+            }) }),
         // PZ Optimization draws the floor's blood on the GPU, with each square's light worked out once a frame into a float[]
         // (r, g, b of the corners' mean and whether it is drawn, for the 64 squares of a chunk's level) by its
         // SquareRules: the array is handed to bloodSquares as it is filled. Not a hook of a point: the class loads only
@@ -2489,6 +2523,34 @@ public final class Hooks {
         if (vanilla || current == null) return vanilla;
         try { return current.kept(vanilla, worldItem); }
         catch (Throwable problem) { reportOnce(Call.FLOOR_KEPT, problem); return vanilla; }
+    }
+
+    /** Sets what draws the mods' floor decals, replacing an earlier API's; null while there are none (the hook then returns at once). */
+    public static void setFloorDecals(FloorDecals next) {
+        synchronized (reported) { reported.removeIf(call -> call.group == Group.FLOOR_DECALS); }
+        floorDecals = next;
+    }
+
+    /** Put at the return of {@code FBORenderCell.renderFloor(square)}: the square's decals drawn over its floor. */
+    public static void floorDecals(Object square) {
+        FloorDecals current = floorDecals;
+        if (current == null) return;
+        try { current.square(square); }
+        catch (Throwable problem) { reportOnce(Call.FLOOR_DECALS, problem); }
+    }
+
+    /** Sets what is told of the squares mods watch, replacing an earlier API's; null while none is watched (the hook then returns at once). */
+    public static void setSquareChanges(SquareChanges next) {
+        synchronized (reported) { reported.removeIf(call -> call.group == Group.SQUARE_CHANGES); }
+        squareChanges = next;
+    }
+
+    /** Put at the end of {@code IsoGridSquare.RecalcProperties()}: the square's properties were taken again from its objects. */
+    public static void squareChanged(int x, int y, int z) {
+        SquareChanges current = squareChanges;
+        if (current == null) return;
+        try { current.changed(x, y, z); }
+        catch (Throwable problem) { reportOnce(Call.SQUARE_CHANGED, problem); }
     }
 
     // MoodleTextureSet.getBorder(), found once, for the rare path where no picture is known.

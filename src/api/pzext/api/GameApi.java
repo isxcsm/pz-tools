@@ -41,6 +41,10 @@ public final class GameApi {
     // The timers and the chunk watches of the Lua environment the game has now; null without one, or when the game cannot run them.
     private static volatile Timers timers;
     private static volatile ChunkWatches chunks;
+    // The floor decals of the Lua environment the game has now; null without one, or when the game cannot draw them.
+    private static volatile FloorDecals floor;
+    // The square watches of the Lua environment the game has now; null without one, or when the game cannot tell them.
+    private static volatile SquareWatches squares;
     // The buildings of the Lua environment the game has now, watched each frame for what changes them (Buildings.observe).
     private static volatile Buildings buildings;
     private static boolean buildingsReported;
@@ -68,6 +72,12 @@ public final class GameApi {
 
     /** The chunk watches of the Lua environment the game has now, or null (for the tests of this package). */
     static ChunkWatches chunks() { return chunks; }
+
+    /** The floor decals of the Lua environment the game has now, or null (for the tests of this package). */
+    static FloorDecals floor() { return floor; }
+
+    /** The square watches of the Lua environment the game has now, or null (for the tests of this package). */
+    static SquareWatches squares() { return squares; }
 
     /**
      * In a game the API's loader started, once each time its jar is loaded (the boot layer's Host): the game's Lua
@@ -135,6 +145,10 @@ public final class GameApi {
         if (counting != null) counting.frame();
         ChunkWatches watching = chunks;
         if (watching != null) watching.frame();
+        FloorDecals decals = floor;
+        if (decals != null) decals.frame();
+        SquareWatches told = squares;
+        if (told != null) told.frame();
         Helicopters flying = helicopters;
         if (flying != null) {
             try { flying.frame(); }
@@ -170,6 +184,8 @@ public final class GameApi {
             hits = null;
             timers = null;
             chunks = null;
+            floor = null;
+            squares = null;
             Networks.unhook();
             Formulas.unhook();
             Moodles.unhook();
@@ -178,6 +194,8 @@ public final class GameApi {
             ZombieHits.unhook();
             Outlines.unhook();
             WorldItems.unhook();
+            FloorDecals.unhook();
+            SquareWatches.unhook();
             throw failure;
         }
     }
@@ -225,6 +243,8 @@ public final class GameApi {
             ZombieHits.retire(lua, meta);
             Timers.retire(lua, meta);
             ChunkWatches.retire(lua, meta);
+            FloorDecals.retire(lua, meta);
+            SquareWatches.retire(lua, meta);
             throw failure;
         }
     }
@@ -437,8 +457,8 @@ public final class GameApi {
     }
 
     /**
-     * {@code PZExtAPI.timers}, {@code PZExtAPI.chunks} and {@code PZExtAPI.draw}: Lua functions called at a cadence or when a
-     * chunk loads, and many shapes drawn by one call. Each is left out, with a line in the game's log, in a game that lacks what it
+     * {@code PZExtAPI.timers}, {@code PZExtAPI.chunks}, {@code PZExtAPI.draw} and {@code PZExtAPI.floor}: Lua functions called at a
+     * cadence or when a chunk loads, many shapes drawn by one call, and pictures drawn on the floor of squares. Each is left out, with a line in the game's log, in a game that lacks what it
      * reads: the others go on.
      */
     private static void scheduled(Kahlua lua, Object api, Object meta, Object handles, Game game, ClassLoader loader)
@@ -470,6 +490,40 @@ public final class GameApi {
             report(unreadable);
             lua.set(api, "draw", null);
         }
+        FloorDecals decals;
+        try {
+            decals = new FloorDecals(lua, game, loader, meta, handle -> owner(lua, handles, handle));
+            decals.register(table(lua, api, "floor"));
+        } catch (LinkageError olderBootstrap) {
+            System.err.println("[PZExt] Floor decals are not in this game; restart it to use them: " + olderBootstrap);
+            FloorDecals.retire(lua, meta);
+            lua.set(api, "floor", null);
+            decals = null;
+        } catch (ReflectiveOperationException | RuntimeException unreadable) {
+            report(unreadable);
+            FloorDecals.unhook();
+            FloorDecals.retire(lua, meta);
+            lua.set(api, "floor", null);
+            decals = null;
+        }
+        floor = decals;
+        SquareWatches watched;
+        try {
+            watched = new SquareWatches(lua, game, meta, handle -> owner(lua, handles, handle));
+            watched.register(table(lua, api, "squares"));
+        } catch (LinkageError olderBootstrap) {
+            System.err.println("[PZExt] Square watches are not in this game; restart it to use them: " + olderBootstrap);
+            SquareWatches.retire(lua, meta);
+            lua.set(api, "squares", null);
+            watched = null;
+        } catch (ReflectiveOperationException | RuntimeException unreadable) {
+            report(unreadable);
+            SquareWatches.unhook();
+            SquareWatches.retire(lua, meta);
+            lua.set(api, "squares", null);
+            watched = null;
+        }
+        squares = watched;
     }
 
     /** The mod a handle belongs to, or null when the value is not one of this environment's handles. */
@@ -518,6 +572,14 @@ public final class GameApi {
             if (counting != null) counting.clear(name, AREA + "client:clear");
             ChunkWatches watching = chunks;
             if (watching != null) watching.clear(name, AREA + "client:clear");
+            SquareWatches watched = squares;
+            if (watched != null) watched.clear(name, AREA + "client:clear");
+            FloorDecals decals = floor;
+            if (decals != null) {
+                try { decals.clear(name, AREA + "client:clear"); }
+                catch (RuntimeException | Error mine) { throw mine; }
+                catch (Throwable failure) { throw Game.thrown(failure); }
+            }
             return new Object[0];
         }));
         return handles;

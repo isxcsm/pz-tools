@@ -30,6 +30,15 @@ public final class FBORenderCell {
         blood[3] = bloodSquare.getVertLight(3, bloodPlayer);
     }
 
+    /** How many floors were drawn. */
+    public int floors;
+
+    /** Like the game's: a chunk level's floor square drawn (its floor objects; here only counted). */
+    public void renderFloor(IsoGridSquare square) {
+        if (square.getFloor() == null) return;
+        floors++;
+    }
+
     /** The corner lights the square's floor blood is tinted with, for the player. */
     public int[] bloodLight(IsoGridSquare square, int player) {
         bloodSquare = square;

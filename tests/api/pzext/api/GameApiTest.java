@@ -103,12 +103,14 @@ public final class GameApiTest {
         TimersTest.run(api);
         ChunkWatchesTest.run(api);
         QuadsTest.run(api);
+        FloorDecalsTest.run(api);
+        SquareWatchesTest.run(api);
         FontsTest.run();
         OutlinesTest.run();
         NetworkScaleTest.run(api);
         hooks(api);
         takeover(api, buildings);
-        System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, switches them off and on, multiplies their loads, takes in single rooms, runs sources its mods switch, ages food by their supply, shows the moodles mods define, draws the text mods show, tells the sounds zombies make and the hits they take, finds zombies by level, sight and state, lists containers, calls functions on timers and as chunks load, wraps and fits text, draws many shapes at once, outlines models and vehicles, counts items through bags, says which hooks went in, and a newer API takes it over");
+        System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, switches them off and on, multiplies their loads, takes in single rooms, runs sources its mods switch, ages food by their supply, shows the moodles mods define, draws the text mods show, tells the sounds zombies make and the hits they take, finds zombies by level, sight and state, lists containers, calls functions on timers and as chunks load, wraps and fits text, draws many shapes at once, lays pictures on floors, tells mods of the squares they watch, outlines models and vehicles, counts items through bags, says which hooks went in, and a newer API takes it over");
     }
 
     // A map building: a basement, a kitchen and a bedroom above it. A player-built shack. Another building's room.
@@ -2542,9 +2544,9 @@ public final class GameApiTest {
                 "ParameterZombieState.setState", "ZombieVocalsManager$Slot.playSound", "IsoZombie.handleLandingImpact", "IsoZombie.Hit",
                 "FBORenderObjectOutline.renderObject", "ModelSlotRenderData.initModel:outline", "ModelSlotRenderData.renderVehicle",
                 "ModelSlotRenderData.initModel:light", "IsoObjectModelDrawer.renderMain:still", "ModelInstance$PlayerData.updateLights",
-                "IsoGridSquare.BurnWalls", "IsoGridSquare.load" })
+                "IsoGridSquare.BurnWalls", "IsoGridSquare.load", "FBORenderCell.renderFloor", "IsoGridSquare.RecalcProperties" })
             check(Hooks.APPLIED.equals(hooks.rawget(label)), label + " is " + hooks.rawget(label));
-        check(Hooks.hookStatus().size() == 107, "The hooks are " + Hooks.hookStatus().keySet());
+        check(Hooks.hookStatus().size() == 109, "The hooks are " + Hooks.hookStatus().keySet());
         check(Hooks.weightTracked(), "The hooks that follow the weight are not all in");
 
         Method transform = Hooks.class.getDeclaredMethod("transform", String.class, byte[].class, ClassLoader.class);

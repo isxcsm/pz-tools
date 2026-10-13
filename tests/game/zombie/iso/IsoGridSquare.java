@@ -116,6 +116,15 @@ public final class IsoGridSquare {
     public boolean inRoom;
     public boolean isInARoom() { return inRoom; }
     public IsoGridSquare(int x, int y, int z) { this.x = x; this.y = y; this.z = z; }
+    /** The square's floor object, as a test sets it (none: the square has no floor). */
+    public IsoObject floor;
+    public IsoObject getFloor() { return floor; }
+    /** Like the game's: the square's light for the player. */
+    public ColorInfo getLightInfo(int player) { return lighting[player].lightInfo(); }
+    /** How many times the square's chunk level was to be drawn again, and the flags of the last. */
+    public int redraws;
+    public long redrawFlags;
+    public void invalidateRenderChunkLevel(long flags) { redraws++; redrawFlags = flags; }
     /** Like the game's, the square's flags: here its walls (WallN, WallW; both as WallNW), door frames and window frames. */
     public boolean hasProperty(zombie.iso.SpriteDetails.IsoFlagType flag) {
         return switch (flag) {
@@ -153,6 +162,11 @@ public final class IsoGridSquare {
     }
 
     public boolean haveElectricity() { return chunk != null && chunk.isGeneratorPoweringSquare(x, y, z); }
+
+    /** Synthetic: the game takes the square's properties again from its objects; the API's hook goes at its end. */
+    public int recalcs;
+
+    public void RecalcProperties() { recalcs++; }
 
     /** Synthetic: the shader of the walls cut away for the player, as the game's: its uniforms set each time it starts drawing. */
     public static final class CutawayNoDepthShader extends zombie.core.opengl.Shader {
