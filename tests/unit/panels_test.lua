@@ -204,20 +204,6 @@ test("a main box lists what it could take and no box has: producers in reach, un
     eq(#Panels.unwiredProducers(sub, "power"), 0, "a sub-panel's go to its main box")
 end)
 
-test("a save from before version 8 has no blackout: its lights supplied again, its log lines gone", function()
-    local data = ModData.getOrCreate(Store.KEY)
-    data.version, data.next, data.panels = 7, 2, {}
-    local panel = Store.newPanel(201, 201, 0, "box")
-    data.version = 7
-    panel.power.blackout = { ["201,201,0,lamp"] = true }
-    panel.log = { { key = "IGUI_BU_Log_Blackout", args = { 1 } }, { key = "IGUI_BU_Log_Tripped", args = {} },
-        { key = "IGUI_BU_Log_BlackoutEnd", args = { 1 } } }
-    Store.data()
-    eq(panel.power.blackout, nil, "the set gone")
-    eq(BU.Networks.rule(panel, "power", "201,201,0,lamp"), "reset", "the lamp back to its building's rule")
-    eq(#panel.log, 1, "only the other line kept")
-    eq(panel.log[1].key, "IGUI_BU_Log_Tripped")
-end)
 
 test("a device's own switch is read, never thrown: the game's kinds and other mods' through the global list", function()
     require "BuildingUtilities/Switches"

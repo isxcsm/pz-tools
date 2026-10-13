@@ -56,10 +56,8 @@ Store.KEY = KEY
 Store.LOG_SIZE = 30
 Store.ENERGY_HOURS = 48
 -- 3: four tiers; a box of tier 3, which shed load, is tier 4 now (shedding moved there). 4: units. 5: saving and
--- blackout. 6: water groups. 7: attached rooms. 8: no blackout (the box seemed to switch lights off; it only cut their
--- supply): the lights it kept off are supplied again, and its log lines go.
-local VERSION = 8
-local GONE_LOG = { Log_Blackout = true, Log_BlackoutEnd = true }
+-- blackout. 6: water groups. 7: attached rooms.
+local VERSION = 7
 
 local function utilityData()
     return { producers = {}, excluded = {}, included = {}, attached = {}, essential = {}, schedule = {}, shed = {},
@@ -87,15 +85,6 @@ local function migrate(panel, from)
         end
     end
     waterData(panel.water)
-    if from < 8 then
-        for _, utility in ipairs(BU.UTILITIES) do panel[utility].blackout = nil end
-        local kept = {}
-        for _, line in ipairs(panel.log) do
-            -- (its texts are gone: the keys without their prefix)
-            if not GONE_LOG[tostring(line.key):sub(9)] then kept[#kept + 1] = line end
-        end
-        panel.log = kept
-    end
 end
 
 function Store.data()
