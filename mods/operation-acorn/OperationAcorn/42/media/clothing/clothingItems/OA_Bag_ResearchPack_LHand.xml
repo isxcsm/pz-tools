@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<clothingItem>
+	<m_MaleModel>media\models_X\Skinned\BackPacks\OA_ResearchPack_LHand.X</m_MaleModel>
+	<m_FemaleModel>media\models_X\Skinned\BackPacks\OA_ResearchPack_LHand.X</m_FemaleModel>
+	<m_GUID>8a9c34b3-a4b9-4341-80c4-3c11785722d6</m_GUID>
+	<m_Static>false</m_Static>
+	<m_AllowRandomHue>false</m_AllowRandomHue>
+	<m_AllowRandomTint>false</m_AllowRandomTint>
+	<m_AttachBone></m_AttachBone>
+	<textureChoices>clothes\bag\oa_researchpack</textureChoices>
+</clothingItem>

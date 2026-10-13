@@ -1,0 +1,92 @@
+/* Operation Acorn: the upgrade serums and the infection medicines: cure serum, reversal, delay drugs, test kit (the upgrades package).
+   The serums are used from the bag by a timed action (media/lua/shared/OperationAcorn/Upgrades/Actions.lua), which
+   does the work. The cure serum carries OA_Issued (world hours) and OA_Owner (record id) in its mod data, set by the
+   trade package when it is handed out. The tooltips are set in code (ISToolTipInv), so none is named here. */
+module OperationAcorn
+{
+    imports
+    {
+        Base
+    }
+
+    item UpgradeSerumScout
+    {
+        DisplayCategory = FirstAid,
+        ItemType = base:normal,
+        Weight = 0.1,
+        Icon = OA_UpgradeSerumScout,
+        Medical = true,
+    }
+
+    item UpgradeSerumLoad
+    {
+        DisplayCategory = FirstAid,
+        ItemType = base:normal,
+        Weight = 0.1,
+        Icon = OA_UpgradeSerumLoad,
+        Medical = true,
+    }
+
+    item UpgradeSerumSurvival
+    {
+        DisplayCategory = FirstAid,
+        ItemType = base:normal,
+        Weight = 0.1,
+        Icon = OA_UpgradeSerumSurvival,
+        Medical = true,
+    }
+
+    item UpgradeSerumShared
+    {
+        DisplayCategory = FirstAid,
+        ItemType = base:normal,
+        Weight = 0.1,
+        Icon = OA_UpgradeSerumShared,
+        Medical = true,
+    }
+
+    item CureSerum
+    {
+        DisplayCategory = FirstAid,
+        ItemType = base:normal,
+        Weight = 0.1,
+        Icon = OA_CureSerum,
+        Medical = true,
+    }
+
+    item DelayDrug
+    {
+        DisplayCategory = FirstAid,
+        ItemType = base:normal,
+        Weight = 0.05,
+        Icon = OA_DelayDrug,
+        Medical = true,
+    }
+
+    item DelayDrugLong
+    {
+        DisplayCategory = FirstAid,
+        ItemType = base:normal,
+        Weight = 0.05,
+        Icon = OA_DelayDrugLong,
+        Medical = true,
+    }
+
+    item InfectionReversal
+    {
+        DisplayCategory = FirstAid,
+        ItemType = base:normal,
+        Weight = 0.1,
+        Icon = OA_InfectionReversal,
+        Medical = true,
+    }
+
+    item InfectionTestKit
+    {
+        DisplayCategory = FirstAid,
+        ItemType = base:normal,
+        Weight = 0.1,
+        Icon = OA_InfectionTestKit,
+        Medical = true,
+    }
+}

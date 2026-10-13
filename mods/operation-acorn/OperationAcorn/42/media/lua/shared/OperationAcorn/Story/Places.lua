@@ -1,0 +1,200 @@
+-- Where things go (NUMBERS 9, 6; DESIGN 9, 3): which building a mission item goes in, which of a story mission's
+-- candidate places is used, where the map circle sits, and where the meteor drop sites are. Pure: places are tables
+-- { x, y } and the choices take the numbers they need, so tests need no map.
+require "OperationAcorn/Core"
+require "OperationAcorn/Story/Rewards"
+local OA = OperationAcorn
+local Places = {}
+OA.Places = Places
+
+-- Random numbers by the mod's own functions unless a test passes its own: int(a, b) both included, float(a, b).
+local function randomInt(a, b) return OA.random(a, b) end
+
+function Places.distance(ax, ay, bx, by)
+    local dx, dy = ax - bx, ay - by
+    return math.sqrt(dx * dx + dy * dy)
+end
+
+-- How far a distance is outside the band (0 inside it).
+function Places.bandGap(d, lo, hi)
+    if d < lo then return lo - d end
+    if d > hi then return d - hi end
+    return 0
+end
+
+-- A building for a regular mission: one inside the band around the anchor (the terminal), at random. at(i) gives the
+-- i-th building's x, y and whether it may be used (nil counts as yes); count is how many there are. The map has
+-- thousands of buildings and the band holds a small part, so random picks come first and a scan over all of them only
+-- when those miss. When nothing lies in the band the one nearest to it is taken. Returns the index, or nil.
+function Places.pickBuilding(count, at, anchorX, anchorY, lo, hi, tries, int)
+    int = int or randomInt
+    if count <= 0 then return nil end
+    for _ = 1, tries or 300 do
+        local i = int(1, count)
+        local x, y, ok = at(i)
+        if x and ok ~= false then
+            local d = Places.distance(x, y, anchorX, anchorY)
+            if d >= lo and d <= hi then return i end
+        end
+    end
+    -- A scan: reservoir sampling keeps one of the buildings in the band without a list; the nearest outside it is
+    -- kept as the answer when there is none inside.
+    local inBand, chosen = 0, nil
+    local nearest, nearestGap = nil, nil
+    for i = 1, count do
+        local x, y, ok = at(i)
+        if x and ok ~= false then
+            local d = Places.distance(x, y, anchorX, anchorY)
+            local gap = Places.bandGap(d, lo, hi)
+            if gap == 0 then
+                inBand = inBand + 1
+                if int(1, inBand) == 1 then chosen = i end
+            elseif not nearestGap or gap < nearestGap then
+                nearest, nearestGap = i, gap
+            end
+        end
+    end
+    return chosen or nearest
+end
+
+-- A story mission's place among its candidates (NUMBERS 9). cands: { { x, y, ... }, ... }. First the ones within
+-- BASE_EXCLUSION of the anchor are dropped (that is the base itself). Among the rest, one inside the band at random;
+-- if none is, the one nearest to the band; a choice mission's far candidate (opts.ignoreBand) skips the band and any
+-- of the rest is taken. When all are the base the farthest is used. Returns the index and why:
+-- "band", "nearest", "any" or "farthest".
+function Places.pickCandidate(cands, anchorX, anchorY, lo, hi, opts, int)
+    opts = opts or {}
+    int = int or randomInt
+    local exclusion = opts.exclusion or OA.Rewards.BASE_EXCLUSION
+    local pool, all = {}, {}
+    for i, c in ipairs(cands) do
+        if not c.closed then
+            all[#all + 1] = i
+            if Places.distance(c.x, c.y, anchorX, anchorY) >= exclusion then pool[#pool + 1] = i end
+        end
+    end
+    if #all == 0 then return nil end
+    if #pool == 0 then
+        local best, bestD = nil, -1
+        for _, i in ipairs(all) do
+            local d = Places.distance(cands[i].x, cands[i].y, anchorX, anchorY)
+            if d > bestD then best, bestD = i, d end
+        end
+        return best, "farthest"
+    end
+    if opts.ignoreBand then return pool[int(1, #pool)], "any" end
+    local inside = {}
+    for _, i in ipairs(pool) do
+        local d = Places.distance(cands[i].x, cands[i].y, anchorX, anchorY)
+        if d >= lo and d <= hi then inside[#inside + 1] = i end
+    end
+    if #inside > 0 then return inside[int(1, #inside)], "band" end
+    local best, bestGap, bestD
+    for _, i in ipairs(pool) do
+        local d = Places.distance(cands[i].x, cands[i].y, anchorX, anchorY)
+        local gap = Places.bandGap(d, lo, hi)
+        if not bestGap or gap < bestGap or (gap == bestGap and d < bestD) then best, bestGap, bestD = i, gap, d end
+    end
+    return best, "nearest"
+end
+
+-- How far the map circle's centre may be from the place, of the radius: the place is anywhere in the circle but its
+-- outer ring (a building there still lies inside).
+Places.CIRCLE_OFF = 0.7
+
+-- The map circle: centre moved off the place so that the place is anywhere in the inner CIRCLE_OFF of the circle with
+-- the same chance (the offset's square root of a uniform draw; a uniform offset keeps the place near the middle, and the
+-- middle would tell it). Returns x, y, radius (squares).
+function Places.circle(x, y, radius, float)
+    float = float or OA.randomFloat
+    local angle = float(0, 2 * math.pi)
+    local off = radius * Places.CIRCLE_OFF * math.sqrt(float(0, 1))
+    return math.floor(x + math.cos(angle) * off + 0.5), math.floor(y + math.sin(angle) * off + 0.5), radius
+end
+
+-- A circle radius that fits a band: nearer places get a tighter circle (a base 60 squares, up to 100).
+function Places.circleRadius(level)
+    return 50 + 10 * math.min(level or 1, 5)
+end
+
+-- Is the point at least `spacing` from every point in the list.
+function Places.farEnough(list, x, y, spacing)
+    for _, p in ipairs(list) do
+        if Places.distance(p.x, p.y, x, y) < spacing then return false end
+    end
+    return true
+end
+
+-- Meteor drop sites (NUMBERS 6): `count` points in the ring from `lo` to `hi` squares around `origin` { x, y } (the
+-- first character's start), at least `spacing` apart, each one passing accept(x, y) (the map has land there).
+-- `existing` points stay. Where the ring is too crowded (water, town, the map's edge) the spacing relaxes by a tenth
+-- every few hundred misses, down to a third, and then the ring widens outward, up to three times `hi`; past that it
+-- gives up with what it has. Returns the list (existing + new).
+function Places.ringSites(origin, count, lo, hi, spacing, accept, existing, int)
+    int = int or randomInt
+    local sites = {}
+    for _, p in ipairs(existing or {}) do sites[#sites + 1] = p end
+    local floor, far = spacing / 3, hi * 3
+    local misses, total = 0, 0
+    while #sites < count and total < 30000 do
+        total = total + 1
+        local a = math.rad(int(0, 359))
+        local r = int(lo, math.floor(hi))
+        local x = math.floor(origin.x + r * math.cos(a) + 0.5)
+        local y = math.floor(origin.y + r * math.sin(a) + 0.5)
+        if (not accept or accept(x, y)) and Places.farEnough(sites, x, y, spacing) then
+            sites[#sites + 1] = { x = x, y = y }
+            misses = 0
+        else
+            misses = misses + 1
+            if misses >= 400 then
+                misses = 0
+                if spacing > floor then
+                    spacing = math.max(floor, spacing * 0.9)
+                elseif hi < far then
+                    hi = math.min(far, hi * 1.25)
+                end
+            end
+        end
+    end
+    return sites
+end
+
+-- The compass point (one of "N", "NE", "E", "SE", "S", "SW", "W", "NW") of a place seen from another. The game's y
+-- grows to the south. nil when they are the same square.
+local POINTS = { "E", "SE", "S", "SW", "W", "NW", "N", "NE" }
+function Places.bearing(ax, ay, x, y)
+    local dx, dy = x - ax, y - ay
+    if dx == 0 and dy == 0 then return nil end
+    local angle = math.atan2(dy, dx)
+    local sector = math.floor(angle / (math.pi / 4) + 0.5)
+    if sector < 0 then sector = sector + 8 end
+    if sector >= 8 then sector = sector - 8 end
+    return POINTS[sector + 1]
+end
+
+-- Where a place is from the player, in words (DESIGN-terminal 6.5): "현재 위치에서 북동쪽 약 2.4km". A square counts as
+-- a metre. Inside `radius` (a mission's area) the player is told so; under 100 m it is "close by"; then 50 m steps up to
+-- a kilometre, 0.1 km steps up to 10 km, whole kilometres beyond. Returns the translation key and its arguments: the
+-- compass point's key (translated by the caller) and the distance as a string.
+function Places.whereKey(px, py, x, y, radius)
+    local dx, dy = x - px, y - py
+    local d = math.sqrt(dx * dx + dy * dy)
+    if radius and d <= radius then return "IGUI_OA_Place_Inside", {} end
+    if d < 100 then return "IGUI_OA_Place_Near", {} end
+    local point = "IGUI_OA_Place_Dir_" .. Places.bearing(px, py, x, y)
+    local metres = math.floor(d / 50 + 0.5) * 50
+    if metres < 1000 then return "IGUI_OA_Place_Metres", { point, tostring(metres) } end
+    local tenths = math.floor(d / 100 + 0.5)
+    if tenths < 100 then return "IGUI_OA_Place_Km", { point, string.format("%.1f", tenths / 10) } end
+    return "IGUI_OA_Place_Km", { point, tostring(math.floor(d / 1000 + 0.5)) }
+end
+
+-- The same as a text (the compass point translated too).
+function Places.whereText(px, py, x, y, radius)
+    local key, args = Places.whereKey(px, py, x, y, radius)
+    if args[1] then return getText(key, getText(args[1]), args[2]) end
+    return getText(key)
+end
+
+return Places

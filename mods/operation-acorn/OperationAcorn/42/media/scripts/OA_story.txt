@@ -1,0 +1,362 @@
+module OperationAcorn
+{
+    imports
+    {
+        Base
+    }
+
+    /* The meteorite fragments, one at each drop site (Story/Sites.lua): sent to the research team, each opens one
+       tree's capstone. MeteorFragment is the stony one. */
+    item MeteorFragment
+    {
+        DisplayCategory = Material,
+        ItemType = base:normal,
+        Weight = 0.5,
+        Icon = OA_MeteorFragment,
+        Tooltip = Tooltip_OA_Story_MeteorFragment,
+        WorldStaticModel = ChippedStone,
+    }
+
+    item MeteorFragmentIron
+    {
+        DisplayCategory = Material,
+        ItemType = base:normal,
+        Weight = 0.8,
+        Icon = OA_MeteorFragmentIron,
+        Tooltip = Tooltip_OA_Story_MeteorFragmentIron,
+        WorldStaticModel = ChippedStone,
+    }
+
+    item MeteorFragmentStonyIron
+    {
+        DisplayCategory = Material,
+        ItemType = base:normal,
+        Weight = 0.6,
+        Icon = OA_MeteorFragmentStonyIron,
+        Tooltip = Tooltip_OA_Story_MeteorFragmentStonyIron,
+        WorldStaticModel = ChippedStone,
+    }
+
+    item MissionEnvelope
+    {
+        DisplayCategory = Literature,
+        ItemType = base:normal,
+        Weight = 0.3,
+        Icon = OA_MissionEnvelope,
+        Tooltip = Tooltip_OA_Story_MissionEnvelope,
+        WorldStaticModel = SheetOfPaper,
+    }
+
+    item MissionSampleTin
+    {
+        DisplayCategory = Household,
+        ItemType = base:normal,
+        Weight = 0.6,
+        Icon = OA_MissionSampleTin,
+        Tooltip = Tooltip_OA_Story_MissionSampleTin,
+        WorldStaticModel = CigarBox,
+    }
+
+    item MissionLogbook
+    {
+        DisplayCategory = Literature,
+        ItemType = base:normal,
+        Weight = 0.5,
+        Icon = OA_MissionLogbook,
+        Tooltip = Tooltip_OA_Story_MissionLogbook,
+        WorldStaticModel = BookClosedGround,
+    }
+
+    item MissionFilterCase
+    {
+        DisplayCategory = Household,
+        ItemType = base:normal,
+        Weight = 1.5,
+        Icon = OA_MissionFilterCase,
+        Tooltip = Tooltip_OA_Story_MissionFilterCase,
+        WorldStaticModel = Cashbox,
+    }
+
+    item MissionTape
+    {
+        DisplayCategory = Electronics,
+        ItemType = base:normal,
+        Weight = 0.2,
+        Icon = OA_MissionTape,
+        Tooltip = Tooltip_OA_Story_MissionTape,
+        WorldStaticModel = VHS,
+    }
+
+    item MissionFabricRoll
+    {
+        DisplayCategory = Household,
+        ItemType = base:normal,
+        Weight = 1.0,
+        Icon = OA_MissionFabricRoll,
+        Tooltip = Tooltip_OA_Story_MissionFabricRoll,
+        WorldStaticModel = RippedSheetsBundle,
+    }
+
+    item MissionHeavyCase
+    {
+        DisplayCategory = Household,
+        ItemType = base:normal,
+        Weight = 15.0,
+        Icon = OA_MissionHeavyCase,
+        Tooltip = Tooltip_OA_Story_MissionHeavyCase,
+        WorldStaticModel = OperationAcorn.OA_HazardCase_Ground,
+    }
+
+    item EvidenceEnvelope
+    {
+        DisplayCategory = Literature,
+        ItemType = base:normal,
+        Weight = 0.3,
+        Icon = OA_EvidenceEnvelope,
+        Tooltip = Tooltip_OA_Story_EvidenceEnvelope,
+        WorldStaticModel = SheetOfPaper,
+    }
+
+    item ClinicRecord
+    {
+        DisplayCategory = Literature,
+        ItemType = base:normal,
+        Weight = 0.5,
+        Icon = OA_ClinicRecord,
+        Tooltip = Tooltip_OA_Story_ClinicRecord,
+        WorldStaticModel = BookClosedGround,
+    }
+
+    item WeatherLog
+    {
+        DisplayCategory = Literature,
+        ItemType = base:normal,
+        Weight = 0.8,
+        Icon = OA_WeatherLog,
+        Tooltip = Tooltip_OA_Story_WeatherLog,
+        WorldStaticModel = BookClosedGround,
+    }
+
+    item FarmJournal
+    {
+        DisplayCategory = Literature,
+        ItemType = base:normal,
+        Weight = 0.5,
+        Icon = OA_FarmJournal,
+        Tooltip = Tooltip_OA_Story_FarmJournal,
+        WorldStaticModel = BookClosedGround,
+    }
+
+    item SampleCooler
+    {
+        DisplayCategory = Household,
+        ItemType = base:normal,
+        Weight = 25.0,
+        Icon = OA_SampleCooler,
+        Tooltip = Tooltip_OA_Story_SampleCooler,
+        WorldStaticModel = Cooler_Ground,
+    }
+
+    item RosterPage
+    {
+        DisplayCategory = Literature,
+        ItemType = base:normal,
+        Weight = 0.1,
+        Icon = OA_RosterPage,
+        Tooltip = Tooltip_OA_Story_RosterPage,
+        WorldStaticModel = SheetOfPaper,
+    }
+
+    item ReviewMemo
+    {
+        DisplayCategory = Literature,
+        ItemType = base:normal,
+        Weight = 0.1,
+        Icon = OA_ReviewMemo,
+        Tooltip = Tooltip_OA_Story_ReviewMemo,
+        WorldStaticModel = SheetOfPaper,
+    }
+
+    item WardRecord
+    {
+        DisplayCategory = Literature,
+        ItemType = base:normal,
+        Weight = 0.5,
+        Icon = OA_WardRecord,
+        Tooltip = Tooltip_OA_Story_WardRecord,
+        WorldStaticModel = BookClosedGround,
+    }
+
+    item CellLog
+    {
+        DisplayCategory = Literature,
+        ItemType = base:normal,
+        Weight = 0.6,
+        Icon = OA_CellLog,
+        Tooltip = Tooltip_OA_Story_CellLog,
+        WorldStaticModel = BookClosedGround,
+    }
+
+    item SoilSample
+    {
+        DisplayCategory = Household,
+        ItemType = base:normal,
+        Weight = 0.8,
+        Icon = OA_SoilSample,
+        Tooltip = Tooltip_OA_Story_SoilSample,
+        WorldStaticModel = CigarBox,
+    }
+
+    item StakeTag
+    {
+        DisplayCategory = Literature,
+        ItemType = base:normal,
+        Weight = 0.1,
+        Icon = OA_StakeTag,
+        Tooltip = Tooltip_OA_Story_StakeTag,
+        WorldStaticModel = SheetOfPaper,
+    }
+
+    item RosterLostPage
+    {
+        DisplayCategory = Literature,
+        ItemType = base:normal,
+        Weight = 0.1,
+        Icon = OA_RosterLostPage,
+        Tooltip = Tooltip_OA_Story_RosterLostPage,
+        WorldStaticModel = SheetOfPaper,
+    }
+
+    item FilterBundle
+    {
+        DisplayCategory = Household,
+        ItemType = base:normal,
+        Weight = 3.0,
+        Icon = OA_FilterBundle,
+        Tooltip = Tooltip_OA_Story_FilterBundle,
+        WorldStaticModel = Cashbox,
+    }
+
+    item PharmacyLedger
+    {
+        DisplayCategory = Literature,
+        ItemType = base:normal,
+        Weight = 0.8,
+        Icon = OA_PharmacyLedger,
+        Tooltip = Tooltip_OA_Story_PharmacyLedger,
+        WorldStaticModel = BookClosedGround,
+    }
+
+    item CopyOriginal
+    {
+        DisplayCategory = Literature,
+        ItemType = base:normal,
+        Weight = 0.3,
+        Icon = OA_CopyOriginal,
+        Tooltip = Tooltip_OA_Story_CopyOriginal,
+        WorldStaticModel = SheetOfPaper,
+    }
+
+    item SampleCase
+    {
+        DisplayCategory = Container,
+        ItemType = base:normal,
+        Weight = 3.0,
+        Icon = OA_SampleCase,
+        Tooltip = Tooltip_OA_Story_SampleCase,
+        WorldStaticModel = OperationAcorn.OA_Briefcase_Ground,
+    }
+
+    item DeadDropCase
+    {
+        DisplayCategory = Container,
+        ItemType = base:container,
+        Weight = 1.0,
+        Icon = OA_DeadDropCase,
+        Tooltip = Tooltip_OA_Story_DeadDropCase,
+        Capacity = 2,
+        WeightReduction = 0,
+        CanHaveHoles = false,
+        WorldStaticModel = OperationAcorn.OA_Briefcase_Ground,
+    }
+
+    item FieldCallDevice
+    {
+        DisplayCategory = Communications,
+        ItemType = base:normal,
+        Weight = 3.0,
+        Icon = OA_FieldCallDevice,
+        Tooltip = Tooltip_OA_Story_FieldCallDevice,
+        WorldStaticModel = RadioBlack_Ground,
+    }
+
+    item AnalysisReply
+    {
+        DisplayCategory = Literature,
+        ItemType = base:normal,
+        Weight = 0.1,
+        Icon = OA_AnalysisReply,
+        Tooltip = Tooltip_OA_Story_AnalysisReply,
+        WorldStaticModel = SheetOfPaper,
+    }
+
+    item Appendix
+    {
+        DisplayCategory = Literature,
+        ItemType = base:normal,
+        Weight = 0.2,
+        Icon = OA_Appendix,
+        Tooltip = Tooltip_OA_Story_Appendix,
+        WorldStaticModel = SheetOfPaper,
+    }
+
+    item SerumSheet
+    {
+        DisplayCategory = Literature,
+        ItemType = base:normal,
+        Weight = 0.1,
+        Icon = OA_SerumSheet,
+        Tooltip = Tooltip_OA_Story_SerumSheet,
+        WorldStaticModel = SheetOfPaper,
+    }
+
+    item UnresolvedList
+    {
+        DisplayCategory = Literature,
+        ItemType = base:normal,
+        Weight = 0.1,
+        Icon = OA_UnresolvedList,
+        Tooltip = Tooltip_OA_Story_UnresolvedList,
+        WorldStaticModel = SheetOfPaper,
+    }
+
+    item HandoverFile
+    {
+        DisplayCategory = Literature,
+        ItemType = base:normal,
+        Weight = 0.2,
+        Icon = OA_HandoverFile,
+        Tooltip = Tooltip_OA_Story_HandoverFile,
+        WorldStaticModel = SheetOfPaper,
+    }
+
+    item HandoverPages
+    {
+        DisplayCategory = Literature,
+        ItemType = base:normal,
+        Weight = 0.1,
+        Icon = OA_HandoverPages,
+        Tooltip = Tooltip_OA_Story_HandoverPages,
+        WorldStaticModel = SheetOfPaper,
+    }
+
+    item KitVoucher
+    {
+        DisplayCategory = Literature,
+        ItemType = base:normal,
+        Weight = 0.05,
+        Icon = OA_KitVoucher,
+        Tooltip = Tooltip_OA_Story_KitVoucher,
+        WorldStaticModel = SheetOfPaper,
+    }
+}

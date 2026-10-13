@@ -1,0 +1,853 @@
+-- Operation Acorn Dev (a sub-mod, never published): helpers for checking each part in a running game (single player),
+-- called through the command channel (Dev/Remote.lua, tools/pzdev.py), the Lua console or the debug panel
+-- (Dev/Panel.lua: both drive these same functions). They change the save: use a test save.
+-- Each prints what it did as "[dev] ..." lines and returns something a check can test.
+if not isDebugEnabled() then return end
+require "OperationAcorn/Core"
+require "OperationAcorn/Store"
+require "OperationAcorn/Sync"
+require "OperationAcorn/Economy/Trust"
+local OA = OperationAcorn
+local Dev = {}
+OA.Dev = Dev
+
+local function say(...)
+    local parts = {}
+    for i = 1, select("#", ...) do parts[#parts + 1] = tostring(select(i, ...)) end
+    print("[dev] " .. table.concat(parts, " "))
+end
+Dev.say = say
+
+-- ---- the character and its record ------------------------------------------------------------------------------
+
+function Dev.player()
+    return getPlayer()
+end
+
+-- The local character's record (made by the mod's first hello), or nil.
+function Dev.record()
+    local player = getPlayer()
+    local id = player and player:getModData().OA_Id
+    return id and OA.Store.player(id) or nil
+end
+
+-- Tells the screens and the effects a section of the record changed.
+function Dev.changed(section)
+    local record = Dev.record()
+    if record then OA.Sync.changed(section or "all", record.id) end
+end
+
+-- ---- research --------------------------------------------------------------------------------------------------
+
+local function upgrades()
+    local record = Dev.record()
+    if not record then error("no record yet", 3) end
+    return OA.Upgrades.Rules.section(record), record
+end
+
+-- Sets research ranks as given ({ night = 3, nightEye = 1, bSense = 4 }; 0 takes a node away). The trees of the
+-- ranks open; nothing is paid. Applies the effects at once.
+function Dev.ranks(list)
+    local u, record = upgrades()
+    local Data = OA.Upgrades.Data
+    for id, rank in pairs(list) do
+        local node = Data.byId[id]
+        if not node then error("no node " .. tostring(id), 2) end
+        local value = rank > 0 and rank or nil
+        if node.board then
+            u.board.ranks[id] = value
+        else
+            u.ranks[id] = value
+            u.opened[node.tree] = true
+        end
+    end
+    OA.Sync.changed("upgrades", record.id)
+    if OA.Upgrades.Effects then OA.Upgrades.Effects.apply(record) end
+    say("ranks", Dev.describe(list))
+    return u
+end
+
+-- Takes every rank away and empties the points (a fresh research record).
+function Dev.clearResearch()
+    local u, record = upgrades()
+    for k in pairs(u) do u[k] = nil end
+    OA.Upgrades.Rules.fill(u)
+    OA.Sync.changed("upgrades", record.id)
+    if OA.Upgrades.Effects then OA.Upgrades.Effects.apply(record) end
+    say("research cleared")
+    return u
+end
+
+-- Gives points of a tree ("scout", "load", "survival"; "shared" for shared serums) as if that many were injected.
+function Dev.points(tree, n)
+    local u, record = upgrades()
+    local Rules = OA.Upgrades.Rules
+    for _ = 1, n do
+        if tree == "shared" then Rules.injectShared(u) else Rules.inject(u, tree) end
+    end
+    OA.Sync.changed("upgrades", record.id)
+    say("points", tree, n)
+    return u
+end
+
+-- ---- trade -----------------------------------------------------------------------------------------------------
+
+function Dev.credits(n)
+    local record = Dev.record()
+    OA.Store.section(record, "trade").credits = n
+    OA.Sync.changed("trade", record.id)
+    say("credits", n)
+end
+
+-- Sets trust to an amount, with the stage and milestones it makes (the rewards of passing them are not given).
+function Dev.trust(amount)
+    local record = Dev.record()
+    local trade = OA.Store.section(record, "trade")
+    trade.trust = amount
+    trade.stage, trade.milestones = OA.Trust.levelFor(amount)
+    OA.Sync.changed("trade", record.id)
+    say("trust", amount, "stage", trade.stage, "milestones", trade.milestones)
+end
+
+-- ---- the world (the time, weather, character and zombie spawns are PZExtDev.Env's) --------------------------------
+
+local DIRS = { N = "N", NE = "NE", E = "E", SE = "SE", S = "S", SW = "SW", W = "W", NW = "NW" }
+
+-- Turns the character to face a compass way ("N", "SE" ...: the map's north is up and to the right on screen).
+function Dev.face(dir)
+    local player = getPlayer()
+    local d = IsoDirections[DIRS[dir] or "S"]
+    player:setDir(d)
+    if player.setForwardDirection then player:setForwardDirection(d:ToVector()) end
+    say("face", dir)
+end
+
+-- Zombies at offsets from the character, made harmless and still (useless): { { dx, dy, n }, ... }, dz optional as a
+-- fourth number. Returns how many.
+function Dev.zombies(spots)
+    local player = getPlayer()
+    local px, py, pz = math.floor(player:getX()), math.floor(player:getY()), math.floor(player:getZ())
+    local made = 0
+    for _, s in ipairs(spots) do
+        local list = addZombiesInOutfit(px + s[1], py + s[2], pz + (s[4] or 0), s[3] or 1, "Generic01", 50)
+        for i = 0, list:size() - 1 do
+            local z = list:get(i)
+            z:setUseless(true)
+            made = made + 1
+        end
+    end
+    say("zombies", made)
+    return made
+end
+
+-- A world sound at an offset from the character (what zombies and the presence marks hear).
+function Dev.sound(dx, dy, radius, volume)
+    local player = getPlayer()
+    local x, y, z = math.floor(player:getX()) + dx, math.floor(player:getY()) + dy, math.floor(player:getZ())
+    addSound(nil, x, y, z, radius or 30, volume or 30)
+    say("sound at", dx, dy)
+end
+
+-- ---- a place to try everything by hand ------------------------------------------------------------------------
+
+-- One of each thing the mod puts in the world, working, on clear open ground near the character, for a person to try
+-- the windows and menus by hand: a terminal with power, a delivery box, a sealed supply crate, every machine facing
+-- south, a running generator among them (the terminal and most machines need power), the heavy items (terminal, box,
+-- crate, a bench) on the ground to try placing, and one of each usable item in the inventory (serums issued to this
+-- character, the cure among them, kits, parts, fuel cans, documents to read). The character is put south of it all.
+-- Dev.clearShowroom() takes everything away again, after a reload too (the area is kept in the character's modData).
+-- Returns the area's corner, or nil when no clear ground is near.
+-- Dev.showroom({ solar = true }) powers it without a generator (one left running for days catches fire): a Building
+-- Utilities box of the top tier in the nearest building, solar panels outside it, battery racks inside it full of
+-- charged batteries, the terminal inside, the machines connected to the box as outside devices; the area is the open
+-- ground nearest the box. Needs Building Utilities.
+local SHOW_W, SHOW_H = 16, 11
+local SHOW_ITEMS = {
+    { "UpgradeSerumScout", 2 }, { "UpgradeSerumLoad", 2 }, { "UpgradeSerumSurvival", 2 }, { "UpgradeSerumShared", 2 },
+    { "CureSerum", 1, issued = true }, { "DelayDrug", 2 }, { "DelayDrugLong", 2 }, { "InfectionReversal", 1 },
+    { "InfectionTestKit", 2 },
+    { "KitBagCapacity", 1 }, { "KitBagWeight", 1 }, { "KitTrunk", 1 }, { "KitEngine", 1 }, { "KitVoucher", 1 },
+    { "TeamBackpack", 1 }, { "FuelCanMk1", 1 }, { "FuelCanMk2", 1 }, { "FuelCanMk3", 1 },
+    { "TerminalManual", 1 }, { "SupplyManifest", 1 }, { "SampleBundle", 3 }, { "MeteorFragment", 3 },
+    { "MotorNormal", 1 }, { "ShredBladeNormal", 1 }, { "CutBladeNormal", 1 }, { "SawBladeNormal", 1 },
+    { "FilterNormal", 1 }, { "SoundproofCover", 1 },
+    { "EvidenceEnvelope", 1 }, { "ClinicRecord", 1 }, { "WeatherLog", 1 }, { "SerumSheet", 1 }, { "HandoverFile", 1 },
+}
+local SHOW_GROUND = { "CommTerminal", "DeliveryBox", "ShredBench" } -- the bench as its pieces
+-- The machines: kind and anchor (dx, dy) in the area, all facing south.
+local SHOW_MACHINES = {
+    { "shredBench", 1, 4 }, { "bulkShredder", 4, 4 }, { "cutter", 7, 4 }, { "woodSaw", 10, 4 },
+    { "researchStorage", 13, 4 }, { "propaneRefiner", 1, 7 }, { "oilRefiner", 5, 7 }, { "rainStorage", 9, 7 },
+    { "lure", 13, 7 },
+}
+local show = nil   -- what Dev.showroom made: { objects, machines, generator, ground, items }
+
+-- Whether the area with its corner at (x, y) on the ground floor is open ground with nothing on it.
+local function openArea(x, y)
+    local cell = getCell()
+    for dx = 0, SHOW_W - 1 do
+        for dy = 0, SHOW_H - 1 do
+            local sq = cell:getGridSquare(x + dx, y + dy, 0)
+            -- a fence or a wall on a square's north or west side would split the area
+            local flags = sq and sq:getProperties()
+            if not sq or not sq:isOutside() or sq:getBuilding() or sq:HasTree() or not OA.Trade.Objects.free(sq)
+                or flags:has(IsoFlagType.collideN) or flags:has(IsoFlagType.collideW) then
+                return false
+            end
+        end
+    end
+    return true
+end
+
+-- The solar power of the showroom (Dev.showroom({ solar = true })).
+local SOLAR_PANELS, RACKS, RACK_BATTERIES = 12, 2, 15
+
+-- The square of the nearest building to (x, y) a box can go on, or nil.
+local function boxSquare(x, y)
+    local BU = BuildingUtilities
+    local cell, best, bestD = getCell(), nil, nil
+    for dx = -40, 40 do
+        for dy = -40, 40 do
+            local sq = cell:getGridSquare(x + dx, y + dy, 0)
+            if sq and sq:getRoom() and sq:isFree(false) and BU.Panels.canInstall(sq) then
+                local d = dx * dx + dy * dy
+                if not bestD or d < bestD then best, bestD = sq, d end
+            end
+        end
+    end
+    return best
+end
+
+-- Up to n squares around (x, y), nearest first, that test(square) takes (each square once).
+local function squaresNear(x, y, n, radius, test)
+    local cell, found = getCell(), {}
+    for r = 1, radius do
+        for dx = -r, r do
+            for dy = -r, r do
+                if math.max(math.abs(dx), math.abs(dy)) == r then
+                    local sq = cell:getGridSquare(x + dx, y + dy, 0)
+                    if sq and test(sq) then
+                        found[#found + 1] = sq
+                        if #found >= n then return found end
+                    end
+                end
+            end
+        end
+    end
+    return found
+end
+
+-- The box, its solar panels and racks (batteries full), wired; the showroom's machines connected as outside devices
+-- and the units' power in use. Returns the panel and how many devices it connected.
+local function solarPower(boxSq, x0, y0)
+    local BU = BuildingUtilities
+    local C, U = BU.Changes, BU.Units
+    local player = getPlayer()
+    local panel = C.install(boxSq, BU.PANEL_SPRITES[1])
+    while (panel.tier or 1) < BU.TIERS do C.upgrade(panel) end
+    local function inShowroom(sq)
+        local dx, dy = sq:getX() - x0, sq:getY() - y0
+        return dx >= -1 and dx <= SHOW_W and dy >= -1 and dy <= SHOW_H
+    end
+    local solar = squaresNear(boxSq:getX(), boxSq:getY(), SOLAR_PANELS, 30, function(sq)
+        return sq:isOutside() and not inShowroom(sq) and U.canInstall("solar", sq) == true
+    end)
+    for _, sq in ipairs(solar) do
+        C.connectUnit(C.installUnit("solar", sq, U.spriteFor("solar", sq, player)), panel, {})
+    end
+    local racks = squaresNear(boxSq:getX(), boxSq:getY(), RACKS, 12, function(sq)
+        return sq ~= boxSq and U.canInstall("rack", sq) == true
+    end)
+    for _, sq in ipairs(racks) do
+        local rack = C.installUnit("rack", sq, U.spriteFor("rack", sq, player))
+        C.connectUnit(rack, panel, {})
+        local box = BU.Rack.container(U.object(rack))
+        for _ = 1, RACK_BATTERIES do
+            local battery = instanceItem("Base.CarBattery2")
+            battery:setUsedDelta(1)
+            battery:setCondition(100)
+            box:AddItem(battery)
+        end
+        BU.Rack.sync(rack)
+    end
+    local connected = 0
+    for _, device in ipairs(BU.Panels.devices(panel, "power")) do
+        if not device.inside and device.state ~= "on" and device.state ~= "other" then
+            C.includeOutside(panel, "power", device, {})
+            connected = connected + 1
+        end
+    end
+    C.useSource(panel)
+    say("showroom power: box", panel.id, "tier", panel.tier, "solar panels", #solar, "racks", #racks, "devices", connected)
+    return panel, connected
+end
+
+-- A free square inside the box's building near it for the terminal, or nil.
+local function terminalSquare(boxSq)
+    return squaresNear(boxSq:getX(), boxSq:getY(), 1, 10, function(sq)
+        return sq ~= boxSq and sq:getRoom() ~= nil and sq:isFree(false) and OA.Trade.Objects.free(sq)
+            and sq:getObjects():size() == 1
+    end)[1]
+end
+
+function Dev.showroom(opts)
+    opts = opts or {}
+    Dev.clearShowroom()
+    local player = getPlayer()
+    local record = Dev.record()
+    if not record then say("showroom: no record yet") return nil end
+    local px, py = math.floor(player:getX()), math.floor(player:getY())
+    local boxSq
+    if opts.solar then
+        if not BuildingUtilities then say("showroom: solar power needs Building Utilities") return nil end
+        boxSq = boxSquare(px, py)
+        if not boxSq then say("showroom: no building for a box within 40") return nil end
+        px, py = boxSq:getX(), boxSq:getY()
+    end
+    local corner = OA.Trade.Objects.search(px, py, 0, 40, function(sq) return openArea(sq:getX(), sq:getY()) end)
+    if not corner then say("showroom: no clear", SHOW_W, "x", SHOW_H, "ground within 40") return nil end
+    local cell = getCell()
+    local x0, y0 = corner:getX(), corner:getY()
+    local function at(dx, dy) return cell:getGridSquare(x0 + dx, y0 + dy, 0) end
+    local inv = player:getInventory()
+    show = { objects = {}, machines = {}, ground = {}, items = {} }
+
+    -- power first: a generator, fuelled and running, in the middle of the first row (with solar power, none)
+    if not opts.solar then
+        local gen = IsoGenerator.new(instanceItem("Base.Generator"), cell, at(7, 1))
+        gen:setConnected(true)
+        gen:setFuel(100)
+        gen:setActivated(true)
+        show.generator = gen
+    end
+
+    local T = OA.Trade
+    local terminalAt = opts.solar and terminalSquare(boxSq) or at(1, 1)
+    local okT, terminal = T.Things.placeTerminal(player, terminalAt, "S", inv:AddItem("OperationAcorn.CommTerminal"))
+    if okT then show.objects[#show.objects + 1] = terminal end
+    local okB, box = T.Things.placeBox(player, record, at(13, 1), inv:AddItem("OperationAcorn.DeliveryBox"))
+    if okB then show.objects[#show.objects + 1] = box end
+    show.objects[#show.objects + 1] = T.Things.makeCrate(at(10, 1),
+        { { type = "Base.Battery", count = 2 }, { type = "OperationAcorn.SampleBundle", count = 2 } }, false)
+
+    local M = OA.Machines
+    local placed = 0
+    for _, m in ipairs(SHOW_MACHINES) do
+        local sq = at(m[2], m[3])
+        local ok, why = M.canPlace(m[1], sq, "S")
+        if ok then
+            local item = inv:AddItem(M.itemFullType(m[1]))
+            local object = M.place(m[1], sq, player, item, "S")
+            if item:getContainer() then item:getContainer():Remove(item) end
+            if object then
+                show.machines[#show.machines + 1] = object
+                placed = placed + 1
+            end
+        else
+            say("showroom:", m[1], "not placed:", tostring(why))
+        end
+    end
+
+    -- the heavy items on the ground beside the terminal, to pick up and place
+    for i, name in ipairs(SHOW_GROUND) do
+        local sq = at(3 + (i - 1) % 2, 1 + math.floor((i - 1) / 2))
+        local pieces = M.deliveryItems("OperationAcorn." .. name)
+        for _, item in ipairs(pieces or { "OperationAcorn." .. name }) do
+            show.ground[#show.ground + 1] = sq:AddWorldInventoryItem(item, 0.5, 0.5, 0)
+        end
+    end
+
+    for _, entry in ipairs(SHOW_ITEMS) do
+        for _ = 1, entry[2] do
+            local item = inv:AddItem("OperationAcorn." .. entry[1])
+            if item then
+                if entry.issued then
+                    item:getModData().OA_Issued = OA.hours()
+                    item:getModData().OA_Owner = record.id
+                end
+                show.items[#show.items + 1] = item
+            end
+        end
+    end
+
+    if opts.solar then
+        local panel = solarPower(boxSq, x0, y0)
+        show.panel = panel.id
+    end
+    player:getModData().OA_Showroom = { x = x0, y = y0, panel = show.panel,
+        terminal = opts.solar and okT and { x = terminalAt:getX(), y = terminalAt:getY() } or nil }
+    -- the character south of it all, facing it
+    player:setX(x0 + 8.5)
+    player:setY(y0 + SHOW_H - 0.5)
+    player:setLastX(player:getX())
+    player:setLastY(player:getY())
+    player:setDir(IsoDirections.N)
+    say("showroom at", x0, y0, "terminal", tostring(okT), "box", tostring(okB), "machines", placed, "of",
+        #SHOW_MACHINES, "items", #show.items, "powered", tostring(OA.Trade.Objects.powered(terminalAt)))
+    return x0, y0
+end
+
+-- Takes away what Dev.showroom made (the delivery box out of the record too) and the items it gave that are still
+-- in the inventory. After a reload (its list gone) it sweeps the area it kept: the mod's objects and machines, the
+-- generators and the mod's items on the ground there; the items it gave stay in the inventory.
+function Dev.clearShowroom()
+    local player = getPlayer()
+    local area = player:getModData().OA_Showroom
+    player:getModData().OA_Showroom = nil
+    if not show and not area then return end
+    -- the solar power's box and its units (the racks' batteries with them)
+    local panelId = (show and show.panel) or (area and area.panel)
+    local BU = BuildingUtilities
+    local panel = panelId and BU and BU.Store.get(panelId)
+    if panel then
+        for _, unit in ipairs(BU.Store.unitList(nil, panel.id)) do BU.Changes.removeUnit(unit) end
+        BU.Changes.remove(panel)
+        say("showroom power taken away", panelId)
+    end
+    local T = OA.Trade
+    if not show then
+        local cell, swept = getCell(), 0
+        local squares = {}
+        for dx = 0, SHOW_W - 1 do
+            for dy = 0, SHOW_H - 1 do squares[#squares + 1] = cell:getGridSquare(area.x + dx, area.y + dy, 0) or false end
+        end
+        -- the terminal the solar power put inside
+        if area.terminal then squares[#squares + 1] = cell:getGridSquare(area.terminal.x, area.terminal.y, 0) or false end
+        for _, sq in ipairs(squares) do
+            local anchor = sq and OA.Machines.at(sq)
+            if anchor and OA.Machines.state(anchor) then
+                OA.Machines.remove(anchor)
+                swept = swept + 1
+            end
+            local objects = sq and sq:getObjects()
+            for i = (objects and objects:size() or 0) - 1, 0, -1 do
+                local o = objects:get(i)
+                if T.Objects.kindOf(o) then
+                    T.Things.destroyed(o)
+                    T.Objects.remove(o)
+                    swept = swept + 1
+                elseif instanceof(o, "IsoGenerator") then
+                    o:setActivated(false)
+                    sq:transmitRemoveItemFromSquare(o)
+                    swept = swept + 1
+                elseif instanceof(o, "IsoWorldInventoryObject") and o:getItem()
+                    and o:getItem():getModule() == "OperationAcorn" then
+                    sq:transmitRemoveItemFromSquare(o)
+                    swept = swept + 1
+                end
+            end
+        end
+        say("showroom swept", swept)
+        return
+    end
+    for _, object in ipairs(show.objects) do
+        if object:getSquare() then
+            T.Things.destroyed(object)
+            T.Objects.remove(object)
+        end
+    end
+    for _, object in ipairs(show.machines) do
+        if OA.Machines.state(object) then OA.Machines.remove(object) end
+    end
+    local gen = show.generator
+    if gen and gen:getSquare() then
+        gen:setActivated(false)
+        gen:getSquare():transmitRemoveItemFromSquare(gen)
+    end
+    for _, item in ipairs(show.ground) do
+        local world = item:getWorldItem()
+        if world and world:getSquare() then world:getSquare():transmitRemoveItemFromSquare(world) end
+    end
+    local taken = 0
+    for _, item in ipairs(show.items) do
+        local container = item:getContainer()
+        if container then
+            container:Remove(item)
+            taken = taken + 1
+        end
+    end
+    show = nil
+    say("showroom cleared, items taken back", taken)
+end
+
+-- ---- research, by node ------------------------------------------------------------------------------------------
+
+-- The rank of a node on the local character's record.
+function Dev.rank(id)
+    local u = upgrades()
+    return OA.Upgrades.Rules.rank(u, id)
+end
+
+-- Sets one node's rank (see Dev.ranks).
+function Dev.setRank(id, rank)
+    Dev.ranks({ [id] = rank })
+    return Dev.rank(id)
+end
+
+function Dev.nightSightOn()
+    return Dev.rank("night") >= 3 and Dev.rank("nightEye") >= 1
+end
+
+-- The night-sight nodes at once: Night Eye 3 and Nocturnal Eye 1, or both taken away.
+function Dev.nightSight(on)
+    if on == false then
+        Dev.ranks({ night = 0, nightEye = 0 })
+    else
+        Dev.ranks({ night = 3, nightEye = 1 })
+    end
+    return Dev.nightSightOn()
+end
+
+-- ---- the titles and the take --------------------------------------------------------------------------------
+
+-- Shows an event title the way the server sends it: kind "capstone" (arg: a tree), "tree" (a tree opened, arg: the
+-- tree), "board" (the second board opened), "line" (the field terminal's line opened, Things.lineOpened), "request" (a new
+-- request, Missions). Returns how it was shown ("title", "halo") or nil.
+function Dev.title(kind, arg)
+    local Data = OA.Upgrades.Data
+    if kind == "capstone" then
+        local node = Data.capstone(arg or "scout")
+        if not node then error("no capstone for " .. tostring(arg), 2) end
+        local detail = { key = "IGUI_OA_Title_Capstone", sub = Data.key(node.id, "Name"), style = "stamp", tone = "gold",
+            fallback = "good" }
+        return OA.Titles.show(nil, detail)
+    elseif kind == "tree" then
+        local hooks = OA.Upgrades.Hooks
+        if hooks and hooks.treeOpened then hooks.treeOpened(nil, arg or "scout", true) end
+        return "tree"
+    elseif kind == "line" then
+        return OA.Titles.show(nil, { key = "IGUI_OA_Title_LineOpened", sub = "IGUI_OA_Title_LineOpenedSub", style = "unveil",
+            tone = "gold", fallback = "good" })
+    elseif kind == "request" then
+        return OA.Titles.show(nil, { key = "IGUI_OA_Title_NewRequest", sub = "IGUI_OA_Title_CheckTerminal", style = "notice" })
+    elseif kind == "board" then
+        local detail = { key = "IGUI_OA_Title_BoardOpened", sub = "IGUI_OA_Title_BoardOpenedSub", style = "dust",
+            tone = "gold", fallback = "good" }
+        return OA.Titles.show(nil, detail)
+    end
+    error("no title kind " .. tostring(kind), 2)
+end
+
+local pendingTake = nil   -- frames to wait before the take starts (the tab needs a frame to be visible)
+
+local function runTake()
+    local view = OA.Upgrades.Window.view(0)
+    if not view or not view:getIsVisible() then say("take: the research tab is not open") return false end
+    local Data = OA.Upgrades.Data
+    local steps, spent = {}, {}
+    for _, tree in ipairs(Data.TREES) do
+        for i, node in ipairs(Data.treeNodes(tree)) do
+            if i <= 3 then
+                steps[#steps + 1] = { id = node.id }
+                spent[tree] = (spent[tree] or 0) + 1
+            end
+        end
+    end
+    view.approved = { steps = steps, at = getTimestampMs(), locked = {}, spent = spent }
+    view:startTake()
+    say("take replayed on", #steps, "nodes")
+    return view.take ~= nil
+end
+
+local function tickTake()
+    if not pendingTake then return end
+    pendingTake = pendingTake - 1
+    if pendingTake > 0 then return end
+    pendingTake = nil
+    local ok, err = pcall(runTake)
+    if not ok then say("take failed:", tostring(err)) end
+end
+Events.OnTick.Add(tickTake)
+
+-- Replays the effect of an applied plan (the scan, the bursts, the lights up the lines) on the research tab: opens the
+-- tab first when it is shut, and plays a few frames later.
+function Dev.replayTake()
+    local view = OA.Upgrades.Window.view(0)
+    if not view then say("take: no research tab") return false end
+    if not view:getIsVisible() then OA.Upgrades.open(0) end
+    pendingTake = 10
+    return true
+end
+
+-- ---- the mission and its scene -----------------------------------------------------------------------------------
+
+-- The current mission, preferring one with a piece in a building: the mission and that piece (or nil).
+function Dev.mission()
+    local record = Dev.record()
+    if not record or not OA.Missions or not OA.Scene then return nil, nil end
+    local first
+    for _, m in ipairs(OA.Missions.live(record)) do
+        local piece = OA.Scene.buildingPiece(m)
+        if piece then return m, piece end
+        first = first or m
+    end
+    return first, nil
+end
+
+-- Where the mission's building is: x, y, z of its piece, or the middle of its area at the ground floor; nil without one.
+function Dev.missionPlace()
+    local m, piece = Dev.mission()
+    if not m then return nil end
+    if piece and piece.placed and piece.at then return piece.at.x, piece.at.y, piece.at.z end
+    if m.area then return m.area.x, m.area.y, 0 end
+    return nil
+end
+
+-- Puts the character at the mission's building. Returns whether there was a place to go to.
+function Dev.gotoMission()
+    local x, y, z = Dev.missionPlace()
+    if not x then say("goto mission: no mission place") return false end
+    getPlayer():teleportTo(x + 0.5, y + 0.5, z)
+    say("at the mission", x, y, z)
+    return true
+end
+
+-- Makes the mission's scene now, without the distance rule (the scene is made only when the building's squares are
+-- loaded: go there first, Dev.gotoMission). A scene made before stays; this one comes on top. Returns whether it was made.
+function Dev.buildScene()
+    local record = Dev.record()
+    local m, piece = Dev.mission()
+    if not (record and m) then say("scene: no mission") return false end
+    if not piece then say("scene: the mission has no building piece") return false end
+    if not (piece.placed and piece.at) then say("scene: the piece is not placed yet") return false end
+    local Scene = OA.Scene
+    if not Scene.game then say("scene: the scene hands are not there") return false end
+    if not m.scene then Scene.begin(record, m) end
+    if not m.scene then say("scene: the mission has none planned (an offer)") return false end
+    local again = m.scene.built == true
+    m.scene.built = false
+    local player = getPlayer()
+    local ready = Scene.READY
+    Scene.READY = 1000000000
+    local ok, err = pcall(Scene.build, record, m, player:getX(), player:getY())
+    Scene.READY = ready
+    if not ok then
+        say("scene failed:", tostring(err))
+        m.scene.built = again
+        return false
+    end
+    if not m.scene.built then
+        say("scene: the building is not loaded, go there first")
+        m.scene.built = again
+        return false
+    end
+    say("scene built", again and "(again)" or "")
+    return true
+end
+
+-- How many zombies are in the mission's building (the building the character stands in without a mission piece).
+-- Returns the count and whether a building was found.
+function Dev.zombiesInBuilding()
+    local building
+    local x, y, z = Dev.missionPlace()
+    if x then
+        local sq = getCell():getGridSquare(x, y, z)
+        building = sq and sq:getBuilding()
+    end
+    if not building then
+        local sq = getPlayer():getCurrentSquare()
+        building = sq and sq:getBuilding()
+    end
+    if not building then
+        say("zombies in building: no loaded building")
+        return 0, false
+    end
+    local n = 0
+    local list = getCell():getZombieList()
+    for i = 0, list:size() - 1 do
+        local sq = list:get(i):getCurrentSquare()
+        if sq and sq:getBuilding() == building then n = n + 1 end
+    end
+    say("zombies in the building", n)
+    return n, true
+end
+
+-- ---- alarms -----------------------------------------------------------------------------------------------------
+
+local ALARM_RANGE = 30
+local alarmBuildings, alarmVehicles = nil, nil
+
+-- The buildings within ALARM_RANGE of the character (their defs), nearest first, with their squared distances.
+local function buildingsNear()
+    local player = getPlayer()
+    local px, py = player:getX(), player:getY()
+    alarmBuildings = alarmBuildings or ArrayList.new()
+    alarmBuildings:clear()
+    getWorld():getMetaGrid():getBuildingsIntersecting(math.floor(px - ALARM_RANGE), math.floor(py - ALARM_RANGE),
+        ALARM_RANGE * 2, ALARM_RANGE * 2, alarmBuildings)
+    local found = {}
+    for i = 0, alarmBuildings:size() - 1 do
+        local def = alarmBuildings:get(i)
+        local dx, dy = def:getX() + def:getW() / 2 - px, def:getY() + def:getH() / 2 - py
+        found[#found + 1] = { def = def, d2 = dx * dx + dy * dy }
+    end
+    table.sort(found, function(a, b) return a.d2 < b.d2 end)
+    return found
+end
+
+-- The loaded vehicles within ALARM_RANGE of the character, nearest first.
+local function vehiclesNear()
+    local player = getPlayer()
+    local px, py = player:getX(), player:getY()
+    alarmVehicles = OA.vehicles(alarmVehicles)
+    local found = {}
+    for i = 0, alarmVehicles:size() - 1 do
+        local v = alarmVehicles:get(i)
+        local dx, dy = v:getX() - px, v:getY() - py
+        local d2 = dx * dx + dy * dy
+        if d2 <= ALARM_RANGE * ALARM_RANGE then found[#found + 1] = { vehicle = v, d2 = d2 } end
+    end
+    table.sort(found, function(a, b) return a.d2 < b.d2 end)
+    return found
+end
+
+-- Puts an alarm on the house the character stands in, or else the nearest one without an alarm within 30 squares (the
+-- game's own BuildingDef.alarmed: breaking in sounds it, as on a house the map made alarmed). Returns whether one was set.
+function Dev.alarmHouse()
+    local sq = getPlayer():getCurrentSquare()
+    local building = sq and sq:getBuilding()
+    local def = building and building:getDef()
+    if not def or def:isAlarmed() then
+        def = nil
+        for _, b in ipairs(buildingsNear()) do
+            if not b.def:isAlarmed() then def = b.def break end
+        end
+    end
+    if not def then
+        say("alarm: no house without an alarm within", ALARM_RANGE)
+        return false
+    end
+    def:setAlarmed(true)
+    say("alarm: house", def:getID(), "at", def:getX() + def:getW() / 2, def:getY() + def:getH() / 2, "alarmed")
+    return true
+end
+
+-- Puts an alarm on the nearest loaded vehicle without one within 30 squares. Returns whether one was set.
+function Dev.alarmCar()
+    for _, v in ipairs(vehiclesNear()) do
+        if not v.vehicle:isAlarmed() or v.vehicle:isPreviouslyEntered() then
+            v.vehicle:setAlarmed(true)
+            -- a car opened once does not sound again (ISOpenVehicleDoor): it is made unopened
+            v.vehicle:setPreviouslyEntered(false)
+            say("alarm: vehicle", v.vehicle:getId(), "at", v.vehicle:getX(), v.vehicle:getY(), "alarmed")
+            return true
+        end
+    end
+    say("alarm: no vehicle without an alarm within", ALARM_RANGE)
+    return false
+end
+
+-- Takes the alarms off every house and vehicle within 30 squares. Returns how many houses and vehicles had one.
+function Dev.clearAlarms()
+    local houses, cars = 0, 0
+    for _, b in ipairs(buildingsNear()) do
+        if b.def:isAlarmed() then b.def:setAlarmed(false) houses = houses + 1 end
+    end
+    for _, v in ipairs(vehiclesNear()) do
+        if v.vehicle:isAlarmed() then v.vehicle:setAlarmed(false) cars = cars + 1 end
+    end
+    say("alarms cleared: houses", houses, "vehicles", cars)
+    return houses, cars
+end
+
+-- How many houses and vehicles within 30 squares have an alarm.
+function Dev.alarmsNear()
+    local houses, cars = 0, 0
+    for _, b in ipairs(buildingsNear()) do
+        if b.def:isAlarmed() then houses = houses + 1 end
+    end
+    for _, v in ipairs(vehiclesNear()) do
+        if v.vehicle:isAlarmed() then cars = cars + 1 end
+    end
+    return houses, cars
+end
+
+-- ---- searched buildings ----------------------------------------------------------------------------------------
+
+-- A loaded square of a building (its def) and its room, or nil when none of its rooms is loaded.
+local function squareIn(def)
+    local rooms = def:getRooms()
+    for i = 0, rooms:size() - 1 do
+        local room = rooms:get(i):getIsoRoom()
+        local squares = room and room:getSquares()
+        if squares and squares:size() > 0 then return squares:get(0), room end
+    end
+    return nil
+end
+
+-- Makes a building unsearched again, to test 철저한 수색 and the searched bonus once more: the one the character
+-- stands in, or else the nearest loaded one within 30 squares (as the alarm buttons pick a house). Its containers are
+-- unmarked (Buildings.unmark: the loot they hold stays), its count in the codex forgotten (the building milestones
+-- already paid stay paid), and the watch's walk and the ledger's line started over. Returns how many containers were
+-- reset, or nil.
+function Dev.resetSearch()
+    local sq = getPlayer():getCurrentSquare()
+    local room = sq and sq:getRoom()
+    if not room then
+        sq = nil
+        for _, b in ipairs(buildingsNear()) do
+            sq, room = squareIn(b.def)
+            if sq then break end
+        end
+    end
+    local scan = sq and OA.Buildings.scan(sq, room)
+    if not scan then
+        say("search reset: no loaded building within", ALARM_RANGE)
+        return nil
+    end
+    for _, container in ipairs(scan.containers) do OA.Buildings.unmark(container) end
+    local record = Dev.record()
+    if record then
+        local codex = OA.Codex.section(record)
+        if codex.buildings[scan.key] then
+            codex.buildings[scan.key] = nil
+            codex.nb = math.max(0, codex.nb - 1)
+        end
+    end
+    OA.Buildings.reset()
+    if OA.Upgrades.Senses and OA.Upgrades.Senses.resetLedger then OA.Upgrades.Senses.resetLedger() end
+    if OA.SearchWatch then OA.SearchWatch.reset() end
+    Dev.changed()
+    say("search reset: building", scan.key, "-", #scan.containers, "containers unopened")
+    return #scan.containers
+end
+
+-- ---- screens ---------------------------------------------------------------------------------------------------
+
+-- Shows or hides the game's Lua console (the channel needs none; a picture should not have it).
+function Dev.console(show)
+    local console = UIManager.getDebugConsole()
+    if console then console:setVisible(show == true) end
+end
+
+-- Closes the character info window (where the research tab is) and the Lua console.
+function Dev.closeWindows()
+    local info = getPlayerInfoPanel(0)
+    if info and info:getIsVisible() then info:close() end
+    Dev.console(false)
+    say("windows closed")
+end
+
+-- A short state line: time, speed, weather, the character's place and facing, zombies near.
+function Dev.state()
+    local player = getPlayer()
+    local near = 0
+    local list = getCell():getZombieList()
+    for i = 0, list:size() - 1 do
+        local z = list:get(i)
+        if IsoUtils.DistanceTo(z:getX(), z:getY(), player:getX(), player:getY()) <= 30 then near = near + 1 end
+    end
+    say("time", string.format("%.2f", getGameTime():getTimeOfDay()), "speed", getGameTime():getTrueMultiplier(),
+        "daylight", string.format("%.2f", getClimateManager():getDayLightStrength()),
+        "at", math.floor(player:getX()), math.floor(player:getY()), math.floor(player:getZ()),
+        "facing", tostring(player:getDir()), "zombies within 30", near)
+end
+
+function Dev.describe(t)
+    local parts = {}
+    for k, v in pairs(t) do parts[#parts + 1] = tostring(k) .. "=" .. tostring(v) end
+    table.sort(parts)
+    return table.concat(parts, " ")
+end
+
+return Dev

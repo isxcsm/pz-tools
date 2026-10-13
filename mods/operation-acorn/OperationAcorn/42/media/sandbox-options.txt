@@ -1,0 +1,133 @@
+VERSION = 1,
+
+option OperationAcorn.HiddenZombieFix
+{
+    type = boolean, default = true,
+    page = OperationAcorn, translation = OperationAcorn_HiddenZombieFix,
+}
+
+option OperationAcorn.Monologue
+{
+    type = boolean, default = true,
+    page = OperationAcorn, translation = OperationAcorn_Monologue,
+}
+
+option OperationAcorn.CreditMultiplier
+{
+    type = double, min = 0.1, max = 10.0, default = 1.0,
+    page = OperationAcornTrade, translation = OperationAcorn_CreditMultiplier,
+}
+
+option OperationAcorn.TrustThresholdMultiplier
+{
+    type = double, min = 0.1, max = 10.0, default = 1.0,
+    page = OperationAcornTrade, translation = OperationAcorn_TrustThresholdMultiplier,
+}
+
+option OperationAcorn.BonusMultiplier
+{
+    type = double, min = 0.0, max = 10.0, default = 1.0,
+    page = OperationAcornTrade, translation = OperationAcorn_BonusMultiplier,
+}
+
+option OperationAcorn.RequestPrice
+{
+    type = integer, min = 10, max = 500, default = 100,
+    page = OperationAcornTrade, translation = OperationAcorn_RequestPrice,
+}
+
+option OperationAcorn.HelicopterArrivalMultiplier
+{
+    type = double, min = 0.1, max = 10.0, default = 1.0,
+    page = OperationAcornTrade, translation = OperationAcorn_HelicopterArrivalMultiplier,
+}
+
+option OperationAcorn.CallIntervalMultiplier
+{
+    type = double, min = 0.1, max = 10.0, default = 1.0,
+    page = OperationAcornTrade, translation = OperationAcorn_CallIntervalMultiplier,
+}
+
+option OperationAcorn.HelicopterNoiseMultiplier
+{
+    type = double, min = 0.0, max = 3.0, default = 1.0,
+    page = OperationAcornTrade, translation = OperationAcorn_HelicopterNoiseMultiplier,
+}
+
+option OperationAcorn.BoxReissueCostMultiplier
+{
+    type = double, min = 0.0, max = 10.0, default = 1.0,
+    page = OperationAcornTrade, translation = OperationAcorn_BoxReissueCostMultiplier,
+}
+
+option OperationAcorn.MissionDeadlineMultiplier
+{
+    type = double, min = 0.1, max = 10.0, default = 1.0,
+    page = OperationAcornTrade, translation = OperationAcorn_MissionDeadlineMultiplier,
+}
+
+option OperationAcorn.MissionIntervalMultiplier
+{
+    type = double, min = 0.0, max = 10.0, default = 1.0,
+    page = OperationAcornTrade, translation = OperationAcorn_MissionIntervalMultiplier,
+}
+
+option OperationAcorn.MissionGuards
+{
+    type = boolean, default = true,
+    page = OperationAcornTrade, translation = OperationAcorn_MissionGuards,
+}
+
+option OperationAcorn.ShopPriceMultiplier
+{
+    type = double, min = 0.1, max = 10.0, default = 1.0,
+    page = OperationAcornShop, translation = OperationAcorn_ShopPriceMultiplier,
+}
+
+option OperationAcorn.KitsForSale
+{
+    type = boolean, default = true,
+    page = OperationAcornShop, translation = OperationAcorn_KitsForSale,
+}
+
+option OperationAcorn.CureSerumPriceMultiplier
+{
+    type = double, min = 0.0, max = 10.0, default = 1.0,
+    page = OperationAcornShop, translation = OperationAcorn_CureSerumPriceMultiplier,
+}
+
+option OperationAcorn.CureSerumShelfLifeMultiplier
+{
+    type = double, min = 0.1, max = 10.0, default = 1.0,
+    page = OperationAcornShop, translation = OperationAcorn_CureSerumShelfLifeMultiplier,
+}
+
+option OperationAcorn.UpgradeSerumPriceMultiplier
+{
+    type = double, min = 0.0, max = 10.0, default = 1.0,
+    page = OperationAcornUpgrades, translation = OperationAcorn_UpgradeSerumPriceMultiplier,
+}
+
+option OperationAcorn.UpgradeSerumGrowthMultiplier
+{
+    type = double, min = 0.0, max = 3.0, default = 1.0,
+    page = OperationAcornUpgrades, translation = OperationAcorn_UpgradeSerumGrowthMultiplier,
+}
+
+option OperationAcorn.UpgradeEffectMultiplier
+{
+    type = double, min = 0.1, max = 5.0, default = 1.0,
+    page = OperationAcornUpgrades, translation = OperationAcorn_UpgradeEffectMultiplier,
+}
+
+option OperationAcorn.SharedSerumMilestones
+{
+    type = integer, min = 1, max = 10, default = 1,
+    page = OperationAcornUpgrades, translation = OperationAcorn_SharedSerumMilestones,
+}
+
+option OperationAcorn.ShredDecayMultiplier
+{
+    type = double, min = 0.1, max = 10.0, default = 1.0,
+    page = OperationAcornUpgrades, translation = OperationAcorn_ShredDecayMultiplier,
+}

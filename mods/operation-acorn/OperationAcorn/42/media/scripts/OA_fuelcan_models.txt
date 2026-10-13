@@ -1,0 +1,43 @@
+module OperationAcorn
+{
+	/* The research team fuel cans (tools/fuelcan_mesh.py): per mark the static model and the one lying on
+	   the floor. The carried models are clothing items (OA_Bag_FuelCanMk<n>_RHand / _LHand). */
+	model OA_FuelCanMk1
+	{
+		mesh = OA_FuelCanMk1,
+		texture = OA_FuelCan/OA_FuelCanMk1,
+	}
+
+	model OA_FuelCanMk1_Ground
+	{
+		mesh = WorldItems/OA_FuelCanMk1_Ground,
+		texture = OA_FuelCan/OA_FuelCanMk1,
+		scale = 0.4,
+	}
+
+	model OA_FuelCanMk2
+	{
+		mesh = OA_FuelCanMk2,
+		texture = OA_FuelCan/OA_FuelCanMk2,
+	}
+
+	model OA_FuelCanMk2_Ground
+	{
+		mesh = WorldItems/OA_FuelCanMk2_Ground,
+		texture = OA_FuelCan/OA_FuelCanMk2,
+		scale = 0.4,
+	}
+
+	model OA_FuelCanMk3
+	{
+		mesh = OA_FuelCanMk3,
+		texture = OA_FuelCan/OA_FuelCanMk3,
+	}
+
+	model OA_FuelCanMk3_Ground
+	{
+		mesh = WorldItems/OA_FuelCanMk3_Ground,
+		texture = OA_FuelCan/OA_FuelCanMk3,
+		scale = 0.4,
+	}
+}

@@ -1,0 +1,7 @@
+name=Operation Acorn Dev
+id=OperationAcornDev
+author=PZ Tools
+description=Developer tools for Operation Acorn: its section of the PZ Extension API Dev window (F8) and a command channel for test saves. Never published; works only in debug mode.
+modversion=0.1.0
+versionMin=42.0.0
+require=OperationAcorn,PZExtDev

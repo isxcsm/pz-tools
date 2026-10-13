@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animNode>
+	<m_Name>oa_defaultFall</m_Name>
+	<m_AnimName>Bob_Idle_FloorOnFront</m_AnimName>
+	<m_Looped>false</m_Looped>
+	<m_ConditionPriority>1</m_ConditionPriority>
+	<m_BlendTime>0.20</m_BlendTime>
+	<m_Conditions x_name="43abdf74-6fb7-454b-a4fb-34881ecdf020">
+		<m_Name>bGetUpFromFall</m_Name>
+		<m_Type>BOOL</m_Type>
+		<m_Value>true</m_Value>
+	</m_Conditions>
+	<m_Events x_name="f48c3f8d-7298-4769-b92f-164c13123661">
+		<m_EventName>FallOnFront</m_EventName>
+		<m_Time>Start</m_Time>
+		<m_ParameterValue>TRUE</m_ParameterValue>
+	</m_Events>
+	<m_Events x_name="0bbc0c2a-9a06-4088-b819-b84c09993e6d">
+		<m_EventName>SetVariable</m_EventName>
+		<m_Time>End</m_Time>
+		<m_ParameterValue>BumpDone=TRUE</m_ParameterValue>
+	</m_Events>
+	<m_Events x_name="oa-fall-done">
+		<m_EventName>SetVariable</m_EventName>
+		<m_Time>End</m_Time>
+		<m_ParameterValue>bGetUpFromFall=false</m_ParameterValue>
+	</m_Events>
+</animNode>

@@ -1,0 +1,18 @@
+module OperationAcorn
+{
+	/* Vanilla's ground models of carried cases name no texture: a vanilla case takes its own from the clothing it is, so
+	   our cases (plain items) drew the missing-texture checks. These are the same meshes with their textures named. */
+	model OA_HazardCase_Ground
+	{
+		mesh = WorldItems/Clothing/ProtectiveCaseBulky_Ground,
+		texture = Clothes/Bag/ProtectiveCaseBulky_Hazard,
+		scale = 0.125,
+	}
+
+	model OA_Briefcase_Ground
+	{
+		mesh = WorldItems/Clothing/Briefcase,
+		texture = Clothes/Bag/Briefcase,
+		scale = 0.08,
+	}
+}

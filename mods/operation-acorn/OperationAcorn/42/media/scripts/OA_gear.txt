@@ -1,0 +1,164 @@
+/* Operation Acorn: gear and kits (the gear package).
+   The research team backpack, the improved fuel cans (Mk.I to Mk.III) and the four modification kits. Every property
+   is one the vanilla scripts use: the backpack is modelled on Bag_ALICEpack and the cans on PetrolCan
+   (media/scripts/generated/items/normal.txt). There is no improved welding torch: vanilla checks the torch by its
+   exact type (barricading, unbarricading, scrapping metal, burnt cars), so one of another type would not work.
+   What scripts cannot do is in media/lua/shared/OperationAcorn/Gear: fitting a kit (a timed action that writes the
+   counts to the bag or the vehicle) and redeeming the handover voucher. The tooltips are set in code (ISToolTipInv,
+   Gear/Menu.lua), so none is named here. */
+module OperationAcorn
+{
+    imports
+    {
+        Base
+    }
+
+    /* The research team backpack: 35 capacity and 85 weight reduction, the vanilla maxima. Two military canteens
+       are built into its side pouches (they are part of the model): together they are the pack's water storage, the
+       FluidContainer below, as much as the two canteens (CanteenMilitary, 0.9 each) and empty when bought. Like the
+       canteen it takes any fluid. A pack bought before the water storage existed gets it when the save loads: the
+       game makes an item's components from its script and only drops them for an item saved with components of its
+       own, which the old pack never had.
+       WebbingLeft/Right are the hotbar hangers the game places on the shoulder straps at the chest (a radio, a knife;
+       the ALICE suspenders have the same two), where this pack's straps run, so they stay; they are clear of the
+       canteens on the sides. */
+    item TeamBackpack
+    {
+        DisplayCategory = Bag,
+        ItemType = base:container,
+        Weight = 2.0,
+        Icon = OA_ResearchBackpack,
+        AttachmentReplacement = Bag,
+        BloodLocation = Bag,
+        CanBeEquipped = base:back,
+        CanHaveHoles = false,
+        Capacity = 35,
+        CloseSound = CloseBag,
+        ClothingItem = OA_Bag_ResearchPack,
+        EquipSound = EquipBackpackLarge,
+        OpenSound = OpenBag,
+        PutInSound = PutItemInBag,
+        ReplaceInPrimaryHand = OA_Bag_ResearchPack_RHand holdingbagright,
+        ReplaceInSecondHand = OA_Bag_ResearchPack_LHand holdingbagleft,
+        RunSpeedModifier = 0.94,
+        WeightReduction = 85,
+        WorldStaticModel = OperationAcorn.OA_ResearchPack_Ground,
+        AttachmentsProvided = WebbingLeft;WebbingRight,
+        Tags = base:ignorezombiedensity;base:omitemptyfromname,
+        component FluidContainer
+        {
+            ContainerName = OA_WaterStorage,
+            Capacity = 1.8,
+            CustomDrinkSound = DrinkingFromBottlePlastic,
+        }
+    }
+
+    /* The improved fuel cans: larger tanks than the vanilla petrol can, the same empty weight on the scale. Carried,
+       they weigh less (the extension API's carrying efficiency, Gear.FUEL_CANS: full, Mk.I weighs what a full plain can
+       does, Mk.II and Mk.III less). The shop sends them empty. The base:petrol tag is what the vehicle and generator
+       menus look for. Their own jerry can models (tools/fuelcan_mesh.py, scripts/OA_fuelcan_models.txt); the hand
+       holds them where it holds the vanilla can. */
+    item FuelCanMk1
+    {
+        DisplayCategory = VehicleMaintenance,
+        Weight = 1.6,
+        ItemType = base:normal,
+        Icon = OA_FuelCanMk1,
+        StaticModel = OperationAcorn.OA_FuelCanMk1,
+        ReplaceInSecondHand = OA_Bag_FuelCanMk1_LHand holdingbagleft,
+        ReplaceInPrimaryHand = OA_Bag_FuelCanMk1_RHand holdingbagright,
+        WorldStaticModel = OperationAcorn.OA_FuelCanMk1_Ground,
+        Tags = base:petrol;base:cookablemicrowave,
+        component FluidContainer
+        {
+            ContainerName = GasCan,
+            Capacity = 15.0,
+            Fluids
+            {
+                fluid = Petrol:1.0,
+            }
+        }
+    }
+
+    item FuelCanMk2
+    {
+        DisplayCategory = VehicleMaintenance,
+        Weight = 1.6,
+        ItemType = base:normal,
+        Icon = OA_FuelCanMk2,
+        StaticModel = OperationAcorn.OA_FuelCanMk2,
+        ReplaceInSecondHand = OA_Bag_FuelCanMk2_LHand holdingbagleft,
+        ReplaceInPrimaryHand = OA_Bag_FuelCanMk2_RHand holdingbagright,
+        WorldStaticModel = OperationAcorn.OA_FuelCanMk2_Ground,
+        Tags = base:petrol;base:cookablemicrowave,
+        component FluidContainer
+        {
+            ContainerName = GasCan,
+            Capacity = 20.0,
+            Fluids
+            {
+                fluid = Petrol:1.0,
+            }
+        }
+    }
+
+    item FuelCanMk3
+    {
+        DisplayCategory = VehicleMaintenance,
+        Weight = 1.6,
+        ItemType = base:normal,
+        Icon = OA_FuelCanMk3,
+        StaticModel = OperationAcorn.OA_FuelCanMk3,
+        ReplaceInSecondHand = OA_Bag_FuelCanMk3_LHand holdingbagleft,
+        ReplaceInPrimaryHand = OA_Bag_FuelCanMk3_RHand holdingbagright,
+        WorldStaticModel = OperationAcorn.OA_FuelCanMk3_Ground,
+        Tags = base:petrol;base:cookablemicrowave,
+        component FluidContainer
+        {
+            ContainerName = GasCan,
+            Capacity = 25.0,
+            Fluids
+            {
+                fluid = Petrol:1.0,
+            }
+        }
+    }
+
+    /* The modification kits. A kit carries the target it was ordered for in its modData (OA_Target: the item type of
+       a bag, the script name of a vehicle; empty for any) and is fitted by a timed action (Gear/Actions.lua). */
+    item KitBagCapacity
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 1.0,
+        Icon = OA_BagCapacityKit,
+        WorldStaticModel = Base.SewingBox,
+    }
+
+    item KitBagWeight
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 1.0,
+        Icon = OA_BagWeightKit,
+        WorldStaticModel = Base.SewingBox,
+    }
+
+    item KitTrunk
+    {
+        DisplayCategory = VehicleMaintenance,
+        ItemType = base:normal,
+        Weight = 3.0,
+        Icon = OA_TrunkKit,
+        WorldStaticModel = Base.ToolBox_Ground,
+    }
+
+    item KitEngine
+    {
+        DisplayCategory = VehicleMaintenance,
+        ItemType = base:normal,
+        Weight = 2.0,
+        Icon = OA_EngineTuningKit,
+        WorldStaticModel = Base.EngineParts,
+    }
+}

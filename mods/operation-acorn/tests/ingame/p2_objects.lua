@@ -1,0 +1,94 @@
+-- P2: items, the recipe, and the three objects in the world: the terminal, the delivery box (placing, container,
+-- accept rule, capacity, sealing, destroying) and the supply crate (sealed, opening). Needs one character with a
+-- record, open ground nearby (a clear patch east or south). Makes objects: call P2_CLEAN() after.
+-- Prints "[p2obj]" lines.
+RUN("p2_lib.lua")
+local OA = OperationAcorn
+local T = OA.Trade
+local Objects, Things, Boxes = T.Objects, T.Things, T.Boxes
+local say = P2T.say("p2obj")
+local record, player = P2T.record()
+P2T.check(say, "the character has a record", record ~= nil)
+if not record then return end
+
+-- Items and the recipe.
+for _, type in ipairs({ "CommTerminal", "DeliveryBox", "TerminalManual", "SupplyManifest" }) do
+    local item = instanceItem("OperationAcorn." .. type)
+    P2T.check(say, "item " .. type, item ~= nil)
+    P2T.check(say, "name " .. type, item and item:getDisplayName() ~= "OperationAcorn." .. type, item and item:getDisplayName())
+end
+P2T.check(say, "recipe exists", getScriptManager():getCraftRecipe("OperationAcorn.AssembleCommTerminal") ~= nil)
+
+-- Terminal.
+local square = P2T.spot()
+P2T.check(say, "a square to work on", square ~= nil)
+if not square then return end
+local terminalItem = player:getInventory():AddItem("OperationAcorn.CommTerminal")
+local ok, terminal = Things.placeTerminal(player, square, "S", terminalItem)
+P2T.check(say, "terminal placed", ok and terminal ~= nil)
+if ok then
+    P2T.keep(terminal)
+    say("terminal sprite", terminal:getSpriteName(), "powered", tostring(Objects.powered(square)))
+    P2T.check(say, "terminal has no container", terminal:getContainer() == nil)
+    P2T.check(say, "terminal is found by kind", Objects.find(square, Objects.TERMINAL) == terminal)
+    P2T.check(say, "an occupied square is not free", Objects.free(square) == false)
+end
+
+-- Delivery box.
+local spot = Objects.findClear(math.floor(player:getX()) + 3, math.floor(player:getY()), 25)
+P2T.check(say, "a clear square for the box", spot ~= nil)
+if not spot then return end
+local boxItem = player:getInventory():AddItem("OperationAcorn.DeliveryBox")
+local ok2, object, box = Things.placeBox(player, record, spot, boxItem)
+P2T.check(say, "box placed", ok2 and object ~= nil and box ~= nil)
+if not ok2 then return end
+P2T.keep(object)
+local container = object:getContainer()
+P2T.check(say, "box has a container", container ~= nil)
+if container then
+    say("capacity", container:getCapacity(), "type", container:getType(), "wanted", Objects.capacityFor(record))
+    -- 100 raw (the game's cap) and the rest in OA_Capacity, which the API adds: the whole with it, 100 without
+    local want = Objects.capacityFor(record)
+    local extra = object:getModData().OA_Capacity
+    P2T.check(say, "the rest over 100 is in OA_Capacity", extra == want - math.min(want, 100), tostring(extra))
+    local lifted = OA.api() ~= nil
+    P2T.check(say, "it holds the whole with the API, 100 without",
+        container:getCapacity() == (lifted and want or math.min(want, 100)), container:getCapacity() .. " of " .. want)
+    -- explored: else the game rolls loot into it when it is first opened (the tile gives it its container)
+    P2T.check(say, "the box is explored", container:isExplored())
+    local rag = instanceItem("Base.RippedSheets")
+    local bullet = instanceItem("Base.Bullets9mm")
+    P2T.check(say, "accepts cloth scraps", container:isItemAllowed(rag))
+    P2T.check(say, "refuses ammunition", not container:isItemAllowed(bullet))
+    container:AddItem(rag)
+    container:AddItem(bullet)
+    local plan = Things.sealable(container)
+    P2T.check(say, "the sealable plan takes the cloth and refuses the ammunition", #plan.taken == 1 and #plan.refused == 1,
+        #plan.taken .. "/" .. #plan.refused)
+    local sealed = Things.seal(player, record, object)
+    P2T.check(say, "box sealed", sealed == true)
+    P2T.check(say, "sealed tile", object:getSpriteName() == OA.Sprites.deliveryBox(true), object:getSpriteName())
+    P2T.check(say, "sealed box has no way in", object:getContainer() == nil)
+    P2T.check(say, "record says sealed", Boxes.get(record, box.id).state == "sealed")
+    P2T.check(say, "the refused ammunition came back", player:getInventory():containsType("Bullets9mm"))
+    -- Destroyed by something else: the record forgets it.
+    Things.destroyed(object)
+    P2T.check(say, "destroyed box is gone from the record", Boxes.get(record, box.id) == nil)
+end
+
+-- Supply crate.
+local crateSquare = Objects.findBeside(spot:getX(), spot:getY(), 0, 6)
+if crateSquare then
+    local crate = P2T.keep(Things.makeCrate(crateSquare, { { type = "Base.Battery", count = 2 } }, false))
+    P2T.check(say, "sealed crate has no container", crate:getContainer() == nil)
+    local opened = Things.unseal(player, crate)
+    P2T.check(say, "crate opens", opened == true)
+    local c = crate:getContainer()
+    P2T.check(say, "opened crate holds the cargo", c ~= nil and c:getItems():size() == 2)
+    P2T.check(say, "the opened crate is explored", c ~= nil and c:isExplored())
+    P2T.check(say, "not empty so it does not break", Things.breakEmptyCrate(crate) == false)
+    P2T.check(say, "the opened crate takes nothing in", c ~= nil and not c:isItemAllowed(instanceItem("Base.Hammer")))
+    c:removeAllItems()
+    P2T.check(say, "emptied, it breaks", Things.breakEmptyCrate(crate) == true and crate:getObjectIndex() < 0)
+end
+say("done; call P2_CLEAN() to remove what was made")
