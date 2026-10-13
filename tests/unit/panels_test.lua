@@ -127,7 +127,7 @@ test("each minute's sync reads only the built-on rooms' objects, and the buildin
     eq(calls("rooms"), 1)
     eq(calls("attached"), 1)
     -- Not in the box's zone: let go once missing past the grace (its square is not loaded: not known gone).
-    panel.rooms = { ["700"] = true }
+    panel.zone = { ["700,700,0"] = true }
     eq(Changes.syncAttached(panel), false, "kept while it may be the region data lagging")
 end)
 

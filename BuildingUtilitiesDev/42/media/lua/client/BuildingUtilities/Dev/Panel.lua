@@ -132,7 +132,7 @@ local function panelPage(page, ui)
     page.refresh = function()
         local p = Dev.selected()
         if not p then state:set({ panelLine(nil) }) return end
-        local zone = p.rooms and T("Pn_ZoneRooms") or T("Pn_ZoneWhole")
+        local zone = p.zone and T("Pn_ZoneRooms") or T("Pn_ZoneWhole")
         state:set({
             panelLine(p) .. (Dev.selectedId and "" or ("  " .. T("Pn_IsNearest"))),
             T("Pn_State", ui.num(p.tier or 1), yes(p.tripped), yes(p.switchedOff), yes(Dev.overloaded(p))),

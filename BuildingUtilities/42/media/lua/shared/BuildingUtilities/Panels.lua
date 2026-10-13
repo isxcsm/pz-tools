@@ -1,7 +1,7 @@
 -- The mod's rules, as questions: a breaker box per building, or per zone of one (a large building's); producers
 -- outside within a range of its outline; the devices of its building (or zone), with those of rooms built onto it,
--- connected unless excluded; devices near it, outside any building, connected only on their own; another box as a
--- sub-panel. Nothing here changes anything: BU.Changes does.
+-- connected unless excluded; devices near it, outside any building, connected only on their own. Nothing here changes
+-- anything: BU.Changes does.
 require "BuildingUtilities/Networks"
 require "BuildingUtilities/Geometry"
 require "BuildingUtilities/Switches"
@@ -17,7 +17,7 @@ Panels.MODDATA = "BuildingUtilitiesPanel"
 -- changed. The API changes it as the game swaps in new region data, which is how walls, doors, roofs and player-built
 -- buildings come into the map's data. So nothing is kept by time, and nothing is read again while it holds.
 local cacheVersion
-local buildingCache, roomsCache = {}, {}
+local buildingCache, roomsCache, zoneCache = {}, {}, {}
 local NO_BUILDING = {}
 
 local function squareKey(x, y, z) return (z * 100000 + y) * 100000 + x end
@@ -28,7 +28,7 @@ local function current()
     if not api then return nil end
     local version = api.buildings.version()
     if version ~= cacheVersion then
-        cacheVersion, buildingCache, roomsCache = version, {}, {}
+        cacheVersion, buildingCache, roomsCache, zoneCache = version, {}, {}, {}
     end
     return api
 end
@@ -82,7 +82,18 @@ local function attachedFor(api, building)
     return spaces
 end
 
--- A building's rooms as plain tables: { id, name, level, rects = { { x, y, w, h } } }. The rooms built onto the
+-- A room's square for the saved zones: the north-west one of its own rectangles (the first by y, then by x).
+local function roomKey(room, count)
+    local best
+    for i = 1, count do
+        local rect = room.rects[i]
+        if not best or rect.y < best.y or rect.y == best.y and rect.x < best.x then best = rect end
+    end
+    return best and BU.placeKey(best.x, best.y, room.level)
+end
+
+-- A building's rooms as plain tables: { id, key, name, level, rects = { { x, y, w, h } } }, key the room's square
+-- for a saved zone (roomKey). The rooms built onto the
 -- building (Panels.attached) are rectangles added to the room each touches most, after the room's own (own: how
 -- many), so that the first is always a square of the map's room, and the box's name is still that of the largest room
 -- of the map. Kept for the API's version (above): windows, the water layout and each minute's work ask often.
@@ -104,6 +115,7 @@ function Panels.rooms(building)
             end
             result[#result + 1] = { id = room.id, name = room.name, level = room.level, rects = rects }
         end
+        for _, room in ipairs(result) do room.key = roomKey(room, #room.rects) end
         spaces = attachedFor(api, building)
         for _, space in ipairs(spaces or {}) do
             for _, room in ipairs(result) do
@@ -122,7 +134,7 @@ end
 
 -- What was kept of the buildings, their rooms and the rooms built onto them, forgotten: looked at again at the next
 -- ask (for a check that wants a fresh look whatever the API's version says).
-function Panels.forgetRooms() buildingCache, roomsCache = {}, {} end
+function Panels.forgetRooms() buildingCache, roomsCache, zoneCache = {}, {}, {} end
 
 -- The rooms built onto a building (see above): a list of spaces (none for a building the player built), or nil when
 -- they cannot be found now.
@@ -163,11 +175,47 @@ function Panels.ofBuilding(key)
     return result
 end
 
--- Zones. A box takes its whole building, or only some of its rooms (panel.rooms, a set of room ids), so that a
--- large building, an apartment block, can have a box per flat or floor.
+-- Zones. A box takes its whole building, or only some of its rooms, so that a large building, an apartment block,
+-- can have a box per flat or floor. A zone is saved as a square of each room (panel.zone, a set of BU.placeKey: the
+-- room's key when it was taken), not as the room's id: the game numbers the rooms of a cell again whenever a player's
+-- building there is built, changed or taken down, and a square stays. A room merged with another keeps the zone's
+-- square, so the whole is in it; a room split leaves the part with the square in it; a square no longer in a room
+-- leaves the zone.
 Panels.LARGE_LEVELS, Panels.LARGE_ROOMS = 5, 30
 
-function Panels.inZone(panel, roomId) return panel.rooms == nil or panel.rooms[roomId] == true end
+-- The room of a list (Panels.rooms) that has a square, or nil.
+function Panels.roomHaving(rooms, x, y, z)
+    for _, room in ipairs(rooms) do
+        if room.level == z then
+            for _, rect in ipairs(room.rects) do
+                if x >= rect.x and x < rect.x + rect.w and y >= rect.y and y < rect.y + rect.h then return room end
+            end
+        end
+    end
+    return nil
+end
+
+-- The room ids of a box's zone now, a set, or nil for its whole building. Kept with the rooms (the API's version).
+function Panels.zoneIds(panel)
+    local zone = panel.zone
+    if not zone then return nil end
+    local rooms = Panels.rooms(Panels.building(panel))
+    local kept = zoneCache[panel.id]
+    if kept and kept.zone == zone and kept.rooms == rooms then return kept.ids end
+    local ids = {}
+    for key in pairs(zone) do
+        local x, y, z = BU.parsePlace(key)
+        local room = x and Panels.roomHaving(rooms, x, y, z)
+        if room then ids[room.id] = true end
+    end
+    zoneCache[panel.id] = { zone = zone, rooms = rooms, ids = ids }
+    return ids
+end
+
+function Panels.inZone(panel, roomId)
+    local ids = Panels.zoneIds(panel)
+    return ids == nil or ids[roomId] == true
+end
 
 -- The panel of the building whose zone has the room, other than one; nil when the room is free. boxes, the
 -- building's panels (Panels.ofBuilding), saves finding them again for each room.
@@ -205,11 +253,12 @@ end
 -- The lowest and the highest floor of a box's zone, or nil for the whole building or when the building is not known
 -- now.
 function Panels.zoneFloors(panel)
-    local building = panel.rooms and Panels.building(panel)
+    local building = panel.zone and Panels.building(panel)
     if not building then return nil end
+    local ids = Panels.zoneIds(panel)
     local low, high
     for _, room in ipairs(Panels.rooms(building)) do
-        if panel.rooms[room.id] then low, high = math.min(low or room.level, room.level), math.max(high or room.level, room.level) end
+        if ids[room.id] then low, high = math.min(low or room.level, room.level), math.max(high or room.level, room.level) end
     end
     return low, high
 end
@@ -241,7 +290,7 @@ function Panels.defaultZone(building, level)
     local zone = {}
     for _, room in ipairs(rooms) do
         local take = small and room.level >= low and room.level <= high or room.level == level
-        if take and not Panels.roomOwner(building.key, room.id, nil, boxes) then zone[room.id] = true end
+        if take and not Panels.roomOwner(building.key, room.id, nil, boxes) then zone[room.key] = true end
     end
     return zone, small
 end
@@ -257,24 +306,24 @@ end
 -- differs; the zone it has when the building is not known now.
 function Panels.zoneInReach(panel)
     local building = Panels.building(panel)
-    if not building or not BU.floorReach(panel.tier) then return panel.rooms, false end
+    if not building or not BU.floorReach(panel.tier) then return panel.zone, false end
     local rooms = Panels.rooms(building)
-    if not panel.rooms and reachesAll(rooms, panel.z, panel.tier) then return nil, false end
-    local zone, changed, any, kept = {}, panel.rooms == nil, false, false
+    if not panel.zone and reachesAll(rooms, panel.z, panel.tier) then return nil, false end
+    local zone, changed, any, kept = {}, panel.zone == nil, false, false
     for _, room in ipairs(rooms) do
         if Panels.inZone(panel, room.id) then
-            if Panels.reachesLevel(panel, room.level) then zone[room.id] = true; any = true else changed = true end
+            if Panels.reachesLevel(panel, room.level) then zone[room.key] = true; any = true else changed = true end
         end
     end
     if not any then
         local boxes = Panels.ofBuilding(building.key)
         for _, room in ipairs(rooms) do
             if room.level == panel.z and not Panels.roomOwner(building.key, room.id, panel, boxes) then
-                zone[room.id], changed, kept = true, true, true
+                zone[room.key], changed, kept = true, true, true
             end
         end
         -- Nothing it can take: its zone stays as it is rather than none (a zone has a room at least).
-        if not kept then return panel.rooms, false end
+        if not kept then return panel.zone, false end
     end
     return zone, changed
 end
@@ -323,7 +372,7 @@ function Panels.canInstall(square)
     local building = Panels.buildingAt(square:getX(), square:getY(), square:getZ())
     if not building then return nil, "notInBuilding" end
     local owner = Panels.roomOwner(building.key, building.roomId)
-    if owner then return nil, owner.rooms and "roomTaken" or "wholeTaken" end
+    if owner then return nil, owner.zone and "roomTaken" or "wholeTaken" end
     return building
 end
 

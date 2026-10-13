@@ -31,13 +31,12 @@ local source = Energy.sourceState(state)
 say("units", #units, "hasSource", Energy.hasSource(panel), "first producer", state.producers[1] and state.producers[1].source,
     "available", source and source.available, "running", source and source.running, "supplied", state.supplied, "load", f(state.load))
 local output, count, snow = Energy.output(panel)
-say("output", f(output), count, "snow", f(snow), "per panel", f(Energy.panelOutput(units[1])), "line steps", Energy.lineSteps(panel),
-    "line", Panels.powerLine(panel, state))
+say("output", f(output), count, "snow", f(snow), "per panel", f(Energy.panelOutput(units[1])))
 
 -- The source switched on by hand: it carries the load, generators off; then not available: the next takes over.
 Networks.setSource(panel, true, true)
 state = Networks.state(panel, "power")
-say("on: in use", Energy.inUse(state), "supplied", state.supplied, "hoursLeft", tostring(state.hoursLeft), "line", Panels.powerLine(panel, state))
+say("on: in use", Energy.inUse(state), "supplied", state.supplied, "hoursLeft", tostring(state.hoursLeft))
 Networks.setSource(panel, false, nil)
 state = Networks.state(panel, "power")
 say("off: producer", state.producer and (state.producer.source or (state.producer.x .. "," .. state.producer.y)) or "none", "supplied", state.supplied)

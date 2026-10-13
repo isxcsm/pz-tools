@@ -108,6 +108,30 @@ function BU.parseThing(key)
     return tonumber(x), tonumber(y), tonumber(z), sprite
 end
 
+-- The air a saved thing sits in (a box, a unit: a table with x, y, z), in degrees. Its square's while loaded (a heated
+-- building is warmer, a basement milder), kept as the difference from the air outside (record.warmth, to a tenth);
+-- while not loaded, the air outside now with the difference last seen: a far basement's rack does not take a winter
+-- night's cold, a far heated building's pipes do not freeze, while the weather still moves it.
+function BU.airAt(record)
+    local climate = getClimateManager()
+    local outside = climate:getTemperature()
+    local square = getCell():getGridSquare(record.x, record.y, record.z)
+    if not square then return outside + (record.warmth or 0) end
+    local air = climate:getAirTemperatureForSquare(square)
+    local warmth = math.floor((air - outside) * 10 + 0.5) / 10
+    record.warmth = warmth ~= 0 and warmth or nil
+    return air
+end
+
+-- "x,y,z": how a square is named in the saved lists (a room of a zone, by one of its squares).
+function BU.placeKey(x, y, z) return x .. "," .. y .. "," .. z end
+
+function BU.parsePlace(key)
+    local x, y, z = key:match("^(-?%d+),(-?%d+),(-?%d+)$")
+    if not x then return nil end
+    return tonumber(x), tonumber(y), tonumber(z)
+end
+
 -- What is left of value over whole sizes, from 0 up to size. Kahlua's % differs from Lua's on negative numbers and
 -- is wrong on the clock's milliseconds (getTimestampMs).
 function BU.remainder(value, size) return value - math.floor(value / size) * size end

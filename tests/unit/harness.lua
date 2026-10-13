@@ -189,10 +189,12 @@ function test(name, fn) table.insert(cases, { name = name, fn = fn }) end
 
 TEST_FAILED = 0
 local passed = 0
-for _, file in ipairs(listfiles("tests/unit")) do
-    if string.match(file, "_test%.lua$") and (TEST_FILTER == "" or string.find(file, TEST_FILTER, 1, true)) then
+local DIR, PATTERN = "tests/unit/", "_test%.lua$"
+if TEST_SUITE == "bench" or TEST_SUITE == "profile" then DIR, PATTERN = "tests/bench/", "_bench%.lua$" end
+for _, file in ipairs(listfiles(DIR)) do
+    if string.match(file, PATTERN) and (TEST_FILTER == "" or string.find(file, TEST_FILTER, 1, true)) then
         cases = {}
-        local text = readfile("tests/unit/" .. file)
+        local text = readfile(DIR .. file)
         local chunk, err = loadstring(text, file)
         if not chunk then
             TEST_FAILED = TEST_FAILED + 1

@@ -9,8 +9,9 @@ local KEY = "BuildingUtilities"
 
 -- { version, next, panels = { [id] = panel } }. A panel:
 --   id, x, y, z (the box's square), sprite, name (set by the player, or nil), tier (1 to BU.TIERS), tripped (its
---   breaker is down), switchedOff (true while a player has its main switch off, else nil), rooms (its zone: a set of
---   the building's room ids it takes, or nil for the whole building),
+--   breaker is down), switchedOff (true while a player has its main switch off, else nil), zone (the rooms it takes: a
+--   set of a square of each, BU.placeKey, Panels.zoneIds; or nil for the whole building),
+--   warmth (its square's air above the air outside, last seen loaded: BU.airAt),
 --   log (what happened to it, oldest first: { hour, key, args }, at most Store.LOG_SIZE),
 --   and per utility (power, water): producers (a list of { x, y, z, paid }, in order), excluded (a set of
 --   BU.thingKey), included (BU.thingKey to what connecting it cost) and attached (a set: devices in rooms built onto
@@ -35,7 +36,8 @@ local KEY = "BuildingUtilities"
 -- units = { [id] = unit }: the solar panels, battery racks, pumps, sprinklers and filters this mod put down (BU.Units).
 -- A unit:
 --   id, kind (BU.Units.KINDS), x, y, z (its square), sprite, panel (the panel it is wired to, or nil) and
---   paid (what that line took); a solar panel also snow (0 to 1, nil for none); a rack also batteries, a record of
+--   paid (what that line took); a solar panel also snow (0 to 1, nil for none); a rack also warmth (as a panel's)
+--   and batteries, a record of
 --   each car battery in its container (BU.Rack.sync): { id (the item's), type, charge 0 to 1, condition 0 to
 --   100 } (how often one was reconditioned is the item's own, BU.Rack.REVIVED). A water unit may have group (the
 --   panel's water group it works for; nil for the first); a pump has fluid ("Water" from a well, "TaintedWater" from

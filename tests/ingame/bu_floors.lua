@@ -27,8 +27,9 @@ local function lastLog(panel)
 end
 local function zoneLevels(panel)
     local low, high, count = nil, nil, 0
+    local ids = Panels.zoneIds(panel)
     for _, room in ipairs(Panels.rooms(building)) do
-        if panel.rooms and panel.rooms[room.id] then
+        if ids and ids[room.id] then
             count = count + 1
             low, high = math.min(low or room.level, room.level), math.max(high or room.level, room.level)
         end
@@ -36,11 +37,11 @@ local function zoneLevels(panel)
     return low, high, count
 end
 local function roomsBetween(low, high)
-    local ids, count = {}, 0
+    local keys, count = {}, 0
     for _, room in ipairs(Panels.rooms(building)) do
-        if room.level >= low and room.level <= high then ids[#ids + 1] = room.id; count = count + 1 end
+        if room.level >= low and room.level <= high then keys[#keys + 1] = room.key; count = count + 1 end
     end
-    return ids, count
+    return keys, count
 end
 
 -- How far each tier reaches.
@@ -51,13 +52,13 @@ page.FloorReach = 2
 check("ranges text tells the floors", Panels.rangesText(4):find(getText("IGUI_BU_FloorReach", BU.floorReach(4)), 1, true) ~= nil, true)
 
 -- A zone saved whole (before the limit) kept to the floors it reaches.
-local before = main.rooms
-main.rooms = nil
+local before = main.zone
+main.zone = nil
 Networks.setZone(main, before)
 Changes.fitZones()
 local _, inReach = roomsBetween(main.z - 5, main.z + 5)
 local low, high, count = zoneLevels(main)
-check("whole zone kept: a list", main.rooms ~= nil, true)
+check("whole zone kept: a list", main.zone ~= nil, true)
 check("whole zone kept: lowest floor", low, math.max(building.minLevel, main.z - 5))
 check("whole zone kept: highest floor", high, main.z + 5)
 check("whole zone kept: rooms", count, inReach)

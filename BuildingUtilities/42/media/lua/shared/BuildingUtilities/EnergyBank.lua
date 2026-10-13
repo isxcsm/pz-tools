@@ -51,17 +51,16 @@ function Energy.wearAt(charge)
     return 2 + 4 * (0.2 - math.max(0, charge)) / 0.2
 end
 
--- The share of a bank cold locks at its racks: the coldest of them that is loaded, else the air outside. None
--- without the option.
+-- The share of a bank cold locks at its racks: the coldest air of them (BU.airAt, loaded or not). None without the
+-- option.
 function Energy.coldShare(racks)
     if not Energy.coldLockEnabled() then return 0 end
-    local climate, coldest = getClimateManager(), nil
+    local coldest
     for _, rack in ipairs(racks) do
-        local square = getCell():getGridSquare(rack.x, rack.y, rack.z)
-        local temperature = square and climate:getAirTemperatureForSquare(square) or nil
-        if temperature and (not coldest or temperature < coldest) then coldest = temperature end
+        local temperature = BU.airAt(rack)
+        if not coldest or temperature < coldest then coldest = temperature end
     end
-    coldest = coldest or climate:getTemperature()
+    coldest = coldest or getClimateManager():getTemperature()
     if coldest >= 0 then return 0 end
     return math.min(Energy.COLD_MOST, -coldest * Energy.COLD_PER_DEGREE)
 end

@@ -195,20 +195,6 @@ function WaterRun.filters(panel, minutes)
     for _, group in ipairs(Water.groups(panel)) do
         local on = not unpurified or filtering[group.id] == true
         Networks.setGroupPurify(panel, group.id, on)
-        -- Its sub-panels, all down its tree, take the first group's water.
-        if group.id == Water.FIRST then
-            local seen = { [panel.id] = true }
-            local function follow(box)
-                for _, child in ipairs(Store.children(box.id)) do
-                    if not seen[child.id] then
-                        seen[child.id] = true
-                        Networks.setGroupPurify(child, Water.FIRST, on)
-                        follow(child)
-                    end
-                end
-            end
-            follow(panel)
-        end
     end
     if changed then Sync.changed(panel.id) end
 end

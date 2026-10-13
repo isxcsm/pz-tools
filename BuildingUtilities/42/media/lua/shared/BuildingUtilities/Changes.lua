@@ -24,7 +24,7 @@ function Changes.install(square, sprite)
     -- The mouse over it shows a summary (client/BuildingUtilities/Main.lua).
     object:setSpecialTooltip(true)
     local panel = Store.newPanel(square:getX(), square:getY(), square:getZ(), sprite)
-    panel.rooms = zone
+    panel.zone = zone
     object:getModData()[Panels.MODDATA] = panel.id
     square:AddTileObject(object)
     if isServer() then object:transmitCompleteItemToClients() end
@@ -44,23 +44,25 @@ function Changes.install(square, sprite)
     return panel
 end
 
--- The rooms a box takes: a list of room ids of its building, or nil for all of it (only for the building's one
+-- The rooms a box takes: a list of room keys of its building (each room's key, Panels.rooms), or nil for all of it
+-- (only for the building's one
 -- box; the rooms of the floors it reaches where it does not reach them all). Rooms of another box's zone and of
 -- floors it does not reach (Panels.reachesLevel) are left out; a zone keeps one room at least. Returns whether it
 -- changed.
-function Changes.setZone(panel, ids)
+function Changes.setZone(panel, keys)
     local building = Panels.building(panel)
     if not building then return false end
     local zone
-    if ids then
+    if keys then
         local known, boxes = {}, Panels.ofBuilding(building.key)
         for _, room in ipairs(Panels.rooms(building)) do
-            if Panels.reachesLevel(panel, room.level) then known[room.id] = true end
+            if Panels.reachesLevel(panel, room.level) then known[room.key] = room end
         end
         zone = {}
         local any = false
-        for _, id in ipairs(ids) do
-            if known[id] and not Panels.roomOwner(building.key, id, panel, boxes) then zone[id] = true; any = true end
+        for _, key in ipairs(keys) do
+            local room = known[key]
+            if room and not Panels.roomOwner(building.key, room.id, panel, boxes) then zone[key] = true; any = true end
         end
         if not any then return false end
     elseif #Panels.ofBuilding(building.key) > 1 then
@@ -68,7 +70,7 @@ function Changes.setZone(panel, ids)
     elseif not Panels.canTakeWhole(panel, building) then
         zone = {}
         for _, room in ipairs(Panels.rooms(building)) do
-            if Panels.reachesLevel(panel, room.level) then zone[room.id] = true end
+            if Panels.reachesLevel(panel, room.level) then zone[room.key] = true end
         end
     end
     return Changes.applyZone(panel, building, zone)
@@ -76,8 +78,8 @@ end
 
 -- A zone checked as Changes.setZone does, to the save, the API and the players.
 function Changes.applyZone(panel, building, zone)
-    local before = panel.rooms
-    panel.rooms = zone
+    local before = panel.zone
+    panel.zone = zone
     Networks.setZone(panel, before)
     -- The box forgets what it set for devices of rooms that left the zone: another box may take them, and an
     -- exclusion of any network keeps a device off (a fixture moved to another group is excluded from the first's).

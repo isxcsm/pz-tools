@@ -39,15 +39,15 @@ end
 -- A window saw devices in a room built onto the building that the networks do not have yet.
 function commands.syncAttached(player, panel, args) Changes.syncAttached(panel) end
 
--- The box's zone: a list of room ids, or the whole building.
+-- The box's zone: a list of room keys (Panels.rooms), or the whole building.
 function commands.setZone(player, panel, args)
     if args.whole == true then Changes.setZone(panel, nil); return end
     if type(args.rooms) ~= "table" then return end
-    local ids = {}
-    for _, id in ipairs(args.rooms) do
-        if type(id) == "string" then ids[#ids + 1] = id end
+    local keys = {}
+    for _, key in ipairs(args.rooms) do
+        if type(key) == "string" then keys[#keys + 1] = key end
     end
-    Changes.setZone(panel, ids)
+    Changes.setZone(panel, keys)
 end
 
 function commands.moveProducer(player, panel, args)

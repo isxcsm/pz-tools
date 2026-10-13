@@ -56,28 +56,20 @@ local function applyRule(id, rule, key)
     if x and id then change(rule, id, x, y, z, sprite) end
 end
 
--- A room's square, for the API's addRoom and removeRoom.
-local function setRoom(id, room, on)
-    local rect = room and room.rects[1]
-    if rect then change(on and "addRoom" or "removeRoom", id, rect.x, rect.y, room.level) end
-end
-
--- A room of the panel's building by its id, as Panels.rooms has it, or nil.
-local function roomOf(panel, roomId)
-    for _, room in ipairs(BU.Panels.rooms(BU.Panels.building(panel))) do
-        if room.id == roomId then return room end
-    end
-    return nil
+-- A room by its square (BU.placeKey), for the API's addRoom and removeRoom: the API names rooms by a square too.
+local function setRoom(id, key, on)
+    local x, y, z = BU.parsePlace(key)
+    if x then change(on and "addRoom" or "removeRoom", id, x, y, z) end
 end
 
 -- Power: the building, or the rooms of the panel's zone.
 local function addPowerMembers(panel)
     local id = powerId(panel)
-    if not panel.rooms then
+    if not panel.zone then
         change("addBuilding", id, panel.x, panel.y, panel.z)
         return
     end
-    for roomId in pairs(panel.rooms) do setRoom(id, roomOf(panel, roomId), true) end
+    for key in pairs(panel.zone) do setRoom(id, key, true) end
 end
 
 -- The power network's rules for every device the panel names.
@@ -219,14 +211,14 @@ function Networks.defineWater(panel, keys)
         for _, room in ipairs(network.rooms) do rooms[room.id] = room end
         roomSets[network.id] = rooms
         for roomId, room in pairs(old and old.rooms or {}) do
-            if not rooms[roomId] then setRoom(network.id, room, false) end
+            if not rooms[roomId] then setRoom(network.id, room.key, false) end
         end
     end
     for _, network in ipairs(layout) do
         local old = before[network.id]
         local rooms = roomSets[network.id]
         for roomId, room in pairs(rooms) do
-            if not (old and old.rooms[roomId]) then setRoom(network.id, room, true) end
+            if not (old and old.rooms[roomId]) then setRoom(network.id, room.key, true) end
         end
         now[network.id] = { parent = network.parent, rooms = rooms, tanks = tanks[network.id], group = network.group,
             level = network.level }
@@ -307,19 +299,19 @@ function Networks.define(panel)
     Networks.defineWater(panel)
 end
 
--- The panel's zone changed from before (a set of room ids, or nil for the whole building) to what it has now.
+-- The panel's zone changed from before (a set of room squares, or nil for the whole building) to what it has now.
 function Networks.setZone(panel, before)
-    local id, now = powerId(panel), panel.rooms
+    local id, now = powerId(panel), panel.zone
     if not before then change("removeBuilding", id, panel.x, panel.y, panel.z) end
     if not now then
-        for roomId in pairs(before or {}) do setRoom(id, roomOf(panel, roomId), false) end
+        for key in pairs(before or {}) do setRoom(id, key, false) end
         change("addBuilding", id, panel.x, panel.y, panel.z)
     else
-        for roomId in pairs(before or {}) do
-            if not now[roomId] then setRoom(id, roomOf(panel, roomId), false) end
+        for key in pairs(before or {}) do
+            if not now[key] then setRoom(id, key, false) end
         end
-        for roomId in pairs(now) do
-            if not (before and before[roomId]) then setRoom(id, roomOf(panel, roomId), true) end
+        for key in pairs(now) do
+            if not (before and before[key]) then setRoom(id, key, true) end
         end
     end
     Networks.defineWater(panel)

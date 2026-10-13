@@ -22,12 +22,8 @@ function Water.aboveOnly() return BU.sandbox("WaterFromAboveOnly", false) == tru
 Water.FREEZE_BELOW, Water.FREEZE_HOURS, Water.THAW_ABOVE, Water.THAW_HOURS = -5, 6, 0, 2
 function Water.freezeEnabled() return BU.sandbox("RiskPipesFreeze", false) == true end
 
--- The temperature the box's pipes have: its square's air when loaded (a heated building is warmer), else outside.
-function Water.pipeTemperature(panel)
-    local climate = getClimateManager()
-    local square = getCell():getGridSquare(panel.x, panel.y, panel.z)
-    return square and climate:getAirTemperatureForSquare(square) or climate:getTemperature()
-end
+-- The temperature the box's pipes have: its square's air (BU.airAt, loaded or not).
+function Water.pipeTemperature(panel) return BU.airAt(panel) end
 
 -- Floors a booster pump lifts water above its own (the sandbox's BoosterLift).
 function Water.boostFloors() return BU.sandbox("BoosterLift", 10) end

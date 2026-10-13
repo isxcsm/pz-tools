@@ -119,16 +119,18 @@ function ISBUPanelWindow:zoneSet()
     return result
 end
 
--- The zone asked for, as a set of room ids; one empty is refused here as on the server.
+-- The zone asked for, as a set of room ids, sent as the rooms' keys; one empty is refused here as on the server.
 function ISBUPanelWindow:sendZone(set)
-    local ids = {}
-    for id in pairs(set) do ids[#ids + 1] = id end
-    if #ids == 0 then
+    local keys = {}
+    for _, room in ipairs(self.rooms or {}) do
+        if set[room.id] then keys[#keys + 1] = room.key end
+    end
+    if #keys == 0 then
         HaloTextHelper.addBadText(self.playerObj, getText("IGUI_BU_ZoneEmpty"))
         return
     end
-    table.sort(ids)
-    Sync.send(self.playerObj, "setZone", { panel = self.panel.id, rooms = ids })
+    table.sort(keys)
+    Sync.send(self.playerObj, "setZone", { panel = self.panel.id, rooms = keys })
 end
 
 -- Why a floor is not one this box's zone can take: the floors it can, that an upgrade reaches more (below the top
@@ -187,7 +189,7 @@ function ISBUPanelWindow:zoneMenu(level)
             end
             window:sendZone(set)
         end)
-    elseif self.panel.rooms and Panels.canTakeWhole(self.panel, self.building) then
+    elseif self.panel.zone and Panels.canTakeWhole(self.panel, self.building) then
         menu:addOption(getText("IGUI_BU_Menu_ZoneWhole"), self, function(window)
             Sync.send(window.playerObj, "setZone", { panel = window.panel.id, whole = true })
         end)

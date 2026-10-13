@@ -1,7 +1,8 @@
 // Runs the mod's Lua unit tests outside the game, on the game's own Kahlua VM (the same number rules, the same
 // string and table libraries). The game itself is not there: tests/unit/harness.lua stubs the few game functions
 // the tested modules touch.
-//   java -cp projectzomboid.jar tools/LuaTest.java [test name filter]
+//   java -cp projectzomboid.jar tools/LuaTest.java [test name filter] [bench]
+// "bench" runs tests/bench/*_bench.lua instead: the scale benches, which print their times (give "" as the filter).
 // Run it from the repository root. Exit code 0 when every test passed.
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -48,7 +49,11 @@ public class LuaTest {
             } catch (Exception missing) { }
             return frame.push(list);
         });
+        // nanotime(): milliseconds from some fixed time, to the nanosecond, for the benches.
+        env.rawset("nanotime", (JavaFunction) (LuaCallFrame frame, int n) -> frame.push(System.nanoTime() / 1e6));
         env.rawset("TEST_FILTER", args.length > 0 ? args[0] : "");
+        // "bench" second: the benches (tests/bench/*_bench.lua) instead of the unit tests.
+        env.rawset("TEST_SUITE", args.length > 1 ? args[1] : "unit");
 
         String harness = Files.readString(Path.of("tests/unit/harness.lua"), StandardCharsets.UTF_8);
         Object closure = se.krka.kahlua.luaj.compiler.LuaCompiler.loadstring(harness, "harness.lua", env);
