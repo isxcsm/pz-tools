@@ -213,16 +213,25 @@ function WaterRun.machines(panel, minutes)
     if changed then Sync.changed(panel.id) end
 end
 
--- The water a plant wants now: none unless it grows and is below what it needs; then enough to bring it to the middle
--- of what it likes (as many uses of a watering can as that takes).
+-- Whether a plant is out in the open, where a sprinkler outside reaches it (and the rain does): its square as it is
+-- when loaded, else as the farming system last saw it. One under a roof is beyond a wall from the sprinkler.
+local function inTheOpen(plant)
+    local square = plant.x and getCell():getGridSquare(plant.x, plant.y, plant.z)
+    if square then return square:isOutside() end
+    return plant.exterior ~= false
+end
+
+-- The water a plant wants now: none unless it grows out in the open and is below what it needs; then enough to bring
+-- it to the middle of what it likes (as many uses of a watering can as that takes).
 local function usesWanted(plant)
     if plant.state ~= "seeded" or not plant.waterLvl or not plant.waterNeeded then return 0 end
+    if not inTheOpen(plant) then return 0 end
     if plant.waterLvl >= plant.waterNeeded then return 0 end
     local target = plant.waterNeededMax and (plant.waterNeeded + plant.waterNeededMax) / 2 or plant.waterNeeded + 10
     return math.ceil((math.min(100, target) - plant.waterLvl) / 10)
 end
 
--- Each ten minutes: a panel's sprinklers water the growing crops around them that need it, from their pipe's use
+-- Each ten minutes: a panel's sprinklers water the growing crops out in the open around them that need it, from their pipe's use
 -- network where they are, unless it rains or the tanks it reaches are down to the pipe's reserve. The farming system
 -- keeps its plants whether or not their squares are loaded. Sprinklers that are off (BU.enabled) water nothing.
 function WaterRun.sprinklers(panel)

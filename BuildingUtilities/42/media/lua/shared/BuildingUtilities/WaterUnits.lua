@@ -112,9 +112,11 @@ end
 -- The side across a square from a side.
 local OPPOSITE = { E = "W", W = "E", N = "S", S = "N" }
 
--- The water beside a square and the side it is on: "Water" from a well (clean, as the game's wells), "TaintedWater"
--- from a river or lake; nil when there is none.
+-- The water beside a square and the side it is on: from a source the game never runs dry (a well; its tiles hold
+-- UNLIMITED litres or more, a sink, a toilet or a bath only what they hold), clean or tainted as the game says of it,
+-- or "TaintedWater" from a river or lake; nil when there is none.
 local SIDES = { { 1, 0, "E" }, { 0, 1, "S" }, { -1, 0, "W" }, { 0, -1, "N" } }
+local UNLIMITED = 9999
 function WaterUnits.waterBeside(square)
     local cell = getCell()
     for _, side in ipairs(SIDES) do
@@ -122,8 +124,10 @@ function WaterUnits.waterBeside(square)
         if other then
             local objects = other:getObjects()
             for i = 0, objects:size() - 1 do
-                local properties = objects:get(i):getProperties()
-                if properties and properties:has("waterAmount") then return "Water", side[3] end
+                local object = objects:get(i)
+                local properties = object:getProperties()
+                local most = properties and properties:has("waterAmount") and tonumber(properties:get("waterAmount")) or 0
+                if most >= UNLIMITED then return object:isTaintedWater() and "TaintedWater" or "Water", side[3] end
             end
             local properties = other:getProperties()
             if properties and properties:has(IsoFlagType.water) then return "TaintedWater", side[3] end

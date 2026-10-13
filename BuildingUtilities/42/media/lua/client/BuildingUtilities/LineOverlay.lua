@@ -1,11 +1,9 @@
 -- The lines in the world: thin lines from each thing to what it hangs on (BU.Links), while a box's window is open (that
--- box's lines) or a screwdriver or a pipe wrench is in hand (the power or the water lines about the player, any box's
--- and those whose box is gone), in their utility's colour (a water pipe's own; a machine's two pipes side by side),
--- grey where they supply nothing. Else
--- nothing is drawn or looked for. A HUD under every window draws them, one pixel at the screen's corner drawing past
--- its bounds (as Operation Acorn's marks: a larger element takes the world's clicks); while it shows it draws every
--- frame, as the camera moves without telling it. The lines are looked for again when they change, every second (what
--- supplies may change with a tier or a zone), and when the player went a few squares.
+-- box's lines), in their utility's colour (a water pipe's own; a machine's two pipes side by side), grey where they
+-- supply nothing. Else nothing is drawn or looked for. A HUD under every window draws them, one pixel at the screen's
+-- corner drawing past its bounds (as Operation Acorn's marks: a larger element takes the world's clicks); while it
+-- shows it draws every frame, as the camera moves without telling it. The lines are looked for again when they change
+-- and every second (what supplies may change with a tier or a zone).
 require "ISUI/ISPanel"
 require "PZUIKit/UI"
 require "BuildingUtilities/Links"
@@ -15,8 +13,6 @@ local UI = PZUIKit.UI
 local LineOverlay = {}
 BU.LineOverlay = LineOverlay
 
--- Squares about the player whose lines a tool in hand shows; looked for again after the player went MOVE squares.
-local RADIUS, MOVE = 60, 8
 local REBUILD_MS = 1000
 local WIDTH = 2
 -- How far apart a machine's inlet and outlet run (squares).
@@ -36,16 +32,15 @@ end
 
 function Hud:prerender() end
 
--- What shows: the boxes whose windows are open (a set of panel ids) and the utilities of the tools in hand.
-local shown = { panels = {}, utilities = {}, key = "" }
+-- What shows: the boxes whose windows are open (a set of panel ids).
+local shown = { panels = {}, key = "" }
 -- The lines to draw, each { x1, y1, z1, x2, y2, z2, colour }, and what they were looked for with.
 local segments, segmentsKey = {}, nil
 
-local function build(px, py)
+local function build()
     local result = {}
     for _, line in pairs(Links.all()) do
-        local near = shown.utilities[line.utility] and math.abs(line.x - px) <= RADIUS and math.abs(line.y - py) <= RADIUS
-        if near or line.panel and shown.panels[line.panel] then
+        if line.panel and shown.panels[line.panel] then
             local tx, ty, tz = Links.endOf(line)
             if tx then
                 local panel = Store.get(line.panel)
@@ -75,13 +70,9 @@ local function build(px, py)
 end
 
 function Hud:render()
-    local player = getSpecificPlayer(0)
-    if not player then return end
-    local px, py = player:getX(), player:getY()
     local key = shown.key .. "|" .. Store.linkVersion() .. "|" .. math.floor(getTimestampMs() / REBUILD_MS)
-    if shown.anyTool then key = key .. "|" .. math.floor(px / MOVE) .. "," .. math.floor(py / MOVE) end
     if key ~= segmentsKey then
-        segments, segmentsKey = build(px, py), key
+        segments, segmentsKey = build(), key
     end
     local ui = self.javaObject
     for i = 1, #segments do
@@ -97,25 +88,15 @@ local function frame(el, now) return el:isVisible() and now or nil end
 
 local hud = nil
 
--- Whether an item in the player's hands has a tag.
-local function holding(player, tag)
-    local first, second = player:getPrimaryHandItem(), player:getSecondaryHandItem()
-    return first ~= nil and first:hasTag(tag) or second ~= nil and second:hasTag(tag)
-end
-
--- What shows worked out again (a window opened or closed, a tool taken or put away), and the HUD shown or hidden.
+-- What shows worked out again (a window opened or closed), and the HUD shown or hidden.
 function LineOverlay.refresh()
-    local player = getSpecificPlayer(0)
-    local panels, utilities, parts = {}, {}, {}
+    local panels, parts = {}, {}
     for _, id in ipairs(BU.PanelWindow and BU.PanelWindow.openIds() or {}) do
         panels[id] = true
         parts[#parts + 1] = id
     end
-    if player and holding(player, ItemTag.SCREWDRIVER) then utilities.power = true; parts[#parts + 1] = "power" end
-    if player and holding(player, ItemTag.PIPE_WRENCH) then utilities.water = true; parts[#parts + 1] = "water" end
     table.sort(parts)
-    shown = { panels = panels, utilities = utilities, anyTool = utilities.power or utilities.water,
-        key = table.concat(parts, ",") }
+    shown = { panels = panels, key = table.concat(parts, ",") }
     local on = #parts > 0 and BU.api() ~= nil
     if on and not hud then
         hud = Hud:new()
@@ -136,12 +117,6 @@ function LineOverlay.refresh()
     end
 end
 
-local function onEquip(character)
-    if character == getSpecificPlayer(0) then LineOverlay.refresh() end
-end
-
-Events.OnEquipPrimary.Add(onEquip)
-Events.OnEquipSecondary.Add(onEquip)
 Events.OnGameStart.Add(LineOverlay.refresh)
 
 return LineOverlay

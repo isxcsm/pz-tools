@@ -622,7 +622,7 @@ end
 -- free and at once.
 
 local function pipeName(name)
-    name = name and tostring(name):sub(1, 30) or nil
+    name = name and BU.cutText(tostring(name), 30) or nil
     return name ~= "" and name or nil
 end
 
@@ -840,7 +840,7 @@ end
 -- The box itself.
 
 function Changes.rename(panel, name)
-    name = name and tostring(name):sub(1, 40) or nil
+    name = name and BU.cutText(tostring(name), 40) or nil
     panel.name = name ~= "" and name or nil
     Sync.changed(panel.id)
 end
