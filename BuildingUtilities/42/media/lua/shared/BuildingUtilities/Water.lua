@@ -171,9 +171,11 @@ function Water.placeDevice(panel, device, roomsById)
     device.building, device.level = building, level
 end
 
--- The pipe a water line carries, by its thing: a tank's, a fixture's (the one the player chose, else the first), a
--- unit's inlet (a pump's outlet); nil for a relay's.
-function Water.linePipe(panel, line)
+-- The pipes a water line carries, by its thing: a tank's, a fixture's (the one the player chose, else the first), a
+-- unit's inlet (a pump's outlet), and a machine's outlet too when it differs from its inlet (a filter or a booster
+-- outside runs both to the wall, side by side: the line is drawn as two; changing a pipe is a valve's turn, so the
+-- second pipe costs nothing more); nil for a relay's.
+function Water.linePipes(panel, line)
     local kind = line.ref:sub(1, 1)
     if kind == "p" then
         for _, at in ipairs(panel.water.producers) do
@@ -186,6 +188,7 @@ function Water.linePipe(panel, line)
     local unit = BU.Links.unitOf(line.ref)
     if not unit or BU.RELAY_KINDS[unit.kind] then return nil end
     local inlet, outlet = Water.unitPipes(panel, unit)
+    if inlet and outlet and inlet ~= outlet then return inlet, outlet end
     return inlet or outlet
 end
 
@@ -370,6 +373,79 @@ end
 -- draws on its own pipe.
 function Water.belowTargets(panel, layout, pipe, building, level)
     return Water.fillTargets(panel, layout, pipe, building, level, nil)
+end
+
+-- The pipes as a diagram (the window's schematic: floors up, pipes across) for the box's own building, an outdoor
+-- box's own: what each pipe has on each floor, what moves water, and where water comes in from the zone's other
+-- buildings. From a layout (Water.layout) and `stateOf(id)`, a tank network's state ({ amount, capacity }) or nil:
+--   pipes, the pipe ids in order; low and high, the floors shown (the box's, and every floor with something);
+--   cells[level][pipe] = { tanks (their squares), amount, capacity, uses (places taking water there), dry (one of
+--     them reaches no water storage) };
+--   machines, each { unit, kind ("pump", "filter", "booster"), level, inlet, outlet, top (the highest floor a booster
+--     lifts to) };
+--   arrivals, each { pipe, building, level (the highest floor its water comes in at: its highest storage, or as high as
+--     the lines between the buildings cross) }.
+function Water.schematic(panel, layout, stateOf)
+    local Panels, Links = BU.Panels, BU.Links
+    local building = Panels.building(panel)
+    local own = panel.outdoor and Water.OUTDOOR or (building and building.key)
+    local result = { pipes = {}, cells = {}, machines = {}, arrivals = {}, low = panel.z, high = panel.z }
+    for _, pipe in ipairs(Water.pipes(panel)) do result.pipes[#result.pipes + 1] = pipe.id end
+    local function cell(level, pipe)
+        result.low, result.high = math.min(result.low, level), math.max(result.high, level)
+        local row = result.cells[level] or {}
+        result.cells[level] = row
+        local each = row[pipe]
+        if not each then
+            each = { tanks = {}, amount = 0, capacity = 0, uses = 0 }
+            row[pipe] = each
+        end
+        return each
+    end
+    for _, network in ipairs(layout.networks) do
+        if network.building == own then
+            local each = cell(network.level, network.pipe)
+            if network.kind == "T" then
+                for _, at in ipairs(network.producers) do each.tanks[#each.tanks + 1] = at end
+                local state = stateOf and stateOf(network.id)
+                if state then
+                    each.amount = each.amount + (state.amount or 0)
+                    each.capacity = each.capacity + (state.capacity or 0)
+                end
+            else
+                each.uses = each.uses + 1
+                if #(network.parents or {}) == 0 then each.dry = true end
+            end
+        end
+    end
+    for _, unit in ipairs(BU.Units and BU.Units.working(panel) or {}) do
+        local kind = unit.kind
+        if kind == "pump" or kind == "filter" or kind == "booster" then
+            local place, level = Water.placeOf(panel, unit.x, unit.y, unit.z, Links.unitRef(unit))
+            local inlet, outlet = Water.unitPipes(panel, unit)
+            if place == own and outlet then
+                local machine = { unit = unit, kind = kind, level = level, inlet = inlet, outlet = outlet }
+                if kind == "booster" then machine.top = level + Water.boostFloors() end
+                cell(level, outlet)
+                if inlet then cell(level, inlet) end
+                result.machines[#result.machines + 1] = machine
+            end
+        end
+    end
+    for pipe, byBuilding in pairs(layout.tanks) do
+        for other, levels in pairs(byBuilding) do
+            local cross = other ~= own and #levels > 0 and head(layout.crossings, other, own) or nil
+            if cross and cross > -math.huge then
+                result.arrivals[#result.arrivals + 1] = { pipe = pipe, building = other,
+                    level = math.min(levels[#levels], cross) }
+            end
+        end
+    end
+    table.sort(result.arrivals, function(a, b)
+        if a.pipe ~= b.pipe then return a.pipe < b.pipe end
+        return a.level > b.level
+    end)
+    return result
 end
 
 -- Whether a use network reaches any tank: else what takes water there has none ("too high").

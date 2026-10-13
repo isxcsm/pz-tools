@@ -18,13 +18,15 @@
 -- them); the floor's name at the top lists every floor to jump to. A room is drawn as one shape, its outline only
 -- where it meets another room or the outside. Everything is laid out when the window refreshes or the plan is
 -- resized; a frame only draws the rectangles laid out, inside the map. The plan is drawn with the shared UI kit
--- (PZUIKit), as the window: in design units (its numbers, its mouse) and the kit's faces.
+-- (PZUIKit), as the window: in design units (its numbers, its mouse) and the kit's faces. On the water tab the
+-- Schematic switch puts the pipes' schematic (BuildingUtilities/PanelSchematic) over the map in its place.
 require "ISUI/ISPanel"
 require "PZUIKit/UI"
 require "PZUIKit/RichText"
 require "BuildingUtilities/Geometry"
 require "BuildingUtilities/PanelUi"
 require "BuildingUtilities/Relays"
+require "BuildingUtilities/PanelSchematic"
 local BU = BuildingUtilities
 local Geometry = BU.Geometry
 local UI = PZUIKit.UI
@@ -41,7 +43,7 @@ local STRIP_W = 34
 local CELL_H = FONT_HGT_SMALL + 4
 local LEGEND_ROW = FONT_HGT_SMALL + 2
 -- The top bar's switches' widths, measured in the kit's faces for the scale they were made in (measureSwitches).
-local ZONE_W, FIT_W, RANGE_W, measuredEra = 0, 0, 0, nil
+local ZONE_W, FIT_W, RANGE_W, SCHEME_W, measuredEra = 0, 0, 0, 0, nil
 local MIN_ZOOM, MAX_ZOOM, MAX_ZOOM_SCALE, DRAG = 0.5, 8, 48, 4
 -- Wheel notches over the floor strip scroll it by so many floors.
 local STRIP_SCROLL = 3
@@ -61,6 +63,7 @@ local function measureSwitches()
     ZONE_W = UI.textWidth(getText("IGUI_BU_Zone")) + 10
     FIT_W = UI.textWidth(getText("IGUI_BU_PlanFit")) + 10
     RANGE_W = UI.textWidth(getText("IGUI_BU_PlanRange")) + 10
+    SCHEME_W = UI.textWidth(getText("IGUI_BU_Scheme")) + 10
 end
 
 local WHITE = Texture.getWhite()
@@ -245,6 +248,7 @@ function ISBUPlan:setData(data)
     end
     self:layoutFloors()
     self:layout()
+    self:placeScheme()
     -- What the status line says of the thing under the mouse may have changed with the data.
     if self.status then self:onMouseMove(0, 0) end
 end
@@ -527,9 +531,10 @@ function ISBUPlan:layout()
     for _, line in ipairs(data.lines or {}) do
         if line.z1 == self.floor or line.z2 == self.floor then
             local colour = line.live and (line.colour or lineColour) or COLOURS.lineCut
+            local second = line.live and line.colour2 or nil
             local drawn = { x1 = ox + (line.x1 + 0.5 - minX) * scale, y1 = oy + (line.y1 + 0.5 - minY) * scale,
                 x2 = ox + (line.x2 + 0.5 - minX) * scale, y2 = oy + (line.y2 + 0.5 - minY) * scale, live = line.live,
-                r = colour[1], g = colour[2], b = colour[3] }
+                r = colour[1], g = colour[2], b = colour[3], second = second }
             self.lines[#self.lines + 1] = drawn
             self.lineByRef[line.ref] = drawn
         end
@@ -724,6 +729,7 @@ function ISBUPlan:layoutTop()
         right = right - 4
         rights[row] = right
     end
+    if data and data.utility == "water" then add("scheme", SCHEME_W, getText("IGUI_BU_Scheme")) end
     if data and data.zoneEditable then add("zone", ZONE_W, getText("IGUI_BU_Zone")) end
     add("range", RANGE_W, getText("IGUI_BU_PlanRange"))
     if (self.zoom or 1) ~= 1 or (self.panX or 0) ~= 0 or (self.panY or 0) ~= 0 then add("fit", FIT_W, getText("IGUI_BU_PlanFit")) end
@@ -770,6 +776,7 @@ function ISBUPlan:prerender()
     local h = FONT_HGT_SMALL + 2
     for _, toggle in ipairs(self.toggles) do
         local on = toggle.name == "zone" and self.data.zoneEdit or toggle.name == "range" and self.window.rangeShown == true
+            or toggle.name == "scheme" and self:schemeShown()
         local k = UI.hoverLight(self, toggle.fx, over == toggle.name)
         local f = UI.flashLevel(self, toggle.fx)
         UI.fill(self, toggle.x, toggle.y, toggle.w, h, on and P.sel or P.panel, on and 0.75 or 0.6)
@@ -909,8 +916,35 @@ function ISBUPlan:toggleLegend()
     if self.legendAnim then UI.live(self, legendFrame) end
 end
 
+-- Whether the pipes' schematic is over the map: on the water tab, its switch on.
+function ISBUPlan:schemeShown()
+    return BU.PanelWindow.schemeShown == true and self.data ~= nil and self.data.utility == "water"
+end
+
+-- The schematic under the top bar, shown or hidden, and drawn anew from the box's water while it shows.
+function ISBUPlan:placeScheme()
+    local shown = self:schemeShown()
+    if shown and not self.scheme then
+        self.scheme = ISBUSchematic:new(0, 0, 10, 10, self.window)
+        self.scheme:initialise()
+        self.scheme:instantiate()
+        self:addChild(self.scheme)
+    end
+    if not self.scheme then return end
+    self.scheme:setVisible(shown)
+    if not shown then
+        self.scheme:setHover(nil)
+        return
+    end
+    local top = self.topH or 0
+    UI.place(self.scheme, 1, top, self.width - 2, math.max(10, self.height - top - 1))
+    self.scheme:refresh(self.window.panel)
+end
+
 function ISBUPlan:render()
     ISPanel.render(self)
+    -- the schematic in the map's place: nothing of the map is drawn
+    if self.scheme and self.scheme:isVisible() then return end
     local window = self.window
     local hoverRoom = self.hoverRoom or window.listHoverRoom
     local hoverKey = self.hoverKey or window.listHoverKey
@@ -950,7 +984,16 @@ function ISBUPlan:render()
     -- light tint of its colour.
     local lw, cw = LINE_PX * px, CASING_PX * px
     for _, line in ipairs(self.lines) do
-        self:drawLine(WHITE, line.x1, line.y1, line.x2, line.y2, lw, line.live and 0.8 or 0.55, line.r, line.g, line.b)
+        local second = line.second
+        if second then
+            -- a machine's inlet and outlet, side by side
+            local sx, sy = BU.Links.besideOffset(line.x2 - line.x1, line.y2 - line.y1, lw * 1.5)
+            self:drawLine(WHITE, line.x1 - sx, line.y1 - sy, line.x2 - sx, line.y2 - sy, lw, 0.8, line.r, line.g, line.b)
+            self:drawLine(WHITE, line.x1 + sx, line.y1 + sy, line.x2 + sx, line.y2 + sy, lw, 0.8, second[1], second[2],
+                second[3])
+        else
+            self:drawLine(WHITE, line.x1, line.y1, line.x2, line.y2, lw, line.live and 0.8 or 0.55, line.r, line.g, line.b)
+        end
     end
     local hover = self.hoverLine
     if hover then
@@ -1211,6 +1254,10 @@ function ISBUPlan:onMouseDown(x, y)
     elseif toggle == "range" then
         self.window:onRange()
         return true
+    elseif toggle == "scheme" then
+        BU.PanelWindow.schemeShown = not BU.PanelWindow.schemeShown
+        self:placeScheme()
+        return true
     elseif toggle == "title" then
         if #(self.levels or {}) > 1 then self:floorMenu() end
         return true
@@ -1270,6 +1317,7 @@ end
 function ISBUPlan:onResize()
     if ISPanel.onResize then ISPanel.onResize(self) end
     self:layout()
+    self:placeScheme()
 end
 
 -- The plan is the kit's: in design units (UI.lua).

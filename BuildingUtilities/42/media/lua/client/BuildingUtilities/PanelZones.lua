@@ -101,9 +101,11 @@ function ISBUPanelWindow:updatePlan()
         if line.utility == utility then
             local tx, ty, tz = Links.endOf(line)
             if tx then
+                local pipe, outlet
+                if pipes then pipe, outlet = BU.Water.linePipes(panel, line) end
                 lines[#lines + 1] = { ref = line.ref, x1 = line.x, y1 = line.y, z1 = line.z, x2 = tx, y2 = ty, z2 = tz,
-                    live = Links.live(panel, line.ref), colour = pipes and BU.Water.colour(BU.Water.linePipe(panel, line))
-                        or nil }
+                    live = Links.live(panel, line.ref), colour = pipe and BU.Water.colour(pipe) or nil,
+                    colour2 = outlet and BU.Water.colour(outlet) or nil }
             end
         end
     end
@@ -356,6 +358,16 @@ function ISBUPanelWindow:outlineDevice(key)
     for _, device in ipairs(view and view.devices or {}) do
         if device.key == key then outline(playerNum, deviceObjects(device), getCore():getGoodHighlitedColor(), self.planOutlined) end
     end
+end
+
+-- What a mark of the pipes' schematic stands for, outlined in the world (rows as Ui.rowObjects takes them: { at },
+-- { unit }); none for an empty list.
+function ISBUPanelWindow:outlineRows(rows)
+    local playerNum = self.playerObj:getPlayerNum()
+    unoutline(playerNum, self.planOutlined)
+    self.planOutlined = {}
+    if #rows == 0 then return end
+    outline(playerNum, Ui.rowObjects({ members = rows }), getCore():getGoodHighlitedColor(), self.planOutlined)
 end
 
 -- A dot clicked on the plan: its row, unfolded and shown.

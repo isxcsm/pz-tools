@@ -52,6 +52,14 @@ function Links.carries(ref)
     return unit ~= nil and (BU.RELAY_KINDS[unit.kind] ~= nil or unit.kind == "sprinkler")
 end
 
+-- Where two lines side by side go across one going dx, dy: half of `gap` across it, one each way (0, 0 for no
+-- length). A machine's inlet and outlet pipes run so (Water.linePipes).
+function Links.besideOffset(dx, dy, gap)
+    local length = math.sqrt(dx * dx + dy * dy)
+    if length <= 0 then return 0, 0 end
+    return -dy / length * gap / 2, dx / length * gap / 2
+end
+
 -- A line's length between two squares: steps on the ground (a diagonal one), and BU.tilesPerFloor a floor.
 function Links.length(x, y, z, tx, ty, tz)
     return math.max(math.abs(x - tx), math.abs(y - ty)) + math.abs(z - tz) * BU.tilesPerFloor()
