@@ -37,10 +37,12 @@ final class WaterGrid implements Hooks.Water {
 
     /**
      * A network that has water now: its squares, the producers it draws from (see {@link #producers}), where each
-     * network's of them end in that list ({@code ends}, its own first, then each parent's), whether it draws from the
-     * nearest first ({@link #NEAREST}), and whether its fixtures get their water purified.
+     * network's of them end in that list ({@code ends}, its own first, then those above it in order), whether it draws
+     * from the nearest first ({@link #NEAREST}), whether its fixtures get their water purified, and the game's fluids it
+     * takes (a container holding any other is passed over).
      */
-    private record Supplier(Network network, Area area, List<Position> producers, int[] ends, boolean nearest, boolean purify) { }
+    private record Supplier(Network network, Area area, List<Position> producers, int[] ends, boolean nearest, boolean purify,
+            Object[] takes) { }
 
     /**
      * {@code unpurified}: whether a supplier does not purify its water, so that the taint questions need a look. Each
@@ -70,8 +72,9 @@ final class WaterGrid implements Hooks.Water {
     private volatile boolean stale;
     private volatile Thread changer;
     private final Method fluidContainer, amount, capacity;
-    // The same three for pick, the hook's path: invokeExact, no argument arrays, no boxed floats.
-    private final MethodHandle containerOf, amountOf, capacityOf;
+    // The same three for pick, the hook's path: invokeExact, no argument arrays, no boxed floats; and the litres of one
+    // fluid a container holds.
+    private final MethodHandle containerOf, amountOf, capacityOf, fluidAmountOf;
     private final Method sample, scaledSample, sampleSize, sampleFluid, sampleInstance, instanceAmount, sampleRelease, fluidName, fluidNamed;
     private final Method createContainer, isTainted;
     private final Method removeFluid, addFluid, modData, sync;
@@ -103,6 +106,8 @@ final class WaterGrid implements Hooks.Water {
         containerOf = Game.exact(fluidContainer, MethodType.methodType(Object.class, Object.class));
         amountOf = Game.exact(amount, MethodType.methodType(float.class, Object.class));
         capacityOf = Game.exact(capacity, MethodType.methodType(float.class, Object.class));
+        fluidAmountOf = Game.exact(container.getMethod("getSpecificFluidAmount", fluid),
+            MethodType.methodType(float.class, Object.class, Object.class));
         sample = container.getMethod("createFluidSample");
         scaledSample = container.getMethod("createFluidSample", float.class);
         createContainer = container.getMethod("CreateContainer");
@@ -226,7 +231,7 @@ final class WaterGrid implements Hooks.Water {
         for (int index = 0; index < rules.size(); index++)
             if (rules.get(index).included() && rules.get(index).data() != null) return rules.get(index).data();
         int[] step = buildings.homeStep(fixture, x, y, z);
-        if (step != null) { x += step[0]; y += step[1]; }
+        if (step != null) { x += step[0]; y += step[1]; z += step[2]; }
         for (int index = 0; index < current.suppliers().size(); index++) {
             Supplier supplier = current.suppliers().get(index);
             if (supplier.area() != null && supplier.area().contains(x, y, z) && !Rules.excludes(rules, supplier.network())) return supplier;
@@ -267,6 +272,11 @@ final class WaterGrid implements Hooks.Water {
                 if (container == null) continue;
                 float held = (float)amountOf.invokeExact(container), most = (float)capacityOf.invokeExact(container);
                 if (most <= 0 || held <= 0) continue;
+                // One holding a fluid the network does not take gives nothing.
+                float taken = 0;
+                Object[] takes = supplier.takes();
+                for (int fluid = 0; fluid < takes.length; fluid++) taken += (float)fluidAmountOf.invokeExact(container, takes[fluid]);
+                if (held - taken > Network.TRACE) continue;
                 double share = (double)held / most;
                 if (nearest && share >= SPILL && (spill == null || share > spillShare)) { spill = object; spillShare = share; }
                 // Under NEAREST a farther network's containers count only for spilling, once a nearer one has water.
@@ -286,13 +296,14 @@ final class WaterGrid implements Hooks.Water {
     boolean fluid(String name) throws ReflectiveOperationException { return fluidNamed.invoke(null, name) != null; }
 
     /**
-     * The producers a network draws from: its own, then each parent's up to the one at the top. None when a parent is
-     * missing.
+     * The producers a network draws from: its own, then those of each network above it in order (Networks.chain). None
+     * when one above is missing.
      */
     List<Position> producers(Network network) {
         var result = new ArrayList<Position>();
-        if (networks.root(network) == null) return result;
-        for (Network above : networks.chain(network)) result.addAll(above.squares());
+        List<Network> chain = networks.chain(network);
+        if (chain == null) return result;
+        for (Network above : chain) result.addAll(above.squares());
         return result;
     }
 
@@ -495,23 +506,26 @@ final class WaterGrid implements Hooks.Water {
 
     /**
      * What a draw or fill on the network reaches: the loaded containers on the producers it draws from, and those
-     * producers' squares that are not loaded, once seen. None while the network, or a parent above it, is switched off.
+     * producers' squares that are not loaded, once seen; not one that holds a fluid the network does not take. None
+     * while the network, or one above it, is switched off.
      */
     private List<Unit> units(Network network, Object cells) throws ReflectiveOperationException {
         var result = new ArrayList<Unit>();
-        if (networks.root(network) == null || !networks.switchedOn(network)) return result;
+        if (!networks.switchedOn(network)) return result;
         int tier = 0;
         for (Network above : networks.chain(network)) {
             for (Position at : above.squares()) {
                 Object loaded = game.square(cells, at);
                 if (loaded == null) {
                     Stored stored = withOwed(at, above.stored.get(at));
-                    if (stored != null && stored.capacity() > 0) result.add(new Unit(at, null, null, stored, tier));
+                    if (stored != null && stored.capacity() > 0 && !network.foreign(stored.fluids()))
+                        result.add(new Unit(at, null, null, stored, tier));
                     continue;
                 }
                 for (Object object : game.objectsOn(loaded)) {
                     Stored stored = contents(object);
-                    if (stored != null) result.add(new Unit(at, object, fluidContainer.invoke(object), stored, tier));
+                    if (stored != null && !network.foreign(stored.fluids()))
+                        result.add(new Unit(at, object, fluidContainer.invoke(object), stored, tier));
                 }
             }
             tier++;
@@ -671,7 +685,7 @@ final class WaterGrid implements Hooks.Water {
         double hours = game.hours();
         var supplyChanged = new ArrayList<Network>();
         for (Network network : watered) {
-            boolean supplied = networks.root(network) != null && networks.switchedOn(network) && holds(network);
+            boolean supplied = networks.switchedOn(network) && holds(network);
             if (supplied == network.supplied) continue;
             network.supplied = supplied;
             network.suppliedAt = hours;
@@ -683,11 +697,16 @@ final class WaterGrid implements Hooks.Water {
         for (Network network : supplyChanged) networks.raise(network.id, "supply", hours);
     }
 
-    /** Whether one of the producers the network draws from holds some, as last seen with what it is owed. */
+    /**
+     * Whether one of the producers the network draws from holds some, as last seen with what it is owed, of the fluids
+     * it takes alone.
+     */
     private boolean holds(Network network) {
         for (Network above : networks.chain(network))
-            for (var entry : above.stored.entrySet())
-                if (withOwed(entry.getKey(), entry.getValue()).amount() > 0) return true;
+            for (var entry : above.stored.entrySet()) {
+                Stored stored = withOwed(entry.getKey(), entry.getValue());
+                if (stored.amount() > 0 && !network.foreign(stored.fluids())) return true;
+            }
         return false;
     }
 
@@ -697,13 +716,20 @@ final class WaterGrid implements Hooks.Water {
         var producers = new HashMap<Position, Long>();
         for (Network network : watered) {
             for (Position at : network.squares()) producers.put(at, 1L);
-            if (!network.supplied || networks.root(network) == null) continue;
             var chain = networks.chain(network);
+            if (!network.supplied || chain == null) continue;
             int[] ends = new int[chain.size()];
             int end = 0;
             for (int index = 0; index < ends.length; index++) ends[index] = end += chain.get(index).squares().size();
+            var takes = new ArrayList<Object>();
+            for (String name : network.fluids) {
+                try {
+                    Object fluid = fluidNamed.invoke(null, name);
+                    if (fluid != null) takes.add(fluid);
+                } catch (ReflectiveOperationException failure) { throw Game.failed(failure); }
+            }
             var supplier = new Supplier(network, network.area, List.copyOf(producers(network)), ends,
-                NEAREST.equals(network.policy), network.purify);
+                NEAREST.equals(network.policy), network.purify, takes.toArray());
             suppliers.add(supplier);
             byNetwork.put(network, supplier);
         }

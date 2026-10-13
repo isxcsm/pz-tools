@@ -243,8 +243,9 @@ final class PowerGrid implements Hooks.Power {
 
     // The hooks.
 
+    /** A square of a supplied building's rooms, or of its shell (its roof, the squares against it; see Members.Area). */
     @Override public boolean square(int x, int y, int z) {
-        for (Area area : current().supplied()) if (area.contains(x, y, z)) return !PURE.get()[0];
+        for (Area area : current().supplied()) if (area.contains(x, y, z) || area.shelters(x, y, z)) return !PURE.get()[0];
         return false;
     }
 
@@ -306,14 +307,17 @@ final class PowerGrid implements Hooks.Power {
         return game.objectType.isInstance(target) ? target : null;
     }
 
-    /** Whether the object hangs on a wall outside a supplied building (see Buildings.home). */
+    /**
+     * Whether the object, on a square of no room, belongs to a supplied building: it hangs on its outer wall, stands on
+     * its roof or against it (see Buildings.home).
+     */
     private boolean onSuppliedWall(Snapshot current, Object target) throws ReflectiveOperationException {
         Object square = game.squareOf(target);
         if (square == null) return false;
         int x = game.x(square), y = game.y(square), z = game.z(square);
         int[] step = buildings.homeStep(target, x, y, z);
         if (step == null) return false;
-        for (Area area : current.supplied()) if (area.contains(x + step[0], y + step[1], z)) return true;
+        for (Area area : current.supplied()) if (area.contains(x + step[0], y + step[1], z + step[2])) return true;
         return false;
     }
 
@@ -471,7 +475,7 @@ final class PowerGrid implements Hooks.Power {
         for (Network network : powered) {
             totals.put(network, network.total);
             members.resolve(network);
-            if (network.parent == null) producers(network, cells, hours, changes);
+            if (network.parents.isEmpty()) producers(network, cells, hours, changes);
             else network.inUse = null;
             if (network.loadChanged || !network.loadComplete && now - network.loadAt >= INCOMPLETE_LOAD_NANOS) {
                 if (network.loadAt == 0) fresh.add(network);
@@ -797,7 +801,7 @@ final class PowerGrid implements Hooks.Power {
      */
     private static float total(Network network, List<Network> powered) {
         float total = network.load;
-        for (Network child : powered) if (network.id.equals(child.parent) && child.enabled) total += total(child, powered);
+        for (Network child : powered) if (network.id.equals(child.parent()) && child.enabled) total += total(child, powered);
         return total * network.loadFactor;
     }
 

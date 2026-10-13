@@ -81,6 +81,7 @@ public final class GameApiTest {
         water(api);
         nearest(api);
         fluids(api);
+        parents(api);
         purify(api);
         food(api);
         FormulasTest.run(api);
@@ -344,8 +345,9 @@ public final class GameApiTest {
     }
 
     /**
-     * A lamp on the house's outer wall stands outside, on the square beyond the wall, but is the house's: listed with
-     * it, not near it, and powered with it. One standing there on no wall stays outside.
+     * The house's shell: a lamp on its outer wall stands outside, on the square beyond the wall, but is the house's, and
+     * so is one standing against the wall and one on the roof (the room under it): listed with it, not near it, and
+     * powered with it, as the squares themselves are. One a square further out stays outside.
      */
     private static void wallLamps(KahluaTable api, KahluaTable buildings) throws Exception {
         // On the kitchen's east wall, which is the west edge of the square beyond.
@@ -353,11 +355,17 @@ public final class GameApiTest {
         lamp.sprite.properties.flags.add(IsoFlagType.attachedW);
         place(14, 11, 0, lamp);
         var standing = place(14, 12, 0, powered("standing lamp", 0.004f));
-        KahluaTable listed = find(call(buildings, "objects", KEY, "power").get(0), "wall lamp");
+        var roofLamp = place(12, 11, 2, powered("roof lamp", 0.004f));
+        var yard = place(16, 12, 0, powered("yard lamp", 0.004f));
+        KahluaTable objects = (KahluaTable)call(buildings, "objects", KEY, "power").get(0);
+        KahluaTable listed = find(objects, "wall lamp");
         check(listed != null && listed.rawget("room").equals("kitchen") && listed.rawget("x").equals(14.0),
             "A lamp on the outer wall is not the house's");
-        var around = sprites(call(buildings, "near", KEY, 1.0).get(0));
-        check(around.equals(Set.of("standing lamp")), "Wrong objects around the house: " + around);
+        check(find(objects, "standing lamp") != null && find(objects, "standing lamp").rawget("room").equals("kitchen")
+            && find(objects, "roof lamp") != null && find(objects, "roof lamp").rawget("room").equals("bedroom")
+            && !sprites(objects).contains("yard lamp"), "The house's shell is wrong: " + sprites(objects));
+        var around = sprites(call(buildings, "near", KEY, 3.0).get(0));
+        check(around.contains("yard lamp") && !around.contains("standing lamp"), "Wrong objects around the house: " + around);
 
         KahluaTable networks = (KahluaTable)api.rawget("networks");
         Object mod = call(api, "client", "lamp.mod").get(0);
@@ -368,7 +376,10 @@ public final class GameApiTest {
         generator.setActivated(true);
         frame();
         check(ItemContainer.isObjectPowered(lamp, true) && !ItemContainer.isObjectPowered(lamp, false)
-            && !ItemContainer.isObjectPowered(standing, true), "The lamp on the outer wall has no power, or the one beside it has");
+            && ItemContainer.isObjectPowered(standing, true) && ItemContainer.isObjectPowered(roofLamp, true)
+            && !ItemContainer.isObjectPowered(yard, true), "The house's shell has no power, or the yard has");
+        check(Hooks.squarePowered(false, 14, 12, 0) && Hooks.squarePowered(false, 12, 11, 2) && !Hooks.squarePowered(false, 16, 12, 0),
+            "The squares of the house's shell have no power, or one further out has");
         check(sprites(call(networks, "consumers", "lamps").get(0)).contains("wall lamp"), "The lamp on the outer wall is no consumer");
         call(networks, "exclude", mod, "lamps", 14.0, 11.0, 0.0, "wall lamp");
         frame();
@@ -378,6 +389,8 @@ public final class GameApiTest {
         frame();
         square(14, 11, 0).objects.clear();
         square(14, 12, 0).objects.clear();
+        square(12, 11, 2).objects.clear();
+        square(16, 12, 0).objects.clear();
         square(7, 33, 0).objects.clear();
     }
 
@@ -431,7 +444,8 @@ public final class GameApiTest {
         check(!square(28, 30, 0).haveElectricity() && first.itemsPowered() == 0, "A network's generator kept its own range");
         check(square(11, 11, 0).haveElectricity() && square(12, 12, -1).haveElectricity() && new IsoGridSquare(10, 10, 1).haveElectricity(),
             "A level of the house has no power");
-        check(!square(9, 11, 0).haveElectricity() && !square(11, 13, 0).haveElectricity(), "A square outside the house has power");
+        check(!square(8, 11, 0).haveElectricity() && !square(11, 14, 0).haveElectricity(), "A square outside the house has power");
+        check(square(9, 11, 0).haveElectricity() && square(14, 13, 0).haveElectricity(), "A square against the house's wall has no power");
         KahluaTable state = (KahluaTable)call(networks, "state", "grid").get(0);
         check(state.rawget("supplied").equals(true) && state.rawget("owner").equals("power.mod")
             && ((KahluaTable)state.rawget("producer")).rawget("x").equals(30.0) && state.rawget("complete").equals(false),
@@ -1049,9 +1063,12 @@ public final class GameApiTest {
         check(square(11, 11, 0).haveElectricity() && new IsoGridSquare(-1_000_003, 1_000_005, 0).haveElectricity()
             && new IsoGridSquare(-999_995, 1_000_007, 0).haveElectricity() && new IsoGridSquare(-1_000_002, 1_000_006, 1).haveElectricity(),
             "A square of one of the buildings has no power");
-        check(!new IsoGridSquare(-1_000_004, 1_000_005, 0).haveElectricity() && !new IsoGridSquare(-999_994, 1_000_007, 0).haveElectricity()
-            && !new IsoGridSquare(-1_000_001, 1_000_006, 1).haveElectricity() && !new IsoGridSquare(-500_000, 500_000, 0).haveElectricity()
+        check(!new IsoGridSquare(-1_000_005, 1_000_005, 0).haveElectricity() && !new IsoGridSquare(-999_993, 1_000_007, 0).haveElectricity()
+            && !new IsoGridSquare(-999_990, 1_000_006, 1).haveElectricity() && !new IsoGridSquare(-500_000, 500_000, 0).haveElectricity()
             && !new IsoGridSquare(-1_000_000, 1_000_006, 2).haveElectricity(), "A square outside the buildings has power");
+        // Its shell: against the hall's wall, and the hall's roof beside the loft.
+        check(new IsoGridSquare(-1_000_004, 1_000_005, 0).haveElectricity() && new IsoGridSquare(-1_000_001, 1_000_006, 1).haveElectricity(),
+            "A square of the far building's shell has no power");
         call(networks, "remove", mod, "far");
         frame();
         generator.setActivated(false);
@@ -2206,6 +2223,72 @@ public final class GameApiTest {
         var food = new Food(container);
         food.setLastAged(lastAged);
         return food;
+    }
+
+    /**
+     * A water network with several parents draws from its own producers, then each parent's in turn with those above
+     * that one, each network once; no loops, and a power network has one parent at most. A producer that holds a fluid
+     * the network does not take (Water and TaintedWater unless its mod says) gives nothing, is filled with nothing, and
+     * the state marks it.
+     */
+    private static void parents(KahluaTable api) throws Exception {
+        KahluaTable networks = (KahluaTable)api.rawget("networks");
+        Object mod = call(api, "client", "water.mod").get(0);
+        IsoObject own = place(60, 40, 0, barrel(10)), first = place(61, 40, 0, barrel(50)), second = place(62, 40, 0, barrel(70));
+        var tap = place(63, 41, 0, new IsoObject(new IsoSprite("tap")));
+        tap.sprite.properties.flags.add(IsoFlagType.waterPiped);
+        call(networks, "define", mod, "storey", "water", "nearest");
+        call(networks, "setProducers", mod, "storey", list(at(60, 40, 0)));
+        call(networks, "define", mod, "above", "water", "nearest");
+        call(networks, "setProducers", mod, "above", list(at(61, 40, 0)));
+        call(networks, "define", mod, "across", "water", "nearest");
+        call(networks, "setProducers", mod, "across", list(at(62, 40, 0)));
+        call(networks, "setParents", mod, "storey", list("above", "across"));
+        // "above" draws from "across" too: "storey" still reaches "across" once, after "above".
+        call(networks, "setParents", mod, "above", list("across"));
+        call(networks, "include", mod, "storey", 63.0, 41.0, 0.0, "tap");
+        frame();
+        KahluaTable storey = state(networks, "storey");
+        check(tap.getFluidAmount() == 10 && storey.rawget("parent").equals("above") && ((KahluaTable)storey.rawget("parents")).len() == 2
+            && near((Double)storey.rawget("amount"), 130), "Several parents went wrong: " + tap.getFluidAmount() + ", " + storey.rawget("amount"));
+        own.fluidContainer.amount = 0;
+        check(tap.getFluidAmount() == 50, "The first parent did not give next: " + tap.getFluidAmount());
+        first.fluidContainer.amount = 0;
+        check(tap.getFluidAmount() == 70, "The second parent did not give last: " + tap.getFluidAmount());
+        rejects(networks, "setParents", "storey is a child of across", mod, "across", list("storey"));
+        rejects(networks, "setParents", "above is listed twice", mod, "storey", list("above", "above"));
+        call(networks, "define", mod, "mains", "power", "sequential");
+        call(networks, "define", mod, "backup", "power", "sequential");
+        call(networks, "define", mod, "flat", "power", "sequential");
+        rejects(networks, "setParents", "flat carries power; a power network has one parent at most", mod, "flat", list("mains", "backup"));
+        // A pour of petrol: that barrel gives nothing, and the network has no water left.
+        second.fluidContainer.shares.put(Fluid.Petrol, 0.1f);
+        // Changed, so that the next frame reads the producers again.
+        call(networks, "addBuilding", mod, "storey", 0.0, 0.0, 0.0);
+        frame();
+        storey = state(networks, "storey");
+        var across = (KahluaTable)((KahluaTable)state(networks, "across").rawget("producers")).rawget(1.0);
+        check(!tap.getUsesExternalWaterSource() && storey.rawget("supplied").equals(false) && across.rawget("foreign").equals(true)
+            && near((Double)storey.rawget("amount"), 0), "A producer holding petrol still gives: " + tap.getFluidAmount());
+        check(near((Double)call(networks, "draw", mod, "storey", 5.0).get(0), 0), "A producer holding petrol was drawn from");
+        rejects(networks, "fill", "storey does not take Petrol", mod, "storey", 1.0, "Petrol");
+        rejects(networks, "setFluids", "fluids[1] must name one of the game's fluids", mod, "storey", list("Lava"));
+        // A network that takes petrol too: it draws from that barrel again.
+        call(networks, "setFluids", mod, "storey", list("Water", "TaintedWater", "Petrol"));
+        frame();
+        KahluaTable fluids = (KahluaTable)state(networks, "storey").rawget("fluids");
+        check(tap.getFluidAmount() == 70 && fluids.len() == 3, "A network that takes petrol does not draw from it: " + tap.getFluidAmount());
+        call(networks, "setFluids", mod, "storey", null);
+        check(((KahluaTable)state(networks, "storey").rawget("fluids")).len() == 2, "Water alone was not taken back");
+        // A newer API keeps the parents and the fluids.
+        call(networks, "setFluids", mod, "storey", list("Water"));
+        GameApi.register(LuaManager.class);
+        storey = state(networks, "storey");
+        check(((KahluaTable)storey.rawget("parents")).len() == 2 && ((KahluaTable)storey.rawget("fluids")).len() == 1,
+            "A newer API lost the parents or the fluids");
+        for (String id : List.of("storey", "above", "across", "mains", "backup", "flat")) call(networks, "remove", mod, id);
+        frame();
+        check(!tap.getUsesExternalWaterSource(), "A removed network still supplies water");
     }
 
     private static IsoObject barrel(float amount) {

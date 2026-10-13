@@ -55,6 +55,8 @@ public final class FluidContainer extends Component {
         cacheInvalidated = true;
     }
 
+    public float getSpecificFluidAmount(Fluid fluid) { return fluid(fluid); }
+
     /** The litres of one fluid. */
     public float fluid(Fluid fluid) {
         float total = 0;

@@ -59,12 +59,23 @@ final class Network {
      */
     record Stored(float amount, float capacity, Map<String, Float> fluids, long taken) { }
 
+    /** The fluids a water network takes unless its mod says otherwise: water, clean or tainted. */
+    static final List<String> WATER_FLUIDS = List.of("Water", "TaintedWater");
+    /** Litres of a fluid a producer may hold and still count as without it: rounding, not a pour. */
+    static final float TRACE = 0.001f;
+
     final String id, owner, utility, policy;
     /**
-     * The network whose producers supply this one: for power, a child has none of its own; for water, it draws from its
-     * own and then its parents'. Null for a network at the top.
+     * The networks whose producers supply this one, in order: for power at most one, and a child has no producers of
+     * its own; for water any (never one of its own children), and it draws from its own producers and then each
+     * parent's in turn with those above that one (Networks.chain). Empty for a network at the top.
      */
-    String parent;
+    final List<String> parents = new ArrayList<>();
+    /**
+     * The fluids a water network's producers may hold, by the game's names: one that holds any other is neither drawn
+     * from nor filled, nor asked by a fixture.
+     */
+    List<String> fluids = WATER_FLUIDS;
     /** In order: under {@code "sequential"} the next that can run takes over when the one in use stops. */
     final List<Producer> producers = new ArrayList<>();
     /** The sources among the producers, by name. */
@@ -147,6 +158,15 @@ final class Network {
 
     Network(String id, String owner, String utility, String policy) {
         this.id = id; this.owner = owner; this.utility = utility; this.policy = policy;
+    }
+
+    /** Its first parent (a power network's only one), or null at the top. */
+    String parent() { return parents.isEmpty() ? null : parents.get(0); }
+
+    /** Whether a water producer's fluids, by name and litres, include one it does not take (more than a trace). */
+    boolean foreign(Map<String, Float> held) {
+        for (var fluid : held.entrySet()) if (fluid.getValue() > TRACE && !fluids.contains(fluid.getKey())) return true;
+        return false;
     }
 
     /** The squares of its producers, in order: all but its sources. */

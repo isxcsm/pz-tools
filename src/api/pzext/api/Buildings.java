@@ -6,6 +6,7 @@ import java.lang.invoke.MethodType;
 import java.lang.reflect.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLongArray;
 import pzext.api.Network.Position;
 
 /**
@@ -45,7 +46,18 @@ final class Buildings {
     private final String regionsMissing;
     private final Object waterPiped;
     private final Object[] attached;
-    private static final int[][] ACROSS = { { 0, -1 }, { 0, 1 }, { 1, 0 }, { -1, 0 } };
+    private static final int[][] ACROSS = { { 0, -1, 0 }, { 0, 1, 0 }, { 1, 0, 0 }, { -1, 0, 0 } };
+    // The building's shell: the steps a square of no room takes to the room it counts as in (see shellStep), in order:
+    // the square under it (a roof, a balcony on a lower roof), then the squares around it on its level, the sides
+    // first (north, east, south, west), then the corners. The order is BU's (Links.homeRoom).
+    private static final int[][] SHELL = { { 0, 0, -1 }, { 0, -1, 0 }, { 1, 0, 0 }, { 0, 1, 0 }, { -1, 0, 0 },
+        { 1, -1, 0 }, { 1, 1, 0 }, { -1, 1, 0 }, { -1, -1, 0 } };
+    // Each square's shell step, worked out once for the version of the buildings: a slot of a fixed table holds the
+    // square and its step (an index into SHELL plus two; one for none), read and written whole, so that no hook sees
+    // half of one and none allocates.
+    private static final int SHELL_SLOTS = 1 << 14;
+    private final AtomicLongArray shell = new AtomicLongArray(SHELL_SLOTS);
+    private volatile long shellVersion = -1;
     private static final int[][] SIDES = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } };
     private static final int[] NONE = {};
 
@@ -269,7 +281,8 @@ final class Buildings {
         var result = new ArrayList<Found>();
         var rooms = Collections.newSetFromMap(new IdentityHashMap<Object, Boolean>());
         rooms.addAll(found.rooms());
-        for (int z = found.minLevel(); z <= found.maxLevel(); z++)
+        // A level above the top: what stands on its roof is the building's (see shellStep).
+        for (int z = found.minLevel(); z <= found.maxLevel() + 1; z++)
             for (int y = found.minY() - 1; y <= found.maxY() + 1; y++)
                 for (int x = found.minX() - 1; x <= found.maxX() + 1; x++) {
                     Object room = roomAt(grid, x, y, z);
@@ -647,31 +660,82 @@ final class Buildings {
             Object room = lit == -1 || grid == null ? null : roomById.invoke(grid, lit);
             if (room != null) return room;
         }
-        if (squareRoom != null) return squareRoom;
-        int[] step = across(object);
-        return step.length == 0 ? null : roomAt(grid, x + step[0], y + step[1], z);
+        if (squareRoom != null || grid == null) return squareRoom;
+        int[] step = stepOut(grid, object, x, y, z);
+        return step == null ? null : roomAt(grid, x + step[0], y + step[1], z + step[2]);
     }
 
     /**
-     * The square an object counts as standing in: its own, or, for one on a square of no room that hangs on a wall
-     * (its sprite is attached north, south, east or west) with a room across it, the square across. A lamp on a
-     * building's outer wall stands outside, on the square beyond the wall, but is the building's.
+     * The square an object counts as standing in: its own, or, for one on a square of no room, a square of the room it
+     * belongs to: the square across the wall it hangs on (its sprite is attached north, south, east or west) when a room
+     * is there, else the building's shell (see {@link #shellStep}): a roof's room under it, or the room beside it. A
+     * lamp on a building's outer wall, a barrel on its roof and a sprinkler against its wall are the building's.
      */
     Position home(Object object, Position at) throws ReflectiveOperationException {
         if (at == null) return null;
         int[] step = homeStep(object, at.x(), at.y(), at.z());
-        return step == null ? at : new Position(at.x() + step[0], at.y() + step[1], at.z());
+        return step == null ? at : new Position(at.x() + step[0], at.y() + step[1], at.z() + step[2]);
     }
 
     /**
-     * {@link #home} without allocating: the step to the square across the wall the object hangs on, when it counts as
-     * standing there; null for its own square. An object that hangs on no wall, as most do, costs a look at its sprite.
+     * {@link #home} without allocating: the step { dx, dy, dz } to the square of the room the object belongs to; null
+     * for its own square, and for one that belongs to no building. One in a room costs a look at the map; one outside,
+     * the shell's steps, worked out once a square.
      */
     int[] homeStep(Object object, int x, int y, int z) throws ReflectiveOperationException {
-        int[] step = across(object);
-        if (step.length == 0) return null;
-        Object grid = game.metaGrid();
-        return roomAt(grid, x, y, z) == null && roomAt(grid, x + step[0], y + step[1], z) != null ? step : null;
+        Object grid = grid();
+        if (grid == null || roomAt(grid, x, y, z) != null) return null;
+        return stepOut(grid, object, x, y, z);
+    }
+
+    /** For an object on a square of no room: the step across the wall it hangs on to a room, or the shell's; or null. */
+    private int[] stepOut(Object grid, Object object, int x, int y, int z) throws ReflectiveOperationException {
+        int[] across = across(object);
+        if (across.length != 0 && roomAt(grid, x + across[0], y + across[1], z) != null) return across;
+        return shellStep(grid, x, y, z);
+    }
+
+    /**
+     * The step from a square of no room to the room it counts as in, as the building's shell: the room under it, else
+     * the first room around it on its level (see {@link #SHELL}); null for none. The caller knows the square has no room.
+     * Kept a square for the version of the buildings.
+     */
+    int[] shellStep(Object grid, int x, int y, int z) throws ReflectiveOperationException {
+        long now = version;
+        if (shellVersion != now) {
+            for (int slot = 0; slot < SHELL_SLOTS; slot++) shell.set(slot, 0);
+            shellVersion = now;
+        }
+        long key = (long)(x & 0x3FFFFF) << 30 | (long)(y & 0x3FFFFF) << 8 | (z + 64) & 0xFF;
+        int slot = (int)(key * 0x9E3779B97F4A7C15L >>> 50) & SHELL_SLOTS - 1;
+        long entry = shell.get(slot);
+        int code;
+        if (entry >>> 8 == key && entry != 0) code = (int)(entry & 0xFF);
+        else {
+            code = 1;
+            for (int index = 0; index < SHELL.length; index++) {
+                int[] step = SHELL[index];
+                if (roomAt(grid, x + step[0], y + step[1], z + step[2]) != null) { code = index + 2; break; }
+            }
+            shell.set(slot, key << 8 | code);
+        }
+        return code == 1 ? null : SHELL[code - 2];
+    }
+
+    /** The room a square of no room counts as in, as the building's shell (see {@link #shellStep}); null for none. */
+    Object shellRoom(int x, int y, int z) throws ReflectiveOperationException {
+        Object grid = grid();
+        if (grid == null || roomAt(grid, x, y, z) != null) return null;
+        int[] step = shellStep(grid, x, y, z);
+        return step == null ? null : roomAt(grid, x + step[0], y + step[1], z + step[2]);
+    }
+
+    /** The world's meta grid, or null, without allocating (the hooks' path). */
+    private Object grid() throws ReflectiveOperationException {
+        try {
+            Object world = (Object)worldNow.invokeExact();
+            return world == null ? null : (Object)gridOf.invokeExact(world);
+        } catch (Throwable failure) { throw Game.thrown(failure); }
     }
 
     /** The step to the square across the wall the object's sprite hangs on, or none. */

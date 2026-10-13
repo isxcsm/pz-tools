@@ -11,28 +11,59 @@ import pzext.api.Network.Thing;
 final class Members {
     /**
      * The squares of a network's buildings: one bit per square, in blocks of 8 by 8 squares of one level, kept only for
-     * the blocks a room reaches. Its memory follows the buildings' size, not how far apart they are.
+     * the blocks a room reaches. Its memory follows the buildings' size, not how far apart they are. {@code shell}, the
+     * same for the squares of no room that count as in one of its rooms (Buildings.shellStep): its roofs and the squares
+     * against its walls, those no other building's room has first.
      */
-    record Area(SquareMap blocks) {
-        boolean contains(int x, int y, int z) {
-            long block = blocks.get(x >> 3, y >> 3, z, 0);
-            return (block >>> ((y & 7) << 3 | x & 7) & 1) != 0;
-        }
+    record Area(SquareMap blocks, SquareMap shell) {
+        boolean contains(int x, int y, int z) { return has(blocks, x, y, z); }
 
         boolean contains(Position at) { return contains(at.x(), at.y(), at.z()); }
 
+        boolean shelters(int x, int y, int z) { return has(shell, x, y, z); }
+
+        private static boolean has(SquareMap map, int x, int y, int z) {
+            long block = map.get(x >> 3, y >> 3, z, 0);
+            return (block >>> ((y & 7) << 3 | x & 7) & 1) != 0;
+        }
+
+        private static void mark(Map<Position, Long> map, int x, int y, int z) {
+            map.merge(new Position(x >> 3, y >> 3, z), 1L << ((y & 7) << 3 | x & 7), (a, b) -> a | b);
+        }
+
+        /**
+         * Worked out as the buildings are resolved: the rooms' squares, then the shell around them. Only the squares
+         * beside a room or over it that are in none of these rooms are looked up on the map.
+         */
         static Area of(List<Buildings.Building> found, Buildings buildings) throws ReflectiveOperationException {
             if (found.isEmpty()) return null;
             var blocks = new HashMap<Position, Long>();
+            var rooms = Collections.newSetFromMap(new IdentityHashMap<Object, Boolean>());
             for (var building : found)
                 for (Object room : building.rooms()) {
+                    rooms.add(room);
                     int z = buildings.level(room);
                     for (var rect : buildings.rects(room))
                         for (int y = rect.y(); y < rect.y() + rect.h(); y++)
-                            for (int x = rect.x(); x < rect.x() + rect.w(); x++)
-                                blocks.merge(new Position(x >> 3, y >> 3, z), 1L << ((y & 7) << 3 | x & 7), (a, b) -> a | b);
+                            for (int x = rect.x(); x < rect.x() + rect.w(); x++) mark(blocks, x, y, z);
                 }
-            return new Area(new SquareMap(blocks));
+            var inside = new SquareMap(blocks);
+            // Around each room's squares on its level, and over them.
+            var shell = new HashMap<Position, Long>();
+            var looked = new HashSet<Position>();
+            for (Object room : rooms) {
+                int level = buildings.level(room);
+                for (var rect : buildings.rects(room))
+                    for (int y = rect.y() - 1; y <= rect.y() + rect.h(); y++)
+                        for (int x = rect.x() - 1; x <= rect.x() + rect.w(); x++)
+                            for (int z = level; z <= level + 1; z++) {
+                                boolean over = x >= rect.x() && x < rect.x() + rect.w() && y >= rect.y() && y < rect.y() + rect.h();
+                                if (z > level && !over || has(inside, x, y, z) || !looked.add(new Position(x, y, z))) continue;
+                                Object owner = buildings.shellRoom(x, y, z);
+                                if (owner != null && rooms.contains(owner)) mark(shell, x, y, z);
+                            }
+            }
+            return new Area(inside, shell.isEmpty() ? SquareMap.EMPTY : new SquareMap(shell));
         }
     }
 

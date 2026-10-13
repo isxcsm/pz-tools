@@ -174,7 +174,7 @@ final class Networks {
             Object list = arguments.length > 2 ? arguments[2] : null;
             if (!lua.isTable(list)) throw new IllegalArgumentException(call + ": producers must be a list of squares");
             // A water child draws from its own producers and its parents'; a power child's parent carries its load.
-            if (network.parent != null && lua.get(list, 1.0) != null && PowerGrid.UTILITY.equals(network.utility))
+            if (!network.parents.isEmpty() && lua.get(list, 1.0) != null && PowerGrid.UTILITY.equals(network.utility))
                 throw new IllegalArgumentException(call + ": " + network.id + " is a child network; its parent's producers supply it");
             var producers = new ArrayList<Producer>();
             for (int index = 1;; index++) {
@@ -251,21 +251,47 @@ final class Networks {
         function(table, "setParent", (call, arguments) -> {
             Network network = mine(arguments, call);
             Object parentId = arguments.length > 2 ? arguments[2] : null;
-            if (parentId == null) {
-                if (network.parent != null) { network.parent = null; changed(); }
-                return new Object[0];
+            if (parentId != null && !(parentId instanceof String)) throw new IllegalArgumentException(call + ": parent must be a network id or nil");
+            setParents(network, parentId == null ? List.of() : List.of((String)parentId), call);
+            return new Object[0];
+        });
+        function(table, "setParents", (call, arguments) -> {
+            Network network = mine(arguments, call);
+            Object list = arguments.length > 2 ? arguments[2] : null;
+            if (list != null && !lua.isTable(list)) throw new IllegalArgumentException(call + ": parents must be a list of network ids or nil");
+            var ids = new ArrayList<String>();
+            for (int index = 1; list != null; index++) {
+                Object item = lua.get(list, (double)index);
+                if (item == null) break;
+                if (!(item instanceof String text)) throw new IllegalArgumentException(call + ": parents[" + index + "] must be a network id");
+                if (ids.contains(text)) throw new IllegalArgumentException(call + ": " + text + " is listed twice");
+                ids.add(text);
             }
-            if (!(parentId instanceof String text)) throw new IllegalArgumentException(call + ": parent must be a network id or nil");
-            Network parent = networks.get(text);
-            if (parent == null) throw new IllegalArgumentException(call + ": there is no network " + text);
-            own(parent, network.owner, call);
-            if (!parent.utility.equals(network.utility))
-                throw new IllegalArgumentException(call + ": " + text + " carries " + parent.utility + ", not " + network.utility);
-            if (!network.producers.isEmpty() && PowerGrid.UTILITY.equals(network.utility))
-                throw new IllegalArgumentException(call + ": " + network.id + " has producers; a child power network has none");
-            for (Network above = parent; above != null; above = above.parent == null ? null : networks.get(above.parent))
-                if (above == network) throw new IllegalArgumentException(call + ": " + text + " is a child of " + network.id);
-            if (!parent.id.equals(network.parent)) { network.parent = parent.id; changed(); }
+            setParents(network, ids, call);
+            return new Object[0];
+        });
+        function(table, "setFluids", (call, arguments) -> {
+            Network network = mine(arguments, call);
+            if (!WaterGrid.UTILITY.equals(network.utility))
+                throw new IllegalArgumentException(call + ": " + network.id + " carries " + network.utility + ", not water");
+            Object list = arguments.length > 2 ? arguments[2] : null;
+            if (list != null && !lua.isTable(list))
+                throw new IllegalArgumentException(call + ": fluids must be a list of the game's fluids, or nil for water");
+            var named = new ArrayList<String>();
+            for (int index = 1; list != null; index++) {
+                Object item = lua.get(list, (double)index);
+                if (item == null) break;
+                if (!(item instanceof String text) || !water.fluid(text))
+                    throw new IllegalArgumentException(call + ": fluids[" + index + "] must name one of the game's fluids, such as \"Water\"");
+                if (named.contains(text)) throw new IllegalArgumentException(call + ": " + text + " is listed twice");
+                named.add(text);
+            }
+            if (list != null && named.isEmpty()) throw new IllegalArgumentException(call + ": fluids must name one fluid at least");
+            List<String> fluids = list == null || named.equals(Network.WATER_FLUIDS) ? Network.WATER_FLUIDS : List.copyOf(named);
+            if (!fluids.equals(network.fluids)) {
+                network.fluids = fluids;
+                changed();
+            }
             return new Object[0];
         });
         function(table, "setEnabled", (call, arguments) -> {
@@ -367,7 +393,10 @@ final class Networks {
             lua.set(result, "policy", network.policy);
             lua.set(result, "supplied", network.supplied);
             lua.set(result, "enabled", network.enabled);
-            if (network.parent != null) lua.set(result, "parent", network.parent);
+            if (!network.parents.isEmpty()) {
+                lua.set(result, "parent", network.parent());
+                lua.set(result, "parents", lua.list(new ArrayList<Object>(network.parents)));
+            }
             if (WaterGrid.UTILITY.equals(network.utility)) water(result, network);
             else power(result, network);
             return new Object[] { result };
@@ -397,6 +426,7 @@ final class Networks {
             String fluid = Arguments.string(arguments, 3, call, "fluid");
             if (!water.fluid(fluid))
                 throw new IllegalArgumentException(call + ": fluid must name one of the game's fluids, such as \"Water\" or \"TaintedWater\"");
+            if (!network.fluids.contains(fluid)) throw new IllegalArgumentException(call + ": " + network.id + " does not take " + fluid);
             return new Object[] { water.fill(network, litres, fluid) };
         });
     }
@@ -452,13 +482,15 @@ final class Networks {
 
     /**
      * A water network's state: what the producers it draws from hold, as last seen and with what draws and fills owe
-     * them: its own and, for a child, its parents'. It lists its own.
+     * them: its own and, for a child, its parents'. It lists its own; one holding a fluid the network does not take is
+     * {@code foreign} and counts for nothing.
      */
     private void water(Object result, Network network) throws ReflectiveOperationException {
         double held = 0, most = 0;
         var producers = new ArrayList<Object>();
         if (water != null) water.refreshOwed();
-        for (Network above : root(network) == null ? List.<Network>of() : chain(network))
+        List<Network> chain = chain(network);
+        for (Network above : chain == null ? List.<Network>of() : chain)
             for (Position at : above.squares()) {
                 Object entry = square(at);
                 // What draws and fills owe a producer whose square is not loaded counts already.
@@ -467,14 +499,18 @@ final class Networks {
                 if (stored != null) {
                     lua.set(entry, "amount", (double)stored.amount());
                     lua.set(entry, "capacity", (double)stored.capacity());
-                    held += stored.amount();
-                    most += stored.capacity();
+                    if (network.foreign(stored.fluids())) lua.set(entry, "foreign", true);
+                    else {
+                        held += stored.amount();
+                        most += stored.capacity();
+                    }
                 }
                 if (above == network) producers.add(entry);
             }
         lua.set(result, "amount", held);
         lua.set(result, "capacity", most);
         lua.set(result, "purify", network.purify);
+        lua.set(result, "fluids", lua.list(new ArrayList<Object>(network.fluids)));
         lua.set(result, "producers", lua.list(producers));
     }
 
@@ -494,7 +530,46 @@ final class Networks {
     }
 
     private void detachChildren(String id) {
-        for (Network child : networks.values()) if (id.equals(child.parent)) child.parent = null;
+        for (Network child : networks.values()) child.parents.remove(id);
+    }
+
+    /**
+     * Sets a network's parents, in order, as {@code setParent} and {@code setParents} give them: each the caller's, of
+     * the same utility, none a child of the network (no loops); a power network has one at most, and none while it has
+     * producers.
+     */
+    private void setParents(Network network, List<String> ids, String call) {
+        if (ids.size() > 1 && PowerGrid.UTILITY.equals(network.utility))
+            throw new IllegalArgumentException(call + ": " + network.id + " carries power; a power network has one parent at most");
+        for (String text : ids) {
+            Network parent = networks.get(text);
+            if (parent == null) throw new IllegalArgumentException(call + ": there is no network " + text);
+            own(parent, network.owner, call);
+            if (!parent.utility.equals(network.utility))
+                throw new IllegalArgumentException(call + ": " + text + " carries " + parent.utility + ", not " + network.utility);
+            if (!network.producers.isEmpty() && PowerGrid.UTILITY.equals(network.utility))
+                throw new IllegalArgumentException(call + ": " + network.id + " has producers; a child power network has none");
+            if (above(parent).contains(network)) throw new IllegalArgumentException(call + ": " + text + " is a child of " + network.id);
+        }
+        if (ids.equals(network.parents)) return;
+        network.parents.clear();
+        network.parents.addAll(ids);
+        changed();
+    }
+
+    /** The network and every network above it that is defined, each once. */
+    private Set<Network> above(Network network) {
+        var result = new LinkedHashSet<Network>();
+        var waiting = new ArrayDeque<Network>(List.of(network));
+        while (!waiting.isEmpty()) {
+            Network next = waiting.pop();
+            if (!result.add(next)) continue;
+            for (String id : next.parents) {
+                Network parent = networks.get(id);
+                if (parent != null) waiting.push(parent);
+            }
+        }
+        return result;
     }
 
     /** Each frame, on the game's thread. */
@@ -524,7 +599,8 @@ final class Networks {
         }
     }
 
-    // The networks as the grids see them: trees of one mod's networks of one utility (see setParent).
+    // The networks as the grids see them: one mod's networks of one utility, each below its parents (see setParents):
+    // trees for power, for water any graph without loops.
 
     /** The networks of one utility, in the order they were defined. */
     List<Network> of(String utility) {
@@ -533,33 +609,39 @@ final class Networks {
         return result;
     }
 
-    /** The network at the top of a child's parents; null when a parent is missing. */
+    /** The network at the top of a power child's parents; null when a parent is missing. */
     Network root(Network network) {
         for (int depth = 0; network != null && depth <= networks.size(); depth++) {
-            if (network.parent == null) return network;
-            network = networks.get(network.parent);
+            if (network.parents.isEmpty()) return network;
+            network = networks.get(network.parent());
         }
         return null;
     }
 
-    /** Whether the network and every parent above it are switched on. */
+    /** Whether the network and every network above it are switched on (false when one above is missing). */
     boolean switchedOn(Network network) {
-        for (int depth = 0; network != null && depth <= networks.size(); depth++) {
-            if (!network.enabled) return false;
-            if (network.parent == null) return true;
-            network = networks.get(network.parent);
-        }
-        return false;
+        List<Network> chain = chain(network);
+        if (chain == null) return false;
+        for (Network each : chain) if (!each.enabled) return false;
+        return true;
     }
 
-    /** The network and its parents, up to the one at the top. */
+    /**
+     * The network and those above it, in the order a water network draws from them: itself, then its first parent with
+     * those above that one, then its second, and so on, each once. For power, the network and its parents up to the
+     * one at the top. Null when one above is missing.
+     */
     List<Network> chain(Network network) {
         var result = new ArrayList<Network>();
-        for (int depth = 0; network != null && depth <= networks.size(); depth++) {
-            result.add(network);
-            network = network.parent == null ? null : networks.get(network.parent);
-        }
-        return result;
+        return gather(network, result, 0) ? result : null;
+    }
+
+    private boolean gather(Network network, List<Network> result, int depth) {
+        if (network == null || depth > networks.size()) return false;
+        if (result.contains(network)) return true;
+        result.add(network);
+        for (String id : network.parents) if (!gather(networks.get(id), result, depth + 1)) return false;
+        return true;
     }
 
     /** Raises {@link #EVENT}, after a change the grids worked out: the network's id, what changed, and the hour it did. */
@@ -679,12 +761,13 @@ final class Networks {
         for (Network network : networks.values()) {
             text.append("N\t").append(network.id).append('\t').append(network.owner).append('\t')
                 .append(network.utility).append('\t').append(network.policy).append('\t')
-                .append(network.parent == null ? "" : network.parent).append('\t')
+                .append(String.join(",", network.parents)).append('\t')
                 .append(network.enabled ? "" : "off").append('\t')
                 .append(network.loadFactor == 1f ? "" : Float.toString(network.loadFactor)).append('\t')
                 .append(network.extraLoad == 0f ? "" : Float.toString(network.extraLoad))
-                // Added later: a line without it is from an earlier API, and purifies.
-                .append(network.purify ? "" : "\tunpurified").append('\n');
+                // Added later: a line without them is from an earlier API, and purifies water.
+                .append(network.purify && network.fluids.equals(Network.WATER_FLUIDS) ? "" : "\t" + (network.purify ? "" : "unpurified"))
+                .append(network.fluids.equals(Network.WATER_FLUIDS) ? "" : "\t" + String.join(",", network.fluids)).append('\n');
             for (Producer producer : network.producers) {
                 if (producer.at() != null) { text.append("P\t").append(producer.at()).append('\n'); continue; }
                 Source source = network.sources.get(producer.source());
@@ -715,12 +798,13 @@ final class Networks {
             switch (fields[0]) {
                 case "N" -> {
                     networks.put(fields[1], network = new Network(fields[1], fields[2], fields[3], fields[4]));
-                    if (fields.length > 5 && !fields[5].isEmpty()) network.parent = fields[5];
+                    if (fields.length > 5 && !fields[5].isEmpty()) network.parents.addAll(List.of(fields[5].split(",")));
                     // Switched off when taken over: off before, as far as the API knows.
                     if (fields.length > 6 && "off".equals(fields[6])) network.enabled = network.enabledBefore = false;
                     if (fields.length > 7 && !fields[7].isEmpty()) network.loadFactor = Float.parseFloat(fields[7]);
                     if (fields.length > 8 && !fields[8].isEmpty()) network.extraLoad = Float.parseFloat(fields[8]);
                     if (fields.length > 9 && "unpurified".equals(fields[9])) network.purify = false;
+                    if (fields.length > 10 && !fields[10].isEmpty()) network.fluids = List.of(fields[10].split(","));
                 }
                 case "P" -> network.producers.add(Producer.square(Position.parse(fields[1])));
                 case "S" -> {
