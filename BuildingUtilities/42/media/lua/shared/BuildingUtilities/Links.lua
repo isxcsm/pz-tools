@@ -251,15 +251,19 @@ function Links.placeOn(panel, utility, x, y, z, relay, except)
     if hx then
         return { wall = BU.placeKey(hx, hy, hz), length = 0, from = "wall", rank = 1, x = hx, y = hy, z = hz }
     end
-    -- The wall: the nearest square of the zone's rooms; an outdoor box's own square.
-    local wallLength, wallX, wallY, wallZ
+    -- The wall: the nearest square of the zone's rooms (of those as near in steps, the straightest); an outdoor box's
+    -- own square.
+    local wallLength, wallX, wallY, wallZ, wallStraight
     local rooms = Panels.zoneRooms(panel)
     for _, room in ipairs(rooms) do
         for _, rect in ipairs(room.rects) do
             local cx = math.max(rect.x, math.min(rect.x + rect.w - 1, x))
             local cy = math.max(rect.y, math.min(rect.y + rect.h - 1, y))
             local length = Links.length(x, y, z, cx, cy, room.level)
-            if not wallLength or length < wallLength then wallLength, wallX, wallY, wallZ = length, cx, cy, room.level end
+            local straight = (cx - x) * (cx - x) + (cy - y) * (cy - y)
+            if not wallLength or length < wallLength or length == wallLength and straight < wallStraight then
+                wallLength, wallX, wallY, wallZ, wallStraight = length, cx, cy, room.level, straight
+            end
         end
     end
     if panel.outdoor or #rooms == 0 then
@@ -335,15 +339,18 @@ function Links.cutHead(ref)
     return nil
 end
 
--- Where a line runs to from its thing: the thing of the line it hangs on, or its wall square; nil when what it hangs
--- on is gone. x, y, z.
+-- Where a line runs to from its thing: the thing of the line it hangs on, or the face of its wall square toward the
+-- thing (a square's x, y and half a square more or less: drawn at +0.5 as a square's centre, it stops at the wall);
+-- nil when what it hangs on is gone. x, y, z.
 function Links.endOf(line)
     if line.via then
         local parent = Links.get(line.via)
         if parent then return parent.x, parent.y, parent.z end
         return nil
     end
-    return BU.parsePlace(line.wall or "")
+    local wx, wy, wz = BU.parsePlace(line.wall or "")
+    if not wx then return nil end
+    return math.max(wx - 0.5, math.min(wx + 0.5, line.x)), math.max(wy - 0.5, math.min(wy + 0.5, line.y)), wz
 end
 
 -- The first lines of a box's branches that supply nothing, each with the reason what hangs below shares, by when they

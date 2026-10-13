@@ -48,6 +48,27 @@ test("a line hangs on the nearest wall within the tier's range; past it, it wait
     eq(Links.placeOn(panel, "power", 105, 102, 0).length, 0, "on the outer wall's ring: the room beside")
 end)
 
+test("of walls as near in steps, the straightest; a line stops at the wall's face", function()
+    -- Two rooms, the southern one listed first: from the west, both are 3 steps away.
+    local api = TEST.api
+    api.buildingsByKey.B = {
+        building = { key = "B", playerBuilt = false, minLevel = 0, maxLevel = 0, minX = 100, minY = 100, maxX = 104,
+            maxY = 109, room = "room", roomId = "B-1" },
+        rooms = { { id = "B-2", name = "room", level = 0, rects = { { x = 100, y = 105, w = 5, h = 5 } } },
+            { id = "B-1", name = "room", level = 0, rects = { { x = 100, y = 100, w = 5, h = 5 } } } },
+    }
+    for dx = 0, 4 do
+        for dy = 0, 9 do api.squares[(100 + dx) .. "," .. (100 + dy) .. ",0"] = "B" end
+    end
+    local panel = Store.newPanel(102, 102, 0, "box")
+    local place = Links.placeOn(panel, "power", 97, 103, 0)
+    eq(place.length, 3)
+    eq(place.wall, "100,103,0", "straight east, not down to the southern room")
+    local x, y = Links.endOf({ x = 97, y = 103, wall = place.wall })
+    eq(x, 99.5, "at the wall's west face")
+    eq(y, 103)
+end)
+
 test("relays by tier, devices by head, and what comes back with an upgrade", function()
     building(TEST.api, "A", 100, 100)
     local panel = Store.newPanel(102, 102, 0, "box")
@@ -171,7 +192,7 @@ test("each line runs to what it hangs on; the branches that supply nothing are l
     local first = lamp(116, 102)
     Changes.includeOutside(panel, "power", first, {}, { via = "u:" .. a.id, length = 6 })
     local line = Links.get("u:" .. a.id)
-    eq(select(1, Links.endOf(line)), 104, "the pole to its wall square")
+    eq(select(1, Links.endOf(line)), 104.5, "the pole to its wall square's east face")
     eq(select(1, Links.endOf(Links.get("t:" .. first.key))), 110, "the lamp to the pole")
     eq(#Links.deadHeads(panel), 0)
     eq(Links.reasonText(panel, "u:" .. a.id), nil, "it supplies")

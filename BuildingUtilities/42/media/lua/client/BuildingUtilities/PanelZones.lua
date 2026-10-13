@@ -79,7 +79,8 @@ function ISBUPanelWindow:updatePlan()
     -- What it could take and no box has: grey, as devices not connected are.
     if not hide then
         for _, at in ipairs(view.unwired or {}) do
-            local name = at.unit and Units.name(at.unit) or BU.displayName(at.x, at.y, at.z, at.sprite)
+            local name = at.unit and Units.name(at.unit) or utility == "water" and getText("IGUI_BU_Legend_tank")
+                or BU.displayName(at.x, at.y, at.z, at.sprite)
             producers[#producers + 1] = { x = at.x, y = at.y, z = at.z, unwired = true, unit = at.unit and at.unit.kind,
                 text = name .. "  " .. getText("IGUI_BU_NotWired") }
         end

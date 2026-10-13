@@ -385,12 +385,12 @@ function BU.displayName(x, y, z, sprite)
         local name = Translator.getMoveableDisplayName(object)
         if name and name ~= "" then return translated(name) end
     end
-    local tileset = sprite:match("^(.+)_%d+$")
+    local tileset = sprite and sprite:match("^(.+)_%d+$")
     local named = tileset and getTextOrNull("IGUI_BU_Name_" .. tileset:gsub("%W", ""))
     if named then return named end
     local objectName = object and object:getObjectName()
     if objectName and objectName ~= "" and not objectName:match("^Iso%u") then return translated(objectName) end
-    return object and getText("IGUI_BU_Name_Unknown") or sprite
+    return (object or not sprite) and getText("IGUI_BU_Name_Unknown") or sprite
 end
 
 -- A notice's text (BU.Sync.notice, the box's log): its key with its arguments, at most four, each as text.

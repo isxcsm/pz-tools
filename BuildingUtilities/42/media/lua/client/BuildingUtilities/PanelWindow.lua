@@ -178,6 +178,8 @@ UI.scaled(ISBUTipArea, ISPanel)
 -- and the breaker's gauge's.
 PanelWindow.LOAD_H, PanelWindow.BAR_H, PanelWindow.BAR_MOST, PanelWindow.CARD_PAD = 40, 8, 1.5, 10
 PanelWindow.LEVER_W, PanelWindow.GAUGE_W = 22, 4
+-- The gauge turns red once the breaker has used up this share of what it holds.
+PanelWindow.GAUGE_RED = 0.5
 -- The water card's level line at the lever's place: its width (an hour a column of Store.ENERGY_HOURS).
 PanelWindow.SPARK_W = 96
 -- The space around the parts of a tab's head (the status line, the card).
@@ -802,7 +804,7 @@ function ISBUPanelWindow:drawBody(body)
             local gx, gy = self.gauge:getX() + 2, self.gauge:getY()
             local gw, gh = PanelWindow.GAUGE_W, self.gauge:getHeight()
             local value = math.max(0, math.min(1, self.gaugeValue or 1))
-            local c = (self.panel.tripped or value <= Panels.BREAKER_SHED_AT) and P.bad or P.warn
+            local c = (self.panel.tripped or value <= PanelWindow.GAUGE_RED) and P.bad or P.warn
             UI.fill(body, gx, gy, gw, gh, P.inset)
             local fill = math.floor(gh * value + 0.5)
             if fill > 0 then UI.fill(body, gx, gy + gh - fill, gw, fill, c, self.panel.tripped and 0.6 or 0.9) end
@@ -1225,7 +1227,9 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
     view.unwired = Panels.unwiredProducers(panel, utility)
     if not PanelWindow.options.hideUnwired then
         for _, at in ipairs(view.unwired) do
-            local name = at.unit and Units.name(at.unit) or BU.displayName(at.x, at.y, at.z, at.sprite)
+            -- The API names a water storage by its square only.
+            local name = at.unit and Units.name(at.unit) or utility == "water" and getText("IGUI_BU_Legend_tank")
+                or BU.displayName(at.x, at.y, at.z, at.sprite)
             add({ kind = "producer", unwired = true, at = at, water = utility == "water",
                 text = getText("IGUI_BU_UnwiredProducerRow", name, Panels.where(panel, at.x, at.y)) },
                 getText("IGUI_BU_UnwiredProducerTip"))
