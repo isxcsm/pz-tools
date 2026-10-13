@@ -89,12 +89,13 @@ function Changes.applyZone(panel, building, zone)
     panel.zone = zone
     Networks.setZone(panel, before)
     -- The box forgets what it set for devices of rooms that left the zone: another box may take them, and an
-    -- exclusion of any network keeps a device off (a fixture moved to another group is excluded from the first's).
+    -- exclusion of any network keeps a device off (a fixture on another pipe than its room's is excluded from the
+    -- room's).
     if zone then
         for _, utility in ipairs(BU.UTILITIES) do
             local data = panel[utility]
             local left = {}
-            for _, field in ipairs({ "excluded", "schedule", "timed", "groupOf" }) do
+            for _, field in ipairs({ "excluded", "schedule", "timed", "pipeOf" }) do
                 for key in pairs(data[field] or {}) do
                     if not data.included[key] then
                         local x, y, z = BU.parseThing(key)
@@ -173,7 +174,7 @@ end
 
 -- What a panel keeps about devices gone from their loaded squares (destroyed or picked up) goes, and their rules go
 -- from the networks: an object put there later is another device. One it connected outside goes with its line.
-local DEVICE_FIELDS = { "excluded", "included", "attached", "schedule", "timed", "groupOf" }
+local DEVICE_FIELDS = { "excluded", "included", "attached", "schedule", "timed", "pipeOf" }
 local function forgetGone(panel)
     local count = 0
     for _, utility in ipairs(BU.UTILITIES) do
@@ -249,11 +250,11 @@ function Changes.removeUnit(unit)
     return paid
 end
 
--- A unit wired to nothing now: no panel, and nothing of how it last ran (a pump's running, a booster's boosting, why
--- it idled), so that its look and a later panel start from stopped.
+-- A unit wired to nothing now: no panel, and nothing of how it last ran (a machine's running, what it moved, why it
+-- idled) or of the panel's pipes it was on, so that its look and a later panel start from stopped, on the first pipe.
 function Changes.unwire(unit)
     unit.panel = nil
-    unit.running, unit.boosting, unit.idle = nil, nil, nil
+    unit.running, unit.idle, unit.moved, unit.pipe, unit.out = nil, nil, nil, nil, nil
     Store.unitsChanged()
 end
 
@@ -309,7 +310,7 @@ local function leaveBox(panel, line)
     elseif kind == "t" then
         local key = line.ref:sub(3)
         data.included[key] = nil
-        for _, name in ipairs({ "excluded", "schedule", "timed", "groupOf" }) do
+        for _, name in ipairs({ "excluded", "schedule", "timed", "pipeOf" }) do
             if data[name] then data[name][key] = nil end
         end
         Networks.apply(panel, line.utility, key)
@@ -526,7 +527,7 @@ end
 -- missing from the rooms for a while, as the game's region data of a world that has just loaded may lag. Asked each
 -- minute, as the world starts, when the zone changes and by a window that sees one not added yet. Returns whether
 -- anything changed.
-local LET_GO = { "excluded", "schedule", "timed", "groupOf" }
+local LET_GO = { "excluded", "schedule", "timed", "pipeOf" }
 local ATTACHED_GRACE_MS = 20000
 local missingSince = {}
 
@@ -603,72 +604,111 @@ function Changes.excludeOutside(panel, utility, device)
     return nil
 end
 
--- Water groups (BU.Water): made, named and taken away by the player at the box; each tank and fixture in one.
+-- Pipes (BU.Water): a colour each, put in by the player at the box (BU.Actions, ISBUAddPipe), named and taken away
+-- there; every tank, room, fixture and water unit on one. Changing what is on which pipe is a valve in the walls:
+-- free and at once.
 
-local function groupName(name)
+local function pipeName(name)
     name = name and tostring(name):sub(1, 30) or nil
     return name ~= "" and name or nil
 end
 
--- A new group, named (nil for its number); none past Water.MAX_GROUPS.
-function Changes.addWaterGroup(panel, name)
-    local data = panel.water
-    if #data.groups >= Water.MAX_GROUPS then return nil end
-    local group = { id = data.nextGroup, name = groupName(name) }
-    data.nextGroup = data.nextGroup + 1
-    data.groups[#data.groups + 1] = group
-    Networks.defineWater(panel, {})
+-- A new pipe, the first colour not in use; nil with all in use.
+function Changes.addPipe(panel)
+    local id = Water.nextPipe(panel)
+    if not id then return nil end
+    local pipes = panel.water.pipes
+    pipes[#pipes + 1] = { id = id }
+    table.sort(pipes, function(a, b) return a.id < b.id end)
     Sync.changed(panel.id)
-    return group
+    return id
 end
 
-function Changes.renameWaterGroup(panel, id, name)
-    local group = Water.group(panel, id)
-    if not group then return end
-    group.name = groupName(name)
+function Changes.renamePipe(panel, id, name)
+    local pipe = Water.pipe(panel, id)
+    if not pipe then return end
+    pipe.name = pipeName(name)
     Sync.changed(panel.id)
 end
 
--- A group taken away: its tanks and fixtures go back to the first. The first stays.
-function Changes.removeWaterGroup(panel, id)
+-- A pipe taken away: what was on it goes on the first. The first stays.
+function Changes.removePipe(panel, id)
     local data = panel.water
     if id == Water.FIRST then return end
-    for index, group in ipairs(data.groups) do
-        if group.id == id then
-            table.remove(data.groups, index)
+    for index, pipe in ipairs(data.pipes) do
+        if pipe.id == id then
+            table.remove(data.pipes, index)
             for _, at in ipairs(data.producers) do
-                if at.group == id then at.group = nil end
+                if at.pipe == id then at.pipe = nil end
             end
-            local keys = {}
-            for key, group in pairs(data.groupOf) do
-                if group == id then data.groupOf[key] = nil; keys[key] = true end
+            for key, pipeId in pairs(data.roomPipe) do
+                if pipeId == id then data.roomPipe[key] = nil end
             end
-            -- Its units work for the first group, those that are off too.
+            for key, pipeId in pairs(data.pipeOf) do
+                if pipeId == id then data.pipeOf[key] = nil end
+            end
             for _, unit in ipairs(Store.unitList(nil, panel.id)) do
-                if unit.group == id then unit.group = nil end
+                if unit.pipe == id then unit.pipe = nil end
+                if unit.out == id then unit.out = nil end
             end
             data.levelLog[id] = nil
-            Networks.defineWater(panel, keys)
+            Networks.defineWater(panel)
             Sync.changed(panel.id)
             return
         end
     end
 end
 
--- A water unit to work for a group of its panel.
-function Changes.setUnitGroup(unit, id)
-    local panel = Store.get(unit.panel)
-    if not panel or not Water.group(panel, id) then return end
-    unit.group = id ~= Water.FIRST and id or nil
+-- How full a pipe's tanks stay for its people: sprinklers stop at this percent (0 for none).
+function Changes.setPipeReserve(panel, id, percent)
+    local pipe = Water.pipe(panel, id)
+    if not pipe then return end
+    percent = math.max(0, math.min(90, math.floor(tonumber(percent) or 0)))
+    pipe.reserve = percent > 0 and percent or nil
     Sync.changed(panel.id)
 end
 
--- How full a group's tanks stay for its people: sprinklers stop at this percent (0 for none).
-function Changes.setGroupReserve(panel, id, percent)
-    local group = Water.group(panel, id)
-    if not group then return end
-    percent = math.max(0, math.min(90, math.floor(tonumber(percent) or 0)))
-    group.reserve = percent > 0 and percent or nil
+-- A room's pipe, by the room's key: what its fixtures are on unless the player chose another for one.
+function Changes.setRoomPipe(panel, roomKey, id)
+    if not Water.pipe(panel, id) then return end
+    panel.water.roomPipe[roomKey] = id ~= Water.FIRST and id or nil
+    Networks.defineWater(panel)
+    Sync.changed(panel.id)
+end
+
+-- A tank onto a pipe.
+function Changes.setProducerPipe(panel, index, id)
+    local at = panel.water.producers[index]
+    if not at or not Water.pipe(panel, id) then return end
+    at.pipe = id ~= Water.FIRST and id or nil
+    Networks.defineWater(panel, {})
+    Sync.changed(panel.id)
+end
+
+-- A fixture onto a pipe, kept under its key (nil: back on its room's); a part's key a save may have is cleared.
+function Changes.setDevicePipe(panel, device, id)
+    if id and not Water.pipe(panel, id) then return end
+    local pipeOf, keys = panel.water.pipeOf, {}
+    for _, key in ipairs(device.keys) do
+        if pipeOf[key] then
+            pipeOf[key] = nil
+            keys[key] = true
+        end
+    end
+    pipeOf[device.key] = id
+    keys[device.key] = true
+    Networks.defineWater(panel, keys)
+    Sync.changed(panel.id)
+end
+
+-- A water unit's pipes: its inlet's (a pump's outlet's) and, for a filter or a booster pump, its outlet's (nil: the
+-- inlet's). BU.Water.unitPipes.
+function Changes.setUnitPipes(unit, inlet, outlet)
+    local panel = Store.get(unit.panel)
+    if not panel or not Water.pipe(panel, inlet) or (outlet and not Water.pipe(panel, outlet)) then return end
+    unit.pipe = inlet ~= Water.FIRST and inlet or nil
+    unit.out = outlet ~= inlet and outlet or nil
+    Networks.defineWater(panel, {})
     Sync.changed(panel.id)
 end
 
@@ -676,30 +716,6 @@ end
 function Changes.replaceMedia(unit)
     unit.media = BU.WaterUnits.FILTER_HOURS
     Sync.changed(unit.panel)
-end
-
--- A tank into a group.
-function Changes.setProducerGroup(panel, index, id)
-    local at = panel.water.producers[index]
-    if not at or not Water.group(panel, id) then return end
-    at.group = id ~= Water.FIRST and id or nil
-    Networks.defineWater(panel, {})
-    Sync.changed(panel.id)
-end
-
--- A fixture into a group, kept under its key; a part's key a save may have is cleared.
-function Changes.setDeviceGroup(panel, device, id)
-    if not Water.group(panel, id) then return end
-    local groupOf = panel.water.groupOf
-    for _, key in ipairs(device.keys) do
-        if groupOf[key] then
-            groupOf[key] = nil
-            Networks.apply(panel, "water", key)
-        end
-    end
-    groupOf[device.key] = id ~= Water.FIRST and id or nil
-    Networks.apply(panel, "water", device.key)
-    Sync.changed(panel.id)
 end
 
 -- The panel's pipes frozen or thawed: its water stops or flows again.
@@ -772,7 +788,7 @@ local appliedShape = nil
 
 -- Brings the world to those values once the sandbox changed them in play: each box's zone kept to the floors it
 -- reaches now (Changes.fitZones), each panel's water networks to the floors its tanks reach now, the devices whose
--- network changed with them (Networks.floorsChanged), the power devices connected outside given or refused power
+-- network changed with them (Networks.defineWater), the power devices connected outside given or refused power
 -- (Networks.rule). Checked each minute, a text compared. The world's start, which fits the zones and defines
 -- the networks as the values are, only takes them as applied (defined). Returns whether they changed.
 function Changes.applyShape(defined)
@@ -784,7 +800,7 @@ function Changes.applyShape(defined)
     BU.log("reach, water floors and outside power now:", key)
     Changes.fitZones()
     if BU.enabled("water") then
-        for _, panel in ipairs(Store.list()) do Networks.floorsChanged(panel) end
+        for _, panel in ipairs(Store.list()) do Networks.defineWater(panel) end
     end
     if BU.enabled("power") then
         for _, panel in ipairs(Store.list()) do

@@ -111,8 +111,7 @@ if BU.enabled("water") and BU.waterAvailable() then
         check("a fixture in the room is inside", fixture.inside, true)
         Changes.syncAttached(panel)
         check("it is in the box's attached", panel.water.attached[fixture.key], true)
-        local _, floors = Water.layout(panel)
-        local id = Water.networkFor(panel, Water.FIRST, fixture.entry.z, floors)
+        local id = Water.useId(BU.Networks.waterLayout(panel), fixture.pipe or Water.FIRST, fixture.building, fixture.level)
         check("its floor's water network supplies it", supplied("water", id, fixture.key), true)
     else
         say("no fixture with water in the room: the water part is skipped")

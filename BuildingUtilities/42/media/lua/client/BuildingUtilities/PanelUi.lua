@@ -79,8 +79,15 @@ local function deviceObjects(device)
     return object and BU.objectParts(object) or {}
 end
 
--- The objects a row stands for: a device's, or what is on a producer's square.
+-- The objects a row stands for: a device's, a unit's, what is on a producer's square, or a pipe card's members'.
 local function rowObjects(row)
+    if row.members then
+        local result = {}
+        for _, member in ipairs(row.members) do
+            for _, object in ipairs(rowObjects(member)) do result[#result + 1] = object end
+        end
+        return result
+    end
     if row.device then return deviceObjects(row.device) end
     if row.unit then
         local object = BU.Units.object(row.unit)

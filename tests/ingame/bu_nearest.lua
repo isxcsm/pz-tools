@@ -1,7 +1,8 @@
 -- The water policy (BU.POLICY.water, "nearest"; "fullest" where the API has no "nearest"), drawn for real at the tower
 -- panel (ModData BUTOWER, a building of many floors): two vanilla rain collector barrels connected to it, one on the
--- ground floor and one a floor up, each its floor's network's, the upper one the lower one's parent. A draw on the
--- ground floor's network takes from its own barrel first though the upper one is fuller ("fullest": the upper one);
+-- ground floor and one a floor up, each its floor's tank network's, both parents of the ground floor's use network,
+-- its own floor's first. A draw there takes from its own floor's barrel first though the upper one is fuller
+-- ("fullest": the upper one);
 -- the upper one at least 95 percent full gives first (rain before it spills over); the ground floor's barrel empty,
 -- the draw goes on up. Its other water producers are set aside meanwhile, "water only from above" off; all put back
 -- and the barrels taken away. "[bunear]" lines, each check "ok" or "BAD", ending with "done".
@@ -48,12 +49,16 @@ end
 
 if #barrels == 2 then
     local low, high = barrels[1]:getFluidContainer(), barrels[2]:getFluidContainer()
-    local lowId = Water.networkId(main, Water.FIRST, 0)
+    local layout = Networks.waterLayout(main)
+    local q = barrels[1]:getSquare()
+    local building = Water.placeOf(main, q:getX(), q:getY(), 0, BU.Links.producerRef(q:getX(), q:getY(), 0))
+    local lowId = Water.useId(layout, Water.FIRST, building, 0)
     local policy = Networks.waterPolicy()
-    local parent
-    for _, network in ipairs(Water.layout(main)) do if network.id == lowId then parent = network.parent end end
-    say("policy", policy, "ground floor network", lowId, "parent", tostring(parent))
-    check("the floor up's network is the parent", parent, Water.networkId(main, Water.FIRST, 1))
+    local parents = {}
+    for _, network in ipairs(layout.networks) do if network.id == lowId then parents = network.parents end end
+    say("policy", policy, "ground floor use network", lowId, "parents", table.concat(parents, " "))
+    check("its own floor's tanks first", parents[1], Water.networkId(main, Water.FIRST, building, 0, "T"))
+    check("the floor up's next", parents[2], Water.networkId(main, Water.FIRST, building, 1, "T"))
     local function fill(container, share)
         container:Empty()
         container:addFluid(FluidType.Water, container:getCapacity() * share)

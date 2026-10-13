@@ -618,8 +618,9 @@ function ISBUPanelWindow:placeLever(textW)
 end
 
 -- The water tab's card, for the top (drawWaterCard): what the tanks hold of their capacity (the percent, large), the
--- bar of each group's water in its colour, under it the litres and the change over the last day, and at the right
--- the level over the last hours (the groups' logs together, Store.recordWater). Nil while water is off.
+-- bar of each pipe's water in its colour (with more than one pipe), under it the litres and the change over the last
+-- day, and at the right the level over the last hours (the pipes' logs together, Store.recordWater). Nil while water
+-- is off.
 local DAY = 24
 function ISBUPanelWindow:measureWater(panel, state)
     self.waterView = nil
@@ -635,13 +636,14 @@ function ISBUPanelWindow:measureWater(panel, state)
     view.text = getText("IGUI_BU_Left_Water", string.format("%.0f", amount), string.format("%.0f", capacity))
     local logs = panel.water.levelLog or {}
     local hours = {}
-    for _, group in ipairs(BU.Water.groups(panel)) do
-        local each = state.groups and state.groups[group.id]
+    local shown = BU.Water.shown(panel)
+    for _, pipe in ipairs(BU.Water.pipes(panel)) do
+        local each = state.pipes and state.pipes[pipe.id]
         if each and (each.amount or 0) > 0 and capacity > 0 then
             view.segments[#view.segments + 1] = { share = each.amount / capacity,
-                colour = PanelWindow.groupColour(panel, group.id) }
+                colour = shown and BU.Water.colour(pipe.id) or P.water }
         end
-        for _, hour in ipairs(logs[group.id] or {}) do
+        for _, hour in ipairs(logs[pipe.id] or {}) do
             local total = hours[hour.hour] or { amount = 0, capacity = 0 }
             hours[hour.hour] = total
             total.amount = total.amount + (hour.amount or 0)
@@ -1159,8 +1161,8 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
     local view = { state = state, devices = devices, complete = complete, names = {}, status = {}, totals = {},
         producerText = {}, fresh = {} }
     self.views[utility] = view
-    -- Water groups first: the tanks' and fixtures' rows name theirs (with more than one).
-    if utility == "water" then self:waterGroupRows(add, state, devices) end
+    -- The pipes first (with more than one): the tanks', rooms', fixtures' and units' rows show theirs.
+    if utility == "water" then self:pipeRows(add, state, devices) end
     add({ kind = "header", text = getText("IGUI_BU_Producers"), options = true })
     local producers = panel[utility].producers
     local source = utility == "power" and Energy.hasSource(panel)
@@ -1183,21 +1185,25 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
         else
             text = getText("IGUI_BU_TankRow", index, where, seen and seen.amount and string.format("%.0f", seen.amount) or "-",
                 seen and seen.capacity and string.format("%.0f", seen.capacity) or "-")
+            -- Holding what is not water: left out of the pipes until it is emptied.
+            if seen and seen.foreign then text = text .. "  " .. getText("IGUI_BU_TankForeign") end
         end
         view.producerText[index] = text
         -- Its line supplying nothing: dim, the mouse over it telling why.
         local ref = Links.producerRef(at.x, at.y, at.z)
         local cut = Links.reason(panel, ref) ~= nil
         local row = { kind = "producer", text = text, index = index, at = at, inUse = inUse and not cut,
-            water = utility == "water", out = generatorState == "out", cut = cut }
-        if utility == "water" and #BU.Water.groups(panel) > 1 then
-            row.group = BU.Water.producerGroup(at)
-            row.groupText, row.groupColour = BU.Water.groupName(panel, row.group), PanelWindow.groupColour(panel, row.group)
+            water = utility == "water", out = generatorState == "out", cut = cut, bad = seen and seen.foreign }
+        if utility == "water" and BU.Water.shown(panel) then
+            row.chips, row.pipes = { "Pipe" }, { Pipe = BU.Water.producerPipe(panel, at) }
         end
         -- A generator's row tells how servicing one works: switched off by hand, the others take over.
         add(row, cut and Links.reasonText(panel, ref) or utility == "power" and getText("IGUI_BU_GeneratorTip") or nil)
     end
-    if utility == "water" then self:waterUnitRows(add) end
+    if utility == "water" then
+        self:waterUnitRows(add)
+        self:addPipeRow(add)
+    end
     self:lineRows(add, utility)
     -- What it could take and no box has, dim, unless the view hides it: connected at the thing itself.
     view.unwired = Panels.unwiredProducers(panel, utility)
@@ -1257,6 +1263,7 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
             order[#order + 1] = groups[group]
         end
         local g = groups[group]
+        g.roomKey = g.roomKey or device.roomKey
         if device.state == "on" then
             g.on = g.on + 1
             if not device.held then g.total = g.total + (device.power or 0) end
@@ -1282,6 +1289,9 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
         add({ kind = "filter", text = getText("IGUI_BU_FilterNote", title(self.roomFilter)) })
     end
     local timers = (panel.tier or 1) >= BU.TIMER_TIER
+    -- Water: the pipes shown (more than one), and the layout that tells a fixture with no tank at or above it.
+    local pipesShown = utility == "water" and BU.Water.shown(panel)
+    local layout = utility == "water" and BU.Networks.waterLayout(panel) or nil
     for _, group in ipairs(order) do
         view.totals[group.id] = { title = title(group.id), total = group.total, on = group.on, count = group.on + group.off }
         -- Searching: a room whose name has the words keeps all its rows, any other only the devices that have them.
@@ -1303,8 +1313,9 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
             roomState = group.off == 0 and "on" or group.on == 0 and "off" or "some"
         end
         local right = utility == "power" and load2(group.total) or (group.on .. " / " .. (group.on + group.off))
+        local roomPipe = pipesShown and group.roomKey and BU.Water.roomPipe(panel, group.roomKey) or nil
         add({ kind = "room", id = group.id, text = title(group.id), right = right, state = roomState, fixed = fixed,
-            folded = folded, foldKey = foldKey })
+            folded = folded, foldKey = foldKey, pipe = roomPipe, roomKey = group.roomKey })
         if not folded then
             table.sort(group.devices, function(a, b)
                 if options.byLoad and (a.device.power or 0) ~= (b.device.power or 0) then return (a.device.power or 0) > (b.device.power or 0) end
@@ -1325,13 +1336,19 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
                 end
                 -- its timer button tells what it does over itself (ISBUPanelList.BUTTON_TIPS)
                 local controls = timers and utility == "power" and device.state == "on"
-                local groupText, groupColour
-                if device.group and device.state == "on" and #BU.Water.groups(panel) > 1 then
-                    groupText, groupColour = BU.Water.groupName(panel, device.group), PanelWindow.groupColour(panel, device.group)
+                local pipe = pipesShown and device.state == "on" and device.pipe or nil
+                -- No tank of its pipe at its floor or above (in its building, or one the lines let down to it).
+                local right, bad = shown.status, nil
+                if layout and device.state == "on" and device.building and layout.tanks[device.pipe or BU.Water.FIRST] then
+                    local id = BU.Water.useId(layout, device.pipe, device.building, device.level)
+                    if id and not BU.Water.reachesTank(layout, id) then
+                        right, bad = getText("IGUI_BU_TooHigh"), true
+                        tooltip = (tooltip and tooltip .. " <LINE> " or "") .. getText("IGUI_BU_TooHighTip")
+                    end
                 end
-                add({ kind = "device", text = shown.name, right = shown.status, dim = shown.dim, device = device,
+                add({ kind = "device", text = shown.name, right = right, dim = shown.dim, device = device,
                     state = device.state, unwired = not device.wired, held = device.held, controls = controls,
-                    fixed = fixed, fresh = view.fresh[device.key], groupText = groupText, groupColour = groupColour }, tooltip)
+                    fixed = fixed, fresh = view.fresh[device.key], pipe = pipe, bad = bad }, tooltip)
             end
         end
     end
@@ -1398,7 +1415,7 @@ end
 
 -- What happened to the box, newest first, with how long ago.
 local BAD = { IGUI_BU_Notice_Tripped = true, IGUI_BU_Notice_PowerLost = true, IGUI_BU_Notice_WaterEmpty = true,
-    IGUI_BU_Notice_WaterEmptyGroup = true, IGUI_BU_Notice_LowFuel = true, IGUI_BU_Notice_Shed = true,
+    IGUI_BU_Notice_WaterEmptyPipe = true, IGUI_BU_Notice_LowFuel = true, IGUI_BU_Notice_Shed = true,
     IGUI_BU_Notice_Frozen = true, IGUI_BU_Notice_FilterSpent = true }
 local GOOD = { IGUI_BU_Log_Reset = true, IGUI_BU_Log_Restored = true, IGUI_BU_Log_Upgraded = true,
     IGUI_BU_Notice_Thawed = true, IGUI_BU_Notice_SwitchedOn = true }
@@ -1513,16 +1530,16 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
     elseif row.kind == "producer" then
         for _, button in ipairs(Ui.producerButtons(width, row)) do
             if x >= button.x and x <= button.x + button.w then
-                if button.name == "Group" then
-                    self:producerGroupMenu(row)
+                if button.name == "Pipe" then
+                    self:producerPipeMenu(row)
                 else
                     Sync.send(playerObj, "moveProducer", { panel = panel.id, utility = utility, index = row.index,
                         delta = button.name == "Up" and -1 or 1 })
                 end
             end
         end
-    elseif row.kind == "waterGroup" or row.kind == "addGroup" then
-        self:onGroupRow(row, x, width)
+    elseif row.kind == "waterPipe" or row.kind == "addPipe" then
+        self:onPipeRow(row, x, width)
     elseif row.kind == "all" then
         Sync.send(playerObj, "setAllInside", { panel = panel.id, utility = utility, on = row.state ~= "on" })
     elseif row.kind == "filter" then
@@ -1538,6 +1555,9 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
         if row.folded and self.plan and self.plan.floor ~= row.level then self.plan:showFloor(row.level)
         else self:refill(utility) end
     elseif row.kind == "room" then
+        for _, button in ipairs(Ui.roomButtons(width, row)) do
+            if x >= button.x and x <= button.x + button.w then return self:roomPipeMenu(row) end
+        end
         if row.state and not row.fixed and x >= ROOM_TICK_X and x <= ROOM_TICK_X + ROW then
             Sync.send(playerObj, "setRoomInside", { panel = panel.id, utility = utility, room = row.id, on = row.state ~= "on" })
         else
@@ -1548,8 +1568,8 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
         local device = row.device
         for _, button in ipairs((deviceButtons(width, row))) do
             if x >= button.x and x <= button.x + button.w then
-                if button.name == "group" then
-                    self:deviceGroupMenu(device)
+                if button.name == "pipe" then
+                    self:devicePipeMenu(device)
                 else
                     Sync.send(playerObj, "setSchedule", { panel = panel.id, key = device.key, schedule = nextSchedule(device.schedule) })
                 end

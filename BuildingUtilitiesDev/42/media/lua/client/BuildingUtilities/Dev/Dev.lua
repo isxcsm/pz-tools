@@ -256,44 +256,36 @@ function Dev.fillGraphs(panel)
     end
     panel.energyLog = log
     panel.water.levelLog = {}
-    for _, group in ipairs(BU.Water.groups(panel)) do
+    for _, pipe in ipairs(BU.Water.pipes(panel)) do
         local levels = {}
         for i = Store.ENERGY_HOURS, 1, -1 do
             levels[#levels + 1] = { hour = now - i, amount = 400 + 300 * math.cos(i / 7), capacity = 800 }
         end
-        panel.water.levelLog[group.id] = levels
+        panel.water.levelLog[pipe.id] = levels
     end
     Sync.changed(panel.id)
 end
 
 -- ---- water ----------------------------------------------------------------------------------------------------------
 
-local function lowest(panel, group, floors)
-    local low = nil
-    for _, level in ipairs(BU.Water.levels(panel, group, floors)) do
-        if not low or level < low then low = level end
-    end
-    return low or panel.z
-end
-
--- Each water group's tanks filled to a share of what they hold (0 empties them).
+-- Each tank network filled to a share of what it holds (0 empties it).
 function Dev.setWater(panel, share)
-    local floors = select(2, BU.Water.layout(panel))
-    for _, group in ipairs(BU.Water.groups(panel)) do
-        local state = Networks.groupState(panel, group.id, floors)
+    for _, network in ipairs(Networks.waterLayout(panel).networks) do
+        local state = network.kind == "T" and Networks.waterState(network.id)
         if state and (state.capacity or 0) > 0 then
             local want = state.capacity * share - (state.amount or 0)
             if want > 0 then
-                Networks.fill(panel, group.id, want, "Water", floors)
+                Networks.fillInto(panel, { network.id }, want, "Water")
             elseif want < 0 then
-                Networks.draw(panel, group.id, lowest(panel, group.id, floors), -want, floors)
+                Networks.drawFrom(panel, { network.id }, -want)
             end
         end
     end
     Sync.changed(panel.id)
 end
 
-function Dev.addGroup(panel) Changes.addWaterGroup(panel, "Dev " .. tostring(panel.water.nextGroup or 2)) end
+-- A new pipe, free.
+function Dev.addPipe(panel) Changes.addPipe(panel) end
 
 -- The panel's filters with no media left, or a fresh charge.
 function Dev.filterMedia(panel, empty)
@@ -318,15 +310,17 @@ function Dev.waterLines(panel)
     local lines = {}
     for _, kind in ipairs({ "pump", "booster", "filter", "sprinkler" }) do
         for _, unit in ipairs(Dev.units(panel, kind)) do
+            local inlet, outlet = BU.WaterUnits.pipes(unit)
             local parts = { kind, tostring(unit.x) .. "," .. tostring(unit.y) .. "," .. tostring(unit.z),
-                "group " .. tostring(unit.group or 1) }
-            if kind == "pump" or kind == "booster" then
+                "pipe " .. tostring(inlet or "-") .. ">" .. tostring(outlet or "-") }
+            if kind ~= "sprinkler" then
                 parts[#parts + 1] = "running " .. tostring(unit.running == true)
                 if unit.idle then parts[#parts + 1] = "idle " .. unit.idle end
+                if unit.moved then parts[#parts + 1] = tostring(unit.moved) .. " L/h" end
                 if unit.fluid then parts[#parts + 1] = unit.fluid end
-            elseif kind == "filter" then
-                parts[#parts + 1] = "media " .. string.format("%.0f", BU.WaterUnits.mediaLeft(unit) * 100) .. "%"
-                parts[#parts + 1] = "working " .. tostring(unit.working == true)
+                if kind == "filter" then
+                    parts[#parts + 1] = "media " .. string.format("%.0f", BU.WaterUnits.mediaLeft(unit) * 100) .. "%"
+                end
             else
                 parts[#parts + 1] = "sprayed " .. (unit.sprayedAt and string.format("%.1f", getGameTime():getWorldAgeHours() - unit.sprayedAt) .. "h ago" or "never")
             end

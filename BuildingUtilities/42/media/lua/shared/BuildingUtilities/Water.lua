@@ -1,10 +1,17 @@
--- A panel's water as networks of the API: the player's water groups (one at first), each a tree of one network per
--- floor. A floor's network is the child of the floor's above, so a fixture takes water from tanks on its floor and
--- the floors above it (the API gives a child its own producers and its ancestors'). Tanks join their floor's
--- network, or the one below with the sandbox's "water from above only" (as vanilla plumbing). The building's rooms
--- are in the first group's networks; a fixture moved to another group is included there and excluded from the first.
--- Booster pumps (Water.boostPlan) lift a group's water up from their floor: the floors they lift to take
--- the water of the tanks at the booster's height and above, their rooms joining that height's network.
+-- A panel's water as networks of the API. Its water runs in pipes, each a colour (at most Water.MAX_PIPES; blue, the
+-- first, always there, and nothing says "pipe" while it is the only one). Every water thing is on one pipe: a tank,
+-- a fixture, a sprinkler; a pump's outlet; a filter's and a booster pump's inlet and outlet. In the zone's rooms the
+-- pipes run in the walls: a fixture there is on its room's pipe (blue unless the player chose another for the room),
+-- or on one the player chose for it. A thing outside is on its line (BU.Links), which runs to a wall of the zone.
+--
+-- Water runs down, never up: a fixture takes water from its pipe's tanks on its floor and above in its own building,
+-- the lowest first (the higher ones feed more floors); and from the tanks of the zone's other buildings (reached by a
+-- relay standing in them) only as high as the lines between them cross (Water.crossings), the lowest first. So the
+-- API has, per pipe, building and floor, a tank network (that floor's tanks, no parents: what is filled, a floor at a
+-- time) and a use network (the rooms and fixtures there, no tanks), whose parents are the tank networks it reaches, in
+-- the order it draws from them (the API's "nearest" policy: each parent in turn). Pumps, filters and booster pumps
+-- move water from an inlet to an outlet (server/BuildingUtilities/WaterRun.lua): out of a use network or tank
+-- networks, into the outlet pipe's tank networks of their building, the highest floor they reach first.
 require "BuildingUtilities/Store"
 local BU = BuildingUtilities
 local Store = BU.Store
@@ -12,8 +19,12 @@ local Water = {}
 BU.Water = Water
 
 Water.FIRST = 1
--- At most so many groups a panel: the window lists each.
-Water.MAX_GROUPS = 4
+Water.MAX_PIPES = 8
+-- The pipes' colours, by id: blue, green, orange, purple, red, yellow, teal, brown. The id is the colour; its name
+-- the translation IGUI_BU_Pipe_<name>.
+Water.COLOURS = { { 0.35, 0.6, 1 }, { 0.35, 0.85, 0.45 }, { 1, 0.62, 0.25 }, { 0.72, 0.5, 1 }, { 1, 0.35, 0.35 },
+    { 0.95, 0.85, 0.3 }, { 0.3, 0.85, 0.85 }, { 0.72, 0.52, 0.32 } }
+Water.COLOUR_NAMES = { "Blue", "Green", "Orange", "Purple", "Red", "Yellow", "Teal", "Brown" }
 
 function Water.aboveOnly() return BU.sandbox("WaterFromAboveOnly", false) == true end
 
@@ -26,234 +37,347 @@ function Water.freezeEnabled() return BU.sandbox("RiskPipesFreeze", false) == tr
 function Water.pipeTemperature(panel) return BU.airAt(panel) end
 
 -- Floors a booster pump lifts water above its own (the sandbox's BoosterLift).
-function Water.boostFloors() return BU.sandbox("BoosterLift", 10) end
+function Water.boostFloors() return BU.sandbox("BoosterLift", 5) end
 
--- The highest floor of a panel's group's tanks (Water.producerLevel), or nil without any.
-local function topTank(panel, group)
-    local top
-    for _, at in ipairs(panel.water.producers) do
-        if Water.producerGroup(at) == group then
-            local level = Water.producerLevel(at)
-            if not top or level > top then top = level end
-        end
-    end
-    return top
-end
+-- Pipes.
 
--- What a panel's booster pumps of a group do: may(unit) tells whether one may run (the server asks whether it
--- may now, the layout whether it runs: unit.boosting). Lowest first, each that may runs where water reaches its floor (a tank of the group at its height or above,
--- or a lower booster lifting to it) and lifts that water the Water.boostFloors floors above its own. By floor, the
--- lowest height whose tanks reach it (only the floors a booster lifts to); by unit id, "running" or "dry" (it may run
--- but no water reaches it). Boosters that are off (BU.enabled) do nothing.
-function Water.boostPlan(panel, group, may)
-    local sources, states = {}, {}
-    if not BU.enabled("booster") then return sources, states end
-    local units = {}
-    for _, unit in ipairs(BU.Units.working(panel, "booster")) do
-        local own = unit.group
-        if not (own and Water.group(panel, own)) then own = Water.FIRST end
-        if own == group then units[#units + 1] = unit end
-    end
-    table.sort(units, function(a, b)
-        if a.z ~= b.z then return a.z < b.z end
-        return tostring(a.id) < tostring(b.id)
-    end)
-    local top, lift = topTank(panel, group), Water.boostFloors()
-    for _, unit in ipairs(units) do
-        if may(unit) then
-            local from = sources[unit.z] or unit.z
-            if top and top >= from then
-                states[unit.id] = "running"
-                for level = unit.z + 1, unit.z + lift do
-                    if from < (sources[level] or level) then sources[level] = from end
-                end
-            else
-                states[unit.id] = "dry"
-            end
-        end
-    end
-    return sources, states
-end
+function Water.pipes(panel) return panel.water.pipes end
 
--- What a panel's water networks take of its boosters: the running ones (unit.boosting) with their floors and
--- groups, and how far they lift, as one text; "" with none running.
-function Water.boostKey(panel)
-    local parts = {}
-    if BU.enabled("booster") then
-        for _, unit in ipairs(BU.Units.working(panel, "booster")) do
-            if unit.boosting then
-                parts[#parts + 1] = tostring(unit.id) .. "@" .. unit.z .. "g" .. tostring(unit.group or Water.FIRST)
-            end
-        end
-    end
-    if #parts == 0 then return "" end
-    table.sort(parts)
-    return table.concat(parts, ",") .. "+" .. Water.boostFloors()
-end
-
--- The lowest of the levels at a height or above, or nil.
-local function levelAbove(levels, z)
-    for _, level in ipairs(levels) do
-        if level >= z then return level end
-    end
-end
-
-function Water.networkId(panel, group, level)
-    return BU.networkId(panel.id, "water") .. "-g" .. group .. "-L" .. level
-end
-
--- The panel's groups, in order.
-function Water.groups(panel)
-    return panel.water.groups
-end
-
-function Water.group(panel, id)
-    for _, group in ipairs(Water.groups(panel)) do
-        if group.id == id then return group end
+function Water.pipe(panel, id)
+    for _, pipe in ipairs(Water.pipes(panel)) do
+        if pipe.id == id then return pipe end
     end
     return nil
 end
 
-function Water.groupName(panel, id)
-    local group = Water.group(panel, id)
-    if group and group.name and group.name ~= "" then return group.name end
-    return getText("IGUI_BU_WaterGroup", id)
+-- Whether the panel shows its pipes: it has more than the first.
+function Water.shown(panel) return #Water.pipes(panel) > 1 end
+
+function Water.colour(id) return Water.COLOURS[id] or Water.COLOURS[Water.FIRST] end
+
+-- A pipe's name: the player's, else its colour's, with its number for those who cannot tell colours apart.
+function Water.pipeName(panel, id)
+    local pipe = Water.pipe(panel, id)
+    if pipe and pipe.name and pipe.name ~= "" then return pipe.name end
+    return getText("IGUI_BU_Pipe_" .. (Water.COLOUR_NAMES[id] or Water.COLOUR_NAMES[1]), id)
 end
 
--- A tank's group, and the floor whose network it joins.
-function Water.producerGroup(at) return at.group or Water.FIRST end
-function Water.producerLevel(at) return Water.aboveOnly() and at.z - 1 or at.z end
-
--- A fixture's group, by any of its parts' keys.
-function Water.deviceGroup(panel, keys)
-    for _, key in ipairs(keys) do
-        local group = panel.water.groupOf and panel.water.groupOf[key]
-        if group and Water.group(panel, group) then return group end
+-- The colour a new pipe takes: the first unused, nil with all in use.
+function Water.nextPipe(panel)
+    for id = 1, Water.MAX_PIPES do
+        if not Water.pipe(panel, id) then return id end
     end
+    return nil
+end
+
+-- One of the panel's pipes, or the first: what a thing whose pipe is gone (or never set) is on.
+local function valid(panel, id)
+    if id and Water.pipe(panel, id) then return id end
     return Water.FIRST
 end
+Water.valid = valid
 
--- The networks the panel's water takes now: { id, group, level, parent (an id or nil), producers (a list of
--- { x, y, z }), rooms (the zone's rooms of that floor, in the first group) }, and by group the floors lowest first.
--- The floors hang each from the one above, so a fixture uses the tanks at its height and above; the rooms of a floor
--- its running boosters (unit.boosting) lift to join the network at the height the water comes from. The floors'
--- second result also has, by group, its boosters' heights by floor (boost).
-function Water.layout(panel)
-    -- Looked up here: BU.Panels requires the networks, which require this.
-    local Panels = BU.Panels
-    local roomsByLevel = {}
-    for _, room in ipairs(Panels.zoneRooms(panel)) do
-        roomsByLevel[room.level] = roomsByLevel[room.level] or {}
-        table.insert(roomsByLevel[room.level], room)
+-- A room's pipe, by the room's key (its square, BU.placeKey).
+function Water.roomPipe(panel, key)
+    return valid(panel, key and panel.water.roomPipe and panel.water.roomPipe[key])
+end
+
+-- The pipe the player chose for a fixture (by any of its parts' keys), or nil: then it is on its room's, or the first
+-- outside.
+function Water.chosenPipe(panel, keys)
+    for _, key in ipairs(keys) do
+        local id = panel.water.pipeOf and panel.water.pipeOf[key]
+        if id and Water.pipe(panel, id) then return id end
     end
-    -- The zone's floors, lowest first.
-    local base = {}
-    for level in pairs(roomsByLevel) do base[#base + 1] = level end
-    if #base == 0 then base[1] = panel.z end
-    local result, floors = {}, { boost = {} }
-    for _, group in ipairs(Water.groups(panel)) do
-        local seen, levels = {}, {}
-        local function addLevel(level)
-            if not seen[level] then seen[level] = true; levels[#levels + 1] = level end
+    return nil
+end
+
+-- A tank's pipe.
+function Water.producerPipe(panel, at) return valid(panel, at.pipe) end
+
+-- The floor whose tank network a tank joins: its own, or the one below with the sandbox's "water from above only".
+function Water.producerLevel(at) return Water.aboveOnly() and at.z - 1 or at.z end
+
+-- A water unit's inlet and outlet pipes: a pump has an outlet only, a sprinkler an inlet only; a filter's and a
+-- booster pump's outlet is their inlet unless the player chose another.
+function Water.unitPipes(panel, unit)
+    local inlet = valid(panel, unit.pipe)
+    local outlet = unit.out and Water.pipe(panel, unit.out) and unit.out or inlet
+    if unit.kind == "pump" then return nil, inlet end
+    if unit.kind == "sprinkler" then return inlet, nil end
+    return inlet, outlet
+end
+
+-- Buildings. A water thing is in a building: its room's (the zone's rooms, with their shells: BU.Links.homeRoom), or
+-- for one outside, the building its line enters: a relay's that stands in one, else its wall's. An outdoor box and
+-- what hangs on it are one building of their own, OUTDOOR.
+Water.OUTDOOR = "outdoor"
+
+-- The building of a line's thing: up its line to a relay standing in a building or to the wall; nil for a cut line.
+local function lineBuilding(panel, ref)
+    local Links, Panels = BU.Links, BU.Panels
+    local seen = {}
+    local line = Links.get(ref)
+    while line and not seen[line.ref or ref] do
+        seen[line.ref or ref] = true
+        local unit = Links.unitOf(line.ref)
+        if unit and BU.RELAY_KINDS[unit.kind] then
+            local building = Panels.buildingAt(unit.x, unit.y, unit.z)
+            if building then return building.key end
         end
-        for _, level in ipairs(base) do addLevel(level) end
-        local producersByLevel = {}
+        if line.wall then
+            if panel.outdoor then return Water.OUTDOOR end
+            local x, y, z = BU.parsePlace(line.wall)
+            local building = x and Panels.buildingAt(x, y, z)
+            return building and building.key or nil
+        end
+        line = line.via and Links.get(line.via) or nil
+    end
+    return nil
+end
+
+-- The building of a water thing at a square, and its floor: by its line (ref) when it has one (its own floor), else
+-- its room's (the room's floor: a fixture on the roof or the outer wall's ring is its room's, as the API has it). Nil
+-- when it is in neither.
+function Water.placeOf(panel, x, y, z, ref)
+    if ref and BU.Links.get(ref) then
+        local key = lineBuilding(panel, ref)
+        return key, z
+    end
+    if panel.outdoor then return Water.OUTDOOR, z end
+    local room = BU.Links.homeRoom(panel, x, y, z)
+    if not room then return nil, z end
+    return room.building, room.level
+end
+
+-- Where a water device of Panels.devices is, kept on it: pipe (the one it is on), pipeChosen (the player chose it, not
+-- its room), roomKey (its room's, in the zone), building and level (Water.placeOf; nil building when neither a room of
+-- the zone nor a live line has it). roomsById: the zone's rooms by id (Panels.zoneRooms), when the caller has them.
+function Water.placeDevice(panel, device, roomsById)
+    local entry = device.entry
+    local x, y, z = entry.x, entry.y, entry.z
+    local chosen = Water.chosenPipe(panel, device.keys)
+    local ref = not device.inside and panel.water.included[device.key] and BU.Links.deviceRef(device.key) or nil
+    local building, level, room
+    if ref then
+        if BU.Links.live(panel, ref) then building, level = Water.placeOf(panel, x, y, z, ref) end
+    elseif device.inside and not panel.outdoor then
+        room = roomsById and roomsById[device.roomId] or BU.Links.homeRoom(panel, x, y, z)
+        if room then building, level = room.building, room.level end
+    end
+    device.roomKey = room and room.key or nil
+    device.pipe = chosen or (room and Water.roomPipe(panel, room.key)) or Water.FIRST
+    device.pipeChosen = chosen ~= nil
+    device.building, device.level = building, level
+end
+
+-- The pipe a water line carries, by its thing: a tank's, a fixture's (the one the player chose, else the first), a
+-- unit's inlet (a pump's outlet); nil for a relay's.
+function Water.linePipe(panel, line)
+    local kind = line.ref:sub(1, 1)
+    if kind == "p" then
         for _, at in ipairs(panel.water.producers) do
-            if Water.producerGroup(at) == group.id and BU.Links.live(panel, BU.Links.producerRef(at.x, at.y, at.z)) then
-                local level = Water.producerLevel(at)
-                addLevel(level)
-                producersByLevel[level] = producersByLevel[level] or {}
-                table.insert(producersByLevel[level], { x = at.x, y = at.y, z = at.z })
+            if at.x == line.x and at.y == line.y and at.z == line.z then return Water.producerPipe(panel, at) end
+        end
+        return Water.FIRST
+    elseif kind == "t" then
+        return Water.chosenPipe(panel, { line.ref:sub(3) }) or Water.FIRST
+    end
+    local unit = BU.Links.unitOf(line.ref)
+    if not unit or BU.RELAY_KINDS[unit.kind] then return nil end
+    local inlet, outlet = Water.unitPipes(panel, unit)
+    return inlet or outlet
+end
+
+-- How high water crosses into each building of the zone: a line leaves the box's building at its wall square and
+-- enters another at the relay standing in it, and water from or to that building passes no higher than the lower of
+-- the two. By building key; the box's own building (and an outdoor box's) has none (math.huge). With several relays
+-- in a building, its best.
+function Water.crossings(panel)
+    local Links, Panels = BU.Links, BU.Panels
+    local result = {}
+    local own = panel.outdoor and Water.OUTDOOR or (Panels.building(panel) and Panels.building(panel).key)
+    if own then result[own] = math.huge end
+    for _, relay in ipairs(Panels.relaysOf(panel)) do
+        local building = Panels.buildingAt(relay.x, relay.y, relay.z)
+        if building and building.key ~= own and Links.live(panel, Links.unitRef(relay)) then
+            local height = relay.z
+            local line, seen = Links.get(Links.unitRef(relay)), {}
+            while line and not seen[line.ref] do
+                seen[line.ref] = true
+                if line.wall then
+                    local _, _, z = BU.parsePlace(line.wall)
+                    if z then height = math.min(height, z) end
+                end
+                line = line.via and Links.get(line.via) or nil
+            end
+            if not result[building.key] or height > result[building.key] then result[building.key] = height end
+        end
+    end
+    return result
+end
+
+-- How high water passes between two buildings of a zone: the lower of their crossings.
+local function head(crossings, a, b)
+    if a == b then return math.huge end
+    return math.min(crossings[a] or -math.huge, crossings[b] or -math.huge)
+end
+
+-- Network ids: "bu-p3-water-c2-b100_200_0-L1-T". A building's key with its commas as "_".
+local function buildingTag(key) return key == Water.OUTDOOR and "o" or tostring(key):gsub(",", "_") end
+
+function Water.networkId(panel, pipe, building, level, kind)
+    return BU.networkId(panel.id, "water") .. "-c" .. pipe .. "-b" .. buildingTag(building) .. "-L" .. level .. "-" .. kind
+end
+
+-- The water things of a panel's layout, each { key, pipe, building, level }: the zone's rooms (by their pipe), the
+-- fixtures on a pipe not their room's, those outside on a line, the inlets of its units. Tanks apart.
+local function uses(panel)
+    local Panels, Links = BU.Panels, BU.Links
+    local result = {}
+    for _, room in ipairs(Panels.zoneRooms(panel)) do
+        result[#result + 1] = { room = room, pipe = Water.roomPipe(panel, room.key), building = room.building, level = room.level }
+    end
+    local data = panel.water
+    local keys = {}
+    for _, set in ipairs({ data.included, data.attached or {}, data.pipeOf or {} }) do
+        for key in pairs(set) do keys[key] = true end
+    end
+    for key in pairs(keys) do
+        local x, y, z = BU.parseThing(key)
+        local ref = data.included[key] and Links.deviceRef(key) or nil
+        if x and (not ref or Links.live(panel, ref)) then
+            local building, level = Water.placeOf(panel, x, y, z, ref)
+            if building then
+                local room = not ref and Links.homeRoom(panel, x, y, z) or nil
+                local pipe = Water.chosenPipe(panel, { key }) or (room and Water.roomPipe(panel, room.key)) or Water.FIRST
+                result[#result + 1] = { key = key, pipe = pipe, building = building, level = level }
             end
         end
-        table.sort(levels)
-        floors[group.id] = levels
-        local sources = Water.boostPlan(panel, group.id, function(unit) return unit.boosting == true end)
-        floors.boost[group.id] = sources
-        -- The first group's rooms by the network they join: their floor's, or where boosters lift to it, the one at the
-        -- height the water comes from.
-        local roomsAt = {}
-        if group.id == Water.FIRST then
-            for level, rooms in pairs(roomsByLevel) do
-                local from = sources[level]
-                local at = from and from < level and levelAbove(levels, from) or level
-                roomsAt[at] = roomsAt[at] or {}
-                for _, room in ipairs(rooms) do table.insert(roomsAt[at], room) end
-            end
-        end
-        for index, level in ipairs(levels) do
-            local above = levels[index + 1]
-            local parent = above and Water.networkId(panel, group.id, above) or nil
-            result[#result + 1] = { id = Water.networkId(panel, group.id, level), group = group.id, level = level,
-                parent = parent, producers = producersByLevel[level] or {}, rooms = roomsAt[level] or {} }
-        end
     end
-    return result, floors
-end
-
--- The floors of a group's tree, lowest first; floors is Water.layout's second result when the caller has it.
-function Water.levels(panel, group, floors)
-    if not floors then floors = select(2, Water.layout(panel)) end
-    return floors[group] or {}
-end
-
--- The network at the lowest floor of a group: its tree's every tank is in its reach.
-function Water.lowestId(panel, group, floors)
-    local levels = Water.levels(panel, group, floors)
-    return levels[1] and Water.networkId(panel, group, levels[1]) or nil
-end
-
--- The network of a group at a height or the nearest above: its tree has the tanks at that height and above. Nil
--- when the group has no floor that high.
-function Water.networkAbove(panel, group, z, floors)
-    for _, level in ipairs(Water.levels(panel, group, floors)) do
-        if level >= z then return Water.networkId(panel, group, level) end
-    end
-end
-
--- How water reaches a panel's floors (its first group's): those no
--- tank reaches (dry: none at their height or above, and no booster lifting to them) and those boosters lift to, each
--- as ranges { low, high } of floors next to each other, then the same by floor ("dry" or "boosted"). only: a set of
--- floors to tell of (the others are left out); all of them when nil. One layout of the panel.
-function Water.floorSupply(panel, only)
-    local _, floors = Water.layout(panel)
-    local sources = floors.boost[Water.FIRST] or {}
-    local top = topTank(panel, Water.FIRST)
-    local dry, boosted, byLevel = {}, {}, {}
-    local function add(ranges, level)
-        local last = ranges[#ranges]
-        if last and last[2] == level - 1 then last[2] = level else ranges[#ranges + 1] = { level, level } end
-    end
-    for _, level in ipairs(Water.levels(panel, Water.FIRST, floors)) do
-        if not only or only[level] then
-            local from = sources[level] or level
-            if not top or from > top then
-                add(dry, level)
-                byLevel[level] = "dry"
-            elseif from < level then
-                add(boosted, level)
-                byLevel[level] = "boosted"
+    if BU.Units then
+        for _, unit in ipairs(BU.Units.working(panel)) do
+            if BU.Units.utility(unit) == "water" then
+                local inlet = Water.unitPipes(panel, unit)
+                local building, level = Water.placeOf(panel, unit.x, unit.y, unit.z, Links.unitRef(unit))
+                if inlet and building then
+                    result[#result + 1] = { unit = unit, pipe = inlet, building = building, level = level }
+                end
             end
         end
     end
-    return dry, boosted, byLevel
+    return result
 end
 
--- The network of a group a fixture on a floor joins: that floor's, else the nearest below, else the lowest; where a
--- booster lifts to the floor, the one at the height the water comes from.
-function Water.networkFor(panel, group, z, floors)
-    if not floors then floors = select(2, Water.layout(panel)) end
-    local from = floors.boost and floors.boost[group] and floors.boost[group][z]
-    if from and from < z then
-        local id = Water.networkAbove(panel, group, from, floors)
-        if id then return id end
+-- What a panel's water networks are now:
+--   networks, a list of { id, kind ("T" tanks, "U" use), pipe, building, level, producers (tank networks: a list of
+--     { x, y, z }), rooms (use networks: the zone's rooms on it, as Panels.rooms has them), parents (use networks: the
+--     tank networks it reaches, in the order it draws from them) };
+--   tanks, by pipe and building, the floors with tanks, lowest first;
+--   use, by "pipe|building|level", the use network's id;
+--   crossings (Water.crossings).
+-- A use network for every place something takes water: a room, a fixture, a unit's inlet.
+function Water.layout(panel)
+    local Links = BU.Links
+    local crossings = Water.crossings(panel)
+    local networks, tanks, tankIds, use = {}, {}, {}, {}
+    for _, at in ipairs(panel.water.producers) do
+        if Links.live(panel, Links.producerRef(at.x, at.y, at.z)) then
+            local building = Water.placeOf(panel, at.x, at.y, at.z, Links.producerRef(at.x, at.y, at.z))
+            if building then
+                local pipe, level = Water.producerPipe(panel, at), Water.producerLevel(at)
+                local id = Water.networkId(panel, pipe, building, level, "T")
+                local network = tankIds[id]
+                if not network then
+                    network = { id = id, kind = "T", pipe = pipe, building = building, level = level, producers = {} }
+                    tankIds[id] = network
+                    networks[#networks + 1] = network
+                    tanks[pipe] = tanks[pipe] or {}
+                    tanks[pipe][building] = tanks[pipe][building] or {}
+                    table.insert(tanks[pipe][building], level)
+                end
+                table.insert(network.producers, { x = at.x, y = at.y, z = at.z })
+            end
+        end
     end
-    local levels = Water.levels(panel, group, floors)
-    local best = levels[1]
-    for _, level in ipairs(levels) do
-        if level <= z then best = level end
+    for _, byBuilding in pairs(tanks) do
+        for _, levels in pairs(byBuilding) do table.sort(levels) end
     end
-    return best and Water.networkId(panel, group, best) or nil
+    local useIds = {}
+    for _, each in ipairs(uses(panel)) do
+        local id = Water.networkId(panel, each.pipe, each.building, each.level, "U")
+        local network = useIds[id]
+        if not network then
+            network = { id = id, kind = "U", pipe = each.pipe, building = each.building, level = each.level, rooms = {} }
+            useIds[id] = network
+            use[each.pipe .. "|" .. each.building .. "|" .. each.level] = id
+            -- Its own building's tanks at its floor and above, lowest first; then each other building's that the
+            -- crossings let down to it, the building whose lowest such floor is lowest first.
+            local parents, others = {}, {}
+            for building, levels in pairs(tanks[each.pipe] or {}) do
+                local reach = {}
+                for _, level in ipairs(levels) do
+                    if level >= each.level then reach[#reach + 1] = level end
+                end
+                if #reach > 0 then
+                    if building == each.building then
+                        for _, level in ipairs(reach) do
+                            parents[#parents + 1] = Water.networkId(panel, each.pipe, building, level, "T")
+                        end
+                    elseif head(crossings, building, each.building) >= each.level then
+                        others[#others + 1] = { building = building, levels = reach }
+                    end
+                end
+            end
+            table.sort(others, function(a, b)
+                if a.levels[1] ~= b.levels[1] then return a.levels[1] < b.levels[1] end
+                return tostring(a.building) < tostring(b.building)
+            end)
+            for _, other in ipairs(others) do
+                for _, level in ipairs(other.levels) do
+                    parents[#parents + 1] = Water.networkId(panel, each.pipe, other.building, level, "T")
+                end
+            end
+            network.parents = parents
+            networks[#networks + 1] = network
+        end
+        if each.room then table.insert(network.rooms, each.room) end
+    end
+    table.sort(networks, function(a, b) return a.id < b.id end)
+    return { networks = networks, tanks = tanks, use = use, crossings = crossings }
+end
+
+-- The use network of a pipe at a building's floor, or nil (nothing takes water there).
+function Water.useId(layout, pipe, building, level)
+    return building and layout.use[pipe .. "|" .. building .. "|" .. level] or nil
+end
+
+-- The tank networks a machine's outlet fills on a pipe in its building: those of the floors from `top` down to
+-- `bottom` (nil: every floor below), highest first.
+function Water.fillTargets(panel, layout, pipe, building, top, bottom)
+    local result = {}
+    local levels = layout.tanks[pipe] and layout.tanks[pipe][building] or {}
+    for index = #levels, 1, -1 do
+        local level = levels[index]
+        if level <= top and (not bottom or level >= bottom) then
+            result[#result + 1] = Water.networkId(panel, pipe, building, level, "T")
+        end
+    end
+    return result
+end
+
+-- The tank networks of a pipe in a building at a floor and below, the floor itself first: what a booster pump's inlet
+-- draws on its own pipe.
+function Water.belowTargets(panel, layout, pipe, building, level)
+    return Water.fillTargets(panel, layout, pipe, building, level, nil)
+end
+
+-- Whether a use network reaches any tank: else what takes water there has none ("too high").
+function Water.reachesTank(layout, id)
+    for _, network in ipairs(layout.networks) do
+        if network.id == id then return #(network.parents or {}) > 0 end
+    end
+    return false
 end
 
 return Water

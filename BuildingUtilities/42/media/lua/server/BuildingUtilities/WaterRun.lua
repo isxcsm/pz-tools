@@ -1,7 +1,9 @@
--- What the water units (BU.WaterUnits) do, on the server: each minute a panel's boosters lift its water up the
--- floors, its pumps lift water into their groups while its power is on, and its filters wear while they purify; each
--- ten minutes its sprinklers water the crops around them. Server.lua calls these, with the panel's water layout
--- worked out once a minute (floors, Water.layout's second result) after the boosters, which may change it.
+-- What the water units (BU.WaterUnits) do, on the server: each minute a panel's machines move water from their inlet
+-- to their outlet (BU.Water.unitPipes) — its booster pumps up the floors, its filters through their media, its pumps
+-- from the river or well beside them — and each ten minutes its sprinklers water the crops around them. A machine
+-- fills the tanks of its outlet pipe in its own building (Water.fillTargets), the highest floor it reaches first: a
+-- pump or a filter its own floor and below, a booster pump up to Water.boostFloors() above its own. Server.lua calls
+-- these with the panel's water layout (Networks.waterLayout).
 require "BuildingUtilities/Changes"
 require "BuildingUtilities/WaterUnits"
 local BU = BuildingUtilities
@@ -10,15 +12,17 @@ local Store, Networks, Changes, Water, Sync, WaterUnits = BU.Store, BU.Networks,
 local WaterRun = {}
 BU.WaterRun = WaterRun
 
+-- What a machine shows of its last run (WaterUnits): cleared while it rests.
+local SHOWN = { "running", "idle", "moved" }
+
 -- A panel's units of a kind that work (BU.Units.working), after the others (of a kind that is off, or whose line is
--- cut) rested: what they show of their last run cleared (fields: a pump's running and idle, a filter's working).
--- Returns those that work and whether any rested.
-local function working(panel, kind, fields)
+-- cut) rested: what they show of their last run cleared. Returns those that work and whether any rested.
+local function working(panel, kind)
     local result, live, changed = BU.Units.working(panel, kind), {}, false
     for _, unit in ipairs(result) do live[unit] = true end
     for _, unit in ipairs(Store.unitList(kind, panel.id)) do
         if not live[unit] then
-            for _, field in ipairs(fields) do
+            for _, field in ipairs(SHOWN) do
                 if unit[field] then unit[field], changed = nil, true end
             end
         end
@@ -33,93 +37,179 @@ local function powered(panel)
     return state ~= nil and state.supplied == true
 end
 
--- How much more a group's tanks take, as last seen; nil while none is seen.
-local function room(panel, group, floors)
-    local state = Networks.groupState(panel, group, floors)
-    if not state or (state.capacity or 0) <= 0 then return nil end
-    return math.max(0, state.capacity - (state.amount or 0))
+-- Where a unit is for its water: its building and floor (Water.placeOf, by its line).
+local function placeOf(panel, unit)
+    return Water.placeOf(panel, unit.x, unit.y, unit.z, BU.Links.unitRef(unit))
 end
 
--- A pump's water: into its group, until that is full. The litres lifted, or 0 and why not ("noTanks", "full").
-local function lift(panel, unit, litres, floors)
-    local group = WaterUnits.group(unit)
-    local free = room(panel, group, floors)
-    if free == nil then return 0, "noTanks" end
-    if free < 0.5 then return 0, "full" end
-    local lifted = Networks.fill(panel, group, math.min(litres, free), unit.fluid, floors) or 0
-    if lifted > 0 then return lifted end
-    return 0, "full"
+-- How much more tank networks take, as the API last saw them.
+local function roomIn(ids)
+    local free = 0
+    for _, id in ipairs(ids) do
+        local state = Networks.waterState(id)
+        if state then free = free + math.max(0, (state.capacity or 0) - (state.amount or 0)) end
+    end
+    return free
 end
 
--- Each minute (so many of them): a panel's pumps (those that work, BU.Units.working) run while it has power and their water has somewhere to go; running,
--- they add to its load (BU.Changes.setExtraLoad). Its frozen pipes stop them ("frozen"). A pump with no water beside
--- it cannot tell: it runs dry whenever it has power, drawing it and lifting nothing ("noWater"). While its square is
--- loaded the water beside it is looked at again. Pumps that are off (BU.enabled) stand still and draw nothing.
-function WaterRun.pumps(panel, minutes, floors)
-    local pumps, rested = working(panel, "pump", { "running", "idle" })
-    if rested then Sync.changed(panel.id) end
-    if #pumps == 0 and not (panel.extraLoads and panel.extraLoads.pumps) then return end
-    if not BU.enabled("pump") then
-        Changes.setExtraLoad(panel, "pumps", 0)
+-- Litres into tank networks, each fluid as it is (a filter's tainted water as water, purify).
+local function fillMix(panel, ids, mix, purify)
+    local filled = 0
+    for fluid, litres in pairs(mix) do
+        if purify and fluid == "TaintedWater" then fluid = "Water" end
+        filled = filled + Networks.fillInto(panel, ids, litres, fluid)
+    end
+    return filled
+end
+
+-- Draws litres from networks in turn, as far as the targets have room: what was drawn, by fluid, and how much.
+local function drawFor(panel, sources, targets, litres)
+    if #targets == 0 then return 0, {}, "noTanks" end
+    local free = roomIn(targets)
+    if free < 0.05 then return 0, {}, "full" end
+    local drawn, mix = Networks.drawFrom(panel, sources, math.min(litres, free))
+    if drawn <= 0 then return 0, {}, "noWater" end
+    return drawn, mix
+end
+
+-- A machine's new state: running (nil or true), why it idles, litres an hour it moved. Returns whether it changed.
+local function show(unit, running, why, moved)
+    moved = moved and moved > 0 and math.floor(moved + 0.5) or nil
+    if running == unit.running and why == unit.idle and moved == unit.moved then return false end
+    unit.running, unit.idle, unit.moved = running, why, moved
+    return true
+end
+
+-- A pump: water from beside it into its outlet pipe's tanks on its floor and below. Returns running (it draws power:
+-- also running dry, with no water beside it), why it idles, litres an hour.
+local function pump(panel, layout, unit, minutes, on)
+    if not on then return nil, "noPower" end
+    if panel.water.frozen then return nil, "frozen" end
+    if not unit.fluid then return true, "noWater" end
+    local _, outlet = Water.unitPipes(panel, unit)
+    local building, level = placeOf(panel, unit)
+    local targets = building and Water.fillTargets(panel, layout, outlet, building, level) or {}
+    if #targets == 0 then return nil, "noTanks" end
+    local free = roomIn(targets)
+    if free < 0.05 then return nil, "full" end
+    local filled = Networks.fillInto(panel, targets, math.min(WaterUnits.PUMP_RATE * minutes / 60, free), unit.fluid)
+    if filled <= 0 then return nil, "full" end
+    return true, nil, filled * 60 / minutes
+end
+
+-- A booster pump: water from its inlet pipe's tanks on its floor and below (and, on another pipe than its outlet's,
+-- from its inlet's use network there, which reaches higher tanks and other buildings) up to its outlet pipe's tanks:
+-- on the same pipe the floors above its own as far as it lifts, on another up to there from the lowest.
+local function boost(panel, layout, unit, minutes, on)
+    if not on then return nil, "noPower" end
+    if panel.water.frozen then return nil, "frozen" end
+    local inlet, outlet = Water.unitPipes(panel, unit)
+    local building, level = placeOf(panel, unit)
+    if not building then return nil, "noTanks" end
+    local top = level + Water.boostFloors()
+    local targets = Water.fillTargets(panel, layout, outlet, building, top, inlet == outlet and level + 1 or nil)
+    local sources = Water.belowTargets(panel, layout, inlet, building, level)
+    if inlet ~= outlet then sources[#sources + 1] = Water.useId(layout, inlet, building, level) end
+    local drawn, mix, why = drawFor(panel, sources, targets, WaterUnits.BOOSTER_RATE * minutes / 60)
+    if drawn <= 0 then return nil, why end
+    fillMix(panel, targets, mix, false)
+    return true, nil, drawn * 60 / minutes
+end
+
+-- A filter on two pipes: water from its inlet's use network into its outlet pipe's tanks on its floor and below,
+-- tainted water made clean while the pipes leave water unpurified (the risk option), which takes media: spent, it
+-- passes nothing then. Without the option it only passes water on (the pipes purify). It needs no power. Returns
+-- running, why it idles, litres an hour, and the hours of media it used.
+local function pass(panel, layout, unit, minutes, unpurified)
+    if panel.water.frozen then return nil, "frozen" end
+    if unpurified and (unit.media or 0) <= 0 then return nil, nil end
+    local inlet, outlet = Water.unitPipes(panel, unit)
+    local building, level = placeOf(panel, unit)
+    if not building then return nil, "noTanks" end
+    local targets = Water.fillTargets(panel, layout, outlet, building, level)
+    local source = Water.useId(layout, inlet, building, level)
+    local drawn, mix, why = drawFor(panel, { source }, targets, WaterUnits.FILTER_RATE * minutes / 60)
+    if drawn <= 0 then return nil, why end
+    fillMix(panel, targets, mix, unpurified)
+    return true, nil, drawn * 60 / minutes, unpurified and minutes / 60 or 0
+end
+
+-- A filter's media used: its charge less so many hours; spent, the players are told.
+local function wear(panel, unit, hours, pipe)
+    if hours <= 0 then return false end
+    local before = math.floor(WaterUnits.mediaLeft(unit) * 100)
+    unit.media = math.max(0, (unit.media or 0) - hours)
+    if unit.media <= 0 then Sync.notice(panel, "IGUI_BU_Notice_FilterSpent", Water.pipeName(panel, pipe)) end
+    return math.floor(WaterUnits.mediaLeft(unit) * 100) ~= before
+end
+
+-- Each minute (so many of them): a panel's machines that work (BU.Units.working) move water, booster pumps first
+-- (their outlets feed the floors above), then filters, then pumps. Pumps and booster pumps need the panel's power and
+-- add to its load while they run (BU.Changes.setExtraLoad); its frozen pipes stop all three. A filter on one pipe
+-- moves nothing: while the pipes leave water unpurified, that pipe's water is purified as long as one of its filters
+-- has media, which wears by the hour (its other filters wait their turn); without the option the pipes purify and
+-- filters rest. While a pump's square is loaded the water beside it is looked at again. Kinds that are off
+-- (BU.enabled) stand still and draw nothing.
+function WaterRun.machines(panel, minutes)
+    local boosters, restedB = working(panel, "booster")
+    local filters, restedF = working(panel, "filter")
+    local pumps, restedP = working(panel, "pump")
+    local changed = restedB or restedF or restedP
+    local water = BU.enabled("water") and BU.waterAvailable()
+    local loads = panel.extraLoads or {}
+    if not water or (#boosters == 0 and #filters == 0 and #pumps == 0) then
+        if loads.pumps then Changes.setExtraLoad(panel, "pumps", 0) end
+        if loads.boosters then Changes.setExtraLoad(panel, "boosters", 0) end
+        if changed then Sync.changed(panel.id) end
         return
     end
+    local layout = Networks.waterLayout(panel)
     local on = powered(panel)
-    local running, changed = 0, false
+    local unpurified = WaterUnits.unpurifiedPipes()
+
+    local lifting = 0
+    local boosting = BU.enabled("booster")
+    for _, unit in ipairs(boosters) do
+        local running, why, moved = nil, nil, nil
+        if boosting then running, why, moved = boost(panel, layout, unit, minutes, on) end
+        changed = show(unit, running, why, moved) or changed
+        if running then lifting = lifting + 1 end
+    end
+    Changes.setExtraLoad(panel, "boosters", lifting * WaterUnits.BOOSTER_LOAD)
+
+    local purifying = {}
+    local filtering = BU.enabled("filter")
+    for _, unit in ipairs(filters) do
+        local running, why, moved, used = nil, nil, nil, 0
+        local inlet, outlet = Water.unitPipes(panel, unit)
+        if filtering and inlet == outlet then
+            running = unpurified and not purifying[inlet] and (unit.media or 0) > 0 and not panel.water.frozen or nil
+            if running then purifying[inlet], used = true, minutes / 60 end
+        elseif filtering then
+            running, why, moved, used = pass(panel, layout, unit, minutes, unpurified)
+        end
+        changed = show(unit, running, why, moved) or changed
+        changed = wear(panel, unit, used or 0, inlet) or changed
+    end
+    for _, pipe in ipairs(Water.pipes(panel)) do
+        Networks.setPipePurify(panel, pipe.id, not unpurified or purifying[pipe.id] == true)
+    end
+
+    local pumping = 0
+    local pumpsOn = BU.enabled("pump")
     local cell = getCell()
-    floors = floors or #pumps > 0 and select(2, Water.layout(panel)) or nil
     for _, unit in ipairs(pumps) do
         local square = cell and cell:getGridSquare(unit.x, unit.y, unit.z)
         if square then
             local fluid = WaterUnits.waterBeside(square)
             if fluid ~= unit.fluid then unit.fluid, changed = fluid, true end
         end
-        local lifted, why, now = 0, "noPower", nil
-        if on and panel.water.frozen then
-            why = "frozen"
-        elseif on and not unit.fluid then
-            why, now = "noWater", true
-        elseif on then
-            lifted, why = lift(panel, unit, WaterUnits.PUMP_RATE * minutes / 60, floors)
-            now = lifted > 0 or nil
-        end
-        if now ~= unit.running or why ~= unit.idle then unit.running, unit.idle, changed = now, why, true end
-        if now then running = running + 1 end
+        local running, why, moved = nil, nil, nil
+        if pumpsOn then running, why, moved = pump(panel, layout, unit, minutes, on) end
+        changed = show(unit, running, why, moved) or changed
+        if running then pumping = pumping + 1 end
     end
-    Changes.setExtraLoad(panel, "pumps", running * WaterUnits.PUMP_LOAD)
-    if changed then Sync.changed(panel.id) end
-end
-
--- Each minute: a panel's boosters (Water.boostPlan) run while it has power and its pipes are not frozen, each
--- where water reaches its floor ("noWater" else); running, they add to its load. When what runs differs from what its
--- water networks were defined with (Networks.boostDefined: also after a booster was wired or taken away, or as the
--- world loaded), they follow (Networks.floorsChanged). Boosters that are off (BU.enabled) stand
--- still and draw nothing.
-function WaterRun.boosters(panel)
-    local boosters, rested = working(panel, "booster", { "boosting", "idle" })
-    if rested then Sync.changed(panel.id) end
-    if #boosters == 0 and (Networks.boostDefined(panel) or "") == "" and not (panel.extraLoads and panel.extraLoads.boosters) then
-        return
-    end
-    local enabled = BU.enabled("booster")
-    local on = enabled and powered(panel)
-    local frozen = panel.water.frozen == true
-    local states = {}
-    if on and not frozen then
-        for _, group in ipairs(Water.groups(panel)) do
-            local _, each = Water.boostPlan(panel, group.id, function() return true end)
-            for id, state in pairs(each) do states[id] = state end
-        end
-    end
-    local running, changed = 0, false
-    for _, unit in ipairs(boosters) do
-        local now = states[unit.id] == "running" or nil
-        local why = nil
-        if enabled and not now then why = (not on and "noPower") or (frozen and "frozen") or "noWater" end
-        if now ~= unit.boosting or why ~= unit.idle then unit.boosting, unit.idle, changed = now, why, true end
-        if now then running = running + 1 end
-    end
-    if Water.boostKey(panel) ~= (Networks.boostDefined(panel) or "") then Networks.floorsChanged(panel) end
-    Changes.setExtraLoad(panel, "boosters", running * WaterUnits.BOOSTER_LOAD)
+    Changes.setExtraLoad(panel, "pumps", pumping * WaterUnits.PUMP_LOAD)
     if changed then Sync.changed(panel.id) end
 end
 
@@ -132,20 +222,22 @@ local function usesWanted(plant)
     return math.ceil((math.min(100, target) - plant.waterLvl) / 10)
 end
 
--- Each ten minutes: a panel's sprinklers water the growing crops around them that need it, from their group, unless
--- it rains or the group is down to its reserve. The farming system keeps its plants whether or not their squares
--- are loaded. Sprinklers that are off (BU.enabled) water nothing.
+-- Each ten minutes: a panel's sprinklers water the growing crops around them that need it, from their pipe's use
+-- network where they are, unless it rains or the tanks it reaches are down to the pipe's reserve. The farming system
+-- keeps its plants whether or not their squares are loaded. Sprinklers that are off (BU.enabled) water nothing.
 function WaterRun.sprinklers(panel)
-    if not BU.enabled("sprinkler") then return end
+    if not BU.enabled("sprinkler") or not BU.enabled("water") or not BU.waterAvailable() then return end
     local sprinklers = BU.Units.working(panel, "sprinkler")
     local system = SFarmingSystem and SFarmingSystem.instance
-    if #sprinklers == 0 or not system or RainManager.isRaining() then return end
+    if #sprinklers == 0 or not system or RainManager.isRaining() or panel.water.frozen then return end
     local now, changed = getGameTime():getWorldAgeHours(), false
-    local floors = select(2, Water.layout(panel))
+    local layout = Networks.waterLayout(panel)
     for _, unit in ipairs(sprinklers) do
-        local group = WaterUnits.group(unit)
-        local state = Networks.groupState(panel, group, floors)
-        local reserve = Water.group(panel, group).reserve or 0
+        local pipe = Water.unitPipes(panel, unit)
+        local building, level = placeOf(panel, unit)
+        local id = Water.useId(layout, pipe, building, level)
+        local state = id and Networks.waterState(id)
+        local reserve = Water.pipe(panel, pipe).reserve or 0
         if state and (state.capacity or 0) > 0 and (state.amount or 0) / state.capacity * 100 > reserve then
             local watered = false
             local reach = WaterUnits.SPRINKLER_RADIUS
@@ -154,7 +246,7 @@ function WaterRun.sprinklers(panel)
                     local plant = system:getLuaObjectAt(unit.x + dx, unit.y + dy, unit.z)
                     local uses = plant and usesWanted(plant) or 0
                     if uses > 0 then
-                        local drawn = Networks.draw(panel, group, unit.z, uses * WaterUnits.LITRES_PER_USE, floors) or 0
+                        local drawn = Networks.drawFrom(panel, { id }, uses * WaterUnits.LITRES_PER_USE)
                         uses = math.floor(drawn / WaterUnits.LITRES_PER_USE + 1e-6)
                         if uses > 0 then
                             plant:water(nil, uses)
@@ -165,38 +257,6 @@ function WaterRun.sprinklers(panel)
             end
             if watered then unit.sprayedAt, changed = now, true end
         end
-    end
-    if changed then Sync.changed(panel.id) end
-end
-
--- Each minute (so many of them): while the pipes leave water unpurified (the risk option), a group's water is purified
--- as long as one of its filters has media, and that one wears by the hour (a group's other filters wait their turn).
--- Without the option the pipes purify and filters rest. Filters that are off (BU.enabled) rest and purify nothing: with the option, the water stays as
--- the tanks hold it.
-function WaterRun.filters(panel, minutes)
-    local filters, changed = working(panel, "filter", { "working" })
-    if not BU.enabled("water") or not BU.waterAvailable() then
-        if changed then Sync.changed(panel.id) end
-        return
-    end
-    local unpurified = WaterUnits.unpurifiedPipes()
-    local filtering = {}
-    for _, unit in ipairs(filters) do
-        local group = WaterUnits.group(unit)
-        local working = unpurified and not filtering[group] and (unit.media or 0) > 0
-        -- For its look (WaterUnits.filterLook).
-        unit.working = working or nil
-        if working then
-            filtering[group] = true
-            local before = math.floor(WaterUnits.mediaLeft(unit) * 100)
-            unit.media = math.max(0, unit.media - minutes / 60)
-            if math.floor(WaterUnits.mediaLeft(unit) * 100) ~= before then changed = true end
-            if unit.media <= 0 then Sync.notice(panel, "IGUI_BU_Notice_FilterSpent", BU.Water.groupName(panel, group)) end
-        end
-    end
-    for _, group in ipairs(Water.groups(panel)) do
-        local on = not unpurified or filtering[group.id] == true
-        Networks.setGroupPurify(panel, group.id, on)
     end
     if changed then Sync.changed(panel.id) end
 end

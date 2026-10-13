@@ -1,4 +1,4 @@
--- Batch 3 of the plan (DESIGN 12): the water groups and their floor trees, draw and fill through the API, freezing,
+-- Batch 3 of the plan (DESIGN 12): the pipes and their networks, draw and fill through the API, freezing,
 -- lamps on outer walls, the plan's room outlines and the range's speed. "[bu20]" lines. Leaves the panel's water as
 -- it found it, and the window open with the plan shown.
 RUN("bu_lib.lua")
@@ -13,34 +13,35 @@ say("api", api ~= nil, "draw", api and api.networks.draw ~= nil, "aboveOnly", Wa
 if not api then return end
 
 local function layout(label)
-    local nets, floors = Water.layout(panel)
+    local nets = Networks.waterLayout(panel).networks
     for _, net in ipairs(nets) do
         local state = api.networks.state(net.id)
-        say(label, net.id, "parent", tostring(net.parent), "producers", #net.producers, "rooms", #net.rooms,
-            "defined", state ~= nil, "held", state and litres(state.amount), "of", state and litres(state.capacity))
+        say(label, net.id, "parents", #(net.parents or {}), "producers", #(net.producers or {}), "rooms",
+            #(net.rooms or {}), "defined", state ~= nil, "held", state and litres(state.amount), "of",
+            state and litres(state.capacity))
     end
     local state = Networks.state(panel, "water")
     say(label, "panel supplied", state and state.supplied, "held", state and litres(state.amount), "of", state and litres(state.capacity))
-    for id, each in pairs(state and state.groups or {}) do say(label, "group", id, litres(each.amount), "of", litres(each.capacity)) end
-    return nets, floors
+    for id, each in pairs(state and state.pipes or {}) do say(label, "pipe", id, litres(each.amount), "of", litres(each.capacity)) end
+    return nets
 end
-local nets = layout("start")
+layout("start")
 
--- A second group with the first tank in it, then gone again: the tank goes back to the first group.
-local group = Changes.addWaterGroup(panel, "Garden")
-say("added group", group and group.id, "groups", #Water.groups(panel))
-if group and panel.water.producers[1] then
-    Changes.setProducerGroup(panel, 1, group.id)
-    layout("grouped")
-    Changes.removeWaterGroup(panel, group.id)
-    say("removed: tank 1 group", Water.producerGroup(panel.water.producers[1]), "groups", #Water.groups(panel))
-elseif group then
-    Changes.removeWaterGroup(panel, group.id)
+-- A second pipe with the first tank on it, then gone again: the tank goes back on the first pipe.
+local pipe = Changes.addPipe(panel)
+say("added pipe", pipe, "pipes", #Water.pipes(panel))
+if pipe and panel.water.producers[1] then
+    Changes.setProducerPipe(panel, 1, pipe)
+    layout("piped")
+    Changes.removePipe(panel, pipe)
+    say("removed: tank 1 pipe", Water.producerPipe(panel, panel.water.producers[1]), "pipes", #Water.pipes(panel))
+elseif pipe then
+    Changes.removePipe(panel, pipe)
 end
-nets = layout("after")
+layout("after")
 
--- Fill then draw the same on the first group's lowest network: what it holds comes back.
-local lowest = Water.lowestId(panel, Water.FIRST)
+-- Fill then draw the same on the first tank network: what it holds comes back.
+local lowest = BUT.firstTank(panel)
 local before = api.networks.state(lowest)
 local okFill, filled = pcall(api.networks.fill, BU.handle(), lowest, 5, "Water")
 local okDraw, drawn, mix = pcall(api.networks.draw, BU.handle(), lowest, okFill and filled or 0)

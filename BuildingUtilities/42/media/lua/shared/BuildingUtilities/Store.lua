@@ -20,12 +20,12 @@ local KEY = "BuildingUtilities"
 --   the building, which the box takes as its building's though the API has them as single objects, BU.Panels.attached);
 --   for power also schedule (BU.thingKey to a timer of BU.SCHEDULES), breaker (its breaker's gauge under overload, 0
 --   to 1, nil while full: BU.Panels.breaker) and timed (a set: what the box keeps off by their timers).
---   For water also groups (the player's water groups, BU.Water: a list of { id, name, reserve (the percent its
---   tanks keep from sprinklers, or nil) }, the first always there),
---   nextGroup, groupOf (BU.thingKey to the group of a fixture not in the first) and levelLog (by group, what its
---   tanks held hour by hour, oldest first, at most Store.ENERGY_HOURS: { hour, amount, capacity }); a water producer
---   may have group (nil for the first). With the freezing risk: frozen (its pipes are), coldHours and warmHours
---   (how long it has been below freezing or above thawing at the box).
+--   For water also pipes (BU.Water: a list of { id (its colour, 1 to Water.MAX_PIPES), name (set by the player, or
+--   nil), reserve (the percent its tanks keep from sprinklers, or nil) }, the first, blue, always there), roomPipe (a
+--   room's square, BU.placeKey, to its pipe when not the first), pipeOf (BU.thingKey to the pipe the player chose for
+--   a fixture) and levelLog (by pipe, what its tanks held hour by hour, oldest first, at most Store.ENERGY_HOURS:
+--   { hour, amount, capacity }); a water producer may have pipe (nil for the first). With the freezing risk: frozen
+--   (its pipes are), coldHours and warmHours (how long it has been below freezing or above thawing at the box).
 --   energyLog: what the panel's power did hour by hour, oldest first, at most Store.ENERGY_HOURS: { hour (world age,
 --   whole), made (what its solar panels made, on average), used (the load supplied), charge (its bank's at the end,
 --   or nil) }; energyNow is the hour being summed { hour, made, used, n, charge }.
@@ -41,11 +41,13 @@ local KEY = "BuildingUtilities"
 --   solar panel also snow (0 to 1, nil for none); a rack also warmth (as a panel's)
 --   and batteries, a record of
 --   each car battery in its container (BU.Rack.sync): { id (the item's), type, charge 0 to 1, condition 0 to
---   100 } (how often one was reconditioned is the item's own, BU.Rack.REVIVED). A water unit may have group (the
---   panel's water group it works for; nil for the first); a pump has fluid ("Water" from a well, "TaintedWater" from
---   a river or lake), running (it lifted water, or ran dry, at the last minute) and idle (why it lifted none:
---   "noPower", "frozen", "noWater", "noTanks" or "full"); a sprinkler sprayedAt (the world age it last watered at); a
---   filter media (hours of use left in its charge) and working (it purified its group's water at the last minute).
+--   100 } (how often one was reconditioned is the item's own, BU.Rack.REVIVED). A water unit may have pipe (its
+--   inlet's, a pump's outlet's; nil for the first) and a filter or booster pump out (its outlet's pipe, nil for its
+--   inlet's: BU.Water.unitPipes); a pump has fluid ("Water" from a well, "TaintedWater" from a river or lake); a
+--   pump, filter or booster pump running (it moved water at the last minute; a pump also while it runs dry), idle
+--   (why it moved none: "noPower", "frozen", "noWater", "noTanks", "full") and moved (litres an hour it moved at the
+--   last minute); a sprinkler sprayedAt (the world age it last watered at); a filter media (hours of use left in its
+--   charge).
 -- lines = { [ref] = line }: every line laid, kept apart from the boxes so that one cut stays (BU.Links); nextLine
 -- numbers them in the order they were laid.
 -- energyHour: the world age the units were last worked out at (Server). A panel with a bank keeps bankFlow, what
@@ -56,17 +58,17 @@ Store.KEY = KEY
 Store.LOG_SIZE = 30
 Store.ENERGY_HOURS = 48
 -- The save's layout. The mod is not released: a save of another layout is not carried over.
-local VERSION = 8
+local VERSION = 9
 
 local function utilityData()
     return { producers = {}, excluded = {}, included = {}, attached = {}, schedule = {}, timed = {} }
 end
 
--- What water keeps besides: one group, every tank and fixture in it.
+-- What water keeps besides: one pipe, every tank and fixture on it.
 local function waterData(data)
-    data.groups = data.groups or { { id = 1 } }
-    data.nextGroup = data.nextGroup or 2
-    data.groupOf = data.groupOf or {}
+    data.pipes = data.pipes or { { id = 1 } }
+    data.roomPipe = data.roomPipe or {}
+    data.pipeOf = data.pipeOf or {}
     data.levelLog = data.levelLog or {}
 end
 
@@ -262,12 +264,12 @@ function Store.recordEnergy(panel, made, used, charge)
     now.made, now.used, now.n, now.charge = now.made + made, now.used + used, now.n + 1, charge
 end
 
--- What a water group's tanks held this minute: kept as the hour's last, the hour into levelLog once it is over.
-function Store.recordWater(panel, group, amount, capacity)
+-- What a pipe's tanks held this minute: kept as the hour's last, the hour into levelLog once it is over.
+function Store.recordWater(panel, pipe, amount, capacity)
     local hour = math.floor(getGameTime():getWorldAgeHours())
     local logs = panel.water.levelLog
-    local log = logs[group] or {}
-    logs[group] = log
+    local log = logs[pipe] or {}
+    logs[pipe] = log
     local last = log[#log]
     if last and last.hour == hour then
         last.amount, last.capacity = amount, capacity

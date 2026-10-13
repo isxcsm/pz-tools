@@ -704,6 +704,8 @@ function Panels.devices(panel, utility)
     end
     table.sort(far, function(a, b) return BU.thingKey(a.x, a.y, a.z, a.sprite) < BU.thingKey(b.x, b.y, b.z, b.sprite) end)
     collect(far, false)
+    -- Water: the zone's rooms by id, for each device's room (BU.Water.placeDevice), made once.
+    local zoneRoomsById
     for _, group in ipairs(order) do
         if group.built and claimedElsewhere(panel, utility, group.keys) then group.inside = false end
         table.sort(group.entries, function(a, b) return a.key < b.key end)
@@ -731,7 +733,13 @@ function Panels.devices(panel, utility)
             -- Its line supplies nothing: why (BU.Links).
             if owner == panel and data.included[first.key] then device.cut = BU.Links.reason(panel, BU.Links.deviceRef(first.key)) end
         end
-        if utility == "water" then device.group = BU.Water.deviceGroup(panel, group.keys) end
+        if utility == "water" then
+            if not zoneRoomsById then
+                zoneRoomsById = {}
+                for _, room in ipairs(Panels.zoneRooms(panel)) do zoneRoomsById[room.id] = room end
+            end
+            BU.Water.placeDevice(panel, device, zoneRoomsById)
+        end
         if utility == "power" and group.object then device.switchOn = BU.Switches.state(group.object) end
         if utility == "power" and device.state == "on" then
             device.schedule = data.schedule[device.key] or "always"

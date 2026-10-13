@@ -34,6 +34,8 @@ function ISBUPanelWindow:updatePlan()
     end
     local devices = {}
     local hide = PanelWindow.options.hideUnwired
+    -- Water with more than one pipe: each thing in its pipe's colour (a fixture ringed in it), and the lines too.
+    local pipes = utility == "water" and BU.Water.shown(panel)
     for _, device in ipairs(view.devices) do
         local entry = device.entry
         if not (hide and not device.wired) then
@@ -41,7 +43,8 @@ function ISBUPanelWindow:updatePlan()
                 inside = device.inside, state = device.state, wired = device.wired, held = device.held, cut = device.cut,
                 power = device.power, utility = utility, name = view.names[device.key] or "",
                 status = view.status[device.key], fresh = view.fresh[device.key],
-                ref = not device.inside and device.wired and Links.deviceRef(device.key) or nil }
+                ref = not device.inside and device.wired and Links.deviceRef(device.key) or nil,
+                ring = pipes and device.state == "on" and BU.Water.colour(device.pipe) or nil }
         end
     end
     local producers = {}
@@ -50,14 +53,12 @@ function ISBUPanelWindow:updatePlan()
         local inUse = PanelWindow.producerInUse(state, at)
         local ref = Links.producerRef(at.x, at.y, at.z)
         local cut = Links.reason(panel, ref) ~= nil
-        -- A tank in its group's colour, with more than one group.
-        local colour = utility == "water" and #BU.Water.groups(panel) > 1
-            and PanelWindow.groupColour(panel, BU.Water.producerGroup(at)) or nil
+        local colour = pipes and BU.Water.colour(BU.Water.producerPipe(panel, at)) or nil
         producers[#producers + 1] = { x = at.x, y = at.y, z = at.z, inUse = inUse and not cut, colour = colour, cut = cut,
             ref = ref, text = (view.producerText[index] or "") .. (cut and "  " .. getText("IGUI_BU_LineNotSupplied") or "") }
     end
-    -- The units: power's as its source, water's each on its own (in its group's colour, with more than one); one whose
-    -- line supplies nothing grey.
+    -- The units: power's as its source, water's each on its own (in its inlet's colour, a pump in its outlet's); one
+    -- whose line supplies nothing grey.
     local inUse = utility == "power" and Energy.inUse(state)
     for _, unit in ipairs(Store.unitList(nil, panel.id)) do
         if not BU.RELAY_KINDS[unit.kind] and Units.utility(unit) == utility and BU.enabled(unit.kind) then
@@ -66,10 +67,13 @@ function ISBUPanelWindow:updatePlan()
             local text = Units.name(unit)
             if not live then text = text .. "  " .. getText("IGUI_BU_LineNotSupplied")
             elseif utility == "water" then text = text .. "  " .. self:waterUnitStatus(unit) end
-            local colour = utility == "water" and #BU.Water.groups(panel) > 1
-                and PanelWindow.groupColour(panel, BU.WaterUnits.group(unit)) or nil
+            local colour
+            if pipes then
+                local inlet, outlet = BU.Water.unitPipes(panel, unit)
+                colour = BU.Water.colour(inlet or outlet)
+            end
             producers[#producers + 1] = { x = unit.x, y = unit.y, z = unit.z, unit = unit.kind, colour = colour, ref = ref,
-                cut = not live, inUse = live and (inUse or unit.running == true or unit.boosting == true), text = text }
+                cut = not live, inUse = live and (inUse or unit.running == true), text = text }
         end
     end
     -- What it could take and no box has: grey, as devices not connected are.
@@ -98,7 +102,8 @@ function ISBUPanelWindow:updatePlan()
             local tx, ty, tz = Links.endOf(line)
             if tx then
                 lines[#lines + 1] = { ref = line.ref, x1 = line.x, y1 = line.y, z1 = line.z, x2 = tx, y2 = ty, z2 = tz,
-                    live = Links.live(panel, line.ref) }
+                    live = Links.live(panel, line.ref), colour = pipes and BU.Water.colour(BU.Water.linePipe(panel, line))
+                        or nil }
             end
         end
     end

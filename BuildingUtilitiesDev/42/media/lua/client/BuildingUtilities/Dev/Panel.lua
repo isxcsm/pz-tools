@@ -230,7 +230,7 @@ local function waterPage(page, ui)
         { T("Wt_Fill", "100"), onPanel(function(p) Dev.setWater(p, 1) end) },
         { T("Wt_Fill", "50"), onPanel(function(p) Dev.setWater(p, 0.5) end) },
         { T("Wt_Fill", "0"), onPanel(function(p) Dev.setWater(p, 0) end) },
-        { T("Wt_Group"), onPanel(Dev.addGroup) },
+        { T("Wt_Pipe"), onPanel(Dev.addPipe) },
         { T("Wt_Spray"), onPanel(Dev.spray) },
     })
     local n = 11 + rows
@@ -249,7 +249,7 @@ local function waterPage(page, ui)
         local list = {}
         if p then
             local s = BU.Networks.state(p, "water")
-            lines[2] = s and T("Wt_State", ui.num(s.amount or 0), ui.num(s.capacity or 0), ui.num(#BU.Water.groups(p)),
+            lines[2] = s and T("Wt_State", ui.num(s.amount or 0), ui.num(s.capacity or 0), ui.num(#BU.Water.pipes(p)),
                 yes(p.water.frozen), yes(s.supplied)) or T("Wt_None")
             lines[3] = T("Wt_Risks", yes(BU.Water.freezeEnabled()), yes(BU.WaterUnits.unpurifiedPipes()),
                 yes(BU.Water.aboveOnly()))

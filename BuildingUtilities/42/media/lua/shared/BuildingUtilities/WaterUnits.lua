@@ -1,9 +1,10 @@
--- The water units (BU.Units, utility "water"), each wired to a panel and working for one of its water groups
--- (BU.Water): the pump fills the group's tanks from a river, a lake or a well beside it while the panel has power
--- (it goes anywhere, but without water beside it it runs dry: it draws its power and lifts nothing); the
--- sprinkler waters the crops around it from the group; the filter purifies the group's water while the
--- RiskPlumbingUnpurified option leaves the pipes unpurified; the booster pump lifts the group's water from its floor
--- to the floors above it (BU.Water.boostPlan). What they do each minute is the server's
+-- The water units (BU.Units, utility "water"), each wired to a panel and on its pipes (BU.Water.unitPipes): the pump
+-- fills its pipe's tanks from a river, a lake or a well beside it while the panel has power (it goes anywhere, but
+-- without water beside it it runs dry: it draws its power and lifts nothing); the sprinkler waters the crops around it
+-- from its pipe; the filter moves water from its inlet pipe to its outlet pipe, purifying it while the
+-- RiskPlumbingUnpurified option leaves the pipes unpurified; the booster pump moves water from its inlet pipe up to
+-- its outlet pipe's tanks on the floors above it. Pump, filter and booster pump move so many litres an hour while
+-- their panel has power and the outlet has room. What they do each minute is the server's
 -- (server/BuildingUtilities/WaterRun.lua); their art is the bu_water_01 sheet (tools/tile_art.py), a lamp on each
 -- telling how it runs.
 require "BuildingUtilities/Units"
@@ -33,18 +34,21 @@ WaterUnits.FILTER_LOOKS = { resting = WaterUnits.FILTER_SPRITES, working = Units
     spent = Units.sheetSprites(30, FILTER_WAYS) }
 local FILTER_LOOK_OF = Units.lookOf(WaterUnits.FILTER_LOOKS)
 -- The booster pump faces the character who put it down (its control box in front); put down stopped. Its lamp: dark
--- stopped, green boosting, amber with power but no water reaching its floor; under rime while its box's pipes are
+-- stopped, green boosting, amber with power but no water at its inlet; under rime while its box's pipes are
 -- frozen (WaterUnits.boosterLook).
 local BOOSTER_SIDES, BOOSTER_ORDER = { "S", "E", "N", "W" }, { "stopped", "running", "dry", "frozen" }
 WaterUnits.BOOSTER_SPRITES = Units.sheetSprites(56, BOOSTER_SIDES)
 WaterUnits.BOOSTER_LOOKS = { stopped = WaterUnits.BOOSTER_SPRITES, running = Units.sheetSprites(60, BOOSTER_SIDES),
     dry = Units.sheetSprites(64, BOOSTER_SIDES), frozen = Units.sheetSprites(68, BOOSTER_SIDES) }
 local BOOSTER_LOOK_OF = Units.lookOf(WaterUnits.BOOSTER_LOOKS)
--- The load a booster puts on its panel's power while it lifts.
+-- Litres a booster pump lifts an hour, and the load it puts on its panel's power while it lifts.
+WaterUnits.BOOSTER_RATE = 40
 WaterUnits.BOOSTER_LOAD = 0.25
 -- Litres a pump lifts an hour, and the load it puts on its panel's power while it runs.
 WaterUnits.PUMP_RATE = 20
 WaterUnits.PUMP_LOAD = 0.12
+-- Litres a filter passes an hour.
+WaterUnits.FILTER_RATE = 30
 -- Squares around a sprinkler it waters (5 by 5), and the litres one use of a watering can gives a plant (+10 water).
 WaterUnits.SPRINKLER_RADIUS = 2
 WaterUnits.LITRES_PER_USE = ((ZomboidGlobals and ZomboidGlobals.farmingFluidContainerMillilitresPerUse) or 200) / 1000
@@ -72,34 +76,37 @@ function WaterUnits.pumpLook(unit)
 end
 
 -- How a booster looks: frozen while its box's pipes are (with water on), else running (lifting), dry (its power on
--- but no water reaching its floor) or stopped.
+-- but no water at its inlet) or stopped.
 function WaterUnits.boosterLook(unit)
     local panel = Store.get(unit.panel)
     if panel and panel.water.frozen and BU.enabled("water") then return "frozen" end
-    if unit.boosting then return "running" end
+    if unit.running then return "running" end
     if unit.idle == "noWater" then return "dry" end
     return "stopped"
 end
 
--- How a filter looks: spent without media, working while it purifies its group's water (WaterRun.filters), else
--- resting.
+-- How a filter looks: spent without media, working while it passes water (WaterRun), else resting.
 function WaterUnits.filterLook(unit)
     if (unit.media or 0) <= 0 then return "spent" end
-    if unit.working and unit.panel then return "working" end
+    if unit.running and unit.panel then return "working" end
     return "resting"
 end
 
 -- Whether the pipes leave water as its tanks hold it (the RiskPlumbingUnpurified option, in a game whose API can:
--- BU.purifyAvailable): then only a filter purifies a group's water.
+-- BU.purifyAvailable): then only a filter purifies water.
 function WaterUnits.unpurifiedPipes()
     return BU.sandbox("RiskPlumbingUnpurified", false) == true and BU.purifyAvailable()
 end
 
--- The group a unit works for: its own, while its panel still has it, else the first.
-function WaterUnits.group(unit)
+-- A unit's inlet and outlet pipes (BU.Water.unitPipes); the first for one with no panel.
+function WaterUnits.pipes(unit)
     local panel = Store.get(unit.panel)
-    if unit.group and panel and Water.group(panel, unit.group) then return unit.group end
-    return Water.FIRST
+    if not panel then
+        if unit.kind == "pump" then return nil, Water.FIRST end
+        if unit.kind == "sprinkler" then return Water.FIRST, nil end
+        return Water.FIRST, Water.FIRST
+    end
+    return Water.unitPipes(panel, unit)
 end
 
 -- The side across a square from a side.
@@ -232,7 +239,7 @@ Units.define("booster", {
         Units.showLook(object, WaterUnits.BOOSTER_LOOKS, WaterUnits.boosterLook(unit), BOOSTER_LOOK_OF)
     end,
     title = function(unit, text)
-        return text .. "  " .. getText(unit.boosting and "IGUI_BU_PumpRunning" or "IGUI_BU_PumpStopped")
+        return text .. "  " .. getText(unit.running and "IGUI_BU_PumpRunning" or "IGUI_BU_PumpStopped")
     end,
 })
 

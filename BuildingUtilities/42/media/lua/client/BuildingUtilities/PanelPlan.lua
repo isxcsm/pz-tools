@@ -210,12 +210,12 @@ end
 
 
 -- data: { utility, supplied, rooms = { { id, title, level, rects } }, devices = { { key, x, y, z, roomId, inside,
--- state, held, cut, power, name, status, ref } }, producers = { { x, y, z, inUse, text, unit = its kind for a unit,
--- colour or nil, cut, ref } }, relays = { { x, y, z, kind, cut, text, ref } }, lines = { { ref, x1, y1, z1 (its
--- thing), x2, y2, z2 (what it hangs on), live } }, box = { x, y, z }, outdoor, boxes = { { x, y, z, own, text } } (the
+-- state, held, cut, power, name, status, ref, ring (a colour around its dot, or nil) } }, producers = { { x, y, z, inUse,
+-- text, unit = its kind for a unit, colour or nil, cut, ref } }, relays = { { x, y, z, kind, cut, text, ref } }, lines =
+-- { { ref, x1, y1, z1 (its thing), x2, y2, z2 (what it hangs on), live, colour (a water pipe's, or nil) } }, box = { x, y, z }, outdoor, boxes = { { x, y, z, own, text } } (the
 -- boxes whose zones can have these rooms, this window's own), filter = room id, zone = room id to { state = "mine",
 -- "free", "taken" or "far", owner = a name, note = why a far room cannot be taken }, zoneEditable, zoneEdit, zoneNote,
--- farLevels (the floors with no room the zone can take, a set), waterSupply (by floor, "dry" or "boosted", for water),
+-- farLevels (the floors with no room the zone can take, a set), waterSupply (by floor, "dry", for water),
 -- ranges = { reach = steps, relayReach = steps, relays = { { x, y, z } }, noise = for power { { x, y, z, radius,
 -- running } } } while the range is shown, rangeKey (what the ranges are of) }.
 function ISBUPlan:setData(data)
@@ -521,12 +521,12 @@ function ISBUPlan:layout()
                 h = FONT_HGT_SMALL + 2, text = group.text, tip = group.tip, colour = group.colour, level = group.level }
         end
     end
-    -- The lines with an end on this floor, square middle to square middle, in their utility's colour or grey; each
-    -- found by its thing's ref for the mouse.
+    -- The lines with an end on this floor, square middle to square middle, in their utility's colour (a water pipe's
+    -- own) or grey; each found by its thing's ref for the mouse.
     local lineColour = data.utility == "water" and COLOURS.lineWater or COLOURS.linePower
     for _, line in ipairs(data.lines or {}) do
         if line.z1 == self.floor or line.z2 == self.floor then
-            local colour = line.live and lineColour or COLOURS.lineCut
+            local colour = line.live and (line.colour or lineColour) or COLOURS.lineCut
             local drawn = { x1 = ox + (line.x1 + 0.5 - minX) * scale, y1 = oy + (line.y1 + 0.5 - minY) * scale,
                 x2 = ox + (line.x2 + 0.5 - minX) * scale, y2 = oy + (line.y2 + 0.5 - minY) * scale, live = line.live,
                 r = colour[1], g = colour[2], b = colour[3] }
@@ -593,7 +593,8 @@ function ISBUPlan:layout()
             local r, g, b = dotColour(device, data.supplied)
             self.dots[#self.dots + 1] = { key = device.key, room = device.inside and device.roomId or nil,
                 x = math.floor(sx(device.x) + scale / 2), y = math.floor(sy(device.y) + scale / 2), r = r, g = g, b = b,
-                text = device.name .. "  " .. (device.status or ""), fresh = device.fresh, ref = device.ref }
+                text = device.name .. "  " .. (device.status or ""), fresh = device.fresh, ref = device.ref,
+                ring = device.ring }
         end
     end
     for _, producer in ipairs(data.producers) do
@@ -977,7 +978,9 @@ function ISBUPlan:render()
     end
     for _, dot in ipairs(self.dots) do
         local half = DOT / 2
-        self:drawRect(dot.x - half - 1, dot.y - half - 1, DOT + 2, DOT + 2, 0.85, 0.02, 0.03, 0.05)
+        local ring = dot.ring
+        if ring then self:drawRect(dot.x - half - 2, dot.y - half - 2, DOT + 4, DOT + 4, 1, ring[1], ring[2], ring[3])
+        else self:drawRect(dot.x - half - 1, dot.y - half - 1, DOT + 2, DOT + 2, 0.85, 0.02, 0.03, 0.05) end
         self:drawRect(dot.x - half, dot.y - half, DOT, DOT, 1, dot.r, dot.g, dot.b)
         if dot.fresh then self:drawRect(dot.x + half, dot.y - half - 3, 3, 3, 1, 0.3, 0.9, 1) end
         if dot.key == hoverKey or marked and not marked.square and marked.r == dot.r
@@ -1026,9 +1029,8 @@ function ISBUPlan:render()
         UI.fill(self, cell.x, cell.y, cell.w, cell.h, current and P.sel or P.panel, current and 0.55 or 0.5 + 0.3 * k)
         UI.frame(self, cell.x, cell.y, cell.w, cell.h, current and P.value or P.border, 1)
         if cell.on then self:drawRect(cell.x + 1, cell.y + 1, 3, cell.h - 2, 1, 0.4, 0.9, 0.4) end
-        -- Water: a floor boosters lift to (blue) or that no water reaches (red), along its foot.
-        if cell.supply == "boosted" then self:drawRect(cell.x + 5, cell.y + cell.h - 3, cell.w - 12, 2, 1, 0.3, 0.75, 0.95)
-        elseif cell.supply == "dry" then self:drawRect(cell.x + 5, cell.y + cell.h - 3, cell.w - 12, 2, 1, 0.9, 0.3, 0.25) end
+        -- Water: a floor with a fixture no tank reaches (red), along its foot.
+        if cell.supply == "dry" then self:drawRect(cell.x + 5, cell.y + cell.h - 3, cell.w - 12, 2, 1, 0.9, 0.3, 0.25) end
         -- The box's floor, so the player finds the way back.
         if cell.box then self:drawRect(cell.x + cell.w - 5, cell.y + 2, 3, 3, 1, 1, 1, 1) end
         -- Its producers, in their colour.

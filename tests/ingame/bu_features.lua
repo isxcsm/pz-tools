@@ -92,7 +92,7 @@ end
 -- connect, pumps stopped and drawing nothing; on again: all back.
 local powerId = BU.networkId(panel.id, "power")
 local devicesBefore = #Panels.devices(panel, "power")
-WaterRun.pumps(panel, 1)
+WaterRun.machines(panel, 1)
 say("pump with power: running", pump.running, "load", panel.extraLoads and panel.extraLoads.pumps)
 set("EnablePower", false)
 check("power off: API network", api.networks.state(powerId), nil)
@@ -102,7 +102,7 @@ check("power off: devices", #Panels.devices(panel, "power"), 0)
 check("power off: install solar", select(2, Units.canInstall("solar", freeSquare())), "disabled")
 check("power off: power units", #Units.of(panel.id, "power"), 0)
 check("power off: has source", Energy.hasSource(panel), false)
-WaterRun.pumps(panel, 60)
+WaterRun.machines(panel, 60)
 check("power off: pump running", pump.running, nil)
 check("power off: pumps load", panel.extraLoads and panel.extraLoads.pumps, nil)
 local loadNote = getText("IGUI_BU_UpgradeNote", string.format("%.2f", BU.capacity(2)))
@@ -131,13 +131,13 @@ panel.tier = savedTier or 1
 -- Every pump of the panel goes from the list (another check may have left one of its own).
 local waterUnits, pumps = #Units.of(panel.id, "water"), #Store.unitList("pump", panel.id)
 set("EnablePumps", false)
-WaterRun.pumps(panel, 60)
+WaterRun.machines(panel, 60)
 check("pumps off: running", pump.running, nil)
 check("pumps off: load", panel.extraLoads and panel.extraLoads.pumps, nil)
 check("pumps off: water units listed", #Units.of(panel.id, "water"), waterUnits - pumps)
 check("pumps off: install", select(2, Units.canInstall("pump", freeSquare())), "disabled")
 set("EnablePumps", true)
-WaterRun.pumps(panel, 60)
+WaterRun.machines(panel, 60)
 check("pumps on: running", pump.running, true)
 
 -- Sprinklers off: a dry plant beside one stays dry; on: watered.
@@ -164,37 +164,36 @@ say("sprinklers on: plant water", plant.waterLvl, "(more than 20 unless it rains
 -- Filters off with the pipes leaving water unpurified: rest, keep their media, purify nothing; on: work.
 page.RiskPlumbingUnpurified = true
 local function purify()
-    local state = Networks.groupState(panel, WaterUnits.group(filter))
-    return state and state.purify
+    return BUT.unitPurify(panel, filter)
 end
-WaterRun.filters(panel, 60)
-say("filter on: working", filter.working, "purify", purify(), "(true, true with the purification hooks)")
+WaterRun.machines(panel, 60)
+say("filter on: working", filter.running, "purify", purify(), "(true, true with the purification hooks)")
 set("EnableFilters", false)
 local media = filter.media
-WaterRun.filters(panel, 60)
-check("filters off: working", filter.working, nil)
+WaterRun.machines(panel, 60)
+check("filters off: working", filter.running, nil)
 check("filters off: media kept", filter.media, media)
 check("filters off: purify", purify() == true, not WaterUnits.unpurifiedPipes())
 set("EnableFilters", true)
-WaterRun.filters(panel, 60)
-say("filters on: working", filter.working, "(true with the purification hooks, unless another filter of its group works)")
+WaterRun.machines(panel, 60)
+say("filters on: working", filter.running, "(true with the purification hooks, unless another filter of its pipe works)")
 page.RiskPlumbingUnpurified = savedRisk
-WaterRun.filters(panel, 1)
+WaterRun.machines(panel, 1)
 
 -- Water off: its networks go (the API forgets them), nothing drawn or filled, freezing left, the water units listed
 -- none; on: the tanks again as before.
-local lowest = Water.lowestId(panel, Water.FIRST)
-local held = Networks.groupState(panel, Water.FIRST)
+local lowest = BUT.firstTank(panel)
+local held = BUT.pipeState(panel, Water.FIRST)
 set("EnableWater", false)
 check("water off: API network", lowest and api.networks.state(lowest), nil)
 check("water off: state", Networks.state(panel, "water"), nil)
-check("water off: fill", Networks.fill(panel, Water.FIRST, 1, "Water"), 0)
+check("water off: fill", Networks.fillInto(panel, { BUT.firstTank(panel) or "" }, 1, "Water"), 0)
 check("water off: devices", #Panels.devices(panel, "water"), 0)
 check("water off: water units", #Units.of(panel.id, "water"), 0)
 check("water off: install sprinkler", select(2, Units.canInstall("sprinkler", freeSquare())), "disabled")
 check("water off: pump", BU.enabled("pump"), false)
 set("EnableWater", true)
-local back = Networks.groupState(panel, Water.FIRST)
+local back = BUT.pipeState(panel, Water.FIRST)
 check("water on: state", back ~= nil, BU.waterAvailable())
 say("water on: held", held and held.amount, "now", back and back.amount)
 
@@ -220,8 +219,8 @@ check("both off: box", select(2, Panels.canInstall(getCell():getGridSquare(panel
 check("both off: window tabs", window.lists.power == nil and window.lists.water == nil, true)
 check("both off: active utility", window:activeUtility(), nil)
 check("both off: status", window.status, nil)
-WaterRun.pumps(panel, 60)
-WaterRun.filters(panel, 60)
+WaterRun.machines(panel, 60)
+WaterRun.machines(panel, 60)
 check("both off: pump running", pump.running, nil)
 allOn()
 window:refresh()
@@ -324,7 +323,7 @@ plan:layout()
 -- Gone again.
 Networks.state = realState
 for _, unit in ipairs({ pump, sprinkler, filter }) do Changes.removeUnit(unit) end
-WaterRun.pumps(panel, 1)
+WaterRun.machines(panel, 1)
 for _, name in ipairs(OPTIONS) do page[name] = saved[name] end
 page.RiskPlumbingUnpurified = savedRisk
 panel.tier = savedTier

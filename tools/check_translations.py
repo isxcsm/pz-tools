@@ -29,7 +29,7 @@ KEY = re.compile(r'["\']((?:IGUI|ContextMenu|Tooltip)_BU_\w*|IGUI_ContainerTitle
 PREFIX = re.compile(r'["\']((?:IGUI|ContextMenu|Tooltip)_BU_\w+)["\']\s*\.\.')
 # Keys built in ways the patterns above cannot see: the game names a container's title itself
 # (IGUI_ContainerTitle_<type>); the list's row buttons are "IGUI_BU_" .. name (PanelList.lua, BUTTONS).
-BUILT = {'IGUI_ContainerTitle_BuildingUtilitiesRack', 'IGUI_BU_Up', 'IGUI_BU_Down', 'IGUI_BU_Remove'}
+BUILT = {'IGUI_ContainerTitle_BuildingUtilitiesRack', 'IGUI_BU_Up', 'IGUI_BU_Down', 'IGUI_BU_Remove', 'IGUI_BU_Settings'}
 
 
 def load(lang, names):

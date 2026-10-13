@@ -57,3 +57,33 @@ function BUT.luaDir()
     local info = getModInfoByID("BuildingUtilities")
     return info and info:getVersionDir() and (info:getVersionDir() .. "/media/lua/")
 end
+
+-- A pipe's water as the panel's state has it ({ amount, capacity, supplied, foreign, buildings }), or nil.
+function BUT.pipeState(panel, pipe)
+    local state = BuildingUtilities.Networks.state(panel, "water")
+    return state and state.pipes[pipe]
+end
+
+-- The pipe a water unit is on: its inlet's, a pump's outlet's; and that pipe's state.
+function BUT.unitPipeState(panel, unit)
+    local inlet, outlet = BuildingUtilities.WaterUnits.pipes(unit)
+    return BUT.pipeState(panel, inlet or outlet)
+end
+
+-- Whether the use network at a water unit's inlet purifies (the API's purify switch).
+function BUT.unitPurify(panel, unit)
+    local BU = BuildingUtilities
+    local layout = BU.Networks.waterLayout(panel)
+    local building, level = BU.Water.placeOf(panel, unit.x, unit.y, unit.z, BU.Links.unitRef(unit))
+    local id = BU.Water.useId(layout, (BU.WaterUnits.pipes(unit)), building, level)
+    local state = id and BU.Networks.waterState(id)
+    return state and state.purify
+end
+
+-- The panel's first tank network, by id, or nil.
+function BUT.firstTank(panel)
+    for _, network in ipairs(BuildingUtilities.Networks.waterLayout(panel).networks) do
+        if network.kind == "T" then return network.id end
+    end
+    return nil
+end

@@ -53,7 +53,7 @@ Networks.state = function(p, utility)
     return copy
 end
 local pump, pumpSquare = put("pump")
-WaterRun.pumps(panel, 1)
+WaterRun.machines(panel, 1)
 local power = Networks.state(panel, "power")
 say("dry: fluid", pump.fluid, "running", pump.running, "idle", pump.idle, "load", panel.extraLoads and panel.extraLoads.pumps,
     "status", status(nil, pump))
@@ -61,18 +61,18 @@ local well = getCell():getGridSquare(pump.x + 1, pump.y, 0)
 local wellObject = IsoObject.new(well, "camping_01_16", nil, false)
 well:AddTileObject(wellObject)
 say("well beside:", WaterUnits.waterBeside(pumpSquare))
-local group = Networks.groupState(panel, WaterUnits.group(pump))
+local group = BUT.unitPipeState(panel, pump)
 local before = group and group.amount
-WaterRun.pumps(panel, 60)
+WaterRun.machines(panel, 60)
 say("wet: fluid", pump.fluid, "running", pump.running, "idle", pump.idle, "load", panel.extraLoads and panel.extraLoads.pumps,
     "status", status(nil, pump), "held before", litres(before),
     "of", litres(group and group.capacity))
 panel.tripped = true
-WaterRun.pumps(panel, 1)
+WaterRun.machines(panel, 1)
 say("tripped: running", pump.running, "idle", pump.idle, "load", panel.extraLoads and panel.extraLoads.pumps, "status", status(nil, pump))
 panel.tripped = nil
-WaterRun.pumps(panel, 1)
-local after = Networks.groupState(panel, WaterUnits.group(pump))
+WaterRun.machines(panel, 1)
+local after = BUT.unitPipeState(panel, pump)
 say("power back: running", pump.running, "idle", pump.idle, "held now", litres(after and after.amount))
 
 -- The sprinkler, with a dry plant beside it in place of the farming system's.
@@ -98,32 +98,31 @@ local filter = put("filter")
 local page = SandboxVars.BuildingUtilities
 local option = page.RiskPlumbingUnpurified
 local function purify()
-    local state = Networks.groupState(panel, WaterUnits.group(filter))
-    return state and state.purify
+    return BUT.unitPurify(panel, filter)
 end
 page.RiskPlumbingUnpurified = false
-WaterRun.filters(panel, 60)
+WaterRun.machines(panel, 60)
 say("pipes purify: media", litres(filter.media), "purify", purify(), "status", status(nil, filter))
 page.RiskPlumbingUnpurified = true
-WaterRun.filters(panel, 60)
+WaterRun.machines(panel, 60)
 say("option on: media", litres(filter.media), "purify", purify(), "status", status(nil, filter))
 filter.media = 0.5
-WaterRun.filters(panel, 60)
+WaterRun.machines(panel, 60)
 say("spent: media", litres(filter.media), "purify", purify(), "title", Units.definition("filter").title(filter, "Filter"))
-WaterRun.filters(panel, 1)
+WaterRun.machines(panel, 1)
 say("spent, a minute on: purify", purify())
 local entry = Units.definition("filter").options(filter, player)[1]
 say("replace option", entry.text, "reason", entry.reason)
 Changes.replaceMedia(filter)
-WaterRun.filters(panel, 1)
+WaterRun.machines(panel, 1)
 say("replaced: media", litres(filter.media), "purify", purify())
 page.RiskPlumbingUnpurified = option
-WaterRun.filters(panel, 1)
+WaterRun.machines(panel, 1)
 say("option back", option, "purify", purify())
 
 -- Gone again.
 well:transmitRemoveItemFromSquare(wellObject)
 for _, unit in ipairs({ pump, sprinkler, filter }) do Changes.removeUnit(unit) end
-WaterRun.pumps(panel, 1)
+WaterRun.machines(panel, 1)
 Networks.state = realState
 say("cleaned: units", #Units.of(panel.id, "water"), "load", panel.extraLoads and panel.extraLoads.pumps)

@@ -61,6 +61,9 @@ local UPGRADES = {
 }
 function Costs.upgrade(tier) return UPGRADES[tier] end
 
+-- A new pipe put in at the box (BU.Water): a pipe wrench and two pipes.
+function Costs.addPipe() return { tools = { "pipewrench" }, items = { { Costs.PIPE, 2 } } } end
+
 -- Costs together, as one: each tool once, the items summed by type, the highest skill.
 function Costs.sum(costs)
     local result, tools, items = { tools = {}, items = {} }, {}, {}

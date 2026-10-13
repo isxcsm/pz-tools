@@ -1,4 +1,4 @@
--- Timed actions: laying and taking away lines, upgrading a box, throwing its lever,
+-- Timed actions: laying and taking away lines, upgrading a box, putting in a pipe, throwing its lever,
 -- brushing snow off a solar panel, replacing a filter's media, reconditioning a battery. A device, a unit or a
 -- producer is wired in and out at itself, with the tool of its utility in hand (Actions.work).
 -- Each names panels and squares, not objects, and checks again as it completes, where the world is decided
@@ -118,7 +118,7 @@ end
 
 -- Laying a line: a producer, an outside device, a unit, or a cut branch's first line hung on again (see
 -- Actions.lineCost). The cost is worked out as the action is made; each tick only checks that nothing took the place
--- meanwhile, and complete checks it all.
+-- meanwhile (not the character's inventory), and complete checks it all.
 ISBUConnect = base("ISBUConnect")
 
 function ISBUConnect:cost()
@@ -127,7 +127,7 @@ end
 
 function ISBUConnect:isValid()
     local panel = Store.get(self.panelId)
-    if not panel or not self.costNow or not Costs.affords(self.character, self.costNow) then return false end
+    if not panel or not self.costNow then return false end
     if self.kind == "producer" then return Links.get(Links.producerRef(self.x, self.y, self.z)) == nil end
     if self.kind == "outside" then return Store.inclusionOwner(self.utility, BU.thingKey(self.x, self.y, self.z, self.extra)) == nil end
     if self.kind == "rehang" then return Links.get(self.extra) ~= nil end
@@ -202,7 +202,7 @@ function ISBUDisconnect:new(character, kind, panel, utility, x, y, z, extra)
     return o
 end
 
--- Upgrading a box to carry more.
+-- Upgrading a box to carry more. What it takes is checked as it is queued and as it completes, not each tick.
 ISBUUpgradePanel = base("ISBUUpgradePanel", 400)
 
 function ISBUUpgradePanel:cost()
@@ -210,10 +210,7 @@ function ISBUUpgradePanel:cost()
     return panel and Costs.upgrade((panel.tier or 1) + 1) or nil
 end
 
-function ISBUUpgradePanel:isValid()
-    local cost = self:cost()
-    return cost ~= nil and Costs.affords(self.character, cost)
-end
+function ISBUUpgradePanel:isValid() return self:cost() ~= nil end
 
 function ISBUUpgradePanel:complete()
     local cost = self:cost()
@@ -226,6 +223,34 @@ function ISBUUpgradePanel:complete()
 end
 
 function ISBUUpgradePanel:new(character, panel)
+    local o = ISBaseTimedAction.new(self, character)
+    o.panelId, o.x, o.y = panel.id, panel.x, panel.y
+    o.maxTime = o:getDuration()
+    return o
+end
+
+-- A new pipe put in at the box: the next colour (BU.Water.nextPipe). What it takes is checked as it is queued and as
+-- it completes, not each tick.
+ISBUAddPipe = base("ISBUAddPipe", 200)
+
+function ISBUAddPipe:isValid()
+    local panel = Store.get(self.panelId)
+    return panel ~= nil and BU.Water.nextPipe(panel) ~= nil
+end
+
+function ISBUAddPipe:start()
+    Actions.work(self, "water")
+end
+
+function ISBUAddPipe:complete()
+    local panel = Store.get(self.panelId)
+    if not panel or not BU.Water.nextPipe(panel) or not Costs.affords(self.character, Costs.addPipe()) then return false end
+    Costs.take(self.character, Costs.addPipe())
+    Changes.addPipe(panel)
+    return true
+end
+
+function ISBUAddPipe:new(character, panel)
     local o = ISBaseTimedAction.new(self, character)
     o.panelId, o.x, o.y = panel.id, panel.x, panel.y
     o.maxTime = o:getDuration()
@@ -256,12 +281,13 @@ function ISBUClearSnow:new(character, unit)
     return o
 end
 
--- A filter's media replaced: the charcoal and cloth a charge takes (BU.WaterUnits.MEDIA) used up.
+-- A filter's media replaced: the charcoal and cloth a charge takes (BU.WaterUnits.MEDIA) used up; whether the
+-- character has them is checked as it completes, not each tick.
 ISBUReplaceMedia = base("ISBUReplaceMedia", 200)
 
 function ISBUReplaceMedia:isValid()
     local unit = Store.unit(self.unitId)
-    return unit ~= nil and BU.WaterUnits.mediaLeft(unit) < 1 and BU.WaterUnits.hasMedia(self.character)
+    return unit ~= nil and BU.WaterUnits.mediaLeft(unit) < 1
 end
 
 function ISBUReplaceMedia:complete()
@@ -294,9 +320,8 @@ end
 ISBUReviveBattery = ISBaseTimedAction:derive("ISBUReviveBattery")
 ISBUReviveBattery.getDuration = fixedDuration(400)
 
-function ISBUReviveBattery:isValid()
-    return self.character:getInventory():contains(self.item) and BU.Rack.canRevive(self.character, self.item)
-end
+-- The baking soda is looked for as it completes, not each tick.
+function ISBUReviveBattery:isValid() return self.character:getInventory():contains(self.item) end
 
 function ISBUReviveBattery:start()
     self:setActionAnim(CharacterActionAnims.Craft)

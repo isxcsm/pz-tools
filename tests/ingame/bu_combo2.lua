@@ -10,8 +10,8 @@ local power = Networks.state(panel, "power")
 say("power supplied", power and power.supplied, "load", power and power.load, "extra", power and power.extraLoad,
     "producer", power and power.producer and (power.producer.x .. "," .. power.producer.y), "pumps load",
     panel.extraLoads and panel.extraLoads.pumps)
-local group = Networks.groupState(panel, BU.Water.FIRST)
-say("water group 1 held", group and group.amount, "of", group and group.capacity, "purify", group and group.purify)
+local pipe = BUT.pipeState(panel, BU.Water.FIRST)
+say("water pipe 1 held", pipe and pipe.amount, "of", pipe and pipe.capacity, "foreign", pipe and pipe.foreign)
 for _, unit in ipairs(Units.of(panel.id, "water")) do
     say(unit.kind, unit.id, "at", unit.x, unit.y, "running", unit.running, "idle", unit.idle, "fluid", unit.fluid,
         "sprayedAt", unit.sprayedAt, "media", unit.media and string.format("%.1f", unit.media))

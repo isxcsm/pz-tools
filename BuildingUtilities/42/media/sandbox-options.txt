@@ -80,7 +80,7 @@ option BuildingUtilities.FloorReach
 
 option BuildingUtilities.BoosterLift
 {
-    type = integer, min = 1, max = 50, default = 10,
+    type = integer, min = 1, max = 50, default = 5,
     page = BuildingUtilities, translation = BuildingUtilities_BoosterLift,
 }
 

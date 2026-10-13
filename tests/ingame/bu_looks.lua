@@ -64,7 +64,7 @@ pumpAs(nil, "TaintedWater", nil, WaterUnits.PUMP_LOOKS.stopped.S)
 -- The filter, its pipe across.
 local filterObject = Units.object(filter)
 local function filterAs(working, media, want)
-    filter.working, filter.media = working, media
+    filter.running, filter.media = working, media
     Units.definition("filter").sync(filter, filterObject)
     check("filter " .. WaterUnits.filterLook(filter), spriteOf(filterObject), want)
 end

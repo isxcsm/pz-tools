@@ -155,12 +155,10 @@ local function floorsText(ranges)
 end
 
 -- How water reaches the floors of a panel with fixtures connected (supply: ISBUPanelWindow:workOutWaterSupply;
--- nothing told without it): the floors none reaches (a reason and WARN), else those boosters lift to (a reason).
+-- nothing told without it): the floors with a fixture no tank of its pipe reaches (a reason and WARN).
 local function supplyNote(supply)
-    if not supply then return nil end
-    if #supply.dry > 0 then return getText("IGUI_BU_Why_AboveTanks", floorsText(supply.dry)), WARN end
-    if #supply.boosted > 0 then return getText("IGUI_BU_Why_Boosted", floorsText(supply.boosted)), nil end
-    return nil
+    if not supply or #supply.dry == 0 then return nil end
+    return getText("IGUI_BU_Why_AboveTanks", floorsText(supply.dry)), WARN
 end
 
 -- A main panel's water: { text, left, reason, level }.
@@ -193,19 +191,32 @@ function PanelWindow.status(panel, utility, supply)
     return powerStatus(panel, state)
 end
 
--- How water reaches the box's floors with water fixtures connected, from its water tab's rows as last filled: { dry,
--- boosted (ranges of floors), byLevel } (BU.Water.floorSupply); nil before the tab has rows, with water off, or while
--- the box has no tanks (the status says that already). Worked out once a refresh, for the status line and the
--- plan.
+-- The floors where a connected water fixture has no tank of its pipe at its floor or above (too high), from the
+-- water tab's rows as last filled: { dry (ranges of floors), byLevel ("dry" by floor) }; nil before the tab has rows,
+-- with water off, or while the box has no tanks (the status says that already). Worked out once a refresh, for the
+-- status line and the plan.
 function ISBUPanelWindow:workOutWaterSupply()
     local view = self.views and self.views.water
-    if not view or not BU.enabled("water") or #self.panel.water.producers == 0 then return nil end
-    local levels = {}
+    if not view or not BU.enabled("water") or not BU.waterAvailable() or #self.panel.water.producers == 0 then return nil end
+    local Water = BU.Water
+    local layout = BU.Networks.waterLayout(self.panel)
+    local byLevel, levels = {}, {}
     for _, device in ipairs(view.devices or {}) do
-        if device.state == "on" then levels[device.entry.z] = true end
+        if device.state == "on" and device.building and layout.tanks[device.pipe or Water.FIRST] then
+            local id = Water.useId(layout, device.pipe, device.building, device.level)
+            if id and not Water.reachesTank(layout, id) and not byLevel[device.level] then
+                byLevel[device.level] = "dry"
+                levels[#levels + 1] = device.level
+            end
+        end
     end
-    local dry, boosted, byLevel = BU.Water.floorSupply(self.panel, levels)
-    return { dry = dry, boosted = boosted, byLevel = byLevel }
+    table.sort(levels)
+    local dry = {}
+    for _, level in ipairs(levels) do
+        local last = dry[#dry]
+        if last and last[2] == level - 1 then last[2] = level else dry[#dry + 1] = { level, level } end
+    end
+    return { dry = dry, byLevel = byLevel }
 end
 
 -- The status line as drawn: the text and what is left on it after the dot; the reason after it in grey when it fits

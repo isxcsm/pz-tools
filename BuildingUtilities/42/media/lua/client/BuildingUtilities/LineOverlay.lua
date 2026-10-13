@@ -1,10 +1,10 @@
 -- The lines in the world: thin lines from each thing to what it hangs on (BU.Links), while a box's window is open (that
 -- box's lines) or a screwdriver or a pipe wrench is in hand (the power or the water lines about the player, any box's
--- and those whose box is gone), in their utility's colour, grey where they supply nothing. Else nothing is drawn or
--- looked for. A HUD under every window draws them, one pixel at the screen's corner drawing past its bounds (as
--- Operation Acorn's marks: a larger element takes the world's clicks); while it shows it draws every frame, as the
--- camera moves without telling it. The lines are looked for again when they change, every second (what supplies may
--- change with a tier or a zone), and when the player went a few squares.
+-- and those whose box is gone), in their utility's colour (a water pipe's own), grey where they supply nothing. Else
+-- nothing is drawn or looked for. A HUD under every window draws them, one pixel at the screen's corner drawing past
+-- its bounds (as Operation Acorn's marks: a larger element takes the world's clicks); while it shows it draws every
+-- frame, as the camera moves without telling it. The lines are looked for again when they change, every second (what
+-- supplies may change with a tier or a zone), and when the player went a few squares.
 require "ISUI/ISPanel"
 require "PZUIKit/UI"
 require "BuildingUtilities/Links"
@@ -46,7 +46,12 @@ local function build(px, py)
             local tx, ty, tz = Links.endOf(line)
             if tx then
                 local panel = Store.get(line.panel)
-                local colour = panel and Links.live(panel, line.ref) and COLOURS[line.utility] or COLOURS.cut
+                local colour = COLOURS.cut
+                if panel and Links.live(panel, line.ref) then
+                    -- a water line of a box with more than one pipe in its pipe's colour (a relay's in water's)
+                    local pipe = line.utility == "water" and BU.Water.shown(panel) and BU.Water.linePipe(panel, line)
+                    colour = pipe and BU.Water.colour(pipe) or COLOURS[line.utility]
+                end
                 result[#result + 1] = { line.x + 0.5, line.y + 0.5, line.z, tx + 0.5, ty + 0.5, tz, colour }
             end
         end

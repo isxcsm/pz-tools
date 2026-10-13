@@ -72,7 +72,7 @@
     "Sandbox_BuildingUtilities_EnableBoosters": "가압 펌프",
     "Sandbox_BuildingUtilities_EnableBoosters_tooltip": "가압 펌프를 만들어 놓을 수 있고, 제어반에 전기가 있는 동안 놓인 층에서 위층으로 물을 올려 물 저장소보다 높은 층에도 물이 나오게 합니다. 물과 전기가 켜져 있어야 합니다. 기본은 켜짐. 끄면 만들 수 없고, 놓여 있는 펌프는 멈춰 전기를 쓰지 않으며 떼어낼 수는 있습니다.",
     "Sandbox_BuildingUtilities_BoosterLift": "가압 펌프 양정(층)",
-    "Sandbox_BuildingUtilities_BoosterLift_tooltip": "가압 펌프가 자기 층에서 몇 개 층 위까지 물을 올리는지. 그 층들의 시설은 펌프 높이 이상의 물 저장소 물을 씁니다. 다른 펌프가 올려 주는 층에 놓은 펌프는 거기서 다시 올립니다.",
+    "Sandbox_BuildingUtilities_BoosterLift_tooltip": "가압 펌프가 자기 층에서 몇 개 층 위의 물 저장소까지 채우는지. 더 높이는 그 층에 둔 다른 가압 펌프가 이어 올립니다.",
     "Sandbox_BuildingUtilities_RelayRange": "전신주·수전 연결 거리",
     "Sandbox_BuildingUtilities_RelayRange_tooltip": "전신주나 야외 수전에서 거기 매단 것까지 선이 몇 칸 갈 수 있는지. 전신주는 전기를, 수전은 물을 나르고, 제어반 단계에 따라 쓸 수 있는 수가 정해집니다.",
     "Sandbox_BuildingUtilities_ChainRange": "기기 간 연결 거리",

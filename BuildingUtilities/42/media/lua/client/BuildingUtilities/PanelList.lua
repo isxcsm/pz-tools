@@ -16,12 +16,13 @@ local FONT_HGT_SMALL, ROW, PAD, SCROLLBAR, ROOM_TICK_X, rowObjects, outline, uno
 local ACCENT, ease, approach, P = Ui.ACCENT, Ui.ease, Ui.approach, Ui.PALETTE
 -- Rows that only tell: no light under the mouse.
 local STILL = { header = true, note = true, filter = true, log = true, graph = true, columns = true,
-    battery = true }
+    battery = true, pipeBuilding = true }
 
 -- One tab's list. Each item is a row table with a kind; clicks act on the row and the part of it clicked.
 ISBUPanelList = ISScrollingListBox:derive("ISBUPanelList")
 -- The tooltips of a device row's buttons, by button: what a click does, over the button itself.
-ISBUPanelList.BUTTON_TIPS = { timer = "IGUI_BU_TimerTip" }
+ISBUPanelList.BUTTON_TIPS = { timer = "IGUI_BU_TimerTip", pipe = "IGUI_BU_PipeChipTip", Pipe = "IGUI_BU_PipeChipTip",
+    PipeIn = "IGUI_BU_PipeInTip", PipeOut = "IGUI_BU_PipeOutTip", roomPipe = "IGUI_BU_RoomPipeTip" }
 
 local BUTTONS = { "Up", "Down" }
 local OPTIONS = { "ActiveOnly", "ByLoad", "HideUnwired" }
@@ -30,9 +31,9 @@ local OPTION_NAMES = { ActiveOnly = true, ByLoad = true, HideUnwired = true }
 local OPTION_FLAGS = { ActiveOnly = "activeOnly", ByLoad = "byLoad", HideUnwired = "hideUnwired" }
 local OPTION_LABELS = { ActiveOnly = "IGUI_BU_ActiveOnly", ByLoad = "IGUI_BU_ByLoad", HideUnwired = "IGUI_BU_HideUnwired" }
 local BUTTON_W = 60
-local TIMER_W, GROUP_W, SOURCE_W = 64, 90, 110
--- Water groups' colours, by their place in the panel's list.
-local GROUP_COLOURS = { { 0.35, 0.65, 1 }, { 0.3, 0.9, 0.85 }, { 0.75, 0.55, 1 }, { 1, 0.6, 0.8 } }
+local TIMER_W, CHIP_W, SOURCE_W = 64, 34, 110
+-- A pipe chip's buttons (BU.Water: its colour and number).
+local CHIPS = { pipe = true, Pipe = true, PipeIn = true, PipeOut = true, roomPipe = true }
 
 -- The texts of the rows' buttons and marks, looked up once.
 local labels = {}
@@ -66,16 +67,16 @@ function ISBUPanelList:createChildren()
     UI.rowHeight(self, ROW)
 end
 
--- The buttons at the end of a device's row, from the right: a water fixture's group (with more than one); for power,
--- its timer. Also where the row's own text on the right ends. Kept
+-- The buttons at the end of a device's row, from the right: a water fixture's pipe chip (with more than one pipe); for
+-- power, its timer. Also where the row's own text on the right ends. Kept
 -- on the row for the list's width (design units).
 local function deviceButtons(width, row)
     if row.buttonsWidth == width then return row.buttons, row.textRight end
     local right = width - PAD - SCROLLBAR
     local result = {}
-    if row.groupText then
-        right = right - GROUP_W
-        result[#result + 1] = { name = "group", x = right, w = GROUP_W }
+    if row.pipe then
+        right = right - CHIP_W
+        result[#result + 1] = { name = "pipe", x = right, w = CHIP_W }
         right = right - 4
     end
     if row.controls then
@@ -95,7 +96,7 @@ local function buttonsAtRight(width, row, names)
     local result, x = {}, width - PAD - SCROLLBAR
     for index = #names, 1, -1 do
         local name = names[index]
-        local w = name == "Group" and GROUP_W or name == "UseSource" and SOURCE_W or OPTION_NAMES[name] and Ui.OPTION_W
+        local w = CHIPS[name] and CHIP_W or name == "UseSource" and SOURCE_W or OPTION_NAMES[name] and Ui.OPTION_W
             or BUTTON_W
         x = x - w - 4
         result[index] = { name = names[index], x = x, w = w }
@@ -104,15 +105,19 @@ local function buttonsAtRight(width, row, names)
     return result
 end
 
--- The buttons at the end of a producer's row, left to right: for power Up, Down and Remove; for water the tank's
--- group (with more than one) and Remove.
+-- The buttons at the end of a producer's row, left to right: for power Up and Down; for water its pipe chips (with
+-- more than one pipe: row.chips, a tank's or a unit's Pipe, a filter's or a booster pump's PipeIn and PipeOut, each
+-- pipe in row.pipes).
 local function producerButtons(width, row)
     if row.unwired then return buttonsAtRight(width, row, {}) end
-    return buttonsAtRight(width, row, not row.water and BUTTONS or row.groupText and { "Group" } or {})
+    return buttonsAtRight(width, row, not row.water and BUTTONS or row.chips or {})
 end
 
--- A water group's row's buttons, left to right: Settings, Rename, and Remove but for the first group.
-local function groupButtons(width, row)
+-- A room's row's buttons: its pipe chip, for water with more than one pipe (row.pipe).
+local function roomButtons(width, row) return buttonsAtRight(width, row, row.pipe and { "roomPipe" } or {}) end
+
+-- A pipe's row's buttons, left to right: Settings, Rename, and Remove but for the first pipe.
+local function pipeButtons(width, row)
     return buttonsAtRight(width, row, row.removable and { "Settings", "Rename", "Remove" } or { "Settings", "Rename" })
 end
 
@@ -143,6 +148,20 @@ local function smallButton(list, c, key, x, y, w, text, tc, on)
     UI.frame(c, x, y + 2, w, ROW - 4, on and P.value or P.border)
     if k > 0 then UI.frame(c, x, y + 2, w, ROW - 4, P.sel, 0.75 * k) end
     UI.textCentre(c, text, x + w / 2, y + (ROW - FONT_HGT_SMALL) / 2, tc)
+end
+
+-- A pipe's colour square and its number (BU.Water), at x on a row.
+local function pipeMark(c, x, y, id)
+    local size = ROW - 12
+    UI.fill(c, x, y + 6, size, size, BU.Water.colour(id))
+    UI.frame(c, x, y + 6, size, size, P.border)
+    UI.text(c, tostring(id), x + size + 3, y + (ROW - FONT_HGT_SMALL) / 2, P.text)
+end
+
+-- A pipe chip: a small button with the pipe's mark.
+local function pipeChip(list, c, key, x, y, w, id)
+    smallButton(list, c, key, x, y, w, "", P.text)
+    pipeMark(c, x + 4, y, id)
 end
 
 -- A row's view options (optionButtons), each lit while it is on.
@@ -264,7 +283,12 @@ function ISBUPanelList:doDrawItem(y, item, alt)
             x = x + ROW + 4
         end
         UI.text(c, row.text, x, textY, HEAD)
-        if row.right then UI.textRight(c, row.right, rightX, textY, ROOM_RIGHT) end
+        local right = rightX
+        for _, button in ipairs(roomButtons(width, row)) do
+            pipeChip(self, c, index .. button.name, button.x, y, button.w, row.pipe)
+            right = math.min(right, button.x - 6)
+        end
+        if row.right then UI.textRight(c, row.right, right, textY, ROOM_RIGHT) end
     elseif row.kind == "columns" then
         local cols = BU.RackWindow.COLUMNS
         UI.text(c, label("IGUI_BU_Rack_ColKind"), PAD + cols.kind, textY, NOTE)
@@ -291,25 +315,33 @@ function ISBUPanelList:doDrawItem(y, item, alt)
                 ready and WHITE or MUTED)
         end
     elseif row.kind == "producer" then
-        -- In use in green, out of service (switched off by hand) in amber.
-        UI.text(c, row.text, PAD * 2, textY, (row.unwired or row.cut) and MUTED or row.inUse and IN_USE or row.out and OUT or PLAIN)
+        -- In use in green, out of service (switched off by hand) in amber, what keeps it from water in red.
+        UI.text(c, row.text, PAD * 2, textY, (row.unwired or row.cut) and MUTED or row.bad and LOG_BAD or row.inUse and IN_USE
+            or row.out and OUT or PLAIN)
         for _, button in ipairs(producerButtons(width, row)) do
-            if button.name == "Group" then
-                smallButton(self, c, index .. "Group", button.x, y, button.w, row.groupText, row.groupColour)
+            if CHIPS[button.name] then
+                pipeChip(self, c, index .. button.name, button.x, y, button.w, row.pipes[button.name])
             else
                 smallButton(self, c, index .. button.name, button.x, y, button.w, label("IGUI_BU_" .. button.name), WHITE)
             end
         end
-    elseif row.kind == "waterGroup" then
-        UI.fill(c, PAD * 2, y + 6, ROW - 12, ROW - 12, row.colour)
-        UI.text(c, row.text, PAD * 2 + ROW - 6, textY, WHITE)
-        local buttons = groupButtons(width, row)
+    elseif row.kind == "waterPipe" then
+        UI.fill(c, 0, y, width, ROW, P.panel, 0.7)
+        UI.fill(c, 0, y + 1, 3, ROW - 2, BU.Water.colour(row.pipe))
+        pipeMark(c, PAD * 2, y, row.pipe)
+        local x = PAD * 2 + ROW - 6 + UI.textWidth(tostring(row.pipe)) + 8
+        UI.text(c, row.text, x, textY, WHITE)
+        local buttons = pipeButtons(width, row)
         for _, button in ipairs(buttons) do
             smallButton(self, c, index .. button.name, button.x, y, button.w, label("IGUI_BU_" .. button.name), WHITE)
         end
-        if row.right then UI.textRight(c, row.right, buttons[1].x - 8, textY, LINK) end
-    elseif row.kind == "addGroup" then
-        UI.text(c, row.text, PAD * 2, textY, OPEN)
+        if row.right then UI.textRight(c, row.right, buttons[1].x - 8, textY, row.bad and LOG_BAD or LINK) end
+    elseif row.kind == "pipeBuilding" then
+        UI.text(c, row.text, PAD * 4, textY, row.bad and LOG_BAD or NOTE)
+        if row.right then UI.textRight(c, row.right, rightX, textY, NOTE) end
+    elseif row.kind == "addPipe" then
+        UI.text(c, row.text, PAD * 2, textY, row.reason and MUTED or OPEN)
+        if row.right then UI.textRight(c, row.right, rightX, textY, row.reason and LOG_BAD or NOTE) end
     elseif row.kind == "device" or row.kind == "all" then
         local indent = row.kind == "device" and PAD * 3 or PAD * 2
         -- a device outside the box has no line to has no tick: there is nothing to switch at the box; below the tier
@@ -325,8 +357,8 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         local buttons, textRight = deviceButtons(width, row)
         for _, button in ipairs(buttons) do
             local key = index .. button.name
-            if button.name == "group" then
-                smallButton(self, c, key, button.x, y, button.w, row.groupText, row.groupColour)
+            if button.name == "pipe" then
+                pipeChip(self, c, key, button.x, y, button.w, row.pipe)
             else
                 local timed = row.device.schedule ~= "always"
                 smallButton(self, c, key, button.x, y, button.w, label("IGUI_BU_Schedule_" .. row.device.schedule),
@@ -334,7 +366,7 @@ function ISBUPanelList:doDrawItem(y, item, alt)
             end
         end
         if row.right then
-            UI.textRight(c, row.right, textRight, textY, row.held and HELD or row.dim and DIM or RIGHT)
+            UI.textRight(c, row.right, textRight, textY, row.bad and LOG_BAD or row.held and HELD or row.dim and DIM or RIGHT)
         end
     end
     return nextY
@@ -374,12 +406,15 @@ function ISBUPanelList:prerender()
         if key and self.mouseDX >= button.x and self.mouseDX < button.x + button.w then tip = getText(key) end
     end
     if tip then PZUIRichTip.show(self, tip, P) else PZUIRichTip.hide(self) end
-    local outlined = row and (row.device or row.at) and index or nil
+    local outlined = row and (row.device or row.at or row.unit or row.members) and index or nil
     if outlined ~= self.hovered then
         self:unhighlight()
         self.hovered = outlined
         if outlined then
-            outline(self.window.playerObj:getPlayerNum(), rowObjects(row), getCore():getGoodHighlitedColor(), self.highlighted)
+            -- A pipe's card: what is on the pipe, in its colour.
+            local colour = row.colour and row.members and ColorInfo.new(row.colour[1], row.colour[2], row.colour[3], 1)
+                or getCore():getGoodHighlitedColor()
+            outline(self.window.playerObj:getPlayerNum(), rowObjects(row), colour, self.highlighted)
         end
     end
     local now = getTimestampMs()
@@ -603,7 +638,7 @@ UI.scaled(ISBUSplitter, ISPanel)
 
 Ui.deviceButtons = deviceButtons
 Ui.producerButtons = producerButtons
-Ui.groupButtons = groupButtons
+Ui.pipeButtons = pipeButtons
+Ui.roomButtons = roomButtons
 Ui.sourceButtons = sourceButtons
 Ui.optionButtons = optionButtons
-Ui.GROUP_COLOURS = GROUP_COLOURS

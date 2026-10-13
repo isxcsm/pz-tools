@@ -57,28 +57,36 @@ end
 function commands.rename(player, panel, args) Changes.rename(panel, args.name) end
 
 
--- Water groups: by their ids, checked by Changes; a fixture only while the panel connects it.
-function commands.addWaterGroup(player, panel, args) Changes.addWaterGroup(panel, args.name) end
-function commands.renameWaterGroup(player, panel, args) Changes.renameWaterGroup(panel, tonumber(args.group), args.name) end
-function commands.removeWaterGroup(player, panel, args) Changes.removeWaterGroup(panel, tonumber(args.group)) end
+-- Pipes: by their ids, checked by Changes; a fixture only while the panel connects it. A new pipe is a timed action
+-- (ISBUAddPipe), not a command.
+function commands.renamePipe(player, panel, args) Changes.renamePipe(panel, tonumber(args.pipe), args.name) end
+function commands.removePipe(player, panel, args) Changes.removePipe(panel, tonumber(args.pipe)) end
 
-function commands.setProducerGroup(player, panel, args)
-    Changes.setProducerGroup(panel, tonumber(args.index) or 0, tonumber(args.group))
+function commands.setPipeReserve(player, panel, args)
+    Changes.setPipeReserve(panel, tonumber(args.pipe), tonumber(args.percent))
 end
 
-function commands.setDeviceGroup(player, panel, args)
+-- A room of the zone, by its key, onto a pipe.
+function commands.setRoomPipe(player, panel, args)
+    for _, room in ipairs(Panels.zoneRooms(panel)) do
+        if room.key == args.room then return Changes.setRoomPipe(panel, room.key, tonumber(args.pipe)) end
+    end
+end
+
+function commands.setProducerPipe(player, panel, args)
+    Changes.setProducerPipe(panel, tonumber(args.index) or 0, tonumber(args.pipe))
+end
+
+-- A fixture onto a pipe; none (args.pipe nil) puts it back on its room's.
+function commands.setDevicePipe(player, panel, args)
     local device = type(args.key) == "string" and Panels.device(panel, "water", args.key)
-    if device and device.state == "on" then Changes.setDeviceGroup(panel, device, tonumber(args.group)) end
+    if device and device.state == "on" then Changes.setDevicePipe(panel, device, tonumber(args.pipe)) end
 end
 
--- A water unit of the panel to work for one of its groups; a group's reserve.
-function commands.setUnitGroup(player, panel, args)
+-- A water unit of the panel onto its pipes: inlet (a pump's outlet) and, for a filter or a booster pump, outlet.
+function commands.setUnitPipes(player, panel, args)
     local unit = BU.Store.unit(args.unit)
-    if unit and unit.panel == panel.id then Changes.setUnitGroup(unit, tonumber(args.group)) end
-end
-
-function commands.setGroupReserve(player, panel, args)
-    Changes.setGroupReserve(panel, tonumber(args.group), tonumber(args.percent))
+    if unit and unit.panel == panel.id then Changes.setUnitPipes(unit, tonumber(args.inlet), tonumber(args.outlet)) end
 end
 
 -- "Switch to solar" (Energy.sourceOffer): the source takes the load over from the generator in use, which the API
@@ -104,9 +112,8 @@ end
 
 -- The feature a command needs on (BU.enabled), besides its utility's; one of a feature that is off is ignored, as
 -- the window no longer offers it.
-local NEEDS = { setSchedule = "power", addWaterGroup = "water", renameWaterGroup = "water",
-    removeWaterGroup = "water", setProducerGroup = "water", setDeviceGroup = "water", setUnitGroup = "water",
-    setGroupReserve = "water" }
+local NEEDS = { setSchedule = "power", renamePipe = "water", removePipe = "water", setPipeReserve = "water",
+    setRoomPipe = "water", setProducerPipe = "water", setDevicePipe = "water", setUnitPipes = "water" }
 
 local function onClientCommand(module, command, player, args)
     if module ~= BU.MOD or not commands[command] or type(args) ~= "table" then return end
@@ -203,12 +210,15 @@ local function updateUnits()
 end
 
 local function onNetworkChange(id, what)
-    local panel, utility, group = Networks.owner(id)
+    local panel, utility, pipe, _, _, kind = Networks.owner(id)
     if not panel then return end
-    -- Water: a group's networks change together; its lowest tells for it.
-    local floors = utility == "water" and select(2, BU.Water.layout(panel)) or nil
-    if utility == "water" and id ~= BU.Water.lowestId(panel, group, floors) then return end
-    local state = utility == "water" and Networks.groupState(panel, group, floors) or Networks.state(panel, utility)
+    -- Water: what a pipe's tanks hold together tells for it, as a floor's tanks change (its use networks follow).
+    if utility == "water" and kind ~= "T" then return end
+    local state = Networks.state(panel, utility)
+    if utility == "water" then
+        state = state and state.pipes[pipe]
+        if state then state.enabled = not panel.water.frozen end
+    end
     if utility == "power" then Overload.check(panel) end
     if not state then return end
     -- The relay clicks over to another producer, or as power comes or goes: heard at the box.
@@ -224,8 +234,8 @@ local function onNetworkChange(id, what)
     elseif what == "supply" and not state.supplied and state.enabled and utility == "power" then
         Sync.notice(panel, "IGUI_BU_Notice_PowerLost", Panels.name(panel))
     elseif what == "supply" and not state.supplied and state.enabled then
-        if #BU.Water.groups(panel) > 1 then
-            Sync.notice(panel, "IGUI_BU_Notice_WaterEmptyGroup", Panels.name(panel), BU.Water.groupName(panel, group))
+        if BU.Water.shown(panel) then
+            Sync.notice(panel, "IGUI_BU_Notice_WaterEmptyPipe", Panels.name(panel), BU.Water.pipeName(panel, pipe))
         else
             Sync.notice(panel, "IGUI_BU_Notice_WaterEmpty", Panels.name(panel))
         end
@@ -272,13 +282,11 @@ local function recordStats(panel, hours)
     end
 end
 
--- What each water group's tanks held this minute, for its level graph.
-local function recordWater(panel, floors)
+-- What each pipe's tanks held this minute, for its level graph.
+local function recordWater(panel)
     if not BU.enabled("water") or not BU.waterAvailable() then return end
-    for _, group in ipairs(BU.Water.groups(panel)) do
-        local state = Networks.groupState(panel, group.id, floors)
-        if state then Store.recordWater(panel, group.id, state.amount or 0, state.capacity or 0) end
-    end
+    local state = Networks.state(panel, "water")
+    for id, pipe in pairs(state and state.pipes or {}) do Store.recordWater(panel, id, pipe.amount, pipe.capacity) end
 end
 
 -- A network switched on again (breaker reset, main switch) with nothing that can run raises no event:
@@ -317,14 +325,8 @@ local function everyMinute()
             hourEnded = recordEnergy(panel) or hourEnded
             recordStats(panel, hours)
         end
-        -- The water layout once a minute, after the boosters (which may change it), for the rest.
-        if hours > 0 then BU.WaterRun.boosters(panel) end
-        local floors = BU.enabled("water") and BU.waterAvailable() and select(2, BU.Water.layout(panel)) or nil
-        recordWater(panel, floors)
-        if hours > 0 then
-            BU.WaterRun.pumps(panel, hours * 60, floors)
-            BU.WaterRun.filters(panel, hours * 60)
-        end
+        if hours > 0 then BU.WaterRun.machines(panel, hours * 60) end
+        recordWater(panel)
     end
     -- The bank and the energy record change every minute; clients get them hourly (alone, the window reads them).
     if hourEnded and isServer() then ModData.transmit(Store.KEY) end
