@@ -97,6 +97,7 @@ public final class GameApiTest {
         QuadsTest.run(api);
         FontsTest.run();
         OutlinesTest.run();
+        NetworkScaleTest.run(api);
         hooks(api);
         takeover(api, buildings);
         System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, switches them off and on, multiplies their loads, takes in single rooms, runs sources its mods switch, ages food by their supply, shows the moodles mods define, draws the text mods show, tells the sounds zombies make and the hits they take, finds zombies by level, sight and state, lists containers, calls functions on timers and as chunks load, wraps and fits text, draws many shapes at once, outlines models and vehicles, counts items through bags, says which hooks went in, and a newer API takes it over");
