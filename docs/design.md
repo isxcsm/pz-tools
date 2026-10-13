@@ -95,6 +95,16 @@ network. The old code keeps the definitions in the API table's metatable, writte
 they changed, and hands them over with the rest as the new code takes over. A change that cannot take
 them over waits for the game's restart, as other bootstrap changes do.
 
+A world keeps the same as it is saved: as the game raises `OnSave` (before it saves the global
+ModData), the API writes what it knows of the networks, as it hands them to a newer API, into the
+world's global ModData (`PZExtNetworkState`, its `state` text). Loaded again, the world gives it to
+the networks its mods define again, at the first frame some are defined (mods define them on
+`OnGameStart`), for the networks and producers they still have. So a network carried by a producer
+whose square is not loaded runs on from the load, without the player going there first, and so does
+a generator running there (see [power](#power)); water producers there count as they were. Without
+the event, or for a network defined later, the API works them out anew. A multiplayer client keeps
+none: the server does.
+
 Uninstalling the API removes it from the next game start.
 
 Objects are named by position and sprite name (`x, y, z, sprite`). An object that moves is a
@@ -343,8 +353,23 @@ the game's switch alone, with no events.
   stops for want of fuel, it ran out at that hour plus its fuel over what it burns an hour, rounded
   up. The API switches the next producer on and sets its `lastHour` back to that hour, and the game
   burns the hours since on its next update, as for any generator. A producer in use whose square is
-  not loaded counts as stopped once that hour has passed, and the next takes over then if its own
-  square is loaded. Condition wear is the game's own.
+  not loaded counts as stopped once it stopped there (see the next point), and the next takes over then
+  if its own square is loaded.
+- **Away.** For a generator running on a square that is not loaded, the game would burn every hour
+  away at once as the square loads and roll a breakdown only once. The API runs it there hour by hour
+  instead, as the game's update does while it is loaded (`IsoGenerator.update()`): from the hour the
+  game last burned it up to, each hour its fuel; its condition worn by 1 or 2 one hour in its item's
+  `ConditionLowerChanceOneIn` (30 for one without); and at condition 20 or below a breakdown, by fire
+  one hour in 10, else by explosion one hour in 20. A breakdown leaves its condition 0 and switches it
+  off, without fire or explosion, which cannot start on a square that is not loaded. It stops in the
+  hour its fuel runs out, its condition reaches 0 or it breaks down, and the next producer takes over
+  from that hour. `state` reports what the API found as the producer's `running`, `fuel` and
+  `condition`. As the square loads, before the game's update and before the API reads it, the
+  generator takes that state: its fuel and condition, switched off if it stopped (on standby: a
+  generator that broke down or ran out is not out of service), and its `lastHour` the hour the API ran
+  it up to, so the game burns no hour twice and rolls no breakdown for them. A loaded generator is the
+  game's alone. A newer API taking over goes on with what this one found, and so does a world loaded
+  again from what it saved.
 - **Food.** Vanilla ages food in a container over the whole time since it last aged, as refrigerated
   if the square has power now, and splits that time only at the grid's shut-off. The API splits it
   also at the times its network's supply stopped and started, so a fridge that lost power while the
@@ -389,8 +414,9 @@ the game's switch alone, with no events.
   marks are for network generators. In a running game the API keeps them also in memory, for
   generators on squares that are not loaded too, and a newer API takes them over; one from before
   the marks hands over none, and the next frame reads them from the generators as at first sight.
-  After a world loads, the producer the game runs is the one in use; the API records it as its first
-  update starts, before the game makes up for the hours away.
+  After a world loads, the producer in use is the one the world saved (see above); without it, the one
+  the game runs, which the API records as its first update starts, before the game makes up for the
+  hours away.
 - **Multiplayer** (untested). The server, or a single-player game, owns the switches and the marks,
   as it owns draw and fill. A client switches no producer and writes no mark: it reads the
   out-of-service mark the server keeps, and takes the producer that runs as the one in use.
@@ -422,7 +448,7 @@ the game's switch alone, with no events.
   source as it is, and `isTaintedWater` says yes while that source holds TaintedWater. A multiplayer
   client defines no networks, so its interface may still show such water as clean.
 - **Time.** Water is drawn only when a fixture is used, which happens with its square loaded. Rain
-  collectors fill themselves (see below), so a water network needs no catch-up of its own.
+  collectors fill themselves, also far away (see below), so a water network needs no catch-up of its own.
 
 #### Draw and fill
 
@@ -441,7 +467,18 @@ own, then its parents'), and nothing while the network or a parent above it is s
   `FluidContainer.removeFluid` and `addFluid` (a container that does not take that fluid takes none).
   As the game does after a fluid change, the object is synced (`IsoObject.sync()`, which sends it to
   multiplayer clients) and `OnWaterAmountChange` is raised.
-- **Not loaded.** A producer whose square is not loaded is drawn and filled as last seen, with what it
+- **Rain collectors far away.** As a chunk unloads, an object whose fluid container catches rain
+  hands that container to a meta entity at its position (`GameEntityManager`,
+  `FluidContainer.isQualifiesForMetaStorage`); the game's entity engine keeps updating it on the game's
+  thread (`FluidContainerUpdateSystem`: rain in, a leak of petrol out), saves it with the world, its
+  position included, and gives it back to the object as the square loads. So a producer whose square
+  is not loaded but whose containers the game keeps that way is drawn from and filled in those
+  containers, at once, as a loaded one is, owing nothing; there is no object to sync or to raise
+  `OnWaterAmountChange` for. What was owed to its square before goes into them at the next frame. The
+  network's supply, `amount` and the producer's `amount` follow them once a second. The API finds
+  them by position in the engine's meta entities, indexed again when their number changes, also in a
+  world loaded again before the square was seen. A fixture still draws only from loaded containers.
+- **Not loaded.** Any other producer whose square is not loaded is drawn and filled as last seen, with what it
   is owed already, its fluids included; the change is owed to its square. A producer never seen loaded
   since the networks were defined takes neither. `state` counts what is owed in `amount` and reports
   it as `pending`.
@@ -471,8 +508,8 @@ own, then its parents'), and nothing while the network or a parent above it is s
   only its containers know which it took.
 - **Multiplayer.** Only the server, or a single-player game, changes what producers hold: on a
   multiplayer client `draw` and `fill` are a Lua error.
-- The API does not simulate rain for producers that are not loaded. Whether the game fills a rain
-  collector for the time its square was not loaded is not verified.
+- Rain into a producer that is not loaded is the game's own, in the container it keeps running (see
+  rain collectors far away); a barrel without a rain catcher is not kept, and changes only as owed.
 
 ## Formulas (mechanism)
 
@@ -2248,10 +2285,11 @@ lookups of an object question.
   comes out as Water, and the fixture says it is not tainted while its source holds anything
   (`IsoObject.createSampleAndPurifyWater`, `isTaintedWater`). Drinking from or filling at the source
   object itself gives its water as it is.
-- Rain collectors are kept by a Lua global object system (`SRainBarrelSystem`) that adds rain every
-  ten minutes while it rains, whether or not the collector's square is loaded, and writes the amount
-  into the object when it loads. Rain is always `TaintedWater`. A change to the object's fluid while
-  it is loaded reaches that system through `OnWaterAmountChange`.
+- Rain collectors fill through their fluid container's rain catcher
+  (`FluidContainerUpdateSystem.updateEntity`, each tick while it rains outside: TaintedWater, or Water
+  into a container filled with clean water). While the square is not loaded the container goes on in
+  a meta entity at the object's position (see [draw and fill](#draw-and-fill)). The Lua global object
+  system `SRainBarrelSystem` takes none of them in Build 42 (`isValidIsoObject` is always false).
 
 ## Measured in the game
 

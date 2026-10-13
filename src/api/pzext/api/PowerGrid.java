@@ -2,8 +2,11 @@ package pzext.api;
 
 import java.lang.reflect.*;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.function.IntUnaryOperator;
 import pzext.boot.Hooks;
+import pzext.api.Network.Away;
 import pzext.api.Network.Position;
 import pzext.api.Network.Producer;
 import pzext.api.Network.Seen;
@@ -48,6 +51,14 @@ final class PowerGrid implements Hooks.Power {
      */
     static final String RUNNING = "PZExtRunning";
     private static final String[] MARKS = { OUT_OF_SERVICE, RESUME, RUNNING };
+    /**
+     * The game's breakdown of a running generator as its hourly update ends (IsoGenerator.update): at this condition or
+     * below, fire one hour in {@link #FIRE_ONE_IN}, else an explosion one in {@link #EXPLOSION_ONE_IN}; its condition
+     * wears by 1 or 2 one hour in its item's ConditionLowerChanceOneIn, {@link #WEAR_ONE_IN} for an item without it.
+     */
+    static final int BREAKDOWN_CONDITION = 20, FIRE_ONE_IN = 10, EXPLOSION_ONE_IN = 20, WEAR_ONE_IN = 30;
+    /** A number from 0 up to the bound, for the rolls of generators that run away (see away); a test sets its own. */
+    static IntUnaryOperator dice = bound -> ThreadLocalRandom.current().nextInt(bound);
 
     private record Change(String id, String what, double hour) { }
 
@@ -141,6 +152,10 @@ final class PowerGrid implements Hooks.Power {
     private final Method getChunk, generatorOf, checkElectricity;
     private final Field squareChunk, chunkX, chunkY;
     private final Method removeGeneratorPos, activated, fuel, condition, setUsing, surroundings, perHour, setActivated;
+    private final Method setFuel, setCondition;
+    // A generator's item and its ConditionLowerChanceOneIn; null for a game that has them elsewhere (WEAR_ONE_IN then).
+    private final Method itemType, scriptItem, lowerChance;
+    private final Field scripts;
     private final Method optionValue, elecShut;
     private final Method outermost, frozen, fridgeFactor, lastAged, isFridge, isFreezer;
     private final Field sandbox, fuelRate;
@@ -184,6 +199,20 @@ final class PowerGrid implements Hooks.Power {
         surroundings = generator.getMethod("setSurroundingElectricity");
         perHour = generator.getMethod("getTotalPowerUsing");
         setActivated = generator.getMethod("setActivated", boolean.class);
+        setFuel = generator.getMethod("setFuel", float.class);
+        setCondition = generator.getMethod("setCondition", int.class);
+        Method type = null, item = null, chance = null;
+        Field manager = null;
+        try {
+            type = generator.getMethod("getGeneratorItemType");
+            Class<?> scriptManager = Game.type(loader, "zombie.scripting.ScriptManager");
+            manager = scriptManager.getField("instance");
+            item = scriptManager.getMethod("getItem", String.class);
+            chance = item.getReturnType().getMethod("getConditionLowerChance");
+        } catch (ReflectiveOperationException none) {
+            type = null;
+        }
+        itemType = type; scriptItem = item; lowerChance = chance; scripts = manager;
         lastHour = Game.accessible(generator.getDeclaredField("lastHour"));
         Class<?> options = Game.type(loader, "zombie.SandboxOptions");
         sandbox = options.getField("instance");
@@ -399,9 +428,14 @@ final class PowerGrid implements Hooks.Power {
         try {
             Position at = game.at(generator);
             Network network = at == null ? null : current.producers().get(at);
-            if (network == null || !(boolean)activated.invoke(generator)) return;
+            if (network == null) return;
+            // What it ran while its square was not loaded, before the game burns those hours itself.
+            give(network, at, generator, game.hours());
+            if (!(boolean)activated.invoke(generator)) return;
             // The getter gives what it burns an hour: its consumption times the sandbox's fuel rate.
-            network.settled.put(at, new Settled(lastHour.getInt(generator), (float)fuel.invoke(generator), (float)perHour.invoke(generator)));
+            network.settled.put(at, new Settled(lastHour.getInt(generator), (float)fuel.invoke(generator), (float)perHour.invoke(generator),
+                wearChance(generator)));
+            network.away.remove(at);
             // Running: in service, also when it is switched off again before the next frame (see service).
             network.ran.add(at);
             // Running before the API knew which producer was in use: the world was just loaded, or the player switched it on.
@@ -555,7 +589,11 @@ final class PowerGrid implements Hooks.Power {
                 now = new Seen(source.on, source.available ? 1 : 0, source.available ? 1 : 0);
             } else {
                 Object generator = generatorAt(cells, producer.at());
-                if (generator == null && game.square(cells, producer.at()) == null) continue;
+                if (generator == null && game.square(cells, producer.at()) == null) {
+                    away(network, producer, hours);
+                    continue;
+                }
+                if (generator != null) give(network, producer.at(), generator, hours);
                 // A loaded square without the generator: it was taken away.
                 now = generator == null ? new Seen(false, 0, 0)
                     : new Seen((boolean)activated.invoke(generator), (float)fuel.invoke(generator), (int)condition.invoke(generator));
@@ -596,9 +634,9 @@ final class PowerGrid implements Hooks.Power {
             Producer resume = network.resume;
             Seen state = resume == null || !network.producers.contains(resume) ? null : network.seen.get(resume);
             boolean away = state != null && resume.at() != null && !loaded.contains(resume);
-            Settled settled = away ? network.settled.get(resume.at()) : null;
+            // Running there as the API runs it (see away): it has not stopped.
             if (state != null && candidate(network, resume, generators)) inUse = resume;
-            else if (away && state.activated() && state.canRun() && (settled == null || settled.end() > hours)) inUse = resume;
+            else if (away && state.activated() && state.canRun()) inUse = resume;
             else {
                 inUse = next(network, resume, generators);
                 waiting = inUse == null && away && !state.activated() && state.canRun() && !network.outOfService.contains(resume);
@@ -620,8 +658,9 @@ final class PowerGrid implements Hooks.Power {
                         inUse = next(network, current, generators);
                     }
                 }
-            } else if (settled != null && settled.end() <= hours) {
-                at = settled.end();
+            } else if (!state.activated()) {
+                // Stopped where its square is not loaded (see away): the next takes over from that hour.
+                at = stoppedAt(network, current, settled, hours);
                 inUse = next(network, current, generators);
             }
         }
@@ -778,13 +817,93 @@ final class PowerGrid implements Hooks.Power {
         lua.set(modData.invoke(generator, Game.NONE), key, value);
     }
 
-    /** When a producer that can no longer run stopped: a source at the hour its mod gave, a generator as it settled. */
+    /**
+     * When a producer that can no longer run stopped: a source at the hour its mod gave, a generator at the hour it
+     * stopped while away (see away), else as it settled.
+     */
     private static double stoppedAt(Network network, Producer producer, Settled settled, double hours) {
         if (producer.source() != null) {
             double hour = network.sources.get(producer.source()).stoppedAt;
             return Double.isNaN(hour) ? hours : hour;
         }
+        Away away = network.away.get(producer.at());
+        if (away != null && !away.on) return away.stoppedAt;
         return settled == null ? hours : settled.end();
+    }
+
+    /**
+     * A generator that runs on a square that is not loaded. The game would burn the hours away all at once as the
+     * square loads, and roll a breakdown once; so the API runs it there hour by hour, from the hour the game last burned
+     * it up to (Settled), as the game's update does while it is loaded: its fuel; its condition, worn by 1 or 2 one hour
+     * in its item's ConditionLowerChanceOneIn; and at {@link #BREAKDOWN_CONDITION} or below a breakdown, by fire one
+     * hour in {@link #FIRE_ONE_IN}, else by explosion one in {@link #EXPLOSION_ONE_IN}. A breakdown leaves its
+     * condition 0 and switches it off, without fire or explosion, which cannot start on a square that is not loaded. It
+     * stops in the hour its fuel runs out, its condition reaches 0 or it breaks down, and the next producer takes over
+     * from then. What the API finds is the producer's last seen state; the generator takes it as its square loads (see
+     * give).
+     */
+    private void away(Network network, Producer producer, double hours) {
+        Position at = producer.at();
+        Settled settled = network.settled.get(at);
+        Away away = network.away.get(at);
+        if (away == null) {
+            Seen seen = network.seen.get(producer);
+            if (seen == null || !seen.activated() || settled == null) return;
+            network.away.put(at, away = new Away(settled.lastHour(), settled.fuel(), seen.condition()));
+        }
+        if (away.given || !away.on || settled == null) return;
+        int hour = away.hour;
+        run(away, settled, hours);
+        if (away.hour != hour) network.seen.put(producer, new Seen(away.on, away.fuel, away.condition));
+    }
+
+    /** Runs a generator away hour by hour up to the hour {@code hours} is in (see away). */
+    static void run(Away away, Settled settled, double hours) {
+        int now = (int)Math.floor(hours);
+        while (away.on && away.hour < now) {
+            away.hour++;
+            away.fuel -= settled.perHour();
+            if (dice.applyAsInt(Math.max(1, settled.wearChance())) == 0) away.condition -= dice.applyAsInt(2) + 1;
+            if (away.fuel <= 0) { away.fuel = 0; away.on = false; }
+            if (away.condition <= 0) { away.condition = 0; away.on = false; }
+            if (away.condition <= BREAKDOWN_CONDITION
+                    && (dice.applyAsInt(FIRE_ONE_IN) == 0 || dice.applyAsInt(EXPLOSION_ONE_IN) == 0)) {
+                away.condition = 0;
+                away.on = false;
+            }
+            if (!away.on) away.stoppedAt = away.hour;
+        }
+    }
+
+    /**
+     * A generator whose square loaded takes what it ran away (see away), before the game's update and before the API
+     * reads it: its fuel and condition, its {@code lastHour} the hour the API ran it up to, so that the game burns no hour
+     * twice and rolls no breakdown for them; switched off if it stopped. Only where the game's own state is: a
+     * multiplayer client follows the server.
+     */
+    private void give(Network network, Position at, Object generator, double hours) throws ReflectiveOperationException {
+        Away away = network.away.get(at);
+        if (away == null || away.given) return;
+        Settled settled = network.settled.get(at);
+        if (settled != null) run(away, settled, hours);
+        if (client.getBoolean(null) || !(boolean)activated.invoke(generator)) { network.away.remove(at); return; }
+        setFuel.invoke(generator, away.fuel);
+        setCondition.invoke(generator, away.condition);
+        lastHour.setInt(generator, away.hour);
+        if (away.on) { network.away.remove(at); return; }
+        away.given = true;
+        setActivated.invoke(generator, false);
+        // It stopped by itself: on standby, not out of service.
+        mark(generator, RUNNING, null);
+    }
+
+    /** One hour in how many a generator's condition wears: its item's ConditionLowerChanceOneIn. */
+    private int wearChance(Object generator) throws ReflectiveOperationException {
+        if (itemType == null) return WEAR_ONE_IN;
+        Object type = itemType.invoke(generator);
+        Object item = type == null ? null : scriptItem.invoke(scripts.get(null), type);
+        int chance = item == null ? 0 : (int)lowerChance.invoke(item);
+        return chance > 0 ? chance : WEAR_ONE_IN;
     }
 
     /**

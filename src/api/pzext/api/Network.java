@@ -45,11 +45,27 @@ final class Network {
     }
 
     /**
-     * A running producer before the game's hourly update: the hour it has burned up to, its fuel, and what it burns an
-     * hour. The game burns hour by hour and stops it in the hour its fuel runs out.
+     * A running producer before the game's hourly update: the hour it has burned up to, its fuel, what it burns an hour,
+     * and the one hour in so many its condition wears (its item's ConditionLowerChanceOneIn). The game burns hour by
+     * hour and stops it in the hour its fuel runs out.
      */
-    record Settled(int lastHour, float fuel, float perHour) {
+    record Settled(int lastHour, float fuel, float perHour, int wearChance) {
         double end() { return perHour > 0 ? lastHour + Math.ceil(fuel / perHour) : Double.POSITIVE_INFINITY; }
+    }
+
+    /**
+     * A generator that runs on a square that is not loaded, as the API runs it there hour by hour (PowerGrid.away): the
+     * hour it has run up to, its fuel and condition, whether it still runs, and the hour it stopped (NaN while it runs).
+     * {@code given}: its square loaded, and the generator took what it found; kept for the hour it stopped.
+     */
+    static final class Away {
+        int hour;
+        float fuel;
+        int condition;
+        boolean on = true, given;
+        double stoppedAt = Double.NaN;
+
+        Away(int hour, float fuel, int condition) { this.hour = hour; this.fuel = fuel; this.condition = condition; }
     }
 
     /**
@@ -108,6 +124,8 @@ final class Network {
     final Map<Position, Stored> stored = new HashMap<>();
     /** Each running producer before the game's last hourly update of it. */
     final Map<Position, Settled> settled = new HashMap<>();
+    /** The generators that ran on squares that are not loaded, as the API ran them there. */
+    final Map<Position, Away> away = new HashMap<>();
     /**
      * The generators out of service: the API saw each switched off by hand, and has not seen it run since (see
      * PowerGrid.OUT_OF_SERVICE). The API never switches them on. Every other generator that is off is on standby.

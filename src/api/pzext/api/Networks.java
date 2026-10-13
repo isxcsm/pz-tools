@@ -1,8 +1,11 @@
 package pzext.api;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.*;
 import java.util.function.Supplier;
 import pzext.boot.Hooks;
+import pzext.api.Network.Away;
 import pzext.api.Network.Position;
 import pzext.api.Network.Producer;
 import pzext.api.Network.Seen;
@@ -29,6 +32,11 @@ final class Networks {
     private static final String GENERATION = "networksGeneration", HANDOVER = "networksHandover";
     // The version of the text handover gives.
     private static final String STATE = "pzext-network-state 1";
+    /**
+     * In the world's global ModData: what the networks knew as the world was saved, {@code state} the text a newer API
+     * is handed over (see saved, restoreSaved).
+     */
+    static final String SAVED = "PZExtNetworkState";
     // The most a load factor multiplies a load by, and the most extra load a network takes.
     private static final double MAX_LOAD_FACTOR = 100, MAX_EXTRA_LOAD = 1000;
     // The most litres one draw or fill moves.
@@ -55,6 +63,11 @@ final class Networks {
     private boolean dirty;
     // This environment's networks as GENERATION numbers them; 0 until register.
     private long generation;
+    // A world was entered: what it saved of its networks goes to them at the first frame its mods defined some. Not
+    // for the world a newer API took the networks over in, which the API before handed over.
+    private boolean unrestored, handedOver;
+    private final Method modDataGet, modDataGetOrCreate;
+    private final Field client;
 
     Networks(Kahlua lua, Game game, Buildings buildings, ClassLoader loader, Object meta, Owners owners) throws ReflectiveOperationException {
         this.lua = lua;
@@ -63,6 +76,10 @@ final class Networks {
         this.meta = meta;
         this.owners = owners;
         members = new Members(game, buildings);
+        Class<?> modData = Game.type(loader, "zombie.world.moddata.ModData");
+        modDataGet = modData.getMethod("get", String.class);
+        modDataGetOrCreate = modData.getMethod("getOrCreate", String.class);
+        client = Game.type(loader, "zombie.network.GameClient").getField("client");
         grid = new PowerGrid(loader, game, this, members, buildings, lua);
         try { water = new WaterGrid(loader, game, this, members, buildings, lua); }
         catch (LinkageError olderBootstrap) { water = null; }
@@ -77,6 +94,7 @@ final class Networks {
         Object kept = lua.get(meta, MIRROR);
         load(kept);
         if (state != null) {
+            handedOver = true;
             try { restore(state); }
             catch (RuntimeException unreadable) {
                 System.err.println("[PZExt] networks: what the earlier API knew of them could not be read; they are worked out anew: " + unreadable);
@@ -133,6 +151,7 @@ final class Networks {
         // Once per game; a Lua environment made later knows it too.
         game.addEvent(EVENT);
         game.addEvent(PowerGrid.GENERATOR_EVENT);
+        onSave();
         function(table, "define", (call, arguments) -> {
             String owner = owner(arguments, call), id = id(arguments, call);
             String utility = Arguments.string(arguments, 2, call, "utility"), policy = Arguments.string(arguments, 3, call, "policy");
@@ -200,6 +219,7 @@ final class Networks {
             List<Position> squares = network.squares();
             network.ran.retainAll(squares);
             network.settled.keySet().retainAll(squares);
+            network.away.keySet().retainAll(squares);
             network.stored.keySet().retainAll(squares);
             var names = new HashSet<String>();
             for (Producer producer : producers) if (producer.source() != null) names.add(producer.source());
@@ -583,7 +603,13 @@ final class Networks {
                     grid.forget();
                     if (!networks.isEmpty()) { networks.clear(); changed(); }
                 }
+                if (cell != null && cell != world) unrestored = !(world == null && handedOver);
+                handedOver = false;
                 world = cell;
+            }
+            if (world != null && unrestored && !networks.isEmpty()) {
+                unrestored = false;
+                restoreSaved();
             }
             if (world != null) {
                 // One reading of the clock for both grids (the grids' own work is once a second).
@@ -851,7 +877,15 @@ final class Networks {
             }
             for (var settled : network.settled.entrySet())
                 text.append("T\t").append(settled.getKey()).append('\t').append(settled.getValue().lastHour()).append('\t')
-                    .append(settled.getValue().fuel()).append('\t').append(settled.getValue().perHour()).append('\n');
+                    .append(settled.getValue().fuel()).append('\t').append(settled.getValue().perHour())
+                    // Added later: its wear chance.
+                    .append('\t').append(settled.getValue().wearChance()).append('\n');
+            for (var away : network.away.entrySet()) {
+                Away value = away.getValue();
+                text.append("A\t").append(away.getKey()).append('\t').append(value.hour).append('\t').append(value.fuel).append('\t')
+                    .append(value.condition).append('\t').append(value.on ? "1" : "").append('\t').append(value.stoppedAt).append('\t')
+                    .append(value.given ? "1" : "").append('\n');
+            }
             for (var stored : network.stored.entrySet()) {
                 text.append("W\t").append(stored.getKey()).append('\t').append(stored.getValue().amount()).append('\t')
                     .append(stored.getValue().capacity()).append('\t').append(stored.getValue().taken());
@@ -887,8 +921,53 @@ final class Networks {
     }
 
     /**
+     * Has the game call {@link #saved} as it saves the world ({@code Events.OnSave}, raised before the global ModData is
+     * saved), in this Lua environment. A handler of an API that a newer one took over does nothing.
+     */
+    private void onSave() throws ReflectiveOperationException {
+        Object environment = lua.environment();
+        Object events = environment == null ? null : lua.get(environment, "Events");
+        Object event = events == null ? null : lua.get(events, "OnSave");
+        Object add = event == null ? null : lua.get(event, "Add");
+        if (add == null) {
+            System.err.println("[PZExt] networks: the game has no OnSave event; a world loaded again works its networks out anew");
+            return;
+        }
+        long mine = generation;
+        lua.call(add, lua.function("PZExtAPI.networks.saved", arguments -> {
+            if (mine == generation(lua, meta)) saved();
+            return new Object[0];
+        }));
+    }
+
+    /**
+     * As the world is saved: what the networks know beyond their definitions, as a newer API is handed it (see {@link
+     * #handover}), into the world's global ModData ({@link #SAVED}). So a world loaded again knows which producer is in
+     * use, how producers whose squares are not loaded were last seen and ran, what water producers there held, the load
+     * of consumers there and the supply's history, before those squares load. Only where the game's own state is.
+     */
+    private void saved() throws ReflectiveOperationException {
+        if (world == null || client.getBoolean(null)) return;
+        lua.set(modDataGetOrCreate.invoke(null, SAVED), "state", handover());
+    }
+
+    /** What the world saved of its networks (see {@link #saved}), to the ones its mods defined again. */
+    private void restoreSaved() throws ReflectiveOperationException {
+        if (client.getBoolean(null)) return;
+        Object table = modDataGet.invoke(null, SAVED);
+        Object kept = table == null ? null : lua.get(table, "state");
+        if (!(kept instanceof String state)) return;
+        try { restore(state); }
+        catch (RuntimeException unreadable) {
+            System.err.println("[PZExt] networks: what the world saved of them could not be read; they are worked out anew: " + unreadable);
+        }
+        grid.changed();
+        if (water != null) water.changed();
+    }
+
+    /**
      * What the API this one replaced knew of the networks beyond their definitions (see {@link #handover}), for
-     * the networks and producers it still defines.
+     * the networks and producers it still defines; or what the world saved of them (see {@link #saved}).
      */
     private void restore(String text) {
         String[] lines = text.split("\n");
@@ -936,7 +1015,17 @@ final class Networks {
                 case "T" -> {
                     Position at = Position.parse(fields[1]);
                     if (network.producers.contains(Producer.square(at)))
-                        network.settled.put(at, new Settled(Integer.parseInt(fields[2]), Float.parseFloat(fields[3]), Float.parseFloat(fields[4])));
+                        network.settled.put(at, new Settled(Integer.parseInt(fields[2]), Float.parseFloat(fields[3]), Float.parseFloat(fields[4]),
+                            fields.length > 5 ? Integer.parseInt(fields[5]) : PowerGrid.WEAR_ONE_IN));
+                }
+                case "A" -> {
+                    Position at = Position.parse(fields[1]);
+                    if (!network.producers.contains(Producer.square(at))) continue;
+                    var away = new Away(Integer.parseInt(fields[2]), Float.parseFloat(fields[3]), Integer.parseInt(fields[4]));
+                    away.on = "1".equals(fields[5]);
+                    away.stoppedAt = Double.parseDouble(fields[6]);
+                    away.given = "1".equals(fields[7]);
+                    network.away.put(at, away);
                 }
                 case "W" -> {
                     Position at = Position.parse(fields[1]);

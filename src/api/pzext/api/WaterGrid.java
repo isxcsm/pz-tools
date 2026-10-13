@@ -13,7 +13,8 @@ import pzext.api.PendingFluids.Delta;
  * Runs the water networks (docs/design.md, "Water"): a fixture of a network that has water takes it from
  * a producer the network draws from, as its policy picks ({@link #pick}), through the hooks on the game's water
  * questions; mods draw from and fill the
- * producers, and what is owed to producers whose squares are not loaded goes in as they load. The hooks read an
+ * producers, and what is owed to producers whose squares are not loaded goes in as they load. A rain collector whose
+ * square is not loaded is reached in the container the game keeps running ({@link MetaContainers}). The hooks read an
  * immutable snapshot; the rest runs on the game's thread, once a second or when something changed, and what is owed
  * each frame.
  */
@@ -53,9 +54,9 @@ final class WaterGrid implements Hooks.Water {
     }
 
     /**
-     * One place a draw or fill reaches: a loaded container on a producer's square, or a producer's square that is not
-     * loaded (no object), as last seen with what it is owed; {@code tier}, how far up the chain its network is (0 the
-     * network's own).
+     * One place a draw or fill reaches: a loaded container on a producer's square; a container the game keeps running
+     * on a square that is not loaded (a rain collector's: no object); or a producer's square that is not loaded (neither),
+     * as last seen with what it is owed. {@code tier}, how far up the chain its network is (0 the network's own).
      */
     private record Unit(Position at, Object object, Object container, Stored stored, int tier) { }
 
@@ -65,6 +66,8 @@ final class WaterGrid implements Hooks.Water {
     private final Buildings buildings;
     private final Kahlua lua;
     private final PendingFluids pending;
+    // Null for a game whose meta entities are out of reach: rain collectors far away count as last seen.
+    private final MetaContainers metas;
     private final Cadence cadence = new Cadence();
     private final Watches.Seen moves = Watches.WORLD_CELL.user();
     private volatile Snapshot snapshot = Snapshot.EMPTY;
@@ -90,6 +93,7 @@ final class WaterGrid implements Hooks.Water {
         this.buildings = buildings;
         this.lua = lua;
         pending = new PendingFluids(loader, lua);
+        metas = MetaContainers.of(loader);
         Class<?> object = game.objectType;
         fluidContainer = object.getMethod("getFluidContainer");
         modData = object.getMethod("getModData");
@@ -361,6 +365,7 @@ final class WaterGrid implements Hooks.Water {
      */
     double draw(Network network, double litres, Map<String, Double> mix) throws ReflectiveOperationException {
         Object cells = game.cell();
+        if (metas != null) metas.refresh();
         applyOwed(cells);
         List<Unit> units = units(network, cells);
         double[] held = new double[units.size()], most = new double[units.size()];
@@ -378,10 +383,10 @@ final class WaterGrid implements Hooks.Water {
             Unit unit = units.get(index);
             Stored before = unit.stored();
             double taken = takes[index];
-            if (unit.object() != null) {
+            if (unit.container() != null) {
                 removeFluid.invoke(unit.container(), (float)taken);
                 taken = before.amount() - (float)amount.invoke(unit.container());
-                amountChanged(unit.object(), before.amount());
+                if (unit.object() != null) amountChanged(unit.object(), before.amount());
                 touched.add(unit.at());
             } else {
                 pending.add(unit.at(), -taken, null);
@@ -405,6 +410,7 @@ final class WaterGrid implements Hooks.Water {
      */
     double fill(Network network, double litres, String fluid) throws ReflectiveOperationException {
         Object cells = game.cell();
+        if (metas != null) metas.refresh();
         applyOwed(cells);
         Object kind = fluidNamed.invoke(null, fluid);
         List<Unit> units = units(network, cells);
@@ -419,12 +425,12 @@ final class WaterGrid implements Hooks.Water {
         for (int index = 0; index < gives.length; index++) {
             if (gives[index] <= 0) continue;
             Unit unit = units.get(index);
-            if (unit.object() != null) {
+            if (unit.container() != null) {
                 float before = (float)amount.invoke(unit.container());
                 addFluid.invoke(unit.container(), kind, (float)gives[index]);
                 float after = (float)amount.invoke(unit.container());
                 if (after == before) continue;
-                amountChanged(unit.object(), before);
+                if (unit.object() != null) amountChanged(unit.object(), before);
                 touched.add(unit.at());
                 filled += after - before;
             } else {
@@ -505,9 +511,10 @@ final class WaterGrid implements Hooks.Water {
     }
 
     /**
-     * What a draw or fill on the network reaches: the loaded containers on the producers it draws from, and those
-     * producers' squares that are not loaded, once seen; not one that holds a fluid the network does not take. None
-     * while the network, or one above it, is switched off.
+     * What a draw or fill on the network reaches: the loaded containers on the producers it draws from, those the game
+     * keeps running on producers' squares that are not loaded, and those producers' squares that are not loaded and
+     * have none, once seen; not one that holds a fluid the network does not take. None while the network, or one above
+     * it, is switched off.
      */
     private List<Unit> units(Network network, Object cells) throws ReflectiveOperationException {
         var result = new ArrayList<Unit>();
@@ -516,6 +523,12 @@ final class WaterGrid implements Hooks.Water {
         for (Network above : networks.chain(network)) {
             for (Position at : above.squares()) {
                 Object loaded = game.square(cells, at);
+                List<Object> kept = loaded == null && metas != null ? metas.at(at) : List.of();
+                for (Object container : kept) {
+                    Stored stored = contents(container);
+                    if (stored != null && !network.foreign(stored.fluids())) result.add(new Unit(at, null, container, stored, tier));
+                }
+                if (loaded == null && !kept.isEmpty()) continue;
                 if (loaded == null) {
                     Stored stored = withOwed(at, above.stored.get(at));
                     if (stored != null && stored.capacity() > 0 && !network.foreign(stored.fluids()))
@@ -523,7 +536,7 @@ final class WaterGrid implements Hooks.Water {
                     continue;
                 }
                 for (Object object : game.objectsOn(loaded)) {
-                    Stored stored = contents(object);
+                    Stored stored = contents(fluidContainer.invoke(object));
                     if (stored != null && !network.foreign(stored.fluids()))
                         result.add(new Unit(at, object, fluidContainer.invoke(object), stored, tier));
                 }
@@ -537,7 +550,8 @@ final class WaterGrid implements Hooks.Water {
      * Each frame: a square owed changes takes them as soon as it is loaded, before a fixture can draw from it ({@link
      * #pick} passes over it until then). Several containers on it give the fullest first and take the emptiest first;
      * a square without one drops what it is owed. The containers record the last change they took ({@link #APPLIED}),
-     * so that none is taken twice. Only where the game changes what producers hold.
+     * so that none is taken twice. A square that is not loaded but whose containers the game keeps running takes them
+     * at once, in those containers. Only where the game changes what producers hold.
      */
     private void applyOwed(Object cells) throws ReflectiveOperationException { applyOwed(cells, true); }
 
@@ -550,8 +564,9 @@ final class WaterGrid implements Hooks.Water {
         var taken = new ArrayList<Position>();
         for (Position at : pending.squares()) {
             Object loaded = game.square(cells, at);
-            if (loaded == null) continue;
-            apply(at, loaded);
+            if (loaded != null) apply(at, loaded);
+            else if (metas != null && !metas.at(at).isEmpty()) apply(at, null, metas.at(at));
+            else continue;
             taken.add(at);
         }
         if (taken.isEmpty()) return;
@@ -566,16 +581,27 @@ final class WaterGrid implements Hooks.Water {
             Object container = fluidContainer.invoke(object);
             if (container != null && (float)capacity.invoke(container) > 0) { objects.add(object); containers.add(container); }
         }
+        apply(at, objects, containers);
+    }
+
+    /**
+     * What is owed to a square, into its containers: those of {@code objects}, which record what they took, or with
+     * {@code objects} null those the game keeps running while the square is not loaded, which have no object to record
+     * it on or to tell of the change.
+     */
+    private void apply(Position at, List<Object> objects, List<Object> kept) throws ReflectiveOperationException {
+        var containers = new ArrayList<Object>();
+        for (Object container : kept) if ((float)capacity.invoke(container) > 0) containers.add(container);
         List<Delta> owed = pending.at(at);
-        if (objects.isEmpty()) {
+        if (containers.isEmpty()) {
             System.err.println("[PZExt] networks: " + at + " has no fluid container; " + owed.size() + " change(s) owed to it dropped");
             pending.remove(at);
             return;
         }
         long applied = Long.MIN_VALUE;
-        for (Object object : objects) applied = Math.max(applied, taken(object));
-        float[] before = new float[objects.size()];
-        double[] held = new double[objects.size()], most = new double[objects.size()];
+        if (objects != null) for (Object object : objects) applied = Math.max(applied, taken(object));
+        float[] before = new float[containers.size()];
+        double[] held = new double[containers.size()], most = new double[containers.size()];
         for (int index = 0; index < before.length; index++) before[index] = (float)amount.invoke(containers.get(index));
         long last = applied;
         for (Delta delta : owed) {
@@ -598,8 +624,8 @@ final class WaterGrid implements Hooks.Water {
                 else addFluid.invoke(containers.get(index), kind, (float)parts[index]);
             }
         }
-        if (last != applied) for (Object object : objects) lua.set(modData.invoke(object), APPLIED, (double)last);
-        for (int index = 0; index < before.length; index++)
+        if (objects != null && last != applied) for (Object object : objects) lua.set(modData.invoke(object), APPLIED, (double)last);
+        for (int index = 0; objects != null && index < before.length; index++)
             if ((float)amount.invoke(containers.get(index)) != before[index]) amountChanged(objects.get(index), before[index]);
         pending.remove(at);
     }
@@ -610,14 +636,35 @@ final class WaterGrid implements Hooks.Water {
         game.raise(AMOUNT_CHANGE, object, before);
     }
 
-    /** Reads again what loaded producers' squares hold, after they changed. */
+    /** Reads again what producers' squares that changed hold, loaded or kept running by the game. */
     private void seen(Collection<Position> squares, Object cells) throws ReflectiveOperationException {
         if (squares.isEmpty()) return;
         for (Network network : networks.of(UTILITY))
             for (Position at : network.squares()) {
-                Object loaded = squares.contains(at) ? game.square(cells, at) : null;
-                if (loaded != null) network.stored.put(at, held(loaded));
+                Stored stored = squares.contains(at) ? held(at, cells) : null;
+                if (stored != null) network.stored.put(at, stored);
             }
+    }
+
+    /**
+     * What a producer's square holds now: its containers if it is loaded, else those the game keeps running there; null
+     * for a square that is not loaded and has none.
+     */
+    private Stored held(Position at, Object cells) throws ReflectiveOperationException {
+        Object loaded = game.square(cells, at);
+        if (loaded != null) return held(loaded);
+        List<Object> kept = metas == null ? List.of() : metas.at(at);
+        if (kept.isEmpty()) return null;
+        float held = 0, most = 0;
+        var fluids = new HashMap<String, Float>();
+        for (Object container : kept) {
+            Stored stored = contents(container);
+            if (stored == null) continue;
+            held += stored.amount();
+            most += stored.capacity();
+            stored.fluids().forEach((name, litres) -> fluids.merge(name, litres, Float::sum));
+        }
+        return new Stored(held, most, Map.copyOf(fluids), Long.MIN_VALUE);
     }
 
     /** What the containers on a loaded square hold together, and the last change owed to the square that they took. */
@@ -626,7 +673,7 @@ final class WaterGrid implements Hooks.Water {
         long taken = Long.MIN_VALUE;
         var fluids = new HashMap<String, Float>();
         for (Object object : game.objectsOn(loaded)) {
-            Stored stored = contents(object);
+            Stored stored = contents(fluidContainer.invoke(object));
             if (stored == null) continue;
             held += stored.amount();
             most += stored.capacity();
@@ -644,9 +691,8 @@ final class WaterGrid implements Hooks.Water {
         return lua.get(modData.invoke(object, Game.NONE), APPLIED) instanceof Double sequence ? sequence.longValue() : Long.MIN_VALUE;
     }
 
-    /** What the object's own fluid container holds, fluid by fluid; null when it has none. */
-    private Stored contents(Object object) throws ReflectiveOperationException {
-        Object container = fluidContainer.invoke(object);
+    /** What a fluid container holds, fluid by fluid; null for none, or one that holds nothing ever. */
+    private Stored contents(Object container) throws ReflectiveOperationException {
         if (container == null) return null;
         float most = (float)capacity.invoke(container);
         if (most <= 0) return null;
@@ -663,8 +709,8 @@ final class WaterGrid implements Hooks.Water {
 
     /**
      * Once a frame: takes in what is owed to squares that loaded; and once a second, or when something changed, reads
-     * what the producers hold and works out which networks have water. A producer whose square is not loaded counts as
-     * last seen, with what it is owed; a network has water while one of the producers it draws from has, and it and
+     * what the producers hold and works out which networks have water. A producer whose square is not loaded is read in
+     * the container the game keeps running there (a rain collector's), or else counts as last seen, with what it is owed; a network has water while one of the producers it draws from has, and it and
      * each parent above it are switched on.
      */
     void frame(Object cells, long now) throws ReflectiveOperationException {
@@ -673,13 +719,14 @@ final class WaterGrid implements Hooks.Water {
         boolean world = moves.moved();
         applyOwed(cells, world);
         if (!cadence.due(now)) return;
+        if (metas != null) metas.refresh();
         if (!world && authoritative()) { pending.refresh(); applyOwed(cells, false); }
         List<Network> watered = networks.of(UTILITY);
         for (Network network : watered) {
             members.resolve(network);
             for (Position at : network.squares()) {
-                Object loaded = game.square(cells, at);
-                if (loaded != null) network.stored.put(at, held(loaded));
+                Stored stored = held(at, cells);
+                if (stored != null) network.stored.put(at, stored);
             }
         }
         double hours = game.hours();

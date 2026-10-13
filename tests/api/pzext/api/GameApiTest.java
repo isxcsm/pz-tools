@@ -17,6 +17,8 @@ import zombie.GameTime;
 import zombie.SandboxOptions;
 import zombie.Lua.LuaEventManager;
 import zombie.Lua.LuaManager;
+import zombie.entity.GameEntityManager;
+import zombie.entity.MetaEntity;
 import zombie.entity.components.fluids.Fluid;
 import zombie.entity.components.fluids.FluidContainer;
 import zombie.inventory.InventoryItem;
@@ -63,7 +65,11 @@ public final class GameApiTest {
         attached(buildings);
         clients(api);
         networks(api);
+        // No roll of a generator away hits unless a test says so.
+        PowerGrid.dice = bound -> bound - 1;
         sequence(api);
+        generatorAway(api);
+        savedState(api);
         generatorSwitches();
         worldItems();
         children(api);
@@ -82,6 +88,7 @@ public final class GameApiTest {
         nearest(api);
         fluids(api);
         parents(api);
+        rainKept(api);
         purify(api);
         food(api);
         FormulasTest.run(api);
@@ -707,6 +714,121 @@ public final class GameApiTest {
         call(networks, "remove", mod, "seq");
         frame();
         second.setActivated(false);
+    }
+
+    /**
+     * A generator running on a square that is not loaded is run hour by hour by the API: its fuel, its wear at its item's
+     * chance, and at condition 20 or below a breakdown, which switches it off at condition 0 in that hour, without fire;
+     * the next takes over from then. As its square loads, the generator takes what the API found, and the game burns no
+     * hour twice. One still running there carries on, its fuel burned.
+     */
+    private static void generatorAway(KahluaTable api) throws Exception {
+        KahluaTable networks = (KahluaTable)api.rawget("networks");
+        Object mod = call(api, "client", "power.mod").get(0);
+        var time = GameTime.getInstance();
+        time.hours = 2000;
+        var worn = place(36, 33, 0, new IsoGenerator(new IsoSprite("generator")));
+        var spare = place(37, 33, 0, new IsoGenerator(new IsoSprite("generator")));
+        worn.condition = 25;
+        worn.itemType = "Base.Generator_Yellow";
+        call(networks, "define", mod, "seq", "power", "sequential");
+        call(networks, "setProducers", mod, "seq", list(at(36, 33, 0), at(37, 33, 0)));
+        call(networks, "addBuilding", mod, "seq", 11.0, 11.0, 0.0);
+        worn.setActivated(true);
+        frame();
+        worn.update();
+        float perHour = worn.getTotalPowerUsing(), fuel = worn.fuel;
+        var bounds = new ArrayList<Integer>();
+        // Every roll hits: it wears by 1 an hour, and at 20 it catches fire.
+        PowerGrid.dice = bound -> { bounds.add(bound); return 0; };
+        var squares = IsoWorld.instance.currentCell.squares;
+        var away = squares.remove("36,33,0");
+        LuaEventManager.raised.clear();
+        time.hours = 2010.5;
+        frame();
+        check(spare.activated && spare.lastHour() == 2005 && producer(networks) == 37.0 && raised("producer", 2005) && bounds.contains(36),
+            "The next did not take over from the hour the generator broke down away: " + spare.lastHour() + ", " + bounds);
+        var state = (KahluaTable)((KahluaTable)state(networks, "seq").rawget("producers")).rawget(1.0);
+        check(state.rawget("running").equals(false) && state.rawget("condition").equals(0.0)
+            && near((Double)state.rawget("fuel"), fuel - 5 * perHour), "The state does not show the breakdown: " + state.rawget("condition"));
+        // Loaded: it takes what was found, before the game's own update, and it is on standby, not out of service.
+        squares.put("36,33,0", away);
+        frame();
+        worn.update();
+        check(!worn.activated && worn.condition == 0 && near(worn.fuel, fuel - 5 * perHour) && worn.lastHour() == 2005 && spare.activated
+            && !outOfService(networks, "seq", 1) && worn.getModData().rawget(PowerGrid.RUNNING) == null,
+            "The loaded generator did not take its breakdown: " + worn.condition + ", " + worn.lastHour());
+        // Still running there: it carries on, burning hour by hour from the hour the game last burned it up to.
+        PowerGrid.dice = bound -> bound - 1;
+        float spareFuel = spare.fuel;
+        spare.update();
+        float sparePerHour = spare.getTotalPowerUsing();
+        var spareSquare = squares.remove("37,33,0");
+        time.hours = 2013.5;
+        frame();
+        check(producer(networks) == 37.0, "A generator running away stopped");
+        squares.put("37,33,0", spareSquare);
+        frame();
+        spare.update();
+        check(spare.activated && spare.lastHour() == 2013 && near(spare.fuel, spareFuel - 8 * sparePerHour),
+            "The loaded generator burned the hours away again: " + spare.fuel + " for " + (spareFuel - 8 * sparePerHour));
+        call(networks, "remove", mod, "seq");
+        frame();
+        spare.setActivated(false);
+    }
+
+    /**
+     * As the world is saved (OnSave), what the networks know goes into its ModData; loaded again, the networks its mods
+     * define again know which producer is in use, also one whose square is not loaded, and how it was running.
+     */
+    private static void savedState(KahluaTable api) throws Exception {
+        // The game's Events.OnSave, which the API adds a handler to as it registers.
+        var handlers = new ArrayList<Object>();
+        KahluaTable events = LuaManager.platform.newTable(), onSave = LuaManager.platform.newTable();
+        onSave.rawset("Add", (JavaFunction)(frame, count) -> { handlers.add(frame.get(0)); return 0; });
+        events.rawset("OnSave", onSave);
+        LuaManager.env.rawset("Events", events);
+        GameApi.register(LuaManager.class);
+        KahluaTable networks = (KahluaTable)api.rawget("networks");
+        Object mod = call(api, "client", "power.mod").get(0);
+        check(handlers.size() == 1, "The API added no OnSave handler: " + handlers.size());
+        var time = GameTime.getInstance();
+        time.hours = 3000;
+        var far = place(38, 33, 0, new IsoGenerator(new IsoSprite("generator")));
+        Runnable define = () -> {
+            call(networks, "define", mod, "seq", "power", "sequential");
+            call(networks, "setProducers", mod, "seq", list(at(38, 33, 0)));
+            call(networks, "addBuilding", mod, "seq", 11.0, 11.0, 0.0);
+        };
+        define.run();
+        far.setActivated(true);
+        frame();
+        far.update();
+        var squares = IsoWorld.instance.currentCell.squares;
+        var away = squares.remove("38,33,0");
+        frame();
+        invoke(handlers.get(0));
+        check(ModData.get(Networks.SAVED) != null && ModData.get(Networks.SAVED).rawget("state") instanceof String,
+            "The networks were not saved into the world's ModData");
+        // The world loaded again, the generator's square still not loaded.
+        var world = IsoWorld.instance;
+        var cell = world.currentCell;
+        world.setCell(null);
+        frame();
+        world.setCell(cell);
+        frame();
+        define.run();
+        frame();
+        check(producer(networks) == 38.0 && state(networks, "seq").rawget("supplied").equals(true),
+            "A world loaded again does not know the producer in use far away: " + producer(networks));
+        time.hours = 3005.5;
+        frame();
+        check(producer(networks) == 38.0, "The far producer stopped after the world was loaded again");
+        squares.put("38,33,0", away);
+        call(networks, "remove", mod, "seq");
+        frame();
+        far.setActivated(false);
+        ModData.tables.remove(Networks.SAVED);
     }
 
     /**
@@ -2289,6 +2411,55 @@ public final class GameApiTest {
         for (String id : List.of("storey", "above", "across", "mains", "backup", "flat")) call(networks, "remove", mod, id);
         frame();
         check(!tap.getUsesExternalWaterSource(), "A removed network still supplies water");
+    }
+
+    /**
+     * A rain collector whose square is not loaded: the game keeps its container running in a meta entity at its
+     * position, and the API reads, draws from and fills that container, owing it nothing. What was owed before it was
+     * found goes into it at the next frame. Loaded again, the container is the object's once more.
+     */
+    private static void rainKept(KahluaTable api) throws Exception {
+        KahluaTable networks = (KahluaTable)api.rawget("networks");
+        Object mod = call(api, "client", "water.mod").get(0);
+        IsoObject collector = place(70, 40, 0, barrel(20)), near = place(71, 40, 0, barrel(20));
+        call(networks, "define", mod, "rain", "water", "fullest");
+        call(networks, "setProducers", mod, "rain", list(at(70, 40, 0), at(71, 40, 0)));
+        frame();
+        var cells = IsoWorld.instance.currentCell.squares;
+        // Unloaded before the game's meta entity is seen: a draw is owed, as for a barrel.
+        var square = cells.remove("70,40,0");
+        call(networks, "draw", mod, "rain", 10.0);
+        check(near(collector.fluidContainer.amount, 20) && near(near.fluidContainer.amount, 15), "A draw before the meta entity was not owed");
+        var meta = new MetaEntity(9, 70, 40, 0, collector.fluidContainer);
+        GameEntityManager.keep(meta);
+        call(networks, "addBuilding", mod, "rain", 0.0, 0.0, 0.0);
+        frame();
+        KahluaTable kept = ModData.get(PendingFluids.KEY);
+        check(near(collector.fluidContainer.amount, 15) && ((KahluaTable)kept.rawget("deltas")).len() == 0,
+            "What was owed did not go into the kept container: " + collector.fluidContainer.amount);
+        // The game's rain while it is away shows in the state.
+        collector.fluidContainer.addFluid(Fluid.TaintedWater, 30);
+        call(networks, "addBuilding", mod, "rain", 0.0, 0.0, 0.0);
+        frame();
+        var far = (KahluaTable)((KahluaTable)state(networks, "rain").rawget("producers")).rawget(1.0);
+        check(near((Double)far.rawget("amount"), 45) && near((Double)far.rawget("pending"), 0)
+            && near((Double)state(networks, "rain").rawget("amount"), 60), "The rain far away is not seen: " + far.rawget("amount"));
+        // Drawn and filled in the container itself: nothing owed, nothing synced.
+        int syncs = collector.syncs;
+        check(near((Double)call(networks, "draw", mod, "rain", 30.0).get(0), 30) && near(collector.fluidContainer.amount, 15)
+            && near(near.fluidContainer.amount, 15), "A draw did not reach the kept container: " + collector.fluidContainer.amount);
+        check(near((Double)call(networks, "fill", mod, "rain", 10.0, "Water").get(0), 10) && near(collector.fluidContainer.amount, 20)
+            && ((KahluaTable)kept.rawget("deltas")).len() == 0 && collector.syncs == syncs, "A fill was owed, or the kept container synced");
+        check(near((Double)((KahluaTable)((KahluaTable)state(networks, "rain").rawget("producers")).rawget(1.0)).rawget("amount"), 20),
+            "The state does not follow the kept container");
+        // Loaded again: the object has it back, and the stale entry is passed over.
+        GameEntityManager.giveBack(meta);
+        cells.put("70,40,0", square);
+        call(networks, "draw", mod, "rain", 5.0);
+        check(near(collector.fluidContainer.amount, 17.5) && near(near.fluidContainer.amount, 17.5) && collector.syncs == syncs + 1,
+            "A loaded collector was not drawn from as before: " + collector.fluidContainer.amount);
+        call(networks, "remove", mod, "rain");
+        frame();
     }
 
     private static IsoObject barrel(float amount) {

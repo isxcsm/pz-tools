@@ -28,6 +28,11 @@ public class IsoGenerator extends IsoObject {
     public boolean isActivated() { return activated; }
     public float getFuel() { return fuel; }
     public int getCondition() { return condition; }
+    public void setFuel(float value) { fuel = Math.max(0, value); }
+    public void setCondition(int value) { condition = Math.max(0, Math.min(100, value)); }
+    /** The item it is picked up as, whose script gives its wear (ScriptManager). */
+    public String itemType = "Base.Generator";
+    public String getGeneratorItemType() { return itemType; }
     // Like the game's: scaled by the sandbox's generator fuel rate.
     public float getTotalPowerUsing() { return (float)(totalPowerUsing * SandboxOptions.instance.generatorFuelConsumption.getValue()); }
     public int consumptionSets;
