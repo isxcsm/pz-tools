@@ -80,8 +80,9 @@ function ISBUPlan:new(x, y, width, height, window)
 end
 
 -- The colour of a room: kept off by the box (amber), supplied and in use (green), connected without supply (grey
--- blue), all switched off at the box (dark).
+-- blue), all switched off at the box (dark); one with nothing of the utility in it in the zone's own colour, faint.
 local function roomColour(room, supplied)
+    if room.count == 0 then return 0.15, 0.32, 0.38 end
     if room.held > 0 then return 0.85, 0.55, 0.15 end
     if room.on > 0 then
         if supplied then return 0.25, 0.68, 0.45 end
@@ -543,8 +544,9 @@ function ISBUPlan:layout()
     local roomState = {}
     for _, device in ipairs(data.devices) do
         if device.inside then
-            local state = roomState[device.roomId] or { on = 0, held = 0 }
+            local state = roomState[device.roomId] or { on = 0, held = 0, count = 0 }
             roomState[device.roomId] = state
+            state.count = state.count + 1
             if device.state == "on" then
                 state.on = state.on + 1
                 if device.held then state.held = state.held + 1 end
@@ -562,7 +564,7 @@ function ISBUPlan:layout()
                     or state == "far" and COLOURS.zoneFar or COLOURS.zoneFree
                 r, g, b = colour[1], colour[2], colour[3]
             elseif state == "mine" then
-                r, g, b = roomColour(roomState[room.id] or { on = 0, held = 0 }, data.supplied)
+                r, g, b = roomColour(roomState[room.id] or { on = 0, held = 0, count = 0 }, data.supplied)
             else
                 local colour = state == "taken" and COLOURS.zoneTaken or state == "far" and COLOURS.zoneFar or COLOURS.zoneFree
                 r, g, b = colour[1] * 0.5, colour[2] * 0.5, colour[3] * 0.5

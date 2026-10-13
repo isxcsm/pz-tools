@@ -164,6 +164,26 @@ Ui.approach = approach
 Ui.OPTION_W = OPTION_W
 Ui.SEEN = SEEN
 Ui.OUTSIDE = OUTSIDE
+
+-- The list's group of a device and the floor it is listed on: its room; for one outside, the room or relay it hangs
+-- from (Links.hangsOn; the floor its relay stands on), else what is outside on its own floor.
+function Ui.groupOf(device)
+    if device.inside then return device.roomId, nil end
+    local hangsOn = device.hangsOn
+    if hangsOn and BU.Links.isRelay(hangsOn) then
+        local relay = BU.Links.get(hangsOn)
+        return hangsOn, relay and relay.z or device.entry.z
+    end
+    if hangsOn then return hangsOn, nil end
+    return OUTSIDE .. ":" .. device.entry.z, device.entry.z
+end
+
+function Ui.isOutside(id) return id:sub(1, #OUTSIDE + 1) == OUTSIDE .. ":" end
+
+-- Whether a device is the building's for "everything in the building": in it, or outside hung on one of its rooms.
+function Ui.inBuilding(device)
+    return device.inside or device.wired and device.hangsOn ~= nil and not BU.Links.isRelay(device.hangsOn)
+end
 Ui.ROOM_TICK_X = ROOM_TICK_X
 Ui.load2 = load2
 Ui.percent = percent

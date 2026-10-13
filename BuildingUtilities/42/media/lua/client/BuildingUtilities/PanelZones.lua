@@ -5,7 +5,7 @@ local BU = BuildingUtilities
 local Store, Panels, Networks, Sync, Geometry, Energy, Units, Links = BU.Store, BU.Panels, BU.Networks, BU.Sync,
     BU.Geometry, BU.Energy, BU.Units, BU.Links
 local Ui = BU.PanelUi
-local OUTSIDE, load2, deviceObjects, outline, unoutline = Ui.OUTSIDE, Ui.load2, Ui.deviceObjects, Ui.outline,
+local load2, deviceObjects, outline, unoutline = Ui.load2, Ui.deviceObjects, Ui.outline,
     Ui.unoutline
 local PanelWindow = BU.PanelWindow
 
@@ -377,7 +377,10 @@ function ISBUPanelWindow:showDevice(key)
     local view = self.views[utility]
     local roomId, level
     for _, device in ipairs(view and view.devices or {}) do
-        if device.key == key then roomId, level = device.inside and device.roomId or OUTSIDE, device.entry.z end
+        if device.key == key then
+            roomId, level = Ui.groupOf(device)
+            level = level or device.entry.z
+        end
     end
     if not roomId then return end
     PanelWindow.folded[self.panel.id .. "|" .. utility .. "|" .. roomId] = nil

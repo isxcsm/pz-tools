@@ -353,6 +353,23 @@ function Links.endOf(line)
     return math.max(wx - 0.5, math.min(wx + 0.5, line.x)), math.max(wy - 0.5, math.min(wy + 0.5, line.y)), wz
 end
 
+-- What a line hangs from at its top, for the window to list it there: the relay it hangs below (its ref), else the
+-- zone's room whose wall its branch ends on (its id); nil when neither (cut off, or no room of the zone there).
+function Links.hangsOn(panel, ref)
+    local line, seen = Links.get(ref), {}
+    while line and not seen[line] do
+        seen[line] = true
+        if not line.via then
+            local wx, wy, wz = BU.parsePlace(line.wall or "")
+            local room = wx and Panels.roomHaving(Panels.zoneRooms(panel), wx, wy, wz)
+            return room and room.id or nil
+        end
+        if Links.isRelay(line.via) then return line.via end
+        line = Links.get(line.via)
+    end
+    return nil
+end
+
 -- The first lines of a box's branches that supply nothing, each with the reason what hangs below shares, by when they
 -- were laid.
 function Links.deadHeads(panel)

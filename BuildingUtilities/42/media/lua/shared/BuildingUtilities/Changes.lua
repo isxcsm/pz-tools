@@ -509,19 +509,24 @@ function Changes.setInside(panel, utility, device, connected)
     Sync.changed(panel.id)
 end
 
+-- Every device of the building at once, with those outside hung on its rooms' walls.
 function Changes.setAllInside(panel, utility, connected)
     for _, device in ipairs(Panels.devices(panel, utility)) do
-        if device.inside and (device.state == "on") ~= connected and device.state ~= "other" then
+        local mine = device.inside or device.wired and device.hangsOn and not Links.isRelay(device.hangsOn)
+        if mine and (device.state == "on") ~= connected and device.state ~= "other" then
             setInside(panel, utility, device, connected)
         end
     end
     Sync.changed(panel.id)
 end
 
--- Every device of one room of the building at once ("" for those in no room).
+-- Every device of one room at once ("" for those in no room), with those outside hung on its wall; or, by a relay's
+-- ref, those hung below that relay.
 function Changes.setRoomInside(panel, utility, roomId, connected)
     for _, device in ipairs(Panels.devices(panel, utility)) do
-        if device.inside and device.roomId == roomId and (device.state == "on") ~= connected and device.state ~= "other" then
+        local mine = device.inside and device.roomId == roomId or not device.inside and device.wired
+            and device.hangsOn == roomId
+        if mine and (device.state == "on") ~= connected and device.state ~= "other" then
             setInside(panel, utility, device, connected)
         end
     end

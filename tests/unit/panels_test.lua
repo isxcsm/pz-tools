@@ -179,6 +179,28 @@ test("a device outside with its line is supplied unless cut, and the line taken 
     eq(Networks.rule(panel, "water", TAP), "include", "a line laid again supplies it")
 end)
 
+test("a device outside hangs from the room whose wall its line ends on, and goes off with that room", function()
+    house(TEST.api)
+    local panel = Store.newPanel(201, 201, 0, "box")
+    panel.tier = 2
+    local LAMP_OUT = "209,201,0,lamp"
+    local device = { key = LAMP_OUT, keys = { LAMP_OUT }, inside = false,
+        entry = { x = 209, y = 201, z = 0, sprite = "lamp" } }
+    Changes.includeOutside(panel, "power", device, {})
+    eq(BU.Links.hangsOn(panel, BU.Links.deviceRef(LAMP_OUT)), "701", "on the store's east wall")
+    local listed
+    for _, each in ipairs(Panels.devices(panel, "power")) do
+        if each.key == LAMP_OUT then listed = each end
+    end
+    eq(listed and listed.hangsOn, "701")
+    Changes.setRoomInside(panel, "power", "700", false)
+    eq(panel.power.excluded[LAMP_OUT], nil, "the hall switched off: not this one")
+    Changes.setRoomInside(panel, "power", "701", false)
+    eq(panel.power.excluded[LAMP_OUT], true, "the store switched off: this one with it")
+    Changes.setAllInside(panel, "power", true)
+    eq(panel.power.excluded[LAMP_OUT], nil, "everything in the building on: this one too")
+end)
+
 test("a box lists what it could take and no box has: producers in reach, units in reach", function()
     require "BuildingUtilities/Solar"
     house(TEST.api)

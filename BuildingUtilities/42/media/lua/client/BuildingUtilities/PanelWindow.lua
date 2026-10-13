@@ -33,9 +33,9 @@ local Store, Panels, Networks, Costs, Actions, Sync, Energy = BU.Store, BU.Panel
     BU.Sync, BU.Energy
 local Units, Ui, Geometry, Links = BU.Units, BU.PanelUi, BU.Geometry, BU.Links
 local MANUAL = Ui.MANUAL
-local FONT_HGT_SMALL, ROW, PAD, REFRESH_MS, BAR_W, LOG, BATTERIES, LIST_W, MIN_LIST, MIN_PLAN, SEEN, OUTSIDE,
+local FONT_HGT_SMALL, ROW, PAD, REFRESH_MS, BAR_W, LOG, BATTERIES, LIST_W, MIN_LIST, MIN_PLAN, SEEN,
     ROOM_TICK_X, load2, percent, nextSchedule = Ui.FONT_HGT_SMALL, Ui.ROW,
-    Ui.PAD, Ui.REFRESH_MS, Ui.BAR_W, Ui.LOG, Ui.BATTERIES, Ui.LIST_W, Ui.MIN_LIST, Ui.MIN_PLAN, Ui.SEEN, Ui.OUTSIDE,
+    Ui.PAD, Ui.REFRESH_MS, Ui.BAR_W, Ui.LOG, Ui.BATTERIES, Ui.LIST_W, Ui.MIN_LIST, Ui.MIN_PLAN, Ui.SEEN,
     Ui.ROOM_TICK_X, Ui.load2, Ui.percent, Ui.nextSchedule
 local deviceButtons = Ui.deviceButtons
 local UI, P, ease, approach = Ui.UI, Ui.PALETTE, Ui.ease, Ui.approach
@@ -1243,7 +1243,7 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
     -- Switching on every device of the building that is off: what the load would be.
     local allTip, offPower = nil, 0
     for _, device in ipairs(devices) do
-        if device.inside and device.state == "off" then offPower = offPower + (device.power or 0) end
+        if Ui.inBuilding(device) and device.state == "off" then offPower = offPower + (device.power or 0) end
     end
     if utility == "power" and self.load and offPower > 0 then
         allTip = getText("IGUI_BU_PreviewAll", load2(self.load + offPower), load2(self.limit))
@@ -1255,9 +1255,12 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
     end
     if not complete then add({ kind = "note", text = getText("IGUI_BU_NotAllLoaded") }) end
     if #devices == 0 then add({ kind = "note", text = getText("IGUI_BU_NoDevices_" .. utility) }) end
-    -- Rooms by their id (rooms of one name stay apart), devices in no room after them, then those outside.
+    -- Rooms by their id (rooms of one name stay apart), with the devices outside hung on their walls; a relay's devices
+    -- under it; devices in no room after them; then those outside hung on neither, by floor (Ui.groupOf).
     local options = PanelWindow.options
     local groups, order = {}, {}
+    local floorOf = {}
+    for _, room in ipairs(self.rooms or {}) do floorOf[room.id] = room.level end
     self.displayNames = self.displayNames or {}
     local names = self.displayNames
     for _, device in ipairs(devices) do
@@ -1277,9 +1280,10 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
         view.names[device.key] = name
         local status, dim = self:deviceStatus(utility, device)
         view.status[device.key] = status
-        local group = device.inside and device.roomId or OUTSIDE
+        local group, level = Ui.groupOf(device)
         if not groups[group] then
-            groups[group] = { id = group, devices = {}, total = 0, on = 0, off = 0 }
+            groups[group] = { id = group, devices = {}, total = 0, on = 0, off = 0,
+                level = floorOf[group] or level, relay = Links.isRelay(group), outside = Ui.isOutside(group) }
             order[#order + 1] = groups[group]
         end
         local g = groups[group]
@@ -1295,11 +1299,15 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
         if shown then table.insert(g.devices, { device = device, name = name, status = status, dim = dim }) end
     end
     local function title(id)
-        if id == OUTSIDE then return getText("IGUI_BU_Outside") end
+        if Ui.isOutside(id) then return getText("IGUI_BU_Outside") end
         if id == "" then return getText("IGUI_BU_NoRoom") end
+        if Links.isRelay(id) then
+            local unit = Links.unitOf(id)
+            return unit and Units.name(unit) .. "  (" .. Panels.where(panel, unit.x, unit.y) .. ")" or getText("IGUI_BU_NoRoom")
+        end
         return self.titles[id] or getText("IGUI_BU_NoRoom")
     end
-    local function rank(group) return group.id == OUTSIDE and 2 or group.id == "" and 1 or 0 end
+    local function rank(group) return group.outside and 3 or group.id == "" and 2 or group.relay and 1 or 0 end
     table.sort(order, function(a, b)
         if rank(a) ~= rank(b) then return rank(a) < rank(b) end
         if options.byLoad and a.total ~= b.total then return a.total > b.total end
@@ -1329,7 +1337,7 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
         local foldKey = panel.id .. "|" .. utility .. "|" .. group.id
         local folded = PanelWindow.folded[foldKey] == true and query == ""
         local roomState
-        if group.id ~= OUTSIDE then
+        if not group.outside then
             roomState = group.off == 0 and "on" or group.on == 0 and "off" or "some"
         end
         local right = utility == "power" and load2(group.total) or (group.on .. " / " .. (group.on + group.off))
@@ -1372,13 +1380,12 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
             end
         end
     end
-    -- Rooms on more than one floor: a header per floor, lowest first, with its rooms under it; a floor folded shows
-    -- the header alone (ISBUPanelWindow:floorFolded). Devices in no room and outside after the floors.
-    local floorOf = {}
-    for _, room in ipairs(self.rooms or {}) do floorOf[room.id] = room.level end
+    -- Rooms on more than one floor: a header per floor, lowest first, with its rooms, relays and what is outside on it
+    -- under it; a floor folded shows the header alone (ISBUPanelWindow:floorFolded). Devices in no room after the
+    -- floors.
     local floors, levels = {}, {}
     for _, group in ipairs(order) do
-        local level = group.id ~= OUTSIDE and floorOf[group.id] or nil
+        local level = group.level
         if level ~= nil then
             if not floors[level] then
                 floors[level] = { groups = {}, total = 0, on = 0, off = 0 }
@@ -1412,7 +1419,7 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
             end
         end
         for _, group in ipairs(order) do
-            if floorOf[group.id] == nil and visible(group) then emit(group) end
+            if group.level == nil and visible(group) then emit(group) end
         end
     end
     list:setYScroll(scroll)
@@ -1503,7 +1510,7 @@ end
 
 function ISBUPanelWindow:allInside(devices)
     for _, device in ipairs(devices) do
-        if device.inside and device.state ~= "on" then return false end
+        if Ui.inBuilding(device) and device.state ~= "on" then return false end
     end
     return true
 end

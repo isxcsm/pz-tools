@@ -739,7 +739,12 @@ function Panels.devices(panel, utility)
             if owner == panel then device.state = anyKey(data.excluded, group.keys) and "off" or "on"
             else device.state = owner and "other" or "off" end
             -- Its line supplies nothing: why (BU.Links).
-            if owner == panel and data.included[first.key] then device.cut = BU.Links.reason(panel, BU.Links.deviceRef(first.key)) end
+            if owner == panel and data.included[first.key] then
+                local ref = BU.Links.deviceRef(first.key)
+                device.cut = BU.Links.reason(panel, ref)
+                -- the room or relay it hangs from: it is switched with that room, and listed under it
+                device.hangsOn = BU.Links.hangsOn(panel, ref)
+            end
         end
         if utility == "water" then
             if not zoneRoomsById then
