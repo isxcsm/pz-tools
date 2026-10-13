@@ -28,7 +28,6 @@ require "BuildingUtilities/ContextMenu"
 require "BuildingUtilities/PanelPlan"
 require "BuildingUtilities/PanelList"
 require "BuildingUtilities/ControllerPopup"
-require "BuildingUtilities/Switches"
 local BU = BuildingUtilities
 local Store, Panels, Networks, Costs, Actions, Sync, Energy = BU.Store, BU.Panels, BU.Networks, BU.Costs, BU.Actions,
     BU.Sync, BU.Energy
@@ -1446,19 +1445,13 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
                 end
                 -- its timer and essential buttons tell what they do over themselves (ISBUPanelList.BUTTON_TIPS)
                 local controls = timers and utility == "power" and device.state == "on"
-                -- the device's own switch while the box connects it (BU.Switches): on, off, or nil without one
-                local switchOn
-                if utility == "power" and device.state == "on" then
-                    local object = BU.Switches.objectOf(device.entry)
-                    if object then switchOn = BU.Switches.state(object) end
-                end
                 local groupText, groupColour
                 if device.group and device.state == "on" and #BU.Water.groups(panel) > 1 then
                     groupText, groupColour = BU.Water.groupName(panel, device.group), PanelWindow.groupColour(panel, device.group)
                 end
                 add({ kind = "device", text = shown.name, right = shown.status, dim = shown.dim, device = device,
                     state = device.state, unwired = not device.wired, held = device.held, controls = controls,
-                    sheds = sheds, switchOn = switchOn,
+                    sheds = sheds,
                     fresh = view.fresh[device.key], groupText = groupText, groupColour = groupColour }, tooltip)
             end
         end
@@ -1676,9 +1669,6 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
             if x >= button.x and x <= button.x + button.w then
                 if button.name == "group" then
                     self:deviceGroupMenu(device)
-                elseif button.name == "switch" then
-                    Sync.send(playerObj, "switchDevice", { panel = panel.id, key = device.key, on = not row.switchOn })
-                    self:changed()
                 elseif button.name == "timer" then
                     Sync.send(playerObj, "setSchedule", { panel = panel.id, key = device.key, schedule = nextSchedule(device.schedule) })
                 else

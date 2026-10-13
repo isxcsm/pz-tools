@@ -21,12 +21,12 @@ local STILL = { header = true, note = true, filter = true, log = true, graph = t
 -- One tab's list. Each item is a row table with a kind; clicks act on the row and the part of it clicked.
 ISBUPanelList = ISScrollingListBox:derive("ISBUPanelList")
 -- The tooltips of a device row's buttons, by button: what a click does, over the button itself.
-ISBUPanelList.BUTTON_TIPS = { timer = "IGUI_BU_TimerTip", essential = "IGUI_BU_EssentialTip", switch = "IGUI_BU_SwitchTip" }
+ISBUPanelList.BUTTON_TIPS = { timer = "IGUI_BU_TimerTip", essential = "IGUI_BU_EssentialTip" }
 
 local BUTTONS = { "Up", "Down" }
 local OPTIONS, OPTION_NAMES = { "ActiveOnly", "ByLoad" }, { ActiveOnly = true, ByLoad = true }
 local BUTTON_W = 60
-local TIMER_W, ESSENTIAL_W, SWITCH_W, GROUP_W, SOURCE_W = 64, 48, 48, 90, 110
+local TIMER_W, ESSENTIAL_W, GROUP_W, SOURCE_W = 64, 48, 90, 110
 -- Water groups' colours, by their place in the panel's list.
 local GROUP_COLOURS = { { 0.35, 0.65, 1 }, { 0.3, 0.9, 0.85 }, { 0.75, 0.55, 1 }, { 1, 0.6, 0.8 } }
 
@@ -82,12 +82,6 @@ local function deviceButtons(width, row)
         end
         right = right - TIMER_W
         result[#result + 1] = { name = "timer", x = right, w = TIMER_W }
-        right = right - 4
-    end
-    -- the device's own switch, where it has one (BU.Switches)
-    if row.switchOn ~= nil then
-        right = right - SWITCH_W
-        result[#result + 1] = { name = "switch", x = right, w = SWITCH_W }
         right = right - 4
     end
     if right < width - PAD - SCROLLBAR then right = right - 4 end
@@ -343,9 +337,6 @@ function ISBUPanelList:doDrawItem(y, item, alt)
                 local timed = row.device.schedule ~= "always"
                 smallButton(self, c, key, button.x, y, button.w, label("IGUI_BU_Schedule_" .. row.device.schedule),
                     timed and TIMED or UNTIMED)
-            elseif button.name == "switch" then
-                smallButton(self, c, key, button.x, y, button.w, label("IGUI_BU_Switch"),
-                    row.switchOn and GREEN or NOT_ESSENTIAL, row.switchOn)
             else
                 smallButton(self, c, key, button.x, y, button.w, label("IGUI_BU_Essential"),
                     row.device.essential and ESSENTIAL or NOT_ESSENTIAL)
