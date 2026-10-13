@@ -323,7 +323,7 @@
     "IGUI_OA_Tree_Node_storage_Rank": "보관함에 %1 더 들어갑니다.",
     "IGUI_OA_Tree_Node_armor_Name": "갑옷 체질",
     "IGUI_OA_Tree_Node_armor_Note": "방호복 세 겹을 입고 하루를 보냈다. 덥다는 말은 한 번도 하지 않았다.",
-    "IGUI_OA_Tree_Node_armor_Rank": "착용 장비의 불편함이 절반으로 줄어듭니다.",
+    "IGUI_OA_Tree_Node_armor_Rank": "착용 장비의 불편함이 4분의 1로 줄어듭니다.",
     "IGUI_OA_Tree_Node_serumAdapt_Name": "혈청 적응",
     "IGUI_OA_Tree_Node_serumAdapt_Rank1": "혈청 주사의 부작용(통증, 졸음)이 절반으로 줄고, 적응 시간도 절반이 됩니다.",
     "IGUI_OA_Tree_Node_serumAdapt_Rank2": "혈청 주사의 부작용이 사라지고, 적응 시간이 4분의 1로 줄어듭니다. 주사를 맞으면 운석이 떨어진 곳이 환각으로 보입니다.",

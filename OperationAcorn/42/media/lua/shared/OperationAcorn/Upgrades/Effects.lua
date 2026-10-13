@@ -96,6 +96,9 @@ end
 -- (the kind of landing and its animation, being thrown down, the damage, the lethal height of 3.5 floors), so all of it
 -- follows. The damage is linear in the height, so the ranks take a third, two thirds and three quarters off it.
 local FALL_HEIGHT = { 2 / 3, 1 / 3, 1 / 4 }
+-- What the load tree's capstone (갑옷 체질) adds to the worn gear's sum, which divides (Rules.divide): 3, a quarter of
+-- the discomfort on its own.
+local ARMOR_DISCOMFORT = 3
 -- Every fall lands with at least the light landing, and from rank 2 faster (media/AnimSets/player/falling/
 -- oa_land_*_r<rank>.xml, written by tools/land_nodes.py): the character variable they ask for, set to the rank.
 Effects.LAND_VARIABLE = "OALandRank"
@@ -213,7 +216,7 @@ function Effects.compute(u, now, options)
         out[P.corpseCount] = R.divide(R.fraction(u, "resist") + board("bIllness"))
     end
     local discomfort = board("bGear")
-    if rank("armor") > 0 then discomfort = discomfort + m end
+    if rank("armor") > 0 then discomfort = discomfort + ARMOR_DISCOMFORT * m end
     if discomfort > 0 then out[P.discomfort] = R.divide(discomfort) end
     if rank("stiff") > 0 or board("bStiff") > 0 then
         out[P.stiffness] = (1 - R.cut(u, "stiff")) * R.divide(board("bStiff"))
