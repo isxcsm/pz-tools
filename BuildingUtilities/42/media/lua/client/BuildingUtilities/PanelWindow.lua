@@ -1535,33 +1535,11 @@ function ISBUPanelWindow:switchDevice(utility, device)
     Sync.send(self.playerObj, "setInside", { panel = self.panel.id, utility = utility, key = device.key, on = device.state ~= "on" })
 end
 
--- Where a row's thing is, for the plan: a producer's, a unit's or a relay's square, a device's, a room's (or a
--- relay's group's) square, a rack's. Nil for a row of no one place.
-local function rowPlace(row)
-    local at = row.relay or row.unit or row.at or row.rack or (row.device and row.device.entry)
-    if at then return at.x, at.y, at.z end
-    if row.kind == "room" then
-        if row.roomKey then return BU.parsePlace(row.roomKey) end
-        local unit = Links.unitOf(row.id)
-        if unit then return unit.x, unit.y, unit.z end
-    end
-    return nil
-end
-
--- A row's thing shown on the plan, as a click on a row that hits none of its buttons does.
+-- A row's thing shown on the plan, as a click on a row that hits none of its buttons does: a producer's, a unit's or a
+-- relay's square, a device's, a rack's. A room's header shows nothing (a room is no one square).
 function ISBUPanelWindow:showRow(row)
-    local x, y, z = rowPlace(row)
-    if not x and row.kind == "room" then
-        -- a room of the zone: the middle of its first rectangle
-        for _, room in ipairs(self.rooms or {}) do
-            local rect = room.id == row.id and room.rects[1]
-            if rect then
-                x, y, z = rect.x + math.floor(rect.w / 2), rect.y + math.floor(rect.h / 2), room.level
-                break
-            end
-        end
-    end
-    if x then self:showOnPlan(x, y, z) end
+    local at = row.relay or row.unit or row.at or row.rack or (row.device and row.device.entry)
+    if at then self:showOnPlan(at.x, at.y, at.z) end
 end
 
 -- A click on a row: free changes as commands; lines laid or taken away by walking there. A click on a row's thing
@@ -1633,7 +1611,6 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
         else
             PanelWindow.folded[row.foldKey] = (not row.folded) or nil
             self:refill(utility)
-            self:showRow(row)
         end
     elseif row.kind == "device" and row.state ~= "other" then
         local device = row.device
