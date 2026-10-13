@@ -168,6 +168,12 @@ option BuildingUtilities.SolarPanelLoot
     page = BuildingUtilities, translation = BuildingUtilities_SolarPanelLoot,
 }
 
+option BuildingUtilities.BreakerBoxLoot
+{
+    type = double, min = 0.0, max = 10.0, default = 1.0,
+    page = BuildingUtilities, translation = BuildingUtilities_BreakerBoxLoot,
+}
+
 option BuildingUtilities.WaterLoot
 {
     type = double, min = 0.0, max = 10.0, default = 1.0,

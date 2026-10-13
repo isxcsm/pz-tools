@@ -1,5 +1,5 @@
--- Timed actions: laying and taking away lines, upgrading a box, putting in a pipe, throwing its lever,
--- brushing snow off a solar panel, replacing a filter's media, reconditioning a battery. A device, a unit or a
+-- Timed actions: laying and taking away lines, upgrading a box, putting in a pipe, throwing its lever, learning its
+-- design and taking one apart, brushing snow off a solar panel, replacing a filter's media, reconditioning a battery. A device, a unit or a
 -- producer is wired in and out at itself, with the tool of its utility in hand (Actions.work).
 -- Each names panels and squares, not objects, and checks again as it completes, where the world is decided
 -- (BU.Changes).
@@ -312,6 +312,62 @@ end
 function ISBUReplaceMedia:new(character, unit)
     local o = ISBaseTimedAction.new(self, character)
     o.unitId, o.x, o.y = unit.id, unit.x, unit.y
+    o.maxTime = o:getDuration()
+    return o
+end
+
+-- Learning the box's design at one (Panels.reverseEngineerProblem): the cover opened and the wiring looked into with
+-- a screwdriver. The box stays as it is.
+ISBUReverseEngineer = base("ISBUReverseEngineer", 600)
+
+function ISBUReverseEngineer:isValid() return Store.get(self.panelId) ~= nil end
+
+function ISBUReverseEngineer:start() Actions.work(self, "power") end
+
+function ISBUReverseEngineer:complete()
+    if not Store.get(self.panelId) or Panels.reverseEngineerProblem(self.character) then return false end
+    self.character:learnRecipe(Panels.RECIPE)
+    BU.giveXp(self.character, 10)
+    self.character:Say(getText("IGUI_BU_SayLearnedBox"))
+    return true
+end
+
+function ISBUReverseEngineer:new(character, panel)
+    local o = ISBaseTimedAction.new(self, character)
+    o.panelId, o.x, o.y = panel.id, panel.x, panel.y
+    o.maxTime = o:getDuration()
+    return o
+end
+
+-- Taking a box apart, as an item (Costs.takeApart): its control boards (Costs.boardsIn its tier), some wire and parts.
+ISBUTakeApartBox = ISBaseTimedAction:derive("ISBUTakeApartBox")
+ISBUTakeApartBox.getDuration = fixedDuration(300)
+
+function ISBUTakeApartBox:isValid() return self.character:getInventory():contains(self.item) end
+
+function ISBUTakeApartBox:start()
+    self:setActionAnim(CharacterActionAnims.Craft)
+end
+
+function ISBUTakeApartBox:perform() ISBaseTimedAction.perform(self) end
+
+function ISBUTakeApartBox:complete()
+    local inventory = self.character:getInventory()
+    if not inventory:contains(self.item) or not Costs.affords(self.character, Costs.takeApart()) then return false end
+    local boards = Costs.boardsIn(Panels.itemTier(self.item))
+    inventory:Remove(self.item)
+    sendRemoveItemFromContainer(inventory, self.item)
+    for _ = 1, boards do giveItem(self.character, Costs.BOARD) end
+    for _, part in ipairs(Costs.TAKE_APART) do
+        for _ = 1, part[2] do giveItem(self.character, part[1]) end
+    end
+    BU.giveXp(self.character, 5)
+    return true
+end
+
+function ISBUTakeApartBox:new(character, item)
+    local o = ISBaseTimedAction.new(self, character)
+    o.item = item
     o.maxTime = o:getDuration()
     return o
 end

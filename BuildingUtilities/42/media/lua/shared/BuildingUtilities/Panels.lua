@@ -480,6 +480,24 @@ function Panels.keepOnItem(item, kept)
     end
 end
 
+-- A box item's tier (keepOnItem): 1 for a new one.
+function Panels.itemTier(item)
+    local kept = item:getModData()[BU.Units.KEPT]
+    return kept and kept.tier or 1
+end
+
+-- The box's recipe: not known at first (a box is found first), learned by opening one up (ISBUReverseEngineer).
+Panels.RECIPE = "MakeBreakerBox"
+
+-- Why a character cannot learn the box's design at one now, or nil: "known" (they know it), "tool" (no screwdriver:
+-- Costs.reverseEngineer), "dark" (too dark to see inside, as to read).
+function Panels.reverseEngineerProblem(character)
+    if character:isRecipeActuallyKnown(Panels.RECIPE) then return "known" end
+    if not BU.Costs.affords(character, BU.Costs.reverseEngineer()) then return "tool" end
+    if character:tooDarkToRead() then return "dark" end
+    return nil
+end
+
 -- Whether a box cuts its devices one by one at the box: from BU.CUT_TIER. Below it, everything it reaches is
 -- supplied; a device is switched at itself, and one outside taken off by its line.
 function Panels.cuts(panel) return (panel.tier or 1) >= BU.CUT_TIER end

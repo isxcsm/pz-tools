@@ -34,6 +34,8 @@
     "Sandbox_BuildingUtilities_SnowOnPanels_tooltip": "눈이 오면 바깥 패널에 쌓여 두 시간이면 출력이 0이 되고, 2°C를 넘으면 녹습니다. 우클릭 \"눈 털기\"로 바로 치웁니다. 기본은 켜짐.",
     "Sandbox_BuildingUtilities_SolarPanelLoot": "전리품 태양광 패널",
     "Sandbox_BuildingUtilities_SolarPanelLoot_tooltip": "완성된 태양광 패널이 상자, 종이 상자, 금속 선반에서 얼마나 자주 나오는지. 공구점·전자제품점·아웃도어 용품점의 창고에서 가장 잘 나오고, 그 매장과 농장 창고, 물류창고에서는 덜 나옵니다. 1(기본)이면 드물게 나옵니다. 2면 두 배로 자주, 0이면 나오지 않습니다. 게임의 전리품 희귀도 \"기타\"가 그 위에 곱해집니다. 이미 전리품이 채워진 보관함은 그대로입니다. 태양광 패널이 켜져 있어야 합니다.",
+    "Sandbox_BuildingUtilities_BreakerBoxLoot": "전리품 설비 제어반과 제어 기판",
+    "Sandbox_BuildingUtilities_BreakerBoxLoot_tooltip": "설비 제어반이 게임이 발전기를 두는 곳에서, 낱개 제어 기판이 전자제품점·공구점·물류창고·공장의 재고에서 얼마나 자주 나오는지. 1(기본). 2면 두 배로 자주, 0이면 나오지 않습니다. 게임의 전리품 희귀도가 그 위에 곱해집니다. 이미 전리품이 채워진 보관함은 그대로입니다.",
     "Sandbox_BuildingUtilities_WaterLoot": "전리품 급수 설비",
     "Sandbox_BuildingUtilities_WaterLoot_tooltip": "쓰던 양수 펌프, 스프링클러, 정수 필터와, 이것들 만드는 법을 알려 주는 잡지 \"농촌 급수 설비\"가 얼마나 자주 나오는지. 기계는 농장 창고, 헛간, 원예 용품점, 배관 가게의 상자와 선반에 있고, 필터는 매체를 얼마쯤 쓴 채로 나옵니다. 잡지는 서점, 도서관, 원예 용품점, 공구점에서 나옵니다. 1(기본)이면 드물게 나옵니다. 2면 두 배로 자주, 0이면 나오지 않습니다. 게임의 전리품 희귀도가 그 위에 곱해집니다. 이미 전리품이 채워진 보관함은 그대로입니다. 해당 기계가 켜져 있어야 합니다.",
     "Sandbox_BuildingUtilities_BatteryCapacity": "배터리 용량",

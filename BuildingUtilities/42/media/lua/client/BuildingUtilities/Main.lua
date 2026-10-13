@@ -6,6 +6,7 @@ require "BuildingUtilities/PanelStatus"
 require "BuildingUtilities/RackWindow"
 require "BuildingUtilities/Moveables"
 require "BuildingUtilities/Batteries"
+require "BuildingUtilities/Finds"
 require "BuildingUtilities/Lights"
 local BU = BuildingUtilities
 local Store, Panels, PanelWindow = BU.Store, BU.Panels, BU.PanelWindow

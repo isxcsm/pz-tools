@@ -22,5 +22,7 @@
     "ContextMenu_BU_Install_pole": "Put Up Utility Pole",
     "ContextMenu_BU_Install_hydrant": "Install Yard Hydrant",
     "ContextMenu_BU_Rehang": "Reconnect to %1 (%2)",
-    "ContextMenu_BU_LineTakeUp": "Take Up Line"
+    "ContextMenu_BU_LineTakeUp": "Take Up Line",
+    "ContextMenu_BU_ReverseEngineer": "Learn How It Is Made",
+    "ContextMenu_BU_TakeApart": "Take Apart"
 }

@@ -8,7 +8,8 @@
 -- the thing itself (a box's or a rack's window, a unit's state and work) goes to the top of the menu; tying it to a
 -- box and taking a line away go to its end, over the game's destroy and walk lines (PZUIKit.Menu), the ties first. A
 -- box and the units are taken up with the game's furniture tool (BU.Moveables).
--- The inventory menu: put a box or a unit down (the game's furniture cursor, Moveables.lua), recondition a battery.
+-- The inventory menu: put a box or a unit down (the game's furniture cursor, Moveables.lua), take a box apart,
+-- recondition a battery. A box's line offers learning its design while its recipe is not known.
 require "ISUI/ISWorldObjectContextMenu"
 require "ISUI/ISMoveableContextMenu"
 require "BuildingUtilities/Actions"
@@ -103,6 +104,10 @@ local function queueAt(playerObj, x, y, z, action) ContextMenu.queueAt(playerObj
 
 local function onOpen(playerObj, panel) queueAt(playerObj, panel.x, panel.y, panel.z, ISBUOpenPanel:new(playerObj, panel)) end
 
+local function onReverseEngineer(playerObj, panel)
+    queueAt(playerObj, panel.x, panel.y, panel.z, ISBUReverseEngineer:new(playerObj, panel))
+end
+
 local function onConnect(playerObj, kind, panel, utility, x, y, z, extra)
     queueAt(playerObj, x, y, z, ISBUConnect:new(playerObj, kind, panel, utility, x, y, z, extra))
 end
@@ -196,6 +201,15 @@ local function addPanelOptions(context, playerObj, panel)
     local name = tripped and getText("IGUI_BU_NameTripped", Panels.name(panel)) or Panels.name(panel)
     local option = context:addOptionOnTop(name, playerObj, onOpen, panel)
     if not BU.api() then unavailable(option, apiMissingText()) end
+    -- Its design, learned at it while the recipe is not known (Panels.reverseEngineerProblem).
+    local problem = Panels.reverseEngineerProblem(playerObj)
+    if problem == "known" then return end
+    local learn = context:addOption(getText("ContextMenu_BU_ReverseEngineer"), playerObj, onReverseEngineer, panel)
+    if problem == "dark" then
+        unavailable(learn, getText("IGUI_BU_Reason_dark"))
+    else
+        costed(learn, playerObj, Costs.reverseEngineer(), getText("IGUI_BU_ReverseEngineerNote"))
+    end
 end
 
 -- The producer among the objects (Panels.producerOn of their squares), with its square.
@@ -447,6 +461,18 @@ local function onRevive(playerObj, item)
     ISTimedActionQueue.add(ISBUReviveBattery:new(playerObj, item))
 end
 
+local function onTakeApart(playerObj, item)
+    ISInventoryPaneContextMenu.transferIfNeeded(playerObj, item)
+    ISTimedActionQueue.add(ISBUTakeApartBox:new(playerObj, item))
+end
+
+-- Taking a box apart for its control boards (Costs.takeApart), from the inventory.
+local function addTakeApart(context, playerObj, item)
+    local option = context:addOption(getText("ContextMenu_BU_TakeApart"), playerObj, onTakeApart, item)
+    costed(option, playerObj, Costs.takeApart(),
+        getText("IGUI_BU_TakeApartNote", Costs.boardsIn(Panels.itemTier(item))))
+end
+
 function ContextMenu.fillInventory(player, context, items)
     local playerObj = getSpecificPlayer(player)
     if not playerObj or #items ~= 1 then return end
@@ -464,6 +490,7 @@ function ContextMenu.fillInventory(player, context, items)
             option.itemForTexture = item
             if not BU.api() then unavailable(option, apiMissingText()) end
         end
+        if kind == "panel" and BU.enabled("panel") then addTakeApart(context, playerObj, item) end
     end
     if not Rack.isBattery(item) or not BU.enabled("rack") then return end
     local option = context:addOptionOnTop(getText("ContextMenu_BU_ReviveBattery"), playerObj, onRevive, item)

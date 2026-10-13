@@ -6,7 +6,9 @@ local Costs = {}
 BU.Costs = Costs
 
 Costs.WIRE, Costs.PIPE, Costs.PART, Costs.SHEET = "Base.ElectricWire", "Base.Pipe", "Base.ElectronicsScrap", "Base.SmallSheetMetal"
-local TOOL_TAGS = { screwdriver = "SCREWDRIVER", pipewrench = "PIPE_WRENCH" }
+-- The control board, this mod's own item: one in every box, and more for each tier it was upgraded to.
+Costs.BOARD = "BuildingUtilities.ControlBoard"
+local TOOL_TAGS = { screwdriver = "SCREWDRIVER", pipewrench = "PIPE_WRENCH", pliers = "PLIERS" }
 
 -- A water line's pipe is any that carries water and is found or made: plastic pipe, a fired clay pipe segment (a
 -- kiln's), iron pipe; taken in that order. Not lead pipe (it poisons the water), a broken iron pipe or a rubber hose.
@@ -53,13 +55,31 @@ function Costs.outside(utility, steps)
     return cost
 end
 
--- A box to the next tier.
+-- A box to the next tier: control boards (BOARDS), and some wire and parts.
+Costs.BOARDS = { [2] = 1, [3] = 2, [4] = 4 }
 local UPGRADES = {
-    [2] = { tools = { "screwdriver" }, items = { { Costs.WIRE, 5 }, { Costs.PART, 5 } }, skill = 4 },
-    [3] = { tools = { "screwdriver" }, items = { { Costs.WIRE, 10 }, { Costs.PART, 10 }, { Costs.SHEET, 2 } }, skill = 6 },
-    [4] = { tools = { "screwdriver" }, items = { { Costs.WIRE, 15 }, { Costs.PART, 15 }, { Costs.SHEET, 4 } }, skill = 8 },
+    [2] = { tools = { "screwdriver" }, items = { { Costs.BOARD, 1 }, { Costs.WIRE, 3 }, { Costs.PART, 3 } }, skill = 4 },
+    [3] = { tools = { "screwdriver" }, items = { { Costs.BOARD, 2 }, { Costs.WIRE, 5 }, { Costs.PART, 5 },
+        { Costs.SHEET, 1 } }, skill = 6 },
+    [4] = { tools = { "screwdriver" }, items = { { Costs.BOARD, 4 }, { Costs.WIRE, 8 }, { Costs.PART, 8 },
+        { Costs.SHEET, 2 } }, skill = 8 },
 }
 function Costs.upgrade(tier) return UPGRADES[tier] end
+
+-- The control boards in a box of a tier: its own, and those its upgrades took (1, 2, 4, 8).
+function Costs.boardsIn(tier)
+    local boards = 1
+    for each = 2, math.max(1, tier or 1) do boards = boards + (Costs.BOARDS[each] or 0) end
+    return boards
+end
+
+-- Taking a box apart, as an item: a screwdriver and pliers. It gives its control boards (boardsIn) and so much wire
+-- and parts (TAKE_APART).
+Costs.TAKE_APART = { { Costs.WIRE, 2 }, { Costs.PART, 2 } }
+function Costs.takeApart() return { tools = { "screwdriver", "pliers" }, items = {} } end
+
+-- Opening a box to learn how it is made: a screwdriver.
+function Costs.reverseEngineer() return { tools = { "screwdriver" }, items = {} } end
 
 -- A new pipe put in at the box (BU.Water): a pipe wrench and two pipes.
 function Costs.addPipe() return { tools = { "pipewrench" }, items = { { Costs.PIPE, 2 } } } end

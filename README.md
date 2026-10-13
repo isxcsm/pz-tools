@@ -2,12 +2,15 @@
 
 A Project Zomboid Build 42 mod. A utility panel put inside a building powers and waters the whole building (or the
 rooms it is zoned to) from supplies outside it: generators run one after another, rain barrels and tanks used as one
-store, solar panels, battery racks of car batteries, and water pumps, sprinklers and filters. Water runs down from
-the stores to the floors below them; booster pumps lift it up to ten floors above their own, and chain. Panels in other
-buildings, or on other floors of a tall one, can take their supply from a main panel, and a supply wired to such a
-sub-panel is its main panel's through it. A panel's zone reaches a few floors up and down from its own. A panel has
-four tiers; each carries more load, reaches farther (and more floors) and adds something (timers and sub-panels, a
-charge controller, shedding devices before the breaker trips).
+store, solar panels, battery racks of car batteries, and water pumps, sprinklers, filters and booster pumps. Water
+runs in colour-coded pipes (up to eight) from the tanks down to the floors at or below them; booster pumps lift it a
+few floors higher, and chain. Utility poles and yard hydrants carry a panel's lines on to other buildings.
+A panel has four tiers, each carrying twice the load of the one before: tier 1 only connects, tier 2 switches devices
+one by one at the panel, tier 3 adds timers and the log, tier 4 the most relays, the energy graph and leaving worn
+batteries out of the bank.
+The first panel is found, not made: one turns up now and then where the game keeps generators (in a generator crate
+or a work truck's bed). Opening an installed one up teaches its recipe; a panel and each upgrade take control boards,
+which are found loose in electronics and tool stores, warehouses and factories, or taken out of a panel taken apart.
 A room the player builds against a map building (an extension, which the game gives to no building) counts as part of
 that building: its devices are inside, connected by default, with no line to lay.
 
@@ -25,17 +28,17 @@ The design, in Korean, is [DESIGN.md](DESIGN.md).
 ## Options
 
 Sandbox options. The "Building Utilities: Features" page turns parts of the mod on or off, each on by default: power,
-water, and within them solar panels, battery racks, the charge controller, water pumps, sprinklers, water filters and
-booster pumps (a part needs the one it belongs to; a pump needs both water and power). A part that is off cannot be made or put
+water, and within them solar panels, battery racks, water pumps, sprinklers, water filters, booster pumps, utility
+poles and yard hydrants (a part needs the one it belongs to; a pump needs both water and power). A part that is off cannot be made or put
 down, its menus and window rows are hidden, and what of it is already placed does nothing (a utility that is off gives
 its generators and tanks back to the game) but can still be taken down; its saved setup comes back when it is on
-again. The "Building Utilities" page: ranges for supplies, outside devices and sub-panels, the floors a zone
-reaches, the floors a booster pump lifts, and how much each tier adds; whether lines cost materials, the tiles per wire or pipe, the tiles of line a
-floor up or down adds and the share given back; overload and the
-load each tier carries; line loss per wire; the low fuel warning; Electricity experience; solar output, snow on
-panels, battery capacity, charge efficiency, wear, the cold lock and the drain of worn batteries; water only from
-above. Risk options (`Risk...`: pipes freeze, pipes do not purify) are off by default. Each option's tooltip in the
-game says what it does.
+again. The "Building Utilities" page: the range of a panel's lines, the floors a zone reaches, the floors a booster
+pump lifts, and how much each tier adds; whether lines cost materials, the tiles per wire or pipe, the tiles of line a
+floor up or down adds and the share given back; overload and the load each tier carries; the low fuel warning;
+Electricity experience; solar output, snow on panels, battery capacity, output, charge efficiency, wear, heat wear,
+the cold lock and the worst battery holding the bank back; how often panels, control boards, solar panels and water
+machines turn up as loot; water only from above. Risk options (`Risk...`: pipes freeze, pipes do not purify) are off
+by default. Each option's tooltip in the game says what it does.
 
 The game's own "Generator Working in Exterior" option (`AllowExteriorGenerator`) is followed: with it off, a panel gives
 no power to devices outside the building (an extension counts as inside), and the connect menu says why.
