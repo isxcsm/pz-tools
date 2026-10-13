@@ -1,0 +1,1168 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Title Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #15171a; --panel: #1e2125; --line: #33373d; --text: #d9dde2; --dim: #8a9099; --accent: #e0a050; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.45 "Noto Sans KR", "Malgun Gothic", sans-serif; }
+  .wrap { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; padding: 12px; height: 100vh; }
+  @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; height: auto; } }
+  .stage { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  canvas#view { width: 100%; aspect-ratio: 16 / 9; background: #000; border: 1px solid var(--line); border-radius: 6px; display: block; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .bar input[type=range] { flex: 1; min-width: 160px; }
+  button { background: #2a2e34; color: var(--text); border: 1px solid var(--line); border-radius: 5px; padding: 5px 10px; font: inherit; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: #4a3520; border-color: #8a5a2a; }
+  .side { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px; overflow-y: auto; }
+  h2 { font-size: 12px; margin: 14px 0 6px; color: var(--accent); font-weight: 700; letter-spacing: 0.02em; }
+  h2:first-child { margin-top: 0; }
+  label.row { display: grid; grid-template-columns: 112px 1fr 52px; gap: 6px; align-items: center; margin: 3px 0; }
+  label.row span.v { color: var(--dim); text-align: right; font-variant-numeric: tabular-nums; }
+  input[type=text], select { width: 100%; background: #121417; color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 4px 6px; font: inherit; }
+  .hint { color: var(--dim); font-size: 12px; }
+  .time { font-variant-numeric: tabular-nums; color: var(--dim); min-width: 120px; }
+  textarea { width: 100%; height: 120px; background: #121417; color: var(--text); border: 1px solid var(--line); border-radius: 4px; font: 11px/1.4 Consolas, monospace; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="stage">
+    <canvas id="view" width="1280" height="720"></canvas>
+    <div class="bar">
+      <button class="primary" id="play">처음부터 재생</button>
+      <button id="leaveNow">바로 사라지기</button>
+      <button id="pause">일시정지</button>
+      <label class="hint">속도 <select id="speed"><option>0.1</option><option>0.25</option><option>0.5</option><option selected>1</option><option>2</option></select></label>
+      <span class="time" id="time"></span>
+    </div>
+    <div class="bar"><input type="range" id="scrub" min="0" max="1000" value="0"><span class="hint">타임라인 직접 조절</span></div>
+    <div class="hint">PZ Extension API의 타이틀 스타일(Texts.java), 룩(Looks.java), dust(Dust.java)를 같은 수식, 같은 셰이더, 같은 합성(premultiplied)으로 그립니다. 글꼴 모양, 그림자, 외곽선만 근사치입니다. "이전"은 바뀌기 전 스타일입니다.</div>
+  </div>
+  <div class="side" id="side"></div>
+</div>
+<script>
+"use strict";
+// ---------------------------------------------------------------- parameters (Dust.java's constants, editable)
+const P = {
+  // text
+  title: "2차 강화판 열림", sub: "세 트리의 마지막 강화를 모두 시험해",
+  style: "dust-paper", tone: "style", sweep: "downleft", dustSize: 1, dustDrift: 1, leaveTime: 10, hold: 5, seed: 12345,
+  burnOn: true, burnR: 1.0, burnG: 0.32, burnB: 0.10, backdrop: true, bg: "night",
+  // schedule
+  SWEEP: 0.35, JITTER: 0.25, WEATHER: 0.12, WEATHERED: 0.4, THIN: 0.22, HOLD: 0.25,
+  // burn
+  GLOW: 0.45, COOL: 0.4, BURN_ASH: 0.3, SCORCH_END: 0.4, GLOW_PEAK: 0.62, GLOW_END: 0.85, SPARKS: 0.25, CHAR_ASH: 0.45,
+  SCORCH_R: 0.34, SCORCH_G: 0.18, SCORCH_B: 0.1, CHAR_R: 0.07, CHAR_G: 0.055, CHAR_B: 0.05, FLICKER: 9, FLICKER_DEPTH: 0.3,
+  // paper (a new way: the text burns spot by spot, its ash shards tumbling)
+  IMPACT_COOL: 4, IMPACT_GLOW: 1, IMPACT_STREAK: 0.8, IMPACT_DUST: 1, SHINE_AT: 0.8, SHINE: 0.45, ERODE_GRAIN: 9, ERODE_DRAIN: 0.8, TORCH_POOL: 1, TORCH_STUTTER: 1, RADIO_STATIC: 1, RADIO_HICCUP: 1, FOG_THICK: 1.7, FOG_DRIFT: 1.25, FOG_STAY: 0.5, TRACK: 0.07, TRACK_BLUR: 0.6, TRACK_RISE: 0.05, TRACK_STAGGER: 0.12,
+  zoom: 2, FRONT: 0.52, SPREAD: 0.07, EDGE_W: 0.012, CHAR_W: 0.02, SCORCH_W: 0.07, RAGGED: 0.03, CURL: 0.6,
+  FLAKES: 0.5, FLAKE_SIZE: 1.1, SPIN: 7, GREYING: 0.35, PAPER_ASH: 0.55,
+};
+const CUTS = new Set(["style", "hold", "title", "sub", "tone", "sweep", "dustSize", "seed", "SWEEP", "JITTER", "RAGGED", "CURL", "FRONT", "SPREAD"]);
+const TONES = {
+  dust: [[0.97, 0.95, 0.9], [0.86, 0.85, 0.82]],
+  gold: [[1.00, 0.86, 0.50], [0.95, 0.88, 0.70]],
+  green: [[0.62, 1.00, 0.70], [0.78, 0.95, 0.82]],
+  red: [[1.00, 0.55, 0.50], [0.95, 0.75, 0.72]],
+};
+// fixed ones
+const RISE = 2.0, SIDE = 4.5, SWIRL_X = 0.15, SWIRL_Y = 0.3, CATCH = 0.12, SAG = 0.08, CELL = 0.04, MIN_CELL = 1.5,
+  MAX_CELLS = 4500, INK = 10, MARGIN = 0.2, PATCH = 6, FINE_PATCH = 2.5, EMBER_G = 0.84, EMBER_B = 0.62, ASH = 0.5;
+// The API's title styles (Texts.java Styles), and new ones tried here. Sizes are shares of the screen's height, the gap
+// in the title's lines, times in seconds; the line leaves trail seconds after the title.
+const STYLES = {
+  "stamp": { label: "stamp (이전)", y: 0.28, gap: 0.25, trail: 0, backdrop: 0.3,
+    title: { weight: 700, size: 0.1, color: [1, 1, 1], outline: 0.45, enter: "slam", enterTime: 0.22, leave: "grow", leaveTime: 0.7 },
+    line: { weight: 400, size: 0.045, color: [0.88, 0.88, 0.88], delay: 0.2, enter: "fade", enterTime: 0.35, leave: "fade", leaveTime: 0.7 } },
+  "stamp-new": { label: "stamp: 각인", y: 0.28, gap: 0.25, trail: 0.4, backdrop: 0.3,
+    title: { weight: 700, size: 0.1, color: [0.9, 0.89, 0.86], outline: 0.45, enter: "impact", enterTime: 0.6, leave: "erode", leaveTime: 6 },
+    line: { weight: 400, size: 0.045, color: [0.9, 0.9, 0.88], delay: 0.45, enter: "slideup", enterTime: 0.5, leave: "erode", leaveTime: 5.6 } },
+  "discovery": { label: "discovery (이전)", y: 0.28, gap: 0.3, trail: 0, backdrop: 0.3,
+    title: { weight: 700, italic: true, size: 0.08, color: [1, 0.8, 0.38], enter: "rise", enterTime: 0.6, leave: "rise", leaveTime: 0.9 },
+    line: { weight: 400, size: 0.042, color: [1, 0.93, 0.78], delay: 0.25, enter: "rise", enterTime: 0.6, leave: "rise", leaveTime: 0.9 } },
+  "discovery-new": { label: "discovery: 손전등", y: 0.28, gap: 0.3, trail: 0.15, backdrop: 0.3,
+    title: { weight: 700, size: 0.08, color: [1, 0.8, 0.38], outline: 0.35, lit: true, enter: "torch", enterTime: 2.2, leave: "dim", leaveTime: 4.5 },
+    line: { weight: 400, size: 0.042, color: [1, 0.93, 0.78], lit: true, delay: 1.5, enter: "slideup", enterTime: 0.8, leave: "dim", leaveTime: 4.3 } },
+  "notice-new": { label: "notice: 무전", y: 0.2, gap: 0.3, trail: 0.1, backdrop: 0.3,
+    title: { weight: 700, size: 0.04, color: [0.88, 0.93, 1], radio: true, enter: "signal", enterTime: 0.7, leave: "lost", leaveTime: 4.5 },
+    line: { weight: 400, size: 0.028, color: [0.76, 0.82, 0.9], radio: true, delay: 0.25, enter: "signal", enterTime: 0.7, leave: "lost", leaveTime: 4.3 } },
+  "notice": { label: "notice (이전)", y: 0.2, gap: 0.3, trail: 0, backdrop: 0.3,
+    title: { weight: 700, size: 0.036, color: [0.92, 0.95, 1], enter: "drop", enterTime: 0.35, leave: "fade", leaveTime: 0.6 },
+    line: { weight: 400, size: 0.026, color: [0.8, 0.84, 0.9], delay: 0.1, enter: "fade", enterTime: 0.35, leave: "fade", leaveTime: 0.6 } },
+  "unveil-new": { label: "unveil: 안개 걷힘", y: 0.28, gap: 0.35, trail: 0.3, backdrop: 0.3,
+    title: { weight: 400, size: 0.075, color: [0.96, 0.93, 0.86], outline: 0.35, fog: true, enter: "mist", enterTime: 3.6, leave: "mistin", leaveTime: 5 },
+    line: { weight: 400, size: 0.036, color: [0.84, 0.83, 0.8], fog: true, delay: 1.2, enter: "mist", enterTime: 3.0, leave: "mistin", leaveTime: 4.8 } },
+  "unveil": { label: "unveil (이전)", y: 0.28, gap: 0.35, trail: 0, backdrop: 0.3,
+    title: { weight: 400, size: 0.075, color: [0.96, 0.93, 0.86], outline: 0.35, enter: "settle", enterTime: 1.4, leave: "fade", leaveTime: 1.0 },
+    line: { weight: 400, size: 0.036, color: [0.84, 0.83, 0.8], delay: 0.6, enter: "fade", enterTime: 1.0, leave: "fade", leaveTime: 1.0 } },
+  "dust": { label: "leave dust: 숯불 셀 (dustBurn)", y: 0.28, gap: 0.3, trail: 0.3, backdrop: 0.3,
+    title: { weight: 400, size: 0.085, color: [0.97, 0.95, 0.9], outline: 0.35, enter: "fade", enterTime: 1.2, leave: "dust" },
+    line: { weight: 400, size: 0.04, color: [0.86, 0.85, 0.82], delay: 0.35, enter: "fade", enterTime: 1.2, leave: "dust" } },
+  "dust-paper": { label: "dust: 종이 연소", y: 0.28, gap: 0.3, trail: 0.3, backdrop: 0.3,
+    title: { weight: 400, size: 0.085, color: [0.97, 0.95, 0.9], outline: 0.35, enter: "fade", enterTime: 1.2, leave: "paper" },
+    line: { weight: 400, size: 0.04, color: [0.86, 0.85, 0.82], delay: 0.35, enter: "fade", enterTime: 1.2, leave: "paper" } },
+};
+const crumbles = d => d.leave === "dust" || d.leave === "paper";
+const leaveTimeOf = d => crumbles(d) ? P.leaveTime : d.leaveTime;
+const cubicOut = p => 1 - (1 - p) ** 3;
+const backOut = p => { const c = 1.70158, q = p - 1; return 1 + (c + 1) * q * q * q + c * q * q; };
+// How a text comes in at its share in of its enter (secs: seconds since it began): its alpha a, scale s (sx, sy on top),
+// move x in pixels and y in its lines.
+function enterState(kind, i, secs, line) {
+  const st = { a: 1, s: 1, sx: 1, sy: 1, x: 0, y: 0 };
+  switch (kind) {
+    case "fade": st.a = smooth(i); break;
+    case "pop": st.a = Math.min(1, i * 2); st.s = 0.5 + 0.5 * backOut(i); break;
+    case "slam": st.a = Math.min(1, i * 3); st.s = 1 + 1.5 * (1 - i * i); break;
+    case "settle": st.a = smooth(i); st.y = -0.3 * (1 - cubicOut(i)); break;
+    case "rise": st.a = cubicOut(i); st.y = 0.75 * (1 - cubicOut(i)); break;
+    case "drop": st.a = cubicOut(i); st.y = -0.75 * (1 - cubicOut(i)); break;
+    case "slideup": st.a = cubicOut(i); st.y = 0.4 * (1 - cubicOut(i)); break;
+    case "impact": {
+      // falls onto the screen, faster and faster, and hits: a squash that rings out, a shake
+      if (secs < IMPACT) { const u = secs / IMPACT; st.s = 1.45 - 0.45 * u * u; st.a = Math.min(1, u * 2.5); break; }
+      const k = secs - IMPACT, ring = Math.exp(-k * 18);
+      st.sy = 1 - 0.07 * ring * Math.cos(k * 40); st.sx = 1 + 0.04 * ring * Math.cos(k * 40);
+      const shake = Math.exp(-k * 14);
+      st.x = 0.03 * line * shake * Math.sin(k * 70); st.y = 0.02 * shake * Math.cos(k * 55);
+      break;
+    }
+  }
+  return st;
+}
+function leaveState(kind, o, st) {
+  switch (kind) {
+    case "fade": st.a *= 1 - smooth(o); break;
+    case "rise": st.a *= 1 - o; st.y -= 0.5 * o; break;
+    case "sink": st.a *= 1 - o; st.y += 0.5 * o; break;
+    case "grow": st.a *= 1 - o; st.s *= 1 + 0.3 * o; break;
+    case "shrink": st.a *= 1 - o; st.s *= 1 - 0.5 * o; break;
+    case "lift": st.a *= 1 - smooth(o); st.y -= 0.25 * cubicOut(o); st.s *= 1 + 0.05 * o; break;
+    case "trackout": st.a *= 1 - smooth(o); break;   // its letters are drawn by drawTrackout
+    case "erode": st.a *= 1 - smooth(o); break;      // drawn by drawErode
+    case "dim": st.a *= 1 - smooth(clamp((o - 0.4) / 0.6, 0, 1)); break;   // drawn by drawTorch
+    case "lost": st.a *= 1 - smooth(o); break;       // drawn by drawSignal
+    case "mistin": st.a *= 1 - smooth(o); break;     // drawn by drawFog
+  }
+  return st;
+}
+const IMPACT = 0.16;
+// The backdrop's fade in, in seconds from the title's start: dust's fade, for every style.
+const BACKDROP_IN = 1.2;
+
+// ---------------------------------------------------------------- Dust.java's arithmetic
+const M64 = (1n << 64n) - 1n;
+function unit(seed, index, salt) {
+  let z = (seed + 0x9E3779B97F4A7C15n * BigInt(index + 1) + 0xD1B54A32D192ED03n * BigInt(salt + 1)) & M64;
+  z = ((z ^ (z >> 30n)) * 0xBF58476D1CE4E5B9n) & M64;
+  z = ((z ^ (z >> 27n)) * 0x94D049BB133111EBn) & M64;
+  z ^= z >> 31n;
+  return Number(z >> 11n) * 2 ** -53;
+}
+const smooth = p => p * p * (3 - 2 * p);
+const clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
+const point = (x, y, seed) => unit(seed, (Math.imul(x, 7919) + Math.imul(y, 104729)) | 0, 11);
+function noise(x, y, seed) {
+  const ix = Math.floor(x), iy = Math.floor(y), fx = smooth(x - ix), fy = smooth(y - iy);
+  const a = point(ix, iy, seed), b = point(ix + 1, iy, seed), c = point(ix, iy + 1, seed), d = point(ix + 1, iy + 1, seed);
+  const top = a + (b - a) * fx, bottom = c + (d - c) * fx;
+  return top + (bottom - top) * fy;
+}
+const grain = (col, row, seed) => 0.7 * noise(col / PATCH, row / PATCH, seed) + 0.3 * noise(col / FINE_PATCH, row / FINE_PATCH, seed ^ 0x2545F491n);
+const start = (along, g, seed, index) => P.SWEEP * clamp(along, 0, 1) + P.JITTER * (0.75 * clamp(g, 0, 1) + 0.25 * unit(seed, index, 1));
+const life = (seed, index) => (1 - P.SWEEP - P.JITTER) * (0.75 + 0.25 * unit(seed, index, 2));
+const worn = (progress, st) => smooth(clamp((progress - st + P.WEATHER) / P.WEATHER, 0, 1));
+const alphaAt = age => age <= 0 ? 1 : age >= 1 ? 0 : 1 - smooth(clamp((age - P.HOLD) / (1 - P.HOLD), 0, 1));
+const sizeAt = age => 1 - 0.55 * clamp(age, 0, 1);
+const caught = age => clamp((age - CATCH) / (1 - CATCH), 0, 1);
+const ease = age => { const a = clamp(age, 0, 1); return a * (0.25 + 0.75 * a); };
+const ember = age => age <= 0 || age >= 1 / 3 ? 0 : age < 0.08 ? age / 0.08 : 1 - (age - 0.08) / (1 / 3 - 0.08);
+const ash = age => 1 - (1 - ASH) * smooth(clamp(age / 0.7, 0, 1));
+function wobble(turns) { const f = turns - Math.floor(turns); const t = f < 0.25 ? 4 * f : f < 0.75 ? 2 - 4 * f : 4 * f - 4; return t * (1.5 - 0.5 * t * t); }
+function driftX(age, side, freq, phase) { const a = clamp(age, 0, 1), w = caught(a); return SIDE * side * ease(w) + SWIRL_X * w * wobble(freq * a + phase); }
+function driftY(age, rise, freq, phase) { const a = clamp(age, 0, 1), w = caught(a); return SAG * smooth(clamp(a / CATCH, 0, 1)) - RISE * rise * ease(w) + SWIRL_Y * w * wobble(0.8 * freq * a + phase); }
+function wave(across, seed) { const x = clamp(across, 0, 1) * 3, at = Math.floor(x); const from = unit(seed, at, 7), to = unit(seed, at + 1, 7); return from + (to - from) * smooth(x - at); }
+const heat = age => age <= 0 ? 1 : age >= P.COOL ? 0 : 1 - smooth(age / P.COOL);
+function burning(wear, burn, flicker, into) {
+  const glow = 1 - P.FLICKER_DEPTH * flicker, S = [P.SCORCH_R, P.SCORCH_G, P.SCORCH_B], C = [P.CHAR_R, P.CHAR_G, P.CHAR_B];
+  let from, to, s, hot;
+  if (wear < P.SCORCH_END) { s = wear / P.SCORCH_END; hot = 0; from = [1, 1, 1]; to = S; }
+  else if (wear < P.GLOW_PEAK) { s = smooth((wear - P.SCORCH_END) / (P.GLOW_PEAK - P.SCORCH_END)); hot = s * glow; from = S; to = burn.map(v => v * glow); }
+  else if (wear < P.GLOW_END) { s = smooth((wear - P.GLOW_PEAK) / (P.GLOW_END - P.GLOW_PEAK)); hot = (1 - s) * glow; from = burn.map(v => v * glow); to = C; }
+  else { s = 1; hot = 0; from = C; to = C; }
+  for (let i = 0; i < 3; i++) into[i] = from[i] + (to[i] - from[i]) * s;
+  return hot;
+}
+
+const SWEEPS = ["right", "left", "up", "down", "upright", "upleft", "downright", "downleft"];
+const fromLeft = s => s === "right" || s === "upright" || s === "downright";
+const diagonal = s => SWEEPS.indexOf(s) >= 4;
+const fromTop = s => s === "downright" || s === "downleft";
+
+function cut(alpha, width, height, size, sweep, seed) {
+  let ink, columns, rows, count = 0;
+  for (let attempt = 0; attempt < 12; attempt++) {
+    columns = Math.ceil(width / size); rows = Math.ceil(height / size);
+    ink = new Uint8Array(columns * rows); count = 0;
+    const across = new Int32Array(width);
+    for (let x = 0; x < width; x++) across[x] = Math.min(columns - 1, Math.floor(x / size));
+    for (let y = 0; y < height; y++) {
+      const base = Math.min(rows - 1, Math.floor(y / size)) * columns;
+      for (let x = 0; x < width; x++) { const at = base + across[x]; if (!ink[at] && alpha[(y * width + x) * 4 + 3] >= INK) { ink[at] = 1; count++; } }
+    }
+    if (count <= MAX_CELLS) break;
+    size *= Math.sqrt(count / MAX_CELLS) * 1.02;
+  }
+  if (count === 0 || count > MAX_CELLS) return null;
+  const byRows = sweep === "right" || sweep === "left" || diagonal(sweep);
+  const lanes = byRows ? rows : columns, steps = byRows ? columns : rows;
+  const c = { size, columns, rows, lanes, count, sweep, column: new Int32Array(count), row: new Int32Array(count),
+    start: new Float32Array(count), life: new Float32Array(count), side: new Float32Array(count), rise: new Float32Array(count),
+    freq: new Float32Array(count), phase: new Float32Array(count), phase2: new Float32Array(count), flake: new Float32Array(count),
+    laneFrom: new Int32Array(lanes + 1), suffix: new Float32Array(count) };
+  let at = 0;
+  for (let lane = 0; lane < lanes; lane++) {
+    c.laneFrom[lane] = at;
+    for (let step = 0; step < steps; step++) {
+      let column, row;
+      if (byRows) { row = lane; column = fromLeft(sweep) ? step : columns - 1 - step; }
+      else { column = lane; row = sweep === "down" ? step : rows - 1 - step; }
+      const index = row * columns + column;
+      if (!ink[index]) continue;
+      c.column[at] = column; c.row[at] = row;
+      const along = diagonal(sweep) ? (step + 0.5 + (fromTop(sweep) ? row + 0.5 : rows - row - 0.5)) / (columns + rows) : (step + 0.5) / steps;
+      c.start[at] = start(along, grain(column, row, seed), seed, index);
+      c.life[at] = life(seed, index);
+      const way = unit(seed, index, 3);
+      const gust = 0.7 + 0.3 * wave((lane + 0.5) / lanes, seed ^ 0x5BD1E995n);
+      const windward = diagonal(sweep) ? (fromLeft(sweep) ? -1 : 1) : sweep === "right" ? 1 : -1;
+      c.side[at] = byRows ? windward * (0.5 * gust + 0.5 * (0.45 + 0.55 * way)) : (2 * way - 1) * 0.6;
+      c.rise[at] = 0.5 + 1.0 * unit(seed, index, 4);
+      const kind = unit(seed, index, 10);
+      c.flake[at] = kind < 0.6 ? 0.8 + 0.2 * kind / 0.6 : 0.4 + 0.2 * (kind - 0.6) / 0.4;
+      c.freq[at] = 0.5 + 0.6 * unit(seed, index, 5);
+      c.phase[at] = unit(seed, index, 6);
+      c.phase2[at] = unit(seed, index, 8);
+      at++;
+    }
+    let earliest = Infinity;
+    for (let cell = at - 1; cell >= c.laneFrom[lane]; cell--) earliest = c.suffix[cell] = Math.min(earliest, c.start[cell]);
+  }
+  c.laneFrom[lanes] = at;
+  c.unreached = (lane, progress) => {
+    let low = c.laneFrom[lane], high = c.laneFrom[lane + 1];
+    while (low < high) { const mid = (low + high) >>> 1; if (c.suffix[mid] > progress) high = mid; else low = mid + 1; }
+    return low;
+  };
+  return c;
+}
+
+// ---------------------------------------------------------------- WebGL: the game's interface drawing (premultiplied)
+const view = document.getElementById("view");
+const gl = view.getContext("webgl", { premultipliedAlpha: false, alpha: false, antialias: false });
+const VS = `attribute vec2 pos; attribute vec2 uv; attribute vec4 col; attribute vec3 aux; uniform vec2 screen; uniform vec3 camera;
+varying vec2 vUv; varying vec4 vCol; varying vec3 vAux;
+void main() { vUv = uv; vCol = col; vAux = aux; vec2 p = (pos - camera.xy) * camera.z + screen * 0.5;
+  gl_Position = vec4(p.x / screen.x * 2.0 - 1.0, 1.0 - p.y / screen.y * 2.0, 0.0, 1.0); }`;
+// mode 0: the picture times the colour (the game's own drawing). mode 1: a text burning as paper, by its burn map.
+// mode 2: a flake of ash, an irregular shard.
+const FS = `precision highp float;
+uniform sampler2D tex; uniform sampler2D burnMap; uniform float mode, progress, edgeW, charW, scorchW, glow, flickerN, flickerD;
+uniform vec3 burn, scorched, charred; uniform vec2 picSize; uniform vec2 inner; uniform vec2 blurR; uniform float grainSize, drainBy;
+uniform vec3 torch; uniform float reveal, remain, light, ember;
+uniform float sig, clock, staticBy;
+uniform float clear, fogAmt, noiseScale; uniform vec2 fogHalf;
+varying vec2 vUv; varying vec4 vCol; varying vec3 vAux;
+float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(h(i), h(i + vec2(1.0, 0.0)), f.x), mix(h(i + vec2(0.0, 1.0)), h(i + vec2(1.0, 1.0)), f.x), f.y); }
+float fbm(vec2 q) { return 0.5 * vn(q) + 0.3 * vn(q * 2.1 + 3.0) + 0.2 * vn(q * 4.3 + 7.0); }
+void main() {
+  if (mode < 0.5) { gl_FragColor = texture2D(tex, vUv) * vCol; return; }
+  if (mode < 1.5) {
+    vec4 c = texture2D(tex, vUv);
+    vec4 bm = texture2D(burnMap, vUv);
+    float B = (bm.r * 255.0 * 256.0 + bm.g * 255.0) / 65535.0;
+    float x = B - progress;               // how long before this spot burns away
+    if (x <= 0.0) discard;
+    float a = c.a;
+    vec3 col = a > 0.0 ? c.rgb / a : vec3(0.0);
+    float fl = 1.0 - flickerD * (0.5 + 0.5 * sin(6.2831 * (progress * flickerN + vn(vUv * picSize / 7.0))));
+    vec3 outc = col; float hot = 0.0;
+    if (x < edgeW) {                      // the flame's edge: a hot core at the hole, the burn's colour outside it
+      float e = x / edgeW;
+      vec3 core = mix(vec3(1.0, 0.92, 0.65), burn, 0.3);
+      outc = mix(core, burn, smoothstep(0.0, 1.0, e)) * fl;
+      hot = (1.0 - 0.4 * e) * fl;
+    } else if (x < edgeW + charW) {       // char behind the edge, the last embers dying in it
+      float s = smoothstep(0.0, 0.6, (x - edgeW) / charW);
+      outc = mix(burn * 0.4 * fl, charred, s);
+      hot = 0.35 * (1.0 - s) * fl;
+    } else if (x < edgeW + charW + scorchW) {   // scorching ahead of it
+      float s = 1.0 - (x - edgeW - charW) / scorchW;
+      outc = col * mix(vec3(1.0), scorched, s * s);
+    }
+    gl_FragColor = vec4(outc * a, a * (1.0 - glow * hot)) * vCol.a;
+    return;
+  }
+  if (mode < 2.5) {
+    vec2 l = vAux.xy;
+    float n = vn(l * 2.3 + vAux.z * 37.0) + 0.5 * vn(l * 5.0 + vAux.z * 11.0);
+    float m = 1.0 - smoothstep(0.6, 0.95, length(l) + (n - 0.75) * 0.75);
+    gl_FragColor = vCol * m;
+    return;
+  }
+  if (mode < 3.5) {                       // the picture's shape in a colour (alpha 0: light added)
+    float a = texture2D(tex, vUv).a;
+    gl_FragColor = vec4(vCol.rgb * a, vCol.a * a);
+    return;
+  }
+  if (mode < 4.5) {                       // a soft round puff
+    float m = 1.0 - smoothstep(0.0, 1.0, length(vAux.xy));
+    gl_FragColor = vCol * m * m;
+    return;
+  }
+  if (mode > 11.5) {                      // mist drifting over a band around the text (its own quad, aux its place in it): large, soft
+    vec2 l = vAux.xy;
+    vec2 q = l * fogHalf / noiseScale * 0.35;
+    // two layers drifting their own ways and speeds: the mist flows and changes as it goes
+    float flow = 0.6 * fbm(q + vec2(clock * 0.22, clock * 0.03)) + 0.4 * fbm(q * 1.7 + vec2(-clock * 0.13, clock * 0.06) + 5.0);
+    float band = (1.0 - smoothstep(0.3, 1.0, abs(l.x))) * (1.0 - smoothstep(0.1, 1.0, abs(l.y)));
+    float m = smoothstep(0.22, 0.78, flow) * band * fogAmt * 0.55;
+    gl_FragColor = vec4(vec3(0.84, 0.86, 0.88) * m, m);
+    return;
+  }
+  if (mode > 10.5) {                      // the text seen through mist: out of focus and faint where it has not cleared (clear 0 to 1)
+    vec2 q = vUv * picSize / noiseScale * 0.6 + vec2(clock * 0.2, clock * 0.03);
+    float n = fbm(q);
+    float vis = smoothstep(n - 0.35, n + 0.35, clear * 1.7 - 0.35);
+    vec2 r = blurR * (1.0 - vis);
+    vec4 c = texture2D(tex, vUv) * 0.2;
+    for (int i = 0; i < 8; i++) { float t = float(i) / 8.0 * 6.2831; c += texture2D(tex, vUv + vec2(cos(t), sin(t)) * r) * 0.1; }
+    if (c.a <= 0.0) discard;
+    vec3 col = c.rgb / c.a;
+    col = mix(col, vec3(dot(col, vec3(0.3, 0.55, 0.15))) * vec3(0.86, 0.9, 0.95), (1.0 - vis) * 0.6);
+    gl_FragColor = vec4(col * c.a, c.a) * vis * vCol.a;
+    return;
+  }
+  if (mode > 9.5) {                       // a radio signal: rows torn sideways, colours apart and grain as it is weak (sig 0 to 1)
+    vec2 px = vUv * picSize;
+    float weak = 1.0 - sig;
+    float row = floor(px.y / 3.0), tick = floor(clock * 24.0);
+    float tear = (h(vec2(row, tick)) - 0.5) * weak * weak * 0.12 + (h(vec2(floor(px.y / 11.0), tick + 7.0)) - 0.5) * weak * 0.05;
+    float apart = weak * 0.006;
+    vec4 cr = texture2D(tex, vUv + vec2(tear + apart, 0.0));
+    vec4 cg = texture2D(tex, vUv + vec2(tear, 0.0));
+    vec4 cb = texture2D(tex, vUv + vec2(tear - apart, 0.0));
+    vec4 c = vec4(cr.r, cg.g, cb.b, max(cg.a, max(cr.a, cb.a)));
+    float grain = h(floor(px / 1.5) + vec2(tick * 3.1, tick * 1.7));
+    float keep = smoothstep(grain - 0.12, grain + 0.12, sig * 1.15 - 0.05);
+    float scan = 1.0 - 0.18 * weak * step(0.5, fract(px.y / 3.0));
+    c *= keep * scan;
+    c.rgb = mix(c.rgb, c.rgb * vec3(0.78, 0.92, 1.05), weak);
+    float speck = step(0.992, h(floor(px / 2.0) + vec2(tick * 5.3, tick))) * weak * sig * 4.0 * staticBy;
+    gl_FragColor = (c + vec4(vec3(0.75, 0.85, 0.95) * speck * 0.5, 0.0)) * vCol.a;
+    return;
+  }
+  if (mode > 8.5) {                       // lit by a torch: the beam, the trail it has lit; light dims its colour to embers, ember its alpha
+    vec4 c = texture2D(tex, vUv);
+    float a = c.a;
+    if (a <= 0.0) discard;
+    vec3 col = c.rgb / a;
+    vec2 d = (vUv - torch.xy) * vec2(1.0, picSize.y / picSize.x);
+    float beam = 1.0 - smoothstep(0.35, 1.0, length(d) / torch.z);
+    float trail = (1.0 - smoothstep(reveal - 0.3, reveal + 0.02, vUv.x)) * remain;
+    float seen = clamp(max(beam, trail), 0.0, 1.0);
+    col = col * mix(vec3(0.55, 0.32, 0.14), vec3(1.0), light) * light + vec3(1.0, 0.86, 0.6) * beam * 0.22 * light;
+    gl_FragColor = vec4(col * a * seen, a * seen) * ember * vCol.a;
+    return;
+  }
+  if (mode > 7.5) {                       // weathering away: its colour drains, it wears off in pits from its edges, the last of it fades
+    vec4 c = texture2D(tex, vUv);
+    float a = c.a;
+    if (a <= 0.0) discard;
+    vec3 col = c.rgb / a;
+    float cover = 0.0;
+    for (int i = 0; i < 8; i++) { float t = float(i) / 8.0 * 6.2831; cover += texture2D(tex, vUv + vec2(cos(t), sin(t)) * blurR).a; }
+    cover /= 8.0;
+    vec2 px = vUv * picSize;
+    float n = 0.5 * vn(px / grainSize) + 0.3 * vn(px / (grainSize * 0.4)) + 0.2 * vn(px / (grainSize * 0.15));
+    float keep = n * 0.7 + cover * 0.3;
+    float wear = 0.22 + 0.7 * smoothstep(0.08, 0.92, progress);
+    float mask = smoothstep(wear - 0.05, wear + 0.05, keep);
+    float drain = smoothstep(0.3, 0.85, progress) * drainBy;
+    float lum = dot(col, vec3(0.3, 0.55, 0.15));
+    col = mix(col, vec3(lum) * vec3(0.86, 0.8, 0.72) * 0.8, drain);
+    float last = 1.0 - smoothstep(0.7, 1.0, progress);
+    gl_FragColor = vec4(col * a, a) * mask * last * vCol.a;
+    return;
+  }
+  if (mode > 6.5) {                       // the picture blurred: a centre and two rings, weighted as a bell
+    vec4 sum = texture2D(tex, vUv) * 0.25;
+    for (int i = 0; i < 6; i++) { float a = float(i) / 6.0 * 6.2831; sum += texture2D(tex, vUv + vec2(cos(a), sin(a)) * blurR * 0.5) * (0.35 / 6.0); }
+    for (int i = 0; i < 12; i++) { float a = (float(i) + 0.5) / 12.0 * 6.2831; sum += texture2D(tex, vUv + vec2(cos(a), sin(a)) * blurR) * (0.4 / 12.0); }
+    gl_FragColor = sum * vCol;
+    return;
+  }
+  if (mode < 5.5) {                       // a band of light passing over the picture's shape
+    float a = texture2D(tex, vUv).a;
+    float d = (vUv.x + vUv.y * 0.35) - progress;
+    gl_FragColor = vec4(vCol.rgb * a * exp(-d * d / (edgeW * edgeW)), 0.0);
+    return;
+  }
+  vec2 f = clamp((abs(vAux.xy) - inner) / (1.0 - inner), 0.0, 1.0);   // the backdrop: a box fading out to its sides
+  f = f * f * (3.0 - 2.0 * f);
+  gl_FragColor = vec4(0.0, 0.0, 0.0, vCol.a * (1.0 - f.x) * (1.0 - f.y));
+}`;
+function shader(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw gl.getShaderInfoLog(s); return s; }
+const prog = gl.createProgram();
+gl.attachShader(prog, shader(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, shader(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(prog); gl.useProgram(prog);
+const loc = { pos: gl.getAttribLocation(prog, "pos"), uv: gl.getAttribLocation(prog, "uv"), col: gl.getAttribLocation(prog, "col"),
+  aux: gl.getAttribLocation(prog, "aux"), screen: gl.getUniformLocation(prog, "screen") };
+const U = name => gl.getUniformLocation(prog, name);
+const buf = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+const FLOATS = 11, STRIDE = FLOATS * 4;
+gl.enableVertexAttribArray(loc.pos); gl.vertexAttribPointer(loc.pos, 2, gl.FLOAT, false, STRIDE, 0);
+gl.enableVertexAttribArray(loc.uv); gl.vertexAttribPointer(loc.uv, 2, gl.FLOAT, false, STRIDE, 8);
+gl.enableVertexAttribArray(loc.col); gl.vertexAttribPointer(loc.col, 4, gl.FLOAT, false, STRIDE, 16);
+gl.enableVertexAttribArray(loc.aux); gl.vertexAttribPointer(loc.aux, 3, gl.FLOAT, false, STRIDE, 32);
+gl.uniform1i(U("tex"), 0); gl.uniform1i(U("burnMap"), 1);
+let verts = new Float32Array(FLOATS * 6 * 20000), nv = 0;
+function texture(source, raw) {
+  const t = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, !raw);
+  if (raw) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, raw.w, raw.h, 0, gl.RGBA, gl.UNSIGNED_BYTE, raw.data);
+  else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
+  const filter = raw ? gl.NEAREST : gl.LINEAR;
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return t;
+}
+function vertex(x, y, u, w, r, g, b, a, l0, l1, s) {
+  const v = verts; let o = nv * FLOATS;
+  v[o++] = x; v[o++] = y; v[o++] = u; v[o++] = w; v[o++] = r; v[o++] = g; v[o++] = b; v[o++] = a; v[o++] = l0; v[o++] = l1; v[o++] = s;
+  nv++;
+}
+function quad(x0, y0, x1, y1, u0, v0, u1, v1, r, g, b, a) {
+  if (nv + 6 > verts.length / FLOATS) return;
+  vertex(x0, y0, u0, v0, r, g, b, a, -1, -1, 0); vertex(x1, y0, u1, v0, r, g, b, a, 1, -1, 0); vertex(x1, y1, u1, v1, r, g, b, a, 1, 1, 0);
+  vertex(x0, y0, u0, v0, r, g, b, a, -1, -1, 0); vertex(x1, y1, u1, v1, r, g, b, a, 1, 1, 0); vertex(x0, y1, u0, v1, r, g, b, a, -1, 1, 0);
+}
+// A flake: a shard around (cx, cy), half its side hs, turned by angle, tumbling (its height times tumble).
+function shard(cx, cy, hs, angle, tumble, r, g, b, a, seed) {
+  if (nv + 6 > verts.length / FLOATS) return;
+  const cs = Math.cos(angle), sn = Math.sin(angle);
+  const at = (lx, ly) => { const x = lx * hs, y = ly * hs * tumble; return [cx + x * cs - y * sn, cy + x * sn + y * cs]; };
+  const c = [[-1, -1], [1, -1], [1, 1], [-1, -1], [1, 1], [-1, 1]];
+  for (const [lx, ly] of c) { const [x, y] = at(lx, ly); vertex(x, y, 0, 0, r, g, b, a, lx, ly, seed); }
+}
+let mode = 0;
+function flush(tex, burnTex) {
+  if (!nv) return;
+  gl.uniform1f(U("mode"), mode);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, burnTex || null);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.bufferData(gl.ARRAY_BUFFER, verts.subarray(0, nv * FLOATS), gl.STREAM_DRAW);
+  gl.drawArrays(gl.TRIANGLES, 0, nv);
+  nv = 0;
+}
+
+// ---------------------------------------------------------------- paper: when each spot of a text burns away
+function hash(x, y, s) {
+  let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(s, 1442695041)) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+function vnoise(x, y, s) {
+  const ix = Math.floor(x), iy = Math.floor(y), fx = smooth(x - ix), fy = smooth(y - iy);
+  const a = hash(ix, iy, s), b = hash(ix + 1, iy, s), c = hash(ix, iy + 1, s), d = hash(ix + 1, iy + 1, s);
+  return (a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy;
+}
+function alongAt(x, y, W, H, sweep) {
+  switch (sweep) {
+    case "right": return x / W; case "left": return 1 - x / W; case "down": return y / H; case "up": return 1 - y / H;
+    case "upright": return (x + (H - y)) / (W + H); case "upleft": return ((W - x) + (H - y)) / (W + H);
+    case "downright": return (x + y) / (W + H); default: return ((W - x) + y) / (W + H);
+  }
+}
+// The burn map: the sweep, clumps a few cells wide (holes open ahead of the front), and fine fibres that make the edge ragged.
+function burnMap(W, H, cell, seed) {
+  const map = new Float32Array(W * H), s = Number(seed & 0xFFFFFFn) | 0;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    // a warp of the place, so the edge curls instead of following the noise's grid
+    const wx = x + (vnoise(x / 23, y / 23, s + 5) - 0.5) * P.CURL * cell * 4, wy = y + (vnoise(x / 23, y / 23, s + 6) - 0.5) * P.CURL * cell * 4;
+    const clump = 0.7 * vnoise(wx / (PATCH * cell), wy / (PATCH * cell), s) + 0.3 * vnoise(wx / (FINE_PATCH * cell), wy / (FINE_PATCH * cell), s + 1);
+    const fibre = 0.6 * vnoise(wx / 3, wy / 3, s + 2) + 0.4 * vnoise(wx / 1.4, wy / 1.4, s + 3);
+    map[y * W + x] = P.FRONT * alongAt(x, y, W, H, P.sweep) + P.SPREAD * clump + P.RAGGED * (fibre - 0.5);
+  }
+  return map;
+}
+function encode(map, W, H) {
+  const data = new Uint8Array(W * H * 4);
+  for (let i = 0; i < W * H; i++) {
+    const v = Math.round(clamp(map[i], 0, 1) * 65535);
+    data[i * 4] = v >> 8; data[i * 4 + 1] = v & 255; data[i * 4 + 3] = 255;
+  }
+  return { w: W, h: H, data };
+}
+
+// ---------------------------------------------------------------- the scene
+let bgTex = null, bgImage = null;
+function makeBackground() {
+  const c = document.createElement("canvas"); c.width = view.width; c.height = view.height;
+  const g = c.getContext("2d");
+  if (bgImage) { g.drawImage(bgImage, 0, 0, c.width, c.height); }
+  else if (P.bg === "night") {
+    const sky = g.createLinearGradient(0, 0, 0, c.height); sky.addColorStop(0, "#1b2a22"); sky.addColorStop(1, "#0d130f"); g.fillStyle = sky; g.fillRect(0, 0, c.width, c.height);
+    g.fillStyle = "#3a3630"; g.fillRect(c.width * 0.05, c.height * 0.1, c.width * 0.32, c.height * 0.6);
+    g.fillStyle = "#24282b";
+    for (let i = 0; i < 7; i++) { g.save(); g.translate(c.width * (0.45 + 0.08 * i), c.height * (0.55 + 0.05 * (i % 3))); g.rotate(-0.35); g.fillRect(-60, -28, 120, 56); g.restore(); }
+  } else if (P.bg === "bright") { g.fillStyle = "#7d8a6a"; g.fillRect(0, 0, c.width, c.height); g.fillStyle = "#b9b09a"; g.fillRect(0, c.height * 0.55, c.width, c.height); }
+  else { g.fillStyle = P.bg === "black" ? "#000" : "#888"; g.fillRect(0, 0, c.width, c.height); }
+  if (bgTex) gl.deleteTexture(bgTex);
+  bgTex = texture(c);
+}
+let bandTex = null;
+function makeBand() {
+  const c = document.createElement("canvas"); c.width = 256; c.height = 64;
+  const g = c.getContext("2d");
+  const h = g.createLinearGradient(0, 0, 256, 0); h.addColorStop(0, "rgba(0,0,0,0)"); h.addColorStop(0.2, "rgba(0,0,0,1)"); h.addColorStop(0.8, "rgba(0,0,0,1)"); h.addColorStop(1, "rgba(0,0,0,0)");
+  g.fillStyle = h; g.fillRect(0, 0, 256, 64);
+  g.globalCompositeOperation = "destination-in";
+  const v = g.createLinearGradient(0, 0, 0, 64); v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(0.3, "rgba(0,0,0,1)"); v.addColorStop(0.7, "rgba(0,0,0,1)"); v.addColorStop(1, "rgba(0,0,0,0)");
+  g.fillStyle = v; g.fillRect(0, 0, 256, 64);
+  bandTex = texture(c);
+}
+
+// A text's picture: drawn with its shadow and outline into a box with the margin, cut into cells.
+function piece(text, line, colour, centreY, seed, spec) {
+  const fontPx = line * 0.78, margin = MARGIN * line;
+  const m = document.createElement("canvas").getContext("2d");
+  m.font = `${spec.italic ? "italic " : ""}${spec.weight} ${fontPx}px "Noto Sans KR", "Malgun Gothic", sans-serif`;
+  const w = Math.ceil(m.measureText(text).width + 2 * margin), h = Math.ceil(line + 2 * margin);
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  const g = c.getContext("2d");
+  g.font = m.font; g.textAlign = "center"; g.textBaseline = "middle";
+  const cx = w / 2, cy = h / 2, sh = Math.max(1, line * 0.025);
+  g.fillStyle = "rgba(0,0,0,0.75)"; g.fillText(text, cx + sh, cy + sh);
+  if (spec.outline) { g.lineJoin = "round"; g.lineWidth = Math.max(2, line * 0.025); g.strokeStyle = `rgba(0,0,0,${spec.outline})`; g.strokeText(text, cx, cy); }
+  g.fillStyle = `rgb(${colour.map(v => Math.round(v * 255)).join(",")})`; g.fillText(text, cx, cy);
+  const p = { x: Math.round(view.width / 2 - w / 2), y: Math.round(centreY - h / 2), w, h, line, tex: texture(c), spec,
+    ink: m.measureText(text).width };
+  // its middle from the whole-pixel box, the same place it crumbles from (no jump as it starts to)
+  p.cx = p.x + w / 2; p.cy = p.y + h / 2;
+  // each letter's span across the picture, for a leave that moves them apart
+  // (cut at the advances, the first from the picture's left side, the last to its right: no letter shows twice)
+  const chars = Array.from(text), left = w / 2 - p.ink / 2;
+  p.glyphs = [];
+  let before = 0;
+  for (let i = 0; i < chars.length; i++) {
+    const after = m.measureText(chars.slice(0, i + 1).join("")).width;
+    if (chars[i].trim()) p.glyphs.push({ x0: i === 0 ? 0 : left + before, x1: i === chars.length - 1 ? w : left + after, mid: left + (before + after) / 2 });
+    before = after;
+  }
+  if (!crumbles(spec)) return p;
+  const data = g.getImageData(0, 0, w, h).data;
+  const cellSide = Math.max(MIN_CELL, line * CELL * P.dustSize);
+  const cells = p.cells = cut(data, w, h, cellSide, P.sweep, seed);
+  // Paper: each spot burns at its time on the map; a cell's flake leaves as its middle burns.
+  const map = burnMap(w, h, cellSide, seed);
+  p.burnTex = texture(null, encode(map, w, h));
+  if (cells) {
+    for (let i = 0; i < cells.count; i++) {
+      const cx = Math.min(w - 1, Math.floor((cells.column[i] + 0.5) * cells.size)), cy = Math.min(h - 1, Math.floor((cells.row[i] + 0.5) * cells.size));
+      cells.start[i] = map[cy * w + cx];
+    }
+  }
+  return p;
+}
+let pieces = [];
+// Paper: the text burns away spot by spot (the shader, by its map); the flakes are shards of ash that tumble on the wind,
+// a few of them sparks.
+function drawPaper(p, progress, fade) {
+  const c = p.cells; if (!c) return;
+  const burn = [P.burnR, P.burnG, P.burnB];
+  gl.uniform1f(U("progress"), progress);
+  gl.uniform1f(U("edgeW"), P.EDGE_W); gl.uniform1f(U("charW"), P.CHAR_W); gl.uniform1f(U("scorchW"), P.SCORCH_W);
+  gl.uniform1f(U("glow"), P.GLOW); gl.uniform1f(U("flickerN"), P.FLICKER); gl.uniform1f(U("flickerD"), P.FLICKER_DEPTH);
+  gl.uniform3f(U("burn"), ...burn); gl.uniform3f(U("scorched"), P.SCORCH_R, P.SCORCH_G, P.SCORCH_B);
+  gl.uniform3f(U("charred"), P.CHAR_R, P.CHAR_G, P.CHAR_B); gl.uniform2f(U("picSize"), p.w, p.h);
+  mode = 1;
+  quad(p.x, p.y, p.x + p.w, p.y + p.h, 0, 0, 1, 1, fade, fade, fade, fade);
+  flush(p.tex, p.burnTex);
+  mode = 2;
+  const reach = p.line * P.dustDrift, size = c.size;
+  for (let cell = 0; cell < c.count; cell++) {
+    const kind = c.phase2[cell];
+    const spark = kind < P.SPARKS, flake = !spark && kind < P.SPARKS + (1 - P.SPARKS) * P.FLAKES;
+    if (!spark && !flake) continue;
+    const age = (progress - c.start[cell]) / c.life[cell];
+    if (age <= 0 || age >= 1) continue;
+    const shown = alphaAt(age) * fade;
+    if (shown <= 0.002) continue;
+    const cx = p.x + (c.column[cell] + 0.5) * size + reach * driftX(age, c.side[cell], c.freq[cell], c.phase[cell]);
+    const cy = p.y + (c.row[cell] + 0.5) * size + reach * driftY(age, c.rise[cell], c.freq[cell], c.phase2[cell]);
+    const turn = (c.phase[cell] < 0.5 ? -1 : 1) * P.SPIN * age + c.phase[cell] * 6.28;
+    const tumble = 0.25 + 0.75 * Math.abs(Math.cos(P.SPIN * 0.7 * age * c.freq[cell] + c.phase2[cell] * 6.28));
+    if (spark) {
+      const hot = heat(age), keep = P.BURN_ASH + (1 - P.BURN_ASH) * hot, hs = size * 0.35 * c.flake[cell];
+      shard(cx, cy, hs, turn, 1, shown * burn[0] * keep, shown * burn[1] * keep, shown * burn[2] * keep, shown * (1 - P.GLOW * hot), c.phase[cell]);
+      continue;
+    }
+    // ash: char as it leaves, greying fast; its rim still glowing a moment
+    const grey = P.CHAR_R + (P.PAPER_ASH - P.CHAR_R) * smooth(clamp(age / P.GREYING, 0, 1)), warm = 1 - smooth(clamp(age / 0.15, 0, 1));
+    const hs = size * P.FLAKE_SIZE * c.flake[cell] * (1 - 0.4 * clamp(age, 0, 1));
+    shard(cx, cy, hs, turn, tumble, shown * (grey + (burn[0] * 0.6 - grey) * warm), shown * (grey + (burn[1] * 0.6 - grey) * warm),
+      shown * (grey + (burn[2] * 0.6 - grey) * warm), shown, c.phase[cell]);
+  }
+  flush(p.tex);
+  mode = 0;
+}
+
+function rebuild() {
+  for (const p of pieces) { gl.deleteTexture(p.tex); if (p.burnTex) gl.deleteTexture(p.burnTex); }
+  const S = STYLES[P.style], H = view.height, tl = S.title.size * H, sl = S.line.size * H, anchor = S.y * H;
+  const tone = P.tone === "style" ? [S.title.color, S.line.color] : TONES[P.tone];
+  const seed = BigInt(P.seed) * 0x9E3779B97F4A7C15n & M64;
+  const leaving = S.title.enterTime + P.hold;
+  const title = piece(P.title, tl, tone[0], anchor, seed, S.title);
+  title.delay = 0; title.leaveAt = leaving;
+  pieces = [title];
+  if (P.sub) {
+    const line = piece(P.sub, sl, tone[1], anchor + tl / 2 + S.gap * tl + sl / 2, seed ^ 0x1234567n, S.line);
+    line.delay = S.line.delay; line.leaveAt = leaving + S.trail;
+    pieces.push(line);
+  }
+  // the impact's puff of dust: kicked out from under the letters to the sides
+  title.puff = [];
+  for (let i = 0; i < 46; i++) {
+    const r = k => hash(i, k, 77);
+    const x0 = (r(1) - 0.5) * 0.9 * title.ink, side = x0 < 0 ? -1 : 1;
+    title.puff.push({ x0, y0: 0.3 * tl, vx: side * (0.3 + 0.9 * r(2)) + 1.2 * x0 / title.ink, vy: -(0.05 + 0.35 * r(3)), size: 0.05 + 0.08 * r(4), life: 0.9 + 0.5 * r(5) });
+  }
+}
+const timeline = () => Math.max(...pieces.map(p => p.leaveAt + leaveTimeOf(p.spec))) + 0.4;
+
+// The torch: a beam swaying in from the left over the title, lighting what it passes, then settling in the middle and
+// opening over all of it (secs since the title began). x, y in the picture's shares, r the beam's radius in its width.
+const bump = (x, at, width) => Math.exp(-(((x - at) / width) ** 2));
+function torchAt(secs) {
+  const e = smooth(clamp(secs / 1.7, 0, 1)), sway = 1 - e;
+  let x = -0.2 + 0.75 * e, y = 0.55 + (0.1 * Math.sin(secs * 3.1) + 0.04 * Math.sin(secs * 7.3)) * sway, r = 0.2;
+  const v = smooth(clamp((secs - 1.6) / 0.6, 0, 1));
+  x += (0.5 - x) * v; y += (0.5 - y) * v; r += 1.3 * v;
+  return { x, y, r, reveal: -0.2 + 0.75 * e, remain: 0.75 + 0.25 * v, pool: 1 - 0.55 * v, open: v };
+}
+// How bright the torch is (it flickers once while the title stays; as it leaves it stutters and dies down to embers),
+// and how much of the text is still there (ember).
+function torchLight(p, st) {
+  const title = pieces[0], secs = t - title.delay, o = st.out;
+  let light = 1 - 0.25 * bump(secs, title.spec.enterTime + 1.4, 0.05) - 0.15 * bump(secs, title.spec.enterTime + 1.55, 0.03);
+  if (o > 0) {
+    light = Math.max(0.22, 1 - 0.85 * smooth(clamp(o / 0.6, 0, 1)));
+    light *= 1 - P.TORCH_STUTTER * (0.75 * bump(o, 0.08, 0.012) + 0.6 * bump(o, 0.16, 0.01) + 0.5 * bump(o, 0.21, 0.008));
+  }
+  return { light, ember: 1 - smooth(clamp((o - 0.4) / 0.6, 0, 1)) };
+}
+function drawTorch(p, st) {
+  const { light, ember } = torchLight(p, st);
+  const isTitle = p === pieces[0];
+  const torch = isTitle ? torchAt(Math.min(st.secs, p.leaveAt - p.delay)) : { x: 0.5, y: 0.5, r: 10, reveal: 2, remain: 1, pool: 0, open: 1 };
+  const s = st.s, cx = p.cx + st.x, cy = p.cy + st.y * p.line * s, hw = p.w * s / 2, hh = p.h * s / 2;
+  // the light it throws on what is behind
+  if (isTitle && P.TORCH_POOL > 0) {
+    const I = 0.09 * P.TORCH_POOL * torch.pool * light * ember * st.a;
+    if (I > 0.002) {
+      mode = 4;
+      shard(cx + (torch.x - 0.5) * p.w * s, cy + (torch.y - 0.5) * p.h * s, p.line * 1.3 * (1 + 1.2 * torch.open), 0, 0.6, I, 0.82 * I, 0.55 * I, 0, 0);
+      flush(p.tex);
+    }
+  }
+  mode = 9;
+  gl.uniform3f(U("torch"), torch.x, torch.y, torch.r); gl.uniform1f(U("reveal"), torch.reveal); gl.uniform1f(U("remain"), torch.remain);
+  gl.uniform1f(U("light"), light); gl.uniform1f(U("ember"), ember); gl.uniform2f(U("picSize"), p.w, p.h);
+  const a = isTitle ? 1 : enterState(p.spec.enter, Math.min(1, st.secs / p.spec.enterTime), st.secs, p.line).a;
+  quad(cx - hw, cy - hh, cx + hw, cy + hh, 0, 0, 1, 1, a, a, a, a);
+  flush(p.tex);
+  mode = 0;
+}
+
+// A radio message: the signal comes in over its enter (a hiccup on the way), hiccups once as it stays, and is lost as it
+// leaves, cutting out twice before it sinks into the grain.
+function signalAt(p, st) {
+  const E = p.spec.enterTime, secs = st.secs, o = st.out, H = P.RADIO_HICCUP;
+  let sig;
+  // (whole at first but for the two cuts, then sinking into the grain)
+  if (o > 0) sig = (1 - smooth(clamp((o - 0.2) / 0.8, 0, 1))) * (1 - H * (0.5 * bump(o, 0.05, 0.01) + 0.4 * bump(o, 0.11, 0.008)));
+  else sig = smooth(clamp(secs / E, 0, 1)) * (1 - H * 0.35 * bump(secs, E * 0.55, 0.03)) * (1 - H * 0.15 * bump(secs, E + 2.6, 0.03));
+  return clamp(sig, 0, 1);
+}
+function drawSignal(p, st) {
+  const s = st.s, cx = p.cx + st.x, cy = p.cy + st.y * p.line * s, hw = p.w * s / 2, hh = p.h * s / 2;
+  mode = 10;
+  gl.uniform1f(U("sig"), signalAt(p, st)); gl.uniform1f(U("clock"), t); gl.uniform1f(U("staticBy"), P.RADIO_STATIC);
+  gl.uniform2f(U("picSize"), p.w, p.h);
+  quad(cx - hw, cy - hh, cx + hw, cy + hh, 0, 0, 1, 1, 1, 1, 1, 1);
+  flush(p.tex);
+  mode = 0;
+}
+
+// Mist: it clears off the text over its enter, a thin veil of it drifting on as it stays; as it leaves the mist rolls
+// back in over the text and then thins away itself.
+// The mist is drawn behind the texts (all of it first: a line's mist must not lie over its title), the text seen
+// through it (blurred and faint where it has not cleared) over it.
+function drawFog(p, st, behind) {
+  const E = p.spec.enterTime, secs = st.secs, o = st.out;
+  // the mist comes in slowly (over 1.8 s) and thins to what stays as the text clears; as it leaves, the text sinks into
+  // the mist slowly (gone at its end), the mist at its thickest by half way and thinning away over the rest
+  // (the mist hides it once clear is below about a fifth: that is reached as the leave ends)
+  const clear = o > 0 ? 1 - smooth(clamp((o - 0.2) / 0.95, 0, 1)) : smooth(clamp(secs / E, 0, 1));
+  const fog = o > 0 ? (P.FOG_STAY + (0.75 - P.FOG_STAY) * smooth(clamp(o / 0.5, 0, 1))) * (1 - smooth(clamp((o - 0.5) / 0.5, 0, 1)))
+    : smooth(clamp(secs / 1.8, 0, 1)) * (0.8 - (0.8 - P.FOG_STAY) * smooth(clamp((secs - 0.6) / E, 0, 1)));
+  const s = st.s, cx = p.cx + st.x, cy = p.cy + st.y * p.line * s, hw = p.w * s / 2, hh = p.h * s / 2;
+  gl.uniform1f(U("clock"), t * P.FOG_DRIFT); gl.uniform1f(U("noiseScale"), p.line * 0.5); gl.uniform2f(U("picSize"), p.w, p.h);
+  if (behind) {
+    const fx = p.ink * 0.5 + p.line * 1.5, fy = p.line * 1.3;
+    mode = 12;
+    gl.uniform1f(U("fogAmt"), fog * P.FOG_THICK); gl.uniform2f(U("fogHalf"), fx, fy);
+    shard(cx, cy, fx, 0, fy / fx, 0, 0, 0, 0, 0);
+    flush(p.tex);
+    mode = 0;
+    return;
+  }
+  mode = 11;
+  gl.uniform1f(U("clear"), clear); gl.uniform2f(U("blurR"), p.line * 0.08 / p.w, p.line * 0.08 / p.h);
+  quad(cx - hw, cy - hh, cx + hw, cy + hh, 0, 0, 1, 1, 1, 1, 1, 1);
+  flush(p.tex);
+  mode = 0;
+}
+
+// Weathering away, in place: the shader drains its colour and wears it off from its edges in pits.
+function drawErode(p, st, o) {
+  const s = st.s, hw = p.w * s / 2, hh = p.h * s / 2, r = Math.max(1, p.line * 0.03);
+  mode = 8;
+  gl.uniform1f(U("progress"), o); gl.uniform2f(U("picSize"), p.w, p.h); gl.uniform2f(U("blurR"), r / p.w, r / p.h);
+  gl.uniform1f(U("grainSize"), P.ERODE_GRAIN * p.line / 72); gl.uniform1f(U("drainBy"), P.ERODE_DRAIN);
+  quad(p.cx - hw, p.cy - hh, p.cx + hw, p.cy + hh, 0, 0, 1, 1, 1, 1, 1, 1);
+  flush(p.tex);
+  mode = 0;
+}
+
+// Tracking out: the letters drift apart from the middle, softening as if out of focus, rising a little, the outer ones
+// a moment ahead.
+function drawTrackout(p, st, o) {
+  const s = st.s, top = p.cy - p.h * s / 2, half = p.ink / 2 || 1;
+  mode = 0;
+  for (const g of p.glyphs) {
+    const d = (g.mid - p.w / 2) / half;                  // -1 at the left end, 1 at the right
+    const k = clamp((o - P.TRACK_STAGGER * (1 - Math.abs(d))) / (1 - P.TRACK_STAGGER), 0, 1);
+    const a = 1 - smooth(k);
+    if (a <= 0.003) continue;
+    const dx = (g.mid - p.w / 2) * s * P.TRACK * smooth(o), dy = -P.TRACK_RISE * p.line * smooth(k);
+    const x0 = p.cx + (g.x0 - p.w / 2) * s + dx, x1 = p.cx + (g.x1 - p.w / 2) * s + dx, y0 = top + dy, y1 = top + p.h * s + dy;
+    const u0 = g.x0 / p.w, u1 = g.x1 / p.w;
+    // the letter, sharp at first; copies around it take over as it softens
+    // softening as out of focus: the shader's blur, its radius growing
+    const r = p.line * 0.035 * P.TRACK_BLUR * smooth(k);
+    mode = 7;
+    gl.uniform2f(U("blurR"), r / p.w, r / p.h);
+    quad(x0, y0, x1, y1, u0, 0, u1, 1, a, a, a, a);
+    flush(p.tex);
+  }
+  mode = 0;
+}
+
+// The impact's light and dust over the title (secs since it began, la: how much of it is left as it leaves).
+function drawImpact(p, st, secs, la) {
+  if (secs < IMPACT) return;
+  const k = secs - IMPACT, cx = p.cx + st.x, cy = p.cy + st.y * p.line * st.s, sx = st.s * st.sx, sy = st.s * st.sy;
+  const box = (dx, dy, r, g, b) => { const hw = p.w * sx / 2, hh = p.h * sy / 2; quad(cx + dx - hw, cy + dy - hh, cx + dx + hw, cy + dy + hh, 0, 0, 1, 1, r, g, b, 0); };
+  // white-hot letters cooling, and their glow
+  const hot = Math.exp(-k * P.IMPACT_COOL) * la;
+  if (hot > 0.01) {
+    mode = 3;
+    box(0, 0, hot, 0.92 * hot, 0.75 * hot);
+    const r = p.line * 0.05 * (1 + 2 * k), glow = 0.1 * hot * P.IMPACT_GLOW;
+    for (let i = 0; i < 12; i++) { const a = i / 12 * 2 * Math.PI; box(Math.cos(a) * r, Math.sin(a) * r, glow, 0.8 * glow, 0.5 * glow); }
+    flush(p.tex);
+  }
+  // a streak of light across, widening
+  const streak = P.IMPACT_STREAK * Math.exp(-k * 5) * la;
+  if (streak > 0.01) {
+    mode = 3;
+    const wide = p.ink * (0.5 + 1.3 * (1 - Math.exp(-k * 7))), high = p.line * 0.07 * (1 + k), y = cy + p.line * 0.05;
+    quad(cx - wide / 2, y - high / 2, cx + wide / 2, y + high / 2, 0, 0, 1, 1, streak, 0.9 * streak, 0.75 * streak, 0);
+    quad(cx - wide * 0.35, y - high * 0.18, cx + wide * 0.35, y + high * 0.18, 0, 0, 1, 1, streak, streak, streak, 0);
+    flush(bandTex);
+  }
+  // dust kicked up
+  mode = 4;
+  for (const q of p.puff) {
+    if (k > q.life) continue;
+    const e = (1 - Math.exp(-3.2 * k)) / 3.2, fade = 0.3 * P.IMPACT_DUST * Math.pow(1 - k / q.life, 1.5) * la;
+    const x = cx + q.x0 + q.vx * e * p.line, y = cy + q.y0 + q.vy * e * p.line + 0.1 * p.line * k * k, hs = p.line * q.size * (1 + 1.5 * k);
+    shard(x, y, hs, 0, 1, 0.8 * fade, 0.78 * fade, 0.74 * fade, fade, 0);
+  }
+  flush(p.tex);
+  // a gleam passing over the letters once they have settled
+  // once, slowly, over the whole time it stays: from settled to leaving
+  const at = (secs - P.SHINE_AT) / Math.max(0.5, p.leaveAt - p.delay - P.SHINE_AT - 0.3);
+  if (at > 0 && at < 1) {
+    mode = 5;
+    gl.uniform1f(U("progress"), -0.45 + 2.2 * at); gl.uniform1f(U("edgeW"), 0.12);
+    // (the band starts and ends wholly off the letters, a slant of 0.35 and its width in; it comes and goes softly too)
+    const s = 0.85 * P.SHINE * la * smooth(clamp(at / 0.15, 0, 1)) * smooth(clamp((1 - at) / 0.15, 0, 1)), r = p.line * 0.035, halo = 0.12 * s;
+    box(0, 0, s, 0.97 * s, 0.9 * s);
+    for (let i = 0; i < 12; i++) { const a = i / 12 * 2 * Math.PI; box(Math.cos(a) * r, Math.sin(a) * r, halo, 0.95 * halo, 0.85 * halo); }
+    flush(p.tex);
+  }
+  mode = 0;
+}
+
+const tint = [0, 0, 0];
+function drawDust(p, progress, fade) {
+  const c = p.cells; if (!c) return;
+  const burn = P.burnOn ? [P.burnR, P.burnG, P.burnB] : null;
+  const size = c.size, W = p.w, H = p.h, reach = p.line * P.dustDrift;
+  const part = (left, top, right, bottom, dx, dy, scale, r, g, b, a) => {
+    const hx = (right - left) * scale / 2, hy = (bottom - top) * scale / 2;
+    const x = p.x + (left + right) / 2 + dx, y = p.y + (top + bottom) / 2 + dy;
+    quad(x - hx, y - hy, x + hx, y + hy, left / W, top / H, right / W, bottom / H, r, g, b, a);
+  };
+  for (let lane = 0; lane < c.lanes; lane++) {
+    const from = c.laneFrom[lane], unreached = c.unreached(lane, progress + P.WEATHER);
+    if (unreached < c.laneFrom[lane + 1]) {
+      const column = c.column[unreached], row = c.row[unreached];
+      let left, top, right, bottom;
+      switch (c.sweep) {
+        case "right": case "upright": case "downright": left = column * size; right = W; top = row * size; bottom = Math.min(H, top + size); break;
+        case "left": case "upleft": case "downleft": left = 0; right = Math.min(W, (column + 1) * size); top = row * size; bottom = Math.min(H, top + size); break;
+        case "down": top = row * size; bottom = H; left = column * size; right = Math.min(W, left + size); break;
+        default: top = 0; bottom = Math.min(H, (row + 1) * size); left = column * size; right = Math.min(W, left + size);
+      }
+      part(left, top, right, bottom, 0, 0, 1, fade, fade, fade, fade);
+    }
+    for (let cell = from; cell < unreached; cell++) {
+      const left = c.column[cell] * size, top = c.row[cell] * size, right = Math.min(W, left + size), bottom = Math.min(H, top + size);
+      const age = (progress - c.start[cell]) / c.life[cell];
+      if (age <= 0) {
+        const wear = worn(progress, c.start[cell]);
+        if (burn) {
+          const flicker = 0.5 + 0.5 * Math.sin(2 * Math.PI * (progress * P.FLICKER + c.phase[cell]));
+          const hot = burning(wear, burn, flicker, tint);
+          const thin = wear > P.GLOW_END ? P.THIN * (wear - P.GLOW_END) / (1 - P.GLOW_END) : 0;
+          part(left, top, right, bottom, 0, 0, 1 - thin, fade * tint[0], fade * tint[1], fade * tint[2], fade * (1 - P.GLOW * hot));
+          continue;
+        }
+        const kept = fade * (1 - P.WEATHERED * wear);
+        part(left, top, right, bottom, 0, 0, 1 - P.THIN * wear, kept, kept, kept, fade);
+        continue;
+      }
+      if (age >= 1) continue;
+      const shown = alphaAt(age) * fade;
+      if (shown <= 0.002) continue;
+      const dx = reach * driftX(age, c.side[cell], c.freq[cell], c.phase[cell]);
+      const dy = reach * driftY(age, c.rise[cell], c.freq[cell], c.phase2[cell]);
+      const scale = (1 - P.THIN) * c.flake[cell] * sizeAt(age);
+      if (burn && c.phase2[cell] >= P.SPARKS) {
+        const grey = shown * (P.CHAR_R + (P.CHAR_ASH - P.CHAR_R) * smooth(clamp(age / 0.7, 0, 1)));
+        part(left, top, right, bottom, dx, dy, scale, grey, grey, grey, shown);
+        continue;
+      }
+      if (burn) {
+        const hot = heat(age), keep = P.BURN_ASH + (1 - P.BURN_ASH) * hot;
+        part(left, top, right, bottom, dx, dy, scale, shown * burn[0] * keep, shown * burn[1] * keep, shown * burn[2] * keep, shown * (1 - P.GLOW * hot));
+        continue;
+      }
+      const grey = (1 - P.WEATHERED) * ash(age), warm = ember(age);
+      const red = shown * grey;
+      part(left, top, right, bottom, dx, dy, scale, red, red * (1 - (1 - EMBER_G) * warm), red * (1 - (1 - EMBER_B) * warm), shown);
+    }
+  }
+}
+
+// ---------------------------------------------------------------- the clock
+let t = 0, playing = true, last = performance.now(), scrubbing = false;
+const leaveStart = () => pieces[0] ? pieces[0].leaveAt : 0;
+function frame(now) {
+  const dt = (now - last) / 1000; last = now;
+  const end = timeline();
+  if (playing && !scrubbing) { t += dt * Number(document.getElementById("speed").value); if (t > end) t = end; }
+  gl.viewport(0, 0, view.width, view.height);
+  gl.uniform2f(loc.screen, view.width, view.height);
+  gl.disable(gl.BLEND);
+  gl.uniform3f(U("camera"), view.width / 2, view.height / 2, 1);
+  mode = 0;
+  quad(0, 0, view.width, view.height, 0, 0, 1, 1, 1, 1, 1, 1); flush(bgTex);
+  const S = STYLES[P.style];
+  gl.uniform3f(U("camera"), view.width / 2, P.zoom > 1 ? S.y * view.height + S.title.size * view.height * 0.6 : view.height / 2, P.zoom);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+  // each text as it is now: before it, coming in, staying, leaving (as a move, or crumbling), gone
+  const states = pieces.map(p => {
+    const d = p.spec, secs = t - p.delay, leave = p.leaveAt - p.delay;
+    if (secs < 0) return null;
+    const out = secs >= leave ? (secs - leave) / leaveTimeOf(d) : 0;
+    if (out >= 1) return null;
+    const inn = d.enterTime > 0 ? Math.min(1, Math.min(secs, leave) / d.enterTime) : 1;
+    const st = enterState(d.enter, inn, Math.min(secs, leave), p.line);
+    st.secs = secs; st.out = out; st.left = 1;
+    if (!crumbles(d)) { const before = st.a; leaveState(d.leave, out, st); st.left = before > 0 ? st.a / before : 0; }
+    return st;
+  });
+  // the backdrop: over the title and its line, as strong as the title is seen (a crumbling one takes it with it)
+  const first = states[0];
+  if (P.backdrop && first) {
+    // (it fades in as dust's title does, over BACKDROP_IN, whatever the title's own enter)
+    const tp = pieces[0], fadeIn = smooth(clamp(first.secs / BACKDROP_IN, 0, 1));
+    const seen = Math.min(fadeIn, crumbles(tp.spec) ? first.a * (1 - smooth(first.out)) : first.a);
+    const low = tp.cx - Math.max(...pieces.map(p => p.ink)) / 2, high = tp.cx + Math.max(...pieces.map(p => p.ink)) / 2;
+    const top = tp.cy - tp.line / 2, lastP = pieces[pieces.length - 1], bottom = lastP.cy + lastP.line / 2;
+    const side = 2.6 * tp.line, endH = 1.0 * tp.line;
+    gl.uniform2f(U("inner"), (high - low) / (high - low + 2 * side), (bottom - top) / (bottom - top + 2 * endH));
+    mode = 6;
+    shard((low + high) / 2, (top + bottom) / 2, (high - low) / 2 + side, 0, (bottom - top + 2 * endH) / (high - low + 2 * side), 0, 0, 0, S.backdrop * seen, 0);
+    flush(bandTex);
+    mode = 0;
+  }
+  pieces.forEach((p, i) => { if (states[i] && p.spec.fog) drawFog(p, states[i], true); });
+  pieces.forEach((p, i) => {
+    const st = states[i];
+    if (!st) return;
+    if (crumbles(p.spec) && st.out > 0) {
+      if (p.spec.leave === "paper") drawPaper(p, st.out, 1); else { drawDust(p, st.out, 1); flush(p.tex); }
+      return;
+    }
+    const cx = p.cx + st.x, cy = p.cy + st.y * p.line * st.s, hw = p.w * st.s * st.sx / 2, hh = p.h * st.s * st.sy / 2;
+    if (p.spec.lit) drawTorch(p, st);
+    else if (p.spec.radio) drawSignal(p, st);
+    else if (p.spec.fog) drawFog(p, st, false);
+    else if (p.spec.leave === "trackout" && st.out > 0) drawTrackout(p, st, st.out);
+    else if (p.spec.leave === "erode" && st.out > 0) drawErode(p, st, st.out);
+    else if (st.a > 0.002) { quad(cx - hw, cy - hh, cx + hw, cy + hh, 0, 0, 1, 1, st.a, st.a, st.a, st.a); flush(p.tex); }
+    if (p.spec.enter === "impact") drawImpact(p, st, st.secs, st.left);
+  });
+  const out = clamp((t - leaveStart()) / leaveTimeOf(pieces[0].spec), 0, 1);
+  document.getElementById("time").textContent = `${t.toFixed(2)}s / ${end.toFixed(1)}s · 사라짐 ${(out * 100).toFixed(0)}%`;
+  if (!scrubbing) document.getElementById("scrub").value = Math.round(t / end * 1000);
+  requestAnimationFrame(frame);
+}
+
+// ---------------------------------------------------------------- controls
+const side = document.getElementById("side");
+function heading(text) { const h = document.createElement("h2"); h.textContent = text; side.appendChild(h); }
+function control(key, label, kind, opts) {
+  const row = document.createElement("label"); row.className = "row";
+  const name = document.createElement("span"); name.textContent = label; row.appendChild(name);
+  let input, value = document.createElement("span"); value.className = "v";
+  if (kind === "range") {
+    input = document.createElement("input"); input.type = "range"; input.min = opts[0]; input.max = opts[1]; input.step = opts[2]; input.value = P[key];
+    value.textContent = P[key];
+  } else if (kind === "select") {
+    input = document.createElement("select");
+    for (const [v, t] of opts) { const o = document.createElement("option"); o.value = v; o.textContent = t; input.appendChild(o); }
+    input.value = P[key];
+  } else if (kind === "check") {
+    input = document.createElement("input"); input.type = "checkbox"; input.checked = P[key];
+  } else { input = document.createElement("input"); input.type = "text"; input.value = P[key]; }
+  input.addEventListener("input", () => {
+    P[key] = kind === "range" ? Number(input.value) : kind === "check" ? input.checked : input.value;
+    if (kind === "range") value.textContent = P[key];
+    if (key === "bg") makeBackground();
+    if (key === "style") {
+      const leave = STYLES[P.style].title.leave;
+      if (crumbles(STYLES[P.style].title)) { P.leaveTime = leave === "paper" ? 10 : 6; controls.leaveTime.input.value = P.leaveTime; controls.leaveTime.value.textContent = P.leaveTime; }
+      t = 0; playing = true;
+    }
+    if (CUTS.has(key)) rebuild();
+  });
+  row.appendChild(input); row.appendChild(value); side.appendChild(row);
+  controls[key] = { input, value, kind };
+}
+const controls = {};
+heading("스타일");
+control("style", "스타일", "select", Object.entries(STYLES).map(([k, s]) => [k, s.label]));
+heading("글자");
+control("title", "제목", "text");
+control("sub", "부제", "text");
+control("tone", "색", "select", [["style", "스타일 기본색"], ["gold", "금색 (gold)"], ["green", "초록 (green)"], ["red", "빨강 (red)"]]);
+control("bg", "배경", "select", [["night", "밤 장면"], ["bright", "낮 장면"], ["black", "검정"], ["grey", "회색"]]);
+const file = document.createElement("label"); file.className = "row";
+file.innerHTML = '<span>배경 이미지</span><input type="file" accept="image/*"><span class="v"></span>';
+file.querySelector("input").addEventListener("change", e => {
+  const f = e.target.files[0]; if (!f) return;
+  const img = new Image(); img.onload = () => { bgImage = img; makeBackground(); }; img.src = URL.createObjectURL(f);
+});
+side.appendChild(file);
+control("backdrop", "배경 띠", "check");
+control("zoom", "확대", "range", [1, 4, 0.25]);
+heading("머무름과 dust 사라짐");
+control("sweep", "방향", "select", SWEEPS.map(s => [s, s]));
+control("leaveTime", "dust 사라지는 시간(초)", "range", [1, 20, 0.5]);
+control("hold", "본 표시(초, 등장·퇴장 제외)", "range", [1, 10, 0.5]);
+control("dustSize", "셀 크기", "range", [0.25, 4, 0.05]);
+control("dustDrift", "날림 거리", "range", [0, 4, 0.05]);
+control("seed", "시드", "range", [1, 99999, 1]);
+control("SWEEP", "SWEEP", "range", [0.05, 0.7, 0.01]);
+control("JITTER", "JITTER", "range", [0, 0.4, 0.01]);
+control("WEATHER", "WEATHER", "range", [0.02, 0.4, 0.01]);
+control("THIN", "THIN", "range", [0, 0.6, 0.01]);
+control("WEATHERED", "WEATHERED", "range", [0, 1, 0.01]);
+heading("stamp: 각인");
+control("IMPACT_COOL", "달군 빛 식는 속도", "range", [1, 12, 0.5]);
+control("IMPACT_GLOW", "번짐 빛", "range", [0, 3, 0.05]);
+control("IMPACT_STREAK", "가로 섬광", "range", [0, 2, 0.05]);
+control("IMPACT_DUST", "먼지", "range", [0, 3, 0.05]);
+control("SHINE_AT", "광택 시작(초)", "range", [0.2, 3, 0.1]);
+control("ERODE_GRAIN", "퇴장: 풍화 결 크기(px)", "range", [2, 30, 0.5]);
+control("ERODE_DRAIN", "퇴장: 색 바램", "range", [0, 1, 0.01]);
+control("TRACK", "(자간 퇴장) 자간 벌어짐", "range", [0, 0.8, 0.01]);
+control("TRACK_BLUR", "퇴장: 번짐", "range", [0, 3, 0.05]);
+control("TRACK_RISE", "퇴장: 떠오름", "range", [0, 0.6, 0.01]);
+control("TRACK_STAGGER", "퇴장: 바깥 글자 먼저", "range", [0, 0.5, 0.01]);
+control("SHINE", "광택 세기", "range", [0, 2, 0.05]);
+heading("discovery: 손전등");
+control("TORCH_POOL", "벽에 비친 빛", "range", [0, 3, 0.05]);
+control("TORCH_STUTTER", "꺼질 때 깜빡임", "range", [0, 1.3, 0.05]);
+heading("notice: 무전");
+control("RADIO_STATIC", "잡음 알갱이", "range", [0, 3, 0.05]);
+control("RADIO_HICCUP", "신호 튐", "range", [0, 1.5, 0.05]);
+heading("unveil: 안개 걷힘");
+control("FOG_THICK", "안개 짙기", "range", [0, 2.5, 0.05]);
+control("FOG_DRIFT", "안개 흐름", "range", [0, 8, 0.1]);
+control("FOG_STAY", "머무는 동안 안개", "range", [0, 0.8, 0.01]);
+heading("dust: 종이 연소");
+control("FRONT", "번지는 시간 몫", "range", [0.1, 0.6, 0.01]);
+control("SPREAD", "앞질러 붙는 정도", "range", [0, 0.3, 0.005]);
+control("EDGE_W", "불꽃 테두리 폭", "range", [0.002, 0.05, 0.001]);
+control("CHAR_W", "숯 폭", "range", [0, 0.08, 0.001]);
+control("SCORCH_W", "그을림 폭", "range", [0, 0.2, 0.005]);
+control("RAGGED", "가장자리 거칠기", "range", [0, 0.12, 0.002]);
+control("CURL", "가장자리 굽이", "range", [0, 2, 0.05]);
+control("FLAKES", "재 조각 비율", "range", [0, 1, 0.01]);
+control("FLAKE_SIZE", "재 조각 크기", "range", [0.3, 3, 0.05]);
+control("SPIN", "재 회전", "range", [0, 20, 0.5]);
+control("PAPER_ASH", "재 밝기", "range", [0, 1, 0.01]);
+control("GREYING", "재가 바래는 시간", "range", [0.05, 1, 0.01]);
+heading("leave dust: 숯불 셀 (dustBurn)");
+control("burnOn", "타기 켜기", "check");
+control("burnR", "불씨 R", "range", [0, 1, 0.01]);
+control("burnG", "불씨 G", "range", [0, 1, 0.01]);
+control("burnB", "불씨 B", "range", [0, 1, 0.01]);
+control("SCORCH_END", "그을림 끝", "range", [0.05, 0.9, 0.01]);
+control("GLOW_PEAK", "불씨 최고", "range", [0.1, 0.95, 0.01]);
+control("GLOW_END", "불씨 끝", "range", [0.15, 1, 0.01]);
+control("GLOW", "빛 세기", "range", [0, 1, 0.01]);
+control("SCORCH_R", "그을림 R", "range", [0, 1, 0.01]);
+control("SCORCH_G", "그을림 G", "range", [0, 1, 0.01]);
+control("SCORCH_B", "그을림 B", "range", [0, 1, 0.01]);
+control("CHAR_R", "숯 R", "range", [0, 0.5, 0.005]);
+control("CHAR_G", "숯 G", "range", [0, 0.5, 0.005]);
+control("CHAR_B", "숯 B", "range", [0, 0.5, 0.005]);
+control("CHAR_ASH", "재 밝기", "range", [0, 0.8, 0.01]);
+control("SPARKS", "불티 비율", "range", [0, 1, 0.01]);
+control("COOL", "불티 식는 시간", "range", [0.05, 1, 0.01]);
+control("BURN_ASH", "불티 남는 색", "range", [0, 1, 0.01]);
+control("FLICKER", "깜빡임 횟수", "range", [0, 40, 1]);
+control("FLICKER_DEPTH", "깜빡임 깊이", "range", [0, 1, 0.01]);
+heading("게임에 넣을 값");
+const copyBox = document.createElement("textarea"); copyBox.readOnly = true; side.appendChild(copyBox);
+const copy = document.createElement("button"); copy.textContent = "Java 상수 만들기"; side.appendChild(copy);
+const reset = document.createElement("button"); reset.textContent = "기본값으로"; reset.style.marginLeft = "6px"; side.appendChild(reset);
+const DEFAULTS = { ...P };
+copy.addEventListener("click", () => {
+  const f = v => String(v);
+  copyBox.value =
+`static final double GLOW = ${f(P.GLOW)}, COOL = ${f(P.COOL)}, BURN_ASH = ${f(P.BURN_ASH)}, SCORCH_END = ${f(P.SCORCH_END)}, GLOW_PEAK = ${f(P.GLOW_PEAK)}, GLOW_END = ${f(P.GLOW_END)},
+    SPARKS = ${f(P.SPARKS)}, CHAR_ASH = ${f(P.CHAR_ASH)};
+static final double[] SCORCHED = { ${f(P.SCORCH_R)}, ${f(P.SCORCH_G)}, ${f(P.SCORCH_B)} }, CHARRED = { ${f(P.CHAR_R)}, ${f(P.CHAR_G)}, ${f(P.CHAR_B)} };
+static final double FLICKER = ${f(P.FLICKER)}, FLICKER_DEPTH = ${f(P.FLICKER_DEPTH)};
+static final double SWEEP = ${f(P.SWEEP)}, JITTER = ${f(P.JITTER)};  WEATHER = ${f(P.WEATHER)}, WEATHERED = ${f(P.WEATHERED)}, THIN = ${f(P.THIN)}
+-- OA Titles.BURN = { ${f(P.burnR)}, ${f(P.burnG)}, ${f(P.burnB)} }`;
+  copyBox.select();
+});
+reset.addEventListener("click", () => {
+  Object.assign(P, DEFAULTS);
+  for (const [key, c] of Object.entries(controls)) {
+    if (c.kind === "check") c.input.checked = P[key]; else c.input.value = P[key];
+    if (c.kind === "range") c.value.textContent = P[key];
+  }
+  makeBackground(); rebuild();
+});
+
+// ---------------------------------------------------------------- presets: the effect's values (not the text, background or zoom)
+const NOT_EFFECT = new Set(["title", "sub", "bg", "zoom"]);
+const effectOf = values => Object.fromEntries(Object.entries(values).filter(([k]) => !NOT_EFFECT.has(k)));
+const BUILT_IN = {
+  "종이 연소 (dust)": effectOf(DEFAULTS),
+  "숯불 셀 (leave dust)": { ...effectOf(DEFAULTS), style: "dust", leaveTime: 6, CHAR_ASH: 0.2 },
+  "각인 (stamp)": { ...effectOf(DEFAULTS), style: "stamp-new" },
+  "손전등 (discovery)": { ...effectOf(DEFAULTS), style: "discovery-new" },
+  "무전 (notice)": { ...effectOf(DEFAULTS), style: "notice-new" },
+  "안개 걷힘 (unveil)": { ...effectOf(DEFAULTS), style: "unveil-new" },
+};
+const STORE = "title-lab-presets";
+function ownPresets() { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } }
+function saveOwn(presets) { try { localStorage.setItem(STORE, JSON.stringify(presets)); return true; } catch { return false; } }
+function apply(values) {
+  Object.assign(P, values);
+  for (const [key, c] of Object.entries(controls)) {
+    if (c.kind === "check") c.input.checked = P[key]; else c.input.value = P[key];
+    if (c.kind === "range") c.value.textContent = P[key];
+  }
+  makeBackground(); rebuild(); t = crumbles(STYLES[P.style].title) ? leaveStart() : 0; playing = true;
+}
+const presetBar = document.createElement("div"); presetBar.className = "bar";
+const presetList = document.createElement("select"); presetList.style.flex = "1";
+const presetSave = document.createElement("button"); presetSave.textContent = "현재 상태 저장";
+const presetDelete = document.createElement("button"); presetDelete.textContent = "삭제";
+function fillPresets(selected) {
+  presetList.innerHTML = "";
+  const add = (name, label) => { const o = document.createElement("option"); o.value = name; o.textContent = label; presetList.appendChild(o); };
+  for (const name of Object.keys(BUILT_IN)) add("b:" + name, name);
+  for (const name of Object.keys(ownPresets())) add("o:" + name, name + " (저장함)");
+  if (selected) presetList.value = selected;
+}
+presetList.addEventListener("change", () => {
+  const v = presetList.value, name = v.slice(2);
+  apply(v.startsWith("b:") ? BUILT_IN[name] : ownPresets()[name]);
+});
+presetSave.addEventListener("click", () => {
+  let name = null;
+  try { name = prompt("프리셋 이름", "프리셋 " + (Object.keys(ownPresets()).length + 1)); } catch { }
+  name = name || "프리셋 " + (Object.keys(ownPresets()).length + 1);
+  const own = ownPresets(); own[name] = effectOf(P);
+  if (saveOwn(own)) { fillPresets("o:" + name); return; }
+  // This window keeps nothing (a page opened from a file in some viewers): the values go below, to be put into the file.
+  copyBox.value = "이 창에서는 저장이 막혀 있습니다. 이 값을 파일의 BUILT_IN에 넣으면 프리셋이 됩니다.\n" + JSON.stringify({ [name]: effectOf(P) });
+});
+presetDelete.addEventListener("click", () => {
+  const v = presetList.value; if (!v.startsWith("o:")) return;
+  const own = ownPresets(); delete own[v.slice(2)]; saveOwn(own); fillPresets();
+});
+presetBar.append(presetList, presetSave, presetDelete);
+const presetHead = document.createElement("h2"); presetHead.textContent = "프리셋";
+side.prepend(presetHead, presetBar);
+fillPresets();
+
+document.getElementById("play").addEventListener("click", () => { t = 0; playing = true; });
+document.getElementById("leaveNow").addEventListener("click", () => { t = leaveStart(); playing = true; });
+document.getElementById("pause").addEventListener("click", e => { playing = !playing; e.target.textContent = playing ? "일시정지" : "계속"; });
+const scrub = document.getElementById("scrub");
+scrub.addEventListener("input", () => { scrubbing = true; t = scrub.value / 1000 * timeline(); });
+scrub.addEventListener("change", () => { scrubbing = false; playing = false; document.getElementById("pause").textContent = "계속"; });
+
+makeBand();
+makeBackground();
+document.fonts.load('400 40px "Noto Sans KR"').finally(() => { rebuild(); requestAnimationFrame(frame); });
+</script>
+</body>
+</html>

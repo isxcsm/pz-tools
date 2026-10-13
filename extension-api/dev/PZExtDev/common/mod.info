@@ -1,0 +1,6 @@
+name=PZ Extension API Dev
+id=PZExtDev
+author=isxcsm
+description=Developer tools for PZ Extension API and the mods on it: one debug window where each mod's dev mod adds its section, and the game's environment (time, weather, the character, zombies). Never published; works only in debug mode.
+modversion=0.1.0
+versionMin=42.0.0

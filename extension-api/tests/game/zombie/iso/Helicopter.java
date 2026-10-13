@@ -1,0 +1,51 @@
+package zombie.iso;
+
+import zombie.characters.IsoGameCharacter;
+
+/**
+ * Synthetic: the game's helicopter. Its state is written in several places, as the game's is: when a target is set, in
+ * changeState, straight in update, when a save loads, and the helicopter is taken off by deactivate. The state is an
+ * enum the game does not make public.
+ */
+public class Helicopter {
+    enum State { Arriving, Hovering, Searching, Leaving }
+
+    protected State state;
+    public IsoGameCharacter target;
+    public float x, y;
+    protected boolean active;
+
+    /** How many times the flag was asked: the API asks only when it was told something was written. */
+    public int activeReads;
+
+    public boolean isActive() { activeReads++; return active; }
+
+    public void setTarget(IsoGameCharacter character) {
+        target = character;
+        x = character.getX() + 1000f;
+        y = character.getY() + 1000f;
+        state = State.Arriving;
+        active = true;
+    }
+
+    protected void changeState(State next) { state = next; }
+
+    public void deactivate() { active = false; }
+
+    /** What update does: a state through changeState, the helicopter moving, a state written straight, a save loaded. */
+    public void update(String next, float newX, float newY) { changeState(State.valueOf(next)); x = newX; y = newY; }
+
+    /** What the game does with nobody to fly to: the helicopter is taken off. */
+    public void pickRandomTarget() { active = false; }
+
+    /** What a client does when the server tells it where the helicopter is (the game's has it deactivate and then store the flag). */
+    public void clientSync(float newX, float newY, boolean flying) {
+        x = newX; y = newY;
+        if (!flying) deactivate();
+        active = flying;
+    }
+
+    public void leaveAtOnce() { state = State.Leaving; }
+
+    public void load(String saved, boolean flying) { state = State.valueOf(saved); active = flying; }
+}
