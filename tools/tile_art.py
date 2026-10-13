@@ -92,17 +92,22 @@ class Scene:
             x, y = (-y, x) if vector else (1 - y, x)
         return (x, y, z) if vector else (x, y, z + self.lift)
 
-    def face(self, points, colour, normal, shine=0.0, emit=False):
+    def face(self, points, colour, normal, shine=0.0, emit=False, normals=None):
+        """A flat face. normals: the surface's normal at each point (a tube's or a sphere's facet), so it is shaded
+        smooth across, its normal blended pixel by pixel (shaded flat, a round thing showed its facets as bands)."""
         normal = self.turn(normal, True)
         if dot(normal, VIEW) <= 1e-6:
             return
+        smooth = None
         if emit:
             rgb = tuple(int(c) for c in colour[:3])
         else:
             if self.frost:
                 colour = frosted(colour, normal, self.frost)
             rgb = shade(colour, normal, shine)
-        self.faces.append(([self.turn(p) for p in points], rgb, normal[2]))
+            if normals:
+                smooth = (colour[:3], shine, [self.turn(n, True) for n in normals])
+        self.faces.append(([self.turn(p) for p in points], rgb, normal[2], smooth))
 
     def poly(self, points, colour, outward, shine=0.0, emit=False):
         """A flat polygon; its normal from its points, on the side of outward."""
@@ -142,13 +147,15 @@ class Scene:
             a0, a1 = 2 * math.pi * i / segments, 2 * math.pi * (i + 1) / segments
             mid = (a0 + a1) / 2
             n = tuple(u_ * math.cos(mid) + v_ * math.sin(mid) for u_, v_ in zip(u, v))
+            n0 = tuple(u_ * math.cos(a0) + v_ * math.sin(a0) for u_, v_ in zip(u, v))
+            n1 = tuple(u_ * math.cos(a1) + v_ * math.sin(a1) for u_, v_ in zip(u, v))
             for t0, t1, c in bands or [(0, 1, colour)]:
                 quad = [at(a0, t0), at(a1, t0), at(a1, t1), at(a0, t1)]
                 if sunk:
                     if all(q[2] <= 0 for q in quad):
                         continue
                     quad = [(q[0], q[1], max(0.0, q[2])) for q in quad]
-                self.face(quad, paint(n, c) if paint else c, n, shine, emit)
+                self.face(quad, paint(n, c) if paint else c, n, shine, emit, normals=[n0, n1, n1, n0])
         if not ends:
             return
         ring = range(segments)
@@ -162,7 +169,7 @@ class Scene:
         depth = np.full((size[1], size[0]), -1e9, dtype=np.float64)
         colour = np.zeros((size[1], size[0], 4), dtype=np.uint8)
         self.up = np.full((size[1], size[0]), np.nan, dtype=np.float32)
-        for points, rgb, up in self.faces:
+        for points, rgb, up, smooth in self.faces:
             screen = [project(*p) for p in points]
             xs, ys = [s[0] for s in screen], [s[1] for s in screen]
             x0, y0 = max(0, int(math.floor(min(xs)))), max(0, int(math.floor(min(ys))))
@@ -183,8 +190,22 @@ class Scene:
             region = depth[y0:y1 + 1, x0:x1 + 1]
             nearer = m & (d > region)
             region[nearer] = d[nearer]
-            colour[y0:y1 + 1, x0:x1 + 1][nearer] = rgb + (255,)
-            self.up[y0:y1 + 1, x0:x1 + 1][nearer] = up
+            if smooth is None:
+                colour[y0:y1 + 1, x0:x1 + 1][nearer] = rgb + (255,)
+                self.up[y0:y1 + 1, x0:x1 + 1][nearer] = up
+                continue
+            # Shaded smooth: the normal is a plane over the screen too, fitted to the corners' normals.
+            base, shine, normals = smooth
+            nplane, *_ = np.linalg.lstsq(corners, np.array(normals, dtype=np.float64), rcond=None)
+            px = np.stack([gx[nearer], gy[nearer], np.ones(int(nearer.sum()))], axis=-1)
+            n = px @ nplane
+            n /= np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-9)
+            f = 0.45 + 0.62 * np.maximum(0.0, n @ np.array(LIGHT))
+            spec = shine * np.maximum(0.0, n @ np.array(HALF)) ** 24 * 255
+            lit = np.clip(np.array(base, dtype=np.float64)[None, :] * f[:, None] + spec[:, None], 0, 255)
+            colour[y0:y1 + 1, x0:x1 + 1][nearer] = np.concatenate(
+                [lit.astype(np.uint8), np.full((len(lit), 1), 255, np.uint8)], axis=1)
+            self.up[y0:y1 + 1, x0:x1 + 1][nearer] = n[:, 2]
         return Image.fromarray(colour, 'RGBA')
 
 
@@ -197,9 +218,14 @@ def shadow(centre, rx, ry, strength=110):
     return layer.filter(ImageFilter.GaussianBlur(5 * SS))
 
 
+# Set while the items' icons are drawn: a tile's thing without its shadow on the floor (the shadow took the icon's room
+# and read as a grey smear round it).
+ICON_DRAW = {'on': False}
+
+
 def compose(scene, ground=None, over=None, seed=1, glows=None):
     big = Image.new('RGBA', (W * SS, H * SS), (0, 0, 0, 0))
-    if ground:
+    if ground and not ICON_DRAW['on']:
         big.alpha_composite(ground)
     solid = scene.render()
     big.alpha_composite(solid)
@@ -439,40 +465,49 @@ def sprinkler(spraying, frame=0):
 
     c = 0.5 + RUN_LANE['water']
     s = Scene()
-    s.tube((c, c, 0.0), (c, c, 0.03), 0.1, FITTING, cap=(74, 75, 76), shine=0.1)
-    s.tube((c, c, 0.03), (c, c, 0.07), 0.045, FITTING, cap=(74, 75, 76), shine=0.1)
-    s.tube((c, c, 0.07), (c, c, 0.42), 0.022, STEEL, shine=0.5)
+    # (A thin riser and a small head read as a lamp post: the riser is a stout galvanized pipe in a coupling, the head
+    # a cast brass body the size of a fist.)
+    s.tube((c, c, 0.0), (c, c, 0.035), 0.11, FITTING, cap=(74, 75, 76), shine=0.1)
+    s.tube((c, c, 0.035), (c, c, 0.09), 0.05, FITTING, cap=(74, 75, 76), shine=0.1)
+    s.tube((c, c, 0.09), (c, c, 0.36), 0.032, STEEL, shine=0.4)
+    s.tube((c, c, 0.33), (c, c, 0.37), 0.04, FITTING, shine=0.2)
     # The head.
-    s.tube((c, c, 0.42), (c, c, 0.47), 0.045, BRASS, shine=0.6)
-    s.tube((c, c, 0.47), (c, c, 0.5), 0.033, BRASS_DARK, shine=0.6)
-    s.tube((c, c, 0.5), (c, c, 0.56), 0.028, BRASS, shine=0.6)
-    nozzle = head(0.16, 0, 0.6)
-    s.tube((c, c, 0.54), nozzle, 0.016, BRASS, cap=BRASS_DARK, shine=0.6)
+    s.tube((c, c, 0.37), (c, c, 0.43), 0.06, BRASS, shine=0.5)
+    s.tube((c, c, 0.43), (c, c, 0.46), 0.045, BRASS_DARK, shine=0.5)
+    s.tube((c, c, 0.46), (c, c, 0.53), 0.04, BRASS, shine=0.5)
+    nozzle = head(0.2, 0, 0.58)
+    s.tube((c, c, 0.5), nozzle, 0.024, BRASS, cap=BRASS_DARK, shine=0.5)
     # The arm with its spring and the deflector at its end.
-    s.tube((c, c, 0.62), (c, c, 0.56), 0.008, STEEL)
-    s.tube(head(-0.12, 0, 0.62), head(0.16, 0, 0.64), 0.009, (150, 150, 154), shine=0.5)
-    s.tube(head(0.14, 0, 0.625), head(0.18, 0, 0.625), 0.03, (150, 150, 154), shine=0.5)
-    s.tube(head(-0.12, 0, 0.62), head(-0.12, 0, 0.58), 0.018, (150, 150, 154), shine=0.5)
+    s.tube((c, c, 0.6), (c, c, 0.53), 0.012, STEEL)
+    s.tube(head(-0.14, 0, 0.6), head(0.19, 0, 0.62), 0.014, (150, 150, 154), shine=0.4)
+    s.tube(head(0.17, 0, 0.605), head(0.22, 0, 0.605), 0.038, (150, 150, 154), shine=0.4)
+    s.tube(head(-0.14, 0, 0.6), head(-0.14, 0, 0.55), 0.024, (150, 150, 154), shine=0.4)
     over = None
     if spraying:
         def over(big):
             layer = Image.new('RGBA', big.size, (0, 0, 0, 0))
             d = ImageDraw.Draw(layer)
             rnd = random.Random(7)
-            # The jets fan out along the nozzle and thin out in the air: the sprite keeps inside its tile.
-            for jet in range(7):
-                direction = angle + (jet - 3) * 0.14
+            # The jets fan out along the nozzle and thin out in the air: the sprite keeps inside its tile. Under them a
+            # mist, soft and wider, so the spray reads as water and not as a few white dots.
+            mist = Image.new('RGBA', big.size, (0, 0, 0, 0))
+            m = ImageDraw.Draw(mist)
+            for jet in range(9):
+                direction = angle + (jet - 4) * 0.13
                 reach = 0.42 + rnd.random() * 0.1
-                for i in range(1, 19):
-                    t = (i + rnd.random() * 0.5) / 18
+                for i in range(1, 22):
+                    t = (i + rnd.random() * 0.5) / 21
                     x = nozzle[0] + t * reach * math.cos(direction)
                     y = nozzle[1] + t * reach * math.sin(direction)
                     z = nozzle[2] + t * 0.4 - t * t * 0.45
                     px, py = project(x, y, z)
-                    r = (1.9 - 0.9 * t) * SS * (0.7 + rnd.random() * 0.6)
-                    d.ellipse([px - r, py - r, px + r, py + r], fill=(205, 232, 255, int(220 * max(0.0, 1 - t) ** 1.3)))
-            layer = layer.filter(ImageFilter.GaussianBlur(SS * 0.25))
-            big.alpha_composite(layer)
+                    r = (2.4 - 1.0 * t) * SS * (0.7 + rnd.random() * 0.6)
+                    fade = max(0.0, 1 - t) ** 1.2
+                    d.ellipse([px - r, py - r, px + r, py + r], fill=(214, 236, 252, int(235 * fade)))
+                    r *= 2.6
+                    m.ellipse([px - r, py - r, px + r, py + r], fill=(200, 222, 236, int(60 * fade)))
+            big.alpha_composite(mist.filter(ImageFilter.GaussianBlur(SS * 2)))
+            big.alpha_composite(layer.filter(ImageFilter.GaussianBlur(SS * 0.3)))
     ground = shadow((c, c), 0.13, 0.13, 90)
     return compose(s, ground=ground, over=over, seed=20 + (1 + frame if spraying else 0))
 
@@ -482,34 +517,49 @@ def sprinkler(spraying, frame=0):
 FILTER_LAMP = {'resting': None, 'working': 'green', 'spent': 'red'}
 
 
+FILTER_TANK = (138, 128, 104)  # a fibreglass media tank, wound and almond
+FILTER_TANK_DARK = (104, 96, 78)
+FILTER_HEAD = (44, 46, 48)
+
+
 def water_filter(turns, look='resting'):
-    """A pair of filter housings on a stand: a pad, two posts and a bar with the status lamp on it, the pipe through
-    the heads, the white housings with their blue caps hanging under them, a pressure gauge between."""
+    """A whole-house filter on a steel skid, the pipe running through it W to E: a tall fibreglass media tank with its
+    control head on top (the status lamp on the head), the pipe into the head and out to a cartridge housing (a black
+    head, a blue bowl under it, a gauge on top), a drain valve at the tank's foot. (Two thin white housings on posts
+    over a wide pad read as a toy; a tank has the weight of what it does.)"""
     s = Scene(turns)
     glows = []
-    s.box(0.18, 0.3, 0.0, 0.82, 0.7, 0.04, CONCRETE)
+    s.box(0.2, 0.3, 0.0, 0.8, 0.7, 0.035, FRAME, top=(78, 80, 84), shine=0.2)
     for x0 in (0.22, 0.74):
-        s.box(x0, 0.36, 0.04, x0 + 0.04, 0.4, 0.78, FRAME, shine=0.2)
-    s.box(0.22, 0.36, 0.74, 0.78, 0.4, 0.78, FRAME, shine=0.2)
-    s.box(0.22, 0.4, 0.62, 0.26, 0.5, 0.64, FRAME)
-    s.box(0.74, 0.4, 0.62, 0.78, 0.5, 0.64, FRAME)
-    # The lamp's housing on the bar, its cable down the post.
-    s.box(0.27, 0.35, 0.78, 0.35, 0.41, 0.81, FRAME, top=(78, 80, 84), shine=0.2)
-    lamp(s, glows, 0.31, 0.38, 0.81, 0.022, FILTER_LAMP[look] or 'green', FILTER_LAMP[look] is not None)
-    pipe_z = 0.66
-    s.tube((0.15, 0.5, pipe_z), (0.85, 0.5, pipe_z), 0.035, PIPE, shine=0.3)
+        s.box(x0, 0.3, 0.0, x0 + 0.04, 0.7, 0.05, FRAME, shine=0.2)
+    pipe_z = 0.62
+    # The media tank: its foot ring, the wound body, the dome, the head straddling the pipe.
+    tx, ty, tr = 0.38, 0.5, 0.13
+    s.tube((tx, ty, 0.035), (tx, ty, 0.08), tr * 0.9, FILTER_TANK_DARK, shine=0.1)
+    s.tube((tx, ty, 0.08), (tx, ty, 0.5), tr, FILTER_TANK, shine=0.15,
+           bands=[(0, 0.05, FILTER_TANK_DARK), (0.05, 0.95, FILTER_TANK), (0.95, 1, FILTER_TANK_DARK)])
+    s.tube((tx, ty, 0.5), (tx, ty, 0.53), tr * 0.92, FILTER_TANK, shine=0.15)
+    s.tube((tx, ty, 0.53), (tx, ty, 0.55), tr * 0.72, FILTER_TANK, shine=0.15)
+    s.box(tx - 0.075, ty - 0.07, 0.55, tx + 0.075, ty + 0.07, 0.69, FILTER_HEAD, top=(60, 62, 64), shine=0.25)
+    s.box(tx - 0.05, ty + 0.07, 0.6, tx + 0.05, ty + 0.074, 0.66, (24, 40, 40))
+    lamp(s, glows, tx, ty, 0.69, 0.022, FILTER_LAMP[look] or 'green', FILTER_LAMP[look] is not None)
+    # The pipe: in at the west edge, through the head, over to the cartridge, out at the east edge.
+    s.tube((0.15, 0.5, pipe_z), (0.85, 0.5, pipe_z), 0.032, PIPE, shine=0.3)
     for x in (0.15, 0.83):
-        s.tube((x, 0.5, pipe_z), (x + 0.02, 0.5, pipe_z), 0.055, STEEL, shine=0.5)
-    for x in (0.39, 0.61):
-        s.tube((x, 0.5, pipe_z - 0.08), (x, 0.5, pipe_z + 0.05), 0.075, BLUE, cap=(70, 128, 196), shine=0.35)
-        s.tube((x, 0.5, pipe_z - 0.11), (x, 0.5, pipe_z - 0.08), 0.08, (40, 84, 140), shine=0.35)
-        s.tube((x, 0.5, 0.14), (x, 0.5, pipe_z - 0.11), 0.068, WHITE, shine=0.35)
-        s.tube((x, 0.5, 0.11), (x, 0.5, 0.14), 0.05, WHITE, shine=0.35)
-        s.tube((x, 0.5, 0.09), (x, 0.5, 0.11), 0.02, RUBBER)
-    # The gauge: a stem up from the pipe, the dial facing the viewer's left.
-    s.tube((0.5, 0.5, pipe_z + 0.03), (0.5, 0.5, pipe_z + 0.1), 0.01, BRASS, shine=0.5)
-    s.tube((0.5, 0.49, pipe_z + 0.14), (0.5, 0.53, pipe_z + 0.14), 0.045, STEEL, cap=(240, 240, 232), shine=0.5)
-    ground = shadow(s.turn((0.5, 0.5, 0))[:2], 0.36, 0.26)
+        s.tube((x, 0.5, pipe_z), (x + 0.02, 0.5, pipe_z), 0.05, STEEL, shine=0.4)
+    s.tube((0.53, 0.5, pipe_z), (0.55, 0.5, pipe_z), 0.045, STEEL, shine=0.4)
+    # The cartridge housing: its head on the pipe, the blue bowl hanging under it, a gauge on top.
+    cx_ = 0.66
+    s.box(cx_ - 0.06, 0.44, pipe_z - 0.05, cx_ + 0.06, 0.56, pipe_z + 0.05, FILTER_HEAD, shine=0.25)
+    s.tube((cx_, 0.5, pipe_z - 0.05), (cx_, 0.5, pipe_z - 0.08), 0.068, (40, 84, 140), shine=0.3)
+    s.tube((cx_, 0.5, 0.2), (cx_, 0.5, pipe_z - 0.08), 0.06, BLUE, shine=0.3,
+           bands=[(0, 0.08, (52, 74, 100)), (0.08, 1, BLUE)])
+    s.tube((cx_, 0.5, pipe_z + 0.05), (cx_, 0.5, pipe_z + 0.09), 0.008, BRASS, shine=0.5)
+    s.tube((cx_, 0.49, pipe_z + 0.12), (cx_, 0.53, pipe_z + 0.12), 0.036, STEEL, cap=(232, 232, 224), shine=0.4)
+    # The drain valve at the tank's foot.
+    s.tube((tx, ty + tr - 0.01, 0.12), (tx, ty + tr + 0.05, 0.12), 0.014, BRASS, shine=0.5)
+    s.box(tx - 0.03, ty + tr + 0.035, 0.135, tx + 0.03, ty + tr + 0.05, 0.145, (170, 50, 40))
+    ground = shadow(s.turn((0.5, 0.5, 0))[:2], 0.34, 0.24)
     return compose(s, ground=ground, seed=30 + turns, glows=glows)
 
 
@@ -1056,7 +1106,6 @@ CABINET_DOOR = (86, 112, 92)
 CABLE = (44, 44, 46)
 HYDRANT_BODY = (52, 84, 128)
 HYDRANT_DARK = (38, 62, 96)
-LID = (46, 92, 60)
 
 
 def junction_box():
@@ -1091,23 +1140,22 @@ def junction_box():
 def hydrant():
     """The water relay: a yard hydrant on the water lane's middle (RUN_LANE), so that a pipe laid to it runs into its
     collar. A concrete collar round its standpipe, the galvanized standpipe up to the cast head, its lever up over it
-    with the link down, the spout turned down with its hose thread; beside it the valve box set in the ground, its
-    green lid with a lifting slot, clear of the power lane."""
+    with the link down, the spout turned down with its hose thread. (A valve box lid lying beside it read as a circuit
+    board on the ground.)"""
     s = Scene()
     c = 0.5 + RUN_LANE['water']
-    s.box(c - 0.12, c - 0.12, 0.0, c + 0.12, c + 0.12, 0.05, CONCRETE)
-    s.box(0.66, 0.12, 0.0, 0.86, 0.32, 0.03, (88, 90, 86), top=LID)
-    s.box(0.72, 0.21, 0.03, 0.8, 0.23, 0.033, (28, 40, 30))
-    s.tube((c, c, 0.05), (c, c, 0.56), 0.03, STEEL, shine=0.5, segments=24,
+    s.box(c - 0.13, c - 0.13, 0.0, c + 0.13, c + 0.13, 0.05, CONCRETE)
+    s.tube((c, c, 0.05), (c, c, 0.54), 0.04, STEEL, shine=0.4, segments=24,
            bands=[(0, 0.04, PIPE), (0.04, 1, STEEL)])
-    s.box(c - 0.045, c - 0.045, 0.56, c + 0.045, c + 0.045, 0.66, HYDRANT_BODY, top=HYDRANT_DARK, shine=0.3)
-    s.tube((c, c + 0.045, 0.62), (c, c + 0.12, 0.62), 0.018, HYDRANT_BODY, shine=0.3, segments=20)
-    s.tube((c, c + 0.12, 0.638), (c, c + 0.12, 0.55), 0.018, HYDRANT_BODY, shine=0.3, segments=20,
-           bands=[(0, 0.6, HYDRANT_BODY), (0.6, 1, BRASS)])
-    s.box(c - 0.01, c - 0.03, 0.66, c + 0.01, c + 0.03, 0.69, HYDRANT_DARK)
-    s.tube((c, c, 0.68), (c, c - 0.14, 0.86), 0.012, HYDRANT_BODY, shine=0.3, segments=14)
-    s.tube((c, c - 0.14, 0.86), (c, c - 0.17, 0.9), 0.016, RUBBER, segments=14)
-    s.tube((c, c - 0.08, 0.78), (c, c - 0.06, 0.6), 0.005, STEEL, shine=0.5, segments=8)
+    s.tube((c, c, 0.5), (c, c, 0.54), 0.05, HYDRANT_DARK, shine=0.3)
+    s.box(c - 0.06, c - 0.06, 0.54, c + 0.06, c + 0.06, 0.68, HYDRANT_BODY, top=HYDRANT_DARK, shine=0.3)
+    s.tube((c, c + 0.06, 0.62), (c, c + 0.14, 0.62), 0.026, HYDRANT_BODY, shine=0.3, segments=20)
+    s.tube((c, c + 0.14, 0.646), (c, c + 0.14, 0.53), 0.026, HYDRANT_BODY, shine=0.3, segments=20,
+           bands=[(0, 0.62, HYDRANT_BODY), (0.62, 1, BRASS)])
+    s.box(c - 0.015, c - 0.035, 0.68, c + 0.015, c + 0.035, 0.72, HYDRANT_DARK)
+    s.tube((c, c, 0.71), (c, c - 0.16, 0.9), 0.018, HYDRANT_BODY, shine=0.3, segments=14)
+    s.tube((c, c - 0.16, 0.9), (c, c - 0.2, 0.95), 0.024, RUBBER, segments=14)
+    s.tube((c, c - 0.09, 0.81), (c, c - 0.07, 0.62), 0.008, STEEL, shine=0.5, segments=8)
     return compose(s, ground=shadow((c, c + 0.05), 0.2, 0.16), seed=55)
 
 
@@ -1433,28 +1481,38 @@ ICON = 32
 
 
 def item_icon(image):
+    """A thing drawn without its shadow, at the icon's size: brighter and a little more contrasted, sharpened after the
+    shrink (shrunk alone it read soft beside the game's painted icons), hard-edged (no faint fringe), in a dark
+    outline."""
     crop = trim(image)[0]
     a = np.asarray(crop).astype(np.float64)
-    a[..., :3] = np.clip(a[..., :3] * 1.18, 0, 255)
+    rgb = a[..., :3] * 1.15
+    a[..., :3] = np.clip((rgb - 118) * 1.12 + 118, 0, 255)
     crop = Image.fromarray(a.astype(np.uint8), 'RGBA')
-    inner = ICON - 4
+    inner = ICON - 3
     scale = inner / max(crop.width, crop.height)
     small = crop.convert('RGBa').resize((max(1, round(crop.width * scale)), max(1, round(crop.height * scale))),
                                         Image.LANCZOS).convert('RGBA')
+    sharp = small.filter(ImageFilter.UnsharpMask(radius=1, percent=70, threshold=0))
+    sharp.putalpha(Image.eval(small.getchannel('A'), lambda v: 0 if v < 70 else 255))
     out = Image.new('RGBA', (ICON, ICON), (0, 0, 0, 0))
-    out.alpha_composite(small, ((ICON - small.width) // 2, (ICON - small.height) // 2))
+    out.alpha_composite(sharp, ((ICON - sharp.width) // 2, (ICON - sharp.height) // 2))
     grown = out.getchannel('A').filter(ImageFilter.MaxFilter(3))
     ring = Image.new('RGBA', out.size, (22, 24, 22, 0))
-    ring.putalpha(Image.eval(grown, lambda v: 215 if v > 20 else 0))
+    ring.putalpha(Image.eval(grown, lambda v: 230 if v > 20 else 0))
     ring.alpha_composite(out)
     return ring
 
 
 def write_icons(images):
-    for name, index in ICONS.items():
-        item_icon(images[index]).save(os.path.join(ROOT, 'textures', 'Item_%s.png' % name))
-    for name, draw in DRAWN_ICONS.items():
-        item_icon(draw()).save(os.path.join(ROOT, 'textures', 'Item_%s.png' % name))
+    ICON_DRAW['on'] = True
+    try:
+        for name, index in ICONS.items():
+            item_icon(TILES[index][0]()).save(os.path.join(ROOT, 'textures', 'Item_%s.png' % name))
+        for name, draw in DRAWN_ICONS.items():
+            item_icon(draw()).save(os.path.join(ROOT, 'textures', 'Item_%s.png' % name))
+    finally:
+        ICON_DRAW['on'] = False
 
 
 def preview(images, path):

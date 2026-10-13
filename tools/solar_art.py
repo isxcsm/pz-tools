@@ -51,40 +51,21 @@ BOX_DARK = (134, 134, 128)
 CONTROLLER = (82, 86, 88)
 CONTROLLER_TRIM = (56, 59, 62)
 SCREEN_OFF = (40, 52, 48)
-SCREEN_ON = (112, 196, 166)
+SCREEN_ON = (88, 140, 118)  # a backlit LCD, dim (a bright mint read as neon)
 LED_OFF = (52, 56, 54)
 LED = {'red': (255, 64, 46), 'amber': (255, 160, 40), 'yellow': (236, 226, 60), 'green': (80, 255, 120)}
 
 
-def grain(image, solid, seed):
-    """tile_art's finish with a grain fixed to each pixel (not drawn in turn), so that two tiles of the same thing
-    match wherever they are the same: an overlay is what differs."""
-    a = np.asarray(image).astype(np.float64)
-    gy, gx = np.mgrid[0:H, 0:W]
-    h = np.sin(gx * 12.9898 + gy * 78.233 + seed * 37.719) * 43758.5453
-    # a worn finish, as the game's tiles have: a grain, blotches of wear a few pixels across, and grime gathering
-    # toward the floor
-    n = 1 + ((h - np.floor(h)) - 0.5) * 0.09
-    n *= 1 + 0.045 * np.sin(gx * 0.41 + gy * 0.17 + seed) * np.sin(gy * 0.37 - gx * 0.23 + seed * 1.7)
-    n *= 1 - 0.1 * np.clip((gy - 150) / 80, 0, 1)
-    s = np.asarray(solid).astype(np.float64)
-    inner = np.asarray(solid.filter(ImageFilter.MinFilter(3))).astype(np.float64)
-    n = np.where(inner < 128, n * 0.7, n)
-    keep = (a[..., 3] > 0) & (s >= 40)
-    rgb = np.where(keep[..., None], np.clip(a[..., :3] * n[..., None], 0, 255), a[..., :3])
-    return Image.fromarray(np.concatenate([rgb, a[..., 3:]], axis=2).astype(np.uint8), 'RGBA')
-
-
 def compose(scene, ground=None, over=None, glows=None, seed=1):
     big = Image.new('RGBA', (W * SS, H * SS), (0, 0, 0, 0))
-    if ground:
+    if ground and not T.ICON_DRAW['on']:
         big.alpha_composite(ground)
     solid = scene.render()
     big.alpha_composite(solid)
     if over:
         over(big, solid)
     small = big.convert('RGBa').resize((W, H), Image.LANCZOS).convert('RGBA')
-    small = grain(small, solid.getchannel('A').resize((W, H), Image.LANCZOS), seed)
+    small = T.finish(small, solid.getchannel('A').resize((W, H), Image.LANCZOS), seed, T.facing_up(scene.up))
     if glows:
         small = glow(small, scene, glows)
     return T.trim_faint(small)
@@ -592,10 +573,14 @@ def main():
     write_tiles(os.path.join(T.ROOT, 'bu_solar.tiles'), props)
     T.write_pack_named(os.path.join(T.ROOT, 'texturepacks', PACK + '.pack'), SHEET,
                        [('%s_%d' % (SHEET, index), images[index]) for index in sorted(images)])
-    full = images[0].copy()
-    full.alpha_composite(images[16 + 3 + 16])
-    icon(full, 'BUBatteryRack', top=0.3)
-    icon(images[10], 'BUSolarPanel')
+    # the icons: the things without their shadows (tile_art.write_icons)
+    T.ICON_DRAW['on'] = True
+    try:
+        s_, ground, glows = rack(4, 4)
+        icon(compose(s_, ground=ground, glows=glows, seed=3), 'BUBatteryRack', top=0.3)
+        icon(ground_panel(0), 'BUSolarPanel')
+    finally:
+        T.ICON_DRAW['on'] = False
     model_texture().save(os.path.join(T.ROOT, 'textures', 'WorldItems', 'BUSolarPanel.png'))
     with open(os.path.join(T.ROOT, 'models_X', 'WorldItems', 'BUSolarPanel.x'), 'w', newline='\n') as f:
         f.write(model_text())
