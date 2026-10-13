@@ -6,7 +6,7 @@ import random
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
-from tile_engine import (Scene, shadow, compose, unit, rotation, apply, add, sub, mul, stencil_text, acorn_mark,
+from tile_engine import (smooth_segments, Scene, shadow, compose, unit, rotation, apply, add, sub, mul, stencil_text, acorn_mark,
                          IDENTITY, project, SS, W, H, UP, font)
 from tile_objects import (OD, OD_DARK, OD_LIGHT, TAN, CANVAS, BLACK, RUBBER, GREY, STEEL, STEEL_DARK, PIPE, WHITE,
                           STENCIL, YELLOW, RED, BRASS, WOOD, WOOD_DARK, BLUE, LIT, UNLIT, BEZEL, lamp, lamp_y, lamp_x,
@@ -31,6 +31,7 @@ def double_poly(s, pts, outside, inside, outward, shine=0.0):
 def ring_top(s, centre, r0, r1, z, colour, segments=40, shine=0.0):
     """A flat ring (a rim) facing up between two radii."""
     cx, cy = centre
+    segments = smooth_segments(segments, r1)
     for i in range(segments):
         a0, a1 = 2 * math.pi * i / segments, 2 * math.pi * (i + 1) / segments
         pts = [(cx + r1 * math.cos(a0), cy + r1 * math.sin(a0), z), (cx + r1 * math.cos(a1), cy + r1 * math.sin(a1), z),
@@ -40,6 +41,7 @@ def ring_top(s, centre, r0, r1, z, colour, segments=40, shine=0.0):
 
 def disc(s, centre, r, z, colour, segments=40, shine=0.0, emit=False):
     cx, cy = centre
+    segments = smooth_segments(segments, r)
     s.face([(cx + r * math.cos(2 * math.pi * i / segments), cy + r * math.sin(2 * math.pi * i / segments), z)
             for i in range(segments)], colour, (0, 0, 1), shine, emit)
 
