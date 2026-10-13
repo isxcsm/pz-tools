@@ -4,6 +4,7 @@
 -- sub-panel. Nothing here changes anything: BU.Changes does.
 require "BuildingUtilities/Networks"
 require "BuildingUtilities/Geometry"
+require "BuildingUtilities/Switches"
 local BU = BuildingUtilities
 local Store, Networks, Geometry = BU.Store, BU.Networks, BU.Geometry
 local Panels = {}
@@ -581,7 +582,8 @@ end
 -- key, keys, power, inside and state ("on", "off" or "other": the player's choice); attached (in a built-on room) and
 -- pending (not yet in the networks, BU.Changes.syncAttached); and for power: essential, schedule (BU.SCHEDULES) and
 -- held ("shed", "saving" or "timer" while the box keeps it off; "exterior" for one outside while the game
--- keeps generators from powering things outside, BU.exteriorPower; or nil). A utility that is off (BU.enabled) has
+-- keeps generators from powering things outside, BU.exteriorPower; or nil); and for power switchOn, its own switch
+-- where it has one and is loaded (BU.Switches: true, false; nil without). A utility that is off (BU.enabled) has
 -- none.
 local function anyKey(set, keys)
     for _, key in ipairs(keys) do
@@ -625,7 +627,7 @@ function Panels.devices(panel, utility)
                 if not group then
                     local object = BU.objectsWithSprite(entry.x, entry.y, entry.z, entry.sprite)[1]
                     local keys = object and BU.partKeys(object) or { key }
-                    group = { keys = keys, entries = {}, inside = inside, built = built }
+                    group = { keys = keys, entries = {}, inside = inside, built = built, object = object }
                     for _, part in ipairs(keys) do groupOf[part] = group end
                     groupOf[key] = group
                     order[#order + 1] = group
@@ -687,6 +689,7 @@ function Panels.devices(panel, utility)
             else device.state = owner and "other" or "off" end
         end
         if utility == "water" then device.group = BU.Water.deviceGroup(panel, group.keys) end
+        if utility == "power" and group.object then device.switchOn = BU.Switches.state(group.object) end
         if utility == "power" and device.state == "on" then
             device.essential = data.essential[device.key] == true
             device.schedule = data.schedule[device.key] or "always"

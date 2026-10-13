@@ -218,3 +218,18 @@ test("a save from before version 8 has no blackout: its lights supplied again, i
     eq(#panel.log, 1, "only the other line kept")
     eq(panel.log[1].key, "IGUI_BU_Log_Tripped")
 end)
+
+test("a device's own switch is read, never thrown: the game's kinds and other mods' through the global list", function()
+    require "BuildingUtilities/Switches"
+    local machine = { kind = "machine", on = false }
+    table.insert(BuildingUtilitiesSwitches, { state = function(object)
+        if object.kind ~= "machine" then return nil end
+        return object.on
+    end })
+    eq(BU.Switches.state(machine), false)
+    machine.on = true
+    eq(BU.Switches.state(machine), true)
+    eq(BU.Switches.state({ kind = "fridge" }), nil, "no switch")
+    eq(BU.Switches.set, nil, "nothing to throw it with")
+    table.remove(BuildingUtilitiesSwitches)
+end)

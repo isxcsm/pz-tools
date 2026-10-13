@@ -1006,6 +1006,9 @@
     "IGUI_BU_UnwiredProducerRow": "%1 (%2)  not connected",
     "IGUI_BU_UnwiredProducerTip": "Right-click it where it stands to connect it to this panel.",
     "IGUI_BU_HideUnwired": "Hide unwired",
+    "IGUI_BU_SwitchedOff": "switched off",
+    "IGUI_BU_OwnSwitchOnTip": "Its own switch is on. Turn it on or off at the device.",
+    "IGUI_BU_OwnSwitchOffTip": "Its own switch is off. Turn it on or off at the device.",
     "IGUI_BU_NotWired": "Not connected",
     "IGUI_BU_ConnectAtDevice": "Connect it at the device."
 }

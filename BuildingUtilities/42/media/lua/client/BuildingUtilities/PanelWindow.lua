@@ -1218,6 +1218,8 @@ function ISBUPanelWindow:deviceStatus(utility, device)
             text, dim = power > 0 and string.format("%.3f", power) or "", true
         elseif device.held then
             text = getText(HELD_TEXT[device.held])
+        elseif device.switchOn == false then
+            text, dim = getText("IGUI_BU_SwitchedOff"), true
         elseif power > 0 then
             text = string.format("%.3f", power) .. " (" .. percent(power, self.limit) .. ")"
         else
@@ -1455,6 +1457,11 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
                 if not device.inside then
                     tooltip = (tooltip and tooltip .. " <LINE> " or "")
                         .. getText(device.wired and "IGUI_BU_OutsideTip" or "IGUI_BU_UnwiredTip")
+                end
+                -- its own switch, which way it is: thrown at the device, not here
+                if device.switchOn ~= nil then
+                    tooltip = (tooltip and tooltip .. " <LINE> " or "")
+                        .. getText(device.switchOn and "IGUI_BU_OwnSwitchOnTip" or "IGUI_BU_OwnSwitchOffTip")
                 end
                 -- its timer and essential buttons tell what they do over themselves (ISBUPanelList.BUTTON_TIPS)
                 local controls = timers and utility == "power" and device.state == "on"
