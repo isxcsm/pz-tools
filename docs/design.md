@@ -805,7 +805,7 @@ hook only. `PZExtAPI.hooks()` names each by game class and method.
 | `FBORenderCell.sanitizeLightInfo` | each return | The light a square's objects are drawn with: a lifted copy (the square's own, which the game also asks for its zombies and its vision, is never changed). |
 | `FBORenderCell.*:stale` | after each call of `LightingJNI.getChunkDirty(player, wx, wy, z)`, in any method | Also true while a square of the chunk level was last read with another lift, so that the renderer reads the level's squares again (given up for 3 s once the squares are not drawn); the call's arguments are kept in new locals. |
 | `FBORenderCell.renderOneLevel_Blood:blood` | after each call of `IsoGridSquare.getVertLight(corner, player)` | The corner light floor blood is tinted with, unlifted, so that blood is not lit by night sight. |
-| `FBORenderCell.renderFloor(IsoGridSquare)` | each return | The square's [floor decals](#floor-decals) are drawn over its floor objects, into the chunk level's picture. |
+| `FBORenderCell.renderOneLevel` | before the call of `FBORenderSnow.getInstance()` | The [floor decals](#floor-decals) of the level's floors (`IsoCell.SolidFloor`) are drawn over all of them, into the chunk level's picture. |
 | `IsoGridSquare.RecalcProperties()` | the return | The square, if a mod [watches](#square-watches) it, is marked to be told at the next frame. |
 | `ModelInstance$PlayerData.updateLights` (two), `ModelSlotRenderData.initModel:light`, `ItemModelRenderer.init`, `FBORenderCorpses$BodyParams.initAmbient` | after each call of `IsoGridSquare.interpolateLight(info, x, y)`, or of PZ Optimization's `ModelInstance.pzoptInterpolateLight(square, info, x, y)` (its copy of `ModelInstance$PlayerData`, which the game loads before its own, reads the light with that) | A character's, an animal's, a vehicle's, an item's and a corpse's light, worked out again from the corners before night sight's lift (see [night sight](#night-sight)); the call's arguments are kept in new locals. |
 | `IsoObjectModelDrawer.renderMain:still`, `:animated` | the start | A model object's light: the square's own when it is the lifted copy `sanitizeLightInfo` handed. |
@@ -1344,12 +1344,16 @@ into or searched, and the game's objects are left as they are. A mod sets them a
 | `floor.set(handle, x, y, z, list)` | The mod's decals on the square: `list` holds 5 values for each, the sprite's name and `r, g, b, a` (0 to 1), drawn in its order; at most 8. `nil` or an empty list takes the mod's decals on the square away. |
 | `floor.clear(handle)` | Takes all the mod's decals away (`handle:clear()` does too). |
 
-- **How they are drawn.** The chunk renderer draws a square's floor into its chunk level's picture
-  (`FBORenderCell.renderFloor(square)`) as the level is drawn again, not each frame. The hook at its return draws the square's
-  decals there, as `renderFloor` draws a floor object: the square's floor object as the object drawn (its depth, offsets and
-  alpha), the square's light for the player times the decal's tint, with the depth not written (`IndieGL.glDepthMask(false)`,
-  then `true` as `renderFloor` has it): the floor's depth stays, so whoever stands on a decal is drawn over it. So a decal lies over the floor and its overlays, under the
-  snow, the blood, the items and everything standing on the floor, lit as the floor is. A square with no floor gets none.
+- **How they are drawn.** The chunk renderer draws a chunk level's floors into its picture (`FBORenderCell.renderOneLevel`) as
+  the level is drawn again, not each frame: the squares of `IsoCell.SolidFloor` one after another (`renderFloor`), then the
+  snow. The hook between the two draws the decals of those squares, over all the level's floors: a decal drawn just after its
+  own square's floor was covered where it ran past the square's edge by the next square's floor, its grout drawn over the
+  cable. Each is drawn as `renderFloor` draws a floor object: the square's floor object as the object drawn (its offsets and
+  alpha), the square's light for the player times the decal's tint, with the depth test off (as for the snow that follows) and
+  the depth not written (`IndieGL.glDepthMask(false)`, then `true`): the floors' depth stays, so whoever stands on a decal is
+  drawn over it. So a decal lies over every floor and its overlays, under the snow, the blood, the items and everything
+  standing on the floor, lit as the floor is. A square with no floor gets none. A level redrawn costs a lookup for each of its
+  floor squares.
 - **When they show.** A call that changes a loaded square's decals has its chunk level drawn again
   (`invalidateRenderChunkLevel(DIRTY_REDRAW)`); the same decals again change nothing. A square not loaded is drawn with them as
   its chunk loads.

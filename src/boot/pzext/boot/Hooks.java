@@ -391,12 +391,15 @@ public final class Hooks {
     }
 
     /**
-     * Set by the API while mods have floor decals (docs/design.md, "Floor decals"): what is drawn on a square's floor besides its
-     * objects, into the chunk level's picture with them.
+     * Set by the API while mods have floor decals (docs/design.md, "Floor decals"): what is drawn on the floors of a chunk level
+     * besides their objects, into the level's picture with them.
      */
     public interface FloorDecals {
-        /** {@code FBORenderCell.renderFloor(square)}, after the square's floor objects are drawn: the square's decals drawn over them. */
-        void square(Object square) throws Throwable;
+        /**
+         * {@code FBORenderCell.renderOneLevel}, once every floor of the chunk level is drawn and before its snow: the decals of those
+         * floors drawn over them all ({@code squares} is the game's {@code IsoCell.SolidFloor}, the level's floor squares just drawn).
+         */
+        void level(Object squares) throws Throwable;
     }
 
     /**
@@ -641,10 +644,15 @@ public final class Hooks {
                 })).named("blood"),
             // A square's floor, drawn into its chunk level's picture: the mods' decals go over its floor objects, under the snow,
             // the blood and everything standing on it.
-            Site.atReturns("renderFloor", "(Lzombie/iso/IsoGridSquare;)V", 2, (code, owner) -> {
-                code.aload(1);
-                code.invokestatic(HOOKS, "floorDecals", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_Object));
-            }) }),
+            // Once all of them are drawn, and before the snow: a decal running past its square's edge is not covered by the next
+            // square's floor (its grout drawn over the decal). The depth test is off there, as for the snow.
+            Site.edit("renderOneLevel", "(Lzombie/iso/IsoChunk;ILzombie/iso/IsoCell$PerPlayerRender;IJLzombie/core/opengl/Shader;"
+                + "Lzombie/core/opengl/Shader;)V", new Edit(calls("zombie/iso/fboRenderChunk/FBORenderSnow", "getInstance",
+                "()Lzombie/iso/fboRenderChunk/FBORenderSnow;"), 1, null, (code, element, kind) -> {
+                    code.getstatic(ClassDesc.of("zombie.iso.IsoCell"), "SolidFloor", ARRAY_LIST);
+                    code.invokestatic(HOOKS, "floorDecals", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_Object));
+                    code.with(element);
+                })) }),
         // PZ Optimization draws the floor's blood on the GPU, with each square's light worked out once a frame into a float[]
         // (r, g, b of the corners' mean and whether it is drawn, for the 64 squares of a chunk's level) by its
         // SquareRules: the array is handed to bloodSquares as it is filled. Not a hook of a point: the class loads only
@@ -2531,11 +2539,11 @@ public final class Hooks {
         floorDecals = next;
     }
 
-    /** Put at the return of {@code FBORenderCell.renderFloor(square)}: the square's decals drawn over its floor. */
-    public static void floorDecals(Object square) {
+    /** Put in {@code FBORenderCell.renderOneLevel} before the snow: the decals of the level's floors drawn over them all. */
+    public static void floorDecals(Object squares) {
         FloorDecals current = floorDecals;
         if (current == null) return;
-        try { current.square(square); }
+        try { current.level(squares); }
         catch (Throwable problem) { reportOnce(Call.FLOOR_DECALS, problem); }
     }
 

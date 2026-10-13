@@ -81,7 +81,7 @@ final class FloorDecalsTest {
 
     private static List<Object[]> draw(IsoGridSquare square) {
         IsoSprite.drawn.clear();
-        RENDERER.renderFloor(square);
+        RENDERER.level(square);
         return List.copyOf(IsoSprite.drawn);
     }
 
@@ -243,16 +243,16 @@ final class FloorDecalsTest {
         decorated.lighting[0] = () -> light;
         IsoSprite.recording = false;
         try {
-            for (int warm = 0; warm < 50_000; warm++) { RENDERER.renderFloor(plain); RENDERER.renderFloor(decorated); }
+            for (int warm = 0; warm < 50_000; warm++) { RENDERER.level(plain); RENDERER.level(decorated); }
             int rounds = 200_000;
             long start = System.nanoTime();
-            for (int n = 0; n < rounds; n++) RENDERER.renderFloor(plain);
+            for (int n = 0; n < rounds; n++) RENDERER.level(plain);
             double without = (System.nanoTime() - start) / (double)rounds;
             start = System.nanoTime();
-            for (int n = 0; n < rounds; n++) RENDERER.renderFloor(decorated);
+            for (int n = 0; n < rounds; n++) RENDERER.level(decorated);
             double with = (System.nanoTime() - start) / (double)rounds;
-            System.out.printf("floor: a floor without decals costs %.1f ns, one with two %.1f ns (4096 squares of decals)%n", without, with);
-            long bytes = Allocations.median(9, () -> { for (int n = 0; n < 10_000; n++) { RENDERER.renderFloor(plain); RENDERER.renderFloor(decorated); } });
+            System.out.printf("floor: a level of one floor without decals costs %.1f ns, one with two %.1f ns (4096 squares of decals)%n", without, with);
+            long bytes = Allocations.median(9, () -> { for (int n = 0; n < 10_000; n++) { RENDERER.level(plain); RENDERER.level(decorated); } });
             check(bytes < 4096, "Drawing floors allocated " + bytes + " bytes for 20,000 floors");
         } finally {
             IsoSprite.recording = true;

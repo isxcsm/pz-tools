@@ -39,6 +39,28 @@ public final class FBORenderCell {
         floors++;
     }
 
+    /** Like the game's: a chunk level drawn: its floors one after another, then its snow. */
+    private void renderOneLevel(zombie.iso.IsoChunk chunk, int level, zombie.iso.IsoCell.PerPlayerRender render, int player, long flags,
+            zombie.core.opengl.Shader floorShader, zombie.core.opengl.Shader wallShader) {
+        for (int index = 0; index < zombie.iso.IsoCell.SolidFloor.size(); index++) renderFloor(zombie.iso.IsoCell.SolidFloor.get(index));
+        FBORenderSnow.getInstance().RenderSnow(chunk, level);
+    }
+
+    /** A chunk level of this one floor square drawn (allocating nothing). */
+    public void level(IsoGridSquare square) {
+        zombie.iso.IsoCell.SolidFloor.clear();
+        zombie.iso.IsoCell.SolidFloor.add(square);
+        renderOneLevel(null, 0, null, 0, 0L, null, null);
+    }
+
+    /** A chunk level of these floor squares drawn, in this order. */
+    public void level(IsoGridSquare first, IsoGridSquare... more) {
+        zombie.iso.IsoCell.SolidFloor.clear();
+        zombie.iso.IsoCell.SolidFloor.add(first);
+        for (IsoGridSquare square : more) zombie.iso.IsoCell.SolidFloor.add(square);
+        renderOneLevel(null, 0, null, 0, 0L, null, null);
+    }
+
     /** The corner lights the square's floor blood is tinted with, for the player. */
     public int[] bloodLight(IsoGridSquare square, int player) {
         bloodSquare = square;

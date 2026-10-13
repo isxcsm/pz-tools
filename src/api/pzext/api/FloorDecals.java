@@ -12,11 +12,12 @@ import pzext.boot.Hooks;
  * pipe laid along the ground, without an object in the world: nothing is saved, nothing can be picked up, walked into or
  * searched, and the game's own objects are left as they are.
  *
- * <p>A decal is a sprite of the game's (a tile, by its name) and a tint. The chunk renderer draws a square's floor into its chunk
- * level's picture ({@code FBORenderCell.renderFloor(square)}, as the level is redrawn, not each frame); the hook at its return
- * draws the square's decals there, over the floor objects and under the snow, the blood and all that stands on the floor, as
- * {@code renderFloor} draws a floor object: the square's floor object as the object drawn (its depth, its offsets, its alpha), the
- * square's light for the player times the decal's tint, the depth not written (the floor's stays, so that whoever stands on a
+ * <p>A decal is a sprite of the game's (a tile, by its name) and a tint. The chunk renderer draws a chunk level's floors into its
+ * picture ({@code FBORenderCell.renderOneLevel}, as the level is redrawn, not each frame), one square after another
+ * ({@code renderFloor}); once all are drawn, before the snow, the hook draws the decals of those floors, over every floor (a decal
+ * running past its square's edge is not covered by the next floor's grout) and under the snow, the blood and all that stands on
+ * the floor, as {@code renderFloor} draws a floor object: the square's floor object as the object drawn (its offsets, its alpha),
+ * the square's light for the player times the decal's tint, the depth not written (the floor's stays, so that whoever stands on a
  * decal is drawn over it). Setting a square's decals redraws its chunk level when the square is
  * loaded ({@code invalidateRenderChunkLevel(DIRTY_REDRAW)}); one that is not loaded is drawn as its chunk loads.
  *
@@ -336,30 +337,41 @@ final class FloorDecals implements Hooks.FloorDecals {
 
     // ---- the hook: the game's thread, as a chunk level is drawn ----
 
+    /**
+     * The level's floors are all drawn: the decals of those that have some, over them all, so that the next square's floor (its
+     * grout) does not cover a decal running past its square's edge. The floors' depth stays theirs: a decal's own (a sprite without
+     * a depth map of its own) would stand in front of the feet of whoever stands on it.
+     */
     @Override
-    public void square(Object at) throws Throwable {
-        if (squares.size() == 0) return;
-        int x = (int)squareX.invokeExact(at), y = (int)squareY.invokeExact(at), z = (int)squareZ.invokeExact(at);
-        Square square = squares.get(key(x, y, z));
-        if (square == null) return;
-        Object floor = (Object)floorOf.invokeExact(at);
-        if (floor == null) return;
+    public void level(Object list) throws Throwable {
+        if (squares.size() == 0 || !(list instanceof java.util.ArrayList<?> floors) || floors.isEmpty()) return;
+        boolean masked = false;
+        try {
+            for (int index = 0, count = floors.size(); index < count; index++) {
+                Object at = floors.get(index);
+                int x = (int)squareX.invokeExact(at), y = (int)squareY.invokeExact(at), z = (int)squareZ.invokeExact(at);
+                Square square = squares.get(key(x, y, z));
+                if (square == null) continue;
+                Object floor = (Object)floorOf.invokeExact(at);
+                if (floor == null) continue;
+                if (!masked) { depthMask.invokeExact(false); masked = true; }
+                draw(at, square, floor, x, y, z);
+            }
+        } finally {
+            if (masked) depthMask.invokeExact(true);
+        }
+    }
+
+    private void draw(Object at, Square square, Object floor, int x, int y, int z) throws Throwable {
         Object light = (Object)lightOf.invokeExact(at, (int)playerIndex.invokeExact((Object)frameState.invokeExact()));
         float r = (float)red.invokeExact(light), g = (float)green.invokeExact(light), b = (float)blue.invokeExact(light);
         float shiftX = (float)offsetX.invokeExact(floor), shiftY = (float)offsetY.invokeExact(floor);
         Object[] sprites = square.sprites;
         float[] tints = square.tints;
-        // The floor's depth stays the floor's: a decal's own (a sprite without a depth map of its own) would stand in front
-        // of the feet of whoever stands on it. renderFloor writes the depth for each floor object it draws.
-        depthMask.invokeExact(false);
-        try {
-            for (int decal = 0; decal < sprites.length; decal++) {
-                int tint = decal * 4;
-                Object tinted = (Object)setColour.invokeExact(colour, r * tints[tint], g * tints[tint + 1], b * tints[tint + 2], tints[tint + 3]);
-                render.invokeExact(sprites[decal], floor, (float)x, (float)y, (float)z, north, shiftX, shiftY, colour, true);
-            }
-        } finally {
-            depthMask.invokeExact(true);
+        for (int decal = 0; decal < sprites.length; decal++) {
+            int tint = decal * 4;
+            Object tinted = (Object)setColour.invokeExact(colour, r * tints[tint], g * tints[tint + 1], b * tints[tint + 2], tints[tint + 3]);
+            render.invokeExact(sprites[decal], floor, (float)x, (float)y, (float)z, north, shiftX, shiftY, colour, true);
         }
     }
 

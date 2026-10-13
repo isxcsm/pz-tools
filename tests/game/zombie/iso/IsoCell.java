@@ -6,6 +6,12 @@ import zombie.characters.IsoZombie;
 
 /** Synthetic: the loaded squares only, in their chunks. */
 public final class IsoCell {
+    /** Like the game's: the floor squares of the chunk level being drawn, in the order they are drawn. */
+    public static final ArrayList<IsoGridSquare> SolidFloor = new ArrayList<>();
+
+    /** Synthetic: what the game draws a player's view with; here nothing. */
+    public static final class PerPlayerRender { }
+
     public final HashMap<String, IsoGridSquare> squares = new HashMap<>();
     public final HashMap<String, IsoChunk> chunks = new HashMap<>();
     /** The zombies the cell holds. */
