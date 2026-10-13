@@ -1124,13 +1124,14 @@ def control_board():
 # The lines on the floor: a square's run, from its lane's middle out to each side it leaves by (N, E, S, W as the
 # bits 1, 2, 4, 8), a little past the side so that the next square's piece meets it without a seam. Each utility has
 # its lane, off the square's middle along the diagonal (on the screen, power above and water below), so that both run
-# side by side in a square and every piece of a lane meets the others there. Both lie half sunk in the ground, soil
-# crumbled over them here and there, the ground showing through a little, in the game's dull colours: power a weathered
-# rubber cable, water a black HDPE pipe with blue stripes; no gloss, no shadow cast, so they lie in it, not on it. A turn
+# side by side in a square and every piece of a lane meets the others there. Both lie a little sunk (RUN_REST), at one
+# height on every floor so that a line runs on unbroken where soil meets tiles: on soil and grass crumbled over here and
+# there, the ground showing through a little, no gloss, no shadow cast, so they lie in it, not on it; in the game's dull
+# colours: power a weathered rubber cable, water a black HDPE pipe with blue stripes. A turn
 # is a bend (the cable and the pipe both bend); a branch is a splice box on the cable and a tee on the pipe; an end
 # (under what it feeds) a cap. The straight runs have a second look each, mixed in along a line: the cable pinned by a
-# ground staple, the pipe joined by a coupling. On a made floor (tiles, paving, boards) the same runs lie on top of it,
-# clean, with a soft shadow, held down by cable clips and pipe straps screwed to the floor instead.
+# ground staple, the pipe joined by a coupling. On a made floor (tiles, paving, boards) the same runs at the same height
+# are clean, with a soft shadow, held down by cable clips and pipe straps screwed to the floor instead.
 RUN_FIRST = 184
 RUN_DETAIL_FIRST = 214  # the straight runs' second looks: power N-S, power E-W, water N-S, water E-W
 RUN_LAID_FIRST = 218  # the runs on a made floor: power, then water (15 each), then their second looks (248-251)
@@ -1139,7 +1140,7 @@ RUN_LANE = {'power': -0.1, 'water': 0.1}
 RUN_PAST = 0.025
 RUN_RADIUS = {'power': 0.024, 'water': 0.034}
 RUN_BEND = {'power': 0.13, 'water': 0.17}
-RUN_SINK = 0.25  # of the radius: how far the middle lies under the ground
+RUN_REST = 0.4  # of the radius: how high the middle lies over the ground, on every floor (what is under it is not drawn)
 RUN_SEEN = 0.94  # how much of the ground the line covers: a little shows through
 CABLE_RUBBER = (62, 58, 52)
 HDPE = (46, 48, 50)
@@ -1178,8 +1179,8 @@ def floor_run(utility, sides, detail=False, laid=False):
     s = Scene()
     cx = cy = 0.5 + RUN_LANE[utility]
     r = RUN_RADIUS[utility]
-    z = r if laid else -r * RUN_SINK
-    sunk = not laid
+    z = r * RUN_REST
+    sunk = True
     colour = CABLE_RUBBER if utility == 'power' else HDPE
     shine = (0.05 if utility == 'power' else 0.12) if laid else (0.03 if utility == 'power' else 0.08)
     paint = run_paint(utility)
