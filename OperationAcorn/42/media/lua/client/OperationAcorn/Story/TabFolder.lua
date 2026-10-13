@@ -7,10 +7,11 @@
 require "OperationAcorn/Trade/TerminalWindow"
 require "PZUIKit/Button"
 require "OperationAcorn/Story/Folder"
-require "OperationAcorn/Story/TypedText"
+require "PZUIKit/TypedText"
 local OA = OperationAcorn
 local UI = OA.Trade.UI
 local Folder, Typing, Markup = OA.StoryFolder, OA.Typing, OA.Markup
+local KitTyping = PZUIKit.Typing
 
 OATabFolder = OATab:derive("OATabFolder")
 
@@ -39,8 +40,8 @@ function OATabFolder:createChildren()
     list.selectionColor = { r = p.sel[1], g = p.sel[2], b = p.sel[3], a = 0.25 }
     list.mouseOverHighlightColor = { r = p.sel[1], g = p.sel[2], b = p.sel[3], a = 0.1 }
     self.list = list
-    -- The text panel that types what is new (Story/TypedText); a document that is not new is its plain panel.
-    local body = UI.rich(self, 0, 0, 100, 100, OATypedText)
+    -- The text panel that types what is new (PZUITypedText); a document that is not new is its plain panel.
+    local body = UI.rich(self, 0, 0, 100, 100, PZUITypedText)
     body.target, body.onFinished = self, OATabFolder.onTyped
     body.cursorColor = p.bright
     body.background = false
@@ -58,7 +59,7 @@ function OATabFolder:createChildren()
     end
     self.groups, self.flat, self.rowOf = {}, {}, {}
     self.sent = {}
-    -- What this window has kept of each entry since it opened (Typing.keep), which the record may not have yet.
+    -- What this window has kept of each entry since it opened (KitTyping.keep), which the record may not have yet.
     self.kept = {}
 end
 
@@ -199,7 +200,7 @@ function OATabFolder:show(entry, record)
     self.body.run = run
     self.enterAt = getTimestampMs()
     local p = self:palette()
-    self.body.text = Typing.rich(read, p.text, content.styles, { head = p.head, dim = p.dim })
+    self.body.text = KitTyping.rich(read, p.text, content.styles, { head = p.head, dim = p.dim })
     self.body:paginate()
     self.body:setYScroll(0)
     self.body:setVisible(true)
@@ -214,7 +215,7 @@ end
 
 -- How an entry is typed: its run (the reading of its text, the clock and how far it has been seen) for a kind of text that
 -- is typed, else nil and the plain panel. An entry is typed every time it is shown, at the same speed. Its first
--- presentation goes on from exactly where it was left (Typing.start; the terminal does not print while the player is
+-- presentation goes on from exactly where it was left (KitTyping.start; the terminal does not print while the player is
 -- away); once it has been seen to its end every showing starts from the beginning and a click shows all of it. A click
 -- brings it to the furthest point seen (TypedText).
 function OATabFolder:runFor(entry, content, record)
@@ -223,15 +224,15 @@ function OATabFolder:runFor(entry, content, record)
     if not speed then return nil end
     local parse = Markup.parse(content.marked, speed)
     if not parse then return nil end
-    local state = Typing.latest(OA.Story.typedState(record, key), self.kept[key])
-    local clock = Typing.start(state)
+    local state = KitTyping.latest(OA.Story.typedState(record, key), self.kept[key])
+    local clock = KitTyping.start(state)
     -- a document is printed a row at a time (TypedText): its rows are the panel's, so whether it is over is known when
     -- it is laid out
-    local step = Typing.MODE[content.kind] == "lines" and Typing.LINE_STEP or nil
-    return { key = key, parse = parse, step = step, clock = clock, seen = Typing.seenOf(state, parse), done = false }
+    local step = Typing.MODE[content.kind] == "lines" and KitTyping.LINE_STEP or nil
+    return { key = key, parse = parse, step = step, clock = clock, seen = KitTyping.seenOf(state, parse), done = false }
 end
 
--- The server is told how far a showing got, and the window keeps the same (Typing.keep): when the typing ends, when
+-- The server is told how far a showing got, and the window keeps the same (KitTyping.keep): when the typing ends, when
 -- another entry is shown, and when the window closes. Once for a showing; a showing that was not drawn says nothing.
 function OATabFolder:report(run)
     if run.sent or not (run.last or run.done) then return end
@@ -240,8 +241,8 @@ function OATabFolder:report(run)
     local seen = math.min(run.seen or 0, n)
     local all = seen >= n or nil
     local clock = (not run.done) and run.clock or nil
-    local old = Typing.latest(OA.Story.typedState(self:record(), key), self.kept[key])
-    self.kept[key] = Typing.keep(old, seen, all, clock)
+    local old = KitTyping.latest(OA.Story.typedState(self:record(), key), self.kept[key])
+    self.kept[key] = KitTyping.keep(old, seen, all, clock)
     self:send("story_typed", { key = key, seen = seen, done = all, t = clock })
 end
 

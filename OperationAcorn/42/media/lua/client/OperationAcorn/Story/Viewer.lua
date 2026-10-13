@@ -6,7 +6,7 @@ require "OperationAcorn/Core"
 require "OperationAcorn/Client"
 require "OperationAcorn/Story/Docs"
 require "OperationAcorn/Markup"
-require "OperationAcorn/Story/Typing"
+require "PZUIKit/Typing"
 require "OperationAcorn/Trade/UI"
 require "PZUIKit/RichText"
 require "PZUIKit/Button"
@@ -91,12 +91,12 @@ local BODY = { 0.88, 0.88, 0.82 }
 local function formatText(title, body)
     -- A translation may carry its line ends as the two characters \n (the file reader keeps them).
     body = string.gsub(body, "\\n", "\n")
-    local marked, styles = OA.Typing.marks(body)
+    local marked, styles = PZUIKit.Typing.marks(body)
     -- a text the markup reader refuses is shown as its plain characters
     local read = OA.Markup.parse(marked) or { plain = OA.Markup.strip(marked), runs = {} }
     local p = UI.palette("field")
     return " <H1> <RGB:1,1,1> " .. title .. " <LINE> <LINE>"
-        .. OA.Typing.rich(read, BODY, styles, { head = p.head, dim = p.dim })
+        .. PZUIKit.Typing.rich(read, BODY, styles, { head = p.head, dim = p.dim })
 end
 
 function ISOAViewer:show(i)

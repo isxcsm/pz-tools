@@ -1,4 +1,4 @@
--- The folder tab's typing of what it shows (client/Story/TabFolder, with the panel of client/Story/TypedText): a text is
+-- The folder tab's typing of what it shows (client/Story/TabFolder, with the panel of PZUIKit/TypedText): a text is
 -- typed every time it is shown, its first presentation left half way goes on at exactly the clock it stopped at (scene and
 -- document alike, with no game time made up for), a click brings it to the furthest point seen and no further, a text
 -- seen to its end plays again from the beginning with a click showing all of it and keeps no clock of a replay, and the
@@ -10,10 +10,10 @@ require "OperationAcorn/Store"
 require "OperationAcorn/Sync"
 require "OperationAcorn/Markup"
 require "OperationAcorn/Story/Story"
-require "OperationAcorn/Story/Typing"
+require "PZUIKit/Typing"
 require "OperationAcorn/Story/Folder"
 local OA = OperationAcorn
-local Markup, Typing, Story, Folder = OA.Markup, OA.Typing, OA.Story, OA.StoryFolder
+local Markup, Typing, Story, Folder = OA.Markup, PZUIKit.Typing, OA.Story, OA.StoryFolder
 
 local function stubPanel()
     local c = {}
@@ -71,8 +71,9 @@ local function folder(opts)
         return d
     end }
     OA.Trade = OA.Trade or {}
-    -- (the panel's following each frame, Trade/UI live, is story_typedtext_test's)
+    -- (the panel's following each frame, the kit's UI.live, is story_typedtext_test's)
     OA.Trade.UI = { live = function() end }
+    PZUIKit.UI = OA.Trade.UI
     getTextManager = function()
         return { getFontHeight = function() return 29 end, MeasureStringX = function(_, _, s) return #tostring(s) * 11 end }
     end
@@ -81,13 +82,13 @@ local function folder(opts)
     local real = require
     require = function(name)
         if string.find(name, "^ISUI/") or name == "OperationAcorn/Trade/TerminalWindow" or name == "PZUIKit/Button"
-            or name == "PZUIKit/RichText" or name == "OperationAcorn/Trade/UI" then
+            or name == "PZUIKit/RichText" or name == "OperationAcorn/Trade/UI" or name == "PZUIKit/UI" then
             return true
         end
         return real(name)
     end
     local ok, err = pcall(function()
-        real "OperationAcorn/Story/TypedText"
+        real "PZUIKit/TypedText"
         real "OperationAcorn/Story/TabFolder"
         real "OperationAcorn/Story/Init"
     end)
@@ -106,7 +107,7 @@ local function folder(opts)
     Folder.content = function(_, entry) return contents[entry.key] end
     local tab = setmetatable({ window = { tier = opts.tier or "crude", character = character }, kept = {}, sent = {},
         index = {}, flat = {}, prevButton = {}, nextButton = {} }, { __index = OATabFolder })
-    local body = OATypedText:new(0, 0, 300, 200)
+    local body = PZUITypedText:new(0, 0, 300, 200)
     body.target, body.onFinished = tab, OATabFolder.onTyped
     body.cursorColor = { 1, 1, 1 }
     tab.body = body

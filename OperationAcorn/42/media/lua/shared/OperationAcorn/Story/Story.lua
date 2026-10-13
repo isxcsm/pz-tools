@@ -7,7 +7,7 @@ require "OperationAcorn/Sync"
 require "OperationAcorn/Say"
 require "OperationAcorn/Story/Data"
 require "OperationAcorn/Markup"
-require "OperationAcorn/Story/Typing"
+require "PZUIKit/Typing"
 local OA = OperationAcorn
 local Data = OA.StoryData
 local Story = {}
@@ -851,7 +851,7 @@ function Story.saveTyped(record, key, seen, done, clock)
     if seen == nil and clock == nil and not done then return false end
     local s = Story.section(record)
     s.typed = s.typed or {}
-    s.typed[key] = OA.Typing.keep(s.typed[key], seen, done, clock)
+    s.typed[key] = PZUIKit.Typing.keep(s.typed[key], seen, done, clock)
     OA.Sync.changed("story", record.id)
     return true
 end

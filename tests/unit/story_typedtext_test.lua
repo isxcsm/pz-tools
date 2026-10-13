@@ -1,11 +1,11 @@
--- The folder's text panel that types (client/Story/TypedText): with our rich text panel (Trade/RichText) stood in for by one that
+-- The folder's text panel that types (PZUIKit/TypedText, PZUITypedText): with the kit's rich text panel (PZUIRichText) stood in for by one that
 -- cuts the text at its commands into rows, what a frame does with the clock, the gaps, a click (it brings the typing to the furthest point seen), a layout in the middle of
 -- the typing, and the end of it.
 require "OperationAcorn/Core"
 require "OperationAcorn/Markup"
-require "OperationAcorn/Story/Typing"
+require "PZUIKit/Typing"
 local OA = OperationAcorn
-local Markup, Typing = OA.Markup, OA.Typing
+local Markup, Typing = OA.Markup, PZUIKit.Typing
 
 -- A rich text panel with the parts TypedText uses (PZUIRichText's): paginate makes `lines` (one for each stretch of text between the
 -- commands, trimmed), at x and y places; render draws nothing.
@@ -53,7 +53,7 @@ end
 
 local function load()
     PZUIRichText = stubPanel()
-    -- the terminal's helpers (Trade/UI: the following each frame) are the real ones, over a stand-in of the game's panel
+    -- the kit's helpers (PZUIKit/UI: the following each frame) are the real ones, over a stand-in of the game's panel
     ISPanel = { derive = function() return setmetatable({}, { __index = function() return function() end end }) end }
     UIFont = UIFont or setmetatable({}, { __index = function(_, k) return k end })
     getTextManager = function()
@@ -68,10 +68,10 @@ local function load()
         if string.find(name, "^ISUI/") or name == "PZUIKit/RichText" then return true end
         return real(name)
     end
-    local ok, err = pcall(real, "OperationAcorn/Story/TypedText")
+    local ok, err = pcall(real, "PZUIKit/TypedText")
     require = real
     if not ok then error(err, 0) end
-    return OATypedText
+    return PZUITypedText
 end
 
 local ms
@@ -347,7 +347,7 @@ test("a document on its way is followed each frame before the UI draws: still wh
     run.hold = 0.35
     local empty = shown(panel)
     panel.isVisible = function() return true end
-    local UI = OA.Trade.UI
+    local UI = PZUIKit.UI
     UI.liveFrame()
     eq(panel.liveLook, 0, "followed from its layout: its clock, still")
     eq(shown(panel), empty, "nothing printed while the title comes in")
@@ -377,7 +377,7 @@ test("a panel off the screen is let go and the typing waits; drawn again, it is 
     local panel, run = panelFor("abcdef", 10)
     local on = true
     panel.isVisible = function() return on end
-    local UI = OA.Trade.UI
+    local UI = PZUIKit.UI
     UI.liveFrame()
     eq(panel.liveLook, 0)
     on = false

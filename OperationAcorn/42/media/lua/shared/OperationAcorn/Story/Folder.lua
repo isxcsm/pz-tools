@@ -8,6 +8,7 @@ require "OperationAcorn/Story/Data"
 require "OperationAcorn/Story/Story"
 require "OperationAcorn/Story/Docs"
 require "OperationAcorn/Story/Typing"
+require "PZUIKit/Typing"
 local OA = OperationAcorn
 local Data, Story, Docs, Terminal, Typing = OA.StoryData, OA.Story, OA.StoryDocs, OA.Terminal, OA.Typing
 local Folder = {}
@@ -259,7 +260,7 @@ end
 
 -- { title =, meta =, body =, marked =, styles =, kind = } of an entry for the reader: `body` is the text plain, `marked`
 -- the same with its markup (pauses, colours) for the panel that types it, `styles` the look of the lines a paper's own
--- marks gave (Typing.marks: the marks are out of `body` and `marked`; a radio copy has none), and `kind` how it comes
+-- marks gave (PZUIKit.Typing.marks: the marks are out of `body` and `marked`; a radio copy has none), and `kind` how it comes
 -- on (Typing).
 function Folder.content(record, entry)
     local ref = entry.ref
@@ -277,7 +278,7 @@ function Folder.content(record, entry)
     end
     marked = Folder.lines(marked)
     local styles
-    if ref.kind ~= "copy" then marked, styles = Typing.marks(marked) end
+    if ref.kind ~= "copy" then marked, styles = PZUIKit.Typing.marks(marked) end
     return { title = entry.title, meta = metaOf(record, entry), body = OA.Markup.strip(marked), marked = marked,
         styles = styles, kind = Typing.KIND_OF_GROUP[entry.group] }
 end

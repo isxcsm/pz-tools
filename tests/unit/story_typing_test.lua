@@ -9,9 +9,11 @@ require "OperationAcorn/Sync"
 require "OperationAcorn/Markup"
 require "OperationAcorn/Story/Story"
 require "OperationAcorn/Story/Typing"
+require "PZUIKit/Typing"
 require "OperationAcorn/Story/Folder"
 local OA = OperationAcorn
 local Markup, Typing, Story, Data = OA.Markup, OA.Typing, OA.Story, OA.StoryData
+local KitTyping = PZUIKit.Typing
 
 local function setup(stage, milestones)
     local record = OA.Store.ensure("p1", "P")
@@ -195,80 +197,80 @@ test("the speeds are for the kinds of text, a scene typed a character at a time 
 end)
 
 test("a first presentation left half way goes on at exactly the clock it stopped at, a scene and a document alike", function()
-    eq(Typing.start(nil), 0, "no state: from the start")
-    eq(Typing.start(true), 0, "an old record's typed to its end: from the start")
-    near(Typing.start({ seen = 0 }), 0, 1e-9, "never opened: from the start whenever it is opened")
-    near(Typing.start({ t = 0 }), 0, 1e-9)
-    near(Typing.start({ seen = 12, t = 3 }), 3)
-    near(Typing.start({ seen = 12, t = 3.25 }), 3.25, 1e-9)
+    eq(KitTyping.start(nil), 0, "no state: from the start")
+    eq(KitTyping.start(true), 0, "an old record's typed to its end: from the start")
+    near(KitTyping.start({ seen = 0 }), 0, 1e-9, "never opened: from the start whenever it is opened")
+    near(KitTyping.start({ t = 0 }), 0, 1e-9)
+    near(KitTyping.start({ seen = 12, t = 3 }), 3)
+    near(KitTyping.start({ seen = 12, t = 3.25 }), 3.25, 1e-9)
     -- no game time is made up for: the old record's world age is not read
-    near(Typing.start({ seen = 12, start = 10, t = 3 }), 3, 1e-9, "an old { start, t } resumes at t, however long ago")
+    near(KitTyping.start({ seen = 12, start = 10, t = 3 }), 3, 1e-9, "an old { start, t } resumes at t, however long ago")
     -- the scene / document split and the game-time conversion are gone
     eq(Typing.RESUME, nil)
     eq(Typing.secondsPerHour, nil)
 end)
 
 test("a text seen to its end plays again from the beginning, whatever clock an older record kept", function()
-    eq(Typing.start({ seen = 40, done = true }), 0)
-    eq(Typing.start({ seen = 40, done = true, t = 3 }), 0, "a clock left in a done state is not read")
-    eq(Typing.start({ done = true, start = 10, t = 3 }), 0)
+    eq(KitTyping.start({ seen = 40, done = true }), 0)
+    eq(KitTyping.start({ seen = 40, done = true, t = 3 }), 0, "a clock left in a done state is not read")
+    eq(KitTyping.start({ done = true, start = 10, t = 3 }), 0)
 end)
 
 test("how far a text has been seen: all of it for what was shown whole, the record's count, or the old clock's characters", function()
     local read = Markup.parse("abcdefghij", 10)   -- one character each tenth of a second
-    eq(Typing.seenOf(nil, read), 10, "no state: it was shown whole")
-    eq(Typing.seenOf(true, read), 10, "an old record's typed to its end")
-    eq(Typing.seenOf({ seen = 4 }, read), 4)
-    eq(Typing.seenOf({ seen = 0 }, read), 0)
-    eq(Typing.seenOf({ seen = 99 }, read), 10, "never past the text")
-    eq(Typing.seenOf({ seen = 4, done = true }, read), 10, "done is the whole of it")
-    eq(Typing.seenOf({ t = 0 }, read), 0, "an old new entry: nothing seen")
-    eq(Typing.seenOf({ start = 3, t = 0.35 }, read), 4, "an old { start, t }: as far as its clock had come")
-    eq(Typing.seenOf({ start = 3, t = 50 }, read), 10)
+    eq(KitTyping.seenOf(nil, read), 10, "no state: it was shown whole")
+    eq(KitTyping.seenOf(true, read), 10, "an old record's typed to its end")
+    eq(KitTyping.seenOf({ seen = 4 }, read), 4)
+    eq(KitTyping.seenOf({ seen = 0 }, read), 0)
+    eq(KitTyping.seenOf({ seen = 99 }, read), 10, "never past the text")
+    eq(KitTyping.seenOf({ seen = 4, done = true }, read), 10, "done is the whole of it")
+    eq(KitTyping.seenOf({ t = 0 }, read), 0, "an old new entry: nothing seen")
+    eq(KitTyping.seenOf({ start = 3, t = 0.35 }, read), 4, "an old { start, t }: as far as its clock had come")
+    eq(KitTyping.seenOf({ start = 3, t = 50 }, read), 10)
 end)
 
 test("the state kept for a showing: the furthest seen only grows, done stays, the clock is kept for a first presentation only", function()
-    local state = Typing.keep(nil, 6, nil, 0.5)
+    local state = KitTyping.keep(nil, 6, nil, 0.5)
     eq(state.seen, 6); eq(state.done, nil); near(state.t, 0.5); eq(state.start, nil, "no world age is kept")
-    state = Typing.keep(state, 3, nil, 0.2)
+    state = KitTyping.keep(state, 3, nil, 0.2)
     eq(state.seen, 6, "a shorter showing does not take the furthest back")
     near(state.t, 0.2)
-    state = Typing.keep(state, 10, true, nil)
+    state = KitTyping.keep(state, 10, true, nil)
     eq(state.done, true); eq(state.seen, 10)
     eq(state.t, nil, "a showing that ran to its end leaves no clock")
-    state = Typing.keep(state, 2, nil, 0.1)
+    state = KitTyping.keep(state, 2, nil, 0.1)
     eq(state.done, true, "seen to the end stays so"); eq(state.seen, 10)
     eq(state.t, nil, "and a replay left half way keeps no clock")
-    eq(Typing.keep({ seen = 10, done = true, t = 3, start = 8 }, 4, nil, 1).t, nil, "an old clock in a done state goes")
-    eq(Typing.keep(true, 0, nil, 0.3).done, true, "an old record's true is done")
-    eq(Typing.keep(true, 0, nil, 0.3).t, nil)
-    local old = Typing.keep({ start = 3, t = 2 }, 5, nil, 1)
+    eq(KitTyping.keep({ seen = 10, done = true, t = 3, start = 8 }, 4, nil, 1).t, nil, "an old clock in a done state goes")
+    eq(KitTyping.keep(true, 0, nil, 0.3).done, true, "an old record's true is done")
+    eq(KitTyping.keep(true, 0, nil, 0.3).t, nil)
+    local old = KitTyping.keep({ start = 3, t = 2 }, 5, nil, 1)
     eq(old.seen, 5, "an old { start, t } takes the count the window worked out"); eq(old.t, 1); eq(old.start, nil)
     -- what the window kept and what the record says
     local kept = { seen = 3, t = 1 }
-    eq(Typing.latest(nil, nil), nil)
-    eq(Typing.latest({ seen = 1 }, nil).seen, 1)
-    eq(Typing.latest({ seen = 1 }, kept), kept, "the window's own is the newer")
-    local late = Typing.latest({ seen = 1, done = true }, kept)
+    eq(KitTyping.latest(nil, nil), nil)
+    eq(KitTyping.latest({ seen = 1 }, nil).seen, 1)
+    eq(KitTyping.latest({ seen = 1 }, kept), kept, "the window's own is the newer")
+    local late = KitTyping.latest({ seen = 1, done = true }, kept)
     eq(late.done, true, "read whole in the viewer meanwhile"); eq(late.seen, 3); eq(late.t, nil, "and a done entry keeps no clock")
-    eq(Typing.latest(true, kept).done, true)
+    eq(KitTyping.latest(true, kept).done, true)
 end)
 
 -- The text panel's text -------------------------------------------------------------------------------------------
 
 test("the panel's text has the colours and line ends, and keeps the space where a colour begins", function()
     local read = Markup.parse("a {c:FF0000}b{/c} c\nd")
-    local rich = Typing.rich(read, { 0.5, 0.6, 0.7 })
+    local rich = KitTyping.rich(read, { 0.5, 0.6, 0.7 })
     truthy(string.find(rich, "^ <TEXT> <RGB:0.500,0.600,0.700> a"), rich)
     truthy(string.find(rich, "<RGB:1.000,0.000,0.000>", 1, true), "the colour")
     truthy(string.find(rich, "<SPACE> b", 1, true), "the space before the coloured b")
     truthy(string.find(rich, "<RGB:0.500,0.600,0.700>  <SPACE> c", 1, true), "and the one after it")
     truthy(string.find(rich, "<LINE> d", 1, true), "a line end")
     -- no colour: one tag and the lines
-    local plain = Typing.rich(Markup.parse("one\n\ntwo"), { 1, 1, 1 })
+    local plain = KitTyping.rich(Markup.parse("one\n\ntwo"), { 1, 1, 1 })
     eq(plain, " <TEXT> <RGB:1.000,1.000,1.000> one <LINE>  <LINE> two")
     -- the panel's own markup characters are escaped
-    truthy(string.find(Typing.rich(Markup.parse("a<b>c"), { 1, 1, 1 }), "a&lt;b&gt;c", 1, true))
+    truthy(string.find(KitTyping.rich(Markup.parse("a<b>c"), { 1, 1, 1 }), "a&lt;b&gt;c", 1, true))
 end)
 
 -- The documents' own marks ------------------------------------------------------------------------------------
@@ -278,7 +280,7 @@ local Folder = OA.StoryFolder
 
 test("a document's marks go out of its text, and each marked line has its style", function()
     local text = "## Findings\n~ Dr. Hale, day 12\nplain line\n" .. DOT .. " a bullet\n2. a number\n3) another\n> Hale"
-    local clean, styles = Typing.marks(text)
+    local clean, styles = KitTyping.marks(text)
     eq(clean, "Findings\nDr. Hale, day 12\nplain line\n" .. DOT .. " a bullet\n2. a number\n3) another\nHale",
         "head, meta and sign-off marks gone; bullet and number markers kept")
     eq(styles[1].kind, "head")
@@ -291,7 +293,7 @@ test("a document's marks go out of its text, and each marked line has its style"
     eq(styles[6].hang, 3)
     eq(styles[7].kind, "sign")
     -- a mark only counts at the start of a line, with its space
-    local same, none = Typing.marks("a ## b\n##c\n>d\n~e\n12 x")
+    local same, none = KitTyping.marks("a ## b\n##c\n>d\n~e\n12 x")
     eq(same, "a ## b\n##c\n>d\n~e\n12 x")
     eq(none[1], nil)
     eq(none[2], nil)
@@ -300,12 +302,12 @@ test("a document's marks go out of its text, and each marked line has its style"
     local read = Markup.parse(clean, 10)
     truthy(not string.find(read.plain, "## ", 1, true))
     truthy(not string.find(read.plain, "> ", 1, true))
-    eq(Typing.marks(nil), nil)
+    eq(KitTyping.marks(nil), nil)
 end)
 
 test("the panel's text of a marked document: head and dim colours, half a line above a head and the sign-off, the sign-off on the right, bullets hung", function()
-    local clean, styles = Typing.marks("## One\nbody\n## Two\n" .. DOT .. " wrapped item\n~ meta\n> sign")
-    local rich = Typing.rich(Markup.parse(clean), { 1, 1, 1 }, styles, { head = { 0, 1, 0 }, dim = { 0.5, 0.5, 0.5 } })
+    local clean, styles = KitTyping.marks("## One\nbody\n## Two\n" .. DOT .. " wrapped item\n~ meta\n> sign")
+    local rich = KitTyping.rich(Markup.parse(clean), { 1, 1, 1 }, styles, { head = { 0, 1, 0 }, dim = { 0.5, 0.5, 0.5 } })
     truthy(string.find(rich, "^ <TEXT> <RGB:1.000,1.000,1.000>  <RGB:0.000,1.000,0.000> One"), rich)
     truthy(not string.find(rich, "^[^O]*<HALF>"), "no half line above the first line")
     truthy(string.find(rich, "<LINE>  <HALF>  <RGB:0.000,1.000,0.000> Two", 1, true), "a later head has its half line")
@@ -313,12 +315,12 @@ test("the panel's text of a marked document: head and dim colours, half a line a
     truthy(string.find(rich, "<RGB:0.500,0.500,0.500> meta", 1, true), "the meta line is dim")
     truthy(string.find(rich, "<HALF>  <RIGHT> sign", 1, true), "the sign-off: half a line, on the right, dim")
     -- a number hangs too, and a colour of the text's own wins over the line's
-    local c2, s2 = Typing.marks("## {c:FF0000}red{/c} head\n10. long item")
-    local r2 = Typing.rich(Markup.parse(c2), { 1, 1, 1 }, s2, { head = { 0, 1, 0 }, dim = { 0.5, 0.5, 0.5 } })
+    local c2, s2 = KitTyping.marks("## {c:FF0000}red{/c} head\n10. long item")
+    local r2 = KitTyping.rich(Markup.parse(c2), { 1, 1, 1 }, s2, { head = { 0, 1, 0 }, dim = { 0.5, 0.5, 0.5 } })
     truthy(string.find(r2, "<RGB:1.000,0.000,0.000> red", 1, true), r2)
     truthy(string.find(r2, "10. <HANG>", 1, true), r2)
     -- with no styles the text is as it was
-    eq(Typing.rich(Markup.parse("one\ntwo"), { 1, 1, 1 }, nil, nil), " <TEXT> <RGB:1.000,1.000,1.000> one <LINE> two")
+    eq(KitTyping.rich(Markup.parse("one\ntwo"), { 1, 1, 1 }, nil, nil), " <TEXT> <RGB:1.000,1.000,1.000> one <LINE> two")
 end)
 
 test("a paper's content has its marks out and its styles; a radio copy keeps its text as written", function()
@@ -341,36 +343,36 @@ end)
 
 test("a document's rows end at the characters of the panel's rows, and come on a step apart", function()
     -- three chunks on two rows, then a blank row, then a row
-    local ends = Typing.rowEnds({ { 1, 2 }, { 4, 5 }, {}, { 7, 8, 9 } }, { 0, 0, 29, 58 })
+    local ends = KitTyping.rowEnds({ { 1, 2 }, { 4, 5 }, {}, { 7, 8, 9 } }, { 0, 0, 29, 58 })
     eq(#ends, 2)
     eq(ends[1], 5)
     eq(ends[2], 9)
-    eq(Typing.rowsAt(0, 4, 0.2), 1, "the first at once")
-    eq(Typing.rowsAt(0.19, 4, 0.2), 1)
-    eq(Typing.rowsAt(0.2, 4, 0.2), 2)
-    eq(Typing.rowsAt(0.6, 4, 0.2), 4)
-    eq(Typing.rowsAt(9, 4, 0.2), 4)
-    eq(Typing.rowsAt(-1, 4, 0.2), 0)
+    eq(KitTyping.rowsAt(0, 4, 0.2), 1, "the first at once")
+    eq(KitTyping.rowsAt(0.19, 4, 0.2), 1)
+    eq(KitTyping.rowsAt(0.2, 4, 0.2), 2)
+    eq(KitTyping.rowsAt(0.6, 4, 0.2), 4)
+    eq(KitTyping.rowsAt(9, 4, 0.2), 4)
+    eq(KitTyping.rowsAt(-1, 4, 0.2), 0)
 end)
 
 test("a document's row is printed from the left within its step, then whole until the next", function()
     local ends = { 10, 30 }
-    local n, over, head = Typing.printed(ends, 0, 0.2, 0.1)
+    local n, over, head = KitTyping.printed(ends, 0, 0.2, 0.1)
     eq(n, 0); eq(over, false); eq(head, true)
-    n, over, head = Typing.printed(ends, 0.05, 0.2, 0.1)
+    n, over, head = KitTyping.printed(ends, 0.05, 0.2, 0.1)
     eq(n, 5, "half the first row"); eq(head, true)
-    n, over, head = Typing.printed(ends, 0.15, 0.2, 0.1)
+    n, over, head = KitTyping.printed(ends, 0.15, 0.2, 0.1)
     eq(n, 10, "the first row whole"); eq(head, false)
-    n, over, head = Typing.printed(ends, 0.25, 0.2, 0.1)
+    n, over, head = KitTyping.printed(ends, 0.25, 0.2, 0.1)
     eq(n, 20, "the second row from where the first ended"); eq(head, true)
-    n, over, head = Typing.printed(ends, 0.4, 0.2, 0.1)
+    n, over, head = KitTyping.printed(ends, 0.4, 0.2, 0.1)
     eq(n, nil); eq(over, true); eq(head, false)
-    n, over = Typing.printed({}, 0, 0.2, 0.1)
+    n, over = KitTyping.printed({}, 0, 0.2, 0.1)
     eq(over, true, "nothing to print is over")
 end)
 
 test("the characters of the panel's rows are matched to the text's, less the spaces it dropped", function()
-    local src = Typing.align("ab cd\nef  gh", { "ab", "cd", "ef", "gh" })
+    local src = KitTyping.align("ab cd\nef  gh", { "ab", "cd", "ef", "gh" })
     eq(table.concat(src[1], ","), "1,2")
     eq(table.concat(src[2], ","), "4,5")
     eq(table.concat(src[3], ","), "7,8")
@@ -379,7 +381,7 @@ end)
 
 test("the reveal hands the rows their beginnings as the count grows, and keeps each beginning once made", function()
     local lines = {}
-    local reveal = Typing.reveal({ "ab", "cd", "ef" }, "ab cd\nef", lines)
+    local reveal = KitTyping.reveal({ "ab", "cd", "ef" }, "ab cd\nef", lines)
     eq(lines[1] .. "|" .. lines[2] .. "|" .. lines[3], "||", "nothing has come on")
     local c, k = reveal:show(1)
     eq(lines[1], "a")
@@ -400,7 +402,7 @@ test("the reveal hands the rows their beginnings as the count grows, and keeps e
     eq(lines[3], "ef")
     -- the count may jump (resumed from far on)
     local jumped = {}
-    local again = Typing.reveal({ "ab", "cd", "ef" }, "ab cd\nef", jumped)
+    local again = KitTyping.reveal({ "ab", "cd", "ef" }, "ab cd\nef", jumped)
     again:show(7)
     eq(jumped[1] .. jumped[2] .. jumped[3], "abcde")
     eq(again.pre[2][1], nil, "a row shown whole makes no beginning")
@@ -410,7 +412,7 @@ end)
 test("a text typed through the reveal never shows a character before its time", function()
     local read = Markup.parse("Oak.{p:0.5} Over.", 10)
     local lines = {}
-    local reveal = Typing.reveal({ "Oak. Over." }, read.plain, lines)
+    local reveal = KitTyping.reveal({ "Oak. Over." }, read.plain, lines)
     local seen = ""
     for step = 0, 40 do
         local t = step * 0.05
@@ -467,12 +469,12 @@ test("records from before are read as they were: true is seen to the end, { star
     local s = Story.section(record)
     s.typed = { ["c:a"] = true, ["c:b"] = { start = 3, t = 0.35 }, ["c:c"] = { t = 0 } }
     local read = Markup.parse("abcdefghij", 10)
-    eq(Typing.seenOf(Story.typedState(record, "c:a"), read), 10)
-    eq(Typing.seenOf(Story.typedState(record, "c:b"), read), 4)
-    eq(Typing.seenOf(Story.typedState(record, "c:c"), read), 0)
+    eq(KitTyping.seenOf(Story.typedState(record, "c:a"), read), 10)
+    eq(KitTyping.seenOf(Story.typedState(record, "c:b"), read), 4)
+    eq(KitTyping.seenOf(Story.typedState(record, "c:c"), read), 0)
     -- both go on from the old clock, with no game time made up for
-    near(Typing.start(Story.typedState(record, "c:b")), 0.35)
-    eq(Typing.start(Story.typedState(record, "c:a")), 0, "seen to the end: from the start")
+    near(KitTyping.start(Story.typedState(record, "c:b")), 0.35)
+    eq(KitTyping.start(Story.typedState(record, "c:a")), 0, "seen to the end: from the start")
     -- the first thing the window tells is saved in the new form over the old
     truthy(Story.saveTyped(record, "c:a", 2, false, 1))
     eq(Story.typedState(record, "c:a").done, true, "true stays done")
