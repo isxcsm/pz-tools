@@ -114,6 +114,12 @@ def matmul(a, b):
 IDENTITY = ((1, 0, 0), (0, 1, 0), (0, 0, 1))
 
 
+def smooth_segments(segments, radius):
+    """The facets round a tube or a sphere: as asked, but never so few that one shows as a flat band at the game's size
+    (the game's tiles are painted smooth; a big tank in 36 facets read as a 3D render)."""
+    return max(segments, min(96, int(radius * 220)))
+
+
 class Scene:
     """Faces of solids, drawn into a depth buffer; what is added is turned a number of quarter turns about the
     tile's middle. Frost whitens every face by so much (0 to 1); a face that emits keeps its colour unshaded."""
@@ -142,7 +148,10 @@ class Scene:
             cw, ch = ch, cw
         return cw, ch
 
-    def face(self, points, colour, normal, shine=0.0, emit=False):
+    def face(self, points, colour, normal, shine=0.0, emit=False, normals=None):
+        """A flat face. normals: the surface's normal at each point (a tube's, a cone's or a sphere's facet), so it is
+        shaded smooth across, its normal blended pixel by pixel (shaded flat, a round thing showed its facets as
+        bands: a tank, a roll, a canopy read as low-poly)."""
         normal = self.turn(normal, True)
         if dot(normal, VIEW) <= 1e-6:
             return
@@ -152,7 +161,11 @@ class Scene:
             if self.frost:
                 colour = frosted(colour, normal, self.frost)
             rgb = shade(colour, normal, shine)
-        self.faces.append(('poly', [self.turn(p) for p in points], rgb))
+            if normals:
+                self.faces.append(('smooth', [self.turn(p) for p in points], rgb, normal[2], tuple(colour[:3]), shine,
+                                   [self.turn(n, True) for n in normals]))
+                return
+        self.faces.append(('poly', [self.turn(p) for p in points], rgb, normal[2]))
 
     def poly(self, points, colour, outward, shine=0.0, emit=False):
         """A flat polygon; its normal from its points, on the side of outward."""
@@ -203,6 +216,7 @@ class Scene:
         length = math.sqrt(dot(axis, axis))
         if length < 1e-9:
             return
+        segments = smooth_segments(segments, max(r, r2 or 0))
         d = unit(axis)
         helper = (0, 0, 1) if abs(d[2]) < 0.9 else (1, 0, 0)
         u = unit(cross(d, helper))
@@ -214,14 +228,15 @@ class Scene:
             rr = r + (rb - r) * t
             c, s = math.cos(angle) * rr, math.sin(angle) * rr
             return tuple(p + d_ * t * length + u_ * c + v_ * s for p, d_, u_, v_ in zip(a, d, u, v))
+        def normal_at(angle):
+            n_ = unit(tuple(u_ * math.cos(angle) + v_ * math.sin(angle) + d_ * slope for u_, v_, d_ in zip(u, v, d)))
+            return mul(n_, -1) if inward else n_
         for i in range(segments):
             a0, a1 = 2 * math.pi * i / segments, 2 * math.pi * (i + 1) / segments
-            mid = (a0 + a1) / 2
-            n = unit(tuple(u_ * math.cos(mid) + v_ * math.sin(mid) + d_ * slope for u_, v_, d_ in zip(u, v, d)))
-            if inward:
-                n = mul(n, -1)
+            n = normal_at((a0 + a1) / 2)
+            n0, n1 = normal_at(a0), normal_at(a1)
             for t0, t1, c in bands or [(0, 1, colour)]:
-                self.face([at(a0, t0), at(a1, t0), at(a1, t1), at(a0, t1)], c, n, shine, emit)
+                self.face([at(a0, t0), at(a1, t0), at(a1, t1), at(a0, t1)], c, n, shine, emit, normals=[n0, n1, n1, n0])
         ring = range(segments)
         if inward or not caps:
             return
@@ -236,6 +251,9 @@ class Scene:
         segments, for a parachute's panels."""
         cx, cy, cz = centre
         rx, ry, rz = radii
+        panels = segments  # colours go round by the segments asked for, however finely the sphere is cut
+        segments = panels * -(-smooth_segments(segments, max(rx, ry)) // panels)
+        rings = max(rings, min(24, int(max(rx, ry, rz) * 60 * (z_to - z_from) / 180)))
         for i in range(rings):
             l0 = math.radians(z_from + (z_to - z_from) * i / rings)
             l1 = math.radians(z_from + (z_to - z_from) * (i + 1) / rings)
@@ -247,9 +265,12 @@ class Scene:
                             cz + rz * math.sin(l))
                 pts = [pt(l0, a0), pt(l0, a1), pt(l1, a1), pt(l1, a0)]
                 lm, am = (l0 + l1) / 2, (a0 + a1) / 2
-                n = unit((math.cos(lm) * math.cos(am) / rx, math.cos(lm) * math.sin(am) / ry, math.sin(lm) / rz))
-                col = colours[j % len(colours)] if colours else colour
-                self.face(pts, col, n, shine, emit)
+
+                def nrm(l, a):
+                    return unit((math.cos(l) * math.cos(a) / rx, math.cos(l) * math.sin(a) / ry, math.sin(l) / rz))
+                n = nrm(lm, am)
+                col = colours[(j * panels // segments) % len(colours)] if colours else colour
+                self.face(pts, col, n, shine, emit, normals=[nrm(l0, a0), nrm(l0, a1), nrm(l1, a1), nrm(l1, a0)])
 
     def rock(self, centre, radius, seed, colour, squash=(1.0, 1.0, 0.7), detail=1, jitter=0.28, shine=0.05,
              colour2=None, patches=False):
@@ -315,7 +336,7 @@ class Scene:
         pts = [o, add(o, u), add(add(o, u), v), add(o, v)]
         arr = np.asarray(image.convert('RGBA'))
         factor = 1.0 if emit else light_factor(nt)
-        self.faces.append(('tex', [self.turn(p) for p in pts], arr, factor))
+        self.faces.append(('tex', [self.turn(p) for p in pts], arr, factor, nt[2]))
 
     def render(self):
         """The faces in a depth buffer: an RGBA image of the big canvas."""
@@ -327,6 +348,7 @@ class Scene:
         size = (CV['w'] * SS, CV['h'] * SS)
         depth = np.full((size[1], size[0]), -1e9, dtype=np.float64)
         colour = np.zeros((size[1], size[0], 4), dtype=np.uint8)
+        self.up = np.full((size[1], size[0]), np.nan, dtype=np.float32)  # how much each pixel's face looks up
         wx = np.full((size[1], size[0]), np.nan, dtype=np.float32)
         wy = np.full((size[1], size[0]), np.nan, dtype=np.float32)
         for entry in self.faces:
@@ -357,6 +379,23 @@ class Scene:
             if kind == 'poly':
                 region[nearer] = d[nearer]
                 colour[y0:y1 + 1, x0:x1 + 1][nearer] = entry[2] + (255,)
+                self.up[y0:y1 + 1, x0:x1 + 1][nearer] = entry[3]
+                wx[y0:y1 + 1, x0:x1 + 1][nearer] = owner_x[nearer]
+                wy[y0:y1 + 1, x0:x1 + 1][nearer] = owner_y[nearer]
+                continue
+            if kind == 'smooth':
+                # shaded smooth: the normal is a plane over the screen too, fitted to the corners' normals
+                region[nearer] = d[nearer]
+                base, shine, normals = entry[4], entry[5], entry[6]
+                nplane, *_ = np.linalg.lstsq(corners, np.array(normals, dtype=np.float64), rcond=None)
+                n = np.stack([gx[nearer], gy[nearer], np.ones(int(nearer.sum()))], axis=-1) @ nplane
+                n /= np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-9)
+                f = 0.45 + 0.62 * np.maximum(0.0, n @ np.array(LIGHT))
+                spec = shine * np.maximum(0.0, n @ np.array(HALF)) ** 24 * 255
+                lit = np.clip(np.array(base, dtype=np.float64)[None, :] * f[:, None] + spec[:, None], 0, 255)
+                colour[y0:y1 + 1, x0:x1 + 1][nearer] = np.concatenate(
+                    [lit.astype(np.uint8), np.full((len(lit), 1), 255, np.uint8)], axis=1)
+                self.up[y0:y1 + 1, x0:x1 + 1][nearer] = n[:, 2]
                 wx[y0:y1 + 1, x0:x1 + 1][nearer] = owner_x[nearer]
                 wy[y0:y1 + 1, x0:x1 + 1][nearer] = owner_y[nearer]
                 continue
@@ -389,6 +428,7 @@ class Scene:
             target[write, 3] = np.clip(out_a[write] * 255, 0, 255).astype(np.uint8)
             solid_write = write & (alpha > 0.5)
             region[solid_write] = d[solid_write]
+            self.up[y0:y1 + 1, x0:x1 + 1][solid_write] = entry[4]
             wx[y0:y1 + 1, x0:x1 + 1][solid_write] = owner_x[solid_write]
             wy[y0:y1 + 1, x0:x1 + 1][solid_write] = owner_y[solid_write]
         return Image.fromarray(colour, 'RGBA'), wx, wy
@@ -426,7 +466,7 @@ def compose(scene, ground=None, over=None, seed=1, glows=None, owner_key=None):
         if over:
             over(big)
         small = big.convert('RGBa').resize((cw, ch), Image.LANCZOS).convert('RGBA')
-        small = finish(small, solid.getchannel('A').resize((cw, ch), Image.LANCZOS), seed)
+        small = finish(small, solid.getchannel('A').resize((cw, ch), Image.LANCZOS), seed, facing_up(scene.up))
         if glows:
             small = glow(small, scene, glows)
         small = trim_faint(small)
@@ -503,28 +543,52 @@ def trim_faint(image):
 GREY = 0.15
 
 
-def finish(image, solid, seed):
-    """A worn finish, as the game's tiles have: the colours a little greyed, a grain, blotches of wear a few pixels
-    across, grime gathering toward the floor, and a darker rim where a thing meets the air."""
-    rnd = random.Random(seed)
-    px = image.load()
-    inner = solid.filter(ImageFilter.MinFilter(3)).load()
-    sp = solid.load()
-    floor = image.height - 106
-    for y in range(image.height):
-        for x in range(image.width):
-            r, g, b, a = px[x, y]
-            if a == 0 or sp[x, y] < 40:
-                continue
-            grey = r * 0.3 + g * 0.59 + b * 0.11
-            r, g, b = r + (grey - r) * GREY, g + (grey - g) * GREY, b + (grey - b) * GREY
-            n = 1 + (rnd.random() - 0.5) * 0.09
-            n *= 1 + 0.045 * math.sin(x * 0.41 + y * 0.17 + seed) * math.sin(y * 0.37 - x * 0.23 + seed * 1.7)
-            n *= 1 - 0.1 * min(1, max(0, (y - floor) / 80))
-            if inner[x, y] < 128:
-                n *= 0.7
-            px[x, y] = (min(255, int(r * n)), min(255, int(g * n)), min(255, int(b * n)), a)
-    return image
+def facing_up(up):
+    """How much each pixel of the finished picture looks up (the canvas's normals averaged over the pixel; -1 where
+    nothing is)."""
+    h, w = up.shape[0] // SS, up.shape[1] // SS
+    known = ~np.isnan(up)
+    total = np.where(known, up, 0.0).reshape(h, SS, w, SS).sum(axis=(1, 3))
+    count = known.reshape(h, SS, w, SS).sum(axis=(1, 3))
+    return np.where(count > 0, total / np.maximum(count, 1), -1.0)
+
+
+def smooth_noise(rnd, h, w, sigma_x, sigma_y):
+    """A field of noise, -1 to 1, blurred about sigma_x across and sigma_y down (pixels)."""
+    field = Image.fromarray((rnd.rand(h, w) * 255).astype(np.uint8), 'L')
+    field = np.asarray(field.resize((max(1, int(w / sigma_x)), max(1, int(h / sigma_y))), Image.BILINEAR)
+                       .resize((w, h), Image.BICUBIC)).astype(np.float64)
+    field -= field.mean()
+    return field / max(1e-6, np.abs(field).max())
+
+
+def finish(image, solid, seed, up=None):
+    """The game's tiles are painted, not rendered: the colours a little greyed, broad blotches of wear rather than a
+    grain, streaks of grime running down the sides and gathering toward the floor, a darker rim where a thing meets
+    the air, and a light edge where a top meets a side (as Building Utilities' tiles)."""
+    a = np.asarray(image).astype(np.float64)
+    rgb, alpha = a[..., :3], a[..., 3]
+    h, w = alpha.shape
+    sp = np.asarray(solid).astype(np.float64)
+    inner = np.asarray(solid.filter(ImageFilter.MinFilter(3))).astype(np.float64)
+    rnd = np.random.RandomState(seed)
+    if up is None:
+        up = np.where(sp > 40, 0.0, -1.0)
+    grey = (rgb * np.array([0.3, 0.59, 0.11])).sum(axis=2, keepdims=True)
+    rgb = rgb + (grey - rgb) * GREY
+    n = 1 + (rnd.rand(h, w) - 0.5) * 0.02
+    n *= 1 + 0.05 * smooth_noise(rnd, h, w, 6, 6)
+    side = (up > -0.5) & (up < 0.5)
+    n *= np.where(side, 1 - 0.08 * np.maximum(0, smooth_noise(rnd, h, w, 3, 14)), 1)
+    rows = np.arange(h)[:, None]
+    floor = h - 106
+    n *= 1 - 0.1 * np.clip((rows - floor) / 80, 0, 1)
+    n *= np.where(inner < 128, 0.72, 1)
+    below = np.roll(side & (sp > 200), -1, axis=0)
+    n *= np.where((up > 0.8) & below & (sp > 200), 1.2, 1)
+    keep = (alpha > 0) & (sp >= 40)
+    a[..., :3] = np.where(keep[..., None], np.clip(rgb * n[..., None], 0, 255), a[..., :3])
+    return Image.fromarray(a.astype(np.uint8), 'RGBA')
 
 
 def glow(image, scene, glows):

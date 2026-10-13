@@ -124,12 +124,12 @@ def propane_refiner(turns, look):
     front_decal(s, cx - 0.12 - 0.065, cx - 0.12 + 0.065, gz - 0.065, gz + 0.065, cy + r + 0.021, gauge_image(0.8 if running else 0.12, 56), offset=0.0)
     # the bullet tank on two saddles, along x, south of the column
     ty, tz, tr = 1.46, 0.46, 0.27
-    seam = (160, 158, 148)
-    s.tube((0.78, ty, tz), (1.66, ty, tz), tr, (188, 186, 176), cap=(166, 164, 154), segments=36, shine=0.35,
-           bands=[(0, 0.22, (188, 186, 176)), (0.22, 0.235, seam), (0.235, 0.46, (188, 186, 176)), (0.46, 0.52, BLUE),
-                  (0.52, 0.765, (188, 186, 176)), (0.765, 0.78, seam), (0.78, 1, (188, 186, 176))])
-    s.sphere((0.78, ty, tz), (0.14, tr, tr), (200, 198, 186), rings=7, segments=36, z_from=-90, z_to=90, shine=0.35)
-    s.sphere((1.66, ty, tz), (0.14, tr, tr), (200, 198, 186), rings=7, segments=36, z_from=-90, z_to=90, shine=0.35)
+    seam = (136, 132, 122)
+    s.tube((0.78, ty, tz), (1.66, ty, tz), tr, (164, 160, 148), cap=(150, 146, 136), segments=36, shine=0.35,
+           bands=[(0, 0.22, (164, 160, 148)), (0.22, 0.235, seam), (0.235, 0.46, (164, 160, 148)), (0.46, 0.52, BLUE),
+                  (0.52, 0.765, (164, 160, 148)), (0.765, 0.78, seam), (0.78, 1, (164, 160, 148))])
+    s.sphere((0.78, ty, tz), (0.14, tr, tr), (172, 168, 156), rings=7, segments=36, z_from=-90, z_to=90, shine=0.35)
+    s.sphere((1.66, ty, tz), (0.14, tr, tr), (172, 168, 156), rings=7, segments=36, z_from=-90, z_to=90, shine=0.35)
     for x in (0.98, 1.46):
         s.box(x, ty - 0.2, 0.08, x + 0.06, ty + 0.2, 0.28, GRAPHITE_DARK)
     s.tube((1.2, ty, tz + tr - 0.02), (1.2, ty, tz + tr + 0.1), 0.07, STEEL_DARK, cap=STEEL, segments=18, shine=0.5)
@@ -145,22 +145,20 @@ def propane_refiner(turns, look):
         for iy, by in enumerate((0.40, 0.70)):
             if ix == 2 and iy == 1:
                 continue
-            col = (176, 70, 52) if (ix + iy) % 2 == 0 else (190, 190, 176)
+            col = (176, 70, 52) if (ix + iy) % 2 == 0 else (168, 166, 154)
             s.tube((bx, by, 0.08), (bx, by, 0.64), 0.07, col, cap=col, segments=22, shine=0.3)
             s.sphere((bx, by, 0.64), (0.07, 0.07, 0.05), col, rings=3, segments=22, z_from=0, z_to=90, shine=0.3)
             s.tube((bx, by, 0.69), (bx, by, 0.76), 0.018, STEEL, segments=8, shine=0.6)
             s.tube((bx, by, 0.76), (bx - 0.01, by, 0.78), 0.03, BRASS, segments=10, shine=0.6)
     s.box(1.32, 0.3, 0.30, 1.92, 0.8, 0.33, STEEL_DARK)
     s.box(1.32, 0.3, 0.60, 1.92, 0.8, 0.63, STEEL_DARK)
-    # the flare stack at the north-east corner, braced, a flame when running
+    # the flare stack at the north-east corner on a wide foot (guy wires were too thin to read: broken lines), a flame
+    # when running
     sx, sy = 1.78, 0.2
     s.tube((sx, sy, 0.08), (sx, sy, 2.0), 0.055, GRAPHITE, segments=16, shine=0.3,
            bands=[(0, 0.84, GRAPHITE), (0.84, 0.88, RED), (0.88, 0.92, WHITE), (0.92, 0.96, RED), (0.96, 1, WHITE)])
     s.tube((sx, sy, 2.0), (sx, sy, 2.1), 0.07, GRAPHITE_DARK, r2=0.045, segments=16)
     s.tube((sx, sy, 0.08), (sx, sy, 0.14), 0.1, GRAPHITE_DARK, cap=GRAPHITE, segments=16)
-    for ang in (30, 150, 270):
-        a = math.radians(ang)
-        s.tube((sx + 0.4 * math.cos(a), sy + 0.4 * math.sin(a), 0.08), (sx, sy, 1.4), 0.004, STEEL_DARK, segments=4)
     pipe(s, [(cx + r, cy, 1.4), (1.1, cy, 1.4), (1.1, sy, 1.4), (sx, sy, 1.4)], 0.016)
     # the control cabinet at the front-left
     control_cabinet(s, glows, 0.14, 0.58, 1.9, 0.92, look)
@@ -276,7 +274,6 @@ def oil_refiner(turns, look):
     if running:
         for dx in (0.40, 0.78, 1.16):
             s.tube((dx, 1.62, 0.66), (dx, 1.62, 0.58), 0.006, (40, 28, 10), segments=5, shine=0.7)
-            glows.append(((dx, 1.62, 0.6), (255, 150, 30), 0.1))
     # a pump: a blue motor and its pump head on a plate, by the vessel
     s.box(0.14, 1.0, 0.08, 0.58, 1.3, 0.12, GRAPHITE_DARK)
     s.tube((0.18, 1.15, 0.24), (0.46, 1.15, 0.24), 0.1, BLUE, cap=(44, 62, 88), segments=24, shine=0.2,
@@ -290,14 +287,17 @@ def oil_refiner(turns, look):
     front_decal(s, 0.16, 0.48, 0.24, 0.4, 1.9 + 0.001, acorn_mark(24, STENCIL))
 
     def steam(img):
-        d = ImageDraw.Draw(img, 'RGBA')
+        # puffs one over another, each blurred so the plume is soft (hard-edged discs read as clip art)
+        layer = Image.new('RGBA', img.size, (0, 0, 0, 0))
+        d = ImageDraw.Draw(layer, 'RGBA')
         px, py = project(*s.turn((cx, cy, ctop + 0.22)))
         rn = random.Random(5)
         for i in reversed(range(7)):
             r_ = (5 + i * 1.5) * SS
             ox = (rn.random() - 0.5) * 6 * SS + i * 1.2 * SS
             oy = -i * 6.5 * SS
-            a = max(30, 185 - i * 24)
+            a = max(40, 200 - i * 24)
             d.ellipse([px + ox - r_, py + oy - r_, px + ox + r_, py + oy + r_], fill=STEAM + (a,))
+        img.alpha_composite(layer.filter(ImageFilter.GaussianBlur(2.2 * SS)))
     ground = shadow((1.0, 1.0), 1.0, 1.0, 125)
     return compose(s, ground=ground, over=steam if running else None, seed=140 + turns + 4 * int(look), glows=glows)

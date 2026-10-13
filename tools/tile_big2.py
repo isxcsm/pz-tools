@@ -4,7 +4,7 @@ import math
 import random
 
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 
 from tile_engine import OWNERS, Scene, shadow, compose, unit, rotation, apply, add, mul, stencil_text, acorn_mark, project, SS
 from tile_objects import (OD, OD_DARK, OD_LIGHT, TAN, CANVAS, BLACK, RUBBER, GREY, STEEL, STEEL_DARK, PIPE, WHITE,
@@ -207,7 +207,6 @@ def research_storage(turns):
     front_decal(s, 0.12, 0.48, 1.0, 1.14, f + 0.012, stencil_text('OAK', 60, 24, STENCIL))
     front_decal(s, 1.52, 1.88, 1.0, 1.14, f + 0.012, stencil_text('RESEARCH', 90, 20, STENCIL))
     front_decal(s, 0.90, 1.10, 0.92, 1.22, f + 0.014, acorn_mark(40, STENCIL))
-    front_decal(s, 0.12, 0.88, 0.2, 0.3, f + 0.012, stencil_text('STORAGE  OAK-R1', 120, 12, STENCIL))
     for i in range(6):
         s.box(x1, y0 + 0.06, 0.2 + i * 0.18, x1 + 0.01, y1 - 0.06, 0.22 + i * 0.18, OD_DARK)
     side_decal(s, y0 + 0.1, y1 - 0.1, 0.56, 0.72, x1 + 0.012, stencil_text('OAK-R', 52, 20, STENCIL))
@@ -248,9 +247,9 @@ def rain_storage(level=3):
         rain_storage(0)    # the empty tank's split of the pixels into tiles is the one every level uses
     s = Scene(0, foot=(2, 2))
     cx, cy, r, h = 1.0, 1.0, 0.82, 0.8
-    PLASTIC = (60, 88, 112)
-    PLASTIC_DARK = (44, 64, 84)
-    PLASTIC_LIGHT = (128, 150, 168)
+    PLASTIC = (66, 84, 96)
+    PLASTIC_DARK = (50, 64, 74)
+    PLASTIC_LIGHT = (118, 130, 138)
     floor_z = 0.09
     full_z = 0.66
     wz = floor_z + (full_z - floor_z) * (0.0, 0.25, 0.5, 1.0)[level]
@@ -263,7 +262,7 @@ def rain_storage(level=3):
     # the far inside wall (dry above the water, dark and wet below it), then the outer wall with its ribs
     wet_top = wz if level else floor_z
     if level:
-        s.tube((cx, cy, 0.08), (cx, cy, wet_top), r - 0.04, (46, 70, 90), segments=64, inward=True)
+        s.tube((cx, cy, 0.08), (cx, cy, wet_top), r - 0.04, (44, 60, 66), segments=64, inward=True)
     s.tube((cx, cy, wet_top), (cx, cy, h), r - 0.04, (78, 92, 104), segments=64, inward=True)
     bands = []
     n = 8
@@ -294,14 +293,13 @@ def rain_storage(level=3):
             s.xbox((lx, ly, floor_z + 0.004), (0.1, 0.05, 0.006), rotation((0, 0, 1), rot), c1, top=c2)
         s.tube((0.9, 0.9, floor_z + 0.012), (1.2, 1.02, floor_z + 0.016), 0.012, (84, 66, 44), segments=6)
     else:
-        disc(s, (cx, cy), r - 0.05, wz, (52, 150, 176), segments=64, shine=0.9)
+        disc(s, (cx, cy), r - 0.05, wz, (60, 92, 98), segments=64, shine=0.5)
         glint = Image.new('RGBA', (256, 256), (0, 0, 0, 0))
         gd = ImageDraw.Draw(glint)
-        gd.ellipse([34, 56, 130, 100], fill=(190, 226, 250, 150))
-        gd.ellipse([150, 140, 210, 164], fill=(190, 226, 250, 110))
-        gd.ellipse([60, 170, 100, 184], fill=(190, 226, 250, 90))
-        for k in (60, 100, 140):
-            gd.ellipse([128 - k // 2, 128 - k // 2, 128 + k // 2, 128 + k // 2], outline=(200, 232, 250, 70), width=2)
+        gd.ellipse([40, 60, 150, 104], fill=(170, 196, 206, 70))
+        for k in (70, 120):
+            gd.ellipse([128 - k // 2, 128 - k // 2, 128 + k // 2, 128 + k // 2], outline=(150, 176, 184, 40), width=2)
+        glint = glint.filter(ImageFilter.GaussianBlur(4))
         flat_decal(s, cx - r + 0.08, cy - r + 0.08, cx + r - 0.08, cy + r - 0.08, wz, glint)
         for lx, ly, rot in ((0.8, 1.1, 20), (1.2, 0.8, 70), (1.1, 1.3, 130)):
             s.xbox((lx, ly, wz + 0.004), (0.1, 0.05, 0.006), rotation((0, 0, 1), rot), (120, 130, 60), top=(138, 150, 70))
@@ -313,7 +311,7 @@ def rain_storage(level=3):
     s.box(gx - 0.05, gy - 0.01, g0 - 0.03, gx + 0.05, gy + 0.05, g1 + 0.03, STEEL_DARK, top=STEEL)
     s.box(gx - 0.026, gy + 0.05, g0, gx + 0.026, gy + 0.062, g1, (188, 204, 212), top=(188, 204, 212), shine=0.5)
     if fraction > 0:
-        s.box(gx - 0.026, gy + 0.062, g0, gx + 0.026, gy + 0.07, g0 + (g1 - g0) * fraction, (40, 156, 186), top=(60, 176, 204), shine=0.8)
+        s.box(gx - 0.026, gy + 0.062, g0, gx + 0.026, gy + 0.07, g0 + (g1 - g0) * fraction, (60, 96, 104), top=(72, 110, 118), shine=0.6)
     for q in (0.25, 0.5, 0.75, 1.0):
         zq = g0 + (g1 - g0) * q
         s.box(gx + 0.026, gy + 0.05, zq - 0.006, gx + 0.075, gy + 0.075, zq + 0.006, (232, 232, 220), top=(232, 232, 220))

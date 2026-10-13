@@ -16,8 +16,8 @@ from tile_trade import hazard_strip, plank_lines
 GRAPHITE = (74, 78, 82)
 GRAPHITE_DARK = (52, 55, 58)
 GRAPHITE_LIGHT = (104, 108, 112)
-CREAM = (184, 180, 164)
-CREAM_DARK = (148, 144, 130)
+CREAM = (164, 160, 144)
+CREAM_DARK = (128, 124, 112)
 STEAM = (236, 238, 240)
 FLAME = (255, 168, 40)
 
@@ -116,11 +116,12 @@ def pegboard_image(w=128, h=56):
 
 
 def cutting_mat_image(w=176, h=84):
-    img = Image.new('RGBA', (w, h), (52, 104, 76, 255))
+    # a worn, dull green (a bright mat stood out of the game's muted colours)
+    img = Image.new('RGBA', (w, h), (48, 76, 62, 255))
     d = ImageDraw.Draw(img)
     for x in range(0, w, 8):
-        d.line([(x, 0), (x, h)], fill=(190, 214, 196, 255) if x % 40 == 0 else (82, 136, 104, 255), width=1)
+        d.line([(x, 0), (x, h)], fill=(118, 136, 122, 255) if x % 40 == 0 else (62, 92, 76, 255), width=1)
     for y in range(0, h, 8):
-        d.line([(0, y), (w, y)], fill=(190, 214, 196, 255) if y % 40 == 0 else (82, 136, 104, 255), width=1)
+        d.line([(0, y), (w, y)], fill=(118, 136, 122, 255) if y % 40 == 0 else (62, 92, 76, 255), width=1)
     d.rectangle([0, 0, w - 1, h - 1], outline=(30, 60, 44, 255))
     return img

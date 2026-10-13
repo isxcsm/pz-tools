@@ -233,18 +233,20 @@ def parachute_crate():
     # the risers: four straps to a ring above the crate, then the shroud lines out to the canopy's rim
     ring = (0.5, 0.5, 0.80)
     for (sx, sy) in ((0.32, 0.66), (0.68, 0.66), (0.68, 0.34), (0.32, 0.34)):
-        s.tube((sx, sy, 0.30), ring, 0.007, TAN, segments=6)
+        s.tube((sx, sy, 0.30), ring, 0.011, TAN, segments=6)
     s.tube((0.5, 0.5, 0.78), (0.5, 0.5, 0.82), 0.022, STEEL, shine=0.6, segments=12)
-    # the canopy: a deflated dome of eight panels, the rim at z 1.25 and a crown at 1.78
-    colours = [ORANGE, (206, 198, 178)]
+    # the canopy: a low dome of sixteen gores in faded orange and cream (a full half sphere in clean colours read as
+    # a beach ball), its rim at z 1.24, eight shroud lines down to the ring (sixteen hair-thin ones broke into dots)
+    colours = [(178, 104, 58), (186, 178, 158)]
     centre = (0.5, 0.5, 1.22)
-    s.sphere(centre, (0.62, 0.62, 0.62), ORANGE, rings=8, segments=16, z_from=2, z_to=88, colours=colours, shine=0.05)
-    rim_r = 0.62 * math.cos(math.radians(2))
-    for i in range(16):
-        a = 2 * math.pi * i / 16
+    s.sphere(centre, (0.62, 0.62, 0.44), colours[0], rings=8, segments=16, z_from=4, z_to=90, colours=colours,
+             shine=0.05)
+    rim_r, rim_z = 0.62 * math.cos(math.radians(4)), 1.22 + 0.44 * math.sin(math.radians(4))
+    for i in range(8):
+        a = 2 * math.pi * (i + 0.5) / 8
         px, py = 0.5 + rim_r * math.cos(a), 0.5 + rim_r * math.sin(a)
-        s.tube(ring, (px, py, 1.22 + 0.62 * math.sin(math.radians(2))), 0.004, (210, 200, 176), segments=5)
-    s.tube((0.5, 0.5, 1.84), (0.5, 0.5, 1.87), 0.02, (200, 190, 160), segments=8)
+        s.tube(ring, (px, py, rim_z), 0.007, (176, 166, 140), segments=5)
+    s.tube((0.5, 0.5, 1.65), (0.5, 0.5, 1.68), 0.03, (170, 160, 136), segments=8)
     ground = shadow((0.5, 0.5), 0.34, 0.26, 110)
     return compose(s, ground=ground, seed=41, glows=glows)
 

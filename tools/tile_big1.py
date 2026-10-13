@@ -311,14 +311,20 @@ def cutter(turns, look):
     for i, c in enumerate(((176, 70, 56), (72, 110, 160), (200, 190, 150))):
         s.tube((1.2 + i * 0.2, y0 + 0.04, 0.24), (1.2 + i * 0.2, y1 - 0.04, 0.24), 0.07, c, cap=(220, 214, 190), segments=18)
     # the roll of canvas on two arms at the west end
-    s.box(0.06, y0 - 0.02, 0.0, 0.16, y0 + 0.04, 0.84, GRAPHITE_DARK)
-    s.box(0.06, y1 - 0.04, 0.0, 0.16, y1 + 0.02, 0.84, GRAPHITE_DARK)
-    s.tube((0.11, y0, 0.70), (0.11, y1, 0.70), 0.016, STEEL, shine=0.6, segments=10)
-    s.tube((0.11, y0 + 0.05, 0.70), (0.11, y1 - 0.05, 0.70), 0.15, CANVAS, cap=(210, 200, 170), segments=28,
-           bands=[(0, 0.06, (110, 104, 80))] + [(0.06 + 0.06 * i, 0.09 + 0.06 * i, (170, 160, 122)) for i in range(15)])
+    # (Wide dark slabs as stands stood in front of the roll's end and seemed to cut through the cloth: the stands are
+    # narrow steel uprights clear of the roll's ends, holding its axle, and the roll lies inside the square.)
+    rx, rz, rr = 0.16, 0.70, 0.12
+    for sy in (y0 - 0.02, y1 - 0.01):
+        s.box(rx - 0.02, sy, 0.0, rx + 0.02, sy + 0.03, rz + 0.03, STEEL_DARK, top=STEEL, shine=0.3)
+        s.box(rx - 0.06, sy - 0.01, 0.0, rx + 0.06, sy + 0.04, 0.03, GRAPHITE_DARK)
+    s.tube((rx, y0 - 0.02, rz), (rx, y1 + 0.02, rz), 0.014, STEEL, shine=0.6, segments=10)
+    # (a wrap line every few centimetres read as a coil spring: the roll is plain, its ends a shade darker)
+    s.tube((rx, y0 + 0.06, rz), (rx, y1 - 0.06, rz), rr, CANVAS, cap=(170, 160, 126), segments=28,
+           bands=[(0, 0.04, (120, 112, 84)), (0.04, 0.96, CANVAS), (0.96, 1, (120, 112, 84))])
     cloth_z = zt + 0.065
     gx = 1.30 if running else 0.52
-    s.poly([(0.20, y0 + 0.04, 0.66), (0.34, y0 + 0.04, cloth_z), (0.34, y1 - 0.04, cloth_z), (0.20, y1 - 0.04, 0.66)], CANVAS, (0, 0, 1))
+    s.poly([(rx + rr, y0 + 0.06, rz), (0.36, y0 + 0.06, cloth_z), (0.36, y1 - 0.06, cloth_z), (rx + rr, y1 - 0.06, rz)],
+           CANVAS, (0, 0, 1))
     s.face([(0.34, y0 + 0.04, cloth_z), (1.66, y0 + 0.04, cloth_z), (1.66, y1 - 0.04, cloth_z), (0.34, y1 - 0.04, cloth_z)], CANVAS, (0, 0, 1))
     if running:
         s.face([(0.34, 0.49, cloth_z + 0.001), (gx, 0.49, cloth_z + 0.001), (gx, 0.51, cloth_z + 0.001), (0.34, 0.51, cloth_z + 0.001)], (36, 70, 52), (0, 0, 1))
