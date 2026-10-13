@@ -116,7 +116,7 @@ local function arrow(level, from) return level > from and "^" or "v" end
 local function dotColour(device, supplied)
     local colour
     if device.state == "other" then colour = COLOURS.other
-    elseif device.state ~= "on" then colour = COLOURS.off
+    elseif device.state ~= "on" then colour = device.wired and COLOURS.idle or COLOURS.off
     elseif device.held == "shed" or device.held == "saving" then colour = COLOURS.shed
     elseif device.held == "timer" or device.held == "blackout" then colour = COLOURS.timer
     elseif device.held == "exterior" then colour = COLOURS.unsupplied
