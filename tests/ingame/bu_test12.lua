@@ -5,7 +5,7 @@ local BU = BuildingUtilities
 local say = BUT.say("bu12")
 say("tiers", BU.TIERS, "smart", BU.SMART_TIER, "timer", BU.TIMER_TIER, "link", BU.LINK_TIER)
 for tier = 1, BU.TIERS do
-    say("tier", tier, "capacity", BU.capacity(tier), "ranges", BU.connectRange(tier), BU.subPanelRange(tier),
+    say("tier", tier, "capacity", BU.capacity(tier), "ranges", BU.connectRange(tier),
         "loss", string.format("%.2f", BU.lossPerPiece(tier)), "sheds", BU.overloadEnabled() and tier >= BU.SMART_TIER,
         "cost skill", BU.Costs.upgrade(tier) and BU.Costs.upgrade(tier).skill or "-")
 end

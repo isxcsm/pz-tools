@@ -703,7 +703,7 @@
     "IGUI_BU_Basement": "지하 %1층",
     "IGUI_BU_Name_LightSwitch": "전등 스위치",
     "IGUI_BU_Name_TallLamp": "스탠드 조명",
-    "IGUI_BU_Ranges": "기기와 공급원은 %1칸, 보조 제어반은 %2칸까지 닿습니다.",
+    "IGUI_BU_Ranges": "기기, 공급원, 다른 건물의 제어반까지 %1칸 닿습니다.",
     "IGUI_BU_PanelVia": "%1 → %2",
     "IGUI_BU_WhereVia": "%1, %2 경유",
     "IGUI_BU_RoutedHere": "여기를 거쳐 %2(으)로 가는 선 %1개",

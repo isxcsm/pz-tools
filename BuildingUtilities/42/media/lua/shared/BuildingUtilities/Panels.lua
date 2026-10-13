@@ -354,9 +354,9 @@ function Panels.powerLine(panel, state)
     return pieces, pieces * BU.lossPerPiece(panel.tier)
 end
 
--- How far a box of a tier reaches, for the player: devices outside and producers, sub-panels.
+-- How far a box of a tier reaches, for the player: devices outside, producers and other boxes alike.
 function Panels.rangesText(tier)
-    local text = getText("IGUI_BU_Ranges", BU.connectRange(tier), BU.subPanelRange(tier))
+    local text = getText("IGUI_BU_Ranges", BU.connectRange(tier))
     local floors = BU.floorReach(tier)
     if floors then text = text .. " " .. getText("IGUI_BU_FloorReach", floors) end
     return text
@@ -903,7 +903,7 @@ function Panels.blackoutLights(panel)
 end
 
 -- Whether a panel can take its supply from another: a main panel in another building or another zone of its own,
--- of a tier that gives supply (BU.LINK_TIER) and whose sub-panel range reaches its own building, with no producers
+-- of a tier that gives supply (BU.LINK_TIER) and whose connect range reaches its own building, with no producers
 -- or units of its own, and not one of its own sub-panels. Returns true, or false and a reason; for "lowTier" also the distance and the tier needed.
 function Panels.canLink(child, parent)
     if child == parent then return false, "self" end
@@ -919,7 +919,7 @@ function Panels.canLink(child, parent)
     end
     local steps = Panels.linkSteps(child, parent)
     if not steps then return false, "noBuilding" end
-    local tier = Panels.tierReaching(BU.subPanelRange, steps)
+    local tier = Panels.tierReaching(BU.connectRange, steps)
     if not tier then return false, "tooFar" end
     tier = math.max(tier, BU.LINK_TIER)
     if (parent.tier or 1) < tier then return false, "lowTier", steps, tier end

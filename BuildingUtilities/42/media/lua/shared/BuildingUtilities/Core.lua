@@ -191,16 +191,15 @@ for recipe, feature in pairs(BU.RECIPE_FEATURES) do
 end
 
 -- How far a box of a tier reaches, in squares from its building's outline: the sandbox's range at tier 1, and
--- RangePerTier percent of it more for each tier above. Devices outside, producers and units join within the connect
--- range (the API reads at most 32) of a box: devices of their own, the rest of any (taken on to its main box);
--- sub-panels within the sub-panel range of the main box.
+-- RangePerTier percent of it more for each tier above. One range for everything (the API reads at most 32): devices
+-- outside, producers and units join within it of a box (devices of their own, the rest of any, taken on to its main
+-- box), and a box takes supply from another whose building is within it.
 local function reach(name, default, tier)
     tier = math.max(1, math.min(BU.TIERS, tier or 1))
     local perTier = math.max(0, BU.sandbox("RangePerTier", 50))
     return math.floor(BU.sandbox(name, default) * (1 + (tier - 1) * perTier / 100))
 end
 function BU.connectRange(tier) return math.max(1, math.min(32, reach("ConnectRange", 5, tier))) end
-function BU.subPanelRange(tier) return math.max(1, reach("SubPanelRange", 50, tier)) end
 
 -- How many floors above and below its own a box's zone takes, the sandbox's at tier 1 and more by RangePerTier as
 -- the ranges; nil without a limit (FloorReach 0). A tall building takes more boxes, sub-panels of one.
@@ -218,7 +217,7 @@ function BU.tilesPerPiece() return math.max(1, BU.sandbox("TilesPerPiece", 5)) e
 function BU.refundPercent() return math.max(0, math.min(100, BU.sandbox("RefundPercent", 50))) end
 
 -- A box carries so much power for its tier; past it, its breaker trips.
-local CAPACITY_DEFAULTS = { 0.3, 0.6, 1.0, 1.5 }
+local CAPACITY_DEFAULTS = { 1.0, 2.0, 3.5, 5.0 }
 function BU.overloadEnabled() return BU.sandbox("OverloadEnabled", true) == true end
 function BU.capacity(tier)
     tier = math.max(1, math.min(BU.TIERS, tier or 1))

@@ -703,7 +703,7 @@
     "IGUI_BU_Basement": "B%1",
     "IGUI_BU_Name_LightSwitch": "Light switch",
     "IGUI_BU_Name_TallLamp": "Tall lamp",
-    "IGUI_BU_Ranges": "Reaches devices and producers %1 tiles away, sub-panels %2.",
+    "IGUI_BU_Ranges": "Reaches devices, producers and other buildings' panels %1 tiles away.",
     "IGUI_BU_PanelVia": "%1, on to %2",
     "IGUI_BU_WhereVia": "%1, through %2",
     "IGUI_BU_RoutedHere": "%1 lines run through here to %2",

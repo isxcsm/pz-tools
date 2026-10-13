@@ -1723,7 +1723,7 @@ function ISBUPanelWindow:onMainPanel()
     if #candidates == 0 then
         local hasProducers = #panel.power.producers > 0 or #panel.water.producers > 0
         local option = menu:addOption(getText(hasProducers and "IGUI_BU_Reason_hasProducers" or "IGUI_BU_NoMainInRange",
-            BU.subPanelRange(BU.TIERS)), nil, nil)
+            BU.connectRange(BU.TIERS)), nil, nil)
         option.notAvailable = true
         return
     end

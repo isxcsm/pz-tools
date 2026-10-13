@@ -60,12 +60,6 @@ option BuildingUtilities.ConnectRange
     page = BuildingUtilities, translation = BuildingUtilities_ConnectRange,
 }
 
-option BuildingUtilities.SubPanelRange
-{
-    type = integer, min = 1, max = 300, default = 50,
-    page = BuildingUtilities, translation = BuildingUtilities_SubPanelRange,
-}
-
 option BuildingUtilities.RangePerTier
 {
     type = integer, min = 0, max = 200, default = 50,
@@ -116,25 +110,25 @@ option BuildingUtilities.OverloadEnabled
 
 option BuildingUtilities.Capacity1
 {
-    type = double, min = 0.05, max = 10.0, default = 0.3,
+    type = double, min = 0.05, max = 10.0, default = 1.0,
     page = BuildingUtilities, translation = BuildingUtilities_Capacity1,
 }
 
 option BuildingUtilities.Capacity2
 {
-    type = double, min = 0.05, max = 10.0, default = 0.6,
+    type = double, min = 0.05, max = 10.0, default = 2.0,
     page = BuildingUtilities, translation = BuildingUtilities_Capacity2,
 }
 
 option BuildingUtilities.Capacity3
 {
-    type = double, min = 0.05, max = 10.0, default = 1.0,
+    type = double, min = 0.05, max = 10.0, default = 3.5,
     page = BuildingUtilities, translation = BuildingUtilities_Capacity3,
 }
 
 option BuildingUtilities.Capacity4
 {
-    type = double, min = 0.05, max = 10.0, default = 1.5,
+    type = double, min = 0.05, max = 10.0, default = 5.0,
     page = BuildingUtilities, translation = BuildingUtilities_Capacity4,
 }
 
