@@ -198,8 +198,20 @@ Units.define("filter", {
     sprite = function(square, side)
         return (side == "E" or side == "W") and WaterUnits.FILTER_SPRITES.along or WaterUnits.FILTER_SPRITES.across
     end,
-    -- Put down with a fresh charge.
-    create = function(unit) unit.media = WaterUnits.FILTER_HOURS end,
+    -- Put down with what media it had when taken down (or was found with), else a fresh charge.
+    create = function(unit, object, kept)
+        local media = kept and tonumber(kept.media)
+        unit.media = media and math.max(0, math.min(WaterUnits.FILTER_HOURS, media)) or WaterUnits.FILTER_HOURS
+    end,
+    -- Its media goes with it while part of a charge is spent.
+    keep = function(unit)
+        if WaterUnits.mediaLeft(unit) >= 1 then return nil end
+        return { media = unit.media or 0 }
+    end,
+    keptName = function(kept, name)
+        local left = math.max(0, math.min(1, (kept.media or 0) / WaterUnits.FILTER_HOURS))
+        return name .. " (" .. getText("IGUI_BU_FilterMedia", BU.percent(left * 100)) .. ")"
+    end,
     sync = function(unit, object)
         Units.showLook(object, WaterUnits.FILTER_LOOKS, WaterUnits.filterLook(unit), FILTER_LOOK_OF)
     end,

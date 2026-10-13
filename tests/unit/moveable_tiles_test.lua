@@ -43,3 +43,40 @@ test("an item without its tile takes its script's", function()
     BU.giveTile(item)
     eq(read, nil, "an item with its tile is left")
 end)
+
+test("a filter's spent media goes with its item and comes back when put down", function()
+    getItemNameFromFullType = function() return "Water Filter" end
+    local Units, hours = BU.Units, BU.WaterUnits.FILTER_HOURS
+    local function newItem()
+        local item = { modData = {} }
+        item.getModData = function() return item.modData end
+        item.getFullType = function() return "BuildingUtilities.WaterFilter" end
+        item.setName = function(_, name) item.name = name end
+        item.setCustomName = function(_, on) item.custom = on end
+        return item
+    end
+    local filter = Units.definition("filter")
+    local unit = { kind = "filter" }
+    filter.create(unit, nil, nil)
+    eq(unit.media, hours, "a new filter: a full charge")
+    eq(Units.keep(unit), nil, "a full charge: nothing to carry")
+    local item = newItem()
+    Units.keepOnItem("filter", item, Units.keep(unit))
+    eq(item.name, nil, "a full one keeps its name")
+    eq(Units.keptOnItem(item), nil)
+
+    unit.media = hours * 0.25
+    item = newItem()
+    Units.keepOnItem("filter", item, Units.keep(unit))
+    eq(Units.keptOnItem(item).media, hours * 0.25)
+    eq(item.name, "Water Filter (IGUI_BU_FilterMedia 25%)")
+    eq(item.custom, true)
+    local placed = { kind = "filter" }
+    filter.create(placed, nil, Units.keptOnItem(item))
+    eq(placed.media, hours * 0.25, "put down with what it carried")
+
+    filter.create(placed, nil, { media = hours * 5 })
+    eq(placed.media, hours, "never above a charge")
+    item.modData[Units.KEPT] = "junk"
+    eq(Units.keptOnItem(item), nil, "what is not a table is nothing")
+end)

@@ -157,18 +157,23 @@ function ISMoveableSpriteProps:pickUpMoveable(character, square, createItem, for
     local kind = self.buKind
     if not kind then return pickUp(self, character, square, createItem, forceAllow) end
     local found = find(kind, square, self.object)
+    local kept
     if found and found.panel then
         local paid = BU.Changes.paidFor(found.panel)
         BU.Changes.remove(found.panel)
         BU.Costs.refund(character, paid)
     elseif found and BU.Units.isEmpty(found.unit) then
+        kept = BU.Units.keep(found.unit)
         BU.Costs.refund(character, BU.Changes.removeUnit(found.unit))
     else
         return {}
     end
     local inventory = character:getInventory()
     local item = inventory:AddItem(itemType(kind))
-    if item then sendAddItemToContainer(inventory, item) end
+    if item then
+        BU.Units.keepOnItem(kind, item, kept)
+        sendAddItemToContainer(inventory, item)
+    end
     return {}
 end
 
@@ -197,11 +202,12 @@ function ISMoveableSpriteProps:placeMoveable(character, square, origSpriteName, 
     local item = self:findInInventory(character, origSpriteName)
     if not item then return end
     local side = sideOf(kind, self.spriteName) or BU.sideOf(square, character)
+    local kept = BU.Units.keptOnItem(item)
     local inventory = character:getInventory()
     inventory:Remove(item)
     sendRemoveItemFromContainer(inventory, item)
     if kind == "panel" then BU.Changes.install(square, BU.panelSprite(side))
-    else BU.Changes.installUnit(kind, square, BU.Units.spriteFacing(kind, square, side)) end
+    else BU.Changes.installUnit(kind, square, BU.Units.spriteFacing(kind, square, side), kept) end
     BU.giveXp(character, 5)
     if ISMoveableCursor then ISMoveableCursor.clearCacheForAllPlayers() end
 end

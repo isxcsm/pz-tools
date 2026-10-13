@@ -24,7 +24,9 @@ local definitions = {}
 --     panel's water groups); minTier and tierReason: the lowest tier of a panel it is wired to.
 --   colour: { r, g, b } on the plan.
 -- And, each optional:
---   create(unit, object): as it is put down (the server).
+--   create(unit, object, kept): as it is put down (the server); kept: what its item carried (keep), or nil.
+--   keep(unit): what of it goes with its item when it is taken down, a table of numbers (a filter's media left), or
+--     nil; keptName(kept, name): the item's name then, from its own.
 --   isEmpty(unit): whether it holds nothing, so that it can be taken down; notEmptyReason the text key when not.
 --   onLoad(unit, object): as its square loads (the server).
 --   sync(unit, object): each minute while its square is loaded (the server): what keeps its object in step, as its
@@ -174,6 +176,32 @@ end
 function Units.isEmpty(unit)
     local definition = definitions[unit.kind]
     return not definition.isEmpty or definition.isEmpty(unit)
+end
+
+-- What a unit's item carries of it (the definition's keep), in its mod data under this key.
+Units.KEPT = "BU_Kept"
+
+-- What of a unit goes with its item when it is taken down: a table, or nil.
+function Units.keep(unit)
+    local definition = definitions[unit.kind]
+    return definition.keep and definition.keep(unit) or nil
+end
+
+-- An item of a kind carrying kept (nil: nothing), named for it as the kind names it.
+function Units.keepOnItem(kind, item, kept)
+    if not kept then return end
+    item:getModData()[Units.KEPT] = kept
+    local definition = definitions[kind]
+    if definition.keptName then
+        item:setName(definition.keptName(kept, getItemNameFromFullType(item:getFullType())))
+        item:setCustomName(true)
+    end
+end
+
+-- What an item carries of the unit it was: a table, or nil.
+function Units.keptOnItem(item)
+    local kept = item:getModData()[Units.KEPT]
+    return type(kept) == "table" and kept or nil
 end
 
 return Units

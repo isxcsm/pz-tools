@@ -276,12 +276,13 @@ end
 
 -- Units.
 
-function Changes.installUnit(kind, square, sprite)
+-- A unit put down; kept: what its item carried of the unit it was (Units.keep), or nil.
+function Changes.installUnit(kind, square, sprite, kept)
     local object = IsoObject.new(square, sprite, nil, false)
     local unit = Store.newUnit(kind, square:getX(), square:getY(), square:getZ(), sprite)
     object:getModData()[Units.MODDATA] = unit.id
     local definition = Units.definition(kind)
-    if definition.create then definition.create(unit, object) end
+    if definition.create then definition.create(unit, object, kept) end
     square:AddTileObject(object)
     if isServer() then object:transmitCompleteItemToClients() end
     BU.log("installed", kind, unit.id, "at", unit.x, unit.y, unit.z)
