@@ -31,7 +31,7 @@ final class Looks {
     // ---- the looks' numbers (tools/title-lab) ----
 
     /** Impact: the fall, in seconds; how fast the heat cools; the glow, the streak and the dust's strength; when the gleam starts and how bright it is. */
-    static final double IMPACT = 0.16, IMPACT_COOL = 4, IMPACT_GLOW = 1, IMPACT_STREAK = 0.8, IMPACT_DUST = 1, SHINE_AT = 0.8, SHINE = 0.45;
+    static final double IMPACT = 0.16, IMPACT_COOL = 4, IMPACT_GLOW = 1, IMPACT_STREAK = 0.8, IMPACT_DUST = 1, SHINE_AT = 0.8, SHINE = 0.2;
     static final int PUFFS = 46;
     /** Erode: the size of its grain (pixels for a line 72 high) and how much of its colour drains. */
     static final double ERODE_GRAIN = 9, ERODE_DRAIN = 0.8;
