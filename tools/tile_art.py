@@ -102,7 +102,7 @@ class Scene:
             if self.frost:
                 colour = frosted(colour, normal, self.frost)
             rgb = shade(colour, normal, shine)
-        self.faces.append(([self.turn(p) for p in points], rgb))
+        self.faces.append(([self.turn(p) for p in points], rgb, normal[2]))
 
     def poly(self, points, colour, outward, shine=0.0, emit=False):
         """A flat polygon; its normal from its points, on the side of outward."""
@@ -156,11 +156,13 @@ class Scene:
         self.face([at(2 * math.pi * i / segments, 0) for i in ring], cap or colour, tuple(-c for c in d), shine, emit)
 
     def render(self):
-        """The faces in a depth buffer: an RGBA image of the big canvas."""
+        """The faces in a depth buffer: an RGBA image of the big canvas. Which way each pixel's face looks up is kept in
+        self.up (the normal's z, NaN where nothing is), for the finish."""
         size = (W * SS, H * SS)
         depth = np.full((size[1], size[0]), -1e9, dtype=np.float64)
         colour = np.zeros((size[1], size[0], 4), dtype=np.uint8)
-        for points, rgb in self.faces:
+        self.up = np.full((size[1], size[0]), np.nan, dtype=np.float32)
+        for points, rgb, up in self.faces:
             screen = [project(*p) for p in points]
             xs, ys = [s[0] for s in screen], [s[1] for s in screen]
             x0, y0 = max(0, int(math.floor(min(xs)))), max(0, int(math.floor(min(ys))))
@@ -182,6 +184,7 @@ class Scene:
             nearer = m & (d > region)
             region[nearer] = d[nearer]
             colour[y0:y1 + 1, x0:x1 + 1][nearer] = rgb + (255,)
+            self.up[y0:y1 + 1, x0:x1 + 1][nearer] = up
         return Image.fromarray(colour, 'RGBA')
 
 
@@ -203,7 +206,7 @@ def compose(scene, ground=None, over=None, seed=1, glows=None):
     if over:
         over(big)
     small = big.convert('RGBa').resize((W, H), Image.LANCZOS).convert('RGBA')
-    small = finish(small, solid.getchannel('A').resize((W, H), Image.LANCZOS), seed)
+    small = finish(small, solid.getchannel('A').resize((W, H), Image.LANCZOS), seed, facing_up(scene.up))
     if glows:
         small = glow(small, scene, glows)
     return trim_faint(small)
@@ -223,25 +226,47 @@ def trim_faint(image):
     return Image.fromarray(a, 'RGBA')
 
 
-def finish(image, solid, seed):
-    """A little grain, and a darker rim where a thing meets the air, as the game's tiles have."""
-    rnd = random.Random(seed)
-    px = image.load()
-    inner = solid.filter(ImageFilter.MinFilter(3)).load()
-    sp = solid.load()
-    for y in range(image.height):
-        for x in range(image.width):
-            r, g, b, a = px[x, y]
-            if a == 0 or sp[x, y] < 40:
-                continue
-            # a grain, blotches of wear a few pixels across, and grime gathering toward the floor
-            n = 1 + (rnd.random() - 0.5) * 0.09
-            n *= 1 + 0.045 * math.sin(x * 0.41 + y * 0.17 + seed) * math.sin(y * 0.37 - x * 0.23 + seed * 1.7)
-            n *= 1 - 0.1 * min(1, max(0, (y - 150) / 80))
-            if inner[x, y] < 128:
-                n *= 0.7
-            px[x, y] = (min(255, int(r * n)), min(255, int(g * n)), min(255, int(b * n)), a)
-    return image
+def facing_up(up):
+    """How much each pixel of the tile looks up (the big canvas's normals averaged over the pixel; -1 where nothing is)."""
+    filled = np.where(np.isnan(up), 0.0, up).reshape(H, SS, W, SS)
+    count = (~np.isnan(up)).reshape(H, SS, W, SS).sum(axis=(1, 3))
+    return np.where(count > 0, filled.sum(axis=(1, 3)) / np.maximum(count, 1), -1.0)
+
+
+def smooth_noise(rnd, sigma_x, sigma_y):
+    """A field of noise, -1 to 1, blurred sigma_x across and sigma_y down (pixels)."""
+    field = Image.fromarray((rnd.rand(H, W) * 255).astype(np.uint8), 'L')
+    field = np.asarray(field.resize((max(1, int(W / sigma_x)), max(1, int(H / sigma_y))), Image.BILINEAR)
+                       .resize((W, H), Image.BICUBIC)).astype(np.float64)
+    field -= field.mean()
+    return field / max(1e-6, np.abs(field).max())
+
+
+def finish(image, solid, seed, up=None):
+    """The game's tiles are painted, not rendered: broad blotches of wear rather than a grain, streaks of grime running
+    down their sides and gathering toward the floor, a darker rim where a thing meets the air, and a light edge where a
+    top meets a side."""
+    a = np.asarray(image).astype(np.float64)
+    rgb, alpha = a[..., :3], a[..., 3]
+    sp = np.asarray(solid).astype(np.float64)
+    inner = np.asarray(solid.filter(ImageFilter.MinFilter(3))).astype(np.float64)
+    rnd = np.random.RandomState(seed)
+    if up is None:
+        up = np.where(sp > 40, 0.0, -1.0)
+    n = 1 + (rnd.rand(H, W) - 0.5) * 0.02
+    n *= 1 + 0.05 * smooth_noise(rnd, 6, 6)
+    side = (up > -0.5) & (up < 0.5)
+    streaks = np.maximum(0, smooth_noise(rnd, 1.5, 14))
+    n *= np.where(side, 1 - 0.09 * streaks, 1)
+    rows = np.arange(H)[:, None]
+    n *= 1 - 0.1 * np.clip((rows - 150) / 80, 0, 1)
+    n *= np.where(inner < 128, 0.72, 1)
+    top = up > 0.8
+    below = np.roll(side & (sp > 200), -1, axis=0)
+    n *= np.where(top & below & (sp > 200), 1.2, 1)
+    keep = (alpha > 0) & (sp >= 40)
+    a[..., :3] = np.where(keep[..., None], np.clip(rgb * n[..., None], 0, 255), rgb)
+    return Image.fromarray(a.astype(np.uint8), 'RGBA')
 
 
 def glow(image, scene, glows):
@@ -261,8 +286,8 @@ def glow(image, scene, glows):
         halo = np.exp(-d2 * 2.2)[..., None]
         core = np.exp(-d2 * 30)[..., None]
         c = np.array(colour[:3]) / 255
-        premultiplied += (halo * c * 0.7 + core * (0.55 + 0.45 * c)) * alpha
-        haze = halo * 0.3
+        premultiplied += (halo * c * 0.4 + core * (0.55 + 0.45 * c)) * alpha
+        haze = halo * 0.15
         air += haze
         air_colour += haze * c
     # The haze in the air takes the colours of the lamps it comes from.
@@ -605,9 +630,10 @@ def booster(turns, look='stopped'):
 # The utility panel (the breaker box): a floor-standing console in grey sheet steel. Its looks: off (every lamp dark),
 # on (the green and amber power lamps lit, the meter up), tripped (the red lamp lit, the main breaker's handle fallen
 # to its middle, the meter down) and tripped with the red lamp dark: the client turns a tripped box between the two.
-HOUSING = (140, 146, 148)
-HOUSING_DARK = (104, 109, 112)
-DOOR = (150, 156, 158)
+HOUSING = (116, 122, 118)
+HOUSING_DARK = (84, 89, 86)
+DOOR = (124, 130, 126)
+BOX_TOP = (150, 154, 148)  # the lid's top: the lightest face of the box, as the game's furniture has it
 TRIM = (66, 69, 72)
 PLINTH = (44, 46, 48)
 MODULE = (196, 194, 186)
@@ -645,8 +671,8 @@ def label(s, x0, x1, y, z0, z1, lines):
 
 def louvres(s, x0, x1, y, z, rows, out=0.01):
     for i in range(rows):
-        lz = z + i * 0.03
-        s.box(x0, min(y, y + out), lz, x1, max(y, y + out), lz + 0.012, HOUSING_DARK)
+        lz = z + i * 0.045
+        s.box(x0, min(y, y + out), lz, x1, max(y, y + out), lz + 0.02, HOUSING_DARK)
 
 
 def side_louvres(s, x0, x1, y0, y1, z, rows):
@@ -680,20 +706,16 @@ def feed(s, x, yb):
 
 
 def timer_dial(s, x, y, z, r):
-    """A time switch's dial on a front at y: its bezel, the face with the day's 24 pins round it (the hours it runs
-    pushed out, red), the knob, and the mark at the top that says the hour now."""
+    """A time switch's dial on a front at y: its bezel, the face with the day's pins round it (two hours each, the
+    hours it runs pushed out, red), the knob, and the mark at the top that says the hour now."""
     s.tube((x, y, z), (x, y + 0.014, z), r * 1.14, TRIM, shine=0.4, segments=48)
     s.tube((x, y + 0.014, z), (x, y + 0.018, z), r, DIAL, segments=48)
-    for i in range(24):
-        a = math.pi / 2 - 2 * math.pi * i / 24
-        px, pz = x + r * 0.84 * math.cos(a), z + r * 0.84 * math.sin(a)
-        out = 7 <= i < 16
-        s.box(px - 0.005, y + 0.018, pz - 0.005, px + 0.005, y + (0.03 if out else 0.021), pz + 0.005,
+    for i in range(12):
+        a = math.pi / 2 - 2 * math.pi * i / 12
+        px, pz = x + r * 0.8 * math.cos(a), z + r * 0.8 * math.sin(a)
+        out = 4 <= i < 8
+        s.box(px - 0.008, y + 0.018, pz - 0.008, px + 0.008, y + (0.032 if out else 0.022), pz + 0.008,
               (196, 56, 40) if out else (96, 96, 98), shine=0.3)
-    for i in range(0, 24, 6):
-        a = math.pi / 2 - 2 * math.pi * i / 24
-        s.box(x + r * 0.5 * math.cos(a) - 0.004, y + 0.018, z + r * 0.5 * math.sin(a) - 0.004,
-              x + r * 0.5 * math.cos(a) + 0.004, y + 0.02, z + r * 0.5 * math.sin(a) + 0.004, (40, 40, 40))
     s.tube((x, y + 0.018, z), (x, y + 0.034, z), r * 0.26, (40, 40, 42), cap=(60, 60, 62), shine=0.4, segments=24)
     s.poly([(x - 0.012, y + 0.016, z + r * 1.14 + 0.002), (x + 0.012, y + 0.016, z + r * 1.14 + 0.002),
             (x, y + 0.016, z + r * 0.98)], (200, 50, 40), (0, 1, 0))
@@ -705,7 +727,7 @@ def plain_box(s, glows, look, roof):
     x0, x1, yb, yf = FOOT[1]
     zt = 0.66
     s.box(x0, yb, 0.04, x1, yf, zt, HOUSING, shine=0.15)
-    s.box(x0 - 0.006, yb - 0.006, zt, x1 + 0.006, yf + 0.006, zt + 0.012, TRIM, shine=0.3)
+    s.box(x0 - 0.006, yb - 0.006, zt, x1 + 0.006, yf + 0.006, zt + 0.012, HOUSING_DARK, top=BOX_TOP, shine=0.2)
     f = yf + 0.008
     s.box(x0 + 0.025, yf, 0.07, x1 - 0.025, f, zt - 0.025, DOOR, shine=0.2)
     label(s, 0.37, 0.63, f, 0.52, 0.6, (0.8, 0.55, 0.65))
@@ -727,28 +749,25 @@ def breaker_box(s, glows, look, roof, timer=False):
     x0, x1, yb, yf = FOOT[3 if timer else 2]
     zt = 0.76
     s.box(x0, yb, 0.04, x1, yf, zt, HOUSING, shine=0.15)
-    s.box(x0 - 0.006, yb - 0.006, zt, x1 + 0.006, yf + 0.006, zt + 0.012, TRIM, shine=0.3)
+    s.box(x0 - 0.006, yb - 0.006, zt, x1 + 0.006, yf + 0.006, zt + 0.012, HOUSING_DARK, top=BOX_TOP, shine=0.2)
     f = yf + 0.008
     s.box(x0 + 0.03, yf, 0.07, x1 - 0.03, f, zt - 0.03, DOOR, shine=0.2)
     tripped = look.startswith('tripped')
-    s.box(0.26, f, 0.44, 0.68, f + 0.005, 0.62, (36, 38, 40))
-    for i in range(7):
-        bx = 0.272 + i * 0.058
-        s.box(bx, f + 0.005, 0.46, bx + 0.046, f + 0.02, 0.6, MODULE, shine=0.2)
-        tz = 0.52 if tripped and i == 4 else 0.55
-        s.box(bx + 0.015, f + 0.02, tz, bx + 0.031, f + 0.04, tz + 0.035, TOGGLE)
-    s.box(0.255, f, 0.62, 0.685, f + 0.003, 0.628, TRIM)
-    label(s, 0.26, 0.58, f, 0.645, 0.7, (0.85, 0.6, 0.75))
-    warning(s, 0.65, f, 0.645, 0.045)
-    s.box(0.235, f, 0.34, 0.25, f + 0.025, 0.42, (52, 54, 56), shine=0.5)
+    s.box(0.27, f, 0.44, 0.67, f + 0.005, 0.625, (36, 38, 40))
+    for i in range(4):
+        bx = 0.283 + i * 0.0935
+        s.box(bx, f + 0.005, 0.455, bx + 0.08, f + 0.022, 0.61, MODULE, shine=0.2)
+        tz = 0.495 if tripped and i == 2 else 0.535
+        s.box(bx + 0.025, f + 0.022, tz, bx + 0.055, f + 0.048, tz + 0.045, TOGGLE)
+    label(s, 0.27, 0.55, f, 0.645, 0.7, (0.8, 0.55))
+    warning(s, 0.63, f, 0.645, 0.045)
+    s.box(0.23, f, 0.32, 0.252, f + 0.03, 0.44, (52, 54, 56), shine=0.5)
     hinges(s, x1 - 0.04, f, (0.12, 0.62))
     if timer:
-        timer_dial(s, 0.35, f, 0.25, 0.085)
-        label(s, 0.3, 0.4, f, 0.105, 0.135, (0.7,))
-        louvres(s, 0.5, 0.72, f, 0.12, 4)
+        timer_dial(s, 0.37, f, 0.25, 0.1)
+        louvres(s, 0.53, 0.72, f, 0.13, 3)
     else:
-        louvres(s, 0.3, 0.7, f, 0.12, 4)
-    side_louvres(s, x0, x1, 0.42, 0.58, 0.52, 3)
+        louvres(s, 0.32, 0.68, f, 0.13, 3)
     lever(s, x1, 0.5, 0.46, look, 0.15)
     colours = ('green', 'amber', 'red') if timer else ('green', 'red')
     for i, colour in enumerate(colours):
@@ -772,22 +791,22 @@ def console(s, glows, look, roof):
     s.box(x0, yb, 0.04, x1, yf, zt, HOUSING, shine=0.15)
     # The desk slopes up from the front to the meter bridge.
     slope = unit((0, zd - zt, yf - yd))
-    s.poly([(x0, yf, zt), (x1, yf, zt), (x1, yd, zd), (x0, yd, zd)], HOUSING_DARK, slope, shine=0.15)
+    s.poly([(x0, yf, zt), (x1, yf, zt), (x1, yd, zd), (x0, yd, zd)], HOUSING, slope, shine=0.15)
     s.poly([(x1, yf, zt), (x1, yd, zt), (x1, yd, zd)], HOUSING, (1, 0, 0), shine=0.15)
     s.poly([(x0, yf, zt), (x0, yd, zt), (x0, yd, zd)], HOUSING, (-1, 0, 0), shine=0.15)
     s.box(x0, yb, zt, x1, yd, zb, HOUSING, shine=0.15)
-    s.box(x0 - 0.008, yb - 0.008, zb, x1 + 0.008, yd + 0.008, zb + 0.016, TRIM, shine=0.3)
+    s.box(x0 - 0.008, yb - 0.008, zb, x1 + 0.008, yd + 0.008, zb + 0.016, HOUSING_DARK, top=BOX_TOP, shine=0.2)
     s.box(x0 - 0.008, yf - 0.012, zt - 0.012, x1 + 0.008, yf + 0.006, zt + 0.004, TRIM, shine=0.3)
 
     # The door, a little proud of the front, and what is on it.
     f = yf + 0.008
     s.box(x0 + 0.03, yf, 0.07, x1 - 0.03, f, zt - 0.03, DOOR, shine=0.2)
-    # The breakers behind their window: a dark recess, six modules with their toggles up.
+    # The breakers behind their window: a dark recess, four modules with their toggles up.
     s.box(0.24, f, 0.32, 0.6, f + 0.005, 0.46, (36, 38, 40))
-    for i in range(6):
-        bx = 0.252 + i * 0.058
-        s.box(bx, f + 0.005, 0.335, bx + 0.046, f + 0.02, 0.445, MODULE, shine=0.2)
-        s.box(bx + 0.015, f + 0.02, 0.395, bx + 0.031, f + 0.04, 0.43, TOGGLE)
+    for i in range(4):
+        bx = 0.252 + i * 0.087
+        s.box(bx, f + 0.005, 0.335, bx + 0.075, f + 0.022, 0.445, MODULE, shine=0.2)
+        s.box(bx + 0.024, f + 0.022, 0.385, bx + 0.051, f + 0.046, 0.425, TOGGLE)
     # The main breaker: its body, and its handle up, or fallen to the middle when it tripped.
     s.box(0.645, f, 0.3, 0.775, f + 0.03, 0.48, (58, 60, 62), shine=0.25)
     s.box(0.665, f + 0.03, 0.315, 0.755, f + 0.034, 0.465, (30, 31, 33))
@@ -888,7 +907,7 @@ def panel(turns, look, tier, outdoor):
     roof = ROOF if outdoor else 0.0
     rx0, rx1, ry0, ry1, rz = TIER_BODY[tier](s, glows, look, roof)
     if outdoor:
-        s.box(rx0 - 0.025, ry0 - 0.03, rz, rx1 + 0.025, ry1 + 0.035, rz + roof, HOUSING_DARK, shine=0.25)
+        s.box(rx0 - 0.025, ry0 - 0.03, rz, rx1 + 0.025, ry1 + 0.035, rz + roof, HOUSING_DARK, top=BOX_TOP, shine=0.25)
     rx, ry = (x1 - x0) / 2 + 0.07, (yf - yb) / 2 + 0.07
     if turns % 2:
         rx, ry = ry, rx

@@ -14,10 +14,11 @@ local BU = BuildingUtilities
 local Lights = {}
 BU.Lights = Lights
 
-local GREEN = { 0.35, 0.65, 0.30, 2 }
-local RED = { 0.85, 0.18, 0.12, 2 }
-local AMBER = { 0.75, 0.50, 0.12, 2 }
-local RACK = { 0.25, 0.50, 0.75, 2 }
+-- An indicator lamp's glow: faint, on its own square only, so the thing shows in the dark without colouring the room.
+local GREEN = { 0.20, 0.34, 0.20, 1 }
+local RED = { 0.40, 0.14, 0.12, 1 }
+local AMBER = { 0.38, 0.28, 0.12, 1 }
+local RACK = { 0.16, 0.26, 0.38, 1 }
 
 -- The light of each sprite that has one, worked out once the looks are defined (the first time it is asked).
 local bySprite
