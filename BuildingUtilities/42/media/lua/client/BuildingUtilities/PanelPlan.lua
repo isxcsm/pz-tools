@@ -137,6 +137,14 @@ local function dotColour(device, supplied)
     return colour[1], colour[2], colour[3]
 end
 
+-- A relay's mark on its square: a dark hole in the middle, a hub the lines meet at (a stroke down the middle read as
+-- the digit 1). The plan and the legend draw it alike.
+local function relayMark(plan, x, y, size, alpha)
+    local hole = math.max(3, math.floor(size / 3))
+    local at = math.floor((size - hole) / 2)
+    plan:drawRect(x + at, y + at, hole, hole, 0.85 * alpha, 0.1, 0.08, 0.06)
+end
+
 -- What the legend lists for a utility, or for the zones: a colour, dot or square, and its text. The relays and the
 -- lines only where the data has them.
 local function legendEntries(utility, zones, ranges, data)
@@ -159,7 +167,10 @@ local function legendEntries(utility, zones, ranges, data)
     end
     add("box", true)
     if not zones then
-        if #(data.relays or {}) > 0 then add(utility == "water" and "hydrant" or "junction", true) end
+        if #(data.relays or {}) > 0 then
+            add(utility == "water" and "hydrant" or "junction", true)
+            result[#result].relay = true
+        end
         local live, dead = false, false
         for _, line in ipairs(data.lines or {}) do
             if line.live then live = true else dead = true end
@@ -637,7 +648,7 @@ function ISBUPlan:layoutThings(sx, sy, scale)
                 key = producer.key }
         end
     end
-    -- The relays: a square in their kind's colour (grey while they supply nothing), a post mark on it.
+    -- The relays: a square in their kind's colour (grey while they supply nothing), a hole in its middle.
     for _, relay in ipairs(data.relays or {}) do
         if relay.z == self.floor then
             local colour = relay.cut and COLOURS.off or COLOURS[relay.kind]
@@ -920,7 +931,8 @@ function ISBUPlan:drawLegend(now, mx, my, px)
             if entry.square == "line" then
                 self:drawRect(entry.x, middle, 10, 1, alpha, entry.r, entry.g, entry.b)
             elseif entry.square then
-                self:drawRect(entry.x, middle - 4, 8, 8, alpha, entry.r, entry.g, entry.b)
+                self:drawRect(entry.x, middle - 4, 9, 9, alpha, entry.r, entry.g, entry.b)
+                if entry.relay then relayMark(self, entry.x, middle - 4, 9, alpha) end
             else
                 self:drawRect(entry.x + 1, middle - DOT / 2, DOT, DOT, alpha, entry.r, entry.g, entry.b)
             end
@@ -1037,8 +1049,7 @@ function ISBUPlan:render()
         self:drawRect(square.x - 1, square.y - 1, size + 2, size + 2, 0.9, 0.02, 0.03, 0.05)
         self:drawRect(square.x, square.y, size, size, 1, square.r, square.g, square.b)
         self:drawRect(square.x, square.y, size, px, 0.45, 1, 1, 1)
-        -- a relay's post: a dark stroke down its middle
-        if square.relay then self:drawRect(square.x + math.floor(size / 2) - 1, square.y + 1, 2, size - 2, 0.8, 0.1, 0.08, 0.06) end
+        if square.relay then relayMark(self, square.x, square.y, size, 1) end
         if square.ring then
             self:drawRectBorder(square.x - 3, square.y - 3, size + 6, size + 6, 0.9,
                 math.min(1, square.r + 0.3), math.min(1, square.g + 0.3), math.min(1, square.b + 0.3))
