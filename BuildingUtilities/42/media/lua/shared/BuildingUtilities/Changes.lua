@@ -202,23 +202,28 @@ local function forgetGone(panel)
 end
 
 -- A panel or unit whose object is gone from its loaded square (destroyed, or taken by other means) is removed too;
--- so are the panels' settings for devices that are gone.
-function Changes.checkObjects()
-    for _, panel in ipairs(Store.list()) do
+-- so are the panels' settings for devices that are gone. Of the panels and units given (those near the players,
+-- BU.Nearby: only squares about a player are loaded), every one when none are.
+function Changes.checkObjects(panels, units)
+    panels, units = panels or Store.list(), units or Store.unitList()
+    local kept = {}
+    for _, panel in ipairs(panels) do
         local square = getCell():getGridSquare(panel.x, panel.y, panel.z)
         if square and not Panels.object(panel) then
             BU.log("the box of", panel.id, "is gone")
             Changes.remove(panel)
+        else
+            kept[#kept + 1] = panel
         end
     end
-    for _, unit in ipairs(Store.unitList()) do
+    for _, unit in ipairs(units) do
         local square = getCell():getGridSquare(unit.x, unit.y, unit.z)
-        if square and not Units.object(unit) then
+        if square and Store.unit(unit.id) and not Units.object(unit) then
             BU.log("unit", unit.id, "is gone")
             Changes.removeUnit(unit)
         end
     end
-    for _, panel in ipairs(Store.list()) do forgetGone(panel) end
+    for _, panel in ipairs(kept) do forgetGone(panel) end
 end
 
 -- Units.
@@ -451,7 +456,7 @@ function Changes.disconnectUnit(unit)
 end
 
 function Changes.clearSnow(unit)
-    unit.snow = nil
+    unit.snow, unit.snowAt = nil, BU.Energy.minute()
     Sync.changed(unit.panel)
 end
 
@@ -733,21 +738,32 @@ function Changes.setSchedule(panel, key, schedule)
     Sync.changed(panel.id)
 end
 
+-- A device's timer: off or on as it says now (timers: the box has them). Returns 1 if it turned, else 0.
+local function applyTimer(panel, key, timers)
+    local data = panel.power
+    local off = timers and not BU.scheduleOn(data.schedule[key])
+    if (data.timed[key] == true) == off then return 0 end
+    data.timed[key] = off or nil
+    Networks.apply(panel, "power", key)
+    return 1
+end
+
 -- Devices whose timer turned: off or on as their timer says now (always on below the tier with timers). Returns
--- how many changed.
+-- how many changed. Every ten minutes for every box: a table is made only for devices timed off with no timer left
+-- (they turn on, out of the list being gone through).
 function Changes.applyTimers(panel)
     local data, changed = panel.power, 0
     local timers = (panel.tier or 1) >= BU.TIMER_TIER
-    local keys = {}
-    for key in pairs(data.schedule) do keys[key] = true end
-    for key in pairs(data.timed) do keys[key] = true end
-    for key in pairs(keys) do
-        local off = timers and not BU.scheduleOn(data.schedule[key])
-        if (data.timed[key] == true) ~= off then
-            data.timed[key] = off or nil
-            Networks.apply(panel, "power", key)
-            changed = changed + 1
+    for key in pairs(data.schedule) do changed = changed + applyTimer(panel, key, timers) end
+    local left = nil
+    for key in pairs(data.timed) do
+        if data.schedule[key] == nil then
+            left = left or {}
+            left[#left + 1] = key
         end
+    end
+    if left then
+        for _, key in ipairs(left) do changed = changed + applyTimer(panel, key, timers) end
     end
     if changed > 0 then Sync.changed(panel.id) end
     return changed
@@ -768,6 +784,8 @@ function Changes.applyFeatures(defined)
     local key = BU.featureKey()
     if key == appliedFeatures then return false end
     appliedFeatures = key
+    -- What is worked out of the units that work (Units.working) goes with the features.
+    Store.linksChanged()
     if defined then return false end
     BU.log("features on:", key ~= "" and key or "none")
     Networks.applyFeatures()

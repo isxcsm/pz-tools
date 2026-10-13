@@ -14,9 +14,12 @@ local function utilityOf(id) return tostring(id):match("^bu%-p%d+%-(%a+)") end
 
 -- Calls a function of PZExtAPI.networks with this mod's handle first, on the network id. Without the API it does
 -- nothing; a utility turned off in the sandbox (BU.enabled) has no networks, and nothing is asked of them but to go.
+-- How many changes this mod asked of the networks (stateOf keeps answers between two).
+local changes = 0
 local function change(name, id, ...)
     local api = BU.api()
     if not api then return nil end
+    changes = changes + 1
     if name ~= "remove" and not BU.enabled(utilityOf(id)) then return nil end
     local ok, result = pcall(api.networks[name], BU.handle(), id, ...)
     if not ok then BU.log("networks." .. name .. " failed:", result); return nil end
@@ -187,7 +190,7 @@ function Networks.waterPolicy() return waterPolicy end
 -- Defines a water network. A game whose API cannot take water networks refuses it (an API that predates hooks()
 -- does not tell before): water is then off for this world (BU.waterAvailable), and nothing else is tried.
 local function defineWaterNetwork(id)
-    purified[id] = nil
+    purified[id], changes = nil, changes + 1
     local define = BU.api().networks.define
     local ok, failure = pcall(define, BU.handle(), id, "water", waterPolicy)
     if not ok and waterPolicy ~= BU.POLICY.waterFallback and tostring(failure):find("policy for water", 1, true) then
@@ -415,10 +418,21 @@ function Networks.apply(panel, utility, key)
     applyRule(powerId(panel), Networks.rule(panel, utility, key), key)
 end
 
--- A network's state; nil for a utility that is off (BU.enabled).
+-- A network's state; nil for a utility that is off (BU.enabled). Kept while the clock reads the same millisecond and
+-- this mod changed no network (changes): a minute's work asks for the same network many times, and each answer is a
+-- table the API makes.
+local stateKept, stateAt, stateChanges = {}, nil, -1
 local function stateOf(id)
     local api = BU.api()
-    return api and id and BU.enabled(utilityOf(id)) and api.networks.state(id) or nil
+    if not (api and id and BU.enabled(utilityOf(id))) then return nil end
+    local now = getTimestampMs()
+    if stateAt ~= now or stateChanges ~= changes then stateKept, stateAt, stateChanges = {}, now, changes end
+    local kept = stateKept[id]
+    if kept == nil then
+        kept = api.networks.state(id) or false
+        stateKept[id] = kept
+    end
+    return kept or nil
 end
 
 -- The water calls below work on the networks as last defined (Networks.waterLayout). Without water (off, or not in
@@ -450,6 +464,7 @@ function Networks.drawFrom(panel, ids, litres)
     if not waterOn() or not api then return drawn, mix end
     for _, id in ipairs(ids) do
         if litres - drawn <= 1e-6 then break end
+        changes = changes + 1
         local ok, taken, fluids = pcall(api.networks.draw, BU.handle(), id, litres - drawn)
         if not ok then
             BU.log("networks.draw failed:", taken)
@@ -471,6 +486,7 @@ function Networks.setPipePurify(panel, pipe, on)
         local current = purified[id]
         if current == nil then current = true end
         if network.kind == "U" and network.pipe == pipe and current ~= on then
+            changes = changes + 1
             local ok, failure = pcall(BU.api().networks.setPurify, BU.handle(), id, on)
             if not ok and not on then BU.hookFault("purify", failure); return end
             if ok then purified[id] = on else BU.log("networks.setPurify failed:", failure) end

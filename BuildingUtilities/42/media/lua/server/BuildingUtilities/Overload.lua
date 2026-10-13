@@ -1,14 +1,14 @@
 -- Overload, on the server: a box whose power network draws more than its limit (Panels.limit) drains its breaker's
 -- gauge, faster the more it is over, and trips it as the gauge empties; under the limit, and while tripped, the gauge
--- fills again. Server.lua checks each box every minute, over the hours since the last, and as its network changes (no
--- time: only what is over at once).
+-- fills again. Server.lua checks each box as its minute's work runs, over the hours since the last, and as its network
+-- changes (no time: only what is over at once). bank: its bank as the minute's run left it (Energy.bank), when known.
 require "BuildingUtilities/Changes"
 local BU = BuildingUtilities
 local Panels, Networks, Changes = BU.Panels, BU.Networks, BU.Changes
 local Overload = {}
 BU.Overload = Overload
 
-function Overload.check(panel, hours)
+function Overload.check(panel, hours, bank)
     hours = hours or 0
     local gauge = Panels.breaker(panel)
     if not BU.overloadEnabled() then
@@ -22,7 +22,7 @@ function Overload.check(panel, hours)
         return
     end
     local load = math.max(0, state.load)
-    local limit = Panels.limit(panel)
+    local limit = Panels.limit(panel, bank)
     if load <= limit + 1e-6 then
         if gauge < 1 then Changes.setBreaker(panel, cooled) end
         return

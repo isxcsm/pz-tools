@@ -38,9 +38,9 @@ local KEY = "BuildingUtilities"
 -- units = { [id] = unit }: the solar panels, battery racks, pumps, sprinklers and filters this mod put down (BU.Units).
 -- A unit:
 --   id, kind (BU.Units.KINDS), x, y, z (its square), sprite, panel (the panel its line is of, or nil: BU.Links); a
---   solar panel also snow (0 to 1, nil for none); a rack also warmth (as a panel's)
---   and batteries, a record of
---   each car battery in its container (BU.Rack.sync): { id (the item's), type, charge 0 to 1, condition 0 to
+--   solar panel also snow (0 to 1, nil for none, as at snowAt, the minute it was last worked out: Energy.snowOf); a
+--   rack also warmth (as a panel's) and batteries, a record of each car battery in its container (BU.Rack.sync):
+--   { id (the item's), type, charge 0 to 1, condition 0 to
 --   100 } (how often one was reconditioned is the item's own, BU.Rack.REVIVED). A water unit may have pipe (its
 --   inlet's, a pump's outlet's; nil for the first) and a filter or booster pump out (its outlet's pipe, nil for its
 --   inlet's: BU.Water.unitPipes); a pump has fluid ("Water" from a well, "TaintedWater" from a river or lake); a
@@ -50,8 +50,11 @@ local KEY = "BuildingUtilities"
 --   charge).
 -- lines = { [ref] = line }: every line laid, kept apart from the boxes so that one cut stays (BU.Links); nextLine
 -- numbers them in the order they were laid.
--- energyHour: the world age the units were last worked out at (Server). A panel with a bank keeps bankFlow, what
--- went into its batteries per hour at the last minute (out of them when below 0), for its window.
+-- snowLog: the weather's spells for the snow on solar panels; sunLog and sunAt: the daylight and the air by ten minutes,
+-- and the minute last recorded (Energy.weather). A panel keeps ranAt, the world age its
+-- minute's work last ran at (Server: a box far from the players runs now and then); one with a bank bankFlow, what
+-- went into its batteries per hour at its last run (out of them when below 0), for its window; sprinkledAt, the world
+-- age its sprinklers last looked at the crops.
 -- "paid" is { [item type] = count }. On a client in multiplayer this is the server's, received; only the server
 -- changes it (BU.Changes).
 Store.KEY = KEY
@@ -167,10 +170,18 @@ function Store.record(panel, key, args)
 end
 
 -- All panels, in the order they were made.
+-- Every panel in the order they were made; kept while the boxes are the same (Store.linkVersion: a box added or taken
+-- away) and the panels are the same table (a multiplayer client received the server's). A copy is handed out.
+local listToken, listOf, listKept = nil, nil, nil
+
 function Store.list()
+    local panels = Store.panels()
+    if listToken ~= Store.linkVersion() or listOf ~= panels then
+        listKept = Store.inOrder(panels, "p", Store.data().next)
+        listToken, listOf = Store.linkVersion(), panels
+    end
     local result = {}
-    for _, panel in pairs(Store.panels()) do result[#result + 1] = panel end
-    table.sort(result, function(a, b) return tonumber(a.id:sub(2)) < tonumber(b.id:sub(2)) end)
+    for i = 1, #listKept do result[i] = listKept[i] end
     return result
 end
 
@@ -185,17 +196,33 @@ function Store.unit(id) return id and Store.units()[id] or nil end
 -- unit's panel changes (Store.unitsChanged).
 local sorted, sortedOf, byPanel = nil, nil, nil
 
+-- Things numbered as they were made ("u1", "u2" ...; "p1" ...) in that order: by their numbers up to the next one,
+-- with no sort (a save of many thousand units sorted takes seconds in the game's Lua); sorted only if some are not
+-- numbered so.
+local function inOrder(things, prefix, next)
+    local list, count = {}, 0
+    for _ in pairs(things) do count = count + 1 end
+    for number = 1, (next or 1) - 1 do
+        local thing = things[prefix .. number]
+        if thing then list[#list + 1] = thing end
+    end
+    if #list == count then return list end
+    list = {}
+    local order = {}
+    for id, thing in pairs(things) do
+        list[#list + 1] = thing
+        order[thing] = tonumber(tostring(id):sub(2)) or 0
+    end
+    table.sort(list, function(a, b) return order[a] < order[b] end)
+    return list
+end
+Store.inOrder = inOrder
+
 local function sortedUnits()
     local units = Store.units()
     if sorted and sortedOf == units then return sorted end
-    local list, order = {}, {}
-    for id, unit in pairs(units) do
-        list[#list + 1] = unit
-        order[unit] = tonumber(id:sub(2)) or 0
-    end
-    table.sort(list, function(a, b) return order[a] < order[b] end)
-    sorted, sortedOf, byPanel = list, units, nil
-    return list
+    sorted, sortedOf, byPanel = inOrder(units, "u", Store.data().nextUnit), units, nil
+    return sorted
 end
 
 -- A unit added, taken away, or wired to another panel (unit.panel).
@@ -255,7 +282,12 @@ function Store.recordEnergy(panel, made, used, charge)
     if not now or now.hour ~= hour then
         if now and now.n > 0 then
             panel.energyLog = panel.energyLog or {}
-            table.insert(panel.energyLog, { hour = now.hour, made = now.made / now.n, used = now.used / now.n, charge = now.charge })
+            -- A far box is run now and then (Server.lua): the hours between were as the last one.
+            local first = math.max(now.hour, hour - Store.ENERGY_HOURS)
+            for each = first, hour - 1 do
+                table.insert(panel.energyLog, { hour = each, made = now.made / now.n, used = now.used / now.n,
+                    charge = now.charge })
+            end
             while #panel.energyLog > Store.ENERGY_HOURS do table.remove(panel.energyLog, 1) end
         end
         now = { hour = hour, made = 0, used = 0, n = 0 }
@@ -274,6 +306,12 @@ function Store.recordWater(panel, pipe, amount, capacity)
     if last and last.hour == hour then
         last.amount, last.capacity = amount, capacity
     else
+        -- A far box is run now and then (Server.lua): the hours between held what the last one did.
+        if last then
+            for each = math.max(last.hour + 1, hour - Store.ENERGY_HOURS), hour - 1 do
+                log[#log + 1] = { hour = each, amount = last.amount, capacity = last.capacity }
+            end
+        end
         log[#log + 1] = { hour = hour, amount = amount, capacity = capacity }
         while #log > Store.ENERGY_HOURS do table.remove(log, 1) end
     end

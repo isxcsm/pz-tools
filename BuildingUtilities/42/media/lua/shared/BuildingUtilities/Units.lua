@@ -51,15 +51,31 @@ function Units.utility(unit) return definitions[unit.kind].utility end
 -- The units working for a panel: wired to it with a line that supplies (BU.Links), of the kinds that are on
 -- (BU.enabled), not relays (they carry lines, they do no work); of a kind when given. One of a kind that is off, or
 -- whose line is cut, does nothing.
+-- Kept by panel and kind while the lines, the boxes and the units are the same (Store.linkVersion: the features
+-- turned on or off count too, Changes.applyFeatures); the list kept is handed out, not to be changed.
+local workingToken, workingOf = nil, {}
+
 function Units.working(panel, kind)
-    local result = {}
-    if not panel then return result end
-    for _, unit in ipairs(Store.unitList(kind, panel.id)) do
-        if not BU.RELAY_KINDS[unit.kind] and BU.enabled(unit.kind) and BU.Links.live(panel, BU.Links.unitRef(unit)) then
-            result[#result + 1] = unit
-        end
+    if not panel then return {} end
+    local token = Store.linkVersion()
+    if workingToken ~= token then workingToken, workingOf = token, {} end
+    local byKind = workingOf[panel.id]
+    if not byKind then
+        byKind = {}
+        workingOf[panel.id] = byKind
     end
-    return result
+    local key = kind or ""
+    local kept = byKind[key]
+    if not kept then
+        kept = {}
+        for _, unit in ipairs(Store.unitList(kind, panel.id)) do
+            if not BU.RELAY_KINDS[unit.kind] and BU.enabled(unit.kind) and BU.Links.live(panel, BU.Links.unitRef(unit)) then
+                kept[#kept + 1] = unit
+            end
+        end
+        byKind[key] = kept
+    end
+    return kept
 end
 
 -- Those of them of a utility.

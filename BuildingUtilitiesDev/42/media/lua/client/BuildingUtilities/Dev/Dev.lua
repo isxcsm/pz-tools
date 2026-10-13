@@ -221,7 +221,7 @@ end
 -- Snow on the panel's solar panels: 0 to 1, or nil for none.
 function Dev.snow(panel, amount)
     for _, unit in ipairs(Dev.units(panel, "solar")) do
-        if amount then unit.snow = amount else Changes.clearSnow(unit) end
+        if amount then unit.snow, unit.snowAt = amount, BU.Energy.minute() else Changes.clearSnow(unit) end
         BU.Units.show(unit)
     end
     Sync.changed(panel.id)

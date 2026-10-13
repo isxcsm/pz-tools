@@ -72,13 +72,17 @@ function Energy.bank(panel)
     if not BU.enabled("rack") then return nil end
     local racks = BU.Units.working(panel, "rack")
     local bank = { racks = racks, batteries = {}, capacity = 0, energy = 0, weak = 0, output = 0 }
+    -- As Energy.batteryCapacity and Energy.batteryOutput, worked out here at once (a far box's run counts them all).
+    local full, gives = math.max(0, BU.sandbox("BatteryCapacity", 2.0)), math.max(0, BU.sandbox("BatteryOutput", 0.15))
+    local kindOf, shares, outputs = BU.Rack.batteryKind, Energy.KIND_SHARE, Energy.KIND_OUTPUT
     for _, rack in ipairs(racks) do
         for _, battery in ipairs(rack.batteries) do
-            local capacity = Energy.batteryCapacity(battery)
+            local kind, worn = kindOf(battery.type), wornShare(battery)
+            local capacity = full * shares[kind] * worn
             bank.batteries[#bank.batteries + 1] = battery
             bank.capacity = bank.capacity + capacity
             bank.energy = bank.energy + capacity * (battery.charge or 0)
-            bank.output = bank.output + Energy.batteryOutput(battery)
+            bank.output = bank.output + gives * outputs[kind] * worn
             if (battery.condition or 100) < Energy.WEAK then bank.weak = bank.weak + 1 end
         end
     end
@@ -105,9 +109,9 @@ local function setEnergy(bank, energy)
     for _, battery in ipairs(bank.batteries) do battery.charge = bank.charge end
 end
 
--- So much drawn from the bank at its charge now: each battery wears by that share of a full bank.
-local function wear(bank, drawn)
-    local loss = drawn / bank.capacity * Energy.wearAt(bank.charge) * Energy.wearRate()
+-- Each battery of the bank wears by so much condition.
+local function wear(bank, loss)
+    if loss <= 0 then return end
     for _, battery in ipairs(bank.batteries) do battery.condition = math.max(0, (battery.condition or 100) - loss) end
 end
 
@@ -119,48 +123,57 @@ function Energy.overDraw(panel, state, rules, bank)
     return math.max(0, rules.load - BU.Panels.capacity(panel))
 end
 
--- The panel's units over so many hours, as its network is now (state) and by its rules (Energy.rules): the bank
--- takes what the solar panels make over the load while the source carries it, or all of it while another producer
--- does, and gives what they lack down to the floor; while another producer carries the load, it gives what goes over
--- the box's own share (Energy.overDraw) down to empty. Worn batteries
--- drain it (an option). bankFlow is what went in or out an hour: what it took, full at its capacity, or gave, empty at
--- its floor. Returns whether the source can carry the load now (available is whether it could), the bank and the
--- output.
+-- The panel's units over so many hours, as its network is now (state) and by its rules (Energy.rules), in the weather
+-- they had (Energy.weatherSteps: a box far from the players runs now and then): the bank takes what the solar panels
+-- make over the load while the source carries it, or all of it while another producer does, and gives what they lack
+-- down to the floor; while another producer carries the load, it gives what goes over the box's own share
+-- (Energy.overDraw) down to empty. Worn batteries drain it (an option). bankFlow is what went in or out an hour at the
+-- end: what it took, full at its capacity, or gave, empty at its floor. Returns whether the source can carry the load
+-- now (available is whether it could), the bank and the output now.
 function Energy.run(panel, state, hours, available, rules)
     rules = rules or Energy.rules(panel, state)
-    local output = Energy.output(panel)
+    local sun = Energy.sunlight()
+    local output = Energy.output(panel, sun)
     local bank = Energy.bank(panel)
     if not bank then
         panel.bankFlow = nil
         return Energy.canCarry(output, rules.load, available), nil, output
     end
     local carrying = Energy.inUse(state) and state.supplied
-    local flow, floor = 0, rules.floor
-    if carrying then
-        flow = output - rules.load
-    else
-        local over = Energy.overDraw(panel, state, rules, bank)
-        flow = output - over
+    local over, floor = 0, rules.floor
+    if not carrying then
+        over = Energy.overDraw(panel, state, rules, bank)
         if over > 0 then floor = 0 end
     end
-    local energy = bank.energy
-    -- The rate it moves at, limited by its room (or what it has above its floor) over the time; with no time, by
-    -- whether it has any.
-    local rate = 0
-    if flow > 0 then
-        local room = math.max(0, bank.capacity - energy)
-        rate = flow * Energy.efficiency()
-        if hours > 0 then rate = math.min(rate, room / hours) elseif room <= 0 then rate = 0 end
-    elseif flow < 0 then
-        local above = Energy.aboveFloor(bank, floor)
-        rate = flow
-        if hours > 0 then rate = math.max(rate, -above / hours) elseif above <= 0 then rate = 0 end
-        wear(bank, -rate * hours)
+    -- What the solar panels make in full sun (their snow as now).
+    local made = sun > 0 and output / sun or Energy.output(panel, 1)
+    local efficiency, wearRate = Energy.efficiency(), Energy.wearRate()
+    local drain = Energy.weakDrainEnabled() and bank.weak * Energy.WEAK_PER_DAY * bank.capacity / 24 or 0
+    -- Step by step in plain numbers, the batteries set once at the end: energy, the least it is drawn to (its floor
+    -- and what cold locks), and the condition each battery lost (by the share of a full bank drawn, at the charge it
+    -- is drawn at).
+    local capacity, energy, rate, loss = bank.capacity, bank.energy, 0, 0
+    local least = capacity * (bank.cold + floor)
+    local steps, first, firstHours = Energy.weatherSteps(hours)
+    for i = first, #steps do
+        local spell = i == first and firstHours or steps[i][1]
+        local flow = made * steps[i][2] - (carrying and rules.load or over)
+        -- The rate it moves at, limited by its room (or what it has above its floor) over the time; with no time, by
+        -- whether it has any.
+        rate = 0
+        if flow > 0 then
+            local room = math.max(0, capacity - energy)
+            rate = flow * efficiency
+            if spell > 0 then rate = math.min(rate, room / spell) elseif room <= 0 then rate = 0 end
+        elseif flow < 0 then
+            local above = math.max(0, energy - least)
+            rate = flow
+            if spell > 0 then rate = math.max(rate, -above / spell) elseif above <= 0 then rate = 0 end
+            loss = loss - rate * spell / capacity * Energy.wearAt(energy / capacity) * wearRate
+        end
+        energy = math.max(0, math.min(capacity, energy + (rate - drain) * spell))
     end
-    energy = energy + rate * hours
-    if Energy.weakDrainEnabled() then
-        energy = energy - bank.weak * Energy.WEAK_PER_DAY * bank.capacity * hours / 24
-    end
+    wear(bank, loss)
     setEnergy(bank, energy)
     panel.bankFlow = rate
     if Energy.canCarry(output, rules.load, available) then return true, bank, output end

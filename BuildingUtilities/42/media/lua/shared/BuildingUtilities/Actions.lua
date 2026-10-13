@@ -262,7 +262,7 @@ ISBUClearSnow = base("ISBUClearSnow", 120)
 
 function ISBUClearSnow:isValid()
     local unit = Store.unit(self.unitId)
-    return unit ~= nil and (unit.snow or 0) > 0
+    return unit ~= nil and BU.Energy.snowOf(unit) > 0
 end
 
 function ISBUClearSnow:complete()

@@ -20,7 +20,7 @@ for shape, name in pairs(Solar.SPRITES) do SHAPE[name] = shape end
 function Solar.snowOverlay(unit, object)
     local sprite = object:getSprite()
     local shape = sprite and SHAPE[sprite:getName()]
-    local snow = unit.snow or 0
+    local snow = Energy.snowOf(unit)
     if not shape or snow < Energy.SNOW_TRACE then return nil end
     return Solar.SNOW_OVERLAYS[snow >= Solar.HEAVY_SNOW and "heavy" or "light"][shape]
 end
@@ -47,11 +47,12 @@ Units.define("solar", {
     end,
     sync = Solar.show,
     title = function(unit, text)
-        if (unit.snow or 0) < Energy.SNOW_TRACE then return text end
-        return text .. "  " .. getText("IGUI_BU_SolarSnow", BU.percent(unit.snow * 100))
+        local snow = Energy.snowOf(unit)
+        if snow < Energy.SNOW_TRACE then return text end
+        return text .. "  " .. getText("IGUI_BU_SolarSnow", BU.percent(snow * 100))
     end,
     options = function(unit)
-        if (unit.snow or 0) <= 0 then return {} end
+        if Energy.snowOf(unit) <= 0 then return {} end
         return { { text = getText("ContextMenu_BU_ClearSnow"),
             action = function(character, target) return ISBUClearSnow:new(character, target) end } }
     end,

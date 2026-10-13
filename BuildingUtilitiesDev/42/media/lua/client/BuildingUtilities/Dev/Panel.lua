@@ -211,7 +211,7 @@ local function solarPage(page, ui)
         if p then
             local solar = Dev.units(p, "solar")
             local snow = 0
-            for _, unit in ipairs(solar) do snow = math.max(snow, unit.snow or 0) end
+            for _, unit in ipairs(solar) do snow = math.max(snow, BU.Energy.snowOf(unit)) end
             lines[3] = T("So_Panels", ui.num(#solar), ui.num(Energy.output(p), 3), ui.num(snow * 100))
             local bank = Energy.bank(p)
             lines[4] = bank and T("So_BankNow", ui.num(bank.charge * 100), ui.num(bank.capacity, 1), ui.num(bank.usable, 1),

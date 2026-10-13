@@ -6,6 +6,7 @@ require "BuildingUtilities/Changes"
 require "BuildingUtilities/Moveables"
 require "BuildingUtilities/WaterRun"
 require "BuildingUtilities/Overload"
+require "BuildingUtilities/Nearby"
 local BU = BuildingUtilities
 local Store, Panels, Networks, Changes, Sync, Energy = BU.Store, BU.Panels, BU.Networks, BU.Changes, BU.Sync, BU.Energy
 local Overload = BU.Overload
@@ -146,7 +147,7 @@ end
 -- switched on here when it can and the network has no supply. The bank hands the load to a generator at
 -- Energy.HANDOVER, and takes it back from one once it is ready by its rules (Energy.ready: Energy.TAKE_BACK, or the
 -- solar panels with the margin to start); a player may switch to solar earlier (commands.useSource). What the bank
--- and the solar panels came to this minute, by panel, for the energy record: { bank, output }.
+-- and the solar panels came to this minute, by panel, for the energy record and the schedule: { bank, output, rules }.
 local thisMinute = {}
 
 local function checkSource(panel, hours)
@@ -165,7 +166,7 @@ local function checkSource(panel, hours)
     local available = source ~= nil and source.available == true or (lost or held and panel.sourceOn) == true
     local rules = Energy.rules(panel, state)
     local can, bank, output = Energy.run(panel, state, hours, available, rules)
-    thisMinute[panel.id] = { bank = bank, output = output }
+    thisMinute[panel.id] = { bank = bank, output = output, rules = rules }
     local ready = Energy.ready(rules, output, bank)
     if held then
         -- Whether the source can carry the load goes on being told, so that as the network is switched on the API
@@ -189,25 +190,6 @@ local function checkSource(panel, hours)
     panel.sourceOn = (inUse or switchOn) and can or nil
 end
 
--- The units over the time since they were last worked out: snow on the panels, then each panel's source; then each
--- loaded unit whose kind keeps something in step with its object (a rack's batteries: the bank counts those put in
--- from the next minute). Returns the hours: the minute's work goes by them, as the game may skip minutes when time
--- runs fast.
-local function updateUnits()
-    local data = Store.data()
-    local now = getGameTime():getWorldAgeHours()
-    local hours = data.energyHour and math.max(0, math.min(1, now - data.energyHour)) or 0
-    data.energyHour = now
-    if Energy.weather(hours) then Sync.changed(nil) end
-    thisMinute = {}
-    for _, panel in ipairs(Store.list()) do checkSource(panel, hours) end
-    for _, unit in ipairs(Store.unitList()) do
-        local sync = BU.Units.definition(unit.kind).sync
-        local object = sync and BU.Units.object(unit)
-        if object then sync(unit, object) end
-    end
-    return hours
-end
 
 local function onNetworkChange(id, what)
     local panel, utility, pipe, _, _, kind = Networks.owner(id)
@@ -305,60 +287,219 @@ local function checkResumed(panel)
     end
 end
 
--- Each minute, over the hours since the last (none as the units' time starts: the water units wait a minute), after
--- what the sandbox turned on or off (Changes.applyFeatures) and changed of the zones' and the water's floors
--- (Changes.applyShape). Each box first takes the devices of rooms built onto its building into its networks
--- (Changes.syncAttached). Power's checks and records only while it is on.
-local function everyMinute()
-    if not BU.api() then return end
-    Changes.applyFeatures()
-    Changes.applyShape()
-    local hours = updateUnits()
-    local hourEnded = false
-    local power = BU.enabled("power")
-    for _, panel in ipairs(Store.list()) do
-        Changes.syncAttached(panel)
-        if power then
-            Overload.check(panel, hours)
-            checkFuel(panel)
-            checkResumed(panel)
-            hourEnded = recordEnergy(panel) or hourEnded
-            recordStats(panel, hours)
-        end
-        if hours > 0 then BU.WaterRun.machines(panel, hours * 60) end
-        recordWater(panel)
-    end
-    -- The bank and the energy record change every minute; clients get them hourly (alone, the window reads them).
-    if hourEnded and isServer() then ModData.transmit(Store.KEY) end
-end
-
--- Freezing pipes (a risk): a panel's cold or warm hours at its box, counted every ten minutes; past the hours its
--- water freezes or thaws. Without the risk, frozen pipes thaw.
-local function checkFreezing(panel)
+-- Freezing pipes (a risk): a panel's cold or warm hours at its box, counted as its minute's work runs over the hours
+-- since it last ran, in the air they had (Energy.weatherSteps; its box as much warmer than outside as now); past the
+-- hours its water freezes or thaws. Without the risk, frozen pipes thaw.
+local function checkFreezing(panel, hours)
     local water = panel.water
     if not BU.Water.freezeEnabled() then
         water.coldHours, water.warmHours = nil, nil
         if water.frozen then Changes.setFrozen(panel, false) end
         return
     end
-    local temperature = BU.Water.pipeTemperature(panel)
-    local step = 10 / 60
-    water.coldHours = temperature < BU.Water.FREEZE_BELOW and (water.coldHours or 0) + step or nil
-    water.warmHours = temperature > BU.Water.THAW_ABOVE and (water.warmHours or 0) + step or nil
-    if not water.frozen and (water.coldHours or 0) >= BU.Water.FREEZE_HOURS then Changes.setFrozen(panel, true) end
-    if water.frozen and (water.warmHours or 0) >= BU.Water.THAW_HOURS then Changes.setFrozen(panel, false) end
+    local warmth = BU.Water.pipeTemperature(panel) - getClimateManager():getTemperature()
+    local steps, first, firstHours = Energy.weatherSteps(hours)
+    for i = first, #steps do
+        local spell = i == first and firstHours or steps[i][1]
+        local temperature = steps[i][3] + warmth
+        water.coldHours = temperature < BU.Water.FREEZE_BELOW and (water.coldHours or 0) + spell or nil
+        water.warmHours = temperature > BU.Water.THAW_ABOVE and (water.warmHours or 0) + spell or nil
+        if not water.frozen and (water.coldHours or 0) >= BU.Water.FREEZE_HOURS then Changes.setFrozen(panel, true) end
+        if water.frozen and (water.warmHours or 0) >= BU.Water.THAW_HOURS then Changes.setFrozen(panel, false) end
+    end
 end
 
--- Timers turn with dusk and dawn; ten minutes is near enough. Timers only while power is on, freezing while water is.
+-- The minute's work of a box, over the hours since it last ran (BU.Nearby: every minute near a player, now and then
+-- far from them, Server's schedule below): its source and bank, the devices of rooms built onto its building (near
+-- only: they are seen loaded), its breaker, fuel and records while power is on; its water machines, records,
+-- freezing, and every ten minutes or more its sprinklers. Returns whether its energy record's hour ended.
+local function runPanel(panel, hours, near, now)
+    local hourEnded = false
+    checkSource(panel, hours)
+    if near then Changes.syncAttached(panel) end
+    if BU.enabled("power") then
+        local ran = thisMinute[panel.id]
+        Overload.check(panel, hours, ran and (ran.bank or false))
+        checkFuel(panel)
+        checkResumed(panel)
+        hourEnded = recordEnergy(panel)
+        recordStats(panel, hours)
+    end
+    if hours > 0 then BU.WaterRun.machines(panel, hours * 60) end
+    recordWater(panel)
+    if BU.enabled("water") and hours > 0 then checkFreezing(panel, hours) end
+    if now - (panel.sprinkledAt or 0) >= 1 / 6 then
+        panel.sprinkledAt = now
+        BU.WaterRun.sprinklers(panel)
+    end
+    return hourEnded
+end
+
+-- When a far box runs next. Its run works out the time since in the weather it had (Energy.weatherSteps), so it needs
+-- to run only before a rule could turn: COLD_MOST on, sooner when its bank could reach a share its rules turn at
+-- (empty, BANK_START, HANDOVER, TAKE_BACK, full) charged by its solar panels in full sun or drawn by the whole load;
+-- within COLD_MINUTES while its breaker is down from full, or while snow settles or melts on panels the sun turns its
+-- source by; but not before COLD_LEAST. A box whose source the sun turns (no bank to carry the load, or one at its
+-- restart or below) is watched besides: it runs as the daylight passes the sun its solar panels carry the load in
+-- (and in with the margin to start).
+local COLD_MOST, COLD_MINUTES, COLD_LEAST = 360, 60, 10
+local TURNS = { 0, Energy.BANK_START, Energy.HANDOVER, Energy.TAKE_BACK, 1 }
+
+-- The watched boxes by id: { the sun it carries the load in, whether the daylight was at it or over, the same with
+-- the margin }; the daylight they were last looked at in.
+local watched, watchedSun = {}, nil
+
+local function watch(panel, rules, bank, sunny)
+    watched[panel.id] = nil
+    if sunny <= 0 or sunny < rules.load or bank and bank.usable > bank.capacity * rules.restart then return false end
+    local sun = Energy.sunlight()
+    local carries, starts = rules.load / sunny, rules.load * Energy.START_MARGIN / sunny
+    watched[panel.id] = { carries, sun >= carries, starts, sun >= starts }
+    return true
+end
+
+local function coldMinutes(panel)
+    watched[panel.id] = nil
+    if Panels.breaker(panel) < 1 then return COLD_MINUTES end
+    local ran = thisMinute[panel.id]
+    if not ran then return COLD_MOST end
+    local bank, rules = ran.bank, ran.rules
+    local sunny, _, snow = Energy.output(panel, 1)
+    local minutes = COLD_MOST
+    local snowRate = Energy.snowRate()
+    if watch(panel, rules, bank, sunny) and (snowRate > 0 or snowRate < 0 and snow > 0) then minutes = COLD_MINUTES end
+    if not bank or bank.capacity <= 0 then return minutes end
+    local up = sunny * Energy.efficiency()
+    local down = rules.load + bank.weak * Energy.WEAK_PER_DAY * bank.capacity / 24
+    for _, turn in ipairs(TURNS) do
+        local gap = (turn - bank.charge) * bank.capacity
+        local flow = gap > 0 and up or down
+        if math.abs(gap) > 1e-6 and flow > 1e-9 then minutes = math.min(minutes, math.abs(gap) / flow * 60) end
+    end
+    return math.max(COLD_LEAST, math.floor(minutes))
+end
+
+-- The watched boxes the daylight passed the sun of since they were last looked at.
+local function sunTurned(runs, taken)
+    local sun = Energy.sunlight()
+    if sun == watchedSun then return end
+    watchedSun = sun
+    for id, at in pairs(watched) do
+        if not taken[id] and ((sun >= at[1]) ~= at[2] or (sun >= at[3]) ~= at[4]) then
+            local panel = Store.get(id)
+            if panel then
+                runs[#runs + 1] = panel
+                taken[id] = true
+            end
+        end
+    end
+end
+
+-- The schedule: by panel id the minute it runs next (not saved: as the world loads, every box runs within the hour),
+-- and by minute the ids due then (an id whose due minute moved since is passed over); made again for another save.
+local dueAt, wheel, scheduled, lastMinute, scheduledSave = {}, {}, nil, nil, nil
+
+local function schedule(id, minute)
+    dueAt[id] = minute
+    wheel[minute] = wheel[minute] or {}
+    table.insert(wheel[minute], id)
+end
+
+-- Boxes not scheduled yet: spread over the next COLD_MINUTES so that they do not all run at once.
+local function scheduleNew(minute)
+    if scheduledSave ~= Store.data() then
+        dueAt, wheel, scheduled, lastMinute, watched, watchedSun = {}, {}, nil, nil, {}, nil
+        scheduledSave = Store.data()
+    end
+    if scheduled == Store.linkVersion() then return end
+    scheduled = Store.linkVersion()
+    for index, panel in ipairs(Store.list()) do
+        if not dueAt[panel.id] then schedule(panel.id, minute + BU.remainder(index, COLD_MINUTES)) end
+    end
+end
+
+-- Each minute, after what the sandbox turned on or off (Changes.applyFeatures) and changed of the zones' and the
+-- water's floors (Changes.applyShape), and the weather's spell for the snow (Energy.weather): the boxes near a player
+-- run, and the far ones due or woken by the sun. Each runs over the hours since it last ran (at most what the
+-- weather's log keeps; none as the world starts: the water units wait a minute), so a far one catches up as it runs.
+-- Then the units near a player whose kind keeps something in step with its object (a rack's batteries: the bank
+-- counts those put in from the next minute).
+local function everyMinute()
+    if not BU.api() then return end
+    Changes.applyFeatures()
+    Changes.applyShape()
+    Energy.weather()
+    local now = getGameTime():getWorldAgeHours()
+    local minute = Energy.minute()
+    scheduleNew(minute)
+    local players = BU.Nearby.players()
+    local _, near = BU.Nearby.hotPanels(players)
+    local runs, isNear, taken = {}, {}, {}
+    for _, panel in ipairs(near) do
+        runs[#runs + 1] = panel
+        isNear[panel.id], taken[panel.id] = true, true
+    end
+    -- The far boxes due since the last minute; after a jump of time longer than any wait, every one.
+    local from = lastMinute and lastMinute + 1 or minute
+    if minute - from > COLD_MOST then
+        for _, panel in ipairs(Store.list()) do
+            if not taken[panel.id] then
+                runs[#runs + 1] = panel
+                taken[panel.id] = true
+            end
+        end
+        wheel = {}
+    else
+        for each = from, minute do
+            for _, id in ipairs(wheel[each] or {}) do
+                local panel = dueAt[id] == each and not taken[id] and Store.get(id)
+                if panel then
+                    runs[#runs + 1] = panel
+                    taken[id] = true
+                end
+            end
+            wheel[each] = nil
+        end
+    end
+    sunTurned(runs, taken)
+    lastMinute = minute
+    thisMinute = {}
+    local hourEnded = false
+    for _, panel in ipairs(runs) do
+        local hours = panel.ranAt and math.max(0, math.min(Energy.WEATHER_HOURS, now - panel.ranAt)) or 0
+        panel.ranAt = now
+        hourEnded = runPanel(panel, hours, isNear[panel.id], now) or hourEnded
+        if isNear[panel.id] then
+            watched[panel.id] = nil
+            schedule(panel.id, minute + COLD_LEAST)
+        else
+            schedule(panel.id, minute + coldMinutes(panel))
+        end
+    end
+    for _, unit in ipairs(BU.Nearby.units(players)) do
+        local sync = BU.Units.definition(unit.kind).sync
+        local object = sync and BU.Units.object(unit)
+        if object then sync(unit, object) end
+    end
+    -- The bank and the energy record change every minute; clients get them hourly (alone, the window reads them).
+    if hourEnded and isServer() then ModData.transmit(Store.KEY) end
+end
+
+-- Timers turn with dusk and dawn; ten minutes is near enough; only while power is on. They are gone through as night
+-- falls or ends (wasNight); what changes a box's timers otherwise applies them at once (Changes.applyTimers). What is
+-- gone from the squares near the players is let go.
+local wasNight = nil
+
 local function everyTenMinutes()
     if not BU.api() then return end
     Changes.applyFeatures()
-    Changes.checkObjects()
-    local power, water = BU.enabled("power"), BU.enabled("water")
-    for _, panel in ipairs(Store.list()) do
-        if power then Changes.applyTimers(panel) end
-        if water then checkFreezing(panel) end
-        BU.WaterRun.sprinklers(panel)
+    local players = BU.Nearby.players()
+    local _, near = BU.Nearby.hotPanels(players)
+    Changes.checkObjects(near, BU.Nearby.units(players))
+    local night = BU.scheduleOn("night")
+    if BU.enabled("power") and night ~= wasNight then
+        wasNight = night
+        for _, panel in ipairs(Store.list()) do Changes.applyTimers(panel) end
     end
 end
 
