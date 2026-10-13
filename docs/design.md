@@ -2276,6 +2276,12 @@ such pass.
   (`WorldRegionToMetaGrid`, user-defined `BuildingDef`), with touching levels combined into one. A
   player-built room touching or overlapping a map building is discarded, so an extension of an
   existing house belongs to no building.
+- Room and building ids are numbered in the order of the cell's lists (`RoomID.makeID(cell x, cell y,
+  index)`, `BuildingID.makeID`), and each time a player-built building appears, changes or goes, every
+  room and building of that cell is numbered again (`WorldRegionToMetaGrid.recalculateBuildingAndRoomIDs`).
+  The map's own come first in the lists and keep theirs; a player-built room's id changes when a wall of
+  it is mended, and when another player-built building of the cell changes. So a mod that remembers a
+  player-built room remembers one of its squares, not its id, as the networks do.
 - Basements are merged into the building above (`Basements`).
 - Player-built rooms never have grid power (`IsoGridSquare.isNoPower()`).
 - A running generator inside a building makes it toxic (`IsoGenerator.update()` →
