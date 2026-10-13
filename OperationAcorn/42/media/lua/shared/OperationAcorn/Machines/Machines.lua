@@ -1642,6 +1642,18 @@ function Machines.setOn(object, on)
     if isServer() then object:transmitModData() end
 end
 
+-- Building Utilities (another mod) shows which way a machine's switch is among its box's devices: a machine that works
+-- things has one, the same as its window's. Read through the list that mod reads other mods' switches from (its
+-- Switches.lua), whichever loads first; it never throws one.
+BuildingUtilitiesSwitches = BuildingUtilitiesSwitches or {}
+table.insert(BuildingUtilitiesSwitches, {
+    state = function(object)
+        local state = Machines.isMachineObject(object) and Machines.state(object)
+        if not state or not Data.processes(state.kind) then return nil end
+        return state.on == true
+    end,
+})
+
 -- ---------------------------------------------------------------------------------------------------------------------
 -- The hand bench
 

@@ -1690,3 +1690,20 @@ test("an idle machine's step does not walk its in-container again while it holds
     eq(state.idle, false, "something came in: found")
 end)
 
+
+test("Building Utilities reads a working machine's switch through its global list, and only a machine's", function()
+    setup()
+    local obj, state = addMachine("bulkShredder", 10, 10)
+    local hook
+    for _, entry in ipairs(BuildingUtilitiesSwitches or {}) do
+        if entry.state(obj) ~= nil then hook = entry end
+    end
+    truthy(hook, "the machine's entry")
+    eq(hook.state(obj), state.on == true)
+    Machines.setOn(obj, false)
+    eq(hook.state(obj), false, "switched off at the machine")
+    eq(hook.set, nil, "Building Utilities is given no way to throw it")
+    local plain = addMachine("bulkShredder", 12, 10)
+    plain:getModData()[Data.KEY] = nil
+    eq(hook.state(plain), nil, "not a machine: not its switch")
+end)
