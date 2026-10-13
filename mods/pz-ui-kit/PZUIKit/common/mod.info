@@ -1,0 +1,6 @@
+name=PZ UI Kit
+id=PZUIKit
+author=isxcsm
+description=What other mods draw their windows with: one scale for every screen, sharp texts in the PZ Extension API's UI fonts (the game's fonts without it), palettes, hover and click lights, buttons, drop-downs, a yes or no question and rich text. Adds nothing to the game by itself.
+modversion=0.1.0
+versionMin=42.0.0
