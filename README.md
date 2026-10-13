@@ -15,6 +15,11 @@ A Project Zomboid (Build 42) Lua mod that other mods draw their windows with. It
   tooltip that follows the mouse), `PZUISubTabs` (with a tooltip per tab), and lists of the game's
   `ISScrollingListBox` with rows drawn in design units (`UI.list`).
 - **Text that fits.** `PZUIKit.Text.wrap`, `fitText` and `cutFor` (shared, so they also run on a server and in tests).
+- **Typed text.** `PZUITypedText`, a rich text panel that types its text a character at a time (by the timings of
+  `PZUIKit.Markup`, the extension API's markup: pauses, speeds, colours) or prints it a row at a time, whole, as a
+  teleprinter does (`PZUIKit.Typing.LINE_STEP`), with a blinking cursor; a click brings it to the furthest point seen.
+  `PZUIKit.Typing` keeps how far a text has been seen and lays a document's marks out (`## ` heads, `· ` bullets,
+  `~ ` dim lines, `> ` the sign-off) for the rich text panel (shared, tested outside the game).
 
 `PZUIKit/42/media/lua/client/PZUIKit/UI.lua` starts with the rules for design units, faces and the scale.
 
