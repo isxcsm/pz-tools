@@ -1,6 +1,7 @@
 -- The bank of a panel's units (BU.Energy): its racks' batteries side by side, what they hold by kind and
--- condition, how they wear, how cold locks part of them, and the source's run over a time: the bank charged by what
--- the solar panels make over the load and drawn when they make too little.
+-- condition, how they wear (faster in heat), how cold and the worst of them hold part of it back, which a box of the
+-- bypass tier leaves out, and the source's run over a time: the bank charged by what the solar panels make over the
+-- load and drawn when they make too little.
 local BU = BuildingUtilities
 local Store = BU.Store
 local Energy = BU.Energy
@@ -8,19 +9,32 @@ local Energy = BU.Energy
 -- A battery's share of the sandbox's capacity by its kind (Rack.batteryKind: standard, heavy-duty, sports). Vanilla
 -- holds them alike; this mod tells them apart.
 Energy.KIND_SHARE = { 1, 1.5, 0.75 }
--- Wear: condition lost per full bank drawn, by the charge it is drawn at; a worn battery (below WEAK) takes so much
--- of the bank a day; cold below 0 degrees locks so much of it per degree, at most COLD_MOST (these two by options).
-Energy.WEAK, Energy.WEAK_PER_DAY = 30, 0.02
+-- Wear: condition lost per full bank drawn, by the charge it is drawn at; above HEAT_FROM degrees at its racks so
+-- much more per degree, at most HEAT_MOST times. Cold below 0 degrees locks so much of the bank per degree, at most
+-- COLD_MOST. Its worst battery holds back DRAG_MOST of it by the condition between its best and its worst (a new one
+-- beside a dead one: the most), so that batteries alike are kept together. Heat, cold and the worst battery by
+-- options. A worn battery is one below WEAK: a box of BYPASS_TIER leaves it out of its bank.
+Energy.WEAK = 30
+Energy.HEAT_FROM, Energy.HEAT_PER_DEGREE, Energy.HEAT_MOST = 30, 0.1, 3
 Energy.COLD_PER_DEGREE, Energy.COLD_MOST = 0.015, 0.3
+Energy.DRAG_MOST = 0.5
+Energy.BYPASS_TIER = 4
 -- The bank starts carrying the load again with this share of it usable, so that an empty bank charging from a weak
 -- sun does not switch the power on and off every minute.
 Energy.BANK_START = 0.10
 
 function Energy.efficiency() return math.max(0, math.min(100, BU.sandbox("ChargeEfficiency", 85))) / 100 end
 function Energy.wearRate() return math.max(0, BU.sandbox("WearRate", 1)) end
--- Cold locking part of the bank, and worn batteries draining it: each a sandbox option, on by default.
+-- Cold locking part of the bank, heat wearing it, its worst battery holding it back: each a sandbox option, on by
+-- default.
 function Energy.coldLockEnabled() return BU.sandbox("BatteryColdLock", true) == true end
-function Energy.weakDrainEnabled() return BU.sandbox("WornBatteryDrain", true) == true end
+function Energy.heatWearEnabled() return BU.sandbox("BatteryHeatWear", true) == true end
+function Energy.dragEnabled() return BU.sandbox("WeakBatteryDrag", true) == true end
+
+-- Whether a box leaves a battery out of its bank: it is of the bypass tier and the battery is worn.
+function Energy.bypassed(panel, record)
+    return panel ~= nil and (panel.tier or 1) >= Energy.BYPASS_TIER and (record.condition or 100) < Energy.WEAK
+end
 
 -- What a battery gives at once by its kind (Rack.batteryKind), a share of BatteryOutput: the sports battery gives
 -- more and holds less (KIND_SHARE), the heavy-duty one holds more.
@@ -51,45 +65,82 @@ function Energy.wearAt(charge)
     return 2 + 4 * (0.2 - math.max(0, charge)) / 0.2
 end
 
--- The share of a bank cold locks at its racks: the coldest air of them (BU.airAt, loaded or not). None without the
--- option.
-function Energy.coldShare(racks)
-    if not Energy.coldLockEnabled() then return 0 end
-    local coldest
+-- The coldest and the hottest air at racks (BU.airAt, loaded or not; outside with none).
+local function rackAir(racks)
+    local coldest, hottest
     for _, rack in ipairs(racks) do
         local temperature = BU.airAt(rack)
         if not coldest or temperature < coldest then coldest = temperature end
+        if not hottest or temperature > hottest then hottest = temperature end
     end
-    coldest = coldest or getClimateManager():getTemperature()
-    if coldest >= 0 then return 0 end
+    if not coldest then
+        coldest = getClimateManager():getTemperature()
+        hottest = coldest
+    end
+    return coldest, hottest
+end
+
+local function coldOf(coldest)
+    if not Energy.coldLockEnabled() or coldest >= 0 then return 0 end
     return math.min(Energy.COLD_MOST, -coldest * Energy.COLD_PER_DEGREE)
 end
 
--- A panel's bank, or nil (no batteries, or racks off: BU.enabled): racks, batteries, capacity and energy
--- (load-hours), charge (0 to 1), weak (how many are worn), cold (the share locked), usable (energy above what cold
--- locks) and output (what its batteries give at once, less what cold locks).
+local function heatOf(hottest)
+    if not Energy.heatWearEnabled() or hottest <= Energy.HEAT_FROM then return 1 end
+    return math.min(Energy.HEAT_MOST, 1 + (hottest - Energy.HEAT_FROM) * Energy.HEAT_PER_DEGREE)
+end
+
+-- The share of a bank cold locks at its racks: by the coldest air of them. None without the option.
+function Energy.coldShare(racks) return coldOf((rackAir(racks))) end
+
+-- How many times faster the batteries at racks wear: by the hottest air of them. 1 without the option.
+function Energy.heatWear(racks)
+    local _, hottest = rackAir(racks)
+    return heatOf(hottest)
+end
+
+-- A panel's bank, or nil (no batteries, or racks off: BU.enabled): racks, batteries (those it counts), bypassed (the
+-- worn ones a box of the bypass tier leaves out: they keep their charge), capacity and energy (load-hours), charge
+-- (0 to 1), weak (how many it counts are worn), cold (the share locked), drag (the share its worst battery holds back,
+-- worst), heat (how many times faster they wear), usable (energy above what cold and the worst battery hold back) and
+-- output (what its batteries give at once, less what cold locks).
 function Energy.bank(panel)
     if not BU.enabled("rack") then return nil end
     local racks = BU.Units.working(panel, "rack")
-    local bank = { racks = racks, batteries = {}, capacity = 0, energy = 0, weak = 0, output = 0 }
+    local bank = { racks = racks, batteries = {}, bypassed = {}, capacity = 0, energy = 0, weak = 0, output = 0 }
+    local bypass = (panel.tier or 1) >= Energy.BYPASS_TIER
+    local best, worst = nil, nil
     -- As Energy.batteryCapacity and Energy.batteryOutput, worked out here at once (a far box's run counts them all).
     local full, gives = math.max(0, BU.sandbox("BatteryCapacity", 2.0)), math.max(0, BU.sandbox("BatteryOutput", 0.15))
     local kindOf, shares, outputs = BU.Rack.batteryKind, Energy.KIND_SHARE, Energy.KIND_OUTPUT
     for _, rack in ipairs(racks) do
         for _, battery in ipairs(rack.batteries) do
-            local kind, worn = kindOf(battery.type), wornShare(battery)
-            local capacity = full * shares[kind] * worn
-            bank.batteries[#bank.batteries + 1] = battery
-            bank.capacity = bank.capacity + capacity
-            bank.energy = bank.energy + capacity * (battery.charge or 0)
-            bank.output = bank.output + gives * outputs[kind] * worn
-            if (battery.condition or 100) < Energy.WEAK then bank.weak = bank.weak + 1 end
+            local condition = battery.condition or 100
+            if bypass and condition < Energy.WEAK then
+                bank.bypassed[#bank.bypassed + 1] = battery
+            else
+                local kind, worn = kindOf(battery.type), wornShare(battery)
+                local capacity = full * shares[kind] * worn
+                bank.batteries[#bank.batteries + 1] = battery
+                bank.capacity = bank.capacity + capacity
+                bank.energy = bank.energy + capacity * (battery.charge or 0)
+                bank.output = bank.output + gives * outputs[kind] * worn
+                if condition < Energy.WEAK then bank.weak = bank.weak + 1 end
+                if not best or condition > (best.condition or 100) then best = battery end
+                if not worst or condition < (worst.condition or 100) then worst = battery end
+            end
         end
     end
     if #bank.batteries == 0 or bank.capacity <= 0 then return nil end
     bank.charge = bank.energy / bank.capacity
-    bank.cold = Energy.coldShare(racks)
-    bank.usable = math.max(0, bank.energy - bank.capacity * bank.cold)
+    local coldest, hottest = rackAir(racks)
+    bank.cold, bank.heat = coldOf(coldest), heatOf(hottest)
+    bank.drag = 0
+    if Energy.dragEnabled() then
+        bank.drag = Energy.DRAG_MOST * math.max(0, (best.condition or 100) - (worst.condition or 100)) / 100
+    end
+    bank.worst = bank.drag > 0 and worst or nil
+    bank.usable = math.max(0, bank.energy - bank.capacity * (bank.cold + bank.drag))
     bank.output = bank.output * (1 - bank.cold)
     return bank
 end
@@ -105,7 +156,7 @@ end
 local function setEnergy(bank, energy)
     bank.energy = math.max(0, math.min(bank.capacity, energy))
     bank.charge = bank.energy / bank.capacity
-    bank.usable = math.max(0, bank.energy - bank.capacity * bank.cold)
+    bank.usable = math.max(0, bank.energy - bank.capacity * (bank.cold + bank.drag))
     for _, battery in ipairs(bank.batteries) do battery.charge = bank.charge end
 end
 
@@ -127,8 +178,8 @@ end
 -- they had (Energy.weatherSteps: a box far from the players runs now and then): the bank takes what the solar panels
 -- make over the load while the source carries it, or all of it while another producer does, and gives what they lack
 -- down to the floor; while another producer carries the load, it gives what goes over the box's own share
--- (Energy.overDraw) down to empty. Worn batteries drain it (an option). bankFlow is what went in or out an hour at the
--- end: what it took, full at its capacity, or gave, empty at its floor. Returns whether the source can carry the load
+-- (Energy.overDraw) down to empty; drawn, its batteries wear (faster in heat). bankFlow is what went in or out an hour
+-- at the end: what it took, full at its capacity, or gave, empty at its floor. Returns whether the source can carry the load
 -- now (available is whether it could), the bank and the output now.
 function Energy.run(panel, state, hours, available, rules)
     rules = rules or Energy.rules(panel, state)
@@ -147,13 +198,12 @@ function Energy.run(panel, state, hours, available, rules)
     end
     -- What the solar panels make in full sun (their snow as now).
     local made = sun > 0 and output / sun or Energy.output(panel, 1)
-    local efficiency, wearRate = Energy.efficiency(), Energy.wearRate()
-    local drain = Energy.weakDrainEnabled() and bank.weak * Energy.WEAK_PER_DAY * bank.capacity / 24 or 0
+    local efficiency, wearRate = Energy.efficiency(), Energy.wearRate() * bank.heat
     -- Step by step in plain numbers, the batteries set once at the end: energy, the least it is drawn to (its floor
-    -- and what cold locks), and the condition each battery lost (by the share of a full bank drawn, at the charge it
+    -- and what cold and the worst battery hold back), and the condition each battery lost (by the share of a full bank drawn, at the charge it
     -- is drawn at).
     local capacity, energy, rate, loss = bank.capacity, bank.energy, 0, 0
-    local least = capacity * (bank.cold + floor)
+    local least = capacity * (bank.cold + bank.drag + floor)
     local steps, first, firstHours = Energy.weatherSteps(hours)
     for i = first, #steps do
         local spell = i == first and firstHours or steps[i][1]
@@ -171,7 +221,7 @@ function Energy.run(panel, state, hours, available, rules)
             if spell > 0 then rate = math.max(rate, -above / spell) elseif above <= 0 then rate = 0 end
             loss = loss - rate * spell / capacity * Energy.wearAt(energy / capacity) * wearRate
         end
-        energy = math.max(0, math.min(capacity, energy + (rate - drain) * spell))
+        energy = math.max(0, math.min(capacity, energy + rate * spell))
     end
     wear(bank, loss)
     setEnergy(bank, energy)

@@ -1,7 +1,8 @@
 -- A battery rack's window, opened at the rack (its world menu): only that rack, to read, not to work. Its status line
--- (charging, drawn, or not wired), its charge large, what it stores, what goes in or out of it now and what its
--- batteries add to its box's limit (BU.Panels.limit); then a line per battery, by what it gives and its condition; at
--- the foot how many it holds and what cold locks. Batteries go in and out through the rack's container, and the rack
+-- (charging, drawn, or not wired), its charge large, what it stores, what goes in or out of it now, what its
+-- batteries add to its box's limit (BU.Panels.limit) and what its box's whole bank is built for; then a line per
+-- battery, by what it gives and its condition (the worst of the bank in red, those its box leaves out marked); at the
+-- foot how many it holds, what cold locks and what the worst battery holds back. Batteries go in and out through the rack's container, and the rack
 -- is wired as a unit, at itself. The window closes once its player is far from the rack, dies or another takes their
 -- place, as a box's does.
 require "TimedActions/ISBaseTimedAction"
@@ -21,27 +22,46 @@ BU.RackWindow = RackWindow
 local open = {}
 
 -- Sizes (design units): the window, the header under the status line, the columns of the list (from its left).
-RackWindow.WIDTH, RackWindow.HEIGHT, RackWindow.HEAD_H = 380, 400, 52
+RackWindow.WIDTH, RackWindow.HEIGHT, RackWindow.HEAD_H = 380, 420, 70
 RackWindow.COLUMNS = { kind = 8, condition = 140, stored = 250, output = 305 }
--- Condition: amber below this, red below the bank's WEAK (the battery drains it).
+-- Condition: amber below this, red below the bank's WEAK (worn) or for the bank's worst battery.
 RackWindow.FAIR = 50
 local SETTLE_MS = 100
 
--- What the window shows of a rack now: its batteries sorted (by output, then condition), what they store and give,
--- its charge, the flow in or out of it (its share of its bank's, panel.bankFlow) and how long that lasts, the share
--- cold locks, and its state for the status line.
+-- What a bank is built for: output (more sports batteries than heavy-duty ones), storage (the other way) or even.
+local function bankBuilt(bank)
+    local sports, heavy = 0, 0
+    for _, record in ipairs(bank.batteries) do
+        local kind = Rack.batteryKind(record.type)
+        if kind == 3 then sports = sports + 1 elseif kind == 2 then heavy = heavy + 1 end
+    end
+    if sports > heavy then return "IGUI_BU_Rack_BankOutput" end
+    if heavy > sports then return "IGUI_BU_Rack_BankStorage" end
+    return "IGUI_BU_Rack_BankEven"
+end
+
+-- What the window shows of a rack now: its batteries sorted (by output, then condition), what they store and give
+-- (those its box leaves out of the bank, Energy.bypassed, not counted), its charge, the flow in or out of it (its
+-- share of its bank's, panel.bankFlow) and how long that lasts, the shares cold locks and the worst battery holds
+-- back, what the bank is built for, and its state for the status line.
 function RackWindow.measure(unit)
     local panel = Store.get(unit.panel)
     local bank = panel and Energy.bank(panel) or nil
     local cold = bank and bank.cold or Energy.coldShare({ unit })
-    local view = { panel = panel, bank = bank, cold = cold, batteries = {}, capacity = 0, energy = 0, output = 0 }
+    local view = { panel = panel, bank = bank, cold = cold, drag = bank and bank.drag or 0, batteries = {},
+        capacity = 0, energy = 0, output = 0 }
+    view.built = bank and bankBuilt(bank) or nil
     for _, record in ipairs(unit.batteries or {}) do
         local capacity, output = Energy.batteryCapacity(record), Energy.batteryOutput(record) * (1 - cold)
+        local bypassed = Energy.bypassed(panel, record)
         view.batteries[#view.batteries + 1] = { record = record, kind = Rack.batteryKind(record.type),
-            capacity = capacity, output = output, condition = record.condition or 100 }
-        view.capacity = view.capacity + capacity
-        view.energy = view.energy + capacity * (record.charge or 0)
-        view.output = view.output + output
+            capacity = capacity, output = output, condition = record.condition or 100, bypassed = bypassed or nil,
+            worst = bank ~= nil and bank.worst == record or nil }
+        if not bypassed then
+            view.capacity = view.capacity + capacity
+            view.energy = view.energy + capacity * (record.charge or 0)
+            view.output = view.output + output
+        end
     end
     table.sort(view.batteries, function(a, b)
         if math.abs(a.output - b.output) > 1e-6 then return a.output > b.output end
@@ -79,8 +99,8 @@ local function stateColour(state)
     return P.dim
 end
 
-local function conditionColour(condition)
-    if condition < Energy.WEAK then return P.bad end
+local function conditionColour(condition, worst)
+    if worst or condition < Energy.WEAK then return P.bad end
     if condition < RackWindow.FAIR then return P.warn end
     return P.text
 end
@@ -122,14 +142,15 @@ function ISBURackBody:prerender() self.window:drawBody(self) end
 UI.scaled(ISBURackBody, ISPanel)
 
 -- A battery's line from x (0 when not given; the box's battery tab too): its kind (the larger kinds lit), its condition
--- with a short bar, what it stores and gives.
+-- with a short bar, what it stores and gives; one its box leaves out of the bank says so instead, dim.
 function RackWindow.drawBattery(c, y, battery, x)
     x = x or 0
     local cols = RackWindow.COLUMNS
     local textY = y + math.floor((ROW - FONT_HGT_SMALL) / 2)
-    UI.text(c, getText("IGUI_VehicleType_" .. battery.kind), x + cols.kind, textY, battery.kind == 1 and P.text or P.value)
+    local kindColour = battery.bypassed and P.dim or battery.kind == 1 and P.text or P.value
+    UI.text(c, getText("IGUI_VehicleType_" .. battery.kind), x + cols.kind, textY, kindColour)
     local condition = math.floor(battery.condition + 0.5)
-    local colour = conditionColour(battery.condition)
+    local colour = conditionColour(battery.condition, battery.worst)
     local barW = 40
     local barY = y + math.floor(ROW / 2) - 2
     UI.fill(c, x + cols.condition, barY, barW, 4, P.inset)
@@ -137,6 +158,10 @@ function RackWindow.drawBattery(c, y, battery, x)
     UI.fill(c, x + cols.condition, barY, filled, 4, colour, 0.9)
     UI.frame(c, x + cols.condition, barY, barW, 4, P.border)
     UI.text(c, tostring(condition), x + cols.condition + barW + 6, textY, colour)
+    if battery.bypassed then
+        UI.text(c, getText("IGUI_BU_Rack_Bypassed"), x + cols.stored, textY, P.dim)
+        return
+    end
     UI.text(c, string.format("%.1f", battery.capacity), x + cols.stored, textY, P.text)
     UI.text(c, load2(battery.output), x + cols.output, textY, battery.output > 0 and P.text or P.dim)
 end
@@ -236,9 +261,12 @@ function ISBURackWindow:refresh()
         { getText(view.state == "in" and "IGUI_BU_Rack_NowIn" or "IGUI_BU_Rack_NowOut"), flowText, flowColour },
         { getText("IGUI_BU_Rack_Output"), getText("IGUI_BU_Rack_OutputBoost", load2(view.output)),
             (muted or not view.boosting) and P.dim or P.value },
+        { getText("IGUI_BU_Rack_Bank"), view.built and getText(view.built, load2(view.bank.output),
+            string.format("%.1f", view.bank.capacity)) or "-", view.built and P.text or P.dim },
     }
     local foot = getText("IGUI_BU_Rack_Count", #view.batteries)
     if view.cold > 0 then foot = foot .. "  " .. getText("IGUI_BU_Rack_Cold", BU.percent(view.cold * 100)) end
+    if view.drag > 0.005 then foot = foot .. "  " .. getText("IGUI_BU_Rack_Worst", BU.percent(view.drag * 100)) end
     self.foot = foot
 end
 

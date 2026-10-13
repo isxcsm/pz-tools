@@ -204,10 +204,16 @@ option BuildingUtilities.BatteryColdLock
     page = BuildingUtilities, translation = BuildingUtilities_BatteryColdLock,
 }
 
-option BuildingUtilities.WornBatteryDrain
+option BuildingUtilities.BatteryHeatWear
 {
     type = boolean, default = true,
-    page = BuildingUtilities, translation = BuildingUtilities_WornBatteryDrain,
+    page = BuildingUtilities, translation = BuildingUtilities_BatteryHeatWear,
+}
+
+option BuildingUtilities.WeakBatteryDrag
+{
+    type = boolean, default = true,
+    page = BuildingUtilities, translation = BuildingUtilities_WeakBatteryDrag,
 }
 
 option BuildingUtilities.WaterFromAboveOnly

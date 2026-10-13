@@ -44,13 +44,13 @@ say("drained: energy", f(bank.energy), "can", can, "condition", f(rack.batteries
 -- Not available, a little charge: does not start until 2%.
 for _, battery in ipairs(rack.batteries) do battery.charge = 0.01 end
 say("1% start", Energy.run(panel, { load = 0.1, supplied = false }, 0, false), "available stays", Energy.run(panel, { load = 0.1, supplied = false }, 0, true))
--- A generator runs: no sun, nothing charges; the weak battery drains a day.
+-- A generator runs: no sun, nothing charges or drains over a day; the worst battery holds part of the bank back.
 for _, battery in ipairs(rack.batteries) do battery.charge = 0.5 end
 bank = Energy.bank(panel)
 local before = bank.energy
 Energy.run(panel, { load = 0.2, supplied = true, producer = { x = 1, y = 1, z = 0 } }, 24, false)
 bank = Energy.bank(panel)
-say("a day with a generator: weak drain", f(before - bank.energy), "expected", f(bank.weak * Energy.WEAK_PER_DAY * bank.capacity))
+say("a day with a generator: change", f(before - bank.energy), "expected 0; held back", f(bank.drag), "worst", bank.worst and bank.worst.condition or "-")
 
 -- Batteries back out keep what the bank did to them.
 local item = BURACK.take(rack, 2)

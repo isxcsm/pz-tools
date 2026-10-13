@@ -55,7 +55,8 @@ test("the limit is the box's own share and what its batteries give while they ha
     local panel = box(2, { { type = STANDARD, charge = 0.5, condition = 100 }, { type = SPORTS, charge = 0.5, condition = 100 } })
     local capacity = Panels.capacity(panel)
     near(Panels.limit(panel), capacity + 0.15 + 0.225, "a standard battery 0.15, a sports one 1.5 times")
-    -- worn: 0.3 of it at condition 0
+    -- worn: 0.3 of it at condition 0 (the worst holding the bank back is battery_test's)
+    SandboxVars.BuildingUtilities = { WeakBatteryDrag = false }
     Store.unitList("rack", panel.id)[1].batteries[1].condition = 0
     near(Panels.limit(panel), capacity + 0.15 * 0.3 + 0.225)
     -- empty: nothing

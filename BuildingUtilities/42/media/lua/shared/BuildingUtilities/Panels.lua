@@ -506,6 +506,9 @@ function Panels.upgradeNote(tier, plain)
     end
     if tier == BU.CUT_TIER then lines[#lines + 1] = getText("IGUI_BU_CutNote") end
     if power and tier == BU.TIMER_TIER then lines[#lines + 1] = getText("IGUI_BU_TimerNote") end
+    if power and BU.enabled("rack") and BU.Energy and tier == BU.Energy.BYPASS_TIER then
+        lines[#lines + 1] = getText("IGUI_BU_BypassNote")
+    end
     return table.concat(lines, plain and "\n" or " <LINE> ")
 end
 

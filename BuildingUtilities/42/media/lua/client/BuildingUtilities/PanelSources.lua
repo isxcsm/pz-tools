@@ -75,12 +75,17 @@ function ISBUPanelWindow:sourceRows(state)
             elseif flow < -0.0005 then status = getText("IGUI_BU_BankDrawn", load2(-flow)) end
             text = getText("IGUI_BU_BankRow", #racks, BU.percent(bank.charge * 100), string.format("%.1f", bank.energy),
                 string.format("%.1f", bank.capacity), load2(Energy.boost(panel, bank)), status)
-            if bank.weak > 0 then text = text .. "  " .. getText("IGUI_BU_BankWeak", bank.weak) end
+            if bank.drag > 0.005 then text = text .. "  " .. getText("IGUI_BU_BankDrag", BU.percent(bank.drag * 100)) end
+            if #bank.bypassed > 0 then text = text .. "  " .. getText("IGUI_BU_BankBypassed", #bank.bypassed) end
             if bank.cold > 0.005 then text = text .. "  " .. getText("IGUI_BU_BankCold", BU.percent(bank.cold * 100)) end
             tooltip = getText("IGUI_BU_BankTip", #bank.batteries, #racks, BU.percent(Energy.efficiency() * 100))
             if Energy.wearRate() > 0 then tooltip = tooltip .. " " .. getText("IGUI_BU_BankWearTip") end
-            if Energy.weakDrainEnabled() then
-                tooltip = tooltip .. " " .. getText("IGUI_BU_BankWeakTip", Energy.WEAK, BU.percent(Energy.WEAK_PER_DAY * 100))
+            if Energy.heatWearEnabled() and Energy.wearRate() > 0 then
+                tooltip = tooltip .. " " .. getText("IGUI_BU_BankHeatTip")
+            end
+            if Energy.dragEnabled() then tooltip = tooltip .. " " .. getText("IGUI_BU_BankDragTip") end
+            if (panel.tier or 1) >= Energy.BYPASS_TIER then
+                tooltip = tooltip .. " " .. getText("IGUI_BU_BankBypassTip", Energy.WEAK)
             end
             if Energy.coldLockEnabled() then tooltip = tooltip .. " " .. getText("IGUI_BU_BankColdTip") end
             tooltip = tooltip .. " " .. getText("IGUI_BU_BankEmptyTip") .. " <LINE> <LINE> "

@@ -317,7 +317,8 @@ local SWITCHES = {
     { "EnablePower", true }, { "EnableWater", true }, { "EnableSolar", true }, { "EnableBatteries", true },
     { "EnablePumps", true }, { "EnableSprinklers", true },
     { "EnableFilters", true }, { "EnableBoosters", true },
-    { "SnowOnPanels", true }, { "BatteryColdLock", true }, { "WornBatteryDrain", true }, { "OverloadEnabled", true },
+    { "SnowOnPanels", true }, { "BatteryColdLock", true }, { "BatteryHeatWear", true }, { "WeakBatteryDrag", true },
+    { "OverloadEnabled", true },
     { "CostsEnabled", true }, { "WaterFromAboveOnly", false }, { "RiskPipesFreeze", false },
     { "RiskPlumbingUnpurified", false },
 }

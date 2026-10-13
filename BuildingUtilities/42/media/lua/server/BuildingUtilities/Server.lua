@@ -369,12 +369,14 @@ local function coldMinutes(panel)
     local snowRate = Energy.snowRate()
     if watch(panel, rules, bank, sunny) and (snowRate > 0 or snowRate < 0 and snow > 0) then minutes = COLD_MINUTES end
     if not bank or bank.capacity <= 0 then return minutes end
-    local up = sunny * Energy.efficiency()
-    local down = rules.load + bank.weak * Energy.WEAK_PER_DAY * bank.capacity / 24
-    for _, turn in ipairs(TURNS) do
-        local gap = (turn - bank.charge) * bank.capacity
-        local flow = gap > 0 and up or down
-        if math.abs(gap) > 1e-6 and flow > 1e-9 then minutes = math.min(minutes, math.abs(gap) / flow * 60) end
+    local up, down = sunny * Energy.efficiency(), rules.load
+    -- Its charge for full, what it can give (above what cold and the worst battery hold back) for the rest.
+    for _, share in ipairs({ bank.charge, bank.usable / bank.capacity }) do
+        for _, turn in ipairs(TURNS) do
+            local gap = (turn - share) * bank.capacity
+            local flow = gap > 0 and up or down
+            if math.abs(gap) > 1e-6 and flow > 1e-9 then minutes = math.min(minutes, math.abs(gap) / flow * 60) end
+        end
     end
     return math.max(COLD_LEAST, math.floor(minutes))
 end
