@@ -381,6 +381,11 @@ end
 -- else its object name unless that is only its Java class ("IsoObject"), else "a device".
 function BU.displayName(x, y, z, sprite)
     local object = BU.objectsWithSprite(x, y, z, sprite)[1]
+    -- A generator by its item's name: the game's moveable names for them are not translated.
+    if object and instanceof(object, "IsoGenerator") then
+        local itemName = getItemNameFromFullType(object:getGeneratorItemType())
+        if itemName and itemName ~= "" then return itemName end
+    end
     if object then
         local name = Translator.getMoveableDisplayName(object)
         if name and name ~= "" then return translated(name) end

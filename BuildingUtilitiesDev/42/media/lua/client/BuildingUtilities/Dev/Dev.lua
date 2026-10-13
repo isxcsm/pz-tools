@@ -78,8 +78,9 @@ end
 -- ---- the panel ------------------------------------------------------------------------------------------------------
 
 function Dev.setTier(panel, tier)
+    local before = panel.tier or 1
     panel.tier = math.max(1, math.min(BU.TIERS, tier))
-    Store.record(panel, "IGUI_BU_Log_Upgraded", { panel.tier })
+    if panel.tier > before then Store.record(panel, "IGUI_BU_Log_Upgraded", { panel.tier }) end
     Changes.applyTimers(panel)
     Changes.unitsChanged(panel)
     Sync.changed(panel.id)

@@ -1206,10 +1206,11 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
             -- Holding what is not water: left out of the pipes until it is emptied.
             if seen and seen.foreign then text = text .. "  " .. getText("IGUI_BU_TankForeign") end
         end
-        view.producerText[index] = text
         -- Its line supplying nothing: dim, the mouse over it telling why.
         local ref = Links.producerRef(at.x, at.y, at.z)
         local cut = Links.reason(panel, ref) ~= nil
+        if cut then text = text .. "  " .. getText("IGUI_BU_LineNotSupplied") end
+        view.producerText[index] = text
         local row = { kind = "producer", text = text, index = index, at = at, inUse = inUse and not cut,
             water = utility == "water", out = generatorState == "out", cut = cut, bad = seen and seen.foreign }
         if utility == "water" and BU.Water.shown(panel) then
@@ -1222,7 +1223,6 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
         self:waterUnitRows(add)
         self:addPipeRow(add)
     end
-    self:lineRows(add, utility)
     -- What it could take and no box has, dim, unless the view hides it: connected at the thing itself.
     view.unwired = Panels.unwiredProducers(panel, utility)
     if not PanelWindow.options.hideUnwired then
@@ -1235,6 +1235,7 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
                 getText("IGUI_BU_UnwiredProducerTip"))
         end
     end
+    self:lineRows(add, utility)
     local seen = self:seenSet(utility, devices)
     for _, device in ipairs(devices) do
         if not seen[device.key] then view.fresh[device.key] = true end

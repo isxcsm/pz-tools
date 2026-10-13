@@ -14,7 +14,8 @@ for _, name in ipairs({ "bu_solar_01_0", "bu_solar_01_8", "bu_solar_01_9", "bu_s
     local sprite = getSprite(name)
     say("sprite", name, sprite ~= nil, sprite and sprite:getProperties():has("Facing") and sprite:getProperties():get("Facing") or "-")
 end
-say("icons", getTexture("Item_BUSolarPanel") ~= nil, getTexture("Item_BUBatteryRack") ~= nil)
+say("icons", instanceItem("BuildingUtilities.SolarPanel"):getTex() ~= nil,
+    instanceItem("BuildingUtilities.BatteryRack"):getTex() ~= nil)
 say("items", getItemNameFromFullType(Units.definition("solar").item), getItemNameFromFullType(Units.definition("rack").item),
     instanceItem(Units.definition("solar").item) ~= nil, instanceItem(Units.definition("rack").item) ~= nil)
 local recipes = getScriptManager():getAllCraftRecipes()

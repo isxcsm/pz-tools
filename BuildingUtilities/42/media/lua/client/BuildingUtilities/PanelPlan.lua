@@ -268,7 +268,7 @@ function ISBUPlan:layoutFloors()
         local seen = self.floorProducers[level]
         if not seen then self.floorProducers[level] = colour
         elseif not sameColour(seen, colour) then self.floorProducers[level] = COLOURS.mixed end
-        if level ~= boxZ then
+        if level ~= boxZ and not producer.unwired then
             local group = byLevel[level]
             if not group then
                 group = { level = level, count = 0, kinds = {}, kindOrder = {}, colour = colour }

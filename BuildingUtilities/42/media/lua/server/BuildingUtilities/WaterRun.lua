@@ -139,7 +139,7 @@ local function wear(panel, unit, hours, pipe)
     if hours <= 0 then return false end
     local before = math.floor(WaterUnits.mediaLeft(unit) * 100)
     unit.media = math.max(0, (unit.media or 0) - hours)
-    if unit.media <= 0 then Sync.notice(panel, "IGUI_BU_Notice_FilterSpent", Water.pipeName(panel, pipe)) end
+    if unit.media <= 0 then Sync.notice(panel, "IGUI_BU_Notice_FilterSpent", BU.Panels.name(panel), Water.pipeName(panel, pipe)) end
     return math.floor(WaterUnits.mediaLeft(unit) * 100) ~= before
 end
 

@@ -45,7 +45,7 @@ end
 local function spriteFor(look)
     local object = Panels.object(panel)
     local shown = object and PanelLook.of(object)
-    return shown and PanelLook.SPRITES[look][shown.facing]
+    return shown and PanelLook.SPRITES[shown.variant][look][shown.facing]
 end
 local function dark() return panel.stats and panel.stats.dark end
 -- The status line's text as it should read: with the grid alive the grid's, else this one.
@@ -68,7 +68,9 @@ end
 local function toldOf(key) return told[key] or 0 end
 
 -- The lever thrown from the window: down (off true) or up.
-local function throw(off) BU.Sync.send(player, "setLever", { panel = panel.id, up = not off }) end
+local function throw(off)
+    if Panels.leverUp(panel) == off then Changes.setLever(panel, not off) end
+end
 
 -- The window's rows, filled from the network now: the first of a kind, and its tooltip.
 local window = PanelWindow.open(player, panel)

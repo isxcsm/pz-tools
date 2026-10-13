@@ -18,8 +18,13 @@ local function exists(name)
     local sprite = getSprite(name)
     if not sprite or not sprite:getTextureForCurrentFrame(IsoDirections.N) then say("BAD missing", name); missing = missing + 1 end
 end
-for _, looks in ipairs({ WaterUnits.PUMP_LOOKS, WaterUnits.FILTER_LOOKS, PanelLook.SPRITES, Solar.SNOW_OVERLAYS }) do
+for _, looks in ipairs({ WaterUnits.PUMP_LOOKS, WaterUnits.FILTER_LOOKS, Solar.SNOW_OVERLAYS }) do
     for _, sprites in pairs(looks) do
+        for _, name in pairs(sprites) do exists(name) end
+    end
+end
+for _, variant in pairs(PanelLook.SPRITES) do
+    for _, sprites in pairs(variant) do
         for _, name in pairs(sprites) do exists(name) end
     end
 end

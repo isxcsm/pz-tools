@@ -575,6 +575,19 @@ end
 -- unit }: the producers in its building and around it within its connect range (the API's buildings.producers, read in
 -- Java; none with an API from before it), and the units, that a line could hang on the box from (BU.Links.placeOn).
 -- None while the utility is off.
+-- Whether what the API lists as a producer is one a box takes: a generator; for water a storage the game fills
+-- (BU.isWaterContainer), not anything that holds a little (a cup left on a sink).
+function Panels.storageAt(utility, entry)
+    if utility ~= "water" then return true end
+    if entry.type == "IsoWorldInventoryObject" then return false end
+    local square = getCell():getGridSquare(entry.x, entry.y, entry.z)
+    local objects = square and square:getObjects()
+    for i = 0, objects and objects:size() - 1 or -1 do
+        if BU.isWaterContainer(objects:get(i)) then return true end
+    end
+    return false
+end
+
 function Panels.unwiredProducers(panel, utility)
     local result = {}
     if not BU.enabled(utility) then return result end
@@ -586,7 +599,7 @@ function Panels.unwiredProducers(panel, utility)
         local list = find(building.key, math.min(32, BU.connectRange(panel.tier)), utility)
         for i = 1, list and #list or 0 do
             local entry = list[i]
-            if not Links.get(Links.producerRef(entry.x, entry.y, entry.z))
+            if not Links.get(Links.producerRef(entry.x, entry.y, entry.z)) and Panels.storageAt(utility, entry)
                     and Links.placeOn(panel, utility, entry.x, entry.y, entry.z) then
                 result[#result + 1] = { x = entry.x, y = entry.y, z = entry.z, sprite = entry.sprite }
             end
@@ -1029,7 +1042,9 @@ function Panels.where(panel, x, y)
         steps, cx, cy = math.max(math.abs(x - panel.x), math.abs(y - panel.y)), panel.x, panel.y
     end
     local point = Geometry.direction(cx, cy, x, y)
-    return getText("IGUI_BU_Where", steps, point and getText("IGUI_BU_Dir_" .. point) or "")
+    local side = point and getText("IGUI_BU_Dir_" .. point) or ""
+    if steps == 0 then return getText("IGUI_BU_WhereBeside", side) end
+    return getText("IGUI_BU_Where", steps, side)
 end
 
 return Panels
