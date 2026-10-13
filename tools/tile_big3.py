@@ -3,7 +3,7 @@ refiner. See tile_big1.py."""
 import math
 import random
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 
 from tile_engine import Scene, shadow, compose, unit, rotation, apply, add, mul, stencil_text, acorn_mark, project, SS
 from tile_objects import (OD, OD_DARK, OD_LIGHT, TAN, CANVAS, BLACK, RUBBER, GREY, STEEL, STEEL_DARK, PIPE, WHITE,
@@ -170,12 +170,27 @@ def propane_refiner(turns, look):
     s.box(0.62, 1.6, 0.08, 0.98, 1.8, 0.1, GRAPHITE_DARK)
 
     def flame(img):
-        d = ImageDraw.Draw(img, 'RGBA')
+        # a flare's flame: soft teardrops one inside another (a red-orange skirt, an orange body, a pale core low down),
+        # bulging just above the tip and drawn up to a curved point, leaning a little downwind, a second smaller
+        # tongue beside it; each blurred so no edge shows (a flat polygon read as a triangle)
         px, py = project(*s.turn((sx, sy, 2.1)))
-        for (scale, col) in ((1.0, (255, 120, 30, 190)), (0.7, (255, 190, 60, 230)), (0.4, (255, 250, 200, 255))):
-            h = 30 * SS * scale
-            w = 10 * SS * scale
-            d.polygon([(px, py - h), (px + w, py - h * 0.25), (px + w * 0.5, py), (px - w * 0.5, py), (px - w, py - h * 0.25)], fill=col)
+
+        def tongue(cx_, base, h, w, lean, colour, blur):
+            layer = Image.new('RGBA', img.size, (0, 0, 0, 0))
+            left, right = [], []
+            for k in range(25):
+                u = k / 24
+                half = w * (1 - u) ** 0.8 * (0.55 + 1.6 * u * (1 - u))
+                x = cx_ + lean * h * u * u
+                y = base - h * u
+                left.append((x - half, y))
+                right.append((x + half, y))
+            ImageDraw.Draw(layer).polygon(left + right[::-1], fill=colour)
+            img.alpha_composite(layer.filter(ImageFilter.GaussianBlur(blur * SS)))
+        tongue(px + 3 * SS, py, 17 * SS, 5 * SS, 0.35, (255, 110, 30, 150), 1.4)
+        tongue(px, py, 32 * SS, 9 * SS, 0.18, (255, 96, 24, 170), 1.6)
+        tongue(px, py + SS, 25 * SS, 7 * SS, 0.15, (255, 168, 48, 225), 1.1)
+        tongue(px, py + SS, 13 * SS, 4.5 * SS, 0.1, (255, 244, 196, 255), 0.7)
     if running:
         glows.append(((sx, sy, 2.2), FLAME, 0.32))
     ground = shadow((1.0, 1.0), 1.0, 1.0, 125)
