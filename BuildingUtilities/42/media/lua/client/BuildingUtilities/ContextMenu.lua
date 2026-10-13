@@ -248,8 +248,11 @@ local function addDeviceOption(context, playerObj, utility, panel, device)
         unavailable(option, getText("IGUI_BU_ConnectedTo", other and Panels.name(other) or ""))
         return option
     end
+    -- A wired device is switched at the box (free, its line stays); taking its line up disconnects it. One not wired
+    -- yet is connected (a line laid).
     local on = device.state == "on"
-    local text = getText(on and "ContextMenu_BU_DeviceOff" or "ContextMenu_BU_DeviceOn", name, label, Panels.name(panel))
+    local key = on and "ContextMenu_BU_DeviceOff" or device.wired and "ContextMenu_BU_DeviceSwitchOn" or "ContextMenu_BU_DeviceOn"
+    local text = getText(key, name, label, Panels.name(panel))
     if device.wired then
         local option = tie(context:addOption(text, playerObj, onSwitchInside, panel, utility, device.key, not on))
         if not device.inside then

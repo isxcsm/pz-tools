@@ -16,6 +16,7 @@
     "ContextMenu_BU_ReplaceMedia": "Replace Filter Media",
     "ContextMenu_BU_Install_booster": "Install Booster Pump",
     "ContextMenu_BU_DisconnectFrom": "Disconnect from %1",
-    "ContextMenu_BU_DeviceOff": "Disconnect %1 from %3 (%2)",
-    "ContextMenu_BU_LineRemove": "Take up the line from %1 to %3 (%2)"
+    "ContextMenu_BU_DeviceOff": "Turn off %1 at %3 (%2)",
+    "ContextMenu_BU_DeviceSwitchOn": "Turn on %1 at %3 (%2)",
+    "ContextMenu_BU_LineRemove": "Disconnect %1 from %3 (%2)"
 }
