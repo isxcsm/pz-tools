@@ -23,9 +23,7 @@ for _, unit in ipairs(scene) do unit.panel = nil end
 panel.tier = 1
 local square = BUT.square(panel.x, panel.y, panel.z, 1, 12, function(sq) return Units.canInstall("rack", sq) end)
 local rack = Changes.installUnit("rack", square, BU.Rack.SPRITE)
-say("tier 1 rack", tostring(select(2, Units.canConnect(rack, panel))))
-panel.tier = 2
-say("tier 2 rack", tostring(Units.canConnect(rack, panel)))
+say("tier 1 rack", tostring(Units.canConnect(rack, panel)))
 Changes.connectUnit(rack, panel, {})
 for i = 1, 4 do
     BURACK.put(rack, { type = i == 4 and "Base.CarBattery2" or "Base.CarBattery1", charge = 1, condition = i == 1 and 20 or 100 })

@@ -68,8 +68,7 @@ function ISBUPanelWindow:askGroupName(id)
     end, self)
 end
 
--- A group's settings in a menu: how full its tanks stay for its people (sprinklers stop there), and where its pumps
--- send water once it is full.
+-- A group's settings in a menu: how full its tanks stay for its people (sprinklers stop there).
 function ISBUPanelWindow:groupSettingsMenu(id)
     local panel = self.panel
     local group = Water.group(panel, id)
@@ -87,19 +86,6 @@ function ISBUPanelWindow:groupSettingsMenu(id)
         local option = reserves:addOption(percent == 0 and getText("IGUI_BU_ReserveNone") or BU.percent(percent), nil,
             function() send("setGroupReserve", { percent = percent }) end)
         if (group.reserve or 0) == percent then option.notAvailable = true end
-    end
-    local overflow = menu:addOption(getText("IGUI_BU_GroupOverflow", group.overflow and Water.groupName(panel, group.overflow)
-        or getText("IGUI_BU_OverflowStop")))
-    local targets = ISContextMenu:getNew(menu)
-    menu:addSubMenu(overflow, targets)
-    local stop = targets:addOption(getText("IGUI_BU_OverflowStop"), nil, function() send("setGroupOverflow", {}) end)
-    if not group.overflow then stop.notAvailable = true end
-    for _, other in ipairs(Water.groups(panel)) do
-        if other.id ~= id then
-            local option = targets:addOption(Water.groupName(panel, other.id), nil,
-                function() send("setGroupOverflow", { target = other.id }) end)
-            if group.overflow == other.id then option.notAvailable = true end
-        end
     end
 end
 
@@ -136,9 +122,9 @@ function ISBUPanelWindow:waterUnitStatus(unit)
         if unit.running then return getText("IGUI_BU_Pump_running", WaterUnits.PUMP_RATE) end
         return getText("IGUI_BU_Pump_" .. (unit.idle or "noPower"))
     elseif unit.kind == "booster" then
-        -- The floors it lifts to, up to the highest of the supply tree's buildings.
+        -- The floors it lifts to, up to the top of its building.
         if unit.boosting then
-            local top = math.min(unit.z + Water.boostFloors(), self.treeTop or unit.z + Water.boostFloors())
+            local top = math.min(unit.z + Water.boostFloors(), self.buildingTop or unit.z + Water.boostFloors())
             if top <= unit.z + 1 then return getText("IGUI_BU_Booster_runningOne", BU.floorName(unit.z + 1)) end
             return getText("IGUI_BU_Booster_running", BU.floorName(unit.z + 1), BU.floorName(top))
         end

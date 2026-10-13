@@ -38,12 +38,11 @@ end
 -- device of the building is connected unless the player excluded it, and so is one in a room built onto it, which
 -- the API has as a single object (it is in attached: "include"); one outside only when this panel laid its line (it
 -- is in included; any other the panel names is of its building) and the player did not cut its supply (excluded, as
--- one inside); any is off while the box sheds it, keeps it off for
--- its bank or its timer has it off. A power device outside is off too while the game's
+-- one inside); any is off while its timer has it off. A power device outside is off too while the game's
 -- AllowExteriorGenerator is off (BU.exteriorPower).
 function Networks.rule(panel, utility, key)
     local data = panel[utility]
-    local off = data.shed and data.shed[key] or data.saving and data.saving[key] or data.timed and data.timed[key]
+    local off = data.timed and data.timed[key]
     if data.included[key] then
         return (off or data.excluded[key] or utility == "power" and not BU.exteriorPower()) and "exclude" or "include"
     end
@@ -84,8 +83,7 @@ end
 -- The power network's rules for every device the panel names.
 local function applyPowerRules(panel)
     local data, keys = panel.power, {}
-    for _, set in ipairs({ data.excluded, data.included, data.attached or {}, data.shed or {}, data.saving or {},
-            data.timed or {} }) do
+    for _, set in ipairs({ data.excluded, data.included, data.attached or {}, data.timed or {} }) do
         for key in pairs(set) do keys[key] = true end
     end
     for key in pairs(keys) do
@@ -102,7 +100,7 @@ local function waterOn() return BU.enabled("water") and BU.waterAvailable() end
 -- The water networks defined for each panel now, by id: { parent, producers, rooms (a set of room ids) }. Not saved:
 -- the networks are defined anew as a world loads.
 local defined = {}
--- What each main panel's water networks were last defined with: their floors (Water.layout's second result) and its
+-- What each panel's water networks were last defined with: their floors (Water.layout's second result) and its
 -- running boosters (Water.boostKey), for Networks.floorsChanged. Not saved, as defined.
 local definedFloors, definedBoost = {}, {}
 -- The purify switch last set on each water network (nil: as the API defines one, purifying). Not saved: the
@@ -172,8 +170,7 @@ end
 -- Brings the API's water networks of a panel to its data now: networks no longer wanted go, new ones are defined,
 -- each gets its parent, producers and rooms, and the devices' rules: every device's where a network came or went (a
 -- device may map to another floor's network now), else the keys given (all when none are). Networks that stay keep
--- what the API saw of their tanks. A main panel's sub-panels, all down its tree, hang from its first group's
--- networks by height (Water.layout), so theirs follow too.
+-- what the API saw of their tanks.
 function Networks.defineWater(panel, keys)
     if not waterOn() then return end
     local layout, floors = Water.layout(panel)
@@ -182,12 +179,11 @@ function Networks.defineWater(panel, keys)
     local wanted = {}
     for _, network in ipairs(layout) do wanted[network.id] = network end
     -- In an order the API takes: every network exists before one hangs from it; the children of one going away hang
-    -- from their new parents first; a tank leaves its old network before it joins another. A sub-panel's water is
-    -- cut with its main panel's when that freezes, never on its own.
+    -- from their new parents first; a tank leaves its old network before it joins another.
     for _, network in ipairs(layout) do
         if not before[network.id] then
             if not defineWaterNetwork(network.id) then return end
-            if panel.water.frozen and not panel.parent then change("setEnabled", network.id, false) end
+            if panel.water.frozen then change("setEnabled", network.id, false) end
             floorsChanged = true
         end
     end
@@ -236,29 +232,16 @@ function Networks.defineWater(panel, keys)
             level = network.level }
     end
     defined[panel.id] = now
-    if not panel.parent then definedFloors[panel.id], definedBoost[panel.id] = floors, Water.boostKey(panel) end
+    definedFloors[panel.id], definedBoost[panel.id] = floors, Water.boostKey(panel)
     for key in pairs((floorsChanged or not keys) and waterKeys(panel) or keys) do applyWaterRule(panel, key, floors) end
-    if panel.parent == nil then
-        local seen = { [panel.id] = true }
-        local function follow(box)
-            for _, child in ipairs(Store.children(box.id)) do
-                if not seen[child.id] then
-                    seen[child.id] = true
-                    if defined[child.id] then Networks.defineWater(child, {}) end
-                    follow(child)
-                end
-            end
-        end
-        follow(panel)
-    end
 end
 
--- The running boosters a main panel's water networks were last defined with (Water.boostKey), or nil before.
+-- The running boosters a panel's water networks were last defined with (Water.boostKey), or nil before.
 function Networks.boostDefined(panel) return definedBoost[panel.id] end
 
--- The floors a main panel's water reaches changed: its running boosters (Water.boostKey differs from
+-- The floors a panel's water reaches changed: its running boosters (Water.boostKey differs from
 -- Networks.boostDefined), or the sandbox's WaterFromAboveOnly (Changes.applyShape). Its networks follow (the lifted
--- floors' rooms move, its sub-panels hang anew), and the rules of the water devices whose network changed with them,
+-- floors' rooms move), and the rules of the water devices whose network changed with them,
 -- not every device's.
 function Networks.floorsChanged(panel)
     local old = definedFloors[panel.id]
@@ -278,7 +261,7 @@ function Networks.floorsChanged(panel)
     Networks.defineWater(panel, keys)
 end
 
--- A panel's water on or off: its pipes thawed or frozen. Its sub-panels' hang from its networks and go with them.
+-- A panel's water on or off: its pipes thawed or frozen.
 function Networks.setWaterEnabled(panel, on)
     for id in pairs(defined[panel.id] or {}) do change("setEnabled", id, on) end
 end
@@ -296,10 +279,10 @@ function Networks.extraLoad(panel)
     return total
 end
 
--- Whether a box lets its power through: its breaker up, its main switch on and no quiet-hours cut. Its power network
--- is switched on exactly then (Networks.applyEnabled).
+-- Whether a box lets its power through: its breaker up and its main switch on. Its power network is switched on
+-- exactly then (Networks.applyEnabled).
 function Networks.powerAllowed(panel)
-    return not panel.tripped and not panel.switchedOff and not panel.quietCut
+    return not panel.tripped and not panel.switchedOff
 end
 
 -- The power network on or off as the box has it (Networks.powerAllowed). Switched off, the API stops its generators
@@ -309,22 +292,19 @@ function Networks.applyEnabled(panel)
     change("setEnabled", powerId(panel), Networks.powerAllowed(panel))
 end
 
--- Defines a panel's networks from the save. A power sub-panel's parent is set by Networks.link, once every panel
--- exists; its water hangs from its main panel's on its own. The network gets the extra load the box had (charging,
--- pumps) at once, as the charge controller reads its load with it, until the first minute works it out again; none
--- while the box keeps its power off.
+-- Defines a panel's networks from the save. The network gets the extra load the box had (pumps) at once, until the
+-- first minute works it out again; none while the box keeps its power off.
 function Networks.define(panel)
     local id = powerId(panel)
     change("define", id, "power", BU.POLICY.power)
-    if not panel.parent then change("setProducers", id, powerProducers(panel)) end
+    change("setProducers", id, powerProducers(panel))
     addPowerMembers(panel)
     applyPowerRules(panel)
     -- A network is defined switched on.
     if not Networks.powerAllowed(panel) then Networks.applyEnabled(panel) end
-    Networks.applyLoss(panel)
     local extra = Networks.powerAllowed(panel) and Networks.extraLoad(panel) or 0
     if extra > 0 then Networks.setExtraLoad(panel, extra) end
-    if not panel.parent then Networks.defineWater(panel) end
+    Networks.defineWater(panel)
 end
 
 -- The panel's zone changed from before (a set of room ids, or nil for the whole building) to what it has now.
@@ -345,38 +325,12 @@ function Networks.setZone(panel, before)
     Networks.defineWater(panel)
 end
 
--- The power network's load factor: what its line loses on the way (Panels.powerLine).
-function Networks.applyLoss(panel)
-    if not BU.api() or not BU.enabled("power") then return end
-    local _, percent = BU.Panels.powerLine(panel, Networks.state(panel, "power"))
-    change("setLoadFactor", powerId(panel), 1 + (percent or 0) / 100)
-end
-
--- A panel joined or left a main panel: its power network's parent, and its water anew (as a sub-panel it has the
--- first group only, hanging from the main panel's).
-function Networks.link(panel)
-    change("setParent", powerId(panel), panel.parent and BU.networkId(panel.parent, "power") or nil)
-    removeWater(panel)
-    Networks.defineWater(panel)
-    -- Its own sub-panels hang from its new main panel's networks now: defined anew down the whole tree. (Unlinked, it
-    -- is a main panel, and defining it took its sub-panels along.)
-    if panel.parent then Networks.defineWater(BU.Panels.root(panel), {}) end
-end
-
--- Every panel of the save, as the world starts: main panels first, so that sub-panels' water hangs from theirs. Only
--- the utilities that are on (BU.enabled).
+-- Every panel of the save, as the world starts. Only the utilities that are on (BU.enabled).
 function Networks.defineAll()
     if not BU.api() then return end
     defined, definedFloors, definedBoost, purified = {}, {}, {}, {}
     powerDefined, waterDefined = BU.enabled("power"), waterOn()
-    local panels = Store.list()
-    for _, panel in ipairs(panels) do Networks.define(panel) end
-    for _, panel in ipairs(panels) do
-        if panel.parent then
-            change("setParent", powerId(panel), BU.networkId(panel.parent, "power"))
-            Networks.defineWater(panel)
-        end
-    end
+    for _, panel in ipairs(Store.list()) do Networks.define(panel) end
 end
 
 function Networks.remove(panel)
@@ -386,7 +340,7 @@ end
 
 -- A utility turned on or off in the sandbox since the networks were defined (BU.Changes.applyFeatures): turned off,
 -- every panel's networks of it go, which gives their producers back to the game; turned on, they are defined from the
--- save, main panels first, as the world starts.
+-- save, as the world starts.
 function Networks.applyFeatures()
     if not BU.api() then return end
     local panels = Store.list()
@@ -396,17 +350,11 @@ function Networks.applyFeatures()
         for _, panel in ipairs(panels) do
             if power then Networks.define(panel) else change("remove", powerId(panel)) end
         end
-        for _, panel in ipairs(power and panels or {}) do
-            if panel.parent then change("setParent", powerId(panel), BU.networkId(panel.parent, "power")) end
-        end
     end
     if water ~= waterDefined then
         waterDefined = water
         for _, panel in ipairs(panels) do
-            if not water then removeWater(panel) elseif not panel.parent then Networks.defineWater(panel) end
-        end
-        for _, panel in ipairs(water and panels or {}) do
-            if panel.parent then Networks.defineWater(panel) end
+            if not water then removeWater(panel) else Networks.defineWater(panel) end
         end
     end
 end
@@ -416,7 +364,7 @@ function Networks.setProducers(panel, utility)
     change("setProducers", powerId(panel), powerProducers(panel))
 end
 
--- What the bank takes to charge from the producer in use (the charge controller).
+-- What the box adds to its devices' load (Networks.extraLoad).
 function Networks.setExtraLoad(panel, load)
     change("setExtraLoad", powerId(panel), load)
 end
@@ -497,7 +445,6 @@ function Networks.state(panel, utility)
             result.capacity = result.capacity + (state.capacity or 0)
         end
     end
-    -- A sub-panel's lowest network reaches its main panel's tanks: its own lists none.
     for _, network in ipairs(layout) do
         local state = #network.producers > 0 and stateOf(network.id)
         for _, producer in ipairs(state and state.producers or {}) do result.producers[#result.producers + 1] = producer end

@@ -1,8 +1,7 @@
 -- The breaker box window: its name and tier as its title (its rename button at the title bar's end), a row with the
--- buttons to take supply from another box and to upgrade and a banner when the breaker is down or devices are shed
--- (only while it has any), then a tab per utility with its producers (each generator running, on standby or out of
--- service) or the main panel that supplies it, its sub-panels, and its devices room by room, a tab with the batteries
--- of its racks, and a tab with what happened to the box. Under the tabs the open one's head: its utility's status
+-- upgrade button and a banner when the breaker is down (only while it has either), then a tab per utility with its
+-- producers (each generator running, on standby or out of service) and its devices room by room, a tab with the
+-- batteries of its racks, and from BU.LOG_TIER a tab with what happened to the box. Under the tabs the open one's head: its utility's status
 -- line (BuildingUtilities/PanelStatus; the batteries' is power's, the log has none) and, on the power tab, the load
 -- against the limit with the lever and the breaker's gauge beside it. Beside them the floor plan
 -- (BuildingUtilities/PanelPlan). A row under the mouse outlines its objects in the world, marks them on the plan and
@@ -10,9 +9,8 @@
 -- lines are laid and taken away by the player at the place, as timed actions: a device outside is wired at itself
 -- (its world menu), and listed here once it is. The search box keeps the rows whose device or room has the words; the
 -- view options sit on the list's first header; devices new since the window was last closed are marked. The load bar
--- tells what makes the load. With sub-panels, a tab per box of the supply tree (the main panel, then each sub-panel
--- after the one it hangs from) shows that box in the same window, as a main or sub-panel row does. The window fades in
--- and out (the kit's UI.fadeIn, UI.fadeOut) and is the player's at the box they opened it at (its anchor; a window
+-- tells what makes the load. Below BU.CUT_TIER the rows have no ticks: everything the box reaches is supplied. The
+-- window fades in and out (the kit's UI.fadeIn, UI.fadeOut) and is the player's at the box they opened it at (its anchor; a window
 -- opened from another's row keeps that one's): it closes once they are far from it (PanelWindow.CLOSE_RANGE), die
 -- or another character takes their place.
 require "TimedActions/ISBaseTimedAction"
@@ -27,15 +25,14 @@ require "PZUIKit/RichText"
 require "BuildingUtilities/ContextMenu"
 require "BuildingUtilities/PanelPlan"
 require "BuildingUtilities/PanelList"
-require "BuildingUtilities/ControllerPopup"
 local BU = BuildingUtilities
 local Store, Panels, Networks, Costs, Actions, Sync, Energy = BU.Store, BU.Panels, BU.Networks, BU.Costs, BU.Actions,
     BU.Sync, BU.Energy
 local Units, Ui = BU.Units, BU.PanelUi
 local FONT_HGT_SMALL, ROW, PAD, REFRESH_MS, BAR_W, LOG, BATTERIES, LIST_W, MIN_LIST, MIN_PLAN, SEEN, OUTSIDE,
-    ROOM_TICK_X, load2, percent, count, nextSchedule = Ui.FONT_HGT_SMALL, Ui.ROW,
+    ROOM_TICK_X, load2, percent, nextSchedule = Ui.FONT_HGT_SMALL, Ui.ROW,
     Ui.PAD, Ui.REFRESH_MS, Ui.BAR_W, Ui.LOG, Ui.BATTERIES, Ui.LIST_W, Ui.MIN_LIST, Ui.MIN_PLAN, Ui.SEEN, Ui.OUTSIDE,
-    Ui.ROOM_TICK_X, Ui.load2, Ui.percent, Ui.count, Ui.nextSchedule
+    Ui.ROOM_TICK_X, Ui.load2, Ui.percent, Ui.nextSchedule
 local deviceButtons = Ui.deviceButtons
 local UI, P, ease, approach = Ui.UI, Ui.PALETTE, Ui.ease, Ui.approach
 
@@ -68,34 +65,18 @@ local function screenRoom()
     return math.floor(core:getScreenWidth() * Ui.SCREEN_SHARE), math.floor(core:getScreenHeight() * Ui.SCREEN_SHARE)
 end
 
--- The boxes of a box's supply tree: its main panel (Panels.root) first, then each sub-panel after the one it hangs
--- from, each { panel, depth }.
-function PanelWindow.tree(panel)
-    local result, seen = {}, {}
-    local function walk(box, depth)
-        if seen[box.id] then return end
-        seen[box.id] = true
-        result[#result + 1] = { panel = box, depth = depth }
-        for _, child in ipairs(Store.children(box.id)) do walk(child, depth + 1) end
-    end
-    walk(Panels.root(panel), 0)
-    return result
-end
-
--- Whether a box shows the battery tab: a main box with racks wired to it, while racks are on (BU.enabled).
+-- Whether a box shows the battery tab: a box with racks wired to it, while racks are on (BU.enabled).
 local function batteriesShown(panel)
-    return BU.enabled("rack") and not panel.parent and #Store.unitList("rack", panel.id) > 0
+    return BU.enabled("rack") and #Store.unitList("rack", panel.id) > 0
 end
 
--- The window's tabs, as a key: the utilities that are on and the battery tab.
+-- Whether a box shows the log tab: from BU.LOG_TIER (it keeps its log before).
+local function logShown(panel) return (panel.tier or 1) >= BU.LOG_TIER end
+
+-- The window's tabs, as a key: the utilities that are on, the battery tab and the log.
 local function viewsKey(panel)
     return table.concat(BU.utilities(), ",") .. (batteriesShown(panel) and ",batteries" or "")
-end
-
-local function treeKey(tree)
-    local ids = {}
-    for _, entry in ipairs(tree) do ids[#ids + 1] = entry.panel.id end
-    return table.concat(ids, ",")
+        .. (logShown(panel) and ",log" or "")
 end
 
 -- A box's name with the floors its zone takes (Panels.zoneFloors): the boxes of a tall building tell apart.
@@ -104,15 +85,6 @@ function PanelWindow.boxTitle(panel)
     if low and low ~= high then return getText("IGUI_BU_SubPanelFloors", name, BU.floorName(low), BU.floorName(high)) end
     if low then return getText("IGUI_BU_SubPanelFloor", name, BU.floorName(low)) end
     return name
-end
-
--- A box's tab: its title, the main panel's marked in front (where a cut title keeps it), and below the first
--- sub-panels a mark a level down; and its tooltip, the whole title, the main panel's saying so in words.
-local function tabTitle(entry)
-    local name = PanelWindow.boxTitle(entry.panel)
-    if entry.depth == 0 then return getText("IGUI_BU_MainTab", name), getText("IGUI_BU_MainTabTip", name) end
-    if entry.depth > 1 then name = string.rep(">", entry.depth - 1) .. " " .. name end
-    return name, name
 end
 
 -- The window is the game's (in pixels) with the kit's bars and frame in the palette; everything in it stands on its
@@ -131,11 +103,9 @@ function ISBUPanelWindow:new(x, y, playerObj, panel, anchor)
     o.palette = P
     o.era = UI.era
     o.anchor = anchor or { x = panel.x, y = panel.y, z = panel.z }
-    o.tree = PanelWindow.tree(panel)
-    o.treeKey = treeKey(o.tree)
     o.resizable = true
     o.minimumWidth = minW
-    o.minimumHeight = math.min(UI.px(340 + (#o.tree > 1 and ROW + PAD or 0)) + chrome, maxH)
+    o.minimumHeight = math.min(UI.px(340) + chrome, maxH)
     o.rangeObjects = {}
     o.planOutlined = {}
     o.views = {}
@@ -300,19 +270,11 @@ function ISBUPanelWindow:createChildren()
     self.body = body
     local bw = body:getWidth()
     local top = PAD
-    -- The supply tree's boxes as sub-tabs, when it has more than this one (filled by placePanelTabs).
-    if #self.tree > 1 then
-        self.panelTabs = PZUISubTabs:new(PAD, top, bw - PAD * 2, P, self, ISBUPanelWindow.onPanelTab)
-        self.panelTabs:initialise()
-        body:addChild(self.panelTabs)
-        top = top + self.panelTabs:getHeight() + PAD
-    end
-    -- A row while it has something: the buttons to take supply from another box and to upgrade, and the banner beside
-    -- them (placeRows); the tabs at the top without it. The open tab's head under the tabs (placeHead).
+    -- A row while it has something: the upgrade button and the banner beside it (placeRows); the tabs at the top
+    -- without it. The open tab's head under the tabs (placeHead).
     self.statusY, self.loadY = top, top
     self.actionY = top
-    self.mainButton = button(self, PAD, self.actionY, 170, ROW, ISBUPanelWindow.onMainPanel)
-    self.upgradeButton = button(self, PAD + 176, self.actionY, 160, ROW, ISBUPanelWindow.onUpgrade)
+    self.upgradeButton = button(self, PAD, self.actionY, 160, ROW, ISBUPanelWindow.onUpgrade)
     local tabsY = self.actionY + ROW + PAD
     local listW = bw
     local height = body:getHeight() - tabsY
@@ -323,14 +285,14 @@ function ISBUPanelWindow:createChildren()
     self.tabs:setAnchorBottom(true)
     body:addChild(self.tabs)
     self.lists = {}
-    -- A tab for each utility that is on (BU.enabled), the batteries' (batteriesShown) and the log; the window opens anew
-    -- when that changes (refresh).
+    -- A tab for each utility that is on (BU.enabled), the batteries' (batteriesShown) and the log (logShown); the window
+    -- opens anew when that changes (refresh).
     self.utilities = BU.utilities()
     self.utilitiesKey = viewsKey(self.panel)
     local views = {}
     for _, utility in ipairs(self.utilities) do views[#views + 1] = utility end
     if batteriesShown(self.panel) then views[#views + 1] = BATTERIES end
-    views[#views + 1] = LOG
+    if logShown(self.panel) then views[#views + 1] = LOG end
     for _, view in ipairs(views) do
         local list = ISBUPanelList:new(0, 0, listW, height - self.tabs.tabHeight, self, view)
         list:initialise()
@@ -404,61 +366,9 @@ function ISBUPanelWindow:layoutPanes()
     self.listW = listW
     self.splitter:setX(listW)
     self.statusArea:setWidth(listW - PAD * 2)
-    self:placePanelTabs()
     if self.lever then self:placeLever(self.loadTextW or 0) end
     if self.tabs:getWidth() ~= listW then self.tabs:resize(listW, self.tabs:getHeight()) end
     self:placeOptions()
-end
-
--- The boxes' tabs' titles and their widths, measured once a refresh (not each time the window is laid out).
-function ISBUPanelWindow:measurePanelTabs()
-    self.tabTitles, self.tabTips, self.tabWidths = {}, {}, {}
-    for index, entry in ipairs(self.tree) do
-        self.tabTitles[index], self.tabTips[index] = tabTitle(entry)
-        self.tabWidths[index] = UI.textWidth(self.tabTitles[index]) + 32
-    end
-end
-
--- The boxes' tabs across the left column's top: each as wide as its title; where they do not all fit, each an equal
--- share with its title cut (the whole one its tooltip). This box's lit. Laid out again only when the left column's
--- width changed, or when asked (a refresh).
-function ISBUPanelWindow:placePanelTabs(force)
-    local tabs = self.panelTabs
-    local bw = self.listW or self:bodyWidth()
-    if not tabs or not force and self.tabsPlacedAt == bw then return end
-    if not self.tabTitles then self:measurePanelTabs() end
-    self.tabsPlacedAt = bw
-    if tabs:getWidth() ~= bw - PAD * 2 then tabs:setWidth(bw - PAD * 2) end
-    local total = 0
-    for index = 1, #self.tree do total = total + (self.tabWidths[index] or 0) end
-    local room = bw - PAD * 2 - (#self.tree - 1) * 4
-    local share = total > room and math.floor(room / #self.tree) or nil
-    local items = {}
-    for index, entry in ipairs(self.tree) do
-        local title = self.tabTitles[index] or ""
-        if share then title = UI.fit(title, share - 32) end
-        items[#items + 1] = { id = entry.panel.id, label = title, tip = self.tabTips[index] }
-    end
-    tabs:setItems(items, self.panel.id)
-end
-
-function ISBUPanelWindow:onPanelTab(id)
-    local target = Store.get(id)
-    if target then self:switchTo(target) end
-end
-
--- Another box of the supply tree shown in this window's place (its own window, where it has one, moved here).
-function ISBUPanelWindow:switchTo(target)
-    if target.id == self.panel.id then return end
-    local x, y, w, h = self:getX(), self:getY(), self:getWidth(), self:getHeight()
-    local anchor = self.anchor
-    self.still = true
-    self:close()
-    local window = PanelWindow.open(self.playerObj, target, anchor, true)
-    window:setX(x)
-    window:setY(y)
-    window:setWidth(math.max(w, window.minimumWidth))
-    window:setHeight(math.max(h, window.minimumHeight))
 end
 
 -- The window resized by the player: the panes share the new width.
@@ -479,7 +389,7 @@ end
 -- tabs right under the card while the row has nothing (laid out again only when that changes).
 function ISBUPanelWindow:placeRows()
     local x = PAD
-    for _, shown in ipairs({ self.mainButton, self.upgradeButton }) do
+    for _, shown in ipairs({ self.upgradeButton }) do
         if shown:getIsVisible() then
             shown:setX(x)
             x = x + shown:getWidth() + 6
@@ -622,30 +532,27 @@ function ISBUPanelWindow:render()
     UI.frame(self, 0, 0, w, h, P.border)
 end
 
--- The load against the box's limit, for the top (drawBody): the load (charging its bank aside, as the breaker counts
--- it), the box's own share and what its bank adds (Panels.limit), whether the power is live (the lever up and the
+-- The load against the box's limit, for the top (drawBody): the load, the box's own share and what its bank adds (Panels.limit), whether the power is live (the lever up and the
 -- network supplied; else the percent is 0 and the text tells what is switched on), the colour of its state (green
 -- within the box's share, blue drawing on the bank, red over the limit), the text under the bar in parts, the
 -- breaker's gauge (shown while it is not full) and the tooltips of the lever and the gauge.
 function ISBUPanelWindow:measureLoad(panel, power)
     self.capacity = Panels.capacity(panel)
-    local bank = not panel.parent and Energy.bank(panel) or nil
+    local bank = Energy.bank(panel)
     self.boost = Energy.boost(panel, bank)
     self.limit = self.capacity + self.boost
     self.load = nil
     self.gaugeShown = false
     self.spareText = nil
     self.lever:setTooltip(getText(panel.tripped and "IGUI_BU_LeverTripTip"
-        or Panels.leverUp(panel) and (panel.parent and "IGUI_BU_LeverUpTipSub" or "IGUI_BU_LeverUpTip")
+        or Panels.leverUp(panel) and "IGUI_BU_LeverUpTip"
         or "IGUI_BU_LeverDownTip"))
     if not (power and power.load) then
         self:placeLever(0)
         self:placeHead()
         return
     end
-    local factor = power.loadFactor or 1
-    self.loadFactor = factor
-    self.load = math.max(0, power.load - Energy.charging(panel) * factor)
+    self.load = math.max(0, power.load)
     self.live = Panels.leverUp(panel) and power.supplied == true
     local ratio = self.live and self.load / math.max(self.limit, 1e-6) or 0
     self.ratio = ratio
@@ -711,8 +618,7 @@ end
 
 -- The water tab's card, for the top (drawWaterCard): what the tanks hold of their capacity (the percent, large), the
 -- bar of each group's water in its colour, under it the litres and the change over the last day, and at the right
--- the level over the last hours (the groups' logs together, Store.recordWater; the box at the top of the tree keeps
--- them). Nil while water is off.
+-- the level over the last hours (the groups' logs together, Store.recordWater). Nil while water is off.
 local DAY = 24
 function ISBUPanelWindow:measureWater(panel, state)
     self.waterView = nil
@@ -726,8 +632,7 @@ function ISBUPanelWindow:measureWater(panel, state)
     view.percentText = capacity > 0 and tostring(math.floor(view.ratio * 100 + 0.5)) or "-"
     view.colour = capacity > 0 and P.water or P.dim
     view.text = getText("IGUI_BU_Left_Water", string.format("%.0f", amount), string.format("%.0f", capacity))
-    local root = Store.get(panel.parent) or panel
-    local logs = root.water.levelLog or {}
+    local logs = panel.water.levelLog or {}
     local hours = {}
     for _, group in ipairs(BU.Water.groups(panel)) do
         local each = state.groups and state.groups[group.id]
@@ -936,7 +841,7 @@ function ISBUPanelWindow:update()
     -- out in the old ones and opens anew where it is.
     if self.era ~= UI.era then self:reopen(); return end
     -- Its character dead, or another in its place (a new one after death), or far from the box it was opened at and
-    -- from every box of the supply tree it shows: the window was theirs there. Not while an action walks them (one of
+    -- from the box it shows: the window was theirs there. Not while an action walks them (one of
     -- the window's own, to a generator or another box): it closes if they stay away once it is done.
     local player = self.playerObj
     if player:isDead() or getSpecificPlayer(player:getPlayerNum()) ~= player then self:close(); return end
@@ -966,8 +871,8 @@ function ISBUPanelWindow:tick()
     self:updateStatus()
 end
 
--- How far the player is from the nearest of the box it was opened at and the boxes of its supply tree: the larger of
--- the steps across, and TILES_PER_FLOOR a floor up or down.
+-- How far the player is from the nearer of the box it was opened at and the box it shows: the larger of the steps
+-- across, and TILES_PER_FLOOR a floor up or down.
 function ISBUPanelWindow:away()
     local player = self.playerObj
     local px, py, pz = player:getX(), player:getY(), player:getZ()
@@ -975,9 +880,7 @@ function ISBUPanelWindow:away()
         return math.max(math.abs(px - box.x - 0.5), math.abs(py - box.y - 0.5))
             + math.abs(pz - box.z) * PanelWindow.TILES_PER_FLOOR
     end
-    local nearest = from(self.anchor)
-    for _, entry in ipairs(self.tree) do nearest = math.min(nearest, from(entry.panel)) end
-    return nearest
+    return math.min(from(self.anchor), from(self.panel))
 end
 
 -- Something the window shows changed: it refreshes once that settles (SETTLE_MS).
@@ -1017,49 +920,29 @@ function ISBUPanelWindow:refresh()
     local panel = Store.get(self.panel.id)
     if not panel then return end
     self.panel = panel
-    -- A utility turned on or off in the sandbox, the first rack wired or the last taken away, or a box joined or left
-    -- the supply tree: the window opens anew where it is, with its tabs (reopen).
-    local tree = PanelWindow.tree(panel)
-    if viewsKey(panel) ~= self.utilitiesKey or treeKey(tree) ~= self.treeKey then
+    -- A utility turned on or off in the sandbox, the first rack wired or the last taken away, or the log shown by an
+    -- upgrade: the window opens anew where it is, with its tabs (reopen).
+    if viewsKey(panel) ~= self.utilitiesKey then
         self:reopen()
         return
     end
-    -- The same boxes, as the data has them now (renamed, rezoned): the tabs' titles, measured here, not as they are
-    -- laid out; and the highest floor of their buildings, for the boosters' rows.
-    self.tree = tree
-    self:measurePanelTabs()
-    self.treeTop = nil
-    for _, entry in ipairs(tree) do
-        local building = Panels.building(entry.panel)
-        if building and (not self.treeTop or building.maxLevel > self.treeTop) then self.treeTop = building.maxLevel end
-    end
+    -- The highest floor of its building, for the boosters' rows.
+    local building = Panels.building(panel)
+    self.buildingTop = building and building.maxLevel or nil
     local powerOn = BU.enabled("power")
     local power, water = Networks.state(panel, "power"), Networks.state(panel, "water")
     self.states = { power = power, water = water }
     self:setTitle(getText("IGUI_BU_TierName", Panels.name(panel), panel.tier or 1))
-    self:placePanelTabs(true)
     self:measureLoad(panel, power)
     self:measureWater(panel, water)
     if self.load and math.abs((self.loadShown or 0) - self:loadShare()) > 0.002 then UI.live(self.body, bodyFrame) end
-    -- The banner: the breaker down, or devices shed.
-    local shed = count(panel.power.shed)
+    -- The banner: the breaker down.
     if powerOn and panel.tripped then
         self.banner = { text = getText("IGUI_BU_BannerTripped", load2(self.limit)), colour = { 0.6, 0.1, 0.1 }, pulse = true }
-    elseif powerOn and shed > 0 then
-        self.banner = { text = getText("IGUI_BU_BannerShed", shed), colour = { 0.6, 0.35, 0.05 } }
     else
         self.banner = nil
     end
     if self.banner and self.banner.pulse then UI.live(self.body, bodyFrame) end
-    -- Taking supply from another box: offered only to a box that could (no producers or units of its own, another in
-    -- reach, Panels.linkCandidates); a sub-panel can stop it.
-    local parent = Store.get(panel.parent)
-    local canJoin = false
-    if not parent and #panel.power.producers == 0 and #panel.water.producers == 0 and #Store.unitList(nil, panel.id) == 0 then
-        canJoin = #Panels.linkCandidates(panel) > 0
-    end
-    self.mainButton:setVisible(parent ~= nil or canJoin)
-    titled(self.mainButton, parent and getText("IGUI_BU_LeaveMain", Panels.name(parent)) or getText("IGUI_BU_JoinMain"))
     local tier = panel.tier or 1
     self.upgradeButton:setVisible(tier < BU.TIERS)
     if tier < BU.TIERS then
@@ -1127,16 +1010,6 @@ function ISBUPanelWindow:loadBreakdown()
         else rest, restTotal = rest + 1, restTotal + group.total end
     end
     if rest > 0 then lines[#lines + 1] = "  " .. getText("IGUI_BU_BreakdownMore", rest) .. "  " .. load2(restTotal) end
-    for _, child in ipairs(Store.children(self.panel.id)) do
-        local childState = Networks.state(child, "power")
-        if childState and childState.load then
-            lines[#lines + 1] = "  " .. getText("IGUI_BU_BreakdownSub", Panels.name(child)) .. "  " .. load2(childState.load)
-        end
-    end
-    local factor = self.loadFactor or 1
-    if factor > 1 then
-        lines[#lines + 1] = "  " .. getText("IGUI_BU_BreakdownLoss") .. "  " .. load2(self.load - self.load / factor)
-    end
     lines[#lines + 1] = getText("IGUI_BU_BreakdownTotal", load2(self.load), load2(self.limit))
     return table.concat(lines, "\n")
 end
@@ -1184,7 +1057,7 @@ end
 
 -- What switching a power device would make of the load, for its row's tooltip; nil when it would not change it.
 function ISBUPanelWindow:preview(device)
-    local power = (device.power or 0) * (self.loadFactor or 1)
+    local power = device.power or 0
     if power <= 0 or not self.load or device.state == "other" or device.held then return nil end
     local after, key
     if device.state == "on" then
@@ -1194,14 +1067,13 @@ function ISBUPanelWindow:preview(device)
     end
     local text = getText(key, load2(after), load2(self.limit))
     if device.state ~= "on" and BU.overloadEnabled() and after > self.limit + 1e-6 then
-        text = text .. " <LINE> <RGB:1,0.4,0.4> " .. getText(Panels.sheds(self.panel) and "IGUI_BU_PreviewShed" or "IGUI_BU_PreviewTrip")
+        text = text .. " <LINE> <RGB:1,0.4,0.4> " .. getText("IGUI_BU_PreviewTrip")
     end
     return text
 end
 
 -- What a device the box keeps off says, by why (Panels.devices' held).
-local HELD_TEXT = { shed = "IGUI_BU_HeldShed", saving = "IGUI_BU_HeldSaving", timer = "IGUI_BU_HeldTimer",
-    exterior = "IGUI_BU_HeldExterior" }
+local HELD_TEXT = { timer = "IGUI_BU_HeldTimer", exterior = "IGUI_BU_HeldExterior" }
 
 -- What a device does now, in words, for its row and the plan.
 function ISBUPanelWindow:deviceStatus(utility, device)
@@ -1276,82 +1148,50 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
     local view = { state = state, devices = devices, complete = complete, names = {}, status = {}, totals = {},
         producerText = {}, fresh = {} }
     self.views[utility] = view
-    local parent = Store.get(panel.parent)
-    if parent then
-        add({ kind = "link", header = true, text = getText("IGUI_BU_SuppliedBy", Panels.name(parent)), target = parent.id,
-            options = true },
-            getText("IGUI_BU_OpenTip"))
-        -- What is wired through it on to its main panel, which lists them.
-        local root, routed = Panels.root(panel), 0
-        for _, at in ipairs(root[utility].producers) do
-            if at.via == panel.id then routed = routed + 1 end
-        end
-        for _, unit in ipairs(Units.of(root.id, utility)) do
-            if unit.via == panel.id then routed = routed + 1 end
-        end
-        if routed > 0 then
-            add({ kind = "link", text = getText("IGUI_BU_RoutedHere", routed, Panels.name(root)), target = root.id },
-                getText("IGUI_BU_OpenTip"))
-        end
-    else
-        -- Water groups first: the tanks' and fixtures' rows name theirs (with more than one).
-        if utility == "water" then self:waterGroupRows(add, state, devices) end
-        add({ kind = "header", text = getText("IGUI_BU_Producers"), options = true })
-        local producers = panel[utility].producers
-        local source = utility == "power" and Energy.hasSource(panel)
-        if #producers == 0 and not source then add({ kind = "note", text = getText("IGUI_BU_NoProducers_" .. utility) }) end
-        if source then
-            for _, entry in ipairs(self:sourceRows(state)) do add(entry.row, entry.tooltip) end
-        end
-        for index, at in ipairs(producers) do
-            local seen = PanelWindow.seenProducer(state, at)
-            local inUse = PanelWindow.producerInUse(state, at)
-            local where = Panels.where(panel, at.x, at.y)
-            local via = at.via and Store.get(at.via)
-            if via then where = getText("IGUI_BU_WhereVia", where, Panels.name(via)) end
-            local text, generatorState
-            if utility == "power" then
-                local square = getCell():getGridSquare(at.x, at.y, at.z)
-                local generator = square and square:getGenerator()
-                local fuel = seen and seen.fuel and (generator and percent(seen.fuel, generator:getMaxFuel()) or string.format("%.1f", seen.fuel)) or "-"
-                generatorState = PanelWindow.generatorState(state, at)
-                text = getText("IGUI_BU_GeneratorRow", index, where, PanelWindow.generatorStateText(generatorState), fuel,
-                    seen and seen.condition and string.format("%.0f%%", seen.condition) or "-")
-            else
-                text = getText("IGUI_BU_TankRow", index, where, seen and seen.amount and string.format("%.0f", seen.amount) or "-",
-                    seen and seen.capacity and string.format("%.0f", seen.capacity) or "-")
-            end
-            view.producerText[index] = text
-            local row = { kind = "producer", text = text, index = index, at = at, inUse = inUse, water = utility == "water",
-                out = generatorState == "out" }
-            if utility == "water" and #BU.Water.groups(panel) > 1 then
-                row.group = BU.Water.producerGroup(at)
-                row.groupText, row.groupColour = BU.Water.groupName(panel, row.group), PanelWindow.groupColour(panel, row.group)
-            end
-            -- A generator's row tells how servicing one works: switched off by hand, the others take over.
-            add(row, utility == "power" and getText("IGUI_BU_GeneratorTip") or nil)
-        end
-        if utility == "water" then self:waterUnitRows(add) end
-        -- What it could take and no box has, dim, unless the view hides it: connected at the thing itself.
-        view.unwired = Panels.unwiredProducers(panel, utility)
-        if not PanelWindow.options.hideUnwired then
-            for _, at in ipairs(view.unwired) do
-                local name = at.unit and Units.name(at.unit) or BU.displayName(at.x, at.y, at.z, at.sprite)
-                add({ kind = "producer", unwired = true, at = at, water = utility == "water",
-                    text = getText("IGUI_BU_UnwiredProducerRow", name, Panels.where(panel, at.x, at.y)) },
-                    getText("IGUI_BU_UnwiredProducerTip"))
-            end
-        end
+    -- Water groups first: the tanks' and fixtures' rows name theirs (with more than one).
+    if utility == "water" then self:waterGroupRows(add, state, devices) end
+    add({ kind = "header", text = getText("IGUI_BU_Producers"), options = true })
+    local producers = panel[utility].producers
+    local source = utility == "power" and Energy.hasSource(panel)
+    if #producers == 0 and not source then add({ kind = "note", text = getText("IGUI_BU_NoProducers_" .. utility) }) end
+    if source then
+        for _, entry in ipairs(self:sourceRows(state)) do add(entry.row, entry.tooltip) end
     end
-    local children = Store.children(panel.id)
-    if #children > 0 then
-        add({ kind = "header", text = getText("IGUI_BU_SubPanels") })
-        for _, child in ipairs(children) do
-            local childState = Networks.state(child, utility)
-            local right = utility == "power" and childState and childState.load and load2(childState.load) or ""
-            if child.tripped and utility == "power" then right = right .. "  " .. getText("IGUI_BU_Tripped") end
-            add({ kind = "link", text = PanelWindow.boxTitle(child) .. "   " .. right, target = child.id },
-                getText("IGUI_BU_OpenTip"))
+    for index, at in ipairs(producers) do
+        local seen = PanelWindow.seenProducer(state, at)
+        local inUse = PanelWindow.producerInUse(state, at)
+        local where = Panels.where(panel, at.x, at.y)
+        local text, generatorState
+        if utility == "power" then
+            local square = getCell():getGridSquare(at.x, at.y, at.z)
+            local generator = square and square:getGenerator()
+            local fuel = seen and seen.fuel and (generator and percent(seen.fuel, generator:getMaxFuel()) or string.format("%.1f", seen.fuel)) or "-"
+            generatorState = PanelWindow.generatorState(state, at)
+            text = getText("IGUI_BU_GeneratorRow", index, where, PanelWindow.generatorStateText(generatorState), fuel,
+                seen and seen.condition and string.format("%.0f%%", seen.condition) or "-")
+        else
+            text = getText("IGUI_BU_TankRow", index, where, seen and seen.amount and string.format("%.0f", seen.amount) or "-",
+                seen and seen.capacity and string.format("%.0f", seen.capacity) or "-")
+        end
+        view.producerText[index] = text
+        local row = { kind = "producer", text = text, index = index, at = at, inUse = inUse, water = utility == "water",
+            out = generatorState == "out" }
+        if utility == "water" and #BU.Water.groups(panel) > 1 then
+            row.group = BU.Water.producerGroup(at)
+            row.groupText, row.groupColour = BU.Water.groupName(panel, row.group), PanelWindow.groupColour(panel, row.group)
+        end
+        -- A generator's row tells how servicing one works: switched off by hand, the others take over.
+        add(row, utility == "power" and getText("IGUI_BU_GeneratorTip") or nil)
+    end
+    if utility == "water" then self:waterUnitRows(add) end
+    -- What it could take and no box has, dim, unless the view hides it: connected at the thing itself.
+    view.unwired = Panels.unwiredProducers(panel, utility)
+    if not PanelWindow.options.hideUnwired then
+        for _, at in ipairs(view.unwired) do
+            local name = at.unit and Units.name(at.unit) or BU.displayName(at.x, at.y, at.z, at.sprite)
+            add({ kind = "producer", unwired = true, at = at, water = utility == "water",
+                text = getText("IGUI_BU_UnwiredProducerRow", name, Panels.where(panel, at.x, at.y)) },
+                getText("IGUI_BU_UnwiredProducerTip"))
         end
     end
     local seen = self:seenSet(utility, devices)
@@ -1367,7 +1207,11 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
     if utility == "power" and self.load and offPower > 0 then
         allTip = getText("IGUI_BU_PreviewAll", load2(self.load + offPower), load2(self.limit))
     end
-    add({ kind = "all", text = getText("IGUI_BU_AllInside"), state = self:allInside(devices) and "on" or "off" }, allTip)
+    -- Below the tier that cuts devices there is nothing to switch: no "everything inside" row, rows without ticks.
+    local fixed = not Panels.cuts(panel)
+    if not fixed then
+        add({ kind = "all", text = getText("IGUI_BU_AllInside"), state = self:allInside(devices) and "on" or "off" }, allTip)
+    end
     if not complete then add({ kind = "note", text = getText("IGUI_BU_NotAllLoaded") }) end
     if #devices == 0 then add({ kind = "note", text = getText("IGUI_BU_NoDevices_" .. utility) }) end
     -- Rooms by their id (rooms of one name stay apart), devices in no room after them, then those outside.
@@ -1422,7 +1266,6 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
     if self.roomFilter then
         add({ kind = "filter", text = getText("IGUI_BU_FilterNote", title(self.roomFilter)) })
     end
-    local sheds = Panels.sheds(panel)
     local timers = (panel.tier or 1) >= BU.TIMER_TIER
     for _, group in ipairs(order) do
         view.totals[group.id] = { title = title(group.id), total = group.total, on = group.on, count = group.on + group.off }
@@ -1445,7 +1288,8 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
             roomState = group.off == 0 and "on" or group.on == 0 and "off" or "some"
         end
         local right = utility == "power" and load2(group.total) or (group.on .. " / " .. (group.on + group.off))
-        add({ kind = "room", id = group.id, text = title(group.id), right = right, state = roomState, folded = folded, foldKey = foldKey })
+        add({ kind = "room", id = group.id, text = title(group.id), right = right, state = roomState, fixed = fixed,
+            folded = folded, foldKey = foldKey })
         if not folded then
             table.sort(group.devices, function(a, b)
                 if options.byLoad and (a.device.power or 0) ~= (b.device.power or 0) then return (a.device.power or 0) > (b.device.power or 0) end
@@ -1463,7 +1307,7 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
                     tooltip = (tooltip and tooltip .. " <LINE> " or "")
                         .. getText(device.switchOn and "IGUI_BU_OwnSwitchOnTip" or "IGUI_BU_OwnSwitchOffTip")
                 end
-                -- its timer and essential buttons tell what they do over themselves (ISBUPanelList.BUTTON_TIPS)
+                -- its timer button tells what it does over itself (ISBUPanelList.BUTTON_TIPS)
                 local controls = timers and utility == "power" and device.state == "on"
                 local groupText, groupColour
                 if device.group and device.state == "on" and #BU.Water.groups(panel) > 1 then
@@ -1471,8 +1315,7 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
                 end
                 add({ kind = "device", text = shown.name, right = shown.status, dim = shown.dim, device = device,
                     state = device.state, unwired = not device.wired, held = device.held, controls = controls,
-                    sheds = sheds,
-                    fresh = view.fresh[device.key], groupText = groupText, groupColour = groupColour }, tooltip)
+                    fixed = fixed, fresh = view.fresh[device.key], groupText = groupText, groupColour = groupColour }, tooltip)
             end
         end
     end
@@ -1560,7 +1403,8 @@ function ISBUPanelWindow:fillLog()
     for _, hour in ipairs(self.panel.energyLog or {}) do hours[#hours + 1] = hour end
     local now = self.panel.energyNow
     if now and now.n > 0 then hours[#hours + 1] = { made = now.made / now.n, used = now.used / now.n, charge = now.charge } end
-    if #hours > 0 then list:addItem("", { kind = "graph", hours = hours }) end
+    -- The energy graph from BU.GRAPH_TIER; the box keeps its hours before.
+    if #hours > 0 and (self.panel.tier or 1) >= BU.GRAPH_TIER then list:addItem("", { kind = "graph", hours = hours }) end
     -- What the box has done for the player: how long its solar side carried the load, how long since power was cut.
     local stats = self.panel.stats
     if stats then
@@ -1637,9 +1481,7 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
     if row.kind == "source" then
         for _, button in ipairs(Ui.sourceButtons(width, row)) do
             if x >= button.x and x <= button.x + button.w then
-                if button.name == "Settings" then
-                    ISBUControllerPopup.open(self)
-                elseif row.useSourceReady then
+                if row.useSourceReady then
                     Sync.send(playerObj, "useSource", { panel = panel.id })
                 else
                     HaloTextHelper.addBadText(playerObj, row.useSourceReason)
@@ -1663,9 +1505,6 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
         end
     elseif row.kind == "waterGroup" or row.kind == "addGroup" then
         self:onGroupRow(row, x, width)
-    elseif row.kind == "link" then
-        local target = Store.get(row.target)
-        if target then self:switchTo(target) end
     elseif row.kind == "all" then
         Sync.send(playerObj, "setAllInside", { panel = panel.id, utility = utility, on = row.state ~= "on" })
     elseif row.kind == "filter" then
@@ -1679,7 +1518,7 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
         if row.folded and self.plan and self.plan.floor ~= row.level then self.plan:showFloor(row.level)
         else self:refill(utility) end
     elseif row.kind == "room" then
-        if row.state and x >= ROOM_TICK_X and x <= ROOM_TICK_X + ROW then
+        if row.state and not row.fixed and x >= ROOM_TICK_X and x <= ROOM_TICK_X + ROW then
             Sync.send(playerObj, "setRoomInside", { panel = panel.id, utility = utility, room = row.id, on = row.state ~= "on" })
         else
             PanelWindow.folded[row.foldKey] = (not row.folded) or nil
@@ -1691,15 +1530,13 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
             if x >= button.x and x <= button.x + button.w then
                 if button.name == "group" then
                     self:deviceGroupMenu(device)
-                elseif button.name == "timer" then
-                    Sync.send(playerObj, "setSchedule", { panel = panel.id, key = device.key, schedule = nextSchedule(device.schedule) })
                 else
-                    Sync.send(playerObj, "setEssential", { panel = panel.id, key = device.key, on = not device.essential })
+                    Sync.send(playerObj, "setSchedule", { panel = panel.id, key = device.key, schedule = nextSchedule(device.schedule) })
                 end
                 return
             end
         end
-        self:switchDevice(utility, device)
+        if not row.fixed then self:switchDevice(utility, device) end
     end
 end
 
@@ -1721,46 +1558,6 @@ end
 function ISBUPanelWindow:onUpgrade()
     local panel = self.panel
     BU.ContextMenu.queueAt(self.playerObj, panel.x, panel.y, panel.z, ISBUUpgradePanel:new(self.playerObj, panel))
-end
-
--- Joins a main panel (a menu of those it can, with what the lines cost) or leaves the one it has; at its own box.
-function ISBUPanelWindow:onMainPanel()
-    local panel, playerObj = self.panel, self.playerObj
-    if panel.parent then
-        BU.ContextMenu.queueAt(playerObj, panel.x, panel.y, panel.z, ISBUDisconnect:new(playerObj, "link", panel, nil, panel.x, panel.y, panel.z))
-        return
-    end
-    local menu = ISContextMenu.get(playerObj:getPlayerNum(), getMouseX(), getMouseY())
-    local candidates = Panels.linkCandidates(panel)
-    if #candidates == 0 then
-        local hasProducers = #panel.power.producers > 0 or #panel.water.producers > 0
-        local option = menu:addOption(getText(hasProducers and "IGUI_BU_Reason_hasProducers" or "IGUI_BU_NoMainInRange",
-            BU.connectRange(BU.TIERS)), nil, nil)
-        option.notAvailable = true
-        return
-    end
-    for _, candidate in ipairs(candidates) do
-        local option = menu:addOption(getText("IGUI_BU_PanelChoice", Panels.name(candidate.panel), getText("IGUI_BU_Steps", candidate.steps)),
-            self, ISBUPanelWindow.onLink, candidate.panel)
-        local cost = Costs.link(candidate.wire)
-        local tip = ISToolTip:new()
-        tip:initialise()
-        tip:setVisible(false)
-        option.toolTip = tip
-        if candidate.tier then
-            -- In reach once that box is upgraded.
-            tip.description = getText("IGUI_BU_NeedsTier", candidate.tier)
-            option.notAvailable = true
-        else
-            tip.description = Costs.describe(playerObj, cost)
-            if not Costs.affords(playerObj, cost) then option.notAvailable = true end
-        end
-    end
-end
-
-function ISBUPanelWindow:onLink(parent)
-    local panel, playerObj = self.panel, self.playerObj
-    BU.ContextMenu.queueAt(playerObj, panel.x, panel.y, panel.z, ISBUConnect:new(playerObj, "link", panel, nil, panel.x, panel.y, panel.z, parent.id))
 end
 
 -- How far from the box it was opened at, in tiles (a floor up or down counting as TILES_PER_FLOOR), a window stays open.
@@ -1793,17 +1590,15 @@ function PanelWindow.isOpen(panelId) return open[panelId] ~= nil end
 function PanelWindow.get(panelId) return open[panelId] end
 
 -- The data changed: every window refreshes once that settles, as a box's change can show in another's window too
--- (its name, a device connected to it, a sub-panel's supply).
+-- (its name, a device connected to it).
 function PanelWindow.refreshAll()
     for _, window in pairs(open) do window:changed() end
 end
 
--- The API says a network changed: its panel's window, and its main panel's, show it.
+-- The API says a network changed: its panel's window shows it.
 function PanelWindow.onNetworkChange(id)
     local panel = Networks.owner(id)
-    if not panel then return end
-    if open[panel.id] then open[panel.id]:changed() end
-    if panel.parent and open[panel.parent] then open[panel.parent]:changed() end
+    if panel and open[panel.id] then open[panel.id]:changed() end
 end
 
 -- What the windows marked as seen, forgotten for the boxes that are gone: an id is never given again.

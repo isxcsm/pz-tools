@@ -137,13 +137,12 @@ local FEATURES = {
     water = { option = "EnableWater" },
     solar = { option = "EnableSolar", needs = { "power" } },
     rack = { option = "EnableBatteries", needs = { "power" } },
-    controller = { option = "EnableChargeController", needs = { "rack" } },
     pump = { option = "EnablePumps", needs = { "water", "power" } },
     sprinkler = { option = "EnableSprinklers", needs = { "water" } },
     filter = { option = "EnableFilters", needs = { "water" } },
     booster = { option = "EnableBoosters", needs = { "water", "power" } },
 }
-BU.FEATURES = { "power", "water", "solar", "rack", "controller", "pump", "sprinkler", "filter", "booster" }
+BU.FEATURES = { "power", "water", "solar", "rack", "pump", "sprinkler", "filter", "booster" }
 
 -- Whether a feature is on: its option, and those of the features it needs. A name that is no feature's is on.
 function BU.enabled(name)
@@ -192,8 +191,7 @@ end
 
 -- How far a box of a tier reaches, in squares from its building's outline: the sandbox's range at tier 1, and
 -- RangePerTier percent of it more for each tier above. One range for everything (the API reads at most 32): devices
--- outside, producers and units join within it of a box (devices of their own, the rest of any, taken on to its main
--- box), and a box takes supply from another whose building is within it.
+-- outside, producers and units join within it of a box.
 local function reach(name, default, tier)
     tier = math.max(1, math.min(BU.TIERS, tier or 1))
     local perTier = math.max(0, BU.sandbox("RangePerTier", 50))
@@ -202,7 +200,7 @@ end
 function BU.connectRange(tier) return math.max(1, math.min(32, reach("ConnectRange", 5, tier))) end
 
 -- How many floors above and below its own a box's zone takes, the sandbox's at tier 1 and more by RangePerTier as
--- the ranges; nil without a limit (FloorReach 0). A tall building takes more boxes, sub-panels of one.
+-- the ranges; nil without a limit (FloorReach 0). A tall building takes more boxes.
 function BU.floorReach(tier)
     if BU.sandbox("FloorReach", 2) <= 0 then return nil end
     return math.max(1, reach("FloorReach", 2, tier))
@@ -217,7 +215,7 @@ function BU.tilesPerPiece() return math.max(1, BU.sandbox("TilesPerPiece", 5)) e
 function BU.refundPercent() return math.max(0, math.min(100, BU.sandbox("RefundPercent", 50))) end
 
 -- A box carries so much power for its tier; past it, its breaker trips.
-local CAPACITY_DEFAULTS = { 1.0, 2.0, 3.5, 5.0 }
+local CAPACITY_DEFAULTS = { 0.5, 1.0, 2.0, 4.0 }
 function BU.overloadEnabled() return BU.sandbox("OverloadEnabled", true) == true end
 function BU.capacity(tier)
     tier = math.max(1, math.min(BU.TIERS, tier or 1))
@@ -225,21 +223,12 @@ function BU.capacity(tier)
 end
 function BU.lowFuelHours() return math.max(0, BU.sandbox("LowFuelHours", 6)) end
 
--- The power line into a box loses so much of the load per piece of wire it took (Costs.pieces), in percent: the
--- sandbox's at tier 1, two thirds of it at tier 2, one third at tier 3, none at tier 4.
-function BU.lossPerPiece(tier)
-    tier = math.max(1, math.min(BU.TIERS, tier or 1))
-    return math.max(0, BU.sandbox("LossPerWire", 1)) * (BU.TIERS - tier) / (BU.TIERS - 1)
-end
-
--- What a box can do from a tier: put devices on timers, give supply to sub-panels, and shed its devices that are
--- not essential, the largest first, before its breaker trips.
-BU.TIMER_TIER = 2
-BU.LINK_TIER = 2
--- Battery racks join from tier 2 (the bank: BU.Energy); from tier 3 a charge controller runs it.
-BU.BANK_TIER = 2
-BU.CONTROLLER_TIER = 3
-BU.SMART_TIER = 4
+-- What a box can do from a tier: cut its devices one by one at the box (below it, everything it reaches is
+-- supplied), put them on timers and show its log, show the energy graph on the log.
+BU.CUT_TIER = 2
+BU.TIMER_TIER = 3
+BU.LOG_TIER = 3
+BU.GRAPH_TIER = 4
 
 -- Electricity experience for wiring: so much times the sandbox's multiplier (0: none).
 function BU.xpMultiplier() return math.max(0, BU.sandbox("ExperienceMultiplier", 1)) end

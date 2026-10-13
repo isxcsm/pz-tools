@@ -139,8 +139,7 @@ local function addPanelOptions(context, playerObj, panel)
 end
 
 -- "Connect to a panel": a line a panel in reach of the top tier (Panels.producerCandidates), each with what its line
--- costs, or why not; a sub-panel named with the main panel it takes the line on to. A producer's line (kind
--- "producer") or a unit's ("unit", extra its id). No submenu: there are seldom more than one or two.
+-- costs, or why not. A producer's line (kind "producer") or a unit's ("unit", extra its id). No submenu: there are seldom more than one or two.
 local function addConnectOption(context, playerObj, kind, utility, x, y, z, extra)
     local candidates = Panels.producerCandidates(x, y, z)
     if #candidates == 0 then
@@ -150,9 +149,7 @@ local function addConnectOption(context, playerObj, kind, utility, x, y, z, extr
     end
     for _, candidate in ipairs(candidates) do
         local panel = candidate.panel
-        local root = Panels.root(panel)
-        local name = root ~= panel and getText("IGUI_BU_PanelVia", Panels.name(panel), Panels.name(root)) or Panels.name(panel)
-        local choice = tie(context:addOption(getText("ContextMenu_BU_ConnectToPanel", name, Panels.where(panel, x, y)),
+        local choice = tie(context:addOption(getText("ContextMenu_BU_ConnectToPanel", Panels.name(panel), Panels.where(panel, x, y)),
             playerObj, onConnect, kind, panel, utility, x, y, z, extra))
         local cost, reason = Actions.lineCost(kind, panel, utility, x, y, z, extra)
         if not candidate.inRange then
@@ -248,13 +245,14 @@ local function addDeviceOption(context, playerObj, utility, panel, device)
         unavailable(option, getText("IGUI_BU_ConnectedTo", other and Panels.name(other) or ""))
         return option
     end
-    -- A wired device is switched at the box (free, its line stays); taking its line up disconnects it. One not wired
-    -- yet is connected (a line laid).
+    -- A wired device is switched at the box (free, its line stays) from the tier that cuts devices (Panels.cuts);
+    -- taking its line up disconnects it. One not wired yet is connected (a line laid).
     local on = device.state == "on"
     local key = on and "ContextMenu_BU_DeviceOff" or device.wired and "ContextMenu_BU_DeviceSwitchOn" or "ContextMenu_BU_DeviceOn"
     local text = getText(key, name, label, Panels.name(panel))
     if device.wired then
-        local option = tie(context:addOption(text, playerObj, onSwitchInside, panel, utility, device.key, not on))
+        local option = Panels.cuts(panel) and tie(context:addOption(text, playerObj, onSwitchInside, panel, utility,
+            device.key, not on)) or nil
         if not device.inside then
             local line = removal(context:addOption(getText("ContextMenu_BU_LineRemove", name, label, Panels.name(panel)),
                 playerObj, onDisconnect, "outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite))

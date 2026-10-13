@@ -1,11 +1,11 @@
 -- The box's main switch, at the test panel: switched off and on by its lever in the window (the setLever command, at
 -- once), with the network, the status line, the look, the log and the window's row read each
--- time; quiet hours, a change of units, the breaker's reset and two game minutes of the server's rules leave it off,
+-- time; a change of units, the breaker's reset and two game minutes of the server's rules leave it off,
 -- with no producer running and no outage counted; a minute after it is on, the producer that carried the power
 -- before carries it again; a trip and the switch together. Then the generators' rows for a faked network state
--- (running, standby, out of service, cannot run, not seen) and whether the charge controller counts each as one that
+-- (running, standby, out of service, cannot run, not seen) and whether the bank's hand-over counts each as one that
 -- could take over. Then, with a generator put down and wired and a solar panel if the box has none (the box at tier 1,
--- the solar output faked and no bank, so the controller stays out of it), a minute a step: the low fuel told once
+-- the solar output faked and no bank), a minute a step: the low fuel told once
 -- across off and on; "Switch to solar" (offered, greyed when not ready, the generator on standby after it); a
 -- generator switched on by hand while the box is off carries after it is on, though the source could; the source,
 -- carrying as the box went off and falling short while it is off, gives way to the generator on standby.
@@ -20,10 +20,9 @@ local function check(what, got, want) say(got == want and "ok" or "BAD", what, t
 
 local panel = Store.get(ModData.getOrCreate("BUTEST").panel)
 if not panel then say("BAD no test panel: run bu_setup.lua"); return end
-if panel.parent then say("BAD the test panel is a sub-panel"); return end
 local player = getPlayer()
 local grid = getWorld():isHydroPowerOn()
-local was = { tripped = panel.tripped, switchedOff = panel.switchedOff, quietCut = panel.quietCut, tier = panel.tier }
+local was = { tripped = panel.tripped, switchedOff = panel.switchedOff, tier = panel.tier }
 -- The generator scene runs the box at tier 1, whose capacity the test panel's devices may pass: overload is off for it,
 -- so a trip does not stop the generator under the checks.
 local page = SandboxVars.BuildingUtilities
@@ -81,10 +80,9 @@ local function rowOf(kind)
     return nil
 end
 
--- From a box with its breaker up, its switch on and no quiet cut.
+-- From a box with its breaker up and its switch on.
 if panel.tripped then Changes.resetBreaker(panel) end
 if panel.switchedOff then Changes.setSwitchedOff(panel, false) end
-if panel.quietCut then Changes.setQuietCut(panel, false) end
 check("start: enabled", enabled(), true)
 local before = carrier()
 say("carried by", before)
@@ -103,17 +101,9 @@ throw(true)
 check("off: pulling it down again does nothing", toldOf("IGUI_BU_Notice_SwitchedOff"), offNotices)
 check("off: lever down", Panels.leverUp(panel), false)
 
--- What could switch it on again leaves it off. A change of units lifts a quiet cut only without a bank: none, here.
-Changes.setQuietCut(panel, true)
-Changes.setQuietCut(panel, false)
-check("quiet cut on and off: enabled", enabled(), false)
-local bankOf = Energy.bank
-Energy.bank = function() return nil end
-panel.quietCut = true
+-- What could switch it on again leaves it off.
 Changes.unitsChanged(panel)
-Energy.bank = bankOf
-check("units changed without a bank: quiet cut lifted", panel.quietCut, nil)
-check("units changed without a bank: enabled", enabled(), false)
+check("units changed: enabled", enabled(), false)
 Changes.resetBreaker(panel)
 check("breaker reset: enabled", enabled(), false)
 check("breaker reset: still switched off", panel.switchedOff, true)
@@ -136,7 +126,7 @@ local function generatorChecks()
         producer(5, { running = false, fuel = 5, condition = 0 }),
         producer(6, {}),
     }
-    local fake = { supplied = true, enabled = true, load = 0.2, loadFactor = 1, producer = { x = at[1].x, y = at[1].y, z = at[1].z },
+    local fake = { supplied = true, enabled = true, load = 0.2, producer = { x = at[1].x, y = at[1].y, z = at[1].z },
         producers = list }
     local wants = { "running", "standby", "out", "cannot", "cannot", nil }
     for i = 1, 6 do
@@ -165,15 +155,15 @@ local function generatorChecks()
             check("row " .. each.index .. " tooltip", item.tooltip, getText("IGUI_BU_GeneratorTip"))
         end
     end
-    -- The charge controller counts only those that could take over: not out of service, with fuel, not broken.
-    local function counts(i) return Energy.rules(panel, { load = 0.2, loadFactor = 1, producers = { list[i] } }).generators end
-    check("controller counts the running one", counts(1), true)
-    check("controller counts the one on standby", counts(2), true)
-    check("controller does not count the one out of service", counts(3), false)
-    check("controller does not count the one without fuel", counts(4), false)
-    check("controller does not count the broken one", counts(5), false)
+    -- The bank hands over only to those that could take over: not out of service, with fuel, not broken.
+    local function counts(i) return Energy.rules(panel, { load = 0.2, producers = { list[i] } }).generators end
+    check("hand-over counts the running one", counts(1), true)
+    check("hand-over counts the one on standby", counts(2), true)
+    check("hand-over does not count the one out of service", counts(3), false)
+    check("hand-over does not count the one without fuel", counts(4), false)
+    check("hand-over does not count the broken one", counts(5), false)
     -- One not seen loaded counts as before (fuel and condition unknown), if its square is loaded now.
-    check("controller counts the one not seen, on a loaded square", counts(6), true)
+    check("hand-over counts the one not seen, on a loaded square", counts(6), true)
     window:refresh()
 end
 
@@ -241,11 +231,11 @@ local function finish()
         generator:remove()
     end
     if solar then Changes.removeUnit(solar) end
-    panel.tripped, panel.switchedOff, panel.quietCut, panel.tier = was.tripped, was.switchedOff, was.quietCut, was.tier
+    panel.tripped, panel.switchedOff, panel.tier = was.tripped, was.switchedOff, was.tier
     if page then page.OverloadEnabled = overloadWas end
     Networks.applyEnabled(panel)
     BU.Sync.changed(panel.id)
-    say("put back: tripped", panel.tripped, "switchedOff", panel.switchedOff, "quietCut", panel.quietCut, "tier", panel.tier,
+    say("put back: tripped", panel.tripped, "switchedOff", panel.switchedOff, "tier", panel.tier,
         "enabled", enabled())
     say("done")
 end

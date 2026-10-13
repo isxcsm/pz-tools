@@ -1,4 +1,4 @@
--- Units: objects this mod puts down and wires to a main panel like a generator (solar panels and battery racks for its
+-- Units: objects this mod puts down and wires to a panel like a generator (solar panels and battery racks for its
 -- power; pumps, sprinklers and filters for its water). They are kept in the save (Store.units), not only on their squares, because they count while those
 -- are not loaded. Each kind is defined once (Units.define) with what sets it apart; the rest of the mod asks the
 -- definition rather than the kind's name.
@@ -21,7 +21,7 @@ local definitions = {}
 --   sprites: each sprite it can stand as, in each of its looks (the server learns of them as their squares load:
 --     onLoad).
 --   utility: what it is wired for: "power" (a source of the panel's power) or "water" (it works for one of the
---     panel's water groups); minTier and tierReason: the lowest tier of a panel it is wired to.
+--     panel's water groups).
 --   colour: { r, g, b } on the plan.
 -- And, each optional:
 --   create(unit, object, kept): as it is put down (the server); kept: what its item carried (keep), or nil.
@@ -159,13 +159,10 @@ function Units.spriteFacing(kind, square, side) return definitions[kind].sprite(
 -- The panels a unit could be wired to, as for a generator (Panels.producerCandidates).
 function Units.candidates(unit) return Panels.producerCandidates(unit.x, unit.y, unit.z) end
 
--- Whether a unit can be wired to a panel (a sub-panel takes it on to its main panel, whose tier counts). True, or
--- false and a reason.
+-- Whether a unit can be wired to a panel. True, or false and a reason.
 function Units.canConnect(unit, panel)
     if not BU.enabled(unit.kind) then return false, "disabled" end
     if unit.panel then return false, "connectedElsewhere" end
-    local definition = definitions[unit.kind]
-    if (Panels.root(panel).tier or 1) < (definition.minTier or 1) then return false, definition.tierReason end
     for _, candidate in ipairs(Panels.inProducerRange(unit.x, unit.y, unit.z)) do
         if candidate.panel == panel then return true end
     end

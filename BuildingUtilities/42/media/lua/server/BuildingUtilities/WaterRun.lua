@@ -1,4 +1,4 @@
--- What the water units (BU.WaterUnits) do, on the server: each minute a main panel's boosters lift its water up the
+-- What the water units (BU.WaterUnits) do, on the server: each minute a panel's boosters lift its water up the
 -- floors, its pumps lift water into their groups while its power is on, and its filters wear while they purify; each
 -- ten minutes its sprinklers water the crops around them. Server.lua calls these, with the panel's water layout
 -- worked out once a minute (floors, Water.layout's second result) after the boosters, which may change it.
@@ -34,18 +34,12 @@ local function room(panel, group, floors)
     return math.max(0, state.capacity - (state.amount or 0))
 end
 
--- A pump's water: into its group, or once that is full into the group it overflows into. The litres lifted, or 0
--- and why not ("noTanks", "full").
+-- A pump's water: into its group, until that is full. The litres lifted, or 0 and why not ("noTanks", "full").
 local function lift(panel, unit, litres, floors)
     local group = WaterUnits.group(unit)
     local free = room(panel, group, floors)
     if free == nil then return 0, "noTanks" end
-    if free < 0.5 then
-        local overflow = Water.group(panel, group).overflow
-        free = overflow and Water.group(panel, overflow) and room(panel, overflow, floors) or 0
-        if free < 0.5 then return 0, "full" end
-        group = overflow
-    end
+    if free < 0.5 then return 0, "full" end
     local lifted = Networks.fill(panel, group, math.min(litres, free), unit.fluid, floors) or 0
     if lifted > 0 then return lifted end
     return 0, "full"
@@ -89,10 +83,10 @@ function WaterRun.pumps(panel, minutes, floors)
     if changed then Sync.changed(panel.id) end
 end
 
--- Each minute: a main panel's boosters (Water.boostPlan) run while it has power and its pipes are not frozen, each
+-- Each minute: a panel's boosters (Water.boostPlan) run while it has power and its pipes are not frozen, each
 -- where water reaches its floor ("noWater" else); running, they add to its load. When what runs differs from what its
 -- water networks were defined with (Networks.boostDefined: also after a booster was wired or taken away, or as the
--- world loaded), they follow (Networks.floorsChanged, its sub-panels' too). Boosters that are off (BU.enabled) stand
+-- world loaded), they follow (Networks.floorsChanged). Boosters that are off (BU.enabled) stand
 -- still and draw nothing.
 function WaterRun.boosters(panel)
     local boosters = Store.unitList("booster", panel.id)
@@ -170,8 +164,7 @@ end
 
 -- Each minute (so many of them): while the pipes leave water unpurified (the risk option), a group's water is purified
 -- as long as one of its filters has media, and that one wears by the hour (a group's other filters wait their turn).
--- Without the option the pipes purify and filters rest. A sub-panel's water hangs from its main panel's first group
--- and goes with it. Filters that are off (BU.enabled) rest and purify nothing: with the option, the water stays as
+-- Without the option the pipes purify and filters rest. Filters that are off (BU.enabled) rest and purify nothing: with the option, the water stays as
 -- the tanks hold it.
 function WaterRun.filters(panel, minutes)
     local filters = Store.unitList("filter", panel.id)

@@ -16,11 +16,11 @@ function BUT.f(value) return value and string.format("%.3f", value) or "nil" end
 -- Litres with the given places, "-" for none.
 function BUT.litres(value, places) return value and string.format("%." .. places .. "f", value) or "-" end
 
--- The first panel in the store within 60 squares of the player (by x and y), only main panels unless any is set.
-function BUT.nearPanel(any)
+-- The first panel in the store within 60 squares of the player (by x and y).
+function BUT.nearPanel()
     local player = getPlayer()
     for _, panel in ipairs(BuildingUtilities.Store.list()) do
-        if (any or not panel.parent) and math.abs(panel.x - player:getX()) + math.abs(panel.y - player:getY()) < 60 then
+        if math.abs(panel.x - player:getX()) + math.abs(panel.y - player:getY()) < 60 then
             return panel
         end
     end

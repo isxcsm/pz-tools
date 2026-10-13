@@ -1,13 +1,13 @@
--- A main panel's units as one power source of its network, named Energy.SOURCE (the API's setSource): this mod
+-- A panel's units as one power source of its network, named Energy.SOURCE (the API's setSource): this mod
 -- works out what its solar panels make and says whether that carries the load. The API does the rest as for a
 -- generator: the source switched on last carries the load, and when it cannot, the next producer takes over.
 -- Snow lies on panels outside while it snows and melts when it is warm; a player can brush it off.
--- From tier 2 the panel's racks are its bank: what the panels make over the load charges it, and it carries the
--- load when they make too little. The batteries wear by how deep they are drawn, worn ones drain the bank, and cold
+-- The panel's racks are its bank: what the panels make over the load charges it, and it carries the load when they
+-- make too little. The batteries wear by how deep they are drawn, worn ones drain the bank, and cold
 -- locks part of it.
 require "BuildingUtilities/Units"
 local BU = BuildingUtilities
-local Store, Panels, Units = BU.Store, BU.Panels, BU.Units
+local Store, Units = BU.Store, BU.Units
 local Energy = {}
 BU.Energy = Energy
 
@@ -33,12 +33,9 @@ function Energy.panelOutput(unit, sun)
     return Energy.rated() * (sun or Energy.sunlight()) * (1 - (unit.snow or 0))
 end
 
--- What charging the panel's bank from a generator adds to its load now (BU.Changes.setExtraLoad).
-function Energy.charging(panel) return panel.extraLoads and panel.extraLoads.charging or 0 end
-
--- Whether a panel's network has the source: a main panel with power units.
+-- Whether a panel's network has the source: a panel with power units.
 function Energy.hasSource(panel)
-    return not panel.parent and #Units.of(panel.id, "power") > 0
+    return #Units.of(panel.id, "power") > 0
 end
 
 -- What a panel's solar panels make now, how many there are and how much snow lies on them on average (0 to 1). None
@@ -63,16 +60,6 @@ end
 
 function Energy.inUse(state)
     return state ~= nil and state.producer ~= nil and state.producer.source == Energy.SOURCE
-end
-
--- The length of the source's line: from its nearest unit to the box (Panels.routeWire), or nil.
-function Energy.lineSteps(panel)
-    local best
-    for _, unit in ipairs(Units.of(panel.id, "power")) do
-        local steps = Panels.routeWire(panel, unit.x, unit.y, unit.z, unit.via)
-        if steps and (not best or steps < best) then best = steps end
-    end
-    return best
 end
 
 -- Whether the source can carry the load: what the panels make against it, with the margin to start.

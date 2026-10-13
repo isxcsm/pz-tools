@@ -85,7 +85,7 @@ function Changes.applyZone(panel, building, zone)
         for _, utility in ipairs(BU.UTILITIES) do
             local data = panel[utility]
             local left = {}
-            for _, field in ipairs({ "excluded", "essential", "schedule", "shed", "saving", "timed", "groupOf" }) do
+            for _, field in ipairs({ "excluded", "schedule", "timed", "groupOf" }) do
                 for key in pairs(data[field] or {}) do
                     if not data.included[key] then
                         local x, y, z = BU.parseThing(key)
@@ -127,62 +127,8 @@ local function addPaid(total, paid)
     for itemType, count in pairs(paid) do total[itemType] = (total[itemType] or 0) + count end
 end
 
--- The producers and units of other panels wired through a sub-panel (Panels.passesThrough): each { owner, utility,
--- producer } or { owner, unit }.
-local function routesThrough(panel)
-    local result = {}
-    for _, owner in ipairs(Store.list()) do
-        if owner ~= panel then
-            for _, utility in ipairs(BU.UTILITIES) do
-                for _, producer in ipairs(owner[utility].producers) do
-                    if producer.via and Panels.passesThrough(producer.via, panel) then
-                        result[#result + 1] = { owner = owner, utility = utility, producer = producer }
-                    end
-                end
-            end
-            for _, unit in ipairs(Store.unitList(nil, owner.id)) do
-                if unit.via and Panels.passesThrough(unit.via, panel) then result[#result + 1] = { owner = owner, unit = unit } end
-            end
-        end
-    end
-    return result
-end
-
--- Takes away the lines wired through a sub-panel that leaves its main panel: they no longer reach it. Returns what
--- they took.
-local function cutRoutes(panel)
-    local paid, owners = {}, {}
-    local routes = routesThrough(panel)
-    for _, route in ipairs(routes) do
-        local owner = route.owner
-        owners[owner] = owners[owner] or {}
-        if route.unit then
-            addPaid(paid, route.unit.paid)
-            Changes.unwire(route.unit)
-            owners[owner].units = true
-        else
-            addPaid(paid, route.producer.paid)
-            local list = owner[route.utility].producers
-            for index = #list, 1, -1 do
-                if list[index] == route.producer then table.remove(list, index) end
-            end
-            owners[owner][route.utility] = true
-        end
-    end
-    for owner, changed in pairs(owners) do
-        for _, utility in ipairs(BU.UTILITIES) do
-            if changed[utility] then Networks.setProducers(owner, utility) end
-        end
-        if changed.units then Changes.unitsChanged(owner) end
-        Networks.applyLoss(owner)
-        Sync.changed(owner.id)
-    end
-    if #routes > 0 then Sync.notice(panel, "IGUI_BU_Notice_RoutesCut", Panels.name(panel), #routes) end
-    return paid
-end
-
--- Everything a panel's lines took: its producers', its units', its outside devices', its own link's, its
--- sub-panels' links and the lines wired through it, which go with it. For giving back a share when it is taken down.
+-- Everything a panel's lines took: its producers', its units' and its outside devices'. For giving back a share when
+-- it is taken down.
 function Changes.paidFor(panel)
     local total = {}
     for _, utility in ipairs(BU.UTILITIES) do
@@ -190,24 +136,15 @@ function Changes.paidFor(panel)
         for _, paid in pairs(panel[utility].included) do addPaid(total, paid) end
     end
     for _, unit in ipairs(Store.unitList(nil, panel.id)) do addPaid(total, unit.paid) end
-    addPaid(total, panel.parentPaid)
-    for _, child in ipairs(Store.children(panel.id)) do addPaid(total, child.parentPaid) end
-    for _, route in ipairs(routesThrough(panel)) do addPaid(total, (route.unit or route.producer).paid) end
     return total
 end
 
--- Takes a panel away: its networks go, its producers are the game's again, its units are wired to nothing, the lines
--- wired through it go (Changes.paidFor gave them back), its sub-panels become main panels.
+-- Takes a panel away: its networks go, its producers are the game's again, its units are wired to nothing.
 function Changes.remove(panel)
     local object = Panels.object(panel)
     if object then object:getSquare():transmitRemoveItemFromSquare(object) end
-    cutRoutes(panel)
     Networks.remove(panel)
     for _, unit in ipairs(Store.unitList(nil, panel.id)) do Changes.unwire(unit) end
-    for _, child in ipairs(Store.children(panel.id)) do
-        child.parent, child.parentPaid = nil, nil
-        Networks.link(child)
-    end
     Store.remove(panel.id)
     BU.log("removed", panel.id)
     Sync.changed(panel.id)
@@ -227,8 +164,7 @@ end
 
 -- What a panel keeps about devices gone from their loaded squares (destroyed or picked up) goes, and their rules go
 -- from the networks: an object put there later is another device. One it connected outside goes with its line.
-local DEVICE_FIELDS = { "excluded", "included", "attached", "essential", "schedule", "shed", "saving", "timed",
-    "groupOf" }
+local DEVICE_FIELDS = { "excluded", "included", "attached", "schedule", "timed", "groupOf" }
 local function forgetGone(panel)
     local count = 0
     for _, utility in ipairs(BU.UTILITIES) do
@@ -303,15 +239,15 @@ function Changes.removeUnit(unit)
     return paid
 end
 
--- A part of the load the box adds to its devices' (the API's extra load): "charging" its bank from a generator,
--- "pumps" its water pumps running. The network gets their sum when that differs from what it has.
--- A unit wired to nothing now: no panel, nothing paid, no route, and nothing of how it last ran (a pump's running, a
--- booster's boosting, why it idled), so that its look and a later panel start from stopped.
+-- A unit wired to nothing now: no panel, nothing paid, and nothing of how it last ran (a pump's running, a booster's
+-- boosting, why it idled), so that its look and a later panel start from stopped.
 function Changes.unwire(unit)
-    unit.panel, unit.paid, unit.via = nil, nil, nil
+    unit.panel, unit.paid = nil, nil
     unit.running, unit.boosting, unit.idle = nil, nil, nil
 end
 
+-- A part of the load the box adds to its devices' (the API's extra load): "pumps", its water pumps running. The
+-- network gets their sum when that differs from what it has.
 function Changes.setExtraLoad(panel, part, load)
     panel.extraLoads = panel.extraLoads or {}
     panel.extraLoads[part] = load > 0 and load or nil
@@ -320,48 +256,10 @@ function Changes.setExtraLoad(panel, part, load)
     if state and math.abs(total - (state.extraLoad or 0)) > 0.0005 then Networks.setExtraLoad(panel, total) end
 end
 
--- A panel's units changed: its network has the units' source or not, and its line may be another. Without a bank
--- nothing charges it, nothing flows in or out of it, and nothing is kept off for it.
+-- A panel's units changed: its network has the units' source or not. Without a bank nothing flows in or out of it.
 function Changes.unitsChanged(panel)
     Networks.setProducers(panel, "power")
-    Networks.applyLoss(panel)
-    if not BU.Energy.bank(panel) then
-        panel.bankFlow = nil
-        Changes.setExtraLoad(panel, "charging", 0)
-        if panel.quietCut then
-            panel.quietCut = nil
-            Networks.applyEnabled(panel)
-        end
-        Changes.unsave(panel)
-    end
-end
-
--- The bank low at tier 4: these devices off until it has charge again (Changes.unsave).
-function Changes.save(panel, keys)
-    local first = true
-    for _ in pairs(panel.power.saving) do first = false end
-    for _, key in ipairs(keys) do
-        panel.power.saving[key] = true
-        Networks.apply(panel, "power", key)
-    end
-    Sync.changed(panel.id)
-    if first then Sync.notice(panel, "IGUI_BU_Notice_Saving", Panels.name(panel), #keys) end
-end
-
-function Changes.unsave(panel)
-    local keys = {}
-    for key in pairs(panel.power.saving) do keys[#keys + 1] = key end
-    if #keys == 0 then return end
-    panel.power.saving = {}
-    for _, key in ipairs(keys) do Networks.apply(panel, "power", key) end
-    Store.record(panel, "IGUI_BU_Log_Unsaved", { #keys })
-    Sync.changed(panel.id)
-end
-
--- The charge controller's settings (BU.Energy.settings), checked by the caller.
-function Changes.setController(panel, settings)
-    panel.controller = settings
-    Sync.changed(panel.id)
+    if not BU.Energy.bank(panel) then panel.bankFlow = nil end
 end
 
 -- "Switch to solar", checked by the caller (BU.Energy.sourceOffer): the units' source takes the load, and the API
@@ -372,21 +270,11 @@ function Changes.useSource(panel)
     Sync.changed(panel.id)
 end
 
--- Quiet hours with the bank empty: the panel's power off rather than a generator heard, and on again (unless its
--- breaker or main switch keeps it off).
-function Changes.setQuietCut(panel, cut)
-    panel.quietCut = cut or nil
-    Networks.applyEnabled(panel)
-    Sync.changed(panel.id)
-    if cut then Sync.notice(panel, "IGUI_BU_Notice_QuietCut", Panels.name(panel)) end
-end
-
--- Wired to a panel; to a sub-panel, it is its main panel's (Panels.root) through that one.
+-- Wired to a panel.
 function Changes.connectUnit(unit, panel, paid)
-    local root = Panels.root(panel)
-    unit.panel, unit.paid, unit.via = root.id, paid or {}, root ~= panel and panel.id or nil
-    Changes.unitsChanged(root)
-    Sync.changed(root.id)
+    unit.panel, unit.paid = panel.id, paid or {}
+    Changes.unitsChanged(panel)
+    Sync.changed(panel.id)
 end
 
 -- Its line taken away; returns what it took.
@@ -403,15 +291,12 @@ function Changes.clearSnow(unit)
     Sync.changed(unit.panel)
 end
 
--- Producers. A new one is used after those connected before. One connected to a sub-panel is its main panel's
--- (Panels.root), wired through the sub-panel (via, its id).
+-- Producers. A new one is used after those connected before.
 
 function Changes.connectProducer(panel, utility, x, y, z, paid)
-    local root = Panels.root(panel)
-    table.insert(root[utility].producers, { x = x, y = y, z = z, paid = paid, via = root ~= panel and panel.id or nil })
-    Networks.setProducers(root, utility)
-    Networks.applyLoss(root)
-    Sync.changed(root.id)
+    table.insert(panel[utility].producers, { x = x, y = y, z = z, paid = paid })
+    Networks.setProducers(panel, utility)
+    Sync.changed(panel.id)
 end
 
 -- Disconnects the producer on a square; returns what its line took, or nil when it was none of the panel's.
@@ -421,7 +306,6 @@ function Changes.disconnectProducer(panel, utility, x, y, z)
         if at.x == x and at.y == y and at.z == z then
             table.remove(list, index)
             Networks.setProducers(panel, utility)
-            Networks.applyLoss(panel)
             Sync.changed(panel.id)
             return at.paid or {}
         end
@@ -442,8 +326,7 @@ end
 -- Devices.
 
 -- A device the box reaches (of its building, or outside with its line) supplied (the default) or cut (excluded): a
--- switch at the box, free. Kept under its key; a part's key a save may have is cleared. Switched on by the player, the box no longer keeps it off for an
--- overload (it sheds again if it must).
+-- switch at the box, free. Kept under its key; a part's key a save may have is cleared.
 local function setInside(panel, utility, device, connected)
     local data = panel[utility]
     for _, key in ipairs(device.keys) do
@@ -453,8 +336,6 @@ local function setInside(panel, utility, device, connected)
         end
     end
     data.excluded[device.key] = (not connected) or nil
-    if connected and data.shed then data.shed[device.key] = nil end
-    if connected and data.saving then data.saving[device.key] = nil end
     Networks.apply(panel, utility, device.key)
 end
 
@@ -489,7 +370,7 @@ end
 -- missing from the rooms for a while, as the game's region data of a world that has just loaded may lag. Asked each
 -- minute, as the world starts, when the zone changes and by a window that sees one not added yet. Returns whether
 -- anything changed.
-local LET_GO = { "excluded", "essential", "schedule", "shed", "saving", "timed", "groupOf" }
+local LET_GO = { "excluded", "schedule", "timed", "groupOf" }
 local ATTACHED_GRACE_MS = 20000
 local missingSince = {}
 
@@ -569,7 +450,7 @@ function Changes.excludeOutside(panel, utility, device)
         end
     end
     if not paid then return nil end
-    for _, name in ipairs({ "excluded", "essential", "schedule", "shed", "saving", "timed", "groupOf" }) do
+    for _, name in ipairs({ "excluded", "schedule", "timed", "groupOf" }) do
         if data[name] then data[name][device.key] = nil end
     end
     Networks.apply(panel, utility, device.key)
@@ -584,10 +465,10 @@ local function groupName(name)
     return name ~= "" and name or nil
 end
 
--- A new group, named (nil for its number); none past Water.MAX_GROUPS, nor at a sub-panel.
+-- A new group, named (nil for its number); none past Water.MAX_GROUPS.
 function Changes.addWaterGroup(panel, name)
     local data = panel.water
-    if panel.parent or #data.groups >= Water.MAX_GROUPS then return nil end
+    if #data.groups >= Water.MAX_GROUPS then return nil end
     local group = { id = data.nextGroup, name = groupName(name) }
     data.nextGroup = data.nextGroup + 1
     data.groups[#data.groups + 1] = group
@@ -617,12 +498,9 @@ function Changes.removeWaterGroup(panel, id)
             for key, group in pairs(data.groupOf) do
                 if group == id then data.groupOf[key] = nil; keys[key] = true end
             end
-            -- Its units work for the first group, those that are off too; no group overflows into it.
+            -- Its units work for the first group, those that are off too.
             for _, unit in ipairs(Store.unitList(nil, panel.id)) do
                 if unit.group == id then unit.group = nil end
-            end
-            for _, other in ipairs(data.groups) do
-                if other.overflow == id then other.overflow = nil end
             end
             data.levelLog[id] = nil
             Networks.defineWater(panel, keys)
@@ -646,14 +524,6 @@ function Changes.setGroupReserve(panel, id, percent)
     if not group then return end
     percent = math.max(0, math.min(90, math.floor(tonumber(percent) or 0)))
     group.reserve = percent > 0 and percent or nil
-    Sync.changed(panel.id)
-end
-
--- Where a group's pumps send water once its tanks are full: another group, or nil to stop.
-function Changes.setGroupOverflow(panel, id, target)
-    local group = Water.group(panel, id)
-    if not group or target == id or (target and not Water.group(panel, target)) then return end
-    group.overflow = target
     Sync.changed(panel.id)
 end
 
@@ -695,17 +565,6 @@ function Changes.setFrozen(panel, frozen)
     Sync.notice(panel, frozen and "IGUI_BU_Notice_Frozen" or "IGUI_BU_Notice_Thawed", Panels.name(panel))
 end
 
--- A power device the box never sheds under overload, or one it may.
-function Changes.setEssential(panel, key, essential)
-    local data = panel.power
-    data.essential[key] = essential or nil
-    if essential and (data.shed[key] or data.saving[key]) then
-        data.shed[key], data.saving[key] = nil, nil
-        Networks.apply(panel, "power", key)
-    end
-    Sync.changed(panel.id)
-end
-
 -- A power device's timer (BU.SCHEDULES); applied at once.
 function Changes.setSchedule(panel, key, schedule)
     panel.power.schedule[key] = schedule ~= "always" and schedule or nil
@@ -733,50 +592,6 @@ function Changes.applyTimers(panel)
     return changed
 end
 
--- Overload at a box that sheds: these devices off until there is room for them again. Each is kept with what it
--- drew (powers, by key), so that restoring them needs no look at the building's devices.
-function Changes.shed(panel, keys, powers)
-    for _, key in ipairs(keys) do
-        panel.power.shed[key] = powers and powers[key] or true
-        Networks.apply(panel, "power", key)
-    end
-    Sync.changed(panel.id)
-    Sync.notice(panel, "IGUI_BU_Notice_Shed", Panels.name(panel), #keys)
-end
-
-function Changes.restore(panel, keys)
-    for _, key in ipairs(keys) do
-        panel.power.shed[key] = nil
-        Networks.apply(panel, "power", key)
-    end
-    Store.record(panel, "IGUI_BU_Log_Restored", { #keys })
-    Sync.changed(panel.id)
-end
-
--- Sub-panels. A sub-panel's water hangs from its main panel's and freezes with it: pipes frozen before it was linked
--- thaw, and its cold or warm hours start again once it is a main panel again.
-
-function Changes.link(child, parent, paid)
-    child.parent, child.parentPaid = parent.id, paid or {}
-    local water = child.water
-    water.frozen, water.coldHours, water.warmHours = nil, nil, nil
-    Networks.link(child)
-    Networks.applyLoss(child)
-    Sync.changed(child.id)
-end
-
--- Its lines to the main panel taken away, and those wired through it; returns what they took.
-function Changes.unlink(child)
-    local paid = {}
-    addPaid(paid, child.parentPaid)
-    addPaid(paid, cutRoutes(child))
-    child.parent, child.parentPaid = nil, nil
-    Networks.link(child)
-    Networks.applyLoss(child)
-    Sync.changed(child.id)
-    return paid
-end
-
 -- Features turned on or off in the sandbox (BU.enabled).
 
 -- The features (BU.featureKey) the world was last brought to; nil before it started.
@@ -784,8 +599,8 @@ local appliedFeatures = nil
 
 -- Brings the world to the features on now, once the sandbox changed them: the networks of a utility turned off go
 -- (their producers are the game's again) and those of one turned on are defined from the save (Networks.applyFeatures);
--- each main panel's power takes its units that are on as its source, and what is left of its bank and charge
--- controller (Changes.unitsChanged); timers turn again; the boxes show it. What the save keeps stays, for when a
+-- each panel's power takes its units that are on as its source, and what is left of its bank (Changes.unitsChanged);
+-- timers turn again; the boxes show it. What the save keeps stays, for when a
 -- feature is on again. The world's start, which defines the networks as the features are, only takes them as applied
 -- (defined). Returns whether they changed.
 function Changes.applyFeatures(defined)
@@ -797,7 +612,7 @@ function Changes.applyFeatures(defined)
     Networks.applyFeatures()
     local power = BU.enabled("power")
     for _, panel in ipairs(Store.list()) do
-        if power and not panel.parent then Changes.unitsChanged(panel) end
+        if power then Changes.unitsChanged(panel) end
         if power then Changes.applyTimers(panel) end
         if BU.PanelLook then BU.PanelLook.show(panel) end
     end
@@ -811,7 +626,7 @@ end
 local appliedShape = nil
 
 -- Brings the world to those values once the sandbox changed them in play: each box's zone kept to the floors it
--- reaches now (Changes.fitZones), each main panel's water networks to the floors its tanks reach now, the devices whose
+-- reaches now (Changes.fitZones), each panel's water networks to the floors its tanks reach now, the devices whose
 -- network changed with them (Networks.floorsChanged), the power devices connected outside given or refused power
 -- (Networks.rule). Checked each minute, a text compared. The world's start, which fits the zones and defines
 -- the networks as the values are, only takes them as applied (defined). Returns whether they changed.
@@ -824,9 +639,7 @@ function Changes.applyShape(defined)
     BU.log("reach, water floors and outside power now:", key)
     Changes.fitZones()
     if BU.enabled("water") then
-        for _, panel in ipairs(Store.list()) do
-            if not panel.parent then Networks.floorsChanged(panel) end
-        end
+        for _, panel in ipairs(Store.list()) do Networks.floorsChanged(panel) end
     end
     if BU.enabled("power") then
         for _, panel in ipairs(Store.list()) do
@@ -849,12 +662,11 @@ function Changes.upgrade(panel)
     panel.tier = math.min(BU.TIERS, (panel.tier or 1) + 1)
     Store.record(panel, "IGUI_BU_Log_Upgraded", { panel.tier })
     Changes.applyTimers(panel)
-    Networks.applyLoss(panel)
     Sync.changed(panel.id)
 end
 
 -- The breaker: down by overload, up by a player at the box. Reset, it lets the power through unless the main switch
--- or a quiet-hours cut keeps it off.
+-- keeps it off.
 function Changes.trip(panel)
     panel.tripped = true
     Networks.applyEnabled(panel)
@@ -873,7 +685,7 @@ function Changes.resetBreaker(panel)
 end
 
 -- The main switch: all the box's power off or on, by a player at the box. Off, its generators stop until it is on
--- again, and nothing switches it on (quiet hours, the charge controller); either way a tripped breaker stays down
+-- again, and nothing switches it on; either way a tripped breaker stays down
 -- until it is reset.
 function Changes.setSwitchedOff(panel, off)
     if (panel.switchedOff == true) == off then return end

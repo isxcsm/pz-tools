@@ -9,21 +9,16 @@ local KEY = "BuildingUtilities"
 
 -- { version, next, panels = { [id] = panel } }. A panel:
 --   id, x, y, z (the box's square), sprite, name (set by the player, or nil), tier (1 to BU.TIERS), tripped (its
---   breaker is down), switchedOff (true while a player has its main switch off, else nil), parent (a panel id, or
---   nil) and parentPaid (what linking it cost), rooms (its zone: a set of the building's room ids it takes, or nil for
---   the whole building),
+--   breaker is down), switchedOff (true while a player has its main switch off, else nil), rooms (its zone: a set of
+--   the building's room ids it takes, or nil for the whole building),
 --   log (what happened to it, oldest first: { hour, key, args }, at most Store.LOG_SIZE),
 --   and per utility (power, water): producers (a list of { x, y, z, paid }, in order), excluded (a set of
 --   BU.thingKey), included (BU.thingKey to what connecting it cost) and attached (a set: devices in rooms built onto
 --   the building, which the box takes as its building's though the API has them as single objects, BU.Panels.attached);
---   for power also essential (a set: the box
---   never sheds them), schedule (BU.thingKey to a timer of BU.SCHEDULES), breaker (its breaker's gauge under
---   overload, 0 to 1, nil while full: BU.Panels.breaker), and what the box keeps off on its own:
---   shed (under overload: BU.thingKey to what the device drew as it was shed, or true from an older version), saving
---   (a set, keeping a low battery bank) and timed (a set, by their timers).
+--   for power also schedule (BU.thingKey to a timer of BU.SCHEDULES), breaker (its breaker's gauge under overload, 0
+--   to 1, nil while full: BU.Panels.breaker) and timed (a set: what the box keeps off by their timers).
 --   For water also groups (the player's water groups, BU.Water: a list of { id, name, reserve (the percent its
---   tanks keep from sprinklers, or nil), overflow (the group its pumps fill once it is full, or nil) }, the first
---   always there),
+--   tanks keep from sprinklers, or nil) }, the first always there),
 --   nextGroup, groupOf (BU.thingKey to the group of a fixture not in the first) and levelLog (by group, what its
 --   tanks held hour by hour, oldest first, at most Store.ENERGY_HOURS: { hour, amount, capacity }); a water producer
 --   may have group (nil for the first). With the freezing risk: frozen (its pipes are), coldHours and warmHours
@@ -31,16 +26,15 @@ local KEY = "BuildingUtilities"
 --   energyLog: what the panel's power did hour by hour, oldest first, at most Store.ENERGY_HOURS: { hour (world age,
 --   whole), made (what its solar panels made, on average), used (the load supplied), charge (its bank's at the end,
 --   or nil) }; energyNow is the hour being summed { hour, made, used, n, charge }.
---   A panel with units may keep controller (the charge controller's settings, BU.Energy.settings), quietCut (its
---   power is off because the bank ran empty in quiet hours) and sourceOn (its units' source carried the load when last
---   seen: a world loaded again defines the source off, and the server switches it back on). extraLoads: what the box
---   adds to its devices' load, by part (BU.Changes.setExtraLoad).
---   A main panel keeps stats, for its log (Server): since (the world age it began), carried (hours its units' source
+--   A panel with units may keep sourceOn (its units' source carried the load when last seen: a world loaded again
+--   defines the source off, and the server switches it back on). extraLoads: what the box adds to its devices' load,
+--   by part (BU.Changes.setExtraLoad).
+--   A panel keeps stats, for its log (Server): since (the world age it began), carried (hours its units' source
 --   carried the load), saved (generator fuel that spared, litres), outage (the world age its power was last cut) and
 --   dark (minutes it has been without power, while it is).
 -- units = { [id] = unit }: the solar panels, battery racks, pumps, sprinklers and filters this mod put down (BU.Units).
 -- A unit:
---   id, kind (BU.Units.KINDS), x, y, z (its square), sprite, panel (the main panel it is wired to, or nil) and
+--   id, kind (BU.Units.KINDS), x, y, z (its square), sprite, panel (the panel it is wired to, or nil) and
 --   paid (what that line took); a solar panel also snow (0 to 1, nil for none); a rack also batteries, a record of
 --   each car battery in its container (BU.Rack.sync): { id (the item's), type, charge 0 to 1, condition 0 to
 --   100 } (how often one was reconditioned is the item's own, BU.Rack.REVIVED). A water unit may have group (the
@@ -55,13 +49,11 @@ local KEY = "BuildingUtilities"
 Store.KEY = KEY
 Store.LOG_SIZE = 30
 Store.ENERGY_HOURS = 48
--- 3: four tiers; a box of tier 3, which shed load, is tier 4 now (shedding moved there). 4: units. 5: saving and
--- blackout. 6: water groups. 7: attached rooms.
-local VERSION = 7
+-- The save's layout. The mod is not released: a save of another layout is not carried over.
+local VERSION = 8
 
 local function utilityData()
-    return { producers = {}, excluded = {}, included = {}, attached = {}, essential = {}, schedule = {}, shed = {},
-        saving = {}, timed = {} }
+    return { producers = {}, excluded = {}, included = {}, attached = {}, schedule = {}, timed = {} }
 end
 
 -- What water keeps besides: one group, every tank and fixture in it.
@@ -72,30 +64,12 @@ local function waterData(data)
     data.levelLog = data.levelLog or {}
 end
 
--- A panel saved by an older version gets what this one keeps.
-local function migrate(panel, from)
-    panel.tier = panel.tier or 1
-    if from < 3 and panel.tier == 3 then panel.tier = 4 end
-    panel.tripped = panel.tripped == true
-    panel.log = panel.log or {}
-    for _, utility in ipairs(BU.UTILITIES) do
-        local data = panel[utility]
-        for name, empty in pairs(utilityData()) do
-            if data[name] == nil then data[name] = empty end
-        end
-    end
-    waterData(panel.water)
-end
-
 function Store.data()
     local data = ModData.getOrCreate(KEY)
     if not data.version then
         data.version = VERSION
         data.next = 1
         data.panels = {}
-    elseif data.version < VERSION then
-        for _, panel in pairs(data.panels) do migrate(panel, data.version) end
-        data.version = VERSION
     end
     if not data.units then
         data.units = {}
@@ -119,14 +93,7 @@ function Store.newPanel(x, y, z, sprite)
     return panel
 end
 
--- Forgets a panel. Its sub-panels become main panels again, without producers until the player connects some.
-function Store.remove(id)
-    local panels = Store.panels()
-    panels[id] = nil
-    for _, other in pairs(panels) do
-        if other.parent == id then other.parent = nil end
-    end
-end
+function Store.remove(id) Store.panels()[id] = nil end
 
 function Store.panelAt(x, y, z)
     for _, panel in pairs(Store.panels()) do
@@ -168,16 +135,6 @@ end
 -- its building. Nil when none does.
 function Store.inclusionOwner(utility, key)
     return Store.includedOwner(utility, key) or Store.attachedOwner(utility, key)
-end
-
--- The panels whose parent is this one.
-function Store.children(id)
-    local result = {}
-    for _, panel in pairs(Store.panels()) do
-        if panel.parent == id then result[#result + 1] = panel end
-    end
-    table.sort(result, function(a, b) return tonumber(a.id:sub(2)) < tonumber(b.id:sub(2)) end)
-    return result
 end
 
 -- Remembers what happened to a panel, for its window: a translation key and its arguments (strings or numbers).

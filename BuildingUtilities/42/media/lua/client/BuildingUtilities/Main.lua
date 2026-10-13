@@ -90,19 +90,15 @@ local function summaryOf(panel)
     if powerOn then statusLine(lines, getText("IGUI_BU_TipPower"), PanelWindow.status(panel, "power")) end
     local power = BU.Networks.state(panel, "power")
     if power and power.load then
-        -- As the window's top tells it: the load (charging the bank aside) against the limit, red over it.
-        local load = math.max(0, power.load - BU.Energy.charging(panel) * (power.loadFactor or 1))
+        -- As the window's top tells it: the load against the limit, red over it.
+        local load = math.max(0, power.load)
         local limit = Panels.limit(panel)
         local over = BU.overloadEnabled() and load > limit + 1e-6
         lines[#lines + 1] = { label = getText("IGUI_BU_TipLoad"), value = string.format("%.2f / %.2f", load, limit),
             r = 1, g = over and 0.42 or 1, b = over and 0.38 or 1 }
     end
-    -- Water where the box, or the main panel it takes its supply from, has tanks.
-    local top, steps = panel, 0
-    while Store.get(top.parent) and steps < 10 do top, steps = Store.get(top.parent), steps + 1 end
-    if BU.enabled("water") and #top.water.producers > 0 then statusLine(lines, getText("IGUI_BU_TipWater"), PanelWindow.status(panel, "water")) end
-    local parent = Store.get(panel.parent)
-    if parent then lines[#lines + 1] = { label = getText("IGUI_BU_TipMain"), value = Panels.name(parent), r = 1, g = 1, b = 1 } end
+    -- Water where the box has tanks.
+    if BU.enabled("water") and #panel.water.producers > 0 then statusLine(lines, getText("IGUI_BU_TipWater"), PanelWindow.status(panel, "water")) end
     return { title = getText("IGUI_BU_TierName", Panels.name(panel), panel.tier or 1), lines = lines }
 end
 

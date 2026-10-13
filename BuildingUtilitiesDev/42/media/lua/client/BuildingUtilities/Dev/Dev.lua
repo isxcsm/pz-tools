@@ -81,7 +81,6 @@ function Dev.setTier(panel, tier)
     panel.tier = math.max(1, math.min(BU.TIERS, tier))
     Store.record(panel, "IGUI_BU_Log_Upgraded", { panel.tier })
     Changes.applyTimers(panel)
-    Networks.applyLoss(panel)
     Changes.unitsChanged(panel)
     Sync.changed(panel.id)
 end
@@ -91,17 +90,15 @@ function Dev.resetBreaker(panel) Changes.resetBreaker(panel) end
 function Dev.mainSwitch(panel, off) Changes.setLever(panel, not off) end
 
 -- A load added at the box that brings the panel's to so many times its limit (Panels.limit; twice by default): with
--- overload on, twice trips the breaker at the next minute, a little over drains its gauge (a tier 4 box sheds
--- devices as it runs low).
+-- overload on, twice trips the breaker at the next minute, a little over drains its gauge.
 function Dev.overload(panel, on, ratio)
     local extra = 0
     if on then
-        -- what the breaker counts without this load (charging the bank aside), at the box
+        -- what the breaker counts without this load
         local state = BU.Networks.state(panel, "power")
-        local factor = state and state.loadFactor or 1
         local extras = panel.extraLoads or {}
-        local base = state and state.load and state.load / factor - (extras.dev or 0) - (extras.charging or 0) or 0
-        extra = math.max(0.01, BU.Panels.limit(panel) * (ratio or 2) / factor - math.max(0, base))
+        local base = state and state.load and state.load - (extras.dev or 0) or 0
+        extra = math.max(0.01, BU.Panels.limit(panel) * (ratio or 2) - math.max(0, base))
     end
     Changes.setExtraLoad(panel, "dev", extra)
     Sync.changed(panel.id)
@@ -350,7 +347,6 @@ function Dev.deviceLine(device)
     local e = device.entry
     local where = device.inside and (device.attached and "attached" or "inside") or "outside"
     local parts = { BU.displayName(e.x, e.y, e.z, e.sprite), where, device.state }
-    if device.essential then parts[#parts + 1] = "essential" end
     if device.schedule and device.schedule ~= "always" then parts[#parts + 1] = device.schedule end
     if device.held then parts[#parts + 1] = "held:" .. device.held end
     if device.pending then parts[#parts + 1] = "pending" end
@@ -372,18 +368,12 @@ function Dev.connectAll(panel, utility, on)
     Sync.changed(panel.id)
 end
 
--- Every connected power device on a timer (BU.SCHEDULES), or essential or not.
+-- Every connected power device on a timer (BU.SCHEDULES).
 function Dev.scheduleAll(panel, schedule)
     for _, device in ipairs(Panels.devices(panel, "power")) do
         if device.state == "on" then Changes.setSchedule(panel, device.key, schedule) end
     end
     Changes.applyTimers(panel)
-end
-
-function Dev.essentialAll(panel, on)
-    for _, device in ipairs(Panels.devices(panel, "power")) do
-        if device.state == "on" then Changes.setEssential(panel, device.key, on) end
-    end
 end
 
 function Dev.syncAttached(panel) Changes.syncAttached(panel) end

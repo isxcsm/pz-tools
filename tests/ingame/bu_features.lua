@@ -20,8 +20,8 @@ if not panel then say("no panel"); return end
 local api = PZExtAPI
 local player = getPlayer()
 local page = SandboxVars.BuildingUtilities
-local OPTIONS = { "EnablePower", "EnableWater", "EnableSolar", "EnableBatteries", "EnableChargeController",
-    "EnablePumps", "EnableSprinklers", "EnableFilters" }
+local OPTIONS = { "EnablePower", "EnableWater", "EnableSolar", "EnableBatteries", "EnablePumps",
+    "EnableSprinklers", "EnableFilters" }
 local saved = {}
 for _, name in ipairs(OPTIONS) do saved[name] = page[name] end
 local savedRisk, savedTier = page.RiskPlumbingUnpurified, panel.tier
@@ -36,18 +36,15 @@ end
 allOn()
 say("panel", panel.id, "tier", panel.tier, "features", BU.featureKey())
 
--- The rules between them: a kind needs its utility, the controller its racks, the pump both utilities.
+-- The rules between them: a kind needs its utility, the pump both utilities.
 page.EnablePower = false
 check("power off: solar", BU.enabled("solar"), false)
-check("power off: controller", BU.enabled("controller"), false)
 check("power off: pump", BU.enabled("pump"), false)
 check("power off: sprinkler", BU.enabled("sprinkler"), true)
 page.EnablePower, page.EnableWater = true, false
 check("water off: filter", BU.enabled("filter"), false)
 check("water off: rack", BU.enabled("rack"), true)
-page.EnableWater, page.EnableBatteries = true, false
-check("racks off: controller", BU.enabled("controller"), false)
-page.EnableBatteries = true
+page.EnableWater = true
 
 -- The recipes hide and refuse while what they make is off.
 local function recipeShown(name)
@@ -61,7 +58,6 @@ page.EnableSolar = true
 check("solar on: recipe shown", recipeShown("MakeSolarPanel"), true)
 
 -- Water units near the player, wired to the test panel (tier 2 at least for them).
-if (panel.tier or 1) < WaterUnits.TIER then panel.tier = WaterUnits.TIER end
 local used = {}
 local function freeSquare()
     local q = BUT.squareNear(3, 14, function(q)
@@ -129,14 +125,7 @@ set("EnableSolar", true)
 set("EnableBatteries", true)
 check("solar and racks on: has source", Energy.hasSource(panel), sourceBefore)
 
--- The charge controller off: tier 3 runs as tier 2 (no quiet hours, no hand-over floor).
-panel.tier = math.max(panel.tier, BU.CONTROLLER_TIER)
-set("EnableChargeController", false)
-check("controller off: has controller", Energy.hasController(panel), false)
-check("controller off: quiet", Energy.rules(panel, api.networks.state(powerId) or {}).quiet, false)
-set("EnableChargeController", true)
-check("controller on: has controller", Energy.hasController(panel), true)
-panel.tier = math.max(savedTier or 1, WaterUnits.TIER)
+panel.tier = savedTier or 1
 
 -- Pumps off alone: stand still and draw nothing; on: run again (dry, with power).
 -- Every pump of the panel goes from the list (another check may have left one of its own).

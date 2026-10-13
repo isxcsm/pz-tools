@@ -1,58 +1,20 @@
--- The charge controller of a panel's units (BU.Energy, from tier 3): its settings, quiet hours, and the rules the
--- source runs by each minute; when a player may switch to solar by hand (any tier).
+-- How a panel's units hand the load to a generator and take it back (BU.Energy), by fixed rules at every tier: the
+-- bank carries it down to HANDOVER while a generator can take over, and takes it back once it holds TAKE_BACK or the
+-- solar panels make the load with the margin to start. A generator never charges the bank. A player may switch to
+-- solar earlier by hand.
 local BU = BuildingUtilities
 local Energy = BU.Energy
 
--- The charge controller's settings, in percent of the bank and hours of the day: below start it hands the load to a
--- generator, above stop it takes it back; in quiet hours (from quietFrom to quietTo; none when equal) it starts no
--- generator; at tier 4, below protect it keeps the devices that are not essential off.
-Energy.DEFAULTS = { start = 30, stop = 90, quietFrom = 22, quietTo = 6, protect = 20 }
-Energy.CHOICES = { start = { 10, 20, 30, 40, 50 }, stop = { 60, 70, 80, 90, 100 }, protect = { 10, 20, 30, 40 },
-    quiet = { { 0, 0 }, { 21, 6 }, { 22, 6 }, { 23, 7 }, { 0, 5 } } }
+-- Shares of the bank: below HANDOVER the load goes to a generator that can take it; at TAKE_BACK the bank takes it
+-- back. With no generator to hand over to, the bank is drawn empty and carries the load again from BANK_START.
+Energy.HANDOVER, Energy.TAKE_BACK = 0.20, 0.80
 
--- Whether a panel's bank has a charge controller: from its tier, while the controller is on (BU.enabled). Without one
--- the bank runs as at tier 2.
-function Energy.hasController(panel)
-    return (panel.tier or 1) >= BU.CONTROLLER_TIER and BU.enabled("controller")
-end
-
-function Energy.settings(panel)
-    local saved, result = panel.controller or {}, {}
-    for name, value in pairs(Energy.DEFAULTS) do
-        result[name] = type(saved[name]) == "number" and saved[name] or value
-    end
-    return result
-end
-
--- Whether settings are ones the controller takes: from its choices, start below stop.
-function Energy.validSettings(settings)
-    local function among(list, value)
-        for _, choice in ipairs(list) do if choice == value then return true end end
-        return false
-    end
-    local quiet = false
-    for _, pair in ipairs(Energy.CHOICES.quiet) do quiet = quiet or (pair[1] == settings.quietFrom and pair[2] == settings.quietTo) end
-    return quiet and among(Energy.CHOICES.start, settings.start) and among(Energy.CHOICES.stop, settings.stop)
-        and among(Energy.CHOICES.protect, settings.protect) and settings.start < settings.stop
-end
-
-function Energy.isQuiet(settings)
-    local from, to = settings.quietFrom, settings.quietTo
-    if from == to then return false end
-    local hour = getGameTime():getTimeOfDay()
-    if from < to then return hour >= from and hour < to end
-    return hour >= from or hour < to
-end
-
--- How the source runs for a panel this minute, by its tier and settings: load (what its devices draw, without what
--- the bank takes to charge), charging (that), floor (the share of the bank it is not drawn below: the cutoff at
--- tier 4; with a charge controller and a generator to hand over to, its start setting, but in quiet hours), restart
--- (the share it needs to carry the load again: BANK_START over the floor, or the stop setting), quiet, generators (whether
--- a generator of the panel could take over: on a loaded square, as the API hands over only to those, with fuel, not
--- broken, and not out of service: one a player switched off by hand the API never starts) and settings.
+-- How the source runs for a panel this minute: load (what its devices draw), floor (the share of the bank it is not
+-- drawn below: HANDOVER while a generator could take over, else none), restart (the share it needs to carry the load
+-- again: TAKE_BACK while a generator could carry it, else BANK_START) and generators (whether a generator of the panel
+-- could take over: on a loaded square, as the API hands over only to those, with fuel, not broken, and not out of
+-- service: one a player switched off by hand the API never starts).
 function Energy.rules(panel, state)
-    local settings = Energy.settings(panel)
-    local tier = panel.tier or 1
     local generators = false
     for _, producer in ipairs(state.producers or {}) do
         if not producer.source and not producer.outOfService and getCell():getGridSquare(producer.x, producer.y, producer.z)
@@ -60,17 +22,8 @@ function Energy.rules(panel, state)
             generators = true
         end
     end
-    local controller = Energy.hasController(panel)
-    local quiet = controller and Energy.isQuiet(settings)
-    local floor = tier >= BU.SMART_TIER and Energy.CUTOFF or 0
-    local restart = floor + Energy.BANK_START
-    if controller and generators and not quiet then
-        floor = math.max(floor, settings.start / 100)
-        restart = math.max(restart, settings.stop / 100)
-    end
-    local charging = Energy.charging(panel)
-    return { load = math.max(0, (state.load or 0) - charging * (state.loadFactor or 1)), charging = charging,
-        floor = floor, restart = restart, quiet = quiet, generators = generators, settings = settings }
+    return { load = math.max(0, state.load or 0), floor = generators and Energy.HANDOVER or 0,
+        restart = generators and Energy.TAKE_BACK or Energy.BANK_START, generators = generators }
 end
 
 -- Whether the source is ready to take the load over from a generator, by its rules: the solar panels make it with
@@ -79,21 +32,28 @@ function Energy.ready(rules, output, bank)
     return Energy.canCarry(output, rules.load, false) or (bank ~= nil and bank.usable > bank.capacity * rules.restart)
 end
 
--- "Switch to solar": whether a player may hand the load of a main panel from the generator in use to its source now
--- (offered: the panel has a source, its power is on and something else supplies it), and whether the source is
--- ready to carry it (Energy.ready), and the source's rules when offered. The API then switches the generator off, on
--- standby: it takes over again when the source falls short. A charge controller does the same on its own once the
--- source is ready.
+-- The share of the bank "switch to solar" needs: BANK_START over the floor, so that the bank does not hand the load
+-- straight back.
+function Energy.switchShare(rules) return rules.floor + Energy.BANK_START end
+
+-- "Switch to solar": whether a player may hand the load of a panel from the generator in use to its source now
+-- (offered: the panel has a source, its power is on and something else supplies it), whether the source is ready to
+-- carry it (its solar panels make the load with the margin, or the bank holds its switch share), and the source's
+-- rules when offered. The API then switches the generator off, on standby: it takes over again when the source falls
+-- short. The panel does the same on its own once the source is ready by its rules (Energy.ready).
 function Energy.sourceOffer(panel, state)
     if not (Energy.hasSource(panel) and state and state.supplied and not Energy.inUse(state)
             and BU.Networks.powerAllowed(panel)) then
         return false, false, nil
     end
     local rules = Energy.rules(panel, state)
-    return true, Energy.ready(rules, Energy.output(panel), Energy.bank(panel)), rules
+    local output, bank = Energy.output(panel), Energy.bank(panel)
+    local ready = Energy.canCarry(output, rules.load, false)
+        or (bank ~= nil and bank.usable > bank.capacity * Energy.switchShare(rules))
+    return true, ready, rules
 end
 
 -- Why the source is not ready to take the load over, in words.
 function Energy.notReadyText(rules)
-    return getText("IGUI_BU_Reason_sourceNotReady", BU.percent(rules.restart * 100))
+    return getText("IGUI_BU_Reason_sourceNotReady", BU.percent(Energy.switchShare(rules) * 100))
 end

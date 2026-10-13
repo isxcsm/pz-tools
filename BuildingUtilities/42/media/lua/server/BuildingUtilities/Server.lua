@@ -1,6 +1,6 @@
 -- Where the world is decided (the server, or the game alone): the networks from the save as the world starts, the
 -- players' commands, breakers under overload (BU.Overload), what players near a box should hear, and each minute the
--- units (solar panels, the bank and its charge controller) and the water units (BU.WaterRun), with the records the
+-- units (solar panels and the bank) and the water units (BU.WaterRun), with the records the
 -- window shows.
 require "BuildingUtilities/Changes"
 require "BuildingUtilities/Moveables"
@@ -13,13 +13,17 @@ local Overload = BU.Overload
 -- Commands: the free changes a player makes at a box. Each names the panel; the rest is checked here.
 local commands = {}
 
--- A device of the box's building switched at the box (connected or excluded), free: one, a room's or all.
+-- A device the box reaches switched at the box (connected or excluded), free: one, a room's or all; from the tier
+-- that cuts devices (Panels.cuts).
 function commands.setInside(player, panel, args)
+    if not Panels.cuts(panel) then return end
     local device = Panels.device(panel, args.utility, args.key)
     if device and device.wired then Changes.setInside(panel, args.utility, device, args.on == true) end
 end
 
-function commands.setAllInside(player, panel, args) Changes.setAllInside(panel, args.utility, args.on == true) end
+function commands.setAllInside(player, panel, args)
+    if Panels.cuts(panel) then Changes.setAllInside(panel, args.utility, args.on == true) end
+end
 
 -- The box's lever thrown from its window, at once like a device's tick there: down switches the power off, up resets
 -- a tripped breaker and switches it on (Changes.setLever). Thrown the way it already is, nothing.
@@ -29,7 +33,7 @@ function commands.setLever(player, panel, args)
 end
 
 function commands.setRoomInside(player, panel, args)
-    if type(args.room) == "string" then Changes.setRoomInside(panel, args.utility, args.room, args.on == true) end
+    if Panels.cuts(panel) and type(args.room) == "string" then Changes.setRoomInside(panel, args.utility, args.room, args.on == true) end
 end
 
 -- A window saw devices in a room built onto the building that the networks do not have yet.
@@ -53,16 +57,6 @@ end
 function commands.rename(player, panel, args) Changes.rename(panel, args.name) end
 
 
--- The charge controller's settings, from its choices (Energy.CHOICES).
-function commands.setController(player, panel, args)
-    if not Energy.hasController(panel) then return end
-    local settings = Energy.settings(panel)
-    for name in pairs(Energy.DEFAULTS) do
-        if type(args[name]) == "number" then settings[name] = args[name] end
-    end
-    if Energy.validSettings(settings) then Changes.setController(panel, settings) end
-end
-
 -- Water groups: by their ids, checked by Changes; a fixture only while the panel connects it.
 function commands.addWaterGroup(player, panel, args) Changes.addWaterGroup(panel, args.name) end
 function commands.renameWaterGroup(player, panel, args) Changes.renameWaterGroup(panel, tonumber(args.group), args.name) end
@@ -77,7 +71,7 @@ function commands.setDeviceGroup(player, panel, args)
     if device and device.state == "on" then Changes.setDeviceGroup(panel, device, tonumber(args.group)) end
 end
 
--- A water unit of the panel to work for one of its groups; a group's reserve and overflow.
+-- A water unit of the panel to work for one of its groups; a group's reserve.
 function commands.setUnitGroup(player, panel, args)
     local unit = BU.Store.unit(args.unit)
     if unit and unit.panel == panel.id then Changes.setUnitGroup(unit, tonumber(args.group)) end
@@ -85,10 +79,6 @@ end
 
 function commands.setGroupReserve(player, panel, args)
     Changes.setGroupReserve(panel, tonumber(args.group), tonumber(args.percent))
-end
-
-function commands.setGroupOverflow(player, panel, args)
-    Changes.setGroupOverflow(panel, tonumber(args.group), tonumber(args.target))
 end
 
 -- "Switch to solar" (Energy.sourceOffer): the source takes the load over from the generator in use, which the API
@@ -104,10 +94,6 @@ local function connectedDevice(panel, key)
     return device and device.state == "on" and device or nil
 end
 
-function commands.setEssential(player, panel, args)
-    if connectedDevice(panel, args.key) then Changes.setEssential(panel, args.key, args.on == true) end
-end
-
 function commands.setSchedule(player, panel, args)
     local known = false
     for _, schedule in ipairs(BU.SCHEDULES) do known = known or schedule == args.schedule end
@@ -118,10 +104,9 @@ end
 
 -- The feature a command needs on (BU.enabled), besides its utility's; one of a feature that is off is ignored, as
 -- the window no longer offers it.
-local NEEDS = { setEssential = "power", setSchedule = "power",
-    setController = "controller", addWaterGroup = "water", renameWaterGroup = "water", removeWaterGroup = "water",
-    setProducerGroup = "water", setDeviceGroup = "water", setUnitGroup = "water", setGroupReserve = "water",
-    setGroupOverflow = "water" }
+local NEEDS = { setSchedule = "power", addWaterGroup = "water", renameWaterGroup = "water",
+    removeWaterGroup = "water", setProducerGroup = "water", setDeviceGroup = "water", setUnitGroup = "water",
+    setGroupReserve = "water" }
 
 local function onClientCommand(module, command, player, args)
     if module ~= BU.MOD or not commands[command] or type(args) ~= "table" then return end
@@ -131,19 +116,12 @@ local function onClientCommand(module, command, player, args)
     if panel then commands[command](player, panel, args) end
 end
 
--- Whether a set has anything in it. (Kahlua has no next.)
-local function any(set)
-    for _ in pairs(set) do return true end
-    return false
-end
-
 -- What players hear: the generator in use changed (and the relay's click), power or water ran out, fuel runs low.
--- While a network is switched off (breaker, main switch, quiet cut) its generators stop: what was told about it
+-- While a network is switched off (breaker, main switch) its generators stop: what was told about it
 -- stands until it is on again, so the low fuel is not told again as it restarts.
 local lowFuel = {}
 
 local function checkFuel(panel)
-    if panel.parent then return end
     local state = Networks.state(panel, "power")
     local hours = state and state.supplied and state.hoursLeft
     if hours and hours < BU.lowFuelHours() then
@@ -156,38 +134,12 @@ local function checkFuel(panel)
     end
 end
 
--- Tier 4 keeps its bank: while the bank carries the load and is below the protect setting, the devices that are not
--- essential are off ("saving"), until it is 5% above it or something else carries the load. The devices are looked
--- at once, and again only after the network's load changed (a device switched on: onNetworkChange).
-local savingLooked = {}
-
-local function checkSaving(panel, state, bank, output, rules)
-    local onBank = bank ~= nil and Energy.inUse(state) and state.supplied
-    local protect = rules.settings.protect / 100
-    if Energy.hasController(panel) and (panel.tier or 1) >= BU.SMART_TIER and onBank and output < rules.load
-            and bank.charge < protect then
-        if savingLooked[panel.id] then return end
-        savingLooked[panel.id] = true
-        local keys = {}
-        for _, device in ipairs(Panels.devices(panel, "power")) do
-            if device.state == "on" and not device.held and not device.essential and (device.power or 0) > 0 then
-                keys[#keys + 1] = device.key
-            end
-        end
-        if #keys > 0 then Changes.save(panel, keys) end
-        return
-    end
-    savingLooked[panel.id] = nil
-    if any(panel.power.saving) and (not onBank or bank.charge >= protect + 0.05) then Changes.unsave(panel) end
-end
-
--- The units' source of a main panel over so many hours (Energy.run): available while its solar panels or its bank
--- carry the load. The API hands the load to it, first in order, when the one in use stops and it is available; it is
--- switched on here when it can and the network has no supply. Below tier 3 a generator keeps running until a player
--- switches to solar (commands.useSource); a charge controller (tier 3) takes the load back from it once the bank is
--- charged to its stop setting, charges the bank from it meanwhile, and in quiet hours switches the power off rather
--- than let a generator start. What the bank and the solar panels came to this minute, by panel, for the energy
--- record: { bank, output }.
+-- The units' source of a panel over so many hours (Energy.run): available while its solar panels or its bank carry
+-- the load. The API hands the load to it, first in order, when the one in use stops and it is available; it is
+-- switched on here when it can and the network has no supply. The bank hands the load to a generator at
+-- Energy.HANDOVER, and takes it back from one once it is ready by its rules (Energy.ready: Energy.TAKE_BACK, or the
+-- solar panels with the margin to start); a player may switch to solar earlier (commands.useSource). What the bank
+-- and the solar panels came to this minute, by panel, for the energy record: { bank, output }.
 local thisMinute = {}
 
 local function checkSource(panel, hours)
@@ -200,45 +152,27 @@ local function checkSource(panel, hours)
     -- again (the source is defined off). It counts as available, and goes on again below; if it cannot carry the
     -- load, it is switched on for this minute so that the API hands over to a generator in the next.
     local lost = panel.sourceOn and not inUse and not state.supplied and state.enabled
-    -- While the box keeps its power off (breaker, main switch, quiet cut) the network runs no producer, and the source
+    -- While the box keeps its power off (breaker, main switch) the network runs no producer, and the source
     -- counts as available if it carried the load before.
     local held = not Networks.powerAllowed(panel)
     local available = source ~= nil and source.available == true or (lost or held and panel.sourceOn) == true
     local rules = Energy.rules(panel, state)
     local can, bank, output = Energy.run(panel, state, hours, available, rules)
     thisMinute[panel.id] = { bank = bank, output = output }
-    local controller = Energy.hasController(panel)
     local ready = Energy.ready(rules, output, bank)
     if held then
-        -- Charging would count in the load the breaker carries: none while the power is off. Whether the source can
-        -- carry the load goes on being told, so that as the network is switched on the API starts the right producer
-        -- by its own order: a generator switched on by hand meanwhile, or the one in use before; else the source, if
-        -- it can; else the first on standby. Quiet hours end as ever, also while the breaker or the switch keeps the
-        -- power off.
-        Changes.setExtraLoad(panel, "charging", 0)
+        -- Whether the source can carry the load goes on being told, so that as the network is switched on the API
+        -- starts the right producer by its own order: a generator switched on by hand meanwhile, or the one in use
+        -- before; else the source, if it can; else the first on standby.
         if source and can ~= (source.available == true) then Networks.setSource(panel, can, nil) end
         if not can then panel.sourceOn = nil end
-        if panel.quietCut and (not rules.quiet or ready) then Changes.setQuietCut(panel, false) end
-        return
-    end
-    if controller and rules.quiet and rules.generators and inUse and state.supplied and not can then
-        Changes.setQuietCut(panel, true)
         return
     end
     if lost then
         if can or rules.generators then Networks.setSource(panel, true, true) else panel.sourceOn = nil end
         return
     end
-    -- Charging from a generator (tier 3): what the bank lacks, within what the box's own share leaves over its devices'
-    -- load (Panels.capacity, with a margin).
-    local charging = 0
-    if controller and bank and state.supplied and not inUse then
-        charging = math.min((bank.capacity - bank.energy) / math.max(0.01, Energy.efficiency()),
-            math.max(0, Panels.capacity(panel) * 0.9 - rules.load) / math.max(state.loadFactor or 1, 1e-6))
-        if charging < 0.001 then charging = 0 end
-    end
-    Changes.setExtraLoad(panel, "charging", charging)
-    local switchOn = can and state.enabled and (not state.supplied or (controller and not inUse and ready)) or nil
+    local switchOn = can and state.enabled and (not state.supplied or (not inUse and ready)) or nil
     if available and not can and inUse and bank then
         Sync.notice(panel, rules.generators and "IGUI_BU_Notice_BankLow" or "IGUI_BU_Notice_BankEmpty", Panels.name(panel))
     end
@@ -246,7 +180,6 @@ local function checkSource(panel, hours)
     -- Carrying the load as it goes on: taken off because it cannot, it was not lost, and comes back only by its
     -- rules (rules.restart), not as after a load.
     panel.sourceOn = (inUse or switchOn) and can or nil
-    checkSaving(panel, state, bank, output, rules)
 end
 
 -- The units over the time since they were last worked out: snow on the panels, then each panel's source; then each
@@ -272,17 +205,12 @@ end
 local function onNetworkChange(id, what)
     local panel, utility, group = Networks.owner(id)
     if not panel then return end
-    -- A device switched on or off: the saving looks at the devices again.
-    if utility == "power" and what == "load" then savingLooked[panel.id] = nil end
-    -- Water: a group's networks change together; its lowest tells for it. A sub-panel's water tells nothing of its own.
-    if utility == "water" and panel.parent then return end
+    -- Water: a group's networks change together; its lowest tells for it.
     local floors = utility == "water" and select(2, BU.Water.layout(panel)) or nil
     if utility == "water" and id ~= BU.Water.lowestId(panel, group, floors) then return end
     local state = utility == "water" and Networks.groupState(panel, group, floors) or Networks.state(panel, utility)
-    -- Another producer carries it: its line is another length.
-    if utility == "power" and what == "producer" and not panel.parent then Networks.applyLoss(panel) end
     if utility == "power" then Overload.check(panel) end
-    if panel.parent or not state then return end
+    if not state then return end
     -- The relay clicks over to another producer, or as power comes or goes: heard at the box.
     if (what == "producer" or what == "supply") and utility == "power" then Sync.sound(panel, "LightSwitch") end
     if what == "producer" and Energy.inUse(state) then
@@ -321,12 +249,11 @@ local function recordEnergy(panel)
     return hour ~= panel.energyNow.hour
 end
 
--- What each main panel did for its player over so many hours, for the log: hours its units' source carried the load,
+-- What each panel did for its player over so many hours, for the log: hours its units' source carried the load,
 -- the generator fuel that spared (litres, from the API's fuelPerHour at the load), and when its power was last cut
--- (not for quiet hours or the main switch, nor while the grid runs; a cut of a minute is the source handed on as the
+-- (not for the main switch, nor while the grid runs; a cut of a minute is the source handed on as the
 -- world loads).
 local function recordStats(panel, hours)
-    if panel.parent then return end
     local state = Networks.state(panel, "power")
     if not state then return end
     local now = getGameTime():getWorldAgeHours()
@@ -337,7 +264,7 @@ local function recordStats(panel, hours)
         stats.saved = (stats.saved or 0) + (state.fuelPerHour or 0) * hours
     end
     local wanted = #panel.power.producers > 0 or Energy.hasSource(panel)
-    if wanted and not state.supplied and not panel.quietCut and not panel.switchedOff and not getWorld():isHydroPowerOn() then
+    if wanted and not state.supplied and not panel.switchedOff and not getWorld():isHydroPowerOn() then
         stats.dark = (stats.dark or 0) + 1
         if stats.dark >= 2 then stats.outage = now end
     else
@@ -347,20 +274,19 @@ end
 
 -- What each water group's tanks held this minute, for its level graph.
 local function recordWater(panel, floors)
-    if panel.parent or not BU.enabled("water") or not BU.waterAvailable() then return end
+    if not BU.enabled("water") or not BU.waterAvailable() then return end
     for _, group in ipairs(BU.Water.groups(panel)) do
         local state = Networks.groupState(panel, group.id, floors)
         if state then Store.recordWater(panel, group.id, state.amount or 0, state.capacity or 0) end
     end
 end
 
--- A network switched on again (breaker reset, main switch, quiet cut over) with nothing that can run raises no event:
+-- A network switched on again (breaker reset, main switch) with nothing that can run raises no event:
 -- the power stays out without a word. Told once it has had a minute to start: by panel, "held" while the box keeps
 -- its power off, then "resumed" for the minute after.
 local resuming = {}
 
 local function checkResumed(panel)
-    if panel.parent then return end
     local held, was = not Networks.powerAllowed(panel), resuming[panel.id]
     resuming[panel.id] = held and "held" or was == "held" and "resumed" or nil
     if was ~= "resumed" or held then return end
@@ -391,33 +317,23 @@ local function everyMinute()
             hourEnded = recordEnergy(panel) or hourEnded
             recordStats(panel, hours)
         end
-        -- A main panel's water layout once a minute, after its boosters (which may change it), for the rest.
-        if not panel.parent then
-            if hours > 0 then BU.WaterRun.boosters(panel) end
-            local floors = BU.enabled("water") and BU.waterAvailable() and select(2, BU.Water.layout(panel)) or nil
-            recordWater(panel, floors)
-            if hours > 0 then
-                BU.WaterRun.pumps(panel, hours * 60, floors)
-                BU.WaterRun.filters(panel, hours * 60)
-            end
+        -- The water layout once a minute, after the boosters (which may change it), for the rest.
+        if hours > 0 then BU.WaterRun.boosters(panel) end
+        local floors = BU.enabled("water") and BU.waterAvailable() and select(2, BU.Water.layout(panel)) or nil
+        recordWater(panel, floors)
+        if hours > 0 then
+            BU.WaterRun.pumps(panel, hours * 60, floors)
+            BU.WaterRun.filters(panel, hours * 60)
         end
     end
     -- The bank and the energy record change every minute; clients get them hourly (alone, the window reads them).
     if hourEnded and isServer() then ModData.transmit(Store.KEY) end
 end
 
--- Freezing pipes (a risk): a main panel's cold or warm hours at its box, counted every ten minutes; past the hours
--- its water freezes or thaws. Without the risk, frozen pipes thaw. A sub-panel's water freezes with its main panel's
--- (BU.Changes.link); one a save has frozen from before it was linked is not.
+-- Freezing pipes (a risk): a panel's cold or warm hours at its box, counted every ten minutes; past the hours its
+-- water freezes or thaws. Without the risk, frozen pipes thaw.
 local function checkFreezing(panel)
     local water = panel.water
-    if panel.parent then
-        if water.frozen or water.coldHours or water.warmHours then
-            water.frozen, water.coldHours, water.warmHours = nil, nil, nil
-            Sync.changed(panel.id)
-        end
-        return
-    end
     if not BU.Water.freezeEnabled() then
         water.coldHours, water.warmHours = nil, nil
         if water.frozen then Changes.setFrozen(panel, false) end
@@ -440,7 +356,7 @@ local function everyTenMinutes()
     for _, panel in ipairs(Store.list()) do
         if power then Changes.applyTimers(panel) end
         if water then checkFreezing(panel) end
-        if not panel.parent then BU.WaterRun.sprinklers(panel) end
+        BU.WaterRun.sprinklers(panel)
     end
 end
 

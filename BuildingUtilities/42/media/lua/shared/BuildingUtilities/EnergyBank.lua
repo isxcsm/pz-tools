@@ -1,4 +1,4 @@
--- The bank of a panel's units (BU.Energy, from tier 2): its racks' batteries side by side, what they hold by kind and
+-- The bank of a panel's units (BU.Energy): its racks' batteries side by side, what they hold by kind and
 -- condition, how they wear, how cold locks part of them, and the source's run over a time: the bank charged by what
 -- the solar panels make over the load and drawn when they make too little.
 local BU = BuildingUtilities
@@ -13,8 +13,8 @@ Energy.KIND_SHARE = { 1, 1.5, 0.75 }
 Energy.WEAK, Energy.WEAK_PER_DAY = 30, 0.02
 Energy.COLD_PER_DEGREE, Energy.COLD_MOST = 0.015, 0.3
 -- The bank starts carrying the load again with this share of it usable, so that an empty bank charging from a weak
--- sun does not switch the power on and off every minute. At tier 4 it is never drawn below CUTOFF.
-Energy.BANK_START, Energy.CUTOFF = 0.10, 0.05
+-- sun does not switch the power on and off every minute.
+Energy.BANK_START = 0.10
 
 function Energy.efficiency() return math.max(0, math.min(100, BU.sandbox("ChargeEfficiency", 85))) / 100 end
 function Energy.wearRate() return math.max(0, BU.sandbox("WearRate", 1)) end
@@ -66,11 +66,11 @@ function Energy.coldShare(racks)
     return math.min(Energy.COLD_MOST, -coldest * Energy.COLD_PER_DEGREE)
 end
 
--- A panel's bank, or nil (below BU.BANK_TIER, no batteries, or racks off: BU.enabled): racks, batteries, capacity and
--- energy (load-hours), charge (0 to 1), weak (how many are worn), cold (the share locked), usable (energy above what
--- cold locks) and output (what its batteries give at once, less what cold locks).
+-- A panel's bank, or nil (no batteries, or racks off: BU.enabled): racks, batteries, capacity and energy
+-- (load-hours), charge (0 to 1), weak (how many are worn), cold (the share locked), usable (energy above what cold
+-- locks) and output (what its batteries give at once, less what cold locks).
 function Energy.bank(panel)
-    if panel.parent or (panel.tier or 1) < BU.BANK_TIER or not BU.enabled("rack") then return nil end
+    if not BU.enabled("rack") then return nil end
     local racks = Store.unitList("rack", panel.id)
     local bank = { racks = racks, batteries = {}, capacity = 0, energy = 0, weak = 0, output = 0 }
     for _, rack in ipairs(racks) do
@@ -91,14 +91,10 @@ function Energy.bank(panel)
     return bank
 end
 
--- The share of a bank it gives its output down to (the cutoff at tier 4, else empty): a charge controller's start
--- setting hands the load to a generator but leaves the bank to carry what goes over the box's own share.
-function Energy.boostFloor(panel) return (panel.tier or 1) >= BU.SMART_TIER and Energy.CUTOFF or 0 end
-
--- What a main panel's bank adds to its limit now: its output while it holds usable charge above its floor, else 0.
+-- What a panel's bank adds to its limit now: its output while it holds usable charge, else 0. Handing the load to a
+-- generator leaves the bank to carry what goes over the box's own share.
 function Energy.boost(panel, bank)
-    if not bank then return 0 end
-    if Energy.aboveFloor(bank, Energy.boostFloor(panel)) <= 0 then return 0 end
+    if not bank or bank.usable <= 0 then return 0 end
     return bank.output
 end
 
@@ -125,9 +121,9 @@ function Energy.overDraw(panel, state, rules, bank)
 end
 
 -- The panel's units over so many hours, as its network is now (state) and by its rules (Energy.rules): the bank
--- takes what the solar panels make over the load while the source carries it, or all of it and what the controller
--- charges while another producer does, and gives what they lack down to the floor; while another producer carries
--- the load, it gives what goes over the box's own share (Energy.overDraw) down to its output's floor. Worn batteries
+-- takes what the solar panels make over the load while the source carries it, or all of it while another producer
+-- does, and gives what they lack down to the floor; while another producer carries the load, it gives what goes over
+-- the box's own share (Energy.overDraw) down to empty. Worn batteries
 -- drain it (an option). bankFlow is what went in or out an hour: what it took, full at its capacity, or gave, empty at
 -- its floor. Returns whether the source can carry the load now (available is whether it could), the bank and the
 -- output.
@@ -145,8 +141,8 @@ function Energy.run(panel, state, hours, available, rules)
         flow = output - rules.load
     else
         local over = Energy.overDraw(panel, state, rules, bank)
-        flow = output + (state.supplied and rules.charging or 0) - over
-        if over > 0 then floor = Energy.boostFloor(panel) end
+        flow = output - over
+        if over > 0 then floor = 0 end
     end
     local energy = bank.energy
     -- The rate it moves at, limited by its room (or what it has above its floor) over the time; with no time, by

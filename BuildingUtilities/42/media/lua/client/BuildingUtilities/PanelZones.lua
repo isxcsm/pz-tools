@@ -43,33 +43,31 @@ function ISBUPanelWindow:updatePlan()
         end
     end
     local producers = {}
-    if not panel.parent then
-        local state = view.state
-        for index, at in ipairs(panel[utility].producers) do
-            local inUse = PanelWindow.producerInUse(state, at)
-            -- A tank in its group's colour, with more than one group.
-            local colour = utility == "water" and #BU.Water.groups(panel) > 1
-                and PanelWindow.groupColour(panel, BU.Water.producerGroup(at)) or nil
-            producers[#producers + 1] = { x = at.x, y = at.y, z = at.z, inUse = inUse, colour = colour,
-                text = view.producerText[index] }
-        end
-        -- The units: power's as its source, water's each on its own (in its group's colour, with more than one).
-        local inUse = utility == "power" and Energy.inUse(state)
-        for _, unit in ipairs(Units.of(panel.id, utility)) do
-            local text = Units.name(unit)
-            if utility == "water" then text = text .. "  " .. self:waterUnitStatus(unit) end
-            local colour = utility == "water" and #BU.Water.groups(panel) > 1
-                and PanelWindow.groupColour(panel, BU.WaterUnits.group(unit)) or nil
-            producers[#producers + 1] = { x = unit.x, y = unit.y, z = unit.z, inUse = inUse or unit.running == true or unit.boosting == true,
-                unit = unit.kind, colour = colour, text = text }
-        end
-        -- What it could take and no box has: grey, as devices not connected are.
-        if not hide then
-            for _, at in ipairs(view.unwired or {}) do
-                local name = at.unit and Units.name(at.unit) or BU.displayName(at.x, at.y, at.z, at.sprite)
-                producers[#producers + 1] = { x = at.x, y = at.y, z = at.z, unwired = true, unit = at.unit and at.unit.kind,
-                    text = name .. "  " .. getText("IGUI_BU_NotWired") }
-            end
+    local state = view.state
+    for index, at in ipairs(panel[utility].producers) do
+        local inUse = PanelWindow.producerInUse(state, at)
+        -- A tank in its group's colour, with more than one group.
+        local colour = utility == "water" and #BU.Water.groups(panel) > 1
+            and PanelWindow.groupColour(panel, BU.Water.producerGroup(at)) or nil
+        producers[#producers + 1] = { x = at.x, y = at.y, z = at.z, inUse = inUse, colour = colour,
+            text = view.producerText[index] }
+    end
+    -- The units: power's as its source, water's each on its own (in its group's colour, with more than one).
+    local inUse = utility == "power" and Energy.inUse(state)
+    for _, unit in ipairs(Units.of(panel.id, utility)) do
+        local text = Units.name(unit)
+        if utility == "water" then text = text .. "  " .. self:waterUnitStatus(unit) end
+        local colour = utility == "water" and #BU.Water.groups(panel) > 1
+            and PanelWindow.groupColour(panel, BU.WaterUnits.group(unit)) or nil
+        producers[#producers + 1] = { x = unit.x, y = unit.y, z = unit.z, inUse = inUse or unit.running == true or unit.boosting == true,
+            unit = unit.kind, colour = colour, text = text }
+    end
+    -- What it could take and no box has: grey, as devices not connected are.
+    if not hide then
+        for _, at in ipairs(view.unwired or {}) do
+            local name = at.unit and Units.name(at.unit) or BU.displayName(at.x, at.y, at.z, at.sprite)
+            producers[#producers + 1] = { x = at.x, y = at.y, z = at.z, unwired = true, unit = at.unit and at.unit.kind,
+                text = name .. "  " .. getText("IGUI_BU_NotWired") }
         end
     end
     -- The zones of the building: this box's, the free rooms and other boxes'.
@@ -91,14 +89,12 @@ function ISBUPanelWindow:updatePlan()
         end
     end
     -- The boxes of the building (this one alone where it stands in none).
-    local boxes, subBoxes = {}, false
+    local boxes = {}
     for _, other in ipairs(self.building and Panels.ofBuilding(self.building.key) or { panel }) do
-        boxes[#boxes + 1] = { x = other.x, y = other.y, z = other.z, sub = other.parent ~= nil, own = other.id == panel.id,
-            text = Panels.name(other) }
-        subBoxes = subBoxes or other.parent ~= nil
+        boxes[#boxes + 1] = { x = other.x, y = other.y, z = other.z, own = other.id == panel.id, text = Panels.name(other) }
     end
     self.plan:setData({ utility = utility, supplied = view.state and view.state.supplied, rooms = rooms, devices = devices,
-        producers = producers, box = { x = panel.x, y = panel.y, z = panel.z }, boxes = boxes, subBoxes = subBoxes,
+        producers = producers, box = { x = panel.x, y = panel.y, z = panel.z }, boxes = boxes,
         filter = self.roomFilter,
         zone = zone, zoneEditable = editable, zoneEdit = self.zoneEditing == true, zoneNote = getText("IGUI_BU_ZoneNote", inZone),
         farNote = self.building and self:farNote() or nil,
@@ -264,7 +260,9 @@ function ISBUPanelWindow:deviceMenu(key)
         menu:addOption(view.status[key] or "", nil, nil).isDisabled = true
     else
         local on = device.state == "on"
-        menu:addOption(getText(on and "IGUI_BU_Menu_Disconnect" or "IGUI_BU_Menu_Connect"), self, ISBUPanelWindow.switchDevice, utility, device)
+        if Panels.cuts(panel) then
+            menu:addOption(getText(on and "IGUI_BU_Menu_Disconnect" or "IGUI_BU_Menu_Connect"), self, ISBUPanelWindow.switchDevice, utility, device)
+        end
         if on and utility == "power" and (panel.tier or 1) >= BU.TIMER_TIER then
             local timer = menu:addOption(getText("IGUI_BU_Menu_Timer"), nil, nil)
             local sub = ISContextMenu:getNew(menu)
@@ -274,10 +272,6 @@ function ISBUPanelWindow:deviceMenu(key)
                     { panel = panel.id, key = key, schedule = schedule })
                 if schedule == device.schedule then option.isDisabled = true end
             end
-        end
-        if on and utility == "power" and Panels.sheds(panel) then
-            menu:addOption(getText(device.essential and "IGUI_BU_Menu_NotEssential" or "IGUI_BU_Menu_Essential"), playerObj, Sync.send,
-                "setEssential", { panel = panel.id, key = key, on = not device.essential })
         end
     end
     menu:addOption(getText("IGUI_BU_Menu_ShowInList"), self, ISBUPanelWindow.showDevice, key)
@@ -291,7 +285,7 @@ function ISBUPanelWindow:roomMenu(id)
     local playerObj = self.playerObj
     local menu = ISContextMenu.get(playerObj:getPlayerNum(), getMouseX(), getMouseY())
     menu:addOption(totals and totals.title or (self.titles[id] or ""), nil, nil).isDisabled = true
-    if totals and totals.count > 0 then
+    if totals and totals.count > 0 and Panels.cuts(self.panel) then
         local send = function(on) Sync.send(playerObj, "setRoomInside", { panel = self.panel.id, utility = utility, room = id, on = on }) end
         if totals.on < totals.count then menu:addOption(getText("IGUI_BU_Menu_RoomOn"), true, send) end
         if totals.on > 0 then menu:addOption(getText("IGUI_BU_Menu_RoomOff"), false, send) end
@@ -303,12 +297,12 @@ function ISBUPanelWindow:roomMenu(id)
     end
 end
 
--- The box's generators and how far each is heard (Panels.generatorNoise): { x, y, z, radius, running }. A sub-panel
--- has none of its own, nor has a box while power is off (BU.enabled).
+-- The box's generators and how far each is heard (Panels.generatorNoise): { x, y, z, radius, running }. None while
+-- power is off (BU.enabled).
 function ISBUPanelWindow:generatorNoises()
     local result = {}
     local panel = self.panel
-    if panel.parent or not BU.enabled("power") then return result end
+    if not BU.enabled("power") then return result end
     local state = Networks.state(panel, "power")
     for _, at in ipairs(panel.power.producers) do
         local inUse = PanelWindow.producerInUse(state, at)

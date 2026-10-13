@@ -136,7 +136,7 @@ local function panelPage(page, ui)
         state:set({
             panelLine(p) .. (Dev.selectedId and "" or ("  " .. T("Pn_IsNearest"))),
             T("Pn_State", ui.num(p.tier or 1), yes(p.tripped), yes(p.switchedOff), yes(Dev.overloaded(p))),
-            T("Pn_More", tostring(p.parent or "-"), zone, ui.num(#(p.log or {}))),
+            T("Pn_More", zone, ui.num(#(p.log or {}))),
             T("Pn_At", ui.num(p.x), ui.num(p.y), ui.num(p.z)),
         })
     end
@@ -165,8 +165,7 @@ local function powerPage(page, ui)
         local lines = { panelLine(p), T("Pw_GridNow", yes(Dev.gridPowerOn())) }
         local s = p and BU.Networks.state(p, "power")
         if s then
-            lines[3] = T("Pw_Load", ui.num(s.load or 0, 2), ui.num(BU.capacity(p.tier or 1), 2),
-                ui.num(BU.lossPerPiece(p.tier or 1), 3), yes(s.supplied))
+            lines[3] = T("Pw_Load", ui.num(s.load or 0, 2), ui.num(BU.capacity(p.tier or 1), 2), yes(s.supplied))
             lines[4] = T("Pw_FuelNow", ui.num(s.fuelPerHour or 0, 3), s.hoursLeft and ui.num(s.hoursLeft, 1) or "-",
                 ui.num(s.producers and #s.producers or 0))
         elseif p then
@@ -305,8 +304,6 @@ local function devicesPage(page, ui)
         { T("Dv_Night"), change(function(p) Dev.scheduleAll(p, "night") end) },
         { T("Dv_Day"), change(function(p) Dev.scheduleAll(p, "day") end) },
         { T("Dv_Always"), change(function(p) Dev.scheduleAll(p, "always") end) },
-        { T("Dv_Essential"), change(function(p) Dev.essentialAll(p, true) end) },
-        { T("Dv_NotEssential"), change(function(p) Dev.essentialAll(p, false) end) },
     })
     page.refresh = function()
         state:set({ panelLine(Dev.selected()) })
@@ -318,7 +315,7 @@ end
 -- The sandbox's options a test turns in play: the features, then the difficulty mechanics and the risks.
 local SWITCHES = {
     { "EnablePower", true }, { "EnableWater", true }, { "EnableSolar", true }, { "EnableBatteries", true },
-    { "EnableChargeController", true }, { "EnablePumps", true }, { "EnableSprinklers", true },
+    { "EnablePumps", true }, { "EnableSprinklers", true },
     { "EnableFilters", true }, { "EnableBoosters", true },
     { "SnowOnPanels", true }, { "BatteryColdLock", true }, { "WornBatteryDrain", true }, { "OverloadEnabled", true },
     { "CostsEnabled", true }, { "WaterFromAboveOnly", false }, { "RiskPipesFreeze", false },

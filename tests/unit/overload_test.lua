@@ -1,8 +1,10 @@
 -- Overload: a box's limit (its own share and what its bank's batteries add while they have charge), the breaker's
 -- gauge draining over the limit and filling under it (BU.Overload), the lever, and the bank paying what goes over the
--- box's share while a generator carries the load (Energy.run).
+-- box's share while a generator carries the load (Energy.run), and the fixed rules by which the bank hands the load
+-- to a generator and takes it back (Energy.rules, Energy.sourceOffer).
 require "BuildingUtilities/Changes"
 require "BuildingUtilities/Rack"
+require "BuildingUtilities/Solar"
 require "BuildingUtilities/Overload"
 local BU = BuildingUtilities
 local Store, Panels, Changes, Energy, Overload = BU.Store, BU.Panels, BU.Changes, BU.Energy, BU.Overload
@@ -13,7 +15,7 @@ getClimateManager = function()
         getAirTemperatureForSquare = function() return TEST.temperature end }
 end
 
--- The power network's state as the API tells it, for every panel: { load, supplied, loadFactor, producers }.
+-- The power network's state as the API tells it, for every panel: { load, supplied, producers }.
 local function network(state)
     PZExtAPI.networks.state = function() return state end
     return state
@@ -61,28 +63,25 @@ test("the limit is the box's own share and what its batteries give while they ha
     near(Panels.limit(panel), capacity, "an empty bank adds nothing")
 end)
 
-test("cold takes its share of the output, and a tier 4 bank stops giving at its cutoff", function()
-    local panel = box(4, { { type = STANDARD, charge = 0.5, condition = 100 } })
+test("cold takes its share of the output, and the bank gives down to empty at any tier", function()
+    local panel = box(1, { { type = STANDARD, charge = 0.5, condition = 100 } })
     TEST.temperature = -10
     near(Panels.limit(panel), Panels.capacity(panel) + 0.15 * (1 - 0.15), "15% locked at -10")
     TEST.temperature = 10
-    Store.unitList("rack", panel.id)[1].batteries[1].charge = 0.04
-    near(Panels.limit(panel), Panels.capacity(panel), "below the cutoff")
-    panel.tier = 3
-    near(Panels.limit(panel), Panels.capacity(panel) + 0.15, "below tier 4 down to empty")
+    Store.unitList("rack", panel.id)[1].batteries[1].charge = 0.01
+    near(Panels.limit(panel), Panels.capacity(panel) + 0.15, "a little charge still gives")
+    Store.unitList("rack", panel.id)[1].batteries[1].charge = 0
+    near(Panels.limit(panel), Panels.capacity(panel), "empty: nothing")
 end)
 
-test("a sub-panel's limit is its own share only", function()
-    local main = box(2, { { type = STANDARD, charge = 1, condition = 100 } })
-    local sub = box(2)
-    sub.parent = main.id
-    eq(Panels.limit(sub), Panels.capacity(sub))
+test("the tiers' limits are 0.5, 1, 2 and 4", function()
+    for tier, limit in ipairs({ 0.5, 1, 2, 4 }) do near(BU.capacity(tier), limit, "tier " .. tier) end
 end)
 
 test("over the limit the gauge drains, trips at empty, and cools back while tripped", function()
     local panel = box(1)
     local limit = Panels.limit(panel)
-    network({ load = limit * 1.1, supplied = true, loadFactor = 1 })
+    network({ load = limit * 1.1, supplied = true })
     Overload.check(panel, 0.25)
     near(Panels.breaker(panel), 0.5, "half an hour lasts, a quarter gone")
     eq(panel.tripped, false)
@@ -95,27 +94,21 @@ test("over the limit the gauge drains, trips at empty, and cools back while trip
     eq(panel.power.breaker, nil, "full: nothing kept")
 end)
 
-test("charging the bank does not count toward the breaker; twice the limit trips at once", function()
+test("twice the limit trips at once", function()
     local panel = box(1)
-    local limit = Panels.limit(panel)
-    panel.extraLoads = { charging = limit }
-    network({ load = limit * 1.5, supplied = true, loadFactor = 1 })
-    Overload.check(panel, 1)
-    eq(Panels.breaker(panel), 1, "half of it is charging: under the limit")
-    panel.extraLoads = nil
-    network({ load = limit * 2, supplied = true, loadFactor = 1 })
+    network({ load = Panels.limit(panel) * 2, supplied = true })
     Overload.check(panel, 0)
     eq(panel.tripped, true, "no time needed")
 end)
 
 test("without supply or with overload off nothing drains", function()
     local panel = box(1)
-    network({ load = Panels.limit(panel) * 1.5, supplied = false, loadFactor = 1 })
+    network({ load = Panels.limit(panel) * 1.5, supplied = false })
     Overload.check(panel, 1)
     eq(Panels.breaker(panel), 1)
     panel.power.breaker = 0.4
     SandboxVars.BuildingUtilities = { OverloadEnabled = false }
-    network({ load = Panels.limit(panel) * 1.5, supplied = true, loadFactor = 1 })
+    network({ load = Panels.limit(panel) * 1.5, supplied = true })
     Overload.check(panel, 1)
     eq(panel.power.breaker, nil, "off: the gauge is full")
     eq(panel.tripped, false)
@@ -150,10 +143,10 @@ test("the gauge is told to players by steps, not each minute", function()
     eq(told, 2, "full again")
 end)
 
-test("while a generator carries the load, the bank gives what goes over the box's share, down to its floor", function()
+test("while a generator carries the load, the bank gives what goes over the box's share, down to empty", function()
     local panel = box(2, { { type = STANDARD, charge = 0.5, condition = 100 }, { type = STANDARD, charge = 0.5, condition = 100 } })
     local capacity = Panels.capacity(panel)
-    local state = network({ load = capacity + 0.2, supplied = true, loadFactor = 1, producers = {} })
+    local state = network({ load = capacity + 0.2, supplied = true, producers = {} })
     local before = Energy.bank(panel).energy
     Energy.run(panel, state, 1, false)
     near(panel.bankFlow, -0.2, "the part over the share")
@@ -162,4 +155,58 @@ test("while a generator carries the load, the bank gives what goes over the box'
     state.load = capacity * 0.5
     Energy.run(panel, state, 1, false)
     eq(panel.bankFlow, 0)
+end)
+
+-- A generator of the panel on a loaded square, with fuel, as the network's state lists it.
+local function generatorAt(panel)
+    TEST.squares["30,30,0"] = { objects = {} }
+    panel.power.producers[1] = { x = 30, y = 30, z = 0 }
+    return { x = 30, y = 30, z = 0, fuel = 5, condition = 100 }
+end
+
+test("the bank hands the load to a generator at 20% and takes it back at 80%; without one it is drawn empty", function()
+    local panel = box(1, { { type = STANDARD, charge = 0.5, condition = 100 } })
+    local state = network({ load = 0.3, supplied = true, producers = { generatorAt(panel) } })
+    local rules = Energy.rules(panel, state)
+    near(rules.floor, 0.2, "a generator can take over: drawn to 20%")
+    near(rules.restart, 0.8, "and the bank takes the load back at 80%")
+    state.producers = {}
+    rules = Energy.rules(panel, state)
+    near(rules.floor, 0, "no generator: drawn empty")
+    near(rules.restart, Energy.BANK_START, "and carries again from 10%")
+end)
+
+test("the bank takes the load back once it holds 80%, or the sun makes 110% of the load", function()
+    local panel = box(1, { { type = STANDARD, charge = 0.7, condition = 100 } })
+    local state = network({ load = 0.3, supplied = true, producers = { generatorAt(panel) } })
+    local rules = Energy.rules(panel, state)
+    eq(Energy.ready(rules, 0, Energy.bank(panel)), false, "70%: not yet")
+    Store.unitList("rack", panel.id)[1].batteries[1].charge = 0.85
+    eq(Energy.ready(rules, 0, Energy.bank(panel)), true, "85%")
+    Store.unitList("rack", panel.id)[1].batteries[1].charge = 0.1
+    eq(Energy.ready(rules, 0.3 * 1.1, Energy.bank(panel)), true, "the sun with the margin")
+    eq(Energy.ready(rules, 0.3, Energy.bank(panel)), false, "the sun without it")
+end)
+
+test("a generator charges nothing: while it runs only the sun fills the bank", function()
+    local panel = box(1, { { type = STANDARD, charge = 0.5, condition = 100 } })
+    local state = network({ load = 0.2, supplied = true, producer = { x = 30, y = 30, z = 0 },
+        producers = { generatorAt(panel) } })
+    Energy.run(panel, state, 1, false)
+    eq(panel.bankFlow, 0, "no sun: nothing goes in")
+end)
+
+test("switching to solar by hand needs the bank 10% over where it would hand back", function()
+    local panel = box(1, { { type = STANDARD, charge = 0.25, condition = 100 } })
+    TEST.squares["40,40,0"] = { objects = {} }
+    local solar = Store.newUnit("solar", 40, 40, 0, "panel")
+    solar.panel = panel.id
+    local state = network({ load = 0.3, supplied = true, enabled = true, producer = { x = 30, y = 30, z = 0 },
+        producers = { generatorAt(panel) } })
+    local offered, ready = Energy.sourceOffer(panel, state)
+    eq(offered, true)
+    eq(ready, false, "25%: it would hand straight back at 20%")
+    Store.unitList("rack", panel.id)[1].batteries[1].charge = 0.35
+    offered, ready = Energy.sourceOffer(panel, state)
+    eq(ready, true, "35%")
 end)

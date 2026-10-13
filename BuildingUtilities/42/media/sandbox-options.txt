@@ -24,12 +24,6 @@ option BuildingUtilities.EnableBatteries
     page = BuildingUtilitiesFeatures, translation = BuildingUtilities_EnableBatteries,
 }
 
-option BuildingUtilities.EnableChargeController
-{
-    type = boolean, default = true,
-    page = BuildingUtilitiesFeatures, translation = BuildingUtilities_EnableChargeController,
-}
-
 option BuildingUtilities.EnablePumps
 {
     type = boolean, default = true,
@@ -110,32 +104,26 @@ option BuildingUtilities.OverloadEnabled
 
 option BuildingUtilities.Capacity1
 {
-    type = double, min = 0.05, max = 10.0, default = 1.0,
+    type = double, min = 0.05, max = 10.0, default = 0.5,
     page = BuildingUtilities, translation = BuildingUtilities_Capacity1,
 }
 
 option BuildingUtilities.Capacity2
 {
-    type = double, min = 0.05, max = 10.0, default = 2.0,
+    type = double, min = 0.05, max = 10.0, default = 1.0,
     page = BuildingUtilities, translation = BuildingUtilities_Capacity2,
 }
 
 option BuildingUtilities.Capacity3
 {
-    type = double, min = 0.05, max = 10.0, default = 3.5,
+    type = double, min = 0.05, max = 10.0, default = 2.0,
     page = BuildingUtilities, translation = BuildingUtilities_Capacity3,
 }
 
 option BuildingUtilities.Capacity4
 {
-    type = double, min = 0.05, max = 10.0, default = 5.0,
+    type = double, min = 0.05, max = 10.0, default = 4.0,
     page = BuildingUtilities, translation = BuildingUtilities_Capacity4,
-}
-
-option BuildingUtilities.LossPerWire
-{
-    type = double, min = 0.0, max = 10.0, default = 1.0,
-    page = BuildingUtilities, translation = BuildingUtilities_LossPerWire,
 }
 
 option BuildingUtilities.LowFuelHours

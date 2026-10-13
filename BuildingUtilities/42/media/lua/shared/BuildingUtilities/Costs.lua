@@ -53,12 +53,6 @@ function Costs.outside(utility, steps)
     return cost
 end
 
--- A sub-panel to its main panel: power and water lines between the two buildings.
-function Costs.link(steps)
-    return { tools = { "screwdriver", "pipewrench" }, items = { { Costs.WIRE, pieces(steps) }, { Costs.PIPE, pieces(steps) } },
-        skill = 3 }
-end
-
 -- A box to the next tier.
 local UPGRADES = {
     [2] = { tools = { "screwdriver" }, items = { { Costs.WIRE, 5 }, { Costs.PART, 5 } }, skill = 4 },

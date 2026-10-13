@@ -1,5 +1,4 @@
--- The breaker box window's rows for the units' source (solar panels, the bank) and the charge controller's
--- settings, and what each generator does.
+-- The breaker box window's rows for the units' source (solar panels, the bank), and what each generator does.
 require "BuildingUtilities/PanelWindow"
 local BU = BuildingUtilities
 local Store, Sync, Energy = BU.Store, BU.Sync, BU.Energy
@@ -77,7 +76,6 @@ function ISBUPanelWindow:sourceRows(state)
             text = getText("IGUI_BU_BankRow", #racks, BU.percent(bank.charge * 100), string.format("%.1f", bank.energy),
                 string.format("%.1f", bank.capacity), load2(Energy.boost(panel, bank)), status)
             if bank.weak > 0 then text = text .. "  " .. getText("IGUI_BU_BankWeak", bank.weak) end
-            if panel.quietCut then text = text .. "  " .. getText("IGUI_BU_QuietCut") end
             if bank.cold > 0.005 then text = text .. "  " .. getText("IGUI_BU_BankCold", BU.percent(bank.cold * 100)) end
             tooltip = getText("IGUI_BU_BankTip", #bank.batteries, #racks, BU.percent(Energy.efficiency() * 100))
             if Energy.wearRate() > 0 then tooltip = tooltip .. " " .. getText("IGUI_BU_BankWearTip") end
@@ -85,13 +83,12 @@ function ISBUPanelWindow:sourceRows(state)
                 tooltip = tooltip .. " " .. getText("IGUI_BU_BankWeakTip", Energy.WEAK, BU.percent(Energy.WEAK_PER_DAY * 100))
             end
             if Energy.coldLockEnabled() then tooltip = tooltip .. " " .. getText("IGUI_BU_BankColdTip") end
-            tooltip = tooltip .. " " .. getText("IGUI_BU_BankEmptyTip")
+            tooltip = tooltip .. " " .. getText("IGUI_BU_BankEmptyTip") .. " <LINE> <LINE> "
+                .. getText("IGUI_BU_HandoverTip", BU.percent(Energy.HANDOVER * 100), BU.percent(Energy.TAKE_BACK * 100))
         else
             text = getText("IGUI_BU_BankEmpty", #racks)
         end
-        local controller = Energy.hasController(panel)
-        if controller then tooltip = (tooltip and tooltip .. " <LINE> <LINE> " or "") .. self:controllerText() end
-        rows[#rows + 1] = { row = { kind = "source", text = text, inUse = inUse and bank ~= nil, settings = controller }, tooltip = tooltip }
+        rows[#rows + 1] = { row = { kind = "source", text = text, inUse = inUse and bank ~= nil }, tooltip = tooltip }
     end
     -- "Switch to solar" on the first row, while something else carries the load (Energy.sourceOffer).
     local offered, ready, rules = Energy.sourceOffer(panel, state)
@@ -103,14 +100,4 @@ function ISBUPanelWindow:sourceRows(state)
         first.tooltip = (first.tooltip and first.tooltip .. " <LINE> <LINE> " or "") .. note
     end
     return rows
-end
-
--- The charge controller's settings in words, for the bank's tooltip.
-function ISBUPanelWindow:controllerText()
-    local settings = Energy.settings(self.panel)
-    local quiet = settings.quietFrom == settings.quietTo and getText("IGUI_BU_QuietNone")
-        or getText("IGUI_BU_QuietHours", settings.quietFrom, settings.quietTo)
-    local text = getText("IGUI_BU_ControllerTip", BU.percent(settings.start), BU.percent(settings.stop), quiet)
-    if (self.panel.tier or 1) >= BU.SMART_TIER then text = text .. " <LINE> <LINE> " .. getText("IGUI_BU_ProtectTip", BU.percent(settings.protect)) end
-    return text
 end

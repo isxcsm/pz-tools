@@ -1,4 +1,4 @@
--- The water units (BU.Units, utility "water"), each wired to a main panel and working for one of its water groups
+-- The water units (BU.Units, utility "water"), each wired to a panel and working for one of its water groups
 -- (BU.Water): the pump fills the group's tanks from a river, a lake or a well beside it while the panel has power
 -- (it goes anywhere, but without water beside it it runs dry: it draws its power and lifts nothing); the
 -- sprinkler waters the crops around it from the group; the filter purifies the group's water while the
@@ -53,7 +53,6 @@ WaterUnits.SPRAY_HOURS = 0.2
 -- Hours of use a charge of filter media lasts (while the pipes do not purify), and what a charge takes.
 WaterUnits.FILTER_HOURS = 24 * 30
 WaterUnits.MEDIA = { { type = "Base.Charcoal", count = 2 }, { type = "Base.RippedSheets", count = 1 } }
-WaterUnits.TIER = 2
 
 -- Whether a sprinkler sprays now: it watered within the last SPRAY_HOURS.
 function WaterUnits.spraying(unit)
@@ -130,8 +129,6 @@ Units.define("pump", {
     item = "BuildingUtilities.WaterPump",
     sprites = Units.lookSprites(WaterUnits.PUMP_LOOKS, PUMP_ORDER, PUMP_SIDES),
     utility = "water",
-    minTier = WaterUnits.TIER,
-    tierReason = "waterUnitTier",
     colour = { 0.35, 0.6, 1 },
     canPlace = function() return true end,
     -- Its suction on the water's side; without water, on the side away from the one it faces.
@@ -156,8 +153,6 @@ Units.define("sprinkler", {
     item = "BuildingUtilities.Sprinkler",
     sprites = sprinklerSprites,
     utility = "water",
-    minTier = WaterUnits.TIER,
-    tierReason = "waterUnitTier",
     colour = { 0.45, 0.85, 0.55 },
     canPlace = function(square)
         if not square:isOutside() then return nil, "notOutside" end
@@ -190,8 +185,6 @@ Units.define("filter", {
     item = "BuildingUtilities.WaterFilter",
     sprites = Units.lookSprites(WaterUnits.FILTER_LOOKS, FILTER_ORDER, FILTER_WAYS),
     utility = "water",
-    minTier = WaterUnits.TIER,
-    tierReason = "waterUnitTier",
     colour = { 0.85, 0.9, 1 },
     canPlace = function() return true end,
     -- Its pipe runs across the side it faces.
@@ -231,8 +224,6 @@ Units.define("booster", {
     item = "BuildingUtilities.BoosterPump",
     sprites = Units.lookSprites(WaterUnits.BOOSTER_LOOKS, BOOSTER_ORDER, BOOSTER_SIDES),
     utility = "water",
-    minTier = WaterUnits.TIER,
-    tierReason = "waterUnitTier",
     colour = { 0.3, 0.75, 0.95 },
     canPlace = function() return true end,
     -- Its front to the side it faces.

@@ -327,33 +327,12 @@ function Panels.canInstall(square)
     return building
 end
 
+-- Whether a box cuts its devices one by one at the box: from BU.CUT_TIER. Below it, everything it reaches is
+-- supplied; a device is switched at itself, and one outside taken off by its line.
+function Panels.cuts(panel) return (panel.tier or 1) >= BU.CUT_TIER end
+
 -- What a box carries before its breaker trips.
 function Panels.capacity(panel) return BU.capacity(panel.tier) end
-
--- The power line into a box: a main panel's from its producer in use (state.producer; else its first; for the
--- units' source, the nearest unit), a sub-panel's from its main panel. The pieces of wire it took and the percent of
--- the load it loses; nil without one.
-function Panels.powerLine(panel, state)
-    local steps
-    if panel.parent then
-        local parent = Store.get(panel.parent)
-        steps = parent and Panels.linkWire(panel, parent)
-    else
-        local at = state and state.producer or panel.power.producers[1]
-        if at and at.source then steps = BU.Energy.lineSteps(panel)
-        elseif at then
-            -- The state's producer is the API's: the save's says which sub-panel its line runs through.
-            local via
-            for _, own in ipairs(panel.power.producers) do
-                if own.x == at.x and own.y == at.y and own.z == at.z then via = own.via end
-            end
-            steps = Panels.routeWire(panel, at.x, at.y, at.z, via)
-        else steps = BU.Energy.lineSteps(panel) end
-    end
-    if not steps then return nil end
-    local pieces = BU.Costs.pieces(steps)
-    return pieces, pieces * BU.lossPerPiece(panel.tier)
-end
 
 -- How far a box of a tier reaches, for the player: devices outside, producers and other boxes alike.
 function Panels.rangesText(tier)
@@ -372,15 +351,8 @@ function Panels.upgradeNote(tier, plain)
     if Panels.rangesText(tier) ~= Panels.rangesText(tier - 1) then
         lines[#lines + 1] = Panels.rangesText(tier)
     end
-    if power and BU.lossPerPiece(tier) < BU.lossPerPiece(tier - 1) then
-        lines[#lines + 1] = getText("IGUI_BU_LossNote", string.format("%.1f", BU.lossPerPiece(tier)))
-    end
+    if tier == BU.CUT_TIER then lines[#lines + 1] = getText("IGUI_BU_CutNote") end
     if power and tier == BU.TIMER_TIER then lines[#lines + 1] = getText("IGUI_BU_TimerNote") end
-    if tier == BU.LINK_TIER then lines[#lines + 1] = getText("IGUI_BU_LinkNote") end
-    if BU.enabled("rack") and tier == BU.BANK_TIER then lines[#lines + 1] = getText("IGUI_BU_BankNote") end
-    if BU.enabled("controller") and tier == BU.CONTROLLER_TIER then lines[#lines + 1] = getText("IGUI_BU_ControllerNote") end
-    if power and tier == BU.SMART_TIER then lines[#lines + 1] = getText("IGUI_BU_SmartNote") end
-    if BU.enabled("controller") and tier == BU.SMART_TIER then lines[#lines + 1] = getText("IGUI_BU_ProtectNote") end
     return table.concat(lines, plain and "\n" or " <LINE> ")
 end
 
@@ -433,55 +405,6 @@ function Panels.wire(panel, x, y, z)
     return steps and steps + math.abs((z or panel.z) - panel.z) * BU.tilesPerFloor() or nil
 end
 
--- The main panel a panel takes its supply from at last, up its links: itself for a main panel.
-function Panels.root(panel)
-    local seen = {}
-    while panel.parent and not seen[panel.id] do
-        seen[panel.id] = true
-        local parent = Store.get(panel.parent)
-        if not parent then break end
-        panel = parent
-    end
-    return panel
-end
-
--- Whether the panel named by an id is a panel, or one of its sub-panels at any depth.
-function Panels.passesThrough(id, panel)
-    local at, seen = Store.get(id), {}
-    while at and not seen[at.id] do
-        if at == panel then return true end
-        seen[at.id] = true
-        at = Store.get(at.parent)
-    end
-    return false
-end
-
--- The length of the links from a panel up to its main panel (Panels.linkWire each): 0 for a main panel, nil when a
--- building on the way is not known now.
-function Panels.feedWire(panel)
-    local total, seen = 0, {}
-    while panel.parent and not seen[panel.id] do
-        seen[panel.id] = true
-        local parent = Store.get(panel.parent)
-        if not parent then break end
-        local wire = Panels.linkWire(panel, parent)
-        if not wire then return nil end
-        total, panel = total + wire, parent
-    end
-    return total
-end
-
--- The length of a producer's or a unit's line into its main panel: through the sub-panel it is wired to (via, its
--- id) and up that one's links, or straight to the box.
-function Panels.routeWire(panel, x, y, z, via)
-    local through = via and Store.get(via)
-    if through and through ~= panel and Panels.root(through) == panel then
-        local wire, feed = Panels.wire(through, x, y, z), Panels.feedWire(through)
-        return wire and feed and wire + feed or nil
-    end
-    return Panels.wire(panel, x, y, z)
-end
-
 -- The lowest tier whose range (BU.connectRange and the like) reaches so many squares; nil when none does.
 function Panels.tierReaching(range, steps)
     for tier = 1, BU.TIERS do
@@ -493,9 +416,7 @@ end
 -- The panels a producer square could be connected to: on a level of their building or on the ground, within the
 -- connect range of the top tier from its outline on the square's own level, as a device outside is reached (the whole
 -- outline where that level has no rooms, as on a roof). Each with its distance, its line's length (Panels.wire) and
--- the tier that reaches it; the shortest line first. A sub-panel takes the line on to its main panel (Panels.root),
--- whose producer it is: a producer near a sub-panel, up a tall building or by another building, needs no line of its
--- own all the way to the main box.
+-- the tier that reaches it; the shortest line first.
 function Panels.producerCandidates(x, y, z)
     local result = {}
     for _, panel in ipairs(Store.list()) do
@@ -538,13 +459,13 @@ function Panels.canConnectProducer(panel, utility, x, y, z)
     return false, "tooFar"
 end
 
--- What a main box could take that no box has, each { x, y, z, sprite } (a generator or water storage) or { x, y, z,
+-- What a box could take that no box has, each { x, y, z, sprite } (a generator or water storage) or { x, y, z,
 -- unit }: the producers in its building and around it within its connect range (the API's buildings.producers, read in
 -- Java; none with an API from before it) that Panels.canConnectProducer allows, and the units no box has that this box
--- reaches. None for a sub-panel (what is near it goes to its main box) or while the utility is off.
+-- reaches. None while the utility is off.
 function Panels.unwiredProducers(panel, utility)
     local result = {}
-    if panel.parent or not BU.enabled(utility) then return result end
+    if not BU.enabled(utility) then return result end
     local api = BU.api()
     local building = Panels.building(panel)
     local find = api and api.buildings.producers
@@ -580,8 +501,8 @@ end
 -- that covers several squares is one device, as the API switches it whole: its entry is that of its listed part with
 -- the smallest key, which is its key; keys are all its parts'; power is what its parts draw together. Each has entry,
 -- key, keys, power, inside and state ("on", "off" or "other": the player's choice); attached (in a built-on room) and
--- pending (not yet in the networks, BU.Changes.syncAttached); and for power: essential, schedule (BU.SCHEDULES) and
--- held ("shed", "saving" or "timer" while the box keeps it off; "exterior" for one outside while the game
+-- pending (not yet in the networks, BU.Changes.syncAttached); and for power: schedule (BU.SCHEDULES) and
+-- held ("timer" while the box keeps it off; "exterior" for one outside while the game
 -- keeps generators from powering things outside, BU.exteriorPower; or nil); and for power switchOn, its own switch
 -- where it has one and is loaded (BU.Switches: true, false; nil without). A utility that is off (BU.enabled) has
 -- none.
@@ -691,10 +612,8 @@ function Panels.devices(panel, utility)
         if utility == "water" then device.group = BU.Water.deviceGroup(panel, group.keys) end
         if utility == "power" and group.object then device.switchOn = BU.Switches.state(group.object) end
         if utility == "power" and device.state == "on" then
-            device.essential = data.essential[device.key] == true
             device.schedule = data.schedule[device.key] or "always"
-            device.held = not device.inside and not BU.exteriorPower() and "exterior" or data.shed[device.key] and "shed"
-                or data.saving[device.key] and "saving"
+            device.held = not device.inside and not BU.exteriorPower() and "exterior"
                 or data.timed[device.key] and "timer" or nil
         end
         result[#result + 1] = device
@@ -746,21 +665,18 @@ end
 -- Overload.
 
 -- What a box carries before it overloads: its own share (Panels.capacity) and what its bank's batteries add while it
--- has charge (Energy.boost; a main panel's). `bank`: the panel's, when the caller has it (else it is looked up).
+-- has charge (Energy.boost). `bank`: the panel's, when the caller has it (else it is looked up).
 function Panels.limit(panel, bank)
     local capacity = Panels.capacity(panel)
-    if panel.parent or not BU.Energy then return capacity end
+    if not BU.Energy then return capacity end
     if bank == nil then bank = BU.Energy.bank(panel) end
     return capacity + BU.Energy.boost(panel, bank or nil)
 end
 
 -- The breaker holds an overload for a while, as a real one heats: its gauge (1 full, panel.power.breaker) drains at
 -- (r - 1)^2 / BREAKER_K an hour, r the load over the limit (105% in two hours, 110% in half an hour, 150% in a little
--- over a minute), and empties at once from BREAKER_INSTANT. Under the limit it fills again in BREAKER_FILL_HOURS. A
--- box that sheds turns devices off as the gauge reaches BREAKER_SHED_AT, and on again once it is back to
--- BREAKER_RESTORE_AT.
+-- over a minute), and empties at once from BREAKER_INSTANT. Under the limit it fills again in BREAKER_FILL_HOURS.
 Panels.BREAKER_K, Panels.BREAKER_INSTANT, Panels.BREAKER_FILL_HOURS = 0.005, 2, 2
-Panels.BREAKER_SHED_AT, Panels.BREAKER_RESTORE_AT = 0.5, 0.9
 
 -- Whether the box's lever is up: its breaker holds and its main switch is on (Changes.setLever).
 function Panels.leverUp(panel) return not (panel.tripped or panel.switchedOff) end
@@ -780,55 +696,6 @@ function Panels.breakerHoursLeft(gauge, ratio, to)
     local drain = Panels.breakerDrain(ratio)
     if drain <= 0 then return nil end
     return math.max(0, gauge - (to or 0)) / drain
-end
-
--- Whether a box sheds devices under overload before its breaker trips.
-function Panels.sheds(panel) return BU.overloadEnabled() and (panel.tier or 1) >= BU.SMART_TIER end
-
--- Which devices a box sheds to draw less by at least excess: connected and on, not essential, the largest first, so
--- that few go off. Nil when shedding all it may does not do; else their keys, and what each draws by key.
-function Panels.shedPlan(panel, excess)
-    local candidates = {}
-    for _, device in ipairs(Panels.devices(panel, "power")) do
-        local power = device.power or 0
-        if device.state == "on" and not device.held and not device.essential and power > 0 then
-            candidates[#candidates + 1] = { key = device.key, power = power }
-        end
-    end
-    table.sort(candidates, function(a, b) return a.power > b.power end)
-    local keys, powers, total = {}, {}, 0
-    for _, candidate in ipairs(candidates) do
-        if total >= excess - 1e-6 then break end
-        keys[#keys + 1] = candidate.key
-        powers[candidate.key] = candidate.power
-        total = total + candidate.power
-    end
-    if total < excess - 1e-6 then return nil end
-    return keys, powers
-end
-
--- Which shed devices fit again within room: the smallest first, by what each drew as it was shed (BU.Changes.shed).
--- A device shed by an older version, kept without it, has the building's devices looked at.
-function Panels.restorePlan(panel, room)
-    local candidates = {}
-    for key, power in pairs(panel.power.shed) do
-        if type(power) ~= "number" then candidates = nil; break end
-        candidates[#candidates + 1] = { key = key, power = power }
-    end
-    if not candidates then
-        candidates = {}
-        for _, device in ipairs(Panels.devices(panel, "power")) do
-            if device.held == "shed" then candidates[#candidates + 1] = { key = device.key, power = device.power or 0 } end
-        end
-    end
-    table.sort(candidates, function(a, b) return a.power < b.power end)
-    local keys, total = {}, 0
-    for _, candidate in ipairs(candidates) do
-        if total + candidate.power > room + 1e-6 then break end
-        keys[#keys + 1] = candidate.key
-        total = total + candidate.power
-    end
-    return keys
 end
 
 -- One device of a panel by the key of any of its parts, or nil.
@@ -904,70 +771,6 @@ function Panels.missingOther(panel, utility, device, otherState)
     end
     if excluded or (not device.inside and not included) or not (otherState and otherState.supplied) then return other end
     return nil
-end
-
--- Sub-panels.
-
--- Steps between two panels' buildings, or nil when one is not known now.
-function Panels.linkSteps(child, parent)
-    local childBuilding, parentBuilding = Panels.building(child), Panels.building(parent)
-    if not childBuilding or not parentBuilding then return nil end
-    if childBuilding.key == parentBuilding.key then return 0 end
-    return Geometry.betweenBuildings(Panels.rooms(childBuilding), Panels.rooms(parentBuilding))
-end
-
--- The length of the line between two panels: the steps between their buildings, and BU.tilesPerFloor a floor up or
--- down between their boxes (a sub-panel on another floor of the same building); nil when one is not known now.
-function Panels.linkWire(child, parent)
-    local steps = Panels.linkSteps(child, parent)
-    return steps and steps + math.abs(child.z - parent.z) * BU.tilesPerFloor() or nil
-end
-
--- Whether a panel can take its supply from another: a main panel in another building or another zone of its own,
--- of a tier that gives supply (BU.LINK_TIER) and whose connect range reaches its own building, with no producers
--- or units of its own, and not one of its own sub-panels. Returns true, or false and a reason; for "lowTier" also the distance and the tier needed.
-function Panels.canLink(child, parent)
-    if child == parent then return false, "self" end
-    if child.parent then return false, "isSubPanel" end
-    for _, utility in ipairs(BU.UTILITIES) do
-        if #child[utility].producers > 0 then return false, "hasProducers" end
-    end
-    if #Store.unitList(nil, child.id) > 0 then return false, "hasProducers" end
-    local above = parent
-    while above do
-        if above == child then return false, "cycle" end
-        above = Store.get(above.parent)
-    end
-    local steps = Panels.linkSteps(child, parent)
-    if not steps then return false, "noBuilding" end
-    local tier = Panels.tierReaching(BU.connectRange, steps)
-    if not tier then return false, "tooFar" end
-    tier = math.max(tier, BU.LINK_TIER)
-    if (parent.tier or 1) < tier then return false, "lowTier", steps, tier end
-    return true
-end
-
--- The panels a panel could take its supply from, nearest first, with their distances and their lines' lengths
--- (Panels.linkWire): those it can now, and those it could once they are of a higher tier (with the tier needed), for
--- the player to see what an upgrade gives.
-function Panels.linkCandidates(child)
-    local result = {}
-    for _, panel in ipairs(Store.list()) do
-        if panel ~= child then
-            local ok, reason, steps, tier = Panels.canLink(child, panel)
-            if ok then
-                result[#result + 1] = { panel = panel, steps = Panels.linkSteps(child, panel), wire = Panels.linkWire(child, panel) }
-            elseif reason == "lowTier" then
-                result[#result + 1] = { panel = panel, steps = steps, wire = Panels.linkWire(child, panel), tier = tier }
-            end
-        end
-    end
-    -- The shortest line first: in one building the steps are none, the floors tell.
-    table.sort(result, function(a, b)
-        if (a.wire or a.steps) ~= (b.wire or b.steps) then return (a.wire or a.steps) < (b.wire or b.steps) end
-        return a.steps < b.steps
-    end)
-    return result
 end
 
 -- Names.

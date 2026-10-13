@@ -84,9 +84,9 @@ local function roomColour(room, supplied)
 end
 
 local COLOURS = {
-    other = { 0.6, 0.4, 0.8 }, off = { 0.45, 0.45, 0.45 }, shed = { 1, 0.6, 0.2 }, timer = { 0.4, 0.6, 1 },
+    other = { 0.6, 0.4, 0.8 }, off = { 0.45, 0.45, 0.45 }, timer = { 0.4, 0.6, 1 },
     unsupplied = { 0.6, 0.65, 0.75 }, using = { 0.4, 1, 0.4 }, idle = { 0.25, 0.6, 0.3 },
-    producer = { 1, 0.5, 0.15 }, tank = { 0.3, 0.6, 1 }, box = { 0.86, 0.88, 0.9 }, subBox = { 0.5, 0.52, 0.56 },
+    producer = { 1, 0.5, 0.15 }, tank = { 0.3, 0.6, 1 }, box = { 0.86, 0.88, 0.9 },
     range = { 0.3, 0.6, 1 }, rangeNoise = { 1, 0.35, 0.3 },
     rangeNoiseIdle = { 0.6, 0.3, 0.3 },
     zoneMine = { 0.2, 0.5, 0.6 }, zoneFree = { 0.25, 0.25, 0.25 }, zoneTaken = { 0.5, 0.3, 0.6 },
@@ -118,7 +118,6 @@ local function dotColour(device, supplied)
     local colour
     if device.state == "other" then colour = COLOURS.other
     elseif device.state ~= "on" then colour = device.wired and COLOURS.idle or COLOURS.off
-    elseif device.held == "shed" or device.held == "saving" then colour = COLOURS.shed
     elseif device.held == "timer" then colour = COLOURS.timer
     elseif device.held == "exterior" then colour = COLOURS.unsupplied
     elseif not supplied then colour = COLOURS.unsupplied
@@ -128,7 +127,7 @@ local function dotColour(device, supplied)
 end
 
 -- What the legend lists for a utility, or for the zones: a colour, dot or square, and its text.
-local function legendEntries(utility, zones, ranges, subBoxes)
+local function legendEntries(utility, zones, ranges)
     local result = {}
     local function add(name, square)
         local colour = COLOURS[name]
@@ -138,7 +137,7 @@ local function legendEntries(utility, zones, ranges, subBoxes)
     if zones then
         for _, name in ipairs({ "zoneMine", "zoneFree", "zoneTaken", "zoneFar" }) do add(name, true) end
     elseif utility == "power" then
-        for _, name in ipairs({ "using", "idle", "shed", "timer", "unsupplied", "other" }) do add(name) end
+        for _, name in ipairs({ "using", "idle", "timer", "unsupplied", "other" }) do add(name) end
         add("off")
         add("producer", true)
     else
@@ -147,7 +146,6 @@ local function legendEntries(utility, zones, ranges, subBoxes)
         add("tank", true)
     end
     add("box", true)
-    if subBoxes then add("subBox", true) end
     if ranges and not zones then
         add("range", "line")
         if ranges.noise and #ranges.noise > 0 then add("rangeNoise", "line") end
@@ -209,8 +207,8 @@ end
 
 -- data: { utility, supplied, rooms = { { id, title, level, rects } }, devices = { { key, x, y, z, roomId, inside,
 -- state, held, power, name, status } }, producers = { { x, y, z, inUse, text, unit = its kind for a unit, colour
--- or nil } }, box = { x, y, z }, boxes = { { x, y, z, sub, own, text } } (the building's boxes, this window's own),
--- subBoxes (one of them is a sub-panel), filter = room id, zone = room id to
+-- or nil } }, box = { x, y, z }, boxes = { { x, y, z, own, text } } (the building's boxes, this window's own),
+-- filter = room id, zone = room id to
 -- { state = "mine", "free", "taken" or "far", owner = a name }, zoneEditable, zoneEdit, zoneNote, farNote (why a far
 -- room cannot be taken), reached = { lowest, highest } (the floors the box's zone can take), waterSupply (by floor,
 -- "dry" or "boosted", for water), ranges = { reach = steps, noise = for power { { x, y,
@@ -429,7 +427,7 @@ function ISBUPlan:layout()
     local top = self.topH
     -- The legend: a box above the status line, a gap from the floor strip, under a header that folds it. Its entries
     -- in as many columns (up to three) of the widest one as fit.
-    local legendH = self:layoutLegend(left + PAD, legendEntries(data.utility, data.zoneEdit, data.ranges, data.subBoxes))
+    local legendH = self:layoutLegend(left + PAD, legendEntries(data.utility, data.zoneEdit, data.ranges))
     local availW, availH = self.width - left - PAD, self.height - top - FONT_HGT_SMALL - PAD * 2 - legendH
     -- The whole fits at zoom 1; zoomed, the plan centres on the place the player moved it to.
     local fit = math.max(1, math.min(availW / (maxX - minX), availH / (maxY - minY), MAX_SCALE))
@@ -579,10 +577,10 @@ function ISBUPlan:layout()
                 line = not producer.unwired and lineOf(producer.x, producer.y, colour, true) or nil }
         end
     end
-    -- The boxes of the building: a main box light, a sub-panel dark; this window's ringed.
+    -- The boxes of the building; this window's ringed.
     for _, box in ipairs(data.boxes) do
         if box.z == self.floor then
-            local colour = box.sub and COLOURS.subBox or COLOURS.box
+            local colour = COLOURS.box
             self.squares[#self.squares + 1] = { x = math.floor(sx(box.x) + (scale - SQUARE) / 2),
                 y = math.floor(sy(box.y) + (scale - SQUARE) / 2), size = SQUARE,
                 r = colour[1], g = colour[2], b = colour[3], ring = box.own, text = box.text }

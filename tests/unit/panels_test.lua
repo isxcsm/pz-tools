@@ -179,7 +179,7 @@ test("a device outside with its line is supplied unless cut, and the line taken 
     eq(Networks.rule(panel, "water", TAP), "include", "a line laid again supplies it")
 end)
 
-test("a main box lists what it could take and no box has: producers in reach, units in reach", function()
+test("a box lists what it could take and no box has: producers in reach, units in reach", function()
     require "BuildingUtilities/Solar"
     house(TEST.api)
     TEST.api.buildingsByKey[KEY].producers = { power = {
@@ -199,9 +199,16 @@ test("a main box lists what it could take and no box has: producers in reach, un
     eq(found[1].sprite, "near generator")
     eq(found[2].unit, free)
     eq(#Panels.unwiredProducers(panel, "water"), 0, "no water storage")
-    local sub = Store.newPanel(202, 202, 0, "box")
-    sub.parent = panel.id
-    eq(#Panels.unwiredProducers(sub, "power"), 0, "a sub-panel's go to its main box")
+end)
+
+test("a box cuts devices one by one from tier 2; its upgrade notes tell what each tier adds", function()
+    local panel = Store.newPanel(201, 201, 0, "box")
+    eq(Panels.cuts(panel), false, "tier 1 supplies all it reaches")
+    panel.tier = 2
+    eq(Panels.cuts(panel), true)
+    truthy(Panels.upgradeNote(2, true):find("IGUI_BU_CutNote", 1, true), "tier 2: cutting")
+    truthy(Panels.upgradeNote(3, true):find("IGUI_BU_TimerNote", 1, true), "tier 3: timers")
+    eq(Panels.upgradeNote(4, true):find("IGUI_BU_TimerNote", 1, true), nil)
 end)
 
 

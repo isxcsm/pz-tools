@@ -21,7 +21,7 @@ local STILL = { header = true, note = true, filter = true, log = true, graph = t
 -- One tab's list. Each item is a row table with a kind; clicks act on the row and the part of it clicked.
 ISBUPanelList = ISScrollingListBox:derive("ISBUPanelList")
 -- The tooltips of a device row's buttons, by button: what a click does, over the button itself.
-ISBUPanelList.BUTTON_TIPS = { timer = "IGUI_BU_TimerTip", essential = "IGUI_BU_EssentialTip" }
+ISBUPanelList.BUTTON_TIPS = { timer = "IGUI_BU_TimerTip" }
 
 local BUTTONS = { "Up", "Down" }
 local OPTIONS = { "ActiveOnly", "ByLoad", "HideUnwired" }
@@ -30,7 +30,7 @@ local OPTION_NAMES = { ActiveOnly = true, ByLoad = true, HideUnwired = true }
 local OPTION_FLAGS = { ActiveOnly = "activeOnly", ByLoad = "byLoad", HideUnwired = "hideUnwired" }
 local OPTION_LABELS = { ActiveOnly = "IGUI_BU_ActiveOnly", ByLoad = "IGUI_BU_ByLoad", HideUnwired = "IGUI_BU_HideUnwired" }
 local BUTTON_W = 60
-local TIMER_W, ESSENTIAL_W, GROUP_W, SOURCE_W = 64, 48, 90, 110
+local TIMER_W, GROUP_W, SOURCE_W = 64, 90, 110
 -- Water groups' colours, by their place in the panel's list.
 local GROUP_COLOURS = { { 0.35, 0.65, 1 }, { 0.3, 0.9, 0.85 }, { 0.75, 0.55, 1 }, { 1, 0.6, 0.8 } }
 
@@ -67,7 +67,7 @@ function ISBUPanelList:createChildren()
 end
 
 -- The buttons at the end of a device's row, from the right: a water fixture's group (with more than one); for power,
--- whether the box may shed it (where it sheds), and its timer. Also where the row's own text on the right ends. Kept
+-- its timer. Also where the row's own text on the right ends. Kept
 -- on the row for the list's width (design units).
 local function deviceButtons(width, row)
     if row.buttonsWidth == width then return row.buttons, row.textRight end
@@ -79,11 +79,6 @@ local function deviceButtons(width, row)
         right = right - 4
     end
     if row.controls then
-        if row.sheds then
-            right = right - ESSENTIAL_W
-            result[#result + 1] = { name = "essential", x = right, w = ESSENTIAL_W }
-            right = right - 4
-        end
         right = right - TIMER_W
         result[#result + 1] = { name = "timer", x = right, w = TIMER_W }
         right = right - 4
@@ -121,16 +116,13 @@ local function groupButtons(width, row)
     return buttonsAtRight(width, row, row.removable and { "Settings", "Rename", "Remove" } or { "Settings", "Rename" })
 end
 
--- The view options on the list's first header (the supply's, or a sub-panel's line to its main panel), left to right:
--- devices drawing only, and by what they draw.
+-- The view options on the list's first header (the supply's), left to right: devices drawing only, and by what they
+-- draw.
 local function optionButtons(width, row) return buttonsAtRight(width, row, OPTIONS) end
 
--- A source row's buttons, left to right: "Switch to solar" (while offered) and the charge controller's Settings.
+-- A source row's buttons: "Switch to solar" (while offered).
 local function sourceButtons(width, row)
-    local names = {}
-    if row.useSource then names[#names + 1] = "UseSource" end
-    if row.settings then names[#names + 1] = "Settings" end
-    return buttonsAtRight(width, row, names)
+    return buttonsAtRight(width, row, row.useSource and { "UseSource" } or {})
 end
 
 -- Whether the mouse is over a part of the row being drawn, from x so wide (list.rowMouseX: on the lit row only).
@@ -207,13 +199,13 @@ local function drawGraph(c, y, width, row)
 end
 
 -- Colours of the rows' texts.
-local HEAD, LINK, LINK_HEAD, OPEN = P.head, { 0.75, 0.85, 1 }, P.head, { 0.5, 0.75, 1 }
+local HEAD, LINK, OPEN = P.head, { 0.75, 0.85, 1 }, { 0.5, 0.75, 1 }
 local NOTE, FILTER, LOG_TEXT, LOG_BAD, LOG_GOOD = { 0.7, 0.7, 0.7 }, { 1, 1, 0.6 }, { 0.9, 0.9, 0.9 }, { 1, 0.55, 0.5 },
     { 0.6, 1, 0.6 }
 local IN_USE, OUT, PLAIN, MUTED, FLOOR_TEXT = { 0.5, 1, 0.5 }, { 1, 0.65, 0.3 }, { 0.9, 0.9, 0.9 }, { 0.5, 0.5, 0.5 },
     { 0.75, 0.9, 1 }
 local HELD, DIM, RIGHT, FRESH = { 1, 0.65, 0.3 }, { 0.55, 0.55, 0.55 }, { 0.8, 0.8, 0.8 }, { 0.3, 0.9, 1 }
-local TIMED, UNTIMED, ESSENTIAL, NOT_ESSENTIAL = { 0.6, 0.8, 1 }, { 0.8, 0.8, 0.8 }, { 1, 0.85, 0.3 }, { 0.45, 0.45, 0.45 }
+local TIMED, UNTIMED = { 0.6, 0.8, 1 }, { 0.8, 0.8, 0.8 }
 local ROOM_RIGHT, FLOOR_BG, FLOOR_LINE = { 0.9, 0.85, 0.6 }, { 0.12, 0.2, 0.3 }, { 0.35, 0.5, 0.65 }
 local WHITE = { 1, 1, 1 }
 
@@ -266,17 +258,13 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         UI.fill(c, 0, y, width, ROW, P.panel, 0.7)
         UI.text(c, row.folded and "+" or "-", PAD, textY, HEAD)
         local x = ROOM_TICK_X
+        -- Below the tier that cuts devices the tick's place stays empty.
         if row.state then
-            tick(self, c, index .. "tick", x, y, row.state)
+            if not row.fixed then tick(self, c, index .. "tick", x, y, row.state) end
             x = x + ROW + 4
         end
         UI.text(c, row.text, x, textY, HEAD)
         if row.right then UI.textRight(c, row.right, rightX, textY, ROOM_RIGHT) end
-    elseif row.kind == "link" then
-        if row.header then UI.fill(c, 0, y, width, ROW, P.panel, 0.95) end
-        UI.text(c, row.text, row.header and PAD or PAD * 2, textY, row.header and LINK_HEAD or LINK)
-        if row.options then drawOptions(self, c, index, width, y, row) end
-        UI.textRight(c, label("IGUI_BU_Open"), row.options and row.buttons[1].x - 8 or rightX, textY, OPEN)
     elseif row.kind == "columns" then
         local cols = BU.RackWindow.COLUMNS
         UI.text(c, label("IGUI_BU_Rack_ColKind"), PAD + cols.kind, textY, NOTE)
@@ -299,8 +287,8 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         for _, button in ipairs(sourceButtons(width, row)) do
             -- Switching to solar before the source is ready is greyed (its tooltip says why).
             local ready = button.name ~= "UseSource" or row.useSourceReady
-            smallButton(self, c, index .. button.name, button.x, y, button.w,
-                label(button.name == "UseSource" and "IGUI_BU_UseSource" or "IGUI_BU_Settings"), ready and WHITE or MUTED)
+            smallButton(self, c, index .. button.name, button.x, y, button.w, label("IGUI_BU_UseSource"),
+                ready and WHITE or MUTED)
         end
     elseif row.kind == "producer" then
         -- In use in green, out of service (switched off by hand) in amber.
@@ -324,8 +312,9 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         UI.text(c, row.text, PAD * 2, textY, OPEN)
     elseif row.kind == "device" or row.kind == "all" then
         local indent = row.kind == "device" and PAD * 3 or PAD * 2
-        -- a device outside the box has no line to has no tick: there is nothing to switch at the box
-        if not row.unwired then tick(self, c, index .. "tick", indent, y, row.state == "on" and "on" or "off") end
+        -- a device outside the box has no line to has no tick: there is nothing to switch at the box; below the tier
+        -- that cuts devices none has
+        if not row.unwired and not row.fixed then tick(self, c, index .. "tick", indent, y, row.state == "on" and "on" or "off") end
         UI.text(c, row.text, indent + ROW + 4, textY, (row.state == "other" or row.unwired) and MUTED or PLAIN)
         if row.fresh then
             if not row.freshX or row.freshEra ~= UI.era then
@@ -338,13 +327,10 @@ function ISBUPanelList:doDrawItem(y, item, alt)
             local key = index .. button.name
             if button.name == "group" then
                 smallButton(self, c, key, button.x, y, button.w, row.groupText, row.groupColour)
-            elseif button.name == "timer" then
+            else
                 local timed = row.device.schedule ~= "always"
                 smallButton(self, c, key, button.x, y, button.w, label("IGUI_BU_Schedule_" .. row.device.schedule),
                     timed and TIMED or UNTIMED)
-            else
-                smallButton(self, c, key, button.x, y, button.w, label("IGUI_BU_Essential"),
-                    row.device.essential and ESSENTIAL or NOT_ESSENTIAL)
             end
         end
         if row.right then

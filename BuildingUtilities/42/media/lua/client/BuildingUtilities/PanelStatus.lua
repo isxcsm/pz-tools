@@ -3,9 +3,9 @@
 -- Server.lua checkSource). Green while supplied, amber when it soon will not be or was cut on purpose, red without.
 require "BuildingUtilities/PanelWindow"
 local BU = BuildingUtilities
-local Store, Panels, Networks, Energy = BU.Store, BU.Panels, BU.Networks, BU.Energy
+local Panels, Networks, Energy = BU.Panels, BU.Networks, BU.Energy
 local Ui = BU.PanelUi
-local FONT_HGT_SMALL, PAD, load2, duration, count = Ui.FONT_HGT_SMALL, Ui.PAD, Ui.load2, Ui.duration, Ui.count
+local FONT_HGT_SMALL, PAD, load2, duration = Ui.FONT_HGT_SMALL, Ui.PAD, Ui.load2, Ui.duration
 local PanelWindow = BU.PanelWindow
 
 local OK, WARN, BAD = "ok", "warn", "bad"
@@ -81,7 +81,7 @@ local function overloaded(result, panel, load, limit)
     return result
 end
 
--- A main panel's power: { text, left, reason, level }.
+-- A panel's power: { text, left, reason, level }.
 local function powerStatus(panel, state)
     if getWorld():isHydroPowerOn() then
         return { text = getText("IGUI_BU_St_Grid"), reason = getText("IGUI_BU_Why_Grid"), level = OK }
@@ -93,11 +93,6 @@ local function powerStatus(panel, state)
     local rules = Energy.rules(panel, state)
     local bank = hasSource and Energy.bank(panel) or nil
     local output = hasSource and Energy.output(panel) or 0
-    if panel.quietCut then
-        local settings = rules.settings
-        return { text = getText("IGUI_BU_St_QuietCut"), left = bankLeft(panel, bank, rules),
-            reason = getText("IGUI_BU_Why_Quiet", settings.quietFrom, settings.quietTo), level = WARN }
-    end
     if state.supplied and Energy.inUse(state) then
         local result = { level = OK }
         if bank and output < rules.load then
@@ -109,16 +104,14 @@ local function powerStatus(panel, state)
             result.text = getText("IGUI_BU_St_Solar")
             result.reason = getText("IGUI_BU_Why_SolarOver", load2(output), load2(rules.load))
         end
-        local saving = count(panel.power.saving)
-        if saving > 0 then result.reason = getText("IGUI_BU_Why_Saving", saving) end
         return overloaded(result, panel, rules.load, Panels.limit(panel, bank or false))
     end
     if state.supplied then
         local index = producerIndex(panel, state)
         local result = { text = getText("IGUI_BU_St_Generator", index or "?"), level = OK }
-        -- The bank gives what goes over the box's own share, down to its own floor (Energy.overDraw).
+        -- The bank gives what goes over the box's own share, down to empty (Energy.overDraw).
         local over = hasSource and Energy.overDraw(panel, state, rules, bank) or 0
-        local bankRules = over > 0 and { floor = Energy.boostFloor(panel) } or rules
+        local bankRules = over > 0 and { floor = 0 } or rules
         if state.hoursLeft then
             local fuel = getText("IGUI_BU_Left_Fuel", duration(state.hoursLeft))
             if state.hoursLeft < SOON then result.level = WARN end
@@ -127,15 +120,10 @@ local function powerStatus(panel, state)
         elseif over > 0 then
             result.left = bankLeft(panel, bank, bankRules)
         end
-        local controller = Energy.hasController(panel)
         if over > 0 then
             result.reason = getText("IGUI_BU_Why_OverDraw", load2(over))
-        elseif hasSource and bank and controller and Energy.charging(panel) > 0 then
-            result.reason = getText("IGUI_BU_Why_Charging", BU.percent(rules.settings.stop))
-        elseif hasSource and bank and controller then
-            result.reason = getText("IGUI_BU_Why_BankLow", BU.percent(rules.settings.start), BU.percent(rules.settings.stop))
         elseif hasSource and bank then
-            result.reason = getText("IGUI_BU_Why_BankManual")
+            result.reason = getText("IGUI_BU_Why_BankLow", BU.percent(Energy.HANDOVER * 100), BU.percent(Energy.TAKE_BACK * 100))
         elseif hasSource then
             result.reason = solarShort(output, rules.load)
         elseif index and index > 1 then
@@ -197,29 +185,9 @@ local function waterStatus(panel, state, supply)
     return { text = getText("IGUI_BU_St_WaterEmpty"), left = held, reason = getText("IGUI_BU_Why_Rain"), level = BAD }
 end
 
--- The status of a panel's utility; a sub-panel's is its main panel's, told as coming from it. supply: how water
--- reaches the panel's floors with fixtures (ISBUPanelWindow:workOutWaterSupply), to tell of them.
+-- The status of a panel's utility. supply: how water reaches the panel's floors with fixtures
+-- (ISBUPanelWindow:workOutWaterSupply), to tell of them.
 function PanelWindow.status(panel, utility, supply)
-    local parent = Store.get(panel.parent)
-    if parent and utility == "power" and panel.tripped then return trippedStatus(panel) end
-    -- As for a main panel, the grid tells first while it runs.
-    if parent and utility == "power" and panel.switchedOff and not getWorld():isHydroPowerOn() then
-        return switchedOffStatus()
-    end
-    if parent then
-        local result = PanelWindow.status(parent, utility)
-        result.text = getText("IGUI_BU_St_Sub", Panels.name(parent), result.text)
-        -- Water runs down only (but where boosters lift it): the floors above every tank of the main panel have none.
-        if utility == "water" and result.level ~= BAD then
-            local reason, warn = supplyNote(supply)
-            if reason then result.reason = reason end
-            if warn then result.level = warn end
-        end
-        -- A sub-panel carries its own share of the main panel's power.
-        local own = utility == "power" and result.level ~= BAD and Networks.state(panel, "power")
-        if own and own.supplied and own.load then overloaded(result, panel, own.load, Panels.limit(panel)) end
-        return result
-    end
     local state = Networks.state(panel, utility)
     if utility == "water" then return waterStatus(panel, state, supply) end
     return powerStatus(panel, state)
@@ -227,11 +195,11 @@ end
 
 -- How water reaches the box's floors with water fixtures connected, from its water tab's rows as last filled: { dry,
 -- boosted (ranges of floors), byLevel } (BU.Water.floorSupply); nil before the tab has rows, with water off, or while
--- its main panel has no tanks (the status says that already). Worked out once a refresh, for the status line and the
+-- the box has no tanks (the status says that already). Worked out once a refresh, for the status line and the
 -- plan.
 function ISBUPanelWindow:workOutWaterSupply()
     local view = self.views and self.views.water
-    if not view or not BU.enabled("water") or #Panels.root(self.panel).water.producers == 0 then return nil end
+    if not view or not BU.enabled("water") or #self.panel.water.producers == 0 then return nil end
     local levels = {}
     for _, device in ipairs(view.devices or {}) do
         if device.state == "on" then levels[device.entry.z] = true end

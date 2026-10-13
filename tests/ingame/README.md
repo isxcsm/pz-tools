@@ -41,19 +41,15 @@ look; `BU22_CLEAN()` takes them away.
 - `bu_looks.lua`: the looks of the units and the box (sprites and overlays by state, an old save's box taking the
   console, the tripped lamp's blink frames), each line "ok" or "BAD"; `BULOOKS_CLEAN()` takes its units away. Needs the
   test panel (`bu_setup.lua`) and the game restarted after the sheet changed.
-- `bu_switch.lua`: the box's main switch (off and on by its action; quiet hours, a change of units, the breaker reset
+- `bu_switch.lua`: the box's main switch (off and on by its action; a change of units, the breaker reset
   and the server's minutes leaving it off with nothing running and no outage counted; the same producer carrying
-  again once it is on; a trip together with it), the generators' rows and the controller's count for a faked state,
+  again once it is on; a trip together with it), the generators' rows and the bank hand-over's count for a faked state,
   then a generator scene it puts down and takes away (the low fuel told once across off and on, "Switch to solar", a
   generator switched on by hand while off carrying after it, the source falling short while off giving way to the
   generator on standby). Each line "ok" or "BAD"; a step a game minute, about fourteen, ending with "done". Needs the
   test panel (`bu_setup.lua`) and a free square outside near the player; not in `bu_all.lua`, as it waits.
 - `bu_floors.lua`: floors in a tall building: how many floors a tier's zone reaches, a zone saved whole kept to them as
-  the world starts, far rooms refused; a sub-panel on the 13th floor linked with a line three tiles longer a floor,
-  and a generator and a solar panel wired through it (offered first, one wire, the main panel's, its line as long as
-  both); its water by height, and two booster pumps (the ground floor's and one wired through the sub-panel) lifting
-  it, chained; then the link and the sub-panel taken away with the lines through them; last "water only from above"
-  changed in play and back, taken once each. Each line "ok" or "BAD", ending with "done". Stand by the tower panel
+  the world starts, far rooms refused; last "water only from above" changed in play and back, taken once each. Each line "ok" or "BAD", ending with "done". Stand by the tower panel
   first (`RUN("bu_tptower.lua")`). Needs the tower panel: a tier 4 box on the ground floor of a building of 15 floors
   or more, its id in `ModData.getOrCreate("BUTOWER").panel`.
 - `bu_room.lua`: the scene of `bu_attached.lua`, built: a 3x3 room onto the east wall of a map building near the
@@ -82,7 +78,7 @@ look; `BU22_CLEAN()` takes them away.
   units by the player: stand by the test panel first, or the plan spans the distance and its hover checks fail.
 - `bu_test*.lua`: the checks of each batch. The older ones (`bu_test` to `bu_test11`) set up their own scenes in a
   test save that is gone; they are in the history (removed 2026-10-08).
-- `bu_lib.lua`: helpers the checks share (`BUT`: a tagged `say`, number formats, the main panel near the player, the
+- `bu_lib.lua`: helpers the checks share (`BUT`: a tagged `say`, number formats, the panel near the player, the
   first square around a place that a test takes, free outside squares, the mod's Lua folder). A check that uses them
   runs `RUN("bu_lib.lua")` first.
 - `bu_setup.lua`, `bu_visual.lua`, `bu_noon.lua`: the test panel and its solar and battery scene.
