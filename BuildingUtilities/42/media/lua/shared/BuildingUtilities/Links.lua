@@ -202,20 +202,24 @@ end
 function Links.reason(panel, ref) return Links.state(panel).reason[ref] end
 
 -- The room of a box's zone a square counts as in: the room it is in; else, with no room of its own there, the room
--- right below it (on a roof, a balcony), or the room beside it on its floor (the ring of squares round the building's
--- walls: the four sides first, then the corners). As the API counts what is on a roof or an outer wall
--- (buildings.home). Nil when none is the zone's.
-local AROUND = { { 0, -1 }, { 1, 0 }, { 0, 1 }, { -1, 0 }, { 1, -1 }, { 1, 1 }, { -1, 1 }, { -1, -1 } }
+-- the building's shell gives it: right below it (on a roof, a balcony), or beside it on its floor (the ring of squares
+-- round the walls: the four sides first, then the corners), the first square of any building's room in that order.
+-- As the API counts it (Buildings.shellStep), so that a square against two buildings is one's. Nil when that room is
+-- not the zone's.
+local SHELL = { { 0, 0, -1 }, { 0, -1, 0 }, { 1, 0, 0 }, { 0, 1, 0 }, { -1, 0, 0 }, { 1, -1, 0 }, { 1, 1, 0 },
+    { -1, 1, 0 }, { -1, -1, 0 } }
 function Links.homeRoom(panel, x, y, z)
     local rooms = Panels.zoneRooms(panel)
     local room = Panels.roomHaving(rooms, x, y, z)
     if room then return room, x, y, z end
     if Panels.buildingAt(x, y, z) then return nil end
-    room = Panels.roomHaving(rooms, x, y, z - 1)
-    if room then return room, x, y, z - 1 end
-    for _, step in ipairs(AROUND) do
-        room = Panels.roomHaving(rooms, x + step[1], y + step[2], z)
-        if room then return room, x + step[1], y + step[2], z end
+    for _, step in ipairs(SHELL) do
+        local tx, ty, tz = x + step[1], y + step[2], z + step[3]
+        if Panels.buildingAt(tx, ty, tz) then
+            room = Panels.roomHaving(rooms, tx, ty, tz)
+            if room then return room, tx, ty, tz end
+            return nil
+        end
     end
     return nil
 end
