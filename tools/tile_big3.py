@@ -90,45 +90,33 @@ def propane_refiner(turns, look):
         bx = mx + out[0] * 0.062 + tx * 0.065 * math.cos(a)
         by = my + out[1] * 0.062 + ty * 0.065 * math.cos(a)
         s.sphere((bx, by, mz + 0.065 * math.sin(a)), (0.011, 0.011, 0.011), STEEL_DARK, rings=3, segments=6, shine=0.5)
-    # a railed platform half way up
-    pz = 1.04
-    ring_top(s, (cx, cy), r, r + 0.17, pz, STEEL_DARK, segments=44, shine=0.3)
-    for i in range(14):
-        a = 2 * math.pi * i / 14
-        px, py = cx + (r + 0.16) * math.cos(a), cy + (r + 0.16) * math.sin(a)
-        s.tube((px, py, pz), (px, py, pz + 0.3), 0.007, STEEL, segments=5, shine=0.5)
-    for i in range(44):
-        a0, a1 = 2 * math.pi * i / 44, 2 * math.pi * (i + 1) / 44
-        s.tube((cx + (r + 0.16) * math.cos(a0), cy + (r + 0.16) * math.sin(a0), pz + 0.3),
-               (cx + (r + 0.16) * math.cos(a1), cy + (r + 0.16) * math.sin(a1), pz + 0.3), 0.007, STEEL, segments=5, shine=0.5)
-    # the caged ladder up the column's south-east to the platform, sized for a person (a narrow ladder hugging the
-    # shell with close rungs and a tight cage read as a toy, no room for a foot): rails a shoulder's width apart, stood
-    # off the shell on brackets, rungs a stride apart, a cage a body deep from above the bullet tank up
+    # No ladder and no platform: the column stands about a man's height, so a skid unit's are read from the ground. On
+    # the column's south-east, a magnetic level indicator: two nozzles out of the column, a chamber between them, and
+    # its flag strip (orange below the liquid, white above) behind a bezel, a drain valve at its foot.
     la = math.radians(60)
     out = (math.cos(la), math.sin(la))
-    across = (-math.sin(la), math.cos(la))
-    half, off = 0.12, 0.13
-    lx, ly = cx + (r + off) * out[0], cy + (r + off) * out[1]
+    side = (-math.sin(la), math.cos(la))
+    lr = r + 0.11
 
-    def at(side, depth, z):
-        return (lx + side * across[0] + depth * out[0], ly + side * across[1] + depth * out[1], z)
-    for side in (-half, half):
-        s.tube(at(side, 0, 0.08), at(side, 0, pz + 0.34), 0.017, YELLOW, segments=8, shine=0.3)
-        for bz in (0.3, 0.75, pz - 0.04):
-            s.tube(at(side, -off + 0.01, bz), at(side, 0, bz), 0.011, STEEL_DARK, segments=6)
-    for i in range(7):
-        z = 0.2 + i * 0.13
-        s.tube(at(-half, 0, z), at(half, 0, z), 0.013, STEEL, segments=6, shine=0.4)
-    cage_r, cage_d = half + 0.03, 0.3
-    hoops = (0.82, 1.0, 1.18, pz + 0.3)
-    for hz in hoops:
-        pts = [at(math.cos(math.pi * k / 10) * cage_r, math.sin(math.pi * k / 10) * cage_d, hz) for k in range(11)]
-        for a_, b_ in zip(pts, pts[1:]):
-            s.tube(a_, b_, 0.01, YELLOW, segments=5, shine=0.3)
-    for k in (2, 5, 8):
-        a = math.pi * k / 10
-        s.tube(at(math.cos(a) * cage_r, math.sin(a) * cage_d, hoops[0]),
-               at(math.cos(a) * cage_r, math.sin(a) * cage_d, hoops[-1]), 0.008, YELLOW, segments=5, shine=0.3)
+    def around(dist, z, across=0.0):
+        return (cx + dist * out[0] + across * side[0], cy + dist * out[1] + across * side[1], z)
+    low, high = 0.3, 1.36
+    for nz in (low, high):
+        s.tube(around(r - 0.02, nz), around(lr, nz), 0.026, STEEL_DARK, segments=10, shine=0.3)
+        s.tube(around(r + 0.03, nz), around(r + 0.05, nz), 0.05, STEEL_DARK, segments=12)
+    s.tube(around(lr, low - 0.1), around(lr, high + 0.06), 0.034, STEEL, cap=STEEL_DARK, segments=14, shine=0.5)
+    level = low + 0.12 + (0.62 if running else 0.36)
+    face = lr + 0.034
+    s.tube(around(face, low + 0.08), around(face, high - 0.04), 0.022, BEZEL, segments=10, shine=0.4)
+    s.tube(around(face + 0.024, low + 0.1), around(face + 0.024, level), 0.017, (236, 110, 28), segments=10, shine=0.5)
+    s.tube(around(face + 0.024, level), around(face + 0.024, high - 0.06), 0.017, (238, 238, 230), segments=10, shine=0.5)
+    s.tube(around(lr, low - 0.1), around(lr, low - 0.18), 0.016, STEEL, segments=8, shine=0.5)
+    valve_wheel(s, around(lr, low - 0.2), 0.04, RED, axis='x')
+    # the safety relief valve on the head, a yellow body and its vent pipe turned up
+    s.tube((cx, cy, top + 0.3), (cx, cy, top + 0.36), 0.06, STEEL_DARK, segments=14, shine=0.4)
+    s.tube((cx, cy, top + 0.36), (cx, cy, top + 0.5), 0.045, YELLOW, cap=YELLOW, segments=14, shine=0.4)
+    pipe(s, [(cx, cy, top + 0.44), (cx + 0.14, cy, top + 0.44), (cx + 0.14, cy, top + 0.7)], 0.02)
+    s.tube((cx + 0.14, cy, top + 0.7), (cx + 0.14, cy, top + 0.73), 0.03, STEEL_DARK, segments=10)
     # the gauge on the column's south face and a stencil
     gz = 0.86
     front_decal(s, cx - 0.2, cx + 0.0, 0.38, 0.5, cy + r + 0.0, stencil_text('PROPANE', 80, 20, (40, 70, 130)))
