@@ -151,7 +151,8 @@ function PZUITypedText:render()
         -- followed each frame from now on (again after the panel was let go, not on show)
         if not run.done then UI.live(self, PZUITypedText.tick) end
     end
-    if self.rowFirst and self.reveal and self.cursorColor then self:drawFreshRow(run) end
+    -- (a run let go while still on its way, as its panel closes, leaves its reveal: no fresh row without the run)
+    if self.rowFirst and self.reveal and run and self.cursorColor then self:drawFreshRow(run) end
     PZUIRichText.render(self)
     if self.tipChunk and self.cursorColor then self:drawCursor() end
 end
