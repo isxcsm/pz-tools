@@ -15,10 +15,10 @@ local Lights = {}
 BU.Lights = Lights
 
 -- An indicator lamp's glow: faint, on its own square only, so the thing shows in the dark without colouring the room.
-local GREEN = { 0.20, 0.34, 0.20, 1 }
-local RED = { 0.40, 0.14, 0.12, 1 }
-local AMBER = { 0.38, 0.28, 0.12, 1 }
-local RACK = { 0.16, 0.26, 0.38, 1 }
+local GREEN = { 0.11, 0.18, 0.11, 1 }
+local RED = { 0.22, 0.08, 0.07, 1 }
+local AMBER = { 0.20, 0.15, 0.07, 1 }
+local RACK = { 0.09, 0.14, 0.20, 1 }
 
 -- The light of each sprite that has one, worked out once the looks are defined (the first time it is asked).
 local bySprite

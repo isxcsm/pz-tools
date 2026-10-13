@@ -76,6 +76,11 @@ def frosted(colour, normal, amount):
     return tuple(c + (i - c) * k for c, i in zip(colour[:3], ICE))
 
 
+def smooth_segments(segments, radius):
+    """The facets round a tube or a dome: as asked, but never so few that one shows on its outline at the game's size."""
+    return max(segments, min(96, int(radius * 220)))
+
+
 class Scene:
     """Faces of solids, drawn into a depth buffer; what is added is turned a number of quarter turns about the
     tile's middle. Frost whitens every face by so much (0 to 1); a face that emits keeps its colour unshaded."""
@@ -137,6 +142,7 @@ class Scene:
         axis = tuple(q - p for p, q in zip(a, b))
         length = math.sqrt(dot(axis, axis))
         d = unit(axis)
+        segments = smooth_segments(segments, r)
         helper = (0, 0, 1) if abs(d[2]) < 0.9 else (1, 0, 0)
         u = unit((d[1] * helper[2] - d[2] * helper[1], d[2] * helper[0] - d[0] * helper[2], d[0] * helper[1] - d[1] * helper[0]))
         v = (d[1] * u[2] - d[2] * u[1], d[2] * u[0] - d[0] * u[2], d[0] * u[1] - d[1] * u[0])
@@ -161,6 +167,27 @@ class Scene:
         ring = range(segments)
         self.face([at(2 * math.pi * i / segments, 1) for i in ring], cap or colour, d, shine, emit)
         self.face([at(2 * math.pi * i / segments, 0) for i in ring], cap or colour, tuple(-c for c in d), shine, emit)
+
+    def dome(self, centre, r, h, colour, shine=0.0, rings=10, segments=56):
+        """A vessel's head: the upper half of an ellipsoid over centre, r across and h high, shaded smooth (tubes
+        stacked narrower and narrower read as steps)."""
+        cx, cy, cz = centre
+        segments = smooth_segments(segments, r)
+
+        def pt(l, a):
+            return (cx + r * math.cos(l) * math.cos(a), cy + r * math.cos(l) * math.sin(a), cz + h * math.sin(l))
+
+        def nrm(l, a):
+            return unit((math.cos(l) * math.cos(a) / r, math.cos(l) * math.sin(a) / r, math.sin(l) / h))
+        for i in range(rings):
+            l0, l1 = math.pi / 2 * i / rings, math.pi / 2 * (i + 1) / rings
+            for j in range(segments):
+                a0, a1 = 2 * math.pi * j / segments, 2 * math.pi * (j + 1) / segments
+                points = [pt(l0, a0), pt(l0, a1), pt(l1, a1), pt(l1, a0)]
+                if i == rings - 1:
+                    points = points[:3]
+                normals = [nrm(l0, a0), nrm(l0, a1), nrm(l1, a1), nrm(l1, a0)][:len(points)]
+                self.face(points, colour, nrm((l0 + l1) / 2, (a0 + a1) / 2), shine, normals=normals)
 
     def render(self):
         """The faces in a depth buffer: an RGBA image of the big canvas. Which way each pixel's face looks up is kept in
@@ -538,8 +565,7 @@ def water_filter(turns, look='resting'):
     s.tube((tx, ty, 0.035), (tx, ty, 0.08), tr * 0.9, FILTER_TANK_DARK, shine=0.1)
     s.tube((tx, ty, 0.08), (tx, ty, 0.5), tr, FILTER_TANK, shine=0.15,
            bands=[(0, 0.05, FILTER_TANK_DARK), (0.05, 0.95, FILTER_TANK), (0.95, 1, FILTER_TANK_DARK)])
-    s.tube((tx, ty, 0.5), (tx, ty, 0.53), tr * 0.92, FILTER_TANK, shine=0.15)
-    s.tube((tx, ty, 0.53), (tx, ty, 0.55), tr * 0.72, FILTER_TANK, shine=0.15)
+    s.dome((tx, ty, 0.5), tr, 0.07, FILTER_TANK, shine=0.15)
     s.box(tx - 0.075, ty - 0.07, 0.55, tx + 0.075, ty + 0.07, 0.69, FILTER_HEAD, top=(60, 62, 64), shine=0.25)
     s.box(tx - 0.05, ty + 0.07, 0.6, tx + 0.05, ty + 0.074, 0.66, (24, 40, 40))
     lamp(s, glows, tx, ty, 0.69, 0.022, FILTER_LAMP[look] or 'green', FILTER_LAMP[look] is not None)
@@ -638,8 +664,7 @@ def booster(turns, look='stopped'):
     s.tube((vx, vy, 0.11), (vx, vy, 0.14), 0.11, VESSEL_DARK, segments=56)
     s.tube((vx, vy, 0.14), (vx, vy, 0.5), 0.115, VESSEL, segments=56, shine=0.45,
            bands=[(0, 0.5, VESSEL), (0.5, 0.52, VESSEL_DARK), (0.52, 1, VESSEL)])
-    for r0, z0, z1 in ((0.108, 0.5, 0.53), (0.094, 0.53, 0.555), (0.072, 0.555, 0.574), (0.042, 0.574, 0.586)):
-        s.tube((vx, vy, z0), (vx, vy, z1), r0, VESSEL, segments=56, shine=0.45)
+    s.dome((vx, vy, 0.5), 0.115, 0.088, VESSEL, shine=0.45)
     s.tube((vx, vy, 0.586), (vx, vy, 0.605), 0.014, BRASS, cap=BRASS_DARK, shine=0.6, segments=16)
     s.tube((vx, hy, hz), (vx, hy - 0.08, hz), 0.022, PIPE, shine=0.3)
     s.tube((vx, hy - 0.08, hz), (vx, vy + 0.1, 0.12), 0.022, PIPE, shine=0.3)
