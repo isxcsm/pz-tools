@@ -3,6 +3,7 @@ package pzext.api;
 import java.lang.invoke.*;
 import java.lang.reflect.*;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import pzext.boot.Hooks;
 import pzext.api.Members.Area;
 import pzext.api.Network.Position;
@@ -39,11 +40,17 @@ final class WaterGrid implements Hooks.Water {
     /**
      * A network that has water now: its squares, the producers it draws from (see {@link #producers}), where each
      * network's of them end in that list ({@code ends}, its own first, then those above it in order), whether it draws
-     * from the nearest first ({@link #NEAREST}), whether its fixtures get their water purified, and the game's fluids it
-     * takes (a container holding any other is passed over).
+     * from the nearest first ({@link #NEAREST}), whether its fixtures get their water purified, the game's fluids it
+     * takes (a container holding any other is passed over), and the last container {@link #pick} picked for it.
      */
     private record Supplier(Network network, Area area, List<Position> producers, int[] ends, boolean nearest, boolean purify,
-            Object[] takes) { }
+            Object[] takes, AtomicReference<Picked> last) { }
+
+    /**
+     * What {@link #pick} picked for a supplier at a {@link #tick}: the object (null for none), its container and what
+     * that held. Within the tick it is picked again only once that container holds another amount.
+     */
+    private record Picked(long tick, Object object, Object container, float amount) { }
 
     /**
      * {@code unpurified}: whether a supplier does not purify its water, so that the taint questions need a look. Each
@@ -74,6 +81,10 @@ final class WaterGrid implements Hooks.Water {
     // Set by a definition change, made on the thread that changed it; see current().
     private volatile boolean stale;
     private volatile Thread changer;
+    // Set by a definition change: the next frame makes the snapshot again (see frame).
+    private volatile boolean rebuild = true;
+    // Counts the frames, and the draws and fills between them: a pick holds for one value (see pick).
+    private volatile long tick;
     private final Method fluidContainer, amount, capacity;
     // The same three for pick, the hook's path: invokeExact, no argument arrays, no boxed floats; and the litres of one
     // fluid a container holds.
@@ -141,6 +152,7 @@ final class WaterGrid implements Hooks.Water {
     void changed() {
         changer = Thread.currentThread();
         stale = true;
+        rebuild = true;
         cadence.changed();
     }
 
@@ -248,11 +260,23 @@ final class WaterGrid implements Hooks.Water {
      * for none. Under {@link #FULLEST} the fullest by share of its capacity. Under {@link #NEAREST} one at least {@link
      * #SPILL} full (the fullest such), else the fullest of the nearest network in the chain that has one holding some:
      * one pass over the containers either way. A square owed changes it has not taken yet counts as not loaded (see
-     * {@link #applyOwed}). Asked whenever the game looks at a fixture's water: it allocates nothing (the square's own
-     * list, read by index; handles called exactly).
+     * {@link #applyOwed}). Asked whenever the game looks at a fixture's water, often many times a frame: within a frame
+     * the supplier's last pick holds while its container holds what it held (only the game's own use of that container
+     * changes it then; the API's draws and fills count as a new frame), so the containers are gone through once. A pick
+     * allocates nothing but its record (the square's own list, read by index; handles called exactly).
      */
     private Object pick(Supplier supplier, Object cells) throws ReflectiveOperationException {
-        try { return pickExact(supplier, cells); }
+        try {
+            long now = tick;
+            Picked last = supplier.last().get();
+            if (last != null && last.tick() == now && (last.object() == null || (Object)containerOf.invokeExact(last.object()) == last.container()
+                    && (float)amountOf.invokeExact(last.container()) == last.amount() && game.squareOf(last.object()) != null))
+                return last.object();
+            Object picked = pickExact(supplier, cells);
+            Object container = picked == null ? null : (Object)containerOf.invokeExact(picked);
+            supplier.last().set(new Picked(now, picked, container, container == null ? 0 : (float)amountOf.invokeExact(container)));
+            return picked;
+        }
         catch (ReflectiveOperationException failure) { throw failure; }
         catch (Throwable failure) { throw Game.thrown(failure); }
     }
@@ -367,6 +391,7 @@ final class WaterGrid implements Hooks.Water {
         Object cells = game.cell();
         if (metas != null) metas.refresh();
         applyOwed(cells);
+        tick++;
         List<Unit> units = units(network, cells);
         double[] held = new double[units.size()], most = new double[units.size()];
         int[] tiers = new int[units.size()];
@@ -412,6 +437,7 @@ final class WaterGrid implements Hooks.Water {
         Object cells = game.cell();
         if (metas != null) metas.refresh();
         applyOwed(cells);
+        tick++;
         Object kind = fluidNamed.invoke(null, fluid);
         List<Unit> units = units(network, cells);
         double[] room = new double[units.size()], most = new double[units.size()];
@@ -570,6 +596,7 @@ final class WaterGrid implements Hooks.Water {
             taken.add(at);
         }
         if (taken.isEmpty()) return;
+        tick++;
         seen(taken, cells);
         cadence.changed();
     }
@@ -716,14 +743,20 @@ final class WaterGrid implements Hooks.Water {
     void frame(Object cells, long now) throws ReflectiveOperationException {
         // What is owed is read from the world's ModData when a world started (it is loaded before the cell is stored), and once a
         // second with the grid's work; a frame with nothing owed and nothing to read does nothing here.
+        tick++;
         boolean world = moves.moved();
         applyOwed(cells, world);
         if (!cadence.due(now)) return;
         if (metas != null) metas.refresh();
         if (!world && authoritative()) { pending.refresh(); applyOwed(cells, false); }
         List<Network> watered = networks.of(UTILITY);
+        // The snapshot is made again only when what it holds changed: a definition, a member's area, a supply.
+        boolean again = rebuild;
+        rebuild = false;
         for (Network network : watered) {
+            Area area = network.area;
             members.resolve(network);
+            again |= network.area != area;
             for (Position at : network.squares()) {
                 Stored stored = held(at, cells);
                 if (stored != null) network.stored.put(at, stored);
@@ -738,8 +771,10 @@ final class WaterGrid implements Hooks.Water {
             network.suppliedAt = hours;
             supplyChanged.add(network);
         }
-        stale = false;
-        snapshot = build(watered);
+        if (again || stale || !supplyChanged.isEmpty()) {
+            stale = false;
+            snapshot = build(watered);
+        }
         // Last, so that a mod that asks for the state then gets it.
         for (Network network : supplyChanged) networks.raise(network.id, "supply", hours);
     }
@@ -776,7 +811,7 @@ final class WaterGrid implements Hooks.Water {
                 } catch (ReflectiveOperationException failure) { throw Game.failed(failure); }
             }
             var supplier = new Supplier(network, network.area, List.copyOf(producers(network)), ends,
-                NEAREST.equals(network.policy), network.purify, takes.toArray());
+                NEAREST.equals(network.policy), network.purify, takes.toArray(), new AtomicReference<>());
             suppliers.add(supplier);
             byNetwork.put(network, supplier);
         }

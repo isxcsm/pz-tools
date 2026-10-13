@@ -1191,6 +1191,15 @@ public final class GameApiTest {
         // Its shell: against the hall's wall, and the hall's roof beside the loft.
         check(new IsoGridSquare(-1_000_004, 1_000_005, 0).haveElectricity() && new IsoGridSquare(-1_000_001, 1_000_006, 1).haveElectricity(),
             "A square of the far building's shell has no power");
+        // A chunk of the hall loads: its load is worked out again, with nothing else changed.
+        double before = (Double)state(networks, "far").rawget("load");
+        place(-1_000_002, 1_000_006, 0, powered("hall lamp", 0.004f));
+        Thread.sleep(1100);
+        frame();
+        check(near((Double)state(networks, "far").rawget("load"), before + 0.004),
+            "The load was not worked out again as a chunk of the building loaded: " + state(networks, "far").rawget("load"));
+        IsoWorld.instance.currentCell.squares.remove("-1000002,1000006,0");
+        IsoWorld.instance.currentCell.chunks.remove(Math.floorDiv(-1_000_002, 8) + "," + Math.floorDiv(1_000_006, 8));
         call(networks, "remove", mod, "far");
         frame();
         generator.setActivated(false);

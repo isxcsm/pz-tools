@@ -22,8 +22,6 @@ import pzext.api.Members.Area;
  * the game's thread, once a second or when something changed.
  */
 final class PowerGrid implements Hooks.Power {
-    // A network whose consumers were not all loaded is worked out again this often, until they were.
-    private static final long INCOMPLETE_LOAD_NANOS = TimeUnit.SECONDS.toNanos(5);
     // The supply changes a network keeps for food: a bound on memory, far more than a fridge sees between two ageings.
     private static final int MAX_HISTORY = 256;
     // Set while the game's own answer is asked again for an excluded object: the networks then give no square power.
@@ -137,6 +135,8 @@ final class PowerGrid implements Hooks.Power {
     private volatile Snapshot snapshot = Snapshot.EMPTY;
     // Set by a definition change, made on the thread that changed it; see current().
     private volatile boolean stale;
+    // Set by a definition change and a history begun: the next frame makes the snapshot again (see frame).
+    private volatile boolean rebuild = true;
     private volatile Thread changer;
     // The producers the last frame left in networks: one that joins or leaves gets its surroundings worked out again.
     private Set<Position> grouped = Set.of();
@@ -247,6 +247,7 @@ final class PowerGrid implements Hooks.Power {
     void changed() {
         changer = Thread.currentThread();
         stale = true;
+        rebuild = true;
         cadence.changed();
     }
 
@@ -506,16 +507,27 @@ final class PowerGrid implements Hooks.Power {
         supplyHours.clear();
         var totals = new HashMap<Network, Float>();
         List<Network> powered = networks.of(UTILITY);
+        // The snapshot is made again only when what it holds changed: a definition, a member's area, a supply.
+        boolean again = rebuild;
+        rebuild = false;
+        var children = new HashMap<String, List<Network>>();
         for (Network network : powered) {
             totals.put(network, network.total);
+            Area area = network.area;
             members.resolve(network);
+            again |= network.area != area;
             if (network.parents.isEmpty()) producers(network, cells, hours, changes);
-            else network.inUse = null;
-            if (network.loadChanged || !network.loadComplete && now - network.loadAt >= INCOMPLETE_LOAD_NANOS) {
+            else {
+                network.inUse = null;
+                children.computeIfAbsent(network.parent(), parent -> new ArrayList<>()).add(network);
+            }
+            // A network whose consumers were not all loaded is worked out again as one of their chunks loads.
+            if (network.loadChanged || !network.loadComplete && arrived(network, cells)) {
                 if (network.loadAt == 0) fresh.add(network);
                 if (load(network, cells, now)) regathered.add(network);
             }
         }
+        var worked = new HashMap<Network, Float>();
         // A child has supply while its parent has, and its parent carries its load; switched off, neither.
         for (Network network : powered) {
             Network root = networks.root(network);
@@ -527,13 +539,16 @@ final class PowerGrid implements Hooks.Power {
                 network.suppliedAt = supplyHours.getOrDefault(root, hours);
                 changes.add(new Change(network.id, "supply", network.suppliedAt));
             }
-            network.total = total(network, powered);
+            network.total = total(network, children, worked);
         }
         for (Network network : powered)
             if (!fresh.contains(network) && (Math.abs(network.total - totals.get(network)) > 1e-6f || regathered.contains(network)))
                 changes.add(new Change(network.id, "load", hours));
-        stale = false;
-        snapshot = build();
+        if (again || rebuild || stale || !supplyChanged.isEmpty()) {
+            rebuild = false;
+            stale = false;
+            snapshot = build();
+        }
         // Producers that joined or left a network: the API, or the game, works out their surroundings again.
         Set<Position> producersNow = snapshot.producers().keySet(), producersBefore = grouped;
         var regrouped = new HashSet<Position>(producersBefore);
@@ -718,6 +733,7 @@ final class PowerGrid implements Hooks.Power {
         if (network.history == null) {
             // First worked out: a producer found running supplied it before; one that ran out while away, until then.
             network.history = new TreeMap<>();
+            rebuild = true;
             network.suppliedBefore = current != null || inUse != null;
             if (network.suppliedBefore && inUse == null) remember(network, at, false);
         } else if ((before == null) != (inUse == null)) remember(network, at, inUse != null);
@@ -916,12 +932,23 @@ final class PowerGrid implements Hooks.Power {
 
     /**
      * The load of the network and of its children that are switched on, theirs included, times its load factor: what it
-     * draws while it has supply. Networks form a tree of one utility (see Networks.setParent).
+     * draws while it has supply. Power networks form trees (see Networks.setParents); {@code children} by parent id,
+     * {@code worked} what this frame worked out already, so that each network is added up once.
      */
-    private static float total(Network network, List<Network> powered) {
+    private static float total(Network network, Map<String, List<Network>> children, Map<Network, Float> worked) {
+        Float known = worked.get(network);
+        if (known != null) return known;
         float total = network.load;
-        for (Network child : powered) if (network.id.equals(child.parent()) && child.enabled) total += total(child, powered);
-        return total * network.loadFactor;
+        for (Network child : children.getOrDefault(network.id, List.of())) if (child.enabled) total += total(child, children, worked);
+        total *= network.loadFactor;
+        worked.put(network, total);
+        return total;
+    }
+
+    /** Whether one of the chunks a network's consumers were missing from has loaded since its load was worked out. */
+    private boolean arrived(Network network, Object cells) throws ReflectiveOperationException {
+        for (long chunk : network.waiting) if (game.chunkLoaded(cells, chunk)) return true;
+        return false;
     }
 
     /**
@@ -961,8 +988,9 @@ final class PowerGrid implements Hooks.Power {
      */
     private boolean load(Network network, Object cells, long now) throws ReflectiveOperationException {
         boolean[] complete = { true };
+        var missing = new HashSet<Long>();
         var next = new LinkedHashMap<Thing, Float>();
-        for (var consumer : members.consumers(network, Members.POWER, complete))
+        for (var consumer : members.consumers(network, Members.POWER, complete, missing))
             next.put(new Thing(new Position(consumer.x(), consumer.y(), consumer.z()), buildings.sprite(consumer.object())),
                 buildings.consumption(consumer.object()));
         for (var last : network.consumption.entrySet()) {
@@ -976,6 +1004,12 @@ final class PowerGrid implements Hooks.Power {
         network.consumption = next;
         network.load = load;
         network.loadComplete = complete[0];
+        // A square missing from a chunk that is loaded does not come with a chunk load.
+        missing.removeIf(chunk -> {
+            try { return game.chunkLoaded(cells, chunk); }
+            catch (ReflectiveOperationException failure) { throw Game.failed(failure); }
+        });
+        network.waiting = missing.stream().mapToLong(Long::longValue).toArray();
         network.loadAt = now;
         network.loadChanged = false;
         return regathered;

@@ -17,6 +17,10 @@ final class Game {
     private final Method gameTime, worldHours, addEvent, raise, raiseTwo, raiseOne, raiseFour;
     // IsoCell.getGridSquare(int, int, int) as (Object, int, int, int)Object: called through invokeExact, it boxes nothing.
     private final MethodHandle gridSquareExact;
+    // IsoCell.getChunk(wx, wy) as (Object, int, int)Object; IsoChunk.loaded.
+    private final MethodHandle chunkAt, chunkLoaded;
+    /** The squares on a side of a chunk (IsoChunkMap.CHUNK_SIZE_IN_SQUARES). */
+    final int chunkSize;
     /** The arguments of a call that takes none, for the hooks' calls: a call written without them allocates an array. */
     static final Object[] NONE = {};
     // The parts of an object that covers several squares, read into a list of the thread's own (see parts).
@@ -34,6 +38,10 @@ final class Game {
         gridSquare = cellType.getMethod("getGridSquare", int.class, int.class, int.class);
         gridSquareExact = exact(gridSquare, MethodType.methodType(Object.class, Object.class, int.class, int.class, int.class));
         squareX = squareType.getField("x"); squareY = squareType.getField("y"); squareZ = squareType.getField("z");
+        chunkSize = type(loader, "zombie.iso.IsoChunkMap").getField("CHUNK_SIZE_IN_SQUARES").getInt(null);
+        chunkAt = exact(cellType.getMethod("getChunk", int.class, int.class), MethodType.methodType(Object.class, Object.class, int.class, int.class));
+        chunkLoaded = MethodHandles.publicLookup().unreflectGetter(type(loader, "zombie.iso.IsoChunk").getField("loaded"))
+            .asType(MethodType.methodType(boolean.class, Object.class));
         objects = squareType.getMethod("getObjects");
         objectSquare = objectType.getMethod("getSquare");
         hasGrid = objectType.getMethod("hasSpriteGrid");
@@ -98,6 +106,20 @@ final class Game {
     }
 
     Object square(Object cells, Position at) throws ReflectiveOperationException { return square(cells, at.x(), at.y(), at.z()); }
+
+    /** The chunk a square is in, as one number (its chunk x in the high half, y in the low). */
+    long chunkKey(int x, int y) {
+        return (long)Math.floorDiv(x, chunkSize) << 32 | Math.floorDiv(y, chunkSize) & 0xffffffffL;
+    }
+
+    /** Whether the chunk {@link #chunkKey} names is loaded now. */
+    boolean chunkLoaded(Object cells, long key) throws ReflectiveOperationException {
+        if (cells == null) return false;
+        try {
+            Object chunk = (Object)chunkAt.invokeExact(cells, (int)(key >> 32), (int)key);
+            return chunk != null && (boolean)chunkLoaded.invokeExact(chunk);
+        } catch (Throwable failure) { throw thrown(failure); }
+    }
 
     /** The square an object stands on, or null. */
     Object squareOf(Object object) throws ReflectiveOperationException { return objectSquare.invoke(object, NONE); }

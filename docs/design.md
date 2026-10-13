@@ -279,8 +279,10 @@ the game's switch alone, with no events.
   (see Standby below).
 - Load: worked out when a definition changes; when the game says something that uses power was
   switched, placed or taken in or beside a member building, or at an object added on its own
-  (`IsoGenerator.updateGenerator`); and every 5 seconds while some consumers are not loaded.
-  Consumers on squares that are not loaded count as they were last seen loaded.
+  (`IsoGenerator.updateGenerator`); and, while some consumers are not loaded, as one of the chunks
+  they were missing from loads (each such chunk is one lookup a second; nothing is gone through
+  again until then). Consumers on squares that are not loaded count as they were last seen loaded,
+  so a chunk that unloads changes nothing.
 - Range: a producer powers no square around it. Its consumption is its base consumption, plus the
   network's load while it carries it, and the game burns fuel from that hour by hour while its square
   is loaded.
@@ -2243,7 +2245,10 @@ The answers come from a snapshot the API makes again when something changes
 A definition that changes marks it out of date: the next frame makes it again, or the first question
 the game asks before then on its own thread, the one the mods' calls come on (a world's generators
 make up for the hours away as they first update, which can come before the next frame). So a mod that
-defines many objects in a row costs one snapshot, and a call that changes nothing costs none. It holds,
+defines many objects in a row costs one snapshot, and a call that changes nothing costs none. The work
+once a second makes it again only when what it holds changed: a definition, the area of a member
+building, a network's supply. A network's load is added up with its children's once a frame, each
+network once, through an index of children by parent. It holds,
 for each supplied network, one bit per square of its buildings, and the same for their shell (worked
 out as the network's buildings are resolved, not per question), kept in blocks of 8 by 8 squares of a
 level only where a room reaches, so that buildings far apart cost no more than buildings side by side;
@@ -2260,7 +2265,10 @@ thread. The water questions have their own snapshot
 ([`WaterGrid`](../src/api/pzext/api/WaterGrid.java)):
 the areas of the networks that have water, their producers' squares and their object rules. A question
 about an object that takes no pipes, which its sprite says, ends there; one about a fixture costs the
-lookups of an object question.
+lookups of an object question. The container a fixture's water comes from is picked by going through the
+producers its network draws from; within a frame the last pick holds while its container holds the same
+(a draw or fill by a mod starts a new one), so a fixture the game asks about many times a frame costs one
+such pass.
 
 ## What vanilla does that mods need to know
 

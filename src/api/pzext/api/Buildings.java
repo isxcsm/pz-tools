@@ -277,6 +277,11 @@ final class Buildings {
      * to (see Members.resolve). {@code complete[0]} is cleared when some were missing.
      */
     List<Found> scan(Building found, Filter filter, boolean[] complete) throws ReflectiveOperationException {
+        return scan(found, filter, complete, null);
+    }
+
+    /** As {@link #scan(Building, Filter, boolean[])}, adding to {@code missing} the chunks (Game.chunkKey) of its squares not loaded. */
+    List<Found> scan(Building found, Filter filter, boolean[] complete, Set<Long> missing) throws ReflectiveOperationException {
         Object cells = game.cell(), grid = game.metaGrid();
         var result = new ArrayList<Found>();
         var rooms = Collections.newSetFromMap(new IdentityHashMap<Object, Boolean>());
@@ -288,7 +293,13 @@ final class Buildings {
                     Object room = roomAt(grid, x, y, z);
                     boolean inside = room != null && rooms.contains(room);
                     Object loaded = game.square(cells, x, y, z);
-                    if (loaded == null) { if (inside) complete[0] = false; continue; }
+                    if (loaded == null) {
+                        if (inside) {
+                            complete[0] = false;
+                            if (missing != null) missing.add(game.chunkKey(x, y));
+                        }
+                        continue;
+                    }
                     for (Object object : game.objectsOn(loaded)) {
                         Object owner = owner(grid, object, room, x, y, z);
                         if (owner == null || !rooms.contains(owner)) continue;

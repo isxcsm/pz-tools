@@ -170,6 +170,8 @@ final class Network {
     float load, total;
     boolean loadComplete;
     long loadAt;
+    /** The chunks (Game.chunkKey) of consumers' squares that were not loaded when the load was last worked out. */
+    long[] waiting = new long[0];
     volatile boolean loadChanged = true;
     /** A consumer joined or left since the load was last worked out (told as a change of load even when it used nothing). */
     volatile boolean regathered;

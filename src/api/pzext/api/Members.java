@@ -116,15 +116,25 @@ final class Members {
      * those excluded, and the objects added on their own. {@code complete[0]} is cleared when some were not loaded.
      */
     List<Buildings.Found> consumers(Network network, Buildings.Filter filter, boolean[] complete) throws ReflectiveOperationException {
+        return consumers(network, filter, complete, null);
+    }
+
+    /** As {@link #consumers(Network, Buildings.Filter, boolean[])}, adding to {@code missing} the chunks of the squares not loaded. */
+    List<Buildings.Found> consumers(Network network, Buildings.Filter filter, boolean[] complete, Set<Long> missing)
+            throws ReflectiveOperationException {
         var result = new ArrayList<Buildings.Found>();
         var seen = Collections.newSetFromMap(new IdentityHashMap<Object, Boolean>());
         for (var building : network.resolved)
-            for (var found : buildings.scan(building, filter, complete))
+            for (var found : buildings.scan(building, filter, complete, missing))
                 if (!excluded(network, found.object()) && seen.add(found.object())) result.add(found);
         Object cells = game.cell();
         for (Thing thing : network.included) {
             Object loaded = game.square(cells, thing.at());
-            if (loaded == null) { complete[0] = false; continue; }
+            if (loaded == null) {
+                complete[0] = false;
+                if (missing != null) missing.add(game.chunkKey(thing.at().x(), thing.at().y()));
+                continue;
+            }
             for (Object object : game.objectsOn(loaded)) {
                 if (!thing.sprite().equals(buildings.sprite(object))) continue;
                 var found = buildings.classify(object, filter, thing.at().x(), thing.at().y(), thing.at().z(), null);
