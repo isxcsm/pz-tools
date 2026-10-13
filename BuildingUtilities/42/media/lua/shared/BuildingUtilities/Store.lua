@@ -12,9 +12,11 @@ local KEY = "BuildingUtilities"
 --   breaker is down), switchedOff (true while a player has its main switch off, else nil), zone (the rooms it takes: a
 --   set of a square of each, BU.placeKey, Panels.zoneIds; or nil for the whole building),
 --   warmth (its square's air above the air outside, last seen loaded: BU.airAt),
+--   outdoor (true for one put down outside any building: no zone, its square its only wall),
 --   log (what happened to it, oldest first: { hour, key, args }, at most Store.LOG_SIZE),
---   and per utility (power, water): producers (a list of { x, y, z, paid }, in order), excluded (a set of
---   BU.thingKey), included (BU.thingKey to what connecting it cost) and attached (a set: devices in rooms built onto
+--   and per utility (power, water): producers (a list of { x, y, z }, in order: those whose lines are the box's,
+--   BU.Links), excluded (a set of BU.thingKey), included (a set: the devices outside whose lines are the box's, by
+--   BU.thingKey) and attached (a set: devices in rooms built onto
 --   the building, which the box takes as its building's though the API has them as single objects, BU.Panels.attached);
 --   for power also schedule (BU.thingKey to a timer of BU.SCHEDULES), breaker (its breaker's gauge under overload, 0
 --   to 1, nil while full: BU.Panels.breaker) and timed (a set: what the box keeps off by their timers).
@@ -35,8 +37,8 @@ local KEY = "BuildingUtilities"
 --   dark (minutes it has been without power, while it is).
 -- units = { [id] = unit }: the solar panels, battery racks, pumps, sprinklers and filters this mod put down (BU.Units).
 -- A unit:
---   id, kind (BU.Units.KINDS), x, y, z (its square), sprite, panel (the panel it is wired to, or nil) and
---   paid (what that line took); a solar panel also snow (0 to 1, nil for none); a rack also warmth (as a panel's)
+--   id, kind (BU.Units.KINDS), x, y, z (its square), sprite, panel (the panel its line is of, or nil: BU.Links); a
+--   solar panel also snow (0 to 1, nil for none); a rack also warmth (as a panel's)
 --   and batteries, a record of
 --   each car battery in its container (BU.Rack.sync): { id (the item's), type, charge 0 to 1, condition 0 to
 --   100 } (how often one was reconditioned is the item's own, BU.Rack.REVIVED). A water unit may have group (the
@@ -44,6 +46,8 @@ local KEY = "BuildingUtilities"
 --   a river or lake), running (it lifted water, or ran dry, at the last minute) and idle (why it lifted none:
 --   "noPower", "frozen", "noWater", "noTanks" or "full"); a sprinkler sprayedAt (the world age it last watered at); a
 --   filter media (hours of use left in its charge) and working (it purified its group's water at the last minute).
+-- lines = { [ref] = line }: every line laid, kept apart from the boxes so that one cut stays (BU.Links); nextLine
+-- numbers them in the order they were laid.
 -- energyHour: the world age the units were last worked out at (Server). A panel with a bank keeps bankFlow, what
 -- went into its batteries per hour at the last minute (out of them when below 0), for its window.
 -- "paid" is { [item type] = count }. On a client in multiplayer this is the server's, received; only the server
@@ -77,6 +81,10 @@ function Store.data()
         data.units = {}
         data.nextUnit = 1
     end
+    if not data.lines then
+        data.lines = {}
+        data.nextLine = 1
+    end
     return data
 end
 
@@ -92,10 +100,20 @@ function Store.newPanel(x, y, z, sprite)
     for _, utility in ipairs(BU.UTILITIES) do panel[utility] = utilityData() end
     waterData(panel.water)
     data.panels[id] = panel
+    Store.linksChanged()
     return panel
 end
 
-function Store.remove(id) Store.panels()[id] = nil end
+function Store.remove(id)
+    Store.panels()[id] = nil
+    Store.linksChanged()
+end
+
+-- What the lines, the boxes and the units' boxes are changes the count (not saved): what is worked out of them
+-- (BU.Links, the zones' buildings) is kept while it holds.
+local linkVersion = 0
+function Store.linksChanged() linkVersion = linkVersion + 1 end
+function Store.linkVersion() return linkVersion end
 
 function Store.panelAt(x, y, z)
     for _, panel in pairs(Store.panels()) do
@@ -161,8 +179,9 @@ function Store.units() return Store.data().units end
 function Store.unit(id) return id and Store.units()[id] or nil end
 
 -- Every unit in the order they were made, kept until one is added or taken away, or the units are another table (a
--- multiplayer client received the server's): the minute's work asks for them many times.
-local sorted, sortedOf = nil, nil
+-- multiplayer client received the server's): the minute's work asks for them many times. By panel too, kept until a
+-- unit's panel changes (Store.unitsChanged).
+local sorted, sortedOf, byPanel = nil, nil, nil
 
 local function sortedUnits()
     local units = Store.units()
@@ -173,8 +192,14 @@ local function sortedUnits()
         order[unit] = tonumber(id:sub(2)) or 0
     end
     table.sort(list, function(a, b) return order[a] < order[b] end)
-    sorted, sortedOf = list, units
+    sorted, sortedOf, byPanel = list, units, nil
     return list
+end
+
+-- A unit added, taken away, or wired to another panel (unit.panel).
+function Store.unitsChanged()
+    sorted, byPanel = nil, nil
+    Store.linksChanged()
 end
 
 function Store.newUnit(kind, x, y, z, sprite)
@@ -183,13 +208,13 @@ function Store.newUnit(kind, x, y, z, sprite)
     data.nextUnit = data.nextUnit + 1
     local unit = { id = id, kind = kind, x = x, y = y, z = z, sprite = sprite }
     data.units[id] = unit
-    sorted = nil
+    Store.unitsChanged()
     return unit
 end
 
 function Store.removeUnit(id)
     Store.units()[id] = nil
-    sorted = nil
+    Store.unitsChanged()
 end
 
 function Store.unitAt(x, y, z)
@@ -201,9 +226,22 @@ end
 
 -- All units, in the order they were made; of one kind, or wired to one panel, when given.
 function Store.unitList(kind, panelId)
+    local list = sortedUnits()
+    if panelId then
+        if not byPanel then
+            byPanel = {}
+            for _, unit in ipairs(list) do
+                if unit.panel then
+                    byPanel[unit.panel] = byPanel[unit.panel] or {}
+                    table.insert(byPanel[unit.panel], unit)
+                end
+            end
+        end
+        list = byPanel[panelId] or {}
+    end
     local result = {}
-    for _, unit in ipairs(sortedUnits()) do
-        if (not kind or unit.kind == kind) and (not panelId or unit.panel == panelId) then result[#result + 1] = unit end
+    for _, unit in ipairs(list) do
+        if not kind or unit.kind == kind then result[#result + 1] = unit end
     end
     return result
 end

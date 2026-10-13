@@ -1,6 +1,6 @@
 """Draws this mod's own tiles and writes them as its second tile sheet (bu_water_01): the water units (pump, sprinkler,
-filter, booster pump) in each of their looks, the utility panel (the breaker box) in its looks, and the snow that lies on a solar
-panel (overlays over the first sheet's panels, bu_solar_01).
+filter, booster pump) in each of their looks, the utility panel (the breaker box) in its looks, the relays (a pole for power,
+a yard hydrant for water), and the snow that lies on a solar panel (overlays over the first sheet's panels, bu_solar_01).
 
 The art is made here, not painted: each object is a few solids (boxes, cylinders) in a tile's space, projected the
 way the game draws a square, shaded by a light from above and the viewer's left, drawn four times larger with a depth
@@ -813,6 +813,8 @@ def snow(index, heavy):
 
 
 # The sheet: what each tile is, and its properties for the game. Facing as the vanilla object it stands for.
+POLE = {'CustomName': 'Utility Pole', 'BlocksPlacement': '', 'solidtrans': ''}
+HYDRANT = {'CustomName': 'Yard Hydrant', 'IsLow': ''}
 PUMP = {'CustomName': 'Water Pump', 'BlocksPlacement': '', 'solidtrans': ''}
 FILTER = {'CustomName': 'Water Filter', 'BlocksPlacement': '', 'solidtrans': ''}
 SPRINKLER = {'CustomName': 'Sprinkler', 'IsLow': ''}
@@ -840,6 +842,33 @@ def boosters(look):
     return [(lambda t=t, look=look: booster(t, look), dict(BOOSTER, Facing=f)) for t, f in BOX_FACINGS]
 
 
+WOOD = (112, 84, 58)
+WOOD_DARK = (84, 62, 42)
+PORCELAIN = (226, 226, 218)
+
+
+def pole():
+    """A power relay, for now: a wooden pole on the square's middle with a crossarm across the top, a white insulator
+    at each end and one on the pole's top (a stand-in until the art is drawn)."""
+    s = Scene()
+    s.tube((0.5, 0.5, 0.0), (0.5, 0.5, 2.3), 0.07, WOOD, cap=WOOD_DARK)
+    s.box(0.12, 0.46, 2.0, 0.88, 0.54, 2.08, WOOD_DARK, top=WOOD)
+    for x in (0.18, 0.82):
+        s.tube((x, 0.5, 2.08), (x, 0.5, 2.18), 0.028, PORCELAIN, cap=PORCELAIN, shine=0.6)
+    s.tube((0.5, 0.5, 2.3), (0.5, 0.5, 2.38), 0.03, PORCELAIN, cap=PORCELAIN, shine=0.6)
+    return compose(s, ground=shadow((0.5, 0.5), 0.14, 0.07))
+
+
+def hydrant():
+    """A water relay, for now: a valve box set in the ground, its green lid, and a riser with a red handwheel beside
+    it (a stand-in until the art is drawn)."""
+    s = Scene()
+    s.box(0.3, 0.3, 0.0, 0.7, 0.7, 0.06, (88, 90, 86), top=(46, 92, 60))
+    s.tube((0.5, 0.5, 0.06), (0.5, 0.5, 0.42), 0.035, STEEL, cap=STEEL, shine=0.4)
+    handwheel(s, 0.5, 0.5, 0.44, 0.09, (170, 40, 34))
+    return compose(s, ground=shadow((0.5, 0.5), 0.25, 0.13))
+
+
 def snows(heavy):
     return [(lambda index=index: snow(index, heavy), {}) for index in SNOW_PANELS]
 
@@ -860,8 +889,9 @@ TILES = (
     + filters('working') + filters('spent')
     # 32-47: the utility panel off, on, tripped and tripped with its lamp dark, each S, E, N, W.
     + boxes('off') + boxes('on') + boxes('tripped') + boxes('tripped_dim')
-    # 48-53: snow on a solar panel (flat, W, N), light then heavy; 54, 55 free.
-    + snows(False) + snows(True) + [None, None]
+    # 48-53: snow on a solar panel (flat, W, N), light then heavy; 54 the power relay's pole, 55 the water relay's
+    # hydrant (stand-ins).
+    + snows(False) + snows(True) + [(pole, POLE), (hydrant, HYDRANT)]
     # 56-71: the booster pump stopped, running, running with no water at its floor and frozen, each facing S, E, N, W.
     + boosters('stopped') + boosters('running') + boosters('dry') + boosters('frozen')
 )
@@ -927,7 +957,8 @@ def write_pack_named(path, sheet, images):
 
 # The items' icons: a tile's thing at the game's 32 px, a little brighter, with a dark outline (as Operation Acorn's
 # items have; a 64 px tile shrunk by the game read soft and grey beside them).
-ICONS = {'BUWaterPump': 1, 'BUSprinkler': 4, 'BUWaterFilter': 6, 'BUBreakerBox': 32, 'BUBoosterPump': 56}
+ICONS = {'BUWaterPump': 1, 'BUSprinkler': 4, 'BUWaterFilter': 6, 'BUBreakerBox': 32, 'BUBoosterPump': 56,
+         'BUPowerPole': 54, 'BUYardHydrant': 55}
 ICON = 32
 
 

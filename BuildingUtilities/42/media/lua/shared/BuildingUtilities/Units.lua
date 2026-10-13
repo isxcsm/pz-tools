@@ -48,12 +48,25 @@ function Units.name(unit) return getText("IGUI_BU_Unit_" .. unit.kind) end
 
 function Units.utility(unit) return definitions[unit.kind].utility end
 
--- The units wired to a panel that are of a utility, of the kinds that are on (BU.enabled): one of a kind that is off
--- does nothing.
+-- The units working for a panel: wired to it with a line that supplies (BU.Links), of the kinds that are on
+-- (BU.enabled), not relays (they carry lines, they do no work); of a kind when given. One of a kind that is off, or
+-- whose line is cut, does nothing.
+function Units.working(panel, kind)
+    local result = {}
+    if not panel then return result end
+    for _, unit in ipairs(Store.unitList(kind, panel.id)) do
+        if not BU.RELAY_KINDS[unit.kind] and BU.enabled(unit.kind) and BU.Links.live(panel, BU.Links.unitRef(unit)) then
+            result[#result + 1] = unit
+        end
+    end
+    return result
+end
+
+-- Those of them of a utility.
 function Units.of(panelId, utility)
     local result = {}
-    for _, unit in ipairs(Store.unitList(nil, panelId)) do
-        if definitions[unit.kind].utility == utility and BU.enabled(unit.kind) then result[#result + 1] = unit end
+    for _, unit in ipairs(Units.working(Store.get(panelId))) do
+        if definitions[unit.kind].utility == utility then result[#result + 1] = unit end
     end
     return result
 end
@@ -156,17 +169,18 @@ end
 function Units.spriteFor(kind, square, character) return definitions[kind].sprite(square, BU.sideOf(square, character)) end
 function Units.spriteFacing(kind, square, side) return definitions[kind].sprite(square, side) end
 
--- The panels a unit could be wired to, as for a generator (Panels.producerCandidates).
-function Units.candidates(unit) return Panels.producerCandidates(unit.x, unit.y, unit.z) end
-
--- Whether a unit can be wired to a panel. True, or false and a reason.
+-- Whether a unit's line can be hung on a panel: the place (Links.placeOn's), or nil and a reason.
 function Units.canConnect(unit, panel)
-    if not BU.enabled(unit.kind) then return false, "disabled" end
-    if unit.panel then return false, "connectedElsewhere" end
-    for _, candidate in ipairs(Panels.inProducerRange(unit.x, unit.y, unit.z)) do
-        if candidate.panel == panel then return true end
+    if not BU.enabled(unit.kind) then return nil, "disabled" end
+    if BU.Links.get(BU.Links.unitRef(unit)) then return nil, "connectedElsewhere" end
+    local place, reason, tier = BU.Links.placeOn(panel, Units.utility(unit), unit.x, unit.y, unit.z,
+        BU.RELAY_KINDS[unit.kind] ~= nil)
+    if not place then return nil, reason, tier end
+    if BU.RELAY_KINDS[unit.kind] then
+        local ok, why = BU.Relays.canHang(unit, panel)
+        if not ok then return nil, why end
     end
-    return false, "tooFar"
+    return place
 end
 
 -- Whether a unit holds nothing, so that it can be taken down.

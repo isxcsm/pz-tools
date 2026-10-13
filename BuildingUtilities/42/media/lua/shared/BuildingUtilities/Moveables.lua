@@ -159,9 +159,9 @@ function ISMoveableSpriteProps:pickUpMoveable(character, square, createItem, for
     local found = find(kind, square, self.object)
     local kept
     if found and found.panel then
-        local paid = BU.Changes.paidFor(found.panel)
+        -- Its lines stay laid, cut: the box carries its tier to where it is put down again.
+        kept = BU.Changes.keepPanel(found.panel)
         BU.Changes.remove(found.panel)
-        BU.Costs.refund(character, paid)
     elseif found and BU.Units.isEmpty(found.unit) then
         kept = BU.Units.keep(found.unit)
         BU.Costs.refund(character, BU.Changes.removeUnit(found.unit))
@@ -171,7 +171,7 @@ function ISMoveableSpriteProps:pickUpMoveable(character, square, createItem, for
     local inventory = character:getInventory()
     local item = inventory:AddItem(itemType(kind))
     if item then
-        BU.Units.keepOnItem(kind, item, kept)
+        if kind == "panel" then BU.Panels.keepOnItem(item, kept) else BU.Units.keepOnItem(kind, item, kept) end
         sendAddItemToContainer(inventory, item)
     end
     return {}
@@ -206,7 +206,7 @@ function ISMoveableSpriteProps:placeMoveable(character, square, origSpriteName, 
     local inventory = character:getInventory()
     inventory:Remove(item)
     sendRemoveItemFromContainer(inventory, item)
-    if kind == "panel" then BU.Changes.install(square, BU.panelSprite(side))
+    if kind == "panel" then BU.Changes.install(square, BU.panelSprite(side), kept)
     else BU.Changes.installUnit(kind, square, BU.Units.spriteFacing(kind, square, side), kept) end
     BU.giveXp(character, 5)
     if ISMoveableCursor then ISMoveableCursor.clearCacheForAllPlayers() end

@@ -69,6 +69,24 @@ module BuildingUtilities
         Icon = BUWaterFilter,
     }
 
+    item PowerPole
+    {
+        DisplayCategory = Electronics,
+        ItemType = base:moveable,
+        WorldObjectSprite = bu_water_01_54,
+        Weight = 20.0,
+        Icon = BUPowerPole,
+    }
+
+    item YardHydrant
+    {
+        DisplayCategory = Electronics,
+        ItemType = base:moveable,
+        WorldObjectSprite = bu_water_01_55,
+        Weight = 6.0,
+        Icon = BUYardHydrant,
+    }
+
     item WaterSystemsMag1
     {
         DisplayCategory = RecipeResource,
@@ -237,6 +255,53 @@ module BuildingUtilities
         outputs
         {
             item 1 BuildingUtilities.BoosterPump,
+        }
+    }
+
+    craftRecipe MakePowerPole
+    {
+        timedAction = Making,
+        time = 300,
+        SkillRequired = Electricity:2,
+        OnTest = BuildingUtilities.RecipeTest.MakePowerPole,
+        OnAddToMenu = BuildingUtilitiesRecipeShown,
+        Tags = AnySurfaceCraft,
+        category = Electrical,
+        xpAward = Electricity:5,
+        inputs
+        {
+            item 1 tags[base:hammer] mode:keep flags[MayDegradeLight],
+            item 1 [Base.Log],
+            item 4 [Base.Nails],
+            item 2 [Base.ElectricWire],
+            item 2 [Base.ElectronicsScrap],
+        }
+        outputs
+        {
+            item 1 BuildingUtilities.PowerPole,
+        }
+    }
+
+    craftRecipe MakeYardHydrant
+    {
+        timedAction = Making,
+        time = 200,
+        SkillRequired = Maintenance:2,
+        OnTest = BuildingUtilities.RecipeTest.MakeYardHydrant,
+        OnAddToMenu = BuildingUtilitiesRecipeShown,
+        Tags = AnySurfaceCraft,
+        category = Farming,
+        xpAward = Maintenance:5,
+        inputs
+        {
+            item 1 tags[base:wrench] mode:keep flags[MayDegradeVeryLight],
+            item 2 [Base.MetalPipe],
+            item 1 [Base.SmallSheetMetal],
+            item 4 [Base.Screws],
+        }
+        outputs
+        {
+            item 1 BuildingUtilities.YardHydrant,
         }
     }
 

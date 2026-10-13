@@ -7,7 +7,7 @@ require "TimedActions/ISBaseTimedAction"
 require "BuildingUtilities/Changes"
 require "BuildingUtilities/Costs"
 local BU = BuildingUtilities
-local Store, Panels, Units, Changes, Costs = BU.Store, BU.Panels, BU.Units, BU.Changes, BU.Costs
+local Store, Panels, Units, Changes, Costs, Links = BU.Store, BU.Panels, BU.Units, BU.Changes, BU.Costs, BU.Links
 local Actions = {}
 BU.Actions = Actions
 
@@ -17,33 +17,46 @@ local function giveItem(character, itemType)
     if item then sendAddItemToContainer(inventory, item) end
 end
 
--- What a line costs, or nil with a reason when it cannot be laid. kind: "producer" (a square of the panel's
--- utility), "outside" (a device, x, y, z and its sprite), "unit" (a unit at x, y, z, its id extra; priced as a
--- producer's line of its utility).
+-- What a line costs, or nil with a reason (and the tier that reaches, for "needsTier") when it cannot be laid; then
+-- what it is laid for and where it hangs (Links.placeOn). kind: "producer" (a square of the panel's utility),
+-- "outside" (a device, x, y, z and its sprite), "unit" (a unit at x, y, z, its id extra; priced as a producer's line
+-- of its utility, and only the tool for one in the zone), "rehang" (a cut branch's first line, its ref extra, hung on
+-- again: a line of its utility).
 function Actions.lineCost(kind, panel, utility, x, y, z, extra)
     if not panel then return nil, "noPanel" end
     if kind == "producer" then
-        local ok, reason = Panels.canConnectProducer(panel, utility, x, y, z)
-        if not ok then return nil, reason end
-        return Costs.producer(utility, Panels.wire(panel, x, y, z))
+        if not BU.enabled(utility) then return nil, "disabled" end
+        if Links.get(Links.producerRef(x, y, z)) then return nil, "connectedElsewhere" end
+        local square = getCell():getGridSquare(x, y, z)
+        if square and Panels.producerOn(square) ~= utility then return nil, "noProducer" end
+        local place, reason, tier = Links.placeOn(panel, utility, x, y, z)
+        if not place then return nil, reason, tier end
+        return Costs.producer(utility, place.length), nil, place
     elseif kind == "outside" then
-        return Actions.outsideCost(panel, utility, Panels.device(panel, utility, BU.thingKey(x, y, z, extra)))
+        return Actions.outsideCost(panel, utility, Panels.device(panel, utility, BU.thingKey(x, y, z, extra))
+            or Panels.deviceAt(utility, x, y, z, extra))
     elseif kind == "unit" then
         local unit = Store.unit(extra)
         if not unit then return nil, "noUnit" end
-        local ok, reason = Units.canConnect(unit, panel)
-        if not ok then return nil, reason end
-        -- one inside the box's building takes no line
-        if Actions.inBuilding(panel, x, y, z) then return Costs.tool(Units.utility(unit)), unit end
-        return Costs.producer(Units.utility(unit), Panels.wire(panel, x, y, z)), unit
+        local place, reason, tier = Units.canConnect(unit, panel)
+        if not place then return nil, reason, tier end
+        if place.length == 0 then return Costs.tool(Units.utility(unit)), unit, place end
+        return Costs.producer(Units.utility(unit), place.length), unit, place
+    elseif kind == "rehang" then
+        local line = Links.get(extra)
+        if not line or Links.cutHead(extra) ~= line then return nil, "notCut" end
+        local except = {}
+        for _, each in ipairs(Links.branch(extra)) do except[each.ref] = true end
+        local place, reason, tier = Links.placeOn(panel, line.utility, x, y, z, Links.isRelay(extra), except)
+        if not place then return nil, reason, tier end
+        local unit = Links.unitOf(extra)
+        if unit and BU.RELAY_KINDS[unit.kind] then
+            local ok, why = BU.Relays.canHang(unit, panel)
+            if not ok then return nil, why end
+        end
+        return Costs.producer(line.utility, place.length), line, place
     end
     return nil, "noPanel"
-end
-
--- Whether a square is in the box's building.
-function Actions.inBuilding(panel, x, y, z)
-    local building, own = Panels.buildingAt(x, y, z), Panels.building(panel)
-    return building ~= nil and own ~= nil and building.key == own.key
 end
 
 -- What wiring a device or a unit out takes: the tool of its utility.
@@ -57,14 +70,18 @@ function Actions.work(action, utility)
     if tool then action:setOverrideHandModels(tool, nil) end
 end
 
--- What the line of a device outside costs, from the device as Panels.devices gives it (a menu or a window that has
--- the panel's devices already does not ask the API for them again); nil with a reason when it cannot be laid.
+-- What the line of a device outside costs, from the device as Panels.devices (or Panels.deviceAt) gives it (a menu
+-- or a window that has the panel's devices already does not ask the API for them again); nil with a reason (and a
+-- tier) when it cannot be laid; then the device and where its line hangs.
 function Actions.outsideCost(panel, utility, device)
     if not device or device.inside then return nil, "noDevice" end
     if device.state == "other" then return nil, "connectedElsewhere" end
     if device.wired then return nil, "connected" end
     if utility == "power" and not BU.exteriorPower() then return nil, "exteriorOff" end
-    return Costs.outside(utility, Panels.wire(panel, device.entry.x, device.entry.y, device.entry.z)), device
+    local entry = device.entry
+    local place, reason, tier = Links.placeOn(panel, utility, entry.x, entry.y, entry.z)
+    if not place then return nil, reason, tier end
+    return Costs.outside(utility, place.length), device, place
 end
 
 -- How long laying a line takes: longer the farther it goes.
@@ -99,8 +116,9 @@ local function base(name, ticks)
     return action
 end
 
--- Laying a line: a producer, an outside device or a unit (see Actions.lineCost). The cost is worked out
--- as the action is made; each tick only checks that nothing took the place meanwhile, and complete checks it all.
+-- Laying a line: a producer, an outside device, a unit, or a cut branch's first line hung on again (see
+-- Actions.lineCost). The cost is worked out as the action is made; each tick only checks that nothing took the place
+-- meanwhile, and complete checks it all.
 ISBUConnect = base("ISBUConnect")
 
 function ISBUConnect:cost()
@@ -110,22 +128,24 @@ end
 function ISBUConnect:isValid()
     local panel = Store.get(self.panelId)
     if not panel or not self.costNow or not Costs.affords(self.character, self.costNow) then return false end
-    if self.kind == "producer" then return Store.producerOwner(self.x, self.y, self.z) == nil end
+    if self.kind == "producer" then return Links.get(Links.producerRef(self.x, self.y, self.z)) == nil end
     if self.kind == "outside" then return Store.inclusionOwner(self.utility, BU.thingKey(self.x, self.y, self.z, self.extra)) == nil end
+    if self.kind == "rehang" then return Links.get(self.extra) ~= nil end
     local unit = Store.unit(self.extra)
-    return unit ~= nil and unit.panel == nil
+    return unit ~= nil and Links.get(Links.unitRef(unit)) == nil
 end
 
 function ISBUConnect:start() Actions.work(self, self.utility) end
 
 function ISBUConnect:complete()
     local panel = Store.get(self.panelId)
-    local cost, other = self:cost()
+    local cost, other, place = self:cost()
     if not cost or not Costs.affords(self.character, cost) then return false end
     local paid = Costs.take(self.character, cost)
-    if self.kind == "producer" then Changes.connectProducer(panel, self.utility, self.x, self.y, self.z, paid)
-    elseif self.kind == "outside" then Changes.includeOutside(panel, self.utility, other, paid)
-    else Changes.connectUnit(other, panel, paid) end
+    if self.kind == "producer" then Changes.connectProducer(panel, self.utility, self.x, self.y, self.z, paid, place)
+    elseif self.kind == "outside" then Changes.includeOutside(panel, self.utility, other, paid, place)
+    elseif self.kind == "rehang" then Changes.rehang(self.extra, panel, place, paid)
+    else Changes.connectUnit(other, panel, paid, place) end
     -- Wiring teaches; plumbing has no skill of its own. Two for each piece of wire the line takes.
     if self.utility == "power" then BU.giveXp(self.character, 2 * Costs.count(cost, Costs.WIRE)) end
     return true
@@ -138,8 +158,8 @@ end
 function ISBUConnect:new(character, kind, panel, utility, x, y, z, extra)
     local o = ISBaseTimedAction.new(self, character)
     o.kind, o.panelId, o.utility, o.x, o.y, o.z, o.extra = kind, panel.id, utility, x, y, z, extra
-    o.steps = Panels.wire(panel, x, y, z)
-    o.costNow = o:cost()
+    local cost, _, place = o:cost()
+    o.costNow, o.steps = cost, place and place.length or 0
     o.maxTime = o:getDuration()
     return o
 end
@@ -147,18 +167,18 @@ end
 -- Taking a line away, with a share of what it took back, with the tool of its utility.
 ISBUDisconnect = base("ISBUDisconnect", 120)
 
-function ISBUDisconnect:connected()
-    local panel = Store.get(self.panelId)
-    if not panel then return false end
-    if self.kind == "producer" then
-        local owner, utility = Store.producerOwner(self.x, self.y, self.z)
-        return owner == panel and utility == self.utility
-    elseif self.kind == "outside" then
-        local device = Panels.device(panel, self.utility, BU.thingKey(self.x, self.y, self.z, self.extra))
-        return device ~= nil and not device.inside and device.wired
-    end
+-- The line taken away: of a producer, a device outside or a unit (its ref), of the box or of none any more (a cut
+-- branch whose box is gone: panelId nil).
+function ISBUDisconnect:ref()
+    if self.kind == "producer" then return Links.producerRef(self.x, self.y, self.z) end
+    if self.kind == "outside" then return Links.deviceRef(BU.thingKey(self.x, self.y, self.z, self.extra)) end
     local unit = Store.unit(self.extra)
-    return unit ~= nil and unit.panel == panel.id
+    return unit and Links.unitRef(unit) or nil
+end
+
+function ISBUDisconnect:connected()
+    local line = Links.get(self:ref())
+    return line ~= nil and line.panel == self.panelId and line.utility == self.utility
 end
 
 function ISBUDisconnect:isValid()
@@ -170,19 +190,14 @@ function ISBUDisconnect:start() Actions.work(self, self.utility) end
 
 function ISBUDisconnect:complete()
     if not self:connected() then return false end
-    local panel = Store.get(self.panelId)
-    local paid
-    if self.kind == "producer" then paid = Changes.disconnectProducer(panel, self.utility, self.x, self.y, self.z)
-    elseif self.kind == "outside" then
-        paid = Changes.excludeOutside(panel, self.utility, Panels.device(panel, self.utility, BU.thingKey(self.x, self.y, self.z, self.extra)))
-    else paid = Changes.disconnectUnit(Store.unit(self.extra)) end
-    Costs.refund(self.character, paid)
+    Costs.refund(self.character, Changes.unlay(self:ref()))
     return true
 end
 
+-- panel: the box the line is of, or nil for a cut branch's whose box is gone.
 function ISBUDisconnect:new(character, kind, panel, utility, x, y, z, extra)
     local o = ISBaseTimedAction.new(self, character)
-    o.kind, o.panelId, o.utility, o.x, o.y, o.z, o.extra = kind, panel.id, utility, x, y, z, extra
+    o.kind, o.panelId, o.utility, o.x, o.y, o.z, o.extra = kind, panel and panel.id, utility, x, y, z, extra
     o.maxTime = o:getDuration()
     return o
 end

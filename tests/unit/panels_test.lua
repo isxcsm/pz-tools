@@ -155,7 +155,7 @@ end)
 test("a device another box connected outside before the room was built stays outside", function()
     house(TEST.api)
     local other = Store.newPanel(500, 500, 0, "box")
-    other.power.included[LAMP] = {}
+    other.power.included[LAMP] = true
     local panel = Store.newPanel(201, 201, 0, "box")
     eq(Changes.syncAttached(panel), false)
     eq(panel.power.attached[LAMP], nil)
@@ -165,13 +165,13 @@ test("a device outside with its line is supplied unless cut, and the line taken 
     local Networks = BU.Networks
     local panel = Store.newPanel(201, 201, 0, "box")
     local data = panel.water
-    local TAP = "210,201,0,tap"
+    local TAP = "204,201,0,tap"
+    local device = { key = TAP, keys = { TAP }, inside = false, entry = { x = 204, y = 201, z = 0, sprite = "tap" } }
     eq(Networks.rule(panel, "water", TAP), "reset", "no line: the building's rule")
-    data.included[TAP] = {}
+    Changes.includeOutside(panel, "water", device, {})
     eq(Networks.rule(panel, "water", TAP), "include", "its line laid")
     data.excluded[TAP] = true
     eq(Networks.rule(panel, "water", TAP), "exclude", "its supply cut at the box, the line kept")
-    local device = { key = TAP, keys = { TAP }, inside = false }
     truthy(Changes.excludeOutside(panel, "water", device), "the line taken up")
     eq(data.excluded[TAP], nil, "its cut gone with it")
     data.excluded[TAP] = true
@@ -189,10 +189,10 @@ test("a box lists what it could take and no box has: producers in reach, units i
     } }
     local panel = Store.newPanel(201, 201, 0, "box")
     local other = Store.newPanel(500, 500, 0, "box")
-    other.power.producers[1] = { x = 209, y = 202, z = 0 }
+    Changes.connectProducer(other, "power", 209, 202, 0, {})
     local free = Store.newUnit("solar", 207, 203, 0, "panel")
     local wired = Store.newUnit("solar", 207, 202, 0, "panel")
-    wired.panel = other.id
+    Changes.connectUnit(wired, other, {})
     Store.newUnit("solar", 240, 240, 0, "panel")
     local found = Panels.unwiredProducers(panel, "power")
     eq(#found, 2, "the near generator and the free solar panel")

@@ -49,7 +49,7 @@ function Water.boostPlan(panel, group, may)
     local sources, states = {}, {}
     if not BU.enabled("booster") then return sources, states end
     local units = {}
-    for _, unit in ipairs(Store.unitList("booster", panel.id)) do
+    for _, unit in ipairs(BU.Units.working(panel, "booster")) do
         local own = unit.group
         if not (own and Water.group(panel, own)) then own = Water.FIRST end
         if own == group then units[#units + 1] = unit end
@@ -80,7 +80,7 @@ end
 function Water.boostKey(panel)
     local parts = {}
     if BU.enabled("booster") then
-        for _, unit in ipairs(Store.unitList("booster", panel.id)) do
+        for _, unit in ipairs(BU.Units.working(panel, "booster")) do
             if unit.boosting then
                 parts[#parts + 1] = tostring(unit.id) .. "@" .. unit.z .. "g" .. tostring(unit.group or Water.FIRST)
             end
@@ -141,13 +141,10 @@ end
 function Water.layout(panel)
     -- Looked up here: BU.Panels requires the networks, which require this.
     local Panels = BU.Panels
-    local building = Panels.building(panel)
     local roomsByLevel = {}
-    for _, room in ipairs(Panels.rooms(building)) do
-        if Panels.inZone(panel, room.id) then
-            roomsByLevel[room.level] = roomsByLevel[room.level] or {}
-            table.insert(roomsByLevel[room.level], room)
-        end
+    for _, room in ipairs(Panels.zoneRooms(panel)) do
+        roomsByLevel[room.level] = roomsByLevel[room.level] or {}
+        table.insert(roomsByLevel[room.level], room)
     end
     -- The zone's floors, lowest first.
     local base = {}
@@ -162,7 +159,7 @@ function Water.layout(panel)
         for _, level in ipairs(base) do addLevel(level) end
         local producersByLevel = {}
         for _, at in ipairs(panel.water.producers) do
-            if Water.producerGroup(at) == group.id then
+            if Water.producerGroup(at) == group.id and BU.Links.live(panel, BU.Links.producerRef(at.x, at.y, at.z)) then
                 local level = Water.producerLevel(at)
                 addLevel(level)
                 producersByLevel[level] = producersByLevel[level] or {}

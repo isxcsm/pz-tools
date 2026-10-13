@@ -5,5 +5,7 @@
     "MakeWaterPump": "Make Water Pump",
     "MakeSprinkler": "Make Sprinkler",
     "MakeWaterFilter": "Make Water Filter",
-    "MakeBoosterPump": "Make Booster Pump"
+    "MakeBoosterPump": "Make Booster Pump",
+    "MakePowerPole": "Make Utility Pole",
+    "MakeYardHydrant": "Make Yard Hydrant"
 }

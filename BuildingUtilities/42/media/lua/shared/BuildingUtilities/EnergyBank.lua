@@ -70,7 +70,7 @@ end
 -- locks) and output (what its batteries give at once, less what cold locks).
 function Energy.bank(panel)
     if not BU.enabled("rack") then return nil end
-    local racks = Store.unitList("rack", panel.id)
+    local racks = BU.Units.working(panel, "rack")
     local bank = { racks = racks, batteries = {}, capacity = 0, energy = 0, weak = 0, output = 0 }
     for _, rack in ipairs(racks) do
         for _, battery in ipairs(rack.batteries) do

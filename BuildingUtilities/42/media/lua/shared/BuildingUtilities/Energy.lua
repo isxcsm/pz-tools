@@ -42,7 +42,7 @@ end
 -- while they are off (BU.enabled).
 function Energy.output(panel)
     local sun, total, count, snow = Energy.sunlight(), 0, 0, 0
-    for _, unit in ipairs(BU.enabled("solar") and Store.unitList("solar", panel.id) or {}) do
+    for _, unit in ipairs(Units.working(panel, "solar")) do
         total = total + Energy.panelOutput(unit, sun)
         count = count + 1
         snow = snow + (unit.snow or 0)

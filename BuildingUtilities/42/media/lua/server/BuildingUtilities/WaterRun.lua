@@ -10,14 +10,20 @@ local Store, Networks, Changes, Water, Sync, WaterUnits = BU.Store, BU.Networks,
 local WaterRun = {}
 BU.WaterRun = WaterRun
 
--- Clears what a kind of unit that is off (BU.enabled) shows of its last run (a pump's running, a filter's working);
--- returns whether any had it.
-local function rest(units, field)
-    local changed = false
-    for _, unit in ipairs(units) do
-        if unit[field] then unit[field], changed = nil, true end
+-- A panel's units of a kind that work (BU.Units.working), after the others (of a kind that is off, or whose line is
+-- cut) rested: what they show of their last run cleared (fields: a pump's running and idle, a filter's working).
+-- Returns those that work and whether any rested.
+local function working(panel, kind, fields)
+    local result, live, changed = BU.Units.working(panel, kind), {}, false
+    for _, unit in ipairs(result) do live[unit] = true end
+    for _, unit in ipairs(Store.unitList(kind, panel.id)) do
+        if not live[unit] then
+            for _, field in ipairs(fields) do
+                if unit[field] then unit[field], changed = nil, true end
+            end
+        end
     end
-    return changed
+    return result, changed
 end
 
 -- Whether a panel's power is on for its units: the box lets it through (Networks.powerAllowed) and it is supplied.
@@ -45,16 +51,16 @@ local function lift(panel, unit, litres, floors)
     return 0, "full"
 end
 
--- Each minute (so many of them): a panel's pumps run while it has power and their water has somewhere to go; running,
+-- Each minute (so many of them): a panel's pumps (those that work, BU.Units.working) run while it has power and their water has somewhere to go; running,
 -- they add to its load (BU.Changes.setExtraLoad). Its frozen pipes stop them ("frozen"). A pump with no water beside
 -- it cannot tell: it runs dry whenever it has power, drawing it and lifting nothing ("noWater"). While its square is
 -- loaded the water beside it is looked at again. Pumps that are off (BU.enabled) stand still and draw nothing.
 function WaterRun.pumps(panel, minutes, floors)
-    local pumps = Store.unitList("pump", panel.id)
+    local pumps, rested = working(panel, "pump", { "running", "idle" })
+    if rested then Sync.changed(panel.id) end
     if #pumps == 0 and not (panel.extraLoads and panel.extraLoads.pumps) then return end
     if not BU.enabled("pump") then
         Changes.setExtraLoad(panel, "pumps", 0)
-        if rest(pumps, "running") then Sync.changed(panel.id) end
         return
     end
     local on = powered(panel)
@@ -89,7 +95,8 @@ end
 -- world loaded), they follow (Networks.floorsChanged). Boosters that are off (BU.enabled) stand
 -- still and draw nothing.
 function WaterRun.boosters(panel)
-    local boosters = Store.unitList("booster", panel.id)
+    local boosters, rested = working(panel, "booster", { "boosting", "idle" })
+    if rested then Sync.changed(panel.id) end
     if #boosters == 0 and (Networks.boostDefined(panel) or "") == "" and not (panel.extraLoads and panel.extraLoads.boosters) then
         return
     end
@@ -130,7 +137,7 @@ end
 -- are loaded. Sprinklers that are off (BU.enabled) water nothing.
 function WaterRun.sprinklers(panel)
     if not BU.enabled("sprinkler") then return end
-    local sprinklers = Store.unitList("sprinkler", panel.id)
+    local sprinklers = BU.Units.working(panel, "sprinkler")
     local system = SFarmingSystem and SFarmingSystem.instance
     if #sprinklers == 0 or not system or RainManager.isRaining() then return end
     local now, changed = getGameTime():getWorldAgeHours(), false
@@ -167,12 +174,7 @@ end
 -- Without the option the pipes purify and filters rest. Filters that are off (BU.enabled) rest and purify nothing: with the option, the water stays as
 -- the tanks hold it.
 function WaterRun.filters(panel, minutes)
-    local filters = Store.unitList("filter", panel.id)
-    local changed = false
-    if not BU.enabled("filter") then
-        changed = rest(filters, "working")
-        filters = {}
-    end
+    local filters, changed = working(panel, "filter", { "working" })
     if not BU.enabled("water") or not BU.waterAvailable() then
         if changed then Sync.changed(panel.id) end
         return

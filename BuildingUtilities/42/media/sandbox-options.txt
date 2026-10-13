@@ -60,6 +60,18 @@ option BuildingUtilities.RangePerTier
     page = BuildingUtilities, translation = BuildingUtilities_RangePerTier,
 }
 
+option BuildingUtilities.RelayRange
+{
+    type = integer, min = 1, max = 32, default = 12,
+    page = BuildingUtilities, translation = BuildingUtilities_RelayRange,
+}
+
+option BuildingUtilities.ChainRange
+{
+    type = integer, min = 1, max = 32, default = 6,
+    page = BuildingUtilities, translation = BuildingUtilities_ChainRange,
+}
+
 option BuildingUtilities.FloorReach
 {
     type = integer, min = 0, max = 50, default = 2,

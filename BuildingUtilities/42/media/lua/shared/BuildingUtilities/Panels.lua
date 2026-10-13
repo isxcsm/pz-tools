@@ -92,8 +92,8 @@ local function roomKey(room, count)
     return best and BU.placeKey(best.x, best.y, room.level)
 end
 
--- A building's rooms as plain tables: { id, key, name, level, rects = { { x, y, w, h } } }, key the room's square
--- for a saved zone (roomKey). The rooms built onto the
+-- A building's rooms as plain tables: { id, key, name, level, building (its key), rects = { { x, y, w, h } } }, key
+-- the room's square for a saved zone (roomKey). The rooms built onto the
 -- building (Panels.attached) are rectangles added to the room each touches most, after the room's own (own: how
 -- many), so that the first is always a square of the map's room, and the box's name is still that of the largest room
 -- of the map. Kept for the API's version (above): windows, the water layout and each minute's work ask often.
@@ -113,7 +113,8 @@ function Panels.rooms(building)
                 local rect = room.rects[j]
                 rects[#rects + 1] = { x = rect.x, y = rect.y, w = rect.w, h = rect.h }
             end
-            result[#result + 1] = { id = room.id, name = room.name, level = room.level, rects = rects }
+            result[#result + 1] = { id = room.id, name = room.name, level = room.level, rects = rects,
+                building = building.key }
         end
         for _, room in ipairs(result) do room.key = roomKey(room, #room.rects) end
         spaces = attachedFor(api, building)
@@ -165,15 +166,65 @@ function Panels.attachedSize(building)
     return count
 end
 
--- The panels of a building, by its key.
-function Panels.ofBuilding(key)
+-- The relays whose lines are a box's (units of BU.RELAY_KINDS), supplied or cut.
+function Panels.relaysOf(panel)
     local result = {}
-    for _, panel in ipairs(Store.list()) do
-        local building = Panels.building(panel)
-        if building and building.key == key then result[#result + 1] = panel end
+    for _, unit in ipairs(Store.unitList(nil, panel.id)) do
+        if BU.RELAY_KINDS[unit.kind] then result[#result + 1] = unit end
     end
     return result
 end
+
+-- What is worked out of the boxes' buildings and relays, kept while the lines, the boxes and the API's buildings are
+-- the same (Store.linkVersion, the API's version).
+local claimToken, claimIndex, zoneBuildingsOf, zoneListOf
+
+local function claims()
+    current()
+    local token = Store.linkVersion() .. "|" .. tostring(cacheVersion)
+    if claimToken == token then return claimIndex end
+    claimToken, claimIndex, zoneBuildingsOf, zoneListOf = token, {}, {}, {}
+    for _, panel in ipairs(Store.list()) do
+        local seen, buildings = {}, {}
+        local function add(building)
+            if building and not seen[building.key] then
+                seen[building.key] = true
+                buildings[#buildings + 1] = building
+                claimIndex[building.key] = claimIndex[building.key] or {}
+                table.insert(claimIndex[building.key], panel)
+            end
+        end
+        add(Panels.building(panel))
+        for _, relay in ipairs(Panels.relaysOf(panel)) do add(Panels.buildingAt(relay.x, relay.y, relay.z)) end
+        zoneBuildingsOf[panel.id] = buildings
+    end
+    return claimIndex
+end
+
+-- The panels whose zone can have rooms of a building, by its key: those in it, and those with a relay in it.
+function Panels.ofBuilding(key)
+    return claims()[key] or {}
+end
+
+-- The buildings a box's zone can have rooms of: its own (none outdoors), then those its relays stand in.
+function Panels.zoneBuildings(panel)
+    claims()
+    return zoneBuildingsOf[panel.id] or {}
+end
+
+-- Every room of those buildings, one list (kept as the buildings are).
+local function zoneRoomList(panel)
+    claims()
+    local list = zoneListOf[panel.id]
+    if list then return list end
+    list = {}
+    for _, building in ipairs(Panels.zoneBuildings(panel)) do
+        for _, room in ipairs(Panels.rooms(building)) do list[#list + 1] = room end
+    end
+    zoneListOf[panel.id] = list
+    return list
+end
+Panels.zoneRoomList = zoneRoomList
 
 -- Zones. A box takes its whole building, or only some of its rooms, so that a large building, an apartment block,
 -- can have a box per flat or floor. A zone is saved as a square of each room (panel.zone, a set of BU.placeKey: the
@@ -195,26 +246,39 @@ function Panels.roomHaving(rooms, x, y, z)
     return nil
 end
 
--- The room ids of a box's zone now, a set, or nil for its whole building. Kept with the rooms (the API's version).
+-- The room ids of a box's zone now, a set: each saved square to the room of its buildings that has it now; without a
+-- saved zone (panel.zone nil), every room of its own building. Kept with the rooms.
 function Panels.zoneIds(panel)
     local zone = panel.zone
-    if not zone then return nil end
-    local rooms = Panels.rooms(Panels.building(panel))
+    local rooms = zoneRoomList(panel)
     local kept = zoneCache[panel.id]
     if kept and kept.zone == zone and kept.rooms == rooms then return kept.ids end
     local ids = {}
-    for key in pairs(zone) do
-        local x, y, z = BU.parsePlace(key)
-        local room = x and Panels.roomHaving(rooms, x, y, z)
-        if room then ids[room.id] = true end
+    if zone then
+        for key in pairs(zone) do
+            local x, y, z = BU.parsePlace(key)
+            local room = x and Panels.roomHaving(rooms, x, y, z)
+            if room then ids[room.id] = true end
+        end
+    else
+        local own = Panels.building(panel)
+        for _, room in ipairs(rooms) do
+            if own and room.building == own.key then ids[room.id] = true end
+        end
     end
     zoneCache[panel.id] = { zone = zone, rooms = rooms, ids = ids }
     return ids
 end
 
-function Panels.inZone(panel, roomId)
-    local ids = Panels.zoneIds(panel)
-    return ids == nil or ids[roomId] == true
+function Panels.inZone(panel, roomId) return Panels.zoneIds(panel)[roomId] == true end
+
+-- The rooms of a box's zone now, as Panels.rooms has them.
+function Panels.zoneRooms(panel)
+    local ids, result = Panels.zoneIds(panel), {}
+    for _, room in ipairs(zoneRoomList(panel)) do
+        if ids[room.id] then result[#result + 1] = room end
+    end
+    return result
 end
 
 -- The panel of the building whose zone has the room, other than one; nil when the room is free. boxes, the
@@ -250,8 +314,8 @@ function Panels.floorsInReach(panel, building)
     return math.max(low or building.minLevel, building.minLevel), math.min(high or building.maxLevel, building.maxLevel)
 end
 
--- The lowest and the highest floor of a box's zone, or nil for the whole building or when the building is not known
--- now.
+-- The lowest and the highest floor of a box's zone in its own building, or nil for the whole building or when the
+-- building is not known now.
 function Panels.zoneFloors(panel)
     local building = panel.zone and Panels.building(panel)
     if not building then return nil end
@@ -263,10 +327,35 @@ function Panels.zoneFloors(panel)
     return low, high
 end
 
--- Whether a box's zone can take rooms of a level.
+-- Whether a box's zone can take rooms of a level of its own building, by its tier.
 function Panels.reachesLevel(panel, level)
     local low, high = Panels.floorsReached(panel.z, panel.tier)
     return not low or level >= low and level <= high
+end
+
+-- Whether a box's zone can take rooms of a level of a building (by its key): of its own, the floors its tier reaches
+-- (Panels.reachesLevel); of any, BU.RELAY_FLOORS above and below a relay of it standing in that building.
+function Panels.reaches(panel, key, level)
+    local own = Panels.building(panel)
+    if own and own.key == key and Panels.reachesLevel(panel, level) then return true end
+    for _, relay in ipairs(Panels.relaysOf(panel)) do
+        local building = Panels.buildingAt(relay.x, relay.y, relay.z)
+        if building and building.key == key and math.abs(relay.z - level) <= BU.RELAY_FLOORS then return true end
+    end
+    return false
+end
+
+-- The rooms a relay put in a building takes into its box's zone as it joins: in a small building, the free rooms of
+-- the floors it reaches (BU.RELAY_FLOORS), else the free rooms of its own floor. A set of room keys.
+function Panels.relayZone(panel, building, level)
+    local rooms = Panels.rooms(building)
+    local small, boxes = not Panels.isLarge(rooms), Panels.ofBuilding(building.key)
+    local result = {}
+    for _, room in ipairs(rooms) do
+        local take = small and math.abs(room.level - level) <= BU.RELAY_FLOORS or room.level == level
+        if take and not Panels.roomOwner(building.key, room.id, panel, boxes) then result[room.key] = true end
+    end
+    return result
 end
 
 -- Whether a box on a level, of a tier, reaches every floor of rooms.
@@ -295,9 +384,10 @@ function Panels.defaultZone(building, level)
     return zone, small
 end
 
--- Whether a box can take its whole building as its zone: the building's one box, reaching all its floors.
+-- Whether a box can take its whole building as its zone: the building's one box (no other box's relay there either),
+-- reaching all its floors, with no relay of its own in another building.
 function Panels.canTakeWhole(panel, building)
-    return building ~= nil and #Panels.ofBuilding(building.key) == 1
+    return building ~= nil and #Panels.ofBuilding(building.key) == 1 and #Panels.zoneBuildings(panel) == 1
         and reachesAll(Panels.rooms(building), panel.z, panel.tier)
 end
 
@@ -306,16 +396,19 @@ end
 -- differs; the zone it has when the building is not known now.
 function Panels.zoneInReach(panel)
     local building = Panels.building(panel)
-    if not building or not BU.floorReach(panel.tier) then return panel.zone, false end
-    local rooms = Panels.rooms(building)
-    if not panel.zone and reachesAll(rooms, panel.z, panel.tier) then return nil, false end
+    if not panel.zone and (not building or not BU.floorReach(panel.tier)
+            or reachesAll(Panels.rooms(building), panel.z, panel.tier)) then
+        return nil, false
+    end
     local zone, changed, any, kept = {}, panel.zone == nil, false, false
-    for _, room in ipairs(rooms) do
+    for _, room in ipairs(zoneRoomList(panel)) do
         if Panels.inZone(panel, room.id) then
-            if Panels.reachesLevel(panel, room.level) then zone[room.key] = true; any = true else changed = true end
+            if Panels.reaches(panel, room.building, room.level) then zone[room.key] = true; any = true else changed = true end
         end
     end
-    if not any then
+    if not changed then return panel.zone, false end
+    if not any and building then
+        local rooms = Panels.rooms(building)
         local boxes = Panels.ofBuilding(building.key)
         for _, room in ipairs(rooms) do
             if room.level == panel.z and not Panels.roomOwner(building.key, room.id, panel, boxes) then
@@ -324,21 +417,22 @@ function Panels.zoneInReach(panel)
         end
         -- Nothing it can take: its zone stays as it is rather than none (a zone has a room at least).
         if not kept then return panel.zone, false end
+    elseif not any then
+        return panel.zone, false
     end
     return zone, changed
 end
 
--- Each room of the panel's building to the plan: "mine", "free", "far" (free, on a floor the box does not reach) or
--- "taken", with the panel that has it.
+-- Each room (of the box's zone buildings, as Panels.rooms has them) to the plan: "mine", "free", "far" (free, on a
+-- floor the box does not reach) or "taken", with the panel that has it.
 function Panels.zoneStates(panel, building, rooms)
     local result = {}
-    local boxes = building and Panels.ofBuilding(building.key) or {}
     for _, room in ipairs(rooms) do
         if Panels.inZone(panel, room.id) then
             result[room.id] = { state = "mine", owner = panel }
         else
-            local owner = building and Panels.roomOwner(building.key, room.id, panel, boxes)
-            local state = owner and "taken" or Panels.reachesLevel(panel, room.level) and "free" or "far"
+            local owner = Panels.roomOwner(room.building, room.id, panel)
+            local state = owner and "taken" or Panels.reaches(panel, room.building, room.level) and "free" or "far"
             result[room.id] = { state = state, owner = owner }
         end
     end
@@ -363,17 +457,27 @@ function Panels.ofObject(object)
     return id and Store.get(id) or nil
 end
 
--- Whether a box can go on a square: with a utility on (BU.enabled), inside a building, in a room no other box's zone
--- has. Returns the building, or nil and a reason.
+-- Whether a box can go on a square: with a utility on (BU.enabled), in a room no box's zone has (its own, or one its
+-- relay took), or outside any building (an outdoor box). Returns the building or true outdoors, or nil and a reason.
 function Panels.canInstall(square)
     if not BU.enabled("panel") then return nil, "disabled" end
     if not square then return nil, "noSquare" end
     if not BU.api() then return nil, "noApi" end
     local building = Panels.buildingAt(square:getX(), square:getY(), square:getZ())
-    if not building then return nil, "notInBuilding" end
+    if not building then return true end
     local owner = Panels.roomOwner(building.key, building.roomId)
     if owner then return nil, owner.zone and "roomTaken" or "wholeTaken" end
     return building
+end
+
+-- A box's item carrying what of the box goes with it (Changes.keepPanel: its tier), named for it above tier 1.
+function Panels.keepOnItem(item, kept)
+    if not kept then return end
+    item:getModData()[BU.Units.KEPT] = kept
+    if (kept.tier or 1) > 1 then
+        item:setName(getText("IGUI_BU_PanelItemTier", getItemNameFromFullType(item:getFullType()), kept.tier))
+        item:setCustomName(true)
+    end
 end
 
 -- Whether a box cuts its devices one by one at the box: from BU.CUT_TIER. Below it, everything it reaches is
@@ -441,17 +545,14 @@ function Panels.producerOn(square)
     return nil
 end
 
--- Steps from a square to a panel's building outline, or nil when the building is not known now.
+-- Steps from a square to a box: to the nearest room of its zone, or to the box's own square (outdoors), a diagonal step
+-- counting as one.
 function Panels.steps(panel, x, y)
-    local building = Panels.building(panel)
-    return building and Geometry.toBuilding(x, y, Panels.rooms(building)) or nil
-end
-
--- The length of a line from a square to a panel's box: the steps to its building's outline, and BU.tilesPerFloor a
--- floor up or down; nil when the building is not known now.
-function Panels.wire(panel, x, y, z)
-    local steps = Panels.steps(panel, x, y)
-    return steps and steps + math.abs((z or panel.z) - panel.z) * BU.tilesPerFloor() or nil
+    local best = math.max(math.abs(x - panel.x), math.abs(y - panel.y))
+    for _, room in ipairs(Panels.zoneRooms(panel)) do
+        for _, rect in ipairs(room.rects) do best = math.min(best, Geometry.toRect(x, y, rect)) end
+    end
+    return best
 end
 
 -- The lowest tier whose range (BU.connectRange and the like) reaches so many squares; nil when none does.
@@ -462,59 +563,14 @@ function Panels.tierReaching(range, steps)
     return nil
 end
 
--- The panels a producer square could be connected to: on a level of their building or on the ground, within the
--- connect range of the top tier from its outline on the square's own level, as a device outside is reached (the whole
--- outline where that level has no rooms, as on a roof). Each with its distance, its line's length (Panels.wire) and
--- the tier that reaches it; the shortest line first.
-function Panels.producerCandidates(x, y, z)
-    local result = {}
-    for _, panel in ipairs(Store.list()) do
-        local building = Panels.building(panel)
-        if building and (z == 0 or z >= building.minLevel and z <= building.maxLevel) then
-            local rooms = Panels.rooms(building)
-            local steps = Geometry.toLevel(x, y, z, rooms) or Geometry.toBuilding(x, y, rooms)
-            local tier = steps and Panels.tierReaching(BU.connectRange, steps)
-            if tier then
-                result[#result + 1] = { panel = panel, steps = steps, building = building, tier = tier,
-                    inRange = tier <= (panel.tier or 1), wire = steps + math.abs(z - panel.z) * BU.tilesPerFloor() }
-            end
-        end
-    end
-    table.sort(result, function(a, b)
-        if a.wire ~= b.wire then return a.wire < b.wire end
-        return a.steps < b.steps
-    end)
-    return result
-end
-
--- Of those, the ones whose own tier reaches the square.
-function Panels.inProducerRange(x, y, z)
-    local result = {}
-    for _, candidate in ipairs(Panels.producerCandidates(x, y, z)) do
-        if candidate.inRange then result[#result + 1] = candidate end
-    end
-    return result
-end
-
--- Whether a producer can be connected to a panel. True, or false and a reason.
-function Panels.canConnectProducer(panel, utility, x, y, z)
-    if not BU.enabled(utility) then return false, "disabled" end
-    if Store.producerOwner(x, y, z) then return false, "connectedElsewhere" end
-    local square = getCell():getGridSquare(x, y, z)
-    if square and Panels.producerOn(square) ~= utility then return false, "noProducer" end
-    for _, candidate in ipairs(Panels.inProducerRange(x, y, z)) do
-        if candidate.panel == panel then return true end
-    end
-    return false, "tooFar"
-end
-
--- What a box could take that no box has, each { x, y, z, sprite } (a generator or water storage) or { x, y, z,
+-- What a box could take that has no line, each { x, y, z, sprite } (a generator or water storage) or { x, y, z,
 -- unit }: the producers in its building and around it within its connect range (the API's buildings.producers, read in
--- Java; none with an API from before it) that Panels.canConnectProducer allows, and the units no box has that this box
--- reaches. None while the utility is off.
+-- Java; none with an API from before it), and the units, that a line could hang on the box from (BU.Links.placeOn).
+-- None while the utility is off.
 function Panels.unwiredProducers(panel, utility)
     local result = {}
     if not BU.enabled(utility) then return result end
+    local Links = BU.Links
     local api = BU.api()
     local building = Panels.building(panel)
     local find = api and api.buildings.producers
@@ -522,20 +578,17 @@ function Panels.unwiredProducers(panel, utility)
         local list = find(building.key, math.min(32, BU.connectRange(panel.tier)), utility)
         for i = 1, list and #list or 0 do
             local entry = list[i]
-            if Panels.canConnectProducer(panel, utility, entry.x, entry.y, entry.z) then
+            if not Links.get(Links.producerRef(entry.x, entry.y, entry.z))
+                    and Links.placeOn(panel, utility, entry.x, entry.y, entry.z) then
                 result[#result + 1] = { x = entry.x, y = entry.y, z = entry.z, sprite = entry.sprite }
             end
         end
     end
     local Units = BU.Units
     for _, unit in ipairs(Store.unitList(nil, nil)) do
-        if not unit.panel and Units.utility(unit) == utility and BU.enabled(unit.kind) then
-            for _, candidate in ipairs(Panels.inProducerRange(unit.x, unit.y, unit.z)) do
-                if candidate.panel == panel then
-                    result[#result + 1] = { x = unit.x, y = unit.y, z = unit.z, unit = unit }
-                    break
-                end
-            end
+        if not Links.get(Links.unitRef(unit)) and Units.utility(unit) == utility and BU.enabled(unit.kind)
+                and Units.canConnect(unit, panel) then
+            result[#result + 1] = { x = unit.x, y = unit.y, z = unit.z, unit = unit }
         end
     end
     return result
@@ -583,7 +636,7 @@ function Panels.devices(panel, utility)
     local building = Panels.building(panel)
     local result = {}
     if not BU.enabled(utility) then return result, true end
-    if not api or not building then return result, false end
+    if not api then return result, false end
     local data = panel[utility]
     -- The listed parts by object: each part's key leads to its object's group.
     local groups, order, groupOf = {}, {}, {}
@@ -606,33 +659,51 @@ function Panels.devices(panel, utility)
             end
         end
     end
-    local inside, insideComplete = api.buildings.objects(building.key, utility)
-    -- The devices of built-on rooms are the API's attachedObjects, each with its space's host as its room. The API
-    -- lists them among those outside too: the others are sought within the range of the outline with the rooms, as far
-    -- as the rooms reach past the map's rooms the API counts from.
-    local reach = BU.connectRange(panel.tier)
-    local spaces = Panels.attached(building)
-    local extent = 0
-    for _, space in ipairs(spaces or {}) do extent = math.max(extent, space.extent) end
-    local listed, outsideComplete = api.buildings.near(building.key, math.min(32, reach + extent), utility)
-    local outside, built, builtComplete = listed, nil, true
-    if extent > 0 then
-        built, builtComplete = api.buildings.attachedObjects(building.key, utility)
-        if listed then
-            local rooms = Panels.rooms(building)
-            outside = {}
-            for i = 1, #listed do
-                local entry = listed[i]
-                if not Panels.attachedAt(spaces, entry.x, entry.y, entry.z) then
-                    local steps = Geometry.toLevel(entry.x, entry.y, entry.z, rooms)
-                    if steps and steps <= reach then outside[#outside + 1] = entry end
+    local insideComplete, outsideComplete, builtComplete = true, true, true
+    -- The rooms of the zone in each building it has rooms of (its own; those its relays stand in).
+    for _, each in ipairs(Panels.zoneBuildings(panel)) do
+        local inside, complete = api.buildings.objects(each.key, utility)
+        insideComplete = insideComplete and complete
+        collect(inside, true)
+    end
+    if building then
+        -- The devices of built-on rooms are the API's attachedObjects, each with its space's host as its room. The
+        -- API lists them among those outside too: the others are sought within the range of the outline with the
+        -- rooms, as far as the rooms reach past the map's rooms the API counts from.
+        local reach = BU.connectRange(panel.tier)
+        local spaces = Panels.attached(building)
+        local extent = 0
+        for _, space in ipairs(spaces or {}) do extent = math.max(extent, space.extent) end
+        local listed
+        listed, outsideComplete = api.buildings.near(building.key, math.min(32, reach + extent), utility)
+        local outside, built = listed, nil
+        if extent > 0 then
+            built, builtComplete = api.buildings.attachedObjects(building.key, utility)
+            if listed then
+                local rooms = Panels.rooms(building)
+                outside = {}
+                for i = 1, #listed do
+                    local entry = listed[i]
+                    if not Panels.attachedAt(spaces, entry.x, entry.y, entry.z) then
+                        local steps = Geometry.toLevel(entry.x, entry.y, entry.z, rooms)
+                        if steps and steps <= reach then outside[#outside + 1] = entry end
+                    end
                 end
             end
         end
+        collect(built, true, true)
+        collect(outside, false)
     end
-    collect(inside, true)
-    collect(built, true, true)
-    collect(outside, false)
+    -- The devices whose lines are the box's, wherever they are (hung on a relay far off).
+    local far = {}
+    for key in pairs(data.included) do
+        if not groupOf[key] then
+            local x, y, z, sprite = BU.parseThing(key)
+            if x then far[#far + 1] = { x = x, y = y, z = z, sprite = sprite } end
+        end
+    end
+    table.sort(far, function(a, b) return BU.thingKey(a.x, a.y, a.z, a.sprite) < BU.thingKey(b.x, b.y, b.z, b.sprite) end)
+    collect(far, false)
     for _, group in ipairs(order) do
         if group.built and claimedElsewhere(panel, utility, group.keys) then group.inside = false end
         table.sort(group.entries, function(a, b) return a.key < b.key end)
@@ -657,6 +728,8 @@ function Panels.devices(panel, utility)
             device.wired = owner == panel
             if owner == panel then device.state = anyKey(data.excluded, group.keys) and "off" or "on"
             else device.state = owner and "other" or "off" end
+            -- Its line supplies nothing: why (BU.Links).
+            if owner == panel and data.included[first.key] then device.cut = BU.Links.reason(panel, BU.Links.deviceRef(first.key)) end
         end
         if utility == "water" then device.group = BU.Water.deviceGroup(panel, group.keys) end
         if utility == "power" and group.object then device.switchOn = BU.Switches.state(group.object) end
@@ -668,6 +741,20 @@ function Panels.devices(panel, utility)
         result[#result + 1] = device
     end
     return result, insideComplete and outsideComplete and builtComplete
+end
+
+-- A device outside as one object of a utility at a square (x, y, z, its sprite) is, for one no box lists: { entry,
+-- key, keys, inside = false, wired, state } as Panels.devices has them, wired when a box connected it (owner, its
+-- box). Nil when no such object is there (its square not loaded).
+function Panels.deviceAt(utility, x, y, z, sprite)
+    local object = BU.objectsWithSprite(x, y, z, sprite)[1]
+    if not object then return nil end
+    local keys = BU.partKeys(object)
+    table.sort(keys)
+    local owner = inclusionOwner(utility, keys)
+    return { entry = { x = x, y = y, z = z, sprite = sprite }, key = keys[1] or BU.thingKey(x, y, z, sprite),
+        keys = #keys > 0 and keys or { BU.thingKey(x, y, z, sprite) }, inside = false, wired = owner ~= nil,
+        state = owner and "other" or "off", owner = owner }
 end
 
 -- The keys of a panel's devices of a utility in the rooms built onto its building (those Panels.devices marks
@@ -762,13 +849,15 @@ end
 -- none that has it is left out; a square far from every box asks the API for no devices.
 local function devicePanels(x, y, z)
     local building = Panels.buildingAt(x, y, z)
-    local result = {}
+    local result, seen = {}, {}
+    for _, panel in ipairs(building and Panels.ofBuilding(building.key) or {}) do
+        seen[panel] = true
+        result[#result + 1] = panel
+    end
     for _, panel in ipairs(Store.list()) do
         local own = Panels.building(panel)
         local steps = own and Geometry.toBuilding(x, y, Panels.rooms(own))
-        if own and (building and own.key == building.key or steps and steps <= BU.connectRange(panel.tier)) then
-            result[#result + 1] = panel
-        end
+        if not seen[panel] and steps and steps <= BU.connectRange(panel.tier) then result[#result + 1] = panel end
     end
     return result
 end
@@ -907,12 +996,16 @@ function Panels.autoName(panel)
     return name
 end
 
--- A place relative to a panel's building: "12 NE".
+-- A place relative to a panel's building (an outdoor box's square): "12 NE".
 function Panels.where(panel, x, y)
     local building = Panels.building(panel)
-    if not building then return "" end
-    local steps = Geometry.toBuilding(x, y, Panels.rooms(building)) or 0
-    local cx, cy = Geometry.centre(building)
+    local steps, cx, cy
+    if building then
+        steps = Geometry.toBuilding(x, y, Panels.rooms(building)) or 0
+        cx, cy = Geometry.centre(building)
+    else
+        steps, cx, cy = math.max(math.abs(x - panel.x), math.abs(y - panel.y)), panel.x, panel.y
+    end
     local point = Geometry.direction(cx, cy, x, y)
     return getText("IGUI_BU_Where", steps, point and getText("IGUI_BU_Dir_" .. point) or "")
 end

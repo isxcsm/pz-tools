@@ -1,7 +1,7 @@
 {
     "Sandbox_BuildingUtilities": "건물 유틸리티",
     "Sandbox_BuildingUtilities_ConnectRange": "연결 거리",
-    "Sandbox_BuildingUtilities_ConnectRange_tooltip": "건물 외곽에서 몇 칸 안의 바깥 기기, 발전기·물 저장소와 설비(태양광 패널, 배터리 랙, 펌프, 스프링클러, 필터, 가압 펌프)를 1단계 제어반에 연결할 수 있는지. 다른 건물의 제어반에서 공급받을 때도 두 건물 사이가 이 거리 안이어야 합니다(공급하는 제어반의 단계로). 단계가 오르면 더 멀리 닿고(단계마다 늘어나는 거리), 32칸을 넘지 않습니다.",
+    "Sandbox_BuildingUtilities_ConnectRange_tooltip": "건물 외곽에서 몇 칸 안의 바깥 기기, 발전기·물 저장소와 설비(태양광 패널, 배터리 랙, 펌프, 스프링클러, 필터, 가압 펌프)를 1단계 제어반에 연결할 수 있는지. 그보다 먼 곳은 전신주·야외 수전이나 이미 선에 달린 기기에 이어 답니다. 단계가 오르면 더 멀리 닿고(단계마다 늘어나는 거리), 32칸을 넘지 않습니다.",
     "Sandbox_BuildingUtilities_CostsEnabled": "연결에 재료 필요",
     "Sandbox_BuildingUtilities_CostsEnabled_tooltip": "발전기·물 저장소·설비·바깥 기기를 연결할 때 도구와 길이만큼의 전선이나 파이프가 들고, 업그레이드에는 부품이 듭니다. 기본은 켜짐. 끄면 도구와 재료가 들지 않지만 전기 기술 레벨은 그대로 필요합니다.",
     "Sandbox_BuildingUtilities_TilesPerPiece": "전선·파이프 하나당 칸 수",
@@ -72,5 +72,9 @@
     "Sandbox_BuildingUtilities_EnableBoosters": "가압 펌프",
     "Sandbox_BuildingUtilities_EnableBoosters_tooltip": "가압 펌프를 만들어 놓을 수 있고, 제어반에 전기가 있는 동안 놓인 층에서 위층으로 물을 올려 물 저장소보다 높은 층에도 물이 나오게 합니다. 물과 전기가 켜져 있어야 합니다. 기본은 켜짐. 끄면 만들 수 없고, 놓여 있는 펌프는 멈춰 전기를 쓰지 않으며 떼어낼 수는 있습니다.",
     "Sandbox_BuildingUtilities_BoosterLift": "가압 펌프 양정(층)",
-    "Sandbox_BuildingUtilities_BoosterLift_tooltip": "가압 펌프가 자기 층에서 몇 개 층 위까지 물을 올리는지. 그 층들의 시설은 펌프 높이 이상의 물 저장소 물을 씁니다. 다른 펌프가 올려 주는 층에 놓은 펌프는 거기서 다시 올립니다."
+    "Sandbox_BuildingUtilities_BoosterLift_tooltip": "가압 펌프가 자기 층에서 몇 개 층 위까지 물을 올리는지. 그 층들의 시설은 펌프 높이 이상의 물 저장소 물을 씁니다. 다른 펌프가 올려 주는 층에 놓은 펌프는 거기서 다시 올립니다.",
+    "Sandbox_BuildingUtilities_RelayRange": "전신주·수전 연결 거리",
+    "Sandbox_BuildingUtilities_RelayRange_tooltip": "전신주나 야외 수전에서 거기 매단 것까지 선이 몇 칸 갈 수 있는지. 전신주는 전기를, 수전은 물을 나르고, 제어반 단계에 따라 쓸 수 있는 수가 정해집니다.",
+    "Sandbox_BuildingUtilities_ChainRange": "기기 간 연결 거리",
+    "Sandbox_BuildingUtilities_ChainRange_tooltip": "이미 선에 달린 기기에서 다음 기기까지 선이 몇 칸 갈 수 있는지."
 }

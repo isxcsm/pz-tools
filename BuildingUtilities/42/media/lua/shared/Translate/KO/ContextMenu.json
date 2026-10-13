@@ -18,5 +18,9 @@
     "ContextMenu_BU_DisconnectFrom": "%1에서 연결 해제",
     "ContextMenu_BU_DeviceOff": "%3에서 %1 끄기 (%2)",
     "ContextMenu_BU_DeviceSwitchOn": "%3에서 %1 켜기 (%2)",
-    "ContextMenu_BU_LineRemove": "%3에서 %1 연결 해제 (%2)"
+    "ContextMenu_BU_LineRemove": "%3에서 %1 연결 해제 (%2)",
+    "ContextMenu_BU_Install_pole": "전신주 세우기",
+    "ContextMenu_BU_Install_hydrant": "야외 수전 설치",
+    "ContextMenu_BU_Rehang": "%1에 다시 연결 (%2)",
+    "ContextMenu_BU_LineTakeUp": "선 걷기"
 }

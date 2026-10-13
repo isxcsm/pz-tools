@@ -27,8 +27,8 @@ local function box(tier, batteries)
     panel.tier = tier
     if batteries then
         local rack = Store.newUnit("rack", 11, 10, 0, BU.Rack.SPRITE)
-        rack.panel = panel.id
         rack.batteries = batteries
+        Changes.connectUnit(rack, panel, {})
     end
     return panel
 end
@@ -200,7 +200,7 @@ test("switching to solar by hand needs the bank 10% over where it would hand bac
     local panel = box(1, { { type = STANDARD, charge = 0.25, condition = 100 } })
     TEST.squares["40,40,0"] = { objects = {} }
     local solar = Store.newUnit("solar", 40, 40, 0, "panel")
-    solar.panel = panel.id
+    Changes.connectUnit(solar, panel, {})
     local state = network({ load = 0.3, supplied = true, enabled = true, producer = { x = 30, y = 30, z = 0 },
         producers = { generatorAt(panel) } })
     local offered, ready = Energy.sourceOffer(panel, state)

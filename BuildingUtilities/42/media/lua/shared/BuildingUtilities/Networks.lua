@@ -30,7 +30,11 @@ local function powerId(panel) return BU.networkId(panel.id, "power") end
 local function powerProducers(panel)
     local result = {}
     if BU.Energy.hasSource(panel) then result[1] = { source = BU.Energy.SOURCE } end
-    for _, at in ipairs(panel.power.producers) do result[#result + 1] = { x = at.x, y = at.y, z = at.z } end
+    for _, at in ipairs(panel.power.producers) do
+        if BU.Links.live(panel, BU.Links.producerRef(at.x, at.y, at.z)) then
+            result[#result + 1] = { x = at.x, y = at.y, z = at.z }
+        end
+    end
     return result
 end
 
@@ -43,6 +47,8 @@ end
 function Networks.rule(panel, utility, key)
     local data = panel[utility]
     local off = data.timed and data.timed[key]
+    -- One whose line supplies nothing (BU.Links: cut, past a limit) is as one not connected.
+    if data.included[key] and not BU.Links.live(panel, BU.Links.deviceRef(key)) then return "reset" end
     if data.included[key] then
         return (off or data.excluded[key] or utility == "power" and not BU.exteriorPower()) and "exclude" or "include"
     end
@@ -120,10 +126,14 @@ local function applyWaterRule(panel, key, floors)
     if not x or not waterOn() then return end
     local mine = Water.deviceGroup(panel, { key })
     local rule = Networks.rule(panel, "water", key)
+    -- One whose line supplies nothing is in none of the groups.
+    local cut = panel.water.included[key] and rule == "reset"
     local inside = not panel.water.included[key] and not (panel.water.attached and panel.water.attached[key])
     for _, group in ipairs(Water.groups(panel)) do
         local each = "reset"
-        if mine == Water.FIRST then
+        if cut then
+            each = "reset"
+        elseif mine == Water.FIRST then
             if group.id == Water.FIRST then each = rule end
         elseif group.id == mine then
             each = rule == "exclude" and "reset" or "include"
@@ -349,6 +359,16 @@ function Networks.applyFeatures()
             if not water then removeWater(panel) else Networks.defineWater(panel) end
         end
     end
+end
+
+-- What a box's lines supply changed (BU.Links): its producers and units, and every device it names, again.
+function Networks.linesChanged(panel)
+    change("setProducers", powerId(panel), powerProducers(panel))
+    applyPowerRules(panel)
+    for key in pairs(panel.power.included) do
+        if Networks.rule(panel, "power", key) == "reset" then applyRule(powerId(panel), "reset", key) end
+    end
+    Networks.defineWater(panel)
 end
 
 function Networks.setProducers(panel, utility)

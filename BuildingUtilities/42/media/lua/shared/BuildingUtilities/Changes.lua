@@ -8,15 +8,19 @@ require "BuildingUtilities/Solar"
 require "BuildingUtilities/Rack"
 require "BuildingUtilities/WaterUnits"
 require "BuildingUtilities/Networks"
+require "BuildingUtilities/Links"
+require "BuildingUtilities/Relays"
 local BU = BuildingUtilities
-local Store, Networks, Panels, Units, Sync, Water = BU.Store, BU.Networks, BU.Panels, BU.Units, BU.Sync, BU.Water
+local Store, Networks, Panels, Units, Sync, Water, Links = BU.Store, BU.Networks, BU.Panels, BU.Units, BU.Sync, BU.Water,
+    BU.Links
 local Changes = {}
 BU.Changes = Changes
 
 -- Puts a box on the square and starts its networks. In a large building, or one with boxes already, it takes the
 -- free rooms of its floor, in a small one with more floors than it reaches those it reaches (Panels.defaultZone), and
--- says so.
-function Changes.install(square, sprite)
+-- says so. Outside any building it is an outdoor box: no rooms, its own square its wall. kept: what its item carried
+-- of the box it was (its tier: Changes.keepPanel), or nil.
+function Changes.install(square, sprite, kept)
     local building = Panels.buildingAt(square:getX(), square:getY(), square:getZ())
     local zone, reach
     if building then zone, reach = Panels.defaultZone(building, square:getZ()) end
@@ -25,6 +29,9 @@ function Changes.install(square, sprite)
     object:setSpecialTooltip(true)
     local panel = Store.newPanel(square:getX(), square:getY(), square:getZ(), sprite)
     panel.zone = zone
+    panel.outdoor = not building or nil
+    local tier = kept and tonumber(kept.tier)
+    if tier then panel.tier = math.max(1, math.min(BU.TIERS, math.floor(tier))) end
     object:getModData()[Panels.MODDATA] = panel.id
     square:AddTileObject(object)
     if isServer() then object:transmitCompleteItemToClients() end
@@ -44,27 +51,27 @@ function Changes.install(square, sprite)
     return panel
 end
 
--- The rooms a box takes: a list of room keys of its building (each room's key, Panels.rooms), or nil for all of it
--- (only for the building's one
--- box; the rooms of the floors it reaches where it does not reach them all). Rooms of another box's zone and of
--- floors it does not reach (Panels.reachesLevel) are left out; a zone keeps one room at least. Returns whether it
--- changed.
+-- The rooms a box takes: a list of room keys of the buildings its zone can have rooms of (each room's key,
+-- Panels.zoneRoomList), or nil for all of its own building (only for the building's one box; the rooms of the floors
+-- it reaches where it does not reach them all). Rooms of another box's zone and of floors it does not reach
+-- (Panels.reaches) are left out; a zone keeps one room at least. Returns whether it changed.
 function Changes.setZone(panel, keys)
     local building = Panels.building(panel)
-    if not building then return false end
     local zone
     if keys then
-        local known, boxes = {}, Panels.ofBuilding(building.key)
-        for _, room in ipairs(Panels.rooms(building)) do
-            if Panels.reachesLevel(panel, room.level) then known[room.key] = room end
+        local known = {}
+        for _, room in ipairs(Panels.zoneRoomList(panel)) do
+            if Panels.reaches(panel, room.building, room.level) then known[room.key] = room end
         end
         zone = {}
         local any = false
         for _, key in ipairs(keys) do
             local room = known[key]
-            if room and not Panels.roomOwner(building.key, room.id, panel, boxes) then zone[key] = true; any = true end
+            if room and not Panels.roomOwner(room.building, room.id, panel) then zone[key] = true; any = true end
         end
         if not any then return false end
+    elseif not building then
+        return false
     elseif #Panels.ofBuilding(building.key) > 1 then
         return false
     elseif not Panels.canTakeWhole(panel, building) then
@@ -92,7 +99,7 @@ function Changes.applyZone(panel, building, zone)
                     if not data.included[key] then
                         local x, y, z = BU.parseThing(key)
                         local at = x and Panels.buildingAt(x, y, z)
-                        if at and at.key == building.key and not zone[at.roomId] then
+                        if at and not Panels.inZone(panel, at.roomId) then
                             data[field][key] = nil
                             left[key] = true
                         end
@@ -129,23 +136,23 @@ local function addPaid(total, paid)
     for itemType, count in pairs(paid) do total[itemType] = (total[itemType] or 0) + count end
 end
 
--- Everything a panel's lines took: its producers', its units' and its outside devices'. For giving back a share when
--- it is taken down.
+-- Everything a panel's lines took.
 function Changes.paidFor(panel)
     local total = {}
-    for _, utility in ipairs(BU.UTILITIES) do
-        for _, producer in ipairs(panel[utility].producers) do addPaid(total, producer.paid) end
-        for _, paid in pairs(panel[utility].included) do addPaid(total, paid) end
-    end
-    for _, unit in ipairs(Store.unitList(nil, panel.id)) do addPaid(total, unit.paid) end
+    for _, line in ipairs(Links.of(panel)) do addPaid(total, line.paid) end
     return total
 end
 
--- Takes a panel away: its networks go, its producers are the game's again, its units are wired to nothing.
+-- What of a box goes with its item when it is taken up: its tier.
+function Changes.keepPanel(panel) return { tier = panel.tier or 1 } end
+
+-- Takes a panel away: its networks go, its producers are the game's again. Its lines stay where they are laid, cut
+-- (BU.Links): each branch is hung on again at its first line, on this box put down again elsewhere or on another.
 function Changes.remove(panel)
     local object = Panels.object(panel)
     if object then object:getSquare():transmitRemoveItemFromSquare(object) end
     Networks.remove(panel)
+    for _, line in ipairs(Links.of(panel)) do line.panel = nil end
     for _, unit in ipairs(Store.unitList(nil, panel.id)) do Changes.unwire(unit) end
     Store.remove(panel.id)
     BU.log("removed", panel.id)
@@ -178,6 +185,7 @@ local function forgetGone(panel)
         end
         for key, isGone in pairs(gone) do
             if isGone then
+                if data.included[key] then Changes.unlay(Links.deviceRef(key)) end
                 for _, field in ipairs(DEVICE_FIELDS) do
                     if data[field] then data[field][key] = nil end
                 end
@@ -228,24 +236,25 @@ function Changes.installUnit(kind, square, sprite, kept)
     return unit
 end
 
--- Takes a unit away; returns what its line took (nil when it was wired to nothing). Players empty a rack first;
--- one destroyed takes its batteries with it.
+-- Takes a unit away; returns what its line took (nil when it had none). Players empty a rack first; one destroyed
+-- takes its batteries with it. What hung on it stays, cut.
 function Changes.removeUnit(unit)
     local object = Units.object(unit)
     if object then object:getSquare():transmitRemoveItemFromSquare(object) end
-    local panel, paid = Store.get(unit.panel), unit.paid
+    local panel = Store.get(unit.panel)
+    local paid = Changes.unlay(Links.unitRef(unit))
     Store.removeUnit(unit.id)
     BU.log("removed", unit.kind, unit.id)
-    if panel then Changes.unitsChanged(panel) end
     Sync.changed(panel and panel.id)
     return paid
 end
 
--- A unit wired to nothing now: no panel, nothing paid, and nothing of how it last ran (a pump's running, a booster's
--- boosting, why it idled), so that its look and a later panel start from stopped.
+-- A unit wired to nothing now: no panel, and nothing of how it last ran (a pump's running, a booster's boosting, why
+-- it idled), so that its look and a later panel start from stopped.
 function Changes.unwire(unit)
-    unit.panel, unit.paid = nil, nil
+    unit.panel = nil
     unit.running, unit.boosting, unit.idle = nil, nil, nil
+    Store.unitsChanged()
 end
 
 -- A part of the load the box adds to its devices' (the API's extra load): "pumps", its water pumps running. The
@@ -264,6 +273,154 @@ function Changes.unitsChanged(panel)
     if not BU.Energy.bank(panel) then panel.bankFlow = nil end
 end
 
+-- Lines (BU.Links). A line's thing joins its box's lists as the line becomes the box's (a producer at the end of its
+-- order, a device outside among those it connected, a unit wired to it), and leaves them as it stops being so.
+local function joinBox(panel, line)
+    local kind = line.ref:sub(1, 1)
+    if kind == "p" then
+        local list = panel[line.utility].producers
+        for _, at in ipairs(list) do
+            if at.x == line.x and at.y == line.y and at.z == line.z then return end
+        end
+        table.insert(list, { x = line.x, y = line.y, z = line.z })
+    elseif kind == "t" then
+        local key = line.ref:sub(3)
+        panel[line.utility].included[key] = true
+        panel[line.utility].excluded[key] = nil
+    else
+        local unit = Links.unitOf(line.ref)
+        if unit then
+            unit.panel = panel.id
+            Store.unitsChanged()
+        end
+    end
+end
+
+local function leaveBox(panel, line)
+    local kind = line.ref:sub(1, 1)
+    local data = panel[line.utility]
+    if kind == "p" then
+        for index, at in ipairs(data.producers) do
+            if at.x == line.x and at.y == line.y and at.z == line.z then
+                table.remove(data.producers, index)
+                break
+            end
+        end
+    elseif kind == "t" then
+        local key = line.ref:sub(3)
+        data.included[key] = nil
+        for _, name in ipairs({ "excluded", "schedule", "timed", "groupOf" }) do
+            if data[name] then data[name][key] = nil end
+        end
+        Networks.apply(panel, line.utility, key)
+    else
+        local unit = Links.unitOf(line.ref)
+        if unit and unit.panel == panel.id then Changes.unwire(unit) end
+    end
+end
+
+-- A relay standing in a building lets its box's zone take rooms there (Panels.reaches): as it becomes the box's,
+-- the free rooms by Panels.relayZone join; as it goes, the rooms no longer reached leave (Changes.fitZone).
+local function relayJoined(panel, line)
+    local unit = Links.unitOf(line.ref)
+    local building = unit and BU.RELAY_KINDS[unit.kind] and Panels.buildingAt(unit.x, unit.y, unit.z)
+    if not building then return end
+    local zone = {}
+    if panel.zone then
+        for key in pairs(panel.zone) do zone[key] = true end
+    else
+        local own = Panels.building(panel)
+        for _, room in ipairs(own and Panels.rooms(own) or {}) do zone[room.key] = true end
+    end
+    local added = false
+    for key in pairs(Panels.relayZone(panel, building, unit.z)) do
+        if not zone[key] then zone[key], added = true, true end
+    end
+    if added or not panel.zone then Changes.applyZone(panel, Panels.building(panel), zone) end
+end
+
+-- A box's zone kept to what it reaches now (Panels.zoneInReach): after a relay went.
+function Changes.fitZone(panel)
+    local zone, changed = Panels.zoneInReach(panel)
+    if changed then Changes.applyZone(panel, Panels.building(panel), zone) end
+end
+
+-- What a box's lines supply changed: its producers, units and devices outside as the networks have them.
+function Changes.linesChanged(panel)
+    Networks.linesChanged(panel)
+    if not BU.Energy.bank(panel) then panel.bankFlow = nil end
+    Sync.changed(panel.id)
+end
+
+-- A line laid from a thing to a box: where it hangs (place: Links.placeOn's), what it took, where the thing is.
+function Changes.lay(panel, ref, utility, place, paid, x, y, z)
+    local data = Store.data()
+    local line = { ref = ref, panel = panel.id, utility = utility, via = place.via, wall = place.wall, length = place.length,
+        paid = type(paid) == "table" and paid or {}, x = x, y = y, z = z, seq = data.nextLine }
+    data.nextLine = data.nextLine + 1
+    data.lines[ref] = line
+    Store.linksChanged()
+    joinBox(panel, line)
+    if Links.isRelay(ref) then relayJoined(panel, line) end
+    Changes.linesChanged(panel)
+    return line
+end
+
+-- A line taken away: its thing is no box's; what hung on it stays laid, cut. Returns what it took, or nil without one.
+function Changes.unlay(ref)
+    local line = Links.get(ref)
+    if not line then return nil end
+    Store.data().lines[ref] = nil
+    Store.linksChanged()
+    local panel = Store.get(line.panel)
+    if panel then
+        leaveBox(panel, line)
+        if Links.unitOf(ref) and BU.RELAY_KINDS[Links.unitOf(ref).kind] then Changes.fitZone(panel) end
+        Changes.linesChanged(panel)
+    end
+    return line.paid or {}
+end
+
+-- A cut branch hung on again at its first line (ref), on a box (place: Links.placeOn's there): that line laid again
+-- from there, what it took added to its own; the whole branch is that box's from now.
+function Changes.rehang(ref, panel, place, paid)
+    local line = Links.get(ref)
+    if not line then return end
+    local branch = Links.branch(ref)
+    local before = {}
+    for _, each in ipairs(branch) do
+        local was = Store.get(each.panel)
+        if was and was ~= panel then
+            before[was.id] = was
+            leaveBox(was, each)
+        end
+    end
+    line.via, line.wall, line.length = place.via, place.wall, place.length
+    line.paid = line.paid or {}
+    addPaid(line.paid, paid)
+    for _, each in ipairs(branch) do
+        each.panel = panel.id
+        joinBox(panel, each)
+    end
+    Store.linksChanged()
+    for _, each in ipairs(branch) do
+        if Links.isRelay(each.ref) then relayJoined(panel, each) end
+    end
+    for _, was in pairs(before) do
+        Changes.fitZone(was)
+        Changes.linesChanged(was)
+    end
+    Changes.linesChanged(panel)
+end
+
+-- Where a thing hangs on a box when the caller gives no place: Links.placeOn's, else a line straight to the box
+-- (supplying while it is within the box's range).
+local function placeFor(panel, utility, x, y, z, relay)
+    local place = Links.placeOn(panel, utility, x, y, z, relay)
+    if place then return place end
+    return { wall = BU.placeKey(panel.x, panel.y, panel.z), length = Links.length(x, y, z, panel.x, panel.y, panel.z) }
+end
+
 -- "Switch to solar", checked by the caller (BU.Energy.sourceOffer): the units' source takes the load, and the API
 -- switches the generator in use off, on standby. The API tells the change ("producer"), and players hear of it.
 function Changes.useSource(panel)
@@ -272,20 +429,20 @@ function Changes.useSource(panel)
     Sync.changed(panel.id)
 end
 
--- Wired to a panel.
-function Changes.connectUnit(unit, panel, paid)
-    unit.panel, unit.paid = panel.id, paid or {}
-    Changes.unitsChanged(panel)
-    Sync.changed(panel.id)
+-- Wired to a panel, its line hung at place (Links.placeOn's; the nearest when nil).
+function Changes.connectUnit(unit, panel, paid, place)
+    local utility = Units.utility(unit)
+    place = place or placeFor(panel, utility, unit.x, unit.y, unit.z, BU.RELAY_KINDS[unit.kind] ~= nil)
+    Changes.lay(panel, Links.unitRef(unit), utility, place, paid, unit.x, unit.y, unit.z)
 end
 
 -- Its line taken away; returns what it took.
 function Changes.disconnectUnit(unit)
-    local panel, paid = Store.get(unit.panel), unit.paid or {}
-    Changes.unwire(unit)
-    if panel then Changes.unitsChanged(panel) end
+    local panel = Store.get(unit.panel)
+    local paid = Changes.unlay(Links.unitRef(unit))
+    if unit.panel then Changes.unwire(unit) end
     Sync.changed(panel and panel.id)
-    return paid
+    return paid or {}
 end
 
 function Changes.clearSnow(unit)
@@ -295,24 +452,17 @@ end
 
 -- Producers. A new one is used after those connected before.
 
-function Changes.connectProducer(panel, utility, x, y, z, paid)
-    table.insert(panel[utility].producers, { x = x, y = y, z = z, paid = paid })
-    Networks.setProducers(panel, utility)
-    Sync.changed(panel.id)
+function Changes.connectProducer(panel, utility, x, y, z, paid, place)
+    place = place or placeFor(panel, utility, x, y, z)
+    Changes.lay(panel, Links.producerRef(x, y, z), utility, place, paid, x, y, z)
 end
 
 -- Disconnects the producer on a square; returns what its line took, or nil when it was none of the panel's.
 function Changes.disconnectProducer(panel, utility, x, y, z)
-    local list = panel[utility].producers
-    for index, at in ipairs(list) do
-        if at.x == x and at.y == y and at.z == z then
-            table.remove(list, index)
-            Networks.setProducers(panel, utility)
-            Sync.changed(panel.id)
-            return at.paid or {}
-        end
-    end
-    return nil
+    local ref = Links.producerRef(x, y, z)
+    local line = Links.get(ref)
+    if not line or line.panel ~= panel.id or line.utility ~= utility then return nil end
+    return Changes.unlay(ref)
 end
 
 -- Moves a producer up (-1) or down (+1) the order.
@@ -431,33 +581,22 @@ function Changes.syncAttached(panel)
     return changed
 end
 
--- A device outside any building wired or piped to the panel, supplied as its line is laid.
-function Changes.includeOutside(panel, utility, device, paid)
-    panel[utility].included[device.key] = paid or {}
-    panel[utility].excluded[device.key] = nil
-    Networks.apply(panel, utility, device.key)
-    Sync.changed(panel.id)
+-- A device outside any building wired or piped to the panel, supplied as its line is laid (at place, Links.placeOn's;
+-- the nearest when nil).
+function Changes.includeOutside(panel, utility, device, paid, place)
+    local entry = device.entry
+    place = place or placeFor(panel, utility, entry.x, entry.y, entry.z)
+    Changes.lay(panel, Links.deviceRef(device.key), utility, place, paid, entry.x, entry.y, entry.z)
 end
 
 -- Its line taken away; returns what it took, or nil when the panel had not connected it. What the panel kept about
--- it goes too, under any of its parts' keys: it is no device of the panel any longer.
+-- it goes too: it is no device of the panel any longer.
 function Changes.excludeOutside(panel, utility, device)
-    local data = panel[utility]
-    local paid
     for _, key in ipairs(device.keys) do
-        if data.included[key] then
-            paid = paid or data.included[key]
-            data.included[key] = nil
-            Networks.apply(panel, utility, key)
-        end
+        local line = Links.get(Links.deviceRef(key))
+        if line and line.panel == panel.id and line.utility == utility then return Changes.unlay(Links.deviceRef(key)) end
     end
-    if not paid then return nil end
-    for _, name in ipairs({ "excluded", "schedule", "timed", "groupOf" }) do
-        if data[name] then data[name][device.key] = nil end
-    end
-    Networks.apply(panel, utility, device.key)
-    Sync.changed(panel.id)
-    return type(paid) == "table" and paid or {}
+    return nil
 end
 
 -- Water groups (BU.Water): made, named and taken away by the player at the box; each tank and fixture in one.
@@ -664,7 +803,8 @@ function Changes.upgrade(panel)
     panel.tier = math.min(BU.TIERS, (panel.tier or 1) + 1)
     Store.record(panel, "IGUI_BU_Log_Upgraded", { panel.tier })
     Changes.applyTimers(panel)
-    Sync.changed(panel.id)
+    -- More relays and a longer reach: lines past the old limits come back of themselves.
+    Changes.linesChanged(panel)
 end
 
 -- The breaker: down by overload, up by a player at the box. Reset, it lets the power through unless the main switch

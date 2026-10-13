@@ -165,15 +165,17 @@ local FEATURES = {
     sprinkler = { option = "EnableSprinklers", needs = { "water" } },
     filter = { option = "EnableFilters", needs = { "water" } },
     booster = { option = "EnableBoosters", needs = { "water", "power" } },
+    pole = { needs = { "power" } },
+    hydrant = { needs = { "water" } },
 }
-BU.FEATURES = { "power", "water", "solar", "rack", "pump", "sprinkler", "filter", "booster" }
+BU.FEATURES = { "power", "water", "solar", "rack", "pump", "sprinkler", "filter", "booster", "pole", "hydrant" }
 
 -- Whether a feature is on: its option, and those of the features it needs. A name that is no feature's is on.
 function BU.enabled(name)
     if name == "panel" then return BU.enabled("power") or BU.enabled("water") end
     local feature = name and FEATURES[name]
     if not feature then return true end
-    if BU.sandbox(feature.option, true) ~= true then return false end
+    if feature.option and BU.sandbox(feature.option, true) ~= true then return false end
     for _, need in ipairs(feature.needs or {}) do
         if not BU.enabled(need) then return false end
     end
@@ -202,7 +204,8 @@ end
 -- recipe's OnAddToMenu, which the game looks up by its plain name. Each recipe's OnTest (BU.RecipeTest) refuses every
 -- input meanwhile, so that one reached another way (an item's Craft menu) cannot be made either.
 BU.RECIPE_FEATURES = { MakeBreakerBox = "panel", MakeSolarPanel = "solar", MakeBatteryRack = "rack",
-    MakeWaterPump = "pump", MakeSprinkler = "sprinkler", MakeWaterFilter = "filter", MakeBoosterPump = "booster" }
+    MakeWaterPump = "pump", MakeSprinkler = "sprinkler", MakeWaterFilter = "filter", MakeBoosterPump = "booster",
+    MakePowerPole = "pole", MakeYardHydrant = "hydrant" }
 function BuildingUtilitiesRecipeShown(param)
     local name = param and param.recipe and param.recipe:getName()
     local feature = name and BU.RECIPE_FEATURES[name:match("[^%.]+$")]
@@ -232,6 +235,20 @@ end
 
 -- Tiles of line a floor up or down adds to a line's length (the ranges are measured on the ground).
 function BU.tilesPerFloor() return math.max(0, BU.sandbox("TilesPerFloor", 3)) end
+
+-- Lines reach out from a box's zone (BU.Links): the first from a wall as far as the box's tier reaches
+-- (BU.connectRange), one from a relay RelayRange, one from a device on the line to the next ChainRange (as far as a
+-- sprinkler is from the next that waters every square between). A box has relays by its tier, and a device on a
+-- line (its head, hung on a wall or a relay) has at most CHAIN_LIMIT more hung on it and on them. A relay in a
+-- building lets its box's zone take rooms RELAY_FLOORS above and below it.
+local RELAY_LIMITS = { 0, 2, 4, 8 }
+function BU.relayLimit(tier) return RELAY_LIMITS[math.max(1, math.min(BU.TIERS, tier or 1))] end
+function BU.relayRange() return math.max(1, math.min(32, BU.sandbox("RelayRange", 12))) end
+function BU.chainRange() return math.max(1, math.min(32, BU.sandbox("ChainRange", 6))) end
+BU.CHAIN_LIMIT = 8
+BU.RELAY_FLOORS = 2
+-- The relays' unit kinds (BU.Units), each with the utility its line carries.
+BU.RELAY_KINDS = { pole = "power", hydrant = "water" }
 
 -- Connections cost wire or pipe by length; taken away, they give back a share.
 function BU.costsEnabled() return BU.sandbox("CostsEnabled", true) == true end
