@@ -293,7 +293,7 @@ def cutter(turns, look):
     running, on = look == 1, look >= 1
     s = Scene(turns, foot=(2, 1))
     glows = []
-    x0, x1, y0, y1 = 0.20, 1.92, 0.22, 0.78
+    x0, x1, y0, y1 = 0.20, 1.62, 0.22, 0.78  # the table stops short of the cart at the east end
     zt = 0.50
     for lx in (x0 + 0.02, 0.98, x1 - 0.06):
         for ly in (y0 + 0.02, y1 - 0.06):
@@ -309,7 +309,7 @@ def cutter(turns, look):
     s.tube((0.86, 0.5, 0.24), (0.96, 0.5, 0.24), 0.05, STEEL_DARK, segments=14, shine=0.4)
     # spare rolls on a rack under the east half
     for i, c in enumerate(((176, 70, 56), (72, 110, 160), (200, 190, 150))):
-        s.tube((1.2 + i * 0.2, y0 + 0.04, 0.24), (1.2 + i * 0.2, y1 - 0.04, 0.24), 0.07, c, cap=(220, 214, 190), segments=18)
+        s.tube((1.08 + i * 0.17, y0 + 0.04, 0.24), (1.08 + i * 0.17, y1 - 0.04, 0.24), 0.07, c, cap=(220, 214, 190), segments=18)
     # the roll of canvas on two arms at the west end
     # (Wide dark slabs as stands stood in front of the roll's end and seemed to cut through the cloth: the stands are
     # narrow steel uprights clear of the roll's ends, holding its axle, and the roll lies inside the square.)
@@ -325,7 +325,7 @@ def cutter(turns, look):
     gx = 1.30 if running else 0.52
     s.poly([(rx + rr, y0 + 0.06, rz), (0.36, y0 + 0.06, cloth_z), (0.36, y1 - 0.06, cloth_z), (rx + rr, y1 - 0.06, rz)],
            CANVAS, (0, 0, 1))
-    s.face([(0.34, y0 + 0.04, cloth_z), (1.66, y0 + 0.04, cloth_z), (1.66, y1 - 0.04, cloth_z), (0.34, y1 - 0.04, cloth_z)], CANVAS, (0, 0, 1))
+    s.face([(0.34, y0 + 0.04, cloth_z), (x1 - 0.03, y0 + 0.04, cloth_z), (x1 - 0.03, y1 - 0.04, cloth_z), (0.34, y1 - 0.04, cloth_z)], CANVAS, (0, 0, 1))
     if running:
         s.face([(0.34, 0.49, cloth_z + 0.001), (gx, 0.49, cloth_z + 0.001), (gx, 0.51, cloth_z + 0.001), (0.34, 0.51, cloth_z + 0.001)], (36, 70, 52), (0, 0, 1))
         s.box(gx + 0.14, y0 + 0.04, cloth_z, gx + 0.22, y1 - 0.04, cloth_z + 0.004, (190, 70, 56))
@@ -349,11 +349,12 @@ def cutter(turns, look):
         for i in range(4):
             s.box(1.72, 0.24, 0.12 + i * 0.045, 1.94, 0.76, 0.155 + i * 0.045,
                   (190, 70, 56) if i % 2 else CANVAS, top=(210, 100, 80) if i % 2 else (176, 166, 128))
-    # a control pedestal at the east end of the table's front
-    s.box(1.5, y1, 0.0, 1.62, y1 + 0.12, 0.60, OD, top=OD_LIGHT, shine=0.1)
-    lamp_y(s, glows, 1.56, y1 + 0.12, 0.52, 0.024, 'green', on)
-    lamp_y(s, glows, 1.56, y1 + 0.12, 0.44, 0.024, 'red', not on)
-    s.box(1.51, y1 + 0.12, 0.26, 1.61, y1 + 0.124, 0.38, GRAPHITE_DARK)
+    # a control pedestal at the east end of the table's front, lower than the table's top (standing up past it, it
+    # hid the table's front edge and seemed to bite into the cloth)
+    s.box(1.5, y1, 0.0, 1.62, y1 + 0.12, 0.44, OD, top=OD_LIGHT, shine=0.1)
+    lamp_y(s, glows, 1.56, y1 + 0.12, 0.37, 0.024, 'green', on)
+    lamp_y(s, glows, 1.56, y1 + 0.12, 0.3, 0.024, 'red', not on)
+    s.box(1.51, y1 + 0.12, 0.1, 1.61, y1 + 0.124, 0.22, GRAPHITE_DARK)
     front_decal(s, 0.62, 0.98, 0.22, 0.32, y1 + 0.001, stencil_text('OAK-C1', 70, 20, STENCIL))
     front_decal(s, 1.08, 1.22, 0.2, 0.34, y1 + 0.002, warning_sign())
     ground = shadow((1.0, 0.5), 1.0, 0.36, 120)
