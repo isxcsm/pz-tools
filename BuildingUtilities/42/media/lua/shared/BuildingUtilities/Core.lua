@@ -289,13 +289,16 @@ function BU.scheduleOn(schedule)
     return (schedule == "night") == night
 end
 
--- The breaker box: this mod's console, one sprite per facing (S, E, N, W), put down with its lamps dark; its other
--- looks are BU.PanelLook's. Boxes of older saves stood as a vanilla terminal, and take the console as they load.
-BU.PANEL_SPRITES = { "bu_water_01_32", "bu_water_01_33", "bu_water_01_34", "bu_water_01_35" }
-BU.OLD_PANEL_SPRITES = { "security_01_0", "security_01_1", "security_01_2", "security_01_3" }
-BU.OLD_PANEL_SPRITE_SET = {}
-for _, name in ipairs(BU.OLD_PANEL_SPRITES) do BU.OLD_PANEL_SPRITE_SET[name] = true end
-BU.PANEL_ITEM = "BuildingUtilities.BreakerBox"
+-- The breaker box: this mod's tiles (the bu_water_01 sheet, tools/tile_art.py), a look for each tier, indoors and
+-- outdoors (on a pedestal), each 16 sprites from its first: off, on, tripped and tripped with its lamp dark, each
+-- facing S, E, N, W. It is put down with its lamps dark; its other looks are BU.PanelLook's. An item for each tier, so
+-- that its icon and the tile it puts down are the tier's; a new box (made or found) is of tier 1.
+BU.PANEL_FIRST = { indoor = { 72, 88, 104, 32 }, outdoor = { 120, 136, 152, 168 } }
+BU.PANEL_ITEMS = { "BuildingUtilities.BreakerBox", "BuildingUtilities.BreakerBox2", "BuildingUtilities.BreakerBox3",
+    "BuildingUtilities.BreakerBox4" }
+BU.PANEL_ITEM = BU.PANEL_ITEMS[1]
+BU.PANEL_ITEM_TIER = {}
+for tier, fullType in ipairs(BU.PANEL_ITEMS) do BU.PANEL_ITEM_TIER[fullType] = tier end
 
 -- The sides of a square, in the order the game's building cursor turns through them (its nSprite, 1 to 4).
 BU.SIDES = { "W", "N", "E", "S" }
@@ -307,12 +310,12 @@ function BU.sideOf(square, character)
     return dy > 0 and "S" or "N"
 end
 
--- The box's sprite facing a side.
+-- The box's sprite of a tier (1 without), indoors or out, its lamps dark, facing a side.
 local PANEL_SPRITE_OF = { S = 1, E = 2, N = 3, W = 4 }
-function BU.panelSprite(side) return BU.PANEL_SPRITES[PANEL_SPRITE_OF[side] or 1] end
-
--- The box faces the player who puts it down.
-function BU.panelSpriteFacing(square, character) return BU.panelSprite(BU.sideOf(square, character)) end
+function BU.panelSprite(side, tier, outdoor)
+    local first = BU.PANEL_FIRST[outdoor and "outdoor" or "indoor"][tier or 1]
+    return "bu_water_01_" .. (first + (PANEL_SPRITE_OF[side] or 1) - 1)
+end
 
 -- A water producer: an object the game fills with rain or water (rain barrels, metal drums), with a fluid container.
 function BU.isWaterContainer(object)

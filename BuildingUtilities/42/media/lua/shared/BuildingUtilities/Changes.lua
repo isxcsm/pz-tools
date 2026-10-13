@@ -19,19 +19,22 @@ BU.Changes = Changes
 -- Puts a box on the square and starts its networks. In a large building, or one with boxes already, it takes the
 -- free rooms of its floor, in a small one with more floors than it reaches those it reaches (Panels.defaultZone), and
 -- says so. Outside any building it is an outdoor box: no rooms, its own square its wall. kept: what its item carried
--- of the box it was (its tier: Changes.keepPanel), or nil.
-function Changes.install(square, sprite, kept)
+-- of the box it was (its tier: Changes.keepPanel), or nil. It faces side (S, E, N or W), its tier's look indoors or
+-- on a pedestal outdoors.
+function Changes.install(square, side, kept)
     local building = Panels.buildingAt(square:getX(), square:getY(), square:getZ())
     local zone, reach
     if building then zone, reach = Panels.defaultZone(building, square:getZ()) end
+    local tier = kept and tonumber(kept.tier)
+    tier = tier and math.max(1, math.min(BU.TIERS, math.floor(tier))) or nil
+    local sprite = BU.panelSprite(side, tier, not building)
     local object = IsoObject.new(square, sprite, nil, false)
     -- The mouse over it shows a summary (client/BuildingUtilities/Main.lua).
     object:setSpecialTooltip(true)
     local panel = Store.newPanel(square:getX(), square:getY(), square:getZ(), sprite)
     panel.zone = zone
     panel.outdoor = not building or nil
-    local tier = kept and tonumber(kept.tier)
-    if tier then panel.tier = math.max(1, math.min(BU.TIERS, math.floor(tier))) end
+    panel.tier = tier or panel.tier
     object:getModData()[Panels.MODDATA] = panel.id
     square:AddTileObject(object)
     if isServer() then object:transmitCompleteItemToClients() end

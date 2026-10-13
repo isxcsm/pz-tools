@@ -1006,7 +1006,6 @@
     "IGUI_BU_LineCut_chain": "A wall, pole or hydrant carries at most %1 devices down its line; this one is past them.",
     "IGUI_BU_LineCut_far": "Its line from the wall is longer than the panel reaches (%1 tiles).",
     "IGUI_BU_LineNotSupplied": "Not supplied",
-    "IGUI_BU_PanelItemTier": "%1 (tier %2)",
     "IGUI_BU_Reason_relays": "This panel already has %1 utility poles or yard hydrants.",
     "IGUI_BU_Reason_relaysMore": "This panel already has %1 utility poles or yard hydrants; at the next tier it takes %2.",
     "IGUI_BU_Reason_chain": "That line already carries %1 devices.",

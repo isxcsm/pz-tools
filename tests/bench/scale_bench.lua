@@ -47,7 +47,7 @@ local function scene(boxes, apart)
         for dx = 0, 9 do
             for dy = 0, 9 do api.squares[(x + dx) .. "," .. (y + dy) .. ",0"] = key end
         end
-        local panel = Store.newPanel(x + 1, y + 1, 0, BU.PANEL_SPRITES[1])
+        local panel = Store.newPanel(x + 1, y + 1, 0, BU.panelSprite("S"))
         panel.tier = 4
         -- Wired as a player wires them, each on its line (BU.Links) from the nearest wall square, so that it works; the
         -- lines written straight into the save (laying each through BU.Changes asks the whole map again each time).

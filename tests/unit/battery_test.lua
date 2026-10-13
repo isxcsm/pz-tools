@@ -16,7 +16,7 @@ local STANDARD = "Base.CarBattery1"
 
 -- A box of a tier at x with a rack of batteries at conditions, all at a charge.
 local function box(x, tier, conditions, charge)
-    local panel = Store.newPanel(x, 10, 0, BU.PANEL_SPRITES[1])
+    local panel = Store.newPanel(x, 10, 0, BU.panelSprite("S"))
     panel.tier = tier
     local rack = Store.newUnit("rack", x + 1, 10, 0, BU.Rack.SPRITE)
     rack.batteries = {}

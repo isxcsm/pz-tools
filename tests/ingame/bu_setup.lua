@@ -13,6 +13,6 @@ for dx = -30, 30 do
     end
 end
 if not best then print("[busetup] no building square near"); return end
-local panel = BU.Changes.install(best, BU.PANEL_SPRITES[1])
+local panel = BU.Changes.install(best, "S")
 ModData.getOrCreate("BUTEST").panel = panel.id
 print("[busetup] panel", panel.id, panel.x, panel.y, panel.z, "devices", #BU.Panels.devices(panel, "power"))

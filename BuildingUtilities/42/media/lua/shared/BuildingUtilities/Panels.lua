@@ -470,21 +470,8 @@ function Panels.canInstall(square)
     return building
 end
 
--- A box's item carrying what of the box goes with it (Changes.keepPanel: its tier), named for it above tier 1.
-function Panels.keepOnItem(item, kept)
-    if not kept then return end
-    item:getModData()[BU.Units.KEPT] = kept
-    if (kept.tier or 1) > 1 then
-        item:setName(getText("IGUI_BU_PanelItemTier", getItemNameFromFullType(item:getFullType()), kept.tier))
-        item:setCustomName(true)
-    end
-end
-
--- A box item's tier (keepOnItem): 1 for a new one.
-function Panels.itemTier(item)
-    local kept = item:getModData()[BU.Units.KEPT]
-    return kept and kept.tier or 1
-end
+-- A box item's tier: its type's (BU.PANEL_ITEMS).
+function Panels.itemTier(item) return BU.PANEL_ITEM_TIER[item:getFullType()] or 1 end
 
 -- The box's recipe: not known at first (a box is found first), learned by opening one up (ISBUReverseEngineer).
 Panels.RECIPE = "MakeBreakerBox"

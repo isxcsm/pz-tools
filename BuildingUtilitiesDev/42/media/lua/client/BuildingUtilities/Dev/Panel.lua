@@ -45,6 +45,8 @@ local function givePage(page, ui)
     ui.heading(page, T("Gv_Units"), 1)
     local rows = ui.buttons(page, 2, {
         gift("BuildingUtilities.BreakerBox"),
+        gift("BuildingUtilities.BreakerBox4"),
+        gift("BuildingUtilities.ControlBoard", 4),
         gift("BuildingUtilities.SolarPanel", 4),
         gift("BuildingUtilities.BatteryRack"),
         gift("BuildingUtilities.WaterPump"),

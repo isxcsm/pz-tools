@@ -151,7 +151,7 @@ test("the BU section: seven pages in order, each built and refreshed without a p
 end)
 
 test("with a panel near, every page refreshes on it, and a far one is not taken", function()
-    local panel = Store.newPanel(12, 10, 0, BU.PANEL_SPRITES[1])
+    local panel = Store.newPanel(12, 10, 0, BU.panelSprite("S"))
     for _, id in ipairs(PAGES) do
         local page = build(id)
         if page.refresh then page.refresh() end
@@ -164,7 +164,7 @@ test("with a panel near, every page refreshes on it, and a far one is not taken"
 end)
 
 test("panel page: tier, breaker, main switch and overload change the panel", function()
-    local panel = Store.newPanel(12, 10, 0, BU.PANEL_SPRITES[1])
+    local panel = Store.newPanel(12, 10, 0, BU.panelSprite("S"))
     local page = build("Panel")
     find(page, "button", "IGUI_BUDev_Pn_TierN 3"):click()
     eq(panel.tier, 3)
@@ -183,8 +183,8 @@ test("panel page: tier, breaker, main switch and overload change the panel", fun
 end)
 
 test("panel page: a panel chosen from the list is used even when another is nearer", function()
-    local near = Store.newPanel(11, 10, 0, BU.PANEL_SPRITES[1])
-    local far = Store.newPanel(40, 10, 0, BU.PANEL_SPRITES[1])
+    local near = Store.newPanel(11, 10, 0, BU.panelSprite("S"))
+    local far = Store.newPanel(40, 10, 0, BU.panelSprite("S"))
     local page = build("Panel")
     local list
     for _, c in ipairs(page.controls) do if c.kind == "combo" then list = c end end
@@ -197,7 +197,7 @@ test("panel page: a panel chosen from the list is used even when another is near
 end)
 
 test("solar page: snow on the panels and off, the clock and the cold", function()
-    local panel = Store.newPanel(12, 10, 0, BU.PANEL_SPRITES[1])
+    local panel = Store.newPanel(12, 10, 0, BU.panelSprite("S"))
     local unit = Store.newUnit("solar", 13, 10, 0, "x")
     unit.panel = panel.id
     local page = build("Solar")
@@ -214,7 +214,7 @@ test("solar page: snow on the panels and off, the clock and the cold", function(
 end)
 
 test("water page: filter media used up and new", function()
-    local panel = Store.newPanel(12, 10, 0, BU.PANEL_SPRITES[1])
+    local panel = Store.newPanel(12, 10, 0, BU.panelSprite("S"))
     local unit = Store.newUnit("filter", 13, 10, 0, "x")
     unit.panel = panel.id
     local page = build("Water")

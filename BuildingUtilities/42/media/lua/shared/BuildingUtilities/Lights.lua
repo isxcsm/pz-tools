@@ -27,8 +27,7 @@ local function spriteLights()
     local function give(sprites, spec)
         for _, name in pairs(sprites or {}) do bySprite[name] = spec end
     end
-    local look = BU.PanelLook and BU.PanelLook.SPRITES
-    if look then
+    for _, look in pairs(BU.PanelLook and BU.PanelLook.SPRITES or {}) do
         give(look.on, GREEN)
         give(look.tripped, RED)
         give(look.trippedDark, RED)

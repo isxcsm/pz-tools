@@ -23,7 +23,7 @@ end
 
 -- A panel of a tier with a rack of batteries (each { type, charge, condition }) wired to it.
 local function box(tier, batteries)
-    local panel = Store.newPanel(10, 10, 0, BU.PANEL_SPRITES[1])
+    local panel = Store.newPanel(10, 10, 0, BU.panelSprite("S"))
     panel.tier = tier
     if batteries then
         local rack = Store.newUnit("rack", 11, 10, 0, BU.Rack.SPRITE)

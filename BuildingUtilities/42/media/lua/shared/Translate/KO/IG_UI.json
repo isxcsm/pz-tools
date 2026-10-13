@@ -1006,7 +1006,6 @@
     "IGUI_BU_LineCut_chain": "벽이나 전신주·수전 하나에 이어 달 수 있는 기기는 %1개까지라, 여기까지는 공급되지 않습니다.",
     "IGUI_BU_LineCut_far": "벽에서 나온 선이 제어반이 닿는 거리(%1칸)보다 깁니다.",
     "IGUI_BU_LineNotSupplied": "공급 안 됨",
-    "IGUI_BU_PanelItemTier": "%1 (%2단계)",
     "IGUI_BU_Reason_relays": "이 제어반은 이미 전신주·야외 수전을 %1개 쓰고 있습니다.",
     "IGUI_BU_Reason_relaysMore": "이 제어반은 이미 전신주·야외 수전을 %1개 쓰고 있습니다. 다음 단계에서는 %2개까지 됩니다.",
     "IGUI_BU_Reason_chain": "그 선에는 이미 기기가 %1개 달려 있습니다.",

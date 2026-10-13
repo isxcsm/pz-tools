@@ -7,7 +7,9 @@
 --     a unit that is not empty, is not taken up (Units.isEmpty);
 --   - putting down obeys the kind's rules (Panels.canInstall, Units.canInstall: the tool's panel says why not) and
 --     makes the box or the unit as this mod does (BU.Changes), facing as the cursor was turned;
---   - the faces: each kind's looks for the sides (BU.panelSprite, the units' sprite(nil, side)) as the tool's offsets.
+--   - the faces: each kind's looks for the sides (a box's tier's: BU.panelSprite, the units' sprite(nil, side)) as the
+--     tool's offsets.
+-- A box's item is its tier's (BU.PANEL_ITEMS): taken up, a box gives its tier's, and puts its tier's down.
 -- A placed one is not turned with the tool (its record keeps how it faces), nor scrapped.
 require "Moveables/ISMoveableSpriteProps"
 require "BuildingUtilities/Units"
@@ -23,10 +25,8 @@ local kinds
 local function kindOf(spriteName)
     if not kinds then
         kinds = {}
-        -- every look a box shows (its lamps), an old box's vanilla terminal but for those tiles elsewhere
-        for _, name in ipairs(BU.PanelLook.ALL) do
-            if not BU.OLD_PANEL_SPRITE_SET[name] then kinds[name] = "panel" end
-        end
+        -- every look a box shows (its tier, its place, its lamps)
+        for _, name in ipairs(BU.PanelLook.ALL) do kinds[name] = "panel" end
         for _, kind in ipairs(BU.Units.KINDS) do
             for _, name in ipairs(BU.Units.definition(kind).sprites or {}) do kinds[name] = kind end
         end
@@ -34,14 +34,21 @@ local function kindOf(spriteName)
     return spriteName and kinds[spriteName]
 end
 
-local function itemType(kind)
-    return kind == "panel" and BU.PANEL_ITEM or BU.Units.definition(kind).item
+-- The item a kind is taken up as: a box's of its tier.
+local function itemType(kind, tier)
+    return kind == "panel" and BU.PANEL_ITEMS[tier or 1] or BU.Units.definition(kind).item
+end
+
+-- The tier of a box's sprite (1 for any other).
+local function spriteTier(spriteName)
+    local shown = BU.PanelLook.ofSprite(spriteName)
+    return shown and shown.tier or 1
 end
 
 -- An item of the type, made once, for the tool's name and weight.
 local items = {}
-local function itemOf(kind)
-    local fullType = itemType(kind)
+local function itemOf(kind, tier)
+    local fullType = itemType(kind, tier)
     local item = items[fullType]
     if item == nil then
         item = instanceItem(fullType) or false
@@ -72,27 +79,29 @@ local function find(kind, square, object)
     return nil
 end
 
--- A kind's look for each side it can face, by side (BU.SIDES), each look once: worked out once a kind.
+-- A kind's look for each side it can face, by side (BU.SIDES), each look once (a box's of its tier, indoors): worked
+-- out once a kind and tier.
 local facesByKind = {}
-local function facesOf(kind)
-    local faces = facesByKind[kind]
+local function facesOf(kind, tier)
+    local key = kind == "panel" and kind .. (tier or 1) or kind
+    local faces = facesByKind[key]
     if faces then return faces end
     faces = {}
     local seen = {}
     for _, side in ipairs(BU.SIDES) do
-        local sprite = kind == "panel" and BU.panelSprite(side) or BU.Units.spriteFacing(kind, nil, side)
+        local sprite = kind == "panel" and BU.panelSprite(side, tier) or BU.Units.spriteFacing(kind, nil, side)
         if sprite and not seen[sprite] then
             seen[sprite] = true
             faces[side] = sprite
         end
     end
-    facesByKind[kind] = faces
+    facesByKind[key] = faces
     return faces
 end
 
 -- The side a look of a kind faces, or nil.
-local function sideOf(kind, spriteName)
-    for side, sprite in pairs(facesOf(kind)) do
+local function sideOf(kind, spriteName, tier)
+    for side, sprite in pairs(facesOf(kind, tier)) do
         if sprite == spriteName then return side end
     end
     return nil
@@ -101,10 +110,10 @@ end
 -- The tool turns a tile through its faces by offsets in its sheet (the game reads them from the tile's properties).
 local OFFSET = { N = "Noffset", E = "Eoffset", S = "Soffset", W = "Woffset" }
 local function setFaces(s, kind)
-    local own = sideOf(kind, s.spriteName)
+    local own = sideOf(kind, s.spriteName, s.buTier)
     if not own or not s.sheetName or not s.spriteID then return end
     local any = false
-    for side, sprite in pairs(facesOf(kind)) do
+    for side, sprite in pairs(facesOf(kind, s.buTier)) do
         local id = string.sub(sprite, 1, #s.sheetName) == s.sheetName and tonumber(string.sub(sprite, #s.sheetName + 1))
         if side ~= own and id then
             s[OFFSET[side]] = id - s.spriteID
@@ -120,6 +129,7 @@ function ISMoveableSpriteProps.new(sprite)
     local kind = s and kindOf(s.spriteName)
     if kind then
         s.buKind = kind
+        s.buTier = kind == "panel" and spriteTier(s.spriteName) or nil
         s.isMoveable = true
         s.canScrap = false
         s.type = "Object"
@@ -130,7 +140,7 @@ function ISMoveableSpriteProps.new(sprite)
         s.Noffset, s.Soffset, s.Woffset, s.Eoffset = 0, 0, 0, 0
         s.linkedOffset, s.linkedLoc, s.isClosedState, s.wallOverlay = 0, nil, false, false
         s.ignoreSurfaceSnap, s.isGridExtensionTile, s.allowDoorFrame, s.isForceSingleItem = false, false, false, false
-        local item = itemOf(kind)
+        local item = itemOf(kind, s.buTier)
         if item then
             s.name = item:getName()
             s.weight = item:getActualWeight()
@@ -169,9 +179,9 @@ function ISMoveableSpriteProps:pickUpMoveable(character, square, createItem, for
         return {}
     end
     local inventory = character:getInventory()
-    local item = inventory:AddItem(itemType(kind))
+    local item = inventory:AddItem(itemType(kind, kind == "panel" and kept.tier or nil))
     if item then
-        if kind == "panel" then BU.Panels.keepOnItem(item, kept) else BU.Units.keepOnItem(kind, item, kept) end
+        if kind ~= "panel" then BU.Units.keepOnItem(kind, item, kept) end
         sendAddItemToContainer(inventory, item)
     end
     return {}
@@ -201,12 +211,12 @@ function ISMoveableSpriteProps:placeMoveable(character, square, origSpriteName, 
     if not square or placeProblem(kind, square) then return end
     local item = self:findInInventory(character, origSpriteName)
     if not item then return end
-    local side = sideOf(kind, self.spriteName) or BU.sideOf(square, character)
-    local kept = BU.Units.keptOnItem(item)
+    local side = sideOf(kind, self.spriteName, self.buTier) or BU.sideOf(square, character)
+    local kept = kind == "panel" and { tier = BU.Panels.itemTier(item) } or BU.Units.keptOnItem(item)
     local inventory = character:getInventory()
     inventory:Remove(item)
     sendRemoveItemFromContainer(inventory, item)
-    if kind == "panel" then BU.Changes.install(square, BU.panelSprite(side), kept)
+    if kind == "panel" then BU.Changes.install(square, side, kept)
     else BU.Changes.installUnit(kind, square, BU.Units.spriteFacing(kind, square, side), kept) end
     BU.giveXp(character, 5)
     if ISMoveableCursor then ISMoveableCursor.clearCacheForAllPlayers() end
@@ -242,7 +252,7 @@ Events.OnLoadedTileDefinitions.Add(function()
         if sprite then
             local props = sprite:getProperties()
             props:set("IsMoveAble", "true")
-            props:set("CustomItem", itemType(kind))
+            props:set("CustomItem", itemType(kind, kind == "panel" and spriteTier(name) or nil))
         end
     end
 end)

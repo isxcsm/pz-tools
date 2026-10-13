@@ -83,27 +83,30 @@ snowAs(0.2, Solar.SNOW_OVERLAYS.light.W)
 snowAs(0.8, Solar.SNOW_OVERLAYS.heavy.W)
 snowAs(nil, "none")
 
--- The box: an old terminal takes the console, facing as it did; then tripped, blinking, reset.
+-- The box: each tier's look, facing as it did; then tripped, blinking, reset.
 local box = Panels.object(panel)
-local before, tripped = spriteOf(box), panel.tripped
+local before, tripped, tier = spriteOf(box), panel.tripped, panel.tier
 local facing = PanelLook.of(box) and PanelLook.of(box).facing or 1
-box:setSprite(getSprite(BU.OLD_PANEL_SPRITES[facing]))
-PanelLook.show(panel)
-local look = PanelLook.wanted(panel)
-check("old box takes the console (" .. look .. ")", spriteOf(box), PanelLook.SPRITES[look][facing])
-check("its stored sprite", panel.sprite, BU.PANEL_SPRITES[facing])
+for each = 1, BU.TIERS do
+    panel.tier = each
+    PanelLook.show(panel)
+    local looks = PanelLook.SPRITES[PanelLook.variant(each, panel.outdoor)]
+    check("tier " .. each .. "'s look", spriteOf(box), looks[PanelLook.wanted(panel)][facing])
+end
+panel.tier = tier
+local looks = PanelLook.SPRITES[PanelLook.variant(tier, panel.outdoor)]
 panel.tripped = true
 PanelLook.show(panel)
-check("tripped", spriteOf(box), PanelLook.SPRITES.tripped[facing])
+check("tripped", spriteOf(box), looks.tripped[facing])
 PanelLook.blink(box, false)
-check("blink dark", spriteOf(box), PanelLook.SPRITES.trippedDark[facing])
+check("blink dark", spriteOf(box), looks.trippedDark[facing])
 PanelLook.show(panel)
-check("the server keeps the dark frame", spriteOf(box), PanelLook.SPRITES.trippedDark[facing])
+check("the server keeps the dark frame", spriteOf(box), looks.trippedDark[facing])
 PanelLook.blink(box, true)
-check("blink lit", spriteOf(box), PanelLook.SPRITES.tripped[facing])
+check("blink lit", spriteOf(box), looks.tripped[facing])
 panel.tripped = tripped
 PanelLook.show(panel)
-check("reset", spriteOf(box), PanelLook.SPRITES[PanelLook.wanted(panel)][facing])
+check("reset", spriteOf(box), looks[PanelLook.wanted(panel)][facing])
 say("box was", before, "is", spriteOf(box))
 
 function BULOOKS_CLEAN()

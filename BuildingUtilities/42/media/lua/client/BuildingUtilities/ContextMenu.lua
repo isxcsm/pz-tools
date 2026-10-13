@@ -430,7 +430,7 @@ end
 -- What an item puts down: "panel" for a box, a unit's kind, or nil.
 local function placedKind(item)
     local fullType = item:getFullType()
-    if fullType == BU.PANEL_ITEM then return "panel" end
+    if BU.PANEL_ITEM_TIER[fullType] then return "panel" end
     for _, kind in ipairs(Units.KINDS) do
         if Units.definition(kind).item == fullType then return kind end
     end

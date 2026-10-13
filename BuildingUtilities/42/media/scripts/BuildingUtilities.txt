@@ -9,9 +9,36 @@ module BuildingUtilities
     {
         DisplayCategory = Electronics,
         ItemType = base:moveable,
-        WorldObjectSprite = bu_water_01_32,
+        WorldObjectSprite = bu_water_01_72,
         Weight = 3.0,
         Icon = BUBreakerBox,
+    }
+
+    item BreakerBox2
+    {
+        DisplayCategory = Electronics,
+        ItemType = base:moveable,
+        WorldObjectSprite = bu_water_01_88,
+        Weight = 4.0,
+        Icon = BUBreakerBox2,
+    }
+
+    item BreakerBox3
+    {
+        DisplayCategory = Electronics,
+        ItemType = base:moveable,
+        WorldObjectSprite = bu_water_01_104,
+        Weight = 5.0,
+        Icon = BUBreakerBox3,
+    }
+
+    item BreakerBox4
+    {
+        DisplayCategory = Electronics,
+        ItemType = base:moveable,
+        WorldObjectSprite = bu_water_01_32,
+        Weight = 7.0,
+        Icon = BUBreakerBox4,
     }
 
     item ControlBoard
@@ -19,7 +46,7 @@ module BuildingUtilities
         DisplayCategory = Electronics,
         ItemType = base:normal,
         Weight = 0.2,
-        Icon = ElectronicsScrap,
+        Icon = BUControlBoard,
     }
 
     item SolarPanel

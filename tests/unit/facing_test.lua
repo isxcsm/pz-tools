@@ -16,8 +16,10 @@ test("the side a character stands on, and the box facing it or a side", function
     local s = square(10, 10)
     eq(BU.sideOf(s, at(12, 10.5)), "E")
     eq(BU.sideOf(s, at(10.5, 8)), "N")
-    eq(BU.panelSpriteFacing(s, at(10.5, 13)), BU.PANEL_SPRITES[1], "south")
-    eq(BU.panelSprite("W"), BU.PANEL_SPRITES[4])
+    eq(BU.sideOf(s, at(10.5, 13)), "S")
+    eq(BU.panelSprite("S"), "bu_water_01_72", "tier 1 indoors, facing south")
+    eq(BU.panelSprite("W", 4), "bu_water_01_35", "tier 4 indoors, facing west")
+    eq(BU.panelSprite("E", 2, true), "bu_water_01_137", "tier 2 outdoors, facing east")
 end)
 
 test("a solar panel has two looks on the ground and one above it", function()

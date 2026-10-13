@@ -1,6 +1,7 @@
 """Draws this mod's own tiles and writes them as its second tile sheet (bu_water_01): the water units (pump, sprinkler,
-filter, booster pump) in each of their looks, the utility panel (the breaker box) in its looks, the relays (a pole for power,
-a yard hydrant for water), and the snow that lies on a solar panel (overlays over the first sheet's panels, bu_solar_01).
+filter, booster pump) in each of their looks, the utility panel (the breaker box) of each tier in its looks, indoors and
+outdoors on a pedestal, the relays (a pole for power, a yard hydrant for water), and the snow that lies on a solar panel
+(overlays over the first sheet's panels, bu_solar_01). Also the items' icons, and the control board's.
 
 The art is made here, not painted: each object is a few solids (boxes, cylinders) in a tile's space, projected the
 way the game draws a square, shaded by a light from above and the viewer's left, drawn four times larger with a depth
@@ -33,7 +34,7 @@ ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'BuildingU
 SHEET = 'bu_water_01'
 PACK = 'BuildingUtilitiesWater'
 SOLAR_PACK = 'BuildingUtilitiesSolar'
-COLS, ROWS = 8, 9
+COLS, ROWS = 8, 23
 W, H = 128, 256
 SS = 4  # drawn this many times larger, then scaled down
 UP = 64 * math.sqrt(1.5)  # pixels of a unit up: a square's side across is 64 * sqrt(2), looked at from 30 degrees
@@ -81,12 +82,14 @@ class Scene:
         self.turns = turns
         self.frost = frost
         self.faces = []
+        # How far up what is drawn stands (an outdoor box on its pedestal); the ground is at -lift.
+        self.lift = 0.0
 
     def turn(self, p, vector=False):
         x, y, z = p
         for _ in range(self.turns % 4):
             x, y = (-y, x) if vector else (1 - y, x)
-        return (x, y, z)
+        return (x, y, z) if vector else (x, y, z + self.lift)
 
     def face(self, points, colour, normal, shine=0.0, emit=False):
         normal = self.turn(normal, True)
@@ -604,18 +607,158 @@ DIAL = (220, 216, 200)
 LABEL = (204, 200, 188)
 HAZARD = (196, 160, 52)
 BOX_LAMPS = {'off': (), 'on': ('green', 'amber'), 'tripped': ('red',), 'tripped_dim': ()}
+CONDUIT = (88, 92, 98)
+CONDUIT_DARK = (60, 62, 66)
+# Where each tier's box stands on its square: x0, x1, back, front.
+FOOT = {1: (0.3, 0.7, 0.38, 0.62), 2: (0.2, 0.8, 0.36, 0.64), 3: (0.2, 0.8, 0.36, 0.64), 4: (0.16, 0.84, 0.3, 0.7)}
+# How high an outdoor box stands on its pedestal, and its lid against the rain.
+STAND = 0.3
+ROOF = 0.022
 
 
-def console(turns, look):
-    """The console faces south (+y): a plinth; the cabinet with its door (a row of breakers behind a window, the main
+def warning(s, x, y, z, size):
+    """The warning sign on a front at y: a yellow triangle in a black one, its base at height z."""
+    s.poly([(x - size * 0.8, y + 0.004, z), (x + size * 0.8, y + 0.004, z), (x, y + 0.004, z + size * 1.1)],
+           (40, 40, 40), (0, 1, 0))
+    s.poly([(x - size * 0.64, y + 0.006, z + size * 0.1), (x + size * 0.64, y + 0.006, z + size * 0.1),
+            (x, y + 0.006, z + size * 0.9)], HAZARD, (0, 1, 0))
+
+
+def label(s, x0, x1, y, z0, z1, lines):
+    """A label on a front at y, with lines of print."""
+    s.box(x0, y, z0, x1, y + 0.004, z1, LABEL)
+    step = (z1 - z0) / (len(lines) + 1)
+    for i, share in enumerate(lines):
+        lz = z0 + step * (i + 0.6)
+        s.box(x0 + 0.015, y + 0.004, lz, x0 + 0.015 + (x1 - x0 - 0.03) * share, y + 0.006, lz + 0.005, (70, 70, 72))
+
+
+def louvres(s, x0, x1, y, z, rows, out=0.01):
+    for i in range(rows):
+        lz = z + i * 0.03
+        s.box(x0, min(y, y + out), lz, x1, max(y, y + out), lz + 0.012, HOUSING_DARK)
+
+
+def side_louvres(s, x0, x1, y0, y1, z, rows):
+    for xs, xo in ((x1, 0.01), (x0, -0.01)):
+        for i in range(rows):
+            lz = z + i * 0.03
+            s.box(min(xs, xs + xo), y0, lz, max(xs, xs + xo), y1, lz + 0.012, HOUSING_DARK)
+
+
+def hinges(s, x, y, zs):
+    for hz in zs:
+        s.tube((x, y + 0.004, hz), (x, y + 0.004, hz + 0.04), 0.008, TRIM, shine=0.5, segments=12)
+
+
+def lever(s, x, y, z, look, length):
+    """The main switch's lever on the box's east side at x: a plate, its boss, the red handle up (on), down (off) or
+    fallen to the middle (tripped), a knob at its end."""
+    a = math.radians(0 if look.startswith('tripped') else 60 if look == 'on' else -60)
+    s.box(x, y - 0.05, z - 0.05, x + 0.012, y + 0.05, z + 0.05, TRIM, shine=0.3)
+    s.tube((x + 0.012, y, z), (x + 0.045, y, z), 0.024, (58, 60, 62), shine=0.4, segments=24)
+    end = (x + 0.05, y + length * math.cos(a), z + length * math.sin(a))
+    s.tube((x + 0.05, y, z), end, 0.011, HANDLE, shine=0.35, segments=16)
+    s.tube((end[0] - 0.016, end[1], end[2]), (end[0] + 0.022, end[1], end[2]), 0.019, HANDLE, shine=0.35,
+           segments=20)
+
+
+def feed(s, x, yb):
+    """The supply's conduit out of the back, through a gland box, into the ground."""
+    s.box(x - 0.05, yb - 0.035, 0.1, x + 0.05, yb, 0.18, HOUSING_DARK, shine=0.2)
+    s.tube((x, yb - 0.018, 0.11), (x, yb - 0.018, -s.lift - 0.02), 0.022, PIPE, shine=0.4, segments=24)
+
+
+def timer_dial(s, x, y, z, r):
+    """A time switch's dial on a front at y: its bezel, the face with the day's 24 pins round it (the hours it runs
+    pushed out, red), the knob, and the mark at the top that says the hour now."""
+    s.tube((x, y, z), (x, y + 0.014, z), r * 1.14, TRIM, shine=0.4, segments=48)
+    s.tube((x, y + 0.014, z), (x, y + 0.018, z), r, DIAL, segments=48)
+    for i in range(24):
+        a = math.pi / 2 - 2 * math.pi * i / 24
+        px, pz = x + r * 0.84 * math.cos(a), z + r * 0.84 * math.sin(a)
+        out = 7 <= i < 16
+        s.box(px - 0.005, y + 0.018, pz - 0.005, px + 0.005, y + (0.03 if out else 0.021), pz + 0.005,
+              (196, 56, 40) if out else (96, 96, 98), shine=0.3)
+    for i in range(0, 24, 6):
+        a = math.pi / 2 - 2 * math.pi * i / 24
+        s.box(x + r * 0.5 * math.cos(a) - 0.004, y + 0.018, z + r * 0.5 * math.sin(a) - 0.004,
+              x + r * 0.5 * math.cos(a) + 0.004, y + 0.02, z + r * 0.5 * math.sin(a) + 0.004, (40, 40, 40))
+    s.tube((x, y + 0.018, z), (x, y + 0.034, z), r * 0.26, (40, 40, 42), cap=(60, 60, 62), shine=0.4, segments=24)
+    s.poly([(x - 0.012, y + 0.016, z + r * 1.14 + 0.002), (x + 0.012, y + 0.016, z + r * 1.14 + 0.002),
+            (x, y + 0.016, z + r * 0.98)], (200, 50, 40), (0, 1, 0))
+
+
+def plain_box(s, glows, look, roof):
+    """Tier 1: a plain box; its door with a label and the warning sign, the main switch's lever on its side, one lamp on
+    its top (green with power, red when tripped)."""
+    x0, x1, yb, yf = FOOT[1]
+    zt = 0.66
+    s.box(x0, yb, 0.04, x1, yf, zt, HOUSING, shine=0.15)
+    s.box(x0 - 0.006, yb - 0.006, zt, x1 + 0.006, yf + 0.006, zt + 0.012, TRIM, shine=0.3)
+    f = yf + 0.008
+    s.box(x0 + 0.025, yf, 0.07, x1 - 0.025, f, zt - 0.025, DOOR, shine=0.2)
+    label(s, 0.37, 0.63, f, 0.52, 0.6, (0.8, 0.55, 0.65))
+    warning(s, 0.5, f, 0.39, 0.055)
+    s.box(0.34, f, 0.26, 0.355, f + 0.025, 0.34, (52, 54, 56), shine=0.5)
+    hinges(s, x1 - 0.035, f, (0.12, 0.54))
+    louvres(s, 0.4, 0.6, f, 0.1, 3)
+    lever(s, x1, 0.5, 0.4, look, 0.14)
+    tripped = look.startswith('tripped')
+    lamp(s, glows, 0.5, 0.5, zt + 0.012 + roof, 0.026, 'red' if tripped else 'green', look in ('on', 'tripped'))
+    feed(s, 0.5, yb)
+    return x0, x1, yb, yf, zt + 0.012
+
+
+def breaker_box(s, glows, look, roof, timer=False):
+    """Tier 2: a taller box, its breakers in a row behind a window in the door (one fallen to the middle when it
+    tripped), the circuits' list over them, the main switch's lever on its side, a green and a red lamp on its top.
+    Tier 3 (timer): the same with a time switch's dial on the door and an amber lamp between."""
+    x0, x1, yb, yf = FOOT[3 if timer else 2]
+    zt = 0.76
+    s.box(x0, yb, 0.04, x1, yf, zt, HOUSING, shine=0.15)
+    s.box(x0 - 0.006, yb - 0.006, zt, x1 + 0.006, yf + 0.006, zt + 0.012, TRIM, shine=0.3)
+    f = yf + 0.008
+    s.box(x0 + 0.03, yf, 0.07, x1 - 0.03, f, zt - 0.03, DOOR, shine=0.2)
+    tripped = look.startswith('tripped')
+    s.box(0.26, f, 0.44, 0.68, f + 0.005, 0.62, (36, 38, 40))
+    for i in range(7):
+        bx = 0.272 + i * 0.058
+        s.box(bx, f + 0.005, 0.46, bx + 0.046, f + 0.02, 0.6, MODULE, shine=0.2)
+        tz = 0.52 if tripped and i == 4 else 0.55
+        s.box(bx + 0.015, f + 0.02, tz, bx + 0.031, f + 0.04, tz + 0.035, TOGGLE)
+    s.box(0.255, f, 0.62, 0.685, f + 0.003, 0.628, TRIM)
+    label(s, 0.26, 0.58, f, 0.645, 0.7, (0.85, 0.6, 0.75))
+    warning(s, 0.65, f, 0.645, 0.045)
+    s.box(0.235, f, 0.34, 0.25, f + 0.025, 0.42, (52, 54, 56), shine=0.5)
+    hinges(s, x1 - 0.04, f, (0.12, 0.62))
+    if timer:
+        timer_dial(s, 0.35, f, 0.25, 0.085)
+        label(s, 0.3, 0.4, f, 0.105, 0.135, (0.7,))
+        louvres(s, 0.5, 0.72, f, 0.12, 4)
+    else:
+        louvres(s, 0.3, 0.7, f, 0.12, 4)
+    side_louvres(s, x0, x1, 0.42, 0.58, 0.52, 3)
+    lever(s, x1, 0.5, 0.46, look, 0.15)
+    colours = ('green', 'amber', 'red') if timer else ('green', 'red')
+    for i, colour in enumerate(colours):
+        x = 0.5 + (i - (len(colours) - 1) / 2) * 0.12
+        lamp(s, glows, x, 0.5, zt + 0.012 + roof, 0.026, colour, colour in BOX_LAMPS[look])
+    feed(s, 0.5, yb)
+    return x0, x1, yb, yf, zt + 0.012
+
+
+def timer_box(s, glows, look, roof):
+    return breaker_box(s, glows, look, roof, timer=True)
+
+
+def console(s, glows, look, roof):
+    """Tier 4: the console faces south (+y): the cabinet with its door (a row of breakers behind a window, the main
     breaker with its red handle, a label and a warning sign, louvres), a sloped desk (two rotary switches and a key
     switch), a meter bridge at the back (a round meter on its front, the three signal lamps on its top, where they are
     seen from every side); on the back a conduit into the floor and louvres, louvres on the sides too."""
-    s = Scene(turns)
-    glows = []
-    x0, x1, yb, yf = 0.16, 0.84, 0.3, 0.7
+    x0, x1, yb, yf = FOOT[4]
     zt, yd, zd, zb = 0.58, 0.5, 0.66, 0.8
-    s.box(x0 + 0.02, yb + 0.02, 0.0, x1 - 0.02, yf - 0.02, 0.04, PLINTH)
     s.box(x0, yb, 0.04, x1, yf, zt, HOUSING, shine=0.15)
     # The desk slopes up from the front to the meter bridge.
     slope = unit((0, zd - zt, yf - yd))
@@ -641,17 +784,11 @@ def console(turns, look):
     hz = 0.37 if look.startswith('tripped') else 0.42
     s.box(0.685, f + 0.03, hz, 0.735, f + 0.075, hz + 0.035, HANDLE, shine=0.35)
     # A label over the breakers with lines of print, the warning sign beside it.
-    s.box(0.24, f, 0.485, 0.5, f + 0.004, 0.53, LABEL)
-    for i, length in enumerate((0.2, 0.15, 0.17)):
-        lz = 0.495 + i * 0.012
-        s.box(0.255, f + 0.004, lz, 0.255 + length, f + 0.006, lz + 0.005, (70, 70, 72))
-    s.poly([(0.66, f + 0.004, 0.49), (0.74, f + 0.004, 0.49), (0.70, f + 0.004, 0.545)], (40, 40, 40), (0, 1, 0))
-    s.poly([(0.668, f + 0.006, 0.495), (0.732, f + 0.006, 0.495), (0.70, f + 0.006, 0.535)], HAZARD, (0, 1, 0))
+    label(s, 0.24, 0.5, f, 0.485, 0.53, (0.77, 0.58, 0.65))
+    warning(s, 0.70, f, 0.49, 0.05)
     # The door's latch, louvres at its foot.
     s.box(0.2, f, 0.22, 0.215, f + 0.025, 0.3, (52, 54, 56), shine=0.5)
-    for i in range(4):
-        lz = 0.1 + i * 0.03
-        s.box(0.3, f, lz, 0.7, f + 0.01, lz + 0.012, HOUSING_DARK)
+    louvres(s, 0.3, 0.7, f, 0.1, 4)
 
     # The desk: two rotary switches and a key switch, standing out of the slope.
     def on_desk(x, t, height):
@@ -687,30 +824,67 @@ def console(turns, look):
 
     # The signal lamps on the bridge's top: green and amber for power, red for a tripped breaker.
     for colour, x in (('green', 0.5), ('amber', 0.62), ('red', 0.74)):
-        lamp(s, glows, x, 0.4, zb + 0.016, 0.03, colour, colour in BOX_LAMPS[look])
+        lamp(s, glows, x, 0.4, zb + 0.016 + roof, 0.03, colour, colour in BOX_LAMPS[look])
 
-    # The door's hinges.
-    for hz in (0.12, 0.47):
-        s.tube((x1 - 0.035, f + 0.004, hz), (x1 - 0.035, f + 0.004, hz + 0.04), 0.008, TRIM, shine=0.5, segments=12)
+    hinges(s, x1 - 0.035, f, (0.12, 0.47))
     # The back: a panel screwed on, louvres in it, a plate, and the supply's conduit into the floor through a gland box.
     s.box(x0 + 0.04, yb - 0.006, 0.08, x1 - 0.04, yb, zb - 0.06, DOOR, shine=0.2)
     for sx in (x0 + 0.06, x1 - 0.06):
         for sz in (0.1, zb - 0.08):
             s.tube((sx, yb - 0.006, sz), (sx, yb - 0.01, sz), 0.007, STEEL, shine=0.6, segments=10)
-    for i in range(4):
-        lz = 0.44 + i * 0.03
-        s.box(0.3, yb - 0.014, lz, 0.7, yb - 0.006, lz + 0.012, HOUSING_DARK)
+    louvres(s, 0.3, 0.7, yb - 0.006, 0.44, 4, out=-0.008)
     s.box(0.4, yb - 0.01, 0.32, 0.6, yb - 0.006, 0.38, LABEL)
     s.box(0.415, yb - 0.012, 0.35, 0.56, yb - 0.01, 0.356, (70, 70, 72))
     s.box(0.44, yb - 0.04, 0.12, 0.56, yb, 0.22, HOUSING_DARK, shine=0.2)
-    s.tube((0.5, yb - 0.02, 0.13), (0.5, yb - 0.02, -0.02), 0.028, PIPE, shine=0.4, segments=24)
-    # The sides: louvres high up.
-    for xs, xo in ((x1, 0.01), (x0, -0.01)):
-        for i in range(3):
-            lz = 0.38 + i * 0.03
-            s.box(min(xs, xs + xo), 0.38, lz, max(xs, xs + xo), 0.62, lz + 0.012, HOUSING_DARK)
-    ground = shadow(s.turn((0.5, 0.5, 0))[:2], 0.42, 0.3, 120)
-    return compose(s, ground=ground, seed=40 + turns, glows=glows)
+    s.tube((0.5, yb - 0.02, 0.13), (0.5, yb - 0.02, -s.lift - 0.02), 0.028, PIPE, shine=0.4, segments=24)
+    side_louvres(s, x0, x1, 0.38, 0.62, 0.38, 3)
+    # The trunk to the relays: a thick conduit out of the east side through a gland box, its couplings, down into the
+    # floor at the square's edge.
+    s.box(x1, 0.42, 0.14, x1 + 0.04, 0.58, 0.3, HOUSING_DARK, shine=0.2)
+    tz, tx = 0.22, 0.925
+    rings = [(0, 0.12, CONDUIT_DARK), (0.12, 0.88, CONDUIT), (0.88, 1, CONDUIT_DARK)]
+    s.tube((x1 + 0.04, 0.5, tz), (tx + 0.038, 0.5, tz), 0.038, CONDUIT, shine=0.35, segments=28, bands=rings)
+    s.tube((tx, 0.5, tz + 0.038), (tx, 0.5, -s.lift - 0.02), 0.038, CONDUIT, shine=0.35, segments=28,
+           bands=[(0, 0.08, CONDUIT_DARK), (0.08, 1, CONDUIT)])
+    return x0, x1, yb, yd, zb + 0.016
+
+
+def pedestal(s, x0, x1, yb, yf):
+    """What an outdoor box stands on: a concrete pad, four steel legs on their foot plates, a crossbar low on the long
+    sides, the frame the box sits on."""
+    s.box(max(0.04, x0 - 0.08), max(0.04, yb - 0.08), 0.0, min(0.96, x1 + 0.08), min(0.96, yf + 0.08), 0.06, CONCRETE)
+    for lx in (x0 + 0.03, x1 - 0.065):
+        for ly in (yb + 0.03, yf - 0.065):
+            s.box(lx - 0.012, ly - 0.012, 0.06, lx + 0.047, ly + 0.047, 0.07, FRAME, shine=0.3)
+            s.box(lx, ly, 0.07, lx + 0.035, ly + 0.035, STAND - 0.03, STEEL, shine=0.4)
+    for ly in (yb + 0.035, yf - 0.06):
+        s.box(x0 + 0.04, ly, 0.13, x1 - 0.04, ly + 0.025, 0.16, STEEL, shine=0.4)
+    s.box(x0 + 0.015, yb + 0.015, STAND - 0.03, x1 - 0.015, yf - 0.015, STAND, FRAME, shine=0.3)
+
+
+TIER_BODY = {1: plain_box, 2: breaker_box, 3: timer_box, 4: console}
+
+
+def panel(turns, look, tier, outdoor):
+    """A tier's box in a look, facing S (turns 0) and round; indoors on a plinth, outdoors on a pedestal under a lid."""
+    s = Scene(turns)
+    glows = []
+    x0, x1, yb, yf = FOOT[tier]
+    if outdoor:
+        pedestal(s, x0, x1, yb, yf)
+        s.lift = STAND
+    else:
+        s.box(x0 + 0.02, yb + 0.02, 0.0, x1 - 0.02, yf - 0.02, 0.04, PLINTH)
+    roof = ROOF if outdoor else 0.0
+    rx0, rx1, ry0, ry1, rz = TIER_BODY[tier](s, glows, look, roof)
+    if outdoor:
+        s.box(rx0 - 0.025, ry0 - 0.03, rz, rx1 + 0.025, ry1 + 0.035, rz + roof, HOUSING_DARK, shine=0.25)
+    rx, ry = (x1 - x0) / 2 + 0.07, (yf - yb) / 2 + 0.07
+    if turns % 2:
+        rx, ry = ry, rx
+    ground = shadow((0.5, 0.5), rx, ry, 120)
+    seed = (40 + turns) if tier == 4 and not outdoor else 200 + tier * 10 + turns + (5 if outdoor else 0)
+    return compose(s, ground=ground, seed=seed, glows=glows)
 
 
 # Snow on a solar panel: an overlay over its tile in the first sheet (bu_solar_01), light or heavy.
@@ -834,8 +1008,13 @@ def filters(look):
     return [(lambda t=t, look=look: water_filter(t, look), dict(FILTER, Facing=f)) for t, f in FILTER_FACINGS]
 
 
-def boxes(look):
-    return [(lambda t=t, look=look: console(t, look), dict(BOX, Facing=f)) for t, f in BOX_FACINGS]
+BOX_LOOKS = ('off', 'on', 'tripped', 'tripped_dim')
+
+
+def panels(tier, outdoor):
+    """A tier's box, indoors or out: off, on, tripped and tripped with its lamp dark, each facing S, E, N, W."""
+    return [(lambda t=t, look=look: panel(t, look, tier, outdoor), dict(BOX, Facing=f))
+            for look in BOX_LOOKS for t, f in BOX_FACINGS]
 
 
 def boosters(look):
@@ -844,29 +1023,91 @@ def boosters(look):
 
 WOOD = (112, 84, 58)
 WOOD_DARK = (84, 62, 42)
+CREOSOTE = (66, 50, 38)
 PORCELAIN = (226, 226, 218)
+INSULATOR = (104, 156, 128)
+CAN = (128, 134, 136)
+CAN_DARK = (96, 100, 102)
+HYDRANT_BODY = (52, 84, 128)
+HYDRANT_DARK = (38, 62, 96)
+LID = (46, 92, 60)
 
 
 def pole():
-    """A power relay, for now: a wooden pole on the square's middle with a crossarm across the top, a white insulator
-    at each end and one on the pole's top (a stand-in until the art is drawn)."""
+    """The power relay: a wooden pole, dark with creosote toward the ground, a crossarm on two steel braces with a
+    green glass insulator at each end and one on the pole's top; a can transformer hung on the south side, its leads
+    up to the insulators; the ground wire run down the pole in a moulding, step bolts, a number plate."""
     s = Scene()
-    s.tube((0.5, 0.5, 0.0), (0.5, 0.5, 2.3), 0.07, WOOD, cap=WOOD_DARK)
-    s.box(0.12, 0.46, 2.0, 0.88, 0.54, 2.08, WOOD_DARK, top=WOOD)
-    for x in (0.18, 0.82):
-        s.tube((x, 0.5, 2.08), (x, 0.5, 2.18), 0.028, PORCELAIN, cap=PORCELAIN, shine=0.6)
-    s.tube((0.5, 0.5, 2.3), (0.5, 0.5, 2.38), 0.03, PORCELAIN, cap=PORCELAIN, shine=0.6)
-    return compose(s, ground=shadow((0.5, 0.5), 0.14, 0.07))
+    s.tube((0.5, 0.5, 0.0), (0.5, 0.5, 2.36), 0.072, WOOD, cap=WOOD_DARK, segments=36,
+           bands=[(0, 0.2, CREOSOTE), (0.2, 1, WOOD)])
+    s.box(0.1, 0.455, 2.0, 0.9, 0.545, 2.085, WOOD_DARK, top=WOOD)
+    for x in (0.26, 0.74):
+        s.tube((0.5, 0.56, 1.78), (x, 0.56, 1.995), 0.01, STEEL, shine=0.5, segments=10)
+    for x, z in ((0.15, 2.085), (0.85, 2.085), (0.5, 2.36)):
+        s.tube((x, 0.5, z), (x, 0.5, z + 0.03), 0.012, STEEL, shine=0.5, segments=12)
+        s.tube((x, 0.5, z + 0.03), (x, 0.5, z + 0.1), 0.036, INSULATOR, cap=INSULATOR, shine=0.8, segments=24)
+        s.tube((x, 0.5, z + 0.1), (x, 0.5, z + 0.13), 0.026, INSULATOR, cap=INSULATOR, shine=0.8, segments=24)
+    s.box(0.46, 0.565, 1.5, 0.54, 0.6, 1.7, FRAME, shine=0.3)
+    s.tube((0.5, 0.67, 1.42), (0.5, 0.67, 1.74), 0.085, CAN, cap=CAN_DARK, shine=0.35, segments=36,
+           bands=[(0, 0.08, CAN_DARK), (0.08, 0.92, CAN), (0.92, 1, CAN_DARK)])
+    for x, end in ((0.465, 0.15), (0.535, 0.85)):
+        s.tube((x, 0.67, 1.74), (x, 0.67, 1.8), 0.012, (120, 70, 50), shine=0.5, segments=12)
+        s.tube((x, 0.67, 1.8), (end, 0.5, 2.2), 0.004, (36, 36, 36), segments=6)
+    s.box(0.568, 0.49, 0.0, 0.584, 0.51, 1.42, (96, 74, 54))
+    for x, z in ((0.62, 0.95), (0.38, 1.1), (0.62, 1.25)):
+        s.tube((0.5, 0.5, z), (x, 0.5, z), 0.008, STEEL, shine=0.6, segments=10)
+    s.box(0.475, 0.565, 0.82, 0.525, 0.575, 0.9, (196, 196, 186), shine=0.4)
+    return compose(s, ground=shadow((0.5, 0.5), 0.14, 0.08), seed=54)
 
 
 def hydrant():
-    """A water relay, for now: a valve box set in the ground, its green lid, and a riser with a red handwheel beside
-    it (a stand-in until the art is drawn)."""
+    """The water relay: a yard hydrant. A concrete collar round its standpipe, the galvanized standpipe up to the cast
+    head, its lever up over it with the link down, the spout turned down with its hose thread; beside it the valve box
+    set in the ground, its green lid with a lifting slot."""
     s = Scene()
-    s.box(0.3, 0.3, 0.0, 0.7, 0.7, 0.06, (88, 90, 86), top=(46, 92, 60))
-    s.tube((0.5, 0.5, 0.06), (0.5, 0.5, 0.42), 0.035, STEEL, cap=STEEL, shine=0.4)
-    handwheel(s, 0.5, 0.5, 0.44, 0.09, (170, 40, 34))
-    return compose(s, ground=shadow((0.5, 0.5), 0.25, 0.13))
+    s.box(0.38, 0.38, 0.0, 0.62, 0.62, 0.05, CONCRETE)
+    s.box(0.12, 0.6, 0.0, 0.34, 0.82, 0.03, (88, 90, 86), top=LID)
+    s.box(0.19, 0.69, 0.03, 0.27, 0.71, 0.033, (28, 40, 30))
+    s.tube((0.5, 0.5, 0.05), (0.5, 0.5, 0.56), 0.03, STEEL, shine=0.5, segments=24,
+           bands=[(0, 0.04, PIPE), (0.04, 1, STEEL)])
+    s.box(0.455, 0.455, 0.56, 0.545, 0.545, 0.66, HYDRANT_BODY, top=HYDRANT_DARK, shine=0.3)
+    s.tube((0.5, 0.545, 0.62), (0.5, 0.62, 0.62), 0.018, HYDRANT_BODY, shine=0.3, segments=20)
+    s.tube((0.5, 0.62, 0.638), (0.5, 0.62, 0.55), 0.018, HYDRANT_BODY, shine=0.3, segments=20,
+           bands=[(0, 0.6, HYDRANT_BODY), (0.6, 1, BRASS)])
+    s.box(0.49, 0.47, 0.66, 0.51, 0.53, 0.69, HYDRANT_DARK)
+    s.tube((0.5, 0.5, 0.68), (0.5, 0.36, 0.86), 0.012, HYDRANT_BODY, shine=0.3, segments=14)
+    s.tube((0.5, 0.36, 0.86), (0.5, 0.33, 0.9), 0.016, RUBBER, segments=14)
+    s.tube((0.5, 0.42, 0.78), (0.5, 0.44, 0.6), 0.005, STEEL, shine=0.5, segments=8)
+    return compose(s, ground=shadow((0.42, 0.6), 0.26, 0.18), seed=55)
+
+
+PCB = (34, 102, 58)
+PCB_TRACE = (60, 140, 80)
+GOLD = (210, 172, 82)
+CHIP = (30, 30, 32)
+
+
+def control_board():
+    """The control board, for its icon: a green board lying flat, gold fingers along its edge, two chips with their
+    legs, a relay, capacitors and a few traces."""
+    s = Scene()
+    s.box(0.12, 0.28, 0.1, 0.88, 0.72, 0.125, PCB, shine=0.35)
+    for i in range(11):
+        x = 0.18 + i * 0.058
+        s.box(x, 0.67, 0.125, x + 0.034, 0.715, 0.127, GOLD, shine=0.6)
+    for x0, y0, x1, y1 in ((0.2, 0.36, 0.42, 0.52), (0.48, 0.34, 0.62, 0.46)):
+        s.box(x0, y0, 0.125, x1, y1, 0.15, CHIP, shine=0.3)
+        n = int((x1 - x0) / 0.03)
+        for i in range(n):
+            x = x0 + 0.01 + i * (x1 - x0 - 0.02) / max(1, n - 1)
+            for y, d in ((y0, -0.012), (y1, 0.012)):
+                s.box(x - 0.005, min(y, y + d), 0.125, x + 0.005, max(y, y + d), 0.132, STEEL, shine=0.5)
+    s.box(0.66, 0.36, 0.125, 0.82, 0.5, 0.21, (224, 222, 210), shine=0.2)
+    for x, y in ((0.3, 0.6), (0.4, 0.6)):
+        s.tube((x, y, 0.125), (x, y, 0.2), 0.026, BLUE, cap=(160, 168, 176), shine=0.4, segments=20)
+    for y in (0.56, 0.6, 0.64):
+        s.box(0.48, y, 0.125, 0.84, y + 0.008, 0.127, PCB_TRACE)
+    return compose(s, seed=7)
 
 
 def snows(heavy):
@@ -887,13 +1128,17 @@ TILES = (
     + pumps('running') + pumps('dry') + pumps('frozen')
     # 28-31: filters working, then spent.
     + filters('working') + filters('spent')
-    # 32-47: the utility panel off, on, tripped and tripped with its lamp dark, each S, E, N, W.
-    + boxes('off') + boxes('on') + boxes('tripped') + boxes('tripped_dim')
+    # 32-47: the utility panel of tier 4 (the console) off, on, tripped and tripped with its lamp dark, each S, E, N, W.
+    + panels(4, False)
     # 48-53: snow on a solar panel (flat, W, N), light then heavy; 54 the power relay's pole, 55 the water relay's
-    # hydrant (stand-ins).
+    # yard hydrant.
     + snows(False) + snows(True) + [(pole, POLE), (hydrant, HYDRANT)]
     # 56-71: the booster pump stopped, running, running with no water at its floor and frozen, each facing S, E, N, W.
     + boosters('stopped') + boosters('running') + boosters('dry') + boosters('frozen')
+    # 72-119: the utility panel of tiers 1, 2 and 3 indoors, in its looks as the console's (16 each).
+    + panels(1, False) + panels(2, False) + panels(3, False)
+    # 120-183: the utility panel of tiers 1 to 4 outdoors, on its pedestal (16 each).
+    + panels(1, True) + panels(2, True) + panels(3, True) + panels(4, True)
 )
 
 
@@ -957,8 +1202,10 @@ def write_pack_named(path, sheet, images):
 
 # The items' icons: a tile's thing at the game's 32 px, a little brighter, with a dark outline (as Operation Acorn's
 # items have; a 64 px tile shrunk by the game read soft and grey beside them).
-ICONS = {'BUWaterPump': 1, 'BUSprinkler': 4, 'BUWaterFilter': 6, 'BUBreakerBox': 32, 'BUBoosterPump': 56,
-         'BUPowerPole': 54, 'BUYardHydrant': 55}
+ICONS = {'BUWaterPump': 1, 'BUSprinkler': 4, 'BUWaterFilter': 6, 'BUBreakerBox': 72, 'BUBreakerBox2': 88,
+         'BUBreakerBox3': 104, 'BUBreakerBox4': 32, 'BUBoosterPump': 56, 'BUPowerPole': 54, 'BUYardHydrant': 55}
+# Icons of items that are no tile.
+DRAWN_ICONS = {'BUControlBoard': control_board}
 ICON = 32
 
 
@@ -983,6 +1230,8 @@ def item_icon(image):
 def write_icons(images):
     for name, index in ICONS.items():
         item_icon(images[index]).save(os.path.join(ROOT, 'textures', 'Item_%s.png' % name))
+    for name, draw in DRAWN_ICONS.items():
+        item_icon(draw()).save(os.path.join(ROOT, 'textures', 'Item_%s.png' % name))
 
 
 def preview(images, path):

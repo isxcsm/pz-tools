@@ -26,6 +26,9 @@ test("the tiles a box and the units show are furniture naming their items", func
         eq(props[name].CustomItem, BU.Units.definition("solar").item, name)
     end
     eq(props[BU.panelSprite("N")].CustomItem, BU.PANEL_ITEM)
+    eq(props[BU.panelSprite("W", 3)].CustomItem, BU.PANEL_ITEMS[3], "a tier's box gives its tier's item")
+    eq(props[BU.PanelLook.SPRITES[BU.PanelLook.variant(4, true)].tripped[2]].CustomItem, BU.PANEL_ITEMS[4],
+        "outdoors and in any look")
 end)
 
 test("an item without its tile takes its script's", function()

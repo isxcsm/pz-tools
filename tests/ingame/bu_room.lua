@@ -144,7 +144,7 @@ if not (panelSq and panelSq:getBuilding() == host) then
         end
     end
     if not square then say("BAD no square for a panel in the building") return end
-    panel = BU.Changes.install(square, BU.PANEL_SPRITES[1])
+    panel = BU.Changes.install(square, "S")
     data.panel = panel.id
 end
 say("panel", panel.id, panel.x, panel.y, panel.z, "tier", panel.tier)

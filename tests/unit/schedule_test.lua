@@ -29,7 +29,7 @@ end
 -- A box with four solar panels (0.32 in full sun) and, when charge is given, a rack of four standard batteries at it
 -- (8 load-hours), its network carried by them at a load.
 local function box(x, charge, load)
-    local panel = Store.newPanel(x, 10, 0, BU.PANEL_SPRITES[1])
+    local panel = Store.newPanel(x, 10, 0, BU.panelSprite("S"))
     panel.tier = 4
     for i = 1, 4 do
         Changes.connectUnit(Store.newUnit("solar", x + i, 12, 0, BU.Units.definition("solar").sprites[1]), panel, {})

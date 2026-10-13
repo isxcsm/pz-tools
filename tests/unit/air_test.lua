@@ -13,7 +13,7 @@ getClimateManager = function()
 end
 
 test("a square's warmth is kept and used while it is not loaded", function()
-    local panel = Store.newPanel(10, 10, 0, BU.PANEL_SPRITES[1])
+    local panel = Store.newPanel(10, 10, 0, BU.panelSprite("S"))
     eq(BU.airAt(panel), 10, "never seen: the air outside")
     TEST.squares["10,10,0"] = {}
     TEST.air["10,10,0"] = 18.04
