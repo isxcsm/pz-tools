@@ -234,6 +234,11 @@ function Networks.defineWater(panel, keys)
         local old = before[network.id]
         if old and old.tanks ~= tanks[network.id] then change("setProducers", network.id, {}) end
     end
+    -- A network going (its pipe removed) lets its tanks go now: they join another below; it goes itself at the end,
+    -- once no network names it as a parent.
+    for id, old in pairs(before) do
+        if not wanted[id] and old.kind == "T" and old.tanks ~= "" then change("setProducers", id, {}) end
+    end
     for _, network in ipairs(layout.networks) do
         local old = before[network.id]
         if network.kind == "T" and (not old or old.tanks ~= tanks[network.id]) then

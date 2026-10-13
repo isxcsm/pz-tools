@@ -989,7 +989,7 @@ function ISBUPanelWindow:refresh()
         if utility == active or utility == "power" and self.load then self:fill(utility, self.states[utility])
         else self.pending[utility] = { state = self.states[utility] } end
     end
-    self:fillLog()
+    if self.lists[LOG] then self:fillLog() end
     if self.lists[BATTERIES] then self:fillBatteries() end
     -- How water reaches the floors with fixtures, from the rows just filled: the status line and the plan both tell.
     self.waterSupply = self:workOutWaterSupply()

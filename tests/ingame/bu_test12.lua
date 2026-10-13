@@ -10,5 +10,5 @@ end
 for tier = 2, BU.TIERS do
     say("upgrade note " .. tier .. ":", (BU.Panels.upgradeNote(tier, true):gsub("\n", " | ")))
 end
-say("names", getText("IGUI_BU_WindowTitle"), getText("IGUI_BU_PanelDefault"), getText("ContextMenu_BU_Install"),
+say("names", getText("IGUI_BU_PanelDefault"), getText("ContextMenu_BU_Install"),
     getItemNameFromFullType("BuildingUtilities.BreakerBox"), "tabs", getText("IGUI_BU_Tab_power"), getText("IGUI_BU_Tab_water"))

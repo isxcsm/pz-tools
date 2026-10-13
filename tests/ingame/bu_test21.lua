@@ -13,6 +13,7 @@ local panel = Store.get(ModData.getOrCreate("BUTEST").panel)
 if not panel then say("no panel"); return end
 local player = getPlayer()
 local status = ISBUPanelWindow.waterUnitStatus
+local box = { panel = panel }
 say("panel tier", panel.tier, "supplied", Networks.state(panel, "power") and Networks.state(panel, "power").supplied,
     "pipes unpurified", WaterUnits.unpurifiedPipes())
 
@@ -56,7 +57,7 @@ local pump, pumpSquare = put("pump")
 WaterRun.machines(panel, 1)
 local power = Networks.state(panel, "power")
 say("dry: fluid", pump.fluid, "running", pump.running, "idle", pump.idle, "load", panel.extraLoads and panel.extraLoads.pumps,
-    "status", status(nil, pump))
+    "status", status(box, pump))
 local well = getCell():getGridSquare(pump.x + 1, pump.y, 0)
 local wellObject = IsoObject.new(well, "camping_01_16", nil, false)
 well:AddTileObject(wellObject)
@@ -65,11 +66,11 @@ local group = BUT.unitPipeState(panel, pump)
 local before = group and group.amount
 WaterRun.machines(panel, 60)
 say("wet: fluid", pump.fluid, "running", pump.running, "idle", pump.idle, "load", panel.extraLoads and panel.extraLoads.pumps,
-    "status", status(nil, pump), "held before", litres(before),
+    "status", status(box, pump), "held before", litres(before),
     "of", litres(group and group.capacity))
 panel.tripped = true
 WaterRun.machines(panel, 1)
-say("tripped: running", pump.running, "idle", pump.idle, "load", panel.extraLoads and panel.extraLoads.pumps, "status", status(nil, pump))
+say("tripped: running", pump.running, "idle", pump.idle, "load", panel.extraLoads and panel.extraLoads.pumps, "status", status(box, pump))
 panel.tripped = nil
 WaterRun.machines(panel, 1)
 local after = BUT.unitPipeState(panel, pump)
@@ -88,7 +89,7 @@ if SFarmingSystem then SFarmingSystem.instance = stand end
 local okRun, err = pcall(WaterRun.sprinklers, panel)
 if SFarmingSystem then SFarmingSystem.instance = realSystem end
 say("sprinkler ran", okRun, okRun and "" or tostring(err), "raining", raining, "plant water", plant.waterLvl,
-    "sprayedAt", sprinkler.sprayedAt ~= nil, "status", status(nil, sprinkler))
+    "sprayedAt", sprinkler.sprayedAt ~= nil, "status", status(box, sprinkler))
 local sprinklerObject = Units.object(sprinkler)
 Units.definition("sprinkler").sync(sprinkler, sprinklerObject)
 say("sprinkler sprite", sprinklerObject and sprinklerObject:getSprite():getName())
@@ -102,10 +103,10 @@ local function purify()
 end
 page.RiskPlumbingUnpurified = false
 WaterRun.machines(panel, 60)
-say("pipes purify: media", litres(filter.media), "purify", purify(), "status", status(nil, filter))
+say("pipes purify: media", litres(filter.media), "purify", purify(), "status", status(box, filter))
 page.RiskPlumbingUnpurified = true
 WaterRun.machines(panel, 60)
-say("option on: media", litres(filter.media), "purify", purify(), "status", status(nil, filter))
+say("option on: media", litres(filter.media), "purify", purify(), "status", status(box, filter))
 filter.media = 0.5
 WaterRun.machines(panel, 60)
 say("spent: media", litres(filter.media), "purify", purify(), "title", Units.definition("filter").title(filter, "Filter"))

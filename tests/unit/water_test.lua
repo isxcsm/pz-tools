@@ -47,7 +47,19 @@ local function fakeNetworks()
     local api = {
         define = function(_, id) nets[id] = { producers = {}, parents = {}, rooms = {}, rules = {}, purify = true } end,
         remove = function(_, id) nets[id] = nil end,
-        setProducers = function(_, id, list) nets[id].producers = list end,
+        -- As the API: a tank is a producer of one network at a time.
+        setProducers = function(_, id, list)
+            for _, at in ipairs(list) do
+                for other, net in pairs(nets) do
+                    for _, held in ipairs(other ~= id and net.producers or {}) do
+                        if held.x == at.x and held.y == at.y and held.z == at.z then
+                            error(at.x .. "," .. at.y .. "," .. at.z .. " is a producer of the network " .. other)
+                        end
+                    end
+                end
+            end
+            nets[id].producers = list
+        end,
         setParents = function(_, id, list) nets[id].parents = list or {} end,
         addRoom = function(_, id, x, y, z) nets[id].rooms[x .. "," .. y .. "," .. z] = true end,
         removeRoom = function(_, id, x, y, z) nets[id].rooms[x .. "," .. y .. "," .. z] = nil end,
@@ -185,7 +197,7 @@ test("a pipe put in, a room and a tank put on it, then taken away: all back on t
     eq(panel.water.producers[1].pipe, nil)
     eq(panel.water.roomPipe[roomKey], nil)
     eq(nets[green0], nil, "the green networks gone")
-    truthy(nets[idOf(panel, 1, "A", 1, "T")], "the tank on blue again")
+    eq(#nets[idOf(panel, 1, "A", 1, "T")].producers, 1, "the tank on blue again")
     eq(Water.nextPipe(panel), 2)
 end)
 

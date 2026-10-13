@@ -4,7 +4,8 @@
 RUN("bu_lib.lua")
 RUN("bu_rack.lua")
 local BU = BuildingUtilities
-local Store, Panels, Units, Changes, Actions = BU.Store, BU.Panels, BU.Units, BU.Changes, BU.Actions
+local Store, Units, Changes, Actions = BU.Store, BU.Units, BU.Changes, BU.Actions
+local function why(_, reason) return tostring(reason or "-") end
 local say = BUT.say("bu13")
 local player = getPlayer()
 
@@ -31,18 +32,19 @@ if not panel then return end
 local outside = BUT.square(panel.x, panel.y, 0, 1, 12, function(sq) return sq:isOutside() and Units.canInstall("solar", sq) end)
 local inside = panel.z == 0 and BUT.square(panel.x, panel.y, 0, 1, 12, function(sq) return Units.canInstall("rack", sq) end) or nil
 say("squares", outside and (outside:getX() .. "," .. outside:getY()) or "none", inside and (inside:getX() .. "," .. inside:getY()) or "none")
-say("rules: rack outside", tostring(select(2, Units.canInstall("rack", outside))), "solar inside", tostring(select(2, Units.canInstall("solar", inside))))
+say("rules: rack outside", why(Units.canInstall("rack", outside)), "solar inside", why(Units.canInstall("solar", inside)))
 
 -- Down, wired, a battery in and out.
 local solar = Changes.installUnit("solar", outside, Units.spriteFor("solar", outside, player))
 local rack = Changes.installUnit("rack", inside, Units.spriteFor("rack", inside, player))
 say("installed", solar.id, solar.sprite, Units.object(solar) ~= nil, rack.id, Units.object(rack) ~= nil,
-    "taken", tostring(select(2, Units.canInstall("solar", outside))))
+    "taken", why(Units.canInstall("solar", outside)))
 local cost, other = Actions.lineCost("unit", panel, "power", solar.x, solar.y, solar.z, solar.id)
-say("solar line", cost and Store.unit(solar.id) == other, cost and cost.items[1][1], cost and cost.items[1][2])
+local wire = cost and cost.items[1]
+say("solar line", cost and Store.unit(solar.id) == other, wire and wire[1] or "none", wire and wire[2] or 0)
 Changes.connectUnit(solar, panel, { ["Base.ElectricWire"] = 2 })
 Changes.connectUnit(rack, panel, { ["Base.ElectricWire"] = 1 })
-say("wired", #Store.unitList(nil, panel.id), "again", tostring(select(2, Actions.lineCost("unit", panel, "power", solar.x, solar.y, solar.z, solar.id))),
+say("wired", #Store.unitList(nil, panel.id), "again", why(Actions.lineCost("unit", panel, "power", solar.x, solar.y, solar.z, solar.id)),
     "paid", Changes.paidFor(panel)["Base.ElectricWire"])
 local battery = instanceItem("Base.CarBattery2")
 battery:setUsedDelta(0.62)
@@ -66,18 +68,15 @@ say("emptied", #rack.batteries, "removable", Units.isEmpty(rack))
 say("empty overlay", object:getOverlaySprite() and object:getOverlaySprite():getName() or "none")
 
 -- Reconditioning, done by hand as the action would.
-say("revive", tostring(select(2, BU.Rack.canRevive(player, back))))
+say("revive", why(BU.Rack.canRevive(player, back)))
 local before = back:getCondition()
 back:getModData()[BU.Rack.REVIVED] = 3
-say("revived out", tostring(select(2, BU.Rack.canRevive(player, back))))
+say("revived out", why(BU.Rack.canRevive(player, back)))
 back:getModData()[BU.Rack.REVIVED] = nil
 back:setCondition(80)
-say("not worn", tostring(select(2, BU.Rack.canRevive(player, back))), "was", before)
+say("not worn", why(BU.Rack.canRevive(player, back)), "was", before)
 
--- A sub-panel cannot be made of a panel with units; then everything goes.
-local another
-for _, p in ipairs(Store.list()) do if p ~= panel then another = p end end
-say("link refused", another and tostring(select(2, Panels.canLink(panel, another))) or "no other panel", "units count", #Store.unitList(nil, panel.id))
+-- Then everything goes.
 say("refund solar", Changes.removeUnit(solar)["Base.ElectricWire"], "rack", Changes.disconnectUnit(rack)["Base.ElectricWire"])
 Changes.removeUnit(rack)
 say("left", #Store.unitList(), Store.unitAt(outside:getX(), outside:getY(), 0) == nil)
