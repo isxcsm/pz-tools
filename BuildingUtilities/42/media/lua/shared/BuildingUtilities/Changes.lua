@@ -366,6 +366,8 @@ function Changes.lay(panel, ref, utility, place, paid, x, y, z)
     local data = Store.data()
     local line = { ref = ref, panel = panel.id, utility = utility, via = place.via, wall = place.wall, length = place.length,
         paid = type(paid) == "table" and paid or {}, x = x, y = y, z = z, seq = data.nextLine }
+    -- the way it lies on the ground, found round what is there now and kept as laid
+    line.path = Links.pathFor(line)
     data.nextLine = data.nextLine + 1
     data.lines[ref] = line
     Store.linksChanged()

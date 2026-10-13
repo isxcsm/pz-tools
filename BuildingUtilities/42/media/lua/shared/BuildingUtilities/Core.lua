@@ -165,10 +165,10 @@ local FEATURES = {
     sprinkler = { option = "EnableSprinklers", needs = { "water" } },
     filter = { option = "EnableFilters", needs = { "water" } },
     booster = { option = "EnableBoosters", needs = { "water", "power" } },
-    pole = { needs = { "power" } },
+    junction = { needs = { "power" } },
     hydrant = { needs = { "water" } },
 }
-BU.FEATURES = { "power", "water", "solar", "rack", "pump", "sprinkler", "filter", "booster", "pole", "hydrant" }
+BU.FEATURES = { "power", "water", "solar", "rack", "pump", "sprinkler", "filter", "booster", "junction", "hydrant" }
 
 -- Whether a feature is on: its option, and those of the features it needs. A name that is no feature's is on.
 function BU.enabled(name)
@@ -205,7 +205,7 @@ end
 -- input meanwhile, so that one reached another way (an item's Craft menu) cannot be made either.
 BU.RECIPE_FEATURES = { MakeBreakerBox = "panel", MakeSolarPanel = "solar", MakeBatteryRack = "rack",
     MakeWaterPump = "pump", MakeSprinkler = "sprinkler", MakeWaterFilter = "filter", MakeBoosterPump = "booster",
-    MakePowerPole = "pole", MakeYardHydrant = "hydrant" }
+    MakeJunctionBox = "junction", MakeYardHydrant = "hydrant" }
 function BuildingUtilitiesRecipeShown(param)
     local name = param and param.recipe and param.recipe:getName()
     local feature = name and BU.RECIPE_FEATURES[name:match("[^%.]+$")]
@@ -248,7 +248,7 @@ function BU.chainRange() return math.max(1, math.min(32, BU.sandbox("ChainRange"
 BU.CHAIN_LIMIT = 8
 BU.RELAY_FLOORS = 2
 -- The relays' unit kinds (BU.Units), each with the utility its line carries.
-BU.RELAY_KINDS = { pole = "power", hydrant = "water" }
+BU.RELAY_KINDS = { junction = "power", hydrant = "water" }
 
 -- Connections cost wire or pipe by length; taken away, they give back a share.
 function BU.costsEnabled() return BU.sandbox("CostsEnabled", true) == true end

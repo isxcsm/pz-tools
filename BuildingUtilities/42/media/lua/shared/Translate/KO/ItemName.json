@@ -11,7 +11,7 @@
     "BuildingUtilities.WaterSystemsMag1": "농촌 급수 설비 1권",
     "BuildingUtilities.WaterSystemsMag2": "농촌 급수 설비 2권",
     "BuildingUtilities.BoosterPump": "가압 펌프",
-    "BuildingUtilities.PowerPole": "전신주",
+    "BuildingUtilities.JunctionBox": "분기함",
     "BuildingUtilities.ControlBoard": "제어 기판",
     "BuildingUtilities.YardHydrant": "야외 수전"
 }

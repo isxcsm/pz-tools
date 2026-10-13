@@ -1,7 +1,7 @@
 -- The world context menu: a box's line, which opens its window (no submenu: what a box does is in its window), and a
 -- unit's (a rack's batteries go in and out in the loot window). A device of the box's building is the box's without a
 -- line: switched on or off there at once, as at the box. A device outside, a unit or a producer is wired in and out at
--- itself, with the tool of its utility (Actions.work): its line hangs on a box's wall, a relay (a utility pole or a
+-- itself, with the tool of its utility (Actions.work): its line hangs on a box's wall, a relay (a junction box or a
 -- yard hydrant) or a device already on a line (BU.Links), each box in reach offered with where it would hang. A thing
 -- whose line supplies nothing says why; a cut branch is hung on again at its first line, on any box in reach, and a
 -- line whose box is gone is taken up. The box's window lists what is wired. What is done with

@@ -1,7 +1,8 @@
 """Draws this mod's own tiles and writes them as its second tile sheet (bu_water_01): the water units (pump, sprinkler,
 filter, booster pump) in each of their looks, the utility panel (the breaker box) of each tier in its looks, indoors and
-outdoors on a pedestal, the relays (a pole for power, a yard hydrant for water), and the snow that lies on a solar panel
-(overlays over the first sheet's panels, bu_solar_01). Also the items' icons, and the control board's.
+outdoors on a pedestal, the relays (a junction box for power, a yard hydrant for water), the snow that lies on a solar
+panel (overlays over the first sheet's panels, bu_solar_01), and the lines laid on the floor (a cable, a pipe). Also the
+items' icons, and the control board's.
 
 The art is made here, not painted: each object is a few solids (boxes, cylinders) in a tile's space, projected the
 way the game draws a square, shaded by a light from above and the viewer's left, drawn four times larger with a depth
@@ -34,7 +35,7 @@ ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'BuildingU
 SHEET = 'bu_water_01'
 PACK = 'BuildingUtilitiesWater'
 SOLAR_PACK = 'BuildingUtilitiesSolar'
-COLS, ROWS = 8, 23
+COLS, ROWS = 8, 32
 W, H = 128, 256
 SS = 4  # drawn this many times larger, then scaled down
 UP = 64 * math.sqrt(1.5)  # pixels of a unit up: a square's side across is 64 * sqrt(2), looked at from 30 degrees
@@ -123,8 +124,11 @@ class Scene:
         self.face([(x1, y0, z0), (x1, y1, z0), (x1, y1, z1), (x1, y0, z1)], colour, (1, 0, 0), shine, emit)
         self.face([(x0, y0, z0), (x0, y1, z0), (x0, y1, z1), (x0, y0, z1)], colour, (-1, 0, 0), shine, emit)
 
-    def tube(self, a, b, r, colour, cap=None, shine=0.0, segments=40, bands=None, emit=False):
-        """A cylinder from point a to point b; bands: [(from, to, colour)] along it, 0..1."""
+    def tube(self, a, b, r, colour, cap=None, shine=0.0, segments=40, bands=None, emit=False, ends=True, paint=None,
+             sunk=False):
+        """A cylinder from point a to point b; bands: [(from, to, colour)] along it, 0..1; ends: its caps (an open
+        tube's ends are hidden in what it runs into); paint(normal, colour): a face's colour by which way it faces (a
+        stripe along it); sunk: what of it is under the ground (z 0) is left out, its faces there pressed onto it."""
         axis = tuple(q - p for p, q in zip(a, b))
         length = math.sqrt(dot(axis, axis))
         d = unit(axis)
@@ -139,7 +143,14 @@ class Scene:
             mid = (a0 + a1) / 2
             n = tuple(u_ * math.cos(mid) + v_ * math.sin(mid) for u_, v_ in zip(u, v))
             for t0, t1, c in bands or [(0, 1, colour)]:
-                self.face([at(a0, t0), at(a1, t0), at(a1, t1), at(a0, t1)], c, n, shine, emit)
+                quad = [at(a0, t0), at(a1, t0), at(a1, t1), at(a0, t1)]
+                if sunk:
+                    if all(q[2] <= 0 for q in quad):
+                        continue
+                    quad = [(q[0], q[1], max(0.0, q[2])) for q in quad]
+                self.face(quad, paint(n, c) if paint else c, n, shine, emit)
+        if not ends:
+            return
         ring = range(segments)
         self.face([at(2 * math.pi * i / segments, 1) for i in ring], cap or colour, d, shine, emit)
         self.face([at(2 * math.pi * i / segments, 0) for i in ring], cap or colour, tuple(-c for c in d), shine, emit)
@@ -390,31 +401,30 @@ SPRAY_FRAMES = 8
 
 
 def sprinkler(spraying, frame=0):
-    """An impact sprinkler on a spike: a weighted base, the riser with the hose coupling, the brass head, its nozzle
-    looking up and out and the arm that knocks it round. Spraying, drops leave the nozzle in arcs; each frame has the
+    """An impact sprinkler on the water lane's middle (RUN_LANE), on the pipe's end laid to it: the riser's fitting on
+    the ground over the pipe's cap, so that the pipe runs into it, the riser, the brass head, its nozzle looking up and
+    out and the arm that knocks it round. Spraying, drops leave the nozzle in arcs; each frame has the
     head turned on by an eighth."""
     angle = 2 * math.pi * frame / SPRAY_FRAMES
     ca, sa = math.cos(angle), math.sin(angle)
 
     def head(dx, dy, z):
         """A point of the head, dx out along the nozzle and dy across it from the riser."""
-        return (0.5 + dx * ca - dy * sa, 0.5 + dx * sa + dy * ca, z)
+        return (c + dx * ca - dy * sa, c + dx * sa + dy * ca, z)
 
+    c = 0.5 + RUN_LANE['water']
     s = Scene()
-    s.tube((0.5, 0.5, 0.0), (0.5, 0.5, 0.025), 0.1, (70, 72, 74), cap=(90, 92, 94))
-    s.tube((0.5, 0.5, 0.025), (0.5, 0.5, 0.05), 0.06, (70, 72, 74))
-    s.tube((0.5, 0.5, 0.05), (0.5, 0.5, 0.42), 0.022, STEEL, shine=0.5)
-    # The hose coupling, toward the viewer.
-    s.tube((0.5, 0.5, 0.1), (0.5, 0.62, 0.1), 0.032, HOSE, shine=0.2)
-    s.tube((0.5, 0.62, 0.1), (0.5, 0.66, 0.1), 0.042, (40, 100, 52))
+    s.tube((c, c, 0.0), (c, c, 0.03), 0.1, FITTING, cap=(74, 75, 76), shine=0.1)
+    s.tube((c, c, 0.03), (c, c, 0.07), 0.045, FITTING, cap=(74, 75, 76), shine=0.1)
+    s.tube((c, c, 0.07), (c, c, 0.42), 0.022, STEEL, shine=0.5)
     # The head.
-    s.tube((0.5, 0.5, 0.42), (0.5, 0.5, 0.47), 0.045, BRASS, shine=0.6)
-    s.tube((0.5, 0.5, 0.47), (0.5, 0.5, 0.5), 0.033, BRASS_DARK, shine=0.6)
-    s.tube((0.5, 0.5, 0.5), (0.5, 0.5, 0.56), 0.028, BRASS, shine=0.6)
+    s.tube((c, c, 0.42), (c, c, 0.47), 0.045, BRASS, shine=0.6)
+    s.tube((c, c, 0.47), (c, c, 0.5), 0.033, BRASS_DARK, shine=0.6)
+    s.tube((c, c, 0.5), (c, c, 0.56), 0.028, BRASS, shine=0.6)
     nozzle = head(0.16, 0, 0.6)
-    s.tube((0.5, 0.5, 0.54), nozzle, 0.016, BRASS, cap=BRASS_DARK, shine=0.6)
+    s.tube((c, c, 0.54), nozzle, 0.016, BRASS, cap=BRASS_DARK, shine=0.6)
     # The arm with its spring and the deflector at its end.
-    s.tube((0.5, 0.5, 0.62), (0.5, 0.5, 0.56), 0.008, STEEL)
+    s.tube((c, c, 0.62), (c, c, 0.56), 0.008, STEEL)
     s.tube(head(-0.12, 0, 0.62), head(0.16, 0, 0.64), 0.009, (150, 150, 154), shine=0.5)
     s.tube(head(0.14, 0, 0.625), head(0.18, 0, 0.625), 0.03, (150, 150, 154), shine=0.5)
     s.tube(head(-0.12, 0, 0.62), head(-0.12, 0, 0.58), 0.018, (150, 150, 154), shine=0.5)
@@ -438,7 +448,7 @@ def sprinkler(spraying, frame=0):
                     d.ellipse([px - r, py - r, px + r, py + r], fill=(205, 232, 255, int(220 * max(0.0, 1 - t) ** 1.3)))
             layer = layer.filter(ImageFilter.GaussianBlur(SS * 0.25))
             big.alpha_composite(layer)
-    ground = shadow((0.5, 0.5), 0.13, 0.13, 90)
+    ground = shadow((c, c), 0.13, 0.13, 90)
     return compose(s, ground=ground, over=over, seed=20 + (1 + frame if spraying else 0))
 
 
@@ -987,7 +997,7 @@ def snow(index, heavy):
 
 
 # The sheet: what each tile is, and its properties for the game. Facing as the vanilla object it stands for.
-POLE = {'CustomName': 'Utility Pole', 'BlocksPlacement': '', 'solidtrans': ''}
+JUNCTION = {'CustomName': 'Junction Box', 'BlocksPlacement': '', 'solidtrans': ''}
 HYDRANT = {'CustomName': 'Yard Hydrant', 'IsLow': ''}
 PUMP = {'CustomName': 'Water Pump', 'BlocksPlacement': '', 'solidtrans': ''}
 FILTER = {'CustomName': 'Water Filter', 'BlocksPlacement': '', 'solidtrans': ''}
@@ -1021,64 +1031,65 @@ def boosters(look):
     return [(lambda t=t, look=look: booster(t, look), dict(BOOSTER, Facing=f)) for t, f in BOX_FACINGS]
 
 
-WOOD = (112, 84, 58)
-WOOD_DARK = (84, 62, 42)
-CREOSOTE = (66, 50, 38)
-PORCELAIN = (226, 226, 218)
-INSULATOR = (104, 156, 128)
-CAN = (128, 134, 136)
-CAN_DARK = (96, 100, 102)
+CABINET = (78, 102, 84)
+CABINET_DARK = (56, 74, 62)
+CABINET_DOOR = (86, 112, 92)
+CABLE = (44, 44, 46)
 HYDRANT_BODY = (52, 84, 128)
 HYDRANT_DARK = (38, 62, 96)
 LID = (46, 92, 60)
 
 
-def pole():
-    """The power relay: a wooden pole, dark with creosote toward the ground, a crossarm on two steel braces with a
-    green glass insulator at each end and one on the pole's top; a can transformer hung on the south side, its leads
-    up to the insulators; the ground wire run down the pole in a moulding, step bolts, a number plate."""
+def junction_box():
+    """The power relay: a junction box standing on the ground, as the cables of a street run into one. A steel cabinet
+    painted green on a concrete pad at the back of its square, its hood over the top against the rain; on its front the
+    door with its handle, lock, hinges, the warning sign and a label; louvres on its side. The power lane's middle
+    (RUN_LANE) is under it: a cable laid from the east or the south goes in at an opening in the pad's side,
+    and the water lane passes in front of the pad, clear of it."""
     s = Scene()
-    s.tube((0.5, 0.5, 0.0), (0.5, 0.5, 2.36), 0.072, WOOD, cap=WOOD_DARK, segments=36,
-           bands=[(0, 0.2, CREOSOTE), (0.2, 1, WOOD)])
-    s.box(0.1, 0.455, 2.0, 0.9, 0.545, 2.085, WOOD_DARK, top=WOOD)
-    for x in (0.26, 0.74):
-        s.tube((0.5, 0.56, 1.78), (x, 0.56, 1.995), 0.01, STEEL, shine=0.5, segments=10)
-    for x, z in ((0.15, 2.085), (0.85, 2.085), (0.5, 2.36)):
-        s.tube((x, 0.5, z), (x, 0.5, z + 0.03), 0.012, STEEL, shine=0.5, segments=12)
-        s.tube((x, 0.5, z + 0.03), (x, 0.5, z + 0.1), 0.036, INSULATOR, cap=INSULATOR, shine=0.8, segments=24)
-        s.tube((x, 0.5, z + 0.1), (x, 0.5, z + 0.13), 0.026, INSULATOR, cap=INSULATOR, shine=0.8, segments=24)
-    s.box(0.46, 0.565, 1.5, 0.54, 0.6, 1.7, FRAME, shine=0.3)
-    s.tube((0.5, 0.67, 1.42), (0.5, 0.67, 1.74), 0.085, CAN, cap=CAN_DARK, shine=0.35, segments=36,
-           bands=[(0, 0.08, CAN_DARK), (0.08, 0.92, CAN), (0.92, 1, CAN_DARK)])
-    for x, end in ((0.465, 0.15), (0.535, 0.85)):
-        s.tube((x, 0.67, 1.74), (x, 0.67, 1.8), 0.012, (120, 70, 50), shine=0.5, segments=12)
-        s.tube((x, 0.67, 1.8), (end, 0.5, 2.2), 0.004, (36, 36, 36), segments=6)
-    s.box(0.568, 0.49, 0.0, 0.584, 0.51, 1.42, (96, 74, 54))
-    for x, z in ((0.62, 0.95), (0.38, 1.1), (0.62, 1.25)):
-        s.tube((0.5, 0.5, z), (x, 0.5, z), 0.008, STEEL, shine=0.6, segments=10)
-    s.box(0.475, 0.565, 0.82, 0.525, 0.575, 0.9, (196, 196, 186), shine=0.4)
-    return compose(s, ground=shadow((0.5, 0.5), 0.14, 0.08), seed=54)
+    lane = 0.5 + RUN_LANE['power']
+    s.box(0.17, 0.19, 0.0, 0.57, 0.53, 0.045, CONCRETE)
+    x0, x1, yb, yf, zb, zt = 0.21, 0.53, 0.24, 0.47, 0.1, 0.68
+    s.box(x0, yb, zb, x1, yf, zt, CABINET, shine=0.15)
+    s.box(x0 + 0.02, yb + 0.02, 0.045, x1 - 0.02, yf - 0.02, zb, CABINET_DARK, shine=0.1)
+    s.box(x0 - 0.018, yb - 0.018, zt, x1 + 0.018, yf + 0.018, zt + 0.02, CABINET_DARK, top=CABINET, shine=0.2)
+    s.box(x0 - 0.008, yb - 0.008, zt + 0.02, x1 + 0.008, yf + 0.008, zt + 0.034, CABINET_DARK, shine=0.2)
+    f = yf + 0.006
+    mid = (x0 + x1) / 2
+    s.box(x0 + 0.02, yf, zb + 0.025, x1 - 0.02, f, zt - 0.03, CABINET_DOOR, shine=0.2)
+    hinges(s, x0 + 0.03, f, (zb + 0.08, zt - 0.12))
+    s.box(x1 - 0.05, f, 0.34, x1 - 0.035, f + 0.018, 0.42, TRIM, shine=0.5)
+    s.tube((x1 - 0.042, f, 0.45), (x1 - 0.042, f + 0.012, 0.45), 0.011, BRASS, shine=0.6, segments=16)
+    warning(s, mid, f, 0.45, 0.05)
+    label(s, mid - 0.09, mid + 0.08, f, 0.28, 0.36, (0.8, 0.55))
+    side_louvres(s, x0, x1, yb + 0.05, yf - 0.05, 0.42, 4)
+    # the cables' openings in the pad's east and south sides, at the power lane
+    s.box(0.57, lane - 0.03, 0.004, 0.573, lane + 0.03, 0.04, (26, 26, 26))
+    s.box(lane - 0.03, 0.53, 0.004, lane + 0.03, 0.533, 0.04, (26, 26, 26))
+    return compose(s, ground=shadow((0.38, 0.4), 0.3, 0.2), seed=54)
 
 
 def hydrant():
-    """The water relay: a yard hydrant. A concrete collar round its standpipe, the galvanized standpipe up to the cast
-    head, its lever up over it with the link down, the spout turned down with its hose thread; beside it the valve box
-    set in the ground, its green lid with a lifting slot."""
+    """The water relay: a yard hydrant on the water lane's middle (RUN_LANE), so that a pipe laid to it runs into its
+    collar. A concrete collar round its standpipe, the galvanized standpipe up to the cast head, its lever up over it
+    with the link down, the spout turned down with its hose thread; beside it the valve box set in the ground, its
+    green lid with a lifting slot, clear of the power lane."""
     s = Scene()
-    s.box(0.38, 0.38, 0.0, 0.62, 0.62, 0.05, CONCRETE)
-    s.box(0.12, 0.6, 0.0, 0.34, 0.82, 0.03, (88, 90, 86), top=LID)
-    s.box(0.19, 0.69, 0.03, 0.27, 0.71, 0.033, (28, 40, 30))
-    s.tube((0.5, 0.5, 0.05), (0.5, 0.5, 0.56), 0.03, STEEL, shine=0.5, segments=24,
+    c = 0.5 + RUN_LANE['water']
+    s.box(c - 0.12, c - 0.12, 0.0, c + 0.12, c + 0.12, 0.05, CONCRETE)
+    s.box(0.66, 0.12, 0.0, 0.86, 0.32, 0.03, (88, 90, 86), top=LID)
+    s.box(0.72, 0.21, 0.03, 0.8, 0.23, 0.033, (28, 40, 30))
+    s.tube((c, c, 0.05), (c, c, 0.56), 0.03, STEEL, shine=0.5, segments=24,
            bands=[(0, 0.04, PIPE), (0.04, 1, STEEL)])
-    s.box(0.455, 0.455, 0.56, 0.545, 0.545, 0.66, HYDRANT_BODY, top=HYDRANT_DARK, shine=0.3)
-    s.tube((0.5, 0.545, 0.62), (0.5, 0.62, 0.62), 0.018, HYDRANT_BODY, shine=0.3, segments=20)
-    s.tube((0.5, 0.62, 0.638), (0.5, 0.62, 0.55), 0.018, HYDRANT_BODY, shine=0.3, segments=20,
+    s.box(c - 0.045, c - 0.045, 0.56, c + 0.045, c + 0.045, 0.66, HYDRANT_BODY, top=HYDRANT_DARK, shine=0.3)
+    s.tube((c, c + 0.045, 0.62), (c, c + 0.12, 0.62), 0.018, HYDRANT_BODY, shine=0.3, segments=20)
+    s.tube((c, c + 0.12, 0.638), (c, c + 0.12, 0.55), 0.018, HYDRANT_BODY, shine=0.3, segments=20,
            bands=[(0, 0.6, HYDRANT_BODY), (0.6, 1, BRASS)])
-    s.box(0.49, 0.47, 0.66, 0.51, 0.53, 0.69, HYDRANT_DARK)
-    s.tube((0.5, 0.5, 0.68), (0.5, 0.36, 0.86), 0.012, HYDRANT_BODY, shine=0.3, segments=14)
-    s.tube((0.5, 0.36, 0.86), (0.5, 0.33, 0.9), 0.016, RUBBER, segments=14)
-    s.tube((0.5, 0.42, 0.78), (0.5, 0.44, 0.6), 0.005, STEEL, shine=0.5, segments=8)
-    return compose(s, ground=shadow((0.42, 0.6), 0.26, 0.18), seed=55)
+    s.box(c - 0.01, c - 0.03, 0.66, c + 0.01, c + 0.03, 0.69, HYDRANT_DARK)
+    s.tube((c, c, 0.68), (c, c - 0.14, 0.86), 0.012, HYDRANT_BODY, shine=0.3, segments=14)
+    s.tube((c, c - 0.14, 0.86), (c, c - 0.17, 0.9), 0.016, RUBBER, segments=14)
+    s.tube((c, c - 0.08, 0.78), (c, c - 0.06, 0.6), 0.005, STEEL, shine=0.5, segments=8)
+    return compose(s, ground=shadow((c, c + 0.05), 0.2, 0.16), seed=55)
 
 
 PCB = (34, 102, 58)
@@ -1110,6 +1121,191 @@ def control_board():
     return compose(s, seed=7)
 
 
+# The lines on the floor: a square's run, from its lane's middle out to each side it leaves by (N, E, S, W as the
+# bits 1, 2, 4, 8), a little past the side so that the next square's piece meets it without a seam. Each utility has
+# its lane, off the square's middle along the diagonal (on the screen, power above and water below), so that both run
+# side by side in a square and every piece of a lane meets the others there. Both lie half sunk in the ground, soil
+# crumbled over them here and there, the ground showing through a little, in the game's dull colours: power a weathered
+# rubber cable, water a black HDPE pipe with blue stripes; no gloss, no shadow cast, so they lie in it, not on it. A turn
+# is a bend (the cable and the pipe both bend); a branch is a splice box on the cable and a tee on the pipe; an end
+# (under what it feeds) a cap. The straight runs have a second look each, mixed in along a line: the cable pinned by a
+# ground staple, the pipe joined by a coupling. On a made floor (tiles, paving, boards) the same runs lie on top of it,
+# clean, with a soft shadow, held down by cable clips and pipe straps screwed to the floor instead.
+RUN_FIRST = 184
+RUN_DETAIL_FIRST = 214  # the straight runs' second looks: power N-S, power E-W, water N-S, water E-W
+RUN_LAID_FIRST = 218  # the runs on a made floor: power, then water (15 each), then their second looks (248-251)
+RUN_SIDES = ((1, (0, -1)), (2, (1, 0)), (4, (0, 1)), (8, (-1, 0)))
+RUN_LANE = {'power': -0.1, 'water': 0.1}
+RUN_PAST = 0.025
+RUN_RADIUS = {'power': 0.024, 'water': 0.034}
+RUN_BEND = {'power': 0.13, 'water': 0.17}
+RUN_SINK = 0.25  # of the radius: how far the middle lies under the ground
+RUN_SEEN = 0.94  # how much of the ground the line covers: a little shows through
+CABLE_RUBBER = (62, 58, 52)
+HDPE = (46, 48, 50)
+HDPE_STRIPE = (60, 72, 84)
+FITTING = (64, 65, 66)
+SOIL_DUST = (128, 112, 90)
+SOIL_CLOD = (96, 80, 60)
+
+
+def run_paint(utility):
+    if utility == 'power':
+        return None
+    # stripes along the pipe: on its top and on its sides
+    return lambda n, c: HDPE_STRIPE if c == HDPE and (n[2] > 0.96 or abs(n[2]) < 0.12) else c
+
+
+def run_finish(image, seed, laid=False):
+    """Dust and wear: a grain, specks of soil on what lies there, a little of the colour gone; laid on a made floor, a
+    finer grain alone and nothing of the floor through it."""
+    a = np.asarray(image).astype(np.float64)
+    rnd = np.random.RandomState(seed)
+    rgb, alpha = a[..., :3], a[..., 3:4]
+    grey = rgb.mean(axis=2, keepdims=True)
+    rgb = rgb + (grey - rgb) * 0.18
+    rgb = rgb * (1 + (rnd.rand(*rgb.shape[:2], 1) - 0.5) * (0.06 if laid else 0.12))
+    if not laid:
+        specks = (rnd.rand(*rgb.shape[:2], 1) < 0.08) & (alpha > 200)
+        rgb = np.where(specks, rgb + (np.array(SOIL_DUST) - rgb) * 0.3, rgb)
+    a[..., :3] = np.clip(rgb, 0, 255)
+    if not laid:
+        a[..., 3] = a[..., 3] * RUN_SEEN
+    return Image.fromarray(a.astype(np.uint8), 'RGBA')
+
+
+def floor_run(utility, sides, detail=False, laid=False):
+    s = Scene()
+    cx = cy = 0.5 + RUN_LANE[utility]
+    r = RUN_RADIUS[utility]
+    z = r if laid else -r * RUN_SINK
+    sunk = not laid
+    colour = CABLE_RUBBER if utility == 'power' else HDPE
+    shine = (0.05 if utility == 'power' else 0.12) if laid else (0.03 if utility == 'power' else 0.08)
+    paint = run_paint(utility)
+    seed = 300 + sides * 2 + (utility == 'water') + detail * 50 + laid * 100
+    rnd = random.Random(seed)
+    ground = Image.new('RGBA', (W * SS, H * SS), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(ground)
+    soil = Image.new('RGBA', (W * SS, H * SS), (0, 0, 0, 0))
+    crumbs = ImageDraw.Draw(soil)
+
+    def lay(a, b, overlap=0.0):
+        """A straight piece from a to b on the ground (x, y): the darker soil where it was pressed in along it, and
+        crumbs of soil over it here and there; laid on a made floor, its shadow."""
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        length = math.hypot(dx, dy)
+        ux, uy = dx / length, dy / length
+        a = (a[0] - ux * overlap, a[1] - uy * overlap)
+        b = (b[0] + ux * overlap, b[1] + uy * overlap)
+        s.tube((a[0], a[1], z), (b[0], b[1], z), r, colour, shine=shine, segments=24, ends=False, paint=paint, sunk=sunk)
+        if laid:
+            for w, fill in ((r * 1.1, (0, 0, 0, 95)), (r * 2.0, (0, 0, 0, 30))):
+                px, py = -uy * w, ux * w
+                draw.polygon([project(a[0] + px, a[1] + py, 0), project(b[0] + px, b[1] + py, 0),
+                              project(b[0] - px, b[1] - py, 0), project(a[0] - px, a[1] - py, 0)], fill=fill)
+            return
+        w = r * 1.4
+        px, py = -uy * w, ux * w
+        draw.polygon([project(a[0] + px, a[1] + py, 0), project(b[0] + px, b[1] + py, 0),
+                      project(b[0] - px, b[1] - py, 0), project(a[0] - px, a[1] - py, 0)], fill=(20, 14, 8, 70))
+        for _ in range(int(length / 0.05)):
+            if rnd.random() < 0.45:
+                continue
+            t, across = rnd.random(), rnd.uniform(-1.1, 1.1) * r
+            x, y = a[0] + (b[0] - a[0]) * t - uy * across, a[1] + (b[1] - a[1]) * t + ux * across
+            sx, sy = project(x, y, max(0.0, math.sqrt(max(0.0, r * r - across * across)) + z))
+            size = rnd.uniform(0.5, 1.3) * SS
+            crumbs.ellipse([sx - size * 1.4, sy - size, sx + size * 1.4, sy + size],
+                           fill=SOIL_CLOD + (rnd.randint(150, 220),))
+
+    def edge(dx, dy):
+        return (cx if dx == 0 else (1 + RUN_PAST if dx > 0 else -RUN_PAST),
+                cy if dy == 0 else (1 + RUN_PAST if dy > 0 else -RUN_PAST))
+
+    arms = [(dx, dy) for bit, (dx, dy) in RUN_SIDES if sides & bit]
+    if len(arms) == 2 and arms[0][0] * arms[1][0] + arms[0][1] * arms[1][1] == 0:
+        # a bend: straight in from each side, round the corner between
+        (d1x, d1y), (d2x, d2y) = arms
+        bend = RUN_BEND[utility]
+        p1, p2 = (cx + d1x * bend, cy + d1y * bend), (cx + d2x * bend, cy + d2y * bend)
+        lay(edge(d1x, d1y), p1)
+        lay(edge(d2x, d2y), p2)
+        ox, oy = cx + (d1x + d2x) * bend, cy + (d1y + d2y) * bend
+        steps = 8
+        points = [(ox - d2x * bend * math.cos(t) - d1x * bend * math.sin(t),
+                   oy - d2y * bend * math.cos(t) - d1y * bend * math.sin(t))
+                  for t in (math.pi / 2 * i / steps for i in range(steps + 1))]
+        for a, b in zip(points, points[1:]):
+            lay(a, b, overlap=r * 0.35)
+    else:
+        for dx, dy in arms:
+            lay((cx, cy), edge(dx, dy), overlap=r * 0.5 if len(arms) > 1 else 0.0)
+        if len(arms) != 2:
+            if utility == 'power' and len(arms) > 2:
+                # a splice box: a flat rubber block with a lid
+                s.box(cx - 0.055, cy - 0.055, 0.0, cx + 0.055, cy + 0.055, 2.3 * r, (48, 48, 46), top=(56, 56, 54), shine=0.1)
+                s.box(cx - 0.035, cy - 0.035, 2.3 * r, cx + 0.035, cy + 0.035, 2.5 * r, (40, 40, 40), shine=0.15)
+            elif utility == 'power':
+                s.tube((cx, cy, 0), (cx, cy, r * 1.6), r, colour, shine=shine, segments=24)
+            else:
+                # a tee or a cap: sleeves on its arms round a body
+                for dx, dy in arms:
+                    s.tube((cx, cy, z), (cx + dx * 0.075, cy + dy * 0.075, z), r * 1.22, FITTING, shine=0.1, segments=24,
+                           bands=[(0, 0.75, FITTING), (0.75, 0.85, (48, 49, 50)), (0.85, 1, FITTING)], sunk=sunk)
+                s.box(cx - r * 1.25, cy - r * 1.25, 0, cx + r * 1.25, cy + r * 1.25, z + r * 1.22, FITTING, shine=0.1)
+    if detail and laid:
+        # held down: a cable clip (a saddle over it, its two tabs screwed to the floor) or a pipe strap (a band round
+        # it, the same tabs)
+        (dx, dy) = arms[0]
+        px, py = -dy, dx
+        metal = utility == 'water'
+        band = (138, 140, 138) if metal else (104, 104, 100)
+        reach = r + 0.022
+        if metal:
+            s.tube((cx - dx * 0.01, cy - dy * 0.01, z), (cx + dx * 0.01, cy + dy * 0.01, z), r * 1.12, band, shine=0.4, segments=24)
+        else:
+            s.box(cx - abs(dx) * 0.013 - abs(px) * (r + 0.006), cy - abs(dy) * 0.013 - abs(py) * (r + 0.006), 0,
+                  cx + abs(dx) * 0.013 + abs(px) * (r + 0.006), cy + abs(dy) * 0.013 + abs(py) * (r + 0.006), z + r + 0.005,
+                  band, shine=0.15)
+        for side in (-1, 1):
+            tx, ty = cx + px * reach * side, cy + py * reach * side
+            s.box(tx - abs(dx) * 0.013 - abs(px) * 0.012, ty - abs(dy) * 0.013 - abs(py) * 0.012, 0,
+                  tx + abs(dx) * 0.013 + abs(px) * 0.012, ty + abs(dy) * 0.013 + abs(py) * 0.012, 0.005, band,
+                  shine=0.3 if metal else 0.15)
+            s.box(tx - 0.004, ty - 0.004, 0.005, tx + 0.004, ty + 0.004, 0.008, (70, 70, 68), shine=0.4)
+    elif detail and utility == 'power':
+        # a ground staple across the cable: two legs into the ground, a bar over it
+        (dx, dy) = arms[0]
+        px, py = -dy, dx
+        w, h = r + 0.012, z + r + 0.008
+        for side in (-1, 1):
+            s.tube((cx + px * w * side, cy + py * w * side, 0), (cx + px * w * side, cy + py * w * side, h), 0.0055,
+                   (118, 116, 110), shine=0.5, segments=10)
+        s.tube((cx - px * w, cy - py * w, h), (cx + px * w, cy + py * w, h), 0.0055, (118, 116, 110), shine=0.5, segments=10)
+    elif detail:
+        # a coupling: a ribbed sleeve with its nuts
+        (dx, dy) = arms[0]
+        s.tube((cx - dx * 0.07, cy - dy * 0.07, z), (cx + dx * 0.07, cy + dy * 0.07, z), r * 1.28, FITTING, shine=0.1,
+               segments=24, bands=[(0, 0.18, (50, 51, 52)), (0.18, 0.82, FITTING), (0.82, 1, (50, 51, 52))], sunk=True)
+    ground = ground.filter(ImageFilter.GaussianBlur((1.0 if laid else 0.8) * SS))
+    big = Image.new('RGBA', (W * SS, H * SS), (0, 0, 0, 0))
+    big.alpha_composite(ground)
+    big.alpha_composite(s.render())
+    big.alpha_composite(soil.filter(ImageFilter.GaussianBlur(0.35 * SS)))
+    small = big.convert('RGBa').resize((W, H), Image.LANCZOS).convert('RGBA')
+    return trim_faint(run_finish(small, seed, laid))
+
+
+def runs(utility, laid=False):
+    return [(lambda sides=sides: floor_run(utility, sides, laid=laid), {}) for sides in range(1, 16)]
+
+
+def run_details(laid=False):
+    return [(lambda utility=utility, sides=sides: floor_run(utility, sides, True, laid), {})
+            for utility in ('power', 'water') for sides in (5, 10)]
+
+
 def snows(heavy):
     return [(lambda index=index: snow(index, heavy), {}) for index in SNOW_PANELS]
 
@@ -1130,15 +1326,22 @@ TILES = (
     + filters('working') + filters('spent')
     # 32-47: the utility panel of tier 4 (the console) off, on, tripped and tripped with its lamp dark, each S, E, N, W.
     + panels(4, False)
-    # 48-53: snow on a solar panel (flat, W, N), light then heavy; 54 the power relay's pole, 55 the water relay's
-    # yard hydrant.
-    + snows(False) + snows(True) + [(pole, POLE), (hydrant, HYDRANT)]
+    # 48-53: snow on a solar panel (flat, W, N), light then heavy; 54 the power relay's junction box, 55 the water
+    # relay's yard hydrant.
+    + snows(False) + snows(True) + [(junction_box, JUNCTION), (hydrant, HYDRANT)]
     # 56-71: the booster pump stopped, running, running with no water at its floor and frozen, each facing S, E, N, W.
     + boosters('stopped') + boosters('running') + boosters('dry') + boosters('frozen')
     # 72-119: the utility panel of tiers 1, 2 and 3 indoors, in its looks as the console's (16 each).
     + panels(1, False) + panels(2, False) + panels(3, False)
     # 120-183: the utility panel of tiers 1 to 4 outdoors, on its pedestal (16 each).
     + panels(1, True) + panels(2, True) + panels(3, True) + panels(4, True)
+    # 184-198: the power cable laid on the floor, 199-213 the water pipe, for each set of sides it leaves a square by
+    # (RUN_FIRST + sides - 1; no properties: never an object, drawn by the API's floor decals).
+    + runs('power') + runs('water')
+    # 214-217: the straight runs' second looks (RUN_DETAIL_FIRST): power N-S and E-W, water N-S and E-W.
+    + run_details()
+    # 218-251: the same on a made floor (RUN_LAID_FIRST): power, water, then their second looks.
+    + runs('power', True) + runs('water', True) + run_details(True)
 )
 
 
@@ -1203,7 +1406,7 @@ def write_pack_named(path, sheet, images):
 # The items' icons: a tile's thing at the game's 32 px, a little brighter, with a dark outline (as Operation Acorn's
 # items have; a 64 px tile shrunk by the game read soft and grey beside them).
 ICONS = {'BUWaterPump': 1, 'BUSprinkler': 4, 'BUWaterFilter': 6, 'BUBreakerBox': 72, 'BUBreakerBox2': 88,
-         'BUBreakerBox3': 104, 'BUBreakerBox4': 32, 'BUBoosterPump': 56, 'BUPowerPole': 54, 'BUYardHydrant': 55}
+         'BUBreakerBox3': 104, 'BUBreakerBox4': 32, 'BUBoosterPump': 56, 'BUJunctionBox': 54, 'BUYardHydrant': 55}
 # Icons of items that are no tile.
 DRAWN_ICONS = {'BUControlBoard': control_board}
 ICON = 32

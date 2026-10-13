@@ -250,7 +250,7 @@ function ISBUPanelWindow:waterUnitRows(add)
     end
 end
 
--- A click on a water unit's row: its pipe chips (its line is taken away at the unit).
+-- A click on a water unit's row: its pipe chips (its line is taken away at the unit). True when it hit one.
 function ISBUPanelWindow:onWaterUnitRow(row, x, width)
     local unit = row.unit
     for _, button in ipairs(Ui.producerButtons(width, row)) do
@@ -265,6 +265,8 @@ function ISBUPanelWindow:onWaterUnitRow(row, x, width)
                 Sync.send(self.playerObj, "setUnitPipes", { panel = self.panel.id, unit = unit.id, inlet = inlet,
                     outlet = outlet })
             end)
+            return true
         end
     end
+    return false
 end

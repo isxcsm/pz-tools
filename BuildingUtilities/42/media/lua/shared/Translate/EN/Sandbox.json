@@ -1,7 +1,7 @@
 {
     "Sandbox_BuildingUtilities": "Building Utilities",
     "Sandbox_BuildingUtilities_ConnectRange": "Connection range",
-    "Sandbox_BuildingUtilities_ConnectRange_tooltip": "How far from a building's outline, in tiles, a device outside, a generator, water storage or a unit (solar panel, battery rack, pump, sprinkler, filter, booster pump) can be connected to a tier 1 utility panel. Further out, lines hang on utility poles, yard hydrants or devices already on a line. Higher tiers reach further (Range gain per tier), at most 32 tiles.",
+    "Sandbox_BuildingUtilities_ConnectRange_tooltip": "How far from a building's outline, in tiles, a device outside, a generator, water storage or a unit (solar panel, battery rack, pump, sprinkler, filter, booster pump) can be connected to a tier 1 utility panel. Further out, lines hang on junction boxes, yard hydrants or devices already on a line. Higher tiers reach further (Range gain per tier), at most 32 tiles.",
     "Sandbox_BuildingUtilities_CostsEnabled": "Lines cost materials",
     "Sandbox_BuildingUtilities_CostsEnabled_tooltip": "Connecting a generator, water storage, a unit or an outside device takes tools and wire or pipe by length, and an upgrade takes its parts. On by default. Off: no tools or materials, but the Electricity levels are still needed.",
     "Sandbox_BuildingUtilities_TilesPerPiece": "Tiles per wire or pipe",
@@ -77,8 +77,8 @@
     "Sandbox_BuildingUtilities_EnableBoosters_tooltip": "Booster pumps can be made and put down, and lift their panel's water up from their floor while it has power, so that floors above the water storage get water. Needs Water and Power. On by default. Off: none can be made; those put down stand still, draw no power and can still be removed.",
     "Sandbox_BuildingUtilities_BoosterLift": "Booster pump lift (floors)",
     "Sandbox_BuildingUtilities_BoosterLift_tooltip": "How many floors above its own a booster pump fills water storage on. Higher up, another booster on a floor it fills lifts on from there.",
-    "Sandbox_BuildingUtilities_RelayRange": "Utility pole and hydrant range",
-    "Sandbox_BuildingUtilities_RelayRange_tooltip": "How far, in tiles, a line runs from a utility pole or yard hydrant to what hangs on it. Poles carry power and hydrants water, as far from a panel as its tier allows.",
+    "Sandbox_BuildingUtilities_RelayRange": "Junction box and hydrant range",
+    "Sandbox_BuildingUtilities_RelayRange_tooltip": "How far, in tiles, a line runs from a junction box or yard hydrant to what hangs on it. Junction boxes carry power and hydrants water, as far from a panel as its tier allows.",
     "Sandbox_BuildingUtilities_ChainRange": "Device to device range",
     "Sandbox_BuildingUtilities_ChainRange_tooltip": "How far, in tiles, a line runs from a device already on a line to the next one hung on it."
 }

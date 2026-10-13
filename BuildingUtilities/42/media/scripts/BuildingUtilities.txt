@@ -104,13 +104,13 @@ module BuildingUtilities
         Icon = BUWaterFilter,
     }
 
-    item PowerPole
+    item JunctionBox
     {
         DisplayCategory = Electronics,
         ItemType = base:moveable,
         WorldObjectSprite = bu_water_01_54,
-        Weight = 20.0,
-        Icon = BUPowerPole,
+        Weight = 12.0,
+        Icon = BUJunctionBox,
     }
 
     item YardHydrant
@@ -295,27 +295,27 @@ module BuildingUtilities
         }
     }
 
-    craftRecipe MakePowerPole
+    craftRecipe MakeJunctionBox
     {
         timedAction = Making,
         time = 300,
         SkillRequired = Electricity:2,
-        OnTest = BuildingUtilities.RecipeTest.MakePowerPole,
+        OnTest = BuildingUtilities.RecipeTest.MakeJunctionBox,
         OnAddToMenu = BuildingUtilitiesRecipeShown,
         Tags = AnySurfaceCraft,
         category = Electrical,
         xpAward = Electricity:5,
         inputs
         {
-            item 1 tags[base:hammer] mode:keep flags[MayDegradeLight],
-            item 1 [Base.Log],
-            item 4 [Base.Nails],
+            item 1 tags[base:screwdriver] mode:keep flags[Prop1],
+            item 1 [Base.SheetMetal],
+            item 4 [Base.Screws],
             item 2 [Base.ElectricWire],
             item 2 [Base.ElectronicsScrap],
         }
         outputs
         {
-            item 1 BuildingUtilities.PowerPole,
+            item 1 BuildingUtilities.JunctionBox,
         }
     }
 

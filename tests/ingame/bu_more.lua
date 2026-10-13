@@ -198,20 +198,20 @@ end
 -- 5. The relays a tier allows: as many as it has, then none more.
 local function relayChecks()
     BU.Dev.setTier(panel, 2)
-    local limit, poles = BU.relayLimit(2), {}
+    local limit, junctions = BU.relayLimit(2), {}
     for _ = 1, limit + 1 do
         if Links.state(panel).relays >= limit then break end
-        local sq = yardSquare(function(s) return Units.canInstall("pole", s) and Links.placeOn(panel, "power", s:getX(), s:getY(), 0, true) ~= nil end)
+        local sq = yardSquare(function(s) return Units.canInstall("junction", s) and Links.placeOn(panel, "power", s:getX(), s:getY(), 0, true) ~= nil end)
         if not sq then break end
-        local pole = Changes.installUnit("pole", sq, BU.Relays.SPRITES.pole)
-        Changes.connectUnit(pole, panel, {})
-        poles[#poles + 1] = pole
+        local junction = Changes.installUnit("junction", sq, BU.Relays.SPRITES.junction)
+        Changes.connectUnit(junction, panel, {})
+        junctions[#junctions + 1] = junction
     end
     check("relays: as many as the tier allows", Links.state(panel).relays, limit)
-    local sq = yardSquare(function(s) return Units.canInstall("pole", s) end)
+    local sq = yardSquare(function(s) return Units.canInstall("junction", s) end)
     local place, reason = Links.placeOn(panel, "power", sq:getX(), sq:getY(), 0, true)
     check("relays: one more refused", place == nil and reason, "relays")
-    for _, pole in ipairs(poles) do Changes.removeUnit(pole) end
+    for _, junction in ipairs(junctions) do Changes.removeUnit(junction) end
 end
 
 -- 6. A pipe's colour and name, the long name cut on a whole letter; a room put on it and back.

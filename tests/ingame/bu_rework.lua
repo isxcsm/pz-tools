@@ -53,7 +53,7 @@ for _, device in ipairs(Panels.devices(panel, "power")) do
     if not device.inside and device.state ~= "other" then outside = device end
 end
 say("outside device", outside and outside.key or "none")
-local pole
+local junction
 if outside then
     local ref = Links.deviceRef(outside.key)
     local wasLine = Links.get(ref) ~= nil
@@ -71,40 +71,40 @@ if outside then
     Changes.setRoomInside(panel, "power", hangs, true)
     check("its room on: it is on", panel.power.excluded[outside.key], nil)
 
-    -- A pole between it and the building: the device hung below the pole.
+    -- A junction between it and the building: the device hung below the junction.
     local ex, ey = outside.entry.x, outside.entry.y
-    local sq = BUT.square(ex, ey, 0, 1, 4, function(s) return Units.canInstall("pole", s) end)
+    local sq = BUT.square(ex, ey, 0, 1, 4, function(s) return Units.canInstall("junction", s) end)
     if sq then
-        pole = Changes.installUnit("pole", sq, BU.Relays.SPRITES.pole)
-        Changes.connectUnit(pole, panel, {})
-        local poleRef = Links.unitRef(pole)
+        junction = Changes.installUnit("junction", sq, BU.Relays.SPRITES.junction)
+        Changes.connectUnit(junction, panel, {})
+        local junctionRef = Links.unitRef(junction)
         local place = Links.placeOn(panel, "power", ex, ey, 0, nil, nil)
-        say("pole at", pole.x, pole.y, "live", Links.live(panel, poleRef), "device would hang", place and place.from, place and place.via)
-        Changes.rehang(ref, panel, { via = poleRef, length = Links.length(ex, ey, 0, pole.x, pole.y, 0) }, {})
+        say("junction at", junction.x, junction.y, "live", Links.live(panel, junctionRef), "device would hang", place and place.from, place and place.via)
+        Changes.rehang(ref, panel, { via = junctionRef, length = Links.length(ex, ey, 0, junction.x, junction.y, 0) }, {})
         listed = nil
         for _, device in ipairs(Panels.devices(panel, "power")) do
             if device.key == outside.key then listed = device end
         end
-        check("below the pole: listed under it", listed and Ui.groupOf(listed), poleRef)
-        Changes.setRoomInside(panel, "power", poleRef, false)
-        check("the pole's group off: it is off", panel.power.excluded[outside.key], true)
-        Changes.setRoomInside(panel, "power", poleRef, true)
-        -- The pole taken up: the device's line is cut, its branch listed; hung on the wall again.
+        check("below the junction: listed under it", listed and Ui.groupOf(listed), junctionRef)
+        Changes.setRoomInside(panel, "power", junctionRef, false)
+        check("the junction's group off: it is off", panel.power.excluded[outside.key], true)
+        Changes.setRoomInside(panel, "power", junctionRef, true)
+        -- The junction taken up: the device's line is cut, its branch listed; hung on the wall again.
         local deadBefore = #Links.deadHeads(panel)
-        Changes.removeUnit(pole)
-        pole = nil
-        check("pole gone: a dead branch more", #Links.deadHeads(panel), deadBefore + 1)
+        Changes.removeUnit(junction)
+        junction = nil
+        check("junction gone: a dead branch more", #Links.deadHeads(panel), deadBefore + 1)
         check("its line the dead head", Links.cutHead(ref) and Links.cutHead(ref).ref, ref)
         say("why", Links.reasonText(panel, ref))
         local again = Links.placeOn(panel, "power", ex, ey, 0)
         if again then Changes.rehang(ref, panel, again, {}) end
         check("hung on the wall again: as before", #Links.deadHeads(panel), deadBefore)
     else
-        say("no square for a pole near the device")
+        say("no square for a junction near the device")
     end
     if not wasLine then Changes.excludeOutside(panel, "power", outside) end
 end
-if pole then Changes.removeUnit(pole) end
+if junction then Changes.removeUnit(junction) end
 
 -- Where a box may go: in this building's zone no; outside yes (an outdoor box).
 local cell = getCell()
@@ -132,7 +132,7 @@ for tier = 2, 4 do
     for _, item in ipairs(cost and cost.items or {}) do parts[#parts + 1] = item[1] .. "x" .. item[2] end
     say("upgrade to", tier, "skill", cost and cost.skill, table.concat(parts, " "))
 end
-for _, kind in ipairs({ "BreakerBox", "BreakerBox4", "ControlBoard", "SolarPanel", "PowerPole", "YardHydrant" }) do
+for _, kind in ipairs({ "BreakerBox", "BreakerBox4", "ControlBoard", "SolarPanel", "JunctionBox", "YardHydrant" }) do
     local item = instanceItem("BuildingUtilities." .. kind)
     local tex = item and item:getTex()
     say("icon", kind, tex and tex:getName() or "none")

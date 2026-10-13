@@ -1,6 +1,6 @@
 -- The lines of the boxes: what a box reaches past its zone, as a tree out from its zone's walls. A line is laid from a
--- thing to what it hangs on: the nearest wall square of a box's zone (an outdoor box's own square), a relay (a pole
--- for power, a yard hydrant for water: BU.RELAY_KINDS), or a device already on a line that uses the utility outside
+-- thing to what it hangs on: the nearest wall square of a box's zone (an outdoor box's own square), a relay (a junction
+-- box for power, a yard hydrant for water: BU.RELAY_KINDS), or a device already on a line that uses the utility outside
 -- (a lamp, a sprinkler: one that carries the line on). Producers, water storage, machines and racks only end a line.
 --
 -- Lines are kept apart from the boxes (Store.lines), by the thing's ref: "p:x,y,z" a producer (a generator, water
@@ -351,6 +351,269 @@ function Links.endOf(line)
     local wx, wy, wz = BU.parsePlace(line.wall or "")
     if not wx then return nil end
     return math.max(wx - 0.5, math.min(wx + 0.5, line.x)), math.max(wy - 0.5, math.min(wy + 0.5, line.y)), wz
+end
+
+-- How a line lies on the ground, as the floor shows it (BU.FloorLines) and the window's overlay and plan draw it: the
+-- squares it crosses on its thing's floor, a step at a time, from its thing's square to the square it ends on: the
+-- thing it hangs on, an outdoor box, or the square outside its wall square nearest the thing (as near, on the side the
+-- thing is further out from), and on into the wall. The way is the cheapest round what is there (Links.walk), worked
+-- out when the line is laid and kept with it (line.path, its corners), so that it stays as it was laid; a line without
+-- one (or whose ends are no longer where they were) is walked once more and kept for the session. Returns the squares
+-- ({ x, y } each, in order), the floor, and the step (dx, dy) the last square runs on by into the wall it hangs on (nil
+-- when it ends on a thing); nil when what it hangs on is gone, or for a thing in a room of the zone.
+local NEIGHBOURS = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } }
+
+local function outside(x, y, z) return Panels.buildingAt(x, y, z) == nil end
+
+-- Where a line ends on the ground: x, y, the floor, and the step into its wall (nil at a thing); nil when it lies
+-- nowhere.
+local function groundEnds(line)
+    local z = line.z
+    if line.via then
+        local parent = Links.get(line.via)
+        if not parent then return nil end
+        return parent.x, parent.y, z
+    end
+    local wx, wy = BU.parsePlace(line.wall or "")
+    if not wx then return nil end
+    -- a thing in a room of the zone hangs on the wall where it is: nothing lies on the ground
+    if (line.length or 0) == 0 and not outside(line.x, line.y, z) then return nil end
+    if outside(wx, wy, z) then return wx, wy, z end
+    -- as near, the side the thing is further out from: the long leg then runs straight into the wall
+    local best, bestOut, ex, ey
+    for _, step in ipairs(NEIGHBOURS) do
+        local nx, ny = wx + step[1], wy + step[2]
+        if outside(nx, ny, z) then
+            local far = math.abs(nx - line.x) + math.abs(ny - line.y)
+            local out = step[1] ~= 0 and math.abs(nx - line.x) or math.abs(ny - line.y)
+            if not best or far < best or far == best and out > bestOut then
+                best, bestOut, ex, ey = far, out, nx, ny
+            end
+        end
+    end
+    if not best then
+        local dx, dy = line.x - wx, line.y - wy
+        if math.abs(dx) >= math.abs(dy) then ex, ey = wx + (dx >= 0 and 1 or -1), wy
+        else ex, ey = wx, wy + (dy >= 0 and 1 or -1) end
+    end
+    return ex, ey, z, wx - ex, wy - ey
+end
+
+-- What a step onto a square costs: nothing lies where it cannot (nil): on water (rivers, ponds and pools alike are the
+-- game's water tiles), where there is no floor, on stairs or a raised floor; through a building more (its rooms are
+-- not dug through). A square not loaded is taken as open ground.
+local STEP, TURN, BUILDING, CROSSING, MARGIN = 1, 3, 20, 6, 12
+
+local function squareCost(cell, x, y, z)
+    local cost = outside(x, y, z) and STEP or STEP + BUILDING
+    local square = cell and cell:getGridSquare(x, y, z)
+    if not square then return cost end
+    if not square:getFloor() or square:HasStairs() then return nil end
+    local props = square:getProperties()
+    if props:has(IsoFlagType.water) or props:has(IsoFlagType.FloorHeightOneThird)
+            or props:has(IsoFlagType.FloorHeightTwoThirds) then
+        return nil
+    end
+    return cost
+end
+
+-- Whether a line can still lie on a square it was laid over: open ground, not in a building (BU.FloorLines asks it of
+-- a square that changed).
+function Links.groundOpen(x, y, z)
+    return outside(x, y, z) and squareCost(getCell and getCell() or nil, x, y, z) ~= nil
+end
+
+-- The cheapest way on floor z from (x, y) to (ex, ey): a step a square, more for a turn, through a building and over a
+-- wall or fence between two squares (it takes a gate or a gap near by); ending not headed into its wall (intoX,
+-- intoY) costs a turn, so that the last leg runs straight in. Within MARGIN squares round its ends. The squares
+-- ({ x, y } each, in order), or nil with no way there.
+function Links.walk(x, y, ex, ey, z, intoX, intoY)
+    local cell = getCell and getCell() or nil
+    local minX, minY = math.min(x, ex) - MARGIN, math.min(y, ey) - MARGIN
+    local maxX, maxY = math.max(x, ex) + MARGIN, math.max(y, ey) + MARGIN
+    local h = maxY - minY + 1
+    local costs = {}
+    local function costAt(sx, sy)
+        local i = (sx - minX) * h + (sy - minY) + 1
+        local c = costs[i]
+        if c == nil then
+            if sx == ex and sy == ey then c = STEP else c = squareCost(cell, sx, sy, z) or false end
+            costs[i] = c
+        end
+        return c
+    end
+    local function crossing(ax, ay, bx, by)
+        if not cell then return 0 end
+        local a, b = cell:getGridSquare(ax, ay, z), cell:getGridSquare(bx, by, z)
+        return a and b and a:isBlockedTo(b) and CROSSING or 0
+    end
+    local into = 0
+    for d, step in ipairs(NEIGHBOURS) do
+        if step[1] == intoX and step[2] == intoY then into = d end
+    end
+    -- A state is a square and the way it was entered by (0 at the start, else NEIGHBOURS' index); a heap of them by
+    -- cost.
+    local best, from, heap, heapCost, size = {}, {}, {}, {}, 0
+    local function push(s, cost)
+        size = size + 1
+        local i = size
+        while i > 1 do
+            local parent = math.floor(i / 2)
+            if heapCost[parent] <= cost then break end
+            heap[i], heapCost[i] = heap[parent], heapCost[parent]
+            i = parent
+        end
+        heap[i], heapCost[i] = s, cost
+    end
+    local function pop()
+        local s, cost = heap[1], heapCost[1]
+        local last, lastCost = heap[size], heapCost[size]
+        heap[size], heapCost[size] = nil, nil
+        size = size - 1
+        local i = 1
+        while true do
+            local child = i * 2
+            if child > size then break end
+            if child < size and heapCost[child + 1] < heapCost[child] then child = child + 1 end
+            if heapCost[child] >= lastCost then break end
+            heap[i], heapCost[i] = heap[child], heapCost[child]
+            i = child
+        end
+        if size > 0 then heap[i], heapCost[i] = last, lastCost end
+        return s, cost
+    end
+    local function state(sx, sy, d) return ((sx - minX) * h + (sy - minY)) * 5 + d end
+    local start = state(x, y, 0)
+    best[start] = 0
+    push(start, 0)
+    local goal, goalCost
+    while size > 0 do
+        local s, cost = pop()
+        if goalCost and cost >= goalCost then break end
+        if cost == best[s] then
+            local index = math.floor(s / 5)
+            local d = s - index * 5
+            local column = math.floor(index / h)
+            local sx, sy = minX + column, minY + index - column * h
+            if sx == ex and sy == ey then
+                local total = cost + ((into ~= 0 and d ~= into) and TURN or 0)
+                if not goalCost or total < goalCost then goal, goalCost = s, total end
+            else
+                for nd, step in ipairs(NEIGHBOURS) do
+                    local nx, ny = sx + step[1], sy + step[2]
+                    if nx >= minX and nx <= maxX and ny >= minY and ny <= maxY then
+                        local c = costAt(nx, ny)
+                        if c then
+                            local next = state(nx, ny, nd)
+                            local nextCost = cost + c + ((d ~= 0 and nd ~= d) and TURN or 0) + crossing(sx, sy, nx, ny)
+                            if not best[next] or nextCost < best[next] then
+                                best[next], from[next] = nextCost, s
+                                push(next, nextCost)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    if not goal then return nil end
+    local reversed, s = {}, goal
+    while s do
+        local index = math.floor(s / 5)
+        local column = math.floor(index / h)
+        reversed[#reversed + 1] = { x = minX + column, y = minY + index - column * h }
+        s = from[s]
+    end
+    local squares = {}
+    for i = #reversed, 1, -1 do squares[#squares + 1] = reversed[i] end
+    return squares
+end
+
+-- A way's corners, flat (x1, y1, x2, y2, ...): its first square, each turn and its last; and the squares again from
+-- them.
+local function cornersOf(squares)
+    local flat = { squares[1].x, squares[1].y }
+    for i = 2, #squares do
+        local a, b, c = squares[i - 1], squares[i], squares[i + 1]
+        if not c or b.x - a.x ~= c.x - b.x or b.y - a.y ~= c.y - b.y then
+            flat[#flat + 1] = b.x
+            flat[#flat + 1] = b.y
+        end
+    end
+    return flat
+end
+
+local function squaresOf(flat)
+    local squares = { { x = flat[1], y = flat[2] } }
+    for i = 3, #flat - 1, 2 do
+        local cx, cy, tx, ty = flat[i - 2], flat[i - 1], flat[i], flat[i + 1]
+        while cx ~= tx or cy ~= ty do
+            if cx ~= tx then cx = cx + (tx > cx and 1 or -1) else cy = cy + (ty > cy and 1 or -1) end
+            squares[#squares + 1] = { x = cx, y = cy }
+        end
+    end
+    return squares
+end
+
+-- With no way round (all closed off near by): one axis and then the other, at a wall straight into it last.
+local function straight(x, y, ex, ey, intoX)
+    local acrossFirst
+    if intoX then acrossFirst = intoX == 0 else acrossFirst = math.abs(ex - x) >= math.abs(ey - y) end
+    local squares, cx, cy = { { x = x, y = y } }, x, y
+    while cx ~= ex or cy ~= ey do
+        if acrossFirst and cx ~= ex or cy == ey then cx = cx + (ex > cx and 1 or -1) else cy = cy + (ey > cy and 1 or -1) end
+        squares[#squares + 1] = { x = cx, y = cy }
+    end
+    return squares
+end
+
+-- The way a line is laid along (line.path), worked out as it is laid; nil when it lies nowhere.
+function Links.pathFor(line)
+    local ex, ey, z, intoX, intoY = groundEnds(line)
+    if not ex then return nil end
+    return cornersOf(Links.walk(line.x, line.y, ex, ey, z, intoX, intoY) or straight(line.x, line.y, ex, ey, intoX))
+end
+
+-- Lines walked again this session (no way kept, or kept between other ends), by ref: { key, squares }.
+local walked = {}
+
+function Links.route(line)
+    local ex, ey, z, intoX, intoY = groundEnds(line)
+    if not ex then return nil end
+    local path = line.path
+    if path and #path >= 2 and path[1] == line.x and path[2] == line.y and path[#path - 1] == ex and path[#path] == ey then
+        return squaresOf(path), z, intoX, intoY
+    end
+    local key = ex .. "," .. ey .. "," .. line.x .. "," .. line.y .. "," .. tostring(line.seq)
+    local memo = walked[line.ref]
+    if not memo or memo.key ~= key then
+        memo = { key = key, squares = Links.walk(line.x, line.y, ex, ey, z, intoX, intoY) or straight(line.x, line.y, ex, ey, intoX) }
+        walked[line.ref] = memo
+    end
+    return memo.squares, z, intoX, intoY
+end
+
+-- The corners of a line's way on the ground (Links.route), shifted off the squares' middles by shift (along the
+-- diagonal): its thing, each turn, the square it ends on, the wall's face it runs into, and up or down to the floor it
+-- ends on; { x, y, z } each. Nil when it lies nowhere.
+function Links.way(line, shift)
+    local route, z, intoX, intoY = Links.route(line)
+    if not route then return nil end
+    local o = 0.5 + (shift or 0)
+    local points = { { route[1].x + o, route[1].y + o, z } }
+    for i = 2, #route do
+        local a, b, c = route[i - 1], route[i], route[i + 1]
+        if not c or b.x - a.x ~= c.x - b.x or b.y - a.y ~= c.y - b.y then points[#points + 1] = { b.x + o, b.y + o, z } end
+    end
+    local last = points[#points]
+    if intoX then
+        last = { intoX ~= 0 and route[#route].x + 0.5 + intoX * 0.5 or last[1],
+            intoY ~= 0 and route[#route].y + 0.5 + intoY * 0.5 or last[2], z }
+        points[#points + 1] = last
+    end
+    local _, _, tz = Links.endOf(line)
+    if tz and tz ~= z then points[#points + 1] = { last[1], last[2], tz } end
+    return #points > 1 and points or nil
 end
 
 -- What a line hangs from at its top, for the window to list it there: the relay it hangs below (its ref), else the

@@ -1,6 +1,7 @@
 -- The lines in the world: thin lines from each thing to what it hangs on (BU.Links), while a box's window is open (that
--- box's lines), in their utility's colour (a water pipe's own; a machine's two pipes side by side), grey where they
--- supply nothing. Else nothing is drawn or looked for. A HUD under every window draws them, one pixel at the screen's
+-- box's lines), over the way each lies on the ground (Links.way, in its utility's lane, as BU.FloorLines draws it)
+-- and up to the floor it ends on, in their utility's colour (a water pipe's own; a machine's two pipes side by side),
+-- grey where they supply nothing. Else nothing is drawn or looked for. A HUD under every window draws them, one pixel at the screen's
 -- corner drawing past its bounds (as Operation Acorn's marks: a larger element takes the world's clicks); while it
 -- shows it draws every frame, as the camera moves without telling it. The lines are looked for again when they change
 -- and every second (what supplies may change with a tier or a zone).
@@ -15,8 +16,10 @@ BU.LineOverlay = LineOverlay
 
 local REBUILD_MS = 1000
 local WIDTH = 2
--- How far apart a machine's inlet and outlet run (squares).
-local PAIR = 0.16
+-- Each utility's lane off a square's middle, along the diagonal (as the floor's pieces: tools/tile_art.py), and how
+-- far beyond it a machine's outlet runs beside its inlet (squares).
+local LANE = { power = -0.1, water = 0.1 }
+local PAIR = 0.12
 local COLOURS = { power = { 0.95, 0.72, 0.3 }, water = { 0.45, 0.78, 0.86 }, cut = { 0.5, 0.5, 0.52 } }
 local WHITE = Texture.getWhite()
 
@@ -39,10 +42,17 @@ local segments, segmentsKey = {}, nil
 
 local function build()
     local result = {}
+    local function add(points, colour)
+        for i = 2, #points do
+            local a, b = points[i - 1], points[i]
+            result[#result + 1] = { a[1], a[2], a[3], b[1], b[2], b[3], colour }
+        end
+    end
     for _, line in pairs(Links.all()) do
         if line.panel and shown.panels[line.panel] then
-            local tx, ty, tz = Links.endOf(line)
-            if tx then
+            local lane = LANE[line.utility] or 0
+            local points = Links.way(line, lane)
+            if points then
                 local panel = Store.get(line.panel)
                 local colour, second = COLOURS.cut, nil
                 if panel and Links.live(panel, line.ref) then
@@ -55,14 +65,8 @@ local function build()
                     colour = pipe and BU.Water.colour(pipe) or COLOURS[line.utility]
                     second = outlet and BU.Water.colour(outlet) or nil
                 end
-                local x1, y1, x2, y2 = line.x + 0.5, line.y + 0.5, tx + 0.5, ty + 0.5
-                if second then
-                    local ox, oy = Links.besideOffset(x2 - x1, y2 - y1, PAIR)
-                    result[#result + 1] = { x1 - ox, y1 - oy, line.z, x2 - ox, y2 - oy, tz, colour }
-                    result[#result + 1] = { x1 + ox, y1 + oy, line.z, x2 + ox, y2 + oy, tz, second }
-                else
-                    result[#result + 1] = { x1, y1, line.z, x2, y2, tz, colour }
-                end
+                add(points, colour)
+                if second then add(Links.way(line, lane + PAIR) or {}, second) end
             end
         end
     end

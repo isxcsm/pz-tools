@@ -29,8 +29,8 @@ local function lamp(x, y)
     return { key = key, keys = { key }, inside = false, entry = { x = x, y = y, z = 0, sprite = "lamp" } }
 end
 
-local function pole(x, y, z)
-    return Store.newUnit("pole", x, y, z or 0, BU.Relays.SPRITES.pole)
+local function junction(x, y, z)
+    return Store.newUnit("junction", x, y, z or 0, BU.Relays.SPRITES.junction)
 end
 
 test("a line hangs on the nearest wall within the tier's range; past it, it waits for a tier", function()
@@ -79,7 +79,7 @@ test("a line hangs from its room's wall, or from the relay above it however far 
     Changes.includeOutside(panel, "power", below, {}, { via = "t:" .. onWall.key, length = 3 })
     eq(Links.hangsOn(panel, "t:" .. onWall.key), "A-0")
     eq(Links.hangsOn(panel, "t:" .. below.key), "A-0", "down the chain: the head's wall")
-    local a = pole(104, 108)
+    local a = junction(104, 108)
     Changes.connectUnit(a, panel, {})
     local first = lamp(104, 113)
     Changes.includeOutside(panel, "power", first, {}, { via = "u:" .. a.id, length = 5 })
@@ -94,23 +94,23 @@ test("relays by tier, devices by head, and what comes back with an upgrade", fun
     local panel = Store.newPanel(102, 102, 0, "box")
     panel.tier = 2
     eq(BU.relayLimit(2), 2)
-    local poles = {}
+    local junctions = {}
     for i = 1, 3 do
-        poles[i] = pole(104 + i * 6, 102)
+        junctions[i] = junction(104 + i * 6, 102)
         -- The third as laid by a box of a higher tier: hung on the second all the same.
-        local place = i == 3 and { via = "u:" .. poles[2].id, length = 6 } or nil
-        Changes.connectUnit(poles[i], panel, {}, place)
+        local place = i == 3 and { via = "u:" .. junctions[2].id, length = 6 } or nil
+        Changes.connectUnit(junctions[i], panel, {}, place)
     end
-    eq(Links.get("u:" .. poles[2].id).via, "u:" .. poles[1].id, "the second on the first, nearer than the wall")
+    eq(Links.get("u:" .. junctions[2].id).via, "u:" .. junctions[1].id, "the second on the first, nearer than the wall")
     local state = Links.state(panel)
-    eq(state.live["u:" .. poles[1].id], true)
-    eq(state.live["u:" .. poles[2].id], true)
-    eq(state.reason["u:" .. poles[3].id], "relays", "the third past tier 2's two")
+    eq(state.live["u:" .. junctions[1].id], true)
+    eq(state.live["u:" .. junctions[2].id], true)
+    eq(state.reason["u:" .. junctions[3].id], "relays", "the third past tier 2's two")
     eq(select(2, Links.placeOn(panel, "power", 125, 102, 0, true)), "relays", "no fourth offered")
-    -- Lamps in a row from the second pole: its head, then eight more; the tenth is past.
+    -- Lamps in a row from the second junction: its head, then eight more; the tenth is past.
     local first = lamp(117, 104)
     Changes.includeOutside(panel, "power", first, {})
-    eq(Links.get("t:" .. first.key).via, "u:" .. poles[2].id, "the first lamp on the pole")
+    eq(Links.get("t:" .. first.key).via, "u:" .. junctions[2].id, "the first lamp on the junction")
     local last
     for i = 1, 9 do
         last = lamp(117 + i * 2, 104)
@@ -121,7 +121,7 @@ test("relays by tier, devices by head, and what comes back with an upgrade", fun
     eq(state.reason["t:" .. last.key], "chain", "the ninth below the head is past eight")
     eq(BU.Networks.rule(panel, "power", last.key), "reset", "past: not supplied")
     Changes.upgrade(panel)
-    eq(Links.live(panel, "u:" .. poles[3].id), true, "tier 3 has four relays")
+    eq(Links.live(panel, "u:" .. junctions[3].id), true, "tier 3 has four relays")
 end)
 
 test("a relay taken up cuts what hangs on it; hung on again on another box, the branch is that box's", function()
@@ -131,9 +131,9 @@ test("a relay taken up cuts what hangs on it; hung on again on another box, the 
     mine.tier = 2
     local other = Store.newPanel(102, 117, 0, "box")
     other.tier = 2
-    local a = pole(110, 102)
+    local a = junction(110, 102)
     Changes.connectUnit(a, mine, { ["Base.ElectricWire"] = 2 })
-    local b = pole(110, 113)
+    local b = junction(110, 113)
     Changes.connectUnit(b, mine, {}, { via = "u:" .. a.id, length = 11 })
     Changes.connectProducer(mine, "power", 110, 120, 0, {}, { via = "u:" .. b.id, length = 7 })
     eq(#mine.power.producers, 1)
@@ -155,7 +155,7 @@ test("a box taken down leaves its lines cut; its tier goes with its item", funct
     building(TEST.api, "A", 100, 100)
     local panel = Store.newPanel(102, 102, 0, "box")
     panel.tier = 3
-    local p = pole(110, 102)
+    local p = junction(110, 102)
     Changes.connectUnit(p, panel, {})
     eq(Changes.keepPanel(panel).tier, 3)
     Changes.remove(panel)
@@ -170,7 +170,7 @@ test("a relay in a building takes its rooms; no other box goes there", function(
     building(TEST.api, "T", 106, 100, 10)
     local panel = Store.newPanel(102, 102, 0, "box")
     panel.tier = 4
-    local relay = pole(107, 102, 2)
+    local relay = junction(107, 102, 2)
     Changes.connectUnit(relay, panel, {})
     eq(Links.live(panel, "u:" .. relay.id), true)
     local ids = Panels.zoneIds(panel)
@@ -207,13 +207,13 @@ test("each line runs to what it hangs on; the branches that supply nothing are l
     building(TEST.api, "A", 100, 100)
     local panel = Store.newPanel(102, 102, 0, "box")
     panel.tier = 2
-    local a = pole(110, 102)
+    local a = junction(110, 102)
     Changes.connectUnit(a, panel, {})
     local first = lamp(116, 102)
     Changes.includeOutside(panel, "power", first, {}, { via = "u:" .. a.id, length = 6 })
     local line = Links.get("u:" .. a.id)
-    eq(select(1, Links.endOf(line)), 104.5, "the pole to its wall square's east face")
-    eq(select(1, Links.endOf(Links.get("t:" .. first.key))), 110, "the lamp to the pole")
+    eq(select(1, Links.endOf(line)), 104.5, "the junction to its wall square's east face")
+    eq(select(1, Links.endOf(Links.get("t:" .. first.key))), 110, "the lamp to the junction")
     eq(#Links.deadHeads(panel), 0)
     eq(Links.reasonText(panel, "u:" .. a.id), nil, "it supplies")
     Changes.removeUnit(a)
@@ -222,4 +222,82 @@ test("each line runs to what it hangs on; the branches that supply nothing are l
     eq(heads[1].ref, "t:" .. first.key)
     eq(Links.endOf(heads[1]), nil, "what it hung on is gone")
     eq(Links.reasonText(panel, "t:" .. first.key), "IGUI_BU_LineCut_here")
+end)
+
+test("a line lies on the ground one axis then the other, to the square outside its wall and into it", function()
+    building(TEST.api, "A", 100, 100)
+    local panel = Store.newPanel(102, 102, 0, "box")
+    panel.tier = 3
+    local a = junction(110, 106)
+    Changes.connectUnit(a, panel, {})
+    local route, z, intoX, intoY = Links.route(Links.get("u:" .. a.id))
+    eq(z, 0)
+    eq(route[1].x .. "," .. route[1].y, "110,106", "from its own square")
+    local last = route[#route]
+    eq(last.x .. "," .. last.y, "105,104", "the square east of the nearest wall square (104, 104): further out")
+    eq(intoX, -1, "into the wall to the west")
+    eq(intoY, 0)
+    eq(#route, 8, "two along, five across, and its own square")
+    eq(route[2].x .. "," .. route[2].y, "110,105", "along first: then straight into the wall")
+    -- A lamp hung on it: to the junction's square, nothing into a wall.
+    local hung = lamp(110, 110)
+    Changes.includeOutside(panel, "power", hung, {}, { via = "u:" .. a.id, length = 4 })
+    route, z, intoX = Links.route(Links.get("t:" .. hung.key))
+    eq(#route, 5)
+    eq(route[5].x .. "," .. route[5].y, "110,106")
+    eq(intoX, nil)
+    -- A thing in a room of the zone lies nowhere.
+    eq(Links.route({ x = 102, y = 103, z = 0, length = 0, wall = "102,103,0" }), nil)
+    -- Beside the wall: its own square, into the wall.
+    route, z, intoX, intoY = Links.route({ x = 105, y = 102, z = 0, length = 0, wall = "104,102,0" })
+    eq(#route, 1)
+    eq(intoX, -1)
+    -- Far out past the wall's end: the short leg first, the long one straight into the wall, one turn.
+    route, z, intoX, intoY = Links.route({ x = 106, y = 112, z = 0, length = 10, wall = "104,104,0" })
+    eq(intoY, -1, "into the wall to the north, the side it is further out from")
+    eq(route[2].x .. "," .. route[2].y, "105,112", "across first, the short leg")
+    eq(route[#route].x .. "," .. route[#route].y, "104,105")
+    eq(route[#route - 1].x .. "," .. route[#route - 1].y, "104,106", "straight on into the wall")
+end)
+
+test("a line goes round water, a square with no floor and stairs, and is laid again when one comes over it", function()
+    building(TEST.api, "A", 100, 100)
+    local panel = Store.newPanel(102, 102, 0, "box")
+    -- A pond across the straight way out from (110, 104) to the wall's square outside (105, 104).
+    for y = 102, 106 do TEST.squares["107," .. y .. ",0"] = { flags = { water = true } } end
+    TEST.squares["108,101,0"] = { noFloor = true }
+    TEST.squares["106,101,0"] = { stairs = true }
+    local line = { ref = "t:pond", x = 110, y = 104, z = 0, length = 6, wall = "104,104,0", utility = "water" }
+    local route = Links.route(line)
+    local wet = 0
+    for _, square in ipairs(route) do
+        if square.x == 107 and square.y >= 102 and square.y <= 106 or square.x == 108 and square.y == 101
+                or square.x == 106 and square.y == 101 then
+            wet = wet + 1
+        end
+    end
+    eq(wet, 0, "round the pond, the hole and the stairs")
+    eq(route[#route].x .. "," .. route[#route].y, "105,104", "and still into the wall")
+    eq(Links.groundOpen(107, 104, 0), false)
+    eq(Links.groundOpen(109, 104, 0), true)
+    -- Laid as it was found, and kept so.
+    line.path = Links.pathFor(line)
+    eq(line.path[1] .. "," .. line.path[2], "110,104")
+    TEST.squares = {}
+    eq(#Links.route(line), #route, "the way kept, though the pond is gone")
+end)
+
+test("of the two ways round, a line lies through fewer squares of buildings", function()
+    building(TEST.api, "A", 100, 100)
+    building(TEST.api, "B", 108, 108)
+    local panel = Store.newPanel(102, 102, 0, "box")
+    -- From (112, 114): across first would run along y = 114 through B (x 108-112); along first runs up x = 112
+    -- through B too; from (114, 112) across first crosses B, along first (x = 114) passes beside it.
+    local route = Links.route({ x = 114, y = 112, z = 0, length = 10, wall = "104,104,0" })
+    local through = 0
+    for _, square in ipairs(route) do
+        if square.x >= 108 and square.x <= 112 and square.y >= 108 and square.y <= 112 then through = through + 1 end
+    end
+    eq(through, 0, "round B, not through it")
+    eq(route[2].x .. "," .. route[2].y, "114,111", "along first, though across is longer")
 end)

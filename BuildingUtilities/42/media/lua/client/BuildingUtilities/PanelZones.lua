@@ -105,7 +105,7 @@ function ISBUPanelWindow:updatePlan()
                 local pipe, outlet
                 if pipes then pipe, outlet = BU.Water.linePipes(panel, line) end
                 lines[#lines + 1] = { ref = line.ref, x1 = line.x, y1 = line.y, z1 = line.z, x2 = tx, y2 = ty, z2 = tz,
-                    live = Links.live(panel, line.ref), colour = pipe and BU.Water.colour(pipe) or nil,
+                    way = Links.way(line), live = Links.live(panel, line.ref), colour = pipe and BU.Water.colour(pipe) or nil,
                     colour2 = outlet and BU.Water.colour(outlet) or nil }
             end
         end

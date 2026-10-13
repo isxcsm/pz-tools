@@ -100,7 +100,7 @@ local COLOURS = {
     zoneMine = { 0.2, 0.5, 0.6 }, zoneFree = { 0.25, 0.25, 0.25 }, zoneTaken = { 0.5, 0.3, 0.6 },
     zoneFar = { 0.12, 0.12, 0.12 },
     mixed = { 0.8, 0.8, 0.8 },
-    pole = BU.Units.definition("pole").colour, hydrant = BU.Units.definition("hydrant").colour,
+    junction = BU.Units.definition("junction").colour, hydrant = BU.Units.definition("hydrant").colour,
     linePower = { 0.95, 0.72, 0.3 }, lineWater = { 0.45, 0.78, 0.86 }, lineCut = { 0.42, 0.42, 0.44 },
 }
 
@@ -158,7 +158,7 @@ local function legendEntries(utility, zones, ranges, data)
     end
     add("box", true)
     if not zones then
-        if #(data.relays or {}) > 0 then add(utility == "water" and "hydrant" or "pole", true) end
+        if #(data.relays or {}) > 0 then add(utility == "water" and "hydrant" or "junction", true) end
         local live, dead = false, false
         for _, line in ipairs(data.lines or {}) do
             if line.live then live = true else dead = true end
@@ -216,7 +216,8 @@ end
 -- data: { utility, supplied, rooms = { { id, title, level, rects } }, devices = { { key, x, y, z, roomId, inside,
 -- state, held, cut, power, name, status, ref, ring (a colour around its dot, or nil) } }, producers = { { x, y, z, inUse,
 -- text, unit = its kind for a unit, colour or nil, cut, ref } }, relays = { { x, y, z, kind, cut, text, ref } }, lines =
--- { { ref, x1, y1, z1 (its thing), x2, y2, z2 (what it hangs on), live, colour (a water pipe's, or nil) } }, box = { x, y, z }, outdoor, boxes = { { x, y, z, own, text } } (the
+-- { { ref, x1, y1, z1 (its thing), x2, y2, z2 (what it hangs on), way (its corners on the ground, Links.way, or nil),
+-- live, colour (a water pipe's, or nil) } }, box = { x, y, z }, outdoor, boxes = { { x, y, z, own, text } } (the
 -- boxes whose zones can have these rooms, this window's own), filter = room id, zone = room id to { state = "mine",
 -- "free", "taken" or "far", owner = a name, note = why a far room cannot be taken }, zoneEditable, zoneEdit, zoneNote,
 -- farLevels (the floors with no room the zone can take, a set), waterSupply (by floor, "dry", for water),
@@ -443,6 +444,7 @@ function ISBUPlan:layout()
     for _, line in ipairs(data.lines or {}) do
         cover(line.x1, line.y1, 1, 1)
         cover(line.x2, line.y2, 1, 1)
+        for _, point in ipairs(line.way or {}) do cover(point[1] - 0.5, point[2] - 0.5, 1, 1) end
     end
     cover(data.box.x, data.box.y, 1, 1)
     if not minX then return end
@@ -526,16 +528,20 @@ function ISBUPlan:layout()
                 h = FONT_HGT_SMALL + 2, text = group.text, tip = group.tip, colour = group.colour, level = group.level }
         end
     end
-    -- The lines with an end on this floor, square middle to square middle, in their utility's colour (a water pipe's
-    -- own) or grey; each found by its thing's ref for the mouse.
+    -- The lines with an end on this floor, the way they lie on the ground (else square middle to square middle), in
+    -- their utility's colour (a water pipe's own) or grey; each found by its thing's ref for the mouse.
     local lineColour = data.utility == "water" and COLOURS.lineWater or COLOURS.linePower
     for _, line in ipairs(data.lines or {}) do
         if line.z1 == self.floor or line.z2 == self.floor then
             local colour = line.live and (line.colour or lineColour) or COLOURS.lineCut
             local second = line.live and line.colour2 or nil
-            local drawn = { x1 = ox + (line.x1 + 0.5 - minX) * scale, y1 = oy + (line.y1 + 0.5 - minY) * scale,
-                x2 = ox + (line.x2 + 0.5 - minX) * scale, y2 = oy + (line.y2 + 0.5 - minY) * scale, live = line.live,
-                r = colour[1], g = colour[2], b = colour[3], second = second }
+            local points = {}
+            for _, point in ipairs(line.way or { { line.x1 + 0.5, line.y1 + 0.5 }, { line.x2 + 0.5, line.y2 + 0.5 } }) do
+                local x, y = ox + (point[1] - minX) * scale, oy + (point[2] - minY) * scale
+                local last = points[#points]
+                if not last or last[1] ~= x or last[2] ~= y then points[#points + 1] = { x, y } end
+            end
+            local drawn = { points = points, live = line.live, r = colour[1], g = colour[2], b = colour[3], second = second }
             self.lines[#self.lines + 1] = drawn
             self.lineByRef[line.ref] = drawn
         end
@@ -986,22 +992,25 @@ function ISBUPlan:render()
     -- light tint of its colour.
     local lw, cw = LINE_PX * px, CASING_PX * px
     for _, line in ipairs(self.lines) do
-        local second = line.second
-        if second then
-            -- a machine's inlet and outlet, side by side
-            local sx, sy = BU.Links.besideOffset(line.x2 - line.x1, line.y2 - line.y1, lw * 1.5)
-            self:drawLine(WHITE, line.x1 - sx, line.y1 - sy, line.x2 - sx, line.y2 - sy, lw, 0.8, line.r, line.g, line.b)
-            self:drawLine(WHITE, line.x1 + sx, line.y1 + sy, line.x2 + sx, line.y2 + sy, lw, 0.8, second[1], second[2],
-                second[3])
-        else
-            self:drawLine(WHITE, line.x1, line.y1, line.x2, line.y2, lw, line.live and 0.8 or 0.55, line.r, line.g, line.b)
+        local second, p = line.second, line.points
+        for i = 2, #p do
+            local x1, y1, x2, y2 = p[i - 1][1], p[i - 1][2], p[i][1], p[i][2]
+            if second then
+                -- a machine's inlet and outlet, side by side
+                local sx, sy = BU.Links.besideOffset(x2 - x1, y2 - y1, lw * 1.5)
+                self:drawLine(WHITE, x1 - sx, y1 - sy, x2 - sx, y2 - sy, lw, 0.8, line.r, line.g, line.b)
+                self:drawLine(WHITE, x1 + sx, y1 + sy, x2 + sx, y2 + sy, lw, 0.8, second[1], second[2], second[3])
+            else
+                self:drawLine(WHITE, x1, y1, x2, y2, lw, line.live and 0.8 or 0.55, line.r, line.g, line.b)
+            end
         end
     end
     local hover = self.hoverLine
     if hover then
         local r, g, b = hover.r + (1 - hover.r) * 0.45, hover.g + (1 - hover.g) * 0.45, hover.b + (1 - hover.b) * 0.45
-        self:drawLine(WHITE, hover.x1, hover.y1, hover.x2, hover.y2, cw, 0.7, 0.02, 0.03, 0.05)
-        self:drawLine(WHITE, hover.x1, hover.y1, hover.x2, hover.y2, lw, 1, r, g, b)
+        local p = hover.points
+        for i = 2, #p do self:drawLine(WHITE, p[i - 1][1], p[i - 1][2], p[i][1], p[i][2], cw, 0.7, 0.02, 0.03, 0.05) end
+        for i = 2, #p do self:drawLine(WHITE, p[i - 1][1], p[i - 1][2], p[i][1], p[i][2], lw, 1, r, g, b) end
     end
     -- The legend's entry under the mouse marks what it names.
     local marked = self.legendHover

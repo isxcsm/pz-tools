@@ -9,7 +9,7 @@ local GIFTS = {
     { "BuildingUtilities.BreakerBox" }, { "BuildingUtilities.BreakerBox4" }, { "BuildingUtilities.ControlBoard", 4 },
     { "BuildingUtilities.SolarPanel", 4 }, { "BuildingUtilities.BatteryRack" }, { "BuildingUtilities.WaterPump" },
     { "BuildingUtilities.BoosterPump" }, { "BuildingUtilities.WaterFilter" }, { "BuildingUtilities.Sprinkler", 2 },
-    { "BuildingUtilities.PowerPole", 2 }, { "BuildingUtilities.YardHydrant", 2 },
+    { "BuildingUtilities.JunctionBox", 2 }, { "BuildingUtilities.YardHydrant", 2 },
     { "Base.CarBattery1" }, { "Base.CarBattery2" }, { "Base.BakingSoda" },
     { "Base.ElectricWire", 50 }, { "Base.Pipe", 30 }, { "Base.ElectronicsScrap", 20 }, { "Base.SmallSheetMetal", 10 },
     { "Base.Charcoal", 10 }, { "Base.RippedSheets", 10 },

@@ -1509,7 +1509,7 @@ function ISBUPanelWindow:fillBatteries()
         local view = BU.RackWindow.measure(unit)
         local foldKey = self.panel.id .. "|rack|" .. unit.id
         local folded = PanelWindow.folded[foldKey] ~= false
-        list:addItem("", { kind = "rack", view = view, folded = folded, foldKey = foldKey,
+        list:addItem("", { kind = "rack", rack = unit, view = view, folded = folded, foldKey = foldKey,
             text = getText("IGUI_BU_RackRow", BU.Units.name(unit), #view.batteries) })
         if not folded then
             for _, battery in ipairs(view.batteries) do list:addItem("", { kind = "battery", battery = battery }) end
@@ -1535,7 +1535,27 @@ function ISBUPanelWindow:switchDevice(utility, device)
     Sync.send(self.playerObj, "setInside", { panel = self.panel.id, utility = utility, key = device.key, on = device.state ~= "on" })
 end
 
--- A click on a row: free changes as commands; lines laid or taken away by walking there.
+-- Where a row's thing is, for the plan: a producer's, a unit's or a relay's square, a device's, a room's (or a
+-- relay's group's) square, a rack's. Nil for a row of no one place.
+local function rowPlace(row)
+    local at = row.relay or row.unit or row.at or row.rack or (row.device and row.device.entry)
+    if at then return at.x, at.y, at.z end
+    if row.kind == "room" then
+        if row.roomKey then return BU.parsePlace(row.roomKey) end
+        local unit = Links.unitOf(row.id)
+        if unit then return unit.x, unit.y, unit.z end
+    end
+    return nil
+end
+
+-- A row's thing shown on the plan, as a click on a row that hits none of its buttons does.
+function ISBUPanelWindow:showRow(row)
+    local x, y, z = rowPlace(row)
+    if x then self:showOnPlan(x, y, z) end
+end
+
+-- A click on a row: free changes as commands; lines laid or taken away by walking there. A click on a row's thing
+-- that hits none of its buttons also shows it on the plan.
 function ISBUPanelWindow:onRow(utility, row, x, width)
     local panel, playerObj = self.panel, self.playerObj
     if row.options then
@@ -1558,12 +1578,10 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
                 end
             end
         end
-    elseif row.kind == "producer" and row.relay then
-        self:showOnPlan(row.relay.x, row.relay.y, row.relay.z)
-    elseif row.kind == "producer" and row.unwired then
-        return
+    elseif row.kind == "producer" and (row.relay or row.unwired) then
+        self:showRow(row)
     elseif row.kind == "producer" and row.unit then
-        self:onWaterUnitRow(row, x, width)
+        if not self:onWaterUnitRow(row, x, width) then self:showRow(row) end
     elseif row.kind == "producer" then
         for _, button in ipairs(Ui.producerButtons(width, row)) do
             if x >= button.x and x <= button.x + button.w then
@@ -1573,12 +1591,16 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
                     Sync.send(playerObj, "moveProducer", { panel = panel.id, utility = utility, index = row.index,
                         delta = button.name == "Up" and -1 or 1 })
                 end
+                return
             end
         end
+        self:showRow(row)
     elseif row.kind == "waterPipe" or row.kind == "addPipe" then
         self:onPipeRow(row, x, width)
     elseif row.kind == "all" then
-        Sync.send(playerObj, "setAllInside", { panel = panel.id, utility = utility, on = row.state ~= "on" })
+        if not row.fixed and x >= PAD * 2 and x <= PAD * 2 + ROW then
+            Sync.send(playerObj, "setAllInside", { panel = panel.id, utility = utility, on = row.state ~= "on" })
+        end
     elseif row.kind == "filter" then
         self:filterRoom(nil)
     elseif row.kind == "note" and row.dead then
@@ -1586,6 +1608,7 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
     elseif row.kind == "rack" then
         PanelWindow.folded[row.foldKey] = not row.folded
         self:fillBatteries()
+        self:showRow(row)
     elseif row.kind == "floor" then
         PanelWindow.folded[row.foldKey] = not row.folded
         -- Unfolded, the plan shows that floor (which fills the list again, planFloorChanged); else the list alone.
@@ -1600,6 +1623,7 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
         else
             PanelWindow.folded[row.foldKey] = (not row.folded) or nil
             self:refill(utility)
+            self:showRow(row)
         end
     elseif row.kind == "device" and row.state ~= "other" then
         local device = row.device
@@ -1613,7 +1637,9 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
                 return
             end
         end
-        if not row.fixed then self:switchDevice(utility, device) end
+        -- its tick switches it; the rest of the row only shows it
+        if not row.fixed and not row.unwired and x >= PAD * 3 and x <= PAD * 3 + ROW then self:switchDevice(utility, device)
+        else self:showRow(row) end
     end
 end
 

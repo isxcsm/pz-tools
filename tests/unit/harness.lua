@@ -137,9 +137,15 @@ local function resetGame()
                 getX = function() return x end, getY = function() return y end, getZ = function() return z end,
                 getObjects = function() return javaList(square.objects or {}) end,
                 getRoom = function() return nil end,
+                -- a floor unless the test says none ({ noFloor = true }); flags as { water = true }
+                getFloor = function() return not square.noFloor and {} or nil end,
+                HasStairs = function() return square.stairs == true end,
+                getProperties = function() return { has = function(_, flag) return square.flags ~= nil and square.flags[flag] == true end } end,
+                isBlockedTo = function() return false end,
             }
         end }
     end
+    IsoFlagType = { water = "water", FloorHeightOneThird = "FloorHeightOneThird", FloorHeightTwoThirds = "FloorHeightTwoThirds" }
     getWorld = function()
         return { getMetaGrid = function() return { getRoomAt = function() return nil end } end,
             isHydroPowerOn = function() return false end }
