@@ -15,8 +15,8 @@ require "BuildingUtilities/Actions"
 require "BuildingUtilities/Moveables"
 require "PZUIKit/Menu"
 local BU = BuildingUtilities
-local Store, Panels, Units, Rack, Costs, Actions, Sync, Links, Geometry = BU.Store, BU.Panels, BU.Units, BU.Rack, BU.Costs,
-    BU.Actions, BU.Sync, BU.Links, BU.Geometry
+local Store, Panels, Units, Rack, Costs, Actions, Sync, Links = BU.Store, BU.Panels, BU.Units, BU.Rack, BU.Costs,
+    BU.Actions, BU.Sync, BU.Links
 local ContextMenu = {}
 BU.ContextMenu = ContextMenu
 
@@ -178,16 +178,7 @@ local function addLineOptions(context, playerObj, kind, ref, x, y, z, extra, rem
         for _, each in ipairs(Links.branch(ref)) do except[each.ref] = true end
         addConnectOptions(context, playerObj, "rehang", line.utility, x, y, z, ref, nil, Links.isRelay(ref), except)
     elseif reason then
-        local text
-        if reason == "cut" then
-            local head = Links.cutHead(ref)
-            local point = head and Geometry.direction(x, y, head.x, head.y)
-            local steps = head and math.max(math.abs(head.x - x), math.abs(head.y - y)) or 0
-            text = getText("IGUI_BU_LineCut_cut", getText("IGUI_BU_Where", steps, point and getText("IGUI_BU_Dir_" .. point) or ""))
-        elseif reason == "relays" then text = getText("IGUI_BU_LineCut_relays", BU.relayLimit(panel.tier))
-        elseif reason == "chain" then text = getText("IGUI_BU_LineCut_chain", BU.CHAIN_LIMIT)
-        else text = getText("IGUI_BU_LineCut_far", BU.connectRange(panel.tier)) end
-        tooltip(tie(context:addOption(getText("IGUI_BU_LineNotSupplied"), nil, nil)), text)
+        tooltip(tie(context:addOption(getText("IGUI_BU_LineNotSupplied"), nil, nil)), Links.reasonText(panel, ref))
     end
     addDisconnectOption(context, playerObj, panel, kind, line.utility, x, y, z, extra, removeText)
 end

@@ -278,7 +278,7 @@ function ISBUPanelList:doDrawItem(y, item, alt)
     elseif row.kind == "battery" then
         BU.RackWindow.drawBattery(c, y, row.battery, PAD)
     elseif row.kind == "note" or row.kind == "filter" then
-        UI.text(c, row.text, PAD * 2, textY, row.kind == "filter" and FILTER or NOTE)
+        UI.text(c, row.text, PAD * 2, textY, row.kind == "filter" and FILTER or row.dead and OUT or NOTE)
     elseif row.kind == "log" then
         UI.text(c, row.text, PAD, textY, row.bad and LOG_BAD or row.good and LOG_GOOD or LOG_TEXT)
         UI.textRight(c, row.right, rightX, textY, NOTE)
@@ -292,7 +292,7 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         end
     elseif row.kind == "producer" then
         -- In use in green, out of service (switched off by hand) in amber.
-        UI.text(c, row.text, PAD * 2, textY, row.unwired and MUTED or row.inUse and IN_USE or row.out and OUT or PLAIN)
+        UI.text(c, row.text, PAD * 2, textY, (row.unwired or row.cut) and MUTED or row.inUse and IN_USE or row.out and OUT or PLAIN)
         for _, button in ipairs(producerButtons(width, row)) do
             if button.name == "Group" then
                 smallButton(self, c, index .. "Group", button.x, y, button.w, row.groupText, row.groupColour)

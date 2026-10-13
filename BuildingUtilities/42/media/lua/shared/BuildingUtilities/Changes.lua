@@ -377,6 +377,10 @@ function Changes.unlay(ref)
         leaveBox(panel, line)
         if Links.unitOf(ref) and BU.RELAY_KINDS[Links.unitOf(ref).kind] then Changes.fitZone(panel) end
         Changes.linesChanged(panel)
+        -- What hung on it is cut now: said once, where.
+        if #Links.childrenOf(ref) > 0 then
+            Sync.notice(panel, "IGUI_BU_Notice_BranchCut", Panels.name(panel), Panels.where(panel, line.x, line.y))
+        end
     end
     return line.paid or {}
 end

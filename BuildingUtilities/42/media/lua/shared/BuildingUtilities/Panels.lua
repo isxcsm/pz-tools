@@ -735,7 +735,8 @@ function Panels.devices(panel, utility)
         if utility == "power" and group.object then device.switchOn = BU.Switches.state(group.object) end
         if utility == "power" and device.state == "on" then
             device.schedule = data.schedule[device.key] or "always"
-            device.held = not device.inside and not BU.exteriorPower() and "exterior"
+            -- held: on at the box, yet given nothing (its line cut, no power outside, its timer).
+            device.held = device.cut and "cut" or not device.inside and not BU.exteriorPower() and "exterior"
                 or data.timed[device.key] and "timer" or nil
         end
         result[#result + 1] = device

@@ -25,10 +25,11 @@ require "PZUIKit/RichText"
 require "BuildingUtilities/ContextMenu"
 require "BuildingUtilities/PanelPlan"
 require "BuildingUtilities/PanelList"
+require "BuildingUtilities/LineOverlay"
 local BU = BuildingUtilities
 local Store, Panels, Networks, Costs, Actions, Sync, Energy = BU.Store, BU.Panels, BU.Networks, BU.Costs, BU.Actions,
     BU.Sync, BU.Energy
-local Units, Ui = BU.Units, BU.PanelUi
+local Units, Ui, Geometry, Links = BU.Units, BU.PanelUi, BU.Geometry, BU.Links
 local FONT_HGT_SMALL, ROW, PAD, REFRESH_MS, BAR_W, LOG, BATTERIES, LIST_W, MIN_LIST, MIN_PLAN, SEEN, OUTSIDE,
     ROOM_TICK_X, load2, percent, nextSchedule = Ui.FONT_HGT_SMALL, Ui.ROW,
     Ui.PAD, Ui.REFRESH_MS, Ui.BAR_W, Ui.LOG, Ui.BATTERIES, Ui.LIST_W, Ui.MIN_LIST, Ui.MIN_PLAN, Ui.SEEN, Ui.OUTSIDE,
@@ -903,6 +904,7 @@ function ISBUPanelWindow:close()
     self:showRange(false)
     self:outlineDevice(nil)
     open[self.panel.id] = nil
+    BU.LineOverlay.refresh()
     -- It fades out (UI.fadeOut), but when another takes its place at once.
     if self.still then
         self:setVisible(false)
@@ -952,10 +954,18 @@ function ISBUPanelWindow:refresh()
         self.upgradeButton:setEnable(Costs.affords(self.playerObj, cost))
     end
     self:placeRows()
-    local building = Panels.building(panel)
-    self.building = building
-    self.rooms = Panels.rooms(building)
-    self.titles = Panels.roomTitles(building)
+    -- The rooms of every building its zone can have (its own, and those its relays stand in): another building's
+    -- named with where it is.
+    self.building = Panels.building(panel)
+    self.rooms = Panels.zoneRoomList(panel)
+    self.titles = {}
+    for _, building in ipairs(Panels.zoneBuildings(panel)) do
+        local away = not self.building or building.key ~= self.building.key
+        local where = away and Panels.where(panel, Geometry.centre(building))
+        for id, title in pairs(Panels.roomTitles(building)) do
+            self.titles[id] = away and getText("IGUI_BU_RoomAway", title, where) or title
+        end
+    end
     self.pending = {}
     local active = self:activeUtility()
     for _, utility in ipairs(self.utilities) do
@@ -1073,7 +1083,7 @@ function ISBUPanelWindow:preview(device)
 end
 
 -- What a device the box keeps off says, by why (Panels.devices' held).
-local HELD_TEXT = { timer = "IGUI_BU_HeldTimer", exterior = "IGUI_BU_HeldExterior" }
+local HELD_TEXT = { timer = "IGUI_BU_HeldTimer", exterior = "IGUI_BU_HeldExterior", cut = "IGUI_BU_LineNotSupplied" }
 
 -- What a device does now, in words, for its row and the plan.
 function ISBUPanelWindow:deviceStatus(utility, device)
@@ -1084,6 +1094,7 @@ function ISBUPanelWindow:deviceStatus(utility, device)
         return getText("IGUI_BU_ConnectedTo", other and Panels.name(other) or ""), false
     end
     if not device.wired then return getText("IGUI_BU_NotWired"), true end
+    if device.cut then return getText("IGUI_BU_LineNotSupplied"), true end
     if utility == "power" then
         local power = device.power or 0
         if device.state ~= "on" then
@@ -1174,16 +1185,20 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
                 seen and seen.capacity and string.format("%.0f", seen.capacity) or "-")
         end
         view.producerText[index] = text
-        local row = { kind = "producer", text = text, index = index, at = at, inUse = inUse, water = utility == "water",
-            out = generatorState == "out" }
+        -- Its line supplying nothing: dim, the mouse over it telling why.
+        local ref = Links.producerRef(at.x, at.y, at.z)
+        local cut = Links.reason(panel, ref) ~= nil
+        local row = { kind = "producer", text = text, index = index, at = at, inUse = inUse and not cut,
+            water = utility == "water", out = generatorState == "out", cut = cut }
         if utility == "water" and #BU.Water.groups(panel) > 1 then
             row.group = BU.Water.producerGroup(at)
             row.groupText, row.groupColour = BU.Water.groupName(panel, row.group), PanelWindow.groupColour(panel, row.group)
         end
         -- A generator's row tells how servicing one works: switched off by hand, the others take over.
-        add(row, utility == "power" and getText("IGUI_BU_GeneratorTip") or nil)
+        add(row, cut and Links.reasonText(panel, ref) or utility == "power" and getText("IGUI_BU_GeneratorTip") or nil)
     end
     if utility == "water" then self:waterUnitRows(add) end
+    self:lineRows(add, utility)
     -- What it could take and no box has, dim, unless the view hides it: connected at the thing itself.
     view.unwired = Panels.unwiredProducers(panel, utility)
     if not PanelWindow.options.hideUnwired then
@@ -1300,7 +1315,8 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
                 local tooltip = utility == "power" and self:preview(device) or nil
                 if not device.inside then
                     tooltip = (tooltip and tooltip .. " <LINE> " or "")
-                        .. getText(device.wired and "IGUI_BU_OutsideTip" or "IGUI_BU_UnwiredTip")
+                        .. (device.cut and Links.reasonText(panel, Links.deviceRef(device.key))
+                            or getText(device.wired and "IGUI_BU_OutsideTip" or "IGUI_BU_UnwiredTip"))
                 end
                 -- its own switch, which way it is: thrown at the device, not here
                 if device.switchOn ~= nil then
@@ -1488,6 +1504,8 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
                 end
             end
         end
+    elseif row.kind == "producer" and row.relay then
+        self:showOnPlan(row.relay.x, row.relay.y, row.relay.z)
     elseif row.kind == "producer" and row.unwired then
         return
     elseif row.kind == "producer" and row.unit then
@@ -1509,6 +1527,8 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
         Sync.send(playerObj, "setAllInside", { panel = panel.id, utility = utility, on = row.state ~= "on" })
     elseif row.kind == "filter" then
         self:filterRoom(nil)
+    elseif row.kind == "note" and row.dead then
+        self:showDead(utility)
     elseif row.kind == "rack" then
         PanelWindow.folded[row.foldKey] = not row.folded
         self:fillBatteries()
@@ -1581,10 +1601,19 @@ function PanelWindow.open(playerObj, panel, anchor, still)
     window:setVisible(true)
     if not still then UI.fadeIn(window) end
     open[panel.id] = window
+    -- its lines in the world (BU.LineOverlay)
+    BU.LineOverlay.refresh()
     return window
 end
 
 function PanelWindow.isOpen(panelId) return open[panelId] ~= nil end
+
+-- The panel ids of the windows open.
+function PanelWindow.openIds()
+    local ids = {}
+    for id in pairs(open) do ids[#ids + 1] = id end
+    return ids
+end
 
 -- The window open for a panel, or nil.
 function PanelWindow.get(panelId) return open[panelId] end

@@ -323,4 +323,47 @@ function Links.cutHead(ref)
     return nil
 end
 
+-- Where a line runs to from its thing: the thing of the line it hangs on, or its wall square; nil when what it hangs
+-- on is gone. x, y, z.
+function Links.endOf(line)
+    if line.via then
+        local parent = Links.get(line.via)
+        if parent then return parent.x, parent.y, parent.z end
+        return nil
+    end
+    return BU.parsePlace(line.wall or "")
+end
+
+-- The first lines of a box's branches that supply nothing, each with the reason what hangs below shares, by when they
+-- were laid.
+function Links.deadHeads(panel)
+    local state, result = Links.state(panel), {}
+    for _, line in ipairs(Links.of(panel)) do
+        if not state.live[line.ref] then
+            local parent = line.via and Links.get(line.via)
+            if not parent or parent.panel ~= panel.id or state.live[parent.ref] then result[#result + 1] = line end
+        end
+    end
+    table.sort(result, function(a, b) return (a.seq or 0) < (b.seq or 0) end)
+    return result
+end
+
+-- Why a ref's line supplies nothing, for the player, or nil while it supplies: where its branch is cut (here, at its
+-- own line), or the box's limit it is past.
+function Links.reasonText(panel, ref)
+    local line = Links.get(ref)
+    if not line then return nil end
+    local reason = "cut"
+    if panel then reason = Links.reason(panel, ref) end
+    if not reason then return nil end
+    if reason == "relays" then return getText("IGUI_BU_LineCut_relays", BU.relayLimit(panel.tier)) end
+    if reason == "chain" then return getText("IGUI_BU_LineCut_chain", BU.CHAIN_LIMIT) end
+    if reason == "far" then return getText("IGUI_BU_LineCut_far", BU.connectRange(panel.tier)) end
+    local head = Links.cutHead(ref)
+    if not head or head == line then return getText("IGUI_BU_LineCut_here") end
+    local steps = math.max(math.abs(head.x - line.x), math.abs(head.y - line.y))
+    local point = Geometry.direction(line.x, line.y, head.x, head.y)
+    return getText("IGUI_BU_LineCut_cut", getText("IGUI_BU_Where", steps, point and getText("IGUI_BU_Dir_" .. point) or ""))
+end
+
 return Links

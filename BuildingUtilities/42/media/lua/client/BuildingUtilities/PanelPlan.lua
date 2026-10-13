@@ -1,13 +1,16 @@
--- The floor plan beside a breaker box window: the building's rooms on one floor from above, north up, coloured by
--- what their devices do; the devices as dots, the producers as squares and the box itself, each told by its colour.
+-- The floor plan beside a breaker box window: the rooms its zone can have on one floor from above (its own building's
+-- and those of the buildings its relays stand in, one plan), north up, coloured by what their devices do; the devices
+-- as dots, the producers, units, relays and the box itself as squares, each told by its colour; and the box's lines,
+-- each from its thing to what it hangs on (a wall square, a relay, a device), grey where it supplies nothing.
 -- A strip on the left picks the floor, a legend in a box at the bottom tells the colours (its header folds it). It
 -- shares hover and clicks with the window's list: a row under the mouse marks its room or dot here and the other way
 -- round, a room clicked here shows only that room there, a dot clicked here finds its row, and a right click offers
 -- what the row would. Rooms of the building outside the box's zone are dim; the Zone switch at the top shows the zones
--- instead, and a click there takes a room in or out. Devices in reach not connected are grey; the mouse over a producer or a
--- device outside shows its line to the building (a producer's on to the riser away from the box's floor). The Range
--- switch shows the range here and in the world: an outline where devices outside, producers and units join, and on
--- the power plan how far each generator is heard (red, dim while it is off). Supply that crosses floors shows too: on
+-- instead, and a click there takes a room in or out. Devices in reach not connected are grey; the mouse over a thing
+-- with a line brings its line up. The Range switch shows the range here and in the world: an outline where devices
+-- outside, producers and units join from the zone's walls and from the relays, and on the power plan how far each
+-- generator is heard (red, dim while it is off). A square shown from the window (a relay, a branch that supplies
+-- nothing) is zoomed to and marked a moment. Supply that crosses floors shows too: on
 -- a producer's floor a riser marks where the box is, under (or over) it, and tells the box's floor; by the box, a
 -- badge for each other floor that supplies it tells how many come from there (the mouse over it, what); a click on
 -- either goes to that floor. The floor strip marks the floors with producers, in their colour. The wheel zooms at the
@@ -21,6 +24,7 @@ require "PZUIKit/UI"
 require "PZUIKit/RichText"
 require "BuildingUtilities/Geometry"
 require "BuildingUtilities/PanelUi"
+require "BuildingUtilities/Relays"
 local BU = BuildingUtilities
 local Geometry = BU.Geometry
 local UI = PZUIKit.UI
@@ -44,8 +48,8 @@ local STRIP_SCROLL = 3
 -- The rooms' outlines are WALL_PX wide, whatever the zoom; the line of the thing under the mouse LINE_PX over a dark
 -- casing CASING_PX wide, so that it reads over any room or the grid.
 local WALL_PX, LINE_PX, CASING_PX = 2, 1, 3
--- The lines out to devices outside the building: a cool cyan, apart from the rooms' greens.
-local OUTSIDE_LINE = { 0.45, 0.78, 0.86 }
+-- A square shown from the window is marked so long.
+local FOCUS_MS = 1600
 -- The legend: its header's fold mark so wide, and it folds or opens over LEGEND_MS.
 local CHEVRON_W, LEGEND_MS = 12, 220
 
@@ -68,7 +72,7 @@ function ISBUPlan:new(x, y, width, height, window)
     o.backgroundColor = { r = P.inset[1], g = P.inset[2], b = P.inset[3], a = 0.92 }
     o.borderColor = { r = P.border[1], g = P.border[2], b = P.border[3], a = 1 }
     o.cells, o.labels, o.dots, o.squares, o.strip, o.legend, o.edges = {}, {}, {}, {}, {}, {}, {}
-    o.rangeCache = {}
+    o.rangeCache, o.lines, o.lineByRef = {}, {}, {}
     return o
 end
 
@@ -92,11 +96,13 @@ local COLOURS = {
     zoneMine = { 0.2, 0.5, 0.6 }, zoneFree = { 0.25, 0.25, 0.25 }, zoneTaken = { 0.5, 0.3, 0.6 },
     zoneFar = { 0.12, 0.12, 0.12 },
     mixed = { 0.8, 0.8, 0.8 },
+    pole = BU.Units.definition("pole").colour, hydrant = BU.Units.definition("hydrant").colour,
+    linePower = { 0.95, 0.72, 0.3 }, lineWater = { 0.45, 0.78, 0.86 }, lineCut = { 0.42, 0.42, 0.44 },
 }
 
 -- A producer's colour: its own (a tank's group's), a unit's (its kind's, Units.define), a tank's or a generator's.
 local function producerColour(data, producer)
-    if producer.unwired then return COLOURS.off end
+    if producer.unwired or producer.cut then return COLOURS.off end
     if producer.colour then return producer.colour end
     if producer.unit then return BU.Units.definition(producer.unit).colour end
     return data.utility == "water" and COLOURS.tank or COLOURS.producer
@@ -117,7 +123,7 @@ local function arrow(level, from) return level > from and "^" or "v" end
 local function dotColour(device, supplied)
     local colour
     if device.state == "other" then colour = COLOURS.other
-    elseif device.state ~= "on" then colour = device.wired and COLOURS.idle or COLOURS.off
+    elseif device.state ~= "on" or device.cut then colour = device.wired and not device.cut and COLOURS.idle or COLOURS.off
     elseif device.held == "timer" then colour = COLOURS.timer
     elseif device.held == "exterior" then colour = COLOURS.unsupplied
     elseif not supplied then colour = COLOURS.unsupplied
@@ -126,8 +132,9 @@ local function dotColour(device, supplied)
     return colour[1], colour[2], colour[3]
 end
 
--- What the legend lists for a utility, or for the zones: a colour, dot or square, and its text.
-local function legendEntries(utility, zones, ranges)
+-- What the legend lists for a utility, or for the zones: a colour, dot or square, and its text. The relays and the
+-- lines only where the data has them.
+local function legendEntries(utility, zones, ranges, data)
     local result = {}
     local function add(name, square)
         local colour = COLOURS[name]
@@ -146,6 +153,15 @@ local function legendEntries(utility, zones, ranges)
         add("tank", true)
     end
     add("box", true)
+    if not zones then
+        if #(data.relays or {}) > 0 then add(utility == "water" and "hydrant" or "pole", true) end
+        local live, dead = false, false
+        for _, line in ipairs(data.lines or {}) do
+            if line.live then live = true else dead = true end
+        end
+        if live then add(utility == "water" and "lineWater" or "linePower", "line") end
+        if dead then add("lineCut", "line") end
+    end
     if ranges and not zones then
         add("range", "line")
         if ranges.noise and #ranges.noise > 0 then add("rangeNoise", "line") end
@@ -192,36 +208,27 @@ local function rangeEdges(rects, range)
     return areaEdges(range > 0 and Geometry.reach(rects, range) or nil)
 end
 
--- The point of the rectangles nearest a square's middle, in squares.
-local function nearestPoint(rects, x, y)
-    local best, bestX, bestY
-    for _, rect in ipairs(rects) do
-        local px = math.max(rect.x, math.min(x, rect.x + rect.w))
-        local py = math.max(rect.y, math.min(y, rect.y + rect.h))
-        local d = (px - x) * (px - x) + (py - y) * (py - y)
-        if not best or d < best then best, bestX, bestY = d, px, py end
-    end
-    return bestX, bestY
-end
-
 
 -- data: { utility, supplied, rooms = { { id, title, level, rects } }, devices = { { key, x, y, z, roomId, inside,
--- state, held, power, name, status } }, producers = { { x, y, z, inUse, text, unit = its kind for a unit, colour
--- or nil } }, box = { x, y, z }, boxes = { { x, y, z, own, text } } (the building's boxes, this window's own),
--- filter = room id, zone = room id to
--- { state = "mine", "free", "taken" or "far", owner = a name }, zoneEditable, zoneEdit, zoneNote, farNote (why a far
--- room cannot be taken), reached = { lowest, highest } (the floors the box's zone can take), waterSupply (by floor,
--- "dry" or "boosted", for water), ranges = { reach = steps, noise = for power { { x, y,
--- z, radius, running } } } while the range is shown, rangeKey (the building, tier and generators' noise the ranges
--- are of) }.
+-- state, held, cut, power, name, status, ref } }, producers = { { x, y, z, inUse, text, unit = its kind for a unit,
+-- colour or nil, cut, ref } }, relays = { { x, y, z, kind, cut, text, ref } }, lines = { { ref, x1, y1, z1 (its
+-- thing), x2, y2, z2 (what it hangs on), live } }, box = { x, y, z }, outdoor, boxes = { { x, y, z, own, text } } (the
+-- boxes whose zones can have these rooms, this window's own), filter = room id, zone = room id to { state = "mine",
+-- "free", "taken" or "far", owner = a name, note = why a far room cannot be taken }, zoneEditable, zoneEdit, zoneNote,
+-- farLevels (the floors with no room the zone can take, a set), waterSupply (by floor, "dry" or "boosted", for water),
+-- ranges = { reach = steps, relayReach = steps, relays = { { x, y, z } }, noise = for power { { x, y, z, radius,
+-- running } } } while the range is shown, rangeKey (what the ranges are of) }.
 function ISBUPlan:setData(data)
     -- Another utility shown: the plan fades in anew.
     if self.data and self.data.utility ~= data.utility then self.switchedAt = getTimestampMs() end
     self.data = data
     local levels = {}
     for _, room in ipairs(data.rooms) do levels[room.level] = true end
-    -- A floor with producers and no rooms (a roof) is shown too.
+    -- A floor with producers, relays or lines and no rooms (a roof, an outdoor box) is shown too.
     for _, producer in ipairs(data.producers) do levels[producer.z] = true end
+    for _, relay in ipairs(data.relays or {}) do levels[relay.z] = true end
+    for _, line in ipairs(data.lines or {}) do levels[line.z1], levels[line.z2] = true, true end
+    levels[data.box.z] = true
     self.levels = {}
     for level in pairs(levels) do self.levels[#self.levels + 1] = level end
     table.sort(self.levels)
@@ -329,10 +336,22 @@ function ISBUPlan:ranges(floor)
     if self.rangeKey ~= data.rangeKey then self.rangeCache, self.rangeKey = {}, data.rangeKey end
     local cached = self.rangeCache[floor]
     if cached then return cached end
-    local floorRects, allRects = Geometry.roomRects(data.rooms, floor)
-    -- Devices outside, producers and units join by the floor's own rooms (as the API finds devices), the whole outline
-    -- on a floor without rooms (a roof).
-    cached = { reach = rangeEdges(#floorRects > 0 and floorRects or allRects, data.ranges.reach), noise = {} }
+    -- Devices outside, producers and units join by the zone's rooms of the floor (as the API finds devices), the whole
+    -- zone's outline on a floor without them (a roof); an outdoor box by its own square. A relay's lines reach about it.
+    local mine = {}
+    for _, room in ipairs(data.rooms) do
+        local zone = data.zone and data.zone[room.id]
+        if not zone or zone.state == "mine" then mine[#mine + 1] = room end
+    end
+    local floorRects, allRects = Geometry.roomRects(mine, floor)
+    if data.outdoor then floorRects = { { x = data.box.x, y = data.box.y, w = 1, h = 1 } } end
+    cached = { reach = rangeEdges(#floorRects > 0 and floorRects or allRects, data.ranges.reach), noise = {}, relays = {} }
+    for _, relay in ipairs(data.ranges.relays or {}) do
+        if relay.z == floor then
+            cached.relays[#cached.relays + 1] = rangeEdges({ { x = relay.x, y = relay.y, w = 1, h = 1 } },
+                data.ranges.relayReach)
+        end
+    end
     -- How far the generators on this floor are heard.
     for _, noise in ipairs(data.ranges.noise or {}) do
         if noise.z == floor then
@@ -400,6 +419,7 @@ function ISBUPlan:layout()
     local data = self.data
     self.cells, self.labels, self.dots, self.squares, self.strip, self.legend, self.edges = {}, {}, {}, {}, {}, {}, {}
     self.walls, self.badges, self.riser, self.legendBox, self.hoverLine = {}, {}, nil, nil, nil
+    self.lines, self.lineByRef = {}, {}
     self.grid = {}
     self:layoutTop()
     if not data then return end
@@ -414,12 +434,18 @@ function ISBUPlan:layout()
     end
     for _, device in ipairs(data.devices) do cover(device.x, device.y, 1, 1) end
     for _, producer in ipairs(data.producers) do cover(producer.x, producer.y, 1, 1) end
+    for _, relay in ipairs(data.relays or {}) do cover(relay.x, relay.y, 1, 1) end
+    for _, line in ipairs(data.lines or {}) do
+        cover(line.x1, line.y1, 1, 1)
+        cover(line.x2, line.y2, 1, 1)
+    end
     cover(data.box.x, data.box.y, 1, 1)
     if not minX then return end
     -- With the range shown, the plan takes in where devices outside and producers join, and where generators are heard.
     local ranges = self:ranges(self.floor)
     local rangeSets = ranges and { ranges.reach } or {}
     for _, noise in ipairs(ranges and ranges.noise or {}) do rangeSets[#rangeSets + 1] = noise.edges end
+    for _, edges in ipairs(ranges and ranges.relays or {}) do rangeSets[#rangeSets + 1] = edges end
     for _, edges in ipairs(rangeSets) do
         for _, edge in ipairs(edges) do cover(edge.x, edge.y, edge.across and edge.len or 0, edge.across and 0 or edge.len) end
     end
@@ -427,7 +453,7 @@ function ISBUPlan:layout()
     local top = self.topH
     -- The legend: a box above the status line, a gap from the floor strip, under a header that folds it. Its entries
     -- in as many columns (up to three) of the widest one as fit.
-    local legendH = self:layoutLegend(left + PAD, legendEntries(data.utility, data.zoneEdit, data.ranges))
+    local legendH = self:layoutLegend(left + PAD, legendEntries(data.utility, data.zoneEdit, data.ranges, data))
     local availW, availH = self.width - left - PAD, self.height - top - FONT_HGT_SMALL - PAD * 2 - legendH
     -- The whole fits at zoom 1; zoomed, the plan centres on the place the player moved it to.
     local fit = math.max(1, math.min(availW / (maxX - minX), availH / (maxY - minY), MAX_SCALE))
@@ -438,7 +464,7 @@ function ISBUPlan:layout()
     local ox = left + availW / 2 - (centreX - minX) * scale
     local oy = top + availH / 2 - (centreY - minY) * scale
     self.map = { left = left, top = top, w = availW, h = availH, scale = scale, fit = fit, centreX = centreX, centreY = centreY,
-        baseX = baseX, baseY = baseY }
+        baseX = baseX, baseY = baseY, ox = ox, oy = oy, minX = minX, minY = minY }
     local function sx(x) return math.floor(ox + (x - minX) * scale) end
     local function sy(y) return math.floor(oy + (y - minY) * scale) end
     self.scale = scale
@@ -476,6 +502,7 @@ function ISBUPlan:layout()
             addEdges(noise.edges, noise.running and COLOURS.rangeNoise or COLOURS.rangeNoiseIdle)
         end
         addEdges(ranges.reach, COLOURS.range)
+        for _, edges in ipairs(ranges.relays) do addEdges(edges, COLOURS.range) end
     end
     -- The box's place, on its floor; on another, the riser's under or over it.
     local boxFloor = data.box.z == self.floor
@@ -494,16 +521,18 @@ function ISBUPlan:layout()
                 h = FONT_HGT_SMALL + 2, text = group.text, tip = group.tip, colour = group.colour, level = group.level }
         end
     end
-    -- The line of a producer or a device outside, shown while the mouse is over it: from it to the building's outline
-    -- (this floor's, else any), and for a producer on another floor than the box's on to the riser.
-    local floorRects, allRects = Geometry.roomRects(data.rooms, self.floor)
-    local function lineOf(x, y, colour, producer)
-        local px, py = nearestPoint(#floorRects > 0 and floorRects or allRects, x + 0.5, y + 0.5)
-        if not px then return nil end
-        local line = { x1 = ox + (x + 0.5 - minX) * scale, y1 = oy + (y + 0.5 - minY) * scale,
-            x2 = ox + (px - minX) * scale, y2 = oy + (py - minY) * scale, r = colour[1], g = colour[2], b = colour[3] }
-        if producer and not boxFloor then line.x3, line.y3 = boxX, boxY end
-        return line
+    -- The lines with an end on this floor, square middle to square middle, in their utility's colour or grey; each
+    -- found by its thing's ref for the mouse.
+    local lineColour = data.utility == "water" and COLOURS.lineWater or COLOURS.linePower
+    for _, line in ipairs(data.lines or {}) do
+        if line.z1 == self.floor or line.z2 == self.floor then
+            local colour = line.live and lineColour or COLOURS.lineCut
+            local drawn = { x1 = ox + (line.x1 + 0.5 - minX) * scale, y1 = oy + (line.y1 + 0.5 - minY) * scale,
+                x2 = ox + (line.x2 + 0.5 - minX) * scale, y2 = oy + (line.y2 + 0.5 - minY) * scale, live = line.live,
+                r = colour[1], g = colour[2], b = colour[3] }
+            self.lines[#self.lines + 1] = drawn
+            self.lineByRef[line.ref] = drawn
+        end
     end
     -- Rooms on this floor, with what their devices do.
     local roomState = {}
@@ -564,8 +593,7 @@ function ISBUPlan:layout()
             local r, g, b = dotColour(device, data.supplied)
             self.dots[#self.dots + 1] = { key = device.key, room = device.inside and device.roomId or nil,
                 x = math.floor(sx(device.x) + scale / 2), y = math.floor(sy(device.y) + scale / 2), r = r, g = g, b = b,
-                text = device.name .. "  " .. (device.status or ""), fresh = device.fresh,
-                line = not device.inside and device.wired and lineOf(device.x, device.y, OUTSIDE_LINE) or nil }
+                text = device.name .. "  " .. (device.status or ""), fresh = device.fresh, ref = device.ref }
         end
     end
     for _, producer in ipairs(data.producers) do
@@ -573,8 +601,16 @@ function ISBUPlan:layout()
             local colour = producerColour(data, producer)
             self.squares[#self.squares + 1] = { x = math.floor(sx(producer.x) + (scale - SQUARE) / 2),
                 y = math.floor(sy(producer.y) + (scale - SQUARE) / 2), size = SQUARE,
-                r = colour[1], g = colour[2], b = colour[3], ring = producer.inUse, text = producer.text,
-                line = not producer.unwired and lineOf(producer.x, producer.y, colour, true) or nil }
+                r = colour[1], g = colour[2], b = colour[3], ring = producer.inUse, text = producer.text, ref = producer.ref }
+        end
+    end
+    -- The relays: a square in their kind's colour (grey while they supply nothing), a post mark on it.
+    for _, relay in ipairs(data.relays or {}) do
+        if relay.z == self.floor then
+            local colour = relay.cut and COLOURS.off or COLOURS[relay.kind]
+            self.squares[#self.squares + 1] = { x = math.floor(sx(relay.x) + (scale - SQUARE) / 2),
+                y = math.floor(sy(relay.y) + (scale - SQUARE) / 2), size = SQUARE, relay = true,
+                r = colour[1], g = colour[2], b = colour[3], text = relay.text, ref = relay.ref }
         end
     end
     -- The boxes of the building; this window's ringed.
@@ -589,10 +625,42 @@ function ISBUPlan:layout()
     self:layoutStrip()
 end
 
--- Whether a floor is beyond what the box's zone can take (data.reached: the lowest and the highest it can).
+-- Whether a floor has rooms and none the box's zone can take (data.farLevels).
 function ISBUPlan:farFloor(level)
-    local reached = self.data and self.data.reached
-    return reached ~= nil and (level < reached[1] or level > reached[2])
+    return self.data ~= nil and self.data.farLevels ~= nil and self.data.farLevels[level] == true
+end
+
+-- Why the zone can take no room of a floor: a far room's note there.
+function ISBUPlan:farNote(level)
+    for _, room in ipairs(self.data and self.data.rooms or {}) do
+        local zone = room.level == level and self.data.zone and self.data.zone[room.id]
+        if zone and zone.note then return zone.note end
+    end
+    return nil
+end
+
+-- Followed while a square shown from the window is marked.
+local function focusFrame(plan, now)
+    local focus = plan.focus
+    if not focus or now - focus.at >= FOCUS_MS then
+        plan.focus = nil
+        return nil
+    end
+    return math.floor((now - focus.at) / 16)
+end
+
+-- Shows a square: its floor, the plan zoomed in (at least threefold) and centred on it, marked a moment.
+function ISBUPlan:focusOn(x, y, z)
+    if not self.data then return end
+    if z ~= self.floor then self:showFloor(z) end
+    self.zoom = math.max(self.zoom or 1, 3)
+    self:layout()
+    local map = self.map
+    if not map then return end
+    self.panX, self.panY = x + 0.5 - map.baseX, y + 0.5 - map.baseY
+    self.focus = { x = x, y = y, z = z, at = getTimestampMs() }
+    self:layout()
+    UI.live(self, focusFrame)
 end
 
 -- The floor strip: the floors top down, as many as fit, around the one shown or where the player scrolled it. With more
@@ -877,16 +945,17 @@ function ISBUPlan:render()
         self:drawTextCentre(label.text, label.x, label.y, P.text[1], P.text[2], P.text[3], label.dim and 0.35 or 0.8, UIFont.Small)
     end
     for _, edge in ipairs(self.edges) do self:drawRect(edge.x, edge.y, edge.w, edge.h, 0.7, edge.r, edge.g, edge.b) end
-    -- The line of the thing under the mouse, at its fixed widths: a dark casing, then the line in a light tint of its
-    -- colour, under the squares.
+    -- The lines, at their fixed width under the squares; the one of the thing under the mouse over a dark casing in a
+    -- light tint of its colour.
+    local lw, cw = LINE_PX * px, CASING_PX * px
+    for _, line in ipairs(self.lines) do
+        self:drawLine(WHITE, line.x1, line.y1, line.x2, line.y2, lw, line.live and 0.8 or 0.55, line.r, line.g, line.b)
+    end
     local hover = self.hoverLine
     if hover then
-        local lw, cw = LINE_PX * px, CASING_PX * px
         local r, g, b = hover.r + (1 - hover.r) * 0.45, hover.g + (1 - hover.g) * 0.45, hover.b + (1 - hover.b) * 0.45
         self:drawLine(WHITE, hover.x1, hover.y1, hover.x2, hover.y2, cw, 0.7, 0.02, 0.03, 0.05)
-        if hover.x3 then self:drawLine(WHITE, hover.x2, hover.y2, hover.x3, hover.y3, cw, 0.7, 0.02, 0.03, 0.05) end
         self:drawLine(WHITE, hover.x1, hover.y1, hover.x2, hover.y2, lw, 1, r, g, b)
-        if hover.x3 then self:drawLine(WHITE, hover.x2, hover.y2, hover.x3, hover.y3, lw, 1, r, g, b) end
     end
     -- The legend's entry under the mouse marks what it names.
     local marked = self.legendHover
@@ -895,6 +964,8 @@ function ISBUPlan:render()
         self:drawRect(square.x - 1, square.y - 1, size + 2, size + 2, 0.9, 0.02, 0.03, 0.05)
         self:drawRect(square.x, square.y, size, size, 1, square.r, square.g, square.b)
         self:drawRect(square.x, square.y, size, px, 0.45, 1, 1, 1)
+        -- a relay's post: a dark stroke down its middle
+        if square.relay then self:drawRect(square.x + math.floor(size / 2) - 1, square.y + 1, 2, size - 2, 0.8, 0.1, 0.08, 0.06) end
         if square.ring then
             self:drawRectBorder(square.x - 3, square.y - 3, size + 6, size + 6, 0.9,
                 math.min(1, square.r + 0.3), math.min(1, square.g + 0.3), math.min(1, square.b + 0.3))
@@ -913,6 +984,15 @@ function ISBUPlan:render()
                 and marked.g == dot.g and marked.b == dot.b then
             UI.frame(self, dot.x - DOT - 1, dot.y - DOT - 1, DOT * 2 + 2, DOT * 2 + 2, P.bright, 1)
         end
+    end
+    -- A square shown from the window: a frame closing in on it as the mark fades.
+    local focus = self.focus
+    if focus and map and map.ox and focus.z == self.floor then
+        local t = math.min(1, (now - focus.at) / FOCUS_MS)
+        local fx = map.ox + (focus.x + 0.5 - map.minX) * map.scale
+        local fy = map.oy + (focus.y + 0.5 - map.minY) * map.scale
+        local half = SQUARE + 10 * (1 - BU.PanelUi.ease(math.min(1, t * 2)))
+        UI.frame(self, fx - half, fy - half, half * 2, half * 2, P.warn, 1 - t)
     end
     -- The riser and the badges: a dark box, framed in their colour, with their text.
     local riser = self.riser
@@ -1013,7 +1093,7 @@ end
 function ISBUPlan:onMouseMove(dx, dy)
     local kind, thing = self:hit(self:getMouseX(), self:getMouseY())
     self:setHover(kind == "dot" and thing.key or nil, (kind == "room" or kind == "dot") and thing.room or nil)
-    self.hoverLine = (kind == "square" or kind == "dot") and thing.line or nil
+    self.hoverLine = (kind == "square" or kind == "dot") and thing.ref and self.lineByRef[thing.ref] or nil
     if kind == "dot" or kind == "square" then
         self.status = thing.text
     elseif kind == "badge" then
@@ -1026,14 +1106,15 @@ function ISBUPlan:onMouseMove(dx, dy)
         elseif zone and zone.state == "free" then
             self.status = self.status .. "  (" .. getText("IGUI_BU_Legend_zoneFree") .. ")"
         elseif zone and zone.state == "far" then
-            self.status = self.status .. "  (" .. (self.data.farNote or getText("IGUI_BU_Legend_zoneFar")) .. ")"
+            self.status = self.status .. "  (" .. (zone.note or getText("IGUI_BU_Legend_zoneFar")) .. ")"
         end
     elseif kind == "floor" and thing.arrow then
         self.status = getText("IGUI_BU_StripScroll")
     elseif kind == "floor" then
         self.status = BU.floorName(thing.level)
         if thing.supply then self.status = self.status .. "  (" .. getText("IGUI_BU_FloorWater_" .. thing.supply) .. ")" end
-        if thing.far and self.data.farNote then self.status = self.status .. "  (" .. self.data.farNote .. ")" end
+        local note = thing.far and self:farNote(thing.level)
+        if note then self.status = self.status .. "  (" .. note .. ")" end
     elseif self:toggleAt(self:getMouseX(), self:getMouseY()) == "zone" then
         self.status = self.data.zoneNote
     elseif self:toggleAt(self:getMouseX(), self:getMouseY()) == "range" then
