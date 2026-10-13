@@ -388,13 +388,47 @@ function ISBUPanelWindow:showDevice(key)
     if self.roomFilter and self.roomFilter ~= roomId then self.roomFilter = nil end
     if PanelWindow.options.activeOnly then PanelWindow.options.activeOnly = false; self:placeOptions() end
     self:redraw()
+    self:chooseRow(utility, key)
+end
+
+-- What a row stands for, to find it again as the list fills anew: a device's key, else its producer's, unit's or
+-- relay's square; nil for a row of neither.
+function ISBUPanelWindow.rowKey(row)
+    if row.device then return row.device.key end
+    local at = row.relay or row.unit or row.at
+    return at and at.x and (at.x .. "," .. at.y .. "," .. at.z) or nil
+end
+
+-- A row chosen: selected, scrolled to and flashed (from the plan); it stays selected as the list fills anew
+-- (ISBUPanelWindow:fill). Whether the list has it.
+function ISBUPanelWindow:chooseRow(utility, key, quiet)
+    self.chosenRow = key and { utility = utility, key = key } or nil
     local list = self.lists[utility]
+    list.selected = -1
     for index, item in ipairs(list.items) do
-        if item.item.device and item.item.device.key == key then
+        if key and ISBUPanelWindow.rowKey(item.item) == key then
             list.selected = index
-            list:ensureVisible(index)
+            if not quiet then
+                list:ensureVisible(index)
+                Ui.UI.placeFlash(list, index)
+            end
+            return true
         end
     end
+    return false
+end
+
+-- A producer's, unit's or relay's square clicked on the plan: its row, shown; one not connected at the box is
+-- listed again if the list hid it.
+function ISBUPanelWindow:showAt(at)
+    local utility = self:activeUtility()
+    local key = at.x .. "," .. at.y .. "," .. at.z
+    if self:chooseRow(utility, key) or not PanelWindow.options.hideUnwired then return end
+    PanelWindow.options.hideUnwired = false
+    self:placeOptions()
+    self:redraw()
+    self:updatePlan()
+    self:chooseRow(utility, key)
 end
 
 -- A room clicked on the plan: the list shows only it; nil shows them all again.

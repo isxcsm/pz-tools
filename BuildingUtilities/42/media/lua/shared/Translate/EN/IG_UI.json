@@ -16,6 +16,7 @@
     "IGUI_BU_Up": "Up",
     "IGUI_BU_Down": "Down",
     "IGUI_BU_Remove": "Remove",
+    "IGUI_BU_Devices": "Devices",
     "IGUI_BU_AllInside": "Connect everything in the building",
     "IGUI_BU_NotAllLoaded": "Part of the building or the area around it is not loaded: the list may be incomplete.",
     "IGUI_BU_Outside": "Outside",

@@ -4,7 +4,8 @@
 -- each from its thing to what it hangs on (a wall square, a relay, a device), grey where it supplies nothing.
 -- A strip on the left picks the floor, a legend in a box at the bottom tells the colours (its header folds it). It
 -- shares hover and clicks with the window's list: a row under the mouse marks its room or dot here and the other way
--- round, a room clicked here shows only that room there, a dot clicked here finds its row, and a right click offers
+-- round, a room clicked here shows only that room there, a dot or a producer's, unit's or relay's square clicked here
+-- finds its row (selected, kept so as the list fills again), and a right click offers
 -- what the row would. Rooms of the building outside the box's zone are dim; the Zone switch at the top shows the zones
 -- instead, and a click there takes a room in or out. Devices in reach not connected are grey; the mouse over a thing
 -- with a line brings its line up. The Range switch shows the range here and in the world: an outline where devices
@@ -546,6 +547,15 @@ function ISBUPlan:layout()
             self.lineByRef[line.ref] = drawn
         end
     end
+    self:layoutRooms(sx, sy, wall)
+    self:layoutThings(sx, sy, scale)
+    self:layoutStrip()
+end
+
+-- The rooms of this floor (cells, walls, labels), placed by layout's sx and sy. Out of layout, which would otherwise
+-- be past the 200 locals a function may declare in the game's debug mode.
+function ISBUPlan:layoutRooms(sx, sy, wall)
+    local data = self.data
     -- Rooms on this floor, with what their devices do.
     local roomState = {}
     for _, device in ipairs(data.devices) do
@@ -579,12 +589,15 @@ function ISBUPlan:layout()
             -- its light's key, and its outline in a light tint of its colour
             local fx = "r" .. tostring(room.id)
             local wr, wg, wb = r + (1 - r) * 0.45, g + (1 - g) * 0.45, b + (1 - b) * 0.45
+            -- The label goes on its largest rectangle, by its squares (by its pixels, two of a size took turns as the
+            -- plan was dragged, the label flickering between them and gone when the narrower one won).
             local largest
             for _, rect in ipairs(room.rects) do
-                local cell = { x = sx(rect.x), y = sy(rect.y), room = room.id, r = r, g = g, b = b, dim = dim, fx = fx }
+                local cell = { x = sx(rect.x), y = sy(rect.y), room = room.id, r = r, g = g, b = b, dim = dim, fx = fx,
+                    area = rect.w * rect.h }
                 cell.w, cell.h = sx(rect.x + rect.w) - cell.x, sy(rect.y + rect.h) - cell.y
                 self.cells[#self.cells + 1] = cell
-                if not largest or cell.w * cell.h > largest.w * largest.h then largest = cell end
+                if not largest or cell.area > largest.area then largest = cell end
             end
             for _, edge in ipairs(self:roomOutline(room)) do
                 local x1, y1 = sx(edge.x), sy(edge.y)
@@ -601,6 +614,11 @@ function ISBUPlan:layout()
             end
         end
     end
+end
+
+-- The devices, producers, relays and boxes of this floor, placed by layout's sx and sy.
+function ISBUPlan:layoutThings(sx, sy, scale)
+    local data = self.data
     for _, device in ipairs(data.devices) do
         if device.z == self.floor then
             local r, g, b = dotColour(device, data.supplied)
@@ -615,7 +633,8 @@ function ISBUPlan:layout()
             local colour = producerColour(data, producer)
             self.squares[#self.squares + 1] = { x = math.floor(sx(producer.x) + (scale - SQUARE) / 2),
                 y = math.floor(sy(producer.y) + (scale - SQUARE) / 2), size = SQUARE,
-                r = colour[1], g = colour[2], b = colour[3], ring = producer.inUse, text = producer.text, ref = producer.ref }
+                r = colour[1], g = colour[2], b = colour[3], ring = producer.inUse, text = producer.text, ref = producer.ref,
+                at = producer }
         end
     end
     -- The relays: a square in their kind's colour (grey while they supply nothing), a post mark on it.
@@ -624,7 +643,7 @@ function ISBUPlan:layout()
             local colour = relay.cut and COLOURS.off or COLOURS[relay.kind]
             self.squares[#self.squares + 1] = { x = math.floor(sx(relay.x) + (scale - SQUARE) / 2),
                 y = math.floor(sy(relay.y) + (scale - SQUARE) / 2), size = SQUARE, relay = true,
-                r = colour[1], g = colour[2], b = colour[3], text = relay.text, ref = relay.ref }
+                r = colour[1], g = colour[2], b = colour[3], text = relay.text, ref = relay.ref, at = relay }
         end
     end
     -- The boxes of the building; this window's ringed.
@@ -636,7 +655,6 @@ function ISBUPlan:layout()
                 r = colour[1], g = colour[2], b = colour[3], ring = box.own, text = box.text }
         end
     end
-    self:layoutStrip()
 end
 
 -- Whether a floor has rooms and none the box's zone can take (data.farLevels).
@@ -1304,6 +1322,9 @@ function ISBUPlan:click(x, y)
         self:showFloor(thing.level)
     elseif kind == "dot" then
         self.window:showDevice(thing.key)
+    elseif kind == "square" and thing.at then
+        -- a producer, a unit or a relay: its row
+        self.window:showAt(thing.at)
     elseif kind == "room" then
         self.window:filterRoom(thing.room ~= (self.data and self.data.filter) and thing.room or nil)
     elseif kind == nil then

@@ -472,10 +472,11 @@ function ISBUPanelWindow:onByLoad()
 end
 
 -- What is in reach and not connected (devices outside without their line, producers no box has) hidden or shown, in
--- the list and on the plan.
+-- the list and on the plan, both at once (the plan left to the next refresh lagged behind the list).
 function ISBUPanelWindow:onHideUnwired()
     PanelWindow.options.hideUnwired = not PanelWindow.options.hideUnwired
     self:redraw()
+    self:updatePlan()
 end
 
 -- The utility the list shows now: the plan follows it (the first tab's while the log or the batteries are shown; nil
@@ -1254,7 +1255,9 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
     if utility == "power" and self.load and offPower > 0 then
         allTip = getText("IGUI_BU_PreviewAll", load2(self.load + offPower), load2(self.limit))
     end
+    -- The devices under their own header (without it, "everything inside" read as a row of the relays above it).
     -- Below the tier that cuts devices there is nothing to switch: no "everything inside" row, rows without ticks.
+    add({ kind = "header", text = getText("IGUI_BU_Devices") })
     local fixed = not Panels.cuts(panel)
     if not fixed then
         add({ kind = "all", text = getText("IGUI_BU_AllInside"), state = self:allInside(devices) and "on" or "off" }, allTip)
@@ -1428,6 +1431,9 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
             if group.level == nil and visible(group) then emit(group) end
         end
     end
+    -- The row chosen stays selected (found again by what it stands for).
+    local chosen = self.chosenRow
+    if chosen and chosen.utility == utility then self:chooseRow(utility, chosen.key, true) end
     list:setYScroll(scroll)
 end
 

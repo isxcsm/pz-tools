@@ -16,6 +16,7 @@
     "IGUI_BU_Up": "위로",
     "IGUI_BU_Down": "아래로",
     "IGUI_BU_Remove": "해제",
+    "IGUI_BU_Devices": "기기",
     "IGUI_BU_AllInside": "건물 안 전부 연결",
     "IGUI_BU_NotAllLoaded": "건물이나 주변 일부가 로드되지 않아 목록이 빠졌을 수 있습니다.",
     "IGUI_BU_Outside": "바깥",

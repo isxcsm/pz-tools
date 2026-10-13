@@ -247,9 +247,10 @@ function ISBUPanelList:doDrawItem(y, item, alt)
     local textY = y + (ROW - FONT_HGT_SMALL) / 2
     local index = item.index
     -- The row under the mouse lit, coming in and fading as the mouse moves on (UI.placeLight), an accent at its left;
-    -- a click flashes it; its buttons light as the mouse goes over them. A device chosen stays lit.
+    -- a click flashes it; its buttons light as the mouse goes over them. The row chosen (clicked, or found from the
+    -- plan) stays lit.
     local lit, flash = UI.placeLevels(self, index)
-    if self.selected == index and row.device then lit = math.max(lit, 1) end
+    if self.selected == index then lit = math.max(lit, 1) end
     if lit > 0.01 or flash > 0.01 then
         UI.fill(c, 0, y, width, ROW, P.sel, 0.1 * lit + 0.22 * flash)
         UI.fill(c, 0, y + 1, 3, ROW - 2, P.sel, 0.9 * math.max(lit, flash))
@@ -458,6 +459,8 @@ function ISBUPanelList:onMouseDown(x, y)
     if item then
         local dx, width = UI.dp(x), UI.dp(self:getWidth())
         if not STILL[item.item.kind] then UI.placeFlash(self, index) end
+        -- the row clicked is the one chosen now (none, for a row that stands for no thing)
+        self.window:chooseRow(self.utility, ISBUPanelWindow.rowKey(item.item), true)
         for _, button in ipairs(item.item.buttons or {}) do
             if dx >= button.x and dx < button.x + button.w then UI.flash(self, index .. button.name) end
         end
