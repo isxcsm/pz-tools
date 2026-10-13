@@ -101,33 +101,34 @@ def propane_refiner(turns, look):
         a0, a1 = 2 * math.pi * i / 44, 2 * math.pi * (i + 1) / 44
         s.tube((cx + (r + 0.16) * math.cos(a0), cy + (r + 0.16) * math.sin(a0), pz + 0.3),
                (cx + (r + 0.16) * math.cos(a1), cy + (r + 0.16) * math.sin(a1), pz + 0.3), 0.007, STEEL, segments=5, shine=0.5)
-    # the caged ladder up the column's south-east to the platform: heavy rails and rungs, a safety cage of hoops and
-    # bars from head height up (a thin bare ladder read as a toy at the tile's size)
+    # the caged ladder up the column's south-east to the platform, sized for a person (a narrow ladder hugging the
+    # shell with close rungs and a tight cage read as a toy, no room for a foot): rails a shoulder's width apart, stood
+    # off the shell on brackets, rungs a stride apart, a cage a body deep from above the bullet tank up
     la = math.radians(60)
     out = (math.cos(la), math.sin(la))
     across = (-math.sin(la), math.cos(la))
-    lx, ly = cx + (r + 0.03) * out[0], cy + (r + 0.03) * out[1]
-    for side in (-0.065, 0.065):
-        s.tube((lx + side * across[0], ly + side * across[1], 0.08), (lx + side * across[0], ly + side * across[1], pz + 0.3),
-               0.014, YELLOW, segments=8, shine=0.3)
-    for i in range(10):
-        z = 0.16 + i * 0.09
-        s.tube((lx - 0.065 * across[0], ly - 0.065 * across[1], z), (lx + 0.065 * across[0], ly + 0.065 * across[1], z),
-               0.01, STEEL_DARK, segments=6)
-    hx, hy = lx + out[0] * 0.1, ly + out[1] * 0.1
-    for hz in (0.5, 0.72, 0.94, pz + 0.2):
-        pts = []
-        for k in range(9):
-            a = math.pi * k / 8
-            pts.append((hx + across[0] * 0.1 * math.cos(a) + out[0] * 0.1 * math.sin(a) - out[0] * 0.03,
-                        hy + across[1] * 0.1 * math.cos(a) + out[1] * 0.1 * math.sin(a) - out[1] * 0.03, hz))
+    half, off = 0.12, 0.13
+    lx, ly = cx + (r + off) * out[0], cy + (r + off) * out[1]
+
+    def at(side, depth, z):
+        return (lx + side * across[0] + depth * out[0], ly + side * across[1] + depth * out[1], z)
+    for side in (-half, half):
+        s.tube(at(side, 0, 0.08), at(side, 0, pz + 0.34), 0.017, YELLOW, segments=8, shine=0.3)
+        for bz in (0.3, 0.75, pz - 0.04):
+            s.tube(at(side, -off + 0.01, bz), at(side, 0, bz), 0.011, STEEL_DARK, segments=6)
+    for i in range(7):
+        z = 0.2 + i * 0.13
+        s.tube(at(-half, 0, z), at(half, 0, z), 0.013, STEEL, segments=6, shine=0.4)
+    cage_r, cage_d = half + 0.03, 0.3
+    hoops = (0.82, 1.0, 1.18, pz + 0.3)
+    for hz in hoops:
+        pts = [at(math.cos(math.pi * k / 10) * cage_r, math.sin(math.pi * k / 10) * cage_d, hz) for k in range(11)]
         for a_, b_ in zip(pts, pts[1:]):
-            s.tube(a_, b_, 0.009, YELLOW, segments=5, shine=0.3)
-    for k in (2, 4, 6):
-        a = math.pi * k / 8
-        bx = hx + across[0] * 0.1 * math.cos(a) + out[0] * 0.1 * math.sin(a) - out[0] * 0.03
-        by = hy + across[1] * 0.1 * math.cos(a) + out[1] * 0.1 * math.sin(a) - out[1] * 0.03
-        s.tube((bx, by, 0.5), (bx, by, pz + 0.2), 0.007, YELLOW, segments=5, shine=0.3)
+            s.tube(a_, b_, 0.01, YELLOW, segments=5, shine=0.3)
+    for k in (2, 5, 8):
+        a = math.pi * k / 10
+        s.tube(at(math.cos(a) * cage_r, math.sin(a) * cage_d, hoops[0]),
+               at(math.cos(a) * cage_r, math.sin(a) * cage_d, hoops[-1]), 0.008, YELLOW, segments=5, shine=0.3)
     # the gauge on the column's south face and a stencil
     gz = 0.86
     front_decal(s, cx - 0.2, cx + 0.0, 0.38, 0.5, cy + r + 0.0, stencil_text('PROPANE', 80, 20, (40, 70, 130)))
@@ -148,7 +149,8 @@ def propane_refiner(turns, look):
     valve_wheel(s, (1.4, ty, tz + tr + 0.24), 0.06, RED, axis='x')
     front_decal(s, 1.0, 1.4, tz - 0.08, tz + 0.08, ty + tr * 0.97, stencil_text('LPG 4t', 70, 24, (80, 100, 150)), offset=0.0)
     # pipes: tank to column, column to the bottle rack
-    pipe(s, [(1.2, ty, tz + tr + 0.1), (1.2, 1.1, tz + tr + 0.1), (cx + r * 0.85, 1.1, tz + tr + 0.1), (cx + r * 0.85, cy + r * 0.5, tz + tr + 0.1)], 0.018)
+    # (round the ladder: up the tank's side, then into the column's east face)
+    pipe(s, [(1.2, ty, tz + tr + 0.1), (1.2, cy, tz + tr + 0.1), (cx + r * 0.95, cy, tz + tr + 0.1)], 0.018)
     pipe(s, [(0.92, 0.9, 0.18), (1.5, 0.9, 0.18)], 0.02)
     # the bottle rack: four bottles in a frame
     for ix, bx in enumerate((1.42, 1.62, 1.82)):
