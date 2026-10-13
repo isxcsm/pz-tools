@@ -24,7 +24,11 @@ ISBUPanelList = ISScrollingListBox:derive("ISBUPanelList")
 ISBUPanelList.BUTTON_TIPS = { timer = "IGUI_BU_TimerTip", essential = "IGUI_BU_EssentialTip" }
 
 local BUTTONS = { "Up", "Down" }
-local OPTIONS, OPTION_NAMES = { "ActiveOnly", "ByLoad" }, { ActiveOnly = true, ByLoad = true }
+local OPTIONS = { "ActiveOnly", "ByLoad", "HideUnwired" }
+local OPTION_NAMES = { ActiveOnly = true, ByLoad = true, HideUnwired = true }
+-- Each option's flag in PanelWindow.options, and its label.
+local OPTION_FLAGS = { ActiveOnly = "activeOnly", ByLoad = "byLoad", HideUnwired = "hideUnwired" }
+local OPTION_LABELS = { ActiveOnly = "IGUI_BU_ActiveOnly", ByLoad = "IGUI_BU_ByLoad", HideUnwired = "IGUI_BU_HideUnwired" }
 local BUTTON_W = 60
 local TIMER_W, ESSENTIAL_W, GROUP_W, SOURCE_W = 64, 48, 90, 110
 -- Water groups' colours, by their place in the panel's list.
@@ -108,6 +112,7 @@ end
 -- The buttons at the end of a producer's row, left to right: for power Up, Down and Remove; for water the tank's
 -- group (with more than one) and Remove.
 local function producerButtons(width, row)
+    if row.unwired then return buttonsAtRight(width, row, {}) end
     return buttonsAtRight(width, row, not row.water and BUTTONS or row.groupText and { "Group" } or {})
 end
 
@@ -152,8 +157,8 @@ end
 local function drawOptions(list, c, index, width, y, row)
     local options = BU.PanelWindow.options
     for _, button in ipairs(optionButtons(width, row)) do
-        local on = button.name == "ActiveOnly" and options.activeOnly or button.name == "ByLoad" and options.byLoad
-        local text = label(button.name == "ActiveOnly" and "IGUI_BU_ActiveOnly" or "IGUI_BU_ByLoad")
+        local on = options[OPTION_FLAGS[button.name]] == true
+        local text = label(OPTION_LABELS[button.name])
         smallButton(list, c, index .. button.name, button.x, y, button.w, text, on and P.bright or P.text, on)
     end
 end
@@ -299,7 +304,7 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         end
     elseif row.kind == "producer" then
         -- In use in green, out of service (switched off by hand) in amber.
-        UI.text(c, row.text, PAD * 2, textY, row.inUse and IN_USE or row.out and OUT or PLAIN)
+        UI.text(c, row.text, PAD * 2, textY, row.unwired and MUTED or row.inUse and IN_USE or row.out and OUT or PLAIN)
         for _, button in ipairs(producerButtons(width, row)) do
             if button.name == "Group" then
                 smallButton(self, c, index .. "Group", button.x, y, button.w, row.groupText, row.groupColour)

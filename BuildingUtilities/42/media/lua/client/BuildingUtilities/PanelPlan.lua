@@ -96,6 +96,7 @@ local COLOURS = {
 
 -- A producer's colour: its own (a tank's group's), a unit's (its kind's, Units.define), a tank's or a generator's.
 local function producerColour(data, producer)
+    if producer.unwired then return COLOURS.off end
     if producer.colour then return producer.colour end
     if producer.unit then return BU.Units.definition(producer.unit).colour end
     return data.utility == "water" and COLOURS.tank or COLOURS.producer
@@ -575,7 +576,7 @@ function ISBUPlan:layout()
             self.squares[#self.squares + 1] = { x = math.floor(sx(producer.x) + (scale - SQUARE) / 2),
                 y = math.floor(sy(producer.y) + (scale - SQUARE) / 2), size = SQUARE,
                 r = colour[1], g = colour[2], b = colour[3], ring = producer.inUse, text = producer.text,
-                line = lineOf(producer.x, producer.y, colour, true) }
+                line = not producer.unwired and lineOf(producer.x, producer.y, colour, true) or nil }
         end
     end
     -- The boxes of the building: a main box light, a sub-panel dark; this window's ringed.

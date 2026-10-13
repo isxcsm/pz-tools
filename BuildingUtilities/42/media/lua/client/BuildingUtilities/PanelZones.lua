@@ -32,12 +32,15 @@ function ISBUPanelWindow:updatePlan()
         rooms[#rooms + 1] = { id = room.id, title = self.titles[room.id] or BU.roomName(room.name or ""), level = room.level, rects = room.rects }
     end
     local devices = {}
+    local hide = PanelWindow.options.hideUnwired
     for _, device in ipairs(view.devices) do
         local entry = device.entry
-        devices[#devices + 1] = { key = device.key, x = entry.x, y = entry.y, z = entry.z, roomId = device.roomId, inside = device.inside,
-            state = device.state, wired = device.wired, held = device.held, power = device.power, utility = utility,
-            name = view.names[device.key] or "", status = view.status[device.key],
-            fresh = view.fresh[device.key] }
+        if not (hide and not device.wired) then
+            devices[#devices + 1] = { key = device.key, x = entry.x, y = entry.y, z = entry.z, roomId = device.roomId,
+                inside = device.inside, state = device.state, wired = device.wired, held = device.held,
+                power = device.power, utility = utility, name = view.names[device.key] or "",
+                status = view.status[device.key], fresh = view.fresh[device.key] }
+        end
     end
     local producers = {}
     if not panel.parent then
@@ -59,6 +62,14 @@ function ISBUPanelWindow:updatePlan()
                 and PanelWindow.groupColour(panel, BU.WaterUnits.group(unit)) or nil
             producers[#producers + 1] = { x = unit.x, y = unit.y, z = unit.z, inUse = inUse or unit.running == true or unit.boosting == true,
                 unit = unit.kind, colour = colour, text = text }
+        end
+        -- What it could take and no box has: grey, as devices not connected are.
+        if not hide then
+            for _, at in ipairs(view.unwired or {}) do
+                local name = at.unit and Units.name(at.unit) or BU.displayName(at.x, at.y, at.z, at.sprite)
+                producers[#producers + 1] = { x = at.x, y = at.y, z = at.z, unwired = true, unit = at.unit and at.unit.kind,
+                    text = name .. "  " .. getText("IGUI_BU_NotWired") }
+            end
         end
     end
     -- The zones of the building: this box's, the free rooms and other boxes'.

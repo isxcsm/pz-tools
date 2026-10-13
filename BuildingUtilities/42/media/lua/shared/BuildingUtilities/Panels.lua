@@ -537,6 +537,39 @@ function Panels.canConnectProducer(panel, utility, x, y, z)
     return false, "tooFar"
 end
 
+-- What a main box could take that no box has, each { x, y, z, sprite } (a generator or water storage) or { x, y, z,
+-- unit }: the producers in its building and around it within its connect range (the API's buildings.producers, read in
+-- Java; none with an API from before it) that Panels.canConnectProducer allows, and the units no box has that this box
+-- reaches. None for a sub-panel (what is near it goes to its main box) or while the utility is off.
+function Panels.unwiredProducers(panel, utility)
+    local result = {}
+    if panel.parent or not BU.enabled(utility) then return result end
+    local api = BU.api()
+    local building = Panels.building(panel)
+    local find = api and api.buildings.producers
+    if building and find then
+        local list = find(building.key, math.min(32, BU.connectRange(panel.tier)), utility)
+        for i = 1, list and #list or 0 do
+            local entry = list[i]
+            if Panels.canConnectProducer(panel, utility, entry.x, entry.y, entry.z) then
+                result[#result + 1] = { x = entry.x, y = entry.y, z = entry.z, sprite = entry.sprite }
+            end
+        end
+    end
+    local Units = BU.Units
+    for _, unit in ipairs(Store.unitList(nil, nil)) do
+        if not unit.panel and Units.utility(unit) == utility and BU.enabled(unit.kind) then
+            for _, candidate in ipairs(Panels.inProducerRange(unit.x, unit.y, unit.z)) do
+                if candidate.panel == panel then
+                    result[#result + 1] = { x = unit.x, y = unit.y, z = unit.z, unit = unit }
+                    break
+                end
+            end
+        end
+    end
+    return result
+end
+
 -- Devices.
 
 -- The devices of a panel for one utility: those of its building, with those in rooms built onto it (Panels.attached),

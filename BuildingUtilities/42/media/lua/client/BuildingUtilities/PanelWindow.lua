@@ -47,7 +47,7 @@ local open = {}
 local SETTLE_MS = 100
 -- What the player chose, kept while the game runs: view options, folded rooms, the plan's share of the window and
 -- its legend.
-PanelWindow.options = { activeOnly = false, byLoad = false }
+PanelWindow.options = { activeOnly = false, byLoad = false, hideUnwired = false }
 PanelWindow.folded = {}
 -- The plan takes all it can at first (the list at its least, MIN_LIST); the divider moves it. The window is made as
 -- wide as a list of LIST_W with the plan WINDOW_SHARE of it beside.
@@ -546,6 +546,13 @@ end
 
 function ISBUPanelWindow:onByLoad()
     PanelWindow.options.byLoad = not PanelWindow.options.byLoad
+    self:redraw()
+end
+
+-- What is in reach and not connected (devices outside without their line, producers no box has) hidden or shown, in
+-- the list and on the plan.
+function ISBUPanelWindow:onHideUnwired()
+    PanelWindow.options.hideUnwired = not PanelWindow.options.hideUnwired
     self:redraw()
 end
 
@@ -1323,6 +1330,16 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
             add(row, utility == "power" and getText("IGUI_BU_GeneratorTip") or nil)
         end
         if utility == "water" then self:waterUnitRows(add) end
+        -- What it could take and no box has, dim, unless the view hides it: connected at the thing itself.
+        view.unwired = Panels.unwiredProducers(panel, utility)
+        if not PanelWindow.options.hideUnwired then
+            for _, at in ipairs(view.unwired) do
+                local name = at.unit and Units.name(at.unit) or BU.displayName(at.x, at.y, at.z, at.sprite)
+                add({ kind = "producer", unwired = true, at = at, water = utility == "water",
+                    text = getText("IGUI_BU_UnwiredProducerRow", name, Panels.where(panel, at.x, at.y)) },
+                    getText("IGUI_BU_UnwiredProducerTip"))
+            end
+        end
     end
     local children = Store.children(panel.id)
     if #children > 0 then
@@ -1390,7 +1407,8 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
         elseif device.state == "off" and device.wired then
             g.off = g.off + 1
         end
-        local shown = not options.activeOnly or utility ~= "power" or (device.power or 0) > 0 or device.held ~= nil
+        local shown = (not options.activeOnly or utility ~= "power" or (device.power or 0) > 0 or device.held ~= nil)
+            and not (options.hideUnwired and not device.wired)
         if shown then table.insert(g.devices, { device = device, name = name, status = status, dim = dim }) end
     end
     local function title(id)
@@ -1607,7 +1625,9 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
     if row.options then
         for _, button in ipairs(Ui.optionButtons(width, row)) do
             if x >= button.x and x < button.x + button.w then
-                if button.name == "ActiveOnly" then self:onActiveOnly() else self:onByLoad() end
+                if button.name == "ActiveOnly" then self:onActiveOnly()
+                elseif button.name == "ByLoad" then self:onByLoad()
+                else self:onHideUnwired() end
                 return
             end
         end
@@ -1624,6 +1644,8 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
                 end
             end
         end
+    elseif row.kind == "producer" and row.unwired then
+        return
     elseif row.kind == "producer" and row.unit then
         self:onWaterUnitRow(row, x, width)
     elseif row.kind == "producer" then

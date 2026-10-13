@@ -26,7 +26,8 @@ end }
 -- The PZ Extension API (PZExtAPI) as the tested modules call it. TEST.api holds what a test sets and what the
 -- calls counted:
 --   buildings: by key, { building = <at's table>, rooms = <rooms list>, attached = <list or nil>,
---     attachedObjects = { power = <list>, water = <list> }, objects = { power, water }, near = { power, water } };
+--     attachedObjects = { power = <list>, water = <list> }, objects = { power, water }, near = { power, water },
+--     producers = { power, water } };
 --   squares: "x,y,z" -> building key, for at;
 --   version: buildings.version();
 --   calls: by function name, how many times it was called.
@@ -58,6 +59,11 @@ local function newApi()
             count("near")
             local known = entry(key)
             return known and (known.near or {})[filter] or {}, true
+        end,
+        producers = function(key, tiles, filter)
+            count("producers")
+            local known = entry(key)
+            return known and (known.producers or {})[filter] or {}, true
         end,
     }
     -- Network changes are counted by name and do nothing; state is nil.

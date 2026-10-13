@@ -1010,6 +1010,9 @@
     "IGUI_BU_HeldExterior": "off (no power outdoors)",
     "IGUI_BU_Attached": "extension",
     "IGUI_BU_UnwiredTip": "Lay its line at the device (right-click).",
+    "IGUI_BU_UnwiredProducerRow": "%1 (%2)  not connected",
+    "IGUI_BU_UnwiredProducerTip": "Right-click it where it stands to connect it to this panel.",
+    "IGUI_BU_HideUnwired": "Hide unwired",
     "IGUI_BU_NotWired": "Not connected",
     "IGUI_BU_ConnectAtDevice": "Connect it at the device."
 }

@@ -1010,6 +1010,9 @@
     "IGUI_BU_HeldExterior": "꺼짐(바깥 전기 없음)",
     "IGUI_BU_Attached": "증축",
     "IGUI_BU_UnwiredTip": "선은 기기에서 우클릭으로 깝니다.",
+    "IGUI_BU_UnwiredProducerRow": "%1 (%2)  연결 안 됨",
+    "IGUI_BU_UnwiredProducerTip": "그 자리에서 우클릭해 이 제어반에 연결합니다.",
+    "IGUI_BU_HideUnwired": "미연결 숨김",
     "IGUI_BU_NotWired": "연결 안 됨",
     "IGUI_BU_ConnectAtDevice": "연결은 기기에 가서 합니다."
 }

@@ -178,3 +178,28 @@ test("a device outside with its line is supplied unless cut, and the line taken 
     Changes.includeOutside(panel, "water", device, {})
     eq(Networks.rule(panel, "water", TAP), "include", "a line laid again supplies it")
 end)
+
+test("a main box lists what it could take and no box has: producers in reach, units in reach", function()
+    require "BuildingUtilities/Solar"
+    house(TEST.api)
+    TEST.api.buildingsByKey[KEY].producers = { power = {
+        { x = 208, y = 201, z = 0, sprite = "near generator", type = "IsoGenerator", utility = "power" },
+        { x = 230, y = 201, z = 0, sprite = "far generator", type = "IsoGenerator", utility = "power" },
+        { x = 209, y = 202, z = 0, sprite = "taken generator", type = "IsoGenerator", utility = "power" },
+    } }
+    local panel = Store.newPanel(201, 201, 0, "box")
+    local other = Store.newPanel(500, 500, 0, "box")
+    other.power.producers[1] = { x = 209, y = 202, z = 0 }
+    local free = Store.newUnit("solar", 207, 203, 0, "panel")
+    local wired = Store.newUnit("solar", 207, 202, 0, "panel")
+    wired.panel = other.id
+    Store.newUnit("solar", 240, 240, 0, "panel")
+    local found = Panels.unwiredProducers(panel, "power")
+    eq(#found, 2, "the near generator and the free solar panel")
+    eq(found[1].sprite, "near generator")
+    eq(found[2].unit, free)
+    eq(#Panels.unwiredProducers(panel, "water"), 0, "no water storage")
+    local sub = Store.newPanel(202, 202, 0, "box")
+    sub.parent = panel.id
+    eq(#Panels.unwiredProducers(sub, "power"), 0, "a sub-panel's go to its main box")
+end)
