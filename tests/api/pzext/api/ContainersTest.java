@@ -62,7 +62,12 @@ final class ContainersTest {
         var house = call(buildings, "containers", HOUSE);
         var list = (KahluaTable)house.get(0);
         check(list != null && list.len() == 7 * 7, "The house's list has " + (list == null ? -1 : list.len()) + " values, not 49 (7 containers)");
-        check(house.get(1) == Boolean.FALSE, "The bedroom is not loaded, but the list says it is complete");
+        // The bedroom's squares are missing from a loaded chunk: nothing there, not unloaded.
+        check(house.get(1) == Boolean.TRUE, "Missing squares of a loaded chunk were taken as unloaded");
+        var chunk = IsoWorld.instance.currentCell.getChunk(1, 1);
+        chunk.loaded = false;
+        check(call(buildings, "containers", HOUSE).get(1) == Boolean.FALSE, "The house's chunk is not loaded, but the list says it is complete");
+        chunk.loaded = true;
         check((Double)house.get(3) == 7.0 && (Double)house.get(4) == 1.0, "The house has 7 containers and 1 opened, not " + house.get(3) + " and " + house.get(4));
         var stamp = (Double)house.get(2);
         check(stamp != null && stamp >= 1, "No stamp was given");
@@ -143,7 +148,8 @@ final class ContainersTest {
         check(around.get(1) == Boolean.TRUE, "A box of loaded squares should be complete");
         var onLevel = (KahluaTable)call(buildings, "containersNear", 11.0, 11.0, -1.0, 2.0).get(0);
         check(onLevel.len() == 7 && onLevel.rawget(1.0) == basement.containers.get(0), "Another level gave the wrong containers");
-        var edge = call(buildings, "containersNear", 4.0, 4.0, 0.0, 3.0);
+        // Out past the loaded chunks (west of x 0): missing squares of a loaded chunk are only air.
+        var edge = call(buildings, "containersNear", 4.0, 4.0, 0.0, 6.0);
         check(edge.get(1) == Boolean.FALSE, "A box that reaches squares not loaded should not be complete");
         var typed = (KahluaTable)call(buildings, "containersNear", 14.0, 11.0, 0.0, 8.0, options("type", "crate", "skipClasses", "IsoThumpable")).get(0);
         check(typed.len() == 2 * 7 && find(typed, marked.containers.get(0)) >= 0 && find(typed, street.containers.get(0)) >= 0,

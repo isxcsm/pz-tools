@@ -193,7 +193,7 @@ final class Containers {
         /** The containers of the objects on the square at (x, y, z), each once. */
         void square(int x, int y, int z) throws Throwable {
             Object loaded = game.square(cells, x, y, z);
-            if (loaded == null) { complete = false; return; }
+            if (loaded == null) { complete &= game.chunkLoaded(cells, game.chunkKey(x, y)); return; }
             List<?> objects = game.objectList(loaded);
             for (int index = 0, objectCount = objects.size(); index < objectCount; index++) {
                 Object object = objects.get(index);

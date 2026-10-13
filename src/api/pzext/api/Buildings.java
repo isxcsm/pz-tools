@@ -393,7 +393,7 @@ final class Buildings {
                     int wx = left + x, wy = top + y;
                     if (!own && roomAt(grid, wx, wy, z) != null) continue;
                     Object loaded = game.square(cells, wx, wy, z);
-                    if (loaded == null) { complete = false; continue; }
+                    if (loaded == null) { complete &= game.chunkLoaded(cells, game.chunkKey(wx, wy)); continue; }
                     visit.at(loaded, wx, wy, z);
                 }
         }
@@ -464,7 +464,7 @@ final class Buildings {
                 for (int y = rect.y(); y < rect.y() + rect.h(); y++)
                     for (int x = rect.x(); x < rect.x() + rect.w(); x++) {
                         Object loaded = game.square(cells, x, y, space.level());
-                        if (loaded == null) { complete = false; continue; }
+                        if (loaded == null) { complete &= game.chunkLoaded(cells, game.chunkKey(x, y)); continue; }
                         for (Object object : game.objectsOn(loaded)) {
                             if (owner(grid, object, null, x, y, space.level()) != null) continue;
                             Found thing = classify(object, filter, x, y, space.level(), space.host());

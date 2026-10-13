@@ -219,7 +219,12 @@ public final class GameApiTest {
         check(sprites(call(buildings, "near", KEY, 2.0).get(0)).equals(Set.of("street light")), "Two squares out, wrong objects");
         check(sprites(call(buildings, "near", KEY, 1.0).get(0)).isEmpty(), "One square out reached two");
         check(sprites(call(buildings, "near", KEY, 2.0, "water").get(0)).isEmpty(), "The water filter let a light through");
-        check(call(buildings, "near", KEY, 2.0).get(1).equals(false), "The bedroom level's unloaded surroundings were reported complete");
+        // The bedroom level's surroundings have no squares in loaded chunks: open air, not unloaded.
+        check(call(buildings, "near", KEY, 2.0).get(1).equals(true), "The air around the bedroom level was reported unloaded");
+        var east = IsoWorld.instance.currentCell.getChunk(1, 1);
+        east.loaded = false;
+        check(call(buildings, "near", KEY, 2.0).get(1).equals(false), "An unloaded chunk's surroundings were reported complete");
+        east.loaded = true;
         var shack = call(buildings, "near", "20,20,0", 1.0);
         check(sprites(shack.get(0)).isEmpty() && shack.get(1).equals(true), "The shack's loaded surroundings were misreported");
         // Diagonal steps count as one: a corner of the house is within two of (15, 14).
@@ -249,7 +254,10 @@ public final class GameApiTest {
         place(21, 21, 0, new IsoGenerator(new IsoSprite("shack generator")));
         var all = call(buildings, "producers", KEY, 2.0);
         check(sprites(all.get(0)).equals(Set.of("kitchen generator", "yard generator", "barrel")), "Wrong producers: " + sprites(all.get(0)));
-        check(all.get(1).equals(false), "The bedroom level's unloaded squares were reported complete");
+        check(all.get(1).equals(true), "The air around the bedroom level was reported unloaded");
+        IsoWorld.instance.currentCell.getChunk(1, 1).loaded = false;
+        check(call(buildings, "producers", KEY, 2.0).get(1).equals(false), "An unloaded chunk's squares were reported complete");
+        IsoWorld.instance.currentCell.getChunk(1, 1).loaded = true;
         check(sprites(call(buildings, "producers", KEY, 2.0, "power").get(0)).equals(Set.of("kitchen generator", "yard generator")),
             "The power filter let water through");
         check(sprites(call(buildings, "producers", KEY, 0.0, "water").get(0)).isEmpty(), "Zero tiles reached outside");
