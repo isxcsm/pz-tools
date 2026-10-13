@@ -4,7 +4,7 @@ A Project Zomboid (Build 42) Lua mod that other mods draw their windows with. It
 
 - **One scale for every screen.** Windows are laid out in design units made for a 16 unit Small font; the kit turns
   them into pixels by the screen's height (with the PZ Extension API's UI fonts) or by the game's font (without).
-- **Sharp texts.** With the [PZ Extension API](../pz-extension-api) installed, texts are drawn in its UI fonts at the
+- **Sharp texts.** With the [PZ Extension API](../../extension-api) installed, texts are drawn in its UI fonts at the
   pixel size the scale asks for (Noto Sans, Korean included); without it, in the game's fonts.
 - **Palettes.** Every widget draws in its window's palette (`window.palette`), a table of `{ r, g, b }` colours: `bg`,
   `panel`, `text`, `dim`, `bright`, `value`, `head`, `border`, `warn`, `bad`, `good`, `sel`, `title`, `dark`, `inset`,
@@ -48,7 +48,7 @@ Mod Lua holds no letters past ASCII (the game reads them as U+FFFD): texts come 
 ## Tests
 
 The kit's tests run in [operation-acorn](../operation-acorn) for now (`tests/unit/trade_faces_test.lua`,
-`trade_scale_test.lua` and the windows built on it), whose harness loads the kit from this repository beside it.
+`trade_scale_test.lua` and the windows built on it), whose harness loads the kit from this folder beside it.
 
 ## License
 

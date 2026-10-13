@@ -157,6 +157,15 @@ pwsh scripts/publish-app.ps1 -JdkPath $jdk -Output artifacts/app-local
 Publish into a new or empty folder and hand out the whole folder. See [Development](docs/contributing/development.md)
 for tests and checks.
 
+## What else is in this repository
+
+Beside the app, this repository holds parts that stand on their own, each with its own README, build or tests:
+
+- [extension-api](extension-api): PZ Extension API, the Java hooks Lua mods use through `PZExtAPI`, with its installer
+  and its developer mod. It needs nothing of PZ Tools; PZ Tools only helps install it.
+- [mods](mods): Project Zomboid mods built on it (PZ UI Kit, Building Utilities, Operation Acorn) and their developer
+  mods.
+
 <a id="technical-documentation"></a>
 ## Documentation
 
