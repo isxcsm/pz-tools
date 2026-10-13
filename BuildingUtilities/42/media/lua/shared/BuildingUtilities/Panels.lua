@@ -580,12 +580,18 @@ end
 function Panels.storageAt(utility, entry)
     if utility ~= "water" then return true end
     if entry.type == "IsoWorldInventoryObject" then return false end
-    local square = getCell():getGridSquare(entry.x, entry.y, entry.z)
+    return Panels.waterStorage(entry.x, entry.y, entry.z) ~= nil
+end
+
+-- The fluid container of the water storage on a loaded square (BU.isWaterContainer), or nil.
+function Panels.waterStorage(x, y, z)
+    local square = getCell():getGridSquare(x, y, z)
     local objects = square and square:getObjects()
     for i = 0, objects and objects:size() - 1 or -1 do
-        if BU.isWaterContainer(objects:get(i)) then return true end
+        local object = objects:get(i)
+        if BU.isWaterContainer(object) then return object:getFluidContainer() end
     end
-    return false
+    return nil
 end
 
 function Panels.unwiredProducers(panel, utility)
@@ -1031,20 +1037,25 @@ function Panels.autoName(panel)
     return name
 end
 
--- A place relative to a panel's building (an outdoor box's square): "12 NE".
-function Panels.where(panel, x, y)
+-- A place relative to a panel's building (an outdoor box's square): "12 NE"; in the building, the room it is in (on
+-- level z, the box's without one).
+function Panels.where(panel, x, y, z)
     local building = Panels.building(panel)
     local steps, cx, cy
     if building then
-        steps = Geometry.toBuilding(x, y, Panels.rooms(building)) or 0
+        local rooms = Panels.rooms(building)
+        steps = Geometry.toBuilding(x, y, rooms) or 0
+        if steps == 0 then
+            local room = Panels.roomHaving(rooms, x, y, z or panel.z)
+            if room and room.name and room.name ~= "" then return getText("IGUI_BU_WhereIn", BU.roomName(room.name)) end
+            return getText("IGUI_BU_WhereInside")
+        end
         cx, cy = Geometry.centre(building)
     else
         steps, cx, cy = math.max(math.abs(x - panel.x), math.abs(y - panel.y)), panel.x, panel.y
     end
     local point = Geometry.direction(cx, cy, x, y)
-    local side = point and getText("IGUI_BU_Dir_" .. point) or ""
-    if steps == 0 then return getText("IGUI_BU_WhereBeside", side) end
-    return getText("IGUI_BU_Where", steps, side)
+    return getText("IGUI_BU_Where", steps, point and getText("IGUI_BU_Dir_" .. point) or "")
 end
 
 return Panels

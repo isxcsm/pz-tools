@@ -234,7 +234,7 @@ function ISBUPanelWindow:waterUnitRows(add)
     local shown = Water.shown(panel)
     local layout = BU.Networks.waterLayout(panel)
     for _, unit in ipairs(Units.of(panel.id, "water")) do
-        local text = getText("IGUI_BU_WaterUnitRow", Units.name(unit), Panels.where(panel, unit.x, unit.y),
+        local text = getText("IGUI_BU_WaterUnitRow", Units.name(unit), Panels.where(panel, unit.x, unit.y, unit.z),
             self:waterUnitStatus(unit))
         local row = { kind = "producer", unit = unit, text = text, water = true, inUse = unit.running == true }
         local inlet = Water.unitPipes(panel, unit)

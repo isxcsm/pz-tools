@@ -182,7 +182,7 @@ function ISBUPanelWindow:lineRows(add, utility)
         if not BU.RELAY_KINDS[unit.kind] and Units.utility(unit) == utility and BU.enabled(unit.kind)
                 and not Links.live(panel, ref) then
             add({ kind = "producer", unwired = true, at = unit, water = utility == "water",
-                text = getText("IGUI_BU_CutUnitRow", Units.name(unit), Panels.where(panel, unit.x, unit.y)) },
+                text = getText("IGUI_BU_CutUnitRow", Units.name(unit), Panels.where(panel, unit.x, unit.y, unit.z)) },
                 Links.reasonText(panel, ref))
         end
     end
@@ -205,7 +205,7 @@ function ISBUPanelWindow:lineRows(add, utility)
             local ref = Links.unitRef(unit)
             local live = Links.live(panel, ref)
             add({ kind = "producer", relay = unit, water = true, unwired = not live,
-                text = getText("IGUI_BU_RelayRow", Units.name(unit), Panels.where(panel, unit.x, unit.y),
+                text = getText("IGUI_BU_RelayRow", Units.name(unit), Panels.where(panel, unit.x, unit.y, unit.z),
                     live and self:relayRooms(unit) or getText("IGUI_BU_LineNotSupplied")) },
                 live and getText("IGUI_BU_RelayRowTip") or Links.reasonText(panel, ref))
         end

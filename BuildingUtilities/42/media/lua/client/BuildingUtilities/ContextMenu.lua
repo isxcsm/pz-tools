@@ -156,7 +156,7 @@ local function addConnectOptions(context, playerObj, kind, utility, x, y, z, ext
     for _, offer in ipairs(offers) do
         local panel = offer.panel
         local text = label and label(panel) or getText(kind == "rehang" and "ContextMenu_BU_Rehang" or "ContextMenu_BU_ConnectToPanel",
-            Panels.name(panel), Panels.where(panel, x, y))
+            Panels.name(panel), Panels.where(panel, x, y, z))
         local option = tie(context:addOption(text, playerObj, onConnect, kind, panel, utility, x, y, z, extra))
         local cost, second, third = Actions.lineCost(kind, panel, utility, x, y, z, extra)
         if cost then costed(option, playerObj, cost, placeNote(panel, third))

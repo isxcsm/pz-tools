@@ -1034,12 +1034,13 @@ function ISBUPanelWindow:loadBreakdown()
         if totals.total > 0 then groups[#groups + 1] = { id = id, title = totals.title, total = totals.total } end
     end
     table.sort(groups, function(a, b) return a.total > b.total end)
-    local SHOWN, rest, restTotal = 6, 0, 0
+    -- The six that draw most; what would read 0.00 is not listed on its own, nor the rest when it comes to that.
+    local SHOWN, LEAST, rest, restTotal = 6, 0.005, 0, 0
     for index, group in ipairs(groups) do
-        if index <= SHOWN then lines[#lines + 1] = "  " .. group.title .. "  " .. load2(group.total)
+        if index <= SHOWN and group.total >= LEAST then lines[#lines + 1] = "  " .. group.title .. "  " .. load2(group.total)
         else rest, restTotal = rest + 1, restTotal + group.total end
     end
-    if rest > 0 then lines[#lines + 1] = "  " .. getText("IGUI_BU_BreakdownMore", rest) .. "  " .. load2(restTotal) end
+    if rest > 0 and restTotal >= LEAST then lines[#lines + 1] = "  " .. getText("IGUI_BU_BreakdownMore", rest) .. "  " .. load2(restTotal) end
     lines[#lines + 1] = getText("IGUI_BU_BreakdownTotal", load2(self.load), load2(self.limit))
     return table.concat(lines, "\n")
 end
@@ -1191,7 +1192,7 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
     for index, at in ipairs(producers) do
         local seen = PanelWindow.seenProducer(state, at)
         local inUse = PanelWindow.producerInUse(state, at)
-        local where = Panels.where(panel, at.x, at.y)
+        local where = Panels.where(panel, at.x, at.y, at.z)
         local text, generatorState
         if utility == "power" then
             local square = getCell():getGridSquare(at.x, at.y, at.z)
@@ -1201,8 +1202,12 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
             text = getText("IGUI_BU_GeneratorRow", index, where, PanelWindow.generatorStateText(generatorState), fuel,
                 seen and seen.condition and string.format("%.0f%%", seen.condition) or "-")
         else
-            text = getText("IGUI_BU_TankRow", index, where, seen and seen.amount and string.format("%.0f", seen.amount) or "-",
-                seen and seen.capacity and string.format("%.0f", seen.capacity) or "-")
+            -- One the networks do not hold (its line cut) as it stands on its square, when that is loaded.
+            local amount, capacity = seen and seen.amount, seen and seen.capacity
+            local storage = not amount and Panels.waterStorage(at.x, at.y, at.z)
+            if storage then amount, capacity = storage:getAmount(), storage:getCapacity() end
+            text = getText("IGUI_BU_TankRow", index, where, amount and string.format("%.0f", amount) or "-",
+                capacity and string.format("%.0f", capacity) or "-")
             -- Holding what is not water: left out of the pipes until it is emptied.
             if seen and seen.foreign then text = text .. "  " .. getText("IGUI_BU_TankForeign") end
         end
@@ -1231,7 +1236,7 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
             local name = at.unit and Units.name(at.unit) or utility == "water" and getText("IGUI_BU_Legend_tank")
                 or BU.displayName(at.x, at.y, at.z, at.sprite)
             add({ kind = "producer", unwired = true, at = at, water = utility == "water",
-                text = getText("IGUI_BU_UnwiredProducerRow", name, Panels.where(panel, at.x, at.y)) },
+                text = getText("IGUI_BU_UnwiredProducerRow", name, Panels.where(panel, at.x, at.y, at.z)) },
                 getText("IGUI_BU_UnwiredProducerTip"))
         end
     end
@@ -1274,7 +1279,7 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
         end
         local name = base
         if not device.inside then
-            name = name .. "  (" .. Panels.where(panel, entry.x, entry.y) .. ")"
+            name = name .. "  (" .. Panels.where(panel, entry.x, entry.y, entry.z) .. ")"
         elseif device.attached then
             name = name .. "  (" .. getText("IGUI_BU_Attached") .. ")"
         end
@@ -1304,7 +1309,7 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
         if id == "" then return getText("IGUI_BU_NoRoom") end
         if Links.isRelay(id) then
             local unit = Links.unitOf(id)
-            return unit and Units.name(unit) .. "  (" .. Panels.where(panel, unit.x, unit.y) .. ")" or getText("IGUI_BU_NoRoom")
+            return unit and Units.name(unit) .. "  (" .. Panels.where(panel, unit.x, unit.y, unit.z) .. ")" or getText("IGUI_BU_NoRoom")
         end
         return self.titles[id] or getText("IGUI_BU_NoRoom")
     end
@@ -1482,6 +1487,10 @@ function ISBUPanelWindow:fillLog()
     for index = #log, 1, -1 do
         local entry = log[index]
         local text = BU.noticeText(entry.key, entry.args)
+        -- The box's name before a notice says nothing in its own log: left out.
+        local name = entry.args and entry.args[1]
+        local prefix = name and tostring(name) .. ": "
+        if prefix and text:sub(1, #prefix) == prefix then text = text:sub(#prefix + 1) end
         list:addItem(text, { kind = "log", text = text, right = ago(math.max(0, worldHours - (entry.hour or worldHours))),
             bad = BAD[entry.key], good = GOOD[entry.key] })
     end

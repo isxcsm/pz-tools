@@ -388,7 +388,7 @@ function Changes.unlay(ref)
         Changes.linesChanged(panel)
         -- What hung on it is cut now: said once, where.
         if #Links.childrenOf(ref) > 0 then
-            Sync.notice(panel, "IGUI_BU_Notice_BranchCut", Panels.name(panel), Panels.where(panel, line.x, line.y))
+            Sync.notice(panel, "IGUI_BU_Notice_BranchCut", Panels.name(panel), Panels.where(panel, line.x, line.y, line.z))
         end
     end
     return line.paid or {}

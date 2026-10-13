@@ -5,7 +5,7 @@
 -- before carries it again; a trip and the switch together. Then the generators' rows for a faked network state
 -- (running, standby, out of service, cannot run, not seen) and whether the bank's hand-over counts each as one that
 -- could take over. Then, with a generator put down and wired and a solar panel if the box has none (the box at tier 1,
--- the solar output faked and no bank), a minute a step: the low fuel told once
+-- the solar output and the bank faked), a minute a step: the low fuel told once
 -- across off and on; "Switch to solar" (offered, greyed when not ready, the generator on standby after it); a
 -- generator switched on by hand while the box is off carries after it is on, though the source could; the source,
 -- carrying as the box went off and falling short while it is off, gives way to the generator on standby.
@@ -147,14 +147,14 @@ local function generatorChecks()
     if not ok then say("BAD fill failed", failure) end
     for _, item in ipairs(window.lists.power.items) do
         local each = item.item
-        if each.kind == "producer" then
+        if each.kind == "producer" and each.index and not each.unwired then
             local seen = list[each.index]
             local want = getText("IGUI_BU_GeneratorRow", each.index, Panels.where(panel, at[each.index].x, at[each.index].y),
                 PanelWindow.generatorStateText(wants[each.index]), seen.fuel and string.format("%.1f", seen.fuel) or "-",
                 seen.condition and string.format("%.0f%%", seen.condition) or "-")
             check("row " .. each.index .. " text", each.text, want)
             check("row " .. each.index .. " out of service", each.out, wants[each.index] == "out")
-            check("row " .. each.index .. " tooltip", item.tooltip, getText("IGUI_BU_GeneratorTip"))
+            check("row " .. each.index .. " tooltip", each.tip, getText("IGUI_BU_GeneratorTip"))
         end
     end
     -- The bank hands over only to those that could take over: not out of service, with fuel, not broken.
@@ -195,9 +195,17 @@ local function tripChecks()
 end
 
 -- The generator scene: a fuelled generator on a free square outside near the player, wired last; a solar panel wired
--- when the box has no source. The solar output is faked (Energy.output), and the bank too (none).
-local outputOf = Energy.output
+-- when the box has no source. The solar output is faked (Energy.output), and the bank too: none, or one holding a
+-- share of its capacity (above "switch to solar"'s share, below the share at which it takes the load back itself).
+local outputOf, bankOf = Energy.output, Energy.bank
 local function fakeOutput(output) Energy.output = function() return output, 1, 0 end end
+local function fakeBank(share)
+    Energy.bank = function()
+        if not share then return nil end
+        return { racks = {}, batteries = {}, bypassed = {}, capacity = 4, energy = 4 * share, usable = 4 * share,
+            charge = share, weak = 0, output = 0.3, cold = 0, drag = 0, heat = 1 }
+    end
+end
 local generator, gKey, solar
 local function freeSquare()
     local p = player:getSquare()
@@ -279,7 +287,7 @@ steps[#steps + 1] = function()
     if not square then say("BAD no free square outside for the generator"); return "stop" end
     panel.tier = 1
     if page then page.OverloadEnabled = false end
-    Energy.bank = function() return nil end
+    fakeBank(nil)
     fakeOutput(0)
     generator = IsoGenerator.new(instanceItem("Base.Generator"), getCell(), square)
     generator:setFuel(generator:getMaxFuel())
@@ -299,23 +307,25 @@ steps[#steps + 1] = function()
     say("generator at", gKey)
 end
 
--- 4: the generator carries; the solar side can now (faked), not switched to at tier 1; its fuel set to last 3 hours.
+-- 4: the server's minute finds the source short (faked); the API hands over as it works the networks out next.
+steps[#steps + 1] = function() end
+
+-- 5: the generator carries; its fuel set to last 3 hours.
 steps[#steps + 1] = function()
     check("generator scene: carried by the generator", carrier(), gKey)
-    fakeOutput(10)
     local perHour = state() and state().fuelPerHour or 0
     if perHour > 0 then generator:setFuel(perHour * 3) else say("BAD no fuelPerHour") end
     told = {}
 end
 
--- 5: the low fuel told once; off.
+-- 6: the low fuel told once; off.
 steps[#steps + 1] = function()
     check("low fuel told", toldOf("IGUI_BU_Notice_LowFuel"), 1)
-    check("the source is available, the generator still carries", tostring(sourceAvailable()) .. " " .. carrier(), "true " .. gKey)
+    check("the source short, the generator still carries", tostring(sourceAvailable()) .. " " .. carrier(), "false " .. gKey)
     throw(true)
 end
 
--- 6: off: the generator stopped, on standby; on.
+-- 7: off: the generator stopped, on standby; on.
 steps[#steps + 1] = function()
     check("off: nothing carries it", carrier(), "none")
     check("off: the generator on standby", generatorState(), "standby")
@@ -323,12 +333,13 @@ steps[#steps + 1] = function()
     throw(false)
 end
 
--- 7: the generator carries again, no news told; "Switch to solar": greyed while not ready, then used.
+-- 8: the generator carries again, no news told; "Switch to solar": greyed while the bank holds too little, then used
+-- (the bank above the share to switch, below the one at which it takes the load back itself).
 steps[#steps + 1] = function()
     check("on: the generator carries again", carrier(), gKey)
     check("on: low fuel not told again", toldOf("IGUI_BU_Notice_LowFuel"), 1)
     check("on: no power-out or took-over notice", toldOf("IGUI_BU_Notice_PowerLost") + toldOf("IGUI_BU_Notice_Switched"), 0)
-    fakeOutput(0)
+    fakeBank(0.25)
     local offered, ready, rules = Energy.sourceOffer(panel, state())
     check("not ready: offered", offered, true)
     check("not ready: ready", ready, false)
@@ -336,7 +347,7 @@ steps[#steps + 1] = function()
     check("not ready: the row offers it", source and source.useSource, true)
     check("not ready: greyed", source and source.useSourceReady, false)
     check("not ready: why", source and source.useSourceReason, rules and Energy.notReadyText(rules))
-    fakeOutput(10)
+    fakeBank(0.5)
     offered, ready = Energy.sourceOffer(panel, state())
     check("ready: offered and ready", tostring(offered) .. " " .. tostring(ready), "true true")
     source = rowOf("source")
@@ -344,7 +355,7 @@ steps[#steps + 1] = function()
     BU.Sync.send(player, "useSource", { panel = panel.id })
 end
 
--- 8: the solar side carries, the generator on standby (not out of service). Off, and the generator switched on by hand.
+-- 9: the solar side carries, the generator on standby (not out of service). Off, and the generator switched on by hand.
 steps[#steps + 1] = function()
     check("switched to solar: carried by", carrier(), Energy.SOURCE)
     check("switched to solar: the generator", generatorState(), "standby")
@@ -353,7 +364,7 @@ steps[#steps + 1] = function()
     generator:setActivated(true)
 end
 
--- 9: off: the generator back off, the source still available; on.
+-- 10: off: the generator back off, the source still available; on.
 steps[#steps + 1] = function()
     check("by hand while off: nothing carries it", carrier(), "none")
     check("by hand while off: the generator not running", generator:isActivated(), false)
@@ -361,26 +372,26 @@ steps[#steps + 1] = function()
     throw(false)
 end
 
--- 10: the generator switched on by hand carries, not the source. Back to solar.
+-- 11: the generator switched on by hand carries, not the source. Back to solar.
 steps[#steps + 1] = function()
     check("on: the generator switched on by hand carries", carrier(), gKey)
     BU.Sync.send(player, "useSource", { panel = panel.id })
 end
 
--- 11: the solar side carries; off, and night falls (faked).
+-- 12: the solar side carries; off, and night falls with the bank empty (faked).
 steps[#steps + 1] = function()
     check("back to solar: carried by", carrier(), Energy.SOURCE)
     throw(true)
-    fakeOutput(0)
+    fakeBank(nil)
 end
 
--- 12: off, the source no longer available (told while off); on.
+-- 13: off, the source no longer available (told while off); on.
 steps[#steps + 1] = function()
     check("night while off: the source available", sourceAvailable(), false)
     throw(false)
 end
 
--- 13: the generator on standby carries, not the source.
+-- 14: the generator on standby carries, not the source.
 steps[#steps + 1] = function()
     check("on at night: carried by the generator on standby", carrier(), gKey)
     return "stop"

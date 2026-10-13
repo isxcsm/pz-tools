@@ -110,6 +110,8 @@ function ISBUManual:prerender()
     local mx, my = -1, -1
     if self:isMouseOver() then mx, my = self:getMouseX(), self:getMouseY() end
     UI.fill(self, 0, 0, w, self.height, P.panel)
+    -- The text's side as the other tabs' lists: the world does not show through it.
+    UI.fill(self, w, 0, self.width - w, self.height, P.inset, 0.9)
     local character = self:character()
     for index, key in ipairs(self.chapters) do
         local y = (index - 1) * ROW
