@@ -114,6 +114,7 @@ for loaded and unloaded squares alike. A square belongs to it when one of its ro
 | `buildings.rooms(key)` | A list of its rooms: `id`, `name`, `level` and `rects` (a list of `x`, `y`, `w`, `h`). |
 | `buildings.objects(key, filter)` | A list of its objects that use power, water or either, and whether every square of the building was loaded. |
 | `buildings.near(key, tiles, filter)` | The same for squares that belong to no building, within `tiles` (0 to 32) of it on its own levels, a diagonal step counting as one. |
+| `buildings.producers(key, tiles, filter)` | What could be a network's producer there: in its rooms and on squares of no building within `tiles` (0 to 32) as `near` reads them, generators (`utility` `"power"`) and objects with a fluid container that holds some (`"water"`), whichever network has them now; each `x`, `y`, `z`, `sprite`, `type` and `utility`. And whether every square was loaded. `filter` as below. |
 
 `filter` is `nil` (either), `"power"` or `"water"`. Each object is `x`, `y`, `z`, `sprite`, `type`
 (the game's class, such as `IsoLightSwitch`), its `room` and `roomId` (not for `near`), and:

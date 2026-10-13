@@ -30,6 +30,9 @@ final class Buildings {
     private final Method roomById;
     private final Method roomName, roomId, userDefined;
     private final Method objectSprite, spriteName, spriteNameOf, properties, has, couldBePowered, consumption;
+    // What can be a network's producer (producers): a generator, or an object with a fluid container that holds some.
+    private final Class<?> generatorType;
+    private final Method fluidContainer, fluidCapacity;
     // The questions describe, rects and roomAt ask many times a call, as handles: no argument array, no boxing, no
     // access check per call (Method.invoke's cost was most of a building's description).
     private final MethodHandle roomAt, building, rooms, roomLevel, roomRects, rectX, rectY, rectW, rectH;
@@ -99,6 +102,9 @@ final class Buildings {
         couldBePowered = object.getMethod("couldBePoweredByGenerator");
         consumption = object.getMethod("getGeneratorPowerConsumption");
         waterPiped = flag.getField("waterPiped").get(null);
+        generatorType = Game.type(loader, "zombie.iso.objects.IsoGenerator");
+        fluidContainer = object.getMethod("getFluidContainer");
+        fluidCapacity = Game.type(loader, "zombie.entity.components.fluids.FluidContainer").getMethod("getCapacity");
         attached = new Object[] { flag.getField("attachedN").get(null), flag.getField("attachedS").get(null),
             flag.getField("attachedE").get(null), flag.getField("attachedW").get(null) };
         MethodHandle root = null, at = null, isEnclosed = null, roofs = null, joined = null;
@@ -138,6 +144,9 @@ final class Buildings {
         lua.set(table, "version", lua.function(AREA + "version", arguments -> new Object[] { (double)observe() }));
         lua.set(table, "attached", lua.function(AREA + "attached", arguments -> new Object[] {
             attachedTable(Arguments.string(arguments, 0, AREA + "attached", "key")) }));
+        lua.set(table, "producers", lua.function(AREA + "producers", arguments -> producers(
+            Arguments.string(arguments, 0, AREA + "producers", "key"),
+            Arguments.integer(arguments, 1, AREA + "producers", "tiles", 0, MAX_TILES), Filter.of(arguments, 2, AREA + "producers"))));
         lua.set(table, "attachedObjects", lua.function(AREA + "attachedObjects", arguments -> attachedObjects(
             Arguments.string(arguments, 0, AREA + "attachedObjects", "key"), Filter.of(arguments, 1, AREA + "attachedObjects"))));
         lua.set(table, "name", lua.function(AREA + "name", arguments -> {
@@ -284,10 +293,63 @@ final class Buildings {
     private Object[] near(String key, int tiles, Filter filter) throws ReflectiveOperationException {
         Building found = resolve(key);
         if (found == null) return new Object[] { null, false };
+        Object grid = game.metaGrid();
+        var result = new ArrayList<Object>();
+        boolean complete = around(found, tiles, false, (loaded, x, y, z) -> {
+            for (Object object : game.objectsOn(loaded)) {
+                if (owner(grid, object, null, x, y, z) != null) continue;
+                Found thing = classify(object, filter, x, y, z, null);
+                if (thing != null) result.add(entry(thing));
+            }
+        });
+        return new Object[] { lua.list(result), complete };
+    }
+
+    /**
+     * What can be a network's producer in the building's rooms and on squares of no building within {@code tiles} of it
+     * (on its own levels, a diagonal step counting as one): generators (power), and objects with a fluid container
+     * that holds some (water), whichever network they belong to now. The second result is false when some of those
+     * squares were not loaded.
+     */
+    private Object[] producers(String key, int tiles, Filter filter) throws ReflectiveOperationException {
+        Building found = resolve(key);
+        if (found == null) return new Object[] { null, false };
+        var result = new ArrayList<Object>();
+        boolean complete = around(found, tiles, true, (loaded, x, y, z) -> {
+            for (Object object : game.objectsOn(loaded)) {
+                String utility = producerUtility(object, filter);
+                if (utility == null) continue;
+                Object entry = lua.table();
+                lua.set(entry, "x", (double)x); lua.set(entry, "y", (double)y); lua.set(entry, "z", (double)z);
+                lua.set(entry, "sprite", sprite(object));
+                lua.set(entry, "type", object.getClass().getSimpleName());
+                lua.set(entry, "utility", utility);
+                result.add(entry);
+            }
+        });
+        return new Object[] { lua.list(result), complete };
+    }
+
+    /** "power" for a generator, "water" for an object with a fluid container that holds some, as the filter lets. */
+    private String producerUtility(Object object, Filter filter) throws ReflectiveOperationException {
+        if (generatorType.isInstance(object)) return filter.power() ? "power" : null;
+        if (!filter.water()) return null;
+        Object container = fluidContainer.invoke(object);
+        return container != null && (float)fluidCapacity.invoke(container) > 0 ? "water" : null;
+    }
+
+    /** A loaded square {@code around} goes over. */
+    @FunctionalInterface
+    interface SquareVisit { void at(Object square, int x, int y, int z) throws ReflectiveOperationException; }
+
+    /**
+     * Goes over the loaded squares of no building within {@code tiles} of the building's rooms, level by level, and
+     * with {@code rooms} its rooms' squares too. False when some were not loaded.
+     */
+    private boolean around(Building found, int tiles, boolean rooms, SquareVisit visit) throws ReflectiveOperationException {
         Object cells = game.cell(), grid = game.metaGrid();
         int left = found.minX() - tiles, top = found.minY() - tiles;
         int width = found.maxX() - found.minX() + 1 + 2 * tiles, height = found.maxY() - found.minY() + 1 + 2 * tiles;
-        var result = new ArrayList<Object>();
         boolean complete = true;
         for (int z = found.minLevel(); z <= found.maxLevel(); z++) {
             boolean[] inside = new boolean[width * height];
@@ -302,19 +364,16 @@ final class Buildings {
             boolean[] ring = dilate(inside, width, height, tiles);
             for (int y = 0; y < height; y++)
                 for (int x = 0; x < width; x++) {
-                    if (!ring[y * width + x] || inside[y * width + x]) continue;
+                    boolean own = inside[y * width + x];
+                    if (!ring[y * width + x] || own && !rooms) continue;
                     int wx = left + x, wy = top + y;
-                    if (roomAt(grid, wx, wy, z) != null) continue;
+                    if (!own && roomAt(grid, wx, wy, z) != null) continue;
                     Object loaded = game.square(cells, wx, wy, z);
                     if (loaded == null) { complete = false; continue; }
-                    for (Object object : game.objectsOn(loaded)) {
-                        if (owner(grid, object, null, wx, wy, z) != null) continue;
-                        Found thing = classify(object, filter, wx, wy, z, null);
-                        if (thing != null) result.add(entry(thing));
-                    }
+                    visit.at(loaded, wx, wy, z);
                 }
         }
-        return new Object[] { lua.list(result), complete };
+        return complete;
     }
 
     /** Squares within {@code tiles} steps of a marked one, diagonal steps included: one pass per axis. */

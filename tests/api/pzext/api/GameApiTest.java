@@ -56,6 +56,7 @@ public final class GameApiTest {
         rooms(buildings);
         objects(buildings);
         near(buildings);
+        producers(buildings);
         ContainersTest.run(buildings);
         wallLamps(api, buildings);
         callerErrors(buildings);
@@ -222,6 +223,39 @@ public final class GameApiTest {
         int count = 0;
         for (boolean value : ring) if (value) count++;
         check(count == 9 && ring[6] && ring[18] && !ring[0], "Dilation is not a square");
+    }
+
+    /**
+     * What could be a producer in and around a building: a generator in its kitchen and one two squares out, a barrel
+     * beside them; not one three squares out, nor an empty-capacity tank, nor what is in another building.
+     */
+    private static void producers(KahluaTable buildings) {
+        place(13, 12, 0, new IsoGenerator(new IsoSprite("kitchen generator")));
+        place(15, 10, 0, new IsoGenerator(new IsoSprite("yard generator")));
+        place(16, 10, 0, new IsoGenerator(new IsoSprite("far generator")));
+        place(15, 11, 0, barrel(20));
+        var dry = new IsoObject(new IsoSprite("no tank"));
+        dry.fluidContainer = new FluidContainer(0, 0);
+        place(14, 13, 0, dry);
+        place(21, 21, 0, new IsoGenerator(new IsoSprite("shack generator")));
+        var all = call(buildings, "producers", KEY, 2.0);
+        check(sprites(all.get(0)).equals(Set.of("kitchen generator", "yard generator", "barrel")), "Wrong producers: " + sprites(all.get(0)));
+        check(all.get(1).equals(false), "The bedroom level's unloaded squares were reported complete");
+        check(sprites(call(buildings, "producers", KEY, 2.0, "power").get(0)).equals(Set.of("kitchen generator", "yard generator")),
+            "The power filter let water through");
+        check(sprites(call(buildings, "producers", KEY, 0.0, "water").get(0)).isEmpty(), "Zero tiles reached outside");
+        var first = (KahluaTable)((KahluaTable)call(buildings, "producers", KEY, 0.0).get(0)).rawget(1.0);
+        check("power".equals(first.rawget("utility")) && first.rawget("x").equals(13.0) && first.rawget("type").equals("IsoGenerator"),
+            "A producer's entry is wrong");
+        check(call(buildings, "producers", "1,1,0", 2.0).get(0) == null, "A key of no building gave producers");
+        error(buildings, "producers", "tiles must be a whole number from 0 to 32", KEY, 33.0);
+        for (int[] at : new int[][] { { 13, 12 }, { 15, 10 }, { 16, 10 }, { 15, 11 }, { 14, 13 }, { 21, 21 } }) {
+            var square = square(at[0], at[1], 0);
+            for (int index = square.objects.size() - 1; index >= 0; index--) {
+                var object = square.objects.get(index);
+                if (object instanceof IsoGenerator || object.fluidContainer != null) square.objects.remove(index);
+            }
+        }
     }
 
     /**
