@@ -1551,6 +1551,16 @@ end
 -- A row's thing shown on the plan, as a click on a row that hits none of its buttons does.
 function ISBUPanelWindow:showRow(row)
     local x, y, z = rowPlace(row)
+    if not x and row.kind == "room" then
+        -- a room of the zone: the middle of its first rectangle
+        for _, room in ipairs(self.rooms or {}) do
+            local rect = room.id == row.id and room.rects[1]
+            if rect then
+                x, y, z = rect.x + math.floor(rect.w / 2), rect.y + math.floor(rect.h / 2), room.level
+                break
+            end
+        end
+    end
     if x then self:showOnPlan(x, y, z) end
 end
 
