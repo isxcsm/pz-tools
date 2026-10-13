@@ -52,7 +52,6 @@ end
 
 function commands.rename(player, panel, args) Changes.rename(panel, args.name) end
 
-function commands.setBlackout(player, panel, args) Changes.setBlackout(panel, args.on == true) end
 
 -- The charge controller's settings, from its choices (Energy.CHOICES).
 function commands.setController(player, panel, args)
@@ -119,7 +118,7 @@ end
 
 -- The feature a command needs on (BU.enabled), besides its utility's; one of a feature that is off is ignored, as
 -- the window no longer offers it.
-local NEEDS = { setBlackout = "power", setEssential = "power", setSchedule = "power",
+local NEEDS = { setEssential = "power", setSchedule = "power",
     setController = "controller", addWaterGroup = "water", renameWaterGroup = "water", removeWaterGroup = "water",
     setProducerGroup = "water", setDeviceGroup = "water", setUnitGroup = "water", setGroupReserve = "water",
     setGroupOverflow = "water" }

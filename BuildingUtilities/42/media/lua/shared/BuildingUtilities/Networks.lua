@@ -39,12 +39,11 @@ end
 -- the API has as a single object (it is in attached: "include"); one outside only when this panel laid its line (it
 -- is in included; any other the panel names is of its building) and the player did not cut its supply (excluded, as
 -- one inside); any is off while the box sheds it, keeps it off for
--- its bank, has it off for a blackout or its timer has it off. A power device outside is off too while the game's
+-- its bank or its timer has it off. A power device outside is off too while the game's
 -- AllowExteriorGenerator is off (BU.exteriorPower).
 function Networks.rule(panel, utility, key)
     local data = panel[utility]
-    local off = data.shed and data.shed[key] or data.saving and data.saving[key] or data.blackout and data.blackout[key]
-        or data.timed and data.timed[key]
+    local off = data.shed and data.shed[key] or data.saving and data.saving[key] or data.timed and data.timed[key]
     if data.included[key] then
         return (off or data.excluded[key] or utility == "power" and not BU.exteriorPower()) and "exclude" or "include"
     end
@@ -86,7 +85,7 @@ end
 local function applyPowerRules(panel)
     local data, keys = panel.power, {}
     for _, set in ipairs({ data.excluded, data.included, data.attached or {}, data.shed or {}, data.saving or {},
-            data.blackout or {}, data.timed or {} }) do
+            data.timed or {} }) do
         for key in pairs(set) do keys[key] = true end
     end
     for key in pairs(keys) do

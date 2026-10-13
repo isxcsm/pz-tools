@@ -1200,8 +1200,8 @@ function ISBUPanelWindow:preview(device)
 end
 
 -- What a device the box keeps off says, by why (Panels.devices' held).
-local HELD_TEXT = { shed = "IGUI_BU_HeldShed", saving = "IGUI_BU_HeldSaving", blackout = "IGUI_BU_HeldBlackout",
-    timer = "IGUI_BU_HeldTimer", exterior = "IGUI_BU_HeldExterior" }
+local HELD_TEXT = { shed = "IGUI_BU_HeldShed", saving = "IGUI_BU_HeldSaving", timer = "IGUI_BU_HeldTimer",
+    exterior = "IGUI_BU_HeldExterior" }
 
 -- What a device does now, in words, for its row and the plan.
 function ISBUPanelWindow:deviceStatus(utility, device)
@@ -1366,11 +1366,6 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
         allTip = getText("IGUI_BU_PreviewAll", load2(self.load + offPower), load2(self.limit))
     end
     add({ kind = "all", text = getText("IGUI_BU_AllInside"), state = self:allInside(devices) and "on" or "off" }, allTip)
-    if utility == "power" then
-        local dark = count(panel.power.blackout)
-        add({ kind = "blackout", text = dark > 0 and getText("IGUI_BU_BlackoutOn", dark) or getText("IGUI_BU_Blackout"),
-            state = dark > 0 and "on" or "off" }, getText(dark > 0 and "IGUI_BU_BlackoutEndTip" or "IGUI_BU_BlackoutTip"))
-    end
     if not complete then add({ kind = "note", text = getText("IGUI_BU_NotAllLoaded") }) end
     if #devices == 0 then add({ kind = "note", text = getText("IGUI_BU_NoDevices_" .. utility) }) end
     -- Rooms by their id (rooms of one name stay apart), devices in no room after them, then those outside.
@@ -1666,8 +1661,6 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
         if target then self:switchTo(target) end
     elseif row.kind == "all" then
         Sync.send(playerObj, "setAllInside", { panel = panel.id, utility = utility, on = row.state ~= "on" })
-    elseif row.kind == "blackout" then
-        Sync.send(playerObj, "setBlackout", { panel = panel.id, on = row.state ~= "on" })
     elseif row.kind == "filter" then
         self:filterRoom(nil)
     elseif row.kind == "rack" then

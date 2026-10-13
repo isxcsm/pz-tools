@@ -85,7 +85,7 @@ function Changes.applyZone(panel, building, zone)
         for _, utility in ipairs(BU.UTILITIES) do
             local data = panel[utility]
             local left = {}
-            for _, field in ipairs({ "excluded", "essential", "schedule", "shed", "saving", "blackout", "timed", "groupOf" }) do
+            for _, field in ipairs({ "excluded", "essential", "schedule", "shed", "saving", "timed", "groupOf" }) do
                 for key in pairs(data[field] or {}) do
                     if not data.included[key] then
                         local x, y, z = BU.parseThing(key)
@@ -227,7 +227,7 @@ end
 
 -- What a panel keeps about devices gone from their loaded squares (destroyed or picked up) goes, and their rules go
 -- from the networks: an object put there later is another device. One it connected outside goes with its line.
-local DEVICE_FIELDS = { "excluded", "included", "attached", "essential", "schedule", "shed", "saving", "blackout", "timed",
+local DEVICE_FIELDS = { "excluded", "included", "attached", "essential", "schedule", "shed", "saving", "timed",
     "groupOf" }
 local function forgetGone(panel)
     local count = 0
@@ -356,25 +356,6 @@ function Changes.unsave(panel)
     for _, key in ipairs(keys) do Networks.apply(panel, "power", key) end
     Store.record(panel, "IGUI_BU_Log_Unsaved", { #keys })
     Sync.changed(panel.id)
-end
-
--- A blackout: the panel's lights off (Panels.blackoutLights), or on again as they were.
-function Changes.setBlackout(panel, on)
-    local data = panel.power
-    local keys = {}
-    if on then
-        for _, key in ipairs(Panels.blackoutLights(panel)) do
-            data.blackout[key] = true
-            keys[#keys + 1] = key
-        end
-    else
-        for key in pairs(data.blackout) do keys[#keys + 1] = key end
-        data.blackout = {}
-    end
-    for _, key in ipairs(keys) do Networks.apply(panel, "power", key) end
-    Store.record(panel, on and "IGUI_BU_Log_Blackout" or "IGUI_BU_Log_BlackoutEnd", { #keys })
-    Sync.changed(panel.id)
-    Sync.sound(panel, "LightSwitch")
 end
 
 -- The charge controller's settings (BU.Energy.settings), checked by the caller.
@@ -508,7 +489,7 @@ end
 -- missing from the rooms for a while, as the game's region data of a world that has just loaded may lag. Asked each
 -- minute, as the world starts, when the zone changes and by a window that sees one not added yet. Returns whether
 -- anything changed.
-local LET_GO = { "excluded", "essential", "schedule", "shed", "saving", "blackout", "timed", "groupOf" }
+local LET_GO = { "excluded", "essential", "schedule", "shed", "saving", "timed", "groupOf" }
 local ATTACHED_GRACE_MS = 20000
 local missingSince = {}
 
@@ -588,7 +569,7 @@ function Changes.excludeOutside(panel, utility, device)
         end
     end
     if not paid then return nil end
-    for _, name in ipairs({ "excluded", "essential", "schedule", "shed", "saving", "blackout", "timed", "groupOf" }) do
+    for _, name in ipairs({ "excluded", "essential", "schedule", "shed", "saving", "timed", "groupOf" }) do
         if data[name] then data[name][device.key] = nil end
     end
     Networks.apply(panel, utility, device.key)

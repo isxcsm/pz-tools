@@ -1,26 +1,12 @@
--- Batch 6: blackout and the energy record. "[bu17]" lines. Leaves the panel as it was.
+-- Batch 6: the energy record. "[bu17]" lines. Leaves the panel as it was.
 RUN("bu_lib.lua")
 local BU = BuildingUtilities
-local Store, Panels, Changes, Networks = BU.Store, BU.Panels, BU.Changes, BU.Networks
+local Store = BU.Store
 local say = BUT.say("bu17")
-local player = getPlayer()
 local panel = BUT.nearPanel(true)
 if not panel then say("no panel"); return end
 say("store version", Store.data().version, "panels fn ok", Store.panels() == Store.data().panels)
 
-local lights = Panels.blackoutLights(panel)
-say("lights", #lights, lights[1] or "-")
-Changes.setBlackout(panel, true)
-local held, count = 0, 0
-for _ in pairs(panel.power.blackout) do count = count + 1 end
-for _, device in ipairs(Panels.devices(panel, "power")) do if device.held == "blackout" then held = held + 1 end end
-say("blackout on: set", count, "held", held, "rule", lights[1] and Networks.rule(panel, "power", lights[1]) or "-")
-local object = lights[1] and BU.objectsWithSprite(BU.parseThing(lights[1]))[1]
-say("first light has power", object and object:getSquare():haveElectricity() or "-", "switch on", object and object:isActivated() or "-")
-Changes.setBlackout(panel, false)
-count = 0
-for _ in pairs(panel.power.blackout) do count = count + 1 end
-say("blackout off: set", count, "rule", lights[1] and Networks.rule(panel, "power", lights[1]) or "-", "log", panel.log[#panel.log].key)
 
 -- The energy record: two made-up hours.
 local log, now = panel.energyLog, panel.energyNow
