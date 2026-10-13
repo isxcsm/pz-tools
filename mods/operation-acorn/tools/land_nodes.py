@@ -8,7 +8,8 @@ import os, re
 import xml.etree.ElementTree as ET
 
 VANILLA = r'C:\Program Files (x86)\Steam\steamapps\common\ProjectZomboid\media\AnimSets\player\falling'
-OUT = r'C:\git\pz-workspace\operation-acorn\OperationAcorn\42\media\AnimSets\player\falling'
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'OperationAcorn', '42', 'media', 'AnimSets', 'player',
+    'falling')
 VARIABLE = 'OALandRank'
 # rank: (speed times the game's, cut of a gentle landing in its clip, blend in, blend out), None for the game's own.
 # Bob_FallLanding_Heavy (1.47 s) takes the pelvis from 0.545 down to 0.177 by 0.35 s and back by 1.2 s. The landing

@@ -1,7 +1,7 @@
 # Building Utilities 설계
 
 Project Zomboid B42용 모드 Building Utilities(id `BuildingUtilities`). PZ Extension API
-(`pz-extension-api/docs/design.md`)를 전제로 만드는 Lua 모드다. 제어반, 무엇을 망에 넣는지, 연결 거리
+(`extension-api/docs/design.md`)를 전제로 만드는 Lua 모드다. 제어반, 무엇을 망에 넣는지, 연결 거리
 같은 규칙은 전부 이 모드의 것이다. API는 바닐라 사실 조회와 범용 망 엔진(공급·소비 계산, 시간 따라잡기)만
 제공한다.
 

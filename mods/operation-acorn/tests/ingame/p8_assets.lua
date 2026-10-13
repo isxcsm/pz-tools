@@ -4,7 +4,7 @@
 -- only on the anchor), gives the player every item (where its script exists), checks the item icons and the tree node
 -- icons loaded as textures, and looks for the backpack's model script and clothing item.
 -- Run from the debug console (single player, a character standing in open ground): RUN("p8_assets.lua") with the
--- loader from base-utilities' tests/ingame/README.md pointed at the folder this file is in. Lines are tagged "[p8]",
+-- loader from building-utilities' tests/ingame/README.md pointed at the folder this file is in. Lines are tagged "[p8]",
 -- each "ok" or "BAD", ending with "done". Then LOOK at the tiles (the trade tiles in a row north of you, then the machine
 -- looks in two columns beside you, four directions each, stopped before running) and, if the backpack item exists, at yourself wearing
 -- it (P8_WEAR()). P8_CLEAN() takes the tiles and the items it gave away again.

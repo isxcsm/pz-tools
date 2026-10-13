@@ -502,7 +502,7 @@ def read_names(lang):
 
 
 def room_counts():
-    """How many rooms of each name the maps have (as base-utilities' room_names.py reads the headers)."""
+    """How many rooms of each name the maps have (as building-utilities' room_names.py reads the headers)."""
     result = Counter()
     for path in glob.glob(os.path.join(MEDIA, 'maps', '*', '*.lotheader')):
         data = open(path, 'rb').read()
