@@ -263,8 +263,11 @@ function ISBUPanelWindow:waterPlaced(state, view)
         local ref = BU.Links.unitRef(unit)
         if not BU.RELAY_KINDS[unit.kind] and Units.utility(unit) == "water" and BU.enabled(unit.kind)
             and not BU.Links.live(panel, ref) then
-            put(3, { at = unit, cut = true, text = name(Units.name(unit), unit.x, unit.y, unit.z),
-                right = getText("IGUI_BU_LineNotSupplied") }, BU.Links.reasonText(panel, ref), unit, ref)
+            -- its pipe chips stay: one cut for running another pipe than its line comes back once set right
+            local row = { at = unit, unit = unit, cut = true, text = name(Units.name(unit), unit.x, unit.y, unit.z),
+                right = getText("IGUI_BU_LineNotSupplied") }
+            if shown then row.chips, row.pipes = unitChips(panel, unit) end
+            put(3, row, BU.Links.reasonText(panel, ref), unit, ref)
         end
     end
     if not PanelWindow.options.hideUnwired then

@@ -19,7 +19,7 @@ local commands = {}
 function commands.setInside(player, panel, args)
     if not Panels.cuts(panel) then return end
     local device = Panels.device(panel, args.utility, args.key)
-    if device and device.wired then Changes.setInside(panel, args.utility, device, args.on == true) end
+    if device and device.wired and not device.cut then Changes.setInside(panel, args.utility, device, args.on == true) end
 end
 
 function commands.setAllInside(player, panel, args)
@@ -81,13 +81,18 @@ end
 
 -- A tank shut or opened at the box, as a fixture's tick (the tier that cuts devices, Panels.cuts).
 function commands.setProducerOn(player, panel, args)
-    if Panels.cuts(panel) then Changes.setProducerOn(panel, tonumber(args.index) or 0, args.on == true) end
+    local at = panel.water.producers[tonumber(args.index) or 0]
+    if Panels.cuts(panel) and at and BU.Links.live(panel, BU.Links.producerRef(at.x, at.y, at.z)) then
+        Changes.setProducerOn(panel, tonumber(args.index) or 0, args.on == true)
+    end
 end
 
 -- A water unit of the panel switched off or on at the box, as a fixture's tick.
 function commands.setUnitOn(player, panel, args)
     local unit = BU.Store.unit(args.unit)
-    if Panels.cuts(panel) and unit and unit.panel == panel.id then Changes.setUnitOn(unit, args.on == true) end
+    if Panels.cuts(panel) and unit and unit.panel == panel.id and BU.Links.live(panel, BU.Links.unitRef(unit)) then
+        Changes.setUnitOn(unit, args.on == true)
+    end
 end
 
 -- A water unit of the panel onto its pipes: inlet (a pump's outlet) and, for a filter or a booster pump, outlet.

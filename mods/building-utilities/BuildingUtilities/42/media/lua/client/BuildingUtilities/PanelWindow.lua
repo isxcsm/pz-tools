@@ -1419,7 +1419,8 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
                 end
                 add({ kind = "device", text = shown.name, right = right, dim = shown.dim, device = device,
                     state = device.state, unwired = not device.wired, held = device.held, controls = controls,
-                    fixed = fixed, fresh = view.fresh[device.key], pipe = pipe, bad = bad }, tooltip)
+                    -- its line supplies nothing (BU.Links): no switch to throw here until it does
+                    fixed = fixed or device.cut, fresh = view.fresh[device.key], pipe = pipe, bad = bad }, tooltip)
             end
         end
     end

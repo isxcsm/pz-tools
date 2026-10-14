@@ -464,7 +464,7 @@ function ISBUPanelWindow:deviceMenu(key)
         menu:addOption(view.status[key] or "").off = true
     else
         local on = device.state == "on"
-        if Panels.cuts(panel) then
+        if Panels.cuts(panel) and not device.cut then
             menu:addOption(getText(on and "IGUI_BU_Menu_Disconnect" or "IGUI_BU_Menu_Connect"), self, ISBUPanelWindow.switchDevice, utility, device)
         end
         if on and utility == "power" and (panel.tier or 1) >= BU.TIMER_TIER then

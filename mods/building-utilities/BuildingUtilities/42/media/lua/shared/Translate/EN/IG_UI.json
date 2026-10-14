@@ -1032,6 +1032,8 @@
     "IGUI_BU_LineCut_cut": "The line is cut %1.",
     "IGUI_BU_LineCut_relays": "This panel's tier carries %1 junction boxes or yard hydrants; this one is past them.",
     "IGUI_BU_LineCut_chain": "A wall, junction box or hydrant carries at most %1 devices down its line; this one is past them.",
+    "IGUI_BU_LineCut_off": "Cut where what it hangs on is switched off at the box, %1.",
+    "IGUI_BU_LineCut_pipe": "Cut where the line it hangs on runs another pipe, %1.",
     "IGUI_BU_LineCut_far": "Its line from the wall is longer than the panel reaches (%1 tiles).",
     "IGUI_BU_LineNotSupplied": "Not supplied",
     "IGUI_BU_Reason_relays": "This panel already has %1 junction boxes or yard hydrants.",

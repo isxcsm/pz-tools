@@ -506,32 +506,45 @@ local function setInside(panel, utility, device, connected)
     Networks.apply(panel, utility, device.key)
 end
 
+-- A device outside switched passes what hangs on its line or stops it (BU.Links "off"): the lines are worked out again.
+local function pathChanged(panel)
+    Store.linksChanged()
+    Changes.linesChanged(panel)
+end
+
 function Changes.setInside(panel, utility, device, connected)
     setInside(panel, utility, device, connected)
+    if not device.inside then pathChanged(panel) end
     Sync.changed(panel.id)
 end
 
 -- Every device of the building at once, with those outside hung on its rooms' walls.
 function Changes.setAllInside(panel, utility, connected)
+    local outside = false
     for _, device in ipairs(Panels.devices(panel, utility)) do
         local mine = device.inside or device.wired and device.hangsOn and not Links.isRelay(device.hangsOn)
         if mine and (device.state == "on") ~= connected and device.state ~= "other" then
             setInside(panel, utility, device, connected)
+            outside = outside or not device.inside
         end
     end
+    if outside then pathChanged(panel) end
     Sync.changed(panel.id)
 end
 
 -- Every device of one room at once ("" for those in no room), with those outside hung on its wall; or, by a relay's
 -- ref, those hung below that relay.
 function Changes.setRoomInside(panel, utility, roomId, connected)
+    local outside = false
     for _, device in ipairs(Panels.devices(panel, utility)) do
         local mine = device.inside and device.roomId == roomId or not device.inside and device.wired
             and device.hangsOn == roomId
         if mine and (device.state == "on") ~= connected and device.state ~= "other" then
             setInside(panel, utility, device, connected)
+            outside = outside or not device.inside
         end
     end
+    if outside then pathChanged(panel) end
     Sync.changed(panel.id)
 end
 
@@ -668,7 +681,8 @@ function Changes.removePipe(panel, id)
                 if unit.out == id then unit.out = nil end
             end
             data.levelLog[id] = nil
-            Networks.defineWater(panel)
+            Store.linksChanged()
+            Networks.linesChanged(panel)
             Sync.changed(panel.id)
             return
         end
@@ -688,8 +702,8 @@ function Changes.setProducerPipe(panel, index, id)
     local at = panel.water.producers[index]
     if not at or not Water.pipe(panel, id) then return end
     at.pipe = id ~= Water.FIRST and id or nil
-    Networks.defineWater(panel, {})
-    Sync.changed(panel.id)
+    Store.linksChanged()
+    Changes.linesChanged(panel)
 end
 
 -- A tank shut at the box or opened again (its tick on the water tab): shut, it is out of its pipe (Water.layout).
@@ -708,8 +722,7 @@ function Changes.setUnitOn(unit, on)
     if not panel or (unit.off == nil) == on then return end
     unit.off = not on or nil
     Store.linksChanged()
-    Networks.defineWater(panel, {})
-    Sync.changed(panel.id)
+    Changes.linesChanged(panel)
 end
 
 -- A fixture onto a pipe, kept under its key (nil: back on its room's); a part's key a save may have is cleared.
@@ -724,8 +737,14 @@ function Changes.setDevicePipe(panel, device, id)
     end
     pipeOf[device.key] = id
     keys[device.key] = true
-    Networks.defineWater(panel, keys)
-    Sync.changed(panel.id)
+    if device.inside then
+        Networks.defineWater(panel, keys)
+        Sync.changed(panel.id)
+    else
+        -- one outside runs its pipe on its line: what hangs on it may pass or stop (BU.Links "pipe")
+        Store.linksChanged()
+        Changes.linesChanged(panel)
+    end
 end
 
 -- A water unit's pipes: its inlet's (a pump's outlet's) and, for a filter or a booster pump, its outlet's (nil: the
@@ -735,8 +754,8 @@ function Changes.setUnitPipes(unit, inlet, outlet)
     if not panel or not Water.pipe(panel, inlet) or (outlet and not Water.pipe(panel, outlet)) then return end
     unit.pipe = inlet ~= Water.FIRST and inlet or nil
     unit.out = outlet ~= inlet and outlet or nil
-    Networks.defineWater(panel, {})
-    Sync.changed(panel.id)
+    Store.linksChanged()
+    Changes.linesChanged(panel)
 end
 
 -- A filter's media replaced: a fresh charge.

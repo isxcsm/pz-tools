@@ -15,7 +15,9 @@
 -- the walls, fewest lines first, then by when each was laid, a relay counts toward the box's limit (BU.relayLimit), a
 -- device toward the CHAIN_LIMIT of its head (the device hung on a wall or relay its branch starts from), and a line from
 -- a wall must be within the box's range (BU.connectRange). What is past a limit, or behind something that is, is cut
--- with a reason; it comes back of itself when the limit grows (an upgrade) or the shape changes.
+-- with a reason; it comes back of itself when the limit grows (an upgrade) or the shape changes. A line hung on a thing
+-- that is no relay passes only while that thing is on at the box, and for water only on the pipes that thing's line
+-- runs: else it is cut ("off", "pipe"), as all below it; switched on or set right again, it supplies again.
 require "BuildingUtilities/Panels"
 local BU = BuildingUtilities
 local Store, Panels, Geometry = BU.Store, BU.Panels, BU.Geometry
@@ -23,8 +25,9 @@ local Links = {}
 BU.Links = Links
 
 -- The reasons a line supplies nothing: "cut" (what it hangs on is gone, or not of the box), "relays" (past the box's
--- relays), "chain" (past its head's devices), "far" (a line from the wall longer than the box's range).
-Links.REASONS = { "cut", "relays", "chain", "far" }
+-- relays), "chain" (past its head's devices), "far" (a line from the wall longer than the box's range), "off" (what it
+-- hangs on is switched off at the box), "pipe" (it runs a pipe the line it hangs on does not).
+Links.REASONS = { "cut", "relays", "chain", "far", "off", "pipe" }
 
 function Links.producerRef(x, y, z) return "p:" .. BU.placeKey(x, y, z) end
 function Links.unitRef(unit) return "u:" .. unit.id end
@@ -125,6 +128,24 @@ function Links.wallHolds(panel, wall)
     return x ~= nil and Panels.roomHaving(Panels.zoneRooms(panel), x, y, z) ~= nil
 end
 
+-- Why the line of a thing that is no relay (above) does not let a line hung on it through, or nil: the thing switched
+-- off at the box (a unit's tick, a device's), or for water a pipe of the line below that the line above does not run (a
+-- relay runs every pipe).
+local function blockedBy(panel, line, above)
+    local unit = Links.unitOf(above.ref)
+    if unit and unit.off then return "off" end
+    local data = panel[above.utility]
+    if above.ref:sub(1, 2) == "t:" and data and data.excluded and data.excluded[above.ref:sub(3)] then return "off" end
+    if line.utility ~= "water" or not BU.Water then return nil end
+    local a, b = BU.Water.linePipes(panel, above)
+    if not a then return nil end
+    local c, d = BU.Water.linePipes(panel, line)
+    for _, pipe in ipairs({ c or false, d or false }) do
+        if pipe and pipe ~= a and pipe ~= b then return "pipe" end
+    end
+    return nil
+end
+
 -- What a box's lines supply now: { live = { [ref] = true }, reason = { [ref] = a Links.REASONS }, head = { [ref] =
 -- the head's ref }, chained = { [head ref] = how many hang below it }, relays (how many supply), depth = { [ref] =
 -- lines out from the wall } }. Kept while the lines, the box's tier and the buildings are the same.
@@ -160,6 +181,7 @@ function Links.state(panel)
             local parent = line.via
             local reason = state.reason[ref]
             if not reason and parent then reason = state.reason[parent] end
+            if not reason and parent and not Links.isRelay(parent) then reason = blockedBy(panel, line, mine[parent]) end
             if not reason then
                 if Links.isRelay(ref) then
                     if state.relays < limit then state.relays = state.relays + 1 else reason = "relays" end
@@ -658,6 +680,17 @@ function Links.reasonText(panel, ref)
     if reason == "relays" then return getText("IGUI_BU_LineCut_relays", BU.relayLimit(panel.tier)) end
     if reason == "chain" then return getText("IGUI_BU_LineCut_chain", BU.CHAIN_LIMIT) end
     if reason == "far" then return getText("IGUI_BU_LineCut_far", BU.connectRange(panel.tier)) end
+    if reason == "off" or reason == "pipe" then
+        -- where it is stopped: the first thing up the branch whose own line still supplies
+        local at, where = Links.get(line.via), ""
+        while at and Links.state(panel).reason[at.ref] do at = Links.get(at.via) end
+        if at then
+            local steps = math.max(math.abs(at.x - line.x), math.abs(at.y - line.y))
+            local point = Geometry.direction(line.x, line.y, at.x, at.y)
+            where = getText("IGUI_BU_Where", steps, point and getText("IGUI_BU_Dir_" .. point) or "")
+        end
+        return getText("IGUI_BU_LineCut_" .. reason, where)
+    end
     local head = Links.cutHead(ref)
     if not head or head == line then return getText("IGUI_BU_LineCut_here") end
     local steps = math.max(math.abs(head.x - line.x), math.abs(head.y - line.y))

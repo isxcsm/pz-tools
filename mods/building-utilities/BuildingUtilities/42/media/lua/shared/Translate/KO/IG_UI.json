@@ -1032,6 +1032,8 @@
     "IGUI_BU_LineCut_cut": "%1에서 선이 끊겼습니다.",
     "IGUI_BU_LineCut_relays": "이 제어반 단계로는 분기함·야외 수전을 %1개까지만 쓸 수 있어, 여기까지는 공급되지 않습니다.",
     "IGUI_BU_LineCut_chain": "벽이나 분기함·수전 하나에 이어 달 수 있는 기기는 %1개까지라, 여기까지는 공급되지 않습니다.",
+    "IGUI_BU_LineCut_off": "%1에서 앞쪽 물건이 제어반에서 꺼져 있어 공급되지 않습니다.",
+    "IGUI_BU_LineCut_pipe": "%1에서 앞쪽 선과 배관이 달라 공급되지 않습니다.",
     "IGUI_BU_LineCut_far": "벽에서 나온 선이 제어반이 닿는 거리(%1칸)보다 깁니다.",
     "IGUI_BU_LineNotSupplied": "공급 안 됨",
     "IGUI_BU_Reason_relays": "이 제어반은 이미 분기함·야외 수전을 %1개 쓰고 있습니다.",
