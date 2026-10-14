@@ -97,3 +97,14 @@ UnresolvedList	unresolved_list	story item (P4)
 HandoverFile	handover_file	story item (P4)
 HandoverPages	handover_file	story item (F3: the handover mission's paper, drawn like the handover file)
 KitVoucher	kit_voucher	story item (P4)
+TeamWeldingMask	team_welding_mask	the team welding mask: the vanilla mask in the team's olive, a green lens
+LightHammer	light_hammer	light Hammer: the vanilla icon with the team's mark
+LightScrewdriver	light_screwdriver	light Screwdriver: the vanilla icon with the team's mark
+LightSaw	light_saw	light Saw: the vanilla icon with the team's mark
+LightWrench	light_wrench	light Wrench: the vanilla icon with the team's mark
+LightLugWrench	light_lugwrench	light LugWrench: the vanilla icon with the team's mark
+LightCrowbar	light_crowbar	light Crowbar: the vanilla icon with the team's mark
+LightSledgehammer	light_sledgehammer	light Sledgehammer: the vanilla icon with the team's mark
+LightWoodAxe	light_woodaxe	light WoodAxe: the vanilla icon with the team's mark
+LightShovel	light_shovel	light Shovel: the vanilla icon with the team's mark
+LightPickAxe	light_pickaxe	light PickAxe: the vanilla icon with the team's mark

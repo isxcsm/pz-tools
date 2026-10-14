@@ -31,7 +31,11 @@ test("every NUMBERS 7 price is in the catalog", function()
         ammo_pistol = { 40000, 4 }, ammo_shotgun = { 50000, 4 }, ammo_rifle = { 60000, 4 },
         team_backpack = { 300000, 5 }, shred_bench = { 5000, 0 }, bait_trap = { 12000, 2 }, team_locker = { 60000, 2 },
         team_crate = { 15000, 2 }, nails_box = { 8000, 1 }, screws_box = { 8000, 1 }, nuts_bolts = { 15000, 2 },
-        welding_rods = { 12000, 2 },
+        welding_rods = { 12000, 2 }, team_welding_mask = { 40000, 3 },
+        light_screwdriver = { 20000, 2 }, light_hammer = { 30000, 2 }, light_saw = { 30000, 2 },
+        light_wrench = { 25000, 2 }, light_lug_wrench = { 25000, 2 }, light_crowbar = { 35000, 3 },
+        light_shovel = { 35000, 3 }, light_wood_axe = { 45000, 3 }, light_pickaxe = { 45000, 3 },
+        light_sledgehammer = { 60000, 4 },
         fabric_cutter = { 80000, 2 }, log_saw = { 100000, 2 }, rain_cistern = { 90000, 3 },
         bulk_shredder = { 150000, 3 }, propane_refinery = { 200000, 3 }, oil_refinery = { 250000, 4 },
         box_reissue = { 10000, 0 },
@@ -76,6 +80,9 @@ test("what an entry hands over", function()
     eq(#find("ammo_rifle").choices, 3)
     eq(#find("team_backpack").give, 1, "the backpack alone: its water storage is built in")
     eq(find("team_backpack").give[1].type, "OperationAcorn.TeamBackpack")
+    eq(find("team_welding_mask").give[1].type, "OperationAcorn.TeamWeldingMask")
+    eq(find("light_lug_wrench").give[1].type, "OperationAcorn.LightLugWrench")
+    eq(find("light_lug_wrench").group, "gear")
     eq(find("petrol_can").give[1].fluid, "Petrol")
     truthy(find("fuelcan_mk1").give[1].empty)
 end)

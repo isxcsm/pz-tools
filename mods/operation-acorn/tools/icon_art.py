@@ -103,7 +103,11 @@ def draw_tier_mark(img, tier):
 def hires(icon, size):
     """A high-res copy of an icon made by fit(): its source fitted to size x size the same way (the margin and the
     outline grow with the size, so it reads as the 32 px icon, only sharper). Shrunk with premultiplied alpha, so the
-    edges keep no dark fringe. Second result: the source's longer side, to tell when it had to be enlarged."""
+    edges keep no dark fringe. Second result: the source's longer side, to tell when it had to be enlarged.
+    An icon drawn from a vanilla one (vanilla_art.team_icon) brings its copies made already (.oa_hi)."""
+    made = getattr(icon, 'oa_hi', None)
+    if made:
+        return made[size], 0
     source = getattr(icon, 'oa_source', None)
     if source is None or not source.getbbox():
         return icon.resize((size, size), Image.LANCZOS), 0
@@ -728,6 +732,22 @@ for _tier in TIERS:
 
 import icon_story  # noqa: E402
 PICTURES.update(icon_story.pictures(sys.modules[__name__]))
+
+import vanilla_art  # noqa: E402
+
+
+def team_icon(item_type, mask=False):
+    """The team's version of a vanilla item: its own icon with the team's mark (vanilla_art), the copies with it."""
+    icon, hi = vanilla_art.team_icon(item_type, mask)
+    icon.oa_hi = hi
+    return icon
+
+
+# the team's welding mask (the vanilla mask in the team's olive) and the light tools (the vanilla tool, marked)
+PICTURES['team_welding_mask'] = lambda: team_icon('WeldingMask', True)
+for _tool in ('Hammer', 'Screwdriver', 'Saw', 'Wrench', 'LugWrench', 'Crowbar', 'Sledgehammer', 'WoodAxe', 'Shovel',
+              'PickAxe'):
+    PICTURES['light_' + _tool.lower()] = (lambda t=_tool: team_icon(t))
 
 
 def read_list():

@@ -28,7 +28,7 @@ Shop.TYPES = {
     oilRefinery = "OperationAcorn.OilRefinery", logSaw = "OperationAcorn.LogSaw",
     locker = "OperationAcorn.TeamLocker", crate = "OperationAcorn.ResearchCrate", cistern = "OperationAcorn.RainCistern",
     bait = "OperationAcorn.BaitTrap",
-    backpack = "OperationAcorn.TeamBackpack",
+    backpack = "OperationAcorn.TeamBackpack", weldingMask = "OperationAcorn.TeamWeldingMask",
     fuelMk1 = "OperationAcorn.FuelCanMk1", fuelMk2 = "OperationAcorn.FuelCanMk2", fuelMk3 = "OperationAcorn.FuelCanMk3",
     kitBagCapacity = "OperationAcorn.KitBagCapacity", kitBagWeight = "OperationAcorn.KitBagWeight",
     kitStorage = "OperationAcorn.KitStorage", kitEngine = "OperationAcorn.KitEngine",
@@ -39,6 +39,20 @@ Shop.TYPES = {
     filterNormal = "OperationAcorn.FilterNormal", filterModern = "OperationAcorn.FilterModern",
     muffler = "OperationAcorn.SoundproofCover",
     fieldTerminal = "OperationAcorn.FieldTerminal",
+}
+
+-- The light tools (half the vanilla tool's weight): id, the tool, tier, price. The dearer the more a run carries it.
+Shop.LIGHT_TOOLS = {
+    { "light_screwdriver", "Screwdriver", 2, 20000 },
+    { "light_hammer", "Hammer", 2, 30000 },
+    { "light_saw", "Saw", 2, 30000 },
+    { "light_wrench", "Wrench", 2, 25000 },
+    { "light_lug_wrench", "LugWrench", 2, 25000 },
+    { "light_crowbar", "Crowbar", 3, 35000 },
+    { "light_shovel", "Shovel", 3, 35000 },
+    { "light_wood_axe", "WoodAxe", 3, 45000 },
+    { "light_pickaxe", "PickAxe", 3, 45000 },
+    { "light_sledgehammer", "Sledgehammer", 4, 60000 },
 }
 
 -- Upgrade serum trees. The ids are the names the upgrades part uses.
@@ -129,6 +143,7 @@ local function build()
     -- Gear.
     -- The backpack's water storage is built in (its two canteens are part of the pack), so no canteens come with it.
     add({ id = "team_backpack", group = "gear", tier = 5, price = 300000, give = { give("backpack") } })
+    add({ id = "team_welding_mask", group = "gear", tier = 3, price = 40000, give = { give("weldingMask") } })
     -- Machines.
     add({ id = "shred_bench", group = "machine", tier = 0, price = 5000, give = { give("shredBench") } })
     add({ id = "bait_trap", group = "machine", tier = 2, price = 12000, give = { give("bait") } })
@@ -142,6 +157,10 @@ local function build()
     add({ id = "bulk_shredder", group = "machine", tier = 3, price = 150000, give = { give("bulkShredder") } })
     add({ id = "propane_refinery", group = "machine", tier = 3, price = 200000, give = { give("propaneRefinery") } })
     add({ id = "oil_refinery", group = "machine", tier = 4, price = 250000, give = { give("oilRefinery") } })
+    -- The light tools, after the machines: the catalog's order is the news board's, which names the first few.
+    for _, t in ipairs(Shop.LIGHT_TOOLS) do
+        add({ id = t[1], group = "gear", tier = t[3], price = t[4], give = { give("OperationAcorn.Light" .. t[2]) } })
+    end
     -- The delivery box.
     add({ id = "box_reissue", group = "box", tier = 0, price = 10000, special = "reissue", fixed = true, allowDebt = true,
         give = { give("box") } })

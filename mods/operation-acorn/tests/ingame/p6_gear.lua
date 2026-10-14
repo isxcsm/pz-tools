@@ -99,9 +99,33 @@ section("the items against the vanilla ones", function()
     end
 
     local shop = OA.Shop
-    for _, id in ipairs({ "team_backpack", "fuelcan_mk1", "fuelcan_mk2", "fuelcan_mk3",
-        "kit_bagCapacity", "kit_bagWeight", "kit_storage", "kit_engine" }) do
+    local ids = { "team_backpack", "team_welding_mask", "fuelcan_mk1", "fuelcan_mk2", "fuelcan_mk3",
+        "kit_bagCapacity", "kit_bagWeight", "kit_storage", "kit_engine" }
+    for _, t in ipairs(shop.LIGHT_TOOLS) do ids[#ids + 1] = t[1] end
+    for _, id in ipairs(ids) do
         check("the shop stocks " .. id, shop.stocked(shop.entry(id)))
+    end
+end)
+
+-- ---------------------------------------------------------------------------------------------------------------------
+section("the welding mask and the light tools", function()
+    local mask = give("OperationAcorn.TeamWeldingMask")
+    local vanillaMask = give("Base.WeldingMask")
+    check("the mask is a welding mask by its tag", mask:hasTag(ItemTag.WELDING_MASK))
+    check("the mask is less in the way", mask:getDiscomfortModifier() < vanillaMask:getDiscomfortModifier(),
+        mask:getDiscomfortModifier() .. " vs " .. vanillaMask:getDiscomfortModifier())
+    check("the mask is cooler", mask:getInsulation() < vanillaMask:getInsulation(), mask:getInsulation())
+    check("the mask sees as the vanilla one", mask:getVisionModifier() == vanillaMask:getVisionModifier())
+    check("the mask has its clothing item", mask:getClothingItem() ~= nil)
+    for _, t in ipairs(OA.Shop.LIGHT_TOOLS) do
+        local light, plain = give("OperationAcorn.Light" .. t[2]), give("Base." .. t[2])
+        check(t[2] .. " weighs half", near(light:getActualWeight(), plain:getActualWeight() / 2, 1e-3),
+            light:getActualWeight() .. " vs " .. plain:getActualWeight())
+        local sprite = light.getWeaponSprite and light:getWeaponSprite()
+        if sprite then
+            check(t[2] .. " model " .. sprite, getScriptManager():getModelScript(sprite) ~= nil)
+        end
+        check(t[2] .. " icon", light:getTex() ~= nil and light:getTex():getName() ~= "Question_On")
     end
 end)
 

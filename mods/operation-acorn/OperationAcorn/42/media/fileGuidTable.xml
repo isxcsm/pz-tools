@@ -36,4 +36,8 @@
 		<path>media/clothing/clothingItems/OA_Bag_FuelCanMk3_LHand.xml</path>
 		<guid>33b0be17-11c0-4d05-a7a3-2c0fd101fa1f</guid>
 	</files>
+	<files>
+		<path>media/clothing/clothingItems/OA_Hat_TeamWelderMask.xml</path>
+		<guid>3c6f1d0e-8a57-4b2e-9f31-6d2a7c40b915</guid>
+	</files>
 </fileGuidTable>

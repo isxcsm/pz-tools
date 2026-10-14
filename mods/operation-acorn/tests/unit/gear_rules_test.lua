@@ -160,12 +160,49 @@ test("the kits are real items with their icons", function()
         truthy(icons["Item_OA_" .. icon .. ".png"], name .. " icon Item_OA_" .. icon .. ".png exists")
         count = count + 1
     end
-    eq(count, 8)
+    eq(count, 19)
     eq(item("KitBagCapacity").Icon, "OA_BagCapacityKit")
     eq(item("KitBagWeight").Icon, "OA_BagWeightKit")
     eq(item("KitStorage").Icon, "OA_StorageKit")
     eq(item("KitEngine").Icon, "OA_EngineTuningKit")
     eq(item("TeamBackpack").Icon, "OA_ResearchBackpack")
+end)
+
+test("the team welding mask is cooler and easier to wear than the vanilla one and welds the same", function()
+    local mask = item("TeamWeldingMask")
+    eq(mask.Insulation, "0.1")
+    eq(mask.WindResistance, "0.3")
+    eq(mask.DiscomfortModifier, "0.05")
+    eq(mask.VisionModifier, "0.5")
+    eq(mask.BodyLocation, "base:maskfull")
+    eq(mask.ClothingItem, "OA_Hat_TeamWelderMask")
+    truthy(string.find(mask.Tags, "base:weldingmask", 1, true))
+    truthy(readfile("OperationAcorn/42/media/clothing/clothingItems/OA_Hat_TeamWelderMask.xml"))
+    truthy(string.find(readfile("OperationAcorn/42/media/fileGuidTable.xml"), "OA_Hat_TeamWelderMask.xml", 1, true))
+end)
+
+test("the light tools weigh half the vanilla tool and carry its tags and models", function()
+    local want = {
+        Screwdriver = { "0.25", "base:screwdriver", "WeaponSprite", "Base.Screwdriver" },
+        Hammer = { "0.75", "base:hammer", "WeaponSprite", "Base.Hammer" },
+        Saw = { "0.5", "base:saw", "StaticModel", "Base.Hacksaw" },
+        Wrench = { "0.5", "base:wrench", "WeaponSprite", "Base.Wrench" },
+        LugWrench = { "0.5", "base:lugwrench", "WorldStaticModel", "Base.LugWrench" },
+        Crowbar = { "1.0", "base:crowbar", "WeaponSprite", "Base.Crowbar" },
+        Shovel = { "1.0", "base:diggrave", "WeaponSprite", "Base.Shovel" },
+        WoodAxe = { "1.5", "base:choptree", "WeaponSprite", "Base.WoodAxe" },
+        PickAxe = { "1.5", "base:pickaxe", "WeaponSprite", "Base.PickAxe" },
+        Sledgehammer = { "3.0", "base:sledgehammer", "WeaponSprite", "Base.SledgeHammer" },
+    }
+    for tool, w in pairs(want) do
+        local p = item("Light" .. tool)
+        eq(p.Weight, w[1], tool .. " weight")
+        truthy(string.find(p.Tags, w[2], 1, true), tool .. " tag")
+        eq(p[w[3]], w[4], tool .. " model")
+        eq(p.Icon, "OA_Light" .. tool)
+        eq(p.WeaponSpritesByIndex, nil, tool .. ": one model, not the vanilla variants")
+        eq(p.IconsForTexture, nil, tool .. ": one icon")
+    end
 end)
 
 test("the work of fitting a kit: bags a fixed time, vehicles faster with mechanics, never under 40 percent", function()

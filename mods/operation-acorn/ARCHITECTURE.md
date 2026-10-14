@@ -313,3 +313,9 @@ component FluidContainer { ContainerName = OA_WaterStorage, Capacity = 1.8, ... 
 가슴 앞 어깨끈 자리(Spine1 기준)에 놓으므로 그대로 둔다 (무전기·칼. 양옆 수통과 겹치지 않는다).
 생성기는 `python tools/backpack_mesh.py` (`--check`는 다시 읽어 검사만, `--old <폴더>`는 이전 모델과 나란히 그린 비교 그림,
 게임 폴더는 환경 변수 `PZ_DIR`). 그림은 `tools/backpack_preview.png`와 `../mockups/backpack/`.
+
+연구팀 용접 마스크는 바닐라 마스크의 모델을 그대로 쓰고 텍스처만 팀 색으로 바꾼다: 옷 항목 `OA_Hat_TeamWelderMask`
+(`media/clothing/clothingItems/OA_Hat_TeamWelderMask.xml`, GUID는 `media/fileGuidTable.xml`), 텍스처
+`textures/Clothes/Hat/OA_TeamWelderMask.png`(바닐라 `WelderMask.png`의 회색을 올리브로, 주황 렌즈를 짙은 녹색으로).
+경량 도구는 바닐라 모델을 쓰고 아이콘만 따로 있다 (바닐라 아이콘의 색 있는 부분을 올리브로 칠하고 빈 모서리에 팀 표식).
+둘 다 `python tools/vanilla_art.py`(텍스처와 옷 항목)와 `tools/icon_art.py`(아이콘, `vanilla_art.team_icon`)가 만든다.
