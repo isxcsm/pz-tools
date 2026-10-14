@@ -438,7 +438,10 @@ public final class Hooks {
         /** {@code WorldSoundManager.getBiggestSoundZomb}, for each sound it weighs: whether the zombie may hear it. */
         boolean hears(Object sound, Object zombie);
 
-        /** {@code ZombiePopulationManager.removeChunkFromWorld}: whether the zombie goes as its chunk unloads, instead of staying virtual. */
+        /**
+         * {@code ZombiePopulationManager.removeChunkFromWorld} and {@code virtualizeZombie}: whether the zombie goes as its chunk unloads,
+         * or as it walks out of the loaded area, instead of staying virtual.
+         */
         boolean dissolves(Object zombie);
 
         /** {@code ZombiePopulationManager.registerZombie}, at its start: a zombie comes into the world with its number (0: a new one). */
@@ -1187,6 +1190,20 @@ public final class Hooks {
                     code.with(element);
                     code.labelBinding(done);
                 })),
+            // A zombie that walks out of the loaded area is made virtual where it stands (IsoMovingObject.postupdate): one of a
+            // dissolving hold leaves the world instead (removeFromWorld lets the population release it).
+            Site.atStart("virtualizeZombie", "(Lzombie/characters/IsoZombie;)V", (code, owner) -> {
+                Label keep = code.newLabel();
+                code.aload(1);
+                code.invokestatic(HOOKS, "zombieDissolves", MethodTypeDesc.of(ConstantDescs.CD_boolean, ConstantDescs.CD_Object));
+                code.ifeq(keep);
+                code.aload(1);
+                code.invokevirtual(ZOMBIE, "removeFromWorld", MethodTypeDesc.of(ConstantDescs.CD_void));
+                code.aload(1);
+                code.invokevirtual(ZOMBIE, "removeFromSquare", MethodTypeDesc.of(ConstantDescs.CD_void));
+                code.return_();
+                code.labelBinding(keep);
+            }),
             // Zombie marks: a zombie comes into the world, a virtual one with the number it had (its marks come back with it).
             Site.atStart("registerZombie", "(Lzombie/characters/IsoZombie;I)I", (code, owner) -> {
                 code.aload(0);
@@ -2816,7 +2833,10 @@ public final class Hooks {
         catch (Throwable problem) { reportOnce(Call.ZOMBIE_HEARS, problem); return sound; }
     }
 
-    /** Put before each {@code n_addZombie} in {@code ZombiePopulationManager.removeChunkFromWorld}: true when the zombie is let go instead. */
+    /**
+     * Put before each {@code n_addZombie} in {@code ZombiePopulationManager.removeChunkFromWorld}, and at the start of its
+     * {@code virtualizeZombie}: true when the zombie is let go instead.
+     */
     public static boolean zombieDissolves(Object zombie) {
         ZombieHolds current = zombieHolds;
         if (current == null) return false;

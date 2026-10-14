@@ -32,7 +32,8 @@ final class ZombieHoldsTest {
         ModData.tables.remove(ZombieHolds.MARKS);
         var loaded = IsoWorld.instance.currentCell.zombieList;
         String[] labels = { "ZombieIdleState.execute", "WorldSoundManager.getBiggestSoundZomb", "ZombiePopulationManager.removeChunkFromWorld",
-            "ZombiePopulationManager.registerZombie", "ZombiePopulationManager.releaseZombie", "IsoZombie.removeFromWorld" };
+            "ZombiePopulationManager.registerZombie", "ZombiePopulationManager.releaseZombie", "ZombiePopulationManager.virtualizeZombie",
+            "IsoZombie.removeFromWorld" };
 
         var held = zombie(105.5f, 100.5f, 1);
         var plain = zombie(105.5f, 100.5f, 2);
@@ -102,6 +103,16 @@ final class ZombieHoldsTest {
             "Unloading kept " + ZombiePopulationManager.virtual + ", let go " + ZombiePopulationManager.released);
         check(world.rawget(1.0) == null && world.rawget(3.0) == null, "The world kept the marks of zombies let go");
         check(markOf(zombies, mod, held) == null, "A zombie let go kept its marks");
+        // Walking out of the loaded area: one of a dissolving hold leaves the world; another stays virtual.
+        var strayed = zombie(90.5f, 100.5f, 9);
+        FormulasTest.call(zombies, "mark", mod, strayed, "clear");
+        var passer = zombie(90.5f, 101.5f, 10);
+        ZombiePopulationManager.virtual.clear(); ZombiePopulationManager.released.clear();
+        population.virtualizeZombie(strayed);
+        population.virtualizeZombie(passer);
+        check(ZombiePopulationManager.virtual.equals(List.of(10))
+            && strayed.removed && strayed.square == null && world.rawget(9.0) == null,
+            "Walking out kept " + ZombiePopulationManager.virtual + ", let go " + ZombiePopulationManager.released);
         loaded.remove(held); loaded.remove(plain);
 
         // Death: as the game, the population lets the dead zombie go and its number is taken before the corpse is made; the

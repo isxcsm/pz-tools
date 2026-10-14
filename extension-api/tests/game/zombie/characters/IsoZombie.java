@@ -32,6 +32,8 @@ public class IsoZombie extends IsoGameCharacter {
         persistentId = 0;
     }
 
+    public void removeFromSquare() { square = null; }
+
     public String getOutfitName() { return outfitName; }
 
     public void pathToLocation(int x, int y, int z) { pathX = x; pathY = y; }

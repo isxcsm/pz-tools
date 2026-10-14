@@ -34,6 +34,13 @@ public final class ZombiePopulationManager {
 
     public static void releaseZombie(IsoZombie zombie) { released.add(zombie.persistentId); }
 
+    /** Like the game's: a zombie that walked out of the loaded area is kept virtual where it stands, and leaves the world. */
+    public void virtualizeZombie(IsoZombie zombie) {
+        n_addZombie(zombie.getX(), zombie.getY(), zombie.getZ(), (byte)0, 0, Integer.MIN_VALUE, Integer.MIN_VALUE, 0, zombie.persistentId);
+        zombie.removeFromWorld();
+        zombie.removeFromSquare();
+    }
+
     private static int numbered = 1000;
 
     /** A zombie comes into the world: a virtual one keeps the number it had, a new one is given the next. */

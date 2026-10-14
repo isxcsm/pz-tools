@@ -872,6 +872,7 @@ hook only. `PZExtAPI.hooks()` names each by game class and method.
 | `ZombieIdleState.execute` | the one call of `IsoZombie.pathToLocation(III)` | The square an idle zombie wanders to, through the [zombie holds](#zombie-marks-and-holds). |
 | `WorldSoundManager.getBiggestSoundZomb` | after the one `List.get` of its sounds | A sound a held zombie must not hear becomes null, which the method skips. |
 | `ZombiePopulationManager.removeChunkFromWorld` | each of the two `n_addZombie` calls (the zombie is the local just cast to `IsoZombie`) | A zombie of a dissolving hold is released (`releaseZombie`) instead of kept virtual. |
+| `ZombiePopulationManager.virtualizeZombie` | the start | A zombie that walks out of the loaded area (`IsoMovingObject.postupdate`) is made virtual where it stands: one of a dissolving hold leaves the world instead (`removeFromWorld`, which lets the population release it) and the method returns. |
 | `ZombiePopulationManager.registerZombie` | the start | A zombie comes into the world with its persistent number (a virtual one with the number it had): the world's marks of that number go back into its modData. |
 | `ZombiePopulationManager.releaseZombie` | the start | The population lets the zombie go; a dead one (the game releases it on its next update, before the corpse, and takes its number away after): its marks go from the world's table. |
 | `IsoZombie.removeFromWorld` | the start | The zombie leaves the world (dead, virtual or let go): its marks leave its modData (the object is kept for another zombie). |
@@ -1348,7 +1349,8 @@ A zombie marked with a held key, within the circle and its margin (on any level)
   within the circle and margin; any other is skipped as the game skips a missing one, so the loudest of the rest wins as before.
 - A zombie that chased a player out past the margin is the game's until it comes back. Its fighting is never changed.
 
-With `dissolve`, a zombie marked with the key (wherever it is) is let go as its chunk unloads: released from the population
+With `dissolve`, a zombie marked with the key (wherever it is) is let go as its chunk unloads, or as it walks out of the loaded
+area (the game makes such a zombie virtual where it stands, `virtualizeZombie`): released from the population
 (`ZombiePopulationManager.releaseZombie`) and taken off the world, instead of kept as a virtual zombie
 (`removeChunkFromWorld`'s `n_addZombie`). A mod that counts its group makes it again when the player comes back; nothing of it is
 left to wander unseen. A zombie the game saves with the world while its chunk is loaded comes back with the world, marks and all.

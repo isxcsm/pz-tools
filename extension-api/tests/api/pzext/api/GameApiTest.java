@@ -2649,7 +2649,7 @@ public final class GameApiTest {
                 "ItemStatsPacket.writes:weight", "FluidContainer.writes:amount", "ItemPickerJava.getActualSpawnChance",
                 "ItemPickerJava.getLootModifierFromType", "LightingJNI.getLumaInverted", "LightingJNI.calculateVisionCone",
                 "IsoTree.getSlowFactor", "IsoTree.isPlayerInsideARoom", "BREBuilding.<init>", "ZombieIdleState.execute", "WorldSoundManager.getBiggestSoundZomb",
-                "ZombiePopulationManager.removeChunkFromWorld", "ZombiePopulationManager.registerZombie", "ZombiePopulationManager.releaseZombie",
+                "ZombiePopulationManager.removeChunkFromWorld", "ZombiePopulationManager.registerZombie", "ZombiePopulationManager.releaseZombie", "ZombiePopulationManager.virtualizeZombie",
                 "IsoZombie.removeFromWorld",
                 "Thermoregulator.getCatchAColdDelta", "CorpseCount.getCorpseCount",
                 "BodyDamage.GetBaseCorpseSickness", "BodyDamage.AddRandomDamageFromZombie", "BodyPart.generateZombieInfection",
@@ -2665,7 +2665,7 @@ public final class GameApiTest {
                 "InventoryItem.*:useDelta", "DrainableComboItem.*:useDelta", "CraftRecipeData.luaCallOnCreate",
                 "InventoryItem.getName", "InventoryItem.getDisplayName", "Food.getName", "Clothing.getName", "Moveable.getName" })
             check(Hooks.APPLIED.equals(hooks.rawget(label)), label + " is " + hooks.rawget(label));
-        check(Hooks.hookStatus().size() == 126, "The hooks are " + Hooks.hookStatus().keySet());
+        check(Hooks.hookStatus().size() == 127, "The hooks are " + Hooks.hookStatus().keySet());
         check(Hooks.weightTracked(), "The hooks that follow the weight are not all in");
 
         Method transform = Hooks.class.getDeclaredMethod("transform", String.class, byte[].class, ClassLoader.class);
