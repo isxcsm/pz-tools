@@ -91,6 +91,7 @@ public final class GameApiTest {
         parents(api);
         rainKept(api);
         purify(api);
+        reserves(api);
         mainsFirst(api);
         food(api);
         FormulasTest.run(api);
@@ -2351,6 +2352,56 @@ public final class GameApiTest {
         rejects(networks, "setPurify", "water that keeps its taint is not in this game", mod, "rain", false);
         hooked.setBoolean(null, true);
         call(networks, "remove", mod, "rain");
+        frame();
+    }
+
+    /**
+     * A fixture's own water (its reserve, as the game keeps a sink's) on a producer's square is the network's too: it
+     * counts in the state, a draw or fill reaches it, and the network's other fixtures take from it. The fixture gives
+     * its own while it has some and takes the network's once that is used up. A reserve takes no tainted fill.
+     */
+    private static void reserves(KahluaTable api) throws Exception {
+        KahluaTable networks = (KahluaTable)api.rawget("networks");
+        Object mod = call(api, "client", "water.mod").get(0);
+        IsoObject shed = null;
+        var objects = square(21, 21, 0).objects;
+        for (int index = 0; index < objects.size(); index++) if (objects.get(index).sprite.name.equals("shed sink")) shed = objects.get(index);
+        var basin = place(20, 20, 0, new IsoObject(new IsoSprite("basin")));
+        basin.sprite.properties.flags.add(IsoFlagType.waterPiped);
+        basin.unmoved = true;
+        basin.reserve = basin.reserveMax = 20;
+        IsoObject tank = place(30, 44, 0, barrel(40));
+        call(networks, "define", mod, "basin", "water", "fullest");
+        call(networks, "setProducers", mod, "basin", list(at(20, 20, 0), at(30, 44, 0)));
+        call(networks, "addBuilding", mod, "basin", 20.0, 20.0, 0.0);
+        frame();
+        KahluaTable state = state(networks, "basin");
+        var own = (KahluaTable)((KahluaTable)state.rawget("producers")).rawget(1.0);
+        check(state.rawget("amount").equals(60.0) && state.rawget("capacity").equals(120.0) && own.rawget("amount").equals(20.0)
+            && own.rawget("capacity").equals(20.0) && ((KahluaTable)own.rawget("fluids")).rawget("Water").equals(20.0),
+            "A fixture's own water is not the network's: " + state.rawget("amount"));
+        // The basin gives its own; the shed takes the fullest store, the basin's (all of 20) before the barrel's.
+        check(!basin.getUsesExternalWaterSource() && basin.getFluidAmount() == 20, "The basin does not give its own water");
+        check(shed != null && shed.getUsesExternalWaterSource() && shed.getFluidAmount() == 20 && shed.useFluid(5) == 5
+            && basin.reserve == 15, "The shed does not draw from the basin's own water");
+        // Used up, the basin takes the network's.
+        check(basin.useFluid(15) == 15 && basin.reserve == 0 && basin.getUsesExternalWaterSource() && basin.getFluidAmount() == 40,
+            "An empty basin does not take the network's water");
+        var bottle = new FluidContainer(10, 0);
+        check(basin.transferFluidTo(bottle, 4) == 4 && near(tank.fluidContainer.amount, 36), "The basin's water did not come from the barrel");
+        // A fill: tainted water passes the basin by; clean water reaches it too.
+        call(networks, "fill", mod, "basin", 10.0, "TaintedWater");
+        check(basin.reserve == 0 && near(tank.fluidContainer.amount, 46), "Tainted water went into the basin: " + basin.reserve);
+        double filled = (double)call(networks, "fill", mod, "basin", 10.0, "Water").get(0);
+        check(near(filled, 10) && basin.reserve > 0 && near(basin.reserve + tank.fluidContainer.amount, 56) && !basin.getUsesExternalWaterSource(),
+            "A clean fill did not reach the basin: " + basin.reserve);
+        // A draw takes from it as from a container.
+        float before = basin.reserve;
+        call(networks, "draw", mod, "basin", 50.0);
+        check(basin.reserve < before && near(basin.reserve + tank.fluidContainer.amount, 6), "A draw did not reach the basin");
+        call(networks, "remove", mod, "basin");
+        basin.square.objects.remove(basin);
+        tank.square.objects.remove(tank);
         frame();
     }
 

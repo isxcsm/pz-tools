@@ -62,11 +62,14 @@ final class WaterGrid implements Hooks.Water {
     }
 
     /**
-     * One place a draw or fill reaches: a loaded container on a producer's square; a container the game keeps running
-     * on a square that is not loaded (a rain collector's: no object); or a producer's square that is not loaded (neither),
-     * as last seen with what it is owed. {@code tier}, how far up the chain its network is (0 the network's own).
+     * One place a draw or fill reaches: a loaded container on a producer's square; a loaded fixture's own water there
+     * ({@code reserve}: its object, no container); a container the game keeps running on a square that is not loaded (a
+     * rain collector's: no object); or a producer's square that is not loaded (neither), as last seen with what it is
+     * owed. {@code tier}, how far up the chain its network is (0 the network's own).
      */
-    private record Unit(Position at, Object object, Object container, Stored stored, int tier) { }
+    private record Unit(Position at, Object object, Object container, Stored stored, int tier, boolean reserve) {
+        Unit(Position at, Object object, Object container, Stored stored, int tier) { this(at, object, container, stored, tier, false); }
+    }
 
     private final Game game;
     private final Networks networks;
@@ -103,6 +106,11 @@ final class WaterGrid implements Hooks.Water {
     // IsoObject.hasModData, which reads an object's modData without making it; null for a game without it.
     private final Method hasModData;
     private final Field client;
+    // A fixture's own water as the game keeps it, without a fluid container (IsoObject's reserve, private): whether it
+    // is a fixture of the map that keeps some (isUnmovedPipedWaterSource), what it holds and can hold, setting it; and
+    // IsoObject.isTaintedWater, which tells its taint (asked with the networks silent).
+    private final MethodHandle unmovedOf, reserveOf, reserveMaxOf;
+    private final Method setReserve, taintedWater;
 
     WaterGrid(ClassLoader loader, Game game, Networks networks, Members members, Buildings buildings, Kahlua lua)
             throws ReflectiveOperationException {
@@ -146,6 +154,14 @@ final class WaterGrid implements Hooks.Water {
         fluidNamed = fluid.getMethod("Get", String.class);
         client = Game.type(loader, "zombie.network.GameClient").getField("client");
         waterInfinite = Game.accessible(object.getDeclaredMethod("isWaterInfinite"));
+        unmovedOf = Game.exact(Game.accessible(object.getDeclaredMethod("isUnmovedPipedWaterSource")),
+            MethodType.methodType(boolean.class, Object.class));
+        reserveOf = Game.exact(Game.accessible(object.getDeclaredMethod("getReserveWaterAmount")),
+            MethodType.methodType(float.class, Object.class));
+        reserveMaxOf = Game.exact(Game.accessible(object.getDeclaredMethod("getReserveWaterMax")),
+            MethodType.methodType(float.class, Object.class));
+        setReserve = Game.accessible(object.getDeclaredMethod("setReserveWaterAmount", float.class));
+        taintedWater = object.getMethod("isTaintedWater");
         Class<?> time = Game.type(loader, "zombie.GameTime"), sandbox = Game.type(loader, "zombie.SandboxOptions");
         gameTime = time.getMethod("getInstance");
         worldDays = time.getMethod("getWorldAgeDaysSinceBegin");
@@ -160,6 +176,77 @@ final class WaterGrid implements Hooks.Water {
 
     /** Whether the mains run, as last read (once a second). */
     boolean mainsOn() { return mains; }
+
+    // A producer's square holds water in stores: a fluid container (a rain collector's), or with none a fixture's own
+    // water as the game keeps it (a sink's, a bath's, a toilet's reserve), so that a fixture on a pipe adds its water
+    // to the pipe's. The hooks' paths read them without allocating (handles called exactly).
+
+    /** The object's fluid container when it can hold some; null otherwise, its own water then the reserve's if any. */
+    private Object storeContainer(Object object) throws Throwable {
+        Object container = (Object)containerOf.invokeExact(object);
+        return container != null && (float)capacityOf.invokeExact(container) > 0 ? container : null;
+    }
+
+    /** Whether an object without a container keeps its own water the game's way: a fixture of the map that can hold some. */
+    private boolean keepsReserve(Object object) throws Throwable {
+        return (boolean)unmovedOf.invokeExact(object) && (float)reserveMaxOf.invokeExact(object) > 0;
+    }
+
+    /** The litres an object holds of its own: its container's, else its reserve's (0 for one with neither). */
+    private float ownWater(Object object) throws Throwable {
+        Object container = storeContainer(object);
+        if (container != null) return (float)amountOf.invokeExact(container);
+        return keepsReserve(object) ? (float)reserveOf.invokeExact(object) : 0;
+    }
+
+    /** What a fixture keeps of its own water as a store, or null for an object that keeps none. */
+    private Stored reserveStored(Object object) throws ReflectiveOperationException {
+        try {
+            if (!keepsReserve(object)) return null;
+            float held = (float)reserveOf.invokeExact(object), most = (float)reserveMaxOf.invokeExact(object);
+            return new Stored(held, most, held > 0 ? Map.of(reserveFluid(object), held) : Map.of(), Long.MIN_VALUE);
+        }
+        catch (ReflectiveOperationException failure) { throw failure; }
+        catch (Throwable failure) { throw Game.thrown(failure); }
+    }
+
+    /** The fluid of a fixture's own water: tainted as the game says of it, asked with the networks silent. */
+    private String reserveFluid(Object object) throws ReflectiveOperationException {
+        boolean[] pure = PURE.get();
+        boolean was = pure[0];
+        pure[0] = true;
+        try { return (boolean)taintedWater.invoke(object) ? "TaintedWater" : "Water"; }
+        finally { pure[0] = was; }
+    }
+
+    /** The litres in a store: a container's, or with none its object's reserve. */
+    private float storeAmount(Object object, Object container) throws ReflectiveOperationException {
+        try { return container != null ? (float)amountOf.invokeExact(container) : (float)reserveOf.invokeExact(object); }
+        catch (ReflectiveOperationException failure) { throw failure; }
+        catch (Throwable failure) { throw Game.thrown(failure); }
+    }
+
+    private float storeCapacity(Object object, Object container) throws ReflectiveOperationException {
+        try { return container != null ? (float)capacityOf.invokeExact(container) : (float)reserveMaxOf.invokeExact(object); }
+        catch (ReflectiveOperationException failure) { throw failure; }
+        catch (Throwable failure) { throw Game.thrown(failure); }
+    }
+
+    /** Takes litres from a store, every fluid in proportion (a reserve holds one). */
+    private void storeRemove(Object object, Object container, float litres) throws ReflectiveOperationException {
+        if (container != null) removeFluid.invoke(container, litres);
+        else setReserve.invoke(object, Math.max(0, storeAmount(object, null) - litres));
+    }
+
+    /**
+     * Adds litres of a fluid to a store as far as it has room. A reserve takes only the fluid its fixture gives (clean
+     * water but for a fixture the game has tainted): it has no other to hold.
+     */
+    private void storeAdd(Object object, Object container, Object kind, float litres) throws ReflectiveOperationException {
+        if (container != null) { addFluid.invoke(container, kind, litres); return; }
+        if (!reserveFluid(object).equals(fluidName.invoke(kind))) return;
+        setReserve.invoke(object, Math.min(storeCapacity(object, null), storeAmount(object, null) + litres));
+    }
 
     /**
      * Gives the game's water questions to this grid. Throws a LinkageError in a game whose bootstrap has no water hooks.
@@ -253,7 +340,8 @@ final class WaterGrid implements Hooks.Water {
 
     /**
      * The network with water that supplies the fixture, for a fixture the game can pipe water to: one that added it on
-     * its own, or one whose buildings it stands in and that did not exclude it. A producer's square has no consumers.
+     * its own, or one whose buildings it stands in and that did not exclude it. On a producer's square only a fixture
+     * whose own water is used up is one.
      * The game asks about every object it shows: one that takes no pipes costs a look at its sprite, and one that no
      * rule names allocates nothing.
      */
@@ -286,7 +374,13 @@ final class WaterGrid implements Hooks.Water {
         Object square = game.squareOf(fixture);
         if (square == null) return null;
         int x = game.x(square), y = game.y(square), z = game.z(square);
-        if (current.producers().contains(x, y, z)) return null;
+        // On a producer's square only a fixture that holds no water of its own takes the network's: one with its own
+        // (its reserve is the network's too) gives that first, and is never its own source.
+        try {
+            if (current.producers().contains(x, y, z) && ownWater(fixture) > 0) return null;
+        }
+        catch (ReflectiveOperationException failure) { throw failure; }
+        catch (Throwable failure) { throw Game.thrown(failure); }
         // Read by index: an iterator would allocate.
         var rules = current.rules().naming(fixture, game, buildings);
         for (int index = 0; index < rules.size(); index++)
@@ -301,7 +395,7 @@ final class WaterGrid implements Hooks.Water {
     }
 
     /**
-     * The loaded fluid container a fixture of the supplier's network takes its water from, of those that hold some; null
+     * The loaded store (a fluid container, or a fixture's own water) a fixture of the supplier's network takes its water from, of those that hold some; null
      * for none. Under {@link #FULLEST} the fullest by share of its capacity. Under {@link #NEAREST} one at least {@link
      * #SPILL} full (the fullest such), else the fullest of the nearest network in the chain that has one holding some:
      * one pass over the containers either way. A square owed changes it has not taken yet counts as not loaded (see
@@ -314,12 +408,13 @@ final class WaterGrid implements Hooks.Water {
         try {
             long now = tick;
             Picked last = supplier.last().get();
-            if (last != null && last.tick() == now && (last.object() == null || (Object)containerOf.invokeExact(last.object()) == last.container()
-                    && (float)amountOf.invokeExact(last.container()) == last.amount() && game.squareOf(last.object()) != null))
+            if (last != null && last.tick() == now && (last.object() == null || storeContainer(last.object()) == last.container()
+                    && storeAmount(last.object(), last.container()) == last.amount() && game.squareOf(last.object()) != null))
                 return last.object();
             Object picked = pickExact(supplier, cells);
-            Object container = picked == null ? null : (Object)containerOf.invokeExact(picked);
-            supplier.last().set(new Picked(now, picked, container, container == null ? 0 : (float)amountOf.invokeExact(container)));
+            // (a fixture's own water: no container, its reserve's litres)
+            Object container = picked == null ? null : storeContainer(picked);
+            supplier.last().set(new Picked(now, picked, container, picked == null ? 0 : storeAmount(picked, container)));
             return picked;
         }
         catch (ReflectiveOperationException failure) { throw failure; }
@@ -341,15 +436,23 @@ final class WaterGrid implements Hooks.Water {
             List<?> objects = game.objectList(loaded);
             for (int each = 0; each < objects.size(); each++) {
                 Object object = objects.get(each);
-                Object container = (Object)containerOf.invokeExact(object);
-                if (container == null) continue;
-                float held = (float)amountOf.invokeExact(container), most = (float)capacityOf.invokeExact(container);
-                if (most <= 0 || held <= 0) continue;
-                // One holding a fluid the network does not take gives nothing.
-                float taken = 0;
-                Object[] takes = supplier.takes();
-                for (int fluid = 0; fluid < takes.length; fluid++) taken += (float)fluidAmountOf.invokeExact(container, takes[fluid]);
-                if (held - taken > Network.TRACE) continue;
+                Object container = storeContainer(object);
+                float held, most;
+                if (container != null) {
+                    held = (float)amountOf.invokeExact(container);
+                    most = (float)capacityOf.invokeExact(container);
+                    if (held <= 0) continue;
+                    // One holding a fluid the network does not take gives nothing.
+                    float taken = 0;
+                    Object[] takes = supplier.takes();
+                    for (int fluid = 0; fluid < takes.length; fluid++) taken += (float)fluidAmountOf.invokeExact(container, takes[fluid]);
+                    if (held - taken > Network.TRACE) continue;
+                } else if (keepsReserve(object)) {
+                    // a fixture's own water: one fluid
+                    held = (float)reserveOf.invokeExact(object);
+                    most = (float)reserveMaxOf.invokeExact(object);
+                    if (held <= 0 || !supplier.network().fluids.contains(reserveFluid(object))) continue;
+                } else continue;
                 double share = (double)held / most;
                 if (nearest && share >= SPILL && (spill == null || share > spillShare)) { spill = object; spillShare = share; }
                 // Under NEAREST a farther network's containers count only for spilling, once a nearer one has water.
@@ -453,9 +556,9 @@ final class WaterGrid implements Hooks.Water {
             Unit unit = units.get(index);
             Stored before = unit.stored();
             double taken = takes[index];
-            if (unit.container() != null) {
-                removeFluid.invoke(unit.container(), (float)taken);
-                taken = before.amount() - (float)amount.invoke(unit.container());
+            if (unit.container() != null || unit.reserve()) {
+                storeRemove(unit.object(), unit.container(), (float)taken);
+                taken = before.amount() - storeAmount(unit.object(), unit.container());
                 if (unit.object() != null) amountChanged(unit.object(), before.amount());
                 touched.add(unit.at());
             } else {
@@ -487,8 +590,11 @@ final class WaterGrid implements Hooks.Water {
         List<Unit> units = units(network, cells);
         double[] room = new double[units.size()], most = new double[units.size()];
         for (int index = 0; index < room.length; index++) {
-            most[index] = units.get(index).stored().capacity();
-            room[index] = Math.max(0, most[index] - units.get(index).stored().amount());
+            Unit unit = units.get(index);
+            most[index] = unit.stored().capacity();
+            room[index] = Math.max(0, most[index] - unit.stored().amount());
+            // a fixture's own water takes only the fluid it gives (see storeAdd)
+            if (unit.reserve() && !reserveFluid(unit.object()).equals(fluid)) room[index] = 0;
         }
         double[] gives = level(room, most, litres);
         double filled = 0;
@@ -496,10 +602,10 @@ final class WaterGrid implements Hooks.Water {
         for (int index = 0; index < gives.length; index++) {
             if (gives[index] <= 0) continue;
             Unit unit = units.get(index);
-            if (unit.container() != null) {
-                float before = (float)amount.invoke(unit.container());
-                addFluid.invoke(unit.container(), kind, (float)gives[index]);
-                float after = (float)amount.invoke(unit.container());
+            if (unit.container() != null || unit.reserve()) {
+                float before = storeAmount(unit.object(), unit.container());
+                storeAdd(unit.object(), unit.container(), kind, (float)gives[index]);
+                float after = storeAmount(unit.object(), unit.container());
                 if (after == before) continue;
                 if (unit.object() != null) amountChanged(unit.object(), before);
                 touched.add(unit.at());
@@ -607,14 +713,29 @@ final class WaterGrid implements Hooks.Water {
                     continue;
                 }
                 for (Object object : game.objectsOn(loaded)) {
-                    Stored stored = contents(fluidContainer.invoke(object));
+                    Object container = containerIn(object);
+                    Stored stored = container != null ? contents(container) : reserveStored(object);
                     if (stored != null && !network.foreign(stored.fluids()))
-                        result.add(new Unit(at, object, fluidContainer.invoke(object), stored, tier));
+                        result.add(new Unit(at, object, container, stored, tier, container == null));
                 }
             }
             tier++;
         }
         return result;
+    }
+
+    /** The object's store container (see storeContainer), off the hooks' paths. */
+    private Object containerIn(Object object) throws ReflectiveOperationException {
+        try { return storeContainer(object); }
+        catch (ReflectiveOperationException failure) { throw failure; }
+        catch (Throwable failure) { throw Game.thrown(failure); }
+    }
+
+    /** Whether an object on a producer's square holds water for it: a container that can hold some, or a fixture's own. */
+    private boolean isStore(Object object) throws ReflectiveOperationException {
+        try { return storeContainer(object) != null || keepsReserve(object); }
+        catch (ReflectiveOperationException failure) { throw failure; }
+        catch (Throwable failure) { throw Game.thrown(failure); }
     }
 
     /**
@@ -650,31 +771,37 @@ final class WaterGrid implements Hooks.Water {
         var objects = new ArrayList<Object>();
         var containers = new ArrayList<Object>();
         for (Object object : game.objectsOn(loaded)) {
-            Object container = fluidContainer.invoke(object);
-            if (container != null && (float)capacity.invoke(container) > 0) { objects.add(object); containers.add(container); }
+            if (!isStore(object)) continue;
+            objects.add(object);
+            containers.add(containerIn(object));
         }
         apply(at, objects, containers);
     }
 
     /**
-     * What is owed to a square, into its containers: those of {@code objects}, which record what they took, or with
-     * {@code objects} null those the game keeps running while the square is not loaded, which have no object to record
-     * it on or to tell of the change.
+     * What is owed to a square, into its stores: those of {@code objects} (each its container in {@code kept}, null for
+     * a fixture's own water), which record what they took, or with {@code objects} null the containers the game keeps
+     * running while the square is not loaded, which have no object to record it on or to tell of the change. A fixture's
+     * own water takes no fill of another fluid than it gives.
      */
     private void apply(Position at, List<Object> objects, List<Object> kept) throws ReflectiveOperationException {
+        var owners = new ArrayList<Object>();
         var containers = new ArrayList<Object>();
-        for (Object container : kept) if ((float)capacity.invoke(container) > 0) containers.add(container);
+        for (int index = 0; index < kept.size(); index++) {
+            Object object = objects == null ? null : objects.get(index), container = kept.get(index);
+            if (storeCapacity(object, container) > 0) { owners.add(object); containers.add(container); }
+        }
         List<Delta> owed = pending.at(at);
         if (containers.isEmpty()) {
-            System.err.println("[PZExt] networks: " + at + " has no fluid container; " + owed.size() + " change(s) owed to it dropped");
+            System.err.println("[PZExt] networks: " + at + " has no fluid store; " + owed.size() + " change(s) owed to it dropped");
             pending.remove(at);
             return;
         }
         long applied = Long.MIN_VALUE;
-        if (objects != null) for (Object object : objects) applied = Math.max(applied, taken(object));
+        if (objects != null) for (Object object : owners) applied = Math.max(applied, taken(object));
         float[] before = new float[containers.size()];
         double[] held = new double[containers.size()], most = new double[containers.size()];
-        for (int index = 0; index < before.length; index++) before[index] = (float)amount.invoke(containers.get(index));
+        for (int index = 0; index < before.length; index++) before[index] = storeAmount(owners.get(index), containers.get(index));
         long last = applied;
         for (Delta delta : owed) {
             if (delta.sequence() <= applied) continue;
@@ -685,20 +812,22 @@ final class WaterGrid implements Hooks.Water {
                 continue;
             }
             for (int index = 0; index < held.length; index++) {
-                most[index] = (float)capacity.invoke(containers.get(index));
-                float now = (float)amount.invoke(containers.get(index));
+                Object owner = owners.get(index), container = containers.get(index);
+                most[index] = storeCapacity(owner, container);
+                float now = storeAmount(owner, container);
                 held[index] = delta.litres() < 0 ? now : Math.max(0, most[index] - now);
+                if (delta.litres() > 0 && container == null && !reserveFluid(owner).equals(delta.fluid())) held[index] = 0;
             }
             double[] parts = level(held, most, Math.abs(delta.litres()));
             for (int index = 0; index < parts.length; index++) {
                 if (parts[index] <= 0) continue;
-                if (delta.litres() < 0) removeFluid.invoke(containers.get(index), (float)parts[index]);
-                else addFluid.invoke(containers.get(index), kind, (float)parts[index]);
+                if (delta.litres() < 0) storeRemove(owners.get(index), containers.get(index), (float)parts[index]);
+                else storeAdd(owners.get(index), containers.get(index), kind, (float)parts[index]);
             }
         }
-        if (objects != null && last != applied) for (Object object : objects) lua.set(modData.invoke(object), APPLIED, (double)last);
+        if (objects != null && last != applied) for (Object object : owners) lua.set(modData.invoke(object), APPLIED, (double)last);
         for (int index = 0; objects != null && index < before.length; index++)
-            if ((float)amount.invoke(containers.get(index)) != before[index]) amountChanged(objects.get(index), before[index]);
+            if (storeAmount(owners.get(index), containers.get(index)) != before[index]) amountChanged(owners.get(index), before[index]);
         pending.remove(at);
     }
 
@@ -739,13 +868,14 @@ final class WaterGrid implements Hooks.Water {
         return new Stored(held, most, Map.copyOf(fluids), Long.MIN_VALUE);
     }
 
-    /** What the containers on a loaded square hold together, and the last change owed to the square that they took. */
+    /** What the stores on a loaded square (containers, fixtures' own water) hold together, and the last change owed to the square that they took. */
     private Stored held(Object loaded) throws ReflectiveOperationException {
         float held = 0, most = 0;
         long taken = Long.MIN_VALUE;
         var fluids = new HashMap<String, Float>();
         for (Object object : game.objectsOn(loaded)) {
-            Stored stored = contents(fluidContainer.invoke(object));
+            Object container = containerIn(object);
+            Stored stored = container != null ? contents(container) : reserveStored(object);
             if (stored == null) continue;
             held += stored.amount();
             most += stored.capacity();

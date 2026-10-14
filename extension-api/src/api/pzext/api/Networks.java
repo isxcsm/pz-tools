@@ -533,6 +533,9 @@ final class Networks {
                 if (stored != null) {
                     lua.set(entry, "amount", (double)stored.amount());
                     lua.set(entry, "capacity", (double)stored.capacity());
+                    Object fluids = lua.table();
+                    for (var fluid : stored.fluids().entrySet()) lua.set(fluids, fluid.getKey(), (double)fluid.getValue());
+                    lua.set(entry, "fluids", fluids);
                     if (network.foreign(stored.fluids())) lua.set(entry, "foreign", true);
                     else {
                         held += stored.amount();

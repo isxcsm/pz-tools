@@ -17,7 +17,8 @@ import zombie.iso.sprite.IsoSpriteInstance;
 
 /**
  * Synthetic: what the game says about an object's power use comes from the object. Its water questions branch on
- * {@code usesExternalWaterSource} as the game's do: a piped fixture answers with its source's water.
+ * {@code usesExternalWaterSource} as the game's do: a piped fixture answers with its source's water. A fixture of the
+ * map ({@code unmoved}) without a container keeps water of its own, its reserve, as the game's sinks do.
  */
 public class IsoObject {
     public IsoSprite sprite;
@@ -34,6 +35,9 @@ public class IsoObject {
     /** A piped fixture in a room the game's mains reach (its sprite, room and zone checks in one): a test sets it. */
     public boolean mainsPiped;
     public FluidContainer fluidContainer;
+    /** A fixture of the map, its reserve (litres, and most), and whether the game has its water tainted (its sprite). */
+    public boolean unmoved, taintedFlag;
+    public float reserve, reserveMax;
     public KahluaTable modData;
     /** The animations attached to the object, drawn over it; null for none. */
     public ArrayList<IsoSpriteInstance> attachedAnimSprite;
@@ -90,13 +94,24 @@ public class IsoObject {
         return externalWaterSource;
     }
 
+    // The game's reserve, private as there.
+    private boolean isUnmovedPipedWaterSource() { return unmoved; }
+    private float getReserveWaterAmount() { return reserve; }
+    private float getReserveWaterMax() { return reserveMax; }
+    private void setReserveWaterAmount(float litres) { reserve = Math.max(0, Math.min(litres, reserveMax)); }
+
+    /** Like the game's: its container while that holds some, else its reserve. */
+    private boolean ownContainer() { return fluidContainer != null && fluidContainer.getAmount() > 0; }
+
     public float getFluidAmount() {
         if (isWaterInfinite()) return 10000;
         if (usesExternalWaterSource) {
             IsoObject source = checkExternalFluidSource();
             return source == null ? 0 : source.getFluidAmount();
         }
-        return fluidContainer == null ? 0 : fluidContainer.getAmount();
+        if (ownContainer()) return fluidContainer.getAmount();
+        if (isUnmovedPipedWaterSource()) return getReserveWaterAmount();
+        return 0;
     }
 
     public float getFluidCapacity() {
@@ -104,7 +119,8 @@ public class IsoObject {
             IsoObject source = checkExternalFluidSource();
             return source == null ? 0 : source.getFluidCapacity();
         }
-        return fluidContainer == null ? 0 : fluidContainer.getCapacity();
+        if (fluidContainer != null) return fluidContainer.getCapacity();
+        return isUnmovedPipedWaterSource() ? getReserveWaterMax() : 0;
     }
 
     public float useFluid(float amount) {
@@ -112,22 +128,37 @@ public class IsoObject {
             IsoObject source = checkExternalFluidSource();
             return source == null ? 0 : source.useFluid(amount);
         }
-        if (fluidContainer == null) return 0;
-        float used = Math.min(amount, fluidContainer.getAmount());
-        fluidContainer.removeFluid(used);
+        if (ownContainer()) {
+            float used = Math.min(amount, fluidContainer.getAmount());
+            fluidContainer.removeFluid(used);
+            return used;
+        }
+        if (!isUnmovedPipedWaterSource()) return 0;
+        float used = Math.min(amount, getReserveWaterAmount());
+        setReserveWaterAmount(getReserveWaterAmount() - used);
         return used;
     }
 
-    /** Like the game's: a piped fixture's water comes through a sample of its source, purified. */
+    /**
+     * Like the game's: a piped fixture's water comes through a sample of its source, purified; from a source without a
+     * container, as that source gives it. A fixture's reserve gives its own water.
+     */
     public float transferFluidTo(FluidContainer target, float amount) {
         if (isWaterInfinite()) {
             float used = Math.max(0, Math.min(amount, target.getFreeCapacity()));
             target.addFluid(Fluid.Water, used);
             return used;
         }
-        if (!usesExternalWaterSource) return 0;
+        if (!usesExternalWaterSource) {
+            if (ownContainer() || !isUnmovedPipedWaterSource()) return 0;
+            float used = Math.max(0, Math.min(amount, Math.min(target.getFreeCapacity(), getReserveWaterAmount())));
+            target.addFluid(taintedFlag ? Fluid.TaintedWater : Fluid.Water, used);
+            setReserveWaterAmount(getReserveWaterAmount() - used);
+            return used;
+        }
         IsoObject source = checkExternalFluidSource();
-        if (source == null || source.fluidContainer == null) return 0;
+        if (source == null) return 0;
+        if (source.fluidContainer == null) return source.transferFluidTo(target, amount);
         float used = Math.max(0, Math.min(amount, Math.min(target.getFreeCapacity(), source.getFluidAmount())));
         FluidContainer sample = createSampleAndPurifyWater(source.fluidContainer, used);
         FluidSample fluids = sample.createFluidSample();
@@ -158,7 +189,8 @@ public class IsoObject {
             if (source.fluidContainer != null && source.fluidContainer.getAmount() > 0) return false;
             return source.isTaintedWater();
         }
-        return fluidContainer != null && fluidContainer.isTainted();
+        if (ownContainer()) return fluidContainer.isTainted();
+        return isUnmovedPipedWaterSource() && taintedFlag;
     }
 
     /** The containers the object holds (shelves, a counter's drawers), in the order the game lists them. */
