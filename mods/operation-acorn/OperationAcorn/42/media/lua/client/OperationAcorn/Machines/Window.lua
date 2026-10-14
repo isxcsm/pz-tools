@@ -51,10 +51,8 @@ function OAMachineWindow.within(px, py, x, y, w, h, reach)
 end
 
 -- While the character walks to the machine and puts a part in or takes one out, the window (in the middle of the
--- screen, over the character) steps aside: its body thins to this much, so the action shows through it, until it is
--- done. FADE_MS: the time a full change takes.
-OAMachineWindow.ASIDE = 0.15
-OAMachineWindow.FADE_MS = 200
+-- screen, over the character) steps aside (the kit's UI.aside: it thins, so the action shows through it, until it is
+-- done).
 
 -- The most of the screen's height the window takes; a wheel step of a body that scrolls, and its bar's width.
 OAMachineWindow.SCREEN_SHARE = 0.9
@@ -101,15 +99,14 @@ function OAMachineBody:setScroll(v)
 end
 
 function OAMachineBody:prerender()
-    local fade = self.window.fade
-    if self.scroll == 0 and self:maxScroll() == 0 then return Draw.paint(self, self.list, 0, fade) end
+    if self.scroll == 0 and self:maxScroll() == 0 then return Draw.paint(self, self.list, 0) end
     self:setStencilRect(0, 0, self.width, self.height)
-    Draw.paint(self, self.list, -UI.px(self.scroll), fade)
+    Draw.paint(self, self.list, -UI.px(self.scroll))
     UI.unclip(self, 0, 0, self.width, self.height)
     -- where the part on show is: a thin bar on the right
     local p, h = self.window.palette, self.height
     local ty, th = UI.thumb(h, self.contentH, self.scroll, self:maxScroll(), 16)
-    UI.fill(self, self.width - OAMachineWindow.BAR - 1, ty, OAMachineWindow.BAR, th, p.border, 0.9 * fade)
+    UI.fill(self, self.width - OAMachineWindow.BAR - 1, ty, OAMachineWindow.BAR, th, p.border, 0.9)
 end
 
 function OAMachineBody:render()
@@ -256,25 +253,14 @@ function OAMachineWindow:update()
         self:refresh()
         self:askWork(now)
     end
-    self:stepAside(now)
-end
-
--- The window thins while its action is queued or under way (OAMachineWindow.ASIDE) and comes back after it (done or
--- cancelled), whatever the mouse does meanwhile; not while a part is being picked.
-function OAMachineWindow:stepAside(now)
-    if self.busy and not ISTimedActionQueue.hasAction(self.busy) then self.busy = nil end
-    local want = (self.busy and not self.picker) and OAMachineWindow.ASIDE or 1
-    local last = self.fadeAt or now
-    self.fadeAt = now
-    if self.fade == want then return end
-    local step = (now - last) / OAMachineWindow.FADE_MS
-    if self.fade < want then self.fade = math.min(want, self.fade + step) else self.fade = math.max(want, self.fade - step) end
+    -- aside while its action is queued or under way, whatever the mouse does meanwhile; not while a part is picked
+    UI.stepAside(self, self.picker ~= nil)
 end
 
 function OAMachineWindow:prerender()
     local p = self.palette
     local th = self:titleBarHeight()
-    UI.fill(self, 0, th, self.width, self.height - th, p.bg, p.bgAlpha * self.fade)
+    UI.fill(self, 0, th, self.width, self.height - th, p.bg, p.bgAlpha)
     UI.fill(self, 0, 0, self.width, th, p.title)
     UI.windowTitle(self, self.title, p.text)
     UI.fill(self, 0, th - 1, self.width, 1, p.border)
@@ -293,7 +279,7 @@ function OAMachineWindow:render()
             UI.fill(self, 0, th, self.width, self.height - th, { 0, 0, 0 }, 1 - t)
         end
     end
-    UI.frame(self, 0, 0, self.width, self.height, self.palette.border, self.fade)
+    UI.frame(self, 0, 0, self.width, self.height, self.palette.border)
 end
 
 function OAMachineWindow:close()
@@ -419,15 +405,15 @@ function OAMachineWindow:doInstall(slot, item)
     local square = Machines.nearSquare(self.object, self.character)
     if not square then return end
     ISInventoryPaneContextMenu.transferIfNeeded(self.character, item)
-    self.busy = queueAt(self.character, square,
-        ISOAMachinePartIn:new(self.character, self.machineId, square:getX(), square:getY(), square:getZ(), slot, item))
+    UI.aside(self, queueAt(self.character, square,
+        ISOAMachinePartIn:new(self.character, self.machineId, square:getX(), square:getY(), square:getZ(), slot, item)))
 end
 
 function OAMachineWindow:doRemove(slot)
     local square = Machines.nearSquare(self.object, self.character)
     if not square then return end
-    self.busy = queueAt(self.character, square,
-        ISOAMachinePartOut:new(self.character, self.machineId, square:getX(), square:getY(), square:getZ(), slot))
+    UI.aside(self, queueAt(self.character, square,
+        ISOAMachinePartOut:new(self.character, self.machineId, square:getX(), square:getY(), square:getZ(), slot)))
 end
 
 -- Opening ---------------------------------------------------------------------------------------------------------------
@@ -450,7 +436,6 @@ function OAMachineWindow:new(x, y, character, object)
     o.title = Machines.name(state.kind)
     o:setResizable(false)
     o.fading = true
-    o.fade = 1
     return o
 end
 

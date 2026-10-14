@@ -83,6 +83,7 @@ function Costs.reverseEngineer() return { tools = { "screwdriver" }, items = {} 
 
 -- A new pipe put in at the box (BU.Water): a pipe wrench and two pipes.
 function Costs.addPipe() return { tools = { "pipewrench" }, items = { { Costs.PIPE, 2 } } } end
+function Costs.removePipe() return { tools = { "pipewrench" }, items = {} } end
 
 -- Costs together, as one: each tool once, the items summed by type, the highest skill.
 function Costs.sum(costs)

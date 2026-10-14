@@ -806,20 +806,27 @@ test("the window steps aside while its part action is under way, whatever the mo
     Machines.nearSquare = function()
         return { getX = function() return 1 end, getY = function() return 1 end, getZ = function() return 0 end }
     end
-    local _, window = openWindow(16)
+    local UI, window = openWindow(16)
     window.isMouseOver = function() return true end
     _G.ISOAMachinePartOut = { new = function() return {} end }
-    local function frames(n) for _ = 1, n do now = now + 100; window:stepAside(now) end end
+    -- the frames between: the window's update, the kit's fade steps
+    local function frames(n)
+        for _ = 1, n do
+            now = now + 100
+            window:update()
+            UI.liveFrame()
+        end
+    end
     window:doRemove("blade")
     frames(5)
-    eq(window.fade, OAMachineWindow.ASIDE, "thin, though the mouse rests on the button it pressed")
+    eq(UI.faded(window, 1), UI.ASIDE, "thin, though the mouse rests on the button it pressed")
     mx = 140
     frames(3)
-    eq(window.fade, OAMachineWindow.ASIDE, "still thin under a moving mouse")
+    eq(UI.faded(window, 1), UI.ASIDE, "still thin under a moving mouse")
     queued = {}
     frames(5)
-    eq(window.fade, 1, "back when the action is done")
-    eq(window.busy, nil)
+    eq(UI.faded(window, 1), 1, "back when the action is done")
+    eq(window.uiBusy, nil)
     _G.getMouseX, _G.getMouseY, _G.ISTimedActionQueue, _G.luautils, Machines.nearSquare =
         saved[1], saved[2], saved[3], saved[4], saved[5]
 end)

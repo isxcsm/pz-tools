@@ -628,12 +628,13 @@ local function pipeName(name)
     return name ~= "" and name or nil
 end
 
--- A new pipe, the first colour not in use; nil with all in use.
-function Changes.addPipe(panel)
+-- A new pipe, the first colour not in use; nil with all in use. paid: what it took (Costs.take), a share of which
+-- comes back as it is taken out (ISBURemovePipe).
+function Changes.addPipe(panel, paid)
     local id = Water.nextPipe(panel)
     if not id then return nil end
     local pipes = panel.water.pipes
-    pipes[#pipes + 1] = { id = id }
+    pipes[#pipes + 1] = { id = id, paid = paid }
     table.sort(pipes, function(a, b) return a.id < b.id end)
     Sync.changed(panel.id)
     return id

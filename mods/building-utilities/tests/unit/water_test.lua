@@ -216,6 +216,13 @@ test("a pipe put in, a room and a tank put on it, then taken away: all back on t
     eq(Water.nextPipe(panel), 2)
 end)
 
+test("a pipe keeps what it took, for the refund as it is taken out", function()
+    local panel = scene(1)
+    local pipe = Changes.addPipe(panel, { ["Base.Pipe"] = 2 })
+    eq(Water.pipe(panel, pipe).paid["Base.Pipe"], 2)
+    eq(Water.pipe(panel, Changes.addPipe(panel)).paid, nil, "put in free (a scene): nothing back")
+end)
+
 test("a fixture on its own pipe: excluded from its room's use network, included in its pipe's", function()
     local panel, nets, tank = scene(1)
     tankAt(panel, tank, 101, 101, 0, 100)

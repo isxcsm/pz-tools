@@ -150,22 +150,33 @@ function ISBUPanelWindow:pipeSettingsMenu(id)
     end
 end
 
--- A click on a pipe's card or the row putting one in: the new pipe is laid at the box, a pipe wrench in hand.
+-- A click on a pipe's card or the row putting one in: a pipe is put in or taken out at the box, a pipe wrench in hand
+-- (ISBUPanelWindow:work); taken out once the player says yes, saying where what is on it goes.
 function ISBUPanelWindow:onPipeRow(row, x, width)
     if row.kind == "addPipe" then
         if not Costs.affords(self.playerObj, Costs.addPipe()) then
             return HaloTextHelper.addBadText(self.playerObj, getText("IGUI_BU_Reason_cantAfford"))
         end
-        local panel = self.panel
-        return BU.ContextMenu.queueAt(self.playerObj, panel.x, panel.y, panel.z, ISBUAddPipe:new(self.playerObj, panel))
+        return self:work(ISBUAddPipe:new(self.playerObj, self.panel))
     end
     for _, button in ipairs(Ui.pipeButtons(width, row)) do
         if x >= button.x and x <= button.x + button.w then
             if button.name == "Settings" then return self:pipeSettingsMenu(row.pipe) end
             if button.name == "Rename" then return self:askPipeName(row.pipe) end
-            return Sync.send(self.playerObj, "removePipe", { panel = self.panel.id, pipe = row.pipe })
+            return self:askRemovePipe(row.pipe)
         end
     end
+end
+
+function ISBUPanelWindow:askRemovePipe(id)
+    local panel = self.panel
+    if not Costs.affords(self.playerObj, Costs.removePipe()) then
+        return HaloTextHelper.addBadText(self.playerObj, getText("IGUI_BU_Reason_cantAfford"))
+    end
+    UI.confirm(self.playerObj, getText("IGUI_BU_RemovePipeConfirm", Water.pipeName(panel, id),
+        Water.pipeName(panel, Water.FIRST)), self, function(window)
+        window:work(ISBURemovePipe:new(window.playerObj, window.panel, id))
+    end)
 end
 
 -- A tank's pipe chip.

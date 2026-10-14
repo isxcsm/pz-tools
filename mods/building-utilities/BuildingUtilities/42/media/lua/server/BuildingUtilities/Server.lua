@@ -58,10 +58,9 @@ end
 function commands.rename(player, panel, args) Changes.rename(panel, args.name) end
 
 
--- Pipes: by their ids, checked by Changes; a fixture only while the panel connects it. A new pipe is a timed action
--- (ISBUAddPipe), not a command.
+-- Pipes: by their ids, checked by Changes; a fixture only while the panel connects it. A pipe put in
+-- or taken out is a timed action (ISBUAddPipe, ISBURemovePipe), not a command.
 function commands.renamePipe(player, panel, args) Changes.renamePipe(panel, tonumber(args.pipe), args.name) end
-function commands.removePipe(player, panel, args) Changes.removePipe(panel, tonumber(args.pipe)) end
 
 function commands.setPipeReserve(player, panel, args)
     Changes.setPipeReserve(panel, tonumber(args.pipe), tonumber(args.percent))
@@ -113,7 +112,7 @@ end
 
 -- The feature a command needs on (BU.enabled), besides its utility's; one of a feature that is off is ignored, as
 -- the window no longer offers it.
-local NEEDS = { setSchedule = "power", renamePipe = "water", removePipe = "water", setPipeReserve = "water",
+local NEEDS = { setSchedule = "power", renamePipe = "water", setPipeReserve = "water",
     setRoomPipe = "water", setProducerPipe = "water", setDevicePipe = "water", setUnitPipes = "water" }
 
 local function onClientCommand(module, command, player, args)

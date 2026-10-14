@@ -991,6 +991,7 @@
     "IGUI_BU_PipeCrossingTip": "Its water crosses to the other buildings no higher than %1.",
     "IGUI_BU_AddPipe": "+ Add a pipe",
     "IGUI_BU_AddPipeTip": "Lays a new pipe, %1, at the panel. Water on one pipe does not mix with another's: raw water and filtered water, say. Put a room, a fixture or water storage on it with the colour button on its row.",
+    "IGUI_BU_RemovePipeConfirm": "Take out the pipe %1? Its tanks, units, rooms and fixtures go onto %2.",
     "IGUI_BU_PipeNamePrompt": "Name of this pipe (empty for its colour):",
     "IGUI_BU_PipeOfRoom": "The room's pipe",
     "IGUI_BU_PipeChipTip": "The pipe it is on. Click to change.",

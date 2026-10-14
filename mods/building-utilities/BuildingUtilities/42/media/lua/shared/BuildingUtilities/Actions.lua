@@ -246,14 +246,43 @@ end
 function ISBUAddPipe:complete()
     local panel = Store.get(self.panelId)
     if not panel or not BU.Water.nextPipe(panel) or not Costs.affords(self.character, Costs.addPipe()) then return false end
-    Costs.take(self.character, Costs.addPipe())
-    Changes.addPipe(panel)
+    Changes.addPipe(panel, Costs.take(self.character, Costs.addPipe()))
     return true
 end
 
 function ISBUAddPipe:new(character, panel)
     local o = ISBaseTimedAction.new(self, character)
     o.panelId, o.x, o.y = panel.id, panel.x, panel.y
+    o.maxTime = o:getDuration()
+    return o
+end
+
+-- A pipe taken out at the box, a pipe wrench in hand: what was on it goes on the first (Changes.removePipe), and the
+-- sandbox's share of the pipes it took comes back (as a line's, Costs.refund).
+ISBURemovePipe = base("ISBURemovePipe", 200)
+
+function ISBURemovePipe:isValid()
+    local panel = Store.get(self.panelId)
+    return panel ~= nil and self.pipe ~= BU.Water.FIRST and BU.Water.pipe(panel, self.pipe) ~= nil
+end
+
+function ISBURemovePipe:start()
+    Actions.work(self, "water")
+end
+
+function ISBURemovePipe:complete()
+    local panel = Store.get(self.panelId)
+    local pipe = panel and BU.Water.pipe(panel, self.pipe)
+    if not pipe or self.pipe == BU.Water.FIRST or not Costs.affords(self.character, Costs.removePipe()) then return false end
+    local paid = pipe.paid
+    Changes.removePipe(panel, self.pipe)
+    Costs.refund(self.character, paid)
+    return true
+end
+
+function ISBURemovePipe:new(character, panel, pipe)
+    local o = ISBaseTimedAction.new(self, character)
+    o.panelId, o.pipe, o.x, o.y = panel.id, pipe, panel.x, panel.y
     o.maxTime = o:getDuration()
     return o
 end

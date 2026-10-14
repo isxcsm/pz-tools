@@ -1,4 +1,5 @@
--- The shared UI kit's fading of a window in and out (PZUIKit UI.fadeIn, UI.fadeOut): what it and its children draw is
+-- The shared UI kit's fading of a window in and out (PZUIKit UI.fadeIn, UI.fadeOut) and thinning it while the character
+-- works behind it (UI.fadeTo, UI.aside): what it and its children draw is
 -- scaled by the fade while it lasts and drawn as ever after; going, it takes no clicks, does nothing each frame and is
 -- taken away at the end.
 require "OperationAcorn/Core"
@@ -142,4 +143,61 @@ test("a game text box in a fading window has its text colour faded, and whole ag
     now = 1100
     UI.liveFrame()
     eq(box.textAlpha, 1, "whole again")
+end)
+
+test("a window thinned (UI.fadeTo) stays so, taking clicks, until it is brought back whole", function()
+    local UI = load()
+    local window = element(nil)
+    local child = element(window)
+    UI.fadeTo(window, 0.2, 100)
+    truthy(math.abs(window.uiFading.ms - 80) < 1e-6, "the share of the full change it goes")
+    now = 1080
+    UI.liveFrame()
+    UI.liveFrame()
+    eq(window.uiFading, nil, "settled")
+    child:drawRect(0, 0, 1, 1, 0.5)
+    eq(child.drawn, 0.1, "drawn thin, held")
+    child:onMouseDown()
+    eq(child.clicks, 1, "it takes clicks")
+    UI.fadeTo(window, 1, 100)
+    now = 1160
+    UI.liveFrame()
+    child:drawRect(0, 0, 1, 1, 0.5)
+    eq(child.drawn, 0.5, "whole again")
+    local own = false
+    for key in pairs(child) do if key == "drawRect" then own = true end end
+    eq(own, false, "its wrappers gone")
+end)
+
+test("a window closed while thinned goes from how thin it was", function()
+    local UI = load()
+    local window = element(nil)
+    UI.fadeTo(window, 0.2, 100)
+    now = 1080
+    UI.liveFrame()
+    UI.liveFrame()
+    UI.fadeOut(window, nil, 100)
+    truthy(math.abs(window.uiFading.ms - 20) < 1e-6, "its share of the fade-out")
+    eq(window.uiFading.from, 0.2)
+end)
+
+test("a window steps aside while the action it queued is on, not while held, and is whole after it", function()
+    local UI = load()
+    local queued = {}
+    ISTimedActionQueue = { hasAction = function(a) return queued[a] == true end }
+    local window = element(nil)
+    local action = {}
+    UI.aside(window, action)
+    eq(window.uiAside, nil, "an action not queued: nothing")
+    queued[action] = true
+    UI.aside(window, action)
+    eq(window.uiFading.to, UI.ASIDE, "thinning")
+    UI.stepAside(window, true)
+    eq(window.uiFading.to, 1, "held: whole meanwhile")
+    UI.stepAside(window)
+    eq(window.uiFading.to, UI.ASIDE, "aside again")
+    queued[action] = nil
+    UI.stepAside(window)
+    eq(window.uiFading.to, 1, "the action done: whole")
+    eq(window.uiBusy, nil)
 end)

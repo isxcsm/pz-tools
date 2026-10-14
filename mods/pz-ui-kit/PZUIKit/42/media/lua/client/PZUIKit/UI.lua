@@ -1194,7 +1194,8 @@ end
 -- breaking up). While it fades, each element in it draws through wrappers of
 -- its draws, instance fields over its class's that scale their alpha by the window's uiFade; they go once it is whole
 -- again, so a window that is not fading draws as ever at no cost. Going, it takes no clicks and its elements do
--- nothing each frame (update); it is taken away at the end.
+-- nothing each frame (update); it is taken away at the end. A window can also be thinned and kept so (UI.fadeTo: while
+-- the character works behind it), its draws wrapped until it is whole again.
 UI.FADE_IN_MS, UI.FADE_OUT_MS = 300, 240
 
 -- What a going window's elements stop doing.
@@ -1273,6 +1274,16 @@ local function fadeStep(root, now)
     local fade = root.uiFading
     if not fade then return nil end
     local t = fade.ms > 0 and (now - fade.at) / fade.ms or 1
+    -- Thinned and kept so: once more drawn at the end, then left wrapped as it is.
+    if t >= 1 and fade.hold then
+        if root.uiFade == fade.to then
+            root.uiFading, root.uiFadeKey = nil, nil
+            return nil
+        end
+        root.uiFade, root.uiFadeKey = fade.to, 100
+        fadeTextBoxes(root, fade.to)
+        return root.uiFadeKey
+    end
     if t >= 1 then
         root.uiFading, root.uiFadeKey = nil, nil
         if fade.done then
@@ -1303,12 +1314,46 @@ function UI.fadeIn(el, ms)
     UI.live(el, fadeStep)
 end
 
+-- Thins a window to `to` (0 to 1) over the fade-in's time (a part of it for a shorter way) and keeps it there, still
+-- taking clicks; brought back to 1 it draws as ever again. Nothing while it goes.
+function UI.fadeTo(el, to, ms)
+    local fading = el.uiFading
+    if el.uiGone or fading and fading.done then return end
+    local from = el.uiFade or 1
+    if from == to and not fading then return end
+    el.uiFade = from
+    el.uiFading = { at = getTimestampMs(), ms = (ms or UI.FADE_IN_MS) * math.abs(to - from), from = from, to = to,
+        hold = to < 1 }
+    el.uiFadeKey = 0
+    wrap(el, el, false)
+    UI.live(el, fadeStep)
+end
+
+-- A window over the character while they work for it (a timed action it queued): it thins to UI.ASIDE so that the work
+-- and its progress bar show through it, and is whole again once the action is done or dropped, each change over
+-- UI.ASIDE_MS. UI.aside(el, action) as the window queues it (nothing when it was not queued); UI.stepAside(el, hold)
+-- from its update (hold: whole meanwhile, as while a picker of its is open).
+UI.ASIDE, UI.ASIDE_MS = 0.15, 200
+
+function UI.stepAside(el, hold)
+    if el.uiBusy and not ISTimedActionQueue.hasAction(el.uiBusy) then el.uiBusy = nil end
+    local aside = el.uiBusy ~= nil and not hold
+    if aside == (el.uiAside == true) then return end
+    el.uiAside = aside
+    UI.fadeTo(el, aside and UI.ASIDE or 1, UI.ASIDE_MS)
+end
+
+function UI.aside(el, action)
+    if action and ISTimedActionQueue.hasAction(action) then el.uiBusy = action end
+    UI.stepAside(el)
+end
+
 -- Fades a window out and then takes it away (`done`, by default hidden and out of the UI manager); from where it
--- is when it was still fading in. Once: again while it goes, or once it is gone, nothing.
+-- is when it was still fading in or held thinned (UI.fadeTo). Once: again while it goes, or once it is gone, nothing.
 function UI.fadeOut(el, done, ms)
     local fading = el.uiFading
     if el.uiGone or fading and fading.done then return end
-    local from = fading and el.uiFade or 1
+    local from = el.uiFade or 1
     el.uiFade = from
     el.uiFading = { at = getTimestampMs(), ms = (ms or UI.FADE_OUT_MS) * from, from = from, to = 0,
         done = done or function(window)

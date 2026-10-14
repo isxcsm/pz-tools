@@ -866,6 +866,7 @@ function ISBUPanelWindow:update()
         self:close()
         return
     end
+    UI.stepAside(self)
     local now = getTimestampMs()
     if self.changedAt and now - self.changedAt >= SETTLE_MS or now - (self.refreshedAt or 0) > Ui.FULL_MS then
         self:refresh()
@@ -1686,8 +1687,16 @@ function ISBUPanelWindow:onLever()
 end
 
 function ISBUPanelWindow:onUpgrade()
+    self:work(ISBUUpgradePanel:new(self.playerObj, self.panel))
+end
+
+-- Work at the box asked for in the window (the upgrade, a pipe put in or taken out): the player walks there and works
+-- while the window, over them in the middle of the screen, steps aside (the kit's UI.aside), so that the work and its
+-- progress bar show through it.
+function ISBUPanelWindow:work(action)
     local panel = self.panel
-    BU.ContextMenu.queueAt(self.playerObj, panel.x, panel.y, panel.z, ISBUUpgradePanel:new(self.playerObj, panel))
+    BU.ContextMenu.queueAt(self.playerObj, panel.x, panel.y, panel.z, action)
+    UI.aside(self, action)
 end
 
 -- How far from the box it was opened at, in tiles (a floor up or down counting as TILES_PER_FLOOR), a window stays open.
