@@ -66,6 +66,7 @@ const P = {
   BLEED_SOAK: 2.2, BLEED_WET: 0.5, BLEED_STAIN: 0.2, BLEED_DRIP: 1,
   SINK_DEPTH: 0.75, SINK_SWELL: 1, SINK_MIRROR: 1,
   TYPE_JITTER: 1, TYPE_INK: 1, TYPE_FEED: 1,
+  PULSE_GLOW: 1, PULSE_BEAT: 1, PULSE_CALM: 1,
 };
 const CUTS = new Set(["style", "hold", "title", "sub", "tone", "sweep", "dustSize", "seed", "SWEEP", "JITTER", "RAGGED", "CURL", "FRONT", "SPREAD"]);
 const TONES = {
@@ -107,6 +108,9 @@ const STYLES = {
   "bleed-new": { label: "bleed: 번짐 (시안)", y: 0.28, gap: 0.3, trail: 0.2, backdrop: 0.3,
     title: { weight: 700, size: 0.085, color: [0.72, 0.08, 0.07], outline: 0.4, bleed: true, enter: "bleed", enterTime: 1.9, leave: "dry", leaveTime: 6 },
     line: { weight: 400, size: 0.04, color: [0.86, 0.8, 0.78], bleed: true, delay: 1.3, enter: "bleed", enterTime: 1.2, leave: "dry", leaveTime: 5.6 } },
+  "pulse-new": { label: "pulse: 고동 (시안)", y: 0.28, gap: 0.3, trail: 0, backdrop: 0.3,
+    title: { weight: 500, size: 0.08, color: [0.96, 0.94, 0.88], outline: 0.35, pulse: true, enter: "fade", enterTime: 0.9, leave: "exhale", leaveTime: 10.7 },
+    line: { weight: 400, size: 0.038, color: [0.84, 0.83, 0.79], pulse: true, delay: 0.6, enter: "fade", enterTime: 0.9, leave: "exhale", leaveTime: 10.7 } },
   "type-new": { label: "type: 타자 (시안)", y: 0.28, gap: 0.3, trail: 0, backdrop: 0.3,
     title: { weight: 500, size: 0.075, color: [0.92, 0.9, 0.84], outline: 0.35, typed: true, enter: "typed", enterTime: 1.3, leave: "feed", leaveTime: 5.5 },
     line: { weight: 400, size: 0.038, color: [0.8, 0.79, 0.75], typed: true, delay: 1.5, enter: "typed", enterTime: 1.6, leave: "feed", leaveTime: 5.5 } },
@@ -163,6 +167,7 @@ function leaveState(kind, o, st, leaveTime) {
     case "lost": st.a *= 1 - smooth(o); break;       // drawn by drawSignal
     case "mistin": st.a *= 1 - smooth(o); break;     // drawn by drawFog
     case "dry": st.a *= 1 - smooth(o); break;        // drawn by drawBleed
+    case "exhale": { const e = exhaled(o, leaveTime); st.a *= 1 - smooth(clamp((e - 0.05) / 0.75, 0, 1)); st.y += 0.12 * smooth(e); break; }   // drawn by drawPulse
     case "feed": st.a *= 1 - smooth(clamp((o - 0.4) / 0.6, 0, 1)); break;   // drawn by drawType
     case "under": st.a *= 1 - sunkAt(o * leaveTime, leaveTime); break;   // drawn by drawSink, fading as it sinks
   }
@@ -344,6 +349,15 @@ void main() {
   if (mode < 4.5) {                       // a soft round puff
     float m = 1.0 - smoothstep(0.0, 1.0, length(vAux.xy));
     gl_FragColor = vCol * m * m;
+    return;
+  }
+  if (mode > 14.5) {                      // a soft glow around its letters: their shape spread wide (blurR), in vCol
+    float sum = 0.0;
+    for (int i = 0; i < 24; i++) {
+      float fi = float(i), an = fi * 2.39996, rr = sqrt((fi + 0.5) / 24.0);
+      sum += texture2D(tex, vUv + vec2(cos(an), sin(an)) * rr * blurR).a;
+    }
+    gl_FragColor = vCol * (sum / 24.0);
     return;
   }
   if (mode > 13.5) {                      // sinking into still water (its surface at surf of its height; swell: how much
@@ -942,6 +956,66 @@ function drawSink(p, st) {
   mode = 0;
 }
 
+// Pulsing: it comes in on a racing heartbeat, each beat (a strong one and a weaker one after) swelling it a touch and
+// flaring a warm glow around it; the beats slow and soften as it stays, the heart calming. As it leaves it lets out a
+// breath, its heart having beaten calm and, after a pause, one last time, then stilled a while: it settles down a little and fades, its warm glow rising a touch as it goes and staying on after it, then
+// dimming away.
+// The heartbeat at time secs of the whole (the title's and its line's alike), leaving from leaveAt: how strongly it
+// beats now, 0 to about 1.
+function heartbeat(secs, leaveAt) {
+  const one = c => c <= 0 ? 0 : 1.45 * (1 - Math.exp(-c / 0.03)) * Math.exp(-c / 0.16);   // (peaking at about 1)
+  const lubDub = (k, strength) => strength * (one(k) + 0.6 * one(k - 0.2));
+  // (from about 110 beats a minute, slowing to about 55 by the time it leaves, each beat weaker than the one before;
+  // all fitted a little, a few hundredths, so that one of them comes just as it leaves; one more after it, as calm;
+  // then a stillness and one last beat)
+  const times = [];
+  const next = at => at + 0.55 + 0.55 * P.PULSE_CALM * clamp(at / Math.max(leaveAt, 1), 0, 1);
+  for (let at = 0.15; times.length < 64; at = next(at)) {
+    times.push(at);
+    if (next(at) > leaveAt) { if (next(at) - leaveAt < leaveAt - at) times.push(next(at)); break; }
+  }
+  const stretch = leaveAt / times[times.length - 1];
+  let beat = 0;
+  for (const t0 of times) {
+    const at = t0 * stretch;
+    if (at > secs) break;
+    beat = Math.max(beat, lubDub(secs - at, 1 - 0.55 * P.PULSE_CALM * clamp(at / Math.max(leaveAt, 1), 0, 1)));
+  }
+  beat = Math.max(beat, lubDub(secs - leaveAt - ONE_MORE, 0.3));
+  beat = Math.max(beat, lubDub(secs - leaveAt - LAST_BEAT, 0.2));
+  return beat * P.PULSE_BEAT;
+}
+// In seconds into the leave (its heart beating as it starts): when one more beat comes, as calm; how long the stillness
+// before the last beat is, from when the beat before has died down, and so when that last beat comes; and when the
+// breath out, a still while after it.
+// And how far that breath is, 0 to 1, at share o of a leave of leaveTime. A beat (both its parts) dies down in about
+// BEAT_LENGTH.
+const BEAT_LENGTH = 0.6, ONE_MORE = 0.55 + 0.55 * 1, LAST_PAUSE = 1.2, LAST_BEAT = ONE_MORE + BEAT_LENGTH + LAST_PAUSE, EXHALE_AFTER = LAST_BEAT + BEAT_LENGTH + 1.7;
+const exhaled = (o, leaveTime) => clamp((o * leaveTime - EXHALE_AFTER) / (leaveTime - EXHALE_AFTER), 0, 1);
+function drawPulse(p, st) {
+  const o = exhaled(st.out, leaveTimeOf(p.spec)), a = st.a;
+  if (a <= 0.002) return;
+  const beat = heartbeat(t, pieces[0].leaveAt), line = p.line;
+  const s = st.s * (1 + 0.035 * beat), w = p.w * s, h = p.h * s, cx = p.cx + st.x, cy = p.cy + st.y * line * st.s;
+  // the glow, under it: a little always, flaring on each beat; as it leaves, rising a touch as the text fades and
+  // staying on after it, spreading a little, then dimming away
+  const after = smooth(clamp(o / 0.5, 0, 1));
+  const glow = (st.out > 0 ? 1 : a) * P.PULSE_GLOW * (0.12 + 0.5 * beat + 0.2 * after) * (1 - smooth(clamp((o - 0.5) / 0.5, 0, 1)));
+  const spread = line * s * (0.1 + 0.06 * beat + 0.08 * smooth(o));
+  if (glow > 0.002) {
+    const pad = 0.6 * line * s;
+    mode = 15;
+    gl.uniform2f(U("blurR"), spread / w, spread / h);
+    quad(cx - w / 2 - pad, cy - h / 2 - pad, cx + w / 2 + pad, cy + h / 2 + pad, -pad / w, -pad / h, 1 + pad / w, 1 + pad / h,
+      1.0 * glow, 0.82 * glow, 0.58 * glow, 0);
+    flush(p.tex);
+  }
+  mode = 0;
+  quad(cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2, 0, 0, 1, 1, a, a, a, a);
+  flush(p.tex);
+  mode = 0;
+}
+
 // Typed: its letters are struck one by one at a typist's uneven pace (a longer pause after a space), each a little off
 // its line and inked a little unevenly, struck hard (a touch big and bright, settling at once). As it leaves the paper
 // is fed out: it jerks up a line at a time, a pause between, fading.
@@ -1176,6 +1250,7 @@ function frame(now) {
     else if (p.spec.bleed) drawBleed(p, st);
     else if (p.spec.sink) drawSink(p, st);
     else if (p.spec.typed) drawType(p, st);
+    else if (p.spec.pulse) drawPulse(p, st);
     else if (p.spec.leave === "trackout" && st.out > 0) drawTrackout(p, st, st.out);
     else if (p.spec.leave === "erode" && st.out > 0) drawErode(p, st, st.out);
     else if (st.a > 0.002) { quad(cx - hw, cy - hh, cx + hw, cy + hh, 0, 0, 1, 1, st.a, st.a, st.a, st.a); flush(p.tex); }
@@ -1270,6 +1345,10 @@ heading("unveil: 안개 걷힘");
 control("FOG_THICK", "안개 짙기", "range", [0, 2.5, 0.05]);
 control("FOG_DRIFT", "안개 흐름", "range", [0, 8, 0.1]);
 control("FOG_STAY", "머무는 동안 안개", "range", [0, 0.8, 0.01]);
+heading("pulse: 고동 (시안)");
+control("PULSE_GLOW", "빛 세기", "range", [0, 3, 0.05]);
+control("PULSE_BEAT", "고동 세기", "range", [0, 2, 0.05]);
+control("PULSE_CALM", "잦아듦", "range", [0, 1.4, 0.05]);
 heading("type: 타자 (시안)");
 control("TYPE_JITTER", "글자 어긋남", "range", [0, 3, 0.05]);
 control("TYPE_INK", "잉크 고르지 않음", "range", [0, 2, 0.05]);
@@ -1355,6 +1434,7 @@ const BUILT_IN = {
   "번짐 (bleed, 시안)": { ...effectOf(DEFAULTS), style: "bleed-new" },
   "가라앉음 (sink, 시안)": { ...effectOf(DEFAULTS), style: "sink-new" },
   "타자 (type, 시안)": { ...effectOf(DEFAULTS), style: "type-new" },
+  "고동 (pulse, 시안)": { ...effectOf(DEFAULTS), style: "pulse-new" },
 };
 const STORE = "title-lab-presets";
 function ownPresets() { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } }
