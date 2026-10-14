@@ -5,7 +5,8 @@
 --   bag capacity / weight kit  the bag item's modData (count, original capacity and reduction); the bag's own capacity
 --                              (InventoryContainer.setCapacity) and weight reduction (setWeightReduction), which the
 --                              game saves with the item.
---   trunk kit                  the modData of each trunk part (TruckBed, TruckBedOpen), saved with the vehicle.
+--   storage kit                the modData of the vehicle part it was fitted to (any part that holds items: a trunk,
+--                              a truck bed, a roof rack, a modded vehicle's own; not a seat), saved with the vehicle.
 --   engine kit                 the modData of the engine part (count and the original power and loudness) and the
 --                              engine's own features (BaseVehicle.setEngineFeature), which the game saves with the
 --                              vehicle.
@@ -26,8 +27,7 @@ local Rules = Gear.Rules
 local K = Rules.KEY
 
 Gear.VOUCHER = "OperationAcorn.KitVoucher"
--- The names of a vehicle's parts that the kits change.
-Gear.TRUNK_PARTS = { "TruckBed", "TruckBedOpen" }
+-- The vehicle part the engine kit changes.
 Gear.ENGINE_PART = "Engine"
 -- How near (squares) a character must be to a vehicle to fit a kit.
 Gear.REACH = 6
@@ -329,54 +329,48 @@ function Gear.refreshAll(character)
     return list:size()
 end
 
--- ---- trunks ---------------------------------------------------------------------------------------------------
+-- ---- vehicle storage -----------------------------------------------------------------------------------------
 
--- The trunk parts of a vehicle (the ones it has).
-function Gear.trunkParts(vehicle)
+-- Whether a vehicle part is a storage the storage kit fits: any part that holds items (a trunk, a truck bed, a roof
+-- rack, a trailer's, a glove box, a modded vehicle's own), not a seat.
+function Gear.isStoragePart(part)
+    if not part or not part:getItemContainer() then return false end
+    if part:getCategory() == "seat" then return false end
+    return string.find(part:getId(), "^Seat") == nil
+end
+
+-- A vehicle's storage parts.
+function Gear.storageParts(vehicle)
     local found = {}
-    for _, id in ipairs(Gear.TRUNK_PARTS) do
-        local part = vehicle:getPartById(id)
-        if part and part:isContainer() then found[#found + 1] = part end
+    for i = 0, vehicle:getPartCount() - 1 do
+        local part = vehicle:getPartByIndex(i)
+        if Gear.isStoragePart(part) then found[#found + 1] = part end
     end
     return found
 end
 
--- The trunk kits fitted to a vehicle.
-function Gear.trunkKits(vehicle)
-    local best = 0
-    for _, part in ipairs(Gear.trunkParts(vehicle)) do
-        best = math.max(best, part:getModData()[K.TRUNK] or 0)
-    end
-    return best
-end
-
--- A trunk's capacity before any kit: the capacity of the part's installed trunk item, or the container's own.
-local function nominalTrunk(part)
+-- A storage's capacity before any kit: the capacity of the part's installed item (a trunk), or the container's own.
+local function nominalStorage(part)
     local item = part:getInventoryItem()
     local capacity = item and item.getMaxCapacity and item:getMaxCapacity() or 0
     if capacity <= 0 then capacity = part:getContainerCapacity() end
     return capacity
 end
 
--- What a vehicle's trunk is worth with its kits: { kits, total, limit, cut }; nil when it has none.
-function Gear.trunkInfo(vehicle)
-    local kits = Gear.trunkKits(vehicle)
-    if kits == 0 then return nil end
-    local info = { kits = kits, limit = Rules.VEHICLE_LIMIT }
-    for _, part in ipairs(Gear.trunkParts(vehicle)) do
-        local base = part:getModData()[K.TRUNK_BASE]
-        if base then
-            info.total = math.max(info.total or 0, Rules.capacity(base, part:getModData()[K.TRUNK] or 0))
-        end
-    end
-    info.cut = info.total ~= nil and Rules.cut(info.total, info.limit, Gear.lifts())
+-- What a storage part is worth with its kits: { kits, total, limit, cut }; nil when it has none.
+function Gear.storageInfo(part)
+    local md = part:getModData()
+    local kits, base = md[K.STORAGE] or 0, md[K.STORAGE_BASE]
+    if kits == 0 or not base then return nil end
+    local info = { kits = kits, limit = Rules.VEHICLE_LIMIT, total = Rules.capacity(base, kits) }
+    info.cut = Rules.cut(info.total, info.limit, Gear.lifts())
     return info
 end
 
--- Writes a trunk part's kits into the part (see refreshBag).
-function Gear.refreshTrunk(vehicle, part)
+-- Writes a storage part's kits into the part (see refreshBag).
+function Gear.refreshStorage(vehicle, part)
     local md = part:getModData()
-    local n, base = md[K.TRUNK] or 0, md[K.TRUNK_BASE]
+    local n, base = md[K.STORAGE] or 0, md[K.STORAGE_BASE]
     if not base or n == 0 then return end
     local total = Rules.capacity(base, n)
     local lifted = Gear.lifts()
@@ -407,25 +401,28 @@ function Gear.refreshTrunk(vehicle, part)
     if changed and vehicle.transmitPartModData then vehicle:transmitPartModData(part) end
 end
 
--- Fits a trunk kit to a vehicle. Returns true and the new capacity, or false and the reason: "kit", "gone",
--- "far", "part" (no trunk).
-function Gear.fitTrunk(character, kit, vehicle)
-    if Gear.kindOfItem(kit) ~= "trunk" then return false, "kit" end
+-- Fits a storage kit to one storage part of a vehicle. Returns true and the part's new capacity, or false and the
+-- reason: "kit", "gone", "far", "part" (not a storage).
+function Gear.fitStorage(character, kit, vehicle, partId)
+    if Gear.kindOfItem(kit) ~= "storage" then return false, "kit" end
     if not vehicle then return false, "gone" end
     if not Gear.near(character, vehicle) then return false, "far" end
-    local parts = Gear.trunkParts(vehicle)
-    if #parts == 0 then return false, "part" end
-    local total = 0
-    for _, part in ipairs(parts) do
-        local md = part:getModData()
-        if md[K.TRUNK_BASE] == nil then md[K.TRUNK_BASE] = nominalTrunk(part) end
-        md[K.TRUNK] = (md[K.TRUNK] or 0) + 1
-        Gear.refreshTrunk(vehicle, part)
-        total = math.max(total, Rules.capacity(md[K.TRUNK_BASE], md[K.TRUNK]))
-    end
+    local part = partId and vehicle:getPartById(partId)
+    if not Gear.isStoragePart(part) then return false, "part" end
+    local md = part:getModData()
+    if md[K.STORAGE_BASE] == nil then md[K.STORAGE_BASE] = nominalStorage(part) end
+    md[K.STORAGE] = (md[K.STORAGE] or 0) + 1
+    Gear.refreshStorage(vehicle, part)
+    if vehicle.transmitPartModData then vehicle:transmitPartModData(part) end
+    local total = Rules.capacity(md[K.STORAGE_BASE], md[K.STORAGE])
     removeItem(kit)
-    notice(character, "IGUI_OA_Gear_Fitted_trunk", { Gear.vehicleName(vehicle), tostring(total) })
+    notice(character, "IGUI_OA_Gear_Fitted_storage", { Gear.vehicleName(vehicle), Gear.partName(part), tostring(total) })
     return true, total
+end
+
+-- The name the mechanics window gives a part.
+function Gear.partName(part)
+    return getText("IGUI_VehiclePart" .. part:getId())
 end
 
 -- ---- engines --------------------------------------------------------------------------------------------------
@@ -468,7 +465,7 @@ function Gear.refreshEngine(vehicle)
     return true
 end
 
--- Fits an engine kit to a vehicle. Returns true and the new power, or false and the reason (see fitTrunk).
+-- Fits an engine kit to a vehicle. Returns true and the new power, or false and the reason (see fitStorage).
 function Gear.fitEngine(character, kit, vehicle)
     if Gear.kindOfItem(kit) ~= "engine" then return false, "kit" end
     if not vehicle then return false, "gone" end
@@ -489,17 +486,17 @@ function Gear.fitEngine(character, kit, vehicle)
     return true, info.power
 end
 
--- Fits a vehicle kit by its kind.
-function Gear.fitVehicle(character, kit, vehicle)
+-- Fits a vehicle kit by its kind: a storage kit to the part named.
+function Gear.fitVehicle(character, kit, vehicle, partId)
     local kind = Gear.kindOfItem(kit)
-    if kind == "trunk" then return Gear.fitTrunk(character, kit, vehicle) end
+    if kind == "storage" then return Gear.fitStorage(character, kit, vehicle, partId) end
     if kind == "engine" then return Gear.fitEngine(character, kit, vehicle) end
     return false, "kit"
 end
 
--- Refreshes everything a vehicle's kits have written: the trunks and the engine.
+-- Refreshes everything a vehicle's kits have written: the storage parts and the engine.
 function Gear.refreshVehicle(vehicle)
-    for _, part in ipairs(Gear.trunkParts(vehicle)) do Gear.refreshTrunk(vehicle, part) end
+    for _, part in ipairs(Gear.storageParts(vehicle)) do Gear.refreshStorage(vehicle, part) end
     Gear.refreshEngine(vehicle)
 end
 
@@ -520,12 +517,12 @@ function Gear.bagLines(bag)
     return lines
 end
 
--- The lines about a vehicle's fitted trunk kits, or nil.
-function Gear.trunkLines(vehicle)
-    local info = Gear.trunkInfo(vehicle)
+-- The lines about a storage part's fitted kits, or nil.
+function Gear.storageLines(part)
+    local info = Gear.storageInfo(part)
     if not info then return nil end
-    local lines = { getText("Tooltip_OA_Gear_TrunkKits", tostring(info.kits), tostring(info.total or "?")) }
-    if info.cut then lines[#lines + 1] = getText("Tooltip_OA_Gear_TrunkCut", tostring(info.limit)) end
+    local lines = { getText("Tooltip_OA_Gear_StorageKits", tostring(info.kits), tostring(info.total)) }
+    if info.cut then lines[#lines + 1] = getText("Tooltip_OA_Gear_StorageCut", tostring(info.limit)) end
     return lines
 end
 

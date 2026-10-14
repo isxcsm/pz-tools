@@ -1,4 +1,4 @@
--- The timed actions that fit a kit: a bag kit to a bag the character has, a trunk or engine kit to a vehicle. The work
+-- The timed actions that fit a kit: a bag kit to a bag the character has, a storage or engine kit to a vehicle. The work
 -- is done in complete(), where the world is decided (on a server, there); an action names its kit, bag and vehicle by
 -- id, not by object. A failed fit tells the character why and leaves the kit where it was.
 require "TimedActions/ISBaseTimedAction"
@@ -61,7 +61,7 @@ function ISOAFitBagKit:new(character, kit, bag)
     return o
 end
 
--- ---- a trunk or an engine kit ---------------------------------------------------------------------------------
+-- ---- a storage or an engine kit -------------------------------------------------------------------------------
 
 ISOAFitVehicleKit = ISBaseTimedAction:derive("ISOAFitVehicleKit")
 
@@ -99,7 +99,7 @@ function ISOAFitVehicleKit:complete()
         failed(self.character, "gone")
         return false
     end
-    local ok, why = Gear.fitVehicle(self.character, kit, vehicle)
+    local ok, why = Gear.fitVehicle(self.character, kit, vehicle, self.partId)
     if not ok then
         failed(self.character, why)
         return false
@@ -113,9 +113,10 @@ function ISOAFitVehicleKit:getDuration()
     return Rules.workTicks(self.kind, self.character:getPerkLevel(Perks.Mechanics))
 end
 
-function ISOAFitVehicleKit:new(character, kit, vehicle)
+-- part: the vehicle part the kit goes to (a storage kit's storage, the engine).
+function ISOAFitVehicleKit:new(character, kit, part)
     local o = ISBaseTimedAction.new(self, character)
-    o.kit, o.kitId, o.vehicleId = kit, kit:getID(), vehicle:getId()
+    o.kit, o.kitId, o.vehicleId, o.partId = kit, kit:getID(), part:getVehicle():getId(), part:getId()
     o.kind = Gear.kindOfItem(kit)
     o.stopOnWalk = true
     o.stopOnRun = true

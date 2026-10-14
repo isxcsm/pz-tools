@@ -40,7 +40,7 @@ end
 -- The items of the gear package whose tooltip text is Tooltip_OA_Gear_<item name>.
 Menu.TEXTS = {
     TeamBackpack = true, FuelCanMk1 = true, FuelCanMk2 = true, FuelCanMk3 = true,
-    KitBagCapacity = true, KitBagWeight = true, KitTrunk = true, KitEngine = true,
+    KitBagCapacity = true, KitBagWeight = true, KitStorage = true, KitEngine = true,
 }
 
 -- The lines of an item's tooltip that this part adds (none for most items).
@@ -193,7 +193,7 @@ local function fitVehicle(player, kit, part)
     if player:getVehicle() then ISVehicleMenu.onExit(player) end
     ISInventoryPaneContextMenu.transferIfNeeded(player, kit)
     ISTimedActionQueue.add(ISPathFindAction:pathToVehicleArea(player, part:getVehicle(), part:getArea()))
-    ISTimedActionQueue.add(ISOAFitVehicleKit:new(player, kit, part:getVehicle()))
+    ISTimedActionQueue.add(ISOAFitVehicleKit:new(player, kit, part))
 end
 
 -- Adds the entry of one kind of kit to a part's menu: enabled with a kit of the kind the character has.
@@ -220,13 +220,9 @@ local function addPartOptions(window, part)
     if id == Gear.ENGINE_PART then
         Gear.refreshEngine(vehicle)
         addPartEntry(context, player, part, "engine", "ContextMenu_OA_Gear_FitEngine", Gear.engineLines(vehicle))
-    elseif part:isContainer() then
-        for _, name in ipairs(Gear.TRUNK_PARTS) do
-            if id == name then
-                Gear.refreshVehicle(vehicle)
-                addPartEntry(context, player, part, "trunk", "ContextMenu_OA_Gear_FitTrunk", Gear.trunkLines(vehicle))
-            end
-        end
+    elseif Gear.isStoragePart(part) then
+        Gear.refreshStorage(vehicle, part)
+        addPartEntry(context, player, part, "storage", "ContextMenu_OA_Gear_FitStorage", Gear.storageLines(part))
     end
     -- the game hides a menu it found nothing for; this has put something in
     if before == 1 and context.numOptions > 1 then context:setVisible(true) end

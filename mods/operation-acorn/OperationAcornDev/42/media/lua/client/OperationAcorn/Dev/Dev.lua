@@ -166,7 +166,7 @@ local SHOW_ITEMS = {
     { "UpgradeSerumScout", 2 }, { "UpgradeSerumLoad", 2 }, { "UpgradeSerumSurvival", 2 }, { "UpgradeSerumShared", 2 },
     { "CureSerum", 1, issued = true }, { "DelayDrug", 2 }, { "DelayDrugLong", 2 }, { "InfectionReversal", 1 },
     { "InfectionTestKit", 2 },
-    { "KitBagCapacity", 1 }, { "KitBagWeight", 1 }, { "KitTrunk", 1 }, { "KitEngine", 1 }, { "KitVoucher", 1 },
+    { "KitBagCapacity", 1 }, { "KitBagWeight", 1 }, { "KitStorage", 1 }, { "KitEngine", 1 }, { "KitVoucher", 1 },
     { "TeamBackpack", 1 }, { "FuelCanMk1", 1 }, { "FuelCanMk2", 1 }, { "FuelCanMk3", 1 },
     { "TerminalManual", 1 }, { "SupplyManifest", 1 }, { "SampleBundle", 3 }, { "MeteorFragment", 3 },
     { "MotorNormal", 1 }, { "ShredBladeNormal", 1 }, { "CutBladeNormal", 1 }, { "SawBladeNormal", 1 },

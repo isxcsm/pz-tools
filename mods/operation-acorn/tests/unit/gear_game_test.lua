@@ -102,10 +102,14 @@ end
 
 local function newPart(id, opts)
     opts = opts or {}
-    local part = { id = id, md = {}, capacity = opts.capacity or 0, container = opts.container, item = opts.item }
+    local part = { id = id, md = {}, capacity = opts.capacity or 0, container = opts.container, item = opts.item,
+        category = opts.category or "bodywork" }
     function part:getId() return self.id end
     function part:getModData() return self.md end
     function part:isContainer() return self.container end
+    -- a part that holds items has an item container; a fuel tank is a container of a fluid and has none
+    function part:getItemContainer() return self.container and not opts.fluid and {} or nil end
+    function part:getCategory() return self.category end
     function part:getInventoryItem() return self.item end
     function part:getContainerCapacity() return self.capacity end
     function part:setContainerCapacity(n) self.capacity = n end
@@ -117,8 +121,14 @@ local function newVehicle(opts)
     nextId = nextId + 1
     local v = { id = nextId, x = 12, y = 10, name = opts.name or "CarNormal", power = opts.power or 140,
         loud = opts.loud or 37, quality = 80, transmitted = 0, partsSent = 0, parts = {} }
-    for _, part in ipairs(opts.parts or {}) do v.parts[part.id] = part end
+    v.order = {}
+    for _, part in ipairs(opts.parts or {}) do
+        v.parts[part.id] = part
+        v.order[#v.order + 1] = part
+    end
     function v:getId() return self.id end
+    function v:getPartCount() return #self.order end
+    function v:getPartByIndex(i) return self.order[i + 1] end
     function v:getX() return self.x end
     function v:getY() return self.y end
     function v:getPartById(id) return self.parts[id] end
@@ -318,17 +328,17 @@ end)
 test("a vehicle kit does not go on a bag, a bag kit not on a vehicle", function()
     setup()
     local player, bag = bagFixture("Base.Bag_ALICEpack", 28, 85)
-    eq(select(2, Gear.fitBag(player, kitOf(player, "trunk"), bag)), "kit")
+    eq(select(2, Gear.fitBag(player, kitOf(player, "storage"), bag)), "kit")
     local vehicle = newVehicle({ parts = { newPart("TruckBed", { container = true, capacity = 100 }), newPart("Engine") } })
-    eq(select(2, Gear.fitTrunk(player, kitOf(player, "bagCapacity"), vehicle)), "kit")
-    eq(select(2, Gear.fitEngine(player, kitOf(player, "trunk"), vehicle)), "kit")
+    eq(select(2, Gear.fitStorage(player, kitOf(player, "bagCapacity"), vehicle, "TruckBed")), "kit")
+    eq(select(2, Gear.fitEngine(player, kitOf(player, "storage"), vehicle)), "kit")
     local notBag = newItem("Base.Hammer")
     player.inventory:AddItem(notBag)
     eq(select(2, Gear.fitBag(player, kitOf(player, "bagCapacity"), notBag)), "bag")
 end)
 
 -- ---------------------------------------------------------------------------------------------------------------------
--- Trunks
+-- Vehicle storage
 
 local function carWithTrunk(capacity, opts)
     local trunk = newPart("TruckBed", { container = true, capacity = capacity,
@@ -337,71 +347,84 @@ local function carWithTrunk(capacity, opts)
     return car, trunk
 end
 
-test("a trunk kit without the API raises the trunk part's capacity, counted on the part", function()
+test("a storage kit without the API raises the part's capacity, counted on the part", function()
     setup()
     local player = newCharacter()
     local car, trunk = carWithTrunk(100)
-    local ok, total = Gear.fitTrunk(player, kitOf(player, "trunk"), car)
+    local ok, total = Gear.fitStorage(player, kitOf(player, "storage"), car, "TruckBed")
     truthy(ok)
     eq(total, 110)
     eq(trunk.capacity, 110)
-    eq(trunk.md[K.TRUNK], 1)
-    eq(trunk.md[K.TRUNK_BASE], 100)
+    eq(trunk.md[K.STORAGE], 1)
+    eq(trunk.md[K.STORAGE_BASE], 100)
     eq(trunk.md[K.CAPACITY], nil)
     truthy(car.partsSent > 0, "the part's data is sent")
-    eq(Gear.trunkKits(car), 1)
-    eq(notices[1].key, "IGUI_OA_Gear_Fitted_trunk")
+    eq(Gear.storageInfo(trunk).kits, 1)
+    eq(notices[1].key, "IGUI_OA_Gear_Fitted_storage")
+    eq(notices[1].args[2], "IGUI_VehiclePartTruckBed", "the notice names the part")
 end)
 
-test("a trunk kit with the API leaves the capacity and adds the number", function()
+test("a storage kit with the API leaves the capacity and adds the number", function()
     setup()
     setApi(true)
     local player = newCharacter()
     local car, trunk = carWithTrunk(100)
-    for n = 1, 3 do truthy(Gear.fitTrunk(player, kitOf(player, "trunk"), car)) end
+    for _ = 1, 3 do truthy(Gear.fitStorage(player, kitOf(player, "storage"), car, "TruckBed")) end
     eq(trunk.capacity, 100)
     eq(trunk.md[K.CAPACITY], 30)
     eq(type(trunk.md[K.CAPACITY]), "number")
-    eq(Gear.trunkInfo(car).total, 130)
-    eq(Gear.trunkInfo(car).cut, false)
+    eq(Gear.storageInfo(trunk).total, 130)
+    eq(Gear.storageInfo(trunk).cut, false)
 end)
 
-test("the trunk's original is the installed trunk item's maximum, not what a damaged trunk holds now", function()
+test("the storage's original is the installed item's maximum, not what a damaged trunk holds now", function()
     setup()
     local player = newCharacter()
     local car, trunk = carWithTrunk(60, { item = { getMaxCapacity = function() return 120 end } })
-    truthy(Gear.fitTrunk(player, kitOf(player, "trunk"), car))
-    eq(trunk.md[K.TRUNK_BASE], 120)
+    truthy(Gear.fitStorage(player, kitOf(player, "storage"), car, "TruckBed"))
+    eq(trunk.md[K.STORAGE_BASE], 120)
     eq(trunk.capacity, 132)
 end)
 
-test("a trunk kit goes on every trunk part the vehicle has and leaves the rest", function()
+test("a storage kit goes on the one part it is fitted to: a roof rack, a modded vehicle's own storage, not a seat", function()
     setup()
     local player = newCharacter()
-    local closed = newPart("TruckBed", { container = true, capacity = 100 })
-    local open = newPart("TruckBedOpen", { container = true, capacity = 150 })
-    local car = newVehicle({ parts = { closed, open, newPart("Engine") } })
-    truthy(Gear.fitTrunk(player, kitOf(player, "trunk"), car))
-    eq(closed.capacity, 110)
-    eq(open.capacity, 165)
-    eq(Gear.trunkKits(car), 1)
+    local trunk = newPart("TruckBed", { container = true, capacity = 100 })
+    local rack = newPart("Roofrack", { container = true, capacity = 60 })
+    local modded = newPart("ATA2InteractiveTrunkRoofRack", { container = true, capacity = 40, category = "Other" })
+    local seat = newPart("SeatFrontLeft", { container = true, capacity = 20, category = "seat" })
+    local seatNoCategory = newPart("SeatRearLeft", { container = true, capacity = 20, category = "" })
+    local tank = newPart("GasTank", { container = true, fluid = true, capacity = 50 })
+    local car = newVehicle({ parts = { trunk, rack, modded, seat, seatNoCategory, tank, newPart("Engine") } })
+    local ids = {}
+    for _, part in ipairs(Gear.storageParts(car)) do ids[#ids + 1] = part:getId() end
+    eq(table.concat(ids, ","), "TruckBed,Roofrack,ATA2InteractiveTrunkRoofRack")
+    truthy(Gear.fitStorage(player, kitOf(player, "storage"), car, "Roofrack"))
+    eq(rack.capacity, 66)
+    eq(trunk.capacity, 100, "the trunk is left as it is")
+    truthy(Gear.fitStorage(player, kitOf(player, "storage"), car, "ATA2InteractiveTrunkRoofRack"))
+    eq(modded.capacity, 44)
+    eq(select(2, Gear.fitStorage(player, kitOf(player, "storage"), car, "SeatFrontLeft")), "part")
+    eq(select(2, Gear.fitStorage(player, kitOf(player, "storage"), car, "SeatRearLeft")), "part")
+    eq(select(2, Gear.fitStorage(player, kitOf(player, "storage"), car, "GasTank")), "part")
+    eq(select(2, Gear.fitStorage(player, kitOf(player, "storage"), car, "Engine")), "part")
 end)
 
-test("past the vehicle limit the trunk is cut without the API", function()
+test("past the vehicle limit the storage is cut without the API", function()
     setup()
     local player = newCharacter()
     local car, trunk = carWithTrunk(900)
-    for _ = 1, 3 do truthy(Gear.fitTrunk(player, kitOf(player, "trunk"), car)) end
+    for _ = 1, 3 do truthy(Gear.fitStorage(player, kitOf(player, "storage"), car, "TruckBed")) end
     eq(trunk.capacity, 1000)
-    eq(Gear.trunkInfo(car).cut, true)
-    eq(#Gear.trunkLines(car), 2)
+    eq(Gear.storageInfo(trunk).cut, true)
+    eq(#Gear.storageLines(trunk), 2)
 end)
 
-test("a trunk fitted without the API is refreshed when the API is there", function()
+test("a storage fitted without the API is refreshed when the API is there", function()
     setup()
     local player = newCharacter()
     local car, trunk = carWithTrunk(100)
-    Gear.fitTrunk(player, kitOf(player, "trunk"), car)
+    Gear.fitStorage(player, kitOf(player, "storage"), car, "TruckBed")
     eq(trunk.capacity, 110)
     setApi(true)
     Gear.refreshVehicle(car)
@@ -418,12 +441,12 @@ test("vehicle kits need the character beside the vehicle and the part", function
     local player = newCharacter()
     local car = carWithTrunk(100)
     car.x = 100
-    eq(select(2, Gear.fitTrunk(player, kitOf(player, "trunk"), car)), "far")
+    eq(select(2, Gear.fitStorage(player, kitOf(player, "storage"), car, "TruckBed")), "far")
     car.x = 12
-    eq(select(2, Gear.fitTrunk(player, kitOf(player, "trunk"), nil)), "gone")
+    eq(select(2, Gear.fitStorage(player, kitOf(player, "storage"), nil, "TruckBed")), "gone")
     local bare = newVehicle({ parts = { newPart("Engine") } })
-    eq(select(2, Gear.fitTrunk(player, kitOf(player, "trunk"), bare)), "part")
-    truthy(Gear.fitTrunk(player, kitOf(player, "trunk"), car), "beside it, it fits")
+    eq(select(2, Gear.fitStorage(player, kitOf(player, "storage"), bare, "TruckBed")), "part")
+    truthy(Gear.fitStorage(player, kitOf(player, "storage"), car, "TruckBed"), "beside it, it fits")
 end)
 
 -- ---------------------------------------------------------------------------------------------------------------------
@@ -479,11 +502,12 @@ test("the lines about a vehicle's kits", function()
     local player = newCharacter()
     local car = newVehicle({ power = 140, loud = 37, parts = { newPart("Engine"), newPart("TruckBed", { container = true, capacity = 100 }) } })
     eq(Gear.engineLines(car), nil)
-    eq(Gear.trunkLines(car), nil)
+    local trunk = car:getPartById("TruckBed")
+    eq(Gear.storageLines(trunk), nil)
     Gear.fitVehicle(player, kitOf(player, "engine"), car)
-    Gear.fitVehicle(player, kitOf(player, "trunk"), car)
+    Gear.fitVehicle(player, kitOf(player, "storage"), car, "TruckBed")
     eq(Gear.engineLines(car)[1], "Tooltip_OA_Gear_EngineKits 1 15.4 39")
-    eq(Gear.trunkLines(car)[1], "Tooltip_OA_Gear_TrunkKits 1 110")
+    eq(Gear.storageLines(trunk)[1], "Tooltip_OA_Gear_StorageKits 1 110")
 end)
 
 -- ---------------------------------------------------------------------------------------------------------------------
@@ -519,13 +543,13 @@ test("the server command redeems the voucher a character names", function()
     local player = newCharacter()
     player.inventory:AddItem(newItem(Gear.VOUCHER))
     local voucher = player.inventory.items[1]
-    OA.Sync.send(player, "gear.redeem", { item = voucher:getID(), kind = "trunk" })
+    OA.Sync.send(player, "gear.redeem", { item = voucher:getID(), kind = "storage" })
     eq(#player.inventory.items, 1)
-    eq(player.inventory.items[1]:getFullType(), "OperationAcorn.KitTrunk")
+    eq(player.inventory.items[1]:getFullType(), "OperationAcorn.KitStorage")
     -- another item, or a kind that is not one, does nothing and says why
     local other = newItem("Base.Hammer")
     player.inventory:AddItem(other)
-    OA.Sync.send(player, "gear.redeem", { item = other:getID(), kind = "trunk" })
+    OA.Sync.send(player, "gear.redeem", { item = other:getID(), kind = "storage" })
     eq(#player.inventory.items, 2)
     eq(notices[#notices].key, "IGUI_OA_Gear_RedeemFailed")
     eq(notices[#notices].args[1], "voucher")
@@ -560,12 +584,12 @@ end)
 test("a vehicle kit goes on any vehicle beside the character, counted on that one", function()
     setup()
     local player = newCharacter()
-    local first = carWithTrunk(100)
-    local second = carWithTrunk(100)
-    truthy(Gear.fitTrunk(player, kitOf(player, "trunk"), first))
+    local first, firstTrunk = carWithTrunk(100)
+    local second, secondTrunk = carWithTrunk(100)
+    truthy(Gear.fitStorage(player, kitOf(player, "storage"), first, "TruckBed"))
     truthy(Gear.fitEngine(player, kitOf(player, "engine"), second))
-    eq(Gear.trunkKits(first), 1)
-    eq(Gear.trunkKits(second), 0)
+    eq(Gear.storageInfo(firstTrunk).kits, 1)
+    eq(Gear.storageInfo(secondTrunk), nil)
     eq(Gear.engineKits(first), 0)
     eq(Gear.engineKits(second), 1)
 end)

@@ -148,7 +148,7 @@ test("a card says debt, kits off, not stocked and the weekly limit", function()
     s = V.state(entry("box_reissue", "box", { allowDebt = true }), { n = 99 }, ctx)
     eq(s.open, true)
     ctx.debt = false
-    s = V.state(entry("kit_trunk", "kit", { kits = true }), { n = 0, why = "IGUI_OA_Econ_Shop_KitsOff" }, ctx)
+    s = V.state(entry("kit_storage", "kit", { kits = true }), { n = 0, why = "IGUI_OA_Econ_Shop_KitsOff" }, ctx)
     eq(s.key, "IGUI_OA_Econ_Shop_KitsOff")
     eq(s.lock, true)
     s = V.state(entry("x", "resource"), { n = 0, why = "IGUI_OA_Econ_Shop_NotStocked" }, ctx)

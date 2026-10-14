@@ -42,7 +42,7 @@
     "ContextMenu_OA_Gear_FitVehicle": "Fit to a vehicle",
     "ContextMenu_OA_Gear_FitKit": "Fit a kit",
     "ContextMenu_OA_Gear_FitKitOf": "%1 (%2 in hand)",
-    "ContextMenu_OA_Gear_FitTrunk": "Fit trunk kit",
+    "ContextMenu_OA_Gear_FitStorage": "Fit storage kit",
     "ContextMenu_OA_Gear_FitEngine": "Fit engine tuning kit",
     "ContextMenu_OA_Gear_Redeem": "Redeem voucher",
     "ContextMenu_OA_Tree_UseReversal": "Use reversal drug",

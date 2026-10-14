@@ -144,12 +144,12 @@ module OperationAcorn
         WorldStaticModel = Base.SewingBox,
     }
 
-    item KitTrunk
+    item KitStorage
     {
         DisplayCategory = VehicleMaintenance,
         ItemType = base:normal,
         Weight = 3.0,
-        Icon = OA_TrunkKit,
+        Icon = OA_StorageKit,
         WorldStaticModel = Base.ToolBox_Ground,
     }
 

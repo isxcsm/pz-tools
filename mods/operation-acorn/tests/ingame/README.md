@@ -47,4 +47,4 @@ Some checks change the save's market or the record (they say so in their header)
 
 | File | What it checks | Setup |
 | --- | --- | --- |
-| `p6_gear.lua` | the gear items against the vanilla ones they are modelled on, the shop stocking them, bag kits (with and without the API), trunk and engine kits on the nearest vehicle (per-instance targets: two bags of one kind, the vehicle id), the voucher | stand within 6 squares of a car; throwaway save; `P6_CLEAN()` after |
+| `p6_gear.lua` | the gear items against the vanilla ones they are modelled on, the shop stocking them, bag kits (with and without the API), vehicle storage and engine kits on the nearest vehicle (per-instance targets: two bags of one kind, the vehicle id), the voucher | stand within 6 squares of a car; throwaway save; `P6_CLEAN()` after |

@@ -29,8 +29,9 @@ test("every NUMBERS 7 price is in the catalog", function()
         petrol_can = { 15000, 2 }, scrap_pack = { 6000, 2 }, propane_tank = { 25000, 3 }, car_battery = { 20000, 3 },
         car_part_normal = { 10000, 3 }, engine_parts = { 20000, 3 }, car_part_modern = { 25000, 5 },
         ammo_pistol = { 40000, 4 }, ammo_shotgun = { 50000, 4 }, ammo_rifle = { 60000, 4 },
-        team_backpack = { 300000, 5 }, shred_bench = { 5000, 0 }, bait_trap = { 12000, 2 }, team_locker = { 15000, 2 },
-        team_crate = { 12000, 2 },
+        team_backpack = { 300000, 5 }, shred_bench = { 5000, 0 }, bait_trap = { 12000, 2 }, team_locker = { 60000, 2 },
+        team_crate = { 15000, 2 }, nails_box = { 8000, 1 }, screws_box = { 8000, 1 }, nuts_bolts = { 15000, 2 },
+        welding_rods = { 12000, 2 },
         fabric_cutter = { 80000, 2 }, log_saw = { 100000, 2 }, rain_cistern = { 90000, 3 },
         bulk_shredder = { 150000, 3 }, propane_refinery = { 200000, 3 }, oil_refinery = { 250000, 4 },
         box_reissue = { 10000, 0 },
@@ -39,7 +40,7 @@ test("every NUMBERS 7 price is in the catalog", function()
         saw_blade_normal = { 15000, 3 }, saw_blade_modern = { 40000, 5 }, filter_normal = { 20000, 3 },
         filter_modern = { 50000, 5 }, soundproof_cover = { 30000, 3 },
         fuelcan_mk1 = { 20000, 2 }, fuelcan_mk2 = { 45000, 4 }, fuelcan_mk3 = { 90000, 5 },
-        kit_bagCapacity = { 40000, 6 }, kit_bagWeight = { 50000, 6 }, kit_trunk = { 60000, 6 }, kit_engine = { 80000, 6 },
+        kit_bagCapacity = { 40000, 6 }, kit_bagWeight = { 50000, 6 }, kit_storage = { 60000, 6 }, kit_engine = { 80000, 6 },
     }
     for id, want in pairs(expect) do
         local e = find(id)
@@ -211,14 +212,14 @@ test("tiers lock and unlock entries", function()
     eq(n, 0)
     r = record(3)
     truthy(S.available(find("propane_tank"), r) > 0)
-    n = S.available(find("kit_trunk"), record(5, 0))
+    n = S.available(find("kit_storage"), record(5, 0))
     eq(n, 0)
-    truthy(S.available(find("kit_trunk"), record(5, 1)) > 0)
+    truthy(S.available(find("kit_storage"), record(5, 1)) > 0)
 end)
 
 test("kits can be switched off", function()
     SandboxVars.OperationAcorn.KitsForSale = false
-    local n, why = S.available(find("kit_trunk"), record(5, 1))
+    local n, why = S.available(find("kit_storage"), record(5, 1))
     eq(n, 0); eq(why, "IGUI_OA_Econ_Shop_KitsOff")
     eq(#S.opensAt(6), 0, "the kits are the only goods of the first milestone")
 end)

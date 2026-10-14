@@ -101,13 +101,13 @@ test("the kit kinds are the shop's, with the type names it delivers", function()
     eq(R.kitType("bagCapacity"), "OperationAcorn.KitBagCapacity")
     eq(R.kitType("engine"), "OperationAcorn.KitEngine")
     eq(R.kindOf("Base.Hammer"), nil)
-    eq(R.SCOPE.bagCapacity, "bag"); eq(R.SCOPE.bagWeight, "bag"); eq(R.SCOPE.trunk, "vehicle"); eq(R.SCOPE.engine, "vehicle")
+    eq(R.SCOPE.bagCapacity, "bag"); eq(R.SCOPE.bagWeight, "bag"); eq(R.SCOPE.storage, "vehicle"); eq(R.SCOPE.engine, "vehicle")
 end)
 
 test("every good the shop names for this package is an item of the gear script", function()
     local T = OA.Shop.TYPES
     for _, key in ipairs({ "backpack", "fuelMk1", "fuelMk2", "fuelMk3",
-        "kitBagCapacity", "kitBagWeight", "kitTrunk", "kitEngine" }) do
+        "kitBagCapacity", "kitBagWeight", "kitStorage", "kitEngine" }) do
         local name = string.match(T[key], "^OperationAcorn%.(%w+)$")
         truthy(name, key .. " is of this mod")
         item(name)
@@ -163,7 +163,7 @@ test("the kits are real items with their icons", function()
     eq(count, 8)
     eq(item("KitBagCapacity").Icon, "OA_BagCapacityKit")
     eq(item("KitBagWeight").Icon, "OA_BagWeightKit")
-    eq(item("KitTrunk").Icon, "OA_TrunkKit")
+    eq(item("KitStorage").Icon, "OA_StorageKit")
     eq(item("KitEngine").Icon, "OA_EngineTuningKit")
     eq(item("TeamBackpack").Icon, "OA_ResearchBackpack")
 end)
@@ -171,10 +171,10 @@ end)
 test("the work of fitting a kit: bags a fixed time, vehicles faster with mechanics, never under 40 percent", function()
     eq(R.workTicks("bag"), 240)
     eq(R.workTicks("bagWeight", 10), 240)
-    eq(R.workTicks("trunk", 0), 500)
+    eq(R.workTicks("storage", 0), 500)
     eq(R.workTicks("engine", 0), 700)
-    eq(R.workTicks("trunk", 5), 400)      -- 80 percent
+    eq(R.workTicks("storage", 5), 400)      -- 80 percent
     eq(R.workTicks("engine", 10), 420)    -- 60 percent
-    eq(R.workTicks("trunk", 15), 200)     -- 40 percent, the least
+    eq(R.workTicks("storage", 15), 200)     -- 40 percent, the least
     eq(R.workTicks("engine", nil), 700)
 end)

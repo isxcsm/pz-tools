@@ -3,7 +3,7 @@
 -- writes the results back.
 --
 -- A kit is counted per target: a bag's count lives in the bag's modData, a vehicle's in the modData of the vehicle
--- part the kit changes (the trunk part, the engine part). The effect is always worked out again from the count and
+-- part the kit changes (the storage part, the engine part). The effect is always worked out again from the count and
 -- the target's original value, never added to the value it has now, so that a rounding never builds up and the
 -- same count always gives the same bag or vehicle.
 require "OperationAcorn/Core"
@@ -21,15 +21,15 @@ Rules.KEY = {
     BAG_BASE_CAP = "OA_KitBaseCap", -- on a bag: its capacity before the first kit
     BAG_BASE_RED = "OA_KitBaseRed", -- on a bag: its weight reduction before the first kit
     RAW = "OA_KitRaw",              -- the raw capacity the kits code last set (to see whether it must set it again)
-    TRUNK = "OA_KitTrunk",          -- on a trunk part: kits fitted
-    TRUNK_BASE = "OA_KitBase",      -- on a trunk part: its capacity before the first kit
+    STORAGE = "OA_KitStorage",      -- on a vehicle storage part: kits fitted
+    STORAGE_BASE = "OA_KitBase",    -- on a vehicle storage part: its capacity before the first kit
     ENGINE = "OA_KitEngine",        -- on the engine part: kits fitted
     ENGINE_POWER = "OA_KitPower",   -- on the engine part: the engine power before the first kit
     ENGINE_LOUD = "OA_KitLoud",     -- on the engine part: the engine loudness before the first kit
 }
 
 -- What a kit changes, per kit (NUMBERS 7).
-Rules.CAPACITY_STEP = 0.10      -- bag and trunk: of the original capacity
+Rules.CAPACITY_STEP = 0.10      -- bag and vehicle storage: of the original capacity
 Rules.REDUCTION_CAP = 95        -- bag weight reduction, in percent: the end value it approaches
 Rules.REDUCTION_FILL = 0.20     -- of the gap that is left to the end value
 Rules.POWER_STEP = 0.10         -- engine power, of the original
@@ -42,20 +42,20 @@ Rules.VEHICLE_LIMIT = 1000
 -- VehicleEngine.setFeatures stores the loudness it is given times this (float 0.37037036 in the game's bytecode).
 Rules.LOUDNESS_SCALE = 0.37037036
 
--- The work of fitting a kit, in ticks (a tick is about 1/30 s): a bag kit; a trunk kit and an engine kit before the
+-- The work of fitting a kit, in ticks (a tick is about 1/30 s): a bag kit; a storage kit and an engine kit before the
 -- mechanic's skill, which takes this share off per level of mechanics, down to the least share.
-Rules.TICKS = { bag = 240, trunk = 500, engine = 700 }
+Rules.TICKS = { bag = 240, storage = 500, engine = 700 }
 Rules.SKILL_SHARE = 0.04
 Rules.LEAST_SHARE = 0.4
 
 -- The kit kinds are P1's (Shop.KITS); this part adds which kind of target each one has.
-Rules.SCOPE = { bagCapacity = "bag", bagWeight = "bag", trunk = "vehicle", engine = "vehicle" }
+Rules.SCOPE = { bagCapacity = "bag", bagWeight = "bag", storage = "vehicle", engine = "vehicle" }
 
 -- Ticks of work on a kit of a kind ("bag" for both bag kits) at a mechanics level; only a vehicle kit gets faster.
 function Rules.workTicks(kind, level)
     if kind == "bag" or kind == "bagCapacity" or kind == "bagWeight" then return Rules.TICKS.bag end
     local share = math.max(Rules.LEAST_SHARE, 1 - Rules.SKILL_SHARE * (level or 0))
-    return math.floor((Rules.TICKS[kind] or Rules.TICKS.trunk) * share)
+    return math.floor((Rules.TICKS[kind] or Rules.TICKS.storage) * share)
 end
 
 -- The item type of a kind's kit ("OperationAcorn.KitBagCapacity").
@@ -77,7 +77,7 @@ local function round(x)
     return math.floor(x + 0.5)
 end
 
--- The capacity of a bag or a trunk with `n` capacity kits fitted: +10% of the original per kit, rounded once.
+-- The capacity of a bag or a vehicle storage with `n` capacity kits fitted: +10% of the original per kit, rounded once.
 function Rules.capacity(base, n)
     return round(base * (1 + Rules.CAPACITY_STEP * n))
 end

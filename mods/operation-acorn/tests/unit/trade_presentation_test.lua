@@ -18,7 +18,7 @@ test("a notice another part shows itself is not shown twice", function()
     local id = OA.Client.id(character)
     OA.Sync.deliver("notice", id, { key = "IGUI_OA_Trade_Notice_Sealed", args = { "3" } })
     eq(#shown, 1, "the trade's own notice")
-    for _, key in ipairs({ "IGUI_OA_Gear_Fitted_trunk", "IGUI_OA_Gear_Failed", "IGUI_OA_Machine_PartWorn",
+    for _, key in ipairs({ "IGUI_OA_Gear_Fitted_storage", "IGUI_OA_Gear_Failed", "IGUI_OA_Machine_PartWorn",
                            "IGUI_OA_Story_SwapFail", "IGUI_OA_Tree_CureExpired" }) do
         OA.Sync.deliver("notice", id, { key = key, args = { "far" } })
     end

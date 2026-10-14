@@ -171,7 +171,7 @@ local function gearPage(page, ui)
     ui.buttons(page, 2, {
         { T("Gr_BagCapacity"), function() Dev.giveAll({ "KitBagCapacity" }) end },
         { T("Gr_BagWeight"), function() Dev.giveAll({ "KitBagWeight" }) end },
-        { T("Gr_Trunk"), function() Dev.giveAll({ "KitTrunk" }) end },
+        { T("Gr_Storage"), function() Dev.giveAll({ "KitStorage" }) end },
         { T("Gr_Engine"), function() Dev.giveAll({ "KitEngine" }) end },
         { T("Gr_Voucher"), function() Dev.giveAll({ "KitVoucher" }) end },
         { T("Gr_Backpack"), function() Dev.giveAll({ "TeamBackpack" }) end },

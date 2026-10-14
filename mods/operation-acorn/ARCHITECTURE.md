@@ -101,7 +101,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
 아이템과 오브젝트 modData 키는 모두 `OA_`로 시작한다: `OA_Bought`(상점에서 산 물건, 납품 거부), `OA_Cell`(나온 셀,
 새 지역 웃돈), `OA_Mission`(임무 ID), `OA_Box`(상자 ID), `OA_Issued`(혈청 발급 시각), `OA_Owner`(발급받은 기록 ID).
 개조 키트(P6)는 대상 없이 사고, 어느 가방이나 차에든 붙는다. 상점은 종류별로 산 수를 센다(기록의 상점 섹션 `kits`).
-가방 아이템 `OA_KitCap`, `OA_KitWeight`, `OA_KitBaseCap`, `OA_KitBaseRed`, `OA_KitRaw`; 트렁크 부품(`TruckBed`, `TruckBedOpen`) `OA_KitTrunk`, `OA_KitBase`,
+가방 아이템 `OA_KitCap`, `OA_KitWeight`, `OA_KitBaseCap`, `OA_KitBaseRed`, `OA_KitRaw`; 차량 보관함 부품(좌석이 아닌, 짐을 담는 부품) `OA_KitStorage`, `OA_KitBase`,
 `OA_KitRaw`; 엔진 부품 `OA_KitEngine`, `OA_KitPower`, `OA_KitLoud`. 확장 API가 읽는 `OA_Capacity`는 키트가 쓸 때 숫자다 (원래 용량에 더할 양).
 
 ## 5. 작업 묶음

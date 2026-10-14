@@ -30,7 +30,7 @@
     "Sandbox_OperationAcorn_ShopPriceMultiplier": "Shop prices",
     "Sandbox_OperationAcorn_ShopPriceMultiplier_tooltip": "Multiplies shop prices, except upgrade serums and delivery box reissues.",
     "Sandbox_OperationAcorn_KitsForSale": "Sell modification kits",
-    "Sandbox_OperationAcorn_KitsForSale_tooltip": "Bag capacity, bag weight, trunk and engine kits reach the shop at the first milestone. Default: on.",
+    "Sandbox_OperationAcorn_KitsForSale_tooltip": "Bag capacity, bag weight, vehicle storage and engine kits reach the shop at the first milestone. Default: on.",
     "Sandbox_OperationAcorn_CureSerumPriceMultiplier": "Cure serum price multiplier",
     "Sandbox_OperationAcorn_CureSerumPriceMultiplier_tooltip": "Multiplies the price of a cure serum. At 1 it is 500,000 credits.",
     "Sandbox_OperationAcorn_CureSerumShelfLifeMultiplier": "Cure serum shelf life multiplier",

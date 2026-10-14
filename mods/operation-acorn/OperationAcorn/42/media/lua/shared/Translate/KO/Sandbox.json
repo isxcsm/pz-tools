@@ -30,7 +30,7 @@
     "Sandbox_OperationAcorn_ShopPriceMultiplier": "상점 가격 배율",
     "Sandbox_OperationAcorn_ShopPriceMultiplier_tooltip": "상점 가격의 배율입니다. 강화 혈청과 납품 상자 재발급에는 적용되지 않습니다.",
     "Sandbox_OperationAcorn_KitsForSale": "개조 키트 판매",
-    "Sandbox_OperationAcorn_KitsForSale_tooltip": "가방 용량, 가방 경량, 트렁크, 엔진 튜닝 키트가 첫 이정표에 상점에 나옵니다. 기본값: 켬.",
+    "Sandbox_OperationAcorn_KitsForSale_tooltip": "가방 용량, 가방 경량, 차량 보관함, 엔진 튜닝 키트가 첫 이정표에 상점에 나옵니다. 기본값: 켬.",
     "Sandbox_OperationAcorn_CureSerumPriceMultiplier": "치료 혈청 가격 배율",
     "Sandbox_OperationAcorn_CureSerumPriceMultiplier_tooltip": "치료 혈청 값에 곱합니다. 1이면 500,000크레딧입니다.",
     "Sandbox_OperationAcorn_CureSerumShelfLifeMultiplier": "치료 혈청 유통 기한 배율",

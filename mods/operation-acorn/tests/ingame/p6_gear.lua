@@ -1,19 +1,19 @@
 -- P6 gear and kits: what the unit tests cannot reach, checked on the real game objects. Single player, a character with
 -- a record (the first hello makes it). Run RUN("p6_gear.lua"); lines are tagged "[p6gear]", each ending "ok" or "BAD".
 -- Use a throwaway save: the vehicle checks fit kits to the nearest vehicle within 6 squares (stand beside a car that
--- has a trunk), and P6_CLEAN() takes back what it can (the kits it fitted to the vehicle, the items it made).
+-- has a storage such as a trunk), and P6_CLEAN() takes back what it can (the kits it fitted to the vehicle, the items it made).
 --
 -- What it checks: every item of OA_gear.txt against the vanilla item it is modelled on (the fuel cans' fluid container,
 -- the backpack's capacity, reduction and water storage); the shop stocks all of them; a bag kit and a weight
 -- kit on a vanilla bag and on the research backpack, with and without the extension API (it reads which one is there);
--- a trunk kit and an engine kit on the nearest vehicle against the game's own getters; the voucher through the server
+-- a storage kit (on each storage part) and an engine kit on the nearest vehicle against the game's own getters; the voucher through the server
 -- command; that a kit goes on any backpack.
 --
 -- Not scripted (do by hand): buy each good in the shop and see it arrive empty (the cans); hover a fitted bag and
 -- see the kit lines; right-click a kit and a bag; fit a bag kit and a vehicle kit with the real timed action (the
--- progress bar, the notice), from the inventory menu and from the mechanics window (right-click the trunk and the engine
--- part); save, quit and load: the bag's capacity and reduction, the trunk, the engine power and loudness are as left;
--- drive the car with a full trunk; wear the backpack, fill its water storage at a tap and drink from it (right-click),
+-- progress bar, the notice), from the inventory menu and from the mechanics window (right-click a storage, a roof rack too,
+-- and the engine part); save, quit and load: the bag's capacity and reduction, the storages, the engine power and loudness are as left;
+-- drive the car with a full trunk; fit one to a modded vehicle's own storage (a KI5 car's roof rack); wear the backpack, fill its water storage at a tap and drink from it (right-click),
 -- hang a radio on a shoulder-strap hanger; load a save made before the water storage (a pack bought then has it,
 -- empty, and keeps its contents and kits).
 local OA = OperationAcorn
@@ -64,7 +64,7 @@ say("extension API", api and "present" or "missing", "capacity key applied", tos
 section("the items against the vanilla ones", function()
     local T = OA.Shop.TYPES
     for _, key in ipairs({ "backpack", "fuelMk1", "fuelMk2", "fuelMk3",
-        "kitBagCapacity", "kitBagWeight", "kitTrunk", "kitEngine" }) do
+        "kitBagCapacity", "kitBagWeight", "kitStorage", "kitEngine" }) do
         check("script " .. T[key], scripts:FindItem(T[key]) ~= nil)
     end
 
@@ -100,7 +100,7 @@ section("the items against the vanilla ones", function()
 
     local shop = OA.Shop
     for _, id in ipairs({ "team_backpack", "fuelcan_mk1", "fuelcan_mk2", "fuelcan_mk3",
-        "kit_bagCapacity", "kit_bagWeight", "kit_trunk", "kit_engine" }) do
+        "kit_bagCapacity", "kit_bagWeight", "kit_storage", "kit_engine" }) do
         check("the shop stocks " .. id, shop.stocked(shop.entry(id)))
     end
 end)
@@ -160,30 +160,28 @@ section("vehicle kits", function()
     local vehicle = nearestVehicle()
     if not check("a vehicle within " .. Gear.REACH .. " squares", vehicle ~= nil) then return end
     say("vehicle", Gear.vehicleName(vehicle))
-    local trunks = Gear.trunkParts(vehicle)
+    local storages = Gear.storageParts(vehicle)
     local engine = vehicle:getPartById(Gear.ENGINE_PART)
     fitted[#fitted + 1] = vehicle
 
-    if #trunks > 0 then
-        local before = {}
-        for i, part in ipairs(trunks) do before[i] = part:getContainerCapacity() end
-        local ok, total = Gear.fitTrunk(player, kitFor("trunk"), vehicle)
-        check("trunk kit fits", ok, total)
-        for i, part in ipairs(trunks) do
-            local md = part:getModData()
-            check("trunk part " .. part:getId() .. " counted", md[K.TRUNK] == 1)
+    if #storages > 0 then
+        for _, part in ipairs(storages) do
+            local id = part:getId()
+            local before = part:getContainerCapacity()
+            local ok, total = Gear.fitStorage(player, kitFor("storage"), vehicle, id)
+            check("storage kit fits " .. id, ok, total)
+            check(id .. " counted", part:getModData()[K.STORAGE] == 1)
             local now = part:getContainerCapacity()
-            check("trunk part " .. part:getId() .. " holds more by the game's getter", now > before[i], before[i] .. " -> " .. now)
-            check("trunk part " .. part:getId() .. " effective capacity", part:getItemContainer() ~= nil
-                and part:getItemContainer():getEffectiveCapacity(player) >= now, part:getItemContainer() and part:getItemContainer():getEffectiveCapacity(player))
-        end
-        check("the kit count by the helper", Gear.trunkKits(vehicle) == 1)
-        check("the trunk lines", Gear.trunkLines(vehicle) ~= nil)
-        if lifted then
-            check("with the API the part has OA_Capacity as a number", type(trunks[1]:getModData()[K.CAPACITY]) == "number")
+            check(id .. " holds more by the game's getter", now > before or before == 0, before .. " -> " .. now)
+            check(id .. " effective capacity", part:getItemContainer():getEffectiveCapacity(player) >= now,
+                part:getItemContainer():getEffectiveCapacity(player))
+            check(id .. " lines", Gear.storageLines(part) ~= nil)
+            if lifted then
+                check(id .. ": with the API the part has OA_Capacity as a number", type(part:getModData()[K.CAPACITY]) == "number")
+            end
         end
     else
-        say("this vehicle has no trunk part; trunk kit not checked")
+        say("this vehicle has no storage part; storage kit not checked")
     end
 
     if engine then
@@ -226,7 +224,7 @@ section("the voucher", function()
     Events.OnTick.Add(later)
 end)
 
--- Takes away the items the checks made and puts back the vehicle they fitted (power, loudness, the trunks).
+-- Takes away the items the checks made and puts back the vehicle they fitted (power, loudness, the storages).
 function P6_CLEAN()
     for _, item in ipairs(made) do
         local container = item:getContainer()
@@ -243,11 +241,11 @@ function P6_CLEAN()
                 vehicle:transmitEngine()
             end
         end
-        for _, part in ipairs(Gear.trunkParts(vehicle)) do
+        for _, part in ipairs(Gear.storageParts(vehicle)) do
             local md = part:getModData()
-            if md[K.TRUNK_BASE] then
-                part:setContainerCapacity(md[K.TRUNK_BASE])
-                md[K.TRUNK], md[K.TRUNK_BASE], md[K.RAW], md[K.CAPACITY] = nil, nil, nil, nil
+            if md[K.STORAGE_BASE] then
+                part:setContainerCapacity(md[K.STORAGE_BASE])
+                md[K.STORAGE], md[K.STORAGE_BASE], md[K.RAW], md[K.CAPACITY] = nil, nil, nil, nil
                 vehicle:transmitPartModData(part)
             end
         end

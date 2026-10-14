@@ -31,7 +31,7 @@ Shop.TYPES = {
     backpack = "OperationAcorn.TeamBackpack",
     fuelMk1 = "OperationAcorn.FuelCanMk1", fuelMk2 = "OperationAcorn.FuelCanMk2", fuelMk3 = "OperationAcorn.FuelCanMk3",
     kitBagCapacity = "OperationAcorn.KitBagCapacity", kitBagWeight = "OperationAcorn.KitBagWeight",
-    kitTrunk = "OperationAcorn.KitTrunk", kitEngine = "OperationAcorn.KitEngine",
+    kitStorage = "OperationAcorn.KitStorage", kitEngine = "OperationAcorn.KitEngine",
     motorNormal = "OperationAcorn.MotorNormal", motorModern = "OperationAcorn.MotorModern",
     shredBladeNormal = "OperationAcorn.ShredBladeNormal", shredBladeModern = "OperationAcorn.ShredBladeModern",
     cutBladeNormal = "OperationAcorn.CutBladeNormal", cutBladeModern = "OperationAcorn.CutBladeModern",
@@ -49,10 +49,10 @@ local SERUM_TYPE = { scout = "serumScout", load = "serumLoad", survival = "serum
 Shop.KITS = {
     bagCapacity = { price = 40000, type = "kitBagCapacity" },
     bagWeight = { price = 50000, type = "kitBagWeight" },
-    trunk = { price = 60000, type = "kitTrunk" },
+    storage = { price = 60000, type = "kitStorage" },
     engine = { price = 80000, type = "kitEngine" },
 }
-Shop.KIT_ORDER = { "bagCapacity", "bagWeight", "trunk", "engine" }
+Shop.KIT_ORDER = { "bagCapacity", "bagWeight", "storage", "engine" }
 
 Shop.SERUM_LINEAR_FROM = 26       -- the 26th serum of a tree costs 8000 * 1.15^25; after it the price is linear
 Shop.SERUM_LINEAR_STEP = 30000    -- per serum after the 26th, at the default base price
@@ -112,6 +112,12 @@ local function build()
     add({ id = "propane_tank", group = "resource", tier = 3, price = 25000, week = 2, give = { vanilla("PropaneTank", 1, { full = true }) } })
     add({ id = "seed_pack", group = "resource", tier = 1, price = 3000, week = 5, choices = "seeds" })
     add({ id = "scrap_pack", group = "resource", tier = 2, price = 6000, week = 5, give = { vanilla("ElectronicsScrap", 10) } })
+    -- Building hardware, dear (NUMBERS 7): a box of 100 nails or screws is what a delivery of 2 weight pays ten times
+    -- over. Nuts and bolts come loose in fives and never in a box, so they cost the most a piece.
+    add({ id = "nails_box", group = "resource", tier = 1, price = 8000, week = 3, give = { vanilla("NailsBox") } })
+    add({ id = "screws_box", group = "resource", tier = 1, price = 8000, week = 3, give = { vanilla("ScrewsBox") } })
+    add({ id = "nuts_bolts", group = "resource", tier = 2, price = 15000, week = 2, give = { vanilla("NutsBolts", 20) } })
+    add({ id = "welding_rods", group = "resource", tier = 2, price = 12000, week = 3, give = { vanilla("WeldingRods") } })
     add({ id = "engine_parts", group = "resource", tier = 3, price = 20000, week = 2, give = { vanilla("EngineParts", 10) } })
     add({ id = "car_battery", group = "resource", tier = 3, price = 20000, week = 2,
         choices = choiceList({ "CarBattery1", "CarBattery2", "CarBattery3" }) })
@@ -127,9 +133,9 @@ local function build()
     add({ id = "shred_bench", group = "machine", tier = 0, price = 5000, give = { give("shredBench") } })
     add({ id = "bait_trap", group = "machine", tier = 2, price = 12000, give = { give("bait") } })
     add({ id = "field_terminal", group = "machine", tier = 2, price = 50000, give = { give("fieldTerminal") } })
-    add({ id = "team_locker", group = "machine", tier = 2, price = 15000, give = { give("locker") } })
-    -- the locker's small kind, stacked three high: about the locker's price a capacity
-    add({ id = "team_crate", group = "machine", tier = 2, price = 12000, give = { give("crate") } })
+    add({ id = "team_locker", group = "machine", tier = 2, price = 60000, give = { give("locker") } })
+    -- the locker's small kind, stacked three high
+    add({ id = "team_crate", group = "machine", tier = 2, price = 15000, give = { give("crate") } })
     add({ id = "fabric_cutter", group = "machine", tier = 2, price = 80000, give = { give("cutter") } })
     add({ id = "log_saw", group = "machine", tier = 2, price = 100000, give = { give("logSaw") } })
     add({ id = "rain_cistern", group = "machine", tier = 3, price = 90000, give = { give("cistern") } })

@@ -196,7 +196,7 @@ local ITEMS = {
     "ShredderBladeOld", "ShredderBladeNormal", "ShredderBladeModern", "CuttingBlade", "CuttingBladeOld",
     "CuttingBladeNormal", "CuttingBladeModern", "SawBlade", "SawBladeOld", "SawBladeNormal", "SawBladeModern",
     "Catalyst", "CatalystOld", "CatalystNormal", "CatalystModern", "SoundproofCover", "SoundproofCoverOld",
-    "SoundproofCoverNormal", "SoundproofCoverModern", "BagCapacityKit", "BagWeightKit", "TrunkKit",
+    "SoundproofCoverNormal", "SoundproofCoverModern", "BagCapacityKit", "BagWeightKit", "StorageKit",
     "EngineTuningKit", "ResearchBackpack", "FuelCanMk1", "FuelCanMk2", "FuelCanMk3", "WeldingTorchMk1",
     "WeldingTorchMk2", "WeldingTorchMk3", "MissionItem", "DocumentItem",
     "MissionEnvelope", "MissionSampleTin", "MissionLogbook", "MissionFilterCase", "MissionTape", "MissionFabricRoll", "MissionHeavyCase", "EvidenceEnvelope", "ClinicRecord",

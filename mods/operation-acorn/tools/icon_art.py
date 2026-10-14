@@ -188,33 +188,7 @@ def pictogram(kind, w=80, h=48, ink=(30, 34, 34), bg=(236, 232, 212)):
     c = ink + (255,)
     cx, cy = w * sc / 2, h * sc / 2
 
-    def bag(x, y, s_):
-        d.rounded_rectangle([x - 14 * s_, y - 12 * s_, x + 14 * s_, y + 16 * s_], radius=7 * s_, fill=c)
-        d.rounded_rectangle([x - 9 * s_, y - 17 * s_, x + 9 * s_, y - 9 * s_], radius=4 * s_, outline=c, width=int(3 * s_))
-        d.rectangle([x - 8 * s_, y + 2 * s_, x + 8 * s_, y + 8 * s_], fill=bg + (255,))
-    if kind == 'bagplus':
-        bag(cx - 8 * sc, cy, 1.2)
-        d.rectangle([cx + 12 * sc, cy - 3 * sc, cx + 30 * sc, cy + 3 * sc], fill=c)
-        d.rectangle([cx + 18 * sc, cy - 9 * sc, cx + 24 * sc, cy + 9 * sc], fill=c)
-    elif kind == 'bagfeather':
-        bag(cx - 8 * sc, cy, 1.2)
-        d.polygon([(cx + 22 * sc, cy - 16 * sc), (cx + 22 * sc, cy + 6 * sc), (cx + 12 * sc, cy + 6 * sc)], fill=c)
-        d.polygon([(cx + 22 * sc, cy + 6 * sc), (cx + 32 * sc, cy + 6 * sc), (cx + 22 * sc, cy + 18 * sc)], fill=c)
-        d.rectangle([cx + 19 * sc, cy - 16 * sc, cx + 25 * sc, cy + 4 * sc], fill=c)
-    elif kind == 'trunk':
-        d.polygon([(cx - 30 * sc, cy + 8 * sc), (cx - 28 * sc, cy - 4 * sc), (cx - 14 * sc, cy - 12 * sc), (cx + 14 * sc, cy - 12 * sc),
-                   (cx + 30 * sc, cy - 2 * sc), (cx + 32 * sc, cy + 8 * sc)], fill=c)
-        d.ellipse([cx - 24 * sc, cy + 2 * sc, cx - 12 * sc, cy + 14 * sc], fill=bg + (255,), outline=c, width=int(3 * sc))
-        d.ellipse([cx + 14 * sc, cy + 2 * sc, cx + 26 * sc, cy + 14 * sc], fill=bg + (255,), outline=c, width=int(3 * sc))
-        d.polygon([(cx - 10 * sc, cy - 14 * sc), (cx + 10 * sc, cy - 22 * sc), (cx + 14 * sc, cy - 12 * sc)], fill=c)
-    elif kind == 'engine':
-        d.rectangle([cx - 24 * sc, cy - 8 * sc, cx + 20 * sc, cy + 14 * sc], fill=c)
-        for i in range(4):
-            d.rectangle([cx - 20 * sc + i * 11 * sc, cy - 17 * sc, cx - 12 * sc + i * 11 * sc, cy - 8 * sc], fill=c)
-        d.rectangle([cx + 20 * sc, cy - 2 * sc, cx + 30 * sc, cy + 8 * sc], fill=c)
-        d.rectangle([cx - 30 * sc, cy, cx - 24 * sc, cy + 6 * sc], fill=c)
-        d.polygon([(cx - 4 * sc, cy - 2 * sc), (cx + 6 * sc, cy - 2 * sc), (cx, cy + 12 * sc)], fill=(255, 190, 40, 255))
-    elif kind == 'exclaim':
+    if kind == 'exclaim':
         d.rectangle([cx - 4 * sc, cy - 17 * sc, cx + 4 * sc, cy + 5 * sc], fill=c)
         d.ellipse([cx - 5 * sc, cy + 9 * sc, cx + 5 * sc, cy + 19 * sc], fill=c)
     elif kind == 'cross':
@@ -582,18 +556,90 @@ def cover(tier):
     return from_scene(s)
 
 
-def kit(kind, plate):
+# The kits' colours: each kind's band around the case and the plate on its lid, so the four tell apart at 32 px by
+# colour first and by the picture on the lid second.
+KIT_COLOURS = {
+    'bagCapacity': (96, 150, 214),
+    'bagWeight': (226, 172, 64),
+    'storage': (90, 178, 128),
+    'engine': (212, 96, 72),
+}
+
+
+def kit_glyph(kind, w, h, bg, ink=(26, 30, 30)):
+    """The picture on a kit's lid, drawn bold to read at 32 px: a pack with a plus (capacity), a feather (weight), a
+    car with a box on its roof rack and its boot lid up (vehicle storage), a cog with a spark (engine tuning)."""
+    sc = 4
+    img = Image.new('RGBA', (w * sc, h * sc), bg + (255,))
+    d = ImageDraw.Draw(img)
+    c, b = ink + (255,), bg + (255,)
+    W, H = w * sc, h * sc
+    k = sc * h / 56
+
+    def pack(x, y):
+        d.rounded_rectangle([x - 15 * k, y - 13 * k, x + 15 * k, y + 19 * k], radius=8 * k, fill=c)
+        d.rounded_rectangle([x - 9 * k, y - 20 * k, x + 9 * k, y - 10 * k], radius=5 * k, outline=c, width=int(4 * k))
+        d.rounded_rectangle([x - 10 * k, y + 3 * k, x + 10 * k, y + 13 * k], radius=3 * k, fill=b)
+    if kind == 'bagCapacity':
+        pack(W * 0.34, H * 0.5)
+        x, y = W * 0.74, H * 0.5
+        d.rectangle([x - 15 * k, y - 5 * k, x + 15 * k, y + 5 * k], fill=c)
+        d.rectangle([x - 5 * k, y - 15 * k, x + 5 * k, y + 15 * k], fill=c)
+    elif kind == 'bagWeight':
+        # a feather lying across the plate: the vane an ellipse turned 35 degrees, the shaft and a few cuts in the vane
+        x, y = W * 0.5, H * 0.5
+        a = math.radians(-35)
+        ca, sa = math.cos(a), math.sin(a)
+        pts = []
+        for i in range(48):
+            t = 2 * math.pi * i / 48
+            px, py = 30 * k * math.cos(t), 11 * k * math.sin(t)
+            pts.append((x + px * ca - py * sa, y + px * sa + py * ca))
+        d.polygon(pts, fill=c)
+        d.line([(x - 30 * k * ca, y - 30 * k * sa), (x + 30 * k * ca, y + 30 * k * sa)], fill=b, width=int(3 * k))
+        d.line([(x - 42 * k * ca, y - 42 * k * sa), (x - 28 * k * ca, y - 28 * k * sa)], fill=c, width=int(4 * k))
+        for t in (-12, 4, 18):
+            bx, by = x + t * k * ca, y + t * k * sa
+            d.line([(bx, by), (bx + 12 * k * (-sa + ca * 0.6), by + 12 * k * (ca + sa * 0.6))], fill=b, width=int(2 * k))
+    elif kind == 'storage':
+        x, y = W * 0.5, H * 0.70
+        d.polygon([(x - 36 * k, y + 8 * k), (x - 34 * k, y - 4 * k), (x - 18 * k, y - 14 * k), (x + 12 * k, y - 14 * k),
+                   (x + 22 * k, y - 4 * k), (x + 36 * k, y - 2 * k), (x + 37 * k, y + 8 * k)], fill=c)
+        # the boot lid raised from the rear corner
+        d.polygon([(x + 22 * k, y - 4 * k), (x + 25 * k, y - 22 * k), (x + 31 * k, y - 22 * k), (x + 27 * k, y - 4 * k)],
+                  fill=c)
+        for wx in (-22, 22):
+            d.ellipse([x + (wx - 8) * k, y + 1 * k, x + (wx + 8) * k, y + 17 * k], fill=c, outline=b, width=int(3 * k))
+        d.rectangle([x - 14 * k, y - 11 * k, x + 8 * k, y - 4 * k], fill=b)
+        # the roof rack's box
+        d.rectangle([x - 16 * k, y - 18 * k, x + 8 * k, y - 15 * k], fill=c)
+        d.rounded_rectangle([x - 14 * k, y - 27 * k, x + 6 * k, y - 18 * k], radius=2 * k, fill=c)
+    elif kind == 'engine':
+        x, y = W * 0.5, H * 0.5
+        r_out, r_in, teeth = 24 * k, 17 * k, 8
+        pts = []
+        for i in range(teeth * 4):
+            t = 2 * math.pi * i / (teeth * 4)
+            r = r_out if (i % 4) in (1, 2) else r_in
+            pts.append((x + r * math.cos(t), y + r * math.sin(t)))
+        d.polygon(pts, fill=c)
+        d.ellipse([x - 9 * k, y - 9 * k, x + 9 * k, y + 9 * k], fill=b)
+        d.polygon([(x + 2 * k, y - 8 * k), (x - 5 * k, y + 2 * k), (x + 1 * k, y + 2 * k), (x - 3 * k, y + 10 * k),
+                   (x + 6 * k, y - 1 * k), (x, y - 1 * k)], fill=(250, 196, 40, 255))
+    return img.resize((w, h), Image.LANCZOS)
+
+
+def kit(kind):
+    """A modification kit: a low olive case with a band in the kind's colour all round and a plate of that colour over
+    most of the lid, the kit's picture on it; two latches on the front."""
+    col = KIT_COLOURS[kind]
     s = Scene(0)
-    s.box(0.14, 0.26, 0.0, 0.86, 0.74, 0.34, OD, top=OD_LIGHT, shine=0.1)
-    s.box(0.13, 0.25, 0.22, 0.87, 0.75, 0.3, OD_DARK, top=OD, shine=0.1)
-    s.tube((0.34, 0.5, 0.34), (0.66, 0.5, 0.34), 0.02, BLACK, segments=8)
-    s.tube((0.34, 0.5, 0.3), (0.34, 0.5, 0.36), 0.02, BLACK, segments=8)
-    s.tube((0.66, 0.5, 0.3), (0.66, 0.5, 0.36), 0.02, BLACK, segments=8)
-    s.box(0.2, 0.745, 0.18, 0.28, 0.77, 0.3, STEEL_DARK, shine=0.5)
-    s.box(0.72, 0.745, 0.18, 0.8, 0.77, 0.3, STEEL_DARK, shine=0.5)
-    img = pictogram(kind, 80, 48, bg=plate)
-    front_decal(s, 0.3, 0.7, 0.04, 0.2, 0.751, img, offset=0.0)
-    flat_decal(s, 0.3, 0.32, 0.7, 0.56, 0.301, img, offset=0.0)
+    s.box(0.12, 0.22, 0.0, 0.88, 0.78, 0.36, OD, top=OD_LIGHT, shine=0.1)
+    s.box(0.115, 0.215, 0.09, 0.885, 0.785, 0.19, col, top=col, shine=0.15)
+    plate = tuple(min(255, int(v * 1.12 + 18)) for v in col)
+    flat_decal(s, 0.16, 0.26, 0.84, 0.74, 0.361, kit_glyph(kind, 136, 96, plate), offset=0.0)
+    s.box(0.22, 0.78, 0.22, 0.30, 0.80, 0.33, STEEL_DARK, shine=0.5)
+    s.box(0.70, 0.78, 0.22, 0.78, 0.80, 0.33, STEEL_DARK, shine=0.5)
     return from_scene(s)
 
 
@@ -659,10 +705,10 @@ PICTURES = {
     'rain_storage': machine('rainStorage', 3),
     'lure': lure_icon,
     'backpack': backpack,
-    'kit_bag_capacity': lambda: kit('bagplus', (170, 200, 236)),
-    'kit_bag_weight': lambda: kit('bagfeather', (240, 200, 120)),
-    'kit_trunk': lambda: kit('trunk', (168, 220, 196)),
-    'kit_engine': lambda: kit('engine', (236, 170, 150)),
+    'kit_bag_capacity': lambda: kit('bagCapacity'),
+    'kit_bag_weight': lambda: kit('bagWeight'),
+    'kit_storage': lambda: kit('storage'),
+    'kit_engine': lambda: kit('engine'),
     'fuel_can_1': lambda: jerrycan(1), 'fuel_can_2': lambda: jerrycan(2), 'fuel_can_3': lambda: jerrycan(3),
 }
 def tier_mark(image, tier):
