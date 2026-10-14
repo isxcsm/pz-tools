@@ -34,6 +34,9 @@ import java.nio.FloatBuffer;
  * <li>{@code exhale} (leave): it beats with a heart (a warm glow flaring with each beat) that calms as it stays; one more
  *     beat, a stillness and a last weak one as it starts to leave, and then a breath out: it settles and fades, its glow
  *     staying on a moment after it.</li>
+ * <li>{@code wash} (leave): it is inked as it shows (as it hits, after an impact): wet ink, patchy where the paper held it
+ *     back, glossy and stirring a little as it stays; as it leaves it dries in blotches, its colour lifting away, the pressed
+ *     shape of it left a moment (a map of each spot's ink, made once from its picture).</li>
  * </ul>
  * The numbers are those of tools/title-lab, where the looks are made: the page draws them with the same arithmetic and shader.
  */
@@ -88,8 +91,15 @@ final class Looks {
     static final double PULSE_GLOW = 1, PULSE_BEAT = 1, PULSE_CALM = 1, PULSE_LEAVE = 10.7, BEAT_LENGTH = 0.6, ONE_MORE = 0.55 + 0.55 * PULSE_CALM,
         LAST_PAUSE = 1.2, LAST_BEAT = ONE_MORE + BEAT_LENGTH + LAST_PAUSE, EXHALE_AFTER = LAST_BEAT + BEAT_LENGTH + 1.7;
 
+    /**
+     * Wash: how patchy its ink is, how glossy while wet, how strongly its pressed shape shows as it goes, how much the wet ink
+     * stirs, how dark its shadow is. A line under a title hits with LINE_HIT of an impact's strength.
+     */
+    static final double INK_PATCHY = 0.35, INK_GLOSS = 0.45, INK_EMBOSS = 1, INK_RIPPLE = 1, INK_SHADOW = 1, LINE_HIT = 0.55;
+    private static final double[] FIBRE_AT = { 0.2, 1.4, 2.5 }, FIBRE_BY = { 0.4, 0.3, 0.2 };
+
     /** The looks drawn over a text's life. */
-    static final int PLAIN = 0, TORCH = 1, RADIO = 2, FOG = 3, BLEED = 4, SINK = 5, STRIKE = 6, PULSE = 7;
+    static final int PLAIN = 0, TORCH = 1, RADIO = 2, FOG = 3, BLEED = 4, SINK = 5, STRIKE = 6, PULSE = 7, INK = 8;
 
     private Looks() { }
 
@@ -100,6 +110,8 @@ final class Looks {
     static double clamp(double value, double low, double high) { return value < low ? low : value > high ? high : value; }
 
     static double bump(double x, double at, double width) { double d = (x - at) / width; return Math.exp(-d * d); }
+
+    static double smoothstep(double from, double to, double x) { return smooth(clamp((x - from) / (to - from), 0, 1)); }
 
     /** An integer hash, 0 to 1 (the page's {@code hash}). */
     static double hash(int x, int y, int s) {
@@ -115,6 +127,11 @@ final class Looks {
         double fx = smooth(x - ix), fy = smooth(y - iy);
         double a = hash(ix, iy, s), b = hash(ix + 1, iy, s), c = hash(ix, iy + 1, s), d = hash(ix + 1, iy + 1, s);
         return (a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy;
+    }
+
+    /** Three octaves of {@link #vnoise}, 0 to 1 (the shader's {@code fbm}). */
+    static double fbm(double x, double y, int s) {
+        return 0.5 * vnoise(x, y, s) + 0.3 * vnoise(x * 2.1 + 3, y * 2.1 + 3, s) + 0.2 * vnoise(x * 4.3 + 7, y * 4.3 + 7, s);
     }
 
     /** How far along the burn's sweep a pixel is, 0 to 1, in a picture {@code w} by {@code h}. */
@@ -169,18 +186,133 @@ final class Looks {
     }
 
     /**
-     * The impact's fall and hit at {@code secs} into the enter, into {@code into}: alpha, scale, squash across, squash up, shake
-     * across (in lines) and down (in lines).
+     * Squared distances from each pixel of a picture {@code w} by {@code h} to the nearest one that {@code to} marks
+     * (Felzenszwalb's transform, by columns and then rows; the page's {@code edt}).
      */
-    static void impact(double secs, double[] into) {
+    static double[] distances(boolean[] to, int w, int h) {
+        double[] out = new double[w * h];
+        for (int index = 0; index < out.length; index++) out[index] = to[index] ? 0 : FAR;
+        int n = Math.max(w, h);
+        double[] line = new double[n], done = new double[n], bounds = new double[n + 1];
+        int[] lows = new int[n];
+        for (int x = 0; x < w; x++) {
+            for (int y = 0; y < h; y++) line[y] = out[y * w + x];
+            lower(line, h, done, lows, bounds);
+            for (int y = 0; y < h; y++) out[y * w + x] = done[y];
+        }
+        for (int y = 0; y < h; y++) {
+            System.arraycopy(out, y * w, line, 0, w);
+            lower(line, w, done, lows, bounds);
+            System.arraycopy(done, 0, out, y * w, w);
+        }
+        return out;
+    }
+
+    private static final double FAR = 1e10;
+
+    /** One row's squared distances, into {@code done}: the lower envelope of the parabolas over {@code line}. */
+    private static void lower(double[] line, int length, double[] done, int[] lows, double[] bounds) {
+        int k = 0;
+        lows[0] = 0;
+        bounds[0] = -FAR;
+        bounds[1] = FAR;
+        for (int q = 1; q < length; q++) {
+            double s;
+            while (true) {
+                int v = lows[k];
+                s = ((line[q] + (double)q * q) - (line[v] + (double)v * v)) / (2.0 * q - 2.0 * v);
+                if (s > bounds[k]) break;
+                k--;
+            }
+            k++;
+            lows[k] = q;
+            bounds[k] = s;
+            bounds[k + 1] = FAR;
+        }
+        k = 0;
+        for (int q = 0; q < length; q++) {
+            while (bounds[k + 1] < q) k++;
+            int v = lows[k];
+            done[q] = (double)(q - v) * (q - v) + line[v];
+        }
+    }
+
+    /**
+     * A washed text's ink map, from its picture's alpha ({@code w} by {@code h}, rows from the top): four values 0 to 1 a pixel,
+     * how much ink it took (more down a stroke's middle; patchy, bare where the paper's grain and fibres held it back, a little
+     * run together), the paper's fibre there, how late it dries and when its colour lifts (blotches of the paper). The strokes'
+     * half width (their widest's, in pixels) goes into {@code shape.stroke}.
+     */
+    static float[] inkMap(Dust.Alpha alpha, int w, int h, int seed, Shape shape) {
+        int n = w * h;
+        boolean[] outside = new boolean[n];
+        float[] cover = new float[n];
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++) {
+                int a = alpha.at(x, y), index = y * w + x;
+                cover[index] = a / 255f;
+                outside[index] = a < 128;
+            }
+        double[] deep = distances(outside, w, h);
+        double most = 0;
+        for (int index = 0; index < n; index++) if (!outside[index]) most = Math.max(most, Math.sqrt(deep[index]) - 0.5);
+        double r = Math.max(1.5, most * 0.85);
+        shape.stroke = r;
+        double[] cos = new double[3], sin = new double[3];
+        for (int k = 0; k < 3; k++) {
+            double angle = FIBRE_AT[k] + hash(k, 1, seed) * 0.6;
+            cos[k] = Math.cos(angle);
+            sin[k] = Math.sin(angle);
+        }
+        float[] map = new float[n * 4], lay = new float[n];
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++) {
+                int index = y * w + x;
+                double v = 0.1 * hash(x, y, seed + 9);
+                for (int k = 0; k < 3; k++) v += FIBRE_BY[k] * vnoise((x * cos[k] + y * sin[k]) / 3, (y * cos[k] - x * sin[k]) / 0.6, seed + k);
+                double fibre = clamp((v - 0.15) / 0.7, 0, 1);
+                double bare = 1 - smoothstep(0.3, 0.62, fbm(x / (r * 1.4), y / (r * 1.4), seed + 23)) + 0.6 * (1 - smoothstep(0.15, 0.55, fibre));
+                double middle = outside[index] ? 0 : smoothstep(0, r, Math.sqrt(deep[index]) - 0.5);
+                lay[index] = (float)((0.55 + 0.45 * middle) * cover[index] * (1 - Math.min(INK_PATCHY * bare, 0.95)));
+                map[index * 4 + 1] = (float)fibre;
+                map[index * 4 + 2] = (float)smoothstep(0.2, 0.8, fbm(x / (r * 3.5), y / (r * 3.5), seed + 71));
+                map[index * 4 + 3] = (float)fbm(x / (r * 1.3), y / (r * 1.3), seed + 19);
+            }
+        // Run together a little: across, then down.
+        float[] across = new float[n];
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++) {
+                int index = y * w + x;
+                across[index] = 0.25f * lay[x > 0 ? index - 1 : index] + 0.5f * lay[index] + 0.25f * lay[x < w - 1 ? index + 1 : index];
+            }
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++) {
+                int index = y * w + x;
+                map[index * 4] = 0.25f * across[y > 0 ? index - w : index] + 0.5f * across[index] + 0.25f * across[y < h - 1 ? index + w : index];
+            }
+        return map;
+    }
+
+    /** Values 0 to 1, four a pixel, as a texture's pixels (8 bits each). */
+    static ByteBuffer bytes(float[] map) {
+        ByteBuffer pixels = ByteBuffer.allocateDirect(map.length).order(ByteOrder.nativeOrder());
+        for (float value : map) pixels.put((byte)Math.round(clamp(value, 0, 1) * 255));
+        return pixels.flip();
+    }
+
+    /**
+     * The impact's fall and hit at {@code secs} into the enter, as strong as {@code hit} (1: a title's), into {@code into}: alpha,
+     * scale, squash across, squash up, shake across (in lines) and down (in lines).
+     */
+    static void impact(double secs, double hit, double[] into) {
         into[0] = 1; into[1] = 1; into[2] = 1; into[3] = 1; into[4] = 0; into[5] = 0;
         if (secs < IMPACT) {
             double u = Math.max(0, secs) / IMPACT;
-            into[1] = 1.45 - 0.45 * u * u;
+            into[1] = 1 + 0.45 * hit * (1 - u * u);
             into[0] = Math.min(1, u * 2.5);
             return;
         }
-        double k = secs - IMPACT, ring = Math.exp(-k * 18), shake = Math.exp(-k * 14);
+        double k = secs - IMPACT, ring = hit * Math.exp(-k * 18), shake = hit * Math.exp(-k * 14);
         into[3] = 1 - 0.07 * ring * Math.cos(k * 40);
         into[2] = 1 + 0.04 * ring * Math.cos(k * 40);
         into[4] = 0.03 * shake * Math.sin(k * 70);
@@ -360,6 +492,8 @@ final class Looks {
         final double[] drops = new double[3 * MAX_DROPS];
         int dropCount;
         double reach;
+        /** Wash: its strokes' half width, in its picture's pixels (set with its map, away from the main thread). */
+        volatile double stroke;
         /**
          * Strike: each letter's span across its picture (from, to, middle, in pixels) and its row's (top and bottom, shares of the
          * picture's height), when it is struck, and how many; its seed.
@@ -391,6 +525,8 @@ final class Looks {
         /** Its leave's length; when its title leaves, on the group's clock; its title's line height, in pixels; whether it is a title. */
         double leaveTime, titleLeaves, titleLine;
         boolean title;
+        /** The impact's strength (1: a title's). */
+        double hit;
         double drift;
         float burnRed, burnGreen, burnBlue;
 
@@ -427,7 +563,7 @@ final class Looks {
         private int program = -1;
         private int uMode, uMvp, uTex, uMap, uTexRect, uProgress, uEdge, uChar, uScorch, uGlow, uFlickerN, uFlickerD, uBurn, uScorched, uCharred,
             uPicSize, uBlur, uGrain, uDrain, uTorch, uReveal, uRemain, uLight, uEmber, uSig, uClock, uStatic, uClear, uFogAmt, uNoise, uFogHalf,
-            uDry, uDryBy, uStainBy, uWetBy, uSurf, uSwell, uMirror, uLeft, uDeep;
+            uDry, uDryBy, uStainBy, uWetBy, uSurf, uSwell, uMirror, uLeft, uDeep, uInkBy;
         private final int[] uDrops = new int[MAX_DROPS];
         private FloatBuffer verts = ByteBuffer.allocateDirect(FLOATS * 6 * 256 * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
         private int count, mode;
@@ -542,6 +678,7 @@ final class Looks {
             uniform float clear, fogAmt, noiseScale; uniform vec2 fogHalf;
             uniform vec4 drops[6]; uniform float dry, dryBy, stainBy, wetBy;
             uniform float surf, swell, mirror, left; uniform vec3 deep;
+            uniform vec4 inkBy;
             varying vec2 vUv; varying vec4 vCol; varying vec3 vAux;
             float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
             float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -550,6 +687,15 @@ final class Looks {
             vec4 pic(vec2 p) {
               if (p.x < 0.0 || p.y < 0.0 || p.x > 1.0 || p.y > 1.0) return vec4(0.0);
               return texture2D(tex, texRect.xy + p * texRect.zw);
+            }
+            float inkDry(vec4 m) { return clamp((progress - 0.08 - 0.22 * m.b) / 0.48, 0.0, 1.0); }
+            float inkSurf(vec2 uv) {
+              vec4 m = texture2D(burnMap, uv);
+              float ink = m.r * smoothstep(0.0, 0.06, clock), dried = smoothstep(0.2, 0.62, inkDry(m));
+              float wet = ink * (1.0 - dried), R = noiseScale;
+              vec2 px = uv * picSize;
+              float rip = (vn((px - vec2(clock * R * 1.1, 0.0)) / (R * 1.6)) - 0.5) * 0.18 + 0.05 * sin(px.x / (R * 1.4) - clock * 2.4);
+              return wet + 0.3 * ink * dried + inkBy.z * smoothstep(0.01, 0.15, wet) * rip * wet;
             }
             void main() {
               if (mode < 0.5) { gl_FragColor = pic(vUv) * vCol; return; }
@@ -600,6 +746,41 @@ final class Looks {
                 float a = pic(vUv).a;
                 float d = (vUv.x + vUv.y * 0.35) - progress;
                 gl_FragColor = vec4(vCol.rgb * a * exp(-d * d / (edgeW * edgeW)), 0.0);
+                return;
+              }
+              if (mode > 16.5) {
+                vec2 e = 1.0 / picSize;
+                vec4 m = texture2D(burnMap, vUv);
+                float R = noiseScale, fib = m.g, lv = inkDry(m), land = smoothstep(0.0, 0.06, clock);
+                float dryF = smoothstep(0.2, 0.62, lv), hw = m.r * land * (1.0 - dryF), pg = m.r * land * dryF;
+                float liftAt = 0.48 + 0.05 * smoothstep(0.1, 0.8, pg) + 0.16 * (m.a - 0.5) + 0.03 * (0.5 - fib);
+                float lift = smoothstep(liftAt - 0.1, liftAt + 0.14, lv);
+                float th = (hw + pg * (0.8 + 0.4 * fib)) * (1.0 - 0.45 * smoothstep(0.1, 0.45, lv)) * (1.0 - lift);
+                float cover = smoothstep(0.004, 0.03, th), wet = smoothstep(0.01, 0.15, hw);
+                vec2 d = e * 1.5;
+                float sx = inkSurf(vUv + vec2(d.x, 0.0)) - inkSurf(vUv - vec2(d.x, 0.0));
+                float sy = inkSurf(vUv + vec2(0.0, d.y)) - inkSurf(vUv - vec2(0.0, d.y));
+                vec3 N = normalize(vec3(-sx * R * 1.1 / 3.0, -sy * R * 1.1 / 3.0, 1.0));
+                vec3 L = normalize(vec3(-0.45 + 0.06 * sin(clock * 0.7), -0.62 + 0.05 * cos(clock * 0.5), 0.65));
+                vec3 H = normalize(L + vec3(0.0, 0.0, 1.0));
+                float diff = dot(N, L) - L.z, nh = max(dot(N, H), 0.0);
+                float spec = (pow(nh, 80.0) + 0.2 * pow(nh, 14.0)) * inkBy.x * wet, fres = pow(1.0 - N.z, 2.0);
+                vec3 ink = burn, wash = burn * 0.55;
+                vec3 col = mix(wash, ink, smoothstep(0.05, 0.6, th)) * (0.78 + 0.55 * diff);
+                float dried = max(smoothstep(0.08, 0.45, lv), 0.75 * smoothstep(0.0, 0.3, progress));
+                col = mix(col, mix(ink, wash, 0.45) * (0.85 + 0.25 * diff), dried);
+                col += (vec3(1.0, 0.97, 0.94) * spec + vec3(0.6) * fres * 0.12 * inkBy.x * wet) * (1.0 - dried);
+                float a = cover * mix(0.35 + 0.65 * smoothstep(0.02, 0.25, th), smoothstep(0.0, 0.25, th), dried);
+                vec4 outc = vec4(col * a, a);
+                float so = texture2D(burnMap, vUv - vec2(R * 0.25, R * 0.4) * e).r * land;
+                float sh = smoothstep(0.02, 0.4, so) * inkBy.w * 0.5 * (1.0 - smoothstep(0.35, 0.75, lv)) * (1.0 - 0.9 * smoothstep(0.0, 0.3, progress));
+                outc.a += sh * (1.0 - outc.a);
+                vec2 ge = e * max(1.0, R * 0.2);
+                float gx = smoothstep(0.0, 0.3, texture2D(burnMap, vUv + vec2(ge.x, 0.0)).r) - smoothstep(0.0, 0.3, texture2D(burnMap, vUv - vec2(ge.x, 0.0)).r);
+                float gy = smoothstep(0.0, 0.3, texture2D(burnMap, vUv + vec2(0.0, ge.y)).r) - smoothstep(0.0, 0.3, texture2D(burnMap, vUv - vec2(0.0, ge.y)).r);
+                float g = (-gx * L.x - gy * L.y) * 0.9 * inkBy.y * lift * (1.0 - smoothstep(0.82, 1.0, lv)) * (1.0 - cover);
+                outc += vec4(mix(ink, vec3(1.0), 0.35) * max(g, 0.0) * 0.12, max(-g, 0.0) * 0.04);
+                gl_FragColor = outc * (1.0 - smoothstep(0.97, 1.0, progress)) * vCol.a;
                 return;
               }
               if (mode > 15.5) {
@@ -743,10 +924,10 @@ final class Looks {
 
         /**
          * The page's modes: the picture, burning, a shard of ash, its shape as light, a puff, a gleam, eroding, torch-lit, radio, through
-         * mist, mist, a band of light, bled in, sinking into water, a glow around its letters (the page's 13, 14 and 15).
+         * mist, mist, a band of light, bled in, sinking into water, a glow around its letters, inked (the page's 13 to 16).
          */
         private static final int PICTURE = 0, BURNING = 1, SHARD = 2, SHAPE = 3, PUFF = 4, GLEAM = 5, ERODING = 8, LIT = 9, SIGNAL = 10,
-            MISTED = 11, MIST = 12, BAND = 13, BLEEDING = 14, SINKING = 15, GLOWING = 16;
+            MISTED = 11, MIST = 12, BAND = 13, BLEEDING = 14, SINKING = 15, GLOWING = 16, INKED = 17;
 
         /** Compiles the program, once; false when it does not (reported, and the looks fade from then on). */
         private boolean program() throws Throwable {
@@ -777,7 +958,7 @@ final class Looks {
             uClock = at(made, "clock"); uStatic = at(made, "staticBy"); uClear = at(made, "clear"); uFogAmt = at(made, "fogAmt");
             uNoise = at(made, "noiseScale"); uFogHalf = at(made, "fogHalf"); uDry = at(made, "dry"); uDryBy = at(made, "dryBy");
             uStainBy = at(made, "stainBy"); uWetBy = at(made, "wetBy"); uSurf = at(made, "surf"); uSwell = at(made, "swell");
-            uMirror = at(made, "mirror"); uLeft = at(made, "left"); uDeep = at(made, "deep");
+            uMirror = at(made, "mirror"); uLeft = at(made, "left"); uDeep = at(made, "deep"); uInkBy = at(made, "inkBy");
             for (int index = 0; index < MAX_DROPS; index++) uDrops[index] = at(made, "drops[" + index + "]");
             program = made;
             return true;
@@ -869,6 +1050,7 @@ final class Looks {
                 case SINK -> sink(f);
                 case STRIKE -> strike(f);
                 case PULSE -> pulse(f);
+                case INK -> inked(f);
                 default -> {
                     if (f.erode && f.out > 0) erode(f);
                     else if (f.alpha > 0.002) {
@@ -888,22 +1070,7 @@ final class Looks {
             Dust.Piece piece = f.piece;
             Dust.Cells cells = piece.cells;
             if (cells == null || piece.map == null) return;
-            if (piece.mapTexture == 0) {
-                int made = (int)genTexture.invokeExact();
-                activeTexture.invokeExact(TEXTURE1);
-                bindTexture.invokeExact(TEXTURE_2D, made);
-                texParameter.invokeExact(TEXTURE_2D, MIN_FILTER, NEAREST);
-                texParameter.invokeExact(TEXTURE_2D, MAG_FILTER, NEAREST);
-                texParameter.invokeExact(TEXTURE_2D, WRAP_S, CLAMP_TO_EDGE);
-                texParameter.invokeExact(TEXTURE_2D, WRAP_T, CLAMP_TO_EDGE);
-                pixelStore.invokeExact(UNPACK_ALIGNMENT, 4);
-                texImage.invokeExact(TEXTURE_2D, 0, RGBA, piece.boxWidth, piece.boxHeight, 0, RGBA, UNSIGNED_BYTE, piece.map.duplicate());
-                piece.mapTexture = made;
-            } else {
-                activeTexture.invokeExact(TEXTURE1);
-                bindTexture.invokeExact(TEXTURE_2D, piece.mapTexture);
-            }
-            activeTexture.invokeExact(TEXTURE0);
+            map(piece, NEAREST);
             float progress = (float)f.out;
             uniform1f.invokeExact(uProgress, progress);
             uniform1f.invokeExact(uEdge, (float)EDGE_W);
@@ -946,6 +1113,50 @@ final class Looks {
                 shard(cx, cy, hs, turn, tumble, shown * (grey + (f.burnRed * 0.6 - grey) * warm), shown * (grey + (f.burnGreen * 0.6 - grey) * warm),
                     shown * (grey + (f.burnBlue * 0.6 - grey) * warm), shown, cells.phase[cell]);
             }
+            flush();
+        }
+
+        /** Binds the piece's map (its texture made the first time, its values read through {@code filter}) to the second unit. */
+        private void map(Dust.Piece piece, int filter) throws Throwable {
+            activeTexture.invokeExact(TEXTURE1);
+            if (piece.mapTexture == 0) {
+                int made = (int)genTexture.invokeExact();
+                bindTexture.invokeExact(TEXTURE_2D, made);
+                texParameter.invokeExact(TEXTURE_2D, MIN_FILTER, filter);
+                texParameter.invokeExact(TEXTURE_2D, MAG_FILTER, filter);
+                texParameter.invokeExact(TEXTURE_2D, WRAP_S, CLAMP_TO_EDGE);
+                texParameter.invokeExact(TEXTURE_2D, WRAP_T, CLAMP_TO_EDGE);
+                pixelStore.invokeExact(UNPACK_ALIGNMENT, 4);
+                texImage.invokeExact(TEXTURE_2D, 0, RGBA, piece.boxWidth, piece.boxHeight, 0, RGBA, UNSIGNED_BYTE, piece.map.duplicate());
+                piece.mapTexture = made;
+            } else bindTexture.invokeExact(TEXTURE_2D, piece.mapTexture);
+            activeTexture.invokeExact(TEXTURE0);
+        }
+
+        /**
+         * Inked: before it hits, the text; then its ink by its map (laid as it hits, wet and lit as it stays, drying in blotches and
+         * lifting as it leaves, its pressed shape left a moment), with its own shadow.
+         */
+        private void inked(Frame f) throws Throwable {
+            Dust.Piece piece = f.piece;
+            Shape shape = piece.shape;
+            double s = f.s, cx = f.cx + f.dx, cy = f.cy + f.dy, hw = piece.boxWidth * s * f.sx / 2, hh = piece.boxHeight * s * f.sy / 2;
+            float a = (float)f.enterAlpha;
+            if (a <= 0.002 || piece.map == null || shape == null) return;
+            if (f.secs < IMPACT && f.impact) {
+                mode = PICTURE;
+                quad(cx - hw, cy - hh, cx + hw, cy + hh, 0, 0, 1, 1, a, a, a, a);
+                flush();
+                return;
+            }
+            map(piece, LINEAR);
+            mode = INKED;
+            uniform1f.invokeExact(uProgress, (float)f.out);
+            uniform1f.invokeExact(uClock, (float)(f.impact ? f.secs - IMPACT : f.secs));
+            uniform1f.invokeExact(uNoise, (float)shape.stroke);
+            uniform4f.invokeExact(uInkBy, (float)INK_GLOSS, (float)INK_EMBOSS, (float)INK_RIPPLE, (float)INK_SHADOW);
+            uniform3f.invokeExact(uBurn, f.burnRed, f.burnGreen, f.burnBlue);
+            quad(cx - hw, cy - hh, cx + hw, cy + hh, 0, 0, 1, 1, a, a, a, a);
             flush();
         }
 
@@ -1172,7 +1383,7 @@ final class Looks {
             double secs = f.secs;
             if (secs < IMPACT) return;
             Dust.Piece piece = f.piece;
-            double k = secs - IMPACT, cx = f.cx + f.dx, cy = f.cy + f.dy, sx = f.s * f.sx, sy = f.s * f.sy, la = f.left;
+            double k = secs - IMPACT, cx = f.cx + f.dx, cy = f.cy + f.dy, sx = f.s * f.sx, sy = f.s * f.sy, la = f.left * f.hit;
             double hw = piece.boxWidth * sx / 2, hh = piece.boxHeight * sy / 2;
             // White-hot letters cooling, and their glow.
             double hot = Math.exp(-k * IMPACT_COOL) * la;
@@ -1198,7 +1409,7 @@ final class Looks {
             // Dust kicked out from under the letters, to the sides.
             mode = PUFF;
             double ink = f.ink > 0 ? f.ink : 1;
-            for (int index = 0; index < PUFFS; index++) {
+            for (int index = 0, puffs = (int)Math.round(PUFFS * f.hit); index < puffs; index++) {
                 double life = 0.9 + 0.5 * hash(index, 5, 77);
                 if (k > life) continue;
                 double x0 = (hash(index, 1, 77) - 0.5) * 0.9 * ink, side = x0 < 0 ? -1 : 1;

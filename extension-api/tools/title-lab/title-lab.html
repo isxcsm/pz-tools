@@ -70,8 +70,9 @@ const P = {
   SIM_FLOW: 1, SIM_PIN: 1, SIM_DEPOSIT: 1, SIM_ENDS: 1, SIM_SPLAT: 1, SIM_EVAP: 1, SIM_DRY: 1, SIM_DENSITY: 1, SIM_GLOSS: 1,
   SIM_RIPPLE: 1, SIM_BLOOM: 1, SIM_EMBOSS: 1, SIM_RES: 3, SIM_WICK: 1, SIM_STAIN: 1, SIM_FIBRE: 1, SIM_SHADOW: 1, SIM_SHEEN: 1,
   SIM_OVERLAP: 0.7,
+  INK_PATCHY: 0.35, INK_GLOSS: 0.45, INK_EMBOSS: 1, INK_RIPPLE: 1, INK_SHADOW: 1,
 };
-const CUTS = new Set(["style", "hold", "title", "sub", "tone", "sweep", "dustSize", "seed", "SWEEP", "JITTER", "RAGGED", "CURL", "FRONT", "SPREAD", "SIM_OVERLAP", "SIM_RES"]);
+const CUTS = new Set(["style", "hold", "title", "sub", "tone", "sweep", "dustSize", "seed", "SWEEP", "JITTER", "RAGGED", "CURL", "FRONT", "SPREAD", "SIM_OVERLAP", "SIM_RES", "INK_PATCHY"]);
 const TONES = {
   dust: [[0.97, 0.95, 0.9], [0.86, 0.85, 0.82]],
   gold: [[1.00, 0.86, 0.50], [0.95, 0.88, 0.70]],
@@ -87,11 +88,11 @@ const STYLES = {
   "stamp": { label: "stamp (이전)", y: 0.28, gap: 0.25, trail: 0, backdrop: 0.3,
     title: { weight: 700, size: 0.1, color: [1, 1, 1], outline: 0.45, enter: "slam", enterTime: 0.22, leave: "grow", leaveTime: 0.7 },
     line: { weight: 400, size: 0.045, color: [0.88, 0.88, 0.88], delay: 0.2, enter: "fade", enterTime: 0.35, leave: "fade", leaveTime: 0.7 } },
-  // (its title inked as it hits, drying away in blotches, its relief left a moment: tried here, not yet in the API, whose
-  // stamp still erodes)
+  // (its title inked as it hits by its ink map, drying away in blotches, its pressed shape left a moment; its line struck
+  // a moment after, more lightly)
   "stamp-new": { label: "stamp: 각인", y: 0.28, gap: 0.25, trail: 0.4, backdrop: 0.3,
-    title: { weight: 700, size: 0.1, color: [0.9, 0.89, 0.86], wash: [0.5, 0.48, 0.46], sim: { time: "slam", flow: 2, pin: 0.6, deposit: 1, ends: 0, splat: 0, density: 1, gloss: 0.45, sheen: 0, mode: 0, wick: 0, patchy: 0.35 }, enter: "impact", enterTime: 0.6, leave: "wash", leaveTime: 6 },
-    line: { weight: 400, size: 0.045, color: [0.9, 0.9, 0.88], delay: 0.15, enter: "impact", hit: 0.55, enterTime: 0.6, leave: "erode", leaveTime: 5.6 } },
+    title: { weight: 700, size: 0.1, color: [0.9, 0.89, 0.86], inked: true, enter: "impact", enterTime: 0.6, leave: "wash", leaveTime: 6 },
+    line: { weight: 400, size: 0.045, color: [0.9, 0.9, 0.88], delay: 0.15, enter: "impact", enterTime: 0.6, leave: "erode", leaveTime: 5.6 } },
   "discovery": { label: "discovery (이전)", y: 0.28, gap: 0.3, trail: 0, backdrop: 0.3,
     title: { weight: 700, italic: true, size: 0.08, color: [1, 0.8, 0.38], enter: "rise", enterTime: 0.6, leave: "rise", leaveTime: 0.9 },
     line: { weight: 400, size: 0.042, color: [1, 0.93, 0.78], delay: 0.25, enter: "rise", enterTime: 0.6, leave: "rise", leaveTime: 0.9 } },
@@ -137,6 +138,9 @@ const STYLES = {
   // ends, splat, density; absorb: the light it takes per channel, on paper; mode 0: drawn as a surface of its own colour,
   // on a scene; wick, stain: the paper's drinking; patchy: uneven ink; depth: deep where thick, as blood; blotch, emboss:
   // its drying's blotches, its ghost).
+  "sim-stamp": { label: "sim 참고: 각인 (sim)", y: 0.28, gap: 0.25, trail: 0.4, backdrop: 0.3,
+    title: { weight: 700, size: 0.1, color: [0.9, 0.89, 0.86], wash: [0.5, 0.48, 0.46], sim: { time: "slam", flow: 2, pin: 0.6, deposit: 1, ends: 0, splat: 0, density: 1, gloss: 0.45, sheen: 0, mode: 0, wick: 0, patchy: 0.35 }, enter: "impact", enterTime: 0.6, leave: "wash", leaveTime: 6 },
+    line: { weight: 400, size: 0.045, color: [0.9, 0.9, 0.88], delay: 0.15, enter: "impact", enterTime: 0.6, leave: "erode", leaveTime: 5.6 } },
   "sim-sumi": { label: "sim 참고: 먹 (종이)", y: 0.3, gap: 0.32, trail: 0.3, backdrop: 0,
     title: { weight: 700, size: 0.12, color: [0.05, 0.035, 0.04], wash: [0.86, 0.47, 0.38], sim: { flow: 10, pin: 0.42, deposit: 1, ends: 0.9, splat: 1, density: 4.5, absorb: [1.15, 2.1, 2.9], gloss: 1, sheen: 0, mode: 1 }, enter: "ink", enterTime: 2.1, leave: "wash", leaveTime: 6 },
     line: { weight: 500, size: 0.045, color: [0.1, 0.075, 0.085], wash: [0.86, 0.55, 0.45], sim: { flow: 8, pin: 0.4, deposit: 0.9, ends: 0.3, splat: 0, density: 2.6, absorb: [1.15, 2.1, 2.9], gloss: 0.6, sheen: 0, mode: 1 }, delay: 1.7, enter: "ink", enterTime: 1.5, leave: "wash", leaveTime: 5.4 } },
@@ -155,7 +159,7 @@ const leaveTimeOf = d => crumbles(d) ? P.leaveTime : d.leaveTime;
 const cubicOut = p => 1 - (1 - p) ** 3;
 const backOut = p => { const c = 1.70158, q = p - 1; return 1 + (c + 1) * q * q * q + c * q * q; };
 // How a text comes in at its share in of its enter (secs: seconds since it began): its alpha a, scale s (sx, sy on top),
-// move x in pixels and y in its lines. hit: an impact's strength (1 unless its style says).
+// move x in pixels and y in its lines. hit: an impact's strength (1: a title's; a line under it LINE_HIT).
 function enterState(kind, i, secs, line, hit = 1) {
   const st = { a: 1, s: 1, sx: 1, sy: 1, x: 0, y: 0 };
   switch (kind) {
@@ -196,12 +200,13 @@ function leaveState(kind, o, st, leaveTime) {
     case "dry": st.a *= 1 - smooth(o); break;        // drawn by drawBleed
     case "exhale": { const e = exhaled(o, leaveTime); st.a *= 1 - smooth(clamp((e - 0.05) / 0.75, 0, 1)); st.y += 0.12 * smooth(e); break; }   // drawn by drawPulse
     case "feed": st.a *= 1 - smooth(clamp((o - 0.4) / 0.6, 0, 1)); break;   // drawn by drawType
-    case "wash": break;                              // dried away by drawSim
+    case "wash": break;                              // dried away by drawInked (drawSim)
     case "under": st.a *= 1 - sunkAt(o * leaveTime, leaveTime); break;   // drawn by drawSink, fading as it sinks
   }
   return st;
 }
-const IMPACT = 0.16;
+const IMPACT = 0.16, LINE_HIT = 0.55;
+const hitOf = p => p === pieces[0] ? 1 : LINE_HIT;
 // The backdrop's fade in, in seconds from the title's start: dust's fade, for every style.
 const BACKDROP_IN = 1.2;
 
@@ -329,11 +334,23 @@ uniform float sig, clock, staticBy;
 uniform float clear, fogAmt, noiseScale; uniform vec2 fogHalf;
 uniform vec4 drops[6]; uniform float dry, dryBy, stainBy, wetBy;
 uniform float surf, swell, mirror, left; uniform vec3 deep;
+uniform vec4 inkBy;
 varying vec2 vUv; varying vec4 vCol; varying vec3 vAux;
 float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(h(i), h(i + vec2(1.0, 0.0)), f.x), mix(h(i + vec2(0.0, 1.0)), h(i + vec2(1.0, 1.0)), f.x), f.y); }
 float fbm(vec2 q) { return 0.5 * vn(q) + 0.3 * vn(q * 2.1 + 3.0) + 0.2 * vn(q * 4.3 + 7.0); }
+// inked: how far a spot is into its drying as it leaves (progress), blotches of the paper (its map's b) later
+float inkDry(vec4 m) { return clamp((progress - 0.08 - 0.22 * m.b) / 0.48, 0.0, 1.0); }
+// its surface: the wet ink (stirring a little), and a little relief where it has dried
+float inkSurf(vec2 uv) {
+  vec4 m = texture2D(burnMap, uv);
+  float ink = m.r * smoothstep(0.0, 0.06, clock), dried = smoothstep(0.2, 0.62, inkDry(m));
+  float wet = ink * (1.0 - dried), R = noiseScale;
+  vec2 px = uv * picSize;
+  float rip = (vn((px - vec2(clock * R * 1.1, 0.0)) / (R * 1.6)) - 0.5) * 0.18 + 0.05 * sin(px.x / (R * 1.4) - clock * 2.4);
+  return wet + 0.3 * ink * dried + inkBy.z * smoothstep(0.01, 0.15, wet) * rip * wet;
+}
 void main() {
   if (mode < 0.5) { gl_FragColor = texture2D(tex, vUv) * vCol; return; }
   if (mode < 1.5) {
@@ -377,6 +394,44 @@ void main() {
   if (mode < 4.5) {                       // a soft round puff
     float m = 1.0 - smoothstep(0.0, 1.0, length(vAux.xy));
     gl_FragColor = vCol * m * m;
+    return;
+  }
+  if (mode > 15.5) {                      // inked by its map (burnMap: its ink, fibre, how late it dries, when its colour lifts;
+    // noiseScale: its strokes' half width; clock: seconds since the ink landed; progress: its leave; burn: its colour;
+    // inkBy: gloss, emboss, ripple, shadow). Wet and lit as it stays; drying in blotches and lifting as it leaves, its
+    // pressed shape left a moment; its own shadow
+    vec2 e = 1.0 / picSize;
+    vec4 m = texture2D(burnMap, vUv);
+    float R = noiseScale, fib = m.g, lv = inkDry(m), land = smoothstep(0.0, 0.06, clock);
+    float dryF = smoothstep(0.2, 0.62, lv), hw = m.r * land * (1.0 - dryF), pg = m.r * land * dryF;
+    float liftAt = 0.48 + 0.05 * smoothstep(0.1, 0.8, pg) + 0.16 * (m.a - 0.5) + 0.03 * (0.5 - fib);
+    float lift = smoothstep(liftAt - 0.1, liftAt + 0.14, lv);
+    float th = (hw + pg * (0.8 + 0.4 * fib)) * (1.0 - 0.45 * smoothstep(0.1, 0.45, lv)) * (1.0 - lift);
+    float cover = smoothstep(0.004, 0.03, th), wet = smoothstep(0.01, 0.15, hw);
+    vec2 d = e * 1.5;
+    float sx = inkSurf(vUv + vec2(d.x, 0.0)) - inkSurf(vUv - vec2(d.x, 0.0));
+    float sy = inkSurf(vUv + vec2(0.0, d.y)) - inkSurf(vUv - vec2(0.0, d.y));
+    vec3 N = normalize(vec3(-sx * R * 1.1 / 3.0, -sy * R * 1.1 / 3.0, 1.0));
+    vec3 L = normalize(vec3(-0.45 + 0.06 * sin(clock * 0.7), -0.62 + 0.05 * cos(clock * 0.5), 0.65));
+    vec3 H = normalize(L + vec3(0.0, 0.0, 1.0));
+    float diff = dot(N, L) - L.z, nh = max(dot(N, H), 0.0);
+    float spec = (pow(nh, 80.0) + 0.2 * pow(nh, 14.0)) * inkBy.x * wet, fres = pow(1.0 - N.z, 2.0);
+    vec3 ink = burn, wash = burn * 0.55;
+    vec3 col = mix(wash, ink, smoothstep(0.05, 0.6, th)) * (0.78 + 0.55 * diff);
+    float dried = max(smoothstep(0.08, 0.45, lv), 0.75 * smoothstep(0.0, 0.3, progress));
+    col = mix(col, mix(ink, wash, 0.45) * (0.85 + 0.25 * diff), dried);
+    col += (vec3(1.0, 0.97, 0.94) * spec + vec3(0.6) * fres * 0.12 * inkBy.x * wet) * (1.0 - dried);
+    float a = cover * mix(0.35 + 0.65 * smoothstep(0.02, 0.25, th), smoothstep(0.0, 0.25, th), dried);
+    vec4 outc = vec4(col * a, a);
+    float so = texture2D(burnMap, vUv - vec2(R * 0.25, R * 0.4) * e).r * land;
+    float sh = smoothstep(0.02, 0.4, so) * inkBy.w * 0.5 * (1.0 - smoothstep(0.35, 0.75, lv)) * (1.0 - 0.9 * smoothstep(0.0, 0.3, progress));
+    outc.a += sh * (1.0 - outc.a);
+    vec2 ge = e * max(1.0, R * 0.2);
+    float gx = smoothstep(0.0, 0.3, texture2D(burnMap, vUv + vec2(ge.x, 0.0)).r) - smoothstep(0.0, 0.3, texture2D(burnMap, vUv - vec2(ge.x, 0.0)).r);
+    float gy = smoothstep(0.0, 0.3, texture2D(burnMap, vUv + vec2(0.0, ge.y)).r) - smoothstep(0.0, 0.3, texture2D(burnMap, vUv - vec2(0.0, ge.y)).r);
+    float g = (-gx * L.x - gy * L.y) * 0.9 * inkBy.y * lift * (1.0 - smoothstep(0.82, 1.0, lv)) * (1.0 - cover);
+    outc += vec4(mix(ink, vec3(1.0), 0.35) * max(g, 0.0) * 0.12, max(-g, 0.0) * 0.04);
+    gl_FragColor = outc * (1.0 - smoothstep(0.97, 1.0, progress)) * vCol.a;
     return;
   }
   if (mode > 14.5) {                      // a soft glow around its letters: their shape spread wide (blurR), in vCol
@@ -902,7 +957,7 @@ function piece(text, line, colour, centreY, seed, spec) {
   const g = c.getContext("2d");
   g.font = m.font; g.textAlign = "center"; g.textBaseline = "middle";
   const cx = w / 2, cy = h / 2, sh = Math.max(1, line * 0.025);
-  g.fillStyle = "rgba(0,0,0,0.75)"; g.fillText(text, cx + sh, cy + sh);
+  if (!spec.inked) { g.fillStyle = "rgba(0,0,0,0.75)"; g.fillText(text, cx + sh, cy + sh); }
   if (spec.outline) { g.lineJoin = "round"; g.lineWidth = Math.max(2, line * 0.025); g.strokeStyle = `rgba(0,0,0,${spec.outline})`; g.strokeText(text, cx, cy); }
   g.fillStyle = `rgb(${colour.map(v => Math.round(v * 255)).join(",")})`; g.fillText(text, cx, cy);
   const p = { x: Math.round(view.width / 2 - w / 2), y: Math.round(centreY - h / 2), w, h, line, tex: texture(c), spec,
@@ -928,6 +983,15 @@ function piece(text, line, colour, centreY, seed, spec) {
     p.foot = foot + 1;
   }
   if (spec.sim) p.simSrc = { text, cx, cy, font: S => `${spec.italic ? "italic " : ""}${spec.weight} ${fontPx * S}px "Noto Sans KR", "Malgun Gothic", sans-serif` };
+  if (spec.inked) {
+    const data = g.getImageData(0, 0, w, h).data, alpha = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) alpha[i] = data[i * 4 + 3];
+    const ink = inkMap(alpha, w, h, Number((seed ^ (seed >> 32n)) & 0xFFFFFFFFn) | 0), bytes = new Uint8Array(ink.map.length);
+    for (let i = 0; i < bytes.length; i++) bytes[i] = Math.round(clamp(ink.map[i], 0, 1) * 255);
+    p.inkTex = texture(null, { w, h, data: bytes });
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    p.stroke = ink.stroke;
+  }
   if (!crumbles(spec)) return p;
   const data = g.getImageData(0, 0, w, h).data;
   const cellSide = Math.max(MIN_CELL, line * CELL * P.dustSize);
@@ -961,6 +1025,39 @@ function edt(f, W, H) {
   for (let x = 0; x < W; x++) { for (let y = 0; y < H; y++) g[y] = out[y * W + x]; line(H); for (let y = 0; y < H; y++) out[y * W + x] = d[y]; }
   for (let y = 0; y < H; y++) { for (let x = 0; x < W; x++) g[x] = out[y * W + x]; line(W); for (let x = 0; x < W; x++) out[y * W + x] = d[x]; }
   return out;
+}
+// A washed text's ink map (Looks.inkMap), from its picture's alpha: four values a pixel, 0 to 1: how much ink it took
+// (more down a stroke's middle; patchy, bare where the paper's grain and fibres held it back; a little run together), the
+// paper's fibre there, how late it dries and when its colour lifts (blotches); and its strokes' half width.
+const FIBRE_AT = [0.2, 1.4, 2.5], FIBRE_BY = [0.4, 0.3, 0.2];
+const sstep = (a, b, x) => smooth(clamp((x - a) / (b - a), 0, 1));
+const fbmAt = (x, y, s) => 0.5 * vnoise(x, y, s) + 0.3 * vnoise(x * 2.1 + 3, y * 2.1 + 3, s) + 0.2 * vnoise(x * 4.3 + 7, y * 4.3 + 7, s);
+function inkMap(alpha, W, H, seed) {
+  const N = W * H, inside = new Uint8Array(N);
+  for (let i = 0; i < N; i++) inside[i] = alpha[i] >= 128 ? 1 : 0;
+  const deep = edt(inside, W, H);
+  let most = 0;
+  for (let i = 0; i < N; i++) if (inside[i]) most = Math.max(most, Math.sqrt(deep[i]) - 0.5);
+  const R = Math.max(1.5, most * 0.85), cos = [], sin = [];
+  for (let k = 0; k < 3; k++) { const a = FIBRE_AT[k] + hash(k, 1, seed) * 0.6; cos.push(Math.cos(a)); sin.push(Math.sin(a)); }
+  const map = new Float32Array(N * 4), lay = new Float32Array(N);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = y * W + x;
+    let v = 0.1 * hash(x, y, seed + 9);
+    for (let k = 0; k < 3; k++) v += FIBRE_BY[k] * vnoise((x * cos[k] + y * sin[k]) / 3, (y * cos[k] - x * sin[k]) / 0.6, seed + k);
+    const fibre = clamp((v - 0.15) / 0.7, 0, 1);
+    const bare = 1 - sstep(0.3, 0.62, fbmAt(x / (R * 1.4), y / (R * 1.4), seed + 23)) + 0.6 * (1 - sstep(0.15, 0.55, fibre));
+    const middle = inside[i] ? sstep(0, R, Math.sqrt(deep[i]) - 0.5) : 0;
+    lay[i] = (0.55 + 0.45 * middle) * (alpha[i] / 255) * (1 - Math.min(P.INK_PATCHY * bare, 0.95));
+    map[i * 4 + 1] = fibre;
+    map[i * 4 + 2] = sstep(0.2, 0.8, fbmAt(x / (R * 3.5), y / (R * 3.5), seed + 71));
+    map[i * 4 + 3] = fbmAt(x / (R * 1.3), y / (R * 1.3), seed + 19);
+  }
+  // run together a little: across, then down
+  const across = new Float32Array(N);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const i = y * W + x; across[i] = 0.25 * lay[x > 0 ? i - 1 : i] + 0.5 * lay[i] + 0.25 * lay[x < W - 1 ? i + 1 : i]; }
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const i = y * W + x; map[i * 4] = 0.25 * across[y > 0 ? i - W : i] + 0.5 * across[i] + 0.25 * across[y < H - 1 ? i + W : i]; }
+  return { map, stroke: R };
 }
 // The least cost from the seeds to every spot it may go to (step(i) its cost per pixel; 8 neighbours), and from which seed.
 function spread(W, H, seeds, may, step, dist, from) {
@@ -1191,6 +1288,21 @@ function drawSim(p, st) {
   mode = 0;
 }
 
+// Inked (the API's wash): before it hits, its picture; then its ink by its map.
+function drawInked(p, st) {
+  const s = st.s, hw = p.w * s * st.sx / 2, hh = p.h * s * st.sy / 2, cx = p.cx + st.x, cy = p.cy + st.y * p.line * s, a = st.a;
+  if (a <= 0.002) return;
+  const impact = p.spec.enter === "impact";
+  if (impact && st.secs < IMPACT) { mode = 0; quad(cx - hw, cy - hh, cx + hw, cy + hh, 0, 0, 1, 1, a, a, a, a); flush(p.tex); return; }
+  gl.uniform1f(U("progress"), st.out); gl.uniform1f(U("clock"), impact ? st.secs - IMPACT : st.secs);
+  gl.uniform1f(U("noiseScale"), p.stroke); gl.uniform4f(U("inkBy"), P.INK_GLOSS, P.INK_EMBOSS, P.INK_RIPPLE, P.INK_SHADOW);
+  gl.uniform3f(U("burn"), ...p.colour); gl.uniform2f(U("picSize"), p.w, p.h);
+  mode = 16;
+  quad(cx - hw, cy - hh, cx + hw, cy + hh, 0, 0, 1, 1, a, a, a, a);
+  flush(p.tex, p.inkTex);
+  mode = 0;
+}
+
 let pieces = [];
 // Paper: the text burns away spot by spot (the shader, by its map); the flakes are shards of ash that tumble on the wind,
 // a few of them sparks.
@@ -1235,7 +1347,7 @@ function drawPaper(p, progress, fade) {
 }
 
 function rebuild() {
-  for (const p of pieces) { gl.deleteTexture(p.tex); if (p.burnTex) gl.deleteTexture(p.burnTex); if (p.inkMap) { gl.deleteTexture(p.inkMap.tmap); gl.deleteTexture(p.inkMap.sdf); }
+  for (const p of pieces) { gl.deleteTexture(p.tex); if (p.burnTex) gl.deleteTexture(p.burnTex); if (p.inkTex) gl.deleteTexture(p.inkTex); if (p.inkMap) { gl.deleteTexture(p.inkMap.tmap); gl.deleteTexture(p.inkMap.sdf); }
     if (p.sim) { for (const x of [p.sim.a, p.sim.b]) { gl.deleteTexture(x.t); gl.deleteFramebuffer(x.fb); } gl.deleteTexture(p.sim.fiber); } }
   const S = STYLES[P.style], H = view.height, tl = S.title.size * H, sl = S.line.size * H, anchor = S.y * H;
   const tone = P.tone === "style" ? [S.title.color, S.line.color] : TONES[P.tone];
@@ -1256,7 +1368,7 @@ function rebuild() {
   // the impact's puff of dust: kicked out from under the letters to the sides (fewer for a lighter hit)
   pieces.forEach((p, n) => {
     p.puff = [];
-    for (let i = 0; i < Math.round(46 * (p.spec.hit ?? 1)); i++) {
+    for (let i = 0; i < Math.round(46 * (n === 0 ? 1 : LINE_HIT)); i++) {
       const r = k => hash(i, k, 77 + n);
       const x0 = (r(1) - 0.5) * 0.9 * p.ink, side = x0 < 0 ? -1 : 1;
       p.puff.push({ x0, y0: 0.3 * p.line, vx: side * (0.3 + 0.9 * r(2)) + 1.2 * x0 / p.ink, vy: -(0.05 + 0.35 * r(3)), size: 0.05 + 0.08 * r(4), life: 0.9 + 0.5 * r(5) });
@@ -1598,7 +1710,7 @@ function drawTrackout(p, st, o) {
 // The impact's light and dust over the title (secs since it began, la: how much of it is left as it leaves).
 function drawImpact(p, st, secs, la) {
   if (secs < IMPACT) return;
-  la *= p.spec.hit ?? 1;
+  la *= hitOf(p);
   const k = secs - IMPACT, cx = p.cx + st.x, cy = p.cy + st.y * p.line * st.s, sx = st.s * st.sx, sy = st.s * st.sy;
   const box = (dx, dy, r, g, b) => { const hw = p.w * sx / 2, hh = p.h * sy / 2; quad(cx + dx - hw, cy + dy - hh, cx + dx + hw, cy + dy + hh, 0, 0, 1, 1, r, g, b, 0); };
   // white-hot letters cooling, and their glow
@@ -1728,7 +1840,7 @@ function frame(now) {
     const out = secs >= leave ? (secs - leave) / leaveTimeOf(d) : 0;
     if (out >= 1) return null;
     const inn = d.enterTime > 0 ? Math.min(1, Math.min(secs, leave) / d.enterTime) : 1;
-    const st = enterState(d.enter, inn, Math.min(secs, leave), p.line, d.hit);
+    const st = enterState(d.enter, inn, Math.min(secs, leave), p.line, hitOf(p));
     st.secs = secs; st.out = out; st.left = 1;
     if (!crumbles(d)) { const before = st.a; leaveState(d.leave, out, st, leaveTimeOf(d)); st.left = before > 0 ? st.a / before : 0; }
     return st;
@@ -1765,6 +1877,7 @@ function frame(now) {
     else if (p.spec.sink) drawSink(p, st);
     else if (p.spec.typed) drawType(p, st);
     else if (p.spec.pulse) drawPulse(p, st);
+    else if (p.spec.inked) drawInked(p, st);
     else if (p.spec.sim) drawSim(p, st);
     else if (p.spec.leave === "trackout" && st.out > 0) drawTrackout(p, st, st.out);
     else if (p.spec.leave === "erode" && st.out > 0) drawErode(p, st, st.out);
@@ -1860,7 +1973,13 @@ heading("unveil: 안개 걷힘");
 control("FOG_THICK", "안개 짙기", "range", [0, 2.5, 0.05]);
 control("FOG_DRIFT", "안개 흐름", "range", [0, 8, 0.1]);
 control("FOG_STAY", "머무는 동안 안개", "range", [0, 0.8, 0.01]);
-heading("sim: 잉크 시뮬레이션 (각인, 참고용)");
+heading("stamp: 각인 잉크");
+control("INK_PATCHY", "잉크 얼룩덜룩", "range", [0, 1, 0.05]);
+control("INK_GLOSS", "젖은 광택", "range", [0, 2, 0.05]);
+control("INK_RIPPLE", "일렁임", "range", [0, 4, 0.05]);
+control("INK_EMBOSS", "퇴장: 눌린 자국", "range", [0, 3, 0.05]);
+control("INK_SHADOW", "그림자", "range", [0, 2, 0.05]);
+heading("sim: 잉크 시뮬레이션 (참고용)");
 control("SIM_FLOW", "흐름 (점성 반대)", "range", [0, 3, 0.05]);
 control("SIM_PIN", "종이에 걸림 (높을수록 덜 퍼짐)", "range", [0, 3, 0.05]);
 control("SIM_DEPOSIT", "잉크 양", "range", [0.2, 3, 0.05]);

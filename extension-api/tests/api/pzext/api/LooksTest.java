@@ -83,9 +83,20 @@ final class LooksTest {
         check(near(Looks.signal(0.7, 0.4, 0), 0.4411175014355737) && near(Looks.signal(0.7, 3.3, 0), 0.85) && near(Looks.signal(0.7, 9, 0.3), 0.95703125),
             "The radio's signal is not the page's");
         double[] hit = new double[6];
-        Looks.impact(0.1, hit);
+        Looks.impact(0.1, 1, hit);
         check(near(hit[0], 1) && near(hit[1], 1.27421875) && hit[2] == 1 && hit[3] == 1 && hit[4] == 0 && hit[5] == 0, "The impact's fall is not the page's");
-        Looks.impact(0.3, hit);
+        Looks.impact(0.1, Looks.LINE_HIT, hit);
+        check(near(hit[1], 1.1508203125), "A line's lighter fall is not the page's");
+        Looks.impact(0.3, Looks.LINE_HIT, hit);
+        check(near(hit[3], 0.9975975335646583), "A line's lighter hit is not the page's");
+        // The ink map of a box 20 by 10 in a picture 40 by 20: its strokes' half width, and a spot's ink, fibre, drying and lifting.
+        var inked = new Looks.Shape();
+        float[] ink = Looks.inkMap((x, y) -> x >= 10 && x < 30 && y >= 5 && y < 15 ? 255 : 0, 40, 20, 12345, inked);
+        int middle = (9 * 40 + 20) * 4, corner = (5 * 40 + 10) * 4, out = (2 * 40 + 2) * 4;
+        check(near(inked.stroke, 3.825) && near(ink[middle], 0.6949582099914551) && near(ink[middle + 1], 0.3247954845428467)
+            && near(ink[middle + 2], 0.637246310710907) && near(ink[middle + 3], 0.6082073450088501) && near(ink[corner], 0.3029586672782898)
+            && ink[out] == 0 && near(ink[out + 1], 0.4476526081562042), "The ink map is not the page's");
+        Looks.impact(0.3, 1, hit);
         check(near(hit[1], 1) && near(hit[2], 1.0024960690237317) && near(hit[3], 0.9956318792084696) && near(hit[4] * 90, -0.1393785129067541)
             && near(hit[5], 0.0004320800003443182), "The impact's hit is not the page's");
         // The torch flickers once as the text stays and stutters down to embers; the mist clears and comes back; the text is gone by its end.
@@ -121,21 +132,26 @@ final class LooksTest {
 
     // ---- the styles ----
 
-    /** The stamp: falls and hits (picture, heat, streak, dust), a gleam as it stays, its line slid in; both weather away. */
+    /** The stamp: its picture as it falls; it hits inked (heat, streak, dust), its line struck after it; a gleam as they stay; it dries away, its line weathers. */
     private static void stamp(KahluaTable text, Object mod) {
         long origin = NOW[0];
         double key = title(text, mod, "stamp", "Quest complete", "The well is clean");
         up(origin, 0);
-        check(modes(origin, 0.3).equals(List.of(0, 3, 13, 4)), "The stamp's hit is not its picture, heat, streak and dust: " + modes(origin, 0.31));
+        quiet();
+        check(modes(origin, 0.1).equals(List.of(0)), "The stamp is not its picture as it falls: " + modes(origin, 0.11));
+        up(origin, 0.2);
+        quiet();
+        var drawn = modes(origin, 0.4);
+        check(drawn.equals(List.of(17, 3, 13, 4, 0, 3, 13, 4)), "The stamp's hit is not its ink, heat, streak and dust, its line struck after it: " + drawn);
         up(origin, 3.0);
-        var drawn = modes(origin, 3.1);
-        check(drawn.equals(List.of(0, 5, 0)), "The stamp does not gleam as it stays, over it and its line: " + drawn);
+        drawn = modes(origin, 3.1);
+        check(drawn.equals(List.of(17, 5, 0, 5)), "The stamp does not gleam as it stays, over it and its line: " + drawn);
         // The picture's middle is the title's place (x the screen's middle, y 0.28 of 900).
         float[] picture = GL11.arrays.get(0);
         check(Math.abs((picture[2] + picture[6]) / 2 - 800) < 1.5 && Math.abs((picture[3] + picture[7]) / 2 - 252) < 1.5,
             "The stamp's picture is not at its place: " + (picture[2] + picture[6]) / 2 + ", " + (picture[3] + picture[7]) / 2);
         state();
-        check(modes(origin, 8.6).equals(List.of(8, 8)), "The stamp and its line do not weather away: " + modes(origin, 8.61));
+        check(modes(origin, 8.6).equals(List.of(17, 8)), "The stamp does not dry away and its line weather away: " + modes(origin, 8.61));
         gone(origin, 12.2, key, text, mod);
     }
 

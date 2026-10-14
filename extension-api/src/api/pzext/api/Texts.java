@@ -68,7 +68,7 @@ final class Texts implements Hooks.Text {
     enum Enter { NONE, FADE, POP, SLAM, SETTLE, RISE, DROP, TYPE, SLIDE, IMPACT, TORCH, SIGNAL, MIST, BLEED, STRIKE }
 
     /** How it goes (the last nine are looks). */
-    enum Leave { NONE, FADE, RISE, SINK, GROW, SHRINK, DUST, ERODE, DIM, LOST, MIST, BURN, DRY, UNDER, FEED, EXHALE }
+    enum Leave { NONE, FADE, RISE, SINK, GROW, SHRINK, DUST, ERODE, DIM, LOST, MIST, BURN, DRY, UNDER, FEED, EXHALE, WASH }
 
     private static final Map<String, Integer> ALIGN = Map.of("left", -1, "center", 0, "right", 1);
     private static final String[] ALIGN_NAMES = { "left", "center", "right" };
@@ -302,6 +302,8 @@ final class Texts implements Hooks.Text {
     Looks.Gl looks;
     // The impact's state, worked out into it (the frames allocate nothing).
     private final double[] hit = new double[6];
+    // While a washed text's picture is drawn: its letters alone (its ink is made from their shape; the look draws its own shadow).
+    private boolean bare;
     // The texts' pieces of dust that hold a picture, or will; and the pictures to let go, from the render queue at the next drawing.
     private final ArrayList<Dust.Piece> pieces = new ArrayList<>();
     private final ArrayList<Grave> dying = new ArrayList<>();
@@ -984,15 +986,15 @@ final class Texts implements Hooks.Text {
         static final Map<String, Style> ALL = new LinkedHashMap<>();
 
         static {
-            // Stamped: big pale letters that fall onto the screen and hit, white-hot and cooling, a gleam passing over them once as
-            // they stay; they weather away in place. For something done (a quest complete).
+            // Stamped: big pale letters that fall onto the screen and hit, white-hot and cooling, inked as they hit (wet, patchy), a
+            // gleam passing over them once as they stay; they dry away in blotches, their pressed shape left a moment. The line is
+            // struck a moment after, more lightly, and weathers away. For something done (a quest complete).
             ALL.put("stamp", new Style(
                 Map.ofEntries(Map.entry("font", List.of("SdfBold", "Large")), Map.entry("size", 0.1), Map.entry("color", List.of(0.9, 0.89, 0.86, 1.0)),
-                    Map.entry("shadow", true), Map.entry("outline", 1.0), Map.entry("outlineColor", List.of(0.0, 0.0, 0.0, 0.45)),
                     Map.entry("y", 0.28), Map.entry("enter", "impact"), Map.entry("enterTime", 0.6), Map.entry("hold", 5.0), Map.entry("backdrop", 0.3),
-                    Map.entry("leave", "erode"), Map.entry("leaveTime", 6.0)),
+                    Map.entry("leave", "wash"), Map.entry("leaveTime", 6.0)),
                 Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Medium")), Map.entry("size", 0.045), Map.entry("color", List.of(0.9, 0.9, 0.88, 1.0)),
-                    Map.entry("shadow", true), Map.entry("delay", 0.45), Map.entry("enter", "slide"), Map.entry("enterTime", 0.5),
+                    Map.entry("shadow", true), Map.entry("delay", 0.15), Map.entry("enter", "impact"), Map.entry("enterTime", 0.6),
                     Map.entry("leave", "erode"), Map.entry("leaveTime", 5.6)),
                 0.25, 0.4));
             // Found: warm amber letters a torch sways in over and lights, flickering once as they stay; it dies down to embers as
@@ -1344,7 +1346,7 @@ final class Texts implements Hooks.Text {
             case DROP -> { alpha = cubicOut(in); shift = -RISE * (1 - cubicOut(in)); }
             case SLIDE -> { alpha = cubicOut(in); shift = SLIDE * (1 - cubicOut(in)); }
             case IMPACT -> {
-                Looks.impact(Math.min(t, leaving), hit);
+                Looks.impact(Math.min(t, leaving), text.lead == null ? 1 : Looks.LINE_HIT, hit);
                 alpha = hit[0]; scale = hit[1]; squashX = hit[2]; squashY = hit[3]; across = hit[4]; shift = hit[5];
             }
         }
@@ -1357,6 +1359,7 @@ final class Texts implements Hooks.Text {
             case GROW -> { alpha *= 1 - out; scale *= 1 + 0.3 * out; }
             case SHRINK -> { alpha *= 1 - out; scale *= 1 - 0.5 * out; }
             case ERODE, LOST, MIST, DRY -> alpha *= 1 - smooth(out); // As the looks take the text (its backdrop goes so).
+            case WASH -> alpha *= 1 - smooth(Looks.clamp((out - 0.5) / 0.5, 0, 1));
             case DIM -> alpha *= 1 - smooth(Looks.clamp((out - 0.4) / 0.6, 0, 1));
             case FEED -> alpha *= 1 - smooth(Looks.clamp((out - 0.4) / 0.6, 0, 1));
             case UNDER -> alpha *= 1 - Looks.sunk(out * text.leaveTime, text.leaveTime);
@@ -1460,12 +1463,12 @@ final class Texts implements Hooks.Text {
     /** Whether the text has a look: an enter or a leave the API's shader draws ({@link Looks}). */
     static boolean looked(Shown text) {
         return switch (text.enter) { case IMPACT, TORCH, SIGNAL, MIST, BLEED, STRIKE -> true; default -> false; }
-            || switch (text.leave) { case ERODE, DIM, LOST, MIST, BURN, DRY, UNDER, FEED, EXHALE -> true; default -> false; };
+            || switch (text.leave) { case ERODE, DIM, LOST, MIST, BURN, DRY, UNDER, FEED, EXHALE, WASH -> true; default -> false; };
     }
 
     /**
      * The look drawn over the text's life: the torch's, the radio's, the mist's, the bleed's, the water's, the typewriter's, the
-     * heart's, or none (the impact, erode and burn alone).
+     * heart's, the ink's, or none (the impact, erode and burn alone).
      */
     static int lookOf(Shown text) {
         if (text.enter == Enter.TORCH || text.leave == Leave.DIM) return Looks.TORCH;
@@ -1475,6 +1478,7 @@ final class Texts implements Hooks.Text {
         if (text.leave == Leave.UNDER) return Looks.SINK;
         if (text.enter == Enter.STRIKE || text.leave == Leave.FEED) return Looks.STRIKE;
         if (text.leave == Leave.EXHALE) return Looks.PULSE;
+        if (text.leave == Leave.WASH) return Looks.INK;
         return Looks.PLAIN;
     }
 
@@ -1515,14 +1519,20 @@ final class Texts implements Hooks.Text {
                 case Dust.READY -> {
                     if (!piece.at(boxX, boxY, boxWidth, boxHeight)) { piece.phase = Dust.FAILED; break; }
                     Object before = gl.beginCapture(piece);
+                    bare = text.leave == Leave.WASH;
                     try { paintAll(text, laid, typed, t, anchorX, firstY, zoom, line, large, own, font, text.alpha, 1, false); }
-                    finally { gl.endCapture(piece, before); }
+                    finally {
+                        bare = false;
+                        gl.endCapture(piece, before);
+                    }
                 }
                 case Dust.CAPTURED -> {
                     if (!piece.at(boxX, boxY, boxWidth, boxHeight)) { piece.phase = Dust.FAILED; break; }
                     if (piece.shape == null) piece.shape = shape(text, piece, laid, anchorX, firstY, zoom, line, rowCount, high - low);
-                    if (text.leave != Leave.BURN) { piece.pixels = null; piece.phase = Dust.CUT; }
-                    else if (!piece.cutting) { piece.cutting = true; burnCut(piece, Dust.cell(line, text.dustSize), text.dustSweep); }
+                    if (piece.cutting) break;
+                    if (text.leave == Leave.BURN) { piece.cutting = true; burnCut(piece, Dust.cell(line, text.dustSize), text.dustSweep); }
+                    else if (text.leave == Leave.WASH) { piece.cutting = true; inkCut(piece); }
+                    else { piece.pixels = null; piece.phase = Dust.CUT; }
                 }
                 case Dust.CUT -> { if (!piece.at(boxX, boxY, boxWidth, boxHeight)) piece.phase = Dust.FAILED; }
                 default -> { }
@@ -1573,8 +1583,9 @@ final class Texts implements Hooks.Text {
         f.titleLeaves = lead.delay + (lead == text ? leaving : leaving(lead));
         f.titleLine = lead == text || lead.size <= 0 ? line : lead.size * height;
         f.title = text.lead == null;
+        f.hit = f.title ? 1 : Looks.LINE_HIT;
         f.drift = text.dustDrift;
-        if (f.look == Looks.BLEED) { f.burnRed = text.red; f.burnGreen = text.green; f.burnBlue = text.blue; }
+        if (f.look == Looks.BLEED || f.look == Looks.INK) { f.burnRed = text.red; f.burnGreen = text.green; f.burnBlue = text.blue; }
         else {
             float[] burn = text.dustBurn != null ? text.dustBurn : Looks.BURN;
             f.burnRed = burn[0]; f.burnGreen = burn[1]; f.burnBlue = burn[2];
@@ -1649,6 +1660,25 @@ final class Texts implements Hooks.Text {
                 piece.phase = Dust.CUT;
             } catch (RuntimeException | OutOfMemoryError failure) {
                 System.err.println("[PZExt] text: a burn could not be made; it fades instead: " + failure);
+                piece.phase = Dust.FAILED;
+            }
+        });
+    }
+
+    /** A washed text's ink map, made from its picture's pixels away from the main thread: the piece is CUT once it is there, or FAILED. */
+    private static void inkCut(Dust.Piece piece) {
+        java.util.concurrent.ForkJoinPool.commonPool().execute(() -> {
+            try {
+                var pixels = piece.pixels;
+                int width = piece.boxWidth, height = piece.boxHeight;
+                // The rows read back are from the bottom of the box.
+                float[] map = Looks.inkMap((x, y) -> pixels.get(((height - 1 - y) * width + x) * 4 + 3) & 0xFF, width, height, piece.shape.seed,
+                    piece.shape);
+                piece.map = Looks.bytes(map);
+                piece.pixels = null;
+                piece.phase = Dust.CUT;
+            } catch (RuntimeException | OutOfMemoryError failure) {
+                System.err.println("[PZExt] text: its ink could not be made; it fades instead: " + failure);
                 piece.phase = Dust.FAILED;
             }
         });
@@ -1797,11 +1827,11 @@ final class Texts implements Hooks.Text {
         throws Throwable {
         if (text.face != null) { paintFace(text, words, x, y, zoom, line, red, green, blue, shownAlpha, alpha); return; }
         Object font = text.font;
-        if (text.shadow) {
+        if (text.shadow && !bare) {
             double offset = Math.max(1, Math.round(line / 24));
             drawString.invokeExact(textManager, font, x + offset, y + offset, zoom, words, 0.0, 0.0, 0.0, (double)(shownAlpha * 0.55f));
         }
-        if (text.outline > 0) {
+        if (text.outline > 0 && !bare) {
             double o = text.outline;
             double a = alpha * text.outlineAlpha;
             for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++) {
@@ -1817,11 +1847,11 @@ final class Texts implements Hooks.Text {
     private void paintFace(Shown text, String words, double x, double y, double zoom, double line, float red, float green, float blue, float shownAlpha,
             double alpha) throws Throwable {
         Object face = text.face;
-        if (text.shadow) {
+        if (text.shadow && !bare) {
             double offset = Math.max(1, Math.round(line / 24));
             faceDraw.invokeExact(face, (float)(x + offset), (float)(y + offset), (float)zoom, words, 0f, 0f, 0f, shownAlpha * 0.55f);
         }
-        if (text.outline > 0) {
+        if (text.outline > 0 && !bare) {
             double o = text.outline;
             float a = (float)(alpha * text.outlineAlpha);
             for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++) {

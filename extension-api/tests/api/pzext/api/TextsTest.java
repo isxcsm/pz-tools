@@ -938,7 +938,7 @@ final class TextsTest {
         check(line != null && line[1] == UIFont.SdfRegular && near(zoom(line), lineZoom)
             && near((Double)line[3], (0.28 + 0.1 / 2 + 0.1 * 0.25 + 0.045 / 2) * 900 - 45 * lineZoom / 2), "The line under the title is not under it");
         check(last("Search complete") == null, "The second title did not wait");
-        // The stamp and its line go together, after 0.95 + 5 + 6 seconds (its hold from when its line is in at 0.45 + 0.5; the line
+        // The stamp and its line go together, after 0.75 + 5 + 6 seconds (its hold from when its line is in at 0.15 + 0.6; the line
         // 0.4 s after the title, for 5.6).
         advance(8.8);
         render();
@@ -1108,9 +1108,9 @@ final class TextsTest {
 
     /** What a frame costs with a title and its line on the screen: no allocation. */
     private static void cost(KahluaTable text, Object mod) {
-        double key = (Double)FormulasTest.call(text, "title", mod, table("text", "Quest complete", "subtitle", "The well is clean", "hold", 100.0, "style", "stamp")).get(0);
+        double key = (Double)FormulasTest.call(text, "title", mod, table("text", "Search complete", "subtitle", "3 items", "hold", 100.0, "style", "discovery")).get(0);
         render();
-        advance(1);
+        advance(2.5);
         render();
         check(draws().size() == 12, "The title and its line are not drawn with their copies: " + draws().size());
         TextManager.record = false;
