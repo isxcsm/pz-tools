@@ -77,11 +77,13 @@ function P4Z_MISSION(kind)
     local record, player = P4T.record()
     local old = Missions.active(record)
     if old then Missions.finish(record, old, "lost") end
-    local regular = Data.REGULAR
+    -- the plain pick only (a story waiting would come first), of the one kind
+    local regular, nextStory, handedOver = Data.REGULAR, OA.Story.nextStory, OA.Story.handedOver
     Data.REGULAR = { { id = kind, kind = kind, weight = 1 } }
+    OA.Story.nextStory, OA.Story.handedOver = function() return nil end, function() return false end
     local ok, m = pcall(Missions.start, record)
-    Data.REGULAR = regular
-    if not (ok and m) then say("BAD", "mission", tostring(m)) return end
+    Data.REGULAR, OA.Story.nextStory, OA.Story.handedOver = regular, nextStory, handedOver
+    if not (ok and m and m.zombies) then say("BAD", "mission", tostring(m), m and m.title) return end
     m.area.x, m.area.y = math.floor(player:getX()) + 50, math.floor(player:getY())
     OA.Sync.changed("missions", record.id)
     say("mission", m.id, kind, "group", m.zombies.total, "circle", m.area.x, m.area.y, m.area.r)
