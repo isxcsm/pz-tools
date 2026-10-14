@@ -150,9 +150,9 @@ local function build()
     add({ id = "scrap_pack", group = "resource", tier = 2, price = 6000, week = 5, give = { vanilla("ElectronicsScrap", 10) } })
     -- Building hardware, dear (NUMBERS 7): a box of 100 nails or screws is what a delivery of 2 weight pays ten times
     -- over. Nuts and bolts come loose in fives and never in a box, so they cost the most a piece.
-    add({ id = "nails_box", group = "resource", tier = 1, price = 8000, week = 3, give = { vanilla("NailsBox") } })
-    add({ id = "screws_box", group = "resource", tier = 1, price = 8000, week = 3, give = { vanilla("ScrewsBox") } })
-    add({ id = "nuts_bolts", group = "resource", tier = 2, price = 15000, week = 2, give = { vanilla("NutsBolts", 20) } })
+    add({ id = "nails_box", group = "resource", tier = 1, price = 80000, week = 3, give = { vanilla("NailsBox") } })
+    add({ id = "screws_box", group = "resource", tier = 1, price = 80000, week = 3, give = { vanilla("ScrewsBox") } })
+    add({ id = "nuts_bolts", group = "resource", tier = 2, price = 80000, week = 2, give = { vanilla("NutsBolts", 10) } })
     add({ id = "welding_rods", group = "resource", tier = 2, price = 12000, week = 3, give = { vanilla("WeldingRods") } })
     add({ id = "engine_parts", group = "resource", tier = 3, price = 20000, week = 2, give = { vanilla("EngineParts", 10) } })
     add({ id = "car_battery", group = "resource", tier = 3, price = 20000, week = 2,

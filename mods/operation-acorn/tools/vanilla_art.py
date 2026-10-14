@@ -191,16 +191,16 @@ def team_badge(img, corner=(0, 1)):
 
 
 def team_icon(item_type, mask=False, paint=True):
-    """The 32 px team icon of a vanilla item and its 64 px copy (the vanilla icon doubled pixel for pixel, the mark
-    drawn at 64): (icon, {64: copy}). The item is in the team's colours (team_paint, or not when its model keeps the
-    vanilla look; the welding mask team_recolour) and marked in its emptiest corner."""
+    """The 32 px team icon of a vanilla item and its 64 px copy (the vanilla icon enlarged smoothly, as the game draws
+    a vanilla icon larger, the mark drawn at 64): (icon, {64: copy}). The item is in the team's colours (team_paint, or
+    not when its model keeps the vanilla look; the welding mask team_recolour) and marked in its emptiest corner."""
     base = vanilla_icon(item_type)
     if mask:
         base = team_recolour(base)
     elif paint:
         base = team_paint(base)
     corner = emptiest_corner(base)
-    return team_badge(base, corner), {64: team_badge(base.resize((64, 64), Image.NEAREST), corner)}
+    return team_badge(base, corner), {64: team_badge(base.convert('RGBa').resize((64, 64), Image.BICUBIC).convert('RGBA'), corner)}
 
 
 # ---- the welding mask -----------------------------------------------------------------------------------------

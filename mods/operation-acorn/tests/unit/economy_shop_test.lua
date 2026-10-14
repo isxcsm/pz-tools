@@ -30,7 +30,7 @@ test("every NUMBERS 7 price is in the catalog", function()
         car_part_normal = { 10000, 3 }, engine_parts = { 20000, 3 }, car_part_modern = { 25000, 5 },
         ammo_pistol = { 40000, 4 }, ammo_shotgun = { 50000, 4 }, ammo_rifle = { 60000, 4 },
         team_backpack = { 300000, 5 }, shred_bench = { 5000, 0 }, bait_trap = { 12000, 2 }, team_locker = { 60000, 2 },
-        team_crate = { 15000, 2 }, nails_box = { 8000, 1 }, screws_box = { 8000, 1 }, nuts_bolts = { 15000, 2 },
+        team_crate = { 15000, 2 }, nails_box = { 80000, 1 }, screws_box = { 80000, 1 }, nuts_bolts = { 80000, 2 },
         welding_rods = { 12000, 2 }, team_welding_mask = { 40000, 3 }, team_waist_bag = { 90000, 3 },
         team_fuel_can = { 20000, 2 }, team_welder = { 35000, 3 },
         field_hammer = { 15000, 1 }, field_screwdriver = { 12000, 1 }, field_carpentrychisel = { 14000, 2 },

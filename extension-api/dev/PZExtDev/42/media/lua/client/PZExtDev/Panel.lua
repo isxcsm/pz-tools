@@ -282,6 +282,11 @@ function Window:fitPage()
     local pageH = math.min(contentH, math.max(200, getCore():getScreenHeight() - self:getY() - around - 20))
     view:setHeight(pageH)
     view:setScrollHeight(contentH)
+    -- (its bar was made as tall as the page was then: it follows the page)
+    if view.vscroll then
+        view.vscroll:setX(view.width - view.vscroll.width)
+        view.vscroll:setHeight(pageH)
+    end
     inner:setHeight(inner.tabHeight + pageH)
     local h = around + pageH
     if h == self.height then return end

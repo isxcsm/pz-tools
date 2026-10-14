@@ -3,7 +3,8 @@
 -- trees side by side, each a column with a header strip in its colour (its name, its points as a bar, a reset button)
 -- over a grid of icon nodes (four columns, five rows opened by the points spent in the tree, the capstone last and a
 -- little larger) with the prerequisite lines between them; in their place the 2nd board, a band across for each tree
--- (its header at the top left, its nodes in one row, a little apart where their kind changes). Above: the two modes and
+-- (its name at the top left, its nodes in one row across its middle, each kind of them on a tray of its own). Above: the
+-- two modes and
 -- a chip for the shared points; below: a bar that says what approving the selection spends,
 -- with the approve and clear buttons.
 -- A node shows its state at a glance: grey with a padlock while it cannot be taken, a frame in its tree's colour that
@@ -110,8 +111,8 @@ L.COL_Y = L.PAD + L.TOP + L.GAP
 L.PLAN_Y = L.COL_Y + L.STRIP + L.GRID_H + L.GAP
 L.VIEW_H = L.PLAN_Y + L.PLAN + L.PAD
 -- The 2nd board's bands: the columns' room shared by three, each a header strip over its row of nodes; the nodes'
--- spacing, and the wider gap where their kind changes.
-L.BAND_GAP, L.BAND_STRIP, L.BAND_GX, L.KIND_GAP = 7, 30, 18, 34
+-- spacing, the wider gap where their kind changes, and how far a kind's tray reaches round its nodes.
+L.BAND_GAP, L.BAND_STRIP, L.BAND_GX, L.KIND_GAP, L.TRAY_PAD = 7, 30, 18, 34, 8
 L.BAND_W = L.VIEW_W - 2 * L.PAD
 L.BAND_H = (L.STRIP + L.GRID_H - 2 * L.BAND_GAP) / 3
 Window.LAYOUT = L
@@ -628,20 +629,26 @@ function View:layout()
     local groups = (self.mode == "board") and Data.BOARD_GROUPS or Data.TREES
     for i, tree in ipairs(groups) do
         if self.mode == "board" then
-            -- a band: its nodes in a row (they pop in four at a time in the opening), a divider where their kind changes
+            -- a band: its nodes in a row across its middle (they pop in four at a time in the opening), each kind of
+            -- them on a tray
             local px, py = L.PAD, L.COL_Y + (i - 1) * (L.BAND_H + L.BAND_GAP)
             local panel = { tree = tree, x = px, y = py, w = L.BAND_W, strip = L.BAND_STRIP, gridH = L.BAND_H - L.BAND_STRIP,
-                gx = px, gy = py + L.BAND_STRIP, dividers = {} }
+                gx = px, gy = py + L.BAND_STRIP, trays = {} }
             self.panels[#self.panels + 1] = panel
-            local x, y = L.GRID_PAD, panel.gy + (panel.gridH - L.ICON - L.PIPS) / 2
-            local ends = KIND_ENDS[tree]
-            for k, node in ipairs(Data.boardGroup(tree)) do
-                items[#items + 1] = { key = node.id, id = node.id, tree = tree, x = px + x, y = y, w = L.ICON, h = L.ICON,
+            local nodes, ends = Data.boardGroup(tree), KIND_ENDS[tree] or {}
+            local rowW = #nodes * L.ICON
+            for k = 1, #nodes - 1 do rowW = rowW + (ends[k] and L.KIND_GAP or L.BAND_GX) end
+            local x, y = px + (L.BAND_W - rowW) / 2, panel.gy + (panel.gridH - L.ICON - L.PIPS) / 2
+            local from = x
+            for k, node in ipairs(nodes) do
+                items[#items + 1] = { key = node.id, id = node.id, tree = tree, x = x, y = y, w = L.ICON, h = L.ICON,
                     col = i, row = floor((k - 1) / 4) + 1 }
                 x = x + L.ICON
-                if ends and ends[k] then
-                    panel.dividers[#panel.dividers + 1] = px + x + L.KIND_GAP / 2
+                if ends[k] or k == #nodes then
+                    panel.trays[#panel.trays + 1] = { x = from - L.TRAY_PAD, y = y - L.TRAY_PAD, w = x - from + 2 * L.TRAY_PAD,
+                        h = L.ICON + L.PIPS + 2 * L.TRAY_PAD }
                     x = x + L.KIND_GAP
+                    from = x
                 else
                     x = x + L.BAND_GX
                 end
@@ -1381,18 +1388,8 @@ function View:paintStrip(el, panel, i)
     local flash = take and self:takeHeader(tree) or 0
     if flash > 0 then UI.fill(el, x, y, panel.w, panel.strip, tc.c, 0.32 * flash) end
     UI.fill(el, x, y, panel.w, 2, flash > 0 and tc.light or tc.c)
-    local name = Texts.treeName(tree)
-    UI.text(el, name, x + 10, y + 5, tc.light, UIFont.Medium)
-    if self.mode ~= "trees" then
-        -- on the board's band, beside the name: the tree's capstone, once approved
-        local cap = Data.capstone(tree)
-        local done = cap and Rules.rank(self.sim, cap.id) >= 1
-        local sub = done and UI.str("IGUI_OA_Tree_CapstoneDone", Texts.nodeName(cap.id)) or "???"
-        local nameH = UI.fontHeight(UIFont.Medium)
-        UI.text(el, sub, x + 10 + UI.textWidth(name, UIFont.Medium) + 14, y + 5 + (nameH - UI.fontHeight()) / 2,
-            done and P.text or P.dim, nil, 0.9)
-        return
-    end
+    UI.text(el, Texts.treeName(tree), x + 10, y + 5, tc.light, UIFont.Medium)
+    if self.mode ~= "trees" then return end
     -- the reset
     local item = self.byKey["reset:" .. tree]
     if item and self:reachable(item) then
@@ -1942,11 +1939,16 @@ local function paintColumnBack(el, panel, dy, tc)
     end
     local tex = grain()
     if tex then ISUIElement.drawTextureTiled(el, tex, x0, y0, x1 - x0, y1 - y0, 1, 1, 1, Window.BG_GRAIN_A) end
-    -- a band's dividers where its nodes change kind: a faint line down its row
-    local dividers = panel.dividers
-    if dividers then
-        local ya, yb = X(top + 10), X(bottom - 10)
-        for _, x in ipairs(dividers) do rectPx(el, X(x), ya, 1, yb - ya, tc.light, 0.16) end
+    -- a band's trays, one under each kind of its nodes: sunk a little, rimmed faintly in the tree's light
+    local trays = panel.trays
+    if trays then
+        for _, t in ipairs(trays) do
+            local tx0, ty0 = X(t.x), X(t.y + dy)
+            local tw, th = X(t.x + t.w) - tx0, X(t.y + dy + t.h) - ty0
+            rectPx(el, tx0, ty0, tw, th, DARK, 0.28)
+            rectPx(el, tx0, ty0, tw, 1, DARK, 0.35)
+            framePx(el, t.x, t.y + dy, t.w, t.h, tc.light, 0.14, 1)
+        end
     end
 end
 

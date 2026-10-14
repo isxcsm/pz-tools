@@ -113,8 +113,13 @@ test("the board is a band across for each tree, its nodes in one row, in the col
             end
         end
     end
-    eq(#view.panels[2].dividers, 2, "load: lightening, gear, carrying")
-    eq(#view.panels[3].dividers, 1, "survival: resistance, the rest")
+    eq(#view.panels[1].trays, 1, "scout: one kind")
+    eq(#view.panels[2].trays, 3, "load: lightening, gear, carrying")
+    eq(#view.panels[3].trays, 2, "survival: resistance, the rest")
+    for _, panel in ipairs(view.panels) do
+        local first, last = panel.trays[1], panel.trays[#panel.trays]
+        truthy(math.abs((first.x - panel.x) - (panel.x + panel.w - last.x - last.w)) < 1e-6, panel.tree .. ": the row in the middle")
+    end
 end)
 
 test("a line starts under its prerequisite's pips and ends on the top of its node", function()
