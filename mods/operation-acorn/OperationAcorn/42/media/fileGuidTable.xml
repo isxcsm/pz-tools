@@ -13,31 +13,23 @@
 		<guid>13b5d057-5a2d-436e-8d37-8dbac94fa075</guid>
 	</files>
 	<files>
-		<path>media/clothing/clothingItems/OA_Bag_FuelCanMk1_RHand.xml</path>
+		<path>media/clothing/clothingItems/OA_Hat_TeamWelderMask.xml</path>
+		<guid>3c6f1d0e-8a57-4b2e-9f31-6d2a7c40b915</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/OA_Bag_ResearchWaistFront.xml</path>
+		<guid>5b0e7c2a-91d4-4f63-a8e5-2c7f1d9b4e60</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/OA_Bag_ResearchWaistBack.xml</path>
+		<guid>a47d3e19-6c25-4b8f-9e02-7f5c1a3d8b24</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/OA_Bag_TeamFuelCan_RHand.xml</path>
 		<guid>5d189b2f-5fda-4341-ab49-cbb740ea02ce</guid>
 	</files>
 	<files>
-		<path>media/clothing/clothingItems/OA_Bag_FuelCanMk1_LHand.xml</path>
+		<path>media/clothing/clothingItems/OA_Bag_TeamFuelCan_LHand.xml</path>
 		<guid>24913c60-a361-43e5-8181-0556656e4a07</guid>
-	</files>
-	<files>
-		<path>media/clothing/clothingItems/OA_Bag_FuelCanMk2_RHand.xml</path>
-		<guid>8a2a00d5-7fba-4692-86b1-020710717443</guid>
-	</files>
-	<files>
-		<path>media/clothing/clothingItems/OA_Bag_FuelCanMk2_LHand.xml</path>
-		<guid>ee8a79c3-ad3a-4115-ad5e-221b14682c0b</guid>
-	</files>
-	<files>
-		<path>media/clothing/clothingItems/OA_Bag_FuelCanMk3_RHand.xml</path>
-		<guid>70ff56b3-a755-4ab6-b9df-f64e4a484035</guid>
-	</files>
-	<files>
-		<path>media/clothing/clothingItems/OA_Bag_FuelCanMk3_LHand.xml</path>
-		<guid>33b0be17-11c0-4d05-a7a3-2c0fd101fa1f</guid>
-	</files>
-	<files>
-		<path>media/clothing/clothingItems/OA_Hat_TeamWelderMask.xml</path>
-		<guid>3c6f1d0e-8a57-4b2e-9f31-6d2a7c40b915</guid>
 	</files>
 </fileGuidTable>

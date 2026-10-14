@@ -31,11 +31,11 @@ test("every NUMBERS 7 price is in the catalog", function()
         ammo_pistol = { 40000, 4 }, ammo_shotgun = { 50000, 4 }, ammo_rifle = { 60000, 4 },
         team_backpack = { 300000, 5 }, shred_bench = { 5000, 0 }, bait_trap = { 12000, 2 }, team_locker = { 60000, 2 },
         team_crate = { 15000, 2 }, nails_box = { 8000, 1 }, screws_box = { 8000, 1 }, nuts_bolts = { 15000, 2 },
-        welding_rods = { 12000, 2 }, team_welding_mask = { 40000, 3 },
-        light_screwdriver = { 20000, 2 }, light_hammer = { 30000, 2 }, light_saw = { 30000, 2 },
-        light_wrench = { 25000, 2 }, light_lug_wrench = { 25000, 2 }, light_crowbar = { 35000, 3 },
-        light_shovel = { 35000, 3 }, light_wood_axe = { 45000, 3 }, light_pickaxe = { 45000, 3 },
-        light_sledgehammer = { 60000, 4 },
+        welding_rods = { 12000, 2 }, team_welding_mask = { 40000, 3 }, team_waist_bag = { 90000, 3 },
+        team_fuel_can = { 20000, 2 }, team_welder = { 35000, 3 },
+        field_hammer = { 15000, 1 }, field_screwdriver = { 12000, 1 }, field_carpentrychisel = { 14000, 2 },
+        field_smithinghammer = { 20000, 3 }, field_boltcutters = { 28000, 3 }, field_sledgehammer = { 35000, 4 },
+        field_whetstone = { 10000, 1 },
         fabric_cutter = { 80000, 2 }, log_saw = { 100000, 2 }, rain_cistern = { 90000, 3 },
         bulk_shredder = { 150000, 3 }, propane_refinery = { 200000, 3 }, oil_refinery = { 250000, 4 },
         box_reissue = { 10000, 0 },
@@ -43,8 +43,8 @@ test("every NUMBERS 7 price is in the catalog", function()
         shred_blade_modern = { 40000, 5 }, cut_blade_normal = { 10000, 3 }, cut_blade_modern = { 25000, 5 },
         saw_blade_normal = { 15000, 3 }, saw_blade_modern = { 40000, 5 }, filter_normal = { 20000, 3 },
         filter_modern = { 50000, 5 }, soundproof_cover = { 30000, 3 },
-        fuelcan_mk1 = { 20000, 2 }, fuelcan_mk2 = { 45000, 4 }, fuelcan_mk3 = { 90000, 5 },
-        kit_bagCapacity = { 40000, 6 }, kit_bagWeight = { 50000, 6 }, kit_storage = { 60000, 6 }, kit_engine = { 80000, 6 },
+        kit_capacity = { 50000, 6 }, kit_lightening = { 50000, 6 }, kit_reinforcement = { 40000, 6 },
+        kit_engine = { 80000, 6 },
     }
     for id, want in pairs(expect) do
         local e = find(id)
@@ -81,10 +81,23 @@ test("what an entry hands over", function()
     eq(#find("team_backpack").give, 1, "the backpack alone: its water storage is built in")
     eq(find("team_backpack").give[1].type, "OperationAcorn.TeamBackpack")
     eq(find("team_welding_mask").give[1].type, "OperationAcorn.TeamWeldingMask")
-    eq(find("light_lug_wrench").give[1].type, "OperationAcorn.LightLugWrench")
-    eq(find("light_lug_wrench").group, "gear")
+    eq(find("field_lugwrench").give[1].type, "OperationAcorn.FieldLugWrench")
+    eq(find("field_lugwrench").group, "tool")
+    eq(find("field_lugwrench").item, "OperationAcorn.FieldLugWrench", "named as its item")
     eq(find("petrol_can").give[1].fluid, "Petrol")
-    truthy(find("fuelcan_mk1").give[1].empty)
+    truthy(find("team_fuel_can").give[1].empty)
+    eq(find("team_waist_bag").give[1].type, "OperationAcorn.TeamWaistBagFront")
+    eq(find("team_welder").give[1], S.WELDER)
+    eq(find("team_welder").give[1].name, "IGUI_OA_Gear_TeamWelder")
+    local tools = 0
+    for _, e in ipairs(S.catalog()) do
+        if e.group == "tool" then
+            tools = tools + 1
+            eq(S.descKey(e), "IGUI_OA_Terminal_Shop_Desc_field_tool", e.id .. ": the field tools' description")
+        end
+    end
+    eq(tools, #S.FIELD_TOOLS)
+    eq(S.descKey(find("team_welder")), "IGUI_OA_Terminal_Shop_Desc_team_welder")
 end)
 
 test("the price is the base times the multiplier and the stage discount", function()
@@ -196,9 +209,9 @@ end)
 test("a kit's price stays the same however many are bought", function()
     -- At the first milestone the 5% discount of stage 4 is on.
     local r = record(5, 1)
-    eq(S.price(find("kit_bagCapacity"), r), 38000)
-    S.bought(find("kit_bagCapacity"), r, 3)
-    eq(S.price(find("kit_bagCapacity"), r), 38000)
+    eq(S.price(find("kit_capacity"), r), 47500)
+    S.bought(find("kit_capacity"), r, 3)
+    eq(S.price(find("kit_capacity"), r), 47500)
 end)
 
 test("kit prices take the multiplier and the discount", function()
@@ -219,14 +232,14 @@ test("tiers lock and unlock entries", function()
     eq(n, 0)
     r = record(3)
     truthy(S.available(find("propane_tank"), r) > 0)
-    n = S.available(find("kit_storage"), record(5, 0))
+    n = S.available(find("kit_reinforcement"), record(5, 0))
     eq(n, 0)
-    truthy(S.available(find("kit_storage"), record(5, 1)) > 0)
+    truthy(S.available(find("kit_reinforcement"), record(5, 1)) > 0)
 end)
 
 test("kits can be switched off", function()
     SandboxVars.OperationAcorn.KitsForSale = false
-    local n, why = S.available(find("kit_storage"), record(5, 1))
+    local n, why = S.available(find("kit_reinforcement"), record(5, 1))
     eq(n, 0); eq(why, "IGUI_OA_Econ_Shop_KitsOff")
     eq(#S.opensAt(6), 0, "the kits are the only goods of the first milestone")
 end)

@@ -1,0 +1,10 @@
+module OperationAcorn
+{
+	/* The research team waist bag lying on the floor (the worn bag's pouch on its back, the belt beside it). */
+	model OA_ResearchWaist_Ground
+	{
+		mesh = WorldItems/Clothing/OA_ResearchWaist_Ground,
+		texture = Clothes/Bag/OA_ResearchWaist,
+		scale = 0.4,
+	}
+}

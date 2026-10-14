@@ -116,6 +116,9 @@ function M.listed(entry)
     return Shop.stocked(entry)
 end
 
+-- The shop group that a level's goods and the news board show as one line: the field tools, forty and more.
+M.TOOLS = "tool"
+
 -- The goods a level opens: on every terminal (field = false) or only on the field terminal (field = true).
 function M.laneItems(t, field)
     local list = {}
@@ -698,11 +701,30 @@ M.NEWS_NAMES = 4
 function M.news(record)
     local tier = Trust.tier(record)
     local open, later = {}, 0
+    local tools, toolsAt, toolsLater = 0, nil, false
     for _, e in ipairs(Shop.catalog()) do
         if Shop.fieldOnly(e) and M.listed(e) then
-            if e.tier <= tier then open[#open + 1] = tr(Shop.nameKey(e)) else later = later + 1 end
+            if e.tier > tier then
+                -- the field tools still to come count as one
+                if e.group ~= M.TOOLS then
+                    later = later + 1
+                elseif not toolsLater then
+                    toolsLater = true
+                    later = later + 1
+                end
+            elseif e.group == M.TOOLS then
+                -- the field tools are one line of the board, where the first of them stands
+                tools = tools + 1
+                if not toolsAt then
+                    open[#open + 1] = ""
+                    toolsAt = #open
+                end
+            else
+                open[#open + 1] = Shop.name(e)
+            end
         end
     end
+    if toolsAt then open[toolsAt] = tr("IGUI_OA_Status_Tools", tools) end
     local team = {}
     if #open > 0 then
         local shown = {}

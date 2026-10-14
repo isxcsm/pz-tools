@@ -98,11 +98,12 @@ function Trade.crateExtras(record, draft)
     return specs
 end
 
--- A drop item: a type name, or { type, count, mod = { key = value }, condition, used, fluid, amount, receipt }.
+-- A drop item: a type name, or { type, count, mod = { key = value }, condition, used, fluid, amount, receipt, name }.
 -- Written out as a table of these fields only, so that it can wait in the save: `mod` is item modData to set,
--- `condition` the item's condition, `used` a drainable's use delta (0 to 1), `fluid` and `amount` fill a fluid
--- container, `empty` makes a container empty, `receipt` a supply manifest's contents.
-local SPEC_FIELDS = { "type", "count", "mod", "condition", "used", "fluid", "amount", "empty", "receipt" }
+-- `condition` the item's condition, `used` a drainable's use delta (0 to 1, set after `mod`, which may change its
+-- uses), `fluid` and `amount` fill a fluid container, `empty` makes a container empty, `receipt` a supply manifest's
+-- contents, `name` the translation key of the name the item is given.
+local SPEC_FIELDS = { "type", "count", "mod", "condition", "used", "fluid", "amount", "empty", "receipt", "name" }
 local function dropSpec(item)
     if type(item) == "string" then return { type = item, count = 1 } end
     if type(item) ~= "table" or type(item.type) ~= "string" then return nil end

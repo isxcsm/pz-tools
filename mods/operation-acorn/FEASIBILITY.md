@@ -89,7 +89,7 @@ API 요구 칸의 영역 이름은 4장의 묶음과 같다.
 | 임무 아이템 주입 | easy-lua | `OnFillContainer`. 칸 로드 때 미탐색 용기에서 발생 | 없음 | 열 때가 아님. PZ Optimize가 채우기를 미룸. 리스폰 중복은 임무별 완료 표시로 막음 |
 | 설치 용기 허용 규칙 | easy-lua | `setOnlyAcceptCategory`/`setAcceptItemFunction` | 없음 | 저장되지 않으므로 설치 직후와 `LoadChunk`마다 다시 걺 |
 | 설치 용기 용량 100 초과 | api-hook | `ItemContainer.getCapacity()` 끝의 min(100/50/1000). 원시 값은 저장됨 | capacity: 상한 해제 | 다른 모드 용기에 영향이 가지 않게 대상 한정 필요 |
-| 가방 용량 키트 | api-hook | 위 + `InventoryContainer.getCapacity/getEffectiveCapacity`의 min(50 - 무게) | capacity: modData 가산 | 툴팁 계산 경로 미검증 |
+| 확장 키트 (가방) | api-hook | 위 + `InventoryContainer.getCapacity/getEffectiveCapacity`의 min(50 - 무게) | capacity: modData 가산 | 툴팁 계산 경로 미검증 |
 | 가방 무게 감소 키트 | easy-lua | `InventoryContainer.setWeightReduction`(저장됨) | 없음 | 정수 퍼센트. 착용 때만 적용 |
 | 트렁크 키트 | api-hook | `VehiclePart`가 수리·교체·손상 때 원시 용량을 되돌림 | capacity: 차량 modData 가산 | 질량 증가는 바닐라가 처리. PZ Tools 차량 확장과 상호작용 미검증 |
 | 엔진 튜닝 키트 | easy-lua | `BaseVehicle.setEngineFeature`(저장됨). `CarController`가 `getEnginePower` 사용 | 없음 | PZ Tools 차량 주행 확장(`control_ForwardNew` 대체)이 power를 읽는지 미검증 |
@@ -125,7 +125,7 @@ API 요구 칸의 영역 이름은 4장의 묶음과 같다.
 | --- | --- | --- |
 | 달리기 속도 | 옷 감속이 바닐라에서 죽어 있을 가능성이 높다(바이트코드 기준) | fullSpeedMod 훅은 그대로 만든다. 인게임 점검에서 `ISRunningDebugUI`의 Clothing 줄을 확인한다. 죽어 있으면 노드를 "짐 가방 달리기 감속 경감 -30/-60%"(살아 있는 가방 `RunSpeedModifier`)로 재정의한다. 옷 감속을 되살리는 것은 새 벌칙을 만드는 일이라 하지 않는다. |
 | 캐릭터 용량 | 하드 한도 50(캐릭터 인벤토리 capacity)이 과적 사다리를 자름 | `getMaxWeight` 가산과 함께 캐릭터 인벤토리 `getEffectiveCapacity`에 `+1.75 x 가산분`을 더한다. 설계의 "상한(기본 50)" 문구는 "줍기 한도"로 고친다. |
-| 저장소 용량 | 가방 포함 여부가 불명확 | 가구·상자만으로 잠근다(캐릭터 소유와 바닥 제외, 바닐라 특성 배율과 같은 범위). 가방은 가방 용량 키트가 맡는다. |
+| 저장소 용량 | 가방 포함 여부가 불명확 | 가구·상자만으로 잠근다(캐릭터 소유와 바닥 제외, 바닐라 특성 배율과 같은 범위). 가방은 확장 키트가 맡는다. |
 | 걷는 속도 | `calculateWalkSpeed` 결과는 상한 있는 블렌드 좌표라 +15%가 안 남 | `getDeferredMovement` 상태 조건부 배율로 잠근다. 문제가 생기면 `AnimNode.getSpeedScale` 경로로 바꾼다. 웅크림·조준 중에도 적용한다(문구 "걷기·달리기 모두"에 포함). |
 | 감염 저항 강화 (물림) | Lua 폴링판은 감염 UI가 잠깐 깜박임 | `SetBitten` 직후 API 방패로 잠근다. API 전에 쓸 임시판은 `EveryOneMinute` 폴링으로 한다. |
 | 돌파 질주 | TREES는 상시 효과다(지시문의 "능동/단축키"는 틀림). 문·장애물 부수기는 설계에 없음 | 상시 효과로 잠근다. 전력질주 시작 감지는 0.25초 간격 점검으로 하고, 질주 중에만 앞칸 검사 핸들러를 단다. 문 부수기는 넣지 않는다. |
@@ -159,8 +159,8 @@ API 요구 칸의 영역 이름은 4장의 묶음과 같다.
 | 무게 | 읽기 질의 `efficiency(item)` | 위 규칙표 | 옮기기 속도 | 없음 |
 | 용량 상한 (capacity) | 최대 무게 가산(정수) | `IsoGameCharacter.getMaxWeight()` 반환 | 캐릭터 용량 | 없음 |
 | 용량 상한 | 유효 용량 배율/가산(캐릭터 인벤토리 한도 가산 포함, 바닥 제외) | `ItemContainer.getEffectiveCapacity(chr)` 반환 3곳 | 저장소 용량, 캐릭터 용량 | 없음 |
-| 용량 상한 | 상한 해제 + 용기/아이템/차량 modData 가산 | `ItemContainer.getCapacity()` 반환(min 100/50/1000) | 납품 상자·보관함 200+, 가방 용량 키트, 트렁크 키트 | 없음 |
-| 용량 상한 | 가방 이중 클램프 처리 | `InventoryContainer.getCapacity()/getEffectiveCapacity(chr)` 반환 | 가방 용량 키트 | 없음 |
+| 용량 상한 | 상한 해제 + 용기/아이템/차량 modData 가산 | `ItemContainer.getCapacity()` 반환(min 100/50/1000) | 납품 상자·보관함 200+, 확장 키트 (가방, 차량 보관함) | 없음 |
+| 용량 상한 | 가방 이중 클램프 처리 | `InventoryContainer.getCapacity()/getEffectiveCapacity(chr)` 반환 | 확장 키트 (가방) | 없음 |
 | 과적 (overload) | 과적분 압축 `max + (capW-max)(1-r)` | `Moodle.Update`, `IsoPlayer.getPathSpeed`, `handleLandingImpact`(3곳) 안의 `getCapacityWeight()` 호출 결과 | 과적 견디기 3항목 | 없음 |
 | 행동 시간 | API 없음(Lua 감싸기) | `ISInventoryTransferAction:new`, `grabItemTime` | 옮기기 속도 | 해당 없음 |
 | 이동·장비 벌칙 (move) | fullSpeedMod 감소율 | `calculateBaseSpeed` fullSpeedMod 저장 지점 | 달리기 속도(재정의 시 가방 감속) | 없음 |

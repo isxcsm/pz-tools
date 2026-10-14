@@ -223,11 +223,11 @@ test("the sections list the groups, the locked ones with a padlock, on the crude
     local tab = open("crude")
     local ids = {}
     for _, c in ipairs(tab.model.cats) do ids[#ids + 1] = c.id .. (c.locked and "*" or "") end
-    eq(table.concat(ids, ","), "resource,gear*,machine,part*,mk*,kit*")
+    eq(table.concat(ids, ","), "resource,gear*,machine,tool*,part*,kit*")
     local field = open("field")
     ids = {}
     for _, c in ipairs(field.model.cats) do ids[#ids + 1] = c.id .. (c.locked and "*" or "") end
-    eq(table.concat(ids, ","), "resource,gear,machine,part,mk,kit")
+    eq(table.concat(ids, ","), "resource,gear,machine,tool,part,kit")
 end)
 
 test("a section on the crude terminal: the gate band and cards that name the terminal and the level", function()
@@ -474,12 +474,12 @@ end)
 test("a kit is ordered for no bag or car in particular: no combo box, the line has no target", function()
     local tab, window = open("field", 700, 408, 6)
     tab:setCat("kit")
-    truthy(clickCard(tab, "kit_bagCapacity"))
+    truthy(clickCard(tab, "kit_capacity"))
     eq(tab.detail.options, nil)
     eq(tab.combo.visible, false)
     tab.addButton:onMouseDown()
     tab.addButton:onMouseUp()
-    eq(window.sent[1].args.lines[1].id, "kit_bagCapacity")
+    eq(window.sent[1].args.lines[1].id, "kit_capacity")
     eq(window.sent[1].args.lines[1].target, nil)
 end)
 

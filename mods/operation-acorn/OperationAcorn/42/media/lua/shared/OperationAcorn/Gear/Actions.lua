@@ -1,6 +1,7 @@
--- The timed actions that fit a kit: a bag kit to a bag the character has, a storage or engine kit to a vehicle. The work
--- is done in complete(), where the world is decided (on a server, there); an action names its kit, bag and vehicle by
--- id, not by object. A failed fit tells the character why and leaves the kit where it was.
+-- The timed actions that fit a kit: to an item the character has (a bag, the fuel can, the welder, a field tool), or to
+-- a vehicle's storage or engine. The work is done in complete(), where the world is decided (on a server, there); an
+-- action names its kit, item and vehicle by id, not by object. A failed fit tells the character why and leaves the kit
+-- where it was.
 require "TimedActions/ISBaseTimedAction"
 require "OperationAcorn/Gear/Gear"
 local OA = OperationAcorn
@@ -16,52 +17,52 @@ local function failed(character, why)
     OA.Sync.notice(OA.Store.idOf(character), "IGUI_OA_Gear_Failed", { why })
 end
 
--- ---- a bag kit ------------------------------------------------------------------------------------------------
+-- ---- a kit to an item -----------------------------------------------------------------------------------------
 
-ISOAFitBagKit = ISBaseTimedAction:derive("ISOAFitBagKit")
+ISOAFitItemKit = ISBaseTimedAction:derive("ISOAFitItemKit")
 
-function ISOAFitBagKit:isValid()
+function ISOAFitItemKit:isValid()
     local kit = Gear.heldItem(self, "kit", "kitId")
-    local bag = Gear.heldItem(self, "bag", "bagId")
-    return kit ~= nil and bag ~= nil and Gear.kindOfItem(kit) ~= nil
+    local item = Gear.heldItem(self, "item", "itemId")
+    return kit ~= nil and item ~= nil and Gear.kindOfItem(kit) ~= nil
 end
 
-function ISOAFitBagKit:start()
+function ISOAFitItemKit:start()
     self:setActionAnim("Craft")
     self:setOverrideHandModels(nil, nil)
 end
 
-function ISOAFitBagKit:perform()
+function ISOAFitItemKit:perform()
     ISBaseTimedAction.perform(self)
 end
 
-function ISOAFitBagKit:complete()
+function ISOAFitItemKit:complete()
     local kit = Gear.findItem(self.character, self.kitId)
-    local bag = Gear.findItem(self.character, self.bagId)
-    if not kit or not bag then
+    local item = Gear.findItem(self.character, self.itemId)
+    if not kit or not item then
         failed(self.character, "gone")
         return false
     end
-    local ok, why = Gear.fitBag(self.character, kit, bag)
+    local ok, why = Gear.fitItem(self.character, kit, item)
     if not ok then failed(self.character, why) end
     return ok
 end
 
-function ISOAFitBagKit:getDuration()
+function ISOAFitItemKit:getDuration()
     if self.character:isTimedActionInstant() then return 1 end
-    return Rules.workTicks("bag")
+    return Rules.workTicks("item")
 end
 
-function ISOAFitBagKit:new(character, kit, bag)
+function ISOAFitItemKit:new(character, kit, item)
     local o = ISBaseTimedAction.new(self, character)
-    o.kit, o.bag, o.kitId, o.bagId = kit, bag, kit:getID(), bag:getID()
+    o.kit, o.item, o.kitId, o.itemId = kit, item, kit:getID(), item:getID()
     o.stopOnWalk = true
     o.stopOnRun = true
     o.maxTime = o:getDuration()
     return o
 end
 
--- ---- a storage or an engine kit -------------------------------------------------------------------------------
+-- ---- a kit to a vehicle's storage or engine -------------------------------------------------------------------
 
 ISOAFitVehicleKit = ISBaseTimedAction:derive("ISOAFitVehicleKit")
 
@@ -110,14 +111,14 @@ end
 
 function ISOAFitVehicleKit:getDuration()
     if self.character:isTimedActionInstant() then return 1 end
-    return Rules.workTicks(self.kind, self.character:getPerkLevel(Perks.Mechanics))
+    return Rules.workTicks(self.target, self.character:getPerkLevel(Perks.Mechanics))
 end
 
--- part: the vehicle part the kit goes to (a storage kit's storage, the engine).
+-- part: the vehicle part the kit goes to (an expansion kit's storage, the engine).
 function ISOAFitVehicleKit:new(character, kit, part)
     local o = ISBaseTimedAction.new(self, character)
     o.kit, o.kitId, o.vehicleId, o.partId = kit, kit:getID(), part:getVehicle():getId(), part:getId()
-    o.kind = Gear.kindOfItem(kit)
+    o.target = part:getId() == Gear.ENGINE_PART and "engine" or "storage"
     o.stopOnWalk = true
     o.stopOnRun = true
     o.maxTime = o:getDuration()

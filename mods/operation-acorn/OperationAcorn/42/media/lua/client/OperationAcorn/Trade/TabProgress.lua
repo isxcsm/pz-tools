@@ -13,11 +13,28 @@ local Shop, Trust = OA.Shop, OA.Trust
 
 OATabProgress = OAStatusView:derive("OATabProgress")
 
--- A level's goods as rows: { type, name, price }.
+-- A level's goods as rows: { type, name, price }. The field tools are one row (how many, the cheapest and the dearest),
+-- where the first of them stands.
 local function goods(entries, record)
     local out = {}
+    local tools
     for _, e in ipairs(entries) do
-        out[#out + 1] = { id = e.id, type = M.entryType(e), name = Orders.nameOf(e), price = Text.credits(Shop.price(e, record)) }
+        local price = Shop.price(e, record)
+        if e.group == M.TOOLS then
+            if not tools then
+                tools = { id = e.id, type = M.entryType(e), n = 0, low = price, high = price }
+                out[#out + 1] = tools
+            end
+            tools.n = tools.n + 1
+            tools.low, tools.high = math.min(tools.low, price), math.max(tools.high, price)
+        else
+            out[#out + 1] = { id = e.id, type = M.entryType(e), name = Orders.nameOf(e), price = Text.credits(price) }
+        end
+    end
+    if tools then
+        tools.name = getText("IGUI_OA_Status_Tools", tools.n)
+        tools.price = tools.low == tools.high and Text.credits(tools.low)
+            or (Text.credits(tools.low) .. "~" .. Text.credits(tools.high))
     end
     return out
 end

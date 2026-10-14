@@ -303,7 +303,7 @@ function OATabShop:buildDetail(record, ctx)
     end
     local d = { entry = entry, state = ShopView.state(entry, availOf(entry, record), ctx) }
     d.name = Orders.nameOf(entry)
-    local descKey = "IGUI_OA_Terminal_Shop_Desc_" .. entry.id
+    local descKey = OA.Shop.descKey(entry)
     d.desc = getText(descKey)
     if d.desc == descKey then d.desc = "" end
     local info = {}

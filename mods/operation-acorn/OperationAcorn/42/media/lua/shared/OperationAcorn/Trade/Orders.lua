@@ -47,6 +47,7 @@ end
 function Orders.nameOf(entry)
     if not entry then return "?" end
     if entry.name then return entry.name end
+    if OA.Shop and OA.Shop.name then return OA.Shop.name(entry) end
     if OA.Shop and OA.Shop.nameKey then return getText(OA.Shop.nameKey(entry)) end
     if entry.nameKey then return getText(entry.nameKey) end
     return tostring(entry.id or "?")
@@ -102,9 +103,11 @@ function Orders.shopService(record)
     }
 end
 
--- One goods table of P1's ({ type, count, full, fluid, empty }) as a drop spec (Trade.dropSpec's fields).
+-- One goods table of P1's ({ type, count, full, fluid, empty, mod, used, name }) as a drop spec (Trade.dropSpec's
+-- fields).
 local function spec(g)
-    return Trade.dropSpec({ type = g.type, count = g.count, fluid = g.fluid, empty = g.empty })
+    return Trade.dropSpec({ type = g.type, count = g.count, fluid = g.fluid, empty = g.empty, mod = g.mod, used = g.used,
+        name = g.name })
 end
 
 -- The item specs one unit of an entry brings (a kit carries its target in the item's modData).

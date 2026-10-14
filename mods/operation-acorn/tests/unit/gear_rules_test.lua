@@ -1,5 +1,5 @@
--- Gear: the kit numbers (NUMBERS 7), the target keys the shop uses, and the item scripts of the gear package against the
--- numbers of the docs and the vanilla scripts they are modelled on.
+-- Gear: the kit numbers (NUMBERS 7), what each kit fits, and the item scripts of the gear package and the field tools
+-- against the numbers of the docs and the vanilla scripts they are modelled on.
 require "OperationAcorn/Core"
 require "OperationAcorn/Economy/Shop"
 require "OperationAcorn/Gear/Rules"
@@ -8,9 +8,9 @@ local R = OA.Gear.Rules
 
 local SCRIPT = "OperationAcorn/42/media/scripts/OA_gear.txt"
 
--- The body of an item of the gear script as a table of its properties.
-local function item(name)
-    local text = readfile(SCRIPT)
+-- The body of an item of the gear script (or another of the mod's scripts) as a table of its properties.
+local function item(name, script)
+    local text = readfile(script or SCRIPT)
     truthy(text, "the gear script is there")
     local body = string.match(text, "item%s+" .. name .. "%s*(%b{})")
     truthy(body, "item " .. name)
@@ -83,6 +83,43 @@ test("engine values: a tenth of the power and a twentieth of the loudness per ki
     eq(R.engine(37, 10, R.LOUDNESS_STEP), 56)    -- 55.5
 end)
 
+test("the team items: two litres, a fifth of the welder's uses, a quarter of a tool's condition per kit", function()
+    eq(R.canLitres(12, 0), 12)
+    eq(R.canLitres(12, 3), 18)
+    near(R.uses(0), 1.2, 1e-9)
+    near(R.uses(2), 1.6, 1e-9)
+    eq(R.toughness(12, 0), 12)
+    eq(R.toughness(12, 1), 15)
+    eq(R.toughness(10, 1), 13)          -- 12.5 rounds up
+    eq(R.toughness(12, 4), 24)
+    eq(R.toughness(12, 9), 24, "no more than its most kits")
+end)
+
+test("a lightening kit takes a fifth of what is left above 40 percent of the script's weight", function()
+    near(R.lightness(0), 1, 1e-12)
+    near(R.lightness(1), 0.88, 1e-12)
+    near(R.lightness(2), 0.784, 1e-12)
+    truthy(R.lightness(50) > 0.4, "it never reaches the floor")
+    for n = 0, 6 do near(1 / (1 + R.efficiency(n)), R.lightness(n), 1e-12, "the efficiency weighs the same, kit " .. n) end
+    near(R.efficiency(0), 0, 1e-12)
+end)
+
+test("what each kit fits", function()
+    truthy(R.fits("capacity", "bag")); truthy(R.fits("capacity", "can")); truthy(R.fits("capacity", "welder"))
+    truthy(R.fits("capacity", "storage"))
+    eq(R.fits("capacity", "tool"), false)
+    truthy(R.fits("lightening", "bag")); truthy(R.fits("lightening", "tool")); truthy(R.fits("lightening", "welder"))
+    eq(R.fits("lightening", "storage"), false)
+    truthy(R.fits("reinforcement", "tool"))
+    eq(R.fits("reinforcement", "bag"), false)
+    truthy(R.fits("engine", "engine"))
+    eq(R.fits("engine", "bag"), false)
+    eq(R.fits("capacity", nil), false)
+    eq(R.fits("nonsense", "bag"), false)
+    truthy(R.onItems("capacity")); truthy(R.onItems("lightening")); truthy(R.onItems("reinforcement"))
+    eq(R.onItems("engine"), false)
+end)
+
 test("the loudness argument stores back as the loudness wanted (the game stores (int)(given * 0.37037036))", function()
     for stored = 1, 400 do
         local given = R.loudnessArgument(stored)
@@ -96,22 +133,24 @@ test("the kit kinds are the shop's, with the type names it delivers", function()
         local fullType = R.kitType(kind)
         truthy(fullType, kind .. " has a kit type")
         eq(R.kindOf(fullType), kind)
-        truthy(R.SCOPE[kind], kind .. " has a scope")
+        truthy(R.TARGETS[kind], kind .. " has targets")
     end
-    eq(R.kitType("bagCapacity"), "OperationAcorn.KitBagCapacity")
+    eq(R.kitType("capacity"), "OperationAcorn.KitCapacity")
+    eq(R.kitType("lightening"), "OperationAcorn.KitLightening")
+    eq(R.kitType("reinforcement"), "OperationAcorn.KitReinforcement")
     eq(R.kitType("engine"), "OperationAcorn.KitEngine")
     eq(R.kindOf("Base.Hammer"), nil)
-    eq(R.SCOPE.bagCapacity, "bag"); eq(R.SCOPE.bagWeight, "bag"); eq(R.SCOPE.storage, "vehicle"); eq(R.SCOPE.engine, "vehicle")
 end)
 
 test("every good the shop names for this package is an item of the gear script", function()
     local T = OA.Shop.TYPES
-    for _, key in ipairs({ "backpack", "fuelMk1", "fuelMk2", "fuelMk3",
-        "kitBagCapacity", "kitBagWeight", "kitStorage", "kitEngine" }) do
+    for _, key in ipairs({ "backpack", "waistBag", "waistBagBack", "fuelCan", "weldingMask",
+        "kitCapacity", "kitLightening", "kitReinforcement", "kitEngine" }) do
         local name = string.match(T[key], "^OperationAcorn%.(%w+)$")
         truthy(name, key .. " is of this mod")
         item(name)
     end
+    eq(T.welder, "Base.BlowTorch", "the welder is the game's own torch")
 end)
 
 test("the research backpack: 35 capacity, 85 weight reduction, webbing hangers (NUMBERS 7)", function()
@@ -135,17 +174,35 @@ test("the research backpack: 35 capacity, 85 weight reduction, webbing hangers (
     end
 end)
 
-test("the fuel cans: the vanilla petrol can with a 15, 20 and 25 litre tank and the same empty weight", function()
-    -- PetrolCan (media/scripts/generated/items/normal.txt): weight 1.6, tag base:petrol, Capacity = 10.0
-    for name, litres in pairs({ FuelCanMk1 = "15.0", FuelCanMk2 = "20.0", FuelCanMk3 = "25.0" }) do
-        local p = item(name)
-        eq(p.Weight, "1.6", name .. " weight")
-        eq(p.ItemType, "base:normal")
-        truthy(string.find(p.Tags, "base:petrol", 1, true), name .. " keeps the petrol tag")
-        truthy(string.find(p.body, "component FluidContainer", 1, true), name .. " has the fluid container")
-        eq(string.match(p.body, "Capacity%s*=%s*([%d%.]+)"), litres, name .. " capacity")
-        truthy(string.find(p.body, "fluid = Petrol:1.0", 1, true), name .. " holds petrol")
+test("the waist bag: worn front or back, the two sides the same bag", function()
+    local front, back = item("TeamWaistBagFront"), item("TeamWaistBagBack")
+    eq(front.ClothingItemExtra, "OperationAcorn.TeamWaistBagBack")
+    eq(back.ClothingItemExtra, "OperationAcorn.TeamWaistBagFront")
+    eq(front.BodyLocation, "base:fannypackfront"); eq(back.BodyLocation, "base:fannypackback")
+    for _, key in ipairs({ "Capacity", "WeightReduction", "Weight", "RunSpeedModifier", "Icon", "WorldStaticModel" }) do
+        eq(front[key], back[key], key .. " the same either way")
     end
+    eq(front.Capacity, "6"); eq(front.WeightReduction, "85")
+    truthy(string.find(readfile("OperationAcorn/42/media/scripts/OA_waistbag_models.txt"), "model OA_ResearchWaist_Ground", 1, true))
+    for _, name in ipairs({ "OA_Bag_ResearchWaistFront", "OA_Bag_ResearchWaistBack" }) do
+        local xml = readfile("OperationAcorn/42/media/clothing/clothingItems/" .. name .. ".xml")
+        truthy(xml, name .. ".xml")
+        local guid = string.match(xml, "<m_GUID>([^<]+)</m_GUID>")
+        truthy(guid and string.find(readfile("OperationAcorn/42/media/fileGuidTable.xml"), guid, 1, true), name .. " has a guid in the table")
+    end
+end)
+
+test("the fuel can: the vanilla petrol can with a 12 litre tank and the same empty weight", function()
+    -- PetrolCan (media/scripts/generated/items/normal.txt): weight 1.6, tag base:petrol, Capacity = 10.0
+    local p = item("TeamFuelCan")
+    eq(p.Weight, "1.6")
+    eq(p.ItemType, "base:normal")
+    truthy(string.find(p.Tags, "base:petrol", 1, true), "it keeps the petrol tag")
+    eq(string.match(p.body, "Capacity%s*=%s*([%d%.]+)"), "12.0")
+    truthy(string.find(p.body, "fluid = Petrol:1.0", 1, true), "it holds petrol")
+    local models = readfile("OperationAcorn/42/media/scripts/OA_fuelcan_models.txt")
+    truthy(string.find(models, "model OA_TeamFuelCan\n", 1, false) or string.find(models, "model OA_TeamFuelCan", 1, true))
+    eq(string.find(models, "Mk", 1, true), nil, "one can, no marks")
 end)
 
 test("the kits are real items with their icons", function()
@@ -160,10 +217,10 @@ test("the kits are real items with their icons", function()
         truthy(icons["Item_OA_" .. icon .. ".png"], name .. " icon Item_OA_" .. icon .. ".png exists")
         count = count + 1
     end
-    eq(count, 19)
-    eq(item("KitBagCapacity").Icon, "OA_BagCapacityKit")
-    eq(item("KitBagWeight").Icon, "OA_BagWeightKit")
-    eq(item("KitStorage").Icon, "OA_StorageKit")
+    eq(count, 9)
+    eq(item("KitCapacity").Icon, "OA_CapacityKit")
+    eq(item("KitLightening").Icon, "OA_LighteningKit")
+    eq(item("KitReinforcement").Icon, "OA_ReinforcementKit")
     eq(item("KitEngine").Icon, "OA_EngineTuningKit")
     eq(item("TeamBackpack").Icon, "OA_ResearchBackpack")
 end)
@@ -181,33 +238,44 @@ test("the team welding mask is cooler and easier to wear than the vanilla one an
     truthy(string.find(readfile("OperationAcorn/42/media/fileGuidTable.xml"), "OA_Hat_TeamWelderMask.xml", 1, true))
 end)
 
-test("the light tools weigh half the vanilla tool and carry its tags and models", function()
-    local want = {
-        Screwdriver = { "0.25", "base:screwdriver", "WeaponSprite", "Base.Screwdriver" },
-        Hammer = { "0.75", "base:hammer", "WeaponSprite", "Base.Hammer" },
-        Saw = { "0.5", "base:saw", "StaticModel", "Base.Hacksaw" },
-        Wrench = { "0.5", "base:wrench", "WeaponSprite", "Base.Wrench" },
-        LugWrench = { "0.5", "base:lugwrench", "WorldStaticModel", "Base.LugWrench" },
-        Crowbar = { "1.0", "base:crowbar", "WeaponSprite", "Base.Crowbar" },
-        Shovel = { "1.0", "base:diggrave", "WeaponSprite", "Base.Shovel" },
-        WoodAxe = { "1.5", "base:choptree", "WeaponSprite", "Base.WoodAxe" },
-        PickAxe = { "1.5", "base:pickaxe", "WeaponSprite", "Base.PickAxe" },
-        Sledgehammer = { "3.0", "base:sledgehammer", "WeaponSprite", "Base.SledgeHammer" },
-    }
-    for tool, w in pairs(want) do
-        local p = item("Light" .. tool)
-        eq(p.Weight, w[1], tool .. " weight")
-        truthy(string.find(p.Tags, w[2], 1, true), tool .. " tag")
-        eq(p[w[3]], w[4], tool .. " model")
-        eq(p.Icon, "OA_Light" .. tool)
-        eq(p.WeaponSpritesByIndex, nil, tool .. ": one model, not the vanilla variants")
-        eq(p.IconsForTexture, nil, tool .. ": one icon")
+test("the field tools are the shop's list, each a little lighter and longer lasting than the vanilla tool", function()
+    local script = "OperationAcorn/42/media/scripts/OA_field_tools.txt"
+    local text = readfile(script)
+    local icons = {}
+    for _, f in ipairs(listfiles("OperationAcorn/42/media/textures")) do icons[f] = true end
+    local inScript = {}
+    for name in string.gmatch(text, "\n    item (%w+)") do inScript[name] = true end
+    local listed = 0
+    for _, t in ipairs(OA.Shop.FIELD_TOOLS) do
+        local name = string.match(OA.Shop.fieldType(t[1]), "^OperationAcorn%.(%w+)$")
+        truthy(inScript[name], name .. " is in the field tools' script")
+        inScript[name] = nil
+        local p = item(name, script)
+        eq(p.Icon, "OA_" .. name)
+        truthy(icons["Item_OA_" .. name .. ".png"], name .. " has its icon")
+        eq(p.IconsForTexture, nil, name .. ": one icon")
+        eq(p.WeaponSpritesByIndex, nil, name .. ": one model")
+        listed = listed + 1
     end
+    for name in pairs(inScript) do truthy(false, name .. " is in the script and not in the shop") end
+    eq(listed, 45)
+    -- spot checks against the vanilla tools (weapon.txt, normal.txt): 0.85 of the weight, 1.2 of the condition
+    local hammer = item("FieldHammer", script)
+    eq(hammer.Weight, "1.27"); eq(hammer.ConditionMax, "12"); eq(hammer.HeadCondition, "12")
+    truthy(string.find(hammer.Tags, "base:hammer", 1, true))
+    eq(hammer.WeaponSprite, "OperationAcorn.OA_FieldHammer", "the hammer's grip in the olive")
+    local wrench = item("FieldWrench", script)
+    eq(wrench.Weight, "0.85"); eq(wrench.ConditionMax, "11")
+    eq(wrench.WeaponSprite, "Base.Wrench", "an all-metal tool keeps the vanilla model")
+    local lug = item("FieldLugWrench", script)
+    eq(lug.ConditionMax, "12", "a tool with the game's default 10")
+    eq(item("FieldSledgehammer", script).Weight, "5.1")
+    truthy(string.find(text, "model OA_FieldHammer", 1, true), "the olive model is defined")
 end)
 
-test("the work of fitting a kit: bags a fixed time, vehicles faster with mechanics, never under 40 percent", function()
-    eq(R.workTicks("bag"), 240)
-    eq(R.workTicks("bagWeight", 10), 240)
+test("the work of fitting a kit: to an item a fixed time, to a vehicle faster with mechanics, never under 40 percent", function()
+    eq(R.workTicks("item"), 240)
+    eq(R.workTicks("item", 10), 240)
     eq(R.workTicks("storage", 0), 500)
     eq(R.workTicks("engine", 0), 700)
     eq(R.workTicks("storage", 5), 400)      -- 80 percent

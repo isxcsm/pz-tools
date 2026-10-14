@@ -58,7 +58,7 @@ end)
 
 test("the sections leave out the shelf and the box reissue and keep the catalog's order", function()
     local sections = V.sections(OA.Shop.catalog())
-    eq(table.concat(sections.groups, ","), "resource,gear,machine,part,mk,kit")
+    eq(table.concat(sections.groups, ","), "resource,gear,machine,tool,part,kit")
     for _, g in ipairs(sections.groups) do
         for _, e in ipairs(sections.byGroup[g]) do
             truthy(not V.onShelf(e), e.id .. " is not on the shelf")
@@ -78,7 +78,7 @@ test("a section is locked on the crude terminal when all its entries are for the
     for _, g in ipairs(sections.groups) do
         if V.sectionLocked(sections.byGroup[g], true) then locked[#locked + 1] = g end
     end
-    eq(table.concat(locked, ","), "gear,part,mk,kit")
+    eq(table.concat(locked, ","), "gear,tool,part,kit")
     eq(V.sectionLocked(sections.byGroup.gear, false), false, "never on the field terminal")
     eq(V.sectionLocked(sections.byGroup.machine, true), false, "the bench, the bait and the terminal are open")
     eq(V.sectionLocked({}, true), false)
@@ -134,7 +134,7 @@ test("a locked card names its reason: the trust level, the field terminal, or bo
     s = V.state(entry("ammo_rifle", "resource", { tier = 4 }), { n = 0, why = "IGUI_OA_Econ_Shop_Locked" }, crude)
     eq(s.key, "IGUI_OA_Terminal_Shop_Tier")
     -- a field-only entry whose level is reached: the terminal alone
-    s = V.state(entry("fuelcan_mk1", "mk", { tier = 2 }), { n = 99 }, crude)
+    s = V.state(entry("team_fuel_can", "gear", { tier = 2 }), { n = 99 }, crude)
     eq(s.key, "IGUI_OA_Terminal_Shop_FieldNeeded")
 end)
 
@@ -148,7 +148,7 @@ test("a card says debt, kits off, not stocked and the weekly limit", function()
     s = V.state(entry("box_reissue", "box", { allowDebt = true }), { n = 99 }, ctx)
     eq(s.open, true)
     ctx.debt = false
-    s = V.state(entry("kit_storage", "kit", { kits = true }), { n = 0, why = "IGUI_OA_Econ_Shop_KitsOff" }, ctx)
+    s = V.state(entry("kit_capacity", "kit", { kits = true }), { n = 0, why = "IGUI_OA_Econ_Shop_KitsOff" }, ctx)
     eq(s.key, "IGUI_OA_Econ_Shop_KitsOff")
     eq(s.lock, true)
     s = V.state(entry("x", "resource"), { n = 0, why = "IGUI_OA_Econ_Shop_NotStocked" }, ctx)

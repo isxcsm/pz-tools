@@ -1,0 +1,2023 @@
+/* Operation Acorn: the research team's field tools. Written by tools/field_tools.py from the vanilla scripts: do not
+   edit; change the tool there and run it again.
+   Each is the vanilla tool of its name (media/scripts/generated/items) at 0.85 of its weight and 1.2 of its ConditionMax,
+   drawn the manufactured way; the tools with coloured parts in the team's olive (the OA_Field models below, the vanilla
+   model blocks with our texture). Every other property is the vanilla tool's: the tags are what the game's uses look
+   for, so each does the vanilla tool's work. The kits make more of them (media/lua/shared/OperationAcorn/Gear). */
+module OperationAcorn
+{
+    imports
+    {
+        Base
+    }
+
+    item FieldHammer
+    {
+        DisplayCategory = ToolWeapon,
+        ItemType = base:weapon,
+        Weight = 1.27,
+        Icon = OA_FieldHammer,
+        AttachmentType = Hammer,
+        BaseSpeed = 1.0,
+        BreakSound = HammerBreak,
+        CanBarricade = true,
+        Categories = base:smallblunt,
+        ConditionLowerChanceOneIn = 30,
+        ConditionMax = 12,
+        CritDmgMultiplier = 3.0,
+        CriticalChance = 20.0,
+        DoorDamage = 9,
+        DoorHitSound = HammerHit,
+        DropSound = HammerDrop,
+        HitFloorSound = HammerHit,
+        HitSound = HammerHit,
+        IdleAnim = Idle_Weapon2,
+        KnockBackOnNoDeath = true,
+        KnockdownMod = 0.0,
+        MaxDamage = 1.0,
+        MaxHitcount = 1,
+        MaxRange = 1.1,
+        MetalValue = 25.0,
+        MinAngle = 0.67,
+        MinDamage = 0.5,
+        MinRange = 0.61,
+        MinimumSwingtime = 3.0,
+        PushBackMod = 0.5,
+        RunAnim = Run_Weapon2,
+        SplatBloodOnNoDeath = true,
+        SplatNumber = 1,
+        SubCategory = Swinging,
+        SwingAmountBeforeImpact = 0.02,
+        SwingAnim = Bat,
+        SwingSound = HammerSwing,
+        Swingtime = 3.0,
+        TreeDamage = 0,
+        WeaponLength = 0.23,
+        WeaponSprite = OperationAcorn.OA_FieldHammer,
+        Tags = base:hammer;base:removebarricade;base:hastoolhead;base:killanimal;base:repairwithglue;base:repairwithtape;base:hasmetal,
+        HeadCondition = 12,
+        OnBreak = OnBreak.Clawhammer,
+        HeadConditionLowerChanceMultiplier = 2.0,
+        Researchablerecipes = Forge_Clawhammer_Head;Forge_Ball_Peen_Hammer_Head;Forge_Club_Hammer_Head;Forge_Smithing_Hammer_Head,
+    }
+
+    item FieldBallPeenHammer
+    {
+        DisplayCategory = ToolWeapon,
+        ItemType = base:weapon,
+        Weight = 1.27,
+        Icon = OA_FieldBallPeenHammer,
+        AttachmentType = Hammer,
+        BaseSpeed = 1.0,
+        BreakSound = BallPeenHammerBreak,
+        CanBarricade = true,
+        Categories = base:smallblunt,
+        ConditionLowerChanceOneIn = 30,
+        ConditionMax = 12,
+        CritDmgMultiplier = 3.0,
+        CriticalChance = 20.0,
+        DoorDamage = 9,
+        DoorHitSound = BallPeenHammerHit,
+        DropSound = BallPeenHammerDrop,
+        HitFloorSound = BallPeenHammerHit,
+        HitSound = BallPeenHammerHit,
+        IdleAnim = Idle_Weapon2,
+        KnockBackOnNoDeath = true,
+        KnockdownMod = 0.0,
+        MaxDamage = 1.0,
+        MaxHitcount = 1,
+        MaxRange = 1.0,
+        MetalValue = 25.0,
+        MinAngle = 0.65,
+        MinDamage = 0.5,
+        MinRange = 0.61,
+        MinimumSwingtime = 3.0,
+        PushBackMod = 0.5,
+        RunAnim = Run_Weapon2,
+        SplatBloodOnNoDeath = true,
+        SplatNumber = 1,
+        SubCategory = Swinging,
+        SwingAmountBeforeImpact = 0.02,
+        SwingAnim = Bat,
+        SwingSound = BallPeenHammerSwing,
+        Swingtime = 3.0,
+        TreeDamage = 0,
+        WeaponLength = 0.23,
+        WeaponSprite = OperationAcorn.OA_FieldBallPeenHammer,
+        Tags = base:hammer;base:ballpeenhammer;base:smithinghammer;base:hastoolhead;base:killanimal;base:repairwithtape;base:repairwithglue;base:hasmetal,
+        HeadCondition = 12,
+        OnBreak = OnBreak.BallPeenHammer,
+        HeadConditionLowerChanceMultiplier = 2.0,
+        Researchablerecipes = Forge_Ball_Peen_Hammer_Head;Forge_Club_Hammer_Head;Forge_Smithing_Hammer_Head,
+    }
+
+    item FieldClubHammer
+    {
+        DisplayCategory = ToolWeapon,
+        ItemType = base:weapon,
+        Weight = 1.7,
+        Icon = OA_FieldClubHammer,
+        AttachmentType = Hammer,
+        BaseSpeed = 1.0,
+        BreakSound = ClubHammerBreak,
+        CanBarricade = true,
+        Categories = base:smallblunt,
+        ConditionLowerChanceOneIn = 25,
+        ConditionMax = 12,
+        CritDmgMultiplier = 2.0,
+        CriticalChance = 20.0,
+        DoorDamage = 9,
+        DoorHitSound = ClubHammerHit,
+        DropSound = ClubHammerDrop,
+        HitFloorSound = ClubHammerHit,
+        HitSound = ClubHammerHit,
+        IdleAnim = Idle_Weapon2,
+        KnockBackOnNoDeath = true,
+        KnockdownMod = 0.0,
+        MaxDamage = 1.0,
+        MaxHitcount = 1,
+        MaxRange = 1.0,
+        MetalValue = 25.0,
+        MinAngle = 0.65,
+        MinDamage = 0.5,
+        MinRange = 0.61,
+        MinimumSwingtime = 3.0,
+        PushBackMod = 0.5,
+        RunAnim = Run_Weapon2,
+        SplatBloodOnNoDeath = true,
+        SplatNumber = 1,
+        SubCategory = Swinging,
+        SwingAmountBeforeImpact = 0.02,
+        SwingAnim = Bat,
+        SwingSound = ClubHammerSwing,
+        Swingtime = 3.0,
+        Tooltip = Tooltip_no_nails,
+        TreeDamage = 0,
+        WeaponLength = 0.23,
+        WeaponSprite = OperationAcorn.OA_FieldClubHammer,
+        Tags = base:clubhammer;base:hastoolhead;base:killanimal;base:repairwithglue;base:repairwithtape;base:hasmetal,
+        HeadCondition = 12,
+        OnBreak = OnBreak.ClubHammer,
+        HeadConditionLowerChanceMultiplier = 2.0,
+        Researchablerecipes = Forge_Sledgehammer_Head;MakeStoneMaulHead;Forge_Clawhammer_Head;Forge_Ball_Peen_Hammer_Head;Forge_Club_Hammer_Head;Forge_Smithing_Hammer_Head,
+    }
+
+    item FieldWoodenMallet
+    {
+        DisplayCategory = ToolWeapon,
+        ItemType = base:weapon,
+        Weight = 1.27,
+        Icon = OA_FieldWoodenMallet,
+        AttachmentType = Hammer,
+        BaseSpeed = 1.1,
+        BreakSound = WoodenMalletBreak,
+        CanBarricade = true,
+        Categories = base:smallblunt,
+        ConditionLowerChanceOneIn = 20,
+        ConditionMax = 10,
+        CritDmgMultiplier = 3.0,
+        CriticalChance = 17.0,
+        DoorDamage = 9,
+        DoorHitSound = WoodenMalletHit,
+        DropSound = WoodenMalletDrop,
+        HitFloorSound = WoodenMalletHit,
+        HitSound = WoodenMalletHit,
+        IdleAnim = Idle_Weapon2,
+        KnockBackOnNoDeath = true,
+        KnockdownMod = 0.0,
+        MaxDamage = 0.9,
+        MaxHitcount = 1,
+        MaxRange = 1.0,
+        MetalValue = 25.0,
+        MinAngle = 0.65,
+        MinDamage = 0.4,
+        MinRange = 0.61,
+        MinimumSwingtime = 3.0,
+        PushBackMod = 0.5,
+        RunAnim = Run_Weapon2,
+        SplatBloodOnNoDeath = false,
+        SplatNumber = 1,
+        SubCategory = Swinging,
+        SwingAmountBeforeImpact = 0.02,
+        SwingAnim = Bat,
+        SwingSound = WoodenMalletSwing,
+        Swingtime = 3.0,
+        Tooltip = Tooltip_no_nails,
+        TreeDamage = 0,
+        WeaponLength = 0.23,
+        WeaponSprite = Base.WoodenMallet,
+        Tags = base:mallet;base:isfirefuel;base:repairwithglue;base:repairwithtape,
+    }
+
+    item FieldSaw
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 0.85,
+        Icon = OA_FieldSaw,
+        MetalValue = 35.0,
+        SurvivalGear = true,
+        StaticModel = OperationAcorn.OA_FieldHacksaw,
+        WorldStaticModel = OperationAcorn.OA_FieldHacksawGround,
+        Tags = base:saw;base:metalsaw;base:showcondition,
+        ConditionLowerChanceOneIn = 10,
+        ConditionMax = 12,
+        Researchablerecipes = Forge_Saw;MakeStoneBladeSaw,
+    }
+
+    item FieldGardenSaw
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 0.85,
+        Icon = OA_FieldGardenSaw,
+        MetalValue = 35.0,
+        SurvivalGear = true,
+        StaticModel = OperationAcorn.OA_FieldGardenSaw,
+        WorldStaticModel = OperationAcorn.OA_FieldGardenSawGround,
+        Tags = base:saw;base:showcondition;base:hasmetal,
+        ConditionLowerChanceOneIn = 10,
+        ConditionMax = 12,
+        Researchablerecipes = MakeSawPlank;Forge_Saw;MakeStoneBladeSaw,
+    }
+
+    item FieldSmallSaw
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 0.59,
+        Icon = OA_FieldSmallSaw,
+        MetalValue = 15.0,
+        StaticModel = Base.SmallMetalworkingSaw,
+        WorldStaticModel = Base.SmallMetalworkingSaw,
+        Tags = base:smallsaw;base:hasmetal;base:showcondition;base:smeltablesteelsmall,
+        ConditionLowerChanceOneIn = 5,
+        ConditionMax = 12,
+        Researchablerecipes = Forge_Saw;MakeStoneBladeSaw,
+    }
+
+    item FieldCarpentryChisel
+    {
+        DisplayCategory = ToolWeapon,
+        ItemType = base:weapon,
+        Weight = 0.85,
+        Icon = OA_FieldCarpentryChisel,
+        BaseSpeed = 0.95,
+        BreakSound = CarpentryChiselBreak,
+        Categories = base:improvised;base:smallblunt,
+        ConditionLowerChanceOneIn = 15,
+        ConditionMax = 10,
+        CritDmgMultiplier = 2.0,
+        CriticalChance = 30.0,
+        DoorDamage = 1,
+        DoorHitSound = CarpentryChiselHit,
+        DropSound = CarpentryChiselDrop,
+        HitFloorSound = CarpentryChiselHit,
+        HitSound = CarpentryChiselHit,
+        IdleAnim = Idle_Weapon2,
+        KnockBackOnNoDeath = false,
+        KnockdownMod = 0.0,
+        MaxDamage = 0.8,
+        MaxHitcount = 2,
+        MaxRange = 1.2,
+        MinAngle = 0.72,
+        MinDamage = 0.4,
+        MinRange = 0.61,
+        MinimumSwingtime = 2.0,
+        PushBackMod = 0.23,
+        RunAnim = Run_Weapon2,
+        SplatBloodOnNoDeath = false,
+        SplatNumber = 1,
+        SubCategory = Swinging,
+        SwingAmountBeforeImpact = 0.02,
+        SwingAnim = Bat,
+        SwingSound = CarpentryChiselSwing,
+        Swingtime = 2.0,
+        TreeDamage = 0,
+        WeaponLength = 0.25,
+        WeaponSprite = OperationAcorn.OA_FieldCarpentryChisel,
+        Tags = base:hasmetal;base:carpentrychisel;base:smeltableironmedium,
+        Researchablerecipes = Forge_Masons_Chisel;Forge_Metalworking_Chisel;Forge_Carpentry_Chisel;MakeStoneChisel,
+    }
+
+    item FieldHandDrill
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 1.7,
+        ConditionMax = 12,
+        Icon = OA_FieldHandDrill,
+        StaticModel = OperationAcorn.OA_FieldHandDrill,
+        WorldStaticModel = OperationAcorn.OA_FieldHandDrill,
+        Tags = base:drillwood;base:drillmetal;base:drillwoodpoor,
+        ConditionLowerChanceOneIn = 10,
+        Researchablerecipes = Forge_Drill;MakeStoneDrill,
+    }
+
+    item FieldSmithingHammer
+    {
+        DisplayCategory = ToolWeapon,
+        ItemType = base:weapon,
+        Weight = 1.27,
+        Icon = OA_FieldSmithingHammer,
+        AttachmentType = Hammer,
+        BaseSpeed = 1.0,
+        BreakSound = SmithingHammerBreak,
+        CanBarricade = true,
+        Categories = base:smallblunt,
+        ConditionLowerChanceOneIn = 30,
+        ConditionMax = 12,
+        CritDmgMultiplier = 3.0,
+        CriticalChance = 20.0,
+        DoorDamage = 9,
+        DoorHitSound = SmithingHammerHit,
+        DropSound = SmithingHammerDrop,
+        HitFloorSound = SmithingHammerHit,
+        HitSound = SmithingHammerHit,
+        IdleAnim = Idle_Weapon2,
+        KnockBackOnNoDeath = true,
+        KnockdownMod = 0.0,
+        MaxDamage = 1.0,
+        MaxHitcount = 1,
+        MaxRange = 1.1,
+        MetalValue = 25.0,
+        MinAngle = 0.67,
+        MinDamage = 0.5,
+        MinRange = 0.61,
+        MinimumSwingtime = 3.0,
+        PushBackMod = 0.5,
+        RunAnim = Run_Weapon2,
+        SplatBloodOnNoDeath = true,
+        SplatNumber = 1,
+        SubCategory = Swinging,
+        SwingAmountBeforeImpact = 0.02,
+        SwingAnim = Bat,
+        SwingSound = SmithingHammerSwing,
+        Swingtime = 3.0,
+        TreeDamage = 0,
+        WeaponLength = 0.23,
+        WeaponSprite = OperationAcorn.OA_FieldSmithingHammer,
+        Tags = base:hammer;base:hastoolhead;base:killanimal;base:smithinghammer;base:repairwithglue;base:repairwithtape;base:hasmetal,
+        HeadCondition = 12,
+        OnBreak = OnBreak.SmithingHammer,
+        HeadConditionLowerChanceMultiplier = 2.0,
+        Researchablerecipes = Forge_Smithing_Hammer_Head;Forge_Clawhammer_Head;Forge_Ball_Peen_Hammer_Head;Forge_Club_Hammer_Head,
+    }
+
+    item FieldTongs
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 0.85,
+        ConditionMax = 12,
+        Icon = OA_FieldTongs,
+        MetalValue = 30.0,
+        StaticModel = Base.Tongs,
+        WorldStaticModel = Base.Tongs,
+        Tags = base:tongs;base:smeltableironmedium;base:showcondition;base:hasmetal,
+        Researchablerecipes = Forge_Metalworking_Pliers;Forge_Heading_Tool,
+    }
+
+    item FieldMetalworkingPliers
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 0.42,
+        ConditionMax = 12,
+        Icon = OA_FieldMetalworkingPliers,
+        WorldStaticModel = Base.MetalworkingPliers,
+        Tags = base:pliers;base:metalworkingpliers;base:smeltableironsmall;base:hasmetal,
+        Researchablerecipes = Forge_Tongs;Forge_Heading_Tool,
+    }
+
+    item FieldMetalworkingPunch
+    {
+        DisplayCategory = ToolWeapon,
+        ItemType = base:weapon,
+        Weight = 0.85,
+        Icon = OA_FieldMetalworkingPunch,
+        BaseSpeed = 0.95,
+        BreakSound = MetalworkingPunchBreak,
+        Categories = base:improvised;base:smallblunt,
+        ConditionLowerChanceOneIn = 15,
+        ConditionMax = 10,
+        CritDmgMultiplier = 2.0,
+        CriticalChance = 30.0,
+        DoorDamage = 1,
+        DoorHitSound = MetalworkingPunchHit,
+        DropSound = MetalworkingPunchDrop,
+        HitFloorSound = MetalworkingPunchHit,
+        HitSound = MetalworkingPunchHit,
+        IdleAnim = Idle_Weapon2,
+        KnockBackOnNoDeath = false,
+        KnockdownMod = 0.0,
+        MaxDamage = 0.8,
+        MaxHitcount = 2,
+        MaxRange = 1.2,
+        MinAngle = 0.72,
+        MinDamage = 0.4,
+        MinRange = 0.61,
+        MinimumSwingtime = 2.0,
+        PushBackMod = 0.23,
+        RunAnim = Run_Weapon2,
+        SplatBloodOnNoDeath = false,
+        SplatNumber = 1,
+        SubCategory = Swinging,
+        SwingAmountBeforeImpact = 0.02,
+        SwingAnim = Bat,
+        SwingSound = MetalworkingPunchSwing,
+        Swingtime = 2.0,
+        TreeDamage = 0,
+        WeaponLength = 0.25,
+        WeaponSprite = Base.MetalworkingPunch,
+        Tags = base:hasmetal;base:metalworkingpunch;base:smeltableironmedium,
+        Researchablerecipes = Forge_Metalworking_Chisel;Forge_Metalworking_Punch;Forge_Small_Metalworking_Punch_Set,
+    }
+
+    item FieldMetalworkingChisel
+    {
+        DisplayCategory = ToolWeapon,
+        ItemType = base:weapon,
+        Weight = 0.85,
+        Icon = OA_FieldMetalworkingChisel,
+        BaseSpeed = 0.95,
+        BreakSound = MetalBarBreak,
+        Categories = base:improvised;base:smallblunt,
+        ConditionLowerChanceOneIn = 15,
+        ConditionMax = 10,
+        CritDmgMultiplier = 2.0,
+        CriticalChance = 30.0,
+        DoorDamage = 1,
+        DoorHitSound = MetalworkingChiselHit,
+        DropSound = MetalworkingChiselDrop,
+        HitFloorSound = MetalworkingChiselHit,
+        HitSound = MetalworkingChiselHit,
+        IdleAnim = Idle_Weapon2,
+        KnockBackOnNoDeath = false,
+        KnockdownMod = 0.0,
+        MaxDamage = 0.8,
+        MaxHitcount = 2,
+        MaxRange = 1.2,
+        MinAngle = 0.72,
+        MinDamage = 0.4,
+        MinRange = 0.61,
+        MinimumSwingtime = 2.0,
+        PushBackMod = 0.23,
+        RunAnim = Run_Weapon2,
+        SplatBloodOnNoDeath = false,
+        SplatNumber = 1,
+        SubCategory = Swinging,
+        SwingAmountBeforeImpact = 0.02,
+        SwingAnim = Bat,
+        SwingSound = MetalworkingChiselSwing,
+        Swingtime = 2.0,
+        TreeDamage = 0,
+        WeaponLength = 0.25,
+        WeaponSprite = Base.MetalworkingChisel,
+        Tags = base:hasmetal;base:metalworkingchisel;base:smeltableironmedium,
+        Researchablerecipes = Forge_Metalworking_Chisel;Forge_Carpentry_Chisel;Forge_Metalworking_Punch;Forge_Small_Metalworking_Punch_Set,
+    }
+
+    item FieldFile
+    {
+        DisplayCategory = ToolWeapon,
+        ItemType = base:weapon,
+        Weight = 0.85,
+        Icon = OA_FieldFile,
+        BaseSpeed = 0.95,
+        BreakSound = FileBreak,
+        Categories = base:improvised;base:smallblunt,
+        ConditionLowerChanceOneIn = 15,
+        ConditionMax = 10,
+        CritDmgMultiplier = 2.0,
+        CriticalChance = 30.0,
+        DoorDamage = 1,
+        DoorHitSound = FileHit,
+        DropSound = FileDrop,
+        HitFloorSound = FileHit,
+        HitSound = FileHit,
+        IdleAnim = Idle_Weapon2,
+        KnockBackOnNoDeath = false,
+        KnockdownMod = 0.0,
+        MaxDamage = 0.8,
+        MaxHitcount = 2,
+        MaxRange = 1.2,
+        MinAngle = 0.72,
+        MinDamage = 0.4,
+        MinRange = 0.61,
+        MinimumSwingtime = 2.0,
+        PushBackMod = 0.23,
+        RunAnim = Run_Weapon2,
+        SplatBloodOnNoDeath = false,
+        SplatNumber = 1,
+        SubCategory = Swinging,
+        SwingAmountBeforeImpact = 0.02,
+        SwingAnim = Bat,
+        SwingSound = FileSwing,
+        Swingtime = 2.0,
+        TreeDamage = 0,
+        WeaponLength = 0.25,
+        WeaponSprite = Base.MetalworkingFile,
+        Tags = base:file;base:hasmetal;base:smeltableironmedium,
+        Researchablerecipes = Forge_File;Forge_Small_Files,
+    }
+
+    item FieldSmallFileSet
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 0.85,
+        Icon = OA_FieldSmallFileSet,
+        MetalValue = 15.0,
+        StaticModel = Base.MetalworkingFile,
+        WorldStaticModel = Base.SmallMetalworkingFiles,
+        ConditionLowerChanceOneIn = 8,
+        ConditionMax = 10,
+        Tags = base:file;base:smallfiles;base:hasmetal;base:showcondition;base:smeltablesteelmedium,
+        Researchablerecipes = Forge_File;Forge_Small_Files,
+    }
+
+    item FieldSheetMetalSnips
+    {
+        DisplayCategory = ToolWeapon,
+        ItemType = base:weapon,
+        Weight = 0.85,
+        Icon = OA_FieldSheetMetalSnips,
+        AttachmentType = Hammer,
+        BaseSpeed = 0.95,
+        BreakSound = SheetMetalSnipsBreak,
+        Categories = base:improvised;base:smallblunt,
+        ConditionLowerChanceOneIn = 10,
+        ConditionMax = 10,
+        CritDmgMultiplier = 2.0,
+        CriticalChance = 5.0,
+        DoorDamage = 1,
+        DoorHitSound = SheetMetalSnipsHit,
+        DropSound = SheetMetalSnipsDrop,
+        HitFloorSound = SheetMetalSnipsHit,
+        HitSound = SheetMetalSnipsHit,
+        IdleAnim = Idle_Weapon2,
+        KnockBackOnNoDeath = false,
+        KnockdownMod = 0.0,
+        MaxDamage = 0.8,
+        MaxHitcount = 2,
+        MaxRange = 1.2,
+        MinAngle = 0.72,
+        MinDamage = 0.4,
+        MinRange = 0.61,
+        MinimumSwingtime = 2.0,
+        PushBackMod = 0.23,
+        RunAnim = Run_Weapon2,
+        SplatBloodOnNoDeath = false,
+        SplatNumber = 1,
+        SubCategory = Swinging,
+        SwingAmountBeforeImpact = 0.02,
+        SwingAnim = Bat,
+        SwingSound = SheetMetalSnipsSwing,
+        Swingtime = 2.0,
+        TreeDamage = 0,
+        WeaponLength = 0.25,
+        WeaponSprite = Base.SheetMetalSnips_Closed,
+        WorldStaticModel = Base.SheetMetalSnips_Open,
+        Tags = base:sheetmetalsnips;base:hasmetal;base:canopener;base:lightmetalsnips;base:smeltablesteelmedium,
+    }
+
+    item FieldViseGrips
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 0.42,
+        ConditionMax = 12,
+        Icon = OA_FieldViseGrips,
+        StaticModel = Base.ViseGrips,
+        WorldStaticModel = Base.ViseGrips,
+        Tags = base:visegrips;base:metalworkingpliers;base:smeltablesteelsmall;base:hasmetal,
+        Researchablerecipes = Forge_Tongs;Forge_Metalworking_Pliers;Forge_Heading_Tool,
+    }
+
+    item FieldHeadingTool
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 0.42,
+        ConditionMax = 12,
+        Icon = OA_FieldHeadingTool,
+        StaticModel = Base.HeaderTool,
+        WorldStaticModel = Base.HeaderTool,
+        Tags = base:hasmetal;base:headingtool;base:smeltableironsmall,
+    }
+
+    item FieldSmallPunchSet
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 0.85,
+        Icon = OA_FieldSmallPunchSet,
+        MetalValue = 15.0,
+        StaticModel = Base.MetalworkingPunch,
+        WorldStaticModel = Base.SmallMetalworkingPunches,
+        ConditionLowerChanceOneIn = 4,
+        ConditionMax = 10,
+        Tags = base:smallpunch;base:hasmetal;base:showcondition;base:awl;base:smeltablesteelmedium,
+        Tooltip = Tooltip_item_SmallPunchSet,
+        Researchablerecipes = Forge_Metalworking_Chisel;Forge_Metalworking_Punch;Forge_Small_Metalworking_Punch_Set,
+    }
+
+    item FieldMasonsTrowel
+    {
+        DisplayCategory = ToolWeapon,
+        MaxRange = 0.9,
+        WeaponSprite = OperationAcorn.OA_FieldMasonsTrowel,
+        MinAngle = 0.65,
+        ItemType = base:weapon,
+        MinimumSwingtime = 4.0,
+        KnockBackOnNoDeath = false,
+        SwingAmountBeforeImpact = 0.02,
+        Categories = base:smallblade,
+        CloseKillMove = Jaw_Stab,
+        ConditionLowerChanceOneIn = 9,
+        Weight = 0.85,
+        SplatNumber = 2,
+        PushBackMod = 0.3,
+        SubCategory = Stab,
+        ConditionMax = 7,
+        MaxHitcount = 2,
+        DoorDamage = 5,
+        SwingAnim = Stab,
+        WeaponWeight = 3,
+        MinRange = 0.61,
+        Swingtime = 4.0,
+        KnockdownMod = 2.0,
+        SplatBloodOnNoDeath = false,
+        Icon = OA_FieldMasonsTrowel,
+        BreakSound = HandShovelBreak,
+        DropSound = HandShovelDrop,
+        HitFloorSound = HandShovelHit,
+        ImpactSound = HandShovelHit,
+        DoorHitSound = HandShovelHit,
+        HitSound = HandShovelHit,
+        SwingSound = HandShovelSwing,
+        AttachmentType = NotKnife,
+        TreeDamage = 0,
+        CriticalChance = 30.0,
+        CritDmgMultiplier = 10.0,
+        MinDamage = 0.2,
+        MaxDamage = 0.4,
+        WeaponLength = 0.2,
+        DigType = Trowel,
+        Tags = base:masonstrowel;base:smeltableironsmall;base:hasmetal;base:digplow,
+    }
+
+    item FieldMasonsChisel
+    {
+        DisplayCategory = ToolWeapon,
+        ItemType = base:weapon,
+        Weight = 0.85,
+        Icon = OA_FieldMasonsChisel,
+        BaseSpeed = 0.95,
+        BreakSound = MetalBarBreak,
+        Categories = base:improvised;base:smallblunt,
+        ConditionLowerChanceOneIn = 15,
+        ConditionMax = 10,
+        CritDmgMultiplier = 2.0,
+        CriticalChance = 30.0,
+        DoorDamage = 1,
+        DoorHitSound = MetalBarHit,
+        DropSound = MetalBarDrop,
+        HitFloorSound = MetalBarHit,
+        HitSound = MetalBarHit,
+        IdleAnim = Idle_Weapon2,
+        KnockBackOnNoDeath = false,
+        KnockdownMod = 0.0,
+        MaxDamage = 0.8,
+        MaxHitcount = 2,
+        MaxRange = 1.2,
+        MinAngle = 0.72,
+        MinDamage = 0.4,
+        MinRange = 0.61,
+        MinimumSwingtime = 2.0,
+        PushBackMod = 0.23,
+        RunAnim = Run_Weapon2,
+        SplatBloodOnNoDeath = false,
+        SplatNumber = 1,
+        SubCategory = Swinging,
+        SwingAmountBeforeImpact = 0.02,
+        SwingAnim = Bat,
+        SwingSound = MetalBarSwing,
+        Swingtime = 2.0,
+        TreeDamage = 0,
+        WeaponLength = 0.25,
+        WeaponSprite = Base.MasonsChisel,
+        Tags = base:hasmetal;base:masonschisel;base:smeltableironmedium,
+        Researchablerecipes = Forge_Masons_Chisel;Forge_Carpentry_Chisel;MakeStoneChisel,
+    }
+
+    item FieldPlasterTrowel
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 0.85,
+        ConditionMax = 12,
+        Icon = OA_FieldPlasterTrowel,
+        Tags = base:hasmetal;base:plastertrowel,
+        WorldStaticModel = OperationAcorn.OA_FieldPlasterTrowel,
+        Researchablerecipes = Forge_Masons_Trowel,
+    }
+
+    item FieldScrewdriver
+    {
+        DisplayCategory = ToolWeapon,
+        ItemType = base:weapon,
+        Weight = 0.42,
+        Icon = OA_FieldScrewdriver,
+        AimingMod = 0.8,
+        AttachmentType = Screwdriver,
+        BreakSound = ScrewdriverBreak,
+        Categories = base:improvised;base:smallblade,
+        CloseKillMove = Jaw_Stab,
+        ConditionLowerChanceOneIn = 6,
+        ConditionMax = 12,
+        CritDmgMultiplier = 10.0,
+        CriticalChance = 10.0,
+        DoorDamage = 1,
+        DoorHitSound = ScrewdriverHit,
+        DropSound = ScrewdriverDrop,
+        HitFloorSound = ScrewdriverHit,
+        HitSound = ScrewdriverHit,
+        IdleAnim = Idle_Weapon2,
+        ImpactSound = ScrewdriverHit,
+        IsAimedHandWeapon = true,
+        KnockBackOnNoDeath = false,
+        KnockdownMod = 0.0,
+        MaxDamage = 0.7,
+        MaxHitcount = 1,
+        MaxRange = 0.85,
+        MetalValue = 5.0,
+        MinAngle = 0.65,
+        MinDamage = 0.3,
+        MinRange = 0.61,
+        MinimumSwingtime = 2.0,
+        PushBackMod = 0.01,
+        RunAnim = Run_Weapon2,
+        SplatBloodOnNoDeath = false,
+        SplatNumber = 1,
+        SubCategory = Stab,
+        SwingAmountBeforeImpact = 0.02,
+        SwingAnim = Stab,
+        SwingSound = ScrewdriverSwing,
+        Swingtime = 2.0,
+        TreeDamage = 0,
+        WeaponLength = 0.19,
+        WeaponSprite = OperationAcorn.OA_FieldScrewdriver,
+        Tags = base:screwdriver;base:hasmetal,
+        Researchablerecipes = MakeScrewdriver,
+    }
+
+    item FieldWrench
+    {
+        DisplayCategory = ToolWeapon,
+        ItemType = base:weapon,
+        Weight = 0.85,
+        Icon = OA_FieldWrench,
+        AttachmentType = Wrench,
+        BaseSpeed = 1.0,
+        BreakSound = WrenchBreak,
+        Categories = base:smallblunt,
+        ConditionLowerChanceOneIn = 15,
+        ConditionMax = 11,
+        CritDmgMultiplier = 2.0,
+        CriticalChance = 20.0,
+        DoorDamage = 10,
+        DoorHitSound = WrenchHit,
+        DropSound = WrenchDrop,
+        HitFloorSound = WrenchHit,
+        HitSound = WrenchHit,
+        KnockBackOnNoDeath = false,
+        KnockdownMod = 2.0,
+        MaxDamage = 1.0,
+        MaxHitcount = 2,
+        MaxRange = 1.1,
+        MinAngle = 0.67,
+        MinDamage = 0.5,
+        MinRange = 0.61,
+        MinimumSwingtime = 4.0,
+        PushBackMod = 0.3,
+        SplatBloodOnNoDeath = false,
+        SplatNumber = 1,
+        SubCategory = Swinging,
+        SwingAmountBeforeImpact = 0.02,
+        SwingAnim = Bat,
+        SwingSound = WrenchSwing,
+        Swingtime = 4.0,
+        Tags = base:hasmetal;base:wrench;base:smeltablesteelmedium,
+        TreeDamage = 0,
+        WeaponLength = 0.23,
+        WeaponSprite = Base.Wrench,
+    }
+
+    item FieldRatchet
+    {
+        DisplayCategory = ToolWeapon,
+        MaxRange = 1.1,
+        WeaponSprite = Base.Ratchet,
+        MinAngle = 0.67,
+        ItemType = base:weapon,
+        MinimumSwingtime = 4.0,
+        KnockBackOnNoDeath = false,
+        SwingAmountBeforeImpact = 0.02,
+        Categories = base:smallblunt,
+        ConditionLowerChanceOneIn = 10,
+        ConditionMax = 11,
+        Weight = 0.85,
+        SplatNumber = 1,
+        PushBackMod = 0.3,
+        SubCategory = Swinging,
+        MaxHitcount = 2,
+        DoorDamage = 10,
+        SwingAnim = Bat,
+        MinRange = 0.61,
+        Swingtime = 4.0,
+        KnockdownMod = 2.0,
+        SplatBloodOnNoDeath = false,
+        Icon = OA_FieldRatchet,
+        BreakSound = RatchetWrenchBreak,
+        DoorHitSound = RatchetWrenchHit,
+        DropSound = RatchetWrenchDrop,
+        HitSound = RatchetWrenchHit,
+        HitFloorSound = RatchetWrenchHit,
+        SwingSound = RatchetWrenchSwing,
+        TreeDamage = 0,
+        CriticalChance = 20.0,
+        CritDmgMultiplier = 2.0,
+        MinDamage = 0.5,
+        MaxDamage = 1.0,
+        BaseSpeed = 1.0,
+        WeaponLength = 0.23,
+        AttachmentType = Wrench,
+        Tags = base:wrench;base:smeltablesteelmedium;base:hasmetal,
+        Tooltip = Tooltip_item_Ratchet,
+        WorldStaticModel = Base.Ratchet_Set,
+    }
+
+    item FieldPipeWrench
+    {
+        DisplayCategory = ToolWeapon,
+        ItemType = base:weapon,
+        Weight = 1.27,
+        Icon = OA_FieldPipeWrench,
+        AttachmentType = Wrench,
+        BaseSpeed = 1.0,
+        BreakSound = PipeWrenchBreak,
+        Categories = base:smallblunt,
+        ConditionLowerChanceOneIn = 25,
+        ConditionMax = 12,
+        CritDmgMultiplier = 2.0,
+        CriticalChance = 25.0,
+        DoorDamage = 10,
+        DoorHitSound = PipeWrenchHit,
+        DropSound = PipeWrenchDrop,
+        HitFloorSound = PipeWrenchHit,
+        HitSound = PipeWrenchHit,
+        KnockBackOnNoDeath = false,
+        KnockdownMod = 2.0,
+        MaxDamage = 1.0,
+        MaxHitcount = 2,
+        MaxRange = 1.1,
+        MinAngle = 0.67,
+        MinDamage = 0.5,
+        MinRange = 0.61,
+        MinimumSwingtime = 4.0,
+        PushBackMod = 0.3,
+        SplatBloodOnNoDeath = false,
+        SplatNumber = 1,
+        SubCategory = Swinging,
+        SwingAmountBeforeImpact = 0.02,
+        SwingAnim = Bat,
+        SwingSound = PipeWrenchSwing,
+        Swingtime = 4.0,
+        TreeDamage = 0,
+        WeaponLength = 0.3,
+        WeaponSprite = OperationAcorn.OA_FieldPipeWrench,
+        Tags = base:killanimal;base:pipewrench;base:smeltablesteelmediumplus;base:hasmetal,
+    }
+
+    item FieldLugWrench
+    {
+        DisplayCategory = VehicleMaintenance,
+        Weight = 0.85,
+        ConditionMax = 12,
+        ItemType = base:normal,
+        Icon = OA_FieldLugWrench,
+        MechanicsItem = true,
+        WorldStaticModel = Base.LugWrench,
+        Tags = base:lugwrench,
+    }
+
+    item FieldPliers
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 0.26,
+        ConditionMax = 12,
+        Icon = OA_FieldPliers,
+        StaticModel = OperationAcorn.OA_FieldPliers,
+        WorldStaticModel = OperationAcorn.OA_FieldPliers,
+        Tags = base:pliers;base:removebullet;base:removeglass,
+        Researchablerecipes = Forge_Tongs;Forge_Metalworking_Pliers;Forge_Heading_Tool,
+    }
+
+    item FieldCrowbar
+    {
+        DisplayCategory = ToolWeapon,
+        ItemType = base:weapon,
+        Weight = 1.7,
+        Icon = OA_FieldCrowbar,
+        AttachmentType = BigBlade,
+        BaseSpeed = 1.0,
+        BreakSound = CrowbarBreak,
+        Categories = base:blunt,
+        ConditionLowerChanceOneIn = 70,
+        ConditionMax = 18,
+        CritDmgMultiplier = 2.5,
+        CriticalChance = 20.0,
+        DoorDamage = 8,
+        DoorHitSound = CrowbarHit,
+        DropSound = CrowbarDrop,
+        HitAngleMod = -30.0,
+        HitFloorSound = CrowbarHit,
+        HitSound = CrowbarHit,
+        KnockBackOnNoDeath = true,
+        KnockdownMod = 0.0,
+        MaxDamage = 1.15,
+        MaxHitcount = 3,
+        MaxRange = 1.25,
+        MetalValue = 150.0,
+        MinAngle = 0.75,
+        MinDamage = 0.6,
+        MinRange = 0.61,
+        MinimumSwingtime = 3.0,
+        PushBackMod = 0.5,
+        RunAnim = Run_Weapon2,
+        SubCategory = Swinging,
+        SwingAmountBeforeImpact = 0.02,
+        SwingAnim = Bat,
+        SwingSound = CrowbarSwing,
+        Swingtime = 3.0,
+        TreeDamage = 0,
+        TwoHandWeapon = true,
+        WeaponLength = 0.4,
+        WeaponSprite = OperationAcorn.OA_FieldCrowbar,
+        Tags = base:crowbar;base:removebarricade;base:killanimal;base:smeltablesteellarge;base:hasmetal,
+        Researchablerecipes = Forge_Crowbar,
+    }
+
+    item FieldBoltCutters
+    {
+        DisplayCategory = ToolWeapon,
+        MaxRange = 1.25,
+        WeaponSprite = OperationAcorn.OA_FieldBoltCutters,
+        MinAngle = 0.75,
+        ItemType = base:weapon,
+        MinimumSwingtime = 3.0,
+        KnockBackOnNoDeath = true,
+        SwingAmountBeforeImpact = 0.02,
+        Categories = base:blunt,
+        Weight = 3.4,
+        ConditionLowerChanceOneIn = 70,
+        PushBackMod = 0.5,
+        SubCategory = Swinging,
+        ConditionMax = 18,
+        MaxHitcount = 3,
+        DoorDamage = 8,
+        SwingAnim = Bat,
+        MinRange = 0.61,
+        Swingtime = 3.0,
+        HitAngleMod = -30.0,
+        KnockdownMod = 0.0,
+        Icon = OA_FieldBoltCutters,
+        RunAnim = Run_Weapon2,
+        BreakSound = BoltCutterBreak,
+        DoorHitSound = BoltCutterHit,
+        DropSound = BoltCutterDrop,
+        HitSound = BoltCutterHit,
+        HitFloorSound = BoltCutterHit,
+        SwingSound = BoltCutterSwing,
+        TreeDamage = 0,
+        MetalValue = 150.0,
+        CriticalChance = 20.0,
+        CritDmgMultiplier = 2.5,
+        MinDamage = 0.6,
+        MaxDamage = 1.15,
+        BaseSpeed = 1.0,
+        TwoHandWeapon = true,
+        WeaponLength = 0.4,
+        AttachmentType = BigBlade,
+        IdleAnim = Idle_Weapon2,
+        Tags = base:boltcutters;base:ignorezombiedensity;base:hasmetal;base:smeltablesteelmedium,
+    }
+
+    item FieldSledgehammer
+    {
+        DisplayCategory = ToolWeapon,
+        ItemType = base:weapon,
+        Weight = 5.1,
+        Icon = OA_FieldSledgehammer,
+        AlwaysKnockdown = true,
+        AttachmentType = BigBlade,
+        BaseSpeed = 0.9,
+        BreakSound = SledgehammerBreak,
+        CantAttackWithLowestEndurance = true,
+        Categories = base:blunt,
+        ConditionLowerChanceOneIn = 40,
+        ConditionMax = 12,
+        CritDmgMultiplier = 2.0,
+        DoorDamage = 40,
+        DoorHitSound = SledgehammerHit,
+        DropSound = SledgehammerDrop,
+        EnduranceMod = 4.0,
+        HitFloorSound = SledgehammerHit,
+        HitSound = SledgehammerHit,
+        IdleAnim = Idle_Weapon2,
+        KnockBackOnNoDeath = true,
+        KnockdownMod = 3.0,
+        MaxDamage = 3.0,
+        MaxHitcount = 3,
+        MaxRange = 1.35,
+        MetalValue = 120.0,
+        MinAngle = 0.8,
+        MinDamage = 2.0,
+        MinRange = 0.7,
+        MinimumSwingtime = 4.0,
+        PushBackMod = 1.0,
+        RequiresEquippedBothHands = true,
+        RunAnim = Run_Weapon2,
+        SplatBloodOnNoDeath = false,
+        SplatNumber = 3,
+        SubCategory = Swinging,
+        SwingAmountBeforeImpact = 0.04,
+        SwingAnim = Heavy,
+        SwingSound = SledgehammerSwing,
+        Swingtime = 2.0,
+        TreeDamage = 10,
+        TwoHandWeapon = true,
+        WeaponLength = 0.65,
+        WeaponSprite = OperationAcorn.OA_FieldSledgeHammer,
+        Tags = base:sledgehammer;base:hastoolhead;base:repairwithglue;base:repairwithtape,
+        OnBreak = OnBreak.Sledgehammer,
+        HeadCondition = 12,
+        HeadConditionLowerChanceMultiplier = 1.0,
+        Researchablerecipes = Forge_Club_Hammer_Head;Forge_Sledgehammer_Head;MakeStoneMaulHead,
+    }
+
+    item FieldWoodAxe
+    {
+        DisplayCategory = ToolWeapon,
+        ItemType = base:weapon,
+        Weight = 2.55,
+        Icon = OA_FieldWoodAxe,
+        AttachmentType = BigBlade,
+        BaseSpeed = 1.0,
+        BreakSound = WoodAxeBreak,
+        Categories = base:axe,
+        ConditionLowerChanceOneIn = 40,
+        ConditionMax = 18,
+        CritDmgMultiplier = 12.0,
+        CriticalChance = 50.0,
+        DamageCategory = Slash,
+        DamageMakeHole = true,
+        DoorDamage = 55,
+        DoorHitSound = WoodAxeHit,
+        DropSound = WoodAxeDrop,
+        EnduranceMod = 3.0,
+        HitAngleMod = -30.0,
+        HitFloorSound = WoodAxeHit,
+        HitSound = WoodAxeHit,
+        IdleAnim = Idle_Weapon2,
+        KnockBackOnNoDeath = true,
+        KnockdownMod = 3.0,
+        MaxDamage = 3.0,
+        MaxHitcount = 3,
+        MaxRange = 1.35,
+        MetalValue = 120.0,
+        MinAngle = 0.8,
+        MinDamage = 1.3,
+        MinRange = 0.61,
+        MinimumSwingtime = 0.5,
+        PushBackMod = 0.3,
+        RequiresEquippedBothHands = true,
+        RunAnim = Run_Weapon2,
+        SplatBloodOnNoDeath = true,
+        SplatNumber = 3,
+        SplatSize = 5,
+        SubCategory = Swinging,
+        SwingAmountBeforeImpact = 0.002,
+        SwingAnim = Heavy,
+        SwingSound = WoodAxeSwing,
+        Swingtime = 0.5,
+        TreeDamage = 55,
+        TwoHandWeapon = true,
+        WeaponLength = 0.5,
+        WeaponSprite = OperationAcorn.OA_FieldWoodAxe,
+        Tags = base:choptree;base:cutplant;base:sharpenable;base:repairwithtape;base:repairwithglue;base:hasmetal,
+        Sharpness = 1.0,
+        HeadCondition = 18,
+        HeadConditionLowerChanceMultiplier = 1.5,
+        Researchablerecipes = Forge_Wood_Axe_Head;MakeLargeStoneAxeHead;Forge_Old_Axe_Head,
+        OnBreak = OnBreak.WoodAxe,
+    }
+
+    item FieldAxe
+    {
+        DisplayCategory = ToolWeapon,
+        ItemType = base:weapon,
+        Weight = 2.55,
+        Icon = OA_FieldAxe,
+        AttachmentType = BigWeapon,
+        BaseSpeed = 1.0,
+        BreakSound = AxeBreak,
+        Categories = base:axe,
+        ConditionLowerChanceOneIn = 35,
+        ConditionMax = 16,
+        CritDmgMultiplier = 5.0,
+        CriticalChance = 20.0,
+        DamageCategory = Slash,
+        DamageMakeHole = true,
+        DoorDamage = 35,
+        DoorHitSound = AxeHit,
+        DropSound = AxeDrop,
+        HitAngleMod = -30.0,
+        HitFloorSound = AxeHit,
+        HitSound = AxeHit,
+        IdleAnim = Idle_Weapon2,
+        KnockBackOnNoDeath = true,
+        KnockdownMod = 2.0,
+        MaxDamage = 2.0,
+        MaxHitcount = 2,
+        MaxRange = 1.2,
+        MetalValue = 120.0,
+        MinAngle = 0.72,
+        MinDamage = 0.8,
+        MinRange = 0.61,
+        MinimumSwingtime = 3.0,
+        PushBackMod = 0.3,
+        RunAnim = Run_Weapon2,
+        SplatBloodOnNoDeath = true,
+        SplatNumber = 3,
+        SplatSize = 5,
+        SubCategory = Swinging,
+        SwingAmountBeforeImpact = 0.002,
+        SwingAnim = Bat,
+        SwingSound = AxeSwing,
+        Swingtime = 3.0,
+        TreeDamage = 35,
+        TwoHandWeapon = true,
+        WeaponLength = 0.38,
+        WeaponSprite = OperationAcorn.OA_FieldFireAxe,
+        Tags = base:choptree;base:cutplant;base:removebarricade;base:sharpenable;base:killanimal;base:repairwithtape;base:repairwithglue;base:hasmetal,
+        Sharpness = 1.0,
+        HeadCondition = 16,
+        HeadConditionLowerChanceMultiplier = 1.5,
+        OnBreak = OnBreak.FireAxe,
+        Researchablerecipes = MakeLargeStoneAxeHead;Forge_Old_Axe_Head,
+    }
+
+    item FieldHandAxe
+    {
+        DisplayCategory = ToolWeapon,
+        ItemType = base:weapon,
+        Weight = 1.27,
+        Icon = OA_FieldHandAxe,
+        AttachmentType = Hammer,
+        BaseSpeed = 1.0,
+        BreakSound = HandAxeBreak,
+        Categories = base:axe,
+        ConditionLowerChanceOneIn = 15,
+        ConditionMax = 12,
+        CritDmgMultiplier = 5.0,
+        CriticalChance = 15.0,
+        DamageCategory = Slash,
+        DamageMakeHole = true,
+        DoorDamage = 20,
+        DoorHitSound = HandAxeHit,
+        DropSound = HandAxeDrop,
+        HitFloorSound = HandAxeHit,
+        HitSound = HandAxeHit,
+        KnockBackOnNoDeath = false,
+        KnockdownMod = 2.0,
+        MaxDamage = 1.5,
+        MaxHitcount = 2,
+        MaxRange = 1.1,
+        MinAngle = 0.67,
+        MinDamage = 0.7,
+        MinRange = 0.61,
+        MinimumSwingtime = 3.0,
+        PushBackMod = 0.3,
+        SplatBloodOnNoDeath = false,
+        SplatNumber = 2,
+        SubCategory = Swinging,
+        SwingAmountBeforeImpact = 0.02,
+        SwingAnim = Bat,
+        SwingSound = HandAxeSwing,
+        Swingtime = 4.0,
+        TreeDamage = 15,
+        WeaponLength = 0.35,
+        WeaponSprite = OperationAcorn.OA_FieldHandAxe,
+        Tags = base:choptree;base:cutplant;base:butcheranimal;base:sharpenable;base:killanimal;base:repairwithtape;base:repairwithglue;base:hasmetal,
+        Sharpness = 1.0,
+        HeadCondition = 12,
+        OnBreak = OnBreak.HandAxe,
+        HeadConditionLowerChanceMultiplier = 1.5,
+        Researchablerecipes = Forge_Old_Axe_Head;Forge_Hand_Axe_Head,
+    }
+
+    item FieldShovel
+    {
+        DisplayCategory = GardeningWeapon,
+        ItemType = base:weapon,
+        Weight = 1.7,
+        Icon = OA_FieldShovel,
+        AttachmentType = Shovel,
+        BaseSpeed = 0.8,
+        BreakSound = ShovelBreak,
+        Categories = base:blunt,
+        ConditionLowerChanceOneIn = 10,
+        ConditionMax = 12,
+        CritDmgMultiplier = 2.0,
+        CriticalChance = 40.0,
+        DamageCategory = Slash,
+        DamageMakeHole = true,
+        DoorDamage = 10,
+        DoorHitSound = ShovelHit,
+        DropSound = ShovelDrop,
+        HitAngleMod = -30.0,
+        HitFloorSound = ShovelHit,
+        HitSound = ShovelHit,
+        IdleAnim = Idle_Weapon2,
+        KnockBackOnNoDeath = true,
+        KnockdownMod = 2.0,
+        MaxDamage = 1.9,
+        MaxHitcount = 3,
+        MaxRange = 1.6,
+        MetalValue = 70.0,
+        MinAngle = 0.85,
+        MinDamage = 0.8,
+        MinRange = 0.61,
+        MinimumSwingtime = 2.1,
+        PushBackMod = 0.5,
+        RunAnim = Run_Weapon2,
+        SubCategory = Swinging,
+        SwingAmountBeforeImpact = 0.02,
+        SwingAnim = Bat,
+        SwingSound = ShovelSwing,
+        Swingtime = 2.1,
+        TreeDamage = 1,
+        TwoHandWeapon = true,
+        WeaponLength = 0.55,
+        WeaponSprite = OperationAcorn.OA_FieldShovel,
+        Tags = base:clearashes;base:diggrave;base:digplow;base:takedirt;base:takedung;base:hastoolhead;base:killanimal;base:repairwithglue;base:repairwithtape;base:hasmetal,
+        DigType = Shovel,
+        HeadCondition = 12,
+        OnBreak = OnBreak.HandleSpade,
+        HeadConditionLowerChanceMultiplier = 1.0,
+        Researchablerecipes = MakeSpadeHeadCudgel;Forge_Spade_Head;Forge_Gardening_Trowel;CarveWoodenSpade,
+    }
+
+    item FieldHandShovel
+    {
+        DisplayCategory = Gardening,
+        MaxRange = 0.9,
+        WeaponSprite = OperationAcorn.OA_FieldTrowel,
+        MinAngle = 0.65,
+        ItemType = base:weapon,
+        MinimumSwingtime = 4.0,
+        KnockBackOnNoDeath = false,
+        SwingAmountBeforeImpact = 0.02,
+        Categories = base:smallblade,
+        CloseKillMove = Jaw_Stab,
+        ConditionLowerChanceOneIn = 9,
+        Weight = 0.85,
+        SplatNumber = 2,
+        PushBackMod = 0.3,
+        SubCategory = Stab,
+        ConditionMax = 7,
+        MaxHitcount = 2,
+        DoorDamage = 5,
+        SwingAnim = Stab,
+        WeaponWeight = 3,
+        MinRange = 0.61,
+        Swingtime = 4.0,
+        KnockdownMod = 2.0,
+        SplatBloodOnNoDeath = false,
+        Icon = OA_FieldHandShovel,
+        BreakSound = HandShovelBreak,
+        DropSound = HandShovelDrop,
+        HitFloorSound = HandShovelHit,
+        ImpactSound = HandShovelHit,
+        DoorHitSound = HandShovelHit,
+        HitSound = HandShovelHit,
+        SwingSound = HandShovelSwing,
+        AttachmentType = NotKnife,
+        TreeDamage = 0,
+        CriticalChance = 30.0,
+        CritDmgMultiplier = 10.0,
+        MinDamage = 0.2,
+        MaxDamage = 0.4,
+        WeaponLength = 0.2,
+        Tags = base:clearashes;base:digplow;base:takedirt;base:digworms;base:hasmetal,
+        DigType = Trowel,
+        Researchablerecipes = Forge_Spade_Head;Forge_Gardening_Trowel;CarveWoodenSpade,
+    }
+
+    item FieldPickAxe
+    {
+        DisplayCategory = ToolWeapon,
+        ItemType = base:weapon,
+        Weight = 2.55,
+        Icon = OA_FieldPickAxe,
+        AttachmentType = BigBlade,
+        BaseSpeed = 0.8,
+        BreakSound = PickAxeBreak,
+        Categories = base:axe,
+        ConditionLowerChanceOneIn = 20,
+        ConditionMax = 16,
+        CritDmgMultiplier = 9.0,
+        CriticalChance = 25.0,
+        DamageCategory = Slash,
+        DamageMakeHole = true,
+        DoorDamage = 35,
+        DoorHitSound = PickAxeHit,
+        DropSound = PickAxeDrop,
+        HitAngleMod = -30.0,
+        HitFloorSound = PickAxeHit,
+        HitSound = PickAxeHit,
+        IdleAnim = Idle_Weapon2,
+        KnockBackOnNoDeath = true,
+        KnockdownMod = 2.0,
+        MaxDamage = 2.2,
+        MaxHitcount = 3,
+        MaxRange = 1.6,
+        MetalValue = 120.0,
+        MinAngle = 0.65,
+        MinDamage = 1.0,
+        MinRange = 0.61,
+        MinimumSwingtime = 3.0,
+        PushBackMod = 0.3,
+        RunAnim = Run_Weapon2,
+        SplatBloodOnNoDeath = true,
+        SplatNumber = 3,
+        SplatSize = 5,
+        SubCategory = Swinging,
+        SwingAmountBeforeImpact = 0.002,
+        SwingAnim = Bat,
+        SwingSound = PickAxeSwing,
+        Swingtime = 3.0,
+        TreeDamage = 35,
+        TwoHandWeapon = true,
+        WeaponSprite = OperationAcorn.OA_FieldPickAxe,
+        Tags = base:digplow;base:pickaxe;base:removestump;base:hastoolhead;base:killanimal;base:repairwithglue;base:repairwithtape;base:hasmetal,
+        Tooltip = Tooltip_item_PickAxe,
+        DigType = PickAxe,
+        HeadCondition = 16,
+        OnBreak = OnBreak.PickAxe,
+        HeadConditionLowerChanceMultiplier = 1.5,
+        Researchablerecipes = MakeStoneMaulHead,
+    }
+
+    item FieldGardenHoe
+    {
+        DisplayCategory = GardeningWeapon,
+        ItemType = base:weapon,
+        Weight = 1.7,
+        Icon = OA_FieldGardenHoe,
+        AttachmentType = BigBlade,
+        BaseSpeed = 0.85,
+        BreakSound = GardenHoeBreak,
+        Categories = base:blunt,
+        ConditionLowerChanceOneIn = 10,
+        ConditionMax = 12,
+        CritDmgMultiplier = 2.0,
+        CriticalChance = 35.0,
+        DamageCategory = Slash,
+        DamageMakeHole = true,
+        DoorDamage = 10,
+        DoorHitSound = GardenHoeHit,
+        DropSound = GardenHoeDrop,
+        HitAngleMod = -30.0,
+        HitFloorSound = GardenHoeHit,
+        HitSound = GardenHoeHit,
+        IdleAnim = Idle_Weapon2,
+        KnockBackOnNoDeath = true,
+        KnockdownMod = 2.0,
+        MaxDamage = 1.7,
+        MaxHitcount = 3,
+        MaxRange = 1.6,
+        MetalValue = 70.0,
+        MinAngle = 0.85,
+        MinDamage = 0.6,
+        MinRange = 0.61,
+        MinimumSwingtime = 2.1,
+        PushBackMod = 0.5,
+        RunAnim = Run_Weapon2,
+        SubCategory = Swinging,
+        SwingAmountBeforeImpact = 0.02,
+        SwingAnim = Bat,
+        SwingSound = GardenHoeSwing,
+        Swingtime = 2.1,
+        TreeDamage = 1,
+        TwoHandWeapon = true,
+        WeaponLength = 0.65,
+        WeaponSprite = OperationAcorn.OA_FieldGardenHoe,
+        Tags = base:digplow;base:removestump;base:hastoolhead;base:hasmetal;base:repairwithglue;base:repairwithtape,
+        DigType = Hoe,
+        HeadCondition = 12,
+        OnBreak = OnBreak.GardenHoe,
+        HeadConditionLowerChanceMultiplier = 1.0,
+        Researchablerecipes = Forge_Garden_Hoe_Head,
+    }
+
+    item FieldGardenFork
+    {
+        DisplayCategory = GardeningWeapon,
+        ItemType = base:weapon,
+        Weight = 1.7,
+        Icon = OA_FieldGardenFork,
+        AttachmentType = Shovel,
+        BaseSpeed = 0.9,
+        BreakSound = GardenForkBreak,
+        Categories = base:improvised;base:spear,
+        ConditionLowerChanceOneIn = 15,
+        ConditionMax = 12,
+        CritDmgMultiplier = 10.0,
+        CriticalChance = 30.0,
+        DamageCategory = Slash,
+        DamageMakeHole = true,
+        DoorDamage = 7,
+        DoorHitSound = GardenForkHit,
+        DropSound = GardenForkDrop,
+        HitFloorSound = GardenForkHit,
+        HitSound = GardenForkHit,
+        IdleAnim = Idle_Weapon2,
+        ImpactSound = GardenForkHit,
+        KnockBackOnNoDeath = false,
+        KnockdownMod = 0.0,
+        MaxDamage = 1.5,
+        MaxHitcount = 2,
+        MaxRange = 1.37,
+        MinAngle = 0.8,
+        MinDamage = 1.0,
+        MinRange = 0.61,
+        MinimumSwingtime = 2.0,
+        PushBackMod = 0.3,
+        RunAnim = Run_Weapon2,
+        SplatBloodOnNoDeath = false,
+        SplatNumber = 1,
+        SubCategory = Swinging,
+        SwingAmountBeforeImpact = 0.02,
+        SwingAnim = Spear,
+        SwingSound = GardenForkSwing,
+        Swingtime = 2.0,
+        TreeDamage = 0,
+        TwoHandWeapon = true,
+        WeaponSprite = OperationAcorn.OA_FieldGardenFork,
+        Tags = base:digplow;base:digworms;base:hasmetal;base:repairwithglue;base:repairwithtape,
+        DigType = Shovel,
+        OnBreak = OnBreak.GardenFork,
+    }
+
+    item FieldScythe
+    {
+        DisplayCategory = Gardening,
+        Weight = 1.7,
+        ItemType = base:normal,
+        StaticModel = OperationAcorn.OA_FieldScythe,
+        Icon = OA_FieldScythe,
+        Tags = base:scythe;base:hasmetal;base:sharpenable,
+        Tooltip = Tooltip_item_CutGrass,
+        WorldStaticModel = OperationAcorn.OA_FieldScythe_Grounded,
+        ConditionMax = 12,
+        Sharpness = 1.0,
+        HeadCondition = 12,
+        HeadConditionLowerChanceMultiplier = 1.0,
+        Researchablerecipes = Forge_Hand_Scythe_Head;Forge_Scythe_Head;MakeStoneBladeScythe,
+    }
+
+    item FieldHandScythe
+    {
+        DisplayCategory = GardeningWeapon,
+        ItemType = base:weapon,
+        Weight = 0.85,
+        Icon = OA_FieldHandScythe,
+        AttachmentType = Hammer,
+        BaseSpeed = 1.1,
+        BreakSound = HandScytheBreak,
+        Categories = base:axe,
+        ConditionLowerChanceOneIn = 5,
+        ConditionMax = 6,
+        CritDmgMultiplier = 5.0,
+        CriticalChance = 15.0,
+        DamageCategory = Slash,
+        DamageMakeHole = true,
+        DoorDamage = 5,
+        DoorHitSound = HandScytheHit,
+        DropSound = HandScytheDrop,
+        HitFloorSound = HandScytheHit,
+        HitSound = HandScytheHit,
+        KnockBackOnNoDeath = false,
+        KnockdownMod = 2.0,
+        MaxDamage = 1.2,
+        MaxHitcount = 2,
+        MaxRange = 1.1,
+        MinAngle = 0.67,
+        MinDamage = 0.6,
+        MinRange = 0.61,
+        MinimumSwingtime = 4.0,
+        PushBackMod = 0.3,
+        SplatBloodOnNoDeath = false,
+        SplatNumber = 2,
+        SubCategory = Swinging,
+        SwingAmountBeforeImpact = 0.02,
+        SwingAnim = Bat,
+        SwingSound = HandScytheSwing,
+        Swingtime = 4.0,
+        TreeDamage = 0,
+        WeaponLength = 0.3,
+        WeaponSprite = OperationAcorn.OA_FieldHandScythe,
+        Tags = base:cutplant;base:butcheranimal;base:scythe;base:sharpenable;base:handscythe;base:hasmetal,
+        Tooltip = Tooltip_item_CutGrass,
+        Sharpness = 1.0,
+        OnBreak = OnBreak.HandScythe,
+        Researchablerecipes = Forge_Hand_Scythe_Head;Forge_Scythe_Head;MakeStoneBladeScythe,
+    }
+
+    item FieldScissors
+    {
+        PushBackMod = 0.01,
+        DisplayCategory = HouseholdWeapon,
+        ItemType = base:weapon,
+        Weight = 0.42,
+        Icon = OA_FieldScissors,
+        AimingMod = 0.8,
+        AttachmentType = Screwdriver,
+        BreakSound = ScissorsBreak,
+        Categories = base:smallblade,
+        CloseKillMove = Jaw_Stab,
+        ConditionLowerChanceOneIn = 1,
+        ConditionMax = 12,
+        CriticalChance = 5.0,
+        DamageCategory = Slash,
+        DamageMakeHole = true,
+        DoorDamage = 1,
+        DoorHitSound = ScissorsHit,
+        DropSound = ScissorsDrop,
+        HitFloorSound = ScissorsHit,
+        HitSound = ScissorsHit,
+        ImpactSound = ScissorsHit,
+        IsAimedHandWeapon = true,
+        KnockdownMod = 0.0,
+        MaxDamage = 0.1,
+        MaxHitcount = 1,
+        MaxRange = 0.9,
+        MetalValue = 8.0,
+        MinAngle = 0.65,
+        MinDamage = 0.1,
+        MinRange = 0.61,
+        MinimumSwingtime = 2.0,
+        SubCategory = Stab,
+        SwingAmountBeforeImpact = 0.02,
+        SwingAnim = Stab,
+        SwingSound = ScissorsSwing,
+        Swingtime = 2.0,
+        TreeDamage = 0,
+        WeaponLength = 0.17,
+        WeaponSprite = Base.Scissors,
+        Tags = base:scissors;base:sharpenable;base:smeltablesteelsmall;base:hasmetal,
+        Sharpness = 1.0,
+        Researchablerecipes = Forge_Crude_Blade;Forge_Scissors;Forge_Sheep_Shears;Forge_Small_Knife,
+    }
+
+    item FieldAwl
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 0.26,
+        ConditionMax = 12,
+        Icon = OA_FieldAwl,
+        WorldStaticModel = OperationAcorn.OA_FieldAwl_Leather,
+        Tags = base:awl;base:hasmetal,
+        ConditionLowerChanceOneIn = 10,
+        Researchablerecipes = MakeBoneAwl;MakeStoneAwl,
+    }
+
+    item FieldWhetstone
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 0.42,
+        Icon = OA_FieldWhetstone,
+        WorldStaticModel = Base.Whetstone,
+        Tags = base:whetstone;base:showcondition,
+        ConditionMax = 24,
+        ConditionLowerChanceOneIn = 10,
+        Researchablerecipes = MakeCrudeWhetstone,
+    }
+
+    model OA_FieldAwl_Leather
+    {
+        mesh = WorldItems/Awl_Leather,
+        texture = OA_FieldTools/OA_Field_Awl_Leather,
+        scale = 0.1,
+    }
+
+    model OA_FieldBallPeenHammer
+    {
+        mesh = weapons/1handed/BallPeenHammer_Hand,
+        texture = OA_FieldTools/OA_Field_BallPeen_New,
+        attachment world
+        {
+            offset = 0.015 0.11 0.0,
+            rotate = -180.0 0.0 -180.0,
+        }
+        attachment Bip01_Prop2
+        {
+            offset = -0.0131 -0.0221 0.0007,
+            rotate = 0.0 -86.9102 0.0,
+        }
+    }
+
+    model OA_FieldBoltCutters
+    {
+        mesh = weapons/2handed/BoltCutters,
+        texture = OA_FieldTools/OA_Field_BoltCutters,
+        scale = 1.0,
+        attachment world
+        {
+            offset = -0.0066 0.297 0.0,
+            rotate = 0.0 0.0 0.0,
+        }
+    }
+
+    model OA_FieldCarpentryChisel
+    {
+        mesh = weapons/1handed/ChiselWoodHandle_Forged_Hand,
+        texture = OA_FieldTools/OA_Field_ChiselWoodHandle_Forged,
+        attachment world
+        {
+            offset = -0.0102 0.0 0.0,
+            rotate = 0.0 0.0 0.0,
+        }
+    }
+
+    model OA_FieldClubHammer
+    {
+        mesh = weapons/1handed/ClubHammer,
+        texture = OA_FieldTools/OA_Field_ClubHammer,
+        attachment world
+        {
+            offset = -0.025 0.11 0.0,
+            rotate = 0.0 0.0 0.0,
+        }
+        attachment Bip01_Prop2
+        {
+            offset = -0.0131 -0.0221 0.0007,
+            rotate = 0.0 -86.9102 0.0,
+        }
+    }
+
+    model OA_FieldCrowbar
+    {
+        mesh = weapons/1handed/Crowbar,
+        texture = OA_FieldTools/OA_Field_Crowbar,
+        attachment world
+        {
+            offset = -0.0033 0.17 0.0131,
+            rotate = 0.0 90.0 0.0,
+        }
+        attachment Bip01_Prop2
+        {
+            offset = -0.0077 -0.012 -0.003,
+            rotate = 180.0 89.9802 -180.0,
+        }
+    }
+
+    model OA_FieldFireAxe
+    {
+        mesh = weapons/2handed/FireAxe,
+        texture = OA_FieldTools/OA_Field_FireAxe,
+        attachment world
+        {
+            offset = 0.0179 0.173 -0.007,
+            rotate = 180.0 -21.0 180.0,
+        }
+        attachment Bip01_Prop2
+        {
+            offset = 0.0 0.0 0.0,
+            rotate = 180.0 -86.0322 180.0,
+        }
+    }
+
+    model OA_FieldGardenFork
+    {
+        mesh = weapons/2handed/GardenFork,
+        texture = OA_FieldTools/OA_Field_GardenFork,
+        attachment world
+        {
+            offset = 0.0 0.26 -0.013,
+            rotate = 0.0 -90.0 0.0,
+        }
+        attachment Bip01_Prop2
+        {
+            offset = 0.0 0.0 0.0,
+            rotate = 0.0 -81.7231 0.0,
+        }
+    }
+
+    model OA_FieldGardenHoe
+    {
+        mesh = weapons/2handed/GardenHoe,
+        texture = OA_FieldTools/OA_Field_GardenHoe,
+        attachment world
+        {
+            offset = 0.0242 0.28 0.0,
+            rotate = 180.0 0.0 180.0,
+        }
+        attachment Bip01_Prop2
+        {
+            offset = -0.0037 0.0 0.0007,
+            rotate = 0.0 -78.5944 0.0,
+        }
+    }
+
+    model OA_FieldGardenSaw
+    {
+        mesh = GardenSaw,
+        texture = OA_FieldTools/OA_Field_GardenSaw,
+        attachment world
+        {
+            offset = -0.009 0.235 0.015,
+            rotate = 0.0 0.0 0.0,
+        }
+    }
+
+    model OA_FieldGardenSawGround
+    {
+        mesh = WorldItems/GardenSaw,
+        texture = OA_FieldTools/OA_Field_GardenSaw,
+        scale = 0.4,
+        attachment world
+        {
+            offset = 0.0 0.0 0.0,
+            rotate = 180.0 0.0 180.0,
+        }
+    }
+
+    model OA_FieldHacksaw
+    {
+        mesh = Hacksaw,
+        texture = OA_FieldTools/OA_Field_Hacksaw,
+        attachment world
+        {
+            offset = 0.0 0.175 0.015,
+            rotate = 180.0 0.0 -90.0,
+        }
+    }
+
+    model OA_FieldHacksawGround
+    {
+        mesh = WorldItems/Hacksaw,
+        texture = OA_FieldTools/OA_Field_GardenSaw,
+        scale = 0.4,
+        attachment world
+        {
+            offset = 0.0 0.0 0.0,
+            rotate = 180.0 0.0 180.0,
+        }
+    }
+
+    model OA_FieldHammer
+    {
+        mesh = weapons/1handed/Hammer_Forged_Hand,
+        texture = OA_FieldTools/OA_Field_Hammer_New,
+        attachment world
+        {
+            offset = 0.015 0.11 0.0,
+            rotate = 180.0 0.0 180.0,
+        }
+        attachment Bip01_Prop2
+        {
+            offset = -0.0131 -0.0221 0.0007,
+            rotate = 0.0 -86.9102 0.0,
+        }
+    }
+
+    model OA_FieldHandAxe
+    {
+        mesh = weapons/1handed/HandAxe,
+        texture = OA_FieldTools/OA_Field_HandAxe,
+        attachment world
+        {
+            offset = 0.012 0.125 0.0,
+            rotate = 180.0 0.0 180.0,
+        }
+        attachment Bip01_Prop2
+        {
+            offset = -0.0106 -0.0321 -0.0001,
+            rotate = 180.0 -89.459 180.0,
+        }
+    }
+
+    model OA_FieldHandDrill
+    {
+        mesh = WorldItems/Drill_OldFashioned,
+        texture = OA_FieldTools/OA_Field_Drill_OldFashioned,
+        scale = 0.125,
+        attachment world
+        {
+            offset = -0.0 -0.0 -0.0,
+            rotate = 0.0 -0.0 0.0,
+        }
+    }
+
+    model OA_FieldHandScythe
+    {
+        mesh = weapons/1handed/HandScythe,
+        texture = OA_FieldTools/OA_Field_HandScythe,
+        attachment world
+        {
+            offset = 0.0078 0.115 0.0,
+            rotate = 180.0 0.0 180.0,
+        }
+        attachment Bip01_Prop2
+        {
+            offset = -0.0033 0.0053 0.0002,
+            rotate = 0.0 -76.2356 0.0,
+        }
+    }
+
+    model OA_FieldMasonsTrowel
+    {
+        mesh = weapons/1handed/TrowelMason_Hand,
+        texture = OA_FieldTools/OA_Field_TrowelMason,
+        scale = 0.85,
+        attachment world
+        {
+            offset = 0.0233 0.0655 -0.0269,
+            rotate = -16.2426 -87.0654 -10.1017,
+        }
+    }
+
+    model OA_FieldPickAxe
+    {
+        mesh = weapons/2handed/PickAxe_Hand,
+        texture = OA_FieldTools/OA_Field_PickAxe_New,
+        attachment world
+        {
+            offset = -0.0186 0.24 0.0,
+            rotate = 0.0 0.0 0.0,
+        }
+        attachment Bip01_Prop2
+        {
+            offset = -0.008 0.008 0.0002,
+            rotate = 121.5758 87.4217 -121.6017,
+        }
+    }
+
+    model OA_FieldPipeWrench
+    {
+        mesh = weapons/1handed/PipeWrench,
+        texture = OA_FieldTools/OA_Field_PipeWrench,
+        attachment world
+        {
+            offset = -0.0152 0.13 -0.0073,
+            rotate = 0.0 8.5156 -0.0,
+        }
+        attachment Bip01_Prop2
+        {
+            offset = -0.0131 -0.0221 0.0007,
+            rotate = 180.0 69.1762 180.0,
+        }
+    }
+
+    model OA_FieldPlasterTrowel
+    {
+        mesh = WorldItems/PlasterTrowel,
+        texture = OA_FieldTools/OA_Field_PlasterTrowel,
+        scale = 0.1,
+    }
+
+    model OA_FieldPliers
+    {
+        mesh = WorldItems/Pliers,
+        texture = OA_FieldTools/OA_Field_Pliers,
+        scale = 0.1,
+        attachment Bip01_Prop1
+        {
+            offset = 0.0 0.0503 0.0082,
+            rotate = -163.4739 -76.23 -78.3694,
+            scale = 0.6953,
+        }
+    }
+
+    model OA_FieldScrewdriver
+    {
+        mesh = weapons/1handed/Screwdriver,
+        texture = OA_FieldTools/OA_Field_ScrewDriver_Blue,
+        attachment world
+        {
+            offset = -0.01 0.087 0.0,
+            rotate = 0.0 0.0 0.0,
+        }
+        attachment Bip01_Prop2
+        {
+            offset = -0.0082 0.0092 0.0023,
+            rotate = -23.1106 -82.1167 -20.0092,
+        }
+    }
+
+    model OA_FieldScythe
+    {
+        mesh = weapons/2handed/Scythe,
+        texture = OA_FieldTools/OA_Field_Scythe,
+    }
+
+    model OA_FieldScythe_Grounded
+    {
+        mesh = WorldItems/Scythe_Grounded,
+        texture = OA_FieldTools/OA_Field_Scythe,
+        scale = 0.125,
+    }
+
+    model OA_FieldShovel
+    {
+        mesh = weapons/2handed/Shovel,
+        texture = OA_FieldTools/OA_Field_Shovel,
+        attachment world
+        {
+            offset = -0.0009 0.2369 -0.0152,
+            rotate = 0.0 -90.0 0.0,
+        }
+        attachment Bip01_Prop2
+        {
+            offset = 0.0 0.0 0.0,
+            rotate = 0.0 -73.0526 0.0,
+        }
+    }
+
+    model OA_FieldSledgeHammer
+    {
+        mesh = weapons/2handed/SledgeHammer,
+        texture = OA_FieldTools/OA_Field_SledgeHammer,
+        attachment world
+        {
+            offset = -0.0274 0.297 0.0,
+            rotate = 0.0 0.0 0.0,
+        }
+    }
+
+    model OA_FieldSmithingHammer
+    {
+        mesh = weapons/1handed/Hammer_Smithing_Hand,
+        texture = OA_FieldTools/OA_Field_Hammer_Smithing,
+        attachment world
+        {
+            offset = 0.015 0.11 0.0,
+            rotate = 180.0 0.0 180.0,
+        }
+        attachment Bip01_Prop2
+        {
+            offset = -0.0131 -0.0221 0.0007,
+            rotate = 0.0 -86.9102 0.0,
+        }
+    }
+
+    model OA_FieldTrowel
+    {
+        mesh = Trowel,
+        texture = OA_FieldTools/OA_Field_Trowel,
+        attachment world
+        {
+            offset = 0.0 0.0921 -0.0135,
+            rotate = 0.0 -90.0 0.0,
+        }
+        attachment Bip01_Prop2
+        {
+            offset = -0.0065 -0.0024 0.0003,
+            rotate = -43.8667 -85.718 -43.7867,
+        }
+    }
+
+    model OA_FieldWoodAxe
+    {
+        mesh = weapons/2handed/WoodAxe_Forged_Hand,
+        texture = OA_FieldTools/OA_Field_WoodAxe_New,
+        attachment world
+        {
+            offset = 0.0147 0.25 0.0,
+            rotate = 180.0 0.0 180.0,
+        }
+        attachment Bip01_Prop2
+        {
+            offset = 0.0 0.0 0.0,
+            rotate = 0.0 0.0 0.0,
+        }
+    }
+}

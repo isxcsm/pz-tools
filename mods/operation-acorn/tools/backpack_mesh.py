@@ -9,7 +9,7 @@
 What it writes (all under OperationAcorn/42/media):
     models_X/Skinned/BackPacks/OA_ResearchPack_M.x, _F.x, _LHand.x, _RHand.x   worn / carried skinned meshes
     models_X/WorldItems/Clothing/OA_ResearchPack_Ground.fbx                     the floor model
-    textures/Clothes/Bag/OA_ResearchPack.png                                    1024x1024 atlas
+    textures/Clothes/Bag/OA_ResearchPack.png                                    512x512 atlas (painted at 1024)
     clothing/clothingItems/OA_Bag_ResearchPack.xml (+ _LHand, _RHand)           the clothing items
     fileGuidTable.xml                                                           registers the three clothing items
     scripts/OA_backpack_models.txt                                              the floor model script
@@ -94,6 +94,13 @@ FOLD = {'Bip01_Neck': 'Bip01_Spine1', 'Bip01_Head': 'Bip01_Spine1', 'Bip01_Pelvi
 
 ATLAS = 1024
 DENSITY = 1250.0         # texture pixels per model unit on the visible surfaces (about 7 px per real centimetre)
+SHIP = 512               # the atlas is painted at ATLAS and shipped at this size (in the game the pack is a few dozen
+                         # pixels tall: the painted detail survives the halving, the file is a quarter)
+# Mesh resolution: the soft boxes' flat-face steps, and the shoulder straps' samples along and around. Chosen against
+# the before/after sheet so that the silhouette and the straps' run over the shoulders look the same in the game.
+MAIN_RES = 4
+STRAP_STEPS, STRAP_PROF = 26, 8
+WEB_STEPS = 16
 
 
 # ======================================================================================================================
@@ -825,15 +832,15 @@ def build_pack(C):
     main = SoftBox(MAIN['centre'], MAIN['half'], MAIN['r'], MAIN['bulge'], MAIN['taper'], back=0.0)
     parts.append(main.part('main', {'+z': C['main_front'], '-z': C['main_back'], '+x': C['main_side'],
                                     '-x': C['main_side'], '-y': C['main_bottom']}, 'canvas',
-                           res=6).orient())
+                           res=MAIN_RES).orient())
     # lid: the main body's top region offset outward, with a hem band closing it to the body
     lid = main.part('lid', {'+y': C['lid_top'], '+z': C['lid_front'], '-z': C['lid_back'], '+x': C['lid_side'],
-                            '-x': C['lid_side']}, 'canvas', res=6, offset=LID_T, vrange=lid_vrange)
+                            '-x': C['lid_side']}, 'canvas', res=MAIN_RES, offset=LID_T, vrange=lid_vrange)
     hem_outer, hem_inner = [], []
     for face in ('+z', '-x', '-z', '+x'):   # around the pack
         k, s, U, V = FACES[face]
         ku = int(np.argmax(np.abs(U)))
-        for a in main.axis_coords(ku, 6)[:-1]:
+        for a in main.axis_coords(ku, MAIN_RES)[:-1]:
             _, b1 = lid_vrange(face, a)
             hem_outer.append(main.point(face, a, b1, LID_T))
             hem_inner.append(main.point(face, a, b1, -0.002))
@@ -861,7 +868,7 @@ def build_pack(C):
     # front pouch
     pouch = SoftBox(POUCH['centre'], POUCH['half'], POUCH['r'], POUCH['bulge'], POUCH['taper'], band=2)
     parts.append(pouch.part('pouch', {'+z': C['pouch_front'], '+x': C['pouch_side'], '-x': C['pouch_side'],
-                                      '+y': C['pouch_top'], '-y': C['pouch_bottom']}, 'canvas', res=4,
+                                      '+y': C['pouch_top'], '-y': C['pouch_bottom']}, 'canvas', res=3,
                             skip=('-z',)).orient())
     # canteen pouch and canteen on the +x side, mirrored to -x
     cpouch = SoftBox(CPOUCH['centre'], CPOUCH['half'], CPOUCH['r'], CPOUCH['bulge'], band=2)
@@ -869,7 +876,7 @@ def build_pack(C):
                                 '+y': C['cpouch_top'], '-y': C['cpouch_bottom']}, 'canvas', res=2, skip=('-x',)).orient()
     canteen = SoftBox(CANTEEN['centre'], CANTEEN['half'], CANTEEN['r'], CANTEEN['bulge'], bend=-0.004, band=2)
     ct = canteen.part('canteen', {'+x': C['canteen_side'], '-x': C['canteen_side'], '+z': C['canteen_end'],
-                                  '-z': C['canteen_end'], '+y': C['canteen_top']}, 'plastic', res=3,
+                                  '-z': C['canteen_end'], '+y': C['canteen_top']}, 'plastic', res=2,
                       skip=('-y',)).orient()
     top = canteen.point('+y', 0.0, 0.0)
     neck = cylinder('neck', top - np.array([0, 0.004, 0]), (0, 1, 0), NECK_R, 0.009, C['neck'], 'plastic', n=12,
@@ -1135,22 +1142,23 @@ def worn_straps(C, body, pl):
     parts, weights = [], []
     for side in (1, -1):
         upper, lower = strap_controls(body, side, pl)
-        P, N = fit_to_body(body, upper, 34, CLEAR_STRAP + STRAP_T / 2, ramp0=0.050, ramp1=0, keep_x=True)
+        P, N = fit_to_body(body, upper, STRAP_STEPS, CLEAR_STRAP + STRAP_T / 2, ramp0=0.050, ramp1=0, keep_x=True)
         # taper the padded strap's width toward the pack root and the buckle
         s = arclen(P)
         L = s[-1]
         widths = STRAP_W * (0.72 + 0.28 * smoothstep(0.0, 0.06, s) * smoothstep(0.0, 0.035, L - s))
-        strap = sweep('strap', P, N, STRAP_W, STRAP_T, C['strap'], 'strap', n_prof=10, widths=widths,
+        strap = sweep('strap', P, N, STRAP_W, STRAP_T, C['strap'], 'strap', n_prof=STRAP_PROF, widths=widths,
                       v_range=(0.0, min(1.0, L / 0.40)))
         # ladder lock at the strap's chest end
         Tn = unit(P[-1] - P[-3])
         frame = np.stack([unit(np.cross(Tn, N[-1])), Tn, N[-1]], 1)
         buckle = box_part('buckle', P[-1] + Tn * 0.004 + N[-1] * 0.0005, (0.0105, 0.008, 0.0025), frame, C['hard'],
                           'hard')
-        P2, N2 = fit_to_body(body, [P[-1] - N[-1] * 0.002] + lower[1:], 22, CLEAR_STRAP + WEB_T / 2, ramp0=0, ramp1=0.05)
+        P2, N2 = fit_to_body(body, [P[-1] - N[-1] * 0.002] + lower[1:], WEB_STEPS, CLEAR_STRAP + WEB_T / 2, ramp0=0,
+                             ramp1=0.05)
         L2 = arclen(P2)[-1]
         web = sweep('web', P2, N2, WEB_W, WEB_T, C['web'], 'web', n_prof=6, v_range=(0.0, min(1.0, L2 / 0.32)))
-        push_rings(strap, body, CLEAR_STRAP * 0.6, len(P), 10)
+        push_rings(strap, body, CLEAR_STRAP * 0.6, len(P), STRAP_PROF)
         push_rings(web, body, CLEAR_STRAP * 0.6, len(P2), 6)
         for pt in (strap, web, buckle):
             push_out(pt, body, 0.0025)      # a last guard; the rings above already keep the clearance
@@ -1183,17 +1191,17 @@ def relaxed_straps(C):
         ctrl = [r, r + np.array([0.002 * side, 0.010, -0.010]), np.array([0.056 * side, 0.792, -0.030]),
                 np.array([0.060 * side, 0.730, -0.044]), np.array([0.062 * side, 0.660, -0.040]),
                 np.array([0.064 * side, 0.622, -0.026])]
-        P = catmull(ctrl, 30)
+        P = catmull(ctrl, STRAP_STEPS - 4)
         N = np.tile(np.array([0, 0, -1.0]), (len(P), 1))
         s = arclen(P)
         L = s[-1]
         widths = STRAP_W * (0.72 + 0.28 * smoothstep(0.0, 0.06, s) * smoothstep(0.0, 0.035, L - s))
-        parts.append(sweep('strap', P, N, STRAP_W, STRAP_T, C['strap'], 'strap', widths=widths,
+        parts.append(sweep('strap', P, N, STRAP_W, STRAP_T, C['strap'], 'strap', n_prof=STRAP_PROF, widths=widths,
                            v_range=(0.0, min(1.0, L / 0.40))))
         Tn = unit(P[-1] - P[-3])
         frame = np.stack([unit(np.cross(Tn, N[-1])), Tn, N[-1]], 1)
         parts.append(box_part('buckle', P[-1] + Tn * 0.004, (0.0105, 0.008, 0.0025), frame, C['hard'], 'hard'))
-        P2 = catmull([P[-1], np.array([0.070 * side, 0.600, -0.018]), np.array([0.077 * side, 0.586, -0.006]), f], 16)
+        P2 = catmull([P[-1], np.array([0.070 * side, 0.600, -0.018]), np.array([0.077 * side, 0.586, -0.006]), f], WEB_STEPS - 4)
         N2 = np.tile(np.array([0, 0, -1.0]), (len(P2), 1))
         parts.append(sweep('web', P2, N2, WEB_W, WEB_T, C['web'], 'web', n_prof=6,
                            v_range=(0.0, min(1.0, arclen(P2)[-1] / 0.32))))
@@ -1304,7 +1312,29 @@ def f6(v):
     return '%.6f' % (0.0 if abs(v) < 5e-7 else v)
 
 
+def f4(v):
+    """A coordinate, a normal or a uv in a .x file: four decimals (0.2 mm of the model, a twentieth of a texel of the 512 atlas),
+    the trailing zeros left out. The skin weights keep six (they must sum to 1)."""
+    t = ('%.4f' % (0.0 if abs(v) < 5e-5 else v)).rstrip('0').rstrip('.')
+    return '0' if t in ('', '-0') else t
+
+
+def f3(v):
+    """A unit normal's component: three decimals (a twentieth of a degree), the trailing zeros left out."""
+    t = ('%.3f' % (0.0 if abs(v) < 5e-4 else v)).rstrip('0').rstrip('.')
+    return '0' if t in ('', '-0') else t
+
+
+def w6(v):
+    """A skin weight: six decimals, the trailing zeros left out (a rigid vertex's 1.000000 is 1)."""
+    t = f6(v).rstrip('0').rstrip('.')
+    return '0' if t in ('', '-0') else t
+
+
 def mesh_frame_text(name, mesh, mats, material):
+    """The mesh frame of a .x file. The long lists (positions, faces, normals, uvs, material indices, skin weights) are
+    written without indentation and the material indices many to a line: the format reads tokens, so this is only
+    bytes (about a third of the file)."""
     P, N, UV, F = mesh.arrays()
     n, nf = len(P), len(F)
     bones = [b for b in sorted(mesh.W) if (mesh.W[b] > 0).any()]
@@ -1314,27 +1344,28 @@ def mesh_frame_text(name, mesh, mats, material):
            '  1.000000,0.000000,0.000000,0.000000,0.000000,1.000000,0.000000,0.000000,0.000000,0.000000,1.000000,0.000000,'
            '0.000000,0.000000,0.000000,1.000000;;', ' }', '', ' Mesh %s {' % name, '  %d;' % n]
     for i, p in enumerate(P):
-        out.append('  %s;%s;%s;%s' % (f6(p[0]), f6(p[1]), f6(p[2]), ',' if i < n - 1 else ';'))
-    faces = ['  3;%d,%d,%d;%s' % (a, b, c, ',' if i < nf - 1 else ';') for i, (a, b, c) in enumerate(F)]
+        out.append('%s;%s;%s;%s' % (f4(p[0]), f4(p[1]), f4(p[2]), ',' if i < n - 1 else ';'))
+    faces = ['3;%d,%d,%d;%s' % (a, b, c, ',' if i < nf - 1 else ';') for i, (a, b, c) in enumerate(F)]
     out.append('  %d;' % nf)
     out += faces
     out += ['', '  MeshNormals {', '   %d;' % n]
     for i, q in enumerate(N):
-        out.append('   %s;%s;%s;%s' % (f6(q[0]), f6(q[1]), f6(q[2]), ',' if i < n - 1 else ';'))
+        out.append('%s;%s;%s;%s' % (f3(q[0]), f3(q[1]), f3(q[2]), ',' if i < n - 1 else ';'))
     out.append('   %d;' % nf)
-    out += [' ' + f for f in faces]
+    out += faces
     out += ['  }', '', '  MeshMaterialList {', '   1;', '   %d;' % nf]
-    out += ['   0,'] * (nf - 1) + ['   0;']
+    zeros = ['0'] * nf
+    out += [','.join(zeros[i:i + 40]) + (',' if i + 40 < nf else ';') for i in range(0, nf, 40)]
     out += ['   { %s }' % material, '  }', '', '  MeshTextureCoords c1 {', '   %d;' % n]
     for i, t in enumerate(UV):
-        out.append('   %s;%s;%s' % (f6(t[0]), f6(t[1]), ',' if i < n - 1 else ';'))
+        out.append('%s;%s;%s' % (f4(t[0]), f4(t[1]), ',' if i < n - 1 else ';'))
     out += ['  }', '', '  XSkinMeshHeader {', '   %d;' % int(per_vertex.max()), '   %d;' % per_face,
             '   %d;' % len(bones), '  }']
     for b in bones:
         idx = np.where(mesh.W[b] > 0)[0]
         out += ['', '  SkinWeights {', '   "%s";' % b, '   %d;' % len(idx)]
-        out += ['   %d%s' % (i, ',' if k < len(idx) - 1 else ';') for k, i in enumerate(idx)]
-        out += ['   %s%s' % (f6(mesh.W[b][i]), ',' if k < len(idx) - 1 else ';') for k, i in enumerate(idx)]
+        out += ['%d%s' % (i, ',' if k < len(idx) - 1 else ';') for k, i in enumerate(idx)]
+        out += ['%s%s' % (w6(mesh.W[b][i]), ',' if k < len(idx) - 1 else ';') for k, i in enumerate(idx)]
         out += ['   %s;;' % mats[b], '  }']
     out += [' }', '}', '']
     return '\n'.join(out)
@@ -2007,12 +2038,15 @@ def write_clothing():
 
 def merge_guid_table(path, items):
     """Puts the clothing items {file name: guid} into media/fileGuidTable.xml, keeping the entries other tools wrote
-    (tools/fuelcan_mesh.py registers its own there too)."""
+    (tools/fuelcan_mesh.py registers its own there too) as long as their file is still there: a clothing item a tool
+    no longer makes leaves the table with its file."""
     entries = {}
+    folder = os.path.join(os.path.dirname(path), 'clothing', 'clothingItems')
     if os.path.exists(path):
         old = open(path, encoding='utf-8-sig').read()
         for m in re.finditer(r'<path>media/clothing/clothingItems/([^<]+)\.xml</path>\s*<guid>([^<]+)</guid>', old):
-            entries[m.group(1)] = m.group(2)
+            if os.path.exists(os.path.join(folder, m.group(1) + '.xml')):
+                entries[m.group(1)] = m.group(2)
     entries.update(items)
     text = ''.join('\t<files>\n\t\t<path>media/clothing/clothingItems/%s.xml</path>\n\t\t<guid>%s</guid>\n\t</files>\n'
                    % (f, g) for f, g in entries.items())
@@ -2364,9 +2398,9 @@ def build_all(old_dir=None):
     nv, nf = write_fbx(meshes['G'])
     print('G    %5d vertices %5d faces  %s' % (nv, nf, os.path.relpath(OUT['G'], ROOT)))
     P = paint_atlas(C)
-    tex = finish_atlas(P, uv_gbuffer(meshes['M']))
+    tex = finish_atlas(P, uv_gbuffer(meshes['M'])).resize((SHIP, SHIP), Image.LANCZOS)
     os.makedirs(os.path.dirname(OUT['TEX']), exist_ok=True)
-    tex.save(OUT['TEX'])
+    tex.save(OUT['TEX'], optimize=True)
     write_clothing()
     write_script()
     old = load_old(old_dir) if old_dir else None
@@ -2405,7 +2439,7 @@ def check_x(key):
     nv, nf = len(verts), len(faces)
     need(faces.min() >= 0 and faces.max() < nv, 'face index out of range')
     mesh_txt = txt[txt.index(' Mesh %s {' % v['frame']):]
-    need(len(re.findall(r'\n  3;\d+,\d+,\d+;[,;]', mesh_txt.split('MeshNormals {')[0])) == nf, 'a face is not a triangle')
+    need(len(re.findall(r'\n\s*3;\d+,\d+,\d+;[,;]', mesh_txt.split('MeshNormals {')[0])) == nf, 'a face is not a triangle')
     nrm = d['N']
     need(nrm is not None and len(nrm) == nv, 'normal count')
     need(np.abs(np.linalg.norm(nrm, axis=1) - 1).max() < 1e-3, 'normals not unit length')
@@ -2417,8 +2451,8 @@ def check_x(key):
     c = np.cross(verts[faces[:, 1]] - verts[faces[:, 0]], verts[faces[:, 2]] - verts[faces[:, 0]])
     agree = (c * nrm[faces].mean(1)).sum(1) > 0
     need(agree.mean() > 0.995, '%d faces wound against their normals' % (~agree).sum())
-    ml = re.search(r'MeshMaterialList \{\n\s*1;\n\s*(\d+);\n((?:\s*0[,;]\n)+)\s*\{ (\S+) \}', txt)
-    need(ml and int(ml.group(1)) == nf and ml.group(2).count('\n') == nf, 'material list')
+    ml = re.search(r'MeshMaterialList \{\n\s*1;\n\s*(\d+);\n((?:\s*0(?:,0)*[,;]\n)+)\s*\{ (\S+) \}', txt)
+    need(ml and int(ml.group(1)) == nf and ml.group(2).count('0') == nf, 'material list')
     need('Material %s {' % ml.group(3) in txt, 'material %s missing' % ml.group(3))
     need('"%s"' % TEX_REF in txt, 'texture filename')
     uv = d['UV']
@@ -2503,7 +2537,7 @@ def check_fbx():
 
 def check_files():
     img = Image.open(OUT['TEX'])
-    need(img.size == (ATLAS, ATLAS), 'texture size %s' % (img.size,))
+    need(img.size == (SHIP, SHIP), 'texture size %s' % (img.size,))
     table = open(OUT['GUID'], encoding='utf-8').read()
     for fname, (guid, male, female) in CLOTHING.items():
         xml = open(os.path.join(CLOTHING_DIR, fname + '.xml'), encoding='utf-8-sig').read()

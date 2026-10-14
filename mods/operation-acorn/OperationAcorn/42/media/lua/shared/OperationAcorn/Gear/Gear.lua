@@ -1,21 +1,22 @@
--- The modification kits and the improved gear on the game side (REWARDS, NUMBERS 7). The rules are pure numbers
+-- The modification kits and the team's gear on the game side (REWARDS, NUMBERS 7). The rules are pure numbers
 -- (Gear/Rules.lua); this reads and writes the game's objects and is what the timed actions and the server commands
--- call. Where a kit's effect lives:
+-- call. What a kit fits and where its effect lives:
 --
---   bag capacity / weight kit  the bag item's modData (count, original capacity and reduction); the bag's own capacity
---                              (InventoryContainer.setCapacity) and weight reduction (setWeightReduction), which the
---                              game saves with the item.
---   storage kit                the modData of the vehicle part it was fitted to (any part that holds items: a trunk,
---                              a truck bed, a roof rack, a modded vehicle's own; not a seat), saved with the vehicle.
---   engine kit                 the modData of the engine part (count and the original power and loudness) and the
---                              engine's own features (BaseVehicle.setEngineFeature), which the game saves with the
---                              vehicle.
+--   expansion kit      a bag: its capacity (InventoryContainer.setCapacity), saved with the item. The fuel can: its
+--                      fluid container's capacity, saved. The welder: its uses (OA_Uses, which the extension API
+--                      reads). A vehicle's storage part (any part that holds items, not a seat): the part's capacity,
+--                      saved with the vehicle.
+--   lightening kit     a bag: its weight reduction, saved. A team item (the fuel can, the welder, a field tool): what
+--                      it weighs carried (OA_Carry, which the extension API reads; without the API its weight, which the
+--                      game does not save, so it is written again when the game starts and when the item is looked at).
+--   reinforcement kit  a field tool: its most condition (setConditionMax), saved.
+--   engine kit         the engine part: the engine's own features (BaseVehicle.setEngineFeature), saved.
+-- The counts of kits live in the target's modData; the values are worked out again from them (refresh*), so a game
+-- started later with or without the API gets the right value.
 --
--- Past the game's own capacity limits a container needs PZ Extension API: it adds the number in the
--- holder's modData OA_Capacity to the raw capacity and lifts the limits (docs/design/extension-api.md,
--- capacity.modDataKey). Without it the kits are written into the raw capacity and the game cuts them at its limits;
--- the tooltip says so. The count of kits stays either way, and the value is worked out again from it (refresh*), so a
--- game started later with the API gets the full value.
+-- Past the game's own capacity limits a container needs PZ Extension API: it adds the number in the holder's modData
+-- OA_Capacity to the raw capacity and lifts the limits (docs/design/extension-api.md, capacity.modDataKey). Without it
+-- the kits are written into the raw capacity and the game cuts them at its limits; the tooltip says so.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Sync"
@@ -25,14 +26,20 @@ local OA = OperationAcorn
 local Gear = OA.Gear
 local Rules = Gear.Rules
 local K = Rules.KEY
+local Shop = OA.Shop
 
 Gear.VOUCHER = "OperationAcorn.KitVoucher"
 -- The vehicle part the engine kit changes.
 Gear.ENGINE_PART = "Engine"
 -- How near (squares) a character must be to a vehicle to fit a kit.
 Gear.REACH = 6
--- The names of the extension API's point and of the key it reads, as the upgrades part declares them.
+-- The extension API's points the kits use, and what this part declares for them when the game starts.
 Gear.POINT = "capacity.modDataKey"
+Gear.CARRY_POINT = "carry.efficiencyKey"
+Gear.USES_POINT = "uses.modDataKey"
+Gear.CRAFT_POINT = "craft.carryKeys"
+-- The keys a refilled welder keeps (the recipe makes a new torch from the one it uses up).
+Gear.CRAFT_KEYS = { K.TEAM, K.USES, K.CARRY, K.KIT_CAP, K.KIT_LIGHT }
 
 local function pointName()
     local effects = OA.Upgrades and OA.Upgrades.Effects
@@ -46,75 +53,71 @@ end
 
 -- ---- the extension API ----------------------------------------------------------------------------------------
 
-local declared = false
-local liftsAt, liftsValue = nil, false
-
--- Whether the extension API applies the capacity key, so that a holder with OA_Capacity is held to none of the
--- game's limits. The upgrades part declares the key when the game starts; if it has not yet, this declares the same
--- value itself once (a key declared twice is the same key). Kept for a few game minutes: the question is asked often.
-function Gear.lifts(force)
-    local now = OA.hours()
-    if not force and liftsAt and math.abs(now - liftsAt) < 0.05 then return liftsValue end
-    local value = false
+local function formulas()
     local api = OA.api()
-    local formulas = api and api.formulas
-    if type(formulas) == "table" and type(formulas.points) == "function" then
-        local function applied()
-            local ok, status = pcall(formulas.points)
-            return ok and type(status) == "table" and status[pointName()] == "applied"
-        end
-        value = applied()
-        if not value and not declared then
-            declared = true
+    local f = api and api.formulas
+    if type(f) == "table" and type(f.points) == "function" then return f end
+    return nil
+end
+
+local function applied(f, point)
+    local ok, status = pcall(f.points)
+    return ok and type(status) == "table" and status[point] == "applied"
+end
+
+-- What this part declares itself, by point (the capacity key is the upgrades part's, declared the same way).
+local function declaredValue(point)
+    if point == Gear.CARRY_POINT then return K.CARRY end
+    if point == Gear.USES_POINT then return K.USES end
+    if point == Gear.CRAFT_POINT then return Gear.CRAFT_KEYS end
+    return keyName()
+end
+
+-- The points declared, per API table (a newer API that takes over is a new table, and is told again).
+local declaredBy = setmetatable({}, { __mode = "k" })
+local known = {}
+
+-- Whether the extension API applies a point (Gear.POINT and the others above): its hooks went in, and this part's
+-- value is declared (it declares it here once, if it has not yet; a key declared twice is the same key). Kept for a
+-- few game minutes: the question is asked often.
+function Gear.applies(point, force)
+    local now = OA.hours()
+    local hit = known[point]
+    if not force and hit and math.abs(now - hit.at) < 0.05 then return hit.value end
+    local value = false
+    local f = formulas()
+    if f then
+        local declared = declaredBy[f] or {}
+        declaredBy[f] = declared
+        if not declared[point] then
+            declared[point] = true
             local handle = OA.handle()
-            if handle and type(formulas.set) == "function" then
-                local ok, err = pcall(formulas.set, handle, pointName(), keyName())
-                if not ok then OA.log("gear: declaring the capacity key failed:", tostring(err)) end
+            if handle and type(f.set) == "function" then
+                local ok, err = pcall(f.set, handle, point, declaredValue(point))
+                if not ok then OA.log("gear: declaring", point, "failed:", tostring(err)) end
             end
-            value = applied()
         end
+        value = applied(f, point)
     end
-    liftsAt, liftsValue = now, value
+    known[point] = { at = now, value = value }
     return value
 end
 
--- ---- the improved fuel cans ------------------------------------------------------------------------------------
-
--- What the cans weigh carried (the extension API's carrying efficiency, carry.fullTypeEfficiency): each holds more
--- than the plain can (10 L) and, full, weighs no more than it full (11.6: its 1.6 and petrol at 1 a litre), the later
--- ones less. litres: the script's capacity (scripts/OA_gear.txt says the same); full: what a full can weighs carried.
-Gear.PLAIN_CAN_FULL = 11.6
-Gear.CAN_WEIGHT = 1.6
-Gear.FUEL_CANS = {
-    FuelCanMk1 = { litres = 15, full = 11.6 },
-    FuelCanMk2 = { litres = 20, full = 10.0 },
-    FuelCanMk3 = { litres = 25, full = 8.5 },
-}
-
--- The efficiency that makes a full can weigh its `full` (the game divides an item's weight, fluid included, by 1 plus it).
-function Gear.canEfficiency(name)
-    local can = Gear.FUEL_CANS[name]
-    return (Gear.CAN_WEIGHT + can.litres) / can.full - 1
+-- Whether the extension API lifts a container held by the capacity key above the game's limits.
+function Gear.lifts(force)
+    return Gear.applies(pointName(), force)
 end
 
--- Declares the cans' efficiencies to the API, once a game. Returns true when it took them.
-function Gear.declareCans()
-    local api = OA.api()
-    local handle = OA.handle()
-    if not (api and handle and type(api.formulas) == "table" and type(api.formulas.set) == "function") then return false end
-    local efficiencies = {}
-    for name in pairs(Gear.FUEL_CANS) do efficiencies[OA.MOD .. "." .. name] = Gear.canEfficiency(name) end
-    local ok, err = pcall(api.formulas.set, handle, "carry.fullTypeEfficiency", efficiencies)
-    if not ok then OA.log("gear: the fuel cans' weight not declared:", tostring(err)) end
-    return ok
+-- Declares the team items' keys to the API, once a game (when it starts).
+function Gear.declare()
+    for _, point in ipairs({ Gear.CARRY_POINT, Gear.USES_POINT, Gear.CRAFT_POINT }) do Gear.applies(point, true) end
 end
 
--- What a can weighs as carried now (its fluid in it), or nil without the API's answer.
+-- What an item weighs as carried now (a bag with what is in it, a can with its fuel), or nil without the API's answer.
 function Gear.carriedWeight(item)
-    local api = OA.api()
-    local formulas = api and api.formulas
-    if type(formulas) ~= "table" or type(formulas.weight) ~= "function" then return nil end
-    local ok, weight = pcall(formulas.weight, item)
+    local f = formulas()
+    if not f or type(f.weight) ~= "function" then return nil end
+    local ok, weight = pcall(f.weight, item)
     if ok and type(weight) == "number" then return weight end
     return nil
 end
@@ -175,18 +178,50 @@ function Gear.vehicleName(vehicle)
     return text or name
 end
 
--- Whether an item is a bag the bag kits go to: one worn on the back (a backpack; not a key ring, a fanny pack, a
--- satchel or a bag held in the hand).
-function Gear.isBackpack(item)
+-- The field tools' item types (Shop.FIELD_TOOLS).
+local fieldTypes
+local function isFieldTool(fullType)
+    if not fieldTypes then
+        fieldTypes = {}
+        for _, t in ipairs(Shop.FIELD_TOOLS) do fieldTypes[Shop.fieldType(t[1])] = true end
+    end
+    return fieldTypes[fullType] == true
+end
+Gear.isFieldTool = isFieldTool
+
+-- Whether an item is a bag the kits go to: one worn on the back (a backpack; not a key ring, a fanny pack, a satchel
+-- or a bag held in the hand), or the team's waist bag, worn either way.
+function Gear.isKitBag(item)
     if not (item and item:IsInventoryContainer()) then return false end
+    local fullType = item:getFullType()
+    if fullType == Shop.TYPES.waistBag or fullType == Shop.TYPES.waistBagBack then return true end
     local slot = item.canBeEquipped and item:canBeEquipped()
     return slot ~= nil and ItemBodyLocation ~= nil and slot == ItemBodyLocation.BACK
 end
 
--- The backpacks and the kits a character carries, in any container: { key, bags = { item }, kits = { [kind] = { item } } }.
--- Found in one pass through the inventory, and kept while the inventory's signature (OA.signature) is the same: the
--- menus and tooltips that need them are drawn again and again, and the inventory may hold thousands of items. A kit or
--- a bag moved between two bags of the inventory changes no signature, but is still carried, and that is all this says.
+-- What kind of target an item is for the kits: "bag", "can", "welder", "tool", or nil.
+function Gear.targetOf(item)
+    if not item then return nil end
+    if Gear.isKitBag(item) then return "bag" end
+    local fullType = item:getFullType()
+    if fullType == Shop.TYPES.fuelCan then return "can" end
+    if isFieldTool(fullType) then return "tool" end
+    if fullType == Shop.TYPES.welder then
+        local md = dataOf(item)
+        if md and md[K.TEAM] then return "welder" end
+    end
+    return nil
+end
+
+-- Whether an item might be a target, judged cheaply (the inventory pass below asks it of every item).
+local function maybeTarget(item)
+    return item:IsInventoryContainer() or item:getModule() == OA.MOD or item:getType() == "BlowTorch"
+end
+
+-- The kit targets and the kits a character carries, in any container: { key, items = { item }, kits = { [kind] =
+-- { item } } }. Found in one pass through the inventory, and kept while the inventory's signature (OA.signature) is the
+-- same: the menus and tooltips that need them are drawn again and again, and the inventory may hold thousands of items.
+-- An item moved between two bags of the inventory changes no signature, but is still carried, and that is all this says.
 local carriedCache = setmetatable({}, { __mode = "k" })
 
 function Gear.carried(character)
@@ -194,19 +229,18 @@ function Gear.carried(character)
     local key = OA.signature(inventory)
     local hit = carriedCache[character]
     if hit and hit.key == key then return hit end
-    local found = { key = key, bags = {}, kits = {} }
+    local found = { key = key, items = {}, kits = {} }
     -- oa-scan: ok (the one pass for a signature that changed)
-    local list = inventory:getAllEvalRecurse(function(item)
-        return item:IsInventoryContainer() or (item:getModule() == OA.MOD and Gear.kindOfItem(item) ~= nil)
-    end)
+    local list = inventory:getAllEvalRecurse(maybeTarget)
     for i = 0, list:size() - 1 do
         local item = list:get(i)
         local kind = item:getModule() == OA.MOD and Gear.kindOfItem(item) or nil
         if kind then
             found.kits[kind] = found.kits[kind] or {}
             table.insert(found.kits[kind], item)
+        elseif Gear.targetOf(item) then
+            table.insert(found.items, item)
         end
-        if Gear.isBackpack(item) then table.insert(found.bags, item) end
     end
     carriedCache[character] = found
     return found
@@ -236,46 +270,38 @@ local function notice(character, key, args)
     OA.Sync.notice(OA.Store.idOf(character), key, args)
 end
 
--- ---- bags -----------------------------------------------------------------------------------------------------
+-- ---- items ----------------------------------------------------------------------------------------------------
 
--- The kits fitted to a bag: capacity kits, weight kits.
-function Gear.bagKits(bag)
-    local md = dataOf(bag)
-    if not md then return 0, 0 end
-    return md[K.BAG_CAP] or 0, md[K.BAG_WEIGHT] or 0
+-- The kits fitted to an item: expansion, lightening, reinforcement.
+function Gear.itemKits(item)
+    local md = dataOf(item)
+    if not md then return 0, 0, 0 end
+    return md[K.KIT_CAP] or 0, md[K.KIT_LIGHT] or 0, md[K.KIT_TOUGH] or 0
 end
 
--- What a bag's kits make of it, worked out from the counts and its original values: { capacity (kits), weight (kits),
--- total (the capacity), limit (what the game holds the bag to), cut (the game would cut it), reduction (percent) }; nil
--- when the bag has no kit.
-function Gear.bagInfo(bag)
-    local n, w = Gear.bagKits(bag)
-    if n == 0 and w == 0 then return nil end
-    local md = bag:getModData()
-    local info = { capacity = n, weight = w }
-    local baseCap = md[K.BAG_BASE_CAP]
-    if baseCap then
-        info.total = Rules.capacity(baseCap, n)
-        info.limit = Rules.bagLimit(bag:getActualWeight())
-        info.cut = Rules.cut(info.total, info.limit, Gear.lifts())
-    end
-    local baseRed = md[K.BAG_BASE_RED]
-    if baseRed then info.reduction = Rules.reductionInt(baseRed, w) end
-    return info
+-- The script's weight and most condition of an item (the field tool's, before any kit).
+local function scriptWeight(item)
+    local script = item:getScriptItem()
+    return script and script:getActualWeight() or item:getActualWeight()
 end
 
--- Writes a bag's kits into the bag: the capacity (with the API the original stays and OA_Capacity adds the kits;
--- without it the kits go into the capacity, cut at the game's limit) and the weight reduction. Only what differs is
--- written. Safe to call again at any time.
-function Gear.refreshBag(bag)
-    local md = bag:getModData()
-    local n, w = Gear.bagKits(bag)
+local function scriptCondition(item)
+    local script = item:getScriptItem()
+    return script and script:getConditionMax() or item:getConditionMax()
+end
+
+-- A bag's kits written into it: the capacity (with the API the original stays and OA_Capacity adds the kits; without
+-- it the kits go into the capacity, cut at the game's limit) and the weight reduction. The item the kits were written
+-- into is remembered: the waist bag worn the other way is a new item with the modData copied and the script's values.
+local function refreshBag(bag, md, n, w)
+    local fresh = md[K.BAG_ID] ~= bag:getID()
+    if fresh then md[K.BAG_ID] = bag:getID() end
     local baseCap, baseRed = md[K.BAG_BASE_CAP], md[K.BAG_BASE_RED]
     if baseCap and n > 0 then
         local total = Rules.capacity(baseCap, n)
         local lifted = Gear.lifts()
         local raw = Rules.raw(baseCap, total, Rules.bagLimit(bag:getActualWeight()), lifted)
-        if md[K.RAW] ~= raw then
+        if fresh or md[K.RAW] ~= raw then
             bag:setCapacity(raw)
             md[K.RAW] = raw
         end
@@ -288,50 +314,155 @@ function Gear.refreshBag(bag)
     end
 end
 
--- Fits a bag kit to a bag: counts it, writes it into the bag, uses the kit up. Returns true and the bag's new value
--- (the capacity, or the weight reduction), or false and the reason: "kit" (not a bag kit), "bag" (not a backpack).
-function Gear.fitBag(character, kit, bag)
+-- A team item's lightening kits written into it: with the API its own carrying efficiency (the item then tells the
+-- game its weight changed); without it its weight, which the game does not save.
+local function refreshWeight(item, md, w)
+    if Gear.applies(Gear.CARRY_POINT) then
+        local efficiency = w > 0 and Rules.efficiency(w) or nil
+        if md[K.CARRY] ~= efficiency then
+            md[K.CARRY] = efficiency
+            item:setActualWeight(item:getActualWeight())
+        end
+    elseif w > 0 then
+        if md[K.CARRY] ~= nil then md[K.CARRY] = nil end
+        local weight = scriptWeight(item) * Rules.lightness(w)
+        if math.abs(item:getActualWeight() - weight) > 1e-4 then item:setActualWeight(weight) end
+    end
+end
+
+-- Writes an item's kits into it. Only what differs is written. Safe to call again at any time.
+function Gear.refreshItem(item)
+    local target = Gear.targetOf(item)
+    local md = target and dataOf(item)
+    if not md then return end
+    local n, w, t = Gear.itemKits(item)
+    if target == "bag" then
+        if n > 0 or w > 0 then refreshBag(item, md, n, w) end
+        return
+    end
+    refreshWeight(item, md, w)
+    if target == "can" and n > 0 and md[K.BAG_BASE_CAP] then
+        local container = item:getFluidContainer()
+        local litres = Rules.canLitres(md[K.BAG_BASE_CAP], n)
+        if container and container:getCapacity() ~= litres then container:setCapacity(litres) end
+    elseif target == "welder" then
+        local uses = Rules.uses(n)
+        if md[K.USES] ~= uses then md[K.USES] = uses end
+    elseif target == "tool" and t > 0 then
+        local most = Rules.toughness(scriptCondition(item), t)
+        if item:getConditionMax() ~= most then item:setConditionMax(most) end
+    end
+end
+
+-- What an item's kits make of it, for the tooltip and the notices: { target, capacity, weight, tough (kits), total,
+-- limit, cut (a bag's capacity), reduction (a bag's), litres (the can's), uses (the welder's), share (the part of its
+-- weight a team item weighs), condition (a tool's most) }; nil when it is no target.
+function Gear.itemInfo(item)
+    local target = Gear.targetOf(item)
+    if not target then return nil end
+    local n, w, t = Gear.itemKits(item)
+    local info = { target = target, capacity = n, weight = w, tough = t }
+    local md = dataOf(item)
+    if target == "bag" then
+        local baseCap, baseRed = md and md[K.BAG_BASE_CAP], md and md[K.BAG_BASE_RED]
+        if baseCap then
+            info.total = Rules.capacity(baseCap, n)
+            info.limit = Rules.bagLimit(item:getActualWeight())
+            info.cut = Rules.cut(info.total, info.limit, Gear.lifts())
+        end
+        if baseRed then info.reduction = Rules.reductionInt(baseRed, w) end
+        return info
+    end
+    info.share = Rules.lightness(w)
+    if target == "can" then
+        local container = item:getFluidContainer()
+        info.litres = container and container:getCapacity() or nil
+    elseif target == "welder" then
+        info.uses = item:getMaxUses()
+    elseif target == "tool" then
+        info.condition = item:getConditionMax()
+    end
+    return info
+end
+
+-- Why a kit cannot be fitted to an item now, or nil when it can: "kit" (not a kit), "target" (it does not fit that
+-- item), "most" (the tool has all the reinforcement it takes), "api" (the welder's uses need the extension API).
+function Gear.refusal(kit, item)
     local kind = Gear.kindOfItem(kit)
-    if Rules.SCOPE[kind] ~= "bag" then return false, "kit" end
-    if not bag or not bag.IsInventoryContainer or not Gear.isBackpack(bag) or bag == kit then return false, "bag" end
-    local md = bag:getModData()
-    if md[K.BAG_BASE_CAP] == nil then
-        md[K.BAG_BASE_CAP] = bag:getItemContainer():getCapacity()
-        md[K.BAG_BASE_RED] = bag:getWeightReduction()
+    if not kind then return "kit" end
+    if not item or item == kit then return "target" end
+    local target = Gear.targetOf(item)
+    if not Rules.fits(kind, target) then return "target" end
+    local _, _, t = Gear.itemKits(item)
+    if kind == "reinforcement" and t >= Rules.TOUGH_MOST then return "most" end
+    if kind == "capacity" and target == "welder" and not Gear.applies(Gear.USES_POINT) then return "api" end
+    return nil
+end
+
+-- The notice that tells what a fitted kit made of the item: its key and the value.
+local function fittedText(kind, target, info)
+    if target == "bag" then
+        if kind == "capacity" then return "IGUI_OA_Gear_Fitted_bagCapacity", tostring(info.total) end
+        return "IGUI_OA_Gear_Fitted_bagWeight", tostring(info.reduction) .. "%"
     end
-    if kind == "bagCapacity" then
-        md[K.BAG_CAP] = (md[K.BAG_CAP] or 0) + 1
+    if kind == "capacity" and target == "can" then return "IGUI_OA_Gear_Fitted_litres", tostring(info.litres) end
+    if kind == "capacity" then return "IGUI_OA_Gear_Fitted_uses", tostring(info.uses) end
+    if kind == "lightening" then return "IGUI_OA_Gear_Fitted_lighter", tostring(OA.round(info.share * 100)) .. "%" end
+    return "IGUI_OA_Gear_Fitted_tough", tostring(info.condition)
+end
+
+-- Fits a kit to an item the character has: counts it, writes it into the item, uses the kit up. Returns true and the
+-- item's new value (as the notice says it), or false and the reason (Gear.refusal).
+function Gear.fitItem(character, kit, item)
+    local why = Gear.refusal(kit, item)
+    if why then return false, why end
+    local kind, target = Gear.kindOfItem(kit), Gear.targetOf(item)
+    local md = item:getModData()
+    if kind == "capacity" then
+        if target == "bag" and md[K.BAG_BASE_CAP] == nil then
+            md[K.BAG_BASE_CAP] = item:getItemContainer():getCapacity()
+        elseif target == "can" and md[K.BAG_BASE_CAP] == nil then
+            local container = item:getFluidContainer()
+            md[K.BAG_BASE_CAP] = container and container:getCapacity() or 0
+        end
+        md[K.KIT_CAP] = (md[K.KIT_CAP] or 0) + 1
+    elseif kind == "lightening" then
+        if target == "bag" and md[K.BAG_BASE_RED] == nil then md[K.BAG_BASE_RED] = item:getWeightReduction() end
+        md[K.KIT_LIGHT] = (md[K.KIT_LIGHT] or 0) + 1
     else
-        md[K.BAG_WEIGHT] = (md[K.BAG_WEIGHT] or 0) + 1
+        -- reinforcement: the new most condition, and the condition (and a head's) up by as much
+        local before = item:getConditionMax()
+        md[K.KIT_TOUGH] = (md[K.KIT_TOUGH] or 0) + 1
+        local most = Rules.toughness(scriptCondition(item), md[K.KIT_TOUGH])
+        item:setConditionMax(most)
+        local gain = most - before
+        item:setCondition(math.min(most, item:getCondition() + gain), false)
+        if item:hasHeadCondition() then item:setHeadCondition(item:getHeadCondition() + gain) end
     end
-    Gear.refreshBag(bag)
+    Gear.refreshItem(item)
     removeItem(kit)
-    syncItem(bag)
-    local value
-    if kind == "bagCapacity" then
-        value = Rules.capacity(md[K.BAG_BASE_CAP], md[K.BAG_CAP])
-    else
-        value = tostring(Rules.reductionInt(md[K.BAG_BASE_RED], md[K.BAG_WEIGHT])) .. "%"
-    end
-    notice(character, "IGUI_OA_Gear_Fitted_" .. kind, { bag:getDisplayName(), tostring(value) })
+    syncItem(item)
+    local key, value = fittedText(kind, target, Gear.itemInfo(item))
+    notice(character, key, { item:getDisplayName(), value })
     return true, value
 end
 
--- Every bag a character has (in any container) that carries a kit: written again from its counts (a save loaded with
--- the API, or without it, after the bag was fitted in the other way). Called when the game starts.
+-- Every target a character has (in any container) that carries a kit, written again from its counts (a save loaded
+-- with the API, or without it, after the item was fitted the other way; a lightened item's weight, which the game does
+-- not save). Called when the game starts.
 function Gear.refreshAll(character)
     local list = character:getInventory():getAllEvalRecurse(function(item)
-        if not item:IsInventoryContainer() then return false end
+        if not maybeTarget(item) then return false end
         local md = dataOf(item)
-        return md ~= nil and (md[K.BAG_CAP] or md[K.BAG_WEIGHT]) ~= nil
+        return md ~= nil and (md[K.KIT_CAP] or md[K.KIT_LIGHT] or md[K.KIT_TOUGH] or md[K.TEAM]) ~= nil
     end)
-    for i = 0, list:size() - 1 do Gear.refreshBag(list:get(i)) end
+    for i = 0, list:size() - 1 do Gear.refreshItem(list:get(i)) end
     return list:size()
 end
 
 -- ---- vehicle storage -----------------------------------------------------------------------------------------
 
--- Whether a vehicle part is a storage the storage kit fits: any part that holds items (a trunk, a truck bed, a roof
+-- Whether a vehicle part is a storage the expansion kit fits: any part that holds items (a trunk, a truck bed, a roof
 -- rack, a trailer's, a glove box, a modded vehicle's own), not a seat.
 function Gear.isStoragePart(part)
     if not part or not part:getItemContainer() then return false end
@@ -360,7 +491,7 @@ end
 -- What a storage part is worth with its kits: { kits, total, limit, cut }; nil when it has none.
 function Gear.storageInfo(part)
     local md = part:getModData()
-    local kits, base = md[K.STORAGE] or 0, md[K.STORAGE_BASE]
+    local kits, base = md[K.KIT_CAP] or 0, md[K.STORAGE_BASE]
     if kits == 0 or not base then return nil end
     local info = { kits = kits, limit = Rules.VEHICLE_LIMIT, total = Rules.capacity(base, kits) }
     info.cut = Rules.cut(info.total, info.limit, Gear.lifts())
@@ -370,7 +501,7 @@ end
 -- Writes a storage part's kits into the part (see refreshBag).
 function Gear.refreshStorage(vehicle, part)
     local md = part:getModData()
-    local n, base = md[K.STORAGE] or 0, md[K.STORAGE_BASE]
+    local n, base = md[K.KIT_CAP] or 0, md[K.STORAGE_BASE]
     if not base or n == 0 then return end
     local total = Rules.capacity(base, n)
     local lifted = Gear.lifts()
@@ -401,20 +532,20 @@ function Gear.refreshStorage(vehicle, part)
     if changed and vehicle.transmitPartModData then vehicle:transmitPartModData(part) end
 end
 
--- Fits a storage kit to one storage part of a vehicle. Returns true and the part's new capacity, or false and the
+-- Fits an expansion kit to one storage part of a vehicle. Returns true and the part's new capacity, or false and the
 -- reason: "kit", "gone", "far", "part" (not a storage).
 function Gear.fitStorage(character, kit, vehicle, partId)
-    if Gear.kindOfItem(kit) ~= "storage" then return false, "kit" end
+    if not Rules.fits(Gear.kindOfItem(kit), "storage") then return false, "kit" end
     if not vehicle then return false, "gone" end
     if not Gear.near(character, vehicle) then return false, "far" end
     local part = partId and vehicle:getPartById(partId)
     if not Gear.isStoragePart(part) then return false, "part" end
     local md = part:getModData()
     if md[K.STORAGE_BASE] == nil then md[K.STORAGE_BASE] = nominalStorage(part) end
-    md[K.STORAGE] = (md[K.STORAGE] or 0) + 1
+    md[K.KIT_CAP] = (md[K.KIT_CAP] or 0) + 1
     Gear.refreshStorage(vehicle, part)
     if vehicle.transmitPartModData then vehicle:transmitPartModData(part) end
-    local total = Rules.capacity(md[K.STORAGE_BASE], md[K.STORAGE])
+    local total = Rules.capacity(md[K.STORAGE_BASE], md[K.KIT_CAP])
     removeItem(kit)
     notice(character, "IGUI_OA_Gear_Fitted_storage", { Gear.vehicleName(vehicle), Gear.partName(part), tostring(total) })
     return true, total
@@ -486,11 +617,11 @@ function Gear.fitEngine(character, kit, vehicle)
     return true, info.power
 end
 
--- Fits a vehicle kit by its kind: a storage kit to the part named.
+-- Fits a vehicle kit to the part named: an expansion kit to a storage, an engine kit to the engine.
 function Gear.fitVehicle(character, kit, vehicle, partId)
     local kind = Gear.kindOfItem(kit)
-    if kind == "storage" then return Gear.fitStorage(character, kit, vehicle, partId) end
-    if kind == "engine" then return Gear.fitEngine(character, kit, vehicle) end
+    if partId == Gear.ENGINE_PART and kind == "engine" then return Gear.fitEngine(character, kit, vehicle) end
+    if Rules.fits(kind, "storage") then return Gear.fitStorage(character, kit, vehicle, partId) end
     return false, "kit"
 end
 
@@ -502,19 +633,31 @@ end
 
 -- ---- texts about fitted kits ----------------------------------------------------------------------------------
 
--- The lines about a bag's fitted kits (for its tooltip), or nil when it has none.
-function Gear.bagLines(bag)
-    local info = Gear.bagInfo(bag)
+-- The lines about an item's kits (for its tooltip), or nil when it has none and is no team item.
+function Gear.itemLines(item)
+    local info = Gear.itemInfo(item)
     if not info then return nil end
     local lines = {}
-    if info.capacity > 0 and info.total then
-        lines[#lines + 1] = getText("Tooltip_OA_Gear_BagCapacity", tostring(info.capacity), tostring(info.total))
+    local function add(key, ...) lines[#lines + 1] = getText(key, ...) end
+    if info.target == "bag" then
+        if info.capacity > 0 and info.total then add("Tooltip_OA_Gear_BagCapacity", tostring(info.capacity), tostring(info.total)) end
+        if info.weight > 0 and info.reduction then
+            add("Tooltip_OA_Gear_BagWeight", tostring(info.weight), tostring(info.reduction) .. "%")
+        end
+        if info.cut then add("Tooltip_OA_Gear_BagCut", tostring(info.limit)) end
+        return #lines > 0 and lines or nil
     end
-    if info.weight > 0 and info.reduction then
-        lines[#lines + 1] = getText("Tooltip_OA_Gear_BagWeight", tostring(info.weight), tostring(info.reduction) .. "%")
+    if info.target == "welder" then add("Tooltip_OA_Gear_WelderUses", tostring(info.uses)) end
+    if info.capacity > 0 then
+        if info.target == "can" then
+            add("Tooltip_OA_Gear_CanKits", tostring(info.capacity), tostring(info.litres))
+        else
+            add("Tooltip_OA_Gear_UsesKits", tostring(info.capacity))
+        end
     end
-    if info.cut then lines[#lines + 1] = getText("Tooltip_OA_Gear_BagCut", tostring(info.limit)) end
-    return lines
+    if info.weight > 0 then add("Tooltip_OA_Gear_LightKits", tostring(info.weight), tostring(OA.round(info.share * 100)) .. "%") end
+    if info.tough > 0 then add("Tooltip_OA_Gear_ToughKits", tostring(info.tough), tostring(info.condition)) end
+    return #lines > 0 and lines or nil
 end
 
 -- The lines about a storage part's fitted kits, or nil.
@@ -538,7 +681,7 @@ end
 
 -- Redeems a kit voucher: the voucher is used up and the character gets one kit of the kind. The kit is not bought:
 -- the shop does not count it, so the price of the next kit of the kind does not rise (NUMBERS 7). Fitting it counts
--- on the bag or the vehicle like any kit. Returns true, or false and the reason.
+-- on its target like any kit. Returns true, or false and the reason.
 function Gear.redeem(character, voucher, kind)
     if not voucher or voucher:getFullType() ~= Gear.VOUCHER then return false, "voucher" end
     local fullType = Rules.kitType(kind)

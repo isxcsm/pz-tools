@@ -100,9 +100,13 @@ python tools/check_translations.py                          # 번역 키, 샌드
 
 아이템과 오브젝트 modData 키는 모두 `OA_`로 시작한다: `OA_Bought`(상점에서 산 물건, 납품 거부), `OA_Cell`(나온 셀,
 새 지역 웃돈), `OA_Mission`(임무 ID), `OA_Box`(상자 ID), `OA_Issued`(혈청 발급 시각), `OA_Owner`(발급받은 기록 ID).
-개조 키트(P6)는 대상 없이 사고, 어느 가방이나 차에든 붙는다. 상점은 종류별로 산 수를 센다(기록의 상점 섹션 `kits`).
-가방 아이템 `OA_KitCap`, `OA_KitWeight`, `OA_KitBaseCap`, `OA_KitBaseRed`, `OA_KitRaw`; 차량 보관함 부품(좌석이 아닌, 짐을 담는 부품) `OA_KitStorage`, `OA_KitBase`,
-`OA_KitRaw`; 엔진 부품 `OA_KitEngine`, `OA_KitPower`, `OA_KitLoud`. 확장 API가 읽는 `OA_Capacity`는 키트가 쓸 때 숫자다 (원래 용량에 더할 양).
+개조 키트(P6)는 개선 축마다 하나(확장, 경량, 보강, 엔진)이고, 대상 없이 사서 맞는 물건이나 차에 단다. 상점은 종류별로 산
+수를 센다(기록의 상점 섹션 `kits`). 단 개수는 대상에 적는다: 아이템 `OA_KitCap`(확장), `OA_KitWeight`(경량), `OA_KitTough`(보강);
+가방은 `OA_KitBaseCap`, `OA_KitBaseRed`, `OA_KitRaw`, `OA_KitBag`(키트를 마지막으로 쓴 아이템 ID: 허리 가방을 돌려 차면 새 아이템이다),
+기름통은 `OA_KitBaseCap`(원래 L); 차량 보관함 부품(좌석이 아닌, 짐을 담는 부품) `OA_KitCap`, `OA_KitBase`, `OA_KitRaw`; 엔진 부품
+`OA_KitEngine`, `OA_KitPower`, `OA_KitLoud`. 연구팀 용접 토치는 바닐라 `Base.BlowTorch`에 `OA_Team = true`를 붙인 것이다.
+확장 API가 읽는 키: `OA_Capacity`(원래 용량에 더할 양), `OA_Carry`(아이템 자체의 운반 효율, 경량 키트), `OA_Uses`(사용량 배율, 용접
+토치). 셋 다 키트가 쓸 때만 숫자다.
 
 ## 5. 작업 묶음
 
@@ -113,7 +117,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
 | P3 강화와 몸 | 트리 셋과 2차 판의 데이터, 점과 혈청, 연구 승인, 캡스톤, 초기화, 트리 화면, Lua로 되는 노드 효과, API 노드의 선언(API가 있을 때만), 감염 약과 검사(치료 혈청의 유통 기한과 본인만, 지연제 7일·1일의 멈춤, 역전제, 검사 키트, 새 좀비 상처 감지, 수수료 상태, 무들 `억제 중`·`검사 전`, 투여 뒤 적응과 무들 `적응 중`, 연구 계획·트리 메모 문서, 연구 탭의 승인 도장, 여섯 노드의 첫 효과) | `*/OperationAcorn/Upgrades/*.lua`, `scripts/OA_upgrades.txt` |
 | P4 임무와 이야기 | 임무(장소 고르기, 아이템 넣기, 지도 원, 기한), 이야기 임무와 데드 드롭, 수신함, 무전 문구, 명세서 비고, 환각, 전용 주파수, 운석 낙하지(정하기, 실물 놓기, 파편), 이관 | `*/OperationAcorn/Story/*.lua`, `scripts/OA_story.txt` |
 | P5 아지트 기계 | 분해대, 대량 분해기, 재단기, 프로판·오일 정제기, 목재 절단기, 연구팀 보관함, 대형 빗물 저장소, 설치형 미끼, 기계 부품(달고 떼기, 닳기), 따라잡기 처리, 시료 묶음 | `*/OperationAcorn/Machines/*.lua`, `scripts/OA_machines.txt` |
-| P6 장비와 키트 | 연구팀 배낭, 개조 키트 넷(타이밍 액션으로 달기, 교환권), 개량 장비(Mk) | `*/OperationAcorn/Gear/*.lua`, `scripts/OA_gear.txt` |
+| P6 장비와 키트 | 연구팀 배낭·허리 가방·기름통·용접 토치·용접 마스크, 야전 공구, 개조 키트 넷(타이밍 액션으로 달기, 교환권) | `*/OperationAcorn/Gear/*.lua`, `scripts/OA_gear.txt`, `scripts/OA_field_tools.txt` |
 | P7 확장 API | pz-tools 쪽 훅 (FEASIBILITY 4장) | pz-tools 저장소 |
 | P8 에셋 | 타일 두 장, 아이템 아이콘, 배낭 메시 | `tools/tile_art.py`, `42/media/texturepacks`, `*.tiles`, `textures/` |
 
@@ -278,7 +282,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
 아이템 이름과 아이콘 이름이 달라도 된다 (기계 아이템은 `Icon = OA_Cutter`처럼 아이콘 이름을 직접 적는다: FabricCutter→`Cutter`, PropaneRefinery→`PropaneRefiner`, OilRefinery→`OilRefiner`, LogSaw→`WoodSaw`, TeamLocker→`ResearchStorage`, RainCistern→`RainStorage`, BaitTrap→`Lure`). 모든 `scripts/OA_*.txt`의 `Icon=`이 PNG로 풀리는지는 시험 때 확인한다. 아이콘 이름이 바뀌면 거기 첫 열을 고치고 `python tools/icon_art.py`를 다시 돌린다 (옛 PNG는 지워진다). 지금 이름:
 `CommTerminal`, `DeliveryBox`, `SupplyCrate`, `TerminalManual`, `SupplyManifest`, `SampleBundle`, `MeteorFragment`, `UpgradeSerumScout`, `UpgradeSerumLoad`,
 `UpgradeSerumSurvival`, `UpgradeSerumShared`, `CureSerum`, `DelayDrug`, `DelayDrugLong`, `InfectionReversal`, `InfectionTestKit`, `ShredBench`, `BulkShredder`, `Cutter`, `PropaneRefiner`, `OilRefiner`, `WoodSaw`,
-`ResearchStorage`, `RainStorage`, `Lure`, `BagCapacityKit`, `BagWeightKit`, `TrunkKit`, `EngineTuningKit`, `ResearchBackpack`, `FuelCanMk1`~`3`, `WeldingTorchMk1`~`3`,
+`ResearchStorage`, `RainStorage`, `Lure`, `CapacityKit`, `LighteningKit`, `ReinforcementKit`, `EngineTuningKit`, `ResearchBackpack`, `ResearchWaistBag`, `TeamFuelCan`, `TeamWeldingMask`, 야전 공구 마흔다섯 가지 `Field<도구>`,
 `MissionItem`, `DocumentItem`, 이야기 묶음의 서른한 가지 `MissionEnvelope`, `MissionSampleTin`, `MissionLogbook`, `MissionFilterCase`, `MissionTape`, `MissionFabricRoll`, `MissionHeavyCase`, `EvidenceEnvelope`, `ClinicRecord`, `WeatherLog`, `FarmJournal`, `SampleCooler`, `RosterPage`, `ReviewMemo`, `WardRecord`, `CellLog`, `SoilSample`, `StakeTag`, `RosterLostPage`, `FilterBundle`, `PharmacyLedger`, `CopyOriginal`, `SampleCase`, `DeadDropCase`, `FieldCallDevice`, `AnalysisReply`, `Appendix`, `SerumSheet`, `UnresolvedList`, `HandoverFile`, `KitVoucher` (`tools/icon_story.py`). 기계 부품 `Motor`, `ShredderBlade`, `CuttingBlade`, `SawBlade`, `Catalyst`, `SoundproofCover`는 등급을 색으로 구분한 세 그림이 있다:
 `<부품>Old`(녹슨 갈색), `<부품>Normal`(강철 회색), `<부품>Modern`(아노다이징 파랑). 등급 접미사 없는 `<부품>`은 보통 등급 그림이다.
 강화 혈청은 트리 색(정찰 청록, 하중 호박, 생존 초록, 공용 보라)이다.
@@ -317,5 +321,13 @@ component FluidContainer { ContainerName = OA_WaterStorage, Capacity = 1.8, ... 
 연구팀 용접 마스크는 바닐라 마스크의 모델을 그대로 쓰고 텍스처만 팀 색으로 바꾼다: 옷 항목 `OA_Hat_TeamWelderMask`
 (`media/clothing/clothingItems/OA_Hat_TeamWelderMask.xml`, GUID는 `media/fileGuidTable.xml`), 텍스처
 `textures/Clothes/Hat/OA_TeamWelderMask.png`(바닐라 `WelderMask.png`의 회색을 올리브로, 주황 렌즈를 짙은 녹색으로).
-경량 도구는 바닐라 모델을 쓰고 아이콘만 따로 있다 (바닐라 아이콘의 색 있는 부분을 올리브로 칠하고 빈 모서리에 팀 표식).
 둘 다 `python tools/vanilla_art.py`(텍스처와 옷 항목)와 `tools/icon_art.py`(아이콘, `vanilla_art.team_icon`)가 만든다.
+
+**야전 공구:** `scripts/OA_field_tools.txt`는 `python tools/field_tools.py`가 바닐라 스크립트에서 만든다 (`--check`는 검사만).
+무게 ×0.85, 최대 내구도 ×1.2 말고는 바닐라 항목을 그대로 옮긴다. 손잡이에 색이 있는 도구는 바닐라 모델에 올리브로 칠한 텍스처
+(`textures/OA_FieldTools/`, 모델 `OA_Field<도구>`)를 쓰고, 금속뿐인 도구는 바닐라 모델을 그대로 쓴다. 아이콘은 바닐라 아이콘의 색
+있는 부분을 올리브로 칠하고 빈 모서리에 팀 표식을 단 것이다.
+
+**연구팀 기름통:** 메시는 `python tools/fuelcan_mesh.py`가 만든다 (`OA_TeamFuelCan`, `.x`/`.fbx`, 텍스처 512, 정의는
+`scripts/OA_fuelcan_models.txt`). **연구팀 허리 가방:** `python tools/waistbag_mesh.py` (옷 항목 `OA_Bag_ResearchWaistFront/Back`,
+바닥 모델 `OA_ResearchWaist_Ground`, 정의는 `scripts/OA_waistbag_models.txt`).

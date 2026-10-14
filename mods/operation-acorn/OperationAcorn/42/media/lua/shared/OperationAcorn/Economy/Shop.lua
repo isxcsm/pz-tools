@@ -5,7 +5,8 @@
 -- An entry: { id, group, tier, price (the base), give = { { type, count, full, fluid, empty } ... } or
 -- choices = { { type, count ... } ... } (the player picks one), week = purchases a week (nil: none), special =
 -- "cure" | "reversal" | "test" | "delay" (with days) | "serum" | "reissue" | nil, fixed = true (no shop
--- multiplier, no discount), allowDebt, kits = true (only with KitsForSale) }.
+-- multiplier, no discount), allowDebt, kits = true (only with KitsForSale), item (the item it is named after),
+-- descKey (a description shared with other entries) }. A give may carry `mod`, `used` and `name` (Trade.dropSpec).
 -- tier is stage + milestones (Trust.tier): 0 the start, 1..5 stages, 6 the first milestone.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
@@ -28,10 +29,11 @@ Shop.TYPES = {
     oilRefinery = "OperationAcorn.OilRefinery", logSaw = "OperationAcorn.LogSaw",
     locker = "OperationAcorn.TeamLocker", crate = "OperationAcorn.ResearchCrate", cistern = "OperationAcorn.RainCistern",
     bait = "OperationAcorn.BaitTrap",
-    backpack = "OperationAcorn.TeamBackpack", weldingMask = "OperationAcorn.TeamWeldingMask",
-    fuelMk1 = "OperationAcorn.FuelCanMk1", fuelMk2 = "OperationAcorn.FuelCanMk2", fuelMk3 = "OperationAcorn.FuelCanMk3",
-    kitBagCapacity = "OperationAcorn.KitBagCapacity", kitBagWeight = "OperationAcorn.KitBagWeight",
-    kitStorage = "OperationAcorn.KitStorage", kitEngine = "OperationAcorn.KitEngine",
+    backpack = "OperationAcorn.TeamBackpack", waistBag = "OperationAcorn.TeamWaistBagFront",
+    waistBagBack = "OperationAcorn.TeamWaistBagBack", fuelCan = "OperationAcorn.TeamFuelCan",
+    weldingMask = "OperationAcorn.TeamWeldingMask", welder = "Base.BlowTorch",
+    kitCapacity = "OperationAcorn.KitCapacity", kitLightening = "OperationAcorn.KitLightening",
+    kitReinforcement = "OperationAcorn.KitReinforcement", kitEngine = "OperationAcorn.KitEngine",
     motorNormal = "OperationAcorn.MotorNormal", motorModern = "OperationAcorn.MotorModern",
     shredBladeNormal = "OperationAcorn.ShredBladeNormal", shredBladeModern = "OperationAcorn.ShredBladeModern",
     cutBladeNormal = "OperationAcorn.CutBladeNormal", cutBladeModern = "OperationAcorn.CutBladeModern",
@@ -41,32 +43,52 @@ Shop.TYPES = {
     fieldTerminal = "OperationAcorn.FieldTerminal",
 }
 
--- The light tools (half the vanilla tool's weight): id, the tool, tier, price. The dearer the more a run carries it.
-Shop.LIGHT_TOOLS = {
-    { "light_screwdriver", "Screwdriver", 2, 20000 },
-    { "light_hammer", "Hammer", 2, 30000 },
-    { "light_saw", "Saw", 2, 30000 },
-    { "light_wrench", "Wrench", 2, 25000 },
-    { "light_lug_wrench", "LugWrench", 2, 25000 },
-    { "light_crowbar", "Crowbar", 3, 35000 },
-    { "light_shovel", "Shovel", 3, 35000 },
-    { "light_wood_axe", "WoodAxe", 3, 45000 },
-    { "light_pickaxe", "PickAxe", 3, 45000 },
-    { "light_sledgehammer", "Sledgehammer", 4, 60000 },
+-- The field tools (scripts/OA_field_tools.txt, made by tools/field_tools.py: the vanilla tool of the name, a little
+-- lighter and longer lasting): the tool, tier, price, in the shop's order (that tool's list). The common hand tools open
+-- first; the metalworking ones, the heavy ones and the big blades later, the dearer the more a run carries them.
+Shop.FIELD_TOOLS = {
+    { "Hammer", 1, 15000 }, { "BallPeenHammer", 2, 15000 }, { "ClubHammer", 2, 18000 }, { "WoodenMallet", 2, 12000 },
+    { "Saw", 1, 15000 }, { "GardenSaw", 2, 16000 }, { "SmallSaw", 2, 14000 }, { "CarpentryChisel", 2, 14000 },
+    { "HandDrill", 2, 20000 },
+    { "SmithingHammer", 3, 20000 }, { "Tongs", 3, 16000 }, { "MetalworkingPliers", 3, 16000 },
+    { "MetalworkingPunch", 3, 16000 }, { "MetalworkingChisel", 3, 16000 }, { "File", 3, 14000 },
+    { "SmallFileSet", 3, 18000 }, { "SheetMetalSnips", 3, 18000 }, { "ViseGrips", 3, 16000 },
+    { "HeadingTool", 3, 16000 }, { "SmallPunchSet", 3, 18000 },
+    { "MasonsTrowel", 2, 12000 }, { "MasonsChisel", 2, 14000 }, { "PlasterTrowel", 2, 12000 },
+    { "Screwdriver", 1, 12000 }, { "Wrench", 1, 14000 }, { "Ratchet", 2, 16000 }, { "PipeWrench", 2, 18000 },
+    { "LugWrench", 1, 14000 }, { "Pliers", 1, 12000 },
+    { "Crowbar", 2, 22000 }, { "BoltCutters", 3, 28000 }, { "Sledgehammer", 4, 35000 },
+    { "WoodAxe", 3, 28000 }, { "Axe", 3, 28000 }, { "HandAxe", 2, 20000 }, { "Shovel", 2, 20000 },
+    { "HandShovel", 2, 12000 }, { "PickAxe", 3, 28000 }, { "GardenHoe", 2, 18000 }, { "GardenFork", 2, 18000 },
+    { "Scythe", 2, 22000 }, { "HandScythe", 2, 14000 },
+    { "Scissors", 1, 10000 }, { "Awl", 1, 10000 }, { "Whetstone", 1, 10000 },
 }
+
+-- A field tool's item type and shop id.
+function Shop.fieldType(tool)
+    return "OperationAcorn.Field" .. tool
+end
+
+function Shop.fieldId(tool)
+    return "field_" .. string.lower(tool)
+end
 
 -- Upgrade serum trees. The ids are the names the upgrades part uses.
 Shop.TREES = { "scout", "load", "survival" }
 local SERUM_TYPE = { scout = "serumScout", load = "serumLoad", survival = "serumSurvival" }
 
--- Kit kinds and their prices (each kit the same, however many are bought).
+-- Kit kinds, one per thing they improve (Gear/Rules.lua), and their prices (each kit the same, however many are bought).
 Shop.KITS = {
-    bagCapacity = { price = 40000, type = "kitBagCapacity" },
-    bagWeight = { price = 50000, type = "kitBagWeight" },
-    storage = { price = 60000, type = "kitStorage" },
+    capacity = { price = 50000, type = "kitCapacity" },
+    lightening = { price = 50000, type = "kitLightening" },
+    reinforcement = { price = 40000, type = "kitReinforcement" },
     engine = { price = 80000, type = "kitEngine" },
 }
-Shop.KIT_ORDER = { "bagCapacity", "bagWeight", "storage", "engine" }
+Shop.KIT_ORDER = { "capacity", "lightening", "reinforcement", "engine" }
+
+-- The team's welder: the vanilla blowtorch with the team's mark and its uses (Gear/Rules.lua: USES and USES_BASE, which
+-- the extension API reads), filled to them, named as the team's. The kits find it by the mark.
+Shop.WELDER = { type = "Base.BlowTorch", mod = { OA_Team = true, OA_Uses = 1.2 }, used = 1, name = "IGUI_OA_Gear_TeamWelder" }
 
 Shop.SERUM_LINEAR_FROM = 26       -- the 26th serum of a tree costs 8000 * 1.15^25; after it the price is linear
 Shop.SERUM_LINEAR_STEP = 30000    -- per serum after the 26th, at the default base price
@@ -143,6 +165,9 @@ local function build()
     -- Gear.
     -- The backpack's water storage is built in (its two canteens are part of the pack), so no canteens come with it.
     add({ id = "team_backpack", group = "gear", tier = 5, price = 300000, give = { give("backpack") } })
+    add({ id = "team_waist_bag", group = "gear", tier = 3, price = 90000, give = { give("waistBag") } })
+    add({ id = "team_fuel_can", group = "gear", tier = 2, price = 20000, give = { give("fuelCan", 1, { empty = true }) } })
+    add({ id = "team_welder", group = "gear", tier = 3, price = 35000, give = { Shop.WELDER } })
     add({ id = "team_welding_mask", group = "gear", tier = 3, price = 40000, give = { give("weldingMask") } })
     -- Machines.
     add({ id = "shred_bench", group = "machine", tier = 0, price = 5000, give = { give("shredBench") } })
@@ -157,9 +182,11 @@ local function build()
     add({ id = "bulk_shredder", group = "machine", tier = 3, price = 150000, give = { give("bulkShredder") } })
     add({ id = "propane_refinery", group = "machine", tier = 3, price = 200000, give = { give("propaneRefinery") } })
     add({ id = "oil_refinery", group = "machine", tier = 4, price = 250000, give = { give("oilRefinery") } })
-    -- The light tools, after the machines: the catalog's order is the news board's, which names the first few.
-    for _, t in ipairs(Shop.LIGHT_TOOLS) do
-        add({ id = t[1], group = "gear", tier = t[3], price = t[4], give = { give("OperationAcorn.Light" .. t[2]) } })
+    -- The field tools, after the machines: the catalog's order is the news board's, which names the first few. Named
+    -- as their items are; one description for all.
+    for _, t in ipairs(Shop.FIELD_TOOLS) do
+        add({ id = Shop.fieldId(t[1]), group = "tool", tier = t[2], price = t[3], item = Shop.fieldType(t[1]),
+            descKey = "IGUI_OA_Terminal_Shop_Desc_field_tool", give = { give(Shop.fieldType(t[1])) } })
     end
     -- The delivery box.
     add({ id = "box_reissue", group = "box", tier = 0, price = 10000, special = "reissue", fixed = true, allowDebt = true,
@@ -180,10 +207,6 @@ local function build()
     part("filter_normal", 3, 20000, "filterNormal")
     part("filter_modern", 5, 50000, "filterModern")
     part("soundproof_cover", 3, 30000, "muffler")
-    -- Improved gear (Mk): each step is bought on its own, empty.
-    add({ id = "fuelcan_mk1", group = "mk", tier = 2, price = 20000, give = { give("fuelMk1", 1, { empty = true }) } })
-    add({ id = "fuelcan_mk2", group = "mk", tier = 4, price = 45000, give = { give("fuelMk2", 1, { empty = true }) } })
-    add({ id = "fuelcan_mk3", group = "mk", tier = 5, price = 90000, give = { give("fuelMk3", 1, { empty = true }) } })
     -- Modification kits (the first milestone, KitsForSale).
     for _, kind in ipairs(Shop.KIT_ORDER) do
         local k = Shop.KITS[kind]
@@ -241,9 +264,20 @@ function Shop.entry(id)
     return nil
 end
 
--- The translation keys of an entry's name and of a group's.
+-- The translation keys of an entry's name and of a group's. An entry that sells one item under that item's name
+-- (`item`: the field tools) has no key of its own: Shop.name gives its name.
 function Shop.nameKey(entry)
     return "IGUI_OA_Econ_Shop_Item_" .. entry.id
+end
+
+function Shop.name(entry)
+    if entry.item and getItemNameFromFullType then return getItemNameFromFullType(entry.item) end
+    return getText(Shop.nameKey(entry))
+end
+
+-- The translation key of an entry's description in the shop.
+function Shop.descKey(entry)
+    return entry.descKey or ("IGUI_OA_Terminal_Shop_Desc_" .. entry.id)
 end
 
 function Shop.groupKey(group)

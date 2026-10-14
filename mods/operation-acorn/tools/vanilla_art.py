@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The team's versions of vanilla gear, drawn from the game's own pictures: the welding mask (the vanilla mask's
-texture in the team's olive, its amber lens a dark green auto-darkening one) and the light tools (the vanilla icon with
-the team's olive on its coloured parts, and the team's mark). Vanilla files are read from the game install (PZ_DIR, default the Steam folder) and never copied
+texture in the team's olive, its amber lens a dark green auto-darkening one) and the field tools (the vanilla icon with
+the team's olive on its coloured parts, and the team's mark; their textures are tools/field_tools.py's). Vanilla files are read from the game install (PZ_DIR, default the Steam folder) and never copied
 as they are: what is written is always changed.
 
     python tools/vanilla_art.py           writes the welding mask's texture and clothing item (and registers it)
@@ -147,12 +147,19 @@ def team_recolour(img):
     return _image(a, out)
 
 
-def team_paint(img):
+def team_paint(img, flatten=1.0):
     """A tool in the team's colours: its painted or wooden parts (the coloured ones: a handle, a saw's frame, a
-    crowbar) the olive at their own lightness; the bare metal and black stay."""
+    crowbar) the olive at their own lightness; the bare metal and black stay. `flatten` below 1 draws the lightness of
+    those parts that much nearer their mean: the paint over a wooden handle hides most of its grain (a model's texture;
+    an icon keeps its drawn shading)."""
     a, light, sat, hue = _hsl(img)
     out = a[..., :3].copy()
-    _olive(out, (sat > 0.22) & (light > 0.08) & (light < 0.92), light)
+    where = (sat > 0.22) & (light > 0.08) & (light < 0.92)
+    seen = where & (a[..., 3] > 0.5)
+    if flatten != 1.0 and seen.any():
+        mean = light[seen].mean()
+        light = np.where(where, mean + (light - mean) * flatten, light)
+    _olive(out, where, light)
     return _image(a, out)
 
 
@@ -183,11 +190,15 @@ def team_badge(img, corner=(0, 1)):
     return img
 
 
-def team_icon(item_type, mask=False):
+def team_icon(item_type, mask=False, paint=True):
     """The 32 px team icon of a vanilla item and its 64 px copy (the vanilla icon doubled pixel for pixel, the mark
-    drawn at 64): (icon, {64: copy}). The item is in the team's colours (team_paint; the welding mask team_recolour)
-    and marked in its emptiest corner."""
-    base = team_recolour(vanilla_icon(item_type)) if mask else team_paint(vanilla_icon(item_type))
+    drawn at 64): (icon, {64: copy}). The item is in the team's colours (team_paint, or not when its model keeps the
+    vanilla look; the welding mask team_recolour) and marked in its emptiest corner."""
+    base = vanilla_icon(item_type)
+    if mask:
+        base = team_recolour(base)
+    elif paint:
+        base = team_paint(base)
     corner = emptiest_corner(base)
     return team_badge(base, corner), {64: team_badge(base.resize((64, 64), Image.NEAREST), corner)}
 

@@ -1,6 +1,6 @@
--- Gear on the game side, with fake game objects: fitting each kind of kit with and without the extension API, the count
--- and the effect staying in step, the voucher, the server command. The fakes
--- mimic only what Gear.lua calls.
+-- Gear on the game side, with fake game objects: fitting each kind of kit to each thing it fits, with and without the
+-- extension API, the count and the effect staying in step, the voucher, the server command, the menus. The fakes mimic
+-- only what Gear.lua calls.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Sync"
@@ -12,7 +12,7 @@ local OA = OperationAcorn
 local Gear = OA.Gear
 local Rules = Gear.Rules
 -- the game's body locations a bag is worn at (registry objects in the game; any distinct values do here)
-ItemBodyLocation = ItemBodyLocation or { BACK = "back", FANNY_PACK_FRONT = "fannypackfront" }
+ItemBodyLocation = ItemBodyLocation or { BACK = "back", FANNY_PACK_FRONT = "fannypackfront", FANNY_PACK_BACK = "fannypackback" }
 local K = Rules.KEY
 
 -- ---------------------------------------------------------------------------------------------------------------------
@@ -59,12 +59,20 @@ local function newInventory()
     return inv
 end
 
+-- An item. opts: weight, capacity (a bag), reduction, slot, noSlot, name, litres (a fluid container), condition (its
+-- most, the script's), head (a head's condition), uses (a drainable's, with no key).
 local function newItem(fullType, opts)
     opts = opts or {}
     nextId = nextId + 1
     local item = { id = nextId, fullType = fullType, weight = opts.weight or 0.5, bag = opts.capacity ~= nil,
         slot = opts.slot or (opts.capacity ~= nil and ItemBodyLocation.BACK or nil),
-        reduction = opts.reduction or 0, inner = { capacity = opts.capacity or 0 }, synced = 0 }
+        reduction = opts.reduction or 0, inner = { capacity = opts.capacity or 0 }, synced = 0, poked = 0,
+        conditionMax = opts.condition or 10, head = opts.head }
+    item.condition = item.conditionMax
+    local script = { weight = item.weight, conditionMax = item.conditionMax }
+    function script:getActualWeight() return self.weight end
+    function script:getConditionMax() return self.conditionMax end
+    function item:getScriptItem() return script end
     function item:getID() return self.id end
     function item:getFullType() return self.fullType end
     function item:getType() return (string.match(self.fullType, "%.(.+)$")) end
@@ -77,6 +85,10 @@ local function newItem(fullType, opts)
     end
     function item:getContainer() return self.container end
     function item:getActualWeight() return self.weight end
+    function item:setActualWeight(w)
+        self.weight = w
+        self.poked = self.poked + 1
+    end
     function item:IsInventoryContainer() return self.bag end
     function item:canBeEquipped() return self.slot end
     if opts.noSlot then item.slot = nil end
@@ -86,6 +98,22 @@ local function newItem(fullType, opts)
     function item:setWeightReduction(n) self.reduction = math.max(0, math.min(100, n)) end
     function item:syncItemFields() self.synced = self.synced + 1 end
     item.inner.getCapacity = function(c) return c.capacity end
+    if opts.litres then
+        local fluid = { capacity = opts.litres }
+        function fluid:getCapacity() return self.capacity end
+        function fluid:setCapacity(n) self.capacity = n end
+        item.fluid = fluid
+    end
+    function item:getFluidContainer() return self.fluid end
+    function item:getConditionMax() return self.conditionMax end
+    function item:setConditionMax(n) self.conditionMax = n end
+    function item:getCondition() return self.condition end
+    function item:setCondition(n) self.condition = math.min(n, self.conditionMax) end
+    function item:hasHeadCondition() return self.head ~= nil end
+    function item:getHeadCondition() return self.head end
+    function item:setHeadCondition(n) self.head = math.min(n, self.conditionMax) end
+    -- the API divides the use delta by the key's number
+    function item:getMaxUses() return math.floor((opts.uses or 10) * (self.md and self.md[OA.Gear.Rules.KEY.USES] or 1) + 0.5) end
     return item
 end
 
@@ -158,21 +186,28 @@ local function listen()
     OA.Sync.listen("notice", function(playerId, detail) notices[#notices + 1] = detail end)
 end
 
--- The API: declared points and their status. `applied` is whether it applies the capacity key.
-local function setApi(applied)
+-- The API: declared points and their status. `applied` is whether its hooks went in (every point), `points` the
+-- points that did when only some did; `weights` what formulas.weight answers per item.
+local function setApi(applied, points)
     local status = {}
     local api = { version = OA.API_VERSION, sets = {} }
     function api.client() return { name = OA.MOD } end
+    for _, name in ipairs(points or { "capacity.modDataKey", "carry.efficiencyKey", "uses.modDataKey", "craft.carryKeys" }) do
+        if applied then status[name] = "applied" end
+    end
     api.formulas = {
-        set = function(handle, name, value)
-            api.sets[#api.sets + 1] = { name = name, value = value }
-            if applied then status[name] = "applied" end
-        end,
+        set = function(handle, name, value) api.sets[#api.sets + 1] = { name = name, value = value } end,
         points = function() return status end,
+        weight = function(item) return item.weight / (1 + (item.md and item.md.OA_Carry or 0)) end,
     }
     PZExtAPI = api
     TEST.hours = (TEST.hours or 0) + 1      -- the answer is kept for a few minutes of game time
     return api
+end
+
+local function declaredValue(api, point)
+    for _, s in ipairs(api.sets) do if s.name == point then return s.value end end
+    return nil
 end
 
 local function noApi()
@@ -209,15 +244,15 @@ end
 -- ---------------------------------------------------------------------------------------------------------------------
 -- Bags
 
-test("a capacity kit without the API goes into the bag's capacity and is counted on the bag", function()
+test("an expansion kit without the API goes into the bag's capacity and is counted on the bag", function()
     setup()
     local player, bag = bagFixture("Base.Bag_ALICEpack", 28, 85)
-    local kit = kitOf(player, "bagCapacity")
-    local ok, value = Gear.fitBag(player, kit, bag)
+    local kit = kitOf(player, "capacity")
+    local ok, value = Gear.fitItem(player, kit, bag)
     truthy(ok)
-    eq(value, 31)
+    eq(value, "31")
     eq(bag.inner.capacity, 31)
-    eq(bag.md[K.BAG_CAP], 1)
+    eq(bag.md[K.KIT_CAP], 1)
     eq(bag.md[K.BAG_BASE_CAP], 28)
     eq(bag.md[K.CAPACITY], nil, "no API: nothing for it to add")
     eq(kit.container, nil, "the kit is used up")
@@ -231,60 +266,58 @@ test("kits stack on one bag: the count rises, the value comes from the original"
     setup()
     local player, bag = bagFixture("Base.Bag_ALICEpack", 28, 85)
     for n = 1, 4 do
-        local ok = Gear.fitBag(player, kitOf(player, "bagCapacity"), bag)
-        truthy(ok)
-        eq(bag.md[K.BAG_CAP], n)
+        truthy(Gear.fitItem(player, kitOf(player, "capacity"), bag))
+        eq(bag.md[K.KIT_CAP], n)
         eq(bag.inner.capacity, Rules.capacity(28, n))
     end
     eq(bag.md[K.BAG_BASE_CAP], 28, "the original is kept from the first kit")
 end)
 
-test("a weight kit lifts the bag's weight reduction toward 95", function()
+test("a lightening kit lifts the bag's weight reduction toward 95", function()
     setup()
     local player, bag = bagFixture("Base.Bag_ALICEpack", 28, 85)
-    truthy(Gear.fitBag(player, kitOf(player, "bagWeight"), bag))
+    truthy(Gear.fitItem(player, kitOf(player, "lightening"), bag))
     eq(bag.reduction, 87)
-    truthy(Gear.fitBag(player, kitOf(player, "bagWeight"), bag))
+    truthy(Gear.fitItem(player, kitOf(player, "lightening"), bag))
     eq(bag.reduction, 89)            -- 88.6
-    eq(bag.md[K.BAG_WEIGHT], 2)
-    eq(bag.inner.capacity, 28, "the capacity is not touched by a weight kit")
+    eq(bag.md[K.KIT_LIGHT], 2)
+    eq(bag.inner.capacity, 28, "the capacity is not touched by a lightening kit")
+    eq(bag.weight, 2, "a bag is lightened by its reduction, not its own weight")
     eq(notices[2].args[2], "89%")
 end)
 
 test("without the API the game's limit cuts the capacity and the count still goes up", function()
     setup()
     local player, bag = bagFixture("OperationAcorn.TeamBackpack", 35, 85, 2)
-    for _ = 1, 5 do truthy(Gear.fitBag(player, kitOf(player, "bagCapacity"), bag)) end
-    eq(bag.md[K.BAG_CAP], 5)
+    for _ = 1, 5 do truthy(Gear.fitItem(player, kitOf(player, "capacity"), bag)) end
+    eq(bag.md[K.KIT_CAP], 5)
     eq(bag.inner.capacity, 48, "50 less the bag's own weight of 2")
-    local info = Gear.bagInfo(bag)
+    local info = Gear.itemInfo(bag)
     eq(info.total, 53)
     eq(info.limit, 48)
     eq(info.cut, true)
-    local lines = Gear.bagLines(bag)
+    local lines = Gear.itemLines(bag)
     eq(#lines, 2)
     truthy(string.find(lines[2], "Tooltip_OA_Gear_BagCut", 1, true), "the tooltip says what the limit is")
 end)
 
 test("with the API the original stays and OA_Capacity adds the kits, past the limit", function()
     setup()
-    setApi(true)
+    local api = setApi(true)
     local player, bag = bagFixture("OperationAcorn.TeamBackpack", 35, 85, 2)
-    for n = 1, 5 do truthy(Gear.fitBag(player, kitOf(player, "bagCapacity"), bag)) end
+    for _ = 1, 5 do truthy(Gear.fitItem(player, kitOf(player, "capacity"), bag)) end
     eq(bag.inner.capacity, 35, "the raw capacity is the original")
     eq(bag.md[K.CAPACITY], 18, "52.5 rounds to 53, 18 more than 35")
-    eq(Gear.bagInfo(bag).cut, false)
-    eq(#Gear.bagLines(bag), 1, "no word about a limit")
-    local declared = false
-    for _, s in ipairs(PZExtAPI.sets) do if s.name == "capacity.modDataKey" and s.value == "OA_Capacity" then declared = true end end
-    truthy(declared, "the key is declared when the upgrades part has not yet")
+    eq(Gear.itemInfo(bag).cut, false)
+    eq(#Gear.itemLines(bag), 1, "no word about a limit")
+    eq(declaredValue(api, "capacity.modDataKey"), "OA_Capacity", "the key is declared when the upgrades part has not yet")
 end)
 
 test("the key the API reads is the number, never a boolean", function()
     setup()
     setApi(true)
     local player, bag = bagFixture("Base.Bag_ALICEpack", 28, 85)
-    truthy(Gear.fitBag(player, kitOf(player, "bagCapacity"), bag))
+    truthy(Gear.fitItem(player, kitOf(player, "capacity"), bag))
     eq(type(bag.md[K.CAPACITY]), "number")
     eq(bag.md[K.CAPACITY], 3)
 end)
@@ -292,49 +325,209 @@ end)
 test("a bag fitted without the API is written again when the API is there, and back", function()
     setup()
     local player, bag = bagFixture("OperationAcorn.TeamBackpack", 35, 85, 2)
-    for _ = 1, 5 do Gear.fitBag(player, kitOf(player, "bagCapacity"), bag) end
+    for _ = 1, 5 do Gear.fitItem(player, kitOf(player, "capacity"), bag) end
     eq(bag.inner.capacity, 48)
     setApi(true)
-    Gear.refreshBag(bag)
+    Gear.refreshItem(bag)
     eq(bag.inner.capacity, 35)
     eq(bag.md[K.CAPACITY], 18)
-    -- and writing it again changes nothing
-    local synced = bag.synced
-    Gear.refreshBag(bag)
-    eq(bag.inner.capacity, 35)
+    Gear.refreshItem(bag)
+    eq(bag.inner.capacity, 35, "and writing it again changes nothing")
     noApi()
-    Gear.refreshBag(bag)
+    Gear.refreshItem(bag)
     eq(bag.inner.capacity, 48)
     eq(bag.md[K.CAPACITY], nil)
-    eq(bag.md[K.BAG_CAP], 5, "the count was never touched")
+    eq(bag.md[K.KIT_CAP], 5, "the count was never touched")
 end)
 
-test("refreshAll finds fitted bags in the inventory, in bags too", function()
+test("the waist bag takes the kits either way it is worn, and the other side gets them when it is put on", function()
+    setup()
+    local player = newCharacter()
+    local front = newItem("OperationAcorn.TeamWaistBagFront", { capacity = 6, reduction = 85,
+        slot = ItemBodyLocation.FANNY_PACK_FRONT })
+    player.inventory:AddItem(front)
+    eq(Gear.targetOf(front), "bag")
+    truthy(Gear.fitItem(player, kitOf(player, "capacity"), front))
+    truthy(Gear.fitItem(player, kitOf(player, "capacity"), front))
+    truthy(Gear.fitItem(player, kitOf(player, "lightening"), front))
+    eq(front.inner.capacity, 7)
+    eq(front.reduction, 87)
+    -- worn at the back: the game makes the other item, the modData copied, the script's capacity and reduction
+    local back = newItem("OperationAcorn.TeamWaistBagBack", { capacity = 6, reduction = 85,
+        slot = ItemBodyLocation.FANNY_PACK_BACK })
+    back.md = {}
+    for k, v in pairs(front.md) do back.md[k] = v end
+    player.inventory:DoRemoveItem(front)
+    player.inventory:AddItem(back)
+    eq(Gear.targetOf(back), "bag")
+    Gear.refreshItem(back)
+    eq(back.inner.capacity, 7, "the kits are written into the new item though its last raw value is in the copy")
+    eq(back.reduction, 87)
+    eq(back.md[K.BAG_ID], back:getID())
+end)
+
+test("refreshAll finds fitted items in the inventory", function()
     setup()
     local player, bag = bagFixture("Base.Bag_ALICEpack", 28, 85)
-    Gear.fitBag(player, kitOf(player, "bagCapacity"), bag)
-    Gear.fitBag(player, kitOf(player, "bagWeight"), bag)
+    Gear.fitItem(player, kitOf(player, "capacity"), bag)
+    Gear.fitItem(player, kitOf(player, "lightening"), bag)
     bag.inner.capacity = 28
     bag.reduction = 85
-    bag.md[K.RAW] = nil
+    bag.md[K.BAG_ID] = nil
     local plain = newItem("Base.Bag_ALICEpack", { capacity = 28, reduction = 85 })
     player.inventory:AddItem(plain)
-    eq(Gear.refreshAll(player), 1, "only the fitted bag")
+    local tool = newItem("OperationAcorn.FieldHammer", { weight = 1.28 })
+    player.inventory:AddItem(tool)
+    Gear.fitItem(player, kitOf(player, "lightening"), tool)
+    tool.weight = 1.28      -- a game loaded without the API: the weight the game does not save
+    eq(Gear.refreshAll(player), 2, "the fitted bag and the fitted tool")
     eq(bag.inner.capacity, 31)
     eq(bag.reduction, 87)
+    near(tool.weight, 1.28 * Rules.lightness(1), 1e-6)
     eq(plain.md, nil, "a bag without kits gets no modData made for it")
 end)
 
-test("a vehicle kit does not go on a bag, a bag kit not on a vehicle", function()
+test("a kit goes where it fits: bags, a key ring or a fanny pack not, a vehicle kit not on an item", function()
     setup()
     local player, bag = bagFixture("Base.Bag_ALICEpack", 28, 85)
-    eq(select(2, Gear.fitBag(player, kitOf(player, "storage"), bag)), "kit")
+    local ring = newItem("Base.KeyRing", { capacity = 1, noSlot = true })
+    local fanny = newItem("Base.Bag_FannyPackFront", { capacity = 4, slot = ItemBodyLocation.FANNY_PACK_FRONT })
+    local hammer = newItem("Base.Hammer")
+    for _, it in ipairs({ ring, fanny, hammer }) do player.inventory:AddItem(it) end
+    eq(Gear.targetOf(ring), nil)
+    eq(Gear.targetOf(fanny), nil)
+    eq(Gear.targetOf(hammer), nil, "a vanilla tool is not the team's")
+    eq(select(2, Gear.fitItem(player, kitOf(player, "capacity"), ring)), "target")
+    eq(select(2, Gear.fitItem(player, kitOf(player, "reinforcement"), bag)), "target")
+    eq(select(2, Gear.fitItem(player, kitOf(player, "engine"), bag)), "target")
     local vehicle = newVehicle({ parts = { newPart("TruckBed", { container = true, capacity = 100 }), newPart("Engine") } })
-    eq(select(2, Gear.fitStorage(player, kitOf(player, "bagCapacity"), vehicle, "TruckBed")), "kit")
-    eq(select(2, Gear.fitEngine(player, kitOf(player, "storage"), vehicle)), "kit")
-    local notBag = newItem("Base.Hammer")
-    player.inventory:AddItem(notBag)
-    eq(select(2, Gear.fitBag(player, kitOf(player, "bagCapacity"), notBag)), "bag")
+    eq(select(2, Gear.fitStorage(player, kitOf(player, "lightening"), vehicle, "TruckBed")), "kit")
+    eq(select(2, Gear.fitEngine(player, kitOf(player, "capacity"), vehicle)), "kit")
+    eq(select(2, Gear.fitItem(player, kitOf(player, "capacity"), kitOf(player, "capacity"))), "target")
+end)
+
+-- ---------------------------------------------------------------------------------------------------------------------
+-- The team's fuel can, welder and field tools
+
+local function can(player)
+    local c = newItem("OperationAcorn.TeamFuelCan", { weight = 1.6, litres = 12 })
+    player.inventory:AddItem(c)
+    return c
+end
+
+test("the fuel can: an expansion kit adds two litres, from its own capacity", function()
+    setup()
+    local player = newCharacter()
+    local c = can(player)
+    eq(Gear.targetOf(c), "can")
+    local ok, value = Gear.fitItem(player, kitOf(player, "capacity"), c)
+    truthy(ok)
+    eq(value, "14")
+    eq(c.fluid.capacity, 14)
+    truthy(Gear.fitItem(player, kitOf(player, "capacity"), c))
+    eq(c.fluid.capacity, 16)
+    eq(c.md[K.BAG_BASE_CAP], 12)
+    eq(notices[1].key, "IGUI_OA_Gear_Fitted_litres")
+    c.fluid.capacity = 12
+    Gear.refreshItem(c)
+    eq(c.fluid.capacity, 16, "written again from the count")
+    eq(Gear.itemLines(c)[1], "Tooltip_OA_Gear_CanKits 2 16")
+end)
+
+test("a lightening kit: with the API the item's own efficiency, without it its weight", function()
+    setup()
+    local api = setApi(true)
+    local player = newCharacter()
+    local c = can(player)
+    truthy(Gear.fitItem(player, kitOf(player, "lightening"), c))
+    near(c.md[K.CARRY], Rules.efficiency(1), 1e-9)
+    eq(c.weight, 1.6, "the scale's weight stays")
+    truthy(c.poked >= 1, "the item tells the game its weight changed")
+    near(api.formulas.weight(c), 1.6 * Rules.lightness(1), 1e-9)
+    eq(declaredValue(api, "carry.efficiencyKey"), "OA_Carry")
+    eq(notices[1].key, "IGUI_OA_Gear_Fitted_lighter")
+    eq(notices[1].args[2], "88%")
+    -- the API gone: its key is taken back and the weight written instead
+    noApi()
+    Gear.refreshItem(c)
+    eq(c.md[K.CARRY], nil)
+    near(c.weight, 1.6 * Rules.lightness(1), 1e-9)
+    -- and back: the weight is the script's (the game does not save it), the key again
+    c.weight = 1.6
+    setApi(true)
+    Gear.refreshItem(c)
+    near(c.md[K.CARRY], Rules.efficiency(1), 1e-9)
+    eq(c.weight, 1.6)
+end)
+
+local function welder(player)
+    local w = newItem("Base.BlowTorch", { weight = 1.0, uses = 10 })
+    local md = w:getModData()
+    md[K.TEAM] = true
+    md[K.USES] = Rules.uses(0)
+    player.inventory:AddItem(w)
+    return w
+end
+
+test("the welder: the team's torch by its mark, its uses raised by the expansion kit through the API", function()
+    setup()
+    local player = newCharacter()
+    local plain = newItem("Base.BlowTorch")
+    player.inventory:AddItem(plain)
+    eq(Gear.targetOf(plain), nil, "a torch without the mark is the game's")
+    local w = welder(player)
+    eq(Gear.targetOf(w), "welder")
+    eq(select(2, Gear.fitItem(player, kitOf(player, "capacity"), w)), "api", "without the API its uses cannot change")
+    truthy(Gear.fitItem(player, kitOf(player, "lightening"), w), "its weight can")
+    local api = setApi(true)
+    local ok, value = Gear.fitItem(player, kitOf(player, "capacity"), w)
+    truthy(ok)
+    near(w.md[K.USES], 1.4, 1e-9)
+    eq(value, "14")
+    eq(notices[#notices].key, "IGUI_OA_Gear_Fitted_uses")
+    eq(declaredValue(api, "uses.modDataKey"), "OA_Uses")
+    eq(Gear.itemLines(w)[1], "Tooltip_OA_Gear_WelderUses 14")
+    eq(select(2, Gear.fitItem(player, kitOf(player, "reinforcement"), w)), "target")
+end)
+
+test("the keys a refilled welder keeps are declared to the API when the game starts", function()
+    setup()
+    local api = setApi(true)
+    Gear.declare()
+    local keys = declaredValue(api, "craft.carryKeys")
+    local set = {}
+    for _, k in ipairs(keys or {}) do set[k] = true end
+    truthy(set[K.TEAM] and set[K.USES] and set[K.CARRY] and set[K.KIT_CAP] and set[K.KIT_LIGHT], "the mark, the uses and the kits")
+    eq(declaredValue(api, "carry.efficiencyKey"), K.CARRY)
+    eq(declaredValue(api, "uses.modDataKey"), K.USES)
+end)
+
+test("the shop's welder is the vanilla torch with the team's mark and the uses with no kit", function()
+    eq(OA.Shop.WELDER.type, OA.Shop.TYPES.welder)
+    eq(OA.Shop.WELDER.mod[K.TEAM], true)
+    near(OA.Shop.WELDER.mod[K.USES], Rules.uses(0), 1e-9)
+    eq(OA.Shop.WELDER.used, 1, "filled to its uses")
+end)
+
+test("a field tool: the reinforcement kit raises its most condition, the condition and the head by as much", function()
+    setup()
+    local player = newCharacter()
+    local tool = newItem("OperationAcorn.FieldHammer", { weight = 1.28, condition = 12, head = 9 })
+    player.inventory:AddItem(tool)
+    tool.condition = 7
+    eq(Gear.targetOf(tool), "tool")
+    local ok, value = Gear.fitItem(player, kitOf(player, "reinforcement"), tool)
+    truthy(ok)
+    eq(tool.conditionMax, 15)
+    eq(tool.condition, 10)
+    eq(tool.head, 12)
+    eq(value, "15")
+    for _ = 2, Rules.TOUGH_MOST do truthy(Gear.fitItem(player, kitOf(player, "reinforcement"), tool)) end
+    eq(tool.conditionMax, 24, "twice the script's at the most")
+    eq(select(2, Gear.fitItem(player, kitOf(player, "reinforcement"), tool)), "most")
+    eq(select(2, Gear.fitItem(player, kitOf(player, "capacity"), tool)), "target")
+    truthy(Gear.fitItem(player, kitOf(player, "lightening"), tool))
+    eq(Gear.itemLines(tool)[2], "Tooltip_OA_Gear_ToughKits 4 24")
 end)
 
 -- ---------------------------------------------------------------------------------------------------------------------
@@ -347,15 +540,15 @@ local function carWithTrunk(capacity, opts)
     return car, trunk
 end
 
-test("a storage kit without the API raises the part's capacity, counted on the part", function()
+test("an expansion kit on a storage without the API raises the part's capacity, counted on the part", function()
     setup()
     local player = newCharacter()
     local car, trunk = carWithTrunk(100)
-    local ok, total = Gear.fitStorage(player, kitOf(player, "storage"), car, "TruckBed")
+    local ok, total = Gear.fitStorage(player, kitOf(player, "capacity"), car, "TruckBed")
     truthy(ok)
     eq(total, 110)
     eq(trunk.capacity, 110)
-    eq(trunk.md[K.STORAGE], 1)
+    eq(trunk.md[K.KIT_CAP], 1)
     eq(trunk.md[K.STORAGE_BASE], 100)
     eq(trunk.md[K.CAPACITY], nil)
     truthy(car.partsSent > 0, "the part's data is sent")
@@ -364,12 +557,12 @@ test("a storage kit without the API raises the part's capacity, counted on the p
     eq(notices[1].args[2], "IGUI_VehiclePartTruckBed", "the notice names the part")
 end)
 
-test("a storage kit with the API leaves the capacity and adds the number", function()
+test("an expansion kit on a storage with the API leaves the capacity and adds the number", function()
     setup()
     setApi(true)
     local player = newCharacter()
     local car, trunk = carWithTrunk(100)
-    for _ = 1, 3 do truthy(Gear.fitStorage(player, kitOf(player, "storage"), car, "TruckBed")) end
+    for _ = 1, 3 do truthy(Gear.fitStorage(player, kitOf(player, "capacity"), car, "TruckBed")) end
     eq(trunk.capacity, 100)
     eq(trunk.md[K.CAPACITY], 30)
     eq(type(trunk.md[K.CAPACITY]), "number")
@@ -381,12 +574,12 @@ test("the storage's original is the installed item's maximum, not what a damaged
     setup()
     local player = newCharacter()
     local car, trunk = carWithTrunk(60, { item = { getMaxCapacity = function() return 120 end } })
-    truthy(Gear.fitStorage(player, kitOf(player, "storage"), car, "TruckBed"))
+    truthy(Gear.fitStorage(player, kitOf(player, "capacity"), car, "TruckBed"))
     eq(trunk.md[K.STORAGE_BASE], 120)
     eq(trunk.capacity, 132)
 end)
 
-test("a storage kit goes on the one part it is fitted to: a roof rack, a modded vehicle's own storage, not a seat", function()
+test("an expansion kit goes on the one part it is fitted to: a roof rack, a modded vehicle's own storage, not a seat", function()
     setup()
     local player = newCharacter()
     local trunk = newPart("TruckBed", { container = true, capacity = 100 })
@@ -399,22 +592,22 @@ test("a storage kit goes on the one part it is fitted to: a roof rack, a modded 
     local ids = {}
     for _, part in ipairs(Gear.storageParts(car)) do ids[#ids + 1] = part:getId() end
     eq(table.concat(ids, ","), "TruckBed,Roofrack,ATA2InteractiveTrunkRoofRack")
-    truthy(Gear.fitStorage(player, kitOf(player, "storage"), car, "Roofrack"))
+    truthy(Gear.fitStorage(player, kitOf(player, "capacity"), car, "Roofrack"))
     eq(rack.capacity, 66)
     eq(trunk.capacity, 100, "the trunk is left as it is")
-    truthy(Gear.fitStorage(player, kitOf(player, "storage"), car, "ATA2InteractiveTrunkRoofRack"))
+    truthy(Gear.fitStorage(player, kitOf(player, "capacity"), car, "ATA2InteractiveTrunkRoofRack"))
     eq(modded.capacity, 44)
-    eq(select(2, Gear.fitStorage(player, kitOf(player, "storage"), car, "SeatFrontLeft")), "part")
-    eq(select(2, Gear.fitStorage(player, kitOf(player, "storage"), car, "SeatRearLeft")), "part")
-    eq(select(2, Gear.fitStorage(player, kitOf(player, "storage"), car, "GasTank")), "part")
-    eq(select(2, Gear.fitStorage(player, kitOf(player, "storage"), car, "Engine")), "part")
+    eq(select(2, Gear.fitStorage(player, kitOf(player, "capacity"), car, "SeatFrontLeft")), "part")
+    eq(select(2, Gear.fitStorage(player, kitOf(player, "capacity"), car, "SeatRearLeft")), "part")
+    eq(select(2, Gear.fitStorage(player, kitOf(player, "capacity"), car, "GasTank")), "part")
+    eq(select(2, Gear.fitStorage(player, kitOf(player, "capacity"), car, "Engine")), "part")
 end)
 
 test("past the vehicle limit the storage is cut without the API", function()
     setup()
     local player = newCharacter()
     local car, trunk = carWithTrunk(900)
-    for _ = 1, 3 do truthy(Gear.fitStorage(player, kitOf(player, "storage"), car, "TruckBed")) end
+    for _ = 1, 3 do truthy(Gear.fitStorage(player, kitOf(player, "capacity"), car, "TruckBed")) end
     eq(trunk.capacity, 1000)
     eq(Gear.storageInfo(trunk).cut, true)
     eq(#Gear.storageLines(trunk), 2)
@@ -424,7 +617,7 @@ test("a storage fitted without the API is refreshed when the API is there", func
     setup()
     local player = newCharacter()
     local car, trunk = carWithTrunk(100)
-    Gear.fitStorage(player, kitOf(player, "storage"), car, "TruckBed")
+    Gear.fitStorage(player, kitOf(player, "capacity"), car, "TruckBed")
     eq(trunk.capacity, 110)
     setApi(true)
     Gear.refreshVehicle(car)
@@ -441,12 +634,12 @@ test("vehicle kits need the character beside the vehicle and the part", function
     local player = newCharacter()
     local car = carWithTrunk(100)
     car.x = 100
-    eq(select(2, Gear.fitStorage(player, kitOf(player, "storage"), car, "TruckBed")), "far")
+    eq(select(2, Gear.fitStorage(player, kitOf(player, "capacity"), car, "TruckBed")), "far")
     car.x = 12
-    eq(select(2, Gear.fitStorage(player, kitOf(player, "storage"), nil, "TruckBed")), "gone")
+    eq(select(2, Gear.fitStorage(player, kitOf(player, "capacity"), nil, "TruckBed")), "gone")
     local bare = newVehicle({ parts = { newPart("Engine") } })
-    eq(select(2, Gear.fitStorage(player, kitOf(player, "storage"), bare, "TruckBed")), "part")
-    truthy(Gear.fitStorage(player, kitOf(player, "storage"), car, "TruckBed"), "beside it, it fits")
+    eq(select(2, Gear.fitStorage(player, kitOf(player, "capacity"), bare, "TruckBed")), "part")
+    truthy(Gear.fitStorage(player, kitOf(player, "capacity"), car, "TruckBed"), "beside it, it fits")
 end)
 
 -- ---------------------------------------------------------------------------------------------------------------------
@@ -486,7 +679,7 @@ test("the engine survives the game putting the script's values back, and refresh
     eq(car.power, 154); eq(car.loud, 39)
 end)
 
-test("an engine kit wants a vehicle, an engine, the right script and the character beside it", function()
+test("an engine kit wants a vehicle, an engine and the character beside it", function()
     setup()
     local player = newCharacter()
     local noEngine = newVehicle({ parts = { newPart("TruckBed", { container = true }) } })
@@ -494,7 +687,7 @@ test("an engine kit wants a vehicle, an engine, the right script and the charact
     local car = newVehicle({ parts = { newPart("Engine") } })
     car.y = 80
     eq(select(2, Gear.fitEngine(player, kitOf(player, "engine"), car)), "far")
-    eq(Gear.fitVehicle(player, kitOf(player, "bagWeight"), car), false)
+    eq(Gear.fitVehicle(player, kitOf(player, "lightening"), car, "Engine"), false)
 end)
 
 test("the lines about a vehicle's kits", function()
@@ -504,38 +697,30 @@ test("the lines about a vehicle's kits", function()
     eq(Gear.engineLines(car), nil)
     local trunk = car:getPartById("TruckBed")
     eq(Gear.storageLines(trunk), nil)
-    Gear.fitVehicle(player, kitOf(player, "engine"), car)
-    Gear.fitVehicle(player, kitOf(player, "storage"), car, "TruckBed")
+    truthy(Gear.fitVehicle(player, kitOf(player, "engine"), car, "Engine"))
+    truthy(Gear.fitVehicle(player, kitOf(player, "capacity"), car, "TruckBed"))
     eq(Gear.engineLines(car)[1], "Tooltip_OA_Gear_EngineKits 1 15.4 39")
     eq(Gear.storageLines(trunk)[1], "Tooltip_OA_Gear_StorageKits 1 110")
 end)
 
 -- ---------------------------------------------------------------------------------------------------------------------
--- The voucher and the shop
-
-local function shopRecord()
-    local record = OA.Store.ensure("g", "G")
-    record.trade = { credits = 1000000, trust = 0, stage = 5, milestones = 1, bonus = 0, sharedSerums = 0 }
-    return record
-end
+-- The voucher
 
 test("the voucher gives one kit of the kind chosen", function()
     setup()
-    local record = shopRecord()
     local player = newCharacter()
     local voucher = newItem(Gear.VOUCHER)
     player.inventory:AddItem(voucher)
-    local ok = Gear.redeem(player, voucher, "bagCapacity")
-    truthy(ok)
+    truthy(Gear.redeem(player, voucher, "capacity"))
     eq(voucher.container, nil, "the voucher is used up")
     eq(#player.inventory.items, 1)
     local kit = player.inventory.items[1]
-    eq(kit:getFullType(), "OperationAcorn.KitBagCapacity")
+    eq(kit:getFullType(), "OperationAcorn.KitCapacity")
     -- it fits a bag, and then counts on that bag like any kit
     local bag = newItem("Base.Bag_ALICEpack", { capacity = 28, reduction = 85 })
     player.inventory:AddItem(bag)
-    truthy(Gear.fitBag(player, kit, bag))
-    eq(bag.md[K.BAG_CAP], 1)
+    truthy(Gear.fitItem(player, kit, bag))
+    eq(bag.md[K.KIT_CAP], 1)
 end)
 
 test("the server command redeems the voucher a character names", function()
@@ -543,13 +728,13 @@ test("the server command redeems the voucher a character names", function()
     local player = newCharacter()
     player.inventory:AddItem(newItem(Gear.VOUCHER))
     local voucher = player.inventory.items[1]
-    OA.Sync.send(player, "gear.redeem", { item = voucher:getID(), kind = "storage" })
+    OA.Sync.send(player, "gear.redeem", { item = voucher:getID(), kind = "reinforcement" })
     eq(#player.inventory.items, 1)
-    eq(player.inventory.items[1]:getFullType(), "OperationAcorn.KitStorage")
+    eq(player.inventory.items[1]:getFullType(), "OperationAcorn.KitReinforcement")
     -- another item, or a kind that is not one, does nothing and says why
     local other = newItem("Base.Hammer")
     player.inventory:AddItem(other)
-    OA.Sync.send(player, "gear.redeem", { item = other:getID(), kind = "storage" })
+    OA.Sync.send(player, "gear.redeem", { item = other:getID(), kind = "capacity" })
     eq(#player.inventory.items, 2)
     eq(notices[#notices].key, "IGUI_OA_Gear_RedeemFailed")
     eq(notices[#notices].args[1], "voucher")
@@ -561,83 +746,73 @@ test("the server command redeems the voucher a character names", function()
 end)
 
 -- ---------------------------------------------------------------------------------------------------------------------
--- A kit goes to any backpack or vehicle
+-- A kit goes to any of its targets
 
-test("a bag kit goes on any backpack the character has, not on a key ring or a fanny pack", function()
+test("a kit goes on any of its targets the character has, counted on that one", function()
     setup()
     local player, first = bagFixture("Base.Bag_ALICEpack", 28, 85)
     local second = newItem("Base.Bag_ALICEpack", { capacity = 28, reduction = 85, name = "Pack" })
     player.inventory:AddItem(second)
-    local ring = newItem("Base.KeyRing", { capacity = 1, noSlot = true })
-    local fanny = newItem("Base.Bag_FannyPackFront", { capacity = 4, slot = ItemBodyLocation.FANNY_PACK_FRONT })
-    player.inventory:AddItem(ring)
-    player.inventory:AddItem(fanny)
-    eq(Gear.isBackpack(ring), false)
-    eq(Gear.isBackpack(fanny), false)
-    eq(select(2, Gear.fitBag(player, kitOf(player, "bagCapacity"), ring)), "bag", "a kit is not fitted to a key ring")
-    truthy(Gear.fitBag(player, kitOf(player, "bagCapacity"), first))
-    truthy(Gear.fitBag(player, kitOf(player, "bagCapacity"), second))
-    eq(first.md[K.BAG_CAP], 1)
-    eq(second.md[K.BAG_CAP], 1)
-end)
-
-test("a vehicle kit goes on any vehicle beside the character, counted on that one", function()
-    setup()
-    local player = newCharacter()
-    local first, firstTrunk = carWithTrunk(100)
-    local second, secondTrunk = carWithTrunk(100)
-    truthy(Gear.fitStorage(player, kitOf(player, "storage"), first, "TruckBed"))
-    truthy(Gear.fitEngine(player, kitOf(player, "engine"), second))
-    eq(Gear.storageInfo(firstTrunk).kits, 1)
-    eq(Gear.storageInfo(secondTrunk), nil)
-    eq(Gear.engineKits(first), 0)
-    eq(Gear.engineKits(second), 1)
+    truthy(Gear.fitItem(player, kitOf(player, "capacity"), first))
+    truthy(Gear.fitItem(player, kitOf(player, "capacity"), second))
+    eq(first.md[K.KIT_CAP], 1)
+    eq(second.md[K.KIT_CAP], 1)
+    local one, oneTrunk = carWithTrunk(100)
+    local two, twoTrunk = carWithTrunk(100)
+    truthy(Gear.fitStorage(player, kitOf(player, "capacity"), one, "TruckBed"))
+    truthy(Gear.fitEngine(player, kitOf(player, "engine"), two))
+    eq(Gear.storageInfo(oneTrunk).kits, 1)
+    eq(Gear.storageInfo(twoTrunk), nil)
+    eq(Gear.engineKits(one), 0)
+    eq(Gear.engineKits(two), 1)
 end)
 
 -- ---------------------------------------------------------------------------------------------------------------------
 -- What a character carries, kept per inventory signature; the menus and the actions that read it
 
-test("the bags and kits a character carries are found by one search, kept while the inventory is the same", function()
+test("the targets and kits a character carries are found by one search, kept while the inventory is the same", function()
     setup()
     local player, bag = bagFixture("Base.Bag_ALICEpack", 28, 85)
-    local kit = kitOf(player, "bagCapacity")
+    local kit = kitOf(player, "capacity")
     local plain = newItem("Base.Hammer")
     player.inventory:AddItem(plain)
+    local c = can(player)
     local searches = 0
     local search = player.inventory.getAllEvalRecurse
     player.inventory.getAllEvalRecurse = function(self, pred) searches = searches + 1 return search(self, pred) end
     local carried = Gear.carried(player)
     eq(searches, 1)
-    eq(#carried.bags, 1)
-    eq(carried.bags[1], bag)
-    eq(#carried.kits.bagCapacity, 1)
-    eq(carried.kits.bagCapacity[1], kit)
+    eq(#carried.items, 2)
+    eq(carried.items[1], bag)
+    eq(carried.items[2], c)
+    eq(#carried.kits.capacity, 1)
+    eq(carried.kits.capacity[1], kit)
     eq(Gear.carried(player), carried)
     eq(Gear.carried(player), carried)
     eq(searches, 1, "the same inventory: not searched again")
     -- an item comes: searched again
-    kitOf(player, "bagWeight")
+    kitOf(player, "lightening")
     local again = Gear.carried(player)
     eq(searches, 2)
-    eq(#again.kits.bagWeight, 1)
+    eq(#again.kits.lightening, 1)
     -- a kit used up (its weight goes too): searched again, and it is gone
     player.inventory:DoRemoveItem(kit)
-    eq(#(Gear.carried(player).kits.bagCapacity or {}), 0, "it is gone")
+    eq(#(Gear.carried(player).kits.capacity or {}), 0, "it is gone")
     eq(searches, 3)
 end)
 
-test("a fitting action checks its kit and bag by the objects it was made with, without searching the inventory", function()
+test("a fitting action checks its kit and item by the objects it was made with, without searching the inventory", function()
     setup()
     local player, bag = bagFixture("Base.Bag_ALICEpack", 28, 85)
-    local kit = kitOf(player, "bagCapacity")
+    local kit = kitOf(player, "capacity")
     local searches = 0
     local find = player.inventory.getItemWithIDRecursiv
     player.inventory.getItemWithIDRecursiv = function(self, id) searches = searches + 1 return find(self, id) end
     function player.inventory:getContainingItem() return nil end
-    local action = { character = player, kit = kit, bag = bag, kitId = kit:getID(), bagId = bag:getID() }
+    local action = { character = player, kit = kit, item = bag, kitId = kit:getID(), itemId = bag:getID() }
     for _ = 1, 5 do
         eq(Gear.heldItem(action, "kit", "kitId"), kit)
-        eq(Gear.heldItem(action, "bag", "bagId"), bag)
+        eq(Gear.heldItem(action, "item", "itemId"), bag)
     end
     eq(searches, 0, "ticks of the action: no search")
     -- the kit is gone: looked for once by its id, and not found
@@ -693,25 +868,26 @@ test("the kit entries go on top of the inventory menu, and building them searche
     setup()
     local newMenu = menuStubs()
     local player, bag = bagFixture("Base.Bag_ALICEpack", 28, 85)
-    local kit = kitOf(player, "bagCapacity")
+    local kit = kitOf(player, "capacity")
+    kitOf(player, "reinforcement")
     local searches = 0
     local search = player.inventory.getAllEvalRecurse
     player.inventory.getAllEvalRecurse = function(self, pred) searches = searches + 1 return search(self, pred) end
     getSpecificPlayer = function() return player end
-    -- right-click on the bag: "fit a kit" above the game's own
+    -- right-click on the bag: "fit a kit" above the game's own, the kits that fit it only
     local menu = newMenu()
     menu:addOption("Vanilla")
     TEST.fire("OnFillInventoryObjectContextMenu", 0, menu, { bag })
     eq(menu.options[1].name, "ContextMenu_OA_Gear_FitKit")
     eq(menu.options[2].name, "Vanilla")
-    eq(#menu.options[1].subOption.options, 1, "the one kind of kit in hand")
+    eq(#menu.options[1].subOption.options, 1, "the expansion kit; the reinforcement kit does not fit a bag")
     eq(searches, 1)
     -- again, and on the kit: no new search
     TEST.fire("OnFillInventoryObjectContextMenu", 0, menu, { bag })
     local onKit = newMenu()
     onKit:addOption("Vanilla")
     TEST.fire("OnFillInventoryObjectContextMenu", 0, onKit, { kit })
-    eq(onKit.options[1].name, "ContextMenu_OA_Gear_FitBag")
+    eq(onKit.options[1].name, "ContextMenu_OA_Gear_FitItem")
     eq(onKit.options[2].name, "Vanilla")
     eq(#onKit.options[1].subOption.options, 1, "the one bag in hand")
     eq(searches, 1, "three menus, one search")
@@ -719,18 +895,4 @@ test("the kit entries go on top of the inventory menu, and building them searche
     player.inventory:AddItem(newItem("Base.Hammer"))
     TEST.fire("OnFillInventoryObjectContextMenu", 0, newMenu(), { bag })
     eq(searches, 2)
-end)
-
-test("the improved fuel cans weigh, full and carried, what they are set to: Mk.I as a full plain can, the later ones less", function()
-    local last = Gear.PLAIN_CAN_FULL + 1
-    for _, name in ipairs({ "FuelCanMk1", "FuelCanMk2", "FuelCanMk3" }) do
-        local can = Gear.FUEL_CANS[name]
-        local full = (Gear.CAN_WEIGHT + can.litres) / (1 + Gear.canEfficiency(name))
-        near(full, can.full, 1e-9, name)
-        truthy(full <= Gear.PLAIN_CAN_FULL, name .. " full weighs no more than a full plain can")
-        truthy(full < last, name .. " lighter than the one before")
-        truthy(can.litres > 10, name .. " holds more than the plain can")
-        last = full
-    end
-    near(Gear.FUEL_CANS.FuelCanMk1.full, Gear.PLAIN_CAN_FULL, 1e-9)
 end)

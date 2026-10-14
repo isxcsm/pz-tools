@@ -349,8 +349,8 @@ function Objects.setupBoxOf(object)
     return Objects.setupBox(object, owner and OA.Store.player(owner) or nil)
 end
 
--- An item made from a spec { type, count (not used here), mod, condition, used, fluid, amount, receipt }. Nil when the
--- type does not exist.
+-- An item made from a spec { type, count (not used here), mod, condition, used, fluid, amount, receipt, name }. Nil
+-- when the type does not exist.
 function Objects.makeItem(spec)
     local item = instanceItem(spec.type)
     if not item then
@@ -362,6 +362,10 @@ function Objects.makeItem(spec)
         for k, v in pairs(spec.mod) do md[k] = v end
     end
     if spec.receipt then item:getModData().OA_Receipt = spec.receipt end
+    if spec.name then
+        item:setName(getText(spec.name))
+        item:setCustomName(true)
+    end
     if spec.condition then item:setCondition(spec.condition) end
     if spec.used then item:setUsedDelta(spec.used) end
     if spec.fluid then

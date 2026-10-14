@@ -55,14 +55,13 @@ SoundproofCover	cover_normal	machine part, normal look (P5)
 SoundproofCoverOld	cover_old	machine part, old tier (P5)
 SoundproofCoverNormal	cover_normal	machine part, normal tier (P5)
 SoundproofCoverModern	cover_modern	machine part, modern tier (P5)
-BagCapacityKit	kit_bag_capacity	kit (P6)
-BagWeightKit	kit_bag_weight	kit (P6)
-StorageKit	kit_storage	kit (P6)
+CapacityKit	kit_capacity	expansion kit: a box with arrows out of its corners (P6)
+LighteningKit	kit_lightening	lightening kit: a feather (P6)
+ReinforcementKit	kit_reinforcement	reinforcement kit: a shield with a bolt (P6)
 EngineTuningKit	kit_engine	kit (P6)
 ResearchBackpack	backpack	research backpack (P6)
-FuelCanMk1	fuel_can_1	improved fuel can (P6)
-FuelCanMk2	fuel_can_2	improved fuel can (P6)
-FuelCanMk3	fuel_can_3	improved fuel can (P6)
+TeamFuelCan	fuel_can	the team's fuel can: its model rendered (tools/fuelcan_mesh.py)
+ResearchWaistBag	waist_bag	the team's waist bag: its floor model rendered (tools/waistbag_mesh.py)
 MissionItem	mission	generic mission item (P4)
 DocumentItem	document	generic document item (P4)
 MissionEnvelope	mission_envelope	story item (P4)
@@ -98,13 +97,48 @@ HandoverFile	handover_file	story item (P4)
 HandoverPages	handover_file	story item (F3: the handover mission's paper, drawn like the handover file)
 KitVoucher	kit_voucher	story item (P4)
 TeamWeldingMask	team_welding_mask	the team welding mask: the vanilla mask in the team's olive, a green lens
-LightHammer	light_hammer	light Hammer: the vanilla icon with the team's mark
-LightScrewdriver	light_screwdriver	light Screwdriver: the vanilla icon with the team's mark
-LightSaw	light_saw	light Saw: the vanilla icon with the team's mark
-LightWrench	light_wrench	light Wrench: the vanilla icon with the team's mark
-LightLugWrench	light_lugwrench	light LugWrench: the vanilla icon with the team's mark
-LightCrowbar	light_crowbar	light Crowbar: the vanilla icon with the team's mark
-LightSledgehammer	light_sledgehammer	light Sledgehammer: the vanilla icon with the team's mark
-LightWoodAxe	light_woodaxe	light WoodAxe: the vanilla icon with the team's mark
-LightShovel	light_shovel	light Shovel: the vanilla icon with the team's mark
-LightPickAxe	light_pickaxe	light PickAxe: the vanilla icon with the team's mark
+FieldHammer	field_hammer	field Hammer: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldBallPeenHammer	field_ballpeenhammer	field BallPeenHammer: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldClubHammer	field_clubhammer	field ClubHammer: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldWoodenMallet	field_woodenmallet	field WoodenMallet: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldSaw	field_saw	field Saw: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldGardenSaw	field_gardensaw	field GardenSaw: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldSmallSaw	field_smallsaw	field SmallSaw: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldCarpentryChisel	field_carpentrychisel	field CarpentryChisel: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldHandDrill	field_handdrill	field HandDrill: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldSmithingHammer	field_smithinghammer	field SmithingHammer: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldTongs	field_tongs	field Tongs: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldMetalworkingPliers	field_metalworkingpliers	field MetalworkingPliers: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldMetalworkingPunch	field_metalworkingpunch	field MetalworkingPunch: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldMetalworkingChisel	field_metalworkingchisel	field MetalworkingChisel: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldFile	field_file	field File: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldSmallFileSet	field_smallfileset	field SmallFileSet: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldSheetMetalSnips	field_sheetmetalsnips	field SheetMetalSnips: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldViseGrips	field_visegrips	field ViseGrips: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldHeadingTool	field_headingtool	field HeadingTool: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldSmallPunchSet	field_smallpunchset	field SmallPunchSet: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldMasonsTrowel	field_masonstrowel	field MasonsTrowel: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldMasonsChisel	field_masonschisel	field MasonsChisel: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldPlasterTrowel	field_plastertrowel	field PlasterTrowel: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldScrewdriver	field_screwdriver	field Screwdriver: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldWrench	field_wrench	field Wrench: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldRatchet	field_ratchet	field Ratchet: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldPipeWrench	field_pipewrench	field PipeWrench: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldLugWrench	field_lugwrench	field LugWrench: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldPliers	field_pliers	field Pliers: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldCrowbar	field_crowbar	field Crowbar: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldBoltCutters	field_boltcutters	field BoltCutters: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldSledgehammer	field_sledgehammer	field Sledgehammer: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldWoodAxe	field_woodaxe	field WoodAxe: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldAxe	field_axe	field Axe: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldHandAxe	field_handaxe	field HandAxe: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldShovel	field_shovel	field Shovel: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldHandShovel	field_handshovel	field HandShovel: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldPickAxe	field_pickaxe	field PickAxe: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldGardenHoe	field_gardenhoe	field GardenHoe: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldGardenFork	field_gardenfork	field GardenFork: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldScythe	field_scythe	field Scythe: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldHandScythe	field_handscythe	field HandScythe: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldScissors	field_scissors	field Scissors: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldAwl	field_awl	field Awl: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+FieldWhetstone	field_whetstone	field Whetstone: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark

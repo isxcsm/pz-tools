@@ -38,6 +38,21 @@ function Dev.giveAll(names)
     return made
 end
 
+-- The team's welder as the shop delivers it (the vanilla torch with the team's mark, full, named).
+function Dev.giveWelder()
+    local item = OA.Trade.Objects.makeItem(OA.Shop.WELDER)
+    if item then getPlayer():getInventory():AddItem(item) end
+    say("given", "team welder", item and 1 or 0)
+    return item
+end
+
+-- One of each field tool.
+function Dev.giveFieldTools()
+    local made = 0
+    for _, t in ipairs(OA.Shop.FIELD_TOOLS) do made = made + Dev.give(OA.Shop.fieldType(t[1]), 1) end
+    return made
+end
+
 -- ---- trade -------------------------------------------------------------------------------------------------------
 
 function Dev.addCredits(n)

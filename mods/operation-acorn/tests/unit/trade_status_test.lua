@@ -62,8 +62,10 @@ test("each level's goods split into every terminal's and the field terminal's la
     local a2, b2 = ids(M.laneItems(2, false)), ids(M.laneItems(2, true))
     truthy(string.find(a2, "petrol_can", 1, true)); truthy(string.find(a2, "field_terminal", 1, true))
     truthy(string.find(a2, "bait_trap", 1, true))
-    eq(b2, "team_locker,team_crate,fabric_cutter,log_saw,light_screwdriver,light_hammer,light_saw,light_wrench,"
-        .. "light_lug_wrench,fuelcan_mk1")
+    truthy(string.find(b2, "^team_fuel_can,team_locker,team_crate,fabric_cutter,log_saw,field_"), b2)
+    local tools = 0
+    for _, e in ipairs(M.laneItems(2, true)) do if e.group == M.TOOLS then tools = tools + 1 end end
+    eq(tools, 20, "the field tools of the level, each a good of its own (the screens show them as one row)")
     eq(string.find(ids(M.laneItems(0, false)), "serum_", 1, true), nil, "the upgrade serums have their own section")
     eq(string.find(ids(M.laneItems(0, false)), "box_reissue", 1, true), nil, "the box is the reissue button's")
     eq(ids(M.laneItems(9, false)), ""); eq(ids(M.laneItems(9, true)), "")
@@ -453,12 +455,13 @@ end)
 
 test("the new board counts the team's goods open now and later, and the upgrades to ask for", function()
     local news = M.news(newRecord(2, 0))
-    eq(news[1].lines[1], "IGUI_OA_Status_News_TeamNow 10 IGUI_OA_Status_News_TeamRest IGUI_OA_Econ_Shop_Item_team_locker, "
-        .. "IGUI_OA_Econ_Shop_Item_team_crate, IGUI_OA_Econ_Shop_Item_fabric_cutter, IGUI_OA_Econ_Shop_Item_log_saw 6")
-    eq(news[1].lines[2], "IGUI_OA_Status_News_TeamMore 28")
+    -- the field tools open now are one name of the board, where the first of them stands
+    eq(news[1].lines[1], "IGUI_OA_Status_News_TeamNow 6 IGUI_OA_Status_News_TeamRest IGUI_OA_Econ_Shop_Item_team_fuel_can, "
+        .. "IGUI_OA_Econ_Shop_Item_team_locker, IGUI_OA_Econ_Shop_Item_team_crate, IGUI_OA_Econ_Shop_Item_fabric_cutter 2")
+    eq(news[1].lines[2], "IGUI_OA_Status_News_TeamMore 24", "the field tools still to come one of them")
     eq(news[3].lines[2], "IGUI_OA_Status_News_SupportNow 4")
     news = M.news(newRecord(3, 0))
-    eq(news[1].lines[2], "IGUI_OA_Status_News_TeamMore 14")
+    eq(news[1].lines[2], "IGUI_OA_Status_News_TeamMore 12")
     -- a late stage: four names and the rest counted
     news = M.news(newRecord(5, 0))
     local first = news[1].lines[1]

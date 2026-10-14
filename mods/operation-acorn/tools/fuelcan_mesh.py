@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
-"""Builds the Operation Acorn fuel cans ('연구팀 연료통 Mk.I/II/III'): meshes, textures and the files the game needs.
+"""Builds the Operation Acorn fuel can ('연구팀 연료통'): its meshes, texture and the files the game needs.
 
     py tools/fuelcan_mesh.py            build everything, render tools/fuelcan_preview.png and the icon sources
     py tools/fuelcan_mesh.py --check    re-parse every produced file and assert it is consistent (no building)
 
-What it writes per mark n (all under OperationAcorn/42/media):
-    models_X/OA_FuelCanMk<n>.x                                    the static model (the item's StaticModel)
-    models_X/Skinned/BackPacks/OA_FuelCanMk<n>_RHand.x, _LHand.x  carried in a hand (rigid on Bip01_Prop1 / Prop2)
-    models_X/WorldItems/OA_FuelCanMk<n>_Ground.fbx                 the floor model
-    textures/OA_FuelCan/OA_FuelCanMk<n>.png                        512x512 atlas
-    clothing/clothingItems/OA_Bag_FuelCanMk<n>_RHand.xml, _LHand.xml (registered in fileGuidTable.xml)
-and scripts/OA_fuelcan_models.txt (the static and floor models), tools/fuelcan_icon_source_mk<n>.png (tools/icon_art.py
-makes the item icons from them) and the preview sheet tools/fuelcan_preview.png.
+What it writes (all under OperationAcorn/42/media):
+    models_X/OA_TeamFuelCan.x                                     the static model (the item's StaticModel)
+    models_X/Skinned/BackPacks/OA_TeamFuelCan_RHand.x, _LHand.x   carried in a hand (rigid on Bip01_Prop1 / Prop2)
+    models_X/WorldItems/OA_TeamFuelCan_Ground.fbx                  the floor model
+    textures/OA_FuelCan/OA_TeamFuelCan.png                         512x512 atlas
+    clothing/clothingItems/OA_Bag_TeamFuelCan_RHand.xml, _LHand.xml (registered in fileGuidTable.xml)
+and scripts/OA_fuelcan_models.txt (the static and floor models), tools/fuelcan_icon_source.png (tools/icon_art.py makes
+the item icon from it) and the preview sheet tools/fuelcan_preview.png.
 
 The can is a jerry can of our own: a flat steel body with rounded edges, the X pressed into both broad sides, the welded
-seam around its edge, three handles on top and the spout with its cam-lever cap at one corner. The marks differ in size
-(15, 20, 25 L), paint (olive drab, sand, grey) and the yellow bands on the ends (one per mark).
+seam around its edge, three handles on top and the spout with its cam-lever cap at one corner, in the team's olive
+drab, stencilled with the team's acorn and FUEL. It says no litres: the expansion kit makes it hold more.
 
 What comes from the game install (structure only, as in tools/backpack_mesh.py, whose helpers this uses):
   * the vanilla petrol can GasCan.x: the templates and the material block around our mesh frame, and where the hand holds
@@ -57,17 +57,11 @@ GUID_TABLE = os.path.join(MEDIA, 'fileGuidTable.xml')
 CLOTHING_DIR = os.path.join(MEDIA, 'clothing', 'clothingItems')
 MAT = 'OA_FuelCan_Mat'
 
-# litres: the item's capacity (scripts/OA_gear.txt); L, H, T: the body's length (along the handles), height and thickness
-MARKS = {
-    1: dict(litres=15, L=0.150, H=0.200, T=0.074, paint=(100, 110, 74), cap=(58, 64, 44), ink=(226, 220, 192),
-            guids=('5d189b2f-5fda-4341-ab49-cbb740ea02ce', '24913c60-a361-43e5-8181-0556656e4a07')),
-    2: dict(litres=20, L=0.160, H=0.215, T=0.080, paint=(166, 148, 104), cap=(92, 80, 56), ink=(56, 50, 38),
-            guids=('8a2a00d5-7fba-4692-86b1-020710717443', 'ee8a79c3-ad3a-4115-ad5e-221b14682c0b')),
-    3: dict(litres=25, L=0.170, H=0.230, T=0.086, paint=(158, 164, 168), cap=(62, 66, 70), ink=(44, 46, 48),
-            guids=('70ff56b3-a755-4ab6-b9df-f64e4a484035', '33b0be17-11c0-4d05-a7a3-2c0fd101fa1f')),
-}
-ROMAN = {1: 'I', 2: 'II', 3: 'III'}
-BAND = (214, 172, 46)            # the mark's bands on both ends, one per mark
+# L, H, T: the body's length (along the handles), height and thickness, for its 12 L (scripts/OA_gear.txt): a little
+# bigger than the vanilla 10 L can, the size the 15 L can of the earlier marks would have at 12
+CAN = dict(L=0.140, H=0.186, T=0.069, paint=(100, 110, 74), cap=(58, 64, 44), ink=(226, 220, 192),
+           guids=('5d189b2f-5fda-4341-ab49-cbb740ea02ce', '24913c60-a361-43e5-8181-0556656e4a07'))
+NAME = 'OA_TeamFuelCan'
 STEEL = (146, 148, 146)
 BARE = (70, 68, 62)              # bare steel where the paint has chipped
 
@@ -77,32 +71,29 @@ HANDLE_R = 0.0045                # handle bar radius
 HANDLE_UP = 0.024                # bar centre above the body's top
 MID_W, SIDE_W, GAP = 0.050, 0.026, 0.005
 END_ROOM = 0.010                 # body beyond the outer handle at the -y end
-X_HALF, X_DEPTH = 0.010, 0.0035  # the pressed X: channel half width and depth
+X_HALF, X_DEPTH = 0.010, 0.0035  # the pressed X: channel half width and depth (in the texture's shading)
 SPOUT_TILT = 30.0                # degrees from up toward +y
-NX, NY, NZ = 2, 12, 16           # body grid (flat part) across, along, up
+# the body's grid (flat part) across, along, up: the faces are flat (the X is 3.5 mm deep, half a pixel at the game's
+# nearest zoom: its shading is painted), so a few rows carry the shape and the rounded edges carry the rest
+NX, NY, NZ = 1, 4, 5
 
 
-def name_of(mk):
-    return 'OA_FuelCanMk%d' % mk
-
-
-def out_paths(mk):
-    n = name_of(mk)
+def out_paths():
+    n = NAME
     return {
         'S': os.path.join(MEDIA, 'models_X', n + '.x'),
         'R': os.path.join(MEDIA, 'models_X', 'Skinned', 'BackPacks', n + '_RHand.x'),
         'L': os.path.join(MEDIA, 'models_X', 'Skinned', 'BackPacks', n + '_LHand.x'),
         'G': os.path.join(MEDIA, 'models_X', 'WorldItems', n + '_Ground.fbx'),
         'TEX': os.path.join(MEDIA, 'textures', 'OA_FuelCan', n + '.png'),
-        'ICON': os.path.join(HERE, 'fuelcan_icon_source_mk%d.png' % mk),
+        'ICON': os.path.join(HERE, 'fuelcan_icon_source.png'),
     }
 
 
-def clothing_items(mk):
-    """{clothing file name: (guid, model name)} of a mark's two carried models."""
-    n = name_of(mk)
-    g = MARKS[mk]['guids']
-    return {'OA_Bag_FuelCanMk%d_RHand' % mk: (g[0], n + '_RHand'), 'OA_Bag_FuelCanMk%d_LHand' % mk: (g[1], n + '_LHand')}
+def clothing_items():
+    """{clothing file name: (guid, model name)} of the two carried models."""
+    g = CAN['guids']
+    return {'OA_Bag_TeamFuelCan_RHand': (g[0], NAME + '_RHand'), 'OA_Bag_TeamFuelCan_LHand': (g[1], NAME + '_LHand')}
 
 
 # ======================================================================================================================
@@ -126,10 +117,11 @@ def seg_dist(py, pz, a, b):
 
 class Body:
     """The can's body: a box with rounded edges (faces sampled like tools/backpack_mesh.py's SoftBox), the X pressed
-    into both broad sides. Coordinates relative to the body's centre `c`."""
+    into both broad sides painted (press() is its depth, which the texture shades). Coordinates relative to the body's
+    centre `c`."""
 
-    def __init__(self, mk):
-        m = MARKS[mk]
+    def __init__(self):
+        m = CAN
         self.h = np.array([m['T'], m['L'], m['H']]) / 2
         self.r = R_EDGE
         ztop = GRIP[2] - HANDLE_UP
@@ -174,8 +166,6 @@ class Body:
         d = p - cl
         n = unit(d) if np.linalg.norm(d) > 1e-12 else np.eye(3)[k] * s
         q = cl + n * self.r
-        if k == 0:
-            q[0] -= s * float(self.press(q[1], q[2]))
         return q + self.c
 
     def part(self, charts):
@@ -190,32 +180,21 @@ class Body:
                     pt.quad(grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1])
         return pt.orient()
 
-    def outline(self, n=120):
-        """The body's edge at x = 0 (its y-z profile, on the surface) and the outward normals there, as a closed loop."""
+    def outline(self, per_corner=5):
+        """The body's edge at x = 0 (its y-z profile, on the surface) and the outward normals there, as a closed loop:
+        `per_corner` points round each rounded corner (the body's edge bands turn in as many steps), the straight sides
+        between them one span each."""
         hy, hz = self.h[1] - self.r, self.h[2] - self.r
         pts, outs = [], []
         corners = ((hy, hz, 0), (-hy, hz, 90), (-hy, -hz, 180), (hy, -hz, 270))
         for cy, cz, a0 in corners:
-            for i in range(8):
-                t = math.radians(a0 + 90.0 * i / 7)
+            for i in range(per_corner):
+                t = math.radians(a0 + 90.0 * i / (per_corner - 1))
                 pts.append((0, cy + self.r * math.cos(t), cz + self.r * math.sin(t)))
                 outs.append((0, math.cos(t), math.sin(t)))
-        P = np.array(pts) + self.c
-        O = np.array(outs)
-        # evenly spaced along the loop
-        loop = np.vstack([P, P[:1]])
-        s = B.arclen(loop)
-        ts = np.linspace(0, s[-1], n + 1)
-        out_p, out_o = [], []
-        for t in ts:
-            k = min(np.searchsorted(s, t, side='right') - 1, len(P) - 1)
-            seg = max(s[k + 1] - s[k], 1e-12)
-            w = (t - s[k]) / seg
-            out_p.append(loop[k] * (1 - w) + loop[k + 1] * w)
-            o1 = O[(k + 1) % len(O)]
-            out_o.append(unit(O[k] * (1 - w) + o1 * w))
-        out_p[-1], out_o[-1] = out_p[0], out_o[0]
-        return np.array(out_p), np.array(out_o)
+        pts.append(pts[0])
+        outs.append(outs[0])
+        return np.array(pts) + self.c, np.array(outs)
 
 
 def define_charts(body):
@@ -245,8 +224,13 @@ def handle_spans():
 def handle_part(body, span, C, i):
     a, b = span[0] + HANDLE_R, span[1] - HANDLE_R
     zt, zb = body.top - 0.004, GRIP[2]
-    ctrl = [(0, a, zt), (0, a, zt + 0.012), (0, a + 0.004, zb - 0.002), (0, a + 0.010, zb), ((0, (a + b) / 2, zb)),
-            (0, b - 0.010, zb), (0, b - 0.004, zb - 0.002), (0, b, zt + 0.012), (0, b, zt)]
+    if b - a > 0.03:
+        # the middle handle: a straight bar for the hand between two bends
+        ctrl = [(0, a, zt), (0, a, zt + 0.012), (0, a + 0.004, zb - 0.002), (0, a + 0.010, zb), ((0, (a + b) / 2, zb)),
+                (0, b - 0.010, zb), (0, b - 0.004, zb - 0.002), (0, b, zt + 0.012), (0, b, zt)]
+    else:
+        # a side handle: too short for a bar, an arch (its bend wider than the bar is thick, so the sweep never folds)
+        ctrl = [(0, a, zt), (0, a, zb - 0.006), ((0, (a + b) / 2, zb)), (0, b, zb - 0.006), (0, b, zt)]
     path = catmull(ctrl, 16)
     outs = np.tile([1.0, 0, 0], (len(path), 1))
     return B.sweep('handle%d' % i, path, outs, 2 * HANDLE_R, 2 * HANDLE_R, C['handle'], 'paint', n_prof=6,
@@ -272,11 +256,11 @@ def spout_parts(body, C):
     return parts
 
 
-def build_mesh(mk):
-    body = Body(mk)
+def build_mesh():
+    body = Body()
     C = define_charts(body)
     parts = [body.part({f: C[f] for f in FACES})]
-    path, outs = body.outline(64)
+    path, outs = body.outline()
     parts.append(B.sweep('seam', path, outs, 0.0065, 0.005, C['seam'], 'paint', n_prof=4, caps=False, squareness=3.0))
     for i, span in enumerate(handle_spans()):
         parts.append(handle_part(body, span, C, i))
@@ -337,8 +321,8 @@ def chips(P, ch, mask, amount):
     reg[fleck] = reg[fleck] * 0.25 + np.array(BARE, float) * 0.75
 
 
-def paint_atlas(mk, body, C):
-    m = MARKS[mk]
+def paint_atlas(body, C):
+    m = CAN
     P = B.Painter(C)
     P.img[:] = m['paint']
     for nm, ch in C.items():
@@ -361,19 +345,13 @@ def paint_atlas(mk, body, C):
             gt, gs = np.gradient(d, px)
             delta = -55.0 * (0.30 * gs + 0.95 * gt) - 16.0 * d / X_DEPTH
             reg += delta[..., None]
-        if face[1] == 'y':
-            # the mark's bands near the top of both ends
-            for i in range(mk):
-                zt = body.h[2] - 0.030 - i * 0.016
-                band = (loc[2] <= zt) & (loc[2] > zt - 0.010)
-                reg[band] = reg[band] * 0.15 + np.array(BAND, float) * 0.85
         chips(P, ch, edge_mask(body, face, a, b), 1.6)
-    # the stencils on both broad sides, above the X: the team's acorn and the mark with its litres
+    # the stencils on both broad sides, above the X: the team's acorn and what the can holds
     py, z0, z1 = body.panel
     zm = (z1 + body.h[2] - R_EDGE) / 2
     band_h = (body.h[2] - R_EDGE - z1) * DENSITY
     text_h = int(round(band_h * 0.62))
-    label = E.stencil_text('MK %s  %dL' % (ROMAN[mk], m['litres']), int(text_h * 3.8), text_h, colour=m['ink'])
+    label = E.stencil_text('FUEL', int(text_h * 2.6), text_h, colour=m['ink'])
     mark = E.acorn_mark(int(round(band_h * 0.82)), colour=m['ink'])
     for face in ('+x', '-x'):
         ch = C[face]
@@ -451,16 +429,16 @@ def static_text(name, mesh):
     return text[:i] + '\n' + text[j:]
 
 
-def write_static(mk, mesh):
+def write_static(mesh):
     txt = B.read_text(VANILLA_STATIC)
     prefix = txt[:txt.index('\nFrame GasCan {') + 1]
-    prefix = re.sub(r'TextureFilename \{\n(\s*)"[^"]*";', lambda g: 'TextureFilename {\n%s"%s.png";' % (g.group(1), name_of(mk)),
+    prefix = re.sub(r'TextureFilename \{\n(\s*)"[^"]*";', lambda g: 'TextureFilename {\n%s"%s.png";' % (g.group(1), NAME),
                     prefix)
     prefix = re.sub(r'^Material \S+ \{', 'Material %s {' % MAT, prefix, flags=re.M)
-    path = out_paths(mk)['S']
+    path = out_paths()['S']
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'wb') as f:
-        f.write((prefix + static_text(name_of(mk), mesh)).encode('latin-1'))
+        f.write((prefix + static_text(NAME, mesh)).encode('latin-1'))
 
 
 def carried(mesh, fit):
@@ -468,39 +446,39 @@ def carried(mesh, fit):
     return mesh.transformed(lambda X: X @ M + t, lambda X: X @ M)
 
 
-def write_hand(mk, key, mesh, fit):
+def write_hand(key, mesh, fit):
     h = HANDS[key]
-    B.TEX_REF = name_of(mk) + '.png'
+    B.TEX_REF = NAME + '.png'
     prefix, suffix, pm = B.vanilla_parts(h['src'], h['bone'])
     material = re.search(r'^Material (\S+) \{', prefix, re.M).group(1)
     m = carried(mesh, fit)
     m.W = {h['bone']: np.ones(len(m.P))}
-    text = prefix + B.mesh_frame_text('%s_%sHand' % (name_of(mk), key), m, {h['bone']: pm}, material) + '\n' + suffix
-    path = out_paths(mk)[key]
+    text = prefix + B.mesh_frame_text('%s_%sHand' % (NAME, key), m, {h['bone']: pm}, material) + '\n' + suffix
+    path = out_paths()[key]
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'wb') as f:
         f.write(text.encode('latin-1'))
 
 
-def write_ground(mk, mesh):
+def write_ground(mesh):
     """The floor model: the vanilla ground model's raw axes are 3ds Max inches (z up, standing on z = 0), ours mapped as
     the vanilla can is (x, -y about the middle, z from the bottom) * 100: a mirror image, as .x is left handed."""
     P, N, UV, F = mesh.arrays()
     cy = (P[:, 1].min() + P[:, 1].max()) / 2
     raw = np.stack([P[:, 0], -(P[:, 1] - cy), P[:, 2] - P[:, 2].min()], axis=1) * 100.0
     rawN = np.stack([N[:, 0], -N[:, 1], N[:, 2]], axis=1)
-    name = name_of(mk)
+    name = NAME
 
     def rename(s):   # names and texture paths: nothing of the vanilla file's author or art remains
         s = re.sub(rb'[^\x00\x01"]*GasCan\.png', (name + '.png').encode(), s, flags=re.I)
         s = re.sub(rb'[A-Za-z]:\\[^\x00]*\.(FBX|max)', (name + '_Ground.fbx').encode(), s, flags=re.I)
         s = s.replace(b'GasCan', (name + '_Ground').encode())
         return s.replace(b'02 - Default', (name + '_Mat').encode()).replace(b'Map #2', (name + '_Map').encode())
-    return B.ground_fbx(VANILLA_GROUND, out_paths(mk)['G'], raw, rawN, UV, F, rename)
+    return B.ground_fbx(VANILLA_GROUND, out_paths()['G'], raw, rawN, UV, F, rename)
 
 
-def write_clothing(mk):
-    for fname, (guid, model) in clothing_items(mk).items():
+def write_clothing():
+    for fname, (guid, model) in clothing_items().items():
         text = (
             '<?xml version="1.0" encoding="utf-8"?>\n<clothingItem>\n'
             '\t<m_MaleModel>media\\models_X\\Skinned\\BackPacks\\%s.X</m_MaleModel>\n'
@@ -511,21 +489,20 @@ def write_clothing(mk):
             '\t<m_AllowRandomTint>false</m_AllowRandomTint>\n'
             '\t<m_AttachBone></m_AttachBone>\n'
             '\t<textureChoices>OA_FuelCan\\%s</textureChoices>\n'
-            '</clothingItem>') % (model, model, guid, name_of(mk))
+            '</clothingItem>') % (model, model, guid, NAME)
         B.write_text(os.path.join(CLOTHING_DIR, fname + '.xml'), text, bom=True)
-    B.merge_guid_table(GUID_TABLE, {f: g for f, (g, _) in clothing_items(mk).items()})
+    B.merge_guid_table(GUID_TABLE, {f: g for f, (g, _) in clothing_items().items()})
 
 
 def write_script():
     blocks = []
-    for mk in MARKS:
-        n = name_of(mk)
+    for n in (NAME,):
         blocks.append('\tmodel %s\n\t{\n\t\tmesh = %s,\n\t\ttexture = OA_FuelCan/%s,\n\t}\n' % (n, n, n))
         blocks.append('\tmodel %s_Ground\n\t{\n\t\tmesh = WorldItems/%s_Ground,\n\t\ttexture = OA_FuelCan/%s,\n'
                       '\t\tscale = 0.4,\n\t}\n' % (n, n, n))
     B.write_text(SCRIPT, 'module OperationAcorn\n{\n'
-                 '\t/* The research team fuel cans (tools/fuelcan_mesh.py): per mark the static model and the one lying on\n'
-                 '\t   the floor. The carried models are clothing items (OA_Bag_FuelCanMk<n>_RHand / _LHand). */\n'
+                 '\t/* The research team fuel can (tools/fuelcan_mesh.py): the static model and the one lying on the floor.\n'
+                 '\t   The carried models are clothing items (OA_Bag_TeamFuelCan_RHand / _LHand). */\n'
                  + '\n'.join(blocks) + '}\n')
 
 
@@ -545,7 +522,7 @@ def upright(mesh):
 ICON_AZIMUTH = -122.0   # the broad +x side with its stencils, and the spout's end
 
 
-def make_icon_source(mk, mesh, tex):
+def make_icon_source(mesh, tex):
     """The can standing, seen as the floor model is (a little from above), on a clear background: rendered on black and
     on white, where they differ is how far the background shows through (the alpha), as tools/backpack_mesh.py does."""
     g = upright(mesh)
@@ -555,18 +532,18 @@ def make_icon_source(mk, mesh, tex):
     alpha = np.clip(1.0 - (white - black).mean(-1) / 255.0, 0.0, 1.0)
     colour = np.where(alpha[..., None] > 1e-3, black / np.maximum(alpha[..., None], 1e-3), 0.0)
     im = Image.fromarray(np.dstack([np.clip(colour, 0, 255), alpha * 255]).astype(np.uint8), 'RGBA')
-    im.crop(im.getbbox()).save(out_paths(mk)['ICON'])
+    im.crop(im.getbbox()).save(out_paths()['ICON'])
 
 
 def make_preview(built, fits):
     size = 300
     tiles = []
     body = B.body_of('MaleBody.x')
-    for mk, (cb, C, mesh, tex) in built.items():
+    for cb, C, mesh, tex in built:
         g = upright(mesh)
         for lab, d in (('iso', B.iso_dir(ICON_AZIMUTH)), ('iso back', B.iso_dir(60)), ('+x side', (-1, 0, 0)),
                        ('spout end', (0, 0, 1)), ('top', (0.0001, -1, 0.3))):
-            tiles.append(B.label(B.render([g], tex, d, (0, 1, 0), size), 'Mk%d %s' % (mk, lab)))
+            tiles.append(B.label(B.render([g], tex, d, (0, 1, 0), size), lab))
         # carried in the right hand, bind pose: the middle bar in the hand
         r = carried(mesh, fits['R'])
         P, N, UV, F = r.arrays()
@@ -574,7 +551,7 @@ def make_preview(built, fits):
         d = B.unit((0.2, -0.35, -1.0))
         fr = B.frame_for(region, d, pad=1.05)
         tiles.append(B.label(B.render([(P, N, UV, F)], tex, d, (0, 1, 0), size,
-                                      bodies=[(body.V, body.VN, body.T, B.BODY_COL)], frame=fr), 'Mk%d right hand' % mk))
+                                      bodies=[(body.V, body.VN, body.T, B.BODY_COL)], frame=fr), 'right hand'))
     B.sheet(tiles, 6, size).save(PREVIEW)
 
 
@@ -585,23 +562,21 @@ def build_all():
     fits = hand_fits()
     grip = vanilla_grip()
     need(np.linalg.norm(grip[1:] - GRIP[1:]) < 0.01, 'the middle handle is not where the vanilla handle is: %s' % grip)
-    built = {}
-    for mk in MARKS:
-        body, C, mesh = build_mesh(mk)
-        P = paint_atlas(mk, body, C)
-        img = finish(P, mesh, body)
-        paths = out_paths(mk)
-        os.makedirs(os.path.dirname(paths['TEX']), exist_ok=True)
-        img.save(paths['TEX'])
-        write_static(mk, mesh)
-        for key in 'RL':
-            write_hand(mk, key, mesh, fits[key])
-        nv, nf = write_ground(mk, mesh)
-        write_clothing(mk)
-        tex = np.asarray(img)
-        make_icon_source(mk, mesh, tex)
-        built[mk] = (body, C, mesh, tex)
-        print('Mk%d: %d vertices, %d triangles' % (mk, len(mesh.P), len(mesh.F)))
+    body, C, mesh = build_mesh()
+    P = paint_atlas(body, C)
+    img = finish(P, mesh, body)
+    paths = out_paths()
+    os.makedirs(os.path.dirname(paths['TEX']), exist_ok=True)
+    img.save(paths['TEX'], optimize=True)
+    write_static(mesh)
+    for key in 'RL':
+        write_hand(key, mesh, fits[key])
+    write_ground(mesh)
+    write_clothing()
+    tex = np.asarray(img)
+    make_icon_source(mesh, tex)
+    built = [(body, C, mesh, tex)]
+    print('%d vertices, %d triangles' % (len(mesh.P), len(mesh.F)))
     write_script()
     make_preview(built, fits)
 
@@ -620,10 +595,10 @@ def check_x(path, frame, bone=None, src=None):
     need(N is not None and len(N) == len(V) and np.abs(np.linalg.norm(N, axis=1) - 1).max() < 1e-3, 'normals')
     c = np.cross(V[T[:, 1]] - V[T[:, 0]], V[T[:, 2]] - V[T[:, 0]])
     agree = (c * N[T].mean(1)).sum(1) > 0
-    need(agree.mean() > 0.995, '%d faces wound against their normals' % (~agree).sum())
+    need(agree.all(), '%d faces wound against their normals' % (~agree).sum())
     need(UV is not None and len(UV) == len(V) and UV.min() >= 0 and UV.max() <= 1, 'uvs')
-    ml = re.search(r'MeshMaterialList \{\n\s*1;\n\s*(\d+);\n((?:\s*0[,;]\n)+)\s*\{ (\S+) \}', txt)
-    need(ml and int(ml.group(1)) == len(T) and 'Material %s {' % ml.group(3) in txt, 'material list')
+    ml = re.search(r'MeshMaterialList \{\n\s*1;\n\s*(\d+);\n((?:\s*0(?:,0)*[,;]\n)+)\s*\{ (\S+) \}', txt)
+    need(ml and int(ml.group(1)) == len(T) and ml.group(2).count('0') == len(T) and 'Material %s {' % ml.group(3) in txt, 'material list')
     if bone:
         need(list(d['bones']) == [bone], 'rigid on %s' % bone)
         idx, w, mat = d['bones'][bone]
@@ -667,23 +642,22 @@ def check_all():
     table = open(GUID_TABLE, encoding='utf-8-sig').read() if os.path.exists(GUID_TABLE) else ''
     script = open(SCRIPT, encoding='utf-8').read() if os.path.exists(SCRIPT) else ''
 
-    def files(mk):
-        n = name_of(mk)
-        need(Image.open(out_paths(mk)['TEX']).size == (ATLAS, ATLAS), 'texture size')
-        for fname, (guid, model) in clothing_items(mk).items():
+    def files():
+        n = NAME
+        need(Image.open(out_paths()['TEX']).size == (ATLAS, ATLAS), 'texture size')
+        for fname, (guid, model) in clothing_items().items():
             xml = open(os.path.join(CLOTHING_DIR, fname + '.xml'), encoding='utf-8-sig').read()
             need('<m_GUID>%s</m_GUID>' % guid in xml and '\\%s.X</m_' % model in xml, fname + ': xml')
             need('%s.xml</path>\n\t\t<guid>%s</guid>' % (fname, guid) in table, fname + ': not in fileGuidTable')
             need('<textureChoices>OA_FuelCan\\%s</textureChoices>' % n in xml, fname + ': texture')
         need('model %s\n' % n in script and 'mesh = WorldItems/%s_Ground,' % n in script, 'model script')
-        need(os.path.exists(out_paths(mk)['ICON']), 'icon source')
-    for mk in MARKS:
-        p, n = out_paths(mk), name_of(mk)
+        need(os.path.exists(out_paths()['ICON']), 'icon source')
+    for p, n in ((out_paths(), NAME),):
         run(os.path.basename(p['S']), check_x, p['S'], n)
         run(os.path.basename(p['R']), check_x, p['R'], n + '_RHand', 'Bip01_Prop1', HANDS['R']['src'])
         run(os.path.basename(p['L']), check_x, p['L'], n + '_LHand', 'Bip01_Prop2', HANDS['L']['src'])
         run(os.path.basename(p['G']), check_fbx, p['G'], n)
-        run('Mk%d texture, clothing, guids, script' % mk, files, mk)
+        run('texture, clothing, guids, script', files)
     run('model script braces', lambda: need(script.count('{') == script.count('}'), 'braces'))
     return 1 if bad else 0
 

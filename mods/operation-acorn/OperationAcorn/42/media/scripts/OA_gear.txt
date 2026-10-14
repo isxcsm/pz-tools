@@ -1,11 +1,13 @@
 /* Operation Acorn: gear and kits (the gear package).
-   The research team backpack, the improved fuel cans (Mk.I to Mk.III) and the four modification kits. Every property
-   is one the vanilla scripts use: the backpack is modelled on Bag_ALICEpack and the cans on PetrolCan
-   (media/scripts/generated/items/normal.txt). There is no improved welding torch: vanilla checks the torch by its
-   exact type (barricading, unbarricading, scrapping metal, burnt cars), so one of another type would not work.
+   The research team backpack, waist bag and fuel can, the welding mask and the four modification kits. Every property
+   is one the vanilla scripts use: the backpack is modelled on Bag_ALICEpack, the waist bag on Bag_FannyPackFront/Back
+   (media/scripts/generated/items/container.txt) and the can on PetrolCan (normal.txt). The team's welder is the vanilla
+   blowtorch with the team's mark in its modData (Gear/Gear.lua): the game checks the torch by its exact type
+   (barricading, unbarricading, scrapping metal, burnt cars), so one of another type would not work. The field tools are
+   in OA_field_tools.txt.
    What scripts cannot do is in media/lua/shared/OperationAcorn/Gear: fitting a kit (a timed action that writes the
-   counts to the bag or the vehicle) and redeeming the handover voucher. The tooltips are set in code (ISToolTipInv,
-   Gear/Menu.lua), so none is named here. */
+   counts to the item, the bag or the vehicle) and redeeming the handover voucher. The tooltips are set in code
+   (ISToolTipInv, Gear/Menu.lua), so none is named here. */
 module OperationAcorn
 {
     imports
@@ -16,9 +18,7 @@ module OperationAcorn
     /* The research team backpack: 35 capacity and 85 weight reduction, the vanilla maxima. Two military canteens
        are built into its side pouches (they are part of the model): together they are the pack's water storage, the
        FluidContainer below, as much as the two canteens (CanteenMilitary, 0.9 each) and empty when bought. Like the
-       canteen it takes any fluid. A pack bought before the water storage existed gets it when the save loads: the
-       game makes an item's components from its script and only drops them for an item saved with components of its
-       own, which the old pack never had.
+       canteen it takes any fluid.
        WebbingLeft/Right are the hotbar hangers the game places on the shoulder straps at the chest (a radio, a knife;
        the ALICE suspenders have the same two), where this pack's straps run, so they stay; they are clear of the
        canteens on the sides. */
@@ -53,26 +53,77 @@ module OperationAcorn
         }
     }
 
-    /* The improved fuel cans: larger tanks than the vanilla petrol can, the same empty weight on the scale. Carried,
-       they weigh less (the extension API's carrying efficiency, Gear.FUEL_CANS: full, Mk.I weighs what a full plain can
-       does, Mk.II and Mk.III less). The shop sends them empty. The base:petrol tag is what the vehicle and generator
-       menus look for. Their own jerry can models (tools/fuelcan_mesh.py, scripts/OA_fuelcan_models.txt); the hand
-       holds them where it holds the vanilla can. */
-    item FuelCanMk1
+    /* The research team waist bag: worn at the front or, by the same menu as the vanilla fanny pack's, at the back
+       (ClothingItemExtra: the game makes the other item and moves the contents and the modData across). More than a
+       fanny pack holds (1) and less than a satchel; the weight reduction is the vanilla bags' most. Its own models
+       (tools/waistbag_mesh.py, scripts/OA_waistbag_models.txt). The kits fit it as they fit a backpack. */
+    item TeamWaistBagFront
+    {
+        DisplayCategory = Bag,
+        ItemType = base:container,
+        Weight = 0.5,
+        Icon = OA_ResearchWaistBag,
+        BodyLocation = base:fannypackfront,
+        CanBeEquipped = base:fannypackfront,
+        CanHaveHoles = false,
+        Capacity = 6,
+        CloseSound = CloseBag,
+        ClothingItem = OA_Bag_ResearchWaistFront,
+        ClothingItemExtra = OperationAcorn.TeamWaistBagBack,
+        ClothingItemExtraOption = FannyPack_WearBack,
+        EquipSound = EquipFannyPack,
+        OpenSound = OpenBag,
+        PutInSound = PutItemInBag,
+        RunSpeedModifier = 0.98,
+        WeightReduction = 85,
+        ClothingExtraSubmenu = FannyPack_WearFront,
+        WorldStaticModel = OperationAcorn.OA_ResearchWaist_Ground,
+        Tags = base:ignorezombiedensity,
+    }
+
+    item TeamWaistBagBack
+    {
+        DisplayCategory = Bag,
+        ItemType = base:container,
+        Weight = 0.5,
+        Icon = OA_ResearchWaistBag,
+        BodyLocation = base:fannypackback,
+        CanBeEquipped = base:fannypackback,
+        CanHaveHoles = false,
+        Capacity = 6,
+        CloseSound = CloseBag,
+        ClothingItem = OA_Bag_ResearchWaistBack,
+        ClothingItemExtra = OperationAcorn.TeamWaistBagFront,
+        ClothingItemExtraOption = FannyPack_WearFront,
+        EquipSound = EquipFannyPack,
+        OpenSound = OpenBag,
+        PutInSound = PutItemInBag,
+        RunSpeedModifier = 0.98,
+        WeightReduction = 85,
+        ClothingExtraSubmenu = FannyPack_WearBack,
+        WorldStaticModel = OperationAcorn.OA_ResearchWaist_Ground,
+        Tags = base:ignorezombiedensity,
+    }
+
+    /* The research team fuel can: 12 L, a little more than the vanilla petrol can's 10, at its empty weight. The kits
+       make it hold more and weigh less (Gear/Gear.lua). The shop sends it empty. The base:petrol tag is what the
+       vehicle and generator menus look for. Its own jerry can model (tools/fuelcan_mesh.py,
+       scripts/OA_fuelcan_models.txt); the hand holds it where it holds the vanilla can. */
+    item TeamFuelCan
     {
         DisplayCategory = VehicleMaintenance,
         Weight = 1.6,
         ItemType = base:normal,
-        Icon = OA_FuelCanMk1,
-        StaticModel = OperationAcorn.OA_FuelCanMk1,
-        ReplaceInSecondHand = OA_Bag_FuelCanMk1_LHand holdingbagleft,
-        ReplaceInPrimaryHand = OA_Bag_FuelCanMk1_RHand holdingbagright,
-        WorldStaticModel = OperationAcorn.OA_FuelCanMk1_Ground,
+        Icon = OA_TeamFuelCan,
+        StaticModel = OperationAcorn.OA_TeamFuelCan,
+        ReplaceInSecondHand = OA_Bag_TeamFuelCan_LHand holdingbagleft,
+        ReplaceInPrimaryHand = OA_Bag_TeamFuelCan_RHand holdingbagright,
+        WorldStaticModel = OperationAcorn.OA_TeamFuelCan_Ground,
         Tags = base:petrol;base:cookablemicrowave,
         component FluidContainer
         {
             ContainerName = GasCan,
-            Capacity = 15.0,
+            Capacity = 12.0,
             Fluids
             {
                 fluid = Petrol:1.0,
@@ -80,77 +131,35 @@ module OperationAcorn
         }
     }
 
-    item FuelCanMk2
-    {
-        DisplayCategory = VehicleMaintenance,
-        Weight = 1.6,
-        ItemType = base:normal,
-        Icon = OA_FuelCanMk2,
-        StaticModel = OperationAcorn.OA_FuelCanMk2,
-        ReplaceInSecondHand = OA_Bag_FuelCanMk2_LHand holdingbagleft,
-        ReplaceInPrimaryHand = OA_Bag_FuelCanMk2_RHand holdingbagright,
-        WorldStaticModel = OperationAcorn.OA_FuelCanMk2_Ground,
-        Tags = base:petrol;base:cookablemicrowave,
-        component FluidContainer
-        {
-            ContainerName = GasCan,
-            Capacity = 20.0,
-            Fluids
-            {
-                fluid = Petrol:1.0,
-            }
-        }
-    }
-
-    item FuelCanMk3
-    {
-        DisplayCategory = VehicleMaintenance,
-        Weight = 1.6,
-        ItemType = base:normal,
-        Icon = OA_FuelCanMk3,
-        StaticModel = OperationAcorn.OA_FuelCanMk3,
-        ReplaceInSecondHand = OA_Bag_FuelCanMk3_LHand holdingbagleft,
-        ReplaceInPrimaryHand = OA_Bag_FuelCanMk3_RHand holdingbagright,
-        WorldStaticModel = OperationAcorn.OA_FuelCanMk3_Ground,
-        Tags = base:petrol;base:cookablemicrowave,
-        component FluidContainer
-        {
-            ContainerName = GasCan,
-            Capacity = 25.0,
-            Fluids
-            {
-                fluid = Petrol:1.0,
-            }
-        }
-    }
-
-    /* The modification kits. A kit carries the target it was ordered for in its modData (OA_Target: the item type of
-       a bag, the script name of a vehicle; empty for any) and is fitted by a timed action (Gear/Actions.lua). */
-    item KitBagCapacity
+    /* The modification kits, one per thing they improve (NUMBERS 7): the expansion kit (what a bag, the fuel can, the
+       welder or a vehicle's storage holds), the lightening kit (what a bag or a team item weighs), the reinforcement
+       kit (how long a field tool lasts) and the engine tuning kit. Each is fitted by a timed action
+       (Gear/Actions.lua). */
+    item KitCapacity
     {
         DisplayCategory = Tool,
         ItemType = base:normal,
         Weight = 1.0,
-        Icon = OA_BagCapacityKit,
-        WorldStaticModel = Base.SewingBox,
-    }
-
-    item KitBagWeight
-    {
-        DisplayCategory = Tool,
-        ItemType = base:normal,
-        Weight = 1.0,
-        Icon = OA_BagWeightKit,
-        WorldStaticModel = Base.SewingBox,
-    }
-
-    item KitStorage
-    {
-        DisplayCategory = VehicleMaintenance,
-        ItemType = base:normal,
-        Weight = 3.0,
-        Icon = OA_StorageKit,
+        Icon = OA_CapacityKit,
         WorldStaticModel = Base.ToolBox_Ground,
+    }
+
+    item KitLightening
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 1.0,
+        Icon = OA_LighteningKit,
+        WorldStaticModel = Base.SewingBox,
+    }
+
+    item KitReinforcement
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 1.0,
+        Icon = OA_ReinforcementKit,
+        WorldStaticModel = Base.SewingBox,
     }
 
     item KitEngine
@@ -183,440 +192,5 @@ module OperationAcorn
         Tags = base:weldingmask;base:isdisguise,
         VisionModifier = 0.5,
         DiscomfortModifier = 0.05,
-    }
-
-    /* The light tools: each the vanilla tool (weapon.txt, normal.txt) at half its weight, everything else as it is.
-       The tags are what the game's uses look for (a hammer's base:hammer, a saw's base:saw, base:screwdriver,
-       base:wrench, base:lugwrench, base:crowbar, the axe's base:choptree, the shovel's dig tags, the pickaxe's), so
-       each does the vanilla tool's work. The vanilla models; the icons are the vanilla ones in the team's colours
-       (tools/vanilla_art.py). */
-    item LightHammer
-    {
-        DisplayCategory = ToolWeapon,
-        ItemType = base:weapon,
-        Weight = 0.75,
-        Icon = OA_LightHammer,
-        AttachmentType = Hammer,
-        BaseSpeed = 1.0,
-        BreakSound = HammerBreak,
-        CanBarricade = true,
-        Categories = base:smallblunt,
-        ConditionLowerChanceOneIn = 30,
-        ConditionMax = 10,
-        CritDmgMultiplier = 3.0,
-        CriticalChance = 20.0,
-        DoorDamage = 9,
-        DoorHitSound = HammerHit,
-        DropSound = HammerDrop,
-        HitFloorSound = HammerHit,
-        HitSound = HammerHit,
-        IdleAnim = Idle_Weapon2,
-        KnockBackOnNoDeath = true,
-        KnockdownMod = 0.0,
-        MaxDamage = 1.0,
-        MaxHitcount = 1,
-        MaxRange = 1.1,
-        MetalValue = 25.0,
-        MinAngle = 0.67,
-        MinDamage = 0.5,
-        MinRange = 0.61,
-        MinimumSwingtime = 3.0,
-        PushBackMod = 0.5,
-        RunAnim = Run_Weapon2,
-        SplatBloodOnNoDeath = true,
-        SplatNumber = 1,
-        SubCategory = Swinging,
-        SwingAmountBeforeImpact = 0.02,
-        SwingAnim = Bat,
-        SwingSound = HammerSwing,
-        Swingtime = 3.0,
-        TreeDamage = 0,
-        WeaponLength = 0.23,
-        WeaponSprite = Base.Hammer,
-        Tags = base:hammer;base:removebarricade;base:hastoolhead;base:killanimal;base:repairwithglue;base:repairwithtape;base:hasmetal,
-        HeadCondition = 10,
-        OnBreak = OnBreak.Clawhammer,
-        HeadConditionLowerChanceMultiplier = 2.0,
-        Researchablerecipes = Forge_Clawhammer_Head;Forge_Ball_Peen_Hammer_Head;Forge_Club_Hammer_Head;Forge_Smithing_Hammer_Head,
-    }
-
-    item LightScrewdriver
-    {
-        DisplayCategory = ToolWeapon,
-        ItemType = base:weapon,
-        Weight = 0.25,
-        Icon = OA_LightScrewdriver,
-        AimingMod = 0.8,
-        AttachmentType = Screwdriver,
-        BreakSound = ScrewdriverBreak,
-        Categories = base:improvised;base:smallblade,
-        CloseKillMove = Jaw_Stab,
-        ConditionLowerChanceOneIn = 6,
-        ConditionMax = 10,
-        CritDmgMultiplier = 10.0,
-        CriticalChance = 10.0,
-        DoorDamage = 1,
-        DoorHitSound = ScrewdriverHit,
-        DropSound = ScrewdriverDrop,
-        HitFloorSound = ScrewdriverHit,
-        HitSound = ScrewdriverHit,
-        IdleAnim = Idle_Weapon2,
-        ImpactSound = ScrewdriverHit,
-        IsAimedHandWeapon = true,
-        KnockBackOnNoDeath = false,
-        KnockdownMod = 0.0,
-        MaxDamage = 0.7,
-        MaxHitcount = 1,
-        MaxRange = 0.85,
-        MetalValue = 5.0,
-        MinAngle = 0.65,
-        MinDamage = 0.3,
-        MinRange = 0.61,
-        MinimumSwingtime = 2.0,
-        PushBackMod = 0.01,
-        RunAnim = Run_Weapon2,
-        SplatBloodOnNoDeath = false,
-        SplatNumber = 1,
-        SubCategory = Stab,
-        SwingAmountBeforeImpact = 0.02,
-        SwingAnim = Stab,
-        SwingSound = ScrewdriverSwing,
-        Swingtime = 2.0,
-        TreeDamage = 0,
-        WeaponLength = 0.19,
-        WeaponSprite = Base.Screwdriver,
-        Tags = base:screwdriver;base:hasmetal,
-        Researchablerecipes = MakeScrewdriver,
-    }
-
-    item LightSaw
-    {
-        DisplayCategory = Tool,
-        ItemType = base:normal,
-        Weight = 0.5,
-        Icon = OA_LightSaw,
-        MetalValue = 35.0,
-        SurvivalGear = true,
-        StaticModel = Base.Hacksaw,
-        WorldStaticModel = Base.HacksawGround,
-        Tags = base:saw;base:metalsaw;base:showcondition,
-        ConditionLowerChanceOneIn = 10,
-        ConditionMax = 10,
-        Researchablerecipes = Forge_Saw;MakeStoneBladeSaw,
-    }
-
-    item LightWrench
-    {
-        DisplayCategory = ToolWeapon,
-        ItemType = base:weapon,
-        Weight = 0.5,
-        Icon = OA_LightWrench,
-        AttachmentType = Wrench,
-        BaseSpeed = 1.0,
-        BreakSound = WrenchBreak,
-        Categories = base:smallblunt,
-        ConditionLowerChanceOneIn = 15,
-        ConditionMax = 9,
-        CritDmgMultiplier = 2.0,
-        CriticalChance = 20.0,
-        DoorDamage = 10,
-        DoorHitSound = WrenchHit,
-        DropSound = WrenchDrop,
-        HitFloorSound = WrenchHit,
-        HitSound = WrenchHit,
-        KnockBackOnNoDeath = false,
-        KnockdownMod = 2.0,
-        MaxDamage = 1.0,
-        MaxHitcount = 2,
-        MaxRange = 1.1,
-        MinAngle = 0.67,
-        MinDamage = 0.5,
-        MinRange = 0.61,
-        MinimumSwingtime = 4.0,
-        PushBackMod = 0.3,
-        SplatBloodOnNoDeath = false,
-        SplatNumber = 1,
-        SubCategory = Swinging,
-        SwingAmountBeforeImpact = 0.02,
-        SwingAnim = Bat,
-        SwingSound = WrenchSwing,
-        Swingtime = 4.0,
-        Tags = base:hasmetal;base:wrench;base:smeltablesteelmedium,
-        TreeDamage = 0,
-        WeaponLength = 0.23,
-        WeaponSprite = Base.Wrench,
-    }
-
-    item LightLugWrench
-    {
-        DisplayCategory = VehicleMaintenance,
-        Weight = 0.5,
-        ItemType = base:normal,
-        Icon = OA_LightLugWrench,
-        MechanicsItem = true,
-        WorldStaticModel = Base.LugWrench,
-        Tags = base:lugwrench,
-    }
-
-    item LightCrowbar
-    {
-        DisplayCategory = ToolWeapon,
-        ItemType = base:weapon,
-        Weight = 1.0,
-        Icon = OA_LightCrowbar,
-        AttachmentType = BigBlade,
-        BaseSpeed = 1.0,
-        BreakSound = CrowbarBreak,
-        Categories = base:blunt,
-        ConditionLowerChanceOneIn = 70,
-        ConditionMax = 15,
-        CritDmgMultiplier = 2.5,
-        CriticalChance = 20.0,
-        DoorDamage = 8,
-        DoorHitSound = CrowbarHit,
-        DropSound = CrowbarDrop,
-        HitAngleMod = -30.0,
-        HitFloorSound = CrowbarHit,
-        HitSound = CrowbarHit,
-        KnockBackOnNoDeath = true,
-        KnockdownMod = 0.0,
-        MaxDamage = 1.15,
-        MaxHitcount = 3,
-        MaxRange = 1.25,
-        MetalValue = 150.0,
-        MinAngle = 0.75,
-        MinDamage = 0.6,
-        MinRange = 0.61,
-        MinimumSwingtime = 3.0,
-        PushBackMod = 0.5,
-        RunAnim = Run_Weapon2,
-        SubCategory = Swinging,
-        SwingAmountBeforeImpact = 0.02,
-        SwingAnim = Bat,
-        SwingSound = CrowbarSwing,
-        Swingtime = 3.0,
-        TreeDamage = 0,
-        TwoHandWeapon = true,
-        WeaponLength = 0.4,
-        WeaponSprite = Base.Crowbar,
-        Tags = base:crowbar;base:removebarricade;base:killanimal;base:smeltablesteellarge;base:hasmetal,
-        Researchablerecipes = Forge_Crowbar,
-    }
-
-    item LightSledgehammer
-    {
-        DisplayCategory = ToolWeapon,
-        ItemType = base:weapon,
-        Weight = 3.0,
-        Icon = OA_LightSledgehammer,
-        AlwaysKnockdown = true,
-        AttachmentType = BigBlade,
-        BaseSpeed = 0.9,
-        BreakSound = SledgehammerBreak,
-        CantAttackWithLowestEndurance = true,
-        Categories = base:blunt,
-        ConditionLowerChanceOneIn = 40,
-        ConditionMax = 10,
-        CritDmgMultiplier = 2.0,
-        DoorDamage = 40,
-        DoorHitSound = SledgehammerHit,
-        DropSound = SledgehammerDrop,
-        EnduranceMod = 4.0,
-        HitFloorSound = SledgehammerHit,
-        HitSound = SledgehammerHit,
-        IdleAnim = Idle_Weapon2,
-        KnockBackOnNoDeath = true,
-        KnockdownMod = 3.0,
-        MaxDamage = 3.0,
-        MaxHitcount = 3,
-        MaxRange = 1.35,
-        MetalValue = 120.0,
-        MinAngle = 0.8,
-        MinDamage = 2.0,
-        MinRange = 0.7,
-        MinimumSwingtime = 4.0,
-        PushBackMod = 1.0,
-        RequiresEquippedBothHands = true,
-        RunAnim = Run_Weapon2,
-        SplatBloodOnNoDeath = false,
-        SplatNumber = 3,
-        SubCategory = Swinging,
-        SwingAmountBeforeImpact = 0.04,
-        SwingAnim = Heavy,
-        SwingSound = SledgehammerSwing,
-        Swingtime = 2.0,
-        TreeDamage = 10,
-        TwoHandWeapon = true,
-        WeaponLength = 0.65,
-        WeaponSprite = Base.SledgeHammer,
-        Tags = base:sledgehammer;base:hastoolhead;base:repairwithglue;base:repairwithtape,
-        OnBreak = OnBreak.Sledgehammer,
-        HeadCondition = 10,
-        HeadConditionLowerChanceMultiplier = 1.0,
-        Researchablerecipes = Forge_Club_Hammer_Head;Forge_Sledgehammer_Head;MakeStoneMaulHead,
-    }
-
-    item LightWoodAxe
-    {
-        DisplayCategory = ToolWeapon,
-        ItemType = base:weapon,
-        Weight = 1.5,
-        Icon = OA_LightWoodAxe,
-        AttachmentType = BigBlade,
-        BaseSpeed = 1.0,
-        BreakSound = WoodAxeBreak,
-        Categories = base:axe,
-        ConditionLowerChanceOneIn = 40,
-        ConditionMax = 15,
-        CritDmgMultiplier = 12.0,
-        CriticalChance = 50.0,
-        DamageCategory = Slash,
-        DamageMakeHole = true,
-        DoorDamage = 55,
-        DoorHitSound = WoodAxeHit,
-        DropSound = WoodAxeDrop,
-        EnduranceMod = 3.0,
-        HitAngleMod = -30.0,
-        HitFloorSound = WoodAxeHit,
-        HitSound = WoodAxeHit,
-        IdleAnim = Idle_Weapon2,
-        KnockBackOnNoDeath = true,
-        KnockdownMod = 3.0,
-        MaxDamage = 3.0,
-        MaxHitcount = 3,
-        MaxRange = 1.35,
-        MetalValue = 120.0,
-        MinAngle = 0.8,
-        MinDamage = 1.3,
-        MinRange = 0.61,
-        MinimumSwingtime = 0.5,
-        PushBackMod = 0.3,
-        RequiresEquippedBothHands = true,
-        RunAnim = Run_Weapon2,
-        SplatBloodOnNoDeath = true,
-        SplatNumber = 3,
-        SplatSize = 5,
-        SubCategory = Swinging,
-        SwingAmountBeforeImpact = 0.002,
-        SwingAnim = Heavy,
-        SwingSound = WoodAxeSwing,
-        Swingtime = 0.5,
-        TreeDamage = 55,
-        TwoHandWeapon = true,
-        WeaponLength = 0.5,
-        WeaponSprite = Base.WoodAxe,
-        Tags = base:choptree;base:cutplant;base:sharpenable;base:repairwithtape;base:repairwithglue;base:hasmetal,
-        Sharpness = 1.0,
-        HeadCondition = 15,
-        HeadConditionLowerChanceMultiplier = 1.5,
-        Researchablerecipes = Forge_Wood_Axe_Head;MakeLargeStoneAxeHead;Forge_Old_Axe_Head,
-        OnBreak = OnBreak.WoodAxe,
-    }
-
-    item LightShovel
-    {
-        DisplayCategory = GardeningWeapon,
-        ItemType = base:weapon,
-        Weight = 1.0,
-        Icon = OA_LightShovel,
-        AttachmentType = Shovel,
-        BaseSpeed = 0.8,
-        BreakSound = ShovelBreak,
-        Categories = base:blunt,
-        ConditionLowerChanceOneIn = 10,
-        ConditionMax = 10,
-        CritDmgMultiplier = 2.0,
-        CriticalChance = 40.0,
-        DamageCategory = Slash,
-        DamageMakeHole = true,
-        DoorDamage = 10,
-        DoorHitSound = ShovelHit,
-        DropSound = ShovelDrop,
-        HitAngleMod = -30.0,
-        HitFloorSound = ShovelHit,
-        HitSound = ShovelHit,
-        IdleAnim = Idle_Weapon2,
-        KnockBackOnNoDeath = true,
-        KnockdownMod = 2.0,
-        MaxDamage = 1.9,
-        MaxHitcount = 3,
-        MaxRange = 1.6,
-        MetalValue = 70.0,
-        MinAngle = 0.85,
-        MinDamage = 0.8,
-        MinRange = 0.61,
-        MinimumSwingtime = 2.1,
-        PushBackMod = 0.5,
-        RunAnim = Run_Weapon2,
-        SubCategory = Swinging,
-        SwingAmountBeforeImpact = 0.02,
-        SwingAnim = Bat,
-        SwingSound = ShovelSwing,
-        Swingtime = 2.1,
-        TreeDamage = 1,
-        TwoHandWeapon = true,
-        WeaponLength = 0.55,
-        WeaponSprite = Base.Shovel,
-        Tags = base:clearashes;base:diggrave;base:digplow;base:takedirt;base:takedung;base:hastoolhead;base:killanimal;base:repairwithglue;base:repairwithtape;base:hasmetal,
-        DigType = Shovel,
-        HeadCondition = 10,
-        OnBreak = OnBreak.HandleSpade,
-        HeadConditionLowerChanceMultiplier = 1.0,
-        Researchablerecipes = MakeSpadeHeadCudgel;Forge_Spade_Head;Forge_Gardening_Trowel;CarveWoodenSpade,
-    }
-
-    item LightPickAxe
-    {
-        DisplayCategory = ToolWeapon,
-        ItemType = base:weapon,
-        Weight = 1.5,
-        Icon = OA_LightPickAxe,
-        AttachmentType = BigBlade,
-        BaseSpeed = 0.8,
-        BreakSound = PickAxeBreak,
-        Categories = base:axe,
-        ConditionLowerChanceOneIn = 20,
-        ConditionMax = 13,
-        CritDmgMultiplier = 9.0,
-        CriticalChance = 25.0,
-        DamageCategory = Slash,
-        DamageMakeHole = true,
-        DoorDamage = 35,
-        DoorHitSound = PickAxeHit,
-        DropSound = PickAxeDrop,
-        HitAngleMod = -30.0,
-        HitFloorSound = PickAxeHit,
-        HitSound = PickAxeHit,
-        IdleAnim = Idle_Weapon2,
-        KnockBackOnNoDeath = true,
-        KnockdownMod = 2.0,
-        MaxDamage = 2.2,
-        MaxHitcount = 3,
-        MaxRange = 1.6,
-        MetalValue = 120.0,
-        MinAngle = 0.65,
-        MinDamage = 1.0,
-        MinRange = 0.61,
-        MinimumSwingtime = 3.0,
-        PushBackMod = 0.3,
-        RunAnim = Run_Weapon2,
-        SplatBloodOnNoDeath = true,
-        SplatNumber = 3,
-        SplatSize = 5,
-        SubCategory = Swinging,
-        SwingAmountBeforeImpact = 0.002,
-        SwingAnim = Bat,
-        SwingSound = PickAxeSwing,
-        Swingtime = 3.0,
-        TreeDamage = 35,
-        TwoHandWeapon = true,
-        WeaponSprite = Base.PickAxe,
-        Tags = base:digplow;base:pickaxe;base:removestump;base:hastoolhead;base:killanimal;base:repairwithglue;base:repairwithtape;base:hasmetal,
-        Tooltip = Tooltip_item_PickAxe,
-        DigType = PickAxe,
-        HeadCondition = 13,
-        OnBreak = OnBreak.PickAxe,
-        HeadConditionLowerChanceMultiplier = 1.5,
-        Researchablerecipes = MakeStoneMaulHead,
     }
 }

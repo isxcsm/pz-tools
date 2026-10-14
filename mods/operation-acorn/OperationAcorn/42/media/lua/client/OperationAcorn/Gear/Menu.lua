@@ -1,8 +1,9 @@
--- Where the kits meet the game's screens: the right-click entries (fit a kit to a bag, redeem the handover voucher, fit
--- a kit to a vehicle from the mechanics window), the lines about fitted kits in a bag's tooltip, the notices, and the
--- writing of a character's kits into the game when it starts. Other mods' menus and tooltips are wrapped, never
--- replaced. The entries go on top of the game's menu; the bags and kits a character carries are not searched for at a
--- right-click but read from Gear.carried, which keeps them while the inventory is the same.
+-- Where the kits meet the game's screens: the right-click entries (fit a kit to an item, redeem the handover voucher,
+-- fit a kit to a vehicle from the mechanics window), the lines about the team's gear and fitted kits in an item's
+-- tooltip, the notices, and the writing of a character's kits into the game when it starts. Other mods' menus and
+-- tooltips are wrapped, never replaced. The entries go on top of the game's menu; the items and kits a character
+-- carries are not searched for at a right-click but read from Gear.carried, which keeps them while the inventory is
+-- the same.
 require "ISUI/ISToolTip"
 require "ISUI/ISToolTipInv"
 require "ISUI/ISInventoryPaneContextMenu"
@@ -35,30 +36,36 @@ local function join(lines)
     return table.concat(lines, " <LINE> ")
 end
 
--- ---- the tooltip of a bag with kits and of a kit --------------------------------------------------------------
+-- ---- the tooltip of the team's gear and of a kit ---------------------------------------------------------------
 
--- The items of the gear package whose tooltip text is Tooltip_OA_Gear_<item name>.
+-- The items of the gear package whose tooltip text is Tooltip_OA_Gear_<text> (the waist bag's two sides share one).
 Menu.TEXTS = {
-    TeamBackpack = true, FuelCanMk1 = true, FuelCanMk2 = true, FuelCanMk3 = true,
-    KitBagCapacity = true, KitBagWeight = true, KitStorage = true, KitEngine = true,
+    TeamBackpack = "TeamBackpack", TeamWaistBagFront = "TeamWaistBag", TeamWaistBagBack = "TeamWaistBag",
+    TeamFuelCan = "TeamFuelCan", KitCapacity = "KitCapacity", KitLightening = "KitLightening",
+    KitReinforcement = "KitReinforcement", KitEngine = "KitEngine",
 }
+
+-- The tooltip text of an item of this mod or the team's welder, or nil.
+local function ownText(item, target)
+    if target == "tool" then return "Tooltip_OA_Gear_FieldTool" end
+    if target == "welder" then return "Tooltip_OA_Gear_TeamWelder" end
+    local text = item:getModule() == OA.MOD and Menu.TEXTS[item:getType()]
+    return text and ("Tooltip_OA_Gear_" .. text) or nil
+end
 
 -- The lines of an item's tooltip that this part adds (none for most items).
 local function extraLines(item)
-    local own = item:getModule() == OA.MOD and Menu.TEXTS[item:getType()]
-    local bag = item:IsInventoryContainer() and item:hasModData()
-    if not own and not bag then return nil end
+    local target = Gear.targetOf(item)
+    local own = ownText(item, target)
+    if not own and not (target and item:hasModData()) then return nil end
     local lines = {}
-    if own then
-        lines[#lines + 1] = getText("Tooltip_OA_Gear_" .. item:getType())
-        -- a fuel can: what it weighs as carried (the game's weight line above is the scale's)
-        local carried = Gear.FUEL_CANS[item:getType()] and Gear.carriedWeight(item)
-        if carried then lines[#lines + 1] = getText("Tooltip_OA_Gear_CanCarried", string.format("%.1f", carried)) end
-    end
-    if bag then
-        for _, line in ipairs(Gear.bagLines(item) or {}) do lines[#lines + 1] = line end
-    end
-    return lines
+    if own then lines[#lines + 1] = getText(own) end
+    for _, line in ipairs(target and Gear.itemLines(item) or {}) do lines[#lines + 1] = line end
+    -- a lightened team item: what it weighs as carried (the game's weight line above is the scale's)
+    local _, light = Gear.itemKits(item)
+    local carried = target and target ~= "bag" and light > 0 and Gear.applies(Gear.CARRY_POINT) and Gear.carriedWeight(item)
+    if carried then lines[#lines + 1] = getText("Tooltip_OA_Gear_Carried", string.format("%.2f", carried)) end
+    return #lines > 0 and lines or nil
 end
 
 local originalRender = ISToolTipInv.render
@@ -87,33 +94,46 @@ local function kitsOf(player, kind)
     return Gear.carried(player).kits[kind] or {}
 end
 
-local function fitBag(player, kit, bag)
+local function fitItem(player, kit, item)
     ISInventoryPaneContextMenu.transferIfNeeded(player, kit)
-    ISTimedActionQueue.add(ISOAFitBagKit:new(player, kit, bag))
+    ISTimedActionQueue.add(ISOAFitItemKit:new(player, kit, item))
 end
 
-local function describeBag(bag)
-    local lines = Gear.bagLines(bag)
+local function describe(item)
+    local lines = Gear.itemLines(item)
     return lines and join(lines) or getText("Tooltip_OA_Gear_NoKits")
 end
 
--- The entry on a bag kit: fit it to one of the bags the character has.
-local function addBagKitMenu(context, player, kit)
-    local option = context:addOptionOnTop(getText("ContextMenu_OA_Gear_FitBag"), nil, nil)
+-- An entry that fits `kit` to `item`, or says why it cannot.
+local function addFitEntry(menu, player, kit, item, label)
+    local entry = menu:addOption(label, player, fitItem, kit, item)
+    local why = Gear.refusal(kit, item)
+    if why then
+        unavailable(entry, getText("IGUI_OA_Gear_Reason_" .. why) .. " <LINE> " .. describe(item))
+    else
+        tip(entry, describe(item))
+    end
+end
+
+-- The entry on a kit fitted to items: fit it to one of the items the character has that it fits. An expansion kit also
+-- fits a vehicle's storage, from the mechanics window: the hint says so.
+local function addItemKitMenu(context, player, kit)
+    local kind = Gear.kindOfItem(kit)
+    local option = context:addOptionOnTop(getText("ContextMenu_OA_Gear_FitItem"), nil, nil)
     local fits = {}
-    for _, bag in ipairs(Gear.carried(player).bags) do
-        if bag ~= kit then fits[#fits + 1] = bag end
+    for _, item in ipairs(Gear.carried(player).items) do
+        if Rules.fits(kind, Gear.targetOf(item)) then fits[#fits + 1] = item end
     end
     if #fits == 0 then
-        unavailable(option, getText("Tooltip_OA_Gear_NoBag"))
+        local text = getText("Tooltip_OA_Gear_NoTarget_" .. kind)
+        if Rules.fits(kind, "storage") then text = text .. " <LINE> " .. getText("Tooltip_OA_Gear_FitVehicle") end
+        unavailable(option, text)
         return
     end
     local sub = ISContextMenu:getNew(context)
     context:addSubMenu(option, sub)
-    for _, bag in ipairs(fits) do
-        local entry = sub:addOption(bag:getDisplayName(), player, fitBag, kit, bag)
-        tip(entry, describeBag(bag))
-    end
+    for _, item in ipairs(fits) do addFitEntry(sub, player, kit, item, item:getDisplayName()) end
+    if Rules.fits(kind, "storage") then tip(option, getText("Tooltip_OA_Gear_FitVehicle")) end
 end
 
 -- The entry on a vehicle kit: it is fitted from the vehicle's mechanics window.
@@ -137,12 +157,14 @@ local function addVoucherMenu(context, player, voucher)
     tip(option, getText("Tooltip_OA_Gear_RedeemInfo"))
 end
 
--- The entry on a bag: fit one of the bag kits the character has.
-local function addFitKitMenu(context, player, bag)
-    if not bag:getContainer() then return end
+-- The entry on a kit target (a bag, the fuel can, the welder, a field tool): fit one of the kits the character has
+-- that fit it.
+local function addFitKitMenu(context, player, item)
+    if not item:getContainer() then return end
+    local target = Gear.targetOf(item)
     local entries = {}
-    for _, kind in ipairs({ "bagCapacity", "bagWeight" }) do
-        local kits = kitsOf(player, kind)
+    for _, kind in ipairs(OA.Shop.KIT_ORDER) do
+        local kits = Rules.fits(kind, target) and kitsOf(player, kind) or {}
         if #kits > 0 then entries[#entries + 1] = { kind = kind, kit = kits[1], count = #kits } end
     end
     if #entries == 0 then return end
@@ -150,9 +172,8 @@ local function addFitKitMenu(context, player, bag)
     local sub = ISContextMenu:getNew(context)
     context:addSubMenu(option, sub)
     for _, e in ipairs(entries) do
-        local entry = sub:addOption(getText("ContextMenu_OA_Gear_FitKitOf", getItemNameFromFullType(Rules.kitType(e.kind)),
-            tostring(e.count)), player, fitBag, e.kit, bag)
-        tip(entry, describeBag(bag))
+        addFitEntry(sub, player, e.kit, item, getText("ContextMenu_OA_Gear_FitKitOf",
+            getItemNameFromFullType(Rules.kitType(e.kind)), tostring(e.count)))
     end
 end
 
@@ -170,17 +191,17 @@ local function onFillInventory(playerNum, context, items)
         elseif item:getModule() == OA.MOD and Gear.kindOfItem(item) and not done.kit then
             done.kit = true
             adders[#adders + 1] = function()
-                if Rules.SCOPE[Gear.kindOfItem(item)] == "bag" then
-                    addBagKitMenu(context, player, item)
+                if Rules.onItems(Gear.kindOfItem(item)) then
+                    addItemKitMenu(context, player, item)
                 else
                     addVehicleKitHint(context)
                 end
             end
-        elseif item:IsInventoryContainer() and not done.bag then
-            done.bag = true
-            -- a bag that was fitted before is written again from its kits (the API may have come or gone since)
-            if item:hasModData() then pcall(Gear.refreshBag, item) end
-            if Gear.isBackpack(item) then adders[#adders + 1] = function() addFitKitMenu(context, player, item) end end
+        elseif not done.target and Gear.targetOf(item) then
+            done.target = true
+            -- an item that was fitted before is written again from its kits (the API may have come or gone since)
+            if item:hasModData() then pcall(Gear.refreshItem, item) end
+            adders[#adders + 1] = function() addFitKitMenu(context, player, item) end
         end
     end
     for i = #adders, 1, -1 do adders[i]() end
@@ -222,7 +243,7 @@ local function addPartOptions(window, part)
         addPartEntry(context, player, part, "engine", "ContextMenu_OA_Gear_FitEngine", Gear.engineLines(vehicle))
     elseif Gear.isStoragePart(part) then
         Gear.refreshStorage(vehicle, part)
-        addPartEntry(context, player, part, "storage", "ContextMenu_OA_Gear_FitStorage", Gear.storageLines(part))
+        addPartEntry(context, player, part, "capacity", "ContextMenu_OA_Gear_FitStorage", Gear.storageLines(part))
     end
     -- the game hides a menu it found nothing for; this has put something in
     if before == 1 and context.numOptions > 1 then context:setVisible(true) end
@@ -257,16 +278,28 @@ OA.Sync.listen("notice", onNotice)
 
 -- ---- the game starts ------------------------------------------------------------------------------------------
 
--- The character's fitted bags are written again from their counts (the API may have come or gone since they were
--- fitted), once, when the game starts.
+-- The team items' keys are declared to the API, and the character's fitted items written again from their counts (the
+-- API may have come or gone since they were fitted; a lightened item's weight is not saved), once, when the game
+-- starts.
 local function onGameStart()
-    Gear.declareCans()
+    Gear.declare()
     local player = getPlayer()
     if not player then return end
     local ok, err = pcall(Gear.refreshAll, player)
-    if not ok then OA.log("gear: refreshing the bags failed:", tostring(err)) end
+    if not ok then OA.log("gear: refreshing the kits failed:", tostring(err)) end
 end
 Events.OnGameStart.Add(onGameStart)
+
+-- The waist bag worn the other way is a new item with the old one's modData and the script's capacity: its kits are
+-- written into it as soon as it is put on (only the two waist bag places are looked at).
+local function onClothingUpdated(character)
+    if not character or not character.isLocalPlayer or not character:isLocalPlayer() or not ItemBodyLocation then return end
+    for _, place in ipairs({ ItemBodyLocation.FANNY_PACK_FRONT, ItemBodyLocation.FANNY_PACK_BACK }) do
+        local item = place and character:getWornItem(place)
+        if item and item:hasModData() and Gear.targetOf(item) == "bag" then pcall(Gear.refreshItem, item) end
+    end
+end
+Events.OnClothingUpdated.Add(onClothingUpdated)
 
 -- A vehicle the character gets into is written again from its kits (cheap, and once per getting in).
 local function onEnterVehicle(character)

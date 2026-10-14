@@ -169,13 +169,15 @@ end
 local function gearPage(page, ui)
     ui.heading(page, T("Gr_Kits"), 1)
     ui.buttons(page, 2, {
-        { T("Gr_BagCapacity"), function() Dev.giveAll({ "KitBagCapacity" }) end },
-        { T("Gr_BagWeight"), function() Dev.giveAll({ "KitBagWeight" }) end },
-        { T("Gr_Storage"), function() Dev.giveAll({ "KitStorage" }) end },
+        { T("Gr_Capacity"), function() Dev.giveAll({ "KitCapacity" }) end },
+        { T("Gr_Lightening"), function() Dev.giveAll({ "KitLightening" }) end },
+        { T("Gr_Reinforcement"), function() Dev.giveAll({ "KitReinforcement" }) end },
         { T("Gr_Engine"), function() Dev.giveAll({ "KitEngine" }) end },
         { T("Gr_Voucher"), function() Dev.giveAll({ "KitVoucher" }) end },
-        { T("Gr_Backpack"), function() Dev.giveAll({ "TeamBackpack" }) end },
-        { T("Gr_FuelCans"), function() Dev.giveAll({ "FuelCanMk1", "FuelCanMk2", "FuelCanMk3" }) end },
+        { T("Gr_Backpack"), function() Dev.giveAll({ "TeamBackpack", "TeamWaistBagFront" }) end },
+        { T("Gr_FuelCan"), function() Dev.giveAll({ "TeamFuelCan" }) end },
+        { T("Gr_Welder"), function() Dev.giveWelder() end },
+        { T("Gr_FieldTools"), function() Dev.giveFieldTools() end },
     })
 end
 

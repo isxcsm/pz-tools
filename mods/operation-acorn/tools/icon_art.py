@@ -563,16 +563,16 @@ def cover(tier):
 # The kits' colours: each kind's band around the case and the plate on its lid, so the four tell apart at 32 px by
 # colour first and by the picture on the lid second.
 KIT_COLOURS = {
-    'bagCapacity': (96, 150, 214),
-    'bagWeight': (226, 172, 64),
-    'storage': (90, 178, 128),
+    'capacity': (96, 150, 214),
+    'lightening': (226, 172, 64),
+    'reinforcement': (90, 178, 128),
     'engine': (212, 96, 72),
 }
 
 
 def kit_glyph(kind, w, h, bg, ink=(26, 30, 30)):
-    """The picture on a kit's lid, drawn bold to read at 32 px: a pack with a plus (capacity), a feather (weight), a
-    car with a box on its roof rack and its boot lid up (vehicle storage), a cog with a spark (engine tuning)."""
+    """The picture on a kit's lid, drawn bold to read at 32 px: a box with arrows out of its corners (expansion), a
+    feather (lightening), a shield with a bolt across it (reinforcement), a cog with a spark (engine tuning)."""
     sc = 4
     img = Image.new('RGBA', (w * sc, h * sc), bg + (255,))
     d = ImageDraw.Draw(img)
@@ -580,16 +580,16 @@ def kit_glyph(kind, w, h, bg, ink=(26, 30, 30)):
     W, H = w * sc, h * sc
     k = sc * h / 56
 
-    def pack(x, y):
-        d.rounded_rectangle([x - 15 * k, y - 13 * k, x + 15 * k, y + 19 * k], radius=8 * k, fill=c)
-        d.rounded_rectangle([x - 9 * k, y - 20 * k, x + 9 * k, y - 10 * k], radius=5 * k, outline=c, width=int(4 * k))
-        d.rounded_rectangle([x - 10 * k, y + 3 * k, x + 10 * k, y + 13 * k], radius=3 * k, fill=b)
-    if kind == 'bagCapacity':
-        pack(W * 0.34, H * 0.5)
-        x, y = W * 0.74, H * 0.5
-        d.rectangle([x - 15 * k, y - 5 * k, x + 15 * k, y + 5 * k], fill=c)
-        d.rectangle([x - 5 * k, y - 15 * k, x + 5 * k, y + 15 * k], fill=c)
-    elif kind == 'bagWeight':
+    if kind == 'capacity':
+        # a box, and an arrow out of each of its corners
+        x, y = W * 0.5, H * 0.5
+        d.rounded_rectangle([x - 11 * k, y - 11 * k, x + 11 * k, y + 11 * k], radius=2 * k, fill=c)
+        for sx in (-1, 1):
+            for sy in (-1, 1):
+                ex, ey = x + sx * 27 * k, y + sy * 23 * k
+                d.line([(x + sx * 13 * k, y + sy * 12 * k), (ex - sx * 4 * k, ey - sy * 4 * k)], fill=c, width=int(5 * k))
+                d.polygon([(ex, ey), (ex - sx * 12 * k, ey), (ex, ey - sy * 11 * k)], fill=c)
+    elif kind == 'lightening':
         # a feather lying across the plate: the vane an ellipse turned 35 degrees, the shaft and a few cuts in the vane
         x, y = W * 0.5, H * 0.5
         a = math.radians(-35)
@@ -605,19 +605,23 @@ def kit_glyph(kind, w, h, bg, ink=(26, 30, 30)):
         for t in (-12, 4, 18):
             bx, by = x + t * k * ca, y + t * k * sa
             d.line([(bx, by), (bx + 12 * k * (-sa + ca * 0.6), by + 12 * k * (ca + sa * 0.6))], fill=b, width=int(2 * k))
-    elif kind == 'storage':
-        x, y = W * 0.5, H * 0.70
-        d.polygon([(x - 36 * k, y + 8 * k), (x - 34 * k, y - 4 * k), (x - 18 * k, y - 14 * k), (x + 12 * k, y - 14 * k),
-                   (x + 22 * k, y - 4 * k), (x + 36 * k, y - 2 * k), (x + 37 * k, y + 8 * k)], fill=c)
-        # the boot lid raised from the rear corner
-        d.polygon([(x + 22 * k, y - 4 * k), (x + 25 * k, y - 22 * k), (x + 31 * k, y - 22 * k), (x + 27 * k, y - 4 * k)],
-                  fill=c)
-        for wx in (-22, 22):
-            d.ellipse([x + (wx - 8) * k, y + 1 * k, x + (wx + 8) * k, y + 17 * k], fill=c, outline=b, width=int(3 * k))
-        d.rectangle([x - 14 * k, y - 11 * k, x + 8 * k, y - 4 * k], fill=b)
-        # the roof rack's box
-        d.rectangle([x - 16 * k, y - 18 * k, x + 8 * k, y - 15 * k], fill=c)
-        d.rounded_rectangle([x - 14 * k, y - 27 * k, x + 6 * k, y - 18 * k], radius=2 * k, fill=c)
+    elif kind == 'reinforcement':
+        # a shield, a bolt across it
+        x, y = W * 0.5, H * 0.5
+        top, bottom, half = y - 22 * k, y + 24 * k, 19 * k
+        pts = [(x - half, top), (x + half, top), (x + half, y + 2 * k)]
+        for i in range(1, 12):
+            t = i / 12.0
+            pts.append((x + half * (1 - t) ** 1.3 * math.cos(t * math.pi / 2) ** 0.4, y + 2 * k + (bottom - y - 2 * k) * t))
+        pts.append((x, bottom))
+        for i in range(11, 0, -1):
+            t = i / 12.0
+            pts.append((x - half * (1 - t) ** 1.3 * math.cos(t * math.pi / 2) ** 0.4, y + 2 * k + (bottom - y - 2 * k) * t))
+        pts.append((x - half, y + 2 * k))
+        d.polygon(pts, fill=c)
+        d.line([(x - 10 * k, y + 8 * k), (x + 10 * k, y - 8 * k)], fill=b, width=int(6 * k))
+        for bx, by in ((x - 10 * k, y + 8 * k), (x + 10 * k, y - 8 * k)):
+            d.ellipse([bx - 5 * k, by - 5 * k, bx + 5 * k, by + 5 * k], fill=b)
     elif kind == 'engine':
         x, y = W * 0.5, H * 0.5
         r_out, r_in, teeth = 24 * k, 17 * k, 8
@@ -664,10 +668,15 @@ def model_icon(source):
     return fit(small, source=big)
 
 
-def jerrycan(mk):
-    """A fuel can: its model itself, rendered by tools/fuelcan_mesh.py (fuelcan_icon_source_mk<n>.png), so the icon is
-    the can the player sees on the floor and in the hand."""
-    return model_icon('fuelcan_icon_source_mk%d.png' % mk)
+def jerrycan():
+    """The team's fuel can: its model itself, rendered by tools/fuelcan_mesh.py (fuelcan_icon_source.png), so the icon
+    is the can the player sees on the floor and in the hand."""
+    return model_icon('fuelcan_icon_source.png')
+
+
+def waist_bag():
+    """The team's waist bag: its floor model, rendered by tools/waistbag_mesh.py (waistbag_icon_source.png)."""
+    return model_icon('waistbag_icon_source.png')
 
 
 def lure_icon():
@@ -709,11 +718,11 @@ PICTURES = {
     'rain_storage': machine('rainStorage', 3),
     'lure': lure_icon,
     'backpack': backpack,
-    'kit_bag_capacity': lambda: kit('bagCapacity'),
-    'kit_bag_weight': lambda: kit('bagWeight'),
-    'kit_storage': lambda: kit('storage'),
+    'kit_capacity': lambda: kit('capacity'),
+    'kit_lightening': lambda: kit('lightening'),
+    'kit_reinforcement': lambda: kit('reinforcement'),
     'kit_engine': lambda: kit('engine'),
-    'fuel_can_1': lambda: jerrycan(1), 'fuel_can_2': lambda: jerrycan(2), 'fuel_can_3': lambda: jerrycan(3),
+    'fuel_can': jerrycan, 'waist_bag': waist_bag,
 }
 def tier_mark(image, tier):
     """A tiered part's icon with its tier's mark (draw_tier_mark); the high-res copies get it drawn at their size."""
@@ -736,18 +745,31 @@ PICTURES.update(icon_story.pictures(sys.modules[__name__]))
 import vanilla_art  # noqa: E402
 
 
-def team_icon(item_type, mask=False):
+def team_icon(item_type, mask=False, paint=True):
     """The team's version of a vanilla item: its own icon with the team's mark (vanilla_art), the copies with it."""
-    icon, hi = vanilla_art.team_icon(item_type, mask)
+    icon, hi = vanilla_art.team_icon(item_type, mask, paint)
     icon.oa_hi = hi
     return icon
 
 
-# the team's welding mask (the vanilla mask in the team's olive) and the light tools (the vanilla tool, marked)
+import field_tools  # noqa: E402
+
+_painted = None
+
+
+def field_tool(tool):
+    """A field tool: the vanilla tool's icon, in the olive when its model is (tools/field_tools.py), with the mark."""
+    global _painted
+    if _painted is None:
+        items, _, _ = field_tools.plan()
+        _painted = {t for t in field_tools.TOOLS if any('OperationAcorn.OA_Field' in line for line in items[t])}
+    return team_icon(tool, paint=tool in _painted)
+
+
+# the team's welding mask (the vanilla mask in the team's olive) and the field tools
 PICTURES['team_welding_mask'] = lambda: team_icon('WeldingMask', True)
-for _tool in ('Hammer', 'Screwdriver', 'Saw', 'Wrench', 'LugWrench', 'Crowbar', 'Sledgehammer', 'WoodAxe', 'Shovel',
-              'PickAxe'):
-    PICTURES['light_' + _tool.lower()] = (lambda t=_tool: team_icon(t))
+for _tool in field_tools.TOOLS:
+    PICTURES['field_' + _tool.lower()] = (lambda t=_tool: field_tool(t))
 
 
 def read_list():
