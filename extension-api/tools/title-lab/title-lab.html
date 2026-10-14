@@ -91,7 +91,7 @@ const STYLES = {
   // stamp still erodes)
   "stamp-new": { label: "stamp: 각인", y: 0.28, gap: 0.25, trail: 0.4, backdrop: 0.3,
     title: { weight: 700, size: 0.1, color: [0.9, 0.89, 0.86], wash: [0.5, 0.48, 0.46], sim: { time: "slam", flow: 2, pin: 0.6, deposit: 1, ends: 0, splat: 0, density: 1, gloss: 0.45, sheen: 0, mode: 0, wick: 0, patchy: 0.35 }, enter: "impact", enterTime: 0.6, leave: "wash", leaveTime: 6 },
-    line: { weight: 400, size: 0.045, color: [0.9, 0.9, 0.88], delay: 0.45, enter: "slideup", enterTime: 0.5, leave: "erode", leaveTime: 5.6 } },
+    line: { weight: 400, size: 0.045, color: [0.9, 0.9, 0.88], delay: 0.45, enter: "impact", hit: 0.55, enterTime: 0.6, leave: "erode", leaveTime: 5.6 } },
   "discovery": { label: "discovery (이전)", y: 0.28, gap: 0.3, trail: 0, backdrop: 0.3,
     title: { weight: 700, italic: true, size: 0.08, color: [1, 0.8, 0.38], enter: "rise", enterTime: 0.6, leave: "rise", leaveTime: 0.9 },
     line: { weight: 400, size: 0.042, color: [1, 0.93, 0.78], delay: 0.25, enter: "rise", enterTime: 0.6, leave: "rise", leaveTime: 0.9 } },
@@ -155,8 +155,8 @@ const leaveTimeOf = d => crumbles(d) ? P.leaveTime : d.leaveTime;
 const cubicOut = p => 1 - (1 - p) ** 3;
 const backOut = p => { const c = 1.70158, q = p - 1; return 1 + (c + 1) * q * q * q + c * q * q; };
 // How a text comes in at its share in of its enter (secs: seconds since it began): its alpha a, scale s (sx, sy on top),
-// move x in pixels and y in its lines.
-function enterState(kind, i, secs, line) {
+// move x in pixels and y in its lines. hit: an impact's strength (1 unless its style says).
+function enterState(kind, i, secs, line, hit = 1) {
   const st = { a: 1, s: 1, sx: 1, sy: 1, x: 0, y: 0 };
   switch (kind) {
     case "fade": st.a = smooth(i); break;
@@ -170,10 +170,10 @@ function enterState(kind, i, secs, line) {
     case "slideup": st.a = cubicOut(i); st.y = 0.4 * (1 - cubicOut(i)); break;
     case "impact": {
       // falls onto the screen, faster and faster, and hits: a squash that rings out, a shake
-      if (secs < IMPACT) { const u = secs / IMPACT; st.s = 1.45 - 0.45 * u * u; st.a = Math.min(1, u * 2.5); break; }
-      const k = secs - IMPACT, ring = Math.exp(-k * 18);
+      if (secs < IMPACT) { const u = secs / IMPACT; st.s = 1 + 0.45 * hit * (1 - u * u); st.a = Math.min(1, u * 2.5); break; }
+      const k = secs - IMPACT, ring = hit * Math.exp(-k * 18);
       st.sy = 1 - 0.07 * ring * Math.cos(k * 40); st.sx = 1 + 0.04 * ring * Math.cos(k * 40);
-      const shake = Math.exp(-k * 14);
+      const shake = hit * Math.exp(-k * 14);
       st.x = 0.03 * line * shake * Math.sin(k * 70); st.y = 0.02 * shake * Math.cos(k * 55);
       break;
     }
@@ -1253,13 +1253,15 @@ function rebuild() {
   for (const p of pieces) if (p.spec.typed) p.keys = typeKeys(p, P.seed + (p === title ? 0 : 7));
   for (const p of pieces) if (p.spec.bleed) p.drops = bleedDrops(p, P.seed + (p === title ? 0 : 7), p === title);
   for (const p of pieces) if (p.spec.sim) buildSim(p, P.seed + (p === title ? 0 : 7));
-  // the impact's puff of dust: kicked out from under the letters to the sides
-  title.puff = [];
-  for (let i = 0; i < 46; i++) {
-    const r = k => hash(i, k, 77);
-    const x0 = (r(1) - 0.5) * 0.9 * title.ink, side = x0 < 0 ? -1 : 1;
-    title.puff.push({ x0, y0: 0.3 * tl, vx: side * (0.3 + 0.9 * r(2)) + 1.2 * x0 / title.ink, vy: -(0.05 + 0.35 * r(3)), size: 0.05 + 0.08 * r(4), life: 0.9 + 0.5 * r(5) });
-  }
+  // the impact's puff of dust: kicked out from under the letters to the sides (fewer for a lighter hit)
+  pieces.forEach((p, n) => {
+    p.puff = [];
+    for (let i = 0; i < Math.round(46 * (p.spec.hit ?? 1)); i++) {
+      const r = k => hash(i, k, 77 + n);
+      const x0 = (r(1) - 0.5) * 0.9 * p.ink, side = x0 < 0 ? -1 : 1;
+      p.puff.push({ x0, y0: 0.3 * p.line, vx: side * (0.3 + 0.9 * r(2)) + 1.2 * x0 / p.ink, vy: -(0.05 + 0.35 * r(3)), size: 0.05 + 0.08 * r(4), life: 0.9 + 0.5 * r(5) });
+    }
+  });
 }
 const timeline = () => Math.max(...pieces.map(p => p.leaveAt + leaveTimeOf(p.spec))) + 0.4;
 
@@ -1596,6 +1598,7 @@ function drawTrackout(p, st, o) {
 // The impact's light and dust over the title (secs since it began, la: how much of it is left as it leaves).
 function drawImpact(p, st, secs, la) {
   if (secs < IMPACT) return;
+  la *= p.spec.hit ?? 1;
   const k = secs - IMPACT, cx = p.cx + st.x, cy = p.cy + st.y * p.line * st.s, sx = st.s * st.sx, sy = st.s * st.sy;
   const box = (dx, dy, r, g, b) => { const hw = p.w * sx / 2, hh = p.h * sy / 2; quad(cx + dx - hw, cy + dy - hh, cx + dx + hw, cy + dy + hh, 0, 0, 1, 1, r, g, b, 0); };
   // white-hot letters cooling, and their glow
@@ -1725,7 +1728,7 @@ function frame(now) {
     const out = secs >= leave ? (secs - leave) / leaveTimeOf(d) : 0;
     if (out >= 1) return null;
     const inn = d.enterTime > 0 ? Math.min(1, Math.min(secs, leave) / d.enterTime) : 1;
-    const st = enterState(d.enter, inn, Math.min(secs, leave), p.line);
+    const st = enterState(d.enter, inn, Math.min(secs, leave), p.line, d.hit);
     st.secs = secs; st.out = out; st.left = 1;
     if (!crumbles(d)) { const before = st.a; leaveState(d.leave, out, st, leaveTimeOf(d)); st.left = before > 0 ? st.a / before : 0; }
     return st;
