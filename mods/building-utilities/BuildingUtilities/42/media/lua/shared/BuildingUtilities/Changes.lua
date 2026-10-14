@@ -614,6 +614,56 @@ function Changes.syncAttached(panel)
     return changed
 end
 
+-- The fixtures of the zone that keep their own water, a sink's, a bath's, a toilet's (their tile holds some, short of
+-- a well's): their pipe's storage too (Water.layout), the API counting and drawing on what they keep with the tanks'.
+-- Looked for in the zone's rooms when the zone changed, and again every RESERVES_RETRY_MS while some of them were not
+-- loaded; one found before on a square not loaded now is kept. Asked each minute for a box a player is near. Returns
+-- whether they changed.
+local RESERVES_RETRY_MS = 10 * 60 * 1000
+local reservesTried = {}
+
+function Changes.syncReserves(panel)
+    local api = BU.api()
+    if not api or not BU.enabled("water") then return false end
+    local data = panel.water
+    local keys = {}
+    for _, room in ipairs(Panels.zoneRooms(panel)) do keys[#keys + 1] = room.key end
+    table.sort(keys)
+    local zone, now = table.concat(keys, ";"), getTimestampMs()
+    local tried = reservesTried[panel.id]
+    if data.reservesZone == zone and (data.reservesWhole or tried and now - tried < RESERVES_RETRY_MS) then return false end
+    reservesTried[panel.id] = now
+    local found, whole = {}, true
+    for _, building in ipairs(Panels.zoneBuildings(panel)) do
+        local list, complete = api.buildings.objects(building.key, "water")
+        whole = whole and complete == true
+        for i = 1, list and #list or 0 do
+            local entry = list[i]
+            local object = Panels.inZone(panel, entry.roomId) and BU.objectsWithSprite(entry.x, entry.y, entry.z, entry.sprite)[1]
+            local properties = object and object:getProperties()
+            local most = properties and properties:has("waterAmount") and tonumber(properties:get("waterAmount")) or 0
+            if most > 0 and most < BU.WaterUnits.UNLIMITED then
+                found[BU.thingKey(entry.x, entry.y, entry.z, entry.sprite)] = BU.partKeys(object)[1]
+            end
+        end
+    end
+    local cell, changed = getCell(), false
+    for key, owner in pairs(data.reserves) do
+        local x, y, z = BU.parseThing(key)
+        if not found[key] and x and not cell:getGridSquare(x, y, z) and Links.homeRoom(panel, x, y, z) then found[key] = owner end
+        if found[key] ~= owner then changed = true end
+    end
+    for key in pairs(found) do
+        if data.reserves[key] == nil then changed = true end
+    end
+    data.reservesZone, data.reservesWhole = zone, whole
+    if not changed then return false end
+    data.reserves = found
+    Networks.defineWater(panel)
+    Sync.changed(panel.id)
+    return true
+end
+
 -- A device outside any building wired or piped to the panel, supplied as its line is laid (at place, Links.placeOn's;
 -- the nearest when nil).
 function Changes.includeOutside(panel, utility, device, paid, place)

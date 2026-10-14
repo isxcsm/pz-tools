@@ -238,6 +238,31 @@ test("a room painted onto a pipe takes all in it: its tanks, and its fixtures pu
     eq(panel.water.roomPipe[room.key], nil)
 end)
 
+test("a fixture that keeps its own water is its pipe's storage at its floor, on the pipe it is on; not one shut", function()
+    local panel = scene(2)
+    local green = Changes.addPipe(panel)
+    local sink, bath = BU.thingKey(101, 101, 0, "sink"), BU.thingKey(102, 101, 1, "bath")
+    panel.water.reserves[sink], panel.water.reserves[bath] = sink, bath
+    panel.water.pipeOf[bath] = green
+    local layout = Networks.waterLayout(panel)
+    local function producers(id)
+        for _, network in ipairs(layout.networks) do
+            if network.id == id then
+                local list = {}
+                for _, at in ipairs(network.producers) do list[#list + 1] = at.x .. "," .. at.y .. "," .. at.z end
+                return table.concat(list, " ")
+            end
+        end
+        return nil
+    end
+    eq(producers(idOf(panel, 1, "A", 0, "T")), "101,101,0", "the sink: blue's storage downstairs")
+    eq(producers(idOf(panel, green, "A", 1, "T")), "102,101,1", "the bath: green's upstairs, the pipe it is on")
+    eq(parentsOf(layout, idOf(panel, 1, "A", 0, "U")), idOf(panel, 1, "A", 0, "T"), "the room draws on the sink")
+    panel.water.excluded[sink] = true
+    layout = Water.layout(panel)
+    eq(producers(idOf(panel, 1, "A", 0, "T")), nil, "shut at the box: no storage")
+end)
+
 test("a tank shut at the box is out of its pipe; a unit switched off there does not work", function()
     local panel, nets, tank = scene(1)
     tankAt(panel, tank, 101, 101, 0, 100, 50)

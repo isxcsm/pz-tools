@@ -129,6 +129,7 @@ local OPPOSITE = { E = "W", W = "E", N = "S", S = "N" }
 -- or "TaintedWater" from a river or lake; nil when there is none.
 local SIDES = { { 1, 0, "E" }, { 0, 1, "S" }, { -1, 0, "W" }, { 0, -1, "N" } }
 local UNLIMITED = 9999
+WaterUnits.UNLIMITED = UNLIMITED
 function WaterUnits.waterBeside(square)
     local cell = getCell()
     for _, side in ipairs(SIDES) do

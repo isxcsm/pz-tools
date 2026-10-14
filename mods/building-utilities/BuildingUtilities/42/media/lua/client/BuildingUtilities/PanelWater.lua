@@ -51,14 +51,15 @@ function ISBUPanelWindow:pipeRows(add, state, devices)
             local inlet, outlet = Water.unitPipes(panel, unit)
             if inlet == id or outlet == id then members[#members + 1] = { unit = unit } end
         end
-        -- its tooltip only says what is wrong with its water
+        -- its tooltip only says what is wrong with its water: tainted (rain, a river's) where no filter on it purifies it
         local lines = {}
-        if WaterUnits.unpurifiedPipes() and not purified[id] then lines[#lines + 1] = getText("IGUI_BU_PipeUnpurifiedTip") end
+        local tainted = each and each.tainted and not purified[id]
+        if tainted then lines[#lines + 1] = getText("IGUI_BU_PipeTaintedTip") end
         local foreign = each and each.foreign > 0
         if foreign then lines[#lines + 1] = " <RGB:1,0.45,0.4> " .. getText("IGUI_BU_PipeForeignTip") end
         local right = each and each.capacity > 0 and getText("IGUI_BU_Left_Water", string.format("%.0f", each.amount),
             string.format("%.0f", each.capacity)) or "-"
-        add({ kind = "waterPipe", pipe = id, text = Water.pipeName(panel, id), right = right, bad = foreign,
+        add({ kind = "waterPipe", pipe = id, text = Water.pipeName(panel, id), right = right, bad = foreign, tainted = tainted,
             removable = id ~= Water.FIRST, members = members, colour = Water.colour(id) },
             #lines > 0 and table.concat(lines, " <LINE> ") or nil)
         -- A row per building its tanks are in, with more than one: what they hold, and the highest floor with tanks.

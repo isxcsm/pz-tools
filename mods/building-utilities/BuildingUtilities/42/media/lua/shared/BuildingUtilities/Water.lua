@@ -279,29 +279,43 @@ end
 --   tanks, by pipe and building, the floors with tanks, lowest first;
 --   use, by "pipe|building|level", the use network's id;
 --   crossings (Water.crossings).
--- A use network for every place something takes water: a room, a fixture, a unit's inlet.
+-- A use network for every place something takes water: a room, a fixture, a unit's inlet. A fixture of the zone that
+-- keeps its own water (panel.water.reserves) is its pipe's storage at its room's floor, as a tank; not one shut at the
+-- box.
 function Water.layout(panel)
     local Links = BU.Links
     local crossings = Water.crossings(panel)
     local networks, tanks, tankIds, use = {}, {}, {}, {}
+    local function store(pipe, building, level, x, y, z)
+        local id = Water.networkId(panel, pipe, building, level, "T")
+        local network = tankIds[id]
+        if not network then
+            network = { id = id, kind = "T", pipe = pipe, building = building, level = level, producers = {} }
+            tankIds[id] = network
+            networks[#networks + 1] = network
+            tanks[pipe] = tanks[pipe] or {}
+            tanks[pipe][building] = tanks[pipe][building] or {}
+            table.insert(tanks[pipe][building], level)
+        end
+        table.insert(network.producers, { x = x, y = y, z = z })
+    end
     for _, at in ipairs(panel.water.producers) do
         -- one shut at the box (off) is out of its pipe, as one whose line supplies nothing
         if not at.off and Links.live(panel, Links.producerRef(at.x, at.y, at.z)) then
             local building = Water.placeOf(panel, at.x, at.y, at.z, Links.producerRef(at.x, at.y, at.z))
-            if building then
-                local pipe, level = Water.producerPipe(panel, at), Water.producerLevel(at)
-                local id = Water.networkId(panel, pipe, building, level, "T")
-                local network = tankIds[id]
-                if not network then
-                    network = { id = id, kind = "T", pipe = pipe, building = building, level = level, producers = {} }
-                    tankIds[id] = network
-                    networks[#networks + 1] = network
-                    tanks[pipe] = tanks[pipe] or {}
-                    tanks[pipe][building] = tanks[pipe][building] or {}
-                    table.insert(tanks[pipe][building], level)
-                end
-                table.insert(network.producers, { x = at.x, y = at.y, z = at.z })
-            end
+            if building then store(Water.producerPipe(panel, at), building, Water.producerLevel(at), at.x, at.y, at.z) end
+        end
+    end
+    local data, reserves = panel.water, {}
+    for key in pairs(data.reserves or {}) do reserves[#reserves + 1] = key end
+    table.sort(reserves)
+    for _, key in ipairs(reserves) do
+        local owner = data.reserves[key]
+        local x, y, z = BU.parseThing(key)
+        local room = x and not data.excluded[owner] and not data.excluded[key] and Links.homeRoom(panel, x, y, z)
+        if room then
+            store(Water.chosenPipe(panel, { owner }) or Water.roomPipe(panel, room.key) or Water.FIRST, room.building, room.level,
+                x, y, z)
         end
     end
     for _, byBuilding in pairs(tanks) do

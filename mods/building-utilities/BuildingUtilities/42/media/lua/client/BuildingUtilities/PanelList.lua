@@ -349,6 +349,8 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         pipeMark(c, PAD * 2, y, row.pipe)
         local x = PAD * 2 + ROW - 6 + UI.textWidth(tostring(row.pipe)) + 8
         UI.text(c, row.text, x, textY, WHITE)
+        -- tainted water flows in it
+        if row.tainted then UI.text(c, label("IGUI_BU_PipeTainted"), x + UI.textWidth(row.text) + 8, textY, LOG_BAD) end
         local buttons = pipeButtons(width, row)
         for _, button in ipairs(buttons) do
             smallButton(self, c, index .. button.name, button.x, y, button.w, label("IGUI_BU_" .. button.name), WHITE)

@@ -505,9 +505,12 @@ end
 
 -- The power network's state, or for water the panel's pipes together: { supplied (any pipe), enabled, amount and
 -- capacity (summed), producers (every tank as the networks last saw it, with its pipe, building and floor), pipes (by
--- pipe: { amount, capacity, supplied, foreign (tanks holding what is not water), buildings (by building key: { amount,
+-- pipe: { amount, capacity, supplied, foreign (tanks holding what is not water), tainted (its storage holds tainted
+-- water: what flows in it, unless a filter on it purifies it), buildings (by building key: { amount,
 -- capacity, top (its highest floor with tanks) }) }), mains (the mains run and give the fixtures they reach their water) };
 -- nil for a utility that is off, or without water in this game.
+local TRACE = 0.001
+
 function Networks.state(panel, utility)
     if utility ~= "water" then return stateOf(powerId(panel)) end
     if not waterOn() then return nil end
@@ -530,6 +533,7 @@ function Networks.state(panel, utility)
                 producer.pipe, producer.building, producer.level = network.pipe, network.building, network.level
                 result.producers[#result.producers + 1] = producer
                 if producer.foreign then pipe.foreign = pipe.foreign + 1 end
+                if (producer.fluids and producer.fluids.TaintedWater or 0) > TRACE then pipe.tainted = true end
             end
             local amount, capacity = state.amount or 0, state.capacity or 0
             pipe.amount, pipe.capacity = pipe.amount + amount, pipe.capacity + capacity

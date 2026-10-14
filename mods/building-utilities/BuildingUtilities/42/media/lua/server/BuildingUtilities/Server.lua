@@ -334,7 +334,10 @@ end
 local function runPanel(panel, hours, near, now)
     local hourEnded = false
     checkSource(panel, hours)
-    if near then Changes.syncAttached(panel) end
+    if near then
+        Changes.syncAttached(panel)
+        Changes.syncReserves(panel)
+    end
     if BU.enabled("power") then
         local ran = thisMinute[panel.id]
         Overload.check(panel, hours, ran and (ran.bank or false))

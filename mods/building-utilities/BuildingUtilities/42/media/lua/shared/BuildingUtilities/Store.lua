@@ -67,11 +67,13 @@ local function utilityData()
     return { producers = {}, excluded = {}, included = {}, attached = {}, schedule = {}, timed = {} }
 end
 
--- What water keeps besides: one pipe, every tank and fixture on it.
+-- What water keeps besides: one pipe, every tank and fixture on it; the fixtures of the zone that keep their own water
+-- (reserves: a part's key -> its fixture's key; Changes.syncReserves), their pipe's storage too.
 local function waterData(data)
     data.pipes = data.pipes or { { id = 1 } }
     data.roomPipe = data.roomPipe or {}
     data.pipeOf = data.pipeOf or {}
+    data.reserves = data.reserves or {}
     data.levelLog = data.levelLog or {}
 end
 
