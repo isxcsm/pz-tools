@@ -36,6 +36,12 @@ option BuildingUtilities.EnableSprinklers
     page = BuildingUtilitiesFeatures, translation = BuildingUtilities_EnableSprinklers,
 }
 
+option BuildingUtilities.EnableFireSprinklers
+{
+    type = boolean, default = true,
+    page = BuildingUtilitiesFeatures, translation = BuildingUtilities_EnableFireSprinklers,
+}
+
 option BuildingUtilities.EnableFilters
 {
     type = boolean, default = true,

@@ -478,6 +478,7 @@ local function everyMinute()
             schedule(panel.id, minute + coldMinutes(panel))
         end
     end
+    BU.WaterRun.fires()
     for _, unit in ipairs(BU.Nearby.units(players)) do
         local sync = BU.Units.definition(unit.kind).sync
         local object = sync and BU.Units.object(unit)

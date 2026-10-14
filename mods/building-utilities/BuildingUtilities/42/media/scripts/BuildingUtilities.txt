@@ -86,6 +86,15 @@ module BuildingUtilities
         Icon = BUSprinkler,
     }
 
+    item FireSprinkler
+    {
+        DisplayCategory = Electronics,
+        ItemType = base:moveable,
+        WorldObjectSprite = bu_water_01_252,
+        Weight = 1.5,
+        Icon = BUFireSprinkler,
+    }
+
     item BoosterPump
     {
         DisplayCategory = Electronics,
@@ -144,7 +153,7 @@ module BuildingUtilities
         Icon = MagazineMechanic2,
         BoredomChange = -20,
         StressChange = -15,
-        LearnedRecipes = MakeBoosterPump;MakeWaterFilter,
+        LearnedRecipes = MakeBoosterPump;MakeWaterFilter;MakeFireSprinkler,
         StaticModel = Magazine,
         WorldStaticModel = MagazineMec2Ground,
         Tags = base:magazine,
@@ -364,6 +373,30 @@ module BuildingUtilities
         outputs
         {
             item 1 BuildingUtilities.Sprinkler,
+        }
+    }
+
+    craftRecipe MakeFireSprinkler
+    {
+        timedAction = Making,
+        time = 120,
+        NeedToBeLearn = true,
+        AutoLearnAny = Maintenance:5,
+        OnTest = BuildingUtilities.RecipeTest.MakeFireSprinkler,
+        OnAddToMenu = BuildingUtilitiesRecipeShown,
+        Tags = AnySurfaceCraft,
+        category = Electrical,
+        xpAward = Maintenance:5,
+        inputs
+        {
+            item 1 tags[base:wrench] mode:keep flags[MayDegradeVeryLight],
+            item 1 [Base.MetalPipe],
+            item 1 [Base.ScrapMetal],
+            item 2 [Base.Screws],
+        }
+        outputs
+        {
+            item 1 BuildingUtilities.FireSprinkler,
         }
     }
 

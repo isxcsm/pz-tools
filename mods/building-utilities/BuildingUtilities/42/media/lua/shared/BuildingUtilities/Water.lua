@@ -98,13 +98,13 @@ function Water.producerPipe(panel, at) return valid(panel, at.pipe) end
 -- The floor whose tank network a tank joins: its own, or the one below with the sandbox's "water from above only".
 function Water.producerLevel(at) return Water.aboveOnly() and at.z - 1 or at.z end
 
--- A water unit's inlet and outlet pipes: a pump has an outlet only, a sprinkler an inlet only; a filter's and a
+-- A water unit's inlet and outlet pipes: a pump has an outlet only, a sprinkler (either kind) an inlet only; a filter's and a
 -- booster pump's outlet is their inlet unless the player chose another.
 function Water.unitPipes(panel, unit)
     local inlet = valid(panel, unit.pipe)
     local outlet = unit.out and Water.pipe(panel, unit.out) and unit.out or inlet
     if unit.kind == "pump" then return nil, inlet end
-    if unit.kind == "sprinkler" then return inlet, nil end
+    if unit.kind == "sprinkler" or unit.kind == "firesprinkler" then return inlet, nil end
     return inlet, outlet
 end
 

@@ -71,6 +71,8 @@
     "Sandbox_BuildingUtilities_EnablePumps_tooltip": "양수 펌프를 만들어 놓을 수 있고, 제어반에 전기가 있는 동안 강, 호수, 우물에서 물을 끌어 제어반의 물 저장소를 채웁니다. 물과 전기가 켜져 있어야 합니다. 기본은 켜짐. 끄면 만들 수 없고, 놓여 있는 펌프는 멈춰 전기를 쓰지 않으며 떼어낼 수는 있습니다.",
     "Sandbox_BuildingUtilities_EnableSprinklers": "스프링클러",
     "Sandbox_BuildingUtilities_EnableSprinklers_tooltip": "스프링클러를 만들어 놓을 수 있고, 제어반의 물 저장소 물로 주변 작물에 물을 줍니다. 물이 켜져 있어야 합니다. 기본은 켜짐. 끄면 만들 수 없고, 놓여 있는 스프링클러는 물을 주지 않으며 떼어낼 수는 있습니다.",
+    "Sandbox_BuildingUtilities_EnableFireSprinklers": "화재 스프링클러",
+    "Sandbox_BuildingUtilities_EnableFireSprinklers_tooltip": "화재 스프링클러를 만들어 놓을 수 있고, 전기 없이 제어반의 물 저장소 물로 주변 불을 끕니다. 물이 켜져 있어야 합니다. 기본은 켜짐. 끄면 만들 수 없고, 놓여 있는 화재 스프링클러는 불을 끄지 않으며 떼어낼 수는 있습니다.",
     "Sandbox_BuildingUtilities_EnableFilters": "정수 필터",
     "Sandbox_BuildingUtilities_EnableFilters_tooltip": "정수 필터를 만들어 놓을 수 있고, \"위험: 배관이 정수하지 않음\"이 켜져 있는 동안 배관의 물을 정수합니다. 물이 켜져 있어야 합니다. 기본은 켜짐. 끄면 만들 수 없고, 놓여 있는 필터는 정수하지 않으며(그 위험이 켜져 있으면 물이 물 저장소에 든 그대로 나옵니다) 떼어낼 수는 있습니다.",
     "Sandbox_BuildingUtilities_EnableBoosters": "가압 펌프",

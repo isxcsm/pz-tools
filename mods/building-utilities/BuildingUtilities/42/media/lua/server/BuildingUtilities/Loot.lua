@@ -6,7 +6,8 @@
 --   - finished solar panels, so a player can start on solar before learning glassmaking (the recipe takes glass
 --     panels);
 --   - used water machines where a farm or a shop would have kept one: pumps and sprinklers, and filters with part of
---     their media spent (it rides on the item: Units' keep);
+--     their media spent (it rides on the item: Units' keep); fire sprinkler heads where a plumber or a warehouse kept
+--     spares;
 --   - the two volumes of the water systems magazine, which teach the water machines' recipes (a player with the
 --     skill learns them without: the recipes' AutoLearnAny);
 --   - control boards in the stock of electronics and tool stores, warehouses and factories;
@@ -51,6 +52,9 @@ Loot.TABLES = {
     { item = "BuildingUtilities.Sprinkler", features = { "sprinkler" }, option = "WaterLoot", containers = STOCK,
       rooms = { gardenstore = 2, gardeningstorage = 2, greenhouse = 1.5, farmstorage = 1.5, barn = 0.8, shed = 0.4,
                 garagestorage = 0.05 } },
+    { item = "BuildingUtilities.FireSprinkler", features = { "firesprinkler" }, option = "WaterLoot", containers = STOCK,
+      rooms = { plumber = 2, toolstorestorage = 0.6, toolstorage = 0.6, warehouse = 0.4, factorystorage = 0.4,
+                garagestorage = 0.03 } },
     { item = "BuildingUtilities.WaterFilter", features = { "filter" }, option = "WaterLoot", containers = STOCK,
       onAdd = usedFilter,
       rooms = { plumber = 2, toolstorestorage = 0.5, toolstorage = 0.5, outdoorsupply_storage = 0.5,
@@ -60,7 +64,7 @@ Loot.TABLES = {
       rooms = { bookstore = 1.5, bookstorage = 1.5, bookstorestorage = 1.5, gardenstore = 1.5, library = 0.6,
                 toolstore = 1, toolstorestorage = 0.6, farmstorage = 0.8, barn = 0.4, shed = 0.3,
                 garagestorage = 0.05 } },
-    { item = "BuildingUtilities.WaterSystemsMag2", features = { "booster", "filter" }, option = "WaterLoot",
+    { item = "BuildingUtilities.WaterSystemsMag2", features = { "booster", "filter", "firesprinkler" }, option = "WaterLoot",
       containers = PRINT,
       rooms = { plumber = 3, bookstore = 0.8, bookstorage = 0.8, bookstorestorage = 0.8, library = 0.4,
                 universitylibrary = 0.6, toolstore = 0.6, toolstorestorage = 0.6, outdoorsupply = 0.6,

@@ -201,6 +201,8 @@ function ISBUPanelWindow:waterUnitStatus(unit)
         return getText("IGUI_BU_Booster_" .. (unit.idle or "noPower"))
     elseif unit.kind == "sprinkler" then
         return getText(WaterUnits.spraying(unit) and "IGUI_BU_Sprinkler_watering" or "IGUI_BU_Sprinkler_waiting")
+    elseif unit.kind == "firesprinkler" then
+        return getText(WaterUnits.spraying(unit) and "IGUI_BU_FireSprinkler_spraying" or "IGUI_BU_FireSprinkler_waiting")
     end
     local media = getText("IGUI_BU_FilterMedia", BU.percent(WaterUnits.mediaLeft(unit) * 100))
     local inlet, outlet = Water.unitPipes(self.panel, unit)

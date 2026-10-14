@@ -13,8 +13,10 @@ next = nil
 
 -- A list as the game's Java lists read from Lua (size, get from 0).
 local function javaList(items)
-    return { size = function() return #items end, get = function(_, i) return items[i + 1] end }
+    return { size = function() return #items end, get = function(_, i) return items[i + 1] end,
+        isEmpty = function() return #items == 0 end }
 end
+TEST_javaList = javaList
 
 -- java.util.ArrayList as the mod hands one to the game to fill (getSpriteGridObjectsIncludingSelf): add, size, get.
 ArrayList = { new = function()
@@ -127,7 +129,9 @@ local function resetGame()
     getTextOrNull = function() return nil end
     sendServerCommand = function() end
     sendClientCommand = function() end
-    -- No square is loaded unless a test puts one in TEST.squares ("x,y,z" -> { objects = { ... } }).
+    -- No square is loaded unless a test puts one in TEST.squares ("x,y,z" -> { objects = { ... } }; room: its room's id,
+    -- -1 for none; roof: a tile over the square below that lets no rain through; flags: { burning = true }; movers).
+    -- A fire put out takes the square's burning flag (stopped counts the times).
     TEST.squares = {}
     getCell = function()
         return { getGridSquare = function(_, x, y, z)
@@ -137,6 +141,14 @@ local function resetGame()
                 getX = function() return x end, getY = function() return y end, getZ = function() return z end,
                 getObjects = function() return javaList(square.objects or {}) end,
                 getRoom = function() return nil end,
+                getRoomID = function() return square.room or -1 end,
+                has = function(_, flag) return square.flags ~= nil and square.flags[flag] == true end,
+                hasRainBlockingTile = function() return square.roof == true end,
+                getMovingObjects = function() return javaList(square.movers or {}) end,
+                stopFire = function()
+                    if square.flags then square.flags.burning = nil end
+                    square.stopped = (square.stopped or 0) + 1
+                end,
                 -- a floor unless the test says none ({ noFloor = true }); flags as { water = true }
                 getFloor = function() return not square.noFloor and {} or nil end,
                 HasStairs = function() return square.stairs == true end,
@@ -145,7 +157,10 @@ local function resetGame()
             }
         end }
     end
-    IsoFlagType = { water = "water", FloorHeightOneThird = "FloorHeightOneThird", FloorHeightTwoThirds = "FloorHeightTwoThirds" }
+    IsoFlagType = { water = "water", burning = "burning", FloorHeightOneThird = "FloorHeightOneThird",
+        FloorHeightTwoThirds = "FloorHeightTwoThirds" }
+    -- No fire burns unless a test lists one (TEST.burn).
+    IsoFireManager = { FireStack = javaList({}) }
     getWorld = function()
         return { getMetaGrid = function() return { getRoomAt = function() return nil end } end,
             isHydroPowerOn = function() return false end }

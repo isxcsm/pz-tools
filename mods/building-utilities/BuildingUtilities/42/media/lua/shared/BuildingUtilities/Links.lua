@@ -40,7 +40,7 @@ function Links.unitOf(ref)
 end
 
 -- Whether a line's thing is a relay, and whether it carries the line on to more (a relay, a device outside, a
--- sprinkler).
+-- sprinkler of either kind: heads follow each other along one pipe).
 function Links.isRelay(ref)
     local unit = Links.unitOf(ref)
     return unit ~= nil and BU.RELAY_KINDS[unit.kind] ~= nil
@@ -49,7 +49,7 @@ end
 function Links.carries(ref)
     if ref:sub(1, 2) == "t:" then return true end
     local unit = Links.unitOf(ref)
-    return unit ~= nil and (BU.RELAY_KINDS[unit.kind] ~= nil or unit.kind == "sprinkler")
+    return unit ~= nil and (BU.RELAY_KINDS[unit.kind] ~= nil or unit.kind == "sprinkler" or unit.kind == "firesprinkler")
 end
 
 -- Where two lines side by side go across one going dx, dy: half of `gap` across it, one each way (0, 0 for no

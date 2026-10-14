@@ -1,7 +1,7 @@
 -- The water units (BU.Units, utility "water"), each wired to a panel and on its pipes (BU.Water.unitPipes): the pump
 -- fills its pipe's tanks from a river, a lake or a well beside it while the panel has power (it goes anywhere, but
 -- without water beside it it runs dry: it draws its power and lifts nothing); the sprinkler waters the crops around it
--- from its pipe; the filter moves water from its inlet pipe to its outlet pipe, purifying it while the
+-- from its pipe; the fire sprinkler puts out the fires around it from its pipe, with no power; the filter moves water from its inlet pipe to its outlet pipe, purifying it while the
 -- RiskPlumbingUnpurified option leaves the pipes unpurified; the booster pump moves water from its inlet pipe up to
 -- its outlet pipe's tanks on the floors above it. Pump, filter and booster pump move so many litres an hour while
 -- their panel has power and the outlet has room. What they do each minute is the server's
@@ -103,7 +103,7 @@ function WaterUnits.pipes(unit)
     local panel = Store.get(unit.panel)
     if not panel then
         if unit.kind == "pump" then return nil, Water.FIRST end
-        if unit.kind == "sprinkler" then return Water.FIRST, nil end
+        if unit.kind == "sprinkler" or unit.kind == "firesprinkler" then return Water.FIRST, nil end
         return Water.FIRST, Water.FIRST
     end
     return Water.unitPipes(panel, unit)
@@ -177,6 +177,48 @@ Units.define("sprinkler", {
         local spraying = WaterUnits.spraying(unit)
         if spraying == WaterUnits.isSprayFrame(current) then return end
         Units.setSprite(object, spraying and WaterUnits.SPRINKLER_SPRITES.spraying[1] or WaterUnits.SPRINKLER_SPRITES.idle)
+    end,
+})
+
+-- The fire sprinkler: a pendent head hung from the ceiling where the square has one, else an upright head on a riser
+-- (a roof, the open, a room under a hole in its roof); each waiting with its bulb, or spraying.
+WaterUnits.FIRE_SPRITES = { hung = { waiting = "bu_water_01_252", spraying = "bu_water_01_253" },
+    standing = { waiting = "bu_water_01_254", spraying = "bu_water_01_255" } }
+local FIRE_LOOK_OF = {}
+for mount, looks in pairs(WaterUnits.FIRE_SPRITES) do
+    for look, name in pairs(looks) do FIRE_LOOK_OF[name] = { mount = mount, look = look } end
+end
+-- Squares around a fire sprinkler it reaches (7 by 7, on its floor), and the litres it lets out to put out a square.
+WaterUnits.FIRE_RADIUS = 3
+WaterUnits.FIRE_LITRES = 20
+
+-- Whether a square has a ceiling: the square over it has a floor or a roof (the tiles the game lets no rain through,
+-- IsoGridSquare.hasRainBlockingTile). Not isOutside: a room keeps its inside under a hole in its roof.
+function WaterUnits.hasCeiling(square)
+    local above = getCell():getGridSquare(square:getX(), square:getY(), square:getZ() + 1)
+    return above ~= nil and above:hasRainBlockingTile()
+end
+
+-- The sprite of a fire sprinkler on a square: hung or standing as the square is, waiting or spraying.
+function WaterUnits.fireSprite(square, spraying)
+    local mount = square and WaterUnits.hasCeiling(square) and "hung" or "standing"
+    return WaterUnits.FIRE_SPRITES[mount][spraying and "spraying" or "waiting"]
+end
+
+Units.define("firesprinkler", {
+    item = "BuildingUtilities.FireSprinkler",
+    sprites = { WaterUnits.FIRE_SPRITES.hung.waiting, WaterUnits.FIRE_SPRITES.hung.spraying,
+        WaterUnits.FIRE_SPRITES.standing.waiting, WaterUnits.FIRE_SPRITES.standing.spraying },
+    utility = "water",
+    colour = { 0.95, 0.35, 0.3 },
+    canPlace = function() return true end,
+    sprite = function(square) return WaterUnits.fireSprite(square, false) end,
+    -- It hangs or stands as its square is now (a floor built over it, a roof gone), and sprays a while after it put a
+    -- fire out.
+    sync = function(unit, object)
+        local current = object:getSprite() and object:getSprite():getName()
+        if not current or not FIRE_LOOK_OF[current] then return end
+        Units.setSprite(object, WaterUnits.fireSprite(object:getSquare(), WaterUnits.spraying(unit)))
     end,
 })
 

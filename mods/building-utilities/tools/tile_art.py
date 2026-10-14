@@ -1096,6 +1096,7 @@ HYDRANT = {'CustomName': 'Yard Hydrant', 'IsLow': ''}
 PUMP = {'CustomName': 'Water Pump', 'BlocksPlacement': '', 'solidtrans': ''}
 FILTER = {'CustomName': 'Water Filter', 'BlocksPlacement': '', 'solidtrans': ''}
 SPRINKLER = {'CustomName': 'Sprinkler', 'IsLow': ''}
+FIRE_SPRINKLER = {'CustomName': 'Fire Sprinkler', 'IsLow': ''}
 BOX = {'CustomName': 'Utility Panel', 'BlocksPlacement': '', 'solidtrans': ''}
 BOOSTER = {'CustomName': 'Booster Pump', 'BlocksPlacement': '', 'solidtrans': ''}
 PUMP_FACINGS = ((0, 'E'), (1, 'S'), (2, 'W'), (3, 'N'))
@@ -1399,6 +1400,75 @@ def run_details(laid=False):
             for utility in ('power', 'water') for sides in (5, 10)]
 
 
+# Where a ceiling is in a tile's space: the top of its wall, one level up.
+CEILING = 192 / UP
+GLASS_RED = (196, 40, 32)
+ESCUTCHEON = (214, 214, 208)
+
+
+def fire_sprinkler(hung, spraying):
+    """A fire sprinkler head on the water lane's middle (RUN_LANE): hung, a pendent head on a drop from the ceiling (its
+    plate against the ceiling, the deflector under the frame); else an upright head on a riser from the floor (the
+    deflector over the frame). A head waiting holds its red glass bulb between the frame's arms; a spraying one has lost
+    it, and water leaves the deflector all round and falls."""
+    c = 0.5 + RUN_LANE['water']
+    s = Scene()
+    if hung:
+        top = CEILING
+        s.tube((c, c, top - 0.02), (c, c, top), 0.075, ESCUTCHEON, cap=ESCUTCHEON, shine=0.2)
+        s.tube((c, c, top - 0.3), (c, c, top - 0.02), 0.03, STEEL, shine=0.4)
+        s.tube((c, c, top - 0.33), (c, c, top - 0.3), 0.04, FITTING, shine=0.2)
+        base, way = top - 0.33, -1
+    else:
+        s.tube((c, c, 0.0), (c, c, 0.035), 0.11, FITTING, cap=(74, 75, 76), shine=0.1)
+        s.tube((c, c, 0.035), (c, c, 0.09), 0.05, FITTING, cap=(74, 75, 76), shine=0.1)
+        s.tube((c, c, 0.09), (c, c, 0.78), 0.03, STEEL, shine=0.4)
+        s.tube((c, c, 0.78), (c, c, 0.81), 0.04, FITTING, shine=0.2)
+        base, way = 0.81, 1
+    # The body, the two arms of the frame meeting at the deflector, and the bulb between them.
+    body_end = base + way * 0.05
+    s.tube((c, c, base), (c, c, body_end), 0.035, BRASS, shine=0.5)
+    tip = base + way * 0.15
+    for side in (-1, 1):
+        s.tube((c + side * 0.03, c - side * 0.03, body_end), (c + side * 0.012, c - side * 0.012, tip), 0.009, BRASS,
+               shine=0.5)
+    if not spraying:
+        s.tube((c, c, body_end + way * 0.01), (c, c, tip - way * 0.012), 0.012, GLASS_RED, shine=0.8)
+    deflector = tip + way * 0.008
+    s.tube((c, c, tip), (c, c, deflector), 0.07, BRASS_DARK, cap=BRASS, shine=0.5)
+    over = None
+    if spraying:
+        def over(big):
+            layer = Image.new('RGBA', big.size, (0, 0, 0, 0))
+            d = ImageDraw.Draw(layer)
+            mist = Image.new('RGBA', big.size, (0, 0, 0, 0))
+            m = ImageDraw.Draw(mist)
+            rnd = random.Random(11 if hung else 13)
+            # Water off the deflector all round: out and down to the floor from a pendent head, up a little and over
+            # from an upright one; the sprite keeps inside its tile.
+            for jet in range(16):
+                direction = 2 * math.pi * (jet + rnd.random() * 0.5) / 16
+                reach = 0.3 + rnd.random() * 0.12
+                for i in range(1, 20):
+                    t = (i + rnd.random() * 0.5) / 19
+                    x = c + t * reach * math.cos(direction)
+                    y = c + t * reach * math.sin(direction)
+                    if hung:
+                        z = deflector - t * 0.15 - t * t * (deflector - 0.4)
+                    else:
+                        z = deflector + t * 0.18 - t * t * 0.75
+                    px, py = project(x, y, z)
+                    r = (2.2 - 0.9 * t) * SS * (0.7 + rnd.random() * 0.6)
+                    fade = max(0.0, 1 - t * 0.85) ** 1.2
+                    d.ellipse([px - r, py - r, px + r, py + r], fill=(214, 236, 252, int(225 * fade)))
+                    r *= 2.6
+                    m.ellipse([px - r, py - r, px + r, py + r], fill=(200, 222, 236, int(55 * fade)))
+            big.alpha_composite(mist.filter(ImageFilter.GaussianBlur(SS * 2)))
+            big.alpha_composite(layer.filter(ImageFilter.GaussianBlur(SS * 0.3)))
+    ground = None if hung else shadow((c, c), 0.1, 0.1, 80)
+    return compose(s, ground=ground, over=over, seed=40 + (2 if hung else 0) + (1 if spraying else 0))
+
+
 def snows(heavy):
     return [(lambda index=index: snow(index, heavy), {}) for index in SNOW_PANELS]
 
@@ -1435,6 +1505,9 @@ TILES = (
     + run_details()
     # 218-251: the same on a made floor (RUN_LAID_FIRST): power, water, then their second looks.
     + runs('power', True) + runs('water', True) + run_details(True)
+    # 252-255: the fire sprinkler hung from a ceiling waiting, then spraying; standing on a riser waiting, then spraying.
+    + [(lambda hung=hung, spraying=spraying: fire_sprinkler(hung, spraying), FIRE_SPRINKLER)
+       for hung in (True, False) for spraying in (False, True)]
 )
 
 
@@ -1499,7 +1572,8 @@ def write_pack_named(path, sheet, images):
 # The items' icons: a tile's thing at the game's 32 px, a little brighter, with a dark outline (as Operation Acorn's
 # items have; a 64 px tile shrunk by the game read soft and grey beside them).
 ICONS = {'BUWaterPump': 1, 'BUSprinkler': 4, 'BUWaterFilter': 6, 'BUBreakerBox': 72, 'BUBreakerBox2': 88,
-         'BUBreakerBox3': 104, 'BUBreakerBox4': 32, 'BUBoosterPump': 56, 'BUJunctionBox': 54, 'BUYardHydrant': 55}
+         'BUBreakerBox3': 104, 'BUBreakerBox4': 32, 'BUBoosterPump': 56, 'BUJunctionBox': 54, 'BUYardHydrant': 55,
+         'BUFireSprinkler': 252}
 # Icons of items that are no tile.
 DRAWN_ICONS = {'BUControlBoard': control_board}
 ICON = 32

@@ -12,6 +12,7 @@
     "ContextMenu_BU_ClearSnow": "눈 털기",
     "ContextMenu_BU_Install_pump": "양수 펌프 설치",
     "ContextMenu_BU_Install_sprinkler": "스프링클러 설치",
+    "ContextMenu_BU_Install_firesprinkler": "화재 스프링클러 설치",
     "ContextMenu_BU_Install_filter": "정수 필터 설치",
     "ContextMenu_BU_ReplaceMedia": "여과재 교체",
     "ContextMenu_BU_Install_booster": "가압 펌프 설치",

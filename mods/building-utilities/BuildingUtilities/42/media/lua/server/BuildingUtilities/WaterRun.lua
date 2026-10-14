@@ -1,6 +1,7 @@
 -- What the water units (BU.WaterUnits) do, on the server: each minute a panel's machines move water from their inlet
 -- to their outlet (BU.Water.unitPipes) — its booster pumps up the floors, its filters through their media, its pumps
--- from the river or well beside them — and each ten minutes its sprinklers water the crops around them. A machine
+-- from the river or well beside them — and each ten minutes its sprinklers water the crops around them; each minute
+-- the fire sprinklers put out the fires they reach (WaterRun.fires). A machine
 -- fills the tanks of its outlet pipe in its own building (Water.fillTargets), the highest floor it reaches first: a
 -- pump or a filter its own floor and below, a booster pump up to Water.boostFloors() above its own. Server.lua calls
 -- these with the panel's water layout (Networks.waterLayout).
@@ -268,6 +269,85 @@ function WaterRun.sprinklers(panel)
         end
     end
     if changed then Sync.changed(panel.id) end
+end
+
+-- Whether a fire sprinkler reaches a burning square: on its floor, within FIRE_RADIUS, in its room (a head in no room,
+-- on a roof or in the open, reaches the squares of no room).
+local function reaches(unit, square)
+    if square:getZ() ~= unit.z then return false end
+    local radius = WaterUnits.FIRE_RADIUS
+    if math.abs(square:getX() - unit.x) > radius or math.abs(square:getY() - unit.y) > radius then return false end
+    local head = getCell():getGridSquare(unit.x, unit.y, unit.z)
+    return head ~= nil and head:getRoomID() == square:getRoomID()
+end
+
+-- The square's fire goes, and that of whoever burns on it, as a fire extinguisher puts it out (ISPutOutFire).
+local function putOut(square)
+    if isServer() then stopFire(square) else square:stopFire() end
+    local movers = square:getMovingObjects()
+    for i = 0, movers:size() - 1 do
+        local character = movers:get(i)
+        if instanceof(character, "IsoGameCharacter") and character:isOnFire() then
+            if isServer() then stopFire(character) else character:StopBurning() end
+        end
+    end
+end
+
+-- A fire sprinkler lets out FIRE_LITRES from its pipe's use network where it is onto a burning square: false while
+-- that network holds less (its pipe's reserve is for the crops: a fire takes the last of it).
+local function douse(panel, unit, square)
+    local pipe = Water.unitPipes(panel, unit)
+    local building, level = placeOf(panel, unit)
+    local id = Water.useId(Networks.waterLayout(panel), pipe, building, level)
+    local state = id and Networks.waterState(id)
+    if not state or (state.amount or 0) < WaterUnits.FIRE_LITRES then return false end
+    if Networks.drawFrom(panel, { id }, WaterUnits.FIRE_LITRES) <= 0 then return false end
+    putOut(square)
+    return true
+end
+
+-- Each minute (Server): the burning squares a working fire sprinkler reaches are put out, each by the first that has
+-- the water, and those sprinklers spray a while (WaterUnits.spraying). Fires are only on loaded squares, and the game
+-- keeps the burning ones in IsoFireManager.FireStack: with none, nothing is looked at. A fire sprinkler needs no power
+-- (its heads open by the heat); its frozen pipes, or the feature off, put out nothing.
+function WaterRun.fires()
+    local stack = IsoFireManager.FireStack
+    if not stack or stack:isEmpty() then return end
+    if not BU.enabled("firesprinkler") or not BU.waterAvailable() then return end
+    local heads = Store.unitList("firesprinkler")
+    if #heads == 0 then return end
+    local burning, seen = {}, {}
+    for i = 0, stack:size() - 1 do
+        local square = stack:get(i):getSquare()
+        if square and square:has(IsoFlagType.burning) then
+            local key = square:getX() .. "," .. square:getY() .. "," .. square:getZ()
+            if not seen[key] then
+                seen[key] = true
+                burning[#burning + 1] = square
+            end
+        end
+    end
+    local working, now, changed = {}, getGameTime():getWorldAgeHours(), {}
+    local function works(panel, unit)
+        local set = working[panel.id]
+        if not set then
+            set = {}
+            for _, each in ipairs(BU.Units.working(panel, "firesprinkler")) do set[each] = true end
+            working[panel.id] = set
+        end
+        return set[unit] == true
+    end
+    for _, square in ipairs(burning) do
+        for _, unit in ipairs(heads) do
+            local panel = Store.get(unit.panel)
+            if panel and reaches(unit, square) and not panel.water.frozen and works(panel, unit)
+                and douse(panel, unit, square) then
+                unit.sprayedAt, changed[panel.id] = now, true
+                break
+            end
+        end
+    end
+    for id in pairs(changed) do Sync.changed(id) end
 end
 
 return WaterRun

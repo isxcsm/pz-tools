@@ -355,6 +355,87 @@ test("a sprinkler draws from its pipe until the pipe's reserve", function()
     eq(plant.waterLvl, 20, "below the reserve: none")
 end)
 
+-- Fires on squares ({ x, y, z } each): the game's list of the burning, each fire's square loaded, burning.
+local function burn(...)
+    local fires = {}
+    for _, at in ipairs({ ... }) do
+        local key = at[1] .. "," .. at[2] .. "," .. at[3]
+        TEST.squares[key] = TEST.squares[key] or { room = at[4] or 1 }
+        TEST.squares[key].flags = { burning = true }
+        fires[#fires + 1] = { getSquare = function() return getCell():getGridSquare(at[1], at[2], at[3]) end }
+    end
+    IsoFireManager = { FireStack = TEST_javaList(fires) }
+end
+
+local function burning(x, y, z)
+    local square = TEST.squares[x .. "," .. y .. "," .. z]
+    return square ~= nil and square.flags ~= nil and square.flags.burning == true
+end
+
+test("a fire sprinkler puts out the fires it reaches in its room, 20 L each, past the pipe's reserve, with no power", function()
+    local panel, _, tank = scene(1)
+    local held = tankAt(panel, tank, 101, 101, 0, 100, 50)
+    Water.pipe(panel, Water.FIRST).reserve = 90
+    TEST.squares["102,103,0"] = { room = 1 }
+    local head = Store.newUnit("firesprinkler", 102, 103, 0, WaterUnits.FIRE_SPRITES.hung.waiting)
+    Changes.connectUnit(head, panel, {})
+    -- three squares off on its floor in its room; four off; in another room; a floor up
+    burn({ 105, 106, 0 }, { 106, 103, 0 }, { 103, 103, 0, 2 }, { 102, 103, 1 })
+    WaterRun.fires()
+    eq(burning(105, 106, 0), false, "within reach: out")
+    eq(burning(106, 103, 0), true, "four squares off: burning")
+    eq(burning(103, 103, 0), true, "another room: burning")
+    eq(burning(102, 103, 1), true, "another floor: burning")
+    eq(held.amount, 30, "20 L, below the reserve")
+    eq(head.sprayedAt, TEST.hours)
+    truthy(WaterUnits.spraying(head))
+    -- 10 L left: less than a square takes
+    held.amount = 10
+    burn({ 104, 104, 0 })
+    WaterRun.fires()
+    eq(burning(104, 104, 0), true, "too little water: burning")
+    eq(held.amount, 10)
+    -- frozen pipes put out nothing
+    held.amount = 50
+    panel.water.frozen = true
+    WaterRun.fires()
+    eq(burning(104, 104, 0), true, "frozen: burning")
+    panel.water.frozen = nil
+    WaterRun.fires()
+    eq(burning(104, 104, 0), false)
+    IsoFireManager = { FireStack = TEST_javaList({}) }
+end)
+
+test("a fire sprinkler outside reaches the squares of no room; one off or cut reaches none", function()
+    local panel, _, tank = scene(1)
+    local held = tankAt(panel, tank, 101, 101, 0, 100, 100)
+    TEST.squares["110,110,0"] = { room = -1 }
+    local head = Store.newUnit("firesprinkler", 110, 110, 0, WaterUnits.FIRE_SPRITES.standing.waiting)
+    Changes.connectUnit(head, panel, {})
+    burn({ 112, 110, 0, -1 }, { 111, 111, 0, 1 })
+    WaterRun.fires()
+    eq(burning(112, 110, 0), false, "outside: out")
+    eq(burning(111, 111, 0), true, "a room's square: burning")
+    SandboxVars.BuildingUtilities = { EnableFireSprinklers = false }
+    burn({ 112, 110, 0, -1 })
+    WaterRun.fires()
+    eq(burning(112, 110, 0), true, "the feature off: burning")
+    SandboxVars.BuildingUtilities = {}
+    IsoFireManager = { FireStack = TEST_javaList({}) }
+end)
+
+test("a fire sprinkler hangs where the square over it lets no rain through, else stands", function()
+    TEST.squares["120,120,0"] = { room = 1 }
+    eq(WaterUnits.fireSprite(getCell():getGridSquare(120, 120, 0), false), WaterUnits.FIRE_SPRITES.standing.waiting,
+        "nothing over it: a hole in the roof, the open")
+    TEST.squares["120,120,1"] = { roof = true }
+    eq(WaterUnits.fireSprite(getCell():getGridSquare(120, 120, 0), false), WaterUnits.FIRE_SPRITES.hung.waiting)
+    eq(WaterUnits.fireSprite(getCell():getGridSquare(120, 120, 0), true), WaterUnits.FIRE_SPRITES.hung.spraying)
+    TEST.squares["120,120,1"] = { roof = false }
+    eq(WaterUnits.fireSprite(getCell():getGridSquare(120, 120, 0), false), WaterUnits.FIRE_SPRITES.standing.waiting,
+        "a square over it with no floor")
+end)
+
 test("a network id names its panel, pipe, building, floor and kind", function()
     local panel = scene(1)
     local id = Water.networkId(panel, 3, "100,200,0", -1, "U")

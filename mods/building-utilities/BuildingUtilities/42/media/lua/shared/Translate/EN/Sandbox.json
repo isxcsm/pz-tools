@@ -71,6 +71,8 @@
     "Sandbox_BuildingUtilities_EnablePumps_tooltip": "Water pumps can be made and put down, and fill their panel's water storage from a river, a lake or a well while it has power. Needs Water and Power. On by default. Off: none can be made; those put down stand still, draw no power and can still be removed.",
     "Sandbox_BuildingUtilities_EnableSprinklers": "Sprinklers",
     "Sandbox_BuildingUtilities_EnableSprinklers_tooltip": "Sprinklers can be made and put down, and water the crops around them from their panel's water storage. Needs Water. On by default. Off: none can be made; those put down water nothing and can still be removed.",
+    "Sandbox_BuildingUtilities_EnableFireSprinklers": "Fire Sprinklers",
+    "Sandbox_BuildingUtilities_EnableFireSprinklers_tooltip": "Fire sprinklers can be made and put down, and put out the fires around them with their panel's water storage, without power. Needs Water. On by default. Off: none can be made; those put down put out nothing and can still be removed.",
     "Sandbox_BuildingUtilities_EnableFilters": "Water filters",
     "Sandbox_BuildingUtilities_EnableFilters_tooltip": "Water filters can be made and put down, and purify their pipe's water while \"Risk: pipes do not purify\" is on. Needs Water. On by default. Off: none can be made; those put down purify nothing (with that risk on, the water comes out as the water storage holds it) and can still be removed.",
     "Sandbox_BuildingUtilities_EnableBoosters": "Booster pumps",
