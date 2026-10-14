@@ -121,6 +121,8 @@
     "IGUI_OADev_Fx_Negative": "음성",
     "IGUI_OADev_Fx_Cured": "완치",
     "IGUI_OADev_Fx_FirstSupply": "첫 보급",
+    "IGUI_OADev_Fx_Lost": "물품 소실 (가라앉음)",
+    "IGUI_OADev_Fx_Guide": "안내서 (타자)",
     "IGUI_OADev_Fx_Scenes": "장면",
     "IGUI_OADev_Fx_Take": "적용 연출 다시 보기",
     "IGUI_OADev_Fx_TakeHint": "적용 연출은 강화 탭을 열고 앞쪽 노드에서 재생합니다. 전시장은 모든 물건을 하나씩 근처에 놓습니다.",

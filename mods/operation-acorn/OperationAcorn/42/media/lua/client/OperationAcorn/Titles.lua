@@ -51,7 +51,8 @@ Titles.textApi = textApi
 
 -- The style to ask the API for: the detail's (else "dust") when the API has it (an older PZ Extension API may not have "dust" or
 -- "unveil"), else "stamp". The styles' kinds: dust anything not plainly another, discovery a thing found, unveil a thing
--- strange, notice word from the radio, stamp a great thing done.
+-- strange, notice word from the radio, stamp a great thing done, bleed an infection found, sink a thing lost, type a
+-- document or an order, pulse a danger passed.
 -- The API's styles are asked once (again for another API's text).
 local styles, stylesOf
 local function styleFor(t, wanted)

@@ -702,8 +702,8 @@ local function finishSpecial(record, m, result)
     sp.nextAt = OA.hours() + Rewards.hours(Rewards.SPECIAL_GAP_DAYS)
     s.results[result] = (s.results[result] or 0) + 1
     if result == "expired" then
-        OA.Sync.title(record.id, { key = "IGUI_OA_Title_Expired", sub = (Missions.keys(m)), style = "dust",
-            tone = "red", fallback = "bad" })
+        OA.Sync.title(record.id, { key = "IGUI_OA_Title_Expired", sub = (Missions.keys(m)), style = "sink",
+            fallback = "bad" })
     end
     OA.Sync.changed("missions", record.id)
 end
@@ -720,8 +720,8 @@ function Missions.finish(record, m, result)
     s.last = { id = m.id, story = m.story, result = result, at = OA.hours() }
     countStreak(s, result)
     if result == "expired" then
-        OA.Sync.title(record.id, { key = "IGUI_OA_Title_Expired", sub = (Missions.keys(m)), style = "dust",
-            tone = "red", fallback = "bad" })
+        OA.Sync.title(record.id, { key = "IGUI_OA_Title_Expired", sub = (Missions.keys(m)), style = "sink",
+            fallback = "bad" })
     end
     Story.missionEnded(record, m, result)
     OA.Sync.changed("missions", record.id)
@@ -882,7 +882,7 @@ function Missions.replacePiece(record, m, it)
         m.carry.start, m.carry.looked = nil, nil
     end
     OA.log("mission", m.id, "piece", tostring(it.key), "destroyed: replaced")
-    OA.Sync.title(record.id, { key = "IGUI_OA_Title_Lost", sub = sub, style = "dust", fallback = "bad" })
+    OA.Sync.title(record.id, { key = "IGUI_OA_Title_Lost", sub = sub, style = "sink", fallback = "bad" })
     OA.Sync.changed("missions", record.id)
 end
 

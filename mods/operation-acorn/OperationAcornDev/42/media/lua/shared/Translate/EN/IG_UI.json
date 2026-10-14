@@ -121,6 +121,8 @@
     "IGUI_OADev_Fx_Negative": "Test negative",
     "IGUI_OADev_Fx_Cured": "Cured",
     "IGUI_OADev_Fx_FirstSupply": "First supply",
+    "IGUI_OADev_Fx_Lost": "Lost (sink)",
+    "IGUI_OADev_Fx_Guide": "Guide (type)",
     "IGUI_OADev_Fx_Scenes": "Scenes",
     "IGUI_OADev_Fx_Take": "Replay the take",
     "IGUI_OADev_Fx_TakeHint": "The take opens the upgrades tab and plays on its first nodes. The showroom puts one of everything nearby.",

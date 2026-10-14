@@ -113,7 +113,7 @@ Server.on("upgrades.bite", function(character, record, args)
     u.biteAt = now
     OA.Sync.changed("upgrades", record.id, { kind = "bite" })
     OA.Sync.title(record.id, { key = "IGUI_OA_Title_BiteSaved", sub = "IGUI_OA_Title_BiteSavedSub",
-        subArgs = { math.floor(Rules.biteHours(u) / 24 + 0.5) }, style = "dust", tone = "green", fallback = "good" })
+        subArgs = { math.floor(Rules.biteHours(u) / 24 + 0.5) }, style = "pulse", fallback = "good" })
 end)
 
 -- A new wound from a zombie (the watch found it): the wound is untested from now, and a delay drug ends, whether or

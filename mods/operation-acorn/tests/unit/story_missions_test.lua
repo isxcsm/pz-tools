@@ -87,7 +87,7 @@ test("a new request, its pay and its expiry each have a title; the pay names it,
     M.tick(record)
     eq(M.active(record), nil)
     eq(told[#told].key, "IGUI_OA_Title_Expired")
-    eq(told[#told].tone, "red")
+    eq(told[#told].style, "sink")
     eq(told[#told].sub, (M.keys(n)))
 end)
 

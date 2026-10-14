@@ -354,7 +354,7 @@ function Story.completeHandover(record)
     Story.queueSupply(record, "HandoverFile", nil)
     Story.queueSupply(record, "KitVoucher", nil)
     OA.Sync.title(record.id, { key = "IGUI_OA_Title_Handover", sub = "IGUI_OA_Title_HandoverSub",
-        subArgs = { { key = Story.callSignKey(record) } }, style = "unveil" })
+        subArgs = { { key = Story.callSignKey(record) } }, style = "type" })
     Story.scene(record, "handover")
     OA.log("story: handover for", record.number)
     OA.Sync.changed("story", record.id)

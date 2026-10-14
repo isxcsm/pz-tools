@@ -388,10 +388,12 @@ local TITLES = {
     paid = { key = "IGUI_OA_Title_Paid", style = "dust", fallback = "good" },
     cured = { key = "IGUI_OA_Title_Cured", sub = "IGUI_OA_Title_CuredSubDrugs", subArgs = { 12, 3 }, style = "stamp",
         tone = "green", fallback = "good" },
-    positive = { key = "IGUI_OA_Title_TestPositive", style = "dust", tone = "red", fallback = "bad" },
-    negative = { key = "IGUI_OA_Title_TestNegative", sub = "IGUI_OA_Title_TestNegativeSub", style = "dust",
-        tone = "green", fallback = "good" },
+    positive = { key = "IGUI_OA_Title_TestPositive", style = "bleed", fallback = "bad" },
+    negative = { key = "IGUI_OA_Title_TestNegative", sub = "IGUI_OA_Title_TestNegativeSub", style = "pulse",
+        fallback = "good" },
     firstSupply = { key = "IGUI_OA_Title_FirstSupply", sub = "IGUI_OA_Title_Marked", style = "unveil", fallback = "good" },
+    lost = { key = "IGUI_OA_Title_Lost", sub = "IGUI_OA_Title_LostSub_Find", style = "sink", fallback = "bad" },
+    guide = { key = "IGUI_OA_Story_DocTitle_infection_guide", sub = "IGUI_OA_Title_GuideSub", style = "type", fallback = "good" },
 }
 
 -- Shows a title: the kinds of Dev.title, "stage" and "milestone" (the stage title the radio leads), or one of TITLES.

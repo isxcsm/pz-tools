@@ -356,6 +356,8 @@ local function effectsPage(page, ui)
         { T("Fx_Negative"), function() Dev.titleMore("negative") end },
         { T("Fx_Cured"), function() Dev.titleMore("cured") end },
         { T("Fx_FirstSupply"), function() Dev.titleMore("firstSupply") end },
+        { T("Fx_Lost"), function() Dev.titleMore("lost") end },
+        { T("Fx_Guide"), function() Dev.titleMore("guide") end },
     })
     local n = 4 + rows
     ui.heading(page, T("Fx_Scenes"), n)

@@ -42,7 +42,7 @@ end
 
 -- The title that tells a paper has come: its name over the line that leads to the terminal.
 function Guides.title(playerId, id)
-    OA.Sync.title(playerId, { key = Docs.titleKey(id), sub = "IGUI_OA_Title_GuideSub", style = "notice", tone = "gold",
+    OA.Sync.title(playerId, { key = Docs.titleKey(id), sub = "IGUI_OA_Title_GuideSub", style = "type",
         fallback = "good" })
 end
 

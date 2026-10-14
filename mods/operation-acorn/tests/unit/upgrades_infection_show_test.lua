@@ -199,7 +199,7 @@ end)
 
 -- ---- the events --------------------------------------------------------------------------------------------------
 
-test("a positive test: the red stamp, a line for the first one, and the handling notice once", function()
+test("a positive test: a title bleeding in, a line for the first one, and the handling notice once", function()
     local c = newCharacter()
     local r = record()
     local told = listen()
@@ -207,14 +207,14 @@ test("a positive test: the red stamp, a line for the first one, and the handling
     Infection.wounded(r, "scratch", 0)
     truthy(Serums.use(c, newItem("InfectionTestKit"), "inf"))
     eq(told.titles[1].key, "IGUI_OA_Title_TestPositive")
-    eq(told.titles[1].tone, "red")
+    eq(told.titles[1].style, "bleed")
     eq(told.says[1].id, "TestPositive")
     eq(told.says[1].ctx.first, true)
     -- the paper is in the folder, new, and a title says so
     local guide = titleOf(told, "IGUI_OA_Story_DocTitle_infection_guide")
     truthy(guide, "the notice title")
     eq(guide.sub, "IGUI_OA_Title_GuideSub")
-    eq(guide.style, "notice")
+    eq(guide.style, "type")
     local card = OA.StoryFolder.newGuide(r)
     eq(card.id, "infection_guide")
     -- a second positive test: another line, no second paper

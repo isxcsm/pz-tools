@@ -990,7 +990,7 @@ test("server: the bite shield rests after a save", function()
     eq(u.biteAt, 300)
     eq(#told, 1)
     eq(told[1].key, "IGUI_OA_Title_BiteSaved")
-    eq(told[1].tone, "green")
+    eq(told[1].style, "pulse")
     eq(told[1].subArgs[1], math.floor(Rules.biteHours(u) / 24 + 0.5))
     TEST.hours = 310
     sendClientCommand(character, OA.MOD, "upgrades.bite", { id = "bit" })
