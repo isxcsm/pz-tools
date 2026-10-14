@@ -170,11 +170,11 @@ test("trade page: credits, stages, things and the helicopter, and its state", fu
     local page = build("Trade")
     button(page, "+1000"):click()
     button(page, "IGUI_OADev_Tr_Debt"):click()
-    button(page, "IGUI_OADev_Tr_Stage 0"):click()
+    button(page, "IGUI_OADev_Tr_Stage 1"):click()
     button(page, "IGUI_OADev_Tr_Terminal"):click()
     button(page, "IGUI_OADev_Tr_Parachute"):click()
     button(page, "IGUI_OADev_Tr_FirstReset"):click()
-    eq(table.concat(calls, " "), "addCredits(1000) debt() stage(0) giveAll(CommTerminal) crateHere(true) firstSupply(true)")
+    eq(table.concat(calls, " "), "addCredits(1000) debt() stage(1) giveAll(CommTerminal) crateHere(true) firstSupply(true)")
     page.refresh()
     eq(#all(page, "lines")[1].shown, 2, "credits and the helicopter")
     Dev.tradeState = function() return nil end

@@ -133,7 +133,7 @@ test("a paper's tier is the stage that sends it or starts its mission, else the 
     eq(Folder.docTier(record, "note_5"), nil)
     Story.markRead(record, "note_5")
     eq(Folder.docTier(record, "note_5"), 2, "the tier it was read at")
-    eq(Folder.tierLabel(0), "IGUI_OA_Econ_Stage_0")
+    eq(Folder.tierLabel(1), "IGUI_OA_Story_Copy_Stage 1")
     eq(Folder.tierLabel(3), "IGUI_OA_Story_Copy_Stage 3")
     eq(Folder.tierLabel(nil), "")
 end)

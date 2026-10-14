@@ -84,6 +84,8 @@ Server.on("tradeUsed", function(character, record, args)
     heli.greeted = true
     local late = record.first ~= nil and record.first.mode ~= "window"
     if OA.Story and OA.Story.firstContact then OA.Story.firstContact(record, late) end
+    -- the first stage opens with the first contact
+    Trade.openContact(record)
 end)
 
 -- Flight support (DESIGN-terminal 2.6): a request for the next level of an upgrade, made at a field terminal (the

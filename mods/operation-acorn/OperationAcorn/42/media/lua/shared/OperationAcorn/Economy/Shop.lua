@@ -7,7 +7,7 @@
 -- "cure" | "reversal" | "test" | "delay" (with days) | "serum" | "reissue" | nil, fixed = true (no shop
 -- multiplier, no discount), allowDebt, kits = true (only with KitsForSale), item (the item it is named after),
 -- descKey (a description shared with other entries) }. A give may carry `mod`, `used` and `name` (Trade.dropSpec).
--- tier is stage + milestones (Trust.tier): 0 the start, 1..5 stages, 6 the first milestone.
+-- tier is stage + milestones (Trust.tier): 1..5 the stages (1 the start), 6 the first milestone.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Economy/Trust"
@@ -135,11 +135,11 @@ local function build()
         give = { give("cure") } })
     add({ id = "reversal", group = "serum", tier = 1, price = 50000, special = "reversal", fixed = true,
         give = { give("reversal") } })
-    add({ id = "delay_long", group = "serum", tier = 0, price = 20000, special = "delay", days = 7, fixed = true,
+    add({ id = "delay_long", group = "serum", tier = 1, price = 20000, special = "delay", days = 7, fixed = true,
         give = { give("delayLong") } })
-    add({ id = "test_kit", group = "serum", tier = 0, price = 2000, special = "test", fixed = true,
+    add({ id = "test_kit", group = "serum", tier = 1, price = 2000, special = "test", fixed = true,
         give = { give("testKit") } })
-    add({ id = "delay_drug", group = "serum", tier = 0, price = 5000, special = "delay", days = 1, fixed = true,
+    add({ id = "delay_drug", group = "serum", tier = 1, price = 5000, special = "delay", days = 1, fixed = true,
         give = { give("delay") } })
     -- Supplies, the ones bought most often first: the ammunition, then the fuels and batteries, then the rest.
     add({ id = "ammo_pistol", group = "resource", tier = 4, price = 40000, week = 2,
@@ -175,7 +175,7 @@ local function build()
     add({ id = "team_welder", group = "gear", tier = 3, price = 35000, give = { Shop.WELDER } })
     add({ id = "team_welding_mask", group = "gear", tier = 3, price = 40000, give = { give("weldingMask") } })
     -- Machines.
-    add({ id = "shred_bench", group = "machine", tier = 0, price = 5000, give = { give("shredBench") } })
+    add({ id = "shred_bench", group = "machine", tier = 1, price = 5000, give = { give("shredBench") } })
     add({ id = "bait_trap", group = "machine", tier = 2, price = 12000, give = { give("bait") } })
     add({ id = "field_terminal", group = "machine", tier = 2, price = 50000, give = { give("fieldTerminal") } })
     add({ id = "team_locker", group = "machine", tier = 2, price = 60000, give = { give("locker") } })
@@ -194,7 +194,7 @@ local function build()
             descKey = "IGUI_OA_Terminal_Shop_Desc_field_tool", give = { give(Shop.fieldType(t[1])) } })
     end
     -- The delivery box.
-    add({ id = "box_reissue", group = "box", tier = 0, price = 10000, special = "reissue", fixed = true, allowDebt = true,
+    add({ id = "box_reissue", group = "box", tier = 1, price = 10000, special = "reissue", fixed = true, allowDebt = true,
         give = { give("box") } })
     -- Machine parts: the worn-down kind comes with the machine. A yield part pays its price back within a mid game's
     -- work (NUMBERS 7): the cutter's pieces are cheap rags, so its blade adds more and costs less.
@@ -219,7 +219,7 @@ local function build()
     end
     -- Upgrade serums: one entry per tree, the price by how many the record bought.
     for _, tree in ipairs(Shop.TREES) do
-        add({ id = "serum_" .. tree, group = "serum", tier = 0, price = 8000, special = "serum", tree = tree,
+        add({ id = "serum_" .. tree, group = "serum", tier = 1, price = 8000, special = "serum", tree = tree,
             fixed = true, give = { give(SERUM_TYPE[tree]) } })
     end
     return list

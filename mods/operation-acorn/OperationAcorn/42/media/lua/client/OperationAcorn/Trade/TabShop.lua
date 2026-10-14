@@ -814,12 +814,13 @@ function OATabShop:onClear()
     if #self.cartRows > 0 then self:sendLines({}) end
 end
 
--- The tab's dot: items a new trust level has opened, until the tab is looked at (DESIGN-terminal 1.1).
+-- The tab's dot: items a new trust level has opened, until the tab is looked at (DESIGN-terminal 1.1); the start's are
+-- not new.
 OA.Terminal.addTab("shop", function(x, y, w, h, window)
     return OATabShop:new(x, y, w, h, window)
 end, {
     mark = function(record)
-        return OA.Trust.tier(record) > (OA.Terminal.seenValue(record, "tier") or 0) and "new" or nil
+        return OA.Trust.tier(record) > (OA.Terminal.seenValue(record, "tier") or 1) and "new" or nil
     end,
     seen = function(record) return "tier", OA.Trust.tier(record) end,
 })

@@ -53,7 +53,7 @@ test("the road's nodes and the levels' names: stages, the levels after them, the
     eq(M.levelName(2), "IGUI_OA_Status_LevelName 2 IGUI_OA_Econ_Stage_2")
     eq(M.levelName(7), "IGUI_OA_Econ_Stage_Milestone 7")
     eq(M.levelName(9), "IGUI_OA_Status_LevelFrom 9")
-    eq(M.threshold(3), 1200); eq(M.threshold(6), 3700); eq(M.threshold(9), 12100)
+    eq(M.threshold(1), 0); eq(M.threshold(3), 900); eq(M.threshold(6), 3400); eq(M.threshold(9), 11800)
 end)
 
 -- What each level opens -----------------------------------------------------------------------------------------------
@@ -66,8 +66,8 @@ test("each level's goods split into every terminal's and the field terminal's la
     local tools = 0
     for _, e in ipairs(M.laneItems(2, true)) do if e.group == M.TOOLS then tools = tools + 1 end end
     eq(tools, 20, "the field tools of the level, each a good of its own (the screens show them as one row)")
-    eq(string.find(ids(M.laneItems(0, false)), "serum_", 1, true), nil, "the upgrade serums have their own section")
-    eq(string.find(ids(M.laneItems(0, false)), "box_reissue", 1, true), nil, "the box is the reissue button's")
+    eq(string.find(ids(M.laneItems(1, false)), "serum_", 1, true), nil, "the upgrade serums have their own section")
+    eq(string.find(ids(M.laneItems(1, false)), "box_reissue", 1, true), nil, "the box is the reissue button's")
     eq(ids(M.laneItems(9, false)), ""); eq(ids(M.laneItems(9, true)), "")
     eq(#M.laneItems(6, true), 4, "the kits at the first level after the stages")
     SandboxVars.OperationAcorn.KitsForSale = false
@@ -118,13 +118,13 @@ test("where the road stands and the chosen level's note", function()
     local r = newRecord(2, 0)
     r.trade.trust = 864
     local at, frac = M.roadPosition(r)
-    eq(at, 2); near(frac, (864 - 700) / (1200 - 700), 1e-9)
-    eq(M.plain(M.detailNote(r, 3)), "IGUI_OA_Status_TrustLeft 336")
+    eq(at, 2); near(frac, (864 - 400) / (900 - 400), 1e-9)
+    eq(M.plain(M.detailNote(r, 3)), "IGUI_OA_Status_TrustLeft 36")
     eq(M.plain(M.detailNote(r, 2)), "IGUI_OA_Status_Got")
-    eq(M.plain(M.detailNote(r, 4)), "IGUI_OA_Status_AtTrust 1,800", "a later stage says its trust")
-    eq(M.plain(M.detailNote(r, 9)), "IGUI_OA_Status_AtTrustOn 12,100")
+    eq(M.plain(M.detailNote(r, 4)), "IGUI_OA_Status_AtTrust 1,500", "a later stage says its trust")
+    eq(M.plain(M.detailNote(r, 9)), "IGUI_OA_Status_AtTrustOn 11,800")
     -- past the five stages, the next level is still the trust left
-    r.trade.stage, r.trade.milestones, r.trade.trust = 5, 1, 3700
+    r.trade.stage, r.trade.milestones, r.trade.trust = 5, 1, 3400
     eq(M.plain(M.detailNote(r, 7)), "IGUI_OA_Status_TrustLeft 2,100")
     eq(M.plain(M.detailNote(r, 8)), "IGUI_OA_Status_AtTrust " .. M.plain({ { s = OA.Trade.Text.credits(M.threshold(8)) } }))
     r.trade.stage, r.trade.milestones = 5, 6
@@ -379,10 +379,8 @@ end)
 
 test("the progress screen's level not shown yet: lit until the window has seen it, the dot with it", function()
     local r = newRecord(1, 0)
-    eq(M.roadFresh(r), 1, "entering the first stage")
-    eq(M.roadFresh(newRecord(0, 0)), nil, "nothing before the first stage")
-    OA.Terminal.setSeen(r, "road", 1)
-    eq(M.roadFresh(r), nil)
+    eq(M.roadFresh(r), nil, "the first stage is the start, not new")
+    eq(M.roadFresh(newRecord(0, 0)), nil, "nor before the first contact")
     r.trade.stage = 2
     eq(M.roadFresh(r), 2, "the next level is new again")
     r = newRecord(5, 2)
@@ -468,9 +466,8 @@ test("the new board counts the team's goods open now and later, and the upgrades
     truthy(string.find(first, "^IGUI_OA_Status_News_TeamNow %d+ IGUI_OA_Status_News_TeamRest "), first)
     local _, commas = string.gsub(first, ", ", "")
     eq(commas, 3, "four names")
-    news = M.news(newRecord(0, 0))
-    eq(news[1].lines[1], "IGUI_OA_Status_News_TeamNone")
-    eq(news[3].lines[2], "IGUI_OA_Status_News_SupportLater")
+    news = M.news(newRecord(1, 0))
+    eq(news[3].lines[2], "IGUI_OA_Status_News_SupportLater", "the upgrades open at the 2nd stage")
 end)
 
 -- Layouts ----------------------------------------------------------------------------------------------------------

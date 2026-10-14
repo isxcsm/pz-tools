@@ -480,10 +480,11 @@ function M.fieldTerminalBuyable(record)
 end
 
 -- The trust level whose entry the progress screen has not shown yet (DESIGN-terminal 11.1, priority 4: the road's
--- node is lit and the sub-tab has a dot until the screen is looked at), or nil. The window keeps it as seen (ui.seen.road).
+-- node is lit and the sub-tab has a dot until the screen is looked at), or nil; the first stage, the start, is not new.
+-- The window keeps it as seen (ui.seen.road).
 function M.roadFresh(record)
     local tier = Trust.tier(record)
-    if tier > 0 and tier > (Terminal.seenValue(record, "road") or 0) then return tier end
+    if tier > (Terminal.seenValue(record, "road") or 1) then return tier end
     return nil
 end
 

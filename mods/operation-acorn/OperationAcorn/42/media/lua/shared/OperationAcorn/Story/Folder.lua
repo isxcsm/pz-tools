@@ -82,11 +82,10 @@ function Folder.docTier(record, id)
     return kept and kept[id] or nil
 end
 
--- A tier as the list's right-hand label: "2단계", "시작" for the start; "" when it is not known.
+-- A tier as the list's right-hand label: "2단계"; "" when it is not known.
 function Folder.tierLabel(tier)
     if tier == nil then return "" end
-    if tier <= 0 then return Story.text("IGUI_OA_Econ_Stage_0") end
-    return Story.text("IGUI_OA_Story_Copy_Stage", tier)
+    return Story.text("IGUI_OA_Story_Copy_Stage", math.max(1, tier))
 end
 
 -- A text whose line ends may be the two characters \n (the file reader keeps them): real line ends.
@@ -161,7 +160,7 @@ function Folder.entries(record)
     end
     for i, copy in ipairs(Story.radioCopies(record)) do
         local tier = copy.stage
-        if copy.id == "first" then tier = 0 end
+        if copy.id == "first" then tier = 1 end
         if copy.id == "handover" then tier = Data.LAST_STAGE + 3 end
         put("radio", "c:" .. copy.id, Story.copyTitle(copy), tier, i, { kind = "copy", copy = copy }, s)
     end

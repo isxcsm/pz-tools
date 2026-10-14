@@ -64,7 +64,7 @@ function Dev.addCredits(n)
     return t.credits
 end
 
--- The trust a stage (0..5) starts at, or a milestone (6 is the first) after the last stage.
+-- The trust a stage (1..5) starts at, or a milestone (6 is the first) after the last stage.
 function Dev.stage(level)
     local Trust = OA.Trust
     local amount = 0

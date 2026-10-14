@@ -104,7 +104,6 @@ end
 
 -- The trust level's words: "신뢰도 2단계 · 분류" up to the 5th stage, the bare number after it, the handover at 8.
 function OATabStatus.levelText(tier)
-    if tier <= 0 then return getText("IGUI_OA_Terminal_LevelStart") end
     if tier <= Trust.STAGES then return getText("IGUI_OA_Terminal_Level", tier, getText(Trust.stageNameKey(tier))) end
     if tier == Trust.STAGES + 3 then return getText("IGUI_OA_Terminal_Level", tier, getText("IGUI_OA_Terminal_LevelHandover")) end
     return getText("IGUI_OA_Terminal_LevelPlain", tier)

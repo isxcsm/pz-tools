@@ -1,8 +1,10 @@
 -- Trust (NUMBERS 5 and 6): the stage thresholds, the milestones after the last stage (the levels 6, 7, 8 ... the
 -- player sees), and what they open. The numbers trust used to raise by itself are flight support upgrades bought
 -- with credits (Economy/Support); the rewards below put both together.
--- The record's `trade` section holds trust (with decimals), stage (0..5), milestones, and the shared serums waiting
--- for the next supply drop; this file changes those and nothing else.
+-- The record's `trade` section holds trust (with decimals), stage (1..5, 0 before the first contact), milestones, and
+-- the shared serums waiting for the next supply drop; this file changes those and nothing else.
+-- The first stage opens with the first contact (the first time a terminal is used, Trust.open), not with trust: stage 0
+-- is only "no terminal used yet" and nothing shows it.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Economy/Support"
@@ -11,10 +13,10 @@ local Trust = {}
 OA.Trust = Trust
 
 Trust.STAGES = 5
--- Trust needed to enter stages 1..5 (NUMBERS 5), before TrustThresholdMultiplier.
-Trust.STAGE_BASE = { 300, 700, 1200, 1800, 2600 }
--- The first milestone (level 6) at 3,700; milestone k comes (1,400 + 700 * (k - 1)) trust after the one before it.
-Trust.MILESTONE_AT, Trust.MILESTONE_FIRST, Trust.MILESTONE_STEP = 3700, 1400, 700
+-- Trust needed to enter stages 1..5 (NUMBERS 5), before TrustThresholdMultiplier. The first is the start.
+Trust.STAGE_BASE = { 0, 400, 900, 1500, 2300 }
+-- The first milestone (level 6) at 3,400; milestone k comes (1,400 + 700 * (k - 1)) trust after the one before it.
+Trust.MILESTONE_AT, Trust.MILESTONE_FIRST, Trust.MILESTONE_STEP = 3400, 1400, 700
 
 local function multiplier()
     return OA.option("TrustThresholdMultiplier") or 1.0
@@ -25,14 +27,14 @@ function Trust.stageThreshold(stage)
     return OA.round(Trust.STAGE_BASE[stage] * multiplier())
 end
 
--- Trust needed for milestone k (1, 2 ...): 3,700 / 5,800 / 8,600 / 12,100 / 16,300 ...
+-- Trust needed for milestone k (1, 2 ...): 3,400 / 5,500 / 8,300 / 11,800 / 16,000 ...
 function Trust.milestoneThreshold(k)
     local base = Trust.MILESTONE_AT
         + Trust.MILESTONE_FIRST * (k - 1) + Trust.MILESTONE_STEP * k * (k - 1) / 2
     return OA.round(base * multiplier())
 end
 
--- The stage and the milestones a trust amount makes.
+-- The stage and the milestones a trust amount makes, once in contact (1 at the least).
 function Trust.levelFor(trust)
     local stage = 0
     for s = 1, Trust.STAGES do
@@ -57,16 +59,17 @@ function Trust.section(record)
     return t
 end
 
--- Shop tier: 0 at the start, 1..5 the stages, then 5 plus the milestones. What a shop item or reward waits for.
+-- Shop tier: 1..5 the stages (1 the start, and before the first contact too), then 5 plus the milestones. What a shop
+-- item or reward waits for.
 function Trust.tier(record)
     local t = record.trade
-    if not t then return 0 end
-    return (t.stage or 0) + (t.milestones or 0)
+    if not t then return 1 end
+    return math.max(1, t.stage or 1) + (t.milestones or 0)
 end
 
--- The translation key of a stage's name (0 is the start), and of a level past the last stage ("%1단계").
+-- The translation key of a stage's name, and of a level past the last stage ("%1단계").
 function Trust.stageNameKey(stage)
-    return "IGUI_OA_Econ_Stage_" .. tostring(stage)
+    return "IGUI_OA_Econ_Stage_" .. tostring(math.max(1, stage))
 end
 
 Trust.MILESTONE_NAME_KEY = "IGUI_OA_Econ_Stage_Milestone"
@@ -75,7 +78,7 @@ Trust.MILESTONE_NAME_KEY = "IGUI_OA_Econ_Stage_Milestone"
 function Trust.label(record)
     local t = record.trade or {}
     if (t.milestones or 0) > 0 then return getText(Trust.MILESTONE_NAME_KEY, Trust.STAGES + t.milestones) end
-    return getText(Trust.stageNameKey(t.stage or 0))
+    return getText(Trust.stageNameKey(t.stage or 1))
 end
 
 -- Where the trust bar stands: { trust, from, to, kind = "stage"|"milestone", number } (to = the next threshold).
@@ -83,10 +86,11 @@ function Trust.progress(record)
     local t = Trust.section(record)
     local from, to, kind, number
     if t.stage < Trust.STAGES then
-        number = t.stage + 1
+        local stage = math.max(1, t.stage)
+        number = stage + 1
         kind = "stage"
         to = Trust.stageThreshold(number)
-        from = t.stage > 0 and Trust.stageThreshold(t.stage) or 0
+        from = Trust.stageThreshold(stage)
     else
         number = t.milestones + 1
         kind = "milestone"
@@ -112,11 +116,25 @@ end
 --   { kind = "milestone", index = k, sharedSerums = 0|1, transfer = (k == 3) }
 -- The shared serums are already added to trade.sharedSerums (the supply drop takes them from there): the trade part
 -- must not add them again. It tells the player, opens the new shop items and calls the story's stage hook.
+local catchUp
+
 function Trust.add(record, amount)
-    local events = {}
     local t = Trust.section(record)
-    if not amount or amount <= 0 then return events end
+    if not amount or amount <= 0 then return {} end
     t.trust = t.trust + amount
+    return catchUp(t)
+end
+
+-- The first contact: stage 0 becomes the first stage (and whatever the trust already makes). The events as Trust.add
+-- gives them; none when the record was already in contact.
+function Trust.open(record)
+    local t = Trust.section(record)
+    if t.stage >= 1 then return {} end
+    return catchUp(t)
+end
+
+catchUp = function(t)
+    local events = {}
     local stage, milestones = Trust.levelFor(t.trust)
     while t.stage < stage do
         t.stage = t.stage + 1

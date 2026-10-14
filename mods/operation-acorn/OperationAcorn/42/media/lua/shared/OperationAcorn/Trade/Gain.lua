@@ -15,6 +15,8 @@ local Trade = OA.Trade
 --     the whole change);
 --   - the story part's onStage (it catches up on every stage and milestone the record has passed; it is idempotent).
 -- A caller must not do these again for the events it gets back.
+local passed
+
 function Trade.addTrust(record, amount, source)
     if not amount or amount <= 0 then return {} end
     local events
@@ -25,6 +27,16 @@ function Trade.addTrust(record, amount, source)
         account.trust = account.trust + amount
         events = {}
     end
+    return passed(record, events, source)
+end
+
+-- The first contact (the first time a terminal is used): the first stage opens, told and dealt with as above.
+function Trade.openContact(record)
+    if not (OA.Trust and OA.Trust.open) then return {} end
+    return passed(record, Trade.Rules.stageEvents(OA.Trust.open(record)), "contact")
+end
+
+passed = function(record, events, source)
     if #events > 0 then
         OA.log("trust from", tostring(source), "passed", #events, "stage or milestone events for", tostring(record.number))
         -- one title for the whole change: the last level reached (milestone k is level 5 + k)

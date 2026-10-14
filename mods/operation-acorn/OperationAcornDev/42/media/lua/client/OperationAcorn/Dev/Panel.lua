@@ -65,7 +65,7 @@ local function tradePage(page, ui)
         { T("Tr_Debt"), function() Dev.debt() end },
     })
     local stages = {}
-    for level = 0, 7 do
+    for level = 1, 7 do
         stages[#stages + 1] = { level <= 5 and T("Tr_Stage", tostring(level)) or T("Tr_Milestone", tostring(level - 5)),
             function() Dev.stage(level) end }
     end
