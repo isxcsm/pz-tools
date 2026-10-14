@@ -14,7 +14,8 @@ A Project Zomboid (Build 42) Lua mod that other mods draw their windows with. It
 - **Fades.** A window fades in and out (`UI.fadeIn`, `UI.fadeOut`, `UI.fadeTo`), and steps aside while its player
   works: `UI.aside(window, action)` thins it for as long as the timed action is queued, so the game's progress bar over
   the character shows through, and `UI.stepAside(window, hold)` in the window's update brings it back.
-- **Widgets.** `PZUIButton`, `PZUICombo`, `PZUIConfirm` (`UI.confirm`), `PZUIRichText`, `PZUIRichTip` (a rich-text
+- **Widgets.** `PZUIButton`, `PZUICombo`, `PZUIConfirm` (`UI.confirm`), `PZUIPopMenu` (`UI.menu`: a window's menu at the
+  mouse, dim heads over its choices, the one in use marked), `PZUIRichText`, `PZUIRichTip` (a rich-text
   tooltip that follows the mouse), `PZUISubTabs` (with a tooltip per tab), and lists of the game's
   `ISScrollingListBox` with rows drawn in design units (`UI.list`).
 - **Text that fits.** `PZUIKit.Text.wrap`, `fitText` and `cutFor` (shared, so they also run on a server and in tests).

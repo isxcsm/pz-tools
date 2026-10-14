@@ -1268,14 +1268,14 @@ end
 -- Every floor in a menu at the mouse, top down, with how many devices are connected there; the one shown is not
 -- offered.
 function ISBUPlan:floorMenu()
-    local menu = ISContextMenu.get(self.window.playerObj:getPlayerNum(), getMouseX(), getMouseY())
+    local menu = UI.menu(self.window, P)
     for index = #self.levels, 1, -1 do
         local level = self.levels[index]
         local text = BU.floorName(level)
         if (self.floorOn[level] or 0) > 0 then text = text .. "  (" .. self.floorOn[level] .. ")" end
         if self.data and self.data.box.z == level then text = text .. "  " .. getText("IGUI_BU_FloorBox") end
         local option = menu:addOption(text, nil, function() self:showFloor(level) end)
-        if level == self.floor then option.isDisabled = true end
+        if level == self.floor then option.current = true end
     end
 end
 

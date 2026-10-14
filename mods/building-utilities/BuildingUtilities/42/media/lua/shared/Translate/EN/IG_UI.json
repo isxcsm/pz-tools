@@ -982,6 +982,7 @@
     "IGUI_BU_PipeFlow_filterSame": "A filter purifies it.",
     "IGUI_BU_PipeFlow_boosterSame": "A booster pump lifts its water to the floors above.",
     "IGUI_BU_PipeUnpurifiedTip": "The pipes do not purify: what its water storage holds comes out as it is.",
+    "IGUI_BU_PipeReserveHead": "Keep for people",
     "IGUI_BU_PipeReserve": "Keep for people: %1",
     "IGUI_BU_PipeForeignTip": "Water storage holding anything but water is left out of the pipe until it is emptied.",
     "IGUI_BU_PipeOutside": "Outside",

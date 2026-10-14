@@ -982,6 +982,7 @@
     "IGUI_BU_PipeFlow_filterSame": "필터가 정수합니다.",
     "IGUI_BU_PipeFlow_boosterSame": "가압 펌프가 이 물을 위층으로 올립니다.",
     "IGUI_BU_PipeUnpurifiedTip": "배관이 정수하지 않아, 물 저장소에 든 물이 그대로 나옵니다.",
+    "IGUI_BU_PipeReserveHead": "사람 몫 남기기",
     "IGUI_BU_PipeReserve": "사람 몫 남기기: %1",
     "IGUI_BU_PipeForeignTip": "물이 아닌 것이 든 물 저장소는 비울 때까지 배관에서 빠집니다.",
     "IGUI_BU_PipeOutside": "바깥",

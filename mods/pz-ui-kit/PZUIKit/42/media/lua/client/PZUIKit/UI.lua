@@ -1114,12 +1114,6 @@ function UI.closeBox(win, p)
     cb.render = closeBoxRender
 end
 
--- A context menu at the mouse for the player: returns it.
-function UI.menu(character)
-    local x, y = getMouseX(), getMouseY()
-    return ISContextMenu.get(character:getPlayerNum(), x, y)
-end
-
 -- Drawing that follows the clock ----------------------------------------------------------------------------------
 -- PZ Optimization's retained UI (on in its default profile) replays an element's last drawing while nothing it watches
 -- has changed: input, the mouse over it, its size or place, a write to its Lua table made before it draws. Once a

@@ -116,10 +116,10 @@ end
 
 -- A menu of the pipes at the mouse; the current one is not offered. back: a last option (a fixture's room's pipe).
 function ISBUPanelWindow:pipeMenu(current, choose, back)
-    local menu = ISContextMenu.get(self.playerObj:getPlayerNum(), getMouseX(), getMouseY())
+    local menu = UI.menu(self, Ui.PALETTE)
     for _, pipe in ipairs(Water.pipes(self.panel)) do
         local option = menu:addOption(Water.pipeName(self.panel, pipe.id), nil, function() choose(pipe.id) end)
-        if pipe.id == current then option.notAvailable = true end
+        if pipe.id == current then option.current = true end
     end
     if back then menu:addOption(back, nil, function() choose(nil) end) end
 end
@@ -138,15 +138,12 @@ function ISBUPanelWindow:pipeSettingsMenu(id)
     local panel = self.panel
     local pipe = Water.pipe(panel, id)
     if not pipe then return end
-    local menu = ISContextMenu.get(self.playerObj:getPlayerNum(), getMouseX(), getMouseY())
-    local reserve = menu:addOption(getText("IGUI_BU_PipeReserve", pipe.reserve and BU.percent(pipe.reserve)
-        or getText("IGUI_BU_ReserveNone")))
-    local reserves = ISContextMenu:getNew(menu)
-    menu:addSubMenu(reserve, reserves)
+    local menu = UI.menu(self, Ui.PALETTE)
+    menu:addHead(getText("IGUI_BU_PipeReserveHead"))
     for _, percent in ipairs({ 0, 10, 25, 50, 75 }) do
-        local option = reserves:addOption(percent == 0 and getText("IGUI_BU_ReserveNone") or BU.percent(percent), nil,
+        local option = menu:addOption(percent == 0 and getText("IGUI_BU_ReserveNone") or BU.percent(percent), nil,
             function() Sync.send(self.playerObj, "setPipeReserve", { panel = panel.id, pipe = id, percent = percent }) end)
-        if (pipe.reserve or 0) == percent then option.notAvailable = true end
+        if (pipe.reserve or 0) == percent then option.current = true end
     end
 end
 

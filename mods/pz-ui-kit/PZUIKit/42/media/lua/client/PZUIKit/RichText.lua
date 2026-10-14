@@ -332,11 +332,17 @@ end
 
 -- A tooltip of rich text (the game's tags: <LINE>, <RGB:r,g,b> and the rest), the kit's in place of the game's
 -- ISToolTip, which draws in the game's font: one panel over everything, shown for one owner at a time by the mouse, in
--- the owner's palette, as wide as its widest line up to PZUIRichTip.MAX_W (design units), laid out once a text.
+-- the owner's palette, as wide as its widest line up to PZUIRichTip.MAX_W (design units), laid out once a text. While
+-- an owner holds it (a menu open, PZUIPopMenu), no other owner shows it.
 PZUIRichTip = {}
 PZUIRichTip.MAX_W = 360
 
-local tip
+local tip, holder
+
+-- Keeps the tooltip for owner (nil: for whoever shows it).
+function PZUIRichTip.hold(owner)
+    holder = owner
+end
 
 local function widest(panel)
     local w = 0
@@ -347,6 +353,7 @@ local function widest(panel)
 end
 
 function PZUIRichTip.show(owner, text, palette)
+    if holder and owner ~= holder then return end
     if not tip then
         tip = PZUIRichText:new(0, 0, PZUIRichTip.MAX_W, 20)
         tip:initialise()

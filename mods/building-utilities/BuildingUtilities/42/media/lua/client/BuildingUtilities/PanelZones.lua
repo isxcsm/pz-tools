@@ -300,8 +300,8 @@ end
 -- A floor it can take no room of says why.
 function ISBUPanelWindow:zoneMenu(level)
     local states = Panels.zoneStates(self.panel, self.building, self.rooms or {})
-    local menu = ISContextMenu.get(self.playerObj:getPlayerNum(), getMouseX(), getMouseY())
-    menu:addOption(BU.floorName(level), nil, nil).isDisabled = true
+    local menu = Ui.UI.menu(self, Ui.PALETTE)
+    menu:addHead(BU.floorName(level))
     local function floorSet(keepOthers, take)
         local set = keepOthers and self:zoneSet() or {}
         for _, room in ipairs(self.rooms or {}) do
@@ -318,12 +318,8 @@ function ISBUPanelWindow:zoneMenu(level)
     end
     local function taking(option)
         if not far then return end
-        option.notAvailable = true
-        local tip = ISToolTip:new()
-        tip:initialise()
-        tip:setVisible(false)
-        tip.description = self:farNote(far)
-        option.toolTip = tip
+        option.off = true
+        option.tip = self:farNote(far)
     end
     taking(menu:addOption(getText("IGUI_BU_Menu_ZoneFloorAdd"), self, function(window) window:sendZone(floorSet(true, true)) end))
     menu:addOption(getText("IGUI_BU_Menu_ZoneFloorRemove"), self, function(window) window:sendZone(floorSet(true, false)) end)
@@ -458,24 +454,24 @@ function ISBUPanelWindow:deviceMenu(key)
     for _, candidate in ipairs(view and view.devices or {}) do if candidate.key == key then device = candidate end end
     if not device then return end
     local panel, playerObj = self.panel, self.playerObj
-    local menu = ISContextMenu.get(playerObj:getPlayerNum(), getMouseX(), getMouseY())
-    menu:addOption(view.names[key] or "", nil, nil).isDisabled = true
+    local menu = Ui.UI.menu(self, Ui.PALETTE)
+    menu:addHead(view.names[key] or "")
     if device.state == "other" or not device.wired then
-        menu:addOption(view.status[key] or "", nil, nil).isDisabled = true
+        menu:addOption(view.status[key] or "").off = true
     else
         local on = device.state == "on"
         if Panels.cuts(panel) then
             menu:addOption(getText(on and "IGUI_BU_Menu_Disconnect" or "IGUI_BU_Menu_Connect"), self, ISBUPanelWindow.switchDevice, utility, device)
         end
         if on and utility == "power" and (panel.tier or 1) >= BU.TIMER_TIER then
-            local timer = menu:addOption(getText("IGUI_BU_Menu_Timer"), nil, nil)
-            local sub = ISContextMenu:getNew(menu)
-            menu:addSubMenu(timer, sub)
+            menu:addOption(getText("IGUI_BU_Menu_ShowInList"), self, ISBUPanelWindow.showThing, key)
+            menu:addHead(getText("IGUI_BU_Menu_Timer"))
             for _, schedule in ipairs(BU.SCHEDULES) do
-                local option = sub:addOption(getText("IGUI_BU_Schedule_" .. schedule), playerObj, Sync.send, "setSchedule",
+                local option = menu:addOption(getText("IGUI_BU_Schedule_" .. schedule), playerObj, Sync.send, "setSchedule",
                     { panel = panel.id, key = key, schedule = schedule })
-                if schedule == device.schedule then option.isDisabled = true end
+                if schedule == device.schedule then option.current = true end
             end
+            return
         end
     end
     menu:addOption(getText("IGUI_BU_Menu_ShowInList"), self, ISBUPanelWindow.showThing, key)
@@ -487,8 +483,8 @@ function ISBUPanelWindow:roomMenu(id)
     local view = self.views[utility]
     local totals = view and view.totals[id]
     local playerObj = self.playerObj
-    local menu = ISContextMenu.get(playerObj:getPlayerNum(), getMouseX(), getMouseY())
-    menu:addOption(totals and totals.title or (self.titles[id] or ""), nil, nil).isDisabled = true
+    local menu = Ui.UI.menu(self, Ui.PALETTE)
+    menu:addHead(totals and totals.title or (self.titles[id] or ""))
     if totals and totals.count > 0 and Panels.cuts(self.panel) then
         local send = function(on) Sync.send(playerObj, "setRoomInside", { panel = self.panel.id, utility = utility, room = id, on = on }) end
         if totals.on < totals.count then menu:addOption(getText("IGUI_BU_Menu_RoomOn"), true, send) end
