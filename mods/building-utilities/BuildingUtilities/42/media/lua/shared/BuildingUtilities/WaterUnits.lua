@@ -1,8 +1,8 @@
 -- The water units (BU.Units, utility "water"), each wired to a panel and on its pipes (BU.Water.unitPipes): the pump
 -- fills its pipe's tanks from a river, a lake or a well beside it while the panel has power (it goes anywhere, but
 -- without water beside it it runs dry: it draws its power and lifts nothing); the sprinkler waters the crops around it
--- from its pipe; the fire sprinkler puts out the fires around it from its pipe, with no power; the filter moves water from its inlet pipe to its outlet pipe, purifying it while the
--- RiskPlumbingUnpurified option leaves the pipes unpurified; the booster pump moves water from its inlet pipe up to
+-- from its pipe; the fire sprinkler puts out the fires around it from its pipe, with no power; the filter moves water from its inlet pipe to its outlet pipe, purifying it (the pipes
+-- leave water as its tanks hold it: rain and river water come out tainted unless a filter has had them); the booster pump moves water from its inlet pipe up to
 -- its outlet pipe's tanks on the floors above it. Pump, filter and booster pump move so many litres an hour while
 -- their panel has power and the outlet has room. What they do each minute is the server's
 -- (server/BuildingUtilities/WaterRun.lua); their art is the bu_water_01 sheet (tools/tile_art.py), a lamp on each
@@ -104,10 +104,10 @@ function WaterUnits.filterLook(unit)
     return "resting"
 end
 
--- Whether the pipes leave water as its tanks hold it (the RiskPlumbingUnpurified option, in a game whose API can:
--- BU.purifyAvailable): then only a filter purifies water.
+-- Whether the pipes leave water as its tanks hold it, so that only a filter purifies it: in a game whose API can
+-- (BU.purifyAvailable); in one that cannot, the pipes purify as vanilla's plumbing does.
 function WaterUnits.unpurifiedPipes()
-    return BU.sandbox("RiskPlumbingUnpurified", false) == true and BU.purifyAvailable()
+    return BU.purifyAvailable() == true
 end
 
 -- A unit's inlet and outlet pipes (BU.Water.unitPipes); the first for one with no panel.

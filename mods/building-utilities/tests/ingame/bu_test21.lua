@@ -1,8 +1,7 @@
 -- Batch 3 of the plan (DESIGN 12), the water units: a pump put down away from water runs dry (draws its power, lifts
 -- nothing), then lifts once a well stands beside it, and stops without power; a sprinkler waters a dry plant (a
--- stand-in for the farming system's) and shows its spray; a filter wears and purifies only with the
--- RiskPlumbingUnpurified option, runs out, and takes new media. "[bu21]" lines. Takes away what it put down and
--- leaves the option as it found it.
+-- stand-in for the farming system's) and shows its spray; a filter wears while it purifies, runs out, and
+-- takes new media. "[bu21]" lines. Takes away what it put down.
 RUN("bu_lib.lua")
 local BU = BuildingUtilities
 local Store, Networks, Water, Changes, Units, WaterUnits, WaterRun = BU.Store, BU.Networks, BU.Water, BU.Changes,
@@ -94,19 +93,13 @@ local sprinklerObject = Units.object(sprinkler)
 Units.definition("sprinkler").sync(sprinkler, sprinklerObject)
 say("sprinkler sprite", sprinklerObject and sprinklerObject:getSprite():getName())
 
--- The filter: rests with the game's pipes, wears with the option, runs out, takes new media.
+-- The filter: wears as it purifies, runs out, takes new media.
 local filter = put("filter")
-local page = SandboxVars.BuildingUtilities
-local option = page.RiskPlumbingUnpurified
 local function purify()
     return BUT.unitPurify(panel, filter)
 end
-page.RiskPlumbingUnpurified = false
 WaterRun.machines(panel, 60)
-say("pipes purify: media", litres(filter.media), "purify", purify(), "status", status(box, filter))
-page.RiskPlumbingUnpurified = true
-WaterRun.machines(panel, 60)
-say("option on: media", litres(filter.media), "purify", purify(), "status", status(box, filter))
+say("working: media", litres(filter.media), "purify", purify(), "status", status(box, filter))
 filter.media = 0.5
 WaterRun.machines(panel, 60)
 say("spent: media", litres(filter.media), "purify", purify(), "title", Units.definition("filter").title(filter, "Filter"))
@@ -117,9 +110,6 @@ say("replace option", entry.text, "reason", entry.reason)
 Changes.replaceMedia(filter)
 WaterRun.machines(panel, 1)
 say("replaced: media", litres(filter.media), "purify", purify())
-page.RiskPlumbingUnpurified = option
-WaterRun.machines(panel, 1)
-say("option back", option, "purify", purify())
 
 -- Gone again.
 well:transmitRemoveItemFromSquare(wellObject)

@@ -27,6 +27,12 @@ function ISBUPanelWindow:pipeRows(add, state, devices)
     local panel = self.panel
     if not Water.shown(panel) then return end
     add({ kind = "header", text = getText("IGUI_BU_Pipes") })
+    -- the pipes a filter on one pipe purifies now
+    local purified = {}
+    for _, unit in ipairs(Units.of(panel.id, "water")) do
+        local inlet, outlet = Water.unitPipes(panel, unit)
+        if unit.kind == "filter" and inlet == outlet and unit.running then purified[inlet] = true end
+    end
     for _, pipe in ipairs(Water.pipes(panel)) do
         local id = pipe.id
         local each = state and state.pipes and state.pipes[id]
@@ -47,7 +53,7 @@ function ISBUPanelWindow:pipeRows(add, state, devices)
         end
         -- its tooltip only says what is wrong with its water
         local lines = {}
-        if WaterUnits.unpurifiedPipes() then lines[#lines + 1] = getText("IGUI_BU_PipeUnpurifiedTip") end
+        if WaterUnits.unpurifiedPipes() and not purified[id] then lines[#lines + 1] = getText("IGUI_BU_PipeUnpurifiedTip") end
         local foreign = each and each.foreign > 0
         if foreign then lines[#lines + 1] = " <RGB:1,0.45,0.4> " .. getText("IGUI_BU_PipeForeignTip") end
         local right = each and each.capacity > 0 and getText("IGUI_BU_Left_Water", string.format("%.0f", each.amount),
@@ -178,12 +184,9 @@ function ISBUPanelWindow:waterUnitStatus(unit)
         return media .. ", " .. getText("IGUI_BU_Filter_purifying")
     end
     if WaterUnits.unpurifiedPipes() or inlet ~= outlet then return media end
-    -- The option asks for unpurified pipes, but this game's API cannot keep the taint: say so, not just "resting".
-    local purify, why = BU.purifyAvailable()
-    if BU.sandbox("RiskPlumbingUnpurified", false) == true and not purify then
-        return media .. ", " .. getText("IGUI_BU_Filter_restingNoRisk", why)
-    end
-    return media .. ", " .. getText("IGUI_BU_Filter_resting")
+    -- this game's API cannot keep the taint: the pipes purify and the filter rests; it says why
+    local _, why = BU.purifyAvailable()
+    return media .. ", " .. getText("IGUI_BU_Filter_restingNoRisk", why)
 end
 
 -- The units that use the water of their pipe (their inlet only).

@@ -544,7 +544,7 @@ local function defineAll()
     local water, why = BU.waterAvailable()
     if not water then BU.log("water networks are not in this game - boxes give no water:", why) end
     local purify, notPurify = BU.purifyAvailable()
-    if water and not purify and BU.sandbox("RiskPlumbingUnpurified", false) == true then
+    if water and not purify then
         BU.log("water that keeps its taint is not in this game - the pipes purify:", notPurify)
     end
     Networks.defineAll()

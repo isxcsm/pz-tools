@@ -40,7 +40,7 @@ end
 
 -- Water and its purification need hooks of the API in the game, by the names PZExtAPI.hooks() gives them: a
 -- game started by an older install, or whose IsoObject another mod changed, may lack them. Water needs the plumbing's
--- questions; water that keeps its taint (the RiskPlumbingUnpurified option) also the purification's two.
+-- questions; water that keeps its taint (only a filter purifies) also the purification's two.
 local WATER_HOOKS = { "IsoObject.waterQuestions", "IsoObject.checkExternalFluidSource" }
 local PURIFY_HOOKS = { "IsoObject.createSampleAndPurifyWater", "IsoObject.isTaintedWater" }
 -- Why each is missing (false: it is not), once known for this game; and what a call refused (BU.hookFault).
@@ -88,7 +88,7 @@ function BU.waterAvailable()
     return true
 end
 
--- Whether water can keep its taint (RiskPlumbingUnpurified): true, or false and why. Without it the pipes purify.
+-- Whether water can keep its taint (only a filter purifies): true, or false and why. Without it the pipes purify.
 function BU.purifyAvailable()
     local ok, reason = BU.waterAvailable()
     if not ok then return false, reason end

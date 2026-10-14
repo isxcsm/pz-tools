@@ -322,7 +322,6 @@ local SWITCHES = {
     { "SnowOnPanels", true }, { "BatteryColdLock", true }, { "BatteryHeatWear", true }, { "WeakBatteryDrag", true },
     { "OverloadEnabled", true },
     { "CostsEnabled", true }, { "WaterFromAboveOnly", false }, { "RiskPipesFreeze", false },
-    { "RiskPlumbingUnpurified", false },
 }
 
 local function optionsPage(page, ui)

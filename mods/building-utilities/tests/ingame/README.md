@@ -25,7 +25,7 @@ look; `BU22_CLEAN()` takes them away.
 - `bu_combo.lua`, `bu_combo2.lua`, `bu_combo3.lua`: the combined check of the plan's batches 3 and 4 by hand. `bu_combo`
   gives the items and tools, puts a well, two seeded crops and a fuelled generator wired to the test panel down; the
   units are then installed and wired from their context menus. `bu_combo2` prints what they do and opens the water
-  tab; `bu_combo3` starts the generator, puts a well east of the pump, turns RiskPlumbingUnpurified on and wears the
+  tab; `bu_combo3` starts the generator, puts a well east of the pump and wears the
   filter down for its Replace option. `BUCOMBO3_CLEAN()` and `BUCOMBO_CLEAN()` take their things away.
 - `bu_features.lua`: the sandbox's features page: each toggle turned off and on in `SandboxVars` at runtime, the passes
   run, and what is off checked inert and hidden (networks gone from the API, no load, no fill or draw, no tabs, rows or

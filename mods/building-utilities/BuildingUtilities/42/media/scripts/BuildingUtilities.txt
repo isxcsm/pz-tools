@@ -332,12 +332,10 @@ module BuildingUtilities
     {
         timedAction = Making,
         time = 200,
-        SkillRequired = Maintenance:2,
         OnTest = BuildingUtilities.RecipeTest.MakeYardHydrant,
         OnAddToMenu = BuildingUtilitiesRecipeShown,
         Tags = AnySurfaceCraft,
         category = Farming,
-        xpAward = Maintenance:5,
         inputs
         {
             item 1 tags[base:wrench] mode:keep flags[MayDegradeVeryLight],
@@ -356,12 +354,11 @@ module BuildingUtilities
         timedAction = Making,
         time = 150,
         NeedToBeLearn = true,
-        AutoLearnAny = Farming:4;Maintenance:4,
+        AutoLearnAny = Farming:4,
         OnTest = BuildingUtilities.RecipeTest.MakeSprinkler,
         OnAddToMenu = BuildingUtilitiesRecipeShown,
         Tags = AnySurfaceCraft,
         category = Farming,
-        xpAward = Maintenance:5,
         inputs
         {
             item 1 tags[base:wrench] mode:keep flags[MayDegradeVeryLight],
@@ -381,12 +378,10 @@ module BuildingUtilities
         timedAction = Making,
         time = 120,
         NeedToBeLearn = true,
-        AutoLearnAny = Maintenance:5,
         OnTest = BuildingUtilities.RecipeTest.MakeFireSprinkler,
         OnAddToMenu = BuildingUtilitiesRecipeShown,
         Tags = AnySurfaceCraft,
         category = Electrical,
-        xpAward = Maintenance:5,
         inputs
         {
             item 1 tags[base:wrench] mode:keep flags[MayDegradeVeryLight],
@@ -404,14 +399,11 @@ module BuildingUtilities
     {
         timedAction = Making,
         time = 250,
-        SkillRequired = Maintenance:3,
         NeedToBeLearn = true,
-        AutoLearnAny = Maintenance:6,
         OnTest = BuildingUtilities.RecipeTest.MakeWaterFilter,
         OnAddToMenu = BuildingUtilitiesRecipeShown,
         Tags = AnySurfaceCraft,
         category = Electrical,
-        xpAward = Maintenance:10,
         inputs
         {
             item 1 tags[base:wrench] mode:keep flags[MayDegradeVeryLight],

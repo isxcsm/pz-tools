@@ -24,7 +24,7 @@ local OPTIONS = { "EnablePower", "EnableWater", "EnableSolar", "EnableBatteries"
     "EnableSprinklers", "EnableFilters" }
 local saved = {}
 for _, name in ipairs(OPTIONS) do saved[name] = page[name] end
-local savedRisk, savedTier = page.RiskPlumbingUnpurified, panel.tier
+local savedTier = panel.tier
 local function set(name, on)
     page[name] = on
     Changes.applyFeatures()
@@ -161,8 +161,7 @@ sprinkle()
 say("sprinklers on: plant water", plant.waterLvl, "(more than 20 unless it rains or the tanks are empty; raining",
     RainManager.isRaining(), ")")
 
--- Filters off with the pipes leaving water unpurified: rest, keep their media, purify nothing; on: work.
-page.RiskPlumbingUnpurified = true
+-- Filters off: rest, keep their media, purify nothing; on: work.
 local function purify()
     return BUT.unitPurify(panel, filter)
 end
@@ -177,7 +176,6 @@ check("filters off: purify", purify() == true, not WaterUnits.unpurifiedPipes())
 set("EnableFilters", true)
 WaterRun.machines(panel, 60)
 say("filters on: working", filter.running, "(true with the purification hooks, unless another filter of its pipe works)")
-page.RiskPlumbingUnpurified = savedRisk
 WaterRun.machines(panel, 1)
 
 -- Water off: its networks go (the API forgets them), nothing drawn or filled, freezing left, the water units listed
@@ -305,7 +303,6 @@ Networks.state = realState
 for _, unit in ipairs({ pump, sprinkler, filter }) do Changes.removeUnit(unit) end
 WaterRun.machines(panel, 1)
 for _, name in ipairs(OPTIONS) do page[name] = saved[name] end
-page.RiskPlumbingUnpurified = savedRisk
 panel.tier = savedTier
 Changes.applyFeatures()
 window:refresh()

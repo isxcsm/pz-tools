@@ -321,7 +321,6 @@ end)
 
 test("a filter between two pipes passes its inlet's water on, clean while the pipes leave it tainted", function()
     local panel, nets, tank = scene(1)
-    SandboxVars.BuildingUtilities = { RiskPlumbingUnpurified = true }
     local raw = tankAt(panel, tank, 101, 101, 0, 100, 60, "TaintedWater")
     local pipe = Changes.addPipe(panel)
     local clean = tankAt(panel, tank, 103, 101, 0, 100)
@@ -345,7 +344,6 @@ end)
 
 test("a filter on one pipe purifies it while it has media", function()
     local panel, nets, tank = scene(1)
-    SandboxVars.BuildingUtilities = { RiskPlumbingUnpurified = true }
     tankAt(panel, tank, 101, 101, 0, 100, 60, "TaintedWater")
     local filter = Store.newUnit("filter", 103, 103, 0, WaterUnits.FILTER_SPRITES.across)
     filter.media = 2
