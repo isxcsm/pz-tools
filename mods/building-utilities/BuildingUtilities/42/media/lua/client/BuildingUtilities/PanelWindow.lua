@@ -1154,6 +1154,51 @@ function ISBUPanelWindow:askAttached(devices)
     end
 end
 
+-- The view option the water tab has (its devices list drawing nothing): what is not connected, hidden.
+local WATER_OPTIONS = { "HideUnwired" }
+
+-- Power's supply, in the order it is used: the bank's and the panels' source, then the generators (moved up and
+-- down there), then what could supply and no box has (unless the view hides it), with the view options on its header.
+function ISBUPanelWindow:supplyRows(add, state, view)
+    local panel = self.panel
+    add({ kind = "header", text = getText("IGUI_BU_Producers"), options = true })
+    local producers = panel.power.producers
+    local source = Energy.hasSource(panel)
+    if #producers == 0 and not source then add({ kind = "note", text = getText("IGUI_BU_NoProducers_power") }) end
+    if source then
+        for _, entry in ipairs(self:sourceRows(state)) do add(entry.row, entry.tooltip) end
+    end
+    for index, at in ipairs(producers) do
+        local seen = PanelWindow.seenProducer(state, at)
+        local inUse = PanelWindow.producerInUse(state, at)
+        local square = getCell():getGridSquare(at.x, at.y, at.z)
+        local generator = square and square:getGenerator()
+        local fuel = seen and seen.fuel and (generator and percent(seen.fuel, generator:getMaxFuel()) or string.format("%.1f", seen.fuel)) or "-"
+        local generatorState = PanelWindow.generatorState(state, at)
+        local text = getText("IGUI_BU_GeneratorRow", index, Panels.where(panel, at.x, at.y, at.z),
+            PanelWindow.generatorStateText(generatorState), fuel,
+            seen and seen.condition and string.format("%.0f%%", seen.condition) or "-")
+        -- Its line supplying nothing: dim, the mouse over it telling why.
+        local ref = Links.producerRef(at.x, at.y, at.z)
+        local cut = Links.reason(panel, ref) ~= nil
+        if cut then text = text .. "  " .. getText("IGUI_BU_LineNotSupplied") end
+        view.producerText[index] = text
+        -- A generator's row tells how servicing one works: switched off by hand, the others take over.
+        add({ kind = "producer", text = text, index = index, at = at, inUse = inUse and not cut,
+            out = generatorState == "out", cut = cut },
+            cut and Links.reasonText(panel, ref) or getText("IGUI_BU_GeneratorTip"))
+    end
+    -- What it could take and no box has, dim, unless the view hides it: connected at the thing itself.
+    if not PanelWindow.options.hideUnwired then
+        for _, at in ipairs(view.unwired) do
+            local name = at.unit and Units.name(at.unit) or BU.displayName(at.x, at.y, at.z, at.sprite)
+            add({ kind = "producer", unwired = true, at = at,
+                text = getText("IGUI_BU_UnwiredProducerRow", name, Panels.where(panel, at.x, at.y, at.z)) },
+                getText("IGUI_BU_UnwiredProducerTip"))
+        end
+    end
+end
+
 -- A tab's rows, from the panel's devices as the API has them now, or as given (devices and whether they are
 -- complete, from the last refresh).
 function ISBUPanelWindow:fill(utility, state, devices, complete)
@@ -1184,65 +1229,19 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
     local view = { state = state, devices = devices, complete = complete, names = {}, status = {}, totals = {},
         producerText = {}, fresh = {} }
     self.views[utility] = view
-    -- The pipes first (with more than one): the tanks', rooms', fixtures' and units' rows show theirs.
-    if utility == "water" then self:pipeRows(add, state, devices) end
-    add({ kind = "header", text = getText("IGUI_BU_Producers"), options = true })
-    local producers = panel[utility].producers
-    local source = utility == "power" and Energy.hasSource(panel)
-    if #producers == 0 and not source then add({ kind = "note", text = getText("IGUI_BU_NoProducers_" .. utility) }) end
-    if source then
-        for _, entry in ipairs(self:sourceRows(state)) do add(entry.row, entry.tooltip) end
-    end
-    for index, at in ipairs(producers) do
-        local seen = PanelWindow.seenProducer(state, at)
-        local inUse = PanelWindow.producerInUse(state, at)
-        local where = Panels.where(panel, at.x, at.y, at.z)
-        local text, generatorState
-        if utility == "power" then
-            local square = getCell():getGridSquare(at.x, at.y, at.z)
-            local generator = square and square:getGenerator()
-            local fuel = seen and seen.fuel and (generator and percent(seen.fuel, generator:getMaxFuel()) or string.format("%.1f", seen.fuel)) or "-"
-            generatorState = PanelWindow.generatorState(state, at)
-            text = getText("IGUI_BU_GeneratorRow", index, where, PanelWindow.generatorStateText(generatorState), fuel,
-                seen and seen.condition and string.format("%.0f%%", seen.condition) or "-")
-        else
-            -- One the networks do not hold (its line cut) as it stands on its square, when that is loaded.
-            local amount, capacity = seen and seen.amount, seen and seen.capacity
-            local storage = not amount and Panels.waterStorage(at.x, at.y, at.z)
-            if storage then amount, capacity = storage:getAmount(), storage:getCapacity() end
-            text = getText("IGUI_BU_TankRow", index, where, amount and string.format("%.0f", amount) or "-",
-                capacity and string.format("%.0f", capacity) or "-")
-            -- Holding what is not water: left out of the pipes until it is emptied.
-            if seen and seen.foreign then text = text .. "  " .. getText("IGUI_BU_TankForeign") end
-        end
-        -- Its line supplying nothing: dim, the mouse over it telling why.
-        local ref = Links.producerRef(at.x, at.y, at.z)
-        local cut = Links.reason(panel, ref) ~= nil
-        if cut then text = text .. "  " .. getText("IGUI_BU_LineNotSupplied") end
-        view.producerText[index] = text
-        local row = { kind = "producer", text = text, index = index, at = at, inUse = inUse and not cut,
-            water = utility == "water", out = generatorState == "out", cut = cut, bad = seen and seen.foreign }
-        if utility == "water" and BU.Water.shown(panel) then
-            row.chips, row.pipes = { "Pipe" }, { Pipe = BU.Water.producerPipe(panel, at) }
-        end
-        -- A generator's row tells how servicing one works: switched off by hand, the others take over.
-        add(row, cut and Links.reasonText(panel, ref) or utility == "power" and getText("IGUI_BU_GeneratorTip") or nil)
-    end
-    if utility == "water" then
-        self:waterUnitRows(add)
-        self:addPipeRow(add)
-    end
-    -- What it could take and no box has, dim, unless the view hides it: connected at the thing itself.
+    -- What it could take and no box has.
     view.unwired = Panels.unwiredProducers(panel, utility)
-    if not PanelWindow.options.hideUnwired then
-        for _, at in ipairs(view.unwired) do
-            -- The API names a water storage by its square only.
-            local name = at.unit and Units.name(at.unit) or utility == "water" and getText("IGUI_BU_Legend_tank")
-                or BU.displayName(at.x, at.y, at.z, at.sprite)
-            add({ kind = "producer", unwired = true, at = at, water = utility == "water",
-                text = getText("IGUI_BU_UnwiredProducerRow", name, Panels.where(panel, at.x, at.y, at.z)) },
-                getText("IGUI_BU_UnwiredProducerTip"))
-        end
+    -- Water has no supply list: its tanks give nearest first, in no order to set, and stand in places as its units do;
+    -- they are listed under the rooms with the fixtures (ISBUPanelWindow:waterPlaced). First its pipes (with more than
+    -- one: the tanks', rooms', fixtures' and units' rows show theirs) and the row putting in a new one.
+    local placed = {}
+    if utility == "water" then
+        self:pipeRows(add, state, devices)
+        self:addPipeRow(add)
+        if #panel.water.producers == 0 then add({ kind = "note", text = getText("IGUI_BU_NoProducers_water") }) end
+        placed = self:waterPlaced(state, view)
+    else
+        self:supplyRows(add, state, view)
     end
     self:lineRows(add, utility)
     local seen = self:seenSet(utility, devices)
@@ -1260,7 +1259,8 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
     end
     -- The devices under their own header (without it, "everything inside" read as a row of the relays above it).
     -- Below the tier that cuts devices there is nothing to switch: no "everything inside" row, rows without ticks.
-    add({ kind = "header", text = getText("IGUI_BU_Devices") })
+    add({ kind = "header", text = getText(utility == "water" and "IGUI_BU_ZoneList" or "IGUI_BU_Devices"),
+        options = utility == "water" and WATER_OPTIONS or nil })
     local fixed = not Panels.cuts(panel)
     if not fixed then
         add({ kind = "all", text = getText("IGUI_BU_AllInside"), state = self:allInside(devices) and "on" or "off" }, allTip)
@@ -1273,6 +1273,14 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
     local groups, order = {}, {}
     local floorOf = {}
     for _, room in ipairs(self.rooms or {}) do floorOf[room.id] = room.level end
+    local function groupFor(id, level)
+        if not groups[id] then
+            groups[id] = { id = id, devices = {}, placed = {}, total = 0, on = 0, off = 0,
+                level = floorOf[id] or level, relay = Links.isRelay(id), outside = Ui.isOutside(id) }
+            order[#order + 1] = groups[id]
+        end
+        return groups[id]
+    end
     self.displayNames = self.displayNames or {}
     local names = self.displayNames
     for _, device in ipairs(devices) do
@@ -1292,13 +1300,7 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
         view.names[device.key] = name
         local status, dim = self:deviceStatus(utility, device)
         view.status[device.key] = status
-        local group, level = Ui.groupOf(device)
-        if not groups[group] then
-            groups[group] = { id = group, devices = {}, total = 0, on = 0, off = 0,
-                level = floorOf[group] or level, relay = Links.isRelay(group), outside = Ui.isOutside(group) }
-            order[#order + 1] = groups[group]
-        end
-        local g = groups[group]
+        local g = groupFor(Ui.groupOf(device))
         g.roomKey = g.roomKey or device.roomKey
         if device.state == "on" then
             g.on = g.on + 1
@@ -1309,6 +1311,20 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
         local shown = (not options.activeOnly or utility ~= "power" or (device.power or 0) > 0 or device.held ~= nil)
             and not (options.hideUnwired and not device.wired)
         if shown then table.insert(g.devices, { device = device, name = name, status = status, dim = dim }) end
+    end
+    -- Water's tanks and units: under the zone's room they stand in, else the room or relay their line hangs from, else
+    -- what is outside on their floor (as a device outside is).
+    local zoneRooms = #placed > 0 and Panels.zoneRooms(panel) or {}
+    for _, entry in ipairs(placed) do
+        local room = Panels.roomHaving(zoneRooms, entry.x, entry.y, entry.z)
+        local g
+        if room then
+            g = groupFor(room.id, room.level)
+        else
+            g = groupFor(Ui.groupOf({ inside = false, entry = entry,
+                hangsOn = entry.ref and Links.hangsOn(panel, entry.ref) or nil }))
+        end
+        g.placed[#g.placed + 1] = entry
     end
     local function title(id)
         if Ui.isOutside(id) then return getText("IGUI_BU_Outside") end
@@ -1341,22 +1357,32 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
                 if shown.name:lower():find(query, 1, true) then kept[#kept + 1] = shown end
             end
             group.devices = kept
+            local placedKept = {}
+            for _, entry in ipairs(group.placed) do
+                if entry.row.text:lower():find(query, 1, true) then placedKept[#placedKept + 1] = entry end
+            end
+            group.placed = placedKept
         end
     end
-    local function visible(group) return #group.devices > 0 and (not self.roomFilter or self.roomFilter == group.id) end
+    local function visible(group)
+        return (#group.devices > 0 or #group.placed > 0) and (not self.roomFilter or self.roomFilter == group.id)
+    end
     -- A room's header and its devices.
     local function emit(group)
         local foldKey = panel.id .. "|" .. utility .. "|" .. group.id
         local folded = PanelWindow.folded[foldKey] == true and query == ""
+        -- A room with water's things only: nothing to switch (its tick's place kept), nothing to count.
+        local count = group.on + group.off
         local roomState
         if not group.outside then
             roomState = group.off == 0 and "on" or group.on == 0 and "off" or "some"
         end
-        local right = utility == "power" and load2(group.total) or (group.on .. " / " .. (group.on + group.off))
+        local right = utility == "power" and load2(group.total) or count > 0 and (group.on .. " / " .. count) or nil
         local roomPipe = pipesShown and group.roomKey and BU.Water.roomPipe(panel, group.roomKey) or nil
-        add({ kind = "room", id = group.id, text = title(group.id), right = right, state = roomState, fixed = fixed,
-            folded = folded, foldKey = foldKey, pipe = roomPipe, roomKey = group.roomKey })
+        add({ kind = "room", id = group.id, text = title(group.id), right = right, state = roomState,
+            fixed = fixed or count == 0, folded = folded, foldKey = foldKey, pipe = roomPipe, roomKey = group.roomKey })
         if not folded then
+            for _, entry in ipairs(group.placed) do add(entry.row, entry.tip) end
             table.sort(group.devices, function(a, b)
                 if options.byLoad and (a.device.power or 0) ~= (b.device.power or 0) then return (a.device.power or 0) > (b.device.power or 0) end
                 return a.name < b.name
@@ -1420,7 +1446,8 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
             if any then
                 local foldKey = panel.id .. "|" .. utility .. "|floor|" .. level
                 local folded = query == "" and not self.roomFilter and self:floorFolded(foldKey, level)
-                local right = utility == "power" and load2(floor.total) or (floor.on .. " / " .. (floor.on + floor.off))
+                local count = floor.on + floor.off
+                local right = utility == "power" and load2(floor.total) or count > 0 and (floor.on .. " / " .. count) or nil
                 add({ kind = "floor", level = level, text = BU.floorName(level), right = right, folded = folded, foldKey = foldKey },
                     getText(folded and "IGUI_BU_FloorRowOpen" or "IGUI_BU_FloorRowFold"))
                 if not folded then

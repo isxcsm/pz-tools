@@ -180,7 +180,8 @@ end
 -- counts them), and how many branches supply nothing, a click showing the next on the plan.
 function ISBUPanelWindow:lineRows(add, utility)
     local panel = self.panel
-    for _, unit in ipairs(Store.unitList(nil, panel.id)) do
+    -- (water's are under their rooms, ISBUPanelWindow:waterPlaced)
+    for _, unit in ipairs(utility == "water" and {} or Store.unitList(nil, panel.id)) do
         local ref = Links.unitRef(unit)
         if not BU.RELAY_KINDS[unit.kind] and Units.utility(unit) == utility and BU.enabled(unit.kind)
                 and not Links.live(panel, ref) then
@@ -200,7 +201,9 @@ function ISBUPanelWindow:lineRows(add, utility)
     end
     local relays, limit = Panels.relaysOf(panel), BU.relayLimit(panel.tier)
     if #relays == 0 and limit == 0 then return end
-    add({ kind = "header", text = getText("IGUI_BU_Relays"), right = getText("IGUI_BU_RelaysUsed", #relays, limit) })
+    -- this utility's relays, counted with the other's: they share the tier's limit
+    add({ kind = "header", text = getText("IGUI_BU_Relays_" .. utility), right = getText("IGUI_BU_RelaysUsed", #relays, limit) },
+        getText("IGUI_BU_RelaysUsedTip_" .. utility))
     local any = false
     for _, unit in ipairs(relays) do
         if Units.utility(unit) == utility then

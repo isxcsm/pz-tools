@@ -1,6 +1,7 @@
 """Checks the mod's texts (every translation file, EN and KO) against the Lua code, the sandbox options and the scripts.
 
 Reports:
+- a key twice in one file (the game then reads none of the file's texts);
 - keys one language has and the other lacks, in any file;
 - UI keys (IG_UI and ContextMenu) the code names that no language has, and UI keys no code names (directly, or by a
   prefix the code builds keys from, as getText("IGUI_BU_Reason_" .. reason));
@@ -32,12 +33,24 @@ PREFIX = re.compile(r'["\']((?:IGUI|ContextMenu|Tooltip)_BU_\w+)["\']\s*\.\.')
 BUILT = {'IGUI_ContainerTitle_BuildingUtilitiesRack', 'IGUI_BU_Up', 'IGUI_BU_Down', 'IGUI_BU_Remove', 'IGUI_BU_Settings'}
 
 
+# Keys found twice in a file, as "<lang>/<file> <key>".
+DUPLICATES = []
+
+
 def load(lang, names):
     keys = {}
     for name in names:
         path = os.path.join(ROOT, 'shared', 'Translate', lang, name)
+
+        def pairs(items, where=lang + '/' + name):
+            seen = {}
+            for key, value in items:
+                if key in seen and where + ' ' + key not in DUPLICATES:
+                    DUPLICATES.append(where + ' ' + key)
+                seen[key] = value
+            return seen
         with open(path, encoding='utf-8') as f:
-            keys.update(json.load(f))
+            keys.update(json.load(f, object_pairs_hook=pairs))
     return keys
 
 
@@ -124,6 +137,7 @@ def main():
         for key in sorted(have - needed):
             problems.append('%s names nothing in the scripts (%s)' % (key, name))
 
+    problems += ['twice in %s' % where for where in DUPLICATES]
     for line in problems:
         print(line)
     print('%d UI keys, %d sandbox, %d items, %d recipes; %d problems' % (len(every), len(sandbox), len(items),

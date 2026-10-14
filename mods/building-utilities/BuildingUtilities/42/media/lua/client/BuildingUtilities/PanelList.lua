@@ -123,7 +123,7 @@ end
 
 -- The view options on the list's first header (the supply's), left to right: devices drawing only, and by what they
 -- draw.
-local function optionButtons(width, row) return buttonsAtRight(width, row, OPTIONS) end
+local function optionButtons(width, row) return buttonsAtRight(width, row, row.options == true and OPTIONS or row.options) end
 
 -- A source row's buttons: "Switch to solar" (while offered).
 local function sourceButtons(width, row)
@@ -314,6 +314,20 @@ function ISBUPanelList:doDrawItem(y, item, alt)
             local ready = button.name ~= "UseSource" or row.useSourceReady
             smallButton(self, c, index .. button.name, button.x, y, button.w, label("IGUI_BU_UseSource"),
                 ready and WHITE or MUTED)
+        end
+    elseif row.kind == "producer" and row.nested then
+        -- Water's tank or unit under its room: its name where a device's is, what it holds or does on the right (in use
+        -- in green, what keeps it from water in red), its pipe chips after.
+        local muted = row.unwired or row.cut
+        UI.text(c, row.text, PAD * 3 + ROW + 4, textY, muted and MUTED or PLAIN)
+        local textRight = rightX
+        for _, button in ipairs(producerButtons(width, row)) do
+            pipeChip(self, c, index .. button.name, button.x, y, button.w, row.pipes[button.name])
+            textRight = math.min(textRight, button.x - 8)
+        end
+        if row.right then
+            UI.textRight(c, row.right, textRight, textY, row.bad and LOG_BAD or muted and MUTED or row.inUse and IN_USE
+                or RIGHT)
         end
     elseif row.kind == "producer" then
         -- In use in green, out of service (switched off by hand) in amber, what keeps it from water in red.
