@@ -65,7 +65,8 @@ section("api", function()
     check("zombie missions given", OA.StoryGame.canMarkZombies())
     local hooks = api and api.hooks and api.hooks() or {}
     for _, label in ipairs({ "ZombieIdleState.execute", "WorldSoundManager.getBiggestSoundZomb",
-        "ZombiePopulationManager.removeChunkFromWorld", "ZombiePopulationManager.registerZombie", "IsoZombie.removeFromWorld" }) do
+        "ZombiePopulationManager.removeChunkFromWorld", "ZombiePopulationManager.registerZombie", "ZombiePopulationManager.releaseZombie",
+        "ZombiePopulationManager.virtualizeZombie", "IsoZombie.removeFromWorld" }) do
         say(label, tostring(hooks[label]))
     end
 end)
