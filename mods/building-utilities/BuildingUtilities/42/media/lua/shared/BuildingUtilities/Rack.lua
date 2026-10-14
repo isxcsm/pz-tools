@@ -11,6 +11,10 @@ BU.Rack = Rack
 
 -- It stands against a W wall.
 Rack.SPRITE = "bu_solar_01_0"
+-- The rack by the side it faces (its front: tools/solar_art.py draws it turned, a block of the sheet each way); its
+-- overlays are at the same places in its block.
+Rack.BLOCK = 40
+Rack.SPRITES = { E = "bu_solar_01_0", S = "bu_solar_01_40", W = "bu_solar_01_80", N = "bu_solar_01_120" }
 -- What it holds: its container takes car batteries only (Rack.acceptBattery), by weight up to WEIGHT (a battery of the
 -- game weighs 5; another mod's may weigh otherwise).
 Rack.WEIGHT = 100
@@ -89,8 +93,10 @@ function Rack.overlay(unit)
     local charge, level = Rack.charge(unit), 4
     if charge < 0.10 then level = 0 elseif charge < 0.35 then level = 1 elseif charge < 0.65 then level = 2
     elseif charge < 0.95 then level = 3 end
-    if level == 0 then return "bu_solar_01_" .. (1 + shelf) end
-    return "bu_solar_01_" .. (16 + (level - 1) + 4 * shelf)
+    local block = tonumber(string.match(unit.sprite or Rack.SPRITE, "_(%d+)$")) or 0
+    block = block - block % Rack.BLOCK
+    if level == 0 then return "bu_solar_01_" .. (block + 1 + shelf) end
+    return "bu_solar_01_" .. (block + 16 + (level - 1) + 4 * shelf)
 end
 
 -- A rack shows its batteries and their charge (Rack.overlay) while its square is loaded.
@@ -158,14 +164,14 @@ end
 
 Units.define("rack", {
     item = "BuildingUtilities.BatteryRack",
-    sprites = { Rack.SPRITE },
+    sprites = { Rack.SPRITES.E, Rack.SPRITES.S, Rack.SPRITES.W, Rack.SPRITES.N },
     utility = "power",
     colour = { 0.4, 0.75, 1 },
     canPlace = function(square)
         if not Panels.buildingAt(square:getX(), square:getY(), square:getZ()) then return nil, "notInBuilding" end
         return true
     end,
-    sprite = function() return Rack.SPRITE end,
+    sprite = function(_, side) return Rack.SPRITES[side] or Rack.SPRITE end,
     create = function(unit, object)
         unit.batteries = {}
         Rack.container(object)

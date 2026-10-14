@@ -84,3 +84,19 @@ test("a box of the bypass tier leaves worn batteries out of its bank; they keep 
     eq(rack.batteries[2].charge, 0.5, "left out: as it was")
     truthy(rack.batteries[1].charge < 0.5, "the other was drawn")
 end)
+
+test("a rack turned each way shows its own look and its batteries in its own block of the sheet", function()
+    local Rack = BU.Rack
+    local definition = BU.Units.definition("rack")
+    eq(definition.sprite(nil, "E"), "bu_solar_01_0", "its front to the E: the first look")
+    eq(definition.sprite(nil, "S"), "bu_solar_01_40")
+    eq(definition.sprite(nil, "W"), "bu_solar_01_80")
+    eq(definition.sprite(nil, "N"), "bu_solar_01_120")
+    local rack = Store.newUnit("rack", 30, 10, 0, Rack.SPRITES.N)
+    rack.batteries = {}
+    for i = 1, 6 do rack.batteries[i] = { type = STANDARD, charge = 1, condition = 100 } end
+    -- two shelves, full: 16 + 3 + 4 in the block from 120
+    eq(Rack.overlay(rack), "bu_solar_01_" .. (120 + 16 + 3 + 4))
+    rack.sprite = Rack.SPRITE
+    eq(Rack.overlay(rack), "bu_solar_01_" .. (16 + 3 + 4), "the first look's overlays as before")
+end)

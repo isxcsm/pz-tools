@@ -1,7 +1,9 @@
 """Draws this mod's first tile sheet (bu_solar_01): the solar panel in its three mountings and the battery rack with the
 overlays of its batteries and charge. The names the game knows stay as they were (saves keep them): the rack 0, its
 overlays 1-5 (its batteries on one to five shelves, charge low) and 16-35 (the same at four levels of charge, shelf
-by shelf), the panels 8 (flat, on a roof), 9 (on a ground frame, its face to the E) and 10 (its face to the S).
+by shelf), the panels 8 (flat, on a roof), 9 (on a ground frame, its face to the E) and 10 (its face to the S). The
+rack turned, its front to the S, the W and the N, is the same block of rows again from 40, 80 and 120 (its base, then
+its overlays at the same places in the block).
 
 Drawn as tile_art draws the water sheet (its solids, light and projection); then run tile_art, which draws the snow
 over these panels from them.
@@ -24,7 +26,10 @@ from tile_art import Scene, project, shadow, glow, unit, dot, W, H, SS  # noqa: 
 
 SHEET = 'bu_solar_01'
 PACK = 'BuildingUtilitiesSolar'
-COLS, ROWS = 8, 5
+COLS, ROWS = 8, 20
+# The rack's blocks: one a way it faces, in quarter turns from its front to the E (against a W wall): S, W, N.
+RACK_BLOCK = 40
+RACK_TURNS = 4
 
 # Colours.
 ALU = (160, 163, 164)
@@ -212,9 +217,10 @@ POST = 0.036
 BATTERY = (0.29, 0.165, 0.19)  # across (x), along (y), high
 
 
-def rack(shelves=-1, level=None):
-    """shelves: the highest shelf with batteries (-1 none); level: 0-4 of charge, its lamps (None: dark, no batteries)."""
-    s = Scene(0)
+def rack(shelves=-1, level=None, turns=0):
+    """shelves: the highest shelf with batteries (-1 none); level: 0-4 of charge, its lamps (None: dark, no batteries);
+    turns: quarter turns from its front to the E."""
+    s = Scene(turns)
     glows = []
     # Uprights: angle steel, with a foot plate.
     for x in XS:
@@ -270,7 +276,12 @@ def rack(shelves=-1, level=None):
             y = YS[1] - 0.05 + dy
             s.tube((0.11, y, 0.06), (0.11, y, max(top, bz0 + 0.1)), 0.011, colour, segments=12)
         s.tube((0.11, YS[1] - 0.05, bz0 + 0.1), (0.2, by, bz0 + 0.1), 0.014, CABLE, segments=12)
-    ground = shadow((0.28, 0.5), 0.3, 0.48, strength=90)
+    rx, ry = (0.3, 0.48) if turns % 2 == 0 else (0.48, 0.3)
+    ground = shadow(s.turn((0.28, 0.5, 0))[:2], rx, ry, strength=90)
+    # the lamps' glow is laid over the finished tile: none while the controller is turned away (to the W or the N),
+    # behind the rack
+    if turns % 4 in (1, 2):
+        glows = []
     return s, ground, glows
 
 
@@ -291,14 +302,15 @@ def battery(s, x0, yc, z):
         s.tube((x0 + bx - 0.05, y, z + bz + 0.02), (x0 + bx - 0.05, y, z + bz + 0.035), 0.02, cap, segments=14, shine=0.3)
 
 
-def rack_tiles():
-    """The rack (0) and its overlays: what differs from it with batteries on so many shelves at a charge level."""
-    s, ground, glows = rack()
+def rack_tiles(turns=0):
+    """The rack (0 in its block) and its overlays: what differs from it with batteries on so many shelves at a charge
+    level."""
+    s, ground, glows = rack(turns=turns)
     base = compose(s, ground=ground, seed=3)
     overlays = {}
     for shelves in range(5):
         for level in range(5):
-            s, ground, glows = rack(shelves, level)
+            s, ground, glows = rack(shelves, level, turns)
             full = compose(s, ground=ground, glows=glows, seed=3)
             a, b = np.asarray(full).astype(np.int32), np.asarray(base).astype(np.int32)
             changed = np.abs(a - b).max(axis=2) > 2
@@ -308,6 +320,8 @@ def rack_tiles():
     return base, overlays
 
 
+# The wall side each turn stands against: its front away from it.
+RACK_WALL = ('W', 'N', 'E', 'S')
 RACK = {'BlocksPlacement': '', 'CustomName': 'Battery Rack', 'Facing': 'W', 'solidtrans': ''}
 OVERLAY = {'attachedW': ''}
 PANEL = {'CustomName': 'Solar Panel', 'IsLow': ''}
@@ -315,10 +329,12 @@ PANEL = {'CustomName': 'Solar Panel', 'IsLow': ''}
 
 def tiles():
     images, props = {}, {}
-    base, overlays = rack_tiles()
-    images[0], props[0] = base, RACK
-    for index, image in overlays.items():
-        images[index], props[index] = image, OVERLAY
+    for turns in range(RACK_TURNS):
+        block, wall = RACK_BLOCK * turns, RACK_WALL[turns]
+        base, overlays = rack_tiles(turns)
+        images[block], props[block] = base, dict(RACK, Facing=wall)
+        for index, image in overlays.items():
+            images[block + index], props[block + index] = image, {'attached' + wall: ''}
     images[8], props[8] = roof_panel(), PANEL
     images[9], props[9] = ground_panel(3), dict(PANEL, Facing='W', solidtrans='')
     images[10], props[10] = ground_panel(0), dict(PANEL, Facing='N', solidtrans='')
