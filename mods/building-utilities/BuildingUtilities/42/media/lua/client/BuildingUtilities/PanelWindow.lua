@@ -1353,7 +1353,18 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
     local pipesShown = utility == "water" and BU.Water.shown(panel)
     local layout = utility == "water" and BU.Networks.waterLayout(panel) or nil
     for _, group in ipairs(order) do
-        view.totals[group.id] = { title = title(group.id), total = group.total, on = group.on, count = group.on + group.off }
+        -- Water's tanks and units count and switch with the room's fixtures (as their own ticks do).
+        group.units, group.producers = {}, {}
+        for _, entry in ipairs(group.placed) do
+            local row = entry.row
+            if row.state and not row.fixed then
+                if row.state == "on" then group.on = group.on + 1 else group.off = group.off + 1 end
+                if row.unit then group.units[#group.units + 1] = row.unit.id
+                else group.producers[#group.producers + 1] = row.index end
+            end
+        end
+        view.totals[group.id] = { title = title(group.id), total = group.total, on = group.on, count = group.on + group.off,
+            units = group.units, producers = group.producers }
         -- Searching: a room whose name has the words keeps all its rows, any other only the devices that have them.
         if query ~= "" and not title(group.id):lower():find(query, 1, true) then
             local kept = {}
@@ -1375,15 +1386,16 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
     local function emit(group)
         local foldKey = panel.id .. "|" .. utility .. "|" .. group.id
         local folded = PanelWindow.folded[foldKey] == true and query == ""
-        -- A room with water's things only: nothing to switch (its tick's place kept), nothing to count.
-        local count = group.on + group.off
+        -- A room with nothing to switch keeps its tick's place.
+        local on, off = group.on, group.off
+        local count = on + off
         local roomState
         if not group.outside then
-            roomState = group.off == 0 and "on" or group.on == 0 and "off" or "some"
+            roomState = off == 0 and "on" or on == 0 and "off" or "some"
         end
-        local right = utility == "power" and load2(group.total) or count > 0 and (group.on .. " / " .. count) or nil
+        local right = utility == "power" and load2(group.total) or count > 0 and (on .. " / " .. count) or nil
         add({ kind = "room", id = group.id, text = title(group.id), right = right, state = roomState,
-            fixed = fixed or count == 0, folded = folded, foldKey = foldKey })
+            fixed = fixed or count == 0, folded = folded, foldKey = foldKey, units = group.units, producers = group.producers })
         if not folded then
             table.sort(group.placed, function(a, b)
                 if a.rank ~= b.rank then return a.rank < b.rank end
@@ -1653,7 +1665,8 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
         else self:refill(utility) end
     elseif row.kind == "room" then
         if row.state and not row.fixed and x >= ROOM_TICK_X and x <= ROOM_TICK_X + ROW then
-            Sync.send(playerObj, "setRoomInside", { panel = panel.id, utility = utility, room = row.id, on = row.state ~= "on" })
+            Sync.send(playerObj, "setRoomInside", { panel = panel.id, utility = utility, room = row.id, on = row.state ~= "on",
+                units = row.units, producers = row.producers })
         else
             PanelWindow.folded[row.foldKey] = (not row.folded) or nil
             self:refill(utility)

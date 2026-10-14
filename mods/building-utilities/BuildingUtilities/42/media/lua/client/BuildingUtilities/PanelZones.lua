@@ -501,7 +501,10 @@ function ISBUPanelWindow:roomMenu(id)
     local menu = Ui.UI.menu(self, Ui.PALETTE)
     menu:addHead(totals and totals.title or (self.titles[id] or ""))
     if totals and totals.count > 0 and Panels.cuts(self.panel) then
-        local send = function(on) Sync.send(playerObj, "setRoomInside", { panel = self.panel.id, utility = utility, room = id, on = on }) end
+        local send = function(on)
+            Sync.send(playerObj, "setRoomInside", { panel = self.panel.id, utility = utility, room = id, on = on,
+                units = totals.units, producers = totals.producers })
+        end
         if totals.on < totals.count then menu:addOption(getText("IGUI_BU_Menu_RoomOn"), true, send) end
         if totals.on > 0 then menu:addOption(getText("IGUI_BU_Menu_RoomOff"), false, send) end
     end

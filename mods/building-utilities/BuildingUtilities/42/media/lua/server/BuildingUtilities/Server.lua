@@ -33,8 +33,18 @@ function commands.setLever(player, panel, args)
     if Panels.leverUp(panel) ~= up then Changes.setLever(panel, up) end
 end
 
+-- A room's tick: its fixtures, and on the water tab the tanks and units the window lists under it (each checked as
+-- its own tick is).
 function commands.setRoomInside(player, panel, args)
-    if Panels.cuts(panel) and type(args.room) == "string" then Changes.setRoomInside(panel, args.utility, args.room, args.on == true) end
+    if not Panels.cuts(panel) or type(args.room) ~= "string" then return end
+    Changes.setRoomInside(panel, args.utility, args.room, args.on == true)
+    if args.utility ~= "water" then return end
+    for _, id in ipairs(type(args.units) == "table" and args.units or {}) do
+        commands.setUnitOn(player, panel, { unit = id, on = args.on })
+    end
+    for _, index in ipairs(type(args.producers) == "table" and args.producers or {}) do
+        commands.setProducerOn(player, panel, { index = index, on = args.on })
+    end
 end
 
 -- A window saw devices in a room built onto the building that the networks do not have yet.
