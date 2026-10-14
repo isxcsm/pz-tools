@@ -158,7 +158,7 @@ local function build()
     add({ id = "nails_box", group = "resource", tier = 1, price = 80000, week = 3, give = { vanilla("NailsBox") } })
     add({ id = "screws_box", group = "resource", tier = 1, price = 80000, week = 3, give = { vanilla("ScrewsBox") } })
     add({ id = "nuts_bolts", group = "resource", tier = 2, price = 80000, week = 2, give = { vanilla("NutsBolts", 10) } })
-    add({ id = "welding_rods", group = "resource", tier = 2, price = 12000, week = 3, give = { vanilla("WeldingRods") } })
+    add({ id = "welding_rods", group = "resource", tier = 2, price = 50000, week = 3, give = { vanilla("WeldingRods", 4) } })
     add({ id = "engine_parts", group = "resource", tier = 3, price = 20000, week = 2, give = { vanilla("EngineParts", 10) } })
     add({ id = "car_battery", group = "resource", tier = 3, price = 20000, week = 2,
         choices = choiceList({ "CarBattery1", "CarBattery2", "CarBattery3" }) })
