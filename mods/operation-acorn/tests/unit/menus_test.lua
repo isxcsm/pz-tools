@@ -299,7 +299,7 @@ test("install is on top of the menu of the lure and of a machine's piece, and th
     eq(other:names(), "IGUI_PlaceObject")
 end)
 
-test("the ground menu offers no placing, and a machine's menu is built without searching for what to shred", function()
+test("the bench is one option, its name, that opens its window; nothing is searched for what to shred", function()
     setup()
     loadFile("OperationAcorn/Machines/Menu")
     local Machines = OA.Machines
@@ -314,25 +314,10 @@ test("the ground menu offers no placing, and a machine's menu is built without s
     menu:addOption("Vanilla")
     TEST.fire("OnFillWorldObjectContextMenu", 0, menu, { clicked }, false)
     eq(menu:names(), "IGUI_OA_Machine_Name_shredBench,Vanilla", "the machine's, on top; no place option for the lure")
-    local sub = menu.options[1].subOption
-    local shred
-    for _, o in ipairs(sub.options) do
-        if o.name == "ContextMenu_OA_Machine_Shred" then shred = o end
-    end
-    truthy(shred, "the shred option is there")
-    -- picking it looks for what the character carries, and lists it
-    local entries = {}
-    for i = 1, 3 do
-        entries[i] = { item = { getFullType = function() return "Base.Pliers" end, getName = function() return "Pliers" end } }
-    end
-    Machines.benchCandidates = function() return entries end
-    shred.onSelect(shred.target, shred.param1)
-    eq(#TEST.opened.options, 2, "all of it, and the one kind")
-    eq(TEST.opened.options[1].name, "ContextMenu_OA_Machine_ShredAll 3")
-    -- and with nothing to shred, it says so
-    Machines.benchCandidates = function() return {} end
-    shred.onSelect(shred.target, shred.param1)
-    eq(TEST.halo, "IGUI_OA_Machine_Reason_nothingToShred")
+    local open = menu.options[1]
+    eq(open.subOption, nil, "no submenu: the shredding is in the window")
+    truthy(open.onSelect, "it opens the window")
+    truthy(open.toolTip, "what the bench is, on its option")
 end)
 
 test("a machine with a window is one option, its name, that opens the window; a lure's taking back is its own", function()

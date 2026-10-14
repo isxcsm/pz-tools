@@ -245,6 +245,12 @@ function ISOAMachineShred:update()
     end
 end
 
+-- `onDone` (the bench window's, when it queued the action): told once the item is shredded.
+function ISOAMachineShred:perform()
+    ISBaseTimedAction.perform(self)
+    if self.onDone then self.onDone(self) end
+end
+
 function ISOAMachineShred:stop()
     local item = self.item
     if item then item:setJobDelta(0) end

@@ -1740,6 +1740,28 @@ function Machines.shredByHand(character, record, items)
     return total, selectedTotal
 end
 
+-- What shredding these entries by hand would give now, with nothing recorded: the sample bundles expected (each kind's
+-- count climbing with each, as Shred.yieldMany) and the first-shred bonuses it would pay (credits, the sandbox's
+-- multiplier in).
+function Machines.benchEstimate(record, entries)
+    local extras = shredExtras(record, nil)
+    local counts, paid = {}, {}
+    local bundles, bonus = 0, 0
+    for _, entry in ipairs(entries) do
+        local info = entry.data
+        local key = info.baseType
+        local c = counts[key] or OA.Shred.count(record, key)
+        local amount, first = OA.Shred.yield(info, record, extras, c)
+        counts[key] = c + 1
+        bundles = bundles + amount
+        if first > 0 and not paid[key] then
+            paid[key] = true
+            bonus = bonus + first
+        end
+    end
+    return bundles, bonus * (OA.option("BonusMultiplier") or 1.0)
+end
+
 -- The game minutes shredding these items takes by hand (the bench's rule, per item).
 function Machines.benchMinutesFor(entries)
     local minutes = 0

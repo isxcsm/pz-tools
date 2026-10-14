@@ -127,7 +127,7 @@ Data.ORDER = { "shredBench", "bulkShredder", "cutter", "propaneRefiner", "oilRef
 -- The kinds whose window opens (parts, work, rain or the lure to look at); the others are only picked up or used.
 function Data.hasWindow(kind)
     local def = Data.KINDS[kind]
-    return def ~= nil and (#def.slots > 0 or def.rate ~= nil or kind == "rainStorage" or kind == "lure")
+    return def ~= nil and (#def.slots > 0 or def.rate ~= nil or def.hand == true or kind == "rainStorage" or kind == "lure")
 end
 
 -- The kinds that work by themselves on what is put in them (the ten-minute step and the chunk catch-up run these).

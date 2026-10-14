@@ -1,5 +1,5 @@
--- The context menus of the base machines. In the world: open a machine's window (switching it is there), shred by hand
--- at the bench, take a lure back. In the inventory: install, on top of the item's menu, the one way to put a machine down (the lure with
+-- The context menus of the base machines. In the world: open a machine's window (switching it is there; the bench's
+-- is where things are shredded by hand), take a lure back. In the inventory: install, on top of the item's menu, the one way to put a machine down (the lure with
 -- its own placing cursor, a machine's furniture pieces with the game's furniture cursor). And the halo notes for worn
 -- parts. A menu is built from the thing that was clicked: nothing here searches the inventory for it.
 require "ISUI/ISWorldObjectContextMenu"
@@ -10,6 +10,7 @@ require "OperationAcorn/Sync"
 require "OperationAcorn/Machines/Machines"
 require "OperationAcorn/Machines/Actions"
 require "OperationAcorn/Machines/Window"
+require "OperationAcorn/Machines/BenchWindow"
 require "PZUIKit/Menu"
 local OA = OperationAcorn
 local Machines = OA.Machines
@@ -56,54 +57,17 @@ local function onTakeLure(playerObj, object)
     queueAt(playerObj, square, ISOAMachineTakeLure:new(playerObj, state.id, square:getX(), square:getY(), square:getZ()))
 end
 
--- Queues shredding of entries at the bench, an action an item.
-local function onShred(playerObj, object, entries)
-    local state = Machines.state(object)
-    local square = Machines.nearSquare(object, playerObj)
-    if not luautils.walkAdj(playerObj, square, true) then return end
-    for _, entry in ipairs(entries) do
-        ISTimedActionQueue.add(
-            ISOAMachineShred:new(playerObj, state.id, square:getX(), square:getY(), square:getZ(), entry))
-    end
-end
-
--- What the character carries that can be shredded, by kind of item, and all of it: a menu at the mouse, made when the
--- player picks "shred by hand" (looking through the inventory for it is not done while the machine's menu is built).
-local function onShredMenu(playerObj, object)
-    local entries = Machines.benchCandidates(playerObj, 300)
-    if #entries == 0 then
-        HaloTextHelper.addBadText(playerObj, getText("IGUI_OA_Machine_Reason_nothingToShred"))
-        return
-    end
-    local groups, order = {}, {}
-    for _, entry in ipairs(entries) do
-        local key = entry.item:getFullType()
-        if not groups[key] then
-            groups[key] = {}
-            order[#order + 1] = key
-        end
-        table.insert(groups[key], entry)
-    end
-    local menu = ISContextMenu.get(playerObj:getPlayerNum(), getMouseX(), getMouseY())
-    menu:addOption(getText("ContextMenu_OA_Machine_ShredAll", #entries), playerObj, onShred, object, entries)
-    for i = 1, math.min(#order, 15) do
-        local group = groups[order[i]]
-        menu:addOption(getText("ContextMenu_OA_Machine_ShredKind", group[1].item:getName(), #group), playerObj,
-            onShred, object, group)
-    end
-end
-
 -- A lure is taken back while it works (with the hours it has left) or cleared away once it is spent; a machine is taken
--- up with the game's furniture tool (Moveables.lua). In the world menu itself it goes to the menu's end, over the game's
--- destroy line (PZUIKit.Menu); in a submenu, after what else is done to the machine.
-local function lureOption(menu, playerObj, object, atEnd)
+-- up with the game's furniture tool (Moveables.lua). It goes to the menu's end, over the game's destroy line
+-- (PZUIKit.Menu).
+local function lureOption(menu, playerObj, object)
     local option
     if Machines.canTakeLure(object) then
         option = menu:addOption(getText("ContextMenu_OA_Machine_TakeLure"), playerObj, onTakeLure, object)
     else
         option = menu:addOption(getText("ContextMenu_OA_Machine_RemoveShell"), playerObj, onPickUp, object)
     end
-    if atEnd then PZUIKit.Menu.beforeTail(menu, { option }) end
+    PZUIKit.Menu.beforeTail(menu, { option })
 end
 
 -- The game's water submenu for a machine that is also a fluid container (the rain storage), or nil: the one whose
@@ -122,39 +86,25 @@ local function fluidSubMenu(context, object)
     return nil
 end
 
--- A machine with a window is one option, its name, that opens the window: switching it and the rest are there. What is
--- done to it by hand (a lure's taking back) is an option of its own under it. A machine without a window keeps its
--- name with the things done to it in a submenu, and none at all when nothing is done to it by hand (the research
--- storage: a container, opened from the inventory).
+-- A machine with a window is one option, its name, that opens the window: switching it, the bench's shredding and the
+-- rest are there. What is done to it by hand (a lure's taking back) is an option of its own. A machine without a window
+-- has none (the research storage: a container, opened from the inventory).
 local function addMachineOptions(context, playerObj, object)
     local state = Machines.state(object)
     local kind = state.kind
-    if Data.hasWindow(kind) then
-        -- a fluid container already has its name over the game's water submenu: the window is opened from in there, and
-        -- takes the place of the game's container info (the window shows all of it and more)
-        local water = fluidSubMenu(context, object)
-        if water then
-            water:removeOptionByName(getText("Fluid_Show_Info"))
-            local manage = water:addOptionOnTop(getText("ContextMenu_OA_Machine_Manage"), playerObj, onOpen, object)
-            tooltip(manage, getText("Tooltip_OA_Machine_" .. kind))
-            return
-        end
-        if kind == "lure" then lureOption(context, playerObj, object, true) end
-        local open = context:addOptionOnTop(Machines.name(kind), playerObj, onOpen, object)
-        tooltip(open, getText("Tooltip_OA_Machine_" .. kind))
+    if not Data.hasWindow(kind) then return end
+    -- a fluid container already has its name over the game's water submenu: the window is opened from in there, and
+    -- takes the place of the game's container info (the window shows all of it and more)
+    local water = fluidSubMenu(context, object)
+    if water then
+        water:removeOptionByName(getText("Fluid_Show_Info"))
+        local manage = water:addOptionOnTop(getText("ContextMenu_OA_Machine_Manage"), playerObj, onOpen, object)
+        tooltip(manage, getText("Tooltip_OA_Machine_" .. kind))
         return
     end
-    if not Data.KINDS[kind].hand and kind ~= "lure" then return end
-    local option = context:addOptionOnTop(Machines.name(kind), nil, nil)
-    local sub = ISContextMenu:getNew(context)
-    context:addSubMenu(option, sub)
-    if Data.KINDS[kind].hand then
-        sub:addOption(getText("ContextMenu_OA_Machine_Shred"), playerObj, onShredMenu, object)
-    end
-    if kind == "lure" then lureOption(sub, playerObj, object, false) end
-    -- what the machine is, on the first option of its submenu (on the machine's own option it would cover the submenu)
-    local first = sub.options and sub.options[1]
-    if first and not first.toolTip then tooltip(first, getText("Tooltip_OA_Machine_" .. kind)) end
+    if kind == "lure" then lureOption(context, playerObj, object) end
+    local open = context:addOptionOnTop(Machines.name(kind), playerObj, onOpen, object)
+    tooltip(open, getText("Tooltip_OA_Machine_" .. kind))
 end
 
 function Menu.fill(player, context, worldobjects, test)

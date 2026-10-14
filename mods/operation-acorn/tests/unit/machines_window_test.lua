@@ -948,13 +948,14 @@ local function onScreen(UI, screenH)
     eq(UI.facesOn, true)
 end
 
-test("a machine with parts is wider than one without; the window's width is the layout's", function()
+test("a machine with parts is wider than one without, the bench as wide as its rows need; the width is the layout's", function()
     local _, _, _, Layout = loadWindow(16)
     for _, kind in ipairs(WIDE_KINDS) do
         eq(Layout.widthOf(kind), Layout.WIDE, kind)
     end
     for kind, def in pairs(Data.KINDS) do
-        if #def.slots == 0 then eq(Layout.widthOf(kind), Layout.WIDTH, kind) end
+        if def.hand then eq(Layout.widthOf(kind), Layout.BENCH, kind)
+        elseif #def.slots == 0 then eq(Layout.widthOf(kind), Layout.WIDTH, kind) end
     end
     truthy(Layout.WIDE > Layout.WIDTH and Layout.WIDE <= 700, "700 at the most")
 end)
@@ -1121,4 +1122,327 @@ test("the window opens as wide as its kind, in the middle of the screen", functi
     eq(window.body.width, Machines.WindowLayout.WIDE)
     eq(window.x, (1280 - width) / 2)
     eq(window.y, math.max(0, (720 - window.height) / 2))
+end)
+
+-- The bench ------------------------------------------------------------------------------------------------------------
+-- The hand bench's window (BenchModel.lua, WindowLayout.bench, BenchWindow.lua): what the character carries that can be
+-- shredded, a row a kind with how many to shred; what the chosen take and give; the work queued an action an item,
+-- counted as it goes and stopped with its button. The bags are looked through when the window opens, when the work
+-- ends and when the inventory's signature changed, not as it reads or paints.
+
+-- A thing the bench can shred, as Machines.benchCandidates gives it: { item, data = its info }.
+local function benchEntry(fullType, name, weight, baseType)
+    local item = { fullType = fullType, name = name }
+    function item:getFullType() return self.fullType end
+    function item:getName() return self.name end
+    function item:getID() return self end
+    function item:isEquipped() return false end
+    function item:isFavorite() return false end
+    return { item = item, data = { weight = weight, baseType = baseType or fullType } }
+end
+
+local function benchEntries()
+    local list = {}
+    for i = 1, 3 do list[#list + 1] = benchEntry("Base.Hammer", "Hammer", 1.5) end
+    for i = 1, 2 do list[#list + 1] = benchEntry("Base.Pliers", "Pliers", 0.5) end
+    list[#list + 1] = benchEntry("Base.Tshirt_Rock", "T-shirt (Rock)", 0.25, "Base.Tshirt")
+    return list
+end
+
+local function loadBench(px)
+    local UI, Draw = loadWindow(px or 16)
+    local real = require
+    require = function(name)
+        if string.find(name, "^ISUI/") or string.find(name, "^TimedActions/") then return true end
+        return real(name)
+    end
+    local ok, err = pcall(real, "OperationAcorn/Machines/BenchWindow")
+    require = real
+    if not ok then error(err, 0) end
+    return UI, Draw, Machines.BenchModel, Machines.WindowLayout
+end
+
+test("the bench groups what can be shredded by kind, by name, and keeps the choice of a kind still carried", function()
+    local _, _, Bench = loadBench()
+    local kinds = Bench.group(benchEntries())
+    eq(#kinds, 3)
+    eq(kinds[1].name, "Hammer"); eq(#kinds[1].entries, 3); eq(kinds[1].weight, 1.5)
+    eq(kinds[2].name, "Pliers")
+    eq(kinds[3].baseType, "Base.Tshirt", "a kind's base type, for its first-shred mark")
+    kinds[1].chosen, kinds[2].chosen = 3, 1
+    -- one hammer went: the choice keeps to what is left
+    local now = benchEntries()
+    table.remove(now, 1)
+    local again = Bench.group(now, kinds)
+    eq(again[1].chosen, 2, "no more than is carried")
+    eq(again[2].chosen, 1)
+    eq(again[3].chosen, 0)
+    eq(#Bench.chosen(again), 3, "the first chosen of each kind")
+    eq(Bench.clampTop(9, 3), 1, "a short list does not scroll")
+    eq(Bench.clampTop(9, 10), 10 - Bench.ROWS + 1, "to the last that still fills the list")
+end)
+
+test("the bench's model: what the chosen take and give, the first-shred chip, the rows locked while it works", function()
+    local _, _, Bench = loadBench()
+    local kinds = Bench.group(benchEntries())
+    kinds[1].chosen = 2
+    local input = { id = "m3", kinds = kinds, top = 1, first = { ["Base.Hammer"] = true }, firstBonus = 200,
+        estimate = { count = 2, weight = 3, minutes = 30, bundles = 1.5, bonus = 200 } }
+    local m = Bench.build(input)
+    eq(m.title, getText("IGUI_OA_Machine_Name_shredBench"))
+    eq(m.strip.text, getText("IGUI_OA_Machine_Hint_shredBench"))
+    eq(m.list.right, getText("IGUI_OA_Bench_CarriedRight", 3, 6))
+    eq(#m.list.rows, 3)
+    local hammer = m.list.rows[1]
+    eq(hammer.pick, "2"); eq(hammer.of, " / 3")
+    eq(hammer.first, getText("IGUI_OA_Bench_First"), "never shredded: the chip")
+    eq(m.list.rows[2].first, nil)
+    truthy(hammer.canLess and hammer.canMore)
+    eq(m.cells[1].value, getText("IGUI_OA_Bench_Count", 2))
+    eq(m.cells[2].value, getText("IGUI_OA_Machine_Minutes", 30))
+    eq(m.cells[3].value, getText("IGUI_OA_Bench_Bundles", "1.5"))
+    eq(m.cells[3].sub, getText("IGUI_OA_Bench_YieldBonus", 200)); eq(m.cells[3].subTone, "good")
+    truthy(m.canStart and m.canAll and m.canNone)
+    -- nothing chosen: no time, no yield, no start
+    for _, k in ipairs(kinds) do k.chosen = 0 end
+    input.estimate = { count = 0, weight = 0, minutes = 0, bundles = 0, bonus = 0 }
+    m = Bench.build(input)
+    eq(m.cells[2].value, "-"); eq(m.cells[3].value, "-")
+    truthy(not m.canStart and not m.canNone and m.canAll)
+    -- at work: locked, how far it is
+    kinds[2].chosen = 2
+    input.estimate = { count = 2, weight = 1, minutes = 10, bundles = 0.5, bonus = 0 }
+    input.work = { done = 1, total = 3 }
+    m = Bench.build(input)
+    truthy(m.list.locked)
+    truthy(not m.list.rows[2].canLess and not m.list.rows[2].canMore)
+    truthy(not m.canStart and not m.canAll and not m.canNone)
+    eq(m.work.text, getText("IGUI_OA_Bench_Progress", 1, 3))
+    eq(m.work.left, getText("IGUI_OA_Bench_Left", getText("IGUI_OA_Machine_Minutes", 10)))
+    eq(m.light.text, getText("IGUI_OA_Machine_Job_shred"))
+    -- nothing carried
+    m = Bench.build({ id = "m3", kinds = {}, estimate = {} })
+    eq(m.strip.text, getText("IGUI_OA_Machine_Reason_nothingToShred"))
+    eq(m.list.empty, getText("IGUI_OA_Bench_Empty"), "the list says what to do")
+end)
+
+test("the bench's estimate: each kind's count climbs with each, the first-shred bonus once a kind", function()
+    loadBench()
+    require "OperationAcorn/Economy/Shred"
+    local record = OA.Store.ensure("p1", "p1")
+    local entries = benchEntries()
+    local bundles, bonus = Machines.benchEstimate(record, entries)
+    local hammer = OA.Shred.yieldMany(entries[1].data, record, 3, { bundles = 0, blade = 1 })
+    local pliers = OA.Shred.yieldMany(entries[4].data, record, 2, { bundles = 0, blade = 1 })
+    local shirt = OA.Shred.yield(entries[6].data, record, { bundles = 0, blade = 1 })
+    truthy(math.abs(bundles - (hammer + pliers + shirt)) < 1e-9, "as yieldMany, a kind at a time")
+    eq(bonus, 3 * OA.Shred.FIRST_BONUS, "three kinds never shredded")
+    OA.Shred.section(record).first["Base.Hammer"] = true
+    local _, less = Machines.benchEstimate(record, entries)
+    eq(less, 2 * OA.Shred.FIRST_BONUS)
+    eq(OA.Shred.count(record, "Base.Hammer"), 0, "nothing recorded")
+end)
+
+-- A list of `n` kinds laid out: the list, its height, the model.
+local function benchLaidOut(UI, Draw, Bench, Layout, n, chosen, work)
+    local entries = {}
+    local names = { "Hammer", "Pliers", "Military Camo Boonie Hat", "Screwdriver", "Frying Pan", "Wrench", "Saucepan",
+        "Kettle", "Baseball Bat", "Spoon", "Fork", "Mug" }
+    for i = 1, n do
+        local name = names[(i - 1) % #names + 1]
+        for _ = 1, 12 do entries[#entries + 1] = benchEntry("Base.K" .. i, name, 2.5) end
+    end
+    local kinds = Bench.group(entries)
+    for i, k in ipairs(kinds) do k.chosen = chosen and math.min(#k.entries, i) or 0 end
+    local m = Bench.build({ id = "m3", kinds = kinds, top = 1, first = { ["Base.K1"] = true, ["Base.K2"] = true },
+        firstBonus = 200, estimate = { count = chosen and 120 or 0, weight = 270.5, minutes = 1355, bundles = 135.25,
+            bonus = chosen and 400 or 0 },
+        work = work and { done = 37, total = 120 } or nil })
+    local L = Draw.list(UI.palette("field"))
+    local h = Layout.bench(L, m, Layout.widthOf("shredBench"))
+    return L, h, m
+end
+
+for _, lang in ipairs({ "EN", "KO" }) do
+    for _, px in ipairs({ 16, 19, 26 }) do
+        test("the bench at " .. px .. " px in " .. lang .. ": every text inside and none on another; the list does not jump", function()
+            inLanguage(lang, function()
+                local UI, Draw, Bench, Layout = loadBench(px)
+                useFonts(UI, px)
+                local width = Layout.widthOf("shredBench")
+                eq(width, Layout.BENCH)
+                local heights = {}
+                for _, case in ipairs({ { 0 }, { 3, true }, { 12, true }, { 12, true, true } }) do
+                    local L, h = benchLaidOut(UI, Draw, Bench, Layout, case[1], case[2], case[3])
+                    local label = lang .. " " .. px .. " px, " .. case[1] .. " kinds" .. (case[3] and ", working" or "")
+                    local list = textBoxes(UI, L)
+                    for _, t in ipairs(list) do
+                        truthy(t.x >= 0 and t.x + t.w <= width + 0.5, label .. ": '" .. t.s .. "' inside the width")
+                        truthy(t.y >= 0 and t.y + t.h <= h + 0.5, label .. ": '" .. t.s .. "' inside the height")
+                        -- (a long item name may be cut; nothing else)
+                        if not string.find(t.s, "^Military") then
+                            truthy(string.sub(t.s, -3) ~= "...", label .. ": '" .. t.s .. "' was cut short")
+                        end
+                    end
+                    for i = 1, #list do
+                        for j = i + 1, #list do
+                            truthy(overlap(list[i], list[j]) <= 1, label .. ": '" .. list[i].s .. "' and '" .. list[j].s .. "'")
+                        end
+                    end
+                    for _, hit in ipairs(L.hits) do
+                        truthy(hit.x >= 0 and hit.x + hit.w <= width and hit.y >= 0 and hit.y + hit.h <= h, label .. ": a hit inside")
+                    end
+                    if case[1] > 0 then
+                        truthy(hasText(list, getText("IGUI_OA_Bench_Weight", "2.5")), label .. ": the weight shows")
+                        truthy(hasText(list, getText("IGUI_OA_Bench_First")), label .. ": the first-shred chip shows")
+                    end
+                    heights[#heights + 1] = h
+                end
+                eq(heights[1], heights[2], "empty and three kinds: as tall")
+                eq(heights[2], heights[3], "three and twelve: as tall (the list scrolls)")
+                eq(heights[3], heights[4], "at work: as tall")
+                truthy(heights[1] <= 720 - font.S - 1, "inside a 720p screen")
+            end)
+        end)
+    end
+end
+
+-- The bench's window on a fake bench and character: the candidates, the queue and the walk are stand-ins.
+local function benchWindow(entries)
+    local UI = loadBench(16)
+    _G.instanceof = function() return false end
+    local found = { calls = 0, entries = entries or benchEntries() }
+    Machines.benchCandidates = function()
+        found.calls = found.calls + 1
+        local copy = {}
+        for i, e in ipairs(found.entries) do copy[i] = e end
+        return copy
+    end
+    local inventory = { count = 10, weight = 5 }
+    function inventory:getItems()
+        local n = self.count
+        return { size = function() return n end }
+    end
+    function inventory:getContentsWeight() return self.weight end
+    local c = character()
+    function c:getInventory() return inventory end
+    local queue = {}
+    _G.ISTimedActionQueue = {
+        add = function(a) queue[#queue + 1] = a end,
+        hasAction = function(a)
+            for _, q in ipairs(queue) do if q == a then return true end end
+            return false
+        end,
+        clear = function() for k in pairs(queue) do queue[k] = nil end end,
+    }
+    _G.luautils = { walkAdj = function() return true end }
+    Machines.nearSquare = function()
+        return { getX = function() return 10 end, getY = function() return 21 end, getZ = function() return 0 end }
+    end
+    OA.inInventory = function() return true end
+    _G.ISOAMachineShred = { new = function(_, character, id, x, y, z, entry)
+        return { character = character, machineId = id, item = entry.item, entry = entry }
+    end }
+    local object = fakeMachine({ id = "m3", kind = "shredBench", dir = "S", parts = {} })
+    local window = OAMachineWindow.open(c, object)
+    return UI, window, found, inventory, queue
+end
+
+local function hitOf(window, id, index)
+    for _, h in ipairs(window.body.list.hits) do
+        if h.id == id and (index == nil or h.index == index) then return h end
+    end
+    return nil
+end
+
+test("the bench opens its own window, as wide as its layout; the bags are looked through once, not as it reads", function()
+    local now = 1
+    _G.getTimestampMs = function() return now end
+    local UI, window, found, inventory = benchWindow()
+    eq(getmetatable(window), OABenchWindow)
+    eq(window.body.width, Machines.WindowLayout.BENCH)
+    eq(found.calls, 1, "looked through as it opens")
+    for _ = 1, 20 do
+        now = now + OAMachineWindow.READ_MS
+        window:update()
+        window.body:prerender()
+    end
+    eq(found.calls, 1, "not as it reads or paints")
+    inventory.count = 11
+    now = now + OAMachineWindow.READ_MS
+    window:update()
+    eq(found.calls, 2, "the inventory changed: once more")
+end)
+
+test("the bench's rows: a click picks all of a kind or none, [-] and [+] one, all and none for every kind", function()
+    _G.getTimestampMs = function() return 1 end
+    local _, window = benchWindow()
+    local kinds = window.kinds
+    window:onHit(hitOf(window, "row", 1))
+    eq(kinds[1].chosen, 3, "all hammers")
+    window:onHit(hitOf(window, "row", 1))
+    eq(kinds[1].chosen, 0, "none again")
+    window:onHit(hitOf(window, "more", 2))
+    window:onHit(hitOf(window, "more", 2))
+    window:onHit(hitOf(window, "more", 2))
+    eq(kinds[2].chosen, 2, "no more than carried")
+    eq(hitOf(window, "more", 2).enabled, false, "[+] off at the top")
+    window:onHit(hitOf(window, "less", 2))
+    eq(kinds[2].chosen, 1)
+    eq(window.model.cells[1].value, getText("IGUI_OA_Bench_Count", 1), "the estimate follows")
+    window:onHit(hitOf(window, "all"))
+    eq(Machines.BenchModel.chosen(kinds)[6] ~= nil, true, "all six")
+    window:onHit(hitOf(window, "none"))
+    eq(#Machines.BenchModel.chosen(kinds), 0)
+    eq(hitOf(window, "start").enabled, false, "nothing to start with")
+end)
+
+test("the bench's work: an action an item, counted as each goes, stopped with its button; what is left stays chosen", function()
+    local now = 1
+    _G.getTimestampMs = function() return now end
+    local _, window, found, inventory, queue = benchWindow()
+    window:onHit(hitOf(window, "row", 1))
+    window:onHit(hitOf(window, "more", 2))
+    window:onHit(hitOf(window, "start"))
+    eq(#queue, 4, "three hammers and a pair of pliers")
+    truthy(window.work, "at work")
+    truthy(window.model.list.locked, "the rows are locked")
+    window:onHit(hitOf(window, "row", 1))
+    eq(window.kinds[1].chosen, 3, "a click on a locked row does nothing")
+    -- the first is done: it leaves the queue and its kind
+    local first = table.remove(queue, 1)
+    first.onDone(first)
+    eq(window.work.done, 1)
+    eq(#window.kinds[1].entries, 2); eq(window.kinds[1].chosen, 2)
+    eq(window.model.work.text, getText("IGUI_OA_Bench_Progress", 1, 4))
+    inventory.count = 9
+    now = now + OAMachineWindow.READ_MS
+    window:update()
+    eq(found.calls, 1, "not looked through while it works")
+    -- stopped: the queue is cleared, the work is over, the rest still chosen
+    window:onHit(hitOf(window, "stop"))
+    eq(#queue, 0)
+    found.entries = { found.entries[2], found.entries[3], found.entries[4], found.entries[5], found.entries[6] }
+    now = now + OAMachineWindow.READ_MS
+    window:update()
+    eq(window.work, nil)
+    eq(found.calls, 2, "looked through once the work ended")
+    eq(window.kinds[1].chosen, 2, "the hammers left stay chosen")
+    eq(window.kinds[2].chosen, 1)
+    eq(hitOf(window, "start").enabled, true, "to go on")
+end)
+
+test("the bench's list scrolls a row a wheel step under the mouse", function()
+    _G.getTimestampMs = function() return 1 end
+    local entries = {}
+    for i = 1, 12 do entries[i] = benchEntry("Base.K" .. string.format("%02d", i), "Kind " .. string.format("%02d", i), 1) end
+    local _, window = benchWindow(entries)
+    local area = window.body.list.benchList
+    truthy(window:onWheel(1, area.x + 10, area.y + 10), "taken by the list")
+    eq(window.top, 2)
+    eq(hitOf(window, "row", 2).y, hitOf(window, "row", 3).y - Machines.WindowLayout.benchRow(window.body.list),
+        "the second kind first")
+    for _ = 1, 20 do window:onWheel(1, area.x + 10, area.y + 10) end
+    eq(window.top, 12 - Machines.BenchModel.ROWS + 1, "no further than the last")
+    eq(window:onWheel(1, area.x + 10, area.y + area.h + 5), false, "below the list: not the list's")
 end)

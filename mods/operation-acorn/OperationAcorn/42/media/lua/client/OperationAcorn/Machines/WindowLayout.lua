@@ -8,7 +8,9 @@
 -- 900p screen allows): under the plate and the strip the performance across the window (its three numbers on a row),
 -- then two columns: on the left the jobs and under them the bins one above the other, on the right a card a part,
 -- in rows whose edges line up across (Layout's columns). The others (no parts: the locker, the rain storage, the lure)
--- are one column. The window's width is the layout's (Layout.widthOf).
+-- are one column. The window's width is the layout's (Layout.widthOf). The hand bench has a window of its own
+-- (Layout.bench): the plate and the strip, then what the character carries a row a kind, what the chosen take and give,
+-- and the buttons that start and stop the work.
 require "OperationAcorn/Trade/UI"
 require "OperationAcorn/Trade/StatusDraw"
 require "OperationAcorn/Machines/Machines"
@@ -33,6 +35,8 @@ Layout.SECTION = 8
 Layout.COLUMN_GAP = 10
 -- The part picker's width.
 Layout.PICKER_WIDTH = 300
+-- The bench window's width: a row needs an icon, a name with its chip, the weight and the count with its two buttons.
+Layout.BENCH = 480
 -- A bar's height and a job's icon.
 local BAR = 8
 local ICON = 16
@@ -43,7 +47,9 @@ local floor = math.floor
 
 -- The width of a kind's window: wide for a machine with parts.
 function Layout.widthOf(kind)
-    return #Data.KINDS[kind].slots > 0 and Layout.WIDE or Layout.WIDTH
+    local def = Data.KINDS[kind]
+    if def.hand then return Layout.BENCH end
+    return #def.slots > 0 and Layout.WIDE or Layout.WIDTH
 end
 
 -- A button's height: smaller than the terminal's (the window is short), still a line and a margin.
@@ -207,22 +213,29 @@ local function boxes(L, list, x, y, w)
     return y + #list * h + (#list - 1) * ROW_GAP
 end
 
--- The performance: three cells on a row, a number and a line under it; how each is made is in its tooltip.
-local function perf(L, pf, x, y, w)
+-- Cells on a row, a number and a line under it (the tooltip of one, when it has a tip, says how it is made).
+local function cells(L, list, x, y, w)
     local p, fh = L.p, L.fh
-    y = head(L, x, y, w, getText("IGUI_OA_Machine_Perf"), pf.right)
-    local n = #pf.cells
+    local n = #list
     local cw = floor((w - (n - 1) * Layout.GAP) / n)
     local h = 5 + 2 * fh + 5
-    for i, c in ipairs(pf.cells) do
+    for i, c in ipairs(list) do
         local cx = x + (i - 1) * (cw + Layout.GAP)
         Draw.panel(L, cx, y, cw, h)
         Draw.fit(L, c.value, cx + 7, y + 5, cw - 14, p.value)
         Draw.fit(L, c.sub, cx + 7, y + 5 + fh, cw - 14, colour(p, c.subTone))
-        local hit = Draw.hit(L, cx, y, cw, h, nil, tipOf(p, c.tip))
-        hit.hover = true
+        if c.tip then
+            local hit = Draw.hit(L, cx, y, cw, h, nil, tipOf(p, c.tip))
+            hit.hover = true
+        end
     end
     return y + h
+end
+
+-- The performance: three cells on a row.
+local function perf(L, pf, x, y, w)
+    y = head(L, x, y, w, getText("IGUI_OA_Machine_Perf"), pf.right)
+    return cells(L, pf.cells, x, y, w)
 end
 
 -- A card a part: its icon (no well: a whole multiple of its pixels, UI.iconSize), the slot and the tier, the buttons that
@@ -410,6 +423,125 @@ local function columns(L, m, x, y, w)
         yy = yy + hh + ROW_GAP
     end
     return yy - ROW_GAP
+end
+
+-- The bench ----------------------------------------------------------------------------------------------------------
+
+-- A row of the bench's list: as tall as its icon or a button, with room around.
+local BENCH_ICON = 24
+
+function Layout.benchRow(L)
+    return math.max(L.fh, BENCH_ICON, Layout.buttonHeight()) + 6
+end
+
+-- A kind's row: its icon, its name (bright when some of it is chosen) with a chip when it was never shredded, the
+-- weight of one, and on the right how many to shred between [-] and [+]. A click on the row picks all of it, or none
+-- when all is picked. A chosen row is tinted, a bar on its left.
+local function benchRow(L, r, x, y, w, h, locked)
+    local p, fh = L.p, L.fh
+    local btn = Layout.buttonHeight()
+    if r.chosen > 0 then
+        Draw.rect(L, x, y, w, h, p.value, 0.08)
+        Draw.rect(L, x, y, 2, h, p.value)
+    end
+    local row = Draw.hit(L, x, y, w, h, "row", nil, not locked)
+    row.index, row.hover = r.index, not locked
+    Draw.item(L, r.icon, x + 8, y + floor((h - BENCH_ICON) / 2), BENCH_ICON, r.chosen > 0 and 1 or 0.75)
+    local by = y + floor((h - btn) / 2)
+    local ty = y + floor((h - fh) / 2)
+    local right = x + w - 6
+    local plus = Draw.button(L, right - btn, by, btn, btn, "+", r.canMore and "normal" or "disabled", nil, "more")
+    plus.index = r.index
+    local numW = UI.textWidth("000 / 000") + 8
+    local nx = right - btn - numW
+    local pickW, ofW = UI.textWidth(r.pick), UI.textWidth(r.of)
+    local sx = nx + floor((numW - pickW - ofW) / 2)
+    Draw.text(L, r.pick, sx, ty, r.chosen > 0 and p.value or p.dim)
+    Draw.text(L, r.of, sx + pickW, ty, p.dim)
+    local minus = Draw.button(L, nx - btn, by, btn, btn, "-", r.canLess and "normal" or "disabled", nil, "less")
+    minus.index = r.index
+    local tx = x + 8 + BENCH_ICON + 8
+    local room = nx - btn - 10 - tx
+    local weightW = math.min(UI.textWidth(r.weight), floor(room / 3))
+    Draw.fit(L, r.weight, tx + room - weightW, ty, weightW, p.dim, nil, nil, "right")
+    local chipW = r.first and UI.textWidth(r.first) + 12 or 0
+    local nameRoom = room - weightW - 8 - (chipW > 0 and chipW + 6 or 0)
+    local nw = Draw.fit(L, r.name, tx, ty, math.max(0, nameRoom), r.chosen > 0 and p.bright or p.text)
+    if r.first then
+        local cx = tx + nw + 6
+        Draw.rect(L, cx, ty + 1, chipW, fh - 2, p.good, 0.22)
+        Draw.fit(L, r.first, cx, ty, chipW, p.good, nil, nil, "centre")
+        local chip = Draw.hit(L, cx, ty, chipW, fh, "row", Draw.tip(p, { r.firstTip }), not locked)
+        chip.index, chip.hover = r.index, not locked
+    end
+end
+
+-- The list: the rows in a panel kept as tall as its rows shown (the window does not jump as kinds come and go), a bar on
+-- the right when there are more. Its place is kept on the list (L.benchList) for the mouse wheel.
+local function benchList(L, list, x, y, w)
+    local p, fh = L.p, L.fh
+    local rh = Layout.benchRow(L)
+    local h = 4 + list.shown * rh + 4
+    Draw.panel(L, x, y, w, h)
+    L.benchList = { x = x, y = y, w = w, h = h }
+    if list.empty then
+        Draw.fit(L, list.empty, x + 8, y + floor((h - fh) / 2), w - 16, p.dim, nil, nil, "centre")
+        return y + h
+    end
+    local rw = w - 8
+    if list.total > list.shown then
+        rw = w - 16
+        local span = list.total - list.shown
+        Draw.scrollbar(L, x + w - 10, y + 4, h - 8, (list.top - 1) / span, list.shown / list.total)
+    end
+    for i, r in ipairs(list.rows) do
+        benchRow(L, r, x + 4, y + 4 + (i - 1) * rh, rw, rh, list.locked)
+    end
+    return y + h
+end
+
+-- The buttons under the list: picking all or none and starting, or while it works how far it is and stopping.
+local function benchActions(L, m, x, y, w)
+    local p, fh = L.p, L.fh
+    local btn = Layout.buttonHeight()
+    local ty = y + floor((btn - fh) / 2)
+    if m.work then
+        local stop = getText("IGUI_OA_Bench_Stop")
+        local sw = buttonWidth(stop)
+        Draw.button(L, x + w - sw, y, sw, btn, stop, "normal", nil, "stop")
+        local room = w - sw - 10
+        local tw = Draw.fit(L, m.work.text, x, ty, floor(room / 2), p.text)
+        local lw = m.work.left ~= "" and math.min(UI.textWidth(m.work.left), floor(room / 3)) or 0
+        if lw > 0 then Draw.fit(L, m.work.left, x + room - lw, ty, lw, p.dim, nil, nil, "right") end
+        local bx = x + tw + 8
+        local bw = room - tw - 8 - (lw > 0 and lw + 8 or 0)
+        if bw > 12 then Draw.progress(L, bx, y + floor((btn - BAR) / 2), bw, BAR, m.work.share, p.good) end
+        return y + btn
+    end
+    local bx = x
+    for _, b in ipairs({ { id = "all", key = "IGUI_OA_Bench_All", on = m.canAll },
+        { id = "none", key = "IGUI_OA_Bench_None", on = m.canNone } }) do
+        local label = getText(b.key)
+        local bw = buttonWidth(label)
+        Draw.button(L, bx, y, bw, btn, label, b.on and "normal" or "disabled", nil, b.id)
+        bx = bx + bw + 6
+    end
+    local start = getText("IGUI_OA_Bench_Start")
+    local sw = math.max(buttonWidth(start), 96)
+    Draw.button(L, x + w - sw, y, sw, btn, start, m.canStart and "strong" or "disabled", nil, "start")
+    return y + btn
+end
+
+-- Lays the bench's model (BenchModel.lua) out for a body `width` wide; returns the height it takes.
+function Layout.bench(L, m, width)
+    local x, w = Layout.PAD, width - 2 * Layout.PAD
+    local y = plate(L, m, x, Layout.PAD, w) + Layout.GAP
+    y = strip(L, m.strip, x, y, w)
+    y = head(L, x, y + Layout.SECTION, w, getText("IGUI_OA_Bench_Carried"), m.list.right)
+    y = benchList(L, m.list, x, y, w)
+    y = cells(L, m.cells, x, y + Layout.GAP, w)
+    y = benchActions(L, m, x, y + Layout.SECTION, w)
+    return y + Layout.PAD
 end
 
 -- Lays a model out into a list for a body `width` wide (Layout.widthOf); returns the height it takes.

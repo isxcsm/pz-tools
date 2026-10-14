@@ -123,6 +123,8 @@ function OAMachineBody:onMouseDown(x, y)
 end
 
 function OAMachineBody:onMouseWheel(del)
+    -- a window with a list of its own (the bench's) scrolls that under the mouse
+    if self.window.onWheel and self.window:onWheel(del, self:getMouseX(), self:getMouseY() + self.scroll) then return true end
     if self:maxScroll() <= 0 then return false end
     self:setScroll(self.scroll + del * OAMachineWindow.WHEEL)
     return true
@@ -203,11 +205,16 @@ function OAMachineWindow:refresh(force)
     if not input then return end
     local model = Model.build(input)
     self.model = model
+    self:present(model, force, Layout.build)
+end
+
+-- Lays a model out with `build` (a Layout function) when it shows something else than the last (or when `force`).
+function OAMachineWindow:present(model, force, build)
     local key = Model.key(model)
     if not force and key == self.key then return end
     self.key = key
     local L = Draw.list(self.palette)
-    local h = Layout.build(L, model, Layout.widthOf(model.kind))
+    local h = build(L, model, Layout.widthOf(self.kind))
     Draw.bake(L)
     local body = self.body
     body.list, body.contentH = L, h
@@ -447,7 +454,8 @@ function OAMachineWindow:new(x, y, character, object)
     return o
 end
 
--- Opens the window of a machine for a character (one window a machine), in the middle of the screen.
+-- Opens the window of a machine for a character (one window a machine), in the middle of the screen. The hand bench
+-- has a window of its own (BenchWindow.lua).
 function OAMachineWindow.open(character, object)
     local state = Machines.state(object)
     if not state then return end
@@ -455,7 +463,8 @@ function OAMachineWindow.open(character, object)
     if old then old:close() end
     UI.refreshScale()
     local width = UI.px(Layout.widthOf(state.kind))
-    local window = OAMachineWindow:new((getCore():getScreenWidth() - width) / 2, 0, character, object)
+    local class = Data.KINDS[state.kind].hand and OABenchWindow or OAMachineWindow
+    local window = class:new((getCore():getScreenWidth() - width) / 2, 0, character, object)
     window:initialise()
     window:addToUIManager()
     window:setY(math.max(0, (getCore():getScreenHeight() - window.height) / 2))
