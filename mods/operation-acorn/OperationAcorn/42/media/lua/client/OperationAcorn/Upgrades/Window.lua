@@ -2,7 +2,8 @@
 -- and health, drawn as the field terminal is (mockups/upgrades): an opaque body in the terminal's palette, the three
 -- trees side by side, each a column with a header strip in its colour (its name, its points as a bar, a reset button)
 -- over a grid of icon nodes (four columns, five rows opened by the points spent in the tree, the capstone last and a
--- little larger) with the prerequisite lines between them; the 2nd board in their place. Above: the two modes and
+-- little larger) with the prerequisite lines between them; in their place the 2nd board, a band across for each tree
+-- (its header at the top left, its nodes in one row, a little apart where their kind changes). Above: the two modes and
 -- a chip for the shared points; below: a bar that says what approving the selection spends,
 -- with the approve and clear buttons.
 -- A node shows its state at a glance: grey with a padlock while it cannot be taken, a frame in its tree's colour that
@@ -108,7 +109,15 @@ L.VIEW_W = 2 * L.PAD + 3 * L.COL_W + 2 * L.COL_GAP
 L.COL_Y = L.PAD + L.TOP + L.GAP
 L.PLAN_Y = L.COL_Y + L.STRIP + L.GRID_H + L.GAP
 L.VIEW_H = L.PLAN_Y + L.PLAN + L.PAD
+-- The 2nd board's bands: the columns' room shared by three, each a header strip over its row of nodes; the nodes'
+-- spacing, and the wider gap where their kind changes.
+L.BAND_GAP, L.BAND_STRIP, L.BAND_GX, L.KIND_GAP = 7, 30, 18, 34
+L.BAND_W = L.VIEW_W - 2 * L.PAD
+L.BAND_H = (L.STRIP + L.GRID_H - 2 * L.BAND_GAP) / 3
 Window.LAYOUT = L
+-- Where a band's nodes change kind: after these places in its row (load: lightening, gear, carrying; survival:
+-- resistance, the rest).
+local KIND_ENDS = { load = { [4] = true, [6] = true }, survival = { [4] = true } }
 -- The pulse of a node that can be taken (seconds a cycle), and the selected path's dashes: dash, gap (design units)
 -- and how fast they flow (design units a second).
 Window.PULSE_S = 1.6
@@ -618,17 +627,30 @@ function View:layout()
     local items = self.items
     local groups = (self.mode == "board") and Data.BOARD_GROUPS or Data.TREES
     for i, tree in ipairs(groups) do
-        local px, py = self:panelX(i), L.COL_Y
-        local gx, gy = px, py + L.STRIP
-        self.panels[#self.panels + 1] = { tree = tree, x = px, y = py, gx = gx, gy = gy }
         if self.mode == "board" then
-            for _, node in ipairs(Data.boardGroup(tree)) do
-                local c, r = (node.row - 1) % Data.COLS + 1, floor((node.row - 1) / Data.COLS) + 1
-                local x, y, s = cell(c, r)
-                items[#items + 1] = { key = node.id, id = node.id, tree = tree, x = gx + x, y = gy + y, w = s, h = s,
-                    col = i, row = r }
+            -- a band: its nodes in a row (they pop in four at a time in the opening), a divider where their kind changes
+            local px, py = L.PAD, L.COL_Y + (i - 1) * (L.BAND_H + L.BAND_GAP)
+            local panel = { tree = tree, x = px, y = py, w = L.BAND_W, strip = L.BAND_STRIP, gridH = L.BAND_H - L.BAND_STRIP,
+                gx = px, gy = py + L.BAND_STRIP, dividers = {} }
+            self.panels[#self.panels + 1] = panel
+            local x, y = L.GRID_PAD, panel.gy + (panel.gridH - L.ICON - L.PIPS) / 2
+            local ends = KIND_ENDS[tree]
+            for k, node in ipairs(Data.boardGroup(tree)) do
+                items[#items + 1] = { key = node.id, id = node.id, tree = tree, x = px + x, y = y, w = L.ICON, h = L.ICON,
+                    col = i, row = floor((k - 1) / 4) + 1 }
+                x = x + L.ICON
+                if ends and ends[k] then
+                    panel.dividers[#panel.dividers + 1] = px + x + L.KIND_GAP / 2
+                    x = x + L.KIND_GAP
+                else
+                    x = x + L.BAND_GX
+                end
             end
         else
+            local px, py = self:panelX(i), L.COL_Y
+            local gx, gy = px, py + L.STRIP
+            self.panels[#self.panels + 1] = { tree = tree, x = px, y = py, w = L.COL_W, strip = L.STRIP, gridH = L.GRID_H,
+                gx = gx, gy = gy }
             for _, node in ipairs(Data.treeNodes(tree)) do
                 local x, y, s = cell(node.col, node.row, node.capstone)
                 items[#items + 1] = { key = node.id, id = node.id, tree = tree, x = gx + x, y = gy + y, w = s, h = s,
@@ -1353,18 +1375,22 @@ function View:paintStrip(el, panel, i)
     local tc = TREE[tree]
     local dy = RISE[i]
     local x, y = panel.x, panel.y + dy
-    UI.fill(el, x, y, L.COL_W, L.STRIP, tc.strip)
+    UI.fill(el, x, y, panel.w, panel.strip, tc.strip)
     -- a take's light arriving: the strip flashes in the tree's colour
     local take = self.take
     local flash = take and self:takeHeader(tree) or 0
-    if flash > 0 then UI.fill(el, x, y, L.COL_W, L.STRIP, tc.c, 0.32 * flash) end
-    UI.fill(el, x, y, L.COL_W, 2, flash > 0 and tc.light or tc.c)
-    UI.text(el, Texts.treeName(tree), x + 10, y + 5, tc.light, UIFont.Medium)
+    if flash > 0 then UI.fill(el, x, y, panel.w, panel.strip, tc.c, 0.32 * flash) end
+    UI.fill(el, x, y, panel.w, 2, flash > 0 and tc.light or tc.c)
+    local name = Texts.treeName(tree)
+    UI.text(el, name, x + 10, y + 5, tc.light, UIFont.Medium)
     if self.mode ~= "trees" then
+        -- on the board's band, beside the name: the tree's capstone, once approved
         local cap = Data.capstone(tree)
         local done = cap and Rules.rank(self.sim, cap.id) >= 1
         local sub = done and UI.str("IGUI_OA_Tree_CapstoneDone", Texts.nodeName(cap.id)) or "???"
-        UI.text(el, sub, x + 10, y + 26, done and P.text or P.dim, nil, 0.9)
+        local nameH = UI.fontHeight(UIFont.Medium)
+        UI.text(el, sub, x + 10 + UI.textWidth(name, UIFont.Medium) + 14, y + 5 + (nameH - UI.fontHeight()) / 2,
+            done and P.text or P.dim, nil, 0.9)
         return
     end
     -- the reset
@@ -1390,10 +1416,10 @@ function View:paintStrip(el, panel, i)
     UI.text(el, left, x + 10, y + 27 - hop, usable > 0 and P.value or P.dim)
     if lit > 0 then UI.text(el, left, x + 10, y + 27 - hop, WHITE, nil, 0.8 * lit) end
     if surplus > 0 then
-        UI.textRight(el, UI.str("IGUI_OA_Tree_BoardShare", surplus), x + L.COL_W - 10, y + 27, P.dim)
+        UI.textRight(el, UI.str("IGUI_OA_Tree_BoardShare", surplus), x + panel.w - 10, y + 27, P.dim)
     end
     local bh = 7
-    local bx, by, bw = x + 10, y + L.STRIP - bh - 6, L.COL_W - 20
+    local bx, by, bw = x + 10, y + panel.strip - bh - 6, panel.w - 20
     UI.fill(el, bx, by, bw, bh, P.inset)
     local total = TREE_POINTS[tree]
     local spent = Rules.treeSpent(self.u, tree)
@@ -1894,10 +1920,10 @@ end
 
 -- A column's background over its grid (its body already filled), `dy` design units down.
 local function paintColumnBack(el, panel, dy, tc)
-    local x0, x1 = X(panel.x), X(panel.x + L.COL_W)
-    local top, bottom = panel.gy + dy, panel.gy + dy + L.GRID_H
-    local lh = L.GRID_H * Window.BG_LIGHT_END
-    local bh = L.GRID_H * Window.BG_BOTTOM
+    local x0, x1 = X(panel.x), X(panel.x + panel.w)
+    local top, bottom = panel.gy + dy, panel.gy + dy + panel.gridH
+    local lh = panel.gridH * Window.BG_LIGHT_END
+    local bh = panel.gridH * Window.BG_BOTTOM
     local vig = Window.BG_VIGNETTE_A
     for k = 1, BG_BANDS do
         local ya, yb = X(top + lh * (k - 1) / BG_BANDS), X(top + lh * k / BG_BANDS)
@@ -1911,11 +1937,17 @@ local function paintColumnBack(el, panel, dy, tc)
         local a = vig * SIDE_K[j]
         local xa, xb = X(panel.x + sw * (j - 1) / BG_SIDES), X(panel.x + sw * j / BG_SIDES)
         rectPx(el, xa, y0, xb - xa, y1 - y0, DARK, a)
-        xa, xb = X(panel.x + L.COL_W - sw * j / BG_SIDES), X(panel.x + L.COL_W - sw * (j - 1) / BG_SIDES)
+        xa, xb = X(panel.x + panel.w - sw * j / BG_SIDES), X(panel.x + panel.w - sw * (j - 1) / BG_SIDES)
         rectPx(el, xa, y0, xb - xa, y1 - y0, DARK, a)
     end
     local tex = grain()
     if tex then ISUIElement.drawTextureTiled(el, tex, x0, y0, x1 - x0, y1 - y0, 1, 1, 1, Window.BG_GRAIN_A) end
+    -- a band's dividers where its nodes change kind: a faint line down its row
+    local dividers = panel.dividers
+    if dividers then
+        local ya, yb = X(top + 10), X(bottom - 10)
+        for _, x in ipairs(dividers) do rectPx(el, X(x), ya, 1, yb - ya, tc.light, 0.16) end
+    end
 end
 
 -- Sets what the parts of a frame share at `now` (OPEN_AGE, RISE, SHOWN): the opening (or the switch to the board, at
@@ -1938,7 +1970,7 @@ end
 function View:paintCovers(el)
     for i, panel in ipairs(self.panels) do
         local hidden = 1 - SHOWN[i]
-        if hidden > 0 then UI.fill(el, panel.x, panel.y + RISE[i], L.COL_W, L.STRIP + L.GRID_H, P.bg, hidden) end
+        if hidden > 0 then UI.fill(el, panel.x, panel.y + RISE[i], panel.w, panel.strip + panel.gridH, P.bg, hidden) end
     end
 end
 
@@ -1955,7 +1987,7 @@ function View:paint(el)
     NOW, CLOCK = now, now - self.t0
     self:frameState(now)
     for i, panel in ipairs(self.panels) do
-        UI.fill(el, panel.x, panel.y + RISE[i], L.COL_W, L.STRIP + L.GRID_H, TREE[panel.tree].body)
+        UI.fill(el, panel.x, panel.y + RISE[i], panel.w, panel.strip + panel.gridH, TREE[panel.tree].body)
         paintColumnBack(el, panel, RISE[i], TREE[panel.tree])
         self:paintStrip(el, panel, i)
     end
@@ -1968,14 +2000,14 @@ function View:paint(el)
         local dy = RISE[p]
         -- a tree not opened yet: dark, with why
         if self.mode == "trees" and not Rules.treeOpen(self.u, panel.tree) then
-            UI.fill(el, panel.gx, panel.gy + dy, L.COL_W, L.GRID_H, BLACK, 0.6)
-            local lines = UI.wrapMemo(UI.str("IGUI_OA_Tree_TreeClosed"), L.COL_W - 2 * L.GRID_PAD)
-            local ty = panel.gy + dy + (L.GRID_H - #lines * fh) / 2
+            UI.fill(el, panel.gx, panel.gy + dy, panel.w, panel.gridH, BLACK, 0.6)
+            local lines = UI.wrapMemo(UI.str("IGUI_OA_Tree_TreeClosed"), panel.w - 2 * L.GRID_PAD)
+            local ty = panel.gy + dy + (panel.gridH - #lines * fh) / 2
             for i, line in ipairs(lines) do
-                UI.textCentre(el, line, panel.gx + L.COL_W / 2, ty + (i - 1) * fh, CLOSED_TEXT)
+                UI.textCentre(el, line, panel.gx + panel.w / 2, ty + (i - 1) * fh, CLOSED_TEXT)
             end
         end
-        UI.frame(el, panel.x, panel.y + dy, L.COL_W, L.STRIP + L.GRID_H, P.border)
+        UI.frame(el, panel.x, panel.y + dy, panel.w, panel.strip + panel.gridH, P.border)
     end
     if self.mode == "board" and not Rules.boardOpen(self.sim) then self:paintBoardBanner(el) end
     if OPEN_AGE then self:paintCovers(el) end
@@ -2409,17 +2441,16 @@ function View:drawTake(el)
     -- the frame: a light runs round each column that took points, the column lighting softly behind it
     local along, line, fill = Plan.takeGlow(t - take.glowFrom)
     if along and line > 0 then
-        local h = L.STRIP + L.GRID_H
         local soft = band()
         for i, panel in ipairs(self.panels) do
             if take.cols[i] then
                 local tc = TREE[panel.tree]
-                local top = panel.y + RISE[i]
+                local top, h = panel.y + RISE[i], panel.strip + panel.gridH
                 if soft and fill > 0 then
                     local x0, y0 = X(panel.x), X(top)
-                    texPx(el, soft, x0, y0, X(panel.x + L.COL_W) - x0, X(top + h) - y0, tc.light, Window.TAKE_GLOW_A * fill)
+                    texPx(el, soft, x0, y0, X(panel.x + panel.w) - x0, X(top + h) - y0, tc.light, Window.TAKE_GLOW_A * fill)
                 end
-                traceFrame(el, panel.x, top, L.COL_W, h, along, tc.light, line, tc.core, tex)
+                traceFrame(el, panel.x, top, panel.w, h, along, tc.light, line, tc.core, tex)
             end
         end
     end

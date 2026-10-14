@@ -66,7 +66,7 @@ test("the tab fits a 720p screen at its scale (1.25) and a 900p one (1.625), the
     truthy(L.VIEW_W <= 620, "no wider than about 1000 px at 900p (the tab is one of the character window's, not the terminal)")
 end)
 
-test("every node sits inside its column's grid, on no other node", function()
+test("every node sits inside its column's (or band's) grid, on no other node", function()
     for _, mode in ipairs({ "trees", "board" }) do
         local view = laidOut(mode)
         local nodes = 0
@@ -75,8 +75,8 @@ test("every node sits inside its column's grid, on no other node", function()
                 nodes = nodes + 1
                 local inside = false
                 for _, panel in ipairs(view.panels) do
-                    if item.x >= panel.gx and item.x + item.w <= panel.gx + L.COL_W and item.y >= panel.gy
-                        and item.y + item.h + L.PIPS <= panel.gy + L.GRID_H then
+                    if item.x >= panel.gx and item.x + item.w <= panel.gx + panel.w and item.y >= panel.gy
+                        and item.y + item.h + L.PIPS <= panel.gy + panel.gridH then
                         inside = true
                     end
                 end
@@ -95,6 +95,26 @@ test("every node sits inside its column's grid, on no other node", function()
         end
         eq(nodes, want, mode)
     end
+end)
+
+test("the board is a band across for each tree, its nodes in one row, in the columns' room", function()
+    local view = laidOut("board")
+    eq(#view.panels, 3, "bands")
+    local top, bottom = L.COL_Y, L.COL_Y + L.STRIP + L.GRID_H
+    for i, panel in ipairs(view.panels) do
+        eq(panel.tree, Data.BOARD_GROUPS[i], "band " .. i)
+        eq(panel.w, L.VIEW_W - 2 * L.PAD, "band " .. i .. " across")
+        truthy(panel.y >= top and panel.y + panel.strip + panel.gridH <= bottom + 1e-6, "band " .. i .. " in the room")
+        local row = nil
+        for _, item in ipairs(view.items) do
+            if item.id and item.tree == panel.tree then
+                row = row or item.y
+                eq(item.y, row, item.id .. " in its band's row")
+            end
+        end
+    end
+    eq(#view.panels[2].dividers, 2, "load: lightening, gear, carrying")
+    eq(#view.panels[3].dividers, 1, "survival: resistance, the rest")
 end)
 
 test("a line starts under its prerequisite's pips and ends on the top of its node", function()
