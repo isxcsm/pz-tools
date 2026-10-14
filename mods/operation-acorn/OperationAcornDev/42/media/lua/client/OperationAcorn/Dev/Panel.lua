@@ -184,7 +184,7 @@ end
 -- ---- upgrades -----------------------------------------------------------------------------------------------------
 
 local function upgradesPage(page, ui)
-    local Data = OA.Upgrades.Data
+    local Data, Rules = OA.Upgrades.Data, OA.Upgrades.Rules
     local texts = OA.Upgrades.Texts
     local state = ui.lines(page, 1, 1)
     local night = ui.tick(page, T("Up_NightSight"), ui.PAD, ui.row(2), function(on) Dev.nightSight(on) end)
@@ -196,21 +196,29 @@ local function upgradesPage(page, ui)
     local _, px = ui.button(page, "+1", ui.PAD + 280, ui.row(3), 36, function() Dev.points(pointBox:getSelectedData(), 1) end)
     ui.button(page, "+5", px, ui.row(3), 36, function() Dev.points(pointBox:getSelectedData(), 5) end)
 
+    -- The rows of the tree shown: a row's controls show and its name is set only when its node changes (a tree chosen,
+    -- the record come); its rank is set every refresh. The window fits only when the count of rows shown changes.
     local current = Data.TREES[1]
-    local rows = {}
+    local lists = {}
+    local rows, shown = {}, nil
     local function fill()
-        local list = nodesOf(current)
-        local hasRecord = Dev.record() ~= nil
+        local record = Dev.record()
+        local u = record and Rules.section(record)
+        lists[current] = lists[current] or nodesOf(current)
+        local list = u and lists[current] or {}
         for i, row in ipairs(rows) do
-            local node = hasRecord and list[i] or nil
-            row.node = node
-            for _, control in ipairs(row.controls) do control:setVisible(node ~= nil) end
-            if node then
-                row.name:setName(texts and texts.nodeName(node.id) or node.id)
-                row.rank:setName(tostring(Dev.rank(node.id)) .. "/" .. (node.ranks and tostring(node.ranks) or "-"))
+            local node = list[i]
+            if row.node ~= node then
+                row.node = node
+                for _, control in ipairs(row.controls) do control:setVisible(node ~= nil) end
+                if node then row.name:setName(texts and texts.nodeName(node.id) or node.id) end
             end
+            if node then row.rank:setName(tostring(Rules.rank(u, node.id)) .. "/" .. tostring(node.ranks or "-")) end
         end
-        ui.fit()
+        if shown ~= #list then
+            shown = #list
+            ui.fit()
+        end
     end
     ui.buttons(page, 4, {
         { T("Up_Reset"), function() Dev.clearResearch() fill() end },
@@ -237,7 +245,7 @@ local function upgradesPage(page, ui)
     local nameW = 220
     for i = 1, mostNodes() do
         local y = ui.row(9 + i)
-        local row = { controls = {} }
+        local row = { node = false }   -- (no node yet: the first fill sets it, nil or a node, and its controls with it)
         row.name = ui.label(page, "", ui.PAD, y + 2)
         local minus = ui.button(page, "-", ui.PAD + nameW, y, 26, function()
             if row.node then Dev.setRank(row.node.id, math.max(0, Dev.rank(row.node.id) - 1)) fill() end

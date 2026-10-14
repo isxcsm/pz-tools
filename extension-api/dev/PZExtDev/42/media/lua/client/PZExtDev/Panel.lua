@@ -176,17 +176,38 @@ function ui.num(value, decimals)
     return string.format("%." .. tostring(decimals) .. "f", value)
 end
 
--- The window as tall as the page that shows.
+-- The window as tall as the page that shows (a page calls it when it shows or hides controls).
 function ui.fit()
     if window then window:fitPage() end
 end
 
+-- A page: past what the screen leaves the window its controls scroll (the wheel, or the bar at its right).
+local Page = ISPanel:derive("PZExtDevPage")
+
+function Page:prerender()
+    self:setStencilRect(0, 0, self:getWidth(), self:getHeight())
+    ISPanel.prerender(self)
+end
+
+function Page:render()
+    ISPanel.render(self)
+    self:clearStencilRect()
+end
+
+function Page:onMouseWheel(del)
+    if self:getScrollHeight() <= self:getHeight() then return false end
+    self:setYScroll(self:getYScroll() - del * 40)
+    return true
+end
+
 local function newPage(w, h)
-    local p = ISPanel:new(0, 0, w, h)
+    local p = Page:new(0, 0, w, h)
     p:initialise()
     p:instantiate()
     p.backgroundColor = { r = 0, g = 0, b = 0, a = 0 }
     p.borderColor = { r = 0, g = 0, b = 0, a = 0 }
+    p:setScrollChildren(true)
+    p:addScrollBars()
     return p
 end
 
@@ -221,7 +242,7 @@ function Window:createChildren()
             inner:addView(def.title or def.id, page)
         end
         inner.target = self
-        inner.onActivateView = function(win) win:fitPage() end
+        inner.onActivateView = function(win) win:showPage() end
         outer:addView(section.title or section.id, inner)
     end
     self.statusLabel = ISLabel:new(PAD, self.height - ui.FH - 6, ui.FH, "", 0.7, 0.9, 0.7, 1, UIFont.Small, true)
@@ -229,7 +250,13 @@ function Window:createChildren()
     self.statusLabel:instantiate()
     self:addChild(self.statusLabel)
     outer.target = self
-    outer.onActivateView = function(win) win:fitPage() end
+    outer.onActivateView = function(win) win:showPage() end
+    self:fitPage()
+end
+
+-- A page comes up: its state first (what it shows and hides), then the window to its height, in the same frame.
+function Window:showPage()
+    self:refresh()
     self:fitPage()
 end
 
@@ -239,25 +266,32 @@ function Window:activePage()
     return inner, inner and inner.getActiveView and inner:getActiveView()
 end
 
--- The window as tall as the page that shows.
+-- The window as tall as the page that shows, as far as the screen below it allows; past that the page scrolls.
 function Window:fitPage()
     local inner, view = self:activePage()
     if not view or not self.statusLabel then return end
     local bottom = 0
     for _, child in pairs(view.children) do
-        if child:isVisible() then bottom = math.max(bottom, child:getY() + child:getHeight()) end
+        if child ~= view.vscroll and child:isVisible() then
+            bottom = math.max(bottom, child:getY() + child:getHeight())
+        end
     end
     local title = self:titleBarHeight()
-    local pageH = bottom + PAD
+    local around = title + self.tabs.tabHeight + inner.tabHeight + ui.FH + 12
+    local contentH = bottom + PAD
+    local pageH = math.min(contentH, math.max(200, getCore():getScreenHeight() - self:getY() - around - 20))
     view:setHeight(pageH)
+    view:setScrollHeight(contentH)
     inner:setHeight(inner.tabHeight + pageH)
-    local h = title + self.tabs.tabHeight + inner.tabHeight + pageH + ui.FH + 12
+    local h = around + pageH
+    if h == self.height then return end
     self:setHeight(h)
     self.tabs:setHeight(h - title - ui.FH - 10)
     self.statusLabel:setY(h - ui.FH - 6)
 end
 
 function Window:refresh()
+    self.refreshedAt = getTimestampMs()
     local _, view = self:activePage()
     if view and view.refresh then
         local ok, err = pcall(view.refresh)
@@ -267,11 +301,7 @@ end
 
 function Window:prerender()
     ISCollapsableWindow.prerender(self)
-    local now = getTimestampMs()
-    if now - (self.refreshedAt or 0) >= REFRESH_MS then
-        self.refreshedAt = now
-        self:refresh()
-    end
+    if getTimestampMs() - (self.refreshedAt or 0) >= REFRESH_MS then self:refresh() end
 end
 
 function Window:close()
@@ -310,8 +340,7 @@ function Dev.toggle()
         window:setVisible(true)
         window:addToUIManager()
         window:bringToTop()
-        window:fitPage()
-        window:refresh()
+        window:showPage()
     end
 end
 
