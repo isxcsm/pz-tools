@@ -1623,7 +1623,6 @@
     "IGUI_OA_Story_Group_research": "Research team papers",
     "IGUI_OA_Story_Group_field": "Field papers",
     "IGUI_OA_Story_Group_manifest": "Supply manifests",
-    "IGUI_OA_Story_UI_NewCount": "%1 new",
     "IGUI_OA_Story_UI_NoDocuments": "No documents yet. Papers from supply crates and missions that you read are kept here.",
     "IGUI_OA_Story_UI_SameTitle": "%1 (%2)",
     "IGUI_OA_Story_Copy_StageNamed": "Stage %1 %2",

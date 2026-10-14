@@ -1,5 +1,5 @@
 -- The document folder in the terminal's missions tab (DESIGN-terminal 6.4): what the record keeps there, in groups with
--- the newest on top, which of it is new, what each says, and the missions tab's dot and badge (11.1). Only data: the
+-- the newest on top, which of it is new, what each says, and the missions tab's and its inbox's dots (11.1). Only data: the
 -- window (client/Story/TabFolder) draws it. Nothing here is saved: the folder is worked out from the story's counters,
 -- the documents read, the manifests and the request copies, and the arrivals not opened yet (Story.markNew).
 require "OperationAcorn/Core"

@@ -79,10 +79,9 @@ end
 function OATabMissions:refresh()
     local record = self:record()
     if not record then return end
-    local unread = Folder.unreadCount(record)
     self.subTabs:setItems({
         { id = "missions", label = getText("IGUI_OA_Story_Sub_missions"), dot = (self.sub ~= "missions" and Folder.freshMission(record)) and "new" or nil },
-        { id = "docs", label = getText("IGUI_OA_Story_Sub_docs"), badge = unread > 0 and getText("IGUI_OA_Story_UI_NewCount", unread) or nil },
+        { id = "docs", label = getText("IGUI_OA_Story_Sub_docs"), dot = Folder.unreadCount(record) > 0 and "new" or nil },
     }, self.sub)
     local view = self.subViews[self.sub]
     if view then view:refresh() end

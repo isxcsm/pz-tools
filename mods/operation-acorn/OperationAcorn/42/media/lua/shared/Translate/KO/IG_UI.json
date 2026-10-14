@@ -1623,7 +1623,6 @@
     "IGUI_OA_Story_Group_research": "연구팀 서류",
     "IGUI_OA_Story_Group_field": "현장 서류",
     "IGUI_OA_Story_Group_manifest": "보급 명세서",
-    "IGUI_OA_Story_UI_NewCount": "새 %1",
     "IGUI_OA_Story_UI_NoDocuments": "아직 받은 문서가 없습니다. 보급 상자와 임무에서 나온 서류를 읽으면 여기에 모입니다.",
     "IGUI_OA_Story_UI_SameTitle": "%1 (%2)",
     "IGUI_OA_Story_Copy_StageNamed": "%1단계 %2",
