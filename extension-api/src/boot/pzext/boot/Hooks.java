@@ -426,6 +426,21 @@ public final class Hooks {
         void changed(int x, int y, int z) throws Throwable;
     }
 
+    /**
+     * Set by the API while a mod holds zombies in an area (docs/design.md, "Zombie holds"); null while none does, so that each hook
+     * costs one volatile read. On the game's thread; quick, and nothing allocated.
+     */
+    public interface ZombieHolds {
+        /** {@code ZombieIdleState.execute}: the square the zombie wanders to, as {@code x << 32 | y}; the game's when it is not held. */
+        long wander(Object zombie, int x, int y);
+
+        /** {@code WorldSoundManager.getBiggestSoundZomb}, for each sound it weighs: whether the zombie may hear it. */
+        boolean hears(Object sound, Object zombie);
+
+        /** {@code ZombiePopulationManager.removeChunkFromWorld}: whether the zombie goes as its chunk unloads, instead of staying virtual. */
+        boolean dissolves(Object zombie);
+    }
+
     /** The kinds of {@link Power#object}. */
     public static final int APPLIANCE = 0, LIGHT_SWITCH = 1, DEVICE = 2, ROOM_LIGHT = 3, FOOD = 4;
 
@@ -448,6 +463,7 @@ public final class Hooks {
     private static volatile WorldItems worldItems;
     private static volatile FloorDecals floorDecals;
     private static volatile SquareChanges squareChanges;
+    private static volatile ZombieHolds zombieHolds;
     // Where IsoObject reads usesExternalWaterSource for itself and keeps the game's flag: saving it, and finding the
     // game's own source (whose return the network's source replaces).
     private static final Set<String> PLUMBING_KEPT = Set.of("save", "checkExternalFluidSource");
@@ -486,7 +502,8 @@ public final class Hooks {
         VEHICLE_OUTLINE("vehicleOutline", Group.OUTLINES),
         VEHICLE_OUTLINE_DRAW("vehicleOutlineDraw", Group.OUTLINES), CONTAINER_BURNING("containerBurning", Group.WORLD_ITEMS),
         FLOOR_KEPT("floorKept", Group.WORLD_ITEMS), FLOOR_DECALS("floorDecals", Group.FLOOR_DECALS),
-        SQUARE_CHANGED("squareChanged", Group.SQUARE_CHANGES);
+        SQUARE_CHANGED("squareChanged", Group.SQUARE_CHANGES), ZOMBIE_WANDER("zombieWander", Group.ZOMBIE_HOLDS),
+        ZOMBIE_HEARS("zombieHears", Group.ZOMBIE_HOLDS), ZOMBIE_DISSOLVES("zombieDissolves", Group.ZOMBIE_HOLDS);
 
         final String label;
         final Group group;
@@ -495,7 +512,7 @@ public final class Hooks {
     }
 
     /** The handler a call belongs to: a newer one of that handler reports its faults again. */
-    private enum Group { POWER, WATER, FORMULAS, MOODLES, TEXT, ZOMBIE_SOUNDS, ZOMBIE_HITS, OUTLINES, WORLD_ITEMS, FLOOR_DECALS, SQUARE_CHANGES }
+    private enum Group { POWER, WATER, FORMULAS, MOODLES, TEXT, ZOMBIE_SOUNDS, ZOMBIE_HITS, OUTLINES, WORLD_ITEMS, FLOOR_DECALS, SQUARE_CHANGES, ZOMBIE_HOLDS }
 
     // Guarded by itself. A fault in a call the game makes 40,000 times a second must not flood its log.
     private static final Set<Call> reported = EnumSet.noneOf(Call.class);
@@ -1114,6 +1131,50 @@ public final class Hooks {
                 code.iconst_0();
                 code.with(element);
             })) }),
+        // Zombies a mod holds in an area (docs/design.md, "Zombie holds"): where an idle one wanders, the sounds one hears, and
+        // whether one goes instead of staying virtual as its chunk unloads.
+        Map.entry("zombie/ai/states/ZombieIdleState", new Site[] {
+            Site.edit("execute", "(Lzombie/characters/IsoGameCharacter;)V", new Edit(calls("zombie/characters/IsoZombie",
+                "pathToLocation", "(III)V"), 1, null, (code, element, kind) -> {
+                    // zombie, x, y, z -> zombie, x', y', z
+                    int z = code.allocateLocal(TypeKind.INT), y = code.allocateLocal(TypeKind.INT), x = code.allocateLocal(TypeKind.INT);
+                    int to = code.allocateLocal(TypeKind.LONG);
+                    code.istore(z); code.istore(y); code.istore(x);
+                    code.dup();
+                    code.iload(x); code.iload(y);
+                    code.invokestatic(HOOKS, "zombieWander", MethodTypeDesc.of(ConstantDescs.CD_long, ConstantDescs.CD_Object,
+                        ConstantDescs.CD_int, ConstantDescs.CD_int));
+                    code.lstore(to);
+                    code.lload(to); code.bipush(32); code.lshr(); code.l2i();
+                    code.lload(to); code.l2i();
+                    code.iload(z);
+                    code.with(element);
+                })) }),
+        Map.entry("zombie/WorldSoundManager", new Site[] {
+            Site.edit("getBiggestSoundZomb", "(IIIZLzombie/characters/IsoZombie;)Lzombie/WorldSoundManager$ResultBiggestSound;",
+                new Edit(calls("java/util/List", "get", "(I)Ljava/lang/Object;"), 1, null, (code, element, kind) -> {
+                    code.with(element);
+                    code.aload(5);
+                    code.invokestatic(HOOKS, "zombieHears", MethodTypeDesc.of(ConstantDescs.CD_Object, ConstantDescs.CD_Object,
+                        ConstantDescs.CD_Object));
+                })) }),
+        Map.entry("zombie/popman/ZombiePopulationManager", new Site[] {
+            Site.edit("removeChunkFromWorld", "(Lzombie/iso/IsoChunk;)V", new Edit(calls("zombie/popman/ZombiePopulationManager",
+                "n_addZombie", "(FFFBIIIII)V"), 2, Hooks::zombieSlot, (code, element, kind) -> {
+                    // The nine arguments of n_addZombie are on the stack; the zombie is in the local the kind names.
+                    Label keep = code.newLabel(), done = code.newLabel();
+                    code.aload(kind);
+                    code.invokestatic(HOOKS, "zombieDissolves", MethodTypeDesc.of(ConstantDescs.CD_boolean, ConstantDescs.CD_Object));
+                    code.ifeq(keep);
+                    for (int argument = 0; argument < 9; argument++) code.pop();
+                    code.aload(kind);
+                    code.invokestatic(ClassDesc.of("zombie.popman.ZombiePopulationManager"), "releaseZombie",
+                        MethodTypeDesc.of(ConstantDescs.CD_void, ZOMBIE));
+                    code.goto_(done);
+                    code.labelBinding(keep);
+                    code.with(element);
+                    code.labelBinding(done);
+                })) }),
         // The body: a cold, the corpses around, a wound's infection and a bite.
         Map.entry("zombie/characters/BodyDamage/Thermoregulator", new Site[] {
             Site.atReturns("getCatchAColdDelta", "()F", 1, (code, owner) -> {
@@ -1487,6 +1548,19 @@ public final class Hooks {
                 if (elements.get(next) instanceof Instruction && !(elements.get(next) instanceof ConstantInstruction)) return elements.get(next);
             return null;
         }
+    }
+
+    /**
+     * The local an unloading zombie is kept in before its {@code n_addZombie}: the nearest store before it of a value just cast to
+     * {@code IsoZombie}. A shape without one is refused.
+     */
+    private static int zombieSlot(List<CodeElement> elements, int index) {
+        for (int at = index - 1; at > 0; at--)
+            if (elements.get(at) instanceof StoreInstruction store
+                    && elements.get(at - 1) instanceof java.lang.classfile.instruction.TypeCheckInstruction cast
+                    && cast.opcode() == Opcode.CHECKCAST && cast.type().asInternalName().equals("zombie/characters/IsoZombie"))
+                return store.slot();
+        throw new IllegalArgumentException("no IsoZombie local before n_addZombie");
     }
 
     private static Predicate<CodeElement> calls(String owner, String name, String type) {
@@ -2689,6 +2763,38 @@ public final class Hooks {
         if (current == null) return;
         try { current.changed(x, y, z); }
         catch (Throwable problem) { reportOnce(Call.SQUARE_CHANGED, problem); }
+    }
+
+    /** Sets what holds zombies in their areas, replacing an earlier API's; null while none is held (the hooks then answer as the game). */
+    public static void setZombieHolds(ZombieHolds next) {
+        synchronized (reported) { reported.removeIf(call -> call.group == Group.ZOMBIE_HOLDS); }
+        zombieHolds = next;
+    }
+
+    /** Put before {@code IsoZombie.pathToLocation} in {@code ZombieIdleState.execute}: the square an idle zombie wanders to. */
+    public static long zombieWander(Object zombie, int x, int y) {
+        ZombieHolds current = zombieHolds;
+        if (current != null) {
+            try { return current.wander(zombie, x, y); }
+            catch (Throwable problem) { reportOnce(Call.ZOMBIE_WANDER, problem); }
+        }
+        return (long)x << 32 | y & 0xFFFFFFFFL;
+    }
+
+    /** Put after each sound {@code WorldSoundManager.getBiggestSoundZomb} reads: null for one the zombie must not hear (it skips nulls). */
+    public static Object zombieHears(Object sound, Object zombie) {
+        ZombieHolds current = zombieHolds;
+        if (current == null || sound == null) return sound;
+        try { return current.hears(sound, zombie) ? sound : null; }
+        catch (Throwable problem) { reportOnce(Call.ZOMBIE_HEARS, problem); return sound; }
+    }
+
+    /** Put before each {@code n_addZombie} in {@code ZombiePopulationManager.removeChunkFromWorld}: true when the zombie is let go instead. */
+    public static boolean zombieDissolves(Object zombie) {
+        ZombieHolds current = zombieHolds;
+        if (current == null) return false;
+        try { return current.dissolves(zombie); }
+        catch (Throwable problem) { reportOnce(Call.ZOMBIE_DISSOLVES, problem); return false; }
     }
 
     // MoodleTextureSet.getBorder(), found once, for the rare path where no picture is known.

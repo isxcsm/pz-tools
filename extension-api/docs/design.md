@@ -869,6 +869,9 @@ hook only. `PZExtAPI.hooks()` names each by game class and method.
 | `ParameterZombieState.setState` | before the store of the new state, which comes after the game's early return for the same state | The new state (from the stack), the zombie and the old state (the parameter's `zombie` and `state`, which the hook reads; a class without them, or with another number of stores of `state` in the method than one, loses the hook) go to the [zombie sounds](#zombie-sounds) while a mod listens. |
 | `ZombieVocalsManager$Slot.playSound` | before the one call of `BaseCharacterSoundEmitter.playVocals` | The zombie's voice starts: the zombie (the method's argument; a method that stores over it loses the hook) goes to the zombie sounds. |
 | `IsoZombie.handleLandingImpact` | the start | A zombie lands from a fall (the zombie's own method, which `DoLand` calls for a landing it counts as a fall): to the zombie sounds. |
+| `ZombieIdleState.execute` | the one call of `IsoZombie.pathToLocation(III)` | The square an idle zombie wanders to, through the [zombie holds](#zombie-holds). |
+| `WorldSoundManager.getBiggestSoundZomb` | after the one `List.get` of its sounds | A sound a held zombie must not hear becomes null, which the method skips. |
+| `ZombiePopulationManager.removeChunkFromWorld` | each of the two `n_addZombie` calls (the zombie is the local just cast to `IsoZombie`) | A zombie of a dissolving hold is released (`releaseZombie`) instead of kept virtual. |
 | `IsoZombie.Hit` | after the one call of `IsoGameCharacter.Hit` (the weapon, the wielder, the damage multiplier) that its method makes, whose float result is the damage dealt | A hit the zombie takes: the damage and the arguments (a method that stores over them loses the hook) go to the [zombie hits](#zombie-hits). |
 | `FBORenderObjectOutline.renderObject` | the start | An outlined object drawn as a model (a door, built furniture) gets the game's model outline and the method returns; any other object goes on to the game's sprite outline: see [outlines](#outlines). |
 | `ModelSlotRenderData.initModel:outline` | each return, for a `BaseVehicle` | The vehicle's `characterOutline`, `outlineColor` and `outlineBehindPlayer` are filled from its outline, as the method fills a character's: the same. |
@@ -1303,6 +1306,34 @@ job raises at most 16 events a frame, oldest first. While no mod watches, the bo
 read. Who watches belongs to the world: it is kept in the API table's metatable (a newer API takes it over; the function a mod kept
 from an older one refuses to be called), and a world left drops it. A fault in the frame job stops the hits alone, once, with a line
 in the game's log.
+
+### Zombie holds
+
+For a mod that puts a group of zombies somewhere and wants them found there. The game has nothing that keeps a zombie in a place
+and still lets it fight: `setUseless` makes one that does nothing, and an idle zombie wanders off a few squares at a time, follows
+any sound it hears (an alarm, a siren far away) and, once its chunk unloads, becomes a virtual zombie the population moves unseen.
+
+| Call | Effect |
+| --- | --- |
+| `zombies.hold(handle, id, { outfit, x, y, radius, margin, dissolve })` | Holds the zombies of the outfit (its name, as `getOutfitName()` gives it) in the circle of `radius` (1 to 300) round `x`, `y`, replacing the mod's hold of that `id`. `margin` (0 to 300, 20 when nil) is how far beyond the circle a zombie is still held; `dissolve` true lets one of the outfit go as its chunk unloads. 64 holds a mod. |
+| `zombies.release(handle, id)` | Takes the hold away, as `handle:clear()` takes all of the mod's. |
+
+A zombie of the outfit within the circle and its margin (on any level) is held:
+
+- **Where it wanders:** the game sends an idle zombie to a square up to four away (`ZombieIdleState`); one outside the circle is
+  brought in along the line to the centre, a square inside the edge.
+- **What it hears:** of the sounds the game weighs for it (`WorldSoundManager.getBiggestSoundZomb`), it hears a player's and those
+  within the circle and margin; any other is skipped as the game skips a missing one, so the loudest of the rest wins as before.
+- A zombie that chased a player out past the margin is the game's until it comes back. Its fighting is never changed.
+
+With `dissolve`, a zombie of the outfit (wherever it is) is let go as its chunk unloads: released from the population
+(`ZombiePopulationManager.releaseZombie`) and taken off the world, instead of kept as a virtual zombie
+(`removeChunkFromWorld`'s `n_addZombie`). A mod that counts its group makes it again when the player comes back; nothing of it is
+left to wander unseen. A zombie the game saves with the world while its chunk is loaded comes back with the world, as any does.
+
+The hooks find the holds by the zombie's outfit name in a map made again when a hold changes; with none, the bootstrap holds no
+handler and each hook is one volatile read. The holds belong to the world: they are kept in the API table's metatable (a newer API
+takes them over) and a world left drops them.
 
 ### Timers
 

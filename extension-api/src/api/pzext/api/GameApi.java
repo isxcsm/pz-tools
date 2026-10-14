@@ -38,6 +38,8 @@ public final class GameApi {
     private static volatile ZombieSounds sounds;
     // The hits zombies take, of the Lua environment the game has now; null without one, when the game cannot hook them, or after a fault.
     private static volatile ZombieHits hits;
+    // The zombies mods hold in areas, of the Lua environment the game has now; null without one, when the game cannot hook them, or after a fault.
+    private static volatile ZombieHolds holds;
     // The timers and the chunk watches of the Lua environment the game has now; null without one, or when the game cannot run them.
     private static volatile Timers timers;
     private static volatile ChunkWatches chunks;
@@ -66,6 +68,9 @@ public final class GameApi {
 
     /** The hits zombies take, of the Lua environment the game has now, or null (for the tests of this package). */
     static ZombieHits hits() { return hits; }
+
+    /** The zombies mods hold, of the Lua environment the game has now, or null (for the tests of this package). */
+    static ZombieHolds holds() { return holds; }
 
     /** The timers of the Lua environment the game has now, or null (for the tests of this package). */
     static Timers timers() { return timers; }
@@ -141,6 +146,16 @@ public final class GameApi {
                 System.err.println("[PZExt] zombie hits stopped: " + failure);
             }
         }
+        ZombieHolds holding = holds;
+        if (holding != null) {
+            try { holding.frame(); }
+            catch (Throwable failure) {
+                // Once, as the hits': the hooks are given back and the rest of the API goes on.
+                holds = null;
+                holding.stop();
+                System.err.println("[PZExt] zombie holds stopped: " + failure);
+            }
+        }
         Timers counting = timers;
         if (counting != null) counting.frame();
         ChunkWatches watching = chunks;
@@ -182,6 +197,7 @@ public final class GameApi {
             texts = null;
             sounds = null;
             hits = null;
+            holds = null;
             timers = null;
             chunks = null;
             floor = null;
@@ -192,6 +208,7 @@ public final class GameApi {
             Texts.unhook();
             ZombieSounds.unhook();
             ZombieHits.unhook();
+            ZombieHolds.unhook();
             Outlines.unhook();
             WorldItems.unhook();
             FloorDecals.unhook();
@@ -241,6 +258,7 @@ public final class GameApi {
             Texts.retire(lua, meta);
             ZombieSounds.retire(lua, meta);
             ZombieHits.retire(lua, meta);
+            ZombieHolds.retire(lua, meta);
             Timers.retire(lua, meta);
             ChunkWatches.retire(lua, meta);
             FloorDecals.retire(lua, meta);
@@ -414,6 +432,26 @@ public final class GameApi {
             ZombieHits.retire(lua, meta);
             if (zombies != null) lua.set(zombies, "watchHits", null);
         }
+        ZombieHolds holding = null;
+        if (zombies != null) {
+            try {
+                holding = new ZombieHolds(lua, game, loader, meta, handle -> owner(lua, handles, handle));
+                holding.hook();
+            } catch (LinkageError olderBootstrap) {
+                System.err.println("[PZExt] Zombie holds are not in this game; restart it to use them: " + olderBootstrap);
+                holding = null;
+            } catch (ReflectiveOperationException | RuntimeException unreadable) {
+                report(unreadable);
+                ZombieHolds.unhook();
+                holding = null;
+            }
+        }
+        holds = holding;
+        if (holding != null) holding.register(zombies);
+        else {
+            ZombieHolds.retire(lua, meta);
+            if (zombies != null) { lua.set(zombies, "hold", null); lua.set(zombies, "release", null); }
+        }
         // The game's outline on models and vehicles: nothing to declare, so always on.
         try { new Outlines(loader).hook(); }
         catch (LinkageError olderBootstrap) {
@@ -568,6 +606,8 @@ public final class GameApi {
             if (heard != null) heard.clear(name, AREA + "client:clear");
             ZombieHits struck = hits;
             if (struck != null) struck.clear(name, AREA + "client:clear");
+            ZombieHolds holding = holds;
+            if (holding != null) holding.clear(name, AREA + "client:clear");
             Timers counting = timers;
             if (counting != null) counting.clear(name, AREA + "client:clear");
             ChunkWatches watching = chunks;

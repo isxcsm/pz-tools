@@ -20,6 +20,15 @@ public class IsoZombie extends IsoGameCharacter {
     public int falls;
     private final BaseCharacterSoundEmitter emitter = new BaseCharacterSoundEmitter();
 
+    /** Its outfit, its number in the population, and the square it last set out for. */
+    public String outfitName;
+    public int persistentId;
+    public int pathX = Integer.MIN_VALUE, pathY = Integer.MIN_VALUE;
+
+    public String getOutfitName() { return outfitName; }
+
+    public void pathToLocation(int x, int y, int z) { pathX = x; pathY = y; }
+
     public BaseCharacterSoundEmitter getEmitter() { return emitter; }
 
     public boolean isCrawling() { return crawling; }
