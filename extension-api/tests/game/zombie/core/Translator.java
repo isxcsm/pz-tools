@@ -13,7 +13,8 @@ public final class Translator {
 
     public static Language getLanguage() { return language; }
 
-    public static String getText(String key) {
+    /** As the game's, which has only this form (no getText(String)). */
+    public static String getText(String key, Object... args) {
         Map<String, String> table = texts.get(language == null ? "EN" : language.name());
         String text = table == null ? null : table.get(key);
         return text == null ? key : text;
