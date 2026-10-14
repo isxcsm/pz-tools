@@ -84,6 +84,14 @@ test("a utility panel comes at half that, by the option, and marks its container
     eq(missed.owner.data[Loot.BOX_MARK], nil)
 end)
 
+test("a zombie's inventory, which fills with no container type, gets nothing and raises nothing", function()
+    local corpse = container("building")
+    TEST.random = 0
+    Loot.fill("Zombie", nil, corpse)
+    eq(#corpse.items, 0)
+    TEST.random = nil
+end)
+
 test("a box holds a board, and one more for each its upgrades took: 1, 2, 4, 8", function()
     eq(Costs.boardsIn(1), 1)
     eq(Costs.boardsIn(2), 2)

@@ -227,9 +227,9 @@ function Loot.fillBox(roomName, containerType, container)
 end
 
 -- As a container fills: each table's item by its chance, if the container has room for it; a utility panel where
--- the game keeps generators.
+-- the game keeps generators. A zombie's inventory fills with no container type (roomName "Zombie"): nothing of ours.
 function Loot.fill(roomName, containerType, container)
-    if not container or not roomName then return end
+    if not container or not roomName or not containerType then return end
     local square = container:getSourceGrid()
     for _, entry in ipairs(Loot.TABLES) do
         if entry.rooms[roomName] then
