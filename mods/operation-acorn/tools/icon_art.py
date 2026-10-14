@@ -764,6 +764,8 @@ def field_tool(tool):
 
 # the team's welding mask (the vanilla mask in the team's olive) and the field tools
 PICTURES['team_welding_mask'] = lambda: team_icon('WeldingMask', True)
+# the team's welder: the vanilla blowtorch (an item of that type, drawn with this icon: Shop.WELDER)
+PICTURES['team_welder'] = lambda: team_icon('BlowTorch')
 for _tool in field_tools.TOOLS:
     PICTURES['field_' + _tool.lower()] = (lambda t=_tool: field_tool(t))
 

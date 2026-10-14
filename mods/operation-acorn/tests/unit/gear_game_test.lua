@@ -192,7 +192,8 @@ local function setApi(applied, points)
     local status = {}
     local api = { version = OA.API_VERSION, sets = {} }
     function api.client() return { name = OA.MOD } end
-    for _, name in ipairs(points or { "capacity.modDataKey", "carry.efficiencyKey", "uses.modDataKey", "craft.carryKeys" }) do
+    for _, name in ipairs(points or { "capacity.modDataKey", "carry.efficiencyKey", "uses.modDataKey", "craft.carryKeys",
+        "item.nameKey" }) do
         if applied then status[name] = "applied" end
     end
     api.formulas = {
@@ -498,8 +499,10 @@ test("the keys a refilled welder keeps are declared to the API when the game sta
     local set = {}
     for _, k in ipairs(keys or {}) do set[k] = true end
     truthy(set[K.TEAM] and set[K.USES] and set[K.CARRY] and set[K.KIT_CAP] and set[K.KIT_LIGHT], "the mark, the uses and the kits")
+    truthy(set[K.NAME] and set[K.ICON], "its name and its icon")
     eq(declaredValue(api, "carry.efficiencyKey"), K.CARRY)
     eq(declaredValue(api, "uses.modDataKey"), K.USES)
+    eq(declaredValue(api, "item.nameKey"), K.NAME)
 end)
 
 test("the shop's welder is the vanilla torch with the team's mark and the uses with no kit", function()
@@ -507,6 +510,29 @@ test("the shop's welder is the vanilla torch with the team's mark and the uses w
     eq(OA.Shop.WELDER.mod[K.TEAM], true)
     near(OA.Shop.WELDER.mod[K.USES], Rules.uses(0), 1e-9)
     eq(OA.Shop.WELDER.used, 1, "filled to its uses")
+    -- drawn with the team's icon, by the game's own key, and the file is there; named by its key
+    eq(K.ICON, "customInventoryIcon")
+    local icon = OA.Shop.WELDER.mod[K.ICON]
+    truthy(readfile("OperationAcorn/42/" .. icon, "bytes"), icon .. " is there")
+    eq(icon, "media/textures/Item_" .. OA.Shop.WELDER.icon .. ".png", "the shop draws the same icon")
+    eq(OA.Shop.WELDER.mod[K.NAME], OA.Shop.WELDER.name)
+end)
+
+test("a team item is named by its key where the API reads it, else as a player names an item", function()
+    setup()
+    local torch = newItem("Base.BlowTorch")
+    torch:getModData()[K.NAME] = "IGUI_OA_Gear_TeamWelder"
+    setApi(true)
+    truthy(Gear.namedByKey(torch), "the API has the point")
+    local api = setApi(true)
+    api.formulas.points = function() return { ["item.nameKey"] = "not-loaded" } end
+    truthy(Gear.namedByKey(torch), "its hooks waiting for their classes: still the API's to name")
+    setApi(true, { "capacity.modDataKey" })
+    truthy(not Gear.namedByKey(torch), "an API without the point")
+    noApi()
+    truthy(not Gear.namedByKey(torch), "no API")
+    setApi(true)
+    truthy(not Gear.namedByKey(newItem("Base.BlowTorch")), "an item without the key")
 end)
 
 test("a field tool: the reinforcement kit raises its most condition, the condition and the head by as much", function()

@@ -516,10 +516,11 @@ function M.receipt(balance, gain, orders, support)
     return { after = after, orders = paidOrders, support = paidSupport, paid = paid }
 end
 
--- The item type an order line's icon shows: the picked choice, the first thing the entry gives, or its first choice.
+-- What an order line's icon shows (Draw.itemTexture): the picked choice, the first thing the entry gives (its own icon
+-- when it has one, as the team's welder), or its first choice.
 function M.entryType(entry, line)
     if line and line.choice then return line.choice end
-    if entry.give and entry.give[1] then return entry.give[1].type end
+    if entry.give and entry.give[1] then return entry.give[1].icon or entry.give[1].type end
     local choices = type(entry.choices) == "table" and entry.choices or nil
     if choices and choices[1] then return choices[1].type end
     return nil

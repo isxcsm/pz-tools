@@ -134,8 +134,9 @@ local function typeOf(entry)
         local choices = OA.Shop.choices(entry)
         good = choices and choices[1]
     end
-    types[entry.id] = good and good.type or false
-    return good and good.type or nil
+    local shown = good and (good.icon or good.type)
+    types[entry.id] = shown or false
+    return shown
 end
 
 local function drawIcon(el, entry, x, y, size, p, alpha)

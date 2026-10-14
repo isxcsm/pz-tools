@@ -97,6 +97,7 @@ HandoverFile	handover_file	story item (P4)
 HandoverPages	handover_file	story item (F3: the handover mission's paper, drawn like the handover file)
 KitVoucher	kit_voucher	story item (P4)
 TeamWeldingMask	team_welding_mask	the team welding mask: the vanilla mask in the team's olive, a green lens
+TeamWelder	team_welder	the team welder: the vanilla blowtorch in the team's olive (a blowtorch's own icon, customInventoryIcon)
 FieldHammer	field_hammer	field Hammer: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
 FieldBallPeenHammer	field_ballpeenhammer	field BallPeenHammer: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
 FieldClubHammer	field_clubhammer	field ClubHammer: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark

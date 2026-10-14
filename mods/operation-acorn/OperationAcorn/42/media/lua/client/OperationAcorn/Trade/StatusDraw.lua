@@ -156,15 +156,22 @@ local textures, hires, hiTex = {}, {}, {}
 -- of ours drawn larger its 64 px copy (media/textures/OA_ItemHi, made by tools/icon_art.py), so that a 64 px icon is
 -- not the 32 px one blown up. No icon of ours is laid out larger than 32 design units: 64 px at 1080p, a little more
 -- (the 64 px copy drawn up) only above it.
+-- `fullType` may also be one of our icons by name ("OA_TeamWelder": a single item's look, not a type's).
 function Draw.itemTexture(fullType, px)
     if not fullType then return nil end
     local tex = textures[fullType]
     if tex == nil then
-        local script = getScriptManager():FindItem(fullType)
-        tex = script and script:getNormalTexture() or false
-        textures[fullType] = tex
-        local icon = script and script:getIcon()
-        hires[fullType] = icon and string.sub(icon, 1, 3) == "OA_" and icon or false
+        if string.sub(fullType, 1, 3) == "OA_" and not string.find(fullType, ".", 1, true) then
+            tex = getTexture("media/textures/Item_" .. fullType .. ".png") or false
+            textures[fullType] = tex
+            hires[fullType] = fullType
+        else
+            local script = getScriptManager():FindItem(fullType)
+            tex = script and script:getNormalTexture() or false
+            textures[fullType] = tex
+            local icon = script and script:getIcon()
+            hires[fullType] = icon and string.sub(icon, 1, 3) == "OA_" and icon or false
+        end
     end
     local icon = hires[fullType]
     if icon and px and px > 34 then

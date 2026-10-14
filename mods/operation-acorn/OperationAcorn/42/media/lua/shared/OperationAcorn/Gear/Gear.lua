@@ -38,8 +38,9 @@ Gear.POINT = "capacity.modDataKey"
 Gear.CARRY_POINT = "carry.efficiencyKey"
 Gear.USES_POINT = "uses.modDataKey"
 Gear.CRAFT_POINT = "craft.carryKeys"
--- The keys a refilled welder keeps (the recipe makes a new torch from the one it uses up).
-Gear.CRAFT_KEYS = { K.TEAM, K.USES, K.CARRY, K.KIT_CAP, K.KIT_LIGHT }
+Gear.NAME_POINT = "item.nameKey"
+-- The keys a refilled welder keeps (the recipe makes a new torch from the one it uses up), its icon and name with them.
+Gear.CRAFT_KEYS = { K.TEAM, K.USES, K.CARRY, K.KIT_CAP, K.KIT_LIGHT, K.NAME, K.ICON }
 
 local function pointName()
     local effects = OA.Upgrades and OA.Upgrades.Effects
@@ -70,6 +71,7 @@ local function declaredValue(point)
     if point == Gear.CARRY_POINT then return K.CARRY end
     if point == Gear.USES_POINT then return K.USES end
     if point == Gear.CRAFT_POINT then return Gear.CRAFT_KEYS end
+    if point == Gear.NAME_POINT then return K.NAME end
     return keyName()
 end
 
@@ -110,7 +112,19 @@ end
 
 -- Declares the team items' keys to the API, once a game (when it starts).
 function Gear.declare()
-    for _, point in ipairs({ Gear.CARRY_POINT, Gear.USES_POINT, Gear.CRAFT_POINT }) do Gear.applies(point, true) end
+    for _, point in ipairs({ Gear.CARRY_POINT, Gear.USES_POINT, Gear.CRAFT_POINT, Gear.NAME_POINT }) do Gear.applies(point, true) end
+end
+
+-- Whether an item is named by its key (K.NAME): it holds one, and the extension API has the point that reads it (its
+-- hooks may wait for their classes to load). Such an item is not named as a player names it, which would hide the key.
+function Gear.namedByKey(item)
+    local md = item:hasModData() and item:getModData() or nil
+    if not (md and type(md[K.NAME]) == "string") then return false end
+    local f = formulas()
+    if not f then return false end
+    Gear.applies(Gear.NAME_POINT)
+    local ok, status = pcall(f.points)
+    return ok and type(status) == "table" and status[Gear.NAME_POINT] ~= nil
 end
 
 -- What an item weighs as carried now (a bag with what is in it, a can with its fuel), or nil without the API's answer.

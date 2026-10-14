@@ -86,9 +86,14 @@ Shop.KITS = {
 }
 Shop.KIT_ORDER = { "capacity", "lightening", "reinforcement", "engine" }
 
--- The team's welder: the vanilla blowtorch with the team's mark and its uses (Gear/Rules.lua: USES and USES_BASE, which
--- the extension API reads), filled to them, named as the team's. The kits find it by the mark.
-Shop.WELDER = { type = "Base.BlowTorch", mod = { OA_Team = true, OA_Uses = 1.2 }, used = 1, name = "IGUI_OA_Gear_TeamWelder" }
+-- The team's welder: the vanilla blowtorch (the game's own code asks for a blowtorch by its type), with the team's mark
+-- and its uses (Gear/Rules.lua: USES and USES_BASE, which the extension API reads), filled to them. It is drawn with the
+-- team's icon (the game's own customInventoryIcon) and named as the team's (NAME, which the extension API reads in the
+-- language of the moment; Trade/Objects.lua). The kits find it by the mark; the shop draws it by `icon`.
+Shop.WELDER_ICON = "OA_TeamWelder"
+Shop.WELDER = { type = "Base.BlowTorch", used = 1, name = "IGUI_OA_Gear_TeamWelder", icon = Shop.WELDER_ICON,
+    mod = { OA_Team = true, OA_Uses = 1.2, OA_Name = "IGUI_OA_Gear_TeamWelder",
+        customInventoryIcon = "media/textures/Item_" .. Shop.WELDER_ICON .. ".png" } }
 
 Shop.SERUM_LINEAR_FROM = 26       -- the 26th serum of a tree costs 8000 * 1.15^25; after it the price is linear
 Shop.SERUM_LINEAR_STEP = 30000    -- per serum after the 26th, at the default base price

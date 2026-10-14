@@ -362,9 +362,11 @@ function Objects.makeItem(spec)
         for k, v in pairs(spec.mod) do md[k] = v end
     end
     if spec.receipt then item:getModData().OA_Receipt = spec.receipt end
+    -- a name (a translation key): what the extension API names the item by when it holds the key (the name follows the
+    -- language), else written in as a player names an item
     if spec.name then
         item:setName(getText(spec.name))
-        item:setCustomName(true)
+        if not (OA.Gear and OA.Gear.namedByKey and OA.Gear.namedByKey(item)) then item:setCustomName(true) end
     end
     if spec.condition then item:setCondition(spec.condition) end
     if spec.used then item:setUsedDelta(spec.used) end
