@@ -431,6 +431,7 @@ class Scene:
             self.up[y0:y1 + 1, x0:x1 + 1][solid_write] = entry[4]
             wx[y0:y1 + 1, x0:x1 + 1][solid_write] = owner_x[solid_write]
             wy[y0:y1 + 1, x0:x1 + 1][solid_write] = owner_y[solid_write]
+        self.depth = depth
         return Image.fromarray(colour, 'RGBA'), wx, wy
 
 
@@ -470,7 +471,9 @@ def compose(scene, ground=None, over=None, seed=1, glows=None, owner_key=None):
         if glows:
             small = glow(small, scene, glows)
         small = trim_faint(small)
+        depth = canvas_depth(scene, cw, ch)
         if (fw, fh) == (1, 1):
+            small.depth = depth
             return small
         # which tile does each finished pixel belong to: the mean of the points its subpixels show, else the ground
         # point under it
@@ -519,9 +522,34 @@ def compose(scene, ground=None, over=None, seed=1, glows=None, owner_key=None):
                 mine = (owner_x[y0:y0 + H, x0:x0 + W] == i) & (owner_y[y0:y0 + H, x0:x0 + W] == j)
                 window[~mine] = 0
                 tiles[(i, j)] = Image.fromarray(window, 'RGBA')
+                # a tile's depth is from its own square: its back corner is (i, j)
+                tiles[(i, j)].depth = np.clip(depth[y0:y0 + H, x0:x0 + W] + 0.25 * (i + j), 0, 1)
         return tiles
     finally:
         reset_canvas()
+
+
+# B42 draws a tile with a depth map (media/depthmaps/DEPTH_<sheet>.png, 128x256 a tile, eight to a row as the sheet):
+# how far back each pixel's point stands in its square, so that a thing in front hides it pixel by pixel. Without one
+# the game takes the tile as a block filling its square, and two crates stacked on one square dithered into each other.
+# A pixel's depth is its blue, 1 at the square's back corner on the floor down to 0, nearer; alpha 0 is none. The
+# game's tile camera looks along this tool's view (TileGeometryUtils: turned 315 degrees, tipped 30), so the depth is
+# the depth buffer's: 1 - 0.25 (x + y) - 0.25 z / sqrt(1.5) is 1 - DEPTH_K times the point along VIEW.
+DEPTH_K = 0.25 * math.sqrt(8 / 3)
+
+
+def floor_depth(h, w):
+    """The depth of the floor of the anchor's square and on under each pixel of a canvas: what has no solid of its
+    own (a shadow, a lamp's haze, steam) lies on it."""
+    rows = np.arange(h, dtype=np.float64)[:, None] + 0.5
+    return np.broadcast_to(1 - 0.25 * (rows - 192) / 32, (h, w)).copy()
+
+
+def canvas_depth(scene, cw, ch):
+    """The depth of each pixel of the finished canvas, from the anchor's square (unclipped: a tile adds its own
+    square's): the nearest solid's its pixel shows, else the floor's."""
+    d = scene.depth.reshape(ch, SS, cw, SS).max(axis=(1, 3))
+    return np.where(d > -1e8, 1 - DEPTH_K * d, floor_depth(ch, cw))
 
 
 # The faintest alpha a finished tile keeps: the tails of the soft shadow, of a lamp's haze and of the scaling's ringing

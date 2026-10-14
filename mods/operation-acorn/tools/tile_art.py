@@ -1,7 +1,7 @@
 """Draws Operation Acorn's own tiles and writes them as its two tile sheets, with the .tiles definitions, the texture
-packs, and the previews. Taken from Building Utilities' tools/tile_art.py: the objects are a few solids in a tile's space,
-projected the way the game draws a square, shaded by a light from above and the viewer's left, drawn four times larger
-with a depth buffer and scaled down (see tile_engine.py). The big machines are drawn whole and split into the tiles of
+packs, the depth maps and the previews. Taken from Building Utilities' tools/tile_art.py: the objects are a few solids
+in a tile's space, projected the way the game draws a square, shaded by a light from above and the viewer's left, drawn
+four times larger with a depth buffer and scaled down (see tile_engine.py). The big machines are drawn whole and split into the tiles of
 their footprint (tile_big1/2/3.py).
 
 The sheets (8 tiles a row; the code names a tile by its place: see Sprites.lua):
@@ -23,7 +23,8 @@ Saves name the tiles by their place in the sheet: a new tile goes in a free plac
 and the sheet keeps its eight columns.
 
     python tools/tile_art.py            writes OperationAcorn/42/media/oa_trade.tiles, oa_machines.tiles and
-                                        texturepacks/OperationAcornTrade.pack, OperationAcornMachines.pack
+                                        texturepacks/OperationAcornTrade.pack, OperationAcornMachines.pack and
+                                        depthmaps/DEPTH_oa_trade_01.png, DEPTH_oa_machines_01.png
     python tools/tile_art.py --preview  also writes tools/tile_art_preview_trade.png, ..._machines.png (every machine
                                         assembled as it stands in the world, each look and facing) and
                                         ..._machines_tiles.png (the loose tiles on a floor, eight to a row)
@@ -223,6 +224,8 @@ def rain_overlays():
             differs = (a != b).any(axis=2)
             overlay = np.where(differs[..., None], b, 0).astype(np.uint8)
             tile = Image.fromarray(overlay, 'RGBA')
+            # the water's depth, a step nearer: where only the light differs, the tank's own, which would hide it
+            tile.depth = np.clip(full[pos].depth - 2 / 255, 0, 1)
             joined = np.asarray(Image.alpha_composite(empty[pos], tile))
             assert (joined == np.asarray(full[pos])).all(), ('rain overlay level', level, pos,
                                                            'pixels off: %d' % int((joined != np.asarray(full[pos])).any(axis=2).sum()))
@@ -384,6 +387,28 @@ def write_pack(path, sheet, images):
         f.write(out.getvalue())
 
 
+def write_depth(path, images):
+    """The depth map of a sheet (tile_engine.canvas_depth): images by their place in it (None where it is empty). A
+    picture made without a depth (none should be) is taken as lying on the floor."""
+    rows = (len(images) + COLS - 1) // COLS
+    sheet = np.zeros((rows * H, COLS * W, 4), dtype=np.uint8)
+    for index, image in enumerate(images):
+        if image is None:
+            continue
+        depth = getattr(image, 'depth', None)
+        if depth is None:
+            print('no depth: tile', index)
+            depth = E.floor_depth(H, W)
+        y, x = (index // COLS) * H, (index % COLS) * W
+        value = np.round(np.clip(depth, 0, 1) * 255).astype(np.uint8)
+        shown = np.asarray(image)[..., 3] > 0
+        cell = sheet[y:y + H, x:x + W]
+        cell[..., 0] = cell[..., 1] = cell[..., 2] = np.where(shown, value, 0)
+        cell[..., 3] = np.where(shown, 255, 0)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    Image.fromarray(sheet, 'RGBA').save(path, optimize=True)
+
+
 def preview(images, path):
     """Each tile on a floor square, eight to a row as in the sheet, at twice the size, its number in the corner."""
     present = [im for im in images if im is not None]
@@ -448,6 +473,8 @@ def build(name):
     write_pack(os.path.join(ROOT, 'texturepacks', spec['pack'] + '.pack'), spec['sheet'],
                [('%s_%d' % (spec['sheet'], index), entry[0]) for index, entry in enumerate(entries) if entry]
                + (spec['extra']() if 'extra' in spec else []))
+    write_depth(os.path.join(ROOT, 'depthmaps', 'DEPTH_%s.png' % spec['sheet']),
+                [entry[0] if entry else None for entry in entries])
     return [entry[0] if entry else None for entry in entries]
 
 

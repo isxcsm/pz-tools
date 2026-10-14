@@ -14,8 +14,10 @@ glows: a white-hot core and a soft halo over what is around it.
 Saves name the tiles by their place in the sheet: a new tile goes in a free place or a new row, never in a used one,
 and the sheet keeps its eight columns.
 
-    py tools/tile_art.py            writes media/bu_water.tiles and media/texturepacks/BuildingUtilitiesWater.pack,
-                                    and the items' icons (media/textures/Item_BU*.png) from the tiles
+    py tools/tile_art.py            writes media/bu_water.tiles, media/texturepacks/BuildingUtilitiesWater.pack and
+                                    the tiles' depth map (media/depthmaps/DEPTH_bu_water_01.png), and the items'
+                                    icons (media/textures/Item_BU*.png) from the tiles; run tools/solar_art.py first
+                                    (the snow over the panels takes their depth)
     py tools/tile_art.py --preview  also writes tools/tile_art_preview.png (the tiles on a floor, for a look); a path
                                     after it writes the preview there instead
 
@@ -35,6 +37,7 @@ ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'BuildingU
 SHEET = 'bu_water_01'
 PACK = 'BuildingUtilitiesWater'
 SOLAR_PACK = 'BuildingUtilitiesSolar'
+SOLAR_SHEET = 'bu_solar_01'
 COLS, ROWS = 8, 32
 W, H = 128, 256
 SS = 4  # drawn this many times larger, then scaled down
@@ -233,6 +236,7 @@ class Scene:
             colour[y0:y1 + 1, x0:x1 + 1][nearer] = np.concatenate(
                 [lit.astype(np.uint8), np.full((len(lit), 1), 255, np.uint8)], axis=1)
             self.up[y0:y1 + 1, x0:x1 + 1][nearer] = n[:, 2]
+        self.depth = depth
         return Image.fromarray(colour, 'RGBA')
 
 
@@ -262,7 +266,61 @@ def compose(scene, ground=None, over=None, seed=1, glows=None):
     small = finish(small, solid.getchannel('A').resize((W, H), Image.LANCZOS), seed, facing_up(scene.up))
     if glows:
         small = glow(small, scene, glows)
-    return trim_faint(small)
+    return with_depth(trim_faint(small), scene)
+
+
+# B42 draws a tile with a depth map (media/depthmaps/DEPTH_<sheet>.png, 128x256 a tile, eight to a row as the sheet):
+# how far back each pixel's point stands in its square, so that a thing in front hides it pixel by pixel. Without one
+# the game takes the tile as a block filling its square, and two of ours stacked on one square dithered into each
+# other. A pixel's depth is its blue, 1 at the square's back corner on the floor down to 0, nearer; alpha 0 is none.
+# The game's tile camera looks along this tool's view (TileGeometryUtils: turned 315 degrees, tipped 30), so the depth
+# is the depth buffer's: 1 - 0.25 (x + y) - 0.25 z / sqrt(1.5) is 1 - DEPTH_K times the point along VIEW.
+DEPTH_K = 0.25 * math.sqrt(8 / 3)
+
+
+def floor_depth():
+    """The depth of the floor under each pixel: what has no solid of its own (a shadow, a lamp's haze, mist) lies on
+    it."""
+    rows = np.arange(H, dtype=np.float64)[:, None] + 0.5
+    return np.broadcast_to(np.clip(1 - 0.25 * (rows - 192) / 32, 0, 1), (H, W)).copy()
+
+
+def with_depth(image, scene):
+    """The tile with its depth (image.depth, H x W, 0 to 1): of the nearest solid its pixel shows, else the floor's."""
+    d = scene.depth.reshape(H, SS, W, SS).max(axis=(1, 3))
+    image.depth = np.where(d > -1e8, np.clip(1 - DEPTH_K * d, 0, 1), floor_depth())
+    return image
+
+
+def write_depth(path, images):
+    """The depth map of a sheet: images by their place in it (None where it is empty). A picture made without a
+    depth (none should be) is taken as lying on the floor."""
+    rows = (len(images) + COLS - 1) // COLS
+    sheet = np.zeros((rows * H, COLS * W, 4), dtype=np.uint8)
+    for index, image in enumerate(images):
+        if image is None:
+            continue
+        depth = getattr(image, 'depth', None)
+        if depth is None:
+            print('no depth: tile', index)
+            depth = floor_depth()
+        y, x = (index // COLS) * H, (index % COLS) * W
+        value = np.round(depth * 255).astype(np.uint8)
+        shown = np.asarray(image)[..., 3] > 0
+        cell = sheet[y:y + H, x:x + W]
+        cell[..., 0] = cell[..., 1] = cell[..., 2] = np.where(shown, value, 0)
+        cell[..., 3] = np.where(shown, 255, 0)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    Image.fromarray(sheet, 'RGBA').save(path, optimize=True)
+
+
+def read_depth(sheet, index):
+    """A tile's depth from a sheet's depth map written before (the floor's where it has none)."""
+    path = os.path.join(ROOT, 'depthmaps', 'DEPTH_%s.png' % sheet)
+    a = np.asarray(Image.open(path).convert('RGBA'))
+    y, x = (index // COLS) * H, (index % COLS) * W
+    cell = a[y:y + H, x:x + W]
+    return np.where(cell[..., 3] > 0, cell[..., 2] / 255.0, floor_depth())
 
 
 # The faintest alpha a finished tile keeps: the tails of the soft shadow, of a lamp's haze and of the scaling's ringing
@@ -1087,7 +1145,10 @@ def snow(index, heavy):
     light = 0.9 + 0.07 * noise + 0.02 * fine
     rgb = np.stack([238 * light, 243 * light, 251 * light], axis=2)
     out = np.concatenate([np.clip(rgb, 0, 255), (cover * 255)[..., None]], axis=2)
-    return Image.fromarray(out.astype(np.uint8), 'RGBA')
+    image = Image.fromarray(out.astype(np.uint8), 'RGBA')
+    # on the panel: its depth, a step nearer so that the overlay is not lost in it
+    image.depth = np.clip(read_depth(SOLAR_SHEET, index) - 2 / 255, 0, 1)
+    return image
 
 
 # The sheet: what each tile is, and its properties for the game. Facing as the vanilla object it stands for.
@@ -1399,7 +1460,7 @@ def floor_run(utility, sides, detail=False, laid=False):
     big.alpha_composite(s.render())
     big.alpha_composite(soil.filter(ImageFilter.GaussianBlur(0.35 * SS)))
     small = big.convert('RGBa').resize((W, H), Image.LANCZOS).convert('RGBA')
-    return trim_faint(run_finish(small, seed, laid))
+    return with_depth(trim_faint(run_finish(small, seed, laid)), s)
 
 
 def runs(utility, laid=False):
@@ -1650,6 +1711,7 @@ def main():
     write_tiles(os.path.join(ROOT, 'bu_water.tiles'))
     write_pack(os.path.join(ROOT, 'texturepacks', PACK + '.pack'),
                [('%s_%d' % (SHEET, index), image) for index, image in enumerate(images) if image is not None])
+    write_depth(os.path.join(ROOT, 'depthmaps', 'DEPTH_%s.png' % SHEET), images)
     write_icons(images)
     if '--preview' in sys.argv:
         at = sys.argv.index('--preview') + 1

@@ -8,8 +8,9 @@ its overlays at the same places in the block).
 Drawn as tile_art draws the water sheet (its solids, light and projection); then run tile_art, which draws the snow
 over these panels from them.
 
-    py tools/solar_art.py            writes media/bu_solar.tiles, media/texturepacks/BuildingUtilitiesSolar.pack and
-                                     the items' icons (Item_BUSolarPanel, Item_BUBatteryRack)
+    py tools/solar_art.py            writes media/bu_solar.tiles, media/texturepacks/BuildingUtilitiesSolar.pack, the
+                                     tiles' depth map (media/depthmaps/DEPTH_bu_solar_01.png) and the items' icons
+                                     (Item_BUSolarPanel, Item_BUBatteryRack)
     py tools/solar_art.py --preview  also writes tools/solar_art_preview.png (the tiles on a floor, the rack against
                                      a wall); a path after it writes it there instead
 """
@@ -73,7 +74,7 @@ def compose(scene, ground=None, over=None, glows=None, seed=1):
     small = T.finish(small, solid.getchannel('A').resize((W, H), Image.LANCZOS), seed, T.facing_up(scene.up))
     if glows:
         small = glow(small, scene, glows)
-    return T.trim_faint(small)
+    return T.with_depth(T.trim_faint(small), scene)
 
 
 # Oriented solids: a box along three axes from a corner, and a flat piece on a plane.
@@ -317,6 +318,8 @@ def rack_tiles(turns=0):
             out = np.where(changed[..., None], a, 0).astype(np.uint8)
             index = 1 + shelves if level == 0 else 16 + (level - 1) + 4 * shelves
             overlays[index] = Image.fromarray(out, 'RGBA')
+            # the batteries' depth, a step nearer: where only the light differs, the rack's own, which would hide it
+            overlays[index].depth = np.clip(full.depth - 2 / 255, 0, 1)
     return base, overlays
 
 
@@ -591,6 +594,8 @@ def main():
     write_tiles(os.path.join(T.ROOT, 'bu_solar.tiles'), props)
     T.write_pack_named(os.path.join(T.ROOT, 'texturepacks', PACK + '.pack'), SHEET,
                        [('%s_%d' % (SHEET, index), images[index]) for index in sorted(images)])
+    T.write_depth(os.path.join(T.ROOT, 'depthmaps', 'DEPTH_%s.png' % SHEET),
+                  [images.get(index) for index in range(max(images) + 1)])
     # the icons: the things without their shadows (tile_art.write_icons)
     T.ICON_DRAW['on'] = True
     try:
