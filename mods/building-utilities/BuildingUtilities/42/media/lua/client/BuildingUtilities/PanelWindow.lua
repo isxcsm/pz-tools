@@ -568,6 +568,7 @@ function ISBUPanelWindow:measureLoad(panel, power)
         return
     end
     self.load = math.max(0, power.load)
+    self.gridLoad = power.gridLoad or 0
     self.live = Panels.leverUp(panel) and power.supplied == true
     local ratio = self.live and self.load / math.max(self.limit, 1e-6) or 0
     self.ratio = ratio
@@ -1042,6 +1043,8 @@ function ISBUPanelWindow:loadBreakdown()
         else rest, restTotal = rest + 1, restTotal + group.total end
     end
     if rest > 0 and restTotal >= LEAST then lines[#lines + 1] = "  " .. getText("IGUI_BU_BreakdownMore", rest) .. "  " .. load2(restTotal) end
+    -- what the grid carries while it runs is not the box's
+    if (self.gridLoad or 0) >= LEAST then lines[#lines + 1] = "  " .. getText("IGUI_BU_BreakdownGrid") .. "  -" .. load2(self.gridLoad) end
     lines[#lines + 1] = getText("IGUI_BU_BreakdownTotal", load2(self.load), load2(self.limit))
     return table.concat(lines, "\n")
 end

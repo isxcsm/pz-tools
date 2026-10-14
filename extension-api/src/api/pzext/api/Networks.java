@@ -352,6 +352,17 @@ final class Networks {
             }
             return new Object[0];
         });
+        function(table, "setGridFirst", (call, arguments) -> {
+            Network network = mine(arguments, call);
+            if (!(arguments.length > 2 && arguments[2] instanceof Boolean on))
+                throw new IllegalArgumentException(call + ": on must be true or false");
+            if (network.gridFirst != on) {
+                network.gridFirst = on;
+                network.loadChanged = true;
+                changed();
+            }
+            return new Object[0];
+        });
         function(table, "addBuilding", (call, arguments) -> {
             Network network = mine(arguments, call);
             Position at = square(arguments, 2, call);
@@ -471,6 +482,9 @@ final class Networks {
         lua.set(result, "ownLoad", (double)network.load);
         lua.set(result, "extraLoad", (double)network.extraLoad);
         lua.set(result, "loadFactor", (double)network.loadFactor);
+        lua.set(result, "gridFirst", network.gridFirst);
+        lua.set(result, "grid", grid.gridOn());
+        lua.set(result, "gridLoad", (double)network.gridLoad);
         lua.set(result, "complete", network.loadComplete);
         if (network.inUse != null) lua.set(result, "producer", producer(network.inUse));
         Double fuelPerHour = grid.fuelPerHour(network);
@@ -530,6 +544,8 @@ final class Networks {
         lua.set(result, "amount", held);
         lua.set(result, "capacity", most);
         lua.set(result, "purify", network.purify);
+        lua.set(result, "gridFirst", network.gridFirst);
+        lua.set(result, "mains", water.mainsOn());
         lua.set(result, "fluids", lua.list(new ArrayList<Object>(network.fluids)));
         lua.set(result, "producers", lua.list(producers));
     }
@@ -791,9 +807,7 @@ final class Networks {
                 .append(network.enabled ? "" : "off").append('\t')
                 .append(network.loadFactor == 1f ? "" : Float.toString(network.loadFactor)).append('\t')
                 .append(network.extraLoad == 0f ? "" : Float.toString(network.extraLoad))
-                // Added later: a line without them is from an earlier API, and purifies water.
-                .append(network.purify && network.fluids.equals(Network.WATER_FLUIDS) ? "" : "\t" + (network.purify ? "" : "unpurified"))
-                .append(network.fluids.equals(Network.WATER_FLUIDS) ? "" : "\t" + String.join(",", network.fluids)).append('\n');
+                .append(tail(network)).append('\n');
             for (Producer producer : network.producers) {
                 if (producer.at() != null) { text.append("P\t").append(producer.at()).append('\n'); continue; }
                 Source source = network.sources.get(producer.source());
@@ -808,6 +822,20 @@ final class Networks {
         }
         lua.set(meta, MIRROR, text.toString());
         dirty = false;
+    }
+
+    /**
+     * The fields added later, each after the ones before, up to the last that is not as an earlier API had it: a line
+     * without them is from an earlier API, and purifies water, takes water and puts its own supply first.
+     */
+    private static String tail(Network network) {
+        String[] fields = { network.purify ? "" : "unpurified",
+            network.fluids.equals(Network.WATER_FLUIDS) ? "" : String.join(",", network.fluids), network.gridFirst ? "gridFirst" : "" };
+        int last = fields.length;
+        while (last > 0 && fields[last - 1].isEmpty()) last--;
+        var text = new StringBuilder();
+        for (int index = 0; index < last; index++) text.append('\t').append(fields[index]);
+        return text.toString();
     }
 
     /** The definitions an earlier API kept, if any. */
@@ -831,6 +859,7 @@ final class Networks {
                     if (fields.length > 8 && !fields[8].isEmpty()) network.extraLoad = Float.parseFloat(fields[8]);
                     if (fields.length > 9 && "unpurified".equals(fields[9])) network.purify = false;
                     if (fields.length > 10 && !fields[10].isEmpty()) network.fluids = List.of(fields[10].split(","));
+                    if (fields.length > 11 && "gridFirst".equals(fields[11])) network.gridFirst = true;
                 }
                 case "P" -> network.producers.add(Producer.square(Position.parse(fields[1])));
                 case "S" -> {

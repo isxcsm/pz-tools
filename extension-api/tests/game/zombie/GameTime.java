@@ -9,4 +9,5 @@ public final class GameTime {
     public float getViewDist() { return viewDist; }
     public static GameTime getInstance() { return instance; }
     public double getWorldAgeHours() { return hours; }
+    public double getWorldAgeDaysSinceBegin() { return hours / 24; }
 }

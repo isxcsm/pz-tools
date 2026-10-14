@@ -199,6 +199,8 @@ local function defineWaterNetwork(id)
         ok, failure = pcall(define, BU.handle(), id, "water", waterPolicy)
     end
     if not ok then BU.hookFault("water", failure) end
+    -- while the mains run, a fixture they reach takes their water and the tanks keep theirs
+    if ok then change("setGridFirst", id, true) end
     return ok
 end
 
@@ -326,6 +328,8 @@ end
 function Networks.define(panel)
     local id = powerId(panel)
     change("define", id, "power", BU.POLICY.power)
+    -- while the grid runs, it carries what it reaches: the generators and the bank only what it does not
+    change("setGridFirst", id, true)
     change("setProducers", id, powerProducers(panel))
     addPowerMembers(panel)
     applyPowerRules(panel)
@@ -502,7 +506,8 @@ end
 -- The power network's state, or for water the panel's pipes together: { supplied (any pipe), enabled, amount and
 -- capacity (summed), producers (every tank as the networks last saw it, with its pipe, building and floor), pipes (by
 -- pipe: { amount, capacity, supplied, foreign (tanks holding what is not water), buildings (by building key: { amount,
--- capacity, top (its highest floor with tanks) }) }) }; nil for a utility that is off, or without water in this game.
+-- capacity, top (its highest floor with tanks) }) }), mains (the mains run and give the fixtures they reach their water) };
+-- nil for a utility that is off, or without water in this game.
 function Networks.state(panel, utility)
     if utility ~= "water" then return stateOf(powerId(panel)) end
     if not waterOn() then return nil end
@@ -513,6 +518,10 @@ function Networks.state(panel, utility)
     local layout = Networks.waterLayout(panel)
     for _, network in ipairs(layout.networks) do
         local state = network.kind == "T" and stateOf(network.id) or nil
+        if result.mains == nil then
+            local any = state or stateOf(network.id)
+            if any then result.mains = any.mains == true and any.gridFirst == true end
+        end
         local pipe = state and result.pipes[network.pipe]
         if pipe then
             local building = pipe.buildings[network.building] or { amount = 0, capacity = 0 }

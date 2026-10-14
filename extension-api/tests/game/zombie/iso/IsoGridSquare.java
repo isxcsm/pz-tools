@@ -161,6 +161,10 @@ public final class IsoGridSquare {
         return acrossX || acrossY ? LosUtil.TestResults.Blocked : LosUtil.TestResults.Clear;
     }
 
+    /** Whether the grid never powers the square (a NoPower zone, a player-built room): a test sets it. */
+    public boolean noPower;
+    public boolean isNoPower() { return noPower; }
+
     public boolean haveElectricity() { return chunk != null && chunk.isGeneratorPoweringSquare(x, y, z); }
 
     /** Synthetic: the game takes the square's properties again from its objects; the API's hook goes at its end. */

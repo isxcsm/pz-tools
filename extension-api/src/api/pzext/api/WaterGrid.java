@@ -44,7 +44,7 @@ final class WaterGrid implements Hooks.Water {
      * takes (a container holding any other is passed over), and the last container {@link #pick} picked for it.
      */
     private record Supplier(Network network, Area area, List<Position> producers, int[] ends, boolean nearest, boolean purify,
-            Object[] takes, AtomicReference<Picked> last) { }
+            Object[] takes, boolean gridFirst, AtomicReference<Picked> last) { }
 
     /**
      * What {@link #pick} picked for a supplier at a {@link #tick}: the object (null for none), its container and what
@@ -56,8 +56,9 @@ final class WaterGrid implements Hooks.Water {
      * {@code unpurified}: whether a supplier does not purify its water, so that the taint questions need a look. Each
      * object rule carries its network's supplier, null while the network has no water.
      */
-    private record Snapshot(List<Supplier> suppliers, Rules<Supplier> rules, SquareMap producers, boolean unpurified) {
-        static final Snapshot EMPTY = new Snapshot(List.of(), Rules.none(), SquareMap.EMPTY, false);
+    private record Snapshot(List<Supplier> suppliers, Rules<Supplier> rules, SquareMap producers, boolean unpurified, boolean mains,
+            Map<Object, Boolean> mainsReach) {
+        static final Snapshot EMPTY = new Snapshot(List.of(), Rules.none(), SquareMap.EMPTY, false, false, Map.of());
     }
 
     /**
@@ -91,6 +92,13 @@ final class WaterGrid implements Hooks.Water {
     private final MethodHandle containerOf, amountOf, capacityOf, fluidAmountOf;
     private final Method sample, scaledSample, sampleSize, sampleFluid, sampleInstance, instanceAmount, sampleRelease, fluidName, fluidNamed;
     private final Method createContainer, isTainted;
+    // IsoObject.isWaterInfinite (private): whether the mains give a fixture water; the world's day and the water shut-off.
+    private final Method waterInfinite, gameTime, worldDays, waterShut;
+    private final Field options;
+    // Whether the mains run, read once a second.
+    private volatile boolean mains;
+    // Set while the game's own answer is asked (the networks silent on that thread).
+    private static final ThreadLocal<boolean[]> PURE = ThreadLocal.withInitial(() -> new boolean[1]);
     private final Method removeFluid, addFluid, modData, sync;
     // IsoObject.hasModData, which reads an object's modData without making it; null for a game without it.
     private final Method hasModData;
@@ -137,7 +145,21 @@ final class WaterGrid implements Hooks.Water {
         fluidName = fluid.getMethod("getFluidTypeString");
         fluidNamed = fluid.getMethod("Get", String.class);
         client = Game.type(loader, "zombie.network.GameClient").getField("client");
+        waterInfinite = Game.accessible(object.getDeclaredMethod("isWaterInfinite"));
+        Class<?> time = Game.type(loader, "zombie.GameTime"), sandbox = Game.type(loader, "zombie.SandboxOptions");
+        gameTime = time.getMethod("getInstance");
+        worldDays = time.getMethod("getWorldAgeDaysSinceBegin");
+        options = sandbox.getField("instance");
+        waterShut = sandbox.getMethod("getWaterShutModifier");
     }
+
+    /** Whether the mains run, as the game asks it of a fixture (the world's day before the shut-off's). */
+    private boolean mainsRun() throws ReflectiveOperationException {
+        return (double)worldDays.invoke(gameTime.invoke(null)) < (int)waterShut.invoke(options.get(null));
+    }
+
+    /** Whether the mains run, as last read (once a second). */
+    boolean mainsOn() { return mains; }
 
     /**
      * Gives the game's water questions to this grid. Throws a LinkageError in a game whose bootstrap has no water hooks.
@@ -237,7 +259,30 @@ final class WaterGrid implements Hooks.Water {
      */
     private Supplier supplier(Object fixture) throws ReflectiveOperationException {
         Snapshot current = current();
-        if (current.suppliers().isEmpty() || fixture == null || !buildings.piped(fixture)) return null;
+        if (current.suppliers().isEmpty() || fixture == null || PURE.get()[0] || !buildings.piped(fixture)) return null;
+        Supplier found = network(current, fixture);
+        if (found != null && found.gridFirst() && current.mains() && mains(current, fixture)) return null;
+        return found;
+    }
+
+    /**
+     * Whether the mains give the fixture water (the game's answer with no network: in a room, piped, outside a NoWater
+     * zone, not one a player put down), asked once a fixture each snapshot.
+     */
+    private boolean mains(Snapshot current, Object fixture) throws ReflectiveOperationException {
+        Boolean known = current.mainsReach().get(fixture);
+        if (known != null) return known;
+        boolean[] pure = PURE.get();
+        pure[0] = true;
+        boolean reach;
+        try { reach = (boolean)waterInfinite.invoke(fixture); }
+        finally { pure[0] = false; }
+        current.mainsReach().put(fixture, reach);
+        return reach;
+    }
+
+    /** The network with water whose fixture this is (see supplier), the game's mains aside. */
+    private Supplier network(Snapshot current, Object fixture) throws ReflectiveOperationException {
         Object square = game.squareOf(fixture);
         if (square == null) return null;
         int x = game.x(square), y = game.y(square), z = game.z(square);
@@ -750,9 +795,14 @@ final class WaterGrid implements Hooks.Water {
         if (metas != null) metas.refresh();
         if (!world && authoritative()) { pending.refresh(); applyOwed(cells, false); }
         List<Network> watered = networks.of(UTILITY);
-        // The snapshot is made again only when what it holds changed: a definition, a member's area, a supply.
+        // The snapshot is made again only when what it holds changed: a definition, a member's area, a supply, the mains.
         boolean again = rebuild;
         rebuild = false;
+        boolean running = mainsRun();
+        if (running != mains) {
+            mains = running;
+            again = true;
+        }
         for (Network network : watered) {
             Area area = network.area;
             members.resolve(network);
@@ -811,11 +861,12 @@ final class WaterGrid implements Hooks.Water {
                 } catch (ReflectiveOperationException failure) { throw Game.failed(failure); }
             }
             var supplier = new Supplier(network, network.area, List.copyOf(producers(network)), ends,
-                NEAREST.equals(network.policy), network.purify, takes.toArray(), new AtomicReference<>());
+                NEAREST.equals(network.policy), network.purify, takes.toArray(), network.gridFirst, new AtomicReference<>());
             suppliers.add(supplier);
             byNetwork.put(network, supplier);
         }
         return new Snapshot(List.copyOf(suppliers), Rules.of(watered, byNetwork::get), new SquareMap(producers),
-            suppliers.stream().anyMatch(supplier -> !supplier.purify()));
+            suppliers.stream().anyMatch(supplier -> !supplier.purify()), mains,
+            Collections.synchronizedMap(new WeakHashMap<>()));
     }
 }

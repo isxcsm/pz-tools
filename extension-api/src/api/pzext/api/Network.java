@@ -108,6 +108,11 @@ final class Network {
     /** Whether its fixtures get their water purified, as the game purifies plumbed water (water only). */
     boolean purify = true;
     /**
+     * Whether the game's own supply goes first: while the grid runs, the consumers on squares it powers are its and not in
+     * the load; while the mains run, a fixture the mains reach takes their water, not the network's.
+     */
+    boolean gridFirst;
+    /**
      * The hours it was switched on (true) and off (false) since it was defined, kept for food as {@link #history} is;
      * {@code enabledBefore} is whether it was on before the first.
      */
@@ -166,8 +171,12 @@ final class Network {
     Producer adopted;
     /** Each consumer's consumption, as last seen loaded. */
     Map<Thing, Float> consumption = Map.of();
+    /** The consumers on squares the game's grid powers while it runs (not a player-built room's), as last seen loaded. */
+    Set<Thing> onGrid = Set.of();
     /** Its own consumers' load and its extra load; and with its children's, times its load factor. */
     float load, total;
+    /** What the grid carries of its own consumers now (gridFirst, while the grid runs). */
+    float gridLoad;
     boolean loadComplete;
     long loadAt;
     /** The chunks (Game.chunkKey) of consumers' squares that were not loaded when the load was last worked out. */

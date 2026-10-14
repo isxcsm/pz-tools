@@ -83,7 +83,10 @@ end
 
 -- A panel's power: { text, left, reason, level }.
 local function powerStatus(panel, state)
-    if getWorld():isHydroPowerOn() then
+    -- The grid carries what it reaches (gridFirst): the box's own supply is told only while something it does not
+    -- reach draws (a player-built room, the box's pumps).
+    local grid = getWorld():isHydroPowerOn()
+    if grid and not (state and state.gridFirst and (state.load or 0) > 1e-6) then
         return { text = getText("IGUI_BU_St_Grid"), reason = getText("IGUI_BU_Why_Grid"), level = OK }
     end
     if panel.tripped then return trippedStatus(panel) end
@@ -104,6 +107,7 @@ local function powerStatus(panel, state)
             result.text = getText("IGUI_BU_St_Solar")
             result.reason = getText("IGUI_BU_Why_SolarOver", load2(output), load2(rules.load))
         end
+        if grid then result.reason = getText("IGUI_BU_Why_GridPart") end
         return overloaded(result, panel, rules.load, Panels.limit(panel, bank or false))
     end
     if state.supplied then
@@ -129,6 +133,7 @@ local function powerStatus(panel, state)
         elseif index and index > 1 then
             result.reason = getText("IGUI_BU_Why_Priority")
         end
+        if grid then result.reason = getText("IGUI_BU_Why_GridPart") end
         return overloaded(result, panel, rules.load, Panels.limit(panel, bank or false))
     end
     -- Without supply the bank carries nothing: what the solar panels make charges it.
@@ -166,6 +171,11 @@ local function waterStatus(panel, state, supply)
     local available, why = BU.waterAvailable()
     if not available then
         return { text = getText("IGUI_BU_St_WaterUnavailable"), reason = getText("IGUI_BU_Why_NoWaterHooks", why), level = BAD }
+    end
+    if state and state.mains then
+        local held = #panel.water.producers > 0 and getText("IGUI_BU_Left_Water", string.format("%.0f", state.amount or 0),
+            string.format("%.0f", state.capacity or 0)) or nil
+        return { text = getText("IGUI_BU_St_Mains"), left = held, reason = getText("IGUI_BU_Why_Mains"), level = OK }
     end
     if panel.water.frozen then
         return { text = getText("IGUI_BU_St_Frozen"), level = BAD,

@@ -30,8 +30,12 @@ end
 
 -- The API's networks, recording: each defined network's producers, parents, rooms, rules and switches; tanks (by
 -- "x,y,z": { amount, capacity, fluid }) give state, draws and fills.
+-- Whether the game's mains run, as the API's state tells it.
+local mainsRun = false
+
 local function fakeNetworks()
     local nets, tanks = {}, {}
+    mainsRun = false
     local function tankOf(at) return tanks[at.x .. "," .. at.y .. "," .. at.z] end
     -- A network's tanks in the order it draws: its own, then each parent's.
     local function chain(id)
@@ -68,6 +72,7 @@ local function fakeNetworks()
         reset = function(_, id, x, y, z, sprite) nets[id].rules[BU.thingKey(x, y, z, sprite)] = nil end,
         setEnabled = function(_, id, on) nets[id].enabled = on end,
         setPurify = function(_, id, on) nets[id].purify = on end,
+        setGridFirst = function(_, id, on) nets[id].gridFirst = on end,
         setExtraLoad = function() end,
         setSource = function() end,
         addBuilding = function() end,
@@ -86,7 +91,7 @@ local function fakeNetworks()
                     capacity = tank.capacity, foreign = tank.foreign }
             end
             return { amount = amount, capacity = capacity, supplied = amount > 0, enabled = net.enabled ~= false,
-                purify = net.purify, producers = producers }
+                purify = net.purify, producers = producers, gridFirst = net.gridFirst == true, mains = mainsRun }
         end,
         fill = function(_, id, litres, fluid)
             local filled = 0
@@ -167,6 +172,16 @@ test("a floor's use network draws on its building's tanks at its floor and above
     eq(nets[idOf(panel, 1, "A", 1, "U")].parents[1], t2)
     eq(nets[idOf(panel, 1, "A", 1, "U")].rooms["100,100,1"], true, "the room by its square")
     truthy(Water.reachesTank(layout, idOf(panel, 1, "A", 1, "U")))
+end)
+
+test("every water network leaves to the mains what they reach while they run, and the state tells when they do", function()
+    local panel, nets, tank = scene(2)
+    tankAt(panel, tank, 101, 101, 0, 100, 40)
+    local layout = Networks.waterLayout(panel)
+    for _, network in ipairs(layout.networks) do eq(nets[network.id] and nets[network.id].gridFirst, true, network.id) end
+    eq(Networks.state(panel, "water").mains, false)
+    mainsRun = true
+    eq(Networks.state(panel, "water").mains, true, "the mains run")
 end)
 
 test("a tank above every fixture's floor is only for the floors below; none above: too high", function()

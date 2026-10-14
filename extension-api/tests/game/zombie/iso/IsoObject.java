@@ -31,6 +31,8 @@ public class IsoObject {
     public final ArrayList<IsoObject> gridParts = new ArrayList<>();
     public boolean usesExternalWaterSource;
     public IsoObject externalWaterSource;
+    /** A piped fixture in a room the game's mains reach (its sprite, room and zone checks in one): a test sets it. */
+    public boolean mainsPiped;
     public FluidContainer fluidContainer;
     public KahluaTable modData;
     /** The animations attached to the object, drawn over it; null for none. */
@@ -77,12 +79,19 @@ public class IsoObject {
     public FluidContainer getFluidContainer() { return fluidContainer; }
     public boolean getUsesExternalWaterSource() { return usesExternalWaterSource; }
 
+    /** Like the game's: the mains give a fixture of theirs water while they run, unless it takes it from elsewhere. */
+    private boolean isWaterInfinite() {
+        return mainsPiped && !getUsesExternalWaterSource()
+            && zombie.GameTime.getInstance().getWorldAgeDaysSinceBegin() < zombie.SandboxOptions.instance.getWaterShutModifier();
+    }
+
     private IsoObject checkExternalFluidSource() {
         if (!usesExternalWaterSource) return null;
         return externalWaterSource;
     }
 
     public float getFluidAmount() {
+        if (isWaterInfinite()) return 10000;
         if (usesExternalWaterSource) {
             IsoObject source = checkExternalFluidSource();
             return source == null ? 0 : source.getFluidAmount();
@@ -111,6 +120,11 @@ public class IsoObject {
 
     /** Like the game's: a piped fixture's water comes through a sample of its source, purified. */
     public float transferFluidTo(FluidContainer target, float amount) {
+        if (isWaterInfinite()) {
+            float used = Math.max(0, Math.min(amount, target.getFreeCapacity()));
+            target.addFluid(Fluid.Water, used);
+            return used;
+        }
         if (!usesExternalWaterSource) return 0;
         IsoObject source = checkExternalFluidSource();
         if (source == null || source.fluidContainer == null) return 0;

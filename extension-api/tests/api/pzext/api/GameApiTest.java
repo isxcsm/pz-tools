@@ -75,6 +75,7 @@ public final class GameApiTest {
         children(api);
         switches(api);
         loadFactors(api);
+        gridFirst(api);
         memberRooms(api);
         farApart(api);
         cheapHooks(api);
@@ -90,6 +91,7 @@ public final class GameApiTest {
         parents(api);
         rainKept(api);
         purify(api);
+        mainsFirst(api);
         food(api);
         FormulasTest.run(api);
         ItemCountsTest.run(api);
@@ -1119,6 +1121,71 @@ public final class GameApiTest {
         check(state(networks, "main").rawget("loadFactor").equals(1.5) && state(networks, "sub").rawget("loadFactor").equals(2.0),
             "A newer API lost the load factors");
         call(networks, "remove", mod, "sub");
+        call(networks, "remove", mod, "main");
+        frame();
+        generator.setActivated(false);
+    }
+
+    /**
+     * Under gridFirst the game's grid carries what it powers while it runs: the consumers on its squares leave the
+     * network's load (the state tells what the grid carries) and those on a square it never powers stay; with the grid
+     * shut off, the load comes back. A newer API keeps the switch.
+     */
+    private static void gridFirst(KahluaTable api) throws Exception {
+        KahluaTable networks = (KahluaTable)api.rawget("networks");
+        Object mod = call(api, "client", "power.mod").get(0);
+        var generator = (IsoGenerator)square(34, 33, 0).objects.get(0);
+        generator.fuel = 6;
+        call(networks, "define", mod, "main", "power", "sequential");
+        call(networks, "setProducers", mod, "main", list(at(34, 33, 0)));
+        call(networks, "addBuilding", mod, "main", 11.0, 11.0, 0.0);
+        generator.setActivated(true);
+        var options = SandboxOptions.instance;
+        options.powerGrid = true;
+        frame();
+        KahluaTable main = state(networks, "main");
+        double ownLoad = (Double)main.rawget("ownLoad");
+        check(ownLoad > 0.08 && main.rawget("gridFirst").equals(false) && main.rawget("grid").equals(true)
+            && near((Double)main.rawget("gridLoad"), 0), "Without gridFirst the grid carried a network's load");
+        // The fridge's square is the grid's; the others never have its power.
+        var off = new ArrayList<IsoGridSquare>();
+        for (int z = -1; z <= 0; z++) for (int x = 5; x <= 25; x++) for (int y = 5; y <= 25; y++) {
+            IsoGridSquare square = square(x, y, z);
+            if (square != square(11, 11, 0)) { square.noPower = true; off.add(square); }
+        }
+        LuaEventManager.raised.clear();
+        call(networks, "setGridFirst", mod, "main", true);
+        frame();
+        main = state(networks, "main");
+        check(main.rawget("gridFirst").equals(true) && near((Double)main.rawget("ownLoad"), ownLoad - 0.08)
+            && near((Double)main.rawget("gridLoad"), 0.08) && raised("main", "load", GameTime.getInstance().hours),
+            "Under gridFirst the grid does not carry the fridge, or carries more");
+        check(near(generator.getTotalPowerUsing(), (0.02 + ownLoad - 0.08) * 0.1), "The producer burns what the grid carries");
+        // Shut off, the grid carries nothing (seen within a second).
+        options.powerGrid = false;
+        Thread.sleep(1100);
+        frame();
+        main = state(networks, "main");
+        check(main.rawget("grid").equals(false) && near((Double)main.rawget("ownLoad"), ownLoad) && near((Double)main.rawget("gridLoad"), 0),
+            "With the grid shut off the load did not come back");
+        options.powerGrid = true;
+        Thread.sleep(1100);
+        frame();
+        check(near((Double)state(networks, "main").rawget("gridLoad"), 0.08), "With the grid back the fridge is not its again");
+        rejects(networks, "setGridFirst", "on must be true or false", mod, "main", "yes");
+        Object other = call(api, "client", "other.mod").get(0);
+        rejects(networks, "setGridFirst", "main belongs to another mod", other, "main", false);
+        // A newer API keeps the switch.
+        GameApi.register(LuaManager.class);
+        frame();
+        check(state(networks, "main").rawget("gridFirst").equals(true) && near((Double)state(networks, "main").rawget("gridLoad"), 0.08),
+            "A newer API lost gridFirst");
+        call(networks, "setGridFirst", mod, "main", false);
+        frame();
+        check(near((Double)state(networks, "main").rawget("ownLoad"), ownLoad) && near((Double)state(networks, "main").rawget("gridLoad"), 0),
+            "Switched off, gridFirst still left the fridge to the grid");
+        for (IsoGridSquare square : off) square.noPower = false;
+        options.powerGrid = false;
         call(networks, "remove", mod, "main");
         frame();
         generator.setActivated(false);
@@ -2282,6 +2349,51 @@ public final class GameApiTest {
         rejects(networks, "setPurify", "water that keeps its taint is not in this game", mod, "rain", false);
         hooked.setBoolean(null, true);
         call(networks, "remove", mod, "rain");
+        frame();
+    }
+
+    /**
+     * Under gridFirst a fixture the mains reach takes their water while they run, not the network's; once they are shut
+     * off, or without gridFirst, it takes the network's. A newer API keeps the switch.
+     */
+    private static void mainsFirst(KahluaTable api) throws Exception {
+        KahluaTable networks = (KahluaTable)api.rawget("networks");
+        Object mod = call(api, "client", "water.mod").get(0);
+        var time = GameTime.getInstance();
+        double hours = time.hours;
+        IsoObject sink = square(12, 11, 0).objects.get(0);
+        sink.mainsPiped = true;
+        var tank = place(30, 37, 0, barrel(50));
+        call(networks, "define", mod, "tank", "water", "fullest");
+        call(networks, "setProducers", mod, "tank", list(at(30, 37, 0)));
+        call(networks, "addBuilding", mod, "tank", 11.0, 11.0, 0.0);
+        SandboxOptions.instance.waterShutModifier = 10;
+        time.hours = 24;
+        frame();
+        KahluaTable tankState = state(networks, "tank");
+        check(tankState.rawget("mains").equals(true) && tankState.rawget("gridFirst").equals(false) && sink.getFluidAmount() == 50,
+            "Without gridFirst a fixture took the mains' water");
+        call(networks, "setGridFirst", mod, "tank", true);
+        frame();
+        var bottle = new FluidContainer(10, 0);
+        check(state(networks, "tank").rawget("gridFirst").equals(true) && sink.getFluidAmount() == 10000
+            && sink.transferFluidTo(bottle, 2) == 2 && near(tank.fluidContainer.amount, 50),
+            "Under gridFirst the network gave its water while the mains run");
+        // A newer API keeps the switch.
+        GameApi.register(LuaManager.class);
+        frame();
+        check(state(networks, "tank").rawget("gridFirst").equals(true) && sink.getFluidAmount() == 10000, "A newer API lost gridFirst");
+        // The mains shut off: the network's water (seen within a second).
+        time.hours = 24 * 11;
+        Thread.sleep(1100);
+        frame();
+        check(state(networks, "tank").rawget("mains").equals(false) && sink.getFluidAmount() == 50,
+            "With the mains shut off the network gave no water");
+        call(networks, "remove", mod, "tank");
+        tank.square.objects.remove(tank);
+        sink.mainsPiped = false;
+        SandboxOptions.instance.waterShutModifier = -1;
+        time.hours = hours;
         frame();
     }
 

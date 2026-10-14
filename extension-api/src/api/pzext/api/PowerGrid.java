@@ -156,7 +156,9 @@ final class PowerGrid implements Hooks.Power {
     // A generator's item and its ConditionLowerChanceOneIn; null for a game that has them elsewhere (WEAR_ONE_IN then).
     private final Method itemType, scriptItem, lowerChance;
     private final Field scripts;
-    private final Method optionValue, elecShut;
+    private final Method optionValue, elecShut, gridExists, noPower;
+    // Whether the game's grid runs, read once a second.
+    private volatile boolean gridOn;
     private final Method outermost, frozen, fridgeFactor, lastAged, isFridge, isFreezer;
     private final Field sandbox, fuelRate;
     private final Field lastHour;
@@ -219,6 +221,8 @@ final class PowerGrid implements Hooks.Power {
         fuelRate = options.getField("generatorFuelConsumption");
         optionValue = fuelRate.getType().getMethod("getValue");
         elecShut = options.getMethod("getElecShutModifier");
+        gridExists = options.getMethod("doesPowerGridExist");
+        noPower = squareType.getMethod("isNoPower");
         Class<?> food = Game.type(loader, "zombie.inventory.types.Food");
         outermost = food.getMethod("getOutermostContainer");
         frozen = food.getMethod("isFrozen");
@@ -507,6 +511,7 @@ final class PowerGrid implements Hooks.Power {
         supplyHours.clear();
         var totals = new HashMap<Network, Float>();
         List<Network> powered = networks.of(UTILITY);
+        gridOn = (boolean)gridExists.invoke(sandbox.get(null));
         // The snapshot is made again only when what it holds changed: a definition, a member's area, a supply.
         boolean again = rebuild;
         rebuild = false;
@@ -526,6 +531,8 @@ final class PowerGrid implements Hooks.Power {
                 if (network.loadAt == 0) fresh.add(network);
                 if (load(network, cells, now)) regathered.add(network);
             }
+            // the grid starts or stops carrying its part as it runs or is shut off
+            if (network.gridFirst || network.gridLoad > 0) carry(network);
         }
         var worked = new HashMap<Network, Float>();
         // A child has supply while its parent has, and its parent carries its load; switched off, neither.
@@ -990,19 +997,25 @@ final class PowerGrid implements Hooks.Power {
         boolean[] complete = { true };
         var missing = new HashSet<Long>();
         var next = new LinkedHashMap<Thing, Float>();
-        for (var consumer : members.consumers(network, Members.POWER, complete, missing))
-            next.put(new Thing(new Position(consumer.x(), consumer.y(), consumer.z()), buildings.sprite(consumer.object())),
-                buildings.consumption(consumer.object()));
+        var onGrid = new HashSet<Thing>();
+        for (var consumer : members.consumers(network, Members.POWER, complete, missing)) {
+            var thing = new Thing(new Position(consumer.x(), consumer.y(), consumer.z()), buildings.sprite(consumer.object()));
+            next.put(thing, buildings.consumption(consumer.object()));
+            Object square = game.squareOf(consumer.object());
+            if (square != null && !(boolean)noPower.invoke(square)) onGrid.add(thing);
+        }
         for (var last : network.consumption.entrySet()) {
             Position at = last.getKey().at();
-            if (!next.containsKey(last.getKey()) && game.square(cells, at) == null) next.put(last.getKey(), last.getValue());
+            if (!next.containsKey(last.getKey()) && game.square(cells, at) == null) {
+                next.put(last.getKey(), last.getValue());
+                if (network.onGrid.contains(last.getKey())) onGrid.add(last.getKey());
+            }
         }
-        float load = network.extraLoad;
-        for (float value : next.values()) load += value;
         boolean regathered = network.regathered || !next.keySet().equals(network.consumption.keySet());
         network.regathered = false;
         network.consumption = next;
-        network.load = load;
+        network.onGrid = onGrid;
+        carry(network);
         network.loadComplete = complete[0];
         // A square missing from a chunk that is loaded does not come with a chunk load.
         missing.removeIf(chunk -> {
@@ -1014,6 +1027,24 @@ final class PowerGrid implements Hooks.Power {
         network.loadChanged = false;
         return regathered;
     }
+
+    /**
+     * The network's own load from its consumers as last seen: all of it, or under gridFirst while the grid runs only what
+     * the grid does not reach (a player-built room, a NoPower zone); what the grid carries is kept apart (gridLoad).
+     */
+    private void carry(Network network) {
+        boolean byGrid = network.gridFirst && gridOn;
+        float load = network.extraLoad, grid = 0;
+        for (var entry : network.consumption.entrySet()) {
+            if (byGrid && network.onGrid.contains(entry.getKey())) grid += entry.getValue();
+            else load += entry.getValue();
+        }
+        network.load = load;
+        network.gridLoad = grid;
+    }
+
+    /** Whether the game's grid runs, as last read (once a second). */
+    boolean gridOn() { return gridOn; }
 
     private boolean squarePowered(Object square) throws ReflectiveOperationException {
         return square != null && (boolean)squarePowered.invoke(square);
