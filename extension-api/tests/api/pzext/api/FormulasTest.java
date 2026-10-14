@@ -690,6 +690,21 @@ final class FormulasTest {
         call(formulas, "set", mod, "move.treeSlowMultiplier", 100.0);
         check(near(tree.getSlowFactor(player), 0), "A slowdown past standing still: " + tree.getSlowFactor(player));
         call(formulas, "set", mod, "move.treeSlowMultiplier", null);
+        // The fix: in a player-built room the game made no room of, the tree's question is "not in a room", not a crash.
+        Method inside = IsoTree.class.getDeclaredMethod("isPlayerInsideARoom", IsoPlayer.class);
+        inside.setAccessible(true);
+        var stand = new zombie.iso.IsoGridSquare(10, 10, 1);
+        tree.square = new zombie.iso.IsoGridSquare(12, 12, 0);
+        var before = player.square;
+        player.square = stand;
+        check(!(Boolean)inside.invoke(tree, player), "Outside, a tree saw the player in a room");
+        stand.inRoom = true;
+        check(!(Boolean)inside.invoke(tree, player), "A player-built room with no room failed or was a room");
+        stand.room = new zombie.iso.areas.IsoRoom(8, 8, 4, 4);
+        check((Boolean)inside.invoke(tree, player), "A room the tree stands by was not seen");
+        tree.square = new zombie.iso.IsoGridSquare(40, 40, 0);
+        check(!(Boolean)inside.invoke(tree, player), "A tree far from the room was taken for one by it");
+        player.square = before;
         for (int step = 0; step < 100; step++) { player.stepInTrees(); other.stepInTrees(); }
         check(player.scratches == 100 && player.holes == 100, "The game's scratches");
         call(formulas, "set", mod, "move.treeScratchChance", 0.0);

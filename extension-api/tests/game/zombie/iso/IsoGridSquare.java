@@ -112,9 +112,11 @@ public final class IsoGridSquare {
     public final ILighting[] lighting = { BRIGHT, BRIGHT, BRIGHT, BRIGHT };
     /** Sets the light of the square for the player (0: dark, 1: full). */
     public void setLight(int player, float light) { setLight(player, light, new ResultLight[0]); }
-    /** Whether the square is in a room (a test sets it). */
+    /** Whether the square is in a room (a test sets it), and the room (none in a player-built room the game made no room of). */
     public boolean inRoom;
+    public zombie.iso.areas.IsoRoom room;
     public boolean isInARoom() { return inRoom; }
+    public zombie.iso.areas.IsoRoom getRoom() { return room; }
     public IsoGridSquare(int x, int y, int z) { this.x = x; this.y = y; this.z = z; }
     /** The square's floor object, as a test sets it (none: the square has no floor). */
     public IsoObject floor;

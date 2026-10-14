@@ -791,6 +791,7 @@ hook only. `PZExtAPI.hooks()` names each by game class and method.
 | `IsoGameCharacter.calculateCombatSpeed` | the read of `combatSpeedModifier` | The value read passes through `move.combatPenaltyReduction`. |
 | `IsoPlayer.getDeferredMovement(Vector2, boolean)` | each return | The vector returned (the method changes the argument and returns it) is scaled in place by `move.walkMultiplier` when the player is in the state of moving. The call is not made when the factor is 1. |
 | `IsoTree.getSlowFactor` | each return | Passed through `move.treeSlowMultiplier`, for a local player. |
+| `IsoTree.isPlayerInsideARoom(IsoPlayer)` | the one `IsoPlayer.isInARoom()` call | A fix, for every mod and none: the answer is "in a room" only when the player's square has a room too, so a room the game made no building of (one on a map building's roof) no longer throws for each tree drawn near it. |
 | `IsoObject.couldBePoweredByGenerator` | each return | True for an object of a sprite declared in `machine.baseConsumption` above 0, besides the game's answer. |
 | `IsoObject.getGeneratorPowerConsumption` | each return | An object of a declared sprite gives its declared consumption times the load its mod data holds under `machine.loadKey`, in place of the game's. |
 | `IsoObject.renderAttachedSprites` | after the one call of `IsoSpriteInstance.update()` (the method is private; it is found by its signature) | The instance just drawn and the object go to `anim.stepKey`'s step; the game's own call stays. Another number of such calls makes the hook not go in. |
@@ -2361,7 +2362,11 @@ such pass.
 - Player-built enclosed spaces with at least half a roof become buildings
   (`WorldRegionToMetaGrid`, user-defined `BuildingDef`), with touching levels combined into one. A
   player-built room touching or overlapping a map building is discarded, so an extension of an
-  existing house belongs to no building.
+  existing house belongs to no building. The overlap ignores the level: a room built on a map
+  building's roof is discarded too. Its squares are still "in a room" (`IsoGridSquare.isInARoom()`
+  asks the region, which is a player room) while `getRoom()` is null. The API mends the one place the
+  game reads the room of such a square without asking (`IsoTree.isPlayerInsideARoom`, a
+  `NullPointerException` for each tree drawn near, each frame; see the hook sites).
 - Room and building ids are numbered in the order of the cell's lists (`RoomID.makeID(cell x, cell y,
   index)`, `BuildingID.makeID`), and each time a player-built building appears, changes or goes, every
   room and building of that cell is numbered again (`WorldRegionToMetaGrid.recalculateBuildingAndRoomIDs`).

@@ -505,7 +505,8 @@ public final class Hooks {
         CHARACTER = ClassDesc.of("zombie.characters.IsoGameCharacter"), VECTOR2 = ClassDesc.of("zombie.iso.Vector2"),
         MOODLE_TYPE = ClassDesc.of("zombie.scripting.objects.MoodleType"), TEXTURE = ClassDesc.of("zombie.core.textures.Texture"),
         ZOMBIE_STATE = ClassDesc.of("zombie.audio.parameters.ParameterZombieState"), ZOMBIE = ClassDesc.of("zombie.characters.IsoZombie"),
-        ZOMBIE_STATE_VALUE = ClassDesc.of("zombie.audio.parameters.ParameterZombieState$State");
+        ZOMBIE_STATE_VALUE = ClassDesc.of("zombie.audio.parameters.ParameterZombieState$State"),
+        SQUARE = ClassDesc.of("zombie.iso.IsoGridSquare"), ROOM = ClassDesc.of("zombie.iso.areas.IsoRoom");
     // Whether IsoObject, as last transformed, has both hooks that keep a fixture's water tainted.
     private static volatile boolean purifyHooked;
     // UIManager.getToolTip(), which render asks after it has drawn the interface's windows.
@@ -1082,7 +1083,27 @@ public final class Hooks {
             Site.atReturns("getSlowFactor", "(Lzombie/iso/IsoMovingObject;)F", 2, (code, owner) -> {
                 code.aload(1);
                 code.invokestatic(HOOKS, "treeSlow", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_float, ConstantDescs.CD_Object));
-            }) }),
+            }),
+            // A fix: a player-built room the game made no building of (one on a map building's roof) is "in a room" with no
+            // room, and the tree asked the room for its bounds each frame (a NullPointerException each frame). The question is
+            // in a room that has a room.
+            Site.edit("isPlayerInsideARoom", "(Lzombie/characters/IsoPlayer;)Z", new Edit(calls("zombie/characters/IsoPlayer",
+                "isInARoom", "()Z"), 1, null, (code, element, kind) -> {
+                    Label pop = code.newLabel(), no = code.newLabel(), done = code.newLabel();
+                    code.dup();
+                    code.with(element);
+                    code.ifeq(pop);
+                    code.invokevirtual(PLAYER, "getSquare", MethodTypeDesc.of(SQUARE));
+                    code.invokevirtual(SQUARE, "getRoom", MethodTypeDesc.of(ROOM));
+                    code.ifnull(no);
+                    code.iconst_1();
+                    code.goto_(done);
+                    code.labelBinding(pop);
+                    code.pop();
+                    code.labelBinding(no);
+                    code.iconst_0();
+                    code.labelBinding(done);
+                })) }),
         // The body: a cold, the corpses around, a wound's infection and a bite.
         Map.entry("zombie/characters/BodyDamage/Thermoregulator", new Site[] {
             Site.atReturns("getCatchAColdDelta", "()F", 1, (code, owner) -> {

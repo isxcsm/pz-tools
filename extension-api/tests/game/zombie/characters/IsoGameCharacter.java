@@ -17,6 +17,8 @@ import zombie.iso.Vector2;
  * that hands its argument on, a getter with a branch, a loop over the inventory, a speed worked out from its parts).
  */
 public class IsoGameCharacter extends IsoMovingObject {
+    /** Like the game's: whether the character's square is in a room (a player-built one too). */
+    public boolean isInARoom() { return square != null && square.isInARoom(); }
     public float clothingDiscomfortModifier = 1f;
     public final Stats stats = new Stats();
     /** What addStiffness added to each part. */

@@ -2646,7 +2646,7 @@ public final class GameApiTest {
                 "HandWeapon.setWeaponPart", "HandWeapon.attachWeaponPart", "InventoryContainer.writes:weight", "Moveable.writes:weight",
                 "ItemStatsPacket.writes:weight", "FluidContainer.writes:amount", "ItemPickerJava.getActualSpawnChance",
                 "ItemPickerJava.getLootModifierFromType", "LightingJNI.getLumaInverted", "LightingJNI.calculateVisionCone",
-                "IsoTree.getSlowFactor", "Thermoregulator.getCatchAColdDelta", "CorpseCount.getCorpseCount",
+                "IsoTree.getSlowFactor", "IsoTree.isPlayerInsideARoom", "Thermoregulator.getCatchAColdDelta", "CorpseCount.getCorpseCount",
                 "BodyDamage.GetBaseCorpseSickness", "BodyDamage.AddRandomDamageFromZombie", "BodyPart.generateZombieInfection",
                 "IsoGameCharacter.handleLandingImpact:impact", "IsoGameCharacter.DoLand", "IsoGameCharacter.damageWhileInTrees",
                 "IsoGameCharacter.addHole", "IsoPlayer.calculateInTreesSpeed", "IsoPlayer.getDeferredMovement",
@@ -2660,7 +2660,7 @@ public final class GameApiTest {
                 "InventoryItem.*:useDelta", "DrainableComboItem.*:useDelta", "CraftRecipeData.luaCallOnCreate",
                 "InventoryItem.getName", "InventoryItem.getDisplayName", "Food.getName", "Clothing.getName", "Moveable.getName" })
             check(Hooks.APPLIED.equals(hooks.rawget(label)), label + " is " + hooks.rawget(label));
-        check(Hooks.hookStatus().size() == 118, "The hooks are " + Hooks.hookStatus().keySet());
+        check(Hooks.hookStatus().size() == 119, "The hooks are " + Hooks.hookStatus().keySet());
         check(Hooks.weightTracked(), "The hooks that follow the weight are not all in");
 
         Method transform = Hooks.class.getDeclaredMethod("transform", String.class, byte[].class, ClassLoader.class);

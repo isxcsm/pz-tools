@@ -16,4 +16,12 @@ public class IsoTree extends IsoObject {
         if (size == 3 || size == 4) return 0.5f * bonus;
         return bonus;
     }
+
+    /** Like the game's: whether the player is in a room the tree stands by (it asks the player's room for its bounds). */
+    private boolean isPlayerInsideARoom(zombie.characters.IsoPlayer player) {
+        if (!player.isInARoom()) return false;
+        java.awt.Rectangle bounds = player.getSquare().getRoom().getRectsBounds();
+        return square.x >= bounds.getX() && square.y >= bounds.getY() && square.x <= bounds.getX() + bounds.getWidth() + 8
+            && square.y <= bounds.getY() + bounds.getHeight() + 8;
+    }
 }
