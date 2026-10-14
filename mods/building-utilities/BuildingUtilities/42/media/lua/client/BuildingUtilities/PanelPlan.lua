@@ -106,6 +106,7 @@ local COLOURS = {
     -- the legend's shapes of water with several pipes, apart from the box's white
     shape = { 0.55, 0.58, 0.63 },
     junction = BU.Units.definition("junction").colour, hydrant = BU.Units.definition("hydrant").colour,
+    solar = BU.Units.definition("solar").colour, rack = BU.Units.definition("rack").colour,
     linePower = { 0.95, 0.72, 0.3 }, lineWater = { 0.45, 0.78, 0.86 }, lineCut = { 0.42, 0.42, 0.44 },
 }
 
@@ -162,7 +163,15 @@ local function legendEntries(utility, zones, ranges, data)
     elseif utility == "power" then
         for _, name in ipairs({ "using", "idle", "timer", "unsupplied", "other" }) do add(name) end
         add("off")
+        -- the sources: generators, and the solar panels and battery racks the plan has
         add("producer", true)
+        local kinds = {}
+        for _, producer in ipairs(data.producers or {}) do
+            if producer.unit then kinds[producer.unit] = true end
+        end
+        for _, kind in ipairs({ "solar", "rack" }) do
+            if kinds[kind] then add(kind, true) end
+        end
     elseif pipes then
         -- each pipe's colour, what is on it is drawn in (a dot a fixture, a square a storage or a unit)
         for _, pipe in ipairs(pipes) do
