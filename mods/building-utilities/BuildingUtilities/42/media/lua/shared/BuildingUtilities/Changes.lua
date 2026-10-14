@@ -689,12 +689,37 @@ function Changes.removePipe(panel, id)
     end
 end
 
--- A room's pipe, by the room's key: what its fixtures are on unless the player chose another for one.
+-- A room's pipe, by the room's key: the pipe in its walls, which all in it takes (the plan paints rooms whole): its
+-- fixtures, one put on another pipe coming back to it, and its water storages. Units keep theirs: a filter or a
+-- booster pump joins two pipes.
 function Changes.setRoomPipe(panel, roomKey, id)
     if not Water.pipe(panel, id) then return end
-    panel.water.roomPipe[roomKey] = id ~= Water.FIRST and id or nil
-    Networks.defineWater(panel)
-    Sync.changed(panel.id)
+    local data = panel.water
+    data.roomPipe[roomKey] = id ~= Water.FIRST and id or nil
+    local function inRoom(x, y, z)
+        local room = x and Links.homeRoom(panel, x, y, z)
+        return room ~= nil and room.key == roomKey
+    end
+    local back = {}
+    for key in pairs(data.pipeOf) do
+        if not data.included[key] and inRoom(BU.parseThing(key)) then back[#back + 1] = key end
+    end
+    for _, key in ipairs(back) do data.pipeOf[key] = nil end
+    local moved = false
+    for _, at in ipairs(data.producers) do
+        if (at.pipe or Water.FIRST) ~= id and inRoom(at.x, at.y, at.z) then
+            at.pipe = id ~= Water.FIRST and id or nil
+            moved = true
+        end
+    end
+    if moved then
+        -- a storage's line runs its pipe: what hangs on it may pass or stop (BU.Links "pipe")
+        Store.linksChanged()
+        Changes.linesChanged(panel)
+    else
+        Networks.defineWater(panel)
+        Sync.changed(panel.id)
+    end
 end
 
 -- A tank onto a pipe.

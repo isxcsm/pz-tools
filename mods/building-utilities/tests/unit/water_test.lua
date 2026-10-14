@@ -216,6 +216,28 @@ test("a pipe put in, a room and a tank put on it, then taken away: all back on t
     eq(Water.nextPipe(panel), 2)
 end)
 
+test("a room painted onto a pipe takes all in it: its tanks, and its fixtures put on another pipe", function()
+    local panel, nets, tank = scene(2)
+    tankAt(panel, tank, 101, 101, 0, 100)
+    tankAt(panel, tank, 101, 101, 1, 100)
+    local blue, green, orange = Water.FIRST, Changes.addPipe(panel), Changes.addPipe(panel)
+    local room
+    for _, each in ipairs(BU.Panels.zoneRooms(panel)) do
+        if each.level == 0 then room = each end
+    end
+    local inside, above = BU.thingKey(101, 101, 0, "sink"), BU.thingKey(101, 101, 1, "sink")
+    panel.water.pipeOf[inside], panel.water.pipeOf[above] = orange, orange
+    Changes.setRoomPipe(panel, room.key, green)
+    eq(Water.roomPipe(panel, room.key), green)
+    eq(panel.water.producers[1].pipe, green, "the tank in the room moves")
+    eq(panel.water.producers[2].pipe, nil, "the one upstairs stays on blue")
+    eq(panel.water.pipeOf[inside], nil, "the fixture in the room is on the room's pipe again")
+    eq(panel.water.pipeOf[above], orange, "the one upstairs keeps its pipe")
+    Changes.setRoomPipe(panel, room.key, blue)
+    eq(panel.water.producers[1].pipe, nil, "back on blue")
+    eq(panel.water.roomPipe[room.key], nil)
+end)
+
 test("a tank shut at the box is out of its pipe; a unit switched off there does not work", function()
     local panel, nets, tank = scene(1)
     tankAt(panel, tank, 101, 101, 0, 100, 50)
