@@ -47,21 +47,21 @@ Shop.TYPES = {
 -- lighter and longer lasting): the tool, tier, price, in the shop's order (that tool's list). The common hand tools open
 -- first; the metalworking ones, the heavy ones and the big blades later, the dearer the more a run carries them.
 Shop.FIELD_TOOLS = {
-    { "Hammer", 1, 15000 }, { "BallPeenHammer", 2, 15000 }, { "ClubHammer", 2, 18000 }, { "WoodenMallet", 2, 12000 },
-    { "Saw", 1, 15000 }, { "GardenSaw", 2, 16000 }, { "SmallSaw", 2, 14000 }, { "CarpentryChisel", 2, 14000 },
-    { "HandDrill", 2, 20000 },
-    { "SmithingHammer", 3, 20000 }, { "Tongs", 3, 16000 }, { "MetalworkingPliers", 3, 16000 },
-    { "MetalworkingPunch", 3, 16000 }, { "MetalworkingChisel", 3, 16000 }, { "File", 3, 14000 },
-    { "SmallFileSet", 3, 18000 }, { "SheetMetalSnips", 3, 18000 }, { "ViseGrips", 3, 16000 },
-    { "HeadingTool", 3, 16000 }, { "SmallPunchSet", 3, 18000 },
-    { "MasonsTrowel", 2, 12000 }, { "MasonsChisel", 2, 14000 }, { "PlasterTrowel", 2, 12000 },
-    { "Screwdriver", 1, 12000 }, { "Wrench", 1, 14000 }, { "Ratchet", 2, 16000 }, { "PipeWrench", 2, 18000 },
-    { "LugWrench", 1, 14000 }, { "Pliers", 1, 12000 },
-    { "Crowbar", 2, 22000 }, { "BoltCutters", 3, 28000 }, { "Sledgehammer", 4, 35000 },
-    { "WoodAxe", 3, 28000 }, { "Axe", 3, 28000 }, { "HandAxe", 2, 20000 }, { "Shovel", 2, 20000 },
-    { "HandShovel", 2, 12000 }, { "PickAxe", 3, 28000 }, { "GardenHoe", 2, 18000 }, { "GardenFork", 2, 18000 },
-    { "Scythe", 2, 22000 }, { "HandScythe", 2, 14000 },
-    { "Scissors", 1, 10000 }, { "Awl", 1, 10000 }, { "Whetstone", 1, 10000 },
+    { "Hammer", 1, 45000 }, { "BallPeenHammer", 2, 45000 }, { "ClubHammer", 2, 54000 }, { "WoodenMallet", 2, 36000 },
+    { "Saw", 1, 45000 }, { "GardenSaw", 2, 48000 }, { "SmallSaw", 2, 42000 }, { "CarpentryChisel", 2, 42000 },
+    { "HandDrill", 2, 60000 },
+    { "SmithingHammer", 3, 60000 }, { "Tongs", 3, 48000 }, { "MetalworkingPliers", 3, 48000 },
+    { "MetalworkingPunch", 3, 48000 }, { "MetalworkingChisel", 3, 48000 }, { "File", 3, 42000 },
+    { "SmallFileSet", 3, 54000 }, { "SheetMetalSnips", 3, 54000 }, { "ViseGrips", 3, 48000 },
+    { "HeadingTool", 3, 48000 }, { "SmallPunchSet", 3, 54000 },
+    { "MasonsTrowel", 2, 36000 }, { "MasonsChisel", 2, 42000 }, { "PlasterTrowel", 2, 36000 },
+    { "Screwdriver", 1, 36000 }, { "Wrench", 1, 42000 }, { "Ratchet", 2, 48000 }, { "PipeWrench", 2, 54000 },
+    { "LugWrench", 1, 42000 }, { "Pliers", 1, 36000 },
+    { "Crowbar", 2, 66000 }, { "BoltCutters", 3, 84000 }, { "Sledgehammer", 4, 200000 },
+    { "WoodAxe", 3, 84000 }, { "Axe", 3, 84000 }, { "HandAxe", 2, 60000 }, { "Shovel", 2, 60000 },
+    { "HandShovel", 2, 36000 }, { "PickAxe", 3, 84000 }, { "GardenHoe", 2, 54000 }, { "GardenFork", 2, 54000 },
+    { "Scythe", 2, 66000 }, { "HandScythe", 2, 42000 },
+    { "Scissors", 1, 30000 }, { "Awl", 1, 30000 }, { "Whetstone", 1, 30000 },
 }
 
 -- A field tool's item type and shop id.
@@ -151,7 +151,7 @@ local function build()
     add({ id = "petrol_can", group = "resource", tier = 2, price = 15000, week = 3,
         give = { vanilla("PetrolCan", 1, { full = true, fluid = "Petrol" }) } })
     add({ id = "propane_tank", group = "resource", tier = 3, price = 25000, week = 2, give = { vanilla("PropaneTank", 1, { full = true }) } })
-    add({ id = "seed_pack", group = "resource", tier = 1, price = 3000, week = 5, choices = "seeds" })
+    add({ id = "seed_pack", group = "resource", tier = 1, price = 30000, week = 5, choices = "seeds" })
     add({ id = "scrap_pack", group = "resource", tier = 2, price = 6000, week = 5, give = { vanilla("ElectronicsScrap", 10) } })
     -- Building hardware, dear (NUMBERS 7): a box of 100 nails or screws is what a delivery of 2 weight pays ten times
     -- over. Nuts and bolts come loose in fives and never in a box, so they cost the most a piece.

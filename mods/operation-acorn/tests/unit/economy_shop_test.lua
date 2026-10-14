@@ -25,7 +25,7 @@ end
 test("every NUMBERS 7 price is in the catalog", function()
     local expect = {
         cure_serum = { 500000, 5 }, reversal = { 50000, 1 }, delay_long = { 20000, 0 }, delay_drug = { 5000, 0 },
-        test_kit = { 2000, 0 }, battery_pack = { 4000, 1 }, seed_pack = { 3000, 1 },
+        test_kit = { 2000, 0 }, battery_pack = { 4000, 1 }, seed_pack = { 30000, 1 },
         petrol_can = { 15000, 2 }, scrap_pack = { 6000, 2 }, propane_tank = { 25000, 3 }, car_battery = { 20000, 3 },
         car_part_normal = { 10000, 3 }, engine_parts = { 20000, 3 }, car_part_modern = { 25000, 5 },
         ammo_pistol = { 40000, 4 }, ammo_shotgun = { 50000, 4 }, ammo_rifle = { 60000, 4 },
@@ -33,9 +33,9 @@ test("every NUMBERS 7 price is in the catalog", function()
         team_crate = { 15000, 2 }, nails_box = { 80000, 1 }, screws_box = { 80000, 1 }, nuts_bolts = { 80000, 2 },
         welding_rods = { 50000, 2 }, team_welding_mask = { 40000, 3 }, team_waist_bag = { 90000, 3 },
         team_fuel_can = { 20000, 2 }, team_welder = { 35000, 3 },
-        field_hammer = { 15000, 1 }, field_screwdriver = { 12000, 1 }, field_carpentrychisel = { 14000, 2 },
-        field_smithinghammer = { 20000, 3 }, field_boltcutters = { 28000, 3 }, field_sledgehammer = { 35000, 4 },
-        field_whetstone = { 10000, 1 },
+        field_hammer = { 45000, 1 }, field_screwdriver = { 36000, 1 }, field_carpentrychisel = { 42000, 2 },
+        field_smithinghammer = { 60000, 3 }, field_boltcutters = { 84000, 3 }, field_sledgehammer = { 200000, 4 },
+        field_whetstone = { 30000, 1 },
         fabric_cutter = { 80000, 2 }, log_saw = { 100000, 2 }, rain_cistern = { 90000, 3 },
         bulk_shredder = { 150000, 3 }, propane_refinery = { 200000, 3 }, oil_refinery = { 250000, 4 },
         box_reissue = { 10000, 0 },
