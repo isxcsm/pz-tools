@@ -186,6 +186,9 @@ public final class Hooks {
         /** {@code CraftRecipeData.luaCallOnCreate(character)} is about to call the recipe's OnCreate: the items are made. */
         default void crafted(Object data) { }
 
+        /** The name an item's own naming methods read ({@code InventoryItem.name}, in {@code getName} and {@code getDisplayName}). */
+        default String itemName(String vanilla, Object item) { return vanilla; }
+
         /** {@code LightingJNI.getLumaInverted(character)}: how dark it is for the character, from 0 (light) to 1. */
         default float darkness(float vanilla, Object character) { return vanilla; }
 
@@ -461,6 +464,7 @@ public final class Hooks {
         OVERLOAD("overload", Group.FORMULAS), RUN_PENALTY("runPenalty", Group.FORMULAS),
         COMBAT_PENALTY("combatPenalty", Group.FORMULAS), LOOT_CHANCE("lootChance", Group.FORMULAS),
         LOOT_AMMO("lootAmmo", Group.FORMULAS), USE_DELTA("useDelta", Group.FORMULAS), CRAFTED("crafted", Group.FORMULAS),
+        ITEM_NAME("itemName", Group.FORMULAS),
         DARKNESS("darkness", Group.FORMULAS), CONE_ADD("coneAdd", Group.FORMULAS),
         NIGHT_SIGHT("nightSight", Group.FORMULAS),
         LANDING("landing", Group.FORMULAS), IMPACT("impact", Group.FORMULAS), TREE_SLOW("treeSlow", Group.FORMULAS),
@@ -581,7 +585,12 @@ public final class Hooks {
                 "fullType", "name", "replaceOnUse", "replaceOnUseFullType", "scriptItem", "cooked", "burnt", "attachedSlot",
                 "displayCategory", "itemType"), List.of()),
             Site.atReturns("addExtraItem", "(Ljava/lang/String;)V", 1, (code, owner) -> thisCall(code, "weightChanged")),
-            Site.everywhere(useDeltaEdit("zombie/inventory/InventoryItem")).named("useDelta") }),
+            Site.everywhere(useDeltaEdit("zombie/inventory/InventoryItem")).named("useDelta"),
+            // The name an item is shown by: getName (getName() calls it), getDisplayName, and the overrides of the kinds that
+            // dress the name (food, clothing, furniture), each read of the field.
+            Site.edit("getName", "(Lzombie/characters/IsoPlayer;)Ljava/lang/String;", nameEdit()),
+            Site.edit("getDisplayName", "()Ljava/lang/String;", nameEdit()) }),
+        Map.entry("zombie/inventory/types/Clothing", new Site[] { Site.edit("getName", "(Lzombie/characters/IsoPlayer;)Ljava/lang/String;", nameEdit()) }),
         // A drainable keeps a use delta of its own (the field shadows the item's): every read of either goes through the hook.
         Map.entry("zombie/inventory/types/DrainableComboItem", new Site[] {
             Site.everywhere(useDeltaEdit("zombie/inventory/types/DrainableComboItem")).named("useDelta") }),
@@ -596,7 +605,8 @@ public final class Hooks {
             Site.atReturns("setWeaponPart", "(Ljava/lang/String;Lzombie/inventory/types/WeaponPart;)V", 1, (code, owner) -> thisCall(code, "weightChanged")),
             Site.atReturns("attachWeaponPart", "(Lzombie/characters/IsoGameCharacter;Lzombie/inventory/types/WeaponPart;Z)V", 1,
                 (code, owner) -> thisCall(code, "weightChanged")) }),
-        Map.entry("zombie/inventory/types/Moveable", new Site[] { Site.watch("weight", "weightChanged", List.of(), List.of("actualWeight", "fullType", "name")) }),
+        Map.entry("zombie/inventory/types/Moveable", new Site[] { Site.watch("weight", "weightChanged", List.of(), List.of("actualWeight", "fullType", "name")),
+            Site.edit("getName", "(Lzombie/characters/IsoPlayer;)Ljava/lang/String;", nameEdit()) }),
         Map.entry("zombie/network/packets/ItemStatsPacket", new Site[] { Site.watch("weight", "weightChanged", List.of(), List.of("extraItems")) }),
         Map.entry("zombie/entity/components/fluids/FluidContainer", new Site[] {
             Site.watch("amount", "fluidChanged", List.of("cacheInvalidated", "amountCache"), List.of()) }),
@@ -696,6 +706,7 @@ public final class Hooks {
         Map.entry("zombie/core/opengl/Shader", new Site[] { tileDraw(), bindDraw().named("bind") }),
         Map.entry("zombie/core/skinnedmodel/shader/Shader", new Site[] { bindDraw() }),
         Map.entry("zombie/inventory/types/Food", new Site[] {
+            Site.edit("getName", "(Lzombie/characters/IsoPlayer;)Ljava/lang/String;", nameEdit()),
             // container.getSourceGrid().haveElectricity(), for food in a fridge or freezer.
             Site.square("updateAge", "(Z)V", element -> element instanceof InvokeInstruction invoke
                 && invoke.owner().asInternalName().equals("zombie/inventory/ItemContainer")
@@ -1187,6 +1198,22 @@ public final class Hooks {
             code.swap();
             code.invokestatic(HOOKS, "useDelta", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_float, ConstantDescs.CD_Object));
         });
+    }
+
+    /**
+     * Each read of an item's own field {@code name} (a String; in a subclass the field is named by the subclass): the item
+     * and the name go to the hook.
+     */
+    private static Edit nameEdit() {
+        return new Edit(element -> element instanceof FieldInstruction field && field.opcode() == Opcode.GETFIELD
+            && field.name().equalsString("name") && field.typeSymbol().descriptorString().equals("Ljava/lang/String;")
+            && field.owner().asInternalName().startsWith("zombie/inventory/"), -1, null, (code, element, kind) -> {
+                // item -> item, item -> item, name -> name, item -> name
+                code.dup();
+                code.with(element);
+                code.swap();
+                code.invokestatic(HOOKS, "itemName", MethodTypeDesc.of(ConstantDescs.CD_String, ConstantDescs.CD_String, ConstantDescs.CD_Object));
+            });
     }
 
     /** The result of each {@code ItemContainer.getCapacityWeight()} call, with the container it was asked of. */
@@ -2042,6 +2069,14 @@ public final class Hooks {
         if (current == null) return vanilla;
         try { return current.useDelta(vanilla, item); }
         catch (Throwable problem) { reportOnce(Call.USE_DELTA, problem); return vanilla; }
+    }
+
+    /** Put after each read of an item's {@code name} in its naming methods, with the item. */
+    public static String itemName(String vanilla, Object item) {
+        Formulas current = formulas;
+        if (current == null) return vanilla;
+        try { return current.itemName(vanilla, item); }
+        catch (Throwable problem) { reportOnce(Call.ITEM_NAME, problem); return vanilla; }
     }
 
     /** Put at the start of {@code CraftRecipeData.luaCallOnCreate(IsoGameCharacter)}. */

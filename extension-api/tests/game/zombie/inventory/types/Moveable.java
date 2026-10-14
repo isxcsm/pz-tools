@@ -5,6 +5,7 @@ import zombie.inventory.InventoryItem;
 /** Synthetic: a piece of furniture picked up, which takes its weight and name from the sprite it was read from. */
 public class Moveable extends InventoryItem {
     public Moveable() { super("Moveable", 1f); }
+    @Override public String getName(zombie.characters.IsoPlayer player) { return name; }
     public void readFromWorldSprite(float weight, String sprite) {
         actualWeight = weight;
         name = sprite;

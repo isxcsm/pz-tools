@@ -53,6 +53,8 @@ final class Inventory {
     private final MethodHandle rawget, rawset;
     // InventoryItem: its name, whether a player named it; CraftRecipeData: the items a craft made and used up.
     private final MethodHandle itemName, setItemName, customName, setCustomName, craftCreated, craftConsumed;
+    // Translator.getText(key): a translation key in the game's language.
+    private final MethodHandle translate;
     // ZomboidGlobals.equippedOrWornEncumbranceMultiplier
     private final MethodHandle equippedMultiplier;
     // ItemType.get(location), ItemTag.get(location), ResourceLocation.of(id): how the game finds a registered name.
@@ -128,6 +130,8 @@ final class Inventory {
         Class<?> craft = Game.type(loader, "zombie.entity.components.crafting.recipe.CraftRecipeData");
         craftCreated = Game.exact(craft.getMethod("getAllCreatedItems"), MethodType.methodType(ArrayList.class, Object.class));
         craftConsumed = Game.exact(craft.getMethod("getAllConsumedItems"), MethodType.methodType(ArrayList.class, Object.class));
+        translate = Game.exact(Game.type(loader, "zombie.core.Translator").getMethod("getText", String.class),
+            MethodType.methodType(String.class, String.class));
         Field multiplier = Game.type(loader, "zombie.ZomboidGlobals").getField("equippedOrWornEncumbranceMultiplier");
         equippedMultiplier = MethodHandles.publicLookup().unreflectGetter(multiplier);
         itemTypeGet = typeClass.getMethod("get", location);
@@ -192,6 +196,20 @@ final class Inventory {
         for (String key : keys)
             if ((Object)rawget.invokeExact(table, (Object)key) instanceof Number value) times *= Math.max(0.1, Math.min(100, value.doubleValue()));
         return times == 1 ? vanilla : (float)(vanilla / times);
+    }
+
+    /**
+     * The name an item is shown by: the translation, in the game's language as it is now, of the translation key its modData
+     * holds under the first of the keys that holds a string, so that one item of a type can be named apart from the rest
+     * and its name follows the language. A name a player gave ({@code isCustomName}) is the player's and stays; an item
+     * without a key keeps the game's. The kinds that dress a name (worn, bloody, rotten) dress this one.
+     */
+    String itemName(String[] keys, Object item, String vanilla) throws Throwable {
+        if (!(boolean)itemHasModData.invokeExact(item) || (boolean)customName.invokeExact(item)) return vanilla;
+        Object table = (Object)itemModData.invokeExact(item);
+        for (String key : keys)
+            if ((Object)rawget.invokeExact(table, (Object)key) instanceof String translationKey) return (String)translate.invokeExact(translationKey);
+        return vanilla;
     }
 
     /**

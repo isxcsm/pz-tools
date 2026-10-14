@@ -2545,9 +2545,10 @@ public final class GameApiTest {
                 "FBORenderObjectOutline.renderObject", "ModelSlotRenderData.initModel:outline", "ModelSlotRenderData.renderVehicle",
                 "ModelSlotRenderData.initModel:light", "IsoObjectModelDrawer.renderMain:still", "ModelInstance$PlayerData.updateLights",
                 "IsoGridSquare.BurnWalls", "IsoGridSquare.load", "FBORenderCell.renderOneLevel", "IsoGridSquare.RecalcProperties",
-                "InventoryItem.*:useDelta", "DrainableComboItem.*:useDelta", "CraftRecipeData.luaCallOnCreate" })
+                "InventoryItem.*:useDelta", "DrainableComboItem.*:useDelta", "CraftRecipeData.luaCallOnCreate",
+                "InventoryItem.getName", "InventoryItem.getDisplayName", "Food.getName", "Clothing.getName", "Moveable.getName" })
             check(Hooks.APPLIED.equals(hooks.rawget(label)), label + " is " + hooks.rawget(label));
-        check(Hooks.hookStatus().size() == 112, "The hooks are " + Hooks.hookStatus().keySet());
+        check(Hooks.hookStatus().size() == 117, "The hooks are " + Hooks.hookStatus().keySet());
         check(Hooks.weightTracked(), "The hooks that follow the weight are not all in");
 
         Method transform = Hooks.class.getDeclaredMethod("transform", String.class, byte[].class, ClassLoader.class);

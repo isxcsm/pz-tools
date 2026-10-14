@@ -27,6 +27,9 @@ public class Food extends InventoryItem {
     public void setHungChange(float value) { hungChange = value; }
     public void setBaseHunger(float value) { baseHunger = value; }
     public void setThirstChange(float value) { thirstChange = value; }
+    /** Its name says when it went off, as the game's does (the field read, then dressed). */
+    @Override public String getName(zombie.characters.IsoPlayer player) { return age >= 1 ? "Rotten " + name : name; }
+
     /** Cooking too long burns it. */
     public void burn() { burnt = true; }
 

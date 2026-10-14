@@ -7,6 +7,7 @@ import se.krka.kahlua.vm.KahluaTable;
 import zombie.Lua.LuaManager;
 import zombie.ZomboidGlobals;
 import zombie.characters.IsoGameCharacter;
+import zombie.characters.IsoPlayer;
 import zombie.entity.components.fluids.FluidContainer;
 import zombie.scripting.objects.ItemTag;
 import zombie.scripting.objects.ItemType;
@@ -46,7 +47,10 @@ public class InventoryItem {
     public void setCooked(boolean value) { cooked = value; }
     public void setBurnt(boolean value) { burnt = value; }
     public void setName(String value) { name = value; }
-    public String getName() { return name; }
+    // As the game's: getName() asks getName(null), and the methods that name the item read the field.
+    public String getName() { return getName(null); }
+    public String getName(IsoPlayer player) { return name; }
+    public String getDisplayName() { return name; }
     public boolean isCustomName() { return customName; }
     public void setCustomName(boolean value) { customName = value; }
     public float getUseDelta() { return useDelta; }

@@ -566,6 +566,7 @@ not have is a Lua error at `set`.
 | `carry.efficiencyKey` | name or list of names | join | A carrying efficiency an item holds itself: each key of its `modData` that holds a number adds it to the item's efficiencies above (-0.9 to 100 each), so one item of a type can be lighter than the rest. The load reads the key when the item's weight is counted again; a mod that changes the number tells the game the weight changed (`item:setActualWeight(item:getActualWeight())`). |
 | `uses.modDataKey` | name or list of names | join | Uses an item holds itself: each key of its `modData` that holds a number (0.1 to 100) divides the item's use delta (`getUseDelta`, and every read of the field in `InventoryItem` and `DrainableComboItem`: `getMaxUses`, the current uses), so `2` gives a blowtorch twice its uses at the same fill. Its number of uses saved stays; a save loaded without the key fills it past its most until used. |
 | `craft.carryKeys` | name or list of names | join | The `modData` keys a craft hands on: when a recipe uses an item up and makes one of the same full type (a blowtorch refilled), before the recipe's `OnCreate` runs (`CraftRecipeData.luaCallOnCreate`) the new item takes the used item's keys and, when the player named it, its name. The first used item of that type that holds a key is the one; an item of another type takes nothing. |
+| `item.nameKey` | name or list of names | join | The name an item holds itself: under the first of these keys of its `modData` that holds a string, a translation key; the item is named by its translation in the game's language of the moment (`Translator.getText`), so one item of a vanilla type is named apart from the rest and its name follows a change of language. A name a player gave (`isCustomName`) is the player's and stays. The kinds that dress a name dress this one (a worn, bloody or rotten one). Read where the item's naming methods read its name (`getName`, `getDisplayName`); the saved name stays the type's. See [one item of a vanilla type](#one-item-of-a-vanilla-type). |
 | `carry.containerTagMultiplier` | table: item tag to 0 to 100 | multiply per name | Times the weight of what is inside a bag with the tag (`hasTag`): `0` makes its contents weightless. The bag's own weight is not changed. |
 | `capacity.maxWeightAdd` | -1000 to 1000, whole | add | Added to the most the character carries (`IsoGameCharacter.getMaxWeight`, which the load moodle, the path speed and the fall damage compare the load with). |
 | `capacity.effectiveMultiplier` | 0 to 100 | multiply | Times what a container holds for the local player (`ItemContainer.getEffectiveCapacity`, after the game's own trait multiplier), for the containers that multiplier reaches: not a character's inventory, a corpse, the floor, or a bag (a bag's capacity is its own kit, below). |
@@ -776,6 +777,7 @@ hook only. `PZExtAPI.hooks()` names each by game class and method.
 | `InventoryContainer.getCapacity`, `getEffectiveCapacity` | each return | The container's own answer, without the bag clamp, for a bag that declares a key in its `modData`. |
 | `InventoryItem.*`, `DrainableComboItem.*` (labelled `:useDelta`) | each read of the class's own `useDelta` field | The value read is divided by the item's `uses.modDataKey` numbers. The two classes each have a field of that name; the drainable's shadows the item's. |
 | `CraftRecipeData.luaCallOnCreate(IsoGameCharacter)` | the start | The items made take the used items' `craft.carryKeys`, before the recipe's `OnCreate` reads them. |
+| `InventoryItem.getName(IsoPlayer)`, `getDisplayName()`; `Food`, `Clothing`, `Moveable` `getName(IsoPlayer)` | each read of the item's `name` field | The name read passes through `item.nameKey`. `getName()` asks `getName(null)`; the kinds that dress a name override the one with the player. |
 | `ItemContainer.items` (every store of the field) | the store | The list stored is a `Tracked` list (an `ArrayList` that tells the API of each add, remove, set, clear, sort and bulk change after it is made), and its owner is the container. The container's own methods change the list through it, so none of them needs a hook of its own; neither do mods that call `getItems()` and change the list directly. |
 | `ItemContainer.emptyIt`, `ItemContainer.setItems` | the start | The container's list is replaced or emptied without going through the list's methods: the kept account of the old list is dropped. |
 | `WornItems.items` (every store of the field) | the store | The same for the list of what a character wears. |
@@ -2380,6 +2382,23 @@ such pass.
   into a container filled with clean water). While the square is not loaded the container goes on in
   a meta entity at the object's position (see [draw and fill](#draw-and-fill)). The Lua global object
   system `SRainBarrelSystem` takes none of them in Build 42 (`isValidIsoObject` is always false).
+
+### One item of a vanilla type
+
+A mod that hands out a vanilla item made its own (a team's blowtorch, a marked tool) keeps the vanilla type: the
+game's own code asks for an item by its type (`getType() == "BlowTorch"`), its full type (`Base.BlowTorch` in a vehicle's
+menu, `isPrimaryEquipped`, the build recipes' `use:Base.BlowTorch`) or its tag, and an item of another type answers
+none of them. What makes it the mod's goes in its `modData`, which the game saves with the item and sends with it.
+The item's sides, and what carries each:
+
+| Side | How |
+| --- | --- |
+| What it is to the game | Its vanilla type, unchanged. |
+| Its icon | The game's own: a string under `customInventoryIcon` in its `modData` is a texture name (`Texture.getSharedTexture`, a path such as `media/textures/Item_X.png` or a packed texture's name), and `getTexture`, which `getTex` and `getIcon` ask, answers it instead of the type's icon; one the game cannot find leaves the type's. Every place the game draws an item asks one of the three. No hook. |
+| Its name | `item.nameKey`: a translation key under a declared key. Without the API a mod names it with `setName` and `setCustomName(true)`, in the language of the moment, as if a player had. |
+| What it holds of the mod's | Its own keys (`uses.modDataKey`, `carry.efficiencyKey`, ...). |
+| A recipe that remakes it (a refill) | `craft.carryKeys`, which has to list every key above the mod uses (the icon's and the name's too). |
+| Its model on the floor and in the hands | The type's. |
 
 ## Measured in the game
 

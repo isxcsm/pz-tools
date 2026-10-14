@@ -119,6 +119,8 @@ final class Formulas implements Hooks.Formulas {
         load("capacity.modDataKey", Shape.NAMES, Names.ANY, LIFT),
         load("uses.modDataKey", Shape.NAMES, Names.ANY, "InventoryItem.*:useDelta", "DrainableComboItem.*:useDelta"),
         load("craft.carryKeys", Shape.NAMES, Names.ANY, "CraftRecipeData.luaCallOnCreate"),
+        load("item.nameKey", Shape.NAMES, Names.ANY, "InventoryItem.getName", "InventoryItem.getDisplayName", "Food.getName",
+            "Clothing.getName", "Moveable.getName"),
         load("overload.compress", Shape.REDUCTION, Names.ANY, OVERLOAD),
         live("move.runPenaltyReduction", Shape.REDUCTION, "IsoGameCharacter.calculateBaseSpeed"),
         live("move.combatPenaltyReduction", Shape.REDUCTION, "IsoGameCharacter.calculateCombatSpeed"),
@@ -174,6 +176,8 @@ final class Formulas implements Hooks.Formulas {
         String[] dataKeys = NO_NAMES;
         // The keys of an item's modData that add to its efficiency, that multiply its uses, and that a craft carries over.
         String[] efficiencyKeys = NO_NAMES, useKeys = NO_NAMES, carryKeys = NO_NAMES;
+        // The keys of an item's modData that hold the translation key it is named by.
+        String[] nameKeys = NO_NAMES;
         // The machines: base consumption by sprite name, and the keys of an object's data that scale it.
         Map<String, Float> machines = Map.of();
         String[] machineKeys = NO_NAMES;
@@ -772,6 +776,7 @@ final class Formulas implements Hooks.Formulas {
         if (combined(BY_NAME.get("capacity.modDataKey")) instanceof List<?> keys) next.dataKeys = keys.toArray(String[]::new);
         if (combined(BY_NAME.get("uses.modDataKey")) instanceof List<?> keys) next.useKeys = keys.toArray(String[]::new);
         if (combined(BY_NAME.get("craft.carryKeys")) instanceof List<?> keys) next.carryKeys = keys.toArray(String[]::new);
+        if (combined(BY_NAME.get("item.nameKey")) instanceof List<?> keys) next.nameKeys = keys.toArray(String[]::new);
         var declaredMachines = new HashMap<String, Float>();
         for (var entry : table("machine.baseConsumption").entrySet()) declaredMachines.put(entry.getKey(), entry.getValue().floatValue());
         next.machines = Map.copyOf(declaredMachines);
@@ -1090,6 +1095,13 @@ final class Formulas implements Hooks.Formulas {
         String[] keys = active.useKeys;
         if (keys.length == 0 || inventory == null) return vanilla;
         try { return inventory.useDelta(keys, item, vanilla); }
+        catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
+    }
+
+    @Override public String itemName(String vanilla, Object item) {
+        String[] keys = active.nameKeys;
+        if (keys.length == 0 || inventory == null) return vanilla;
+        try { return inventory.itemName(keys, item, vanilla); }
         catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
     }
 

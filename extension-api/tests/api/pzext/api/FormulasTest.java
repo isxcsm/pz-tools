@@ -310,12 +310,13 @@ final class FormulasTest {
         new zombie.core.skinnedmodel.shader.Shader();
         new LightingJNI.JNILighting(0, null);
         new zombie.iso.fboRenderChunk.FBORenderCell();
+        new zombie.inventory.types.Clothing();
         var points = (KahluaTable)call(formulas, "points").get(0);
         for (String applied : new String[] { "body.discomfortMultiplier", "body.stiffnessMultiplier", "body.fatigueMultiplier",
                 "body.enduranceDrainMultiplier", "body.poisonMultiplier", "carry.categoryEfficiency", "carry.itemEfficiency", "carry.fullTypeEfficiency",
                 "carry.containerTagMultiplier", "capacity.maxWeightAdd", "capacity.effectiveMultiplier", "capacity.characterLimitAdd",
                 "capacity.modDataKey", "overload.compress", "move.runPenaltyReduction", "move.combatPenaltyReduction",
-                "carry.efficiencyKey", "uses.modDataKey", "craft.carryKeys" })
+                "carry.efficiencyKey", "uses.modDataKey", "craft.carryKeys", "item.nameKey" })
             check(Hooks.APPLIED.equals(points.rawget(applied)), applied + " is " + points.rawget(applied));
         for (String applied : new String[] { "loot.spawnMultiplier", "loot.ammoMultiplier", "vision.darknessRestore", "vision.coneAdd",
                 "vision.nightSight", "fall.landingRemap", "fall.heightMultiplier", "fall.impactMultiplier", "move.walkMultiplier", "move.treeSlowMultiplier", "move.treeScratchChance",
@@ -325,7 +326,7 @@ final class FormulasTest {
         for (String applied : new String[] { "machine.baseConsumption", "machine.loadKey", "anim.stepKey", "machine.spriteName" })
             check(Hooks.APPLIED.equals(points.rawget(applied)), applied + " is " + points.rawget(applied));
         check(Hooks.APPLIED.equals(points.rawget("vision.hiddenZombieFix")), "vision.hiddenZombieFix is " + points.rawget("vision.hiddenZombieFix"));
-        check(Formulas.POINTS.size() == 41, "The points are " + Formulas.POINTS.size());
+        check(Formulas.POINTS.size() == 42, "The points are " + Formulas.POINTS.size());
         // Every hook a point names is one the game's classes were given.
         for (var point : Formulas.POINTS)
             for (String label : point.hooks()) check(Hooks.hookStatus().containsKey(label), point.name() + " names a hook that does not exist: " + label);
@@ -1086,6 +1087,46 @@ final class FormulasTest {
         call(mod, "clear");
         check(torch.getMaxUses() == 10, "The uses stayed multiplied");
         rejects(formulas, "set", "must be a string or a list of strings", mod, "uses.modDataKey", 1.0);
+
+        // A name an item holds: the translation of the key under it, in the language of the moment, dressed by its kind;
+        // a name the player gave stays theirs; nothing without the point or the key.
+        zombie.core.Translator.texts.put("EN", new java.util.HashMap<>(java.util.Map.of("MyMod_TeamTorch", "Team torch")));
+        zombie.core.Translator.texts.put("KO", new java.util.HashMap<>(java.util.Map.of("MyMod_TeamTorch", "Team torch KO")));
+        var language = zombie.core.Translator.language;
+        zombie.core.Translator.language = new zombie.core.Language("EN");
+        var named = new DrainableComboItem("Tool", 1f, 0.1f, 4);
+        named.setName("Blowtorch");
+        named.getModData().rawset("MyMod_Name", "MyMod_TeamTorch");
+        check("Blowtorch".equals(named.getName()), "A key named an item with nothing declared: " + named.getName());
+        call(formulas, "set", mod, "item.nameKey", "MyMod_Name");
+        check("Team torch".equals(named.getName()) && "Team torch".equals(named.getDisplayName()),
+            "The key's translation is not the name: " + named.getName() + ", " + named.getDisplayName());
+        zombie.core.Translator.language = new zombie.core.Language("KO");
+        check("Team torch KO".equals(named.getName()), "The name did not follow the language: " + named.getName());
+        zombie.core.Translator.language = new zombie.core.Language("EN");
+        var shirt = new zombie.inventory.types.Clothing();
+        shirt.setName("T-shirt");
+        shirt.bloody = true;
+        shirt.getModData().rawset("MyMod_Name", "MyMod_TeamTorch");
+        check("Team torch (Bloody)".equals(shirt.getName()), "A kind's dressing was lost: " + shirt.getName());
+        var food = new zombie.inventory.types.Food(null);
+        food.setName("Apple");
+        food.age = 2;
+        food.getModData().rawset("MyMod_Name", "MyMod_TeamTorch");
+        check("Rotten Team torch".equals(food.getName()), "Food's dressing was lost: " + food.getName());
+        var plainNamed = item("Tool", 1f);
+        plainNamed.setName("Hammer");
+        check("Hammer".equals(plainNamed.getName()), "An item without the key was renamed");
+        plainNamed.getModData().rawset("MyMod_Name", 3.0);
+        check("Hammer".equals(plainNamed.getName()), "A key that is not a string named an item");
+        named.setName("Sparky");
+        named.setCustomName(true);
+        check("Sparky".equals(named.getName()), "The player's name did not stay: " + named.getName());
+        call(mod, "clear");
+        named.setCustomName(false);
+        named.setName("Blowtorch");
+        check("Blowtorch".equals(named.getName()), "The name stayed after the point was taken back");
+        zombie.core.Translator.language = language;
     }
 
     private static Formulas formulasObject() throws Exception {
