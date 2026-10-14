@@ -418,7 +418,7 @@ module BuildingUtilities
             item 2 [Base.MetalPipe],
             item 1 [Base.SmallSheetMetal],
             item 1 [Base.RubberHose],
-            item 2 [Base.Charcoal],
+            item 2 tags[base:charcoal],
             item 1 [Base.RippedSheets],
             item 4 [Base.Screws],
         }

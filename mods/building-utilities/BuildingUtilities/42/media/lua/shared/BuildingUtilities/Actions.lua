@@ -326,7 +326,7 @@ function ISBUReplaceMedia:complete()
     local inventory = self.character:getInventory()
     for _, need in ipairs(BU.WaterUnits.MEDIA) do
         for _ = 1, need.count do
-            local item = inventory:getFirstTypeRecurse(need.type)
+            local item = BU.WaterUnits.mediaItem(inventory, need)
             if item then
                 local container = item:getContainer()
                 container:DoRemoveItem(item)

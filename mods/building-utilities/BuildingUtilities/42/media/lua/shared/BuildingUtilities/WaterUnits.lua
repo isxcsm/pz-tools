@@ -54,9 +54,21 @@ WaterUnits.SPRINKLER_RADIUS = 2
 WaterUnits.LITRES_PER_USE = ((ZomboidGlobals and ZomboidGlobals.farmingFluidContainerMillilitresPerUse) or 200) / 1000
 -- How long a sprinkler shows its spray after it watered: about the ten minutes to its next look.
 WaterUnits.SPRAY_HOURS = 0.2
--- Hours of use a charge of filter media lasts (while the pipes do not purify), and what a charge takes.
+-- Hours of use a charge of filter media lasts (while the pipes do not purify), and what a charge takes: an item by
+-- its type, or by its tag (ItemTag's name: charcoal bought or burnt, Base.Charcoal and Base.CharcoalCrafted).
 WaterUnits.FILTER_HOURS = 24 * 30
-WaterUnits.MEDIA = { { type = "Base.Charcoal", count = 2 }, { type = "Base.RippedSheets", count = 1 } }
+WaterUnits.MEDIA = { { tag = "CHARCOAL", count = 2 }, { type = "Base.RippedSheets", count = 1 } }
+
+-- How many of a media need's items an inventory holds, and the first of them.
+function WaterUnits.mediaCount(inventory, need)
+    if need.tag then return inventory:getCountTagRecurse(ItemTag[need.tag]) end
+    return inventory:getCountTypeRecurse(need.type)
+end
+
+function WaterUnits.mediaItem(inventory, need)
+    if need.tag then return inventory:getFirstTagRecurse(ItemTag[need.tag]) end
+    return inventory:getFirstTypeRecurse(need.type)
+end
 
 -- Whether a sprinkler sprays now: it watered within the last SPRAY_HOURS.
 function WaterUnits.spraying(unit)
@@ -231,7 +243,7 @@ function WaterUnits.mediaLeft(unit) return math.max(0, math.min(1, (unit.media o
 function WaterUnits.hasMedia(character)
     local inventory = character:getInventory()
     for _, need in ipairs(WaterUnits.MEDIA) do
-        if inventory:getCountTypeRecurse(need.type) < need.count then return false end
+        if WaterUnits.mediaCount(inventory, need) < need.count then return false end
     end
     return true
 end
