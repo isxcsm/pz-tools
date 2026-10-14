@@ -112,10 +112,13 @@ final class Formulas implements Hooks.Formulas {
         load("carry.itemEfficiency", Shape.EFFICIENCIES, Names.ITEM_TYPE, CARRIED),
         load("carry.fullTypeEfficiency", Shape.EFFICIENCIES, Names.FULL_TYPE, CARRIED),
         load("carry.containerTagMultiplier", Shape.MULTIPLIERS, Names.ITEM_TAG, CARRIED),
+        load("carry.efficiencyKey", Shape.NAMES, Names.ANY, CARRIED),
         live("capacity.maxWeightAdd", Shape.NUMBER, "IsoGameCharacter.getMaxWeight"),
         load("capacity.effectiveMultiplier", Shape.MULTIPLIER, Names.ANY, "ItemContainer.getEffectiveCapacity"),
         load("capacity.characterLimitAdd", Shape.NUMBER, Names.ANY, "ItemContainer.getEffectiveCapacity"),
         load("capacity.modDataKey", Shape.NAMES, Names.ANY, LIFT),
+        load("uses.modDataKey", Shape.NAMES, Names.ANY, "InventoryItem.*:useDelta", "DrainableComboItem.*:useDelta"),
+        load("craft.carryKeys", Shape.NAMES, Names.ANY, "CraftRecipeData.luaCallOnCreate"),
         load("overload.compress", Shape.REDUCTION, Names.ANY, OVERLOAD),
         live("move.runPenaltyReduction", Shape.REDUCTION, "IsoGameCharacter.calculateBaseSpeed"),
         live("move.combatPenaltyReduction", Shape.REDUCTION, "IsoGameCharacter.calculateCombatSpeed"),
@@ -169,6 +172,8 @@ final class Formulas implements Hooks.Formulas {
         int maxWeightAdd, characterLimitAdd;
         double effectiveMultiplier = 1;
         String[] dataKeys = NO_NAMES;
+        // The keys of an item's modData that add to its efficiency, that multiply its uses, and that a craft carries over.
+        String[] efficiencyKeys = NO_NAMES, useKeys = NO_NAMES, carryKeys = NO_NAMES;
         // The machines: base consumption by sprite name, and the keys of an object's data that scale it.
         Map<String, Float> machines = Map.of();
         String[] machineKeys = NO_NAMES;
@@ -765,6 +770,8 @@ final class Formulas implements Hooks.Formulas {
         if (survival != null) survival.declare(combined(BY_NAME.get("infection.biteShield")) instanceof Boolean shield && shield);
         if (hidden != null && hiddenProblem == null) hidden.declare(combined(BY_NAME.get("vision.hiddenZombieFix")) instanceof Boolean fix && fix);
         if (combined(BY_NAME.get("capacity.modDataKey")) instanceof List<?> keys) next.dataKeys = keys.toArray(String[]::new);
+        if (combined(BY_NAME.get("uses.modDataKey")) instanceof List<?> keys) next.useKeys = keys.toArray(String[]::new);
+        if (combined(BY_NAME.get("craft.carryKeys")) instanceof List<?> keys) next.carryKeys = keys.toArray(String[]::new);
         var declaredMachines = new HashMap<String, Float>();
         for (var entry : table("machine.baseConsumption").entrySet()) declaredMachines.put(entry.getKey(), entry.getValue().floatValue());
         next.machines = Map.copyOf(declaredMachines);
@@ -802,7 +809,9 @@ final class Formulas implements Hooks.Formulas {
             next.typeEfficiency = floats(typeEfficiency);
             next.tagObjects = tagObjects.toArray();
             next.tagMultiplier = floats(tagMultiplier);
-            next.carry = !category.isEmpty() || !fullTypes.isEmpty() || next.typeObjects.length > 0 || next.tagObjects.length > 0;
+            if (combined(BY_NAME.get("carry.efficiencyKey")) instanceof List<?> keys) next.efficiencyKeys = keys.toArray(String[]::new);
+            next.carry = !category.isEmpty() || !fullTypes.isEmpty() || next.typeObjects.length > 0 || next.tagObjects.length > 0
+                || next.efficiencyKeys.length > 0;
         }
         active = next;
         nightSightFloor();
@@ -1075,6 +1084,20 @@ final class Formulas implements Hooks.Formulas {
     @Override public float lootAmmo(float vanilla) {
         double multiplier = active.lootAmmo;
         return multiplier == 1 ? vanilla : (float)(vanilla * multiplier);
+    }
+
+    @Override public float useDelta(float vanilla, Object item) {
+        String[] keys = active.useKeys;
+        if (keys.length == 0 || inventory == null) return vanilla;
+        try { return inventory.useDelta(keys, item, vanilla); }
+        catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
+    }
+
+    @Override public void crafted(Object data) {
+        String[] keys = active.carryKeys;
+        if (keys.length == 0 || inventory == null) return;
+        try { inventory.carryKeys(keys, data); }
+        catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
     }
 
     @Override public float darkness(float vanilla, Object character) {

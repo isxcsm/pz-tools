@@ -40,6 +40,8 @@ import zombie.iso.Vector2;
 import zombie.iso.objects.IsoDeadBody;
 import zombie.iso.objects.IsoTree;
 import zombie.network.packets.ItemStatsPacket;
+import zombie.entity.components.crafting.recipe.CraftRecipeData;
+import zombie.inventory.types.DrainableComboItem;
 import zombie.scripting.objects.ItemTag;
 import zombie.scripting.objects.ItemType;
 import zombie.vehicles.VehiclePart;
@@ -68,6 +70,7 @@ final class FormulasTest {
         survival(api, formulas, player, other);
         combining(api, formulas, player);
         carry(api, formulas, player, other);
+        itemKeys(api, formulas, player);
         kept(api, formulas, player, other);
         room(api, formulas, player, other);
         capacities(api, formulas, player, other);
@@ -291,6 +294,8 @@ final class FormulasTest {
         new ItemStatsPacket();
         new FluidContainer(1f, 0f);
         new WornItems();
+        new DrainableComboItem("Tool", 1f, 0.1f, 10).getMaxUses();
+        new CraftRecipeData().luaCallOnCreate(null);
         ItemPickerJava.getLootModifierFromType("Other");
         new IsoTree();
         new Thermoregulator(new IsoPlayer());
@@ -309,7 +314,8 @@ final class FormulasTest {
         for (String applied : new String[] { "body.discomfortMultiplier", "body.stiffnessMultiplier", "body.fatigueMultiplier",
                 "body.enduranceDrainMultiplier", "body.poisonMultiplier", "carry.categoryEfficiency", "carry.itemEfficiency", "carry.fullTypeEfficiency",
                 "carry.containerTagMultiplier", "capacity.maxWeightAdd", "capacity.effectiveMultiplier", "capacity.characterLimitAdd",
-                "capacity.modDataKey", "overload.compress", "move.runPenaltyReduction", "move.combatPenaltyReduction" })
+                "capacity.modDataKey", "overload.compress", "move.runPenaltyReduction", "move.combatPenaltyReduction",
+                "carry.efficiencyKey", "uses.modDataKey", "craft.carryKeys" })
             check(Hooks.APPLIED.equals(points.rawget(applied)), applied + " is " + points.rawget(applied));
         for (String applied : new String[] { "loot.spawnMultiplier", "loot.ammoMultiplier", "vision.darknessRestore", "vision.coneAdd",
                 "vision.nightSight", "fall.landingRemap", "fall.heightMultiplier", "fall.impactMultiplier", "move.walkMultiplier", "move.treeSlowMultiplier", "move.treeScratchChance",
@@ -319,7 +325,7 @@ final class FormulasTest {
         for (String applied : new String[] { "machine.baseConsumption", "machine.loadKey", "anim.stepKey", "machine.spriteName" })
             check(Hooks.APPLIED.equals(points.rawget(applied)), applied + " is " + points.rawget(applied));
         check(Hooks.APPLIED.equals(points.rawget("vision.hiddenZombieFix")), "vision.hiddenZombieFix is " + points.rawget("vision.hiddenZombieFix"));
-        check(Formulas.POINTS.size() == 38, "The points are " + Formulas.POINTS.size());
+        check(Formulas.POINTS.size() == 41, "The points are " + Formulas.POINTS.size());
         // Every hook a point names is one the game's classes were given.
         for (var point : Formulas.POINTS)
             for (String label : point.hooks()) check(Hooks.hookStatus().containsKey(label), point.name() + " names a hook that does not exist: " + label);
@@ -993,6 +999,93 @@ final class FormulasTest {
         check(player.getInventoryWeight() == vanilla, "Clearing the formulas left the weight changed");
         player.inventory.items.clear();
         other.inventory.items.clear();
+    }
+
+    /**
+     * The points that read an item's own modData: an efficiency under a key lightens that item alone (the load follows once
+     * the item says its weight changed); a use multiplier gives a drainable more uses, through every method that reads its
+     * use delta; a craft that remakes an item hands the new one the keys and the name of the one it used up, before its
+     * OnCreate reads it.
+     */
+    private static void itemKeys(KahluaTable api, KahluaTable formulas, IsoPlayer player) {
+        Object mod = call(api, "client", "keys.mod").get(0), second = call(api, "client", "keys.second").get(0);
+        player.inventory.items.clear();
+        var tool = put(player, item("Tool", 3f));
+        put(player, item("Tool", 3f));
+        check(near(player.getInventoryWeight(), 6), "The game's weight of two tools: " + player.getInventoryWeight());
+        call(formulas, "set", mod, "carry.efficiencyKey", "MyMod_Light");
+        check(near(player.getInventoryWeight(), 6), "A key no item holds changed the weight");
+        tool.getModData().rawset("MyMod_Light", 2.0);
+        tool.setActualWeight(tool.getActualWeight());
+        check(near(player.getInventoryWeight(), 1 + 3), "An item's key did not take it to a third: " + player.getInventoryWeight());
+        check(near((Double)call(formulas, "efficiency", tool).get(0), 1 / 3.0), "The read query of a keyed item");
+        call(formulas, "set", mod, "carry.categoryEfficiency", table("Tool", 1.0));
+        check(near(player.getInventoryWeight(), 3 / 4.0 + 3 / 2.0), "A key and a category did not add: " + player.getInventoryWeight());
+        call(formulas, "set", mod, "carry.categoryEfficiency", null);
+        tool.getModData().rawset("MyMod_Light", "light");
+        tool.setActualWeight(tool.getActualWeight());
+        check(near(player.getInventoryWeight(), 6), "A key that is not a number lightened an item");
+        call(mod, "clear");
+        player.inventory.items.clear();
+
+        var torch = new DrainableComboItem("Tool", 1f, 0.1f, 4);
+        var plain = item("Tool", 1f);
+        plain.setUseDelta(0.5f);
+        check(torch.getMaxUses() == 10 && near(torch.getCurrentUsesFloat(), 0.4), "The game's torch");
+        call(formulas, "set", mod, "uses.modDataKey", "MyMod_Uses");
+        check(torch.getMaxUses() == 10, "A key the torch does not hold changed its uses");
+        torch.getModData().rawset("MyMod_Uses", 2.0);
+        plain.getModData().rawset("MyMod_Uses", 2.0);
+        check(torch.getMaxUses() == 20 && near(torch.getUseDelta(), 0.05) && near(torch.getCurrentUsesFloat(), 0.2),
+            "A torch at twice its uses: " + torch.getMaxUses() + ", " + torch.getUseDelta());
+        check(near(plain.getUseDelta(), 0.25), "The item's own use delta: " + plain.getUseDelta());
+        // Several keys multiply.
+        call(formulas, "set", second, "uses.modDataKey", list("MyMod_More"));
+        torch.getModData().rawset("MyMod_More", 1.5);
+        check(torch.getMaxUses() == 30, "Two keys did not multiply: " + torch.getMaxUses());
+        call(second, "clear");
+
+        // A refill: the recipe uses the torch up and makes a new one; its OnCreate fills the new one to its own most.
+        call(formulas, "set", mod, "craft.carryKeys", list("MyMod_Uses", "MyMod_Mark"));
+        torch.setType("BlowTorch");
+        torch.getModData().rawset("MyMod_Mark", "team");
+        torch.setName("Team torch");
+        torch.setCustomName(true);
+        var data = new CraftRecipeData();
+        var made = new DrainableComboItem("Tool", 1f, 0.1f, 0);
+        made.setType("BlowTorch");
+        var tank = item("Tool", 5f);
+        tank.setType("PropaneTank");
+        tank.getModData().rawset("MyMod_Uses", 9.0);
+        var other = item("Tool", 1f);
+        data.consumed.add(tank);
+        data.consumed.add(torch);
+        data.created.add(made);
+        data.created.add(other);
+        int[] filled = { -1 };
+        data.onCreate = craft -> {
+            var fresh = (DrainableComboItem)craft.getAllCreatedItems().get(0);
+            fresh.setCurrentUses(fresh.getMaxUses());
+            filled[0] = fresh.getCurrentUses();
+        };
+        data.luaCallOnCreate(player);
+        check(filled[0] == 20, "The OnCreate did not see the carried uses: " + filled[0]);
+        check("team".equals(made.getModData().rawget("MyMod_Mark")) && near((Double)made.getModData().rawget("MyMod_Uses"), 2.0),
+            "The keys were not carried to the made torch");
+        check("Team torch".equals(made.getName()) && made.isCustomName(), "The player's name was not carried: " + made.getName());
+        check(!other.hasModData(), "An item of another type took keys");
+        // Without the point, a craft carries nothing.
+        call(formulas, "set", mod, "craft.carryKeys", null);
+        var bare = new DrainableComboItem("Tool", 1f, 0.1f, 0);
+        bare.setType("BlowTorch");
+        data.created.clear();
+        data.created.add(bare);
+        data.onCreate = null;
+        data.luaCallOnCreate(player);
+        check(!bare.hasModData(), "A craft carried keys with nothing declared");
+        call(mod, "clear");
+        check(torch.getMaxUses() == 10, "The uses stayed multiplied");
+        rejects(formulas, "set", "must be a string or a list of strings", mod, "uses.modDataKey", 1.0);
     }
 
     private static Formulas formulasObject() throws Exception {

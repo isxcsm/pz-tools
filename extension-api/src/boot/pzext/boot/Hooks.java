@@ -180,6 +180,12 @@ public final class Hooks {
         /** The ammunition loot modifier {@code ItemPickerJava.getLootModifierFromType("Ammo")} gives. */
         default float lootAmmo(float vanilla) { return vanilla; }
 
+        /** The use delta an item's own methods read ({@code InventoryItem.useDelta}, {@code DrainableComboItem.useDelta}). */
+        default float useDelta(float vanilla, Object item) { return vanilla; }
+
+        /** {@code CraftRecipeData.luaCallOnCreate(character)} is about to call the recipe's OnCreate: the items are made. */
+        default void crafted(Object data) { }
+
         /** {@code LightingJNI.getLumaInverted(character)}: how dark it is for the character, from 0 (light) to 1. */
         default float darkness(float vanilla, Object character) { return vanilla; }
 
@@ -454,7 +460,8 @@ public final class Hooks {
         BAG_CAPACITY("bagCapacity", Group.FORMULAS), BAG_EFFECTIVE_CAPACITY("bagEffectiveCapacity", Group.FORMULAS),
         OVERLOAD("overload", Group.FORMULAS), RUN_PENALTY("runPenalty", Group.FORMULAS),
         COMBAT_PENALTY("combatPenalty", Group.FORMULAS), LOOT_CHANCE("lootChance", Group.FORMULAS),
-        LOOT_AMMO("lootAmmo", Group.FORMULAS), DARKNESS("darkness", Group.FORMULAS), CONE_ADD("coneAdd", Group.FORMULAS),
+        LOOT_AMMO("lootAmmo", Group.FORMULAS), USE_DELTA("useDelta", Group.FORMULAS), CRAFTED("crafted", Group.FORMULAS),
+        DARKNESS("darkness", Group.FORMULAS), CONE_ADD("coneAdd", Group.FORMULAS),
         NIGHT_SIGHT("nightSight", Group.FORMULAS),
         LANDING("landing", Group.FORMULAS), IMPACT("impact", Group.FORMULAS), TREE_SLOW("treeSlow", Group.FORMULAS),
         TREE_ANIMATION("treeAnimation", Group.FORMULAS), TREE_SCRATCH("treeScratch", Group.FORMULAS), WALK("walk", Group.FORMULAS),
@@ -573,7 +580,14 @@ public final class Hooks {
             Site.watch("weight", "weightChanged", List.of("actualWeight", "ammoType", "currentAmmoCount", "customWeight", "extraItems",
                 "fullType", "name", "replaceOnUse", "replaceOnUseFullType", "scriptItem", "cooked", "burnt", "attachedSlot",
                 "displayCategory", "itemType"), List.of()),
-            Site.atReturns("addExtraItem", "(Ljava/lang/String;)V", 1, (code, owner) -> thisCall(code, "weightChanged")) }),
+            Site.atReturns("addExtraItem", "(Ljava/lang/String;)V", 1, (code, owner) -> thisCall(code, "weightChanged")),
+            Site.everywhere(useDeltaEdit("zombie/inventory/InventoryItem")).named("useDelta") }),
+        // A drainable keeps a use delta of its own (the field shadows the item's): every read of either goes through the hook.
+        Map.entry("zombie/inventory/types/DrainableComboItem", new Site[] {
+            Site.everywhere(useDeltaEdit("zombie/inventory/types/DrainableComboItem")).named("useDelta") }),
+        // The items of a craft are made when the recipe's OnCreate is called; the hook comes before it.
+        Map.entry("zombie/entity/components/crafting/recipe/CraftRecipeData", new Site[] {
+            Site.atStart("luaCallOnCreate", "(Lzombie/characters/IsoGameCharacter;)V", (code, owner) -> thisCall(code, "crafted")) }),
         Map.entry("zombie/inventory/types/HandWeapon", new Site[] {
             Site.watch("weight", "weightChanged", List.of("containsClip", "roundChambered", "magazineType"), List.of()),
             Site.atReturns("clearAllWeaponParts", "()V", 1, (code, owner) -> thisCall(code, "weightChanged")),
@@ -1162,6 +1176,17 @@ public final class Hooks {
     private static void thisCall(CodeBuilder code, String name) {
         code.aload(0);
         code.invokestatic(HOOKS, name, MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_Object));
+    }
+
+    /** Each read of the private field {@code useDelta} of {@code owner}: the item and the value go to the hook. */
+    private static Edit useDeltaEdit(String owner) {
+        return new Edit(field(Opcode.GETFIELD, owner, "useDelta"), -1, null, (code, element, kind) -> {
+            // item -> item, item -> item, delta -> delta, item -> delta
+            code.dup();
+            code.with(element);
+            code.swap();
+            code.invokestatic(HOOKS, "useDelta", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_float, ConstantDescs.CD_Object));
+        });
     }
 
     /** The result of each {@code ItemContainer.getCapacityWeight()} call, with the container it was asked of. */
@@ -2009,6 +2034,22 @@ public final class Hooks {
         if (current == null) return vanilla;
         try { return current.lootAmmo(vanilla); }
         catch (Throwable problem) { reportOnce(Call.LOOT_AMMO, problem); return vanilla; }
+    }
+
+    /** Put after each read of an item's {@code useDelta} in its own class, with the item. */
+    public static float useDelta(float vanilla, Object item) {
+        Formulas current = formulas;
+        if (current == null) return vanilla;
+        try { return current.useDelta(vanilla, item); }
+        catch (Throwable problem) { reportOnce(Call.USE_DELTA, problem); return vanilla; }
+    }
+
+    /** Put at the start of {@code CraftRecipeData.luaCallOnCreate(IsoGameCharacter)}. */
+    public static void crafted(Object data) {
+        Formulas current = formulas;
+        if (current == null) return;
+        try { current.crafted(data); }
+        catch (Throwable problem) { reportOnce(Call.CRAFTED, problem); }
     }
 
     /** Put before each return of {@code LightingJNI.getLumaInverted}. */

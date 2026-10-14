@@ -30,8 +30,10 @@ public class InventoryItem {
     public Object scriptItem;
     public FluidContainer fluid;
     public int attachedSlot = -1;
-    public boolean onGround;
+    public boolean onGround, customName;
     private KahluaTable modData;
+    // the item's own use delta (a drainable has one of its own that shadows it, as in the game)
+    private float useDelta = 1f;
     public InventoryItem(String displayCategory, float actualWeight) { this.displayCategory = displayCategory; this.actualWeight = actualWeight; }
     public String getDisplayCategory() { return displayCategory; }
     public void setDisplayCategory(String category) { displayCategory = category; }
@@ -44,6 +46,11 @@ public class InventoryItem {
     public void setCooked(boolean value) { cooked = value; }
     public void setBurnt(boolean value) { burnt = value; }
     public void setName(String value) { name = value; }
+    public String getName() { return name; }
+    public boolean isCustomName() { return customName; }
+    public void setCustomName(boolean value) { customName = value; }
+    public float getUseDelta() { return useDelta; }
+    public void setUseDelta(float value) { useDelta = value; }
     public void setType(String type) { fullType = "Base." + type; }
     public void setScriptItem(Object value) { scriptItem = value; }
     public void setReplaceOnUse(String value) { replaceOnUse = value; replaceOnUseFullType = "Base." + value; }

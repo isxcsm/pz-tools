@@ -49,8 +49,10 @@ final class Inventory {
     private final MethodHandle rawCapacity, containerKind, occupiedSeat, capacityFor, capacity, maxWeight;
     // IsoObject and VehiclePart: their modData.
     private final MethodHandle objectHasModData, objectModData, partHasModData, partModData;
-    // KahluaTable.rawget(Object)
-    private final MethodHandle rawget;
+    // KahluaTable.rawget(Object), rawset(Object, Object)
+    private final MethodHandle rawget, rawset;
+    // InventoryItem: its name, whether a player named it; CraftRecipeData: the items a craft made and used up.
+    private final MethodHandle itemName, setItemName, customName, setCustomName, craftCreated, craftConsumed;
     // ZomboidGlobals.equippedOrWornEncumbranceMultiplier
     private final MethodHandle equippedMultiplier;
     // ItemType.get(location), ItemTag.get(location), ResourceLocation.of(id): how the game finds a registered name.
@@ -117,6 +119,15 @@ final class Inventory {
         partModData = Game.exact(part.getMethod("getModData"), onObject);
         Class<?> table = Game.type(loader, "se.krka.kahlua.vm.KahluaTable");
         rawget = Game.exact(table.getMethod("rawget", Object.class), MethodType.methodType(Object.class, Object.class, Object.class));
+        rawset = Game.exact(table.getMethod("rawset", Object.class, Object.class),
+            MethodType.methodType(void.class, Object.class, Object.class, Object.class));
+        itemName = Game.exact(itemType.getMethod("getName"), MethodType.methodType(String.class, Object.class));
+        setItemName = Game.exact(itemType.getMethod("setName", String.class), MethodType.methodType(void.class, Object.class, String.class));
+        customName = Game.exact(itemType.getMethod("isCustomName"), MethodType.methodType(boolean.class, Object.class));
+        setCustomName = Game.exact(itemType.getMethod("setCustomName", boolean.class), MethodType.methodType(void.class, Object.class, boolean.class));
+        Class<?> craft = Game.type(loader, "zombie.entity.components.crafting.recipe.CraftRecipeData");
+        craftCreated = Game.exact(craft.getMethod("getAllCreatedItems"), MethodType.methodType(ArrayList.class, Object.class));
+        craftConsumed = Game.exact(craft.getMethod("getAllConsumedItems"), MethodType.methodType(ArrayList.class, Object.class));
         Field multiplier = Game.type(loader, "zombie.ZomboidGlobals").getField("equippedOrWornEncumbranceMultiplier");
         equippedMultiplier = MethodHandles.publicLookup().unreflectGetter(multiplier);
         itemTypeGet = typeClass.getMethod("get", location);
@@ -160,7 +171,59 @@ final class Inventory {
         }
         for (int index = 0; index < now.typeObjects.length; index++)
             if ((boolean)isItemType.invokeExact(item, now.typeObjects[index])) sum += now.typeEfficiency[index];
+        if (now.efficiencyKeys.length > 0 && (boolean)itemHasModData.invokeExact(item)) {
+            Object table = (Object)itemModData.invokeExact(item);
+            for (String key : now.efficiencyKeys)
+                if ((Object)rawget.invokeExact(table, (Object)key) instanceof Number value) sum += Math.max(-0.9, Math.min(100, value.doubleValue()));
+        }
         return sum;
+    }
+
+    // ---- uses and crafts ----
+
+    /**
+     * An item's use delta with its modData's use multipliers: the numbers under the keys multiply how many uses it holds
+     * (each from 0.1 to 100), so the delta is divided by their product. An item without one keeps the game's.
+     */
+    float useDelta(String[] keys, Object item, float vanilla) throws Throwable {
+        if (!(boolean)itemHasModData.invokeExact(item)) return vanilla;
+        Object table = (Object)itemModData.invokeExact(item);
+        double times = 1;
+        for (String key : keys)
+            if ((Object)rawget.invokeExact(table, (Object)key) instanceof Number value) times *= Math.max(0.1, Math.min(100, value.doubleValue()));
+        return times == 1 ? vanilla : (float)(vanilla / times);
+    }
+
+    /**
+     * Before a craft's OnCreate: each item the craft made takes the keys (and a name a player gave) of an item of its own
+     * full type the craft used up, the first that holds one of them, so a recipe that remakes an item (a refill) keeps
+     * what a mod wrote on it.
+     */
+    void carryKeys(String[] keys, Object data) throws Throwable {
+        ArrayList<?> made = (ArrayList<?>)craftCreated.invokeExact(data), used = (ArrayList<?>)craftConsumed.invokeExact(data);
+        if (made == null || used == null || made.isEmpty() || used.isEmpty()) return;
+        var taken = new ArrayList<Object>();
+        for (Object item : made) {
+            String type = (String)fullType.invokeExact(item);
+            for (Object source : used) {
+                if (taken.contains(source) || !(boolean)itemHasModData.invokeExact(source) || !type.equals((String)fullType.invokeExact(source))) continue;
+                Object from = (Object)itemModData.invokeExact(source);
+                boolean holds = false;
+                for (String key : keys) if ((Object)rawget.invokeExact(from, (Object)key) != null) holds = true;
+                if (!holds) continue;
+                Object to = (Object)itemModData.invokeExact(item);
+                for (String key : keys) {
+                    Object value = (Object)rawget.invokeExact(from, (Object)key);
+                    if (value != null) rawset.invokeExact(to, (Object)key, value);
+                }
+                if ((boolean)customName.invokeExact(source)) {
+                    setItemName.invokeExact(item, (String)itemName.invokeExact(source));
+                    setCustomName.invokeExact(item, true);
+                }
+                taken.add(source);
+                break;
+            }
+        }
     }
 
     /** What the item's own weight is multiplied by: 1 over 1 plus its efficiencies (1 for none). */
