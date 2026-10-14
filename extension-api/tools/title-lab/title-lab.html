@@ -1347,6 +1347,7 @@ function drawPaper(p, progress, fade) {
 }
 
 function rebuild() {
+  dirty = true;
   for (const p of pieces) { gl.deleteTexture(p.tex); if (p.burnTex) gl.deleteTexture(p.burnTex); if (p.inkTex) gl.deleteTexture(p.inkTex); if (p.inkMap) { gl.deleteTexture(p.inkMap.tmap); gl.deleteTexture(p.inkMap.sdf); }
     if (p.sim) { for (const x of [p.sim.a, p.sim.b]) { gl.deleteTexture(x.t); gl.deleteFramebuffer(x.fb); } gl.deleteTexture(p.sim.fiber); } }
   const S = STYLES[P.style], H = view.height, tl = S.title.size * H, sl = S.line.size * H, anchor = S.y * H;
@@ -1820,10 +1821,16 @@ function drawDust(p, progress, fade) {
 // ---------------------------------------------------------------- the clock
 let t = 0, playing = true, last = performance.now(), scrubbing = false;
 const leaveStart = () => pieces[0] ? pieces[0].leaveAt : 0;
+// (drawn only when the time or anything on the page changed: a still frame costs nothing)
+let drawnAt = -1, dirty = true;
+for (const kind of ["input", "change", "click", "pointerdown", "keydown"]) document.addEventListener(kind, () => { dirty = true; }, true);
+window.addEventListener("resize", () => { dirty = true; });
 function frame(now) {
   const dt = (now - last) / 1000; last = now;
   const end = timeline();
   if (playing && !scrubbing) { t += dt * Number(document.getElementById("speed").value); if (t > end) t = end; }
+  if (!dirty && t === drawnAt) { requestAnimationFrame(frame); return; }
+  drawnAt = t; dirty = false;
   gl.viewport(0, 0, view.width, view.height);
   gl.uniform2f(loc.screen, view.width, view.height);
   gl.disable(gl.BLEND);
@@ -1933,7 +1940,7 @@ const file = document.createElement("label"); file.className = "row";
 file.innerHTML = '<span>배경 이미지</span><input type="file" accept="image/*"><span class="v"></span>';
 file.querySelector("input").addEventListener("change", e => {
   const f = e.target.files[0]; if (!f) return;
-  const img = new Image(); img.onload = () => { bgImage = img; makeBackground(); }; img.src = URL.createObjectURL(f);
+  const img = new Image(); img.onload = () => { bgImage = img; makeBackground(); dirty = true; }; img.src = URL.createObjectURL(f);
 });
 side.appendChild(file);
 control("backdrop", "배경 띠", "check");
