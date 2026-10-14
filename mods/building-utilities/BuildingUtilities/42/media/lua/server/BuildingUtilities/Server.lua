@@ -79,6 +79,17 @@ function commands.setDevicePipe(player, panel, args)
     if device and device.state == "on" then Changes.setDevicePipe(panel, device, tonumber(args.pipe)) end
 end
 
+-- A tank shut or opened at the box, as a fixture's tick (the tier that cuts devices, Panels.cuts).
+function commands.setProducerOn(player, panel, args)
+    if Panels.cuts(panel) then Changes.setProducerOn(panel, tonumber(args.index) or 0, args.on == true) end
+end
+
+-- A water unit of the panel switched off or on at the box, as a fixture's tick.
+function commands.setUnitOn(player, panel, args)
+    local unit = BU.Store.unit(args.unit)
+    if Panels.cuts(panel) and unit and unit.panel == panel.id then Changes.setUnitOn(unit, args.on == true) end
+end
+
 -- A water unit of the panel onto its pipes: inlet (a pump's outlet) and, for a filter or a booster pump, outlet.
 function commands.setUnitPipes(player, panel, args)
     local unit = BU.Store.unit(args.unit)
@@ -108,7 +119,7 @@ end
 
 -- The feature a command needs on (BU.enabled), besides its utility's; one of a feature that is off is ignored, as
 -- the window no longer offers it.
-local NEEDS = { setSchedule = "power", renamePipe = "water",
+local NEEDS = { setSchedule = "power", renamePipe = "water", setProducerOn = "water", setUnitOn = "water",
     setRoomPipe = "water", setProducerPipe = "water", setDevicePipe = "water", setUnitPipes = "water" }
 
 local function onClientCommand(module, command, player, args)

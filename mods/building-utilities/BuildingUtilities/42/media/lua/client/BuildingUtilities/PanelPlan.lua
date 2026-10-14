@@ -89,7 +89,7 @@ local function roomColour(room, supplied)
     return 0.3, 0.33, 0.38
 end
 
--- How bright a fixture's dot is in its pipe's colour while it is off.
+-- How bright a fixture's dot (in its pipe's colour), a tank's or a unit's square is while it is off.
 local PIPE_OFF = 0.35
 
 local COLOURS = {
@@ -588,8 +588,12 @@ function ISBUPlan:layoutThings(sx, sy, scale)
     for _, producer in ipairs(data.producers) do
         if producer.z == self.floor then
             local colour = producerColour(data, producer)
-            -- a unit between two pipes: its right half in its outlet's colour
+            -- a unit between two pipes: its right half in its outlet's colour; one shut or off at the box dark
             local second = not (producer.unwired or producer.cut) and producer.colour2 or nil
+            if producer.off and not (producer.unwired or producer.cut) then
+                colour = { colour[1] * PIPE_OFF, colour[2] * PIPE_OFF, colour[3] * PIPE_OFF }
+                second = second and { second[1] * PIPE_OFF, second[2] * PIPE_OFF, second[3] * PIPE_OFF }
+            end
             self.squares[#self.squares + 1] = { x = math.floor(sx(producer.x) + (scale - SQUARE) / 2),
                 y = math.floor(sy(producer.y) + (scale - SQUARE) / 2), size = SQUARE,
                 r = colour[1], g = colour[2], b = colour[3], second = second, ring = producer.inUse, text = producer.text,
@@ -998,8 +1002,7 @@ function ISBUPlan:render()
         self:drawRect(square.x, square.y, size, size, 1, square.r, square.g, square.b)
         local second = square.second
         if second then
-            local half = math.floor(size / 2)
-            self:drawRect(square.x + half, square.y, size - half, size, 1, second[1], second[2], second[3])
+            self:drawRect(square.x + size / 2, square.y, size / 2, size, 1, second[1], second[2], second[3])
         end
         self:drawRect(square.x, square.y, size, px, 0.45, 1, 1, 1)
         if square.relay then relayMark(self, square.x, square.y, size, 1) end

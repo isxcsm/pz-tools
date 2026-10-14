@@ -34,10 +34,11 @@ local BUTTON_W = 60
 local TIMER_W, CHIP_W, SOURCE_W = 64, 34, 110
 -- A pipe chip's buttons (BU.Water: its colour and number).
 local CHIPS = { pipe = true, Pipe = true, PipeIn = true, PipeOut = true, roomPipe = true }
--- The room between a unit's inlet chip and its outlet chip, for the arrow the water takes, and the texture lines are
--- drawn with.
+-- The room between a unit's inlet chip and its outlet chip, and the arrow drawn there (tools/ui_art.py), the way the
+-- water goes, and its size.
 local ARROW_GAP = 18
-local LINE_TEXTURE = Texture.getWhite()
+local ARROW = getTexture("media/textures/BU_FlowArrow.png")
+local ARROW_W, ARROW_H = 12, 8
 
 -- The texts of the rows' buttons and marks, looked up once.
 local labels = {}
@@ -168,12 +169,9 @@ end
 local function pipeChip(list, c, key, x, y, w, id, inlet)
     smallButton(list, c, key, x, y, w, "", P.text)
     pipeMark(c, x + 4, y, id)
-    if not inlet then return end
-    local from, to, mid, head = x + w + 4, x + w + ARROW_GAP - 4, math.floor(y + ROW / 2), 4
-    local r, g, b = P.dim[1], P.dim[2], P.dim[3]
-    c:drawLine(LINE_TEXTURE, from, mid, to, mid, 1, 1, r, g, b)
-    c:drawLine(LINE_TEXTURE, to - head, mid - head, to, mid, 1, 1, r, g, b)
-    c:drawLine(LINE_TEXTURE, to - head, mid + head, to, mid, 1, 1, r, g, b)
+    if not inlet or not ARROW then return end
+    c:drawTextureScaled(ARROW, x + w + (ARROW_GAP - ARROW_W) / 2, y + (ROW - ARROW_H) / 2, ARROW_W, ARROW_H, 1,
+        P.dim[1], P.dim[2], P.dim[3])
 end
 
 -- A row's view options (optionButtons), each lit while it is on.
@@ -331,7 +329,8 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         -- Water's tank or unit under its room: its name where a device's is, what it holds or does on the right (in use
         -- in green, what keeps it from water in red), its pipe chips after.
         local muted = row.unwired or row.cut
-        UI.text(c, row.text, PAD * 3 + ROW + 4, textY, muted and MUTED or PLAIN)
+        if row.state and not row.fixed then tick(self, c, index .. "tick", PAD * 3, y, row.state) end
+        UI.text(c, row.text, PAD * 3 + ROW + 4, textY, (muted or row.state == "off") and MUTED or PLAIN)
         local textRight = rightX
         for _, button in ipairs(producerButtons(width, row)) do
             pipeChip(self, c, index .. button.name, button.x, y, button.w, row.pipes[button.name], button.name == "PipeIn")

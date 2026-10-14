@@ -285,7 +285,8 @@ function Water.layout(panel)
     local crossings = Water.crossings(panel)
     local networks, tanks, tankIds, use = {}, {}, {}, {}
     for _, at in ipairs(panel.water.producers) do
-        if Links.live(panel, Links.producerRef(at.x, at.y, at.z)) then
+        -- one shut at the box (off) is out of its pipe, as one whose line supplies nothing
+        if not at.off and Links.live(panel, Links.producerRef(at.x, at.y, at.z)) then
             local building = Water.placeOf(panel, at.x, at.y, at.z, Links.producerRef(at.x, at.y, at.z))
             if building then
                 local pipe, level = Water.producerPipe(panel, at), Water.producerLevel(at)

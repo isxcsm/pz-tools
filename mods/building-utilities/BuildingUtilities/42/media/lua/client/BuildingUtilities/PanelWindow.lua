@@ -1609,6 +1609,11 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
         end
     elseif row.kind == "producer" and (row.relay or row.unwired) then
         self:showRow(row)
+    elseif row.kind == "producer" and row.nested and row.state and not row.fixed and x >= PAD * 3 and x <= PAD * 3 + ROW then
+        -- a tank's or a water unit's tick: shut or switched off at the box, as a fixture's
+        local on = row.state ~= "on"
+        if row.unit then Sync.send(playerObj, "setUnitOn", { panel = panel.id, unit = row.unit.id, on = on })
+        else Sync.send(playerObj, "setProducerOn", { panel = panel.id, index = row.index, on = on }) end
     elseif row.kind == "producer" and row.unit then
         if not self:onWaterUnitRow(row, x, width) then self:showRow(row) end
     elseif row.kind == "producer" then

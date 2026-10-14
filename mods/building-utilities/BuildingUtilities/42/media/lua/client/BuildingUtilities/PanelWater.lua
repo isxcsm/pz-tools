@@ -156,6 +156,7 @@ end
 
 -- What a water unit does now, in a few words.
 function ISBUPanelWindow:waterUnitStatus(unit)
+    if unit.off then return getText("IGUI_BU_Idle") end
     if unit.kind == "pump" then
         if unit.running and unit.idle == "noWater" then return getText("IGUI_BU_Pump_noWater") end
         if unit.running then return getText("IGUI_BU_Pump_running", unit.moved or WaterUnits.PUMP_RATE) end
@@ -196,8 +197,8 @@ local function unitChips(panel, unit)
     return { "PipeIn", "PipeOut" }, { PipeIn = inlet, PipeOut = outlet }
 end
 
--- What the water tab lists under the zone's rooms with the fixtures (ISBUPanelWindow:fill): the tanks, the water units,
--- those whose line supplies nothing, and (unless the view hides them) what could hold water that no box has. Each
+-- What the water tab lists under the zone's rooms with the fixtures (ISBUPanelWindow:fill): the tanks and the water
+-- units (each with a tick, shut or switched off at the box as a fixture is), those whose line supplies nothing, and (unless the view hides them) what could hold water that no box has. Each
 -- { row, tip, x, y, z, ref, rank }: rank in that order (a room lists them so, by name within a rank); its row (its name, with where it is when it stands in no room of the zone; what it holds
 -- or does on the right; its pipe chips) and its line's ref, for the room or relay it hangs from. A tank's text for the
 -- plan goes into view.producerText. A unit whose inlet reaches no tank of its pipe says so in red ("too high").
@@ -216,6 +217,8 @@ function ISBUPanelWindow:waterPlaced(state, view)
         result[#result + 1] = { row = row, tip = tip, x = at.x, y = at.y, z = at.z, ref = ref, rank = rank }
     end
     local tank = getText("IGUI_BU_Legend_tank")
+    -- below the tier that cuts devices, as their ticks, none is switched at the box
+    local fixed = not Panels.cuts(panel)
     for index, at in ipairs(panel.water.producers) do
         local seen = PanelWindow.seenProducer(state, at)
         -- One the networks do not hold (its line cut) as it stands on its square, when that is loaded.
@@ -228,16 +231,21 @@ function ISBUPanelWindow:waterPlaced(state, view)
         if seen and seen.foreign then right = right .. "  " .. getText("IGUI_BU_TankForeign") end
         local ref = BU.Links.producerRef(at.x, at.y, at.z)
         local cut = BU.Links.reason(panel, ref) ~= nil
-        if cut then right = right .. "  " .. getText("IGUI_BU_LineNotSupplied") end
+        if cut then right = right .. "  " .. getText("IGUI_BU_LineNotSupplied")
+        elseif at.off then right = right .. "  " .. getText("IGUI_BU_Idle") end
         view.producerText[index] = tank .. "  " .. right
         local row = { text = name(tank, at.x, at.y, at.z), right = right, index = index, at = at, cut = cut,
-            inUse = PanelWindow.producerInUse(state, at) and not cut, bad = seen and seen.foreign }
+            inUse = PanelWindow.producerInUse(state, at) and not cut, bad = seen and seen.foreign,
+            state = not cut and (at.off and "off" or "on") or nil, fixed = fixed }
         if shown then row.chips, row.pipes = { "Pipe" }, { Pipe = Water.producerPipe(panel, at) } end
         put(1, row, cut and BU.Links.reasonText(panel, ref) or nil, at, ref)
     end
-    for _, unit in ipairs(Units.of(panel.id, "water")) do
+    for _, unit in ipairs(BU.Store.unitList(nil, panel.id)) do
+      if not BU.RELAY_KINDS[unit.kind] and Units.utility(unit) == "water" and BU.enabled(unit.kind)
+        and BU.Links.live(panel, BU.Links.unitRef(unit)) then
         local row = { unit = unit, text = name(Units.name(unit), unit.x, unit.y, unit.z),
-            right = self:waterUnitStatus(unit), inUse = unit.running == true }
+            right = self:waterUnitStatus(unit), inUse = unit.running == true, state = unit.off and "off" or "on",
+            fixed = fixed }
         local inlet = Water.unitPipes(panel, unit)
         if inlet and unit.panel and (USERS[unit.kind] or unit.kind == "filter") and layout.tanks[inlet] then
             local building, level = Water.placeOf(panel, unit.x, unit.y, unit.z, BU.Links.unitRef(unit))
@@ -246,6 +254,7 @@ function ISBUPanelWindow:waterPlaced(state, view)
         end
         if shown then row.chips, row.pipes = unitChips(panel, unit) end
         put(2, row, getText("IGUI_BU_UnitTip_" .. unit.kind), unit, BU.Links.unitRef(unit))
+      end
     end
     for _, unit in ipairs(BU.Store.unitList(nil, panel.id)) do
         local ref = BU.Links.unitRef(unit)

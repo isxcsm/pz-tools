@@ -56,6 +56,7 @@ function ISBUPanelWindow:updatePlan()
         local cut = Links.reason(panel, ref) ~= nil
         local colour = pipes and BU.Water.colour(BU.Water.producerPipe(panel, at)) or nil
         producers[#producers + 1] = { x = at.x, y = at.y, z = at.z, inUse = inUse and not cut, colour = colour, cut = cut,
+            off = at.off,
             ref = ref, key = ISBUPanelWindow.squareKey(at), text = (view.producerText[index] or "") .. (cut and "  " .. getText("IGUI_BU_LineNotSupplied") or "") }
     end
     -- The units: power's as its source, water's each on its own (in its inlet's colour, a pump in its outlet's; a
@@ -78,7 +79,7 @@ function ISBUPanelWindow:updatePlan()
             -- power's units share their kind's source row
             local key = utility == "power" and ISBUPanelWindow.sourceKey(unit.kind) or ISBUPanelWindow.squareKey(unit)
             producers[#producers + 1] = { x = unit.x, y = unit.y, z = unit.z, unit = unit.kind, colour = colour, colour2 = colour2,
-                ref = ref, key = key, cut = not live, inUse = live and (inUse or unit.running == true), text = text }
+                off = unit.off, ref = ref, key = key, cut = not live, inUse = live and (inUse or unit.running == true), text = text }
         end
     end
     -- What it could take and no box has: grey, as devices not connected are.

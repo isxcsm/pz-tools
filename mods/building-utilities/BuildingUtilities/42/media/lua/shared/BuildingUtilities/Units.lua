@@ -69,7 +69,8 @@ function Units.working(panel, kind)
     if not kept then
         kept = {}
         for _, unit in ipairs(Store.unitList(kind, panel.id)) do
-            if not BU.RELAY_KINDS[unit.kind] and BU.enabled(unit.kind) and BU.Links.live(panel, BU.Links.unitRef(unit)) then
+            if not BU.RELAY_KINDS[unit.kind] and not unit.off and BU.enabled(unit.kind)
+                and BU.Links.live(panel, BU.Links.unitRef(unit)) then
                 kept[#kept + 1] = unit
             end
         end

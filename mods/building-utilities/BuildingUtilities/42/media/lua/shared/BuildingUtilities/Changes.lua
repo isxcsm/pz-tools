@@ -692,6 +692,26 @@ function Changes.setProducerPipe(panel, index, id)
     Sync.changed(panel.id)
 end
 
+-- A tank shut at the box or opened again (its tick on the water tab): shut, it is out of its pipe (Water.layout).
+function Changes.setProducerOn(panel, index, on)
+    local at = panel.water.producers[index]
+    if not at or (at.off == nil) == on then return end
+    at.off = not on or nil
+    Store.linksChanged()
+    Networks.defineWater(panel, {})
+    Sync.changed(panel.id)
+end
+
+-- A water unit switched off at the box or on again (its tick): off, it does not work (Units.working).
+function Changes.setUnitOn(unit, on)
+    local panel = Store.get(unit.panel)
+    if not panel or (unit.off == nil) == on then return end
+    unit.off = not on or nil
+    Store.linksChanged()
+    Networks.defineWater(panel, {})
+    Sync.changed(panel.id)
+end
+
 -- A fixture onto a pipe, kept under its key (nil: back on its room's); a part's key a save may have is cleared.
 function Changes.setDevicePipe(panel, device, id)
     if id and not Water.pipe(panel, id) then return end
