@@ -121,20 +121,26 @@ end
 -- Whether two colours are the same, by value (each producer may have its own table).
 local function sameColour(a, b) return a[1] == b[1] and a[2] == b[2] and a[3] == b[3] end
 
+-- What a device's dot tells (its legend entry): "pipe" for water with more than one pipe (its pipe's colour), else a
+-- name of COLOURS.
+local function dotKind(device, supplied)
+    if device.state == "other" then return "other" end
+    if device.pipeColour and device.wired and not device.cut then return "pipe" end
+    if device.state ~= "on" or device.cut then return device.wired and not device.cut and "idle" or "off" end
+    if device.held == "timer" then return "timer" end
+    if device.held == "exterior" or not supplied then return "unsupplied" end
+    if (device.power or 0) > 0 or device.utility == "water" then return "using" end
+    return "idle"
+end
+
 local function dotColour(device, supplied)
-    local colour
-    local pipe = device.pipeColour
-    if device.state == "other" then colour = COLOURS.other
-    elseif pipe and device.wired and not device.cut then
-        -- water with more than one pipe: its pipe's colour, dark while it is off
-        local k = device.state == "on" and 1 or PIPE_OFF
+    local kind = dotKind(device, supplied)
+    if kind == "pipe" then
+        -- its pipe's colour, dark while it is off
+        local pipe, k = device.pipeColour, device.state == "on" and 1 or PIPE_OFF
         return pipe[1] * k, pipe[2] * k, pipe[3] * k
-    elseif device.state ~= "on" or device.cut then colour = device.wired and not device.cut and COLOURS.idle or COLOURS.off
-    elseif device.held == "timer" then colour = COLOURS.timer
-    elseif device.held == "exterior" then colour = COLOURS.unsupplied
-    elseif not supplied then colour = COLOURS.unsupplied
-    elseif (device.power or 0) > 0 or device.utility == "water" then colour = COLOURS.using
-    else colour = COLOURS.idle end
+    end
+    local colour = COLOURS[kind]
     return colour[1], colour[2], colour[3]
 end
 
@@ -146,10 +152,10 @@ local function relayMark(plan, x, y, size, alpha)
     plan:drawRect(x + at, y + at, hole, hole, 0.85 * alpha, 0.1, 0.08, 0.06)
 end
 
--- What the legend lists for a utility, or for the zones: a colour, dot or square, and its text. The relays and the
--- lines only where the data has them. Water with more than one pipe tells its pipes' colours instead of what the
--- devices do, and shapes in a plain colour.
-local function legendEntries(utility, zones, ranges, data)
+-- What the legend lists for a utility, or for the zones, of what the floor shown has: a colour, dot or square, and its
+-- text. Water with more than one pipe tells its pipes' colours instead of what the devices do, and shapes in a plain
+-- colour. ranges: the floor's outlines (ISBUPlan:ranges) while the range is shown.
+local function legendEntries(utility, zones, ranges, data, floor)
     local result = {}
     local pipes = not zones and utility == "water" and data.pipes or nil
     local function add(name, square)
@@ -158,59 +164,121 @@ local function legendEntries(utility, zones, ranges, data)
         result[#result + 1] = { r = colour[1], g = colour[2], b = colour[3], square = square,
             text = getText("IGUI_BU_Legend_" .. name) }
     end
+    -- What the floor has: the dots' kinds, the squares' kinds, the pipe colours drawn, a dark one, two halves.
+    local has, colours, dark, halves = {}, {}, false, nil
+    local function drawn(colour)
+        if colour then colours[#colours + 1] = colour end
+    end
     if zones then
-        for _, name in ipairs({ "zoneMine", "zoneFree", "zoneTaken", "zoneFar" }) do add(name, true) end
-    elseif utility == "power" then
-        for _, name in ipairs({ "using", "idle", "timer", "unsupplied", "other" }) do add(name) end
-        add("off")
-        -- the sources: generators, and the solar panels and battery racks the plan has
-        add("producer", true)
-        local kinds = {}
-        for _, producer in ipairs(data.producers or {}) do
-            if producer.unit then kinds[producer.unit] = true end
+        for _, room in ipairs(data.rooms) do
+            if room.level == floor then
+                local zone = data.zone and data.zone[room.id]
+                local state = zone and zone.state or "mine"
+                has["zone" .. state:sub(1, 1):upper() .. state:sub(2)] = true
+            end
         end
-        for _, kind in ipairs({ "solar", "rack" }) do
-            if kinds[kind] then add(kind, true) end
+    end
+    for _, device in ipairs(data.devices) do
+        if device.z == floor then
+            local kind = dotKind(device, data.supplied)
+            has[kind] = true
+            if kind == "pipe" then
+                drawn(device.pipeColour)
+                if device.state ~= "on" then dark = true end
+            end
         end
+    end
+    for _, producer in ipairs(data.producers) do
+        if producer.z == floor then
+            if producer.unwired or producer.cut then
+                has.off = true
+            else
+                has[producer.unit or (utility == "water" and "tank" or "producer")] = true
+                drawn(producer.colour)
+                drawn(producer.colour2)
+                if producer.off then dark = true end
+                if producer.colour2 and not halves then halves = producer end
+            end
+            -- a storage's square is one whatever its colour
+            if not producer.unit and utility == "water" then has.tank = true end
+        end
+    end
+    for _, relay in ipairs(data.relays or {}) do
+        if relay.z == floor then
+            has.relay = true
+            if relay.cut then has.off = true end
+        end
+    end
+    for _, line in ipairs(data.lines or {}) do
+        if line.z1 == floor or line.z2 == floor then
+            if line.live then
+                has.live = true
+                drawn(line.colour)
+                drawn(line.colour2)
+            else
+                has.dead = true
+            end
+        end
+    end
+    for _, room in ipairs(data.rooms) do
+        if room.level == floor then drawn(room.pipeColour) end
+    end
+    for _, box in ipairs(data.boxes) do
+        if box.z == floor then has.box = true end
+    end
+    local function addIf(name, square)
+        if has[name] then add(name, square) end
+    end
+    if zones then
+        for _, name in ipairs({ "zoneMine", "zoneFree", "zoneTaken", "zoneFar" }) do addIf(name, true) end
     elseif pipes then
-        -- each pipe's colour, what is on it is drawn in (a dot a fixture, a square a storage or a unit)
+        -- each pipe's colour drawn here, what is on it is drawn in (a dot a fixture, a square a storage or a unit)
+        local firstShown
         for _, pipe in ipairs(pipes) do
             local c = pipe.colour
-            result[#result + 1] = { r = c[1], g = c[2], b = c[3], square = true, text = pipe.name }
+            for _, seen in ipairs(colours) do
+                if sameColour(seen, c) then
+                    result[#result + 1] = { r = c[1], g = c[2], b = c[3], square = true, text = pipe.name }
+                    firstShown = firstShown or c
+                    break
+                end
+            end
         end
-        local first, second = pipes[1].colour, pipes[2].colour
-        result[#result + 1] = { r = first[1] * PIPE_OFF, g = first[2] * PIPE_OFF, b = first[3] * PIPE_OFF,
-            text = getText("IGUI_BU_Legend_pipeOff") }
-        add("off")
-        add("other")
-        add("tank", true)
+        if dark and firstShown then
+            result[#result + 1] = { r = firstShown[1] * PIPE_OFF, g = firstShown[2] * PIPE_OFF,
+                b = firstShown[3] * PIPE_OFF, text = getText("IGUI_BU_Legend_pipeOff") }
+        end
+        for _, name in ipairs({ "using", "idle", "unsupplied", "off", "other" }) do addIf(name) end
+        addIf("tank", true)
         -- a filter's or a booster pump's square: its inlet's pipe left, its outlet's right
-        result[#result + 1] = { r = first[1], g = first[2], b = first[3], square = true, second = second,
-            text = getText("IGUI_BU_Legend_unitHalves") }
+        if halves then
+            local first = halves.colour or COLOURS.shape
+            result[#result + 1] = { r = first[1], g = first[2], b = first[3], square = true, second = halves.colour2,
+                text = getText("IGUI_BU_Legend_unitHalves") }
+        end
     else
-        for _, name in ipairs({ "using", "other" }) do add(name) end
-        add("off")
-        add("tank", true)
+        for _, name in ipairs({ "using", "idle", "timer", "unsupplied", "other", "off" }) do addIf(name) end
+        -- the sources: generators or storages, and the solar panels and battery racks
+        for _, name in ipairs({ "producer", "tank", "solar", "rack" }) do addIf(name, true) end
     end
-    add("box", true)
+    addIf("box", true)
     if not zones then
-        if #(data.relays or {}) > 0 then
+        if has.relay then
             add(utility == "water" and "hydrant" or "junction", true)
             result[#result].relay = true
         end
-        local live, dead = false, false
-        for _, line in ipairs(data.lines or {}) do
-            if line.live then live = true else dead = true end
-        end
-        if live then add(utility == "water" and "lineWater" or "linePower", "line") end
-        if dead then add("lineCut", "line") end
+        if has.live then add(utility == "water" and "lineWater" or "linePower", "line") end
+        if has.dead then add("lineCut", "line") end
     end
     if ranges and not zones then
-        add("range", "line")
-        if ranges.noise and #ranges.noise > 0 then add("rangeNoise", "line") end
+        local shown = #ranges.reach > 0
+        for _, edges in ipairs(ranges.relays) do shown = shown or #edges > 0 end
+        if shown then add("range", "line") end
+        if #ranges.noise > 0 then add("rangeNoise", "line") end
     end
     return result
 end
+
 
 -- An area's edges (Geometry.reach, Geometry.disc), between squares in it and out of it: { x, y, len, across } in
 -- squares (across: along x).
@@ -469,7 +537,7 @@ function ISBUPlan:layout()
     local top = self.topH
     -- The legend: a box above the status line, a gap from the floor strip, under a header that folds it. Its entries
     -- in as many columns (up to three) of the widest one as fit.
-    local legendH = self:layoutLegend(left + PAD, legendEntries(data.utility, data.zoneEdit, data.ranges, data))
+    local legendH = self:layoutLegend(left + PAD, legendEntries(data.utility, data.zoneEdit, ranges, data, self.floor))
     local availW, availH = self.width - left - PAD, self.height - top - FONT_HGT_SMALL - PAD * 2 - legendH
     -- The whole fits at zoom 1; zoomed, the plan centres on the place the player moved it to.
     local fit = math.max(1, math.min(availW / (maxX - minX), availH / (maxY - minY), MAX_SCALE))
