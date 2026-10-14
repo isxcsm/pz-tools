@@ -1,5 +1,6 @@
--- The box's and the units' tiles are the game's furniture tiles once loaded (IsMoveAble, naming the item), so that the
--- game gives their items a tile; an item made before has its script's tile given back.
+-- The box's and the units' tiles are the game's furniture tiles once loaded (IsMoveAble), so that the game gives their
+-- items a tile; an item made before has its script's tile given back. Their items are named in the tile files
+-- (CustomItem), never set at run time (the in-game check bu_items.lua reads them).
 local props = {}
 local function prop() return { set = function(self, key, value) self[key] = value end } end
 getSprite = function(name)
@@ -19,16 +20,14 @@ require "BuildingUtilities/WaterUnits"
 require "BuildingUtilities/Moveables"
 local BU = BuildingUtilities
 
-test("the tiles a box and the units show are furniture naming their items", function()
+test("the tiles a box and the units show are furniture, their items left to the tile files", function()
     TEST.fire("OnLoadedTileDefinitions")
-    for _, name in ipairs({ BU.Solar.SPRITES.flat, BU.Solar.SPRITES.W, BU.Solar.SPRITES.N }) do
+    for _, name in ipairs({ BU.Solar.SPRITES.flat, BU.Solar.SPRITES.W, BU.Solar.SPRITES.N, BU.panelSprite("N"),
+        BU.panelSprite("W", 3), BU.PanelLook.SPRITES[BU.PanelLook.variant(4, true)].tripped[2],
+        BU.WaterUnits.FIRE_SPRITES.hung.waiting }) do
         eq(props[name].IsMoveAble, "true", name)
-        eq(props[name].CustomItem, BU.Units.definition("solar").item, name)
+        eq(props[name].CustomItem, nil, name)
     end
-    eq(props[BU.panelSprite("N")].CustomItem, BU.PANEL_ITEM)
-    eq(props[BU.panelSprite("W", 3)].CustomItem, BU.PANEL_ITEMS[3], "a tier's box gives its tier's item")
-    eq(props[BU.PanelLook.SPRITES[BU.PanelLook.variant(4, true)].tripped[2]].CustomItem, BU.PANEL_ITEMS[4],
-        "outdoors and in any look")
 end)
 
 test("an item without its tile takes its script's", function()

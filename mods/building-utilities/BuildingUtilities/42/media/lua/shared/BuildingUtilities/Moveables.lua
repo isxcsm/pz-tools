@@ -8,7 +8,9 @@
 --   - putting down obeys the kind's rules (Panels.canInstall, Units.canInstall: the tool's panel says why not) and
 --     makes the box or the unit as this mod does (BU.Changes), facing as the cursor was turned;
 --   - the faces: each kind's looks for the sides (a box's tier's: BU.panelSprite, the units' sprite(nil, side)) as the
---     tool's offsets.
+--     tool's offsets;
+--   - a unit whose look depends on its square (lookBySquare: a fire sprinkler hangs or stands) shows under the cursor
+--     as it would be put down there.
 -- A box's item is its tier's (BU.PANEL_ITEMS): taken up, a box gives its tier's, and puts its tier's down.
 -- A placed one is not turned with the tool (its record keeps how it faces), nor scrapped.
 require "Moveables/ISMoveableSpriteProps"
@@ -243,8 +245,9 @@ function ISMoveableSpriteProps:getInfoPanelDescription(square, object, player, m
 end
 
 -- The game gives a furniture item its tile (what the cursor puts down, and how the tool finds the item in the
--- inventory) only when the tile is IsMoveAble; CustomItem names the item, so that it keeps its own name, icon and weight.
--- The tiles get both once they are loaded.
+-- inventory) only when the tile is IsMoveAble: the tiles get it once they are loaded. CustomItem, the item that keeps
+-- its own name, icon and weight, is in the tile files (tools/tile_art.py, solar_art.py): set here it would read as
+-- another item, the game knowing only the values its tile files name.
 Events.OnLoadedTileDefinitions.Add(function()
     kindOf(nil)
     for name, kind in pairs(kinds) do
@@ -252,10 +255,35 @@ Events.OnLoadedTileDefinitions.Add(function()
         if sprite then
             local props = sprite:getProperties()
             props:set("IsMoveAble", "true")
-            props:set("CustomItem", itemType(kind, kind == "panel" and spriteTier(name) or nil))
         end
     end
 end)
+
+-- The cursor draws the tile it would put down (objectSprite); a unit of lookBySquare is drawn as the square under it
+-- makes it, for the side it is turned to. Only while putting one down; the cursor is the game's, there once a game is on.
+local function wrapCursor()
+    if not ISMoveableCursor or ISMoveableCursor.buLookBySquare then return end
+    ISMoveableCursor.buLookBySquare = true
+    local render = ISMoveableCursor.render
+    function ISMoveableCursor:render(x, y, z, square)
+        local props, shown = self.currentMoveProps, self.objectSprite
+        local kind = props and props.buKind
+        if shown and kind and kind ~= "panel" and BU.Units.definition(kind).lookBySquare
+            and ISMoveableCursor.mode[self.player] == "place" then
+            local name = BU.Units.spriteFacing(kind, square or getCell():getGridSquare(x, y, z),
+                sideOf(kind, props.spriteName))
+            local sprite = name ~= shown:getName() and getSprite(name)
+            if sprite then
+                self.objectSprite = sprite
+                render(self, x, y, z, square)
+                self.objectSprite = shown
+                return
+            end
+        end
+        return render(self, x, y, z, square)
+    end
+end
+Events.OnGameStart.Add(wrapCursor)
 
 -- An item made before its tile was IsMoveAble has no tile: it takes its script's.
 function BU.giveTile(item)

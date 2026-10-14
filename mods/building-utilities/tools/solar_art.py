@@ -322,9 +322,11 @@ def rack_tiles(turns=0):
 
 # The wall side each turn stands against: its front away from it.
 RACK_WALL = ('W', 'N', 'E', 'S')
-RACK = {'BlocksPlacement': '', 'CustomName': 'Battery Rack', 'Facing': 'W', 'solidtrans': ''}
+# CustomItem: as tile_art.py's (the value has to be in the tile file)
+RACK = {'BlocksPlacement': '', 'CustomName': 'Battery Rack', 'CustomItem': 'BuildingUtilities.BatteryRack', 'Facing': 'W',
+        'solidtrans': ''}
 OVERLAY = {'attachedW': ''}
-PANEL = {'CustomName': 'Solar Panel', 'IsLow': ''}
+PANEL = {'CustomName': 'Solar Panel', 'CustomItem': 'BuildingUtilities.SolarPanel', 'IsLow': ''}
 
 
 def tiles():

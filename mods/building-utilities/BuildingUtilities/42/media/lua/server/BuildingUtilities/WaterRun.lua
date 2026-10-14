@@ -272,13 +272,14 @@ function WaterRun.sprinklers(panel)
 end
 
 -- Whether a fire sprinkler reaches a burning square: on its floor, within FIRE_RADIUS, in its room (a head in no room,
--- on a roof or in the open, reaches the squares of no room).
+-- on a roof or in the open, reaches the squares of no room). The rooms themselves are compared: a room's id (a long)
+-- comes to Lua as a double that two rooms of a cell can share.
 local function reaches(unit, square)
     if square:getZ() ~= unit.z then return false end
     local radius = WaterUnits.FIRE_RADIUS
     if math.abs(square:getX() - unit.x) > radius or math.abs(square:getY() - unit.y) > radius then return false end
     local head = getCell():getGridSquare(unit.x, unit.y, unit.z)
-    return head ~= nil and head:getRoomID() == square:getRoomID()
+    return head ~= nil and head:getRoom() == square:getRoom()
 end
 
 -- The square's fire goes, and that of whoever burns on it, as a fire extinguisher puts it out (ISPutOutFire).

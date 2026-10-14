@@ -1091,14 +1091,25 @@ def snow(index, heavy):
 
 
 # The sheet: what each tile is, and its properties for the game. Facing as the vanilla object it stands for.
-JUNCTION = {'CustomName': 'Junction Box', 'BlocksPlacement': '', 'solidtrans': ''}
-HYDRANT = {'CustomName': 'Yard Hydrant', 'IsLow': ''}
-PUMP = {'CustomName': 'Water Pump', 'BlocksPlacement': '', 'solidtrans': ''}
-FILTER = {'CustomName': 'Water Filter', 'BlocksPlacement': '', 'solidtrans': ''}
-SPRINKLER = {'CustomName': 'Sprinkler', 'IsLow': ''}
-FIRE_SPRINKLER = {'CustomName': 'Fire Sprinkler', 'IsLow': ''}
+# CustomItem: the item the furniture tool gives and takes for the tile (Moveables.lua), and whose weight its items get.
+# It has to be here: the game keeps a property's values as a list made from the tile files, and a value set at run time
+# that is not in it reads as the list's first (another mod's item).
+JUNCTION = {'CustomName': 'Junction Box', 'CustomItem': 'BuildingUtilities.JunctionBox', 'BlocksPlacement': '',
+            'solidtrans': ''}
+HYDRANT = {'CustomName': 'Yard Hydrant', 'CustomItem': 'BuildingUtilities.YardHydrant', 'IsLow': ''}
+PUMP = {'CustomName': 'Water Pump', 'CustomItem': 'BuildingUtilities.WaterPump', 'BlocksPlacement': '', 'solidtrans': ''}
+FILTER = {'CustomName': 'Water Filter', 'CustomItem': 'BuildingUtilities.WaterFilter', 'BlocksPlacement': '',
+          'solidtrans': ''}
+SPRINKLER = {'CustomName': 'Sprinkler', 'CustomItem': 'BuildingUtilities.Sprinkler', 'IsLow': ''}
+FIRE_SPRINKLER = {'CustomName': 'Fire Sprinkler', 'CustomItem': 'BuildingUtilities.FireSprinkler', 'IsLow': ''}
+# Hung, it is the game's ceiling fitting (as its hanging lamps): drawn faint while it hides a character behind it.
+FIRE_SPRINKLER_HUNG = dict(FIRE_SPRINKLER, attachedCeiling='')
 BOX = {'CustomName': 'Utility Panel', 'BlocksPlacement': '', 'solidtrans': ''}
-BOOSTER = {'CustomName': 'Booster Pump', 'BlocksPlacement': '', 'solidtrans': ''}
+# a box's item is its tier's (BU.PANEL_ITEMS)
+BOX_ITEMS = {1: 'BuildingUtilities.BreakerBox', 2: 'BuildingUtilities.BreakerBox2', 3: 'BuildingUtilities.BreakerBox3',
+             4: 'BuildingUtilities.BreakerBox4'}
+BOOSTER = {'CustomName': 'Booster Pump', 'CustomItem': 'BuildingUtilities.BoosterPump', 'BlocksPlacement': '',
+           'solidtrans': ''}
 PUMP_FACINGS = ((0, 'E'), (1, 'S'), (2, 'W'), (3, 'N'))
 FILTER_FACINGS = ((0, 'S'), (3, 'E'))
 BOX_FACINGS = ((0, 'S'), (3, 'E'), (2, 'N'), (1, 'W'))
@@ -1118,7 +1129,7 @@ BOX_LOOKS = ('off', 'on', 'tripped', 'tripped_dim')
 
 def panels(tier, outdoor):
     """A tier's box, indoors or out: off, on, tripped and tripped with its lamp dark, each facing S, E, N, W."""
-    return [(lambda t=t, look=look: panel(t, look, tier, outdoor), dict(BOX, Facing=f))
+    return [(lambda t=t, look=look: panel(t, look, tier, outdoor), dict(BOX, Facing=f, CustomItem=BOX_ITEMS[tier]))
             for look in BOX_LOOKS for t, f in BOX_FACINGS]
 
 
@@ -1407,7 +1418,7 @@ ESCUTCHEON = (214, 214, 208)
 
 
 def fire_sprinkler(hung, spraying):
-    """A fire sprinkler head on the water lane's middle (RUN_LANE): hung, a pendent head on a drop from the ceiling (its
+    """A fire sprinkler head on the water lane's middle (RUN_LANE): hung, a pendent head just under the ceiling (its
     plate against the ceiling, the deflector under the frame); else an upright head on a riser from the floor (the
     deflector over the frame). A head waiting holds its red glass bulb between the frame's arms; a spraying one has lost
     it, and water leaves the deflector all round and falls."""
@@ -1416,9 +1427,9 @@ def fire_sprinkler(hung, spraying):
     if hung:
         top = CEILING
         s.tube((c, c, top - 0.02), (c, c, top), 0.075, ESCUTCHEON, cap=ESCUTCHEON, shine=0.2)
-        s.tube((c, c, top - 0.3), (c, c, top - 0.02), 0.03, STEEL, shine=0.4)
-        s.tube((c, c, top - 0.33), (c, c, top - 0.3), 0.04, FITTING, shine=0.2)
-        base, way = top - 0.33, -1
+        s.tube((c, c, top - 0.07), (c, c, top - 0.02), 0.03, STEEL, shine=0.4)
+        s.tube((c, c, top - 0.1), (c, c, top - 0.07), 0.04, FITTING, shine=0.2)
+        base, way = top - 0.1, -1
     else:
         s.tube((c, c, 0.0), (c, c, 0.035), 0.11, FITTING, cap=(74, 75, 76), shine=0.1)
         s.tube((c, c, 0.035), (c, c, 0.09), 0.05, FITTING, cap=(74, 75, 76), shine=0.1)
@@ -1506,7 +1517,8 @@ TILES = (
     # 218-251: the same on a made floor (RUN_LAID_FIRST): power, water, then their second looks.
     + runs('power', True) + runs('water', True) + run_details(True)
     # 252-255: the fire sprinkler hung from a ceiling waiting, then spraying; standing on a riser waiting, then spraying.
-    + [(lambda hung=hung, spraying=spraying: fire_sprinkler(hung, spraying), FIRE_SPRINKLER)
+    + [(lambda hung=hung, spraying=spraying: fire_sprinkler(hung, spraying),
+        FIRE_SPRINKLER_HUNG if hung else FIRE_SPRINKLER)
        for hung in (True, False) for spraying in (False, True)]
 )
 

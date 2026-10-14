@@ -213,6 +213,8 @@ Units.define("firesprinkler", {
     colour = { 0.95, 0.35, 0.3 },
     canPlace = function() return true end,
     sprite = function(square) return WaterUnits.fireSprite(square, false) end,
+    -- the furniture cursor shows it as it would be on the square under it (Moveables)
+    lookBySquare = true,
     -- It hangs or stands as its square is now (a floor built over it, a roof gone), and sprays a while after it put a
     -- fire out.
     sync = function(unit, object)

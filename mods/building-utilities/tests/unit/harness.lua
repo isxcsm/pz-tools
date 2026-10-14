@@ -129,10 +129,11 @@ local function resetGame()
     getTextOrNull = function() return nil end
     sendServerCommand = function() end
     sendClientCommand = function() end
-    -- No square is loaded unless a test puts one in TEST.squares ("x,y,z" -> { objects = { ... } }; room: its room's id,
-    -- -1 for none; roof: a tile over the square below that lets no rain through; flags: { burning = true }; movers).
+    -- No square is loaded unless a test puts one in TEST.squares ("x,y,z" -> { objects = { ... } }; room: a name, the
+    -- squares of one name in one room (getRoom), none for no room; roof: a tile over the square below that lets no rain through; flags: { burning = true }; movers).
     -- A fire put out takes the square's burning flag (stopped counts the times).
     TEST.squares = {}
+    local rooms = {}
     getCell = function()
         return { getGridSquare = function(_, x, y, z)
             local square = TEST.squares[x .. "," .. y .. "," .. z]
@@ -140,8 +141,11 @@ local function resetGame()
             return {
                 getX = function() return x end, getY = function() return y end, getZ = function() return z end,
                 getObjects = function() return javaList(square.objects or {}) end,
-                getRoom = function() return nil end,
-                getRoomID = function() return square.room or -1 end,
+                getRoom = function()
+                    if square.room == nil then return nil end
+                    rooms[square.room] = rooms[square.room] or { name = square.room }
+                    return rooms[square.room]
+                end,
                 has = function(_, flag) return square.flags ~= nil and square.flags[flag] == true end,
                 hasRainBlockingTile = function() return square.roof == true end,
                 getMovingObjects = function() return javaList(square.movers or {}) end,

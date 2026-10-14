@@ -360,7 +360,7 @@ local function burn(...)
     local fires = {}
     for _, at in ipairs({ ... }) do
         local key = at[1] .. "," .. at[2] .. "," .. at[3]
-        TEST.squares[key] = TEST.squares[key] or { room = at[4] or 1 }
+        TEST.squares[key] = TEST.squares[key] or { room = at[4] }
         TEST.squares[key].flags = { burning = true }
         fires[#fires + 1] = { getSquare = function() return getCell():getGridSquare(at[1], at[2], at[3]) end }
     end
@@ -376,11 +376,11 @@ test("a fire sprinkler puts out the fires it reaches in its room, 20 L each, pas
     local panel, _, tank = scene(1)
     local held = tankAt(panel, tank, 101, 101, 0, 100, 50)
     Water.pipe(panel, Water.FIRST).reserve = 90
-    TEST.squares["102,103,0"] = { room = 1 }
+    TEST.squares["102,103,0"] = { room = "hall" }
     local head = Store.newUnit("firesprinkler", 102, 103, 0, WaterUnits.FIRE_SPRITES.hung.waiting)
     Changes.connectUnit(head, panel, {})
     -- three squares off on its floor in its room; four off; in another room; a floor up
-    burn({ 105, 106, 0 }, { 106, 103, 0 }, { 103, 103, 0, 2 }, { 102, 103, 1 })
+    burn({ 105, 106, 0, "hall" }, { 106, 103, 0, "hall" }, { 103, 103, 0, "kitchen" }, { 102, 103, 1, "hall" })
     WaterRun.fires()
     eq(burning(105, 106, 0), false, "within reach: out")
     eq(burning(106, 103, 0), true, "four squares off: burning")
@@ -391,7 +391,7 @@ test("a fire sprinkler puts out the fires it reaches in its room, 20 L each, pas
     truthy(WaterUnits.spraying(head))
     -- 10 L left: less than a square takes
     held.amount = 10
-    burn({ 104, 104, 0 })
+    burn({ 104, 104, 0, "hall" })
     WaterRun.fires()
     eq(burning(104, 104, 0), true, "too little water: burning")
     eq(held.amount, 10)
@@ -409,15 +409,15 @@ end)
 test("a fire sprinkler outside reaches the squares of no room; one off or cut reaches none", function()
     local panel, _, tank = scene(1)
     local held = tankAt(panel, tank, 101, 101, 0, 100, 100)
-    TEST.squares["110,110,0"] = { room = -1 }
+    TEST.squares["110,110,0"] = {}
     local head = Store.newUnit("firesprinkler", 110, 110, 0, WaterUnits.FIRE_SPRITES.standing.waiting)
     Changes.connectUnit(head, panel, {})
-    burn({ 112, 110, 0, -1 }, { 111, 111, 0, 1 })
+    burn({ 112, 110, 0 }, { 111, 111, 0, "hall" })
     WaterRun.fires()
     eq(burning(112, 110, 0), false, "outside: out")
     eq(burning(111, 111, 0), true, "a room's square: burning")
     SandboxVars.BuildingUtilities = { EnableFireSprinklers = false }
-    burn({ 112, 110, 0, -1 })
+    burn({ 112, 110, 0 })
     WaterRun.fires()
     eq(burning(112, 110, 0), true, "the feature off: burning")
     SandboxVars.BuildingUtilities = {}
@@ -425,7 +425,7 @@ test("a fire sprinkler outside reaches the squares of no room; one off or cut re
 end)
 
 test("a fire sprinkler hangs where the square over it lets no rain through, else stands", function()
-    TEST.squares["120,120,0"] = { room = 1 }
+    TEST.squares["120,120,0"] = { room = "hall" }
     eq(WaterUnits.fireSprite(getCell():getGridSquare(120, 120, 0), false), WaterUnits.FIRE_SPRITES.standing.waiting,
         "nothing over it: a hole in the roof, the open")
     TEST.squares["120,120,1"] = { roof = true }
