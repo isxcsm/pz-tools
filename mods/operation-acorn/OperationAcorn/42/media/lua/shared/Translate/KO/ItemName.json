@@ -129,5 +129,12 @@
     "OperationAcorn.InfectionReversal": "감염 역전제",
     "OperationAcorn.InfectionTestKit": "감염 검사 키트",
     "OperationAcorn.HandoverPages": "인계 대상 서류",
-    "OperationAcorn.MissionHeavyCase": "무거운 시료 상자"
+    "OperationAcorn.MissionHeavyCase": "무거운 시료 상자",
+    "OperationAcorn.HarvestScalpel": "채취용 메스",
+    "OperationAcorn.PrecisionTweezers": "정밀 핀셋",
+    "OperationAcorn.TissueCommon": "일반 조직 시료",
+    "OperationAcorn.TissueInfected": "감염 조직 시료",
+    "OperationAcorn.TissueNeural": "신경 조직 시료",
+    "OperationAcorn.TissueAnomalous": "이상 조직 시료",
+    "OperationAcorn.TissueTarget": "임무 시료"
 }

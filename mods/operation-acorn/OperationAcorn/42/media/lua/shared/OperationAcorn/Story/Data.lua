@@ -114,7 +114,8 @@ end
 -- The regular missions' kinds: how heavy the pick is, and what is made. Without a `kind` it is one item in one building
 -- (text: IGUI_OA_Story_RegTitle_<item> and _RegBrief_). The others (DESIGN-terminal 7.2): `compare` (two copies in two
 -- buildings, one the original), `soil` (a sample of bare ground), `scatter` (a piece of `item` in each of two or three
--- buildings of the area), `heavy` (one item that weighs about 15: a car or a cart carries it). Their text is
+-- buildings of the area), `heavy` (one item that weighs about 15: a car or a cart carries it), `clear` and `target` (a
+-- group of zombies in an open area, Data.ZOMBIES). Their text is
 -- IGUI_OA_Story_RegTitle_<id> and _RegBrief_<id>, the compare one the contract's.
 Data.REGULAR = {
     { item = "MissionEnvelope", weight = 3 },
@@ -127,7 +128,19 @@ Data.REGULAR = {
     { id = "soil", kind = "soil", weight = 1 },
     { id = "scatter", kind = "scatter", item = "MissionSampleTin", weight = 2 },
     { item = "MissionHeavyCase", kind = "heavy", weight = 1 },
+    { id = "clear", kind = "clear", weight = 3 },
+    { id = "target", kind = "target", weight = 3 },
 }
+
+-- The zombie missions (NUMBERS 9 '좀비 임무'): an area clear (kill the whole group) and a target sample (a mission sample
+-- from each target). The group wears our outfit (media/clothing/clothing.xml), by which it is known; its size by level
+-- (1 to 6). The circle's radius; the player within NEAR of it brings the group, at squares more than AWAY from the
+-- player; the group stays within MARGIN of the circle (the API's hold); LEAVE squares beyond NEAR the player has gone.
+Data.ZOMBIES = {
+    clear = { outfit = "OA_Crowd", counts = { 12, 18, 24, 30, 40, 50 } },
+    target = { outfit = "OA_Target", counts = { 2, 2, 3, 3, 4, 4 } },
+}
+Data.ZOMBIE_RADIUS, Data.ZOMBIE_NEAR, Data.ZOMBIE_AWAY, Data.ZOMBIE_MARGIN, Data.ZOMBIE_LEAVE = 15, 40, 20, 20, 30
 
 -- The scattered samples: how many pieces there can be, and the weight of the heavy sample (the card tells it).
 Data.SCATTER_PIECES = { 2, 3 }

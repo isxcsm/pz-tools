@@ -87,11 +87,11 @@ end
 -- The circles to draw for a mission: { { x =, y =, r =, dim = bool }, ... } (a sealed or finished mission has none).
 -- A circle goes once what it is for is found, and the maps show the item instead (View.points): a second circle (two
 -- buildings compared) is the second piece's, the first is the first piece's then, else every piece's. A field mission
--- keeps its circle: the call is made in it.
+-- keeps its circle: the call is made in it; so does a zombie mission: its group is there.
 function View.circles(m)
     local list = {}
     if not m or m.state == "sealed" then return list end
-    local keep = m.field ~= nil
+    local keep = m.field ~= nil or m.zombies ~= nil
     local items = m.items or {}
     local first
     if m.area2 then first = items[1] and items[1].found else first = View.allFound(m) end

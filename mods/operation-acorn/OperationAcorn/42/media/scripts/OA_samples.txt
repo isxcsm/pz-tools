@@ -1,0 +1,83 @@
+module OperationAcorn
+{
+    imports
+    {
+        Base
+    }
+
+    /* The zombie samples (DESIGN 6 '좀비 시료', NUMBERS 4): the two tools, the four grades a harvest rolls, and the target
+       mission's sample (Story/Harvest.lua). The tools never wear; the scalpel is held in a hand (the equippable tag gives
+       it the game's equip options), the tweezers work from anywhere in the inventory. */
+    item HarvestScalpel
+    {
+        DisplayCategory = FirstAid,
+        ItemType = base:normal,
+        Weight = 0.2,
+        Icon = OA_HarvestScalpel,
+        Tooltip = Tooltip_OA_Harvest_Scalpel,
+        StaticModel = Scalpel,
+        WorldStaticModel = Scalpel,
+        Tags = base:equippable,
+    }
+
+    item PrecisionTweezers
+    {
+        DisplayCategory = FirstAid,
+        ItemType = base:normal,
+        Weight = 0.1,
+        Icon = OA_PrecisionTweezers,
+        Tooltip = Tooltip_OA_Harvest_Tweezers,
+        WorldStaticModel = Tweezers,
+    }
+
+    item TissueCommon
+    {
+        DisplayCategory = Material,
+        ItemType = base:normal,
+        Weight = 0.3,
+        Icon = OA_TissueCommon,
+        Tooltip = Tooltip_OA_Harvest_Tissue,
+        WorldStaticModel = PillBottle,
+    }
+
+    item TissueInfected
+    {
+        DisplayCategory = Material,
+        ItemType = base:normal,
+        Weight = 0.3,
+        Icon = OA_TissueInfected,
+        Tooltip = Tooltip_OA_Harvest_Tissue,
+        WorldStaticModel = PillBottle,
+    }
+
+    item TissueNeural
+    {
+        DisplayCategory = Material,
+        ItemType = base:normal,
+        Weight = 0.3,
+        Icon = OA_TissueNeural,
+        Tooltip = Tooltip_OA_Harvest_Tissue,
+        WorldStaticModel = PillBottle,
+    }
+
+    item TissueAnomalous
+    {
+        DisplayCategory = Material,
+        ItemType = base:normal,
+        Weight = 0.3,
+        Icon = OA_TissueAnomalous,
+        Tooltip = Tooltip_OA_Harvest_Tissue,
+        WorldStaticModel = PillBottle,
+    }
+
+    /* From a target mission's zombie: OA_Mission says which mission (and which target after '#'). */
+    item TissueTarget
+    {
+        DisplayCategory = Material,
+        ItemType = base:normal,
+        Weight = 0.3,
+        Icon = OA_TissueTarget,
+        Tooltip = Tooltip_OA_Harvest_TissueTarget,
+        WorldStaticModel = PillBottle,
+    }
+}

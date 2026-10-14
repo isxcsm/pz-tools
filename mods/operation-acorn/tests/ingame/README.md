@@ -48,3 +48,9 @@ Some checks change the save's market or the record (they say so in their header)
 | File | What it checks | Setup |
 | --- | --- | --- |
 | `p6_gear.lua` | the gear items against the vanilla ones they are modelled on, the shop stocking them, bag kits (with and without the API), vehicle storage and engine kits on the nearest vehicle (per-instance targets: two bags of one kind, the vehicle id), the voucher | stand within 6 squares of a car; throwaway save; `P6_CLEAN()` after |
+
+## P4 zombie samples and missions (`p4_zombies.lua`)
+
+| File | What it checks | Setup |
+| --- | --- | --- |
+| `p4_zombies.lua` | the sample items and their icons, the two outfits, the shop and the first box, the API's zombie hooks; then steps by hand: a zombie mission next to the character (`P4Z_MISSION("clear")` or `"target"`), the group brought and held (`P4Z_STATUS()`), kills counted (`P4Z_KILL(n)`), a corpse harvested once (`P4Z_HARVEST(precise)`), the group gone and brought again (`P4Z_AWAY()`, `P4Z_BACK()`) | a record at stage 1 or above, open ground; throwaway save (it replaces the running mission) |

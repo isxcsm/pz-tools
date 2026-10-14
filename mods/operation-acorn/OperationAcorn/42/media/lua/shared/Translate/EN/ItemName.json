@@ -129,5 +129,12 @@
     "OperationAcorn.InfectionReversal": "Infection Reversal Drug",
     "OperationAcorn.InfectionTestKit": "Infection Test Kit",
     "OperationAcorn.HandoverPages": "Papers for Handover",
-    "OperationAcorn.MissionHeavyCase": "Heavy Sample Case"
+    "OperationAcorn.MissionHeavyCase": "Heavy Sample Case",
+    "OperationAcorn.HarvestScalpel": "Harvest Scalpel",
+    "OperationAcorn.PrecisionTweezers": "Precision Tweezers",
+    "OperationAcorn.TissueCommon": "Common Tissue Sample",
+    "OperationAcorn.TissueInfected": "Infected Tissue Sample",
+    "OperationAcorn.TissueNeural": "Neural Tissue Sample",
+    "OperationAcorn.TissueAnomalous": "Anomalous Tissue Sample",
+    "OperationAcorn.TissueTarget": "Mission Tissue Sample"
 }

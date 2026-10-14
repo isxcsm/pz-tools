@@ -43,5 +43,7 @@
     "ContextMenu_OA_Gear_FitEngine": "Fit engine tuning kit",
     "ContextMenu_OA_Gear_Redeem": "Redeem voucher",
     "ContextMenu_OA_Tree_UseReversal": "Use reversal drug",
-    "ContextMenu_OA_Tree_UseTest": "Use test kit"
+    "ContextMenu_OA_Tree_UseTest": "Use test kit",
+    "ContextMenu_OA_Harvest_Quick": "Quick harvest",
+    "ContextMenu_OA_Harvest_Precise": "Precise harvest"
 }

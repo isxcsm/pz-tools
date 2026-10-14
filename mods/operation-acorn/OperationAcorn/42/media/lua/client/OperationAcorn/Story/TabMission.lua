@@ -249,6 +249,9 @@ function OATabMission:buildCard(record, info)
     end
     if info.compare then line(getText("IGUI_OA_Story_UI_Compare", tostring(info.compare))) end
     if info.heavy then line(getText("IGUI_OA_Story_UI_Heavy", info.heavy)) end
+    if info.zombies then
+        line(getText("IGUI_OA_Story_UI_Zombies_" .. info.zombies.kind, info.zombies.total, info.zombies.done))
+    end
     if info.scatter then line(getText("IGUI_OA_Story_UI_Scatter", math.floor(Rewards.SCATTER_BONUS * 100 + 0.5))) end
     if info.stakeNo then line(getText("IGUI_OA_Story_UI_Stake", tostring(info.stakeNo))) end
     -- Where: one circle, or two for the comparison.

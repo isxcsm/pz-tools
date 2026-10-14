@@ -58,7 +58,7 @@ end)
 
 test("the sections leave out the shelf and the box reissue and keep the catalog's order", function()
     local sections = V.sections(OA.Shop.catalog())
-    eq(table.concat(sections.groups, ","), "resource,gear,machine,tool,part,kit")
+    eq(table.concat(sections.groups, ","), "resource,harvest,gear,machine,tool,part,kit")
     for _, g in ipairs(sections.groups) do
         for _, e in ipairs(sections.byGroup[g]) do
             truthy(not V.onShelf(e), e.id .. " is not on the shelf")

@@ -1,7 +1,8 @@
 -- The first supply (DESIGN 3): the vanilla helicopter's first flight is the research team's. When its window has passed
 -- (or on the seventh day when there is none, or the next morning when the mod came late) an open delivery box with the
--- terminal manual lies on the clearest ground near the character. Lua polling version: the plan is made from the
--- vanilla schedule once, and every ten minutes the time is compared; nothing is checked after the drop.
+-- terminal, its booklet and the harvest scalpel lies on the clearest ground near the character. Lua polling version:
+-- the plan is made from the vanilla schedule once, and every ten minutes the time is compared; nothing is checked after
+-- the drop.
 require "OperationAcorn/Server"
 require "OperationAcorn/Trade/Heli"
 local OA = OperationAcorn
@@ -11,6 +12,12 @@ local FirstSupply = {}
 Trade.FirstSupply = FirstSupply
 
 FirstSupply.MANUAL = "OperationAcorn.TerminalManual"
+-- What the box holds (DESIGN 9 '시작 꾸러미'): the terminal ready to set up, the booklet for a second one, the scalpel.
+FirstSupply.CARGO = {
+    { type = "OperationAcorn.CommTerminal", count = 1 },
+    { type = FirstSupply.MANUAL, count = 1 },
+    { type = "OperationAcorn.HarvestScalpel", count = 1 },
+}
 
 -- What the game says about its helicopter and the time, for Rules.firstPlan.
 function FirstSupply.facts()
@@ -43,7 +50,7 @@ function FirstSupply.drop(record, character)
     local box = Boxes.add(record, { state = "placed", x = square:getX(), y = square:getY(), z = square:getZ(), active = true })
     box.pending = true
     local entry = { owner = record.id, x = square:getX(), y = square:getY(), z = square:getZ(), box = box.id,
-        boxCargo = { { type = FirstSupply.MANUAL, count = 1 } }, marker = true }
+        boxCargo = FirstSupply.CARGO, marker = true }
     if not Heli.setDown(entry) then
         Boxes.remove(record, box.id)
         return false

@@ -43,6 +43,13 @@ Value.OWN = {
     MeteorFragmentStonyIron = { credits = 0, trust = 10, fragment = true },
     ExpiredMission = { credits = 1000, trust = 5 },
     MissionItem = { credits = 0, trust = 0 },
+    -- Zombie samples by grade (NUMBERS 4 '좀비 시료'). A target mission's sample is its mission's while that runs; after,
+    -- it is a common sample like any other.
+    TissueCommon = { credits = 200, trust = 2 },
+    TissueInfected = { credits = 400, trust = 4 },
+    TissueNeural = { credits = 1000, trust = 10 },
+    TissueAnomalous = { credits = 3000, trust = 30 },
+    TissueTarget = { credits = 200, trust = 2 },
 }
 
 -- The item's name as the codex counts kinds (see Categories.baseType).
@@ -119,7 +126,12 @@ function Value.info(item)
     if info.mission and info.own then
         local story = OA.Story
         local expired = story and story.missionExpired and story.missionExpired(info.mission)
-        info.own = expired and "ExpiredMission" or "MissionItem"
+        -- (past its time, one of the mod's own goods is worth what that good is: a target's sample is a sample)
+        if not expired then
+            info.own = "MissionItem"
+        elseif not Value.OWN[info.own] then
+            info.own = "ExpiredMission"
+        end
     end
     return info
 end

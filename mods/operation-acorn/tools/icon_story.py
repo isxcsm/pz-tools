@@ -559,7 +559,66 @@ def kit_voucher(I):
     return I.from_scene(s)
 
 
+def harvest_scalpel(I):
+    """The harvest scalpel, lying: a steel handle with the team's olive grip and a bright blade."""
+    s = lying(-30)
+    I.prism(s, [(0.12, 0.47), (0.6, 0.47), (0.6, 0.53), (0.12, 0.53)], 0.0, 0.035, STEEL_DARK, top=STEEL, shine=0.7)
+    I.prism(s, [(0.2, 0.465), (0.48, 0.465), (0.48, 0.535), (0.2, 0.535)], 0.035, 0.05, OD_DARK, top=OD, shine=0.2)
+    I.prism(s, [(0.6, 0.48), (0.76, 0.44), (0.9, 0.47), (0.86, 0.53), (0.6, 0.52)], 0.0, 0.02, (196, 200, 206),
+            top=(236, 240, 244), shine=1.0)
+    return I.from_scene(s)
+
+
+def precision_tweezers(I):
+    """The precision tweezers, lying: two long steel arms meeting at the back, their fine tips nearly closed."""
+    s = lying(-30)
+    arm = (214, 218, 222)
+    # two arms spread from the joined back to the fine tips, a gap between them
+    I.prism(s, [(0.1, 0.46), (0.22, 0.46), (0.9, 0.485), (0.9, 0.49), (0.1, 0.49)], 0.0, 0.03, STEEL_DARK, top=arm,
+            shine=0.9)
+    I.prism(s, [(0.22, 0.6), (0.1, 0.6), (0.1, 0.57), (0.9, 0.505), (0.9, 0.51)], 0.0, 0.03, STEEL_DARK, top=arm,
+            shine=0.9)
+    I.prism(s, [(0.1, 0.46), (0.16, 0.46), (0.16, 0.6), (0.1, 0.6)], 0.0, 0.03, STEEL_DARK, top=arm, shine=0.9)
+    I.prism(s, [(0.3, 0.462), (0.46, 0.468), (0.46, 0.49), (0.3, 0.49)], 0.03, 0.04, OD_DARK, top=OD, shine=0.2)
+    I.prism(s, [(0.3, 0.565), (0.46, 0.545), (0.46, 0.57), (0.3, 0.59)], 0.03, 0.04, OD_DARK, top=OD, shine=0.2)
+    return I.from_scene(s)
+
+
+# The tissue grades by colour (common: dark red, infected: sick green, neural: grey violet, anomalous: teal that shines),
+# and the target's sample: dark red under a red cap with the mission's tag.
+TISSUE = {
+    'common': ((150, 52, 48), (96, 30, 28), (226, 226, 220)),
+    'infected': ((118, 142, 58), (74, 92, 32), (226, 226, 220)),
+    'neural': ((168, 150, 186), (110, 94, 128), (226, 226, 220)),
+    'anomalous': ((60, 206, 190), (24, 120, 112), (226, 226, 220)),
+    'target': ((150, 52, 48), (96, 30, 28), (190, 44, 36)),
+}
+
+
+def tissue_jar(I, grade):
+    """A squat specimen jar: the tissue in clear fluid, a screw cap, a label band (the target's with its number)."""
+    flesh, dark, cap = TISSUE[grade]
+    fluid = tuple(min(255, int(c * 0.35 + 170)) for c in flesh)
+    s = Scene(0)
+    cx, cy = 0.5, 0.5
+    # the glass seen through: the tissue settled in the lower half, the tinted fluid above, a dark rim at the bottom
+    s.tube((cx, cy, 0.0), (cx, cy, 0.5), 0.21, fluid, cap=fluid, segments=28, shine=0.8,
+           bands=[(0, 0.06, (150, 160, 158)), (0.06, 0.5, flesh), (0.5, 0.56, dark), (0.56, 1.0, fluid)])
+    s.tube((cx - 0.2, cy + 0.04, 0.05), (cx - 0.2, cy + 0.04, 0.46), 0.016, (246, 248, 246), segments=6, emit=True)
+    s.tube((cx, cy, 0.5), (cx, cy, 0.62), 0.225, cap, cap=cap, segments=28, shine=0.4)
+    if grade == 'target':
+        # the mission's tag on a string under the cap
+        s.tube((cx + 0.16, cy + 0.14, 0.52), (cx + 0.3, cy + 0.26, 0.36), 0.008, TAN, segments=5)
+        s.box(cx + 0.22, cy + 0.2, 0.18, cx + 0.38, cy + 0.24, 0.38, (236, 232, 212))
+        s.box(cx + 0.22, cy + 0.2, 0.31, cx + 0.38, cy + 0.245, 0.35, (190, 44, 36))
+    return I.from_scene(s)
+
+
 FUNCTIONS = {
+    'harvest_scalpel': harvest_scalpel, 'precision_tweezers': precision_tweezers,
+    'tissue_common': lambda I: tissue_jar(I, 'common'), 'tissue_infected': lambda I: tissue_jar(I, 'infected'),
+    'tissue_neural': lambda I: tissue_jar(I, 'neural'), 'tissue_anomalous': lambda I: tissue_jar(I, 'anomalous'),
+    'tissue_target': lambda I: tissue_jar(I, 'target'),
     'mission_envelope': mission_envelope, 'mission_sample_tin': mission_sample_tin, 'mission_logbook': mission_logbook,
     'mission_filter_case': mission_filter_case, 'mission_tape': mission_tape, 'mission_fabric_roll': mission_fabric_roll,
     'mission_heavy_case': mission_heavy_case,

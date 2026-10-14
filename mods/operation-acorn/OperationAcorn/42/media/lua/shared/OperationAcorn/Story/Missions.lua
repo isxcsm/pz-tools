@@ -600,8 +600,26 @@ local function createScatter(record, level, kind)
     return m
 end
 
+-- A zombie mission (Data.ZOMBIES): a small circle in the open near a building of the band; the group appears when the
+-- player comes near (Story/Zombies). `zombies` = { kind, outfit, total, killed (an area clear's kills), taken (the target
+-- samples harvested), seq (the last sample's number), dead = { the death hours of targets killed and not harvested },
+-- sealed = { [sample key] = true } }.
+local function createZombies(record, level, kind)
+    local p, ax, ay = pickBuildingPlace(record, level)
+    if not p then return nil end
+    local def = Data.ZOMBIES[kind.kind]
+    local m = newMission(record, "regular", level, nil)
+    m.title = kind.id
+    m.anchor = { x = ax, y = ay }
+    local cx, cy, r = Places.circle(p.x, p.y, Data.ZOMBIE_RADIUS)
+    m.area = { x = cx, y = cy, r = r }
+    m.zombies = { kind = kind.kind, outfit = def.outfit, total = def.counts[math.min(level, #def.counts)],
+        killed = 0, taken = 0, seq = 0, dead = {}, sealed = {} }
+    return m
+end
+
 local REGULAR_BUILDERS = {
-    item = createItem, heavy = createItem, scatter = createScatter,
+    item = createItem, heavy = createItem, scatter = createScatter, clear = createZombies, target = createZombies,
     compare = function(record, level, kind) return createCompare(record, kind, level, "regular") end,
     soil = function(record, level) return createPlainSoil(record, level) end,
 }
@@ -614,7 +632,7 @@ end
 -- An urgent mission (one in URGENT_CHANCE): a day to do it, and it pays more. Not for the kinds that need more than
 -- one place or one carry.
 local function makeUrgent(m)
-    if m.compare or m.scatter or m.heavy or m.soil then return end
+    if m.compare or m.scatter or m.heavy or m.soil or m.zombies then return end
     if OA.random(1, 100) > Rewards.URGENT_CHANCE then return end
     m.urgent = true
     m.deadline = m.issued + Rewards.URGENT_HOURS
@@ -872,7 +890,8 @@ end
 
 -- A piece of a running mission was destroyed (a fire emptied the container it was in): the mission goes on, and the
 -- player gets the piece again the way it was got. One to be found turns up again at its place; the soil sample is taken
--- again; the exchanged record is waited for again where it was handed over. The deadline leaves as much time as the
+-- again; the exchanged record is waited for again where it was handed over; a target's sample comes from another target.
+-- The deadline leaves as much time as the
 -- mission had from the start (never less than it had), and a cooler's warming starts again with the new one.
 function Missions.replacePiece(record, m, it)
     local g = game()
@@ -886,6 +905,13 @@ function Missions.replacePiece(record, m, it)
     elseif m.soil and it.mode == "given" then
         m.soil.taken = false
         sub = "IGUI_OA_Title_LostSub_Soil"
+    elseif m.zombies and it.mode == "given" then
+        -- a target's sample: another target comes for it (Zombies.wanted)
+        for i = #m.items, 1, -1 do
+            if m.items[i] == it then table.remove(m.items, i) end
+        end
+        m.zombies.taken = math.max(0, m.zombies.taken - 1)
+        sub = "IGUI_OA_Title_LostSub_Target"
     elseif m.swap and it.mode == "inside" then
         for i = #m.items, 1, -1 do
             if m.items[i] == it then table.remove(m.items, i) end
@@ -927,7 +953,8 @@ function Missions.onSealed(record, boxId, entries)
     end
 end
 
--- The pieces of a mission among a sealed box's entries, judged now. A scattered mission counts every piece it finds.
+-- The pieces of a mission among a sealed box's entries, judged now. A scattered mission counts every piece it finds, a
+-- target mission every sample, and is done when it has them all.
 function Missions.sealedIn(record, m, boxId, entries, now)
     local found
     for _, entry in ipairs(entries or {}) do
@@ -946,12 +973,13 @@ function Missions.sealedIn(record, m, boxId, entries, now)
                     end
                     return
                 end
-                if not m.scatter then
+                local set = Missions.sealedSet(m)
+                if not set then
                     Missions.sealedOk(record, m, boxId, now)
                     return
                 end
-                if key and m.scatter.found[key] == nil then
-                    m.scatter.found[key] = true
+                if key and set[key] == nil then
+                    set[key] = true
                     found = true
                 end
             end
@@ -959,7 +987,7 @@ function Missions.sealedIn(record, m, boxId, entries, now)
     end
     if found then
         m.box = boxId
-        if Missions.scatterCount(m) >= m.scatter.total then
+        if Missions.sealedCount(m) >= Missions.sealedTotal(m) then
             Missions.sealedOk(record, m, boxId, now)
         else
             OA.Sync.changed("missions", record.id)
@@ -967,13 +995,29 @@ function Missions.sealedIn(record, m, boxId, entries, now)
     end
 end
 
+-- The pieces of a mission of several that are sealed in time so far, by key: a scattered mission's, a target mission's
+-- samples. Nil for a mission of one piece.
+function Missions.sealedSet(m)
+    if m.scatter then return m.scatter.found end
+    if m.zombies and m.zombies.kind == "target" then return m.zombies.sealed end
+    return nil
+end
+
+function Missions.sealedCount(m)
+    local n = 0
+    for _ in pairs(Missions.sealedSet(m) or {}) do n = n + 1 end
+    return n
+end
+
+function Missions.sealedTotal(m)
+    if m.scatter then return m.scatter.total end
+    return m.zombies.total
+end
+
 -- The pieces of a scattered mission found (sealed in time) so far.
 function Missions.scatterCount(m)
-    local n = 0
-    if m.scatter then
-        for _ in pairs(m.scatter.found) do n = n + 1 end
-    end
-    return n
+    if not m.scatter then return 0 end
+    return Missions.sealedCount(m)
 end
 
 -- What a scattered mission pays for the pieces it has: the whole set the price (which has the extra in it), a part its
@@ -1286,12 +1330,12 @@ end
 -- Taking another mission (DESIGN-terminal 7.2).
 
 -- Whether the card offers 'take another' for a mission, and at what price: { trust = the trust it costs, left = how many
--- there are left this week (0 or 1) } or nil. Only a regular or contract mission that is open, and a scattered one only
--- until a piece is found (a piece sealed would be left a plain item).
+-- there are left this week (0 or 1) } or nil. Only a regular or contract mission that is open, and one of several pieces
+-- only until a piece is sealed (it would be left a plain item).
 function Missions.rerollOffer(record, m)
     if not m or m.special or m.state ~= "open" then return nil end
     if m.kind ~= "regular" and m.kind ~= "contract" then return nil end
-    if m.scatter and Missions.scatterCount(m) > 0 then return nil end
+    if Missions.sealedCount(m) > 0 then return nil end
     local s = Missions.state(record)
     local used = s.reroll ~= nil and s.reroll.week == OA.week()
     return { trust = Rewards.rerollCost(m.level), left = used and 0 or 1 }
@@ -1490,6 +1534,11 @@ local function describeMission(m, now)
     -- and its request copy's number (the folder's R-number).
     info.scatter = m.scatter and { total = m.scatter.total, found = Missions.scatterCount(m) } or nil
     info.heavy = m.heavy
+    -- A zombie mission's count: { kind, total, done } (the kills of an area clear, the samples taken from targets).
+    if m.zombies then
+        local z = m.zombies
+        info.zombies = { kind = z.kind, total = z.total, done = z.kind == "clear" and z.killed or z.taken }
+    end
     info.form = m.form
     info.request = m.request
     local first = m.items and m.items[1]

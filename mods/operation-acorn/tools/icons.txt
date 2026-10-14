@@ -143,3 +143,10 @@ FieldHandScythe	field_handscythe	field HandScythe: the vanilla tool, its coloure
 FieldScissors	field_scissors	field Scissors: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
 FieldAwl	field_awl	field Awl: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
 FieldWhetstone	field_whetstone	field Whetstone: the vanilla tool, its coloured parts in the olive when its model is, with the team's mark
+HarvestScalpel	harvest_scalpel	harvest scalpel: quick zombie samples, in hand (DESIGN 6)
+PrecisionTweezers	precision_tweezers	precision tweezers: the precise harvest (DESIGN 6)
+TissueCommon	tissue_common	zombie sample, common tissue (dark red)
+TissueInfected	tissue_infected	zombie sample, infected tissue (sick green)
+TissueNeural	tissue_neural	zombie sample, neural tissue (grey violet)
+TissueAnomalous	tissue_anomalous	zombie sample, anomalous tissue (teal)
+TissueTarget	tissue_target	a target mission sample (red cap, a tag on a string)

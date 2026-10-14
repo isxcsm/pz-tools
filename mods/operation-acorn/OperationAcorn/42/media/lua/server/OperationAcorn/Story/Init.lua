@@ -9,8 +9,11 @@ require "OperationAcorn/Story/Sites"
 require "OperationAcorn/Story/Story"
 require "OperationAcorn/Story/Scene"
 require "OperationAcorn/Story/SceneGame"
+require "OperationAcorn/Story/Zombies"
+require "OperationAcorn/Story/Harvest"
 local OA = OperationAcorn
 local Missions, Game, Sites, Story = OA.Missions, OA.StoryGame, OA.Sites, OA.Story
+local Zombies, Harvest = OA.ZombieMissions, OA.Harvest
 local Scene, SceneGame = OA.Scene, OA.SceneGame
 local Init = {}
 OA.StoryInit = Init
@@ -117,6 +120,20 @@ end
 local function onMinute()
     if not started then return end
     eachRecord(Scene.minute)
+    -- a zombie mission's group held, brought when the player comes near (Story/Zombies)
+    local ok, err = pcall(Zombies.tick, OA.hours())
+    if not ok then OA.log("zombie missions failed:", tostring(err)) end
+end
+
+-- A zombie of a zombie mission's group died (its outfit says so): counted wherever it died.
+local OUTFITS = {}
+for _, def in pairs(OA.StoryData.ZOMBIES) do OUTFITS[def.outfit] = true end
+local function onZombieDead(zombie)
+    if isClient() or not zombie then return end
+    local outfit = zombie:getOutfitName()
+    if not (outfit and OUTFITS[outfit]) then return end
+    local ok, err = pcall(Zombies.died, outfit, OA.hours())
+    if not ok then OA.log("zombie mission kill failed:", tostring(err)) end
 end
 
 local function onDay()
@@ -127,6 +144,7 @@ end
 Events.EveryTenMinutes.Add(onTenMinutes)
 Events.EveryOneMinute.Add(onMinute)
 Events.OnZombieDead.Add(SceneGame.zombieDied)
+Events.OnZombieDead.Add(onZombieDead)
 Events.EveryDays.Add(onDay)
 Events.OnGameStart.Add(start)
 Events.OnServerStarted.Add(start)
@@ -188,6 +206,16 @@ end)
 
 OA.Server.on("story_soil", function(character, record, args)
     if not Missions.soil(record, character) then OA.Sync.notice(record.id, "IGUI_OA_Story_SoilFail", {}) end
+end)
+
+-- A zombie's corpse was harvested (Story/Harvest): the sample it gave, or why none.
+OA.Server.on("story_harvest", function(character, record, args)
+    local name, why = Harvest.take(character, record, args)
+    if name then
+        OA.Sync.notice(record.id, "IGUI_OA_Story_Harvested", { name })
+    else
+        OA.Sync.notice(record.id, "IGUI_OA_Story_HarvestFail_" .. tostring(why), {})
+    end
 end)
 
 -- A document was read. `variant` is the place its text was for, `extra` the number it was read with.

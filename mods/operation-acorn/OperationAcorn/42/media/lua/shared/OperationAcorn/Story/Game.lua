@@ -12,6 +12,7 @@ require "OperationAcorn/Sync"
 require "OperationAcorn/Chunks"
 require "OperationAcorn/Story/Data"
 require "OperationAcorn/Story/Missions"
+require "OperationAcorn/Story/Zombies"
 local OA = OperationAcorn
 local Data, Missions = OA.StoryData, OA.Missions
 local Game = {}
@@ -498,6 +499,7 @@ end
 function Game.release(m)
     Game.unregisterPiece(m.id, nil)
     for _, it in ipairs(m.items or {}) do Game.untrack(m, it) end
+    if m.zombies and OA.ZombieMissions then OA.ZombieMissions.release(m) end
 end
 
 -- Memory of what waits for containers is not saved: rebuilt from the records when the world starts.
@@ -711,6 +713,129 @@ function Game.deliverInside(record, m, it)
         end
     end
     it.placed = true
+end
+
+-- ---------------------------------------------------------------------------------------------------------------
+-- A zombie mission's group (Story/Zombies).
+
+-- The API holds the group to its circle (PZExtAPI zombies.hold): idle wandering stays inside, far sounds are not heard,
+-- and a zombie of the outfit whose chunk unloads goes instead of staying virtual. Without the API the group roams.
+function Game.holdZombies(m)
+    local api, handle = OA.api(), OA.handle()
+    local zombies = api and api.zombies
+    if not (handle and zombies and zombies.hold) then return end
+    local ok, err = pcall(zombies.hold, handle, m.id, { outfit = m.zombies.outfit, x = m.area.x + 0.5, y = m.area.y + 0.5,
+        radius = m.area.r, margin = OA.StoryData.ZOMBIE_MARGIN, dissolve = true })
+    if not ok then OA.log("zombie hold failed:", tostring(err)) end
+end
+
+-- The loaded zombies of an outfit that are alive.
+local function outfitZombies(outfit)
+    local list = getCell():getZombieList()
+    local found = {}
+    for i = 0, list:size() - 1 do
+        local z = list:get(i)
+        if z and not z:isDead() and z:getOutfitName() == outfit then found[#found + 1] = z end
+    end
+    return found
+end
+
+function Game.countOutfit(outfit)
+    return #outfitZombies(outfit)
+end
+
+-- The hold goes, and the loaded zombies of the group with it (one that strayed out of the circle too).
+function Game.releaseZombies(m)
+    local api, handle = OA.api(), OA.handle()
+    local zombies = api and api.zombies
+    if handle and zombies and zombies.release then pcall(zombies.release, handle, m.id) end
+    for _, z in ipairs(outfitZombies(m.zombies.outfit)) do
+        z:removeFromWorld()
+        z:removeFromSquare()
+    end
+end
+
+-- Whether the circle's middle and its four edges are loaded.
+function Game.areaLoaded(area)
+    local c = cell()
+    local x, y, r = area.x, area.y, area.r
+    for _, p in ipairs({ { x, y }, { x + r, y }, { x - r, y }, { x, y + r }, { x, y - r } }) do
+        if not c:getGridSquare(p[1], p[2], 0) then return false end
+    end
+    return true
+end
+
+-- A square a zombie may stand on: free, with a floor, not water or stairs; outdoors unless `indoors`.
+local function openSquare(sq, indoors)
+    return sq ~= nil and sq:getFloor() ~= nil and sq:isFree(false) and not sq:isWaterSquare() and not sq:HasStairs()
+        and (indoors or sq:isOutside())
+end
+
+local STEPS = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } }
+
+-- The open squares of the circle that are joined to the one nearest its middle (a walled yard or a roof is not part of
+-- it), outdoors first: { square, ... }. Every open square of the circle when none is joined.
+local function openSquares(area, indoors)
+    local c = cell()
+    local open, nearest, nearestD = {}, nil, nil
+    local r = area.r
+    for dx = -r, r do
+        for dy = -r, r do
+            local d = dx * dx + dy * dy
+            if d <= r * r then
+                local sq = c:getGridSquare(area.x + dx, area.y + dy, 0)
+                if openSquare(sq, indoors) then
+                    local key = dx .. "," .. dy
+                    open[key] = sq
+                    if not nearestD or d < nearestD then nearest, nearestD = key, d end
+                end
+            end
+        end
+    end
+    local list = {}
+    if not nearest then return list end
+    local seen, queue, head = { [nearest] = true }, { nearest }, 1
+    while head <= #queue do
+        local key = queue[head]
+        head = head + 1
+        local sq = open[key]
+        list[#list + 1] = sq
+        local dx, dy = sq:getX() - area.x, sq:getY() - area.y
+        for _, s in ipairs(STEPS) do
+            local k2 = (dx + s[1]) .. "," .. (dy + s[2])
+            local next2 = open[k2]
+            if next2 and not seen[k2] and not sq:isBlockedTo(next2) then
+                seen[k2] = true
+                queue[#queue + 1] = k2
+            end
+        end
+    end
+    return list
+end
+
+-- Brings `count` of the group into the circle, each on its own square more than ZOMBIE_AWAY from the player when there
+-- are squares enough (else squares are shared). Returns how many came.
+function Game.spawnZombies(area, outfit, count, px, py)
+    local squares = openSquares(area, false)
+    if #squares == 0 then squares = openSquares(area, true) end
+    local away = OA.StoryData.ZOMBIE_AWAY
+    local far = {}
+    for _, sq in ipairs(squares) do
+        local dx, dy = sq:getX() + 0.5 - px, sq:getY() + 0.5 - py
+        if dx * dx + dy * dy > away * away then far[#far + 1] = sq end
+    end
+    if #far == 0 then return 0 end
+    local made = 0
+    for i = 1, count do
+        local n = #far
+        if n == 0 then break end
+        local j = OA.random(1, n)
+        local sq = far[j]
+        if n > count - i + 1 then far[j] = far[n]; far[n] = nil end
+        local list = addZombiesInOutfit(sq:getX(), sq:getY(), sq:getZ(), 1, outfit, 50)
+        if list and list:size() > 0 then made = made + 1 end
+    end
+    return made
 end
 
 return Game

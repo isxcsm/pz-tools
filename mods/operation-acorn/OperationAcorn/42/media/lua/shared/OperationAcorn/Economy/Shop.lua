@@ -6,7 +6,7 @@
 -- choices = { { type, count ... } ... } (the player picks one), week = purchases a week (nil: none), special =
 -- "cure" | "reversal" | "test" | "delay" (with days) | "serum" | "reissue" | nil, fixed = true (no shop
 -- multiplier, no discount), allowDebt, kits = true (only with KitsForSale), item (the item it is named after),
--- descKey (a description shared with other entries) }. A give may carry `mod`, `used` and `name` (Trade.dropSpec).
+-- descKey (a description shared with other entries), harvest (the mark receiving it gives the character, Harvest) }. A give may carry `mod`, `used` and `name` (Trade.dropSpec).
 -- tier is stage + milestones (Trust.tier): 1..5 the stages (1 the start), 6 the first milestone.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
@@ -41,6 +41,7 @@ Shop.TYPES = {
     filterNormal = "OperationAcorn.FilterNormal", filterModern = "OperationAcorn.FilterModern",
     muffler = "OperationAcorn.SoundproofCover",
     fieldTerminal = "OperationAcorn.FieldTerminal",
+    scalpel = "OperationAcorn.HarvestScalpel", tweezers = "OperationAcorn.PrecisionTweezers",
 }
 
 -- The field tools (scripts/OA_field_tools.txt, made by tools/field_tools.py: the vanilla tool of the name, a little
@@ -167,6 +168,11 @@ local function build()
             "Windshield", "RearWindshield", "FrontWindow", "RearWindow" }, 3)) })
     add({ id = "car_part_modern", group = "resource", tier = 5, price = 25000, week = 6,
         choices = choiceList(numbered({ "ModernTire", "ModernBrake", "ModernSuspension", "ModernCarMuffler" }, 3)) })
+    -- The zombie sample tools (NUMBERS 4 '좀비 시료'): the scalpel to start with, the tweezers for the precise harvest.
+    -- Receiving the tweezers marks the character (Harvest.received): the corpse menu then offers the precise harvest.
+    add({ id = "harvest_scalpel", group = "harvest", tier = 1, price = 3000, give = { give("scalpel") } })
+    add({ id = "precision_tweezers", group = "harvest", tier = 3, price = 40000, harvest = "precise",
+        give = { give("tweezers") } })
     -- Gear.
     -- The backpack's water storage is built in (its two canteens are part of the pack), so no canteens come with it.
     add({ id = "team_backpack", group = "gear", tier = 5, price = 300000, give = { give("backpack") } })
@@ -253,9 +259,9 @@ function Shop.catalog()
 end
 
 -- What the crude terminal orders too (DESIGN-terminal 3.1): the serums, the late resources, the delivery box, the
--- shredding bench, the bait and the field terminal itself. Everything else the research team made is ordered at the
+-- sample tools, the shredding bench, the bait and the field terminal itself. Everything else the research team made is ordered at the
 -- field terminal only.
-Shop.CRUDE_GROUPS = { serum = true, resource = true, box = true }
+Shop.CRUDE_GROUPS = { serum = true, resource = true, box = true, harvest = true }
 Shop.CRUDE_IDS = { shred_bench = true, bait_trap = true, field_terminal = true }
 
 function Shop.fieldOnly(entry)
@@ -410,6 +416,7 @@ function Shop.bought(entry, record, count)
             if not ok then OA.log("upgrades noteBought failed:", tostring(err)) end
         end
     end
+    if entry.harvest and OA.Harvest and OA.Harvest.received then OA.Harvest.received(record, entry.harvest) end
 end
 
 -- The entries that open at a tier (the shop shows the next ones above its trust bar).

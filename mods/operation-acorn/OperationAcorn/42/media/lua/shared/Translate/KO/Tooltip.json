@@ -100,5 +100,11 @@
     "Tooltip_OA_Tree_Item_InfectionTestKit": "쓰면 감염 여부가 바로 나옵니다. 좀비에게 다친 뒤 검사하기 전에는 납품에 감염 처리 수수료가 붙습니다.",
     "Tooltip_OA_Tree_Progress": "감염 진행 %1%%",
     "Tooltip_OA_Story_HandoverPages": "담당 부서 변경에 따라 넘기는 서류 묶음. 맨 위에 목록이 붙어 있습니다.",
-    "Tooltip_OA_Story_MissionHeavyCase": "손잡이가 달린 두꺼운 보관 상자. 혼자 오래 들고 다니기에는 무겁습니다."
+    "Tooltip_OA_Story_MissionHeavyCase": "손잡이가 달린 두꺼운 보관 상자. 혼자 오래 들고 다니기에는 무겁습니다.",
+    "Tooltip_OA_Harvest_Scalpel": "연구팀이 보낸 메스. 손에 들고 갓 죽은 좀비의 시체를 우클릭하면 조직 시료를 뜰 수 있습니다.",
+    "Tooltip_OA_Harvest_Tweezers": "가지고 있으면 시료를 뜰 때 정밀 채취를 고를 수 있습니다.",
+    "Tooltip_OA_Harvest_Tissue": "밀봉 용기에 담은 좀비 조직. 연구팀이 받습니다.",
+    "Tooltip_OA_Harvest_TissueTarget": "표적에게서 뜬 조직. 용기에 임무 번호가 적혀 있습니다.",
+    "Tooltip_OA_Harvest_old": "너무 오래된 시체입니다.",
+    "Tooltip_OA_Harvest_taken": "이미 시료를 뜬 시체입니다."
 }

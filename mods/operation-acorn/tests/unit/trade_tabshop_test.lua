@@ -223,11 +223,11 @@ test("the sections list the groups, the locked ones with a padlock, on the crude
     local tab = open("crude")
     local ids = {}
     for _, c in ipairs(tab.model.cats) do ids[#ids + 1] = c.id .. (c.locked and "*" or "") end
-    eq(table.concat(ids, ","), "resource,gear*,machine,tool*,part*,kit*")
+    eq(table.concat(ids, ","), "resource,harvest,gear*,machine,tool*,part*,kit*")
     local field = open("field")
     ids = {}
     for _, c in ipairs(field.model.cats) do ids[#ids + 1] = c.id .. (c.locked and "*" or "") end
-    eq(table.concat(ids, ","), "resource,gear,machine,tool,part,kit")
+    eq(table.concat(ids, ","), "resource,harvest,gear,machine,tool,part,kit")
 end)
 
 test("a section on the crude terminal: the gate band and cards that name the terminal and the level", function()

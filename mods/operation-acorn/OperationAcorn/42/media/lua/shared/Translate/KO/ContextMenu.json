@@ -43,5 +43,7 @@
     "ContextMenu_OA_Gear_FitEngine": "엔진 튜닝 키트 달기",
     "ContextMenu_OA_Gear_Redeem": "교환권 쓰기",
     "ContextMenu_OA_Tree_UseReversal": "역전제 사용",
-    "ContextMenu_OA_Tree_UseTest": "검사 키트 사용"
+    "ContextMenu_OA_Tree_UseTest": "검사 키트 사용",
+    "ContextMenu_OA_Harvest_Quick": "빠른 채취",
+    "ContextMenu_OA_Harvest_Precise": "정밀 채취"
 }
