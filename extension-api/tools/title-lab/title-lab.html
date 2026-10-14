@@ -65,6 +65,7 @@ const P = {
   FLAKES: 0.5, FLAKE_SIZE: 1.1, SPIN: 7, GREYING: 0.35, PAPER_ASH: 0.55,
   BLEED_SOAK: 2.2, BLEED_WET: 0.5, BLEED_STAIN: 0.2, BLEED_DRIP: 1,
   SINK_DEPTH: 0.75, SINK_SWELL: 1, SINK_MIRROR: 1,
+  TYPE_JITTER: 1, TYPE_INK: 1, TYPE_FEED: 1,
 };
 const CUTS = new Set(["style", "hold", "title", "sub", "tone", "sweep", "dustSize", "seed", "SWEEP", "JITTER", "RAGGED", "CURL", "FRONT", "SPREAD"]);
 const TONES = {
@@ -106,6 +107,9 @@ const STYLES = {
   "bleed-new": { label: "bleed: 번짐 (시안)", y: 0.28, gap: 0.3, trail: 0.2, backdrop: 0.3,
     title: { weight: 700, size: 0.085, color: [0.72, 0.08, 0.07], outline: 0.4, bleed: true, enter: "bleed", enterTime: 1.9, leave: "dry", leaveTime: 6 },
     line: { weight: 400, size: 0.04, color: [0.86, 0.8, 0.78], bleed: true, delay: 1.3, enter: "bleed", enterTime: 1.2, leave: "dry", leaveTime: 5.6 } },
+  "type-new": { label: "type: 타자 (시안)", y: 0.28, gap: 0.3, trail: 0, backdrop: 0.3,
+    title: { weight: 500, size: 0.075, color: [0.92, 0.9, 0.84], outline: 0.35, typed: true, enter: "typed", enterTime: 1.3, leave: "feed", leaveTime: 5.5 },
+    line: { weight: 400, size: 0.038, color: [0.8, 0.79, 0.75], typed: true, delay: 1.5, enter: "typed", enterTime: 1.6, leave: "feed", leaveTime: 5.5 } },
   "sink-new": { label: "sink: 가라앉음 (시안)", y: 0.28, gap: 0.3, trail: 0, backdrop: 0.3,
     title: { weight: 400, size: 0.08, color: [0.86, 0.88, 0.9], outline: 0.35, sink: true, enter: "settle", enterTime: 1.6, leave: "under", leaveTime: 9 },
     line: { weight: 400, size: 0.038, color: [0.74, 0.77, 0.8], sink: true, delay: 0.8, enter: "fade", enterTime: 1.4, leave: "under", leaveTime: 9 } },
@@ -128,6 +132,7 @@ function enterState(kind, i, secs, line) {
     case "fade": st.a = smooth(i); break;
     case "pop": st.a = Math.min(1, i * 2); st.s = 0.5 + 0.5 * backOut(i); break;
     case "slam": st.a = Math.min(1, i * 3); st.s = 1 + 1.5 * (1 - i * i); break;
+    case "typed": st.a = 1; break;                   // its letters struck one by one by drawType
     case "settle": st.a = smooth(i); st.y = -0.3 * (1 - cubicOut(i)); break;
     case "rise": st.a = cubicOut(i); st.y = 0.75 * (1 - cubicOut(i)); break;
     case "drop": st.a = cubicOut(i); st.y = -0.75 * (1 - cubicOut(i)); break;
@@ -158,6 +163,7 @@ function leaveState(kind, o, st, leaveTime) {
     case "lost": st.a *= 1 - smooth(o); break;       // drawn by drawSignal
     case "mistin": st.a *= 1 - smooth(o); break;     // drawn by drawFog
     case "dry": st.a *= 1 - smooth(o); break;        // drawn by drawBleed
+    case "feed": st.a *= 1 - smooth(clamp((o - 0.4) / 0.6, 0, 1)); break;   // drawn by drawType
     case "under": st.a *= 1 - sunkAt(o * leaveTime, leaveTime); break;   // drawn by drawSink, fading as it sinks
   }
   return st;
@@ -637,7 +643,8 @@ function piece(text, line, colour, centreY, seed, spec) {
   let before = 0;
   for (let i = 0; i < chars.length; i++) {
     const after = m.measureText(chars.slice(0, i + 1).join("")).width;
-    if (chars[i].trim()) p.glyphs.push({ x0: i === 0 ? 0 : left + before, x1: i === chars.length - 1 ? w : left + after, mid: left + (before + after) / 2 });
+    if (chars[i].trim()) p.glyphs.push({ x0: i === 0 ? 0 : left + before, x1: i === chars.length - 1 ? w : left + after, mid: left + (before + after) / 2,
+      space: i > 0 && !chars[i - 1].trim() });
     before = after;
   }
   // a sinking one's foot: the lowest row its ink (the shadow too) reaches, in its pixels
@@ -710,7 +717,8 @@ function rebuild() {
   const S = STYLES[P.style], H = view.height, tl = S.title.size * H, sl = S.line.size * H, anchor = S.y * H;
   const tone = P.tone === "style" ? [S.title.color, S.line.color] : TONES[P.tone];
   const seed = BigInt(P.seed) * 0x9E3779B97F4A7C15n & M64;
-  const leaving = S.title.enterTime + P.hold;
+  // (it stays its hold once all of it is in: the title, and its line if it has one)
+  const leaving = Math.max(S.title.enterTime, P.sub ? S.line.delay + S.line.enterTime : 0) + P.hold;
   const title = piece(P.title, tl, tone[0], anchor, seed, S.title);
   title.delay = 0; title.leaveAt = leaving;
   pieces = [title];
@@ -719,6 +727,7 @@ function rebuild() {
     line.delay = S.line.delay; line.leaveAt = leaving + S.trail;
     pieces.push(line);
   }
+  for (const p of pieces) if (p.spec.typed) p.keys = typeKeys(p, P.seed + (p === title ? 0 : 7));
   for (const p of pieces) if (p.spec.bleed) p.drops = bleedDrops(p, P.seed + (p === title ? 0 : 7), p === title);
   // the impact's puff of dust: kicked out from under the letters to the sides
   title.puff = [];
@@ -933,6 +942,49 @@ function drawSink(p, st) {
   mode = 0;
 }
 
+// Typed: its letters are struck one by one at a typist's uneven pace (a longer pause after a space), each a little off
+// its line and inked a little unevenly, struck hard (a touch big and bright, settling at once). As it leaves the paper
+// is fed out: it jerks up a line at a time, a pause between, fading.
+// When each letter is struck, in seconds from its start: uneven, paused at spaces, all within the first nine tenths
+// of its enter.
+function typeKeys(p, seed) {
+  const gaps = p.glyphs.map((g, i) => i === 0 ? 0 : 0.7 + 0.6 * hash(i, 1, seed) + (g.space ? 1.6 : 0));
+  let at = 0;
+  const keys = gaps.map(g => at += g), last = at || 1;
+  return keys.map(k => 0.9 * p.spec.enterTime * k / last);
+}
+// The line feeds as it leaves: when each starts (its share of the leave), how long it takes, and how far it goes up (in
+// lines).
+const FEEDS = [0.08, 0.34, 0.6], FEED_TIME = 0.22, FEED_STEP = 0.2;
+function drawType(p, st) {
+  const o = st.out, a = st.a, s = st.s, top = p.cy - p.h * s / 2, seed = P.seed + (p === pieces[0] ? 0 : 7);
+  if (a <= 0.002) return;
+  // the paper fed up a line (the title's) at a time, the line with it: each a quick jerk, a little past and back
+  const leaveTime = leaveTimeOf(p.spec);
+  let fed = 0;
+  for (const f of FEEDS) {
+    const k = clamp((o - f) * leaveTime / FEED_TIME, 0, 1);
+    fed += backOut(k);
+  }
+  const lift = -P.TYPE_FEED * FEED_STEP * pieces[0].line * fed;
+  mode = 0;
+  p.glyphs.forEach((g, i) => {
+    const since = st.secs - p.keys[i];
+    if (since < 0) return;
+    const r = k => hash(i, k, seed + 101);
+    // struck: a touch big and bright, settling at once
+    const strike = 1 - clamp(since / 0.09, 0, 1), big = 1 + 0.14 * strike * strike;
+    const ink = Math.min(1, 1 - 0.22 * P.TYPE_INK * r(1) + 0.25 * strike);
+    const jx = (r(2) - 0.5) * 0.04 * p.line * s * P.TYPE_JITTER, jy = (r(3) - 0.5) * 0.08 * p.line * s * P.TYPE_JITTER;
+    const cx = p.cx + (g.mid - p.w / 2) * s + jx, cy = top + p.h * s / 2 + jy + lift;
+    const x0 = cx + (g.x0 - g.mid) * s * big, x1 = cx + (g.x1 - g.mid) * s * big;
+    const y0 = cy - p.h * s / 2 * big, y1 = cy + p.h * s / 2 * big;
+    const al = a * clamp(since / 0.025, 0, 1);
+    quad(x0, y0, x1, y1, g.x0 / p.w, 0, g.x1 / p.w, 1, ink * al, ink * al, ink * al, al);
+  });
+  flush(p.tex);
+}
+
 // Tracking out: the letters drift apart from the middle, softening as if out of focus, rising a little, the outer ones
 // a moment ahead.
 function drawTrackout(p, st, o) {
@@ -1123,6 +1175,7 @@ function frame(now) {
     else if (p.spec.fog) drawFog(p, st, false);
     else if (p.spec.bleed) drawBleed(p, st);
     else if (p.spec.sink) drawSink(p, st);
+    else if (p.spec.typed) drawType(p, st);
     else if (p.spec.leave === "trackout" && st.out > 0) drawTrackout(p, st, st.out);
     else if (p.spec.leave === "erode" && st.out > 0) drawErode(p, st, st.out);
     else if (st.a > 0.002) { quad(cx - hw, cy - hh, cx + hw, cy + hh, 0, 0, 1, 1, st.a, st.a, st.a, st.a); flush(p.tex); }
@@ -1217,6 +1270,10 @@ heading("unveil: 안개 걷힘");
 control("FOG_THICK", "안개 짙기", "range", [0, 2.5, 0.05]);
 control("FOG_DRIFT", "안개 흐름", "range", [0, 8, 0.1]);
 control("FOG_STAY", "머무는 동안 안개", "range", [0, 0.8, 0.01]);
+heading("type: 타자 (시안)");
+control("TYPE_JITTER", "글자 어긋남", "range", [0, 3, 0.05]);
+control("TYPE_INK", "잉크 고르지 않음", "range", [0, 2, 0.05]);
+control("TYPE_FEED", "종이 올라가는 폭", "range", [0, 3, 0.05]);
 heading("sink: 가라앉음 (시안)");
 control("SINK_DEPTH", "가라앉는 깊이", "range", [0.5, 1.5, 0.05]);
 control("SINK_SWELL", "수면 출렁임", "range", [0, 3, 0.05]);
@@ -1297,6 +1354,7 @@ const BUILT_IN = {
   "안개 걷힘 (unveil)": { ...effectOf(DEFAULTS), style: "unveil-new" },
   "번짐 (bleed, 시안)": { ...effectOf(DEFAULTS), style: "bleed-new" },
   "가라앉음 (sink, 시안)": { ...effectOf(DEFAULTS), style: "sink-new" },
+  "타자 (type, 시안)": { ...effectOf(DEFAULTS), style: "type-new" },
 };
 const STORE = "title-lab-presets";
 function ownPresets() { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } }
