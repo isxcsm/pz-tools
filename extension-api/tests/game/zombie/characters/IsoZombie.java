@@ -20,10 +20,17 @@ public class IsoZombie extends IsoGameCharacter {
     public int falls;
     private final BaseCharacterSoundEmitter emitter = new BaseCharacterSoundEmitter();
 
-    /** Its outfit, its number in the population, and the square it last set out for. */
+    /** Its outfit, its number in the population, the square it last set out for, and whether it left the world. */
     public String outfitName;
     public int persistentId;
     public int pathX = Integer.MIN_VALUE, pathY = Integer.MIN_VALUE;
+    public boolean removed;
+
+    /** Like the game's: the zombie leaves the world (its object is kept for another) and its number goes. */
+    public void removeFromWorld() {
+        removed = true;
+        persistentId = 0;
+    }
 
     public String getOutfitName() { return outfitName; }
 

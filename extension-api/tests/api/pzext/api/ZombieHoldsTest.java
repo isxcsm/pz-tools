@@ -1,17 +1,23 @@
 package pzext.api;
 
+import java.util.List;
 import pzext.boot.Hooks;
 import se.krka.kahlua.vm.KahluaTable;
 import zombie.Lua.LuaManager;
 import zombie.WorldSoundManager;
 import zombie.ai.states.ZombieIdleState;
 import zombie.characters.IsoZombie;
+import zombie.iso.IsoWorld;
+import zombie.iso.objects.IsoDeadBody;
 import zombie.popman.ZombiePopulationManager;
+import zombie.world.moddata.ModData;
 
 /**
- * {@code zombies.hold} and {@code release}, against the synthetic game: an idle zombie of the outfit wanders within the circle, one
- * near it hears players and the area's sounds but not far ones, one that went further is the game's, one of a dissolving hold goes
- * as its chunk unloads while others stay virtual, and the hooks answer as the game once nothing is held.
+ * {@code zombies.mark} and the rest, and {@code hold} and {@code release}, against the synthetic game: a mod's marks are its own,
+ * the world keeps them by the zombie's number while it is virtual and gives them back, a corpse keeps a copy, the dead and the let
+ * go are forgotten; an idle marked zombie wanders within the circle, one near it hears players and the area's sounds but not far
+ * ones, one that went further is the game's, one of a dissolving hold goes as its chunk unloads while others stay virtual, and the
+ * hooks answer as the game once nothing is held.
  */
 final class ZombieHoldsTest {
     private ZombieHoldsTest() { }
@@ -19,28 +25,47 @@ final class ZombieHoldsTest {
     static void run(KahluaTable api) throws Exception {
         var zombies = (KahluaTable)api.rawget("zombies");
         Object mod = FormulasTest.call(api, "client", "holds.mod").get(0);
-        check(GameApi.holds() != null && zombies.rawget("hold") != null, "zombies.hold is missing");
-        String[] labels = { "ZombieIdleState.execute", "WorldSoundManager.getBiggestSoundZomb", "ZombiePopulationManager.removeChunkFromWorld" };
+        Object other = FormulasTest.call(api, "client", "holds.other").get(0);
+        for (String function : ZombieHolds.FUNCTIONS) check(zombies.rawget(function) != null, "zombies." + function + " is missing");
+        ZombieHolds holds = GameApi.holds();
+        check(holds != null, "The holds are missing");
+        ModData.tables.remove(ZombieHolds.MARKS);
+        var loaded = IsoWorld.instance.currentCell.zombieList;
+        String[] labels = { "ZombieIdleState.execute", "WorldSoundManager.getBiggestSoundZomb", "ZombiePopulationManager.removeChunkFromWorld",
+            "ZombiePopulationManager.registerZombie", "IsoZombie.removeFromWorld" };
 
-        var held = zombie("OA_Clear", 105.5f, 100.5f, 1);
-        var other = zombie("Police", 105.5f, 100.5f, 2);
+        var held = zombie(105.5f, 100.5f, 1);
+        var plain = zombie(105.5f, 100.5f, 2);
         // Nothing held: the game's own wander.
         ZombieIdleState.stepX = 30; ZombieIdleState.stepY = 0;
         ZombieIdleState.instance().execute(held);
         check(held.pathX == 135 && held.pathY == 100, "A zombie wandered otherwise with nothing held: " + held.pathX);
 
-        FormulasTest.call(zombies, "hold", mod, "clear", table("outfit", "OA_Clear", "x", 100.0, "y", 100.0, "radius", 10.0, "dissolve", true));
-        // Held: a wander out of the circle is brought in along the line to the centre; one inside is left; another outfit is the game's.
+        // Marks: each mod's its own; the world keeps them by the zombie's number.
+        FormulasTest.call(zombies, "mark", mod, held, "clear");
+        FormulasTest.call(zombies, "mark", other, held, "theirs");
+        check("clear".equals(markOf(zombies, mod, held)) && "theirs".equals(markOf(zombies, other, held)), "A mark was not kept");
+        check(markOf(zombies, mod, plain) == null, "An unmarked zombie had a mark");
+        var world = ModData.get(ZombieHolds.MARKS);
+        check(world != null && world.rawget(1.0) instanceof KahluaTable kept && "theirs".equals(kept.rawget("holds.other")),
+            "The world did not keep the marks");
+        loaded.add(held); loaded.add(plain);
+        var found = (KahluaTable)FormulasTest.call(zombies, "marked", mod, "clear").get(0);
+        check(found.len() == 1 && found.rawget(1) == held, "marked listed " + found.len());
+
+        FormulasTest.call(zombies, "hold", mod, "clear", table("x", 100.0, "y", 100.0, "radius", 10.0, "dissolve", true));
+        // Held: a wander out of the circle is brought in along the line to the centre; one inside is left; an unmarked one is the game's.
         ZombieIdleState.instance().execute(held);
         check(held.pathX == 108 && held.pathY == 100, "A held zombie wandered out of its circle: " + held.pathX + "," + held.pathY);
         ZombieIdleState.stepX = 2;
         ZombieIdleState.instance().execute(held);
         check(held.pathX == 107, "A wander inside the circle was changed: " + held.pathX);
         ZombieIdleState.stepX = 30;
-        ZombieIdleState.instance().execute(other);
-        check(other.pathX == 135, "A zombie of another outfit was held");
+        ZombieIdleState.instance().execute(plain);
+        check(plain.pathX == 135, "An unmarked zombie was held");
         // Chased out past the margin (10 + 20): the game's again.
-        var away = zombie("OA_Clear", 135.5f, 100.5f, 3);
+        var away = zombie(135.5f, 100.5f, 3);
+        FormulasTest.call(zombies, "mark", mod, away, "clear");
         ZombieIdleState.instance().execute(away);
         check(away.pathX == 165, "A zombie past the margin was still held: " + away.pathX);
 
@@ -51,47 +76,101 @@ final class ZombieHoldsTest {
         var player = new WorldSoundManager.WorldSound(300, 100, 80, true);
         sounds.add(alarm); sounds.add(near);
         check(heard(held) == near, "A held zombie heard a far sound");
-        check(heard(other) == alarm, "A zombie of another outfit did not hear the loudest");
+        check(heard(plain) == alarm, "An unmarked zombie did not hear the loudest");
         sounds.add(player);
         check(heard(held) == player, "A held zombie did not hear a player");
         check(heard(away) == alarm, "A zombie past the margin did not hear the loudest");
 
-        // Unloading: a held zombie of a dissolving hold goes; another stays virtual.
+        // Virtual and back: the zombie's object loses its marks as it leaves; the zombie has them again when it comes back.
+        var walker = zombie(50.5f, 50.5f, 4);
+        FormulasTest.call(zombies, "mark", mod, walker, "walk");
+        walker.removeFromWorld();
+        check(markOf(zombies, mod, walker) == null, "A zombie's object kept its marks after it left");
+        var back = new IsoZombie();
+        back.persistentId = ZombiePopulationManager.registerZombie(back, 4);
+        check("walk".equals(markOf(zombies, mod, back)), "A zombie came back without its mark");
+        var fresh = new IsoZombie();
+        fresh.persistentId = ZombiePopulationManager.registerZombie(fresh, 0);
+        check(markOf(zombies, mod, fresh) == null, "A new zombie came with a mark");
+
+        // Unloading: a held zombie of a dissolving hold goes, and the world forgets it; another stays virtual and leaves its marks.
         var population = ZombiePopulationManager.instance;
         ZombiePopulationManager.virtual.clear(); ZombiePopulationManager.released.clear();
-        population.onChunk.add(held); population.onChunk.add(other); population.onChunk.add(away);
+        population.onChunk.add(held); population.onChunk.add(plain); population.onChunk.add(away);
         population.removeChunkFromWorld(null);
-        check(ZombiePopulationManager.released.equals(java.util.List.of(1, 3)) && ZombiePopulationManager.virtual.equals(java.util.List.of(2)),
+        check(ZombiePopulationManager.released.equals(List.of(1, 3)) && ZombiePopulationManager.virtual.equals(List.of(2)),
             "Unloading kept " + ZombiePopulationManager.virtual + ", let go " + ZombiePopulationManager.released);
+        check(world.rawget(1.0) == null && world.rawget(3.0) == null, "The world kept the marks of zombies let go");
+        check(markOf(zombies, mod, held) == null, "A zombie let go kept its marks");
+        loaded.remove(held); loaded.remove(plain);
+
+        // Death: the corpse keeps a copy; the world forgets the zombie.
+        var victim = zombie(101.5f, 100.5f, 5);
+        FormulasTest.call(zombies, "mark", mod, victim, "target");
+        victim.dead = true;
+        var body = new IsoDeadBody(victim);
+        check("target".equals(markOf(zombies, mod, body)), "A corpse lost its zombie's mark");
+        check(markOf(zombies, mod, victim) == null && world.rawget(5.0) == null, "A dead zombie's marks were kept");
+        FormulasTest.call(zombies, "unmark", mod, body);
+        check(markOf(zombies, mod, body) == null, "A corpse kept a mark taken off");
+
+        // Unmarked: one mod's mark goes, another's stays, the world forgets a zombie with none.
+        var both = zombie(60.5f, 60.5f, 7);
+        FormulasTest.call(zombies, "mark", mod, both, "x");
+        FormulasTest.call(zombies, "mark", other, both, "y");
+        FormulasTest.call(zombies, "unmark", mod, both);
+        check(markOf(zombies, mod, both) == null && "y".equals(markOf(zombies, other, both)) && world.rawget(7.0) != null, "Unmarking took the wrong mark");
+        FormulasTest.call(zombies, "unmark", other, both);
+        check(world.rawget(7.0) == null, "The world kept a zombie with no mark");
+
+        // Forgotten: a key goes from the world, virtual zombies included, and from the loaded ones.
+        var loose = zombie(70.5f, 70.5f, 6);
+        FormulasTest.call(zombies, "mark", mod, loose, "walk");
+        loaded.add(loose); loaded.add(back);
+        FormulasTest.call(zombies, "forget", mod, "walk");
+        check(markOf(zombies, mod, loose) == null && markOf(zombies, mod, back) == null && world.rawget(4.0) == null && world.rawget(6.0) == null,
+            "A forgotten key stayed");
+        check(holds.marksOf("holds.mod") == 0 && holds.markedInWorld() == 0,
+            "The world's marks are miscounted: " + holds.marksOf("holds.mod") + ", " + holds.markedInWorld());
+        loaded.remove(loose); loaded.remove(back);
 
         for (String label : labels) check(Hooks.APPLIED.equals(Hooks.hookStatus().get(label)), label + " is " + Hooks.hookStatus().get(label));
-        // Refused: no handle, a bad radius, a missing outfit.
-        rejects(zombies, "first argument must be a handle", "nobody", "clear", table("outfit", "A", "x", 1.0, "y", 1.0, "radius", 5.0));
-        rejects(zombies, "radius must be", mod, "clear", table("outfit", "A", "x", 1.0, "y", 1.0, "radius", 0.0));
-        rejects(zombies, "outfit must be", mod, "clear", table("x", 1.0, "y", 1.0, "radius", 5.0));
+        // Refused: no handle, a bad radius, a bad key, something not a zombie.
+        rejects(zombies, "hold", "first argument must be a handle", "nobody", "clear", table("x", 1.0, "y", 1.0, "radius", 5.0));
+        rejects(zombies, "hold", "radius must be", mod, "clear", table("x", 1.0, "y", 1.0, "radius", 0.0));
+        rejects(zombies, "mark", "key", mod, zombie(1f, 1f, 8), "no spaces");
+        rejects(zombies, "mark", "a living zombie", mod, "zombie", "clear");
+        rejects(zombies, "markOf", "a zombie or a corpse", mod, 5.0);
 
-        // Released: the game's answers again, and the hooks are let go.
+        // Released: the game's answers again.
+        FormulasTest.call(zombies, "mark", mod, held, "clear");
         FormulasTest.call(zombies, "release", mod, "clear");
         ZombieIdleState.instance().execute(held);
         check(held.pathX == 135 && heard(held) == alarm, "A released zombie was still held");
-        check(GameApi.holds().holds().isEmpty(), "Holds were left after release");
-        // handle:clear() takes a mod's holds.
-        FormulasTest.call(zombies, "hold", mod, "again", table("outfit", "OA_Clear", "x", 100.0, "y", 100.0, "radius", 10.0));
+        check(holds.holds().length == 0, "Holds were left after release");
+        // handle:clear() takes a mod's holds; its marks stay.
+        FormulasTest.call(zombies, "hold", mod, "again", table("x", 100.0, "y", 100.0, "radius", 10.0));
         FormulasTest.call(mod, "clear");
-        check(GameApi.holds().holds().isEmpty(), "A cleared handle still held zombies");
+        check(holds.holds().length == 0, "A cleared handle still held zombies");
+        check("clear".equals(markOf(zombies, mod, held)), "A cleared handle lost its marks");
         sounds.clear();
+        ModData.tables.remove(ZombieHolds.MARKS);
         ZombieIdleState.stepX = 0; ZombieIdleState.stepY = 0;
+    }
+
+    private static Object markOf(KahluaTable zombies, Object mod, Object object) {
+        return FormulasTest.call(zombies, "markOf", mod, object).get(0);
     }
 
     private static Object heard(IsoZombie zombie) {
         return WorldSoundManager.instance.getBiggestSoundZomb(0, 0, 0, true, zombie).sound;
     }
 
-    private static IsoZombie zombie(String outfit, float x, float y, int id) {
+    private static IsoZombie zombie(float x, float y, int id) {
         var zombie = new IsoZombie();
-        zombie.outfitName = outfit;
         zombie.x = x; zombie.y = y;
         zombie.persistentId = id;
+        zombie.square = IsoWorld.instance.currentCell.load((int)x, (int)y, 0);
         return zombie;
     }
 
@@ -101,13 +180,13 @@ final class ZombieHoldsTest {
         return result;
     }
 
-    private static void rejects(KahluaTable zombies, String message, Object... arguments) {
-        try { FormulasTest.call(zombies, "hold", arguments); }
+    private static void rejects(KahluaTable zombies, String function, String message, Object... arguments) {
+        try { FormulasTest.call(zombies, function, arguments); }
         catch (IllegalArgumentException expected) {
             check(expected.getMessage().contains(message), expected.getMessage());
             return;
         }
-        throw new AssertionError("zombies.hold took bad arguments: " + message);
+        throw new AssertionError("zombies." + function + " took bad arguments: " + message);
     }
 
     private static void check(boolean condition, String message) { if (!condition) throw new AssertionError(message); }

@@ -114,7 +114,7 @@ public final class GameApiTest {
         NetworkScaleTest.run(api);
         hooks(api);
         takeover(api, buildings);
-        System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, switches them off and on, multiplies their loads, takes in single rooms, runs sources its mods switch, ages food by their supply, shows the moodles mods define, draws the text mods show, tells the sounds zombies make and the hits they take, finds zombies by level, sight and state, lists containers, calls functions on timers and as chunks load, wraps and fits text, draws many shapes at once, lays pictures on floors, tells mods of the squares they watch, gives map buildings new rooms, holds zombies in areas, outlines models and vehicles, counts items through bags, says which hooks went in, and a newer API takes it over");
+        System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, switches them off and on, multiplies their loads, takes in single rooms, runs sources its mods switch, ages food by their supply, shows the moodles mods define, draws the text mods show, tells the sounds zombies make and the hits they take, finds zombies by level, sight and state, lists containers, calls functions on timers and as chunks load, wraps and fits text, draws many shapes at once, lays pictures on floors, tells mods of the squares they watch, gives map buildings new rooms, marks zombies and holds them in areas, outlines models and vehicles, counts items through bags, says which hooks went in, and a newer API takes it over");
     }
 
     // A map building: a basement, a kitchen and a bedroom above it. A player-built shack. Another building's room.
@@ -2649,7 +2649,8 @@ public final class GameApiTest {
                 "ItemStatsPacket.writes:weight", "FluidContainer.writes:amount", "ItemPickerJava.getActualSpawnChance",
                 "ItemPickerJava.getLootModifierFromType", "LightingJNI.getLumaInverted", "LightingJNI.calculateVisionCone",
                 "IsoTree.getSlowFactor", "IsoTree.isPlayerInsideARoom", "BREBuilding.<init>", "ZombieIdleState.execute", "WorldSoundManager.getBiggestSoundZomb",
-                "ZombiePopulationManager.removeChunkFromWorld", "Thermoregulator.getCatchAColdDelta", "CorpseCount.getCorpseCount",
+                "ZombiePopulationManager.removeChunkFromWorld", "ZombiePopulationManager.registerZombie", "IsoZombie.removeFromWorld",
+                "Thermoregulator.getCatchAColdDelta", "CorpseCount.getCorpseCount",
                 "BodyDamage.GetBaseCorpseSickness", "BodyDamage.AddRandomDamageFromZombie", "BodyPart.generateZombieInfection",
                 "IsoGameCharacter.handleLandingImpact:impact", "IsoGameCharacter.DoLand", "IsoGameCharacter.damageWhileInTrees",
                 "IsoGameCharacter.addHole", "IsoPlayer.calculateInTreesSpeed", "IsoPlayer.getDeferredMovement",
@@ -2663,7 +2664,7 @@ public final class GameApiTest {
                 "InventoryItem.*:useDelta", "DrainableComboItem.*:useDelta", "CraftRecipeData.luaCallOnCreate",
                 "InventoryItem.getName", "InventoryItem.getDisplayName", "Food.getName", "Clothing.getName", "Moveable.getName" })
             check(Hooks.APPLIED.equals(hooks.rawget(label)), label + " is " + hooks.rawget(label));
-        check(Hooks.hookStatus().size() == 123, "The hooks are " + Hooks.hookStatus().keySet());
+        check(Hooks.hookStatus().size() == 125, "The hooks are " + Hooks.hookStatus().keySet());
         check(Hooks.weightTracked(), "The hooks that follow the weight are not all in");
 
         Method transform = Hooks.class.getDeclaredMethod("transform", String.class, byte[].class, ClassLoader.class);

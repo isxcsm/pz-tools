@@ -427,8 +427,9 @@ public final class Hooks {
     }
 
     /**
-     * Set by the API while a mod holds zombies in an area (docs/design.md, "Zombie holds"); null while none does, so that each hook
-     * costs one volatile read. On the game's thread; quick, and nothing allocated.
+     * Set by the API while it runs (docs/design.md, "Zombie marks and holds"): the marks mods put on zombies, and the areas their
+     * marked zombies are held in. The hooks of the holds ask a zombie its marks only while a hold is; those of a zombie coming and
+     * going look for marks only while one is. On the game's thread; quick, nothing allocated while nothing is marked.
      */
     public interface ZombieHolds {
         /** {@code ZombieIdleState.execute}: the square the zombie wanders to, as {@code x << 32 | y}; the game's when it is not held. */
@@ -439,6 +440,12 @@ public final class Hooks {
 
         /** {@code ZombiePopulationManager.removeChunkFromWorld}: whether the zombie goes as its chunk unloads, instead of staying virtual. */
         boolean dissolves(Object zombie);
+
+        /** {@code ZombiePopulationManager.registerZombie}, at its start: a zombie comes into the world with its number (0: a new one). */
+        void registered(Object zombie, int id) throws Throwable;
+
+        /** {@code IsoZombie.removeFromWorld}, at its start: the zombie leaves the world (dead, virtual or let go); its object is kept for another. */
+        void removed(Object zombie) throws Throwable;
     }
 
     /** The kinds of {@link Power#object}. */
@@ -503,7 +510,8 @@ public final class Hooks {
         VEHICLE_OUTLINE_DRAW("vehicleOutlineDraw", Group.OUTLINES), CONTAINER_BURNING("containerBurning", Group.WORLD_ITEMS),
         FLOOR_KEPT("floorKept", Group.WORLD_ITEMS), FLOOR_DECALS("floorDecals", Group.FLOOR_DECALS),
         SQUARE_CHANGED("squareChanged", Group.SQUARE_CHANGES), ZOMBIE_WANDER("zombieWander", Group.ZOMBIE_HOLDS),
-        ZOMBIE_HEARS("zombieHears", Group.ZOMBIE_HOLDS), ZOMBIE_DISSOLVES("zombieDissolves", Group.ZOMBIE_HOLDS);
+        ZOMBIE_HEARS("zombieHears", Group.ZOMBIE_HOLDS), ZOMBIE_DISSOLVES("zombieDissolves", Group.ZOMBIE_HOLDS),
+        ZOMBIE_REGISTERED("zombieRegistered", Group.ZOMBIE_HOLDS), ZOMBIE_REMOVED("zombieRemoved", Group.ZOMBIE_HOLDS);
 
         final String label;
         final Group group;
@@ -1131,8 +1139,8 @@ public final class Hooks {
                 code.iconst_0();
                 code.with(element);
             })) }),
-        // Zombies a mod holds in an area (docs/design.md, "Zombie holds"): where an idle one wanders, the sounds one hears, and
-        // whether one goes instead of staying virtual as its chunk unloads.
+        // Zombies a mod holds in an area (docs/design.md, "Zombie marks and holds"): where an idle one wanders, the sounds one hears,
+        // and whether one goes instead of staying virtual as its chunk unloads.
         Map.entry("zombie/ai/states/ZombieIdleState", new Site[] {
             Site.edit("execute", "(Lzombie/characters/IsoGameCharacter;)V", new Edit(calls("zombie/characters/IsoZombie",
                 "pathToLocation", "(III)V"), 1, null, (code, element, kind) -> {
@@ -1174,7 +1182,13 @@ public final class Hooks {
                     code.labelBinding(keep);
                     code.with(element);
                     code.labelBinding(done);
-                })) }),
+                })),
+            // Zombie marks: a zombie comes into the world, a virtual one with the number it had (its marks come back with it).
+            Site.atStart("registerZombie", "(Lzombie/characters/IsoZombie;I)I", (code, owner) -> {
+                code.aload(0);
+                code.iload(1);
+                code.invokestatic(HOOKS, "zombieRegistered", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_Object, ConstantDescs.CD_int));
+            }) }),
         // The body: a cold, the corpses around, a wound's infection and a bite.
         Map.entry("zombie/characters/BodyDamage/Thermoregulator", new Site[] {
             Site.atReturns("getCatchAColdDelta", "()F", 1, (code, owner) -> {
@@ -1288,7 +1302,10 @@ public final class Hooks {
                     code.aload(2);
                     code.invokestatic(HOOKS, "zombieHit", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_float, ConstantDescs.CD_Object,
                         ConstantDescs.CD_Object, ConstantDescs.CD_Object));
-                })) }));
+                })),
+            // Zombie marks (docs/design.md, "Zombie marks and holds"): the game keeps a zombie's object for the next one and does
+            // not clear its modData, so a mark goes as the zombie leaves the world (a corpse took its copy before).
+            Site.atStart("removeFromWorld", "()V", (code, owner) -> thisCall(code, "zombieRemoved")) }));
 
     /** {@code this}, passed to the static call {@code name(Object)}. */
     private static void thisCall(CodeBuilder code, String name) {
@@ -2765,7 +2782,7 @@ public final class Hooks {
         catch (Throwable problem) { reportOnce(Call.SQUARE_CHANGED, problem); }
     }
 
-    /** Sets what holds zombies in their areas, replacing an earlier API's; null while none is held (the hooks then answer as the game). */
+    /** Sets what keeps the zombie marks and holds, replacing an earlier API's; null without the API (the hooks then answer as the game). */
     public static void setZombieHolds(ZombieHolds next) {
         synchronized (reported) { reported.removeIf(call -> call.group == Group.ZOMBIE_HOLDS); }
         zombieHolds = next;
@@ -2795,6 +2812,22 @@ public final class Hooks {
         if (current == null) return false;
         try { return current.dissolves(zombie); }
         catch (Throwable problem) { reportOnce(Call.ZOMBIE_DISSOLVES, problem); return false; }
+    }
+
+    /** Put at the start of {@code ZombiePopulationManager.registerZombie}: a zombie comes into the world with its number. */
+    public static void zombieRegistered(Object zombie, int id) {
+        ZombieHolds current = zombieHolds;
+        if (current == null) return;
+        try { current.registered(zombie, id); }
+        catch (Throwable problem) { reportOnce(Call.ZOMBIE_REGISTERED, problem); }
+    }
+
+    /** Put at the start of {@code IsoZombie.removeFromWorld()}: the zombie leaves the world; its object will be another zombie. */
+    public static void zombieRemoved(Object zombie) {
+        ZombieHolds current = zombieHolds;
+        if (current == null) return;
+        try { current.removed(zombie); }
+        catch (Throwable problem) { reportOnce(Call.ZOMBIE_REMOVED, problem); }
     }
 
     // MoodleTextureSet.getBorder(), found once, for the rare path where no picture is known.

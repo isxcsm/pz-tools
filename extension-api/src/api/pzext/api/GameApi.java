@@ -438,7 +438,7 @@ public final class GameApi {
                 holding = new ZombieHolds(lua, game, loader, meta, handle -> owner(lua, handles, handle));
                 holding.hook();
             } catch (LinkageError olderBootstrap) {
-                System.err.println("[PZExt] Zombie holds are not in this game; restart it to use them: " + olderBootstrap);
+                System.err.println("[PZExt] Zombie marks and holds are not in this game; restart it to use them: " + olderBootstrap);
                 holding = null;
             } catch (ReflectiveOperationException | RuntimeException unreadable) {
                 report(unreadable);
@@ -450,7 +450,7 @@ public final class GameApi {
         if (holding != null) holding.register(zombies);
         else {
             ZombieHolds.retire(lua, meta);
-            if (zombies != null) { lua.set(zombies, "hold", null); lua.set(zombies, "release", null); }
+            if (zombies != null) for (String function : ZombieHolds.FUNCTIONS) lua.set(zombies, function, null);
         }
         // The game's outline on models and vehicles: nothing to declare, so always on.
         try { new Outlines(loader).hook(); }

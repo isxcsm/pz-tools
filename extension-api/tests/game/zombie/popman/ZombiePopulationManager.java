@@ -7,7 +7,7 @@ import zombie.iso.IsoChunk;
 
 /**
  * Synthetic: as a chunk unloads, its zombies become virtual (the population keeps their place and number): a moving one and a
- * standing one go through their own n_addZombie, as in the game. releaseZombie lets one go from the population.
+ * standing one go through their own n_addZombie, as in the game, and leave the world. releaseZombie lets one go from the population.
  */
 public final class ZombiePopulationManager {
     public static final ZombiePopulationManager instance = new ZombiePopulationManager();
@@ -23,6 +23,7 @@ public final class ZombiePopulationManager {
             if (zombie.pathX != Integer.MIN_VALUE)
                 n_addZombie(zombie.getX(), zombie.getY(), zombie.getZ(), (byte)0, 0, zombie.pathX, zombie.pathY, 0, zombie.persistentId);
             else n_addZombie(zombie.getX(), zombie.getY(), zombie.getZ(), (byte)0, 0, Integer.MIN_VALUE, Integer.MIN_VALUE, 0, zombie.persistentId);
+            zombie.removeFromWorld();
         }
         onChunk.clear();
     }
@@ -32,4 +33,9 @@ public final class ZombiePopulationManager {
     }
 
     public static void releaseZombie(IsoZombie zombie) { released.add(zombie.persistentId); }
+
+    private static int numbered = 1000;
+
+    /** A zombie comes into the world: a virtual one keeps the number it had, a new one is given the next. */
+    public static int registerZombie(IsoZombie zombie, int id) { return id != 0 ? id : ++numbered; }
 }

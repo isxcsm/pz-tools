@@ -869,9 +869,11 @@ hook only. `PZExtAPI.hooks()` names each by game class and method.
 | `ParameterZombieState.setState` | before the store of the new state, which comes after the game's early return for the same state | The new state (from the stack), the zombie and the old state (the parameter's `zombie` and `state`, which the hook reads; a class without them, or with another number of stores of `state` in the method than one, loses the hook) go to the [zombie sounds](#zombie-sounds) while a mod listens. |
 | `ZombieVocalsManager$Slot.playSound` | before the one call of `BaseCharacterSoundEmitter.playVocals` | The zombie's voice starts: the zombie (the method's argument; a method that stores over it loses the hook) goes to the zombie sounds. |
 | `IsoZombie.handleLandingImpact` | the start | A zombie lands from a fall (the zombie's own method, which `DoLand` calls for a landing it counts as a fall): to the zombie sounds. |
-| `ZombieIdleState.execute` | the one call of `IsoZombie.pathToLocation(III)` | The square an idle zombie wanders to, through the [zombie holds](#zombie-holds). |
+| `ZombieIdleState.execute` | the one call of `IsoZombie.pathToLocation(III)` | The square an idle zombie wanders to, through the [zombie holds](#zombie-marks-and-holds). |
 | `WorldSoundManager.getBiggestSoundZomb` | after the one `List.get` of its sounds | A sound a held zombie must not hear becomes null, which the method skips. |
 | `ZombiePopulationManager.removeChunkFromWorld` | each of the two `n_addZombie` calls (the zombie is the local just cast to `IsoZombie`) | A zombie of a dissolving hold is released (`releaseZombie`) instead of kept virtual. |
+| `ZombiePopulationManager.registerZombie` | the start | A zombie comes into the world with its persistent number (a virtual one with the number it had): the world's marks of that number go back into its modData. |
+| `IsoZombie.removeFromWorld` | the start | The zombie leaves the world (dead, virtual or let go): its marks leave its modData (the object is kept for another zombie); a dead one's go from the world's table too. |
 | `IsoZombie.Hit` | after the one call of `IsoGameCharacter.Hit` (the weapon, the wielder, the damage multiplier) that its method makes, whose float result is the damage dealt | A hit the zombie takes: the damage and the arguments (a method that stores over them loses the hook) go to the [zombie hits](#zombie-hits). |
 | `FBORenderObjectOutline.renderObject` | the start | An outlined object drawn as a model (a door, built furniture) gets the game's model outline and the method returns; any other object goes on to the game's sprite outline: see [outlines](#outlines). |
 | `ModelSlotRenderData.initModel:outline` | each return, for a `BaseVehicle` | The vehicle's `characterOutline`, `outlineColor` and `outlineBehindPlayer` are filled from its outline, as the method fills a character's: the same. |
@@ -1307,18 +1309,36 @@ read. Who watches belongs to the world: it is kept in the API table's metatable 
 from an older one refuses to be called), and a world left drops it. A fault in the frame job stops the hits alone, once, with a line
 in the game's log.
 
-### Zombie holds
+### Zombie marks and holds
 
-For a mod that puts a group of zombies somewhere and wants them found there. The game has nothing that keeps a zombie in a place
-and still lets it fight: `setUseless` makes one that does nothing, and an idle zombie wanders off a few squares at a time, follows
-any sound it hears (an alarm, a siren far away) and, once its chunk unloads, becomes a virtual zombie the population moves unseen.
+For a mod that puts zombies somewhere and wants to know them again: a group to clear, a target to find. The game has no tag of its
+own on a zombie: an outfit is one only while no other zombie may wear it, and the game dresses map zombies in any outfit it knows,
+a mod's too (`OutfitManager.GetRandomOutfit`). A zombie's modData is the place for a mark, but the game keeps none of it while the
+zombie is virtual or saved, and gives the object to the next zombie without clearing it. The marks are kept in both places so that
+a marked zombie is one wherever the game takes it. Nor does the game keep a zombie in a place and still let it fight: `setUseless`
+makes one that does nothing, and an idle zombie wanders off a few squares at a time, follows any sound it hears (an alarm, a siren
+far away) and, once its chunk unloads, becomes a virtual zombie the population moves unseen.
 
 | Call | Effect |
 | --- | --- |
-| `zombies.hold(handle, id, { outfit, x, y, radius, margin, dissolve })` | Holds the zombies of the outfit (its name, as `getOutfitName()` gives it) in the circle of `radius` (1 to 300) round `x`, `y`, replacing the mod's hold of that `id`. `margin` (0 to 300, 20 when nil) is how far beyond the circle a zombie is still held; `dissolve` true lets one of the outfit go as its chunk unloads. 64 holds a mod. |
-| `zombies.release(handle, id)` | Takes the hold away, as `handle:clear()` takes all of the mod's. |
+| `zombies.mark(handle, zombie, key)` | Marks a living zombie with the key (a name), replacing the mod's mark on it. A mod marks 5000 zombies at most in a world. |
+| `zombies.unmark(handle, object)` | Takes the mod's mark off a zombie or a corpse. |
+| `zombies.markOf(handle, object)` | The mod's key on a zombie or a corpse, or nil. |
+| `zombies.marked(handle, key)` | A list of the loaded living zombies the mod marked with the key (those on a square). |
+| `zombies.forget(handle, key)` | Takes the mod's marks of the key off every zombie, the virtual ones included; corpses keep theirs. |
+| `zombies.hold(handle, key, { x, y, radius, margin, dissolve })` | Holds the zombies the mod marked with the key in the circle of `radius` (1 to 300) round `x`, `y`, replacing the mod's hold of that key. `margin` (0 to 300, 20 when nil) is how far beyond the circle a zombie is still held; `dissolve` true lets one go as its chunk unloads. 64 holds a mod. |
+| `zombies.release(handle, key)` | Takes the hold away, as `handle:clear()` takes all of the mod's (its marks stay). |
 
-A zombie of the outfit within the circle and its margin (on any level) is held:
+A zombie's marks are a table of mod -> key in its modData under `PZExtMarks`; the game copies it to the corpse
+(`IsoDeadBody` copies the character's modData), so a mod knows its dead too. The world's global ModData `PZExtMarks` keeps the
+same table by the zombie's persistent number, the one the population keeps while the zombie is virtual and in the save. Two hooks
+keep them true: a zombie that comes into the world with a number the table has (`ZombiePopulationManager.registerZombie`) gets
+its marks back, and one that leaves it (`IsoZombie.removeFromWorld`, after the corpse took its copy) loses them from its object.
+The table forgets a zombie as it dies, as a hold lets it go, as its last mark is taken off, and as the mod forgets its key; a zombie
+the game drops in other ways (a cleanup of the population) stays in it until then, so a mod forgets a key it is done with. A
+client in multiplayer has no persistent numbers: its marks are the zombie's modData alone.
+
+A zombie marked with a held key, within the circle and its margin (on any level), is held:
 
 - **Where it wanders:** the game sends an idle zombie to a square up to four away (`ZombieIdleState`); one outside the circle is
   brought in along the line to the centre, a square inside the edge.
@@ -1326,14 +1346,15 @@ A zombie of the outfit within the circle and its margin (on any level) is held:
   within the circle and margin; any other is skipped as the game skips a missing one, so the loudest of the rest wins as before.
 - A zombie that chased a player out past the margin is the game's until it comes back. Its fighting is never changed.
 
-With `dissolve`, a zombie of the outfit (wherever it is) is let go as its chunk unloads: released from the population
+With `dissolve`, a zombie marked with the key (wherever it is) is let go as its chunk unloads: released from the population
 (`ZombiePopulationManager.releaseZombie`) and taken off the world, instead of kept as a virtual zombie
 (`removeChunkFromWorld`'s `n_addZombie`). A mod that counts its group makes it again when the player comes back; nothing of it is
-left to wander unseen. A zombie the game saves with the world while its chunk is loaded comes back with the world, as any does.
+left to wander unseen. A zombie the game saves with the world while its chunk is loaded comes back with the world, marks and all.
 
-The hooks find the holds by the zombie's outfit name in a map made again when a hold changes; with none, the bootstrap holds no
-handler and each hook is one volatile read. The holds belong to the world: they are kept in the API table's metatable (a newer API
-takes them over) and a world left drops them.
+The hooks of the holds read the zombie's marks (two table reads) only while a hold is: with none, each returns after one volatile
+read. Those of a zombie coming and going look the number up in a set of the world's numbers, without boxing it, while the world
+has marks. The holds belong to the world: they are kept in the API table's metatable (a newer API takes them over) and a world
+left drops them; the marks are the world's own data and go with it.
 
 ### Timers
 
