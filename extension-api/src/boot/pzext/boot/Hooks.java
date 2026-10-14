@@ -444,6 +444,9 @@ public final class Hooks {
         /** {@code ZombiePopulationManager.registerZombie}, at its start: a zombie comes into the world with its number (0: a new one). */
         void registered(Object zombie, int id) throws Throwable;
 
+        /** {@code ZombiePopulationManager.releaseZombie}, at its start: the population lets the zombie go (the game does as one dies). */
+        void released(Object zombie) throws Throwable;
+
         /** {@code IsoZombie.removeFromWorld}, at its start: the zombie leaves the world (dead, virtual or let go); its object is kept for another. */
         void removed(Object zombie) throws Throwable;
     }
@@ -511,7 +514,8 @@ public final class Hooks {
         FLOOR_KEPT("floorKept", Group.WORLD_ITEMS), FLOOR_DECALS("floorDecals", Group.FLOOR_DECALS),
         SQUARE_CHANGED("squareChanged", Group.SQUARE_CHANGES), ZOMBIE_WANDER("zombieWander", Group.ZOMBIE_HOLDS),
         ZOMBIE_HEARS("zombieHears", Group.ZOMBIE_HOLDS), ZOMBIE_DISSOLVES("zombieDissolves", Group.ZOMBIE_HOLDS),
-        ZOMBIE_REGISTERED("zombieRegistered", Group.ZOMBIE_HOLDS), ZOMBIE_REMOVED("zombieRemoved", Group.ZOMBIE_HOLDS);
+        ZOMBIE_REGISTERED("zombieRegistered", Group.ZOMBIE_HOLDS), ZOMBIE_RELEASED("zombieReleased", Group.ZOMBIE_HOLDS),
+        ZOMBIE_REMOVED("zombieRemoved", Group.ZOMBIE_HOLDS);
 
         final String label;
         final Group group;
@@ -1188,6 +1192,12 @@ public final class Hooks {
                 code.aload(0);
                 code.iload(1);
                 code.invokestatic(HOOKS, "zombieRegistered", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_Object, ConstantDescs.CD_int));
+            }),
+            // and the population lets one go: the game does as a zombie dies (its next update, before the corpse), and takes its
+            // number away after.
+            Site.atStart("releaseZombie", "(Lzombie/characters/IsoZombie;)V", (code, owner) -> {
+                code.aload(0);
+                code.invokestatic(HOOKS, "zombieReleased", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_Object));
             }) }),
         // The body: a cold, the corpses around, a wound's infection and a bite.
         Map.entry("zombie/characters/BodyDamage/Thermoregulator", new Site[] {
@@ -2820,6 +2830,14 @@ public final class Hooks {
         if (current == null) return;
         try { current.registered(zombie, id); }
         catch (Throwable problem) { reportOnce(Call.ZOMBIE_REGISTERED, problem); }
+    }
+
+    /** Put at the start of {@code ZombiePopulationManager.releaseZombie}: the population lets the zombie go. */
+    public static void zombieReleased(Object zombie) {
+        ZombieHolds current = zombieHolds;
+        if (current == null) return;
+        try { current.released(zombie); }
+        catch (Throwable problem) { reportOnce(Call.ZOMBIE_RELEASED, problem); }
     }
 
     /** Put at the start of {@code IsoZombie.removeFromWorld()}: the zombie leaves the world; its object will be another zombie. */

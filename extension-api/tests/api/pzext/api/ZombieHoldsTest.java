@@ -32,7 +32,7 @@ final class ZombieHoldsTest {
         ModData.tables.remove(ZombieHolds.MARKS);
         var loaded = IsoWorld.instance.currentCell.zombieList;
         String[] labels = { "ZombieIdleState.execute", "WorldSoundManager.getBiggestSoundZomb", "ZombiePopulationManager.removeChunkFromWorld",
-            "ZombiePopulationManager.registerZombie", "IsoZombie.removeFromWorld" };
+            "ZombiePopulationManager.registerZombie", "ZombiePopulationManager.releaseZombie", "IsoZombie.removeFromWorld" };
 
         var held = zombie(105.5f, 100.5f, 1);
         var plain = zombie(105.5f, 100.5f, 2);
@@ -104,10 +104,14 @@ final class ZombieHoldsTest {
         check(markOf(zombies, mod, held) == null, "A zombie let go kept its marks");
         loaded.remove(held); loaded.remove(plain);
 
-        // Death: the corpse keeps a copy; the world forgets the zombie.
+        // Death: as the game, the population lets the dead zombie go and its number is taken before the corpse is made; the
+        // corpse keeps a copy, the world forgets the zombie.
         var victim = zombie(101.5f, 100.5f, 5);
         FormulasTest.call(zombies, "mark", mod, victim, "target");
         victim.dead = true;
+        ZombiePopulationManager.releaseZombie(victim);
+        victim.persistentId = 0;
+        check(world.rawget(5.0) == null, "The world kept a dead zombie's marks");
         var body = new IsoDeadBody(victim);
         check("target".equals(markOf(zombies, mod, body)), "A corpse lost its zombie's mark");
         check(markOf(zombies, mod, victim) == null && world.rawget(5.0) == null, "A dead zombie's marks were kept");

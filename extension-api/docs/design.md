@@ -873,7 +873,8 @@ hook only. `PZExtAPI.hooks()` names each by game class and method.
 | `WorldSoundManager.getBiggestSoundZomb` | after the one `List.get` of its sounds | A sound a held zombie must not hear becomes null, which the method skips. |
 | `ZombiePopulationManager.removeChunkFromWorld` | each of the two `n_addZombie` calls (the zombie is the local just cast to `IsoZombie`) | A zombie of a dissolving hold is released (`releaseZombie`) instead of kept virtual. |
 | `ZombiePopulationManager.registerZombie` | the start | A zombie comes into the world with its persistent number (a virtual one with the number it had): the world's marks of that number go back into its modData. |
-| `IsoZombie.removeFromWorld` | the start | The zombie leaves the world (dead, virtual or let go): its marks leave its modData (the object is kept for another zombie); a dead one's go from the world's table too. |
+| `ZombiePopulationManager.releaseZombie` | the start | The population lets the zombie go; a dead one (the game releases it on its next update, before the corpse, and takes its number away after): its marks go from the world's table. |
+| `IsoZombie.removeFromWorld` | the start | The zombie leaves the world (dead, virtual or let go): its marks leave its modData (the object is kept for another zombie). |
 | `IsoZombie.Hit` | after the one call of `IsoGameCharacter.Hit` (the weapon, the wielder, the damage multiplier) that its method makes, whose float result is the damage dealt | A hit the zombie takes: the damage and the arguments (a method that stores over them loses the hook) go to the [zombie hits](#zombie-hits). |
 | `FBORenderObjectOutline.renderObject` | the start | An outlined object drawn as a model (a door, built furniture) gets the game's model outline and the method returns; any other object goes on to the game's sprite outline: see [outlines](#outlines). |
 | `ModelSlotRenderData.initModel:outline` | each return, for a `BaseVehicle` | The vehicle's `characterOutline`, `outlineColor` and `outlineBehindPlayer` are filled from its outline, as the method fills a character's: the same. |
@@ -1334,7 +1335,8 @@ A zombie's marks are a table of mod -> key in its modData under `PZExtMarks`; th
 same table by the zombie's persistent number, the one the population keeps while the zombie is virtual and in the save. Two hooks
 keep them true: a zombie that comes into the world with a number the table has (`ZombiePopulationManager.registerZombie`) gets
 its marks back, and one that leaves it (`IsoZombie.removeFromWorld`, after the corpse took its copy) loses them from its object.
-The table forgets a zombie as it dies, as a hold lets it go, as its last mark is taken off, and as the mod forgets its key; a zombie
+The table forgets a zombie as it dies (the population lets a dead zombie go, `ZombiePopulationManager.releaseZombie`, on its next
+update and takes its number away, before the corpse is made), as a hold lets it go, as its last mark is taken off, and as the mod forgets its key; a zombie
 the game drops in other ways (a cleanup of the population) stays in it until then, so a mod forgets a key it is done with. A
 client in multiplayer has no persistent numbers: its marks are the zombie's modData alone.
 

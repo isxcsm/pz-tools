@@ -18,7 +18,8 @@ import pzext.boot.Hooks;
  * <p>A mark is kept in the zombie's modData (a table of mod -> key), which the game copies to its corpse, and in the world's global
  * ModData by the zombie's persistent number, which the game keeps while the zombie is virtual and in the save: a zombie that comes
  * into the world again with its number has its marks back. A zombie's marks go as it leaves the world (its object is kept for
- * another zombie); the world's go as it dies or is let go, and when the mod forgets the key.
+ * another zombie); the world's go as it dies (the game lets a dead zombie go from the population before its corpse is made, and
+ * takes its number away), as a hold lets it go, and when the mod forgets the key.
  *
  * <p>The holds are read by three hooks, on the game's thread: where {@code ZombieIdleState} sends an idle zombie (a target outside
  * the circle is brought in along the line to its centre), each sound {@code WorldSoundManager.getBiggestSoundZomb} weighs (one the
@@ -468,6 +469,13 @@ final class ZombieHolds implements Hooks.ZombieHolds {
         if (!numbers.contains(id)) return;
         Object marks = lua.get(table, (double)id);
         if (lua.isTable(marks)) lua.set((Object)data.invokeExact(zombie), MARKS, marks);
+    }
+
+    @Override public void released(Object zombie) throws Throwable {
+        // A dead zombie: the world forgets it (its object keeps the marks for the corpse). A living one goes virtual or was let go.
+        if (zombie == null || !(boolean)dead.invokeExact(zombie)) return;
+        Object marks = marks(zombie);
+        if (marks != null) drop((int)persistent.invokeExact(zombie), marks);
     }
 
     @Override public void removed(Object zombie) throws Throwable {
