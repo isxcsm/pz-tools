@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import zombie.iso.BuildingDef;
 import zombie.iso.IsoMetaGrid;
 import zombie.iso.IsoWorld;
+import zombie.iso.RoomDef;
 
 /**
  * Synthetic: the game's building editor, as setRooms uses it. applyChanges takes the buildings it started from out of
@@ -37,13 +38,14 @@ public final class BuildingRoomsEditor {
             grid.rooms.removeAll(def.rooms);
             grid.buildings.remove(def);
         }
+        // As the game's: what goes in the map is the building's rooms, its outside squares moved apart.
         for (BREBuilding building : buildings) {
             BuildingDef def = building.buildingDef;
-            for (BRERoom room : building.rooms) {
-                room.roomDef.building = def;
-                room.roomDef.id = nextId++;
-                if (room.roomDef.isEmptyOutside()) def.emptyoutside.add(room.roomDef);
-                else { def.rooms.add(room.roomDef); grid.rooms.add(room.roomDef); }
+            for (RoomDef room : new ArrayList<>(def.rooms)) {
+                room.building = def;
+                room.id = nextId++;
+                if (room.isEmptyOutside()) { def.rooms.remove(room); def.emptyoutside.add(room); }
+                else grid.rooms.add(room);
             }
             grid.buildings.add(def);
         }

@@ -40,10 +40,11 @@ final class RoomEdits {
     private final Game game;
     private final Buildings buildings;
     private final Method instance, copyExisting, apply, copyFrom, rectsOf, emptyOutside, bounds, removedOf, buildingAt, roomIdOf;
+    private final Method createRoom, removeRoom;
     private final Method core, noSave, saveFile, writeString, userDefinedOf;
     private final Field editing, preEdit, luaEditor, breDef, breRooms, breRoom, roomName, roomLevel, roomObjects;
     private final Field metaX, metaY, metaDef, removedX, removedY, removedZ, gridBuildings, userDefined, defRooms, defOutside;
-    private final Constructor<?> newRoom, newRect;
+    private final Constructor<?> newRect;
     private final Object fileSystem;
     private final List<Field> kept = new ArrayList<>();
 
@@ -65,7 +66,8 @@ final class RoomEdits {
         breDef = Game.accessible(bre.getDeclaredField("buildingDef"));
         breRooms = Game.accessible(bre.getDeclaredField("rooms"));
         breRoom = Game.accessible(breRoomType.getDeclaredField("roomDef"));
-        newRoom = Game.accessible(breRoomType.getDeclaredConstructor(bre));
+        createRoom = bre.getMethod("createRoom", int.class);
+        removeRoom = bre.getMethod("removeRoom", breRoomType);
         copyFrom = room.getMethod("copyFrom", room);
         rectsOf = room.getMethod("getRects");
         emptyOutside = room.getMethod("isEmptyOutside");
@@ -186,11 +188,11 @@ final class RoomEdits {
             luaEditor.set(editor, null);
             Object bre = copyExisting.invoke(editor, found.def());
             editorBefore.add(found.def());
-            @SuppressWarnings("unchecked") List<Object> breList = (List<Object>)breRooms.get(bre);
-            for (var each = breList.iterator(); each.hasNext(); )
-                if (!(boolean)emptyOutside.invoke(breRoom.get(each.next()))) each.remove();
+            // The editor's own calls: each keeps its building's rooms (BuildingDef.rooms) with the editor's.
+            for (Object editorRoom : new ArrayList<>((List<?>)breRooms.get(bre)))
+                if (!(boolean)emptyOutside.invoke(breRoom.get(editorRoom))) removeRoom.invoke(bre, editorRoom);
             for (int index = 0; index < wanted.size(); index++) {
-                Object editorRoom = newRoom.newInstance(bre);
+                Object editorRoom = createRoom.invoke(bre, wanted.get(index).level());
                 Object room = breRoom.get(editorRoom);
                 copyFrom.invoke(room, from[index]);
                 @SuppressWarnings("unchecked") List<Object> rects = (List<Object>)rectsOf.invoke(room);
@@ -199,7 +201,6 @@ final class RoomEdits {
                 roomName.set(room, names[index]);
                 roomLevel.setInt(room, wanted.get(index).level());
                 bounds.invoke(room);
-                breList.add(editorRoom);
                 rooms[index] = room;
             }
             made = breDef.get(bre);
