@@ -1382,6 +1382,10 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
         add({ kind = "room", id = group.id, text = title(group.id), right = right, state = roomState,
             fixed = fixed or count == 0, folded = folded, foldKey = foldKey, pipe = roomPipe, roomKey = group.roomKey })
         if not folded then
+            table.sort(group.placed, function(a, b)
+                if a.rank ~= b.rank then return a.rank < b.rank end
+                return a.row.text < b.row.text
+            end)
             for _, entry in ipairs(group.placed) do add(entry.row, entry.tip) end
             table.sort(group.devices, function(a, b)
                 if options.byLoad and (a.device.power or 0) ~= (b.device.power or 0) then return (a.device.power or 0) > (b.device.power or 0) end
