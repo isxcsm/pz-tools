@@ -42,6 +42,10 @@ final class LooksTest {
             notice(text, mod);
             unveil(text, mod);
             burn(text, mod);
+            bleed(text, mod);
+            sink(text, mod);
+            type(text, mod);
+            pulse(text, mod);
             failing(text, mod);
             cost(text, mod);
             System.out.println("PASS: looks: the arithmetic is the title lab's; each style is drawn by the shader in its modes over its life; the burn's map is made and let go; the game's state is put back; a shader that does not compile leaves the text as it is");
@@ -91,6 +95,28 @@ final class LooksTest {
             "The mist does not clear and come back");
         check(Looks.mist(3.6, 0, 0) == 0 && near(Looks.mist(3.6, 6, 0), Looks.FOG_STAY) && Looks.mist(3.6, 9, 0.5) > Looks.FOG_STAY && Looks.mist(3.6, 9, 1) == 0,
             "The mist does not come in, stay thin, thicken and go");
+        // The heart: racing, calmer as it stays, one more beat after it leaves and a last weak one; the breath out after them.
+        double[] beats = { Looks.heartbeat(0.2, 6.9, 10.7), Looks.heartbeat(3.33, 6.9, 10.7), Looks.heartbeat(6.95, 6.9, 10.7),
+            Looks.heartbeat(6.9 + Looks.ONE_MORE + 0.08, 6.9, 10.7), Looks.heartbeat(6.9 + Looks.LAST_BEAT + 0.08, 6.9, 10.7), Looks.heartbeat(4.5, 6.9, 10.7) };
+        check(near(beats[0], 0.853875022529848) && near(beats[1], 0.27835080378805427) && near(beats[2], 0.3872139141045356) && near(beats[3], 0.24550826504846063)
+            && near(beats[4], 0.16367217669897352) && near(beats[5], 0.2714403369081529), "The heartbeat is not the page's: " + java.util.Arrays.toString(beats));
+        check(Looks.exhaled(0.3, 10.7) == 0 && near(Looks.exhaled(0.7, 10.7), 0.41636363636363627) && near(Looks.EXHALE_AFTER, 5.2), "The breath out is not the page's");
+        check(near(Looks.sunk(5.5, 9), 0.005524271728019903) && near(Looks.sunk(7.2, 9), 0.22434000423464384) && Looks.sunk(9, 9) == 1 && Looks.sunk(4, 9) == 0,
+            "The sinking is not the page's");
+        check(Looks.sunk(0.25, 0.25) == 1 && Looks.exhaled(1, 0.25) == 1, "A hurried leave does not sink or breathe out in time");
+        var shape = new Looks.Shape();
+        Looks.drops(shape, 400, 72, 460, 100, 12345, true);
+        check(shape.dropCount == 5 && near(shape.reach, 117.68976727954748) && near(shape.drops[0], 316.0899926647544) && near(shape.drops[1], 40.77919132877141)
+            && near(shape.drops[2], 0.2) && near(shape.drops[3], 154.55455723404884) && near(shape.drops[14], 1.35) && near(shape.drops[12], 82.77395640313625),
+            "The title's drops are not the page's");
+        Looks.drops(shape, 300, 30, 330, 45, 99, false);
+        check(shape.dropCount == 3 && near(shape.drops[0], 153.76388690434396) && near(shape.drops[4], 23.00425645778887) && near(shape.drops[8], 0.45),
+            "The line's drops are not the page's");
+        double[] keys = new double[5];
+        Looks.keys(new boolean[] { false, false, true, false, false }, 5, 1.3, 4242, keys);
+        check(keys[0] == 0 && near(keys[1], 0.25517569873644264) && near(keys[2], 0.8115553633901342) && near(keys[3], 0.9662789374534235) && near(keys[4], 1.17),
+            "The typewriter's keys are not the page's: " + java.util.Arrays.toString(keys));
+        check(near(Looks.fed(0, 5.5), 0) && near(Looks.fed(0.2, 5.5), 1) && near(Looks.fed(1, 5.5), 3), "The paper is not fed a line at a time");
     }
 
     // ---- the styles ----
@@ -110,7 +136,7 @@ final class LooksTest {
             "The stamp's picture is not at its place: " + (picture[2] + picture[6]) / 2 + ", " + (picture[3] + picture[7]) / 2);
         state();
         check(modes(origin, 8.6).equals(List.of(8, 8)), "The stamp and its line do not weather away: " + modes(origin, 8.61));
-        gone(origin, 11.7, key, text, mod);
+        gone(origin, 12.2, key, text, mod);
     }
 
     /** The torch: its light thrown behind the title and the title lit; the line lit by it all over; both as it dies down. */
@@ -122,7 +148,7 @@ final class LooksTest {
         up(origin, 3.0);
         check(modes(origin, 3.1).equals(List.of(4, 9, 9)), "The torch does not light the title and its line: " + modes(origin, 3.11));
         check(modes(origin, 9.2).equals(List.of(4, 9, 9)), "The torch does not die down over the title and its line: " + modes(origin, 9.21));
-        gone(origin, 11.8, key, text, mod);
+        gone(origin, 12.0, key, text, mod);
     }
 
     /** The radio: the title and its line as a signal, over their life. */
@@ -133,7 +159,7 @@ final class LooksTest {
         up(origin, 0.3);
         check(modes(origin, 0.5).equals(List.of(10, 10)), "The notice is not a signal: " + modes(origin, 0.51));
         check(modes(origin, 8.0).equals(List.of(10, 10)), "The notice is not lost as a signal: " + modes(origin, 8.01));
-        gone(origin, 10.4, key, text, mod);
+        gone(origin, 10.7, key, text, mod);
     }
 
     /** The mist: behind each text, then the text through it. */
@@ -143,14 +169,14 @@ final class LooksTest {
         up(origin, 0);
         up(origin, 1.3);
         check(modes(origin, 2.0).equals(List.of(12, 11, 12, 11)), "The mist is not behind the title and its line: " + modes(origin, 2.01));
-        gone(origin, 14.0, key, text, mod);
+        gone(origin, 14.6, key, text, mod);
     }
 
-    /** The burn: its picture while it stays; then the text burning by its map and its ash; the map made, and let go with it. */
+    /** The burn (the default style): its picture while it stays; then the text burning by its map and its ash; the map made, and let go with it. */
     private static void burn(KahluaTable text, Object mod) throws Exception {
         long origin = NOW[0];
         int textures = GL11.made;
-        double key = title(text, mod, "dust", "Quiet title", "A line under it");
+        double key = title(text, mod, null, "Quiet title", "A line under it");
         up(origin, 0);
         up(origin, 0.4);
         quiet();
@@ -160,11 +186,61 @@ final class LooksTest {
         check(drawn.equals(List.of(1, 2, 1, 2)), "The title and its line do not burn with their ash: " + drawn);
         check(GL11.made == textures + 2 && GL11.width > 200 && GL11.height > 50, "The burn maps (the line's last) did not go to the card: " + GL11.width + " by " + GL11.height);
         int maps = GL11.made;
-        at(origin, 16.7);
+        at(origin, 17.2);
         frame();
         frame();
         check(!(Boolean)FormulasTest.call(text, "shown", mod, key).get(0) && GL11.deleted.contains(maps) && GL11.deleted.contains(maps - 1),
             "The burn maps were not let go with the text");
+    }
+
+    /** The bleed: drops on the title (falling, their flecks, a drop running down), the line seeping in; both dry and flake away. */
+    private static void bleed(KahluaTable text, Object mod) {
+        long origin = NOW[0];
+        double key = title(text, mod, "bleed", "Infected", "The test is positive");
+        up(origin, 0);
+        check(modes(origin, 1.0).equals(List.of(14, 4)), "The drops do not fall on the title and spread: " + modes(origin, 1.01));
+        up(origin, 1.3);
+        check(modes(origin, 3.0).equals(List.of(14, 4, 14)), "The title does not drip as it stays, its line seeped in: " + modes(origin, 3.01));
+        check(modes(origin, 10.0).equals(List.of(14, 4, 14)), "The title and its line do not dry: " + modes(origin, 10.01));
+        gone(origin, 13.8, key, text, mod);
+    }
+
+    /** The sink: its picture as it stays; the title and its line sinking into their water as they leave. */
+    private static void sink(KahluaTable text, Object mod) {
+        long origin = NOW[0];
+        double key = title(text, mod, "sink", "Lost", "The supplies went down");
+        up(origin, 0);
+        up(origin, 0.8);
+        check(modes(origin, 3.0).equals(List.of(0, 0)), "The sinking title is not its picture as it stays: " + modes(origin, 3.01));
+        check(modes(origin, 9.0).equals(List.of(15, 15)), "The title and its line do not sink: " + modes(origin, 9.01));
+        Looks.Shape shape = shapeOf("Lost");
+        check(shape != null && shape.foot > 0, "The sinking title's foot was not found");
+        gone(origin, 16.5, key, text, mod);
+    }
+
+    /** The typewriter: the title's letters struck, its line's after; both fed up as they leave. */
+    private static void type(KahluaTable text, Object mod) {
+        long origin = NOW[0];
+        double key = title(text, mod, "type", "New orders", "Read them now");
+        up(origin, 0);
+        Looks.Shape shape = shapeOf("New orders");
+        check(shape != null && shape.glyphCount == 9 && shape.keys[0] == 0 && shape.keys[8] < 1.3 && shape.keys[3] - shape.keys[2] > shape.keys[2] - shape.keys[1],
+            "The title's letters are not struck in turn");
+        check(modes(origin, 0.6).equals(List.of(0)), "The title is not struck: " + modes(origin, 0.61));
+        up(origin, 1.5);
+        check(modes(origin, 9.0).equals(List.of(0, 0)), "The title and its line are not fed up: " + modes(origin, 9.01));
+        gone(origin, 13.9, key, text, mod);
+    }
+
+    /** The pulse: a glow and the text, the title's and its line's, beating and breathing out. */
+    private static void pulse(KahluaTable text, Object mod) {
+        long origin = NOW[0];
+        double key = title(text, mod, "pulse", "Safe", "The fever broke");
+        up(origin, 0);
+        up(origin, 0.6);
+        check(modes(origin, 2.0).equals(List.of(16, 0, 16, 0)), "The title and its line do not glow: " + modes(origin, 2.01));
+        check(modes(origin, 13.0).equals(List.of(16, 0, 16, 0)), "The title and its line do not breathe out: " + modes(origin, 13.01));
+        gone(origin, 17.5, key, text, mod);
     }
 
     /** A shader that does not compile: the looks stop, and the text is drawn as it is. */
@@ -223,7 +299,8 @@ final class LooksTest {
     // ---- helpers ----
 
     private static double title(KahluaTable text, Object mod, String style, String words, String line) {
-        KahluaTable spec = line == null ? table("text", words, "style", style) : table("text", words, "subtitle", line, "style", style);
+        KahluaTable spec = line == null ? table("text", words) : table("text", words, "subtitle", line);
+        if (style != null) spec.rawset("style", style);
         return (Double)FormulasTest.call(text, "title", mod, spec).get(0);
     }
 
@@ -273,6 +350,13 @@ final class LooksTest {
         UIManager.render();
         RenderThread.flush();
         SpriteRenderer.flush();
+    }
+
+    /** What the look of the text showing these words measured of its picture on the first screen. */
+    private static Looks.Shape shapeOf(String words) {
+        for (Texts.Shown shown : GameApi.texts().shown)
+            if (shown.lines[0].equals(words) && shown.pieces != null && shown.pieces[0] != null) return shown.pieces[0].shape;
+        return null;
     }
 
     private static Object[] last(String words) {

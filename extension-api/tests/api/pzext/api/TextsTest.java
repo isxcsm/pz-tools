@@ -53,7 +53,7 @@ final class TextsTest {
             check(text != null, "The API has no text");
             UIManager.getToolTip();
             check(Hooks.APPLIED.equals(FormulasTest.call(text, "status").get(0)), "The text hook is " + FormulasTest.call(text, "status").get(0));
-            check(List.of("stamp", "discovery", "notice", "unveil", "dust").equals(list(FormulasTest.call(text, "styles").get(0))), "The styles are wrong");
+            check(List.of("stamp", "discovery", "notice", "unveil", "dust", "bleed", "sink", "type", "pulse").equals(list(FormulasTest.call(text, "styles").get(0))), "The styles are wrong");
             useClock();
             Object mod = FormulasTest.call(api, "client", "text.mod").get(0), other = FormulasTest.call(api, "client", "other.mod").get(0);
             idle();
@@ -324,7 +324,7 @@ final class TextsTest {
             check(bytes < 4096, "Drawing in the embedded font allocated " + bytes + " bytes");
             FormulasTest.call(text, "hide", mod, key, true);
             // The first frame of a large title in the embedded font: the characters looked up once, the lines measured once.
-            key = (Double)FormulasTest.call(text, "title", mod, table("text", "임무 완료", "subtitle", "우물이 깨끗해졌다", "hold", 100.0)).get(0);
+            key = (Double)FormulasTest.call(text, "title", mod, table("text", "임무 완료", "subtitle", "우물이 깨끗해졌다", "hold", 100.0, "style", "stamp")).get(0);
             TextManager.record = false;
             long first = System.nanoTime();
             UIManager.render();
@@ -911,7 +911,7 @@ final class TextsTest {
 
     /** Titles: their styles, one after another, at once when asked, and a full queue. */
     private static void titles(KahluaTable text, Object mod) {
-        double quest = (Double)FormulasTest.call(text, "title", mod, table("text", "Quest complete", "subtitle", "The well is clean")).get(0);
+        double quest = (Double)FormulasTest.call(text, "title", mod, table("text", "Quest complete", "subtitle", "The well is clean", "style", "stamp")).get(0);
         double found = (Double)FormulasTest.call(text, "title", mod, table("text", "Search complete", "subtitle", "3 items", "style", "discovery")).get(0);
         render();
         check(draws().isEmpty(), "A stamp starts seen, or the second title did not wait");
@@ -938,11 +938,12 @@ final class TextsTest {
         check(line != null && line[1] == UIFont.SdfRegular && near(zoom(line), lineZoom)
             && near((Double)line[3], (0.28 + 0.1 / 2 + 0.1 * 0.25 + 0.045 / 2) * 900 - 45 * lineZoom / 2), "The line under the title is not under it");
         check(last("Search complete") == null, "The second title did not wait");
-        // The stamp and its line go together, after 0.6 + 5 + 6 seconds (the line 0.4 s after the title, for 5.6).
+        // The stamp and its line go together, after 0.95 + 5 + 6 seconds (its hold from when its line is in at 0.45 + 0.5; the line
+        // 0.4 s after the title, for 5.6).
         advance(8.8);
         render();
         check(last("Quest complete") != null && last("The well is clean") != null, "The stamp went early");
-        advance(1.61);
+        advance(1.96);
         render();
         check(last("Quest complete") == null && last("The well is clean") == null && last("Search complete") == null, "The stamp outlived its time, or the next did not wait for it");
         check(!(Boolean)FormulasTest.call(text, "shown", mod, quest).get(0) && (Boolean)FormulasTest.call(text, "shown", mod, found).get(0), "shown is wrong");
@@ -1107,7 +1108,7 @@ final class TextsTest {
 
     /** What a frame costs with a title and its line on the screen: no allocation. */
     private static void cost(KahluaTable text, Object mod) {
-        double key = (Double)FormulasTest.call(text, "title", mod, table("text", "Quest complete", "subtitle", "The well is clean", "hold", 100.0)).get(0);
+        double key = (Double)FormulasTest.call(text, "title", mod, table("text", "Quest complete", "subtitle", "The well is clean", "hold", 100.0, "style", "stamp")).get(0);
         render();
         advance(1);
         render();

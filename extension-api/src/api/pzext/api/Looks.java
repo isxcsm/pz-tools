@@ -23,7 +23,17 @@ import java.nio.FloatBuffer;
  *     text sinks back into it as it leaves;</li>
  * <li>{@code erode} (leave): it weathers away in place, its colour draining, worn off in pits from its edges;</li>
  * <li>{@code burn} (leave): it burns spot by spot from a corner like paper (a map of when each spot burns), a ragged glowing
- *     edge, shards of ash and sparks tumbling away on the wind.</li>
+ *     edge, shards of ash and sparks tumbling away on the wind;</li>
+ * <li>{@code bleed} (enter) and {@code dry} (leave): drops fall on a title one after another and spread where they land,
+ *     soaking its letters in with a wet front (a line seeps in so, without drops); a drop runs down from it as it stays; they
+ *     dry dark and flake away in patches as it leaves;</li>
+ * <li>{@code under} (leave): still water shows under it, its mirror in it coming up swaying in fine streaks; then it sinks
+ *     into that water, slowly at first, fading as it goes;</li>
+ * <li>{@code strike} (enter) and {@code feed} (leave): its letters struck one by one at a typist's uneven pace, a little off
+ *     their line and unevenly inked; the paper fed up a line at a time as it leaves;</li>
+ * <li>{@code exhale} (leave): it beats with a heart (a warm glow flaring with each beat) that calms as it stays; one more
+ *     beat, a stillness and a last weak one as it starts to leave, and then a breath out: it settles and fades, its glow
+ *     staying on a moment after it.</li>
  * </ul>
  * The numbers are those of tools/title-lab, where the looks are made: the page draws them with the same arithmetic and shader.
  */
@@ -52,9 +62,34 @@ final class Looks {
     static final float[] BURN = { 1f, 0.32f, 0.1f, 1f };
     /** How long a text's backdrop takes to come in, in seconds, whatever its enter. */
     static final double BACKDROP_IN = 1.2;
+    /**
+     * Bleed: how fast a drop spreads, how wet its front looks, how strong the soaked blot beyond the title's letters is, how far
+     * its drop runs down; how long a drop falls, and its flecks fly, in seconds; when the title's drops land and the line's seep in.
+     */
+    static final double BLEED_SOAK = 2.2, BLEED_WET = 0.5, BLEED_STAIN = 0.2, BLEED_DRIP = 1, FALL = 0.2, SPLASH = 0.35;
+    static final double[] FALLS = { 0.2, 0.7, 1.0, 1.2, 1.35, 1.48 }, SEEPS = { 0, 0.25, 0.45, 0.6, 0.7, 0.8 };
+    static final int MAX_DROPS = 6;
+    /**
+     * Sink: how deep it sinks (in its lines), how much the water stirs, how strong its mirror is; in seconds into a leave of
+     * SINK_LEAVE (a shorter one has them shorter alike), how long the mirror takes to come up and then stays before it sinks.
+     */
+    static final double SINK_DEPTH = 0.75, SINK_SWELL = 1, SINK_MIRROR = 1, MIRROR_IN = 3.5, MIRROR_STAY = 1.5, SINK_LEAVE = 9;
+    /**
+     * Strike: how far its letters stray off their line, how unevenly they are inked, how far the paper is fed; when each feed
+     * starts (shares of the leave), how long it takes (seconds) and how far it goes (in the title's lines).
+     */
+    static final double TYPE_JITTER = 1, TYPE_INK = 1, TYPE_FEED = 1, FEED_TIME = 0.22, FEED_STEP = 0.2;
+    static final double[] FEEDS = { 0.08, 0.34, 0.6 };
+    /**
+     * Pulse: how bright its glow is, how strong its beats, how much it calms. In seconds into a leave of PULSE_LEAVE (a shorter
+     * one has them shorter alike): how long a beat takes to die down, when one more beat comes, how long the stillness is before
+     * the last, and so when that last beat comes and when the breath out starts.
+     */
+    static final double PULSE_GLOW = 1, PULSE_BEAT = 1, PULSE_CALM = 1, PULSE_LEAVE = 10.7, BEAT_LENGTH = 0.6, ONE_MORE = 0.55 + 0.55 * PULSE_CALM,
+        LAST_PAUSE = 1.2, LAST_BEAT = ONE_MORE + BEAT_LENGTH + LAST_PAUSE, EXHALE_AFTER = LAST_BEAT + BEAT_LENGTH + 1.7;
 
     /** The looks drawn over a text's life. */
-    static final int PLAIN = 0, TORCH = 1, RADIO = 2, FOG = 3;
+    static final int PLAIN = 0, TORCH = 1, RADIO = 2, FOG = 3, BLEED = 4, SINK = 5, STRIKE = 6, PULSE = 7;
 
     private Looks() { }
 
@@ -209,6 +244,130 @@ final class Looks {
         return smooth(clamp(secs / 1.8, 0, 1)) * (0.8 - (0.8 - FOG_STAY) * smooth(clamp((secs - 0.6) / enterTime, 0, 1)));
     }
 
+    static double backOut(double p) { double c = 1.70158, q = p - 1; return 1 + (c + 1) * q * q * q + c * q * q; }
+
+    /**
+     * A bleeding text's drops, into {@code shape}: where each lands in its picture ({@code width} by {@code height}, its ink
+     * {@code ink} wide in the middle), spread over its letters in a shuffled order, and when (a title's {@code falls}, one after
+     * another; a line's seep in sooner); and how far each spreads, enough for them together to cover the letters.
+     */
+    static void drops(Shape shape, double ink, double line, double width, double height, int seed, boolean falls) {
+        int count = (int)clamp(Math.round(ink / (line * (falls ? 1.2 : 4))), falls ? 3 : 2, MAX_DROPS);
+        double space = ink / count, left = width / 2 - ink / 2;
+        shape.reach = 1.15 * Math.hypot(space / 2, 0.55 * line) / 0.55;
+        int[] order = new int[count];
+        for (int index = 0; index < count; index++) {
+            int at = index;
+            while (at > 0 && hash(order[at - 1], 3, seed) > hash(index, 3, seed)) { order[at] = order[at - 1]; at--; }
+            order[at] = index;
+        }
+        double[] times = falls ? FALLS : SEEPS;
+        for (int index = 0; index < count; index++) {
+            int k = order[index];
+            shape.drops[index * 3] = left + space * (k + 0.5) + (hash(k, 4, seed) - 0.5) * 0.4 * space;
+            shape.drops[index * 3 + 1] = height / 2 + (hash(k, 5, seed) - 0.5) * 0.3 * line;
+            shape.drops[index * 3 + 2] = times[index];
+        }
+        shape.dropCount = count;
+    }
+
+    /** The lowest row a picture's ink reaches (its shadow too), in its pixels from the top: its rows read back from the bottom. */
+    static double foot(java.nio.ByteBuffer pixels, int width, int height) {
+        for (int y = height - 1; y > 0; y--)
+            for (int x = 0; x < width; x++) if ((pixels.get(((height - 1 - y) * width + x) * 4 + 3) & 0xFF) > 8) return y + 1;
+        return 1;
+    }
+
+    /** How far a sinking text has gone under, 0 to 1, {@code into} seconds into its leave: slowly at first, then faster and faster. */
+    static double sunk(double into, double leaveTime) {
+        double scale = Math.min(1, leaveTime / SINK_LEAVE), from = (MIRROR_IN + MIRROR_STAY) * scale;
+        return Math.pow(clamp((into - from) / (leaveTime - from), 0, 1), 2.5);
+    }
+
+    /** How strong its mirror is: coming up, swaying, before it sinks (there is no water to see before). */
+    static double mirror(double into, double leaveTime) {
+        return SINK_MIRROR * smooth(clamp(into / (MIRROR_IN * Math.min(1, leaveTime / SINK_LEAVE)), 0, 1));
+    }
+
+    /** How much the water stirs: some always, more as the mirror comes up, settling. */
+    static double swell(double into) { return SINK_SWELL * (0.35 + 0.65 * smooth(clamp(into / 0.3, 0, 1)) * Math.exp(-into / 3.2)); }
+
+    /**
+     * When each of a struck text's letters is struck, into {@code keys}, in seconds from its start: at a typist's uneven pace,
+     * pausing after a space ({@code spaced}: the letter follows one), all within the first nine tenths of its enter.
+     */
+    static void keys(boolean[] spaced, int count, double enterTime, int seed, double[] keys) {
+        double at = 0;
+        for (int index = 0; index < count; index++) {
+            if (index > 0) at += 0.7 + 0.6 * hash(index, 1, seed) + (spaced[index] ? 1.6 : 0);
+            keys[index] = at;
+        }
+        double last = at > 0 ? at : 1;
+        for (int index = 0; index < count; index++) keys[index] = 0.9 * enterTime * keys[index] / last;
+    }
+
+    /** How many lines its paper has been fed at share {@code out} of a leave of {@code leaveTime}: each a quick jerk, a little past and back. */
+    static double fed(double out, double leaveTime) {
+        double fed = 0;
+        for (double from : FEEDS) fed += backOut(clamp((out - from) * leaveTime / FEED_TIME, 0, 1));
+        return fed;
+    }
+
+    private static double beatOnce(double since) { return since <= 0 ? 0 : 1.45 * (1 - Math.exp(-since / 0.03)) * Math.exp(-since / 0.16); }
+
+    private static double lubDub(double since, double strength) { return strength * (beatOnce(since) + 0.6 * beatOnce(since - 0.2)); }
+
+    private static double nextBeat(double at, double calmBy) { return at + 0.55 + 0.55 * PULSE_CALM * clamp(at / calmBy, 0, 1); }
+
+    /**
+     * How strongly a pulsing text's heart beats {@code secs} into its group's clock, 0 to about 1: from about 110 beats a minute,
+     * slowing to about 55 and weaker beat by beat by {@code leaveAt} (all fitted a little so that one comes just as it leaves);
+     * after it, one more as calm, a stillness and a last weak one (in a leave of {@code leaveTime}).
+     */
+    static double heartbeat(double secs, double leaveAt, double leaveTime) {
+        double calmBy = Double.isFinite(leaveAt) ? Math.max(leaveAt, 1) : Double.POSITIVE_INFINITY;
+        int count = 0;
+        double last = 0;
+        for (double at = 0.15; count < 64; at = nextBeat(at, calmBy)) {
+            count++;
+            last = at;
+            double next = nextBeat(at, calmBy);
+            if (next > leaveAt) { if (next - leaveAt < leaveAt - at) { count++; last = next; } break; }
+        }
+        double stretch = Double.isFinite(leaveAt) && last > 0 ? leaveAt / last : 1, beat = 0, at = 0.15;
+        for (int index = 0; index < count; index++, at = nextBeat(at, calmBy)) {
+            double when = at * stretch;
+            if (when > secs) break;
+            beat = Math.max(beat, lubDub(secs - when, 1 - 0.55 * PULSE_CALM * clamp(when / calmBy, 0, 1)));
+        }
+        double scale = Math.min(1, leaveTime / PULSE_LEAVE);
+        beat = Math.max(beat, lubDub(secs - leaveAt - ONE_MORE * scale, 0.3));
+        beat = Math.max(beat, lubDub(secs - leaveAt - LAST_BEAT * scale, 0.2));
+        return beat * PULSE_BEAT;
+    }
+
+    /** How far a pulsing text has breathed out, 0 to 1, at share {@code out} of a leave of {@code leaveTime}: after its last beat and a stillness. */
+    static double exhaled(double out, double leaveTime) {
+        double after = EXHALE_AFTER * Math.min(1, leaveTime / PULSE_LEAVE);
+        return clamp((out * leaveTime - after) / (leaveTime - after), 0, 1);
+    }
+
+    /** What a look measures of its picture once, as the picture is read back. */
+    static final class Shape {
+        /** Sink: the lowest row its ink reaches, in its picture's pixels from the top. */
+        double foot;
+        /** Bleed: each drop's place across and down its picture (pixels) and when it lands (seconds), how many, and how far each spreads. */
+        final double[] drops = new double[3 * MAX_DROPS];
+        int dropCount;
+        double reach;
+        /**
+         * Strike: each letter's span across its picture (from, to, middle, in pixels) and its row's (top and bottom, shares of the
+         * picture's height), when it is struck, and how many; its seed.
+         */
+        double[] glyphs, keys;
+        int glyphCount, seed;
+    }
+
     // ---- what the main thread hands the render thread ----
 
     /**
@@ -229,6 +388,9 @@ final class Looks {
         double enterAlpha, alpha, left;
         /** Its seconds since its delay, its leave's share, its enter's length, when it leaves as scheduled, its group's clock and cue. */
         double secs, out, enterTime, scheduled, leaving, group, cue;
+        /** Its leave's length; when its title leaves, on the group's clock; its title's line height, in pixels; whether it is a title. */
+        double leaveTime, titleLeaves, titleLine;
+        boolean title;
         double drift;
         float burnRed, burnGreen, burnBlue;
 
@@ -264,7 +426,9 @@ final class Looks {
         // The render thread's: the program and its uniforms' places, the vertices, the matrix's floats, scratch.
         private int program = -1;
         private int uMode, uMvp, uTex, uMap, uTexRect, uProgress, uEdge, uChar, uScorch, uGlow, uFlickerN, uFlickerD, uBurn, uScorched, uCharred,
-            uPicSize, uBlur, uGrain, uDrain, uTorch, uReveal, uRemain, uLight, uEmber, uSig, uClock, uStatic, uClear, uFogAmt, uNoise, uFogHalf;
+            uPicSize, uBlur, uGrain, uDrain, uTorch, uReveal, uRemain, uLight, uEmber, uSig, uClock, uStatic, uClear, uFogAmt, uNoise, uFogHalf,
+            uDry, uDryBy, uStainBy, uWetBy, uSurf, uSwell, uMirror, uLeft, uDeep;
+        private final int[] uDrops = new int[MAX_DROPS];
         private FloatBuffer verts = ByteBuffer.allocateDirect(FLOATS * 6 * 256 * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
         private int count, mode;
         private final FloatBuffer matrix = ByteBuffer.allocateDirect(16 * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
@@ -376,6 +540,8 @@ final class Looks {
             uniform vec3 torch; uniform float reveal, remain, light, ember;
             uniform float sig, clock, staticBy;
             uniform float clear, fogAmt, noiseScale; uniform vec2 fogHalf;
+            uniform vec4 drops[6]; uniform float dry, dryBy, stainBy, wetBy;
+            uniform float surf, swell, mirror, left; uniform vec3 deep;
             varying vec2 vUv; varying vec4 vCol; varying vec3 vAux;
             float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
             float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -434,6 +600,64 @@ final class Looks {
                 float a = pic(vUv).a;
                 float d = (vUv.x + vUv.y * 0.35) - progress;
                 gl_FragColor = vec4(vCol.rgb * a * exp(-d * d / (edgeW * edgeW)), 0.0);
+                return;
+              }
+              if (mode > 15.5) {
+                float sum = 0.0;
+                for (int i = 0; i < 24; i++) {
+                  float fi = float(i), an = fi * 2.39996, rr = sqrt((fi + 0.5) / 24.0);
+                  sum += pic(vUv + vec2(cos(an), sin(an)) * rr * blurR).a;
+                }
+                gl_FragColor = vCol * (sum / 24.0);
+                return;
+              }
+              if (mode > 14.5) {
+                vec2 px = vUv * picSize;
+                float xl = (left + px.x) / noiseScale;
+                float d = (vUv.y - surf) * picSize.y / noiseScale;
+                if (d <= 0.0) { gl_FragColor = pic(vUv) * vCol.a; return; }
+                float own = vn(vec2(xl * 1.4, 3.0)), own2 = vn(vec2(xl * 2.3, 11.0));
+                float stir = 0.6 + swell;
+                float streak = d / 0.02 + 4.0 * own;
+                float sway = sin(clock * 11.0 + 6.3 * own - d * 14.0) + 0.5 * sin(clock * 17.0 + 6.3 * own2 - d * 22.0);
+                float jitter = sin(streak * 1.7 + clock * 7.8 + 6.3 * own2) + 0.6 * sin(streak * 0.63 - clock * 5.2 + 6.3 * own);
+                float shift = (0.026 * sway * (0.5 + d) + 0.01 * jitter) * noiseScale * stir;
+                vec2 mv = vec2(vUv.x + shift / picSize.x, 2.0 * surf - vUv.y);
+                float r = noiseScale * (0.01 + 0.04 * d) / picSize.x;
+                vec4 m = 0.5 * pic(mv) + 0.25 * (pic(mv + vec2(r, 0.0)) + pic(mv - vec2(r, 0.0)));
+                float lit = 0.55 + 0.45 * sin(streak * 2.3 - clock * 6.1 + 6.3 * own2);
+                float ma = m.a * mirror * 0.4 * exp(-d * 1.6) * lit;
+                if (ma <= 0.001) discard;
+                vec3 mcol = mix(m.rgb / m.a, deep, 0.25);
+                gl_FragColor = vec4(mcol * ma, ma) * vCol.a;
+                return;
+              }
+              if (mode > 13.5) {
+                vec2 px = vUv * picSize;
+                float n = fbm(px / noiseScale), fine = fbm(px / (noiseScale * 0.35) + 17.0);
+                float m = 0.0, front = 0.0, splat = 0.0;
+                for (int i = 0; i < 6; i++) {
+                  vec4 d = drops[i];
+                  if (d.z <= 0.0) continue;
+                  float dist = length(px - d.xy);
+                  float x = d.z * (0.62 + 0.6 * n + 0.22 * (fine - 0.5)) - dist;
+                  float k = smoothstep(0.0, edgeW, x);
+                  m = max(m, k);
+                  front = max(front, k * (1.0 - smoothstep(edgeW, edgeW * 4.0, x)) * d.w);
+                  float rs = noiseScale * 0.65 * (0.8 + 0.4 * fine);
+                  splat = max(splat, (1.0 - smoothstep(rs * 0.75, rs, dist)) * d.w);
+                }
+                vec4 c = pic(vUv);
+                float a = c.a;
+                vec3 col = a > 0.0 ? c.rgb / a : vec3(0.0);
+                col = col * (1.0 + wetBy * front) + vec3(0.25) * wetBy * front * front;
+                float dried = smoothstep(0.0, 0.55, dry) * dryBy;
+                col = mix(col, col * vec3(0.42, 0.26, 0.24), dried);
+                float keep = 1.0 - smoothstep(n - 0.12, n + 0.12, (dry - 0.4) * 2.1);
+                vec2 e = min(vUv, 1.0 - vUv) * picSize;
+                float stain = max(m * stainBy * smoothstep(0.0, noiseScale * 2.0, min(e.x, e.y)) * (0.55 + 0.45 * n), 0.85 * splat * sign(stainBy)) * (1.0 - a);
+                vec3 sc = mix(burn, burn * vec3(0.42, 0.26, 0.24), dried);
+                gl_FragColor = (vec4(col * a, a) * m + vec4(sc * stain, stain)) * keep * vCol.a;
                 return;
               }
               if (mode > 12.5) {
@@ -517,9 +741,12 @@ final class Looks {
             }
             """;
 
-        /** The page's modes: the picture, burning, a shard of ash, its shape as light, a puff, a gleam, eroding, torch-lit, radio, through mist, mist, a band of light. */
+        /**
+         * The page's modes: the picture, burning, a shard of ash, its shape as light, a puff, a gleam, eroding, torch-lit, radio, through
+         * mist, mist, a band of light, bled in, sinking into water, a glow around its letters (the page's 13, 14 and 15).
+         */
         private static final int PICTURE = 0, BURNING = 1, SHARD = 2, SHAPE = 3, PUFF = 4, GLEAM = 5, ERODING = 8, LIT = 9, SIGNAL = 10,
-            MISTED = 11, MIST = 12, BAND = 13;
+            MISTED = 11, MIST = 12, BAND = 13, BLEEDING = 14, SINKING = 15, GLOWING = 16;
 
         /** Compiles the program, once; false when it does not (reported, and the looks fade from then on). */
         private boolean program() throws Throwable {
@@ -548,7 +775,10 @@ final class Looks {
             uGrain = at(made, "grainSize"); uDrain = at(made, "drainBy"); uTorch = at(made, "torch"); uReveal = at(made, "reveal");
             uRemain = at(made, "remain"); uLight = at(made, "light"); uEmber = at(made, "ember"); uSig = at(made, "sig");
             uClock = at(made, "clock"); uStatic = at(made, "staticBy"); uClear = at(made, "clear"); uFogAmt = at(made, "fogAmt");
-            uNoise = at(made, "noiseScale"); uFogHalf = at(made, "fogHalf");
+            uNoise = at(made, "noiseScale"); uFogHalf = at(made, "fogHalf"); uDry = at(made, "dry"); uDryBy = at(made, "dryBy");
+            uStainBy = at(made, "stainBy"); uWetBy = at(made, "wetBy"); uSurf = at(made, "surf"); uSwell = at(made, "swell");
+            uMirror = at(made, "mirror"); uLeft = at(made, "left"); uDeep = at(made, "deep");
+            for (int index = 0; index < MAX_DROPS; index++) uDrops[index] = at(made, "drops[" + index + "]");
             program = made;
             return true;
         }
@@ -635,6 +865,10 @@ final class Looks {
                 case TORCH -> torch(f);
                 case RADIO -> radio(f);
                 case FOG -> fog(f);
+                case BLEED -> bleed(f);
+                case SINK -> sink(f);
+                case STRIKE -> strike(f);
+                case PULSE -> pulse(f);
                 default -> {
                     if (f.erode && f.out > 0) erode(f);
                     else if (f.alpha > 0.002) {
@@ -772,6 +1006,150 @@ final class Looks {
             uniform2f.invokeExact(uBlur, (float)(f.line * 0.08 / piece.boxWidth), (float)(f.line * 0.08 / piece.boxHeight));
             float a = (float)f.enterAlpha;
             quad(cx - hw, cy - hh, cx + hw, cy + hh, 0, 0, 1, 1, a, a, a, a);
+            flush();
+        }
+
+        /**
+         * Bled in: its drops spread over it (they dry and flake it off as it leaves); over a title, each drop falling and its flecks
+         * as it hits, and a drop running down from it as it stays.
+         */
+        private void bleed(Frame f) throws Throwable {
+            Dust.Piece piece = f.piece;
+            Shape shape = piece.shape;
+            if (shape == null) return;
+            double line = f.line, s = f.s, hw = piece.boxWidth * s / 2, hh = piece.boxHeight * s / 2, x0 = f.cx - hw, y0 = f.cy - hh, r0 = 0.3 * line;
+            for (int index = 0; index < MAX_DROPS; index++) {
+                double since = index < shape.dropCount ? f.secs - shape.drops[index * 3 + 2] : 0;
+                if (since <= 0) uniform4f.invokeExact(uDrops[index], 0f, 0f, 0f, 0f);
+                else uniform4f.invokeExact(uDrops[index], (float)shape.drops[index * 3], (float)shape.drops[index * 3 + 1],
+                    (float)(r0 + (shape.reach - r0) * (1 - Math.exp(-since * BLEED_SOAK))), (float)Math.exp(-since * 1.5));
+            }
+            mode = BLEEDING;
+            uniform1f.invokeExact(uNoise, (float)(line * 0.35));
+            uniform1f.invokeExact(uEdge, (float)(line * 0.06));
+            uniform1f.invokeExact(uDry, (float)f.out);
+            uniform1f.invokeExact(uDryBy, f.title ? 1f : 0.35f);
+            uniform1f.invokeExact(uStainBy, f.title ? (float)BLEED_STAIN : 0f);
+            uniform1f.invokeExact(uWetBy, (float)BLEED_WET);
+            uniform3f.invokeExact(uBurn, f.burnRed, f.burnGreen, f.burnBlue);
+            quad(x0, y0, x0 + 2 * hw, y0 + 2 * hh, 0, 0, 1, 1, 1, 1, 1, 1);
+            flush();
+            if (!f.title) return;
+            mode = PUFF;
+            double red = f.burnRed, green = f.burnGreen, blue = f.burnBlue;
+            for (int index = 0; index < shape.dropCount; index++) {
+                double since = f.secs - shape.drops[index * 3 + 2], x = x0 + shape.drops[index * 3] * s, y = y0 + shape.drops[index * 3 + 1] * s;
+                // Falling, faster and faster, onto where it lands.
+                if (since > -FALL && since <= 0) {
+                    double u = 1 + since / FALL;
+                    shard(x, y - (1 - u * u) * 1.8 * line, 0.09 * line, 0, 2.2, red * 0.95, green * 0.95, blue * 0.95, 0.95, 0);
+                }
+                // Flecks thrown out as it hits, mostly sideways and up.
+                if (since > 0 && since < SPLASH) {
+                    double u = since / SPLASH, a = 0.9 * (1 - u);
+                    for (int fleck = 0; fleck < 6; fleck++) {
+                        double angle = Math.PI * (1.05 + 0.9 * (fleck + hash(index, fleck, 9)) / 6), far = 0.45 * line * (1 - Math.pow(1 - u, 3)) * (0.5 + 0.5 * hash(index, fleck, 10));
+                        shard(x + Math.cos(angle) * far, y + Math.sin(angle) * far * 0.6 + 0.3 * line * u * u, 0.025 * line, 0, 1, red * a, green * a, blue * a, a, 0);
+                    }
+                }
+            }
+            // As it stays, a drop runs down from under the first one, slowly, a bead at its end.
+            double since = f.secs - (f.enterTime + 0.4);
+            if (BLEED_DRIP > 0 && since > 0 && shape.dropCount > 0) {
+                double length = 0.7 * line * BLEED_DRIP * smooth(clamp(since / 3.5, 0, 1)), wide = 0.045 * line;
+                double a = 0.9 * (1 - smooth(clamp((f.out - 0.4) / 0.6, 0, 1))), dark = (1 - 0.58 * smooth(clamp(f.out / 0.55, 0, 1))) * a;
+                double x = x0 + shape.drops[0] * s, top = f.cy + 0.3 * line;
+                if (length > 0.5) {
+                    shard(x, top + length / 2, wide, 0, length / 2 / wide, red * dark, green * dark, blue * dark, a, 0);
+                    shard(x, top + length, 0.075 * line, 0, 1.15, red * dark, green * dark, blue * dark, a, 0);
+                }
+            }
+            flush();
+        }
+
+        /**
+         * Sinking: as it stays, the text; as it leaves, still water at its foot, its mirror in it swaying; then it sinks into it (drawn
+         * from its sunk top down to a line and a half below the water, for the mirror).
+         */
+        private void sink(Frame f) throws Throwable {
+            Dust.Piece piece = f.piece;
+            Shape shape = piece.shape;
+            float a = (float)f.alpha;
+            if (a <= 0.002 || shape == null) return;
+            double s = f.s, w = piece.boxWidth * s, h = piece.boxHeight * s, cx = f.cx + f.dx, cy = f.cy + f.dy;
+            if (f.out <= 0) {
+                mode = PICTURE;
+                quad(cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2, 0, 0, 1, 1, a, a, a, a);
+                flush();
+                return;
+            }
+            double into = f.out * f.leaveTime;
+            double water = cy - h / 2 + shape.foot * s, top = cy - h / 2 + SINK_DEPTH * f.line * s * sunk(into, f.leaveTime), bottom = water + 1.5 * f.line * s;
+            mode = SINKING;
+            uniform1f.invokeExact(uNoise, (float)f.line);
+            uniform1f.invokeExact(uLeft, (float)(cx - w / 2));
+            uniform1f.invokeExact(uSurf, (float)((water - top) / h));
+            uniform1f.invokeExact(uSwell, (float)swell(into));
+            uniform1f.invokeExact(uClock, (float)into);
+            uniform3f.invokeExact(uDeep, 0.05f, 0.08f, 0.11f);
+            uniform1f.invokeExact(uMirror, (float)mirror(into, f.leaveTime));
+            quad(cx - w / 2, top, cx + w / 2, bottom, 0, 0, 1, (bottom - top) / h, a, a, a, a);
+            flush();
+        }
+
+        /**
+         * Struck: each letter from its key on, struck a touch big and bright and settling at once, a little off its line, inked a
+         * little unevenly; fed up with the paper as it leaves.
+         */
+        private void strike(Frame f) throws Throwable {
+            Dust.Piece piece = f.piece;
+            Shape shape = piece.shape;
+            double a = f.alpha;
+            if (a <= 0.002 || shape == null || shape.glyphs == null) return;
+            double s = f.s, w = piece.boxWidth, h = piece.boxHeight, line = f.line, cx = f.cx + f.dx, cy = f.cy + f.dy;
+            double lift = -TYPE_FEED * FEED_STEP * f.titleLine * fed(f.out, f.leaveTime);
+            double[] glyphs = shape.glyphs;
+            mode = PICTURE;
+            for (int index = 0; index < shape.glyphCount; index++) {
+                double since = f.secs - shape.keys[index];
+                if (since < 0) continue;
+                int seed = shape.seed + 101;
+                double strike = 1 - clamp(since / 0.09, 0, 1), big = 1 + 0.14 * strike * strike;
+                double ink = Math.min(1, 1 - 0.22 * TYPE_INK * hash(index, 1, seed) + 0.25 * strike);
+                double jx = (hash(index, 2, seed) - 0.5) * 0.04 * line * s * TYPE_JITTER, jy = (hash(index, 3, seed) - 0.5) * 0.08 * line * s * TYPE_JITTER;
+                double from = glyphs[index * 5], to = glyphs[index * 5 + 1], mid = glyphs[index * 5 + 2], v0 = glyphs[index * 5 + 3], v1 = glyphs[index * 5 + 4];
+                double gx = cx + (mid - w / 2) * s + jx, gy = cy + ((v0 + v1) / 2 - 0.5) * h * s + jy + lift, half = (v1 - v0) * h * s / 2 * big;
+                double shown = a * clamp(since / 0.025, 0, 1);
+                quad(gx + (from - mid) * s * big, gy - half, gx + (to - mid) * s * big, gy + half, from / w, v0, to / w, v1,
+                    ink * shown, ink * shown, ink * shown, shown);
+            }
+            flush();
+        }
+
+        /**
+         * Pulsing: a warm glow under it (a little always, flaring with each beat; as it breathes out, rising a touch and staying on
+         * after it, spreading, then dimming away), and the text swelling a touch with each beat.
+         */
+        private void pulse(Frame f) throws Throwable {
+            Dust.Piece piece = f.piece;
+            double out = exhaled(f.out, f.leaveTime), a = f.alpha;
+            if (a <= 0.002) return;
+            double beat = heartbeat(f.group, f.titleLeaves, f.leaveTime), line = f.line;
+            double s = f.s * (1 + 0.035 * beat), w = piece.boxWidth * s, h = piece.boxHeight * s, cx = f.cx + f.dx, cy = f.cy + f.dy;
+            double after = smooth(clamp(out / 0.5, 0, 1));
+            double glow = (f.out > 0 ? 1 : a) * PULSE_GLOW * (0.12 + 0.5 * beat + 0.2 * after) * (1 - smooth(clamp((out - 0.5) / 0.5, 0, 1)));
+            double spread = line * s * (0.1 + 0.06 * beat + 0.08 * smooth(out));
+            if (glow > 0.002) {
+                double pad = 0.6 * line * s;
+                mode = GLOWING;
+                uniform2f.invokeExact(uBlur, (float)(spread / w), (float)(spread / h));
+                quad(cx - w / 2 - pad, cy - h / 2 - pad, cx + w / 2 + pad, cy + h / 2 + pad, -pad / w, -pad / h, 1 + pad / w, 1 + pad / h,
+                    glow, 0.82 * glow, 0.58 * glow, 0);
+                flush();
+            }
+            mode = PICTURE;
+            float shown = (float)a;
+            quad(cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2, 0, 0, 1, 1, shown, shown, shown, shown);
             flush();
         }
 

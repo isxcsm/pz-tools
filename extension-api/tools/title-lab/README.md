@@ -17,8 +17,16 @@ no build).
     and is lost as it leaves, cutting out twice and sinking into the grain.
   - `unveil` 안개 걷힘: drifting mist behind it clears off it, a veil of it drifting on as it stays; as it leaves it sinks back
     into the mist, which then thins away itself.
-  - `dust` 종이 연소: fades in, then burns spot by spot from its corner (a noise map of when each spot burns), a ragged glowing
-    edge, ash shards and sparks tumbling on the wind.
+  - `dust` 종이 연소 (the default): fades in, then burns spot by spot from its corner (a noise map of when each spot burns), a
+    ragged glowing edge, ash shards and sparks tumbling on the wind.
+  - `bleed` 번짐: drops fall on the title one after another and spread, soaking it in (its line seeps in); a drop runs down
+    as it stays; they dry dark and flake away.
+  - `sink` 가라앉음: still water shows under it, its mirror swaying in fine streaks; then it sinks into it, faster and faster.
+  - `type` 타자: its letters struck one by one at an uneven pace; its paper fed out a line at a time as it leaves.
+  - `pulse` 고동: a heart that races and calms, a warm glow flaring with each beat; one more beat, a stillness, a last weak
+    beat, and a breath out.
+
+  Every style holds 5 s once all of it is in (the title and its line).
 - **The styles before them** (marked 이전), and `leave = "dust"`'s cells as `Dust.java` has them (숯불 셀, with `dustBurn`).
 
 Only the fonts' shapes, shadows and outlines are approximations (the page draws them with the browser's text).

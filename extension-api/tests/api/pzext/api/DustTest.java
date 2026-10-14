@@ -171,8 +171,9 @@ final class DustTest {
         int fbos = TextureFBO.made, destroyed = TextureFBO.destroyed;
         // The ink of each picture read back: its box without a margin of 22 pixels (12 for the line under the title).
         GL11.ink = (x, y) -> x >= 22 && x < 360 && y >= 22 && y < 100 ? 255 : 0;
-        // From the left (the style's is from the top right corner), so that the front is a column.
-        FormulasTest.call(text, "title", mod, table("text", "Quiet title", "subtitle", "A line under it", "style", "dust", "leave", "dust", "leaveTime", 6.0,
+        // From the left (the style's is from the top right corner), so that the front is a column; held 4.65 s once its line is in
+        // (0.35 + 1.2 s), so that it leaves at 6.2 s.
+        FormulasTest.call(text, "title", mod, table("text", "Quiet title", "subtitle", "A line under it", "style", "dust", "leave", "dust", "leaveTime", 6.0, "hold", 4.65,
             "dustSweep", "right"));
         long origin = NOW[0];
         render();
@@ -408,8 +409,8 @@ final class DustTest {
         rejects(text, "spec.dustSweep must be one of \"right\", \"left\", \"up\", \"down\"", "show", mod, table("text", "x", "leave", "dust", "dustSweep", "sideways"));
         rejects(text, "spec.dustSize must be a number from 0.25 to 8", "show", mod, table("text", "x", "leave", "dust", "dustSize", 9.0));
         rejects(text, "spec.dustDrift must be a number from 0 to 4", "show", mod, table("text", "x", "leave", "dust", "dustDrift", -1.0));
-        rejects(text, "spec.dustDrift goes with leave = \"dust\"", "title", mod, table("text", "x", "dustDrift", 2.0));
-        rejects(text, "spec.dustBurn goes with leave = \"dust\"", "title", mod, table("text", "x", "dustBurn", table("r", 1.0, "g", 0.3, "b", 0.1)));
+        rejects(text, "spec.dustDrift goes with leave = \"dust\"", "title", mod, table("text", "x", "style", "stamp", "dustDrift", 2.0));
+        rejects(text, "spec.dustBurn goes with leave = \"dust\"", "title", mod, table("text", "x", "style", "stamp", "dustBurn", table("r", 1.0, "g", 0.3, "b", 0.1)));
         rejects(text, "spec.dustBurn must be a table", "show", mod, table("text", "x", "leave", "dust", "dustBurn", "red"));
         rejects(text, "spec.dustBurn must be a table", "show", mod, table("text", "x", "leave", "dust", "dustBurn", table("r", 2.0, "g", 0.3, "b", 0.1)));
         double burning = (Double)FormulasTest.call(text, "title", mod, table("text", "Burning", "style", "dust", "dustBurn", table("r", 0.9, "g", 0.3, "b", 0.1))).get(0);

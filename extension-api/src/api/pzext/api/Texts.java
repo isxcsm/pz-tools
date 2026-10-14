@@ -64,11 +64,11 @@ final class Texts implements Hooks.Text {
     private static final int BACKDROP_RINGS = 4;
     private static final double SECOND = 1e9;
 
-    /** How a text comes onto the screen (the last four are looks: {@link Looks}). */
-    enum Enter { NONE, FADE, POP, SLAM, SETTLE, RISE, DROP, TYPE, SLIDE, IMPACT, TORCH, SIGNAL, MIST }
+    /** How a text comes onto the screen (the last six are looks: {@link Looks}). */
+    enum Enter { NONE, FADE, POP, SLAM, SETTLE, RISE, DROP, TYPE, SLIDE, IMPACT, TORCH, SIGNAL, MIST, BLEED, STRIKE }
 
-    /** How it goes (the last five are looks). */
-    enum Leave { NONE, FADE, RISE, SINK, GROW, SHRINK, DUST, ERODE, DIM, LOST, MIST, BURN }
+    /** How it goes (the last nine are looks). */
+    enum Leave { NONE, FADE, RISE, SINK, GROW, SHRINK, DUST, ERODE, DIM, LOST, MIST, BURN, DRY, UNDER, FEED, EXHALE }
 
     private static final Map<String, Integer> ALIGN = Map.of("left", -1, "center", 0, "right", 1);
     private static final String[] ALIGN_NAMES = { "left", "center", "right" };
@@ -287,7 +287,7 @@ final class Texts implements Hooks.Text {
     /** What text.wrap and text.fit measured, kept for the calls that ask again (package-private for the tests). */
     final TextFits.Cache fits = new TextFits.Cache();
     // What is shown, in the order it was shown: changed on the game's thread and read by the drawing, on the same thread.
-    private final ArrayList<Shown> shown = new ArrayList<>();
+    final ArrayList<Shown> shown = new ArrayList<>();
     private volatile Shown[] drawn = new Shown[0];
     private long next = 1;
     private Object world;
@@ -1038,6 +1038,50 @@ final class Texts implements Hooks.Text {
                     Map.entry("shadow", true), Map.entry("delay", 0.35), Map.entry("enter", "fade"), Map.entry("enterTime", 1.2),
                     Map.entry("leave", "burn"), Map.entry("leaveTime", 10.0), Map.entry("dustSweep", "downleft")),
                 0.3, 0.3));
+            // Bled: dark red letters drops fall on one after another, each spreading and soaking them in; a drop runs down as they
+            // stay; they dry dark and flake away. For something grave (an infection found).
+            ALL.put("bleed", new Style(
+                Map.ofEntries(Map.entry("font", List.of("SdfBold", "Large")), Map.entry("size", 0.085), Map.entry("color", List.of(0.72, 0.08, 0.07, 1.0)),
+                    Map.entry("shadow", true), Map.entry("outline", 1.0), Map.entry("outlineColor", List.of(0.0, 0.0, 0.0, 0.4)),
+                    Map.entry("y", 0.28), Map.entry("enter", "bleed"), Map.entry("enterTime", 1.9), Map.entry("hold", 5.0), Map.entry("backdrop", 0.3),
+                    Map.entry("leave", "dry"), Map.entry("leaveTime", 6.0)),
+                Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Medium")), Map.entry("size", 0.04), Map.entry("color", List.of(0.86, 0.8, 0.78, 1.0)),
+                    Map.entry("shadow", true), Map.entry("delay", 1.3), Map.entry("enter", "bleed"), Map.entry("enterTime", 1.2),
+                    Map.entry("leave", "dry"), Map.entry("leaveTime", 5.6)),
+                0.3, 0.2));
+            // Sunk: cool pale letters that settle in and stay; still water shows under them, their mirror swaying in it, and they
+            // sink into it together with their line. For something lost.
+            ALL.put("sink", new Style(
+                Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Large")), Map.entry("size", 0.08), Map.entry("color", List.of(0.86, 0.88, 0.9, 1.0)),
+                    Map.entry("shadow", true), Map.entry("outline", 1.0), Map.entry("outlineColor", List.of(0.0, 0.0, 0.0, 0.35)),
+                    Map.entry("y", 0.28), Map.entry("enter", "settle"), Map.entry("enterTime", 1.6), Map.entry("hold", 5.0), Map.entry("backdrop", 0.3),
+                    Map.entry("leave", "under"), Map.entry("leaveTime", 9.0)),
+                Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Medium")), Map.entry("size", 0.038), Map.entry("color", List.of(0.74, 0.77, 0.8, 1.0)),
+                    Map.entry("shadow", true), Map.entry("delay", 0.8), Map.entry("enter", "fade"), Map.entry("enterTime", 1.4),
+                    Map.entry("leave", "under"), Map.entry("leaveTime", 9.0)),
+                0.3, 0));
+            // Typed: letters struck one by one on a typewriter, its line after them; the paper fed out as they go. For a document
+            // (a guide, an order).
+            ALL.put("type", new Style(
+                Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Large")), Map.entry("size", 0.075), Map.entry("color", List.of(0.92, 0.9, 0.84, 1.0)),
+                    Map.entry("shadow", true), Map.entry("outline", 1.0), Map.entry("outlineColor", List.of(0.0, 0.0, 0.0, 0.35)),
+                    Map.entry("y", 0.28), Map.entry("enter", "strike"), Map.entry("enterTime", 1.3), Map.entry("hold", 5.0), Map.entry("backdrop", 0.3),
+                    Map.entry("leave", "feed"), Map.entry("leaveTime", 5.5)),
+                Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Medium")), Map.entry("size", 0.038), Map.entry("color", List.of(0.8, 0.79, 0.75, 1.0)),
+                    Map.entry("shadow", true), Map.entry("delay", 1.5), Map.entry("enter", "strike"), Map.entry("enterTime", 1.6),
+                    Map.entry("leave", "feed"), Map.entry("leaveTime", 5.5)),
+                0.3, 0));
+            // Pulsing: warm letters that beat with a racing heart that calms as they stay, a glow flaring with each beat; a last
+            // beat, a stillness, and a breath out. For relief (a danger passed).
+            ALL.put("pulse", new Style(
+                Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Large")), Map.entry("size", 0.08), Map.entry("color", List.of(0.96, 0.94, 0.88, 1.0)),
+                    Map.entry("shadow", true), Map.entry("outline", 1.0), Map.entry("outlineColor", List.of(0.0, 0.0, 0.0, 0.35)),
+                    Map.entry("y", 0.28), Map.entry("enter", "fade"), Map.entry("enterTime", 0.9), Map.entry("hold", 5.0), Map.entry("backdrop", 0.3),
+                    Map.entry("leave", "exhale"), Map.entry("leaveTime", 10.7)),
+                Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Medium")), Map.entry("size", 0.038), Map.entry("color", List.of(0.84, 0.83, 0.79, 1.0)),
+                    Map.entry("shadow", true), Map.entry("delay", 0.6), Map.entry("enter", "fade"), Map.entry("enterTime", 0.9),
+                    Map.entry("leave", "exhale"), Map.entry("leaveTime", 10.7)),
+                0.3, 0));
         }
 
         private Styles() { }
@@ -1048,7 +1092,7 @@ final class Texts implements Hooks.Text {
      * so that one title follows another. {@code now} lets it go first: the title on the screen leaves at once (quickly).
      */
     private long title(String owner, Object spec, String call) throws ReflectiveOperationException {
-        String style = "stamp", line = null;
+        String style = "dust", line = null;
         Object text = null, color = null, lineColor = null, hold = null, player = null, y = null, leave = null, leaveTime = null, backdrop = null;
         var dusts = new LinkedHashMap<String, Object>();
         boolean now = false;
@@ -1114,7 +1158,9 @@ final class Texts implements Hooks.Text {
             small.player = big.player;
             // Under the title: its block, a gap, then the line's block, as shares of the screen's height.
             small.y = Math.min(1, big.y + big.size * big.lines.length / 2 + big.size * chosen.gap() + small.size * small.lines.length / 2);
-            // It goes as the title goes, or the style's moment after it.
+            // The title stays its hold once all of it is in, its line too; the line goes as the title goes, or the style's moment
+            // after it.
+            big.hold += Math.max(0, small.delay + small.enterTime - big.enterTime);
             small.hold = Math.max(0, big.enterTime + big.hold - small.delay - small.enterTime + chosen.trail());
             // The title's backdrop reaches over its line: one backdrop for both.
             small.backdrop = 0;
@@ -1276,9 +1322,7 @@ final class Texts implements Hooks.Text {
     /** Draws the text on one screen as it is at {@code now}; false once it has gone. Allocates nothing. */
     private boolean draw(Shown text, long now, int screen, int left, int top, int width, int height) throws Throwable {
         double t = (now - text.start) / SECOND - text.delay;
-        // When it starts to leave: after its hold, or when its mod hid it.
-        double leaving = text.enterTime + text.hold;
-        if (text.hidden != 0) leaving = Math.min(leaving, Math.max(0, (text.hidden - text.start) / SECOND - text.delay));
+        double leaving = leaving(text);
         if (text.hidden != 0 && leaving <= 0 && t < 0) return false;
         if (t < 0) return true;
         double out = 0;
@@ -1291,7 +1335,7 @@ final class Texts implements Hooks.Text {
         // Its alpha, scale and move (in lines; across, in lines too: the impact's shake), and the impact's squash.
         double alpha = 1, scale = 1, shift = 0, across = 0, squashX = 1, squashY = 1;
         switch (text.enter) {
-            case NONE, TYPE, TORCH, SIGNAL, MIST -> { } // The looks' own.
+            case NONE, TYPE, TORCH, SIGNAL, MIST, BLEED, STRIKE -> { } // The looks' own.
             case FADE -> alpha = smooth(in);
             case POP -> { alpha = Math.min(1, in * 2); scale = 0.5 + 0.5 * backOut(in); }
             case SLAM -> { alpha = Math.min(1, in * 3); scale = 1 + 1.5 * (1 - in * in); }
@@ -1312,8 +1356,15 @@ final class Texts implements Hooks.Text {
             case SINK -> { alpha *= 1 - out; shift += DRIFT * out; }
             case GROW -> { alpha *= 1 - out; scale *= 1 + 0.3 * out; }
             case SHRINK -> { alpha *= 1 - out; scale *= 1 - 0.5 * out; }
-            case ERODE, LOST, MIST -> alpha *= 1 - smooth(out); // As the looks take the text (its backdrop goes so).
+            case ERODE, LOST, MIST, DRY -> alpha *= 1 - smooth(out); // As the looks take the text (its backdrop goes so).
             case DIM -> alpha *= 1 - smooth(Looks.clamp((out - 0.4) / 0.6, 0, 1));
+            case FEED -> alpha *= 1 - smooth(Looks.clamp((out - 0.4) / 0.6, 0, 1));
+            case UNDER -> alpha *= 1 - Looks.sunk(out * text.leaveTime, text.leaveTime);
+            case EXHALE -> {
+                double breath = Looks.exhaled(out, text.leaveTime);
+                alpha *= 1 - smooth(Looks.clamp((breath - 0.05) / 0.75, 0, 1));
+                shift += 0.12 * smooth(breath);
+            }
             case DUST, BURN -> { } // Below, once the text is placed: as dust or burning, or a fade.
         }
         boolean look = looked(text);
@@ -1369,9 +1420,10 @@ final class Texts implements Hooks.Text {
             Looks.Gl drawing = looks;
             if (drawing != null && !drawing.failed && dust != null
                 && look(text, screen, laid, typed, t, leaving, out, restX, restFirst, base, restLine, rowCount, large, own, font, entered, alpha, scale,
-                    squashX, squashY, across, shift, now)) return true;
+                    squashX, squashY, across, shift, now, height)) return true;
             // No picture (yet): the text as it is, a look's enter and leave a fade.
-            if (text.enter == Enter.TORCH || text.enter == Enter.SIGNAL || text.enter == Enter.MIST) alpha *= smooth(in);
+            if (text.enter == Enter.TORCH || text.enter == Enter.SIGNAL || text.enter == Enter.MIST || text.enter == Enter.BLEED
+                || text.enter == Enter.STRIKE) alpha *= smooth(in);
             if (text.leave == Leave.BURN) alpha *= 1 - smooth(out);
             shownAlpha = (float)(alpha * text.alpha);
             if (shownAlpha <= INVISIBLE) return true;
@@ -1407,16 +1459,30 @@ final class Texts implements Hooks.Text {
 
     /** Whether the text has a look: an enter or a leave the API's shader draws ({@link Looks}). */
     static boolean looked(Shown text) {
-        return switch (text.enter) { case IMPACT, TORCH, SIGNAL, MIST -> true; default -> false; }
-            || switch (text.leave) { case ERODE, DIM, LOST, MIST, BURN -> true; default -> false; };
+        return switch (text.enter) { case IMPACT, TORCH, SIGNAL, MIST, BLEED, STRIKE -> true; default -> false; }
+            || switch (text.leave) { case ERODE, DIM, LOST, MIST, BURN, DRY, UNDER, FEED, EXHALE -> true; default -> false; };
     }
 
-    /** The look drawn over the text's life: the torch's, the radio's, the mist's, or none (the impact, erode and burn alone). */
+    /**
+     * The look drawn over the text's life: the torch's, the radio's, the mist's, the bleed's, the water's, the typewriter's, the
+     * heart's, or none (the impact, erode and burn alone).
+     */
     static int lookOf(Shown text) {
         if (text.enter == Enter.TORCH || text.leave == Leave.DIM) return Looks.TORCH;
         if (text.enter == Enter.SIGNAL || text.leave == Leave.LOST) return Looks.RADIO;
         if (text.enter == Enter.MIST || text.leave == Leave.MIST) return Looks.FOG;
+        if (text.enter == Enter.BLEED || text.leave == Leave.DRY) return Looks.BLEED;
+        if (text.leave == Leave.UNDER) return Looks.SINK;
+        if (text.enter == Enter.STRIKE || text.leave == Leave.FEED) return Looks.STRIKE;
+        if (text.leave == Leave.EXHALE) return Looks.PULSE;
         return Looks.PLAIN;
+    }
+
+    /** When the text starts to leave, in seconds from its delay: after its hold, or when its mod hid it. */
+    private static double leaving(Shown text) {
+        double leaving = text.enterTime + text.hold;
+        if (text.hidden != 0) leaving = Math.min(leaving, Math.max(0, (text.hidden - text.start) / SECOND - text.delay));
+        return leaving;
     }
 
     /**
@@ -1426,7 +1492,7 @@ final class Texts implements Hooks.Text {
      */
     private boolean look(Shown text, int screen, Layout laid, int typed, double t, double leaving, double out, double anchorX, double firstY,
             double zoom, double line, int rowCount, boolean large, EmbeddedFont.Loaded own, Object font, double entered, double alpha, double scale,
-            double squashX, double squashY, double across, double shift, long now) throws Throwable {
+            double squashX, double squashY, double across, double shift, long now, int height) throws Throwable {
         if (text.enter == Enter.TYPE && t < text.enterTime && t < leaving) return false;
         Dust.Gl gl = dust;
         Dust.Piece piece = piece(text, screen);
@@ -1454,6 +1520,7 @@ final class Texts implements Hooks.Text {
                 }
                 case Dust.CAPTURED -> {
                     if (!piece.at(boxX, boxY, boxWidth, boxHeight)) { piece.phase = Dust.FAILED; break; }
+                    if (piece.shape == null) piece.shape = shape(text, piece, laid, anchorX, firstY, zoom, line, rowCount, high - low);
                     if (text.leave != Leave.BURN) { piece.pixels = null; piece.phase = Dust.CUT; }
                     else if (!piece.cutting) { piece.cutting = true; burnCut(piece, Dust.cell(line, text.dustSize), text.dustSweep); }
                 }
@@ -1502,11 +1569,63 @@ final class Texts implements Hooks.Text {
         f.group = (now - text.start) / SECOND;
         Shown lead = text.lead != null ? text.lead : text;
         f.cue = lead.delay + lead.enterTime;
+        f.leaveTime = text.leaveTime;
+        f.titleLeaves = lead.delay + (lead == text ? leaving : leaving(lead));
+        f.titleLine = lead == text || lead.size <= 0 ? line : lead.size * height;
+        f.title = text.lead == null;
         f.drift = text.dustDrift;
-        float[] burn = text.dustBurn != null ? text.dustBurn : Looks.BURN;
-        f.burnRed = burn[0]; f.burnGreen = burn[1]; f.burnBlue = burn[2];
+        if (f.look == Looks.BLEED) { f.burnRed = text.red; f.burnGreen = text.green; f.burnBlue = text.blue; }
+        else {
+            float[] burn = text.dustBurn != null ? text.dustBurn : Looks.BURN;
+            f.burnRed = burn[0]; f.burnGreen = burn[1]; f.burnBlue = burn[2];
+        }
         gl.buryDrawer(f.drawer);
         return true;
+    }
+
+    /**
+     * What the text's look measures of its picture, once, as it is read back: the sink's foot (from the pixels), the bleed's drops,
+     * the typewriter's letters (their spans by the font's widths of each row's characters up to them) and when each is struck.
+     */
+    private Looks.Shape shape(Shown text, Dust.Piece piece, Layout laid, double anchorX, double firstY, double zoom, double line, int rowCount,
+            double ink) throws Throwable {
+        var shape = new Looks.Shape();
+        int seed = (int)(piece.seed ^ piece.seed >>> 32), look = lookOf(text);
+        shape.seed = seed;
+        if (look == Looks.SINK && piece.pixels != null) shape.foot = Looks.foot(piece.pixels, piece.boxWidth, piece.boxHeight);
+        if (look == Looks.BLEED) Looks.drops(shape, ink, line, piece.boxWidth, piece.boxHeight, seed, text.lead == null);
+        if (look != Looks.STRIKE) return shape;
+        var glyphs = new ArrayList<double[]>();
+        var spaced = new ArrayList<Boolean>();
+        for (int index = 0; index < rowCount; index++) {
+            String words = laid == null ? text.lines[index] : text.script.plain.substring(laid.rows[index].from, laid.rows[index].to);
+            double lineWidth = (laid == null ? text.widths[index] : laid.rows[index].width) * zoom;
+            double x = (text.align < 0 ? anchorX : text.align > 0 ? anchorX - lineWidth : anchorX - lineWidth / 2) - piece.boxX;
+            double v0 = index == 0 ? 0 : (firstY + line * index - piece.boxY) / piece.boxHeight;
+            double v1 = index == rowCount - 1 ? 1 : (firstY + line * (index + 1) - piece.boxY) / piece.boxHeight;
+            double before = 0;
+            for (int at = 0; at < words.length(); ) {
+                int next = at + Character.charCount(words.codePointAt(at));
+                double after = width(text, words.substring(0, next)) * zoom;
+                if (!Character.isWhitespace(words.codePointAt(at))) {
+                    glyphs.add(new double[] { at == 0 ? 0 : x + before, next >= words.length() ? piece.boxWidth : x + after, x + (before + after) / 2, v0, v1 });
+                    spaced.add(at > 0 ? Character.isWhitespace(words.charAt(at - 1)) : index > 0);
+                }
+                before = after;
+                at = next;
+            }
+        }
+        int count = glyphs.size();
+        shape.glyphs = new double[count * 5];
+        shape.keys = new double[count];
+        boolean[] space = new boolean[count];
+        for (int index = 0; index < count; index++) {
+            System.arraycopy(glyphs.get(index), 0, shape.glyphs, index * 5, 5);
+            space[index] = spaced.get(index);
+        }
+        Looks.keys(space, count, text.enterTime, seed, shape.keys);
+        shape.glyphCount = count;
+        return shape;
     }
 
     /**

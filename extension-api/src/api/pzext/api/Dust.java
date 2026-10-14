@@ -402,6 +402,8 @@ final class Dust {
         int mapTexture;
         Looks.Gl looks;
         boolean cutting;
+        /** What its look measured of the picture as it was read back (the main thread's, before the phase is CUT), or null. */
+        Looks.Shape shape;
 
         Piece(Texts.Shown owner, int screen, long seed) { this.owner = owner; this.screen = screen; this.seed = seed; }
 
