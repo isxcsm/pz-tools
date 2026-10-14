@@ -87,7 +87,10 @@ local function machineSquares(object)
     if not anchor or not state then return nil end
     local def = Machines.Data.KINDS[state.kind]
     if def and def.everyTile then return nil end
-    return squaresOf(anchor, state)
+    -- one square (the research crate): no seams to hide, so the game lights it as it lights its own crates, outlined
+    local squares = squaresOf(anchor, state)
+    if #squares < 2 then return nil end
+    return squares
 end
 
 -- What a page lights of the machines, as one state: the machine of the chosen container in the chosen colour, the

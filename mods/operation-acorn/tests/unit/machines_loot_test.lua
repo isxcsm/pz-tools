@@ -53,16 +53,16 @@ local function load()
         return { getObjectHighlitedColor = function() return CHOSEN end,
             getWorldItemHighlightColor = function() return HOVER end }
     end
-    -- three machines: A of two squares (its bins on each), B of one, C a cabinet of two halves (a container on each
-    -- square: Data everyTile)
-    local a1, a2, b1, c1, c2 = object("a1"), object("a2"), object("b1"), object("c1"), object("c2")
-    local machineOf = { [a1] = "A", [a2] = "A", [b1] = "B", [c1] = "C", [c2] = "C" }
-    local squares = { A = { a1, a2 }, B = { b1 }, C = { c1, c2 } }
-    local kinds = { A = "refiner", B = "saw", C = "cabinet" }
+    -- four machines: A and B of two squares (bins on A's both), C a cabinet of two halves (a container on each
+    -- square: Data everyTile), D of one square (the research crate)
+    local a1, a2, b1, b2, c1, c2, d1 = object("a1"), object("a2"), object("b1"), object("b2"), object("c1"), object("c2"), object("d1")
+    local machineOf = { [a1] = "A", [a2] = "A", [b1] = "B", [b2] = "B", [c1] = "C", [c2] = "C", [d1] = "D" }
+    local squares = { A = { a1, a2 }, B = { b1, b2 }, C = { c1, c2 }, D = { d1 } }
+    local kinds = { A = "refiner", B = "saw", C = "cabinet", D = "crate" }
     OA.Machines = OA.Machines or {}
     OA.Machines.isMachineObject = function(o) return machineOf[o] ~= nil end
     OA.Machines.anchorOf = function(o) local m = machineOf[o]; return squares[m][1], { machine = m, kind = kinds[m] } end
-    OA.Machines.Data = { KINDS = { refiner = {}, saw = {}, cabinet = { everyTile = true } } }
+    OA.Machines.Data = { KINDS = { refiner = {}, saw = {}, cabinet = { everyTile = true }, crate = {} } }
     OA.Machines.partsOf = function(state)
         local list = {}
         for i = 2, #squares[state.machine] do list[#list + 1] = { object = squares[state.machine][i] } end
@@ -77,7 +77,7 @@ local function load()
     require = real
     if not ok then error(err, 0) end
     local p = setmetatable({ player = 0, isCollapsed = false }, { __index = ISInventoryPage })
-    return p, a1, a2, b1, c1, c2
+    return p, a1, a2, b1, c1, c2, d1
 end
 
 test("the chosen bin's machine is lit whole in the chosen colour, without outlines", function()
@@ -115,6 +115,7 @@ test("the machine under the mouse is lit in the hover colour, and goes dark when
     truthy(not b1.outline, "not outlined even for the frame before the update")
     page:updateContainerHighlight()
     truthy(b1.lit); eq(b1.colour, HOVER)
+    truthy(not b1.outline, "lit as one, not outlined")
     page:onMouseOutButton(button)
     page:updateContainerHighlight()
     truthy(not b1.lit, "nothing left lit in the hover colour")
@@ -145,6 +146,20 @@ test("a hovered machine the game switches off as the mouse leaves goes dark at t
     page:stopHighlightContainer(b1)
     page:updateContainerHighlight()
     truthy(not b1.lit, "not left lit")
+end)
+
+test("a machine of one square is lit as the game lights its crates: outlined", function()
+    local page, a1, _, _, _, _, d1 = load()
+    page.inventory = { parent = d1 }
+    page:updateContainerHighlight()
+    truthy(d1.lit and d1.outline, "the game's light and outline kept")
+    local button = { inventory = { parent = d1 } }
+    page:onMouseOverButton(button)
+    truthy(d1.outline, "outlined under the mouse too")
+    page.inventory = { parent = a1 }
+    page:stopHighlightContainer(d1)
+    page:updateContainerHighlight()
+    truthy(not d1.lit, "not kept lit by the machines' light once another is chosen")
 end)
 
 test("a collapsed window lights nothing", function()

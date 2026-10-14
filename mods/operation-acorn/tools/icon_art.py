@@ -82,8 +82,8 @@ def fit(image, size=SIZE, margin=1, source=None):
 
 
 def draw_tier_mark(img, tier):
-    """A tier's mark (any size), so the three tiers tell apart by more than their colour: worn ones a thin crack across
-    the part itself (only where the part is), modern ones two blue chevrons in the lower right, standard ones none."""
+    """A tier's mark in a fitted icon's lower right (any size): modern ones two blue chevrons. Worn and standard ones
+    have none (worn parts are told by their rust colour alone)."""
     img = img.copy()
     k = img.width / 32.0
     d = ImageDraw.Draw(img)
@@ -93,24 +93,6 @@ def draw_tier_mark(img, tier):
             pts = [(24 * k, (26 + dy) * k), (27 * k, (23 + dy) * k), (30 * k, (26 + dy) * k)]
             d.line(pts, fill=dark, width=max(2, round(3.0 * k)), joint='curve')
             d.line(pts, fill=(110, 190, 250, 255), width=max(1, round(1.4 * k)), joint='curve')
-    elif tier == 'Old':
-        a = img.getchannel('A')
-        box = a.getbbox()
-        if box:
-            x0, y0, x1, y1 = box
-            w, h = x1 - x0, y1 - y0
-            pts = [(x0 + 0.56 * w, y0 + 0.28 * h), (x0 + 0.66 * w, y0 + 0.46 * h), (x0 + 0.6 * w, y0 + 0.58 * h),
-                   (x0 + 0.74 * w, y0 + 0.8 * h)]
-            crack = Image.new('RGBA', img.size, (0, 0, 0, 0))
-            cd = ImageDraw.Draw(crack)
-            cd.line(pts, fill=(36, 22, 14, 230), width=max(1, round(1.5 * k)), joint='curve')
-            if k >= 2:
-                cd.line(pts, fill=(176, 98, 46, 200), width=max(1, round(0.5 * k)), joint='curve')
-            # only on the part, a little in from its outline
-            inside = a.point(lambda v: 255 if v > 200 else 0).filter(ImageFilter.MinFilter(2 * max(1, round(k)) + 1))
-            crack.putalpha(Image.fromarray((np.asarray(crack.getchannel('A'), dtype=np.uint16)
-                                            * np.asarray(inside, dtype=np.uint16) // 255).astype(np.uint8)))
-            img.alpha_composite(crack)
     return img
 
 
@@ -740,7 +722,7 @@ PICTURES = {
 }
 def tier_mark(image, tier):
     """A tiered part's icon with its tier's mark (draw_tier_mark); the high-res copies get it drawn at their size."""
-    if tier == 'Normal':
+    if tier != 'Modern':
         return image
     out = draw_tier_mark(image, tier)
     out.oa_source = getattr(image, 'oa_source', None)
