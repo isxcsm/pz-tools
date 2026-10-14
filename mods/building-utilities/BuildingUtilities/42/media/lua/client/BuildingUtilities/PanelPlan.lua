@@ -103,6 +103,8 @@ local COLOURS = {
     zoneMine = { 0.2, 0.5, 0.6 }, zoneFree = { 0.25, 0.25, 0.25 }, zoneTaken = { 0.5, 0.3, 0.6 },
     zoneFar = { 0.12, 0.12, 0.12 },
     mixed = { 0.8, 0.8, 0.8 },
+    -- the legend's shapes of water with several pipes, apart from the box's white
+    shape = { 0.55, 0.58, 0.63 },
     junction = BU.Units.definition("junction").colour, hydrant = BU.Units.definition("hydrant").colour,
     linePower = { 0.95, 0.72, 0.3 }, lineWater = { 0.45, 0.78, 0.86 }, lineCut = { 0.42, 0.42, 0.44 },
 }
@@ -151,7 +153,7 @@ local function legendEntries(utility, zones, ranges, data)
     local pipes = not zones and utility == "water" and data.pipes or nil
     local function add(name, square)
         local colour = COLOURS[name]
-        if pipes and (name == "tank" or name == "lineWater") then colour = COLOURS.mixed end
+        if pipes and (name == "tank" or name == "lineWater") then colour = COLOURS.shape end
         result[#result + 1] = { r = colour[1], g = colour[2], b = colour[3], square = square,
             text = getText("IGUI_BU_Legend_" .. name) }
     end

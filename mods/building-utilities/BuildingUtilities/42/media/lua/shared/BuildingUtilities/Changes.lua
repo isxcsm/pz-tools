@@ -626,6 +626,7 @@ function Changes.syncReserves(panel)
     local api = BU.api()
     if not api or not BU.enabled("water") then return false end
     local data = panel.water
+    data.reserves = data.reserves or {}
     local keys = {}
     for _, room in ipairs(Panels.zoneRooms(panel)) do keys[#keys + 1] = room.key end
     table.sort(keys)

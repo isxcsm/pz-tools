@@ -2380,6 +2380,16 @@ public final class GameApiTest {
         check(state.rawget("amount").equals(60.0) && state.rawget("capacity").equals(120.0) && own.rawget("amount").equals(20.0)
             && own.rawget("capacity").equals(20.0) && ((KahluaTable)own.rawget("fluids")).rawget("Water").equals(20.0),
             "A fixture's own water is not the network's: " + state.rawget("amount"));
+        // A bottle of something else by the basin is left out, and the square is not foreign for it.
+        var bottle0 = place(20, 20, 0, new IsoObject(new IsoSprite("bottle")));
+        bottle0.fluidContainer = new FluidContainer(1, 0.5f, Fluid.Petrol);
+        call(networks, "removeBuilding", mod, "basin", 20.0, 20.0, 0.0);
+        call(networks, "addBuilding", mod, "basin", 20.0, 20.0, 0.0);
+        frame();
+        own = (KahluaTable)((KahluaTable)state(networks, "basin").rawget("producers")).rawget(1.0);
+        check(own.rawget("amount").equals(20.0) && own.rawget("foreign") == null && state(networks, "basin").rawget("amount").equals(60.0),
+            "A bottle of petrol by the basin made its square foreign: " + own.rawget("amount"));
+        bottle0.square.objects.remove(bottle0);
         // The basin gives its own; the shed takes the fullest store, the basin's (all of 20) before the barrel's.
         check(!basin.getUsesExternalWaterSource() && basin.getFluidAmount() == 20, "The basin does not give its own water");
         check(shed != null && shed.getUsesExternalWaterSource() && shed.getFluidAmount() == 20 && shed.useFluid(5) == 5

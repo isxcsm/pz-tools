@@ -842,48 +842,58 @@ final class WaterGrid implements Hooks.Water {
         if (squares.isEmpty()) return;
         for (Network network : networks.of(UTILITY))
             for (Position at : network.squares()) {
-                Stored stored = squares.contains(at) ? held(at, cells) : null;
+                Stored stored = squares.contains(at) ? held(at, cells, network) : null;
                 if (stored != null) network.stored.put(at, stored);
             }
     }
 
     /**
-     * What a producer's square holds now: its containers if it is loaded, else those the game keeps running there; null
-     * for a square that is not loaded and has none.
+     * What a producer's square holds now for a network: its stores if it is loaded, else the containers the game keeps
+     * running there; null for a square that is not loaded and has none. A store holding a fluid the network does not
+     * take is left out while another there holds only what it takes (a bottle of cologne by a sink); with none such the
+     * square holds them all, and is foreign.
      */
-    private Stored held(Position at, Object cells) throws ReflectiveOperationException {
+    private Stored held(Position at, Object cells, Network network) throws ReflectiveOperationException {
         Object loaded = game.square(cells, at);
-        if (loaded != null) return held(loaded);
+        if (loaded != null) return held(loaded, network);
         List<Object> kept = metas == null ? List.of() : metas.at(at);
         if (kept.isEmpty()) return null;
-        float held = 0, most = 0;
-        var fluids = new HashMap<String, Float>();
+        var stores = new ArrayList<Stored>();
         for (Object container : kept) {
             Stored stored = contents(container);
-            if (stored == null) continue;
-            held += stored.amount();
-            most += stored.capacity();
-            stored.fluids().forEach((name, litres) -> fluids.merge(name, litres, Float::sum));
+            if (stored != null) stores.add(stored);
         }
-        return new Stored(held, most, Map.copyOf(fluids), Long.MIN_VALUE);
+        return together(stores, network, Long.MIN_VALUE);
     }
 
-    /** What the stores on a loaded square (containers, fixtures' own water) hold together, and the last change owed to the square that they took. */
-    private Stored held(Object loaded) throws ReflectiveOperationException {
-        float held = 0, most = 0;
+    /** What the stores on a loaded square (containers, fixtures' own water) hold for a network (see held), and the last change owed to the square that they took. */
+    private Stored held(Object loaded, Network network) throws ReflectiveOperationException {
         long taken = Long.MIN_VALUE;
-        var fluids = new HashMap<String, Float>();
+        var stores = new ArrayList<Stored>();
         for (Object object : game.objectsOn(loaded)) {
             Object container = containerIn(object);
             Stored stored = container != null ? contents(container) : reserveStored(object);
             if (stored == null) continue;
-            held += stored.amount();
-            most += stored.capacity();
-            stored.fluids().forEach((name, litres) -> fluids.merge(name, litres, Float::sum));
+            stores.add(stored);
             taken = Math.max(taken, taken(object));
         }
         // Later changes are numbered past it, also when the ModData read has older numbers.
         if (taken != Long.MIN_VALUE) pending.numberPast(taken);
+        return together(stores, network, taken);
+    }
+
+    /** Stores added up: those holding only what the network takes, or all of them when none does. */
+    private static Stored together(List<Stored> stores, Network network, long taken) {
+        boolean anyOwn = false;
+        for (Stored stored : stores) anyOwn |= !network.foreign(stored.fluids());
+        float held = 0, most = 0;
+        var fluids = new HashMap<String, Float>();
+        for (Stored stored : stores) {
+            if (anyOwn && network.foreign(stored.fluids())) continue;
+            held += stored.amount();
+            most += stored.capacity();
+            stored.fluids().forEach((name, litres) -> fluids.merge(name, litres, Float::sum));
+        }
         return new Stored(held, most, Map.copyOf(fluids), taken);
     }
 
@@ -938,7 +948,7 @@ final class WaterGrid implements Hooks.Water {
             members.resolve(network);
             again |= network.area != area;
             for (Position at : network.squares()) {
-                Stored stored = held(at, cells);
+                Stored stored = held(at, cells, network);
                 if (stored != null) network.stored.put(at, stored);
             }
         }
