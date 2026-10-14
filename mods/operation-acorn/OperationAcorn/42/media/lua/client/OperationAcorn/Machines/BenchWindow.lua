@@ -18,6 +18,8 @@ local Machines = OA.Machines
 local Bench, Layout = Machines.BenchModel, Machines.WindowLayout
 
 OABenchWindow = OAMachineWindow:derive("OABenchWindow")
+-- How long (real ms) a finished work stays on show, its bar full, before the rows come back.
+OABenchWindow.DONE_MS = 1500
 
 -- The character's record (the first-shred marks and the yield's count); nil before the save has one.
 function OABenchWindow:record()
@@ -84,6 +86,10 @@ function OABenchWindow:checkWork()
     local work = self.work
     if work and not ISTimedActionQueue.hasAction(work.last) then
         self.work = nil
+        -- all of it done (not stopped): the full bar stays a moment, or a short work would not be seen to end
+        if work.done >= work.total then
+            self.finished = { total = work.total, untilMs = getTimestampMs() + OABenchWindow.DONE_MS }
+        end
         self:scan()
         self:changed()
     end
@@ -109,6 +115,12 @@ function OABenchWindow:refresh(force)
         local left = self:workLeft()
         progress = { done = work.done, total = work.total, minutesLeft = left,
             share = work.minutesTotal > 0 and 1 - left / work.minutesTotal or work.done / math.max(1, work.total) }
+    elseif self.finished then
+        if getTimestampMs() < self.finished.untilMs then
+            progress = { done = self.finished.total, total = self.finished.total, share = 1, minutesLeft = 0, finished = true }
+        else
+            self.finished = nil
+        end
     end
     local state = Machines.state(self.object)
     local model = Bench.build({ id = state and state.id, kinds = self.kinds, top = self.top, first = self.first,

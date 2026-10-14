@@ -1463,6 +1463,21 @@ test("the bench's bar moves as the item under way is worked, by time, and says t
     end
     for _, h in ipairs(window.body.list.hits) do if h.id == "stop" then bar = h end end
     truthy(left and bar and left[4] >= bar.y and left[4] < bar.y + bar.h, "in the bar's row")
+    -- all done: the full bar stays a moment, then the rows come back
+    for _ = 1, 4 do
+        local a = table.remove(queue, 1)
+        a.onDone(a)
+    end
+    now = now + OAMachineWindow.READ_MS
+    window:update()
+    eq(window.work, nil)
+    truthy(window.model.work and window.model.work.finished, "the finished work on show")
+    eq(window.model.work.share, 1)
+    eq(window.model.work.left, getText("IGUI_OA_Bench_Done"))
+    eq(hitOf(window, "stop").enabled, false)
+    now = now + OABenchWindow.DONE_MS
+    window:update()
+    eq(window.model.work, nil, "gone after its moment")
 end)
 
 test("the bench's list scrolls a row a wheel step under the mouse", function()

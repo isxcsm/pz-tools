@@ -175,6 +175,7 @@
     "IGUI_OA_Bench_None": "Clear",
     "IGUI_OA_Bench_Start": "Shred",
     "IGUI_OA_Bench_Stop": "Stop",
+    "IGUI_OA_Bench_Done": "Done",
     "IGUI_OA_Bench_Progress": "%1 / %2 shredded",
     "IGUI_OA_Bench_Left": "%1 left",
     "IGUI_OA_Bench_Working": "Stay at the bench: walking away stops the work.",

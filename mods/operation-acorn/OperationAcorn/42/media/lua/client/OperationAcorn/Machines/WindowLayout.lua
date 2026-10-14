@@ -509,7 +509,7 @@ local function benchActions(L, m, x, y, w)
         -- how many are done, then a bar as tall as the button, filled by the time done, the time left written in it
         local stop = getText("IGUI_OA_Bench_Stop")
         local sw = buttonWidth(stop)
-        Draw.button(L, x + w - sw, y, sw, btn, stop, "normal", nil, "stop")
+        Draw.button(L, x + w - sw, y, sw, btn, stop, m.work.finished and "disabled" or "normal", nil, "stop")
         local room = w - sw - 10
         local tw = Draw.fit(L, m.work.text, x, ty, floor(room / 3), p.text)
         local bx = x + tw + 10

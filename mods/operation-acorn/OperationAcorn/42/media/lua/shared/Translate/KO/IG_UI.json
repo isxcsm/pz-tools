@@ -175,6 +175,7 @@
     "IGUI_OA_Bench_None": "비우기",
     "IGUI_OA_Bench_Start": "분해 시작",
     "IGUI_OA_Bench_Stop": "멈추기",
+    "IGUI_OA_Bench_Done": "분해 완료",
     "IGUI_OA_Bench_Progress": "%1 / %2개 분해",
     "IGUI_OA_Bench_Left": "%1 남음",
     "IGUI_OA_Bench_Working": "분해대 앞을 지키세요. 자리를 뜨면 작업이 멈춥니다.",
