@@ -64,13 +64,13 @@ Requests.HOUSE_ROOMS = {
 -- (key -> row) and keyOfType (member type -> key); names, member names and the dearest kind's worth are made once
 -- for a key.
 local rows, byKey, keyOfType, aliasOf
-local names, memberNames, dearest = {}, {}, {}
+local names, memberNames, memberTypes, dearest = {}, {}, {}, {}
 
 local function index()
     local now = OA.RequestGroups or {}
     if rows ~= now then
         rows, byKey, keyOfType, aliasOf = now, {}, {}, {}
-        names, memberNames, dearest = {}, {}, {}
+        names, memberNames, memberTypes, dearest = {}, {}, {}, {}
         for _, row in ipairs(rows) do
             byKey[row.id] = row
             for _, t in ipairs(row.items) do keyOfType[t] = row.id end
@@ -262,17 +262,24 @@ function Requests.memberNames(key)
     local hit = memberNames[key]
     if not hit then
         hit = {}
-        local seen = {}
+        local types, seen = {}, {}
         for _, t in ipairs(Requests.members(key)) do
             local name = itemName(t)
             if not seen[name] then
                 seen[name] = true
                 hit[#hit + 1] = name
+                types[#types + 1] = t
             end
         end
-        memberNames[key] = hit
+        memberNames[key], memberTypes[key] = hit, types
     end
     return hit
+end
+
+-- The item type of each of memberNames' kinds (the first of a name), for its picture: the same order.
+function Requests.memberTypes(key)
+    Requests.memberNames(key)
+    return memberTypes[key]
 end
 
 -- What one of an item type is worth by weight at index 1 (its script's weight times its category's credits), made

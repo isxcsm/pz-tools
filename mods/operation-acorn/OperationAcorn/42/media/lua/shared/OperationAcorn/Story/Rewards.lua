@@ -21,9 +21,10 @@ Rewards.STORY_MULTIPLIER = 1.5
 Rewards.STREAK_STEP = 0.10
 Rewards.STREAK_MAX = 3
 
--- The streak's bonus as a fraction (0 to 0.3) for a streak of n missions.
-function Rewards.streakBonus(n)
-    return Rewards.STREAK_STEP * math.min(math.max(n or 0, 0), Rewards.STREAK_MAX)
+-- The streak's bonus as a fraction (0 to 0.3, or to `cap`: the flight support's raised limit) for a streak of n missions.
+function Rewards.streakBonus(n, cap)
+    local bonus = Rewards.STREAK_STEP * math.max(n or 0, 0)
+    return math.min(bonus, cap or Rewards.STREAK_STEP * Rewards.STREAK_MAX)
 end
 
 -- Danger pay (DESIGN-terminal 7.2): the zombie density of the mission's area (the average of the chunks read there) over
@@ -35,10 +36,26 @@ function Rewards.dangerPay(density)
     return OA.clamp(steps * Rewards.DANGER_STEP / 100, 0, Rewards.DANGER_MAX)
 end
 
--- The credits of a mission with its danger pay and the streak's bonus on top of the base (both on the credits only; the
--- trust stays): 30,000 at 15 per cent danger and a streak of 2 is 40,500.
-function Rewards.withBonus(base, danger, streak)
-    return OA.round(base * (1 + (danger or 0) + Rewards.streakBonus(streak)))
+-- Distance pay: how far into its level's band the mission lies (0 at the near edge, 1 at the far one), in steps of 5 per
+-- cent, up to FAR_MAX. Returns the fraction (0 to 0.3).
+Rewards.FAR_MAX, Rewards.FAR_STEP = 0.3, 5
+function Rewards.farPay(distance, lo, hi)
+    if not (distance and lo and hi) or hi <= lo then return 0 end
+    local share = OA.clamp((distance - lo) / (hi - lo), 0, 1)
+    local steps = math.floor(share * Rewards.FAR_MAX * 100 / Rewards.FAR_STEP + 0.5 + 1e-9)
+    return steps * Rewards.FAR_STEP / 100
+end
+
+-- The credits of a mission with its bonuses on top of the base: the danger pay, the streak's (capped at `streakCap`, else
+-- 0.3), the distance pay and the flight support's mission pay: 30,000 at 15 per cent danger and a streak of 2 is 40,500.
+function Rewards.withBonus(base, danger, streak, far, support, streakCap)
+    return OA.round(base * (1 + (danger or 0) + Rewards.streakBonus(streak, streakCap) + (far or 0) + (support or 0)))
+end
+
+-- The trust of a mission: the danger pay and the distance pay go on the trust too (the streak and the flight support,
+-- bought with credits, do not: trust is not bought).
+function Rewards.trustWithBonus(base, danger, far)
+    return OA.round(base * (1 + (danger or 0) + (far or 0)))
 end
 
 -- The urgent mission (7.2): one regular mission in URGENT_CHANCE (per cent), URGENT_HOURS to do it, MULTIPLIER the pay.

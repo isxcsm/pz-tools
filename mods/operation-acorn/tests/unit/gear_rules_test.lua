@@ -91,14 +91,6 @@ test("the loudness argument stores back as the loudness wanted (the game stores 
     end
 end)
 
-test("a kit goes to a target it was ordered for, or to any when it names none", function()
-    truthy(R.matches("", "Base.Bag_ALICEpack"))
-    truthy(R.matches(nil, "CarNormal"))
-    truthy(R.matches("Base.Bag_ALICEpack", "Base.Bag_ALICEpack"))
-    truthy(not R.matches("Base.Bag_ALICEpack", "OperationAcorn.TeamBackpack"))
-    truthy(not R.matches("CarNormal", "PickUpVan"))
-end)
-
 test("the kit kinds are the shop's, with the type names it delivers", function()
     for _, kind in ipairs(OA.Shop.KIT_ORDER) do
         local fullType = R.kitType(kind)

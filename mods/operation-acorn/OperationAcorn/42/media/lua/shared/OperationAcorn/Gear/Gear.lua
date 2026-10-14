@@ -160,78 +160,9 @@ local function dataOf(item)
     return item:hasModData() and item:getModData() or nil
 end
 
--- What a kit was ordered for: the key of one bag or one vehicle (Gear.bagKey, Gear.vehicleKey), or "" for any.
-function Gear.targetOf(kit)
-    local md = dataOf(kit)
-    local target = md and md[K.TARGET]
-    return type(target) == "string" and target or ""
-end
-
 -- The kind of a kit item, or nil when the item is not one.
 function Gear.kindOfItem(kit)
     return kit and Rules.kindOf(kit:getFullType()) or nil
-end
-
--- ---- targets: one bag, one vehicle ---------------------------------------------------------------------------
--- The shop counts kits per target and the price rises with the count (NUMBERS 7), so a target is one bag or one
--- vehicle, named by an id that stays with it:
---   a bag    its item id (InventoryItem.getID): the game saves it with the item (InventoryItem.save and load, found with
---            javap) and it stays the same when the bag is moved between containers.
---   a car    an id this part writes into the modData of the vehicle's parts (OA_TargetId on the engine and the trunk
---            parts) the first time it is chosen as a target. The game saves part modData with the vehicle; it does not
---            save the vehicle's own modData (IsoMovingObject.save writes none), and its other ids are not unique
---            (mechanicalId is random under 100000) or not saved (sqlId).
-
--- The key a bag's kits are counted under.
-function Gear.bagKey(bag)
-    return tostring(bag:getID())
-end
-
--- The parts that carry a vehicle's id (the ones the kits change).
-local function carriers(vehicle)
-    local found = {}
-    for _, id in ipairs({ Gear.ENGINE_PART, Gear.TRUNK_PARTS[1], Gear.TRUNK_PARTS[2] }) do
-        local part = vehicle:getPartById(id)
-        if part then found[#found + 1] = part end
-    end
-    return found
-end
-
--- Puts an id on a vehicle if it has none; returns the id it has. Called on the server (a client asks with gear.tag).
-function Gear.tagVehicle(vehicle, tag)
-    local have
-    local parts = carriers(vehicle)
-    for _, part in ipairs(parts) do
-        have = have or part:getModData()[K.VEHICLE_ID]
-    end
-    if have or #parts == 0 then return have end
-    for _, part in ipairs(parts) do
-        part:getModData()[K.VEHICLE_ID] = tag
-        if vehicle.transmitPartModData then vehicle:transmitPartModData(part) end
-    end
-    return tag
-end
-
--- The id of a vehicle, nil when it has none yet. With `create` it is given one (nil still for a vehicle without an
--- engine or a trunk, which no kit goes to).
-function Gear.vehicleId(vehicle, create)
-    for _, part in ipairs(carriers(vehicle)) do
-        local id = part:getModData()[K.VEHICLE_ID]
-        if id then return id end
-    end
-    if not create then return nil end
-    local tag = "v" .. tostring(OA.random(100000, 999999)) .. "-" .. tostring(math.floor(OA.hours() * 60))
-    local id = Gear.tagVehicle(vehicle, tag)
-    -- on a client the server must have it too, or the kit would find no vehicle there
-    if id == tag and isClient and isClient() and getPlayer then
-        OA.Sync.send(getPlayer(), "gear.tag", { vehicle = vehicle:getId(), tag = tag })
-    end
-    return id
-end
-
--- The key a vehicle's kits are counted under: its id, "" while it has none.
-function Gear.vehicleKey(vehicle)
-    return Gear.vehicleId(vehicle) or ""
 end
 
 -- The name of a vehicle as the mechanics window shows it (IGUI_VehicleName<model>).
@@ -244,63 +175,12 @@ function Gear.vehicleName(vehicle)
     return text or name
 end
 
--- A vehicle's name with how far it is from a character, to tell two of a kind apart.
-function Gear.vehicleLabel(vehicle, character)
-    local dx, dy = vehicle:getX() - character:getX(), vehicle:getY() - character:getY()
-    return Gear.vehicleName(vehicle) .. " - " ..
-        getText("IGUI_OA_Gear_Away", tostring(math.floor(math.sqrt(dx * dx + dy * dy) + 0.5)))
-end
-
--- Names that two targets share get a number after them.
-local function numbered(list)
-    local count, seen = {}, {}
-    for _, t in ipairs(list) do count[t.name] = (count[t.name] or 0) + 1 end
-    for _, t in ipairs(list) do
-        if count[t.name] > 1 then
-            seen[t.name] = (seen[t.name] or 0) + 1
-            t.name = t.name .. " #" .. seen[t.name]
-        end
-    end
-    return list
-end
-
 -- Whether an item is a bag the bag kits go to: one worn on the back (a backpack; not a key ring, a fanny pack, a
 -- satchel or a bag held in the hand).
 function Gear.isBackpack(item)
     if not (item and item:IsInventoryContainer()) then return false end
     local slot = item.canBeEquipped and item:canBeEquipped()
     return slot ~= nil and ItemBodyLocation ~= nil and slot == ItemBodyLocation.BACK
-end
-
--- The backpacks a character has (top level and worn): { { target = key, name }, ... } for the shop's order.
-function Gear.bagTargets(character)
-    local found = {}
-    local items = character:getInventory():getItems()
-    for i = 0, items:size() - 1 do
-        local item = items:get(i)
-        if Gear.isBackpack(item) then
-            found[#found + 1] = { target = Gear.bagKey(item), name = item:getDisplayName() }
-        end
-    end
-    return numbered(found)
-end
-
--- The vehicles within `radius` squares of a character that a kit of this kind goes to (a trunk kit: one with a trunk,
--- an engine kit: one with an engine): { { target = id, name }, ... }. Each is given its id.
-function Gear.vehicleTargets(character, kind, radius)
-    local found = {}
-    local vehicles = OA.vehicles()
-    for i = 0, vehicles:size() - 1 do
-        local vehicle = vehicles:get(i)
-        local dx, dy = vehicle:getX() - character:getX(), vehicle:getY() - character:getY()
-        local takes = (kind == "trunk" and #Gear.trunkParts(vehicle) > 0)
-            or (kind == "engine" and vehicle:getPartById(Gear.ENGINE_PART) ~= nil)
-        if takes and dx * dx + dy * dy <= radius * radius then
-            local id = Gear.vehicleId(vehicle, true)
-            if id then found[#found + 1] = { target = id, name = Gear.vehicleLabel(vehicle, character) } end
-        end
-    end
-    return numbered(found)
 end
 
 -- The backpacks and the kits a character carries, in any container: { key, bags = { item }, kits = { [kind] = { item } } }.
@@ -330,33 +210,6 @@ function Gear.carried(character)
     end
     carriedCache[character] = found
     return found
-end
-
--- The bag or the vehicle a target key names, or nil: a bag the character has, a vehicle in the loaded cell.
-function Gear.findTarget(kind, target, character)
-    if target == nil or target == "" then return nil end
-    if Rules.SCOPE[kind] == "bag" then
-        for _, bag in ipairs(Gear.carried(character).bags) do
-            if Gear.bagKey(bag) == target then return bag end
-        end
-        return nil
-    end
-    local vehicles = OA.vehicles()
-    for i = 0, vehicles:size() - 1 do
-        local vehicle = vehicles:get(i)
-        if Gear.vehicleId(vehicle) == target then return vehicle end
-    end
-    return nil
-end
-
--- The name a kit's target is shown under: the bag's or the vehicle's name, "any", or "not found" when the bag is not
--- with the character or the vehicle is not near.
-function Gear.targetName(kind, target, character)
-    if target == nil or target == "" then return getText("IGUI_OA_Gear_AnyTarget") end
-    local found = character and Gear.findTarget(kind, target, character)
-    if not found then return getText("IGUI_OA_Gear_TargetUnknown") end
-    if Rules.SCOPE[kind] == "bag" then return found:getDisplayName() end
-    return Gear.vehicleName(found)
 end
 
 -- ---- removing and giving items --------------------------------------------------------------------------------
@@ -436,13 +289,11 @@ function Gear.refreshBag(bag)
 end
 
 -- Fits a bag kit to a bag: counts it, writes it into the bag, uses the kit up. Returns true and the bag's new value
--- (the capacity, or the weight reduction), or false and the reason: "kit" (not a bag kit), "bag" (not a backpack),
--- "target" (the kit was ordered for another bag).
+-- (the capacity, or the weight reduction), or false and the reason: "kit" (not a bag kit), "bag" (not a backpack).
 function Gear.fitBag(character, kit, bag)
     local kind = Gear.kindOfItem(kit)
     if Rules.SCOPE[kind] ~= "bag" then return false, "kit" end
     if not bag or not bag.IsInventoryContainer or not Gear.isBackpack(bag) or bag == kit then return false, "bag" end
-    if not Rules.matches(Gear.targetOf(kit), Gear.bagKey(bag)) then return false, "target" end
     local md = bag:getModData()
     if md[K.BAG_BASE_CAP] == nil then
         md[K.BAG_BASE_CAP] = bag:getItemContainer():getCapacity()
@@ -557,12 +408,11 @@ function Gear.refreshTrunk(vehicle, part)
 end
 
 -- Fits a trunk kit to a vehicle. Returns true and the new capacity, or false and the reason: "kit", "gone",
--- "far", "target" (ordered for another vehicle), "part" (no trunk).
+-- "far", "part" (no trunk).
 function Gear.fitTrunk(character, kit, vehicle)
     if Gear.kindOfItem(kit) ~= "trunk" then return false, "kit" end
     if not vehicle then return false, "gone" end
     if not Gear.near(character, vehicle) then return false, "far" end
-    if not Rules.matches(Gear.targetOf(kit), Gear.vehicleKey(vehicle)) then return false, "target" end
     local parts = Gear.trunkParts(vehicle)
     if #parts == 0 then return false, "part" end
     local total = 0
@@ -623,7 +473,6 @@ function Gear.fitEngine(character, kit, vehicle)
     if Gear.kindOfItem(kit) ~= "engine" then return false, "kit" end
     if not vehicle then return false, "gone" end
     if not Gear.near(character, vehicle) then return false, "far" end
-    if not Rules.matches(Gear.targetOf(kit), Gear.vehicleKey(vehicle)) then return false, "target" end
     local part = vehicle:getPartById(Gear.ENGINE_PART)
     if not part then return false, "part" end
     local md = part:getModData()
@@ -690,18 +539,15 @@ end
 
 -- ---- the voucher ----------------------------------------------------------------------------------------------
 
--- Redeems a kit voucher: the voucher is used up and the character gets one kit of the kind, for any target. The kit
--- is not bought: the shop does not count it, so the price of the next kit bought for the same target does not rise
--- (NUMBERS 5). Fitting it counts on the bag or the vehicle like any kit. Returns true, or false and the reason.
+-- Redeems a kit voucher: the voucher is used up and the character gets one kit of the kind. The kit is not bought:
+-- the shop does not count it, so the price of the next kit of the kind does not rise (NUMBERS 7). Fitting it counts
+-- on the bag or the vehicle like any kit. Returns true, or false and the reason.
 function Gear.redeem(character, voucher, kind)
     if not voucher or voucher:getFullType() ~= Gear.VOUCHER then return false, "voucher" end
     local fullType = Rules.kitType(kind)
     if not fullType then return false, "kind" end
     local kit = instanceItem(fullType)
     if not kit then return false, "kind" end
-    local md = kit:getModData()
-    md[K.TARGET] = ""
-    md[K.VOUCHER] = true
     removeItem(voucher)
     giveItem(character, kit)
     notice(character, "IGUI_OA_Gear_Redeemed", { kit:getDisplayName() })

@@ -178,7 +178,7 @@ local SHOW_GROUND = { "CommTerminal", "DeliveryBox", "ShredBench" } -- the bench
 local SHOW_MACHINES = {
     { "shredBench", 1, 4 }, { "bulkShredder", 4, 4 }, { "cutter", 7, 4 }, { "woodSaw", 10, 4 },
     { "researchStorage", 13, 4 }, { "propaneRefiner", 1, 7 }, { "oilRefiner", 5, 7 }, { "rainStorage", 9, 7 },
-    { "lure", 13, 7 },
+    { "lure", 13, 7 }, { "researchCrate", 15, 7 },
 }
 local show = nil   -- what Dev.showroom made: { objects, machines, generator, ground, items }
 

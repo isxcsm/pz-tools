@@ -43,19 +43,6 @@ Menu.TEXTS = {
     KitBagCapacity = true, KitBagWeight = true, KitTrunk = true, KitEngine = true,
 }
 
--- The line that says what a kit was ordered for. Finding the bag or the vehicle looks through the inventory or the
--- cell, so the line is kept for a minute of game time per kit (a tooltip is drawn every frame it is shown).
-local lineCache = setmetatable({}, { __mode = "k" })
-
-function Menu.kitForLine(kit, kind)
-    local now = OA.hours()
-    local hit = lineCache[kit]
-    if hit and math.abs(now - hit.at) < 1 / 60 then return hit.text end
-    local text = getText("Tooltip_OA_Gear_KitFor", Gear.targetName(kind, Gear.targetOf(kit), getPlayer()))
-    lineCache[kit] = { at = now, text = text }
-    return text
-end
-
 -- The lines of an item's tooltip that this part adds (none for most items).
 local function extraLines(item)
     local own = item:getModule() == OA.MOD and Menu.TEXTS[item:getType()]
@@ -64,8 +51,6 @@ local function extraLines(item)
     local lines = {}
     if own then
         lines[#lines + 1] = getText("Tooltip_OA_Gear_" .. item:getType())
-        local kind = Gear.kindOfItem(item)
-        if kind then lines[#lines + 1] = Menu.kitForLine(item, kind) end
         -- a fuel can: what it weighs as carried (the game's weight line above is the scale's)
         local carried = Gear.FUEL_CANS[item:getType()] and Gear.carriedWeight(item)
         if carried then lines[#lines + 1] = getText("Tooltip_OA_Gear_CanCarried", string.format("%.1f", carried)) end
@@ -97,15 +82,9 @@ end
 
 -- ---- the inventory menu ---------------------------------------------------------------------------------------
 
--- The kits of a kind a character has that may go to a target called `key`, the ones ordered for it first.
-local function kitsFor(player, kind, key)
-    local exact, any = {}, {}
-    for _, kit in ipairs(Gear.carried(player).kits[kind] or {}) do
-        local target = Gear.targetOf(kit)
-        if target == "" then any[#any + 1] = kit elseif target == key then exact[#exact + 1] = kit end
-    end
-    for _, kit in ipairs(any) do exact[#exact + 1] = kit end
-    return exact
+-- The kits of a kind a character has.
+local function kitsOf(player, kind)
+    return Gear.carried(player).kits[kind] or {}
 end
 
 local function fitBag(player, kit, bag)
@@ -118,17 +97,15 @@ local function describeBag(bag)
     return lines and join(lines) or getText("Tooltip_OA_Gear_NoKits")
 end
 
--- The entry on a bag kit: fit it to one of the bags the character has that it was ordered for.
+-- The entry on a bag kit: fit it to one of the bags the character has.
 local function addBagKitMenu(context, player, kit)
-    local kind = Gear.kindOfItem(kit)
     local option = context:addOptionOnTop(getText("ContextMenu_OA_Gear_FitBag"), nil, nil)
-    local target = Gear.targetOf(kit)
     local fits = {}
     for _, bag in ipairs(Gear.carried(player).bags) do
-        if bag ~= kit and Rules.matches(target, Gear.bagKey(bag)) then fits[#fits + 1] = bag end
+        if bag ~= kit then fits[#fits + 1] = bag end
     end
     if #fits == 0 then
-        unavailable(option, getText("Tooltip_OA_Gear_NoBag", Gear.targetName(kind, target, player)))
+        unavailable(option, getText("Tooltip_OA_Gear_NoBag"))
         return
     end
     local sub = ISContextMenu:getNew(context)
@@ -140,16 +117,16 @@ local function addBagKitMenu(context, player, kit)
 end
 
 -- The entry on a vehicle kit: it is fitted from the vehicle's mechanics window.
-local function addVehicleKitHint(context, kit)
+local function addVehicleKitHint(context)
     local option = context:addOptionOnTop(getText("ContextMenu_OA_Gear_FitVehicle"), nil, nil)
-    unavailable(option, getText("Tooltip_OA_Gear_FitVehicle", Gear.targetName(Gear.kindOfItem(kit), Gear.targetOf(kit), getPlayer())))
+    unavailable(option, getText("Tooltip_OA_Gear_FitVehicle"))
 end
 
 local function redeem(player, voucher, kind)
     OA.Sync.send(player, "gear.redeem", { item = voucher:getID(), kind = kind })
 end
 
--- The entry on the handover voucher: one kit of the kind chosen, for any target, not counted in the shop's price.
+-- The entry on the handover voucher: one kit of the kind chosen, not counted in the shop's price.
 local function addVoucherMenu(context, player, voucher)
     local option = context:addOptionOnTop(getText("ContextMenu_OA_Gear_Redeem"), nil, nil)
     local sub = ISContextMenu:getNew(context)
@@ -165,7 +142,7 @@ local function addFitKitMenu(context, player, bag)
     if not bag:getContainer() then return end
     local entries = {}
     for _, kind in ipairs({ "bagCapacity", "bagWeight" }) do
-        local kits = kitsFor(player, kind, Gear.bagKey(bag))
+        local kits = kitsOf(player, kind)
         if #kits > 0 then entries[#entries + 1] = { kind = kind, kit = kits[1], count = #kits } end
     end
     if #entries == 0 then return end
@@ -196,7 +173,7 @@ local function onFillInventory(playerNum, context, items)
                 if Rules.SCOPE[Gear.kindOfItem(item)] == "bag" then
                     addBagKitMenu(context, player, item)
                 else
-                    addVehicleKitHint(context, item)
+                    addVehicleKitHint(context)
                 end
             end
         elseif item:IsInventoryContainer() and not done.bag then
@@ -219,10 +196,9 @@ local function fitVehicle(player, kit, part)
     ISTimedActionQueue.add(ISOAFitVehicleKit:new(player, kit, part:getVehicle()))
 end
 
--- Adds the entry of one kind of kit to a part's menu: enabled with a kit the character has for this vehicle.
+-- Adds the entry of one kind of kit to a part's menu: enabled with a kit of the kind the character has.
 local function addPartEntry(context, player, part, kind, labelKey, lines)
-    local vehicle = part:getVehicle()
-    local kits = kitsFor(player, kind, Gear.vehicleKey(vehicle))
+    local kits = kitsOf(player, kind)
     local option = context:addOptionOnTop(getText(labelKey), player, fitVehicle, kits[1], part)
     local text = lines and join(lines) or getText("Tooltip_OA_Gear_NoKits")
     if #kits == 0 then

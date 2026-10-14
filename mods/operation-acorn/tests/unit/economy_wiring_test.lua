@@ -160,7 +160,7 @@ test("a pickup from the world tags the cell and enters the codex", function()
     eq(result, hammer, "the original's result comes back")
     eq(hammer.data.OA_Cell, "5,2")
     truthy(record.codex.kinds.Hammer)
-    near(record.trade.bonus, 20)
+    near(record.trade.bonus, 100)
 end)
 
 test("a pickup keeps the first cell an item was tagged with", function()

@@ -32,12 +32,12 @@ import numpy as np  # noqa: E402
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter  # noqa: E402
 
 import tile_engine as E  # noqa: E402
-from tile_engine import Scene, rotation, apply, add, stencil_text, acorn_mark, font  # noqa: E402
+from tile_engine import Scene, rotation, stencil_text, acorn_mark, font  # noqa: E402 (font: the icon modules use I.font)
 import tile_objects as O  # noqa: E402
-from tile_objects import (OD, OD_DARK, OD_LIGHT, TAN, CANVAS, BLACK, RUBBER, GREY, STEEL, STEEL_DARK, PIPE, WHITE,  # noqa: E402
-                          STENCIL, YELLOW, RED, BRASS, WOOD, WOOD_DARK, BLUE, flat_decal, front_decal, side_decal,
-                          stick, noise_texture)
+from tile_objects import (OD, OD_DARK, OD_LIGHT, TAN, BLACK, STEEL, STEEL_DARK, STENCIL, YELLOW, WOOD,  # noqa: E402
+                          WOOD_DARK, flat_decal, front_decal, noise_texture)
 import tile_art as A  # noqa: E402
+import tile_trade as T  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TEXTURES = os.path.join(HERE, '..', 'OperationAcorn', '42', 'media', 'textures')
@@ -597,54 +597,6 @@ def kit(kind, plate):
     return from_scene(s)
 
 
-def board_image(w=64, h=48):
-    """A green circuit board: chips, traces, a gold edge connector."""
-    img = Image.new('RGBA', (w, h), (40, 120, 64, 255))
-    d = ImageDraw.Draw(img)
-    for i in range(6):
-        d.line([(2, 6 + i * 7), (w - 3, 6 + i * 7)], fill=(70, 160, 90, 255), width=1)
-    for x, y, cw, chh in ((6, 6, 18, 12), (30, 8, 12, 10), (46, 6, 12, 14), (8, 26, 24, 10), (38, 26, 18, 10)):
-        d.rectangle([x, y, x + cw, y + chh], fill=(26, 28, 30, 255))
-    d.rectangle([4, h - 6, w - 5, h - 2], fill=(214, 172, 60, 255))
-    return img
-
-
-def field_terminal():
-    """The field terminal: an open olive hard case, the team's mark on its lid, in the foam a circuit board, a
-    rugged antenna module with its stubby antenna up, and a coil of cable."""
-    s = Scene(0)
-    x0, x1, y0, y1, zb = 0.10, 0.90, 0.30, 0.86, 0.22
-    s.box(x0, y0, 0.0, x1, y1, zb, OD, top=OD_DARK, shine=0.15)
-    s.box(x0 - 0.005, y1 - 0.005, 0.08, x1 + 0.005, y1 + 0.005, 0.11, OD_DARK)
-    for lx in (x0 + 0.12, x1 - 0.2):
-        s.box(lx, y1, zb - 0.07, lx + 0.08, y1 + 0.02, zb + 0.01, STEEL_DARK, shine=0.5)
-    front_decal(s, x0 + 0.28, x1 - 0.28, 0.03, 0.12, y1 + 0.006, stencil_text('OAK-UP', 50, 14, STENCIL), offset=0.0)
-    # the foam bed and the parts in it
-    s.box(x0 + 0.03, y0 + 0.03, zb - 0.02, x1 - 0.03, y1 - 0.03, zb, (84, 90, 82), top=(104, 110, 100))
-    s.box(x0 + 0.06, y0 + 0.08, zb, x0 + 0.42, y1 - 0.08, zb + 0.025, (40, 120, 64))
-    flat_decal(s, x0 + 0.06, y0 + 0.08, x0 + 0.42, y1 - 0.08, zb + 0.026, board_image(), offset=0.0)
-    s.box(x0 + 0.48, y0 + 0.14, zb, x0 + 0.66, y1 - 0.12, zb + 0.12, OD_DARK, top=OD_LIGHT, shine=0.3)
-    s.tube((x0 + 0.57, y0 + 0.24, zb + 0.12), (x0 + 0.57, y0 + 0.24, zb + 0.16), 0.04, STEEL_DARK, segments=12, shine=0.5)
-    s.tube((x0 + 0.57, y0 + 0.24, zb + 0.16), (x0 + 0.57, y0 + 0.24, zb + 0.56), 0.032, RUBBER, r2=0.02, cap=(60, 60, 62),
-           segments=12, shine=0.3)
-    s.tube((x0 + 0.57, y1 - 0.2, zb + 0.12), (x0 + 0.57, y1 - 0.2, zb + 0.15), 0.025, BRASS, segments=12, shine=0.6)
-    for i in range(3):
-        s.tube((x1 - 0.12, y1 - 0.2, zb + i * 0.035), (x1 - 0.12, y1 - 0.2, zb + 0.025 + i * 0.035), 0.1,
-               (26, 26, 28), cap=(56, 58, 60), segments=20, shine=0.3)
-    s.tube((x1 - 0.12, y1 - 0.2, zb + 0.09), (x1 - 0.12, y1 - 0.2, zb + 0.096), 0.06, (104, 110, 100), segments=16)
-    # the lid standing open behind, the team's mark on its outside, foam inside
-    rot = rotation((1, 0, 0), 28)
-    size = (x1 - x0 + 0.02, 0.07, 0.5)
-    hinge = ((x0 + x1) / 2, y0 + 0.02, zb)
-    centre = add(hinge, apply(rot, (0, -0.03, size[2] / 2)))
-    s.xbox(centre, size, rot, OD, top=OD_DARK, shine=0.15)
-    stick(s, centre, rot, size, '+y', noise_texture(30, 20, 3, (96, 102, 92), spread=18), margin=0.02, offset=0.002)
-    stick(s, centre, rot, size, '+y', acorn_mark(40, STENCIL), margin=0.14, offset=0.004)
-    big = s.render()
-    return fit(brighten(big.convert('RGBa').resize((E.W * 2, E.H * 2), Image.LANCZOS).convert('RGBA'), 1.2),
-               source=brighten(big, 1.2))
-
-
 def backpack():
     """The research team backpack: its floor model itself, rendered by tools/backpack_mesh.py (backpack_icon_source.png,
     remade with the model or alone with --icon), so the icon is the bag the player sees on the floor and on the back."""
@@ -668,24 +620,6 @@ def jerrycan(mk):
     return model_icon('fuelcan_icon_source_mk%d.png' % mk)
 
 
-def torch(mk):
-    body = {1: OD, 2: (140, 146, 150), 3: (196, 60, 44)}[mk]
-    dark = {1: OD_DARK, 2: (96, 100, 104), 3: (140, 40, 30)}[mk]
-    s = Scene(0)
-    s.tilt = (rotation((0, 1, 0), -30), (0.5, 0.5, 0.25))
-    s.tube((0.18, 0.5, 0.2), (0.5, 0.5, 0.2), 0.055, BLACK, cap=(60, 60, 62), segments=14, shine=0.2)
-    s.box(0.46, 0.42, 0.14, 0.7, 0.58, 0.34, body, top=dark, shine=0.5)
-    s.tube((0.7, 0.5, 0.26), (0.9, 0.5, 0.26), 0.04, STEEL, cap=STEEL, segments=14, shine=0.8)
-    s.tube((0.9, 0.5, 0.26), (0.97, 0.5, 0.26), 0.02, BRASS, segments=12, shine=0.8, r2=0.012)
-    s.tube((0.6, 0.5, 0.34), (0.6, 0.5, 0.44), 0.012, STEEL_DARK, segments=6)
-    s.tube((0.6, 0.5, 0.44), (0.6, 0.5, 0.48), 0.045, (210, 70, 50), segments=14, shine=0.3)
-    # two hoses running back and down
-    s.tube((0.18, 0.46, 0.2), (0.1, 0.4, 0.08), 0.02, (198, 60, 40), segments=8)
-    s.tube((0.18, 0.54, 0.2), (0.1, 0.6, 0.08), 0.02, (50, 90, 160), segments=8)
-    front_decal(s, 0.5, 0.68, 0.17, 0.3, 0.581, stencil_text('MK%d' % mk, 40, 20, (234, 230, 210)), offset=0.0)
-    return from_scene(s)
-
-
 def lure_icon():
     """The lure as it stands (its tile, switched off): the horns on the mast read as a loudspeaker, where a box with one
     horn read as a gravestone."""
@@ -693,7 +627,9 @@ def lure_icon():
 
 
 PICTURES = {
-    'terminal': lambda: fit(brighten(O.terminal(0, True))),
+    # each terminal as it stands, switched on: the crude one (CommTerminal) and the team's field terminal
+    'crude_terminal': lambda: fit(brighten(T.crude_terminal(0, True))),
+    'field_terminal': lambda: fit(brighten(O.terminal(0, True))),
     'delivery_box': trade_tile(9),
     'supply_crate': trade_tile(10),
     'manual': document_manual,
@@ -719,16 +655,15 @@ PICTURES = {
     'oil_refiner': machine('oilRefiner'),
     'wood_saw': machine('woodSaw'),
     'research_storage': machine('researchStorage'),
+    'research_crate': machine('researchCrate'),
     'rain_storage': machine('rainStorage', 3),
     'lure': lure_icon,
     'backpack': backpack,
-    'field_terminal': field_terminal,
     'kit_bag_capacity': lambda: kit('bagplus', (170, 200, 236)),
     'kit_bag_weight': lambda: kit('bagfeather', (240, 200, 120)),
     'kit_trunk': lambda: kit('trunk', (168, 220, 196)),
     'kit_engine': lambda: kit('engine', (236, 170, 150)),
     'fuel_can_1': lambda: jerrycan(1), 'fuel_can_2': lambda: jerrycan(2), 'fuel_can_3': lambda: jerrycan(3),
-    'torch_1': lambda: torch(1), 'torch_2': lambda: torch(2), 'torch_3': lambda: torch(3),
 }
 def tier_mark(image, tier):
     """A tiered part's icon with its tier's mark (draw_tier_mark); the high-res copies get it drawn at their size."""

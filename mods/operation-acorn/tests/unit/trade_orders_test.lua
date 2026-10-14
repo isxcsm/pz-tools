@@ -25,15 +25,15 @@ local function fakeShop(options)
         nameKey = function(entry) return "IGUI_OA_Econ_Shop_Item_" .. entry.id end,
         choices = function(entry) return entry.choices end,
         price = function(entry) return entry.price end,
-        kitPrice = function(kind, target) return 100 + #tostring(target) end,
+        kitPrice = function(kind, record, ahead) return 100 + (ahead or 0) end,
         available = function(entry)
             local left = (options.most or {})[entry.id]
             if left == nil then return 99 end
             if left <= 0 then return 0, "IGUI_OA_Econ_Shop_Limit" end
             return left
         end,
-        bought = function(entry, record, count, target)
-            bought[#bought + 1] = { id = entry.id, count = count, target = target }
+        bought = function(entry, record, count)
+            bought[#bought + 1] = { id = entry.id, count = count }
         end,
     }
     return bought
@@ -47,12 +47,12 @@ test("a cart keeps known entries, picks a valid choice and merges repeats", func
     local cart = Orders.set(record, {
         { id = "battery_pack", count = 2 }, { id = "battery_pack", count = 3 }, { id = "nothing", count = 1 },
         { id = "car_battery", count = 1, choice = "Base.CarBattery2" }, { id = "car_battery", count = 1, choice = "bad" },
-        { id = "kit_trunk", count = 1, target = "car7" }, { id = "petrol_can", count = 0 } })
+        { id = "kit_trunk", count = 1 }, { id = "petrol_can", count = 0 } })
     eq(#cart, 4)
     eq(cart[1].count, 5)
     eq(cart[2].choice, "Base.CarBattery2")
     eq(cart[3].choice, "Base.CarBattery1", "an offered choice replaces one that is not offered")
-    eq(cart[4].target, "car7")
+    eq(cart[4].id, "kit_trunk")
 end)
 
 test("a line brings the goods it names or the choice it made", function()
@@ -65,8 +65,6 @@ test("a line brings the goods it names or the choice it made", function()
     eq(specs[1].empty, true)
     specs = Orders.itemSpecs(Orders.entry("petrol_can"), {})
     eq(specs[1].fluid, "Petrol")
-    specs = Orders.itemSpecs(Orders.entry("kit_trunk"), { target = "car7" })
-    eq(specs[1].mod.OA_Target, "car7")
     specs = Orders.itemSpecs(Orders.entry("battery_pack"), {})
     eq(specs[1].count, 4)
 end)
@@ -83,13 +81,13 @@ test("the shop's limit counts units of a line and tells why", function()
     eq(#items, 2)
 end)
 
-test("a kit is priced with its target and the cart estimate adds the lines", function()
+test("a kit's later units are priced after the ones before them and the cart estimate adds the lines", function()
     fakeShop()
     local record = newRecord()
-    Orders.set(record, { { id = "battery_pack", count = 2 }, { id = "kit_trunk", count = 1, target = "car7" } })
+    Orders.set(record, { { id = "battery_pack", count = 2 }, { id = "kit_trunk", count = 2 } })
     local total, left = Orders.estimate(record, 20000)
-    eq(total, 8000 + 104)
-    eq(left, 20000 - 8104)
+    eq(total, 8000 + 100 + 101)
+    eq(left, 20000 - 8201)
 end)
 
 test("an unknown shop gives no entries and a name is the entry's", function()
@@ -103,7 +101,7 @@ test("at the crude terminal the research team's goods are left out of the cart a
     fakeShop()
     OA.Shop.fieldOnly = function(entry) return entry.id == "kit_trunk" or entry.id == "fuelcan_mk1" end
     local record = newRecord()
-    local lines = { { id = "battery_pack", count = 1 }, { id = "kit_trunk", count = 1, target = "car7" },
+    local lines = { { id = "battery_pack", count = 1 }, { id = "kit_trunk", count = 1 },
         { id = "fuelcan_mk1", count = 2 } }
     local cart, dropped = Orders.set(record, lines, true)
     eq(#cart, 1)

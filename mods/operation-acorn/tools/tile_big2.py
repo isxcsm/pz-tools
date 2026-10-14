@@ -1,12 +1,13 @@
-"""Two-tile machines, part 2, and the big rain storage: the wood saw and the research storage (2 x 1), the rain storage
-(2 x 2). See tile_big1.py."""
+"""Two-tile machines, part 2, and the big rain storage: the wood saw and the research storage (2 x 1), its stacking
+crate (1 x 1), the rain storage (2 x 2). See tile_big1.py."""
 import math
 import random
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
-from tile_engine import OWNERS, Scene, shadow, compose, unit, rotation, apply, add, mul, stencil_text, acorn_mark, project, SS
+from tile_engine import (OWNERS, Scene, shadow, compose, unit, rotation, apply, add, mul, stencil_text, acorn_mark, project,
+                         SS, UP)
 from tile_objects import (OD, OD_DARK, OD_LIGHT, TAN, CANVAS, BLACK, RUBBER, GREY, STEEL, STEEL_DARK, PIPE, WHITE,
                           STENCIL, YELLOW, RED, BRASS, WOOD, WOOD_DARK, BLUE, LIT, UNLIT, BEZEL, lamp, lamp_y,
                           front_decal, side_decal, back_decal, west_decal, flat_decal, noise_texture)
@@ -236,6 +237,44 @@ def research_storage(turns):
         s.tube((ex - 0.025, ey, zt + 0.04), (ex + 0.025, ey, zt + 0.04), 0.022, STEEL, segments=12, shine=0.6, caps=False)
     ground = shadow((1.0, 0.52), 1.0, 0.38, 125)
     return compose(s, ground=ground, seed=160 + turns, glows=[])
+
+
+# The research crate's height: the game stacks a table's tiles its Surface (32) apart, times the tile scale (64 pixels in
+# these tiles), and a unit up is UP pixels: the crate's top is where the next one stands.
+CRATE_TOP = 64 / UP
+
+
+def research_crate():
+    """The research crate (1 x 1), the research storage's small kind that stacks three high. Like the game's crates it
+    has no front: an olive steel crate on four feet, the same on every side (a lid's seam, two ribs, a carrying handle,
+    the team's lettering and mark). Its top is flat: the next crate stands on it."""
+    s = Scene(0)
+    lo, hi = 0.08, 0.92
+    zt = CRATE_TOP
+    zl = zt - 0.14
+    for fx in (lo + 0.02, hi - 0.1):
+        for fy in (lo + 0.02, hi - 0.1):
+            s.box(fx, fy, 0.0, fx + 0.08, fy + 0.08, 0.05, GRAPHITE_DARK)
+    s.box(lo, lo, 0.05, hi, hi, zl, OD, top=OD_LIGHT, shine=0.1)
+    # the lid, a little wider than the body, its rim in the body's olive under a light top
+    s.box(lo - 0.012, lo - 0.012, zl, hi + 0.012, hi + 0.012, zt, OD, top=OD_LIGHT, shine=0.1)
+    f = hi + 0.007
+    # the two faces the tile shows (south and east), alike: what stands out of a face spans a..b along it, z0..z1 up,
+    # d deep; the lettering and the mark sit on it
+    faces = (
+        lambda a, b, z0, z1, d, colour, shine=0.0: s.box(a, hi, z0, b, hi + d, z1, colour, shine=shine),
+        lambda a, b, z0, z1, d, colour, shine=0.0: s.box(hi, a, z0, hi + d, b, z1, colour, shine=shine),
+    )
+    for raised in faces:
+        for z in (0.16, 0.40):
+            raised(lo + 0.03, hi - 0.03, z, z + 0.024, 0.007, OD_DARK)
+        raised(lo, hi, zl - 0.014, zl, 0.007, OD_DARK)
+        raised(0.38, 0.62, zl - 0.1, zl - 0.07, 0.024, STEEL_DARK, 0.5)
+    for decal in (front_decal, side_decal):
+        decal(s, 0.3, 0.7, 0.45, 0.56, f, stencil_text('OAK-R', 52, 20, STENCIL))
+        decal(s, 0.41, 0.59, 0.19, 0.37, f, acorn_mark(40, STENCIL))
+    ground = shadow((0.5, 0.5), 0.48, 0.48, 120)
+    return compose(s, ground=ground, seed=170, glows=[])
 
 
 def rain_storage(level=3):

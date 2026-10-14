@@ -75,6 +75,16 @@ module OperationAcorn
         Tooltip = Tooltip_OA_Machine_researchStorage,
     }
 
+    item ResearchCrate
+    {
+        DisplayCategory = Furniture,
+        ItemType = base:normal,
+        Weight = 15.0,
+        Icon = OA_ResearchCrate,
+        RequiresEquippedBothHands = true,
+        Tooltip = Tooltip_OA_Machine_researchCrate,
+    }
+
     item RainCistern
     {
         DisplayCategory = Furniture,

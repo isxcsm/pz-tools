@@ -575,8 +575,7 @@ function M.waybill(record, flight)
     for _, line in ipairs(lines) do
         local entry = Orders.entry(line.id)
         if entry then
-            local ok, price = pcall(svc.price, entry, line)
-            price = (ok and type(price) == "number") and OA.round(price) * line.count or 0
+            local price = Orders.lineCost(svc, entry, line)
             orders = orders + price
             local name = Orders.nameOf(entry)
             if line.choice and entry.choices then name = Text.itemName(line.choice) end

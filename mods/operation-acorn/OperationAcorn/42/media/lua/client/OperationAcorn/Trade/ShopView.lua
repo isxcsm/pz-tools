@@ -70,20 +70,12 @@ function ShopView.shelf(catalog)
     return blocks
 end
 
--- How many entries the shelf has (the box's "치료 · 강화 8종").
-function ShopView.shelfCount(blocks)
-    local n = 0
-    for _, b in ipairs(blocks) do n = n + #b.entries end
-    return n
-end
-
--- The entries of the sections (everything but the shelf and the reissue) in catalog order: { all = list, groups = { id
--- ... in the order they first appear }, byGroup = { [id] = list } }.
+-- The entries of the sections (everything but the shelf and the reissue) in catalog order: { groups = { id ... in the
+-- order they first appear }, byGroup = { [id] = list } }.
 function ShopView.sections(catalog)
-    local out = { all = {}, groups = {}, byGroup = {} }
+    local out = { groups = {}, byGroup = {} }
     for _, e in ipairs(catalog) do
         if ShopView.listed(e) and not ShopView.onShelf(e) then
-            table.insert(out.all, e)
             if not out.byGroup[e.group] then
                 out.byGroup[e.group] = {}
                 table.insert(out.groups, e.group)
@@ -112,7 +104,7 @@ end
 -- The band over the cards: "debt" (red) first, else "gate" (amber) in a locked section; nil for none.
 function ShopView.band(cat, entries, ctx)
     if ctx.debt then return "debt" end
-    if cat ~= "serums" and cat ~= "all" and ShopView.sectionLocked(entries, ctx.crude) then return "gate" end
+    if cat ~= "serums" and ShopView.sectionLocked(entries, ctx.crude) then return "gate" end
     return nil
 end
 
@@ -227,10 +219,10 @@ function ShopView.layout(w, h, o)
     return out
 end
 
--- Where the detail's controls go (x relative to the detail, y of the control row from its top). With a combo box
--- (the kinds of a seed, a battery, a target of a kit) there is no quantity: the label `종류 고르기` and the box sit
--- at the left, the box shortening to leave room for the button; a detail too narrow for the label drops it and
--- starts the box at the margin.
+-- Where the detail's controls go (x relative to the detail, y of the control row from its top): the add button at the
+-- right (one at a time: the cart sets how many). With a combo box (the kinds of a seed, a battery, a target of a kit)
+-- the label `종류 고르기` and the box sit at the left, the box shortening to leave room for the button; a detail too
+-- narrow for the label drops it and starts the box at the margin.
 function ShopView.detailRow(cw, detailH, hasCombo)
     local addW = 118
     local row = { y = detailH - 28, h = 20, add = { x = cw - addW - 10, w = addW } }
@@ -238,9 +230,6 @@ function ShopView.detailRow(cw, detailH, hasCombo)
         local labelled = cw >= 340
         local x = labelled and 76 or 10
         row.combo = { x = x, w = math.max(60, math.min(150, row.add.x - 8 - x)), label = labelled }
-    else
-        local x = ShopView.DETAIL_TEXT
-        row.minus, row.count, row.plus = { x = x, w = 20 }, { x = x + 22, w = 24 }, { x = x + 48, w = 20 }
     end
     return row
 end

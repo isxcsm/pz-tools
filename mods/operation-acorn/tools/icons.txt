@@ -1,11 +1,11 @@
 # Item icons: ItemName <TAB> picture key (a function in icon_art.py) <TAB> note. Icon = OA_<ItemName> -> media/textures/Item_OA_<ItemName>.png.
 # Rename an item here (first column) and run: python tools/icon_art.py   (renamed-away PNGs are deleted).
 # Tiered parts: <Part>Old / <Part>Normal / <Part>Modern by colour (rust brown / steel grey / anodised blue); plain <Part> = the normal look.
-CommTerminal	terminal	communication terminal (P2)
+CommTerminal	crude_terminal	the crude communication terminal as it stands, switched on (P2)
 DeliveryBox	delivery_box	delivery box, sealed look (P2)
 SupplyCrate	supply_crate	supply crate, sealed look (P2; no item: the drop notice's picture)
 TerminalManual	manual	assembly manual booklet (P2)
-FieldTerminal	field_terminal	the team's field terminal in its open olive case, ordered from the shop (P2)
+FieldTerminal	field_terminal	the team's field terminal as it stands, switched on, ordered from the shop (P2)
 SupplyManifest	manifest	supply manifest on a clipboard (P2)
 SampleBundle	bundle	sample bundle (P5)
 SelectedSample	selected_sample	selected sample: a sample bundle of a better grade, from 시료 감별
@@ -28,6 +28,7 @@ PropaneRefiner	propane_refiner	machine item (P5)
 OilRefiner	oil_refiner	machine item (P5)
 WoodSaw	wood_saw	machine item (P5)
 ResearchStorage	research_storage	machine item (P5)
+ResearchCrate	research_crate	machine item, the stacking crate
 RainStorage	rain_storage	machine item (P5)
 Lure	lure	machine item (P5)
 Motor	motor_normal	machine part, normal look (P5)
@@ -62,9 +63,6 @@ ResearchBackpack	backpack	research backpack (P6)
 FuelCanMk1	fuel_can_1	improved fuel can (P6)
 FuelCanMk2	fuel_can_2	improved fuel can (P6)
 FuelCanMk3	fuel_can_3	improved fuel can (P6)
-WeldingTorchMk1	torch_1	improved welding torch (P6)
-WeldingTorchMk2	torch_2	improved welding torch (P6)
-WeldingTorchMk3	torch_3	improved welding torch (P6)
 MissionItem	mission	generic mission item (P4)
 DocumentItem	document	generic document item (P4)
 MissionEnvelope	mission_envelope	story item (P4)

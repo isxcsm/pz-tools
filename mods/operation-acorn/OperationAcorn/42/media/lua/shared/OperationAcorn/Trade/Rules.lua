@@ -83,17 +83,18 @@ end
 -- Orders paid in order. `lines` is the cart: { { id, count, target } }. `svc` answers for the game:
 --   svc.entry(line)                          the catalog entry, or nil
 --   svc.available(entry, line, delivered)    true, or false and a reason key
---   svc.price(entry, line)                   credits for the next unit (prices may rise as units are bought)
+--   svc.price(entry, line, ahead)            credits for the next unit, or the one `ahead` more after it (prices may
+--                                            rise as units are bought)
 --   svc.bought(entry, line)                  called once for each unit delivered
 --   svc.items(entry, line)                   the item specs one unit brings
 -- A balance below zero (a debt) pays nothing. A line stops when a unit cannot be paid or is no longer available;
 -- later lines are tried, since a cheaper one may still fit. Returns the balance left, what was spent, one result per
--- line { id, target, ordered, delivered, paid, reason, name } and the item specs to send.
+-- line { id, ordered, delivered, paid, reason, name } and the item specs to send.
 function Rules.payOrders(credits, lines, svc)
     local results, items, spent = {}, {}, 0
     for _, line in ipairs(lines or {}) do
         local ordered = math.max(1, math.floor(line.count or 1))
-        local result = { id = line.id, target = line.target, ordered = ordered, delivered = 0, paid = 0 }
+        local result = { id = line.id, ordered = ordered, delivered = 0, paid = 0 }
         results[#results + 1] = result
         local entry = svc.entry(line)
         if not entry then

@@ -55,6 +55,8 @@ local KINDS = {
     propaneRefiner = { base = 64, w = 2, h = 2, states = 2, facings = 4, ready = 184 },
     oilRefiner = { base = 96, w = 2, h = 2, states = 2, facings = 4, ready = 200 },
     rainStorage = { base = 128, w = 2, h = 2, states = 1, facings = 1 },
+    -- the research storage's crate: no facing, as the game's crates, in a place the rain storage leaves free
+    researchCrate = { base = 138, w = 1, h = 1, states = 1, facings = 1 },
 }
 
 Sprites.FOOTPRINT = {}

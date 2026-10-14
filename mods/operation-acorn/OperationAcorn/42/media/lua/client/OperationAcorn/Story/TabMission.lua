@@ -265,19 +265,23 @@ function OATabMission:buildCard(record, info)
     if info.item and info.state == "open" then
         card.hint = getText("IGUI_OA_Story_UI_Hint", getText(card.kind == "story" and "IGUI_OA_Story_UI_ColourSky" or "IGUI_OA_Story_UI_ColourTeal"))
     end
-    -- The reward, with what it is made of when the base is known: danger pay and the streak, on the credits only.
-    local danger = info.danger and math.floor(info.danger * 100 + 0.5) or 0
+    -- The reward, with what it is made of when the base is known: the distance and danger pay (credits and trust), the
+    -- streak and the flight support's pay (credits only).
+    local function percent(v) return v and math.floor(v * 100 + 0.5) or 0 end
+    local far, danger, support = percent(info.far), percent(info.danger), percent(info.support)
     local streak = info.streak or 0
-    if info.base and (danger > 0 or streak > 0) then
+    if info.base and (far > 0 or danger > 0 or streak > 0 or support > 0) then
         local dot = getText("IGUI_OA_Story_UI_Dot")
         local bonus = runsOf("dim", "IGUI_OA_Story_UI_Base", Text.credits(info.base))
+        if far > 0 then bonus = join(bonus, plain("dim", dot), runsOf("good", "IGUI_OA_Story_UI_Far", far)) end
         if danger > 0 then
             bonus = join(bonus, plain("dim", dot), runsOf("warn", "IGUI_OA_Story_UI_Danger", danger))
         end
         if streak > 0 then
             bonus = join(bonus, plain("dim", dot),
-                runsOf("good", "IGUI_OA_Story_UI_Streak", streak, math.floor(Rewards.streakBonus(streak) * 100 + 0.5)))
+                runsOf("good", "IGUI_OA_Story_UI_Streak", streak, percent(info.streakPay or Rewards.streakBonus(streak))))
         end
+        if support > 0 then bonus = join(bonus, plain("dim", dot), runsOf("good", "IGUI_OA_Story_UI_Support", support)) end
         card.bonus = measure(bonus, p)
     end
     if info.credits then
@@ -323,6 +327,10 @@ local function specialReward(o, p, withDays)
     end
     for _, run in ipairs(runs) do
         if run.num then run.kind = "value" end
+    end
+    local far = o.far and math.floor(o.far * 100 + 0.5) or 0
+    if far > 0 then
+        runs = join(runs, plain("dim", getText("IGUI_OA_Story_UI_Dot")), runsOf("good", "IGUI_OA_Story_UI_Far", far))
     end
     local danger = o.danger and math.floor(o.danger * 100 + 0.5) or 0
     if danger > 0 then

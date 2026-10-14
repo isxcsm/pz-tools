@@ -10,6 +10,7 @@ require "OperationAcorn/Store"
 require "OperationAcorn/Sync"
 require "OperationAcorn/Story/Data"
 require "OperationAcorn/Story/Rewards"
+require "OperationAcorn/Economy/Support"
 require "OperationAcorn/Story/Places"
 require "OperationAcorn/Story/Story"
 require "OperationAcorn/Story/Docs"
@@ -80,8 +81,9 @@ local function creditScale()
     return OA.option("CreditMultiplier") or 1
 end
 
-local function deadlineHours()
-    return Rewards.hours(OA.scaled(7, "MissionDeadlineMultiplier"))
+-- A mission's days (7, more with the flight support's mission days), as hours.
+local function deadlineHours(record)
+    return Rewards.hours(OA.scaled(OA.Support.value(record, "mdays"), "MissionDeadlineMultiplier"))
 end
 
 local function intervalHours()
@@ -141,7 +143,7 @@ local function newMission(record, kind, level, story)
         level = level,
         state = "open",
         issued = now,
-        deadline = now + deadlineHours(),
+        deadline = now + deadlineHours(record),
         credits = credits, trust = trust,
         items = {},
     }
@@ -221,17 +223,36 @@ function Missions.dangerOf(areas)
     return Rewards.dangerPay(sum / n)
 end
 
--- Makes the mission's reward of its parts (DESIGN-terminal 7.2): `base` the credits the kind is worth, the danger pay of
--- its area and the streak the record has now on top of them, on the credits only. The card shows the parts. `danger`
--- (the special request's offer read it already) is read when not given.
+-- The distance pay of an area (Rewards.farPay): how far into the band of `level` it lies from the base. 0 without a base.
+function Missions.farOf(record, area, level)
+    if not area then return 0 end
+    local ax, ay = Missions.anchor(record)
+    if not ax then return 0 end
+    local lo, hi = Rewards.band(level)
+    return Rewards.farPay(Places.distance(ax, ay, area.x, area.y), lo, hi)
+end
+
+-- The flight support's mission pay (a fraction) and the streak's cap it raises.
+local function supportPay(record) return OA.Support.value(record, "mpay") end
+local function streakCap(record) return OA.Support.value(record, "mstreak") end
+
+-- Makes the mission's reward of its parts (DESIGN-terminal 7.2): `base` the credits the kind is worth and `trustBase` its
+-- trust; the danger pay of its area and the distance pay (how far into its band it lies) on both; the streak the record
+-- has now and the flight support's mission pay on the credits only. The card shows the parts. `danger` (the special
+-- request's offer read it already) is read when not given.
 function Missions.price(record, m, danger)
     local areas = {}
     if m.area then areas[#areas + 1] = m.area end
     if m.area2 then areas[#areas + 1] = m.area2 end
     m.base = m.base or m.credits
+    m.trustBase = m.trustBase or m.trust
     m.danger = danger or Missions.dangerOf(areas)
+    m.far = Missions.farOf(record, m.area, m.special and Rewards.specialBandLevel(m.level) or m.level)
     m.streak = m.special and 0 or Missions.state(record).streak
-    m.credits = Rewards.withBonus(m.base, m.danger, m.streak)
+    m.streakPay = Rewards.streakBonus(m.streak, streakCap(record))
+    m.support = supportPay(record)
+    m.credits = Rewards.withBonus(m.base, m.danger, m.streak, m.far, m.support, streakCap(record))
+    m.trust = Rewards.trustWithBonus(m.trustBase, m.danger, m.far)
 end
 
 -- A place table of a regular mission's building from the game adapter.
@@ -384,7 +405,7 @@ function Missions.choose(record, option)
     m.chosen = option
     m.options = nil
     m.state = "open"
-    m.deadline = OA.hours() + deadlineHours()
+    m.deadline = OA.hours() + deadlineHours(record)
     placeStoryPiece(m, opt.item, "A", placeId, { OA_Variant = placeId })
     m.title = m.story .. "_" .. option
     Story.section(record).chosen[m.story] = option
@@ -976,7 +997,8 @@ function Missions.sealedOk(record, m, boxId, now)
         local q = Rewards.coolerQuality(temp)
         m.cooler = { temp = temp, grade = Rewards.coolerGrade(temp) }
         credits, trust = Rewards.reward(m.level, true, q, creditScale())
-        credits = Rewards.withBonus(credits, m.danger, m.streak)
+        credits = OA.round(credits * (1 + (m.danger or 0) + (m.streakPay or 0) + (m.far or 0) + (m.support or 0)))
+        trust = Rewards.trustWithBonus(trust, m.danger, m.far)
     elseif m.scatter then
         credits, trust = Missions.scatterPay(m)
     end
@@ -1460,9 +1482,10 @@ local function describeMission(m, now)
     info.cooler = m.carry and { temp = Missions.coolerTemp(m, now), started = m.carry.start ~= nil }
     info.level = m.level
     info.seq = m.seq
-    -- What the reward is made of, for the card's line under the story: the base credits, the danger pay (a fraction, 0
-    -- to 0.3), the streak it was made at, the urgent flag.
+    -- What the reward is made of, for the card's line under the story: the base credits, the danger pay and the distance
+    -- pay (fractions, 0 to 0.3), the streak it was made at and its bonus, the flight support's pay, the urgent flag.
     info.base, info.danger, info.streak, info.urgent = m.base, m.danger, m.streak, m.urgent
+    info.far, info.streakPay, info.support = m.far, m.streakPay, m.support
     -- The scattered pieces (how many of how many are found), the weight of a heavy sample, a special request's form
     -- and its request copy's number (the folder's R-number).
     info.scatter = m.scatter and { total = m.scatter.total, found = Missions.scatterCount(m) } or nil
@@ -1503,8 +1526,10 @@ function Missions.specialSlot(record)
         local options = {}
         for _, key in ipairs({ "a", "b" }) do
             local opt = sp.offer[key]
-            options[key] = { id = opt.id, form = opt.form, place = opt.place, area = opt.area, danger = opt.danger,
-                credits = Rewards.withBonus(credits, opt.danger, 0), trust = trust, days = Rewards.SPECIAL_DAYS }
+            local far = Missions.farOf(record, opt.area, Rewards.specialBandLevel(level))
+            options[key] = { id = opt.id, form = opt.form, place = opt.place, area = opt.area, danger = opt.danger, far = far,
+                credits = Rewards.withBonus(credits, opt.danger, 0, far, supportPay(record)),
+                trust = Rewards.trustWithBonus(trust, opt.danger, far), days = Rewards.SPECIAL_DAYS }
         end
         return { state = "offer", options = options, seq = sp.offer.seq }
     end

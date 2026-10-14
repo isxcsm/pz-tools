@@ -53,7 +53,7 @@ test("the road's nodes and the levels' names: stages, the levels after them, the
     eq(M.levelName(2), "IGUI_OA_Status_LevelName 2 IGUI_OA_Econ_Stage_2")
     eq(M.levelName(7), "IGUI_OA_Econ_Stage_Milestone 7")
     eq(M.levelName(9), "IGUI_OA_Status_LevelFrom 9")
-    eq(M.threshold(3), 5500); eq(M.threshold(6), 37000); eq(M.threshold(9), 121000)
+    eq(M.threshold(3), 550); eq(M.threshold(6), 3700); eq(M.threshold(9), 12100)
 end)
 
 -- What each level opens -----------------------------------------------------------------------------------------------
@@ -62,7 +62,7 @@ test("each level's goods split into every terminal's and the field terminal's la
     local a2, b2 = ids(M.laneItems(2, false)), ids(M.laneItems(2, true))
     truthy(string.find(a2, "petrol_can", 1, true)); truthy(string.find(a2, "field_terminal", 1, true))
     truthy(string.find(a2, "bait_trap", 1, true))
-    eq(b2, "team_locker,fabric_cutter,log_saw,fuelcan_mk1")
+    eq(b2, "team_locker,team_crate,fabric_cutter,log_saw,fuelcan_mk1")
     eq(string.find(ids(M.laneItems(0, false)), "serum_", 1, true), nil, "the upgrade serums have their own section")
     eq(string.find(ids(M.laneItems(0, false)), "box_reissue", 1, true), nil, "the box is the reissue button's")
     eq(ids(M.laneItems(9, false)), ""); eq(ids(M.laneItems(9, true)), "")
@@ -96,15 +96,15 @@ end)
 
 test("the field lane's words: special requests at 2, how many upgrades open, the box at the endless levels", function()
     local b2 = M.chipsB(2)
-    eq(b2[1], "IGUI_OA_Status_Chip_special"); eq(b2[2], "IGUI_OA_Status_Chip_upgrades 2")
-    eq(M.chipsB(3)[1], "IGUI_OA_Status_Chip_upgrades 5")
-    eq(M.chipsB(6)[1], "IGUI_OA_Status_Chip_upgrades 1")
+    eq(b2[1], "IGUI_OA_Status_Chip_special"); eq(b2[2], "IGUI_OA_Status_Chip_upgrades 4")
+    eq(M.chipsB(3)[1], "IGUI_OA_Status_Chip_upgrades 6")
+    eq(M.chipsB(6)[1], "IGUI_OA_Status_Chip_upgrades 3")
     eq(M.chipsB(7)[1], "IGUI_OA_Status_Chip_upgrades 6")
     eq(M.chipsB(8)[1], "IGUI_OA_Status_Chip_upgrades 2")
     eq(M.chipsB(9)[1], "IGUI_OA_Status_Chip_box 50")
     eq(#M.chipsB(1), 0)
     local ups = M.upgradeLines(5)
-    eq(#ups, 5)
+    eq(#ups, 6)
     truthy(has(ups, "IGUI_OA_Status_Bin_night"), "a yes-or-no upgrade by its own name")
     eq(ups[1], "IGUI_OA_Support_Name_box IGUI_OA_Support_V_box 200")
     eq(M.upgradeLines(1)[1], "IGUI_OA_Status_Nothing")
@@ -113,16 +113,16 @@ end)
 
 test("where the road stands and the chosen level's note", function()
     local r = newRecord(2, 0)
-    r.trade.trust = 3940
+    r.trade.trust = 394
     local at, frac = M.roadPosition(r)
-    eq(at, 2); near(frac, (3940 - 2300) / (5500 - 2300), 1e-9)
-    eq(M.plain(M.detailNote(r, 3)), "IGUI_OA_Status_TrustLeft 1,560")
+    eq(at, 2); near(frac, (394 - 230) / (550 - 230), 1e-9)
+    eq(M.plain(M.detailNote(r, 3)), "IGUI_OA_Status_TrustLeft 156")
     eq(M.plain(M.detailNote(r, 2)), "IGUI_OA_Status_Got")
-    eq(M.plain(M.detailNote(r, 4)), "IGUI_OA_Status_AtTrust 11,500", "a later stage says its trust")
-    eq(M.plain(M.detailNote(r, 9)), "IGUI_OA_Status_AtTrustOn 121,000")
+    eq(M.plain(M.detailNote(r, 4)), "IGUI_OA_Status_AtTrust 1,150", "a later stage says its trust")
+    eq(M.plain(M.detailNote(r, 9)), "IGUI_OA_Status_AtTrustOn 12,100")
     -- past the five stages, the next level is still the trust left
-    r.trade.stage, r.trade.milestones, r.trade.trust = 5, 1, 37000
-    eq(M.plain(M.detailNote(r, 7)), "IGUI_OA_Status_TrustLeft 21,000")
+    r.trade.stage, r.trade.milestones, r.trade.trust = 5, 1, 3700
+    eq(M.plain(M.detailNote(r, 7)), "IGUI_OA_Status_TrustLeft 2,100")
     eq(M.plain(M.detailNote(r, 8)), "IGUI_OA_Status_AtTrust " .. M.plain({ { s = OA.Trade.Text.credits(M.threshold(8)) } }))
     r.trade.stage, r.trade.milestones = 5, 6
     eq((M.roadPosition(r)), 9, "every level past 8 stands on the last node")
@@ -148,13 +148,13 @@ end)
 
 test("how many may be asked for: none at the crude terminal, by group at the field terminal", function()
     local r = newRecord(2, 0)
-    eq(M.countAvail(r, true), 2, "the call interval and the request count at stage 2")
-    eq(M.countAvail(r, true, "heli"), 1); eq(M.countAvail(r, true, "trade"), 1)
+    eq(M.countAvail(r, true), 4, "the call interval, the request count, the mission pay and days at stage 2")
+    eq(M.countAvail(r, true, "heli"), 1); eq(M.countAvail(r, true, "trade"), 1); eq(M.countAvail(r, true, "mission"), 2)
     eq(M.countAvail(r, false), 0)
     r.trade.stage = 3
-    eq(M.countAvail(r, true), 7)
+    eq(M.countAvail(r, true), 10)
     r.trade.pendingLevels = { box = 1 }
-    eq(M.countAvail(r, true), 6, "one asked for is not counted")
+    eq(M.countAvail(r, true), 9, "one asked for is not counted")
 end)
 
 test("two values of one unit are written with the unit once", function()
@@ -419,9 +419,9 @@ test("the record's texts: the codex's next bonus, the sweep, the kills, the miss
     r.missions = { results = { done = 3, expired = 0 }, streak = 2, bestStreak = 2 }
     local d = M.records(r)
     eq(M.plain(d.kinds), "IGUI_OA_Status_Rec_KindsLine 436 500 64")
-    eq(M.plain(d.kindsBonus), "IGUI_OA_Status_Rec_NextBonus IGUI_OA_Status_Rec_KindPay 500 10,000IGUI_OA_Status_Rec_PlusSerum")
+    eq(M.plain(d.kindsBonus), "IGUI_OA_Status_Rec_NextBonus IGUI_OA_Status_Rec_KindPay 500 50,000IGUI_OA_Status_Rec_PlusSerum")
     eq(#d.cats, 11)
-    eq(d.cats[1].count, "6/10"); near(d.cats[1].frac, 0.6); eq(d.cats[1].nextText, "IGUI_OA_Status_Rec_CatNext 90 30,000")
+    eq(d.cats[1].count, "6/10"); near(d.cats[1].frac, 0.6); eq(d.cats[1].nextText, "IGUI_OA_Status_Rec_CatNext 90 150,000")
     eq(d.cats[2].count, "0/0"); eq(d.cats[2].frac, 0)
     near(d.buildings.bar, (38 - 25) / (100 - 25))
     eq(M.plain(d.buildings.lines[2]), "IGUI_OA_Status_Rec_SweepNext 100 62 10,000")
@@ -452,10 +452,10 @@ end)
 
 test("the new board counts the team's goods open now and later, and the upgrades to ask for", function()
     local news = M.news(newRecord(2, 0))
-    eq(news[1].lines[1], "IGUI_OA_Status_News_TeamNow 4 IGUI_OA_Econ_Shop_Item_team_locker, IGUI_OA_Econ_Shop_Item_fabric_cutter, "
-        .. "IGUI_OA_Econ_Shop_Item_log_saw, IGUI_OA_Econ_Shop_Item_fuelcan_mk1")
+    eq(news[1].lines[1], "IGUI_OA_Status_News_TeamNow 5 IGUI_OA_Status_News_TeamRest IGUI_OA_Econ_Shop_Item_team_locker, "
+        .. "IGUI_OA_Econ_Shop_Item_team_crate, IGUI_OA_Econ_Shop_Item_fabric_cutter, IGUI_OA_Econ_Shop_Item_log_saw 1")
     eq(news[1].lines[2], "IGUI_OA_Status_News_TeamMore 22")
-    eq(news[3].lines[2], "IGUI_OA_Status_News_SupportNow 2")
+    eq(news[3].lines[2], "IGUI_OA_Status_News_SupportNow 4")
     news = M.news(newRecord(3, 0))
     eq(news[1].lines[2], "IGUI_OA_Status_News_TeamMore 13")
     -- a late stage: four names and the rest counted

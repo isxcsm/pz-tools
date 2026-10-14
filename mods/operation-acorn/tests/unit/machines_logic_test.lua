@@ -65,7 +65,7 @@ test("blades and catalysts carry their numbers", function()
     near(Logic.effects("bulkShredder", parts).shred, 1.2)
     parts = Logic.newParts("cutter")
     parts.blade = { tier = "normal", cond = 100 }
-    near(Logic.effects("cutter", parts).pieces, 0.5)
+    near(Logic.effects("cutter", parts).pieces, 1)
     parts = Logic.newParts("woodSaw")
     near(Logic.effects("woodSaw", parts).planks, 6)
     parts.blade = { tier = "modern", cond = 100 }
@@ -388,19 +388,19 @@ test("cutter pieces: a blade adds, wear cuts, dirt is rolled", function()
     end
     near(total / 2000, 3, 0.1, "the vanilla average of 2 to 4")
     eq(dirty, 0, "clean clothes")
-    -- A modern blade adds one.
+    -- A modern blade adds two.
     local parts = Logic.newParts("cutter")
     parts.blade = { tier = "modern", cond = 100 }
     fx = Logic.effects("cutter", parts)
     total = 0
     for _ = 1, 2000 do total = total + Logic.cutterPieces(plan, fx) end
-    near(total / 2000, 4, 0.1, "one more")
-    -- A normal blade: half a piece more on average.
+    near(total / 2000, 5, 0.1, "two more")
+    -- A normal blade: one more.
     parts.blade = { tier = "normal", cond = 100 }
     fx = Logic.effects("cutter", parts)
     total = 0
     for _ = 1, 4000 do total = total + Logic.cutterPieces(plan, fx) end
-    near(total / 4000, 3.5, 0.1, "half a piece more")
+    near(total / 4000, 4, 0.1, "one more")
     -- A worn blade: 0.8 of it (and the normal rolls).
     parts.blade = { tier = "old", cond = 10 }
     fx = Logic.effects("cutter", parts)
@@ -572,9 +572,7 @@ test("every machine kind has an item, a sprite kind and a hint", function()
         truthy(def, kind)
         truthy(def.item, kind .. " item")
         eq(Data.ITEM_KINDS[def.item], kind)
-        if kind ~= "rainStorage" and kind ~= "lure" then
-            truthy(Sprites.MACHINE_KINDS[kind], kind .. " sprite")
-        end
+        if kind ~= "lure" then truthy(Sprites.FOOTPRINT[kind], kind .. " sprite") end
     end
 end)
 

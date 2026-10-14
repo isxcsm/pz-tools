@@ -30,7 +30,6 @@ test("the shelf holds the serum group and the serum-special entries in the fixed
     })
     eq(ids(blocks[2].entries), "cure_serum,delay_drug")
     eq(ids(blocks[1].entries), "serum_load")
-    eq(V.shelfCount(blocks), 3)
     -- five treatments: the order is the fixed one whatever the catalog's
     local full = {
         entry("serum_scout", "serum", { special = "serum" }),
@@ -45,7 +44,6 @@ test("the shelf holds the serum group and the serum-special entries in the fixed
     blocks = V.shelf(full)
     eq(ids(blocks[2].entries), "cure_serum,reversal,delay_long,delay_drug,test_kit")
     eq(ids(blocks[1].entries), "serum_scout,serum_load,serum_survival")
-    eq(V.shelfCount(blocks), 8)
 end)
 
 test("an entry the order does not name still lands on the shelf, by what it is", function()
@@ -61,11 +59,13 @@ end)
 test("the sections leave out the shelf and the box reissue and keep the catalog's order", function()
     local sections = V.sections(OA.Shop.catalog())
     eq(table.concat(sections.groups, ","), "resource,gear,machine,part,mk,kit")
-    for _, e in ipairs(sections.all) do
-        truthy(not V.onShelf(e), e.id .. " is not on the shelf")
-        truthy(e.special ~= "reissue", "no reissue")
+    for _, g in ipairs(sections.groups) do
+        for _, e in ipairs(sections.byGroup[g]) do
+            truthy(not V.onShelf(e), e.id .. " is not on the shelf")
+            truthy(e.special ~= "reissue", "no reissue")
+        end
     end
-    eq(#sections.byGroup.machine, 10)
+    eq(#sections.byGroup.machine, 11)
     -- the real catalog's shelf: the five treatments and the three serums
     local blocks = V.shelf(OA.Shop.catalog())
     eq(ids(blocks[2].entries), "cure_serum,reversal,delay_long,delay_drug,test_kit")
@@ -90,7 +90,6 @@ test("the band over the cards is the debt first, then the gate of a locked secti
     eq(V.band("part", sections.byGroup.part, { crude = false, debt = false }), nil)
     eq(V.band("part", sections.byGroup.part, { crude = true, debt = true }), "debt")
     eq(V.band("serums", {}, { crude = true, debt = false }), nil)
-    eq(V.band("all", sections.all, { crude = true, debt = false }), nil)
     eq(V.band("resource", sections.byGroup.resource, { crude = true, debt = false }), nil)
     eq(V.band("serums", {}, { crude = false, debt = true }), "debt")
 end)
@@ -245,19 +244,16 @@ test("the layout puts the detail under the cards, 120 high for a text of three l
     eq(l.detail.y + l.detail.h, 348)
 end)
 
-test("the detail's control row: a quantity, or a combo box that gives way to the button", function()
+test("the detail's control row: the add button, and a combo box that gives way to it", function()
     local r = V.detailRow(380, 104, false)
     eq(r.y, 76)
     eq(r.add.x, 252)
-    eq(r.minus.x, V.DETAIL_TEXT, "under the text, beside the icon")
-    eq(r.count.x, V.DETAIL_TEXT + 22)
-    eq(r.plus.x, V.DETAIL_TEXT + 48)
     eq(r.combo, nil)
+    eq(r.minus, nil, "no quantity: the cart sets how many")
     r = V.detailRow(380, 104, true)
     eq(r.combo.x, 76)
     eq(r.combo.w, 150)
     eq(r.combo.label, true)
-    eq(r.minus, nil)
     -- narrow: no label, the box starts at the margin and ends before the button
     r = V.detailRow(284, 104, true)
     eq(r.combo.label, false)

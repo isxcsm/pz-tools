@@ -7,8 +7,7 @@
 -- the backpack's capacity, reduction and water storage); the shop stocks all of them; a bag kit and a weight
 -- kit on a vanilla bag and on the research backpack, with and without the extension API (it reads which one is there);
 -- a trunk kit and an engine kit on the nearest vehicle against the game's own getters; the voucher through the server
--- command, and the shop's count unchanged by it; that a kit ordered for one bag or one vehicle (its item id, the id in
--- the vehicle's parts) does not fit another of the same kind.
+-- command, and the shop's count unchanged by it; that a kit goes on any backpack.
 --
 -- Not scripted (do by hand): buy each good in the shop and see it arrive empty (the cans); hover a fitted bag and
 -- see the kit lines; right-click a kit and a bag; fit a bag kit and a vehicle kit with the real timed action (the
@@ -16,9 +15,7 @@
 -- part); save, quit and load: the bag's capacity and reduction, the trunk, the engine power and loudness are as left;
 -- drive the car with a full trunk; wear the backpack, fill its water storage at a tap and drink from it (right-click),
 -- hang a radio on a shoulder-strap hanger; load a save made before the water storage (a pack bought then has it,
--- empty, and keeps its contents and kits); order a kit for one of two
--- bags of the same kind (the shop's target list names them #1, #2) and see that only that bag takes it; save, quit and
--- load, and see the kit still finds its car (the id is in the car's parts).
+-- empty, and keeps its contents and kits).
 local OA = OperationAcorn
 local Gear = OA.Gear
 local Rules = Gear.Rules
@@ -54,10 +51,8 @@ local function give(fullType)
     return item
 end
 
-local function kitFor(kind, target)
-    local kit = give(Rules.kitType(kind))
-    kit:getModData()[K.TARGET] = target or ""
-    return kit
+local function kitFor(kind)
+    return give(Rules.kitType(kind))
 end
 
 local scripts = getScriptManager()
@@ -114,7 +109,7 @@ end)
 -- ---------------------------------------------------------------------------------------------------------------------
 section("bag kits", function()
     local alice = give("Base.Bag_ALICEpack")
-    local kit = kitFor("bagCapacity", Gear.bagKey(alice))
+    local kit = kitFor("bagCapacity")
     local ok, value = Gear.fitBag(player, kit, alice)
     check("capacity kit fits", ok, value)
     check("count 1 on the bag", alice:getModData()[K.BAG_CAP] == 1)
@@ -122,22 +117,16 @@ section("bag kits", function()
     check("the bag holds 31 by the game's own getter", alice:getItemContainer():getCapacity() == 31, alice:getItemContainer():getCapacity())
     check("and effective", alice:getInventory():getEffectiveCapacity(player) >= 31, alice:getInventory():getEffectiveCapacity(player))
     check("the kit is used up", kit:getContainer() == nil)
-    ok, value = Gear.fitBag(player, kitFor("bagWeight", ""), alice)
+    ok, value = Gear.fitBag(player, kitFor("bagWeight"), alice)
     check("weight kit fits", ok, value)
     check("reduction 87", alice:getWeightReduction() == 87, alice:getWeightReduction())
-    Gear.fitBag(player, kitFor("bagWeight", ""), alice)
+    Gear.fitBag(player, kitFor("bagWeight"), alice)
     check("reduction 89 after two", alice:getWeightReduction() == 89, alice:getWeightReduction())
-    local wrong = kitFor("bagCapacity", Gear.bagKey(alice))
     local pack = give(OA.Shop.TYPES.backpack)
-    ok = Gear.fitBag(player, wrong, pack)
-    check("a kit ordered for one bag does not fit another bag", not ok)
     local twin = give("Base.Bag_ALICEpack")
-    check("two bags of one kind have two keys", Gear.bagKey(twin) ~= Gear.bagKey(alice))
-    check("a kit ordered for the first does not fit its twin", not Gear.fitBag(player, kitFor("bagCapacity", Gear.bagKey(alice)), twin))
-    check("the shop lists both bags as targets", #Gear.bagTargets(player) >= 3, #Gear.bagTargets(player))
-    check("the target is found again by its key", Gear.findTarget("bagCapacity", Gear.bagKey(twin), player) == twin)
+    check("a kit goes on another bag of the same kind too", Gear.fitBag(player, kitFor("bagCapacity"), twin))
 
-    for _ = 1, 5 do Gear.fitBag(player, kitFor("bagCapacity", ""), pack) end
+    for _ = 1, 5 do Gear.fitBag(player, kitFor("bagCapacity"), pack) end
     local capacity = pack:getItemContainer():getCapacity()
     local effective = pack:getInventory():getEffectiveCapacity(player)
     if lifted then
@@ -170,24 +159,7 @@ end
 section("vehicle kits", function()
     local vehicle = nearestVehicle()
     if not check("a vehicle within " .. Gear.REACH .. " squares", vehicle ~= nil) then return end
-    local id = Gear.vehicleId(vehicle, true)
-    say("vehicle", id, Gear.vehicleName(vehicle))
-    check("the vehicle got an id", id ~= nil and id ~= "")
-    check("asking again gives the same id", Gear.vehicleId(vehicle, true) == id)
-    local carriers = {}
-    for _, partId in ipairs({ Gear.ENGINE_PART, "TruckBed", "TruckBedOpen" }) do
-        local part = vehicle:getPartById(partId)
-        if part then carriers[#carriers + 1] = part end
-    end
-    for _, part in ipairs(carriers) do
-        check("the id is in the modData of " .. part:getId(), part:getModData()[K.VEHICLE_ID] == id)
-    end
-    local named = false
-    for _, t in ipairs(Gear.vehicleTargets(player, "engine", Gear.REACH)) do
-        if t.target == id then named = true end
-    end
-    check("the shop lists the vehicle as a target", named)
-    check("the id finds the vehicle again", Gear.findTarget("engine", id, player) == vehicle)
+    say("vehicle", Gear.vehicleName(vehicle))
     local trunks = Gear.trunkParts(vehicle)
     local engine = vehicle:getPartById(Gear.ENGINE_PART)
     fitted[#fitted + 1] = vehicle
@@ -195,7 +167,7 @@ section("vehicle kits", function()
     if #trunks > 0 then
         local before = {}
         for i, part in ipairs(trunks) do before[i] = part:getContainerCapacity() end
-        local ok, total = Gear.fitTrunk(player, kitFor("trunk", id), vehicle)
+        local ok, total = Gear.fitTrunk(player, kitFor("trunk"), vehicle)
         check("trunk kit fits", ok, total)
         for i, part in ipairs(trunks) do
             local md = part:getModData()
@@ -216,7 +188,7 @@ section("vehicle kits", function()
 
     if engine then
         local power, loud = vehicle:getEnginePower(), vehicle:getEngineLoudness()
-        local ok, value = Gear.fitEngine(player, kitFor("engine", id), vehicle)
+        local ok, value = Gear.fitEngine(player, kitFor("engine"), vehicle)
         check("engine kit fits", ok, value)
         check("power +10%", vehicle:getEnginePower() == Rules.engine(power, 1, Rules.POWER_STEP), power .. " -> " .. vehicle:getEnginePower())
         check("loudness +5%", vehicle:getEngineLoudness() == Rules.engine(loud, 1, Rules.LOUDNESS_STEP), loud .. " -> " .. vehicle:getEngineLoudness())
@@ -225,15 +197,14 @@ section("vehicle kits", function()
     else
         say("this vehicle has no engine part; engine kit not checked")
     end
-    check("a kit ordered for another vehicle does not fit", select(1, Gear.fitEngine(player, kitFor("engine", "vnone-0"), vehicle)) == false)
 end)
 
 -- ---------------------------------------------------------------------------------------------------------------------
 section("the voucher", function()
     local record = OA.Client.record(player)
     local voucher = give(Gear.VOUCHER)
-    local before = OA.Shop.kitsFor("bagCapacity", "1", record)
-    local price = OA.Shop.kitPrice("bagCapacity", "1", record)
+    local before = OA.Shop.kitsBought("bagCapacity", record)
+    local price = OA.Shop.kitPrice("bagCapacity", record)
     -- the kits already held (earlier sections made some): the new one is the one not among them
     local held = {}
     local kits = player:getInventory():getAllTypeRecurse("OperationAcorn.KitBagCapacity")
@@ -252,13 +223,9 @@ section("the voucher", function()
             if not held[kits:get(i):getID()] then kit = kits:get(i) end
         end
         check("a bag capacity kit arrived", kit ~= nil)
-        if kit then
-            made[#made + 1] = kit
-            check("for any target", Gear.targetOf(kit) == "")
-            check("marked as a voucher kit", kit:getModData()[K.VOUCHER] == true)
-        end
-        check("the shop's count did not move", OA.Shop.kitsFor("bagCapacity", "1", record) == before)
-        check("nor the price", OA.Shop.kitPrice("bagCapacity", "1", record) == price)
+        if kit then made[#made + 1] = kit end
+        check("the shop's count did not move", OA.Shop.kitsBought("bagCapacity", record) == before)
+        check("nor the price", OA.Shop.kitPrice("bagCapacity", record) == price)
         say("voucher checked")
     end
     Events.OnTick.Add(later)

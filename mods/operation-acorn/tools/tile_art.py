@@ -16,6 +16,8 @@ The sheets (8 tiles a row; the code names a tile by its place: see Sprites.lua):
                     a quarter, a half at 134-145), the lure (1x1): 146 tiles. A machine takes
                     states x facings x tiles places, in this order: state (stopped, running), facing (S E N W), then the
                     tiles of that facing's footprint row by row (y outer, x inner). Its base place and footprint are in KINDS.
+                    The research crate (1x1, no facing, as the game's crates) stands in an unused place of the rain
+                    storage's, 138.
 
 Saves name the tiles by their place in the sheet: a new tile goes in a free place or a new row, never in a used one,
 and the sheet keeps its eight columns.
@@ -135,18 +137,27 @@ KINDS = (
          draw=lambda t, st: B3.oil_refiner(t, st)),
     # four water levels are drawn (0 empty .. 3 full). The EMPTY tank is the object (134-137, what is placed, what the
     # entity's SpriteConfig names, with IsWaterCollector on the anchor); the full tank stays at 128-131 (the item
-    # icon); levels 1-3 are overlay tiles at 146-157 (see rain_overlays). Places 138-145 are not used.
+    # icon); levels 1-3 are overlay tiles at 146-157 (see rain_overlays). Places 138-145 are not used by it.
     dict(key='rainStorage', weight=25, name='Big Rain Storage', foot=(2, 2), states=4, facings=1, props=dict(IsLow='', **SOLID),
          anchor_props=dict(IsWaterCollector=''), draw=lambda t, st: B2.rain_storage(st),
          state_bases={0: 134, 3: 128}),
+    # the research storage's crate, which stacks three high and has no facing, as the game's crates (IsStackable,
+    # IsTable, Surface: the game puts one on another while the stack's surface stays within 96); `at` is its fixed place,
+    # one of the rain storage's unused ones (138), so the places after it stay where saves have them
+    dict(key='researchCrate', weight=15, name='Research Crate', foot=(1, 1), states=1, facings=1, at=138,
+         props=dict(SOLID, container='crate', ContainerCapacity='100', IsStackable='', IsTable='', Surface='32'),
+         anchor_props={}, draw=lambda t, st: B2.research_crate()),
 )
 
 
 def _layout():
     base = 0
     for kind in KINDS:
-        kind['base'] = base
         kind['tiles'] = kind['foot'][0] * kind['foot'][1]
+        if 'at' in kind:
+            kind['base'] = kind['at']
+            continue
+        kind['base'] = base
         if 'state_bases' in kind:
             assert base == kind['state_bases'][3]
             base += kind['tiles']
@@ -244,7 +255,7 @@ def moveable_props(kind, state):
     if 'state_bases' in kind and state != 0:
         return {}
     out = {'IsMoveAble': '', 'PickUpWeight': str(int(round(kind['weight'] * 10.0 / kind['tiles'])))}
-    if kind['facings'] == 1:
+    if kind['facings'] == 1 and kind['tiles'] > 1:
         out['Facing'] = 'S'   # the game builds a sprite grid only for a faced moveable; one facing, nothing to turn
     if state == 1:
         out['GroupName'] = 'OA_' + kind['key'] + 'On'
@@ -268,10 +279,11 @@ def machine_entries():
                 assert set(tiles) == {(i, j) for j in range(fh) for i in range(fw)}, (kind['key'], facing)
                 for (i, j), image in tiles.items():
                     p = props(kind['name'], GroupName='OA_' + kind['key'])
-                    # a grid position only on the moveable looks: the rain storage's full look (its icon) would make
-                    # the game's grid of that name ambiguous, and it builds none
+                    # a grid position only on the moveable looks of more than one tile: the rain storage's full look
+                    # (its icon) would make the game's grid of that name ambiguous, and it builds none; a single tile
+                    # is no grid
                     moveable = moveable_props(kind, st)
-                    if moveable:
+                    if moveable and n > 1:
                         p['SpriteGridPos'] = '%d,%d' % (i, j)
                     p.update(kind['props'])
                     p.update(moveable)

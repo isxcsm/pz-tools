@@ -119,11 +119,6 @@ UI.scaled(OAShopScroll, ISPanel)
 
 OATabShop = OATab:derive("OATabShop")
 
--- The kinds of kit that are for a bag; the others are for a vehicle.
-local BAG_KITS = { bagCapacity = true, bagWeight = true }
--- How far (squares) a vehicle may be to be chosen for a kit (NUMBERS 7: 30 around the terminal; the character is at it).
-local VEHICLE_REACH = 30
-
 -- The block heads and notes of the serum shelf (DESIGN-terminal 4.1).
 local SHELF_HEAD = { treat = "IGUI_OA_Terminal_Shop_Treat", enhance = "IGUI_OA_Econ_Shop_Group_serum" }
 local SHELF_NOTE = { treat = "IGUI_OA_Terminal_Shop_TreatNote", enhance = "IGUI_OA_Terminal_Shop_EnhanceNote" }
@@ -170,16 +165,8 @@ local function whenText(hours)
     return getText("IGUI_OA_Trade_When", day, string.format("%02d:%02d", h, m))
 end
 
--- A kit is ordered for one bag or one vehicle: the target is the id of that bag (its item id) or of that vehicle
--- (OA_TargetId in its parts' modData, given when first chosen), and the price counts the kits of that one. The ids
--- and the names are the gear part's (OA.Gear.bagTargets, vehicleTargets).
-function OATabShop:targets(entry)
-    if BAG_KITS[entry.kit] then return OA.Gear.bagTargets(self:character()) end
-    return OA.Gear.vehicleTargets(self:character(), entry.kit, VEHICLE_REACH)
-end
-
 function OATabShop:createChildren()
-    self.cat, self.qty, self.onlyOpen = "serums", 1, false
+    self.cat, self.onlyOpen = "serums", false
     local p = self:palette()
     self.cards = OAShopScroll:new(self, OATabShop.drawCardRow, OATabShop.onCardRow)
     self.cartList = OAShopScroll:new(self, OATabShop.drawCartRow, OATabShop.onCartRow)
@@ -190,8 +177,6 @@ function OATabShop:createChildren()
         list:instantiate()
         self:addChild(list)
     end
-    self.minusButton = self:makeButton("-", OATabShop.onMinus)
-    self.plusButton = self:makeButton("+", OATabShop.onPlus)
     self.addButton = self:makeButton(getText("IGUI_OA_Terminal_Shop_Add"), OATabShop.onAdd)
     self.addButton.onOff = function() self:refuse() end
     self.clearButton = self:makeButton(getText("IGUI_OA_Trade_Shop_Clear"), OATabShop.onClear)
@@ -224,9 +209,9 @@ function OATabShop:refresh()
     local catalog = Shop.catalog()
     local sections = ShopView.sections(catalog)
     local shelf = ShopView.shelf(catalog)
-    if self.cat ~= "serums" and self.cat ~= "all" and not sections.byGroup[self.cat] then self.cat = "serums" end
+    if self.cat ~= "serums" and not sections.byGroup[self.cat] then self.cat = "serums" end
     self.model = { cats = self:buildCats(sections, ctx), serumEntry = Shop.entry("cure_serum"),
-        shelfSub = getText("IGUI_OA_Terminal_Shop_SerumSub", ShopView.shelfCount(shelf)) }
+        shelfSub = getText("IGUI_OA_Terminal_Shop_SerumSub") }
     self.model.shelfSubFit = UI.fit(self.model.shelfSub, ShopView.CAT_W - 14)
     self.model.checkFit = UI.fit(getText("IGUI_OA_Terminal_Shop_OnlyOpen"), ShopView.CAT_W - 20)
     self:buildCards(record, ctx, sections, shelf)
@@ -237,7 +222,7 @@ function OATabShop:refresh()
 end
 
 function OATabShop:buildCats(sections, ctx)
-    local cats = { { id = "all", name = getText("IGUI_OA_Terminal_Shop_All") } }
+    local cats = {}
     for _, group in ipairs(sections.groups) do
         cats[#cats + 1] = {
             id = group, name = getText(OA.Shop.groupKey(group)),
@@ -254,11 +239,6 @@ local function availOf(entry, record)
     return avail
 end
 
-local function priceOf(entry, line, record)
-    local Shop = OA.Shop
-    if entry.special == "kit" then return Shop.kitPrice(entry.kit, line and line.target or "", record) end
-    return Shop.price(entry, record)
-end
 
 local function statusText(state)
     return getText(state.key, unpack(state.args))
@@ -268,12 +248,11 @@ function OATabShop:makeCard(entry, record, ctx)
     local state = ShopView.state(entry, availOf(entry, record), ctx)
     return {
         id = entry.id, entry = entry, state = state, name = Orders.nameOf(entry),
-        price = Text.credits(priceOf(entry, nil, record)), status = statusText(state),
+        price = Text.credits(OA.Shop.price(entry, record)), status = statusText(state),
     }
 end
 
--- The cards of the chosen section (the serum shelf with its two heads, a section, or all of them) and the band over
--- them.
+-- The cards of the chosen section (the serum shelf with its two heads, or a section) and the band over them.
 function OATabShop:buildCards(record, ctx, sections, shelf)
     local blocks, bandEntries = {}, {}
     if self.cat == "serums" then
@@ -281,7 +260,7 @@ function OATabShop:buildCards(record, ctx, sections, shelf)
             blocks[#blocks + 1] = { head = getText(SHELF_HEAD[b.id]), note = getText(SHELF_NOTE[b.id]), entries = b.entries }
         end
     else
-        bandEntries = self.cat == "all" and sections.all or sections.byGroup[self.cat]
+        bandEntries = sections.byGroup[self.cat]
         blocks[1] = { entries = bandEntries }
     end
     self.byId, self.order = {}, {}
@@ -311,7 +290,7 @@ function OATabShop:buildCards(record, ctx, sections, shelf)
     end
     if not (self.sel and self.byId[self.sel]) then
         self.sel = self.order[1] and self.order[1].id or nil
-        self.qty, self.pick = 1, nil
+        self.pick = nil
     end
 end
 
@@ -331,19 +310,12 @@ function OATabShop:buildDetail(record, ctx)
     if not d.state.open then info[#info + 1] = statusText(d.state) end
     if entry.week then info[#info + 1] = getText("IGUI_OA_Terminal_Shop_PerWeek", entry.week) end
     d.info = table.concat(info, Text.DOT)
-    d.maxQty = d.state.open and math.min(Orders.MAX_COUNT, d.state.n) or 1
-    self.qty = math.max(1, math.min(self.qty or 1, d.maxQty))
     local options
     local choices = Orders.choicesOf(entry)
     if choices and #choices > 0 then
         d.comboLabel = "IGUI_OA_Terminal_Shop_PickKind"
         options = {}
         for _, g in ipairs(choices) do options[#options + 1] = { text = Text.nameOf(g.type), data = g.type } end
-    elseif entry.special == "kit" then
-        d.comboLabel = "IGUI_OA_Terminal_Shop_PickTarget"
-        options = {}
-        for _, t in ipairs(self:targets(entry)) do options[#options + 1] = { text = t.name, data = t.target } end
-        if #options == 0 then options[1] = { text = getText("IGUI_OA_Trade_Shop_AnyTarget"), data = "" } end
     end
     d.options = options
     local picked = 1
@@ -354,8 +326,7 @@ function OATabShop:buildDetail(record, ctx)
         self.pick = options[picked].data
         d.picked = picked
     end
-    local line = entry.special == "kit" and { target = self.pick or "" } or nil
-    d.price = Text.credits(priceOf(entry, line, record))
+    d.price = Text.credits(OA.Shop.price(entry, record))
     self.detail = d
     self:fillCombo(d)
 end
@@ -371,10 +342,11 @@ end
 -- The cart: its lines as rows, the totals, the empty cart's text.
 function OATabShop:buildCart(record)
     local rows, total = {}, 0
+    local svc = Orders.shopService(record)
     for _, line in ipairs(Orders.cart(record)) do
         local entry = Orders.entry(line.id)
         if entry then
-            local sum = OA.round(priceOf(entry, line, record)) * line.count
+            local sum = Orders.lineCost(svc, entry, line)
             total = total + sum
             local n = #rows
             rows[n + 1] = {
@@ -393,14 +365,11 @@ function OATabShop:buildCart(record)
     self.sum = s
 end
 
--- The name of a cart line: the entry's or the choice's, with the target.
+-- The name of a cart line: the entry's or the choice's.
 function OATabShop:lineName(entry, line)
     local name = Orders.nameOf(entry)
     -- A line with a choice is named by what was chosen (the entry's name says only what it is chosen from).
     if line.choice and entry.choices then name = Text.nameOf(line.choice) end
-    if line.target and line.target ~= "" and entry.kit then
-        name = name .. " (" .. OA.Gear.targetName(entry.kit, line.target, self:character()) .. ")"
-    end
     return name
 end
 
@@ -409,8 +378,6 @@ function OATabShop:styleButtons()
     local open = d and d.state.open
     self.addButton:setStyle(open and "strong" or "off")
     self.addButton.tooltip = (d and not open and d.state.reason) and getText(d.state.reason) or nil
-    self.minusButton:setStyle(open and "normal" or "off")
-    self.plusButton:setStyle(open and "normal" or "off")
     self.clearButton:setStyle(#self.cartRows > 0 and "normal" or "off")
 end
 
@@ -446,12 +413,6 @@ function OATabShop:layout()
     local by = det.y + row.y
     self.addButton:setVisible(d ~= nil)
     self:place(self.addButton, det.x + row.add.x, by, row.add.w, row.h)
-    self.minusButton:setVisible(d ~= nil and row.minus ~= nil)
-    self.plusButton:setVisible(d ~= nil and row.plus ~= nil)
-    if row.minus then
-        self:place(self.minusButton, det.x + row.minus.x, by, row.minus.w, row.h)
-        self:place(self.plusButton, det.x + row.plus.x, by, row.plus.w, row.h)
-    end
     self.combo:setVisible(d ~= nil and row.combo ~= nil)
     if row.combo then self:place(self.combo, det.x + row.combo.x, by, row.combo.w, row.h) end
     self.detailRow = row
@@ -570,9 +531,6 @@ function OATabShop:drawDetail(p)
     end
     local row = self.detailRow
     if row.combo and row.combo.label then UI.text(self, getText(d.comboLabel), r.x + 10, r.y + row.y + 2, p.dim) end
-    if row.count then
-        UI.textCentre(self, tostring(self.qty), r.x + row.count.x + row.count.w / 2, r.y + row.y + 2, open and p.text or p.dim, p.numberFont)
-    end
 end
 
 function OATabShop:drawCart(p)
@@ -741,7 +699,7 @@ function OATabShop.onCardRow(tab, row, x, y)
     local card = cardAt(tab, row, x, y)
     if card and card.id ~= tab.sel then
         getSoundManager():playUISound("UISelectListItem")
-        tab.sel, tab.qty, tab.pick = card.id, 1, nil
+        tab.sel, tab.pick = card.id, nil
         tab:refresh()
         tab:revealCards(false)
     end
@@ -752,7 +710,7 @@ function OATabShop:showEntry(id)
     local entry = OA.Shop and OA.Shop.entry(id)
     if not entry then return end
     self.cat = ShopView.onShelf(entry) and "serums" or entry.group
-    self.sel, self.qty, self.pick, self.onlyOpen = id, 1, nil, false
+    self.sel, self.pick, self.onlyOpen = id, nil, false
     self:refresh()
     for _, row in ipairs(self.cards.rows or {}) do
         for _, card in ipairs(row.cards or {}) do
@@ -766,20 +724,13 @@ function OATabShop:onCombo(combo)
     self:refresh()
 end
 
-function OATabShop:onMinus() self.qty = math.max(1, self.qty - 1) end
-
-function OATabShop:onPlus()
-    local d = self.detail
-    self.qty = math.min(d and d.maxQty or 1, self.qty + 1)
-end
-
 -- Ordering -------------------------------------------------------------------------------------------------------
 
 -- The cart as plain lines to send.
 function OATabShop:linesCopy()
     local lines = {}
     for _, line in ipairs(Orders.cart(self:record())) do
-        lines[#lines + 1] = { id = line.id, count = line.count, target = line.target, choice = line.choice }
+        lines[#lines + 1] = { id = line.id, count = line.count, choice = line.choice }
     end
     return lines
 end
@@ -788,15 +739,15 @@ function OATabShop:sendLines(lines)
     self:send("tradeCart", { lines = lines })
 end
 
-function OATabShop:addLine(entry, choice, target, count)
+function OATabShop:addLine(entry, choice, count)
     local lines = self:linesCopy()
     for _, line in ipairs(lines) do
-        if line.id == entry.id and line.choice == choice and line.target == target then
+        if line.id == entry.id and line.choice == choice then
             line.count = line.count + count
             return self:sendLines(lines)
         end
     end
-    lines[#lines + 1] = { id = entry.id, count = count, choice = choice, target = target }
+    lines[#lines + 1] = { id = entry.id, count = count, choice = choice }
     self:sendLines(lines)
 end
 
@@ -814,17 +765,11 @@ function OATabShop:onAdd()
     local d = self.detail
     if not (d and d.state.open) then return self:refuse() end
     local entry = d.entry
-    local choice, target
-    if d.options then
-        if entry.special == "kit" then target = self.pick or "" else choice = self.pick end
-    end
-    local count = d.options and 1 or self.qty
-    self.qty = 1
-    self:addLine(entry, choice, target, count)
+    self:addLine(entry, d.options and self.pick or nil, 1)
 end
 
 local function same(a, b)
-    return a.id == b.id and a.choice == b.choice and a.target == b.target
+    return a.id == b.id and a.choice == b.choice
 end
 
 function OATabShop:change(line, delta)

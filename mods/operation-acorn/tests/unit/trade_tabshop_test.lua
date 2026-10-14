@@ -223,11 +223,11 @@ test("the sections list the groups, the locked ones with a padlock, on the crude
     local tab = open("crude")
     local ids = {}
     for _, c in ipairs(tab.model.cats) do ids[#ids + 1] = c.id .. (c.locked and "*" or "") end
-    eq(table.concat(ids, ","), "all,resource,gear*,machine,part*,mk*,kit*")
+    eq(table.concat(ids, ","), "resource,gear*,machine,part*,mk*,kit*")
     local field = open("field")
     ids = {}
     for _, c in ipairs(field.model.cats) do ids[#ids + 1] = c.id .. (c.locked and "*" or "") end
-    eq(table.concat(ids, ","), "all,resource,gear,machine,part,mk,kit")
+    eq(table.concat(ids, ","), "resource,gear,machine,part,mk,kit")
 end)
 
 test("a section on the crude terminal: the gate band and cards that name the terminal and the level", function()
@@ -318,14 +318,12 @@ test("a weekly limit shows what is left and a week with none left shows when it 
     eq(tab.byId.petrol_can.state.open, false)
 end)
 
-test("a seed packet has a combo box of kinds and no quantity; the order carries the kind picked", function()
+test("a seed packet has a combo box of kinds; the order carries the kind picked", function()
     local tab, window = open("crude", 700, 408, 2)
     tab:setCat("resource")
     truthy(clickCard(tab, "seed_pack"))
     eq(#tab.detail.options, 2)
     eq(tab.combo.visible, true)
-    eq(tab.minusButton.visible, false)
-    eq(tab.plusButton.visible, false)
     eq(tab.combo.options[1].data, "Base.CarrotBagSeed", "sorted by name")
     local seen = draw(tab)
     truthy(has(seen.tab, "IGUI_OA_Terminal_Shop_PickKind"), "the label at this width")
@@ -345,7 +343,6 @@ test("a car battery's kinds fill the combo box and the pick is ordered", functio
     truthy(clickCard(tab, "car_battery"))
     eq(#tab.detail.options, 3)
     eq(tab.combo.visible, true)
-    eq(tab.minusButton.visible, false)
     eq(tab.combo.options[2].data, "Base.CarBattery2")
     tab.combo.selected = 2
     tab:onCombo(tab.combo)
@@ -362,26 +359,14 @@ test("a car battery's kinds fill the combo box and the pick is ordered", functio
     eq(tab:lineName(entry, { id = "car_battery", choice = "Base.CarBattery2" }), OA.Trade.Text.nameOf("Base.CarBattery2"))
 end)
 
-test("the quantity adds that many, and not beyond the weekly count", function()
+test("the add button adds one at a time (the cart sets how many)", function()
     local tab, window = open("field", 700, 408, 3)
     tab:setCat("resource")
     truthy(clickCard(tab, "petrol_can"))
-    eq(tab.detail.maxQty, 3)
-    tab.plusButton:onMouseDown()
-    tab.plusButton:onMouseUp()
-    tab.plusButton:onMouseDown()
-    tab.plusButton:onMouseUp()
-    tab.plusButton:onMouseDown()
-    tab.plusButton:onMouseUp()
-    eq(tab.qty, 3)
-    tab.minusButton:onMouseDown()
-    tab.minusButton:onMouseUp()
-    eq(tab.qty, 2)
     tab.addButton:onMouseDown()
     tab.addButton:onMouseUp()
     eq(window.sent[1].args.lines[1].id, "petrol_can")
-    eq(window.sent[1].args.lines[1].count, 2)
-    eq(tab.qty, 1, "back to one")
+    eq(window.sent[1].args.lines[1].count, 1)
 end)
 
 test("a locked card cannot be added: the button does nothing and the click gives the reason", function()
@@ -486,20 +471,16 @@ test("a resize works the layout out again", function()
     eq(tab.cards.width, 284)
 end)
 
-test("a kit is ordered for a target: its combo lists the targets or says there is none", function()
-    OA.Gear = OA.Gear or {}
+test("a kit is ordered for no bag or car in particular: no combo box, the line has no target", function()
     local tab, window = open("field", 700, 408, 6)
-    OA.Gear.bagTargets = function() return { { target = "bag-1", name = "Hiking bag" } } end
     tab:setCat("kit")
     truthy(clickCard(tab, "kit_bagCapacity"))
-    eq(#tab.detail.options, 1)
-    eq(tab.detail.options[1].data, "bag-1")
+    eq(tab.detail.options, nil)
+    eq(tab.combo.visible, false)
     tab.addButton:onMouseDown()
     tab.addButton:onMouseUp()
-    eq(window.sent[1].args.lines[1].target, "bag-1")
-    OA.Gear.bagTargets = function() return {} end
-    tab:refresh()
-    eq(tab.detail.options[1].data, "", "no target given")
+    eq(window.sent[1].args.lines[1].id, "kit_bagCapacity")
+    eq(window.sent[1].args.lines[1].target, nil)
 end)
 
 test("a long description takes the taller detail", function()

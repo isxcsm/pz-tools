@@ -12,9 +12,9 @@ OA.Trust = Trust
 
 Trust.STAGES = 5
 -- Trust needed to enter stages 1..5 (NUMBERS 5), before TrustThresholdMultiplier.
-Trust.STAGE_BASE = { 700, 2300, 5500, 11500, 23000 }
--- Milestone k comes (14,000 + 7,000 * (k - 1)) trust after the one before it, the first after stage 5.
-Trust.MILESTONE_FIRST, Trust.MILESTONE_STEP = 14000, 7000
+Trust.STAGE_BASE = { 70, 230, 550, 1150, 2300 }
+-- Milestone k comes (1,400 + 700 * (k - 1)) trust after the one before it, the first after stage 5.
+Trust.MILESTONE_FIRST, Trust.MILESTONE_STEP = 1400, 700
 
 local function multiplier()
     return OA.option("TrustThresholdMultiplier") or 1.0
@@ -25,7 +25,7 @@ function Trust.stageThreshold(stage)
     return OA.round(Trust.STAGE_BASE[stage] * multiplier())
 end
 
--- Trust needed for milestone k (1, 2 ...): 37,000 / 58,000 / 86,000 / 121,000 / 163,000 ...
+-- Trust needed for milestone k (1, 2 ...): 3,700 / 5,800 / 8,600 / 12,100 / 16,300 ...
 function Trust.milestoneThreshold(k)
     local base = Trust.STAGE_BASE[Trust.STAGES]
         + Trust.MILESTONE_FIRST * k + Trust.MILESTONE_STEP * k * (k - 1) / 2

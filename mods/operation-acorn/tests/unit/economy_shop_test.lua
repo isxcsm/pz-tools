@@ -24,17 +24,18 @@ end
 
 test("every NUMBERS 7 price is in the catalog", function()
     local expect = {
-        cure_serum = { 500000, 1 }, reversal = { 50000, 1 }, delay_long = { 20000, 0 }, delay_drug = { 5000, 0 },
+        cure_serum = { 500000, 5 }, reversal = { 50000, 1 }, delay_long = { 20000, 0 }, delay_drug = { 5000, 0 },
         test_kit = { 2000, 0 }, battery_pack = { 4000, 1 }, seed_pack = { 3000, 1 },
         petrol_can = { 15000, 2 }, scrap_pack = { 6000, 2 }, propane_tank = { 25000, 3 }, car_battery = { 20000, 3 },
         car_part_normal = { 10000, 3 }, engine_parts = { 20000, 3 }, car_part_modern = { 25000, 5 },
         ammo_pistol = { 40000, 4 }, ammo_shotgun = { 50000, 4 }, ammo_rifle = { 60000, 4 },
         team_backpack = { 300000, 5 }, shred_bench = { 5000, 0 }, bait_trap = { 12000, 2 }, team_locker = { 60000, 2 },
+        team_crate = { 12000, 2 },
         fabric_cutter = { 80000, 2 }, log_saw = { 100000, 2 }, rain_cistern = { 90000, 3 },
         bulk_shredder = { 150000, 3 }, propane_refinery = { 200000, 3 }, oil_refinery = { 250000, 4 },
         box_reissue = { 10000, 0 },
         motor_normal = { 25000, 3 }, motor_modern = { 60000, 5 }, shred_blade_normal = { 15000, 3 },
-        shred_blade_modern = { 40000, 5 }, cut_blade_normal = { 15000, 3 }, cut_blade_modern = { 40000, 5 },
+        shred_blade_modern = { 40000, 5 }, cut_blade_normal = { 10000, 3 }, cut_blade_modern = { 25000, 5 },
         saw_blade_normal = { 15000, 3 }, saw_blade_modern = { 40000, 5 }, filter_normal = { 20000, 3 },
         filter_modern = { 50000, 5 }, soundproof_cover = { 30000, 3 },
         fuelcan_mk1 = { 20000, 2 }, fuelcan_mk2 = { 45000, 4 }, fuelcan_mk3 = { 90000, 5 },
@@ -131,7 +132,7 @@ test("the infection medicines ignore the multiplier and the discount", function(
     eq(S.price(find("test_kit"), r), 2000)
 end)
 
-test("the shelf opens as designed: the cure and the reversal at the first stage, the rest from the start", function()
+test("the shelf opens as designed: the reversal at the first stage, the cure at the fifth, the rest from the start", function()
     local r = record(0)
     for _, id in ipairs({ "delay_long", "delay_drug", "test_kit" }) do truthy(S.available(find(id), r) > 0, id) end
     for _, id in ipairs({ "cure_serum", "reversal" }) do
@@ -139,7 +140,9 @@ test("the shelf opens as designed: the cure and the reversal at the first stage,
         eq(n, 0, id); eq(why, "IGUI_OA_Econ_Shop_Locked")
     end
     r = record(1)
-    for _, id in ipairs({ "cure_serum", "reversal" }) do truthy(S.available(find(id), r) > 0, id) end
+    truthy(S.available(find("reversal"), r) > 0)
+    eq(S.available(find("cure_serum"), record(4)), 0, "not yet at the fourth")
+    truthy(S.available(find("cure_serum"), record(5)) > 0)
 end)
 
 test("serums and the box ignore the multiplier and the discount", function()
@@ -182,25 +185,25 @@ test("serum growth scales with its option", function()
     eq(S.serumPriceAt(20), 8000)
 end)
 
-test("kit prices rise with the kits bought for the same target", function()
+test("kit prices rise with the kits of the kind bought", function()
     -- At the first milestone the 5% discount of stage 4 is on.
     local r = record(5, 1)
-    eq(S.kitPrice("bagCapacity", "bag1", r), 38000)
-    local kit = find("kit_bagCapacity")
-    S.bought(kit, r, 1, "bag1")
-    eq(S.kitPrice("bagCapacity", "bag1", r), OA.round(40000 * 1.3 * 0.95))
-    eq(S.kitPrice("bagCapacity", "bag2", r), 38000, "another bag starts over")
-    eq(S.kitPrice("bagWeight", "bag1", r), OA.round(50000 * 0.95), "another kind too")
-    eq(S.kitPrice("bagCapacity", "bag1", r, 2), OA.round(40000 * 1.3 ^ 3 * 0.95), "kits already in the order count")
-    S.bought(find("kit_trunk"), r, 2, "car7")
-    eq(S.kitPrice("trunk", "car7", r), OA.round(60000 * 1.25 ^ 2 * 0.95))
-    eq(S.kitPrice("engine", "car7", r), OA.round(80000 * 0.95))
+    eq(S.kitPrice("bagCapacity", r), 38000)
+    eq(S.price(find("kit_bagCapacity"), r), 38000, "the entry's price is the next kit's")
+    S.bought(find("kit_bagCapacity"), r, 1)
+    eq(S.kitsBought("bagCapacity", r), 1)
+    eq(S.kitPrice("bagCapacity", r), OA.round(40000 * 1.3 * 0.95))
+    eq(S.kitPrice("bagWeight", r), OA.round(50000 * 0.95), "another kind starts over")
+    eq(S.kitPrice("bagCapacity", r, 2), OA.round(40000 * 1.3 ^ 3 * 0.95), "the cart's later kits count the ones before")
+    S.bought(find("kit_trunk"), r, 2)
+    eq(S.kitPrice("trunk", r), OA.round(60000 * 1.25 ^ 2 * 0.95))
+    eq(S.kitPrice("engine", r), OA.round(80000 * 0.95))
 end)
 
 test("kit prices take the multiplier and the discount", function()
     SandboxVars.OperationAcorn.ShopPriceMultiplier = 2.0
     local r = record(5, 2)
-    eq(S.kitPrice("engine", "car", r), OA.round(80000 * 2.0 * 0.9))
+    eq(S.kitPrice("engine", r), OA.round(80000 * 2.0 * 0.9))
 end)
 
 test("tiers lock and unlock entries", function()
@@ -210,7 +213,7 @@ test("tiers lock and unlock entries", function()
     n = S.available(find("delay_drug"), r)
     truthy(n > 0)
     r = record(1)
-    truthy(S.available(find("cure_serum"), r) > 0)
+    truthy(S.available(find("reversal"), r) > 0)
     n, why = S.available(find("propane_tank"), r)
     eq(n, 0)
     r = record(3)
@@ -262,7 +265,7 @@ test("the next week begins at midnight of its first day", function()
 end)
 
 test("cure serums and delay drugs have no purchase interval and no count limit", function()
-    local r = record(1)
+    local r = record(5)
     local cure, delay = find("cure_serum"), find("delay_drug")
     for _, id in ipairs({ "reversal", "delay_long", "test_kit" }) do eq(S.available(find(id), r), 99, id) end
     eq(S.available(cure, r), 99)
@@ -281,7 +284,7 @@ end)
 test("the cure serum and the delay drug still need the tier, stock and no debt", function()
     local n, why = S.available(find("cure_serum"), record(0))
     eq(n, 0); eq(why, "IGUI_OA_Econ_Shop_Locked")
-    n, why = S.available(find("cure_serum"), record(1, 0, -1))
+    n, why = S.available(find("cure_serum"), record(5, 0, -1))
     eq(n, 0); eq(why, "IGUI_OA_Econ_Shop_Debt")
     for _, id in ipairs({ "delay_drug", "delay_long", "reversal", "test_kit" }) do
         n, why = S.available(find(id), record(1, 0, -1))

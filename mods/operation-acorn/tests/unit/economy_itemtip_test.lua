@@ -98,7 +98,7 @@ test("the request line says the price, the count settled and the count", functio
     r.trade.levels.reqprice = 3
     r.trade.levelsRev = 1   -- what flight support does with each level
     r.trade.serial = 3
-    eq(Tip.rows(r, "Base.Ring", nil)[1].text, "IGUI_OA_ItemTip_Request 5,330 0 3", "thousands as the terminal writes them")
+    eq(Tip.rows(r, "Base.Ring", nil)[1].text, "IGUI_OA_ItemTip_Request 5,200 0 3", "thousands as the terminal writes them")
 end)
 
 test("a kind the codex has not seen is new, but only a kind the codex counts, and never a bought item", function()

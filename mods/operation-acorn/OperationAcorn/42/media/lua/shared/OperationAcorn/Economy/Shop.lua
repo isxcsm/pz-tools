@@ -26,7 +26,8 @@ Shop.TYPES = {
     shredBench = "OperationAcorn.ShredBench", bulkShredder = "OperationAcorn.BulkShredder",
     cutter = "OperationAcorn.FabricCutter", propaneRefinery = "OperationAcorn.PropaneRefinery",
     oilRefinery = "OperationAcorn.OilRefinery", logSaw = "OperationAcorn.LogSaw",
-    locker = "OperationAcorn.TeamLocker", cistern = "OperationAcorn.RainCistern", bait = "OperationAcorn.BaitTrap",
+    locker = "OperationAcorn.TeamLocker", crate = "OperationAcorn.ResearchCrate", cistern = "OperationAcorn.RainCistern",
+    bait = "OperationAcorn.BaitTrap",
     backpack = "OperationAcorn.TeamBackpack",
     fuelMk1 = "OperationAcorn.FuelCanMk1", fuelMk2 = "OperationAcorn.FuelCanMk2", fuelMk3 = "OperationAcorn.FuelCanMk3",
     kitBagCapacity = "OperationAcorn.KitBagCapacity", kitBagWeight = "OperationAcorn.KitBagWeight",
@@ -87,9 +88,9 @@ local catalog
 local function build()
     local list = {}
     local function add(e) table.insert(list, e) end
-    -- The serum shelf, infection (DESIGN 10, NUMBERS 10): no discount, no count, no interval; the cure and the reversal
-    -- open at the first stage.
-    add({ id = "cure_serum", group = "serum", tier = 1, price = 500000, special = "cure", fixed = true,
+    -- The serum shelf, infection (DESIGN 10, NUMBERS 10): no discount, no count, no interval; the reversal opens at the
+    -- first stage, the cure at the fifth.
+    add({ id = "cure_serum", group = "serum", tier = 5, price = 500000, special = "cure", fixed = true,
         give = { give("cure") } })
     add({ id = "reversal", group = "serum", tier = 1, price = 50000, special = "reversal", fixed = true,
         give = { give("reversal") } })
@@ -99,26 +100,26 @@ local function build()
         give = { give("testKit") } })
     add({ id = "delay_drug", group = "serum", tier = 0, price = 5000, special = "delay", days = 1, fixed = true,
         give = { give("delay") } })
-    -- Late resources.
-    add({ id = "battery_pack", group = "resource", tier = 1, price = 4000, week = 5, give = { vanilla("Battery", 4, { full = true }) } })
-    add({ id = "seed_pack", group = "resource", tier = 1, price = 3000, week = 5, choices = "seeds" })
-    add({ id = "petrol_can", group = "resource", tier = 2, price = 15000, week = 3,
-        give = { vanilla("PetrolCan", 1, { full = true, fluid = "Petrol" }) } })
-    add({ id = "scrap_pack", group = "resource", tier = 2, price = 6000, week = 5, give = { vanilla("ElectronicsScrap", 10) } })
-    add({ id = "propane_tank", group = "resource", tier = 3, price = 25000, week = 2, give = { vanilla("PropaneTank", 1, { full = true }) } })
-    add({ id = "car_battery", group = "resource", tier = 3, price = 20000, week = 2,
-        choices = choiceList({ "CarBattery1", "CarBattery2", "CarBattery3" }) })
-    add({ id = "car_part_normal", group = "resource", tier = 3, price = 10000, week = 6,
-        choices = choiceList(numbered({ "NormalTire", "NormalBrake", "NormalSuspension", "NormalCarMuffler",
-            "Windshield", "RearWindshield", "FrontWindow", "RearWindow" }, 3)) })
-    add({ id = "engine_parts", group = "resource", tier = 3, price = 20000, week = 2, give = { vanilla("EngineParts", 10) } })
-    add({ id = "car_part_modern", group = "resource", tier = 5, price = 25000, week = 6,
-        choices = choiceList(numbered({ "ModernTire", "ModernBrake", "ModernSuspension", "ModernCarMuffler" }, 3)) })
+    -- Supplies, the ones bought most often first: the ammunition, then the fuels and batteries, then the rest.
     add({ id = "ammo_pistol", group = "resource", tier = 4, price = 40000, week = 2,
         choices = choiceList({ "Bullets9mmBox", "Bullets38Box", "Bullets357Box", "Bullets44Box", "Bullets45Box" }) })
     add({ id = "ammo_shotgun", group = "resource", tier = 4, price = 50000, week = 2, give = { vanilla("ShotgunShellsBox") } })
     add({ id = "ammo_rifle", group = "resource", tier = 4, price = 60000, week = 2,
         choices = choiceList({ "556Box", "308Box", "3030Box" }) })
+    add({ id = "battery_pack", group = "resource", tier = 1, price = 4000, week = 5, give = { vanilla("Battery", 4, { full = true }) } })
+    add({ id = "petrol_can", group = "resource", tier = 2, price = 15000, week = 3,
+        give = { vanilla("PetrolCan", 1, { full = true, fluid = "Petrol" }) } })
+    add({ id = "propane_tank", group = "resource", tier = 3, price = 25000, week = 2, give = { vanilla("PropaneTank", 1, { full = true }) } })
+    add({ id = "seed_pack", group = "resource", tier = 1, price = 3000, week = 5, choices = "seeds" })
+    add({ id = "scrap_pack", group = "resource", tier = 2, price = 6000, week = 5, give = { vanilla("ElectronicsScrap", 10) } })
+    add({ id = "engine_parts", group = "resource", tier = 3, price = 20000, week = 2, give = { vanilla("EngineParts", 10) } })
+    add({ id = "car_battery", group = "resource", tier = 3, price = 20000, week = 2,
+        choices = choiceList({ "CarBattery1", "CarBattery2", "CarBattery3" }) })
+    add({ id = "car_part_normal", group = "resource", tier = 3, price = 10000, week = 6,
+        choices = choiceList(numbered({ "NormalTire", "NormalBrake", "NormalSuspension", "NormalCarMuffler",
+            "Windshield", "RearWindshield", "FrontWindow", "RearWindow" }, 3)) })
+    add({ id = "car_part_modern", group = "resource", tier = 5, price = 25000, week = 6,
+        choices = choiceList(numbered({ "ModernTire", "ModernBrake", "ModernSuspension", "ModernCarMuffler" }, 3)) })
     -- Gear.
     -- The backpack's water storage is built in (its two canteens are part of the pack), so no canteens come with it.
     add({ id = "team_backpack", group = "gear", tier = 5, price = 300000, give = { give("backpack") } })
@@ -127,6 +128,8 @@ local function build()
     add({ id = "bait_trap", group = "machine", tier = 2, price = 12000, give = { give("bait") } })
     add({ id = "field_terminal", group = "machine", tier = 2, price = 50000, give = { give("fieldTerminal") } })
     add({ id = "team_locker", group = "machine", tier = 2, price = 60000, give = { give("locker") } })
+    -- the locker's small kind, stacked three high: about the locker's price a capacity
+    add({ id = "team_crate", group = "machine", tier = 2, price = 12000, give = { give("crate") } })
     add({ id = "fabric_cutter", group = "machine", tier = 2, price = 80000, give = { give("cutter") } })
     add({ id = "log_saw", group = "machine", tier = 2, price = 100000, give = { give("logSaw") } })
     add({ id = "rain_cistern", group = "machine", tier = 3, price = 90000, give = { give("cistern") } })
@@ -136,7 +139,8 @@ local function build()
     -- The delivery box.
     add({ id = "box_reissue", group = "box", tier = 0, price = 10000, special = "reissue", fixed = true, allowDebt = true,
         give = { give("box") } })
-    -- Machine parts: the worn-down kind comes with the machine.
+    -- Machine parts: the worn-down kind comes with the machine. A yield part pays its price back within a mid game's
+    -- work (NUMBERS 7): the cutter's pieces are cheap rags, so its blade adds more and costs less.
     local function part(id, tier, price, key)
         add({ id = id, group = "part", tier = tier, price = price, give = { give(key) } })
     end
@@ -144,8 +148,8 @@ local function build()
     part("motor_modern", 5, 60000, "motorModern")
     part("shred_blade_normal", 3, 15000, "shredBladeNormal")
     part("shred_blade_modern", 5, 40000, "shredBladeModern")
-    part("cut_blade_normal", 3, 15000, "cutBladeNormal")
-    part("cut_blade_modern", 5, 40000, "cutBladeModern")
+    part("cut_blade_normal", 3, 10000, "cutBladeNormal")
+    part("cut_blade_modern", 5, 25000, "cutBladeModern")
     part("saw_blade_normal", 3, 15000, "sawBladeNormal")
     part("saw_blade_modern", 5, 40000, "sawBladeModern")
     part("filter_normal", 3, 20000, "filterNormal")
@@ -232,7 +236,7 @@ end
 function Shop.section(record)
     local s = OA.Store.section(record, "shop")
     s.week = s.week or {}       -- [entry id] = { week, n }
-    s.kits = s.kits or {}       -- [kit kind] = { [target] = kits bought for it }
+    s.kits = s.kits or {}       -- [kit kind] = kits of it bought
     s.serums = s.serums or {}   -- [tree] = serums bought
     return s
 end
@@ -255,27 +259,27 @@ function Shop.serumPrice(tree, record, bought)
     return Shop.serumPriceAt(bought + 1)
 end
 
--- Kits bought for a target (applied or not): the price of the next counts them (NUMBERS 7).
-function Shop.kitsFor(kind, target, record)
-    local per = Shop.section(record).kits[kind]
-    return per and per[tostring(target)] or 0
+-- Kits of a kind bought (fitted or not): the price of the next counts them (NUMBERS 7). A kit is bought for no
+-- bag or car in particular; the voucher's kit is not counted.
+function Shop.kitsBought(kind, record)
+    return Shop.section(record).kits[kind] or 0
 end
 
--- The price of a kit of a kind for a target. `pending` is the kits of the same kind and target already in the
--- order being made; a record cannot lower the price by ordering ahead.
-function Shop.kitPrice(kind, target, record, pending)
+-- The price of the next kit of a kind, or of the one after `ahead` more (the cart's later ones: each kit of an order is
+-- priced after the ones before it are counted).
+function Shop.kitPrice(kind, record, ahead)
     local k = Shop.KITS[kind]
-    local n = Shop.kitsFor(kind, target, record) + (pending or 0)
+    local n = Shop.kitsBought(kind, record) + (ahead or 0)
     local multiplier = OA.option("ShopPriceMultiplier") or 1.0
     local discount = OA.Trust.rewards(record).discount
     return OA.round(k.price * k.growth ^ n * multiplier * (1 - discount))
 end
 
 -- The price of an entry for a record, in credits (a whole number). Serums, the box and every fixed entry (the infection
--- medicines) ignore the shop multiplier and the discount; a kit needs its target, so ask Shop.kitPrice.
+-- medicines) ignore the shop multiplier and the discount; a kit's rises with the kits of its kind bought.
 function Shop.price(entry, record)
     if entry.special == "serum" then return Shop.serumPrice(entry.tree, record) end
-    if entry.special == "kit" then return Shop.kitPrice(entry.kit, "", record) end
+    if entry.special == "kit" then return Shop.kitPrice(entry.kit, record) end
     if entry.special == "reissue" then return OA.reissueCost() end
     local base = entry.price
     if entry.special == "cure" then base = OA.scaled(base, "CureSerumPriceMultiplier") end
@@ -341,7 +345,7 @@ function Shop.available(entry, record)
 end
 
 -- Records a purchase the trade part delivered: `count` of the entry (for a kit, bought for `target`).
-function Shop.bought(entry, record, count, target)
+function Shop.bought(entry, record, count)
     count = count or 1
     local shop = Shop.section(record)
     if entry.week then
@@ -354,13 +358,7 @@ function Shop.bought(entry, record, count, target)
         w.n = w.n + count
     end
     if entry.special == "kit" then
-        local per = shop.kits[entry.kit]
-        if not per then
-            per = {}
-            shop.kits[entry.kit] = per
-        end
-        local key = tostring(target or "")
-        per[key] = (per[key] or 0) + count
+        shop.kits[entry.kit] = (shop.kits[entry.kit] or 0) + count
     elseif entry.special == "serum" then
         shop.serums[entry.tree] = (shop.serums[entry.tree] or 0) + count
         -- The upgrades part keeps its own count of serums bought (its board and price read it): keep it in step.

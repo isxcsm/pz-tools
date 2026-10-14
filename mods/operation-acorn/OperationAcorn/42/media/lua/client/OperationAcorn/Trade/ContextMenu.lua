@@ -111,7 +111,7 @@ local function boxOptions(context, object, player)
     if side ~= "own" then
         -- the name on top; taking an abandoned box apart at the menu's end, over the game's destroy line
         if side == "abandoned" then
-            local dismantle = context:addOption(getText("ContextMenu_OA_Trade_DismantleBox"), object, Menus.dismantle, player)
+            local dismantle = context:addOption(getText("ContextMenu_OA_Trade_DismantleBox"), object, Menus.dismantle, player) -- oa-menu: bottom
             PZUIKit.Menu.beforeTail(context, { dismantle })
         end
         local info = context:addOptionOnTop(getText(side == "abandoned" and "ContextMenu_OA_Trade_BoxAbandoned"

@@ -1260,9 +1260,48 @@ function Machines.ensureSpriteProperties()
     if not ok then OA.log("could not set the rain storage sprite property") end
 end
 
+-- A stack of the game's tables on a square (crates, Data.KINDS stack): the top one, or nil.
+local function topTable(square)
+    local top
+    local objects = square:getObjects()
+    for i = 0, objects:size() - 1 do
+        local object = objects:get(i)
+        local props = object:getSprite() and object:getSprite():getProperties()
+        if props and props:has("IsTable") and tonumber(props:get("Surface")) then top = object end
+    end
+    return top
+end
+
+-- The height a thing put on a square's stack stands at (the game's render y offset): the top table's own and its
+-- surface, 0 on a bare floor.
+local function stackHeight(square)
+    local top = topTable(square)
+    if not top then return 0 end
+    return top:getRenderYOffset() + tonumber(top:getSprite():getProperties():get("Surface"))
+end
+
+-- The game stacks tables while the stack's surface stays within this (ISMoveableSpriteProps.canPlaceMoveableInternal).
+local STACK_HEIGHT = 96
+
+-- Whether a stacking kind can go on top of what stands on a square: a table is there, with room on it, and no machine
+-- of another kind.
+local function stacksOn(kind, square)
+    local top = topTable(square)
+    if not top or square:has("IsTableTop") then return false end
+    local objects = square:getObjects()
+    for i = 0, objects:size() - 1 do
+        local object = objects:get(i)
+        local state = Machines.state(object)
+        if Machines.anchorMark(object) or (state and state.kind ~= kind) then return false end
+    end
+    local surface = tonumber(getSprite(Machines.spriteName(kind, "S", false)):getProperties():get("Surface")) or 0
+    return stackHeight(square) + surface <= STACK_HEIGHT
+end
+
 -- Why a square cannot take a tile of a machine: nil when it can, else the reason.
 local function squareProblem(kind, square)
     if not square then return "noSquare" end
+    if Data.KINDS[kind].stack and stacksOn(kind, square) then return nil end
     -- A machine's own tiles are solid: say "taken", which tells the player more than "blocked".
     if occupied(square) then return "taken" end
     if not square:TreatAsSolidFloor() then return "noFloor" end
@@ -1415,6 +1454,8 @@ function Machines.place(kind, square, character, item, dir, bare)
         else
             object:getModData()[Data.ANCHOR_KEY] = { id = id, x = ax, y = ay, z = az }
         end
+        -- a crate on a stack stands on its top
+        if Data.KINDS[kind].stack then object:setRenderYOffset(stackHeight(entry.square)) end
         -- each container on the square the picture shows it on
         local roles = rolesAt(kind, dir, entry.dx, entry.dy)
         setupContainers(object, entry.square, roles)

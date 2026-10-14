@@ -21,11 +21,15 @@ Support.LIST = {
     { id = "rate", group = "trade", base = 0, steps = { { 0.05, 3, 40000 }, { 0.10, 5, 90000 }, { 0.15, 7, 160000 } } },
     { id = "discount", group = "trade", base = 0, steps = { { 0.05, 4, 50000 }, { 0.10, 7, 120000 } } },
     { id = "reqcount", group = "trade", base = 6, steps = { { 8, 2, 20000 }, { 10, 5, 50000 }, { 12, 7, 90000 } } },
-    { id = "reqprice", group = "trade", base = 1.0, steps = { { 1.1, 3, 30000 }, { 1.2, 5, 60000 }, { 4 / 3, 7, 100000 } } },
+    { id = "reqprice", group = "trade", base = 1.0, steps = { { 1.1, 3, 30000 }, { 1.2, 5, 60000 }, { 1.3, 7, 100000 } } },
     { id = "softer", group = "trade", base = false, steps = { { true, 4, 60000 } } },
     { id = "forecast", group = "trade", base = false, steps = { { true, 3, 25000 } } },
+    -- The missions: their pay on top (credits only: trust is not bought), their days, and the streak's cap.
+    { id = "mpay", group = "mission", base = 0, steps = { { 0.10, 2, 30000 }, { 0.20, 4, 70000 }, { 0.30, 6, 120000 } } },
+    { id = "mdays", group = "mission", base = 7, steps = { { 8, 2, 20000 }, { 10, 5, 60000 } } },
+    { id = "mstreak", group = "mission", base = 0.3, steps = { { 0.4, 3, 40000 }, { 0.5, 6, 90000 } } },
 }
-Support.GROUPS = { "heli", "trade" }
+Support.GROUPS = { "heli", "trade", "mission" }
 
 local byId = {}
 for _, u in ipairs(Support.LIST) do byId[u.id] = u end
@@ -186,7 +190,11 @@ end
 function Support.valueText(id, value)
     if type(value) == "boolean" then return { key = "IGUI_OA_Support_" .. id .. "_" .. tostring(value) } end
     if id == "arrive" then return { key = "IGUI_OA_Support_V_arrive", args = { number(value[1]), number(value[2]) } } end
-    if id == "rate" or id == "discount" then return { key = "IGUI_OA_Support_V_" .. id, args = { number(value * 100) } } end
+    if id == "rate" or id == "discount" or id == "mpay" or id == "mstreak" then
+        return { key = "IGUI_OA_Support_V_" .. id, args = { number(value * 100) } }
+    end
+    -- the request price as what it adds: ×1.2 is "+20%"
+    if id == "reqprice" then return { key = "IGUI_OA_Support_V_reqprice", args = { number(OA.round((value - 1) * 100)) } } end
     return { key = "IGUI_OA_Support_V_" .. id, args = { number(value) } }
 end
 

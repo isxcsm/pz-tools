@@ -211,7 +211,7 @@ function OATabUpgrades:buildDetail(L, x, y, w, h, c)
         elseif k == 0 then
             st = getText("IGUI_OA_Status_Row_Start")
         elseif k <= c.cur then
-            st = getText("IGUI_OA_Status_Got")
+            st = getText("IGUI_OA_Status_Row_Got")
         elseif c.state == "pending" and k == c.nxt then
             st, col = getText("IGUI_OA_Status_Up_Pending"), p.warn
         elseif r.tier and r.tier > d.tier then

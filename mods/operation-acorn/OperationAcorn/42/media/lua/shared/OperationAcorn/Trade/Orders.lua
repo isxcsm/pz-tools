@@ -89,13 +89,13 @@ function Orders.shopService(record)
             if m and (delivered or 0) >= m.n then return false, m.why or "limit" end
             return true
         end,
-        price = function(entry, line)
-            if entry.special == "kit" and Shop.kitPrice then return Shop.kitPrice(entry.kit, line.target or "", record) end
+        price = function(entry, line, ahead)
+            if entry.special == "kit" and Shop.kitPrice then return Shop.kitPrice(entry.kit, record, ahead) end
             if entry.special == "serum" and Shop.serumPrice then return Shop.serumPrice(entry.tree, record) end
             return Shop.price(entry, record)
         end,
         bought = function(entry, line)
-            if Shop and Shop.bought then Shop.bought(entry, record, 1, line.target) end
+            if Shop and Shop.bought then Shop.bought(entry, record, 1) end
         end,
         items = function(entry, line)
             return Orders.itemSpecs(entry, line)
@@ -104,13 +104,8 @@ function Orders.shopService(record)
 end
 
 -- One goods table of P1's ({ type, count, full, fluid, empty }) as a drop spec (Trade.dropSpec's fields).
-local function spec(g, entry, line)
-    local s = Trade.dropSpec({ type = g.type, count = g.count, fluid = g.fluid, empty = g.empty })
-    if s and line and line.target and entry.special == "kit" then
-        s.mod = s.mod or {}
-        s.mod.OA_Target = line.target
-    end
-    return s
+local function spec(g)
+    return Trade.dropSpec({ type = g.type, count = g.count, fluid = g.fluid, empty = g.empty })
 end
 
 -- The item specs one unit of an entry brings (a kit carries its target in the item's modData).
@@ -118,14 +113,14 @@ function Orders.itemSpecs(entry, line)
     local specs = {}
     local goods = entry.give or { picked(entry, line) }
     for _, g in ipairs(goods) do
-        local s = spec(g, entry, line)
+        local s = spec(g)
         if s then specs[#specs + 1] = s end
     end
     return specs
 end
 
 -- Replaces the cart with the lines given, keeping the valid ones: a known entry, a whole count of 1 to the limit,
--- no more lines than the limit, a repeated entry (same id, target and choice) merged. Returns the cart.
+-- no more lines than the limit, a repeated entry (same id and choice) merged. Returns the cart.
 function Orders.set(record, lines, crude)
     local cart = {}
     local seen = {}
@@ -141,16 +136,15 @@ function Orders.set(record, lines, crude)
         end
         if entry and count >= 1 then
             count = math.min(count, Orders.MAX_COUNT)
-            local target = type(line.target) == "string" and line.target or nil
             local choice
             local pick = picked(entry, line)
             if pick then choice = pick.type end
-            local key = id .. "|" .. (target or "") .. "|" .. (choice or "")
+            local key = id .. "|" .. (choice or "")
             local at = seen[key]
             if at then
                 cart[at].count = math.min(Orders.MAX_COUNT, cart[at].count + count)
             else
-                cart[#cart + 1] = { id = id, count = count, target = target, choice = choice }
+                cart[#cart + 1] = { id = id, count = count, choice = choice }
                 seen[key] = #cart
             end
         end
@@ -161,15 +155,22 @@ end
 
 -- What the cart costs at today's prices, one unit's price times the count (prices that rise as units are bought
 -- are not foreseen: the helicopter pays by the price of each unit as it comes), and what is left of the balance.
+-- What a line costs with a shop service: each unit at its price (a kit's rises with the ones before it).
+function Orders.lineCost(svc, entry, line)
+    local sum = 0
+    for ahead = 0, (line.count or 1) - 1 do
+        local ok, price = pcall(svc.price, entry, line, ahead)
+        if ok and type(price) == "number" then sum = sum + OA.round(price) end
+    end
+    return sum
+end
+
 function Orders.estimate(record, balance)
     local svc = Orders.shopService(record)
     local total = 0
     for _, line in ipairs(Orders.cart(record)) do
         local entry = svc.entry(line)
-        if entry then
-            local ok, price = pcall(svc.price, entry, line)
-            if ok and type(price) == "number" then total = total + OA.round(price) * line.count end
-        end
+        if entry then total = total + Orders.lineCost(svc, entry, line) end
     end
     return total, (balance or 0) - total
 end

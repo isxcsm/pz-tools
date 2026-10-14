@@ -44,7 +44,7 @@ local function fakeGame(list)
 end
 
 -- A record at a trust stage whose story has been told (so that the missions that start are the plain ones), the base
--- known, the plain pickup the only regular kind and no urgent one: each test turns on what it looks at.
+-- known, the plain pickup the only regular kind, no urgent one and no distance pay: each test turns on what it looks at.
 local recordCount = 0
 local function setup(stage, list)
     recordCount = recordCount + 1
@@ -56,6 +56,7 @@ local function setup(stage, list)
     for id in pairs(Data.STORIES) do s.done[id] = "done" end
     Data.REGULAR = { { item = "MissionEnvelope", weight = 1 } }
     Rewards.URGENT_CHANCE = 0
+    Rewards.FAR_MAX = 0
     M.game = fakeGame(list)
     OA.Trade = { addToDrop = function(rec, items)
         for _, it in ipairs(items) do M.game.supply[#M.game.supply + 1] = it.type end
@@ -183,13 +184,13 @@ test("the danger pay is the average of the points, and nothing where the game ca
     eq(M.dangerOf({}), 0)
 end)
 
-test("the danger pay and the streak are added together, on the credits only", function()
+test("the danger pay and the streak are added together; the danger goes on the trust too, the streak does not", function()
     local record = setup(1)
     M.state(record).streak = 2
     M.game.zombieIntensity = function() return 0.22 end
     local m = start(record)
     eq(m.credits, 13500, "10,000 x (1 + 0.15 + 0.20)")
-    eq(m.trust, 60)
+    eq(m.trust, 69, "60 x 1.15")
     seal(record, m, "A")
     eq(m.pay.credits, 13500)
 end)
@@ -513,10 +514,30 @@ end)
 
 test("taking another never takes the trust below where the level began", function()
     local record = setup(1)
-    record.trade.trust = 702
+    record.trade.trust = 72
     start(record)
     truthy(M.reroll(record))
-    eq(record.trade.trust, 700, "the first stage began at 700")
+    eq(record.trade.trust, 70, "the first stage began at 70")
+end)
+
+test("the distance pay: how far into its band a mission lies, on the credits and the trust", function()
+    Rewards.FAR_MAX = 0.3
+    eq(Rewards.farPay(150, 150, 600), 0, "at the near edge: none")
+    near(Rewards.farPay(600, 150, 600), 0.3, 1e-9, "at the far edge: the most")
+    near(Rewards.farPay(375, 150, 600), 0.15, 1e-9)
+    near(Rewards.farPay(330, 150, 600), 0.1, 1e-9, "in steps of five per cent")
+    near(Rewards.farPay(9000, 150, 600), 0.3, 1e-9, "past the band: no more")
+    eq(Rewards.farPay(100, 150, 600), 0, "inside the band's start: none")
+    eq(Rewards.trustWithBonus(60, 0.15, 0.3), 87, "the danger and the distance on the trust")
+    eq(Rewards.withBonus(10000, 0.15, 2, 0.3, 0.1), 17500, "and on the credits with the streak and the support")
+    local record = setup(1)
+    Rewards.FAR_MAX = 0.3
+    near(M.farOf(record, { x = 600, y = 0 }, 1), 0.3, 1e-9, "from the terminal, in the level's band")
+    eq(M.farOf(record, { x = 150, y = 0 }, 1), 0)
+    local m = start(record)
+    near(m.far, M.farOf(record, m.area, 1), 1e-9)
+    eq(m.credits, Rewards.withBonus(m.base, m.danger, m.streak, m.far, m.support))
+    eq(m.trust, Rewards.trustWithBonus(m.trustBase, m.danger, m.far))
 end)
 
 test("a mission that cannot be made keeps the old one and costs nothing", function()
@@ -606,7 +627,7 @@ test("the offer's slot tells the options with the reward doubled, the days and t
     for _, key in ipairs({ "a", "b" }) do
         local o = slot.options[key]
         eq(o.credits, 80500, "70,000 x 1.15")
-        eq(o.trust, 200)
+        eq(o.trust, 230, "200 x 1.15")
         eq(o.days, 14)
         near(o.danger, 0.15, 1e-9)
         truthy(o.area.r > 0)
@@ -973,12 +994,12 @@ end)
 
 test("trust lost is never below where the level began", function()
     local record = setup(2)
-    record.trade.trust = 2400
+    record.trade.trust = 250
     eq(Story.loseTrust(record, 12), 12)
-    eq(record.trade.trust, 2388)
-    record.trade.trust = 2305
-    eq(Story.loseTrust(record, 12), 5, "the second stage began at 2300")
-    eq(record.trade.trust, 2300)
+    eq(record.trade.trust, 238)
+    record.trade.trust = 235
+    eq(Story.loseTrust(record, 12), 5, "the second stage began at 230")
+    eq(record.trade.trust, 230)
     eq(Story.loseTrust(record, 12), 0)
     eq(Story.loseTrust(record, 0), 0)
     eq(Story.loseTrust(record, nil), 0)

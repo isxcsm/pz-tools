@@ -70,15 +70,17 @@ local function refreshText()
     return getText("IGUI_OA_Terminal_Del_Refresh", left)
 end
 
--- The tooltip lines of a group: the kinds it takes (a group of one has none), and when its kinds fetch different
--- prices (each its own worth when that is more than the band's), the range.
+-- The tooltip lines of a group: the kinds it takes, each with its picture (a group of one has none), and when its
+-- kinds fetch different prices (each its own worth when that is more than the band's), the range. A line is a text, or
+-- { s = name, item = item type } for a kind.
 local function tipOf(key, line)
     local names = OA.Requests.memberNames(key)
     if #names < 2 then return nil end
+    local types = OA.Requests.memberTypes(key)
     local lines = { getText("IGUI_OA_Terminal_Del_Takes") }
     local shown = math.min(#names, OATabDelivery.TIP_MAX)
     if shown < #names then shown = shown - 1 end
-    for i = 1, shown do lines[#lines + 1] = names[i] end
+    for i = 1, shown do lines[#lines + 1] = { s = names[i], item = types[i] } end
     if shown < #names then lines[#lines + 1] = getText("IGUI_OA_Terminal_Del_TakesMore", #names - shown) end
     if line.priceMin and line.priceMax and line.priceMax > line.priceMin then
         lines[#lines + 1] = getText("IGUI_OA_Terminal_Del_TakesPrices", Text.credits(line.priceMin),
@@ -402,10 +404,17 @@ function OATabDelivery:drawRowTip()
     if not tip then return false end
     local p = self:palette()
     local fh = UI.fontHeight()
-    local tw = 0
-    for _, line in ipairs(tip) do tw = math.max(tw, UI.textWidth(line)) end
+    -- a kind's line is as high as its picture, the picture the font's height
+    local icon = fh + 2
+    local tw, th = 0, 6
+    for _, line in ipairs(tip) do
+        if type(line) == "table" then
+            tw, th = math.max(tw, icon + 4 + UI.textWidth(line.s)), th + icon
+        else
+            tw, th = math.max(tw, UI.textWidth(line)), th + fh
+        end
+    end
     tw = tw + 12
-    local th = #tip * fh + 6
     -- the mouse in the tab's own units: the list is the game's, in pixels and scrolled, so its mouse is not
     local mx, my = self:getMouseX(), self:getMouseY()
     local x = math.max(0, math.min(mx + 16, self:getWidth() - tw))
@@ -413,7 +422,17 @@ function OATabDelivery:drawRowTip()
     if y + th > self:getHeight() then y = math.max(0, my - th - 4) end
     UI.fill(self, x, y, tw, th, p.bg, 0.97)
     UI.frame(self, x, y, tw, th, p.border)
-    for i, line in ipairs(tip) do UI.text(self, line, x + 6, y + 3 + (i - 1) * fh, i == 1 and p.dim or p.bright) end
+    local ly = y + 3
+    for i, line in ipairs(tip) do
+        if type(line) == "table" then
+            UI.icon(self, OA.Trade.Draw.itemTexture(line.item, UI.px(icon)), x + 6, ly, icon, 1, p.iconTint)
+            UI.text(self, line.s, x + 6 + icon + 4, ly + (icon - fh) / 2, p.bright)
+            ly = ly + icon
+        else
+            UI.text(self, line, x + 6, ly, i == 1 and p.dim or p.bright)
+            ly = ly + fh
+        end
+    end
     return true
 end
 

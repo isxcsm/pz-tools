@@ -62,7 +62,8 @@ end
 local pickUp = ISMoveableSpriteProps.pickUpMoveable
 function ISMoveableSpriteProps:pickUpMoveable(character, square, createItem, forceAllow)
     if not self.oaMachine then return pickUp(self, character, square, createItem, forceAllow) end
-    local anchor = machineOf(square, self.object)
+    -- the object the game takes (of a stack of crates, the top one), not the first machine on the square
+    local anchor = machineOf(square, self:findOnSquare(square, self.spriteName) or self.object)
     local items = pickUp(self, character, square, createItem, forceAllow)
     -- taken: the game removed the tiles; the registry entry goes too. The game copies an object's modData onto its
     -- piece (for its own furniture's name and health): the machine's state is not the piece's to carry.

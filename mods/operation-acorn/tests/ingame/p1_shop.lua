@@ -57,6 +57,6 @@ for _, e in ipairs(catalog) do
         why or "", opens and (" at " .. tostring(math.floor(opens))) or ""))
 end
 for _, kind in ipairs(OA.Shop.KIT_ORDER) do
-    say("kit", kind, "first", OA.Shop.kitPrice(kind, "t", record), "second", OA.Shop.kitPrice(kind, "t", record, 1))
+    say("kit", kind, "first", OA.Shop.kitPrice(kind, record), "second", OA.Shop.kitPrice(kind, record, 1))
 end
 say("done")

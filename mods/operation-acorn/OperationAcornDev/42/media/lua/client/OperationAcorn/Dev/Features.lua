@@ -199,8 +199,8 @@ end
 
 -- ---- machines ----------------------------------------------------------------------------------------------------
 
-Dev.MACHINES = { "shredBench", "bulkShredder", "cutter", "woodSaw", "researchStorage", "propaneRefiner", "oilRefiner",
-    "rainStorage", "lure" }
+Dev.MACHINES = { "shredBench", "bulkShredder", "cutter", "woodSaw", "researchStorage", "researchCrate", "propaneRefiner",
+    "oilRefiner", "rainStorage", "lure" }
 Dev.PARTS = { "MotorOld", "MotorNormal", "MotorModern", "ShredBladeNormal", "CutBladeNormal", "SawBladeNormal",
     "FilterNormal", "SoundproofCover" }
 

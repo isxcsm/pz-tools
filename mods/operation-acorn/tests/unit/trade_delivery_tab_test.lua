@@ -129,13 +129,13 @@ test("the header's multiplier and the prices follow the request price upgrade", 
     OA.Support.setLevel(record, "reqprice", 3)
     OA.Support.setLevel(record, "reqcount", 3)
     local tab = openTab(record)
-    eq(tab.data.price, OA.Trade.Text.TIMES .. "1.33")
+    eq(tab.data.price, OA.Trade.Text.TIMES .. "1.3")
     eq(#tab.data.rows, 12)
     local prices = {}
     for _, row in ipairs(tab.data.rows) do prices[row.band] = row.price end
-    eq(prices.common, "800")
-    if prices.normal then eq(prices.normal, "2,000") end
-    if prices.rare then eq(prices.rare, "5,330") end
+    eq(prices.common, "780")
+    if prices.normal then eq(prices.normal, "1,950") end
+    if prices.rare then eq(prices.rare, "5,200") end
 end)
 
 test("the bar counts what the week settled and shows what the sealed boxes hold lightly", function()
@@ -307,6 +307,8 @@ test("a group's row shows the group's name and picture, and the mouse over it li
     eq(row.name, "Charcoal", "the group's name, not one kind's")
     eq(row.kinds, "IGUI_OA_Terminal_Del_Kinds 3", "beside the name: how many kinds, as the mouse over it lists them")
     eq(row.itemType, "Base.Charcoal", "its picture is the first kind's")
+    eq(row.tip[2].s, "Charcoal")
+    eq(row.tip[4].item, "Base.CharcoalCrafted", "each kind in the tip has its picture")
     tab:prerender()
     tab.list.over, tab.list.mouseoverselected, tab.list.mx, tab.list.my = true, 1, 40, 10
     tab.drawn = {}

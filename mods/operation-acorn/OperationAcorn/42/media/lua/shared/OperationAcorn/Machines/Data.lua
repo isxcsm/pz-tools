@@ -32,7 +32,8 @@ Data.WEAR_WEIGHT = 30
 local function rateOf(work) return 3600 / Data.WORK_SECONDS[work].perWeight end
 local function wearOf(work) return rateOf(work) / Data.WEAR_WEIGHT end
 
--- Every machine kind. The names are Sprites.MACHINE_KINDS' (plus rainStorage and lure, which have one tile each).
+-- Every machine kind. The names are Sprites.MACHINE_KINDS' (plus rainStorage, researchCrate and lure, which stand one
+-- way only).
 --   item: the item type (in module OperationAcorn) the shop delivers and the player puts down.
 --   weight: the whole machine's (scripts/OA_machines.txt and tools/tile_art.py say the same); the furniture tool's
 --     pieces share it, one a tile.
@@ -45,6 +46,7 @@ local function wearOf(work) return rateOf(work) / Data.WEAR_WEIGHT end
 --   slots: the part slots, in the order a window lists them. A slot a machine ships without is in `empty`.
 --   inputs/outputs: the containers (titles IGUI_ContainerTitle_<type>); `in` is where things are put, `out` where
 --     the products come out. A refiner has `in` only: the tank it fills stays in it.
+--   stack: stands on another of its kind, as the game's crates do (Machines.canPlace; the height is the tile's).
 Data.KINDS = {
     shredBench = {
         item = "ShredBench", weight = 20, hand = true, slots = {}, containers = {},
@@ -73,6 +75,9 @@ Data.KINDS = {
     researchStorage = {
         -- a locker on each of its two squares, as a double wardrobe has a compartment a square
         item = "TeamLocker", weight = 40, slots = {}, containers = { "store" }, everyTile = true,
+    },
+    researchCrate = {
+        item = "ResearchCrate", weight = 15, slots = {}, containers = { "crate" }, stack = true,
     },
     rainStorage = {
         item = "RainCistern", weight = 25, slots = {}, containers = {},
@@ -117,7 +122,7 @@ for kind, def in pairs(Data.KINDS) do Data.ITEM_KINDS[def.item] = kind end
 
 -- The kinds in the order the shop and the menus list them.
 Data.ORDER = { "shredBench", "bulkShredder", "cutter", "propaneRefiner", "oilRefiner", "woodSaw", "researchStorage",
-    "rainStorage", "lure" }
+    "researchCrate", "rainStorage", "lure" }
 
 -- The kinds whose window opens (parts, work, rain or the lure to look at); the others are only picked up or used.
 function Data.hasWindow(kind)
@@ -141,6 +146,8 @@ Data.CONTAINERS = {
     -- 500 a square (NUMBERS 11): more than the biggest vanilla crate stacked three high (80 x 3). The vanilla cap of an
     -- object container is 100 (ItemContainer.MAX_CAPACITY, applied in getCapacity); the extension API lifts it.
     store = { type = "OAResearchStorage", capacity = 500 },
+    -- the crate's: 200, three high 600 on a square, a little more than the locker's square
+    crate = { type = "OAResearchCrate", capacity = 200 },
 }
 -- The translation keys of the container titles (written out so that tools/check_translations.py sees them used).
 Data.TITLES = {
@@ -148,6 +155,7 @@ Data.TITLES = {
     OAMachineOut = "IGUI_ContainerTitle_OAMachineOut",
     OAMachineTank = "IGUI_ContainerTitle_OAMachineTank",
     OAResearchStorage = "IGUI_ContainerTitle_OAResearchStorage",
+    OAResearchCrate = "IGUI_ContainerTitle_OAResearchCrate",
 }
 
 -- Big rain storage (NUMBERS 11): litres, and the rain factor (vanilla's rain collector is 400 and 0.4). Both live in
@@ -223,8 +231,8 @@ Data.PARTS = {
         slot = "blade", name = "CutBlade", role = "yield", kinds = { "cutter" },
         tiers = {
             old = { pieces = 0, wear = 2 },
-            normal = { pieces = 0.5, wear = 1.5 },
-            modern = { pieces = 1, wear = 1 },
+            normal = { pieces = 1, wear = 1.5 },
+            modern = { pieces = 2, wear = 1 },
         },
     },
     sawBlade = {

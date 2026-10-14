@@ -184,7 +184,7 @@ test("hours of running a part has left: its condition over its wear an hour on t
     eq(m.parts[1].life, "68 h of running left")
     eq(m.parts[2].life, "33 h of running left")
     eq(m.parts[1].effect, "3 at a time " .. DOT .. " speed x1.3 " .. DOT .. " power x1.5")
-    eq(m.parts[2].effect, "+0.5 pieces a garment (on average)")
+    eq(m.parts[2].effect, "+1 pieces a garment")
     eq(m.parts[1].tier, "Modern"); eq(m.parts[1].pct, "82%")
     near(Model.hoursLeft("woodSaw", Data.PARTS.motor.tiers.old, 100), 100 / (2 * 180 / 30), 1e-9)
 end)
