@@ -27,7 +27,6 @@ require "BuildingUtilities/ContextMenu"
 require "BuildingUtilities/PanelPlan"
 require "BuildingUtilities/PanelList"
 require "BuildingUtilities/PanelManual"
-require "BuildingUtilities/LineOverlay"
 local BU = BuildingUtilities
 local Store, Panels, Networks, Costs, Actions, Sync, Energy = BU.Store, BU.Panels, BU.Networks, BU.Costs, BU.Actions,
     BU.Sync, BU.Energy
@@ -922,7 +921,6 @@ function ISBUPanelWindow:close()
     self:showRange(false)
     self:outlineThing(nil)
     open[self.panel.id] = nil
-    BU.LineOverlay.refresh()
     -- It fades out (UI.fadeOut), but when another takes its place at once.
     if self.still then
         self:setVisible(false)
@@ -1682,8 +1680,6 @@ function PanelWindow.open(playerObj, panel, anchor, still)
     window:setVisible(true)
     if not still then UI.fadeIn(window) end
     open[panel.id] = window
-    -- its lines in the world (BU.LineOverlay)
-    BU.LineOverlay.refresh()
     return window
 end
 
