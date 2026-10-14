@@ -40,6 +40,7 @@ final class OutlinesTest {
     private OutlinesTest() { }
 
     static void run() {
+        order();
         models();
         doubleDoors();
         hidden();
@@ -51,6 +52,24 @@ final class OutlinesTest {
         object.outlined[0] = true;
         object.outlineCol[0] = MUTED;
         return object;
+    }
+
+    /**
+     * The pass draws the objects outlined in one colour one after another (the game lays its outline buffer over the frame
+     * as the colour changes): a piece of furniture's squares outlined alike, drawn apart, showed their seams.
+     */
+    private static void order() {
+        var outline = FBORenderObjectOutline.instance;
+        IsoObject left = outlined(new IsoObject(new IsoSprite("left"))), right = outlined(new IsoObject(new IsoSprite("right")));
+        IsoObject other = outlined(new IsoObject(new IsoSprite("other"))), plain = new IsoObject(new IsoSprite("plain"));
+        IsoObject blinking = outlined(new IsoObject(new IsoSprite("blinking")));
+        other.outlineCol[0] = 0xFF00FF00;
+        blinking.outlineBlink[0] = true;
+        outline.render(0, java.util.List.of(left, plain, other, blinking, right));
+        var drawn = outline.drawn;
+        int l = drawn.indexOf(left), r = drawn.indexOf(right);
+        // the other colour, and the same one blinking (another group), are not between them; the one not outlined is not drawn
+        check(drawn.size() == 4 && Math.abs(l - r) == 1, "One colour's objects are not drawn one after another: " + drawn);
     }
 
     private static void models() {

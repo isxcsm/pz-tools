@@ -228,6 +228,37 @@ final class Outlines implements Hooks.Outlines {
         return true;
     }
 
+    /**
+     * The pass's objects, those outlined for the player one colour after another (blinking apart), in the order they had
+     * otherwise; the rest after them. The game's outline buffer is laid over the frame each time the colour changes, so
+     * the squares of one piece of furniture outlined alike, drawn apart, showed their seams. An insertion sort in place: a
+     * pass has a few objects, and it allocates nothing.
+     */
+    @Override
+    public void order(int player, Object objects) throws Throwable {
+        @SuppressWarnings("unchecked")
+        var list = (List<Object>)objects;
+        int size = list.size();
+        if (size < 3) return;
+        for (int index = 1; index < size; index++) {
+            Object object = list.get(index);
+            long key = key(object, player);
+            int at = index - 1;
+            while (at >= 0 && key(list.get(at), player) > key) {
+                list.set(at + 1, list.get(at));
+                at--;
+            }
+            list.set(at + 1, object);
+        }
+    }
+
+    // The colour (blinking or not) of an object outlined for the player; the largest for one that is not.
+    private long key(Object object, int player) throws Throwable {
+        if (!(boolean)outlined.invokeExact(object, player)) return Long.MAX_VALUE;
+        long colour = (int)colourOf.invokeExact(object, player) & 0xFFFFFFFFL;
+        return (boolean)blinks.invokeExact(object, player) ? colour | 1L << 32 : colour;
+    }
+
     @Override
     public int vehicle(Object vehicle, int player, Object colourInto, float here, float camera) throws Throwable {
         if (!(boolean)outlined.invokeExact(vehicle, player)) return 0;

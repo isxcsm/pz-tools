@@ -378,6 +378,12 @@ public final class Hooks {
 
         /** {@code ModelSlotRenderData.renderVehicle} of an outlined vehicle: its models drawn into the outline buffer. */
         void drawVehicle(Object data, Object colour, boolean behind) throws Throwable;
+
+        /**
+         * {@code FBORenderObjectOutline.render(player, behind)}: the pass's objects ({@code objectList}) put in an order that
+         * draws the objects outlined for {@code player} in one colour one after another.
+         */
+        default void order(int player, Object objects) throws Throwable { }
     }
 
     /**
@@ -476,7 +482,8 @@ public final class Hooks {
         MOODLE_KIND("moodleKind", Group.MOODLES), MOODLE_PICTURE("moodlePicture", Group.MOODLES), TEXT("text", Group.TEXT),
         ZOMBIE_STATE("zombieState", Group.ZOMBIE_SOUNDS), ZOMBIE_VOICE("zombieVoice", Group.ZOMBIE_SOUNDS),
         ZOMBIE_LANDED("zombieLanded", Group.ZOMBIE_SOUNDS), ZOMBIE_HIT("zombieHit", Group.ZOMBIE_HITS),
-        MODEL_OUTLINE("modelOutline", Group.OUTLINES), VEHICLE_OUTLINE("vehicleOutline", Group.OUTLINES),
+        MODEL_OUTLINE("modelOutline", Group.OUTLINES), OUTLINE_ORDER("outlineOrder", Group.OUTLINES),
+        VEHICLE_OUTLINE("vehicleOutline", Group.OUTLINES),
         VEHICLE_OUTLINE_DRAW("vehicleOutlineDraw", Group.OUTLINES), CONTAINER_BURNING("containerBurning", Group.WORLD_ITEMS),
         FLOOR_KEPT("floorKept", Group.WORLD_ITEMS), FLOOR_DECALS("floorDecals", Group.FLOOR_DECALS),
         SQUARE_CHANGED("squareChanged", Group.SQUARE_CHANGES);
@@ -730,7 +737,15 @@ public final class Hooks {
         Map.entry("zombie/iso/IsoWorld", new Site[] { Site.watch("currentCell", "worldChanged", List.of("currentCell"), List.of()) }),
         // Outlines (docs/design.md, "Outlines"). The per-frame outline pass of an outlined object: one drawn as a
         // model is outlined by the API, and the pass's sprite silhouette (which it skips for a model) is not reached.
+        // The game outlines the silhouettes drawn one after another in one colour as one: its pass is put in that order
+        // first, so that touching objects outlined alike (the squares of one piece of furniture) have no seams.
         Map.entry("zombie/iso/fboRenderChunk/FBORenderObjectOutline", new Site[] {
+            Site.atStart("render", "(IZ)V", (code, owner) -> {
+                code.iload(1);
+                code.aload(0); code.getfield(owner, "objectList", ClassDesc.of("java.util.ArrayList"));
+                code.invokestatic(HOOKS, "outlineOrder", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_int,
+                    ConstantDescs.CD_Object));
+            }).reading("objectList:Ljava/util/ArrayList;"),
             Site.atStart("renderObject", "(ILzombie/iso/IsoObject;)V", (code, owner) -> {
                 Label vanilla = code.newLabel();
                 code.iload(1); code.aload(2);
@@ -2558,6 +2573,14 @@ public final class Hooks {
     public static void setOutlines(Outlines next) {
         synchronized (reported) { reported.removeIf(call -> call.group == Group.OUTLINES); }
         outlines = next;
+    }
+
+    /** Put at the start of {@code FBORenderObjectOutline.render(player, behind)}: its objects one colour after another. */
+    public static void outlineOrder(int player, Object objects) {
+        Outlines current = outlines;
+        if (current == null) return;
+        try { current.order(player, objects); }
+        catch (Throwable problem) { reportOnce(Call.OUTLINE_ORDER, problem); }
     }
 
     /** Put at the start of {@code FBORenderObjectOutline.renderObject(player, object)}: true returns at once. */

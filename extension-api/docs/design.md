@@ -1389,6 +1389,12 @@ outlined by the game, a mod or the API is drawn so, and a mod keeps using the ga
   halves 2 and 3 are drawn with their partner's model (1 and 4), as `IsoDoor.renderWallTile` does. Nothing is drawn while the
   object is not shown (`ObjectRenderLayer.None`, target alpha 0) or its model animates (a door opening or shutting), as the
   game's own model drawing.
+- **One colour together.** The game draws each outlined object's silhouette into one buffer and lays it over the frame
+  outlined whenever the colour (or behind the player or not) changes from the object before; the pass goes through its
+  objects in no set order, so the squares of one piece of furniture outlined alike showed seams wherever an object of
+  another colour came between them. The hook at the start of each pass (`FBORenderObjectOutline.render(player, behind)`)
+  puts its objects in order first: those outlined for the player one colour after another, a blinking one apart from a
+  steady one of its colour, in the order they had otherwise. Touching objects outlined in one colour are outlined as one.
 - **Vehicles.** The model renderer outlines characters alone. For a vehicle, `ModelSlotRenderData.initModel` (the main thread)
   takes the fields a character's outline uses: on or off, the colour (its alpha times `Core.blinkAlpha` when blinking), and
   whether it is behind the camera's character (`x + y` against the character's, as for a character standing). `renderVehicle`

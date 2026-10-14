@@ -1,9 +1,9 @@
 -- A machine of several squares is one thing in the loot window. Its containers are listed when the player stands by
 -- any of its squares (the game lists the containers of the squares around the player only, and a machine's are on one
--- or two of them), and when one of them is chosen every square of the machine is lit with it (a refiner's four, not only
--- the one its containers are on; a cabinet with a container on each square is left to the game, which lights the chosen
--- half alone, outlined, as its wardrobes). Both are done when the window changes, not each frame: the list when the game
--- refreshes it, the light when the chosen container changes.
+-- or two of them), and when one of them is chosen or under the mouse every square of the machine is lit with it, as the
+-- game lights a container's object (a refiner's four, not only the one its containers are on; a locker's two halves).
+-- Both are done when the window changes, not each frame: the list when the game refreshes it, the light when the chosen
+-- container changes.
 require "ISUI/ISInventoryPage"
 require "OperationAcorn/Machines/Machines"
 local OA = OperationAcorn
@@ -67,30 +67,33 @@ function ISInventoryPage.OnObjectHighlighted(playerNum, object, isHighlighted)
     return onHighlighted(playerNum, object, isHighlighted)
 end
 
--- A machine is lit as one thing: every square in the same colour and without the outline. The game outlines each object
--- on its own, and the outline of a square behind is drawn over the square in front, so outlined squares showed their
--- seams and the one holding the container looked lit apart from the rest (seen in game, a refiner's four).
-local function light(page, object, on, colour)
-    if elsewhere[page.player] and elsewhere[page.player][object] then return end
-    object:setHighlighted(page.player, on, false)
-    object:setOutlineHighlight(page.player, false)
-    object:setOutlineHlAttached(page.player, false)
-    if on then object:setHighlightColor(page.player, colour) end
+-- A machine is lit as one thing, every square as the game lights a container's object: the chosen one filled and
+-- outlined in the chosen colour, the one under the mouse outlined in the hover colour (the outline only with the game's
+-- container outline option on). The game outlines the silhouettes of one colour together, so the squares outlined alike
+-- are one outline with no seams between them (the API keeps a colour's objects together in the pass). kind: "chosen",
+-- "hover", or nil for none.
+local function light(page, object, kind)
+    local player = page.player
+    if elsewhere[player] and elsewhere[player][object] then return end
+    local core = getCore()
+    object:setHighlighted(player, kind == "chosen", false)
+    if kind == "chosen" then object:setHighlightColor(player, core:getObjectHighlitedColor()) end
+    local outlined = kind ~= nil and core:getOptionDoContainerOutline()
+    object:setOutlineHighlight(player, outlined)
+    object:setOutlineHlAttached(player, outlined)
+    if outlined then
+        local colour = kind == "chosen" and core:getObjectHighlitedColor() or core:getWorldItemHighlightColor()
+        object:setOutlineHighlightCol(player, colour:getR(), colour:getG(), colour:getB(), 1)
+    end
 end
 
 -- The squares lit with a container of the machine an object belongs to: the whole machine; nil when it is not a
--- machine's, or for a kind with a container on every square (Data everyTile: the research storage, a cabinet of two
--- halves), which the game lights as its wardrobes: the chosen half alone, outlined.
+-- machine's.
 local function machineSquares(object)
     if not object or not Machines.isMachineObject(object) then return nil end
     local anchor, state = Machines.anchorOf(object)
     if not anchor or not state then return nil end
-    local def = Machines.Data.KINDS[state.kind]
-    if def and def.everyTile then return nil end
-    -- one square (the research crate): no seams to hide, so the game lights it as it lights its own crates, outlined
-    local squares = squaresOf(anchor, state)
-    if #squares < 2 then return nil end
-    return squares
+    return squaresOf(anchor, state)
 end
 
 -- What a page lights of the machines, as one state: the machine of the chosen container in the chosen colour, the
@@ -121,45 +124,34 @@ local function reconcile(page, chosen, hover)
     end
     if was then
         for o in pairs(was.objects) do
-            if not objects[o] then light(page, o, false) end
+            if not objects[o] then light(page, o, nil) end
         end
     end
-    local core = getCore()
-    for o, kind in pairs(objects) do
-        light(page, o, true, kind == "chosen" and core:getObjectHighlitedColor() or core:getWorldItemHighlightColor())
-    end
+    for o, kind in pairs(objects) do light(page, o, kind) end
     applied[page] = { chosen = chosen, hover = hover, collapsed = page.isCollapsed, objects = objects }
 end
 
--- Each frame the game lights the chosen container's object again, outline and all: compared, and set again only when
--- something changed; the outline it puts back on a machine's square is taken off.
+-- Each frame the game lights the chosen container's object again, as it is lit here: compared, and set again only
+-- when something changed.
 local original = ISInventoryPage.updateContainerHighlight
 function ISInventoryPage:updateContainerHighlight()
     original(self)
     local chosen = self.coloredInv
     local hover = hoverContainer(self)
     local was = applied[self]
-    if was and not was.dirty and was.chosen == chosen and was.hover == hover and was.collapsed == self.isCollapsed then
-        local parent = chosen and self:getContainerParent(chosen)
-        if parent and was.objects[parent] then
-            parent:setOutlineHighlight(self.player, false)
-            parent:setOutlineHlAttached(self.player, false)
-        end
-        return
-    end
+    if was and not was.dirty and was.chosen == chosen and was.hover == hover and was.collapsed == self.isCollapsed then return end
     reconcile(self, chosen, hover)
 end
 
--- The mouse over a container's button: the game outlines that object at once; a machine's square is not outlined
--- (the next update lights its machine).
+-- The mouse over a container's button: the game outlines that object at once in the hover colour; a square of a
+-- machine lit as chosen gets its own light back (the next update lights the machine under the mouse).
 local overButton = ISInventoryPage.onMouseOverButton
 function ISInventoryPage:onMouseOverButton(button, x, y)
     overButton(self, button, x, y)
     local object = button and button.inventory and self:getContainerParent(button.inventory)
-    if object and machineSquares(object) then
-        object:setOutlineHighlight(self.player, false)
-        object:setOutlineHlAttached(self.player, false)
-    end
+    local was = applied[self]
+    local kind = object and was and was.objects[object]
+    if kind then light(self, object, kind) end
 end
 
 -- The game switches an object off as the mouse leaves it or another container is chosen (the mouse leaving one bin
@@ -172,8 +164,7 @@ function ISInventoryPage:stopHighlightContainer(container)
     local was = applied[self]
     local kind = was and was.objects[container]
     if kind then
-        local core = getCore()
-        light(self, container, true, kind == "chosen" and core:getObjectHighlitedColor() or core:getWorldItemHighlightColor())
+        light(self, container, kind)
         was.dirty = true
     end
 end
