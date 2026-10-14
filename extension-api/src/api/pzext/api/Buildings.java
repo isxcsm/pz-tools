@@ -44,6 +44,9 @@ final class Buildings {
     private final MethodHandle regionRoot, regionAt, enclosed, roofed, neighbours;
     private final Class<?> regionType;
     private final String regionsMissing;
+    // New rooms for a map building (setRooms): null when this game's building editor cannot be read (editsMissing says why).
+    private final RoomEdits edits;
+    private final String editsMissing;
     private final Object waterPiped;
     private final Object[] attached;
     private static final int[][] ACROSS = { { 0, -1, 0 }, { 0, 1, 0 }, { 1, 0, 0 }, { -1, 0, 0 } };
@@ -139,6 +142,12 @@ final class Buildings {
         }
         regionRoot = root; regionAt = at; enclosed = isEnclosed; roofed = roofs; neighbours = joined; regionType = region;
         regionsMissing = missing;
+        RoomEdits made = null;
+        String why = null;
+        try { made = new RoomEdits(lua, game, this, loader); }
+        catch (ReflectiveOperationException | RuntimeException unreadable) { why = unreadable.toString(); }
+        edits = made;
+        editsMissing = why;
     }
 
     /** Sets this area's functions into its table, replacing those of an earlier API. */
@@ -161,6 +170,11 @@ final class Buildings {
             Arguments.integer(arguments, 1, AREA + "producers", "tiles", 0, MAX_TILES), Filter.of(arguments, 2, AREA + "producers"))));
         lua.set(table, "attachedObjects", lua.function(AREA + "attachedObjects", arguments -> attachedObjects(
             Arguments.string(arguments, 0, AREA + "attachedObjects", "key"), Filter.of(arguments, 1, AREA + "attachedObjects"))));
+        lua.set(table, "setRooms", lua.function(AREA + "setRooms", arguments -> {
+            String key = Arguments.string(arguments, 0, AREA + "setRooms", "key");
+            if (edits == null) return new Object[] { null, "this game's building editor cannot be read: " + editsMissing };
+            return edits.set(key, arguments.length > 1 ? arguments[1] : null);
+        }));
         lua.set(table, "name", lua.function(AREA + "name", arguments -> {
             Object object = arguments.length > 0 ? arguments[0] : null;
             if (!game.objectType.isInstance(object)) throw new IllegalArgumentException(AREA + "name: object must be a world object");
@@ -213,6 +227,13 @@ final class Buildings {
             spaces.clear();
         }
         return version;
+    }
+
+    /** A building was given new rooms (setRooms): what was kept of the buildings is not so any more. */
+    synchronized void changed() {
+        version++;
+        described.clear();
+        spaces.clear();
     }
 
     private Object at(int x, int y, int z) throws ReflectiveOperationException {
@@ -843,7 +864,7 @@ final class Buildings {
     }
 
     /** The room's building (a BuildingDef). */
-    private Object defOf(Object room) throws ReflectiveOperationException {
+    Object defOf(Object room) throws ReflectiveOperationException {
         try { return (Object)building.invokeExact(room); }
         catch (Throwable failure) { throw Game.thrown(failure); }
     }

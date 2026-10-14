@@ -1104,6 +1104,16 @@ public final class Hooks {
                     code.iconst_0();
                     code.labelBinding(done);
                 })) }),
+        // A fix: the game's building editor (a debug tool; PZExtAPI.buildings.setRooms) made each building it wrote one
+        // "players built", and the game drops every such building of a cell when the rooms players build in it change: a
+        // map building given new rooms, or read back from player_buildings.bin, was gone at the next wall built nearby.
+        // Its buildings are map buildings.
+        Map.entry("zombie/buildingRooms/BREBuilding", new Site[] {
+            Site.edit("<init>", "()V", new Edit(calls("zombie/iso/BuildingDef", "<init>", "(Z)V"), 1, null, (code, element, kind) -> {
+                code.pop();
+                code.iconst_0();
+                code.with(element);
+            })) }),
         // The body: a cold, the corpses around, a wound's infection and a bite.
         Map.entry("zombie/characters/BodyDamage/Thermoregulator", new Site[] {
             Site.atReturns("getCatchAColdDelta", "()F", 1, (code, owner) -> {

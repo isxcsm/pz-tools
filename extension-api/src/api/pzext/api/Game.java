@@ -175,6 +175,8 @@ final class Game {
     /** The room a light switch lights ({@code IsoLightSwitch.roomId}); -1 for none. */
     long switchRoom(Object lightSwitch) throws IllegalAccessException { return switchRoom.getLong(lightSwitch); }
 
+    void setSwitchRoom(Object lightSwitch, long room) throws IllegalAccessException { switchRoom.setLong(lightSwitch, room); }
+
     /** The world's age in hours. */
     double hours() throws ReflectiveOperationException { return (double)worldHours.invoke(gameTime.invoke(null)); }
 

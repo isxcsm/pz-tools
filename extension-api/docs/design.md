@@ -178,6 +178,46 @@ objects; `version` counts the changes. It looks each frame and as each call that
 starts, so no swap goes unseen (one frame holds one swap). A game whose region data cannot be read
 gives a new `version` at every call, keeps nothing, and has no attached rooms.
 
+### Rooms set
+
+A map building's rooms are the map's, whatever happens to its walls: a wall taken down leaves two
+rooms where one stands, and a wall built across a room leaves one. The game remakes the rooms of
+the buildings players build from their walls, but never a map building's. It has one way to change
+them, its building editor (`zombie.buildingRooms`, a debug tool), which takes a building out of the
+map and puts a new one in its place, and reads what it wrote back as a world loads. `setRooms` gives
+a map building new rooms through it; which rooms the walls make is the mod's to say.
+([`RoomEdits`](../src/api/pzext/api/RoomEdits.java))
+
+| Call | Returns |
+| --- | --- |
+| `buildings.setRooms(key, rooms)` | `true` when the building has the rooms (it had them, or was given them), with a second result when they could not be written to the save (why); or `nil` and why not. `rooms` is a list of `level` (-32 to 31), `name` (optional) and `rects` (a list of `x`, `y`, `w`, `h`; 4096 rectangles at most). |
+
+The new rooms cover the squares the building's rooms cover, each once (rooms that overlap are the
+mod's error); other squares are refused, so the building keeps its key. A building players built is
+refused: the game makes its rooms. Each new room is the old room it shares most squares with (the
+first of them in `rooms(key)` on a tie): it takes its flags (explored, zombies spawned, lights on)
+and its name unless one is given. The rooms' numbers all change (`rooms`, `at`), `version` changes,
+and so do the networks' views of the building.
+
+What the editor leaves behind is mended. The new building takes the old one's own state (the door
+keys' number, the alarm, what was seen and visited, the loot respawn hour). The map's objects of the
+old rooms (where a building's zombies stand) move to the room over their square. A light switch that
+lit one of the old rooms lights the new room on its square, or else the room its old room became
+most of. The editor's debug window, if open, is not told.
+
+The rooms are written to the save's `player_buildings.bin`, in the game's own format, which the
+game reads as the world loads (`BuildingRoomsEditor.load`, before the map's data on rooms, which
+then gives each room its flags by its place): the squares of the map buildings taken out, then the
+buildings put in their place. The game never writes that file itself. A building given rooms twice
+is taken out of the map once. A world that saves nothing gets no file. Not for a client of a server:
+the game reads the file only where it is not one.
+
+The editor made each building it wrote one "players built" (`new BuildingDef(true)` in
+`BREBuilding`), and the game drops every such building of a cell when the rooms players build in
+that cell change: a map building given rooms would be gone at the next wall built near it. The API
+makes the editor's buildings map buildings (see the hook sites); without that hook in, `setRooms`
+refuses.
+
 ### Containers
 
 The containers that world objects hold (shelves, counters, fridges, crates; not a vehicle's trunk, which belongs to no square),
@@ -792,6 +832,7 @@ hook only. `PZExtAPI.hooks()` names each by game class and method.
 | `IsoPlayer.getDeferredMovement(Vector2, boolean)` | each return | The vector returned (the method changes the argument and returns it) is scaled in place by `move.walkMultiplier` when the player is in the state of moving. The call is not made when the factor is 1. |
 | `IsoTree.getSlowFactor` | each return | Passed through `move.treeSlowMultiplier`, for a local player. |
 | `IsoTree.isPlayerInsideARoom(IsoPlayer)` | the one `IsoPlayer.isInARoom()` call | A fix, for every mod and none: the answer is "in a room" only when the player's square has a room too, so a room the game made no building of (one on a map building's roof) no longer throws for each tree drawn near it. |
+| `BREBuilding()` (the building editor's building) | the one `new BuildingDef(boolean)` | A fix: the building is made a map building (`false`), not one players built, so the game does not drop it when players build in its cell (see "Rooms set"). |
 | `IsoObject.couldBePoweredByGenerator` | each return | True for an object of a sprite declared in `machine.baseConsumption` above 0, besides the game's answer. |
 | `IsoObject.getGeneratorPowerConsumption` | each return | An object of a declared sprite gives its declared consumption times the load its mod data holds under `machine.loadKey`, in place of the game's. |
 | `IsoObject.renderAttachedSprites` | after the one call of `IsoSpriteInstance.update()` (the method is private; it is found by its signature) | The instance just drawn and the object go to `anim.stepKey`'s step; the game's own call stays. Another number of such calls makes the hook not go in. |

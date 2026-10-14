@@ -13,7 +13,13 @@ public final class ZomboidFileSystem {
     /** The absolute file of each path there is, by the path in lower case. */
     public static final Map<String, String> FILES = new HashMap<>();
 
+    /** The current save's folder, as a test sets it. */
+    public static java.io.File save;
+
     private ZomboidFileSystem() { }
+
+    /** A file of the current save, as the game's. */
+    public java.io.File getFileInCurrentSave(String name) { return new java.io.File(save, name); }
 
     /** The file of a path; the very string given for a path there is none for, as the game's. */
     public String getString(String path) {
