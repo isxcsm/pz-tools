@@ -144,11 +144,14 @@ local function relayMark(plan, x, y, size, alpha)
 end
 
 -- What the legend lists for a utility, or for the zones: a colour, dot or square, and its text. The relays and the
--- lines only where the data has them.
+-- lines only where the data has them. Water with more than one pipe tells its pipes' colours instead of what the
+-- devices do, and shapes in a plain colour.
 local function legendEntries(utility, zones, ranges, data)
     local result = {}
+    local pipes = not zones and utility == "water" and data.pipes or nil
     local function add(name, square)
         local colour = COLOURS[name]
+        if pipes and (name == "tank" or name == "lineWater") then colour = COLOURS.mixed end
         result[#result + 1] = { r = colour[1], g = colour[2], b = colour[3], square = square,
             text = getText("IGUI_BU_Legend_" .. name) }
     end
@@ -158,6 +161,21 @@ local function legendEntries(utility, zones, ranges, data)
         for _, name in ipairs({ "using", "idle", "timer", "unsupplied", "other" }) do add(name) end
         add("off")
         add("producer", true)
+    elseif pipes then
+        -- each pipe's colour, what is on it is drawn in (a dot a fixture, a square a storage or a unit)
+        for _, pipe in ipairs(pipes) do
+            local c = pipe.colour
+            result[#result + 1] = { r = c[1], g = c[2], b = c[3], square = true, text = pipe.name }
+        end
+        local first, second = pipes[1].colour, pipes[2].colour
+        result[#result + 1] = { r = first[1] * PIPE_OFF, g = first[2] * PIPE_OFF, b = first[3] * PIPE_OFF,
+            text = getText("IGUI_BU_Legend_pipeOff") }
+        add("off")
+        add("other")
+        add("tank", true)
+        -- a filter's or a booster pump's square: its inlet's pipe left, its outlet's right
+        result[#result + 1] = { r = first[1], g = first[2], b = first[3], square = true, second = second,
+            text = getText("IGUI_BU_Legend_unitHalves") }
     else
         for _, name in ipairs({ "using", "other" }) do add(name) end
         add("off")
@@ -232,7 +250,8 @@ end
 -- "free", "taken" or "far", owner = a name, note = why a far room cannot be taken }, zoneEditable, zoneEdit, zoneNote,
 -- farLevels (the floors with no room the zone can take, a set), waterSupply (by floor, "dry", for water),
 -- ranges = { reach = steps, relayReach = steps, relays = { { x, y, z } }, noise = for power { { x, y, z, radius,
--- running } } } while the range is shown, rangeKey (what the ranges are of), pipeCombo (water with more than one pipe:
+-- running } } } while the range is shown, rangeKey (what the ranges are of), pipes = { { colour, name } } (water with
+-- more than one pipe, for the legend), pipeCombo (water with more than one pipe:
 -- the switch that puts a pipe on rooms), pipePaint = { id, colour, name } (the pipe a click puts on a room, or nil) }.
 function ISBUPlan:setData(data)
     -- Another utility shown: the plan fades in anew.
@@ -897,6 +916,8 @@ function ISBUPlan:drawLegend(now, mx, my, px)
                 self:drawRect(entry.x, middle, 10, 1, alpha, entry.r, entry.g, entry.b)
             elseif entry.square then
                 self:drawRect(entry.x, middle - 4, 9, 9, alpha, entry.r, entry.g, entry.b)
+                local second = entry.second
+                if second then self:drawRect(entry.x + 4.5, middle - 4, 4.5, 9, alpha, second[1], second[2], second[3]) end
                 if entry.relay then relayMark(self, entry.x, middle - 4, 9, alpha) end
             else
                 self:drawRect(entry.x + 1, middle - DOT / 2, DOT, DOT, alpha, entry.r, entry.g, entry.b)

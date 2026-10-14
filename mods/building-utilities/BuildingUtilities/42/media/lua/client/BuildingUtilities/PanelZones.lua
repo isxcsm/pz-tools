@@ -29,6 +29,13 @@ function ISBUPanelWindow:updatePlan()
     local panel = self.panel
     -- a pipe being put on rooms: each room in its pipe's colour
     local paint = utility == "water" and self:paintingPipe() or nil
+    local pipeList = nil
+    if utility == "water" and BU.Water.shown(panel) then
+        pipeList = {}
+        for _, pipe in ipairs(BU.Water.pipes(panel)) do
+            pipeList[#pipeList + 1] = { colour = BU.Water.colour(pipe.id), name = BU.Water.pipeName(panel, pipe.id) }
+        end
+    end
     local rooms = {}
     for _, room in ipairs(self.rooms or {}) do
         rooms[#rooms + 1] = { id = room.id, title = self.titles[room.id] or BU.roomName(room.name or ""), level = room.level,
@@ -167,7 +174,7 @@ function ISBUPanelWindow:updatePlan()
         outdoor = panel.outdoor == true, boxes = boxes, filter = self.roomFilter,
         zone = zone, zoneEditable = editable, zoneEdit = self.zoneEditing == true, zoneNote = getText("IGUI_BU_ZoneNote", inZone),
         farLevels = farLevels, waterSupply = utility == "water" and self.waterSupply and self.waterSupply.byLevel or nil,
-        ranges = ranges, rangeKey = rangeKey, pipeCombo = utility == "water" and BU.Water.shown(panel),
+        ranges = ranges, rangeKey = rangeKey, pipes = pipeList, pipeCombo = pipeList ~= nil,
         pipePaint = paint and { id = paint, colour = BU.Water.colour(paint), name = BU.Water.pipeName(panel, paint) } or nil })
 end
 

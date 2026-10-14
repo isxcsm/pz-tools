@@ -2,7 +2,8 @@
 -- marked, and the chapter open beside them. A chapter is printed a row at a time the first time it is read, as
 -- Operation Acorn's terminal prints its papers (the kit's PZUITypedText, four rows a second), and a click brings it to
 -- its end; a chapter read before shows whole at once. A first reading left half way goes on where it was left. The
--- tab is marked while a chapter is new (ISBUTabs:setDot).
+-- tab is marked while a chapter is new (ISBUTabs:setDot). A chapter that teaches recipes (Manual.teaches) has a
+-- button for each under its text: learn it, or that it is known.
 require "ISUI/ISPanel"
 require "PZUIKit/UI"
 require "PZUIKit/TypedText"
@@ -40,12 +41,32 @@ function ISBUManual:createChildren()
     self:layout()
 end
 
--- The text beside the chapters, as the tab's size changes.
+-- The text beside the chapters, as the tab's size changes, over the recipes' buttons of the chapter open.
 function ISBUManual:layout()
-    if self.laidW == self.width and self.laidH == self.height then return end
-    self.laidW, self.laidH = self.width, self.height
+    local taught = self:taught()
+    local strip = #taught > 0 and ROW + PAD * 2 or 0
+    if self.laidW == self.width and self.laidH == self.height and self.laidStrip == strip then return end
+    self.laidW, self.laidH, self.laidStrip = self.width, self.height, strip
     local x = ISBUManual.CHAPTER_W + PAD
-    UI.place(self.body, x, 0, math.max(10, self.width - x), self.height)
+    UI.place(self.body, x, 0, math.max(10, self.width - x), math.max(10, self.height - strip))
+end
+
+-- The recipes the chapter open teaches at this box.
+function ISBUManual:taught() return self.key and Manual.teaches(self.window.panel, self.key) or {} end
+
+-- Each recipe's button under the text: { taught, x, y, w, text, known }.
+function ISBUManual:recipeButtons()
+    local result, character = {}, self:character()
+    local x, y = ISBUManual.CHAPTER_W + PAD * 2, self.height - ROW - PAD
+    for _, taught in ipairs(self:taught()) do
+        local name = getItemNameFromFullType(taught.item)
+        local known = character:isRecipeKnown(taught.recipe)
+        local text = getText(known and "IGUI_BU_Manual_Known" or "IGUI_BU_Manual_Learn", name)
+        local w = UI.textWidth(text) + 16
+        result[#result + 1] = { taught = taught, x = x, y = y, w = w, text = text, known = known }
+        x = x + w + PAD
+    end
+    return result
 end
 
 function ISBUManual:character() return self.window.playerObj end
@@ -129,9 +150,32 @@ function ISBUManual:prerender()
         if Manual.isNew(character, key) then UI.fill(self, w - 10, y + (ROW - 4) / 2, 4, 4, P.warn) end
     end
     UI.fill(self, w, 0, 1, self.height, P.border)
+    -- The recipes' buttons: one known is a note, not a button.
+    for _, button in ipairs(self:recipeButtons()) do
+        local h = ROW - 4
+        if button.known then
+            UI.text(self, button.text, button.x, button.y + (h - fh) / 2, P.dim)
+        else
+            local over = mx >= button.x and mx < button.x + button.w and my >= button.y and my < button.y + h
+            local k = UI.hoverLight(self, "learn" .. button.taught.recipe, over)
+            local f = UI.flashLevel(self, "learn" .. button.taught.recipe)
+            UI.fill(self, button.x, button.y, button.w, h, P.panel, 0.8)
+            if k > 0 or f > 0 then UI.fill(self, button.x, button.y, button.w, h, P.bright, 0.1 * k + 0.25 * f) end
+            UI.frame(self, button.x, button.y, button.w, h, k > 0.5 and P.value or P.border)
+            UI.textCentre(self, button.text, button.x + button.w / 2, button.y + (h - fh) / 2, k > 0.5 and P.bright or P.text)
+        end
+    end
 end
 
 function ISBUManual:onMouseDown(x, y)
+    for _, button in ipairs(self:recipeButtons()) do
+        if not button.known and x >= button.x and x < button.x + button.w and y >= button.y and y < button.y + ROW - 4 then
+            UI.flash(self, "learn" .. button.taught.recipe)
+            BU.Sync.send(self:character(), "learnRecipe",
+                { panel = self.window.panel.id, chapter = self.key, recipe = button.taught.recipe })
+            return true
+        end
+    end
     if x >= ISBUManual.CHAPTER_W then return false end
     local key = self.chapters[math.floor(y / ROW) + 1]
     if key and key ~= self.key then

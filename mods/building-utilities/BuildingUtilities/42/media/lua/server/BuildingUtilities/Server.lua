@@ -62,6 +62,13 @@ function commands.rename(player, panel, args) Changes.rename(panel, args.name) e
 -- or taken out is a timed action (ISBUAddPipe, ISBURemovePipe), not a command.
 function commands.renamePipe(player, panel, args) Changes.renamePipe(panel, tonumber(args.pipe), args.name) end
 
+-- A recipe learned from a chapter of the box's manual: one the chapter teaches while the box offers it.
+function commands.learnRecipe(player, panel, args)
+    for _, taught in ipairs(BU.Manual.teaches(panel, args.chapter)) do
+        if taught.recipe == args.recipe then player:learnRecipe(taught.recipe) end
+    end
+end
+
 -- A room of the zone, by its key, onto a pipe.
 function commands.setRoomPipe(player, panel, args)
     for _, room in ipairs(Panels.zoneRooms(panel)) do
