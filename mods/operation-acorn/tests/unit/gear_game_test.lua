@@ -495,37 +495,22 @@ local function shopRecord()
     return record
 end
 
-test("the voucher gives one kit of the kind chosen, and the shop does not count it", function()
+test("the voucher gives one kit of the kind chosen", function()
     setup()
     local record = shopRecord()
     local player = newCharacter()
     local voucher = newItem(Gear.VOUCHER)
     player.inventory:AddItem(voucher)
-    local before = OA.Shop.kitPrice("bagCapacity", record)
     local ok = Gear.redeem(player, voucher, "bagCapacity")
     truthy(ok)
     eq(voucher.container, nil, "the voucher is used up")
     eq(#player.inventory.items, 1)
     local kit = player.inventory.items[1]
     eq(kit:getFullType(), "OperationAcorn.KitBagCapacity")
-    eq(OA.Shop.kitPrice("bagCapacity", record), before, "the next kit costs what it did")
-    eq(OA.Shop.kitsBought("bagCapacity", record), 0)
     -- it fits a bag, and then counts on that bag like any kit
     local bag = newItem("Base.Bag_ALICEpack", { capacity = 28, reduction = 85 })
     player.inventory:AddItem(bag)
     truthy(Gear.fitBag(player, kit, bag))
-    eq(bag.md[K.BAG_CAP], 1)
-    eq(OA.Shop.kitsBought("bagCapacity", record), 0, "still not the shop's count")
-end)
-
-test("a bought kit is counted by the shop by its kind and by the bag for the bag", function()
-    setup()
-    local record = shopRecord()
-    local player, bag = bagFixture("Base.Bag_ALICEpack", 28, 85)
-    OA.Shop.bought(OA.Shop.entry("kit_bagCapacity"), record, 1)
-    eq(OA.Shop.kitsBought("bagCapacity", record), 1)
-    truthy(OA.Shop.kitPrice("bagCapacity", record) > OA.Shop.KITS.bagCapacity.price)
-    truthy(Gear.fitBag(player, kitOf(player, "bagCapacity"), bag))
     eq(bag.md[K.BAG_CAP], 1)
 end)
 

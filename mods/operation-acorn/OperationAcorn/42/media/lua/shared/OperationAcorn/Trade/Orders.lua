@@ -7,7 +7,7 @@
 -- What this reads of a catalog entry (OA.Shop.catalog()): `id`, `special` ("kit" with `kit`, "serum" with `tree`,
 -- "reissue", "cure", "delay"), `group`; the goods as `give` (a list of { type, count, full, fluid, empty }) or as
 -- `choices` (a list of the same, the player picks one: the line's `choice` is the picked type); the name from
--- OA.Shop.nameKey. Prices and availability: OA.Shop.price, serumPrice, kitPrice, available (how many, why not, when).
+-- OA.Shop.nameKey. Prices and availability: OA.Shop.price, serumPrice, available (how many, why not, when).
 require "OperationAcorn/Trade/Trade"
 require "OperationAcorn/Trade/Rules"
 local OA = OperationAcorn
@@ -89,8 +89,7 @@ function Orders.shopService(record)
             if m and (delivered or 0) >= m.n then return false, m.why or "limit" end
             return true
         end,
-        price = function(entry, line, ahead)
-            if entry.special == "kit" and Shop.kitPrice then return Shop.kitPrice(entry.kit, record, ahead) end
+        price = function(entry, line)
             if entry.special == "serum" and Shop.serumPrice then return Shop.serumPrice(entry.tree, record) end
             return Shop.price(entry, record)
         end,
@@ -153,18 +152,15 @@ function Orders.set(record, lines, crude)
     return cart, dropped
 end
 
--- What the cart costs at today's prices, one unit's price times the count (prices that rise as units are bought
--- are not foreseen: the helicopter pays by the price of each unit as it comes), and what is left of the balance.
--- What a line costs with a shop service: each unit at its price (a kit's rises with the ones before it).
+-- What a line costs with a shop service: one unit's price times the count.
 function Orders.lineCost(svc, entry, line)
-    local sum = 0
-    for ahead = 0, (line.count or 1) - 1 do
-        local ok, price = pcall(svc.price, entry, line, ahead)
-        if ok and type(price) == "number" then sum = sum + OA.round(price) end
-    end
-    return sum
+    local ok, price = pcall(svc.price, entry, line)
+    if not (ok and type(price) == "number") then return 0 end
+    return OA.round(price) * (line.count or 1)
 end
 
+-- What the cart costs at today's prices, one unit's price times the count (prices that rise as units are bought
+-- are not foreseen: the helicopter pays by the price of each unit as it comes), and what is left of the balance.
 function Orders.estimate(record, balance)
     local svc = Orders.shopService(record)
     local total = 0

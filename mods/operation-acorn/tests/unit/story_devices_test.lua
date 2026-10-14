@@ -521,18 +521,19 @@ test("taking another never takes the trust below where the level began", functio
 end)
 
 test("the distance pay: how far into its band a mission lies, on the credits and the trust", function()
-    Rewards.FAR_MAX = 0.3
+    Rewards.FAR_MAX = 0.5
     eq(Rewards.farPay(150, 150, 600), 0, "at the near edge: none")
-    near(Rewards.farPay(600, 150, 600), 0.3, 1e-9, "at the far edge: the most")
-    near(Rewards.farPay(375, 150, 600), 0.15, 1e-9)
-    near(Rewards.farPay(330, 150, 600), 0.1, 1e-9, "in steps of five per cent")
-    near(Rewards.farPay(9000, 150, 600), 0.3, 1e-9, "past the band: no more")
+    near(Rewards.farPay(600, 150, 600), 0.5, 1e-9, "at the far edge: the most")
+    near(Rewards.farPay(375, 150, 600), 0.25, 1e-9)
+    near(Rewards.farPay(330, 150, 600), 0.2, 1e-9, "in steps of five per cent")
+    near(Rewards.farPay(340, 150, 600), 0.2, 1e-9)
+    near(Rewards.farPay(9000, 150, 600), 0.5, 1e-9, "past the band: no more")
     eq(Rewards.farPay(100, 150, 600), 0, "inside the band's start: none")
     eq(Rewards.trustWithBonus(60, 0.15, 0.3), 87, "the danger and the distance on the trust")
     eq(Rewards.withBonus(10000, 0.15, 2, 0.3, 0.1), 17500, "and on the credits with the streak and the support")
     local record = setup(1)
-    Rewards.FAR_MAX = 0.3
-    near(M.farOf(record, { x = 600, y = 0 }, 1), 0.3, 1e-9, "from the terminal, in the level's band")
+    Rewards.FAR_MAX = 0.5
+    near(M.farOf(record, { x = 600, y = 0 }, 1), 0.5, 1e-9, "from the terminal, in the level's band")
     eq(M.farOf(record, { x = 150, y = 0 }, 1), 0)
     local m = start(record)
     near(m.far, M.farOf(record, m.area, 1), 1e-9)

@@ -1,4 +1,4 @@
--- P1: the shop. Prices and tiers for the record, the serum and kit price curves, and every item type the catalog
+-- P1: the shop. Prices and tiers for the record, the serum price curve, and every item type the catalog
 -- names against the game's scripts (vanilla types must exist; this mod's types are made by other parts and are
 -- listed when missing). Changes nothing.
 -- Prints "[p1shop]" lines.
@@ -52,11 +52,8 @@ say("record tier", OA.Trust.tier(record), "stage", OA.Trust.rewards(record).stag
     OA.Trust.rewards(record).discount)
 for _, e in ipairs(catalog) do
     local count, why, opens = OA.Shop.available(e, record)
-    local price = (e.special == "kit") and "kit" or OA.Shop.price(e, record)
+    local price = OA.Shop.price(e, record)
     say(string.format("%-20s tier %d price %-8s open %s %s%s", e.id, e.tier, tostring(price), tostring(count),
         why or "", opens and (" at " .. tostring(math.floor(opens))) or ""))
-end
-for _, kind in ipairs(OA.Shop.KIT_ORDER) do
-    say("kit", kind, "first", OA.Shop.kitPrice(kind, record), "second", OA.Shop.kitPrice(kind, record, 1))
 end
 say("done")

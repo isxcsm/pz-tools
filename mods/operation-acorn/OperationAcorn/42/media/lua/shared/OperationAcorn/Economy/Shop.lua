@@ -4,7 +4,7 @@
 --
 -- An entry: { id, group, tier, price (the base), give = { { type, count, full, fluid, empty } ... } or
 -- choices = { { type, count ... } ... } (the player picks one), week = purchases a week (nil: none), special =
--- "cure" | "reversal" | "test" | "delay" (with days) | "serum" | "kit" | "reissue" | nil, fixed = true (no shop
+-- "cure" | "reversal" | "test" | "delay" (with days) | "serum" | "reissue" | nil, fixed = true (no shop
 -- multiplier, no discount), allowDebt, kits = true (only with KitsForSale) }.
 -- tier is stage + milestones (Trust.tier): 0 the start, 1..5 stages, 6 the first milestone.
 require "OperationAcorn/Core"
@@ -45,12 +45,12 @@ Shop.TYPES = {
 Shop.TREES = { "scout", "load", "survival" }
 local SERUM_TYPE = { scout = "serumScout", load = "serumLoad", survival = "serumSurvival" }
 
--- Kit kinds: first price, and the factor each kit on the same target multiplies the next by.
+-- Kit kinds and their prices (each kit the same, however many are bought).
 Shop.KITS = {
-    bagCapacity = { price = 40000, growth = 1.3, type = "kitBagCapacity" },
-    bagWeight = { price = 50000, growth = 1.3, type = "kitBagWeight" },
-    trunk = { price = 60000, growth = 1.25, type = "kitTrunk" },
-    engine = { price = 80000, growth = 1.3, type = "kitEngine" },
+    bagCapacity = { price = 40000, type = "kitBagCapacity" },
+    bagWeight = { price = 50000, type = "kitBagWeight" },
+    trunk = { price = 60000, type = "kitTrunk" },
+    engine = { price = 80000, type = "kitEngine" },
 }
 Shop.KIT_ORDER = { "bagCapacity", "bagWeight", "trunk", "engine" }
 
@@ -127,7 +127,7 @@ local function build()
     add({ id = "shred_bench", group = "machine", tier = 0, price = 5000, give = { give("shredBench") } })
     add({ id = "bait_trap", group = "machine", tier = 2, price = 12000, give = { give("bait") } })
     add({ id = "field_terminal", group = "machine", tier = 2, price = 50000, give = { give("fieldTerminal") } })
-    add({ id = "team_locker", group = "machine", tier = 2, price = 60000, give = { give("locker") } })
+    add({ id = "team_locker", group = "machine", tier = 2, price = 15000, give = { give("locker") } })
     -- the locker's small kind, stacked three high: about the locker's price a capacity
     add({ id = "team_crate", group = "machine", tier = 2, price = 12000, give = { give("crate") } })
     add({ id = "fabric_cutter", group = "machine", tier = 2, price = 80000, give = { give("cutter") } })
@@ -162,8 +162,7 @@ local function build()
     -- Modification kits (the first milestone, KitsForSale).
     for _, kind in ipairs(Shop.KIT_ORDER) do
         local k = Shop.KITS[kind]
-        add({ id = "kit_" .. kind, group = "kit", tier = 6, price = k.price, special = "kit", kit = kind, kits = true,
-            give = { give(k.type) } })
+        add({ id = "kit_" .. kind, group = "kit", tier = 6, price = k.price, kits = true, give = { give(k.type) } })
     end
     -- Upgrade serums: one entry per tree, the price by how many the record bought.
     for _, tree in ipairs(Shop.TREES) do
@@ -236,7 +235,6 @@ end
 function Shop.section(record)
     local s = OA.Store.section(record, "shop")
     s.week = s.week or {}       -- [entry id] = { week, n }
-    s.kits = s.kits or {}       -- [kit kind] = kits of it bought
     s.serums = s.serums or {}   -- [tree] = serums bought
     return s
 end
@@ -259,27 +257,10 @@ function Shop.serumPrice(tree, record, bought)
     return Shop.serumPriceAt(bought + 1)
 end
 
--- Kits of a kind bought (fitted or not): the price of the next counts them (NUMBERS 7). A kit is bought for no
--- bag or car in particular; the voucher's kit is not counted.
-function Shop.kitsBought(kind, record)
-    return Shop.section(record).kits[kind] or 0
-end
-
--- The price of the next kit of a kind, or of the one after `ahead` more (the cart's later ones: each kit of an order is
--- priced after the ones before it are counted).
-function Shop.kitPrice(kind, record, ahead)
-    local k = Shop.KITS[kind]
-    local n = Shop.kitsBought(kind, record) + (ahead or 0)
-    local multiplier = OA.option("ShopPriceMultiplier") or 1.0
-    local discount = OA.Trust.rewards(record).discount
-    return OA.round(k.price * k.growth ^ n * multiplier * (1 - discount))
-end
-
 -- The price of an entry for a record, in credits (a whole number). Serums, the box and every fixed entry (the infection
--- medicines) ignore the shop multiplier and the discount; a kit's rises with the kits of its kind bought.
+-- medicines) ignore the shop multiplier and the discount.
 function Shop.price(entry, record)
     if entry.special == "serum" then return Shop.serumPrice(entry.tree, record) end
-    if entry.special == "kit" then return Shop.kitPrice(entry.kit, record) end
     if entry.special == "reissue" then return OA.reissueCost() end
     local base = entry.price
     if entry.special == "cure" then base = OA.scaled(base, "CureSerumPriceMultiplier") end
@@ -344,7 +325,7 @@ function Shop.available(entry, record)
     return most
 end
 
--- Records a purchase the trade part delivered: `count` of the entry (for a kit, bought for `target`).
+-- Records a purchase the trade part delivered: `count` of the entry.
 function Shop.bought(entry, record, count)
     count = count or 1
     local shop = Shop.section(record)
@@ -357,9 +338,7 @@ function Shop.bought(entry, record, count)
         end
         w.n = w.n + count
     end
-    if entry.special == "kit" then
-        shop.kits[entry.kit] = (shop.kits[entry.kit] or 0) + count
-    elseif entry.special == "serum" then
+    if entry.special == "serum" then
         shop.serums[entry.tree] = (shop.serums[entry.tree] or 0) + count
         -- The upgrades part keeps its own count of serums bought (its board and price read it): keep it in step.
         if OA.Upgrades and OA.Upgrades.noteBought then

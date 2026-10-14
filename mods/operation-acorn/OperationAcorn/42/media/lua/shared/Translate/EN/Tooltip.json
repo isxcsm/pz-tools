@@ -86,7 +86,7 @@
     "Tooltip_OA_Gear_NoBag": "No bag to fit it to.",
     "Tooltip_OA_Gear_FitVehicle": "Fit it from the vehicle's mechanics window: right-click the trunk or the engine.",
     "Tooltip_OA_Gear_NoVehicleKit": "You have no %1 for this vehicle.",
-    "Tooltip_OA_Gear_RedeemInfo": "Trade it for one kit of your choice. It does not raise the shop's price of your next kit.",
+    "Tooltip_OA_Gear_RedeemInfo": "Trade it for one kit of your choice.",
     "Tooltip_OA_Tree_Item_DelayDrugLong": "Holds the infection's progress for 7 days. A new wound from a zombie ends it. It never expires.",
     "Tooltip_OA_Tree_Item_InfectionReversal": "Sets the infection's progress back to nothing, so the nausea and the health limit ease. The infection stays: a delay drug is still needed.",
     "Tooltip_OA_Tree_Item_InfectionTestKit": "Shows at once whether you are infected. Until a wound from a zombie is tested for, deliveries carry the infection handling fee.",

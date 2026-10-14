@@ -138,7 +138,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
 | `OA.Market.index(category)`, `OA.Market.update(day)`, `OA.Market.ship(category, weight, record)`, `OA.Market.refused(category)`, `OA.Market.history(category)`, `OA.Market.situation()`, `OA.Market.news()`, `OA.Season.current()` | 시세. `situation`은 지금 시세 사건 줄(계열마다 하나, 기록 없음), `news`는 사건이 시작하고 끝난 횟수(납품 탭 점), `Season`은 게임 달로 정한 계절과 가중치 |
 | `OA.Requests.list(record)`, `OA.Requests.entry(record, fullType)`, `OA.Requests.entries(record)` | 이번 주 요청 목록과 줄(`band`, `price`, `qty`, `trust`, `used`, `left`, `full`). 줄은 흔한 정도 띠로 고정 단가와 수량이 정해진다 |
 | `OA.Codex.acquire(record, info)`, `OA.Codex.buildingSearched(record, buildingKey, containers)`, `OA.Codex.kill(record)` | 보너스를 `trade.bonus`에 쌓고, 공용 혈청은 `trade.sharedSerums`에 |
-| `OA.Shop.catalog()`, `OA.Shop.price(entry, record)`, `OA.Shop.available(entry, record)`, `OA.Shop.bought(entry, record, count)`, `OA.Shop.serumPrice(tree, record)`, `OA.Shop.kitPrice(kind, target, record)` | 상점 |
+| `OA.Shop.catalog()`, `OA.Shop.price(entry, record)`, `OA.Shop.available(entry, record)`, `OA.Shop.bought(entry, record, count)`, `OA.Shop.serumPrice(tree, record)` | 상점 |
 | `OA.Shred.yield(info, record, extras)` | 기대 산출 개수(소수), 첫 분해 보너스. 실제 개수는 부른 쪽이 `OA.Shred.roll(expected)`로 굴린다 |
 
 ### P2가 내놓는 것

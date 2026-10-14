@@ -29,7 +29,7 @@ test("every NUMBERS 7 price is in the catalog", function()
         petrol_can = { 15000, 2 }, scrap_pack = { 6000, 2 }, propane_tank = { 25000, 3 }, car_battery = { 20000, 3 },
         car_part_normal = { 10000, 3 }, engine_parts = { 20000, 3 }, car_part_modern = { 25000, 5 },
         ammo_pistol = { 40000, 4 }, ammo_shotgun = { 50000, 4 }, ammo_rifle = { 60000, 4 },
-        team_backpack = { 300000, 5 }, shred_bench = { 5000, 0 }, bait_trap = { 12000, 2 }, team_locker = { 60000, 2 },
+        team_backpack = { 300000, 5 }, shred_bench = { 5000, 0 }, bait_trap = { 12000, 2 }, team_locker = { 15000, 2 },
         team_crate = { 12000, 2 },
         fabric_cutter = { 80000, 2 }, log_saw = { 100000, 2 }, rain_cistern = { 90000, 3 },
         bulk_shredder = { 150000, 3 }, propane_refinery = { 200000, 3 }, oil_refinery = { 250000, 4 },
@@ -185,25 +185,18 @@ test("serum growth scales with its option", function()
     eq(S.serumPriceAt(20), 8000)
 end)
 
-test("kit prices rise with the kits of the kind bought", function()
+test("a kit's price stays the same however many are bought", function()
     -- At the first milestone the 5% discount of stage 4 is on.
     local r = record(5, 1)
-    eq(S.kitPrice("bagCapacity", r), 38000)
-    eq(S.price(find("kit_bagCapacity"), r), 38000, "the entry's price is the next kit's")
-    S.bought(find("kit_bagCapacity"), r, 1)
-    eq(S.kitsBought("bagCapacity", r), 1)
-    eq(S.kitPrice("bagCapacity", r), OA.round(40000 * 1.3 * 0.95))
-    eq(S.kitPrice("bagWeight", r), OA.round(50000 * 0.95), "another kind starts over")
-    eq(S.kitPrice("bagCapacity", r, 2), OA.round(40000 * 1.3 ^ 3 * 0.95), "the cart's later kits count the ones before")
-    S.bought(find("kit_trunk"), r, 2)
-    eq(S.kitPrice("trunk", r), OA.round(60000 * 1.25 ^ 2 * 0.95))
-    eq(S.kitPrice("engine", r), OA.round(80000 * 0.95))
+    eq(S.price(find("kit_bagCapacity"), r), 38000)
+    S.bought(find("kit_bagCapacity"), r, 3)
+    eq(S.price(find("kit_bagCapacity"), r), 38000)
 end)
 
 test("kit prices take the multiplier and the discount", function()
     SandboxVars.OperationAcorn.ShopPriceMultiplier = 2.0
     local r = record(5, 2)
-    eq(S.kitPrice("engine", r), OA.round(80000 * 2.0 * 0.9))
+    eq(S.price(find("kit_engine"), r), OA.round(80000 * 2.0 * 0.9))
 end)
 
 test("tiers lock and unlock entries", function()

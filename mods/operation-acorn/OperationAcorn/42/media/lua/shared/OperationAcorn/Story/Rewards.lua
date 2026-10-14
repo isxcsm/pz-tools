@@ -37,8 +37,8 @@ function Rewards.dangerPay(density)
 end
 
 -- Distance pay: how far into its level's band the mission lies (0 at the near edge, 1 at the far one), in steps of 5 per
--- cent, up to FAR_MAX. Returns the fraction (0 to 0.3).
-Rewards.FAR_MAX, Rewards.FAR_STEP = 0.3, 5
+-- cent, up to FAR_MAX. Returns the fraction (0 to 0.5).
+Rewards.FAR_MAX, Rewards.FAR_STEP = 0.5, 5
 function Rewards.farPay(distance, lo, hi)
     if not (distance and lo and hi) or hi <= lo then return 0 end
     local share = OA.clamp((distance - lo) / (hi - lo), 0, 1)

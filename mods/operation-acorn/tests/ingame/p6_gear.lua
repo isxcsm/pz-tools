@@ -7,7 +7,7 @@
 -- the backpack's capacity, reduction and water storage); the shop stocks all of them; a bag kit and a weight
 -- kit on a vanilla bag and on the research backpack, with and without the extension API (it reads which one is there);
 -- a trunk kit and an engine kit on the nearest vehicle against the game's own getters; the voucher through the server
--- command, and the shop's count unchanged by it; that a kit goes on any backpack.
+-- command; that a kit goes on any backpack.
 --
 -- Not scripted (do by hand): buy each good in the shop and see it arrive empty (the cans); hover a fitted bag and
 -- see the kit lines; right-click a kit and a bag; fit a bag kit and a vehicle kit with the real timed action (the
@@ -201,10 +201,7 @@ end)
 
 -- ---------------------------------------------------------------------------------------------------------------------
 section("the voucher", function()
-    local record = OA.Client.record(player)
     local voucher = give(Gear.VOUCHER)
-    local before = OA.Shop.kitsBought("bagCapacity", record)
-    local price = OA.Shop.kitPrice("bagCapacity", record)
     -- the kits already held (earlier sections made some): the new one is the one not among them
     local held = {}
     local kits = player:getInventory():getAllTypeRecurse("OperationAcorn.KitBagCapacity")
@@ -224,8 +221,6 @@ section("the voucher", function()
         end
         check("a bag capacity kit arrived", kit ~= nil)
         if kit then made[#made + 1] = kit end
-        check("the shop's count did not move", OA.Shop.kitsBought("bagCapacity", record) == before)
-        check("nor the price", OA.Shop.kitPrice("bagCapacity", record) == price)
         say("voucher checked")
     end
     Events.OnTick.Add(later)

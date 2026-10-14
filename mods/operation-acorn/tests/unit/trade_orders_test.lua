@@ -1,4 +1,4 @@
--- The cart over the shop's catalog shape (P1): entries with goods or choices, kits with targets, availability that
+-- The cart over the shop's catalog shape (P1): entries with goods or choices, availability that
 -- answers how many, and what a line brings.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
@@ -15,7 +15,7 @@ local function fakeShop(options)
         { id = "battery_pack", price = 4000, week = 5, give = { { type = "Base.Battery", count = 4, full = true } } },
         { id = "car_battery", price = 20000, choices = { { type = "Base.CarBattery1", count = 1 },
             { type = "Base.CarBattery2", count = 1 } } },
-        { id = "kit_trunk", price = 60000, special = "kit", kit = "trunk", give = { { type = "OperationAcorn.KitTrunk", count = 1 } } },
+        { id = "kit_trunk", price = 60000, give = { { type = "OperationAcorn.KitTrunk", count = 1 } } },
         { id = "fuelcan_mk1", price = 20000, give = { { type = "OperationAcorn.FuelCanMk1", count = 1, empty = true } } },
         { id = "petrol_can", price = 15000, give = { { type = "Base.PetrolCan", count = 1, full = true, fluid = "Petrol" } } },
     }
@@ -25,7 +25,6 @@ local function fakeShop(options)
         nameKey = function(entry) return "IGUI_OA_Econ_Shop_Item_" .. entry.id end,
         choices = function(entry) return entry.choices end,
         price = function(entry) return entry.price end,
-        kitPrice = function(kind, record, ahead) return 100 + (ahead or 0) end,
         available = function(entry)
             local left = (options.most or {})[entry.id]
             if left == nil then return 99 end
@@ -81,13 +80,13 @@ test("the shop's limit counts units of a line and tells why", function()
     eq(#items, 2)
 end)
 
-test("a kit's later units are priced after the ones before them and the cart estimate adds the lines", function()
+test("the cart estimate adds the lines, each unit's price times the count", function()
     fakeShop()
     local record = newRecord()
     Orders.set(record, { { id = "battery_pack", count = 2 }, { id = "kit_trunk", count = 2 } })
     local total, left = Orders.estimate(record, 20000)
-    eq(total, 8000 + 100 + 101)
-    eq(left, 20000 - 8201)
+    eq(total, 8000 + 120000)
+    eq(left, 20000 - 128000)
 end)
 
 test("an unknown shop gives no entries and a name is the entry's", function()
