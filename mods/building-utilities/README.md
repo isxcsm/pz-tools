@@ -45,9 +45,7 @@ The game's own "Generator Working in Exterior" option (`AllowExteriorGenerator`)
 no power to devices outside the building (an extension counts as inside), and the connect menu says why.
 
 The plan's supply lines (flowing dots, lines alone, or none) are each player's own choice, switched on the plan and
-kept in the game's mod options. Supply from another floor shows on the plan: on the producers' floor their lines run
-to a riser that names the box's floor, by the box a badge per floor tells how many come from there, and the floor
-strip marks floors with producers.
+kept in the game's mod options. The plan's floor strip marks floors with producers.
 
 ## Repository
 

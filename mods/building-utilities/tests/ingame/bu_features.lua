@@ -239,8 +239,7 @@ local function hover(square)
     plan.getMouseX, plan.getMouseY = nil, nil
 end
 
--- Supply across floors: the plan's data with a pump and a tank on a floor of their own above the rest; on their floor
--- the riser, on the box's floor a badge for them (count, what), the strip's mark, and a click on the badge going to
+-- Supply across floors: the plan's data with a pump and a tank on a floor of their own above the rest: the strip marks
 -- their floor.
 local real = plan.data
 local fake = {}
@@ -257,30 +256,11 @@ fake.producers[#fake.producers + 1] = { x = real.box.x + 2, y = real.box.y, z = 
 fake.producers[#fake.producers + 1] = { x = real.box.x + 4, y = real.box.y, z = level, inUse = false, text = "test tank" }
 plan:setData(fake)
 plan:showFloor(level)
-check("floors: riser on the producers' floor", plan.riser ~= nil, true)
-check("floors: riser text", plan.riser and plan.riser.text, getText("IGUI_BU_PlanRiser", "v", BU.floorName(boxZ)))
-check("floors: no badge away from the box", #plan.badges, 0)
 local mark
 for _, cell in ipairs(plan.strip) do if cell.level == level then mark = cell.producer end end
 check("floors: strip marks the producers' floor", mark ~= nil, true)
 say("floors: strip mark colour", mark and table.concat(mark, ","), "(mixed: a pump and a tank)")
 plan:showFloor(boxZ)
-plan:layout()
-local badge = plan.badges[1]
-check("floors: one badge by the box", #plan.badges, 1)
-if badge then
-    check("floors: badge text", badge.text, getText("IGUI_BU_PlanArrive", "^", BU.floorName(level), 2))
-    hover(badge)
-    say("floors: badge tip", plan.status)
-    check("floors: badge tip", plan.status, badge.tip)
-    plan:onMouseMoveOutside(0, 0)
-    plan:click(badge.x + 1, badge.y + 1)
-    check("floors: a click on the badge goes to its floor", plan.floor, level)
-    if plan.riser then
-        plan:click(plan.riser.x + 1, plan.riser.y + 1)
-        check("floors: a click on the riser goes to the box's floor", plan.floor, boxZ)
-    end
-end
 -- The top bar at the plan's least width with all it can hold (the three switches: zone, range and Fit; a long floor
 -- name with the load; several floors): no two parts overlap, none leaves the bar, and the map starts below it. The
 -- legend is no switch there: its own box folds it.

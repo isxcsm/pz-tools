@@ -675,15 +675,6 @@ function Changes.removePipe(panel, id)
     end
 end
 
--- How full a pipe's tanks stay for its people: sprinklers stop at this percent (0 for none).
-function Changes.setPipeReserve(panel, id, percent)
-    local pipe = Water.pipe(panel, id)
-    if not pipe then return end
-    percent = math.max(0, math.min(90, math.floor(tonumber(percent) or 0)))
-    pipe.reserve = percent > 0 and percent or nil
-    Sync.changed(panel.id)
-end
-
 -- A room's pipe, by the room's key: what its fixtures are on unless the player chose another for one.
 function Changes.setRoomPipe(panel, roomKey, id)
     if not Water.pipe(panel, id) then return end

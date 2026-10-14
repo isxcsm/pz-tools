@@ -21,50 +21,23 @@ local function buildingName(panel, key)
     return getText("IGUI_BU_PipeOtherBuilding", Panels.where(panel, tonumber(x), tonumber(y)))
 end
 
--- What a machine does between two pipes, for the cards' tooltips: by pipe, lines.
-local function flows(panel)
-    local result = {}
-    local function line(pipe, text)
-        result[pipe] = result[pipe] or {}
-        table.insert(result[pipe], text)
-    end
-    for _, unit in ipairs(Units.of(panel.id, "water")) do
-        local inlet, outlet = Water.unitPipes(panel, unit)
-        if unit.kind == "pump" then
-            line(outlet, getText("IGUI_BU_PipeFlow_pump"))
-        elseif (unit.kind == "filter" or unit.kind == "booster") and inlet ~= outlet then
-            line(inlet, getText("IGUI_BU_PipeFlowOut_" .. unit.kind, Water.pipeName(panel, outlet)))
-            line(outlet, getText("IGUI_BU_PipeFlowIn_" .. unit.kind, Water.pipeName(panel, inlet)))
-        elseif unit.kind == "filter" then
-            line(inlet, getText("IGUI_BU_PipeFlow_filterSame"))
-        elseif unit.kind == "booster" then
-            line(inlet, getText("IGUI_BU_PipeFlow_boosterSame"))
-        end
-    end
-    return result
-end
-
 -- The pipe cards, for a panel with more than one pipe: each pipe and its buildings. The card's members are what is
 -- on it (outlined in its colour while the mouse is over the card).
 function ISBUPanelWindow:pipeRows(add, state, devices)
     local panel = self.panel
     if not Water.shown(panel) then return end
-    local layout = BU.Networks.waterLayout(panel)
-    local machines = flows(panel)
     add({ kind = "header", text = getText("IGUI_BU_Pipes") })
     for _, pipe in ipairs(Water.pipes(panel)) do
         local id = pipe.id
         local each = state and state.pipes and state.pipes[id]
-        local members, tanks, fixtures = {}, 0, 0
+        local members = {}
         for _, at in ipairs(panel.water.producers) do
             if Water.producerPipe(panel, at) == id then
-                tanks = tanks + 1
                 members[#members + 1] = { at = at }
             end
         end
         for _, device in ipairs(devices) do
             if device.state == "on" and device.pipe == id then
-                fixtures = fixtures + 1
                 members[#members + 1] = { device = device }
             end
         end
@@ -72,16 +45,16 @@ function ISBUPanelWindow:pipeRows(add, state, devices)
             local inlet, outlet = Water.unitPipes(panel, unit)
             if inlet == id or outlet == id then members[#members + 1] = { unit = unit } end
         end
-        local lines = { getText("IGUI_BU_PipeTip", tanks, fixtures) }
-        for _, text in ipairs(machines[id] or {}) do lines[#lines + 1] = text end
+        -- its tooltip only says what is wrong with its water
+        local lines = {}
         if WaterUnits.unpurifiedPipes() then lines[#lines + 1] = getText("IGUI_BU_PipeUnpurifiedTip") end
-        if pipe.reserve then lines[#lines + 1] = getText("IGUI_BU_PipeReserve", BU.percent(pipe.reserve)) end
         local foreign = each and each.foreign > 0
         if foreign then lines[#lines + 1] = " <RGB:1,0.45,0.4> " .. getText("IGUI_BU_PipeForeignTip") end
         local right = each and each.capacity > 0 and getText("IGUI_BU_Left_Water", string.format("%.0f", each.amount),
             string.format("%.0f", each.capacity)) or "-"
         add({ kind = "waterPipe", pipe = id, text = Water.pipeName(panel, id), right = right, bad = foreign,
-            removable = id ~= Water.FIRST, members = members, colour = Water.colour(id) }, table.concat(lines, " <LINE> "))
+            removable = id ~= Water.FIRST, members = members, colour = Water.colour(id) },
+            #lines > 0 and table.concat(lines, " <LINE> ") or nil)
         -- A row per building its tanks are in, with more than one: what they hold, and the highest floor with tanks.
         local keys = {}
         for key, building in pairs(each and each.buildings or {}) do
@@ -91,12 +64,9 @@ function ISBUPanelWindow:pipeRows(add, state, devices)
             table.sort(keys, function(a, b) return buildingName(panel, a) < buildingName(panel, b) end)
             for _, key in ipairs(keys) do
                 local building = each.buildings[key]
-                local crossing = layout.crossings[key]
-                local tip = crossing and crossing ~= math.huge
-                    and getText("IGUI_BU_PipeCrossingTip", BU.floorName(crossing)) or nil
                 add({ kind = "pipeBuilding", pipe = id, text = getText("IGUI_BU_PipeBuildingRow", buildingName(panel, key),
                     BU.floorName(building.top or 0)), right = getText("IGUI_BU_Left_Water",
-                    string.format("%.0f", building.amount), string.format("%.0f", building.capacity)) }, tip)
+                    string.format("%.0f", building.amount), string.format("%.0f", building.capacity)) })
             end
         end
     end
@@ -119,6 +89,7 @@ function ISBUPanelWindow:pipeMenu(current, choose, back)
     local menu = UI.menu(self, Ui.PALETTE)
     for _, pipe in ipairs(Water.pipes(self.panel)) do
         local option = menu:addOption(Water.pipeName(self.panel, pipe.id), nil, function() choose(pipe.id) end)
+        option.swatch = Water.colour(pipe.id)
         if pipe.id == current then option.current = true end
     end
     if back then menu:addOption(back, nil, function() choose(nil) end) end
@@ -133,20 +104,6 @@ function ISBUPanelWindow:askPipeName(id)
     end, self)
 end
 
--- A pipe's settings in a menu: how full its tanks stay for its people (sprinklers stop there).
-function ISBUPanelWindow:pipeSettingsMenu(id)
-    local panel = self.panel
-    local pipe = Water.pipe(panel, id)
-    if not pipe then return end
-    local menu = UI.menu(self, Ui.PALETTE)
-    menu:addHead(getText("IGUI_BU_PipeReserveHead"))
-    for _, percent in ipairs({ 0, 10, 25, 50, 75 }) do
-        local option = menu:addOption(percent == 0 and getText("IGUI_BU_ReserveNone") or BU.percent(percent), nil,
-            function() Sync.send(self.playerObj, "setPipeReserve", { panel = panel.id, pipe = id, percent = percent }) end)
-        if (pipe.reserve or 0) == percent then option.current = true end
-    end
-end
-
 -- A click on a pipe's card or the row putting one in: a pipe is put in or taken out at the box, a pipe wrench in hand
 -- (ISBUPanelWindow:work); taken out once the player says yes, saying where what is on it goes.
 function ISBUPanelWindow:onPipeRow(row, x, width)
@@ -158,7 +115,6 @@ function ISBUPanelWindow:onPipeRow(row, x, width)
     end
     for _, button in ipairs(Ui.pipeButtons(width, row)) do
         if x >= button.x and x <= button.x + button.w then
-            if button.name == "Settings" then return self:pipeSettingsMenu(row.pipe) end
             if button.name == "Rename" then return self:askPipeName(row.pipe) end
             return self:askRemovePipe(row.pipe)
         end

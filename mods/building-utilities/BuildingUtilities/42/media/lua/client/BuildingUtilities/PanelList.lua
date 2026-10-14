@@ -34,6 +34,10 @@ local BUTTON_W = 60
 local TIMER_W, CHIP_W, SOURCE_W = 64, 34, 110
 -- A pipe chip's buttons (BU.Water: its colour and number).
 local CHIPS = { pipe = true, Pipe = true, PipeIn = true, PipeOut = true, roomPipe = true }
+-- The room between a unit's inlet chip and its outlet chip, for the arrow the water takes, and the texture lines are
+-- drawn with.
+local ARROW_GAP = 18
+local LINE_TEXTURE = Texture.getWhite()
 
 -- The texts of the rows' buttons and marks, looked up once.
 local labels = {}
@@ -98,7 +102,8 @@ local function buttonsAtRight(width, row, names)
         local name = names[index]
         local w = CHIPS[name] and CHIP_W or name == "UseSource" and SOURCE_W or OPTION_NAMES[name] and Ui.OPTION_W
             or BUTTON_W
-        x = x - w - 4
+        -- an inlet chip leaves room for the arrow to its outlet's (pipeChip)
+        x = x - w - (name == "PipeIn" and ARROW_GAP or 4)
         result[index] = { name = names[index], x = x, w = w }
     end
     row.buttons, row.buttonsWidth = result, width
@@ -116,9 +121,9 @@ end
 -- A room's row's buttons: its pipe chip, for water with more than one pipe (row.pipe).
 local function roomButtons(width, row) return buttonsAtRight(width, row, row.pipe and { "roomPipe" } or {}) end
 
--- A pipe's row's buttons, left to right: Settings, Rename, and Remove but for the first pipe.
+-- A pipe's row's buttons, left to right: Rename, and Remove but for the first pipe.
 local function pipeButtons(width, row)
-    return buttonsAtRight(width, row, row.removable and { "Settings", "Rename", "Remove" } or { "Settings", "Rename" })
+    return buttonsAtRight(width, row, row.removable and { "Rename", "Remove" } or { "Rename" })
 end
 
 -- The view options on the list's first header (the supply's), left to right: devices drawing only, and by what they
@@ -158,10 +163,17 @@ local function pipeMark(c, x, y, id)
     UI.text(c, tostring(id), x + size + 3, y + (ROW - FONT_HGT_SMALL) / 2, P.text)
 end
 
--- A pipe chip: a small button with the pipe's mark.
-local function pipeChip(list, c, key, x, y, w, id)
+-- A pipe chip: a small button with the pipe's mark; an inlet's (inlet true) with an arrow after it, pointing at its
+-- outlet's chip, the way the water goes.
+local function pipeChip(list, c, key, x, y, w, id, inlet)
     smallButton(list, c, key, x, y, w, "", P.text)
     pipeMark(c, x + 4, y, id)
+    if not inlet then return end
+    local from, to, mid, head = x + w + 4, x + w + ARROW_GAP - 4, math.floor(y + ROW / 2), 4
+    local r, g, b = P.dim[1], P.dim[2], P.dim[3]
+    c:drawLine(LINE_TEXTURE, from, mid, to, mid, 1, 1, r, g, b)
+    c:drawLine(LINE_TEXTURE, to - head, mid - head, to, mid, 1, 1, r, g, b)
+    c:drawLine(LINE_TEXTURE, to - head, mid + head, to, mid, 1, 1, r, g, b)
 end
 
 -- A row's view options (optionButtons), each lit while it is on.
@@ -322,7 +334,7 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         UI.text(c, row.text, PAD * 3 + ROW + 4, textY, muted and MUTED or PLAIN)
         local textRight = rightX
         for _, button in ipairs(producerButtons(width, row)) do
-            pipeChip(self, c, index .. button.name, button.x, y, button.w, row.pipes[button.name])
+            pipeChip(self, c, index .. button.name, button.x, y, button.w, row.pipes[button.name], button.name == "PipeIn")
             textRight = math.min(textRight, button.x - 8)
         end
         if row.right then
@@ -335,7 +347,7 @@ function ISBUPanelList:doDrawItem(y, item, alt)
             or row.out and OUT or PLAIN)
         for _, button in ipairs(producerButtons(width, row)) do
             if CHIPS[button.name] then
-                pipeChip(self, c, index .. button.name, button.x, y, button.w, row.pipes[button.name])
+                pipeChip(self, c, index .. button.name, button.x, y, button.w, row.pipes[button.name], button.name == "PipeIn")
             else
                 smallButton(self, c, index .. button.name, button.x, y, button.w, label("IGUI_BU_" .. button.name), WHITE)
             end

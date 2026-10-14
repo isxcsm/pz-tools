@@ -233,7 +233,7 @@ local function usesWanted(plant)
 end
 
 -- Each ten minutes: a panel's sprinklers water the growing crops out in the open around them that need it, from their pipe's use
--- network where they are, unless it rains or the tanks it reaches are down to the pipe's reserve. The farming system
+-- network where they are, unless it rains or the tanks it reaches are empty. The farming system
 -- keeps its plants whether or not their squares are loaded. Sprinklers that are off (BU.enabled) water nothing.
 function WaterRun.sprinklers(panel)
     if not BU.enabled("sprinkler") or not BU.enabled("water") or not BU.waterAvailable() then return end
@@ -247,8 +247,7 @@ function WaterRun.sprinklers(panel)
         local building, level = placeOf(panel, unit)
         local id = Water.useId(layout, pipe, building, level)
         local state = id and Networks.waterState(id)
-        local reserve = Water.pipe(panel, pipe).reserve or 0
-        if state and (state.capacity or 0) > 0 and (state.amount or 0) / state.capacity * 100 > reserve then
+        if state and (state.amount or 0) > 0 then
             local watered = false
             local reach = WaterUnits.SPRINKLER_RADIUS
             for dy = -reach, reach do
@@ -295,7 +294,7 @@ local function putOut(square)
 end
 
 -- A fire sprinkler lets out FIRE_LITRES from its pipe's use network where it is onto a burning square: false while
--- that network holds less (its pipe's reserve is for the crops: a fire takes the last of it).
+-- that network holds less.
 local function douse(panel, unit, square)
     local pipe = Water.unitPipes(panel, unit)
     local building, level = placeOf(panel, unit)

@@ -8,6 +8,7 @@
 --   local option = menu:addOption(text, target, fn, a, b, c, d)
 --   option.current = true   -- the one in use: marked, not offered
 --   option.off = true       -- not offered now (dim); option.tip says why (rich text)
+--   option.swatch = { r, g, b }   -- a colour square before its text (what it stands for is told by colour)
 require "ISUI/ISPanel"
 require "PZUIKit/UI"
 require "PZUIKit/RichText"
@@ -15,10 +16,12 @@ local UI = PZUIKit.UI
 
 PZUIPopMenu = ISPanel:derive("PZUIPopMenu")
 
--- A row's margin above and below its text, the room left and right of it, and the gap over a head after the first.
+-- A row's margin above and below its text, the room left and right of it, the gap over a head after the first, and a
+-- swatch's size and the room after it.
 PZUIPopMenu.ROW_PAD = 3
 PZUIPopMenu.SIDE = 10
 PZUIPopMenu.GAP = 4
+PZUIPopMenu.SWATCH, PZUIPopMenu.SWATCH_GAP = 10, 6
 
 -- The one menu open (a new one closes it).
 local open
@@ -33,15 +36,19 @@ function PZUIPopMenu:new(owner, palette)
     return o
 end
 
--- Size and place by the rows: by the mouse where it was opened, inside the screen.
+-- Size and place by the rows (before it is drawn, once rows were added): by the mouse where it was opened, inside the
+-- screen.
 function PZUIPopMenu:layout()
-    local width, height = 0, 2
+    self.dirty = false
+    local width, height, swatches = 0, 2, false
     for index, row in ipairs(self.rows) do
         width = math.max(width, UI.textWidth(row.text))
+        if row.swatch then swatches = true end
         row.y = height + (row.head and index > 1 and PZUIPopMenu.GAP or 0)
         height = row.y + self.rowH
     end
-    width = width + 2 * PZUIPopMenu.SIDE
+    self.textX = PZUIPopMenu.SIDE + (swatches and PZUIPopMenu.SWATCH + PZUIPopMenu.SWATCH_GAP or 0)
+    width = width + self.textX + PZUIPopMenu.SIDE
     local screenW, screenH = UI.dp(getCore():getScreenWidth()), UI.dp(getCore():getScreenHeight())
     self:setWidth(math.min(width, screenW))
     self:setHeight(height + 1)
@@ -52,14 +59,14 @@ end
 function PZUIPopMenu:addHead(text)
     local row = { text = text or "", head = true }
     self.rows[#self.rows + 1] = row
-    self:layout()
+    self.dirty = true
     return row
 end
 
 function PZUIPopMenu:addOption(text, target, fn, a, b, c, d)
     local row = { text = text or "", target = target, fn = fn, args = { a, b, c, d } }
     self.rows[#self.rows + 1] = row
-    self:layout()
+    self.dirty = true
     return row
 end
 
@@ -79,6 +86,7 @@ function PZUIPopMenu:prerender()
     local owner = self.owner
     if open ~= self or owner and not owner:isReallyVisible() then return self:close() end
     self.drawn = true
+    if self.dirty then self:layout() end
     local p = self.palette
     local w = self.width
     UI.fill(self, 0, 0, w, self.height, p.bg, 0.98)
@@ -99,7 +107,13 @@ function PZUIPopMenu:prerender()
         elseif row == over then
             UI.fill(self, 1, y, w - 2, self.rowH, p.sel, 0.12)
         end
-        UI.text(self, row.text, PZUIPopMenu.SIDE, y + (self.rowH - fh) / 2, colour)
+        if row.swatch then
+            local size = PZUIPopMenu.SWATCH
+            local sy = y + math.floor((self.rowH - size) / 2)
+            UI.fill(self, PZUIPopMenu.SIDE, sy, size, size, row.swatch)
+            UI.frame(self, PZUIPopMenu.SIDE, sy, size, size, p.border)
+        end
+        UI.text(self, row.text, self.textX, y + (self.rowH - fh) / 2, colour)
     end
     if over and over.tip then PZUIRichTip.show(self, over.tip, p) else PZUIRichTip.hide(self) end
 end

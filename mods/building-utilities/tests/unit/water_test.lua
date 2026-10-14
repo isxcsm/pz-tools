@@ -341,10 +341,9 @@ test("a filter on one pipe purifies it while it has media", function()
     eq(nets[idOf(panel, 1, "A", 0, "U")].purify, false)
 end)
 
-test("a sprinkler draws from its pipe until the pipe's reserve", function()
+test("a sprinkler draws from its pipe until it is empty", function()
     local panel, _, tank = scene(1)
     local held = tankAt(panel, tank, 101, 101, 0, 100, 30)
-    Water.pipe(panel, Water.FIRST).reserve = 25
     local sprinkler = Store.newUnit("sprinkler", 103, 103, 0, WaterUnits.SPRINKLER_SPRITES.idle)
     Changes.connectUnit(sprinkler, panel, {})
     local plant = { state = "seeded", waterLvl = 20, waterNeeded = 50, waterNeededMax = 80 }
@@ -356,10 +355,10 @@ test("a sprinkler draws from its pipe until the pipe's reserve", function()
     WaterRun.sprinklers(panel)
     eq(plant.waterLvl, 70, "five uses")
     truthy(held.amount < 30)
-    held.amount = 20
+    held.amount = 0
     plant.waterLvl = 20
     WaterRun.sprinklers(panel)
-    eq(plant.waterLvl, 20, "below the reserve: none")
+    eq(plant.waterLvl, 20, "empty: none")
 end)
 
 -- Fires on squares ({ x, y, z } each): the game's list of the burning, each fire's square loaded, burning.
@@ -379,10 +378,9 @@ local function burning(x, y, z)
     return square ~= nil and square.flags ~= nil and square.flags.burning == true
 end
 
-test("a fire sprinkler puts out the fires it reaches in its room, 20 L each, past the pipe's reserve, with no power", function()
+test("a fire sprinkler puts out the fires it reaches in its room, 20 L each, with no power", function()
     local panel, _, tank = scene(1)
     local held = tankAt(panel, tank, 101, 101, 0, 100, 50)
-    Water.pipe(panel, Water.FIRST).reserve = 90
     TEST.squares["102,103,0"] = { room = "hall" }
     local head = Store.newUnit("firesprinkler", 102, 103, 0, WaterUnits.FIRE_SPRITES.hung.waiting)
     Changes.connectUnit(head, panel, {})
@@ -393,7 +391,7 @@ test("a fire sprinkler puts out the fires it reaches in its room, 20 L each, pas
     eq(burning(106, 103, 0), true, "four squares off: burning")
     eq(burning(103, 103, 0), true, "another room: burning")
     eq(burning(102, 103, 1), true, "another floor: burning")
-    eq(held.amount, 30, "20 L, below the reserve")
+    eq(held.amount, 30, "20 L")
     eq(head.sprayedAt, TEST.hours)
     truthy(WaterUnits.spraying(head))
     -- 10 L left: less than a square takes

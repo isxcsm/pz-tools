@@ -21,7 +21,7 @@ local KEY = "BuildingUtilities"
 --   for power also schedule (BU.thingKey to a timer of BU.SCHEDULES), breaker (its breaker's gauge under overload, 0
 --   to 1, nil while full: BU.Panels.breaker) and timed (a set: what the box keeps off by their timers).
 --   For water also pipes (BU.Water: a list of { id (its colour, 1 to Water.MAX_PIPES), name (set by the player, or
---   nil), reserve (the percent its tanks keep from sprinklers, or nil) }, the first, blue, always there), roomPipe (a
+--   nil), paid (what putting it in took, Costs.take) }, the first, blue, always there), roomPipe (a
 --   room's square, BU.placeKey, to its pipe when not the first), pipeOf (BU.thingKey to the pipe the player chose for
 --   a fixture) and levelLog (by pipe, what its tanks held hour by hour, oldest first, at most Store.ENERGY_HOURS:
 --   { hour, amount, capacity }); a water producer may have pipe (nil for the first). With the freezing risk: frozen

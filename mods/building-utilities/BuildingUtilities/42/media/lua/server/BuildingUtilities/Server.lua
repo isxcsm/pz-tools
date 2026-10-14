@@ -62,10 +62,6 @@ function commands.rename(player, panel, args) Changes.rename(panel, args.name) e
 -- or taken out is a timed action (ISBUAddPipe, ISBURemovePipe), not a command.
 function commands.renamePipe(player, panel, args) Changes.renamePipe(panel, tonumber(args.pipe), args.name) end
 
-function commands.setPipeReserve(player, panel, args)
-    Changes.setPipeReserve(panel, tonumber(args.pipe), tonumber(args.percent))
-end
-
 -- A room of the zone, by its key, onto a pipe.
 function commands.setRoomPipe(player, panel, args)
     for _, room in ipairs(Panels.zoneRooms(panel)) do
@@ -112,7 +108,7 @@ end
 
 -- The feature a command needs on (BU.enabled), besides its utility's; one of a feature that is off is ignored, as
 -- the window no longer offers it.
-local NEEDS = { setSchedule = "power", renamePipe = "water", setPipeReserve = "water",
+local NEEDS = { setSchedule = "power", renamePipe = "water",
     setRoomPipe = "water", setProducerPipe = "water", setDevicePipe = "water", setUnitPipes = "water" }
 
 local function onClientCommand(module, command, player, args)

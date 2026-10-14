@@ -34,7 +34,8 @@ function ISBUPanelWindow:updatePlan()
     end
     local devices = {}
     local hide = PanelWindow.options.hideUnwired
-    -- Water with more than one pipe: each thing in its pipe's colour (a fixture ringed in it), and the lines too.
+    -- Water with more than one pipe: each thing in its pipe's colour (a fixture's dot too, dark while it is off), and
+    -- the lines too.
     local pipes = utility == "water" and BU.Water.shown(panel)
     for _, device in ipairs(view.devices) do
         local entry = device.entry
@@ -44,7 +45,7 @@ function ISBUPanelWindow:updatePlan()
                 power = device.power, utility = utility, name = view.names[device.key] or "",
                 status = view.status[device.key], fresh = view.fresh[device.key],
                 ref = not device.inside and device.wired and Links.deviceRef(device.key) or nil,
-                ring = pipes and device.state == "on" and BU.Water.colour(device.pipe) or nil }
+                pipeColour = pipes and device.pipe and BU.Water.colour(device.pipe) or nil }
         end
     end
     local producers = {}
@@ -57,8 +58,9 @@ function ISBUPanelWindow:updatePlan()
         producers[#producers + 1] = { x = at.x, y = at.y, z = at.z, inUse = inUse and not cut, colour = colour, cut = cut,
             ref = ref, key = ISBUPanelWindow.squareKey(at), text = (view.producerText[index] or "") .. (cut and "  " .. getText("IGUI_BU_LineNotSupplied") or "") }
     end
-    -- The units: power's as its source, water's each on its own (in its inlet's colour, a pump in its outlet's); one
-    -- whose line supplies nothing grey.
+    -- The units: power's as its source, water's each on its own (in its inlet's colour, a pump in its outlet's; a
+    -- filter or a booster pump between two pipes half in each, colour2 its outlet's); one whose line supplies nothing
+    -- grey.
     local inUse = utility == "power" and Energy.inUse(state)
     for _, unit in ipairs(Store.unitList(nil, panel.id)) do
         if not BU.RELAY_KINDS[unit.kind] and Units.utility(unit) == utility and BU.enabled(unit.kind) then
@@ -67,15 +69,16 @@ function ISBUPanelWindow:updatePlan()
             local text = Units.name(unit)
             if not live then text = text .. "  " .. getText("IGUI_BU_LineNotSupplied")
             elseif utility == "water" then text = text .. "  " .. self:waterUnitStatus(unit) end
-            local colour
+            local colour, colour2
             if pipes then
                 local inlet, outlet = BU.Water.unitPipes(panel, unit)
                 colour = BU.Water.colour(inlet or outlet)
+                if inlet and outlet and outlet ~= inlet then colour2 = BU.Water.colour(outlet) end
             end
             -- power's units share their kind's source row
             local key = utility == "power" and ISBUPanelWindow.sourceKey(unit.kind) or ISBUPanelWindow.squareKey(unit)
-            producers[#producers + 1] = { x = unit.x, y = unit.y, z = unit.z, unit = unit.kind, colour = colour, ref = ref,
-                key = key, cut = not live, inUse = live and (inUse or unit.running == true), text = text }
+            producers[#producers + 1] = { x = unit.x, y = unit.y, z = unit.z, unit = unit.kind, colour = colour, colour2 = colour2,
+                ref = ref, key = key, cut = not live, inUse = live and (inUse or unit.running == true), text = text }
         end
     end
     -- What it could take and no box has: grey, as devices not connected are.
