@@ -39,8 +39,11 @@ local function fakeGame()
     g.holdZombies = function(m) g.held[#g.held + 1] = m.id end
     g.releaseZombies = function(m) g.let[#g.let + 1] = m.id end
     g.areaLoaded = function() return g.loaded end
-    g.countOutfit = function() return g.present end
-    g.spawnZombies = function(area, outfit, count) g.spawned[#g.spawned + 1] = { outfit = outfit, count = count }; return count end
+    g.countMarked = function() return g.present end
+    g.spawnZombies = function(area, outfit, key, count)
+        g.spawned[#g.spawned + 1] = { outfit = outfit, key = key, count = count }
+        return count
+    end
     g.giveMissionItem = function(character, full, id) g.given = { full, id }; return { id = id } end
     return g
 end
@@ -80,7 +83,7 @@ test("a zombie mission is a small circle near a building of the band, its group'
         eq(m.title, "clear")
         eq(m.area.r, 15)
         eq(m.zombies.total, want)
-        eq(m.zombies.outfit, "OA_Crowd")
+        eq(m.zombies.outfit, "Generic01")
         eq(m.urgent, nil, "never urgent")
         eq(#m.items, 0)
         eq(#M.game.requested, 0, "nothing to place")
@@ -91,7 +94,7 @@ test("a zombie mission is a small circle near a building of the band, its group'
     local record = setup(3, "target")
     local m = M.start(record)
     eq(m.zombies.total, 3)
-    eq(m.zombies.outfit, "OA_Target")
+    eq(m.zombies.outfit, "HospitalPatient")
     local _, brief = M.keys(m)
     eq(brief, "IGUI_OA_Story_RegBrief_target")
 end)
@@ -99,12 +102,12 @@ end)
 test("an area clear counts its group's deaths wherever they are, and pays at once with the last", function()
     local record = setup(1, "clear")
     local m = M.start(record)
-    for _ = 1, 11 do Z.died("OA_Crowd", TEST.hours) end
-    Z.died("OA_Target", TEST.hours)
-    eq(m.zombies.killed, 11)
+    for _ = 1, 11 do Z.died(m.id, TEST.hours) end
+    Z.died("M0-99", TEST.hours)
+    eq(m.zombies.killed, 11, "another mission's zombie is not counted")
     eq(M.describe(record).zombies.done, 11)
     eq(record.trade.credits, 0)
-    Z.died("OA_Crowd", TEST.hours)
+    Z.died(m.id, TEST.hours)
     eq(M.active(record), nil, "done")
     eq(record.missions.results.done, 1)
     eq(record.trade.credits, m.credits)
@@ -114,9 +117,9 @@ end)
 test("an area clear finished after its deadline pays nothing", function()
     local record = setup(1, "clear")
     local m = M.start(record)
-    for _ = 1, 11 do Z.died("OA_Crowd", TEST.hours) end
+    for _ = 1, 11 do Z.died(m.id, TEST.hours) end
     TEST.hours = TEST.hours + 8 * 24
-    Z.died("OA_Crowd", TEST.hours)
+    Z.died(m.id, TEST.hours)
     eq(record.trade.credits, 0)
     eq(record.missions.results.expired, 1)
 end)
@@ -125,15 +128,16 @@ test("a target mission takes a sample from each target and is done when all are 
     local record = setup(1, "target")
     local m = M.start(record)
     eq(m.zombies.total, 2)
-    Z.died("OA_Target", TEST.hours)
+    Z.died(m.id, TEST.hours)
     eq(#m.zombies.dead, 1)
-    local m1, it1, id1 = Z.takeTarget(record, "OA_Target", TEST.hours)
+    local m1, it1, id1 = Z.takeTarget(record, m.id, TEST.hours)
     eq(m1, m)
     eq(id1, m.id .. "#T1")
     eq(it1.type, "OperationAcorn.TissueTarget")
     eq(#m.zombies.dead, 0, "its death let go")
-    eq(Z.takeTarget(record, "OA_Crowd", TEST.hours), nil, "another outfit is a plain corpse")
-    local _, _, id2 = Z.takeTarget(record, "OA_Target", TEST.hours)
+    eq(Z.takeTarget(record, nil, TEST.hours), nil, "an unmarked corpse is a plain one")
+    eq(Z.takeTarget(record, "M0-99", TEST.hours), nil, "another mission's is too")
+    local _, _, id2 = Z.takeTarget(record, m.id, TEST.hours)
     eq(id2, m.id .. "#T2")
     eq(M.describe(record).zombies.done, 2)
     M.onSealed(record, "box1", { { info = { mission = id1 }, count = 1 } })
@@ -150,24 +154,24 @@ test("a target dead too long is forgotten and another comes; one harvested does 
     local record = setup(1, "target")
     local m = M.start(record)
     eq(Z.wanted(m, TEST.hours), 2)
-    Z.died("OA_Target", TEST.hours)
+    Z.died(m.id, TEST.hours)
     eq(Z.wanted(m, TEST.hours), 1, "its corpse lies there")
     eq(Z.wanted(m, TEST.hours + 25), 2, "rotten: another target")
-    Z.takeTarget(record, "OA_Target", TEST.hours)
+    Z.takeTarget(record, m.id, TEST.hours)
     eq(Z.wanted(m, TEST.hours), 1)
 end)
 
 test("a target sample lost in a fire is taken again from another target", function()
     local record = setup(1, "target")
     local m = M.start(record)
-    local _, it = Z.takeTarget(record, "OA_Target", TEST.hours)
+    local _, it = Z.takeTarget(record, m.id, TEST.hours)
     M.replacePiece(record, m, it)
     eq(#m.items, 0)
     eq(m.zombies.taken, 0)
     eq(Z.wanted(m, TEST.hours), 2)
 end)
 
-test("the group is held at once, brought once a visit when near and loaded, and comes again after the player left", function()
+test("the group is held at once, brought once a visit a look after its squares load, and comes again after the player left", function()
     local record = setup(1, "clear")
     local m = M.start(record)
     local g = M.game
@@ -182,9 +186,12 @@ test("the group is held at once, brought once a visit when near and loaded, and 
     g.loaded = true
     g.present = 2
     Z.tick(TEST.hours)
+    eq(#g.spawned, 0, "loaded: the population brings back what it kept first")
+    Z.tick(TEST.hours)
     eq(#g.spawned, 1)
     eq(g.spawned[1].count, 10, "what is missing of the group")
-    eq(g.spawned[1].outfit, "OA_Crowd")
+    eq(g.spawned[1].outfit, "Generic01")
+    eq(g.spawned[1].key, m.id, "marked with the mission's id")
     Z.tick(TEST.hours)
     eq(#g.spawned, 1, "once a visit")
     g.px = m.area.x + 80
@@ -194,14 +201,24 @@ test("the group is held at once, brought once a visit when near and loaded, and 
     Z.tick(TEST.hours)
     g.px, g.present = m.area.x, 0
     Z.tick(TEST.hours)
+    Z.tick(TEST.hours)
     eq(#g.spawned, 2, "a new visit")
     eq(#g.held, 1, "held once")
+end)
+
+test("without the API's zombie marks the zombie missions are not given", function()
+    local record = setup(1, "clear")
+    M.game.canMarkZombies = function() return false end
+    Data.REGULAR = { { id = "clear", kind = "clear", weight = 1 }, { item = "MissionEnvelope", weight = 1 } }
+    local m = M.start(record)
+    eq(m.zombies, nil)
+    eq(m.items[1].type, "OperationAcorn.MissionEnvelope")
 end)
 
 test("the circle stays on the maps while a zombie mission runs, whatever was found", function()
     local record = setup(1, "target")
     local m = M.start(record)
-    local _, it = Z.takeTarget(record, "OA_Target", TEST.hours)
+    local _, it = Z.takeTarget(record, m.id, TEST.hours)
     it.found = true
     eq(#OA.StoryView.circles(m), 1)
 end)
@@ -268,7 +285,7 @@ test("the samples are taken at their grade's worth; a target's sample is its mis
     eq(V.accepts(V.info(sample("OperationAcorn.TissueNeural"))), true)
     local record = setup(1, "target")
     local m = M.start(record)
-    local _, _, id = Z.takeTarget(record, "OA_Target", TEST.hours)
+    local _, _, id = Z.takeTarget(record, m.id, TEST.hours)
     eq(V.info(sample("OperationAcorn.TissueTarget", { OA_Mission = id })).own, "MissionItem")
     TEST.hours = TEST.hours + 8 * 24
     eq(V.info(sample("OperationAcorn.TissueTarget", { OA_Mission = id })).own, "TissueTarget")

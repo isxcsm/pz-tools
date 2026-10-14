@@ -125,14 +125,12 @@ local function onMinute()
     if not ok then OA.log("zombie missions failed:", tostring(err)) end
 end
 
--- A zombie of a zombie mission's group died (its outfit says so): counted wherever it died.
-local OUTFITS = {}
-for _, def in pairs(OA.StoryData.ZOMBIES) do OUTFITS[def.outfit] = true end
+-- A zombie of a zombie mission's group died (it carries the mission's mark): counted wherever it died.
 local function onZombieDead(zombie)
     if isClient() or not zombie then return end
-    local outfit = zombie:getOutfitName()
-    if not (outfit and OUTFITS[outfit]) then return end
-    local ok, err = pcall(Zombies.died, outfit, OA.hours())
+    local key = Game.markOf(zombie)
+    if not key then return end
+    local ok, err = pcall(Zombies.died, key, OA.hours())
     if not ok then OA.log("zombie mission kill failed:", tostring(err)) end
 end
 

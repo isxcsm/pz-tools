@@ -601,7 +601,7 @@ local function createScatter(record, level, kind)
 end
 
 -- A zombie mission (Data.ZOMBIES): a small circle in the open near a building of the band; the group appears when the
--- player comes near (Story/Zombies). `zombies` = { kind, outfit, total, killed (an area clear's kills), taken (the target
+-- player comes near (Story/Zombies). `zombies` = { kind, outfit (its look), total, killed (an area clear's kills), taken (the target
 -- samples harvested), seq (the last sample's number), dead = { the death hours of targets killed and not harvested },
 -- sealed = { [sample key] = true } }.
 local function createZombies(record, level, kind)
@@ -624,8 +624,19 @@ local REGULAR_BUILDERS = {
     soil = function(record, level) return createPlainSoil(record, level) end,
 }
 
+-- The regular kinds; the zombie ones only when the game can mark their group (an API without the marks: not offered).
+local function regularKinds()
+    local g = Missions.game
+    if not (g and g.canMarkZombies and not g.canMarkZombies()) then return Data.REGULAR end
+    local kinds = {}
+    for _, e in ipairs(Data.REGULAR) do
+        if not Data.ZOMBIES[e.kind or ""] then kinds[#kinds + 1] = e end
+    end
+    return kinds
+end
+
 local function createRegular(record, level)
-    local kind = weighted(Data.REGULAR)
+    local kind = weighted(regularKinds())
     return REGULAR_BUILDERS[kind.kind or "item"](record, level, kind)
 end
 

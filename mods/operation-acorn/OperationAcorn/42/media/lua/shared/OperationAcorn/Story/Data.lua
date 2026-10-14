@@ -133,12 +133,12 @@ Data.REGULAR = {
 }
 
 -- The zombie missions (NUMBERS 9 '좀비 임무'): an area clear (kill the whole group) and a target sample (a mission sample
--- from each target). The group wears our outfit (media/clothing/clothing.xml), by which it is known; its size by level
--- (1 to 6). The circle's radius; the player within NEAR of it brings the group, at squares more than AWAY from the
+-- from each target). The group is known by the API's mark of its mission's id (Story/Game); it looks as the game's own
+-- (a vanilla outfit: a crowd of passers-by, targets from a hospital); its size by level (1 to 6). The circle's radius; the player within NEAR of it brings the group, at squares more than AWAY from the
 -- player; the group stays within MARGIN of the circle (the API's hold); LEAVE squares beyond NEAR the player has gone.
 Data.ZOMBIES = {
-    clear = { outfit = "OA_Crowd", counts = { 12, 18, 24, 30, 40, 50 } },
-    target = { outfit = "OA_Target", counts = { 2, 2, 3, 3, 4, 4 } },
+    clear = { outfit = "Generic01", counts = { 12, 18, 24, 30, 40, 50 } },
+    target = { outfit = "HospitalPatient", counts = { 2, 2, 3, 3, 4, 4 } },
 }
 Data.ZOMBIE_RADIUS, Data.ZOMBIE_NEAR, Data.ZOMBIE_AWAY, Data.ZOMBIE_MARGIN, Data.ZOMBIE_LEAVE = 15, 40, 20, 20, 30
 

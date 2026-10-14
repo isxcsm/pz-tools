@@ -1,12 +1,13 @@
 -- The zombie missions (DESIGN 9 '좀비 임무', NUMBERS 9): an area clear (the whole group killed) and a target sample (a
 -- mission sample from each target, Story/Harvest). The mission (Missions: createZombies) keeps only counts; the group is
--- in the world only while the player is about. Coming within NEAR of the circle once its squares are loaded brings what
--- is missing of it, at squares the player cannot see yet; going LEAVE farther ends the visit (the API's hold dissolves the
--- group as its chunks unload, so nothing of it is left virtual). While the mission runs the API holds the group to the
--- circle. When it ends, what is left of the group goes.
+-- in the world only while the player is about. Its zombies carry the API's mark of the mission's id (Story/Game), which
+-- the world keeps with them. Coming within NEAR of the circle once its squares are loaded brings what is missing of it,
+-- at squares the player cannot see yet; going LEAVE farther ends the visit (the API's hold dissolves the group as its
+-- chunks unload, so nothing of it is left virtual). While the mission runs the API holds the group to the circle. When
+-- it ends, what is left of the group goes.
 --
 -- What touches the game goes through the game adapter (Missions.game, Story/Game): holdZombies, releaseZombies,
--- areaLoaded, countOutfit, spawnZombies. Tests give it fakes.
+-- areaLoaded, countMarked, spawnZombies. Tests give it fakes.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Sync"
@@ -24,8 +25,8 @@ OA.ZombieMissions = Zombies
 Zombies.FRESH_HOURS = 24
 
 -- What this session did for each mission (not saved: a world loaded again starts over): held = the API holds its group,
--- here = the group was brought for this visit.
-local held, here = {}, {}
+-- ready = its squares were loaded at the last look, here = the group was brought for this visit.
+local held, ready, here = {}, {}, {}
 
 local function game()
     return Missions.game
@@ -50,13 +51,14 @@ function Zombies.wanted(m, now)
     return math.max(0, z.total - z.taken - #z.dead)
 end
 
--- A zombie of `outfit` died (OnZombieDead), at world hour `now`. An area clear counts it wherever it died, and is done
--- with the last one (paid at once: there is nothing to send); a target mission notes the death for its corpse.
-function Zombies.died(outfit, now)
+-- A zombie marked with `key` (a mission's id) died (OnZombieDead), at world hour `now`. An area clear counts it wherever
+-- it died, and is done with the last one (paid at once: there is nothing to send); a target mission notes the death for
+-- its corpse.
+function Zombies.died(key, now)
     for _, record in pairs(OA.Store.players()) do
         local m = Zombies.running(record)
         local z = m and m.zombies
-        if z and z.outfit == outfit then
+        if z and m.id == key then
             if z.kind == "clear" then
                 z.killed = math.min(z.total, z.killed + 1)
                 if z.killed >= z.total then
@@ -76,13 +78,13 @@ function Zombies.died(outfit, now)
     end
 end
 
--- A target's corpse was harvested (Story/Harvest), dead since `death` (world hours): the running target mission of the
--- outfit takes it as its next sample. Returns the mission, the new piece and the sample's OA_Mission, or nil when no
--- target mission of the outfit runs.
-function Zombies.takeTarget(record, outfit, death)
+-- A target's corpse was harvested (Story/Harvest), dead since `death` (world hours) and marked with `key`: the running
+-- target mission of that id takes it as its next sample. Returns the mission, the new piece and the sample's OA_Mission,
+-- or nil when the corpse is not one of its targets.
+function Zombies.takeTarget(record, key, death)
     local m = Zombies.running(record)
     local z = m and m.zombies
-    if not (z and z.kind == "target" and z.outfit == outfit) then return nil end
+    if not (z and z.kind == "target" and key ~= nil and m.id == key) then return nil end
     -- the death noted for this corpse is let go (the nearest in time; none when it died unseen)
     local best, bestD
     for i, t in ipairs(z.dead) do
@@ -119,29 +121,38 @@ function Zombies.look(record, m, now)
     if not px then return end
     local d = Places.distance(px, py, m.area.x, m.area.y)
     if d <= m.area.r + Data.ZOMBIE_NEAR then
-        if here[m.id] or not g.areaLoaded(m.area) then return end
+        if here[m.id] then return end
+        if not g.areaLoaded(m.area) then
+            ready[m.id] = nil
+            return
+        end
+        -- the population first brings back what it kept of the group (a world saved with it about): counted a look later
+        if not ready[m.id] then
+            ready[m.id] = true
+            return
+        end
         here[m.id] = true
-        local missing = Zombies.wanted(m, now) - g.countOutfit(m.zombies.outfit)
+        local missing = Zombies.wanted(m, now) - g.countMarked(m.id)
         if missing > 0 then
-            local made = g.spawnZombies(m.area, m.zombies.outfit, missing, px, py)
+            local made = g.spawnZombies(m.area, m.zombies.outfit, m.id, missing, px, py)
             OA.log("mission", m.id, "brought", tostring(made), "of", missing, m.zombies.outfit)
         end
     elseif d > m.area.r + Data.ZOMBIE_NEAR + Data.ZOMBIE_LEAVE then
-        here[m.id] = nil
+        here[m.id], ready[m.id] = nil, nil
     end
 end
 
 -- The mission ended or was sealed (Game.release): its group is let go and what is left of it goes.
 function Zombies.release(m)
     if not m.zombies then return end
-    held[m.id], here[m.id] = nil, nil
+    held[m.id], ready[m.id], here[m.id] = nil, nil, nil
     local g = game()
     if g and g.releaseZombies then g.releaseZombies(m) end
 end
 
 -- Forgets what the session did (tests, a new world).
 function Zombies.reset()
-    held, here = {}, {}
+    held, ready, here = {}, {}, {}
 end
 
 return Zombies

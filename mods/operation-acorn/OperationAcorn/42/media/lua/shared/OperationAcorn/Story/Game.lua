@@ -718,41 +718,60 @@ end
 -- ---------------------------------------------------------------------------------------------------------------
 -- A zombie mission's group (Story/Zombies).
 
--- The API holds the group to its circle (PZExtAPI zombies.hold): idle wandering stays inside, far sounds are not heard,
--- and a zombie of the outfit whose chunk unloads goes instead of staying virtual. Without the API the group roams.
-function Game.holdZombies(m)
+-- The API's zombie calls (PZExtAPI.zombies) and this mod's handle, or nil when the API lacks the zombie marks.
+local function zombieApi()
     local api, handle = OA.api(), OA.handle()
     local zombies = api and api.zombies
-    if not (handle and zombies and zombies.hold) then return end
-    local ok, err = pcall(zombies.hold, handle, m.id, { outfit = m.zombies.outfit, x = m.area.x + 0.5, y = m.area.y + 0.5,
-        radius = m.area.r, margin = OA.StoryData.ZOMBIE_MARGIN, dissolve = true })
+    if not (handle and zombies and zombies.mark and zombies.hold) then return nil end
+    return zombies, handle
+end
+
+-- Whether a zombie mission can be given: its group is known by the API's marks.
+function Game.canMarkZombies()
+    return zombieApi() ~= nil
+end
+
+-- The key a zombie or a corpse carries (a zombie mission's id, Game.spawnZombies), or nil.
+function Game.markOf(object)
+    local zombies, handle = zombieApi()
+    if not zombies then return nil end
+    local ok, key = pcall(zombies.markOf, handle, object)
+    return ok and key or nil
+end
+
+-- The API holds the group to its circle (zombies.hold): idle wandering stays inside, far sounds are not heard, and one
+-- whose chunk unloads goes instead of staying virtual.
+function Game.holdZombies(m)
+    local zombies, handle = zombieApi()
+    if not zombies then return end
+    local ok, err = pcall(zombies.hold, handle, m.id, { x = m.area.x + 0.5, y = m.area.y + 0.5, radius = m.area.r,
+        margin = OA.StoryData.ZOMBIE_MARGIN, dissolve = true })
     if not ok then OA.log("zombie hold failed:", tostring(err)) end
 end
 
--- The loaded zombies of an outfit that are alive.
-local function outfitZombies(outfit)
-    local list = getCell():getZombieList()
-    local found = {}
-    for i = 0, list:size() - 1 do
-        local z = list:get(i)
-        if z and not z:isDead() and z:getOutfitName() == outfit then found[#found + 1] = z end
-    end
-    return found
+-- The loaded living zombies marked with the key.
+local function markedZombies(key)
+    local zombies, handle = zombieApi()
+    if not zombies then return {} end
+    local ok, list = pcall(zombies.marked, handle, key)
+    return ok and list or {}
 end
 
-function Game.countOutfit(outfit)
-    return #outfitZombies(outfit)
+function Game.countMarked(key)
+    return #markedZombies(key)
 end
 
--- The hold goes, and the loaded zombies of the group with it (one that strayed out of the circle too).
+-- The hold goes, the loaded zombies of the group with it (one that strayed out of the circle too), and the world forgets
+-- the mark (its virtual ones too).
 function Game.releaseZombies(m)
-    local api, handle = OA.api(), OA.handle()
-    local zombies = api and api.zombies
-    if handle and zombies and zombies.release then pcall(zombies.release, handle, m.id) end
-    for _, z in ipairs(outfitZombies(m.zombies.outfit)) do
+    local zombies, handle = zombieApi()
+    if not zombies then return end
+    pcall(zombies.release, handle, m.id)
+    for _, z in ipairs(markedZombies(m.id)) do
         z:removeFromWorld()
         z:removeFromSquare()
     end
+    pcall(zombies.forget, handle, m.id)
 end
 
 -- Whether the circle's middle and its four edges are loaded.
@@ -813,9 +832,11 @@ local function openSquares(area, indoors)
     return list
 end
 
--- Brings `count` of the group into the circle, each on its own square more than ZOMBIE_AWAY from the player when there
--- are squares enough (else squares are shared). Returns how many came.
-function Game.spawnZombies(area, outfit, count, px, py)
+-- Brings `count` of the group into the circle in the outfit, marked with `key`, each on its own square more than
+-- ZOMBIE_AWAY from the player when there are squares enough (else squares are shared). Returns how many came.
+function Game.spawnZombies(area, outfit, key, count, px, py)
+    local zombies, handle = zombieApi()
+    if not zombies then return 0 end
     local squares = openSquares(area, false)
     if #squares == 0 then squares = openSquares(area, true) end
     local away = OA.StoryData.ZOMBIE_AWAY
@@ -833,7 +854,9 @@ function Game.spawnZombies(area, outfit, count, px, py)
         local sq = far[j]
         if n > count - i + 1 then far[j] = far[n]; far[n] = nil end
         local list = addZombiesInOutfit(sq:getX(), sq:getY(), sq:getZ(), 1, outfit, 50)
-        if list and list:size() > 0 then made = made + 1 end
+        for k = 0, (list and list:size() or 0) - 1 do
+            if pcall(zombies.mark, handle, list:get(k), key) then made = made + 1 end
+        end
     end
     return made
 end

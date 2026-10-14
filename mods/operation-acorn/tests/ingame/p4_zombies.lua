@@ -1,13 +1,14 @@
 -- P4 zombie samples and zombie missions (DESIGN 6 '좀비 시료', 9 '좀비 임무'). Lines tagged "[p4zombies]", each "ok" or
 -- "BAD". Single player, a character with a record at stage 1 or above, open ground about; a throwaway save (it replaces
--- the running mission). The API installed with zombies.hold.
+-- the running mission). The API installed with the zombie marks (zombies.mark, zombies.hold).
 --
---   RUN("p4_zombies.lua")      the items, outfits, shop, first box and API hooks; defines the steps below
+--   RUN("p4_zombies.lua")      the items, shop, first box and API hooks; defines the steps below
 --   P4Z_MISSION("clear")       a fresh area clear (or "target") whose circle is 50 squares east of the character
 --   P4Z_STATUS()               the mission's counts, the group loaded (how many, how far from the circle's middle)
 --   P4Z_KILL(n)                kills n of the loaded group (all when n is nil)
 --   P4Z_HARVEST(precise)       harvests the nearest zombie corpse within 3 squares (gives and equips the scalpel)
 --   P4Z_AWAY() / P4Z_BACK()    goes 200 squares off (the group's chunks unload: it goes), and back to the circle
+--   P4Z_MARKS()                the world's table of marks: how many zombies of the mission it keeps
 --
 -- A check by hand: walk to the circle (the group appears out of sight; P4Z_STATUS), stand far off and make noise (it
 -- stays), right-click a fresh corpse with the scalpel in hand (the quick harvest; the precise one once tweezers came).
@@ -41,8 +42,10 @@ section("outfits", function()
     for _, female in ipairs({ false, true }) do
         local names, have = getAllOutfits(female), {}
         for i = 0, names:size() - 1 do have[names:get(i)] = true end
-        check("OA_Crowd " .. (female and "female" or "male"), have.OA_Crowd == true)
-        check("OA_Target " .. (female and "female" or "male"), have.OA_Target == true)
+        for _, def in pairs(Data.ZOMBIES) do
+            check(def.outfit .. " " .. (female and "female" or "male"), have[def.outfit] == true)
+        end
+        check("no OA outfit of our own", have.OA_Crowd == nil and have.OA_Target == nil)
     end
 end)
 
@@ -58,10 +61,11 @@ end)
 
 section("api", function()
     local api = OA.api()
-    check("zombies.hold", api ~= nil and api.zombies ~= nil and api.zombies.hold ~= nil)
+    check("zombies.mark and hold", api ~= nil and api.zombies ~= nil and api.zombies.mark ~= nil and api.zombies.hold ~= nil)
+    check("zombie missions given", OA.StoryGame.canMarkZombies())
     local hooks = api and api.hooks and api.hooks() or {}
     for _, label in ipairs({ "ZombieIdleState.execute", "WorldSoundManager.getBiggestSoundZomb",
-        "ZombiePopulationManager.removeChunkFromWorld" }) do
+        "ZombiePopulationManager.removeChunkFromWorld", "ZombiePopulationManager.registerZombie", "IsoZombie.removeFromWorld" }) do
         say(label, tostring(hooks[label]))
     end
 end)
@@ -90,12 +94,18 @@ function P4Z_MISSION(kind)
 end
 
 local function group(m)
-    local list, found = getCell():getZombieList(), {}
-    for i = 0, list:size() - 1 do
-        local z = list:get(i)
-        if not z:isDead() and z:getOutfitName() == m.zombies.outfit then found[#found + 1] = z end
-    end
+    local list, found = OA.api().zombies.marked(OA.handle(), m.id), {}
+    for _, z in ipairs(list) do found[#found + 1] = z end
     return found
+end
+
+-- The world's marks of the mission (virtual zombies included): how many zombies carry its id.
+local function worldMarks(m)
+    local kept, count = ModData.get("PZExtMarks"), 0
+    for _, marks in pairs(kept or {}) do
+        if marks[OA.MOD] == m.id then count = count + 1 end
+    end
+    return count
 end
 
 function P4Z_STATUS()
@@ -108,7 +118,7 @@ function P4Z_STATUS()
     end
     local p = getPlayer()
     say("status", m.id, z.kind, "total", z.total, "killed", z.killed, "taken", z.taken, "dead", #z.dead,
-        "loaded", #loaded, "farthest", string.format("%.1f", far), "player at",
+        "loaded", #loaded, "in the world", worldMarks(m), "farthest", string.format("%.1f", far), "player at",
         string.format("%.1f", OA.Places.distance(p:getX(), p:getY(), m.area.x, m.area.y)))
     check("the group within the circle and its margin", far <= m.area.r + Data.ZOMBIE_MARGIN, far)
 end
@@ -150,7 +160,7 @@ function P4Z_HARVEST(precise)
     local record = P4T.record()
     local name, why = Harvest.take(p, record, { x = sq:getX(), y = sq:getY(), z = sq:getZ(), death = best:getDeathTime(),
         precise = precise == true })
-    say("harvest", tostring(best:getOutfitName()), "->", tostring(name), tostring(why))
+    say("harvest", tostring(OA.StoryGame.markOf(best)), "->", tostring(name), tostring(why))
     local again, why2 = Harvest.take(p, record, { x = sq:getX(), y = sq:getY(), z = sq:getZ(), death = best:getDeathTime() })
     check("a corpse gives one sample", again == nil and why2 == "taken", why2)
 end
@@ -169,4 +179,10 @@ function P4Z_BACK()
     say("back; P4Z_STATUS() in a few seconds (the group should come again, as many as are missing)")
 end
 
-say("steps: P4Z_MISSION(kind), P4Z_STATUS(), P4Z_KILL(n), P4Z_HARVEST(precise), P4Z_AWAY(), P4Z_BACK()")
+function P4Z_MARKS()
+    local m = running()
+    if not m then say("no zombie mission running") return end
+    say("marks", m.id, "in the world", worldMarks(m), "loaded", #group(m))
+end
+
+say("steps: P4Z_MISSION(kind), P4Z_STATUS(), P4Z_KILL(n), P4Z_HARVEST(precise), P4Z_AWAY(), P4Z_BACK(), P4Z_MARKS()")
