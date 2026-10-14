@@ -53,7 +53,7 @@ test("the road's nodes and the levels' names: stages, the levels after them, the
     eq(M.levelName(2), "IGUI_OA_Status_LevelName 2 IGUI_OA_Econ_Stage_2")
     eq(M.levelName(7), "IGUI_OA_Econ_Stage_Milestone 7")
     eq(M.levelName(9), "IGUI_OA_Status_LevelFrom 9")
-    eq(M.threshold(3), 550); eq(M.threshold(6), 3700); eq(M.threshold(9), 12100)
+    eq(M.threshold(3), 1200); eq(M.threshold(6), 3700); eq(M.threshold(9), 12100)
 end)
 
 -- What each level opens -----------------------------------------------------------------------------------------------
@@ -113,12 +113,12 @@ end)
 
 test("where the road stands and the chosen level's note", function()
     local r = newRecord(2, 0)
-    r.trade.trust = 394
+    r.trade.trust = 864
     local at, frac = M.roadPosition(r)
-    eq(at, 2); near(frac, (394 - 230) / (550 - 230), 1e-9)
-    eq(M.plain(M.detailNote(r, 3)), "IGUI_OA_Status_TrustLeft 156")
+    eq(at, 2); near(frac, (864 - 700) / (1200 - 700), 1e-9)
+    eq(M.plain(M.detailNote(r, 3)), "IGUI_OA_Status_TrustLeft 336")
     eq(M.plain(M.detailNote(r, 2)), "IGUI_OA_Status_Got")
-    eq(M.plain(M.detailNote(r, 4)), "IGUI_OA_Status_AtTrust 1,150", "a later stage says its trust")
+    eq(M.plain(M.detailNote(r, 4)), "IGUI_OA_Status_AtTrust 1,800", "a later stage says its trust")
     eq(M.plain(M.detailNote(r, 9)), "IGUI_OA_Status_AtTrustOn 12,100")
     -- past the five stages, the next level is still the trust left
     r.trade.stage, r.trade.milestones, r.trade.trust = 5, 1, 3700

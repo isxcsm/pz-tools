@@ -514,10 +514,10 @@ end)
 
 test("taking another never takes the trust below where the level began", function()
     local record = setup(1)
-    record.trade.trust = 72
+    record.trade.trust = 302
     start(record)
     truthy(M.reroll(record))
-    eq(record.trade.trust, 70, "the first stage began at 70")
+    eq(record.trade.trust, 300, "the first stage began at 300")
 end)
 
 test("the distance pay: how far into its band a mission lies, on the credits and the trust", function()
@@ -994,12 +994,12 @@ end)
 
 test("trust lost is never below where the level began", function()
     local record = setup(2)
-    record.trade.trust = 250
+    record.trade.trust = 720
     eq(Story.loseTrust(record, 12), 12)
-    eq(record.trade.trust, 238)
-    record.trade.trust = 235
-    eq(Story.loseTrust(record, 12), 5, "the second stage began at 230")
-    eq(record.trade.trust, 230)
+    eq(record.trade.trust, 708)
+    record.trade.trust = 705
+    eq(Story.loseTrust(record, 12), 5, "the second stage began at 700")
+    eq(record.trade.trust, 700)
     eq(Story.loseTrust(record, 12), 0)
     eq(Story.loseTrust(record, 0), 0)
     eq(Story.loseTrust(record, nil), 0)

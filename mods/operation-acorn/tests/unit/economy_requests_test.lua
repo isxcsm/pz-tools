@@ -178,13 +178,13 @@ test("the list grows with the stage and gains rarer items", function()
     local record = OA.Store.ensure("p", "P")
     local first = {}
     for i, t in ipairs(R.list(record)) do first[i] = t end
-    OA.Trust.add(record, 2300)            -- stage 2
+    OA.Trust.add(record, 700)             -- stage 2
     eq(#R.list(record), 6, "trust alone does not lengthen it")
     OA.Support.setLevel(record, "reqcount", 1)   -- the flight support upgrade: 8 items, all scores
     local list = R.list(record)
     eq(#list, 8)
     for i = 1, 6 do eq(list[i], first[i], "the first six stay") end
-    OA.Trust.add(record, 3200 + 17500 + 14000 + 21000)   -- up to milestone 2
+    OA.Trust.add(record, 5800 - 700)                     -- up to milestone 2
     OA.Support.setLevel(record, "reqcount", 3)           -- 12 items
     eq(#R.list(record), 12)
 end)
@@ -250,7 +250,7 @@ end)
 test("an item's band follows its rank: 600, 1,500 and 4,000 a unit, its quantity by its rank", function()
     install(40, falling)
     local record = OA.Store.ensure("p", "P")
-    OA.Trust.add(record, 2300)           -- stage 2: every band is drawn
+    OA.Trust.add(record, 700)            -- stage 2: every band is drawn
     OA.Support.setLevel(record, "reqcount", 3)   -- all 12
     local seen = { common = false, normal = false, rare = false }
     for _ = 1, 20 do
@@ -281,7 +281,7 @@ end)
 test("entries come by band, common first, each band in the order drawn", function()
     install(40, falling)
     local record = OA.Store.ensure("p", "P")
-    OA.Trust.add(record, 2300)
+    OA.Trust.add(record, 700)
     OA.Support.setLevel(record, "reqcount", 3)
     local rank = { common = 1, normal = 2, rare = 3 }
     local last = 0
