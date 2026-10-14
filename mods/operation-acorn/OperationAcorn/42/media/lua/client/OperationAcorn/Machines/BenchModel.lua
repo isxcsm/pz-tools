@@ -58,7 +58,8 @@ function Bench.clampTop(top, count)
 end
 
 -- The model from what the window keeps: input = { id, kinds, top, first = { [baseType] = true } (kinds never
--- shredded), firstBonus (credits), estimate = { count, weight, minutes, bundles, bonus }, work = nil or { done, total } }.
+-- shredded), firstBonus (credits), estimate = { count, weight, minutes, bundles, bonus }, work = nil or { done, total,
+-- share (of its time done), minutesLeft } }.
 -- Returns { kind, title, icon, tag, light, strip, list, cells, work, canStart, canAll, canNone }.
 function Bench.build(input)
     local kinds = input.kinds or {}
@@ -111,9 +112,10 @@ function Bench.build(input)
     }
     if work then
         local total = math.max(1, work.total or 1)
-        m.work = { share = OA.clamp((work.done or 0) / total, 0, 1),
+        local left = work.minutesLeft or est.minutes or 0
+        m.work = { share = OA.clamp(work.share or (work.done or 0) / total, 0, 1),
             text = text("IGUI_OA_Bench_Progress", work.done or 0, total),
-            left = none and "" or text("IGUI_OA_Bench_Left", Model.duration((est.minutes or 0) / 60)) }
+            left = left > 0 and text("IGUI_OA_Bench_Left", Model.duration(left / 60)) or "" }
     end
     m.canStart = not work and count > 0
     m.canAll = not work and count < items

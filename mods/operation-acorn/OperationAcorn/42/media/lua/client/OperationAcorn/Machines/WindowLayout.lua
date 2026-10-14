@@ -506,16 +506,18 @@ local function benchActions(L, m, x, y, w)
     local btn = Layout.buttonHeight()
     local ty = y + floor((btn - fh) / 2)
     if m.work then
+        -- how many are done, then a bar as tall as the button, filled by the time done, the time left written in it
         local stop = getText("IGUI_OA_Bench_Stop")
         local sw = buttonWidth(stop)
         Draw.button(L, x + w - sw, y, sw, btn, stop, "normal", nil, "stop")
         local room = w - sw - 10
-        local tw = Draw.fit(L, m.work.text, x, ty, floor(room / 2), p.text)
-        local lw = m.work.left ~= "" and math.min(UI.textWidth(m.work.left), floor(room / 3)) or 0
-        if lw > 0 then Draw.fit(L, m.work.left, x + room - lw, ty, lw, p.dim, nil, nil, "right") end
-        local bx = x + tw + 8
-        local bw = room - tw - 8 - (lw > 0 and lw + 8 or 0)
-        if bw > 12 then Draw.progress(L, bx, y + floor((btn - BAR) / 2), bw, BAR, m.work.share, p.good) end
+        local tw = Draw.fit(L, m.work.text, x, ty, floor(room / 3), p.text)
+        local bx = x + tw + 10
+        local bw = room - tw - 10
+        Draw.rect(L, bx, y, bw, btn, p.inset)
+        Draw.rect(L, bx, y, floor(bw * m.work.share), btn, p.good, 0.35)
+        Draw.frame(L, bx, y, bw, btn, p.border)
+        if m.work.left ~= "" then Draw.fit(L, m.work.left, bx + 4, ty, bw - 8, p.bright, nil, nil, "centre") end
         return y + btn
     end
     local bx = x

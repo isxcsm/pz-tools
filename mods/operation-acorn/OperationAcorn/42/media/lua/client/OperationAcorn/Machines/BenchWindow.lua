@@ -62,6 +62,23 @@ function OABenchWindow:changed()
     self:refresh(true)
 end
 
+-- The game minutes of work left: each of its actions still queued, the one under way by what its bar has left (a
+-- heavy thing takes a long while: the window's bar moves as it goes, not only when one is done).
+function OABenchWindow:workLeft()
+    local work = self.work
+    local queue = ISTimedActionQueue.getTimedActionQueue(self.character)
+    local left = 0
+    for i, action in ipairs(queue and queue.queue or {}) do
+        local minutes = work.minutes[action]
+        if minutes then
+            local done = 0
+            if i == 1 and action.action then done = OA.clamp(action:getJobDelta() or 0, 0, 1) end
+            left = left + minutes * (1 - done)
+        end
+    end
+    return left
+end
+
 -- The work is over (done, or the queue cleared) once its last action has left the queue.
 function OABenchWindow:checkWork()
     local work = self.work
@@ -86,10 +103,17 @@ function OABenchWindow:refresh(force)
         self:estimate()
         self.first = self:firsts()
     end
+    local work = self.work
+    local progress = nil
+    if work then
+        local left = self:workLeft()
+        progress = { done = work.done, total = work.total, minutesLeft = left,
+            share = work.minutesTotal > 0 and 1 - left / work.minutesTotal or work.done / math.max(1, work.total) }
+    end
     local state = Machines.state(self.object)
     local model = Bench.build({ id = state and state.id, kinds = self.kinds, top = self.top, first = self.first,
         firstBonus = OA.Shred.FIRST_BONUS * (OA.option("BonusMultiplier") or 1.0), estimate = self.est,
-        work = self.work and { done = self.work.done, total = self.work.total } or nil })
+        work = progress })
     self.top = model.list.top
     self.model = model
     self:present(model, force, Layout.bench)
@@ -161,7 +185,7 @@ function OABenchWindow:start()
         end
     end
     if #list == 0 or not luautils.walkAdj(self.character, square, true) then return end
-    local work = { done = 0, total = #list, actions = {} }
+    local work = { done = 0, total = #list, actions = {}, minutes = {}, minutesTotal = 0 }
     local window = self
     local function done(action) window:onShredDone(action) end
     for _, it in ipairs(list) do
@@ -169,6 +193,9 @@ function OABenchWindow:start()
             it.entry)
         action.onDone = done
         work.actions[action] = it.kind
+        local minutes = Machines.benchMinutesFor({ it.entry })
+        work.minutes[action] = minutes
+        work.minutesTotal = work.minutesTotal + minutes
         work.last = action
         ISTimedActionQueue.add(action)
     end

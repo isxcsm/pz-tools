@@ -1334,14 +1334,17 @@ local function benchWindow(entries)
             return false
         end,
         clear = function() for k in pairs(queue) do queue[k] = nil end end,
+        getTimedActionQueue = function() return { queue = queue } end,
     }
     _G.luautils = { walkAdj = function() return true end }
     Machines.nearSquare = function()
         return { getX = function() return 10 end, getY = function() return 21 end, getZ = function() return 0 end }
     end
     OA.inInventory = function() return true end
+    -- an action as the game's: its bar (getJobDelta) once it has begun (its Java action made)
     _G.ISOAMachineShred = { new = function(_, character, id, x, y, z, entry)
-        return { character = character, machineId = id, item = entry.item, entry = entry }
+        return { character = character, machineId = id, item = entry.item, entry = entry, delta = 0,
+            getJobDelta = function(self) return self.delta end }
     end }
     local object = fakeMachine({ id = "m3", kind = "shredBench", dir = "S", parts = {} })
     local window = OAMachineWindow.open(c, object)
@@ -1430,6 +1433,36 @@ test("the bench's work: an action an item, counted as each goes, stopped with it
     eq(window.kinds[1].chosen, 2, "the hammers left stay chosen")
     eq(window.kinds[2].chosen, 1)
     eq(hitOf(window, "start").enabled, true, "to go on")
+end)
+
+test("the bench's bar moves as the item under way is worked, by time, and says the time left in it", function()
+    local now = 1
+    _G.getTimestampMs = function() return now end
+    local _, window, _, _, queue = benchWindow()
+    -- three hammers (1.5 each) and a T-shirt (0.25): the hammers take the most of the time
+    window:onHit(hitOf(window, "row", 1))
+    window:onHit(hitOf(window, "more", 3))
+    window:onHit(hitOf(window, "start"))
+    eq(#queue, 4)
+    local hammer = Machines.benchMinutesFor({ queue[1].entry })
+    local total = 3 * hammer + Machines.benchMinutesFor({ queue[4].entry })
+    eq(window.model.work.share, 0, "nothing done")
+    eq(window.model.work.left, getText("IGUI_OA_Bench_Left", Machines.WindowModel.duration(total / 60)))
+    -- half the first hammer: the bar moves though nothing is done yet
+    queue[1].action = {}
+    queue[1].delta = 0.5
+    now = now + OAMachineWindow.READ_MS
+    window:update()
+    near(window.model.work.share, 0.5 * hammer / total, 1e-9)
+    eq(window.model.work.text, getText("IGUI_OA_Bench_Progress", 0, 4))
+    eq(window.model.work.left, getText("IGUI_OA_Bench_Left", Machines.WindowModel.duration((total - 0.5 * hammer) / 60)))
+    -- the time left is written inside the bar
+    local bar, left
+    for _, op in ipairs(window.body.list.ops) do
+        if op[1] == 3 and op[2] == window.model.work.left then left = op end
+    end
+    for _, h in ipairs(window.body.list.hits) do if h.id == "stop" then bar = h end end
+    truthy(left and bar and left[4] >= bar.y and left[4] < bar.y + bar.h, "in the bar's row")
 end)
 
 test("the bench's list scrolls a row a wheel step under the mouse", function()
