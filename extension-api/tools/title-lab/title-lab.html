@@ -67,8 +67,11 @@ const P = {
   SINK_DEPTH: 0.75, SINK_SWELL: 1, SINK_MIRROR: 1,
   TYPE_JITTER: 1, TYPE_INK: 1, TYPE_FEED: 1,
   PULSE_GLOW: 1, PULSE_BEAT: 1, PULSE_CALM: 1,
+  SIM_FLOW: 1, SIM_PIN: 1, SIM_DEPOSIT: 1, SIM_ENDS: 1, SIM_SPLAT: 1, SIM_EVAP: 1, SIM_DRY: 1, SIM_DENSITY: 1, SIM_GLOSS: 1,
+  SIM_RIPPLE: 1, SIM_BLOOM: 1, SIM_EMBOSS: 1, SIM_RES: 3, SIM_WICK: 1, SIM_STAIN: 1, SIM_FIBRE: 1, SIM_SHADOW: 1, SIM_SHEEN: 1,
+  SIM_OVERLAP: 0.7,
 };
-const CUTS = new Set(["style", "hold", "title", "sub", "tone", "sweep", "dustSize", "seed", "SWEEP", "JITTER", "RAGGED", "CURL", "FRONT", "SPREAD"]);
+const CUTS = new Set(["style", "hold", "title", "sub", "tone", "sweep", "dustSize", "seed", "SWEEP", "JITTER", "RAGGED", "CURL", "FRONT", "SPREAD", "SIM_OVERLAP", "SIM_RES"]);
 const TONES = {
   dust: [[0.97, 0.95, 0.9], [0.86, 0.85, 0.82]],
   gold: [[1.00, 0.86, 0.50], [0.95, 0.88, 0.70]],
@@ -84,8 +87,10 @@ const STYLES = {
   "stamp": { label: "stamp (이전)", y: 0.28, gap: 0.25, trail: 0, backdrop: 0.3,
     title: { weight: 700, size: 0.1, color: [1, 1, 1], outline: 0.45, enter: "slam", enterTime: 0.22, leave: "grow", leaveTime: 0.7 },
     line: { weight: 400, size: 0.045, color: [0.88, 0.88, 0.88], delay: 0.2, enter: "fade", enterTime: 0.35, leave: "fade", leaveTime: 0.7 } },
+  // (its title inked as it hits, drying away in blotches, its relief left a moment: tried here, not yet in the API, whose
+  // stamp still erodes)
   "stamp-new": { label: "stamp: 각인", y: 0.28, gap: 0.25, trail: 0.4, backdrop: 0.3,
-    title: { weight: 700, size: 0.1, color: [0.9, 0.89, 0.86], outline: 0.45, enter: "impact", enterTime: 0.6, leave: "erode", leaveTime: 6 },
+    title: { weight: 700, size: 0.1, color: [0.9, 0.89, 0.86], wash: [0.5, 0.48, 0.46], sim: { time: "slam", flow: 2, pin: 0.6, deposit: 1, ends: 0, splat: 0, density: 1, gloss: 0.45, sheen: 0, mode: 0, wick: 0, patchy: 0.35 }, enter: "impact", enterTime: 0.6, leave: "wash", leaveTime: 6 },
     line: { weight: 400, size: 0.045, color: [0.9, 0.9, 0.88], delay: 0.45, enter: "slideup", enterTime: 0.5, leave: "erode", leaveTime: 5.6 } },
   "discovery": { label: "discovery (이전)", y: 0.28, gap: 0.3, trail: 0, backdrop: 0.3,
     title: { weight: 700, italic: true, size: 0.08, color: [1, 0.8, 0.38], enter: "rise", enterTime: 0.6, leave: "rise", leaveTime: 0.9 },
@@ -123,6 +128,27 @@ const STYLES = {
   "dust-paper": { label: "dust: 종이 연소", y: 0.28, gap: 0.3, trail: 0.3, backdrop: 0.3,
     title: { weight: 400, size: 0.085, color: [0.97, 0.95, 0.9], outline: 0.35, enter: "fade", enterTime: 1.2, leave: "paper" },
     line: { weight: 400, size: 0.04, color: [0.86, 0.85, 0.82], delay: 0.35, enter: "fade", enterTime: 1.2, leave: "paper" } },
+  // Simulated ink, kept for reference (the stamp above takes from it): the pen lays ink stroke by stroke (or all at once,
+  // time: "slam") and the ink then runs as a liquid (thicker runs faster, onto dry paper only past its fibres' grip, so it
+  // fingers out); on paper its water creeps out along the fibres, staining a rim; it dries thin parts first leaving its
+  // pigment; as it leaves it dries in blotches leaning on the writing's order, its colour lifting, a pressed ghost of it
+  // left a moment. Techniques to take from: the stroke-order time map, the wet gloss and its ripple, the paper's wicking
+  // and rim, the blotchy drying, the pressed ghost, the thin-film chrome. sim: the style's numbers (flow, pin, deposit,
+  // ends, splat, density; absorb: the light it takes per channel, on paper; mode 0: drawn as a surface of its own colour,
+  // on a scene; wick, stain: the paper's drinking; patchy: uneven ink; depth: deep where thick, as blood; blotch, emboss:
+  // its drying's blotches, its ghost).
+  "sim-sumi": { label: "sim 참고: 먹 (종이)", y: 0.3, gap: 0.32, trail: 0.3, backdrop: 0,
+    title: { weight: 700, size: 0.12, color: [0.05, 0.035, 0.04], wash: [0.86, 0.47, 0.38], sim: { flow: 10, pin: 0.42, deposit: 1, ends: 0.9, splat: 1, density: 4.5, absorb: [1.15, 2.1, 2.9], gloss: 1, sheen: 0, mode: 1 }, enter: "ink", enterTime: 2.1, leave: "wash", leaveTime: 6 },
+    line: { weight: 500, size: 0.045, color: [0.1, 0.075, 0.085], wash: [0.86, 0.55, 0.45], sim: { flow: 8, pin: 0.4, deposit: 0.9, ends: 0.3, splat: 0, density: 2.6, absorb: [1.15, 2.1, 2.9], gloss: 0.6, sheen: 0, mode: 1 }, delay: 1.7, enter: "ink", enterTime: 1.5, leave: "wash", leaveTime: 5.4 } },
+  "sim-ivory": { label: "sim 참고: 상아 잉크 (게임 장면)", y: 0.28, gap: 0.32, trail: 0.3, backdrop: 0.4,
+    title: { weight: 700, size: 0.1, color: [0.93, 0.89, 0.8], wash: [0.78, 0.5, 0.38], sim: { flow: 5, pin: 0.5, deposit: 1, ends: 0.7, splat: 0.6, density: 1, gloss: 1, sheen: 0, mode: 0 }, enter: "ink", enterTime: 1.9, leave: "wash", leaveTime: 6 },
+    line: { weight: 500, size: 0.042, color: [0.86, 0.83, 0.76], wash: [0.74, 0.5, 0.42], sim: { flow: 7, pin: 0.42, deposit: 0.9, ends: 0.2, splat: 0, density: 1, gloss: 0.5, sheen: 0, mode: 0 }, delay: 1.5, enter: "ink", enterTime: 1.4, leave: "wash", leaveTime: 5.4 } },
+  "sim-blood": { label: "sim 참고: 피 (게임 장면)", y: 0.28, gap: 0.32, trail: 0.3, backdrop: 0.4,
+    title: { weight: 700, size: 0.1, color: [0.55, 0.04, 0.05], wash: [0.32, 0.06, 0.05], sim: { flow: 8, pin: 0.42, deposit: 1.15, ends: 1.4, splat: 1.6, density: 1, gloss: 1.4, sheen: 0, mode: 0, depth: 1 }, enter: "ink", enterTime: 1.7, leave: "wash", leaveTime: 6 },
+    line: { weight: 500, size: 0.042, color: [0.86, 0.8, 0.78], wash: [0.6, 0.4, 0.38], sim: { flow: 6, pin: 0.42, deposit: 0.9, ends: 0.2, splat: 0, density: 1, gloss: 0.4, sheen: 0, mode: 0 }, delay: 1.4, enter: "ink", enterTime: 1.4, leave: "wash", leaveTime: 5.4 } },
+  "sim-chrome": { label: "sim 참고: 액체 금속 (어두운 배경)", y: 0.3, gap: 0.32, trail: 0.3, backdrop: 0,
+    title: { weight: 700, size: 0.12, color: [0.74, 0.68, 0.86], wash: [0.62, 0.3, 0.55], sim: { flow: 7, pin: 0.42, deposit: 1.1, ends: 1.3, splat: 1.2, density: 1, gloss: 1.3, sheen: 1, mode: 0, wick: 0 }, enter: "ink", enterTime: 2.1, leave: "wash", leaveTime: 6 },
+    line: { weight: 500, size: 0.045, color: [0.72, 0.68, 0.82], wash: [0.6, 0.35, 0.55], sim: { flow: 8, pin: 0.4, deposit: 0.9, ends: 0.3, splat: 0, density: 1, gloss: 0.8, sheen: 0.7, mode: 0, wick: 0 }, delay: 1.7, enter: "ink", enterTime: 1.5, leave: "wash", leaveTime: 5.4 } },
 };
 const crumbles = d => d.leave === "dust" || d.leave === "paper";
 const leaveTimeOf = d => crumbles(d) ? P.leaveTime : d.leaveTime;
@@ -137,6 +163,7 @@ function enterState(kind, i, secs, line) {
     case "pop": st.a = Math.min(1, i * 2); st.s = 0.5 + 0.5 * backOut(i); break;
     case "slam": st.a = Math.min(1, i * 3); st.s = 1 + 1.5 * (1 - i * i); break;
     case "typed": st.a = 1; break;                   // its letters struck one by one by drawType
+    case "ink": st.a = 1; break;                     // written stroke by stroke by drawSim
     case "settle": st.a = smooth(i); st.y = -0.3 * (1 - cubicOut(i)); break;
     case "rise": st.a = cubicOut(i); st.y = 0.75 * (1 - cubicOut(i)); break;
     case "drop": st.a = cubicOut(i); st.y = -0.75 * (1 - cubicOut(i)); break;
@@ -169,6 +196,7 @@ function leaveState(kind, o, st, leaveTime) {
     case "dry": st.a *= 1 - smooth(o); break;        // drawn by drawBleed
     case "exhale": { const e = exhaled(o, leaveTime); st.a *= 1 - smooth(clamp((e - 0.05) / 0.75, 0, 1)); st.y += 0.12 * smooth(e); break; }   // drawn by drawPulse
     case "feed": st.a *= 1 - smooth(clamp((o - 0.4) / 0.6, 0, 1)); break;   // drawn by drawType
+    case "wash": break;                              // dried away by drawSim
     case "under": st.a *= 1 - sunkAt(o * leaveTime, leaveTime); break;   // drawn by drawSink, fading as it sinks
   }
   return st;
@@ -510,12 +538,233 @@ void main() {
   f = f * f * (3.0 - 2.0 * f);
   gl_FragColor = vec4(0.0, 0.0, 0.0, vCol.a * (1.0 - f.x) * (1.0 - f.y));
 }`;
+// Ink: tmap holds when the ink reaches each spot (r, g: 16 bits, 0 to 1 over the writing) and how far along its own stroke
+// it is (b); sdf its signed distance to the letters' edge (0.5 at the edge, R a quarter). progress: the writing's clock in
+// the same units (past 1 as it settles), leave 0 to 1.
 function shader(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw gl.getShaderInfoLog(s); return s; }
 const prog = gl.createProgram();
 gl.attachShader(prog, shader(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, shader(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(prog); gl.useProgram(prog);
 const loc = { pos: gl.getAttribLocation(prog, "pos"), uv: gl.getAttribLocation(prog, "uv"), col: gl.getAttribLocation(prog, "col"),
   aux: gl.getAttribLocation(prog, "aux"), screen: gl.getUniformLocation(prog, "screen") };
 const U = name => gl.getUniformLocation(prog, name);
+
+// ---------------------------------------------------------------- simulated ink: shaders
+// The state of a text's ink, a float texture the size of its picture: r the wet ink's height (1: a full stroke), g the
+// pigment it has left as it dried, b where the paper has been wet (for the pressed ghost), a how long it has been wet.
+// A step: the pen lays ink where its front passes (by the time map), the ink runs, it dries.
+const SIMF = (() => {
+  const f = gl.getExtension("OES_texture_float"), fl = gl.getExtension("OES_texture_float_linear");
+  gl.getExtension("WEBGL_color_buffer_float");
+  const hf = gl.getExtension("OES_texture_half_float"), hfl = gl.getExtension("OES_texture_half_float_linear");
+  gl.getExtension("EXT_color_buffer_half_float");
+  const works = type => {
+    const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 4, 4, 0, gl.RGBA, type, null);
+    const fb = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+    const ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.deleteFramebuffer(fb); gl.deleteTexture(t);
+    return ok;
+  };
+  if (f && works(gl.FLOAT)) return { type: gl.FLOAT, linear: !!fl };
+  if (hf && works(hf.HALF_FLOAT_OES)) return { type: hf.HALF_FLOAT_OES, linear: !!hfl };
+  return null;
+})();
+const VS_SIM = `attribute vec2 pos; attribute vec2 uv; attribute vec4 col; attribute vec3 aux; uniform vec2 size; varying vec2 vUv;
+void main() { vUv = uv; gl_Position = vec4(pos / size * 2.0 - 1.0, 0.0, 1.0); }`;
+const SIM_COMMON = `precision highp float;
+float h1(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(h1(i), h1(i + vec2(1.0, 0.0)), f.x), mix(h1(i + vec2(0.0, 1.0)), h1(i + vec2(1.0, 1.0)), f.x), f.y); }
+float fbm(vec2 q) { return 0.5 * vn(q) + 0.3 * vn(q * 2.1 + 3.0) + 0.2 * vn(q * 4.3 + 7.0); }
+uniform sampler2D tmap;
+float T(vec2 uv) { vec4 m = texture2D(tmap, uv); return (m.r * 255.0 * 256.0 + m.g * 255.0) / 65535.0; }
+uniform float blotch;
+// how far a spot is in its leave: the writing's order leaning on it, blotches of the paper drying sooner or later
+float leaveAt(float leave, float t, vec2 px, float R) {
+  float late = t * 0.3 + 0.22 * blotch * smoothstep(0.2, 0.8, fbm(px / (R * 3.5) + 71.0));
+  return clamp((leave - late) / 0.48, 0.0, 1.0);
+}
+`;
+const FS_SIM_STEP = SIM_COMMON + `
+uniform sampler2D state; uniform sampler2D sdf; uniform sampler2D fiber;
+uniform vec2 size; uniform float R, span, p0, p1, dt, leave, flowBy, pinBy, deposit, ends, splat, evapHold, evapLeave, bloom, atOnce, patchy,
+  reach, grain, stainBy;
+varying vec2 vUv;
+vec4 S(vec2 o) { return texture2D(state, vUv + o / size); }
+float pinAt(vec2 o) { float f = texture2D(fiber, vUv + o / size).r; return pinBy * (0.1 + 1.3 * f * f); }
+// what flows here from a neighbour (o) in a unit of time: thick ink runs faster (its mobility the square of the
+// thicker side), and onto a dry spot only when the wet side stands past that spot's grip
+float exch(vec2 o, float h, float age, float w) {
+  vec4 n = S(o);
+  float hn = n.r;
+  float hi = max(h, hn), lo = min(h, hn);
+  float young = min(hn > 0.01 ? n.a : 99.0, h > 0.01 ? age : 99.0);
+  float m = min(flowBy * hi * hi * (0.04 + exp(-young * 2.8)), 0.14 / dt);
+  float allow = 1.0;
+  if (lo < 0.02) { float pd = h < hn ? pinAt(vec2(0.0)) : pinAt(o); allow = smoothstep(pd, pd + 0.08, hi); }
+  return w * m * allow * (hn - h);
+}
+void main() {
+  vec4 c = S(vec2(0.0));
+  float h = c.r, pg = c.g, wq = c.b, age = c.a;
+  float t = T(vUv), bt = texture2D(tmap, vUv).b;
+  float sd = (texture2D(sdf, vUv).r - 0.5) * 4.0 * R;
+  // the pen: as its front passes a spot it lays the spot's ink, over a head about 2.5 R long
+  float k = span / (R * 2.5);
+  float before = p0 > t ? exp(-(p0 - t) * k) : 1.0, after = p1 > t ? exp(-(p1 - t) * k) : 1.0;
+  float endsB = max(smoothstep(0.82, 1.0, bt), 1.0 - smoothstep(0.0, 0.08, bt)) * (1.0 - atOnce);
+  float lay = deposit * (0.55 + 0.45 * smoothstep(0.0, R, sd)) * smoothstep(-0.6, 0.4, sd) * (1.0 + ends * endsB);
+  // flicks of ink by a stroke's ends, just past its edge
+  float cs = max(2.0, R * 1.6);
+  vec2 cp = vUv * size / cs, cell = floor(cp);
+  vec2 at = cell + 0.25 + 0.5 * vec2(h1(cell + 3.0), h1(cell + 7.0));
+  float rr = 0.18 + 0.2 * h1(cell + 11.0);
+  float tipB = max(smoothstep(0.9, 1.0, bt), 1.0 - smoothstep(0.0, 0.04, bt)) * (1.0 - atOnce);
+  float flick = step(0.96, h1(cell + 17.0)) * (1.0 - smoothstep(rr * 0.7, rr, length(cp - at))) * tipB
+    * smoothstep(-3.0 * R, -1.2 * R, sd) * (1.0 - smoothstep(-0.8 * R, 0.0, sd));
+  lay += splat * flick * deposit * 1.4;
+  lay *= mix(1.0, bt, atOnce);
+  float bare = (1.0 - smoothstep(0.3, 0.62, fbm(vUv * size / (R * 1.4) + 23.0))) + 0.6 * (1.0 - smoothstep(0.15, 0.55, texture2D(fiber, vUv).r));
+  lay *= 1.0 - min(patchy * bare, 0.95);
+  h += lay * max(before - after, 0.0);
+  // it runs
+  float flux = exch(vec2(1.0, 0.0), h, age, 1.0) + exch(vec2(-1.0, 0.0), h, age, 1.0) + exch(vec2(0.0, 1.0), h, age, 1.0)
+    + exch(vec2(0.0, -1.0), h, age, 1.0) + exch(vec2(1.0, 1.0), h, age, 0.5) + exch(vec2(-1.0, 1.0), h, age, 0.5)
+    + exch(vec2(1.0, -1.0), h, age, 0.5) + exch(vec2(-1.0, -1.0), h, age, 0.5);
+  h += flux * dt;
+  // it dries: thin ink first; slowly as it stays, fast as it leaves, in the order it was written. What dries leaves its
+  // pigment, more at its rims (where the ink thins)
+  float lv = leaveAt(leave, t, vUv * size, R);
+  float rewet = smoothstep(0.02, 0.15, lv) * (1.0 - smoothstep(0.22, 0.4, lv)) * bloom;
+  if (h > 0.005) { h += rewet * dt * 0.35; age *= 1.0 - min(1.0, rewet * dt * 4.0); }
+  float ev = (evapHold + evapLeave * smoothstep(0.25, 0.7, lv)) * dt * (0.35 + 0.65 * (1.0 - smoothstep(0.0, 0.5, h)));
+  float e = min(max(h, 0.0), ev);
+  float slope = length(vec2(S(vec2(1.0, 0.0)).r - S(vec2(-1.0, 0.0)).r, S(vec2(0.0, 1.0)).r - S(vec2(0.0, -1.0)).r));
+  h -= e;
+  pg += e * (0.8 + 1.0 * clamp(slope * 3.0, 0.0, 1.0));
+  age = h > 0.01 ? age + dt : age;
+  // the paper drinks: water creeps out from the wet ink along the paper's fibres, quick along one, slow across the gaps,
+  // as far as the ink's water can push it (wq: how much farther it can, in pixels; more as it sits, much more as it
+  // takes water again on the leave). Then it dries back, from its far edge in.
+  float cf = texture2D(fiber, vUv).r;
+  float cost = max(1.0 + grain * (3.2 * (1.0 - cf) * (1.0 - cf) - 0.55), 0.15);
+  float patch = smoothstep(0.25, 0.8, fbm(vUv * size / (R * 4.0) + 41.0));
+  float src = h > 0.03 ? R * reach * (0.1 + 1.3 * patch) * (0.45 + 0.55 * smoothstep(0.0, 3.0, age)) * (1.0 + 2.2 * rewet) : 0.0;
+  float best = src;
+  best = max(best, max(max(S(vec2(1.0, 0.0)).b, S(vec2(-1.0, 0.0)).b), max(S(vec2(0.0, 1.0)).b, S(vec2(0.0, -1.0)).b)) - cost);
+  best = max(best, max(max(S(vec2(1.0, 1.0)).b, S(vec2(-1.0, 1.0)).b), max(S(vec2(1.0, -1.0)).b, S(vec2(-1.0, -1.0)).b)) - cost * 1.414);
+  float dry = R * (0.03 + 3.0 * smoothstep(0.35, 0.8, lv));
+  wq = best > wq ? min(best, wq + R * 2.2 * dt) : max(best, wq - dry * dt);
+  wq = max(wq, 0.0);
+  // what it carries stays in the paper: a little where it is wet, most where its edge stands still (its rim)
+  if (h < 0.03) {
+    float wetp = smoothstep(0.0, 0.3 * R, wq);
+    float rim = smoothstep(0.0, 0.06 * R, wq) * (1.0 - smoothstep(0.1 * R, 0.4 * R, wq));
+    pg += dt * stainBy * 0.03 * (0.03 * wetp + rim) * (0.3 + 1.2 * cf * cf) * (1.0 + 2.5 * smoothstep(0.05, 0.4, lv));
+  }
+  gl_FragColor = vec4(max(h, 0.0), pg, wq, age);
+}`;
+const FS_SIM_DRAW = SIM_COMMON + `
+uniform sampler2D state; uniform sampler2D fiber; uniform vec2 picSize; uniform float R, leave, clock, gloss, sheen, emboss, shadowBy,
+  mode, density, ripple, paper, depth;
+uniform vec3 ink, wash, absorb, paperCol;
+varying vec2 vUv; varying vec4 vCol; varying vec3 vAux;
+vec4 St(vec2 uv) { return texture2D(state, uv); }
+// its surface: the wet ink, a little relief where it has dried, slow ripples on the wet
+float surf(vec2 uv, vec2 dir) {
+  vec4 c = St(uv);
+  vec2 px = uv * picSize;
+  float wet = smoothstep(0.02, 0.2, c.r);
+  float rip = (vn((px - dir * clock * R * 1.1) / (R * 1.6)) - 0.5) * 0.18 + 0.05 * sin(dot(px, dir) / (R * 1.4) - clock * 2.4);
+  return c.r + 0.3 * c.g + ripple * wet * rip * c.r;
+}
+void main() {
+  vec2 px = vUv * picSize, e = 1.0 / picSize;
+  vec4 c = St(vUv);
+  float h = c.r, pg = c.g, wq = c.b;
+  float tc = T(vUv);
+  vec2 g = vec2(T(vUv + vec2(e.x, 0.0)) - T(vUv - vec2(e.x, 0.0)), T(vUv + vec2(0.0, e.y)) - T(vUv - vec2(0.0, e.y)));
+  vec2 dir = length(g) > 0.0 ? normalize(g) : vec2(1.0, 0.0);
+  float fib = texture2D(fiber, vUv).r;
+  float lvd = leaveAt(leave, tc, px, R);
+  // how much ink there is: thinning as it dries on the leave, then its colour lifting away (the relief stays a moment)
+  float liftAt = 0.48 + 0.05 * smoothstep(0.1, 0.8, pg) + 0.16 * blotch * (fbm(px / (R * 1.3) + 19.0) - 0.5) + 0.03 * (0.5 - fib);
+  float lift = smoothstep(liftAt - 0.1, liftAt + 0.14, lvd);
+  float th = (h + pg * (0.8 + 0.4 * fib)) * (1.0 - 0.45 * smoothstep(0.1, 0.45, lvd)) * (1.0 - lift);
+  float cover = smoothstep(0.004, 0.03, th);
+  float soak = smoothstep(0.0, 0.5 * R, wq) * (1.0 - smoothstep(0.6, 0.9, lvd));   // the paper wet
+  float wet = smoothstep(0.01, 0.15, h);
+  // the surface's slope (over a pixel and a half, smoother), as the ink's own height in pixels
+  vec2 d = e * 1.5;
+  float sx = surf(vUv + vec2(d.x, 0.0), dir) - surf(vUv - vec2(d.x, 0.0), dir);
+  float sy = surf(vUv + vec2(0.0, d.y), dir) - surf(vUv - vec2(0.0, d.y), dir);
+  float bump = R * mix(1.1, 0.4, step(0.5, mode));
+  vec3 N = normalize(vec3(-sx * bump / 3.0, -sy * bump / 3.0, 1.0));
+  vec3 L = normalize(vec3(-0.45 + 0.06 * sin(clock * 0.7), -0.62 + 0.05 * cos(clock * 0.5), 0.65));
+  vec3 H = normalize(L + vec3(0.0, 0.0, 1.0));
+  float diff = dot(N, L) - L.z;
+  float nh = max(dot(N, H), 0.0);
+  float spec = (pow(nh, 80.0) + 0.2 * pow(nh, 14.0)) * gloss * wet;
+  float fres = pow(1.0 - N.z, 2.0);
+  vec4 outc;
+  if (mode > 0.5) {
+    // on paper: the ink takes light by its thickness, per colour (thin: warm, thick: black); drawn as a darkening of
+    // the paper under it
+    vec3 tr = exp(-absorb * th * density) * (1.0 - vec3(0.05, 0.06, 0.07) * soak);
+    float a = (1.0 - min(tr.r, min(tr.g, tr.b))) * max(cover, soak);
+    vec3 src = max(paperCol * (mix(vec3(1.0), tr, max(cover, soak)) - vec3(1.0 - a)), vec3(0.0));
+    src *= 1.0 + 0.35 * diff * wet;
+    outc = vec4(src + vec3(1.0, 0.98, 0.95) * spec * cover + vec3(0.5) * fres * 0.08 * gloss * wet * cover, a);
+  } else {
+    // on a scene: a surface of its own colour, lit; thin ink and dried pigment in the wash's colour
+    float body = smoothstep(0.05, 0.6, th);
+    vec3 base = mix(wash, ink, body) * mix(1.0, 0.6 + 0.55 * exp(-th * 1.6), depth);
+    vec3 col = base * (0.78 + 0.55 * diff);
+    if (sheen > 0.0) {
+      vec3 Rv = vec3(2.0 * N.z * N.x, 2.0 * N.z * N.y, 2.0 * N.z * N.z - 1.0);
+      float up = -Rv.y * 1.6 + 0.12 + 0.06 * sin(Rv.x * 4.0 + clock * 0.35);
+      vec3 sky = mix(vec3(0.5, 0.52, 0.66), vec3(1.0, 0.99, 1.0), smoothstep(0.0, 0.7, up));
+      vec3 floorC = mix(vec3(0.03, 0.02, 0.05), vec3(0.3, 0.14, 0.22), smoothstep(-0.9, -0.05, up));
+      vec3 env = mix(floorC, sky, smoothstep(-0.02, 0.02, up));
+      env += vec3(1.0) * smoothstep(0.9, 0.99, sin(Rv.x * 6.0 + 1.3 + clock * 0.2)) * smoothstep(0.05, 0.35, up) * 0.8;
+      float thick = (1.0 - N.z) * 2.2 + 0.35 * vn(px / (R * 3.0) + 5.0) + 0.6 * th + clock * 0.04;
+      vec3 film = 0.5 + 0.5 * cos(6.283 * (thick + vec3(0.0, 0.33, 0.67)));
+      vec3 metal = env * mix(vec3(1.0), film * 1.35, 0.5) + film * fres * 0.7;
+      col = mix(col, metal, sheen * body);
+    }
+    float dried = max(smoothstep(0.08, 0.45, lvd), 0.75 * smoothstep(0.0, 0.3, leave));
+    col = mix(col, mix(ink, wash, 0.45) * (0.85 + 0.25 * diff), dried);
+    col += (vec3(1.0, 0.97, 0.94) * spec + vec3(0.6) * fres * 0.12 * gloss * wet) * (1.0 - dried);
+    float a = cover * mix(0.35 + 0.65 * smoothstep(0.02, 0.25, th), smoothstep(0.0, 0.25, th), dried);
+    outc = vec4(col * a, a) + vec4(wash * 0.12, 0.0) * soak * (1.0 - a);
+  }
+  // its shadow on what is under it
+  vec4 so = St(vUv - vec2(R * 0.25, R * 0.4) * e);
+  float sh = smoothstep(0.02, 0.4, so.r + so.g * 0.5) * shadowBy * mix(0.5, 0.18, paper) * (1.0 - smoothstep(0.35, 0.75, lvd)) * (1.0 - (1.0 - paper) * 0.9 * smoothstep(0.0, 0.3, leave));
+  outc = vec4(outc.rgb, outc.a + sh * (1.0 - outc.a));
+  // the pressed ghost: where the paper was wet, its relief alone, as the ink goes
+  float lv = lvd;
+  vec2 ge = e * max(1.5, R * 0.2);
+  float gx = smoothstep(0.0, 0.3, St(vUv + vec2(ge.x, 0.0)).g) - smoothstep(0.0, 0.3, St(vUv - vec2(ge.x, 0.0)).g);
+  float gy = smoothstep(0.0, 0.3, St(vUv + vec2(0.0, ge.y)).g) - smoothstep(0.0, 0.3, St(vUv - vec2(0.0, ge.y)).g);
+  float relief = (-gx * L.x - gy * L.y) * 0.9;
+  float ghost = emboss * lift * (1.0 - smoothstep(0.82, 1.0, lv)) * (1.0 - cover);
+  float gl0 = relief * ghost;
+  vec3 lit = mix(mix(ink, vec3(1.0), 0.35), vec3(1.0), paper);
+  outc += vec4(lit * max(gl0, 0.0) * mix(0.12, 0.2, paper), max(-gl0, 0.0) * mix(0.04, 0.17, paper));
+  gl_FragColor = outc * (1.0 - smoothstep(0.97, 1.0, leave)) * vCol.a;
+}`;
+function program(vs, fs) {
+  const pr = gl.createProgram();
+  gl.attachShader(pr, shader(gl.VERTEX_SHADER, vs)); gl.attachShader(pr, shader(gl.FRAGMENT_SHADER, fs));
+  for (const k of ["pos", "uv", "col", "aux"]) gl.bindAttribLocation(pr, loc[k], k);
+  gl.linkProgram(pr);
+  if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw gl.getProgramInfoLog(pr);
+  return pr;
+}
+const progStep = SIMF && program(VS_SIM, FS_SIM_STEP), progSimDraw = SIMF && program(VS, FS_SIM_DRAW);
+const SU = (pr, name) => gl.getUniformLocation(pr, name);
 const buf = gl.createBuffer();
 gl.bindBuffer(gl.ARRAY_BUFFER, buf);
 const FLOATS = 11, STRIDE = FLOATS * 4;
@@ -616,6 +865,16 @@ function makeBackground() {
     g.fillStyle = "#3a3630"; g.fillRect(c.width * 0.05, c.height * 0.1, c.width * 0.32, c.height * 0.6);
     g.fillStyle = "#24282b";
     for (let i = 0; i < 7; i++) { g.save(); g.translate(c.width * (0.45 + 0.08 * i), c.height * (0.55 + 0.05 * (i % 3))); g.rotate(-0.35); g.fillRect(-60, -28, 120, 56); g.restore(); }
+  } else if (P.bg === "paper") {
+    g.fillStyle = "#e6e1dc"; g.fillRect(0, 0, c.width, c.height);
+    const img = g.getImageData(0, 0, c.width, c.height), px = img.data;
+    for (let i = 0; i < px.length; i += 4) { const x = (i / 4) % c.width, y = Math.floor(i / 4 / c.width); const n = (hash(x, y, 3) - 0.5) * 6 + (vnoise(x / 40, y / 9, 5) - 0.5) * 5; px[i] += n; px[i + 1] += n; px[i + 2] += n; }
+    g.putImageData(img, 0, 0);
+    const vg = g.createRadialGradient(c.width / 2, c.height / 2, c.height * 0.3, c.width / 2, c.height / 2, c.height);
+    vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(60,40,30,0.18)"); g.fillStyle = vg; g.fillRect(0, 0, c.width, c.height);
+  } else if (P.bg === "plum") {
+    const sky = g.createRadialGradient(c.width / 2, c.height * 0.4, 10, c.width / 2, c.height / 2, c.width * 0.7);
+    sky.addColorStop(0, "#1c0b1c"); sky.addColorStop(1, "#0a0309"); g.fillStyle = sky; g.fillRect(0, 0, c.width, c.height);
   } else if (P.bg === "bright") { g.fillStyle = "#7d8a6a"; g.fillRect(0, 0, c.width, c.height); g.fillStyle = "#b9b09a"; g.fillRect(0, c.height * 0.55, c.width, c.height); }
   else { g.fillStyle = P.bg === "black" ? "#000" : "#888"; g.fillRect(0, 0, c.width, c.height); }
   if (bgTex) gl.deleteTexture(bgTex);
@@ -668,6 +927,7 @@ function piece(text, line, colour, centreY, seed, spec) {
     while (foot > 0) { let any = false; for (let x = 0; x < w && !any; x++) any = data[(foot * w + x) * 4 + 3] > 8; if (any) break; foot--; }
     p.foot = foot + 1;
   }
+  if (spec.sim) p.simSrc = { text, cx, cy, font: S => `${spec.italic ? "italic " : ""}${spec.weight} ${fontPx * S}px "Noto Sans KR", "Malgun Gothic", sans-serif` };
   if (!crumbles(spec)) return p;
   const data = g.getImageData(0, 0, w, h).data;
   const cellSide = Math.max(MIN_CELL, line * CELL * P.dustSize);
@@ -683,6 +943,254 @@ function piece(text, line, colour, centreY, seed, spec) {
   }
   return p;
 }
+// ---------------------------------------------------------------- ink: when the pen reaches each spot
+// Squared distances to the nearest spot where f is 0 (Felzenszwalb's transform, by rows and then columns).
+function edt(f, W, H) {
+  const BIG = 1e10, n = Math.max(W, H), d = new Float64Array(n), v = new Int32Array(n), z = new Float64Array(n + 1), g = new Float64Array(n);
+  const out = Float64Array.from(f, x => x ? BIG : 0);
+  function line(len) {
+    let k = 0; v[0] = 0; z[0] = -BIG; z[1] = BIG;
+    for (let q = 1; q < len; q++) {
+      let s = ((g[q] + q * q) - (g[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]);
+      while (s <= z[k]) { k--; s = ((g[q] + q * q) - (g[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]); }
+      k++; v[k] = q; z[k] = s; z[k + 1] = BIG;
+    }
+    k = 0;
+    for (let q = 0; q < len; q++) { while (z[k + 1] < q) k++; d[q] = (q - v[k]) * (q - v[k]) + g[v[k]]; }
+  }
+  for (let x = 0; x < W; x++) { for (let y = 0; y < H; y++) g[y] = out[y * W + x]; line(H); for (let y = 0; y < H; y++) out[y * W + x] = d[y]; }
+  for (let y = 0; y < H; y++) { for (let x = 0; x < W; x++) g[x] = out[y * W + x]; line(W); for (let x = 0; x < W; x++) out[y * W + x] = d[x]; }
+  return out;
+}
+// The least cost from the seeds to every spot it may go to (step(i) its cost per pixel; 8 neighbours), and from which seed.
+function spread(W, H, seeds, may, step, dist, from) {
+  let keys = new Float64Array(1024), ids = new Int32Array(1024), n = 0;
+  const push = (k, i) => {
+    if (n === keys.length) { const nk = new Float64Array(n * 2); nk.set(keys); keys = nk; const ni = new Int32Array(n * 2); ni.set(ids); ids = ni; }
+    let c = n++; while (c > 0) { const p = (c - 1) >> 1; if (keys[p] <= k) break; keys[c] = keys[p]; ids[c] = ids[p]; c = p; }
+    keys[c] = k; ids[c] = i;
+  };
+  const pop = () => {
+    const k = keys[0], i = ids[0], lk = keys[--n], li = ids[n];
+    let c = 0;
+    for (;;) { let m = 2 * c + 1; if (m >= n) break; if (m + 1 < n && keys[m + 1] < keys[m]) m++; if (keys[m] >= lk) break; keys[c] = keys[m]; ids[c] = ids[m]; c = m; }
+    keys[c] = lk; ids[c] = li; return [k, i];
+  };
+  for (const [i, t, src] of seeds) { if (t < dist[i]) { dist[i] = t; from[i] = src; push(t, i); } }
+  const DX = [1, -1, 0, 0, 1, 1, -1, -1], DY = [0, 0, 1, -1, 1, -1, 1, -1], DL = [1, 1, 1, 1, Math.SQRT2, Math.SQRT2, Math.SQRT2, Math.SQRT2];
+  while (n) {
+    const [k, i] = pop();
+    if (k > dist[i]) continue;
+    const x = i % W, y = (i - x) / W;
+    for (let j = 0; j < 8; j++) {
+      const nx = x + DX[j], ny = y + DY[j];
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      const ni = ny * W + nx;
+      if (!may(ni)) continue;
+      const nk = k + DL[j] * 0.5 * (step(i) + step(ni));
+      if (nk < dist[ni]) { dist[ni] = nk; from[ni] = from[i]; push(nk, ni); }
+    }
+  }
+}
+// The ink's maps of a text: the letters' shape (alpha), its glyphs' spans. Each piece of a letter (a connected stroke) is
+// written from its top left along itself, faster down its middle; the pieces in order (glyph by glyph, then top left
+// first), each starting before the last has quite ended. Outside the letters the time runs on slower (the ink's reach).
+// timing, if given, times it otherwise (E its enter in seconds): startOf(piece), its share of the enter, all of a piece
+// at once.
+function inkMaps(alpha, W, H, glyphs, timing) {
+  const N = W * H, inside = new Uint8Array(N);
+  for (let i = 0; i < N; i++) inside[i] = alpha[i * 4 + 3] >= 128 ? 1 : 0;
+  const din = edt(Uint8Array.from(inside, v => v), W, H), dout = edt(Uint8Array.from(inside, v => 1 - v), W, H);
+  const sd = new Float32Array(N);
+  let most = 0;
+  for (let i = 0; i < N; i++) { sd[i] = inside[i] ? Math.sqrt(din[i]) - 0.5 : -(Math.sqrt(dout[i]) - 0.5); if (sd[i] > most) most = sd[i]; }
+  const R = Math.max(1.5, most * 0.85);
+  // the strokes: connected pieces of ink
+  const comp = new Int32Array(N).fill(-1), comps = [];
+  for (let i = 0; i < N; i++) {
+    if (!inside[i] || comp[i] >= 0) continue;
+    const c = { id: comps.length, px: [], x0: W, y0: H, x1: 0, y1: 0, sx: 0 };
+    const stack = [i]; comp[i] = c.id;
+    while (stack.length) {
+      const j = stack.pop(), x = j % W, y = (j - x) / W;
+      c.px.push(j); c.x0 = Math.min(c.x0, x); c.y0 = Math.min(c.y0, y); c.x1 = Math.max(c.x1, x); c.y1 = Math.max(c.y1, y); c.sx += x;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+        const nj = ny * W + nx; if (inside[nj] && comp[nj] < 0) { comp[nj] = c.id; stack.push(nj); }
+      }
+    }
+    comps.push(c);
+  }
+  const glyphOf = c => { const mx = c.sx / c.px.length; let g = 0; for (let k = 0; k < glyphs.length; k++) if (mx >= glyphs[k].x0) g = k; return g; };
+  for (const c of comps) { c.glyph = glyphOf(c); const gx = glyphs.length ? glyphs[c.glyph].x0 : 0; c.key = c.glyph * 1e6 + (c.x0 - gx) + 1.2 * c.y0; }
+  comps.sort((a, b) => a.key - b.key);
+  const time = new Float64Array(N).fill(Infinity), along = new Float32Array(N);
+  let total;
+  if (timing) {
+    // (in the pen's pixels: its head, 2.5 R, about 0.06 s)
+    total = 2.5 * R * timing.E / 0.06;
+    for (const c of comps) { const at = timing.startOf(c) * total; for (const j of c.px) { time[j] = at; along[j] = 1; } }
+  }
+  const step = i => 1 / (0.35 + Math.min(1, Math.max(0, sd[i]) / R));
+  const local = new Float64Array(N).fill(Infinity), from = new Int32Array(N).fill(-1);
+  let at = 0, end = 0;
+  if (!timing) for (const c of comps) {
+    let seed = c.px[0], best = Infinity;
+    for (const j of c.px) { const x = j % W, y = (j - x) / W, k = y + 0.4 * x; if (k < best) { best = k; seed = j; } }
+    spread(W, H, [[seed, 0, c.id]], j => comp[j] === c.id, step, local, from);
+    let span = 0; for (const j of c.px) span = Math.max(span, local[j]);
+    for (const j of c.px) { time[j] = at + local[j]; along[j] = span > 0 ? local[j] / span : 0; }
+    end = Math.max(end, at + span);
+    at += span * P.SIM_OVERLAP + R * 0.6;
+  }
+  // outside: on from the nearest ink, slower
+  const seeds = [];
+  for (let i = 0; i < N; i++) if (inside[i]) seeds.push([i, time[i], i]);
+  const reach = new Float64Array(N).fill(Infinity), src = new Int32Array(N).fill(-1);
+  spread(W, H, seeds, () => true, () => 3, reach, src);
+  const data = new Uint8Array(N * 4), field = new Uint8Array(N * 4);
+  if (!timing) total = Math.max(end, 1);
+  for (let i = 0; i < N; i++) {
+    const t = Math.round(clamp((inside[i] ? time[i] : reach[i]) / total, 0, 1) * 65535);
+    data[i * 4] = t >> 8; data[i * 4 + 1] = t & 255;
+    data[i * 4 + 2] = Math.round(255 * (inside[i] ? along[i] : src[i] >= 0 ? along[src[i]] : 1)); data[i * 4 + 3] = 255;
+    const v = Math.round(clamp(0.5 + sd[i] / (4 * R), 0, 1) * 255);
+    field[i * 4] = field[i * 4 + 1] = field[i * 4 + 2] = v; field[i * 4 + 3] = 255;
+  }
+  const sdfTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, sdfTex);
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, W, H, 0, gl.RGBA, gl.UNSIGNED_BYTE, field);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return { R, span: total, tmap: texture(null, { w: W, h: H, data }), sdf: sdfTex, strokes: comps.length };
+}
+// A sim piece's maps and state, on a finer picture than the text's (its runs and grain finer than a pixel of it); timed
+// by the pen, or as its style has it: struck at once as it hits (slam).
+function buildSim(p, seed) {
+  const sp = p.spec.sim, src = p.simSrc, S = Math.max(1, Math.round(P.SIM_RES)), W = p.w * S, H = p.h * S, E = p.spec.enterTime;
+  const ic = document.createElement("canvas"); ic.width = W; ic.height = H;
+  const ig = ic.getContext("2d"); ig.font = src.font(S); ig.textAlign = "center"; ig.textBaseline = "middle"; ig.fillStyle = "#fff";
+  ig.fillText(src.text, src.cx * S, src.cy * S);
+  let timing = null;
+  if (sp.time === "slam") timing = { E, startOf: () => IMPACT / E };
+  p.inkMap = inkMaps(ig.getImageData(0, 0, W, H).data, W, H, p.glyphs.map(g => ({ ...g, x0: g.x0 * S, x1: g.x1 * S, mid: g.mid * S })), timing);
+  p.inkMap.W = W; p.inkMap.H = H; p.inkMap.S = S;
+  p.sim = simState(p, seed & 0xFFFF);
+}
+// Paper fibres for a piece: streaks of a few directions over each other, 0 to 1 (where the ink is held back, and its grain).
+function fibres(W, H, seed) {
+  const data = new Uint8Array(W * H * 4);
+  const dirs = [0.2, 1.4, 2.5].map((a, i) => a + hash(i, 1, seed) * 0.6);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    let v = 0;
+    dirs.forEach((a, i) => { const u = x * Math.cos(a) + y * Math.sin(a), w = -x * Math.sin(a) + y * Math.cos(a); v += vnoise(u / 9, w / 1.6, seed + i) * [0.4, 0.3, 0.2][i]; });
+    v += 0.1 * hash(x, y, seed + 9);
+    const b = Math.round(clamp((v - 0.15) / 0.7, 0, 1) * 255);
+    const o = (y * W + x) * 4; data[o] = data[o + 1] = data[o + 2] = b; data[o + 3] = 255;
+  }
+  return texture(null, { w: W, h: H, data });
+}
+function simTexture(W, H) {
+  const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, W, H, 0, gl.RGBA, SIMF.type, null);
+  const filter = SIMF.linear ? gl.LINEAR : gl.NEAREST;
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  const fb = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  return { t, fb };
+}
+function simState(p, seed) {
+  if (!SIMF) return null;
+  const W = p.inkMap.W, H = p.inkMap.H;
+  const sim = { a: simTexture(W, H), b: simTexture(W, H), time: 0, fiber: fibres(W, H, seed) };
+  simClear(sim);
+  return sim;
+}
+function simClear(sim) {
+  for (const s of [sim.a, sim.b]) { gl.bindFramebuffer(gl.FRAMEBUFFER, s.fb); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  sim.time = 0;
+}
+const SIM_DT = 1 / 240, SIM_MOST = 360;
+// Steps a piece's ink to secs since it began (again from its start if that is earlier than where it is).
+function simTo(p, secs) {
+  const sim = p.sim, d = p.spec, sp = d.sim, m = p.inkMap;
+  if (secs < sim.time - 1e-6) simClear(sim);
+  if (sim.time + SIM_DT > secs + 1e-9) return;
+  const leaveAt = p.leaveAt - p.delay;
+  gl.disable(gl.BLEND);
+  gl.useProgram(progStep);
+  gl.viewport(0, 0, m.W, m.H);
+  gl.uniform2f(SU(progStep, "size"), m.W, m.H); gl.uniform1f(SU(progStep, "R"), m.R); gl.uniform1f(SU(progStep, "span"), m.span);
+  gl.uniform1f(SU(progStep, "dt"), SIM_DT);
+  gl.uniform1f(SU(progStep, "flowBy"), sp.flow * P.SIM_FLOW * m.S); gl.uniform1f(SU(progStep, "pinBy"), sp.pin * P.SIM_PIN);
+  gl.uniform1f(SU(progStep, "reach"), (sp.wick ?? 1) * P.SIM_WICK); gl.uniform1f(SU(progStep, "grain"), P.SIM_FIBRE);
+  gl.uniform1f(SU(progStep, "stainBy"), (sp.stain ?? 1) * P.SIM_STAIN);
+  gl.uniform1f(SU(progStep, "deposit"), sp.deposit * P.SIM_DEPOSIT); gl.uniform1f(SU(progStep, "ends"), sp.ends * P.SIM_ENDS);
+  gl.uniform1f(SU(progStep, "splat"), sp.splat * P.SIM_SPLAT);
+  gl.uniform1f(SU(progStep, "evapHold"), 0.025 * P.SIM_EVAP); gl.uniform1f(SU(progStep, "evapLeave"), 2.6 * P.SIM_DRY);
+  gl.uniform1f(SU(progStep, "bloom"), P.SIM_BLOOM); gl.uniform1f(SU(progStep, "blotch"), sp.blotch ?? 1);
+  gl.uniform1f(SU(progStep, "atOnce"), sp.time ? 1 : 0); gl.uniform1f(SU(progStep, "patchy"), sp.patchy || 0);
+  gl.uniform1i(SU(progStep, "state"), 0); gl.uniform1i(SU(progStep, "tmap"), 1); gl.uniform1i(SU(progStep, "sdf"), 2); gl.uniform1i(SU(progStep, "fiber"), 3);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, m.tmap);
+  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, m.sdf);
+  gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, sim.fiber);
+  quad(0, 0, m.W, m.H, 0, 0, 1, 1, 1, 1, 1, 1);
+  gl.bufferData(gl.ARRAY_BUFFER, verts.subarray(0, nv * FLOATS), gl.STREAM_DRAW);
+  const count = nv; nv = 0;
+  let steps = 0;
+  while (sim.time + SIM_DT <= secs + 1e-9 && steps < SIM_MOST) {
+    const t0 = sim.time, t1 = t0 + SIM_DT;
+    gl.uniform1f(SU(progStep, "p0"), t0 / d.enterTime); gl.uniform1f(SU(progStep, "p1"), t1 / d.enterTime);
+    gl.uniform1f(SU(progStep, "leave"), t1 > leaveAt ? Math.min(1, (t1 - leaveAt) / d.leaveTime) : 0);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, sim.a.t);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, sim.b.fb);
+    gl.drawArrays(gl.TRIANGLES, 0, count);
+    [sim.a, sim.b] = [sim.b, sim.a];
+    sim.time = t1; steps++;
+  }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.viewport(0, 0, view.width, view.height);
+  gl.useProgram(prog);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+}
+function drawSim(p, st) {
+  const d = p.spec, sp = d.sim, m = p.inkMap, sim = p.sim;
+  if (!sim || !m) return;
+  const s = st.s, hw = p.w * s * st.sx / 2, hh = p.h * s * st.sy / 2, cx = p.cx + st.x;
+  const cy = p.cy + st.y * p.line * s;
+  if (sp.time === "slam" && st.secs < IMPACT) {
+    mode = 0; quad(cx - hw, cy - hh, cx + hw, cy + hh, 0, 0, 1, 1, st.a, st.a, st.a, st.a); flush(p.tex);
+    return;
+  }
+  const cam = gl.getUniform(prog, U("camera"));
+  simTo(p, st.secs);
+  const pr = progSimDraw, u = name => SU(pr, name);
+  gl.useProgram(pr);
+  gl.uniform2f(u("screen"), view.width, view.height); gl.uniform3f(u("camera"), cam[0], cam[1], cam[2]);
+  gl.uniform1i(u("state"), 0); gl.uniform1i(u("tmap"), 1); gl.uniform1i(u("fiber"), 2);
+  gl.uniform2f(u("picSize"), m.W, m.H); gl.uniform1f(u("R"), m.R);
+  gl.uniform1f(u("leave"), st.out); gl.uniform1f(u("clock"), st.secs);
+  gl.uniform1f(u("gloss"), sp.gloss * P.SIM_GLOSS); gl.uniform1f(u("sheen"), sp.sheen * P.SIM_SHEEN);
+  gl.uniform1f(u("emboss"), P.SIM_EMBOSS * (sp.emboss ?? 1)); gl.uniform1f(u("blotch"), sp.blotch ?? 1); gl.uniform1f(u("shadowBy"), P.SIM_SHADOW); gl.uniform1f(u("mode"), sp.mode);
+  gl.uniform1f(u("density"), sp.density * P.SIM_DENSITY); gl.uniform1f(u("ripple"), P.SIM_RIPPLE);
+  gl.uniform1f(u("paper"), P.bg === "paper" ? 1 : 0); gl.uniform1f(u("depth"), sp.depth || 0);
+  gl.uniform3f(u("ink"), ...p.colour); gl.uniform3f(u("wash"), ...d.wash);
+  gl.uniform3f(u("absorb"), ...(sp.absorb || [1, 1, 1])); gl.uniform3f(u("paperCol"), 0.9, 0.882, 0.862);
+  quad(cx - hw, cy - hh, cx + hw, cy + hh, 0, 0, 1, 1, 1, 1, 1, st.a);
+  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, sim.fiber);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, m.tmap);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, sim.a.t);
+  gl.bufferData(gl.ARRAY_BUFFER, verts.subarray(0, nv * FLOATS), gl.STREAM_DRAW);
+  gl.drawArrays(gl.TRIANGLES, 0, nv); nv = 0;
+  gl.useProgram(prog);
+  mode = 0;
+}
+
 let pieces = [];
 // Paper: the text burns away spot by spot (the shader, by its map); the flakes are shards of ash that tumble on the wind,
 // a few of them sparks.
@@ -727,7 +1235,8 @@ function drawPaper(p, progress, fade) {
 }
 
 function rebuild() {
-  for (const p of pieces) { gl.deleteTexture(p.tex); if (p.burnTex) gl.deleteTexture(p.burnTex); }
+  for (const p of pieces) { gl.deleteTexture(p.tex); if (p.burnTex) gl.deleteTexture(p.burnTex); if (p.inkMap) { gl.deleteTexture(p.inkMap.tmap); gl.deleteTexture(p.inkMap.sdf); }
+    if (p.sim) { for (const x of [p.sim.a, p.sim.b]) { gl.deleteTexture(x.t); gl.deleteFramebuffer(x.fb); } gl.deleteTexture(p.sim.fiber); } }
   const S = STYLES[P.style], H = view.height, tl = S.title.size * H, sl = S.line.size * H, anchor = S.y * H;
   const tone = P.tone === "style" ? [S.title.color, S.line.color] : TONES[P.tone];
   const seed = BigInt(P.seed) * 0x9E3779B97F4A7C15n & M64;
@@ -743,6 +1252,7 @@ function rebuild() {
   }
   for (const p of pieces) if (p.spec.typed) p.keys = typeKeys(p, P.seed + (p === title ? 0 : 7));
   for (const p of pieces) if (p.spec.bleed) p.drops = bleedDrops(p, P.seed + (p === title ? 0 : 7), p === title);
+  for (const p of pieces) if (p.spec.sim) buildSim(p, P.seed + (p === title ? 0 : 7));
   // the impact's puff of dust: kicked out from under the letters to the sides
   title.puff = [];
   for (let i = 0; i < 46; i++) {
@@ -1225,7 +1735,8 @@ function frame(now) {
   if (P.backdrop && first) {
     // (it fades in as dust's title does, over BACKDROP_IN, whatever the title's own enter)
     const tp = pieces[0], fadeIn = smooth(clamp(first.secs / BACKDROP_IN, 0, 1));
-    const seen = Math.min(fadeIn, crumbles(tp.spec) ? first.a * (1 - smooth(first.out)) : first.a);
+    const seen = Math.min(fadeIn, crumbles(tp.spec) ? first.a * (1 - smooth(first.out))
+      : tp.spec.leave === "wash" ? 1 - smooth(clamp((first.out - 0.5) / 0.5, 0, 1)) : first.a);
     const low = tp.cx - Math.max(...pieces.map(p => p.ink)) / 2, high = tp.cx + Math.max(...pieces.map(p => p.ink)) / 2;
     const top = tp.cy - tp.line / 2, lastP = pieces[pieces.length - 1], bottom = lastP.cy + lastP.line / 2;
     const side = 2.6 * tp.line, endH = 1.0 * tp.line;
@@ -1251,6 +1762,7 @@ function frame(now) {
     else if (p.spec.sink) drawSink(p, st);
     else if (p.spec.typed) drawType(p, st);
     else if (p.spec.pulse) drawPulse(p, st);
+    else if (p.spec.sim) drawSim(p, st);
     else if (p.spec.leave === "trackout" && st.out > 0) drawTrackout(p, st, st.out);
     else if (p.spec.leave === "erode" && st.out > 0) drawErode(p, st, st.out);
     else if (st.a > 0.002) { quad(cx - hw, cy - hh, cx + hw, cy + hh, 0, 0, 1, 1, st.a, st.a, st.a, st.a); flush(p.tex); }
@@ -1300,7 +1812,7 @@ heading("글자");
 control("title", "제목", "text");
 control("sub", "부제", "text");
 control("tone", "색", "select", [["style", "스타일 기본색"], ["gold", "금색 (gold)"], ["green", "초록 (green)"], ["red", "빨강 (red)"]]);
-control("bg", "배경", "select", [["night", "밤 장면"], ["bright", "낮 장면"], ["black", "검정"], ["grey", "회색"]]);
+control("bg", "배경", "select", [["night", "밤 장면"], ["bright", "낮 장면"], ["black", "검정"], ["grey", "회색"], ["paper", "종이 (잉크 비교용)"], ["plum", "짙은 자주 (액체 금속)"]]);
 const file = document.createElement("label"); file.className = "row";
 file.innerHTML = '<span>배경 이미지</span><input type="file" accept="image/*"><span class="v"></span>';
 file.querySelector("input").addEventListener("change", e => {
@@ -1345,6 +1857,26 @@ heading("unveil: 안개 걷힘");
 control("FOG_THICK", "안개 짙기", "range", [0, 2.5, 0.05]);
 control("FOG_DRIFT", "안개 흐름", "range", [0, 8, 0.1]);
 control("FOG_STAY", "머무는 동안 안개", "range", [0, 0.8, 0.01]);
+heading("sim: 잉크 시뮬레이션 (각인, 참고용)");
+control("SIM_FLOW", "흐름 (점성 반대)", "range", [0, 3, 0.05]);
+control("SIM_PIN", "종이에 걸림 (높을수록 덜 퍼짐)", "range", [0, 3, 0.05]);
+control("SIM_DEPOSIT", "잉크 양", "range", [0.2, 3, 0.05]);
+control("SIM_ENDS", "획 끝 고임", "range", [0, 3, 0.05]);
+control("SIM_SPLAT", "획 끝 튐", "range", [0, 3, 0.05]);
+control("SIM_EVAP", "머무는 동안 마름", "range", [0, 6, 0.1]);
+control("SIM_RES", "해상도 배율", "range", [1, 4, 1]);
+control("SIM_OVERLAP", "획 이어 쓰기(작을수록 겹침)", "range", [0.2, 1.2, 0.05]);
+control("SIM_WICK", "종이에 스미는 거리", "range", [0, 3, 0.05]);
+control("SIM_FIBRE", "스밈의 결 (섬유를 따라)", "range", [0, 3, 0.05]);
+control("SIM_STAIN", "스민 물의 얼룩", "range", [0, 3, 0.05]);
+control("SIM_BLOOM", "퇴장: 물 먹고 번짐", "range", [0, 3, 0.05]);
+control("SIM_DRY", "퇴장: 마르는 속도", "range", [0.2, 3, 0.05]);
+control("SIM_DENSITY", "농도", "range", [0.2, 3, 0.05]);
+control("SIM_GLOSS", "젖은 광택", "range", [0, 3, 0.05]);
+control("SIM_RIPPLE", "일렁임", "range", [0, 4, 0.05]);
+control("SIM_SHEEN", "막 무지개", "range", [0, 2, 0.05]);
+control("SIM_EMBOSS", "퇴장: 눌린 자국", "range", [0, 3, 0.05]);
+control("SIM_SHADOW", "그림자", "range", [0, 2, 0.05]);
 heading("pulse: 고동");
 control("PULSE_GLOW", "빛 세기", "range", [0, 3, 0.05]);
 control("PULSE_BEAT", "고동 세기", "range", [0, 2, 0.05]);
@@ -1435,6 +1967,10 @@ const BUILT_IN = {
   "가라앉음 (sink)": { ...effectOf(DEFAULTS), style: "sink-new" },
   "타자 (type)": { ...effectOf(DEFAULTS), style: "type-new" },
   "고동 (pulse)": { ...effectOf(DEFAULTS), style: "pulse-new" },
+  "참고: 먹 (sim)": { ...effectOf(DEFAULTS), style: "sim-sumi", bg: "paper" },
+  "참고: 상아 잉크 (sim)": { ...effectOf(DEFAULTS), style: "sim-ivory", bg: "night" },
+  "참고: 피 (sim)": { ...effectOf(DEFAULTS), style: "sim-blood", bg: "night" },
+  "참고: 액체 금속 (sim)": { ...effectOf(DEFAULTS), style: "sim-chrome", bg: "plum" },
 };
 const STORE = "title-lab-presets";
 function ownPresets() { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } }
