@@ -22,7 +22,7 @@ local STILL = { header = true, note = true, filter = true, log = true, graph = t
 ISBUPanelList = ISScrollingListBox:derive("ISBUPanelList")
 -- The tooltips of a device row's buttons, by button: what a click does, over the button itself.
 ISBUPanelList.BUTTON_TIPS = { timer = "IGUI_BU_TimerTip", pipe = "IGUI_BU_PipeChipTip", Pipe = "IGUI_BU_PipeChipTip",
-    PipeIn = "IGUI_BU_PipeInTip", PipeOut = "IGUI_BU_PipeOutTip", roomPipe = "IGUI_BU_RoomPipeTip" }
+    PipeIn = "IGUI_BU_PipeInTip", PipeOut = "IGUI_BU_PipeOutTip" }
 
 local BUTTONS = { "Up", "Down" }
 local OPTIONS = { "ActiveOnly", "ByLoad", "HideUnwired" }
@@ -33,7 +33,7 @@ local OPTION_LABELS = { ActiveOnly = "IGUI_BU_ActiveOnly", ByLoad = "IGUI_BU_ByL
 local BUTTON_W = 60
 local TIMER_W, CHIP_W, SOURCE_W = 64, 34, 110
 -- A pipe chip's buttons (BU.Water: its colour and number).
-local CHIPS = { pipe = true, Pipe = true, PipeIn = true, PipeOut = true, roomPipe = true }
+local CHIPS = { pipe = true, Pipe = true, PipeIn = true, PipeOut = true }
 -- The room between a unit's inlet chip and its outlet chip, and the arrow drawn there (tools/ui_art.py), the way the
 -- water goes, and its size.
 local ARROW_GAP = 18
@@ -118,9 +118,6 @@ local function producerButtons(width, row)
     if row.unwired then return buttonsAtRight(width, row, {}) end
     return buttonsAtRight(width, row, not row.water and BUTTONS or row.chips or {})
 end
-
--- A room's row's buttons: its pipe chip, for water with more than one pipe (row.pipe).
-local function roomButtons(width, row) return buttonsAtRight(width, row, row.pipe and { "roomPipe" } or {}) end
 
 -- A pipe's row's buttons, left to right: Rename, and Remove but for the first pipe.
 local function pipeButtons(width, row)
@@ -294,12 +291,7 @@ function ISBUPanelList:doDrawItem(y, item, alt)
             x = x + ROW + 4
         end
         UI.text(c, row.text, x, textY, HEAD)
-        local right = rightX
-        for _, button in ipairs(roomButtons(width, row)) do
-            pipeChip(self, c, index .. button.name, button.x, y, button.w, row.pipe)
-            right = math.min(right, button.x - 6)
-        end
-        if row.right then UI.textRight(c, row.right, right, textY, ROOM_RIGHT) end
+        if row.right then UI.textRight(c, row.right, rightX, textY, ROOM_RIGHT) end
     elseif row.kind == "columns" then
         local cols = BU.RackWindow.COLUMNS
         UI.text(c, label("IGUI_BU_Rack_ColKind"), PAD + cols.kind, textY, NOTE)
@@ -676,6 +668,5 @@ UI.scaled(ISBUSplitter, ISPanel)
 Ui.deviceButtons = deviceButtons
 Ui.producerButtons = producerButtons
 Ui.pipeButtons = pipeButtons
-Ui.roomButtons = roomButtons
 Ui.sourceButtons = sourceButtons
 Ui.optionButtons = optionButtons

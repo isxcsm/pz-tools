@@ -50,9 +50,16 @@ function Sync.title(player, kind, tier)
 end
 
 -- What a client asks of the server: a command and its arguments, as the player who asks. Alone, the game's own
--- server part answers it.
+-- server part answers it. When it was sent is kept: a change told soon after answers the player's own click, and the
+-- windows show it at once (Sync.answering).
 function Sync.send(player, command, args)
+    Sync.sentAt = getTimestampMs()
     sendClientCommand(player, BU.MOD, command, args or {})
 end
+
+-- Whether a change told now likely answers a command this client just sent (within ANSWER_MS: alone it comes the
+-- next tick, from a server a moment later).
+local ANSWER_MS = 1000
+function Sync.answering() return Sync.sentAt ~= nil and getTimestampMs() - Sync.sentAt < ANSWER_MS end
 
 return Sync

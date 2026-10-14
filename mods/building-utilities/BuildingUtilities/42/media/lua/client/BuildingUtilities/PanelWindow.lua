@@ -109,7 +109,6 @@ function ISBUPanelWindow:new(x, y, playerObj, panel, anchor)
     o.resizable = true
     o.minimumWidth = minW
     o.minimumHeight = math.min(UI.px(340) + chrome, maxH)
-    o.rangeObjects = {}
     o.planOutlined = {}
     o.views = {}
     -- The networks' states the last refresh read, by utility; the tabs not shown since then, filled as they open.
@@ -508,6 +507,10 @@ local function bodyFrame(body, now)
 end
 
 function ISBUPanelWindow:prerender()
+    if self.refreshNow then
+        self.refreshNow = false
+        self:refresh()
+    end
     -- The window's own drawing, in the palette: the background, the title bar with the title in the kit's face.
     local th = self:titleBarHeight()
     UI.fill(self, 0, 0, self.width, self.height, P.bg, P.bgAlpha)
@@ -531,8 +534,6 @@ function ISBUPanelWindow:prerender()
     if self.pending[self:activeUtility()] then self:refill(self:activeUtility()) end
     if self.plan and self.planUtility ~= self:activeUtility() then self:updatePlan() end
     if self.statusUtility ~= self:activeUtility() then self:updateStatus() end
-    -- The range is outlined a slice a frame: here, as update runs only a few times a second.
-    if self.rangeJob then self:stepRange() end
 end
 
 -- The resize bar's grip and the frame, in the palette.
@@ -901,8 +902,12 @@ function ISBUPanelWindow:away()
     return math.min(from(self.anchor), from(self.panel))
 end
 
--- Something the window shows changed: it refreshes once that settles (SETTLE_MS).
-function ISBUPanelWindow:changed() self.changedAt = self.changedAt or getTimestampMs() end
+-- Something the window shows changed: it refreshes once that settles (SETTLE_MS), or on the next frame when the
+-- change answers the player's own click (the wait read as a sluggish click: about 170 ms).
+function ISBUPanelWindow:changed()
+    self.changedAt = self.changedAt or getTimestampMs()
+    if Sync.answering() then self.refreshNow = true end
+end
 
 function ISBUPanelWindow:close()
     -- What the window listed is no longer new; for a box taken down nothing is kept.
@@ -998,7 +1003,6 @@ function ISBUPanelWindow:refresh()
     self.waterSupply = self:workOutWaterSupply()
     self:updateStatus()
     self.loadArea:setTooltip(self:loadBreakdown())
-    self:checkRange()
     self:updatePlan()
 end
 
@@ -1302,7 +1306,6 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
         local status, dim = self:deviceStatus(utility, device)
         view.status[device.key] = status
         local g = groupFor(Ui.groupOf(device))
-        g.roomKey = g.roomKey or device.roomKey
         if device.state == "on" then
             g.on = g.on + 1
             if not device.held then g.total = g.total + (device.power or 0) end
@@ -1379,9 +1382,8 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
             roomState = group.off == 0 and "on" or group.on == 0 and "off" or "some"
         end
         local right = utility == "power" and load2(group.total) or count > 0 and (group.on .. " / " .. count) or nil
-        local roomPipe = pipesShown and group.roomKey and BU.Water.roomPipe(panel, group.roomKey) or nil
         add({ kind = "room", id = group.id, text = title(group.id), right = right, state = roomState,
-            fixed = fixed or count == 0, folded = folded, foldKey = foldKey, pipe = roomPipe, roomKey = group.roomKey })
+            fixed = fixed or count == 0, folded = folded, foldKey = foldKey })
         if not folded then
             table.sort(group.placed, function(a, b)
                 if a.rank ~= b.rank then return a.rank < b.rank end
@@ -1650,9 +1652,6 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
         if row.folded and self.plan and self.plan.floor ~= row.level then self.plan:showFloor(row.level)
         else self:refill(utility) end
     elseif row.kind == "room" then
-        for _, button in ipairs(Ui.roomButtons(width, row)) do
-            if x >= button.x and x <= button.x + button.w then return self:roomPipeMenu(row) end
-        end
         if row.state and not row.fixed and x >= ROOM_TICK_X and x <= ROOM_TICK_X + ROW then
             Sync.send(playerObj, "setRoomInside", { panel = panel.id, utility = utility, room = row.id, on = row.state ~= "on" })
         else

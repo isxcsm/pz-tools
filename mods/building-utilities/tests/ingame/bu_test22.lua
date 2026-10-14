@@ -49,18 +49,16 @@ if window:activeUtility() ~= "power" then window.tabs:activateView(getText("IGUI
 window:refresh()
 if window.rangeShown then window:onRange() end
 window:onRange()
-while window.rangeJob do window:stepRange() end
 local plan = window.plan
 local legend = false
 for _, entry in ipairs(plan.legend) do if entry.text == getText("IGUI_BU_Legend_rangeNoise") then legend = true end end
 local noises = plan.data.ranges and plan.data.ranges.noise or {}
 say("range shown", window.rangeShown, "noises", #noises, "radius", noises[1] and noises[1].radius, "running",
-    noises[1] and noises[1].running, "legend", legend, "plan edges", #plan.edges, "outlined", #window.rangeObjects)
-local key = window.rangeNoiseKey
+    noises[1] and noises[1].running, "legend", legend, "plan edges", #plan.edges)
+local key = plan.data.rangeKey
 old:setActivated(true)
 window:refresh()
-while window.rangeJob do window:stepRange() end
-say("started: activated", old:isActivated(), "key changed", key ~= window.rangeNoiseKey, "running now",
+say("started: activated", old:isActivated(), "key changed", key ~= plan.data.rangeKey, "running now",
     plan.data.ranges.noise[1] and plan.data.ranges.noise[1].running)
 old:setActivated(false)
 window:refresh()

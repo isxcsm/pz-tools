@@ -153,11 +153,45 @@ function ISBUPanelWindow:devicePipeMenu(device)
     end, back)
 end
 
--- A room's pipe chip: the pipe its fixtures are on.
-function ISBUPanelWindow:roomPipeMenu(row)
-    self:pipeMenu(row.pipe, function(id)
-        if id then Sync.send(self.playerObj, "setRoomPipe", { panel = self.panel.id, room = row.roomKey, pipe = id }) end
-    end)
+-- Rooms' pipes are set on the plan: a pipe chosen in its combo (the plan's "pipe" switch), then each room clicked
+-- takes it, the pipe in its walls, which its fixtures are on unless one was put on another. The pipe being put, or nil.
+function ISBUPanelWindow:paintingPipe()
+    local id = self.pipePainting
+    if not id or not Water.shown(self.panel) then return nil end
+    for _, pipe in ipairs(Water.pipes(self.panel)) do
+        if pipe.id == id then return id end
+    end
+    return nil
+end
+
+function ISBUPanelWindow:setPipePainting(id)
+    self.pipePainting = id
+    if id then self.zoneEditing, self.roomFilter = false, nil end
+    self:updatePlan()
+end
+
+-- The combo's menu: each pipe in its colour, the one being put marked, and a way out while one is.
+function ISBUPanelWindow:pipePaintMenu()
+    local current = self:paintingPipe()
+    local menu = Ui.UI.menu(self, Ui.PALETTE)
+    menu:addHead(getText("IGUI_BU_PlanPipe"))
+    for _, pipe in ipairs(Water.pipes(self.panel)) do
+        local option = menu:addOption(Water.pipeName(self.panel, pipe.id), self, ISBUPanelWindow.setPipePainting, pipe.id)
+        option.swatch = Water.colour(pipe.id)
+        if pipe.id == current then option.current = true end
+    end
+    if current then menu:addOption(getText("IGUI_BU_PlanPipeStop"), self, ISBUPanelWindow.setPipePainting, nil) end
+end
+
+-- A room of the zone clicked while a pipe is being put: it takes that pipe.
+function ISBUPanelWindow:paintRoomPipe(roomId)
+    local panel, id = self.panel, self:paintingPipe()
+    if not id then return end
+    for _, room in ipairs(Panels.zoneRooms(panel)) do
+        if room.id == roomId and (Water.roomPipe(panel, room.key) or Water.FIRST) ~= id then
+            Sync.send(self.playerObj, "setRoomPipe", { panel = panel.id, room = room.key, pipe = id })
+        end
+    end
 end
 
 -- What a water unit does now, in a few words.

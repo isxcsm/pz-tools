@@ -27,10 +27,13 @@ function ISBUPanelWindow:updatePlan()
     if not view then return end
     self.planUtility = utility
     local panel = self.panel
+    -- a pipe being put on rooms: each room in its pipe's colour
+    local paint = utility == "water" and self:paintingPipe() or nil
     local rooms = {}
     for _, room in ipairs(self.rooms or {}) do
         rooms[#rooms + 1] = { id = room.id, title = self.titles[room.id] or BU.roomName(room.name or ""), level = room.level,
-            rects = room.rects, building = room.building }
+            rects = room.rects, building = room.building,
+            pipeColour = paint and BU.Water.colour(BU.Water.roomPipe(panel, room.key) or BU.Water.FIRST) or nil }
     end
     local devices = {}
     local hide = PanelWindow.options.hideUnwired
@@ -136,7 +139,7 @@ function ISBUPanelWindow:updatePlan()
     for level in pairs(takeable) do farLevels[level] = nil end
     local editable = #(self.rooms or {}) > 0
     if not editable then self.zoneEditing = false end
-    -- The range, while the window shows it in the world: from the zone's rooms (an outdoor box's square) and its relays.
+    -- The range, while the plan shows it: from the zone's rooms (an outdoor box's square) and its relays.
     local ranges, tier = nil, panel.tier or 1
     local rangeKey = tier .. "|" .. Store.linkVersion() .. "|" .. tostring(panel.zone) .. "|"
         .. Panels.attachedSize(self.building)
@@ -164,7 +167,8 @@ function ISBUPanelWindow:updatePlan()
         outdoor = panel.outdoor == true, boxes = boxes, filter = self.roomFilter,
         zone = zone, zoneEditable = editable, zoneEdit = self.zoneEditing == true, zoneNote = getText("IGUI_BU_ZoneNote", inZone),
         farLevels = farLevels, waterSupply = utility == "water" and self.waterSupply and self.waterSupply.byLevel or nil,
-        ranges = ranges, rangeKey = rangeKey })
+        ranges = ranges, rangeKey = rangeKey, pipeCombo = utility == "water" and BU.Water.shown(panel),
+        pipePaint = paint and { id = paint, colour = BU.Water.colour(paint), name = BU.Water.pipeName(panel, paint) } or nil })
 end
 
 -- What a relay standing in a building takes there, for its row: how many rooms of its box's zone are about it; nothing
@@ -241,7 +245,7 @@ end
 -- Zones. The plan shows them, and while they are edited a click there takes a room in or out of this box's.
 function ISBUPanelWindow:setZoneEditing(on)
     self.zoneEditing = on
-    if on then self.roomFilter = nil end
+    if on then self.roomFilter, self.pipePainting = nil, nil end
     self:updatePlan()
 end
 
@@ -516,89 +520,9 @@ function ISBUPanelWindow:generatorNoises()
     return result
 end
 
--- The range: on the ground around the zone's rooms (an outdoor box's square), where devices outside, producers and
--- units reach from a wall (blue), and around each relay of the box that supplies, on its floor, where a line from it
--- reaches; producers within reach that are no panel's are outlined. Around each of the box's generators, on its floor,
--- how far zombies hear it (red, dim while it is off).
--- Rows of the range's squares outlined each frame, until this many milliseconds went in it: the world shows the range
--- over a few frames instead of stopping for it.
-local RANGE_BUDGET_MS = 8
-
-function ISBUPanelWindow:showRange(on)
-    local playerNum = self.playerObj:getPlayerNum()
-    unoutline(playerNum, self.rangeObjects)
-    self.rangeObjects = {}
-    self.rangeShown = on
-    self.rangeJob = nil
-    if not on then return end
-    local noises = self:generatorNoises()
-    self.rangeNoiseKey = noiseKey(noises)
-    local panel = self.panel
-    local rooms = Panels.zoneRooms(panel)
-    local ground, all = Geometry.roomRects(rooms, 0)
-    if panel.outdoor then ground, all = { { x = panel.x, y = panel.y, w = 1, h = 1 } }, {} end
-    if #ground == 0 and #all == 0 then return end
-    -- Devices outside, producers and units join by the zone's rooms of their own floor, the ground here (the whole
-    -- outline where it has none): one ring, the edge of the plan's area (Geometry.reach).
-    local blue = ColorInfo.new(0.3, 0.6, 1, 1)
-    local rings = { { area = Geometry.reach(#ground > 0 and ground or all, BU.connectRange(panel.tier)), colour = blue } }
-    for _, unit in ipairs(Panels.relaysOf(panel)) do
-        if Links.live(panel, Links.unitRef(unit)) then
-            rings[#rings + 1] = { area = Geometry.reach({ { x = unit.x, y = unit.y, w = 1, h = 1 } }, BU.relayRange()),
-                z = unit.z, colour = blue }
-        end
-    end
-    for _, noise in ipairs(noises) do
-        rings[#rings + 1] = { area = Geometry.disc(noise.x, noise.y, noise.radius), z = noise.z,
-            colour = noise.running and ColorInfo.new(1, 0.35, 0.3, 1) or ColorInfo.new(0.6, 0.3, 0.3, 1) }
-    end
-    -- The squares to go over: the box around every ring's area.
-    local minX, minY, maxX, maxY
-    for _, ring in ipairs(rings) do
-        local area = ring.area
-        minX, minY = math.min(minX or area.minX, area.minX), math.min(minY or area.minY, area.minY)
-        maxX = math.max(maxX or area.minX + area.w - 1, area.minX + area.w - 1)
-        maxY = math.max(maxY or area.minY + area.h - 1, area.minY + area.h - 1)
-    end
-    -- Producers inside the building are not looked for.
-    self.rangeJob = { rings = rings, producers = rings[1].area, inside = #all > 0 and Geometry.reach(all, 0) or nil,
-        minX = minX, maxX = maxX, y = minY, maxY = maxY }
-    self:stepRange()
-end
-
--- Outlines the range's next rows, as many as the frame's budget allows (ISBUPanelWindow.prerender calls it): each
--- ring's edge on its floor (the ground but for a generator's), and the producers not connected yet within reach.
-function ISBUPanelWindow:stepRange()
-    local job = self.rangeJob
-    local playerNum = self.playerObj:getPlayerNum()
-    local producerColour = getCore():getGoodHighlitedColor()
-    local cell = getCell()
-    local started = getTimestampMs()
-    while job.y <= job.maxY and getTimestampMs() - started < RANGE_BUDGET_MS do
-        local y = job.y
-        job.y = y + 1
-        for x = job.minX, job.maxX do
-            for _, ring in ipairs(job.rings) do
-                if Geometry.onEdge(ring.area, x, y) then
-                    local square = cell:getGridSquare(x, y, ring.z or 0)
-                    local floor = square and square:getFloor()
-                    if floor then outline(playerNum, { floor }, ring.colour, self.rangeObjects) end
-                end
-            end
-            if Geometry.reached(job.producers, x, y) and not (job.inside and Geometry.reached(job.inside, x, y)) then
-                local utility, object = Panels.producerOn(cell:getGridSquare(x, y, 0))
-                if utility and not Store.producerOwner(x, y, 0) then outline(playerNum, { object }, producerColour, self.rangeObjects) end
-            end
-        end
-    end
-    if job.y > job.maxY then self.rangeJob = nil end
-end
-
--- The range shown again when a generator's noise changed (it started or stopped, came or went); the window's
--- refresh calls it.
-function ISBUPanelWindow:checkRange()
-    if self.rangeShown and noiseKey(self:generatorNoises()) ~= self.rangeNoiseKey then self:showRange(true) end
-end
+-- The range, on the plan alone (updatePlan gives it the rings: the reach from the zone's rooms and from its relays,
+-- the generators' noise); nothing is drawn in the world.
+function ISBUPanelWindow:showRange(on) self.rangeShown = on end
 
 function ISBUPanelWindow:onRange()
     self:showRange(not self.rangeShown)

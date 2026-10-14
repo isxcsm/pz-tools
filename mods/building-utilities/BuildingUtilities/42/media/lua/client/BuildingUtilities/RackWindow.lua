@@ -215,6 +215,10 @@ function ISBURackWindow:createChildren()
 end
 
 function ISBURackWindow:prerender()
+    if self.refreshNow then
+        self.refreshNow = false
+        self:refresh()
+    end
     local th = self:titleBarHeight()
     UI.fill(self, 0, 0, self.width, self.height, P.bg, P.bgAlpha)
     UI.fill(self, 0, 0, self.width, th, P.title)
@@ -339,7 +343,11 @@ function ISBURackWindow:update()
     end
 end
 
-function ISBURackWindow:changed() self.changedAt = self.changedAt or getTimestampMs() end
+-- (on the next frame when it answers the player's own click, as the box's window: ISBUPanelWindow:changed)
+function ISBURackWindow:changed()
+    self.changedAt = self.changedAt or getTimestampMs()
+    if BU.Sync.answering() then self.refreshNow = true end
+end
 
 function ISBURackWindow:close()
     open[self.unitId] = nil

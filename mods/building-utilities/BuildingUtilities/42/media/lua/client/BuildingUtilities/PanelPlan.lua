@@ -52,6 +52,8 @@ local WALL_PX, LINE_PX, CASING_PX = 2, 1, 3
 local FOCUS_MS = 1600
 -- The legend: its header's fold mark so wide, and it folds or opens over LEGEND_MS.
 local CHEVRON_W, LEGEND_MS = 12, 220
+-- The pipe combo's colour square.
+local SWATCH = 8
 
 ISBUPlan = ISPanel:derive("ISBUPlan")
 
@@ -221,7 +223,7 @@ local function rangeEdges(rects, range)
 end
 
 
--- data: { utility, supplied, rooms = { { id, title, level, rects } }, devices = { { key, x, y, z, roomId, inside,
+-- data: { utility, supplied, rooms = { { id, title, level, rects, pipeColour (while a pipe is put on rooms) } }, devices = { { key, x, y, z, roomId, inside,
 -- state, held, cut, power, name, status, ref, pipeColour (water with more than one pipe: its pipe's, or nil) } }, producers = { { x, y, z, inUse,
 -- text, unit = its kind for a unit, colour or nil, cut, ref } }, relays = { { x, y, z, kind, cut, text, ref } }, lines =
 -- { { ref, x1, y1, z1 (its thing), x2, y2, z2 (what it hangs on), way (its corners on the ground, Links.way, or nil),
@@ -230,7 +232,8 @@ end
 -- "free", "taken" or "far", owner = a name, note = why a far room cannot be taken }, zoneEditable, zoneEdit, zoneNote,
 -- farLevels (the floors with no room the zone can take, a set), waterSupply (by floor, "dry", for water),
 -- ranges = { reach = steps, relayReach = steps, relays = { { x, y, z } }, noise = for power { { x, y, z, radius,
--- running } } } while the range is shown, rangeKey (what the ranges are of) }.
+-- running } } } while the range is shown, rangeKey (what the ranges are of), pipeCombo (water with more than one pipe:
+-- the switch that puts a pipe on rooms), pipePaint = { id, colour, name } (the pipe a click puts on a room, or nil) }.
 function ISBUPlan:setData(data)
     -- Another utility shown: the plan fades in anew.
     if self.data and self.data.utility ~= data.utility then self.switchedAt = getTimestampMs() end
@@ -537,6 +540,9 @@ function ISBUPlan:layoutRooms(sx, sy, wall)
                 local colour = state == "mine" and COLOURS.zoneMine or state == "taken" and COLOURS.zoneTaken
                     or state == "far" and COLOURS.zoneFar or COLOURS.zoneFree
                 r, g, b = colour[1], colour[2], colour[3]
+            elseif state == "mine" and room.pipeColour then
+                local c = room.pipeColour
+                r, g, b = c[1] * 0.7, c[2] * 0.7, c[3] * 0.7
             elseif state == "mine" then
                 r, g, b = roomColour(roomState[room.id] or { on = 0, held = 0, count = 0 }, data.supplied)
             else
@@ -693,8 +699,8 @@ function ISBUPlan:layoutStrip()
     if overflow then arrow(1, first + fit - 1 < #downward) end
 end
 
--- The top bar, laid out with the rest: the floor shown with what its devices draw (with several floors, a click on
--- it lists them) and the switches, right to left: the zone (where zones can be edited), the range, Fit (zoomed or
+-- The top bar, laid out with the rest: the floor shown with what its devices draw (the strip at the left picks the
+-- floor) and the switches, right to left: the zone (where zones can be edited), the range, Fit (zoomed or
 -- moved), each { name, x, y, w, text }. Nothing overlaps at any width or font size: the
 -- switches that do not fit go to a row below, and the floor's name keeps the middle while it fits beside them, else
 -- moves into the room they leave, without the load where that is too narrow (the status line then has it all), and
@@ -708,7 +714,6 @@ function ISBUPlan:layoutTop()
     if data and data.utility == "power" then
         full = getText("IGUI_BU_FloorLoad", full, string.format("%.2f", self.floorLoad and self.floorLoad[self.floor] or 0))
     end
-    local more = #(self.levels or {}) > 1 and "  v" or ""
     -- The switches, in rows from the top, right to left.
     local toggles, row, right, rights = {}, 0, self.width - PAD, {}
     local function add(toggleName, w, label)
@@ -719,21 +724,28 @@ function ISBUPlan:layoutTop()
         rights[row] = right
     end
     if data and data.utility == "water" then add("scheme", SCHEME_W, getText("IGUI_BU_Scheme")) end
+    -- A combo: the pipe being put on rooms (its colour before its name), or what it is for.
+    if data and data.pipeCombo then
+        local paint = data.pipePaint
+        local label = (paint and paint.name or getText("IGUI_BU_PlanPipe")) .. "  v"
+        add("pipe", UI.textWidth(label) + 10 + (paint and SWATCH + 4 or 0), label)
+        toggles[#toggles].swatch = paint and paint.colour or nil
+    end
     if data and data.zoneEditable then add("zone", ZONE_W, getText("IGUI_BU_Zone")) end
     add("range", RANGE_W, getText("IGUI_BU_PlanRange"))
     if (self.zoom or 1) ~= 1 or (self.panX or 0) ~= 0 or (self.panY or 0) ~= 0 then add("fit", FIT_W, getText("IGUI_BU_PlanFit")) end
     -- The floor's name: beside the first row's switches, else a row of its own (cut short only if even that is too
     -- narrow).
-    local text, roomRight = full .. more, rights[0]
-    if width(text) > roomRight - PAD then text = name .. more end
+    local text, roomRight = full, rights[0]
+    if width(text) > roomRight - PAD then text = name end
     local own = width(text) > roomRight - PAD
     if own then
         roomRight = self.width - PAD
-        text = width(full .. more) <= roomRight - PAD and full .. more or name .. more
+        text = width(full) <= roomRight - PAD and full or name
         local cut = name
         while width(text) > roomRight - PAD and #cut > 1 do
             cut = cut:sub(1, -2)
-            text = cut .. "..." .. more
+            text = cut .. "..."
         end
         for _, toggle in ipairs(toggles) do toggle.row = toggle.row + 1 end
         row = row + 1
@@ -745,7 +757,7 @@ function ISBUPlan:layoutTop()
     if titleX < PAD or titleX + titleW > roomRight then titleX = math.floor(PAD + (roomRight - PAD - titleW) / 2) end
     self.floorTitle, self.titleX, self.titleW = text, titleX, titleW
     -- The whole title for the status line when the bar shows less.
-    self.titleFull = text ~= full .. more and full or nil
+    self.titleFull = text ~= full and full or nil
     self.toggles = toggles
     self.topH = FONT_HGT_SMALL + PAD * 2 + row * rowH
 end
@@ -753,25 +765,26 @@ end
 function ISBUPlan:prerender()
     ISPanel.prerender(self)
     if not self.floorTitle then self:layoutTop() end
-    -- The top bar: the floor's name (a menu of the floors under the mouse) and the switches, in the window's buttons'
-    -- look: on ones in the accent, the one under the mouse lit, a click flashing.
+    -- The top bar: the floor's name and the switches, in the window's buttons' look: on ones in the accent, the one
+    -- under the mouse lit, a click flashing.
     local over = self:isMouseOver() and self:toggleAt(self:getMouseX(), self:getMouseY()) or nil
-    local titleLit = UI.hoverLight(self, "title", over == "title" and #(self.levels or {}) > 1)
-    local shade = 0.85 + 0.15 * titleLit
-    self:drawText(self.floorTitle, self.titleX, PAD, shade, shade, shade, 1, UIFont.Small)
-    if titleLit > 0 then
-        UI.fill(self, self.titleX, PAD + FONT_HGT_SMALL + 1, self.titleW, 1, P.value, titleLit)
-    end
+    self:drawText(self.floorTitle, self.titleX, PAD, 0.85, 0.85, 0.85, 1, UIFont.Small)
     local h = FONT_HGT_SMALL + 2
     for _, toggle in ipairs(self.toggles) do
         local on = toggle.name == "zone" and self.data.zoneEdit or toggle.name == "range" and self.window.rangeShown == true
-            or toggle.name == "scheme" and self:schemeShown()
+            or toggle.name == "scheme" and self:schemeShown() or toggle.name == "pipe" and self.data.pipePaint ~= nil
         local k = UI.hoverLight(self, toggle.fx, over == toggle.name)
         local f = UI.flashLevel(self, toggle.fx)
         UI.fill(self, toggle.x, toggle.y, toggle.w, h, on and P.sel or P.panel, on and 0.75 or 0.6)
         if k > 0 or f > 0 then UI.fill(self, toggle.x, toggle.y, toggle.w, h, P.bright, 0.1 * k + 0.25 * f) end
         UI.frame(self, toggle.x, toggle.y, toggle.w, h, (on or k > 0.5) and P.value or P.border, 1)
-        UI.textCentre(self, toggle.text, toggle.x + toggle.w / 2, toggle.y + 1, (on or k > 0.5) and P.bright or P.text)
+        local textX = toggle.x + toggle.w / 2
+        if toggle.swatch then
+            local s = toggle.swatch
+            UI.fill(self, toggle.x + 5, toggle.y + math.floor((h - SWATCH) / 2), SWATCH, SWATCH, s, 1)
+            textX = textX + (SWATCH + 4) / 2
+        end
+        UI.textCentre(self, toggle.text, textX, toggle.y + 1, (on or k > 0.5) and P.bright or P.text)
     end
 end
 
@@ -1066,6 +1079,7 @@ function ISBUPlan:render()
     self:drawLegend(now, mx, my, px)
     -- The status line; a text too long for it shows whole in a tooltip at the mouse instead (measured once a text).
     local status = self.status or (self.data and self.data.zoneEdit and getText("IGUI_BU_ZoneHint"))
+        or (self.data and self.data.pipePaint and getText("IGUI_BU_PlanPipeHint"))
     local long = false
     if status then
         if status ~= self.statusText or self.statusEra ~= UI.era or self.statusW ~= self.width then
@@ -1137,10 +1151,10 @@ function ISBUPlan:onMouseMove(dx, dy)
         self.status = self.data.zoneNote
     elseif self:toggleAt(self:getMouseX(), self:getMouseY()) == "range" then
         self.status = getText("IGUI_BU_PlanRangeHint")
+    elseif self:toggleAt(self:getMouseX(), self:getMouseY()) == "pipe" then
+        self.status = getText("IGUI_BU_PlanPipeTip")
     elseif self:onLegendHeader(self:getMouseX(), self:getMouseY()) then
         self.status = getText(self:legendShown() and "IGUI_BU_LegendFold" or "IGUI_BU_LegendUnfold")
-    elseif self:toggleAt(self:getMouseX(), self:getMouseY()) == "title" and #(self.levels or {}) > 1 then
-        self.status = (self.titleFull and self.titleFull .. "  " or "") .. getText("IGUI_BU_FloorMenuHint")
     elseif self:toggleAt(self:getMouseX(), self:getMouseY()) == "title" and self.titleFull then
         self.status = self.titleFull
     elseif self:inMap(self:getMouseX(), self:getMouseY()) then
@@ -1197,20 +1211,6 @@ function ISBUPlan:scrollStrip(by)
     self:layoutStrip()
 end
 
--- Every floor in a menu at the mouse, top down, with how many devices are connected there; the one shown is not
--- offered.
-function ISBUPlan:floorMenu()
-    local menu = UI.menu(self.window, P)
-    for index = #self.levels, 1, -1 do
-        local level = self.levels[index]
-        local text = BU.floorName(level)
-        if (self.floorOn[level] or 0) > 0 then text = text .. "  (" .. self.floorOn[level] .. ")" end
-        if self.data and self.data.box.z == level then text = text .. "  " .. getText("IGUI_BU_FloorBox") end
-        local option = menu:addOption(text, nil, function() self:showFloor(level) end)
-        if level == self.floor then option.current = true end
-    end
-end
-
 function ISBUPlan:onMouseDown(x, y)
     local toggle = self:toggleAt(x, y)
     if toggle and toggle ~= "title" then UI.flash(self, "t" .. toggle) end
@@ -1232,7 +1232,9 @@ function ISBUPlan:onMouseDown(x, y)
         self:placeScheme()
         return true
     elseif toggle == "title" then
-        if #(self.levels or {}) > 1 then self:floorMenu() end
+        return true
+    elseif toggle == "pipe" then
+        self.window:pipePaintMenu()
         return true
     end
     -- On the map, a click is known when the button comes up without the plan moved.
@@ -1258,6 +1260,11 @@ function ISBUPlan:click(x, y)
     if self.data and self.data.zoneEdit and kind ~= "floor" then
         -- Editing the zone: a room, or the room of a dot, goes in or out.
         if thing and thing.room then self.window:toggleZoneRoom(thing.room) end
+        return true
+    end
+    if self.data and self.data.pipePaint and kind ~= "floor" then
+        -- Putting a pipe on rooms: a room, or the room of a dot, takes it.
+        if thing and thing.room then self.window:paintRoomPipe(thing.room) end
         return true
     end
     if kind == "floor" and thing.arrow then
