@@ -52,6 +52,9 @@ final class Texts implements Hooks.Text {
     private static final java.util.regex.Pattern NUMBER = java.util.regex.Pattern.compile("[0-9]{1,4}(\\.[0-9]{1,3})?");
     private static final java.util.regex.Pattern HEX = java.util.regex.Pattern.compile("[0-9A-Fa-f]{6}");
     private static final String CURSOR = "_";
+    // How far past the gap between two struck letters' advances their cut may move to an empty column, in line heights: the
+    // shadow's offset (a 24th), the outline and the ink that reaches past an advance.
+    private static final double STRIKE_REACH = 0.12;
     // A text whose alpha is below this is not drawn.
     private static final float INVISIBLE = 0.002f;
     // How far the rising and sinking effects move, in the text's line heights.
@@ -1714,6 +1717,7 @@ final class Texts implements Hooks.Text {
             System.arraycopy(glyphs.get(index), 0, shape.glyphs, index * 5, 5);
             space[index] = spaced.get(index);
         }
+        if (piece.pixels != null) Looks.cuts(piece.pixels, piece.boxWidth, piece.boxHeight, shape.glyphs, count, Math.max(2, line * STRIKE_REACH));
         Looks.keys(space, count, text.enterTime, seed, shape.keys);
         shape.glyphCount = count;
         return shape;

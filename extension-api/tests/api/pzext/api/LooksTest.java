@@ -128,6 +128,17 @@ final class LooksTest {
         check(keys[0] == 0 && near(keys[1], 0.25517569873644264) && near(keys[2], 0.8115553633901342) && near(keys[3], 0.9662789374534235) && near(keys[4], 1.17),
             "The typewriter's keys are not the page's: " + java.util.Arrays.toString(keys));
         check(near(Looks.fed(0, 5.5), 0) && near(Looks.fed(0.2, 5.5), 1) && near(Looks.fed(1, 5.5), 3), "The paper is not fed a line at a time");
+        // Three letters, the last on a row of its own: the first's ink reaches past its advance (20) to 22, the second's starts at
+        // 25; the cut goes to the empty column nearest the gap (23), and none is made across rows.
+        int width = 40, height = 10;
+        var pixels = java.nio.ByteBuffer.allocateDirect(width * height * 4);
+        for (int y = 0; y < 5; y++)
+            for (int x = 0; x < width; x++)
+                if (x >= 2 && x <= 22 || x >= 25 && x <= 38) pixels.put(((height - 1 - y) * width + x) * 4 + 3, (byte)200);
+        double[] glyphs = { 0, 20, 10, 0, 0.5, 20, 40, 30, 0, 0.5, 0, 40, 20, 0.5, 1 };
+        Looks.cuts(pixels, width, height, glyphs, 3, 8);
+        check(glyphs[1] == 23 && glyphs[5] == 23 && glyphs[6] == 40 && glyphs[10] == 0, "The struck letters are not cut at the empty column: "
+            + java.util.Arrays.toString(glyphs));
     }
 
     // ---- the styles ----

@@ -410,6 +410,35 @@ final class Looks {
         return 1;
     }
 
+    /**
+     * Moves the cuts between a struck text's letters ({@code glyphs}, five numbers each: from, to, middle, top, bottom, as the
+     * advances placed them) to the emptiest column of the picture near each: a letter's ink can reach past its advance (the foot of
+     * a Hangul ㅈ or ㅅ, its outline and shadow), and a cut through it strikes that part with the letter beside it, a little off its
+     * line, in pieces. A cut looks no farther than {@code reach} pixels outside the gap between two letters' advances, and never past
+     * their middles; of columns as empty, the one nearest the gap's middle. Columns are summed over the row's band.
+     */
+    static void cuts(java.nio.ByteBuffer pixels, int width, int height, double[] glyphs, int count, double reach) {
+        for (int index = 0; index + 1 < count; index++) {
+            int a = index * 5, b = a + 5;
+            if (glyphs[a + 3] != glyphs[b + 3]) continue;
+            double gapFrom = glyphs[a + 1], gapTo = glyphs[b], middle = (gapFrom + gapTo) / 2;
+            int low = (int)Math.ceil(Math.max(glyphs[a + 2], gapFrom - reach)), high = (int)Math.floor(Math.min(glyphs[b + 2], gapTo + reach));
+            low = Math.max(low, 0);
+            high = Math.min(high, width - 1);
+            if (low > high) continue;
+            int top = Math.max(0, (int)Math.floor(glyphs[a + 3] * height)), bottom = Math.min(height, (int)Math.ceil(glyphs[a + 4] * height));
+            int best = -1;
+            long least = Long.MAX_VALUE;
+            for (int x = low; x <= high; x++) {
+                long ink = 0;
+                for (int y = top; y < bottom; y++) ink += pixels.get(((height - 1 - y) * width + x) * 4 + 3) & 0xFF;
+                if (ink < least || ink == least && Math.abs(x - middle) < Math.abs(best - middle)) { least = ink; best = x; }
+            }
+            glyphs[a + 1] = best;
+            glyphs[b] = best;
+        }
+    }
+
     /** How far a sinking text has gone under, 0 to 1, {@code into} seconds into its leave: slowly at first, then faster and faster. */
     static double sunk(double into, double leaveTime) {
         double scale = Math.min(1, leaveTime / SINK_LEAVE), from = (MIRROR_IN + MIRROR_STAY) * scale;
