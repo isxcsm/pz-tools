@@ -46,8 +46,8 @@ function Upgrades.fragmentReceived(record, fullType)
     return true
 end
 
--- The title of a capstone taken: its name, and under it that the body took it; quiet (the API's "dust": it fades in and
--- crumbles away), in gold.
+-- The title of a capstone taken: its name, and under it what it is (a final adaptation); quiet (the API's "dust": it
+-- fades in and crumbles away), in gold.
 function Upgrades.capstoneTitle(node)
     return { key = Upgrades.Data.key(node.id, "Name"), sub = "IGUI_OA_Title_Capstone", style = "dust", tone = "gold",
         fallback = "good" }
