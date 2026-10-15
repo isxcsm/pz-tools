@@ -921,6 +921,7 @@
     "IGUI_OA_Story_UI_Stake": "Survey stake %1",
     "IGUI_OA_Story_UI_Swap_done": "The record has turned up. Take it.",
     "IGUI_OA_Story_UI_Swap_needcase": "Take the sealed sample case close to the place and leave it there.",
+    "IGUI_OA_Story_UI_Swap_ready": "The wait is over. Step away for a while, then come back and check.",
     "IGUI_OA_Story_UI_Swap_waiting": "The case is placed. Stay near the place until the record turns up.",
     "IGUI_OA_Econ_Radio_RefuseStart": "%1 intake suspended for now. Check the estimate before sealing. Over.",
     "IGUI_OA_Econ_Radio_RefuseBack": "%1 is on the request list again. Check this week's list. Over.",

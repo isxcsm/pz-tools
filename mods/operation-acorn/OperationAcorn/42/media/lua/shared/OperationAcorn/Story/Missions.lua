@@ -858,7 +858,7 @@ function Missions.tickOne(record, m, now)
         end
     end
     local g = game()
-    if m.swap and m.swap.stage == "waiting" then Missions.tickSwap(record, m, now) end
+    if m.swap and (m.swap.stage == "waiting" or m.swap.stage == "ready") then Missions.tickSwap(record, m, now) end
     if m.carry and g and g.findItem then Missions.tickCarry(record, m, now) end
     if m.field and m.field.stage == "calling" then Missions.tickField(record, m, now) end
     if m.state == "open" and Missions.lookWhere(record, m) then OA.Sync.changed("missions", record.id) end
@@ -1236,6 +1236,7 @@ function Missions.swap(record, character)
                 m.swap.stage = "waiting"
                 m.swap.waited = 0
                 m.swap.at = OA.hours()
+                if m.story then Story.monologue(record, m.story, "put") end
                 OA.Sync.changed("missions", record.id)
                 return true
             end
@@ -1247,9 +1248,15 @@ end
 -- The wait (waited, hours) adds up the game time from each look that found the player near (swap.at) to the next, not
 -- a sixth of an hour a look: the ten-minute event comes many times a real second fast-forwarded and may be skipped
 -- or come in a batch. A look that finds the player away (or nowhere) stops the count until one finds them near again.
+-- The stage follows the wait (Stage.progress "wait"). When it is over the player says so, wherever they are, and the
+-- record is swapped in at the next look that finds the drop out of their sight (stage "ready"): someone came by.
 function Missions.tickSwap(record, m, now)
     local g = game()
     if not g then return end
+    if m.swap.stage == "ready" then
+        if not g.dropSeen or not g.dropSeen(record, m) then Missions.deliverSwap(record, m) end
+        return
+    end
     local x, y = g.playerPosition(record)
     local p = m.site
     if not x or not p or Places.distance(x, y, p.x, p.y) > Data.CASE_RANGE then
@@ -1258,15 +1265,25 @@ function Missions.tickSwap(record, m, now)
     end
     if m.swap.at and now > m.swap.at then m.swap.waited = m.swap.waited + (now - m.swap.at) end
     m.swap.at = now
+    if OA.Stage then OA.Stage.progress(record, m, "wait", math.min(1, m.swap.waited / Data.SWAP_WAIT_HOURS)) end
     if m.swap.waited >= Data.SWAP_WAIT_HOURS then
-        m.swap.stage = "done"
-        -- The record appears in the case (or in the player's hands when the case is gone).
-        local it = { key = "A", type = Data.fullType(m.swap.item), mode = "inside", placed = false,
-                     mods = { OA_Variant = m.facility }, x = p.x, y = p.y, z = p.z }
-        m.items[#m.items + 1] = it
-        if g.deliverInside then g.deliverInside(record, m, it) end
+        m.swap.stage = "ready"
+        if m.story then Story.monologue(record, m.story, "waited") end
         OA.Sync.changed("missions", record.id)
+        if not g.dropSeen or not g.dropSeen(record, m) then Missions.deliverSwap(record, m) end
     end
+end
+
+-- The record appears in the case (or in the player's hands when the case is gone).
+function Missions.deliverSwap(record, m)
+    local g = game()
+    local p = m.site
+    m.swap.stage = "done"
+    local it = { key = "A", type = Data.fullType(m.swap.item), mode = "inside", placed = false,
+                 mods = { OA_Variant = m.facility }, x = p.x, y = p.y, z = p.z }
+    m.items[#m.items + 1] = it
+    if g and g.deliverInside then g.deliverInside(record, m, it) end
+    OA.Sync.changed("missions", record.id)
 end
 
 -- The field call device is used at the place: the mission item is sealed on the spot and the helicopter comes.
@@ -1305,8 +1322,9 @@ function Missions.callField(record, character, m)
     end
     m.state = "calling"
     if g.release then g.release(m) end
-    -- a story mission's call on the spot, as the helicopter comes (S5F, S8F)
+    -- a story mission's call on the spot, as the helicopter comes (S5F, S8F); what waits for it at the stage wakes
     if m.story then Story.call(record, "field:" .. m.story) end
+    if OA.Stage then OA.Stage.event(record, m, "heli") end
     OA.Sync.notice(record.id, "IGUI_OA_Story_UI_Field_calling", {})
     OA.Sync.changed("missions", record.id)
     return true

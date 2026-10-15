@@ -2,18 +2,28 @@
 -- left of it. The pieces of each facility are data (Story/StageData); this part decides where they go and when, and the
 -- world's hands (`Stage.game`, Story/StageGame) put them there. Tests give the hands fakes.
 --
--- When: a story mission at a building (not open ground) gets a stage as it begins (m.stage). The building is set up
+-- Which: the stage of a story mission is its story's (a choice's by its option, `<story>_<option>`; a revisit's the
+-- stage of the story whose site it goes back to), when the site is the kind the stage is for (a building, or open
+-- ground for a stage with `ground`).
+--
+-- When: a story mission whose site has a stage gets one as it begins (m.stage). The building is set up
 -- once it is all loaded (BuildingDef.isFullyStreamedIn), or once the player is READY near when it is too large to be
 -- loaded whole (what is not loaded then is left out): the things, the locks, the bodies, the
 -- mission's own item. Its zombies come once the player is READY near, made away from the player as the mission scene's
 -- keepers are (Story/Scene). A building is set up once in a world (Store.world "stages"): a later mission there (a
 -- revisit) only puts its item. A piece that cannot be put (no room of its kind, its square taken) is left out.
+-- Open ground is set up the same way once the squares round the site are loaded.
+--
+-- Afterwards: what waits for an event (Stage.event: "pickup", "heli") wakes then, all at once or one after another
+-- (`stagger` seconds apart); what is spread over a span (Stage.progress: "wait", the swap's wait from 0 to 1) wakes
+-- one by one across it (`during`), and a door boarded with `drop` loses a plank at that point of it.
 --
 -- Where: the hands read the building's layout as it loads: its rooms ({ name, area, z, x, y, x2, y2, edge = touches the
 -- building's outline }) and its outer doors and windows on the ground floor. The rooms get roles (Stage.roles): "big"
 -- (the largest on the ground floor), "inner" (one inside, away from the outline), "other" (another), "hall" (a hall or
 -- corridor, or another one), none of them but the big one smaller than ROOM_AREA; "entrance" is the outer door nearest
--- the big room. A piece names the role it goes to (`at`).
+-- the big room, "back" the one farthest from it. A piece names the role it goes to (`at`); "yard" is the ground outside
+-- the entrance, and on open ground "ground" is the site's own, the piece's place given from its middle (`dx`, `dy`).
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Story/Places"
@@ -27,14 +37,21 @@ Stage.game = nil
 
 -- The kinds put as the building loads; the rest (zombies) wait for the player.
 Stage.PLACE_KINDS = { tile = true, set = true, item = true, vehicle = true, barricade = true, lock = true,
-    corpse = true, blood = true, piece = true }
+    corpse = true, blood = true, piece = true, board = true, lockout = true, generator = true, window = true, line = true }
+Stage.GROUND_RADIUS = 12   -- open ground is set up once the squares this far round the site are loaded
 Stage.READY = 40   -- the zombies are made once the player is this near the site (as the mission scene's, Story/Scene)
 Stage.ROOM_AREA = 4   -- the least area of a room with a role but the big one (a map has rooms of one square: pillars)
 
--- The stage data of a mission: its facility's, for a story mission at a building; nil otherwise.
+-- The stage data of a mission: its story's (by its option; a revisit's, the story's it goes back to), when its site is
+-- the kind the stage is for; nil otherwise.
 function Stage.defOf(m)
-    if not (m and m.story and m.facility and m.site and not m.site.ground) then return nil end
-    return OA.StageData[m.facility]
+    if not (m and m.story and m.site) then return nil end
+    local key = m.chosen and (m.story .. "_" .. m.chosen) or m.story
+    local revisits = OA.StoryData and OA.StoryData.REVISITS
+    local back = revisits and revisits[m.story]
+    local def = OA.StageData[key] or (back and back.from and OA.StageData[back.from])
+    if not def or (def.ground == true) ~= (m.site.ground == true) then return nil end
+    return def
 end
 
 -- The buildings set up in this world: site key -> true.
@@ -119,17 +136,19 @@ function Stage.roles(layout, int)
     end
     if #rest > 0 then roles.other = rest[int(1, #rest)] end
     roles.hall = roles.hall or roles.other
-    -- the entrance: the outer door nearest the big room
+    -- the entrance: the outer door nearest the big room; the back: the farthest other one
     local doors = layout.doors or {}
     if #doors > 0 then
         local bx, by = 0, 0
         if roles.big then bx, by = centre(rooms[roles.big]) end
-        local best, bestD
+        local best, bestD, far, farD
         for i, d in ipairs(doors) do
             local dist = Places.distance(bx, by, d.x, d.y)
             if not bestD or dist < bestD then best, bestD = i, dist end
+            if not farD or dist > farD then far, farD = i, dist end
         end
         roles.entrance = best
+        if far ~= best then roles.back = far end
     end
     return roles
 end
@@ -178,6 +197,11 @@ function Stage.place(record, m, layout, int)
         if Stage.PLACE_KINDS[p.kind] and (fresh or p.kind == "piece") then
             local result = run(ctx, p)
             if p.kind == "lock" and result then ctx.keyId = result end
+            -- a boarded door that loses a plank at a point of a span
+            if p.drop and type(result) == "table" then
+                st.during = st.during or {}
+                st.during[#st.during + 1] = { name = p.drop.during, at = p.drop.at, plank = result }
+            end
         end
     end
     -- a piece the stage could not put goes the usual way
@@ -210,6 +234,17 @@ function Stage.keep(record, m, px, py, near)
                 local list = st.wake[p.wake] or {}
                 for _, at in ipairs(points) do list[#list + 1] = at end
                 st.wake[p.wake] = list
+                if p.stagger then
+                    st.stagger = st.stagger or {}
+                    st.stagger[p.wake] = p.stagger
+                end
+            end
+            -- spread over a span: the i-th of n wakes at i / (n + 1) of it
+            if p.during and type(points) == "table" then
+                st.during = st.during or {}
+                for i, at in ipairs(points) do
+                    st.during[#st.during + 1] = { name = p.during, at = i / (#points + 1), points = { at } }
+                end
             end
         end
     end
@@ -236,7 +271,27 @@ function Stage.event(record, m, name)
     if not list then return end
     st.wake[name] = nil
     local g = Stage.game
-    if g and g.wake then pcall(g.wake, list) end
+    if g and g.wake then pcall(g.wake, list, st.stagger and st.stagger[name]) end
+end
+
+-- A span at the stage has come to `f` (0 to 1; "wait": the swap's wait): what is spread over it up to there happens,
+-- each once.
+function Stage.progress(record, m, name, f)
+    local st = m and m.stage
+    local list = st and st.during
+    if not list then return end
+    local g = Stage.game
+    local i = 1
+    while i <= #list do
+        local e = list[i]
+        if e.name == name and f >= e.at then
+            table.remove(list, i)
+            if g and e.points and g.wake then pcall(g.wake, e.points) end
+            if g and e.plank and g.unplank then pcall(g.unplank, e.plank) end
+        else
+            i = i + 1
+        end
+    end
 end
 
 return Stage

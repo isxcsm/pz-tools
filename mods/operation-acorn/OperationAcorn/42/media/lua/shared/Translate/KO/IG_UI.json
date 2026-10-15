@@ -921,6 +921,7 @@
     "IGUI_OA_Story_UI_Stake": "측량 말뚝 %1",
     "IGUI_OA_Story_UI_Swap_done": "기록철이 나왔습니다. 가져가십시오.",
     "IGUI_OA_Story_UI_Swap_needcase": "밀봉 시료함을 들고 현장 가까이로 가서 두십시오.",
+    "IGUI_OA_Story_UI_Swap_ready": "대기 시간이 끝났습니다. 잠시 자리를 떴다가 돌아와 확인하십시오.",
     "IGUI_OA_Story_UI_Swap_waiting": "시료함을 두었습니다. 기록철이 나올 때까지 현장 근처에 머무르십시오.",
     "IGUI_OA_Econ_Radio_RefuseStart": "%1 납품 접수를 당분간 중단합니다. 밀봉 전에 견적을 확인하십시오. 이상.",
     "IGUI_OA_Econ_Radio_RefuseBack": "%1 시료가 다시 요청 목록에 올랐습니다. 이번 주 목록을 확인하십시오. 이상.",

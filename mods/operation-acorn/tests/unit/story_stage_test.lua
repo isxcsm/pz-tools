@@ -83,7 +83,7 @@ end)
 
 -- A story mission at a building, the stage data of its facility given by the test, and fake hands that log the pieces.
 local function setup(pieces)
-    OA.StageData.police = { pieces = pieces }
+    OA.StageData.evidence = { pieces = pieces }
     local record = OA.Store.ensure("p1", "P")
     record.trade = { stage = 1, milestones = 0, credits = 0, trust = 0 }
     local g = { calls = {}, loaded = true, requested = {}, woke = {} }
@@ -134,7 +134,7 @@ test("a story mission at a building gets a stage and leaves its item to it; open
     local regular = { facility = "police", site = { x = 1, y = 1 }, items = {} }
     Stage.begin(record, regular)
     eq(regular.stage, nil)
-    OA.StageData.police = nil
+    OA.StageData.evidence = nil
     local none = { story = "evidence", facility = "police", site = { x = 1, y = 1 }, items = {} }
     Stage.begin(record, none)
     eq(none.stage, nil, "a facility without stage data")
@@ -224,20 +224,99 @@ test("a building too large to load whole is set up once the player is near, with
     eq(m.stage.placed, true)
 end)
 
-test("every piece of the stage data has hands in the game and goes to a role there is", function()
+test("every piece of the stage data has hands in the game and goes to a place there is", function()
     require "OperationAcorn/Story/StageGame"
-    local roles = { big = true, inner = true, other = true, hall = true, entrance = true }
+    require "OperationAcorn/Story/Data"
+    local building = { big = true, inner = true, other = true, hall = true, entrance = true, back = true, yard = true }
+    local ground = { ground = true }
     local n = 0
-    for facility, def in pairs(OA.StageData) do
+    for id, def in pairs(OA.StageData) do
+        local places = def.ground and ground or building
         for i, p in ipairs(def.pieces) do
-            local what = facility .. " " .. i .. " " .. tostring(p.kind)
+            local what = id .. " " .. i .. " " .. tostring(p.kind)
             truthy(type(OA.StageGame[p.kind]) == "function", what .. " has hands")
-            truthy(p.kind == "barricade" or roles[p.at], what .. " goes to a role")
+            truthy(p.kind == "barricade" or p.kind == "lockout" or places[p.at], what .. " goes to a place")
             truthy(Stage.PLACE_KINDS[p.kind] or p.kind == "zombies", what .. " is put at some time")
             if p.kind == "piece" then truthy(p.key, what .. " names its piece") end
+            if p.kind == "line" then truthy(def.ground and p.step and p.length, what .. " runs on open ground") end
+            if p.drop then truthy(p.kind == "board" and p.drop.during and p.drop.at, what .. " drops in a span") end
             n = n + 1
         end
+        -- the stage belongs to a story (or a choice's option) whose site is of its kind
+        local story, option = id:match("^(.-)_(%a)$")
+        local sdef = OA.StoryData.STORIES[option and story or id]
+        truthy(sdef, id .. " is a story's")
+        local site = option and sdef.options[option].site or sdef.site
+        eq(def.ground == true, site.ground == true, id .. ": open ground as its site")
     end
     truthy(n > 0)
-    truthy(OA.StageData.police, "the police post has its stage")
+    for _, id in ipairs({ "evidence", "clinic", "observation_a", "observation_b", "cooler", "gym" }) do
+        truthy(OA.StageData[id], id .. " has its stage")
+    end
+end)
+
+test("the stage is the story's, a choice's by its option, a revisit's the story's it goes back to; of its site's kind", function()
+    require "OperationAcorn/Story/Data"
+    local a, ground = { pieces = {} }, { ground = true, pieces = {} }
+    OA.StageData.t_story, OA.StageData.t_choice_a, OA.StageData.t_ground = a, a, ground
+    OA.StoryData.REVISITS.t_revisit = { from = "t_story" }
+    local building = { x = 1, y = 1 }
+    eq(Stage.defOf({ story = "t_story", site = building }), a)
+    eq(Stage.defOf({ story = "t_choice", chosen = "a", site = building }), a)
+    eq(Stage.defOf({ story = "t_choice", chosen = "b", site = building }), nil, "no stage for the other option")
+    eq(Stage.defOf({ story = "t_revisit", site = building }), a)
+    eq(Stage.defOf({ story = "t_story", site = { x = 1, y = 1, ground = true } }), nil, "a building's stage on open ground")
+    eq(Stage.defOf({ story = "t_ground", site = { x = 1, y = 1, ground = true } }), ground)
+    eq(Stage.defOf({ story = "t_ground", site = building }), nil)
+    eq(Stage.defOf({ site = building }), nil, "not a story")
+    OA.StageData.t_story, OA.StageData.t_choice_a, OA.StageData.t_ground = nil, nil, nil
+    OA.StoryData.REVISITS.t_revisit = nil
+end)
+
+test("the back door is the outer door farthest from the big room, when there are two", function()
+    local roles = Stage.roles(layout(), function(a) return a end)
+    eq(roles.entrance, 1)
+    eq(roles.back, 2)
+    local one = layout()
+    one.doors = { one.doors[1] }
+    eq(Stage.roles(one).back, nil)
+end)
+
+test("what is spread over the wait wakes one by one across it, a plank falls at its point; each once", function()
+    local record, m, g = setup({
+        { kind = "board", at = "inner", drop = { during = "wait", at = 0.85 } },
+        { kind = "zombies", at = "big", count = 3, during = "wait" },
+    })
+    g.board = function(ctx, p) return { x = 7, y = 7, z = 0, north = true } end
+    g.zombies = function(ctx, p) return { { x = 1, y = 0, z = 0 }, { x = 2, y = 0, z = 0 }, { x = 3, y = 0, z = 0 } } end
+    local planks = {}
+    g.unplank = function(at) planks[#planks + 1] = at end
+    Stage.begin(record, m)
+    Stage.look(record, m, 530, 0, 20)
+    Stage.progress(record, m, "wait", 0.1)
+    eq(#g.woke, 0)
+    Stage.progress(record, m, "wait", 0.3)
+    eq(#g.woke, 1, "the first at a quarter")
+    eq(g.woke[1][1].x, 1)
+    Stage.progress(record, m, "other", 1)
+    eq(#g.woke, 1, "another span")
+    Stage.progress(record, m, "wait", 0.8)
+    eq(#g.woke, 3, "the second at half, the third at three quarters")
+    eq(#planks, 0)
+    Stage.progress(record, m, "wait", 1)
+    eq(#planks, 1)
+    eq(planks[1].y, 7)
+    Stage.progress(record, m, "wait", 1)
+    eq(#g.woke, 3)
+    eq(#planks, 1, "once")
+end)
+
+test("an event wakes its zombies with the stagger their piece gives", function()
+    local record, m, g = setup({ { kind = "zombies", at = "other", count = 2, wake = "heli", stagger = 8 } })
+    local staggers = {}
+    g.wake = function(list, stagger) staggers[#staggers + 1] = stagger end
+    Stage.begin(record, m)
+    Stage.look(record, m, 530, 0, 20)
+    Stage.event(record, m, "heli")
+    eq(staggers[1], 8)
 end)

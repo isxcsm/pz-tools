@@ -516,15 +516,25 @@ function Game.tryPlace(record, m, it, forceFloor)
     return true
 end
 
+-- Puts the piece on a square's floor (a story site's stage chose it). True when done.
+function Game.placeOnSquare(record, m, it, sq)
+    if not sq then return false end
+    local item = newItem(record, m, it)
+    if not item then return true end
+    dropOnFloor(sq, item)
+    finish(record, m, it, sq)
+    return true
+end
+
 -- Puts the piece in a container of a room (a RoomDef of the loaded building; a story site's stage chose it), else on
--- the room's floor. True when done.
-function Game.placeInRoom(record, m, it, roomDef)
+-- the room's floor (`floorOnly`: there in any case). True when done.
+function Game.placeInRoom(record, m, it, roomDef, floorOnly)
     local room = roomDef and roomDef:getIsoRoom()
     if not room then return false end
     local w = weightOf(it)
     local found = {}
     local squares = room:getSquares()
-    for i = 0, squares:size() - 1 do
+    for i = 0, floorOnly and -1 or squares:size() - 1 do
         local sq = squares:get(i)
         local objects = sq:getObjects()
         for j = 0, objects:size() - 1 do
@@ -786,6 +796,25 @@ end
 -- The record in the drop case.
 
 -- The record appears in the case at the drop (or in the player's hands when the case is gone).
+-- Whether the player may see a swap's drop now: they are within a few squares of it or in its room, or its square is
+-- in their sight. False when they are away, or the drop's square is not loaded.
+function Game.dropSeen(record, m)
+    local character = Game.character(record)
+    local caseIt
+    for _, p in ipairs(m.items) do
+        if p.key == "CASE" then caseIt = p end
+    end
+    local at = caseIt and caseIt.at
+    if not (character and at) then return false end
+    local sq = cell():getGridSquare(at.x, at.y, at.z)
+    if not sq then return false end
+    local dx, dy = character:getX() - (at.x + 0.5), character:getY() - (at.y + 0.5)
+    if math.floor(character:getZ()) == at.z and dx * dx + dy * dy <= 9 then return true end
+    local mine = character:getCurrentSquare()
+    if sq:getRoom() and mine and mine:getRoom() == sq:getRoom() then return true end
+    return sq:isCanSee(character:getPlayerNum())
+end
+
 function Game.deliverInside(record, m, it)
     local caseIt
     for _, p in ipairs(m.items) do

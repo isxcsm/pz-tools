@@ -438,6 +438,45 @@ test("the swap's wait counts game time, not looks", function()
     eq(m.swap.stage, "done")
 end)
 
+test("the swap: monologues as the case is left and the wait ends; the record comes once the drop is out of sight", function()
+    local record = setup(2)
+    Story.section(record).seenStage = 1
+    M.tick(record)
+    local m = M.active(record)
+    local p = m.site
+    M.game.px, M.game.py = p.x, p.y
+    local seen = true
+    M.game.dropSeen = function() return seen end
+    local progress = {}
+    require "OperationAcorn/Story/Stage"
+    local stage = OperationAcorn.Stage
+    local was = stage and stage.progress
+    if stage then stage.progress = function(_, _, name, f) progress[#progress + 1] = name .. ":" .. f end end
+    TEST.hours = 100
+    truthy(M.swap(record, {}))
+    local played = OperationAcorn.Comms.section(record).played
+    truthy(played.S2F_put, "the case left")
+    TEST.hours = 101
+    M.tick(record)
+    eq(progress[#progress], "wait:0.5", "the stage follows the wait")
+    TEST.hours = 102
+    M.tick(record)
+    eq(m.swap.stage, "ready", "over, the drop in sight")
+    truthy(played.S2F_waited, "the wait over")
+    eq(M.game.delivered, nil)
+    TEST.hours = 102.2
+    M.tick(record)
+    eq(m.swap.stage, "ready", "still in sight")
+    seen = false
+    M.game.px = p.x + 5000
+    TEST.hours = 102.4
+    M.tick(record)
+    eq(m.swap.stage, "done", "out of sight, wherever the player is")
+    eq(M.game.delivered.type, "OperationAcorn.ClinicRecord")
+    M.game.dropSeen = nil
+    if stage then stage.progress = was end
+end)
+
 test("the swap's wait stops while the player is away and goes on when they are back", function()
     local record = setup(2)
     Story.section(record).seenStage = 1
