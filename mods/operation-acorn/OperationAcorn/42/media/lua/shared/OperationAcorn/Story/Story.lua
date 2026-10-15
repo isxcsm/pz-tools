@@ -28,6 +28,7 @@ function Story.section(record)
         s.seenStage = 0
         s.seenMilestones = 0
         s.handover = false
+        s.handoverCrates = 0 -- crates loaded since the handover; handoverShown: its card and Admin 7's first call came
         s.docs = {}          -- read documents: id -> true (or the place variant it was read at)
         s.queue = {}         -- story missions waiting: { id =, fresh =, option = }
         s.done = {}          -- story id -> "done" | "missed"
@@ -232,6 +233,9 @@ end
 function Story.crateSpecs(record)
     -- the first supply crate of a tier is what that tier's scene waits for (6 and 7)
     Story.call(record, "crate:" .. Story.tier(record))
+    -- the crates loaded since the handover: the first is the last of 2반 (Story.onOpened)
+    local s = Story.section(record)
+    if s.handover and not s.handoverShown then s.handoverCrates = (s.handoverCrates or 0) + 1 end
     local spec = Story.takePaper(record)
     return spec and { spec } or nil
 end
@@ -396,8 +400,10 @@ function Story.nextStory(record)
 end
 
 -- ---------------------------------------------------------------------------------------------------------------
--- The handover (LORE 5): at the 3rd milestone. The handover mission ends (in any way), then the last crate comes, the
--- call sign changes, the trade goes on.
+-- The handover (LORE 5): at the 3rd milestone. The handover mission ends (in any way), then the last crate comes (the
+-- file, a kit voucher, Kiesling's last remark with Branscomb's walkie-talkie), the call sign changes, the trade goes
+-- on. The handover's card and Admin 7's first call (S9) wait for that crate to be opened: S9 asks after Branscomb by
+-- the name the remark gave. A crate loaded after it, opened, does it as well (the last one lost or left).
 function Story.completeHandover(record)
     local s = Story.section(record)
     if s.handover then return end
@@ -405,10 +411,24 @@ function Story.completeHandover(record)
     s.noteQueue[#s.noteQueue + 1] = "last_b"
     Story.queueSupply(record, "HandoverFile", nil)
     Story.queueSupply(record, "KitVoucher", nil)
+    OA.log("story: handover for", record.number)
+    OA.Sync.changed("story", record.id)
+end
+
+-- A supply crate was opened (Trade.onOpened): the last one of 2반 (or one after it) shows the handover.
+function Story.onOpened(record, cargo)
+    local s = Story.section(record)
+    if not s.handover or s.handoverShown then return end
+    local file = Data.fullType("HandoverFile")
+    local last = (s.handoverCrates or 0) >= 2
+    for _, spec in ipairs(cargo or {}) do
+        if spec.type == file then last = true end
+    end
+    if not last then return end
+    s.handoverShown = true
     OA.Sync.title(record.id, { key = "IGUI_OA_Title_Handover", sub = "IGUI_OA_Title_HandoverSub",
         subArgs = { { key = Story.callSignKey(record) } }, style = "type" })
     Story.call(record, "handedover")
-    OA.log("story: handover for", record.number)
     OA.Sync.changed("story", record.id)
 end
 

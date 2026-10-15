@@ -23,8 +23,10 @@
 --             of them with one that has the parts asked for
 --             outside by the entrance (or the role's door), or about the spot on open ground (`across`: east to west)
 --   barricade { planks = { least, most } } boards on the inside of each ground floor window
---   board     { planks, drop = { during, at } } boards on the outside of the room's doors; with `drop`, one plank
---             falls at that point of the span (Stage.progress)
+--   board     { planks, drop = { during, at }, last } boards on the outside of the room's doors; with `drop`, one
+--             plank falls at that point of the span (Stage.progress); with `last` (an event), the player taking the
+--             last plank off them makes that event and the story's monologue for it (Stage.unboarded)
+--   block     blocks the room's doors but one from inside with a hospital bed
 --   lockout   locks the outer doors but the entrance (no key)
 --   lock      locks the room's doors with the building's key: the key goes to the next corpse with `key = true`
 --   window    { chair } opens one of the room's windows; with `chair` ({ N, S, W, E }) a chair inside it, turned to it
@@ -73,6 +75,8 @@ local STRETCHER = { { 0, 0, "furniture_bedding_01_57" }, { 0, 1, "furniture_bedd
 local TENT = { { 0, 0, "camping_04_99" }, { 0, 1, "camping_04_98" }, { 0, 2, "camping_04_97" }, { 0, 3, "camping_04_96" },
     { 1, 0, "camping_04_103" }, { 1, 1, "camping_04_102" }, { 1, 2, "camping_04_101" }, { 1, 3, "camping_04_100" } }
 local TARP = { { 0, 0, "camping_03_38" }, { 1, 0, "camping_03_39" } }
+local DRIP = "location_community_medical_01_25"   -- a drip stand (Mobile Bloodbag, Facing S)
+local CURTAIN = { { 0, 0, "location_community_medical_01_40" }, { 1, 0, "location_community_medical_01_41" } }
 
 -- 1: the temporary police post. The keepers in Police outfits walk the inside (Story/Scene); one lies fake dead in the
 -- hall and gets up when the evidence envelope is taken.
@@ -178,6 +182,47 @@ StageData.gym = { pieces = {
     { kind = "corpse", at = "other", count = 3 },
     { kind = "blood", at = "other", count = 1 },
     { kind = "zombies", at = "other", count = 4, look = "fakeDead", wake = "heli", stagger = 8 },
+} }
+
+-- 6: the temporary isolation ward. The outer doors but the entrance locked, the ward's doors but one blocked from inside
+-- with beds; rows of beds with drip stands, curtains half drawn, bodies in gowns and some lying fake dead, who get up
+-- when the filter is taken; the air handling room (the inner one) locked, its key on a doctor's body.
+StageData.ward = { pieces = {
+    { kind = "tile", at = "entrance", sprite = MEDICAL },
+    { kind = "lockout" },
+    { kind = "block", at = "big" },
+    { kind = "set", at = "big", count = 4, tiles = BED, more = { { 1, 0, DRIP } } },
+    { kind = "set", at = "big", count = 2, fewer = 1, tiles = CURTAIN },
+    { kind = "corpse", at = "big", outfit = "HospitalPatient", count = 3 },
+    { kind = "blood", at = "big", count = 1 },
+    { kind = "lock", at = "inner" },
+    { kind = "corpse", at = "other", outfit = "Doctor", key = true },
+    { kind = "piece", at = "inner", key = "A" },
+    { kind = "zombies", at = "big", outfit = "HospitalPatient", count = 2, look = "fakeDead", wake = "pickup" },
+    { kind = "zombies", at = "big", outfit = "HospitalPatient", count = 2 },
+} }
+
+-- 7: the temporary holding facility. The hall's doors boarded from outside (taking the last plank off is the moment of
+-- the monologue), a guard's body by them with the key; inside, the rooms locked with one shut in each, the intake
+-- filter in the inner one.
+StageData.cells = { pieces = {
+    { kind = "tile", at = "entrance", sprite = NOTICE },
+    { kind = "board", at = "hall", planks = { 2, 3 }, last = "plank" },
+    { kind = "lock", at = "other" },
+    { kind = "lock", at = "inner" },
+    { kind = "corpse", at = "big", outfit = "PrisonGuard", key = true },
+    { kind = "piece", at = "inner", key = "A" },
+    { kind = "blood", at = "hall", count = 1 },
+    { kind = "zombies", at = "other", outfit = "Inmate", count = 2 },
+    { kind = "zombies", at = "inner", outfit = "InmateKhaki" },
+} }
+
+-- 8: the handover, on open ground at the far band: as the reception's trade on the spot, a small stage, one tent and
+-- a few crates.
+StageData.handover = { ground = true, pieces = {
+    { kind = "set", at = "ground", dx = -2, dy = -3, reach = 1, tiles = TENT },
+    { kind = "set", at = "ground", dx = 3, dy = 2, reach = 2, count = 3, tiles = { { 0, 0, "location_military_generic_01_0" } } },
+    { kind = "set", at = "ground", dx = 3, dy = 2, reach = 2, tiles = { { 0, 0, "location_military_generic_01_8" } } },
 } }
 
 return StageData

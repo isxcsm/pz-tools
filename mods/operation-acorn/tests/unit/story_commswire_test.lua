@@ -75,11 +75,13 @@ test("a settlement, a serum, a story mission's box, a crate at its tier and a pa
     eq(Comms.section(record).fired.S7, nil)
 end)
 
-test("the handover fires the scene after it; the handover mission's call comes however it ended", function()
+test("the handover mission's call comes however it ended; the scene after the handover once its last crate is opened", function()
     local record = setup("w6", 5, 3)
     Story.section(record).seenStage, Story.section(record).seenMilestones = 5, 3
     Story.missionEnded(record, { story = "handover" }, "expired")
     truthy(Comms.section(record).fired.S8)
+    eq(Comms.section(record).fired.S9, nil)
+    Story.onOpened(record, { { type = "OperationAcorn.HandoverFile", count = 1 } })
     truthy(Comms.section(record).fired.S9)
     truthy(Story.handedOver(record))
 end)

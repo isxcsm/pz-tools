@@ -340,8 +340,9 @@ function Things.land(object)
     Objects.setSprite(object, Sprites.supplyCrate(false))
 end
 
--- Opens a sealed crate: the cargo becomes real items in a normal container, and the tile shows it open.
-function Things.unseal(character, object)
+-- Opens a sealed crate: the cargo becomes real items in a normal container, and the tile shows it open. The other
+-- parts hear what it held (Trade.onOpened) when the opener's record is given.
+function Things.unseal(character, object, record)
     local md = object:getModData()
     if Objects.kindOf(object) ~= Objects.CRATE or not md[Objects.SEALED] then return false, "state" end
     local square = object:getSquare()
@@ -354,6 +355,7 @@ function Things.unseal(character, object)
     Objects.setSprite(object, Sprites.supplyCrate(true))
     if isServer() then object:transmitCompleteItemToClients() end
     square:playSound(Things.LATCH_SOUND)
+    if record and Trade.fireOpened then Trade.fireOpened(record, cargo) end
     return true
 end
 

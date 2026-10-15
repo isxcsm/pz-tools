@@ -200,7 +200,7 @@ local ITEMS = {
     "EngineTuningKit", "ResearchBackpack", "ResearchWaistBag", "TeamFuelCan", "TeamWeldingMask", "MissionItem",
     "DocumentItem",
     "MissionEnvelope", "MissionSampleTin", "MissionLogbook", "MissionFilterCase", "MissionTape", "MissionFabricRoll", "MissionHeavyCase", "EvidenceEnvelope", "ClinicRecord",
-    "WeatherLog", "FarmJournal", "SampleCooler", "RosterPage", "ReviewMemo", "WardRecord", "CellLog", "SoilSample",
+    "WeatherLog", "FarmJournal", "SampleCooler", "RosterPage", "ReviewMemo", "WardFilter", "CellFilter", "SoilSample",
     "StakeTag", "RosterLostPage", "FilterBundle", "PharmacyLedger", "CopyOriginal", "SampleCase", "DeadDropCase", "FieldCallDevice",
     "AnalysisReply", "Appendix", "SerumSheet", "UnresolvedList", "HandoverFile", "HandoverPages", "KitVoucher",
     "HarvestScalpel", "PrecisionTweezers", "TissueCommon", "TissueInfected", "TissueNeural", "TissueAnomalous", "TissueTarget",

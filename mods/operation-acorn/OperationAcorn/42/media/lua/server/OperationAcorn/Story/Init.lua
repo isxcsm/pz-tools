@@ -40,6 +40,7 @@ local function subscribe()
     local a = listen(OA.Trade.onSealed, Missions.onSealed)
     local b = listen(OA.Trade.onSettled, Missions.onSettled)
     local c = listen(OA.Trade.onSettled, Story.onSettled)
+    if OA.Trade.onOpened then listen(OA.Trade.onOpened, Story.onOpened) end
     -- The manifest's remark: the story's ordered lines go in front of the filler lines and the general ones (they say what
     -- the remark encloses too: Trade.Settle puts it in the crate), and the 2반 papers go in the crates, one to each.
     if OA.Trade.addNoteProvider and OA.Trade.addCrateProvider and not provided then

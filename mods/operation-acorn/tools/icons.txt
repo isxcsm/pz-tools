@@ -78,8 +78,8 @@ FarmJournal	farm_journal	story item (P4)
 SampleCooler	sample_cooler	story item (P4)
 RosterPage	roster_page	story item (P4)
 ReviewMemo	review_memo	story item (P4)
-WardRecord	ward_record	story item (P4)
-CellLog	cell_log	story item (P4)
+WardFilter	ward_filter	stage 6 story item: the ward's air filter, its log clipped on
+CellFilter	cell_filter	stage 7 story item: the intake filter, the roll-call sheets tied on
 SoilSample	soil_sample	story item (P4)
 StakeTag	stake_tag	story item (P4)
 RosterLostPage	roster_lost_page	story item (P4)

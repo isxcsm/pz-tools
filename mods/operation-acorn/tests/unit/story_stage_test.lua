@@ -298,7 +298,8 @@ test("every piece of the stage data has hands in the game and goes to a place th
         eq(def.ground == true, site.ground == true, id .. ": open ground as its site")
     end
     truthy(n > 0)
-    for _, id in ipairs({ "evidence", "clinic", "observation_a", "observation_b", "cooler", "gym" }) do
+    for _, id in ipairs({ "evidence", "clinic", "observation_a", "observation_b", "cooler", "gym", "ward", "cells",
+        "handover" }) do
         truthy(OA.StageData[id], id .. " has its stage")
     end
 end)
@@ -428,4 +429,34 @@ test("a thing that sounds on an event sounds once, also when the event came befo
     Stage.begin(record, m)
     Stage.look(record, m, 2000, 0, 20)
     Stage.event(record, m, "enter")
+end)
+
+test("doors boarded with `last`: taking the last plank off makes the event and the monologue once", function()
+    local record, m, g = setup({ { kind = "board", at = "hall", last = "plank" },
+        { kind = "zombies", at = "other", wake = "plank" } })
+    m.story = "cells"
+    OA.StageData.cells = OA.StageData.evidence
+    local bare = { false, false }
+    g.board = function()
+        return { x = 1, y = 1, z = 0, all = { { x = 1, y = 1, z = 0 }, { x = 2, y = 1, z = 0 } } }
+    end
+    g.unboardedAt = function(at) return bare[at.x] end
+    Stage.begin(record, m)
+    Stage.look(record, m, 530, 0, 20)
+    M.state(record).active = m
+    record.missions = record.missions or {}
+    local live = OA.Missions.live
+    OA.Missions.live = function() return { m } end
+    Stage.unboarded(record)
+    eq(#g.woke, 0, "planks left on both")
+    bare[1] = true
+    Stage.unboarded(record)
+    eq(#g.woke, 0, "one door still boarded")
+    bare[2] = true
+    Stage.unboarded(record)
+    eq(#g.woke, 1)
+    truthy(OA.Comms.section(record).played.S7F_plank, "the monologue")
+    Stage.unboarded(record)
+    eq(#g.woke, 1, "once")
+    OA.Missions.live = live
 end)

@@ -170,7 +170,7 @@ end
 function ISOAUnseal:complete()
     local object = Objects.find(squareOf(self), Objects.CRATE)
     if not object then return false end
-    local ok, why = Things.unseal(self.character, object)
+    local ok, why = Things.unseal(self.character, object, recordOf(self.character))
     if not ok then refuse(self.character, why) end
     return true
 end

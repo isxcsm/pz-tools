@@ -39,11 +39,13 @@ function Trade.heli(record) return Store.section(record, "heli") end
 function Trade.orders(record) return Store.section(record, "orders") end
 
 -- Events for other parts (server side): fn(record, boxId, entries) when a box is sealed, fn(record, result) when a
--- helicopter has settled a delivery. A failing listener does not stop the others.
-local sealedHooks, settledHooks = {}, {}
+-- helicopter has settled a delivery, fn(record, cargo) when a supply crate is opened (cargo: the item specs it held).
+-- A failing listener does not stop the others.
+local sealedHooks, settledHooks, openedHooks = {}, {}, {}
 
 function Trade.onSealed(fn) table.insert(sealedHooks, fn) end
 function Trade.onSettled(fn) table.insert(settledHooks, fn) end
+function Trade.onOpened(fn) table.insert(openedHooks, fn) end
 
 local function fire(list, ...)
     for _, fn in ipairs(list) do
@@ -54,6 +56,7 @@ end
 
 function Trade.fireSealed(record, boxId, entries) fire(sealedHooks, record, boxId, entries) end
 function Trade.fireSettled(record, result) fire(settledHooks, record, result) end
+function Trade.fireOpened(record, cargo) fire(openedHooks, record, cargo) end
 
 -- Notes for the manifest: fn(record, draft) returns a translation key, its arguments and what the remark encloses
 -- ({ items = { { type, count } } }, or nil), or nil for no note. The first that answers writes the team's line (the

@@ -281,38 +281,48 @@ def review_memo(I):
     return I.from_scene(s)
 
 
-def ward_record(I):
-    s = lying(-30)
-    s.box(0.18, 0.1, 0.0, 0.82, 0.9, 0.1, (92, 150, 134), top=(114, 172, 154), shine=0.05)
-    s.box(0.2, 0.14, 0.1, 0.8, 0.88, 0.12, PAPER)
-    s.box(0.16, 0.1, 0.12, 0.84, 0.9, 0.16, (92, 150, 134), top=(114, 172, 154), shine=0.05)
-    img = Image.new('RGBA', (64, 80), (0, 0, 0, 0))
+def ward_filter(I):
+    # the ward's air handler filter: a pleated panel in a steel frame, black with what it caught, a log clipped to it
+    s = Scene(0)
+    s.box(0.12, 0.42, 0.0, 0.88, 0.58, 0.7, STEEL_DARK, top=STEEL, shine=0.4)
+    img = Image.new('RGBA', (60, 56), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    d.rectangle([14, 18, 50, 34], fill=(236, 232, 214, 255))
-    d.line([(18, 24), (46, 24)], fill=(60, 80, 70, 255), width=2)
-    d.line([(18, 29), (38, 29)], fill=(60, 80, 70, 255), width=1)
-    d.ellipse([30, 46, 58, 70], fill=(150, 120, 80, 90))   # a stain, the stuck pages
-    flat_decal(s, 0.16, 0.1, 0.84, 0.9, 0.1605, img, offset=0.0)
-    for x in (0.26, 0.34, 0.42, 0.5, 0.58, 0.66, 0.74):    # the spiral at the top
-        s.tube((x, 0.1, 0.12), (x, 0.1, 0.22), 0.016, STEEL, segments=6, shine=0.6)
+    d.rectangle([3, 3, 56, 52], fill=(58, 56, 52, 255))
+    for x in range(5, 56, 4):
+        d.line([(x, 3), (x, 52)], fill=(30, 30, 28, 255), width=1)
+    d.rectangle([3, 3, 56, 10], fill=(92, 90, 84, 255))   # the edge the dirt did not reach
+    front_decal(s, 0.15, 0.85, 0.03, 0.67, 0.58, img, offset=0.0)
+    # the ward log's pages clipped on the frame
+    s.box(0.52, 0.58, 0.12, 0.84, 0.62, 0.5, PAPER)
+    s.box(0.62, 0.58, 0.44, 0.74, 0.63, 0.52, STEEL, shine=0.7)
+    page = Image.new('RGBA', (32, 38), (0, 0, 0, 0))
+    d = ImageDraw.Draw(page)
+    for y in range(8, 34, 5):
+        d.line([(4, y), (26, y)], fill=(60, 80, 70, 255), width=1)
+    front_decal(s, 0.53, 0.83, 0.13, 0.43, 0.621, page, offset=0.0)
     return I.from_scene(s)
 
 
-def cell_log(I):
-    s = lying()
-    s.box(0.14, 0.08, 0.0, 0.86, 0.92, 0.05, (44, 46, 50), top=(60, 62, 68), shine=0.1)
-    s.box(0.2, 0.16, 0.05, 0.8, 0.88, 0.062, (206, 206, 196))
-    img = Image.new('RGBA', (52, 80), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    for r_ in range(5):
-        for c in range(3):
-            x, y = 6 + c * 16, 6 + r_ * 14
-            for k in range(4):
-                d.line([(x + k * 3, y), (x + k * 3, y + 8)], fill=PENCIL, width=1)
-            if r_ % 2 == 0:
-                d.line([(x - 1, y + 7), (x + 11, y + 1)], fill=PENCIL, width=1)
-    flat_decal(s, 0.2, 0.16, 0.8, 0.88, 0.0625, img, offset=0.0)
-    s.box(0.4, 0.04, 0.05, 0.6, 0.14, 0.09, STEEL, top=(196, 200, 204), shine=0.7)
+def cell_filter(I):
+    # the holding block's intake filter: a round cartridge, dark with dust, with the roll-call sheets tied to it
+    s = Scene(0)
+    s.tube((0.42, 0.46, 0.0), (0.42, 0.46, 0.52), 0.3, (62, 62, 58), segments=24, shine=0.1, caps=False)
+    s.tube((0.42, 0.46, 0.0), (0.42, 0.46, 0.05), 0.31, STEEL_DARK, segments=24, shine=0.5)
+    s.tube((0.42, 0.46, 0.5), (0.42, 0.46, 0.56), 0.31, STEEL_DARK, segments=24, shine=0.5)
+    s.tube((0.42, 0.46, 0.555), (0.42, 0.46, 0.565), 0.14, (24, 24, 22), segments=16)
+    for k in range(10):
+        a = k * math.pi / 5
+        x, y = 0.42 + 0.3 * math.cos(a), 0.46 + 0.3 * math.sin(a)
+        s.tube((x, y, 0.06), (x, y, 0.5), 0.012, (40, 40, 36), segments=4)
+    # the roll-call sheets, folded and tied
+    s.box(0.6, 0.66, 0.0, 0.92, 0.92, 0.06, (206, 206, 196), top=(222, 222, 212))
+    sheet = Image.new('RGBA', (32, 26), (0, 0, 0, 0))
+    d = ImageDraw.Draw(sheet)
+    for r_ in range(3):
+        for k in range(4):
+            d.line([(4 + k * 3, 4 + r_ * 7), (4 + k * 3, 9 + r_ * 7)], fill=PENCIL, width=1)
+    flat_decal(s, 0.6, 0.66, 0.92, 0.92, 0.0605, sheet, offset=0.0)
+    s.tube((0.6, 0.79, 0.065), (0.92, 0.79, 0.065), 0.012, TAN, segments=6)
     return I.from_scene(s)
 
 
@@ -624,7 +634,7 @@ FUNCTIONS = {
     'mission_heavy_case': mission_heavy_case,
     'evidence_envelope': evidence_envelope, 'clinic_record': clinic_record, 'weather_log': weather_log,
     'farm_journal': farm_journal, 'sample_cooler': sample_cooler, 'roster_page': roster_page, 'review_memo': review_memo,
-    'ward_record': ward_record, 'cell_log': cell_log, 'soil_sample': soil_sample, 'stake_tag': stake_tag,
+    'ward_filter': ward_filter, 'cell_filter': cell_filter, 'soil_sample': soil_sample, 'stake_tag': stake_tag,
     'roster_lost_page': roster_lost_page, 'filter_bundle': filter_bundle, 'pharmacy_ledger': pharmacy_ledger,
     'copy_original': copy_original, 'sample_case': sample_case, 'dead_drop_case': dead_drop_case,
     'field_call_device': field_call_device, 'analysis_reply': analysis_reply, 'appendix': appendix,

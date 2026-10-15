@@ -792,12 +792,14 @@ local function doorsOf(room)
 end
 
 -- Boards the room's doors from outside it (`planks` { least, most }, closed first); returns where the first is
--- ({ x, y, z, north, opposite }: the barricade on the door's other square) for a plank to drop from (`drop`).
+-- ({ x, y, z, north, opposite }: the barricade on the door's other square) for a plank to drop from (`drop`), and in
+-- it `all`, every door boarded so (for the last plank taken off: `last`).
 function StageGame.board(ctx, p)
     local room = roomOf(ctx, p)
     if not room then return nil end
     local lo, hi = (p.planks or { 2, 3 })[1], (p.planks or { 2, 3 })[2]
     local first
+    local all = {}
     for _, d in ipairs(doorsOf(room)) do
         local o = d.door
         if o:IsOpen() then o:ToggleDoorSilent() end
@@ -807,12 +809,89 @@ function StageGame.board(ctx, p)
             if b then
                 for _ = 1, OA.random(lo, hi) do b:addPlank(nil, nil) end
                 b:transmitCompleteItemToClients()
-                first = first or { x = d.square:getX(), y = d.square:getY(), z = d.square:getZ(), north = o:getNorth(),
+                local at = { x = d.square:getX(), y = d.square:getY(), z = d.square:getZ(), north = o:getNorth(),
                     opposite = d.inRoom }
+                all[#all + 1] = at
+                first = first or { x = at.x, y = at.y, z = at.z, north = at.north, opposite = at.opposite }
             end
         end
     end
+    if first then first.all = all end
     return first or (not p.drop and true) or nil
+end
+
+-- The door at a boarded place ({ x, y, z, north }), or nil.
+local function doorAt(at)
+    local sq = getCell():getGridSquare(at.x, at.y, at.z)
+    local objects = sq and sq:getObjects()
+    for j = 0, (objects and objects:size() or 0) - 1 do
+        local o = objects:get(j)
+        if instanceof(o, "IsoDoor") and o:getNorth() == at.north then return o end
+    end
+    return nil
+end
+
+-- Whether a boarded place has no planks left on the side it was boarded from (an unloaded one counts as not yet).
+function StageGame.unboardedAt(at)
+    local o = doorAt(at)
+    if not o then return false end
+    local b = at.opposite and o:getBarricadeOnOppositeSquare() or o:getBarricadeOnSameSquare()
+    return b == nil or b:getNumPlanks() == 0
+end
+
+-- Blocks the room's doors but one from inside with a hospital bed (the ward shut itself in): a bed of two squares
+-- reaching into the room from the door, where both are free. The one left is the first door found.
+local BLOCK_BED = { north = { "location_community_medical_01_17", "location_community_medical_01_16" },
+    west = { "location_community_medical_01_20", "location_community_medical_01_21" } }
+function StageGame.block(ctx, p)
+    local room = roomOf(ctx, p)
+    if not room then return nil end
+    local doors = doorsOf(room)
+    if #doors < 2 then return nil end
+    local c = getCell()
+    local blocked = 0
+    for i = 2, #doors do
+        local d = doors[i]
+        local o = d.door
+        if o:IsOpen() then o:ToggleDoorSilent() end
+        local x, y, z = d.square:getX(), d.square:getY(), d.square:getZ()
+        local north = o:getNorth()
+        -- the square inside the door, and the way into the room from it
+        if not d.inRoom then
+            if north then y = y - 1 else x = x - 1 end
+        end
+        local step = d.inRoom and 1 or -1
+        local a = c:getGridSquare(x, y, z)
+        local b = north and c:getGridSquare(x, y + step, z) or c:getGridSquare(x + step, y, z)
+        local function fits(s) return s and s:getRoom() == room and s:isFree(false) end
+        if fits(a) and fits(b) then
+            -- the bed's first tile is the one nearer the room's top or left
+            local lo, hi = a, b
+            if step < 0 then lo, hi = b, a end
+            local pair = north and BLOCK_BED.north or BLOCK_BED.west
+            put(lo, pair[1])
+            put(hi, pair[2])
+            blocked = blocked + 1
+        end
+    end
+    return blocked > 0 or nil
+end
+
+-- The player took planks off a door (vanilla's unbarricade action, below): a stage whose boarded doors are all bare
+-- now hears it (Stage.unboarded).
+function StageGame.unbarricaded(character)
+    local record = OA.Trade and OA.Trade.Actions and OA.Trade.Actions.recordOf and OA.Trade.Actions.recordOf(character)
+    if record and OA.Stage then OA.Stage.unboarded(record) end
+end
+
+if ISUnbarricadeAction and not ISUnbarricadeAction.OA_stage then
+    local complete = ISUnbarricadeAction.complete
+    ISUnbarricadeAction.OA_stage = true
+    function ISUnbarricadeAction:complete()
+        local result = complete(self)
+        pcall(StageGame.unbarricaded, self.character)
+        return result
+    end
 end
 
 -- A plank of a boarded door falls (Stage.progress): it lies on the floor below the barricade, with the sound of it.

@@ -18,6 +18,8 @@
 -- (`stagger` seconds apart); what is spread over a span (Stage.progress: "wait", the swap's wait from 0 to 1) wakes
 -- one by one across it (`during`), and a door boarded with `drop` loses a plank at that point of it. A thing that
 -- sounds on an event (`call`: the camp's radio as the circle is entered) sounds once, even when the event came first.
+-- Doors boarded with `last` make that event (and the story's monologue for it) once the player has taken their last
+-- plank off (Stage.unboarded, from the game's unbarricade action).
 --
 -- Where: the hands read the building's layout as it loads: its rooms ({ name, area, z, x, y, x2, y2, edge = touches the
 -- building's outline }) and its outer doors and windows on the ground floor. The rooms get roles (Stage.roles): "big"
@@ -39,7 +41,7 @@ Stage.game = nil
 -- The kinds put as the building loads; the rest (zombies) wait for the player.
 Stage.PLACE_KINDS = { tile = true, set = true, item = true, vehicle = true, barricade = true, lock = true,
     corpse = true, blood = true, piece = true, board = true, lockout = true, generator = true, window = true, line = true,
-    call = true }
+    call = true, block = true }
 Stage.CLEAR_INNER = 6     -- open ground's trees and bushes are all cleared this far round its middle,
 Stage.CLEAR_RADIUS = 10   -- and fewer and fewer out to this (the camp's reach)
 Stage.GROUND_RADIUS = 12   -- open ground is set up once the squares this far round the site are loaded
@@ -243,6 +245,10 @@ function Stage.place(record, m, layout, int)
                 st.during = st.during or {}
                 st.during[#st.during + 1] = { name = p.drop.during, at = p.drop.at, plank = result }
             end
+            -- doors boarded so that the last plank off is an event (`last`): where they are
+            if p.kind == "board" and p.last and type(result) == "table" and result.all then
+                st.boarded = { event = p.last, doors = result.all }
+            end
             -- a thing that sounds once on an event (the camp's radio calling): where it stands
             if p.kind == "call" and type(result) == "table" then
                 st.calls = st.calls or {}
@@ -327,6 +333,28 @@ function Stage.event(record, m, name)
     st.wake[name] = nil
     local g = Stage.game
     if g and g.wake then pcall(g.wake, list, st.stagger and st.stagger[name]) end
+end
+
+-- The player took planks off a door: a running stage whose boarded doors (a `board` with `last`) are all bare now
+-- has that event, once, and its story's monologue for it.
+function Stage.unboarded(record)
+    local g = Stage.game
+    if not (g and g.unboardedAt and OA.Missions) then return end
+    for _, m in ipairs(OA.Missions.live(record)) do
+        local st = m.stage
+        local b = st and st.boarded
+        if b then
+            local bare = true
+            for _, at in ipairs(b.doors) do
+                if bare and not g.unboardedAt(at) then bare = false end
+            end
+            if bare then
+                st.boarded = nil
+                if OA.Story then OA.Story.monologue(record, m.story, b.event) end
+                Stage.event(record, m, b.event)
+            end
+        end
+    end
 end
 
 -- A span at the stage has come to `f` (0 to 1; "wait": the swap's wait): what is spread over it up to there happens,

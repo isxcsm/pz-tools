@@ -177,24 +177,24 @@ module OperationAcorn
         WorldStaticModel = SheetOfPaper,
     }
 
-    item WardRecord
+    item WardFilter
     {
-        DisplayCategory = Literature,
+        DisplayCategory = Household,
         ItemType = base:normal,
-        Weight = 0.5,
-        Icon = OA_WardRecord,
-        Tooltip = Tooltip_OA_Story_WardRecord,
-        WorldStaticModel = BookClosedGround,
+        Weight = 2.0,
+        Icon = OA_WardFilter,
+        Tooltip = Tooltip_OA_Story_WardFilter,
+        WorldStaticModel = Cashbox,
     }
 
-    item CellLog
+    item CellFilter
     {
-        DisplayCategory = Literature,
+        DisplayCategory = Household,
         ItemType = base:normal,
-        Weight = 0.6,
-        Icon = OA_CellLog,
-        Tooltip = Tooltip_OA_Story_CellLog,
-        WorldStaticModel = BookClosedGround,
+        Weight = 1.8,
+        Icon = OA_CellFilter,
+        Tooltip = Tooltip_OA_Story_CellFilter,
+        WorldStaticModel = Cashbox,
     }
 
     item SoilSample

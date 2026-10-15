@@ -34,8 +34,8 @@ Data.ITEMS = {
     RosterPage = { docs = { "roster_page" }, weight = 0.1 },
     HandoverPages = { docs = { "handover_pages" }, weight = 0.1 },
     ReviewMemo = { docs = { "review_memo" }, weight = 0.1 },
-    WardRecord = { docs = { "ward_record" }, weight = 0.5 },
-    CellLog = { docs = { "cell_log" }, weight = 0.6 },
+    WardFilter = { docs = { "ward_record" }, weight = 2.0 },
+    CellFilter = { docs = { "cell_log" }, weight = 1.8 },
     SoilSample = { docs = { "soil_slip" }, weight = 0.8 },
     -- Contract missions.
     StakeTag = { docs = { "con_stake" }, weight = 0.1 },
@@ -140,11 +140,11 @@ Data.STORIES = {
         facility = "shelter", site = { want = "largest" },
     },
     ward = {
-        trigger = { milestone = 1 }, kind = "fetch", item = "WardRecord",
+        trigger = { milestone = 1 }, kind = "fetch", item = "WardFilter",
         facility = "hospital", site = { want = "public" },
     },
     cells = {
-        trigger = { milestone = 2 }, kind = "fetch", item = "CellLog",
+        trigger = { milestone = 2 }, kind = "fetch", item = "CellFilter",
         facility = "prison", site = { want = "public" },
     },
     soil = {
@@ -220,7 +220,7 @@ local OPENER = { { "Base.TinOpener", 1 } }
 local LIGHTER = { { "Base.Lighter", 1 } }
 Data.NOTE_ITEMS = {
     battery = BATTERY, socks = SOCKS, cards = CARDS, dunnigan_pen = { { "Base.Pencil", 2 } },
-    m1_b = CARDS, m1_c = LIGHTER, m2_b = OPENER,
+    m1_b = CARDS, m1_c = LIGHTER, m2_b = OPENER, last_b = { { "Base.WalkieTalkie5", 1 } },
     after3_2 = BATTERY, after3_4 = SOCKS, after3_6 = OPENER, after3_8 = CARDS, after3_11 = LIGHTER,
     after4_2 = BATTERY, after4_4 = SOCKS, after4_6 = CARDS, after4_8 = OPENER, after4_10 = LIGHTER,
     after5_2 = BATTERY, after5_4 = SOCKS, after5_6 = CARDS, after5_8 = OPENER, after5_10 = LIGHTER,
