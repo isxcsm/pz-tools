@@ -17,6 +17,7 @@ Script.ME_CPS = 14           -- the protagonist types slower
 Script.ERASE_CPS = 22        -- and deletes faster
 Script.ERASE_STOP = 0.8      -- the typed words sit with the cursor blinking before they are deleted
 Script.ERASE_AFTER = 0.6     -- a beat after the deleting, before the words that are sent
+Script.SEND_AFTER = 0.7      -- the typed words sit whole on the input line a moment before they are sent
 -- Reading: a line is read as it comes in, so from its first character to the next line it is given its characters at
 -- the language's reading speed (subtitles' adult speeds: Korean 12 a second, Chinese and Japanese 9, the rest 17) and a
 -- beat to take it in; once it is all there it stays at least READ_AFTER (the eyes reach its end). A new speaker's line
@@ -160,6 +161,7 @@ function Script.timeline(lines, cps, pace)
                 add("type", m.cut or m.mute or m.p or 0, n, n)
             end
             if count > n then add("type", (count - n) / meCps, n, count) end
+            add("type", Script.SEND_AFTER, count, count)
             add("read", Script.readTime(count, t - typing, cps, after), count, count)
         else
             -- the team's line, the marks where they fall

@@ -160,7 +160,11 @@ test("the protagonist stops typing at a mark; a call on the spot has its own pac
     eq(st.input, 2, "held at the mark")
     st = Script.at(tl, 2 / Script.ME_CPS + 2 + 1 / Script.ME_CPS + 0.001)
     eq(st.input, 3, "typing again after it")
-    local typing = 4 / Script.ME_CPS + 2
+    local typing = 4 / Script.ME_CPS + 2 + Script.SEND_AFTER
+    st = Script.at(tl, typing - Script.SEND_AFTER / 2)
+    eq(st.phase, "type", "typed whole, not sent yet")
+    eq(st.input, 4)
+    eq(Script.at(tl, typing + 0.001).phase, "read", "then sent")
     near(tl.total, typing + Script.readTime(4, typing, 12), 1e-6)
     local oak = { who = "oak", text = "XY", chars = { "X", "Y" }, marks = {} }
     local slow = Script.timeline({ oak, me }, 12, { oak = 4, me = 2, turn = 1.5, after = 3 })
