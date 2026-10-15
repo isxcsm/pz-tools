@@ -180,8 +180,8 @@ final class DustTest {
         check(draws().isEmpty(), "A dust title starts seen");
         at(origin, 0.6);
         render();
-        // SdfRegular is 45 high and 18 a character: 8.5% of 900 is 76.5, zoom 1.7, 11 characters 336.6 wide, centred at 0.28.
-        drawn(last("Quiet title"), UIFont.SdfRegular, 800 - 336.6 / 2, 252 - 76.5 / 2, 1.7, "Quiet title", 0.97, 0.95, 0.9, 0.5);
+        // SdfRegular is 45 high and 18 a character: 8.5% of 900 is 76.5, zoom 1.7, 11 characters 336.6 wide, centred at 0.2.
+        drawn(last("Quiet title"), UIFont.SdfRegular, 800 - 336.6 / 2, 180 - 76.5 / 2, 1.7, "Quiet title", 0.97, 0.95, 0.9, 0.5);
         check(RenderThread.queued.isEmpty(), "The picture was made before the title stood still");
         at(origin, 1.2);
         int textures = Texture.made;
@@ -202,8 +202,8 @@ final class DustTest {
         check(last("Quiet title") != null && SpriteRenderer.queued.size() == 2, "The title is not drawn as well while its picture is made");
         TextManager.calls.clear();
         SpriteRenderer.flush();
-        // The box (382 by 122 at 609, 191) has its top left at the viewport's (0, height): x -609, y 191 + 122 - 900.
-        check(Arrays.equals(call("viewport"), new Object[] { "viewport", -609, -587, 1600, 900 }) && call("fbo-start") != null && call("fbo-end") != null
+        // The box (382 by 122 at 609, 119) has its top left at the viewport's (0, height): x -609, y 119 + 122 - 900.
+        check(Arrays.equals(call("viewport"), new Object[] { "viewport", -609, -659, 1600, 900 }) && call("fbo-start") != null && call("fbo-end") != null
             && GL11.readWidth == 382 && GL11.readHeight == 122 && Arrays.equals(GL11.viewport, new int[] { 0, 0, 1600, 900 }) && !GL11.scissor,
             "The picture was not drawn and read back in its box: " + names());
         at(origin, 1.3);
@@ -227,10 +227,10 @@ final class DustTest {
             if (worn) wearing++; else strips++;
             for (int corner = 0; corner < 4; corner++) {
                 double x = (Double)quad[2 + 2 * corner], y = (Double)quad[3 + 2 * corner], u = (Double)quad[10 + 2 * corner], v = (Double)quad[11 + 2 * corner];
-                check(x >= 609 - 0.01 && x <= 991 + 0.01 && y >= 191 - 0.01 && y <= 313 + 0.01, "A strip is outside the box: " + x + ", " + y);
+                check(x >= 609 - 0.01 && x <= 991 + 0.01 && y >= 119 - 0.01 && y <= 241 + 0.01, "A strip is outside the box: " + x + ", " + y);
                 check(u >= 0 && u <= picture.getXEnd() + 1e-6 && v >= 0 && v <= picture.getYEnd() + 1e-6, "A strip shows outside the picture: " + u + ", " + v);
                 // The picture's rows go up from the box's bottom (a worn cell is drawn thinner about its middle).
-                if (!worn) check(near(v, picture.getYEnd() * (313 - y) / 122) && near(u, picture.getXEnd() * (x - 609) / 382), "A strip shows another part of the picture");
+                if (!worn) check(near(v, picture.getYEnd() * (241 - y) / 122) && near(u, picture.getXEnd() * (x - 609) / 382), "A strip shows another part of the picture");
             }
         }
         check(strips > 0 && strips < 200 && wearing > 0, "The title before its front is not strips and cells wearing: " + strips + " strips, " + wearing + " wearing");

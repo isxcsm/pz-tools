@@ -146,9 +146,9 @@ final class LooksTest {
         up(origin, 3.0);
         drawn = modes(origin, 3.1);
         check(drawn.equals(List.of(17, 5, 0, 5)), "The stamp does not gleam as it stays, over it and its line: " + drawn);
-        // The picture's middle is the title's place (x the screen's middle, y 0.28 of 900).
+        // The picture's middle is the title's place (x the screen's middle, y 0.2 of 900).
         float[] picture = GL11.arrays.get(0);
-        check(Math.abs((picture[2] + picture[6]) / 2 - 800) < 1.5 && Math.abs((picture[3] + picture[7]) / 2 - 252) < 1.5,
+        check(Math.abs((picture[2] + picture[6]) / 2 - 800) < 1.5 && Math.abs((picture[3] + picture[7]) / 2 - 180) < 1.5,
             "The stamp's picture is not at its place: " + (picture[2] + picture[6]) / 2 + ", " + (picture[3] + picture[7]) / 2);
         state();
         check(modes(origin, 8.6).equals(List.of(17, 8)), "The stamp does not dry away and its line weather away: " + modes(origin, 8.61));
