@@ -410,12 +410,21 @@ final class Looks {
         return 1;
     }
 
+    // The alpha (of 255) a pixel of a struck text's picture counts as ink at; and the run of ink down a column that makes it a
+    // wall a cut does not go past, as a share of the longest run of the two letters (their tallest stroke, a ㅣ), and at least
+    // CUT_WALL_MIN pixels: a letter's upright stroke or the side of a ㅇ, not a foot, a bar or a slant crossing it.
+    static final int CUT_INK = 64, CUT_WALL_MIN = 3;
+    static final double CUT_WALL = 0.25;
+
     /**
      * Moves the cuts between a struck text's letters ({@code glyphs}, five numbers each: from, to, middle, top, bottom, as the
-     * advances placed them) to the emptiest column of the picture near each: a letter's ink can reach past its advance (the foot of
-     * a Hangul ㅈ or ㅅ, its outline and shadow), and a cut through it strikes that part with the letter beside it, a little off its
-     * line, in pieces. A cut looks no farther than {@code reach} pixels outside the gap between two letters' advances, and never past
-     * their middles; of columns as empty, the one nearest the gap's middle. Columns are summed over the row's band.
+     * advances placed them) to the emptiest column near each: a letter's ink can reach past its advance (the foot of a Hangul ㅈ
+     * or ㅅ, the bar of a ㅊ, its outline and shadow), and a cut through it strikes that part with the letter beside it, a little
+     * off its line, in pieces. A cut goes from the gap's middle each way through columns that are not walls (a run of ink down
+     * them of {@link #CUT_WALL} of the letters' tallest stroke or more) to the least inked of them (of columns as empty, the one nearest the middle),
+     * no farther than {@code reach} pixels outside the gap between the advances and never past their middles; at a wall it stops,
+     * so it never goes through the side of a ㅇ or ㅁ into its hollow (crossed only by its top and bottom) to strike half of the
+     * letter with the other. When the middle itself is a wall (letters that touch), it stays where the advances put it.
      */
     static void cuts(java.nio.ByteBuffer pixels, int width, int height, double[] glyphs, int count, double reach) {
         for (int index = 0; index + 1 < count; index++) {
@@ -427,16 +436,41 @@ final class Looks {
             high = Math.min(high, width - 1);
             if (low > high) continue;
             int top = Math.max(0, (int)Math.floor(glyphs[a + 3] * height)), bottom = Math.min(height, (int)Math.ceil(glyphs[a + 4] * height));
+            int tallest = 0;
+            for (int x = Math.max(0, (int)Math.ceil(glyphs[a + 2])), last = Math.min(width - 1, (int)Math.floor(glyphs[b + 2])); x <= last; x++)
+                tallest = Math.max(tallest, longestRun(pixels, width, height, x, top, bottom));
+            double wall = Math.max(CUT_WALL_MIN, tallest * CUT_WALL);
+            int from = (int)Math.max(low, Math.min(high, Math.round(middle)));
             int best = -1;
             long least = Long.MAX_VALUE;
-            for (int x = low; x <= high; x++) {
-                long ink = 0;
-                for (int y = top; y < bottom; y++) ink += pixels.get(((height - 1 - y) * width + x) * 4 + 3) & 0xFF;
-                if (ink < least || ink == least && Math.abs(x - middle) < Math.abs(best - middle)) { least = ink; best = x; }
+            for (int step = -1; step <= 1; step += 2) {
+                for (int x = step < 0 ? from : from + 1; x >= low && x <= high; x += step) {
+                    long ink = 0;
+                    int run = 0, longest = 0;
+                    for (int y = top; y < bottom; y++) {
+                        int alpha = pixels.get(((height - 1 - y) * width + x) * 4 + 3) & 0xFF;
+                        ink += alpha;
+                        run = alpha >= CUT_INK ? run + 1 : 0;
+                        longest = Math.max(longest, run);
+                    }
+                    if (longest >= wall) break;
+                    if (ink < least || ink == least && Math.abs(x - middle) < Math.abs(best - middle)) { least = ink; best = x; }
+                }
             }
+            if (best < 0) continue;
             glyphs[a + 1] = best;
             glyphs[b] = best;
         }
+    }
+
+    /** The longest run of ink down a picture's column {@code x} over rows {@code top} to {@code bottom} (rows read back from the bottom). */
+    private static int longestRun(java.nio.ByteBuffer pixels, int width, int height, int x, int top, int bottom) {
+        int run = 0, longest = 0;
+        for (int y = top; y < bottom; y++) {
+            run = (pixels.get(((height - 1 - y) * width + x) * 4 + 3) & 0xFF) >= CUT_INK ? run + 1 : 0;
+            longest = Math.max(longest, run);
+        }
+        return longest;
     }
 
     /** How far a sinking text has gone under, 0 to 1, {@code into} seconds into its leave: slowly at first, then faster and faster. */

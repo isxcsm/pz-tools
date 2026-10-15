@@ -128,17 +128,38 @@ final class LooksTest {
         check(keys[0] == 0 && near(keys[1], 0.25517569873644264) && near(keys[2], 0.8115553633901342) && near(keys[3], 0.9662789374534235) && near(keys[4], 1.17),
             "The typewriter's keys are not the page's: " + java.util.Arrays.toString(keys));
         check(near(Looks.fed(0, 5.5), 0) && near(Looks.fed(0.2, 5.5), 1) && near(Looks.fed(1, 5.5), 3), "The paper is not fed a line at a time");
-        // Three letters, the last on a row of its own: the first's ink reaches past its advance (20) to 22, the second's starts at
-        // 25; the cut goes to the empty column nearest the gap (23), and none is made across rows.
-        int width = 40, height = 10;
+        // Three letters, the last on a row of its own: the first's foot (a row of ink) reaches past its advance (20) to 22, the
+        // second starts at 25; the cut goes through the light foot to the empty column nearest the gap (23), and none is made
+        // across rows.
+        int width = 40, height = 20;
         var pixels = java.nio.ByteBuffer.allocateDirect(width * height * 4);
-        for (int y = 0; y < 5; y++)
+        for (int y = 0; y < 10; y++)
             for (int x = 0; x < width; x++)
-                if (x >= 2 && x <= 22 || x >= 25 && x <= 38) pixels.put(((height - 1 - y) * width + x) * 4 + 3, (byte)200);
+                if (x >= 2 && x <= 17 || x >= 25 && x <= 38 || y == 8 && x >= 18 && x <= 22) pixels.put(((height - 1 - y) * width + x) * 4 + 3, (byte)200);
         double[] glyphs = { 0, 20, 10, 0, 0.5, 20, 40, 30, 0, 0.5, 0, 40, 20, 0.5, 1 };
         Looks.cuts(pixels, width, height, glyphs, 3, 8);
         check(glyphs[1] == 23 && glyphs[5] == 23 && glyphs[6] == 40 && glyphs[10] == 0, "The struck letters are not cut at the empty column: "
             + java.util.Arrays.toString(glyphs));
+        // Two letters that touch at their advances (20), the second a ring (a ㅇ: its wall from 20 to 22, its hollow crossed only by
+        // its top and bottom): the wall stops the cut at the advances, short of the hollow.
+        var ring = java.nio.ByteBuffer.allocateDirect(width * height * 4);
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+                if (x >= 2 && x <= 22 || x >= 32 && x <= 34 || x > 22 && x < 32 && (y <= 1 || y >= 18))
+                    ring.put(((height - 1 - y) * width + x) * 4 + 3, (byte)200);
+        glyphs = new double[] { 0, 20, 10, 0, 1, 20, 36, 28, 0, 1 };
+        Looks.cuts(ring, width, height, glyphs, 2, 8);
+        check(glyphs[1] == 20 && glyphs[5] == 20, "A cut went into a letter's hollow: " + java.util.Arrays.toString(glyphs));
+        // The second letter's bar and foot (a ㅊ: rows 3 and 8) reach left past the advances (20) to 18: the cut goes past both
+        // (not walls) to the empty column nearest the gap (17), and stops at the first letter's upright (15).
+        var bar = java.nio.ByteBuffer.allocateDirect(width * height * 4);
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+                if (x >= 2 && x <= 15 || x >= 25 && x <= 38 || (y == 3 && x >= 18 && x <= 30) || (y == 8 && x >= 18 && x <= 22))
+                    bar.put(((height - 1 - y) * width + x) * 4 + 3, (byte)200);
+        glyphs = new double[] { 0, 20, 10, 0, 1, 20, 36, 28, 0, 1 };
+        Looks.cuts(bar, width, height, glyphs, 2, 8);
+        check(glyphs[1] == 17 && glyphs[5] == 17, "A cut did not go past a letter's bar and foot: " + java.util.Arrays.toString(glyphs));
     }
 
     // ---- the styles ----

@@ -1722,7 +1722,10 @@ final class Texts implements Hooks.Text {
 
     /**
      * What the text's look measures of its picture, once, as it is read back: the sink's foot (from the pixels), the bleed's drops,
-     * the typewriter's letters (their spans by the font's widths of each row's characters up to them) and when each is struck.
+     * the typewriter's letters (their spans by the advances of each row's characters up to them) and when each is struck. The
+     * font's width of a string ends at its last character's picture, not its advance (AngelCodeFont.getWidth: the last one by its
+     * width, a distance-field glyph's padding with it), so the characters up to a letter are measured with a space after them,
+     * less a space's own width: their advances alone. Measured without it, every cut sat that padding inside the next letter.
      */
     private Looks.Shape shape(Shown text, Dust.Piece piece, Layout laid, double anchorX, double firstY, double zoom, double line, int rowCount,
             double ink) throws Throwable {
@@ -1740,10 +1743,10 @@ final class Texts implements Hooks.Text {
             double x = (text.align < 0 ? anchorX : text.align > 0 ? anchorX - lineWidth : anchorX - lineWidth / 2) - piece.boxX;
             double v0 = index == 0 ? 0 : (firstY + line * index - piece.boxY) / piece.boxHeight;
             double v1 = index == rowCount - 1 ? 1 : (firstY + line * (index + 1) - piece.boxY) / piece.boxHeight;
-            double before = 0;
+            double before = 0, space = width(text, " ");
             for (int at = 0; at < words.length(); ) {
                 int next = at + Character.charCount(words.codePointAt(at));
-                double after = width(text, words.substring(0, next)) * zoom;
+                double after = (width(text, words.substring(0, next) + " ") - space) * zoom;
                 if (!Character.isWhitespace(words.codePointAt(at))) {
                     glyphs.add(new double[] { at == 0 ? 0 : x + before, next >= words.length() ? piece.boxWidth : x + after, x + (before + after) / 2, v0, v1 });
                     spaced.add(at > 0 ? Character.isWhitespace(words.charAt(at - 1)) : index > 0);
