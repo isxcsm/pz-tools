@@ -500,30 +500,27 @@ function StageGame.barricade(ctx, p)
 end
 
 -- The doors of a room: its IsoDoors with the room on one side only, each with whether its own square is the room's.
+-- A door stands on a square's north or west edge, so one in the room's south or east wall is on the square outside:
+-- the room's box is scanned one square wider.
 local function doorsOf(room)
     local c = getCell()
-    local list = {}
-    local squares = room:getSquares()
-    for i = 0, squares:size() - 1 do
-        local sq = squares:get(i)
-        local objects = sq:getObjects()
-        for j = 0, objects:size() - 1 do
-            local o = objects:get(j)
-            if instanceof(o, "IsoDoor") then
-                local other = o:getNorth() and c:getGridSquare(sq:getX(), sq:getY() - 1, sq:getZ())
-                    or c:getGridSquare(sq:getX() - 1, sq:getY(), sq:getZ())
-                if (sq:getRoom() == room) ~= (other and other:getRoom() == room) then
-                    list[#list + 1] = { door = o, square = sq, inRoom = sq:getRoom() == room }
+    local def = room:getRoomDef()
+    local z = def:getZ()
+    local out = {}
+    for x = def:getX() - 1, def:getX2() + 1 do
+        for y = def:getY() - 1, def:getY2() + 1 do
+            local sq = c:getGridSquare(x, y, z)
+            local objects = sq and sq:getObjects()
+            for j = 0, (objects and objects:size() or 0) - 1 do
+                local o = objects:get(j)
+                if instanceof(o, "IsoDoor") then
+                    local other = o:getNorth() and c:getGridSquare(x, y - 1, z) or c:getGridSquare(x - 1, y, z)
+                    local inRoom = sq:getRoom() == room
+                    if inRoom ~= (other ~= nil and other:getRoom() == room) then
+                        out[#out + 1] = { door = o, square = sq, inRoom = inRoom }
+                    end
                 end
             end
-        end
-    end
-    -- (a door on the room's own square and one on its neighbour's may be one door seen twice: by the object)
-    local seen, out = {}, {}
-    for _, d in ipairs(list) do
-        if not seen[d.door] then
-            seen[d.door] = true
-            out[#out + 1] = d
         end
     end
     return out
