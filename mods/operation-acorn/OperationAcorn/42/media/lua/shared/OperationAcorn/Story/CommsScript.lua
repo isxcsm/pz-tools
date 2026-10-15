@@ -11,15 +11,21 @@ local Data = OA.CommsData
 local Script = {}
 OA.CommsScript = Script
 
--- Speeds and beats, in characters a second and seconds (가안: SCENES 2 '줄의 시간'; set in the game).
+-- Speeds and beats, in characters a second and seconds (SCENES 2 '줄의 시간').
 Script.OAK_CPS = 28          -- the team's line comes in evenly
 Script.ME_CPS = 14           -- the protagonist types slower
 Script.ERASE_CPS = 22        -- and deletes faster
-Script.READ_CPS = 12         -- the time a line is left to be read: its characters at this rate ...
-Script.READ_MIN = 1.5        -- ... at least this long ...
-Script.BEAT = 0.5            -- ... and a half beat more before the next line
 Script.ERASE_STOP = 0.8      -- the typed words sit with the cursor blinking before they are deleted
 Script.ERASE_AFTER = 0.6     -- a beat after the deleting, before the words that are sent
+-- Reading: a line is read as it comes in, so from its first character to the next line it is given its characters at
+-- the language's reading speed (subtitles' adult speeds: Korean 12 a second, Chinese and Japanese 9, the rest 17) and a
+-- beat to take it in; once it is all there it stays at least READ_AFTER (the eyes reach its end). A new speaker's line
+-- waits a TURN first. The pauses of the marks ({cut}, {mute}, {p}) are the scene's own, on top of the reading.
+Script.READ_CPS = { KO = 12, CH = 9, CN = 9, TW = 9, JP = 9 }
+Script.READ_CPS_OTHER = 17
+Script.UNDERSTAND = 0.6
+Script.READ_AFTER = 1.2
+Script.TURN = 0.4
 
 local function key(id, n, suffix)
     return "IGUI_OA_Comms_" .. id .. "_" .. tostring(n) .. (suffix or "")
@@ -92,18 +98,31 @@ function Script.greeted(src, ctx)
     return src
 end
 
--- How long a line is left to be read once it is all there.
-function Script.readTime(count)
-    return math.max(Script.READ_MIN, count / Script.READ_CPS) + Script.BEAT
+-- The reading speed of a language (the game's: Translator's code, "KO", "EN", ...).
+function Script.readCps(lang)
+    if lang == nil then
+        local ok, code = pcall(function() return tostring(Translator.getLanguage():name()) end)
+        lang = ok and code or nil
+    end
+    return Script.READ_CPS[lang or ""] or Script.READ_CPS_OTHER
+end
+
+-- How long a line of `count` characters is left once it is all there, `shown` seconds after its first came in (or
+-- began to be typed): the rest of its reading time, and at least READ_AFTER.
+function Script.readTime(count, shown, cps)
+    return math.max(Script.READ_AFTER, count / (cps or Script.readCps()) + Script.UNDERSTAND - (shown or 0))
 end
 
 -- The timeline of a call's lines. Each line gets `t0` (it starts) and `t1` (the next line starts), and the pieces of
 -- its time: { from, to, kind, n0, n1 } with kind "in" (the team's characters coming in, n0 to n1), "cut" (the signal
 -- breaking up, n0 shown), "hold" (nothing moves), "type" / "erase" (the protagonist's input line: the words erased
--- first, n0 to n1 of them), "typeSend" (the words sent), "read" (all there, left to be read).
-function Script.timeline(lines)
+-- first, n0 to n1 of them), "typeSend" (the words sent), "read" (all there, left to be read). `cps`: the reading speed
+-- (Script.readCps, the game's language when not given).
+function Script.timeline(lines, cps)
+    cps = cps or Script.readCps()
     local t = 0
     local list = {}
+    local last
     for i, l in ipairs(lines) do
         local pieces = {}
         local start = t
@@ -113,6 +132,9 @@ function Script.timeline(lines)
             t = t + dur
         end
         local count = #l.chars
+        local speech = l.who ~= "noise" and l.who ~= "mute"
+        if speech and last and last ~= l.who then add("hold", Script.TURN, 0, 0) end
+        if speech then last = l.who end
         if l.who == "noise" or l.who == "mute" then
             add("hold", l.s or 1)
         elseif l.who == "me" then
@@ -124,7 +146,7 @@ function Script.timeline(lines)
                 add("hold", Script.ERASE_AFTER)
             end
             add("type", count / Script.ME_CPS, 0, count)
-            add("read", Script.readTime(count), count, count)
+            add("read", Script.readTime(count, count / Script.ME_CPS, cps), count, count)
         else
             -- the team's line, the marks where they fall
             local n = 0
@@ -135,7 +157,7 @@ function Script.timeline(lines)
                 elseif m.p then add("hold", m.p, n, n) end
             end
             if count > n then add("in", (count - n) / Script.OAK_CPS, n, count) end
-            add("read", Script.readTime(count), count, count)
+            add("read", Script.readTime(count, count / Script.OAK_CPS, cps), count, count)
         end
         list[i] = { line = l, t0 = start, t1 = t, pieces = pieces }
     end

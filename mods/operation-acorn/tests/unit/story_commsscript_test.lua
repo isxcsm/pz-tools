@@ -51,9 +51,9 @@ end)
 
 test("the timeline: a team line comes in, breaks up at its mark, and is left to be read", function()
     local l = Script.lines(Data.BY_ID.S1, ctx(1))[8]
-    local tl = Script.timeline({ l })
+    local tl = Script.timeline({ l }, 12)
     local count = #l.chars
-    near(tl.total, 2 + count / Script.OAK_CPS + Script.readTime(count), 1e-6)
+    near(tl.total, 2 + count / Script.OAK_CPS + Script.readTime(count, count / Script.OAK_CPS, 12), 1e-6)
     local st = Script.at(tl, 1)
     eq(st.flicker, true, "breaking up first")
     eq(st.shown, 0)
@@ -63,6 +63,32 @@ test("the timeline: a team line comes in, breaks up at its mark, and is left to 
     st = Script.at(tl, tl.total + 1)
     eq(st.line, nil)
     eq(st.done, 1)
+end)
+
+test("reading: a line is given its characters at the language's speed and a beat from its first character, and stays a while once all there", function()
+    eq(Script.readCps("KO"), 12)
+    eq(Script.readCps("JP"), 9)
+    eq(Script.readCps("EN"), 17)
+    local function line(who, n)
+        local chars = {}
+        for i = 1, n do chars[i] = "x" end
+        return { who = who, text = table.concat(chars), chars = chars, marks = {} }
+    end
+    -- 60 characters in Korean: 5 s to read and 0.6 to take in, from the first character
+    local tl = Script.timeline({ line("oak", 60) }, 12)
+    near(tl.total, 60 / 12 + Script.UNDERSTAND, 1e-6)
+    -- 6 characters come in fast: still READ_AFTER once all there
+    tl = Script.timeline({ line("oak", 6) }, 12)
+    near(tl.total, 6 / Script.OAK_CPS + Script.READ_AFTER, 1e-6)
+    -- the same words take more characters in English, read faster
+    near(Script.timeline({ line("oak", 150) }, 17).total, 150 / 17 + Script.UNDERSTAND, 1e-6)
+    -- a new speaker waits a turn; the same one does not
+    local two = Script.timeline({ line("oak", 60), line("me", 6) }, 12)
+    near(two.lines[2].t0, two.lines[1].t1)
+    eq(two.lines[2].pieces[1].kind, "hold")
+    near(two.lines[2].pieces[1].to - two.lines[2].pieces[1].from, Script.TURN, 1e-9)
+    local same = Script.timeline({ line("oak", 60), line("oak", 6) }, 12)
+    eq(same.lines[2].pieces[1].kind, "in")
 end)
 
 test("an erased line: typed, held, deleted, a beat, then the words that are sent", function()
