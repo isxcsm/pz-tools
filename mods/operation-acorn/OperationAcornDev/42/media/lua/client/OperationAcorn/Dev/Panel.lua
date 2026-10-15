@@ -7,6 +7,7 @@ if not isDebugEnabled() then return end
 require "PZExtDev/Panel"
 require "OperationAcorn/Core"
 require "OperationAcorn/Titles"
+require "OperationAcorn/Machines/Machines"
 require "OperationAcorn/Dev/Dev"
 require "OperationAcorn/Dev/Features"
 local OA = OperationAcorn
