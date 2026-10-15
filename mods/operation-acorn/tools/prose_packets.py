@@ -258,20 +258,40 @@ def export(folder):
 SPOKEN = re.compile(r'^(참나무|관리 7|주인공)(?: \([^)]*\))?:\s*')
 
 
+def short_keys(ui):
+    """The keys as the packets write them: a comms key without IGUI_OA_Comms_, another of IG_UI without IGUI_OA_, the
+    other files' as they are. Short -> the key."""
+    out = {}
+    for k in ui:
+        for prefix in ('IGUI_OA_Comms_', 'IGUI_OA_', ''):
+            if k.startswith(prefix):
+                out[k[len(prefix):]] = k
+                break
+    return out
+
+
 def answered(answer, ui):
-    """The lines of an answer: (key in the game, its text in the game's marks), in order. A short key is found by its
-    ending; a scene line's speaker is taken off; a line with an ` — why` after it loses that."""
-    out = []
-    for line in open(answer, encoding='utf-8'):
-        m = re.match(r'^\s*[-*]?\s*`([^`]+)`\s*(.*?)(?:\s+—\s+.*)?$', line.rstrip())
-        if not m:
-            continue
-        short, text = m.group(1), SPOKEN.sub('', m.group(2).strip())
-        hits = [k for k in ui if k == short or k == 'IGUI_OA_' + short or k == 'IGUI_OA_Comms_' + short]
-        if len(hits) != 1:
-            print('no single key for', short)
-            continue
-        out.append((hits[0], marked(text)))
+    """The lines of an answer: (key in the game, its text in the game's marks), in order. A pasted answer may have lost
+    its line breaks and backticks: a word that is a key (in backticks or not) starts a line. A scene line's speaker is
+    taken off, the (noise) and (silence) notes and a `— why` after a line are dropped."""
+    keys = short_keys(ui)
+    text = open(answer, encoding='utf-8').read()
+    text = re.sub(r'\((?:잡음|무음) [\d.]+초\)', ' ', text)
+    out, key, words = [], None, []
+
+    def close():
+        if key is not None:
+            body = re.sub(r'\s+—\s+.*$', '', ' '.join(words)).strip()
+            out.append((key, marked(SPOKEN.sub('', body).strip())))
+
+    for word in text.split():
+        bare = word.strip('`').lstrip('-*')
+        if bare in keys and (word.startswith('`') or bare not in ('', '-')):
+            close()
+            key, words = keys[bare], []
+        elif key is not None:
+            words.append(word)
+    close()
     return out
 
 
