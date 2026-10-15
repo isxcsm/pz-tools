@@ -113,18 +113,22 @@ function Script.readCps(lang)
 end
 
 -- How long a line of `count` characters is left once it is all there, `shown` seconds after its first came in (or
--- began to be typed): the rest of its reading time, and at least READ_AFTER.
-function Script.readTime(count, shown, cps)
-    return math.max(Script.READ_AFTER, count / (cps or Script.readCps()) + Script.UNDERSTAND - (shown or 0))
+-- began to be typed): the rest of its reading time, and at least READ_AFTER (or `after`).
+function Script.readTime(count, shown, cps, after)
+    return math.max(after or Script.READ_AFTER, count / (cps or Script.readCps()) + Script.UNDERSTAND - (shown or 0))
 end
 
 -- The timeline of a call's lines. Each line gets `t0` (it starts) and `t1` (the next line starts), and the pieces of
 -- its time: { from, to, kind, n0, n1 } with kind "in" (the team's characters coming in, n0 to n1), "cut" (the signal
 -- breaking up, n0 shown), "hold" (nothing moves), "type" / "erase" (the protagonist's input line: the words erased
 -- first, n0 to n1 of them), "typeSend" (the words sent), "read" (all there, left to be read). `cps`: the reading speed
--- (Script.readCps, the game's language when not given).
-function Script.timeline(lines, cps)
+-- (Script.readCps, the game's language when not given). `pace`: another pace than the tab's, { oak, me (characters a
+-- second), turn, after (READ_AFTER) }, each left out the tab's. A mark in the protagonist's words is a stop in the typing.
+function Script.timeline(lines, cps, pace)
     cps = cps or Script.readCps()
+    pace = pace or {}
+    local oakCps, meCps = pace.oak or Script.OAK_CPS, pace.me or Script.ME_CPS
+    local turn, after = pace.turn or Script.TURN, pace.after or Script.READ_AFTER
     local t = 0
     local list = {}
     local last
@@ -138,31 +142,36 @@ function Script.timeline(lines, cps)
         end
         local count = #l.chars
         local speech = l.who ~= "noise" and l.who ~= "mute"
-        if speech and last and last ~= l.who then add("hold", Script.TURN, 0, 0) end
+        if speech and last and last ~= l.who then add("hold", turn, 0, 0) end
         if speech then last = l.who end
         if l.who == "noise" or l.who == "mute" then
             add("hold", l.s or 1)
         elseif l.who == "me" then
             if l.erase then
                 local ec = #(Script.parse(l.erase))
-                add("erasetype", ec / Script.ME_CPS, 0, ec)
+                add("erasetype", ec / meCps, 0, ec)
                 add("erasestop", Script.ERASE_STOP, ec, ec)
                 add("erase", ec / Script.ERASE_CPS, ec, 0)
                 add("hold", Script.ERASE_AFTER)
             end
-            add("type", count / Script.ME_CPS, 0, count)
-            add("read", Script.readTime(count, count / Script.ME_CPS, cps), count, count)
+            local n, typing = 0, t
+            for _, m in ipairs(l.marks) do
+                if m.at > n then add("type", (m.at - n) / meCps, n, m.at); n = m.at end
+                add("type", m.cut or m.mute or m.p or 0, n, n)
+            end
+            if count > n then add("type", (count - n) / meCps, n, count) end
+            add("read", Script.readTime(count, t - typing, cps, after), count, count)
         else
             -- the team's line, the marks where they fall
             local n = 0
             for _, m in ipairs(l.marks) do
-                if m.at > n then add("in", (m.at - n) / Script.OAK_CPS, n, m.at); n = m.at end
+                if m.at > n then add("in", (m.at - n) / oakCps, n, m.at); n = m.at end
                 if m.cut then add("cut", m.cut, n, n)
                 elseif m.mute then add("hold", m.mute, n, n)
                 elseif m.p then add("hold", m.p, n, n) end
             end
-            if count > n then add("in", (count - n) / Script.OAK_CPS, n, count) end
-            add("read", Script.readTime(count, count / Script.OAK_CPS, cps), count, count)
+            if count > n then add("in", (count - n) / oakCps, n, count) end
+            add("read", Script.readTime(count, count / oakCps, cps, after), count, count)
         end
         list[i] = { line = l, t0 = start, t1 = t, pieces = pieces }
     end

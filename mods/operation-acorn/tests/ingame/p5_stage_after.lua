@@ -3,6 +3,10 @@
 --   2: P5_PUT() leaves the case (the character is moved to the drop), P5_WAIT(f) brings the wait to f (0 to 1) and
 --      says what woke and fell; P5_AWAY() moves the character away and looks once (the record is swapped in).
 --   5 (and any stage with "heli"): P5_HELI() wakes what waits for the helicopter; P5_LYING() counts who still lies.
+--   5, 8: P5_FIELD() shows the call on the spot (S5F, S8F) as the helicopter would bring it.
+--   7: P5_UNBOARD() takes the hall's planks off, the last one with the game's own unbarricade action (a hammer given).
+--   8: P5_LASTCRATE() ends the handover and puts its last crate down beside the character, then opens it with the
+--      game's own action: the handover card and Admin 7's call (S9) come.
 RUN("p4_lib.lua")
 local OA = OperationAcorn
 local say = P4T.say("p5stage")
@@ -137,6 +141,14 @@ for i, p in ipairs(def.pieces) do
         end
     elseif p.kind == "blood" then
         say(what, "(not counted)")
+    elseif p.kind == "block" then
+        local c = 0
+        for _, s in ipairs({ "location_community_medical_01_20", "location_community_medical_01_21" }) do
+            c = c + (sprites[s] or 0)
+        end
+        say(what, "west-facing bed tiles (blocking a west door)", c, "(look by eye)")
+    elseif p.kind == "call" then
+        say(what, "calls on", p.on, "(listen by ear)")
     end
 end
 for _, v in ipairs(vehicles) do say("vehicle", v:getScriptName(), math.floor(v:getX()), math.floor(v:getY())) end
@@ -162,6 +174,51 @@ function P5_AWAY()
     P4T.go(math.floor(site.x) - 60, math.floor(site.y), 0)
     OA.Missions.tickSwap(record, m, OA.hours())
     say("swap", m.swap.stage)
+end
+
+-- 5, 8: the call on the spot.
+function P5_FIELD()
+    OA.Story.call(record, "field:" .. m.story)
+    OA.Sync.changed("comms", record.id)
+    say("field call", m.story)
+end
+
+-- 7: the planks off the hall's doors, the last by the game's own action.
+function P5_UNBOARD()
+    local b = st.boarded
+    if not b then say("no boarded doors (taken off already?)"); return end
+    local last
+    for i, at in ipairs(b.doors) do
+        local sq = cell:getGridSquare(at.x, at.y, at.z)
+        local objs = sq and sq:getObjects()
+        for j = 0, (objs and objs:size() or 0) - 1 do
+            local o = objs:get(j)
+            if instanceof(o, "IsoDoor") and o:getNorth() == at.north then
+                local bar = at.opposite and o:getBarricadeOnOppositeSquare() or o:getBarricadeOnSameSquare()
+                local keep = i == #b.doors and 1 or 0
+                while bar and bar:getNumPlanks() > keep do bar:removePlank(nil) end
+                if i == #b.doors then last = { door = o, bar = bar } end
+            end
+        end
+    end
+    if not (last and last.bar) then say("no barricade left on the last door"); return end
+    local bsq = last.bar:getSquare()
+    P4T.go(bsq:getX(), bsq:getY(), bsq:getZ())
+    player:setPrimaryHandItem(player:getInventory():AddItem("Base.Hammer"))
+    ISTimedActionQueue.add(ISUnbarricadeAction:new(player, last.door))
+    say("the last plank is being taken off at", bsq:getX(), bsq:getY(), "; wait, then look for S7F_plank")
+end
+
+-- 8: the last crate.
+function P5_LASTCRATE()
+    OA.Story.completeHandover(record)
+    local T = OA.Trade
+    local sq = T.Objects.findClear(math.floor(player:getX()) + 2, math.floor(player:getY()), 6)
+    if not sq then say("no square for the crate"); return end
+    T.Things.makeCrate(sq, { { type = OA.StoryData.fullType("HandoverFile"), count = 1 },
+        { type = OA.StoryData.fullType("KitVoucher"), count = 1 }, { type = "Base.WalkieTalkie5", count = 1 } }, false)
+    ISTimedActionQueue.add(ISOAUnseal:new(player, sq, true))
+    say("the last crate at", sq:getX(), sq:getY(), "is being opened; then open the terminal for S9")
 end
 
 -- 5: the helicopter.

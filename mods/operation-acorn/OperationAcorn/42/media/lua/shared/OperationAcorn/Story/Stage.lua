@@ -74,6 +74,7 @@ local function centre(r)
 end
 
 local HALL = { hall = true, hallway = true, corridor = true, entrance = true, lobby = true }
+Stage.HALL = HALL   -- the names of a way through (a hall, a corridor): read by the hands too
 
 -- The rooms' roles in a layout: { big, inner, other, hall } as indexes of layout.rooms, and entrance as an index of
 -- layout.doors; any of them nil when the building has no room for it. The ground floor is z 0, or the lowest there is.

@@ -839,16 +839,27 @@ function StageGame.unboardedAt(at)
     return b == nil or b:getNumPlanks() == 0
 end
 
--- Blocks the room's doors but one from inside with a hospital bed (the ward shut itself in): a bed of two squares
--- reaching into the room from the door, where both are free. The one left is the first door found.
+-- Blocks the room's ways in but one from inside with a hospital bed (the ward shut itself in): its doors to the
+-- outside or to a hall (not to a side room, a bathroom or a closet), a bed of two squares reaching into the room from
+-- the door where both are free. The one left is the first such door found.
 local BLOCK_BED = { north = { "location_community_medical_01_17", "location_community_medical_01_16" },
     west = { "location_community_medical_01_20", "location_community_medical_01_21" } }
+local function wayIn(d, c)
+    local o = d.door
+    local x, y, z = d.square:getX(), d.square:getY(), d.square:getZ()
+    local other = d.inRoom and (o:getNorth() and c:getGridSquare(x, y - 1, z) or c:getGridSquare(x - 1, y, z)) or d.square
+    local r = other and other:getRoom()
+    return r == nil or OA.Stage.HALL[r:getName() or ""] == true
+end
 function StageGame.block(ctx, p)
     local room = roomOf(ctx, p)
     if not room then return nil end
-    local doors = doorsOf(room)
-    if #doors < 2 then return nil end
     local c = getCell()
+    local doors = {}
+    for _, d in ipairs(doorsOf(room)) do
+        if wayIn(d, c) then doors[#doors + 1] = d end
+    end
+    if #doors < 2 then return nil end
     local blocked = 0
     for i = 2, #doors do
         local d = doors[i]

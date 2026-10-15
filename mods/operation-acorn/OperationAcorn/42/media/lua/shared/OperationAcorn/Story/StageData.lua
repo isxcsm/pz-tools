@@ -26,7 +26,7 @@
 --   board     { planks, drop = { during, at }, last } boards on the outside of the room's doors; with `drop`, one
 --             plank falls at that point of the span (Stage.progress); with `last` (an event), the player taking the
 --             last plank off them makes that event and the story's monologue for it (Stage.unboarded)
---   block     blocks the room's doors but one from inside with a hospital bed
+--   block     blocks the room's ways in (to the outside or a hall) but one from inside with a hospital bed
 --   lockout   locks the outer doors but the entrance (no key)
 --   lock      locks the room's doors with the building's key: the key goes to the next corpse with `key = true`
 --   window    { chair } opens one of the room's windows; with `chair` ({ N, S, W, E }) a chair inside it, turned to it

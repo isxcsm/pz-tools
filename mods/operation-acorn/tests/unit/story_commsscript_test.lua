@@ -150,3 +150,21 @@ test("the calls' lines carry only the comms tab's marks, each with its seconds",
         end
     end
 end)
+
+test("the protagonist stops typing at a mark; a call on the spot has its own pace", function()
+    local chars, marks = Script.parse("AB{p:2}CD")
+    local me = { who = "me", text = table.concat(chars), chars = chars, marks = marks }
+    local tl = Script.timeline({ me }, 12)
+    local st = Script.at(tl, 2 / Script.ME_CPS + 1)
+    eq(st.phase, "type")
+    eq(st.input, 2, "held at the mark")
+    st = Script.at(tl, 2 / Script.ME_CPS + 2 + 1 / Script.ME_CPS + 0.001)
+    eq(st.input, 3, "typing again after it")
+    local typing = 4 / Script.ME_CPS + 2
+    near(tl.total, typing + Script.readTime(4, typing, 12), 1e-6)
+    local oak = { who = "oak", text = "XY", chars = { "X", "Y" }, marks = {} }
+    local slow = Script.timeline({ oak, me }, 12, { oak = 4, me = 2, turn = 1.5, after = 3 })
+    near(slow.lines[1].t1, 2 / 4 + 3, 1e-6)
+    near(slow.lines[2].pieces[1].to - slow.lines[2].pieces[1].from, 1.5, 1e-9)
+    near(slow.lines[2].pieces[2].to - slow.lines[2].pieces[2].from, 2 / 2, 1e-9)
+end)

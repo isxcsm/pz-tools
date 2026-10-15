@@ -954,7 +954,7 @@
     "IGUI_OA_Title_Arrived": "Request area",
     "IGUI_OA_Title_PaidSub": "%1 · %2 credits",
     "IGUI_OA_Title_NewRequest": "New request",
-    "IGUI_OA_Title_CheckTerminal": "Check the terminal",
+    "IGUI_OA_Title_CheckTerminal": "See the terminal's Missions tab",
     "IGUI_OA_Title_Lost": "Requested item destroyed",
     "IGUI_OA_Title_LostSub_Find": "Another one at the same place · more time",
     "IGUI_OA_Title_LostSub_Soil": "Take the sample again · more time",

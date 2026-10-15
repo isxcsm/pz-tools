@@ -1,5 +1,5 @@
--- P5 (PLAN 3단계): one stage's story mission from the start, its site and its stage. Set P5_STAGE (2 to 5; 3 takes
--- P5_OPTION "a" or "b", else "a") before RUN. CHANGES THE RECORD (stage, active mission, the world's used sites): use a
+-- P5 (PLAN 3·4단계): one stage's story mission from the start, its site and its stage. Set P5_STAGE (2 to 8; 3 takes
+-- P5_OPTION "a" or "b", else "a"; 6 to 8 are the milestones after the fifth stage) before RUN. CHANGES THE RECORD (stage, active mission, the world's used sites): use a
 -- throwaway save. Header setup: a character with a record, standing where the base is taken to be.
 -- It starts the mission and puts the character 30 squares from the site (near enough for the stage and its keepers).
 -- Wait a few seconds for the chunks, then RUN p5_stage_after.lua.
@@ -19,7 +19,8 @@ OA.Story.setAnchor(record, math.floor(player:getX()), math.floor(player:getY()),
 record.trade = record.trade or {}
 record.trade.stage = 0
 OA.Story.firstContact(record, false)
-for n = 1, stage do P4T.setStage(record, n, 0) end
+for n = 1, math.min(stage, 5) do P4T.setStage(record, n, 0) end
+for k = 1, stage - 5 do P4T.setStage(record, 5, k) end
 OA.Missions.tick(record)
 local m = OA.Missions.active(record)
 if m and m.state == "offer" then
