@@ -95,19 +95,53 @@ test("reading: a line is given its characters at the language's speed and a beat
     eq(same.lines[2].pieces[1].kind, "in")
 end)
 
-test("an erased line: typed, held, deleted, a beat, then the words that are sent", function()
+-- The pieces of a line's timeline of one kind, and when the first piece of another kind starts.
+local function pieces(entry, kind)
+    local out = {}
+    for _, pc in ipairs(entry.pieces) do if pc.kind == kind then out[#out + 1] = pc end end
+    return out
+end
+
+test("an erased line: typed slower at its end, held, deleted a tap at a time, a beat, then the words that are sent", function()
     local l = Script.lines(Data.BY_ID.S1, ctx(1))[11]
     local tl = Script.timeline({ l })
-    local t = 0
-    local st = Script.at(tl, 2 / Script.ME_CPS + 0.001)
+    local typed = pieces(tl.lines[1], "erasetype")
+    eq(typed[#typed].n1, 3)
+    local function per(pc) return (pc.to - pc.from) / (pc.n1 - pc.n0) end
+    for i = 2, #typed do truthy(per(typed[i]) > per(typed[i - 1]), "each of the last letters slower") end
+    local stop = pieces(tl.lines[1], "erasestop")[1]
+    near(stop.to - stop.from, Script.ERASE_STOP, 1e-9)
+    local st = Script.at(tl, (stop.from + stop.to) / 2)
+    eq(st.input, 3, "held whole")
     eq(st.inputOf, "erase")
-    eq(st.input, 2)
-    t = 3 / Script.ME_CPS + Script.ERASE_STOP / 2
-    eq(Script.at(tl, t).input, 3, "held whole")
-    t = 3 / Script.ME_CPS + Script.ERASE_STOP + 3 / Script.ERASE_CPS + Script.ERASE_AFTER + 1 / Script.ME_CPS + 0.001
-    st = Script.at(tl, t)
+    local erase = pieces(tl.lines[1], "erase")[1]
+    near(erase.from, stop.to, 1e-9)
+    near(erase.to - erase.from, 3 / Script.ERASE_CPS, 1e-9)
+    eq(Script.at(tl, erase.from + 1.5 / Script.ERASE_CPS).input, 1, "a tap at a time")
+    local think = pieces(tl.lines[1], "hold")[1]
+    near(think.from, erase.to, 1e-9)
+    near(think.to - think.from, Script.ERASE_AFTER, 1e-9)
+    st = Script.at(tl, pieces(tl.lines[1], "type")[1].to - 0.001)
     eq(st.inputOf, "text")
-    eq(st.input, 1)
+end)
+
+test("a hand's typing: a word at its own speed, a gap between words, a longer one after a clause", function()
+    local chars = Script.parse("AB CD, EF")
+    local got = {}
+    Script.typing(function(kind, dur, n0, n1) got[#got + 1] = { dur = dur, n0 = n0, n1 = n1 } end,
+        "type", chars, 0, #chars, 10)
+    -- AB and its space, a gap; CD, and its space, a clause's gap; EF
+    eq(#got, 5)
+    eq(got[1].n1, 3)
+    near(got[2].dur, Script.WORD_PAUSE, 1e-9)
+    eq(got[2].n0, got[2].n1)
+    eq(got[3].n1, 7)
+    near(got[4].dur, Script.CLAUSE_PAUSE, 1e-9)
+    eq(got[5].n1, 9)
+    for _, i in ipairs({ 1, 3, 5 }) do
+        local per = got[i].dur / (got[i].n1 - got[i].n0)
+        truthy(per >= 1 / (10 * (1 + Script.WORD_SPREAD)) - 1e-9 and per <= 1 / (10 * (1 - Script.WORD_SPREAD)) + 1e-9)
+    end
 end)
 
 test("the record writes a break as its words and keeps the rest plain", function()
@@ -159,12 +193,17 @@ test("the protagonist stops typing at a mark; a call on the spot has its own pac
     local chars, marks = Script.parse("AB{p:2}CD")
     local me = { who = "me", text = table.concat(chars), chars = chars, marks = marks }
     local tl = Script.timeline({ me }, 12)
-    local st = Script.at(tl, 2 / Script.ME_CPS + 1)
+    local typed = pieces(tl.lines[1], "type")
+    local ab, stop = typed[1], typed[2]
+    eq(ab.n1, 2)
+    near(stop.to - stop.from, 2, 1e-9)
+    local st = Script.at(tl, stop.from + 1)
     eq(st.phase, "type")
     eq(st.input, 2, "held at the mark")
-    st = Script.at(tl, 2 / Script.ME_CPS + 2 + 1 / Script.ME_CPS + 0.001)
+    st = Script.at(tl, typed[3].to - 0.001)
     eq(st.input, 3, "typing again after it")
-    local typing = 4 / Script.ME_CPS + 2 + Script.SEND_AFTER
+    local typing = typed[#typed].to
+    near(typed[#typed].to - typed[#typed].from, Script.SEND_AFTER, 1e-9)
     st = Script.at(tl, typing - Script.SEND_AFTER / 2)
     eq(st.phase, "type", "typed whole, not sent yet")
     eq(st.input, 4)
@@ -174,5 +213,7 @@ test("the protagonist stops typing at a mark; a call on the spot has its own pac
     local slow = Script.timeline({ oak, me }, 12, { oak = 4, me = 2, turn = 1.5, after = 3 })
     near(slow.lines[1].t1, 2 / 4 + 3, 1e-6)
     near(slow.lines[2].pieces[1].to - slow.lines[2].pieces[1].from, 1.5, 1e-9)
-    near(slow.lines[2].pieces[2].to - slow.lines[2].pieces[2].from, 2 / 2, 1e-9)
+    local per = (slow.lines[2].pieces[2].to - slow.lines[2].pieces[2].from) / 2
+    truthy(per >= 1 / (2 * (1 + Script.WORD_SPREAD)) - 1e-9 and per <= 1 / (2 * (1 - Script.WORD_SPREAD)) + 1e-9,
+        "the call's own typing speed")
 end)

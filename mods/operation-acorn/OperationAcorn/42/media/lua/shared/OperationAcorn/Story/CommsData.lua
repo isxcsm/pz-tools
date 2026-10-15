@@ -39,7 +39,7 @@ Data.ENTRIES = {
     { id = "S1F", kind = "scene", trigger = "story:evidence", tier = 1, mission = true, waits = "S1", sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "me" }, { "oak" } } },
     { id = "S2", kind = "scene", trigger = "serum", tier = 2, waits = "S1", greet = true, sign = "oak", lines = {
-        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" } } },
+        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me", erase = true }, { "oak" } } },
     { id = "S2B", kind = "scene", trigger = "after:S2:12", tier = 2, waits = "S2", sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "noise", s = 3 } } },
     { id = "s2_filter", kind = "short", trigger = "tier:2", tier = 2, waits = "S1", greet = true, sign = "oak" },
@@ -71,13 +71,13 @@ Data.ENTRIES = {
         { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" } } },
     { id = "s7_list", kind = "short", trigger = "tier:7", tier = 7, waits = "S7", greet = true, sign = "oak" },
     { id = "S7F", kind = "scene", trigger = "story:cells", tier = 7, mission = true, waits = "S7", sign = "oak", lines = {
-        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" } } },
+        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me", erase = true }, { "oak" } } },
     { id = "s8_handover", kind = "short", trigger = "tier:8", tier = 8, waits = "S7", greet = true, sign = "oak" },
     { id = "S8F", kind = "field", trigger = "field:handover", tier = 8, mission = true, sign = "oak", lines = {
-        { "oak" }, { "me" }, { "oak" } } },
+        { "oak" }, { "me", erase = true }, { "oak" } } },
     { id = "S8", kind = "scene", trigger = "story:handover", tier = 8, mission = true, waits = "S7", sign = "oak", lines = {
-        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "oak" }, { "me" }, { "oak" }, { "oak" }, { "oak" },
-        { "me" }, { "noise", s = 5 } } },
+        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "oak" }, { "me", erase = true }, { "oak" }, { "oak" },
+        { "oak" }, { "me" }, { "noise", s = 5 } } },
     { id = "S9", kind = "scene", trigger = "handedover", tier = 8, keep = true, waits = "S8", sign = "admin", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me", erase = true } } },
     { id = "K1", kind = "scene", trigger = "tier:9", tier = 9, waits = "S9", sign = "admin", lines = { { "oak" } } },

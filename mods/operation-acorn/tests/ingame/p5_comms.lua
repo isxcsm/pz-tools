@@ -1,6 +1,7 @@
 -- P5 (PLAN 3단계): a call played in the comms tab, to look at its pacing. P5_CALL (an entry id, else "S1") and
 -- P5_TIER (else 1). Opens a terminal within reach (else puts one down beside the character), skips its boot, plays the call as a replay (nothing
--- is sent at its end) and logs each line's start and end with its characters. P5_CLEAN() gives the terminal its real power back.
+-- is sent at its end) and logs each line's start and end with its characters; P5_VIEW is the comms view playing it.
+-- P5_CLEAN() gives the terminal its real power back.
 RUN("p4_lib.lua")
 local OA = OperationAcorn
 local say = P4T.say("p5comms")
@@ -40,6 +41,7 @@ local window = OA.Terminal.open(player, at:getX(), at:getY(), at:getZ())
 for _ = 1, 20 do if window.boot then window:bootSkip() end end
 window:activate("comms")
 local view = window.views.comms
+P5_VIEW = view
 local entry = OA.CommsData.BY_ID[P5_CALL or "S1"]
 view:start(entry, P5_TIER or 1, true)
 say("cps", OA.CommsScript.readCps(), "lines", #view.play.lines, "total", string.format("%.1f", view.play.tl.total))

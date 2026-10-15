@@ -14,9 +14,19 @@ OA.CommsScript = Script
 -- Speeds and beats, in characters a second and seconds (SCENES 2 '줄의 시간').
 Script.OAK_CPS = 28          -- the team's line comes in evenly
 Script.ME_CPS = 14           -- the protagonist types slower
-Script.ERASE_CPS = 22        -- and deletes faster
-Script.ERASE_STOP = 0.8      -- the typed words sit with the cursor blinking before they are deleted
-Script.ERASE_AFTER = 0.6     -- a beat after the deleting, before the words that are sent
+-- A hand's typing, not a machine's: each word at its own speed (up to WORD_SPREAD faster or slower, fixed by its
+-- letters), a gap between words, a longer one after the end of a clause inside a line.
+Script.WORD_SPREAD = 0.2
+Script.WORD_PAUSE = 0.12
+Script.CLAUSE_PAUSE = 0.4
+Script.CLAUSE_ENDS = { [","] = true, ["."] = true, ["?"] = true, ["!"] = true }
+-- Words typed and taken back: the last letters come slower and slower (times a letter's time), the words sit whole
+-- with the cursor blinking, are deleted a tap at a time, and the cursor blinks again while the next words are thought
+-- of.
+Script.ERASE_SLOW = { 2, 3, 4.5 }
+Script.ERASE_STOP = 1.2
+Script.ERASE_CPS = 10
+Script.ERASE_AFTER = 1.0
 Script.SEND_AFTER = 0.7      -- the typed words sit whole on the input line a moment before they are sent
 -- Reading: a line is read as it comes in, so from its first character to the next line it is given its characters at
 -- the language's reading speed (subtitles' adult speeds: Korean 12 a second, Chinese and Japanese 9, the rest 17) and a
@@ -120,6 +130,42 @@ function Script.readTime(count, shown, cps, after)
     return math.max(after or Script.READ_AFTER, count / (cps or Script.readCps()) + Script.UNDERSTAND - (shown or 0))
 end
 
+-- The protagonist typing characters a+1 to b of `chars` at `cps` as pieces of `kind` (n0 to n1 typed), through
+-- `add(kind, seconds, n0, n1)`: each word at its speed, the gaps between words and after a clause as pieces that type
+-- nothing; `slowing`: the last letters slow down (words about to be taken back).
+function Script.typing(add, kind, chars, a, b, cps, slowing)
+    local d = {}
+    local i = a + 1
+    while i <= b do
+        local j = i
+        while j < b and chars[j] ~= " " do j = j + 1 end
+        local sum = 0
+        for k = i, j do sum = sum + (string.byte(chars[k]) or 0) end
+        local speed = cps * (1 + Script.WORD_SPREAD * (OA.remainder(sum, 5) / 2 - 1))
+        for k = i, j do d[k] = 1 / speed end
+        i = j + 1
+    end
+    if slowing then
+        local slow = Script.ERASE_SLOW
+        for k = 1, #slow do
+            local at = b - #slow + k
+            if at > a then d[at] = slow[k] / cps end
+        end
+    end
+    local function gap(k)
+        if k >= b or chars[k] ~= " " then return 0 end
+        return Script.CLAUSE_ENDS[chars[k - 1] or ""] and Script.CLAUSE_PAUSE or Script.WORD_PAUSE
+    end
+    local n = a
+    while n < b do
+        local m = n + 1
+        while m < b and d[m + 1] == d[n + 1] and gap(m) == 0 do m = m + 1 end
+        add(kind, (m - n) * d[n + 1], n, m)
+        if gap(m) > 0 then add(kind, gap(m), m, m) end
+        n = m
+    end
+end
+
 -- The timeline of a call's lines. Each line gets `t0` (it starts) and `t1` (the next line starts), and the pieces of
 -- its time: { from, to, kind, n0, n1 } with kind "in" (the team's characters coming in, n0 to n1), "cut" (the signal
 -- breaking up, n0 shown), "hold" (nothing moves), "type" / "erase" (the protagonist's input line: the words erased
@@ -151,18 +197,19 @@ function Script.timeline(lines, cps, pace)
             add("hold", l.s or 1)
         elseif l.who == "me" then
             if l.erase then
-                local ec = #(Script.parse(l.erase))
-                add("erasetype", ec / meCps, 0, ec)
+                local echars = Script.parse(l.erase)
+                local ec = #echars
+                Script.typing(add, "erasetype", echars, 0, ec, meCps, true)
                 add("erasestop", Script.ERASE_STOP, ec, ec)
                 add("erase", ec / Script.ERASE_CPS, ec, 0)
                 add("hold", Script.ERASE_AFTER)
             end
             local n, typing = 0, t
             for _, m in ipairs(l.marks) do
-                if m.at > n then add("type", (m.at - n) / meCps, n, m.at); n = m.at end
+                if m.at > n then Script.typing(add, "type", l.chars, n, m.at, meCps); n = m.at end
                 add("type", m.cut or m.mute or m.p or 0, n, n)
             end
-            if count > n then add("type", (count - n) / meCps, n, count) end
+            if count > n then Script.typing(add, "type", l.chars, n, count, meCps) end
             add("type", Script.SEND_AFTER, count, count)
             add("read", Script.readTime(count, t - typing, cps, after), count, count)
         else
