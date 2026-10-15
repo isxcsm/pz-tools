@@ -145,7 +145,7 @@ end
 local function machinesPage(page, ui)
     local near = ui.lines(page, 1, 6)
     local kinds = {}
-    for _, kind in ipairs(Dev.MACHINES) do kinds[#kinds + 1] = { kind, kind } end
+    for _, kind in ipairs(Dev.MACHINES) do kinds[#kinds + 1] = { OA.Machines.name(kind), kind } end
     local kindBox = ui.combo(page, ui.PAD, ui.row(8), 200, kinds)
     local _, x = ui.button(page, T("Mc_Give"), ui.PAD + 210, ui.row(8), 0, function()
         Dev.giveMachine(kindBox:getSelectedData())
