@@ -354,6 +354,41 @@ test("the ledger tells on entering how much is left, then a floor's further stag
     getText, OA.Buildings.floor = text, floor
 end)
 
+test("stepping out and back in does not repeat the line on entering for a game day, unless it changed", function()
+    local Senses = loadSenses()
+    standIns()
+    recordWith({ ledger = 1 })
+    local said = {}
+    local p = player(100, 100, 0.0)
+    p.Say = function(_, text) said[#said + 1] = text end
+    local text, floor, hours = getText, OA.Buildings.floor, OA.hours
+    getText = function(key) return key end
+    OA.Buildings.floor = function() return 20, 20 end
+    local now = 100
+    OA.hours = function() return now end
+    Senses.resetLedger()
+    Senses.ledgerLeave()
+    Senses.ledgerLook(p, "house", 2, 20, true, 1000)
+    eq(said[1], "IGUI_OA_Tree_LedgerMany")
+    Senses.ledgerLeave()
+    now = 101
+    Senses.ledgerLook(p, "house", 2, 20, true, 2000)
+    eq(#said, 1, "the same line an hour later: quiet")
+    Senses.ledgerLeave()
+    Senses.ledgerLook(p, "shop", 2, 20, true, 3000)
+    eq(said[2], "IGUI_OA_Tree_LedgerMany", "another building is told")
+    Senses.ledgerLeave()
+    Senses.ledgerLook(p, "house", 16, 20, true, 4000)
+    eq(said[3], "IGUI_OA_Tree_LedgerSome", "a line that changed is told")
+    Senses.ledgerLeave()
+    now = 126
+    Senses.ledgerLook(p, "house", 16, 20, true, 5000)
+    eq(said[4], "IGUI_OA_Tree_LedgerSome", "a day later, told again")
+    Senses.resetLedger()
+    Senses.ledgerLeave()
+    getText, OA.Buildings.floor, OA.hours = text, floor, hours
+end)
+
 -- ---- the marks through the quads call ---------------------------------------------------------------------------
 
 test("a mark is drawn as one call of two quads through the API, the same numbers DrawTexture takes", function()

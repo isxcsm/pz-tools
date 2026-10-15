@@ -774,11 +774,12 @@ end
 -- lists none in B42). Nothing here runs on a clock: the search watch (client/OperationAcorn/Economy/Searched.lua) calls
 -- these on the loot window's refresh, as the character steps onto another square or a container is marked.
 
-local ledger = { key = nil, done = false, told = true, since = 0, stages = {}, said = 0 }
+local ledger = { key = nil, done = false, told = true, since = 0, stages = {}, said = 0, heard = {} }
 
 -- Forgets the building the ledger told of, so that it is told again (the developer panel's search reset).
 function Senses.resetLedger()
     ledger.key = nil
+    ledger.heard = {}
 end
 Senses.ledger = ledger
 -- A building not all counted yet is told once it is, or after LEDGER_WAIT_MS with what was found (a count of 0 then is
@@ -789,6 +790,24 @@ local LEDGER_WAIT_MS = 5000
 -- the player needs to hear.
 local LEDGER_GAP_MS = 10000
 local FLOOR_DONE = Sense.LEDGER_STAGES[#Sense.LEDGER_STAGES]
+-- The line on entering a building is not said again for this many game hours when it is the one last said there
+-- (stepping out and back in tells nothing new); a line that changed is said at once.
+local LEDGER_REPEAT_HOURS = 24
+
+-- Whether `line` was the last said of building `key` within LEDGER_REPEAT_HOURS.
+local function heardLately(key, line, hours)
+    local h = ledger.heard[key]
+    return h ~= nil and h.line == line and hours >= h.at and hours - h.at < LEDGER_REPEAT_HOURS
+end
+
+-- Notes `line` as the last said of building `key` (those older than LEDGER_REPEAT_HOURS go: the set stays small).
+local function noteHeard(key, line, hours)
+    if not key then return end
+    for k, h in pairs(ledger.heard) do
+        if hours - h.at >= LEDGER_REPEAT_HOURS or hours < h.at then ledger.heard[k] = nil end
+    end
+    ledger.heard[key] = { line = line, at = hours }
+end
 
 -- The line of the stage the floor the character is on has reached (Sense.ledgerStage), when it is further than the
 -- one noted, which it becomes; nil when nothing is new. The stage a floor is at when first seen is noted, not told (the
@@ -871,8 +890,9 @@ end
 
 -- A look at the building the character is in (the watch makes one on coming in and when a container is marked). Rank
 -- 1 tells once, on entering, how much is left or that it was searched (never "0 left"; one with no containers is not
--- told); after that it returns the line of a further stage of the floor's search, which the watch says as the
--- character steps away from the containers that made it, or nil.
+-- told, nor the same line as last time there within LEDGER_REPEAT_HOURS); after that it returns the line of a
+-- further stage of the floor's search, which the watch says as the character steps away from the containers that
+-- made it, or nil.
 function Senses.ledgerLook(player, key, opened, total, complete, now)
     if ledgerRank(player) < 1 then return nil end
     if key ~= ledger.key then
@@ -884,14 +904,20 @@ function Senses.ledgerLook(player, key, opened, total, complete, now)
     ledger.said = now
     ledgerProgress(player, total, opened)
     local left = total - opened
+    local line
     if total > 0 and left == 0 then
         if complete then
             ledger.done = true
-            player:Say(getText("IGUI_OA_Tree_LedgerAlreadyDone"))
+            line = "IGUI_OA_Tree_LedgerAlreadyDone"
         end
     elseif left > 0 then
-        player:Say(getText(Sense.ledgerKey(opened, left)))
+        line = Sense.ledgerKey(opened, left)
         First.report("ledger", player)
+    end
+    local hours = OA.hours()
+    if line and not heardLately(key, line, hours) then
+        player:Say(getText(line))
+        noteHeard(key, line, hours)
     end
     return nil
 end
@@ -902,6 +928,7 @@ function Senses.ledgerSay(player, line, now)
     if line ~= FLOOR_DONE and now - ledger.said < LEDGER_GAP_MS and now >= ledger.said then return false end
     ledger.said = now
     player:Say(getText(line))
+    noteHeard(ledger.key, line, OA.hours())
     return true
 end
 
@@ -912,6 +939,7 @@ function Senses.ledgerDone(player, now)
     ledger.done = true
     ledger.said = now
     player:Say(getText("IGUI_OA_Tree_LedgerAlreadyDone"))
+    noteHeard(ledger.key, "IGUI_OA_Tree_LedgerAlreadyDone", OA.hours())
 end
 
 -- The character came onto another floor of the building it is in: a floor all searched says so (the rest of the
