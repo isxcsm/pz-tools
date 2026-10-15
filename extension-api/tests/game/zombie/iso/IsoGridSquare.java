@@ -67,8 +67,8 @@ public final class IsoGridSquare {
         default ResultLight getResultLight(int index) { return null; }
         /** Whether the square is in the player's sight (in the vision cone, not behind a wall): yes unless a test says. */
         default boolean bCouldSee() { return true; }
-        /** Like the game's: whether the player sees the square now, in sight and with some light on it. */
-        default boolean bCanSee() { return bCouldSee() && lightInfo().r > 0.05f; }
+        /** Like the game's: whether the player sees the square now; a square in sight in the dark is (its light 0 in game). */
+        default boolean bCanSee() { return bCouldSee(); }
         /** Whether the player has ever seen the square: yes unless a test says. */
         default boolean bSeen() { return true; }
     }

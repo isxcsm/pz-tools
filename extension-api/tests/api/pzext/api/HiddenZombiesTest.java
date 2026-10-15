@@ -45,6 +45,7 @@ final class HiddenZombiesTest {
             Object mod = FormulasTest.call(api, "client", "hidden.mod").get(0), second = FormulasTest.call(api, "client", "hidden.second").get(0);
             filters(formulas, mod, cell, player);
             light(formulas, mod, cell, player);
+            nightSight(formulas, mod, cell, player);
             cadence(formulas, mod, cell, player);
             declarations(api, formulas, mod, second, cell, player);
             states(formulas, mod, cell, player);
@@ -434,6 +435,42 @@ final class HiddenZombiesTest {
         check(Boolean.TRUE.equals(FormulasTest.call(formulas, "get", "vision.hiddenZombieFix").get(0)), "The declaration was lost with the fault");
         FormulasTest.call(breaking, "clear");
         IsoPlayer.players[0] = null;
+    }
+
+    /**
+     * Night sight: the light the game's test reads is lifted as the squares are drawn, so a zombie the game keeps unseen for the
+     * dark alone is shown, the fix declared or not; without the fix a zombie is in sight when the game finds its square so.
+     */
+    private static void nightSight(KahluaTable formulas, Object mod, IsoCell cell, IsoPlayer player) {
+        FormulasTest.call(mod, "clear");
+        cell.zombieList.clear();
+        frames(1);
+        cell.getGridSquare(16, 10, 0).setLight(0, 0f);
+        cell.getGridSquare(16, 8, 0).setLight(0, 0f);
+        cell.getGridSquare(16, 8, 0).setUnseen(0);
+        var dark = place(cell, 16.5f, 10.5f, 0);
+        var unseen = place(cell, 16.5f, 8.5f, 0);
+        frames(5);
+        check(dark.alphaSets == 0 && unseen.alphaSets == 0, "A zombie in the dark was shown with neither the fix nor night sight");
+        FormulasTest.call(formulas, "set", mod, "vision.nightSight", 0.4);
+        frames(1);
+        check(dark.alphaSets == 1, "A zombie in the dark of a square in sight was not shown under night sight: " + describe(dark));
+        check(unseen.alphaSets == 0, "A zombie on a square the game finds out of sight was shown by night sight alone: " + describe(unseen));
+        // With the fix, its line stands for the game's grid, and the light is lifted all the same.
+        FormulasTest.call(formulas, "set", mod, "vision.hiddenZombieFix", true);
+        frames(12);
+        check(unseen.alphaSets > 0, "A zombie in the dark on a clear line was not shown under night sight with the fix: " + describe(unseen));
+        // Night sight taken back: the dark hides them again (the fix alone keeps the game's light test).
+        FormulasTest.call(formulas, "set", mod, "vision.nightSight", 0.0);
+        frames(12);
+        int seenDark = dark.alphaSets, seenUnseen = unseen.alphaSets;
+        frames(12);
+        check(dark.alphaSets == seenDark && unseen.alphaSets == seenUnseen, "Zombies in the dark stayed shown once night sight was taken back");
+        FormulasTest.call(mod, "clear");
+        cell.zombieList.clear();
+        cell.getGridSquare(16, 10, 0).setLight(0, 1f);
+        cell.getGridSquare(16, 8, 0).setLight(0, 1f);
+        frames(1);
     }
 
     private static IsoZombie place(IsoCell cell, float x, float y, int z) {

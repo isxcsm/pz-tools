@@ -16,7 +16,8 @@ import java.lang.reflect.Field;
  * ({@code FBORenderCell.sanitizeLightInfo}): each colour c (0 to 1) becomes {@code c + f (1 - c)^2} ({@link #lift}), so
  * that the dark is lifted to f and the light is all but left as it is. A square the player has never seen (an
  * unexplored room, which the game draws black) is not lifted. The square's own light ({@code lightInfo}), which the
- * game's zombies, the vision cone and reading ask, is left as the game has it. The game keeps each chunk's look baked
+ * game's zombies, the vision cone and reading ask, is left as the game has it (the zombies the game keeps unseen for the
+ * dark alone are shown through the same lift by {@link HiddenZombies}). The game keeps each chunk's look baked
  * and reads a square's lighting again only when the native lighting says it changed ({@code getSquareDirty}; it does not
  * know of the lift), so each square keeps the lift it was read with, and one read with another is read again
  * ({@link #squareStale}).

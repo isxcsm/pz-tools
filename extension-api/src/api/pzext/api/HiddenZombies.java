@@ -38,9 +38,15 @@ import java.util.function.LongSupplier;
  * is shown is also offered to {@code IsoPlayer.TestZombieSpotPlayer} every 0.1 to 0.5 seconds, as the game does for the
  * zombies it draws.
  *
+ * <p>Night sight ({@code vision.nightSight}) lifts the dark the squares are drawn with ({@link NightLamps}); the light the
+ * game's test reads is not lifted, so a zombie in a room the player sees lifted would stay unseen in the dark. While night
+ * sight lifts ({@link #lift}), the light the test reads here is lifted as the squares are ({@link NightLamps#lift(float, float)},
+ * each colour), so a zombie the game keeps unseen for the dark alone is shown; without the fix declared, a zombie is in sight
+ * here when the game finds its square so ({@code ILighting.bCanSee}), not by a line of this part's.
+ *
  * <p>The cost is the filter: a pass over the zombies the cell holds, each asked one array read and, when it is not drawn,
  * its position. Nothing is allocated for a zombie that is not a candidate. Unlike the rest of the formulas it is not a
- * hook in the game's code: while no mod declares it, nothing runs.
+ * hook in the game's code: while no mod declares it and night sight does not lift, nothing runs.
  */
 final class HiddenZombies {
     /** The clock, in nanoseconds; the tests set it. */
@@ -74,9 +80,13 @@ final class HiddenZombies {
     private final MethodHandle vision, lineClear;
     private final Object blocked, vector;
     private final Field vectorX, vectorY;
+    // IsoGridSquare.ILighting.bCanSee(): the game's own finding that a square is in the player's sight.
+    private final MethodHandle canSee;
 
     /** Whether a mod declares the fix; set from any thread, read by the frame. */
     private volatile boolean on;
+    /** Night sight's lift of the dark, 0 to 1 (0: none); set from any thread, read by the frame. */
+    private volatile float lift;
     // The game thread's: what is known of each zombie that is a candidate, by player.
     private final IdentityHashMap<Object, Candidate>[] candidates;
     private int epoch;
@@ -124,6 +134,7 @@ final class HiddenZombies {
             MethodType.methodType(Object.class, Object.class, int.class, int.class, int.class, boolean.class, boolean.class));
         lineClear = Game.exact(los.getMethod("lineClear", cell, int.class, int.class, int.class, int.class, int.class, int.class, boolean.class),
             MethodType.methodType(Object.class, Object.class, int.class, int.class, int.class, int.class, int.class, int.class, boolean.class));
+        canSee = Game.exact(Game.type(loader, "zombie.iso.IsoGridSquare$ILighting").getMethod("bCanSee"), flag);
         blocked = results.getField("Blocked").get(null);
         vector = vectorType.getConstructor().newInstance();
         vectorX = vectorType.getField("x");
@@ -138,15 +149,22 @@ final class HiddenZombies {
         on = declared;
     }
 
+    /** Night sight's lift of the dark the squares are drawn with, 0 to 1 (0 when it does not lift). */
+    void lift(float f) {
+        lift = Math.max(0f, Math.min(1f, f));
+    }
+
     /** Each frame, on the game's thread. */
     void frame() throws Throwable {
-        if (!on) { if (holding) forget(); return; }
+        if (!on && !(lift > 0f)) { if (holding) forget(); return; }
         Object cell = game.cell();
         if (cell == null) { forget(); return; }
         holding = true;
         Object[] local = players.all();
         ArrayList<?> zombies = null;
         float view = 0;
+        boolean fix = on;
+        float f = lift;
         long now = clock.getAsLong();
         fadeStep = Math.min(now - lastFrame, LONGEST_FRAME_NS) / (float)FADE_IN_NS;
         lastFrame = now;
@@ -161,7 +179,7 @@ final class HiddenZombies {
             // Nobody sees in a sleep, in the grave or from a car (the cone then is the car's), and a player who sees everyone has it done.
             if (!(boolean)ZombieReads.Handles.DEAD.invokeExact(who) && !(boolean)asleep.invokeExact(who) && !(boolean)seesAll.invokeExact(who)
                     && (Object)vehicleOf.invokeExact(who) == null)
-                watch(index, who, cell, zombies, view, now);
+                watch(index, who, cell, zombies, view, now, fix, f);
             if (sweep) candidates[index].values().removeIf(known -> epoch - known.seen > FORGET_AFTER);
         }
     }
@@ -171,7 +189,7 @@ final class HiddenZombies {
         holding = false;
     }
 
-    private void watch(int index, Object who, Object cell, ArrayList<?> zombies, float view, long now) throws Throwable {
+    private void watch(int index, Object who, Object cell, ArrayList<?> zombies, float view, long now, boolean fix, float f) throws Throwable {
         float px = (float)xOf.invokeExact(who), py = (float)yOf.invokeExact(who);
         int pz = floor((float)zOf.invokeExact(who));
         float degrees = (float)cone.invokeExact();
@@ -208,9 +226,11 @@ final class HiddenZombies {
             }
             state.seen = epoch;
             if (now - state.rayAt >= 0) {
-                // The line stands for the game's square grid (isCanSee); what the game goes on to ask of a zombie it finds in sight is asked here.
-                state.shown = (clear(cell, px, py, pz, zx, zy, floor) || sides(cell, px, py, pz, zx, zy, floor, sideX, sideY))
-                    && lit(index, who, zombie, zx, zy, view);
+                // With the fix the line stands for the game's square grid (isCanSee), else the game's grid is taken; what the game
+                // goes on to ask of a zombie it finds in sight is asked here, its light lifted as night sight lifts the squares'.
+                boolean inSight = fix ? clear(cell, px, py, pz, zx, zy, floor) || sides(cell, px, py, pz, zx, zy, floor, sideX, sideY)
+                    : sees(index, zombie);
+                state.shown = inSight && lit(index, who, zombie, zx, zy, view, f);
                 state.rayAt = now + RAY_MIN + (next() % RAY_SPREAD);
             }
             if (!state.shown) continue;
@@ -229,9 +249,10 @@ final class HiddenZombies {
      * {@code IsoGameCharacter.TestIfSeen(int, IsoPlayer)}, in the same order and arithmetic (the game's jar and PZ Optimize's
      * class have the same). The zombie is in sight here (a clear line inside the cone stands for {@code isCanSee}), so the
      * allowances for a zombie that is not ({@code canSeeHeadSquare}; {@code isCouldSee} with the detection range) are not reached.
-     * The light is the native lighting's per-square light, read as the game reads it.
+     * The light is the native lighting's per-square light, read as the game reads it, each colour lifted by night sight's
+     * {@code f} as the squares are drawn (0: as the game has it).
      */
-    private boolean lit(int index, Object who, Object zombie, float zx, float zy, float view) throws Throwable {
+    private boolean lit(int index, Object who, Object zombie, float zx, float zy, float view, float f) throws Throwable {
         float distance = (float)ZombieReads.Handles.DISTANCE.invokeExact(zombie, who);
         // Beyond the view distance the game does not see it (the filter used the same bound on the squares).
         if (distance > view) return false;
@@ -241,8 +262,7 @@ final class HiddenZombies {
         Object slot = ((Object[])ZombieReads.Handles.LIGHTING.invokeExact(square))[index];
         Object color = slot == null ? null : (Object)ZombieReads.Handles.LIGHT.invokeExact(slot);
         if (color == null) return false;
-        float light = ((float)ZombieReads.Handles.RED.invokeExact(color) + (float)ZombieReads.Handles.GREEN.invokeExact(color)
-            + (float)ZombieReads.Handles.BLUE.invokeExact(color)) / 3f;
+        float light = light(color, f);
         // Near enough to be heard, the player's own square lights it too.
         if (distance < range) {
             Object ours = (Object)ZombieReads.Handles.SQUARE.invokeExact(who);
@@ -250,8 +270,7 @@ final class HiddenZombies {
                 Object theirs = ((Object[])ZombieReads.Handles.LIGHTING.invokeExact(ours))[index];
                 Object found = theirs == null ? null : (Object)ZombieReads.Handles.LIGHT.invokeExact(theirs);
                 if (found != null) {
-                    float other = ((float)ZombieReads.Handles.RED.invokeExact(found) + (float)ZombieReads.Handles.GREEN.invokeExact(found)
-                        + (float)ZombieReads.Handles.BLUE.invokeExact(found)) / 3f;
+                    float other = light(found, f);
                     if (!(light > other)) light = other;
                 }
             }
@@ -270,6 +289,22 @@ final class HiddenZombies {
         light *= fade;
         light *= 100f;
         return light > 0.025f;
+    }
+
+    /** A square's light as the game's test reads it, (r + g + b) / 3, each colour lifted by {@code f} first when it is above 0. */
+    private static float light(Object color, float f) throws Throwable {
+        float r = (float)ZombieReads.Handles.RED.invokeExact(color), g = (float)ZombieReads.Handles.GREEN.invokeExact(color);
+        float b = (float)ZombieReads.Handles.BLUE.invokeExact(color);
+        if (f > 0f) { r = NightLamps.lift(r, f); g = NightLamps.lift(g, f); b = NightLamps.lift(b, f); }
+        return (r + g + b) / 3f;
+    }
+
+    /** Whether the game finds the zombie's square in the player's sight ({@code ILighting.bCanSee}). */
+    private boolean sees(int index, Object zombie) throws Throwable {
+        Object square = (Object)ZombieReads.Handles.SQUARE.invokeExact(zombie);
+        if (square == null) return false;
+        Object slot = ((Object[])ZombieReads.Handles.LIGHTING.invokeExact(square))[index];
+        return slot != null && (boolean)canSee.invokeExact(slot);
     }
 
     /** Whether the point {@code (dx, dy)} from the player is within the cone ({@code reach}: the cone's cosine times the look's length). */

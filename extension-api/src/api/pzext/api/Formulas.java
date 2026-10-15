@@ -822,9 +822,11 @@ final class Formulas implements Hooks.Formulas {
         nightSightFloor();
     }
 
-    // Night sight's lift for the value declared, as tuned.
+    // Night sight's lift for the value declared, as tuned; the zombies in the dark it lifts are seen through the same lift.
     private void nightSightFloor() {
-        if (lamps != null) lamps.floorLight(Math.round(255f * sightFloor.value() * Math.max(0f, active.nightSight)));
+        if (lamps == null) return;
+        lamps.floorLight(Math.round(255f * sightFloor.value() * Math.max(0f, active.nightSight)));
+        if (hidden != null && hiddenProblem == null) hidden.lift(lamps.floorLight() / 255f);
     }
 
     private static float[] floats(List<Float> values) {
