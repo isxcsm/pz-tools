@@ -53,6 +53,7 @@ PREAMBLE = """\
 - 맨 앞의 키(`...`)는 그대로 둔다.
 - [호출부호]와 %2 같은 자리표시자는 그대로 둔다. 바로 뒤에 조사를 붙이지 않는다 (숫자로 바뀌어 받침이 정해지지 않는다).
 - [쉼 N초], [침묵 N초], [신호 끊김 N초]는 화면에서 흐르는 시간이다. 옮기거나 빼거나 더해도 되지만 이 꼴로 쓴다.
+- [줄바꿈]은 화면에서 줄이 바뀌는 자리다. 이 꼴로 쓴다.
 - 장면의 줄 수와 화자 순서는 바꾸지 않는다.
 {extra_keep}
 ## 돌려주는 형식
@@ -86,7 +87,7 @@ def readable(text):
     text = re.sub(r'\{cut:([\d.]+)\}', r'[신호 끊김 \1초]', text)
     text = re.sub(r'\{mute:([\d.]+)\}', r'[침묵 \1초]', text)
     text = text.replace('%1', '[호출부호]')
-    return text.replace('\n', ' / ')
+    return text.replace('\n', '[줄바꿈]')
 
 
 def marked(text):
@@ -95,7 +96,7 @@ def marked(text):
     text = re.sub(r'\[신호 끊김 ([\d.]+)초\]', r'{cut:\1}', text)
     text = re.sub(r'\[침묵 ([\d.]+)초\]', r'{mute:\1}', text)
     text = text.replace('[호출부호]', '%1')
-    return text.replace(' / ', '\n')
+    return text.replace('[줄바꿈]', '\n')
 
 
 def entries():
@@ -174,7 +175,7 @@ def keyed(prefix, keys, ui, used, note=None):
         out += [note, '']
     for k in keys:
         used.add(k)
-        out.append('`%s` %s' % (k[len(prefix):] if prefix else k, readable(ui[k])))
+        out.append('`%s` %s' % (k[len(prefix):] if prefix and k.startswith(prefix) else k, readable(ui[k])))
     out.append('')
     return out
 
@@ -259,14 +260,17 @@ SPOKEN = re.compile(r'^(참나무|관리 7|주인공)(?: \([^)]*\))?:\s*')
 
 
 def short_keys(ui):
-    """The keys as the packets write them: a comms key without IGUI_OA_Comms_, another of IG_UI without IGUI_OA_, the
-    other files' as they are. Short -> the key."""
-    out = {}
-    for k in ui:
-        for prefix in ('IGUI_OA_Comms_', 'IGUI_OA_', ''):
+    """The keys as the packets write them, short -> the key: whole, and without IGUI_OA_Comms_, IGUI_OA_Story_ or
+    IGUI_OA_ (a whole key first, then the shorter forms that are not another key's). The first packets cut eight
+    characters off a key of IG_UI that has no IGUI_OA_ (IGUI_ContainerTitle_X written tainerTitle_X): read too."""
+    out = {k: k for k in ui}
+    for prefix in ('IGUI_OA_Comms_', 'IGUI_OA_Story_', 'IGUI_OA_'):
+        for k in ui:
             if k.startswith(prefix):
-                out[k[len(prefix):]] = k
-                break
+                out.setdefault(k[len(prefix):], k)
+    for k in ui:
+        if k.startswith('IGUI_') and not k.startswith('IGUI_OA_'):
+            out.setdefault(k[len('IGUI_OA_'):], k)
     return out
 
 
