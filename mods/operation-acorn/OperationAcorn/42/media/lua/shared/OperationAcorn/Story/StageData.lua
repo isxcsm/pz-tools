@@ -4,10 +4,11 @@
 --
 -- A stage is { pieces = { ... } }, put in order. A piece has `kind` and, but for a barricade, `at`: a role of
 -- Stage.roles ("big", "inner", "other", "hall" rooms; "entrance" the outer door). By kind:
---   tile      { sprite } on a free square of the room, against a wall when `wall`; at the entrance on the wall beside
---             the door (a wall object: `sprite` is { north =, west = }, Facing S for a north wall, E for a west one)
---   set       { tiles = { { dx, dy, sprite }, ... }, more } sprites placed together where all their squares are free in
---             the room (a desk of two squares, a radio on it); `more` (as tiles) goes with them where it fits too
+--   tile      { sprite, on } on a free square of the room, against a wall when `wall`; at the entrance on the wall
+--             beside the door (a wall object: `sprite` is { north =, west = }, Facing S for a north wall, E for a west one)
+--   set       { tiles = { { dx, dy, sprite }, ... }, more, on } sprites placed together where all their squares are free
+--             in the room (a desk of two squares, a radio on it); `more` (as tiles) goes with them where it fits too
+--             (`on`: a radio among the tiles is left on, its static playing while nothing is on air)
 --   item      { type, count } on the floor of the room
 --   vehicle   { script, open = a door part id, battery = 0 to 1 } outside by the entrance
 --   barricade { planks = { least, most } } boards on the inside of each ground floor window
@@ -35,8 +36,8 @@ StageData.police = { pieces = {
     { kind = "tile", at = "entrance", sprite = NOTICE },
     { kind = "vehicle", at = "entrance", script = "Base.CarLightsPolice", open = "DoorFrontLeft", battery = 0 },
     { kind = "barricade", planks = { 2, 3 } },
-    -- the desk and its radio; the row of chairs facing it when the room has space for it too
-    { kind = "set", at = "big", tiles = {
+    -- the desk and its radio, left on; the row of chairs facing it when the room has space for it too
+    { kind = "set", at = "big", on = true, tiles = {
         { 0, 0, "furniture_tables_high_01_26" }, { 1, 0, "furniture_tables_high_01_27" }, { 0, 0, "appliances_com_01_50" } },
         more = { { -1, 3, CHAIR_N }, { 0, 3, CHAIR_N }, { 1, 3, CHAIR_N }, { 2, 3, CHAIR_N } } },
     { kind = "lock", at = "inner" },

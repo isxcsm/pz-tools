@@ -114,7 +114,7 @@ end
 -- Puts a sprite on a square as the game's moveables do (ISMoveableSpriteProps): an IsoRadio for a radio's sprite (its
 -- device data made from the sprite), a plain object otherwise. Not RandomizedWorldBase.addTileObject: that clears the
 -- square first (cleanSquareForStory takes every object but the floor, walls and a desk's other half too).
-local function put(sq, sprite)
+local function put(sq, sprite, on)
     local spr = sq and getSprite(sprite)
     if not spr then return nil end
     local props = spr:getProperties()
@@ -122,6 +122,7 @@ local function put(sq, sprite)
     local obj
     if kind == "IsoRadio" then
         obj = IsoRadio.new(getCell(), sq, spr)
+        if on then obj:getDeviceData():setIsTurnedOn(true) end
     else
         obj = IsoObject.new(getCell(), sq, spr)
     end
@@ -186,7 +187,7 @@ function StageGame.tile(ctx, p)
         sq = p.wall and room:getRandomWallSquare() or room:getRandomFreeSquare()
     end
     if not sq then return nil end
-    return put(sq, sprite) ~= nil
+    return put(sq, sprite, p.on) ~= nil
 end
 
 -- Sprites placed together: an anchor square of the room where every square of the set is free and in the room; with
@@ -224,7 +225,7 @@ function StageGame.set(ctx, p)
     if #fits == 0 then return nil end
     local a = fits[OA.random(1, #fits)]
     for _, t in ipairs(tiles) do
-        put(c:getGridSquare(a:getX() + t[1], a:getY() + t[2], a:getZ()), t[3])
+        put(c:getGridSquare(a:getX() + t[1], a:getY() + t[2], a:getZ()), t[3], p.on)
     end
     return true
 end
