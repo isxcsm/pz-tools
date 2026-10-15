@@ -60,7 +60,7 @@ local function context(record, tier)
 end
 
 -- What goes between the parts of a head (a middle dot).
-local SEP = " " .. string.char(194, 183) .. " "
+local SEP = " " .. string.char(183) .. " "
 
 -- The tier as the heads write it: the start, the stage's name, or after the handover.
 local function tierLabel(tier)
