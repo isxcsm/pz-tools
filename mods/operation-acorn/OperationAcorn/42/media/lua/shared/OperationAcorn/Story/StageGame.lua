@@ -19,11 +19,11 @@ local function defAt(site)
     return getWorld():getMetaGrid():getBuildingAtRelax(math.floor(site.x), math.floor(site.y))
 end
 
--- The site's building is all loaded.
-function StageGame.siteLoaded(site)
+-- The site's building is all loaded, or its square is and the player is `close`.
+function StageGame.siteLoaded(site, close)
     if not getCell():getGridSquare(math.floor(site.x), math.floor(site.y), site.z or 0) then return false end
     local def = defAt(site)
-    return def ~= nil and def:isFullyStreamedIn()
+    return def ~= nil and (close or def:isFullyStreamedIn())
 end
 
 -- The building's layout (Story/Stage): its rooms and its outer doors on the ground floor. The RoomDefs and the doors'
@@ -95,30 +95,54 @@ local function rb()
     return RBBasic.new()
 end
 
--- A sprite on a free square of the room (against a wall with `wall`); at the entrance, on a free square just outside.
+-- A sprite on a free square of the room (against a wall with `wall`); at the entrance, a wall object on the wall
+-- beside the door: a square along the door's edge whose own north (or west) side is a wall, the sprite of that side.
+-- A wall object shows on the side of the square that holds it: outside when the door's square is outside.
 function StageGame.tile(ctx, p)
-    local sq
+    local sq, sprite = nil, p.sprite
     if p.at == "entrance" then
-        local out, dx, dy, d = outside(ctx)
-        if not out then return nil end
-        -- one square aside from the door, along the wall
+        local i = ctx.roles and ctx.roles.entrance
+        local d = i and ctx.layout.doors[i]
+        if not d then return nil end
         local c = getCell()
-        local side = d.north and c:getGridSquare(out:getX() + 1, out:getY(), out:getZ())
-            or c:getGridSquare(out:getX(), out:getY() + 1, out:getZ())
-        sq = (side and side:isFree(false)) and side or out
+        local list = d.north and { { 1, 0 }, { -1, 0 }, { 2, 0 } } or { { 0, 1 }, { 0, -1 }, { 0, 2 } }
+        for _, o in ipairs(list) do
+            local s = not sq and c:getGridSquare(d.x + o[1], d.y + o[2], d.z)
+            if s and s:getWall(d.north) then sq = s end
+        end
+        sprite = d.north and sprite.north or sprite.west
     else
         local room = roomOf(ctx, p)
         if not room then return nil end
         sq = p.wall and room:getRandomWallSquare() or room:getRandomFreeSquare()
     end
     if not sq then return nil end
-    local sprite = p.sprite
-    if type(sprite) == "table" then
-        local i = ctx.roles.entrance
-        local d = i and ctx.layout.doors[i]
-        sprite = (d and d.north) and sprite.north or sprite.west
-    end
     return rb():addTileObject(sq, sprite) ~= nil
+end
+
+-- Sprites placed together: an anchor square of the room where every square of the set is free and in the room.
+function StageGame.set(ctx, p)
+    local room = roomOf(ctx, p)
+    if not room then return nil end
+    local c = getCell()
+    local squares = room:getSquares()
+    local fits = {}
+    for i = 0, squares:size() - 1 do
+        local a = squares:get(i)
+        local ok = true
+        for _, t in ipairs(p.tiles) do
+            local s = ok and c:getGridSquare(a:getX() + t[1], a:getY() + t[2], a:getZ())
+            if not (s and s:getRoom() == room and s:isFree(false)) then ok = false end
+        end
+        if ok then fits[#fits + 1] = a end
+    end
+    if #fits == 0 then return nil end
+    local a = fits[OA.random(1, #fits)]
+    local g = rb()
+    for _, t in ipairs(p.tiles) do
+        g:addTileObject(c:getGridSquare(a:getX() + t[1], a:getY() + t[2], a:getZ()), t[3])
+    end
+    return true
 end
 
 -- Loose things on the room's floor.

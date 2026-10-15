@@ -3,7 +3,8 @@
 -- world's hands (`Stage.game`, Story/StageGame) put them there. Tests give the hands fakes.
 --
 -- When: a story mission at a building (not open ground) gets a stage as it begins (m.stage). The building is set up
--- once it is all loaded (BuildingDef.isFullyStreamedIn), whoever is near: the things, the locks, the bodies, the
+-- once it is all loaded (BuildingDef.isFullyStreamedIn), or once the player is READY near when it is too large to be
+-- loaded whole (what is not loaded then is left out): the things, the locks, the bodies, the
 -- mission's own item. Its zombies come once the player is READY near, made away from the player as the mission scene's
 -- keepers are (Story/Scene). A building is set up once in a world (Store.world "stages"): a later mission there (a
 -- revisit) only puts its item. A piece that cannot be put (no room of its kind, its square taken) is left out.
@@ -24,8 +25,8 @@ OA.Stage = Stage
 Stage.game = nil
 
 -- The kinds put as the building loads; the rest (zombies) wait for the player.
-Stage.PLACE_KINDS = { tile = true, item = true, vehicle = true, barricade = true, lock = true, corpse = true,
-    blood = true, piece = true }
+Stage.PLACE_KINDS = { tile = true, set = true, item = true, vehicle = true, barricade = true, lock = true,
+    corpse = true, blood = true, piece = true }
 Stage.READY = 40   -- the zombies are made once the player is this near the site (as the mission scene's, Story/Scene)
 
 -- The stage data of a mission: its facility's, for a story mission at a building; nil otherwise.
@@ -211,11 +212,12 @@ function Stage.look(record, m, px, py, near)
     local st = m.stage
     local g = Stage.game
     if not (st and g) or st.kept then return end
+    local close = Places.distance(px, py, m.site.x, m.site.y) <= Stage.READY
     if not st.placed then
-        if not g.siteLoaded(m.site) then return end
+        if not g.siteLoaded(m.site, close) then return end
         Stage.place(record, m, g.layout(m.site))
     end
-    if Places.distance(px, py, m.site.x, m.site.y) <= Stage.READY then Stage.keep(record, m, px, py, near) end
+    if close then Stage.keep(record, m, px, py, near) end
 end
 
 -- Something happened at the stage ("pickup": its item first taken): what waits for it wakes.

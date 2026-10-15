@@ -184,3 +184,34 @@ test("the usual placing leaves a staged piece to the stage", function()
     OA.StoryGame.request(OA.Store.ensure("p1", "P"), { id = "M" }, it)
     eq(it.placed, nil)
 end)
+
+test("a building too large to load whole is set up once the player is near, with what is loaded", function()
+    local record, m, g = setup(POLICE)
+    local asked = {}
+    g.siteLoaded = function(site, close) asked[#asked + 1] = close; return close end
+    Stage.begin(record, m)
+    Stage.look(record, m, 2000, 0, 20)
+    eq(asked[1], false)
+    eq(m.stage.placed, false)
+    Stage.look(record, m, 530, 0, 20)
+    eq(asked[2], true)
+    eq(m.stage.placed, true)
+end)
+
+test("every piece of the stage data has hands in the game and goes to a role there is", function()
+    require "OperationAcorn/Story/StageGame"
+    local roles = { big = true, inner = true, other = true, hall = true, entrance = true }
+    local n = 0
+    for facility, def in pairs(OA.StageData) do
+        for i, p in ipairs(def.pieces) do
+            local what = facility .. " " .. i .. " " .. tostring(p.kind)
+            truthy(type(OA.StageGame[p.kind]) == "function", what .. " has hands")
+            truthy(p.kind == "barricade" or roles[p.at], what .. " goes to a role")
+            truthy(Stage.PLACE_KINDS[p.kind] or p.kind == "zombies", what .. " is put at some time")
+            if p.kind == "piece" then truthy(p.key, what .. " names its piece") end
+            n = n + 1
+        end
+    end
+    truthy(n > 0)
+    truthy(OA.StageData.police, "the police post has its stage")
+end)
