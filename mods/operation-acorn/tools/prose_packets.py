@@ -3,10 +3,13 @@
 PLAN.md stage 6: the whole prose goes once through a model with a better ear for spoken Korean. Each packet stands
 alone: what the mod is, who speaks and how, what must stay, what is wanted, and how to answer; then its lines, each
 with its key. The comms scenes are laid out as scripts with their speakers and the pauses written out; the rest as
-key and text. The answer (changed lines only, one a line: `key` text - why) is merged back with `apply`.
+key and text. The answer is every line again, revised (the judging is ours, not the other model's): `compare` lists
+the lines it changed beside the game's, to be judged one by one; `apply` puts the lines of a file into the game (the
+answer as judged, or a file of the lines kept).
 
     python -X utf8 tools/prose_packets.py export <folder>
-    python -X utf8 tools/prose_packets.py apply <answer.txt>     (KO IG_UI.json; prints what it changed)
+    python -X utf8 tools/prose_packets.py compare <answer.txt> <review.md>
+    python -X utf8 tools/prose_packets.py apply <lines.txt>     (the KO translations; prints what it changed)
 """
 import json
 import os
@@ -55,13 +58,14 @@ PREAMBLE = """\
 - 소리 내어 읽었을 때 그 사람이 실제로 하는 말.
 - 감정이 건너뛰는 곳에는 그 줄 안에 짧은 완충(그 사람이 지나가며 할 말)을 넣어 이어 준다.
 - 다급한 말은 쉼 없이 몰아치고, 쉼은 말이 막히는 자리에만 둔다.
-- 고칠 데가 없으면 고치지 않는다.
+- 조금이라도 더 낫게 쓸 수 있으면 고친다. 고칠지 말지는 이쪽에서 원문과 대조해 정한다.
 
 ## 돌려주는 형식
 
-바꾼 줄만 한 줄에 하나씩, 아래처럼 돌려준다. 바꾸지 않은 줄은 적지 않는다.
+모든 줄을 빠짐없이, 이 문서에 나온 순서대로, 한 줄에 하나씩 다시 쓴다. 고치지 않은 줄도 그대로 적는다. 장면 줄은 화자를 붙인 꼴 그대로 쓴다. 제목, 설명, 까닭은 적지 않는다.
 
-`키` 고친 문장 — 고친 까닭 (짧게)
+`키` 문장
+`키` 화자: 문장
 
 """
 
@@ -70,6 +74,10 @@ KEEP_CALLBACKS = """\
 """
 
 SPEAKER = {'oak': '참나무', 'admin': '관리 7', 'me': '주인공'}
+# The other translation files the packets carry, after IG_UI.json; and the most lines a packet asks back at once (a
+# longer answer is cut short).
+OTHER_FILES = ['ItemName.json', 'Tooltip.json', 'ContextMenu.json', 'Moodles.json', 'Moveables.json', 'Sandbox.json']
+CHUNK = 250
 
 
 def load(name):
@@ -226,14 +234,18 @@ def export(folder):
     group('일상 혼잣말', ['Say_'],
           '이야기와 상관없이 주인공 머리 위에 뜨는 혼잣말이다 (현장 도착, 첫 효과 등). 짧은 감탄, 의문, 다음 행동.')
     rest = [k for k in ui if k not in used]
-    packets.append(('화면 문구 (단말과 시스템)', ['## 문구', ''] + keyed('IGUI_OA_', rest, ui, used,
-        '단말 창의 탭, 버튼, 상태 표시, 기술 나무, 기계 같은 화면 문구다. 게이머가 실제로 쓰는 말로 짧게 쓴다 ("점" 대신 "포인트"). 제목 카드는 게임의 알림이라 명사나 개조식으로 끝낸다.'), ''))
-    files = ['ItemName.json', 'Tooltip.json', 'ContextMenu.json', 'Moodles.json', 'Moveables.json', 'Sandbox.json']
-    body = []
-    for name in files:
-        data = load(name)
-        body += ['## %s' % name, ''] + ['`%s` %s' % (k, readable(v)) for k, v in data.items()] + ['']
-    packets.append(('아이템, 툴팁, 메뉴, 설정', body, ''))
+    note = ('단말 창의 탭, 버튼, 상태 표시, 기술 나무, 기계 같은 화면 문구다. 게이머가 실제로 쓰는 말로 짧게 쓴다 ("점" 대신 '
+            '"포인트"). 제목 카드는 게임의 알림이라 명사나 개조식으로 끝낸다.')
+    parts = [rest[i:i + CHUNK] for i in range(0, len(rest), CHUNK)]
+    for i, keys in enumerate(parts, 1):
+        packets.append(('화면 문구 (단말과 시스템) %d/%d' % (i, len(parts)),
+                        ['## 문구', ''] + keyed('IGUI_OA_', keys, ui, used, note), ''))
+    others = [(k, v) for name in OTHER_FILES for k, v in load(name).items()]
+    parts = [others[i:i + CHUNK] for i in range(0, len(others), CHUNK)]
+    for i, part in enumerate(parts, 1):
+        body = ['## 문구', '', '아이템 이름, 툴팁, 우클릭 메뉴, 무들, 설치물, 서버 설정 문구다.', '']
+        body += ['`%s` %s' % (k, readable(v)) for k, v in part] + ['']
+        packets.append(('아이템, 툴팁, 메뉴, 설정 %d/%d' % (i, len(parts)), body, ''))
 
     for i, (title, body, extra) in enumerate(packets, 1):
         head = PREAMBLE.format(n=i, total=len(packets), title=title, extra_people='',
@@ -244,34 +256,74 @@ def export(folder):
         print(path, len('\n'.join(body)), 'chars')
 
 
-def apply(answer):
-    """Merges an answer into KO IG_UI.json: each line `key` text - why. A short key is found by its ending."""
-    path = os.path.join(KO, 'IG_UI.json')
-    ui = load('IG_UI.json')
-    changed = 0
+SPOKEN = re.compile(r'^(참나무|관리 7|주인공)(?: \([^)]*\))?: ')
+
+
+def answered(answer, ui):
+    """The lines of an answer: (key in the game, its text in the game's marks), in order. A short key is found by its
+    ending; a scene line's speaker is taken off; a line with an ` — why` after it loses that."""
+    out = []
     for line in open(answer, encoding='utf-8'):
-        m = re.match(r'^\s*`([^`]+)`\s+(.*?)(?:\s+—\s+.*)?$', line.rstrip())
+        m = re.match(r'^\s*[-*]?\s*`([^`]+)`\s*(.*?)(?:\s+—\s+.*)?$', line.rstrip())
         if not m:
             continue
-        short, text = m.group(1), marked(m.group(2).strip())
-        hits = [k for k in ui if k == short or k.endswith('_' + short) or k == 'IGUI_OA_' + short
-                or k == 'IGUI_OA_Comms_' + short]
+        short, text = m.group(1), SPOKEN.sub('', m.group(2).strip())
+        hits = [k for k in ui if k == short or k == 'IGUI_OA_' + short or k == 'IGUI_OA_Comms_' + short]
         if len(hits) != 1:
-            print('no single key for', short, hits[:3])
+            print('no single key for', short)
             continue
-        if ui[hits[0]] != text:
-            print('%s: %s -> %s' % (hits[0], ui[hits[0]], text))
-            ui[hits[0]] = text
+        out.append((hits[0], marked(text)))
+    return out
+
+
+def texts():
+    """Every translation the packets carry: key -> (file, text)."""
+    out = {}
+    for name in ['IG_UI.json'] + OTHER_FILES:
+        for k, v in load(name).items():
+            out[k] = (name, v)
+    return out
+
+
+def compare(answer, review):
+    """The lines an answer changed, beside the game's, to be judged."""
+    ui = {k: v for k, (_, v) in texts().items()}
+    lines = answered(answer, ui)
+    out = ['# 교정 대조', '']
+    changed = 0
+    for key, text in lines:
+        if ui[key] != text:
             changed += 1
-    with open(path, 'w', encoding='utf-8', newline='\n') as f:
-        json.dump(ui, f, ensure_ascii=False, indent=4)
-        f.write('\n')
+            out += ['`%s`' % key, '- 원문: %s' % readable(ui[key]), '- 교정: %s' % readable(text), '']
+    out.append('%d줄 중 %d줄 바뀜' % (len(lines), changed))
+    with open(review, 'w', encoding='utf-8', newline='\n') as f:
+        f.write('\n'.join(out) + '\n')
+    print(len(lines), 'lines,', changed, 'changed ->', review)
+
+
+def apply(answer):
+    """Puts the lines of a file into the KO translations: `key` text, one a line (a scene's with its speaker)."""
+    every = texts()
+    files = {}
+    changed = 0
+    for key, text in answered(answer, {k: v for k, (_, v) in every.items()}):
+        name, old = every[key]
+        if old != text:
+            print('%s: %s -> %s' % (key, old, text))
+            files.setdefault(name, load(name))[key] = text
+            changed += 1
+    for name, data in files.items():
+        with open(os.path.join(KO, name), 'w', encoding='utf-8', newline='\n') as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+            f.write('\n')
     print(changed, 'changed')
 
 
 if __name__ == '__main__':
     if len(sys.argv) == 3 and sys.argv[1] == 'export':
         export(sys.argv[2])
+    elif len(sys.argv) == 4 and sys.argv[1] == 'compare':
+        compare(sys.argv[2], sys.argv[3])
     elif len(sys.argv) == 3 and sys.argv[1] == 'apply':
         apply(sys.argv[2])
     else:

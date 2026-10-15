@@ -271,12 +271,36 @@ function OATabComms:waiting(record)
     return nil
 end
 
+-- The cursor's blink on the input line (on, off), as the input line draws it.
+OATabComms.BLINK_MS = 450
+
+local function blinking(st)
+    return st.phase ~= "type" and st.phase ~= "erasetype" and st.phase ~= "erase"
+end
+
+-- What the tab draws by the clock while a call plays (UI.live's look): the input line's characters, whose they are,
+-- and its cursor's blink.
+local function inputLook(st, now)
+    local blink = blinking(st) and OA.remainder(math.floor(now / OATabComms.BLINK_MS), 2) or 0
+    local of = st.inputOf == "erase" and 1 or st.inputOf == "text" and 2 or 0
+    return (((st.line or 0) * 3 + of) * 2000 + (st.input or 0)) * 2 + blink
+end
+
+-- What the record draws by the clock while a call plays: the characters of the line coming in, and every frame while
+-- the signal breaks up (the line wavers). Nil once the call is over: its rows are written then.
+local function logFrame(log, now)
+    local st = log.tab.play and log.tab.st
+    if not st then return nil end
+    if st.flicker then return now end
+    return (st.line or 0) * 10000 + (st.shown or 0)
+end
+
 -- Each frame while something is going on (a call playing, one waiting to start): the clock's state, the rows as
 -- lines start, the next call after a beat; nil when there is nothing.
 local function frame(self, now)
     if self.play then
         self:advance(now)
-        return now
+        return self.st and inputLook(self.st, now) or 0
     end
     local window = self.window
     if window.boot and not window.consoleDone then return 1 end
@@ -312,6 +336,7 @@ function OATabComms:start(entry, tier, replay, now)
     self:setRows(record)
     self.log:toFoot()
     UI.live(self, frame)
+    UI.live(self.log, logFrame)
 end
 
 -- The clock moved: the state at it; a line that starts sounds and comes into the rows.
@@ -474,9 +499,9 @@ function OATabComms:drawInput(p)
     self:setStencilRect(1, y + 1, w - 2, h - 2)
     if shown ~= "" then UI.text(self, shown, x, ty, c.me) end
     -- the cursor: steady while typing, blinking while it waits
-    local blink = st.phase ~= "type" and st.phase ~= "erasetype" and st.phase ~= "erase"
+    local blink = blinking(st)
     if l and l.who == "me" and st.phase ~= "read" then
-        if not blink or OA.remainder(math.floor(getTimestampMs() / 450), 2) == 0 then
+        if not blink or OA.remainder(math.floor(getTimestampMs() / OATabComms.BLINK_MS), 2) == 0 then
             UI.fill(self, x + UI.textWidth(shown) + 1, ty + 1, 7, UI.fontHeight() - 2, c.me, 0.85)
         end
     end
