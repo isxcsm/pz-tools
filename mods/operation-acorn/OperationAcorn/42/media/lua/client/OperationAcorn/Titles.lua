@@ -72,6 +72,34 @@ local function styleFor(t, wanted)
 end
 Titles.styleFor = styleFor
 
+-- A title over a window (the adaptation tab, the terminal: busy, bright panels) gets this dark band behind it, so that
+-- it reads; over the world the style's own (if any) is enough. A window counts when it is at least WINDOW_W by WINDOW_H
+-- and crosses the middle of the screen across, between WINDOW_TOP and WINDOW_BOTTOM of its height (where titles go); a
+-- window filling the screen (the game's own layers) does not.
+Titles.OVER_WINDOW = 0.75
+local WINDOW_W, WINDOW_H, WINDOW_TOP, WINDOW_BOTTOM = 300, 200, 0.08, 0.6
+local NO_TABLE = {}
+
+-- Whether a window is open where a title goes (looked at once a title, not on a clock).
+function Titles.overWindow()
+    local ui = UIManager and UIManager.getUI and UIManager.getUI()
+    if not ui then return false end
+    local sw, sh = getCore():getScreenWidth(), getCore():getScreenHeight()
+    local mid, top, bottom = sw / 2, sh * WINDOW_TOP, sh * WINDOW_BOTTOM
+    for i = 0, ui:size() - 1 do
+        local el = ui:get(i)
+        local t = el and el:isVisible() and (el:getTable() or NO_TABLE)
+        -- (a collapsed window, such as the inventory folded to its bar, keeps its open height)
+        if t and not t.isCollapsed then
+            local x, y, w, h = el:getX(), el:getY(), el:getWidth(), el:getHeight()
+            if w >= WINDOW_W and h >= WINDOW_H and w < sw and x < mid and x + w > mid and y < bottom and y + h > top then
+                return true
+            end
+        end
+    end
+    return false
+end
+
 -- Shows a title (detail as OA.Sync.title takes it) for the player of that id; returns how it was shown: "title",
 -- "halo" or nil. With `noHalo` a title the API cannot draw is not shown at all (the caller has its own way then).
 function Titles.show(playerId, detail, noHalo)
@@ -87,11 +115,12 @@ function Titles.show(playerId, detail, noHalo)
     local handle = t and OA.handle()
     if noHalo and not handle then return nil end
     local shown
+    local backdrop = handle and Titles.overWindow() and Titles.OVER_WINDOW or nil
     for _, character in ipairs(characters) do
         local done = false
         if handle then
             local spec = { text = title, subtitle = sub, style = styleFor(t, detail.style), player = character:getPlayerNum(),
-                now = Titles.now or nil }
+                now = Titles.now or nil, backdrop = backdrop }
             local tone = Titles.TONES[detail.tone]
             if tone then spec.color, spec.subtitleColor = tone[1], tone[2] end
             local ok, err = pcall(t.title, handle, spec)
