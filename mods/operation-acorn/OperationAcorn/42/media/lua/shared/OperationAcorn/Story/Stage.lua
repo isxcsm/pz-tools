@@ -14,9 +14,10 @@
 -- revisit) only puts its item. A piece that cannot be put (no room of its kind, its square taken) is left out.
 -- Open ground is set up the same way once the squares round the site are loaded.
 --
--- Afterwards: what waits for an event (Stage.event: "pickup", "heli") wakes then, all at once or one after another
+-- Afterwards: what waits for an event (Stage.event: "enter", "pickup", "heli") wakes then, all at once or one after another
 -- (`stagger` seconds apart); what is spread over a span (Stage.progress: "wait", the swap's wait from 0 to 1) wakes
--- one by one across it (`during`), and a door boarded with `drop` loses a plank at that point of it.
+-- one by one across it (`during`), and a door boarded with `drop` loses a plank at that point of it. A thing that
+-- sounds on an event (`call`: the camp's radio as the circle is entered) sounds once, even when the event came first.
 --
 -- Where: the hands read the building's layout as it loads: its rooms ({ name, area, z, x, y, x2, y2, edge = touches the
 -- building's outline }) and its outer doors and windows on the ground floor. The rooms get roles (Stage.roles): "big"
@@ -37,7 +38,8 @@ Stage.game = nil
 
 -- The kinds put as the building loads; the rest (zombies) wait for the player.
 Stage.PLACE_KINDS = { tile = true, set = true, item = true, vehicle = true, barricade = true, lock = true,
-    corpse = true, blood = true, piece = true, board = true, lockout = true, generator = true, window = true, line = true }
+    corpse = true, blood = true, piece = true, board = true, lockout = true, generator = true, window = true, line = true,
+    call = true }
 Stage.CLEAR_INNER = 6     -- open ground's trees and bushes are all cleared this far round its middle,
 Stage.CLEAR_RADIUS = 10   -- and fewer and fewer out to this (the camp's reach)
 Stage.GROUND_RADIUS = 12   -- open ground is set up once the squares this far round the site are loaded
@@ -200,6 +202,15 @@ local function run(ctx, p)
     return result
 end
 
+-- The things that sound on an event, once: played and forgotten.
+local function sound(st, name)
+    local list = st.calls and st.calls[name]
+    if not list then return end
+    st.calls[name] = nil
+    local g = Stage.game
+    if g and g.sound then pcall(g.sound, list) end
+end
+
 -- Puts the building's pieces (once its layout is read): all of them the first time the building is set up, the
 -- mission's own item only when it was set up before.
 function Stage.place(record, m, layout, int)
@@ -232,6 +243,13 @@ function Stage.place(record, m, layout, int)
                 st.during = st.during or {}
                 st.during[#st.during + 1] = { name = p.drop.during, at = p.drop.at, plank = result }
             end
+            -- a thing that sounds once on an event (the camp's radio calling): where it stands
+            if p.kind == "call" and type(result) == "table" then
+                st.calls = st.calls or {}
+                local list = st.calls[p.on] or {}
+                list[#list + 1] = { x = result.x, y = result.y, z = result.z, sound = p.sound, secs = p.secs }
+                st.calls[p.on] = list
+            end
         end
     end
     -- a piece the stage could not put goes the usual way
@@ -243,6 +261,8 @@ function Stage.place(record, m, layout, int)
     end
     st.placed = true
     st.fresh = fresh
+    -- an event that came before the stage was there (the circle entered before the ground loaded): its sound now
+    for name in pairs(st.happened or {}) do sound(st, name) end
     Stage.world()[m.site.key] = true
 end
 
@@ -294,10 +314,15 @@ function Stage.look(record, m, px, py, near)
     if close then Stage.keep(record, m, px, py, near) end
 end
 
--- Something happened at the stage ("pickup": its item first taken): what waits for it wakes.
+-- Something happened at the stage ("enter": the circle first entered; "pickup": its item first taken): what sounds on
+-- it sounds once, what waits for it wakes.
 function Stage.event(record, m, name)
     local st = m and m.stage
-    local list = st and st.wake and st.wake[name]
+    if not st then return end
+    st.happened = st.happened or {}
+    st.happened[name] = true
+    sound(st, name)
+    local list = st.wake and st.wake[name]
     if not list then return end
     st.wake[name] = nil
     local g = Stage.game

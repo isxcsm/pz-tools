@@ -422,6 +422,7 @@ function Scene.minute(record)
             if inCircle(m.area, x, y) or inCircle(m.area2, x, y) then
                 if not m.scene.arrived then
                     m.scene.arrived = true
+                    if m.stage then OA.Stage.event(record, m, "enter") end
                     local id, ctx = Scene.arrivalLine(record, m, g.isNight())
                     if id then g.say(record, id, ctx, Scene.ARRIVE_SAY) end
                     g.title(record, { key = "IGUI_OA_Title_Arrived", sub = (OA.Missions.keys(m)), style = "unveil" })

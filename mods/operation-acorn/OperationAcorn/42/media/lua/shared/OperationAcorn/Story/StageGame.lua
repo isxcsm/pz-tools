@@ -1005,6 +1005,40 @@ local AROUND = { { 0, 0 }, { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }, { 1, 1 }, {
 
 -- Wakes what lies fake dead at the points (or a square from them: a body may have slid); with `stagger`, one after
 -- another that many real seconds apart (the first at once), in a random order.
+-- Where a thing that sounds on an event stands (`call`): the nearest square about its spot with its sprite (the set
+-- put it there), as { x, y, z }; nil when the set did not go down.
+function StageGame.call(ctx, p)
+    local x, y, z = spotOf(ctx, p)
+    if not x then return nil end
+    local c = getCell()
+    local reach = (p.reach or 1) + 1
+    for r = 0, reach do
+        for dx = -r, r do
+            for dy = -r, r do
+                local sq = (math.abs(dx) == r or math.abs(dy) == r) and c:getGridSquare(x + dx, y + dy, z)
+                local objects = sq and sq:getObjects()
+                for i = 0, objects and objects:size() - 1 or -1 do
+                    local spr = objects:get(i):getSprite()
+                    if spr and spr:getName() == p.sprite then return { x = x + dx, y = y + dy, z = z } end
+                end
+            end
+        end
+    end
+    return nil
+end
+
+-- Things sounding once ({ x, y, z, sound, secs }): each from a free emitter on its square, stopped after its seconds.
+-- Only an emitter's sound: no world sound, so zombies are not drawn.
+function StageGame.sound(list)
+    for _, at in ipairs(list) do
+        local emitter = getWorld():getFreeEmitter(at.x + 0.5, at.y + 0.5, at.z)
+        local id = emitter and emitter:playSound(at.sound)
+        if id and id ~= 0 and at.secs then
+            OA.Trade.Later.after(at.secs, function() emitter:stopSound(id) end)
+        end
+    end
+end
+
 function StageGame.wake(points, stagger)
     if stagger and #points > 1 then
         local order = {}

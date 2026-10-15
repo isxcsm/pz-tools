@@ -390,3 +390,42 @@ test("an event wakes its zombies with the stagger their piece gives", function()
     Stage.event(record, m, "heli")
     eq(staggers[1], 8)
 end)
+
+test("a thing that sounds on an event sounds once, also when the event came before the stage was put", function()
+    local CALL = { { kind = "call", at = "big", sprite = "radio", on = "enter", sound = "RadioTalk", secs = 6 } }
+    local record, m, g = setup(CALL)
+    local sounded = {}
+    g.call = function() return { x = 4, y = 5, z = 0 } end
+    g.sound = function(list) sounded[#sounded + 1] = list end
+    Stage.begin(record, m)
+    Stage.look(record, m, 2000, 0, 20)
+    Stage.event(record, m, "pickup")
+    eq(#sounded, 0, "another event")
+    Stage.event(record, m, "enter")
+    eq(#sounded, 1)
+    eq(sounded[1][1].x, 4)
+    eq(sounded[1][1].sound, "RadioTalk")
+    eq(sounded[1][1].secs, 6)
+    Stage.event(record, m, "enter")
+    eq(#sounded, 1, "once")
+    -- the circle entered while the ground was not loaded yet: it sounds as the stage is put (another building)
+    record, m, g = setup(CALL)
+    sounded = {}
+    g.call = function() return { x = 4, y = 5, z = 0 } end
+    g.sound = function(list) sounded[#sounded + 1] = list end
+    g.loaded = false
+    m.site.key = "600,0"
+    Stage.begin(record, m)
+    Stage.event(record, m, "enter")
+    eq(#sounded, 0)
+    g.loaded = true
+    Stage.look(record, m, 2000, 0, 20)
+    eq(#sounded, 1)
+    -- a set that did not go down: nothing to sound
+    record, m, g = setup(CALL)
+    g.call = function() return nil end
+    g.sound = function() error("no sound") end
+    Stage.begin(record, m)
+    Stage.look(record, m, 2000, 0, 20)
+    Stage.event(record, m, "enter")
+end)

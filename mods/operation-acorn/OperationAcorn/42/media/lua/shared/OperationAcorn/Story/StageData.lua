@@ -29,6 +29,9 @@
 --   lock      locks the room's doors with the building's key: the key goes to the next corpse with `key = true`
 --   window    { chair } opens one of the room's windows; with `chair` ({ N, S, W, E }) a chair inside it, turned to it
 --   generator { fuel = 0 to 1 } a generator, not running
+--   call      { sprite, on = an event (Stage.event), sound, secs } the set's thing of that sprite near the spot sounds
+--             once on the event, for that long (the camp's radio calling as the circle is entered); not a world
+--             sound: zombies do not hear it
 --   corpse    { outfit, key, count } bodies in the room
 --   blood     { count } splats on the room's floor
 --   piece     { key, floor } the mission's own item (its piece `key`) in a container of the room (`floor`: on its
@@ -144,6 +147,8 @@ StageData.cooler = { ground = true, pieces = {
     { kind = "set", at = "ground", dx = -4, dy = 2, reach = 1, tiles = TARP },
     { kind = "set", at = "ground", dx = 3, dy = 1, reach = 1, tiles = { DESK[1], DESK[2], { 0, 0, "appliances_com_01_8" } },
       more = { { 0, 1, "furniture_seating_indoor_01_60" } } },
+    { kind = "call", at = "ground", dx = 3, dy = 1, reach = 1, sprite = "appliances_com_01_8", on = "enter",
+      sound = "RadioTalk", secs = 6 },
     { kind = "set", at = "ground", dx = -4, dy = 4, reach = 1, count = 2, tiles = STRETCHER },
     { kind = "piece", at = "ground", dx = -1, dy = 3, key = "A" },
     { kind = "generator", at = "ground", dx = -1, dy = 5, fuel = 0 },
