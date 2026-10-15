@@ -42,8 +42,7 @@ function Game.building(i)
     return x, y, ok
 end
 
-function Game.buildingInfo(i)
-    local b = buildings():get(i - 1)
+local function infoOf(b)
     local z1, z2 = b:getMinLevel(), b:getMaxLevel()
     local z = 0
     if z1 > 0 then z = z1 elseif z2 < 0 then z = z2 end
@@ -53,10 +52,74 @@ function Game.buildingInfo(i)
     }
 end
 
--- Is there a building at the square (the bunker's cellar may not be one the map data gives us).
-function Game.buildingExists(x, y, z)
-    local ok, def = pcall(function() return getWorld():getMetaGrid():getBuildingAt(x, y, z) end)
-    return ok and def ~= nil
+function Game.buildingInfo(i)
+    return infoOf(buildings():get(i - 1))
+end
+
+-- A building's key for the world's story (the corner of its def): the sites used, the buildings searched.
+local function keyOf(def)
+    return tostring(def:getX()) .. "," .. tostring(def:getY())
+end
+
+-- The key of the building at a square (or touching it), or nil.
+function Game.buildingKeyAt(x, y)
+    local def = getWorld():getMetaGrid():getBuildingAtRelax(math.floor(x), math.floor(y))
+    return def and keyOf(def) or nil
+end
+
+-- The buildings in the band around ax, ay that a story site may be (Places.pickSite): not a cellar, not a shed, none of
+-- `skip` (keys). The whole map's list, unloaded parts too (its rooms are known): the distance first, the rooms only for
+-- the few in the band. Once for each story site.
+function Game.sitesInBand(ax, ay, lo, hi, skip)
+    local list = {}
+    local all = getWorld():getMetaGrid():getBuildings()
+    for i = 0, all:size() - 1 do
+        local b = all:get(i)
+        local x, y = (b:getX() + b:getX2()) / 2, (b:getY() + b:getY2()) / 2
+        local dx, dy = x - ax, y - ay
+        local d = math.sqrt(dx * dx + dy * dy)
+        if d >= lo and d <= hi and not b:isBasement() and b:getArea() >= 30 then
+            local key = keyOf(b)
+            if not skip[key] then
+                local info = infoOf(b)
+                info.key, info.dist = key, d
+                info.area, info.rooms, info.home = b:getArea(), b:getRoomsNumber(), b:containsRoom("bedroom")
+                list[#list + 1] = info
+            end
+        end
+    end
+    return list
+end
+
+-- Open ground a camp may stand on (SCENES.md 5): a point of a field, a farm, a ranch or a forest by the map's zones, and
+-- none of a road, a town, water, a car park or deep forest, with no building on it. Whether its squares are free is
+-- seen when they load (a prop that finds its square taken is left out).
+Game.OPEN_ZONES = { Vegitation = true, Forest = true, FarmLand = true, Farm = true, Ranch = true }
+Game.CLOSED_ZONES = { Nav = true, TownZone = true, WaterFlow = true, WaterZone = true, ParkingStall = true,
+    TrailerPark = true, DeepForest = true, Basement = true }
+
+local function openAt(grid, x, y)
+    if grid:getBuildingAt(x, y) then return false end
+    local zones = grid:getZonesAt(x, y, 0)
+    local open = false
+    for i = 0, zones:size() - 1 do
+        local t = zones:get(i):getType()
+        if Game.CLOSED_ZONES[t] then return false end
+        if Game.OPEN_ZONES[t] then open = true end
+    end
+    return open
+end
+
+-- A point of open ground in the band around ax, ay, tried at random; nil when none was found.
+function Game.groundInBand(ax, ay, lo, hi, tries)
+    local grid = getWorld():getMetaGrid()
+    for _ = 1, tries or 300 do
+        local angle = OA.randomFloat(0, 2 * math.pi)
+        local r = OA.randomFloat(lo, hi)
+        local x, y = math.floor(ax + math.cos(angle) * r), math.floor(ay + math.sin(angle) * r)
+        if openAt(grid, x, y) then return x, y end
+    end
+    return nil
 end
 
 -- The zombie density of the map at a square (DESIGN-terminal 7.2): the metagrid's chunk there, as the game's own spawning

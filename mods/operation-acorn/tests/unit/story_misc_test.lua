@@ -131,8 +131,8 @@ test("documents of an item: its own id first, its data ones, a field note", func
     eq(#Docs.forItem(record, "MeteorFragment", {}), 0)
     list = Docs.forItem(record, "StakeTag", { OA_Stake = 412 })
     eq(list[1].extra, 412)
-    list = Docs.forItem(record, "EvidenceEnvelope", { OA_Variant = "westpoint_pd" })
-    eq(list[1].variant, "westpoint_pd")
+    list = Docs.forItem(record, "EvidenceEnvelope", { OA_Variant = "police" })
+    eq(list[1].variant, "police")
 end)
 
 test("every document id has a kind and a title key, and the registry is complete", function()
@@ -150,10 +150,11 @@ end)
 test("a document's text takes the number, the place and where in the building", function()
     local record = OA.Store.ensure("p1", "P")
     record.number = 347
-    local text = Docs.body(record, "police_card", "muldraugh_pd")
+    local text = Docs.body(record, "police_card", "police")
     truthy(string.find(text, "0347", 1, true))
-    truthy(string.find(text, "IGUI_OA_Story_Place_muldraugh_pd", 1, true))
-    truthy(string.find(text, "IGUI_OA_Story_PlaceNote_muldraugh_pd", 1, true))
+    truthy(string.find(text, "IGUI_OA_Story_Facility_police", 1, true))
+    truthy(string.find(text, "IGUI_OA_Story_FacilityNote_police", 1, true))
+    eq(string.find(Docs.body(record, "police_card", "muldraugh_pd"), "Facility", 1, true), nil, "no name for an unknown one")
     local slip = Docs.body(record, "soil_slip", nil, nil)
     truthy(string.find(slip, "Doc_soil_slip_plain", 1, true))
     slip = Docs.body(record, "soil_slip", nil, 412)
@@ -165,7 +166,7 @@ test("the roster page shares three numbers with the status table and smears the 
     local record = OA.Store.ensure("p1", "P")
     record.number = 347
     local st = Story.statusTable(record)
-    local page = Docs.body(record, "roster_page", "riverside_school")
+    local page = Docs.body(record, "roster_page", "shelter")
     for _, idx in ipairs(st.roster) do
         truthy(string.find(page, string.format("%04d", st.rows[idx].n), 1, true), "row " .. idx)
     end
@@ -254,7 +255,7 @@ local function uiKeys()
     local P = "IGUI_OA_Story_"
     local list = {}
     local function add(k) list[#list + 1] = P .. k end
-    for id in pairs(Data.PLACES) do add("Place_" .. id); add("PlaceNote_" .. id) end
+    for _, id in ipairs(Data.FACILITIES) do add("Facility_" .. id); add("FacilityNote_" .. id) end
     for _, id in ipairs(storyIds()) do add("Title_" .. id); add("Brief_" .. id) end
     for _, r in ipairs(Data.REGULAR) do
         -- (the comparison is told in the contract's words)
@@ -349,15 +350,15 @@ end)
 
 test("a document that carries its own paper (OA_Doc with OA_Only) shows that one alone, with the place", function()
     local record = OA.Store.ensure("p1", "P")
-    local list = Docs.forItem(record, "PharmacyLedger", { OA_Doc = "revisit_ledger", OA_Only = true, OA_Variant = "fallas_clinic" })
+    local list = Docs.forItem(record, "PharmacyLedger", { OA_Doc = "revisit_ledger", OA_Only = true, OA_Variant = "medical" })
     eq(#list, 1)
     eq(list[1].id, "revisit_ledger")
-    eq(list[1].variant, "fallas_clinic")
-    list = Docs.forItem(record, "PharmacyLedger", { OA_Variant = "fallas_clinic" })
+    eq(list[1].variant, "medical")
+    list = Docs.forItem(record, "PharmacyLedger", { OA_Variant = "medical" })
     eq(list[1].id, "con_ledger", "the contract's item still has its own")
     list = Docs.forItem(record, "SerumSheet", { OA_Doc = "serum_sheet" })
     eq(#list, 1, "a supply item that names its paper is not shown twice")
-    eq(Docs.forItem(record, "HandoverPages", { OA_Variant = "east_camp" })[1].id, "handover_pages")
+    eq(Docs.forItem(record, "HandoverPages", { OA_Variant = "army" })[1].id, "handover_pages")
 end)
 
 test("the items script and the data name the same items", function()

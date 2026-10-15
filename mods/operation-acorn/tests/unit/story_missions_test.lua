@@ -23,6 +23,7 @@ local function fakeGame()
     g.buildingCount = function() return #g.list end
     g.building = function(i) return g.list[i].x, g.list[i].y, true end
     g.buildingInfo = function(i) return g.list[i] end
+    fakeSites(g)
     g.playerPosition = function() return g.px or 0, g.py or 0, 0 end
     g.request = function(record, m, it) g.requested[#g.requested + 1] = { m = m.id, it = it } end
     g.release = function() g.released = g.released + 1 end
@@ -116,8 +117,12 @@ test("entering stage 1 starts the evidence story first, far from the base", func
     eq(m.level, 1)
     eq(m.seq, 1, "numbered, for the terminal's dot")
     eq(OA.StoryFolder.missionSeq(record), 1)
-    local p = OA.StoryData.PLACES[m.place]
+    local p = m.site
     truthy(OA.Places.distance(p.x, p.y, 0, 0) >= 50, "not the base")
+    eq(m.facility, "police")
+    truthy(Story.world().used[p.key], "the site is used for the world")
+    eq(Story.section(record).sites.evidence, p, "kept for the revisit")
+    eq(m.items[1].mods.OA_Variant, "police")
     eq(m.items[1].type, "OperationAcorn.EvidenceEnvelope")
     eq(m.items[1].lock, true, "the evidence room is locked")
     eq(#M.game.requested, 1, "its item is asked to be placed")
@@ -231,15 +236,62 @@ test("the choice mission offers two and closes the other", function()
     eq(M.choose(record, "a"), false, "no second choice")
 end)
 
-test("the far choice (the airfield) ignores the band", function()
+test("the choice's far option is a house far in the band, at the farm facility", function()
     local record = setup(3)
     local s = Story.section(record)
     s.seenStage = 2
     M.tick(record)
     truthy(M.choose(record, "a"))
     local m = M.active(record)
-    eq(m.place, "brandenburg_airfield")
+    eq(m.facility, "farm")
     eq(m.items[1].type, "OperationAcorn.WeatherLog")
+    eq(m.items[1].mods.OA_Variant, "farm")
+    local lo, hi = OA.Rewards.band(m.level)
+    local d = OA.Places.distance(m.site.x, m.site.y, 0, 0)
+    truthy(d >= lo and d <= hi, "in the band")
+    truthy(d >= lo + (hi - lo) / 2, "in the far part of it")
+end)
+
+test("a story site is never one used before in the world, the base's building or a searched one", function()
+    local record = setup(1)
+    local all = M.game.sitesInBand(0, 0, OA.Rewards.band(1))
+    -- every building of the band but one is used, searched or the base
+    local keep = all[1].key
+    for i = 2, #all do
+        if i == 2 then M.game.baseKey = all[i].key
+        elseif i - math.floor(i / 2) * 2 == 0 then Story.useSite(all[i].key)
+        else Story.touchBuilding(all[i].key) end
+    end
+    M.tick(record)
+    eq(M.active(record).site.key, keep)
+end)
+
+test("with no building left in the band a story site is open ground, the piece on its floor", function()
+    local record = setup(1)
+    M.game.list = {}
+    M.tick(record)
+    local m = M.active(record)
+    eq(m.story, "evidence")
+    eq(m.site.ground, true)
+    eq(m.items[1].mode, "floor")
+    eq(m.items[1].lock, nil, "nothing to lock")
+end)
+
+test("a story site wanted on open ground is never a building", function()
+    local record = setup(4)
+    Story.section(record).seenStage = 3
+    M.tick(record)
+    local m = M.active(record)
+    eq(m.story, "cooler")
+    eq(m.site.ground, true)
+    eq(m.facility, "army")
+end)
+
+test("no building and no open ground: no story mission", function()
+    local record = setup(1)
+    M.game.list = {}
+    M.game.noGround = true
+    eq(M.pickSite(record, 1, { want = "public" }), nil)
 end)
 
 test("the cooler's reward falls with its warming", function()
@@ -285,7 +337,7 @@ test("the swap: case, wait near the place, then the record appears", function()
     local m = M.active(record)
     eq(m.story, "clinic")
     eq(m.swap.stage, "needcase")
-    local p = OA.StoryData.PLACES[m.place]
+    local p = m.site
     M.game.px, M.game.py = p.x + 5, p.y
     truthy(M.swap(record, {}))
     eq(m.swap.stage, "waiting")
@@ -301,7 +353,7 @@ test("the swap waits only while the player stays near", function()
     Story.section(record).seenStage = 1
     M.tick(record)
     local m = M.active(record)
-    local p = OA.StoryData.PLACES[m.place]
+    local p = m.site
     M.game.px, M.game.py = p.x, p.y
     M.swap(record, {})
     M.game.px, M.game.py = p.x + 5000, p.y
@@ -372,7 +424,7 @@ test("the swap's wait counts game time, not looks", function()
     Story.section(record).seenStage = 1
     M.tick(record)
     local m = M.active(record)
-    local p = OA.StoryData.PLACES[m.place]
+    local p = m.site
     M.game.px, M.game.py = p.x, p.y
     TEST.hours = 100
     truthy(M.swap(record, {}))
@@ -391,7 +443,7 @@ test("the swap's wait stops while the player is away and goes on when they are b
     Story.section(record).seenStage = 1
     M.tick(record)
     local m = M.active(record)
-    local p = OA.StoryData.PLACES[m.place]
+    local p = m.site
     M.game.px, M.game.py = p.x, p.y
     TEST.hours = 100
     M.swap(record, {})
@@ -568,19 +620,19 @@ test("what the mission delivered has its papers listed: the original of a pair, 
     eq(docs[1].extra, 140, "the original's number")
     local swap = { swap = { item = "ClinicRecord" }, items = {
         { key = "CASE", type = full("DeadDropCase"), mode = "case", mods = {} },
-        { key = "A", type = full("ClinicRecord"), mode = "inside", mods = { OA_Variant = "westpoint_clinic" } } } }
+        { key = "A", type = full("ClinicRecord"), mode = "inside", mods = { OA_Variant = "medical" } } } }
     docs = M.documentsOf(swap)
     eq(#docs, 1)
     eq(docs[1].id, "clinic_log")
-    eq(docs[1].variant, "westpoint_clinic")
+    eq(docs[1].variant, "medical")
     local drop = { drop = { item = "ReviewMemo" }, items = {
         { key = "CASE", type = full("DeadDropCase"), mode = "case", inside = "ReviewMemo",
-          mods = { OA_Variant = "marchridge_bunker", OA_Inside = "ReviewMemo" } } } }
+          mods = { OA_Variant = "army", OA_Inside = "ReviewMemo" } } } }
     docs = M.documentsOf(drop)
     eq(#docs, 1)
     eq(docs[1].id, "review_memo")
-    eq(docs[1].variant, "marchridge_bunker")
-    local cooler = { items = { { key = "A", type = full("SampleCooler"), mods = { OA_Variant = "valley_camp" } } } }
+    eq(docs[1].variant, "army")
+    local cooler = { items = { { key = "A", type = full("SampleCooler"), mods = { OA_Variant = "army" } } } }
     eq(#M.documentsOf(cooler), 2, "front and back")
     local note = { items = { { key = "A", type = full("MissionEnvelope"), mods = { OA_Note = "note_4" } } } }
     docs = M.documentsOf(note)
@@ -603,7 +655,7 @@ test("the delivered mission item's paper is in the folder after the settlement, 
     M.tick(record)
     local m = M.active(record)
     eq(m.story, "evidence")
-    local place = m.place
+    local place = m.facility
     M.onSealed(record, "box1", { { info = { mission = M.itemId(m, "A") }, count = 1 } })
     eq(Story.section(record).docs.police_card, nil, "not before the settlement")
     M.onSettled(record, { credits = 1000, trust = 5 })
@@ -618,7 +670,7 @@ test("a paper the player read before the settlement stays as it was read", funct
     local record = setup(1)
     M.tick(record)
     local m = M.active(record)
-    Story.markRead(record, "police_card", m.place)
+    Story.markRead(record, "police_card", m.facility)
     M.onSealed(record, "box1", { { info = { mission = M.itemId(m, "A") }, count = 1 } })
     M.onSettled(record, { credits = 1000, trust = 5 })
     local s = Story.section(record)
@@ -658,9 +710,31 @@ test("the handover mission's item is its own paper, the revisits' items carry th
         local docs = OA.StoryDocs.forItem(record, OA.StoryData.itemName(mission.items[1].type), mission.items[1].mods)
         eq(#docs, 1, "the new form alone, not the item's old paper")
         eq(docs[1].id, id)
-        eq(docs[1].variant, mission.place)
+        eq(docs[1].variant, mission.facility)
         M.finish(record, mission, "expired")
     end
+end)
+
+test("a revisit goes back to the site its story had, or picks one of its facility", function()
+    local record = setup(5, 3)
+    local s = Story.section(record)
+    s.seenStage = 5; s.seenMilestones = 3
+    local site = { x = 1500, y = 0, z = 0, x1 = 1497, y1 = -3, x2 = 1503, y2 = 3, z1 = 0, z2 = 0, key = "1500,0" }
+    s.sites.evidence = site
+    Story.queueStory(record, "revisit_police", true)
+    M.tick(record)
+    local m = M.active(record)
+    eq(m.story, "revisit_police")
+    eq(m.site, site)
+    eq(m.facility, "police")
+    M.finish(record, m, "expired")
+    Story.queueStory(record, "revisit_ledger", true)
+    TEST.hours = TEST.hours + 4 * 24
+    M.tick(record)
+    m = M.active(record)
+    eq(m.story, "revisit_ledger")
+    truthy(m.site and m.site.key ~= "1500,0", "a new site")
+    eq(m.facility, "medical")
 end)
 
 test("a piece destroyed is got again the way it was got, with as much time as the mission had", function()

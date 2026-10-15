@@ -53,20 +53,26 @@ test("the same stage is entered once, however often it is called", function()
     eq(#TEST.drop, 0)
 end)
 
-test("the fourth stage queues the cooler first and the optional bunker after it", function()
+test("the fourth stage queues the cooler, fresh", function()
     local record = setup(4)
     Story.section(record).seenStage = 3
     Story.onStage(record)
     local s = Story.section(record)
-    local ids = {}
-    for _, q in ipairs(s.queue) do ids[#ids + 1] = q.id .. (q.fresh and "!" or "") end
-    local text = table.concat(ids, ",")
-    truthy(string.find(text, "cooler!", 1, true), text)
-    truthy(string.find(text, "bunker", 1, true), text)
+    eq(s.queue[1].id, "cooler")
+    eq(s.queue[1].fresh, true)
     eq(Story.nextStory(record).id, "cooler")
-    eq(Story.nextStory(record), nil, "the bunker waits for a regular mission")
-    s.regularsSince = 1
-    eq(Story.nextStory(record).id, "bunker")
+end)
+
+test("an optional story mission waits for a regular one before it", function()
+    local record = setup(5, 2)
+    Story.section(record).seenStage = 5
+    Story.section(record).seenMilestones = 1
+    Story.onStage(record)
+    local s = Story.section(record)
+    local soil
+    for _, q in ipairs(s.queue) do if q.id == "soil" then soil = q end end
+    truthy(soil, "the soil sample is queued")
+    eq(soil.fresh, false, "after a regular")
 end)
 
 test("a story mission is done once; a missed one, optional or not, is queued again at once behind a regular", function()
@@ -76,36 +82,17 @@ test("a story mission is done once; a missed one, optional or not, is queued aga
     s.queue = {}  -- the mission was started: it left the queue
     Story.missionEnded(record, { story = "observation" }, "expired")
     eq(s.done.observation, "missed")
-    eq(#s.missed, 0, "nothing waits for the next stage")
     eq(s.queue[1].id, "observation")
     eq(s.queue[1].fresh, false, "a regular comes between")
     eq(Story.nextStory(record), nil, "not before a regular")
     Story.missionEnded(record, { kind = "regular" }, "done")
     eq(Story.nextStory(record).id, "observation", "after a regular")
-    Story.missionEnded(record, { story = "bunker" }, "lost")
-    eq(s.done.bunker, "missed")
-    eq(s.queue[1].id, "bunker", "an optional one comes back too")
+    Story.missionEnded(record, { story = "soil" }, "lost")
+    eq(s.done.soil, "missed")
+    eq(s.queue[1].id, "soil", "an optional one comes back too")
     Story.missionEnded(record, { story = "observation" }, "done")
     Story.queueStory(record, "observation", false)
     eq(#s.queue, 1, "a done one is not offered again")
-end)
-
-test("a save from before: the missed ones kept for a stage and the optional ones it closed come back at the next", function()
-    local record = setup(3)
-    Story.onStage(record)
-    local s = Story.section(record)
-    s.queue = {}
-    s.missed = { "observation" }
-    s.done.observation = "missed"
-    s.done.bunker = "closed"
-    record.trade.stage = 4
-    Story.onStage(record)
-    local ids = {}
-    for _, q in ipairs(s.queue) do ids[q.id] = q.fresh end
-    eq(ids.observation, false)
-    eq(ids.bunker, false)
-    eq(s.done.bunker, "missed")
-    eq(#s.missed, 0)
 end)
 
 test("milestones: the unresolved list, the soil mission at the second, the handover at the third", function()

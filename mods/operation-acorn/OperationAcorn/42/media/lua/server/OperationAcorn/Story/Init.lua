@@ -227,6 +227,11 @@ OA.Server.on("comms_played", function(character, record, args)
     Story.callPlayed(record, id)
 end)
 
+-- A building the player has looked into (a container of it shown for the first time): no story site goes there.
+OA.Server.on("story_touched", function(character, record, args)
+    if type(args.key) == "string" and string.match(args.key, "^%-?%d+,%-?%d+$") then Story.touchBuilding(args.key) end
+end)
+
 -- A document was read. `variant` is the place its text was for, `extra` the number it was read with.
 OA.Server.on("story_read", function(character, record, args)
     if type(args.doc) == "string" then

@@ -1,7 +1,7 @@
 -- The story's documents (LORE 2, 4, 6, 7): the registry of ids, which item shows which, and the text of each, made
 -- from the translation files (IGUI_OA_Story_Doc_<id>, IGUI_OA_Story_DocTitle_<id>). A save keeps only ids
--- (the folder in the terminal lists the ones read); a place's variant changes the place name and where in the
--- building the document says it was, nothing else (LORE 4). Dates are in documents only (LORE: 날짜는 서류에만).
+-- (the folder in the terminal lists the ones read); the facility it was found at (its variant) names the place and
+-- where in it the document says it was, nothing else (LORE 4). Dates are in documents only (LORE: 날짜는 서류에만).
 require "OperationAcorn/Core"
 require "OperationAcorn/Story/Data"
 require "OperationAcorn/Story/Story"
@@ -63,9 +63,13 @@ end
 -- The names printed on the shelter roster (Latin, as in a Kentucky roster of 1993): the ones next to the numbers.
 Docs.ROSTER_NAMES = { "HARGROVE, D.", "PRUITT, R.", "LINDQVIST, M.", "OKONKWO, T.", "BAYLESS, E.", "TREVINO, A." }
 
+-- The facility a document was found at (the item's OA_Variant): its name and where in it, or nothing.
+local facilities = {}
+for _, id in ipairs(Data.FACILITIES) do facilities[id] = true end
+
 local function placeTexts(variant)
-    if variant and Data.PLACES[variant] then
-        return getText("IGUI_OA_Story_Place_" .. variant), getText("IGUI_OA_Story_PlaceNote_" .. variant)
+    if variant and facilities[variant] then
+        return getText("IGUI_OA_Story_Facility_" .. variant), getText("IGUI_OA_Story_FacilityNote_" .. variant)
     end
     return "", ""
 end
@@ -112,7 +116,7 @@ local DYNAMIC = { roster_page = rosterBody, status_table = statusBody }
 -- Documents that read differently when there is no number to print (the soil slip of a plain ground sample).
 local NO_EXTRA = { soil_slip = "soil_slip_plain" }
 
--- The text of a document for a record. `variant` is a place id (changes the place wording), `extra` a number the
+-- The text of a document for a record. `variant` is a facility id (the place's wording), `extra` a number the
 -- text uses (a stake number, a serial).
 function Docs.body(record, id, variant, extra)
     local dynamic = DYNAMIC[id] or Docs.GUIDE_BODY[id]

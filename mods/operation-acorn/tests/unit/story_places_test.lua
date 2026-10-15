@@ -74,16 +74,42 @@ test("with none in the band the candidate nearest to the band is used", function
     eq(i, 1); eq(why, "nearest")
 end)
 
-test("a far choice candidate ignores the band", function()
-    local cands = { { x = 4000, y = 0 }, { x = 8000, y = 0 } }
-    local seen = {}
-    local int = rng(7)
-    for _ = 1, 40 do
-        local i, why = P.pickCandidate(cands, 0, 0, 150, 600, { ignoreBand = true }, int)
-        eq(why, "any")
-        seen[i] = true
+-- Story sites (Places.pickSite): a list as Game.sitesInBand gives it.
+local function site(dist, area, rooms, home)
+    return { x = dist, y = 0, dist = dist, area = area, rooms = rooms, home = home }
+end
+
+test("a public site is a public building of a few rooms first, then any public one, then a house", function()
+    local list = { site(100, 50, 1, false), site(200, 80, 4, false), site(300, 60, 6, true) }
+    local int = rng(3)
+    for _ = 1, 20 do eq(P.pickSite(list, "public", int), 2) end
+    list[2].rooms = 2
+    for _ = 1, 20 do eq(P.pickSite(list, "public", int) ~= 3, true, "a public one before a house") end
+    eq(P.pickSite({ site(300, 60, 6, true) }, "public", int), 1, "a house when there is no public one")
+    eq(P.pickSite({}, "public", int), nil)
+end)
+
+test("the largest site is the largest public building, else the largest house", function()
+    local list = { site(100, 50, 1, false), site(200, 300, 1, true), site(300, 90, 3, false) }
+    eq(P.pickSite(list, "largest"), 3)
+    eq(P.pickSite({ site(100, 50, 1, true), site(200, 70, 1, true) }, "largest"), 2)
+end)
+
+test("the near and far houses come from the inner and outer third of the band's houses", function()
+    local list = {}
+    for i = 1, 9 do list[i] = site(i * 100, 50, 2, true) end
+    list[10] = site(50, 500, 5, false)
+    local int = rng(11)
+    local near, far = {}, {}
+    for _ = 1, 60 do
+        near[P.pickSite(list, "near", int)] = true
+        far[P.pickSite(list, "far", int)] = true
     end
-    truthy(seen[1] and seen[2], "both can come")
+    for i in pairs(near) do truthy(i >= 1 and i <= 3, "near: " .. i) end
+    for i in pairs(far) do truthy(i >= 7 and i <= 9, "far: " .. i) end
+    truthy(near[1] and near[3] and far[7] and far[9], "any of the third")
+    eq(P.pickSite({ site(50, 500, 5, false) }, "far", int), 1, "a public building when there is no house")
+    eq(P.pickSite({ site(50, 50, 1, true) }, "near", int), 1, "one house is both thirds")
 end)
 
 test("when every candidate is the base the farthest is used", function()

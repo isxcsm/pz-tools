@@ -1131,7 +1131,6 @@ function Machines.tick()
     local now = getTimestampMs()
     for _, id in ipairs(ids) do
         local entry = reg.list[id]
-        entry.missed = nil   -- the old count of steps, kept in saves made before
         local square = cell:getGridSquare(entry.x, entry.y, entry.z)
         local object = square and findOnSquare(square, id)
         if object then

@@ -287,62 +287,77 @@ local function fieldNoteId(record)
     return "note_" .. tostring(fresh[OA.random(1, #fresh)])
 end
 
--- The candidate list of a story as Places wants it ({ x, y, id }).
-local function candidatesOf(ids, closed)
-    local list = {}
-    for _, id in ipairs(ids) do
-        local p = Data.PLACES[id]
-        if p then list[#list + 1] = { x = p.x, y = p.y, id = id, closed = closed and closed[id] } end
-    end
-    return list
-end
-
--- Picks a place of a story mission among its candidates: the id, and why.
-function Missions.pickStoryPlace(record, ids, level, opts)
+-- The site of a story mission, a special request or a contract errand (SCENES.md 5 '장소 고르기', LORE 4): a building
+-- of the band taken for a temporary facility, or open ground when the spec wants it or no building is left. `spec`:
+-- { want = Places.pickSite's want, ground = true (open ground only) }. Not the base's building, not a site a story has
+-- used in this world, not a building a player has searched, not the site of a special request on offer, nor `taken` (a
+-- key). Returns { x, y, z, x1, y1, x2, y2, z1, z2, key } (a building's), { x, y, z = 0, key, ground = true } or nil (no
+-- base known, or nothing found).
+function Missions.pickSite(record, level, spec, taken)
+    local g = game()
     local ax, ay = Missions.anchor(record)
-    if not ax then
-        -- No base known: any candidate.
-        local id = ids[OA.random(1, #ids)]
-        return id, "any"
-    end
+    if not (g and ax) then return nil end
     local lo, hi = Rewards.band(level)
-    local cands = candidatesOf(ids)
-    local i, why = Places.pickCandidate(cands, ax, ay, lo, hi, opts)
-    if not i then return nil end
-    return cands[i].id, why
+    if not spec.ground and g.sitesInBand then
+        local skip = Story.siteSkips(g.buildingKeyAt and g.buildingKeyAt(ax, ay))
+        local offer = Missions.special(record).offer
+        if offer then
+            for _, key in ipairs({ "a", "b" }) do
+                local site = offer[key] and offer[key].site
+                if site then skip[site.key] = true end
+            end
+        end
+        if taken then skip[taken] = true end
+        local list = g.sitesInBand(ax, ay, lo, hi, skip)
+        local i = Places.pickSite(list, spec.want or "public")
+        if i then
+            local b = list[i]
+            return { x = b.x, y = b.y, z = b.z, x1 = b.x1, y1 = b.y1, x2 = b.x2, y2 = b.y2, z1 = b.z1, z2 = b.z2,
+                key = b.key }
+        end
+    end
+    if not g.groundInBand then return nil end
+    local x, y = g.groundInBand(ax, ay, lo, hi)
+    if not x then return nil end
+    return { x = x, y = y, z = 0, key = "g:" .. tostring(x) .. "," .. tostring(y), ground = true }
 end
 
 local function storyMission(record, def, id, level)
     local m = newMission(record, "story", level, id)
     m.title = id
+    m.facility = def.facility
     local ax, ay = Missions.anchor(record)
     if ax then m.anchor = { x = ax, y = ay } end
     return m
 end
 
--- One piece at a candidate place of a story.
-local function placeStoryPiece(m, itemName, key, placeId, mods, mode)
-    local p = Data.PLACES[placeId]
-    m.place = placeId
-    local it = placementFrom(itemName, key, p, mods, mode)
+-- One piece at a mission's site (on its floor when the site is open ground); the circle round the site.
+local function placeAtSite(m, itemName, key, site, mods, mode)
+    m.site = site
+    local it = placementFrom(itemName, key, site, mods, site.ground and "floor" or mode)
     m.items[#m.items + 1] = it
-    circleFor(m, p.x, p.y)
+    circleFor(m, site.x, site.y)
     return it
 end
 
--- Is there a building at the place on the map (the bunker may not be one the game lets us use).
-local function placeUsable(placeId)
-    local g = game()
-    local p = Data.PLACES[placeId]
-    if g and g.buildingExists and p then return g.buildingExists(p.x, p.y, p.z) end
-    return true
+-- A story mission's site: a revisit goes back to the site of the story it names (`from`) when that one had one, the
+-- others pick a new one and keep it in the world's used sites and in the record (for the revisit).
+local function storySite(record, def, id, level, spec)
+    local s = Story.section(record)
+    local back = def.from and s.sites[def.from]
+    if back then return back end
+    local site = Missions.pickSite(record, level, spec or def.site or {})
+    if not site then return nil end
+    Story.useSite(site.key)
+    s.sites[id] = site
+    return site
 end
 
 local function createSwap(record, def, id, level)
     local m = storyMission(record, def, id, level)
-    local placeId = Missions.pickStoryPlace(record, def.places, level)
-    if not placeId then return nil end
-    local it = placeStoryPiece(m, "DeadDropCase", "CASE", placeId, { OA_Drop = "" }, "floor")
+    local site = storySite(record, def, id, level)
+    if not site then return nil end
+    local it = placeAtSite(m, "DeadDropCase", "CASE", site, { OA_Drop = "" }, "floor")
     it.mode = "case"
     m.swap = { stage = "needcase", waited = 0, item = def.item }
     -- The sealed case comes in the next supply crate: the deadline starts later.
@@ -351,16 +366,15 @@ local function createSwap(record, def, id, level)
     return m
 end
 
-local function createFetch(record, def, id, level, itemOverride, placeIds, opts)
+local function createFetch(record, def, id, level)
     local m = storyMission(record, def, id, level)
-    local placeId = Missions.pickStoryPlace(record, placeIds or def.places, level, opts or { ignoreBand = def.ignoreBand })
-    if not placeId then return nil end
-    local item = itemOverride or def.item
-    local mods = { OA_Variant = placeId }
+    local site = storySite(record, def, id, level)
+    if not site then return nil end
+    local mods = { OA_Variant = def.facility }
     -- A revisit's item carries the new office's paper, not the old one the item has.
     if def.doc then mods.OA_Doc, mods.OA_Only = def.doc, true end
-    local it = placeStoryPiece(m, item, "A", placeId, mods)
-    if def.condition == "locked" then it.lock = true end
+    local it = placeAtSite(m, def.item, "A", site, mods)
+    if def.condition == "locked" and not site.ground then it.lock = true end
     if def.kind == "carry" then m.carry = {} end
     return m
 end
@@ -371,17 +385,6 @@ local function createField(record, def, id, level)
     m.field = { stage = "needdevice" }
     m.deadline = m.deadline + Rewards.hours(Data.SWAP_SLACK_DAYS)
     Story.queueSupply(record, "FieldCallDevice", nil)
-    return m
-end
-
-local function createDropFetch(record, def, id, level)
-    local m = storyMission(record, def, id, level)
-    local placeId = def.places[1]
-    if not placeUsable(placeId) then placeId = def.fallback end
-    local it = placeStoryPiece(m, "DeadDropCase", "CASE", placeId, { OA_Variant = placeId, OA_Inside = def.item }, "floor")
-    it.mode = "case"
-    it.inside = def.item
-    m.drop = { item = def.item }
     return m
 end
 
@@ -400,13 +403,14 @@ function Missions.choose(record, option)
     local def = Data.STORIES[m.story]
     local opt = def and def.options and def.options[option]
     if not opt then return false end
-    local placeId = Missions.pickStoryPlace(record, opt.places, m.level, { ignoreBand = opt.ignoreBand })
-    if not placeId then return false end
+    local site = storySite(record, def, m.story, m.level, opt.site)
+    if not site then return false end
     m.chosen = option
     m.options = nil
     m.state = "open"
     m.deadline = OA.hours() + deadlineHours(record)
-    placeStoryPiece(m, opt.item, "A", placeId, { OA_Variant = placeId })
+    m.facility = opt.facility or def.facility
+    placeAtSite(m, opt.item, "A", site, { OA_Variant = m.facility })
     m.title = m.story .. "_" .. option
     Story.section(record).chosen[m.story] = option
     Missions.price(record, m)
@@ -471,7 +475,7 @@ local function createStake(record, entry, level)
     return m
 end
 
--- A contract mission at one of its places or any building.
+-- A contract mission: a comparison, a stake, an errand at a site taken for a facility, or any building.
 local function createContract(record, level)
     local entry = weighted(Data.CONTRACTS)
     local m
@@ -482,9 +486,10 @@ local function createContract(record, level)
     elseif entry.kind == "place" then
         m = newMission(record, "contract", level, nil)
         m.title = entry.id
-        local placeId = Missions.pickStoryPlace(record, entry.places, level)
-        if placeId then
-            placeStoryPiece(m, entry.item, "A", placeId, { OA_Variant = placeId })
+        m.facility = entry.facility
+        local site = Missions.pickSite(record, level, entry.site or {})
+        if site then
+            placeAtSite(m, entry.item, "A", site, { OA_Variant = entry.facility })
             local ax, ay = Missions.anchor(record)
             if ax then m.anchor = { x = ax, y = ay } end
         else
@@ -516,7 +521,6 @@ local function createSoil(record, def, id, level)
     if #seen > 0 then
         local site = seen[OA.random(1, #seen)]
         m.soil = { site = site.n, stake = site.stake, x = site.x, y = site.y, variant = "site" }
-        m.place = nil
         circleFor(m, site.x, site.y)
         m.title = "soil_site"
     else
@@ -662,7 +666,7 @@ end
 
 local STORY_BUILDERS = {
     fetch = createFetch, carry = createFetch, swap = createSwap, field = createField,
-    dropfetch = createDropFetch, choice = createChoice, soil = createSoil,
+    choice = createChoice, soil = createSoil,
 }
 
 local function createStoryMission(record, entry, level)
@@ -1222,7 +1226,7 @@ function Missions.swap(record, character)
     -- (the story's clinic and a special request may both wait for a case: the one the player stands at)
     for _, m in ipairs(Missions.live(record)) do
         if m.swap and m.swap.stage == "needcase" and m.state == "open" then
-            local p = Data.PLACES[m.place]
+            local p = m.site
             if x and p and Places.distance(x, y, p.x, p.y) <= Data.CASE_RANGE then
                 if g.takeItem and not g.takeItem(character, "SampleCase") then return false end
                 m.swap.stage = "waiting"
@@ -1243,7 +1247,7 @@ function Missions.tickSwap(record, m, now)
     local g = game()
     if not g then return end
     local x, y = g.playerPosition(record)
-    local p = Data.PLACES[m.place]
+    local p = m.site
     if not x or not p or Places.distance(x, y, p.x, p.y) > Data.CASE_RANGE then
         m.swap.at = nil
         return
@@ -1254,7 +1258,7 @@ function Missions.tickSwap(record, m, now)
         m.swap.stage = "done"
         -- The record appears in the case (or in the player's hands when the case is gone).
         local it = { key = "A", type = Data.fullType(m.swap.item), mode = "inside", placed = false,
-                     mods = { OA_Variant = m.place }, x = p.x, y = p.y, z = p.z }
+                     mods = { OA_Variant = m.facility }, x = p.x, y = p.y, z = p.z }
         m.items[#m.items + 1] = it
         if g.deliverInside then g.deliverInside(record, m, it) end
         OA.Sync.changed("missions", record.id)
@@ -1416,20 +1420,21 @@ function Missions.pickSpecials(record, int)
     return first.entry, second.entry
 end
 
--- One offered request: where it is (a place of the band of the level above, its circle) and the danger there.
-local function specialOption(record, entry, level)
-    local placeId = Missions.pickStoryPlace(record, entry.places, Rewards.specialBandLevel(level))
-    local p = placeId and Data.PLACES[placeId]
-    if not p then return nil end
-    local cx, cy, r = Places.circle(p.x, p.y, Places.circleRadius(level))
+-- One offered request: where it is (a site in the band of the level above, its circle) and the danger there.
+local function specialOption(record, entry, level, taken)
+    local site = Missions.pickSite(record, Rewards.specialBandLevel(level), entry.site or {}, taken)
+    if not site then return nil end
+    local cx, cy, r = Places.circle(site.x, site.y, Places.circleRadius(level))
     local area = { x = cx, y = cy, r = r }
-    return { id = entry.id, form = entry.form, place = placeId, area = area, danger = Missions.dangerOf({ area }) }
+    return { id = entry.id, form = entry.form, site = site, facility = entry.facility, area = area,
+        danger = Missions.dangerOf({ area }) }
 end
 
 -- Two requests are offered. False when two cannot be made now.
 function Missions.offerSpecial(record, level)
     local first, second = Missions.pickSpecials(record)
-    local a, b = specialOption(record, first, level), specialOption(record, second, level)
+    local a = specialOption(record, first, level)
+    local b = a and specialOption(record, second, level, a.site.key)
     if not (a and b) then return false end
     local s = Missions.state(record)
     s.seq = s.seq + 1
@@ -1444,9 +1449,11 @@ end
 -- circle that was offered.
 local function createSpecial(record, opt, level)
     local entry = Data.SPECIAL_BY_ID[opt.id]
-    if not (entry and Data.PLACES[opt.place]) then return nil end
+    if not (entry and opt.site) then return nil end
     local m = newMission(record, "special", level, nil)
     m.special = true
+    m.facility = entry.facility
+    Story.useSite(opt.site.key)
     m.form = entry.form
     m.title = entry.id
     m.credits, m.trust = Rewards.specialReward(level, creditScale())
@@ -1454,18 +1461,18 @@ local function createSpecial(record, opt, level)
     local ax, ay = Missions.anchor(record)
     if ax then m.anchor = { x = ax, y = ay } end
     if entry.form == "exchange" then
-        local it = placeStoryPiece(m, "DeadDropCase", "CASE", opt.place, { OA_Drop = "" }, "floor")
+        local it = placeAtSite(m, "DeadDropCase", "CASE", opt.site, { OA_Drop = "" }, "floor")
         it.mode = "case"
         m.swap = { stage = "needcase", waited = 0, item = entry.item }
         Story.queueSupply(record, "SampleCase", nil)
     elseif entry.form == "fetch" then
-        local it = placeStoryPiece(m, "DeadDropCase", "CASE", opt.place,
-            { OA_Variant = opt.place, OA_Inside = entry.item }, "floor")
+        local it = placeAtSite(m, "DeadDropCase", "CASE", opt.site,
+            { OA_Variant = entry.facility, OA_Inside = entry.item }, "floor")
         it.mode = "case"
         it.inside = entry.item
         m.drop = { item = entry.item }
     else
-        placeStoryPiece(m, entry.item, "A", opt.place, { OA_Variant = opt.place })
+        placeAtSite(m, entry.item, "A", opt.site, { OA_Variant = entry.facility })
         m.field = { stage = "needdevice" }
         Story.queueSupply(record, "FieldCallDevice", nil)
     end
@@ -1523,7 +1530,7 @@ local function describeMission(m, now)
     info.story = m.story
     info.title = m.title
     info.state = m.state
-    info.place = m.place
+    info.facility = m.facility
     info.area = m.area
     info.area2 = m.area2
     info.left = m.deadline - now
@@ -1589,7 +1596,7 @@ function Missions.specialSlot(record)
         for _, key in ipairs({ "a", "b" }) do
             local opt = sp.offer[key]
             local far = Missions.farOf(record, opt.area, Rewards.specialBandLevel(level))
-            options[key] = { id = opt.id, form = opt.form, place = opt.place, area = opt.area, danger = opt.danger, far = far,
+            options[key] = { id = opt.id, form = opt.form, facility = opt.facility, area = opt.area, danger = opt.danger, far = far,
                 credits = Rewards.withBonus(credits, opt.danger, 0, far, supportPay(record)),
                 trust = Rewards.trustWithBonus(trust, opt.danger, far), days = Rewards.SPECIAL_DAYS }
         end

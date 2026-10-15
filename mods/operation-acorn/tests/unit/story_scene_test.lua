@@ -1,5 +1,5 @@
 -- A mission's place (Story/Scene): the survivor's chance and no repeat, its outfit by date, its look and what it
--- carried, the things left, the keepers' outfits by place, the arrival lines, the one-minute look with a fake world,
+-- carried, the things left, the keepers' outfits by facility, the arrival lines, the one-minute look with a fake world,
 -- the survivor known again as it dies, the drop sites' first visit and their props.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
@@ -79,7 +79,7 @@ test("what the survivor carried: one to eat and one other, a second other from t
     end
 end)
 
-test("the things left: 1 to 3 that fit anywhere in a regular building, a story place's own two and one other", function()
+test("the things left: 1 to 3 that fit anywhere in a regular building, a facility's own two and one other", function()
     for _ = 1, 50 do
         local props = Scene.props(nil)
         truthy(#props >= 1 and #props <= 3)
@@ -90,7 +90,7 @@ test("the things left: 1 to 3 that fit anywhere in a regular building, a story p
         end
     end
     for _ = 1, 50 do
-        local props = Scene.props("muldraugh_pd")
+        local props = Scene.props("police")
         eq(#props, 3)
         local own = {}
         for _, p in ipairs(Scene.PROPS.police) do own[p.type] = true end
@@ -100,21 +100,19 @@ test("the things left: 1 to 3 that fit anywhere in a regular building, a story p
     local torch = Scene.props(nil, seq({ 1, 1 }))
     eq(torch[1].type, "Base.HandTorch")
     eq(torch[1].left, 0, "the torch's battery is flat")
-    eq(Scene.placeKind("westpoint_clinic"), "medical")
-    eq(Scene.placeKind("nowhere"), nil)
 end)
 
-test("the keepers wear what fits the place, or the game's own outfit at a regular building", function()
-    eq(Scene.guardOutfit("muldraugh_pd"), "Police")
-    local outfit, female = Scene.guardOutfit("rosewood_prison", seq({ 1 }))
+test("the keepers wear what fits the facility, or the game's own outfit at a regular building", function()
+    eq(Scene.guardOutfit("police"), "Police")
+    local outfit, female = Scene.guardOutfit("prison", seq({ 1 }))
     eq(outfit, "Inmate")
     eq(female, 0, "inmates are men only in the game's outfits")
-    truthy(inList({ "Doctor", "Nurse" }, (Scene.guardOutfit("westpoint_clinic"))))
-    truthy(inList({ "Nurse", "Doctor", "HospitalPatient" }, (Scene.guardOutfit("louisville_hospital"))))
-    eq(Scene.guardOutfit("valley_camp"), "ArmyCamoGreen")
-    eq(Scene.guardOutfit("riverside_farm"), "Farmer")
+    truthy(inList({ "Doctor", "Nurse" }, (Scene.guardOutfit("medical"))))
+    truthy(inList({ "Nurse", "Doctor", "HospitalPatient" }, (Scene.guardOutfit("hospital"))))
+    eq(Scene.guardOutfit("army"), "ArmyCamoGreen")
+    eq(Scene.guardOutfit("farm"), "Farmer")
     eq(Scene.guardOutfit(nil), nil)
-    eq(Scene.guardOutfit("marchridge_shed"), nil, "a shed: the game's own")
+    eq(Scene.guardOutfit("shelter"), nil, "a registration point: the game's own")
     for _ = 1, 30 do
         local n = Scene.guardCount(1, nil, 1)
         truthy(n >= 8 and n <= 12)
@@ -128,11 +126,11 @@ test("the keepers wear what fits the place, or the game's own outfit at a regula
     eq(Scene.guardLook(seq({ 2 })), nil)
     eq(Scene.guardLook(seq({ 1, 1 })), "fakeDead")
     eq(Scene.guardLook(seq({ 1, 2 })), "sitting")
-    -- every place a story mission can use has its kind, and its kind has things to leave
-    for id in pairs(OA.StoryData.PLACES) do
-        local kind = Scene.placeKind(id)
+    -- every facility has its kind of things to leave
+    for _, id in ipairs(OA.StoryData.FACILITIES) do
+        local kind = Scene.KIND_PROPS[id]
         truthy(kind, id .. " has a kind")
-        truthy(Scene.KIND_PROPS[kind], id .. " has things")
+        truthy(Scene.PROPS[kind], id .. " has things")
     end
 end)
 
@@ -143,24 +141,23 @@ test("night is before dawn and from dusk", function()
     eq(Scene.isNight(21, 6, 21), true)
 end)
 
-test("every story place has its own arrival line, said once; then the general ones for the hour", function()
+test("a story mission's circle has the story's own monologue, once; a regular one a general line for the hour", function()
     local record = OA.Store.ensure("p1", "P")
-    for id in pairs(OA.StoryData.PLACES) do truthy(inList(Scene.PLACE_LINES, id), id .. " has a line") end
-    local m = { place = "westpoint_pd" }
+    record.trade = { stage = 1, milestones = 0, credits = 0, trust = 0 }
+    local m = { story = "evidence" }
+    eq(Scene.arrivalLine(record, m, true), nil, "the story says its own")
+    eq(OA.Comms.section(record).played.P1_enter ~= nil, true, "kept in the comms record")
     local id, ctx = Scene.arrivalLine(record, m, true)
-    eq(id, "ArrivePlace")
-    eq(ctx.place, "westpoint_pd")
-    id, ctx = Scene.arrivalLine(record, m, true)
     eq(id, "Arrive", "the second time there")
     eq(ctx.night, true)
     id, ctx = Scene.arrivalLine(record, {}, false)
     eq(id, "Arrive")
     eq(ctx.night, false)
-    -- the place's line is the one its tag names
-    local n = nil
-    for i, p in ipairs(Scene.PLACE_LINES) do if p == "westpoint_pd" then n = i end end
-    truthy(OA.Say.fits("ArrivePlace", n, { place = "westpoint_pd" }))
-    eq(OA.Say.fits("ArrivePlace", n, { place = "muldraugh_pd" }), false)
+    -- the choice's option names its monologue
+    record.trade.stage = 3
+    eq(Scene.arrivalLine(record, { story = "observation", chosen = "b" }, false), nil)
+    truthy(OA.Comms.section(record).played.P3b_enter)
+    eq(OA.Comms.section(record).played.P3a_enter, nil)
     eq(OA.Say.fits("Arrive", 1, { night = false }), false, "a night line by day")
 end)
 
@@ -181,8 +178,8 @@ local function fakeWorld()
     return g
 end
 
-local function mission(record, place)
-    local m = { id = "M1-1", state = "open", level = 2, place = place, area = { x = 100, y = 100, r = 60 },
+local function mission(record, facility)
+    local m = { id = "M1-1", state = "open", level = 2, facility = facility, area = { x = 100, y = 100, r = 60 },
                 items = { { key = "A", x = 100, y = 100, z = 0, x1 = 95, y1 = 95, x2 = 105, y2 = 105, placed = false } } }
     OA.Missions.state(record).active = m
     return m
@@ -190,7 +187,7 @@ end
 
 test("a mission begun gets its scene once; an offer only when it is taken", function()
     local record = OA.Store.ensure("p1", "P")
-    local m = mission(record, "muldraugh_pd")
+    local m = mission(record, "police")
     OA.Missions.begin(record, m)
     truthy(m.scene, "planned as it begins")
     eq(#m.scene.props, 3)
@@ -213,7 +210,7 @@ test("the minute look: the line and the title on entering the circle, the scene 
     local g = fakeWorld()
     local record = OA.Store.ensure("p1", "P")
     Scene.section(record).last = false
-    local m = mission(record, "westpoint_clinic")
+    local m = mission(record, "medical")
     m.scene = Scene.plan(record, m, 40, seq({}))
     m.scene.survivor = { outfit = "Survivalist_Mid", look = "sitting", carried = { "Base.TinnedBeans", "Base.Bandage" } }
     g.px, g.py = 300, 300
@@ -223,7 +220,7 @@ test("the minute look: the line and the title on entering the circle, the scene 
     g.px, g.py = 150, 130
     Scene.minute(record)
     eq(#g.said, 1)
-    eq(g.said[1].id, "ArrivePlace")
+    eq(g.said[1].id, "Arrive", "not a story's: a general line")
     eq(#g.titles, 1)
     eq(g.titles[1].key, "IGUI_OA_Title_Arrived")
     eq(g.titles[1].sub, (OA.Missions.keys(m)), "the request's name under it")

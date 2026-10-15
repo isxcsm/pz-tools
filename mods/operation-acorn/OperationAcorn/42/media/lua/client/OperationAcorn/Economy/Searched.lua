@@ -174,11 +174,27 @@ function Watch.reset()
     stopSight()
 end
 
+-- A building a container was first looked into: the story keeps it as searched (no story site is set up in a building
+-- the player has been through). Told once a building a session; the key is the building's def corner, as the story's.
+local toldTouched = {}
+local function touched(container, playerObj)
+    local object = container:getParent()
+    local square = object and object:getSquare()
+    local building = square and square:getBuilding()
+    local def = building and building:getDef()
+    if not def then return end
+    local key = tostring(def:getX()) .. "," .. tostring(def:getY())
+    if toldTouched[key] then return end
+    toldTouched[key] = true
+    OA.Sync.send(playerObj, "story_touched", { key = key })
+end
+
 local checkExplored = ISInventoryPage.checkExplored
 function ISInventoryPage:checkExplored(container, playerObj, ...)
     checkExplored(self, container, playerObj, ...)
     if not container or not playerObj or not playerObj:isLocalPlayer() then return end
     local new = OA.Buildings.mark(container)
+    if new then touched(container, playerObj) end
     if listing then
         listed[container] = true
         if new then fresh[#fresh + 1] = container end

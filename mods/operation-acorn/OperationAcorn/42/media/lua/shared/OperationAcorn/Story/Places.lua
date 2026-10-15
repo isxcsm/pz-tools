@@ -57,11 +57,10 @@ function Places.pickBuilding(count, at, anchorX, anchorY, lo, hi, tries, int)
     return chosen or nearest
 end
 
--- A story mission's place among its candidates (NUMBERS 9). cands: { { x, y, ... }, ... }. First the ones within
--- BASE_EXCLUSION of the anchor are dropped (that is the base itself). Among the rest, one inside the band at random;
--- if none is, the one nearest to the band; a choice mission's far candidate (opts.ignoreBand) skips the band and any
--- of the rest is taken. When all are the base the farthest is used. Returns the index and why:
--- "band", "nearest", "any" or "farthest".
+-- A place among candidates (a drop site's stake for a contract). cands: { { x, y, ... }, ... }. First the ones within
+-- opts.exclusion (BASE_EXCLUSION by default) of the anchor are dropped (that is the base itself). Among the rest, one
+-- inside the band at random; if none is, the one nearest to the band. When all are the base the farthest is used.
+-- Returns the index and why: "band", "nearest" or "farthest".
 function Places.pickCandidate(cands, anchorX, anchorY, lo, hi, opts, int)
     opts = opts or {}
     int = int or randomInt
@@ -82,7 +81,6 @@ function Places.pickCandidate(cands, anchorX, anchorY, lo, hi, opts, int)
         end
         return best, "farthest"
     end
-    if opts.ignoreBand then return pool[int(1, #pool)], "any" end
     local inside = {}
     for _, i in ipairs(pool) do
         local d = Places.distance(cands[i].x, cands[i].y, anchorX, anchorY)
@@ -96,6 +94,52 @@ function Places.pickCandidate(cands, anchorX, anchorY, lo, hi, opts, int)
         if not bestGap or gap < bestGap or (gap == bestGap and d < bestD) then best, bestGap, bestD = i, gap, d end
     end
     return best, "nearest"
+end
+
+-- A story site among the map's buildings (SCENES.md 5 '장소 고르기'): the authorities took any building for a post, a
+-- clinic, a shelter. `list` is the buildings that may be used, all in the band: { x, y, area, rooms, home (a house: it
+-- has a bedroom), dist (from the base) }. `want`:
+--   "public"  a public building (a shop, a church, a warehouse, an office) of PUBLIC_ROOMS rooms or more, else any
+--             public one, else a house;
+--   "largest" the largest public building, else the largest house;
+--   "near" / "far" a house in the inner or outer third of the band's houses by distance, else any house, else a public
+--             building.
+-- Returns the index, or nil when the list is empty.
+Places.PUBLIC_ROOMS = 3
+
+local function anyOf(pool, int)
+    if #pool == 0 then return nil end
+    return pool[int(1, #pool)]
+end
+
+local function largestOf(list, pool)
+    local best
+    for _, i in ipairs(pool) do
+        if not best or list[i].area > list[best].area then best = i end
+    end
+    return best
+end
+
+function Places.pickSite(list, want, int)
+    int = int or randomInt
+    local public, roomy, homes = {}, {}, {}
+    for i, b in ipairs(list) do
+        if b.home then
+            homes[#homes + 1] = i
+        else
+            public[#public + 1] = i
+            if (b.rooms or 0) >= Places.PUBLIC_ROOMS then roomy[#roomy + 1] = i end
+        end
+    end
+    if want == "largest" then return largestOf(list, public) or largestOf(list, homes) end
+    if want == "near" or want == "far" then
+        if #homes == 0 then return anyOf(public, int) end
+        table.sort(homes, function(a, b) return list[a].dist < list[b].dist end)
+        local third = math.max(1, math.floor(#homes / 3))
+        local from = want == "near" and 1 or #homes - third + 1
+        return homes[int(from, from + third - 1)]
+    end
+    return anyOf(roomy, int) or anyOf(public, int) or anyOf(homes, int)
 end
 
 -- How far the map circle's centre may be from the place, of the radius: the place is anywhere in the circle but its

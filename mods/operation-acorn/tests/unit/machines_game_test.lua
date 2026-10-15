@@ -807,10 +807,8 @@ test("a machine's square unloaded in between starts its missing time over", func
     local clock = 1760000000000
     getTimestampMs = function() return clock end
     local entry = reg.list[state.id]
-    entry.missed = 1   -- a save from before kept a count of steps
     sq.objects = {}
     Machines.tick()
-    eq(entry.missed, nil, "the old count goes")
     -- the place unloads (its square is somewhere else now), and loads again later
     local x = entry.x
     entry.x = 500

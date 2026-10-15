@@ -226,7 +226,7 @@ function OATabMission:buildCard(record, info)
         card.right = timeRuns("text", "IGUI_OA_Story_UI_Left", "IGUI_OA_Story_UI_LeftHours", info.left or 0)
     end
     measure(card.right, p)
-    local place = info.place and getText("IGUI_OA_Story_Place_" .. info.place) or ""
+    local place = info.facility and getText("IGUI_OA_Story_Facility_" .. info.facility) or ""
     card.brief = getText(briefKey, place, OA.Story.number(record))
     if info.item and info.state ~= "offer" then
         card.item = { type = Data.fullType(info.item),

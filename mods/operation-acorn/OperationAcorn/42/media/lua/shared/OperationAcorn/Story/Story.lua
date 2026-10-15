@@ -30,8 +30,7 @@ function Story.section(record)
         s.handover = false
         s.docs = {}          -- read documents: id -> true (or the place variant it was read at)
         s.queue = {}         -- story missions waiting: { id =, fresh =, option = }
-        s.missed = {}        -- a save from before: story ids missed, kept for the next stage (see requeueMissed)
-        s.done = {}          -- story id -> "done" | "missed" ("closed" in a save from before)
+        s.done = {}          -- story id -> "done" | "missed"
         s.chosen = {}        -- the choice missions: story id -> option
         s.supply = {}        -- sent to the next supply crate, not yet taken by the trade part: { type =, doc = }
         s.noteQueue = {}     -- manifest notes that come before the order: ids
@@ -58,6 +57,7 @@ function Story.section(record)
     s.docExtra = s.docExtra or {}   -- the number a read document was read with (a stake, a serial): id -> value
     s.noted = s.noted or {}         -- one-off remarks said: "serum", "region"
     s.cardStage = s.cardStage or 0  -- the last named stage whose card was shown (Story.terminalOpened)
+    s.sites = s.sites or {}         -- the site each story mission was given: story id -> site (a revisit goes back)
     return s
 end
 
@@ -78,6 +78,34 @@ end
 -- Has the 3rd milestone's handover happened.
 function Story.handedOver(record)
     return Story.section(record).handover == true
+end
+
+-- The world's story (Store.world): the sites story missions and special requests have used, by any character (a new
+-- character does not find the last one's police post again), and the buildings a player has searched (a container
+-- looked into), by key (Game.buildingKeyAt; open ground "g:x,y").
+function Story.world()
+    local w = OA.Store.world("story")
+    w.used = w.used or {}
+    w.touched = w.touched or {}
+    return w
+end
+
+function Story.useSite(key)
+    if key then Story.world().used[key] = true end
+end
+
+function Story.touchBuilding(key)
+    if key then Story.world().touched[key] = true end
+end
+
+-- The keys a new site may not be: the used ones, the searched ones and the base's building.
+function Story.siteSkips(baseKey)
+    local w = Story.world()
+    local skip = {}
+    for key in pairs(w.used) do skip[key] = true end
+    for key in pairs(w.touched) do skip[key] = true end
+    if baseKey then skip[baseKey] = true end
+    return skip
 end
 
 -- The trust tier: the stage, and the milestones on top of it (6, 7 and 8 are the first three).
@@ -267,7 +295,7 @@ end
 -- the others wait for a regular mission between.
 function Story.queueStory(record, id, fresh, option)
     local s = Story.section(record)
-    if s.done[id] == "done" or s.done[id] == "closed" then return end
+    if s.done[id] == "done" then return end
     for _, q in ipairs(s.queue) do
         if q.id == id then return end
     end
@@ -275,23 +303,6 @@ function Story.queueStory(record, id, fresh, option)
         table.insert(s.queue, 1, { id = id, fresh = true, option = option })
     else
         s.queue[#s.queue + 1] = { id = id, fresh = false, option = option }
-    end
-end
-
--- A save from before missed missions were queued again at once: the ones it kept for the next stage, and the optional
--- ones it closed for good, come back after the new stage's own.
-local function requeueMissed(record)
-    local s = Story.section(record)
-    for _, id in ipairs(s.missed) do
-        Story.queueStory(record, id, false)
-    end
-    s.missed = {}
-    for id, state in pairs(s.done) do
-        local def = Data.STORIES[id] or Data.REVISITS[id]
-        if state == "closed" and def and def.optional then
-            s.done[id] = "missed"
-            Story.queueStory(record, id, false)
-        end
     end
 end
 
@@ -304,7 +315,7 @@ function Story.enterStage(record, stage)
     local def = Data.STAGES[stage]
     if not def then return end
     local s = Story.section(record)
-    -- A stage's own missions are fresh; two in one stage (the cooler and the optional bunker) keep their order.
+    -- A stage's own missions are fresh (an optional one waits for a regular mission between); their order is kept.
     local fresh, rest = {}, {}
     for _, id in ipairs(def.stories or {}) do
         local story = Data.STORIES[id]
@@ -313,7 +324,6 @@ function Story.enterStage(record, stage)
     for i = #fresh, 1, -1 do Story.queueStory(record, fresh[i], true) end
     for _, id in ipairs(rest) do Story.queueStory(record, id, false) end
     for _, entry in ipairs(def.supply or {}) do Story.queuePaper(record, entry) end
-    requeueMissed(record)
     s.noteIndex = s.noteIndex or {}
     if def.radio and #def.radio > 0 then Story.markNew(record, "c:s" .. stage) end
 end
@@ -332,7 +342,6 @@ function Story.enterMilestone(record, k)
         Story.queueStory(record, id, true)
         Story.resetRadioPool(record)
     end
-    requeueMissed(record)
 end
 
 -- The trade part calls this when the trust stage has gone up (and for milestones, with the milestone count); the

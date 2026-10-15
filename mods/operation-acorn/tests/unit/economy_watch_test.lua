@@ -26,20 +26,24 @@ local function furniture(n)
     end
     o.getContainerCount = function() return #o.containers end
     o.getContainerByIndex = function(_, i) return o.containers[i + 1] end
+    o.getSquare = function() return o.square end
     for i = 1, n or 1 do o.containers[i] = { getParent = function() return o end } end
     return o
 end
 
 -- One building of one room over `squares` (lists of objects), keyed by its def ("v:700,800" without the API).
 local function building(squares)
+    local def
+    local b = { getDef = function() return def end }
     local sqs = {}
     for i, objects in ipairs(squares) do
-        sqs[i] = { getObjects = function() return list(objects) end, getZ = function() return 0 end }
+        sqs[i] = { getObjects = function() return list(objects) end, getZ = function() return 0 end,
+            getBuilding = function() return b end }
+        for _, o in ipairs(objects) do o.square = sqs[i] end
     end
     local iso = { getSquares = function() return list(sqs) end }
-    local def = { getRooms = function() return list({ { getIsoRoom = function() return iso end } }) end,
+    def = { getRooms = function() return list({ { getIsoRoom = function() return iso end } }) end,
         isFullyStreamedIn = function() return true end, getX = function() return 700 end, getY = function() return 800 end }
-    local b = { getDef = function() return def end }
     return { getBuilding = function() return b end }
 end
 
@@ -63,7 +67,7 @@ local function character()
     return c
 end
 
-local page, ch, sent, looks
+local page, ch, sent, touched, looks
 
 -- A fake loot window (the watch wraps it once): its refresh lists `page.near` (containers), asking checkExplored about
 -- each.
@@ -94,8 +98,14 @@ local function setup()
     load()
     OA.SearchWatch.reset()
     page = setmetatable({ player = 0, onCharacter = false, near = {} }, { __index = ISInventoryPage })
-    sent = {}
-    OA.Sync.send = function(_, command, args) sent[#sent + 1] = { command = command, key = args.key } end
+    sent, touched = {}, {}
+    OA.Sync.send = function(_, command, args)
+        if command == "story_touched" then
+            touched[#touched + 1] = args.key
+        else
+            sent[#sent + 1] = { command = command, key = args.key }
+        end
+    end
     looks = 0
     local tick = OA.Buildings.tick
     OA.Buildings.tick = function(...)
@@ -127,6 +137,10 @@ test("a container the loot window lists is marked once, and the building looked 
     eq(searched, 2); eq(total, 3)
     refresh({ a.containers[1], a.containers[2] })
     eq(looks, 2, "marked already: no look")
+    eq(#touched, 1, "the story is told the building was searched, once")
+    eq(touched[1], "700,800", "by its def's corner")
+    refresh({ b.containers[1] })
+    eq(#touched, 1, "once a session")
     OA.Buildings.tick = tick
 end)
 

@@ -76,64 +76,33 @@ Scene.PROPS = {
                 prop("Base.Candle", 0.1) },
     army = { prop("Base.Battery", 0), prop("Base.HandTorch", 0), prop("Base.Twine", 0.2), prop("Base.DuctTape", 0.1),
              prop("Base.Hat_DustMask") },
-    school = { prop("Base.Pencil"), prop("Base.Clipboard"), prop("Base.SheetPaper2"), prop("Base.Pen"),
-               prop("Base.Paperclip") },
     prison = { prop("Base.Tissue", 0.3), prop("Base.Pencil"), prop("Base.SheetPaper2"), prop("Base.Zipties") },
     travel = { prop("Base.Plasticbag"), prop("Base.Twine", 0.2), prop("Base.Zipties"), prop("Base.Notepad") },
-    comms = { prop("Base.Battery", 0), prop("Base.DuctTape", 0.1), prop("Base.Notepad"), prop("Base.Pencil") },
 }
 
--- A story place's kind, by the room its piece prefers (Data.PLACES): which things lie there, who keeps it.
-Scene.ROOM_KIND = {
-    evidenceroom = "police", policegunstorage = "police",
-    medclinic = "medical", hospitalroom = "hospital",
-    office = "airfield", livingroom = "farm", kitchen = "farm",
-    armystorage = "army", oldarmy = "army", communications = "comms", garagestorage = "shed",
-    gym = "school", prisoncells = "prison", baggageroom = "airport",
-}
--- The props of a kind (the kinds without their own use the nearest list).
+-- The props of a facility (Data.FACILITIES; a regular mission's building has none and gets things that fit anywhere).
 Scene.KIND_PROPS = {
-    police = "police", medical = "medical", hospital = "medical", airfield = "records", farm = "records",
-    army = "army", comms = "comms", shed = "army", school = "school", prison = "prison", airport = "travel",
+    police = "police", medical = "medical", hospital = "medical", farm = "records", army = "army", shelter = "travel",
+    prison = "prison",
 }
--- The keepers of a kind: vanilla outfits (media/clothing/clothing.xml) and the chance in 100 of a woman (0 or 100 for
--- an outfit only one has). A kind not here, and a regular mission, gets the game's own outfit for the place.
+-- The keepers of a facility: vanilla outfits (media/clothing/clothing.xml) and the chance in 100 of a woman (0 or 100
+-- for an outfit only one has). A facility not here, and a regular mission, gets the game's own outfit for the place.
 Scene.GUARDS = {
     police = { { "Police", 30 } },
     medical = { { "Doctor", 50 }, { "Nurse", 70 } },
     hospital = { { "Nurse", 70 }, { "Doctor", 50 }, { "HospitalPatient", 50 } },
-    airfield = { { "AirCrew", 30 }, { "OfficeWorker", 0 }, { "OfficeWorkerSkirt", 100 } },
     farm = { { "Farmer", 30 } },
     army = { { "ArmyCamoGreen", 10 } },
-    comms = { { "ArmyCamoGreen", 10 } },
-    school = { { "Student", 50 }, { "Teacher", 50 } },
     prison = { { "Inmate", 0 }, { "PrisonGuard", 0 } },
-    airport = { { "AirCrew", 50 }, { "Security", 0 } },
 }
 
 -- The self-talk (DESIGN-terminal 18). Arrive: a mission's circle entered, lines 1-3 at night, 4-6 by day, the rest
--- either. ArrivePlace: a story place's own line, line n for PLACE_LINES[n], once per place (then the general ones).
--- Survivor: the first of a survivor's things taken, once a mission. SiteFirst: a drop site first stood at.
-Scene.PLACE_LINES = {
-    "muldraugh_pd", "westpoint_pd", "rosewood_pd", "riverside_pd",
-    "westpoint_clinic", "marchridge_clinic", "fallas_clinic",
-    "brandenburg_airfield", "riverside_farm", "riverside_farm2", "fallas_farm", "fallas_farm2",
-    "valley_camp", "east_camp", "marchridge_bunker", "marchridge_shed",
-    "riverside_school", "westpoint_school", "marchridge_school",
-    "louisville_hospital", "louisville_hospital2", "rosewood_prison", "rosewood_cells", "brandenburg_prison",
-    "louisville_airport", "louisville_police", "echo_surface",
-}
-local placeLine = {}
-local placeTags = {}
-for n, id in ipairs(Scene.PLACE_LINES) do
-    placeLine[id] = n
-    placeTags[n] = { place = id }
-end
+-- either (a story mission's circle has the story's own monologue instead, Scene.arrivalLine). Survivor: the first of a
+-- survivor's things taken, once a mission. SiteFirst: a drop site first stood at.
 OA.Say.define("Arrive", { tags = {
     [1] = { night = true }, [2] = { night = true }, [3] = { night = true },
     [4] = { night = false }, [5] = { night = false }, [6] = { night = false },
 } })
-OA.Say.define("ArrivePlace", { tags = placeTags })
 OA.Say.define("Survivor", {})
 OA.Say.define("SiteFirst", {})
 -- InBuilding: the building that holds a piece not found yet, first entered: the character makes out where in it the
@@ -146,15 +115,14 @@ OA.Say.define("InBuilding", { tags = whereTags })
 OA.Say.define("Floor", { tags = whereTags })
 
 -- A record's section: { last = whether the last mission had a survivor, survivors = { { mission, outfit, x, y, z,
--- carried } } not yet dead, places = { [place id] = true } whose own line was said, sites = { [n] = true } drop sites
--- stood at, said = the mission whose survivor line was said }.
+-- carried } } not yet dead, sites = { [n] = true } drop sites stood at, said = the mission whose survivor line was
+-- said }.
 function Scene.section(record)
     local s = OA.Store.section(record, "scene")
     if not s.version then
         s.version = 1
         s.last = false
         s.survivors = {}
-        s.places = {}
         s.sites = {}
     end
     return s
@@ -204,12 +172,6 @@ function Scene.carried(level, int)
     return out
 end
 
--- The kind of a story place (nil for a regular mission's building or an unknown place).
-function Scene.placeKind(placeId)
-    local p = placeId and Data.PLACES[placeId]
-    return p and Scene.ROOM_KIND[p.room] or nil
-end
-
 -- `count` different entries of a list, at random.
 local function some(list, count, int)
     local idx = {}
@@ -227,11 +189,11 @@ local function copyProp(p)
     return { type = p.type, left = p.left }
 end
 
--- The things left at the place: a regular mission's building gets 1 to 3 that fit anywhere; a story place two of its
+-- The things left at the place: a regular mission's building gets 1 to 3 that fit anywhere; a facility two of its
 -- own kind and one of the others (never the same type twice).
-function Scene.props(placeId, int)
+function Scene.props(facility, int)
     int = int or OA.random
-    local own = Scene.KIND_PROPS[Scene.placeKind(placeId) or ""]
+    local own = Scene.KIND_PROPS[facility or ""]
     local out = {}
     if not own then
         for _, p in ipairs(some(Scene.PROPS.any, int(1, 3), int)) do out[#out + 1] = copyProp(p) end
@@ -250,10 +212,10 @@ function Scene.props(placeId, int)
     return out
 end
 
--- One keeper's outfit at a place: the name and the chance of a woman, or nil (the game's own outfit).
-function Scene.guardOutfit(placeId, int)
+-- One keeper's outfit at a facility: the name and the chance of a woman, or nil (the game's own outfit).
+function Scene.guardOutfit(facility, int)
     int = int or OA.random
-    local list = Scene.GUARDS[Scene.placeKind(placeId) or ""]
+    local list = Scene.GUARDS[facility or ""]
     if not list then return nil, nil end
     local g = list[int(1, #list)]
     return g[1], g[2]
@@ -312,10 +274,10 @@ function Scene.plan(record, m, days, int)
     int = int or OA.random
     local sc = { arrived = false, built = false }
     if Scene.buildingPiece(m) then
-        sc.props = Scene.props(m.place, int)
+        sc.props = Scene.props(m.facility, int)
         local guards = {}
         for i = 1, Scene.guardCount(m.level, int) do
-            local outfit, female = Scene.guardOutfit(m.place, int)
+            local outfit, female = Scene.guardOutfit(m.facility, int)
             guards[i] = { outfit = outfit or false, female = female or false, look = Scene.guardLook(int) or false }
         end
         sc.guards = guards
@@ -346,13 +308,18 @@ local function inCircle(area, x, y)
     return dx * dx + dy * dy <= area.r * area.r
 end
 
--- The line for entering the circle: a story place's own the first time there, else a general one for the hour.
--- Returns the bundle and its context.
+-- Entering the circle: a story mission's own monologue (CommsData "say:<story>:enter", the choice by its option; after
+-- the handover the revisits' few in turn), said by the story and kept in the comms tab; else a general line for the
+-- hour. Returns the bundle and its context for a general line, nil when the story said its own.
 function Scene.arrivalLine(record, m, night)
-    local sec = Scene.section(record)
-    if m.place and placeLine[m.place] and not sec.places[m.place] then
-        sec.places[m.place] = true
-        return "ArrivePlace", { place = m.place }
+    if m.story and OA.Story then
+        local said
+        if Data.REVISITS[m.story] then
+            said = OA.Story.afterMonologue(record)
+        else
+            said = OA.Story.monologue(record, m.chosen and (m.story .. "_" .. m.chosen) or m.story, "enter")
+        end
+        if said then return nil end
     end
     return "Arrive", { night = night == true }
 end
@@ -446,7 +413,7 @@ function Scene.minute(record)
                 if not m.scene.arrived then
                     m.scene.arrived = true
                     local id, ctx = Scene.arrivalLine(record, m, g.isNight())
-                    g.say(record, id, ctx)
+                    if id then g.say(record, id, ctx) end
                     g.title(record, { key = "IGUI_OA_Title_Arrived", sub = (OA.Missions.keys(m)), style = "unveil" })
                     said = true
                 end

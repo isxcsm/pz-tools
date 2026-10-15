@@ -1,4 +1,4 @@
--- The story's data: the places the missions can send the player to, the story missions with their kinds and
+-- The story's data: the temporary facilities the story places are taken for, the story missions with their kinds and
 -- documents, the mission items, and the order of the lines each stage tells. Text lives in the translation files
 -- (IGUI_OA_Story_*), named by the ids here; only ids and numbers are kept in a save (DESIGN 12, LORE 4 and 7).
 require "OperationAcorn/Core"
@@ -8,51 +8,10 @@ OA.StoryData = Data
 
 Data.ITEM_MODULE = "OperationAcorn"
 
--- Places. Every coordinate comes from the map's lot headers (checked 2026-10-09): x, y, z is a square inside the key
--- room, x1, y1, x2, y2 the building's bounding box (inclusive), z1 and z2 its levels. `room` is the room name a
--- container is preferred in. Text keys: IGUI_OA_Story_Place_<id> (the name, as the map labels write it) and
--- IGUI_OA_Story_PlaceNote_<id> (where in the building the documents say it was).
-local function place(id, x, y, z, x1, y1, x2, y2, z1, z2, room)
-    Data.PLACES[id] = { id = id, x = x, y = y, z = z, x1 = x1, y1 = y1, x2 = x2, y2 = y2, z1 = z1, z2 = z2, room = room }
-end
-Data.PLACES = {}
--- Police: the evidence room of Muldraugh (ground floor), West Point (first floor) and Riverside (cellar); Rosewood's
--- station has none, its locked gun storage stands in.
-place("muldraugh_pd", 10631, 10418, 0, 10630, 10398, 10665, 10420, 0, 1, "evidenceroom")
-place("westpoint_pd", 11815, 6812, 1, 11799, 6800, 11824, 6822, 0, 1, "evidenceroom")
-place("rosewood_pd", 8066, 11723, 0, 8048, 11722, 8089, 11754, 0, 2, "policegunstorage")
-place("riverside_pd", 6088, 5258, -1, 6077, 5236, 6090, 5264, -1, -1, "evidenceroom")
--- Clinics.
-place("westpoint_clinic", 11871, 6916, 0, 11854, 6910, 11890, 6935, 0, 1, "medclinic")
-place("marchridge_clinic", 10156, 12750, 0, 10125, 12748, 10172, 12760, 0, 1, "medclinic")
-place("fallas_clinic", 5504, 9580, 0, 5493, 9577, 5506, 9588, 0, 0, "medclinic")
--- The observation records: the Brandenburg airfield's hangars (the office one), and farmhouses.
-place("brandenburg_airfield", 923, 6134, 0, 914, 6129, 931, 6147, 0, 1, "office")
-place("riverside_farm", 6961, 5587, 0, 6957, 5575, 6969, 5591, 0, 1, "livingroom")
-place("riverside_farm2", 5411, 5445, 0, 5409, 5444, 5419, 5452, 0, 0, "kitchen")
-place("fallas_farm", 7339, 8533, 0, 7337, 8531, 7347, 8539, 0, 1, "livingroom")
-place("fallas_farm2", 7305, 8498, 0, 7301, 8490, 7310, 8499, 0, 1, "livingroom")
--- The camp store of Valley Station and the eastern camp's.
-place("valley_camp", 12480, 4310, 0, 12465, 4298, 12497, 4327, 0, 0, "armystorage")
-place("east_camp", 15630, 3921, 0, 15617, 3917, 15643, 3926, 0, 1, "armystorage")
--- The cold war bunker at March Ridge (4 levels down, the complex at the bottom), and a shed near it for the case where
--- the bunker cannot be used.
-place("marchridge_bunker", 9964, 12615, -4, 9921, 12600, 9980, 12650, -4, -1, "oldarmy")
-place("marchridge_shed", 10016, 12625, 0, 10015, 12624, 10018, 12627, 0, 0, "garagestorage")
--- Schools with a gym (Rosewood's has none; the gym of its sports block is not a school's).
-place("riverside_school", 6491, 5435, 1, 6480, 5412, 6515, 5460, 0, 2, "gym")
-place("westpoint_school", 11376, 6782, 0, 11304, 6763, 11382, 6802, 0, 1, "gym")
-place("marchridge_school", 10051, 12719, 0, 10004, 12713, 10061, 12752, 0, 1, "gym")
--- Milestone places: the wards of Louisville's hospitals, Rosewood's prison.
-place("louisville_hospital", 12431, 3674, 2, 12353, 3603, 12457, 3721, 0, 4, "hospitalroom")
-place("louisville_hospital2", 12953, 2057, 1, 12921, 1996, 12990, 2089, 0, 3, "hospitalroom")
-place("rosewood_prison", 7627, 11752, 4, 7512, 11701, 7693, 11869, 0, 6, "prisoncells")
-place("rosewood_cells", 7376, 11716, 0, 7351, 11702, 7391, 11718, 0, 2, "prisoncells")
-place("brandenburg_prison", 1363, 5853, 0, 1349, 5835, 1423, 5912, 0, 1, "prisoncells")
--- Far places for the handover (the farthest band): Louisville's airport terminal and the eastern camp.
-place("louisville_airport", 15494, 2903, 1, 15325, 2842, 15597, 2997, 0, 3, "baggageroom")
-place("louisville_police", 12464, 1602, 3, 12404, 1528, 12560, 1691, 0, 7, "evidenceroom")
-place("echo_surface", 5560, 12470, 0, 5537, 12440, 5583, 12504, 0, 1, "communications")
+-- The temporary facilities (LORE 4: the authorities took any building for a post, a clinic, a shelter). A story place
+-- is a site picked in the band (Missions.pickSite), named by its facility: IGUI_OA_Story_Facility_<id> in the mission
+-- card and the documents. The staging (Story/Scene) is by facility too.
+Data.FACILITIES = { "police", "medical", "farm", "army", "shelter", "hospital", "prison" }
 
 -- The mission items: the full type of each is OperationAcorn.<name>. `docs` is what reading the item shows (document
 -- ids, with the place's variant in the text); `note` means a regular mission item may carry a field note (OA_Note).
@@ -152,64 +111,61 @@ Data.FIELD_NOTE_CHANCE = 60
 
 -- Story missions. `kind`: fetch (find an item in a building), swap (leave the sealed case, wait, take the record),
 -- choice (the terminal offers two, the other closes for good), carry (the sample cooler), field (seal on the spot
--- with the field call device), dropfetch (take the item from the container left at a place), soil (take a soil
--- sample), compare (two copies, only one is the original). `trigger`: a stage, or a milestone count.
--- `condition`: "locked" (the key room is locked, the key lies in the same building). `optional`: not offered again
--- when missed. `ignoreBand`: the places are chosen without the distance band (the far choice).
+-- with the field call device), soil (take a soil sample). `trigger`: a stage, or a milestone count. `facility`: what
+-- the site was taken for (Data.FACILITIES); `site`: how it is picked (Missions.pickSite: want "public", "largest",
+-- "near", "far"; ground = open ground). `condition`: "locked" (the key room is locked, the key lies in the same
+-- building). `optional`: not offered again when missed.
 Data.STORIES = {
     evidence = {
         trigger = { stage = 1 }, kind = "fetch", item = "EvidenceEnvelope", condition = "locked",
-        places = { "muldraugh_pd", "westpoint_pd", "rosewood_pd", "riverside_pd" },
+        facility = "police", site = { want = "public" },
     },
     clinic = {
         trigger = { stage = 2 }, kind = "swap", item = "ClinicRecord", case = true,
-        places = { "westpoint_clinic", "marchridge_clinic", "fallas_clinic" },
+        facility = "medical", site = { want = "public" },
     },
     observation = {
-        trigger = { stage = 3 }, kind = "choice",
+        trigger = { stage = 3 }, kind = "choice", facility = "farm",
         options = {
-            a = { item = "WeatherLog", places = { "brandenburg_airfield" }, ignoreBand = true },
-            b = { item = "FarmJournal", places = { "riverside_farm", "fallas_farm", "fallas_farm2", "riverside_farm2" } },
+            a = { item = "WeatherLog", site = { want = "far" } },
+            b = { item = "FarmJournal", site = { want = "near" } },
         },
     },
     cooler = {
         trigger = { stage = 4 }, kind = "carry", item = "SampleCooler",
-        places = { "valley_camp", "east_camp" },
-    },
-    bunker = {
-        trigger = { stage = 4 }, kind = "dropfetch", item = "ReviewMemo", optional = true,
-        places = { "marchridge_bunker" }, fallback = "marchridge_shed",
+        facility = "army", site = { ground = true },
     },
     gym = {
         trigger = { stage = 5 }, kind = "field", item = "RosterPage",
-        places = { "riverside_school", "westpoint_school", "marchridge_school" },
+        facility = "shelter", site = { want = "largest" },
     },
     ward = {
         trigger = { milestone = 1 }, kind = "fetch", item = "WardRecord",
-        places = { "louisville_hospital", "louisville_hospital2" },
+        facility = "hospital", site = { want = "public" },
     },
     cells = {
         trigger = { milestone = 2 }, kind = "fetch", item = "CellLog",
-        places = { "rosewood_prison", "rosewood_cells", "brandenburg_prison" },
+        facility = "prison", site = { want = "public" },
     },
     soil = {
         trigger = { milestone = 2 }, kind = "soil", item = "SoilSample", optional = true, late = true,
     },
     handover = {
-        trigger = { milestone = 3 }, kind = "field", item = "HandoverPages", handover = true, far = true,
-        places = { "louisville_airport", "louisville_police", "east_camp", "echo_surface" },
+        trigger = { milestone = 3 }, kind = "field", item = "HandoverPages", handover = true,
+        facility = "army", site = { ground = true },
     },
 }
 -- After the handover (the 4th milestone on) each milestone has one story mission, a new purpose at a place the
--- player knew: these in turn. `doc` is the paper the item carries (the new office's form: it takes the place of the
--- item's own old paper).
+-- player knew: these in turn. `from` is the story whose site it goes back to (a new one of the facility when that story
+-- had none); `doc` is the paper the item carries (the new office's form: it takes the place of the item's own old
+-- paper).
 Data.REVISITS = {
-    revisit_ledger = { kind = "fetch", item = "PharmacyLedger", doc = "revisit_ledger",
-        places = { "westpoint_clinic", "marchridge_clinic", "fallas_clinic" } },
-    revisit_roster = { kind = "fetch", item = "RosterLostPage", doc = "revisit_roster",
-        places = { "riverside_school", "westpoint_school", "marchridge_school" } },
-    revisit_police = { kind = "fetch", item = "EvidenceEnvelope", doc = "revisit_police",
-        places = { "muldraugh_pd", "westpoint_pd", "rosewood_pd", "riverside_pd" } },
+    revisit_ledger = { kind = "fetch", item = "PharmacyLedger", doc = "revisit_ledger", from = "clinic",
+        facility = "medical", site = { want = "public" } },
+    revisit_roster = { kind = "fetch", item = "RosterLostPage", doc = "revisit_roster", from = "gym",
+        facility = "shelter", site = { want = "largest" } },
+    revisit_police = { kind = "fetch", item = "EvidenceEnvelope", doc = "revisit_police", from = "evidence",
+        facility = "police", site = { want = "public" } },
 }
 Data.REVISIT_ORDER = { "revisit_ledger", "revisit_roster", "revisit_police" }
 
@@ -218,9 +174,9 @@ Data.REVISIT_ORDER = { "revisit_ledger", "revisit_roster", "revisit_police" }
 Data.CONTRACTS = {
     { id = "compare", kind = "compare", item = "CopyOriginal", weight = 2 },
     { id = "stake", kind = "stake", item = "StakeTag", weight = 2 },
-    { id = "roster", kind = "place", item = "RosterLostPage", places = { "riverside_school", "westpoint_school", "marchridge_school" }, weight = 2 },
+    { id = "roster", kind = "place", item = "RosterLostPage", facility = "shelter", site = { want = "largest" }, weight = 2 },
     { id = "filters", kind = "random", item = "FilterBundle", weight = 2 },
-    { id = "ledger", kind = "place", item = "PharmacyLedger", places = { "westpoint_clinic", "marchridge_clinic", "fallas_clinic" }, weight = 2 },
+    { id = "ledger", kind = "place", item = "PharmacyLedger", facility = "medical", site = { want = "public" }, weight = 2 },
     { id = "tapes", kind = "random", item = "MissionTape", weight = 2 },
 }
 
@@ -242,7 +198,7 @@ Data.STAGES = {
     [3] = { stories = { "observation" }, radio = { "s3_a", "s3_b", "s3_c" }, notes = { "cards", "count_off", "dunnigan_pen" },
             supply = { { "AnalysisReply", "reply_nomatch" }, { "AnalysisReply", "reply_fragment", "fragment" },
                        { "AnalysisReply", "reply_relapse" } } },
-    [4] = { stories = { "cooler", "bunker" }, radio = { "s4_a" }, notes = { "proxy_signature", "old_form", "short_notice" },
+    [4] = { stories = { "cooler" }, radio = { "s4_a" }, notes = { "proxy_signature", "old_form", "short_notice" },
             supply = { { "Appendix", "pending_list" } } },
     [5] = { stories = { "gym" }, radio = { "s5_first" }, notes = { "late_appendix", "no_greeting", "empty_slot" },
             supply = { { "Appendix", "appendix_2", nil, true } } },
@@ -321,21 +277,21 @@ Data.MANIFESTS_KEPT = 12
 -- The special requests (DESIGN-terminal 6.3): what the field terminal offers, two at a time. Each is one of the three
 -- forms the story missions already have: `exchange` (leave the sealed case at the place, wait, take what turns up),
 -- `fetch` (take the item from the container left there), `field` (find the item and call the helicopter on the spot).
--- `item` is a regular mission item, `places` the candidates (Data.PLACES, picked by the band of the level above), and
--- `request` the 2반 request copy sent with it. Text: IGUI_OA_Story_SpecialTitle_<id>.
+-- `item` is a regular mission item, `facility` and `site` as a story mission's (the site picked in the band of the
+-- level above), and `request` the 2반 request copy sent with it. Text: IGUI_OA_Story_SpecialTitle_<id>.
 Data.SPECIALS = {
     { id = "can", form = "exchange", item = "MissionSampleTin", request = "dunnigan_can",
-      places = { "riverside_farm", "riverside_farm2", "fallas_farm", "fallas_farm2" } },
+      facility = "farm", site = { want = "near" } },
     { id = "cold", form = "exchange", item = "MissionSampleTin", request = "ashdown_cold",
-      places = { "westpoint_clinic", "marchridge_clinic", "fallas_clinic" } },
+      facility = "medical", site = { want = "public" } },
     { id = "stock", form = "fetch", item = "MissionLogbook", request = "kiesling_stock",
-      places = { "valley_camp", "east_camp", "riverside_school", "westpoint_school", "marchridge_school" } },
+      facility = "army", site = { ground = true } },
     { id = "filters", form = "fetch", item = "MissionFilterCase", request = "dunnigan_filters",
-      places = { "brandenburg_airfield", "riverside_farm", "fallas_farm", "fallas_farm2" } },
+      facility = "farm", site = { want = "far" } },
     { id = "handover", form = "field", item = "MissionEnvelope", request = "branscomb_test",
-      places = { "riverside_school", "westpoint_school", "marchridge_school", "valley_camp", "east_camp" } },
+      facility = "shelter", site = { want = "largest" } },
     { id = "records", form = "field", item = "MissionLogbook", request = "ashdown_seal",
-      places = { "westpoint_clinic", "marchridge_clinic", "fallas_clinic" } },
+      facility = "medical", site = { want = "public" } },
 }
 Data.SPECIAL_BY_ID = {}
 for _, entry in ipairs(Data.SPECIALS) do Data.SPECIAL_BY_ID[entry.id] = entry end

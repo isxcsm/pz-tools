@@ -31,6 +31,7 @@ local function fakeGame(list)
     g.buildingCount = function() return #g.list end
     g.building = function(i) return g.list[i].x, g.list[i].y, true end
     g.buildingInfo = function(i) return g.list[i] end
+    fakeSites(g)
     g.playerPosition = function() return g.px or 0, g.py or 0, 0 end
     g.request = function(record, m, it) g.requested[#g.requested + 1] = { m = m.id, it = it } end
     g.release = function() g.released = g.released + 1 end
@@ -632,37 +633,38 @@ test("the offer's slot tells the options with the reward doubled, the days and t
         eq(o.days, 14)
         near(o.danger, 0.15, 1e-9)
         truthy(o.area.r > 0)
-        truthy(Data.PLACES[o.place])
+        eq(o.facility, Data.SPECIAL_BY_ID[o.id].facility)
     end
     M.game.zombieIntensity = nil
 end)
 
-test("the offer's places are picked in the band of the level above", function()
-    spread()
+test("the offer's places are picked in the band of the level above, two different ones", function()
     local record = fieldRecord(3)
-    -- the farm of the can request is 2,800 from here, the other 1,258: both in the band of level 4 (1,000 to 3,500), only
-    -- the nearer in the band of level 3 (600 to 2,000)
-    Story.setAnchor(record, 4161, 5587, 0)
-    local places = {}
-    for _ = 1, 40 do places[M.pickStoryPlace(record, Data.SPECIAL_BY_ID.can.places, Rewards.specialBandLevel(3))] = true end
-    eq(places.riverside_farm, true)
-    eq(places.riverside_farm2, true)
-    eq(places.fallas_farm, nil, "4,300 away: outside the band")
-    eq(places.fallas_farm2, nil)
-    -- an offer made of two entries of that list uses the band of the level above
-    local twin = {}
-    for k, v in pairs(Data.SPECIAL_BY_ID.can) do twin[k] = v end
-    twin.id = "twin"
-    Data.SPECIALS = { Data.SPECIAL_BY_ID.can, twin }
-    local seen = {}
-    for _ = 1, 20 do
+    local lo, hi = Rewards.band(Rewards.specialBandLevel(3))
+    for _ = 1, 10 do
         record.missions = nil
         M.offerSpecial(record, 3)
         local offer = M.special(record).offer
-        seen[offer.a.place], seen[offer.b.place] = true, true
+        for _, key in ipairs({ "a", "b" }) do
+            local site = offer[key].site
+            local d = OA.Places.distance(site.x, site.y, 0, 0)
+            truthy(site.ground or (d >= lo and d <= hi), "in the band of level 4")
+        end
+        truthy(offer.a.site.key ~= offer.b.site.key, "not the same building")
     end
-    eq(seen.riverside_farm, true, "a place outside the band of level 3")
-    eq(seen.fallas_farm, nil)
+end)
+
+test("a site on offer is not given to a story mission meanwhile; taken, it is used for the world", function()
+    local record = fieldRecord(3)
+    -- one public building in the band of both levels and nothing else
+    M.game.list = { { x = 1500, y = 0, z = 0, x1 = 1497, y1 = -3, x2 = 1503, y2 = 3, z1 = 0, z2 = 0, home = false, rooms = 4 },
+                    { x = 1600, y = 0, z = 0, x1 = 1597, y1 = -3, x2 = 1603, y2 = 3, z1 = 0, z2 = 0, home = false, rooms = 4 } }
+    M.game.noGround = true
+    truthy(M.offerSpecial(record, 3))
+    eq(M.pickSite(record, 3, { want = "public" }), nil, "both on offer")
+    truthy(M.acceptSpecial(record, "a"))
+    local key = M.special(record).mission.site.key
+    truthy(Story.world().used[key])
 end)
 
 test("two offers never repeat the last pair, and a request whose copy is not sent is likelier", function()
@@ -724,7 +726,8 @@ test("taking a request makes it the special mission, closes the other and files 
     eq(m.trust, 200)
     near(m.deadline - m.issued, 14 * 24)
     eq(m.area.x, offer.b.area.x)
-    eq(m.place, offer.b.place)
+    eq(m.site, offer.b.site)
+    eq(m.facility, Data.SPECIAL_BY_ID[offer.b.id].facility)
     eq(M.active(record), main, "the main mission is left")
     eq(sp.last[1], offer.a.id)
     eq(sp.last[2], offer.b.id)
@@ -794,7 +797,7 @@ test("an exchange: the sealed case is left at the place, the item turns up, the 
     eq(m.items[1].key, "CASE")
     eq(m.items[1].mode, "case")
     eq(#M.game.requested >= 2, true)
-    local p = Data.PLACES[m.place]
+    local p = m.site
     M.game.px, M.game.py = p.x + 5, p.y
     truthy(M.swap(record, {}))
     eq(m.swap.stage, "waiting")

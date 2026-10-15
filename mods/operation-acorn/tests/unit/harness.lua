@@ -156,6 +156,36 @@ function fails(fn, what)
     if ok then error((what or "expected an error") .. ", but it ran", 2) end
 end
 
+-- A fake game's story sites (Game.sitesInBand, groundInBand, buildingKeyAt) over its building list g.list: every
+-- second building a house, the rooms 1 to 5 by turn, the area 36 unless the entry has its own. The open ground is the
+-- band's middle due east of the anchor; g.noGround takes it away.
+function fakeSites(g)
+    g.sitesInBand = function(ax, ay, lo, hi, skip)
+        local out = {}
+        for i, b in ipairs(g.list) do
+            local dx, dy = b.x - ax, b.y - ay
+            local d = math.sqrt(dx * dx + dy * dy)
+            local key = tostring(b.x) .. "," .. tostring(b.y)
+            if d >= lo and d <= hi and not (skip and skip[key]) then
+                local info = {}
+                for k, v in pairs(b) do info[k] = v end
+                info.key, info.dist = key, d
+                info.area = b.area or 36
+                info.rooms = b.rooms or (i - math.floor((i - 1) / 5) * 5)
+                if b.home == nil then info.home = i - math.floor(i / 2) * 2 == 0 else info.home = b.home end
+                out[#out + 1] = info
+            end
+        end
+        return out
+    end
+    g.groundInBand = function(ax, ay, lo, hi)
+        if g.noGround then return nil end
+        return math.floor(ax + (lo + hi) / 2), math.floor(ay)
+    end
+    g.buildingKeyAt = function() return g.baseKey end
+    return g
+end
+
 -- Run.
 local cases
 function test(name, fn) table.insert(cases, { name = name, fn = fn }) end
