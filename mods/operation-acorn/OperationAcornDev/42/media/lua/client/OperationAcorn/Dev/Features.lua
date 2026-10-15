@@ -446,7 +446,7 @@ end
 local TITLES = {
     debt = { key = "IGUI_OA_Title_Debt", sub = "IGUI_OA_Title_DebtSub", style = "notice", tone = "red", fallback = "bad" },
     paid = { key = "IGUI_OA_Title_Paid", style = "dust", fallback = "good" },
-    cured = { key = "IGUI_OA_Title_Cured", sub = "IGUI_OA_Title_CuredSubDrugs", subArgs = { 12, 3 }, style = "stamp",
+    cured = { key = "IGUI_OA_Title_Cured", sub = "IGUI_OA_Title_CuredSubDrugs", subArgs = { 12, 3 }, style = "pulse",
         tone = "green", fallback = "good" },
     positive = { key = "IGUI_OA_Title_TestPositive", style = "bleed", fallback = "bad" },
     negative = { key = "IGUI_OA_Title_TestNegative", sub = "IGUI_OA_Title_TestNegativeSub", style = "pulse",
@@ -456,11 +456,12 @@ local TITLES = {
     guide = { key = "IGUI_OA_Story_DocTitle_infection_guide", sub = "IGUI_OA_Title_GuideSub", style = "type", fallback = "good" },
 }
 
--- Shows a title: the kinds of Dev.title, "stage" and "milestone" (the stage title the radio leads), or one of TITLES.
+-- Shows a title: the kinds of Dev.title, "stage" (a named stage's card, as the terminal shows it) and "milestone" (the
+-- title of a level past the named stages), or one of TITLES.
 function Dev.titleMore(kind)
     local r = record()
     local detail
-    if kind == "stage" then detail = OA.Story.stageTitle(r, 2)
+    if kind == "stage" then detail = OA.Story.stageCard(2)
     elseif kind == "milestone" then detail = OA.Story.stageTitle(r, OA.StoryData.LAST_STAGE + 1)
     else detail = TITLES[kind] end
     if not detail then return Dev.title(kind) end
