@@ -179,9 +179,9 @@ local SAID = {
 
 -- Notices that are events, shown as titles (Titles.notice) with the notice's text under them.
 local TITLED = {
-    IGUI_OA_Tree_Adapted = { key = "IGUI_OA_Title_Adapted" },
-    IGUI_OA_Tree_AdaptedShared = { key = "IGUI_OA_Title_Adapted" },
-    IGUI_OA_Tree_ResetDone = { key = "IGUI_OA_Title_Reset", titleArgs = true },
+    IGUI_OA_Tree_Adapted = { key = "IGUI_OA_Title_Adapted", tone = "gold" },
+    IGUI_OA_Tree_AdaptedShared = { key = "IGUI_OA_Title_Adapted", tone = "gold" },
+    IGUI_OA_Tree_ResetDone = { key = "IGUI_OA_Title_Reset", titleArgs = true, tone = "amber" },
     IGUI_OA_Tree_DelayDone = { key = "IGUI_OA_Title_DelayDone", style = "pulse" },
     IGUI_OA_Tree_DrugLost = { key = "IGUI_OA_Title_DrugLost", style = "sink", fallback = "bad" },
     IGUI_OA_Tree_GuideSent = { alone = true, style = "type" },

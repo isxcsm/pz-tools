@@ -10,6 +10,7 @@ OA.Titles = Titles
 -- The tones a title can take over its style's colour, title and line under it.
 Titles.TONES = {
     gold = { { 1.00, 0.86, 0.50 }, { 0.95, 0.88, 0.70 } },
+    amber = { { 1.00, 0.70, 0.40 }, { 0.95, 0.82, 0.66 } },
     green = { { 0.62, 1.00, 0.70 }, { 0.78, 0.95, 0.82 } },
     red = { { 1.00, 0.55, 0.50 }, { 0.95, 0.75, 0.72 } },
 }
