@@ -991,7 +991,7 @@ final class Texts implements Hooks.Text {
             // struck a moment after, more lightly, and weathers away. For something done (a quest complete).
             ALL.put("stamp", new Style(
                 Map.ofEntries(Map.entry("font", List.of("SdfBold", "Large")), Map.entry("size", 0.1), Map.entry("color", List.of(0.9, 0.89, 0.86, 1.0)),
-                    Map.entry("y", 0.2), Map.entry("enter", "impact"), Map.entry("enterTime", 0.6), Map.entry("hold", 5.0), Map.entry("backdrop", 0.3),
+                    Map.entry("y", 0.16), Map.entry("enter", "impact"), Map.entry("enterTime", 0.6), Map.entry("hold", 5.0), Map.entry("backdrop", 0.3),
                     Map.entry("leave", "wash"), Map.entry("leaveTime", 6.0)),
                 Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Medium")), Map.entry("size", 0.045), Map.entry("color", List.of(0.9, 0.9, 0.88, 1.0)),
                     Map.entry("shadow", true), Map.entry("delay", 0.15), Map.entry("enter", "impact"), Map.entry("enterTime", 0.6),
@@ -1002,7 +1002,7 @@ final class Texts implements Hooks.Text {
             ALL.put("discovery", new Style(
                 Map.ofEntries(Map.entry("font", List.of("SdfBold", "Large")), Map.entry("size", 0.08), Map.entry("color", List.of(1.0, 0.8, 0.38, 1.0)),
                     Map.entry("shadow", true), Map.entry("outline", 1.0), Map.entry("outlineColor", List.of(0.0, 0.0, 0.0, 0.35)),
-                    Map.entry("y", 0.2), Map.entry("enter", "torch"), Map.entry("enterTime", 2.2), Map.entry("hold", 5.0), Map.entry("backdrop", 0.3),
+                    Map.entry("y", 0.16), Map.entry("enter", "torch"), Map.entry("enterTime", 2.2), Map.entry("hold", 5.0), Map.entry("backdrop", 0.3),
                     Map.entry("leave", "dim"), Map.entry("leaveTime", 4.5)),
                 Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Medium")), Map.entry("size", 0.042), Map.entry("color", List.of(1.0, 0.93, 0.78, 1.0)),
                     Map.entry("shadow", true), Map.entry("delay", 1.5), Map.entry("enter", "slide"), Map.entry("enterTime", 0.8),
@@ -1012,7 +1012,7 @@ final class Texts implements Hooks.Text {
             // lost into the static. For news that is not an event of its own.
             ALL.put("notice", new Style(
                 Map.ofEntries(Map.entry("font", List.of("SdfBold", "Medium")), Map.entry("size", 0.04), Map.entry("color", List.of(0.88, 0.93, 1.0, 1.0)),
-                    Map.entry("shadow", true), Map.entry("y", 0.2), Map.entry("enter", "signal"), Map.entry("enterTime", 0.7), Map.entry("hold", 5.0),
+                    Map.entry("shadow", true), Map.entry("y", 0.16), Map.entry("enter", "signal"), Map.entry("enterTime", 0.7), Map.entry("hold", 5.0),
                     Map.entry("backdrop", 0.3), Map.entry("leave", "lost"), Map.entry("leaveTime", 4.5)),
                 Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Small")), Map.entry("size", 0.028), Map.entry("color", List.of(0.76, 0.82, 0.9, 1.0)),
                     Map.entry("shadow", true), Map.entry("delay", 0.25), Map.entry("enter", "signal"), Map.entry("enterTime", 0.7),
@@ -1023,7 +1023,7 @@ final class Texts implements Hooks.Text {
             ALL.put("unveil", new Style(
                 Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Large")), Map.entry("size", 0.075), Map.entry("color", List.of(0.96, 0.93, 0.86, 1.0)),
                     Map.entry("shadow", true), Map.entry("outline", 1.0), Map.entry("outlineColor", List.of(0.0, 0.0, 0.0, 0.35)),
-                    Map.entry("y", 0.2), Map.entry("enter", "mist"), Map.entry("enterTime", 3.6), Map.entry("hold", 5.0), Map.entry("backdrop", 0.3),
+                    Map.entry("y", 0.16), Map.entry("enter", "mist"), Map.entry("enterTime", 3.6), Map.entry("hold", 5.0), Map.entry("backdrop", 0.3),
                     Map.entry("leave", "mist"), Map.entry("leaveTime", 5.0)),
                 Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Medium")), Map.entry("size", 0.036), Map.entry("color", List.of(0.84, 0.83, 0.8, 1.0)),
                     Map.entry("shadow", true), Map.entry("delay", 1.2), Map.entry("enter", "mist"), Map.entry("enterTime", 3.0),
@@ -1034,7 +1034,7 @@ final class Texts implements Hooks.Text {
             ALL.put("dust", new Style(
                 Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Large")), Map.entry("size", 0.085), Map.entry("color", List.of(0.97, 0.95, 0.9, 1.0)),
                     Map.entry("shadow", true), Map.entry("outline", 1.0), Map.entry("outlineColor", List.of(0.0, 0.0, 0.0, 0.35)),
-                    Map.entry("y", 0.2), Map.entry("enter", "fade"), Map.entry("enterTime", 1.2), Map.entry("hold", 5.0), Map.entry("backdrop", 0.3),
+                    Map.entry("y", 0.16), Map.entry("enter", "fade"), Map.entry("enterTime", 1.2), Map.entry("hold", 5.0), Map.entry("backdrop", 0.3),
                     Map.entry("leave", "burn"), Map.entry("leaveTime", 10.0), Map.entry("dustSweep", "downleft")),
                 Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Medium")), Map.entry("size", 0.04), Map.entry("color", List.of(0.86, 0.85, 0.82, 1.0)),
                     Map.entry("shadow", true), Map.entry("delay", 0.35), Map.entry("enter", "fade"), Map.entry("enterTime", 1.2),
@@ -1045,7 +1045,7 @@ final class Texts implements Hooks.Text {
             ALL.put("bleed", new Style(
                 Map.ofEntries(Map.entry("font", List.of("SdfBold", "Large")), Map.entry("size", 0.085), Map.entry("color", List.of(0.72, 0.08, 0.07, 1.0)),
                     Map.entry("shadow", true), Map.entry("outline", 1.0), Map.entry("outlineColor", List.of(0.0, 0.0, 0.0, 0.4)),
-                    Map.entry("y", 0.2), Map.entry("enter", "bleed"), Map.entry("enterTime", 1.9), Map.entry("hold", 5.0), Map.entry("backdrop", 0.3),
+                    Map.entry("y", 0.16), Map.entry("enter", "bleed"), Map.entry("enterTime", 1.9), Map.entry("hold", 5.0), Map.entry("backdrop", 0.3),
                     Map.entry("leave", "dry"), Map.entry("leaveTime", 6.0)),
                 Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Medium")), Map.entry("size", 0.04), Map.entry("color", List.of(0.86, 0.8, 0.78, 1.0)),
                     Map.entry("shadow", true), Map.entry("delay", 1.3), Map.entry("enter", "bleed"), Map.entry("enterTime", 1.2),
@@ -1056,7 +1056,7 @@ final class Texts implements Hooks.Text {
             ALL.put("sink", new Style(
                 Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Large")), Map.entry("size", 0.08), Map.entry("color", List.of(0.86, 0.88, 0.9, 1.0)),
                     Map.entry("shadow", true), Map.entry("outline", 1.0), Map.entry("outlineColor", List.of(0.0, 0.0, 0.0, 0.35)),
-                    Map.entry("y", 0.2), Map.entry("enter", "settle"), Map.entry("enterTime", 1.6), Map.entry("hold", 5.0), Map.entry("backdrop", 0.3),
+                    Map.entry("y", 0.16), Map.entry("enter", "settle"), Map.entry("enterTime", 1.6), Map.entry("hold", 5.0), Map.entry("backdrop", 0.3),
                     Map.entry("leave", "under"), Map.entry("leaveTime", 9.0)),
                 Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Medium")), Map.entry("size", 0.038), Map.entry("color", List.of(0.74, 0.77, 0.8, 1.0)),
                     Map.entry("shadow", true), Map.entry("delay", 0.8), Map.entry("enter", "fade"), Map.entry("enterTime", 1.4),
@@ -1067,7 +1067,7 @@ final class Texts implements Hooks.Text {
             ALL.put("type", new Style(
                 Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Large")), Map.entry("size", 0.075), Map.entry("color", List.of(0.92, 0.9, 0.84, 1.0)),
                     Map.entry("shadow", true), Map.entry("outline", 1.0), Map.entry("outlineColor", List.of(0.0, 0.0, 0.0, 0.35)),
-                    Map.entry("y", 0.2), Map.entry("enter", "strike"), Map.entry("enterTime", 1.3), Map.entry("hold", 5.0), Map.entry("backdrop", 0.3),
+                    Map.entry("y", 0.16), Map.entry("enter", "strike"), Map.entry("enterTime", 1.3), Map.entry("hold", 5.0), Map.entry("backdrop", 0.3),
                     Map.entry("leave", "feed"), Map.entry("leaveTime", 5.5)),
                 Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Medium")), Map.entry("size", 0.038), Map.entry("color", List.of(0.8, 0.79, 0.75, 1.0)),
                     Map.entry("shadow", true), Map.entry("delay", 1.5), Map.entry("enter", "strike"), Map.entry("enterTime", 1.6),
@@ -1078,7 +1078,7 @@ final class Texts implements Hooks.Text {
             ALL.put("pulse", new Style(
                 Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Large")), Map.entry("size", 0.08), Map.entry("color", List.of(0.96, 0.94, 0.88, 1.0)),
                     Map.entry("shadow", true), Map.entry("outline", 1.0), Map.entry("outlineColor", List.of(0.0, 0.0, 0.0, 0.35)),
-                    Map.entry("y", 0.2), Map.entry("enter", "fade"), Map.entry("enterTime", 0.9), Map.entry("hold", 5.0), Map.entry("backdrop", 0.3),
+                    Map.entry("y", 0.16), Map.entry("enter", "fade"), Map.entry("enterTime", 0.9), Map.entry("hold", 5.0), Map.entry("backdrop", 0.3),
                     Map.entry("leave", "exhale"), Map.entry("leaveTime", 10.7)),
                 Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Medium")), Map.entry("size", 0.038), Map.entry("color", List.of(0.84, 0.83, 0.79, 1.0)),
                     Map.entry("shadow", true), Map.entry("delay", 0.6), Map.entry("enter", "fade"), Map.entry("enterTime", 0.9),

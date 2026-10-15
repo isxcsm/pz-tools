@@ -921,7 +921,7 @@ final class TextsTest {
         render();
         Object[] title = last("Quest complete"), line = last("The well is clean");
         // One black backdrop for the title and its line, in one layer, come in over 1.2 s: the box (0.3 over it, reaching to the
-        // line's bottom at 0.32 of 900) and four rings of eight quads round it, shaded to nothing at the outside (2.6 lines to the sides).
+        // line's bottom at 0.28 of 900) and four rings of eight quads round it, shaded to nothing at the outside (2.6 lines to the sides).
         var quads = new ArrayList<>(zombie.core.SpriteRenderer.shaded);
         Object[] box = quads.isEmpty() ? null : quads.get(0);
         boolean black = true, outsideClear = true;
@@ -931,12 +931,12 @@ final class TextsTest {
             leftmost = Math.min(leftmost, (Double)quad[1]);
         }
         for (int index = quads.size() - 8; index >= 0 && index < quads.size(); index++) outsideClear &= Math.min(Math.min((Float)quad(quads, index)[9], (Float)quad(quads, index)[10]), Math.min((Float)quad(quads, index)[11], (Float)quad(quads, index)[12])) < 1e-6f;
-        check(quads.size() == 33 && black && outsideClear && near((Float)box[9], 0.3) && near((Float)box[11], 0.3) && near((Double)box[6], 0.32 * 900)
+        check(quads.size() == 33 && black && outsideClear && near((Float)box[9], 0.3) && near((Float)box[11], 0.3) && near((Double)box[6], 0.28 * 900)
             && near((Double)box[1] - leftmost, 2.6 * 90), "The title's backdrop is wrong: " + quads.size() + " quads");
         double zoom = 0.1 * 900 / 45, lineZoom = 0.045 * 900 / 45;
-        drawn(title, UIFont.SdfBold, 800 - 14 * 20 * zoom / 2, 0.2 * 900 - 45 * zoom / 2, zoom, "Quest complete", 0.9, 0.89, 0.86, 1);
+        drawn(title, UIFont.SdfBold, 800 - 14 * 20 * zoom / 2, 0.16 * 900 - 45 * zoom / 2, zoom, "Quest complete", 0.9, 0.89, 0.86, 1);
         check(line != null && line[1] == UIFont.SdfRegular && near(zoom(line), lineZoom)
-            && near((Double)line[3], (0.2 + 0.1 / 2 + 0.1 * 0.25 + 0.045 / 2) * 900 - 45 * lineZoom / 2), "The line under the title is not under it");
+            && near((Double)line[3], (0.16 + 0.1 / 2 + 0.1 * 0.25 + 0.045 / 2) * 900 - 45 * lineZoom / 2), "The line under the title is not under it");
         check(last("Search complete") == null, "The second title did not wait");
         // The stamp and its line go together, after 0.75 + 5 + 6 seconds (its hold from when its line is in at 0.15 + 0.6; the line
         // 0.4 s after the title, for 5.6).
@@ -1013,7 +1013,7 @@ final class TextsTest {
             render();
             advance(0.35);
             render();
-            check(last("Second") != null && near((Double)last("Second")[3] - 450, 0.2 * 450 - 0.04 * 450 * 45 / 45 / 2), "The second title is not on its screen");
+            check(last("Second") != null && near((Double)last("Second")[3] - 450, 0.16 * 450 - 0.04 * 450 * 45 / 45 / 2), "The second title is not on its screen");
             FormulasTest.call(text, "hide", mod, own, true);
         } finally {
             IsoPlayer.players[1] = null;
