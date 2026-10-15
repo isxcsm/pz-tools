@@ -129,7 +129,7 @@ def window_rect(full):
 # Places from the top left of the game window's inside (the windowed 1600x900 game at the 26 pixel font, the main menu
 # with PZ Optimization's entries): Resume in the Lua debugger's tool bar, Continue on the main menu (the middle of its
 # row). Another window size or font option moves them: PZDEV_RESUME and PZDEV_CONTINUE ("x,y") give them (1280x720 at
-# the 16 pixel font: 564,21 and 84,56).
+# the 16 pixel font: 84,56 for Continue).
 def place(name, default):
     value = os.environ.get(name)
     if not value:
@@ -138,7 +138,7 @@ def place(name, default):
     return (int(x), int(y))
 
 
-RESUME_AT = place("PZDEV_RESUME", (711, 25))
+RESUME_AT = place("PZDEV_RESUME", (564, 21))
 CONTINUE_AT = place("PZDEV_CONTINUE", (84, 228))
 
 
