@@ -32,8 +32,8 @@ function SceneGame.isNight()
     return Scene.isNight(getGameTime():getTimeOfDay(), season:getDawn(), season:getDusk())
 end
 
-function SceneGame.say(record, id, ctx)
-    OA.Say.tell(record.id, id, ctx)
+function SceneGame.say(record, id, ctx, delay)
+    OA.Say.tell(record.id, id, ctx, delay)
 end
 
 function SceneGame.title(record, detail)

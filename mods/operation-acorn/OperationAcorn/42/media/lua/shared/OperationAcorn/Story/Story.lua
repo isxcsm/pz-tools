@@ -127,21 +127,21 @@ end
 
 -- A story mission's monologue at one of its events ("enter", "pickup", ...; CommsData's "say:<story>:<event>"): said
 -- over the player's head once, and kept in the comms tab as a field record. Returns its id, or nil when there is none
--- or it was said before.
-function Story.monologue(record, storyId, event)
+-- or it was said before. `delay`: real seconds before it is said (Say.story).
+function Story.monologue(record, storyId, event, delay)
     local id = OA.Comms.say(record, storyId, event, Story.tier(record))
     if not id then return nil end
-    OA.Say.story(record.id, "IGUI_OA_Comms_" .. id)
+    OA.Say.story(record.id, "IGUI_OA_Comms_" .. id, delay)
     OA.Sync.changed("comms", record.id)
     return id
 end
 
 -- The monologue of an after-handover story mission's circle entered: the next of the few there are, nil when all are
 -- said.
-function Story.afterMonologue(record)
+function Story.afterMonologue(record, delay)
     local id = OA.Comms.afterSay(record, Story.tier(record))
     if not id then return nil end
-    OA.Say.story(record.id, "IGUI_OA_Comms_" .. id)
+    OA.Say.story(record.id, "IGUI_OA_Comms_" .. id, delay)
     OA.Sync.changed("comms", record.id)
     return id
 end

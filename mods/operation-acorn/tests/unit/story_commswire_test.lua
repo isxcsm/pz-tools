@@ -99,15 +99,21 @@ test("the half day after the test serum's scene brings the next", function()
 end)
 
 test("a story monologue is said once and kept; the after-handover ones run out", function()
-    local said = {}
-    OA.Sync.listen("storySay", function(playerId, detail) said[#said + 1] = detail.key end)
+    local said, delays = {}, {}
+    OA.Sync.listen("storySay", function(playerId, detail)
+        said[#said + 1] = detail.key
+        delays[#delays + 1] = detail.delay or 0
+    end)
     local record = setup("w8", 1)
     eq(Story.monologue(record, "evidence", "pickup"), "S1F_pickup")
     eq(said[#said], "IGUI_OA_Comms_S1F_pickup")
+    eq(delays[#delays], 0, "at once")
     eq(Story.monologue(record, "evidence", "pickup"), nil, "once")
     eq(Story.monologue(record, "evidence", "nothing"), nil)
     local log = Comms.section(record).log
     eq(log[#log].id, "S1F_pickup")
+    eq(Story.monologue(record, "evidence", "enter", 5) ~= nil, true)
+    eq(delays[#delays], 5, "after the wait it is given")
     local after = setup("w9", 5, 4)
     local ids = {}
     for _ = 1, 5 do ids[#ids + 1] = Story.afterMonologue(after) or "-" end

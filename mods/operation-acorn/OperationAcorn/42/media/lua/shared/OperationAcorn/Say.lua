@@ -142,14 +142,14 @@ end
 -- player's client to say, held about twice as long as self-talk. It is said again just before its halo starts to fade:
 -- the game keeps one line for a text said again while it shows and sets that line's clock back. STORY_AGAIN is the
 -- halo's real seconds before its fade (the game's line time, 314, less its last quarter, at 1.25 a thirtieth of a
--- second; at a faster game speed it is shorter).
+-- second; at a faster game speed it is shorter). `delay` is real seconds to wait first, as Say.tell's.
 Say.STORY_AGAIN = 6.3
 
-function Say.story(playerId, key)
+function Say.story(playerId, key, delay)
     if isServer() then
-        sendServerCommand(OA.MOD, "storySay", { player = playerId, key = key })
+        sendServerCommand(OA.MOD, "storySay", { player = playerId, key = key, delay = delay })
     else
-        OA.Sync.deliver("storySay", playerId, { key = key })
+        OA.Sync.deliver("storySay", playerId, { key = key, delay = delay })
     end
 end
 
@@ -158,11 +158,24 @@ OA.Sync.listen("storySay", function(playerId, detail)
     if not (player and detail and type(detail.key) == "string") or OA.Store.idOf(player) ~= playerId then return end
     if OA.option("Monologue") == false then return end
     local line = getText(detail.key)
+    local function again()
+        OA.Trade.Later.after(Say.STORY_AGAIN, function()
+            local now = getPlayer and getPlayer()
+            if now == player and not now:isDead() then now:Say(line) end
+        end)
+    end
+    if type(detail.delay) == "number" and detail.delay > 0 then
+        OA.Trade.Later.after(detail.delay, function()
+            local now = getPlayer and getPlayer()
+            if now == player and not now:isDead() then
+                now:Say(line)
+                again()
+            end
+        end)
+        return
+    end
     player:Say(line)
-    OA.Trade.Later.after(Say.STORY_AGAIN, function()
-        local now = getPlayer and getPlayer()
-        if now == player and not now:isDead() then now:Say(line) end
-    end)
+    again()
 end)
 
 OA.Sync.listen("say", function(playerId, detail)

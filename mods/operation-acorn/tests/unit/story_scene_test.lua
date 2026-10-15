@@ -167,7 +167,7 @@ local function fakeWorld()
     g.playerPosition = function() return g.px, g.py, 0 end
     g.isNight = function() return g.night end
     g.days = function() return 40 end
-    g.say = function(record, id, ctx) g.said[#g.said + 1] = { id = id, ctx = ctx } end
+    g.say = function(record, id, ctx, delay) g.said[#g.said + 1] = { id = id, ctx = ctx, delay = delay } end
     g.titles = {}
     g.title = function(record, detail) g.titles[#g.titles + 1] = detail end
     g.loaded = function() return g.loadedAt end
@@ -221,6 +221,7 @@ test("the minute look: the line and the title on entering the circle, the scene 
     Scene.minute(record)
     eq(#g.said, 1)
     eq(g.said[1].id, "Arrive", "not a story's: a general line")
+    eq(g.said[1].delay, Scene.ARRIVE_SAY, "said once the title is read")
     eq(#g.titles, 1)
     eq(g.titles[1].key, "IGUI_OA_Title_Arrived")
     eq(g.titles[1].sub, (OA.Missions.keys(m)), "the request's name under it")

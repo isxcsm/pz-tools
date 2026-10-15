@@ -10,9 +10,10 @@
 -- revisit) only puts its item. A piece that cannot be put (no room of its kind, its square taken) is left out.
 --
 -- Where: the hands read the building's layout as it loads: its rooms ({ name, area, z, x, y, x2, y2, edge = touches the
--- building's outline }) and its outer doors on the ground floor. The rooms get roles (Stage.roles): "big" (the largest
--- on the ground floor), "inner" (one inside, away from the outline), "other" (another), "hall" (a hall or corridor, or
--- another one), and "entrance" is the outer door nearest the big room. A piece names the role it goes to (`at`).
+-- building's outline }) and its outer doors and windows on the ground floor. The rooms get roles (Stage.roles): "big"
+-- (the largest on the ground floor), "inner" (one inside, away from the outline), "other" (another), "hall" (a hall or
+-- corridor, or another one), none of them but the big one smaller than ROOM_AREA; "entrance" is the outer door nearest
+-- the big room. A piece names the role it goes to (`at`).
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Story/Places"
@@ -28,6 +29,7 @@ Stage.game = nil
 Stage.PLACE_KINDS = { tile = true, set = true, item = true, vehicle = true, barricade = true, lock = true,
     corpse = true, blood = true, piece = true }
 Stage.READY = 40   -- the zombies are made once the player is this near the site (as the mission scene's, Story/Scene)
+Stage.ROOM_AREA = 4   -- the least area of a room with a role but the big one (a map has rooms of one square: pillars)
 
 -- The stage data of a mission: its facility's, for a story mission at a building; nil otherwise.
 function Stage.defOf(m)
@@ -71,27 +73,34 @@ function Stage.roles(layout, int)
     for _, i in ipairs(ground) do
         if not roles.big or rooms[i].area > rooms[roles.big].area then roles.big = i end
     end
+    -- the rooms too small for a role count as taken
     local taken = {}
-    if roles.big then taken[roles.big] = true end
-    -- the inner room: one away from the outline, else the one farthest from the big room
-    local inner = {}
-    for _, i in ipairs(ground) do
-        if not taken[i] and not rooms[i].edge and not HALL[rooms[i].name or ""] then inner[#inner + 1] = i end
+    for i, r in ipairs(rooms) do
+        if (r.area or 0) < Stage.ROOM_AREA then taken[i] = true end
     end
-    if #inner > 0 then
-        roles.inner = inner[int(1, #inner)]
-    elseif roles.big then
+    if roles.big then taken[roles.big] = true end
+    -- the inner room: one away from the outline, else the one farthest from the big room; of the rooms with a door
+    -- first, when the layout counts them (a room's `doors`: one to be locked)
+    local function inner(skip)
+        local list = {}
+        for _, i in ipairs(ground) do
+            if not skip(i) and not rooms[i].edge then list[#list + 1] = i end
+        end
+        if #list > 0 then return list[int(1, #list)] end
+        if not roles.big then return nil end
         local bx, by = centre(rooms[roles.big])
         local best, bestD
         for _, i in ipairs(ground) do
-            if not taken[i] and not HALL[rooms[i].name or ""] then
+            if not skip(i) then
                 local x, y = centre(rooms[i])
                 local d = Places.distance(bx, by, x, y)
                 if not bestD or d > bestD then best, bestD = i, d end
             end
         end
-        roles.inner = best
+        return best
     end
+    local function passed(i) return taken[i] or HALL[rooms[i].name or ""] end
+    roles.inner = inner(function(i) return passed(i) or (rooms[i].doors or 1) == 0 end) or inner(passed)
     if roles.inner then taken[roles.inner] = true end
     -- the hall: one named so, on the ground floor
     for _, i in ipairs(ground) do

@@ -38,6 +38,8 @@ Scene.CLOSE = 10             -- how far from the player things are made when the
 Scene.SITE_TOUCH = 4         -- how close to a drop site's middle counts as being at it
 Scene.LOOK_MS = 1000         -- real milliseconds at least between two looks (the minute fires fast when fast-forwarded)
 Scene.DRIFT = 200            -- how far from its building a dying survivor may be and still be the one
+Scene.ARRIVE_SAY = 5         -- real seconds from the circle's title to the line said on entering it: the title
+                             -- ("unveil": 3.6 s, its line 1.2 + 3.0) is read by then, the line not under it
 -- Vanilla's stage days for the survivalist outfits (ZombiesStageDefinitions.daysMid, daysLate): the _Mid look from
 -- the 30th day since the outbreak, the _Late one from the 90th.
 Scene.MID_DAYS = 30
@@ -318,9 +320,10 @@ function Scene.arrivalLine(record, m, night)
     if m.story and OA.Story then
         local said
         if Data.REVISITS[m.story] then
-            said = OA.Story.afterMonologue(record)
+            said = OA.Story.afterMonologue(record, Scene.ARRIVE_SAY)
         else
-            said = OA.Story.monologue(record, m.chosen and (m.story .. "_" .. m.chosen) or m.story, "enter")
+            said = OA.Story.monologue(record, m.chosen and (m.story .. "_" .. m.chosen) or m.story, "enter",
+                Scene.ARRIVE_SAY)
         end
         if said then return nil end
     end
@@ -420,7 +423,7 @@ function Scene.minute(record)
                 if not m.scene.arrived then
                     m.scene.arrived = true
                     local id, ctx = Scene.arrivalLine(record, m, g.isNight())
-                    if id then g.say(record, id, ctx) end
+                    if id then g.say(record, id, ctx, Scene.ARRIVE_SAY) end
                     g.title(record, { key = "IGUI_OA_Title_Arrived", sub = (OA.Missions.keys(m)), style = "unveil" })
                     said = true
                 end

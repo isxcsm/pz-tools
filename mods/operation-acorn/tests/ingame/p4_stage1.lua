@@ -11,12 +11,17 @@ local say = P4T.say("p4stage1")
 local record, player = P4T.record()
 if not record then say("no record yet: wait for the first hello"); return end
 
+-- The story from nothing: no mission, no calls, no seen stage (a save further on has them all).
 local s = OA.Missions.state(record)
 if s.active then OA.Missions.finish(record, s.active, "lost") end
-s.nextAt = 0
+record.story, record.comms, record.missions = nil, nil, nil
+OA.Missions.state(record).nextAt = 0
 OA.Story.setAnchor(record, math.floor(player:getX()), math.floor(player:getY()), 0)
-P4T.setStage(record, 1, 0)
+record.trade = record.trade or {}
+record.trade.stage = 0
+-- the terminal first used, then the first stage (entered first, it drops the first call as passed)
 OA.Story.firstContact(record, false)
+P4T.setStage(record, 1, 0)
 local comms = OA.Comms.section(record)
 P4T.check(say, "the first call waits for the terminal", comms.fired.S0 ~= nil and not comms.played.S0)
 OA.Missions.tick(record)

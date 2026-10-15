@@ -55,6 +55,32 @@ test("with no room inside the inner one is the farthest from the big room; no gr
     eq(one.entrance, nil, "no door")
 end)
 
+test("rooms of one square (a map's pillars) get no role; the big one is still the largest", function()
+    local l = { rooms = {
+        room("furnitureshowroom", 228, 0, 0, 0, 16, 16, true),
+        room("empty", 1, 0, 15, 10, 16, 11, false),
+        room("empty", 1, 0, 5, 0, 6, 1, true),
+        room("office", 16, 0, 5, 13, 11, 16, false),
+        room("bathroom", 2, 0, 9, 15, 11, 16, false),
+        room("furniturestorage", 192, 0, 0, 16, 16, 28, true),
+    } }
+    local roles = Stage.roles(l, function(a) return a end)
+    eq(roles.big, 1)
+    eq(roles.inner, 4, "the office, not a pillar inside")
+    eq(roles.other, 6)
+    eq(roles.hall, 6, "no hall: the other room")
+end)
+
+test("the inner room is one with a door when the layout counts them; with none such, as before", function()
+    local l = layout()
+    for _, r in ipairs(l.rooms) do r.doors = 1 end
+    l.rooms[2].doors = 0
+    local roles = Stage.roles(l, function(a) return a end)
+    eq(roles.inner, 1, "the room inside has no door: the farthest one with a door")
+    for _, r in ipairs(l.rooms) do r.doors = 0 end
+    eq(Stage.roles(l, function(a) return a end).inner, 2, "no room has one: the room inside")
+end)
+
 -- A story mission at a building, the stage data of its facility given by the test, and fake hands that log the pieces.
 local function setup(pieces)
     OA.StageData.police = { pieces = pieces }
