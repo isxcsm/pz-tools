@@ -359,6 +359,26 @@ test("a good whose item is not defined in the scripts is not sold", function()
     getScriptManager = nil
 end)
 
+test("Building Utilities' goods: sold only while it is loaded and their feature is on; its panel is never sold", function()
+    local r = record(5, 1)
+    local board, panel, pump = find("bu_control_board"), find("bu_solar_panel"), find("bu_water_pump")
+    eq(board.price, 50000); eq(board.week, 2); eq(board.tier, 2); eq(board.group, "resource")
+    eq(panel.price, 80000); eq(panel.tier, 3); eq(pump.price, 80000); eq(find("bu_booster_pump").tier, 4)
+    eq(S.stocked(board), false, "without Building Utilities")
+    eq(S.available(panel, r), 0)
+    truthy(S.stocked(find("shred_bench")), "the mod's own goods need no BU")
+    local off = { solar = true }
+    BuildingUtilities = { enabled = function(name) return not off[name] end }
+    truthy(S.stocked(board)); truthy(S.stocked(pump))
+    eq(S.stocked(panel), false, "solar off in its sandbox")
+    off.solar = nil
+    truthy(S.available(panel, r) > 0)
+    BuildingUtilities = nil
+    for _, e in ipairs(S.catalog()) do
+        truthy(not (e.item or ""):find("BreakerBox"), "a utility panel is sold: " .. e.id)
+    end
+end)
+
 test("the field terminal is ordered at the second stage for 50,000; the crude terminal orders only some groups", function()
     local field = find("field_terminal")
     eq(field.tier, 2)

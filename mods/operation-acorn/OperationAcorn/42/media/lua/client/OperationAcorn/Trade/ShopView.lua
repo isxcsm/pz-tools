@@ -31,9 +31,10 @@ ShopView.CART_ROW = 42
 ShopView.DETAIL_ICON, ShopView.DETAIL_TEXT = 32, 52
 ShopView.WIDE = 680         -- from this body width on the cart is 200 wide, below it 176
 
--- Entries the shop tab never lists: the box reissue is bought with the status tab's button.
+-- Entries the shop tab never lists: the box reissue is bought with the status tab's button, and Building Utilities'
+-- goods while it is not loaded or their feature is off in its sandbox.
 function ShopView.listed(entry)
-    return entry.special ~= "reissue"
+    return entry.special ~= "reissue" and OA.Shop.buOn(entry.bu)
 end
 
 -- On the serum shelf: the serum group, and any entry that is a serum.

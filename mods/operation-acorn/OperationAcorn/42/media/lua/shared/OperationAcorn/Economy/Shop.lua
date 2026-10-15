@@ -6,7 +6,7 @@
 -- choices = { { type, count ... } ... } (the player picks one), week = purchases a week (nil: none), special =
 -- "cure" | "reversal" | "test" | "delay" (with days) | "serum" | "reissue" | nil, fixed = true (no shop
 -- multiplier, no discount), allowDebt, kits = true (only with KitsForSale), item (the item it is named after),
--- descKey (a description shared with other entries), harvest (the mark receiving it gives the character, Harvest) }. A give may carry `mod`, `used` and `name` (Trade.dropSpec).
+-- descKey (a description shared with other entries), bu (the Building Utilities feature it serves), harvest (the mark receiving it gives the character, Harvest) }. A give may carry `mod`, `used` and `name` (Trade.dropSpec).
 -- tier is stage + milestones (Trust.tier): 1..5 the stages (1 the start), 6 the first milestone.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
@@ -96,7 +96,26 @@ Shop.WELDER = { type = "Base.BlowTorch", used = 1, name = "IGUI_OA_Gear_TeamWeld
     mod = { OA_Team = true, OA_Uses = 1.2, OA_Name = "IGUI_OA_Gear_TeamWelder",
         customInventoryIcon = "media/textures/Item_" .. Shop.WELDER_ICON .. ".png" } }
 
-Shop.SERUM_LINEAR_FROM = 26       -- the 26th serum of a tree costs 8000 * 1.15^25; after it the price is linear
+-- Building Utilities' goods (another mod of ours). Sold only while it is loaded (Shop.stocked: their items are
+-- defined) and the feature each serves is on in its sandbox (`bu`, a name of BuildingUtilities.enabled).
+local BU_BOARD = "BuildingUtilities.ControlBoard"
+Shop.BU_MACHINES = {       -- id, item, tier, price, feature
+    { "bu_solar_panel", "BuildingUtilities.SolarPanel", 3, 80000, "solar" },
+    { "bu_water_pump", "BuildingUtilities.WaterPump", 2, 80000, "pump" },
+    { "bu_water_filter", "BuildingUtilities.WaterFilter", 3, 100000, "filter" },
+    { "bu_booster_pump", "BuildingUtilities.BoosterPump", 4, 120000, "booster" },
+}
+
+-- Whether a good that needs no Building Utilities feature (nil) may be sold, or BU is loaded with the feature on
+-- (BuildingUtilities.enabled).
+function Shop.buOn(feature)
+    if not feature then return true end
+    local bu = BuildingUtilities
+    if not (bu and bu.enabled) then return false end
+    return bu.enabled(feature) == true
+end
+
+Shop.SERUM_LINEAR_FROM = 26      -- the 26th serum of a tree costs 8000 * 1.15^25; after it the price is linear
 Shop.SERUM_LINEAR_STEP = 30000    -- per serum after the 26th, at the default base price
 
 local function give(key, count, extra)
@@ -168,6 +187,14 @@ local function build()
             "Windshield", "RearWindshield", "FrontWindow", "RearWindow" }, 3)) })
     add({ id = "car_part_modern", group = "resource", tier = 5, price = 25000, week = 6,
         choices = choiceList(numbered({ "ModernTire", "ModernBrake", "ModernSuspension", "ModernCarMuffler" }, 3)) })
+    -- What Building Utilities runs on (`bu`): its lines' wire and pipe, and the board its utility panels go up a tier
+    -- with. The board is the scarce one: dear and a few a week, so looting the electronics stores stays the way.
+    add({ id = "bu_wire", group = "resource", tier = 1, price = 8000, week = 3, bu = "power",
+        give = { vanilla("ElectricWire", 10) } })
+    add({ id = "bu_pipe", group = "resource", tier = 2, price = 10000, week = 3, bu = "water",
+        give = { vanilla("Pipe", 5) } })
+    add({ id = "bu_control_board", group = "resource", tier = 2, price = 50000, week = 2, bu = "panel",
+        item = BU_BOARD, give = { give(BU_BOARD) } })
     -- The zombie sample tools (NUMBERS 4 '좀비 시료'): the scalpel to start with, the tweezers for the precise harvest.
     -- Receiving the tweezers marks the character (Harvest.received): the corpse menu then offers the precise harvest.
     add({ id = "harvest_scalpel", group = "harvest", tier = 1, price = 3000, give = { give("scalpel") } })
@@ -193,6 +220,12 @@ local function build()
     add({ id = "bulk_shredder", group = "machine", tier = 3, price = 150000, give = { give("bulkShredder") } })
     add({ id = "propane_refinery", group = "machine", tier = 3, price = 200000, give = { give("propaneRefinery") } })
     add({ id = "oil_refinery", group = "machine", tier = 4, price = 250000, give = { give("oilRefinery") } })
+    -- Building Utilities' machines that are hard to come by (a learned recipe, glassmaking, rare loot), named as their
+    -- items are. Dear: they spare the hunt, not replace it. Its utility panel is not sold: finding one is how its
+    -- recipe is learned.
+    for _, m in ipairs(Shop.BU_MACHINES) do
+        add({ id = m[1], group = "machine", tier = m[3], price = m[4], bu = m[5], item = m[2], give = { give(m[2]) } })
+    end
     -- The field tools, after the machines: the catalog's order is the news board's, which names the first few. Named
     -- as their items are; one description for all.
     for _, t in ipairs(Shop.FIELD_TOOLS) do
@@ -364,6 +397,7 @@ local function isDefined(fullType)
     return known
 end
 function Shop.stocked(entry)
+    if not Shop.buOn(entry.bu) then return false end
     for _, g in ipairs(entry.give or {}) do
         if not isDefined(g.type) then return false end
     end
