@@ -177,7 +177,9 @@ end
 local function addLineOptions(context, playerObj, kind, ref, x, y, z, extra, removeText)
     local line = Links.get(ref)
     local panel = Store.get(line.panel)
-    local reason = panel and Links.reason(panel, ref) or "cut"
+    -- (a line that supplies has no reason: `panel and nil or "cut"` would call it cut)
+    local reason = "cut"
+    if panel then reason = Links.reason(panel, ref) end
     if reason == "cut" and Links.cutHead(ref) == line then
         local except = {}
         for _, each in ipairs(Links.branch(ref)) do except[each.ref] = true end
