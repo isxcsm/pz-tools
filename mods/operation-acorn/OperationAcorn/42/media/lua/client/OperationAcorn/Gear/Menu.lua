@@ -9,6 +9,7 @@ require "ISUI/ISToolTipInv"
 require "ISUI/ISInventoryPaneContextMenu"
 require "Vehicles/ISUI/ISVehicleMechanics"
 require "OperationAcorn/Client"
+require "OperationAcorn/Titles"
 require "OperationAcorn/Gear/Gear"
 require "OperationAcorn/Gear/Actions"
 local OA = OperationAcorn
@@ -270,6 +271,11 @@ local function onNotice(playerId, detail)
     if detail.key == "IGUI_OA_Gear_Failed" or detail.key == "IGUI_OA_Gear_RedeemFailed" then
         local text = getText(detail.key, getText("IGUI_OA_Gear_Reason_" .. tostring(args[1])))
         HaloTextHelper.addBadText(player, text)
+    elseif detail.key == "IGUI_OA_Gear_Redeemed" then
+        OA.Titles.notice(playerId, { key = "IGUI_OA_Title_KitRedeemed" }, detail.key, args)
+    elseif string.find(detail.key, "^IGUI_OA_Gear_Fitted_") then
+        -- a kit fitted: the event's title, what it made of the target under it
+        OA.Titles.notice(playerId, { key = "IGUI_OA_Title_KitFitted" }, detail.key, args)
     else
         HaloTextHelper.addGoodText(player, getText(detail.key, args[1], args[2], args[3]))
     end

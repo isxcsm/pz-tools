@@ -177,6 +177,17 @@ local SAID = {
     IGUI_OA_Tree_PickFail = true, IGUI_OA_Tree_PickDisarmed = true, IGUI_OA_Tree_Disarmed = true,
 }
 
+-- Notices that are events, shown as titles (Titles.notice) with the notice's text under them.
+local TITLED = {
+    IGUI_OA_Tree_Approved = { key = "IGUI_OA_Title_Approved", style = "stamp" },
+    IGUI_OA_Tree_Adapted = { key = "IGUI_OA_Title_Adapted" },
+    IGUI_OA_Tree_AdaptedShared = { key = "IGUI_OA_Title_Adapted" },
+    IGUI_OA_Tree_ResetDone = { key = "IGUI_OA_Title_Reset", titleArgs = true },
+    IGUI_OA_Tree_DelayDone = { key = "IGUI_OA_Title_DelayDone", style = "pulse" },
+    IGUI_OA_Tree_DrugLost = { key = "IGUI_OA_Title_DrugLost", style = "sink", fallback = "bad" },
+    IGUI_OA_Tree_GuideSent = { alone = true, style = "type" },
+}
+
 local function onNotice(playerId, detail)
     if type(detail) ~= "table" or type(detail.key) ~= "string" then return end
     if not string.find(detail.key, "^IGUI_OA_Tree_") then return end
@@ -194,6 +205,8 @@ local function onNotice(playerId, detail)
     if detail.key == "IGUI_OA_Tree_Opened" then
         local raw = detail.args or {}
         Hooks.treeOpened(playerId, tostring(raw[1]), raw[2] == "guide")
+    elseif TITLED[detail.key] then
+        OA.Titles.notice(playerId, TITLED[detail.key], detail.key, args)
     elseif SAID[detail.key] then
         player:Say(text)
     elseif string.find(detail.key, "Failed$") or string.find(detail.key, "Fail$") or string.find(detail.key, "Expired$")

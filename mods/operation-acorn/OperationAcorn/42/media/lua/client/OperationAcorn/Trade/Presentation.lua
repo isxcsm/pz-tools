@@ -2,6 +2,7 @@
 -- of the helicopter passing over a drop (the vanilla helicopter sound, moved along its path; the crate appears at the
 -- loudest moment on the server's side). What the helicopter left is marked on the world map by Story/Maps.
 require "OperationAcorn/Client"
+require "OperationAcorn/Titles"
 require "OperationAcorn/Trade/Trade"
 local OA = OperationAcorn
 local Trade = OA.Trade
@@ -32,6 +33,10 @@ local function onNotice(playerId, detail)
         if string.find(detail.key, prefix) then return end
     end
     local args = detail.args or {}
+    if detail.key == "IGUI_OA_Trade_Notice_Sealed" then
+        OA.Titles.notice(playerId, { key = "IGUI_OA_Title_Sealed", style = "stamp" }, detail.key, args)
+        return
+    end
     local text = getText(detail.key, unpack(args))
     for _, character in ipairs(charactersOf(playerId)) do
         local bad = string.find(detail.key, "_Reason_", 1, true) ~= nil

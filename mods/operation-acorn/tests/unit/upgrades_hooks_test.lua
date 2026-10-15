@@ -104,7 +104,7 @@ test("a tree opened is a title with the folder line under it when a memo came, o
     PZExtAPI = nil
 end)
 
-test("the notices of an adaptation and a first effect are said over the head with their names", function()
+test("an adaptation is a title with the tree's name under it; a first effect is said over the head", function()
     local Hooks = loadHooks()
     local banners, good, opened = {}, {}, {}
     Hooks.banner = function(text) banners[#banners + 1] = text end
@@ -112,12 +112,16 @@ test("the notices of an adaptation and a first effect are said over the head wit
     local data = { OA_Id = "p1" }
     local character = { getModData = function() return data end, getPlayerNum = function() return 0 end }
     getPlayer = function() return character end
+    getNumActivePlayers = function() return 1 end
+    getSpecificPlayer = function() return character end
     HaloTextHelper = { addGoodText = function(_, t) good[#good + 1] = t end, addBadText = function() end,
                        addText = function() end }
     OA.Sync.deliver("notice", "p1", { key = "IGUI_OA_Tree_Adapted", args = { "scout", 2 } })
-    -- (the test's getText adds a "nil" for each argument the call leaves out)
+    -- (the test's getText adds a "nil" for each argument the call leaves out; without the API's text a title is
+    -- shown over the head as its title, then its line)
     local function said(text, prefix) return string.sub(text, 1, #prefix) == prefix end
-    truthy(said(good[1], "IGUI_OA_Tree_Adapted IGUI_OA_Tree_Name_scout 2"), good[1])
+    truthy(said(good[1], "IGUI_OA_Title_Adapted"), good[1])
+    truthy(string.find(good[1], "IGUI_OA_Tree_Adapted IGUI_OA_Tree_Name_scout 2", 1, true), good[1])
     eq(#banners, 1, "the first point tells where the plan is made")
     OA.Sync.deliver("notice", "p1", { key = "IGUI_OA_Tree_AdaptedShared", args = { 1 } })
     eq(#banners, 1, "once a character")

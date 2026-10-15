@@ -1,5 +1,6 @@
 -- The titles of events (OA.Sync.title): drawn big over the player's screen by the extension API's text
 -- (PZExtAPI.text.title, queued one at a time), or, without it, as a text over the character.
+require "OperationAcorn/Sync"
 require "OperationAcorn/Client"
 require "OperationAcorn/Markup"
 local OA = OperationAcorn
@@ -106,6 +107,23 @@ function Titles.show(playerId, detail, noHalo)
         end
     end
     return shown
+end
+
+-- Shows a notice (OA.Sync.notice: a key and its arguments, already put in the player's language) as a title, when
+-- `as` names one: { key (the title), titleArgs (the title takes the notice's arguments too), style, tone, fallback
+-- ("good" unless given), alone (no line under it: the notice's own text is the title) }. The notice's text is the
+-- line under the title. Returns whether it was shown that way.
+function Titles.notice(playerId, as, key, args)
+    if type(as) ~= "table" then return false end
+    local detail = { style = as.style, tone = as.tone, fallback = as.fallback or "good" }
+    if as.alone then
+        detail.key, detail.args = key, args
+    else
+        detail.key, detail.args = as.key, as.titleArgs and args or nil
+        detail.sub, detail.subArgs = key, args
+    end
+    Titles.show(playerId, detail)
+    return true
 end
 
 OA.Sync.listen("title", Titles.show)

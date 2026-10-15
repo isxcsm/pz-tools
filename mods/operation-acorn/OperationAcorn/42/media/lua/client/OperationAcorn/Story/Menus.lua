@@ -6,6 +6,7 @@ require "ISUI/ISWorldObjectContextMenu"
 require "TimedActions/ISTimedActionQueue"
 require "OperationAcorn/Core"
 require "OperationAcorn/Client"
+require "OperationAcorn/Titles"
 require "OperationAcorn/Sync"
 require "OperationAcorn/Story/Data"
 require "OperationAcorn/Story/Places"
@@ -150,6 +151,11 @@ local function onNotice(playerId, detail)
     local player = getPlayer()
     if not player or OA.Store.idOf(player) ~= playerId then return end
     local args = detail.args or {}
+    if detail.key == "IGUI_OA_Story_UI_Field_calling" then
+        -- the team's word on the field caller: a radio title
+        OA.Titles.notice(playerId, { key = "IGUI_OA_Title_FieldCalling", style = "notice" }, detail.key, args)
+        return
+    end
     local text = getText(detail.key, args[1], args[2], args[3])
     if HaloTextHelper and HaloTextHelper.addText then
         HaloTextHelper.addText(player, text)
