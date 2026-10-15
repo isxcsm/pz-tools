@@ -92,6 +92,18 @@ test("a zombie's inventory, which fills with no container type, gets nothing and
     TEST.random = nil
 end)
 
+test("a bag rolled inside a container fires the event with its loot table for the container: skipped", function()
+    local saved = instanceof
+    instanceof = function(o, class) return class == "ItemContainer" and type(o) == "table" and o.AddItem ~= nil end
+    TEST.random = 0
+    Loot.fill("Container", "Bag_DuffelBag", { rolls = 1, items = {} })
+    local crate = container("building")
+    Loot.fill("electronicstore", "other", crate)
+    truthy(#crate.items > 0, "a container still fills")
+    TEST.random = nil
+    instanceof = saved
+end)
+
 test("a box holds a board, and one more for each its upgrades took: 1, 2, 4, 8", function()
     eq(Costs.boardsIn(1), 1)
     eq(Costs.boardsIn(2), 2)

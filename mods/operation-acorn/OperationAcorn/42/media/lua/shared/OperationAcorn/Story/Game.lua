@@ -627,9 +627,10 @@ end
 
 -- OnFillContainer: a container of a building a piece waits for is filling. The first containers are taken with a
 -- small chance (the room the piece prefers with a large one), later ones with a larger, so the item lies somewhere in
--- the building and not always in the first.
+-- the building and not always in the first. (A bag rolled inside a container fires it with its loot table, an
+-- ItemPickerContainer, for the container: skipped.)
 function Game.onFill(roomName, containerType, container)
-    if #waiting == 0 or not container then return end
+    if #waiting == 0 or not instanceof(container, "ItemContainer") then return end
     local sq = container:getSourceGrid()
     if not sq or not sq:getBuilding() then return end
     local x, y, z = sq:getX(), sq:getY(), sq:getZ()
