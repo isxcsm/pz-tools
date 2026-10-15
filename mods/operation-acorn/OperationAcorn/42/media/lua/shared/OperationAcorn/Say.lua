@@ -138,6 +138,33 @@ function Say.tell(playerId, id, ctx, delay)
     end
 end
 
+-- A story monologue (SCENES.md 2): a line of the story's own (a translation key, not a bundle) that the server asks the
+-- player's client to say, held about twice as long as self-talk. It is said again just before its halo starts to fade:
+-- the game keeps one line for a text said again while it shows and sets that line's clock back. STORY_AGAIN is the
+-- halo's real seconds before its fade (the game's line time, 314, less its last quarter, at 1.25 a thirtieth of a
+-- second; at a faster game speed it is shorter).
+Say.STORY_AGAIN = 6.3
+
+function Say.story(playerId, key)
+    if isServer() then
+        sendServerCommand(OA.MOD, "storySay", { player = playerId, key = key })
+    else
+        OA.Sync.deliver("storySay", playerId, { key = key })
+    end
+end
+
+OA.Sync.listen("storySay", function(playerId, detail)
+    local player = getPlayer and getPlayer()
+    if not (player and detail and type(detail.key) == "string") or OA.Store.idOf(player) ~= playerId then return end
+    if OA.option("Monologue") == false then return end
+    local line = getText(detail.key)
+    player:Say(line)
+    OA.Trade.Later.after(Say.STORY_AGAIN, function()
+        local now = getPlayer and getPlayer()
+        if now == player and not now:isDead() then now:Say(line) end
+    end)
+end)
+
 OA.Sync.listen("say", function(playerId, detail)
     local player = getPlayer and getPlayer()
     if not (player and detail) or OA.Store.idOf(player) ~= playerId then return end

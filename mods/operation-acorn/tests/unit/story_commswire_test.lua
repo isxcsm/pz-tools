@@ -97,3 +97,19 @@ test("the half day after the test serum's scene brings the next", function()
     Story.callsDue(record)
     truthy(Comms.section(record).fired.S2B)
 end)
+
+test("a story monologue is said once and kept; the after-handover ones run out", function()
+    local said = {}
+    OA.Sync.listen("storySay", function(playerId, detail) said[#said + 1] = detail.key end)
+    local record = setup("w8", 1)
+    eq(Story.monologue(record, "evidence", "pickup"), "S1F_pickup")
+    eq(said[#said], "IGUI_OA_Comms_S1F_pickup")
+    eq(Story.monologue(record, "evidence", "pickup"), nil, "once")
+    eq(Story.monologue(record, "evidence", "nothing"), nil)
+    local log = Comms.section(record).log
+    eq(log[#log].id, "S1F_pickup")
+    local after = setup("w9", 5, 4)
+    local ids = {}
+    for _ = 1, 5 do ids[#ids + 1] = Story.afterMonologue(after) or "-" end
+    eq(table.concat(ids, " "), "A1 A2 A3 A4 -")
+end)
