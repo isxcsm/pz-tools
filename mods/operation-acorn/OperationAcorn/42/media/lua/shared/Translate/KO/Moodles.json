@@ -20,11 +20,11 @@
     "Moodles_OperationAcorn:untested_lvl1": "검사 전",
     "Moodles_OperationAcorn:untested_desc_lvl1": "좀비에게 다치고 아직 감염 검사를 하지 않았습니다. 검사하기 전에는 납품 크레딧의 30%%를 감염 처리 수수료로 뗍니다.",
     "Moodles_OperationAcorn:adapting_lvl1": "적응 중",
-    "Moodles_OperationAcorn:adapting_desc_lvl1": "맞은 혈청에 몸이 적응하고 있습니다. 끝나면 강화 포인트가 들어옵니다. 거의 끝났습니다.",
+    "Moodles_OperationAcorn:adapting_desc_lvl1": "맞은 혈청에 몸이 적응하고 있습니다. 끝나면 적응 포인트가 들어옵니다. 거의 끝났습니다.",
     "Moodles_OperationAcorn:adapting_lvl2": "적응 중",
-    "Moodles_OperationAcorn:adapting_desc_lvl2": "맞은 혈청에 몸이 적응하고 있습니다. 끝나면 강화 포인트가 들어옵니다. 10분쯤 남았습니다.",
+    "Moodles_OperationAcorn:adapting_desc_lvl2": "맞은 혈청에 몸이 적응하고 있습니다. 끝나면 적응 포인트가 들어옵니다. 10분쯤 남았습니다.",
     "Moodles_OperationAcorn:adapting_lvl3": "적응 중",
-    "Moodles_OperationAcorn:adapting_desc_lvl3": "맞은 혈청에 몸이 적응하고 있습니다. 끝나면 강화 포인트가 들어옵니다. 20분쯤 남았습니다.",
+    "Moodles_OperationAcorn:adapting_desc_lvl3": "맞은 혈청에 몸이 적응하고 있습니다. 끝나면 적응 포인트가 들어옵니다. 20분쯤 남았습니다.",
     "Moodles_OperationAcorn:adapting_lvl4": "적응 중",
-    "Moodles_OperationAcorn:adapting_desc_lvl4": "맞은 혈청에 몸이 적응하고 있습니다. 끝나면 강화 포인트가 들어옵니다. 30분쯤 남았습니다."
+    "Moodles_OperationAcorn:adapting_desc_lvl4": "맞은 혈청에 몸이 적응하고 있습니다. 끝나면 적응 포인트가 들어옵니다. 30분쯤 남았습니다."
 }

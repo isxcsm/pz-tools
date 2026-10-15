@@ -1,4 +1,4 @@
--- The research plan (DESIGN 8), as the 강화 (Enhancement) tab of the character info window, beside the game's skills
+-- The research plan (DESIGN 8), as the 적응 (Adaptation) tab of the character info window, beside the game's skills
 -- and health, drawn as the field terminal is (mockups/upgrades): an opaque body in the terminal's palette, the three
 -- trees side by side, each a column with a header strip in its colour (its name, its points as a bar, a reset button)
 -- over a grid of icon nodes (four columns, five rows opened by the points spent in the tree, the capstone last and a

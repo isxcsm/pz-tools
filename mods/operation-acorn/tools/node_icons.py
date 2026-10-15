@@ -798,7 +798,7 @@ ICONS = [
     ("정찰", "기척 감지", "Presence", g_presence, ""),
     ("정찰", "시료 감별", "SampleGrade", g_sample_grade, ""),
     ("정찰", "탄약 수색", "AmmoSearch", g_ammo_search, ""),
-    ("정찰", "기척 감지 강화", "PresenceRadar", g_presence_boost, ""),
+    ("정찰", "기척 감지 숙련", "PresenceRadar", g_presence_boost, ""),
     ("정찰", "야행성 눈", "NocturnalEye", g_nocturnal_eye, "cap"),
     ("하중", "과적 견디기", "Overload", g_overload_endure, ""),
     ("하중", "옮기기 속도", "TransferSpeed", g_transfer_speed, ""),

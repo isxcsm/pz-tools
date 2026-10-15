@@ -782,7 +782,7 @@ Calm-minded). 넣는다면 '가라앉는 속도'처럼 다른 축으로.
 - **수치표 툴팁:** 노드 툴팁에 1~N점 수치를 표로, 지금 적용 중인 효과 합계도 (Toughness Skill, Survivor's Path).
 - **구매 전 검사:** 선행·배타 조건을 검사하고 확인 창을 띄운다 (Survivor's Path).
 - **켜고 끄는 변화:** 성격이 바뀌는 효과(둔감 등)는 플레이어가 켜고 끈다 (Character Evolution).
-- **이름과 키 피하기:** 트리 창 키는 [L]·[K]를 피하고(RPGSkillTree), 캐릭터 정보 창 탭 이름은 '강화'로 (TaS '특성' 탭).
+- **이름과 키 피하기:** 트리 창 키는 [L]·[K]를 피하고(RPGSkillTree), 캐릭터 정보 창 탭 이름은 '적응'으로 (TaS '특성' 탭).
 
 ## 트리 구성 아이디어
 
@@ -896,7 +896,7 @@ Calm-minded). 넣는다면 '가라앉는 속도'처럼 다른 축으로.
 | UCWF | 여러 모드의 운반 한도 보정을 한곳에 모음. ETW 필수 | 기본 50 상한. 있으면 `registerMaxModifier`로 등록하고 노드가 바뀌면 `recomputeAll`. 한도를 직접 쓰지 않음 |
 | DTEM | 특성 142개, 중독, 알레르기, 기절, 과적 골절, 젖음 감기, Thick Blood(피해 환불) | 음식 `OnEat` 30여 개를 바꿈 → 음식 효과는 스탯 변화 시점에. ETW·SOTO와 비호환 |
 | SOTO | 직업 26개, Strong Back, Dextrous -50%, Calm-minded, Breathing Technique, Thick Blood 등 | `ISInventoryTransferAction`을 덮음 → 감싸고 배율이 로드 순서와 상관없이 곱해지게. Strong Back은 마지막 쓴 쪽이 이김. Break-In Technique 미확인 |
-| TaS | 특성을 XP 막대가 있는 스펙트럼으로, 특성을 붙이고 뗌 | 캐릭터 정보 창에 '특성' 탭. 우리 탭은 '강화'로 |
+| TaS | 특성을 XP 막대가 있는 스펙트럼으로, 특성을 붙이고 뗌 | 캐릭터 정보 창에 '특성' 탭. 우리 탭은 '적응'으로 |
 | Efficiency Skill Mod 2 | 모든 시간 행동 0.3~2.0배 | `adjustMaxTime`을 덮음 → 체인에 곱하기로 얹고 원래 함수를 이어 부름 |
 | Toughness Skill, Become Desensitized, Hephas | 패닉·통증·불편, 둔감 | 가장 붐빔. 둘 다 배율이면 0에 가까워짐 → 상한, 회복 속도 축 |
 | Scavenger Skill B42 | 추가 드롭 최대 50%, 추가량 100% | 운 좋은 손 계열과 정면. 합산 상한 |

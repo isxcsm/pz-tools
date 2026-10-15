@@ -159,7 +159,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
   숫자를 만들고(헬기 상태, 운송장 정산 계산, 진행 길의 단계별 목록, 개량 카드 상태, 감염 칸, 기록, 정식 단말 첫 화면 판, 크기별
   배치), 하위 탭 넷(`TabHeli`, `TabProgress`, `TabUpgrades`, `TabRecords`)은 `StatusDraw.lua`(`OA.Trade.Draw`, `OAStatusView`)의
   그리기 목록으로 갱신 때 배치하고 프레임마다 그리기만 한다. 다른 묶음에서 받는 것: `OA.Infection.state(record)`(없으면 감염 칸을
-  숨김), `Estimate.flight(record).fee/feeRate`, 상점 탭의 `view:showEntry(id)`(있으면 '상점에서 보기'가 그 카드를 고름). 정식 단말을
+  숨김), `Estimate.flight(record).fee/feeRate`, 상점 탭의 `view:showEntry(id)`(있으면 '주문 탭에서 보기'가 그 카드를 고름). 정식 단말을
   처음 열었는지는 단말 오브젝트 modData `OA_Booted`, 깜박일 탭은 창의 `blink[id]`(그 탭을 열면 꺼짐).
 
 ### P3, P4, P5가 내놓는 것

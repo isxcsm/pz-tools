@@ -447,7 +447,7 @@ function OATerminalWindow:subOn(id)
     return view and view.sub or nil
 end
 
--- The shop tab opened on an entry's card (the '상점에서 보기' buttons of the other tabs).
+-- The shop tab opened on an entry's card (the '주문 탭에서 보기' buttons of the other tabs).
 function OATerminalWindow:showShopEntry(entryId)
     self:activate("shop")
     local view = self.views.shop

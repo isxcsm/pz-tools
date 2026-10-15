@@ -8,7 +8,7 @@
 정찰	기척 감지	OA_Node_Presence.png
 정찰	시료 감별	OA_Node_SampleGrade.png
 정찰	탄약 수색	OA_Node_AmmoSearch.png
-정찰	기척 감지 강화	OA_Node_PresenceRadar.png
+정찰	기척 감지 숙련	OA_Node_PresenceRadar.png
 정찰	야행성 눈	OA_Node_NocturnalEye.png
 하중	과적 견디기	OA_Node_Overload.png
 하중	옮기기 속도	OA_Node_TransferSpeed.png
