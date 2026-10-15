@@ -8,7 +8,8 @@ Usage:
     python tools/pzdev.py file path/to/script.lua             runs a Lua file the same way
     python tools/pzdev.py check p3_window.lua                 RUN()s an in-game check of tests/ingame, prints its lines
     python tools/pzdev.py shot out.png [--wait 2] [--full]    a picture of the game window (its inside only, or the
-                                                              whole screen with --full) after waiting
+                                                              whole screen with --full) after waiting, the game brought
+                                                              to the front; --count 6 --every 0.4: a series (out_1.png..)
     python tools/pzdev.py reload                              leaves the save to the main menu and continues it (Lua and
                                                               translations are read again; textures need a restart)
     python tools/pzdev.py continue                            from the main menu (after a game start), continues the
@@ -224,12 +225,28 @@ def continue_save():
     return 1
 
 
-def shot(path, wait, full):
+# Brings the game window to the front (a window over it would be in the picture) and gives it time to draw again.
+def front():
+    user32 = ctypes.windll.user32
+    hwnd = user32.FindWindowW(None, "Project Zomboid")
+    if hwnd and user32.GetForegroundWindow() != hwnd:
+        user32.SetForegroundWindow(hwnd)
+        time.sleep(1.5)
+
+
+# A picture of the game after `wait` seconds; `count` of them `every` seconds apart (path_1.png, path_2.png, ...).
+def shot(path, wait, full, count=1, every=0.0):
     from PIL import ImageGrab
+    front()
     time.sleep(wait)
     box = window_rect(full)
-    ImageGrab.grab(bbox=box, all_screens=True).save(path)
-    print("saved", path, box)
+    stem, ext = os.path.splitext(path)
+    for i in range(count):
+        out = path if count == 1 else "%s_%d%s" % (stem, i + 1, ext)
+        ImageGrab.grab(bbox=box, all_screens=True).save(out)
+        print("saved", out, box)
+        if i + 1 < count:
+            time.sleep(every)
     return 0
 
 
@@ -270,7 +287,7 @@ def main():
             follow(start, after)
         return status
     if what == "shot":
-        return shot(value, wait, full)
+        return shot(value, wait, full, int(arg("--count", "1")), float(arg("--every", "0.5")))
     print(__doc__)
     return 2
 

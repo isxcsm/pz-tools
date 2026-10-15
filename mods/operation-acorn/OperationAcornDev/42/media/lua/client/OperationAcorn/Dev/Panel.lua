@@ -74,6 +74,7 @@ local function tradePage(page, ui)
     local n = 6 + rows
     ui.heading(page, T("Tr_Things"), n)
     rows = ui.buttons(page, n + 1, {
+        { T("Tr_OpenTerminal"), function() Dev.openTerminal() end },
         { T("Tr_FieldTerminal"), function() Dev.giveAll({ "FieldTerminal" }) end },
         { T("Tr_Terminal"), function() Dev.giveAll({ "CommTerminal" }) end },
         { T("Tr_Box"), function() Dev.giveAll({ "DeliveryBox" }) end },

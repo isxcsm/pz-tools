@@ -135,6 +135,39 @@ function Dev.crateHere(parachute)
     return crate
 end
 
+-- The terminal window opened at once: the terminal within reach (else a crude one put down beside the character),
+-- counted as powered for the rest of the session so the window does not close for want of power. Returns the window.
+local poweredAt = {}
+function Dev.openTerminal()
+    local player = getPlayer()
+    local Objects, Things = OA.Trade.Objects, OA.Trade.Things
+    local px, py, pz = math.floor(player:getX()), math.floor(player:getY()), math.floor(player:getZ())
+    local at
+    for dy = -3, 3 do
+        for dx = -3, 3 do
+            local square = getCell():getGridSquare(px + dx, py + dy, pz)
+            if not at and square and Objects.find(square, Objects.TERMINAL) then at = square end
+        end
+    end
+    if not at then
+        at = Objects.findClear(px + 1, py, 4)
+        if not at or not Things.placeTerminal(player, at, "S", player:getInventory():AddItem("OperationAcorn.CommTerminal")) then
+            say("terminal: no square near")
+            return nil
+        end
+    end
+    if not Dev.realPowered then
+        Dev.realPowered = Objects.powered
+        Objects.powered = function(square, object)
+            if square and poweredAt[square:getX() .. "," .. square:getY() .. "," .. square:getZ()] then return true end
+            return Dev.realPowered(square, object)
+        end
+    end
+    poweredAt[at:getX() .. "," .. at:getY() .. "," .. at:getZ()] = true
+    say("terminal opened at", at:getX(), at:getY())
+    return OA.Terminal.open(player, at:getX(), at:getY(), at:getZ())
+end
+
 -- The shop's weekly counts start over.
 function Dev.shopWeekReset()
     local r = record()

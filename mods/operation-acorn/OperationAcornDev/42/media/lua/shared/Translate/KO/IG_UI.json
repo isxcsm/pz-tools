@@ -16,6 +16,7 @@
     "IGUI_OADev_Tr_Stage": "%1단계",
     "IGUI_OADev_Tr_Milestone": "마일스톤 %1",
     "IGUI_OADev_Tr_Things": "단말·납품 상자",
+    "IGUI_OADev_Tr_OpenTerminal": "단말 열기 (전력 무시)",
     "IGUI_OADev_Tr_FieldTerminal": "정식 단말",
     "IGUI_OADev_Tr_Terminal": "조립 단말",
     "IGUI_OADev_Tr_Box": "납품 상자",

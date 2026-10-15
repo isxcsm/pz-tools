@@ -16,6 +16,7 @@
     "IGUI_OADev_Tr_Stage": "Stage %1",
     "IGUI_OADev_Tr_Milestone": "Milestone %1",
     "IGUI_OADev_Tr_Things": "Terminals and boxes",
+    "IGUI_OADev_Tr_OpenTerminal": "Open terminal (no power needed)",
     "IGUI_OADev_Tr_FieldTerminal": "Field terminal",
     "IGUI_OADev_Tr_Terminal": "Comm terminal",
     "IGUI_OADev_Tr_Box": "Delivery box",
