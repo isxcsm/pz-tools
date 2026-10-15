@@ -33,7 +33,7 @@
     "Sandbox_OperationAcorn_KitsForSale_tooltip": "가방 용량, 가방 경량, 차량 보관함, 엔진 튜닝 키트가 첫 이정표에 상점에 나옵니다. 기본값: 켬.",
     "Sandbox_OperationAcorn_CureSerumPriceMultiplier": "치료 혈청 가격 배율",
     "Sandbox_OperationAcorn_CureSerumPriceMultiplier_tooltip": "치료 혈청 값에 곱합니다. 1이면 500,000크레딧입니다.",
-    "Sandbox_OperationAcorn_CureSerumShelfLifeMultiplier": "치료 혈청 유통 기한 배율",
+    "Sandbox_OperationAcorn_CureSerumShelfLifeMultiplier": "치료 혈청 유효 기간 배율",
     "Sandbox_OperationAcorn_CureSerumShelfLifeMultiplier_tooltip": "치료 혈청을 받은 날부터 효과가 사라지기까지의 기간에 곱합니다. 1이면 7일입니다.",
     "Sandbox_OperationAcorn_UpgradeSerumPriceMultiplier": "강화 혈청 가격 배율",
     "Sandbox_OperationAcorn_UpgradeSerumPriceMultiplier_tooltip": "강화 혈청 값에 곱합니다. 1이면 트리마다 첫 혈청이 8,000크레딧입니다.",
