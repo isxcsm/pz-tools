@@ -101,7 +101,7 @@ end
 
 -- Used from the other tabs -----------------------------------------------------------------------------------------
 
--- Opens the terminal window's folder on the document with this key ("c:s2", "r:117", "d:guide_id").
+-- Opens the terminal window's folder on the document with this key ("r:117", "d:guide_id").
 function Tabs.openDocument(window, key)
     window:activate("missions")
     local view = window:view("missions")

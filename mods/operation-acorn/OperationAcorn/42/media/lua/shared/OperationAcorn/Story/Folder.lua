@@ -14,9 +14,9 @@ local Data, Story, Docs, Terminal, Typing = OA.StoryData, OA.Story, OA.StoryDocs
 local Folder = {}
 OA.StoryFolder = Folder
 
--- The groups, in the order the list shows them: the staff's request copies, the radio copies, the research team's
--- papers, the field papers, the supply manifests. Texts: IGUI_OA_Story_Group_<id>.
-Folder.GROUPS = { "request", "radio", "research", "field", "manifest" }
+-- The groups, in the order the list shows them: the staff's request copies, the research team's papers, the field
+-- papers, the supply manifests. Texts: IGUI_OA_Story_Group_<id>.
+Folder.GROUPS = { "request", "research", "field", "manifest" }
 local RANK = {}
 for i, id in ipairs(Folder.GROUPS) do RANK[id] = i end
 
@@ -143,8 +143,7 @@ local function splitSameTitles(all)
 end
 
 -- The folder: { { id =, entries = { { key, group, title, tier, order, ref, isNew, seq, same } } } } for the groups that
--- have something, in the list's order. `ref` says what an entry is: { kind = "copy", copy }, { kind = "doc", id,
--- variant }, { kind = "manifest", manifest }, { kind = "request", request }.
+-- have something, in the list's order. `ref` says what an entry is: { kind = "doc", id, variant }, { kind = "manifest", manifest }, { kind = "request", request }.
 function Folder.entries(record)
     local s = Story.section(record)
     local by = {}
@@ -157,12 +156,6 @@ function Folder.entries(record)
     for _, req in ipairs(s.requests or {}) do
         put("request", "r:" .. req.no, Story.text("IGUI_OA_Story_Request_Title", requestNumber(req.no)), req.tier, req.no,
             { kind = "request", request = req }, s)
-    end
-    for i, copy in ipairs(Story.radioCopies(record)) do
-        local tier = copy.stage
-        if copy.id == "first" then tier = 1 end
-        if copy.id == "handover" then tier = Data.LAST_STAGE + 3 end
-        put("radio", "c:" .. copy.id, Story.copyTitle(copy), tier, i, { kind = "copy", copy = copy }, s)
     end
     for _, doc in ipairs(Story.readDocuments(record)) do
         local group = GROUP_OF[Docs.kind(doc.id)]
@@ -207,17 +200,7 @@ local function metaOf(record, entry)
     local parts = {}
     local ref = entry.ref
     local named = entry.tier and entry.tier > 0 and Story.tierText(entry.tier) or nil
-    if ref.kind == "copy" then
-        local copy = ref.copy
-        if copy.id == "first" then
-            parts[1] = Story.text("IGUI_OA_Story_Meta_CopyFirst", Story.text("IGUI_OA_Story_CallSign_Oak"))
-        elseif copy.id == "handover" then
-            parts[1] = Story.text("IGUI_OA_Story_Meta_CopyHandover", Story.text("IGUI_OA_Story_CallSign_Handover"))
-        else
-            parts[1] = Story.text("IGUI_OA_Story_Meta_Copy", Story.text("IGUI_OA_Story_CallSign_Oak"),
-                Story.tierText(copy.stage), #copy.keys)
-        end
-    elseif ref.kind == "request" then
+    if ref.kind == "request" then
         parts[1] = Story.text("IGUI_OA_Story_Meta_Request")
     elseif ref.kind == "stakes" then
         parts[1] = Story.text("IGUI_OA_Story_Meta_stakes")
@@ -259,14 +242,11 @@ end
 
 -- { title =, meta =, body =, marked =, styles =, kind = } of an entry for the reader: `body` is the text plain, `marked`
 -- the same with its markup (pauses, colours) for the panel that types it, `styles` the look of the lines a paper's own
--- marks gave (PZUIKit.Typing.marks: the marks are out of `body` and `marked`; a radio copy has none), and `kind` how it comes
--- on (Typing).
+-- marks gave (PZUIKit.Typing.marks: the marks are out of `body` and `marked`), and `kind` how it comes on (Typing).
 function Folder.content(record, entry)
     local ref = entry.ref
     local marked
-    if ref.kind == "copy" then
-        marked = Story.copyMarked(record, ref.copy)
-    elseif ref.kind == "request" then
+    if ref.kind == "request" then
         marked = Folder.requestBody(ref.request)
     elseif ref.kind == "manifest" then
         marked = ref.manifest.text
@@ -277,7 +257,7 @@ function Folder.content(record, entry)
     end
     marked = Folder.lines(marked)
     local styles
-    if ref.kind ~= "copy" then marked, styles = PZUIKit.Typing.marks(marked) end
+    marked, styles = PZUIKit.Typing.marks(marked)
     return { title = entry.title, meta = metaOf(record, entry), body = OA.Markup.strip(marked), marked = marked,
         styles = styles, kind = Typing.KIND_OF_GROUP[entry.group] }
 end

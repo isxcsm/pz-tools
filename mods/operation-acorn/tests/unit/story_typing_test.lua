@@ -137,7 +137,7 @@ test("stripped, a text is what shows: the tags gone, the braces unescaped; a fau
     eq(Markup.strip(nil), nil)
 end)
 
-test("the line under a title is the first sentences of a radio line within the limit", function()
+test("the line under a title is the first sentences of a line within the limit", function()
     local line = "This is Oak.{p:0.6} Scheduled contact.{p:0.6} Box received. Curtain sample in good condition. Over."
     eq(Markup.lead(line, 24), "This is Oak. Scheduled contact.")
     eq(Markup.lead(line, 17), "This is Oak. Scheduled...", "a lone short sentence is carried on into the next, cut at a word")
@@ -180,7 +180,6 @@ test("the speeds are for the kinds of text, a scene typed a character at a time 
     truthy(Typing.speed("document", "crude") >= 60 and Typing.speed("document", "crude") <= 80)
     eq(Typing.speed(nil, "crude"), nil)
     eq(Typing.speed("manifest", "crude"), nil)
-    eq(Typing.KIND_OF_GROUP.radio, "scene")
     eq(Typing.KIND_OF_GROUP.request, "document")
     eq(Typing.KIND_OF_GROUP.manifest, "document")
     eq(Typing.KIND_OF_GROUP.field, "document")
@@ -316,11 +315,7 @@ test("the panel's text of a marked document: head and dim colours, half a line a
     eq(KitTyping.rich(Markup.parse("one\ntwo"), { 1, 1, 1 }, nil, nil), " <TEXT> <RGB:1.000,1.000,1.000> one <LINE> two")
 end)
 
-test("a paper's content has its marks out and its styles; a radio copy keeps its text as written", function()
-    getText = function(key, ...)
-        if key == "IGUI_OA_Story_Radio_s1_a" then return "## not a head" end
-        return key
-    end
+test("a paper's content has its marks out and its styles", function()
     local record = setup(1)
     local paper = Folder.content(record, { title = "M", group = "manifest",
         ref = { kind = "manifest", manifest = { text = "## Cargo\\n" .. DOT .. " flour" } } })
@@ -328,10 +323,6 @@ test("a paper's content has its marks out and its styles; a radio copy keeps its
     eq(paper.styles[1].kind, "head")
     eq(paper.styles[2].kind, "bullet")
     eq(paper.kind, "document")
-    local copy = Folder.content(record, { title = "C", group = "radio",
-        ref = { kind = "copy", copy = { id = "s1", stage = 1, keys = { "s1_a" } } } })
-    eq(copy.body, "## not a head")
-    eq(copy.styles, nil)
 end)
 
 test("a document's rows end at the characters of the panel's rows, and come on a step apart", function()
@@ -504,18 +495,6 @@ test("the window's commands keep what was seen; a paper read whole in its viewer
     eq(Story.typedState(record, "d:never_kept"), nil, "a paper the folder kept nothing of keeps nothing")
 end)
 
-test("the copy's text is plain for the places that show it whole, and marked for the one that types it", function()
-    getText = function(key, ...)
-        if key == "IGUI_OA_Story_Radio_s1_a" then return "Oak.{p:0.5} Over." end
-        if key == "IGUI_OA_Story_Radio_s1_b" then return "Again.{p:1} Over." end
-        return key
-    end
-    local record = setup(1)
-    local copy = { id = "s1", stage = 1, keys = { "s1_a", "s1_b" } }
-    eq(Story.copyText(record, copy), "Oak. Over.\n\nAgain. Over.")
-    eq(Story.copyMarked(record, copy), "Oak.{p:0.5} Over.\n\nAgain.{p:1} Over.")
-end)
-
 test("a level reached has the plain title at once, a named stage none: its card comes at the terminal", function()
     local record = setup(3)
     eq(Story.stageTitle(record, 3), nil)
@@ -571,72 +550,15 @@ local function texts(lang)
     return map
 end
 
--- Every radio copy that is a scene: { id, keys }.
-local function scenes()
-    local list = { { id = "first", keys = { "first" } }, { id = "first_late", keys = { "first_late" } },
-        { id = "handover", keys = { Data.HANDOVER_RADIO } } }
-    for st = 1, Data.LAST_STAGE do
-        local def = Data.STAGES[st]
-        if def and def.radio and #def.radio > 0 then list[#list + 1] = { id = "s" .. st, keys = def.radio } end
-    end
-    for k = 1, 3 do
-        local def = Data.MILESTONES[k]
-        if def and def.radio and #def.radio > 0 then list[#list + 1] = { id = "m" .. k, keys = def.radio } end
-    end
-    return list
-end
-
 test("every translated text with braces reads as markup, in both languages", function()
-    local found = 0
     for _, lang in ipairs({ "EN", "KO" }) do
         for key, value in pairs(texts(lang)) do
             -- (the calls' lines carry the comms tab's own marks: Story/CommsScript reads them)
             if string.find(value, "[{}]") and not string.find(key, "^IGUI_OA_Comms_") then
-                found = found + 1
                 local read, why = Markup.parse(value)
                 truthy(read, lang .. " " .. key .. ": " .. tostring(why))
             end
         end
     end
-    truthy(found >= 20, "the scenes' lines carry marks")
 end)
 
-test("every scene is within the limits: the pauses, the time it takes, the API's length, the rows the old API takes", function()
-    for _, lang in ipairs({ "EN", "KO" }) do
-        local map = texts(lang)
-        for _, scene in ipairs(scenes()) do
-            local lines, pauses, seconds = {}, 0, 0
-            for _, key in ipairs(scene.keys) do
-                local value = map["IGUI_OA_Story_Radio_" .. key]
-                truthy(value, lang .. " has " .. key)
-                local read, why = Markup.parse(value, 28)
-                truthy(read, lang .. " " .. key .. ": " .. tostring(why))
-                pauses = pauses + read.pauses
-                seconds = seconds + read.total
-                lines[#lines + 1] = value
-            end
-            local what = lang .. " scene " .. scene.id
-            truthy(pauses <= Typing.MAX_PAUSES, what .. " pauses for " .. pauses .. " s")
-            truthy(seconds <= 30, what .. " takes " .. seconds .. " s at 28 a second")
-            local joined = string.gsub(table.concat(lines, "\n\n"), "%%1", "0347")
-            truthy(#joined <= Markup.MAX_LENGTH, what .. " is " .. #joined .. " characters with its tags")
-            local rows = 0
-            for _ in string.gmatch(table.concat(lines, "\n\n") .. "\n", "(.-)\n") do rows = rows + 1 end
-            truthy(rows <= 8, what .. " has " .. rows .. " lines of its own")
-        end
-    end
-end)
-
-test("a scene's marks are only pauses: its words are what the plain text says", function()
-    local map = texts("EN")
-    for _, scene in ipairs(scenes()) do
-        for _, key in ipairs(scene.keys) do
-            local value = map["IGUI_OA_Story_Radio_" .. key]
-            local stripped = Markup.strip(value)
-            truthy(not string.find(stripped, "[{}]"), key)
-            truthy(#stripped < #value, key .. " has pauses")
-            -- the marks leave the sentences whole: a pause comes after a stop or before the closing word
-            truthy(not string.find(value, "{p:[%d%.]+}[%.,]"), key .. ": a pause is not put before a stop")
-        end
-    end
-end)

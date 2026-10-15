@@ -183,41 +183,33 @@ Data.CONTRACTS = {
 -- The last numbered stage: the milestones after it count on as stages 6, 7, 8 ... (DESIGN-terminal 2.3).
 Data.LAST_STAGE = 5
 
--- What each stage tells (LORE 4, 6, 7). Radio lines are in order (the stage's radio copy); notes are the manifest
--- notes that go out one per supply crate in this order (the rest of the crates get the story's filler lines,
+-- What each stage tells (LORE 4, 6, 7). Notes are the manifest notes that go out one per supply crate in this order (the rest of the crates get the story's filler lines,
 -- Story.fillNoteKey); supply is the 2반 papers of the stage: { item, document, when, first }. They wait on entering and
 -- go one to a crate, in this order, when `when` holds ("done:<story id>" the story mission was delivered, "sent:<document>"
 -- that paper has gone, "fragment" a meteorite fragment has been on a receipt; none: at once). `first` ones go before the
 -- others. The story ids are queued first (the next mission slot).
 Data.STAGES = {
-    [1] = { stories = { "evidence" }, radio = { "s1_a", "s1_b" }, notes = { "battery", "appendix_missing", "leave_site" },
+    [1] = { stories = { "evidence" }, notes = { "battery", "appendix_missing", "leave_site" },
             supply = { { "SerumSheet", "serum_sheet" } } },
-    [2] = { stories = { "clinic" }, radio = { "s2_a", "s2_b" }, notes = { "bedding_back", "socks", "box_corner" },
+    [2] = { stories = { "clinic" }, notes = { "bedding_back", "socks", "box_corner" },
             supply = { { "AnalysisReply", "reply_first" }, { "AnalysisReply", "reply_correction", "sent:reply_first" },
                        { "AnalysisReply", "reply_evidence", "done:evidence" } } },
-    [3] = { stories = { "observation" }, radio = { "s3_a", "s3_b", "s3_c" }, notes = { "cards", "count_off", "dunnigan_pen" },
+    [3] = { stories = { "observation" }, notes = { "cards", "count_off", "dunnigan_pen" },
             supply = { { "AnalysisReply", "reply_nomatch" }, { "AnalysisReply", "reply_fragment", "fragment" },
                        { "AnalysisReply", "reply_relapse" } } },
-    [4] = { stories = { "cooler" }, radio = { "s4_a" }, notes = { "proxy_signature", "old_form", "short_notice" },
+    [4] = { stories = { "cooler" }, notes = { "proxy_signature", "old_form", "short_notice" },
             supply = { { "Appendix", "pending_list" } } },
-    [5] = { stories = { "gym" }, radio = { "s5_first" }, notes = { "late_appendix", "no_greeting", "empty_slot" },
+    [5] = { stories = { "gym" }, notes = { "late_appendix", "no_greeting", "empty_slot" },
             supply = { { "Appendix", "appendix_2", nil, true } } },
 }
 -- Milestones 1 and 2: the unresolved items list grows by a sheet each.
 Data.MILESTONES = {
-    [1] = { stories = { "ward" }, radio = { "m1_a", "m1_b" }, notes = { "m1_a", "m1_b", "m1_c" },
+    [1] = { stories = { "ward" }, notes = { "m1_a", "m1_b", "m1_c" },
             supply = { { "UnresolvedList", "unresolved_1", nil, true } } },
-    [2] = { stories = { "cells" }, radio = { "m2_a", "m2_b" }, notes = { "m2_a", "m2_b", "m2_c" },
+    [2] = { stories = { "cells" }, notes = { "m2_a", "m2_b", "m2_c" },
             supply = { { "UnresolvedList", "unresolved_2", nil, true } } },
-    [3] = { stories = { "handover" }, radio = { "m3_a" }, notes = { "last_a", "last_b" },
+    [3] = { stories = { "handover" }, notes = { "last_a", "last_b" },
             supply = { { "UnresolvedList", "unresolved_3", nil, true } } },
-}
--- Radio lines that tell of a paper before it is there are left out of the stage's copy until the paper has gone: the
--- line's id -> { doc = the paper, copy = the folder key of the copy that gains the line }. (The correction is told
--- of when the first reply has been sent, the fragment reply when it has.)
-Data.RADIO_AFTER = {
-    s2_b = { doc = "reply_first", copy = "c:s2" },
-    s3_b = { doc = "reply_fragment", copy = "c:s3" },
 }
 -- What a manifest remark encloses (it says "2 batteries enclosed": the crate has them), by note id: { { item, count } }.
 -- A lighter stands for the lighter flints the notes used to name (the game has none).
@@ -237,30 +229,21 @@ Data.NOTE_ITEMS = {
 -- (count_off says it is not), "orders" an order was loaded (the note counts them: %2).
 Data.NOTE_WHEN = { count_off = "gap", after3_2 = "orders", after4_1 = "orders" }
 
--- The first radio line after the handover is the 12th of the sample lines.
-Data.HANDOVER_RADIO = "handover"
 -- The handover's last crate: the file, a kit voucher, and the note.
 Data.HANDOVER_SUPPLY = { { "HandoverFile", nil }, { "KitVoucher", nil } }
 
 -- After the handover each milestone has a pool, from the 3rd milestone (index 3) on; further milestones use the last
--- pool again, shorter lines the further they are. Sizes: notes 12, questions 3, radio 6.
+-- pool again. The manifest notes of each.
 Data.AFTER = {
-    [3] = { notes = 12, questions = 3, radio = 6 },
-    [4] = { notes = 12, questions = 3, radio = 6 },
-    [5] = { notes = 12, questions = 3, radio = 6 },
+    [3] = { notes = 12 },
+    [4] = { notes = 12 },
+    [5] = { notes = 12 },
 }
 Data.AFTER_LAST = 5
-
--- Greetings by stage (LORE 6): the stages 1 to 4 and "H" after the handover have one (IGUI_OA_Story_Greeting_<n>); before
--- the first stage (the first-contact lines carry their own) and at the 5th stage (no greeting) there is none.
-Data.GREETING_STAGES = { [1] = true, [2] = true, [3] = true, [4] = true }
 
 -- Temporary refusals (LORE 7): the line when a category stops being taken and when it comes back as a request.
 -- Categories are the economy's letters. Text IGUI_OA_Story_Refuse_<A|F|any>_<start|back>.
 Data.REFUSALS = { A = true, F = true }
-
--- How many broadcast lines each stage has (IGUI_OA_Story_Broadcast_<stage|H>_<n>).
-Data.BROADCAST_LINES = { ["0"] = 2, ["1"] = 3, ["2"] = 3, ["3"] = 3, ["4"] = 3, ["5"] = 2, H = 4 }
 
 -- Small numbers.
 Data.MISSION_RADIUS_BASE = 50

@@ -137,16 +137,10 @@ local function onZombieDead(zombie)
     if not ok then OA.log("zombie mission kill failed:", tostring(err)) end
 end
 
-local function onDay()
-    local day = OA.day()
-    eachRecord(function(record) Story.dailyRadio(record, day) end)
-end
-
 Events.EveryTenMinutes.Add(onTenMinutes)
 Events.EveryOneMinute.Add(onMinute)
 Events.OnZombieDead.Add(SceneGame.zombieDied)
 Events.OnZombieDead.Add(onZombieDead)
-Events.EveryDays.Add(onDay)
 Events.OnGameStart.Add(start)
 Events.OnServerStarted.Add(start)
 Events.OnFillContainer.Add(function(roomName, containerType, container)
@@ -244,8 +238,8 @@ OA.Server.on("story_read", function(character, record, args)
     end
 end)
 
--- An entry of the terminal's folder was opened there: it is not new any more. `key` is its folder key ("c:s2" a radio
--- copy, "d:<id>" a document, "r:<number>" a request copy).
+-- An entry of the terminal's folder was opened there: it is not new any more. `key` is its folder key ("d:<id>" a
+-- document, "r:<number>" a request copy).
 OA.Server.on("story_seen", function(character, record, args)
     if type(args.key) == "string" then Story.clearNew(record, args.key) end
 end)

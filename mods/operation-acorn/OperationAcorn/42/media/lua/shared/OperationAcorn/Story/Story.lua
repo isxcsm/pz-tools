@@ -1,5 +1,5 @@
--- The story: what each stage and milestone tells and sends, the order of the manifest notes, the radio copies and
--- greeting, the documents the player has read, the handover. The record's `story` section holds only ids and counters (DESIGN 12);
+-- The story: what each stage and milestone tells and sends, the order of the manifest notes, the documents the player
+-- has read, the handover. The record's `story` section holds only ids and counters (DESIGN 12);
 -- all text is in the translation files (IGUI_OA_Story_*). The missions (Story/Missions) ask this for what to start.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
@@ -35,8 +35,6 @@ function Story.section(record)
         s.supply = {}        -- sent to the next supply crate, not yet taken by the trade part: { type =, doc = }
         s.noteQueue = {}     -- manifest notes that come before the order: ids
         s.noteIndex = {}     -- pool key -> notes used
-        s.radioIndex = 0     -- after the handover: the frequency's lines used
-        s.radioDay = -100    -- the day the latest of them went on the air
         s.hallucinations = 0
         s.strangeWeek = nil  -- the week the strange request item is for
         s.sitesSeen = {}     -- drop sites the player has been near: site number -> true
@@ -210,8 +208,7 @@ function Story.paperReady(record, paper)
 end
 
 -- The paper for the crate being loaded: the first one that is ready, the ones marked `first` before the others.
--- Takes it out of the queue and notes it as sent (the radio lines that tell of it come into their copy). Returns
--- an item spec, or nil.
+-- Takes it out of the queue and notes it as sent. Returns an item spec, or nil.
 function Story.takePaper(record)
     local s = Story.section(record)
     local at
@@ -227,9 +224,6 @@ function Story.takePaper(record)
     local p = table.remove(s.papers, at)
     s.sent[p.doc] = true
     Story.call(record, "sent:" .. p.doc)
-    for _, held in pairs(Data.RADIO_AFTER) do
-        if held.doc == p.doc then Story.markNew(record, held.copy) end
-    end
     OA.Sync.changed("story", record.id)
     return { type = Data.fullType(p.type), count = 1, mod = { OA_Doc = p.doc } }
 end
@@ -325,7 +319,6 @@ function Story.enterStage(record, stage)
     for _, id in ipairs(rest) do Story.queueStory(record, id, false) end
     for _, entry in ipairs(def.supply or {}) do Story.queuePaper(record, entry) end
     s.noteIndex = s.noteIndex or {}
-    if def.radio and #def.radio > 0 then Story.markNew(record, "c:s" .. stage) end
 end
 
 function Story.enterMilestone(record, k)
@@ -333,14 +326,12 @@ function Story.enterMilestone(record, k)
     local s = Story.section(record)
     if def then
         enterEvents(record, def)
-        if def.radio and #def.radio > 0 then Story.markNew(record, "c:m" .. k) end
         if k == 2 then Story.queueStory(record, "soil", false) end
     else
-        -- From the 4th milestone on: one revisit story per milestone, in turn, and a new radio pool.
+        -- From the 4th milestone on: one revisit story per milestone, in turn.
         local order = Data.REVISIT_ORDER
         local id = order[OA.remainder(k - 4, #order) + 1]
         Story.queueStory(record, id, true)
-        Story.resetRadioPool(record)
     end
 end
 
@@ -411,7 +402,6 @@ function Story.completeHandover(record)
     local s = Story.section(record)
     if s.handover then return end
     s.handover = true
-    Story.markNew(record, "c:handover")
     s.noteQueue[#s.noteQueue + 1] = "last_b"
     Story.queueSupply(record, "HandoverFile", nil)
     Story.queueSupply(record, "KitVoucher", nil)
@@ -428,35 +418,15 @@ function Story.callSignKey(record)
 end
 
 -- ---------------------------------------------------------------------------------------------------------------
--- Radio and notes.
+-- The first contact, stages and notes.
 
--- Which greeting the radio opens with, as a translation key: the stage's (1 to 4) or "H" after the handover; nil when
--- there is none (before the first stage, and at the 5th stage).
-function Story.greetingKeyFor(stage, handedOver)
-    if handedOver then return "IGUI_OA_Story_Greeting_H" end
-    if Data.GREETING_STAGES[stage] then return "IGUI_OA_Story_Greeting_" .. tostring(stage) end
-    return nil
-end
-
-function Story.greetingKey(record)
-    return Story.greetingKeyFor((Story.progress(record)), Story.handedOver(record))
-end
-
--- The greeting text with the collection point number ("" when there is none).
-function Story.greetingText(record)
-    local key = Story.greetingKey(record)
-    if not key then return "" end
-    return Story.text(key, Story.number(record))
-end
-
--- The first contact when the terminal is first used, filed as a radio copy: 'late' when the first crate came late
--- or without a helicopter (the first call has lines of its own then). The first call comes into the comms tab, unless
+-- The first contact when the terminal is first used: 'late' when the first crate came late or without a helicopter
+-- (the first call has lines of its own then). The first call comes into the comms tab, unless
 -- `quiet` (a record that is found past the first stage without one: its tier has dropped that call).
 function Story.firstContact(record, late, quiet)
     local s = Story.section(record)
     if s.firstContact then return false end
     s.firstContact = late and "late" or true
-    Story.markNew(record, "c:first")
     OA.Sync.changed("story", record.id)
     if not quiet then Story.call(record, "first") end
     return true
@@ -465,41 +435,6 @@ end
 -- Whether the first crate came late (the first call's late lines).
 function Story.lateContact(record)
     return Story.section(record).firstContact == "late"
-end
-
--- The radio copies in the document folder (DESIGN-terminal 11): the first contact, the lines of each stage entered
--- (milestones count on as stages 6, 7 and 8), the handover. Worked out from the story's counters, so nothing is kept
--- for them. { { id, stage (nil for the first contact and the handover), keys = { line ids } } }, oldest first.
--- The lines of a copy that can be shown: the ones that tell of a paper wait until that paper has been sent.
-local function shownLines(s, keys)
-    local shown = {}
-    for _, key in ipairs(keys) do
-        local held = Data.RADIO_AFTER[key]
-        if not held or s.sent[held.doc] then shown[#shown + 1] = key end
-    end
-    return shown
-end
-
-function Story.radioCopies(record)
-    local s = Story.section(record)
-    local list = {}
-    if s.firstContact then
-        list[1] = { id = "first", keys = { s.firstContact == "late" and "first_late" or "first" } }
-    end
-    for st = 1, s.seenStage or 0 do
-        local def = Data.STAGES[st]
-        if def and def.radio and #def.radio > 0 then
-            list[#list + 1] = { id = "s" .. st, stage = st, keys = shownLines(s, def.radio) }
-        end
-    end
-    for k = 1, s.seenMilestones or 0 do
-        local def = Data.MILESTONES[k]
-        if def and def.radio and #def.radio > 0 then
-            list[#list + 1] = { id = "m" .. k, stage = Data.LAST_STAGE + k, keys = shownLines(s, def.radio) }
-        end
-    end
-    if s.handover then list[#list + 1] = { id = "handover", keys = { Data.HANDOVER_RADIO } } end
-    return list
 end
 
 -- A trust tier in words (DESIGN-terminal 2.3): the number and the stage's name up to the 5th stage, the handover's
@@ -548,31 +483,7 @@ function Story.callPlayed(record, id)
     Story.terminalOpened(record)
 end
 
--- A radio copy's title and text.
-function Story.copyTitle(copy)
-    local what
-    if copy.stage then
-        what = Story.tierText(copy.stage)
-    else
-        what = Story.text("IGUI_OA_Story_Copy_" .. copy.id)
-    end
-    return Story.text("IGUI_OA_Story_Copy_Title", what)
-end
-
--- The text of a copy as the radio lines say it, with their markup (pauses) for a place that types it.
-function Story.copyMarked(record, copy)
-    local number = Story.number(record)
-    local lines = {}
-    for _, key in ipairs(copy.keys) do lines[#lines + 1] = Story.text("IGUI_OA_Story_Radio_" .. key, number) end
-    return table.concat(lines, "\n\n")
-end
-
--- The same plain, for the places that show a copy whole.
-function Story.copyText(record, copy)
-    return OA.Markup.strip(Story.copyMarked(record, copy))
-end
-
--- The refusal story beats (LORE 7). Returns the radio key for a category that is not taken for a while (`phase`
+-- The refusal story beats (LORE 7). Returns the line's key for a category that is not taken for a while (`phase`
 -- "start") or has come back as a request ("back"), or the general line. The market part (P1) decides which category
 -- and when; this only gives the words.
 function Story.refusalKey(category, phase)
@@ -796,46 +707,6 @@ function Story.addManifest(record, serial, text, keep)
     end
 end
 
--- After the handover the team's frequency carries a line of its own now and then: six lines and three questions per
--- milestone pool, in order, one every few days, on the air for that day (Story/Radio). Returns true when it took one.
-function Story.dailyRadio(record, day)
-    local s = Story.section(record)
-    if not s.handover then return false end
-    if day - (s.radioDay or -100) < 5 then return false end
-    local _, milestones = Story.progress(record)
-    local m = math.min(math.max(milestones, 3), Data.AFTER_LAST)
-    local pool = Data.AFTER[m]
-    local total = pool.radio + pool.questions
-    local used = s.radioIndex or 0
-    if used >= total then return false end
-    -- r r q r r q r r q: every third line is a question.
-    local n = used + 1
-    local key
-    if OA.remainder(n, 3) == 0 then
-        key = "Question_after" .. m .. "_" .. math.floor(n / 3)
-    else
-        local ri = n - math.floor(n / 3)
-        key = "Radio_after" .. m .. "_" .. ri
-    end
-    s.radioIndex = n
-    s.radioDay = day
-    s.radioLine = key
-    return true
-end
-
--- The frequency's own line for a day (a translation key), or nil.
-function Story.airLine(record, day)
-    local s = Story.section(record)
-    if s.radioLine and s.radioDay == day then return "IGUI_OA_Story_" .. s.radioLine end
-    return nil
-end
-
--- Called when a new milestone pool starts (the counter restarts).
-function Story.resetRadioPool(record)
-    local s = Story.section(record)
-    s.radioIndex = 0
-end
-
 -- ---------------------------------------------------------------------------------------------------------------
 -- Documents.
 
@@ -874,7 +745,7 @@ function Story.readDocuments(record)
 end
 
 -- ---------------------------------------------------------------------------------------------------------------
--- What is new in the folder (DESIGN-terminal 11.1). Keys: "c:<radio copy id>", "d:<document id>", "r:<request number>";
+-- What is new in the folder (DESIGN-terminal 11.1). Keys: "d:<document id>", "r:<request number>";
 -- the value is the arrival's number, so that the newest is the highest. The terminal's folder shows them with a mark
 -- and the missions tab's and its inbox's dots show them; opening one clears it.
 function Story.markNew(record, key)
@@ -1060,30 +931,5 @@ function Story.strangeItem(record)
     end
     return nil
 end
-
--- A save from before: the papers the stages sent on entering went to the crate at once, so they are sent.
-OA.Store.addUpgrade("story.papers", function(record)
-    local s = record.story
-    if not s then return end
-    s = Story.section(record)
-    for st = 1, s.seenStage or 0 do
-        local def = Data.STAGES[st]
-        for _, entry in ipairs(def and def.supply or {}) do s.sent[entry[2]] = true end
-    end
-    for k = 1, s.seenMilestones or 0 do
-        local def = Data.MILESTONES[k]
-        for _, entry in ipairs(def and def.supply or {}) do s.sent[entry[2]] = true end
-    end
-end)
-
--- A save from before: the terminal's radio log goes; whether the first line was the late one stays for its copy.
-OA.Store.addUpgrade("story.radio", function(record)
-    local log = record.radio
-    if not log then return end
-    for _, entry in ipairs(log) do
-        if entry.key == "IGUI_OA_Story_Radio_first_late" then Story.section(record).firstContact = "late" end
-    end
-    record.radio = nil
-end)
 
 return Story

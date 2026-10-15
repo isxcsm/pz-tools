@@ -8,8 +8,8 @@ local OA = OperationAcorn
 local Typing = {}
 OA.Typing = Typing
 
--- How a kind of text comes on: a scene (a radio copy, which carries its pauses) a character at a time, as a radio is
--- read aloud; a document (a request copy, a guide, a field paper, a manifest) a row at a time, printed whole as a
+-- How a kind of text comes on: a scene (a text that carries its pauses) a character at a time, as a radio is read
+-- aloud; a document (a request copy, a guide, a field paper, a manifest) a row at a time, printed whole as a
 -- teleprinter prints a line (DESIGN-terminal 14 F2, worklist 3-2; PZUIKit.Typing.LINE_STEP).
 Typing.MODE = { scene = "chars", document = "lines" }
 
@@ -22,12 +22,8 @@ Typing.SPEED = {
     document = { crude = 80, field = 60 },
 }
 
--- The scenes' longest total pause (seconds): a story scene does not make the player wait longer than this.
-Typing.MAX_PAUSES = 6
-
--- Which kind a folder group is: the radio copies are scenes, every other paper a document.
-Typing.KIND_OF_GROUP = { radio = "scene", request = "document", research = "document", field = "document",
-    manifest = "document" }
+-- Which kind a folder group is: every paper is a document.
+Typing.KIND_OF_GROUP = { request = "document", research = "document", field = "document", manifest = "document" }
 
 -- The speed for a kind on a terminal ("crude" or "field"); nil for a kind that is not typed.
 function Typing.speed(kind, tier)

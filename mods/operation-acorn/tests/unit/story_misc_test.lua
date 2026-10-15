@@ -1,11 +1,10 @@
--- Drop sites round the start, documents, the overlay's arithmetic, the radio frequency, the compass, and the texts the data names.
+-- Drop sites round the start, documents, the overlay's arithmetic, the compass, and the texts the data names.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Story/Story"
 require "OperationAcorn/Story/Docs"
 require "OperationAcorn/Story/Sites"
 require "OperationAcorn/Story/Glow"
-require "OperationAcorn/Story/Radio"
 local OA = OperationAcorn
 local Data, Story, Docs, Sites = OA.StoryData, OA.Story, OA.StoryDocs, OA.Sites
 
@@ -190,23 +189,6 @@ test("the glow rises fast, holds, and falls slowly, and the edges face the right
     eq(G.edge(-10, -10), "top")
 end)
 
-test("the radio takes the first free frequency and keeps the one it had", function()
-    local R = OA.StoryRadio
-    eq(R.choose({}, nil, { 100, 200, 300 }), 100)
-    eq(R.choose({ [100] = true }, nil, { 100, 200, 300 }), 200)
-    eq(R.choose({ [100] = true }, 300, { 100, 200, 300 }), 300, "the saved one while it is free")
-    eq(R.choose({ [300] = true }, 300, { 100, 200, 300 }), 100, "a clash moves it")
-    local all = {}
-    for _, f in ipairs({ 100, 200 }) do all[f] = true end
-    local f = R.choose(all, nil, { 100, 200 }, function(a, b) return 450 end)
-    eq(f, 90000)
-    -- Every candidate is a multiple of 200 kHz in the broadcast band.
-    for _, c in ipairs(R.CANDIDATES) do
-        eq(OA.remainder(c, 200), 0)
-        truthy(c >= 88000 and c <= 108000)
-    end
-end)
-
 test("the compass names where a place lies from the base", function()
     local P = OA.Places
     eq(P.bearing(0, 0, 100, 0), "E")
@@ -269,17 +251,13 @@ local function uiKeys()
     end
     add("Doc_soil_slip_plain")
     for _, stage in pairs(Data.STAGES) do
-        for _, id in ipairs(stage.radio) do add("Radio_" .. id) end
         for _, id in ipairs(stage.notes) do add("Note_" .. id) end
     end
     for _, ms in pairs(Data.MILESTONES) do
-        for _, id in ipairs(ms.radio) do add("Radio_" .. id) end
         for _, id in ipairs(ms.notes) do add("Note_" .. id) end
     end
-    add("Radio_" .. Data.HANDOVER_RADIO)
-    for _, id in ipairs({ "first", "first_late" }) do add("Radio_" .. id) end
-    -- The radio copies' titles: the first contact and the handover have their own, the stages share one.
-    add("Copy_Title"); add("Copy_Stage"); add("Copy_StageNamed"); add("Copy_first"); add("Copy_handover")
+    -- The trust tier in words (Story.tierText).
+    add("Copy_Stage"); add("Copy_StageNamed")
     -- The request copies a special request brings to the folder: the text of each, and the approvals.
     for _, ids in pairs(Data.REQUESTS) do
         for _, id in ipairs(ids) do add("Request_" .. id) end
@@ -294,13 +272,8 @@ local function uiKeys()
     for _, id in ipairs({ "case_confirmed", "cooler_good", "cooler_warm", "cooler_bad", "serum" }) do add("Note_" .. id) end
     for m, pool in pairs(Data.AFTER) do
         for i = 1, pool.notes do add("Note_after" .. m .. "_" .. i) end
-        for i = 1, pool.radio do add("Radio_after" .. m .. "_" .. i) end
-        for i = 1, pool.questions do add("Question_after" .. m .. "_" .. i) end
     end
-    for key, count in pairs(Data.BROADCAST_LINES) do
-        for i = 1, count do add("Broadcast_" .. key .. "_" .. i) end
-    end
-    for _, g in ipairs({ "1", "2", "3", "4", "H" }) do add("Greeting_" .. g) end
+    for _, g in ipairs({ "1", "2", "3", "4" }) do add("Greeting_" .. g) end
     for cat in pairs(Data.REFUSALS) do add("Refuse_" .. cat .. "_start"); add("Refuse_" .. cat .. "_back") end
     add("Refuse_any_start"); add("Refuse_any_back")
     for i = 1, Sites.DATES do add("StakeDate_" .. i) end

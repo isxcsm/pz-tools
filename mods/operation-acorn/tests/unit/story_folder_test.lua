@@ -38,11 +38,6 @@ end
 
 local function T(...) return getText(...) end
 
--- A radio copy's title for a stage.
-local function stageCopy(n)
-    return T("IGUI_OA_Story_Copy_Title", T("IGUI_OA_Story_Copy_StageNamed", n, T("IGUI_OA_Econ_Stage_" .. n)))
-end
-
 local function setup(stage, milestones)
     local record = OA.Store.ensure("p1", "P")
     record.number = 347
@@ -91,10 +86,7 @@ test("the groups come in the list's order, the newest of each on top", function(
     local groups = Folder.entries(record)
     local ids = {}
     for _, group in ipairs(groups) do ids[#ids + 1] = group.id end
-    eq(table.concat(ids, ","), "request,radio,research,field,manifest")
-    eq(table.concat(titles(groupOf(groups, "radio")), "|"),
-        table.concat({ stageCopy(3), stageCopy(2), stageCopy(1), T("IGUI_OA_Story_Copy_Title", T("IGUI_OA_Story_Copy_first")) }, "|"),
-        "radio copies, the first contact last")
+    eq(table.concat(ids, ","), "request,research,field,manifest")
     eq(table.concat(titles(groupOf(groups, "research")), "|"),
         T("IGUI_OA_Story_DocTitle_reply_first") .. "|" .. T("IGUI_OA_Story_DocTitle_serum_sheet"), "story order, newest on top")
     eq(table.concat(titles(groupOf(groups, "field")), "|"),
@@ -157,14 +149,6 @@ test("what an entry says: its title, a line about it, its text", function()
     Story.markRead(record, "reply_first")
     Story.markRead(record, "reply_relapse")
     local groups = Folder.entries(record)
-    local radio = Folder.content(record, groupOf(groups, "radio").entries[1])
-    eq(radio.title, stageCopy(2))
-    eq(radio.meta, T("IGUI_OA_Story_Meta_Copy", T("IGUI_OA_Story_CallSign_Oak"),
-        T("IGUI_OA_Story_Copy_StageNamed", 2, T("IGUI_OA_Econ_Stage_2")), 1))  -- the line that tells of the correction waits for the reply
-    truthy(string.find(radio.body, OA.Markup.strip(T("IGUI_OA_Story_Radio_s2_a")), 1, true), "the plain text has no marks")
-    truthy(string.find(radio.marked, T("IGUI_OA_Story_Radio_s2_a"), 1, true), "the marked text keeps them")
-    truthy(not string.find(radio.body, "{", 1, true))
-    eq(radio.kind, "scene", "a radio copy is typed as a scene")
     local reply = Folder.content(record, groupOf(groups, "research").entries[2])
     eq(reply.title, T("IGUI_OA_Story_DocTitle_reply_first") .. " (1)")
     local dot = T("IGUI_OA_Story_UI_Dot")
@@ -177,24 +161,6 @@ test("what an entry says: its title, a line about it, its text", function()
 end)
 
 -- What is new -----------------------------------------------------------------------------------------------------
-
-test("the radio copies of a stage, the first contact and the handover arrive new, and opening clears them", function()
-    local record = setup(1)
-    Story.onStage(record)
-    Story.firstContact(record, false)
-    eq(Folder.unreadCount(record), 2)
-    local keys = keysOf(Folder.entries(record))
-    eq(table.concat(keys, ","), "c:s1,c:first")
-    local entries = Folder.flat(Folder.entries(record))
-    eq(entries[1].isNew, true)
-    truthy(Story.clearNew(record, "c:s1"))
-    eq(Story.clearNew(record, "c:s1"), false, "once")
-    eq(Folder.unreadCount(record), 1)
-    eq(Folder.flat(Folder.entries(record))[1].isNew, false)
-    Story.section(record).seenMilestones = 2
-    Story.completeHandover(record)
-    truthy(record.story.unread["c:handover"])
-end)
 
 test("the same arrival is new once, and the numbers rise", function()
     local record = setup(1)
