@@ -143,68 +143,6 @@ local function newStake(list, int)
 end
 
 -- ---------------------------------------------------------------------------------------------------------------
--- The sites of the first layout (24 over the whole map, before VERSION 2): what was put down at them goes when their
--- chunk loads, and the work still waiting for them is dropped.
-
-local oldSpriteSet
-
-local function oldSprites()
-    if not oldSpriteSet then
-        oldSpriteSet = {}
-        for _, name in ipairs({ OA.Sprites.SCORCHED_GROUND, OA.Sprites.METEOR_ROCKS, OA.Sprites.SITE_STAKE,
-                                OA.Sprites.DAMP_SOIL, OA.Sprites.CUT_TAPE, OA.Sprites.SAMPLE_BAG, OA.Sprites.STONE_ROW }) do
-            oldSpriteSet[name] = true
-        end
-    end
-    return oldSpriteSet
-end
-
--- Takes away the props and the fragments of an old site around x, y (its chunk is loaded).
-function Sites.clearOld(x, y)
-    local cell = getCell()
-    local sprites = oldSprites()
-    local fragment = OA.StoryData.fullType(Sites.FRAGMENT.stony)
-    for dx = -4, 4 do
-        for dy = -4, 4 do
-            local sq = cell:getGridSquare(x + dx, y + dy, 0)
-            if sq then
-                local objects = sq:getObjects()
-                for i = objects:size() - 1, 0, -1 do
-                    local obj = objects:get(i)
-                    local sprite = obj:getSprite() and obj:getSprite():getName()
-                    local item = instanceof(obj, "IsoWorldInventoryObject") and obj:getItem()
-                    if (sprite and sprites[sprite]) or (item and item:getFullType() == fragment) then
-                        sq:transmitRemoveItemFromSquare(obj)
-                    end
-                end
-            end
-        end
-    end
-end
-
-local function migrate(sec)
-    OA.Chunks.remove(function(e) return e.kind == "oa_site" end)
-    for _, site in ipairs(sec.list or {}) do
-        if site.state == "placed" then
-            local sq = getCell and getCell() and getCell():getGridSquare(site.x, site.y, 0)
-            if sq then
-                Sites.clearOld(site.x, site.y)
-            else
-                OA.Chunks.add({ kind = "oa_site_old", x = site.x, y = site.y, z = 0 })
-            end
-        end
-    end
-    OA.log("meteor sites: the first layout's", #(sec.list or {}), "sites taken away")
-    sec.list, sec.made, sec.spacing = nil, nil, nil
-end
-
-OA.Chunks.handle("oa_site_old", function(entry)
-    local ok, err = pcall(Sites.clearOld, entry.x, entry.y)
-    if not ok then OA.log("old meteor site not cleared:", tostring(err)) end
-    return true
-end)
-
--- ---------------------------------------------------------------------------------------------------------------
 -- Laying them out.
 
 -- Decides the sites around `origin` { x, y } (the first character's place), once a world. Returns the list, or nil
@@ -212,7 +150,6 @@ end)
 function Sites.ensure(origin, accept, int)
     local sec = section()
     if sec.v == Sites.VERSION and sec.made then return sec.list end
-    if sec.made and sec.v ~= Sites.VERSION then migrate(sec) end
     if not (origin and origin.x and origin.y) then return nil end
     int = int or OA.random
     local points = OA.Places.ringSites(origin, Sites.COUNT, Sites.RING_LO, Sites.RING_HI, Sites.SPACING,

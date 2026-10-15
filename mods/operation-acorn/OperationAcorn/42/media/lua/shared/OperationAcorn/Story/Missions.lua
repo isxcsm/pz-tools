@@ -36,10 +36,9 @@ function Missions.state(record)
         s.seq = 0
         s.nextAt = 0
         s.results = { done = 0, expired = 0, lost = 0 }
+        s.streak = 0
+        s.bestStreak = 0
     end
-    -- A save from before the streak counted had none.
-    s.streak = s.streak or 0
-    s.bestStreak = s.bestStreak or 0
     return s
 end
 

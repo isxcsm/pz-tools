@@ -197,64 +197,6 @@ test("a receipt with many lines is shortened when written", function()
     eq(Ledger.last(record).lines, nil, "the summary carries no lines")
 end)
 
--- The upgrade of a save from before: the ledger section becomes the serial and the last settlement.
-
-local function upgrade(record, name)
-    record.upgrades = record.upgrades or {}
-    record.upgrades[name] = nil
-    OA.Store.upgrade(record)
-end
-
-test("the ledger upgrade is registered and a new record has it done", function()
-    local found = false
-    for _, step in ipairs(OA.Store.UPGRADES) do if step.name == "trade.ledger" then found = true end end
-    truthy(found, "registered")
-    eq(newRecord("fresh").upgrades["trade.ledger"], true)
-end)
-
-test("an old ledger becomes the serial and the newest receipt's summary, and goes", function()
-    local record = newRecord("old1")
-    record.ledger = { seq = 7, totals = { receipts = 3 }, receipts = {
-        { id = 6, at = 100, day = 4, credits = 500, trust = 5, boxes = 2, lines = {} },
-        { id = 7, at = 200, day = 8, credits = 900, trust = 9, boxes = 1, lines = {} },
-    } }
-    upgrade(record, "trade.ledger")
-    eq(record.ledger, nil)
-    eq(record.trade.serial, 7)
-    truthy(Ledger.nextSerial(record) > 7 and Ledger.nextSerial(record) <= 7 + Ledger.STEP_MAX)
-    local last = Ledger.last(record)
-    eq(last.at, 200)
-    eq(last.credits, 900)
-    eq(last.trust, 9)
-    eq(last.boxes, 1)
-    eq(record.upgrades["trade.ledger"], true)
-    -- Run once: a ledger that shows up later is not touched.
-    record.ledger = { seq = 99, receipts = {} }
-    OA.Store.upgrade(record)
-    eq(record.trade.serial, 7)
-    eq(record.ledger.seq, 99)
-end)
-
-test("an old ledger with no receipts keeps only its counter; a record without one is left alone", function()
-    local record = newRecord("old2")
-    record.ledger = { seq = 3, receipts = {}, totals = {} }
-    upgrade(record, "trade.ledger")
-    eq(record.trade.serial, 3)
-    eq(Ledger.last(record), nil)
-    eq(record.ledger, nil)
-    local plain = newRecord("plain")
-    upgrade(plain, "trade.ledger")
-    eq(plain.ledger, nil)
-    eq(Ledger.last(plain), nil)
-    truthy(Ledger.nextSerial(plain) >= Ledger.FIRST_MIN, "a record with no ledger starts at a middle number")
-    -- A serial the new code already has is not lowered.
-    local newer = newRecord("newer")
-    newer.trade = { serial = 10 }
-    newer.ledger = { seq = 4, receipts = {} }
-    upgrade(newer, "trade.ledger")
-    eq(newer.trade.serial, 10)
-end)
-
 test("the manifest numbers start in the middle, step 1 to 5, and differ from one collection point to another", function()
     local record = newRecord("serials")
     record.number = 347

@@ -88,8 +88,7 @@ local function changed(record)
     t.levelsRev = (t.levelsRev or 0) + 1
 end
 
--- The levels a record would have had from trust alone: every level whose tier it has reached. A save from before
--- flight support starts with these (the numbers it had stay).
+-- The levels trust alone would reach: every level whose tier it has reached (the tables before flight support).
 function Support.levelsForTier(tier)
     local levels = {}
     for _, u in ipairs(Support.LIST) do
@@ -226,13 +225,5 @@ function Support.setLevel(record, id, level)
     Support.levels(record)[id] = level > 0 and level or nil
     changed(record)
 end
-
--- A save from before: the levels its trust had reached.
-OA.Store.addUpgrade("trade.levels", function(record)
-    local t = record.trade
-    if not t or t.levels then return end
-    t.levels = Support.levelsForTier(OA.Trust.tier(record))
-    changed(record)
-end)
 
 return Support

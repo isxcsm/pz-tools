@@ -52,6 +52,8 @@ TEST = {}
 local function resetGame()
     TEST.hours = 0
     TEST.random = 1
+    -- the player a test stands in: none unless it gives one (a file's own must not reach the next)
+    getPlayer = nil
     TEST.sent = {}
     TEST.month = nil
     SandboxVars = sandboxDefaults()

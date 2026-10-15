@@ -70,14 +70,7 @@ function Rules.fill(u)
     u.sharedUsed = u.sharedUsed or perTree(0)
     fillTree(u.sharedUsed, 0)
     u.firstEffect = u.firstEffect or {}
-    if not u.unsealed then
-        -- a record from before the capstones were opened by sending a fragment: a capstone it took paid one then
-        u.unsealed = {}
-        for _, tree in ipairs(Data.TREES) do
-            local cap = Data.capstone(tree)
-            if cap and (u.ranks[cap.id] or 0) >= 1 then u.unsealed[tree] = true end
-        end
-    end
+    u.unsealed = u.unsealed or {}
     if type(u.adapt) ~= "table" or type(u.adapt.doses) ~= "table" then u.adapt = nil end
     local b = u.board
     if not b then

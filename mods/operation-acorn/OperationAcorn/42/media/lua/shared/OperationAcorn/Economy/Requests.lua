@@ -438,40 +438,13 @@ function Requests.scan()
     return Requests.build(sums, infoOf, rows, function(t) return infoOf(t) ~= nil end)
 end
 
--- The bands of a save from before the ranks (Requests.VERSION 3 and older): a score of 1 and more was common, 0.3 to
--- 1 normal, less rare, and the week took 10, 5 or 3 units. Only a week's list drawn then is read by them.
-Requests.OLD_FROM = { common = 1, normal = 0.3 }
-Requests.OLD_QTY = { common = 10, normal = 5, rare = 3 }
-
--- The lists of this week drawn before their band and quantity were kept on them (a save from before the ranks, its
--- old table still in `world`) keep what they showed: the band of the old score and its quantity, for the rest of the
--- week. The keys are the list's own (Requests.rekey moves them along with the list).
-local function keepOldLines(world)
-    if not (world.types and world.score) or (world.version or 0) >= 4 then return end
-    local old = {}
-    for i = 1, world.n or #world.types do old[world.types[i]] = world.score[i] end
-    for _, record in pairs(OA.Store.players()) do
-        local rq = record.codex and record.codex.req
-        if rq and rq.items and not rq.qty then
-            rq.band, rq.qty = {}, {}
-            for _, key in ipairs(rq.items) do
-                local s = old[key] or 0
-                local band = s >= Requests.OLD_FROM.common and "common"
-                    or (s >= Requests.OLD_FROM.normal and "normal" or "rare")
-                rq.band[key], rq.qty[key] = band, Requests.OLD_QTY[band]
-            end
-        end
-    end
-end
-
--- The world's table, built the first time and again when a save from before the groups has one of item types or one
--- made from another RequestGroups.lua (nil when the game's tables are not there, as on a client).
+-- The world's table, built the first time and again when the world has one of another version or one made from
+-- another RequestGroups.lua (nil when the game's tables are not there, as on a client).
 function Requests.data()
     local world = OA.Store.world("requests")
     if world.version ~= Requests.VERSION or not world.types or (world.stamp and world.stamp ~= OA.RequestGroupsStamp) then
         local made = Requests.scan()
         if not made then return nil end
-        keepOldLines(world)
         for k in pairs(world) do world[k] = nil end
         for k, v in pairs(made) do world[k] = v end
         OA.log("request candidates:", world.n, "house loot kinds:", Requests.kindCount(world))
@@ -590,28 +563,18 @@ function Requests.scoreOf(key)
     return indexOf[key] or 0
 end
 
--- A list saved before the groups named item types: each becomes its group's key, a group named twice is kept once
--- and the units the week settled of its types add up. The pinned item and the strange one too.
-function Requests.migrate(record)
-    local codex = record.codex
-    if not codex then return end
-    local old = codex.req and not codex.req.groups
-    if old then codex.req.groups = true end
-    Requests.rekey(codex, old)
-end
-
 -- The lists whose keys were checked against the rows in use (a list is checked again when the table changes).
 local checked = setmetatable({}, { __mode = "k" })
 
 -- Puts the keys a record holds (the week's list, what was settled, the strange item, the pinned one) in the table's
 -- terms: a type becomes its group's key, an id the table dropped becomes that of the group that took it over (the
--- tool keeps these as `was`), a group named twice is kept once and its settled units add up. `force` for a list of item
--- types from before the groups (it has no `groups` mark); a list is otherwise checked once for the rows in use.
-function Requests.rekey(codex, force)
+-- tool keeps these as `was`), a group named twice is kept once and its settled units add up. A list is checked once for
+-- the rows in use.
+function Requests.rekey(codex)
     index()
     if codex.reqPin then codex.reqPin = Requests.keyOf(codex.reqPin) end
     local rq = codex.req
-    if not rq or (checked[rq] == rows and not force) then return end
+    if not rq or checked[rq] == rows then return end
     local items, seen, used = {}, {}, {}
     for _, t in ipairs(rq.items or {}) do
         local key = Requests.keyOf(t)
@@ -640,13 +603,10 @@ function Requests.rekey(codex, force)
     checked[rq] = rows
 end
 
-OA.Store.addUpgrade("requests.groups", Requests.migrate)
-
--- The record's request state: { week, items = { key ... }, used = { key = units this week }, groups = true }. A list
--- of item types from before (a save not upgraded yet) is moved to groups first.
+-- The record's request state: { week, items = { key ... }, used = { key = units this week } }.
 local function state(record)
     local codex = OA.Store.section(record, "codex")
-    if codex.req and not codex.req.groups then Requests.migrate(record) else Requests.rekey(codex) end
+    Requests.rekey(codex)
     return codex, codex.req
 end
 
@@ -700,8 +660,7 @@ local function draw(record, rq, n, forcedCategory)
 end
 
 -- Puts the band and weekly quantity of each line on the list that has none yet (rq.band, rq.qty): a line keeps them
--- for the week. The world's ranks come first (a save from before them keeps its old lines' there: Requests.data);
--- without a table (nothing to rank) nothing is kept.
+-- for the week. Without a table (nothing to rank) nothing is kept.
 local function keepLines(rq)
     if not Requests.ranks() then return end
     rq.band, rq.qty = rq.band or {}, rq.qty or {}
@@ -725,7 +684,7 @@ function Requests.list(record)
     local codex, rq = state(record)
     local week = OA.week()
     if not rq or rq.week ~= week then
-        rq = { week = week, items = {}, used = {}, extra = 0, groups = true }
+        rq = { week = week, items = {}, used = {}, extra = 0 }
         codex.req = rq
         if codex.reqPin then
             table.insert(rq.items, codex.reqPin)

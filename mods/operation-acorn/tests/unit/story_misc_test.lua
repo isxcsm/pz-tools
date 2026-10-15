@@ -95,25 +95,6 @@ test("what a record has seen belongs to one layout: a new layout starts it empty
     eq(Story.section(record).sitesSearched[1], nil)
 end)
 
-test("the first layout's sites are taken away and the new ones laid out round the start", function()
-    clearSites()
-    local sec = OA.Store.world("sites")
-    sec.made, sec.spacing = true, 900
-    sec.list = { { n = 1, x = 300, y = 300, stake = 101, state = "pending" },
-                 { n = 2, x = 5000, y = 5000, stake = 102, state = "placed" } }
-    OA.Chunks.add({ kind = "oa_site", site = 1, x = 300, y = 300, z = 0 })
-    eq(#Sites.list(), 0, "the old list is not this version's")
-    eq(Sites.generation(), nil)
-    eq(Sites.ensure(nil, yes), nil, "taken away even before there is a start")
-    eq(#OA.Chunks.list("oa_site"), 0, "the old work waiting is dropped")
-    local old = OA.Chunks.list("oa_site_old")
-    eq(#old, 1, "the placed one is cleared when its chunk loads")
-    eq(old[1].x, 5000)
-    eq(sec.spacing, nil)
-    eq(#Sites.ensure(ORIGIN, yes), Sites.COUNT)
-    eq(sec.v, Sites.VERSION)
-end)
-
 test("documents of an item: its own id first, its data ones, a field note", function()
     local record = OA.Store.ensure("p1", "P")
     local list = Docs.forItem(record, "SampleCooler", {})

@@ -346,25 +346,3 @@ test("appliedTitle: past three the first three are named and the rest counted", 
     eq(t.subArgs[4], "1")
 end)
 
-test("the trade.levels upgrade gives an old record the levels its trust had reached", function()
-    local r = OA.Store.ensure("old", "Old")
-    r.trade = { credits = 0, trust = 0, stage = 3, milestones = 0, bonus = 0, sharedSerums = 0 }
-    r.upgrades = {}                          -- a record saved before the upgrade existed
-    OA.Store.upgrade(r)
-    local want = Sup.levelsForTier(3)
-    truthy(r.trade.levels, "levels were made")
-    eq(r.trade.levels.box, want.box); eq(r.trade.levels.call, want.call); eq(r.trade.levels.forecast, want.forecast)
-    eq(r.trade.levels.night, nil)
-    eq(OA.Trust.rewards(r).boxCapacity, 100, "its box stays as it was")
-    eq(r.upgrades["trade.levels"], true)
-end)
-
-test("the trade.levels upgrade leaves a record that has levels alone", function()
-    local r = OA.Store.ensure("new", "New")
-    r.trade = { credits = 0, trust = 0, stage = 5, milestones = 2, bonus = 0, sharedSerums = 0, levels = { call = 1 } }
-    r.upgrades = {}
-    OA.Store.upgrade(r)
-    eq(r.trade.levels.call, 1)
-    eq(r.trade.levels.box, nil)
-    eq(OA.Trust.rewards(r).boxCapacity, 50)
-end)

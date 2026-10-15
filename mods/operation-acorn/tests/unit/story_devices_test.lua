@@ -110,13 +110,6 @@ test("the streak counts missions done in time, an expired one ends it, a lost on
     eq(s.streak, 1); eq(s.bestStreak, 3)
 end)
 
-test("a save from before the streak has it counted from zero", function()
-    local record = setup(1)
-    record.missions = { version = 1, seq = 4, nextAt = 0, results = { done = 3, expired = 0, lost = 0 } }
-    local s = M.state(record)
-    eq(s.streak, 0); eq(s.bestStreak, 0)
-end)
-
 test("the streak adds a tenth a mission to the next one's credits and not to its trust", function()
     local record = setup(1)
     M.state(record).streak = 2

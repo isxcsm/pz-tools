@@ -273,15 +273,6 @@ test("a capstone needs 12 points in its tree and its tree unsealed", function()
     eq(Rules.blocked(w, "nightEye"), "row")
 end)
 
-test("an old record with a capstone taken has its tree unsealed", function()
-    local u = fresh()
-    u.ranks.armor = 1
-    u.unsealed = nil
-    Rules.fill(u)
-    eq(Rules.unsealed(u, "load"), true)
-    eq(Rules.unsealed(u, "scout"), false)
-end)
-
 test("the capstone needs its node at rank", function()
     local u = fresh()
     inject(u, "scout", 13)

@@ -100,8 +100,6 @@ python tools/check_translations.py                          # 번역 키, 샌드
 
 **강화 혈청 투여 뒤 (DESIGN-terminal 19).** 투여(`Serums.inject`)는 부작용만 주고 적응을 시작한다(`Rules.startAdapt`, `Adapt.lua`): 점은 `Data.ADAPT_HOURS`(가안 0.5) 뒤에 들어오고, 그 사이 맞은 병은 시간을 함께 쓰며, 끝나는 세계 시각이 기록(`upgrades.adapt`)에 있어 저장·불러오기에도 이어진다. 클라이언트가 한 게임 분마다(`client/Upgrades/Adapting.lua`) 무들 `적응 중`을 맞추고 끝이 지났으면 `upgrades.adapt` 명령을 보내며, 서버가 `Adapt.finish`로 점을 주고 트리를 열고 안내 문서(`research_guide`, 트리 메모)를 수신함에 넣는다 (`Story.deliverDocument`). 여섯 노드의 첫 효과(`First.lua`)는 매 틱 검사 없이 이미 도는 자리에서 알린다(클라이언트는 `First.report`가 `upgrades.first` 명령을, 서버에서 도는 자리는 `First.grant`를 부른다). 연구 탭은 승인 결과가 돌아오면 계획한 마디를 차례로 켜고 `승인` 직인을 찍는다(`Plan.stamp`의 시간표). 환각에 귀울림이 한 번 울린다(`Hallucination.lua`).
 
-기록의 `upgrades`는 옛 판의 세이브를 고친 단계 이름 목록이다. 각 부분이 `Store.addUpgrade(name, fn)`로 단계를 더하고, 서버가 시작할 때 `Store.upgradeAll()`이 기록마다 한 번씩 돌린다. 새 기록은 모든 단계를 한 것으로 시작한다.
-
 세계 섹션(`Store.world(name)`): `market`, `requests`(P1), `sites`(P4, 운석 낙하지), `machines`(P5), `pending`(Chunks).
 
 아이템과 오브젝트 modData 키는 모두 `OA_`로 시작한다: `OA_Bought`(상점에서 산 물건, 납품 거부), `OA_Cell`(나온 셀,

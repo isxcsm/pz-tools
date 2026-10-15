@@ -87,16 +87,4 @@ function Ledger.last(record)
     return record.trade and record.trade.lastSettle or nil
 end
 
--- A save from before: the ledger section's counter becomes the serial, its newest receipt the last settlement.
-Store.addUpgrade("trade.ledger", function(record)
-    local old = record.ledger
-    if not old then return end
-    local t = Store.section(record, "trade")
-    t.serial = math.max(t.serial or 0, old.seq or 0)
-    local receipts = old.receipts or {}
-    local newest = receipts[#receipts]
-    if newest and not t.lastSettle then t.lastSettle = summary(newest) end
-    record.ledger = nil
-end)
-
 return Ledger

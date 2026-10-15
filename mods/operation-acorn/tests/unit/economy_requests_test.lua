@@ -601,44 +601,6 @@ test("each kind of a group is paid its own worth: a television 6,000, a radio it
     R.useGroups(REAL_GROUPS)
 end)
 
-test("a save from before the ranks: the table is made again, this week's lines keep what they showed", function()
-    local rows = {}
-    for i = 1, 40 do rows[i] = { id = "Base.Item" .. i, score = 100 - i, wt = 0.1, dc = "Junk", items = { "Base.Item" .. i } } end
-    R.useGroups(rows)
-    -- The old world: VERSION 3, scores over the median (1 and more common, 0.3 to 1 normal), another stamp.
-    local world = OA.Store.world("requests")
-    for k in pairs(world) do world[k] = nil end
-    world.version, world.stamp, world.n, world.kinds, world.total = 3, "old", 4, {}, {}
-    world.types = { "Base.Item1", "Base.Item2", "Base.Item3", "Base.Item40" }
-    world.score = { 2.0, 0.5, 0.1, 5.0 }
-    local record = OA.Store.ensure("p", "P")
-    local codex = OA.Store.section(record, "codex")
-    codex.req = { week = OA.week(), extra = 0, groups = true,
-        items = { "Base.Item1", "Base.Item2", "Base.Item3", "Base.Item40", "Base.Strange" },
-        used = { ["Base.Item1"] = 10, ["Base.Item2"] = 2 } }
-    local wasScripts, wasDist = getScriptManager, SuburbsDistributions
-    getScriptManager, SuburbsDistributions = scriptsOf({}, true), {}
-    local e = R.entry(record, "Base.Item1")
-    eq(e.band, "common"); eq(e.qty, 10); eq(e.full, true, "a line filled before stays full: no second bonus")
-    e = R.entry(record, "Base.Item2")
-    eq(e.band, "normal"); eq(e.qty, 5); eq(e.left, 3)
-    e = R.entry(record, "Base.Item3")
-    eq(e.band, "rare"); eq(e.qty, 3)
-    e = R.entry(record, "Base.Item40")
-    eq(e.band, "common", "its old band for the rest of the week"); eq(e.qty, 10)
-    eq(R.entry(record, "Base.Strange").band, "rare", "a kind the old table did not have was rare")
-    world = OA.Store.world("requests")
-    eq(world.version, R.VERSION); eq(world.n, 40, "the table is made again from the groups")
-    eq(R.bandOf("Base.Item40"), "rare", "by the new table, Item40 ranks last")
-    eq(#R.list(record), 6, "topped up from the new table")
-    TEST.hours = 24 * 7 + 1
-    for _, key in ipairs(R.list(record)) do
-        eq(R.entry(record, key).qty, R.qtyOf(key), "next week's lines are the new table's")
-    end
-    getScriptManager, SuburbsDistributions = wasScripts, wasDist
-    R.useGroups(REAL_GROUPS)
-end)
-
 test("a group's name: the family's text, the words its kinds' names start with, or the first kind's", function()
     R.useGroups({
         { id = "skillbook", score = 5, wt = 1, dc = "SkillBook", name = "IGUI_OA_ReqGroup_skillbook",
@@ -698,28 +660,6 @@ test("charcoal from the kiln is a line of the charcoal request", function()
     eq(e.key, "base:charcoal")
     R.consume(record, e.key, 4)
     eq(R.entry(record, "Base.Charcoal").used, 4, "the looted and the made kind count together")
-end)
-
-test("a list saved before the groups is moved to them and keeps what the week settled", function()
-    installGroups(5)
-    local record = OA.Store.ensure("p", "P")
-    local codex = OA.Store.section(record, "codex")
-    codex.req = { week = OA.week(), extra = 0, items = { "Base.Charcoal", "Base.Item1", "Base.CharcoalCrafted" },
-        used = { ["Base.Charcoal"] = 3, ["Base.CharcoalCrafted"] = 2, ["Base.Item1"] = 1 } }
-    codex.reqPin = "Base.CharcoalCrafted"
-    OA.Store.upgrade(record)
-    local list = R.list(record)
-    eq(list[1], "base:charcoal"); eq(list[2], "Base.Item1")
-    for i = 3, #list do truthy(list[i] ~= "base:charcoal", "charcoal once") end
-    eq(R.used(record)["base:charcoal"], 5, "3 and 2 of its kinds")
-    eq(R.used(record)["Base.Item1"], 1)
-    eq(R.entry(record, "Base.Charcoal").left, R.qtyOf("base:charcoal") - 5)
-    eq(codex.reqPin, "base:charcoal")
-    eq(codex.req.groups, true)
-    codex.req.groups = nil
-    codex.req.items = { "Base.CharcoalCrafted" }
-    codex.req.used = {}
-    eq(R.list(record)[1], "base:charcoal", "a list not upgraded yet is moved when it is read")
 end)
 
 test("one appliance of several brands is one group by hand: any television, any radio", function()
