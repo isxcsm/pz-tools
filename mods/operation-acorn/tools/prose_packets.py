@@ -154,7 +154,11 @@ def scene_block(e, ui, table, used):
             used.add(xk)
             out.append('`%s_%d_x` %s (썼다 지운 말): %s' % (e['id'], n, speaker, readable(ui.get(xk, ''))))
         used.add(key)
-        out.append('`%s_%d` %s: %s' % (e['id'], n, speaker, readable(ui.get(key, ''))))
+        tag = ''
+        if e['greet'] and n == 1:
+            # the greeting goes before it; a line that is the greeting alone stays empty
+            tag = ' (인사만 나오는 줄, 비워 둔다)' if ui.get(key, '') == '' else ' (앞에 인사가 붙는 줄)'
+        out.append('`%s_%d` %s%s: %s' % (e['id'], n, speaker, tag, readable(ui.get(key, ''))))
         if late:
             lk = key + '_late'
             used.add(lk)
@@ -251,7 +255,7 @@ def export(folder):
         print(path, len('\n'.join(body)), 'chars')
 
 
-SPOKEN = re.compile(r'^(참나무|관리 7|주인공)(?: \([^)]*\))?: ')
+SPOKEN = re.compile(r'^(참나무|관리 7|주인공)(?: \([^)]*\))?:\s*')
 
 
 def answered(answer, ui):
