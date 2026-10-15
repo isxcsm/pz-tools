@@ -222,7 +222,9 @@ end)
 OA.Server.on("comms_played", function(character, record, args)
     local id = args.entry
     if type(id) ~= "string" or not OA.Comms.ready(record, id) then return end
-    if OA.Comms.played(record, id, Story.tier(record)) then OA.Sync.changed("comms", record.id) end
+    if not OA.Comms.played(record, id, Story.tier(record)) then return end
+    OA.Sync.changed("comms", record.id)
+    Story.callPlayed(record, id)
 end)
 
 -- A document was read. `variant` is the place its text was for, `extra` the number it was read with.

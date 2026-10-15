@@ -1071,6 +1071,7 @@
     "IGUI_OA_Title_LostSub_Swap": "그 자리에서 다시 받아 와 · 기한 연장",
     "IGUI_OA_Title_Expired": "요청 기한 경과",
     "IGUI_OA_Title_Stage": "신뢰도 %1단계",
+    "IGUI_OA_Title_Operation": "도토리 작전",
     "IGUI_OA_Title_SupportApplied": "운항 지원 반영",
     "IGUI_OA_Support_Name_box": "상자 용량",
     "IGUI_OA_Support_Name_call": "호출 간격",

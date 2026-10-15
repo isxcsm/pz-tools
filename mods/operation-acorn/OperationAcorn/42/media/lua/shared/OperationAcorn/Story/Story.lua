@@ -57,6 +57,7 @@ function Story.section(record)
     s.copies = s.copies or {}       -- documents that came back as copies of what was delivered: id -> true
     s.docExtra = s.docExtra or {}   -- the number a read document was read with (a stake, a serial): id -> value
     s.noted = s.noted or {}         -- one-off remarks said: "serum", "region"
+    s.cardStage = s.cardStage or 0  -- the last named stage whose card was shown (Story.terminalOpened)
     return s
 end
 
@@ -504,33 +505,38 @@ function Story.tierText(tier)
     return Story.text("IGUI_OA_Story_Copy_Stage", tier)
 end
 
--- How wide (ems, Markup.width) the radio line under a stage's title may be: some twenty Hangul syllables.
-Story.TITLE_LEAD = 24
-
--- The title of a trust level reached (what Sync.title takes): "Trust stage 3 · Cross-check" with the stage's name (the
--- first five and the handover's 8th have one, the others only the number), and under it the first line of the radio
--- copy the stage brings (Titles cuts it to its first sentences); the shop's new items where the level has no copy.
+-- The title of a trust level reached, as it is reached (what Sync.title takes): "Trust stage 7" and the shop's new
+-- items. None for the five named stages: theirs is a card shown when the terminal is next opened (Story.stageCard).
 function Story.stageTitle(record, level)
-    local nameKey
-    if level >= 1 and level <= Data.LAST_STAGE then
-        nameKey = "IGUI_OA_Econ_Stage_" .. level
-    elseif level == Data.LAST_STAGE + 3 then
-        nameKey = "IGUI_OA_Terminal_LevelHandover"
-    end
-    local detail = { key = "IGUI_OA_Title_Stage", args = { level }, sub = "IGUI_OA_Title_NewItems", style = "dust",
+    if level >= 1 and level <= Data.LAST_STAGE then return nil end
+    return { key = "IGUI_OA_Title_Stage", args = { level }, sub = "IGUI_OA_Title_NewItems", style = "dust",
         fallback = "good" }
-    if nameKey then
-        detail.key = "IGUI_OA_Title_StageNamed"
-        detail.args = { level, { key = nameKey } }
-    end
-    local def = level <= Data.LAST_STAGE and Data.STAGES[level] or Data.MILESTONES[level - Data.LAST_STAGE]
-    local first = def and def.radio and def.radio[1]
-    if first then
-        detail.sub = "IGUI_OA_Story_Radio_" .. first
-        detail.subArgs = { Story.number(record) }
-        detail.subLead = Story.TITLE_LEAD
-    end
-    return detail
+end
+
+-- The card of a named stage (SCENES.md 2 '제목 카드'): "Trust stage 3 · Cross-check" and the shop's new items.
+function Story.stageCard(stage)
+    return { key = "IGUI_OA_Title_StageNamed", args = { stage, { key = "IGUI_OA_Econ_Stage_" .. stage } },
+        sub = "IGUI_OA_Title_NewItems", style = "dust", fallback = "good" }
+end
+
+-- The terminal was opened (its window shows): the card of the last named stage entered that has not had one. Not
+-- before the first call has played: the operation's own title comes first (Story.callPlayed).
+function Story.terminalOpened(record)
+    local s = Story.section(record)
+    local stage = math.min(s.seenStage, Data.LAST_STAGE)
+    if stage < 1 or (s.cardStage or 0) >= stage then return false end
+    local comms = OA.Comms.section(record)
+    if comms.fired.S0 and not comms.played.S0 then return false end
+    s.cardStage = stage
+    OA.Sync.title(record.id, Story.stageCard(stage))
+    return true
+end
+
+-- A call was played in the comms tab: after the first one, the operation's title, then the first stage's card.
+function Story.callPlayed(record, id)
+    if id ~= "S0" then return end
+    OA.Sync.title(record.id, { key = "IGUI_OA_Title_Operation", style = "stamp", fallback = "good" })
+    Story.terminalOpened(record)
 end
 
 -- A radio copy's title and text.

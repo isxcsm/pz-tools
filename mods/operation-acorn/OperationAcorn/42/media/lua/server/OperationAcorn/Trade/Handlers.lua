@@ -73,19 +73,20 @@ Server.on("crateEmptied", function(character, record, args)
     if object then Things.breakEmptyCrate(object) end
 end)
 
--- The first time a terminal is used the team answers (LORE: the first radio line says the number once more): the
--- story part files it as a radio copy. A world where the first supply did not come with the vanilla helicopter gets
--- the late line.
+-- A terminal's window opened. The first time, the team answers (the story's first call; a world where the first supply
+-- did not come with the vanilla helicopter gets the late lines) and the first stage opens with it. Every time, the
+-- story may show the card of a stage entered since.
 Server.on("tradeUsed", function(character, record, args)
     local object = Handlers.terminalFor(character, args)
     if not object then return end
     local heli = Trade.heli(record)
-    if heli.greeted then return end
-    heli.greeted = true
-    local late = record.first ~= nil and record.first.mode ~= "window"
-    if OA.Story and OA.Story.firstContact then OA.Story.firstContact(record, late) end
-    -- the first stage opens with the first contact
-    Trade.openContact(record)
+    if not heli.greeted then
+        heli.greeted = true
+        local late = record.first ~= nil and record.first.mode ~= "window"
+        if OA.Story and OA.Story.firstContact then OA.Story.firstContact(record, late) end
+        Trade.openContact(record)
+    end
+    if OA.Story and OA.Story.terminalOpened then OA.Story.terminalOpened(record) end
 end)
 
 -- Flight support (DESIGN-terminal 2.6): a request for the next level of an upgrade, made at a field terminal (the

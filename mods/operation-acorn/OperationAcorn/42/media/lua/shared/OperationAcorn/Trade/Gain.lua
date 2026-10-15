@@ -42,12 +42,16 @@ passed = function(record, events, source)
         -- one title for the whole change: the last level reached (milestone k is level 5 + k)
         local last = events[#events]
         local level = last.kind == "milestone" and 5 + last.n or last.n
-        -- The story names the stage and takes the line under the title from the radio copy it brings; without it the
-        -- plain title with the new items.
-        local detail = OA.Story and OA.Story.stageTitle and OA.Story.stageTitle(record, level)
-            or { key = "IGUI_OA_Title_Stage", args = { level }, sub = "IGUI_OA_Title_NewItems", style = "dust",
+        -- The story's title for the level (none for a named stage: its card comes at the terminal); without the story
+        -- the plain title with the new items.
+        local detail
+        if OA.Story and OA.Story.stageTitle then
+            detail = OA.Story.stageTitle(record, level)
+        else
+            detail = { key = "IGUI_OA_Title_Stage", args = { level }, sub = "IGUI_OA_Title_NewItems", style = "dust",
                 fallback = "good" }
-        OA.Sync.title(record.id, detail)
+        end
+        if detail then OA.Sync.title(record.id, detail) end
         if OA.Story and OA.Story.onStage then
             local ok, err = pcall(OA.Story.onStage, record)
             if not ok then OA.log("story onStage failed:", tostring(err)) end

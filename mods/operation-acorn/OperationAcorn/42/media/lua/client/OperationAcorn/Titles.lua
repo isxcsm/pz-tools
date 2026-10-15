@@ -77,11 +77,8 @@ function Titles.show(playerId, detail, noHalo)
     local title = text(detail.key, detail.args)
     if not title then return nil end
     local sub = text(detail.sub, detail.subArgs)
-    -- A line under the title may be a radio line: without its markup, and cut to its first sentences when the detail says
-    -- how long the line may be.
-    if sub then
-        sub = detail.subLead and OA.Markup.lead(sub, detail.subLead) or OA.Markup.strip(sub)
-    end
+    -- (a line under the title is shown without its markup)
+    if sub then sub = OA.Markup.strip(sub) end
     local characters = charactersOf(playerId)
     if #characters == 0 then return nil end
     local t = textApi()
