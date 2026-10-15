@@ -26,7 +26,8 @@ Script.READ_CPS = { KO = 12, CH = 9, CN = 9, TW = 9, JP = 9 }
 Script.READ_CPS_OTHER = 17
 Script.UNDERSTAND = 0.6
 Script.READ_AFTER = 1.2
-Script.TURN = 0.4
+Script.TURN = 0.4             -- to the protagonist
+Script.TURN_IN = 1.2          -- to the team: the line is open, its cursor blinks a few times before the words come
 
 local function key(id, n, suffix)
     return "IGUI_OA_Comms_" .. id .. "_" .. tostring(n) .. (suffix or "")
@@ -124,12 +125,13 @@ end
 -- breaking up, n0 shown), "hold" (nothing moves), "type" / "erase" (the protagonist's input line: the words erased
 -- first, n0 to n1 of them), "typeSend" (the words sent), "read" (all there, left to be read). `cps`: the reading speed
 -- (Script.readCps, the game's language when not given). `pace`: another pace than the tab's, { oak, me (characters a
--- second), turn, after (READ_AFTER) }, each left out the tab's. A mark in the protagonist's words is a stop in the typing.
+-- second), turn (to either speaker; turnIn to the team alone), after (READ_AFTER) }, each left out the tab's. A mark in the protagonist's words is a stop in the typing.
 function Script.timeline(lines, cps, pace)
     cps = cps or Script.readCps()
     pace = pace or {}
     local oakCps, meCps = pace.oak or Script.OAK_CPS, pace.me or Script.ME_CPS
     local turn, after = pace.turn or Script.TURN, pace.after or Script.READ_AFTER
+    local turnIn = pace.turnIn or pace.turn or Script.TURN_IN
     local t = 0
     local list = {}
     local last
@@ -143,7 +145,7 @@ function Script.timeline(lines, cps, pace)
         end
         local count = #l.chars
         local speech = l.who ~= "noise" and l.who ~= "mute"
-        if speech and last and last ~= l.who then add("hold", turn, 0, 0) end
+        if speech and last and last ~= l.who then add("hold", l.who == "me" and turn or turnIn, 0, 0) end
         if speech then last = l.who end
         if l.who == "noise" or l.who == "mute" then
             add("hold", l.s or 1)

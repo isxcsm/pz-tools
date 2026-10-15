@@ -286,13 +286,24 @@ local function inputLook(st, now)
     return (((st.line or 0) * 3 + of) * 2000 + (st.input or 0)) * 2 + blink
 end
 
--- What the record draws by the clock while a call plays: the characters of the line coming in, and every frame while
--- the signal breaks up (the line wavers). Nil once the call is over: its rows are written then.
+-- The cursor of the team's line coming in: none once it is all there, steady while its characters come, blinking
+-- (RECV_BLINK_MS on, then off) while the line is open and nothing comes (the turn to the team, a silence, a pause, the
+-- signal broken off). 0 none, 1 on, 2 off.
+OATabComms.RECV_BLINK_MS = 300
+
+local function recvCursor(st, now)
+    if st.phase == "read" then return 0 end
+    if st.phase == "in" then return 1 end
+    return OA.remainder(math.floor(now / OATabComms.RECV_BLINK_MS), 2) == 0 and 1 or 2
+end
+OATabComms.recvCursor = recvCursor
+
+-- What the record draws by the clock while a call plays: the characters of the line coming in and its cursor. Nil
+-- once the call is over: its rows are written then.
 local function logFrame(log, now)
     local st = log.tab.play and log.tab.st
     if not st then return nil end
-    if st.flicker then return now end
-    return (st.line or 0) * 10000 + (st.shown or 0)
+    return ((st.line or 0) * 10000 + (st.shown or 0)) * 3 + recvCursor(st, now)
 end
 
 -- Each frame while something is going on (a call playing, one waiting to start): the clock's state, the rows as
@@ -651,16 +662,9 @@ function OACommsLog:drawRow(row, y, p)
     local colour = c[row.kind] or c.pre
     if row.sign then UI.text(self, row.sign, pad, ly, c.pre) end
     if row.kind == "noise" then colour = c.pre end
-    -- The line coming in: as many characters as have come, the line wavering while the signal breaks up.
+    -- The line coming in: as many characters as have come.
     local left = math.huge
-    local a = 1
-    if row.coming and tab.st then
-        left = tab.st.shown
-        if tab.st.flicker then
-            local t = getTimestampMs()
-            a = 0.35 + 0.4 * math.abs(math.sin(t / 37)) * math.abs(math.sin(t / 113))
-        end
-    end
+    if row.coming and tab.st then left = tab.st.shown end
     local x0 = tx
     if row.erase and row.erase ~= "" then
         -- the words erased before the line was sent: dim and struck, never sent
@@ -668,15 +672,19 @@ function OACommsLog:drawRow(row, y, p)
         UI.fill(self, tx, ly + math.floor(fh * 0.55), row.eraseW, 1, c.pre, 0.9)
         x0 = tx + row.eraseW + UI.spaceWidth()
     end
+    -- where the characters end: the cursor of the line coming in goes there
+    local cx, cy = x0, ly
     for i, l in ipairs(row.lines) do
         if left <= 0 then break end
         local s = l
         if left < row.counts[i] then s = table.concat(charsOf(l), "", 1, left) end
-        UI.text(self, s, i == 1 and x0 or tx, ly + (i - 1) * (fh + 2), colour, nil, a)
+        local lx, lyi = i == 1 and x0 or tx, ly + (i - 1) * (fh + 2)
+        UI.text(self, s, lx, lyi, colour)
+        cx, cy = lx + UI.textWidth(s), lyi
         left = left - row.counts[i]
     end
-    if row.coming and tab.st and tab.st.flicker then
-        UI.fill(self, tx, ly + math.floor(fh / 2), math.min(UI.textWidth(row.lines[1] or ""), tab:textW()), 1, colour, 0.35)
+    if row.coming and tab.st and tab.recvCursor(tab.st, getTimestampMs()) == 1 then
+        UI.fill(self, cx + 1, cy + 1, 7, fh - 2, colour, 0.85)
     end
 end
 
