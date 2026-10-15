@@ -42,8 +42,8 @@ function UpgradesServer.approve(character, record, rawSteps)
     if not ok then return false, result end
     local wasOpen, capstones, taken = Rules.boardOpen(u), Rules.capstones(u), Adapt.capstones(u)
     Rules.assign(u, result)
+    -- (no notice of its own: the tab shows the plan taken; only a capstone or the board opening gets a title)
     OA.Sync.changed("upgrades", record.id, { kind = "approve" })
-    OA.Sync.notice(record.id, "IGUI_OA_Tree_Approved", { #steps })
     UpgradesServer.titles(record.id, u, steps, wasOpen, capstones)
     -- the follow-up memo of each tree whose capstone this plan took
     Adapt.approved(record, taken)
