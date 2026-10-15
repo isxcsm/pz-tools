@@ -107,7 +107,11 @@ for i, p in ipairs(def.pieces) do
             local tank = found:getPartById("GasTank")
             detail = detail .. " fuel " .. (tank and tank:getContainerContentAmount() or "?")
         end
-        if found and p.key then detail = detail .. " keys in " .. tostring(found:isKeysInIgnition()) end
+        if found and p.key then
+            local box = found:getPartById("GloveBox")
+            local key = box and box:getItemContainer() and box:getItemContainer():getFirstTypeRecurse("CarKey")
+            detail = detail .. " key in the glove box " .. tostring(key ~= nil)
+        end
         P4T.check(say, what .. " " .. want, found ~= nil, detail)
     elseif p.kind == "generator" then
         P4T.check(say, what, n.generators >= 1, n.generators)
@@ -172,6 +176,11 @@ function P5_LYING()
             local sq = cell:getGridSquare(x, y, 0)
             local bodies = sq and sq:getDeadBodys()
             for i = 0, (bodies and bodies:size() or 0) - 1 do if bodies:get(i):isFakeDead() then c = c + 1 end end
+            local moving = sq and sq:getMovingObjects()
+            for i = 0, (moving and moving:size() or 0) - 1 do
+                local zed = moving:get(i)
+                if instanceof(zed, "IsoZombie") and zed:isFakeDead() then c = c + 1 end
+            end
         end
     end
     say("still lying fake dead", c)

@@ -11,9 +11,10 @@
 -- and reanimateNow (the debug menu's own); IsoObject createContainersFromSpriteProperties and ItemContainer setExplored
 -- (as ISMoveableSpriteProps); IsoDoor IsOpen, ToggleDoorSilent, getBarricadeOnSameSquare/OppositeSquare; IsoBarricade
 -- getNumPlanks, removePlank(nil); IsoGridSquare playSound ("BreakBarricadePlank"); IsoWindow ToggleWindow(nil) (no
--- character: no barricade asked), BuildingDef isAlarmed; IsoGenerator.new(item, cell, square), getMaxFuel, setFuel,
--- setCondition (as the game's TimedActionsTests); BaseVehicle createVehicleKey, putKeyInIgnition(key, -1),
--- addKeyToGloveBox, VehiclePart setContainerContentAmount, getContainerCapacity, getItemContainer.
+-- character: no barricade asked), BuildingDef isAlarmed, setAlarmed; IsoGenerator.new(item, cell, square), getMaxFuel,
+-- setFuel, setCondition (as the game's TimedActionsTests); BaseVehicle addKeyToGloveBox (a key in the ignition needs a
+-- driver: putKeyInIgnition reads the driver's inventory), VehiclePart setContainerContentAmount, getContainerCapacity,
+-- getItemContainer.
 require "OperationAcorn/Core"
 require "OperationAcorn/Story/Stage"
 require "OperationAcorn/Story/Game"
@@ -41,8 +42,18 @@ function StageGame.siteLoaded(site, close)
     return def ~= nil and (close or def:isFullyStreamedIn())
 end
 
--- The building's layout (Story/Stage): its rooms, and its outer doors and windows on the ground floor. The RoomDefs and
--- the objects ride along (rooms[i].def, doors[i].object, windows[i].object) for the pieces; they are not saved.
+-- Whether a room has a floor (one of its squares has).
+local function hasFloor(r)
+    local room = r:getIsoRoom()
+    local squares = room and room:getSquares()
+    for i = 0, (squares and squares:size() or 0) - 1 do
+        if squares:get(i):getFloor() then return true end
+    end
+    return false
+end
+
+-- The building's layout (Story/Stage): its rooms with a floor, and its outer doors and windows on the ground floor. The
+-- RoomDefs and the objects ride along (rooms[i].def, doors[i].object, windows[i].object) for the pieces; not saved.
 -- A door or a window stands on a square's north or west edge, so an outer one is often on the square outside: the
 -- building's box is scanned one square wider, and one is outer when one side is in the building and the other in no
 -- room. A door is a doorway, with or without a door. (IsoRoom.getWindows is empty in game: found by the scan too.)
@@ -61,13 +72,16 @@ function StageGame.layout(site)
     local byDef = {}
     for i = 0, list:size() - 1 do
         local r = list:get(i)
-        local x, y, x2, y2 = r:getX(), r:getY(), r:getX2(), r:getY2()
-        local entry = { name = r:getName(), area = r:getArea(), z = r:getZ(), x = x, y = y, x2 = x2, y2 = y2,
-            edge = x <= bx1 or y <= by1 or x2 >= bx2 or y2 >= by2, def = r, doors = 0 }
-        layout.rooms[#layout.rooms + 1] = entry
-        byDef[r] = entry
-        if not lowest or r:getZ() < lowest then lowest = r:getZ() end
-        if r:getZ() == 0 then ground = true end
+        -- (a tall hall's upper "rooms" are its air: no floor, no room for a piece)
+        if hasFloor(r) then
+            local x, y, x2, y2 = r:getX(), r:getY(), r:getX2(), r:getY2()
+            local entry = { name = r:getName(), area = r:getArea(), z = r:getZ(), x = x, y = y, x2 = x2, y2 = y2,
+                edge = x <= bx1 or y <= by1 or x2 >= bx2 or y2 >= by2, def = r, doors = 0 }
+            layout.rooms[#layout.rooms + 1] = entry
+            byDef[r] = entry
+            if not lowest or r:getZ() < lowest then lowest = r:getZ() end
+            if r:getZ() == 0 then ground = true end
+        end
     end
     if not lowest then return layout end
     -- the ground floor: z 0, or the lowest there is (Stage.roles's floor; a basement is below it)
@@ -179,10 +193,16 @@ end
 
 -- The room of the layout a piece asks for by name or floor: with `up`, the largest on the floor above the ground floor
 -- with a window (one named in `names` first; one without a window when none has one; on the ground floor when there is
--- no floor above); with `names` alone, the largest so named on any floor. The same for every piece that asks the same
--- (the stage's later look reads the layout again).
+-- no floor above); with `names` alone, the largest so named on any floor. The room is kept for the piece's `at` in the
+-- stage (st.picked: its index in the layout) for every later piece of that `at`, and another `at` takes another room.
 local function pickRoom(ctx, p)
     local rooms = ctx.layout and ctx.layout.rooms or {}
+    local st = ctx.m and ctx.m.stage
+    local picked = st and (st.picked or {})
+    if st then st.picked = picked end
+    if picked and p.at and picked[p.at] then return rooms[picked[p.at]] end
+    local taken = {}
+    for _, i in pairs(picked or {}) do taken[i] = true end
     local ground
     for _, r in ipairs(rooms) do
         if r.z == 0 then ground = 0 end
@@ -196,8 +216,9 @@ local function pickRoom(ctx, p)
     for _, n in ipairs(p.names or {}) do named[n] = true end
     local function pick(z, lit)
         local best, bestNamed
-        for _, r in ipairs(rooms) do
-            if (not z or r.z == z) and (r.area or 0) >= OA.Stage.ROOM_AREA and (not lit or hasWindow(r.def)) then
+        for i, r in ipairs(rooms) do
+            if not taken[i] and (not z or r.z == z) and (r.area or 0) >= OA.Stage.ROOM_AREA
+                and (not lit or hasWindow(r.def)) then
                 if named[r.name or ""] and (not bestNamed or r.area > bestNamed.area) then bestNamed = r end
                 if not best or r.area > best.area then best = r end
             end
@@ -205,16 +226,24 @@ local function pickRoom(ctx, p)
         return best, bestNamed
     end
     -- (a house of one floor: the ground floor's instead)
+    local chosen
     if p.up then
         local up = (ground or 0) + 1
         local best, bestNamed = pick(up, true)
         if not best then best, bestNamed = pick(up) end
         if not best then best, bestNamed = pick(ground or 0, true) end
         if not best then best, bestNamed = pick(ground or 0) end
-        return bestNamed or best
+        chosen = bestNamed or best
+    else
+        local _, bestNamed = pick(nil)
+        chosen = bestNamed
     end
-    local _, bestNamed = pick(nil)
-    return bestNamed
+    if chosen and picked and p.at then
+        for i, r in ipairs(rooms) do
+            if r == chosen then picked[p.at] = i end
+        end
+    end
+    return chosen
 end
 
 -- The RoomDef a piece goes to: the room it asks for (pickRoom), else (`names` not found) its role's.
@@ -418,9 +447,45 @@ local function takeAway(sq, o)
     end
 end
 
+-- Clears open ground of its trees and bushes (what the game cuts as a bush: canBeCut, as ISRemovePlantCursor) in a
+-- ragged ring round its middle: all of them out to Stage.CLEAR_INNER squares, fewer and fewer out to CLEAR_RADIUS, so
+-- the clearing runs into the woods round it. The grass stays.
+local function clearGround(l)
+    local c = getCell()
+    local inner, r = OA.Stage.CLEAR_INNER, OA.Stage.CLEAR_RADIUS
+    for x = l.x - r, l.x + r do
+        for y = l.y - r, l.y + r do
+            local d = math.sqrt((x - l.x) * (x - l.x) + (y - l.y) * (y - l.y))
+            local sq = (d <= inner or (d <= r and OA.randomFloat(0, 1) < (r - d) / (r - inner)))
+                and c:getGridSquare(x, y, l.z)
+            local objects = sq and not sq:getRoom() and sq:getObjects()
+            if objects then
+                local cut = false
+                for j = objects:size() - 1, 0, -1 do
+                    local o = objects:get(j)
+                    local spr = o:getSprite()
+                    local props = spr and spr:getProperties()
+                    if instanceof(o, "IsoTree") or (props and props:has(IsoFlagType.canBeCut)) then
+                        sq:transmitRemoveItemFromSquare(o)
+                        cut = true
+                    end
+                end
+                if cut then
+                    sq:RecalcProperties()
+                    sq:RecalcAllWithNeighbours(true)
+                end
+            end
+        end
+    end
+end
+
 -- Clears the room a set goes to of its furniture, once (Stage.place, before any piece): the team made room for it.
--- Its containers go with it, and what was in them.
+-- Its containers go with it, and what was in them. Open ground ("ground"): its trees and bushes (clearGround).
 function StageGame.clear(ctx, p)
+    if p.at == "ground" then
+        if ctx.layout and ctx.layout.ground then clearGround(ctx.layout) end
+        return true
+    end
     local room = roomOf(ctx, p)
     if not room then return nil end
     ctx.cleared = ctx.cleared or {}
@@ -544,11 +609,71 @@ function StageGame.item(ctx, p)
     return true
 end
 
+-- Whether the world spawns a vehicle script: it is in one of the game's zone lists (VehicleZoneDistribution; a mod
+-- that keeps vanilla's vehicles off the roads takes them out of these).
+local function spawns(script)
+    for _, zone in pairs(VehicleZoneDistribution or {}) do
+        if type(zone) == "table" and type(zone.vehicles) == "table" and zone.vehicles[script] then return true end
+    end
+    return false
+end
+
+-- Whether a vehicle script has the parts a piece works on: its doors to open, a truck bed or trunk for its load, the
+-- gas tank for its fuel, the battery.
+local function fits(script, p)
+    local s = getScriptManager():getVehicle(script)
+    if not s then return false end
+    for _, id in ipairs(type(p.open) == "table" and p.open or { p.open }) do
+        if not s:getPartById(id) then return false end
+    end
+    if p.load and not (s:getPartById("TruckBed") or s:getPartById("TrunkDoor")) then return false end
+    if p.fuel and not s:getPartById("GasTank") then return false end
+    if p.battery and not s:getPartById("Battery") then return false end
+    return true
+end
+
+-- One of a zone list's vehicles that fits the piece, by the list's spawn chances; nil when none does.
+local function fromZone(name, p)
+    local zone = VehicleZoneDistribution and VehicleZoneDistribution[name]
+    if type(zone) ~= "table" or type(zone.vehicles) ~= "table" then return nil end
+    local list, total = {}, 0
+    for script, entry in pairs(zone.vehicles) do
+        local weight = type(entry) == "table" and tonumber(entry.spawnChance) or 1
+        if weight > 0 and fits(script, p) then
+            list[#list + 1] = { script = script, weight = weight }
+            total = total + weight
+        end
+    end
+    if total <= 0 then return nil end
+    table.sort(list, function(a, b) return a.script < b.script end)
+    local roll = OA.randomFloat(0, total)
+    for _, e in ipairs(list) do
+        roll = roll - e.weight
+        if roll <= 0 then return e.script end
+    end
+    return list[#list].script
+end
+
+-- The vehicle a piece gets: while the world spawns its own script, one of its first zone's (`zones`) that fits, else
+-- the script; in a world that does not (a mod's vehicles in place of vanilla's), one of the first of its zones that
+-- has one that fits, else the script.
+local function vehicleFor(p)
+    local zones = p.zones or {}
+    if spawns(p.script) then
+        return (zones[1] and fromZone(zones[1], p)) or p.script
+    end
+    for _, name in ipairs(zones) do
+        local script = fromZone(name, p)
+        if script then return script end
+    end
+    return p.script
+end
+
 -- A vehicle outside the entrance (or the role's door: "back"), along the wall: the first spot a few squares out (4, 3,
 -- 5, 6; straight out, then to either side) where its body (5 squares along the wall, 3 across) is free ground outside
 -- and no vehicle stands within a square of it (a parked car there already). On open ground: about the piece's spot,
 -- lying north to south (`across`: east to west). Doors open (`open`: a part id, or a list), the battery and the fuel
--- as given, its key in it (`key`).
+-- as given, its key in the glove box (`key`). Which vehicle: vehicleFor (the world's own, by `zones`).
 function StageGame.vehicle(ctx, p)
     local c = getCell()
     local out, dx, dy, z
@@ -584,7 +709,7 @@ function StageGame.vehicle(ctx, p)
     end
     if not sq then return nil end
     local dir = dx ~= 0 and IsoDirections.N or IsoDirections.E
-    local car = addVehicleDebug(p.script, dir, nil, sq)
+    local car = addVehicleDebug(vehicleFor(p), dir, nil, sq)
     if not car then return nil end
     local opens = type(p.open) == "table" and p.open or { p.open }
     for _, id in ipairs(opens) do
@@ -619,11 +744,7 @@ function StageGame.vehicle(ctx, p)
             car:transmitPartItem(bed)
         end
     end
-    -- (with no driver the key goes straight in: BaseVehicle.putKeyInIgnition; else it is left in the glove box)
-    if p.key then
-        local key = car:createVehicleKey()
-        if not (key and pcall(function() car:putKeyInIgnition(key, -1) end)) then car:addKeyToGloveBox() end
-    end
+    if p.key then car:addKeyToGloveBox() end
     return true
 end
 
@@ -727,32 +848,43 @@ function StageGame.lockout(ctx, p)
     return locked > 0 or nil
 end
 
--- Opens one of the room's windows (one on an edge of its squares, whole and not barricaded; none in a building with an
--- alarm: opening one would set it off).
+-- Opens one of the room's windows (one on an edge of its squares, whole and not barricaded); a building's alarm is
+-- off (its people left by it, the window open). With `chair` ({ N, S, W, E } sprites by the way it faces): a chair on the
+-- square inside it, turned to it (a window with a free square inside first).
 function StageGame.window(ctx, p)
     local room = roomOf(ctx, p)
     local def = roomDefOf(ctx, p)
     if not room then return nil end
     local building = def:getBuilding()
-    if building and building:isAlarmed() then return nil end
+    if building and building:isAlarmed() then building:setAlarmed(false) end
     local c = getCell()
-    local found = {}
+    local found, free = {}, {}
     local squares = room:getSquares()
     for i = 0, squares:size() - 1 do
         local sq = squares:get(i)
-        -- a window stands on its square's north or west edge: this square's, or the one east or south of it
-        for _, s in ipairs({ sq, c:getGridSquare(sq:getX() + 1, sq:getY(), sq:getZ()), c:getGridSquare(sq:getX(), sq:getY() + 1, sq:getZ()) }) do
+        -- a window stands on its square's north or west edge: this square's (the chair faces N or W), or the one east
+        -- or south of it (the chair faces E or S)
+        local sides = { { sq, nil }, { c:getGridSquare(sq:getX() + 1, sq:getY(), sq:getZ()), "E" },
+            { c:getGridSquare(sq:getX(), sq:getY() + 1, sq:getZ()), "S" } }
+        for _, side in ipairs(sides) do
+            local s = side[1]
             local objects = s and s:getObjects()
             for j = 0, (objects and objects:size() or 0) - 1 do
                 local o = objects:get(j)
-                if instanceof(o, "IsoWindow") and not o:IsOpen() and not o:isSmashed() and not o:isBarricaded() then
-                    found[#found + 1] = o
+                if instanceof(o, "IsoWindow") and not o:IsOpen() and not o:isSmashed() and not o:isBarricaded()
+                    and (side[2] == nil or (side[2] == "S") == o:getNorth()) then
+                    local at = { window = o, square = sq, facing = side[2] or (o:getNorth() and "N" or "W") }
+                    found[#found + 1] = at
+                    if sq:isFree(false) then free[#free + 1] = at end
                 end
             end
         end
     end
     if #found == 0 then return nil end
-    found[OA.random(1, #found)]:ToggleWindow(nil)
+    local list = (p.chair and #free > 0) and free or found
+    local at = list[OA.random(1, #list)]
+    at.window:ToggleWindow(nil)
+    if p.chair and at.square:isFree(false) then put(at.square, p.chair[at.facing]) end
     return true
 end
 
@@ -773,25 +905,12 @@ function StageGame.lock(ctx, p)
     local room = roomOf(ctx, p)
     local def = roomDefOf(ctx, p)
     if not room then return nil end
-    local c = getCell()
-    local squares = room:getSquares()
-    local locked = 0
-    for i = 0, squares:size() - 1 do
-        local sq = squares:get(i)
-        local objects = sq:getObjects()
-        for j = 0, objects:size() - 1 do
-            local o = objects:get(j)
-            if instanceof(o, "IsoDoor") then
-                local other = o:getNorth() and c:getGridSquare(sq:getX(), sq:getY() - 1, sq:getZ())
-                    or c:getGridSquare(sq:getX() - 1, sq:getY(), sq:getZ())
-                if (sq:getRoom() == room) ~= (other and other:getRoom() == room) then
-                    o:setLockedByKey(true)
-                    locked = locked + 1
-                end
-            end
-        end
+    local doors = doorsOf(room)
+    for _, d in ipairs(doors) do
+        if d.door:IsOpen() then d.door:ToggleDoorSilent() end
+        d.door:setLockedByKey(true)
     end
-    if locked == 0 then return nil end
+    if #doors == 0 then return nil end
     return def:getBuilding():getKeyId()
 end
 
@@ -882,6 +1001,8 @@ function StageGame.zombies(ctx, p)
     return points
 end
 
+local AROUND = { { 0, 0 }, { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }, { 1, 1 }, { -1, -1 }, { 1, -1 }, { -1, 1 } }
+
 -- Wakes what lies fake dead at the points (or a square from them: a body may have slid); with `stagger`, one after
 -- another that many real seconds apart (the first at once), in a random order.
 function StageGame.wake(points, stagger)
@@ -900,27 +1021,26 @@ function StageGame.wake(points, stagger)
     local c = getCell()
     for _, at in ipairs(points) do
         local done = false
-        for dx = -1, 1 do
-            for dy = -1, 1 do
-                local sq = not done and c:getGridSquare(at.x + dx, at.y + dy, at.z)
-                local bodies = sq and sq:getDeadBodys()
-                if bodies then
-                    for i = 0, bodies:size() - 1 do
-                        local b = bodies:get(i)
-                        if not done and b:isFakeDead() then
-                            b:reanimateNow()
-                            done = true
-                        end
+        -- its own square first: one lying next to it is another point's
+        for _, d in ipairs(AROUND) do
+            local sq = not done and c:getGridSquare(at.x + d[1], at.y + d[2], at.z)
+            local bodies = sq and sq:getDeadBodys()
+            if bodies then
+                for i = 0, bodies:size() - 1 do
+                    local b = bodies:get(i)
+                    if not done and b:isFakeDead() then
+                        b:reanimateNow()
+                        done = true
                     end
                 end
-                local moving = sq and sq:getMovingObjects()
-                if moving and not done then
-                    for i = 0, moving:size() - 1 do
-                        local z = moving:get(i)
-                        if not done and instanceof(z, "IsoZombie") and z:isFakeDead() then
-                            z:setFakeDead(false)
-                            done = true
-                        end
+            end
+            local moving = sq and sq:getMovingObjects()
+            if moving and not done then
+                for i = 0, moving:size() - 1 do
+                    local z = moving:get(i)
+                    if not done and instanceof(z, "IsoZombie") and z:isFakeDead() then
+                        z:setFakeDead(false)
+                        done = true
                     end
                 end
             end

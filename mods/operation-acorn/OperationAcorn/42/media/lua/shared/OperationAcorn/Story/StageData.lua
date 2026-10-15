@@ -17,14 +17,17 @@
 --             where it fits. A room a set goes to is cleared of its furniture first (the team made room).
 --   line      { sprite, step = { x, y }, length } on open ground: a row of one sprite (a sandbag wall), gaps where taken
 --   item      { type | types, count } on the floor of the room (outdoors: about the spot)
---   vehicle   { script, open = a door part id or a list, battery = 0 to 1, fuel = 0 to 1, key, load = item types }
+--   vehicle   { script, zones, open = a door part id or a list, battery = 0 to 1, fuel = 0 to 1, key (in the glove
+--             box), load = item types } `zones`: the game's vehicle zone lists (VehicleZoneDistribution) it may be one
+--             of: the first's while the world spawns `script`, else (a mod's vehicles in place of vanilla's) the first
+--             of them with one that has the parts asked for
 --             outside by the entrance (or the role's door), or about the spot on open ground (`across`: east to west)
 --   barricade { planks = { least, most } } boards on the inside of each ground floor window
 --   board     { planks, drop = { during, at } } boards on the outside of the room's doors; with `drop`, one plank
 --             falls at that point of the span (Stage.progress)
 --   lockout   locks the outer doors but the entrance (no key)
 --   lock      locks the room's doors with the building's key: the key goes to the next corpse with `key = true`
---   window    opens one of the room's windows
+--   window    { chair } opens one of the room's windows; with `chair` ({ N, S, W, E }) a chair inside it, turned to it
 --   generator { fuel = 0 to 1 } a generator, not running
 --   corpse    { outfit, key, count } bodies in the room
 --   blood     { count } splats on the room's floor
@@ -57,6 +60,8 @@ local MEDICAL = { north = { "location_community_medical_01_156", "location_commu
     west = { "location_community_medical_01_160", "location_community_medical_01_161",
     "location_community_medical_01_162", "location_community_medical_01_163" } }
 local CHAIR_N = "furniture_seating_indoor_01_62"
+local CHAIR = { N = CHAIR_N, S = "furniture_seating_indoor_01_60", W = "furniture_seating_indoor_01_63",
+    E = "furniture_seating_indoor_01_61" }   -- the same chair by the way it faces
 local GARDEN_CHAIR_S = "furniture_seating_outdoor_01_17"
 local DESK = { { 0, 0, "furniture_tables_high_01_26" }, { 1, 0, "furniture_tables_high_01_27" } }
 local CHAIR_ROW = { { -1, 3, CHAIR_N }, { 0, 3, CHAIR_N }, { 1, 3, CHAIR_N }, { 2, 3, CHAIR_N } }
@@ -70,7 +75,8 @@ local TARP = { { 0, 0, "camping_03_38" }, { 1, 0, "camping_03_39" } }
 -- hall and gets up when the evidence envelope is taken.
 StageData.evidence = { pieces = {
     { kind = "tile", at = "entrance", sprite = NOTICE },
-    { kind = "vehicle", at = "entrance", script = "Base.CarLightsPolice", open = "DoorFrontLeft", battery = 0 },
+    { kind = "vehicle", at = "entrance", script = "Base.CarLightsPolice", zones = { "police" }, open = "DoorFrontLeft",
+      battery = 0 },
     { kind = "barricade", planks = { 2, 3 } },
     -- the desk and its radio, left on; the row of chairs facing it when the room has space for it too
     { kind = "set", at = "big", on = true, tiles = { DESK[1], DESK[2], { 0, 0, "appliances_com_01_50" } }, more = CHAIR_ROW },
@@ -86,7 +92,8 @@ StageData.evidence = { pieces = {
 -- nurses are boarded in. (The record is swapped in out of the player's sight: Story/Missions.)
 StageData.clinic = { pieces = {
     { kind = "tile", at = "entrance", sprite = MEDICAL },
-    { kind = "vehicle", at = "back", script = "Base.VanAmbulance", open = "DoorRear", battery = 0 },
+    { kind = "vehicle", at = "back", script = "Base.VanAmbulance", zones = { "ambulance" }, open = "DoorRear",
+      battery = 0 },
     { kind = "set", at = "hall", fewer = 2, tiles = { { 0, 0, CHAIR_N }, { 1, 0, CHAIR_N }, { 2, 0, CHAIR_N }, { 3, 0, CHAIR_N } } },
     { kind = "item", at = "hall", count = 3,
       types = { "Base.UmbrellaBlack", "Base.UmbrellaRed", "Base.Jacket_Black", "Base.JacketLong_Random" } },
@@ -103,21 +110,20 @@ StageData.clinic = { pieces = {
 -- 3 (a): the far house of the weather log. Upstairs a chair at the window, a sheet with a barometer drawn on it, the
 -- log in the room's desk; a window open; the owner shut in a bedroom upstairs.
 StageData.observation_a = { pieces = {
-    { kind = "tile", at = "big", up = true, names = { "office", "livingroom", "bedroom" }, sprite = CHAIR_N },
     { kind = "item", at = "big", up = true, names = { "office", "livingroom", "bedroom" }, type = "Base.SheetPaper2" },
     { kind = "piece", at = "big", up = true, names = { "office", "livingroom", "bedroom" }, key = "A" },
-    { kind = "window", at = "big", up = true, names = { "office", "livingroom", "bedroom" } },
+    { kind = "window", at = "big", up = true, names = { "office", "livingroom", "bedroom" }, chair = CHAIR },
     { kind = "lock", at = "other", up = true, names = { "bedroom", "kidsbedroom" } },
     { kind = "zombies", at = "other", up = true, names = { "bedroom", "kidsbedroom" }, outfit = "Farmer" },
 } }
 
 -- 3 (b): the near house of the farm journal. Garden chairs turned to the fields; a pickup loaded and left with no fuel,
--- its door open and its key in; a window open upstairs; one lying fake dead in the garage or the shed. The journal is
+-- its door open and its key in the glove box; a window open upstairs; one lying fake dead in the garage or the shed. The journal is
 -- in any container of the house (the usual placing).
 StageData.observation_b = { pieces = {
     { kind = "set", at = "yard", tiles = { { 0, 0, GARDEN_CHAIR_S }, { 1, 0, GARDEN_CHAIR_S }, { 2, 0, GARDEN_CHAIR_S } } },
-    { kind = "vehicle", at = "entrance", script = "Base.PickUpTruck", open = "DoorFrontLeft", fuel = 0, key = true,
-      load = { "Base.Suitcase", "Base.Bag_DuffelBag", "Base.Suitcase" } },
+    { kind = "vehicle", at = "entrance", script = "Base.PickUpTruck", zones = { "farm", "trades" }, open = "DoorFrontLeft",
+      fuel = 0, key = true, load = { "Base.Suitcase", "Base.Bag_DuffelBag", "Base.Suitcase" } },
     { kind = "window", at = "big", up = true },
     { kind = "zombies", at = "other", names = { "garage", "garagestorage", "shed", "barn" }, outfit = "Farmer",
       look = "fakeDead" },
@@ -143,7 +149,8 @@ StageData.cooler = { ground = true, pieces = {
     { kind = "generator", at = "ground", dx = -1, dy = 5, fuel = 0 },
     { kind = "set", at = "ground", dx = 4, dy = 4, reach = 2, count = 4, tiles = { { 0, 0, "location_military_generic_01_0" } } },
     { kind = "set", at = "ground", dx = 4, dy = 4, reach = 2, count = 2, tiles = { { 0, 0, "location_military_generic_01_8" } } },
-    { kind = "vehicle", at = "ground", dx = 7, dy = 2, script = "Base.PickUpTruck_Camo", open = "DoorFrontLeft", battery = 0 },
+    { kind = "vehicle", at = "ground", dx = 7, dy = 2, script = "Base.PickUpTruck_Camo",
+      zones = { "military", "farm", "trades" }, open = "DoorFrontLeft", battery = 0 },
     { kind = "zombies", at = "ground", dx = 3, dy = -7, reach = 1, outfit = "ArmyCamoGreen", look = "fakeDead",
       wake = "pickup" },
     { kind = "zombies", at = "ground", dx = 0, dy = 0, reach = 5, outfit = "ArmyCamoGreen", count = 3 },

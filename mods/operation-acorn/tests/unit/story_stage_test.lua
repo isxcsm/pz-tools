@@ -51,7 +51,7 @@ test("with no room inside the inner one is the farthest from the big room; no gr
     local one = Stage.roles({ rooms = { room("shop", 40, 0, 0, 0, 8, 8, true) } })
     eq(one.big, 1)
     eq(one.inner, nil)
-    eq(one.other, nil)
+    eq(one.other, 1, "a building of one room: the other room is the big one")
     eq(one.entrance, nil, "no door")
 end)
 
@@ -179,6 +179,17 @@ test("the rooms a set goes to are cleared first, before any piece; not outdoors,
     Stage.begin(again, m2)
     Stage.look(again, m2, 2000, 0, 20)
     eq(#g2.calls, 0, "set up before")
+end)
+
+test("open ground is cleared of its trees first, its sets with it, before any piece", function()
+    local record, m, g = setup({ { kind = "set", at = "ground", tiles = {} } })
+    OA.StageData.evidence.ground = true
+    m.site.ground = true
+    g.set = function() g.calls[#g.calls + 1] = "set"; return true end
+    g.clear = function(ctx, p) g.calls[#g.calls + 1] = "clear:" .. tostring(p.at) end
+    Stage.begin(record, m)
+    Stage.look(record, m, 2000, 0, 20)
+    eq(table.concat(g.calls, ","), "clear:ground,set")
 end)
 
 test("a building not set up before is claimed as the stage begins; one taken before the stage gets the item alone", function()

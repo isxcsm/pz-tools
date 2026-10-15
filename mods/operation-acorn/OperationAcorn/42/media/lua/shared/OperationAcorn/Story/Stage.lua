@@ -38,6 +38,8 @@ Stage.game = nil
 -- The kinds put as the building loads; the rest (zombies) wait for the player.
 Stage.PLACE_KINDS = { tile = true, set = true, item = true, vehicle = true, barricade = true, lock = true,
     corpse = true, blood = true, piece = true, board = true, lockout = true, generator = true, window = true, line = true }
+Stage.CLEAR_INNER = 6     -- open ground's trees and bushes are all cleared this far round its middle,
+Stage.CLEAR_RADIUS = 10   -- and fewer and fewer out to this (the camp's reach)
 Stage.GROUND_RADIUS = 12   -- open ground is set up once the squares this far round the site are loaded
 Stage.READY = 40   -- the zombies are made once the player is this near the site (as the mission scene's, Story/Scene)
 Stage.ROOM_AREA = 4   -- the least area of a room with a role but the big one (a map has rooms of one square: pillars)
@@ -140,6 +142,8 @@ function Stage.roles(layout, int)
     end
     local pool = #roomy > 0 and roomy or rest
     if #pool > 0 then roles.other = pool[int(1, #pool)] end
+    -- a building of one room (a hall, a warehouse): the other room is the big one too
+    if not roles.other then roles.other = roles.big end
     -- no hall: the other room when it is roomy, else the big room (a small building's people waited in its main room)
     if not roles.hall then
         if roles.other and (rooms[roles.other].area or 0) >= Stage.ROOMY then roles.hall = roles.other else roles.hall = roles.big end
@@ -210,8 +214,10 @@ function Stage.place(record, m, layout, int)
         local ok, taken = pcall(Stage.game.occupied, ctx)
         if ok and taken then fresh = false end
     end
-    -- the rooms a set goes to are cleared of their furniture first (the team made room for it), before any piece
+    -- the rooms a set goes to are cleared of their furniture first (the team made room for it), open ground of its
+    -- trees and bushes (the camp's ground was cleared), before any piece
     if fresh and Stage.game and Stage.game.clear then
+        if def.ground then run(ctx, { kind = "clear", at = "ground" }) end
         for _, p in ipairs(def.pieces) do
             if p.kind == "set" and p.at ~= "ground" and p.at ~= "yard" then run(ctx, { kind = "clear", at = p.at,
                 up = p.up, names = p.names }) end
