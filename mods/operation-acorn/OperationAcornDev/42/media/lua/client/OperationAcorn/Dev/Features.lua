@@ -320,6 +320,18 @@ function Dev.endAdapt()
     return ok
 end
 
+-- Every tree's capstone opens, as if its meteorite fragment reached the research team (its memo comes too).
+-- Returns how many opened now.
+function Dev.unsealCapstones()
+    local r = record()
+    local opened = 0
+    for _, tree in ipairs(OA.Upgrades.Data.TREES) do
+        if OA.Upgrades.fragmentReceived(r, OA.Upgrades.Data.FRAGMENTS[tree]) then opened = opened + 1 end
+    end
+    say("capstones opened:", opened)
+    return opened
+end
+
 -- Every node may tell its first effect again.
 function Dev.resetFirstEffects()
     local r = record()

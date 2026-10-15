@@ -231,6 +231,9 @@ local function upgradesPage(page, ui)
         end },
         { T("Up_SenseSound"), function() Dev.sound(12, 0, 30, 30) end },
     })
+    ui.buttons(page, 5, {
+        { T("Up_Unseal"), function() Dev.unsealCapstones() fill() end },
+    })
 
     ui.heading(page, T("Up_Alarms"), 6)
     ui.buttons(page, 7, {

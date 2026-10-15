@@ -75,6 +75,7 @@ S = {
     'Up_EndAdapt': ('End adaptation', '적응 바로 끝내기'),
     'Up_FirstEffects': ('First effects again', '첫 효과 기록 초기화'),
     'Up_Serums': ('Upgrade serums', '시험 혈청'),
+    'Up_Unseal': ('Open every capstone', '최종 적응 모두 개방'),
     'Up_SenseSound': ('Sound 12 squares away', '12칸 밖에서 소리'),
     'Up_Alarms': ('Alarms (for the alarm-reading node)', '경보 (경보 읽기 노드용)'),
     'Up_AlarmHouse': ('Alarm a house', '집에 경보 달기'),
