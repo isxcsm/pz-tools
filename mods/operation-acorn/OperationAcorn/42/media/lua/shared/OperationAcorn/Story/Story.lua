@@ -6,6 +6,7 @@ require "OperationAcorn/Store"
 require "OperationAcorn/Sync"
 require "OperationAcorn/Say"
 require "OperationAcorn/Story/Data"
+require "OperationAcorn/Story/Comms"
 require "OperationAcorn/Markup"
 require "PZUIKit/Typing"
 local OA = OperationAcorn
@@ -76,6 +77,30 @@ end
 -- Has the 3rd milestone's handover happened.
 function Story.handedOver(record)
     return Story.section(record).handover == true
+end
+
+-- The trust tier: the stage, and the milestones on top of it (6, 7 and 8 are the first three).
+function Story.tier(record)
+    local stage, milestones = Story.progress(record)
+    return stage + milestones
+end
+
+-- Something happened that a call of the team's waits for (Story/Comms: the trigger as CommsData names it): the calls it
+-- fires come into the comms tab. Returns the ids fired.
+function Story.call(record, trigger)
+    local fired = OA.Comms.fire(record, trigger)
+    if #fired > 0 then OA.Sync.changed("comms", record.id) end
+    return fired
+end
+
+-- The calls timed by an earlier one (half a day after it, the next day): every ten minutes.
+function Story.callsDue(record)
+    if #OA.Comms.update(record) > 0 then OA.Sync.changed("comms", record.id) end
+end
+
+-- An upgrade or shared serum was injected (Upgrades/Serums): the first one is what the test serum scene waits for.
+function Story.onInjected(record)
+    Story.call(record, "serum")
 end
 
 -- ---------------------------------------------------------------------------------------------------------------
@@ -151,6 +176,7 @@ function Story.takePaper(record)
     if not at then return nil end
     local p = table.remove(s.papers, at)
     s.sent[p.doc] = true
+    Story.call(record, "sent:" .. p.doc)
     for _, held in pairs(Data.RADIO_AFTER) do
         if held.doc == p.doc then Story.markNew(record, held.copy) end
     end
@@ -160,6 +186,8 @@ end
 
 -- What the story puts in a crate (the trade part's crate provider): one paper, when one is ready.
 function Story.crateSpecs(record)
+    -- the first supply crate of a tier is what that tier's scene waits for (6 and 7)
+    Story.call(record, "crate:" .. Story.tier(record))
     local spec = Story.takePaper(record)
     return spec and { spec } or nil
 end
@@ -169,6 +197,7 @@ end
 -- later crate.
 function Story.onSettled(record, result)
     local s = Story.section(record)
+    Story.call(record, "settled")
     for _, line in ipairs(result and result.lines or {}) do
         if line.marks and line.marks.fragment then
             s.fragmentSeen = true
@@ -285,28 +314,28 @@ function Story.enterMilestone(record, k)
 end
 
 -- The trade part calls this when the trust stage has gone up (and for milestones, with the milestone count); the
--- mission tick also calls it when it sees the numbers move, so a missed call costs nothing.
-function Story.onStage(record, stage, milestones, announce)
+-- mission tick also calls it when it sees the numbers move, so a missed call costs nothing. The tiers entered fire
+-- their calls, and drop the calls of the tiers passed that never came (Story/Comms).
+function Story.onStage(record, stage, milestones)
     local s = Story.section(record)
     stage = stage or (record.trade and record.trade.stage) or 0
     milestones = milestones or (record.trade and record.trade.milestones) or 0
-    local last
     for st = s.seenStage + 1, stage do
         s.seenStage = st
         Story.enterStage(record, st)
-        last = "s" .. st
         OA.log("story: stage", st, "entered by", record.number)
     end
     for k = s.seenMilestones + 1, milestones do
         s.seenMilestones = k
         Story.enterMilestone(record, k)
-        last = "m" .. k
         OA.log("story: milestone", k, "reached by", record.number)
     end
+    local tier = s.seenStage + s.seenMilestones
+    if tier > OA.Comms.section(record).tier then
+        OA.Comms.enterTier(record, tier)
+        OA.Sync.changed("comms", record.id)
+    end
     OA.Sync.changed("story", record.id)
-    -- The stage title is shown by whoever raised the trust (`announce`); the scene of the last stage entered comes
-    -- after it.
-    if announce and last then Story.scene(record, last) end
 end
 
 -- Missions end: the story hears of it. result: "done" | "expired" | "lost".
@@ -323,6 +352,8 @@ function Story.missionEnded(record, m, result)
             Story.queueStory(record, m.story, false)
         end
         s.regularsSince = 0
+        -- the call about it, once its box has come in (the handover's: once it is over, in any way)
+        if result == "done" or (def and def.handover) then Story.call(record, "story:" .. m.story) end
         if def and def.handover then Story.completeHandover(record) end
     else
         s.regularsSince = (s.regularsSince or 0) + 1
@@ -355,7 +386,7 @@ function Story.completeHandover(record)
     Story.queueSupply(record, "KitVoucher", nil)
     OA.Sync.title(record.id, { key = "IGUI_OA_Title_Handover", sub = "IGUI_OA_Title_HandoverSub",
         subArgs = { { key = Story.callSignKey(record) } }, style = "type" })
-    Story.scene(record, "handover")
+    Story.call(record, "handedover")
     OA.log("story: handover for", record.number)
     OA.Sync.changed("story", record.id)
 end
@@ -387,17 +418,22 @@ function Story.greetingText(record)
     return Story.text(key, Story.number(record))
 end
 
--- The first radio line when the terminal is first used, filed as a radio copy: 'late' when the first crate came late
--- or without a helicopter. It is also a scene over the screen, unless `quiet` (a record that is found past the first
--- stage without one).
+-- The first contact when the terminal is first used, filed as a radio copy: 'late' when the first crate came late
+-- or without a helicopter (the first call has lines of its own then). The first call comes into the comms tab, unless
+-- `quiet` (a record that is found past the first stage without one: its tier has dropped that call).
 function Story.firstContact(record, late, quiet)
     local s = Story.section(record)
     if s.firstContact then return false end
     s.firstContact = late and "late" or true
     Story.markNew(record, "c:first")
     OA.Sync.changed("story", record.id)
-    if not quiet then Story.scene(record, "first") end
+    if not quiet then Story.call(record, "first") end
     return true
+end
+
+-- Whether the first crate came late (the first call's late lines).
+function Story.lateContact(record)
+    return Story.section(record).firstContact == "late"
 end
 
 -- The radio copies in the document folder (DESIGN-terminal 11): the first contact, the lines of each stage entered
@@ -474,18 +510,6 @@ function Story.stageTitle(record, level)
         detail.subLead = Story.TITLE_LEAD
     end
     return detail
-end
-
--- A radio copy's scene on the player's screen: its lines typed over the game (client/RadioScene.lua), for the first
--- contact, a stage or milestone entered, the handover. The copy is in the folder in any case.
-function Story.scene(record, id)
-    for _, copy in ipairs(Story.radioCopies(record)) do
-        if copy.id == id then
-            OA.Sync.scene(record.id, { id = id, keys = copy.keys, number = Story.number(record) })
-            return true
-        end
-    end
-    return false
 end
 
 -- A radio copy's title and text.

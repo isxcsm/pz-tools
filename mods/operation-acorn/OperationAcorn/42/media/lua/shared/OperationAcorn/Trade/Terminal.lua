@@ -1,12 +1,13 @@
--- The communication terminal's tabs (DESIGN-terminal 1.1): always the same four, status, shop, delivery and missions,
--- in that order. The window itself is the client's (client/OperationAcorn/Trade/TerminalWindow.lua); the part that
--- owns a tab gives its view here with addTab, from its own files, before or after the window exists.
+-- The communication terminal's tabs (DESIGN-terminal 1.1): always the same five, status, shop, delivery, missions and
+-- comms (the team's calls, SCENES.md 2), in that order. The window itself is the client's
+-- (client/OperationAcorn/Trade/TerminalWindow.lua); the part that owns a tab gives its view here with addTab, from its
+-- own files, before or after the window exists.
 require "OperationAcorn/Core"
 local OA = OperationAcorn
 local Terminal = OA.Terminal or {}
 OA.Terminal = Terminal
 
-Terminal.ORDER = { "status", "shop", "delivery", "missions" }
+Terminal.ORDER = { "status", "shop", "delivery", "missions", "comms" }
 
 -- What a tab's dot remembers as seen, in the record's ui.seen (DESIGN-terminal 1.1): numbers only. `road` is the status
 -- tab's progress screen: the trust level whose entry it has shown (11.1).
@@ -20,14 +21,33 @@ local tabs = {}
 --     state to deal with);
 --   seen(record, window) -> key, value, or a table { key = value, ... } for a tab with more than one thing to see:
 --     what the window keeps as seen once the tab has been looked at (SEEN_KEYS keys); nil keeps nothing (a tab whose
---     news is seen on one of its screens asks the window which is on show, window:subOn(id)).
+--     news is seen on one of its screens asks the window which is on show, window:subOn(id));
+--   opens(record) -> true: the window opens on this tab (a call waiting to play), not on the status tab.
+-- A view may also have wantsKeys(), consumesKey(key) and onKey(key) (the window's keys while it is on show; a view
+-- that starts taking keys turns the window's key events on itself), onTabLeave() (another
+-- tab was chosen) and consoleOver() (the window's boot console is over).
 function Terminal.addTab(id, factory, opts)
-    tabs[id] = { id = id, factory = factory, mark = opts and opts.mark, seen = opts and opts.seen }
+    tabs[id] = { id = id, factory = factory, mark = opts and opts.mark, seen = opts and opts.seen,
+        opens = opts and opts.opens }
     return tabs[id]
 end
 
 function Terminal.tab(id)
     return tabs[id]
+end
+
+-- The tab a window opens on for a record: the first that asks to (a failing rule does not), else the status tab.
+function Terminal.opening(record)
+    if record then
+        for _, id in ipairs(Terminal.ORDER) do
+            local tab = tabs[id]
+            if tab and tab.opens then
+                local ok, yes = pcall(tab.opens, record)
+                if ok and yes then return id end
+            end
+        end
+    end
+    return "status"
 end
 
 -- The tab's title key.

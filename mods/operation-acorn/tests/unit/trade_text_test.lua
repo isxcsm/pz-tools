@@ -285,15 +285,26 @@ test("a debt that the flight does not clear blocks the orders in the estimate", 
     OA.Shop = nil
 end)
 
-test("the terminal has four tabs; a view given again replaces the first", function()
+test("the terminal has five tabs; a view given again replaces the first", function()
     Terminal.clear()
-    eq(table.concat(Terminal.ORDER, ","), "status,shop,delivery,missions")
+    eq(table.concat(Terminal.ORDER, ","), "status,shop,delivery,missions,comms")
     local first, second = function() return 1 end, function() return 2 end
     Terminal.addTab("shop", first)
     Terminal.addTab("shop", second)
     eq(Terminal.tab("shop").factory, second)
     eq(Terminal.tab("delivery"), nil)
     eq(Terminal.titleKey("shop"), "IGUI_OA_Terminal_Tab_shop")
+    Terminal.clear()
+end)
+
+test("the window opens on a tab that has something waiting, else on the status tab; a failing rule does not", function()
+    Terminal.clear()
+    eq(Terminal.opening({}), "status")
+    Terminal.addTab("missions", function() end, { opens = function() error("broken") end })
+    Terminal.addTab("comms", function() end, { opens = function(record) return record.waiting end })
+    eq(Terminal.opening({ waiting = false }), "status")
+    eq(Terminal.opening({ waiting = true }), "comms")
+    eq(Terminal.opening(nil), "status")
     Terminal.clear()
 end)
 

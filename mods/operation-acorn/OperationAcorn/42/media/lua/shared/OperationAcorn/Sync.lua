@@ -51,17 +51,6 @@ function Sync.title(playerId, detail)
     end
 end
 
--- A radio scene over a player's screen, typed (the first contact, a stage entered, the handover): `detail` is { id (the
--- copy's id), keys (its radio lines' ids), number (the collection point number the lines say) }. The lines are
--- translated on the player's side; shown by client/OperationAcorn/RadioScene.lua, and only through the extension API's text.
-function Sync.scene(playerId, detail)
-    if isServer() then
-        sendServerCommand(OA.MOD, "scene", { player = playerId, detail = detail })
-    else
-        Sync.deliver("scene", playerId, detail)
-    end
-end
-
 -- What a client asks of the server: a command and its arguments, as the player who asks. The character's id goes
 -- with it, since the server finds the player's record by it.
 function Sync.send(character, command, args)

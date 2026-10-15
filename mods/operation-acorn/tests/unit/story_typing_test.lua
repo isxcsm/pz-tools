@@ -1,7 +1,6 @@
 -- Typing in the terminal and the stage scenes (DESIGN-terminal 14 F2, story-improvements 8): the markup of typed texts
 -- (the API's language), the character count a clock gives, the pieces of the folder's text panel, how a half-typed text is
--- kept and resumed by the world's age, the stage title and its scene, the scene over the screen, and the check of
--- the markup in the translation files (every radio copy, in both languages: well-formed, the pauses within the limit,
+-- kept and resumed by the world's age, the stage title, and the check of the markup in the translation files (every radio copy, in both languages: well-formed, the pauses within the limit,
 -- short enough for the API). No Hangul in this file: the test VM keeps only the low byte of a literal's letters.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
@@ -551,70 +550,6 @@ test("a stage's title names the stage; the line under it is the first radio line
     eq(late.subLead, nil)
 end)
 
-test("a stage entered through a trust change gets its scene after the title; the other ways do not", function()
-    local scenes = {}
-    OA.Sync.listen("scene", function(playerId, detail) scenes[#scenes + 1] = { player = playerId, detail = detail } end)
-    local record = setup(2)
-    Story.onStage(record)
-    eq(#scenes, 0, "the tick that catches up says nothing")
-    record.trade.stage = 3
-    Story.onStage(record, nil, nil, true)
-    eq(#scenes, 1)
-    eq(scenes[1].player, "p1")
-    eq(scenes[1].detail.id, "s3")
-    -- s3_b tells of the paper in the next crate: it joins the copy once that paper has gone (Data.RADIO_AFTER)
-    eq(table.concat(scenes[1].detail.keys, ","), "s3_a,s3_c")
-    eq(scenes[1].detail.number, "0347")
-    -- two stages at once: the last one's scene
-    record.trade.stage = 5
-    Story.onStage(record, nil, nil, true)
-    eq(#scenes, 2)
-    eq(scenes[2].detail.id, "s5")
-    eq(scenes[2].detail.keys[1], "s5_first")
-    -- a milestone
-    record.trade.milestones = 1
-    Story.onStage(record, nil, nil, true)
-    eq(scenes[3].detail.id, "m1")
-    -- nothing new, nothing shown
-    Story.onStage(record, nil, nil, true)
-    eq(#scenes, 3)
-end)
-
-test("the first contact is a scene, unless it comes from the tick that finds a record past the first stage", function()
-    local scenes = {}
-    OA.Sync.listen("scene", function(playerId, detail) scenes[#scenes + 1] = detail end)
-    local record = setup(1)
-    truthy(Story.firstContact(record, false))
-    eq(#scenes, 1)
-    eq(scenes[1].id, "first")
-    eq(scenes[1].keys[1], "first")
-    eq(Story.firstContact(record, false), false)
-    eq(#scenes, 1, "once")
-    local late = OA.Store.ensure("p2", "Q")
-    late.number = 5
-    late.trade = { stage = 1, milestones = 0 }
-    Story.firstContact(late, true)
-    eq(scenes[2].keys[1], "first_late")
-    local quiet = OA.Store.ensure("p3", "R")
-    quiet.number = 6
-    quiet.trade = { stage = 1, milestones = 0 }
-    Story.firstContact(quiet, false, true)
-    eq(#scenes, 2, "quiet")
-    truthy(Story.section(quiet).firstContact)
-end)
-
-test("the handover is a scene after its title", function()
-    local told, scenes = {}, {}
-    OA.Sync.listen("title", function(playerId, detail) told[#told + 1] = detail end)
-    OA.Sync.listen("scene", function(playerId, detail) scenes[#scenes + 1] = detail end)
-    local record = setup(5, 3)
-    Story.section(record).seenMilestones = 3
-    Story.completeHandover(record)
-    eq(told[1].key, "IGUI_OA_Title_Handover")
-    eq(scenes[1].id, "handover")
-    eq(scenes[1].keys[1], "handover")
-end)
-
 -- The markup in the translation files -----------------------------------------------------------------------------
 
 -- A language's texts as the game would read them from its file.
@@ -650,7 +585,8 @@ test("every translated text with braces reads as markup, in both languages", fun
     local found = 0
     for _, lang in ipairs({ "EN", "KO" }) do
         for key, value in pairs(texts(lang)) do
-            if string.find(value, "[{}]") then
+            -- (the calls' lines carry the comms tab's own marks: Story/CommsScript reads them)
+            if string.find(value, "[{}]") and not string.find(key, "^IGUI_OA_Comms_") then
                 found = found + 1
                 local read, why = Markup.parse(value)
                 truthy(read, lang .. " " .. key .. ": " .. tostring(why))

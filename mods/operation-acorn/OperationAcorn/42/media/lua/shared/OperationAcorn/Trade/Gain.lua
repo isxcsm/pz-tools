@@ -49,7 +49,7 @@ passed = function(record, events, source)
                 fallback = "good" }
         OA.Sync.title(record.id, detail)
         if OA.Story and OA.Story.onStage then
-            local ok, err = pcall(OA.Story.onStage, record, nil, nil, true)
+            local ok, err = pcall(OA.Story.onStage, record)
             if not ok then OA.log("story onStage failed:", tostring(err)) end
         end
     end

@@ -109,3 +109,18 @@ test("every line of every call has its text in both languages", function()
         for _, id in ipairs(Data.AFTER_SAYS) do truthy(has("IGUI_OA_Comms_" .. id), lang .. " " .. id) end
     end
 end)
+
+test("the calls' lines carry only the comms tab's marks, each with its seconds", function()
+    local KNOWN = { cut = true, mute = true, p = true }
+    for _, lang in ipairs({ "KO", "EN" }) do
+        local src = readfile("OperationAcorn/42/media/lua/shared/Translate/" .. lang .. "/IG_UI.json")
+        for key, value in string.gmatch(src, '"(IGUI_OA_Comms_[^"]+)":%s*"([^"]*)"') do
+            for mark in string.gmatch(value, "{([^}]*)}") do
+                local kind, secs = string.match(mark, "^(%a+):([%d%.]+)$")
+                truthy(kind and KNOWN[kind] and tonumber(secs) ~= nil, lang .. " " .. key .. " {" .. mark .. "}")
+            end
+            local plain = string.gsub(value, "{[^}]*}", "")
+            eq(string.find(plain, "[{}]"), nil, lang .. " " .. key .. " has a brace that is no mark")
+        end
+    end
+end)

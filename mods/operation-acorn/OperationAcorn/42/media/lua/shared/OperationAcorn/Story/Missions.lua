@@ -1297,6 +1297,8 @@ function Missions.callField(record, character, m)
     end
     m.state = "calling"
     if g.release then g.release(m) end
+    -- a story mission's call on the spot, as the helicopter comes (S5F, S8F)
+    if m.story then Story.call(record, "field:" .. m.story) end
     OA.Sync.notice(record.id, "IGUI_OA_Story_UI_Field_calling", {})
     OA.Sync.changed("missions", record.id)
     return true

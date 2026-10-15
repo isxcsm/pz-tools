@@ -1,4 +1,4 @@
--- The communication terminal's window (DESIGN-terminal 1): four tabs, status, shop, delivery and missions, drawn in
+-- The communication terminal's window (DESIGN-terminal 1): five tabs, status, shop, delivery, missions and comms, drawn in
 -- the palette of the terminal it is open at (the crude one built from the kit, or the field terminal ordered from the
 -- shop). The part that owns a tab gives its view with OA.Terminal.addTab. The window opens on the status tab every
 -- time, when the using action completes (OA.Terminal.open), and shows the player's own record, redrawn when the
@@ -59,7 +59,7 @@ end
 
 UI.scaled(OATab, ISPanel)
 
--- The strip of the four tabs under the title bar: the crude terminal's are outlined green boxes, the field
+-- The strip of the tabs under the title bar: the crude terminal's are outlined green boxes, the field
 -- terminal's sit on an olive band with an amber line over the chosen one. A dot by a name is something not seen yet
 -- (amber, pulsing until the tab is looked at) or a state to deal with (red); a tab that has something new to look at
 -- also blinks (OATerminalWindow:blinkTab) until it is shown. What it shows is the window's (the tab on show, the dots,
@@ -177,8 +177,15 @@ function OATerminalWindow:createChildren()
     self.strip:setAnchorRight(true)
     self:addChild(self.strip)
     self.views = {}
-    self:activate("status")
+    self:activate(self:openingTab())
     self:startBoot()
+end
+
+-- The tab the window opens on: the one with something waiting to play (a call), unless this is a field terminal's
+-- first open (its board is on the status tab).
+function OATerminalWindow:openingTab()
+    if self.firstBoot then return "status" end
+    return Terminal.opening(OA.Client.record(self.character))
 end
 
 -- The boot sequence ----------------------------------------------------------------------------------------------
@@ -325,15 +332,21 @@ function OATerminalWindow:bootTick(now)
             self:removeChild(self.bootOverlay)
             self.bootOverlay = nil
         end
-        local status = self.views.status
-        if status and status.consoleOver then status:consoleOver() end
+        for _, view in pairs(self.views) do
+            if view.consoleOver then view:consoleOver() end
+        end
+        -- something came to play while the console ran (the first contact): the window goes to it
+        local opening = self:openingTab()
+        if opening ~= self.activeId and self.activeId == "status" then self:activate(opening) end
     end
     if phase == "fade" then
         self.bootAlpha = 1 - t
         return self.bootAlpha
     end
     self.boot, self.bootAlpha = nil, nil
-    self:setWantKeyEvents(false)
+    -- the keys stay with a tab that takes some now (a call that started in the fade)
+    local view = self.views[self.activeId]
+    self:setWantKeyEvents(view ~= nil and view.wantsKeys ~= nil and view:wantsKeys())
     return nil
 end
 
@@ -344,8 +357,16 @@ function OATerminalWindow:bootSkip()
     self:bootTick()
 end
 
-function OATerminalWindow:onKeyPress()
-    if self.boot then self:bootSkip() end
+function OATerminalWindow:onKeyPress(key)
+    if self.boot then return self:bootSkip() end
+    local view = self.views[self.activeId]
+    if view and view.onKey then view:onKey(key) end
+end
+
+-- The keys the tab on show takes (they do not reach the game).
+function OATerminalWindow:isKeyConsumed(key)
+    local view = self.views[self.activeId]
+    return view ~= nil and view.consumesKey ~= nil and view:consumesKey(key)
 end
 
 -- The bars are as high as our Small face (the game's would follow its own font).
@@ -396,6 +417,8 @@ function OATerminalWindow:activate(id)
         self:tabsChanged()
     end
     if self.activeId == id and self.views[id] then return end
+    local leaving = self.activeId and self.views[self.activeId]
+    if leaving and leaving.onTabLeave then leaving:onTabLeave() end
     for vid, view in pairs(self.views) do
         if vid ~= id then view:setVisible(false) end
     end
@@ -673,6 +696,7 @@ end
 OA.Sync.listen("trade", onChanged)
 OA.Sync.listen("story", onChanged)
 OA.Sync.listen("missions", onChanged)
+OA.Sync.listen("comms", onChanged)
 OA.Sync.listen("all", function() onChanged(nil) end)
 
 return OATerminalWindow

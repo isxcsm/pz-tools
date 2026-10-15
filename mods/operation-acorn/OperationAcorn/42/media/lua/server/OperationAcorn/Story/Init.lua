@@ -112,6 +112,7 @@ local function onTenMinutes()
         -- The first radio line, when the trade part has not asked for it by the first stage.
         local stage = Story.progress(record)
         if stage >= 1 and not Story.section(record).firstContact then Story.firstContact(record, false, true) end
+        Story.callsDue(record)
     end)
 end
 
@@ -214,6 +215,14 @@ OA.Server.on("story_harvest", function(character, record, args)
     else
         OA.Sync.notice(record.id, "IGUI_OA_Story_HarvestFail_" .. tostring(why), {})
     end
+end)
+
+-- A call of the team's was played in the comms tab, to the end or skipped (it counts the same): it goes into the
+-- record at the tier the record is at, and the next one may come.
+OA.Server.on("comms_played", function(character, record, args)
+    local id = args.entry
+    if type(id) ~= "string" or not OA.Comms.ready(record, id) then return end
+    if OA.Comms.played(record, id, Story.tier(record)) then OA.Sync.changed("comms", record.id) end
 end)
 
 -- A document was read. `variant` is the place its text was for, `extra` the number it was read with.
