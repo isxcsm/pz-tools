@@ -1722,10 +1722,8 @@ final class Texts implements Hooks.Text {
 
     /**
      * What the text's look measures of its picture, once, as it is read back: the sink's foot (from the pixels), the bleed's drops,
-     * the typewriter's letters (their spans by the advances of each row's characters up to them) and when each is struck. The
-     * font's width of a string ends at its last character's picture, not its advance (AngelCodeFont.getWidth: the last one by its
-     * width, a distance-field glyph's padding with it), so the characters up to a letter are measured with a space after them,
-     * less a space's own width: their advances alone. Measured without it, every cut sat that padding inside the next letter.
+     * the typewriter's letters (their spans by the advances of each row's characters up to them: {@link #advance}) and when each
+     * is struck.
      */
     private Looks.Shape shape(Shown text, Dust.Piece piece, Layout laid, double anchorX, double firstY, double zoom, double line, int rowCount,
             double ink) throws Throwable {
@@ -1743,10 +1741,10 @@ final class Texts implements Hooks.Text {
             double x = (text.align < 0 ? anchorX : text.align > 0 ? anchorX - lineWidth : anchorX - lineWidth / 2) - piece.boxX;
             double v0 = index == 0 ? 0 : (firstY + line * index - piece.boxY) / piece.boxHeight;
             double v1 = index == rowCount - 1 ? 1 : (firstY + line * (index + 1) - piece.boxY) / piece.boxHeight;
-            double before = 0, space = width(text, " ");
+            double before = 0;
             for (int at = 0; at < words.length(); ) {
                 int next = at + Character.charCount(words.codePointAt(at));
-                double after = (width(text, words.substring(0, next) + " ") - space) * zoom;
+                double after = advance(text, words.substring(0, next)) * zoom;
                 if (!Character.isWhitespace(words.codePointAt(at))) {
                     glyphs.add(new double[] { at == 0 ? 0 : x + before, next >= words.length() ? piece.boxWidth : x + after, x + (before + after) / 2, v0, v1 });
                     spaced.add(at > 0 ? Character.isWhitespace(words.charAt(at - 1)) : index > 0);
@@ -2014,6 +2012,16 @@ final class Texts implements Hooks.Text {
         return text.face != null ? (int)faceWidth.invokeExact(text.face, words) : (int)measure.invokeExact(textManager, text.font, words);
     }
 
+    /**
+     * How far along the characters of {@code words} take the next one, at zoom 1: where what follows them is drawn. The font's
+     * width of a string ends at its last character's picture, not its advance (AngelCodeFont.getWidth counts the last one by its
+     * width, a distance-field glyph's padding with it), so the characters are measured with a space after them, less a space's
+     * own width. Measured alone, what follows sat that padding (a few pixels) to the right of where it is drawn.
+     */
+    private int advance(Shown text, String words) throws Throwable {
+        return width(text, words + " ") - width(text, " ");
+    }
+
     /** The first {@code count} characters of a run, made the first time they are asked for (one string for each character typed). */
     private static String part(Seg seg, int count) {
         if (count >= seg.text.length()) return seg.text;
@@ -2021,13 +2029,13 @@ final class Texts implements Hooks.Text {
         return made != null ? made : (seg.part[count] = seg.text.substring(0, count));
     }
 
-    /** The width at zoom 1 of the first {@code count} characters of a run, measured the first time it is asked for. */
+    /** The advance at zoom 1 of the first {@code count} characters of a run ({@link #advance}), measured the first time it is asked for. */
     private float partWidth(Shown text, Seg seg, int count) throws Throwable {
         if (count <= 0) return 0;
         count = Math.min(count, seg.text.length());
         float known = seg.partWidth[count];
         if (known > 0) return known;
-        return seg.partWidth[count] = width(text, part(seg, count));
+        return seg.partWidth[count] = advance(text, part(seg, count));
     }
 
     // ---- the rows of a text with markup, typing or a width ----
@@ -2106,7 +2114,7 @@ final class Texts implements Hooks.Text {
             seg.to = stop;
             seg.tint = tint;
             seg.text = plain.substring(at, stop);
-            seg.x = at == from ? 0 : width(text, plain.substring(from, at));
+            seg.x = at == from ? 0 : advance(text, plain.substring(from, at));
             if (script.at != null) {
                 seg.part = new String[seg.text.length()];
                 seg.partWidth = new float[seg.text.length() + 1];
