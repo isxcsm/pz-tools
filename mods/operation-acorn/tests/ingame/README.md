@@ -54,3 +54,10 @@ Some checks change the save's market or the record (they say so in their header)
 | File | What it checks | Setup |
 | --- | --- | --- |
 | `p4_zombies.lua` | the sample items and their icons, the vanilla outfits the groups wear (no OA outfit), the shop and the first box, the API's zombie mark and hold hooks; then steps by hand: a zombie mission next to the character (`P4Z_MISSION("clear")` or `"target"`), the group brought and held (`P4Z_STATUS()`), kills counted (`P4Z_KILL(n)`), a corpse harvested once (`P4Z_HARVEST(precise)`), the group gone and brought again (`P4Z_AWAY()`, `P4Z_BACK()`), the world's marks of the mission (`P4Z_MARKS()`) | a record at stage 1 or above, open ground; throwaway save (it replaces the running mission) |
+
+## P4 story stage 1 (`p4_stage1*.lua`, PLAN 2단계)
+
+| File | What it checks | Setup |
+| --- | --- | --- |
+| `p4_stage1.lua` | the first call waiting for the terminal, the evidence mission at a temporary police post picked in the band (a building, used for the world), its stage planned and the envelope left to it; puts the character 30 squares from the site | a record, standing where the terminal is; throwaway save |
+| `p4_stage1_after.lua` | the stage in the world: the notice by the entrance, the desk with the walkie-talkie (a radio?) and four chairs, boarded windows, the locked inner room, the officer's body with the key, the police car (door, battery), the envelope in the inner room, the officer lying fake dead; then `P4S_PICKUP()` and, a few seconds later, `P4S_WOKE()` (he gets up, the pickup monologue is kept) | after `p4_stage1.lua`, a few seconds for the chunks |
