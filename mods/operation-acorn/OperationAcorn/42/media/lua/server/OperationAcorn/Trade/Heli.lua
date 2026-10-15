@@ -86,8 +86,15 @@ function Heli.call(character, record, kind, x, y)
     Trade.orders(record).cart = {}
     Rules.startCall(heli, now, arrive, rewards.callInterval, call)
     local day, h, m = Trade.clockText(arrive)
-    OA.Sync.notice(record.id, kind == "reissue" and "IGUI_OA_Trade_Notice_ReissueCalled" or "IGUI_OA_Trade_Notice_Called",
-        { day, string.format("%02d:%02d", h, m) })
+    -- (while nobody answers on the team's side the call is taken automatically: SCENES S4)
+    local silent = OA.Comms and OA.Comms.silent(record)
+    local key
+    if kind == "reissue" then
+        key = silent and "IGUI_OA_Trade_Notice_ReissueCalledAuto" or "IGUI_OA_Trade_Notice_ReissueCalled"
+    else
+        key = silent and "IGUI_OA_Trade_Notice_CalledAuto" or "IGUI_OA_Trade_Notice_Called"
+    end
+    OA.Sync.notice(record.id, key, { day, string.format("%02d:%02d", h, m) })
     changed(record)
     return true
 end

@@ -32,6 +32,13 @@ local function done(s, id)
     return s.played[id] ~= nil or s.dropped[id] == true
 end
 
+-- Whether nobody answers on the team's side (SCENES S4): after the day the line went dead (S4) until the next call
+-- (S4B). The trade goes on by itself then: a call is taken as an automatic one.
+function Comms.silent(record)
+    local s = Comms.section(record)
+    return s.played.S4 ~= nil and not done(s, "S4B")
+end
+
 -- Fires every entry whose trigger is `trigger` (a string as CommsData names them). Returns the ids fired.
 function Comms.fire(record, trigger, now)
     local s = Comms.section(record)

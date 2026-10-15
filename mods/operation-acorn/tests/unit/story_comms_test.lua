@@ -37,6 +37,19 @@ test("the first contact plays when the terminal is first used, the first settlem
     eq(Comms.section(r).log[1].id, "S0")
 end)
 
+test("nobody answers from the day the line went dead until the next call: then the trade goes on by itself", function()
+    local r = fresh()
+    eq(Comms.silent(r), false)
+    local s = Comms.section(r)
+    s.played.S4 = 10
+    eq(Comms.silent(r), true)
+    s.played.S4B = 40
+    eq(Comms.silent(r), false)
+    s.played.S4B = nil
+    s.dropped.S4B = true
+    eq(Comms.silent(r), false, "a dropped S4B ends it too")
+end)
+
 test("a trigger fires once: a second settlement does not bring the first one's scene again", function()
     local r = fresh()
     Comms.fire(r, "first", 1)
