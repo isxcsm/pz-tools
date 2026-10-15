@@ -1,6 +1,7 @@
--- The terminal's comms tab (SCENES.md 2): the team's calls played and kept. Above, the record: each scene under a head
--- (the tier, the regular call's hour, its name) with its replay button, the short calls and the field monologues
--- among them, the newest at the foot. Below, the protagonist's input line. A call plays here: the team's lines come in
+-- The terminal's comms tab (SCENES.md 2): the team's calls played and kept. Above, the record: each call under a head
+-- (the tier, the regular call's hour, its name) with its replay button, the field monologues of a tier under one
+-- head, the newest at the foot; only the newest open, the others folded to their heads (a click on a head opens or
+-- folds it). Below, the protagonist's input line. A call plays here: the team's lines come in
 -- like a signal, the protagonist's are typed on the input line (words typed and erased first) and go up into the
 -- record when sent. While a call plays the game is paused (alone; never on a server), its sound turned down under a
 -- low static, and a key or the button skips it; another tab or the window closing counts as skipping. Played or
@@ -159,23 +160,54 @@ function OATabComms:playedRows(rows, e, l)
     end
 end
 
--- The record's rows: a head for each scene, one for a run of short calls or monologues of a tier.
-function OATabComms:recordRows(record)
-    local rows = {}
-    local lastGroup
-    for _, item in ipairs(Comms.section(record).log) do
+-- The record's blocks: a head for each call (a short one too: each can be played again), one for a run of field
+-- monologues of a tier, and its lines' rows. A block's key is the place in the log of its first entry (the log only
+-- grows).
+function OATabComms:recordBlocks(record)
+    local blocks = {}
+    local block, lastGroup
+    for index, item in ipairs(Comms.section(record).log) do
         local e = Data.BY_ID[item.id]
         if e then
-            local grouped = e.kind == "short" or e.kind == "say"
+            local grouped = e.kind == "say"
             local group = grouped and (e.kind .. ":" .. tostring(item.tier)) or nil
-            if not grouped or group ~= lastGroup then
-                rows[#rows + 1] = self:headRow(headText(e, item.tier), not grouped and item or nil)
+            if not grouped or group ~= lastGroup or not block then
+                local head = self:headRow(headText(e, item.tier), not grouped and item or nil)
+                head.block = index
+                block = { head = head, rows = {} }
+                blocks[#blocks + 1] = block
             end
             lastGroup = group
-            for _, l in ipairs(Script.lines(e, context(record, item.tier))) do self:playedRows(rows, e, l) end
+            for _, l in ipairs(Script.lines(e, context(record, item.tier))) do self:playedRows(block.rows, e, l) end
+            -- a short call has no name: its folded head shows how it begins
+            if e.kind == "short" then
+                for _, r in ipairs(block.rows) do
+                    if r.kind ~= "noise" and r.lines[1] then block.head.preview = r.lines[1]; break end
+                end
+            end
         end
     end
-    return rows
+    return blocks
+end
+
+-- Whether a block of the record shows its lines: as its head was last clicked, else only the newest (none while a
+-- call plays: the call is the newest then).
+function OATabComms:isOpen(key)
+    local set = self.opened[key]
+    if set ~= nil then return set end
+    return key == self.newest and not self.play
+end
+
+-- A head clicked: its block opens or folds, the head staying where it was on the record.
+function OATabComms:toggle(head)
+    local key = head.block
+    self.opened[key] = not self:isOpen(key)
+    local record = self:record()
+    if not record then return end
+    local log = self.log
+    local at = head.y - log.scroll
+    self:setRows(record)
+    log:setScroll(head.y - at)
 end
 
 -- The rows of the call playing: its head, the lines played, the one coming in (as it comes: no break written).
@@ -208,12 +240,20 @@ function OATabComms:setRows(record)
             self.prefixW = math.max(self.prefixW, UI.textWidth(UI.str(k)))
         end
         self.prefixW = math.max(self.prefixW, UI.textWidth(self.number)) + 12
-        self.kept = self:recordRows(record)
+        self.kept = self:recordBlocks(record)
+        local last = self.kept[#self.kept]
+        self.newest = last and last.head.block
     end
-    local rows = self.kept
+    local rows = {}
+    for _, block in ipairs(self.kept) do
+        local open = self:isOpen(block.head.block)
+        block.head.open = open
+        rows[#rows + 1] = block.head
+        if open then
+            for _, r in ipairs(block.rows) do rows[#rows + 1] = r end
+        end
+    end
     if self.play then
-        rows = {}
-        for _, r in ipairs(self.kept) do rows[#rows + 1] = r end
         for _, r in ipairs(self:playRows()) do rows[#rows + 1] = r end
     end
     self.log:setRows(rows, self.play ~= nil)
@@ -237,6 +277,8 @@ function OATabComms:createChildren()
     self:addChild(self.log)
     -- the calls this window has told the server it played (the record may not say so yet)
     self.told = {}
+    -- the record's blocks opened or folded by a click on their heads
+    self.opened = {}
     self:layout()
 end
 
@@ -597,8 +639,20 @@ function OACommsLog:onMouseDown(x, y)
     if row then
         UI.placeFlash(self, row.replay)
         self.tab:replay(row.replay)
+        return true
     end
+    row = self:headAt(y)
+    if row then self.tab:toggle(row) end
     return true
+end
+
+-- The head of a record's block under the mouse (it opens and folds the block), if any; none while a call plays (the
+-- record stays at the call).
+function OACommsLog:headAt(y)
+    if self.tab.play then return nil end
+    local row = self:rowAt(y + self.scroll)
+    if row and row.block then return row end
+    return nil
 end
 
 function OACommsLog:onMouseMove(dx, dy) UI.barDrag(self, dy) end
@@ -613,9 +667,11 @@ function OACommsLog:prerender()
     if p.panel then UI.fill(self, 0, 0, w, h, p.panel) else UI.fill(self, 0, 0, w, h, p.text, 0.03) end
     UI.frame(self, 0, 0, w, h, p.border)
     local over
+    self.overHead = nil
     if self:isMouseOver() and not self.dragging then
         local row = self:replayAt(self:getMouseX(), self:getMouseY())
         over = row and row.replay
+        if not over then self.overHead = self:headAt(self:getMouseY()) end
     end
     UI.placeLight(self, over)
     if #self.rows == 0 then
@@ -634,7 +690,22 @@ function OACommsLog:prerender()
     end
 end
 
--- A row at y: a head with its rule and replay button, or a line after its call sign.
+-- A small triangle in a box `size` square at x, y: pointing down (`open`) or right.
+function OACommsLog.foldMark(panel, x, y, size, open, colour)
+    local half = math.floor(size / 2)
+    -- its point is half + 1 deep: centred that way in the box
+    local inset = math.floor((size - half - 1) / 2)
+    for i = 0, half do
+        local span = (half - i) * 2 + 1
+        if open then
+            UI.fill(panel, x + i, y + inset + i, span, 1, colour)
+        else
+            UI.fill(panel, x + inset + i, y + i, 1, span, colour)
+        end
+    end
+end
+
+-- A row at y: a head with its fold mark, rule and replay button, or a line after its call sign.
 function OACommsLog:drawRow(row, y, p)
     local tab = self.tab
     local c = tab.colours
@@ -642,11 +713,34 @@ function OACommsLog:drawRow(row, y, p)
     local pad = OATabComms.PAD
     if row.kind == "head" then
         local ty = y + 8
+        local hover = self.overHead == row
         UI.fill(self, pad, ty + math.floor(fh / 2), self.width - pad * 2 - OATabComms.BAR, 1, p.border, 0.5)
-        local label = UI.fitMemo(row.text, self.width - pad * 4 - 120)
-        local lw = UI.textWidth(label) + 12
+        -- the fold mark: pointing down over an open block, right at a folded one
+        local mark = row.block and math.floor(fh * 0.4) or 0
+        local label = UI.fitMemo(row.text, self.width - pad * 4 - 120 - mark)
+        local lw = UI.textWidth(label) + 12 + (mark > 0 and mark + 6 or 0)
+        -- a folded short call's first words, dim, up to the replay button
+        local preview, pw = nil, 0
+        if row.preview and not row.open then
+            local room = self:replayBox() - 16 - (pad + lw + 8)
+            if room > 40 then
+                preview = UI.fitMemo(row.preview, room)
+                pw = UI.textWidth(preview) + 8
+            end
+        end
+        if preview then
+            if p.panel then UI.fill(self, pad + lw, ty, pw + 4, fh, p.panel) else UI.fill(self, pad + lw, ty, pw + 4, fh, p.bg) end
+            UI.text(self, preview, pad + lw + 4, ty, p.dim)
+        end
         if p.panel then UI.fill(self, pad, ty, lw, fh, p.panel) else UI.fill(self, pad, ty, lw, fh, p.bg) end
-        UI.text(self, label, pad + 4, ty, p.head)
+        if hover then UI.fill(self, pad, ty, lw, fh, p.sel, 0.15) end
+        local colour = hover and p.bright or p.head
+        local lx = pad + 4
+        if mark > 0 then
+            OACommsLog.foldMark(self, lx, ty + math.floor((fh - mark) / 2), mark, row.open, colour)
+            lx = lx + mark + 6
+        end
+        UI.text(self, label, lx, ty, colour)
         if row.replay and not tab.play then
             local bx, bw = self:replayBox()
             local k, f = UI.placeLevels(self, row.replay)
