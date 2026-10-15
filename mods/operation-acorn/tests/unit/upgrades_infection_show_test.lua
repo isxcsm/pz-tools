@@ -285,7 +285,7 @@ test("a cure: the green stamp with the days and the drugs, the line a moment lat
     TEST.hours = 24 * 43
     truthy(cure(c))
     local stamp = titleOf(told, "IGUI_OA_Title_Cured")
-    eq(stamp.style, "stamp")
+    eq(stamp.style, "pulse")
     eq(stamp.tone, "green")
     eq(stamp.sub, "IGUI_OA_Title_CuredSubDrugs")
     eq(stamp.subArgs[1], 43)

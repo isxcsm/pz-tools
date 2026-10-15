@@ -508,9 +508,7 @@ function Dev.title(kind, arg)
     if kind == "capstone" then
         local node = Data.capstone(arg or "scout")
         if not node then error("no capstone for " .. tostring(arg), 2) end
-        local detail = { key = "IGUI_OA_Title_Capstone", sub = Data.key(node.id, "Name"), style = "stamp", tone = "gold",
-            fallback = "good" }
-        return OA.Titles.show(nil, detail)
+        return OA.Titles.show(nil, OA.Upgrades.capstoneTitle(node))
     elseif kind == "tree" then
         local hooks = OA.Upgrades.Hooks
         if hooks and hooks.treeOpened then hooks.treeOpened(nil, arg or "scout", true) end

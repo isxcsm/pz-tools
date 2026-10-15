@@ -46,6 +46,13 @@ function Upgrades.fragmentReceived(record, fullType)
     return true
 end
 
+-- The title of a capstone taken: its name, and under it that the body took it; quiet (the API's "dust": it fades in and
+-- crumbles away), in gold.
+function Upgrades.capstoneTitle(node)
+    return { key = Upgrades.Data.key(node.id, "Name"), sub = "IGUI_OA_Title_Capstone", style = "dust", tone = "gold",
+        fallback = "good" }
+end
+
 -- Sample bundles the shredder adds to its yield, as an expected count (the board).
 function Upgrades.bundleBonus(record)
     return Rules.bundleBonus(Rules.section(record))
