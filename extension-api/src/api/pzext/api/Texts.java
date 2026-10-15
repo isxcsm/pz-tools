@@ -45,6 +45,8 @@ final class Texts implements Hooks.Text {
     static final double DEFAULT_SPEED = 30, MAX_SPEED = 1000, MIN_WIDTH = 0.05, MAX_PAUSE = 30, MAX_TYPING = 300, BLINK = 0.5;
     // Dust: the size of its cells and the reach of its drift, as shares of the default.
     static final double MIN_DUST_SIZE = 0.25, MAX_DUST_SIZE = 8, MAX_DUST_DRIFT = 4;
+    // A move (text.move) takes this long when the mod does not say (seconds).
+    static final double MOVE_TIME = 0.3;
     // Frames a picture let go from the render queue is given before it is let go on the render thread's own turn.
     private static final int BURIAL_FRAMES = 120;
     private static final java.util.regex.Pattern NUMBER = java.util.regex.Pattern.compile("[0-9]{1,4}(\\.[0-9]{1,3})?");
@@ -87,6 +89,11 @@ final class Texts implements Hooks.Text {
         boolean shadow;
         double x = 0.5, y = 0.5;
         int align;
+        // A move (text.move) on its way: where it was as the move began, its colour's alpha and its backdrop then, when it began
+        // (the interface's clock; 0 for none) and how long it takes. Where it is drawn as it is (on the way), from moving().
+        double fromX, fromY, fromBackdrop, moveTime, atX, atY, atBackdrop;
+        float fromAlpha, atAlpha;
+        long moved;
         // What the mod gave as the text, when it has markup, types or fits a width (null for a plain text); and the options for
         // these: the markup is read, a line's width as a share of the screen's, the characters a second (0: the default), a cursor.
         String source;
@@ -478,6 +485,29 @@ final class Texts implements Hooks.Text {
             long key = key(arguments, call);
             boolean now = arguments.length > 2 && Boolean.TRUE.equals(arguments[2]);
             return new Object[] { hide(owner, key, now, clock.getAsLong()) };
+        });
+        function(table, "move", (call, arguments) -> {
+            String owner = owner(arguments, call);
+            long key = key(arguments, call);
+            Object spec = arguments.length > 2 ? arguments[2] : null;
+            if (!lua.isTable(spec)) throw new IllegalArgumentException(call + ": spec must be a table, such as { y = 0.7, time = 0.3 }");
+            double x = Double.NaN, y = Double.NaN, alpha = Double.NaN, backdrop = Double.NaN, time = MOVE_TIME;
+            Boolean cursor = null;
+            for (var entry : lua.entries(spec)) {
+                if (!(entry.getKey() instanceof String field)) throw new IllegalArgumentException(call + ": spec has a field that is not a name");
+                Object value = entry.getValue();
+                String name = "spec." + field;
+                switch (field) {
+                    case "x" -> x = number(value, call, name, 0, 1);
+                    case "y" -> y = number(value, call, name, 0, 1);
+                    case "alpha" -> alpha = number(value, call, name, 0, 1);
+                    case "backdrop" -> backdrop = number(value, call, name, 0, 1);
+                    case "cursor" -> cursor = flag(value, call, name);
+                    case "time" -> time = number(value, call, name, 0, MAX_SECONDS);
+                    default -> throw new IllegalArgumentException(call + ": spec has no field " + field + "; it takes x, y, alpha, backdrop, cursor and time");
+                }
+            }
+            return new Object[] { move(owner, key, x, y, alpha, backdrop, cursor, time, clock.getAsLong(), call) };
         });
         function(table, "shown", (call, arguments) -> {
             String owner = owner(arguments, call);
@@ -907,6 +937,55 @@ final class Texts implements Hooks.Text {
         return found;
     }
 
+    /**
+     * {@code text.move}: the text, or the title and the line under it, goes to another place over a time, and to another strength
+     * of its colour and of its backdrop: from where it is on its way, smoothly; and its cursor on or off. A title's line goes as
+     * far as the title. Whether there was one.
+     */
+    private boolean move(String owner, long key, double x, double y, double alpha, double backdrop, Boolean cursor, double time, long at,
+                         String call) {
+        Shown first = null;
+        for (Shown text : shown) if (text.owner.equals(owner) && text.key == key && !text.done) { first = text; break; }
+        if (first == null) return false;
+        if (Boolean.TRUE.equals(cursor) && first.enter != Enter.TYPE)
+            throw new IllegalArgumentException(call + ": spec.cursor goes with a text shown with enter = \"type\"");
+        double acrossBy = Double.isNaN(x) ? 0 : x - first.x, downBy = Double.isNaN(y) ? 0 : y - first.y;
+        for (Shown text : shown) {
+            if (!text.owner.equals(owner) || text.key != key || text.done) continue;
+            moving(text, at);
+            text.fromX = text.atX;
+            text.fromY = text.atY;
+            text.fromAlpha = text.atAlpha;
+            text.fromBackdrop = text.atBackdrop;
+            text.x = Math.max(0, Math.min(1, text.x + acrossBy));
+            text.y = Math.max(0, Math.min(1, text.y + downBy));
+            if (!Double.isNaN(alpha)) text.alpha = (float)alpha;
+            if (!Double.isNaN(backdrop)) text.backdrop = backdrop;
+            if (cursor != null && text.enter == Enter.TYPE) text.cursor = cursor;
+            // One not on the screen yet is there at once.
+            text.moved = time > 0 && text.start != 0 ? at : 0;
+            text.moveTime = time;
+        }
+        dirty = true;
+        return true;
+    }
+
+    /** Where the text is drawn at {@code now}, its colour's alpha and its backdrop: as it was put, or on its way there. */
+    private static void moving(Shown text, long now) {
+        text.atX = text.x;
+        text.atY = text.y;
+        text.atAlpha = text.alpha;
+        text.atBackdrop = text.backdrop;
+        if (text.moved == 0) return;
+        double p = text.moveTime <= 0 ? 1 : (now - text.moved) / SECOND / text.moveTime;
+        if (p >= 1) { text.moved = 0; return; }
+        double q = cubicOut(Math.max(0, p));
+        text.atX = text.fromX + (text.x - text.fromX) * q;
+        text.atY = text.fromY + (text.y - text.fromY) * q;
+        text.atAlpha = (float)(text.fromAlpha + (text.alpha - text.fromAlpha) * q);
+        text.atBackdrop = text.fromBackdrop + (text.backdrop - text.fromBackdrop) * q;
+    }
+
     /** {@code handle:clear()}: the mod's texts go at once, waiting ones too. */
     void clear(String owner, String call) throws ReflectiveOperationException {
         current(call);
@@ -1323,6 +1402,7 @@ final class Texts implements Hooks.Text {
 
     /** Draws the text on one screen as it is at {@code now}; false once it has gone. Allocates nothing. */
     private boolean draw(Shown text, long now, int screen, int left, int top, int width, int height) throws Throwable {
+        moving(text, now);
         double t = (now - text.start) / SECOND - text.delay;
         double leaving = leaving(text);
         if (text.hidden != 0 && leaving <= 0 && t < 0) return false;
@@ -1371,7 +1451,7 @@ final class Texts implements Hooks.Text {
             case DUST, BURN -> { } // Below, once the text is placed: as dust or burning, or a fade.
         }
         boolean look = looked(text);
-        float shownAlpha = (float)(alpha * text.alpha);
+        float shownAlpha = (float)(alpha * text.atAlpha);
         if (shownAlpha <= INVISIBLE && text.leave != Leave.DUST && !look) return true;
         Object font = text.font;
         Object angel = (Object)fontOf.invokeExact(textManager, font);
@@ -1394,7 +1474,7 @@ final class Texts implements Hooks.Text {
         double base = large ? requested / text.lineHeight : text.size > 0 ? text.size * height / text.lineHeight : text.scale;
         double zoom = base * scale;
         double line = text.lineHeight * zoom;
-        double anchorX = left + text.x * width + across * line, anchorY = top + text.y * height + shift * line;
+        double anchorX = left + text.atX * width + across * line, anchorY = top + text.atY * height + shift * line;
         Script script = text.script;
         Layout laid = null;
         int typed = 0;
@@ -1408,8 +1488,8 @@ final class Texts implements Hooks.Text {
         int rowCount = laid == null ? text.lines.length : laid.rows.length;
         double firstY = anchorY - line * rowCount / 2;
         // At rest: the place and size a look's picture is made at.
-        double restLine = text.lineHeight * base, restX = left + text.x * width, restFirst = top + text.y * height - restLine * rowCount / 2;
-        if (text.backdrop > 0) {
+        double restLine = text.lineHeight * base, restX = left + text.atX * width, restFirst = top + text.atY * height - restLine * rowCount / 2;
+        if (text.atBackdrop > 0) {
             // As strong as the text is seen, coming in over BACKDROP_IN at most as fast; a text that crumbles or burns takes it with
             // it over its leave. A look's stays at the text's place at rest.
             double seen = Math.min(smooth(Math.min(1, t / Looks.BACKDROP_IN)),
@@ -1428,7 +1508,7 @@ final class Texts implements Hooks.Text {
             if (text.enter == Enter.TORCH || text.enter == Enter.SIGNAL || text.enter == Enter.MIST || text.enter == Enter.BLEED
                 || text.enter == Enter.STRIKE) alpha *= smooth(in);
             if (text.leave == Leave.BURN) alpha *= 1 - smooth(out);
-            shownAlpha = (float)(alpha * text.alpha);
+            shownAlpha = (float)(alpha * text.atAlpha);
             if (shownAlpha <= INVISIBLE) return true;
         }
         if (text.leave == Leave.DUST) {
@@ -1452,7 +1532,7 @@ final class Texts implements Hooks.Text {
                 }
                 // Its picture on its way: the text as it was for a moment, then a fade.
                 if (!(usable && piece.pending() && out < Dust.PENDING)) alpha *= 1 - smooth(out);
-                shownAlpha = (float)(alpha * text.alpha);
+                shownAlpha = (float)(alpha * text.atAlpha);
             }
             if (shownAlpha <= INVISIBLE) return true;
         }
@@ -1520,7 +1600,7 @@ final class Texts implements Hooks.Text {
                     if (!piece.at(boxX, boxY, boxWidth, boxHeight)) { piece.phase = Dust.FAILED; break; }
                     Object before = gl.beginCapture(piece);
                     bare = text.leave == Leave.WASH;
-                    try { paintAll(text, laid, typed, t, anchorX, firstY, zoom, line, large, own, font, text.alpha, 1, false); }
+                    try { paintAll(text, laid, typed, t, anchorX, firstY, zoom, line, large, own, font, text.atAlpha, 1, false); }
                     finally {
                         bare = false;
                         gl.endCapture(piece, before);
@@ -1702,7 +1782,7 @@ final class Texts implements Hooks.Text {
         }
         if (!(low <= high)) return;
         double top = firstY, bottom = firstY + line * rowCount + text.backdropBelow * height;
-        double side = BACKDROP_SIDE * line, end = BACKDROP_END * line, strength = text.backdrop * seen;
+        double side = BACKDROP_SIDE * line, end = BACKDROP_END * line, strength = text.atBackdrop * seen;
         shade(low, top, high, top, high, bottom, low, bottom, (float)strength, (float)strength, (float)strength, (float)strength);
         for (int ring = 0; ring < BACKDROP_RINGS; ring++) {
             double in = (double)ring / BACKDROP_RINGS, out = (double)(ring + 1) / BACKDROP_RINGS;

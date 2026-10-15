@@ -1733,6 +1733,7 @@ which override the jar's; it overrides none of the text classes):
 | `text.show(handle, spec)` | Shows a text; returns its key (a number). `spec` below. |
 | `text.title(handle, spec)` | Shows a title in a style, queued on each player's screen; returns its key. `spec` below. |
 | `text.hide(handle, key, now)` | The mod's text (or title, with its line) leaves with its effect; with `now` true it goes at once, and a title still waiting leaves the queue. `true` when there was one. |
+| `text.move(handle, key, spec)` | The mod's text (or title, with its line) goes to another place, colour strength or backdrop: `spec` is `x`, `y` (0 to 1, as `show`'s; a title's line goes as far as the title), `alpha` (the colour's, 0 to 1), `backdrop` (0 to 1), `cursor` (a typed text's, on or off: at once) and `time` (0 to 30 s, 0.3 when left out), each but `time` left as it is when left out. It eases out from where it is, on its way too when moved again; one not on the screen yet is there at once. `true` when there was one. For lines that stack, as subtitles do: the earlier ones move up and dim as a new one comes. |
 | `text.shown(handle, key)` | Whether it is on the screen or waiting. |
 | `text.styles()` | The titles' styles: `{ "stamp", "discovery", "notice", "unveil", "dust", "bleed", "sink", "type", "pulse" }`. |
 | `text.status()` | Whether the hook that draws is in the game: `"applied"`, `"not-loaded"` (the interface's class has not loaded), or why not, worded as `PZExtAPI.hooks()` is. A mod shows the player what is not applied. |

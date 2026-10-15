@@ -59,6 +59,7 @@ final class TextsTest {
             idle();
             shown(text, mod);
             timeline(text, mod, other);
+            moves(text, mod, other);
             layout(text, mod);
             fonts(text, mod);
             embedded(text, mod);
@@ -124,6 +125,51 @@ final class TextsTest {
         advance(0.01);
         render();
         check(draws().isEmpty() && !(Boolean)FormulasTest.call(text, "shown", mod, key).get(0), "The text outlived its hold");
+    }
+
+    /**
+     * Moved: to its new place and strength over the time asked, easing out, from where it is on its way when moved again; at once
+     * when it is not on the screen yet; only by its mod; a field it does not take is an error.
+     */
+    private static void moves(KahluaTable text, Object mod, Object other) {
+        double key = (Double)FormulasTest.call(text, "show", mod, table("text", "Move")).get(0);
+        render();
+        // Large is 33 high and 15 a character: 60 by 33, centred on the screen of 1600 by 900.
+        drawn(draws().get(0), UIFont.Large, 770, 433.5, 1, "Move", 1, 1, 1, 1);
+        check(!(Boolean)FormulasTest.call(text, "move", other, key, table("y", 0.25)).get(0)
+            && !(Boolean)FormulasTest.call(text, "move", mod, 999.0, table("y", 0.25)).get(0), "Another mod's text, or one that is not there, was moved");
+        check((Boolean)FormulasTest.call(text, "move", mod, key, table("y", 0.25, "alpha", 0.5, "time", 1.0)).get(0), "move found no text");
+        render();
+        drawn(draws().get(0), UIFont.Large, 770, 433.5, 1, "Move", 1, 1, 1, 1);
+        // Halfway: eased out, 1 - 0.5^3 of the way.
+        advance(0.5);
+        render();
+        drawn(draws().get(0), UIFont.Large, 770, 433.5 + (208.5 - 433.5) * 0.875, 1, "Move", 1, 1, 1, 1 - 0.5 * 0.875);
+        // Moved again from there: to the right, the rest as it was put.
+        double fromY = 433.5 + (208.5 - 433.5) * 0.875;
+        FormulasTest.call(text, "move", mod, key, table("x", 0.75, "time", 0.5));
+        advance(0.5);
+        render();
+        drawn(draws().get(0), UIFont.Large, 1170, 208.5, 1, "Move", 1, 1, 1, 0.5);
+        check(fromY > 208.5, "The second move did not start on the way");
+        // At once.
+        FormulasTest.call(text, "move", mod, key, table("y", 0.5, "time", 0.0));
+        render();
+        drawn(draws().get(0), UIFont.Large, 1170, 433.5, 1, "Move", 1, 1, 1, 0.5);
+        FormulasTest.call(text, "hide", mod, key, true);
+        check(!(Boolean)FormulasTest.call(text, "move", mod, key, table("y", 0.25)).get(0), "A hidden text was moved");
+        // Not on the screen yet (its delay is not over, nor was it drawn): there at once when it comes.
+        double later = (Double)FormulasTest.call(text, "show", mod, table("text", "Move", "delay", 1.0)).get(0);
+        FormulasTest.call(text, "move", mod, later, table("y", 0.25, "time", 5.0));
+        render();
+        advance(1);
+        render();
+        drawn(draws().get(0), UIFont.Large, 770, 208.5, 1, "Move", 1, 1, 1, 1);
+        rejects(text, "spec has no field size", "move", mod, later, table("size", 0.1));
+        rejects(text, "spec.time must be", "move", mod, later, table("time", 31.0));
+        rejects(text, "spec.cursor goes with", "move", mod, later, table("cursor", true));
+        rejects(text, "spec must be a table", "move", mod, later);
+        FormulasTest.call(text, "hide", mod, later, true);
     }
 
     /** Fading in and out on the clock; the clock starts as it is first drawn; hidden, at once or as it leaves; only by its mod. */
@@ -794,6 +840,13 @@ final class TextsTest {
         advance(0.5);
         render();
         check(draws().size() == 2 && "_".equals(draws().get(1)[5]), "The cursor did not blink on");
+        // Taken away by a move (the text stays where it is).
+        double typed = (Double)FormulasTest.call(text, "show", mod, table("text", "Hi", "enter", "type", "speed", 10.0, "cursor", true, "y", 0.1)).get(0);
+        render();
+        check(last("_") != null, "The second text has no cursor");
+        FormulasTest.call(text, "move", mod, typed, table("cursor", false));
+        render();
+        check(draws().size() == 3, "The moved text kept its cursor: " + draws().size());
         FormulasTest.call(mod, "clear");
         // Before the first character (a pause first) it is at the start.
         showing(text, mod, "text", "{p:1}Hi", "markup", true, "enter", "type", "speed", 10.0, "cursor", true, "align", "left", "x", 0.1);
