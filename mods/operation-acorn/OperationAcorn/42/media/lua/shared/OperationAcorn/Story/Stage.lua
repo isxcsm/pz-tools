@@ -20,9 +20,9 @@
 --
 -- Where: the hands read the building's layout as it loads: its rooms ({ name, area, z, x, y, x2, y2, edge = touches the
 -- building's outline }) and its outer doors and windows on the ground floor. The rooms get roles (Stage.roles): "big"
--- (the largest on the ground floor), "inner" (one inside, away from the outline), "other" (another), "hall" (a hall or
--- corridor, or another one), none of them but the big one smaller than ROOM_AREA; "entrance" is the outer door nearest
--- the big room, "back" the one farthest from it. A piece names the role it goes to (`at`); "yard" is the ground outside
+-- (the largest on the ground floor), "inner" (one inside, away from the outline), "other" (another, a ROOMY one first),
+-- "hall" (a hall or corridor, else the other room when roomy, else the big room), none of them but the big one smaller
+-- than ROOM_AREA; "entrance" is the outer door nearest the big room, "back" the one farthest from it. A piece names the role it goes to (`at`); "yard" is the ground outside
 -- the entrance, and on open ground "ground" is the site's own, the piece's place given from its middle (`dx`, `dy`).
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
@@ -41,6 +41,7 @@ Stage.PLACE_KINDS = { tile = true, set = true, item = true, vehicle = true, barr
 Stage.GROUND_RADIUS = 12   -- open ground is set up once the squares this far round the site are loaded
 Stage.READY = 40   -- the zombies are made once the player is this near the site (as the mission scene's, Story/Scene)
 Stage.ROOM_AREA = 4   -- the least area of a room with a role but the big one (a map has rooms of one square: pillars)
+Stage.ROOMY = 12      -- "other" is a room this large first; the hall falls back to the big room when it has none
 
 -- The stage data of a mission: its story's (by its option; a revisit's, the story's it goes back to), when its site is
 -- the kind the stage is for; nil otherwise.
@@ -124,18 +125,25 @@ function Stage.roles(layout, int)
         if not roles.hall and not taken[i] and HALL[rooms[i].name or ""] then roles.hall = i end
     end
     if roles.hall then taken[roles.hall] = true end
-    -- another room: on the ground floor first, then anywhere
-    local rest = {}
+    -- another room: on the ground floor first (a roomy one first), then anywhere
+    local rest, roomy = {}, {}
     for _, i in ipairs(ground) do
-        if not taken[i] then rest[#rest + 1] = i end
+        if not taken[i] then
+            rest[#rest + 1] = i
+            if (rooms[i].area or 0) >= Stage.ROOMY then roomy[#roomy + 1] = i end
+        end
     end
     if #rest == 0 then
         for i in ipairs(rooms) do
             if not taken[i] then rest[#rest + 1] = i end
         end
     end
-    if #rest > 0 then roles.other = rest[int(1, #rest)] end
-    roles.hall = roles.hall or roles.other
+    local pool = #roomy > 0 and roomy or rest
+    if #pool > 0 then roles.other = pool[int(1, #pool)] end
+    -- no hall: the other room when it is roomy, else the big room (a small building's people waited in its main room)
+    if not roles.hall then
+        if roles.other and (rooms[roles.other].area or 0) >= Stage.ROOMY then roles.hall = roles.other else roles.hall = roles.big end
+    end
     -- the entrance: the outer door nearest the big room; the back: the farthest other one
     local doors = layout.doors or {}
     if #doors > 0 then

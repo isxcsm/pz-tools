@@ -273,6 +273,28 @@ test("the stage is the story's, a choice's by its option, a revisit's the story'
     OA.StoryData.REVISITS.t_revisit = nil
 end)
 
+test("a small building: the other room is a roomy one first; with no hall and nothing roomy, the hall is the big room", function()
+    -- a laundromat as the map has it: its main room, a back room, a closet and a bathroom
+    local l = { rooms = {
+        room("laundry", 84, 0, 0, 8, 6, 23, true),
+        room("vacated", 42, 0, 0, 0, 6, 8, true),
+        room("vacated", 6, 0, 0, 6, 3, 8, true),
+        room("bathroom", 6, 0, 0, 8, 3, 10, true),
+    } }
+    for _ = 1, 10 do
+        local roles = Stage.roles(l)
+        eq(roles.big, 1)
+        eq(roles.inner, 2, "the farthest from the big room")
+        truthy(roles.other == 3 or roles.other == 4)
+        eq(roles.hall, 1, "the big room: nothing roomy left")
+    end
+    l.rooms[#l.rooms + 1] = room("office", 20, 0, 6, 0, 10, 5, true)
+    local roles = Stage.roles(l, function(a) return a end)
+    eq(roles.inner, 5, "the office is now the farthest")
+    eq(roles.other, 2, "the roomy one left")
+    eq(roles.hall, 2)
+end)
+
 test("the back door is the outer door farthest from the big room, when there are two", function()
     local roles = Stage.roles(layout(), function(a) return a end)
     eq(roles.entrance, 1)
