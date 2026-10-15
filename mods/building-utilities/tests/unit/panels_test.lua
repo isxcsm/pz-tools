@@ -248,3 +248,10 @@ test("a device's own switch is read, never thrown: the game's kinds and other mo
     eq(BU.Switches.set, nil, "nothing to throw it with")
     table.remove(BuildingUtilitiesSwitches)
 end)
+
+test("a typed name is cut to so many letters, a Hangul letter one, a sign like the degree kept whole", function()
+    local name = string.rep(string.char(0xAC00), 40)
+    eq(#BU.cutText(name, 30), 30)
+    eq(BU.cutText("20" .. string.char(0xB0) .. "C", 3), "20" .. string.char(0xB0))
+    eq(BU.cutText("short", 30), "short")
+end)

@@ -45,17 +45,7 @@ local function colours(p)
     return { oak = { 0.55, 0.92, 0.60 }, me = p.bright, field = { 0.78, 0.76, 0.68 }, pre = p.dim }
 end
 
--- A text's characters (UTF-8, Hangul one each).
-local function chars(s)
-    local out, i, len = {}, 1, #s
-    while i <= len do
-        local c = string.byte(s, i)
-        local n = c >= 240 and 4 or c >= 224 and 3 or c >= 192 and 2 or 1
-        out[#out + 1] = string.sub(s, i, i + n - 1)
-        i = i + n
-    end
-    return out
-end
+local chars = Script.chars
 
 -- A translation for the calls' text: a key without one is empty (the tests see that every key is there).
 local function text(key, ...)

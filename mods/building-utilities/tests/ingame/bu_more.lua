@@ -27,19 +27,15 @@ local panel = Store.get(ModData.getOrCreate("BUTEST").panel)
 if not panel then say("no panel"); return end
 local tierWas = panel.tier or 1
 
--- Whether a string ends on a whole UTF-8 letter.
+-- Whether a string is Korean letters (U+AC00) only, whole: one place of a Kahlua string each.
 local function wholeLetters(s)
-    local i, n = 1, #s
-    while i <= n do
-        local b = string.byte(s, i)
-        local len = b < 0x80 and 1 or b >= 0xF0 and 4 or b >= 0xE0 and 3 or b >= 0xC0 and 2 or 0
-        if len == 0 or i + len - 1 > n then return false end
-        i = i + len
+    for i = 1, #s do
+        if string.byte(s, i) ~= 0xAC00 then return false end
     end
     return true
 end
 -- A Korean letter (U+AC00), so many times, without a literal in the file.
-local function hangul(count) return string.rep(string.char(0xEA, 0xB0, 0x80), count) end
+local function hangul(count) return string.rep(string.char(0xAC00), count) end
 
 local function yardSquare(test)
     return BUT.square(panel.x, panel.y, 0, 4, 16, function(s)
@@ -84,7 +80,7 @@ local function windowChecks()
     local nameWas = panel.name
     Changes.rename(panel, hangul(20))
     check("rename: a long name cut on a whole letter", wholeLetters(panel.name or ""), true)
-    say("rename: kept", #(panel.name or ""), "bytes")
+    say("rename: kept", #(panel.name or ""), "letters")
     window:refresh()
     check("rename: the title shows it", tostring(PanelWindow.boxTitle(panel)):find(panel.name, 1, true) ~= nil, true)
     Changes.rename(panel, nameWas)

@@ -22,10 +22,10 @@ local function text(key, ...)
 end
 local function ctx(tier, late) return { text = text, number = "0347", tier = tier, late = late } end
 
-test("marks come out of a text where they fall, Hangul counting one a character", function()
-    local chars, marks = Script.parse("AB{cut:2}C{p:0.5}" .. string.char(234, 176, 128))
+test("marks come out of a text where they fall, a Hangul letter (one place of a Kahlua string) one a character", function()
+    local chars, marks = Script.parse("AB{cut:2}C{p:0.5}" .. string.char(44032))
     eq(#chars, 4)
-    eq(chars[4], string.char(234, 176, 128))
+    eq(chars[4], string.char(44032))
     eq(#marks, 2)
     eq(marks[1].at, 2)
     eq(marks[1].cut, 2)

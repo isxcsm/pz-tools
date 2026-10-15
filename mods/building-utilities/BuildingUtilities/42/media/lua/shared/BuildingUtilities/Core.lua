@@ -401,13 +401,11 @@ function BU.displayName(x, y, z, sprite)
 end
 
 -- A notice's text (BU.Sync.notice, the box's log): its key with its arguments, at most four, each as text.
--- A text cut to at most so many bytes on a whole letter (UTF-8): a name a player typed, kept short.
+-- A text cut to at most so many letters: a name a player typed, kept short. (The game's Lua keeps a string as Java's
+-- characters: a Hangul letter is one place of it, so a cut never splits one.)
 function BU.cutText(text, most)
     if #text <= most then return text end
-    local cut = most
-    -- the byte after the cut continuing a letter: back to that letter's start
-    while cut > 0 and string.byte(text, cut + 1) >= 0x80 and string.byte(text, cut + 1) < 0xC0 do cut = cut - 1 end
-    return text:sub(1, cut)
+    return text:sub(1, most)
 end
 
 function BU.noticeText(key, args)

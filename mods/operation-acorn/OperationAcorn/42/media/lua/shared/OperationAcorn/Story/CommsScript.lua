@@ -31,7 +31,15 @@ local function key(id, n, suffix)
     return "IGUI_OA_Comms_" .. id .. "_" .. tostring(n) .. (suffix or "")
 end
 
--- Takes the marks out of a text: the plain characters (a list, so that Hangul counts one a character) and the marks
+-- A text's characters, one each. The game's Lua (Kahlua) keeps a string as Java's characters, so a Hangul letter is
+-- one place of it (string.byte gives its code, string.sub(s, i, i) the letter): no UTF-8 bytes to put together.
+function Script.chars(s)
+    local out = {}
+    for i = 1, #s do out[i] = string.sub(s, i, i) end
+    return out
+end
+
+-- Takes the marks out of a text: the plain characters (a list, one each) and the marks
 -- { at = characters before it, cut | mute | p = seconds }.
 function Script.parse(src)
     local chars, marks = {}, {}
@@ -46,11 +54,8 @@ function Script.parse(src)
             marks[#marks + 1] = { at = #chars, [kind] = secs }
             i = stop + 1
         else
-            -- one UTF-8 character
-            local c = string.byte(src, i)
-            local n = c >= 240 and 4 or c >= 224 and 3 or c >= 192 and 2 or 1
-            chars[#chars + 1] = string.sub(src, i, i + n - 1)
-            i = i + n
+            chars[#chars + 1] = string.sub(src, i, i)
+            i = i + 1
         end
     end
     return chars, marks

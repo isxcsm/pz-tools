@@ -34,16 +34,7 @@ local told = {}
 
 OAFieldCall = ISPanel:derive("OAFieldCall")
 
-local function chars(s)
-    local out, i, len = {}, 1, #s
-    while i <= len do
-        local c = string.byte(s, i)
-        local n = c >= 240 and 4 or c >= 224 and 3 or c >= 192 and 2 or 1
-        out[#out + 1] = string.sub(s, i, i + n - 1)
-        i = i + n
-    end
-    return out
-end
+local chars = Script.chars
 
 local function text(key, ...)
     local s = getText(key, ...)
