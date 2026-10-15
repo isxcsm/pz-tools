@@ -54,6 +54,9 @@ python tools/check_translations.py                          # 번역 키, 샌드
 | `shared/OperationAcorn/Story/CommsData.lua` | 2반 교신의 목록 (`OA.CommsData`, SCENES 3장): 장면, 짧은 교신, 현장 교신, 혼잣말의 ID, 말하는 쪽, 트리거, 단계, 기다리는 장면. 글은 모두 번역 (`IGUI_OA_Comms_<id>_<n>`) |
 | `shared/OperationAcorn/Story/Comms.lua` | 교신 순서 (`OA.Comms`): 기록의 `comms` 칸에 걸린 것, 나온 것, 버린 것, 교신 탭 기록. `fire(record, trigger)`, `enterTier`, `update`(반나절 뒤, 다음 날), `next(record, "terminal"\|"field")`, `waiting`, `played`, `say`. 트리거는 `Story.call`이 건다 |
 | `shared/OperationAcorn/Story/CommsScript.lua` | 교신 한 편의 줄과 시간표 (`OA.CommsScript`): 인사, 늦은 첫 상자의 줄, 지운 말, `{cut:N}` `{mute:N}` `{p:N}` 표시, 줄마다 들어오고 치고 지우고 읽는 시간 (`timeline`, `at`), 기록용 글 (`recordText`) |
+| `shared/OperationAcorn/Story/Stage.lua` | 이야기 장소의 무대 (`OA.Stage`, SCENES 5장): 건물에 차린 이야기 임무가 시작할 때 `m.stage`를 받고, 건물이 다 불러지면 소품·잠금·시체·임무 아이템을 한 번 깔고(세계 단위 `Store.world("stages")`), 플레이어가 가까이 오면 정해 둔 좀비를 만든다. 방의 역할(`Stage.roles`: 큰 방, 안쪽 방, 복도, 다른 방, 입구)을 정하고, 사건(`Stage.event`, 아이템을 처음 집음)에 죽은 척하던 좀비를 깨운다 |
+| `shared/OperationAcorn/Story/StageData.lua` | 시설별 무대 조각 (`OA.StageData[facility].pieces`): `tile`, `item`, `vehicle`, `barricade`, `lock`, `corpse`, `blood`, `piece`(임무 아이템), `zombies` |
+| `shared/OperationAcorn/Story/StageGame.lua` | 무대의 게임 쪽 손 (서버, `Stage.game`): 건물 배치 읽기와 조각 종류마다의 바닐라 호출. 게임에서 확인한다 |
 | `shared/OperationAcorn/Story/Typing.lua` | 단말 안 타이핑의 순수 부분: 속도(`Typing.SPEED`, 장면 / 문서, 조립 / 정식), 기록에 남기는 시계(`Typing.start` / `Typing.keep`: 끝까지 못 본 글은 멈춘 시계에서 이어 찍고, 다 본 글은 시계 없이 처음부터), 글 패널용 글(`Typing.rich`), 패널의 줄과 글자 맞추기(`Typing.align`, `Typing.reveal`) |
 | `shared/OperationAcorn/Chunks.lua` | 칸이 불러질 때 할 일의 대기 표 (`LoadChunk`, 청크 키). `Chunks.handle(kind, fn)`, `Chunks.add(entry)`, `Chunks.remove(predicate)`, `Chunks.list(kind)`. `LoadGridsquare`는 쓰지 않는다 |
 | `shared/OperationAcorn/Sprites.lua` | 이 모드 타일 이름 (`Sprites.terminal(dir, on)`, `Sprites.machineTiles(kind, dir, running)`, `Sprites.footprint(kind, dir)` ...). 시트 자리는 바꾸지 않는다 |

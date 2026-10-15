@@ -9,6 +9,7 @@ require "OperationAcorn/Story/Sites"
 require "OperationAcorn/Story/Story"
 require "OperationAcorn/Story/Scene"
 require "OperationAcorn/Story/SceneGame"
+require "OperationAcorn/Story/StageGame"
 require "OperationAcorn/Story/Zombies"
 require "OperationAcorn/Story/Harvest"
 local OA = OperationAcorn
@@ -96,6 +97,7 @@ local function start()
     started = true
     Missions.game = Game
     Scene.game = SceneGame
+    OA.Stage.game = OA.StageGame
     ensureSites()
     Game.rebuildWaiting()
     subscribe()

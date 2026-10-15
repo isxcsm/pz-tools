@@ -19,6 +19,7 @@ require "OperationAcorn/Store"
 require "OperationAcorn/Say"
 require "OperationAcorn/Story/Data"
 require "OperationAcorn/Story/Places"
+require "OperationAcorn/Story/Stage"
 local OA = OperationAcorn
 local Data, Places = OA.StoryData, OA.Places
 local Scene = {}
@@ -269,19 +270,20 @@ function Scene.buildingPiece(m)
     return nil
 end
 
--- What a mission will show (m.scene), decided as it begins. `days` is the world age in days since the outbreak.
+-- What a mission will show (m.scene), decided as it begins. `days` is the world age in days since the outbreak. A
+-- story site with a stage (m.stage, Story/Stage) has its own things and no survivor: only its keepers come from here.
 function Scene.plan(record, m, days, int)
     int = int or OA.random
     local sc = { arrived = false, built = false }
     if Scene.buildingPiece(m) then
-        sc.props = Scene.props(m.facility, int)
+        sc.props = not m.stage and Scene.props(m.facility, int) or nil
         local guards = {}
         for i = 1, Scene.guardCount(m.level, int) do
             local outfit, female = Scene.guardOutfit(m.facility, int)
             guards[i] = { outfit = outfit or false, female = female or false, look = Scene.guardLook(int) or false }
         end
         sc.guards = guards
-        if Scene.survivorRoll(Scene.section(record), int) then
+        if not m.stage and Scene.survivorRoll(Scene.section(record), int) then
             sc.survivor = { outfit = Scene.survivorOutfit(days, int), look = Scene.survivorLook(int),
                             carried = Scene.carried(m.level, int) }
         end
@@ -298,6 +300,7 @@ end
 -- the offer is taken.
 function Scene.begin(record, m)
     if m.scene or m.state == "offer" then return end
+    OA.Stage.begin(record, m)
     local g = Scene.game
     m.scene = Scene.plan(record, m, g and g.days and g.days() or 0)
 end
@@ -409,6 +412,10 @@ function Scene.minute(record)
     local said = false
     for _, m in ipairs(OA.Missions.live(record)) do
         if m.scene and m.state == "open" then
+            if m.stage and not m.stage.kept then
+                local d = Places.distance(x, y, m.site.x, m.site.y)
+                OA.Stage.look(record, m, x, y, d >= Scene.NEAR and Scene.NEAR or Scene.CLOSE)
+            end
             if inCircle(m.area, x, y) or inCircle(m.area2, x, y) then
                 if not m.scene.arrived then
                     m.scene.arrived = true

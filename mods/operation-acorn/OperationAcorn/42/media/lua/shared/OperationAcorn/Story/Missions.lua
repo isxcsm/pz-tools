@@ -1149,6 +1149,11 @@ function Missions.found(record, m, it, item)
     if g and g.track then g.track(m, it, item) end
     if it.found then return end
     it.found = true
+    -- A story's item first in hands: its monologue (CommsData "say:<story>:pickup") and what waits at its stage.
+    if m.story and not it.plain then
+        if OA.Story then OA.Story.monologue(record, m.chosen and (m.story .. "_" .. m.chosen) or m.story, "pickup") end
+        if OA.Stage then OA.Stage.event(record, m, "pickup") end
+    end
     Missions.lookWhere(record, m)
     OA.Sync.changed("missions", record.id)
 end

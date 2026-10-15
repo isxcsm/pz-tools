@@ -516,6 +516,43 @@ function Game.tryPlace(record, m, it, forceFloor)
     return true
 end
 
+-- Puts the piece in a container of a room (a RoomDef of the loaded building; a story site's stage chose it), else on
+-- the room's floor. True when done.
+function Game.placeInRoom(record, m, it, roomDef)
+    local room = roomDef and roomDef:getIsoRoom()
+    if not room then return false end
+    local w = weightOf(it)
+    local found = {}
+    local squares = room:getSquares()
+    for i = 0, squares:size() - 1 do
+        local sq = squares:get(i)
+        local objects = sq:getObjects()
+        for j = 0, objects:size() - 1 do
+            local o = objects:get(j)
+            if not instanceof(o, "IsoDeadBody") then
+                for k = 0, o:getContainerCount() - 1 do
+                    local c = o:getContainerByIndex(k)
+                    if c and c:hasRoomFor(nil, w) then found[#found + 1] = { container = c, square = sq } end
+                end
+            end
+        end
+    end
+    local item = newItem(record, m, it)
+    if not item then return true end
+    if it.keyId then item:setKeyId(it.keyId) end
+    if #found > 0 then
+        local e = pick(found)
+        addToContainer(e.container, item)
+        finish(record, m, it, e.square)
+        return true
+    end
+    local sq = room:getRandomFreeSquare()
+    if not sq then return false end
+    dropOnFloor(sq, item)
+    finish(record, m, it, sq)
+    return true
+end
+
 -- The chunks a piece's building covers (up to 24, nearest to the key square first), as chunk keys with a point in them.
 local function chunksOf(it)
     local S = OA.Chunks.SIZE
@@ -534,9 +571,10 @@ local function chunksOf(it)
     return list
 end
 
--- Asks for the piece to be placed: now if its place is loaded, otherwise when it loads or its containers fill.
+-- Asks for the piece to be placed: now if its place is loaded, otherwise when it loads or its containers fill. A piece
+-- a story site's stage puts (it.staged, Story/Stage) waits for the stage.
 function Game.request(record, m, it)
-    if it.placed then return end
+    if it.placed or it.staged then return end
     if Game.tryPlace(record, m, it) then return end
     if it.mode == "container" then
         waiting[#waiting + 1] = { mission = m.id, key = it.key }
