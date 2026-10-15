@@ -185,7 +185,7 @@ def bulk_shredder(turns, look):
     rim over twin shafts, a discharge chute on its east side onto a belt conveyor that runs on to a collecting bin; a
     control box with lamps, a stop button and a beacon on a post. On: the green lamp and the beacon are lit. Running:
     shredded pieces ride the belt and fill the bin as well.
-    look: 0 stopped (switched off or no power: the red lamp), 2 ready (switched on and waiting: the green lamp, nothing
+    look: 0 stopped (switched off or no power: every lamp dark), 2 ready (switched on and waiting: the green lamp, nothing
     moves), 1 running (working)."""
     running, on = look == 1, look >= 1
     s = Scene(turns, foot=(2, 1))
@@ -265,7 +265,7 @@ def bulk_shredder(turns, look):
     # the control box at the cabinet's west front, lamps and the stop button
     s.box(0.14, y1, 0.22, 0.24, y1 + 0.05, 0.44, GRAPHITE_DARK, top=GRAPHITE, shine=0.2)
     lamp_y(s, glows, 0.165, y1 + 0.05, 0.39, 0.022, 'green', on)
-    lamp_y(s, glows, 0.215, y1 + 0.05, 0.39, 0.022, 'red', not on)
+    lamp_y(s, glows, 0.215, y1 + 0.05, 0.39, 0.022, 'red', False)
     s.tube((0.19, y1 + 0.05, 0.29), (0.19, y1 + 0.085, 0.29), 0.026, YELLOW, segments=16)
     s.tube((0.19, y1 + 0.085, 0.29), (0.19, y1 + 0.102, 0.29), 0.022, RED, cap=(220, 70, 56), segments=16, shine=0.3)
     # the beacon on a post at the hopper's north-west corner
@@ -287,8 +287,8 @@ def cutter(turns, look):
     """The cutter (2 x 1): a long cutting table with a green grid mat, a roll of canvas on arms at its west end, a
     gantry with a blade carriage over the mat, a vacuum blower under the table and a cart of cut pieces at the east end.
     Stopped: the carriage waits at the west and the cloth is whole. Running: the carriage is mid-table with its lamp
-    lit, the cloth behind it is cut and the first pieces lie stacked on the cart. The lamps say on (green) or off (red).
-    look: 0 stopped (switched off or no power: the red lamp), 2 ready (switched on and waiting: the green lamp, nothing
+    lit, the cloth behind it is cut and the first pieces lie stacked on the cart. The lamps say on (green); stopped, they are dark.
+    look: 0 stopped (switched off or no power: every lamp dark), 2 ready (switched on and waiting: the green lamp, nothing
     moves), 1 running (working)."""
     running, on = look == 1, look >= 1
     s = Scene(turns, foot=(2, 1))
@@ -353,7 +353,7 @@ def cutter(turns, look):
     # hid the table's front edge and seemed to bite into the cloth)
     s.box(1.5, y1, 0.0, 1.62, y1 + 0.12, 0.44, OD, top=OD_LIGHT, shine=0.1)
     lamp_y(s, glows, 1.56, y1 + 0.12, 0.37, 0.024, 'green', on)
-    lamp_y(s, glows, 1.56, y1 + 0.12, 0.3, 0.024, 'red', not on)
+    lamp_y(s, glows, 1.56, y1 + 0.12, 0.3, 0.024, 'red', False)
     s.box(1.51, y1 + 0.12, 0.1, 1.61, y1 + 0.124, 0.22, GRAPHITE_DARK)
     front_decal(s, 0.62, 0.98, 0.22, 0.32, y1 + 0.001, stencil_text('OAK-C1', 70, 20, STENCIL))
     front_decal(s, 1.08, 1.22, 0.2, 0.34, y1 + 0.002, warning_sign())

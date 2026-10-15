@@ -47,13 +47,13 @@ def skid(s, x0, y0, x1, y1):
 
 
 def control_cabinet(s, glows, x0, x1, y, z1, look, lamps=('green', 'amber', 'red')):
-    """A control cabinet standing at the skid's front (its face looks south at y): lamps along its head. Off: red. On:
+    """A control cabinet standing at the skid's front (its face looks south at y): lamps along its head, all dark when stopped (no lamp lights without power). On:
     green. Running: green and amber."""
     s.box(x0, y - 0.26, 0.08, x1, y, z1, OD, top=OD_LIGHT, shine=0.1)
     s.box(x0 + 0.03, y, 0.14, x1 - 0.03, y + 0.004, z1 - 0.2, GRAPHITE_DARK)
     n = len(lamps)
     for i, c in enumerate(lamps):
-        lit = {'green': look >= 1, 'amber': look == 1, 'red': look == 0}.get(c, False)
+        lit = {'green': look >= 1, 'amber': look == 1}.get(c, False)
         lamp_y(s, glows, x0 + (i + 0.5) * (x1 - x0) / n, y, z1 - 0.1, 0.026, c, lit)
     front_decal(s, x0 + 0.04, x1 - 0.04, z1 - 0.18, z1 - 0.12, y + 0.001, stencil_text('OAK', 40, 9, STENCIL))
 
@@ -63,7 +63,7 @@ def propane_refiner(turns, look):
     horizontal bullet tank on saddles, a rack of four bottles, red valve wheels, a flare stack and a control cabinet on
     a skid with a yellow-black edge. Running: a flare burns at the stack's tip, the gauge stands high. The cabinet's
     lamps say off, on or running.
-    look: 0 stopped (switched off or no power: the red lamp), 2 ready (switched on and waiting: the green lamp, nothing
+    look: 0 stopped (switched off or no power: every lamp dark), 2 ready (switched on and waiting: the green lamp, nothing
     moves), 1 running (working)."""
     running = look == 1
     s = Scene(turns, foot=(2, 2))
@@ -200,7 +200,7 @@ def oil_refiner(turns, look):
     a pipe rack between them with hand wheels, draw-off pipes down to a row of drums at the front, a blue pump, a
     heat exchanger, a control cabinet, on a skid. Running: lamps lit, steam rising from the column, oil running into
     the drums.
-    look: 0 stopped (switched off or no power: the red lamp), 2 ready (switched on and waiting: the green lamp, nothing
+    look: 0 stopped (switched off or no power: every lamp dark), 2 ready (switched on and waiting: the green lamp, nothing
     moves), 1 running (working)."""
     running = look == 1
     s = Scene(turns, foot=(2, 2))

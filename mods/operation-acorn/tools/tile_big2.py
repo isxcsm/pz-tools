@@ -76,8 +76,8 @@ def wood_saw(turns, look):
     """The wood saw (2 x 1): a sawmill. A log on a roller bed at the west end feeds into a big circular blade standing
     in a heavy frame; sawn boards come out on a bed at the east end and stack. A blue motor and the switch box with its
     lamps sit in the base under the blade, sawdust piles on the floor. Running: the blade is a bright blur with sparks,
-    chips and sawdust flying and the log has moved up to the blade. The lamps say on (green) or off (red).
-    look: 0 stopped (switched off or no power: the red lamp), 2 ready (switched on and waiting: the green lamp, nothing
+    chips and sawdust flying and the log has moved up to the blade. The lamps say on (green); stopped, they are dark.
+    look: 0 stopped (switched off or no power: every lamp dark), 2 ready (switched on and waiting: the green lamp, nothing
     moves), 1 running (working)."""
     running, on = look == 1, look >= 1
     s = Scene(turns, foot=(2, 1))
@@ -153,7 +153,7 @@ def wood_saw(turns, look):
     # the switch box on the base's front, lamps and buttons
     s.box(0.98, y1 + 0.02, 0.18, 1.10, y1 + 0.07, 0.38, GRAPHITE_DARK, top=GRAPHITE, shine=0.2)
     lamp_y(s, glows, 1.015, y1 + 0.07, 0.33, 0.022, 'green', on)
-    lamp_y(s, glows, 1.065, y1 + 0.07, 0.33, 0.022, 'red', not on)
+    lamp_y(s, glows, 1.065, y1 + 0.07, 0.33, 0.022, 'red', False)
     s.tube((1.04, y1 + 0.07, 0.24), (1.04, y1 + 0.09, 0.24), 0.022, RED if not on else (70, 70, 70), segments=14, shine=0.3)
     front_decal(s, 0.04, 0.86, 0.14, 0.30, y1 + 0.001, stencil_text('OAK SAWMILL', 120, 18, STENCIL))
     s.box(0.04, y1 - 0.06, 0.30, 0.86, y1 - 0.01, 0.38, OD_DARK)
