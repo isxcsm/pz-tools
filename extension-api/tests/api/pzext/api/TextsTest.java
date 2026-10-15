@@ -68,6 +68,7 @@ final class TextsTest {
             effects(text, mod);
             typing(text, mod);
             titles(text, mod);
+            pauseLabel(text, mod);
             screens(text, mod);
             world(text, mod, other);
             rejects(api, text, mod);
@@ -1257,6 +1258,37 @@ final class TextsTest {
     }
 
     // ---- helpers ----
+
+    /**
+     * The game's paused label (a dark box at a sixth of the screen's height) is hidden while a title is on where it goes, and
+     * shown again after; a text elsewhere leaves it, and a label something else hid stays hidden.
+     */
+    private static void pauseLabel(KahluaTable text, Object mod) {
+        check(UIManager.showPausedMessage, "The paused label was hidden before anything was shown");
+        double low = (Double)FormulasTest.call(text, "show", mod, table("text", "Low", "size", 0.05, "y", 0.8)).get(0);
+        render();
+        check(UIManager.showPausedMessage, "A text far below the paused label hid it");
+        double title = (Double)FormulasTest.call(text, "title", mod, table("text", "Quest complete", "style", "dust", "hold", 100.0)).get(0);
+        render();
+        advance(0.5);
+        render();
+        check(!UIManager.showPausedMessage, "A title where the paused label goes did not hide it");
+        FormulasTest.call(text, "hide", mod, title, true);
+        render();
+        check(UIManager.showPausedMessage, "The paused label did not come back once the title went");
+        FormulasTest.call(text, "hide", mod, low, true);
+        render();
+        UIManager.showPausedMessage = false;
+        title = (Double)FormulasTest.call(text, "title", mod, table("text", "Quest complete", "style", "dust", "hold", 100.0)).get(0);
+        render();
+        advance(0.5);
+        render();
+        FormulasTest.call(text, "hide", mod, title, true);
+        render();
+        render();
+        check(!UIManager.showPausedMessage, "A paused label something else hid was shown");
+        UIManager.showPausedMessage = true;
+    }
 
     private static void render() {
         TextManager.calls.clear();

@@ -7,6 +7,7 @@ package zombie.ui;
 public final class UIManager {
     public static final MoodlesUI[] MoodleUI = new MoodlesUI[4];
     public static ObjectTooltip toolTip = new ObjectTooltip();
+    public static boolean showPausedMessage = true;
 
     private UIManager() { }
 
@@ -15,6 +16,10 @@ public final class UIManager {
     public static void setMoodleUI(double index, MoodlesUI column) { MoodleUI[(int)index] = column; }
 
     public static ObjectTooltip getToolTip() { return toolTip; }
+
+    public static boolean isShowPausedMessage() { return showPausedMessage; }
+
+    public static void setShowPausedMessage(boolean on) { showPausedMessage = on; }
 
     public static void render() {
         if (TextManager.record) TextManager.log("windows");
