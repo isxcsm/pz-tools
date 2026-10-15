@@ -91,8 +91,8 @@ for _, t in pairs(TREE) do
     t.body = {}
     t.core = {}                                -- the core of a line's light: the light colour, mostly white
     for i = 1, 3 do
-        t.strip[i] = P.bg[i] * 0.74 + t.c[i] * 0.26
-        t.body[i] = P.inset[i] * 0.88 + t.c[i] * 0.12
+        t.strip[i] = P.bg[i] * 0.83 + t.c[i] * 0.17
+        t.body[i] = P.inset[i] * 0.925 + t.c[i] * 0.075
         t.core[i] = t.light[i] * 0.4 + 0.6
     end
 end
@@ -213,6 +213,110 @@ local function texPx(el, tex, x, y, w, h, c, a)
     c = c or WHITE
     if el == rectEl then drawRects() end
     ISUIElement.drawTextureScaled(el, tex, x, y, w, h, a or 1, c[1], c[2], c[3])
+end
+
+-- A texture tiled at its own pixels over a rectangle (pixels), after the rectangles waiting before it.
+local function tiledPx(el, tex, x, y, w, h, c, a)
+    if not tex or w <= 0 or h <= 0 or (a and a < INVISIBLE) then return end
+    c = c or WHITE
+    if el == rectEl then drawRects() end
+    ISUIElement.drawTextureTiled(el, tex, x, y, w, h, c[1], c[2], c[3], a or 1)
+end
+
+-- A steady pseudo-random number in [0, 1) for a whole number (the same number, the same answer): what picks a
+-- rough frame's pieces and a panel's chips, so they stay put between frames.
+local function rnd(i)
+    local v = math.sin(i * 12.9898 + 78.233) * 43758.5453
+    return v - floor(v)
+end
+
+-- The grit's film: a motion that should look rough moves on in steps of FILM_MS (twelve frames a second), and a
+-- rough frame's pieces change with each step.
+Window.FILM_MS = 83
+local function film(age) return floor(age / Window.FILM_MS) * Window.FILM_MS end
+local function filmStep(age) return floor(age / Window.FILM_MS) end
+
+-- A frame (as framePx) drawn rough, as by a worn stamp or a weak signal: each side in short pieces of varying
+-- strength, a few missing and some a pixel off the line. `seed` picks the pieces: the same seed, the same frame.
+Window.ROUGH_PIECE = 6
+local function roughFramePx(el, x, y, w, h, c, a, t, out, seed)
+    out = out or 0
+    local x0, y0, x1, y1 = X(x - out), X(y - out), X(x + w + out), X(y + h + out)
+    local piece = math.max(3, X(Window.ROUGH_PIECE))
+    local k = 0
+    local function side(across, fixed, from, to)
+        local p = from
+        while p < to do
+            k = k + 1
+            local r = rnd(seed * 97 + k)
+            local e = math.min(to, p + piece - floor(r * piece * 0.5))
+            if r > 0.12 then
+                local off = r > 0.82 and 1 or (r < 0.24 and -1 or 0)
+                local pa = a * (0.45 + 0.55 * rnd(seed * 53 + k * 7))
+                if across then rectPx(el, p, fixed + off, e - p, t, c, pa)
+                else rectPx(el, fixed + off, p, t, e - p, c, pa) end
+            end
+            p = e
+        end
+    end
+    side(true, y0, x0, x1)
+    side(true, y1 - t, x0, x1)
+    side(false, x0, y0 + t, y1 - t)
+    side(false, x1 - t, y0 + t, y1 - t)
+end
+
+-- The terminals' static (tools/static_art.py) as a burst over a node, the tile swapped with each film step.
+local staticTex = {}
+local function staticBurst(el, x, y, w, h, c, a, step)
+    local i = (step - floor(step / 2) * 2) + 1
+    if staticTex[i] == nil then staticTex[i] = getTexture("media/textures/OA_Static_" .. i .. ".png") or false end
+    texPx(el, staticTex[i] or nil, X(x), X(y), X(x + w) - X(x), X(y + h) - X(y), c, a)
+end
+
+-- The grit (tools/grain_art.py's tiles, drawn tiled at their own pixels): the print's wear (stains, specks, hairline
+-- scratches, dark) at BG_GRIME_A, the film grain (light specks) over it at BG_GRAIN_A. Over the strips as well as the
+-- grids, the 2nd board's bands too.
+Window.BG_GRAIN_A, Window.BG_GRIME_A = 0.08, 0.75
+-- A column's frame is chipped: CHIPS short gaps along it, each CHIP_MIN..CHIP_MAX design units long, where it was.
+Window.CHIPS, Window.CHIP_MIN, Window.CHIP_MAX = 9, 2, 9
+
+local grimeTex = nil
+local function grime()
+    if grimeTex == nil then grimeTex = getTexture("media/textures/OA_Grime.png") or false end
+    return grimeTex or nil
+end
+local grainTex = nil
+local function grain()
+    if grainTex == nil then grainTex = getTexture("media/textures/OA_Grain.png") or false end
+    return grainTex or nil
+end
+
+-- The grit over a rectangle (design units): the wear, then the grain.
+local function paintGrit(el, x, y, w, h)
+    local x0, y0 = X(x), X(y)
+    local pw, ph = X(x + w) - x0, X(y + h) - y0
+    tiledPx(el, grime(), x0, y0, pw, ph, BLACK, Window.BG_GRIME_A)
+    tiledPx(el, grain(), x0, y0, pw, ph, WHITE, Window.BG_GRAIN_A)
+end
+Window.paintGrit = paintGrit
+
+-- A column's frame chipped (drawn over it): short gaps in the tab's background colour, the same places each frame
+-- (`seed`: the column).
+local function chipFrame(el, x, y, w, h, seed)
+    local t = math.max(1, X(1))
+    for k = 1, Window.CHIPS do
+        local r1, r2 = rnd(seed * 131 + k), rnd(seed * 71 + k * 13)
+        local len = Window.CHIP_MIN + (Window.CHIP_MAX - Window.CHIP_MIN) * r2
+        local side = floor(r1 * 4)
+        local along = (r1 * 4 - side)
+        if side < 2 then
+            local px = X(x + (w - len) * along)
+            rectPx(el, px, side == 0 and X(y) or X(y + h) - t, X(len), t, P.bg, 0.9)
+        else
+            local py = X(y + (h - len) * along)
+            rectPx(el, side == 2 and X(x) or X(x + w) - t, py, t, X(len), P.bg, 0.9)
+        end
+    end
 end
 
 -- The signs' textures: tools/ui_glyphs.py writes each at every pixel size in these ranges.
@@ -1387,6 +1491,7 @@ function View:paintStrip(el, panel, i)
     local take = self.take
     local flash = take and self:takeHeader(tree) or 0
     if flash > 0 then UI.fill(el, x, y, panel.w, panel.strip, tc.c, 0.32 * flash) end
+    paintGrit(el, x, y, panel.w, panel.strip)
     UI.fill(el, x, y, panel.w, 2, flash > 0 and tc.light or tc.c)
     UI.text(el, Texts.treeName(tree), x + 10, y + 5, tc.light, UIFont.Medium)
     if self.mode ~= "trees" then return end
@@ -1676,7 +1781,8 @@ function View:paintNode(el, item)
             x = x + Motion.shake(age)
         else
             grow = grow * (f.kind == "pop" and Motion.pop(age) or Motion.shrink(age))
-            if f.kind == "pop" then ring, ringA, ringW = Motion.ripple(age) end
+            -- the ripple goes on in film steps (the click's own grow stays smooth: it answers the hand)
+            if f.kind == "pop" then ring, ringA, ringW = Motion.ripple(film(age)) end
         end
     end
     -- a take: the ranks it took show selected until the scan reaches the node (takeAge < 0)
@@ -1721,8 +1827,10 @@ function View:paintNode(el, item)
     -- a padlock coming off (or waiting to: drawn locked meanwhile)
     local lockA, flashA, unlockRing = 0, 0, 0
     local opening = not grey and self.unlocks and self.unlocks[item.id]
+    local openStep = 0
     if opening then
-        lockA, flashA, unlockRing = Motion.unlock(NOW - opening)
+        openStep = filmStep(NOW - opening)
+        lockA, flashA, unlockRing = Motion.unlock(film(NOW - opening))
         if not lockA then
             lockA, flashA, unlockRing = 0, 0, 0
         elseif lockA >= 1 then
@@ -1753,14 +1861,29 @@ function View:paintNode(el, item)
     end
     if grey then lockBadge(el, x, y, s) end
     if lockA > 0 then lockBadge(el, x, y, s, lockA) end
+    -- the unlock and the ripple are rough: a burst of static over the node, frames in broken pieces that change with
+    -- each film step (the seed: the node's place and the step)
+    local seed = (item.col or 0) * 1000 + (item.row or 0) * 37
     if flashA > 0 then
         local light = TREE[tree].light
-        UI.fill(el, x, y, s, s, light, 0.32 * flashA)
-        framePx(el, x, y, s, s, light, flashA, th + 1, out)
-        framePx(el, x, y, s, s, light, 0.6 * flashA, th, out + th / S + 1 + unlockRing)
+        UI.fill(el, x, y, s, s, light, 0.22 * flashA)
+        staticBurst(el, x, y, s, s, light, 0.85 * flashA, openStep)
+        roughFramePx(el, x, y, s, s, light, flashA, th + 1, out, seed + openStep)
+        roughFramePx(el, x, y, s, s, light, 0.6 * flashA, th, out + th / S + 1 + unlockRing, seed + openStep * 7 + 3)
+    end
+    if f and f.kind == "shrink" then
+        -- a rank taken back: the node's print flickers out a moment
+        local step = filmStep(age)
+        if step < 3 then
+            staticBurst(el, x, y, s, s, P.dim, 0.5 * (1 - step / 3), step)
+            roughFramePx(el, x, y, s, s, P.dim, 0.7 * (1 - step / 3), th, out, seed + step)
+        end
     end
     if ring then
-        framePx(el, x, y, s, s, CYAN, ringA, math.max(1, floor(ringW * S + 0.5)), out + th / S + 1 + ring)
+        local step = filmStep(age)
+        if step < 3 then staticBurst(el, x, y, s, s, CYAN, 0.55 * (1 - step / 3), step) end
+        roughFramePx(el, x, y, s, s, CYAN, ringA, math.max(1, floor(ringW * S + 0.5)), out + th / S + 1 + ring,
+            seed + step)
     end
     if n.api and not grey then
         local fh = UI.fontHeight()
@@ -1822,6 +1945,7 @@ function View:paintPlanBar(el)
     local x, y, w, h = L.PAD, L.PLAN_Y, L.VIEW_W - 2 * L.PAD, L.PLAN
     local has = #self.steps > 0
     UI.fill(el, x, y, w, h, P.panel)
+    paintGrit(el, x, y, w, h)
     UI.frame(el, x, y, w, h, has and CYAN or P.border, has and 0.55 or 1)
     if has then UI.fill(el, x, y, 3, h, CYAN) end
     local fh = UI.fontHeight()
@@ -1889,14 +2013,13 @@ function View:paintBoardBanner(el)
 end
 
 -- ---- the columns' background --------------------------------------------------------------------------------------
--- Under a column's grid: a soft light falling from its header in the tree's light colour (BG_LIGHT_A at the top, gone
--- BG_LIGHT_END of the way down), a gentle vignette darkening its sides (BG_SIDE_W design units in) and its bottom
--- (BG_BOTTOM of the grid), at most BG_VIGNETTE_A, and a fine film grain (tools/grain_art.py's tile, drawn tiled at its
--- own pixels) at BG_GRAIN_A. Light and vignette are thin bands of plain fills, their strengths worked out once; it is
--- all still, drawn with the body.
-Window.BG_LIGHT_A, Window.BG_LIGHT_END = 0.16, 0.4
-Window.BG_VIGNETTE_A, Window.BG_SIDE_W, Window.BG_BOTTOM = 0.42, 26, 0.45
-Window.BG_GRAIN_A = 0.05
+-- Under a column's grid: a faint light falling from its header in the tree's light colour (BG_LIGHT_A at the top, gone
+-- BG_LIGHT_END of the way down), a vignette darkening its sides (BG_SIDE_W design units in) and its bottom
+-- (BG_BOTTOM of the grid), at most BG_VIGNETTE_A, and the grit (paintGrit). Light and vignette are thin bands of plain
+-- fills, their strengths worked out once; it is all still, drawn with the body. The tab is Ashdown's research plan, a
+-- field document: kept dim and worn, the trees' colours only a cast on it.
+Window.BG_LIGHT_A, Window.BG_LIGHT_END = 0.06, 0.4
+Window.BG_VIGNETTE_A, Window.BG_SIDE_W, Window.BG_BOTTOM = 0.55, 26, 0.45
 local BG_BANDS, BG_SIDES = 10, 5
 local LIGHT_K, BOTTOM_K, SIDE_K = {}, {}, {}
 for k = 1, BG_BANDS do
@@ -1907,12 +2030,6 @@ end
 for j = 1, BG_SIDES do
     local v = 1 - (j - 0.5) / BG_SIDES
     SIDE_K[j] = 0.75 * v * v
-end
-
-local grainTex = nil
-local function grain()
-    if grainTex == nil then grainTex = getTexture("media/textures/OA_Grain.png") or false end
-    return grainTex or nil
 end
 
 -- A column's background over its grid (its body already filled), `dy` design units down.
@@ -1937,8 +2054,7 @@ local function paintColumnBack(el, panel, dy, tc)
         xa, xb = X(panel.x + panel.w - sw * j / BG_SIDES), X(panel.x + panel.w - sw * (j - 1) / BG_SIDES)
         rectPx(el, xa, y0, xb - xa, y1 - y0, DARK, a)
     end
-    local tex = grain()
-    if tex then ISUIElement.drawTextureTiled(el, tex, x0, y0, x1 - x0, y1 - y0, 1, 1, 1, Window.BG_GRAIN_A) end
+    paintGrit(el, panel.x, top, panel.w, panel.gridH)
     -- a band's trays, one under each kind of its nodes: sunk a little, rimmed faintly in the tree's light
     local trays = panel.trays
     if trays then
@@ -1979,6 +2095,7 @@ end
 function View:paint(el)
     S = UI.S
     UI.fill(el, 0, 0, L.VIEW_W, L.VIEW_H, P.bg)           -- opaque: nothing behind shows through
+    paintGrit(el, 0, 0, L.VIEW_W, L.VIEW_H)
     if not self.sim then
         UI.textCentre(el, UI.str("IGUI_OA_Tree_NoRecord"), L.VIEW_W / 2, L.VIEW_H / 2, P.text)
         return
@@ -2010,6 +2127,7 @@ function View:paint(el)
             end
         end
         UI.frame(el, panel.x, panel.y + dy, panel.w, panel.strip + panel.gridH, P.border)
+        chipFrame(el, panel.x, panel.y + dy, panel.w, panel.strip + panel.gridH, p)
     end
     if self.mode == "board" and not Rules.boardOpen(self.sim) then self:paintBoardBanner(el) end
     if OPEN_AGE then self:paintCovers(el) end
@@ -2433,6 +2551,11 @@ function View:drawTake(el)
             if core > 0 then
                 UI.fill(el, item.x, item.y + dy, item.w, item.h, tc.core, 0.5 * core)
                 if tex then glowAt(el, tex, cx, cy, item.w * S * 1.5, tc.core, core) end
+                -- the rank burns in rough: static over the node, its frame in broken pieces, both by film steps
+                local step = filmStep(age)
+                staticBurst(el, item.x, item.y + dy, item.w, item.h, tc.light, 0.8 * core, step)
+                roughFramePx(el, item.x, item.y + dy, item.w, item.h, tc.light, core, thick() + 1, 3,
+                    (item.col or 0) * 1000 + (item.row or 0) * 37 + step)
             end
         end
     end
@@ -2453,6 +2576,9 @@ function View:drawTake(el)
                     texPx(el, soft, x0, y0, X(panel.x + panel.w) - x0, X(top + h) - y0, tc.light, Window.TAKE_GLOW_A * fill)
                 end
                 traceFrame(el, panel.x, top, panel.w, h, along, tc.light, line, tc.core, tex)
+                -- the column's frame flickers rough behind the running light
+                roughFramePx(el, panel.x, top, panel.w, h, tc.light, 0.45 * line, math.max(1, X(1)), 0,
+                    i * 7919 + filmStep(t))
             end
         end
     end
