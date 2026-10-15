@@ -171,6 +171,10 @@ function Stage.begin(record, m)
     local def = Stage.defOf(m)
     if not def then return end
     m.stage = { placed = false, kept = false, wake = {} }
+    -- a building not set up before is kept from the game's own stories (a safehouse, a looted one) as it loads
+    if Stage.game and Stage.game.claim and m.site and not Stage.world()[m.site.key] then
+        pcall(Stage.game.claim, m.site)
+    end
     for _, p in ipairs(def.pieces) do
         if p.kind == "piece" then
             for _, it in ipairs(m.items or {}) do
@@ -201,6 +205,18 @@ function Stage.place(record, m, layout, int)
     local fresh = not Stage.world()[m.site.key]
     local ctx = { record = record, m = m, layout = layout, roles = Stage.roles(layout, int) }
     st.roles = ctx.roles
+    -- one someone holed up in or that burnt (boarded, built in, burnt out) is left as it is: the item alone
+    if fresh and Stage.game and Stage.game.occupied then
+        local ok, taken = pcall(Stage.game.occupied, ctx)
+        if ok and taken then fresh = false end
+    end
+    -- the rooms a set goes to are cleared of their furniture first (the team made room for it), before any piece
+    if fresh and Stage.game and Stage.game.clear then
+        for _, p in ipairs(def.pieces) do
+            if p.kind == "set" and p.at ~= "ground" and p.at ~= "yard" then run(ctx, { kind = "clear", at = p.at,
+                up = p.up, names = p.names }) end
+        end
+    end
     for _, p in ipairs(def.pieces) do
         if Stage.PLACE_KINDS[p.kind] and (fresh or p.kind == "piece") then
             local result = run(ctx, p)

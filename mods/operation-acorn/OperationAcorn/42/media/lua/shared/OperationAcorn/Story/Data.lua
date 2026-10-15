@@ -113,7 +113,7 @@ Data.FIELD_NOTE_CHANCE = 60
 -- choice (the terminal offers two, the other closes for good), carry (the sample cooler), field (seal on the spot
 -- with the field call device), soil (take a soil sample). `trigger`: a stage, or a milestone count. `facility`: what
 -- the site was taken for (Data.FACILITIES); `site`: how it is picked (Missions.pickSite: want "public", "largest",
--- "near", "far"; ground = open ground). `condition`: "locked" (the key room is locked, the key lies in the same
+-- "near", "far"; ground = open ground; up = of more than one floor first). `condition`: "locked" (the key room is locked, the key lies in the same
 -- building). `optional`: not offered again when missed.
 Data.STORIES = {
     evidence = {
@@ -127,7 +127,7 @@ Data.STORIES = {
     observation = {
         trigger = { stage = 3 }, kind = "choice", facility = "farm",
         options = {
-            a = { item = "WeatherLog", site = { want = "far" } },
+            a = { item = "WeatherLog", site = { want = "far", up = true } },
             b = { item = "FarmJournal", site = { want = "near" } },
         },
     },

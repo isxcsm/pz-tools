@@ -277,6 +277,17 @@ test("with no building left in the band a story site is open ground, the piece o
     eq(m.items[1].lock, nil, "nothing to lock")
 end)
 
+test("with no building in the band the band reaches further out first, then open ground", function()
+    local record = setup(1)
+    local lo, hi = OA.Rewards.band(1)
+    M.game.list = { { x = math.floor(hi * 1.4), y = 0 } }
+    local site = M.pickSite(record, 1, { want = "public" })
+    eq(site.key, tostring(math.floor(hi * 1.4)) .. ",0")
+    M.game.list = { { x = math.floor(hi * 2.5), y = 0 } }
+    eq(M.pickSite(record, 1, { want = "public" }).ground, true, "too far out")
+    truthy(lo < hi)
+end)
+
 test("a story site wanted on open ground is never a building", function()
     local record = setup(4)
     Story.section(record).seenStage = 3
@@ -285,6 +296,23 @@ test("a story site wanted on open ground is never a building", function()
     eq(m.story, "cooler")
     eq(m.site.ground, true)
     eq(m.facility, "army")
+end)
+
+test("a site wanted with more than one floor is such a building first, else any", function()
+    local record = setup(1)
+    local all = M.game.sitesInBand(0, 0, OA.Rewards.band(1))
+    local tall
+    for _, b in ipairs(M.game.list) do
+        b.z1, b.z2 = 0, 0
+        for _, s in ipairs(all) do
+            if s.home and s.key == tostring(b.x) .. "," .. tostring(b.y) then tall = tall or b end
+        end
+    end
+    tall.z2 = 1
+    for _ = 1, 10 do eq(M.pickSite(record, 1, { want = "far", up = true }).key, tostring(tall.x) .. "," .. tostring(tall.y)) end
+    tall.z2 = 0
+    truthy(M.pickSite(record, 1, { want = "far", up = true }), "none of more: any")
+    truthy(#all > 1)
 end)
 
 test("no building and no open ground: no story mission", function()

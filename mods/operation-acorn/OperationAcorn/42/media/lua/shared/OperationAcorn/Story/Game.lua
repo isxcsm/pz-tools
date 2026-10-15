@@ -67,9 +67,22 @@ function Game.buildingKeyAt(x, y)
     return def and keyOf(def) or nil
 end
 
--- The buildings in the band around ax, ay that a story site may be (Places.pickSite): not a cellar, not a shed, none of
--- `skip` (keys). The whole map's list, unloaded parts too (its rooms are known): the distance first, the rooms only for
--- the few in the band. Once for each story site.
+-- Whether a building may be a story site: plain (Places.plain: its rooms' names), not a stash's (an annotated map
+-- leads there), not one a player made, not one visited (the game marks so a building its own stories set up when it
+-- loaded: a survivors' safehouse, a burnt one, and one a player was in).
+local function plainSite(b)
+    if b:isUserDefined() or b:isHasBeenVisited() then return false end
+    local ok, stash = pcall(function() return StashSystem.isStashBuilding(b) end)
+    if ok and stash then return false end
+    local names = {}
+    local rooms = b:getRooms()
+    for i = 0, rooms:size() - 1 do names[#names + 1] = rooms:get(i):getName() or "" end
+    return OA.Places.plain(names)
+end
+
+-- The buildings in the band around ax, ay that a story site may be (Places.pickSite): not a cellar, not a shed, a
+-- plain one (plainSite), none of `skip` (keys). The whole map's list, unloaded parts too (its rooms are known): the
+-- distance first, the rooms only for the few in the band. Once for each story site.
 function Game.sitesInBand(ax, ay, lo, hi, skip)
     local list = {}
     local all = getWorld():getMetaGrid():getBuildings()
@@ -80,7 +93,7 @@ function Game.sitesInBand(ax, ay, lo, hi, skip)
         local d = math.sqrt(dx * dx + dy * dy)
         if d >= lo and d <= hi and not b:isBasement() and b:getArea() >= 30 then
             local key = keyOf(b)
-            if not skip[key] then
+            if not skip[key] and plainSite(b) then
                 local info = infoOf(b)
                 info.key, info.dist = key, d
                 info.area, info.rooms, info.home = b:getArea(), b:getRoomsNumber(), b:containsRoom("bedroom")
@@ -91,35 +104,68 @@ function Game.sitesInBand(ax, ay, lo, hi, skip)
     return list
 end
 
--- Open ground a camp may stand on (SCENES.md 5): a point of a field, a farm, a ranch or a forest by the map's zones, and
--- none of a road, a town, water, a car park or deep forest, with no building on it. Whether its squares are free is
--- seen when they load (a prop that finds its square taken is left out).
-Game.OPEN_ZONES = { Vegitation = true, Forest = true, FarmLand = true, Farm = true, Ranch = true }
-Game.CLOSED_ZONES = { Nav = true, TownZone = true, WaterFlow = true, WaterZone = true, ParkingStall = true,
-    TrailerPark = true, DeepForest = true, Basement = true }
+-- Open ground a camp may stand on (SCENES.md 5): a field, a farm, a ranch, thin or mixed woods (Forest, the Mix
+-- forests); by the map's zones none of a road, a town, water, a car park, thick woods or a place the game's own stories
+-- use (ZoneStory), with no building on it. Whether its squares are free is seen when they load (a prop that finds its
+-- square taken is left out). B42's woods: the forage zones (forageZones.lua).
+Game.CLOSED_ZONES = { Nav = true, ForagingNav = true, TownZone = true, WaterFlow = true, WaterZone = true, Water = true,
+    ParkingStall = true, TrailerPark = true, DeepForest = true, OrganicForest = true, PHForest = true, PRForest = true,
+    BirchForest = true, FarmForest = true, Basement = true, ZoneStory = true }
 
+-- Whether x, y is open ground, and whether it is in woods (a Forest zone of any kind, Vegitation).
 local function openAt(grid, x, y)
     if grid:getBuildingAt(x, y) then return false end
     local zones = grid:getZonesAt(x, y, 0)
-    local open = false
+    local woods = false
     for i = 0, zones:size() - 1 do
         local t = zones:get(i):getType()
         if Game.CLOSED_ZONES[t] then return false end
-        if Game.OPEN_ZONES[t] then open = true end
+        if t == "Vegitation" or string.find(t, "Forest", 1, true) then woods = true end
     end
-    return open
+    return true, woods
 end
 
--- A point of open ground in the band around ax, ay, tried at random; nil when none was found.
+-- Whether a road (the map's Nav zone) passes within `far` squares of x, y and none within `near`: a camp is set up off
+-- a road a truck came along, not on its shoulder nor deep in the woods. Looked for on rings of eight points.
+Game.ROAD_NEAR, Game.ROAD_FAR = 8, 40
+local function roadAt(grid, x, y)
+    local zones = grid:getZonesAt(x, y, 0)
+    for i = 0, zones:size() - 1 do
+        if zones:get(i):getType() == "Nav" then return true end
+    end
+    return false
+end
+local DIRS = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }, { 0.7, 0.7 }, { -0.7, 0.7 }, { 0.7, -0.7 }, { -0.7, -0.7 } }
+local function offRoad(grid, x, y)
+    for r = 4, Game.ROAD_NEAR, 4 do
+        for _, d in ipairs(DIRS) do
+            if roadAt(grid, math.floor(x + d[1] * r), math.floor(y + d[2] * r)) then return false end
+        end
+    end
+    for r = Game.ROAD_NEAR + 4, Game.ROAD_FAR, 4 do
+        for _, d in ipairs(DIRS) do
+            if roadAt(grid, math.floor(x + d[1] * r), math.floor(y + d[2] * r)) then return true end
+        end
+    end
+    return false
+end
+
+-- A point of open ground in the band around ax, ay, off a road (offRoad), tried at random: a field first, else the
+-- first in woods; nil when none was found.
 function Game.groundInBand(ax, ay, lo, hi, tries)
     local grid = getWorld():getMetaGrid()
+    local wx, wy
     for _ = 1, tries or 300 do
         local angle = OA.randomFloat(0, 2 * math.pi)
         local r = OA.randomFloat(lo, hi)
         local x, y = math.floor(ax + math.cos(angle) * r), math.floor(ay + math.sin(angle) * r)
-        if openAt(grid, x, y) then return x, y end
+        local open, woods = openAt(grid, x, y)
+        if open and (not woods or not wx) and offRoad(grid, x, y) then
+            if not woods then return x, y end
+            wx, wy = x, y
+        end
     end
-    return nil
+    return wx, wy
 end
 
 -- The zombie density of the map at a square (DESIGN-terminal 7.2): the metagrid's chunk there, as the game's own spawning

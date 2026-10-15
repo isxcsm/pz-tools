@@ -288,10 +288,11 @@ end
 
 -- The site of a story mission, a special request or a contract errand (SCENES.md 5 '장소 고르기', LORE 4): a building
 -- of the band taken for a temporary facility, or open ground when the spec wants it or no building is left. `spec`:
--- { want = Places.pickSite's want, ground = true (open ground only) }. Not the base's building, not a site a story has
+-- { want = Places.pickSite's want, ground = true (open ground only), up = true (of more than one floor first) }. Not the base's building, not a site a story has
 -- used in this world, not a building a player has searched, not the site of a special request on offer, nor `taken` (a
--- key). Returns { x, y, z, x1, y1, x2, y2, z1, z2, key } (a building's), { x, y, z = 0, key, ground = true } or nil (no
+-- key). No building in the band: the band's outer edge reaches further out (SITE_WIDER) before open ground. Returns { x, y, z, x1, y1, x2, y2, z1, z2, key } (a building's), { x, y, z = 0, key, ground = true } or nil (no
 -- base known, or nothing found).
+Missions.SITE_WIDER = { 1, 1.5, 2 }   -- the band's outer edge, times these in turn, before open ground
 function Missions.pickSite(record, level, spec, taken)
     local g = game()
     local ax, ay = Missions.anchor(record)
@@ -307,12 +308,23 @@ function Missions.pickSite(record, level, spec, taken)
             end
         end
         if taken then skip[taken] = true end
-        local list = g.sitesInBand(ax, ay, lo, hi, skip)
-        local i = Places.pickSite(list, spec.want or "public")
-        if i then
-            local b = list[i]
-            return { x = b.x, y = b.y, z = b.z, x1 = b.x1, y1 = b.y1, x2 = b.x2, y2 = b.y2, z1 = b.z1, z2 = b.z2,
-                key = b.key }
+        -- with no building in the band (a base out in the woods) the band reaches further out before open ground
+        for _, wider in ipairs(Missions.SITE_WIDER) do
+            local list = g.sitesInBand(ax, ay, lo, hi * wider, skip)
+            -- `up`: a building of more than one floor first
+            if spec.up then
+                local tall = {}
+                for _, b in ipairs(list) do
+                    if (b.z2 or 0) > math.max(b.z1 or 0, 0) then tall[#tall + 1] = b end
+                end
+                if #tall > 0 then list = tall end
+            end
+            local i = Places.pickSite(list, spec.want or "public")
+            if i then
+                local b = list[i]
+                return { x = b.x, y = b.y, z = b.z, x1 = b.x1, y1 = b.y1, x2 = b.x2, y2 = b.y2, z1 = b.z1, z2 = b.z2,
+                    key = b.key }
+            end
         end
     end
     if not g.groundInBand then return nil end

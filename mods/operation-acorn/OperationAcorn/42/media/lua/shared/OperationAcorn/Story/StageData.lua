@@ -10,10 +10,11 @@
 --   tile      { sprite, on } on a free square of the room, against a wall when `wall`; at the entrance on the wall beside
 --             the door (a wall object: `sprite` is { north =, west = }, Facing S for a north wall, E for a west one;
 --             each a sprite or a list to pick from; `count` of them, one to a square)
---   set       { tiles = { { dx, dy, sprite }, ... }, more, on, count } sprites placed together where all their squares
---             are free in the room (a desk of two squares, a radio on it); `more` (as tiles) goes with them where it
---             fits too (`on`: a radio among the tiles is left on, its static playing while nothing is on air); `count`
---             copies, each where it fits
+--   set       { tiles = { { dx, dy, sprite }, ... }, more, fewer, on, count } sprites placed together where all their
+--             squares are free in the room (a desk of two squares, a radio on it); `more` (as tiles) goes with them
+--             where it fits too; `fewer` (a row): its first tiles down to that many where the row does not fit (`on`: a
+--             radio among the tiles is left on, its static playing while nothing is on air); `count` copies, each
+--             where it fits. A room a set goes to is cleared of its furniture first (the team made room).
 --   line      { sprite, step = { x, y }, length } on open ground: a row of one sprite (a sandbag wall), gaps where taken
 --   item      { type | types, count } on the floor of the room (outdoors: about the spot)
 --   vehicle   { script, open = a door part id or a list, battery = 0 to 1, fuel = 0 to 1, key, load = item types }
@@ -86,7 +87,7 @@ StageData.evidence = { pieces = {
 StageData.clinic = { pieces = {
     { kind = "tile", at = "entrance", sprite = MEDICAL },
     { kind = "vehicle", at = "back", script = "Base.VanAmbulance", open = "DoorRear", battery = 0 },
-    { kind = "set", at = "hall", tiles = { { 0, 0, CHAIR_N }, { 1, 0, CHAIR_N }, { 2, 0, CHAIR_N }, { 3, 0, CHAIR_N } } },
+    { kind = "set", at = "hall", fewer = 2, tiles = { { 0, 0, CHAIR_N }, { 1, 0, CHAIR_N }, { 2, 0, CHAIR_N }, { 3, 0, CHAIR_N } } },
     { kind = "item", at = "hall", count = 3,
       types = { "Base.UmbrellaBlack", "Base.UmbrellaRed", "Base.Jacket_Black", "Base.JacketLong_Random" } },
     { kind = "piece", at = "hall", key = "CASE", floor = true },

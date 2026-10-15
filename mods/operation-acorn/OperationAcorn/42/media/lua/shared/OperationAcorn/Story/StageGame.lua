@@ -156,9 +156,31 @@ local function put(sq, sprite, on)
     return obj
 end
 
+-- Whether a room has a window: on one of its squares' north or west edge, or the edge of the square east or south.
+local function hasWindow(def)
+    local c = getCell()
+    local z = def:getZ()
+    for x = def:getX(), def:getX2() do
+        for y = def:getY(), def:getY2() do
+            local sq = c:getGridSquare(x, y, z)
+            local room = sq and sq:getRoom()
+            if room and room:getRoomDef() == def then
+                if sq:getWindow() then return true end
+                local east, south = c:getGridSquare(x + 1, y, z), c:getGridSquare(x, y + 1, z)
+                local w = east and east:getWindow()
+                if w and not w:getNorth() then return true end
+                w = south and south:getWindow()
+                if w and w:getNorth() then return true end
+            end
+        end
+    end
+    return false
+end
+
 -- The room of the layout a piece asks for by name or floor: with `up`, the largest on the floor above the ground floor
--- (one named in `names` first); with `names` alone, the largest so named on any floor. The same for every piece that
--- asks the same (the stage's later look reads the layout again).
+-- with a window (one named in `names` first; one without a window when none has one; on the ground floor when there is
+-- no floor above); with `names` alone, the largest so named on any floor. The same for every piece that asks the same
+-- (the stage's later look reads the layout again).
 local function pickRoom(ctx, p)
     local rooms = ctx.layout and ctx.layout.rooms or {}
     local ground
@@ -172,14 +194,26 @@ local function pickRoom(ctx, p)
     end
     local named = {}
     for _, n in ipairs(p.names or {}) do named[n] = true end
-    local best, bestNamed
-    for _, r in ipairs(rooms) do
-        if (not p.up or r.z == (ground or 0) + 1) and (r.area or 0) >= OA.Stage.ROOM_AREA then
-            if named[r.name or ""] and (not bestNamed or r.area > bestNamed.area) then bestNamed = r end
-            if not best or r.area > best.area then best = r end
+    local function pick(z, lit)
+        local best, bestNamed
+        for _, r in ipairs(rooms) do
+            if (not z or r.z == z) and (r.area or 0) >= OA.Stage.ROOM_AREA and (not lit or hasWindow(r.def)) then
+                if named[r.name or ""] and (not bestNamed or r.area > bestNamed.area) then bestNamed = r end
+                if not best or r.area > best.area then best = r end
+            end
         end
+        return best, bestNamed
     end
-    if p.up then return bestNamed or best end
+    -- (a house of one floor: the ground floor's instead)
+    if p.up then
+        local up = (ground or 0) + 1
+        local best, bestNamed = pick(up, true)
+        if not best then best, bestNamed = pick(up) end
+        if not best then best, bestNamed = pick(ground or 0, true) end
+        if not best then best, bestNamed = pick(ground or 0) end
+        return bestNamed or best
+    end
+    local _, bestNamed = pick(nil)
     return bestNamed
 end
 
@@ -304,6 +338,108 @@ function StageGame.tile(ctx, p)
     return put(sq, sprite, p.on) ~= nil
 end
 
+-- Keeps the site's building from the game's own stories (Stage.begin): they are set up as a building first loads
+-- (RandomizedBuildingBase.ChunkLoaded), and not in one with a room already seen. Its smallest room is marked seen:
+-- that room alone spawns no zombies of its own when first seen (the stage makes its own).
+function StageGame.claim(site)
+    local def = site and not site.ground and defAt(site)
+    if not def then return end
+    local rooms = def:getRooms()
+    local small
+    for i = 0, rooms:size() - 1 do
+        local r = rooms:get(i)
+        if not small or r:getArea() < small:getArea() then small = r end
+    end
+    if small then small:setExplored(true) end
+end
+
+-- Whether the site's building was taken before the stage (Stage.place): a door or a window boarded, something built
+-- in it (survivors', a player's), a square burnt out.
+function StageGame.occupied(ctx)
+    local l = ctx.layout
+    if not l or l.ground then return false end
+    for _, list in ipairs({ l.doors or {}, l.windows or {} }) do
+        for _, at in ipairs(list) do
+            if at.object and at.object:isBarricaded() then return true end
+        end
+    end
+    for _, r in ipairs(l.rooms or {}) do
+        local room = r.def and r.def:getIsoRoom()
+        local squares = room and room:getSquares()
+        for i = 0, (squares and squares:size() or 0) - 1 do
+            local sq = squares:get(i)
+            if sq:getProperties():has(IsoFlagType.burntOut) then return true end
+            local objects = sq:getObjects()
+            for j = 0, objects:size() - 1 do
+                if instanceof(objects:get(j), "IsoThumpable") then return true end
+            end
+        end
+    end
+    return false
+end
+
+-- What clearing a room leaves: the building's own fixtures (doors, windows, curtains, boards) and what a player built.
+local KEPT = { "IsoDoor", "IsoWindow", "IsoCurtain", "IsoBarricade", "IsoThumpable", "IsoGenerator" }
+
+-- Whether an object is furniture a room is cleared of: a moveable standing on the floor (MoveType Object, as
+-- ISMoveableSpriteProps reads it), not one on a wall or a window, a rug or a floor tile.
+local function furniture(o)
+    local spr = o:getSprite()
+    local props = spr and spr:getProperties()
+    if not (props and props:has("IsMoveAble")) then return false end
+    if props:has("MoveType") and props:get("MoveType") ~= "Object" then return false end
+    for _, class in ipairs(KEPT) do
+        if instanceof(o, class) then return false end
+    end
+    return true
+end
+
+-- Takes one object off its square; a piece of a furniture of several squares takes the others with it (by its
+-- sprite grid, as ISMoveableSpriteProps finds them).
+local function takeAway(sq, o)
+    local spr = o:getSprite()
+    local grid = spr and spr:getSpriteGrid()
+    if not grid then
+        sq:transmitRemoveItemFromSquare(o)
+        return
+    end
+    local c = getCell()
+    local sx, sy = sq:getX() - grid:getSpriteGridPosX(spr), sq:getY() - grid:getSpriteGridPosY(spr)
+    for x = 0, grid:getWidth() - 1 do
+        for y = 0, grid:getHeight() - 1 do
+            local part = grid:getSprite(x, y)
+            local s = part and c:getGridSquare(sx + x, sy + y, sq:getZ())
+            local objects = s and s:getObjects()
+            for j = (objects and objects:size() or 0) - 1, 0, -1 do
+                local other = objects:get(j)
+                if other:getSprite() == part then s:transmitRemoveItemFromSquare(other) end
+            end
+        end
+    end
+end
+
+-- Clears the room a set goes to of its furniture, once (Stage.place, before any piece): the team made room for it.
+-- Its containers go with it, and what was in them.
+function StageGame.clear(ctx, p)
+    local room = roomOf(ctx, p)
+    if not room then return nil end
+    ctx.cleared = ctx.cleared or {}
+    if ctx.cleared[room] then return true end
+    ctx.cleared[room] = true
+    local squares = room:getSquares()
+    for i = 0, squares:size() - 1 do
+        local sq = squares:get(i)
+        local objects = sq:getObjects()
+        for j = objects:size() - 1, 0, -1 do
+            local o = j < objects:size() and objects:get(j)
+            if o and furniture(o) then takeAway(sq, o) end
+        end
+        sq:RecalcProperties()
+        sq:RecalcAllWithNeighbours(true)
+    end
+    return true
+end
+
 -- Sprites placed together: an anchor square of the room (outdoors: about the piece's spot, within `reach`, else 3)
 -- where every square of the set is free and in the room (outdoors: in none); with `more`, those too where they fit
 -- with it, else the set alone. `count` sets of it, each where it fits.
@@ -349,7 +485,8 @@ function StageGame.set(ctx, p)
     return placed or nil
 end
 
--- One of a set's copies (StageGame.set): where the set and `more` fit, else the set alone.
+-- One of a set's copies (StageGame.set): where the set and `more` fit, else the set alone; with `fewer` (a row), its
+-- first tiles down to that many where the whole row does not fit.
 function StageGame.setOnce(p, anchors)
     local c = getCell()
     local tiles = p.tiles
@@ -363,6 +500,13 @@ function StageGame.setOnce(p, anchors)
     if #fits == 0 then
         tiles = p.tiles
         fits = anchors(tiles)
+    end
+    local n = #p.tiles - 1
+    while #fits == 0 and p.fewer and n >= p.fewer do
+        tiles = {}
+        for k = 1, n do tiles[k] = p.tiles[k] end
+        fits = anchors(tiles)
+        n = n - 1
     end
     if #fits == 0 then return nil end
     local a = fits[OA.random(1, #fits)]

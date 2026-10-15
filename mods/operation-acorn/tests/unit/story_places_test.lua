@@ -74,6 +74,17 @@ test("with none in the band the candidate nearest to the band is used", function
     eq(i, 1); eq(why, "nearest")
 end)
 
+test("a plain building has plain rooms only: a house, an office, a church; not a shop, a diner, a story house", function()
+    eq(P.plain({ "kitchen", "livingroom", "bedroom", "bathroom" }), true)
+    eq(P.plain({ "office", "breakroom", "bathroom", "lobby" }), true)
+    eq(P.plain({ "church", "officechurch", "bathroom" }), true)
+    eq(P.plain({ "gasstore", "bathroom" }), false)
+    eq(P.plain({ "pizzawhirled", "pizzakitchen" }), false)
+    eq(P.plain({ "laundry", "vacated", "bathroom" }), true, "a laundromat's rooms are a house's")
+    eq(P.plain({ "cultistbedroom", "kitchen" }), false)
+    eq(P.plain({}), false)
+end)
+
 -- Story sites (Places.pickSite): a list as Game.sitesInBand gives it.
 local function site(dist, area, rooms, home)
     return { x = dist, y = 0, dist = dist, area = area, rooms = rooms, home = home }

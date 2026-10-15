@@ -96,6 +96,35 @@ function Places.pickCandidate(cands, anchorX, anchorY, lo, hi, opts, int)
     return best, "nearest"
 end
 
+-- The rooms of a plain building, one the authorities could take over without it being a place of its own: a house,
+-- an office, a warehouse, a church, a school, a factory, a farm's barn. Not a shop, a restaurant, a gas station, a
+-- bank, a bar, a police station, a clinic, a motel, a derelict or a site under construction, and none of the map's
+-- own story houses (their rooms have names of their own).
+Places.PLAIN_ROOMS = {}
+for _, name in ipairs({
+    -- a house's
+    "bathroom", "bedroom", "bedroom4", "kidsbedroom", "livingroom", "kitchen", "diningroom", "dining", "closet",
+    "laundry", "garage", "garagestorage", "attic", "balcony", "hall", "hallway", "corridor", "foyer", "stairwell",
+    "storage", "empty", "emptyoutside", "room1", "elevator", "janitor",
+    -- an office's, a warehouse's, a factory's
+    "office", "officestorage", "breakroom", "lobby", "meetingroom", "storageunit", "warehouse", "factory",
+    "factorystorage", "security", "changeroom", "lockerroom", "showers", "vacated",
+    -- a church's, a school's
+    "church", "officechurch", "lobbychurch", "classroom", "elementaryclassroom", "secondaryclassroom",
+    "universityclassroom", "elementaryhall", "secondaryhall", "schoolstorage", "gym", "gymstorage", "schoolgymstorage",
+    "recreation",
+    -- a farm's
+    "barn", "farmstorage", "shed",
+}) do Places.PLAIN_ROOMS[name] = true end
+
+-- Whether a building is plain: every room of it (names, a list) is a plain one.
+function Places.plain(names)
+    for _, name in ipairs(names) do
+        if not Places.PLAIN_ROOMS[name] then return false end
+    end
+    return #names > 0
+end
+
 -- A story site among the map's buildings (SCENES.md 5 '장소 고르기'): the authorities took any building for a post, a
 -- clinic, a shelter. `list` is the buildings that may be used, all in the band: { x, y, area, rooms, home (a house: it
 -- has a bedroom), dist (from the base) }. `want`:

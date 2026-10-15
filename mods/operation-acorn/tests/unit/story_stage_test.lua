@@ -161,6 +161,43 @@ test("the building is set up once it is loaded, in order, the key going to the b
     eq(#g.calls, 5)
 end)
 
+test("the rooms a set goes to are cleared first, before any piece; not outdoors, not a building set up before", function()
+    local record, m, g = setup({
+        { kind = "tile", sprite = "x", at = "entrance" },
+        { kind = "set", at = "big", tiles = {} },
+        { kind = "set", at = "yard", tiles = {} },
+        { kind = "set", up = true, tiles = {} },
+    })
+    g.set = function() g.calls[#g.calls + 1] = "set"; return true end
+    g.clear = function(ctx, p) g.calls[#g.calls + 1] = "clear:" .. tostring(p.at) .. (p.up and ":up" or "") end
+    Stage.begin(record, m)
+    Stage.look(record, m, 2000, 0, 20)
+    eq(table.concat(g.calls, ","), "clear:big,clear:nil:up,tile,set,set,set")
+    local again, m2, g2 = setup({ { kind = "set", at = "big", tiles = {} } })
+    g2.set = function() return true end
+    g2.clear = function() g2.calls[#g2.calls + 1] = "clear" end
+    Stage.begin(again, m2)
+    Stage.look(again, m2, 2000, 0, 20)
+    eq(#g2.calls, 0, "set up before")
+end)
+
+test("a building not set up before is claimed as the stage begins; one taken before the stage gets the item alone", function()
+    local record, m, g = setup(POLICE)
+    local claimed = {}
+    g.claim = function(site) claimed[#claimed + 1] = site.key end
+    g.occupied = function() return true end
+    Stage.begin(record, m)
+    eq(claimed[1], "500,0")
+    Stage.look(record, m, 500, 0, 20)
+    eq(table.concat(g.calls, ","), "piece")
+    eq(m.stage.fresh, false)
+    local again, m2, g2 = setup(POLICE)
+    local none = 0
+    g2.claim = function() none = none + 1 end
+    Stage.begin(again, m2)
+    eq(none, 0, "set up before: nothing to claim")
+end)
+
 test("a building set up before only gets the mission's item, and no zombies of its own", function()
     local record, m, g = setup(POLICE)
     Stage.world()["500,0"] = true
