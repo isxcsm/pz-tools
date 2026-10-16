@@ -141,10 +141,13 @@ final class Formulas implements Hooks.Formulas {
         live("vision.darknessRestore", Shape.REDUCTION, "LightingJNI.getLumaInverted"),
         live("vision.coneAdd", Shape.NUMBER, "LightingJNI.calculateVisionCone"),
         screen("vision.nightSight", Shape.LEVEL, "LightingJNI$JNILighting.update", "LightingJNI$JNILighting.updateFBORenderChunk",
-            "FBORenderCell.sanitizeLightInfo", "FBORenderCell.*:stale", "FBORenderCell.renderOneLevel_Blood:blood", "ShaderUnit.loadShaderFile", "TileDepthShader.startRenderThread",
+            "FBORenderCell.sanitizeLightInfo", "FBORenderCell.*:stale", "FBORenderCell.renderOneLevel_Blood:blood", "ShaderUnit.loadShaderFile", "ShaderUnit.compile", "TileDepthShader.startRenderThread",
             "CutawayAttachedShader.startRenderThread", "TileSeamShader.startRenderThread", "IsoGridSquare$CutawayNoDepthShader.startRenderThread",
             "Shader.startRenderThread", "Shader.Start:bind", "Shader.Start"),
         sight("vision.hiddenZombieFix", Shape.BOOLEAN),
+        // The game's own outline drawn on what it leaves out (see Outlines): its hooks are set while a mod declares this.
+        live("outline.models", Shape.BOOLEAN, "FBORenderObjectOutline.render", "FBORenderObjectOutline.renderObject",
+            "ModelSlotRenderData.initModel:outline", "ModelSlotRenderData.renderVehicle"),
         machine("machine.baseConsumption", Shape.AMOUNTS, "IsoObject.couldBePoweredByGenerator", "IsoObject.getGeneratorPowerConsumption"),
         machine("machine.loadKey", Shape.NAMES, "IsoObject.getGeneratorPowerConsumption"),
         anim("anim.stepKey", Shape.NAMES, "IsoObject.renderAttachedSprites", "IsoObject.isAnimating"),
@@ -443,6 +446,7 @@ final class Formulas implements Hooks.Formulas {
             lua.set(result, "floor", (double)(lamps.floorLight() / 255f));
             lua.set(result, "sources", (double)Hooks.sightSources());
             lua.set(result, "files", Hooks.sightFiles());
+            lua.set(result, "failed", (double)Hooks.sightFailed());
             lua.set(result, "programs", (double)lamps.taking());
             lua.set(result, "settings", (double)lamps.settings());
             if (lamps.floorLight() > 0 && lamps.settings() > 0 && lamps.taking() == 0)
@@ -773,6 +777,7 @@ final class Formulas implements Hooks.Formulas {
         next.walk = (float)number("move.walkMultiplier", 1);
         if (survival != null) survival.declare(combined(BY_NAME.get("infection.biteShield")) instanceof Boolean shield && shield);
         if (hidden != null && hiddenProblem == null) hidden.declare(combined(BY_NAME.get("vision.hiddenZombieFix")) instanceof Boolean fix && fix);
+        Outlines.declare(combined(BY_NAME.get("outline.models")) instanceof Boolean outlined && outlined);
         if (combined(BY_NAME.get("capacity.modDataKey")) instanceof List<?> keys) next.dataKeys = keys.toArray(String[]::new);
         if (combined(BY_NAME.get("uses.modDataKey")) instanceof List<?> keys) next.useKeys = keys.toArray(String[]::new);
         if (combined(BY_NAME.get("craft.carryKeys")) instanceof List<?> keys) next.carryKeys = keys.toArray(String[]::new);

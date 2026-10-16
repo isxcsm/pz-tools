@@ -44,6 +44,7 @@ final class FloorDecalsTest {
             Object mod = FormulasTest.call(api, "client", "floor.mod").get(0), second = FormulasTest.call(api, "client", "floor.second").get(0);
             drawing(area, mod);
             mods(area, mod, second);
+            chunkLevels(area, mod);
             unloaded(area, mod);
             rejects(area, mod);
             clearing(area, mod, second);
@@ -111,11 +112,11 @@ final class FloorDecalsTest {
         FormulasTest.call(area, "set", mod, 10.0, 20.0, 0.0, list("decals_01_0", 1, 0.8, 0.2, 0.9, "decals_01_9", 1, 1, 1, 1));
         check(square.redraws == before + 1, "The same decals redrew the level");
         // A square without decals beside it, and a square with no floor: nothing.
-        check(draw(floor(11, 20, 0)).isEmpty(), "A square without decals was drawn on");
-        IsoGridSquare bare = cell.load(12, 20, 0);
-        FormulasTest.call(area, "set", mod, 12.0, 20.0, 0.0, list("decals_01_0", 1, 1, 1, 1));
+        check(draw(floor(50, 20, 0)).isEmpty(), "A level without decals was drawn on");
+        IsoGridSquare bare = cell.load(60, 20, 0);
+        FormulasTest.call(area, "set", mod, 60.0, 20.0, 0.0, list("decals_01_0", 1, 1, 1, 1));
         check(draw(bare).isEmpty(), "A square with no floor was drawn on");
-        FormulasTest.call(area, "set", mod, 12.0, 20.0, 0.0, null);
+        FormulasTest.call(area, "set", mod, 60.0, 20.0, 0.0, null);
         // Nil and an empty list take them away.
         FormulasTest.call(area, "set", mod, 10.0, 20.0, 0.0, list());
         check(draw(square).isEmpty() && square.redraws == before + 2, "An empty list did not take the decals away");
@@ -137,6 +138,26 @@ final class FloorDecalsTest {
         check(drawn.size() == 1 && drawn.get(0)[0] == wire, "One mod's removal took the other's");
         FormulasTest.call(area, "set", mod, 30.0, 30.0, 1.0, null);
         check(GameApi.floor().count() == 0, "Squares are left after the mods: " + GameApi.floor().count());
+    }
+
+    /** The hook gets a chunk and a level, not the floors drawn: the chunk's squares at that level, whether the floors were drawn then or replayed. */
+    private static void chunkLevels(KahluaTable area, Object mod) {
+        IsoGridSquare near = floor(10, 20, 0), same = floor(15, 23, 0), other = floor(16, 20, 0), above = floor(10, 20, 1);
+        for (IsoGridSquare square : new IsoGridSquare[] { near, same, other, above })
+            FormulasTest.call(area, "set", mod, (double)square.x, (double)square.y, (double)square.z, list("decals_01_0", 1, 1, 1, 1));
+        check(near.chunk == same.chunk && near.chunk != other.chunk, "The squares are not in the chunks the test means");
+        // The level drawn is the chunk's at that level: the squares of the chunk and no other, though only one floor was handed to the renderer.
+        var drawn = draw(near);
+        check(drawn.size() == 2 && drawn.stream().allMatch(call -> call[1] == near.floor || call[1] == same.floor), "A chunk level drew " + drawn.size());
+        // A level whose floors were recorded elsewhere and whose snow is replayed here (PZ Optimization): the decals come with the snow.
+        IsoSprite.drawn.clear();
+        RENDERER.replay(above);
+        check(IsoSprite.drawn.size() == 1 && IsoSprite.drawn.get(0)[1] == above.floor, "A replayed level drew " + IsoSprite.drawn.size());
+        IsoSprite.drawn.clear();
+        RENDERER.replay(other);
+        check(IsoSprite.drawn.size() == 1 && IsoSprite.drawn.get(0)[1] == other.floor, "The other chunk drew " + IsoSprite.drawn.size());
+        FormulasTest.call(mod, "clear");
+        check(GameApi.floor().count() == 0, "Squares are left after the chunk levels");
     }
 
     private static void unloaded(KahluaTable area, Object mod) {
@@ -189,7 +210,7 @@ final class FloorDecalsTest {
         int firstBefore = first.redraws, otherBefore = other.redraws;
         FormulasTest.call(mod, "clear");
         check(first.redraws == firstBefore + 1 && other.redraws == otherBefore + 1, "handle:clear() did not redraw the squares it cleared");
-        check(draw(first).isEmpty(), "handle:clear() left the mod's decals");
+        check(draw(first).stream().noneMatch(call -> call[1] == first.floor), "handle:clear() left the mod's decals");
         var drawn = draw(other);
         check(drawn.size() == 1 && drawn.get(0)[0] == pipe, "handle:clear() took another mod's decals");
         FormulasTest.call(second, "clear");
@@ -209,7 +230,9 @@ final class FloorDecalsTest {
         // And a set in the new world does not bring the old ones back.
         IsoGridSquare here = floor(50, 50, 0);
         FormulasTest.call(area, "set", mod, 51.0, 50.0, 0.0, list("decals_01_0", 1, 1, 1, 1));
-        check(GameApi.floor().count() == 1 && draw(here).isEmpty(), "The old world's decals came back");
+        IsoGridSquare there = floor(51, 50, 0);
+        var drawnHere = draw(here);
+        check(GameApi.floor().count() == 1 && drawnHere.size() == 1 && drawnHere.get(0)[1] == there.floor, "The old world's decals came back");
         FormulasTest.call(mod, "clear");
         check(before != cell, "The world did not change");
     }
@@ -237,10 +260,11 @@ final class FloorDecalsTest {
             int x = 100 + index % 64, y = 100 + index / 64;
             FormulasTest.call(area, "set", mod, (double)x, (double)y, 0.0, list("decals_01_0", 1, 1, 1, 1, "decals_01_9", 1, 1, 1, 1));
         }
-        IsoGridSquare plain = floor(99, 99, 0), decorated = floor(120, 120, 0);
-        // The game keeps a square's light; the synthetic square makes it anew unless told.
+        // A chunk level of 64 floors, each with two decals, and one with none. The game keeps a square's light; the synthetic
+        // square makes it anew unless told.
+        IsoGridSquare plain = floor(2000, 2000, 0), decorated = floor(120, 120, 0);
         var light = new ColorInfo(1f, 1f, 1f);
-        decorated.lighting[0] = () -> light;
+        for (int y = 120; y < 128; y++) for (int x = 120; x < 128; x++) floor(x, y, 0).lighting[0] = () -> light;
         IsoSprite.recording = false;
         try {
             for (int warm = 0; warm < 50_000; warm++) { RENDERER.level(plain); RENDERER.level(decorated); }
@@ -251,7 +275,7 @@ final class FloorDecalsTest {
             start = System.nanoTime();
             for (int n = 0; n < rounds; n++) RENDERER.level(decorated);
             double with = (System.nanoTime() - start) / (double)rounds;
-            System.out.printf("floor: a level of one floor without decals costs %.1f ns, one with two %.1f ns (4096 squares of decals)%n", without, with);
+            System.out.printf("floor: a chunk level without decals costs %.1f ns, one of 64 floors with two decals each %.1f ns (4096 squares of decals)%n", without, with);
             long bytes = Allocations.median(9, () -> { for (int n = 0; n < 10_000; n++) { RENDERER.level(plain); RENDERER.level(decorated); } });
             check(bytes < 4096, "Drawing floors allocated " + bytes + " bytes for 20,000 floors");
         } finally {

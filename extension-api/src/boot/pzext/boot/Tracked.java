@@ -1,10 +1,13 @@
 package pzext.boot;
 
+import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
+import java.util.ConcurrentModificationException;
 import java.util.List;
+import java.util.Objects;
+import java.util.RandomAccess;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 
@@ -32,8 +35,11 @@ public final class Tracked extends ArrayList<Object> {
     public final transient Object owner;
     /** The API's: null until it asks. Set and read under the API's own lock. */
     public transient volatile Object kept;
-    /** How many times the list changed; read without a lock, by anyone. */
-    public transient int version;
+    /**
+     * How many times the list changed; read without a lock, by anyone. Written by the thread that changes the list (a list is not
+     * made for two at once), and volatile so that a reader on another thread sees the change.
+     */
+    public transient volatile int version;
 
     public Tracked(int kind, Object owner, Collection<?> initial) {
         super(initial);
@@ -144,9 +150,78 @@ public final class Tracked extends ArrayList<Object> {
         version++;
     }
 
-    /** A view that changes the list would escape the methods above: it can be read, not written. */
+    /**
+     * A view that changes the list through the methods above (an {@code ArrayList}'s own would write into the list and leave the API
+     * unaware): as the game's {@code subList} it can be written, and like it is cut off by a change made to the list another way
+     * ({@link ConcurrentModificationException}).
+     */
     @Override public List<Object> subList(int from, int to) {
-        return Collections.unmodifiableList(super.subList(from, to));
+        Objects.checkFromToIndex(from, to, size());
+        return new View(from, to - from);
+    }
+
+    private final class View extends AbstractList<Object> implements RandomAccess {
+        private final int offset;
+        private int size;
+        private int expected = Tracked.this.modCount;
+
+        View(int offset, int size) {
+            this.offset = offset;
+            this.size = size;
+        }
+
+        private void check() {
+            if (Tracked.this.modCount != expected) throw new ConcurrentModificationException();
+        }
+
+        private void inside(int index) {
+            if (index < 0 || index >= size) throw new IndexOutOfBoundsException("Index " + index + " out of bounds for length " + size);
+        }
+
+        private void changed(int by) {
+            expected = Tracked.this.modCount;
+            size += by;
+            modCount++;
+        }
+
+        @Override public int size() {
+            check();
+            return size;
+        }
+
+        @Override public Object get(int index) {
+            check();
+            inside(index);
+            return Tracked.this.get(offset + index);
+        }
+
+        @Override public Object set(int index, Object item) {
+            check();
+            inside(index);
+            return Tracked.this.set(offset + index, item);
+        }
+
+        @Override public void add(int index, Object item) {
+            check();
+            if (index < 0 || index > size) throw new IndexOutOfBoundsException("Index " + index + " out of bounds for length " + size);
+            Tracked.this.add(offset + index, item);
+            changed(1);
+        }
+
+        @Override public Object remove(int index) {
+            check();
+            inside(index);
+            Object item = Tracked.this.remove(offset + index);
+            changed(-1);
+            return item;
+        }
+
+        @Override protected void removeRange(int from, int to) {
+            check();
+            if (from == to) return;
+            Tracked.this.removeRange(offset + from, offset + to);
+            changed(from - to);
+        }
     }
 
     /** A copy is an ordinary list: it is not the game's, and nothing follows it. */

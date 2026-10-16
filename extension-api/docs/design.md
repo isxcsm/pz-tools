@@ -11,9 +11,8 @@
 > [helicopter](#the-helicopter), the [zombies near a point](#zombies-near-a-point), the [sounds zombies make](#zombie-sounds), the [moodles](#moodles-mechanism) mods
 > define and the [text](#text-mechanism) they show, with the [zombies' hits](#zombie-hits), the [containers](#containers) of buildings,
 > [timers](#timers), [chunk watches](#chunk-watches), [wrapping and fitting text](#wrapping-and-fitting-a-width) and
-> [many shapes at once](#drawing-many-shapes). Planned: `"parallel"`. The first areas serve a separate power
-> and water mod, the formulas the
-> talent mod. The game facts below were read from the
+> [many shapes at once](#drawing-many-shapes). Planned: `"parallel"`. The first areas serve two mods
+> (see below). The game facts below were read from the
 > bytecode and Lua of Build 42 (7 October 2026); the ones under [measured](#measured-in-the-game)
 > were tried in the game with a throwaway probe.
 
@@ -23,10 +22,11 @@ that are too slow or too far-reaching for Lua, such as utility networks. It hold
 Panels, which objects join a network, distances, recipes, screens and balance belong to the mods
 that use it.
 
-The first users are two mods kept outside this repository:
+The first users are two mods, which live in this repository's monorepo under `mods/` (the API refers to
+neither, and holds nothing of theirs):
 
-- a power and water mod: panels that power and water whole buildings;
-- the talent mod, later: spatial queries, carried weight and formula adjustments.
+- one built on the networks and the buildings (power and water);
+- one built on the formulas and the spatial queries (carried weight, adjustments to the game's formulas).
 
 Both depend on the API. Neither has a variant that runs without it; without the API, a mod changes
 nothing and says why.
@@ -190,7 +190,7 @@ a map building new rooms through it; which rooms the walls make is the mod's to 
 
 | Call | Returns |
 | --- | --- |
-| `buildings.setRooms(key, rooms)` | `true` when the building has the rooms (it had them, or was given them), with a second result when they could not be written to the save (why); or `nil` and why not. `rooms` is a list of `level` (-32 to 31), `name` (optional) and `rects` (a list of `x`, `y`, `w`, `h`; 4096 rectangles at most). |
+| `buildings.setRooms(key, rooms)` | `true` when the building has the rooms (it had them, or was given them), with a second result when the save cannot hold them (why); or `nil` and why not. `rooms` is a list of `level` (-32 to 31), `name` (optional) and `rects` (a list of `x`, `y`, `w`, `h`; 4096 rectangles at most). |
 
 The new rooms cover the squares the building's rooms cover, each once (rooms that overlap are the
 mod's error); other squares are refused, so the building keeps its key. A building players built is
@@ -216,11 +216,28 @@ file as before (a debug editor's rooms); the game never writes it outside the ed
 is taken out of the map once. A world that saves nothing gets no file. Not for a client of a server:
 the game reads the file only where it is not one.
 
+The file is written as the world saves, in the call that writes the map's data on rooms
+(`map_meta.bin`, `IsoMetaGrid.savePart`), not as the rooms are set: the two files then agree
+whenever the world was saved, and a game that stops between a change and a save loses the change
+whole, not half. A save changes the file only when the rooms did. `setRooms` itself says now
+whether the save can hold the rooms.
+
+`map_meta.bin` keeps each room's flags (explored, lights, zombies spawned, roof) under the room's
+number, which is made from the room's first rectangle in its cell. The rooms set have numbers
+the map's own rooms have no entries under. Without the API, the game loads the map's rooms as they were and
+finds no entry for them: their zombies would spawn again (in a base built there) and the game would complain of
+each entry it has no room for. So the map's data gets, after each cell's own entries, one entry for each of the
+map's own rooms that were replaced, with the flags of the room over most of its squares now (a number a room
+of the cell has keeps that room's own entry). The map's rooms are kept at the end of the API's file (after what the
+game reads of it), so that a save after a load keeps them. As the world loads with the API, the game's
+complaint of those entries (`invalid room metaID`) is left out; its other complaints are not.
+
 The editor made each building it wrote one "players built" (`new BuildingDef(true)` in
 `BREBuilding`), and the game drops every such building of a cell when the rooms players build in
-that cell change: a map building given rooms would be gone at the next wall built near it. The API
-makes the editor's buildings map buildings and has the game read its file (see the hook sites);
-without both hooks in, `setRooms` refuses.
+that cell change: a map building given rooms would be gone at the next wall built near it. While
+rooms are being set, and while the game loads the API's file, the editor's buildings are map
+buildings; at any other time (the game's own editor, used by hand) they are what the game makes
+them. `setRooms` refuses without the hooks that read and write the file in (see the hook sites).
 
 ### Containers
 
@@ -580,7 +597,7 @@ no mod's concept: a point is a place in a game method, named in the game's terms
 | `formulas.points()` | `{ [point] = status }` for every point, worded as `PZExtAPI.hooks()` is: `"applied"` when every hook the point needs went in, `"not-loaded"` while its class has not loaded, why one did not go in, `"partial: ..."` when some did and one did not, or `"unavailable: ..."` when the game lacks what a point reads. A mod shows the player what is not applied. |
 | `formulas.tune(name, value)` | Changes one of the numbers the formulas work with while the game runs (a tuning: one value for the game, not declared by a mod, not saved; a game starts with the defaults), and answers its value; with no value it goes back to its default. Read as a formula works, so the next frame has it. For tuning in the game rather than by a build: the defaults are then made the tuned values. |
 | `formulas.tunings()` | `{ [name] = { value, default, min, max, about } }` for every tuning. Now night sight's: `nightSight.floor` (1: the lift for each 1 of the value, at most 0.45 in all); see [night sight](#night-sight). |
-| `formulas.nightSight()` | What night sight is doing now, read-only, for a look in game: `{ level, hooks, floor, sources, files, programs, settings, problem }` (the declared value; the point's hooks; the lift now, of the full light; how many shader sources the game loaded got the step, and their files; how many linked programs took the lift the last time it was set, and how many times it was set; why night sight does not work, if it does not: a game whose lighting it cannot read, or no program taking the lift). |
+| `formulas.nightSight()` | What night sight is doing now, read-only, for a look in game: `{ level, hooks, floor, sources, failed, files, programs, settings, problem }` (the declared value; the point's hooks; the lift now, of the full light; how many shader sources the game loaded got the step, how many of them did not compile with it and were compiled again without, and their files; how many linked programs took the lift the last time it was set, and how many times it was set; why night sight does not work, if it does not: a game whose lighting it cannot read, or no program taking the lift). |
 
 `handle:clear()` takes back everything the mod declared, in every area. A mod declares its formulas when a world
 loads (`OnGameStart`), as it defines its networks: they belong to the world they were made in, and are gone when the player
@@ -645,6 +662,7 @@ not have is a Lua error at `set`.
 | `machine.loadKey` | a name, or a list of names | join | The keys of an object's mod data (`object:getModData()`) that scale its declared consumption: each holding a number multiplies it, so that a machine at rest, at work or broken draws as its mod sets it. |
 | `machine.spriteName` | table of sprite name to sprite name | the first mod's | The name objects of a sprite are known by in `buildings.objects`, the networks and their rules, in place of the sprite's own: a machine that shows its state by changing its sprite (lit, running) gives its other looks the name of one, and stays one object, kept in the networks it was added to. One step: a name given is not looked up again. Where two mods name one sprite, the mod whose id comes first keeps it. Not tied to a hook. |
 | `anim.stepKey` | a name, or a list of names | join | The keys of an object's mod data under which a number other than 0 has the animations attached to the object stepped by the game each frame it draws them, as the game steps a sprite's (`IsoSprite.update`: at each instance's own speed, looping, not while the game is paused), and the object drawn every frame as a fire is; see [attached animations](#attached-animations). Any other object's attached animations are drawn as in vanilla, never stepped. |
+| `outline.models` | boolean | any | While any mod declares it true, the game's own object outline is drawn on what the game leaves out: objects drawn as models (doors, built furniture) and vehicles; until one does, the game's passes are its own. See [outlines](#outlines). |
 | `vision.hiddenZombieFix` | boolean | any | While any mod declares it true, the zombies the player sees and the game does not draw (the shadow vision's bug: a zombie in the cone with nothing between it and the player, on a square the game finds unseen) are drawn, as long as the game's own light test would let it be seen. Worked each frame from the game's list, not by a hook: see [the hidden zombies](#the-hidden-zombies). |
 
 The load counts an item of the character's inventory as the game does (unequipped, equipped, or on the hotbar, with a worn
@@ -726,6 +744,12 @@ overlay, not attached animations.)
   the instances it stepped since the frame job last ran (at the start of `GameWindow.logic()`) in an identity table that the
   frame empties. The table grows to the most instances stepped in a frame, its only allocation. Only the thread the frame job
   runs on, the game's, steps.
+- **Threads.** `isAnimating()` is asked on whatever thread bakes a chunk level (PZ Optimization records a level's objects
+  on worker threads), and the API's answer only reads the object's mod data: it keeps and changes nothing, so it is safe from any
+  thread. The mod data is a Lua table that Lua on the game's thread may write at the same time; a read that races such a write
+  answers with the value from before or after (never a changed table), and an object whose answer was missed is drawn into the
+  chunk's texture until the level is baked again, as the game does. The stepping itself is the game's thread's alone: a draw on
+  another thread steps nothing.
 - **Only while drawn.** An object the game does not draw (off the screen) is not stepped; its animation goes on from where
   it was.
 - **No table made.** The mod data is read only for an object that has it (`hasModData`). A string, a NaN, 0 or no key leave
@@ -843,8 +867,12 @@ hook only. `PZExtAPI.hooks()` names each by game class and method.
 | `IsoPlayer.getDeferredMovement(Vector2, boolean)` | each return | The vector returned (the method changes the argument and returns it) is scaled in place by `move.walkMultiplier` when the player is in the state of moving. The call is not made when the factor is 1. |
 | `IsoTree.getSlowFactor` | each return | Passed through `move.treeSlowMultiplier`, for a local player. |
 | `IsoTree.isPlayerInsideARoom(IsoPlayer)` | the one `IsoPlayer.isInARoom()` call | A fix, for every mod and none: the answer is "in a room" only when the player's square has a room too, so a room the game made no building of (one on a map building's roof) no longer throws for each tree drawn near it. |
-| `BREBuilding()` (the building editor's building) | the one `new BuildingDef(boolean)` | A fix: the building is made a map building (`false`), not one players built, so the game does not drop it when players build in its cell (see "Rooms set"). |
+| `BREBuilding()` (the building editor's building) | the one `new BuildingDef(boolean)` | A fix: the building is a map building (`false`), not one players built, so the game does not drop it when players build in its cell, while rooms are being set and while the game loads the API's file; else the game's answer (see "Rooms set"). |
 | `PlayerRoomsFile.load()` | the one `ZomboidFileSystem.getFileInCurrentSave(String)` | The file read is the save's `pzext_rooms.bin` when there is one (the rooms `setRooms` gave), else the game's `player_buildings.bin` (see "Rooms set"). |
+| `BuildingRoomsEditor.load()` (`BuildingRoomsEditor.load`) | before each return | The editor's load of the world's rooms is done: its buildings are the game's again. |
+| `IsoMetaGrid.savePart(buffer, part, flag)` (`savePart:saving`) | at its start | The world is saving its map data: for part 0 (the rooms), the API's file of the rooms is written. |
+| `IsoMetaGrid.savePart` (`savePart:rooms`, `savePart:entries`) | the one `IsoMetaCell.getRoomCount(true)`, and the one `getBuildingCount(true)` | The count of a cell's rooms is the game's and the number of entries for the map's own rooms that were replaced; those entries are written after the cell's own. The two go in together or not at all (one alone would break the file), which the API checks. |
+| `IsoMetaGrid.load(buffer)` (`load:complaint`) | the game's complaint of a room entry it has no room for (`DebugType.error`, the one that begins `invalid room metaID`) | Left out when the entry is one of the replaced rooms'. |
 | `IsoObject.couldBePoweredByGenerator` | each return | True for an object of a sprite declared in `machine.baseConsumption` above 0, besides the game's answer. |
 | `IsoObject.getGeneratorPowerConsumption` | each return | An object of a declared sprite gives its declared consumption times the load its mod data holds under `machine.loadKey`, in place of the game's. |
 | `IsoObject.renderAttachedSprites` | after the one call of `IsoSpriteInstance.update()` (the method is private; it is found by its signature) | The instance just drawn and the object go to `anim.stepKey`'s step; the game's own call stays. Another number of such calls makes the hook not go in. |
@@ -868,12 +896,13 @@ hook only. `PZExtAPI.hooks()` names each by game class and method.
 | `FBORenderCell.sanitizeLightInfo` | each return | The light a square's objects are drawn with: a lifted copy (the square's own, which the game also asks for its zombies and its vision, is never changed). |
 | `FBORenderCell.*:stale` | after each call of `LightingJNI.getChunkDirty(player, wx, wy, z)`, in any method | Also true while a square of the chunk level was last read with another lift, so that the renderer reads the level's squares again (given up for 3 s once the squares are not drawn); the call's arguments are kept in new locals. |
 | `FBORenderCell.renderOneLevel_Blood:blood` | after each call of `IsoGridSquare.getVertLight(corner, player)` | The corner light floor blood is tinted with, unlifted, so that blood is not lit by night sight. |
-| `FBORenderCell.renderOneLevel` | before the call of `FBORenderSnow.getInstance()` | The [floor decals](#floor-decals) of the level's floors (`IsoCell.SolidFloor`) are drawn over all of them, into the chunk level's picture. |
+| `FBORenderCell` (every method that calls it: `renderOneLevel`, and PZ Optimization's `pzoptBakeSnow`; `*:decals`) | before each call of `FBORenderSnow.RenderSnow(chunk, level)` | The [floor decals](#floor-decals) of the chunk level's floors are drawn over all of them, into the chunk level's picture. |
 | `IsoGridSquare.RecalcProperties()` | the return | The square, if a mod [watches](#square-watches) it, is marked to be told at the next frame. |
 | `ModelInstance$PlayerData.updateLights` (two), `ModelSlotRenderData.initModel:light`, `ItemModelRenderer.init`, `FBORenderCorpses$BodyParams.initAmbient` | after each call of `IsoGridSquare.interpolateLight(info, x, y)`, or of PZ Optimization's `ModelInstance.pzoptInterpolateLight(square, info, x, y)` (its copy of `ModelInstance$PlayerData`, which the game loads before its own, reads the light with that) | A character's, an animal's, a vehicle's, an item's and a corpse's light, worked out again from the corners before night sight's lift (see [night sight](#night-sight)); the call's arguments are kept in new locals. |
 | `IsoObjectModelDrawer.renderMain:still`, `:animated` | the start | A model object's light: the square's own when it is the lifted copy `sanitizeLightInfo` handed. |
 | `pzopt/BloodDecals.squares` (PZ Optimization's blood, when installed) | after its `SquareRules.fill` | The same for the colours of the squares it hands the GPU. |
 | `ShaderUnit.loadShaderFile` | each return | The sources of the shaders that draw the world (the tiles, the walls cut away for the player, the models) get night sight's step, once; a source without the place it goes is left as it is. See [night sight](#night-sight). |
+| `ShaderUnit.compile` | after the one call of `GL20.glCompileShader(shader)` | A shader with the step that did not compile is compiled again without it. See [night sight](#night-sight). |
 | `TileDepthShader.startRenderThread`, `CutawayAttachedShader.startRenderThread`, `TileSeamShader.startRenderThread`, `IsoGridSquare$CutawayNoDepthShader.startRenderThread`, `Shader.startRenderThread` | each return | With the shader's program bound: night sight's lift is set into every linked program that has its uniform, when the lift or the number of sources with the step changed since it was last set. |
 | `Shader.Start` (the core `Shader`, labelled `:bind`; and the models' `skinnedmodel.shader.Shader`) | each return | The same, where a shader is bound without a draw (`IndieGL.bindShader`). |
 | `Helicopter.writes:flight` | after every store of `Helicopter.state` or `Helicopter.active` (outside the constructors) | Counts the store; see [What the frame job learns from the hooks](#what-the-frame-job-learns-from-the-hooks). |
@@ -931,8 +960,9 @@ rooms are each drawn from their own light, and nothing reads across a wall.
   - the walls cut away for the player: `CutawayNoDepth` and `CircleStencil` (the rim of a lowered wall) after the wall's
     shade, `wallTile` and `floorTile` after the vertex colour;
   - the models, whose light the game works out from the squares': `basicEffect` (characters, items), its instanced
-    form, `animalEffect`, `door`, the vehicles (with PZ Optimization's glass ones) and their wheels, where the light and
-    the tint are put on (a vehicle's own lights after it, which keep their colour).
+    form, `animalEffect`, `door`, PZ Optimization's horde shaders (`pzopt_horde`, `pzopt_hordeu`), the vehicles (with PZ
+    Optimization's glass ones) and their wheels, where the light and the tint are put on (a vehicle's own lights after it,
+    which keep their colour).
 
   From the light a pixel is drawn with (the corners', blended across the square by the GPU as the game's own) the step
   works out the light before the lift (`o = 1 - (1 - sqrt(1 - 4f (1 - l))) / 2f`, exact for f below 0.5), keeps the
@@ -940,6 +970,12 @@ rooms are each drawn from their own light, and nothing reads across a wall.
   0.92, 1, 1.18). A model is drawn with its own light as the game has it, and the lift a floor of that light would take
   (`f (1 - l)^2`) is added in grey: the game's light alone gives it colour. At no lift the colour is as it was. A source
   without the place the step goes (a newer game) is loaded as it is, and what it draws keeps its colour.
+  The shaders load before any mod can declare a lift, so the step is put in every source whatever the declarations are;
+  it does nothing until the uniform is above 0 (the colour is exactly the game's), and the uniform is 0 until a mod declares.
+  A source that does not compile with the step (another tool changed it, or a game update did) is compiled again with the step
+  taken out, wherever it is in the source the GL holds (the step is marked), and says so once in the log; every shader costs one
+  query of the compile status (`ShaderUnit.compile`), which the game's own log query right after has already waited for. The
+  shader then draws as the game's. `formulas.nightSight()` says how many sources did not compile with the step.
 - **The models' light.** The game lights a model from the square's corners (`IsoGridSquare.interpolateLight`) and makes
   more light of that: a character's ambient colour (0.45 of it, in `Shader.startCharacter`) and two lights beside the
   character made from it (1.7 / 4 of it each, with a direction), a model object's the same way (1.5 / 4). A shader sees
@@ -1367,9 +1403,14 @@ area (the game makes such a zombie virtual where it stands, `virtualizeZombie`):
 (`removeChunkFromWorld`'s `n_addZombie`). A mod that counts its group makes it again when the player comes back; nothing of it is
 left to wander unseen. A zombie the game saves with the world while its chunk is loaded comes back with the world, marks and all.
 
-The hooks of the holds read the zombie's marks (two table reads) only while a hold is: with none, each returns after one volatile
-read. Those of a zombie coming and going look the number up in a set of the world's numbers, without boxing it, while the world
-has marks. The holds belong to the world: they are kept in the API table's metatable (a newer API takes them over) and a world
+The hooks of the holds read the zombie's marks only while a hold is: with none, each returns after one volatile
+read. Where a zombie wanders and what it hears are asked on whatever thread the game updates the zombie and weighs the sounds on
+(PZ Optimization runs both on frame workers, while the game's thread writes marks from Lua), so they read no Lua table: a zombie's
+marks are also kept as an immutable Java list (mod, key, mod, key...) in a concurrent map by zombie, replaced whole on the game's
+thread each time a mark is set or taken off and as a zombie comes into the world (marks it came with included) or leaves it, rebuilt
+from the loaded zombies when an API starts, and dropped with a world left. The hooks of a chunk unloading and of a zombie coming and
+going change the world's table and a zombie's modData, and are asked on the game's thread only; they look the number up in a set of
+the world's numbers, without boxing it, while the world has marks. The holds belong to the world: they are kept in the API table's metatable (a newer API takes them over) and a world
 left drops them; the marks are the world's own data and go with it.
 
 ### Timers
@@ -1465,9 +1506,12 @@ into or searched, and the game's objects are left as they are. A mod sets them a
 
 - **How they are drawn.** The chunk renderer draws a chunk level's floors into its picture (`FBORenderCell.renderOneLevel`) as
   the level is drawn again, not each frame: the squares of `IsoCell.SolidFloor` one after another (`renderFloor`), then the
-  snow. The hook between the two draws the decals of those squares, over all the level's floors: a decal drawn just after its
-  own square's floor was covered where it ran past the square's edge by the next square's floor, its grout drawn over the
-  cable. Each is drawn as `renderFloor` draws a floor object: the square's floor object as the object drawn (its offsets and
+  snow (`FBORenderSnow.RenderSnow(chunk, level)`). The hook before the snow's call draws the decals of the level's squares, over all
+  the level's floors: a decal drawn just after its own square's floor was covered where it ran past the square's edge by the next
+  square's floor, its grout drawn over the cable. With PZ Optimization the floors are recorded on a worker and the snow is replayed
+  in order with them on the game's thread (`pzoptBakeSnow`), so the hook is at the snow's call, the one place that is on the game's
+  thread in both, and takes the chunk and the level; the decals are looked up in the chunk's squares by level, not in a list the
+  game keeps. Each is drawn as `renderFloor` draws a floor object: the square's floor object as the object drawn (its offsets and
   alpha), the square's light for the player times the decal's tint, with the depth test off (as for the snow that follows) and
   the depth not written (`IndieGL.glDepthMask(false)`, then `true`): the floors' depth stays, so whoever stands on a decal is
   drawn over it. So a decal lies over every floor and its overlays, under the snow, the blood, the items and everything
@@ -1486,8 +1530,9 @@ into or searched, and the game's objects are left as they are. A mod sets them a
 ### Outlines
 
 The game's own object outline (`IsoObject.setOutlineHighlight(player, on)`, `setOutlineHighlightCol(player, r, g, b, a)`,
-`setOutlineHlBlink`) is drawn on the objects the game leaves out. Nothing is declared and there is no call: an object or vehicle
-outlined by the game, a mod or the API is drawn so, and a mod keeps using the game's calls.
+`setOutlineHlBlink`) is drawn on the objects the game leaves out. A mod declares `outline.models` (a boolean point of the
+[formulas](#formulas-mechanism)) while it outlines such objects, and until one does the hooks are not set and the game's passes are its
+own; then an object or vehicle outlined by the game, a mod or the API is drawn so, and a mod keeps using the game's calls.
 ([`Outlines`](../src/api/pzext/api/Outlines.java))
 
 - **Objects drawn as models.** Most doors of Build 42, the doors players build and 3D furniture are drawn as models. The game's
@@ -1514,8 +1559,8 @@ outlined by the game, a mod or the API is drawn so, and a mod keeps using the ga
   is put back as the game does after a character's. The game widens the outline and lays it over the frame with every other.
 
 The outline's thickness (`setOutlineThickness`) does nothing with the render chunks (the width comes from the zoom), for these
-as for the game's own. A frame costs one volatile read for each outlined object and each vehicle drawn; a vehicle not outlined
-costs one more call.
+as for the game's own. While no mod declares it, a frame costs nothing: the hooks answer as the game's code (one volatile read for
+each outlined object and each vehicle drawn). Declared, a frame costs the same read for each, and a vehicle not outlined costs one more call.
 
 ### Item counts
 

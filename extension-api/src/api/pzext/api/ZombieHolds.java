@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import pzext.boot.Hooks;
 
 /**
@@ -21,12 +22,19 @@ import pzext.boot.Hooks;
  * another zombie); the world's go as it dies (the game lets a dead zombie go from the population before its corpse is made, and
  * takes its number away), as a hold lets it go, and when the mod forgets the key.
  *
- * <p>The holds are read by three hooks, on the game's thread: where {@code ZombieIdleState} sends an idle zombie (a target outside
- * the circle is brought in along the line to its centre), each sound {@code WorldSoundManager.getBiggestSoundZomb} weighs (one the
- * zombie must not hear is skipped, as the game skips a missing one), and each zombie {@code ZombiePopulationManager.removeChunkFromWorld}
- * would keep virtual (one that goes is released from the population instead). A zombie is held while it is within the circle and
- * its margin; one that chased a player further is the game's until it comes back. With no hold, those hooks return after one
- * volatile read; with no mark in the world, those of a zombie coming and going after a lookup of the world's table.
+ * <p>The holds are read by three hooks: where {@code ZombieIdleState} sends an idle zombie (a target outside the circle is brought in
+ * along the line to its centre), each sound {@code WorldSoundManager.getBiggestSoundZomb} weighs (one the zombie must not hear is
+ * skipped, as the game skips a missing one), and each zombie {@code ZombiePopulationManager.removeChunkFromWorld} would keep virtual (one
+ * that goes is released from the population instead). A zombie is held while it is within the circle and its margin; one that chased a
+ * player further is the game's until it comes back. With no hold, those hooks return after one volatile read; with no mark in the
+ * world, those of a zombie coming and going after a lookup of the world's table.
+ *
+ * <p>Threads. The first two are asked on whatever thread the game runs the zombie's update and the sound weighing on (PZ Optimization
+ * does both on its frame workers, beside the game's thread, which writes marks from Lua at the same time), so they read no Lua table:
+ * only the holds ({@link #holds}, replaced whole) and the marks of the loaded zombies as Java-side snapshots ({@link #byZombie}, a zombie's
+ * entry replaced whole each time its marks change). Both are written on the game's thread alone: by the Lua calls, by the hooks of a
+ * zombie coming and going, and as the holds or the world change. The third (a chunk unloading) and those of a zombie coming and going
+ * also change the world's table and a zombie's modData, which are Lua tables: they are asked on the game's thread only.
  *
  * <p>The holds belong to the world they were made in, and are kept in the API table's metatable, where a newer API takes them over.
  */
@@ -58,8 +66,11 @@ final class ZombieHolds implements Hooks.ZombieHolds {
     /** A mod's holds by key. */
     record Owned(String owner, Map<String, Hold> holds) { }
 
-    // The holds by mod; empty while none.
+    // The holds by mod; empty while none. Replaced whole, on the game's thread; read on any thread.
     private volatile Owned[] holds = new Owned[0];
+    // The loaded zombies' marks as the hooks read them, by zombie: owner, key, owner, key... (a Lua table is read on the game's thread
+    // alone). An entry is replaced whole, never changed; a zombie with no marks has none. Written on the game's thread alone.
+    private final ConcurrentHashMap<Object, String[]> byZombie = new ConcurrentHashMap<>();
     private boolean hooked, stopped;
     private Object world;
     private final Watches.Seen moves = Watches.WORLD_CELL.user();
@@ -102,6 +113,9 @@ final class ZombieHolds implements Hooks.ZombieHolds {
     /** Takes the game's hooks. Throws a LinkageError with a bootstrap from before the marks. */
     void hook() throws ReflectiveOperationException {
         hooked = true;
+        try { remember(); }
+        catch (ReflectiveOperationException | RuntimeException unreadable) { throw unreadable; }
+        catch (Throwable failure) { throw new IllegalStateException(failure); }
         update();
     }
 
@@ -262,6 +276,7 @@ final class ZombieHolds implements Hooks.ZombieHolds {
             lua.set(table, (double)id, marks);
             numbers.add(id);
         }
+        note(zombie);
     }
 
     private void unmark(String owner, Object object) throws Throwable {
@@ -269,10 +284,12 @@ final class ZombieHolds implements Hooks.ZombieHolds {
         if (marks == null || lua.get(marks, owner) == null) return;
         lua.set(marks, owner, null);
         boolean live = zombieType.isInstance(object);
+        if (live) note(object);
         int id = live ? (int)persistent.invokeExact(object) : 0;
         if (id != 0 && saved(false) != null && numbers.contains(id)) counts.merge(owner, -1, Integer::sum);
         if (!empty(marks)) return;
         lua.set((Object)data.invokeExact(object), MARKS, null);
+        if (live) note(object);
         if (id != 0 && saved != null && numbers.contains(id)) {
             lua.set(saved, (double)id, null);
             numbers.remove(id);
@@ -322,7 +339,33 @@ final class ZombieHolds implements Hooks.ZombieHolds {
             if (marks == null || !key.equals(lua.get(marks, owner))) continue;
             lua.set(marks, owner, null);
             if (empty(marks)) lua.set((Object)data.invokeExact(zombie), MARKS, null);
+            note(zombie);
         }
+    }
+
+    // ---- the marks as the hooks that run on any thread read them ----
+
+    /** The snapshot of the zombie's marks made again from its modData (the game's thread): none if it has none. */
+    private void note(Object zombie) throws Throwable {
+        Object marks = marks(zombie);
+        String[] pairs = marks == null ? null : pairs(marks);
+        if (pairs == null || pairs.length == 0) byZombie.remove(zombie);
+        else byZombie.put(zombie, pairs);
+    }
+
+    private String[] pairs(Object marks) throws ReflectiveOperationException {
+        var list = new ArrayList<String>();
+        for (var mark : lua.entries(marks))
+            if (mark.getKey() instanceof String owner && mark.getValue() instanceof String key) { list.add(owner); list.add(key); }
+        return list.toArray(new String[0]);
+    }
+
+    /** The snapshots made again from the loaded zombies (the world is a new one, or this API takes over from an earlier one). */
+    private void remember() throws Throwable {
+        byZombie.clear();
+        Object cell = game.cell();
+        if (cell == null) return;
+        for (Object zombie : (List<?>)(Object)zombieList.invokeExact(cell)) if (zombie != null && marks(zombie) != null) note(zombie);
     }
 
     private boolean empty(Object table) throws ReflectiveOperationException {
@@ -401,20 +444,24 @@ final class ZombieHolds implements Hooks.ZombieHolds {
     /** The holds by mod, for the tests. */
     Owned[] holds() { return holds; }
 
+    /** How many zombies have a snapshot of their marks, for the tests. */
+    int snapshots() { return byZombie.size(); }
+
     // ---- the hooks: on the game's thread; nothing allocated on the common paths ----
 
     /** The hold the zombie is in now: one of a key it is marked with, whose circle and margin it is within; or null. */
     private Hold holding(Object zombie) throws Throwable {
         Owned[] now = holds;
         if (now.length == 0 || zombie == null) return null;
-        Object marks = marks(zombie);
-        if (marks == null) return null;
+        String[] pairs = byZombie.get(zombie);
+        if (pairs == null) return null;
         float x = (float)zombieX.invokeExact(zombie), y = (float)zombieY.invokeExact(zombie);
-        for (Owned owned : now) {
-            Object key = (Object)rawget.invokeExact(marks, (Object)owned.owner());
-            Hold hold = key == null ? null : owned.holds().get(key);
-            if (hold != null && hold.near(x, y)) return hold;
-        }
+        for (int at = 0; at < pairs.length; at += 2)
+            for (Owned owned : now) {
+                if (!owned.owner().equals(pairs[at])) continue;
+                Hold hold = owned.holds().get(pairs[at + 1]);
+                if (hold != null && hold.near(x, y)) return hold;
+            }
         return null;
     }
 
@@ -447,16 +494,19 @@ final class ZombieHolds implements Hooks.ZombieHolds {
         try {
             Owned[] now = holds;
             if (now.length == 0 || zombie == null) return false;
-            Object marks = marks(zombie);
-            if (marks == null) return false;
-            for (Owned owned : now) {
-                Object key = (Object)rawget.invokeExact(marks, (Object)owned.owner());
-                Hold hold = key == null ? null : owned.holds().get(key);
-                if (hold != null && hold.dissolve()) {
-                    drop((int)persistent.invokeExact(zombie), marks);
-                    return true;
+            String[] pairs = byZombie.get(zombie);
+            if (pairs == null) return false;
+            for (int at = 0; at < pairs.length; at += 2)
+                for (Owned owned : now) {
+                    if (!owned.owner().equals(pairs[at])) continue;
+                    Hold hold = owned.holds().get(pairs[at + 1]);
+                    if (hold != null && hold.dissolve()) {
+                        // The world's table and the zombie's modData are Lua tables: the game's thread, as a chunk unloading is.
+                        Object marks = marks(zombie);
+                        if (marks != null) drop((int)persistent.invokeExact(zombie), marks);
+                        return true;
+                    }
                 }
-            }
             return false;
         } catch (Throwable failure) { throw ZombieHolds.<RuntimeException>sneaky(failure); }
     }
@@ -464,22 +514,28 @@ final class ZombieHolds implements Hooks.ZombieHolds {
     @Override public void registered(Object zombie, int id) throws Throwable {
         if (id == 0 || zombie == null) return;
         Object table = (Object)worldTable.invokeExact(MARKS);
-        if (table == null) return;
-        if (table != saved) reread(table);
-        if (!numbers.contains(id)) return;
-        Object marks = lua.get(table, (double)id);
-        if (lua.isTable(marks)) lua.set((Object)data.invokeExact(zombie), MARKS, marks);
+        if (table != null) {
+            if (table != saved) reread(table);
+            if (numbers.contains(id)) {
+                Object marks = lua.get(table, (double)id);
+                if (lua.isTable(marks)) lua.set((Object)data.invokeExact(zombie), MARKS, marks);
+            }
+        }
+        // Marks it came with (its own modData, loaded with it) are held as the world's are.
+        if (marks(zombie) != null) note(zombie);
     }
 
     @Override public void released(Object zombie) throws Throwable {
         // A dead zombie: the world forgets it (its object keeps the marks for the corpse). A living one goes virtual or was let go.
         if (zombie == null || !(boolean)dead.invokeExact(zombie)) return;
+        byZombie.remove(zombie);
         Object marks = marks(zombie);
         if (marks != null) drop((int)persistent.invokeExact(zombie), marks);
     }
 
     @Override public void removed(Object zombie) throws Throwable {
         if (zombie == null) return;
+        byZombie.remove(zombie);
         Object marks = marks(zombie);
         if (marks == null) return;
         // A corpse took its copy already; a virtual zombie keeps its marks in the world's table.
@@ -493,9 +549,13 @@ final class ZombieHolds implements Hooks.ZombieHolds {
     void frame() throws ReflectiveOperationException {
         if (!moves.moved()) return;
         Object cell = game.cell();
-        if (world != null && cell != world && lua.get(meta, KEPT) != null) {
-            lua.set(meta, KEPT, null);
-            update();
+        if (world != null && cell != world) {
+            // The zombies of the world left are not this one's: their snapshots go (this one's come with its zombies).
+            byZombie.clear();
+            if (lua.get(meta, KEPT) != null) {
+                lua.set(meta, KEPT, null);
+                update();
+            }
         }
         world = cell;
     }
@@ -504,6 +564,7 @@ final class ZombieHolds implements Hooks.ZombieHolds {
     void stop() {
         stopped = true;
         holds = new Owned[0];
+        byZombie.clear();
         unhook();
     }
 

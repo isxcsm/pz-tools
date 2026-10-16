@@ -1111,7 +1111,7 @@ final class Texts implements Hooks.Text {
                     Map.entry("shadow", true), Map.entry("delay", 1.2), Map.entry("enter", "mist"), Map.entry("enterTime", 3.0),
                     Map.entry("leave", "mist"), Map.entry("leaveTime", 4.8)),
                 0.35, 0.3));
-            // Burnt: a quiet title that fades in slowly, stays, and burns away like paper from its top right corner, its ash and
+            // Dust: a quiet title that fades in slowly, stays, and burns away like paper from its top right corner, its ash and
             // sparks taken by the wind; its line burns a moment after it. For something that ends.
             ALL.put("dust", new Style(
                 Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Large")), Map.entry("size", 0.085), Map.entry("color", List.of(0.97, 0.95, 0.9, 1.0)),

@@ -7,7 +7,7 @@ watches), all without game content of its own. A mod that uses it states what it
 questions in Java.
 
 - [Design](docs/design.md): every area, its calls and the game facts behind it.
-- [Loader and install](docs/loader.md): how the game loads the API without a changed game file.
+- [Loader and install](docs/loader.md): how the game loads the API: files of its own in the game's folder and one entry in the launcher file's class path; no game file is replaced.
 
 It stands alone: it needs no other program running and no launch option. Tools that help players install mods may
 install it by running its installer.

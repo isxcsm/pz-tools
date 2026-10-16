@@ -46,11 +46,17 @@ public final class FBORenderCell {
         FBORenderSnow.getInstance().RenderSnow(chunk, level);
     }
 
+    /** Like PZ Optimization's: the level's snow, drawn by itself when the floors' draws are replayed on the game's thread. */
+    void pzoptBakeSnow(zombie.iso.IsoChunk chunk, int level) { FBORenderSnow.getInstance().RenderSnow(chunk, level); }
+
+    /** A chunk level's snow replayed, as PZ Optimization does when the floors were recorded elsewhere (the floors are not drawn here). */
+    public void replay(IsoGridSquare square) { pzoptBakeSnow(square.chunk, square.z); }
+
     /** A chunk level of this one floor square drawn (allocating nothing). */
     public void level(IsoGridSquare square) {
         zombie.iso.IsoCell.SolidFloor.clear();
         zombie.iso.IsoCell.SolidFloor.add(square);
-        renderOneLevel(null, 0, null, 0, 0L, null, null);
+        renderOneLevel(square.chunk, square.z, null, 0, 0L, null, null);
     }
 
     /** A chunk level of these floor squares drawn, in this order. */
@@ -58,7 +64,7 @@ public final class FBORenderCell {
         zombie.iso.IsoCell.SolidFloor.clear();
         zombie.iso.IsoCell.SolidFloor.add(first);
         for (IsoGridSquare square : more) zombie.iso.IsoCell.SolidFloor.add(square);
-        renderOneLevel(null, 0, null, 0, 0L, null, null);
+        renderOneLevel(first.chunk, first.z, null, 0, 0L, null, null);
     }
 
     /** The corner lights the square's floor blood is tinted with, for the player. */

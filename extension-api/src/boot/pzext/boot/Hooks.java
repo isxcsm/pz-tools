@@ -292,6 +292,7 @@ public final class Hooks {
         /**
          * {@code IsoObject.isAnimating()}, which the chunk renderer asks as it sorts an object into a layer: {@code vanilla}, or true
          * for an object whose attached animations are stepped, so that it is drawn every frame instead of into the chunk's texture.
+         * Asked on whatever thread bakes the chunk level (PZ Optimization's workers among them): it must only read.
          */
         default boolean animating(boolean vanilla, Object object) { return vanilla; }
     }
@@ -411,10 +412,12 @@ public final class Hooks {
      */
     public interface FloorDecals {
         /**
-         * {@code FBORenderCell.renderOneLevel}, once every floor of the chunk level is drawn and before its snow: the decals of those
-         * floors drawn over them all ({@code squares} is the game's {@code IsoCell.SolidFloor}, the level's floor squares just drawn).
+         * Before the snow of a chunk level ({@code FBORenderSnow.RenderSnow(chunk, level)}, which the game calls once every floor of
+         * the level is drawn: in {@code FBORenderCell.renderOneLevel}, with PZ Optimization in its {@code pzoptBakeSnow}): the decals
+         * of the level's floors drawn over them all. On the game's thread, in order with the level's other draws, whenever the level
+         * is drawn or replayed. The chunk is an {@code IsoChunk}; the decals are looked up in it, not in a list the game keeps.
          */
-        void level(Object squares) throws Throwable;
+        void level(Object chunk, int level) throws Throwable;
     }
 
     /**
@@ -429,13 +432,15 @@ public final class Hooks {
     /**
      * Set by the API while it runs (docs/design.md, "Zombie marks and holds"): the marks mods put on zombies, and the areas their
      * marked zombies are held in. The hooks of the holds ask a zombie its marks only while a hold is; those of a zombie coming and
-     * going look for marks only while one is. On the game's thread; quick, nothing allocated while nothing is marked.
+     * going look for marks only while one is. Quick, nothing allocated while nothing is marked. {@code wander} and {@code hears} are
+     * asked on whatever thread the game runs the zombie's update and the sound weighing on (PZ Optimization's frame workers among
+     * them): the handler must not touch a Lua table there. The others are asked on the game's thread.
      */
     public interface ZombieHolds {
-        /** {@code ZombieIdleState.execute}: the square the zombie wanders to, as {@code x << 32 | y}; the game's when it is not held. */
+        /** {@code ZombieIdleState.execute}, on the thread of the zombie's update: the square the zombie wanders to, as {@code x << 32 | y}; the game's when it is not held. */
         long wander(Object zombie, int x, int y);
 
-        /** {@code WorldSoundManager.getBiggestSoundZomb}, for each sound it weighs: whether the zombie may hear it. */
+        /** {@code WorldSoundManager.getBiggestSoundZomb}, for each sound it weighs, on the thread that weighs them: whether the zombie may hear it. */
         boolean hears(Object sound, Object zombie);
 
         /**
@@ -452,6 +457,27 @@ public final class Hooks {
 
         /** {@code IsoZombie.removeFromWorld}, at its start: the zombie leaves the world (dead, virtual or let go); its object is kept for another. */
         void removed(Object zombie) throws Throwable;
+    }
+
+    /**
+     * Set by the API (docs/design.md, "Rooms set"): the rooms mods gave map buildings, as the game saves and reads its map data on
+     * rooms (map_meta.bin). On the thread that saves or loads the world. Quick when no building has been given rooms.
+     */
+    public interface Rooms {
+        /** {@code IsoMetaGrid.savePart} for the map's rooms, at its start: the world is being saved; the API's file of the rooms is written now. */
+        void saving() throws Throwable;
+
+        /**
+         * In {@code savePart}, as the rooms of a cell ({@code IsoMetaCell}) are counted: how many entries for the map's own rooms (those
+         * rooms set replaced) the cell gets after its rooms' own. {@link #entries} writes exactly these.
+         */
+        int originals(Object cell) throws Throwable;
+
+        /** In {@code savePart}, right after the cell's rooms' entries: the entries {@link #originals} counted for the cell. */
+        void entries(Object cell, java.nio.ByteBuffer buffer) throws Throwable;
+
+        /** {@code IsoMetaGrid.load}, where the game complains of a room entry it has no room for: whether the entry is one of {@link #entries} (no complaint then). */
+        boolean replaced(Object complaint) throws Throwable;
     }
 
     /** The kinds of {@link Power#object}. */
@@ -480,6 +506,10 @@ public final class Hooks {
     private static volatile FloorDecals floorDecals;
     private static volatile SquareChanges squareChanges;
     private static volatile ZombieHolds zombieHolds;
+    private static volatile Rooms rooms;
+    // Whether the building editor's buildings are map buildings now (see playersBuilt): while rooms are being set, and while the game
+    // loads the API's file of the rooms.
+    private static volatile boolean roomsScope;
     // Where IsoObject reads usesExternalWaterSource for itself and keeps the game's flag: saving it, and finding the
     // game's own source (whose return the network's source replaces).
     private static final Set<String> PLUMBING_KEPT = Set.of("save", "checkExternalFluidSource");
@@ -521,7 +551,9 @@ public final class Hooks {
         SQUARE_CHANGED("squareChanged", Group.SQUARE_CHANGES), ZOMBIE_WANDER("zombieWander", Group.ZOMBIE_HOLDS),
         ZOMBIE_HEARS("zombieHears", Group.ZOMBIE_HOLDS), ZOMBIE_DISSOLVES("zombieDissolves", Group.ZOMBIE_HOLDS),
         ZOMBIE_REGISTERED("zombieRegistered", Group.ZOMBIE_HOLDS), ZOMBIE_RELEASED("zombieReleased", Group.ZOMBIE_HOLDS),
-        ZOMBIE_REMOVED("zombieRemoved", Group.ZOMBIE_HOLDS);
+        ZOMBIE_REMOVED("zombieRemoved", Group.ZOMBIE_HOLDS), ROOMS_SAVING("roomsSaving", Group.ROOMS),
+        ROOMS_ORIGINALS("roomsOriginals", Group.ROOMS), ROOMS_ENTRIES("roomsEntries", Group.ROOMS),
+        ROOMS_REPLACED("roomsReplaced", Group.ROOMS);
 
         final String label;
         final Group group;
@@ -530,7 +562,7 @@ public final class Hooks {
     }
 
     /** The handler a call belongs to: a newer one of that handler reports its faults again. */
-    private enum Group { POWER, WATER, FORMULAS, MOODLES, TEXT, ZOMBIE_SOUNDS, ZOMBIE_HITS, OUTLINES, WORLD_ITEMS, FLOOR_DECALS, SQUARE_CHANGES, ZOMBIE_HOLDS }
+    private enum Group { POWER, WATER, FORMULAS, MOODLES, TEXT, ZOMBIE_SOUNDS, ZOMBIE_HITS, OUTLINES, WORLD_ITEMS, FLOOR_DECALS, SQUARE_CHANGES, ZOMBIE_HOLDS, ROOMS }
 
     // Guarded by itself. A fault in a call the game makes 40,000 times a second must not flood its log.
     private static final Set<Call> reported = EnumSet.noneOf(Call.class);
@@ -709,17 +741,21 @@ public final class Hooks {
                     code.with(element);
                     code.invokestatic(HOOKS, "bloodLight", MethodTypeDesc.of(ConstantDescs.CD_int, ConstantDescs.CD_int));
                 })).named("blood"),
-            // A square's floor, drawn into its chunk level's picture: the mods' decals go over its floor objects, under the snow,
-            // the blood and everything standing on it.
-            // Once all of them are drawn, and before the snow: a decal running past its square's edge is not covered by the next
-            // square's floor (its grout drawn over the decal). The depth test is off there, as for the snow.
-            Site.edit("renderOneLevel", "(Lzombie/iso/IsoChunk;ILzombie/iso/IsoCell$PerPlayerRender;IJLzombie/core/opengl/Shader;"
-                + "Lzombie/core/opengl/Shader;)V", new Edit(calls("zombie/iso/fboRenderChunk/FBORenderSnow", "getInstance",
-                "()Lzombie/iso/fboRenderChunk/FBORenderSnow;"), 1, null, (code, element, kind) -> {
-                    code.getstatic(ClassDesc.of("zombie.iso.IsoCell"), "SolidFloor", ARRAY_LIST);
-                    code.invokestatic(HOOKS, "floorDecals", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_Object));
+            // A chunk level's floors, drawn into its picture: the mods' decals go over its floor objects, under the snow, the
+            // blood and everything standing on it. Anchored on the snow's call (RenderSnow(chunk, level)), which comes once all the
+            // floors are drawn: a decal running past its square's edge is not covered by the next square's floor (its grout
+            // drawn over the decal). The depth test is off there. Where the call is depends on the game: in renderOneLevel,
+            // or with PZ Optimization in pzoptBakeSnow, which the floors' bake leaves to the game's thread (the floors are
+            // recorded on a worker, the snow is replayed in order with them, as the level's picture is filled). The call
+            // is the one place that is on the game's thread in both, so the hook takes the chunk and the level, not the squares
+            // the floors were drawn from (IsoCell.SolidFloor, which a worker is filling).
+            Site.everywhere(new Edit(calls("zombie/iso/fboRenderChunk/FBORenderSnow", "RenderSnow", "(Lzombie/iso/IsoChunk;I)V"), -1, null,
+                (code, element, kind) -> {
+                    // snow, chunk, level -> snow, chunk, level, chunk, level -> hook
+                    code.dup2();
+                    code.invokestatic(HOOKS, "floorDecals", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_Object, ConstantDescs.CD_int));
                     code.with(element);
-                })) }),
+                })).named("decals") }),
         // PZ Optimization draws the floor's blood on the GPU, with each square's light worked out once a frame into a float[]
         // (r, g, b of the corners' mean and whether it is drawn, for the 64 squares of a chunk's level) by its
         // SquareRules: the array is handed to bloodSquares as it is filled. Not a hook of a point: the class loads only
@@ -741,7 +777,14 @@ public final class Hooks {
             Site.atReturns("loadShaderFile", "(Ljava/lang/String;Ljava/util/ArrayList;)Ljava/lang/String;", 3, (code, owner) -> {
                 code.aload(1);
                 code.invokestatic(HOOKS, "shaderSource", MethodTypeDesc.of(ConstantDescs.CD_String, ConstantDescs.CD_String, ConstantDescs.CD_String));
-            }) }),
+            }),
+            // A step that does not compile (another tool changed the source, or a game update did) is taken out again: after the call that
+            // compiles each shader, a failed compile of a source with the step is compiled again without it.
+            Site.edit("compile", "()Z", new Edit(calls("org/lwjgl/opengl/GL20", "glCompileShader", "(I)V"), 1, null, (code, element, kind) -> {
+                code.dup();
+                code.with(element);
+                code.invokestatic(HOOKS, "shaderCompiled", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_int));
+            })) }),
         Map.entry("zombie/tileDepth/TileDepthShader", new Site[] { tileDraw() }),
         Map.entry("zombie/tileDepth/CutawayAttachedShader", new Site[] { tileDraw() }),
         Map.entry("zombie/tileDepth/TileSeamShader", new Site[] { tileDraw() }),
@@ -1139,16 +1182,20 @@ public final class Hooks {
                     code.iconst_0();
                     code.labelBinding(done);
                 })) }),
-        // A fix: the game's building editor (a debug tool; PZExtAPI.buildings.setRooms) made each building it wrote one
-        // "players built", and the game drops every such building of a cell when the rooms players build in it change: a
-        // map building given new rooms, or read back from player_buildings.bin, was gone at the next wall built nearby.
-        // Its buildings are map buildings.
+        // A fix for the rooms mods give map buildings (docs/design.md, "Rooms set"): the game's building editor (a debug tool) makes
+        // each building it writes one "players built", and the game drops every such building of a cell when the rooms players
+        // build in it change: a map building given new rooms, or read back from the API's file, was gone at the next wall built
+        // nearby. While rooms are being set, and while the game loads the API's file, the editor's buildings are map buildings
+        // (playersBuilt); at any other time (the game's own editor, used by hand) they are what the game makes them.
         Map.entry("zombie/buildingRooms/BREBuilding", new Site[] {
             Site.edit("<init>", "()V", new Edit(calls("zombie/iso/BuildingDef", "<init>", "(Z)V"), 1, null, (code, element, kind) -> {
-                code.pop();
-                code.iconst_0();
+                code.invokestatic(HOOKS, "playersBuilt", MethodTypeDesc.of(ConstantDescs.CD_boolean, ConstantDescs.CD_boolean));
                 code.with(element);
             })) }),
+        // The end of the editor's load of the world's rooms (the game calls it as the world loads, before the map's data on rooms): the
+        // buildings it made from the API's file are made.
+        Map.entry("zombie/buildingRooms/BuildingRoomsEditor", new Site[] {
+            Site.atReturns("load", "()V", 0, (code, owner) -> code.invokestatic(HOOKS, "roomsLoaded", MethodTypeDesc.of(ConstantDescs.CD_void))) }),
         // The rooms setRooms gave are the API's own file of the save (ROOMS_FILE), read where the game reads the editor's
         // player_buildings.bin: without the API the game never sees them, and the map's buildings come back as they were
         // (the game would take the editor's buildings for ones players built, drop them, and fail loading the world).
@@ -1158,6 +1205,56 @@ public final class Hooks {
                     code.with(element);
                     code.invokestatic(HOOKS, "roomsFile", MethodTypeDesc.of(FILE, FILE));
                 })) }),
+        // The map's data on rooms (map_meta.bin; docs/design.md, "Rooms set"). It keeps each room's flags (explored, lights, zombies
+        // spawned, roof) under the room's metaID, which is made from the room's first rectangle, so the rooms mods set have entries
+        // the map's own rooms have none for: without the API the map's rooms would find none (their zombies spawn again, in a base
+        // built there) and the game would complain of each entry it has no room for. The world's save: the API's file of the rooms is
+        // written as the game writes the map's data (not at once, so that the two files agree); each cell's entries are followed by
+        // entries for the map's own rooms that were replaced, with the flags of the new room over most of each; the game's complaint
+        // of those entries, as it reads them with the API's rooms in, is left out. The two that change what the file holds go in
+        // together (see Rooms and RoomEdits).
+        Map.entry("zombie/iso/IsoMetaGrid", new Site[] {
+            Site.atStart("savePart", "(Ljava/nio/ByteBuffer;IZ)V", (code, owner) -> {
+                code.iload(2);
+                code.invokestatic(HOOKS, "roomsSaving", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_int));
+            }).named("saving"),
+            Site.edit("savePart", "(Ljava/nio/ByteBuffer;IZ)V", new Edit(calls("zombie/iso/IsoMetaCell", "getRoomCount", "(Z)I"), 1,
+                (elements, index) -> countsTrue(elements, index, false), (code, element, kind) -> {
+                    // cell, true -> the cell's extra entries, the rooms (the game's count)
+                    code.pop();
+                    code.dup();
+                    code.invokestatic(HOOKS, "roomsOriginals", MethodTypeDesc.of(ConstantDescs.CD_int, ConstantDescs.CD_Object));
+                    code.swap();
+                    code.iconst_1();
+                    code.with(element);
+                    code.iadd();
+                })).named("rooms"),
+            Site.edit("savePart", "(Ljava/nio/ByteBuffer;IZ)V", new Edit(calls("zombie/iso/IsoMetaCell", "getBuildingCount", "(Z)I"), 1,
+                (elements, index) -> countsTrue(elements, index, true), (code, element, kind) -> {
+                    // buffer, cell, true -> buffer, cell, true, with the cell's extra entries written first (the rooms' are)
+                    code.pop();
+                    code.dup();
+                    code.aload(1);
+                    code.invokestatic(HOOKS, "roomsEntries", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_Object,
+                        ClassDesc.of("java.nio.ByteBuffer")));
+                    code.iconst_1();
+                    code.with(element);
+                })).named("entries"),
+            Site.edit("load", "(Ljava/nio/ByteBuffer;)V", new Edit(calls("zombie/debug/DebugType", "error", "(Ljava/lang/Object;)V"), 2,
+                (elements, index) -> complaint(elements, index), (code, element, kind) -> {
+                    if (kind == 0) { code.with(element); return; }
+                    // type, complaint -> nothing, or the game's complaint when the entry is not one of the API's
+                    Label left = code.newLabel(), done = code.newLabel();
+                    code.dup();
+                    code.invokestatic(HOOKS, "roomsReplaced", MethodTypeDesc.of(ConstantDescs.CD_boolean, ConstantDescs.CD_Object));
+                    code.ifne(left);
+                    code.with(element);
+                    code.goto_(done);
+                    code.labelBinding(left);
+                    code.pop();
+                    code.pop();
+                    code.labelBinding(done);
+                })).named("complaint") }),
         // Zombies a mod holds in an area (docs/design.md, "Zombie marks and holds"): where an idle one wanders, the sounds one hears,
         // and whether one goes instead of staying virtual as its chunk unloads.
         Map.entry("zombie/ai/states/ZombieIdleState", new Site[] {
@@ -1622,6 +1719,31 @@ public final class Hooks {
     private static Predicate<CodeElement> calls(String owner, String name, String type) {
         return element -> element instanceof InvokeInstruction invoke && invoke.owner().asInternalName().equals(owner)
             && invoke.name().equalsString(name) && invoke.type().equalsString(type);
+    }
+
+    /**
+     * For the rooms and buildings counted in {@code IsoMetaGrid.savePart}: the call is made on the cell with {@code true} (the entries
+     * of the buildings players built are left out) and, for {@code buffer}, the method keeps its buffer argument in its slot.
+     */
+    private static int countsTrue(List<CodeElement> elements, int index, boolean buffer) {
+        CodeElement before = null;
+        for (int at = index - 1; at >= 0 && before == null; at--) if (elements.get(at) instanceof Instruction) before = elements.get(at);
+        if (!(before instanceof ConstantInstruction constant) || constant.opcode() != Opcode.ICONST_1)
+            throw new IllegalArgumentException("expected the cell's count to be asked with true");
+        if (buffer)
+            for (CodeElement element : elements)
+                if (element instanceof StoreInstruction store && store.slot() == 1) throw new IllegalArgumentException("savePart reuses its buffer slot");
+        return 0;
+    }
+
+    /** For the game's complaints in {@code IsoMetaGrid.load}: 1 for the one of a room entry it has no room for, else 0. */
+    private static int complaint(List<CodeElement> elements, int index) {
+        CodeElement before = null;
+        for (int at = index - 1; at >= 0 && before == null; at--) if (elements.get(at) instanceof Instruction) before = elements.get(at);
+        if (before instanceof java.lang.classfile.instruction.InvokeDynamicInstruction dynamic)
+            for (var argument : dynamic.bootstrapArgs())
+                if (argument instanceof String text && text.startsWith("invalid room metaID")) return 1;
+        return 0;
     }
 
     private static Predicate<CodeElement> field(Opcode opcode, String owner, String name) {
@@ -2277,8 +2399,21 @@ public final class Hooks {
         catch (Throwable problem) { reportOnce(Call.NIGHT_SIGHT, problem); return source; }
     }
 
+    /**
+     * Put after each call of {@code GL20.glCompileShader(shader)} in {@code ShaderUnit.compile}: a shader with night sight's step that
+     * did not compile is compiled again without it, so that the step can never cost the game its shader.
+     */
+    public static void shaderCompiled(int shader) {
+        if (SightShaders.patched == 0) return;
+        try { SightShaders.compiled(shader); }
+        catch (Throwable problem) { reportOnce(Call.NIGHT_SIGHT, problem); }
+    }
+
     /** How many sources got night sight's step: a new one is a program (or one linked again) whose uniform is not set yet. */
     public static int sightSources() { return SightShaders.patched; }
+
+    /** How many of those did not compile with it and were compiled without. */
+    public static int sightFailed() { return SightShaders.failed; }
 
     /** The files of the sources with night sight's step, sorted and joined by spaces (for formulas.nightSight()). */
     public static String sightFiles() { return String.join(" ", new TreeSet<>(SightShaders.files)); }
@@ -2799,11 +2934,11 @@ public final class Hooks {
         floorDecals = next;
     }
 
-    /** Put in {@code FBORenderCell.renderOneLevel} before the snow: the decals of the level's floors drawn over them all. */
-    public static void floorDecals(Object squares) {
+    /** Put before the snow's {@code FBORenderSnow.RenderSnow(chunk, level)} call: the decals of the chunk level's floors drawn over them all. */
+    public static void floorDecals(Object chunk, int level) {
         FloorDecals current = floorDecals;
         if (current == null) return;
-        try { current.level(squares); }
+        try { current.level(chunk, level); }
         catch (Throwable problem) { reportOnce(Call.FLOOR_DECALS, problem); }
     }
 
@@ -2827,17 +2962,69 @@ public final class Hooks {
         zombieHolds = next;
     }
 
-    /** Put before {@code IsoZombie.pathToLocation} in {@code ZombieIdleState.execute}: the square an idle zombie wanders to. */
+    /** Sets what saves and reads the rooms mods gave, replacing an earlier API's; null leaves the game's rooms to the game. */
+    public static void setRooms(Rooms next) {
+        synchronized (reported) { reported.removeIf(call -> call.group == Group.ROOMS); }
+        rooms = next;
+    }
+
     /**
      * {@code PlayerRoomsFile.load}: the file it reads. The API's rooms file when the save has one (it is written in the same
-     * format), else the game's own (a debug editor's rooms).
+     * format), else the game's own (a debug editor's rooms). The editor's buildings are map buildings from here until its load ends.
      */
     public static java.io.File roomsFile(java.io.File vanilla) {
         if (vanilla == null) return null;
         java.io.File ours = new java.io.File(vanilla.getParentFile(), ROOMS_FILE);
-        return ours.isFile() ? ours : vanilla;
+        boolean own = ours.isFile();
+        roomsScope = own;
+        return own ? ours : vanilla;
     }
 
+    /** Whether the building editor's buildings are map buildings while rooms are being set (the API says so around the editor's use of them). */
+    public static void roomsScope(boolean on) { roomsScope = on; }
+
+    /**
+     * Put at the argument of each {@code new BuildingDef(Z)} in the constructor of {@code BREBuilding}: whether the editor's building is
+     * one players built. The game's answer (it is) except while rooms are being set and while the game loads the API's file.
+     */
+    public static boolean playersBuilt(boolean vanilla) { return vanilla && !roomsScope; }
+
+    /** Put before each return of {@code BuildingRoomsEditor.load}: the editor's buildings are the game's again. */
+    public static void roomsLoaded() { roomsScope = false; }
+
+    /** Put at the start of {@code IsoMetaGrid.savePart}: {@code part} 0 is the map's rooms. */
+    public static void roomsSaving(int part) {
+        Rooms current = rooms;
+        if (current == null || part != 0) return;
+        try { current.saving(); }
+        catch (Throwable problem) { reportOnce(Call.ROOMS_SAVING, problem); }
+    }
+
+    /** Put in place of the count of a cell's rooms in {@code IsoMetaGrid.savePart}: the count of the extra entries for the cell, added to the game's. */
+    public static int roomsOriginals(Object cell) {
+        Rooms current = rooms;
+        if (current == null) return 0;
+        try { return current.originals(cell); }
+        catch (Throwable problem) { reportOnce(Call.ROOMS_ORIGINALS, problem); return 0; }
+    }
+
+    /** Put after the entries of a cell's rooms in {@code IsoMetaGrid.savePart}: the extra entries counted. */
+    public static void roomsEntries(Object cell, java.nio.ByteBuffer buffer) {
+        Rooms current = rooms;
+        if (current == null) return;
+        try { current.entries(cell, buffer); }
+        catch (Throwable problem) { reportOnce(Call.ROOMS_ENTRIES, problem); }
+    }
+
+    /** Put before the game's complaint of a room entry it has no room for in {@code IsoMetaGrid.load}: true when the complaint is left out. */
+    public static boolean roomsReplaced(Object complaint) {
+        Rooms current = rooms;
+        if (current == null) return false;
+        try { return current.replaced(complaint); }
+        catch (Throwable problem) { reportOnce(Call.ROOMS_REPLACED, problem); return false; }
+    }
+
+    /** Put before {@code IsoZombie.pathToLocation} in {@code ZombieIdleState.execute}: the square an idle zombie wanders to. */
     public static long zombieWander(Object zombie, int x, int y) {
         ZombieHolds current = zombieHolds;
         if (current != null) {
@@ -2926,8 +3113,15 @@ public final class Hooks {
         static final String UNIFORM = "PZExt_NightFloor";
         // How many sources got the step (on the thread that loads shaders), and the files they were loaded from.
         static volatile int patched;
+        // How many of them did not compile and were compiled again without the step (on the thread that compiles shaders).
+        static volatile int failed;
         static final Set<String> files = java.util.concurrent.ConcurrentHashMap.newKeySet();
         private static final java.util.regex.Pattern MAIN = java.util.regex.Pattern.compile("void\\s+main\\s*\\(");
+        // What the step is wrapped in, so that it can be taken out again whatever has been done to the source around it.
+        static final String OPEN = "/*PZEXT<*/", CLOSE = "/*PZEXT>*/";
+        private static final java.util.regex.Pattern STEPS = java.util.regex.Pattern.compile(java.util.regex.Pattern.quote(OPEN) + ".*?" + java.util.regex.Pattern.quote(CLOSE),
+            java.util.regex.Pattern.DOTALL);
+        private static final int COMPILE_STATUS = 0x8B81;
 
         /** Where the step goes in the files it goes in: before the statement {@code at} finds (none if empty), and after it. */
         record Place(List<String> files, java.util.regex.Pattern at, String before, String after) {
@@ -2951,7 +3145,7 @@ public final class Hooks {
             new Place(List.of("/vehiclewheel.frag"),
                 "col\\s*=\\s*vec3\\(\\s*col\\.x\\s*\\*\\s*lighting\\.x\\s*\\*\\s*TintColourNew\\.x[^;]*;", "vec3 pztBase = col * TintColourNew;",
                 "col = pztModel(col, pztBase, lighting);"),
-            new Place(List.of("/basicEffect.frag", "/animalEffect.frag", "/door.frag"),
+            new Place(List.of("/basicEffect.frag", "/animalEffect.frag", "/door.frag", "/pzopt_horde.frag", "/pzopt_hordeu.frag"),
                 "col\\s*=\\s*vec3\\(\\s*col\\.x\\s*\\*\\s*tintColour\\.x\\s*\\*\\s*lighting\\.x[^;]*;", "vec3 pztBase = col * tintColour;",
                 "col = pztModel(col, pztBase, lighting);"),
             new Place(List.of("/basicEffect_instanced.frag"), "col\\s*=\\s*col\\s*\\*\\s*inst\\.TintColour\\s*\\*\\s*lighting\\s*;",
@@ -3014,10 +3208,45 @@ public final class Hooks {
             if (!main.find()) return source;
             var lit = place.at().matcher(source);
             if (!lit.find(main.start())) return source;
-            String before = place.before().isEmpty() ? "" : place.before() + "\n    ";
+            String before = place.before().isEmpty() ? "" : OPEN + place.before() + CLOSE + "\n    ";
             counted(fileName);
-            return source.substring(0, main.start()) + STEP + source.substring(main.start(), lit.start()) + before + lit.group() + "\n    "
-                + place.after() + source.substring(lit.end());
+            return source.substring(0, main.start()) + OPEN + STEP + CLOSE + source.substring(main.start(), lit.start()) + before + lit.group()
+                + "\n    " + OPEN + place.after() + CLOSE + source.substring(lit.end());
+        }
+
+        /**
+         * After a shader was compiled: one with the step that did not compile (the status is the GL's) is compiled again with
+         * the step taken out, wherever it is in the source the GL holds (the game and PZ Optimization change a source after
+         * the step was put in, and may not agree with it), and says so once. Every shader costs one query of the status, which the
+         * game's own log query right after the compile has already waited for.
+         */
+        static void compiled(int shader) throws Throwable {
+            Gl gl = Gl.of();
+            if ((int)gl.status.invoke(shader, COMPILE_STATUS) != 0) return;
+            String source = (String)gl.source.invoke(shader);
+            if (source == null || !source.contains(OPEN)) return;
+            gl.set.invoke(shader, (CharSequence)STEPS.matcher(source).replaceAll(""));
+            gl.compile.invoke(shader);
+            failed++;
+            if (failed == 1) System.err.println("[PZExt] night sight: a shader did not compile with its step and was compiled without it; see its log above");
+        }
+
+        /** The GL calls the fall back needs, found when first needed. */
+        private record Gl(java.lang.invoke.MethodHandle status, java.lang.invoke.MethodHandle source, java.lang.invoke.MethodHandle set,
+                java.lang.invoke.MethodHandle compile) {
+            private static volatile Gl found;
+
+            static Gl of() throws ReflectiveOperationException {
+                Gl gl = found;
+                if (gl != null) return gl;
+                Class<?> gl20 = Class.forName("org.lwjgl.opengl.GL20", false, Hooks.class.getClassLoader());
+                var lookup = java.lang.invoke.MethodHandles.publicLookup();
+                return found = new Gl(
+                    lookup.findStatic(gl20, "glGetShaderi", java.lang.invoke.MethodType.methodType(int.class, int.class, int.class)),
+                    lookup.findStatic(gl20, "glGetShaderSource", java.lang.invoke.MethodType.methodType(String.class, int.class)),
+                    lookup.findStatic(gl20, "glShaderSource", java.lang.invoke.MethodType.methodType(void.class, int.class, CharSequence.class)),
+                    lookup.findStatic(gl20, "glCompileShader", java.lang.invoke.MethodType.methodType(void.class, int.class)));
+            }
         }
     }
 }

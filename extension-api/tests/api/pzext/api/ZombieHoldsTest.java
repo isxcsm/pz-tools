@@ -64,6 +64,27 @@ final class ZombieHoldsTest {
         ZombieIdleState.stepX = 30;
         ZombieIdleState.instance().execute(plain);
         check(plain.pathX == 135, "An unmarked zombie was held");
+        // Where a zombie wanders and what it hears are asked on whatever thread the game updates it on (PZ Optimization's workers),
+        // while Lua writes marks on the game's thread: from the Java-side snapshot alone. A marks table that fails when read says so.
+        Object realMarks = held.getModData().rawget(ZombieHolds.MARKS);
+        held.getModData().rawset(ZombieHolds.MARKS, java.lang.reflect.Proxy.newProxyInstance(KahluaTable.class.getClassLoader(),
+            new Class<?>[] { KahluaTable.class }, (proxy, method, arguments) -> { throw new AssertionError("a hook read a Lua table: " + method); }));
+        try {
+            var worker = new Object() { int path; boolean heard; Throwable failure; };
+            var thread = new Thread(() -> {
+                try {
+                    held.pathX = 0;
+                    ZombieIdleState.instance().execute(held);
+                    worker.path = held.pathX;
+                } catch (Throwable failure) { worker.failure = failure; }
+            });
+            thread.start();
+            thread.join();
+            check(worker.failure == null && worker.path == 108, "A held zombie was not held on another thread: " + worker.path + " " + worker.failure);
+        } finally {
+            held.getModData().rawset(ZombieHolds.MARKS, realMarks);
+        }
+        check(holds.snapshots() == 1, "The marked zombies' snapshots: " + holds.snapshots());
         // Chased out past the margin (10 + 20): the game's again.
         var away = zombie(135.5f, 100.5f, 3);
         FormulasTest.call(zombies, "mark", mod, away, "clear");
@@ -85,8 +106,9 @@ final class ZombieHoldsTest {
         // Virtual and back: the zombie's object loses its marks as it leaves; the zombie has them again when it comes back.
         var walker = zombie(50.5f, 50.5f, 4);
         FormulasTest.call(zombies, "mark", mod, walker, "walk");
+        check(holds.snapshots() == 3, "The marked zombies' snapshots: " + holds.snapshots());
         walker.removeFromWorld();
-        check(markOf(zombies, mod, walker) == null, "A zombie's object kept its marks after it left");
+        check(markOf(zombies, mod, walker) == null && holds.snapshots() == 2, "A zombie's object kept its marks after it left");
         var back = new IsoZombie();
         back.persistentId = ZombiePopulationManager.registerZombie(back, 4);
         check("walk".equals(markOf(zombies, mod, back)), "A zombie came back without its mark");

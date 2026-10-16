@@ -109,9 +109,10 @@ public final class GameApiTest {
         FloorDecalsTest.run(api);
         SquareWatchesTest.run(api);
         RoomEditsTest.run(api);
+        TrackedTest.run();
         ZombieHoldsTest.run(api);
         FontsTest.run();
-        OutlinesTest.run();
+        OutlinesTest.run(api);
         NetworkScaleTest.run(api);
         hooks(api);
         takeover(api, buildings);
@@ -2709,7 +2710,7 @@ public final class GameApiTest {
                 "HandWeapon.setWeaponPart", "HandWeapon.attachWeaponPart", "InventoryContainer.writes:weight", "Moveable.writes:weight",
                 "ItemStatsPacket.writes:weight", "FluidContainer.writes:amount", "ItemPickerJava.getActualSpawnChance",
                 "ItemPickerJava.getLootModifierFromType", "LightingJNI.getLumaInverted", "LightingJNI.calculateVisionCone",
-                "IsoTree.getSlowFactor", "IsoTree.isPlayerInsideARoom", "BREBuilding.<init>", "PlayerRoomsFile.load", "ZombieIdleState.execute", "WorldSoundManager.getBiggestSoundZomb",
+                "IsoTree.getSlowFactor", "ShaderUnit.compile", "IsoTree.isPlayerInsideARoom", "BREBuilding.<init>", "PlayerRoomsFile.load", "BuildingRoomsEditor.load", "ZombieIdleState.execute", "WorldSoundManager.getBiggestSoundZomb",
                 "ZombiePopulationManager.removeChunkFromWorld", "ZombiePopulationManager.registerZombie", "ZombiePopulationManager.releaseZombie", "ZombiePopulationManager.virtualizeZombie",
                 "IsoZombie.removeFromWorld",
                 "Thermoregulator.getCatchAColdDelta", "CorpseCount.getCorpseCount",
@@ -2722,11 +2723,11 @@ public final class GameApiTest {
                 "ParameterZombieState.setState", "ZombieVocalsManager$Slot.playSound", "IsoZombie.handleLandingImpact", "IsoZombie.Hit",
                 "FBORenderObjectOutline.render", "FBORenderObjectOutline.renderObject", "ModelSlotRenderData.initModel:outline", "ModelSlotRenderData.renderVehicle",
                 "ModelSlotRenderData.initModel:light", "IsoObjectModelDrawer.renderMain:still", "ModelInstance$PlayerData.updateLights",
-                "IsoGridSquare.BurnWalls", "IsoGridSquare.load", "FBORenderCell.renderOneLevel", "IsoGridSquare.RecalcProperties",
+                "IsoGridSquare.BurnWalls", "IsoGridSquare.load", "FBORenderCell.*:decals", "IsoGridSquare.RecalcProperties",
                 "InventoryItem.*:useDelta", "DrainableComboItem.*:useDelta", "CraftRecipeData.luaCallOnCreate",
                 "InventoryItem.getName", "InventoryItem.getDisplayName", "Food.getName", "Clothing.getName", "Moveable.getName" })
             check(Hooks.APPLIED.equals(hooks.rawget(label)), label + " is " + hooks.rawget(label));
-        check(Hooks.hookStatus().size() == 128, "The hooks are " + Hooks.hookStatus().keySet());
+        check(Hooks.hookStatus().size() == 134, "The hooks are " + Hooks.hookStatus().keySet());
         check(Hooks.weightTracked(), "The hooks that follow the weight are not all in");
 
         Method transform = Hooks.class.getDeclaredMethod("transform", String.class, byte[].class, ClassLoader.class);

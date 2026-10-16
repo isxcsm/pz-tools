@@ -29,6 +29,16 @@ Invoke-Tool 'The boot layer did not compile' $javac (@('--release', '25', '-enco
 Invoke-Tool 'The API did not compile' $javac (@('--release', '25', '-encoding', 'UTF-8', '-cp', (Join-Path $work 'boot'), '-d', (Join-Path $work 'api')) + (Sources 'src/api'))
 # The loader's classes go into the game's folder; the installer carries them.
 Invoke-Tool 'The loader did not compile' $javac (@('--release', '25', '-encoding', 'UTF-8', '-d', (Join-Path $work 'install')) + (Sources 'src/loader') + (Sources 'src/install'))
+# The same classes again under another package name (pzext.launch): the install puts them in a jar of their own and lists
+# that jar in the launcher file's class path, so a copy of the loose classes made by another tool can never take their place.
+$launch = Join-Path $work 'launch-src'
+New-Item -ItemType Directory -Force (Join-Path $launch 'pzext/launch') | Out-Null
+foreach ($file in Get-ChildItem (Join-Path $root 'src/loader/pzext/loader') -Filter '*.java') {
+    $source = [IO.File]::ReadAllText($file.FullName)
+    if (-not $source.Contains('package pzext.loader;')) { throw "$($file.Name) has no package pzext.loader line" }
+    [IO.File]::WriteAllText((Join-Path $launch "pzext/launch/$($file.Name)"), $source.Replace('package pzext.loader;', 'package pzext.launch;'))
+}
+Invoke-Tool 'The launch copy of the loader did not compile' $javac (@('--release', '25', '-encoding', 'UTF-8', '-d', (Join-Path $work 'install')) + (Sources 'out/work/launch-src'))
 
 $manifests = Join-Path $work 'manifests'
 New-Item -ItemType Directory -Force $manifests | Out-Null

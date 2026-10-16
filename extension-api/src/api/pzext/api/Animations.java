@@ -17,6 +17,13 @@ import java.util.Arrays;
  * <p>The render path may draw an object more than once a frame (split screen), so each instance is stepped once a frame: the
  * instances stepped are kept in an identity table that the frame empties. Only the game's thread, which runs the frames, steps;
  * the table grows (the only allocation) to the most instances stepped in a frame.
+ *
+ * <p>Threads. {@link #stepped} is asked on whatever thread bakes a chunk level (PZ Optimization records the level's objects on worker
+ * threads): it only reads, the object's mod data, and keeps and changes nothing here, so it is safe to ask from any thread. The mod
+ * data is a Lua table that Lua on the game's thread may write at the same time: a read that races such a write answers with the
+ * value from before it or after (never a changed table), a fault in the read is the hook's to report and answer the game's no for,
+ * and an object whose answer was missed is drawn into the chunk's texture until the level is baked again, as the game does. {@link
+ * #drawn} and {@link #frame} change the identity table and are the game's thread's alone ({@link #drawn} returns at once on any other).
  */
 final class Animations {
     // IsoSpriteInstance.getParentSprite(); IsoSprite.update(IsoSpriteInstance); IsoObject.hasAttachedAnimSprites().
@@ -24,7 +31,7 @@ final class Animations {
     // The numbers the objects' mod data holds under the step keys.
     private final ObjectData data;
     // The thread that runs the frames, and the instances it stepped in this frame (open addressing, by identity; a power of 2 long).
-    private Thread thread;
+    private volatile Thread thread;
     private Object[] stepped = new Object[64];
     private int count;
 
@@ -36,7 +43,7 @@ final class Animations {
         data = new ObjectData(loader, game.objectType);
     }
 
-    /** Whether the object has attached animations that are stepped: the renderer is to draw it every frame. */
+    /** Whether the object has attached animations that are stepped: the renderer is to draw it every frame. Any thread; reads only. */
     boolean stepped(String[] keys, Object object) throws Throwable {
         return (boolean)hasAttached.invokeExact(object) && data.holds(keys, object);
     }

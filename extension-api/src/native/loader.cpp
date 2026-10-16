@@ -32,11 +32,11 @@ static HMODULE LoadFromJvm(const wchar_t* name) {
         LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
 }
 
-// The loader's native method (pzext.loader.Loader.load), called on the game's main thread as the game starts. It does
-// in-process what an agent attach does: the JRE's own instrument library loads the agent jar named in the options
+// What the loader's native method does, called on the game's main thread as the game starts. It does in-process what an
+// agent attach does: the JRE's own instrument library loads the agent jar named in the options
 // ("<jar>=<agent options>") and calls its agentmain with an Instrumentation. Returns that library's result (0 when the
 // agent loaded), or a negative number when the library could not be reached.
-extern "C" JNIEXPORT jint JNICALL Java_pzext_loader_Loader_load(JNIEnv* env, jclass, jstring options) {
+static jint Attach(JNIEnv* env, jstring options) {
     if (options == nullptr) return -1;
     if (LoadFromJvm(L"jli.dll") == nullptr) return -2;
     HMODULE instrument = LoadFromJvm(L"instrument.dll");
@@ -51,4 +51,15 @@ extern "C" JNIEXPORT jint JNICALL Java_pzext_loader_Loader_load(JNIEnv* env, jcl
     std::string copy(text);
     env->ReleaseStringUTFChars(options, text);
     return attach(vm, copy.data(), nullptr);
+}
+
+// The loader exists in two copies under two package names (docs/loader.md): the loose classes in the game's folder
+// (pzext.loader) and the ones in the jar the install adds to the launcher's class path (pzext.launch). Either may be
+// the one that boots the process; the loader's guard keeps the other from calling this.
+extern "C" JNIEXPORT jint JNICALL Java_pzext_loader_Loader_load(JNIEnv* env, jclass, jstring options) {
+    return Attach(env, options);
+}
+
+extern "C" JNIEXPORT jint JNICALL Java_pzext_launch_Loader_load(JNIEnv* env, jclass, jstring options) {
+    return Attach(env, options);
 }

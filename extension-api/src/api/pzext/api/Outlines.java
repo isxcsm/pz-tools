@@ -9,7 +9,8 @@ import pzext.boot.Hooks;
 /**
  * The game's own object outline ({@code IsoObject.setOutlineHighlight}, {@code setOutlineHighlightCol}) drawn on the objects the
  * game leaves out (docs/design.md, "Outlines"): objects drawn as models (most doors of Build 42, the doors players
- * build, 3D furniture) and vehicles. Nothing is declared: an object outlined by the game, a mod or the API is drawn so.
+ * build, 3D furniture) and vehicles. A mod declares it ({@code outline.models}) while it outlines such objects; until one does the
+ * hooks are not set and the game's passes are its own. Then an object outlined by the game, a mod or the API is drawn so.
  *
  * <p>Model objects: the game's per-frame outline pass ({@code FBORenderObjectOutline.renderObject}) draws an outlined object's
  * sprite silhouette and returns at once for one with a sprite model, and the outline its model drawing has is never reached for
@@ -185,11 +186,30 @@ final class Outlines implements Hooks.Outlines {
         return LOOKUP.unreflectGetter(owner.getField(name)).asType(as);
     }
 
-    /** Takes the game's hooks. Throws a LinkageError with a bootstrap from before the outlines. */
-    void hook() { Hooks.setOutlines(this); }
+    // Whether a mod declares the outlines (outline.models) and the instance that can draw them, if this API has made one. The hooks
+    // are the game's alone until both: a declaration made before the instance, or the instance made before the declaration, meet here.
+    private static volatile boolean declared;
+    private static volatile Outlines instance;
+
+    /** Makes this the API's outlines; the game's hooks are taken once (and while) a mod declares them. Throws a LinkageError with a bootstrap from before the outlines. */
+    void hook() {
+        instance = this;
+        Hooks.setOutlines(declared ? this : null);
+    }
+
+    /** A mod declares the outlines, or the last that did takes it back. */
+    static void declare(boolean on) {
+        if (declared == on) return;
+        declared = on;
+        Outlines current = instance;
+        if (current == null) return;
+        try { Hooks.setOutlines(on ? current : null); }
+        catch (LinkageError olderBootstrap) { }
+    }
 
     /** The hooks draw as the game alone would. */
     static void unhook() {
+        instance = null;
         try { Hooks.setOutlines(null); } catch (LinkageError olderBootstrap) { }
     }
 

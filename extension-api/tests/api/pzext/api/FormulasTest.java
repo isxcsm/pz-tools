@@ -326,7 +326,7 @@ final class FormulasTest {
         for (String applied : new String[] { "machine.baseConsumption", "machine.loadKey", "anim.stepKey", "machine.spriteName" })
             check(Hooks.APPLIED.equals(points.rawget(applied)), applied + " is " + points.rawget(applied));
         check(Hooks.APPLIED.equals(points.rawget("vision.hiddenZombieFix")), "vision.hiddenZombieFix is " + points.rawget("vision.hiddenZombieFix"));
-        check(Formulas.POINTS.size() == 42, "The points are " + Formulas.POINTS.size());
+        check(Formulas.POINTS.size() == 43, "The points are " + Formulas.POINTS.size());
         // Every hook a point names is one the game's classes were given.
         for (var point : Formulas.POINTS)
             for (String label : point.hooks()) check(Hooks.hookStatus().containsKey(label), point.name() + " names a hook that does not exist: " + label);
@@ -474,17 +474,17 @@ final class FormulasTest {
         // the clamp and max the game's shaders leave (util/math.h hides GLSL's other forms).
         String tile = "#version 120\nuniform sampler2D DIFFUSE;\nvarying vec4 col;\nvoid main()\n{\n    vec4 c = texture2D(DIFFUSE, vec2(0.0));\n"
             + "    c *= col;\n    c.rgb *= col.a;\n    c.rgb *= col.a;\n    gl_FragColor = c;\n}\n";
-        String patched = Hooks.shaderSource(tile, "media/shaders/tileWithDepth.frag");
+        String patched = sight(tile, "media/shaders/tileWithDepth.frag");
         check(patched.indexOf("uniform float PZExt_NightFloor;") > 0 && patched.indexOf("uniform float PZExt_NightFloor;") < patched.indexOf("void main()")
             && patched.contains("c.rgb *= col.a;\n    c.rgb = pztNight(c.rgb, col.rgb);\n    c.rgb *= col.a;")
             && patched.split("pztNight\\(c\\.rgb", -1).length == 2, "The tile shader's step is not where the colour is lit: " + patched);
-        check(Hooks.shaderSource(patched, "media/shaders/tileWithDepth.frag").equals(patched), "The step went in twice");
+        check(sight(patched, "media/shaders/tileWithDepth.frag").equals(patched), "The step went in twice");
         for (String name : new String[] { "opaqueWithDepth.frag", "CutawayAttached.frag", "seamFix2.frag", "pzopt_sfTile.frag", "pzopt_sfOpaque.frag" })
-            check(Hooks.shaderSource(tile, "media\\shaders\\" + name).contains("PZExt_NightFloor"), name + " has no step");
-        check(Hooks.shaderSource(tile, "media/shaders/screen.frag").equals(tile) && Hooks.shaderSource(tile, "media/shaders/tileWithDepth.vert").equals(tile),
+            check(sight(tile, "media\\shaders\\" + name).contains("PZExt_NightFloor"), name + " has no step");
+        check(sight(tile, "media/shaders/screen.frag").equals(tile) && sight(tile, "media/shaders/tileWithDepth.vert").equals(tile),
             "Another shader was changed");
         String unlit = tile.replace("c.rgb *= col.a;", "");
-        check(Hooks.shaderSource(unlit, "media/shaders/tileWithDepth.frag").equals(unlit), "A tile shader with no place for the step was changed");
+        check(sight(unlit, "media/shaders/tileWithDepth.frag").equals(unlit), "A tile shader with no place for the step was changed");
         zombie.core.opengl.ShaderUnit.text = tile;
         check(new zombie.core.opengl.ShaderUnit().load("media/shaders/seamFix2.frag").contains("PZExt_NightFloor"), "The loaded tile shader has no step");
         check(!java.util.regex.Pattern.compile("clamp\\([^,()]+,\\s*vec").matcher(patched).find()
@@ -492,40 +492,64 @@ final class FormulasTest {
         // the walls cut away for the player: their colour goes through it where the wall's light is put in
         String cutaway = "#version 330\nin vec4 v_wallShadeColor;\nvoid main()\n{\n\tvec4 texColorWall = vec4(1.0);\n\ttexColorWall.rgb *= v_wallShadeColor.rgb;\n"
             + "\tgl_FragColor = texColorWall;\n}\n";
-        check(Hooks.shaderSource(cutaway, "media/shaders/CutawayNoDepth.frag").contains(
+        check(sight(cutaway, "media/shaders/CutawayNoDepth.frag").contains(
             "texColorWall.rgb *= v_wallShadeColor.rgb;\n    texColorWall.rgb = pztNight(texColorWall.rgb, v_wallShadeColor.rgb);"),
             "The walls cut away have no step");
         String wall = "#version 120\nvarying vec4 vertColour;\nvoid main()\n{\n    vec4 fragCol = vec4(1.0);\n    fragCol = fragCol * vertColour;\n}\n";
-        check(Hooks.shaderSource(wall, "media/shaders/wallTile.frag").contains(
+        check(sight(wall, "media/shaders/wallTile.frag").contains(
             "fragCol = fragCol * vertColour;\n    fragCol.rgb = pztNight(fragCol.rgb, vertColour.rgb);")
-            && Hooks.shaderSource(wall.replace("fragCol = fragCol * vertColour;", "fragCol *= vertColour;"), "media/shaders/floorTile.frag").contains(
+            && sight(wall.replace("fragCol = fragCol * vertColour;", "fragCol *= vertColour;"), "media/shaders/floorTile.frag").contains(
                 "fragCol *= vertColour;\n    fragCol.rgb = pztNight(fragCol.rgb, vertColour.rgb);"), "The wall and floor tiles have no step");
         // the models: drawn with their light as the game has it (never lifted), night sight's grey added from that light
         String model = "#version 120\nuniform vec3 TintColour;\nvoid main()\n{\n\tvec3 col = vec3(1.0);\n\tvec3 lighting = vec3(0.1);\n"
             + "\tvec3 tintColour = TintColour;\n\tcol = vec3(col.x * tintColour.x * lighting.x, col.y * tintColour.y * lighting.y, col.z * tintColour.z * lighting.z);\n"
             + "\tgl_FragColor = vec4(col, 1.0);\n}\n";
         for (String name : new String[] { "basicEffect.frag", "animalEffect.frag" })
-            check(Hooks.shaderSource(model, "media/shaders/" + name).contains("vec3 pztBase = col * tintColour;\n    col = vec3(col.x * tintColour.x"
+            check(sight(model, "media/shaders/" + name).contains("vec3 pztBase = col * tintColour;\n    col = vec3(col.x * tintColour.x"
                 + " * lighting.x, col.y * tintColour.y * lighting.y, col.z * tintColour.z * lighting.z);\n    col = pztModel(col, pztBase, lighting);"),
                 name + " has no step");
-        check(!Hooks.shaderSource(model, "media/shaders/basicEffect.frag").contains("AmbientShare"), "A model's step still takes its light apart");
+        check(!sight(model, "media/shaders/basicEffect.frag").contains("AmbientShare"), "A model's step still takes its light apart");
         String instanced = "#version 330\nvoid main()\n{\n\tvec3 col = vec3(1.0);\n\tvec3 lighting = vec3(0.1);\n\tcol = col * inst.TintColour * lighting;\n}\n";
-        check(Hooks.shaderSource(instanced, "media/shaders/basicEffect_instanced.frag").contains(
+        check(sight(instanced, "media/shaders/basicEffect_instanced.frag").contains(
             "vec3 pztBase = col * inst.TintColour;\n    col = col * inst.TintColour * lighting;\n    col = pztModel(col, pztBase, lighting);"),
             "The instanced models have no step");
-        check(Hooks.shaderSource(cutaway, "media/shaders/CircleStencil.frag").contains(
+        check(sight(cutaway, "media/shaders/CircleStencil.frag").contains(
                 "texColorWall.rgb *= v_wallShadeColor.rgb;\n    texColorWall.rgb = pztNight(texColorWall.rgb, v_wallShadeColor.rgb);")
-            && Hooks.shaderSource(model, "media/shaders/door.frag").contains("col = pztModel(col, pztBase, lighting);"),
+            && sight(model, "media/shaders/door.frag").contains("col = pztModel(col, pztBase, lighting);"),
             "The walls cut away around the player or the doors have no step");
         String vehicle = "#version 120\nvoid main()\n{\n\tvec3 col = vec3(1.0);\n\tvec3 lighting = vec3(0.1);\n\tcol *= lighting * TintColourNew;\n"
             + "\tcol = mix(col, lights, 0.5);\n}\n";
         String wheel = "#version 120\nvoid main()\n{\n\tvec3 col = vec3(1.0);\n\tvec3 lighting = vec3(0.1);\n"
             + "\tcol = vec3(col.x * lighting.x * TintColourNew.x, col.y * lighting.y * TintColourNew.y, col.z * lighting.z * TintColourNew.z);\n}\n";
-        check(Hooks.shaderSource(vehicle, "media/shaders/vehicle_multiuv.frag").contains("vec3 pztBase = col * TintColourNew;\n    col *= lighting"
+        check(sight(vehicle, "media/shaders/vehicle_multiuv.frag").contains("vec3 pztBase = col * TintColourNew;\n    col *= lighting"
             + " * TintColourNew;\n    col = pztModel(col, pztBase, lighting);\n\tcol = mix(col, lights, 0.5);")
-            && Hooks.shaderSource(vehicle, "media/shaders/pzopt_glass_vehicle.frag").contains("pztModel")
-            && Hooks.shaderSource(wheel, "media/shaders/vehiclewheel.frag").contains("pztModel(col, pztBase, lighting)"),
+            && sight(vehicle, "media/shaders/pzopt_glass_vehicle.frag").contains("pztModel")
+            && sight(wheel, "media/shaders/vehiclewheel.frag").contains("pztModel(col, pztBase, lighting)"),
             "The vehicles have no step, or their lights take it");
+        // PZ Optimization's batched horde (characters drawn together) lights its models the same way: the same place.
+        for (String name : new String[] { "pzopt_horde.frag", "pzopt_hordeu.frag" })
+            check(sight(model, "media/shaders/" + name).contains("col = pztModel(col, pztBase, lighting);"), name + " has no step");
+        // A shader that does not compile with the step is compiled again without it (the rest of the source as the game and
+        // PZ Optimization left it), once said; one that compiles keeps it, and so does one without the step.
+        var unit = new zombie.core.opengl.ShaderUnit();
+        unit.fileName = "media/shaders/tileWithDepth.frag";
+        zombie.core.opengl.ShaderUnit.text = tile;
+        int failed = Hooks.sightFailed();
+        unit.compile();
+        check(Hooks.sightFailed() == failed && org.lwjgl.opengl.GL20.sources.get(unit.glId).contains("PZExt_NightFloor"), "A shader that compiles lost its step");
+        org.lwjgl.opengl.GL20.rejectsStep = true;
+        try {
+            unit.compile();
+            String plain = org.lwjgl.opengl.GL20.sources.get(unit.glId);
+            check(Hooks.sightFailed() == failed + 1 && !plain.contains("PZExt") && plain.replaceAll("\\s+", "").equals(tile.replaceAll("\\s+", "")),
+                "A shader that did not compile with the step was not compiled without it: " + Hooks.sightFailed() + " " + plain);
+            zombie.core.opengl.ShaderUnit.text = tile.replace("c.rgb *= col.a;", "");
+            unit.compile();
+            check(Hooks.sightFailed() == failed + 1, "A shader without the step was compiled again");
+        } finally {
+            org.lwjgl.opengl.GL20.rejectsStep = false;
+            zombie.core.opengl.ShaderUnit.text = tile;
+        }
 
         // The lift follows the value as tuned (at most NightLamps.MOST); every linked program with the uniform takes it
         // (the one bound bound again after) when a shader that draws the world is bound or starts drawing after it changed,
@@ -1976,6 +2000,11 @@ final class FormulasTest {
     }
 
     private static boolean near(double value, double expected) { return Math.abs(value - expected) < 1e-5; }
+
+    /** The source night sight's step makes of one, without the marks that let the step be taken out again. */
+    private static String sight(String source, String file) {
+        return Hooks.shaderSource(source, file).replace("/*PZEXT<*/", "").replace("/*PZEXT>*/", "");
+    }
 
     static List<Object> call(Object table, String name, Object... arguments) {
         // A handle's functions are called with a colon: the handle is the first argument.

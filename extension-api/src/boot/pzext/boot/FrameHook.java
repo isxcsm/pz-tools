@@ -4,6 +4,7 @@ import java.lang.classfile.*;
 import java.lang.constant.*;
 import java.lang.instrument.*;
 import java.security.ProtectionDomain;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 /**
@@ -14,7 +15,8 @@ import java.util.function.Consumer;
  */
 final class FrameHook {
     private static final String WINDOW = "zombie/GameWindow";
-    private static volatile long failures;
+    // Counted by whichever thread loads or retransforms GameWindow.
+    private static final AtomicLong failures = new AtomicLong();
 
     private FrameHook() { }
 
@@ -28,7 +30,7 @@ final class FrameHook {
                 byte[] result;
                 try { result = transformWindow(bytes, loader); }
                 catch (Throwable problem) {
-                    failures++;
+                    failures.incrementAndGet();
                     System.err.println("[PZExt] the frame hook did not go in: " + problem);
                     result = null;
                 }
@@ -50,7 +52,7 @@ final class FrameHook {
     }
 
     /** Times the call could not be put in, for the status. */
-    static long failures() { return failures; }
+    static long failures() { return failures.get(); }
 
     private static byte[] transformWindow(byte[] bytes, ClassLoader loader) {
         var cf = ClassFiles.of(loader);

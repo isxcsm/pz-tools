@@ -21,6 +21,20 @@ public final class IsoChunk {
         return found;
     }
     public void addObjectPoweredByGenerator(IsoObject object) { poweredObjects.add(object); }
+    private final IsoGridSquare[][] levels = new IsoGridSquare[64][];
+    /** Like the game's: the square at x, y within the chunk (0 to 7) and level z. */
+    public IsoGridSquare getGridSquare(int x, int y, int z) {
+        if (x < 0 || x >= SIZE || y < 0 || y >= SIZE || z < -32 || z > 31 || cell == null) return null;
+        IsoGridSquare[] level = levels[z + 32];
+        if (level != null && level[y * SIZE + x] != null) return level[y * SIZE + x];
+        IsoGridSquare found = cell.getGridSquare(wx * SIZE + x, wy * SIZE + y, z);
+        // The cell keeps its squares for good here, so a square found once is kept (and found again without a key built).
+        if (found != null) {
+            if (level == null) levels[z + 32] = level = new IsoGridSquare[SIZE * SIZE];
+            level[y * SIZE + x] = found;
+        }
+        return found;
+    }
     public IsoChunk(int wx, int wy) { this.wx = wx; this.wy = wy; }
     public void addGeneratorPos(int x, int y, int z) {
         for (int[] at : generators) if (at[0] == x && at[1] == y && at[2] == z) return;

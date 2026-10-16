@@ -13,17 +13,20 @@ import pzext.boot.Hooks;
  * searched, and the game's own objects are left as they are.
  *
  * <p>A decal is a sprite of the game's (a tile, by its name) and a tint. The chunk renderer draws a chunk level's floors into its
- * picture ({@code FBORenderCell.renderOneLevel}, as the level is redrawn, not each frame), one square after another
- * ({@code renderFloor}); once all are drawn, before the snow, the hook draws the decals of those floors, over every floor (a decal
- * running past its square's edge is not covered by the next floor's grout) and under the snow, the blood and all that stands on
- * the floor, as {@code renderFloor} draws a floor object: the square's floor object as the object drawn (its offsets, its alpha),
- * the square's light for the player times the decal's tint, the depth not written (the floor's stays, so that whoever stands on a
- * decal is drawn over it). Setting a square's decals redraws its chunk level when the square is
+ * picture (as the level is redrawn, not each frame), one square after another ({@code renderFloor}), and then the level's snow
+ * ({@code FBORenderSnow.RenderSnow(chunk, level)}); the hook before that call draws the decals of the level's floors, over every
+ * floor (a decal running past its square's edge is not covered by the next floor's grout) and under the snow, the blood and all
+ * that stands on the floor, as {@code renderFloor} draws a floor object: the square's floor object as the object drawn (its
+ * offsets, its alpha), the square's light for the player times the decal's tint, the depth not written (the floor's stays, so that
+ * whoever stands on a decal is drawn over it). The call is in {@code renderOneLevel}, and with PZ Optimization in its
+ * {@code pzoptBakeSnow}, which replays the level's draws on the game's thread in the order they were recorded (its floors are
+ * recorded on worker threads, where nothing here may run); either way the hook gets the chunk and the level, and looks its
+ * decals up in that chunk's 8 by 8 squares at that level. Setting a square's decals redraws its chunk level when the square is
  * loaded ({@code invalidateRenderChunkLevel(DIRTY_REDRAW)}); one that is not loaded is drawn as its chunk loads.
  *
  * <p>The decals belong to the world they were set in: leaving it takes them away. They are kept in the API table's metatable,
  * where a newer API takes them over. Everything here is on the game's thread: the Lua calls, the frame job and the hook (the
- * chunk renderer fills the render queue on the game's thread).
+ * snow's call is made on the game's thread).
  */
 final class FloorDecals implements Hooks.FloorDecals {
     /** The numbers and names a decal takes in a list: the sprite's name, then r, g, b, a (0 to 1). */
@@ -34,6 +37,8 @@ final class FloorDecals implements Hooks.FloorDecals {
     static final long DIRTY_REDRAW = 1024L;
     /** The squares' coordinates a decal can be on: x and y within 24 bits, the level within 8. */
     static final int MAX_XY = (1 << 23) - 1, MIN_Z = -32, MAX_Z = 31;
+    /** The squares along a side of a chunk. */
+    private static final int CHUNK = 8;
 
     private static final String AREA = "PZExtAPI.floor.";
     // In the API's metatable: the decals (owner -> "x,y,z" -> list), the world they belong to, and which API runs them now.
@@ -43,10 +48,11 @@ final class FloorDecals implements Hooks.FloorDecals {
     private final Game game;
     private final Object meta;
     private final Networks.Owners owners;
-    // IsoSpriteManager.namedMap (the sprites the game knows by name); IsoGridSquare.x, y, z, getFloor(), getLightInfo(player),
+    // IsoSpriteManager.namedMap (the sprites the game knows by name); IsoChunk.wx, wy, getGridSquare(x, y, z) (in the chunk), then
+    // IsoGridSquare.getFloor(), getLightInfo(player),
     // invalidateRenderChunkLevel(flags); IsoObject.offsetX, offsetY; IsoCamera.frameState and its playerIndex.
     private final Map<?, ?> named;
-    private final MethodHandle squareX, squareY, squareZ, floorOf, lightOf, invalidate, offsetX, offsetY, frameState, playerIndex;
+    private final MethodHandle chunkX, chunkY, chunkSquare, floorOf, lightOf, invalidate, offsetX, offsetY, frameState, playerIndex;
     // ColorInfo.r, g, b, set(r, g, b, a); IsoSprite.render(object, x, y, z, dir, offsetX, offsetY, colour, prepare);
     // IndieGL.glDepthMask(on).
     private final MethodHandle red, green, blue, setColour, render, depthMask;
@@ -104,9 +110,11 @@ final class FloorDecals implements Hooks.FloorDecals {
         spriteType = Game.type(loader, "zombie.iso.sprite.IsoSprite");
         var intOf = MethodType.methodType(int.class, Object.class);
         var floatOf = MethodType.methodType(float.class, Object.class);
-        squareX = lookup.unreflectGetter(square.getField("x")).asType(intOf);
-        squareY = lookup.unreflectGetter(square.getField("y")).asType(intOf);
-        squareZ = lookup.unreflectGetter(square.getField("z")).asType(intOf);
+        Class<?> chunk = Game.type(loader, "zombie.iso.IsoChunk");
+        chunkX = lookup.unreflectGetter(chunk.getField("wx")).asType(intOf);
+        chunkY = lookup.unreflectGetter(chunk.getField("wy")).asType(intOf);
+        chunkSquare = Game.exact(chunk.getMethod("getGridSquare", int.class, int.class, int.class),
+            MethodType.methodType(Object.class, Object.class, int.class, int.class, int.class));
         floorOf = Game.exact(square.getMethod("getFloor"), MethodType.methodType(Object.class, Object.class));
         lightOf = Game.exact(square.getMethod("getLightInfo", int.class), MethodType.methodType(Object.class, Object.class, int.class));
         invalidate = Game.exact(square.getMethod("invalidateRenderChunkLevel", long.class), MethodType.methodType(void.class, Object.class, long.class));
@@ -343,19 +351,22 @@ final class FloorDecals implements Hooks.FloorDecals {
      * a depth map of its own) would stand in front of the feet of whoever stands on it.
      */
     @Override
-    public void level(Object list) throws Throwable {
-        if (squares.size() == 0 || !(list instanceof java.util.ArrayList<?> floors) || floors.isEmpty()) return;
+    public void level(Object chunk, int level) throws Throwable {
+        if (squares.size() == 0 || chunk == null) return;
+        int x0 = (int)chunkX.invokeExact(chunk) * CHUNK, y0 = (int)chunkY.invokeExact(chunk) * CHUNK;
         boolean masked = false;
         try {
-            for (int index = 0, count = floors.size(); index < count; index++) {
-                Object at = floors.get(index);
-                int x = (int)squareX.invokeExact(at), y = (int)squareY.invokeExact(at), z = (int)squareZ.invokeExact(at);
-                Square square = squares.get(key(x, y, z));
-                if (square == null) continue;
-                Object floor = (Object)floorOf.invokeExact(at);
-                if (floor == null) continue;
-                if (!masked) { depthMask.invokeExact(false); masked = true; }
-                draw(at, square, floor, x, y, z);
+            for (int y = 0; y < CHUNK; y++) {
+                for (int x = 0; x < CHUNK; x++) {
+                    Square square = squares.get(key(x0 + x, y0 + y, level));
+                    if (square == null) continue;
+                    Object at = (Object)chunkSquare.invokeExact(chunk, x, y, level);
+                    if (at == null) continue;
+                    Object floor = (Object)floorOf.invokeExact(at);
+                    if (floor == null) continue;
+                    if (!masked) { depthMask.invokeExact(false); masked = true; }
+                    draw(at, square, floor, x0 + x, y0 + y, level);
+                }
             }
         } finally {
             if (masked) depthMask.invokeExact(true);

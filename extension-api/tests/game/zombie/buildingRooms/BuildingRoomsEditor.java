@@ -30,6 +30,15 @@ public final class BuildingRoomsEditor {
     /** Test: the buildings the editor holds, as its window left them. */
     public int pending() { return buildings.size() + preEditBuildings.size(); }
 
+    /** Test: the building the last load made from the rooms file it read. */
+    public static BREBuilding lastLoaded;
+
+    /** As the game's, as the world loads: reads the rooms file, and makes the editor's building for what it gave. */
+    public void load() {
+        new PlayerRoomsFile().load();
+        lastLoaded = new BREBuilding();
+    }
+
     public void applyChanges(boolean loading) {
         for (BREBuilding building : buildings) if (building.rooms.isEmpty()) return;
         IsoMetaGrid grid = IsoWorld.instance.metaGrid;

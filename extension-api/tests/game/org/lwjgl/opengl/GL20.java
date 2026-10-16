@@ -25,9 +25,15 @@ public final class GL20 {
     public static final java.util.Set<Integer> linked = new java.util.HashSet<>();
     public static boolean compiles = true;
     public static int glCreateShader(int type) { return ++made; }
-    public static void glShaderSource(int shader, CharSequence source) { }
+    /** The source each shader was given; whether the GL refuses a source that has night sight's step. */
+    public static final Map<Integer, String> sources = new HashMap<>();
+    public static boolean rejectsStep;
+    public static void glShaderSource(int shader, CharSequence source) { sources.put(shader, source.toString()); }
     public static void glCompileShader(int shader) { }
-    public static int glGetShaderi(int shader, int name) { return compiles ? 1 : 0; }
+    public static String glGetShaderSource(int shader) { return sources.get(shader); }
+    public static int glGetShaderi(int shader, int name) {
+        return compiles && !(rejectsStep && sources.getOrDefault(shader, "").contains("PZExt_NightFloor")) ? 1 : 0;
+    }
     public static String glGetShaderInfoLog(int shader) { return "synthetic: it does not compile"; }
     public static int glCreateProgram() { return ++made; }
     public static void glAttachShader(int program, int shader) { }

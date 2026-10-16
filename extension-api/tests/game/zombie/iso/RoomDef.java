@@ -8,7 +8,9 @@ public final class RoomDef {
     public String name;
     public int level;
     public BuildingDef building;
-    public boolean explored, doneSpawn, lightsActive;
+    public boolean explored, doneSpawn, lightsActive, roofFixed;
+    /** As the game's: the room's number in its cell's map_meta.bin (made from its first rectangle). */
+    public long metaId;
     public final ArrayList<RoomRect> rects = new ArrayList<>();
     public final ArrayList<MetaObject> objects = new ArrayList<>();
     public RoomDef(long id, String name, int level, BuildingDef building) {
@@ -22,6 +24,7 @@ public final class RoomDef {
     public int getZ() { return level; }
     public ArrayList<RoomRect> getRects() { return rects; }
     public long getID() { return id; }
+    public boolean isRoofFixed() { return roofFixed; }
     public boolean isEmptyOutside() { return "emptyoutside".equals(name); }
     public void CalculateBounds() { }
 

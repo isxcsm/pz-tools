@@ -2,18 +2,31 @@
 
 [Back to the README](../README.md)
 
-The API runs inside the game's own Java process. Nothing of the game is changed: the install adds files of its own to
-the game's folder and keeps everything else in an install folder of its own. The API needs no other program, no app
-running beside the game and no launch option.
+The API runs inside the game's own Java process. Nothing of the game is changed but one entry in its launcher file's
+class path (below): the install adds files of its own to the game's folder and keeps everything else in an install folder of
+its own. The API needs no other program, no app running beside the game and no launch option.
 
 ## How the game loads it
 
 1. **The install** ([`Install`](../src/install/pzext/install/Install.java)) writes, in the game's folder (which the
    game's launcher puts first on the class path):
-   - `pzext/loader/Loader.class` and `pzext/loader/BootProvider.class`;
+   - `pzext/loader/Loader.class`, `Launcher.class` and `BootProvider.class`;
    - `pzext/loader/install.properties`, the install folder's path;
    - a line `pzext.loader.BootProvider` in `META-INF/services/java.nio.file.spi.FileSystemProvider`, beside any lines
-     of other tools.
+     of other tools;
+   - `pzext/pzext-launch.jar`, the same loader again under another package name (`pzext.launch`), with a services list
+     of its own and settings of its own, and
+   - one entry in the class path list of the launcher file, `ProjectZomboid64.json`: `"pzext/pzext-launch.jar"`, after
+     the game's jar. The file is edited as text, that one element added (or removed) and every other byte left as it
+     was, and written whole or not at all (a temporary file moved over it). Other tools' entries stay.
+
+   The jar is there because tools that rewrite the launcher file do not keep the game's folder on the class path. PZ
+   Optimization's AOT step makes the list `pzopt/aot/pzopt.jar`, then the entries after the game's own: it drops `.`, so
+   the loose files above are no longer found, and copies the loose class files of other installs into its own jar without
+   their services lists. An entry after the game's jar is kept, and its jar has the services list the JDK looks for, so
+   the loader starts from it. The classes it carries have another package name so that the copies pzopt baked can never
+   shadow them. Both copies may be created in one process (a launcher file with `.` and our entry); the first to find its
+   settings boots, and a property of the process, `pzext.loader.started`, keeps the other from booting again.
 
    The rest goes into the install folder, `%ProgramData%\PZExtAPI\s-<account>` (one per Windows account, open to
    that account and the administrators alone): a version folder `api-<digest>` with the boot layer, the API, the
@@ -25,11 +38,14 @@ running beside the game and no launch option.
    [`BootProvider`](../src/loader/pzext/loader/BootProvider.java) starts the
    [`Loader`](../src/loader/pzext/loader/Loader.java). The provider serves no files; its scheme, `pzext-loader`, is its
    own.
-3. **The loader** checks the install (the version folder named by `current`, its files there, the boot jar's
+3. **The loader** (whichever copy starts first) checks the install (the version folder named by `current`, its files there, the boot jar's
    digest), loads the native library [`pzext-loader.dll`](../src/native/loader.cpp), which loads the game JRE's
    `instrument.dll` and calls its `Agent_OnAttach` on the current thread with the boot jar: in-process what an agent
    attach does, so the game needs no `-javaagent` option and no attach from outside. It writes one line to
-   `loader.log` in the install folder.
+   `loader.log` in the install folder. Last, it looks at the launcher file: when the jar is there and the file's class path
+   list lacks the jar's entry (Steam verified the game's files, or an update brought the plain file back, and pzopt has not
+   rewritten it since), the entry is added again, for the next start, and a line in the log says so. A launcher file it cannot
+   read (no class path list of plain strings) is left alone and logged. Nothing in this step can stop the game.
 4. **The boot layer** ([`Boot`](../src/boot/pzext/boot/Boot.java)) gets an `Instrumentation`. It puts the API's hooks
    into the game's classes as they load ([`Hooks`](../src/boot/pzext/boot/Hooks.java)) and one call at the start of
    `GameWindow.logic()` for the API's per-frame work ([`FrameHook`](../src/boot/pzext/boot/FrameHook.java)). When the
@@ -56,6 +72,8 @@ rest of the run. So:
   thread that might.
 - The loader runs once per process, however many times something lists the providers.
 - A broken install (a missing file, a digest that does not match) leaves one line in `loader.log` and a vanilla game.
+- The launcher file is read and written as text with `java.base` alone, only to add the one entry when it is missing, and a
+  fault in doing so (a file that is read-only, in use, or not what it expects) is logged once and ignored.
 - A hook that does not fit the game's method (another mod changed it, a game update did) is left out on its own, and
   that question gets the game's answer ([design](design.md#how-the-game-is-answered)).
 
@@ -70,10 +88,17 @@ is closed, with the rights to write the game's folder:
 "<game>\jre64\bin\java.exe" -jar pzext-install.jar uninstall "<game>"
 ```
 
-Each prints one line: `PZEXT-INSTALL` and `installed <version folder> <install folder>`, `not-installed`, `reverted`
-(installed, but the game's folder lost part of the entry; install again) or `uninstalled`; or `PZEXT-INSTALL-FAILED`,
-a code and a message, with exit code 1. Installing a newer release is installing again: it copies a new version folder
-and points `current` at it; a game that runs keeps the old one until it exits. Another program (a mod manager, a
+Each prints one line: `PZEXT-INSTALL` and `installed <version folder> <install folder> launcher=<state>`, `not-installed`,
+`reverted` (installed, but the game's folder lost part of the entry; install again) or `uninstalled`; or
+`PZEXT-INSTALL-FAILED`, a code and a message, with exit code 1. `<state>` says what the launcher file holds: `listed` (the
+jar's entry is in its class path list), `absent` (it is not: the loader adds it at the next game start, or install again),
+`none` (no launcher file) or `unreadable` (a file whose class path list this cannot edit; the loose files serve where the
+game's folder is still on the class path). Installing a newer release is installing again: it copies a new version folder
+and points `current` at it; a game that runs keeps the old one until it exits.
+
+Uninstalling removes the jar first (a game that runs has it open, so the uninstall stops there with `game-running` before
+anything else changes), then the launcher file's entry, the service line and the loose files; other tools' entries and
+lines stay. Another program (a mod manager, a
 launcher) installs the API by running the same commands; `PZEXT_GAME_ACCOUNT` names the account the game runs as when
 the install runs as another (elevated by another administrator).
 

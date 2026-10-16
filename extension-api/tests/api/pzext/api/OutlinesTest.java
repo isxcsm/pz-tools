@@ -1,6 +1,8 @@
 package pzext.api;
 
 import java.nio.FloatBuffer;
+import pzext.boot.Hooks;
+import se.krka.kahlua.vm.KahluaTable;
 import org.lwjgl.opengl.GL11;
 import zombie.core.Core;
 import zombie.core.SpriteRenderer;
@@ -39,13 +41,46 @@ final class OutlinesTest {
 
     private OutlinesTest() { }
 
-    static void run() {
-        order();
-        models();
-        doubleDoors();
-        hidden();
-        vehicles();
-        vehicleDrawing();
+    static void run(KahluaTable api) {
+        var formulas = (KahluaTable)api.rawget("formulas");
+        Object mod = FormulasTest.call(api, "client", "outlines.mod").get(0), other = FormulasTest.call(api, "client", "outlines.other").get(0);
+        // Until a mod declares them the hooks are not set: the game's own passes, whatever is outlined.
+        undeclared();
+        check(Hooks.APPLIED.equals(((KahluaTable)FormulasTest.call(formulas, "points").get(0)).rawget("outline.models")),
+            "outline.models is " + ((KahluaTable)FormulasTest.call(formulas, "points").get(0)).rawget("outline.models"));
+        FormulasTest.call(formulas, "set", mod, "outline.models", true);
+        FormulasTest.call(formulas, "set", other, "outline.models", false);
+        try {
+            order();
+            models();
+            doubleDoors();
+            hidden();
+            vehicles();
+            vehicleDrawing();
+        } finally {
+            FormulasTest.call(mod, "clear");
+            FormulasTest.call(other, "clear");
+        }
+        // And the game's again once the last mod that declared them is gone.
+        undeclared();
+    }
+
+    /** With no mod declaring outlines: the pass is in the order the game has, an object drawn as a model gets no model outline, a vehicle none. */
+    private static void undeclared() {
+        var outline = FBORenderObjectOutline.instance;
+        IsoObjectModelDrawer.outlines.clear();
+        IsoObject left = outlined(new IsoObject(new IsoSprite("left"))), right = outlined(new IsoObject(new IsoSprite("right")));
+        IsoObject other = outlined(new IsoObject(new IsoSprite("other")));
+        other.outlineCol[0] = 0xFF00FF00;
+        outline.render(0, java.util.List.of(left, other, right));
+        check(outline.drawn.equals(java.util.List.of(left, other, right)), "The pass was put in order with nothing declared: " + outline.drawn);
+        var door = (IsoDoor)outlined(new IsoDoor(new IsoSprite("door")));
+        door.spriteModel = new SpriteModel();
+        outline.render(0, door);
+        check(IsoObjectModelDrawer.outlines.isEmpty(), "A model object was outlined with nothing declared");
+        var car = new BaseVehicle();
+        outlined(car);
+        check(!slot(car, 5, 3).outlined(), "A vehicle was outlined with nothing declared");
     }
 
     private static IsoObject outlined(IsoObject object) {
