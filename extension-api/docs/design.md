@@ -205,18 +205,22 @@ old rooms (where a building's zombies stand) move to the room over their square.
 lit one of the old rooms lights the new room on its square, or else the room its old room became
 most of. The editor's debug window, if open, is not told.
 
-The rooms are written to the save's `player_buildings.bin`, in the game's own format, which the
-game reads as the world loads (`BuildingRoomsEditor.load`, before the map's data on rooms, which
-then gives each room its flags by its place): the squares of the map buildings taken out, then the
-buildings put in their place. The game never writes that file itself. A building given rooms twice
+The rooms are written to the save's `pzext_rooms.bin`, in the format of the game's
+`player_buildings.bin` (the building editor's file), which the game reads in its place as the world
+loads (`PlayerRoomsFile.load`, before the map's data on rooms, which then gives each room its flags
+by its place): the squares of the map buildings taken out, then the buildings put in their place.
+The file is the API's own so that a save stays whole without the API: the game, not knowing it,
+loads the map's buildings as they were (it would take the editor's buildings for ones players
+built and fail loading the world dropping them). A save with no API file reads the game's own
+file as before (a debug editor's rooms); the game never writes it outside the editor. A building given rooms twice
 is taken out of the map once. A world that saves nothing gets no file. Not for a client of a server:
 the game reads the file only where it is not one.
 
 The editor made each building it wrote one "players built" (`new BuildingDef(true)` in
 `BREBuilding`), and the game drops every such building of a cell when the rooms players build in
 that cell change: a map building given rooms would be gone at the next wall built near it. The API
-makes the editor's buildings map buildings (see the hook sites); without that hook in, `setRooms`
-refuses.
+makes the editor's buildings map buildings and has the game read its file (see the hook sites);
+without both hooks in, `setRooms` refuses.
 
 ### Containers
 
@@ -840,6 +844,7 @@ hook only. `PZExtAPI.hooks()` names each by game class and method.
 | `IsoTree.getSlowFactor` | each return | Passed through `move.treeSlowMultiplier`, for a local player. |
 | `IsoTree.isPlayerInsideARoom(IsoPlayer)` | the one `IsoPlayer.isInARoom()` call | A fix, for every mod and none: the answer is "in a room" only when the player's square has a room too, so a room the game made no building of (one on a map building's roof) no longer throws for each tree drawn near it. |
 | `BREBuilding()` (the building editor's building) | the one `new BuildingDef(boolean)` | A fix: the building is made a map building (`false`), not one players built, so the game does not drop it when players build in its cell (see "Rooms set"). |
+| `PlayerRoomsFile.load()` | the one `ZomboidFileSystem.getFileInCurrentSave(String)` | The file read is the save's `pzext_rooms.bin` when there is one (the rooms `setRooms` gave), else the game's `player_buildings.bin` (see "Rooms set"). |
 | `IsoObject.couldBePoweredByGenerator` | each return | True for an object of a sprite declared in `machine.baseConsumption` above 0, besides the game's answer. |
 | `IsoObject.getGeneratorPowerConsumption` | each return | An object of a declared sprite gives its declared consumption times the load its mod data holds under `machine.loadKey`, in place of the game's. |
 | `IsoObject.renderAttachedSprites` | after the one call of `IsoSpriteInstance.update()` (the method is private; it is found by its signature) | The instance just drawn and the object go to `anim.stepKey`'s step; the game's own call stays. Another number of such calls makes the hook not go in. |

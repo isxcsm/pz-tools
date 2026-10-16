@@ -8,6 +8,7 @@ import zombie.GameWindow;
 import zombie.ZomboidFileSystem;
 import zombie.buildingRooms.BREBuilding;
 import zombie.buildingRooms.BuildingRoomsEditor;
+import zombie.buildingRooms.PlayerRoomsFile;
 import zombie.core.Core;
 import zombie.iso.BuildingDef;
 import zombie.iso.IsoWorld;
@@ -29,6 +30,8 @@ final class RoomEditsTest {
     static void run(KahluaTable api) throws Exception {
         check(Hooks.APPLIED.equals(Hooks.hookStatus().get(RoomEdits.HOOK)), "The editor's hook is " + Hooks.hookStatus().get(RoomEdits.HOOK));
         check(!new BREBuilding().def().isUserDefined(), "The editor still makes buildings players built");
+        // The game loads its rooms file's class as every world loads, before a mod could set rooms.
+        new PlayerRoomsFile();
         var buildings = (KahluaTable)api.rawget("buildings");
         var grid = IsoWorld.instance.metaGrid;
         var save = Files.createTempDirectory("pzext-rooms").toFile();
@@ -66,6 +69,11 @@ final class RoomEditsTest {
             check(grid.getRemovedBuildings().size() == 1, "The map building was not taken out once");
             check(BuildingRoomsEditor.windowCalls == 0 && BuildingRoomsEditor.getInstance().pending() == 0, "The editor's window was told");
             file(save, 1, 1, 1);
+            // The API's own file, which the game reads in place of its own: none of the game's is written.
+            check(!Files.exists(save.toPath().resolve("player_buildings.bin")), "The game's own rooms file was written");
+            check(Hooks.APPLIED.equals(Hooks.hookStatus().get(RoomEdits.LOAD_HOOK)), "The load hook is " + Hooks.hookStatus().get(RoomEdits.LOAD_HOOK));
+            new PlayerRoomsFile().load();
+            check(PlayerRoomsFile.lastRead != null && PlayerRoomsFile.lastRead.getName().equals(RoomEdits.FILE), "The game read " + PlayerRoomsFile.lastRead);
 
             // A wall again: two rooms, one named. The building is the editor's: no second map building taken out.
             done = FormulasTest.call(buildings, "setRooms", KEY, list(room(0, null, rect(60, 60, 3, 3)), room(0, "bathroom", rect(63, 60, 3, 3))));
@@ -105,6 +113,11 @@ final class RoomEditsTest {
             Files.delete(save.toPath().resolve(RoomEdits.FILE));
             done = FormulasTest.call(buildings, "setRooms", KEY, list(room(0, null, rect(60, 60, 6, 3))));
             check(Boolean.TRUE.equals(done.get(0)) && !Files.exists(save.toPath().resolve(RoomEdits.FILE)), "A world that saves nothing got a file");
+            // Without the API's file the game reads its own (a debug editor's rooms).
+            Files.write(save.toPath().resolve("player_buildings.bin"), new byte[] { 1 });
+            new PlayerRoomsFile().load();
+            check(PlayerRoomsFile.lastRead != null && PlayerRoomsFile.lastRead.getName().equals("player_buildings.bin"),
+                "The game did not read its own file when the API had none: " + PlayerRoomsFile.lastRead);
         } finally {
             Core.noSave = false;
             BuildingRoomsEditor.getInstance().setLuaEditor(null);

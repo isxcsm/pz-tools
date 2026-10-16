@@ -460,6 +460,9 @@ public final class Hooks {
     // The API loads as the game loads GameWindow; the first Lua environment may be made before it is ready.
     private static final long HANDLER_WAIT_NANOS = TimeUnit.SECONDS.toNanos(10);
     private static final ClassDesc HOOKS = ClassDesc.of("pzext.boot.Hooks");
+    private static final ClassDesc FILE = ClassDesc.of("java.io.File");
+    /** The save's file of the rooms PZExtAPI.buildings.setRooms gave, in the format of the game's player_buildings.bin. */
+    public static final String ROOMS_FILE = "pzext_rooms.bin";
     private static final ClassDesc COLOR_INFO = ClassDesc.of("zombie.core.textures.ColorInfo");
     private static final ClassDesc MOVING_OBJECT = ClassDesc.of("zombie.iso.IsoMovingObject"), VEHICLE = ClassDesc.of("zombie.vehicles.BaseVehicle");
     private static Handler handler;
@@ -1146,6 +1149,15 @@ public final class Hooks {
                 code.iconst_0();
                 code.with(element);
             })) }),
+        // The rooms setRooms gave are the API's own file of the save (ROOMS_FILE), read where the game reads the editor's
+        // player_buildings.bin: without the API the game never sees them, and the map's buildings come back as they were
+        // (the game would take the editor's buildings for ones players built, drop them, and fail loading the world).
+        Map.entry("zombie/buildingRooms/PlayerRoomsFile", new Site[] {
+            Site.edit("load", "()V", new Edit(calls("zombie/ZomboidFileSystem", "getFileInCurrentSave",
+                "(Ljava/lang/String;)Ljava/io/File;"), 1, null, (code, element, kind) -> {
+                    code.with(element);
+                    code.invokestatic(HOOKS, "roomsFile", MethodTypeDesc.of(FILE, FILE));
+                })) }),
         // Zombies a mod holds in an area (docs/design.md, "Zombie marks and holds"): where an idle one wanders, the sounds one hears,
         // and whether one goes instead of staying virtual as its chunk unloads.
         Map.entry("zombie/ai/states/ZombieIdleState", new Site[] {
@@ -2816,6 +2828,16 @@ public final class Hooks {
     }
 
     /** Put before {@code IsoZombie.pathToLocation} in {@code ZombieIdleState.execute}: the square an idle zombie wanders to. */
+    /**
+     * {@code PlayerRoomsFile.load}: the file it reads. The API's rooms file when the save has one (it is written in the same
+     * format), else the game's own (a debug editor's rooms).
+     */
+    public static java.io.File roomsFile(java.io.File vanilla) {
+        if (vanilla == null) return null;
+        java.io.File ours = new java.io.File(vanilla.getParentFile(), ROOMS_FILE);
+        return ours.isFile() ? ours : vanilla;
+    }
+
     public static long zombieWander(Object zombie, int x, int y) {
         ZombieHolds current = zombieHolds;
         if (current != null) {

@@ -17,16 +17,19 @@ import pzext.boot.Hooks;
  * {@code PZExtAPI.buildings.setRooms}: new rooms for a map building over the squares it has (docs/design.md, "Rooms
  * set"). The game has no call for it but its building editor (a debug tool, {@code zombie.buildingRooms}): the rooms
  * are made as the editor makes them, which takes the building out of the map and puts the new one in, rooms, lights
- * and squares worked out anew; and they are written to the save's {@code player_buildings.bin}, which the game reads
- * back as the world loads, before the map's own data on rooms (map_meta.bin), whose flags it then keeps. What the
+ * and squares worked out anew; and they are written to the save in the format of its {@code player_buildings.bin}, which
+ * the game reads back as the world loads, before the map's own data on rooms (map_meta.bin), whose flags it then keeps. What the
  * editor leaves behind is mended here: the building's own state (its key, its alarm, what was seen), the flags of each
  * room (taken from the old room it shares most squares with), the map's objects in the rooms, and the rooms light
- * switches light.
+ * switches light. The file is the API's own ({@link Hooks#ROOMS_FILE}, in the format of player_buildings.bin), which the
+ * game reads in place of its own through a hook: without the API the save loads with the map's rooms as they were.
  */
 final class RoomEdits {
     /** The hook that makes the editor's buildings map buildings (see Hooks): without it the game drops them. */
     static final String HOOK = "BREBuilding.<init>";
-    static final String FILE = "player_buildings.bin";
+    /** The hook that has the game read the API's file (see Hooks): without it rooms set would not come back. */
+    static final String LOAD_HOOK = "PlayerRoomsFile.load";
+    static final String FILE = Hooks.ROOMS_FILE;
     private static final String CALL = "PZExtAPI.buildings.setRooms";
     /** The most rectangles one call takes: a bound on its work, not a rule of play. */
     static final int MAX_RECTS = 4096;
@@ -114,10 +117,12 @@ final class RoomEdits {
         Building found = buildings.resolve(key);
         if (found == null) return refused("no building has the key");
         if ((boolean)userDefinedOf.invoke(found.def())) return refused("a building players built: the game makes its rooms from its walls");
-        String hook;
-        try { hook = Hooks.hookStatus().getOrDefault(HOOK, Hooks.NOT_LOADED); }
-        catch (LinkageError olderBootstrap) { hook = "this game's bootstrap is older; restart the game"; }
-        if (!Hooks.APPLIED.equals(hook)) return refused("the hook " + HOOK + " is not in (" + hook + ")");
+        for (String name : new String[] { HOOK, LOAD_HOOK }) {
+            String hook;
+            try { hook = Hooks.hookStatus().getOrDefault(name, Hooks.NOT_LOADED); }
+            catch (LinkageError olderBootstrap) { hook = "this game's bootstrap is older; restart the game"; }
+            if (!Hooks.APPLIED.equals(hook)) return refused("the hook " + name + " is not in (" + hook + ")");
+        }
         // The building's squares, each with its room; and the rooms asked for over them, which must be the same squares.
         var old = new HashMap<Long, Object>();
         var size = new IdentityHashMap<Object, Integer>();
@@ -263,7 +268,7 @@ final class RoomEdits {
     }
 
     /**
-     * Writes the rooms set to the save, as the game reads player_buildings.bin: the map buildings taken out (a square
+     * Writes the rooms set to the save's API file, as the game reads player_buildings.bin: the map buildings taken out (a square
      * of each), then the buildings put in their place (each found at such a square now). Null when written or the game
      * saves nothing; else why not.
      */
