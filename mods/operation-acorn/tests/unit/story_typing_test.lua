@@ -315,6 +315,38 @@ test("the panel's text of a marked document: head and dim colours, half a line a
     eq(KitTyping.rich(Markup.parse("one\ntwo"), { 1, 1, 1 }, nil, nil), " <TEXT> <RGB:1.000,1.000,1.000> one <LINE> two")
 end)
 
+test("a form's fields, when asked for: a short label or a date dim, its rows hung; sentences and times are not fields", function()
+    local text = "~ Reply. Intake 7\nSeized: one cloth\n7/5 Odor report.\nA longer label here: x\n"
+        .. "Why so? Because: no\nReceived 7/6 14:20.\nplain"
+    local clean, styles = KitTyping.marks(text, { fields = true })
+    eq(styles[1].kind, "meta")
+    eq(styles[2].kind, "field")
+    eq(styles[2].lead, #"Seized:")
+    eq(styles[2].hang, #"Seized: ")
+    eq(styles[3].kind, "field", "a date leads its line")
+    eq(styles[3].lead, #"7/5")
+    eq(styles[4].kind, "field", "a long label is dim")
+    eq(styles[4].hang, nil, "but its rows do not hang under it")
+    eq(styles[5], nil, "a sentence before the colon is no label")
+    eq(styles[6], nil, "a time's colon is no label")
+    eq(styles[7], nil)
+    -- not asked for: no fields
+    local _, plain = KitTyping.marks(text)
+    eq(plain[2], nil)
+    -- the panel's text: the lead dim (as the meta line before it: no new colour), the value in the body's colour hung
+    -- after it, half a line after the dim top line
+    local rich = KitTyping.rich(Markup.parse(clean), { 1, 1, 1 }, styles, { head = { 0, 1, 0 }, dim = { 0.5, 0.5, 0.5 } })
+    truthy(string.find(rich, "<LINE>  <HALF> Seized: <HANG>  <RGB:1.000,1.000,1.000> one cloth",
+        1, true), rich)
+    truthy(string.find(rich, "<RGB:0.500,0.500,0.500> 7/5 <HANG>  <RGB:1.000,1.000,1.000> Odor report.", 1, true), rich)
+    truthy(string.find(rich, "label here: <RGB:1.000,1.000,1.000>  <SPACE> x", 1, true), rich)
+    -- the rows hang under a label of up to twelve characters
+    local _, long = KitTyping.marks(string.rep("a", 12) .. ": a\n" .. string.rep("a", 13) .. ": b", { fields = true })
+    eq(long[1].hang, 12 + 2, "twelve characters hang")
+    eq(long[2].kind, "field")
+    eq(long[2].hang, nil, "thirteen do not")
+end)
+
 test("a paper's content has its marks out and its styles", function()
     local record = setup(1)
     local paper = Folder.content(record, { title = "M", group = "manifest",

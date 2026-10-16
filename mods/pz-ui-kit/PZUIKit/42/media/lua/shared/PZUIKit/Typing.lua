@@ -86,13 +86,34 @@ end
 -- A numbered line ("1. ", "2) ") hangs its wrapped rows under its text as a bullet does. Lines without a mark are as
 -- they were. The marks are taken out of the text before it is read (Markup.parse), so they are never typed and never
 -- counted among its characters.
+-- A form's lines, when asked for (`opts.fields`): a line that opens with a label and a colon ("Seized: ...", the label
+-- of at most FIELD_CHARS characters and not a sentence: no full stop, question or exclamation mark or slash in it) or
+-- with a date ("7/5 ...") is a field: the label or the date is dim, and the rows the line wraps into hang under what
+-- follows it (under a label of at most HANG_CHARS characters; a longer one would leave the text a narrow column).
 
 local DOT = string.char(183)
+Typing.FIELD_CHARS = 24
+Typing.HANG_CHARS = 12
+
+-- A field's lead (the label with its colon, or the date) in bytes and whether its rows hang, or nil for a line that is
+-- not a field.
+local function fieldLead(line)
+    local date = string.match(line, "^%d+/%d+ ")
+    if date then return #date - 1, true end
+    local label = string.match(line, "^([^:]+): ")
+    if not label or find(label, "[%.%?!/]") then return nil end
+    -- (the game's strings hold a character, Korean too, as one: their length is their characters)
+    local n = #label
+    if n > Typing.FIELD_CHARS then return nil end
+    return #label + 1, n <= Typing.HANG_CHARS
+end
 
 -- The text without its marks, and the style of each line that had one: styles[line] = { kind = "head", "bullet",
--- "num", "meta" or "sign", hang = the characters its wrapped rows hang under }. Lines are counted from 1 at each "\n".
-function Typing.marks(text)
+-- "num", "meta", "sign" or "field", hang = the characters its wrapped rows hang under, lead = a field's dim lead }.
+-- Lines are counted from 1 at each "\n". `opts.fields`: forms' fields are found too.
+function Typing.marks(text, opts)
     if type(text) ~= "string" then return text, {} end
+    local fields = opts and opts.fields
     local out, styles, li = {}, {}, 0
     for line in string.gmatch(text .. "\n", "(.-)\n") do
         li = li + 1
@@ -110,7 +131,13 @@ function Typing.marks(text)
             styles[li] = { kind = "bullet", hang = 2 }
         else
             local number = string.match(line, "^%d+[%.%)] ")
-            if number then styles[li] = { kind = "num", hang = #number } end
+            local lead, hangs
+            if not number and fields then lead, hangs = fieldLead(line) end
+            if number then
+                styles[li] = { kind = "num", hang = #number }
+            elseif lead then
+                styles[li] = { kind = "field", hang = hangs and lead + 1 or nil, lead = lead }
+            end
         end
         out[li] = line
     end
@@ -162,8 +189,9 @@ end
 -- The text for the kit's rich text panel (PZUIRichText) from a reading (Markup.parse): the characters in colour, the line
 -- ends as <LINE>, in the colour `c` ({ r, g, b }, 0 to 1) where the text has none of its own. `styles` (Typing.marks,
 -- optional) gives lines their look, in `tones` = { head = { r, g, b }, dim = { r, g, b } }: a head and a dim line in
--- those colours where their characters have none of their own, half a line above a head and the sign-off, the sign-off
--- on the right, and the rows a bullet's or a number's line wraps into hung under its text.
+-- those colours where their characters have none of their own, half a line above a head and the sign-off and between
+-- the dim lines on top and what follows them, the sign-off on the right, a field's lead dim, and the rows a bullet's, a
+-- number's or a field's line wraps into hung under its text.
 function Typing.rich(read, c, styles, tones)
     local default = rgbTag(c[1], c[2], c[3])
     local out = { " <TEXT>", default }
@@ -179,9 +207,15 @@ function Typing.rich(read, c, styles, tones)
         local style = styles and styles[li]
         local kind = style and style.kind
         local lineTag = (kind == "head" and headTag) or ((kind == "meta" or kind == "sign") and dimTag) or default
-        if (kind == "head" or kind == "sign") and li > 1 then out[#out + 1] = " <HALF> " end
+        local before = styles and styles[li - 1]
+        if (kind == "head" or kind == "sign") and li > 1 then
+            out[#out + 1] = " <HALF> "
+        elseif kind ~= "meta" and before and before.kind == "meta" then
+            out[#out + 1] = " <HALF> "
+        end
         if kind == "sign" then out[#out + 1] = " <RIGHT> " end
         local hangAt = style and style.hang and pos + style.hang - 1 or nil
+        local leadTo = style and style.lead and pos + style.lead - 1 or nil
         local at = pos
         while at <= last do
             while runs[ri] and runs[ri].to < at do ri = ri + 1 end
@@ -191,6 +225,7 @@ function Typing.rich(read, c, styles, tones)
                 to, tag = math.min(run.to, last), rgbTag(run.r, run.g, run.b)
             else
                 to, tag = math.min(run and run.from - 1 or last, last), lineTag
+                if leadTo and at <= leadTo then to, tag = math.min(to, leadTo), dimTag end
             end
             if hangAt and hangAt >= at and hangAt < to then to = hangAt end
             piece(out, st, sub(plain, at, to), tag)

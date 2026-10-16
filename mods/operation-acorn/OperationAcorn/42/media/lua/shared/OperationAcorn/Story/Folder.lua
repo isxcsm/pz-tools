@@ -257,7 +257,7 @@ function Folder.content(record, entry)
     end
     marked = Folder.lines(marked)
     local styles
-    marked, styles = PZUIKit.Typing.marks(marked)
+    marked, styles = PZUIKit.Typing.marks(marked, { fields = true })
     return { title = entry.title, meta = metaOf(record, entry), body = OA.Markup.strip(marked), marked = marked,
         styles = styles, kind = Typing.KIND_OF_GROUP[entry.group] }
 end

@@ -91,7 +91,7 @@ local BODY = { 0.88, 0.88, 0.82 }
 local function formatText(title, body)
     -- A translation may carry its line ends as the two characters \n (the file reader keeps them).
     body = string.gsub(body, "\\n", "\n")
-    local marked, styles = PZUIKit.Typing.marks(body)
+    local marked, styles = PZUIKit.Typing.marks(body, { fields = true })
     -- a text the markup reader refuses is shown as its plain characters
     local read = OA.Markup.parse(marked) or { plain = OA.Markup.strip(marked), runs = {} }
     local p = UI.palette("field")
