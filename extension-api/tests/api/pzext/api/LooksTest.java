@@ -42,6 +42,7 @@ final class LooksTest {
             notice(text, mod);
             unveil(text, mod);
             burn(text, mod);
+            flare(text, mod);
             bleed(text, mod);
             sink(text, mod);
             type(text, mod);
@@ -73,6 +74,17 @@ final class LooksTest {
         for (float value : map) sum += value;
         check(near(map[0], 0.4053019881248474) && near(map[57], 0.1239451915025711) && near(map[179], 0.19854091107845306) && Math.abs(sum - 53.17510087043047) < 1e-4,
             "The burn map is not the page's: " + map[0] + ", " + map[57] + ", " + map[179] + ", " + sum);
+        // A flare's: from its spot at the middle's foot, round; fast and then slowing, its spots reached at that pace.
+        check(near(Looks.round(3, 2, 20, 9), 0.7349293798778876) && Math.abs(Looks.round(10, 7.65, 20, 9)) < 1e-12 && near(Looks.round(0, 0, 20, 9), 1),
+            "A flare's distance from its spot is not the page's");
+        float[] flare = Looks.burnMap(20, 9, 2.5, 0x123456789L, Dust.Sweep.DOWNLEFT, true);
+        double flareSum = 0;
+        for (float value : flare) flareSum += value;
+        check(near(flare[0], 0.5666813254356384) && near(flare[57], 0.4164533019065857) && near(flare[179], 0.1842852085828781)
+            && Math.abs(flareSum - 54.393897254019976) < 1e-4, "A flare's burn map is not the page's: " + flare[0] + ", " + flare[57] + ", " + flare[179] + ", " + flareSum);
+        check(near(Looks.flared(0.2, 0.6), 0.1884386849455081) && near(Looks.flared(0.6, 0.6), 0.4845299461620748) && near(Looks.flared(0.95, 0.6), 0.65)
+            && near(Looks.flaredAt(0.1, 0.6), 0.10300607311304177) && near(Looks.flaredAt(0.45, 0.6), 0.5428347633071552) && near(Looks.flaredAt(0.7, 0.6), 0.9),
+            "A flare's pace is not the page's");
         double[] torch = new double[7];
         Looks.torch(0.9, torch);
         check(near(torch[0], 0.20805007123956848) && near(torch[1], 0.570861355656489) && near(torch[2], 0.2) && near(torch[3], 0.20805007123956848)
@@ -239,6 +251,31 @@ final class LooksTest {
         frame();
         check(!(Boolean)FormulasTest.call(text, "shown", mod, key).get(0) && GL11.deleted.contains(maps) && GL11.deleted.contains(maps - 1),
             "The burn maps were not let go with the text");
+    }
+
+    /**
+     * The flare (a brief title): its picture as it stays; it burns with its ash as it leaves (3.5 s after 0.45 + 3), its ash
+     * drifting on after the leave (3.5 s more); its map let go with it.
+     */
+    private static void flare(KahluaTable text, Object mod) {
+        long origin = NOW[0];
+        int textures = GL11.made;
+        double key = title(text, mod, "brief", "+340 credits", null);
+        up(origin, 0);
+        up(origin, 0.5);
+        quiet();
+        check(modes(origin, 2.0).equals(List.of(0)), "The brief title is not its picture as it stays: " + modes(origin, 2.01));
+        check(modes(origin, 5.0).equals(List.of(1, 2)), "The brief title does not flare with its ash: " + modes(origin, 5.01));
+        check(GL11.made == textures + 1, "The flare's map did not go to the card");
+        var ash = modes(origin, 3.45 + 3.5 + 1.0);
+        check(ash.contains(2) && (Boolean)FormulasTest.call(text, "shown", mod, key).get(0), "The flare's ash did not drift on past its leave: " + ash);
+        int map = GL11.made;
+        at(origin, 3.45 + 7.1);
+        frame();
+        frame();
+        check(!(Boolean)FormulasTest.call(text, "shown", mod, key).get(0) && GL11.deleted.contains(map), "The flare outlived its ash, or its map stayed");
+        NOW[0] += Math.round(SECOND);
+        frame();
     }
 
     /** The bleed: drops on the title (falling, their flecks, a drop running down), the line seeping in; both dry and flake away. */

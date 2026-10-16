@@ -399,6 +399,8 @@ final class Dust {
         Looks.Frame[] frames;
         int frameAt;
         ByteBuffer map;
+        /** A flare's: where its burn ends on its map (Looks.burnEnd). */
+        double burnEnd;
         int mapTexture;
         Looks.Gl looks;
         boolean cutting;

@@ -24,6 +24,9 @@ import java.nio.FloatBuffer;
  * <li>{@code erode} (leave): it weathers away in place, its colour draining, worn off in pits from its edges;</li>
  * <li>{@code burn} (leave): it burns spot by spot from a corner like paper (a map of when each spot burns), a ragged glowing
  *     edge, shards of ash and sparks tumbling away on the wind;</li>
+ * <li>{@code flare} (leave): it burns so from a spot at its middle's foot, spreading round (the letters aside burning from their
+ *     feet up), fast and then slowing; its ash and sparks are thrown out as their spots burn, slow down, and drift round in the
+ *     air a while after the text is gone;</li>
  * <li>{@code bleed} (enter) and {@code dry} (leave): drops fall on a title one after another and spread where they land,
  *     soaking its letters in with a wet front (a line seeps in so, without drops); a drop runs down from it as it stays; they
  *     dry dark and flake away in patches as it leaves;</li>
@@ -61,6 +64,14 @@ final class Looks {
     static final double FRONT = 0.52, SPREAD = 0.07, RAGGED = 0.03, CURL = 0.6, EDGE_W = 0.012, CHAR_W = 0.02, SCORCH_W = 0.07;
     /** Burn's ash: the share of the cells that leave as shards, their size, how fast they spin, how soon they grey, and to what. */
     static final double FLAKES = 0.5, FLAKE_SIZE = 1.1, SPIN = 7, GREYING = 0.35, PAPER_ASH = 0.55;
+    /**
+     * Flare: the spot it burns from, down its picture (0 the top, 1 the bottom: at its middle's foot), and how much a spot's height
+     * counts against its place across (each letter burns from its foot up); the share of the leave its burn takes, fast and then
+     * slowing (FLARE_EASE: how much; 1 even); how far its ash is thrown and how wide it drifts round, in lines, and how long it
+     * flies, in seconds, apart from the leave (the text stays until it is gone).
+     */
+    static final double ROUND_Y = 0.85, ROUND_K = 4, FLARE_SHARE = 0.9, FLARE_EASE = 1.5, FLARE_BURST = 0.7, FLARE_SWIRL = 0.3,
+        FLARE_ASH = 3.5;
     /** The colour a text burns with when it is given none. */
     static final float[] BURN = { 1f, 0.32f, 0.1f, 1f };
     /** How long a text's backdrop takes to come in, in seconds, whatever its enter. */
@@ -148,11 +159,20 @@ final class Looks {
         };
     }
 
+    /** How far a pixel is from a flare's spot, 0 to 1 (the farthest corner), in a picture {@code w} by {@code h}. */
+    static double round(double x, double y, double w, double h) {
+        double cy = h * ROUND_Y, far = Math.hypot(w / 2, Math.max(cy, h - cy) * ROUND_K);
+        return Math.hypot(x - w / 2, (y - cy) * ROUND_K) / far;
+    }
+
     /**
-     * The burn map: when each pixel of a picture {@code w} by {@code h} burns away, as a share of the leave: the sweep, clumps a few
-     * cells wide (holes open ahead of the front) and fine fibres that make the edge ragged, over a warp that curls it.
+     * The burn map: when each pixel of a picture {@code w} by {@code h} burns away, as a share of the leave: the sweep (or from a
+     * flare's spot, {@code round}), clumps a few cells wide (holes open ahead of the front) and fine fibres that make the edge
+     * ragged, over a warp that curls it.
      */
-    static float[] burnMap(int w, int h, double cell, long seed, Dust.Sweep sweep) {
+    static float[] burnMap(int w, int h, double cell, long seed, Dust.Sweep sweep) { return burnMap(w, h, cell, seed, sweep, false); }
+
+    static float[] burnMap(int w, int h, double cell, long seed, Dust.Sweep sweep, boolean round) {
         float[] map = new float[w * h];
         int s = (int)(seed & 0xFFFFFF);
         double warp = CURL * cell * 4, patch = Dust.PATCH * cell, fine = Dust.FINE_PATCH * cell;
@@ -161,7 +181,8 @@ final class Looks {
                 double wx = x + (vnoise(x / 23.0, y / 23.0, s + 5) - 0.5) * warp, wy = y + (vnoise(x / 23.0, y / 23.0, s + 6) - 0.5) * warp;
                 double clump = 0.7 * vnoise(wx / patch, wy / patch, s) + 0.3 * vnoise(wx / fine, wy / fine, s + 1);
                 double fibre = 0.6 * vnoise(wx / 3, wy / 3, s + 2) + 0.4 * vnoise(wx / 1.4, wy / 1.4, s + 3);
-                map[y * w + x] = (float)(FRONT * along(x, y, w, h, sweep) + SPREAD * clump + RAGGED * (fibre - 0.5));
+                double front = round ? round(x, y, w, h) : along(x, y, w, h, sweep);
+                map[y * w + x] = (float)(FRONT * front + SPREAD * clump + RAGGED * (fibre - 0.5));
             }
         return map;
     }
@@ -177,13 +198,40 @@ final class Looks {
     }
 
     /** The cells' flakes leave as the map burns their middle. */
-    static void startsFromMap(Dust.Cells cells, float[] map, int w, int h) {
+    static void startsFromMap(Dust.Cells cells, float[] map, int w, int h) { startsFromMap(cells, map, w, h, 0); }
+
+    /** ... at a flare's pace when {@code end} (its {@link #burnEnd}) is more than 0. */
+    static void startsFromMap(Dust.Cells cells, float[] map, int w, int h, double end) {
         for (int index = 0; index < cells.count; index++) {
             int x = Math.min(w - 1, (int)Math.floor((cells.column[index] + 0.5) * cells.size));
             int y = Math.min(h - 1, (int)Math.floor((cells.row[index] + 0.5) * cells.size));
-            cells.start[index] = map[y * w + x];
+            float burns = map[y * w + x];
+            cells.start[index] = end > 0 ? (float)flaredAt(burns, end) : burns;
         }
     }
+
+    /** Where a flare's burn ends on its map: the last of its ink to burn, and its edge and char passing it. */
+    static double burnEnd(float[] map, Dust.Alpha alpha, int w, int h) {
+        double last = 0;
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+                if (map[y * w + x] > last && alpha.at(x, y) >= Dust.INK) last = map[y * w + x];
+        return last + EDGE_W + CHAR_W;
+    }
+
+    /** How far into its map a flare has burnt at {@code out} of its leave: fast and then slowing, done by FLARE_SHARE of it. */
+    static double flared(double out, double end) {
+        double u = clamp(out / FLARE_SHARE, 0, 1);
+        return end * (1 - Math.pow(1 - u, FLARE_EASE)) + Math.max(0, out - FLARE_SHARE);
+    }
+
+    /** The share of a flare's leave at which it burns a spot of burn time {@code burns} (what {@link #flared} reaches it at). */
+    static double flaredAt(double burns, double end) {
+        return FLARE_SHARE * (1 - Math.pow(1 - clamp(burns / end, 0, 1), 1 / FLARE_EASE));
+    }
+
+    /** How long a flare's ash stays on past its leave, as a share of a leave {@code leaveTime} seconds long. */
+    static double ashTail(double leaveTime) { return leaveTime > 0 ? FLARE_ASH / leaveTime : 0; }
 
     /**
      * Squared distances from each pixel of a picture {@code w} by {@code h} to the nearest one that {@code to} marks
@@ -576,7 +624,7 @@ final class Looks {
         final Gl gl;
         Object drawer;
         int look;
-        boolean impact, erode, burn, lead;
+        boolean impact, erode, burn, flare, lead;
         /** The picture's middle at rest, in pixels; the text's line height and its ink's width, in pixels. */
         double cx, cy, line, ink;
         /** Its scale, squash across and up, and move, in pixels. */
@@ -1134,7 +1182,7 @@ final class Looks {
             Dust.Cells cells = piece.cells;
             if (cells == null || piece.map == null) return;
             map(piece, NEAREST);
-            float progress = (float)f.out;
+            float progress = (float)(f.flare ? flared(f.out, piece.burnEnd) : f.out);
             uniform1f.invokeExact(uProgress, progress);
             uniform1f.invokeExact(uEdge, (float)EDGE_W);
             uniform1f.invokeExact(uChar, (float)CHAR_W);
@@ -1151,17 +1199,35 @@ final class Looks {
             flush();
             mode = SHARD;
             double reach = piece.line * f.drift, size = cells.size;
+            // A flare's ash flies its own seconds, past the leave; the spot it is thrown from.
+            double ashSeconds = FLARE_ASH / Dust.LIFE, footX = x + piece.boxWidth / 2.0, footY = y + piece.boxHeight * ROUND_Y;
             for (int cell = 0; cell < cells.count; cell++) {
                 double kind = cells.phase2[cell];
                 boolean spark = kind < Dust.SPARKS, flake = !spark && kind < Dust.SPARKS + (1 - Dust.SPARKS) * FLAKES;
                 if (!spark && !flake) continue;
-                double age = (f.out - cells.start[cell]) / cells.life[cell];
+                double age = f.flare ? (f.out - cells.start[cell]) * f.leaveTime / (ashSeconds * cells.life[cell])
+                    : (f.out - cells.start[cell]) / cells.life[cell];
                 if (age <= 0 || age >= 1) continue;
                 double shown = Dust.alpha(age);
                 if (shown <= 0.002) continue;
-                double cx = x + (cells.column[cell] + 0.5) * size + reach * Dust.driftX(age, cells.side[cell], cells.freq[cell], cells.phase[cell]);
-                double cy = y + (cells.row[cell] + 0.5) * size + reach * Dust.driftY(age, cells.rise[cell], cells.freq[cell], cells.phase2[cell]);
-                double turn = (cells.phase[cell] < 0.5 ? -1 : 1) * SPIN * age + cells.phase[cell] * 6.28;
+                double cx = x + (cells.column[cell] + 0.5) * size, cy = y + (cells.row[cell] + 0.5) * size, turn;
+                if (f.flare) {
+                    // Thrown out from the spot as it burns, fast and slowing, then drifting round slowly in the air, a little up,
+                    // the circle growing as it slows.
+                    double thrown = (1 - Math.exp(-7 * age)) / (1 - Math.exp(-7));
+                    double dx = cx - footX, dy = cy - footY, d = Math.hypot(dx, dy * 3);
+                    if (d == 0) d = 1;
+                    double angle = Math.atan2(dy * 3 / d - 0.6 - 0.5 * cells.rise[cell], dx / d) + (cells.phase[cell] - 0.5) * 1.6;
+                    double far = FLARE_BURST * piece.line * (0.5 + 0.7 * cells.freq[cell]);
+                    double swirl = FLARE_SWIRL * piece.line * smooth(clamp(age / 0.5, 0, 1)), spin = 6.28 * (cells.freq[cell] * 0.8 * age + cells.phase2[cell]);
+                    cx += far * Math.cos(angle) * thrown + swirl * Math.cos(spin);
+                    cy += far * Math.sin(angle) * thrown + swirl * Math.sin(spin) - 0.25 * piece.line * age;
+                    turn = (cells.phase[cell] < 0.5 ? -1 : 1) * SPIN * 0.4 * (thrown + 0.3 * age) + cells.phase[cell] * 6.28;
+                } else {
+                    cx += reach * Dust.driftX(age, cells.side[cell], cells.freq[cell], cells.phase[cell]);
+                    cy += reach * Dust.driftY(age, cells.rise[cell], cells.freq[cell], cells.phase2[cell]);
+                    turn = (cells.phase[cell] < 0.5 ? -1 : 1) * SPIN * age + cells.phase[cell] * 6.28;
+                }
                 if (spark) {
                     double hot = Dust.heat(age), keep = Dust.BURN_ASH + (1 - Dust.BURN_ASH) * hot, hs = size * 0.35 * cells.flake[cell];
                     shard(cx, cy, hs, turn, 1, shown * f.burnRed * keep, shown * f.burnGreen * keep, shown * f.burnBlue * keep,

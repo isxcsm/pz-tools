@@ -25,13 +25,13 @@ no build).
   - `type` 타자: its letters struck one by one at an uneven pace; its paper fed out a line at a time as it leaves.
   - `pulse` 고동: a heart that races and calms, a warm glow flaring with each beat; one more beat, a stillness, a last weak
     beat, and a breath out.
-  - `brief` 짧은 소식 (a draft, not in the API yet): a light title for small news, one small line low on the screen
+  - `brief` 짧은 소식: a light title for small news, one small line low on the screen
     that slides up, holds 3 s and burns away from a spot at its middle's foot, spreading round so that the letters
     aside burn from their feet up (`sweep` "round", `ROUND_Y`, `ROUND_K`), fast and then slowing over about 3 s
     (`BURN_SHARE`, `EASE`); its ash thrown out as it burns, slowing, then drifting round in the air for its own 3.5 s
     (`ASH_BURST`, `ASH_SWIRL`, `ASH_HOLD`).
 
-  Every style but `brief` holds 5 s once all of it is in (the title and its line).
+  Every style but `brief` (3 s) holds 5 s once all of it is in (the title and its line).
 - **The styles before them** (marked 이전), and `leave = "dust"`'s cells as `Dust.java` has them (숯불 셀, with `dustBurn`).
 
 Only the fonts' shapes, shadows and outlines are approximations (the page draws them with the browser's text).

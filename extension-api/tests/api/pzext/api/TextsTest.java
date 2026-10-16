@@ -53,7 +53,7 @@ final class TextsTest {
             check(text != null, "The API has no text");
             UIManager.getToolTip();
             check(Hooks.APPLIED.equals(FormulasTest.call(text, "status").get(0)), "The text hook is " + FormulasTest.call(text, "status").get(0));
-            check(List.of("stamp", "discovery", "notice", "unveil", "dust", "bleed", "sink", "type", "pulse").equals(list(FormulasTest.call(text, "styles").get(0))), "The styles are wrong");
+            check(List.of("stamp", "discovery", "notice", "unveil", "dust", "bleed", "sink", "type", "pulse", "brief").equals(list(FormulasTest.call(text, "styles").get(0))), "The styles are wrong");
             useClock();
             Object mod = FormulasTest.call(api, "client", "text.mod").get(0), other = FormulasTest.call(api, "client", "other.mod").get(0);
             idle();
@@ -1021,6 +1021,31 @@ final class TextsTest {
         Object[] run = last("Run");
         check(run != null && near((Double)run[6], 1) && near((Double)run[7], 0.3), "The title asked for now did not follow, in its colour");
         FormulasTest.call(text, "hide", mod, danger, true);
+
+        // A brief title is in a queue of its own: it does not wait for a title. Another brief one waits for it, but not for its ash
+        // (a flare's leave of 3.5 s after 0.45 + 3, its ash 3.5 s more).
+        double stage = (Double)FormulasTest.call(text, "title", mod, table("text", "Stage 7", "style", "dust")).get(0);
+        double bonus = (Double)FormulasTest.call(text, "title", mod, table("text", "+340 credits", "style", "brief")).get(0);
+        double fitted = (Double)FormulasTest.call(text, "title", mod, table("text", "Bag: 30", "style", "brief")).get(0);
+        render();
+        advance(0.5);
+        render();
+        Object[] brief = last("+340 credits");
+        check(last("Stage 7") != null && brief != null && brief[1] == UIFont.SdfRegular && near((Double)brief[3], 0.8 * 900 - 45 * (0.036 * 900 / 45) / 2),
+            "A brief title waited for a title, or is not low on the screen in its font");
+        check(last("Bag: 30") == null, "A brief title did not wait for the one before it");
+        advance(6.6);
+        render();
+        render();
+        advance(0.3);
+        render();
+        check((Boolean)FormulasTest.call(text, "shown", mod, bonus).get(0) && last("Bag: 30") != null,
+            "A brief title's ash held its queue, or it went before its ash");
+        advance(3.6);
+        render();
+        check(!(Boolean)FormulasTest.call(text, "shown", mod, bonus).get(0), "A brief title outlived its ash");
+        for (double key : new double[] { stage, fitted }) FormulasTest.call(text, "hide", mod, key, true);
+        render();
 
         // Hangul: the language's font.
         double hangul = (Double)FormulasTest.call(text, "title", mod, table("text", "수색 완료", "style", "discovery")).get(0);

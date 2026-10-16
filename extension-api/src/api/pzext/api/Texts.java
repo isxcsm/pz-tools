@@ -32,7 +32,7 @@ import pzext.boot.Hooks;
  */
 final class Texts implements Hooks.Text {
     private static final String AREA = "PZExtAPI.text.";
-    private static final String MIRROR = "texts", FORMAT = "pzext-texts 5", FORMAT_BEFORE_BURN = "pzext-texts 4",
+    private static final String MIRROR = "texts", FORMAT = "pzext-texts 6", FORMAT_BEFORE_LANE = "pzext-texts 5", FORMAT_BEFORE_BURN = "pzext-texts 4",
         FORMAT_BEFORE_BACKDROP = "pzext-texts 3", FORMAT_BEFORE_DUST = "pzext-texts 2",
         FORMAT_BEFORE_TYPING = "pzext-texts 1",
         GENERATION = "textsGeneration", HANDOVER = "textsHandover";
@@ -73,7 +73,13 @@ final class Texts implements Hooks.Text {
     enum Enter { NONE, FADE, POP, SLAM, SETTLE, RISE, DROP, TYPE, SLIDE, IMPACT, TORCH, SIGNAL, MIST, BLEED, STRIKE }
 
     /** How it goes (the last nine are looks). */
-    enum Leave { NONE, FADE, RISE, SINK, GROW, SHRINK, DUST, ERODE, DIM, LOST, MIST, BURN, DRY, UNDER, FEED, EXHALE, WASH }
+    enum Leave { NONE, FADE, RISE, SINK, GROW, SHRINK, DUST, ERODE, DIM, LOST, MIST, BURN, DRY, UNDER, FEED, EXHALE, WASH, FLARE }
+
+    /** Whether a text leaves burning (as paper, or as a flare: its look's map and ash). */
+    static boolean burns(Leave leave) { return leave == Leave.BURN || leave == Leave.FLARE; }
+
+    /** The queues of titles a player's screen has: the titles', and the brief ones' (low on the screen, they wait for each other only). */
+    static final int LANES = 2;
 
     private static final Map<String, Integer> ALIGN = Map.of("left", -1, "center", 0, "right", 1);
     private static final String[] ALIGN_NAMES = { "left", "center", "right" };
@@ -113,8 +119,10 @@ final class Texts implements Hooks.Text {
         int player = -1;
         // The title a title's line goes with (its look's cues are the title's), or null.
         Shown lead;
-        // Waits for the queue of its player's screen; waiting until it is the first of that queue.
-        boolean queued, waiting;
+        // Waits for the queue of its player's screen (lane: which of them); waiting until it is the first of that queue. Ashing: past
+        // its leave, its ash still drifting (a flare's): it no longer holds its queue.
+        boolean queued, waiting, ashing;
+        int lane;
         // The world it was shown in.
         Object cell;
         // When it was first drawn (System.nanoTime), 0 before; when its mod hid it, 0 if it did not.
@@ -739,8 +747,8 @@ final class Texts implements Hooks.Text {
         }
         if (text.enter != Enter.TYPE && (text.speed != 0 || text.cursor))
             throw new IllegalArgumentException(call + ": " + prefix + ".speed and " + prefix + ".cursor go with " + prefix + ".enter = \"type\"");
-        if (dusty != null && text.leave != Leave.DUST && text.leave != Leave.BURN)
-            throw new IllegalArgumentException(call + ": " + prefix + "." + dusty + " goes with " + prefix + ".leave = \"dust\" or \"burn\"");
+        if (dusty != null && text.leave != Leave.DUST && !burns(text.leave))
+            throw new IllegalArgumentException(call + ": " + prefix + "." + dusty + " goes with " + prefix + ".leave = \"dust\", \"burn\" or \"flare\"");
         if (text.source != null) compose(text, call, prefix);
         if (text.lines != null && text.font == null) font(text, "Large", call, prefix + ".font");
         else if (text.lines != null && text.fontName == null) font(text, text.font, call, prefix + ".font");
@@ -899,9 +907,9 @@ final class Texts implements Hooks.Text {
      * {@code first}; when the queue is full, the oldest waiting group goes.
      */
     private void enqueue(List<Shown> group, boolean first) {
-        int player = group.get(0).player;
+        int player = group.get(0).player, lane = group.get(0).lane;
         var waiting = new LinkedHashSet<Long>();
-        for (Shown text : shown) if (text.queued && text.waiting && text.player == player && !text.done) waiting.add(text.key);
+        for (Shown text : shown) if (text.queued && text.waiting && text.player == player && text.lane == lane && !text.done) waiting.add(text.key);
         if (waiting.size() >= MAX_WAITING) {
             long oldest = waiting.iterator().next();
             shown.removeIf(text -> text.queued && text.player == player && text.key == oldest);
@@ -910,7 +918,7 @@ final class Texts implements Hooks.Text {
         if (first)
             for (int index = 0; index < shown.size(); index++) {
                 Shown other = shown.get(index);
-                if (other.queued && other.player == player && other.waiting) { at = index; break; }
+                if (other.queued && other.player == player && other.lane == lane && other.waiting) { at = index; break; }
             }
         for (Shown text : group) { text.waiting = true; text.cell = group.get(0).cell; }
         shown.addAll(at, group);
@@ -1063,7 +1071,9 @@ final class Texts implements Hooks.Text {
          * One style: the title's text and the line's, as specs of {@code show}; the gap between them in the title's lines, and how
          * many seconds after the title the line starts to leave.
          */
-        record Style(Map<String, Object> title, Map<String, Object> line, double gap, double trail) { }
+        record Style(Map<String, Object> title, Map<String, Object> line, double gap, double trail, int lane) {
+            Style(Map<String, Object> title, Map<String, Object> line, double gap, double trail) { this(title, line, gap, trail, 0); }
+        }
 
         static final Map<String, Style> ALL = new LinkedHashMap<>();
 
@@ -1166,6 +1176,18 @@ final class Texts implements Hooks.Text {
                     Map.entry("shadow", true), Map.entry("delay", 0.6), Map.entry("enter", "fade"), Map.entry("enterTime", 0.9),
                     Map.entry("leave", "exhale"), Map.entry("leaveTime", 10.7)),
                 0.3, 0));
+            // Brief: one small line low on the screen, over the hotbar, for small news (a bonus, a part fitted): it slides up, stays a
+            // short while and flares away from its middle's foot, its ash drifting a while. In a queue of its own: it does not wait
+            // for the titles, nor they for it.
+            ALL.put("brief", new Style(
+                Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Medium")), Map.entry("size", 0.036), Map.entry("color", List.of(0.95, 0.93, 0.88, 1.0)),
+                    Map.entry("shadow", true), Map.entry("outline", 1.0), Map.entry("outlineColor", List.of(0.0, 0.0, 0.0, 0.4)),
+                    Map.entry("y", 0.8), Map.entry("enter", "slide"), Map.entry("enterTime", 0.45), Map.entry("hold", 3.0), Map.entry("backdrop", 0.22),
+                    Map.entry("leave", "flare"), Map.entry("leaveTime", 3.5)),
+                Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Small")), Map.entry("size", 0.026), Map.entry("color", List.of(0.84, 0.83, 0.8, 1.0)),
+                    Map.entry("shadow", true), Map.entry("outline", 1.0), Map.entry("outlineColor", List.of(0.0, 0.0, 0.0, 0.35)),
+                    Map.entry("delay", 0.15), Map.entry("enter", "slide"), Map.entry("enterTime", 0.45), Map.entry("leave", "flare"), Map.entry("leaveTime", 3.5)),
+                0.3, 0.15, 1));
         }
 
         private Styles() { }
@@ -1228,8 +1250,8 @@ final class Texts implements Hooks.Text {
         if (leave != null) big.leave = effect(Leave.class, leave, call, "spec.leave");
         if (leaveTime != null) big.leaveTime = number(leaveTime, call, "spec.leaveTime", 0, MAX_SECONDS);
         for (var field : dusts.entrySet()) {
-            if (big.leave != Leave.DUST && big.leave != Leave.BURN)
-                throw new IllegalArgumentException(call + ": spec." + field.getKey() + " goes with leave = \"dust\" or \"burn\"");
+            if (big.leave != Leave.DUST && !burns(big.leave))
+                throw new IllegalArgumentException(call + ": spec." + field.getKey() + " goes with leave = \"dust\", \"burn\" or \"flare\"");
             dust(big, field.getKey(), field.getValue(), call, "spec." + field.getKey());
         }
         if (small != null) {
@@ -1251,7 +1273,8 @@ final class Texts implements Hooks.Text {
             big.backdropBelow = Math.max(0, small.y + small.size * small.lines.length / 2 - big.y - big.size * big.lines.length / 2);
         }
         big.queued = true;
-        if (small != null) small.queued = true;
+        big.lane = chosen.lane();
+        if (small != null) { small.queued = true; small.lane = big.lane; }
         int per = small == null ? 1 : 2;
         room(owner, per * (big.player < 0 ? screens() : 1), call);
         long key = next++;
@@ -1261,7 +1284,7 @@ final class Texts implements Hooks.Text {
                 // The title on that screen leaves, quickly, and this one goes before those waiting.
                 long at = clock.getAsLong();
                 for (Shown other : shown)
-                    if (other.queued && other.player == screen && !other.waiting && other.start != 0 && !other.done) {
+                    if (other.queued && other.player == screen && other.lane == big.lane && !other.waiting && other.start != 0 && !other.done) {
                         if (other.hidden == 0) other.hidden = at;
                         other.leaveTime = Math.min(other.leaveTime, 0.25);
                     }
@@ -1300,7 +1323,7 @@ final class Texts implements Hooks.Text {
         to.outline = from.outline; to.outlineRed = from.outlineRed; to.outlineGreen = from.outlineGreen; to.outlineBlue = from.outlineBlue;
         to.outlineAlpha = from.outlineAlpha; to.shadow = from.shadow; to.x = from.x; to.y = from.y; to.align = from.align;
         to.delay = from.delay; to.enter = from.enter; to.enterTime = from.enterTime; to.hold = from.hold; to.leave = from.leave;
-        to.leaveTime = from.leaveTime; to.player = from.player; to.queued = from.queued; to.cell = from.cell;
+        to.leaveTime = from.leaveTime; to.player = from.player; to.queued = from.queued; to.lane = from.lane; to.cell = from.cell;
         to.source = from.source; to.markup = from.markup; to.width = from.width; to.speed = from.speed; to.cursor = from.cursor;
         to.script = from.script;
         to.dustSize = from.dustSize; to.dustDrift = from.dustDrift; to.dustSweep = from.dustSweep; to.dustBurn = from.dustBurn;
@@ -1390,16 +1413,23 @@ final class Texts implements Hooks.Text {
         }
     }
 
-    /** Lets the first waiting group of the screen's queue go when no queued text is on that screen. */
+    /** Lets the first waiting group of each of the screen's queues go when no text of that queue is on that screen (its ash aside). */
     private void release(Shown[] all, int screen) {
+        for (int lane = 0; lane < LANES; lane++) release(all, screen, lane);
+    }
+
+    private void release(Shown[] all, int screen, int lane) {
         long first = 0;
         for (Shown text : all) {
-            if (!text.queued || text.done || text.player != screen) continue;
-            if (!text.waiting) return;
+            if (!text.queued || text.done || text.player != screen || text.lane != lane) continue;
+            if (!text.waiting) {
+                if (text.ashing) continue;
+                return;
+            }
             if (first == 0) first = text.key;
         }
         if (first == 0) return;
-        for (Shown text : all) if (text.queued && text.player == screen && text.key == first && !text.done) text.waiting = false;
+        for (Shown text : all) if (text.queued && text.player == screen && text.lane == lane && text.key == first && !text.done) text.waiting = false;
         dirty = true;
     }
 
@@ -1414,7 +1444,9 @@ final class Texts implements Hooks.Text {
         if (t >= leaving) {
             if (text.leave == Leave.NONE || text.leaveTime <= 0) return false;
             out = (t - leaving) / text.leaveTime;
-            if (out >= 1) return false;
+            // (a flare's ash stays on past its leave)
+            text.ashing = out >= 1;
+            if (out >= 1 + (text.leave == Leave.FLARE ? Looks.ashTail(text.leaveTime) : 0)) return false;
         }
         double in = text.enter == Enter.NONE || text.enterTime <= 0 ? 1 : Math.min(1, Math.min(t, leaving) / text.enterTime);
         // Its alpha, scale and move (in lines; across, in lines too: the impact's shake), and the impact's squash.
@@ -1451,7 +1483,7 @@ final class Texts implements Hooks.Text {
                 alpha *= 1 - smooth(Looks.clamp((breath - 0.05) / 0.75, 0, 1));
                 shift += 0.12 * smooth(breath);
             }
-            case DUST, BURN -> { } // Below, once the text is placed: as dust or burning, or a fade.
+            case DUST, BURN, FLARE -> { } // Below, once the text is placed: as dust or burning, or a fade.
         }
         boolean look = looked(text);
         float shownAlpha = (float)(alpha * text.atAlpha);
@@ -1496,7 +1528,7 @@ final class Texts implements Hooks.Text {
             // As strong as the text is seen, coming in over BACKDROP_IN at most as fast; a text that crumbles or burns takes it with
             // it over its leave. A look's stays at the text's place at rest.
             double seen = Math.min(smooth(Math.min(1, t / Looks.BACKDROP_IN)),
-                text.leave == Leave.DUST || text.leave == Leave.BURN ? alpha * (1 - smooth(out)) : alpha);
+                text.leave == Leave.DUST || burns(text.leave) ? alpha * (1 - smooth(Math.min(1, out))) : alpha);
             if (seen > INVISIBLE) {
                 if (look) backdrop(text, laid, restX, restFirst, base, restLine, rowCount, height, seen);
                 else backdrop(text, laid, anchorX, firstY, zoom, line, rowCount, height, seen);
@@ -1510,7 +1542,7 @@ final class Texts implements Hooks.Text {
             // No picture (yet): the text as it is, a look's enter and leave a fade.
             if (text.enter == Enter.TORCH || text.enter == Enter.SIGNAL || text.enter == Enter.MIST || text.enter == Enter.BLEED
                 || text.enter == Enter.STRIKE) alpha *= smooth(in);
-            if (text.leave == Leave.BURN) alpha *= 1 - smooth(out);
+            if (burns(text.leave)) alpha *= 1 - smooth(Math.min(1, out));
             shownAlpha = (float)(alpha * text.atAlpha);
             if (shownAlpha <= INVISIBLE) return true;
         }
@@ -1546,7 +1578,7 @@ final class Texts implements Hooks.Text {
     /** Whether the text has a look: an enter or a leave the API's shader draws ({@link Looks}). */
     static boolean looked(Shown text) {
         return switch (text.enter) { case IMPACT, TORCH, SIGNAL, MIST, BLEED, STRIKE -> true; default -> false; }
-            || switch (text.leave) { case ERODE, DIM, LOST, MIST, BURN, DRY, UNDER, FEED, EXHALE, WASH -> true; default -> false; };
+            || switch (text.leave) { case ERODE, DIM, LOST, MIST, BURN, FLARE, DRY, UNDER, FEED, EXHALE, WASH -> true; default -> false; };
     }
 
     /**
@@ -1613,7 +1645,7 @@ final class Texts implements Hooks.Text {
                     if (!piece.at(boxX, boxY, boxWidth, boxHeight)) { piece.phase = Dust.FAILED; break; }
                     if (piece.shape == null) piece.shape = shape(text, piece, laid, anchorX, firstY, zoom, line, rowCount, high - low);
                     if (piece.cutting) break;
-                    if (text.leave == Leave.BURN) { piece.cutting = true; burnCut(piece, Dust.cell(line, text.dustSize), text.dustSweep); }
+                    if (burns(text.leave)) { piece.cutting = true; burnCut(piece, Dust.cell(line, text.dustSize), text.dustSweep, text.leave == Leave.FLARE); }
                     else if (text.leave == Leave.WASH) { piece.cutting = true; inkCut(piece); }
                     else { piece.pixels = null; piece.phase = Dust.CUT; }
                 }
@@ -1642,7 +1674,8 @@ final class Texts implements Hooks.Text {
         f.look = lookOf(text);
         f.impact = text.enter == Enter.IMPACT;
         f.erode = text.leave == Leave.ERODE;
-        f.burn = text.leave == Leave.BURN;
+        f.burn = burns(text.leave);
+        f.flare = text.leave == Leave.FLARE;
         f.lead = text.enter == Enter.TORCH;
         f.cx = piece.boxX + piece.boxWidth / 2.0;
         f.cy = piece.boxY + piece.boxHeight / 2.0;
@@ -1728,17 +1761,19 @@ final class Texts implements Hooks.Text {
      * A burn's cells and map, made from its picture's pixels away from the main thread (a few tens of milliseconds for a title):
      * the piece is CUT once they are there, or FAILED.
      */
-    private static void burnCut(Dust.Piece piece, double size, Dust.Sweep sweep) {
+    private static void burnCut(Dust.Piece piece, double size, Dust.Sweep sweep, boolean flare) {
         java.util.concurrent.ForkJoinPool.commonPool().execute(() -> {
             try {
                 var pixels = piece.pixels;
                 int width = piece.boxWidth, height = piece.boxHeight;
                 // The rows read back are from the bottom of the box.
-                Dust.Cells cells = Dust.Cells.of((x, y) -> pixels.get(((height - 1 - y) * width + x) * 4 + 3) & 0xFF, width, height, size, sweep,
-                    piece.seed, Dust.MAX_CELLS);
+                Dust.Alpha alpha = (x, y) -> pixels.get(((height - 1 - y) * width + x) * 4 + 3) & 0xFF;
+                Dust.Cells cells = Dust.Cells.of(alpha, width, height, size, sweep, piece.seed, Dust.MAX_CELLS);
                 if (cells == null) { piece.phase = Dust.FAILED; return; }
-                float[] map = Looks.burnMap(width, height, size, piece.seed, sweep);
-                Looks.startsFromMap(cells, map, width, height);
+                // A flare's from its spot, at its pace (its ash flying its own time, as it is drawn).
+                float[] map = Looks.burnMap(width, height, size, piece.seed, sweep, flare);
+                if (flare) piece.burnEnd = Looks.burnEnd(map, alpha, width, height);
+                Looks.startsFromMap(cells, map, width, height, flare ? piece.burnEnd : 0);
                 piece.cells = cells;
                 piece.map = Looks.encode(map);
                 piece.pixels = null;
@@ -2124,7 +2159,7 @@ final class Texts implements Hooks.Text {
                 .append('\t').append(s.player).append('\t').append(s.queued).append('\t').append(s.waiting).append('\t').append(s.start)
                 .append('\t').append(s.hidden).append('\t').append(s.markup).append('\t').append(s.width).append('\t').append(s.speed)
                 .append('\t').append(s.cursor).append('\t').append(s.dustSize).append('\t').append(s.dustSweep.name()).append('\t').append(s.dustDrift)
-                .append('\t').append(s.backdrop).append('\t').append(s.backdropBelow).append('\t').append(burnText(s.dustBurn));
+                .append('\t').append(s.backdrop).append('\t').append(s.backdropBelow).append('\t').append(burnText(s.dustBurn)).append('\t').append(s.lane);
         }
         lua.set(meta, MIRROR, text.toString());
         dirty = false;
@@ -2175,18 +2210,20 @@ final class Texts implements Hooks.Text {
         if (!(kept instanceof String text)) return;
         String[] lines = text.split("\n");
         // The format before typing has the fields up to hidden; the text of those has no markup, typing or width. The format
-        // before dust has the fields up to cursor; its texts have no dust. The format before backdrops has none; the one before burns, no burn.
+        // before dust has the fields up to cursor; its texts have no dust. The format before backdrops has none; the one before burns, no burn;
+        // the one before lanes, no lane (its titles are in the first queue).
         boolean before = FORMAT_BEFORE_TYPING.equals(lines[0]), beforeDust = before || FORMAT_BEFORE_DUST.equals(lines[0]);
         boolean beforeBackdrop = beforeDust || FORMAT_BEFORE_BACKDROP.equals(lines[0]);
         boolean beforeBurn = beforeBackdrop || FORMAT_BEFORE_BURN.equals(lines[0]);
-        if (!beforeBurn && !FORMAT.equals(lines[0])) {
+        boolean beforeLane = beforeBurn || FORMAT_BEFORE_LANE.equals(lines[0]);
+        if (!beforeLane && !FORMAT.equals(lines[0])) {
             System.err.println("[PZExt] text: what was shown is kept in another format; it is not shown again");
             return;
         }
         for (int index = 1; index < lines.length; index++) {
             String[] fields = lines[index].split("\t", -1);
             if ("N".equals(fields[0])) { next = Math.max(next, Long.parseLong(fields[1])); continue; }
-            if (fields.length != (before ? 31 : beforeDust ? 35 : beforeBackdrop ? 38 : beforeBurn ? 40 : 41) || !"T".equals(fields[0]))
+            if (fields.length != (before ? 31 : beforeDust ? 35 : beforeBackdrop ? 38 : beforeBurn ? 40 : beforeLane ? 41 : 42) || !"T".equals(fields[0]))
                 throw new IllegalStateException("Unknown line in the kept text: " + lines[index]);
             var s = new Shown(unescape(fields[1]), Long.parseLong(fields[2]));
             s.lines = unescape(fields[3]).split("\n", -1);
@@ -2210,6 +2247,7 @@ final class Texts implements Hooks.Text {
                 }
                 if (!beforeBackdrop) { s.backdrop = Double.parseDouble(fields[38]); s.backdropBelow = Double.parseDouble(fields[39]); }
                 if (!beforeBurn) s.dustBurn = burnOf(fields[40]);
+                if (!beforeLane) { s.lane = Integer.parseInt(fields[41]); if (s.lane < 0 || s.lane >= LANES) s.lane = 0; }
                 if (s.markup || s.width > 0 || s.enter == Enter.TYPE) {
                     // Read again: the script is not kept, and gives the same as when it was shown.
                     s.source = unescape(fields[3]);
