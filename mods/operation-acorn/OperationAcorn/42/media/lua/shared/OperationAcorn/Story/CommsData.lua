@@ -71,7 +71,7 @@ Data.ENTRIES = {
         { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" } } },
     { id = "s7_list", kind = "short", trigger = "tier:7", tier = 7, waits = "S7", greet = true, sign = "oak" },
     { id = "S7F", kind = "scene", trigger = "story:cells", tier = 7, mission = true, waits = "S7", sign = "oak", lines = {
-        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me", erase = true }, { "oak" } } },
+        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" } } },
     { id = "s8_handover", kind = "short", trigger = "tier:8", tier = 8, waits = "S7", greet = true, sign = "oak" },
     { id = "S8F", kind = "field", trigger = "field:handover", tier = 8, mission = true, sign = "oak", lines = {
         { "oak" }, { "me", erase = true }, { "oak" } } },
