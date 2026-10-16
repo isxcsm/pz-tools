@@ -146,12 +146,26 @@ local function dotColour(device, supplied)
     return colour[1], colour[2], colour[3]
 end
 
--- A relay's mark on its square: a dark hole in the middle, a hub the lines meet at (a stroke down the middle read as
--- the digit 1). The plan and the legend draw it alike.
-local function relayMark(plan, x, y, size, alpha)
-    local hole = math.max(3, math.floor(size / 3))
-    local at = math.floor((size - hole) / 2)
-    plan:drawRect(x + at, y + at, hole, hole, 0.85 * alpha, 0.1, 0.08, 0.06)
+-- A design number on whole pixels (px: a pixel in design units). Marks, their rings and frames are placed so: scaled,
+-- each edge of a rectangle is rounded on its own, and a ring round a mark came out a pixel nearer it on one side.
+local function snap(v, px)
+    return math.floor(v / px + 0.5) * px
+end
+
+-- A mark's size on an even number of pixels, so that it sits square on a line's middle (a line through it is two
+-- pixels wide, on a pixel's edge).
+local function evenSize(size, px)
+    return math.max(1, math.floor(size / 2 / px + 0.5)) * 2 * px
+end
+
+-- A relay's mark on its square (x, y, size on whole pixels): a dark hole in the middle, a hub the lines meet at (a
+-- stroke down the middle read as the digit 1), as many pixels from each side. The plan and the legend draw it alike.
+local function relayMark(plan, x, y, size, alpha, px)
+    local n = math.floor(size / px + 0.5)
+    local hole = math.floor(math.max(3, math.floor(size / 3)) / px + 0.5)
+    if (n - hole) / 2 ~= math.floor((n - hole) / 2) then hole = hole + 1 end
+    local at = (n - hole) / 2 * px
+    plan:drawRect(x + at, y + at, hole * px, hole * px, 0.85 * alpha, 0.1, 0.08, 0.06)
 end
 
 -- What the legend lists for a utility, or for the zones, of what the floor shown has: a colour, dot or square, and its
@@ -782,7 +796,7 @@ function ISBUPlan:layoutThings(sx, sy, scale)
         if device.z == self.floor then
             local r, g, b = dotColour(device, data.supplied)
             self.dots[#self.dots + 1] = { key = device.key, room = device.inside and device.roomId or nil,
-                x = math.floor(sx(device.x) + scale / 2), y = math.floor(sy(device.y) + scale / 2), r = r, g = g, b = b,
+                x = sx(device.x) + scale / 2, y = sy(device.y) + scale / 2, r = r, g = g, b = b,
                 text = device.name .. "  " .. (device.status or ""), fresh = device.fresh, ref = device.ref }
         end
     end
@@ -795,8 +809,8 @@ function ISBUPlan:layoutThings(sx, sy, scale)
                 colour = { colour[1] * PIPE_OFF, colour[2] * PIPE_OFF, colour[3] * PIPE_OFF }
                 second = second and { second[1] * PIPE_OFF, second[2] * PIPE_OFF, second[3] * PIPE_OFF }
             end
-            self.squares[#self.squares + 1] = { x = math.floor(sx(producer.x) + (scale - SQUARE) / 2),
-                y = math.floor(sy(producer.y) + (scale - SQUARE) / 2), size = SQUARE,
+            self.squares[#self.squares + 1] = { x = sx(producer.x) + (scale - SQUARE) / 2,
+                y = sy(producer.y) + (scale - SQUARE) / 2, size = SQUARE,
                 r = colour[1], g = colour[2], b = colour[3], second = second, ring = producer.inUse, text = producer.text,
                 ref = producer.ref, key = producer.key }
         end
@@ -805,8 +819,8 @@ function ISBUPlan:layoutThings(sx, sy, scale)
     for _, relay in ipairs(data.relays or {}) do
         if relay.z == self.floor then
             local colour = relay.cut and COLOURS.off or COLOURS[relay.kind]
-            self.squares[#self.squares + 1] = { x = math.floor(sx(relay.x) + (scale - SQUARE) / 2),
-                y = math.floor(sy(relay.y) + (scale - SQUARE) / 2), size = SQUARE, relay = true,
+            self.squares[#self.squares + 1] = { x = sx(relay.x) + (scale - SQUARE) / 2,
+                y = sy(relay.y) + (scale - SQUARE) / 2, size = SQUARE, relay = true,
                 r = colour[1], g = colour[2], b = colour[3], text = relay.text, ref = relay.ref, key = relay.key }
         end
     end
@@ -814,8 +828,8 @@ function ISBUPlan:layoutThings(sx, sy, scale)
     for _, box in ipairs(data.boxes) do
         if box.z == self.floor then
             local colour = COLOURS.box
-            self.squares[#self.squares + 1] = { x = math.floor(sx(box.x) + (scale - SQUARE) / 2),
-                y = math.floor(sy(box.y) + (scale - SQUARE) / 2), size = SQUARE,
+            self.squares[#self.squares + 1] = { x = sx(box.x) + (scale - SQUARE) / 2,
+                y = sy(box.y) + (scale - SQUARE) / 2, size = SQUARE,
                 r = colour[1], g = colour[2], b = colour[3], ring = box.own, text = box.text }
         end
     end
@@ -1091,12 +1105,17 @@ function ISBUPlan:drawLegend(now, mx, my, px)
             if entry.square == "line" then
                 self:drawRect(entry.x, middle, 10, 1, alpha, entry.r, entry.g, entry.b)
             elseif entry.square then
-                self:drawRect(entry.x, middle - 4, 9, 9, alpha, entry.r, entry.g, entry.b)
-                local second = entry.second
-                if second then self:drawRect(entry.x + 4.5, middle - 4, 4.5, 9, alpha, second[1], second[2], second[3]) end
-                if entry.relay then relayMark(self, entry.x, middle - 4, 9, alpha) end
+                local size = evenSize(SQUARE, px)
+                local x, y = snap(entry.x, px), snap(middle, px) - size / 2
+                self:drawRect(x, y, size, size, alpha, entry.r, entry.g, entry.b)
+                local second, half = entry.second, snap(size / 2, px)
+                if second then self:drawRect(x + half, y, size - half, size, alpha, second[1], second[2], second[3]) end
+                if entry.relay then relayMark(self, x, y, size, alpha, px) end
             else
-                self:drawRect(entry.x + 1, middle - DOT / 2, DOT, DOT, alpha, entry.r, entry.g, entry.b)
+                -- (on the middle of a square's place, as the squares' entries above and below it)
+                local size = evenSize(DOT, px)
+                local x = snap(entry.x, px) + (evenSize(SQUARE, px) - size) / 2
+                self:drawRect(x, snap(middle, px) - size / 2, size, size, alpha, entry.r, entry.g, entry.b)
             end
             local shade = 0.8 + 0.2 * lit
             self:drawText(entry.text, entry.x + 14, entry.y + 1, shade, shade, shade, alpha, UIFont.Small)
@@ -1206,33 +1225,38 @@ function ISBUPlan:render()
     end
     -- The legend's entry under the mouse marks what it names.
     local marked = self.legendHover
+    -- (marks, their dark edges, rings and frames on whole pixels, each as many pixels round its mark on every side;
+    -- a mark round its middle on a pixel's edge, where a line through it lies)
+    local edge, ring, frame = math.max(px, snap(1, px)), snap(3, px), snap(4, px)
     for _, square in ipairs(self.squares) do
-        local size = square.size
-        self:drawRect(square.x - 1, square.y - 1, size + 2, size + 2, 0.9, 0.02, 0.03, 0.05)
-        self:drawRect(square.x, square.y, size, size, 1, square.r, square.g, square.b)
-        local second = square.second
-        if second then
-            self:drawRect(square.x + size / 2, square.y, size / 2, size, 1, second[1], second[2], second[3])
-        end
-        self:drawRect(square.x, square.y, size, px, 0.45, 1, 1, 1)
-        if square.relay then relayMark(self, square.x, square.y, size, 1) end
+        local size = evenSize(square.size, px)
+        local x, y = snap(square.x + square.size / 2, px) - size / 2, snap(square.y + square.size / 2, px) - size / 2
+        self:drawRect(x - edge, y - edge, size + edge * 2, size + edge * 2, 0.9, 0.02, 0.03, 0.05)
+        self:drawRect(x, y, size, size, 1, square.r, square.g, square.b)
+        local second, half = square.second, snap(size / 2, px)
+        if second then self:drawRect(x + half, y, size - half, size, 1, second[1], second[2], second[3]) end
+        self:drawRect(x, y, size, px, 0.45, 1, 1, 1)
+        if square.relay then relayMark(self, x, y, size, 1, px) end
         if square.ring then
-            self:drawRectBorder(square.x - 3, square.y - 3, size + 6, size + 6, 0.9,
+            self:drawRectBorder(x - ring, y - ring, size + ring * 2, size + ring * 2, 0.9,
                 math.min(1, square.r + 0.3), math.min(1, square.g + 0.3), math.min(1, square.b + 0.3))
         end
         if square.key and square.key == hoverKey or marked and marked.square and marked.square ~= "line"
                 and marked.r == square.r and marked.g == square.g and marked.b == square.b then
-            UI.frame(self, square.x - 4, square.y - 4, size + 8, size + 8, P.bright, 1)
+            UI.frame(self, x - frame, y - frame, size + frame * 2, size + frame * 2, P.bright, 1)
         end
     end
+    -- a dot's frame DOT + 1 out from its middle
+    local dotHalf = evenSize(DOT, px) / 2
+    local dotRing, fresh = snap(DOT + 1, px), snap(3, px)
     for _, dot in ipairs(self.dots) do
-        local half = DOT / 2
-        self:drawRect(dot.x - half - 1, dot.y - half - 1, DOT + 2, DOT + 2, 0.85, 0.02, 0.03, 0.05)
-        self:drawRect(dot.x - half, dot.y - half, DOT, DOT, 1, dot.r, dot.g, dot.b)
-        if dot.fresh then self:drawRect(dot.x + half, dot.y - half - 3, 3, 3, 1, 0.3, 0.9, 1) end
+        local x, y, half = snap(dot.x, px), snap(dot.y, px), dotHalf
+        self:drawRect(x - half - edge, y - half - edge, (half + edge) * 2, (half + edge) * 2, 0.85, 0.02, 0.03, 0.05)
+        self:drawRect(x - half, y - half, half * 2, half * 2, 1, dot.r, dot.g, dot.b)
+        if dot.fresh then self:drawRect(x + half, y - half - fresh, fresh, fresh, 1, 0.3, 0.9, 1) end
         if dot.key == hoverKey or marked and not marked.square and marked.r == dot.r
                 and marked.g == dot.g and marked.b == dot.b then
-            UI.frame(self, dot.x - DOT - 1, dot.y - DOT - 1, DOT * 2 + 2, DOT * 2 + 2, P.bright, 1)
+            UI.frame(self, x - dotRing, y - dotRing, dotRing * 2, dotRing * 2, P.bright, 1)
         end
     end
     -- A square shown from the window: a frame closing in on it as the mark fades.
@@ -1241,8 +1265,8 @@ function ISBUPlan:render()
         local t = math.min(1, (now - focus.at) / FOCUS_MS)
         local fx = map.ox + (focus.x + 0.5 - map.minX) * map.scale
         local fy = map.oy + (focus.y + 0.5 - map.minY) * map.scale
-        local half = SQUARE + 10 * (1 - BU.PanelUi.ease(math.min(1, t * 2)))
-        UI.frame(self, fx - half, fy - half, half * 2, half * 2, P.warn, 1 - t)
+        local half = snap(SQUARE + 10 * (1 - BU.PanelUi.ease(math.min(1, t * 2))), px)
+        UI.frame(self, snap(fx, px) - half, snap(fy, px) - half, half * 2, half * 2, P.warn, 1 - t)
     end
     -- Fading in after a switch of utility or floor.
     local t = self.switchedAt and (now - self.switchedAt) / BU.PanelUi.SWITCH_MS or 1

@@ -267,7 +267,15 @@ function ISBUPanelList:doDrawItem(y, item, alt)
     local window = self.window
     local planned = row.key ~= nil and row.key == window.planHoverKey
         or row.kind == "room" and window.planHoverRoom ~= nil and row.id == window.planHoverRoom
-    if planned then UI.frame(c, 1, y, width - SCROLLBAR - 2, ROW, P.warn) end
+    -- (on the row as it shows: inside the list's border, up to the scrollbar's own background, three pixels into it,
+    -- when the list is long enough for the game to draw one)
+    if planned then
+        local scroll = self.vscroll
+        local shown = scroll and scroll:isVisible() and self:getScrollHeight() > scroll:getHeight()
+        local right = shown and scroll:getX() + 3 or self:getWidth() - 1
+        local d = c == self and 1 or UI.dp(1)
+        UI.frame(c, d, y, (right - 1) * d, ROW, P.warn)
+    end
     local rightX = width - PAD - SCROLLBAR
     if row.kind == "header" then
         UI.fill(c, 0, y, width, ROW, P.panel, 0.95)

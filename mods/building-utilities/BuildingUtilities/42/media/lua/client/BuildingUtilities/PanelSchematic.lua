@@ -47,6 +47,8 @@ function ISBUSchematic:fill(x, y, w, h, c, a) self.shapes[#self.shapes + 1] = { 
 function ISBUSchematic:frame(x, y, w, h, c, a) self.shapes[#self.shapes + 1] = { "frame", x, y, w, h, c, a or 1 } end
 function ISBUSchematic:text(text, x, y, c) self.shapes[#self.shapes + 1] = { "text", text, x, y, c } end
 function ISBUSchematic:centre(text, x, y, c) self.shapes[#self.shapes + 1] = { "centre", text, x, y, c } end
+-- A rectangle in pixels, not design units (the arrows', the heads' chips).
+function ISBUSchematic:pixels(x, y, w, h, c, a) self.shapes[#self.shapes + 1] = { "pixels", x, y, w, h, c, a or 1 } end
 function ISBUSchematic:item(x, y, w, h, text, rows)
     self.items[#self.items + 1] = { x = x, y = y, w = w, h = h, text = text, rows = rows }
 end
@@ -73,11 +75,16 @@ function ISBUSchematic:layout()
         self.rows[level] = y
         y = y + ROW_H
     end
-    -- The pipes' heads: a chip of each colour with its number.
+    -- The pipes' heads: a chip of each colour with its number, as far inside its place on every side in whole pixels
+    -- (the mouse's frame is drawn round the place); the digits a little up, low in their line as they are.
+    local S = UI.S or 1
+    local inset = math.floor(4 * S + 0.5)
+    local top, bottom = math.floor(PAD * S + 0.5), math.floor((PAD + HEAD_H) * S + 0.5)
     for _, pipe in ipairs(data.pipes) do
         local x = self.colX[pipe]
-        self:fill(x + 4, PAD + 3, col - 8, HEAD_H - 8, Water.colour(pipe), 0.85)
-        self:centre(tostring(pipe), x + col / 2, PAD + (HEAD_H - FONT_HGT_SMALL) / 2 - 1, P.dark)
+        local left, right = math.floor(x * S + 0.5), math.floor((x + col) * S + 0.5)
+        self:pixels(left + inset, top + inset, right - left - inset * 2, bottom - top - inset * 2, Water.colour(pipe), 0.85)
+        self:centre(tostring(pipe), x + col / 2, PAD + (HEAD_H - FONT_HGT_SMALL) / 2 - 0.5, P.dark)
         self:item(x, PAD, col, HEAD_H, Water.pipeName(panel, pipe), {})
     end
     -- The floors: their names, the grid, the pipes running up their columns, the cells.
@@ -124,16 +131,28 @@ function ISBUSchematic:cell(cell, pipe, level)
     end
 end
 
--- An arrowhead of four strokes at x, y pointing one way: "right", "left" or "up".
-function ISBUSchematic:head(x, y, way, c)
-    for i = 0, 3 do
-        local span = 7 - i * 2
-        if way == "up" then
-            self:fill(x - span / 2, y + i, span, 1, c, 1)
-        else
-            self:fill(way == "right" and x - i or x + i, y - span / 2, 1, span, c, 1)
-        end
+-- An arrow pointing one way ("right", "left" or "up"), its point at x, y and its shaft back to `tail` (an x, or a y
+-- for one up; nil, a head alone). Drawn in whole pixels: scaled, a stroke of one design unit comes out one pixel or
+-- two and the head's steps uneven. The head is n strokes, each two pixels wider than the last from a one-pixel point,
+-- the shaft an odd number of pixels thick on the same middle line.
+function ISBUSchematic:arrow(way, x, y, tail, c)
+    local S = UI.S or 1
+    local n, t = math.max(4, math.floor(3.5 * S + 0.5)), 1 + 2 * math.max(1, math.floor(S / 2 + 0.5))
+    local half = (t - 1) / 2
+    if way == "up" then
+        local cx, ty = math.floor(x * S), math.floor(y * S + 0.5)
+        for i = 0, n - 1 do self:pixels(cx - i, ty + i, 1 + 2 * i, 1, c) end
+        local base, bottom = ty + n - 1, tail and math.floor(tail * S + 0.5)
+        if bottom and bottom > base then self:pixels(cx - half, base, t, bottom - base, c) end
+        return
     end
+    local tx, cy = math.floor(x * S + 0.5), math.floor(y * S)
+    local dir = way == "right" and 1 or -1
+    for i = 0, n - 1 do self:pixels(tx - dir * i, cy - i, 1, 1 + 2 * i, c) end
+    if not tail then return end
+    local base, from = tx - dir * (n - 1), math.floor(tail * S + 0.5)
+    if dir > 0 and from < base then self:pixels(from, cy - half, base + 1 - from, t, c)
+    elseif dir < 0 and from > base then self:pixels(base, cy - half, from - base, t, c) end
 end
 
 -- Water from another building: an arrow into the left of its pipe's column at the floor it comes in at (the top
@@ -144,8 +163,7 @@ function ISBUSchematic:arrival(arrival)
     local x, y = self:cellAt(arrival.pipe, level)
     if not x then return end
     local c, my = Water.colour(arrival.pipe), y + ROW_H / 2
-    self:fill(x - 12, my - 1, 8, 2, c, 1)
-    self:head(x - 3, my, "right", c)
+    self:arrow("right", x - 1, my, x - 12, c)
     self:item(x - 12, y, 12, ROW_H, getText("IGUI_BU_SchemeArrival", Water.pipeName(self.panel, arrival.pipe),
         BU.floorName(arrival.level)), {})
 end
@@ -157,8 +175,7 @@ function ISBUSchematic:across(from, to, level)
     if not (x1 and x2) then return end
     local a, b = x1 + self.col / 2, x2 + self.col / 2
     local my, c = y + ROW_H - 5, Water.colour(from)
-    self:fill(math.min(a, b), my - 1, math.abs(b - a), 2, c, 0.9)
-    self:head(b > a and b - 1 or b + 1, my, b > a and "right" or "left", c)
+    self:arrow(b > a and "right" or "left", b > a and b - 1 or b + 1, my, a, c)
 end
 
 -- A machine: a booster pump an arrow up its outlet's column, a filter one across, a pump a mark where it fills.
@@ -175,10 +192,9 @@ function ISBUSchematic:machine(machine)
         local _, topY = self:cellAt(outlet, top)
         local ax = x + col / 2 + 6
         local y1, y2 = topY + 3, y + ROW_H / 2
-        self:fill(ax - 1, y1 + 4, 3, math.max(2, y2 - y1 - 4), c, 1)
-        self:head(ax + 0.5, y1, "up", c)
+        self:arrow("up", ax + 0.5, y1, math.max(y1 + 6, y2), c)
         if inlet ~= outlet then self:across(inlet, outlet, level) end
-        self:item(ax - 5, y1, 10, y2 - y1, getText("IGUI_BU_SchemeBooster", name, Water.pipeName(panel, inlet),
+        self:item(ax - 4.5, y1, 10, y2 - y1, getText("IGUI_BU_SchemeBooster", name, Water.pipeName(panel, inlet),
             Water.pipeName(panel, outlet), BU.floorName(top)), rows)
     elseif machine.kind == "filter" then
         if inlet ~= outlet then self:across(inlet, outlet, level) end
@@ -188,7 +204,7 @@ function ISBUSchematic:machine(machine)
             Water.pipeName(panel, outlet)), rows)
     else
         local px = x + col / 2
-        self:head(px, y + 2, "up", c)
+        self:arrow("up", px, y + 2, nil, c)
         self:item(px - 6, y, 12, 8, getText("IGUI_BU_SchemePump", name, Water.pipeName(panel, outlet)), rows)
     end
 end
@@ -203,6 +219,9 @@ function ISBUSchematic:render()
         local kind = s[1]
         if kind == "fill" then UI.fill(self, s[2], s[3], s[4], s[5], s[6], s[7])
         elseif kind == "frame" then UI.frame(self, s[2], s[3], s[4], s[5], s[6], s[7])
+        elseif kind == "pixels" then
+            local c = s[6]
+            UI.rawDraws(self).drawRect(self, s[2], s[3], s[4], s[5], UI.faded(self, s[7]), c[1], c[2], c[3])
         elseif kind == "text" then UI.text(self, s[2], s[3], s[4], s[5])
         else UI.textCentre(self, s[2], s[3], s[4], s[5]) end
     end
