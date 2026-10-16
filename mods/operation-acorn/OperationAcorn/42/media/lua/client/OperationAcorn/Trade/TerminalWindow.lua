@@ -123,7 +123,9 @@ function OATerminalTabs:prerender()
             UI.textCentre(self, name, x + tw / 2, (h - fh) / 2 + 1, (on or k > 0.5) and p.bright or p.dim)
         end
         if w.blink[id] then
-            UI.frame(self, x - 1, 1, tw + 2, h - 1, p.value, 0.5 + 0.5 * pulse)
+            -- (on the tab's own frame: a blinking tab is never the one on show)
+            if p.tabStrip then UI.frame(self, x, 2, tw, h - 2, p.value, 0.5 + 0.5 * pulse)
+            else UI.frame(self, x, 4, tw, h - 5, p.value, 0.5 + 0.5 * pulse) end
         end
         local mark = w.marks[id]
         if mark then
