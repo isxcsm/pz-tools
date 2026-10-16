@@ -65,11 +65,11 @@ test("a generator's chance is worked out of the game's tables, a building's and 
     near(Loot.generatorChance("Truck", "TruckBed", container("vehicle", 50)), truck * 0.5, "a script's special share")
 end)
 
-test("a utility panel comes at half that, by the option, and marks its container's owner", function()
+test("a utility panel comes as often as a generator, by the option, and marks its container's owner", function()
     local crate = 1 - (1 - 0.1) ^ 20
-    near(Loot.boxChance("electronicstore", "other", container("building")), crate / 4 * Loot.BOX_SHARE)
+    near(Loot.boxChance("electronicstore", "other", container("building")), crate / 4, "a generator's chance")
     SandboxVars.BuildingUtilities = { BreakerBoxLoot = 2 }
-    near(Loot.boxChance("electronicstore", "other", container("building")), crate / 4 * Loot.BOX_SHARE * 2, "twice")
+    near(Loot.boxChance("electronicstore", "other", container("building")), crate / 4 * 2, "twice")
     SandboxVars.BuildingUtilities = { BreakerBoxLoot = 0 }
     eq(Loot.boxChance("electronicstore", "other", container("building")), 0, "none at 0")
     SandboxVars.BuildingUtilities = {}

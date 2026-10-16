@@ -118,8 +118,8 @@ end
 -- time a kind of container fills, the way the game's loot tool reckons it: each roll an item comes at its weight
 -- times its loot modifier, a hundredth; junk at 1.4 times its weight, unmodified. Where one is put, the container's
 -- owner (its object, or the vehicle's part) is marked (BU.BOX_MARK), so that the loot window looks only at those
--- (Finds.lua).
-Loot.BOX_SHARE = 0.5
+-- (Finds.lua). As often as a generator: the box opens the mod's content, it is not a rarity to hold the start back.
+Loot.BOX_SHARE = 1
 
 -- The game's generators: Generator and its colours (Generator_Blue, ...).
 local function isGenerator(name)
