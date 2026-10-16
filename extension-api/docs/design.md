@@ -157,7 +157,9 @@ buildings by such a square.
 
 | Call | Returns |
 | --- | --- |
-| `buildings.version()` | A number that stays the same while no building and none of the game's region data can have changed: a mod keeps what it read of buildings until it differs. |
+| `buildings.version()` | A number that stays the same while no building and none of the game's region data can have changed: a mod keeps what it read of buildings until it differs. It moves with every swap of the region data, wherever in the world a player built, so it suits what depends on the region data (`attached`). |
+| `buildings.version(x, y, z)` | The same for one building, the one at the square (`nil` without one): it moves when the building is described anew (another world, `setRooms`), and, for a building players built, when the region data was swapped in after a change in the chunks it stands in or beside, or after a change the API did not see (a swap of unknown cause moves every player-built building). A change far from the building leaves it, and a map building's moves with the first alone. The rooms built onto a building (`attached`) can change by a wall far from it, so they follow `buildings.version()`. The first call listens to the game's square changes (see [square watches](#square-watches)); a swap before it counts as unknown. |
+| `buildings.counters()` | For a look: `version`, `epoch` (the number that moves when every building is described anew), `swaps` of the region data, `globalBumps` (the swaps whose cause the API did not see, which move every player-built building's version), `worldChanges` and whether the square changes are `listening`. |
 | `buildings.attached(key)` | The rooms players built onto the building, which the game leaves out of it: a list of `level`, `host` (the id of the building's room the space touches most), `count` (squares), `extent` (the larger side of its box) and `rects`; empty for a building players built; `nil` without such a building, without the game's region data, or where a space grows past 1500 squares. |
 | `buildings.attachedObjects(key, filter)` | The objects on those rooms' squares that belong to no building, as `near` gives them, each with the `room` and `roomId` of its space's host; and whether every square was loaded. `nil, false` when `attached` is `nil`. |
 | `buildings.name(object)` | The name a world object is known by in `objects`, `near` and the networks: its sprite's, or the one `machine.spriteName` gives it. A mod keys its own records of objects by it, so a machine that changes its look stays the one it recorded. |
@@ -294,6 +296,7 @@ id per network across all mods. Squares are `x, y, z`; objects are a square and 
 | `networks.setGridFirst(handle, id, on)` | Whether the game's own supply goes first (`false`, the default: the network supplies all its members). Power: while the grid runs (`SandboxOptions.doesPowerGridExist()`, read once a second), the consumers on squares it powers (not `IsoGridSquare.isNoPower()`: a player-built room or a NoPower zone is not one) are left out of the network's load, so its producer burns only for the rest; with the grid shut off they count again. They keep their power either way. Water: while the mains run (the world's day before the sandbox's water shut-off), a fixture the mains reach (the game's own answer, `IsoObject.isWaterInfinite`, asked with the networks silent: in a room, piped, outside a NoWater zone) takes their water, not the network's; once they are shut off, the network's. A newer API keeps it. |
 | `networks.state(id)` | `nil`, or `owner`, `utility`, `policy`, `supplied`, `enabled`; `parent` (the first) and `parents` (all, in order) for a child; `producer` (the producer in use, its square or a table with its `source`; absent without one running); `load` (its children's that are switched on included, times its load factor; what it draws while it has supply, also while it is switched off), `ownLoad` (its own consumers' and its extra load, without the factor), `extraLoad` and `loadFactor`; `gridFirst`, `grid` (whether the grid runs) and `gridLoad` (what the grid carries of its own consumers now, left out of `ownLoad`; 0 without `gridFirst` or while the grid is shut off); `complete` (whether every consumer was loaded when the load was last worked out); `fuelPerHour` (the litres of fuel a generator burns an hour carrying the load now: its base consumption and the load, times the sandbox's fuel rate; also while a source carries it or nothing runs; for a child, that of the network at the top of its parents); `hoursLeft` (how long the fuel of the producer in use and of those on standby that can take over lasts at the load now, as last seen; absent without supply and while a source carries it); and `producers`, in order, each its square and, once seen loaded, `running`, `fuel` and `condition`, and `outOfService` (`true` while it is off and out of service: the API saw it switched off by hand and never switches it on; absent otherwise), or a source's `source`, `running` and `available`. A generator with `running` false and no `outOfService` is on standby: the API switches it on when the one in use stops, if it can run, as its fuel and condition tell (see [power](#power)). An API from before the field gives none, and has none out of service, so a mod reads the field without a version check; but that API also stops the network when the one in use is switched off by hand, and leaves generators running while the network is switched off. For water, instead of the power fields: `purify`; `gridFirst` and `mains` (whether the mains run); `fluids` (those it takes); `amount` and `capacity` (what the producers it draws from hold, as last seen and with what draws and fills owe them: its own and, for a child, those of every network above it; a producer that holds a fluid it does not take counts for nothing) and `producers`, its own alone, each its square, `pending` (the litres draws and fills owe it, signed: below 0 for draws) and, once seen loaded, `amount` (with `pending` counted), `capacity` and `fluids` (the litres it holds by the game's fluid names, as last seen), and `foreign` (`true` while it holds a fluid the network does not take). |
 | `networks.ids()` | Every network's id, of every mod, in the order they were defined: for a look in the game (a mod knows its own). |
+| `networks.revision(id)` | `nil`, or a number that moves whenever what `networks.state(id)` tells may have changed, whether the change is in the network or in one above it (a parent's supply is its children's): a definition changed, a producer seen otherwise (running, fuel, condition, in use), supply started or stopped, the load, what a water producer holds or is owed. It stays the same while nothing does, so a mod polling many networks reads `state` only for those whose number moved. It may move without the state differing (a pass that saw nothing new does not move it). The numbers only go up, across all networks and mods. |
 | `networks.consumers(id)` | The objects it supplies on loaded squares, as `buildings.objects` gives them, and whether every square was loaded. |
 | `networks.draw(handle, id, amount)` | Water only: takes up to `amount` litres (0 to 1,000,000) from the producers the network draws from, in its policy's order (see [draw and fill](#draw-and-fill)). Returns the litres taken and a table of what they were, by the game's fluid name (`{ Water = 12.5, TaintedWater = 2.5 }`). |
 | `networks.fill(handle, id, amount, fluid)` | Water only: adds up to `amount` litres of `fluid`, a name from the game's fluid registry (`"Water"`, `"TaintedWater"`), to the producers the network draws from, the emptiest first, as far as they have room. Returns the litres added. |
@@ -325,8 +328,10 @@ the game's switch alone, with no events.
 - Load: worked out when a definition changes; when the game says something that uses power was
   switched, placed or taken in or beside a member building, or at an object added on its own
   (`IsoGenerator.updateGenerator`); and, while some consumers are not loaded, as one of the chunks
-  they were missing from loads (each such chunk is one lookup a second; nothing is gone through
-  again until then). Consumers on squares that are not loaded count as they were last seen loaded,
+  they were missing from loads (each distinct chunk any network waits for is one lookup a pass, at
+  most 1024 a pass: with more chunks waited for than that, one that loaded is found within as many
+  seconds as the lookups take to go round them; nothing is gone through again until then).
+  Consumers on squares that are not loaded count as they were last seen loaded,
   so a chunk that unloads changes nothing.
 - Range: a producer powers no square around it. Its consumption is its base consumption, plus the
   network's load while it carries it, and the game burns fuel from that hour by hour while its square
@@ -1427,6 +1432,11 @@ is put down (`addFloor`), a wall goes up or down beside it (`RecalcAllWithNeighb
 and when it loads. A mod takes it as "look again": what changed is for it to find. A sprite changed in place without the game working
 the square out again is not told.
 
+The slot the game has for this ([`SquareDispatch`](../src/api/pzext/api/SquareDispatch.java)) is shared by the watches and by the
+buildings' per-building versions (`buildings.version(x, y, z)`, which listens from its first call, marking the chunk of each square
+that changes, without allocating, for the next swap of the region data to stamp): it holds the dispatch while either listens, and is
+empty otherwise.
+
 Cost: with no square watched the hook is not set and the game's call costs a null test (5 ns in the tests); with squares watched, a box
 test and a hash probe in an immutable index, safe on the threads that load chunks (12 ns with 1000 watched near the squares changing).
 A watched square that changes is marked once and queued under a lock only it takes. Nothing is allocated. At most 64 functions are
@@ -2449,8 +2459,10 @@ network once, through an index of children by parent. It holds,
 for each supplied network, one bit per square of its buildings, and the same for their shell (worked
 out as the network's buildings are resolved, not per question), kept in blocks of 8 by 8 squares of a
 level only where a room reaches, so that buildings far apart cost no more than buildings side by side;
-and the networks' object rules by square. `haveElectricity()` is called very often (lighting, food,
-sounds), so it costs a box test and a hash lookup per supplied network, never a walk over buildings.
+and the networks' object rules by square. The areas of all the networks are merged into one index
+([`AreaIndex`](../src/api/pzext/api/AreaIndex.java)): the same blocks of 8 by 8 squares, each holding the networks that reach
+it in the order they were defined. `haveElectricity()` is called very often (lighting, food,
+sounds), so it costs a box test and a hash probe whatever the number of networks, never a walk over buildings or over networks.
 An object question the game answers yes ends at once while no network has a rule for an object. With
 rules, the object's square, and those of its other parts for one that covers several, are looked up
 among the squares that have rules, and its sprite is read only on such a square. One the game answers
@@ -2466,6 +2478,26 @@ lookups of an object question. The container a fixture's water comes from is pic
 producers its network draws from; within a frame the last pick holds while its container holds the same
 (a draw or fill by a mod starts a new one), so a fixture the game asks about many times a frame costs one
 such pass.
+
+### What the grids go through
+
+The networks' work once a second is done for the networks something happened to, and for no other
+([`PowerGrid`](../src/api/pzext/api/PowerGrid.java), [`WaterGrid`](../src/api/pzext/api/WaterGrid.java)).
+A network is worked out at a pass when its definition changed (or one it follows from: its parents, the
+networks that draw from it), a hook said something happened where its consumers are, a chunk it waited
+for loaded, the buildings it names were described anew, the region data was swapped and it names what
+players built (or a square with no building yet), a square of its producers is loaded (the game
+changes a loaded generator or container at any time, so these are read every pass), or it runs a
+generator on a square that is not loaded and the world's hour changed. A network with none of these
+is left alone: it costs nothing until a chunk it waits for loads, which one lookup of a flat list of
+the distinct chunks every network waits for tells (at most 1024 chunks a pass). A producer's square
+that is not loaded in a chunk that is, may be loaded at any time (a generator put on it), so the
+network stays among those gone through and looks at it each pass. What the pass worked out is kept
+(the producers' state, the supply, the loads added up over each tree of power networks and checked
+only for the trees something happened in), and the snapshot the hooks read is made again only when
+it holds something else. With 1000 buildings and a power and a water network each, none loaded, a
+pass costs about 0.15 ms once the networks are settled, 0.4 ms a second with the frames' own noise
+(the test `networks at scale` prints it; before, 12 ms a second).
 
 ## What vanilla does that mods need to know
 
