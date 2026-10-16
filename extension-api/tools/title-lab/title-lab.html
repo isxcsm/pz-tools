@@ -63,9 +63,11 @@ const P = {
   IMPACT_COOL: 4, IMPACT_GLOW: 1, IMPACT_STREAK: 0.8, IMPACT_DUST: 1, SHINE_AT: 0.8, SHINE: 0.2, ERODE_GRAIN: 9, ERODE_DRAIN: 0.8, TORCH_POOL: 1, TORCH_STUTTER: 1, RADIO_STATIC: 1, RADIO_HICCUP: 1, FOG_THICK: 1.7, FOG_DRIFT: 1.25, FOG_STAY: 0.5, TRACK: 0.07, TRACK_BLUR: 0.6, TRACK_RISE: 0.05, TRACK_STAGGER: 0.12,
   zoom: 2, FRONT: 0.52, SPREAD: 0.07, EDGE_W: 0.012, CHAR_W: 0.02, SCORCH_W: 0.07, RAGGED: 0.03, CURL: 0.6,
   FLAKES: 0.5, FLAKE_SIZE: 1.1, SPIN: 7, GREYING: 0.35, PAPER_ASH: 0.55,
-  // the burn's pace: ACCEL 1 even, more slow then fast (its front at the leave's share o is where an even one is at o^ACCEL);
-  // ASH_LIFE: how long its ash and sparks fly, as a share of their usual time
-  ACCEL: 1, ASH_LIFE: 1,
+  // the burn's pace: BURN_SHARE 1 even over the leave (the old way); below 1 it is over in that share of the leave, fast
+  // and then slowing (EASE: how much; 1 even). ASH_LIFE: how long its ash and sparks fly, as a share of their usual time.
+  // ASH_BURST 0: blown on the wind (the old way); above 0 thrown out from where they burn (that far, in the text's
+  // lines), slowing, then drifting round in the air (ASH_SWIRL: how wide) until they are gone
+  BURN_SHARE: 1, EASE: 1, ASH_LIFE: 1, ASH_BURST: 0, ASH_SWIRL: 0.15,
   BLEED_SOAK: 2.2, BLEED_WET: 0.5, BLEED_STAIN: 0.2, BLEED_DRIP: 1,
   SINK_DEPTH: 0.75, SINK_SWELL: 1, SINK_MIRROR: 1,
   TYPE_JITTER: 1, TYPE_INK: 1, TYPE_FEED: 1,
@@ -75,7 +77,7 @@ const P = {
   SIM_OVERLAP: 0.7,
   INK_PATCHY: 0.35, INK_GLOSS: 0.45, INK_EMBOSS: 1, INK_RIPPLE: 1, INK_SHADOW: 1,
 };
-const CUTS = new Set(["style", "hold", "title", "sub", "tone", "sweep", "dustSize", "seed", "ACCEL", "ASH_LIFE", "SWEEP", "JITTER", "RAGGED", "CURL", "FRONT", "SPREAD", "SIM_OVERLAP", "SIM_RES", "INK_PATCHY"]);
+const CUTS = new Set(["style", "hold", "title", "sub", "tone", "sweep", "dustSize", "seed", "BURN_SHARE", "EASE", "ASH_LIFE", "SWEEP", "JITTER", "RAGGED", "CURL", "FRONT", "SPREAD", "SIM_OVERLAP", "SIM_RES", "INK_PATCHY"]);
 const TONES = {
   dust: [[0.97, 0.95, 0.9], [0.86, 0.85, 0.82]],
   gold: [[1.00, 0.86, 0.50], [0.95, 0.88, 0.70]],
@@ -130,11 +132,12 @@ const STYLES = {
     title: { weight: 400, size: 0.085, color: [0.97, 0.95, 0.9], outline: 0.35, enter: "fade", enterTime: 1.2, leave: "dust" },
     line: { weight: 400, size: 0.04, color: [0.86, 0.85, 0.82], delay: 0.35, enter: "fade", enterTime: 1.2, leave: "dust" } },
   // A light title for small news (a building searched, a kit fitted): one small line low on the screen, over the hotbar,
-  // that slides up, stays a short while and burns away from its middle out to both ends, slowly and then fast, a little
-  // ash blown outwards. Its own hold, burn time, sweep ("out") and pace, set as it is picked; sample: the text it is
-  // tried with.
+  // that slides up, stays a short while and burns away from a spot in its middle, spreading round, fast and then slowing;
+  // its ash thrown out as it burns, drifting round in the air a while. Its own hold, burn time, sweep ("round"), pace
+  // and ash, set as it is picked; sample: the text it is tried with.
   "brief": { label: "brief: 짧은 소식 (가벼운 타이틀)", y: 0.74, gap: 0.3, trail: 0.15, backdrop: 0.22,
-    hold: 3, sweep: "out", leaveTime: 2.4, dustDrift: 0.8, dustSize: 1, ACCEL: 2.5, ASH_LIFE: 0.45,
+    hold: 3, sweep: "round", leaveTime: 3.4, dustDrift: 0.8, dustSize: 1, BURN_SHARE: 0.5, EASE: 2.5, ASH_LIFE: 1.2,
+    ASH_BURST: 0.7, ASH_SWIRL: 0.15,
     sample: { title: "다음 정산 때 +340 크레딧", sub: "" },
     title: { weight: 500, size: 0.036, color: [0.95, 0.93, 0.88], outline: 0.4, enter: "slideup", enterTime: 0.45, leave: "paper" },
     line: { weight: 400, size: 0.026, color: [0.84, 0.83, 0.8], outline: 0.35, delay: 0.15, enter: "slideup", enterTime: 0.45, leave: "paper" } },
@@ -287,7 +290,7 @@ function cut(alpha, width, height, size, sweep, seed) {
   }
   if (count === 0 || count > MAX_CELLS) return null;
   // ("out": from the middle to both ends, by rows)
-  const out = sweep === "out", byRows = out || sweep === "right" || sweep === "left" || diagonal(sweep);
+  const out = sweep === "out" || sweep === "round", byRows = out || sweep === "right" || sweep === "left" || diagonal(sweep);
   const lanes = byRows ? rows : columns, steps = byRows ? columns : rows;
   const c = { size, columns, rows, lanes, count, sweep, column: new Int32Array(count), row: new Int32Array(count),
     start: new Float32Array(count), life: new Float32Array(count), side: new Float32Array(count), rise: new Float32Array(count),
@@ -901,6 +904,7 @@ function alongAt(x, y, W, H, sweep) {
     case "right": return x / W; case "left": return 1 - x / W; case "down": return y / H; case "up": return 1 - y / H;
     case "upright": return (x + (H - y)) / (W + H); case "upleft": return ((W - x) + (H - y)) / (W + H);
     case "downright": return (x + y) / (W + H); case "out": return Math.abs(x - W / 2) / (W / 2);
+    case "round": return Math.hypot(x - W / 2, y - H / 2) / Math.hypot(W / 2, H / 2);
     default: return ((W - x) + y) / (W + H);
   }
 }
@@ -1014,12 +1018,16 @@ function piece(text, line, colour, centreY, seed, spec) {
   const cells = p.cells = cut(data, w, h, cellSide, P.sweep, seed);
   // Paper: each spot burns at its time on the map; a cell's flake leaves as its middle burns.
   const map = burnMap(w, h, cellSide, seed);
+  // (the last of its ink to burn, and a little more for its edge and char to pass: where a paced burn ends)
+  let last = 0;
+  for (let i = 0; i < w * h; i++) if (data[i * 4 + 3] >= INK && map[i] > last) last = map[i];
+  p.burnEnd = last + P.EDGE_W + P.CHAR_W;
   p.burnTex = texture(null, encode(map, w, h));
   if (cells) {
     for (let i = 0; i < cells.count; i++) {
       const cx = Math.min(w - 1, Math.floor((cells.column[i] + 0.5) * cells.size)), cy = Math.min(h - 1, Math.floor((cells.row[i] + 0.5) * cells.size));
-      // (on the front's pace: when the leave reaches the spot's burn time)
-      cells.start[i] = Math.pow(clamp(map[cy * w + cx], 0, 1), 1 / P.ACCEL);
+      // (on the burn's pace: when the leave reaches the spot's burn time)
+      cells.start[i] = leaveAtBurn(p, map[cy * w + cx]);
       cells.life[i] *= P.ASH_LIFE;
     }
   }
@@ -1322,12 +1330,23 @@ function drawInked(p, st) {
 }
 
 let pieces = [];
+// The burn's pace: how far into its map a paper text has burnt at the leave's share o (even, or over BURN_SHARE of the
+// leave, fast and then slowing), and the share at which it reaches a spot of burn time b.
+function burnAt(p, o) {
+  if (P.BURN_SHARE >= 1) return o;
+  const u = clamp(o / P.BURN_SHARE, 0, 1);
+  return p.burnEnd * (1 - Math.pow(1 - u, P.EASE)) + Math.max(0, o - P.BURN_SHARE);
+}
+function leaveAtBurn(p, b) {
+  if (P.BURN_SHARE >= 1) return b;
+  return P.BURN_SHARE * (1 - Math.pow(1 - clamp(b / p.burnEnd, 0, 1), 1 / P.EASE));
+}
 // Paper: the text burns away spot by spot (the shader, by its map); the flakes are shards of ash that tumble on the wind,
 // a few of them sparks.
 function drawPaper(p, progress, fade) {
   const c = p.cells; if (!c) return;
   const burn = [P.burnR, P.burnG, P.burnB];
-  gl.uniform1f(U("progress"), Math.pow(progress, P.ACCEL));
+  gl.uniform1f(U("progress"), burnAt(p, progress));
   gl.uniform1f(U("edgeW"), P.EDGE_W); gl.uniform1f(U("charW"), P.CHAR_W); gl.uniform1f(U("scorchW"), P.SCORCH_W);
   gl.uniform1f(U("glow"), P.GLOW); gl.uniform1f(U("flickerN"), P.FLICKER); gl.uniform1f(U("flickerD"), P.FLICKER_DEPTH);
   gl.uniform3f(U("burn"), ...burn); gl.uniform3f(U("scorched"), P.SCORCH_R, P.SCORCH_G, P.SCORCH_B);
@@ -1345,9 +1364,23 @@ function drawPaper(p, progress, fade) {
     if (age <= 0 || age >= 1) continue;
     const shown = alphaAt(age) * fade;
     if (shown <= 0.002) continue;
-    const cx = p.x + (c.column[cell] + 0.5) * size + reach * driftX(age, c.side[cell], c.freq[cell], c.phase[cell]);
-    const cy = p.y + (c.row[cell] + 0.5) * size + reach * driftY(age, c.rise[cell], c.freq[cell], c.phase2[cell]);
-    const turn = (c.phase[cell] < 0.5 ? -1 : 1) * P.SPIN * age + c.phase[cell] * 6.28;
+    let cx = p.x + (c.column[cell] + 0.5) * size, cy = p.y + (c.row[cell] + 0.5) * size, turn;
+    if (P.ASH_BURST > 0) {
+      // thrown out from the burn's middle as its spot burns, fast and slowing (thrown), then drifting round slowly in
+      // the air, a little up, the circle growing as it slows
+      const a = clamp(age, 0, 1), thrown = (1 - Math.exp(-7 * a)) / (1 - Math.exp(-7));
+      const dx = cx - p.cx, dy = cy - p.cy, d = Math.hypot(dx, dy * 3) || 1;
+      const angle = Math.atan2(dy * 3 / d - 0.6 - 0.5 * c.rise[cell], dx / d) + (c.phase[cell] - 0.5) * 1.6;
+      const far = P.ASH_BURST * p.line * (0.5 + 0.7 * c.freq[cell]);
+      const round = P.ASH_SWIRL * p.line * smooth(clamp(a / 0.5, 0, 1)), spin = 6.28 * (c.freq[cell] * 0.8 * a + c.phase2[cell]);
+      cx += far * Math.cos(angle) * thrown + round * Math.cos(spin);
+      cy += far * Math.sin(angle) * thrown + round * Math.sin(spin) - 0.25 * p.line * a;
+      turn = (c.phase[cell] < 0.5 ? -1 : 1) * P.SPIN * 0.4 * (thrown + 0.3 * a) + c.phase[cell] * 6.28;
+    } else {
+      cx += reach * driftX(age, c.side[cell], c.freq[cell], c.phase[cell]);
+      cy += reach * driftY(age, c.rise[cell], c.freq[cell], c.phase2[cell]);
+      turn = (c.phase[cell] < 0.5 ? -1 : 1) * P.SPIN * age + c.phase[cell] * 6.28;
+    }
     const tumble = 0.25 + 0.75 * Math.abs(Math.cos(P.SPIN * 0.7 * age * c.freq[cell] + c.phase2[cell] * 6.28));
     if (spark) {
       const hot = heat(age), keep = P.BURN_ASH + (1 - P.BURN_ASH) * hot, hs = size * 0.35 * c.flake[cell];
@@ -1939,7 +1972,7 @@ function control(key, label, kind, opts) {
     if (key === "style") {
       const S = STYLES[P.style], leave = S.title.leave;
       if (crumbles(S.title)) setControl("leaveTime", S.leaveTime || (leave === "paper" ? 10 : 6));
-      for (const k of ["hold", "sweep", "dustDrift", "dustSize", "ACCEL", "ASH_LIFE"]) setControl(k, S[k] ?? DEFAULTS[k]);
+      for (const k of ["hold", "sweep", "dustDrift", "dustSize", "BURN_SHARE", "EASE", "ASH_LIFE", "ASH_BURST", "ASH_SWIRL"]) setControl(k, S[k] ?? DEFAULTS[k]);
       if (S.sample) { setControl("title", S.sample.title); setControl("sub", S.sample.sub); }
       t = 0; playing = true;
     }
@@ -1972,7 +2005,7 @@ side.appendChild(file);
 control("backdrop", "배경 띠", "check");
 control("zoom", "확대", "range", [1, 4, 0.25]);
 heading("머무름과 dust 사라짐");
-control("sweep", "방향", "select", [...SWEEPS.map(s => [s, s]), ["out", "out (가운데에서 양끝)"]]);
+control("sweep", "방향", "select", [...SWEEPS.map(s => [s, s]), ["out", "out (가운데에서 양끝)"], ["round", "round (가운데 한 점에서 원으로)"]]);
 control("leaveTime", "dust 사라지는 시간(초)", "range", [1, 20, 0.5]);
 control("hold", "본 표시(초, 등장·퇴장 제외)", "range", [1, 10, 0.5]);
 control("dustSize", "셀 크기", "range", [0.25, 4, 0.05]);
@@ -2062,8 +2095,11 @@ control("FLAKE_SIZE", "재 조각 크기", "range", [0.3, 3, 0.05]);
 control("SPIN", "재 회전", "range", [0, 20, 0.5]);
 control("PAPER_ASH", "재 밝기", "range", [0, 1, 0.01]);
 control("GREYING", "재가 바래는 시간", "range", [0.05, 1, 0.01]);
-control("ACCEL", "타는 가속 (1: 고르게)", "range", [1, 4, 0.1]);
-control("ASH_LIFE", "재 날리는 시간 몫", "range", [0.2, 1, 0.05]);
+control("BURN_SHARE", "타는 시간 몫 (1: 예전처럼 고르게)", "range", [0.2, 1, 0.05]);
+control("EASE", "타는 감속 (1: 고르게)", "range", [1, 5, 0.1]);
+control("ASH_LIFE", "재 날리는 시간 몫", "range", [0.2, 2, 0.05]);
+control("ASH_BURST", "재 튀는 거리 (0: 바람에 날림)", "range", [0, 3, 0.05]);
+control("ASH_SWIRL", "재 맴도는 폭", "range", [0, 1, 0.01]);
 heading("leave dust: 숯불 셀 (dustBurn)");
 control("burnOn", "타기 켜기", "check");
 control("burnR", "불씨 R", "range", [0, 1, 0.01]);
@@ -2116,7 +2152,7 @@ const effectOf = values => Object.fromEntries(Object.entries(values).filter(([k]
 const BUILT_IN = {
   "종이 연소 (dust)": effectOf(DEFAULTS),
   "숯불 셀 (leave dust)": { ...effectOf(DEFAULTS), style: "dust", leaveTime: 6, CHAR_ASH: 0.2 },
-  "짧은 소식 (brief)": { ...effectOf(DEFAULTS), style: "brief", hold: 3, sweep: "out", leaveTime: 2.4, dustDrift: 0.8, dustSize: 1, ACCEL: 2.5, ASH_LIFE: 0.45 },
+  "짧은 소식 (brief)": { ...effectOf(DEFAULTS), style: "brief", hold: 3, sweep: "round", leaveTime: 3.4, dustDrift: 0.8, dustSize: 1, BURN_SHARE: 0.5, EASE: 2.5, ASH_LIFE: 1.2, ASH_BURST: 0.7, ASH_SWIRL: 0.15 },
   "각인 (stamp)": { ...effectOf(DEFAULTS), style: "stamp-new" },
   "손전등 (discovery)": { ...effectOf(DEFAULTS), style: "discovery-new" },
   "무전 (notice)": { ...effectOf(DEFAULTS), style: "notice-new" },
