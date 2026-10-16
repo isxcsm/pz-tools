@@ -100,7 +100,12 @@ end)
 test("a failing quads call draws the dashes one by one and is not tried again", function()
     setup()
     local tried = 0
-    PZExtAPI = { version = 1, client = function() return {} end, draw = { quads = function() tried = tried + 1 error("bad") end } }
+    -- (named: Kahlua's error() in an unnamed function throws a NullPointerException of its own)
+    local function quads() tried = tried + 1; error("bad") end
+    PZExtAPI = { version = 1, client = function() return {} end, draw = { quads = quads } }
+    local logged = {}
+    local log = OA.log
+    OA.log = function(...) logged[#logged + 1] = table.concat({ ... }, " ") end
     local drawn = {}
     ISWorldMap.prerender(mapElement(drawn))
     truthy(#dashes(drawn) > 10, "drawn one by one")
@@ -110,5 +115,8 @@ test("a failing quads call draws the dashes one by one and is not tried again", 
     ISWorldMap.prerender(mapElement(drawn))
     eq(tried, first, "not tried again")
     truthy(#dashes(drawn) > 10)
+    OA.log = log
+    eq(#logged, 1, "told once")
+    truthy(string.find(logged[1], "bad", 1, true))
     PZExtAPI = nil
 end)

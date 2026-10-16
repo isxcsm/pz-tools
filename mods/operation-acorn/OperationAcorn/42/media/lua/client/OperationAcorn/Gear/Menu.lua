@@ -1,15 +1,16 @@
 -- Where the kits meet the game's screens: the right-click entries (fit a kit to an item, redeem the handover voucher,
 -- fit a kit to a vehicle from the mechanics window), the lines about the team's gear and fitted kits in an item's
 -- tooltip, the notices, and the writing of a character's kits into the game when it starts. Other mods' menus and
--- tooltips are wrapped, never replaced. The entries go on top of the game's menu; the items and kits a character
--- carries are not searched for at a right-click but read from Gear.carried, which keeps them while the inventory is
--- the same.
+-- tooltips are wrapped, never replaced. The entries go on top of the game's menu; the kits a character
+-- carries are only counted at a right-click (the game counts them by item type), the one the player picks is fetched
+-- when the entry is picked, and only a kit's own menu lists the items it can go to.
 require "ISUI/ISToolTip"
 require "ISUI/ISToolTipInv"
 require "ISUI/ISInventoryPaneContextMenu"
 require "Vehicles/ISUI/ISVehicleMechanics"
 require "OperationAcorn/Client"
 require "OperationAcorn/Titles"
+require "OperationAcorn/TipLines"
 require "OperationAcorn/Gear/Gear"
 require "OperationAcorn/Gear/Actions"
 local OA = OperationAcorn
@@ -54,7 +55,7 @@ local function ownText(item, target)
     return text and ("Tooltip_OA_Gear_" .. text) or nil
 end
 
--- The lines of an item's tooltip that this part adds (none for most items).
+-- The lines of an item's tooltip that this part adds (none for most items), for TipLines.
 local function extraLines(item)
     local target = Gear.targetOf(item)
     local own = ownText(item, target)
@@ -69,33 +70,15 @@ local function extraLines(item)
     return #lines > 0 and lines or nil
 end
 
-local originalRender = ISToolTipInv.render
-
--- The lines are put on the item while its tooltip is drawn and taken off after, so nothing else sees them.
-function ISToolTipInv:render()
-    local item = self.item
-    local lines = item and extraLines(item)
-    if lines and #lines > 0 then
-        local old = item:getTooltip()
-        local text = join(lines)
-        if old and old ~= "" then text = getText(old) .. " <LINE> " .. text end
-        item:setTooltip(OA.tooltipText(text))
-        local ok, err = pcall(originalRender, self)
-        item:setTooltip(old)
-        if not ok then error(err, 0) end
-        return
-    end
-    originalRender(self)
-end
+OA.TipLines.add("gear", extraLines)
 
 -- ---- the inventory menu ---------------------------------------------------------------------------------------
 
--- The kits of a kind a character has.
-local function kitsOf(player, kind)
-    return Gear.carried(player).kits[kind] or {}
-end
-
-local function fitItem(player, kit, item)
+-- Fits a kit to an item: the kit the entry was made on, or the first of its kind the character carries (looked for
+-- here, when the entry is picked).
+local function fitItem(player, kind, kit, item)
+    kit = kit or Gear.firstKit(player, kind)
+    if not kit then return end
     ISInventoryPaneContextMenu.transferIfNeeded(player, kit)
     ISTimedActionQueue.add(ISOAFitItemKit:new(player, kit, item))
 end
@@ -105,10 +88,10 @@ local function describe(item)
     return lines and join(lines) or getText("Tooltip_OA_Gear_NoKits")
 end
 
--- An entry that fits `kit` to `item`, or says why it cannot.
-local function addFitEntry(menu, player, kit, item, label)
-    local entry = menu:addOption(label, player, fitItem, kit, item)
-    local why = Gear.refusal(kit, item)
+-- An entry that fits a kit of `kind` to `item` (`kit`: the one it is made on, or nil), or says why it cannot.
+local function addFitEntry(menu, player, kind, kit, item, label)
+    local entry = menu:addOption(label, player, fitItem, kind, kit, item)
+    local why = kit and Gear.refusal(kit, item) or Gear.refusalFor(kind, item)
     if why then
         unavailable(entry, getText("IGUI_OA_Gear_Reason_" .. why) .. " <LINE> " .. describe(item))
     else
@@ -122,7 +105,7 @@ local function addItemKitMenu(context, player, kit)
     local kind = Gear.kindOfItem(kit)
     local option = context:addOptionOnTop(getText("ContextMenu_OA_Gear_FitItem"), nil, nil)
     local fits = {}
-    for _, item in ipairs(Gear.carried(player).items) do
+    for _, item in ipairs(Gear.targets(player)) do
         if Rules.fits(kind, Gear.targetOf(item)) then fits[#fits + 1] = item end
     end
     if #fits == 0 then
@@ -133,7 +116,7 @@ local function addItemKitMenu(context, player, kit)
     end
     local sub = ISContextMenu:getNew(context)
     context:addSubMenu(option, sub)
-    for _, item in ipairs(fits) do addFitEntry(sub, player, kit, item, item:getDisplayName()) end
+    for _, item in ipairs(fits) do addFitEntry(sub, player, kind, kit, item, item:getDisplayName()) end
     if Rules.fits(kind, "storage") then tip(option, getText("Tooltip_OA_Gear_FitVehicle")) end
 end
 
@@ -165,15 +148,15 @@ local function addFitKitMenu(context, player, item)
     local target = Gear.targetOf(item)
     local entries = {}
     for _, kind in ipairs(OA.Shop.KIT_ORDER) do
-        local kits = Rules.fits(kind, target) and kitsOf(player, kind) or {}
-        if #kits > 0 then entries[#entries + 1] = { kind = kind, kit = kits[1], count = #kits } end
+        local count = Rules.fits(kind, target) and Gear.kitCount(player, kind) or 0
+        if count > 0 then entries[#entries + 1] = { kind = kind, count = count } end
     end
     if #entries == 0 then return end
     local option = context:addOptionOnTop(getText("ContextMenu_OA_Gear_FitKit"), nil, nil)
     local sub = ISContextMenu:getNew(context)
     context:addSubMenu(option, sub)
     for _, e in ipairs(entries) do
-        addFitEntry(sub, player, e.kit, item, getText("ContextMenu_OA_Gear_FitKitOf",
+        addFitEntry(sub, player, e.kind, nil, item, getText("ContextMenu_OA_Gear_FitKitOf",
             getItemNameFromFullType(Rules.kitType(e.kind)), tostring(e.count)))
     end
 end
@@ -184,7 +167,7 @@ local function onFillInventory(playerNum, context, items)
     local done = {}
     -- the entries go on top, so they are added from the last of the selection to keep its order
     local adders = {}
-    for _, item in ipairs(ISInventoryPane.getActualItems(items)) do
+    for _, item in ipairs(OA.menuItems(items)) do
         local fullType = item:getFullType()
         if item:getModule() == OA.MOD and fullType == Gear.VOUCHER and not done.voucher then
             done.voucher = true
@@ -201,7 +184,7 @@ local function onFillInventory(playerNum, context, items)
         elseif not done.target and Gear.targetOf(item) then
             done.target = true
             -- an item that was fitted before is written again from its kits (the API may have come or gone since)
-            if item:hasModData() then pcall(Gear.refreshItem, item) end
+            if item:hasModData() then OA.try("gear: refreshing an item", Gear.refreshItem, item) end
             adders[#adders + 1] = function() addFitKitMenu(context, player, item) end
         end
     end
@@ -211,7 +194,9 @@ Events.OnFillInventoryObjectContextMenu.Add(onFillInventory)
 
 -- ---- the mechanics window -------------------------------------------------------------------------------------
 
-local function fitVehicle(player, kit, part)
+local function fitVehicle(player, kind, part)
+    local kit = Gear.firstKit(player, kind)
+    if not kit then return end
     if player:getVehicle() then ISVehicleMenu.onExit(player) end
     ISInventoryPaneContextMenu.transferIfNeeded(player, kit)
     ISTimedActionQueue.add(ISPathFindAction:pathToVehicleArea(player, part:getVehicle(), part:getArea()))
@@ -220,10 +205,9 @@ end
 
 -- Adds the entry of one kind of kit to a part's menu: enabled with a kit of the kind the character has.
 local function addPartEntry(context, player, part, kind, labelKey, lines)
-    local kits = kitsOf(player, kind)
-    local option = context:addOptionOnTop(getText(labelKey), player, fitVehicle, kits[1], part)
+    local option = context:addOptionOnTop(getText(labelKey), player, fitVehicle, kind, part)
     local text = lines and join(lines) or getText("Tooltip_OA_Gear_NoKits")
-    if #kits == 0 then
+    if Gear.kitCount(player, kind) == 0 then
         unavailable(option, getText("Tooltip_OA_Gear_NoVehicleKit", getItemNameFromFullType(Rules.kitType(kind))) ..
             " <LINE> " .. text)
     else
@@ -252,11 +236,14 @@ end
 
 local originalPartMenu = ISVehicleMechanics.doPartContextMenu
 
-function ISVehicleMechanics:doPartContextMenu(part, x, y)
+local function partOptionsAdded(self, part, ...)
+    OA.try("gear: the part menu", addPartOptions, self, part)
+    return ...
+end
+
+function ISVehicleMechanics:doPartContextMenu(part, ...)
     self.context = nil
-    originalPartMenu(self, part, x, y)
-    local ok, err = pcall(addPartOptions, self, part)
-    if not ok then OA.log("gear: the part menu failed:", tostring(err)) end
+    return partOptionsAdded(self, part, originalPartMenu(self, part, ...))
 end
 
 -- ---- notices --------------------------------------------------------------------------------------------------
@@ -291,8 +278,7 @@ local function onGameStart()
     Gear.declare()
     local player = getPlayer()
     if not player then return end
-    local ok, err = pcall(Gear.refreshAll, player)
-    if not ok then OA.log("gear: refreshing the kits failed:", tostring(err)) end
+    OA.try("gear: refreshing the kits", Gear.refreshAll, player)
 end
 Events.OnGameStart.Add(onGameStart)
 
@@ -302,7 +288,9 @@ local function onClothingUpdated(character)
     if not character or not character.isLocalPlayer or not character:isLocalPlayer() or not ItemBodyLocation then return end
     for _, place in ipairs({ ItemBodyLocation.FANNY_PACK_FRONT, ItemBodyLocation.FANNY_PACK_BACK }) do
         local item = place and character:getWornItem(place)
-        if item and item:hasModData() and Gear.targetOf(item) == "bag" then pcall(Gear.refreshItem, item) end
+        if item and item:hasModData() and Gear.targetOf(item) == "bag" then
+            OA.try("gear: refreshing a worn bag", Gear.refreshItem, item)
+        end
     end
 end
 Events.OnClothingUpdated.Add(onClothingUpdated)
@@ -311,7 +299,7 @@ Events.OnClothingUpdated.Add(onClothingUpdated)
 local function onEnterVehicle(character)
     if not character or not character.isLocalPlayer or not character:isLocalPlayer() then return end
     local vehicle = character:getVehicle()
-    if vehicle then pcall(Gear.refreshVehicle, vehicle) end
+    if vehicle then OA.try("gear: refreshing a vehicle", Gear.refreshVehicle, vehicle) end
 end
 Events.OnEnterVehicle.Add(onEnterVehicle)
 

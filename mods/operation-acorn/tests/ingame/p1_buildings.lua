@@ -50,8 +50,6 @@ if api then
 end
 
 if record then
-    local s, t = OA.Codex.buildingProgress(record, key)
-    say("Codex.buildingProgress", tostring(s), tostring(t))
     say("buildings counted in the codex", OA.Codex.section(record).nb)
 end
 say("open another container here and run this again: searched should go up by one")

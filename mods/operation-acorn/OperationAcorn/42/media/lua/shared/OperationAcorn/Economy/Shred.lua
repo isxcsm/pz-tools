@@ -2,7 +2,7 @@
 -- ask here: they never keep their own formula. The yield is a count with a fraction; what is not a whole bundle yet is
 -- kept on the record and adds up (Shred.carry), so every bit of weight counts.
 --   base  = weight * 0.5 / (1 + c / ShredDecay)       c: shreds of this kind lately (x0.9 a day)
---   extra = the upgrades' added bundles + 0.02 * 2nd-board points + base * (blade multiplier - 1)
+--   extra = the upgrades' added bundles + base * (blade multiplier - 1)
 --   final = base + min(extra, base)                   so never more than twice the base
 -- Rotten food gives half the base. A kind shredded for the first time pays 200 credits (and enters the codex).
 -- The record's `shred` section: counts { [base type] = { c, day } }, first { [base type] = true }, rest (the part of a
@@ -20,7 +20,6 @@ Shred.PER_WEIGHT = 0.5      -- a bundle is 600 credits at weight 1: half a bundl
 Shred.FIRST_BONUS = 200
 Shred.DAILY = 0.9
 Shred.ROTTEN = 0.5
-Shred.BOARD_PER_POINT = 0.02
 Shred.FORGET_BELOW = 0.05    -- counts decayed to less than this are dropped
 
 function Shred.section(record)
@@ -57,8 +56,8 @@ local function decay()
 end
 
 -- The expected sample bundles one thing of this kind gives now, and the first-shred bonus it would pay (0 if the
--- kind was shredded before). `extras` = { bundles = the upgrades' added bundles, board = points of the 2nd board,
--- blade = the blade's multiplier (1.0, 1.1, 1.2) }, any of them may be missing. `c` overrides the record's count
+-- kind was shredded before). `extras` = { bundles = the upgrades' added bundles,
+-- blade = the blade's multiplier (1.0, 1.1, 1.2) }, either may be missing. `c` overrides the record's count
 -- (batches).
 function Shred.yield(info, record, extras, c)
     local weight = math.max(info.weight or 0, 0)
@@ -66,27 +65,12 @@ function Shred.yield(info, record, extras, c)
     local base = weight * Shred.PER_WEIGHT / (1 + c / decay())
     if info.food == "rotten" then base = base * Shred.ROTTEN end
     extras = extras or {}
-    local extra = (extras.bundles or 0) + Shred.BOARD_PER_POINT * (extras.board or 0)
-        + base * ((extras.blade or 1.0) - 1.0)
+    local extra = (extras.bundles or 0) + base * ((extras.blade or 1.0) - 1.0)
     if extra < 0 then extra = 0 end
     if extra > base then extra = base end
     local bonus = 0
     if not Shred.section(record).first[info.baseType] then bonus = Shred.FIRST_BONUS end
     return base + extra, bonus
-end
-
--- The expected total of `n` things of one kind shredded one after the other (the count climbs with each), and the
--- first-shred bonus. The bulk shredder uses it for a stack.
-function Shred.yieldMany(info, record, n, extras)
-    local c = Shred.count(record, info.baseType)
-    local total, bonus = 0, 0
-    for i = 1, n do
-        local e, b = Shred.yield(info, record, extras, c)
-        total = total + e
-        if i == 1 then bonus = b end
-        c = c + 1
-    end
-    return total, bonus
 end
 
 -- The whole bundles a yield gives now: it is added to what the record kept from before, the whole bundles are given and

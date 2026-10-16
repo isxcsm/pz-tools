@@ -170,12 +170,11 @@ function Infection.reversed(record)
     if inf.drug and inf.drug.age then inf.drug.age = 0 end
 end
 
--- The cure: nothing is left to test, know or hold, and no fee is taken. (An older save's note that a settlement would
--- say the fee was lifted goes too.)
+-- The cure: nothing is left to test, know or hold, and no fee is taken.
 function Infection.cured(record)
     local inf = Infection.section(record)
     inf.known, inf.untested, inf.progress, inf.drug = nil, nil, nil, nil
-    inf.since, inf.doses, inf.released = nil, nil, nil
+    inf.since, inf.doses = nil, nil
 end
 
 -- The percent a progress shows as, a whole number (rounded, so 0.29 is 29 and not 28).

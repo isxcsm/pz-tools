@@ -10,12 +10,11 @@ local Objects, Things = OA.Trade.Objects, OA.Trade.Things
 -- crate -> true once this client asked for it to break (the server answers by taking it away)
 local asked = setmetatable({}, { __mode = "k" })
 -- the crates asked for and not yet gone: the loot windows are refreshed when they go (the game does not, and would
--- show the crate empty), looked at each tick only while there is one, and given up after WAIT_TICKS
-local waiting, ticks = {}, 0
-local WAIT_TICKS = 300
+-- show the crate empty), looked at each tick only while there is one, and given up after WAIT_MS of real time
+local waiting, askedAt = {}, 0
+local WAIT_MS = 5000
 
 local function watch()
-    ticks = ticks + 1
     local gone = false
     for i = #waiting, 1, -1 do
         if waiting[i]:getObjectIndex() < 0 then
@@ -24,7 +23,7 @@ local function watch()
         end
     end
     if gone then ISInventoryPage.dirtyUI() end
-    if #waiting == 0 or ticks > WAIT_TICKS then
+    if #waiting == 0 or getTimestampMs() - askedAt > WAIT_MS then
         waiting = {}
         Events.OnTick.Remove(watch)
     end
@@ -45,7 +44,7 @@ local function onRefresh(page, state)
                 local square = object:getSquare()
                 OA.Sync.send(character, "crateEmptied", { x = square:getX(), y = square:getY(), z = square:getZ() })
                 if #waiting == 0 then
-                    ticks = 0
+                    askedAt = getTimestampMs()
                     Events.OnTick.Add(watch)
                 end
                 waiting[#waiting + 1] = object

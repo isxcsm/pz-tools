@@ -123,7 +123,7 @@ function Text.receipt(receipt)
     if (receipt.fee or 0) > 0 then
         add("bad", "IGUI_OA_Trade_Rc_Fee", math.floor((receipt.feeRate or 0) * 100 + 0.5), Text.credits(receipt.fee))
     end
-    -- A filled line names its request group (an older receipt's, an item type: its own name).
+    -- A filled line names its request group.
     local requestName = OA.Requests and OA.Requests.nameOf or Text.itemName
     for _, fill in ipairs(receipt.filled or {}) do
         add("good", "IGUI_OA_Trade_Rc_Filled", requestName(fill.fullType), Text.credits(fill.trust))
@@ -155,7 +155,7 @@ function Text.receipt(receipt)
     if receipt.bonusNote then add("good", receipt.bonusNote) end
     if applied > 0 then add("note", "IGUI_OA_Trade_Rc_SupportNote", applied) end
     for _, e in ipairs(receipt.events or {}) do
-        if e.kind == "stage" then add("good", "IGUI_OA_Trade_Rc_NewItems", e.n or e.stage or 0) end
+        if e.kind == "stage" then add("good", "IGUI_OA_Trade_Rc_NewItems", e.n or 0) end
     end
     if receipt.note and receipt.note.key then
         local a = receipt.note.args or {}

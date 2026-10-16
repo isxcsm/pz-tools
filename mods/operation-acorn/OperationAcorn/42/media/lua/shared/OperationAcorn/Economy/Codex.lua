@@ -12,6 +12,7 @@ require "OperationAcorn/Sync"
 require "OperationAcorn/Economy/Categories"
 require "OperationAcorn/Economy/Trust"
 require "OperationAcorn/Economy/Requests"
+require "OperationAcorn/Economy/Value"
 local OA = OperationAcorn
 local Codex = {}
 OA.Codex = Codex
@@ -166,23 +167,6 @@ function Codex.buildingSearched(record, key, containers, mult)
     end
     tell(record, events)
     return credits, events
-end
-
--- Searched and total containers of a building for a record: for a building already counted, all of them. The
--- sweep that watches the player's building (server wiring) fills the progress of the one in hand.
-local progress = {}
-function Codex.setBuildingProgress(key, searched, total)
-    progress[tostring(key)] = { searched = searched, total = total }
-end
-
-function Codex.buildingProgress(record, buildingKey)
-    local key = tostring(buildingKey)
-    local c = Codex.section(record)
-    local done = c.buildings[key]
-    if done then return done, done end
-    local p = progress[key]
-    if p then return p.searched, p.total end
-    return nil, nil
 end
 
 -- The kills a milestone needs (1 is the first), past the table every 50,000.

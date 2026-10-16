@@ -182,6 +182,8 @@ Data.CONTRACTS = {
 
 -- The last numbered stage: the milestones after it count on as stages 6, 7, 8 ... (DESIGN-terminal 2.3).
 Data.LAST_STAGE = 5
+-- The tier of the milestone that hands the contact over (the third), where the named stages are the first five.
+Data.TRANSFER_TIER = Data.LAST_STAGE + 3
 
 -- What each stage tells (LORE 4, 6, 7). Notes are the manifest notes that go out one per supply crate in this order (the rest of the crates get the story's filler lines,
 -- Story.fillNoteKey); supply is the 2반 papers of the stage: { item, document, when, first }. They wait on entering and
@@ -229,9 +231,6 @@ Data.NOTE_ITEMS = {
 -- (count_off says it is not), "orders" an order was loaded (the note counts them: %2).
 Data.NOTE_WHEN = { count_off = "gap", after3_2 = "orders", after4_1 = "orders" }
 
--- The handover's last crate: the file, a kit voucher, and the note.
-Data.HANDOVER_SUPPLY = { { "HandoverFile", nil }, { "KitVoucher", nil } }
-
 -- After the handover each milestone has a pool, from the 3rd milestone (index 3) on; further milestones use the last
 -- pool again. The manifest notes of each.
 Data.AFTER = {
@@ -241,16 +240,14 @@ Data.AFTER = {
 }
 Data.AFTER_LAST = 5
 
--- Temporary refusals (LORE 7): the line when a category stops being taken and when it comes back as a request.
--- Categories are the economy's letters. Text IGUI_OA_Story_Refuse_<A|F|any>_<start|back>.
-Data.REFUSALS = { A = true, F = true }
-
 -- Small numbers.
 Data.MISSION_RADIUS_BASE = 50
 Data.SWAP_WAIT_HOURS = 2
 Data.SWAP_SLACK_DAYS = 3
 Data.FIELD_ARRIVAL_HOURS = { 2, 3 }
 Data.FIELD_RANGE = 60
+-- How near (squares) the soil sample's spot a character must stand to take it.
+Data.SOIL_RANGE = 25
 Data.CASE_RANGE = 120
 Data.SEALED_LOST_DAYS = 14
 Data.STATUS_ROWS = 18

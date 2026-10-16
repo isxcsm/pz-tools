@@ -126,8 +126,8 @@ end)
 
 test("the header's multiplier and the prices follow the request price upgrade", function()
     local record = world(5)
-    OA.Support.setLevel(record, "reqprice", 3)
-    OA.Support.setLevel(record, "reqcount", 3)
+    TEST.setSupportLevel(record, "reqprice", 3)
+    TEST.setSupportLevel(record, "reqcount", 3)
     local tab = openTab(record)
     eq(tab.data.price, OA.Trade.Text.TIMES .. "1.3")
     eq(#tab.data.rows, 12)
@@ -232,7 +232,7 @@ test("the index chips: 11 categories, high and low marked, a refused one off, ar
     eq(chips[4].kind, "mid"); eq(chips[4].value, "1.00")
     eq(chips[1].trend, nil, "no forecast without the upgrade")
     truthy(string.find(chips[1].tip, "IGUI_OA_Econ_Cat_A", 1, true))
-    OA.Support.setLevel(record, "forecast", 1)
+    TEST.setSupportLevel(record, "forecast", 1)
     chips = openTab(record).data.chips
     eq(chips[1].trend, "down", "M falls back toward 1")
     eq(chips[2].trend, "up")
@@ -357,14 +357,22 @@ test("the day moving on, or an event, refreshes the tab", function()
     local refreshed = 0
     local original = tab.refresh
     tab.refresh = function(self) refreshed = refreshed + 1; return original(self) end
-    for _ = 1, OATabDelivery.WATCH + 1 do tab:update() end
+    -- real time: the clock is held, then moved on by the watch interval
+    local clock, was = 1000000000, getTimestampMs
+    getTimestampMs = function() return clock end
+    local function later() clock = clock + OATabDelivery.WATCH_MS + 1; tab:update() end
+    tab:update()
+    later()
     eq(refreshed, 0, "nothing changed")
     OA.Market.addEvent("D", 1.3, 3, "IGUI_OA_Econ_Event_Demand")
-    for _ = 1, OATabDelivery.WATCH do tab:update() end
+    tab:update()
+    eq(refreshed, 0, "looked at only once in the interval")
+    later()
     eq(refreshed, 1, "an event began")
     TEST.hours = 24 * 3
-    for _ = 1, OATabDelivery.WATCH do tab:update() end
+    later()
     eq(refreshed, 2, "a new day")
+    getTimestampMs = was
 end)
 
 test("the tab's dot: a new week's list, or an event not seen; looking clears both", function()

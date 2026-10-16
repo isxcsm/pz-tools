@@ -7,7 +7,7 @@
 require "OperationAcorn/Trade/StatusDraw"
 require "OperationAcorn/Trade/StatusModel"
 local OA = OperationAcorn
-local Trade, UI, Text = OA.Trade, OA.Trade.UI, OA.Trade.Text
+local Trade, Text = OA.Trade, OA.Trade.Text
 local Draw, M, Orders = Trade.Draw, Trade.StatusModel, Trade.Orders
 local Shop, Trust = OA.Shop, OA.Trust
 
@@ -42,10 +42,11 @@ end
 function OATabProgress:model(record)
     local cur, frac = M.roadPosition(record)
     local levels = {}
+    local lanes = M.lanes()
     for t = 1, M.LEVELS do
         levels[t] = {
             t = t, node = M.nodeName(t), name = M.levelName(t),
-            itemsA = goods(M.laneItems(t, false), record), itemsB = goods(M.laneItems(t, true), record),
+            itemsA = goods(lanes[t].all, record), itemsB = goods(lanes[t].field, record),
             chipsA = M.chipsA(t), chipsB = M.chipsB(t), moreA = M.moreA(t), ups = M.upgradeLines(t),
             nUps = #M.upgradesOpening(t), note = M.detailNote(record, t),
         }

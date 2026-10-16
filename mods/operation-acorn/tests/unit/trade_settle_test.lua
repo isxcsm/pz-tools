@@ -170,7 +170,7 @@ test("stage events bring shared serums into the crate", function()
     local record = newRecord(0)
     seal(record, 10, nil, true)
     Trade.heli(record).call = { at = 90, arrive = 100, kind = "normal", orders = {} }
-    local plan = Settle.run(record, services({ credits = 100, trust = 800, events = { 1, 2, { milestone = 1 } }, serums = 2 }))
+    local plan = Settle.run(record, services({ credits = 100, trust = 800, events = { { kind = "stage", n = 1 }, { kind = "stage", n = 2 }, { kind = "milestone", n = 1 } }, serums = 2 }))
     eq(#plan.events, 3)
     eq(plan.cargo[1].type, "OperationAcorn.UpgradeSerumShared")
     eq(plan.cargo[1].count, 2, "stage 2 and the milestone")

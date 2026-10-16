@@ -27,8 +27,6 @@ local function ask(player, key, command)
 end
 OA.StoryMenus = Menus
 
-local SOIL_NEAR = 25
-
 local function activeMission(player)
     local record = OA.Client.record(player)
     return record and record.missions and record.missions.active or nil, record
@@ -62,7 +60,7 @@ local function onFillInventory(playerNum, context, items)
     local _, record = activeMission(player)
     local read, field, swap = false, false, false
     local options = {}
-    for _, item in ipairs(ISInventoryPane.getActualItems(items)) do
+    for _, item in ipairs(OA.menuItems(items)) do
         local name = Data.itemName(item:getFullType())
         if name then
             local md = item:getModData()
@@ -117,7 +115,7 @@ local function onFillWorld(playerNum, context, worldobjects, test)
         if square and square:isOutside() and square:getFloor() then
             local near = true
             if m.soil.variant == "site" then
-                near = Places.distance(player:getX(), player:getY(), m.soil.x, m.soil.y) <= SOIL_NEAR
+                near = Places.distance(player:getX(), player:getY(), m.soil.x, m.soil.y) <= Data.SOIL_RANGE
             end
             local option = context:addOptionOnTop(getText("ContextMenu_OA_Story_TakeSoil"), worldobjects, function()
                 if luautils.walkAdj(player, square, true) then

@@ -379,22 +379,22 @@ end
 
 -- After the world map's prerender (which draws over the map: its print media, stash maps and darkening).
 local worldPrerender = ISWorldMap.prerender
-function ISWorldMap:prerender()
-    worldPrerender(self)
+function ISWorldMap:prerender(...)
+    worldPrerender(self, ...)
     local playerNum = self.playerNum or 0
     local scene = scenes[playerNum]
     if not scene or scene.empty or not self.mapAPI then return end
     local character = getSpecificPlayer(playerNum)
     if not character then return end
-    draw(self, scene, character, WORLD, getTimestampMs() - BASE - (shownAt[playerNum] or -1e9))
+    OA.try("world map overlay", draw, self, scene, character, WORLD, getTimestampMs() - BASE - (shownAt[playerNum] or -1e9))
 end
 
 -- After the minimap's prerender, clipped to it (the game's own clip of the minimap ends before its prerender). A
 -- failure is told once and the clip is taken off whatever happens: left on, it would hide the rest of the screen.
 local miniPrerender = ISMiniMapInner.prerender
 local miniFailed = false
-function ISMiniMapInner:prerender()
-    miniPrerender(self)
+function ISMiniMapInner:prerender(...)
+    miniPrerender(self, ...)
     local playerNum = self.playerNum or 0
     local scene = scenes[playerNum]
     if not scene or scene.empty or not self.mapAPI then return end
@@ -438,6 +438,8 @@ function Maps.show(character, which)
     local m = which == "special" and View.shownSpecial(record) or View.shown(record)
     local px, py = character:getX(), character:getY()
     local circle = View.circles(m)[1]
+    -- (the middle of its square, as the scene has it)
+    if circle then circle = { x = circle.x + 0.5, y = circle.y + 0.5, r = circle.r } end
     if not circle then
         local point = View.points(record, m, whereNow())[1]
         if point then
@@ -460,16 +462,24 @@ end
 
 -- Hooks: the world map when it is shown (its pins drop in), the minimap when it is built.
 local showWorldMap = ISWorldMap.ShowWorldMap
-ISWorldMap.ShowWorldMap = function(playerNum, ...)
-    showWorldMap(playerNum, ...)
+local function worldMapShown(playerNum, ...)
     Maps.rebuild(playerNum)
     shownAt[playerNum] = getTimestampMs() - BASE
+    return ...
+end
+
+ISWorldMap.ShowWorldMap = function(playerNum, ...)
+    return worldMapShown(playerNum, showWorldMap(playerNum, ...))
 end
 
 local instantiate = ISMiniMapInner.instantiate
-ISMiniMapInner.instantiate = function(self, ...)
-    instantiate(self, ...)
+local function miniMapMade(self, ...)
     Maps.rebuild(self.playerNum or 0)
+    return ...
+end
+
+ISMiniMapInner.instantiate = function(self, ...)
+    return miniMapMade(self, instantiate(self, ...))
 end
 
 OA.Sync.listen("missions", function() Maps.refresh() end)

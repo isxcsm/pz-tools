@@ -85,9 +85,32 @@ local function tint(kind, level)
     return GREY, GREY, GREY
 end
 
+-- The textures are fetched once: [size] = the background, [def.id][level * 1000 + size] = a picture (false: none).
+local backs, pictures = {}, {}
+
+local function backOf(size)
+    local back = backs[size]
+    if back == nil then
+        back = getTexture("media/ui/Moodles/" .. size .. "/_Moodles_BGsolid.png") or false
+        backs[size] = back
+    end
+    return back
+end
+
 local function pictureOf(def, level, size)
-    local path = type(def.picture) == "table" and def.picture[level] or def.picture
-    return getTexture((string.gsub(path, "{size}", tostring(size))))
+    local byLevel = pictures[def.id]
+    if not byLevel then
+        byLevel = {}
+        pictures[def.id] = byLevel
+    end
+    local key = level * 1000 + size
+    local tex = byLevel[key]
+    if tex == nil then
+        local path = type(def.picture) == "table" and def.picture[level] or def.picture
+        tex = getTexture((string.gsub(path, "{size}", tostring(size)))) or false
+        byLevel[key] = tex
+    end
+    return tex
 end
 
 -- Where the stand-ins go (their size, and the first's place: left of the game's column) and which one the mouse is
@@ -121,7 +144,7 @@ end
 function Panel:render()
     if not self.size then self:place() end
     local size, x, y = self.size, self.atX, self.atY
-    local back = getTexture("media/ui/Moodles/" .. size .. "/_Moodles_BGsolid.png")
+    local back = backOf(size)
     local at = 0
     for _, def in ipairs(Moodles.DEFS) do
         local level = levels[def.id] or 0
@@ -133,7 +156,7 @@ function Panel:render()
             if icon then self:drawTextureScaled(icon, x, y, size, size, 1, 1, 1, 1) end
             if at == self.hover then
                 local key = "Moodles_" .. OA.MOD .. ":" .. def.id
-                local name, text = getText(key .. "_lvl" .. level), getText(key .. "_desc_lvl" .. level)
+                local name, text = UI.str(key .. "_lvl" .. level), UI.str(key .. "_desc_lvl" .. level)
                 local tm = getTextManager()
                 local w = math.max(tm:MeasureStringX(UIFont.Small, name), tm:MeasureStringX(UIFont.Small, text)) + 16
                 local fh = tm:getFontHeight(UIFont.Small)

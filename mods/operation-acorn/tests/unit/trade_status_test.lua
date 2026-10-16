@@ -59,19 +59,20 @@ end)
 -- What each level opens -----------------------------------------------------------------------------------------------
 
 test("each level's goods split into every terminal's and the field terminal's lane", function()
-    local a2, b2 = ids(M.laneItems(2, false)), ids(M.laneItems(2, true))
+    local lanes = M.lanes()
+    local a2, b2 = ids(lanes[2].all), ids(lanes[2].field)
     truthy(string.find(a2, "petrol_can", 1, true)); truthy(string.find(a2, "field_terminal", 1, true))
     truthy(string.find(a2, "bait_trap", 1, true))
     truthy(string.find(b2, "^team_fuel_can,team_locker,team_crate,fabric_cutter,log_saw,field_"), b2)
     local tools = 0
-    for _, e in ipairs(M.laneItems(2, true)) do if e.group == M.TOOLS then tools = tools + 1 end end
+    for _, e in ipairs(lanes[2].field) do if e.group == M.TOOLS then tools = tools + 1 end end
     eq(tools, 20, "the field tools of the level, each a good of its own (the screens show them as one row)")
-    eq(string.find(ids(M.laneItems(1, false)), "serum_", 1, true), nil, "the upgrade serums have their own section")
-    eq(string.find(ids(M.laneItems(1, false)), "box_reissue", 1, true), nil, "the box is the reissue button's")
-    eq(ids(M.laneItems(9, false)), ""); eq(ids(M.laneItems(9, true)), "")
-    eq(#M.laneItems(6, true), 4, "the kits at the first level after the stages")
+    eq(string.find(ids(lanes[1].all), "serum_", 1, true), nil, "the upgrade serums have their own section")
+    eq(string.find(ids(lanes[1].all), "box_reissue", 1, true), nil, "the box is the reissue button's")
+    eq(ids(lanes[9].all), ""); eq(ids(lanes[9].field), "")
+    eq(#lanes[6].field, 4, "the kits at the first level after the stages")
     SandboxVars.OperationAcorn.KitsForSale = false
-    eq(#M.laneItems(6, true), 0, "not when kits are off")
+    eq(#M.lanes()[6].field, 0, "not when kits are off")
 end)
 
 test("the short words and the full lines of what a level opens", function()
@@ -367,8 +368,14 @@ test("the status tab's dot is red in debt, infected or with a wound not tested",
     eq(M.statusMark(r), "bad")
     state = { infected = false, untested = false }
     eq(M.statusMark(r), nil)
-    OA.Infection = { state = function() error("broken") end }
+    local function broken() error("broken") end   -- (named: Kahlua's error() in an unnamed function throws its own exception)
+    OA.Infection = { state = broken }
+    local logged = {}
+    local log = OA.log
+    OA.log = function(...) logged[#logged + 1] = table.concat({ ... }, " ") end
     eq(M.statusMark(r), nil, "a failing part shows nothing")
+    OA.log = log
+    eq(#logged, 1, "told once")
 end)
 
 test("the progress sub-tab's dot: the field terminal can be bought", function()

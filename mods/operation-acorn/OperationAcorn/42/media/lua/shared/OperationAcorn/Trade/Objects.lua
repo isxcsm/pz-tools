@@ -54,9 +54,6 @@ Objects.TAKE_ONLY = "OperationAcorn.Trade.Objects.acceptNothing"
 -- Clear space around a delivery box (tiles): no building and no tree within this, so that a helicopter can come down.
 Objects.CLEAR_RADIUS = 3
 
--- The default capacity until the trust rewards say (NUMBERS 8).
-Objects.DEFAULT_CAPACITY = 50
-
 local function cell() return getCell() end
 
 function Objects.square(x, y, z)
@@ -267,7 +264,7 @@ function Objects.acceptItem(container, item)
     -- an abandoned box takes nothing: what is in it can only be taken out
     if Objects.abandoned(container:getParent()) then return false end
     if not (OA.Value and OA.Value.info and OA.Value.accepts) then return false end
-    local ok, info = pcall(OA.Value.info, item)
+    local ok, info = OA.try("objects: the info of an item", OA.Value.info, item)
     if not ok or not info then return false end
     return OA.Value.accepts(info) == true
 end
@@ -280,10 +277,10 @@ end
 -- until the extension API lifts it; ItemContainer.getCapacity cuts what is set to 100).
 function Objects.capacityFor(record)
     if record and OA.Trust and OA.Trust.rewards then
-        local ok, rewards = pcall(OA.Trust.rewards, record)
+        local ok, rewards = OA.try("objects: the rewards", OA.Trust.rewards, record)
         if ok and rewards and rewards.boxCapacity then return rewards.boxCapacity end
     end
-    return Objects.DEFAULT_CAPACITY
+    return OA.BALANCE.boxCapacity
 end
 
 -- The game's cap on a container's capacity.
@@ -301,7 +298,6 @@ function Objects.setupBox(object, record)
         container = ItemContainer.new(Objects.BOX_CONTAINER, object:getSquare(), object)
         object:setContainer(container)
     end
-    -- (a box of an older save may have kept its tile's container unexplored)
     if not container:isExplored() then container:setExplored(true) end
     Objects.nameContainer(container, Objects.abandoned(object) and Objects.ABANDONED_CONTAINER or Objects.BOX_CONTAINER)
     -- The PZ Extension API lifts the vanilla cap of 100 for containers whose object carries modData OA_Capacity as a number
@@ -311,7 +307,7 @@ function Objects.setupBox(object, record)
     local capacity = Objects.capacityFor(record)
     local raw = math.min(capacity, Objects.VANILLA_CAP)
     local md = object:getModData()
-    if md.OA_Capacity ~= capacity - raw then md.OA_Capacity = capacity - raw end
+    if md[OA.CAPACITY_KEY] ~= capacity - raw then md[OA.CAPACITY_KEY] = capacity - raw end
     -- (with the API getCapacity says the whole, raw and OA_Capacity; without it the raw)
     local now = container:getCapacity()
     if now ~= raw and now ~= capacity then container:setCapacity(raw) end
@@ -323,7 +319,7 @@ end
 -- "militarycrate". Best effort: the vanilla title shows when the game refuses.
 function Objects.nameContainer(container, containerType)
     if container:getType() ~= containerType then
-        pcall(function() container:setType(containerType) end)
+        OA.try("objects: the container type", function() container:setType(containerType) end)
     end
 end
 

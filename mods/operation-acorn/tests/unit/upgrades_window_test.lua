@@ -819,7 +819,12 @@ test("the flow's rectangles are drawn before a picture asked after them, and a f
     ISUIElement = { drawRect = function(_, x, y, w, h, a) log[#log + 1] = { x, y, w, h } end,
         drawTextureScaled = function() end }
     local tried = 0
-    PZExtAPI = { version = 1, client = function() return {} end, draw = { rects = function() tried = tried + 1 error("bad") end } }
+    -- (named: Kahlua's error() in an unnamed function throws a NullPointerException of its own)
+    local function rects() tried = tried + 1; error("bad") end
+    PZExtAPI = { version = 1, client = function() return {} end, draw = { rects = rects } }
+    local logged = {}
+    local realLog = OA.log
+    OA.log = function(...) logged[#logged + 1] = table.concat({ ... }, " ") end
     View.paintFlow(view, el)
     eq(#log >= 1, true, "drawn one by one after the failure")
     local first = #log
@@ -829,6 +834,8 @@ test("the flow's rectangles are drawn before a picture asked after them, and a f
     View.paintFlow(view, el)
     eq(tried, seen, "not tried again")
     eq(#log >= 1, true)
+    OA.log = realLog
+    eq(#logged, 1, "told once")
     PZExtAPI = nil
 end)
 

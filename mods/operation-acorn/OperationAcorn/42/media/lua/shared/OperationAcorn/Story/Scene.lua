@@ -31,7 +31,7 @@ Scene.game = nil
 Scene.SURVIVOR_CHANCE = 25   -- percent a mission has a survivor, never two missions in a row
 Scene.SURVIVORS_KEPT = 4     -- survivors not yet dead a record remembers (the oldest is forgotten)
 Scene.NEAR = 20              -- nothing is made closer than this to the player (it would appear in sight)
-Scene.READY = 40             -- the scene is made once the player is this near its piece: made as the circle is
+Scene.READY = OA.Stage.READY  -- the scene is made once the player is this near its piece: made as the circle is
                              -- entered (up to 100 squares off), the keepers wandered out before the player came
 Scene.CLOSE = 10             -- how far from the player things are made when the player came nearer than NEAR between
                              -- two looks (by car): out of the room the player stands in, not never
@@ -402,10 +402,10 @@ end
 
 local looks = {}  -- by record id: the real time (ms) of the last look
 
--- Every game minute, for each record: the circle entered (the line, and the request's name coming out of the mist), the
--- scene put in place, the floor hint in the
--- piece's building, a drop site stood at. Each mission running is looked at: the regular one and a special request
--- beside it. One line a look.
+-- Every game minute (at most each LOOK_MS of real time), for each record: the circle entered (the line, and the request's
+-- name coming out of the mist), the scene put in place, the floor hint in the piece's building, a drop site stood at.
+-- Each mission running is looked at: the regular one and a special request beside it. A floor hint is said only when
+-- nothing else was said in the look.
 function Scene.minute(record)
     local g = Scene.game
     if not g then return end

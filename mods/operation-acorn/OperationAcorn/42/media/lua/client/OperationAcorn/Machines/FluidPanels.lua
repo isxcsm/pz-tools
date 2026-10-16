@@ -32,6 +32,12 @@ end
 -- Runs the game's check `fn` on a panel: for a machine's container the player must be within the game's distance of
 -- the footprint (the game's own test, from each side), and the game's check runs with its distance widened by the
 -- footprint so that it does not close the panel by the anchor alone (it still closes it on a container gone).
+local function restored(dist, ok, ...)
+    ISFluidUtil.isoMaxPanelDist = dist
+    if not ok then error((...), 0) end
+    return ...
+end
+
 function FluidPanels.around(panel, container, fn, ...)
     local b = FluidPanels.bounds(panel, container)
     if not b then return fn(panel, ...) end
@@ -45,19 +51,17 @@ function FluidPanels.around(panel, container, fn, ...)
         end
     end
     ISFluidUtil.isoMaxPanelDist = dist + math.max(b[3] - b[1], b[4] - b[2])
-    local ok, err = pcall(fn, panel, ...)
-    ISFluidUtil.isoMaxPanelDist = dist
-    if not ok then error(err, 0) end
+    return restored(dist, pcall(fn, panel, ...))
 end
 
 local infoUpdate = ISFluidInfoUI.update
-function ISFluidInfoUI:update()
-    return FluidPanels.around(self, self.container, infoUpdate)
+function ISFluidInfoUI:update(...)
+    return FluidPanels.around(self, self.container, infoUpdate, ...)
 end
 
 local transferValidate = ISFluidTransferUI.validatePanel
-function ISFluidTransferUI:validatePanel(forceUpdate)
-    return FluidPanels.around(self, self.container, transferValidate, forceUpdate)
+function ISFluidTransferUI:validatePanel(...)
+    return FluidPanels.around(self, self.container, transferValidate, ...)
 end
 
 return FluidPanels

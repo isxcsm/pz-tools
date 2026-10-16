@@ -518,13 +518,13 @@ function OATerminalWindow:drawWeakSignal(th, rh)
     local n = OATerminalWindow.WEAK_BANDS
     for b = 0, n - 1 do
         local y0, y1 = math.floor(b * bodyH / n), math.floor((b + 1) * bodyH / n)
-        local depth = 0.55 + 0.45 * ((step * 7 + b * 13) % 5) / 4
+        local depth = 0.55 + 0.45 * OA.remainder(step * 7 + b * 13, 5) / 4
         UI.fill(self, 0, th + y0, w, y1 - y0, p.bg, fade * depth)
     end
     local static = self.static
-    local tex = static and static.tiles[step % 2 + 1]
+    local tex = static and static.tiles[OA.remainder(step, 2) + 1]
     if tex then
-        local shift = (step * 37) % OATerminalStatic.TILE
+        local shift = OA.remainder(step * 37, OATerminalStatic.TILE)
         self:setStencilRect(0, th, w, bodyH)
         self:drawTextureTiled(tex, 0, th - shift, w, bodyH + shift, p.text[1], p.text[2], p.text[3], 0.32 * k)
         UI.unclip(self, 0, th, w, bodyH)
@@ -537,8 +537,8 @@ function OATerminalWindow:drawWeakSignal(th, rh)
     end
     for j = 1, 3 do
         local seed = step * 7 + j * 13
-        local a = (0.16 + 0.08 * (seed % 3)) * k
-        UI.fill(self, 0, th + (seed * 97) % math.max(1, bodyH - 6), w, 1 + seed % 3, p.text, a)
+        local a = (0.16 + 0.08 * OA.remainder(seed, 3)) * k
+        UI.fill(self, 0, th + OA.remainder(seed * 97, math.max(1, bodyH - 6)), w, 1 + OA.remainder(seed, 3), p.text, a)
     end
 end
 
@@ -567,6 +567,8 @@ end
 
 -- How far (squares) the player walks before the directions on show are worked out again (DESIGN-terminal 6.5).
 OATerminalWindow.MOVED = 10
+-- Real time (ms) between those looks.
+OATerminalWindow.LOOK_MS = 500
 
 -- Every half second or so: the terminal still stands, the player is still near it and it still has power; a player
 -- who has walked a few squares gets the directions again.
@@ -575,9 +577,8 @@ function OATerminalWindow:update()
     -- Another window worked the scale or the faces out again (the font or the screen changed): this one was made
     -- with the old ones.
     if self.era ~= UI.era then return self:close() end
-    self.ticks = (self.ticks or 0) + 1
-    if self.ticks < 30 then return end
-    self.ticks = 0
+    self.looked = self.looked or {}
+    if not OA.due(self.looked, "stands", getTimestampMs(), OATerminalWindow.LOOK_MS) then return end
     local px, py = self.character:getX(), self.character:getY()
     if self.atX then
         local dx, dy = px - self.atX, py - self.atY

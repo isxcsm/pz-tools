@@ -75,10 +75,9 @@ test("extras add up and cannot pass the base", function()
     local pan = thing("Pan", 1.0, "Cooking")               -- base 0.5
     near((Sh.yield(pan, r, { bundles = 0.1 })), 0.6, 1e-9)
     near((Sh.yield(pan, r, { bundles = 0.3 })), 0.8, 1e-9)
-    near((Sh.yield(pan, r, { board = 5 })), 0.6, 1e-9, "0.02 per point")
     near((Sh.yield(pan, r, { blade = 1.2 })), 0.6, 1e-9, "base * 0.2")
-    near((Sh.yield(pan, r, { bundles = 0.3, board = 5, blade = 1.2 })), 1.0, 1e-9, "0.3 + 0.1 + 0.1 = 0.5, exactly the cap")
-    near((Sh.yield(pan, r, { bundles = 0.3, board = 100, blade = 1.2 })), 1.0, 1e-9, "never more than twice the base")
+    near((Sh.yield(pan, r, { bundles = 0.4, blade = 1.2 })), 1.0, 1e-9, "0.4 + 0.1 = 0.5, exactly the cap")
+    near((Sh.yield(pan, r, { bundles = 0.9, blade = 1.2 })), 1.0, 1e-9, "never more than twice the base")
     local light = thing("Pencil", 0.2)                      -- base 0.1
     near((Sh.yield(light, r, { bundles = 0.3 })), 0.2, 1e-9, "a light thing cannot make many bundles")
 end)
@@ -143,12 +142,16 @@ end)
 test("a batch of the same kind decays as it goes", function()
     local r = record()
     local pan = thing("Pan", 1.0, "Cooking")
-    local total, bonus = Sh.yieldMany(pan, r, 3)
+    local total = 0
+    for c = 0, 2 do total = total + Sh.yield(pan, r, nil, c) end
     near(total, 0.5 + 0.5 / (1 + 1 / 50) + 0.5 / (1 + 2 / 50), 1e-9)
+    local _, bonus = Sh.yield(pan, r, nil, 0)
     eq(bonus, 200)
     local expected = 0
     for i = 0, 99 do expected = expected + 0.5 / (1 + i / 50) end
-    near((Sh.yieldMany(pan, r, 100)), expected, 1e-9)
+    local sum = 0
+    for c = 0, 99 do sum = sum + Sh.yield(pan, r, nil, c) end
+    near(sum, expected, 1e-9)
 end)
 
 test("what can be shredded", function()

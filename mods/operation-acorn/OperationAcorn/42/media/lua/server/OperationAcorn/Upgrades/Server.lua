@@ -1,7 +1,8 @@
--- The server side of the upgrades: the research approval (a plan of ranks, paid in points), a capstone opened by its
--- meteorite fragment reaching the research team, the reset of a tree, the bite shield's rest, and what the client's watch saw of the infection (a zombie's wound, the body's
--- state). The screen asks, the server decides and saves, then tells what changed. Alone, the game is its own server and
--- the same code runs at once.
+-- The server side of the upgrades: the research approval (a plan of ranks, paid in points), the reset of a tree and its
+-- credits, what the client saw and the record may agree to (a dose adapted to, a node's first work, the bite shield's
+-- save, a zombie's wound, the body's state). A capstone opened by its meteorite fragment is the settlement's (Story).
+-- The screen asks, the server decides and saves, then tells what changed. Alone, the game is its own server and the
+-- same code runs at once.
 require "OperationAcorn/Server"
 require "OperationAcorn/Upgrades/Api"
 require "OperationAcorn/Upgrades/Infection"
@@ -55,8 +56,7 @@ end
 -- and crumbles away (the API's "dust" style, Titles.show falls back where it has none).
 function UpgradesServer.titles(id, u, steps, wasOpen, capstones)
     if not wasOpen and Rules.boardOpen(u) then
-        OA.Sync.title(id, { key = "IGUI_OA_Title_BoardOpened", sub = "IGUI_OA_Title_BoardOpenedSub", style = "dust",
-            tone = "gold", fallback = "good" })
+        OA.Sync.title(id, OA.Upgrades.boardTitle())
         return
     end
     if Rules.capstones(u) <= capstones then return end

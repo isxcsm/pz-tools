@@ -17,12 +17,12 @@ end
 
 local originalComplete = ISMoveablesAction.complete
 
-function ISMoveablesAction:complete()
-    local done = originalComplete(self)
+function ISMoveablesAction:complete(...)
+    local done = originalComplete(self, ...)
     if self.mode == "pickup" and self.character then
         local id = self.oaId or OA.Store.idOf(self.character)
         local record = id and OA.Store.player(id)
-        if record then pcall(OA.Upgrades.First.grant, record, "furniture") end
+        if record then OA.try("first effect: furniture", OA.Upgrades.First.grant, record, "furniture") end
     end
     return done
 end

@@ -24,7 +24,7 @@ require "OperationAcorn/Story/Places"
 local OA = OperationAcorn
 local Trade = OA.Trade
 local Trust, Support, Shop, Codex, Terminal = OA.Trust, OA.Support, OA.Shop, OA.Codex, OA.Terminal
-local Rules, Boxes, Orders, Estimate, Ledger, Text = Trade.Rules, Trade.Boxes, Trade.Orders, Trade.Estimate, Trade.Ledger,
+local Rules, Boxes, Orders, Ledger, Text = Trade.Rules, Trade.Boxes, Trade.Orders, Trade.Ledger,
     Trade.Text
 local M = {}
 Trade.StatusModel = M
@@ -119,13 +119,19 @@ end
 -- The shop group that a level's goods and the news board show as one line: the field tools, forty and more.
 M.TOOLS = "tool"
 
--- The goods a level opens: on every terminal (field = false) or only on the field terminal (field = true).
-function M.laneItems(t, field)
-    local list = {}
+-- The goods each level opens, in one pass over the catalog: [level] = { all (on every terminal), field (only on the
+-- field terminal) }.
+function M.lanes()
+    local out = {}
+    for t = 1, M.LEVELS do out[t] = { all = {}, field = {} } end
     for _, e in ipairs(Shop.catalog()) do
-        if e.tier == t and M.listed(e) and Shop.fieldOnly(e) == field then list[#list + 1] = e end
+        local lane = out[e.tier]
+        if lane and M.listed(e) then
+            local list = Shop.fieldOnly(e) and lane.field or lane.all
+            list[#list + 1] = e
+        end
     end
-    return list
+    return out
 end
 
 -- Shared serums a level brings (Trust: stages 2..5 one each, the milestones one each or every few).
@@ -459,7 +465,7 @@ end
 function M.infectionState(record)
     local Infection = OA.Infection
     if not (Infection and Infection.state) then return nil end
-    local ok, state = pcall(Infection.state, record)
+    local ok, state = OA.try("status: the infection state", Infection.state, record)
     if ok then return state end
     return nil
 end

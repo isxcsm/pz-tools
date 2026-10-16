@@ -1,6 +1,7 @@
--- Finding what the helicopter left: smoke over the drop for a while and a mark for the map, until the thing is picked
--- up (DESIGN 9 and 3). The marks are kept in the record (heli.markers); the clients show them as map symbols and a
--- homing point. Only a loaded square can be looked at, so a mark lives until its square is seen without the thing.
+-- Finding what the helicopter left: smoke over the drop for a while and a mark in the record, until the thing is picked
+-- up (DESIGN 9 and 3). The marks are kept in the record (heli.markers); the clients list them (the helicopter tab's
+-- crates, the maps by Story/View). Only a loaded square can be looked at, so a mark lives until its square is seen
+-- without the thing.
 require "OperationAcorn/Server"
 require "OperationAcorn/Trade/Objects"
 local OA = OperationAcorn

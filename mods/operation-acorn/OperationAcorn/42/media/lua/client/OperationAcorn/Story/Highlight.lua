@@ -263,20 +263,22 @@ end
 Highlight.update = update
 
 -- The loot window's item names: the pane draws each name through drawText, so for the frames of a pane that has names
--- to paint, drawText is this (set on the pane, and taken off after); the other panes are not touched.
+-- to paint, drawText is this (set on the pane, and put back as it was after); the other panes are not touched.
 local draw = ISInventoryPane.drawText
-local function paintedText(pane, str, x, y, r, g, b, a, font)
+local function paintedText(pane, str, x, y, r, g, b, a, font, ...)
     local color = pane.oaTint[str]
     if color then r, g, b = color[1], color[2], color[3] end
-    return draw(pane, str, x, y, r, g, b, a, font)
+    return draw(pane, str, x, y, r, g, b, a, font, ...)
 end
 
 local renderdetails = ISInventoryPane.renderdetails
-function ISInventoryPane:renderdetails(doDragged)
-    if not self.oaTint then return renderdetails(self, doDragged) end
+function ISInventoryPane:renderdetails(doDragged, ...)
+    if not self.oaTint then return renderdetails(self, doDragged, ...) end
+    -- (an instance field of drawText that is there already, another mod's, is kept)
+    local previous = rawget(self, "drawText")
     self.drawText = paintedText
-    local ok, err = pcall(renderdetails, self, doDragged)
-    self.drawText = nil
+    local ok, err = pcall(renderdetails, self, doDragged, ...)
+    self.drawText = previous
     if not ok then error(err, 0) end
 end
 

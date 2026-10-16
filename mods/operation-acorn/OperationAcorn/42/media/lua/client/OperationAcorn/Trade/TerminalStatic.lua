@@ -7,7 +7,8 @@
 -- rest (they are drawn over the children).
 require "ISUI/ISPanel"
 require "OperationAcorn/Trade/UI"
-local UI = OperationAcorn.Trade.UI
+local OA = OperationAcorn
+local UI = OA.Trade.UI
 
 OATerminalStatic = ISPanel:derive("OATerminalStatic")
 
@@ -42,14 +43,14 @@ function OATerminalStatic:createChildren()
 end
 
 -- What it shows at `now` (ms): the tile and how far it has scrolled, written for prerender; the look for Trade/UI live.
--- Counted from the first frame (Kahlua's % goes wrong on numbers as large as the clock's).
+-- Counted from the first frame (Kahlua's % goes wrong on numbers as large as the clock's: OA.remainder).
 function OATerminalStatic.frame(self, now)
     local S = OATerminalStatic
     self.from = self.from or now
     local t = now - self.from
     local swap = math.floor(t / S.SWAP_MS)
-    local offset = math.floor(t * S.SPEED / 1000) % S.TILE
-    self.tileIndex, self.offset = swap % 2 + 1, offset
+    local offset = OA.remainder(math.floor(t * S.SPEED / 1000), S.TILE)
+    self.tileIndex, self.offset = OA.remainder(swap, 2) + 1, offset
     return swap * S.TILE + offset
 end
 

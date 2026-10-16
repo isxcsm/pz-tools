@@ -607,7 +607,7 @@ test("the drop site check leads to a site not yet seen while there is one", func
     s.seenStage = 5; s.seenMilestones = 3; s.handover = true
     s.done.ward, s.done.cells, s.done.soil, s.done.handover = "done", "done", "done", "done"
     local sec = OA.Store.world("sites")
-    sec.v, sec.gen, sec.made, sec.origin = Sites.VERSION, 1, true, { x = 0, y = 0 }
+    sec.made, sec.origin = true, { x = 0, y = 0 }
     sec.list = { { n = 1, x = 900, y = 0, stake = 211, state = "placed" },
                  { n = 2, x = -900, y = 0, stake = 322, state = "placed" },
                  { n = 3, x = 0, y = 900, stake = 433, state = "failed" } }

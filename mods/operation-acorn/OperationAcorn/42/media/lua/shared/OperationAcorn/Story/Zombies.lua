@@ -63,7 +63,6 @@ function Zombies.died(key, now)
                 z.killed = math.min(z.total, z.killed + 1)
                 if z.killed >= z.total then
                     if Rewards.judge(m.deadline, now) == "ok" then
-                        m.pay = { credits = m.credits, trust = m.trust }
                         Missions.pay(record, m)
                     else
                         Missions.finish(record, m, "expired")

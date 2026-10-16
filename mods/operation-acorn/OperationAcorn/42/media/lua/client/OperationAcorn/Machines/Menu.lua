@@ -6,6 +6,7 @@ require "ISUI/ISWorldObjectContextMenu"
 require "ISUI/ISInventoryPaneContextMenu"
 require "ISUI/ISInventoryPane"
 require "ISUI/ISMoveableContextMenu"
+require "OperationAcorn/Core"
 require "OperationAcorn/Sync"
 require "OperationAcorn/Machines/Machines"
 require "OperationAcorn/Machines/Actions"
@@ -163,12 +164,15 @@ local function pieceKind(item)
     return Machines.kindOfSprite(sprite)
 end
 
--- Takes out of the menu the game's own "place" option for a piece (it opens the same cursor; only this mod's stays).
+-- Takes out of the menu the game's own "place" option for a piece (it opens the same cursor; only this mod's stays). The
+-- option itself is taken out: removeOptionByName takes the first option of that name, which may be another one's.
 local function dropGamesOwn(context, item)
     local name = getText("IGUI_PlaceObject")
     for _, option in ipairs(context.options) do
         if option.name == name and option.target == item and option.onSelect == ISMoveableContextMenu.openMovableCursor then
-            context:removeOptionByName(name)
+            -- renamed to itself, a name no other option has (a pooled option is given its fields again when reused)
+            option.name = option
+            context:removeOptionByName(option)
             return
         end
     end
@@ -181,7 +185,7 @@ function Menu.fillInventory(player, context, items)
     if not playerObj then return end
     local lure, piece, kind = nil, nil, nil
     local lureType = Machines.itemFullType("lure")
-    for _, item in ipairs(ISInventoryPane.getActualItems(items)) do
+    for _, item in ipairs(OA.menuItems(items)) do
         if not lure and item:getFullType() == lureType then
             lure = item
         elseif not piece then

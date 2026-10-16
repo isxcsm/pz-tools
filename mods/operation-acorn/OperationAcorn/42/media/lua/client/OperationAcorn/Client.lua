@@ -51,6 +51,7 @@ end
 
 local function onGameStart()
     if isClient() then ModData.request(OA.Store.KEY) end
+    OA.declareOutlines()
 end
 
 Events.OnServerCommand.Add(onServerCommand)

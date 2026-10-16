@@ -15,8 +15,8 @@ Typing.MODE = { scene = "chars", document = "lines" }
 
 -- The characters a second of the two kinds of text and the two terminals (the crude one quick, the field terminal a little
 -- slower and smoother): a scene at the speed of a radio read aloud, a document as fast as it can be followed. A
--- document is printed by rows (PZUIKit.Typing.LINE_STEP); its speed here is what the records of before were kept in (a
--- clock of seconds and the characters seen, PZUIKit.Typing.seenOf). A first guess, to be set in the game.
+-- document is printed by rows (PZUIKit.Typing.LINE_STEP); its speed here times the marks in its text (Markup.parse).
+-- A first guess, to be set in the game.
 Typing.SPEED = {
     scene = { crude = 30, field = 25 },
     document = { crude = 80, field = 60 },

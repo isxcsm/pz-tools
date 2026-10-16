@@ -20,9 +20,6 @@ OA.Sites = Sites
 Sites.COUNT = 3
 Sites.RING_LO, Sites.RING_HI = 500, 1500
 Sites.SPACING = 400
--- The layout's version: a world laid out before (24 sites over the whole map) has its sites taken away and is laid
--- out again (Sites.ensure).
-Sites.VERSION = 2
 -- The kinds of fragment, one site each, and the item each leaves (Story Data names). The kinds look different on the
 -- ground too: how many squares the fall scorched round the middle (the stony one broke up and spread; the iron one
 -- punched in).
@@ -30,7 +27,7 @@ Sites.KINDS = { "stony", "iron", "stonyIron" }
 Sites.FRAGMENT = { stony = "MeteorFragment", iron = "MeteorFragmentIron", stonyIron = "MeteorFragmentStonyIron" }
 Sites.SCORCH = { stony = 9, iron = 5, stonyIron = 7 }
 -- Zone types a site never lies in (judged where the zones are known: B42 loads a cell's zones with the cell).
-Sites.NOT = { TownZone = true, WaterZone = true, WaterFlow = true, Basement = true, TrailerPark = true, Nav = false }
+Sites.NOT = { TownZone = true, WaterZone = true, WaterFlow = true, Basement = true, TrailerPark = true }
 Sites.DATES = 8
 Sites.MAX_RETRIES = 12
 -- What someone left round a site (LORE 7, story-improvements 10), 2 or 3 of them: dark soil that looks wet, a second
@@ -45,9 +42,7 @@ end
 
 -- The sites, in number order: { { n =, x =, y =, kind =, stake =, date =, state = "pending" | "placed" | "failed" } }.
 function Sites.list()
-    local sec = section()
-    if sec.v ~= Sites.VERSION then return {} end
-    return sec.list or {}
+    return section().list or {}
 end
 
 function Sites.byNumber(n)
@@ -57,24 +52,9 @@ function Sites.byNumber(n)
     return nil
 end
 
--- The layout the sites are of (a number that changes when they are laid out again), or nil before there are any. A
--- record keeps the sites it has seen under it (Sites.seenOf).
-function Sites.generation()
-    local sec = section()
-    return sec.v == Sites.VERSION and sec.gen or nil
-end
-
--- The sites a record has been near (site number -> true) and the stakes it has read: emptied when the sites were laid
--- out again since.
+-- The sites a record has been near (site number -> true).
 function Sites.seenOf(record)
-    local s = OA.Story.section(record)
-    local gen = Sites.generation()
-    if s.sitesGen ~= gen then
-        s.sitesGen = gen
-        s.sitesSeen = {}
-        s.sitesSearched = {}
-    end
-    return s.sitesSeen
+    return OA.Story.section(record).sitesSeen
 end
 
 -- The things left round a site: 2 or 3 different kinds of Sites.PROPS.
@@ -149,7 +129,7 @@ end
 -- while there is no origin yet (the caller asks again later).
 function Sites.ensure(origin, accept, int)
     local sec = section()
-    if sec.v == Sites.VERSION and sec.made then return sec.list end
+    if sec.made then return sec.list end
     if not (origin and origin.x and origin.y) then return nil end
     int = int or OA.random
     local points = OA.Places.ringSites(origin, Sites.COUNT, Sites.RING_LO, Sites.RING_HI, Sites.SPACING,
@@ -158,8 +138,6 @@ function Sites.ensure(origin, accept, int)
     local dates = {}
     for i = 1, Sites.DATES do dates[i] = i end
     dates = shuffled(dates, #points, int)
-    sec.v = Sites.VERSION
-    sec.gen = (sec.gen or 0) + 1
     sec.origin = { x = origin.x, y = origin.y }
     sec.list = {}
     for i, p in ipairs(points) do
@@ -228,7 +206,7 @@ local function isLand(sq)
         end
     end
     if not sq:isFree(false) or not sq:TreatAsSolidFloor() or sq:HasTree() then return false end
-    local ok, water = pcall(function() return sq:isWaterSquare() end)
+    local ok, water = OA.try("sites: whether the square is water", function() return sq:isWaterSquare() end)
     if ok and water then return false end
     local floor = sq:getFloor()
     local sprite = floor and floor:getSprite() and floor:getSprite():getName() or ""
@@ -300,7 +278,9 @@ local function build(site, sq)
     end
     local item = sq:AddWorldInventoryItem(OA.StoryData.fullType(Sites.FRAGMENT[site.kind]),
         0.2 + OA.randomFloat(0, 0.6), 0.2 + OA.randomFloat(0, 0.6), 0)
-    if item then pcall(function() item:getWorldItem():setIgnoreRemoveSandbox(true) end) end
+    if item then
+        OA.try("sites: marking the fragment", function() item:getWorldItem():setIgnoreRemoveSandbox(true) end)
+    end
 end
 
 -- LoadChunk work: the chunk of a pending site loaded. A land square near the site's point is looked for in the
@@ -309,10 +289,12 @@ function Sites.onChunk(entry, chunk)
     local site = Sites.byNumber(entry.site)
     if not site or site.state ~= "pending" then return true end
     local sq
-    local start = OA.random(0, 63)
-    for i = 0, 63 do
-        local idx = OA.remainder(start + i, 64)
-        local s = chunk:getGridSquare(idx % 8, math.floor(idx / 8), 0)
+    local size = OA.Chunks.SIZE
+    local count = size * size
+    local start = OA.random(0, count - 1)
+    for i = 0, count - 1 do
+        local idx = OA.remainder(start + i, count)
+        local s = chunk:getGridSquare(OA.remainder(idx, size), math.floor(idx / size), 0)
         if isLand(s) then
             -- A bit of open ground around it: the middle must have free neighbours.
             if isLand(getCell():getGridSquare(s:getX() + 1, s:getY(), 0)) and isLand(getCell():getGridSquare(s:getX(), s:getY() + 1, 0)) then

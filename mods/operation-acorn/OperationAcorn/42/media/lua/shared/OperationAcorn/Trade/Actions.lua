@@ -1,6 +1,6 @@
--- Timed actions of the trade part: putting the terminal, a delivery box and a crate down and taking them up, opening
--- the terminal, sealing a box, opening and breaking a crate. Each names squares and kinds, not
--- objects, and checks again as it completes, where the world is decided (Trade.Things).
+-- Timed actions of the trade part: putting a thing (the terminal, a delivery box, a crate) down, using the terminal, sealing a
+-- box, dismantling an abandoned one and opening a sealed crate. Each names squares and kinds, not objects, and checks
+-- again as it completes, where the world is decided (Trade.Things).
 require "TimedActions/ISBaseTimedAction"
 require "OperationAcorn/Store"
 require "OperationAcorn/Trade/Things"

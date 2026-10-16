@@ -11,7 +11,9 @@
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Economy/Trust"
+require "OperationAcorn/Upgrades/Rules"
 local OA = OperationAcorn
+local Rules = OA.Upgrades.Rules
 local Shop = {}
 OA.Shop = Shop
 
@@ -115,9 +117,6 @@ function Shop.buOn(feature)
     return bu.enabled(feature) == true
 end
 
-Shop.SERUM_LINEAR_FROM = 26      -- the 26th serum of a tree costs 8000 * 1.15^25; after it the price is linear
-Shop.SERUM_LINEAR_STEP = 30000    -- per serum after the 26th, at the default base price
-
 local function give(key, count, extra)
     local g = { type = Shop.TYPES[key] or key, count = count or 1 }
     if extra then for k, v in pairs(extra) do g[k] = v end end
@@ -145,6 +144,7 @@ local function numbered(prefixes, count)
 end
 
 local catalog
+local catalogOf, byId   -- the catalog the entries by id were made from, and they
 
 local function build()
     local list = {}
@@ -233,7 +233,7 @@ local function build()
             descKey = "IGUI_OA_Terminal_Shop_Desc_field_tool", give = { give(Shop.fieldType(t[1])) } })
     end
     -- The delivery box.
-    add({ id = "box_reissue", group = "box", tier = 1, price = 10000, special = "reissue", fixed = true, allowDebt = true,
+    add({ id = "box_reissue", group = "box", tier = 1, price = OA.BALANCE.reissueCost, special = "reissue", fixed = true, allowDebt = true,
         give = { give("box") } })
     -- Machine parts: the worn-down kind comes with the machine. A yield part pays its price back within a mid game's
     -- work (NUMBERS 7): the cutter's pieces are cheap rags, so its blade adds more and costs less.
@@ -302,10 +302,12 @@ function Shop.fieldOnly(entry)
 end
 
 function Shop.entry(id)
-    for _, e in ipairs(Shop.catalog()) do
-        if e.id == id then return e end
+    local list = Shop.catalog()
+    if catalogOf ~= list then
+        catalogOf, byId = list, {}
+        for _, e in ipairs(list) do byId[e.id] = e end
     end
-    return nil
+    return byId[id]
 end
 
 -- The translation keys of an entry's name and of a group's. An entry that sells one item under that item's name
@@ -338,25 +340,22 @@ end
 function Shop.section(record)
     local s = OA.Store.section(record, "shop")
     s.week = s.week or {}       -- [entry id] = { week, n }
-    s.serums = s.serums or {}   -- [tree] = serums bought
     return s
 end
 
--- Upgrade serum price by how many of the tree were bought before (n = 1 for the first): 8000 * 1.15^(n - 1) to the
--- nearest 100, straight up after the 26th (NUMBERS 6). The sandbox base price scales the straight part.
+-- How many serums of a tree the record bought: the upgrades part keeps the count (its board reads it too).
+function Shop.serumsBought(record, tree)
+    return Rules.section(record).bought[tree] or 0
+end
+
+-- The price of the n-th serum of a tree (n = 1 for the first): the upgrades part owns the formula.
 function Shop.serumPriceAt(n)
-    local base = OA.scaled(8000, "UpgradeSerumPriceMultiplier")
-    local growth = 1 + OA.scaled(0.15, "UpgradeSerumGrowthMultiplier")
-    local limit = Shop.SERUM_LINEAR_FROM
-    local function rounded(x) return OA.round(x / 100) * 100 end
-    if n <= limit then return rounded(base * growth ^ (n - 1)) end
-    local last = rounded(base * growth ^ (limit - 1))
-    return last + rounded(Shop.SERUM_LINEAR_STEP * base / 8000) * (n - limit)
+    return Rules.serumPrice(n)
 end
 
 -- The price of the next serum of a tree for a record (`bought` overrides how many it bought).
 function Shop.serumPrice(tree, record, bought)
-    if bought == nil then bought = Shop.section(record).serums[tree] or 0 end
+    if bought == nil then bought = Shop.serumsBought(record, tree) end
     return Shop.serumPriceAt(bought + 1)
 end
 
@@ -373,15 +372,6 @@ function Shop.price(entry, record)
     return OA.round(base * multiplier * (1 - discount))
 end
 
--- The world age (hours) a game day starts at.
-local function dayStart(day)
-    local offset = OA.remainder(getGameTime():getTimeOfDay() - OA.hours(), 24)
-    return day * 24 - offset
-end
-
--- How many of an entry a record may buy right now, why not (a translation key) when none, and the world age when
--- it opens again, if that is known:
---   locked (tier), debt (blocks every order but the box), kits off, the weekly limit, and how many one order may hold.
 -- Whether every item an entry gives is defined in the scripts. A good whose item a part of the mod still to come has
 -- not defined is not sold (it would be charged and never delivered) and not shown. Kept per type once known; without a
 -- script manager (the tests) every type counts as defined.
@@ -396,6 +386,8 @@ local function isDefined(fullType)
     end
     return known
 end
+
+-- Whether an entry is on sale: its feature is on and every item it gives is defined.
 function Shop.stocked(entry)
     if not Shop.buOn(entry.bu) then return false end
     for _, g in ipairs(entry.give or {}) do
@@ -409,6 +401,9 @@ function Shop.stocked(entry)
     return true
 end
 
+-- How many of an entry a record may buy right now, why not (a translation key) when none, and the world age when
+-- it opens again, if that is known:
+--   locked (tier), debt (blocks every order but the box), kits off, the weekly limit, and how many one order may hold.
 function Shop.available(entry, record)
     local t = record.trade or {}
     if not Shop.stocked(entry) then return 0, "IGUI_OA_Econ_Shop_NotStocked" end
@@ -422,7 +417,7 @@ function Shop.available(entry, record)
         local w = shop.week[entry.id]
         local used = (w and w.week == week) and w.n or 0
         if used >= entry.week then
-            return 0, "IGUI_OA_Econ_Shop_Limit", dayStart((week + 1) * 7)
+            return 0, "IGUI_OA_Econ_Shop_Limit", OA.dayStart(OA.weekStart(week + 1))
         end
         most = math.min(most, entry.week - used)
     end
@@ -443,23 +438,9 @@ function Shop.bought(entry, record, count)
         w.n = w.n + count
     end
     if entry.special == "serum" then
-        shop.serums[entry.tree] = (shop.serums[entry.tree] or 0) + count
-        -- The upgrades part keeps its own count of serums bought (its board and price read it): keep it in step.
-        if OA.Upgrades and OA.Upgrades.noteBought then
-            local ok, err = pcall(OA.Upgrades.noteBought, record, entry.tree, count)
-            if not ok then OA.log("upgrades noteBought failed:", tostring(err)) end
-        end
+        Rules.noteBought(Rules.section(record), entry.tree, count)
     end
     if entry.harvest and OA.Harvest and OA.Harvest.received then OA.Harvest.received(record, entry.harvest) end
-end
-
--- The entries that open at a tier (the shop shows the next ones above its trust bar).
-function Shop.opensAt(tier)
-    local found = {}
-    for _, e in ipairs(Shop.catalog()) do
-        if e.tier == tier and not (e.kits and not OA.option("KitsForSale")) then table.insert(found, e) end
-    end
-    return found
 end
 
 return Shop

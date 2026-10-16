@@ -53,6 +53,12 @@ function Upgrades.capstoneTitle(node)
         fallback = "good" }
 end
 
+-- The title of the second board opening (the last capstone taken): the same quiet one, in gold.
+function Upgrades.boardTitle()
+    return { key = "IGUI_OA_Title_BoardOpened", sub = "IGUI_OA_Title_BoardOpenedSub", style = "dust", tone = "gold",
+        fallback = "good" }
+end
+
 -- Sample bundles the shredder adds to its yield, as an expected count (the board).
 function Upgrades.bundleBonus(record)
     return Rules.bundleBonus(Rules.section(record))

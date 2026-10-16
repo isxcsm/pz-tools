@@ -142,9 +142,9 @@ end
 -- Shows a notice (OA.Sync.notice: a key and its arguments, already put in the player's language) as a title, when
 -- `as` names one: { key (the title), titleArgs (the title takes the notice's arguments too), style, tone, fallback
 -- ("good" unless given), alone (no line under it: the notice's own text is the title) }. The notice's text is the
--- line under the title. Returns whether it was shown that way.
+-- line under the title.
 function Titles.notice(playerId, as, key, args)
-    if type(as) ~= "table" then return false end
+    if type(as) ~= "table" then return end
     local detail = { style = as.style, tone = as.tone, fallback = as.fallback or "good" }
     if as.alone then
         detail.key, detail.args = key, args
@@ -153,7 +153,6 @@ function Titles.notice(playerId, as, key, args)
         detail.sub, detail.subArgs = key, args
     end
     Titles.show(playerId, detail)
-    return true
 end
 
 OA.Sync.listen("title", Titles.show)

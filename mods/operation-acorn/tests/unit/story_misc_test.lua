@@ -83,18 +83,6 @@ test("a player near a site has seen it", function()
     eq(#told, 1, "a title the first time only")
 end)
 
-test("what a record has seen belongs to one layout: a new layout starts it empty", function()
-    clearSites()
-    Sites.ensure(ORIGIN, yes)
-    local record = OA.Store.ensure("g1", "G")
-    Sites.seenOf(record)[1] = true
-    Story.section(record).sitesSearched[1] = true
-    eq(Sites.seenOf(record)[1], true, "the same layout keeps it")
-    OA.Store.world("sites").gen = Sites.generation() + 1
-    eq(Sites.seenOf(record)[1], nil)
-    eq(Story.section(record).sitesSearched[1], nil)
-end)
-
 test("documents of an item: its own id first, its data ones, a field note", function()
     local record = OA.Store.ensure("p1", "P")
     local list = Docs.forItem(record, "SampleCooler", {})
@@ -255,8 +243,6 @@ local function uiKeys()
         for i = 1, pool.notes do add("Note_after" .. m .. "_" .. i) end
     end
     for _, g in ipairs({ "1", "2", "3", "4" }) do add("Greeting_" .. g) end
-    for cat in pairs(Data.REFUSALS) do add("Refuse_" .. cat .. "_start"); add("Refuse_" .. cat .. "_back") end
-    add("Refuse_any_start"); add("Refuse_any_back")
     for i = 1, Sites.DATES do add("StakeDate_" .. i) end
     for id in pairs(Story.OLD_LABELS) do add("Form_" .. id) end
     for _, code in ipairs({ "none", "nodata", "excluded", "keep" }) do add("Status_" .. code) end

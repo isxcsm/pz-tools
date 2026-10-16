@@ -55,11 +55,11 @@ end
 -- draws it: its tiles keep their own size in pixels. The boot's empty screen shows it louder than the window does.
 function OATerminalBoot:drawStatic(e, y, h, k)
     local S = OATerminalStatic
-    local tex = self.tiles[math.floor(e / S.SWAP_MS) % 2 + 1]
+    local tex = self.tiles[OA.remainder(math.floor(e / S.SWAP_MS), 2) + 1]
     if not tex or h <= 0 or k <= 0 then return end
     local c = self.window.palette.text
     local tile = S.TILE / UI.S
-    local off = (math.floor(e * S.SPEED / 1000) % S.TILE) / UI.S - tile
+    local off = OA.remainder(math.floor(e * S.SPEED / 1000), S.TILE) / UI.S - tile
     local a = math.min(1, S.alphaOf(self.window.tier) * S.BOOT * k)
     self:setStencilRect(0, y, self.width, h)
     self:drawTextureTiled(tex, 0, y + off, self.width, h + tile, c[1], c[2], c[3], a)

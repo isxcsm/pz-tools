@@ -24,8 +24,8 @@ OATabDelivery.SIT_MAX = 5
 OATabDelivery.TIP_MAX = 12
 -- An index at or past these is drawn as high or low.
 OATabDelivery.CHIP_HIGH, OATabDelivery.CHIP_LOW = 1.15, 0.85
--- Frames between looking whether the day or the market has moved on while the tab is open.
-OATabDelivery.WATCH = 120
+-- Real time (ms) between looking whether the day or the market has moved on while the tab is open.
+OATabDelivery.WATCH_MS = 2000
 
 -- 1.5 as "1.5", 1.25 as "1.25", 1 as "1.0".
 local function trimmed(v)
@@ -57,7 +57,7 @@ function OATabDelivery:createChildren()
     self.list = list
     self.data = nil
     self.stamp = nil
-    self.frames = 0
+    self.looked = {}
 end
 
 -- Data --------------------------------------------------------------------------------------------------------
@@ -65,7 +65,7 @@ end
 
 -- The days until the week's list changes, as a text.
 local function refreshText()
-    local left = (OA.week() + 1) * 7 - OA.day()
+    local left = OA.weekStart(OA.week() + 1) - OA.day()
     if left <= 1 then return getText("IGUI_OA_Terminal_Del_RefreshOne") end
     return getText("IGUI_OA_Terminal_Del_Refresh", left)
 end
@@ -261,7 +261,7 @@ function OATabDelivery:layout()
     m.chipY = m.sitH - 48
     d.chipRects = {}
     for k = 1, #d.chips do
-        d.chipRects[k] = { x = 10 + ((k - 1) % perRow) * (cw + 4), y = m.chipY + math.floor((k - 1) / perRow) * 22 }
+        d.chipRects[k] = { x = 10 + OA.remainder(k - 1, perRow) * (cw + 4), y = m.chipY + math.floor((k - 1) / perRow) * 22 }
     end
     self.metrics = m
 end
@@ -348,13 +348,13 @@ function OATabDelivery:prerender()
     UI.text(self, d.price, d.priceX, 0, p.text)
     UI.textRight(self, d.refresh, w, 0, p.dim)
     local hy = m.headY
-    UI.text(self, getText("IGUI_OA_Terminal_Del_Col_Item"), m.NX, hy, p.dim)
-    UI.text(self, getText("IGUI_OA_Terminal_Del_Col_Band"), m.RX - 6, hy, p.dim)
-    UI.textRight(self, getText("IGUI_OA_Terminal_Del_Col_Price"), m.PX + 70, hy, p.dim)
-    UI.text(self, getText("IGUI_OA_Terminal_Del_Col_Week"), m.BX, hy, p.dim)
-    UI.text(self, getText("IGUI_OA_Terminal_Del_Col_Full"), m.GX, hy, p.dim)
+    UI.text(self, UI.str("IGUI_OA_Terminal_Del_Col_Item"), m.NX, hy, p.dim)
+    UI.text(self, UI.str("IGUI_OA_Terminal_Del_Col_Band"), m.RX - 6, hy, p.dim)
+    UI.textRight(self, UI.str("IGUI_OA_Terminal_Del_Col_Price"), m.PX + 70, hy, p.dim)
+    UI.text(self, UI.str("IGUI_OA_Terminal_Del_Col_Week"), m.BX, hy, p.dim)
+    UI.text(self, UI.str("IGUI_OA_Terminal_Del_Col_Full"), m.GX, hy, p.dim)
     UI.fill(self, 0, hy + 17, w, 1, p.border, 0.6)
-    if #d.rows == 0 then UI.text(self, getText("IGUI_OA_Terminal_Del_Empty"), 0, m.listY + 4, p.dim) end
+    if #d.rows == 0 then UI.text(self, UI.str("IGUI_OA_Terminal_Del_Empty"), 0, m.listY + 4, p.dim) end
     for i, line in ipairs(d.noteLines) do UI.text(self, line, 0, m.noteY + (i - 1) * fh, p.dim) end
     if d.expectFit then UI.text(self, d.expectFit, 0, m.expectY, p.text) end
     -- The situation.
@@ -462,9 +462,7 @@ end
 
 -- Now and then: the day has moved on (the list's days left, the market's step), or an event began or ended.
 function OATabDelivery:update()
-    self.frames = (self.frames or 0) + 1
-    if self.frames < OATabDelivery.WATCH then return end
-    self.frames = 0
+    if not OA.due(self.looked, "day", getTimestampMs(), OATabDelivery.WATCH_MS) then return end
     local d = self.data
     if d and (d.day ~= OA.day() or d.news ~= OA.Market.news()) then self:refresh() end
 end

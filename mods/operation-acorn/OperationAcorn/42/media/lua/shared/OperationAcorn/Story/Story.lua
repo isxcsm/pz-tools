@@ -48,16 +48,20 @@ function Story.section(record)
         s.typed = {}         -- how far the terminal's folder has shown each text: key -> state (Story.markNew, Typing)
         s.requests = {}      -- request copies kept (Story.addRequestCopy): { no =, form =, id =, tier =, day =, month = }
         s.requestNo = Data.REQUEST_FIRST - 1
+        s.papers = {}        -- the 2반 papers waiting for a crate: { type =, doc =, when =, first = }
+        s.sent = {}          -- the papers that have gone in a crate: document id -> true
+        s.copies = {}        -- documents that came back as copies of what was delivered: id -> true
+        s.docExtra = {}      -- the number a read document was read with (a stake, a serial): id -> value
+        s.noted = {}         -- one-off remarks said: "serum", "region"
+        s.cardStage = 0      -- the last named stage whose card was shown (Story.terminalOpened)
+        s.sites = {}         -- the site each story mission was given: story id -> site (a revisit goes back)
     end
-    -- Fields added later (a record made before has none).
-    s.papers = s.papers or {}       -- the 2반 papers waiting for a crate: { type =, doc =, when =, first = }
-    s.sent = s.sent or {}           -- the papers that have gone in a crate: document id -> true
-    s.copies = s.copies or {}       -- documents that came back as copies of what was delivered: id -> true
-    s.docExtra = s.docExtra or {}   -- the number a read document was read with (a stake, a serial): id -> value
-    s.noted = s.noted or {}         -- one-off remarks said: "serum", "region"
-    s.cardStage = s.cardStage or 0  -- the last named stage whose card was shown (Story.terminalOpened)
-    s.sites = s.sites or {}         -- the site each story mission was given: story id -> site (a revisit goes back)
     return s
+end
+
+-- The trade part (or the player's first mission) fixes the base's position: kept for the band (Missions.anchor).
+function Story.setAnchor(record, x, y, z)
+    Story.section(record).anchor = { x = x, y = y, z = z or 0 }
 end
 
 local function trade(record)
@@ -322,7 +326,6 @@ function Story.enterStage(record, stage)
     for i = #fresh, 1, -1 do Story.queueStory(record, fresh[i], true) end
     for _, id in ipairs(rest) do Story.queueStory(record, id, false) end
     for _, entry in ipairs(def.supply or {}) do Story.queuePaper(record, entry) end
-    s.noteIndex = s.noteIndex or {}
 end
 
 function Story.enterMilestone(record, k)
@@ -463,7 +466,7 @@ function Story.tierText(tier)
     if tier <= Data.LAST_STAGE then
         return Story.text("IGUI_OA_Story_Copy_StageNamed", tier, Story.text("IGUI_OA_Econ_Stage_" .. tier))
     end
-    if tier == Data.LAST_STAGE + 3 then
+    if tier == Data.TRANSFER_TIER then
         return Story.text("IGUI_OA_Story_Copy_StageNamed", tier, Story.text("IGUI_OA_Terminal_LevelHandover"))
     end
     return Story.text("IGUI_OA_Story_Copy_Stage", tier)
@@ -501,14 +504,6 @@ function Story.callPlayed(record, id)
     if id ~= "S0" then return end
     OA.Sync.title(record.id, { key = "IGUI_OA_Title_Operation", style = "stamp", fallback = "good" })
     Story.terminalOpened(record)
-end
-
--- The refusal story beats (LORE 7). Returns the line's key for a category that is not taken for a while (`phase`
--- "start") or has come back as a request ("back"), or the general line. The market part (P1) decides which category
--- and when; this only gives the words.
-function Story.refusalKey(category, phase)
-    local cat = Data.REFUSALS[category] and category or "any"
-    return "IGUI_OA_Story_Refuse_" .. cat .. "_" .. (phase == "back" and "back" or "start")
 end
 
 -- The big meteorite's receipt line (the economy marks it 'not taken').
@@ -598,12 +593,6 @@ function Story.manifestNoteKey(record, ctx)
     return "IGUI_OA_Story_Note_" .. id, noteArgs(record, ctx), id, noteItems(id)
 end
 
-function Story.manifestNote(record)
-    local key, args, id = Story.manifestNoteKey(record)
-    if not key then return nil end
-    return Story.text(key, args[1]), id
-end
-
 -- A remark the next crate's manifest should carry first (a receipt note: the sample case taken back, the cooler's
 -- state). `id` is a note id (IGUI_OA_Story_Note_<id>).
 function Story.queueNote(record, id)
@@ -687,13 +676,6 @@ Story.OLD_LABELS = { serial = true, remarks = true, receivers = true, dropcheck 
 function Story.oldForm(record)
     local stage = Story.progress(record)
     return stage >= 4
-end
-
-function Story.formLabel(record, id, default)
-    if Story.oldForm(record) and Story.OLD_LABELS[id] then
-        return Story.text("IGUI_OA_Story_Form_" .. id)
-    end
-    return default
 end
 
 -- Keeps a manifest's text in the document folder (the latest few, and all that carry a remark of the story's own), with the trust tier it came at. The trade part gives
@@ -783,8 +765,7 @@ function Story.markNew(record, key)
 end
 
 -- What the terminal has shown of a folder entry (Typing): { seen = the furthest character, done = seen to the end,
--- t = seconds typed of a first presentation left half way }; `true` in a record from before (seen to the end), or
--- { start, t } (the clock only; `start` is not read any more); nil for an entry it has not kept anything of, which was
+-- t = seconds typed of a first presentation left half way }; nil for an entry it has not kept anything of, which was
 -- shown whole.
 function Story.typedState(record, key)
     local s = Story.section(record)
@@ -843,7 +824,6 @@ end
 -- The survey stakes the player has read, as one record: the stake number and the date on it (an index of the dates
 -- the stakes carry), by number. The server notes a stake when it is read (the site's own date).
 function Story.noteStake(record, stake, date)
-    if OA.Sites then OA.Sites.seenOf(record) end
     local s = Story.section(record)
     if type(stake) ~= "number" or type(date) ~= "number" then return false end
     if s.sitesSearched[stake] == date then return false end
@@ -927,7 +907,7 @@ function Story.statusTable(record)
     for i, row in ipairs(rows) do
         if row.c ~= "keep" then
             idx = idx + 1
-            if idx % 5 == 2 and #roster < 3 then roster[#roster + 1] = i end
+            if OA.remainder(idx, 5) == 2 and #roster < 3 then roster[#roster + 1] = i end
         end
     end
     s.status = { rows = rows, roster = roster }

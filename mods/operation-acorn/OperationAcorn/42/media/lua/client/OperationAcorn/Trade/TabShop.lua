@@ -236,10 +236,9 @@ end
 local function availOf(entry, record)
     local n, why, reopen = OA.Shop.available(entry, record)
     local avail = { n = n or 0, why = why, reopen = reopen }
-    if entry.special == "serum" then avail.serumN = (OA.Shop.section(record).serums[entry.tree] or 0) + 1 end
+    if entry.special == "serum" then avail.serumN = OA.Shop.serumsBought(record, entry.tree) + 1 end
     return avail
 end
-
 
 local function statusText(state)
     return getText(state.key, unpack(state.args))
@@ -454,7 +453,7 @@ function OATabShop:prerender()
     self:drawCart(p)
     if #self.cards.rows == 0 then
         local r = self.rect.cards
-        UI.textCentre(self, getText("IGUI_OA_Terminal_Shop_NoneOpen"), r.x + r.w / 2, r.y + 20, p.dim)
+        UI.textCentre(self, UI.str("IGUI_OA_Terminal_Shop_NoneOpen"), r.x + r.w / 2, r.y + 20, p.dim)
     end
 end
 
@@ -468,10 +467,10 @@ function OATabShop:drawLeft(p, m)
     UI.fill(self, 0, 0, catw, sb, p.sel, (on and 0.24 or 0.08) + 0.08 * k + 0.3 * f)
     UI.frame(self, 0, 0, catw, sb, p.sel, on and 1 or 0.7 + 0.3 * k)
     if on then UI.fill(self, 0, 0, 3, sb, p.sel) end
-    UI.text(self, getText("IGUI_OA_Terminal_Shop_Serum"), 10, 3, on and p.bright or p.head, UIFont.Medium)
+    UI.text(self, UI.str("IGUI_OA_Terminal_Shop_Serum"), 10, 3, on and p.bright or p.head, UIFont.Medium)
     drawIcon(self, m.serumEntry, catw - 30, 4, 24, p)
     UI.text(self, m.shelfSubFit, 10, 3 + UI.fontHeight(UIFont.Medium) + 1, on and p.text or p.dim)
-    UI.text(self, getText("IGUI_OA_Terminal_Shop_Sections"), 10, sb + 8, p.dim)
+    UI.text(self, UI.str("IGUI_OA_Terminal_Shop_Sections"), 10, sb + 8, p.dim)
     UI.fill(self, 40, sb + 16, catw - 44, 1, p.border, 0.6)
     local y = ShopView.CAT_TOP
     for _, cat in ipairs(m.cats) do
@@ -512,7 +511,7 @@ function OATabShop:drawDetail(p)
     local r, d = self.rect.detail, self.detail
     panel(self, p, r.x, r.y, r.w, r.h)
     if not d then
-        UI.textCentre(self, getText("IGUI_OA_Terminal_Shop_DetailEmpty"), r.x + r.w / 2, r.y + 44, p.dim)
+        UI.textCentre(self, UI.str("IGUI_OA_Terminal_Shop_DetailEmpty"), r.x + r.w / 2, r.y + 44, p.dim)
         return
     end
     local fh = UI.fontHeight()
@@ -531,14 +530,14 @@ function OATabShop:drawDetail(p)
         UI.text(self, d.infoFit, r.x + ShopView.DETAIL_TEXT, y, open and p.dim or p[TONE[d.state.tone]])
     end
     local row = self.detailRow
-    if row.combo and row.combo.label then UI.text(self, getText(d.comboLabel), r.x + 10, r.y + row.y + 2, p.dim) end
+    if row.combo and row.combo.label then UI.text(self, UI.str(d.comboLabel), r.x + 10, r.y + row.y + 2, p.dim) end
 end
 
 function OATabShop:drawCart(p)
     local r, cr, s = self.rect.cart, self.cartRect, self.sum
     local fh = UI.fontHeight()
     panel(self, p, r.x, r.y, r.w, r.h)
-    UI.text(self, getText("IGUI_OA_Terminal_Shop_Cart"), r.x + 10, r.y + 6, p.head)
+    UI.text(self, UI.str("IGUI_OA_Terminal_Shop_Cart"), r.x + 10, r.y + 6, p.head)
     if #self.cartRows == 0 then
         for i, line in ipairs(self.emptyLines) do UI.text(self, line, r.x + 8, 28 + (i - 1) * fh, p.dim) end
     else

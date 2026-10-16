@@ -237,13 +237,15 @@ local function squaresNear(x, y, n, radius, test)
     return found
 end
 
+-- The side the showroom's box and units face (BU's S, E, N or W).
+local SIDE = "S"
+
 -- The box, its solar panels and racks (batteries full), wired; the showroom's machines connected as outside devices
 -- and the units' power in use. Returns the panel and how many devices it connected.
 local function solarPower(boxSq, x0, y0)
     local BU = BuildingUtilities
     local C, U = BU.Changes, BU.Units
-    local player = getPlayer()
-    local panel = C.install(boxSq, BU.PANEL_SPRITES[1])
+    local panel = C.install(boxSq, SIDE)
     while (panel.tier or 1) < BU.TIERS do C.upgrade(panel) end
     local function inShowroom(sq)
         local dx, dy = sq:getX() - x0, sq:getY() - y0
@@ -253,13 +255,13 @@ local function solarPower(boxSq, x0, y0)
         return sq:isOutside() and not inShowroom(sq) and U.canInstall("solar", sq) == true
     end)
     for _, sq in ipairs(solar) do
-        C.connectUnit(C.installUnit("solar", sq, U.spriteFor("solar", sq, player)), panel, {})
+        C.connectUnit(C.installUnit("solar", sq, U.spriteFacing("solar", sq, SIDE)), panel, {})
     end
     local racks = squaresNear(boxSq:getX(), boxSq:getY(), RACKS, 12, function(sq)
         return sq ~= boxSq and U.canInstall("rack", sq) == true
     end)
     for _, sq in ipairs(racks) do
-        local rack = C.installUnit("rack", sq, U.spriteFor("rack", sq, player))
+        local rack = C.installUnit("rack", sq, U.spriteFacing("rack", sq, SIDE))
         C.connectUnit(rack, panel, {})
         local box = BU.Rack.container(U.object(rack))
         for _ = 1, RACK_BATTERIES do
@@ -350,7 +352,7 @@ function Dev.showroom(opts)
 
     -- the heavy items on the ground beside the terminal, to pick up and place
     for i, name in ipairs(SHOW_GROUND) do
-        local sq = at(3 + (i - 1) % 2, 1 + math.floor((i - 1) / 2))
+        local sq = at(3 + OA.remainder(i - 1, 2), 1 + math.floor((i - 1) / 2))
         local pieces = M.deliveryItems("OperationAcorn." .. name)
         for _, item in ipairs(pieces or { "OperationAcorn." .. name }) do
             show.ground[#show.ground + 1] = sq:AddWorldInventoryItem(item, 0.5, 0.5, 0)
@@ -519,9 +521,7 @@ function Dev.title(kind, arg)
     elseif kind == "request" then
         return OA.Titles.show(nil, { key = "IGUI_OA_Title_NewRequest", sub = "IGUI_OA_Title_CheckTerminal", style = "notice" })
     elseif kind == "board" then
-        local detail = { key = "IGUI_OA_Title_BoardOpened", sub = "IGUI_OA_Title_BoardOpenedSub", style = "dust",
-            tone = "gold", fallback = "good" }
-        return OA.Titles.show(nil, detail)
+        return OA.Titles.show(nil, OA.Upgrades.boardTitle())
     end
     error("no title kind " .. tostring(kind), 2)
 end
@@ -720,7 +720,8 @@ function Dev.alarmHouse()
     return true
 end
 
--- Puts an alarm on the nearest loaded vehicle without one within 30 squares. Returns whether one was set.
+-- Puts an alarm on the nearest loaded vehicle without one (or one already sounded) within ALARM_RANGE squares. Returns
+-- whether one was set.
 function Dev.alarmCar()
     for _, v in ipairs(vehiclesNear()) do
         if not v.vehicle:isAlarmed() or v.vehicle:isPreviouslyEntered() then

@@ -12,9 +12,9 @@ local function worn(character, item)
 end
 
 local onAddFluidFromItem = ISWorldObjectContextMenu.onAddFluidFromItem
-ISWorldObjectContextMenu.onAddFluidFromItem = function(worldobjects, fluidObject, fluidItem, playerObj)
+ISWorldObjectContextMenu.onAddFluidFromItem = function(worldobjects, fluidObject, fluidItem, playerObj, ...)
     if not worn(playerObj, fluidItem) then
-        return onAddFluidFromItem(worldobjects, fluidObject, fluidItem, playerObj)
+        return onAddFluidFromItem(worldobjects, fluidObject, fluidItem, playerObj, ...)
     end
     -- the game's own steps, without the equip
     if fluidItem:canStoreWater() and fluidObject:canTransferFluidFrom(fluidItem:getFluidContainer()) then
@@ -24,14 +24,22 @@ ISWorldObjectContextMenu.onAddFluidFromItem = function(worldobjects, fluidObject
 end
 
 local drinkStart = ISDrinkFluidAction.start
-function ISDrinkFluidAction:start()
-    drinkStart(self)
+local function drinkStarted(self, ...)
     if worn(self.character, self.item) then self:setOverrideHandModels(nil, nil) end
+    return ...
+end
+
+function ISDrinkFluidAction:start(...)
+    return drinkStarted(self, drinkStart(self, ...))
 end
 
 local emptyStart = ISFluidEmptyAction.start
-function ISFluidEmptyAction:start()
-    emptyStart(self)
+local function emptyStarted(self, ...)
     local owner = ISFluidUtil.validateContainer(self.container) and self.container:getOwner()
     if worn(self.character, owner) then self:setOverrideHandModels(nil, nil) end
+    return ...
+end
+
+function ISFluidEmptyAction:start(...)
+    return emptyStarted(self, emptyStart(self, ...))
 end

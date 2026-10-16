@@ -16,7 +16,7 @@ OA.Gear.Rules = Rules
 
 -- The modData keys. All start with OA_ (ARCHITECTURE 4).
 Rules.KEY = {
-    CAPACITY = "OA_Capacity",       -- the key the extension API reads: a number added to the raw capacity of the holder
+    CAPACITY = OA.CAPACITY_KEY,  -- the key the extension API reads: a number added to the raw capacity of the holder
     CARRY = "OA_Carry",             -- the key the extension API reads: the item's own carrying efficiency
     USES = "OA_Uses",               -- the key the extension API reads: what the item's uses are multiplied by
     TEAM = "OA_Team",               -- on a vanilla item the team issued (the welder): true

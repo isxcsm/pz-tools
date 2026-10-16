@@ -11,7 +11,7 @@
 --
 -- It is all arithmetic on the time since the run began, which the draw works out from the clock each frame while the
 -- sequence lasts: no timer, nothing after it has ended. Times are in ms, taken by subtracting timestamps only
--- (Kahlua's % is wrong at their size; the % below is on small whole numbers).
+-- (Kahlua's % is wrong at their size; the remainders below are OA.remainder).
 require "OperationAcorn/Core"
 local OA = OperationAcorn
 OA.Trade = OA.Trade or {}
@@ -19,6 +19,7 @@ local Seq = {}
 OA.Trade.BootSeq = Seq
 
 local floor, ceil, min, max = math.floor, math.ceil, math.min, math.max
+local R = OA.remainder
 
 -- The screen coming on, before anything is printed: dark for CLICK_MS (the switch), then the raster opens from the
 -- middle over OPEN_MS, its leading edges softly lit and its static loud, a faint warmth over it; over the rest of
@@ -110,7 +111,7 @@ end
 
 -- Whether the cursor shows `age` ms after its line appeared (it starts on).
 function Seq.cursorOn(age)
-    return floor(age / Seq.BLINK_MS) % 2 == 0
+    return R(floor(age / Seq.BLINK_MS), 2) == 0
 end
 
 -- The phase `now` is in: "console" (and how many lines are printed), "collapse", "fade" (usable) or "done"; how far
@@ -196,9 +197,9 @@ function Seq.garble(text, line, age)
     local step = floor(age / Seq.GARBLE_STEP_MS)
     local wrong = max(1, ceil(Seq.GARBLE_MAX * (1 - age / Seq.SETTLE_MS)))
     for j = 1, wrong do
-        local at = (line * 7 + step * 13 + j * 5 + line * j) % count + 1
+        local at = R(line * 7 + step * 13 + j * 5 + line * j, count) + 1
         if parts[at] ~= " " then
-            local g = (line * 3 + step * 11 + j * 7) % #GLYPHS + 1
+            local g = R(line * 3 + step * 11 + j * 7, #GLYPHS) + 1
             parts[at] = string.sub(GLYPHS, g, g)
         end
     end
@@ -208,7 +209,7 @@ end
 -- The crude screen's flicker: how bright the console is at `elapsed` ms (1 mostly, a dip now and then, the same
 -- every time).
 function Seq.flicker(elapsed)
-    local r = (floor(elapsed / 45) * 7 + 3) % 11
+    local r = R(floor(elapsed / 45) * 7 + 3, 11)
     if r == 0 then return 0.6 end
     if r == 1 then return 0.8 end
     return 1
@@ -222,13 +223,13 @@ Seq.SHAKE_EVERY_MS, Seq.SHAKE_MS, Seq.SHAKE_STEP_MS, Seq.SHAKE_UNITS = 1600, 240
 function Seq.shake(elapsed)
     local every = Seq.SHAKE_EVERY_MS
     local slot = floor(elapsed / every)
-    if (slot * 5 + 2) % 3 ~= 0 then return 0, 0 end
-    local t = elapsed - slot * every - (slot * 389) % (every - Seq.SHAKE_MS)
+    if R(slot * 5 + 2, 3) ~= 0 then return 0, 0 end
+    local t = elapsed - slot * every - R(slot * 389, every - Seq.SHAKE_MS)
     if t < 0 or t >= Seq.SHAKE_MS then return 0, 0 end
     local step = floor(t / Seq.SHAKE_STEP_MS)
     local k = Seq.SHAKE_UNITS * (1 - t / Seq.SHAKE_MS)
-    local dx = ((slot * 7 + step * 13) % 7 - 3) / 3
-    local dy = ((slot * 11 + step * 5) % 5 - 2) / 2
+    local dx = (R(slot * 7 + step * 13, 7) - 3) / 3
+    local dy = (R(slot * 11 + step * 5, 5) - 2) / 2
     return floor(dx * k + 0.5), floor(dy * k * 0.6 + 0.5)
 end
 
@@ -243,14 +244,14 @@ Seq.WEAK_EVERY_MS, Seq.WEAK_FADE, Seq.WEAK_STEP_MS, Seq.WEAK_IN_MS, Seq.WEAK_OUT
 function Seq.weakSignal(elapsed)
     local every = Seq.WEAK_EVERY_MS
     local slot = floor(elapsed / every)
-    local length = 500 + (slot * 331 + 120) % 601
-    local t = elapsed - slot * every - (slot * 7919 + 3000) % (every - length)
+    local length = 500 + R(slot * 331 + 120, 601)
+    local t = elapsed - slot * every - R(slot * 7919 + 3000, every - length)
     if t < 0 or t >= length then return nil end
     local env = min(1, t / Seq.WEAK_IN_MS, (length - t) / Seq.WEAK_OUT_MS)
     local step = floor(t / Seq.WEAK_STEP_MS)
-    local flick = 0.75 + 0.25 * ((slot * 3 + step * 7) % 5) / 4
+    local flick = 0.75 + 0.25 * R(slot * 3 + step * 7, 5) / 4
     local jolt = 0
-    if step < 4 or step % 7 == 3 then jolt = (slot * 5 + step * 3) % 5 - 2 end
+    if step < 4 or R(step, 7) == 3 then jolt = R(slot * 5 + step * 3, 5) - 2 end
     return Seq.WEAK_FADE * env * flick, slot * 64 + step, jolt, t / length
 end
 

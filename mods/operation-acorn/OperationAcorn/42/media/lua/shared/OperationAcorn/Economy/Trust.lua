@@ -174,12 +174,10 @@ function Trust.rewardsFor(stage, milestones, levels)
     local tier = stage + milestones
     local function value(id) return OA.Support.step(id, levels[id] or 0).value end
     local call = OA.scaled(1, "CallIntervalMultiplier")
-    local arriveMin = OA.scaled(1, "HelicopterArrivalMultiplier")
-    local arriveMax = arriveMin
+    local arriveScale = OA.scaled(1, "HelicopterArrivalMultiplier")
     local priceRatio = (OA.option("RequestPrice") or 100) / 100
     local arrive = value("arrive")
-    local lo, hi = arrive[1] * arriveMin, arrive[2] * arriveMax
-    if lo > hi then lo = hi end
+    local lo, hi = arrive[1] * arriveScale, arrive[2] * arriveScale
     return {
         stage = stage, milestones = milestones, tier = tier,
         boxCapacity = value("box"),

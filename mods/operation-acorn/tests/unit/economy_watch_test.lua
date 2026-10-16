@@ -4,7 +4,6 @@
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Sync"
-require "OperationAcorn/Economy/Codex"
 require "OperationAcorn/Economy/Buildings"
 local OA = OperationAcorn
 
@@ -127,14 +126,11 @@ test("a container the loot window lists is marked once, and the building looked 
     ch.step(room)
     refresh({})
     eq(looks, 1, "coming in is a look")
-    eq(OA.Codex.buildingProgress({ codex = { buildings = {} } }, "v:700,800"), 0)
     refresh({})
     eq(looks, 1, "a turn on the same square, nothing new: no look")
     refresh({ a.containers[1], a.containers[2] })
     eq(OA.Buildings.opened(a.containers[1]), true)
     eq(looks, 2, "a container marked is a look")
-    local searched, total = OA.Codex.buildingProgress({ codex = { buildings = {} } }, "v:700,800")
-    eq(searched, 2); eq(total, 3)
     refresh({ a.containers[1], a.containers[2] })
     eq(looks, 2, "marked already: no look")
     eq(#touched, 1, "the story is told the building was searched, once")

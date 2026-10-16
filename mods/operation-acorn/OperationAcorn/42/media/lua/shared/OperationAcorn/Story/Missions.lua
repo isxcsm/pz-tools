@@ -120,11 +120,6 @@ function Missions.anchor(record)
     return px, py
 end
 
--- The trade part (or the player's first mission) fixes the base's position: kept for the band.
-function Story.setAnchor(record, x, y, z)
-    Story.section(record).anchor = { x = x, y = y, z = z or 0 }
-end
-
 -- ---------------------------------------------------------------------------------------------------------------
 -- Building a mission.
 
@@ -666,11 +661,20 @@ local function makeUrgent(m)
     m.trust = OA.round(m.trust * Rewards.URGENT_MULTIPLIER)
 end
 
+-- Runs a builder `make(record, ...)`; a builder that makes no mission gives back the number it took (newMission).
+local function unburnt(make, record, ...)
+    local state = Missions.state(record)
+    local before = state.seq
+    local m = make(record, ...)
+    if not m then state.seq = before end
+    return m
+end
+
 -- The next mission that is not a story's: a contract one after the handover, else a regular one.
 local function createPlain(record, level)
     local m
-    if Story.handedOver(record) then m = createContract(record, level) end
-    if not m then m = createRegular(record, level) end
+    if Story.handedOver(record) then m = unburnt(createContract, record, level) end
+    if not m then m = unburnt(createRegular, record, level) end
     if m then makeUrgent(m) end
     return m
 end
@@ -685,7 +689,7 @@ local function createStoryMission(record, entry, level)
     if not def then return nil end
     local build = STORY_BUILDERS[def.kind]
     if not build then return nil end
-    return build(record, def, entry.id, level)
+    return unburnt(build, record, def, entry.id, level)
 end
 
 -- ---------------------------------------------------------------------------------------------------------------
@@ -852,6 +856,12 @@ function Missions.tick(record)
     Missions.tickSpecial(record, now)
 end
 
+-- Real milliseconds at least between two looks at where the found pieces are, from the ten-minute event (it comes many
+-- times a real second fast-forwarded; the pieces move on a scale of seconds). A piece found is looked at at once.
+Missions.WHERE_MS = 2000
+
+local whereLooks = {}  -- by mission id: the real time (ms) of the last look
+
 -- One running mission: its deadline, how long a sealed box may wait, and the steps that go by time.
 function Missions.tickOne(record, m, now)
     if m.state == "offer" or m.state == "open" or m.state == "calling" then
@@ -873,7 +883,10 @@ function Missions.tickOne(record, m, now)
     if m.swap and (m.swap.stage == "waiting" or m.swap.stage == "ready") then Missions.tickSwap(record, m, now) end
     if m.carry and g and g.findItem then Missions.tickCarry(record, m, now) end
     if m.field and m.field.stage == "calling" then Missions.tickField(record, m, now) end
-    if m.state == "open" and Missions.lookWhere(record, m) then OA.Sync.changed("missions", record.id) end
+    if m.state == "open" and OA.due(whereLooks, m.id, getTimestampMs(), Missions.WHERE_MS)
+        and Missions.lookWhere(record, m) then
+        OA.Sync.changed("missions", record.id)
+    end
 end
 
 -- The record's character died: its running missions end without a result. Nothing waits for their pieces any more;
@@ -1081,23 +1094,12 @@ function Missions.sealedOk(record, m, boxId, now)
     OA.Sync.changed("missions", record.id)
 end
 
--- The trade part settled a helicopter's delivery: a sealed mission is paid. `result.boxes` (when given) names the
--- boxes the settlement covered.
+-- The trade part settled a helicopter's delivery: every sealed mission is paid. The arrival settles all of a record's
+-- sealed boxes at once; `result.boxes` is how many it took (none: nothing sealed was in it, nothing is paid).
 function Missions.onSettled(record, result)
-    -- The trade part settles all of a record's sealed boxes in one arrival and says how many it took (a number).
-    if result and type(result.boxes) == "number" and result.boxes <= 0 then return end
-    local covered = result and (result.boxes or result.boxIds)
+    if result and result.boxes and result.boxes <= 0 then return end
     for _, m in ipairs(Missions.live(record)) do
-        if m.state == "sealed" then
-            local paid = true
-            if type(covered) == "table" and m.box ~= nil then
-                paid = false
-                for k, v in pairs(covered) do
-                    if v == m.box or k == m.box then paid = true end
-                end
-            end
-            if paid then Missions.pay(record, m) end
-        end
+        if m.state == "sealed" then Missions.pay(record, m) end
     end
 end
 
@@ -1151,7 +1153,7 @@ end
 -- ---------------------------------------------------------------------------------------------------------------
 -- A piece found: from then on the maps show where the item is instead of the mission's circle.
 
-Missions.fetched, Missions.allFound = OA.StoryView.fetched, OA.StoryView.allFound
+Missions.allFound = OA.StoryView.allFound
 
 -- A piece is in the player's hands for the first time (picked up, taken, handed over): it is found, and its item is
 -- followed (Game.track) for the maps.
@@ -1350,7 +1352,6 @@ function Missions.tickField(record, m, now)
         if m.field.late then
             Missions.finish(record, m, "expired")
         else
-            m.pay = { credits = m.credits, trust = m.trust }
             Missions.pay(record, m)
         end
     end
@@ -1364,7 +1365,7 @@ function Missions.soil(record, character)
     local g = game()
     if m.soil.variant == "site" then
         local x, y = g.playerPosition(record)
-        if not x or Places.distance(x, y, m.soil.x, m.soil.y) > 25 then return false end
+        if not x or Places.distance(x, y, m.soil.x, m.soil.y) > Data.SOIL_RANGE then return false end
     end
     local item
     if g.giveMissionItem then

@@ -14,16 +14,6 @@ Presentation.SOUND = "Helicopter"
 
 -- Notices ---------------------------------------------------------------------------------------------------------
 
--- The local characters whose record the notice is for.
-local function charactersOf(playerId)
-    local found = {}
-    for i = 0, getNumActivePlayers() - 1 do
-        local character = getSpecificPlayer(i)
-        if character and (playerId == nil or OA.Client.id(character) == playerId) then found[#found + 1] = character end
-    end
-    return found
-end
-
 -- The parts that show their own notices; this shows the trade part's and the economy's.
 local SHOWN_ELSEWHERE = { "^IGUI_OA_Machine_", "^IGUI_OA_Story_", "^IGUI_OA_Tree_", "^IGUI_OA_Gear_" }
 
@@ -38,7 +28,7 @@ local function onNotice(playerId, detail)
         return
     end
     local text = getText(detail.key, unpack(args))
-    for _, character in ipairs(charactersOf(playerId)) do
+    for _, character in ipairs(OA.Titles.charactersOf(playerId)) do
         local bad = string.find(detail.key, "_Reason_", 1, true) ~= nil
         if bad then HaloTextHelper.addBadText(character, text) else HaloTextHelper.addText(character, text) end
     end
@@ -78,8 +68,8 @@ local function tick()
 end
 
 local function onHeliPass(playerId, args)
-    if type(args) ~= "table" or not args.x then return end
-    local pass = { x = args.x, y = args.y, seconds = args.seconds or 22, path = args.path or 260, angle = args.angle or 0,
+    if type(args) ~= "table" or not (args.x and args.seconds and args.path) then return end
+    local pass = { x = args.x, y = args.y, seconds = args.seconds, path = args.path, angle = args.angle or 0,
         started = getTimestampMs() }
     local x, y = positionAt(pass, 0)
     local emitter = getWorld():getFreeEmitter(x, y, 0)

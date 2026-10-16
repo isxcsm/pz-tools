@@ -195,7 +195,7 @@ local function addMachine(kind, x, y)
     local obj = newObject(sq, kind)
     local def = Data.KINDS[kind]
     local state = { id = "m" .. (OA.Store.world("machines").next or 1), kind = kind, dir = "S", owner = "p1", on = true,
-        last = OA.hours(), carry = 0, idle = true, running = false, buffer = 0, parts = Machines.Logic.newParts(kind) }
+        last = OA.hours(), idle = true, running = false, buffer = 0, parts = Machines.Logic.newParts(kind) }
     for _, which in ipairs(def.containers) do
         local spec = Data.CONTAINERS[which]
         local c = newContainer(spec.type, spec.capacity)
@@ -680,18 +680,13 @@ test("installing and removing parts", function()
 end)
 
 test("the generator load of machines", function()
-    setup()
-    local obj, state, sq = addMachine("bulkShredder", 10, 10)
-    state.on = false
-    eq(Machines.load(obj), 0, "switched off")
-    state.on = true
-    near(Machines.load(obj), 0.6) -- switched on, working or not
-    state.parts.motor = { tier = "modern", cond = 100 }
-    near(Machines.load(obj), 0.9)
-    near(Machines.loadOf({ kind = "cutter", parts = Machines.Logic.newParts("cutter") }), 0.4)
-    local loads = Machines.loads()
-    eq(#loads, 1)
-    near(loads[1].load, 0.9)
+    local Logic = Machines.Logic
+    local parts = Logic.newParts("bulkShredder")
+    eq(Logic.load("bulkShredder", parts, false), 0, "switched off")
+    near(Logic.load("bulkShredder", parts, true), 0.6) -- switched on, working or not
+    parts.motor = { tier = "modern", cond = 100 }
+    near(Logic.load("bulkShredder", parts, true), 0.9)
+    near(Logic.load("cutter", Logic.newParts("cutter"), true), 0.4)
 end)
 
 test("the lure sounds, then is spent", function()
@@ -1252,25 +1247,6 @@ test("clearing a spent lure removes it and gives nothing", function()
     cleanup()
 end)
 
-test("a refiner of an older save, with no fill box, is given one", function()
-    local square = worldSetup()
-    local p = player()
-    local sq = square(10, 10, 0)
-    square(11, 10, 0); square(10, 11, 0); square(11, 11, 0)
-    local a = Machines.place("propaneRefiner", sq, p, newItem("OperationAcorn.PropaneRefinery"), "S")
-    -- as it was: the input only
-    for i = #a.containers, 1, -1 do
-        if a.containers[i].type == "OAMachineTank" then table.remove(a.containers, i) end
-    end
-    eq(Machines.container(a, "tank"), nil)
-    Machines.addMissingContainers(a, sq, { "in", "tank" })
-    truthy(Machines.container(a, "tank"), "the fill box")
-    eq(#a.containers, 2, "the input kept, one new")
-    Machines.addMissingContainers(a, sq, { "in", "tank" })
-    eq(#a.containers, 2, "nothing more the second time")
-    cleanup()
-end)
-
 test("a working lure plays its sound rings, once, and a spent one does not", function()
     local square = worldSetup()
     local p = player()
@@ -1459,7 +1435,7 @@ test("the anchor keeps the load multiplier and the capacity flag for the API", f
     state.parts.motor = { tier = "modern", cond = 100 }
     Machines.refreshLook(a, state)
     eq(a.mod[Data.LOAD_KEY], 1.5)
-    near(Machines.load(a), 0.9)
+    near(Machines.Logic.load(state.kind, state.parts, true), 0.9)
     state.parts.motor = { tier = "normal", cond = 100 }
     Machines.syncLoad(a, state)
     eq(a.mod[Data.LOAD_KEY], 1.25)

@@ -162,9 +162,10 @@ test("the manifest notes go out in the stage's order, one per crate, queued rema
     eq(select(3, Story.manifestNoteKey(record)), "case_confirmed")
     eq(select(3, Story.manifestNoteKey(record)), "leave_site")
     eq(Story.manifestNoteKey(record), nil, "the pool is used up: the trade part's general lines")
-    local text, nid = Story.manifestNote(setup(2))
+    local second = setup(2)
+    local key2, _, nid = Story.manifestNoteKey(second)
     eq(nid, "bedding_back")
-    truthy(string.find(text, "IGUI_OA_Story_Note_bedding_back", 1, true))
+    eq(key2, "IGUI_OA_Story_Note_bedding_back")
 end)
 
 test("after the handover the notes come from the milestone's pool, shorter the further", function()
@@ -182,11 +183,8 @@ end)
 test("the old form comes at the fourth stage", function()
     local record = setup(3)
     eq(Story.oldForm(record), false)
-    eq(Story.formLabel(record, "serial", "No."), "No.")
     record.trade.stage = 4
     eq(Story.oldForm(record), true)
-    eq(Story.formLabel(record, "serial", "No."), "IGUI_OA_Story_Form_serial")
-    eq(Story.formLabel(record, "other", "x"), "x")
 end)
 
 test("the first contact is filed once, a late one for a late first crate", function()
@@ -201,12 +199,6 @@ test("the first contact is filed once, a late one for a late first crate", funct
     truthy(Story.firstContact(other, false))
     eq(Story.section(other).firstContact, true)
     eq(Story.firstContact(other, true), false)
-end)
-
-test("refusal lines: a category with its own, the rest with the general one", function()
-    eq(Story.refusalKey("A", "start"), "IGUI_OA_Story_Refuse_A_start")
-    eq(Story.refusalKey("F", "back"), "IGUI_OA_Story_Refuse_F_back")
-    eq(Story.refusalKey("C", "start"), "IGUI_OA_Story_Refuse_any_start")
 end)
 
 test("documents read are kept by id, once", function()

@@ -8,7 +8,7 @@ local Server = {}
 OA.Server = Server
 
 -- Command handlers: commands[name] = function(character, record, args). The record is the player's (made the first
--- time); args.id is the character's id (Sync.send adds it).
+-- time, and bound to the account that sent it: record.user); args.id is the character's id (Sync.send adds it).
 local commands = {}
 
 function Server.on(name, fn)
@@ -38,7 +38,14 @@ local function onClientCommand(module, command, character, args)
     end
     if type(args) ~= "table" or type(args.id) ~= "string" then return end
     local name = character and character.getUsername and character:getUsername() or nil
-    local record = OA.Store.ensure(args.id, name)
+    local record = OA.Store.player(args.id)
+    -- a record answers to the account that made it: the id comes from the client, so another account naming it is refused
+    if record and name and record.user and record.user ~= name then
+        OA.log("command", command, "from", name, "names the record of another player: refused")
+        return
+    end
+    record = record or OA.Store.ensure(args.id, name)
+    if name and not record.user then record.user = name end
     local ok, err = pcall(fn, character, record, args)
     if not ok then OA.log("command", command, "failed:", tostring(err)) end
 end

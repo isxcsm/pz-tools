@@ -161,11 +161,4 @@ function Comms.afterSay(record, tier, now)
     return id
 end
 
--- The greeting a greeted line opens with at a tier, as a translation key, or nil (5 to 8: the line opens with the
--- number; after the handover a greeted line is not played).
-function Comms.greetingKey(tier)
-    if Data.GREETED[tier] then return "IGUI_OA_Story_Greeting_" .. tostring(tier) end
-    return nil
-end
-
 return Comms

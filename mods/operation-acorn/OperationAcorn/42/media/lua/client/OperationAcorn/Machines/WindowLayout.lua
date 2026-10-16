@@ -365,10 +365,10 @@ local function lure(L, u, x, y, w)
     y = head(L, x, y, w, getText("IGUI_OA_Machine_LureLeft"), u.right)
     Draw.fit(L, u.big, x, y, w, u.left > 0 and p.value or p.dim, UIFont.Medium)
     y = y + lm + 4
-    local cells, ch = u.hours, 12
-    for i = 0, cells - 1 do
-        local cx = x + floor(i * w / cells)
-        local cw = floor((i + 1) * w / cells) - floor(i * w / cells) - 2
+    local hours, ch = u.hours, 12
+    for i = 0, hours - 1 do
+        local cx = x + floor(i * w / hours)
+        local cw = floor((i + 1) * w / hours) - floor(i * w / hours) - 2
         Draw.box(L, cx, y, cw, ch, p.inset, 1, p.border, 0.7)
         local fill = OA.clamp(u.left - i, 0, 1)
         local fh2 = floor((ch - 2) * fill)

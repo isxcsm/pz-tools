@@ -30,8 +30,8 @@ end
 
 local originalNew = ISInventoryTransferAction.new
 
-function ISInventoryTransferAction:new(character, item, srcContainer, destContainer, time)
-    local o = originalNew(self, character, item, srcContainer, destContainer, time)
+function ISInventoryTransferAction:new(character, item, srcContainer, destContainer, time, ...)
+    local o = originalNew(self, character, item, srcContainer, destContainer, time, ...)
     -- an explicit time, an instant action, or a server-timed one (-1) is left alone
     if time or not o or not o.maxTime or o.maxTime <= 1 or not item then return o end
     local factor = Carry.timeFactor(character, item)
@@ -56,18 +56,23 @@ end
 
 local originalPerform = ISInventoryTransferAction.perform
 
-function ISInventoryTransferAction:perform()
-    originalPerform(self)
+-- (after the original, whose results are passed on)
+local function performed(self, ...)
     local character = self.character
-    if character then pcall(Carry.checkOverload, character) end
+    if character then OA.try("carry: the overload check", Carry.checkOverload, character) end
+    return ...
+end
+
+function ISInventoryTransferAction:perform(...)
+    return performed(self, originalPerform(self, ...))
 end
 
 local originalGrab = ISWorldObjectContextMenu.grabItemTime
 
-ISWorldObjectContextMenu.grabItemTime = function(playerObj, witem)
-    local time = originalGrab(playerObj, witem)
+ISWorldObjectContextMenu.grabItemTime = function(playerObj, witem, ...)
+    local time = originalGrab(playerObj, witem, ...)
     if time <= 1 then return time end
-    local ok, factor = pcall(Carry.timeFactor, playerObj, witem and witem:getItem())
+    local ok, factor = OA.try("carry: the pickup time", Carry.timeFactor, playerObj, witem and witem:getItem())
     if ok and factor < 1 then return time * factor end
     return time
 end

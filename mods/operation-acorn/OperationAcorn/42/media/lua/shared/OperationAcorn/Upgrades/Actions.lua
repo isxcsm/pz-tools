@@ -7,7 +7,6 @@ require "OperationAcorn/Upgrades/Rules"
 require "OperationAcorn/Upgrades/Serums"
 require "OperationAcorn/Upgrades/First"
 local OA = OperationAcorn
-local Data = OA.Upgrades.Data
 local Rules = OA.Upgrades.Rules
 local Serums = OA.Upgrades.Serums
 local First = OA.Upgrades.First
@@ -178,6 +177,11 @@ function ISOAUseSerum:isValid()
     return OA.inInventory(self.item, self.character)
 end
 
+-- The job text on the item while the action runs, by the item's kind (the menu's words for it; a serum of a tree, or a
+-- shared one, is injected).
+local JOB_TEXT = { cure = "ContextMenu_OA_Tree_UseCure", delay = "ContextMenu_OA_Tree_TakeDelay",
+    reversal = "ContextMenu_OA_Tree_UseReversal", test = "ContextMenu_OA_Tree_UseTest" }
+
 -- A test kit is a short wait with a swab's sound; a cure serum is a long dose, with a line of the character's at its
 -- start (the same whether or not there is an infection to cure). self.kind is the item's kind (Serums.kind).
 function ISOAUseSerum:start()
@@ -185,7 +189,7 @@ function ISOAUseSerum:start()
         self.item = self.character:getInventory():getItemById(self.item:getID())
     end
     self.item:setJobDelta(0.0)
-    self.item:setJobType(getText("ContextMenu_OA_Tree_Inject"))
+    self.item:setJobType(getText(JOB_TEXT[self.kind] or "ContextMenu_OA_Tree_Inject"))
     if self.kind == "test" then
         -- the wait for a result: working at the kit, a swab's sound until it is over
         self:setActionAnim("Loot")

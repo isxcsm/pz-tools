@@ -357,48 +357,6 @@ test("every display category of a family is in one family only, and not a materi
     end
 end)
 
-test("a first version record: family points move to their nodes, the gone nodes' points are left to spend", function()
-    local u = fresh()
-    openBoard(u)
-    u.v = nil
-    u.board.ranks = { bFamily = 7, bSense = 2, bWound = 1 }
-    u.board.family = { A = 4, G = 3 }
-    -- bFamily 7 cost 1+1+1+1+1+2+2, bSense 2 cost 1+1, bWound 1
-    u.board.spent, u.board.total = 12, 12
-    Rules.fill(u)
-    eq(u.board.family, nil)
-    eq(u.board.ranks.bFamily, nil)
-    eq(u.board.ranks.bSense, nil)
-    eq(u.board.ranks.bFamilySupply, 4)
-    eq(u.board.ranks.bFamilyMisc, 3)
-    eq(u.board.ranks.bWound, 1)
-    eq(u.board.spent, 8)
-    eq(Rules.boardLeft(u), 4)
-    Rules.fill(u)
-    eq(u.board.spent, 8, "once")
-end)
-
-test("a second version record: the ten family nodes' points buy ranks of the three, what is over is free", function()
-    local u = fresh()
-    openBoard(u)
-    u.v = 2
-    -- food 5 and medical 5 (5 points each) go to supplies: 10 points buy rank 7 (5 + 2 + 2), one is over;
-    -- clothing 2 goes to gear, rank 2
-    u.board.ranks = { bFamilyA = 5, bFamilyI = 5, bFamilyB = 2, bWound = 1 }
-    u.board.spent, u.board.total = 13, 13
-    Rules.fill(u)
-    eq(u.board.ranks.bFamilyA, nil)
-    eq(u.board.ranks.bFamilyI, nil)
-    eq(u.board.ranks.bFamilyB, nil)
-    eq(u.board.ranks.bFamilySupply, 7)
-    eq(u.board.ranks.bFamilyGear, 2)
-    eq(u.board.ranks.bWound, 1)
-    eq(u.board.spent, 12)
-    eq(Rules.boardLeft(u), 1)
-    Rules.fill(u)
-    eq(u.board.ranks.bFamilySupply, 7, "once")
-end)
-
 test("diminishing formulas: divide never reaches zero, approach never reaches its limit", function()
     near(Rules.divide(0.2), 1 / 1.2, 1e-9)
     near(Rules.divide(1.0), 0.5, 1e-9)

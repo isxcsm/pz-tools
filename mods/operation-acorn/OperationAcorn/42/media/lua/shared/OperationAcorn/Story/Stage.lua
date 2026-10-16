@@ -45,7 +45,7 @@ Stage.PLACE_KINDS = { tile = true, set = true, item = true, vehicle = true, barr
 Stage.CLEAR_INNER = 6     -- open ground's trees and bushes are all cleared this far round its middle,
 Stage.CLEAR_RADIUS = 10   -- and fewer and fewer out to this (the camp's reach)
 Stage.GROUND_RADIUS = 12   -- open ground is set up once the squares this far round the site are loaded
-Stage.READY = 40   -- the zombies are made once the player is this near the site (as the mission scene's, Story/Scene)
+Stage.READY = 40   -- the zombies are made once the player is this near the site (the mission scene's too: Scene.READY)
 Stage.ROOM_AREA = 4   -- the least area of a room with a role but the big one (a map has rooms of one square: pillars)
 Stage.ROOMY = 12      -- "other" is a room this large first; the hall falls back to the big room when it has none
 
@@ -76,20 +76,22 @@ end
 local HALL = { hall = true, hallway = true, corridor = true, entrance = true, lobby = true }
 Stage.HALL = HALL   -- the names of a way through (a hall, a corridor): read by the hands too
 
+-- The ground floor of a list of rooms: z 0, or the lowest there is (nil for no rooms).
+function Stage.groundFloor(rooms)
+    local floor
+    for _, r in ipairs(rooms) do
+        if r.z == 0 then return 0 end
+        if not floor or r.z < floor then floor = r.z end
+    end
+    return floor
+end
+
 -- The rooms' roles in a layout: { big, inner, other, hall } as indexes of layout.rooms, and entrance as an index of
 -- layout.doors; any of them nil when the building has no room for it. The ground floor is z 0, or the lowest there is.
 function Stage.roles(layout, int)
     int = int or OA.random
     local rooms = layout.rooms or {}
-    local floor
-    for _, r in ipairs(rooms) do
-        if r.z == 0 then floor = 0 end
-    end
-    if not floor then
-        for _, r in ipairs(rooms) do
-            if not floor or r.z < floor then floor = r.z end
-        end
-    end
+    local floor = Stage.groundFloor(rooms)
     local ground = {}
     for i, r in ipairs(rooms) do
         if r.z == floor then ground[#ground + 1] = i end
@@ -182,7 +184,7 @@ function Stage.begin(record, m)
     m.stage = { placed = false, kept = false, wake = {} }
     -- a building not set up before is kept from the game's own stories (a safehouse, a looted one) as it loads
     if Stage.game and Stage.game.claim and m.site and not Stage.world()[m.site.key] then
-        pcall(Stage.game.claim, m.site)
+        OA.try("stage: claiming the site", Stage.game.claim, m.site)
     end
     for _, p in ipairs(def.pieces) do
         if p.kind == "piece" then
@@ -211,7 +213,7 @@ local function sound(st, name)
     if not list then return end
     st.calls[name] = nil
     local g = Stage.game
-    if g and g.sound then pcall(g.sound, list) end
+    if g and g.sound then OA.try("stage: the sound", g.sound, list) end
 end
 
 -- Puts the building's pieces (once its layout is read): all of them the first time the building is set up, the
@@ -225,7 +227,7 @@ function Stage.place(record, m, layout, int)
     st.roles = ctx.roles
     -- one someone holed up in or that burnt (boarded, built in, burnt out) is left as it is: the item alone
     if fresh and Stage.game and Stage.game.occupied then
-        local ok, taken = pcall(Stage.game.occupied, ctx)
+        local ok, taken = OA.try("stage: whether the building is taken", Stage.game.occupied, ctx)
         if ok and taken then fresh = false end
     end
     -- the rooms a set goes to are cleared of their furniture first (the team made room for it), open ground of its
@@ -333,7 +335,7 @@ function Stage.event(record, m, name)
     if not list then return end
     st.wake[name] = nil
     local g = Stage.game
-    if g and g.wake then pcall(g.wake, list, st.stagger and st.stagger[name]) end
+    if g and g.wake then OA.try("stage: waking the zombies", g.wake, list, st.stagger and st.stagger[name]) end
 end
 
 -- The player took planks off a door: a running stage whose boarded doors (a `board` with `last`) are all bare now
@@ -347,7 +349,10 @@ function Stage.unboarded(record)
         if b then
             local bare = true
             for _, at in ipairs(b.doors) do
-                if bare and not g.unboardedAt(at) then bare = false end
+                if not g.unboardedAt(at) then
+                    bare = false
+                    break
+                end
             end
             if bare then
                 st.boarded = nil
@@ -370,8 +375,8 @@ function Stage.progress(record, m, name, f)
         local e = list[i]
         if e.name == name and f >= e.at then
             table.remove(list, i)
-            if g and e.points and g.wake then pcall(g.wake, e.points) end
-            if g and e.plank and g.unplank then pcall(g.unplank, e.plank) end
+            if g and e.points and g.wake then OA.try("stage: waking on an event", g.wake, e.points) end
+            if g and e.plank and g.unplank then OA.try("stage: taking the planks off", g.unplank, e.plank) end
         else
             i = i + 1
         end

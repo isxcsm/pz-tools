@@ -93,17 +93,22 @@ end
 Economy.SWEEP_MS = 5000
 
 local sweptAt = {}     -- by record id: the real time (ms) of the last look over the character's inventory
--- By record id: what the last look saw, { inventory, bags = { container ... }, sigs = { signature ... } } (the
--- inventory first, then each bag the look went into). Nothing in them has changed while every signature is the same
--- (OA.signature: count and weight, one call each), so the look is skipped then: no search on a tick (Core.lua).
+-- By record id: what the last look saw, { inventory, bags = { container ... }, sizes = { n ... } } (the inventory first,
+-- then each bag the look went into, with how many items each held). Nothing has come or gone while every count is the
+-- same, so the look is skipped then: one call per container, no search on a tick (Core.lua). Items that turn into other
+-- ones in place leave a count as it was; a pickup and a found item are counted as they happen (afterPickup, onItemFound).
 local swept = {}
 
--- Whether the inventory and the bags the last look went into hold what they held then.
+local function countOf(container)
+    return container:getItems():size()
+end
+
+-- Whether the inventory and the bags the last look went into hold as many items as they held then.
 local function unchanged(seen, inventory)
     if not seen or seen.inventory ~= inventory then return false end
-    if OA.signature(inventory) ~= seen.sigs[1] then return false end
+    if countOf(inventory) ~= seen.sizes[1] then return false end
     for i, bag in ipairs(seen.bags) do
-        if OA.signature(bag) ~= seen.sigs[i + 1] then return false end
+        if countOf(bag) ~= seen.sizes[i + 1] then return false end
     end
     return true
 end
@@ -114,12 +119,12 @@ local function sweepInventory(character, record, now)
     if unchanged(swept[record.id], inventory) then return end
     local kinds = OA.Codex.section(record).kinds
     local bags = {}
-    -- oa-scan: ok (only when a signature changed since the last look)
+    -- oa-scan: ok (only when a count changed since the last look)
     local items = inventory:getItems()
     for i = 0, items:size() - 1 do acquireItem(record, kinds, items:get(i), 1, bags) end
-    local sigs = { OA.signature(inventory) }
-    for i, bag in ipairs(bags) do sigs[i + 1] = OA.signature(bag) end
-    swept[record.id] = { inventory = inventory, bags = bags, sigs = sigs }
+    local sizes = { countOf(inventory) }
+    for i, bag in ipairs(bags) do sizes[i + 1] = countOf(bag) end
+    swept[record.id] = { inventory = inventory, bags = bags, sizes = sizes }
 end
 
 -- Tags an item, and what is inside it, with the cell it came from. An item keeps the first cell it was tagged with.
@@ -165,13 +170,10 @@ function Economy.hookTransfers()
     if hooked or not ISTransferAction or not ISTransferAction.transferItem then return end
     hooked = true
     local original = ISTransferAction.transferItem
-    ISTransferAction.transferItem = function(self, character, item, src, dest, square)
-        local ok, cell = pcall(pickupCell, character, item, src, dest)
-        local result = original(self, character, item, src, dest, square)
-        if ok and cell then
-            local done, err = pcall(afterPickup, character, result or item, cell)
-            if not done then OA.log("pickup bookkeeping failed:", tostring(err)) end
-        end
+    ISTransferAction.transferItem = function(self, character, item, src, dest, ...)
+        local ok, cell = OA.try("pickup cell", pickupCell, character, item, src, dest)
+        local result = original(self, character, item, src, dest, ...)
+        if ok and cell then OA.try("pickup bookkeeping", afterPickup, character, result or item, cell) end
         return result
     end
 end

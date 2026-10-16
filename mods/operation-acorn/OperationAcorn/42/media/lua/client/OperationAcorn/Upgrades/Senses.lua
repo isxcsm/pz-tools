@@ -290,7 +290,6 @@ local function drawMarks(ui, now, n, px, py, pz, cx, cy, exX, exY, eyX, eyY)
 end
 
 function Hud:render()
-    local fh = getTextManager():getFontHeight(UIFont.Small)
     local player = getSpecificPlayer(self.playerNum)
     if S.ring and player and (#S.zombies > 0 or #S.sounds > 0) then
         local n, px, py, pz = self.playerNum, player:getX(), player:getY(), player:getZ()
@@ -449,7 +448,8 @@ local function collect(player, n, px, py, pz, radius, acts, look)
     local api = OA.api()
     local zombies = api and api.zombies
     if type(zombies) == "table" and type(zombies.near) == "function" then
-        local ok, list = pcall(fromApi, zombies.near, player, n, px, py, pz, radius, look)
+        local ok, list = OA.try("senses: the API's zombie query", fromApi, zombies.near, player, n, px, py, pz, radius,
+            look)
         if ok and list then return list end
     end
     local zs = getCell():getZombieList()
@@ -717,10 +717,12 @@ local function alarmJob(now)
     -- the nearest alarm not told of yet within ALARM_NEAR is told this second
     local sayKey, sayD, sayCar = nil, nil, false
     vehicleList = OA.vehicles(vehicleList)
+    -- (a car is asked whether it is alarmed only within reach: the cell may hold many)
+    local carReach = Sense.ALARM_CAR + math.max(Sense.ALARM_LEAVE, ENTRY)
     for i = 0, vehicleList:size() - 1 do
         local v = vehicleList:get(i)
-        if OA.Upgrades.Actions.carAlarmed(v) then
-            local dx, dy = v:getX() - px, v:getY() - py
+        local dx, dy = v:getX() - px, v:getY() - py
+        if dx * dx + dy * dy <= carReach * carReach and OA.Upgrades.Actions.carAlarmed(v) then
             local d = math.max(0, math.sqrt(dx * dx + dy * dy) - Sense.ALARM_CAR)
             if d <= ENTRY and math.floor(v:getZ()) == floor then tint(v) end
             if d <= Sense.ALARM_LEAVE then

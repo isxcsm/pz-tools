@@ -17,18 +17,12 @@ Trade.Estimate = Estimate
 -- flight would make full (their trust is in `trust`).
 function Estimate.entries(record, entries)
     local Value = OA.Value
-    if not (Value and Value.context and Value.appraiseLine) then return nil end
-    local ctx = Value.context(record)
-    local taken = { requests = {}, cells = {} }
-    local credits, trust, cashTrust = 0, 0, 0
-    local lines = {}
+    if not (Value and Value.context and Value.flight) then return nil end
+    local flight = Value.flight(Value.context(record), entries)
     local requests = { credits = 0, units = 0, lines = {} }
     local byType = {}
-    for _, entry in ipairs(entries) do
-        local line = Value.appraiseLine(entry.info, entry.count or 1, ctx, taken)
-        lines[#lines + 1] = line
-        credits = credits + line.credits
-        if line.requestUnits and line.requestUnits > 0 then
+    for _, line in ipairs(flight.lines) do
+        if line.requestUnits > 0 then
             local r = byType[line.fullType]
             if not r then
                 r = { fullType = line.fullType, key = line.requestKey, units = 0, credits = 0 }
@@ -40,24 +34,14 @@ function Estimate.entries(record, entries)
             requests.units = requests.units + line.requestUnits
             requests.credits = requests.credits + (line.requestCredits or 0)
         end
-        trust = trust + line.trust
-        cashTrust = cashTrust + (line.cashTrust or 0)
-        if line.requestUnits and line.requestUnits > 0 then
-            taken.requests[line.requestKey] = (taken.requests[line.requestKey] or 0) + line.requestUnits
-        end
-        if line.regionWeight and line.regionWeight > 0 and entry.info.cell then
-            taken.cells[entry.info.cell] = (taken.cells[entry.info.cell] or 0) + line.regionWeight
-        end
     end
-    cashTrust = math.min(cashTrust, Value.CASH_TRUST_CAP or cashTrust)
-    local fills = Value.requestFills and Value.requestFills(ctx, taken) or { fills = {}, trust = 0 }
     table.sort(requests.lines, function(a, b)
         if a.credits ~= b.credits then return a.credits > b.credits end
         return a.fullType < b.fullType
     end)
     requests.credits = OA.round(requests.credits)
-    return { credits = OA.round(credits), trust = trust + cashTrust + fills.trust, lines = lines, requests = requests,
-        filled = fills.fills }
+    return { credits = OA.round(flight.credits), trust = flight.trust, lines = flight.lines, requests = requests,
+        filled = flight.fills }
 end
 
 -- Items of a container (their infos) grouped and valued.

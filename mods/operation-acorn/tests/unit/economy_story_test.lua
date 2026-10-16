@@ -16,7 +16,6 @@ end
 
 local function fakeStory(extra)
     OA.Story = {
-        refusalKey = function(category, phase) return "STORY_" .. category .. "_" .. phase end,
         BIG_METEORITE_RECEIPT = "STORY_BIG_RECEIPT", FRAGMENT_RECEIPT = "STORY_FRAGMENT_RECEIPT",
     }
     for k, v in pairs(extra or {}) do OA.Story[k] = v end
@@ -62,17 +61,6 @@ test("a refusal sends a title to every record", function()
     eq(titles[2].detail.subArgs[1].key, cat)
     eq(titles[1].detail.subArgs[2], 7)
     truthy(titles[1].id ~= titles[2].id)
-end)
-
-test("refusalLine gives the story key for either phase", function()
-    fakeStory()
-    local key = OA.Market.refusalLine("A", "start")
-    eq(key, "STORY_A_start")
-    eq((OA.Market.refusalLine("F", "back")), "STORY_F_back")
-    OA.Story = nil
-    local fallback, args = OA.Market.refusalLine("A", "back")
-    eq(fallback, "IGUI_OA_Econ_Radio_RefuseBack")
-    eq(#args, 1)
 end)
 
 -- 2. The meteorites.

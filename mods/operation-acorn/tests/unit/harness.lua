@@ -49,6 +49,30 @@ end }
 
 -- Game stubs. TEST holds what a test sets: the world age, the time of day.
 TEST = {}
+
+-- Sets a flight support level of a record outright, as buying it would leave it (Support.levels, the revision that
+-- makes what is worked out from the levels be worked out again).
+function TEST.setSupportLevel(record, id, level)
+    OperationAcorn.Support.levels(record)[id] = level > 0 and level or nil
+    local t = OperationAcorn.Store.section(record, "trade")
+    t.levelsRev = (t.levelsRev or 0) + 1
+end
+
+-- The levels trust alone would reach: every level whose tier it has reached (the tables before flight support).
+function TEST.levelsForTier(tier)
+    local levels = {}
+    for _, u in ipairs(OperationAcorn.Support.LIST) do
+        local n = 0
+        while true do
+            local s = OperationAcorn.Support.step(u.id, n + 1)
+            if not s or s.tier > tier then break end
+            n = n + 1
+        end
+        if n > 0 then levels[u.id] = n end
+    end
+    return levels
+end
+
 local function resetGame()
     TEST.hours = 0
     TEST.random = 1
@@ -107,7 +131,10 @@ local function resetGame()
     isClient = function() return false end
     getText = function(key, ...)
         local parts = { key }
-        for i = 1, select("#", ...) do parts[#parts + 1] = tostring(select(i, ...)) end
+        -- trailing nils are no arguments (UI.str passes its two whether given or not)
+        local last = select("#", ...)
+        while last > 0 and select(last, ...) == nil do last = last - 1 end
+        for i = 1, last do parts[#parts + 1] = tostring(select(i, ...)) end
         return table.concat(parts, " ")
     end
     sendClientCommand = function(player, module, command, args)
@@ -115,6 +142,13 @@ local function resetGame()
         TEST.fire("OnClientCommand", module, command, player, args)
     end
     sendServerCommand = function() end
+    -- The world's sound manager: the sounds zombies would hear are kept in TEST.worldSounds.
+    TEST.worldSounds = {}
+    getWorldSoundManager = function()
+        return { addSound = function(_, source, x, y, z, radius, volume)
+            table.insert(TEST.worldSounds, { x = x, y = y, z = z, radius = radius, volume = volume })
+        end }
+    end
 end
 
 -- require as the game does it: by path under media/lua/shared, server or client, each file once.

@@ -12,11 +12,11 @@ OA.Support = Support
 -- is { value, tier (the trust level that opens it, Trust.tier), price }. The box capacity goes on after its table:
 -- `endless` adds `add` a level from tier `from`, at `price` and then `step` more for each.
 Support.LIST = {
-    { id = "box", group = "heli", base = 50,
+    { id = "box", group = "heli", base = OA.BALANCE.boxCapacity,
         steps = { { 100, 3, 30000 }, { 200, 5, 100000 }, { 250, 6, 140000 }, { 300, 7, 180000 }, { 350, 8, 220000 } },
         endless = { add = 50, from = 9, price = 260000, step = 40000 } },
-    { id = "call", group = "heli", base = 3, steps = { { 2, 2, 40000 }, { 1.5, 4, 80000 }, { 1, 7, 150000 } } },
-    { id = "arrive", group = "heli", base = { 4, 6 }, steps = { { { 3, 4 }, 3, 30000 }, { { 2, 3 }, 8, 80000 } } },
+    { id = "call", group = "heli", base = OA.BALANCE.callDays, steps = { { 2, 2, 40000 }, { 1.5, 4, 80000 }, { 1, 7, 150000 } } },
+    { id = "arrive", group = "heli", base = { OA.BALANCE.arrival[1], OA.BALANCE.arrival[2] }, steps = { { { 3, 4 }, 3, 30000 }, { { 2, 3 }, 8, 80000 } } },
     { id = "night", group = "heli", base = false, steps = { { true, 5, 100000 } } },
     { id = "rate", group = "trade", base = 0, steps = { { 0.05, 3, 40000 }, { 0.10, 5, 90000 }, { 0.15, 7, 160000 } } },
     { id = "discount", group = "trade", base = 0, steps = { { 0.05, 4, 50000 }, { 0.10, 7, 120000 } } },
@@ -36,13 +36,6 @@ for _, u in ipairs(Support.LIST) do byId[u.id] = u end
 
 function Support.get(id)
     return byId[id]
-end
-
--- The last level an upgrade has (nil: it goes on).
-function Support.maxLevel(id)
-    local u = byId[id]
-    if not u or u.endless then return nil end
-    return #u.steps
 end
 
 -- Level n of an upgrade: { value, tier, price } (level 0 is { base }); nil past its end.
@@ -86,21 +79,6 @@ end
 local function changed(record)
     local t = OA.Store.section(record, "trade")
     t.levelsRev = (t.levelsRev or 0) + 1
-end
-
--- The levels trust alone would reach: every level whose tier it has reached (the tables before flight support).
-function Support.levelsForTier(tier)
-    local levels = {}
-    for _, u in ipairs(Support.LIST) do
-        local n = 0
-        while true do
-            local s = Support.step(u.id, n + 1)
-            if not s or s.tier > tier then break end
-            n = n + 1
-        end
-        if n > 0 then levels[u.id] = n end
-    end
-    return levels
 end
 
 -- Whether a record may ask for level `level` of `id` now, at a field terminal or not. Returns true, or false and why:
@@ -218,12 +196,6 @@ function Support.appliedTitle(done)
         sub = { key = "IGUI_OA_Support_JoinedMore", args = { changes[1], changes[2], changes[3], tostring(#changes - 3) } }
     end
     return { key = "IGUI_OA_Title_SupportApplied", sub = sub.key, subArgs = sub.args, style = "notice" }
-end
-
--- Sets a level outright (tests and the dev tools).
-function Support.setLevel(record, id, level)
-    Support.levels(record)[id] = level > 0 and level or nil
-    changed(record)
 end
 
 return Support

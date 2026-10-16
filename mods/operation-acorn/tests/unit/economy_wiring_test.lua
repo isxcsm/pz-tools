@@ -11,7 +11,8 @@ local function list(t)
     return { size = function() return #t end, get = function(_, i) return t[i + 1] end, items = t }
 end
 
--- An inventory or a bag holding `t` (a list the test may change): its items, and what they weigh (OA.signature).
+-- An inventory or a bag holding `t` (a list the test may change): its items, and what they weigh (OA.signature, used by
+-- the story and the gear; the economy sweep counts items).
 local function pack(t)
     return { getItems = function() return list(t) end, getContentsWeight = function()
         local w = 0
@@ -234,11 +235,18 @@ test("a failing bookkeeping step never breaks the game's transfer", function()
     boot()
     OA.Economy.start()
     local ch = character("p")      -- no record: nothing to credit, and a broken item below
-    local broken = { getFullType = function() error("boom") end, getWorldItem = function() return nil end }
+    local broken = { getFullType = function() error("boom") end, getWorldItem = function() return nil end,
+        getModData = function() error("boom") end }
+    local logged = {}
+    local log = OA.log
+    OA.log = function(...) logged[#logged + 1] = table.concat({ ... }, " ") end
     local result = ISTransferAction:transferItem(ch, broken, container("shelves", { square = square(1, 1) }),
         container("inventory", { mine = true }), nil)
+    OA.log = log
     truthy(moved)
     eq(result, broken)
+    eq(#logged, 1, "told once")
+    truthy(string.find(logged[1], "pickup bookkeeping failed", 1, true))
 end)
 
 test("a kill by a player counts for that player", function()

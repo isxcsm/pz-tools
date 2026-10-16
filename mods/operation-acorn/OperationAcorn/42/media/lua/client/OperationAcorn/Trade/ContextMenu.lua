@@ -178,24 +178,24 @@ end
 local function onFillInventory(player, context, items)
     local character = getSpecificPlayer(player)
     if not character then return end
-    for _, item in ipairs(ISInventoryPane.getActualItems(items)) do
-        local fullType = item:getFullType()
-        local place = PLACE_KEY[fullType]
-        if place then
-            -- Put down from where it lies (brought into the inventory first), or carried in both hands first; the
-            -- putting down on top.
-            if not character:isItemInBothHands(item) then
-                local carry = context:addOptionOnTop(getText("ContextMenu_OA_Trade_Carry"), character, ISInventoryPaneContextMenu.equipHeavyItem, item)
-                if character:getVehicle() then carry.notAvailable = true end
-            end
-            local option = context:addOptionOnTop(getText(place.key), character, Menus.placeFrom, place.kind, item)
-            if character:getVehicle() then option.notAvailable = true end
-        elseif fullType == "OperationAcorn.SupplyManifest" then
-            context:addOptionOnTop(getText("ContextMenu_OA_Trade_ReadManifest"), character, Trade.Reader.manifest, item)
-        elseif fullType == "OperationAcorn.TerminalManual" then
-            context:addOptionOnTop(getText("ContextMenu_OA_Trade_LastPage"), character, Trade.Reader.lastPage)
+    -- only the first item of the selection gets entries
+    local item = OA.menuItems(items)[1]
+    if not item then return end
+    local fullType = item:getFullType()
+    local place = PLACE_KEY[fullType]
+    if place then
+        -- Put down from where it lies (brought into the inventory first), or carried in both hands first; the
+        -- putting down on top.
+        if not character:isItemInBothHands(item) then
+            local carry = context:addOptionOnTop(getText("ContextMenu_OA_Trade_Carry"), character, ISInventoryPaneContextMenu.equipHeavyItem, item)
+            if character:getVehicle() then carry.notAvailable = true end
         end
-        return
+        local option = context:addOptionOnTop(getText(place.key), character, Menus.placeFrom, place.kind, item)
+        if character:getVehicle() then option.notAvailable = true end
+    elseif fullType == "OperationAcorn.SupplyManifest" then
+        context:addOptionOnTop(getText("ContextMenu_OA_Trade_ReadManifest"), character, Trade.Reader.manifest, item)
+    elseif fullType == "OperationAcorn.TerminalManual" then
+        context:addOptionOnTop(getText("ContextMenu_OA_Trade_LastPage"), character, Trade.Reader.lastPage)
     end
 end
 Events.OnFillInventoryObjectContextMenu.Add(onFillInventory)

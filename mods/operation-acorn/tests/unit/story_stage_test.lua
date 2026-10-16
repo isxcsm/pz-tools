@@ -460,3 +460,30 @@ test("doors boarded with `last`: taking the last plank off makes the event and t
     eq(#g.woke, 1, "once")
     OA.Missions.live = live
 end)
+
+test("a container filling outside the building a piece waits for costs no search of the records", function()
+    require "OperationAcorn/Story/Game"
+    local record = OA.Store.ensure("p1", "P")
+    record.missions = { active = { id = "M", items = { { key = "A", mode = "container", placed = false,
+        x = 15, y = 15, x1 = 10, y1 = 10, z1 = 0, x2 = 20, y2 = 20, z2 = 0 } } } }
+    OA.StoryGame.rebuildWaiting()
+    local searched, players = 0, OA.Store.players
+    OA.Store.players = function() searched = searched + 1; return players() end
+    local was = instanceof
+    instanceof = function() return true end
+    local function container(x, y)
+        local sq = { getBuilding = function() return true end, getX = function() return x end,
+            getY = function() return y end, getZ = function() return 0 end }
+        return { getSourceGrid = function() return sq end, hasRoomFor = function() return false end }
+    end
+    OA.StoryGame.onFill("kitchen", "crate", container(50, 50))
+    eq(searched, 0, "outside the box: only comparisons")
+    OA.StoryGame.onFill("kitchen", "crate", container(15, 15))
+    eq(searched, 1, "inside the box the record is looked up")
+    record.missions.active.items[1].placed = true
+    OA.StoryGame.onFill("kitchen", "crate", container(15, 15))
+    OA.StoryGame.onFill("kitchen", "crate", container(15, 15))
+    eq(searched, 2, "a piece placed meanwhile is dropped from the waiting list at the first fill")
+    OA.Store.players = players
+    instanceof = was
+end)

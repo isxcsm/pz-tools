@@ -2,6 +2,7 @@
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Economy/Shop"
+require "OperationAcorn/Trade/Rules"
 local OA = OperationAcorn
 local S = OA.Shop
 
@@ -11,7 +12,7 @@ local function record(stage, milestones, credits, levels)
     local r = OA.Store.ensure("s", "S")
     r.trade = { credits = credits or 100000, trust = 0, stage = stage or 0, milestones = milestones or 0,
         bonus = 0, sharedSerums = 0,
-        levels = levels or OA.Support.levelsForTier((stage or 0) + (milestones or 0)) }
+        levels = levels or TEST.levelsForTier((stage or 0) + (milestones or 0)) }
     OA.Trust.reset()
     return r
 end
@@ -239,7 +240,6 @@ test("kits can be switched off", function()
     SandboxVars.OperationAcorn.KitsForSale = false
     local n, why = S.available(find("kit_reinforcement"), record(5, 1))
     eq(n, 0); eq(why, "IGUI_OA_Econ_Shop_KitsOff")
-    eq(#S.opensAt(6), 0, "the kits are the only goods of the first milestone")
 end)
 
 test("debt blocks orders but not the box", function()
@@ -312,13 +312,6 @@ test("rewards no longer carry the serum intervals and counts, and the sandbox op
     eq(SandboxVars.OperationAcorn.DelayDrugInterval, nil)
 end)
 
-test("opensAt lists what a tier brings", function()
-    local ids = {}
-    for _, e in ipairs(S.opensAt(2)) do ids[e.id] = true end
-    truthy(ids.petrol_can and ids.bait_trap and ids.team_locker and ids.fabric_cutter and ids.log_saw)
-    truthy(not ids.propane_tank)
-end)
-
 test("a purchase is remembered by the week, not by its time", function()
     local r = record(3)
     TEST.hours = 55
@@ -328,17 +321,15 @@ test("a purchase is remembered by the week, not by its time", function()
     eq(S.available(find("battery_pack"), r), 3)
 end)
 
-test("a serum bought is also noted to the upgrades part when it is there", function()
-    local noted = {}
-    OA.Upgrades = { noteBought = function(rec, tree, count) noted[#noted + 1] = { rec = rec, tree = tree, count = count } end }
+test("a serum bought is counted once, by the upgrades part", function()
     local r = record(0)
     S.bought(find("serum_load"), r, 2)
-    eq(#noted, 1)
-    eq(noted[1].tree, "load"); eq(noted[1].count, 2)
-    eq(r.shop.serums.load, 2)
-    OA.Upgrades = nil
+    eq(OA.Upgrades.Rules.section(r).bought.load, 2)
+    eq(S.serumsBought(r, "load"), 2)
+    eq(r.shop.serums, nil, "the shop keeps no count of its own")
     S.bought(find("serum_load"), r, 1)
-    eq(r.shop.serums.load, 3)
+    eq(S.serumsBought(r, "load"), 3)
+    eq(S.serumPrice("load", r), S.serumPriceAt(4))
 end)
 
 test("a good whose item is not defined in the scripts is not sold", function()
@@ -356,6 +347,19 @@ test("a good whose item is not defined in the scripts is not sold", function()
     truthy(S.stocked(find("shred_bench")))
     truthy(S.available(find("shred_bench"), r) > 0)
     eq(S.stocked(find("seed_pack")), true, "choices named by a list kind")
+    -- an order for it is not charged at the settlement (the goods are checked there, before anything is paid)
+    local Rules = OA.Trade.Rules
+    local svc = {
+        entry = function(line) return find(line.id) end,
+        available = function(entry) local n, why = S.available(entry, r) return n > 0, why end,
+        price = function(entry) return S.price(entry, r) end,
+        bought = function() end,
+        items = function() return {} end,
+    }
+    local balance, spent, results, items = Rules.payOrders(100000, { { id = "team_backpack", count = 2 } }, svc)
+    eq(balance, 100000); eq(spent, 0); eq(#items, 0)
+    eq(results[1].delivered, 0)
+    eq(results[1].reason, "IGUI_OA_Econ_Shop_NotStocked")
     getScriptManager = nil
 end)
 

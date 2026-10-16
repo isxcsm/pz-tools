@@ -71,6 +71,14 @@ OA.Sync.listen("comms", quiet)
 OA.Sync.listen("trade", quiet)
 OA.Sync.listen("all", quiet)
 Events.OnGameStart.Add(quiet)
-Events.EveryTenMinutes.Add(function() Alert.update(true) end)
+-- Real milliseconds at least between two bursts of static. Ten game minutes are 25 s of real time at the default day
+-- length but some 0.6 s fast-forwarded (x40): the burst is a sound the player hears, so it keeps to real time.
+Alert.STATIC_MS = 20000
+
+local lastStatic = {}
+
+Events.EveryTenMinutes.Add(function()
+    if OA.due(lastStatic, "static", getTimestampMs(), Alert.STATIC_MS) then Alert.update(true) end
+end)
 
 return Alert

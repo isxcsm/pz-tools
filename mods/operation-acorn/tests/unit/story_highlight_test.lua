@@ -287,6 +287,22 @@ test("the loot window paints the mission item's name and nothing else", function
     eq(rawget(pane, "drawText"), nil, "taken off after the frame")
 end)
 
+test("a drawText another part set on the pane is put back after the frame", function()
+    setup(regular())
+    local desk = furniture({ container({ item("M1-1", "Filter Case") }) })
+    state.squares["100,100,0"] = square({ desk })
+    load()
+    local pane = state.page.inventoryPane
+    pane.inventory = container({ item("M1-1", "Filter Case") }, furniture({}))
+    local theirs = function() end
+    pane.drawText = theirs
+    setmetatable(pane, { __index = ISInventoryPane })
+    pane.renderdetails = ISInventoryPane.renderdetails
+    tick()
+    pane:renderdetails()
+    eq(rawget(pane, "drawText"), theirs)
+end)
+
 test("a pane with no mission item draws as the game does", function()
     setup(regular())
     state.squares["100,100,0"] = square({})

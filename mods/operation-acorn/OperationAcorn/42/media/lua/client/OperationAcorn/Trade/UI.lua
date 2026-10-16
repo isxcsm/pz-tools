@@ -12,7 +12,7 @@ OA.Trade.UI = UI
 
 -- The unit of money as the screens write it after a number, without a space (UI.UNIT_GAP goes before it).
 function UI.creditsUnit()
-    return getText("IGUI_OA_Terminal_Credits")
+    return UI.str("IGUI_OA_Terminal_Credits")
 end
 
 -- The two terminals' colours (DESIGN-terminal 1.3): the crude one built from the kit, phosphor green on near black

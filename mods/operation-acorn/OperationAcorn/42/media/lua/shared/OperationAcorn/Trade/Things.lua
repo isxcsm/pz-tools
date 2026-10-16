@@ -15,7 +15,7 @@ local Boxes, Objects = Trade.Boxes, Trade.Objects
 local Things = {}
 Trade.Things = Things
 
--- The sounds: a crate's latch, a box sealing (vanilla sound names).
+-- The sound of a box sealing and of a crate's latch (a vanilla sound name).
 Things.LATCH_SOUND = "PZ_MetalSnap"
 
 -- A character within this many tiles of a thing can work on it.

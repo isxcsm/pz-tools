@@ -105,8 +105,12 @@ function ISOAViewer:show(i)
     self.index = i
     local record = OA.Client.record(self.character)
     local title = getText(Docs.titleKey(entry.id))
-    local body = record and Docs.body(record, entry.id, entry.variant, entry.extra) or ""
-    if entry.stake then body = Docs.stakeBody(entry.stake, entry.date) end
+    local body
+    if entry.stake then
+        body = Docs.stakeBody(entry.stake, entry.date)
+    else
+        body = record and Docs.body(record, entry.id, entry.variant, entry.extra) or ""
+    end
     self.rich.text = formatText(title, body)
     self.rich:paginate()
     self.rich:setYScroll(0)

@@ -13,6 +13,7 @@ local Draw = {}
 Trade.Draw = Draw
 
 local RECT, FRAME, TEXT, TEX, CLIP, UNCLIP = 1, 2, 3, 4, 5, 6
+Draw.RECT = RECT
 
 -- A new list for a palette.
 function Draw.list(p)

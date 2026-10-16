@@ -5,12 +5,11 @@
 -- unwatched one. Nothing is kept on the items: the bar is set while the row is drawn and taken off after.
 require "ISUI/ISInventoryPane"
 require "OperationAcorn/Machines/Machines"
+require "OperationAcorn/Machines/Ask"
 local OA = OperationAcorn
 local Machines = OA.Machines
 
-local CHECK_MS = 100    -- how often a watched machine's progress is read
-local ASK_MS = 400      -- the least time between two asks to work (the answer comes on the next tick)
-local IDLE_ASK_MS = 3000 -- an idle machine is asked again this seldom while nothing changes in it
+local CHECK_MS = 500    -- how often a watched machine's progress is read
 
 -- anchor -> { jobs (Machines.progress), stop (why it is not working on what is in it), count,
 --   due = { check, idle, ask = real ms each was last due (OA.due) } }
@@ -27,18 +26,19 @@ local function look(pane, anchor, state)
     w.jobs = Machines.progress(anchor)
     local inC = Machines.container(anchor, "in")
     local count = inC and inC:getItems():size() or 0
-    local due
+    local due, idle
     if w.jobs then
         for _, job in ipairs(w.jobs) do
             if job.share >= 1 then due = true end
         end
-    elseif state.on ~= false and count > 0 then
-        -- idle with something in it: ask when what is in it changed, else seldom (no power, the output full...)
-        due = OA.due(w.due, "idle", now, IDLE_ASK_MS) or count ~= w.count
+    else
+        -- idle with something in it: asked when what is in it changed, else seldom (no power, the output full ...)
+        idle = state.on ~= false and count > 0
     end
+    local changed = count ~= w.count
     w.count = count
     w.stop = not w.jobs and count > 0 and Machines.stopText(anchor) or nil
-    if due and OA.due(w.due, "ask", now, ASK_MS) then
+    if Machines.Ask.wanted(w.due, now, due, idle, changed) then
         local player = getSpecificPlayer(pane.player or 0)
         if player then OA.Sync.send(player, "machineWork", { machine = state.id }) end
     end
@@ -49,12 +49,12 @@ end
 local saved, savedType, savedDelta = {}, {}, {}
 
 local original = ISInventoryPane.renderdetails
-function ISInventoryPane:renderdetails(doDragged)
+function ISInventoryPane:renderdetails(doDragged, ...)
     local container = self.inventory
     local parent = container and container:getParent()
     local anchor = parent and Machines.isMachineObject(parent) and Machines.anchorOf(parent)
     local state = anchor and Machines.state(anchor)
-    if not state or not Machines.Data.processes(state.kind) then return original(self, doDragged) end
+    if not state or not Machines.Data.processes(state.kind) then return original(self, doDragged, ...) end
     local w = look(self, anchor, state)
     local shown = 0
     if w.jobs then
@@ -80,8 +80,8 @@ function ISInventoryPane:renderdetails(doDragged)
             item:setJobDelta(0.001)
         end
     end
-    if shown == 0 then return original(self, doDragged) end
-    local ok, err = pcall(original, self, doDragged)
+    if shown == 0 then return original(self, doDragged, ...) end
+    local ok, err = pcall(original, self, doDragged, ...)
     for i = 1, shown do
         saved[i]:setJobDelta(savedDelta[i])
         saved[i]:setJobType(savedType[i])

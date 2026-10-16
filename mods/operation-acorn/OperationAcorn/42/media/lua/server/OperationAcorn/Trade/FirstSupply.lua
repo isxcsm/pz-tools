@@ -5,13 +5,14 @@
 -- the drop.
 require "OperationAcorn/Server"
 require "OperationAcorn/Trade/Heli"
+require "OperationAcorn/Trade/Markers"
 local OA = OperationAcorn
 local Store, Trade = OA.Store, OA.Trade
 local Rules, Boxes, Objects, Heli = Trade.Rules, Trade.Boxes, Trade.Objects, Trade.Heli
 local FirstSupply = {}
 Trade.FirstSupply = FirstSupply
 
-FirstSupply.MANUAL = "OperationAcorn.TerminalManual"
+FirstSupply.MANUAL = "OperationAcorn." .. Trade.Markers.MANUAL
 -- What the box holds (DESIGN 9 '시작 꾸러미'): the terminal ready to set up, the booklet for a second one, the scalpel.
 FirstSupply.CARGO = {
     { type = "OperationAcorn.CommTerminal", count = 1 },

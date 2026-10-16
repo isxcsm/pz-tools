@@ -134,24 +134,35 @@ end
 -- Each frame the game lights the chosen container's object again, as it is lit here: compared, and set again only
 -- when something changed.
 local original = ISInventoryPage.updateContainerHighlight
-function ISInventoryPage:updateContainerHighlight()
-    original(self)
+
+-- (after the original; what it returned is passed on, as a frame function: no table made)
+local function reconciled(self, ...)
     local chosen = self.coloredInv
     local hover = hoverContainer(self)
     local was = applied[self]
-    if was and not was.dirty and was.chosen == chosen and was.hover == hover and was.collapsed == self.isCollapsed then return end
-    reconcile(self, chosen, hover)
+    if not (was and not was.dirty and was.chosen == chosen and was.hover == hover and was.collapsed == self.isCollapsed) then
+        reconcile(self, chosen, hover)
+    end
+    return ...
+end
+
+function ISInventoryPage:updateContainerHighlight(...)
+    return reconciled(self, original(self, ...))
 end
 
 -- The mouse over a container's button: the game outlines that object at once in the hover colour; a square of a
 -- machine lit as chosen gets its own light back (the next update lights the machine under the mouse).
 local overButton = ISInventoryPage.onMouseOverButton
-function ISInventoryPage:onMouseOverButton(button, x, y)
-    overButton(self, button, x, y)
+local function overLit(self, button, ...)
     local object = button and button.inventory and self:getContainerParent(button.inventory)
     local was = applied[self]
     local kind = object and was and was.objects[object]
     if kind then light(self, object, kind) end
+    return ...
+end
+
+function ISInventoryPage:onMouseOverButton(button, ...)
+    return overLit(self, button, overButton(self, button, ...))
 end
 
 -- The game switches an object off as the mouse leaves it or another container is chosen (the mouse leaving one bin
@@ -159,12 +170,16 @@ end
 -- it is lit again at once as it was, so that no frame shows it dark (seen in game as a flicker), and everything is
 -- worked out again at the next update (which turns it off if it should be: one frame lit too long, never one dark).
 local stopHighlight = ISInventoryPage.stopHighlightContainer
-function ISInventoryPage:stopHighlightContainer(container)
-    stopHighlight(self, container)
+local function stopLit(self, container, ...)
     local was = applied[self]
     local kind = was and was.objects[container]
     if kind then
         light(self, container, kind)
         was.dirty = true
     end
+    return ...
+end
+
+function ISInventoryPage:stopHighlightContainer(container, ...)
+    return stopLit(self, container, stopHighlight(self, container, ...))
 end

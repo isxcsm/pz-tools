@@ -1239,10 +1239,15 @@ test("the bench's estimate: each kind's count climbs with each, the first-shred 
     local record = OA.Store.ensure("p1", "p1")
     local entries = benchEntries()
     local bundles, bonus = Machines.benchEstimate(record, entries)
-    local hammer = OA.Shred.yieldMany(entries[1].data, record, 3, { bundles = 0, blade = 1 })
-    local pliers = OA.Shred.yieldMany(entries[4].data, record, 2, { bundles = 0, blade = 1 })
+    local function climbing(info, n)
+        local total = 0
+        for c = 0, n - 1 do total = total + OA.Shred.yield(info, record, { bundles = 0, blade = 1 }, c) end
+        return total
+    end
+    local hammer = climbing(entries[1].data, 3)
+    local pliers = climbing(entries[4].data, 2)
     local shirt = OA.Shred.yield(entries[6].data, record, { bundles = 0, blade = 1 })
-    truthy(math.abs(bundles - (hammer + pliers + shirt)) < 1e-9, "as yieldMany, a kind at a time")
+    truthy(math.abs(bundles - (hammer + pliers + shirt)) < 1e-9, "a kind at a time")
     eq(bonus, 3 * OA.Shred.FIRST_BONUS, "three kinds never shredded")
     OA.Shred.section(record).first["Base.Hammer"] = true
     local _, less = Machines.benchEstimate(record, entries)

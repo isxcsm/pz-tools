@@ -66,17 +66,12 @@ local function draw(panel, item)
     if bottomY then strip(panel, rows, bottomY) end
 end
 
-local failed = false
 local originalRender = ISToolTipInv.render
-function ISToolTipInv:render()
+function ISToolTipInv:render(...)
     self.oaAbove, self.oaBelow = 0, 0
-    originalRender(self)
+    originalRender(self, ...)
     local item = self.item
     if not item or not self:isVisible() then return end
     if ISContextMenu.instance and ISContextMenu.instance.visibleCheck then return end
-    local ok, err = pcall(draw, self, item)
-    if not ok and not failed then
-        failed = true
-        OA.log("item tooltip lines failed:", tostring(err))
-    end
+    OA.try("item tooltip lines", draw, self, item)
 end

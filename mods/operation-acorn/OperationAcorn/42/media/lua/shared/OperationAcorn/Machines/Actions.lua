@@ -17,27 +17,10 @@ function Actions.ticksForMinutes(minutes)
     return math.max(10, math.floor(minutes * day * 1.25))
 end
 
--- An item of a character's inventory by id (inside bags too), or nil. A search of the whole inventory: for the moment an
--- action completes, not for the checks that run every tick (those use heldItem).
-function Actions.findItem(character, id)
-    if not id then return nil end
-    local inventory = character:getInventory()
-    local item = inventory:getItemWithIDRecursiv(id)
-    if item then return item end
-    return inventory:getItemById(id)
-end
-
--- The item an action works on, for the checks that run every tick (isValid, update): the object the action was made
--- with, as long as it is in the character's inventory (a walk up from its container, no search). Only when the action
--- has no object (made again from its ids) or the object left the inventory is the inventory searched, once; what that
--- finds is kept.
+-- The item an action works on, for the checks that run every tick (OA.heldItem): the object the action was made with,
+-- else the item by its id.
 function Actions.heldItem(action)
-    local item = action.item
-    if item and OA.inInventory(item, action.character) then return item end
-    -- oa-scan: ok (an action made from ids, or the item moved: once, and kept)
-    item = Actions.findItem(action.character, action.itemId)
-    action.item = item
-    return item
+    return OA.heldItem(action, "item", "itemId")
 end
 
 local function fixedDuration(ticks)
@@ -83,7 +66,7 @@ function ISOAMachinePlace:isValid()
 end
 
 function ISOAMachinePlace:complete()
-    local item = Actions.findItem(self.character, self.itemId)
+    local item = OA.findItem(self.character, self.itemId)
     local square = getCell():getGridSquare(self.x, self.y, self.z)
     if not item or not square or not Machines.canPlace(self.kind, square, self.dir) then return false end
     if self.character.removeFromHands then self.character:removeFromHands(item) end
@@ -183,7 +166,7 @@ end
 
 function ISOAMachinePartIn:complete()
     local object = Machines.find(self.machineId)
-    local item = Actions.findItem(self.character, self.itemId)
+    local item = OA.findItem(self.character, self.itemId)
     if not object or not item then return false end
     return Machines.installPart(object, self.slot, item, self.character)
 end
@@ -227,7 +210,7 @@ end
 
 function ISOAMachineShred:complete()
     if not Machines.find(self.machineId) then return false end
-    local item = Actions.findItem(self.character, self.itemId)
+    local item = OA.findItem(self.character, self.itemId)
     if not item then return false end
     local record = OA.Store.ensure(self.playerId, self.character.getUsername and self.character:getUsername() or nil)
     Machines.shredByHand(self.character, record, { item })

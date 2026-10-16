@@ -12,10 +12,13 @@ require "OperationAcorn/Story/SceneGame"
 require "OperationAcorn/Story/StageGame"
 require "OperationAcorn/Story/Zombies"
 require "OperationAcorn/Story/Harvest"
+require "OperationAcorn/Story/Docs"
+require "OperationAcorn/Story/Places"
 local OA = OperationAcorn
 local Missions, Game, Sites, Story = OA.Missions, OA.StoryGame, OA.Sites, OA.Story
 local Zombies, Harvest = OA.ZombieMissions, OA.Harvest
 local Scene, SceneGame = OA.Scene, OA.SceneGame
+local Docs, Places = OA.StoryDocs, OA.Places
 local Init = {}
 OA.StoryInit = Init
 
@@ -23,16 +26,11 @@ local started = false
 local subscribed = false
 local provided = false
 
--- A trade-part event is a function that takes listeners (OA.Trade.onSealed(fn)) or a plain list of them.
+-- A trade-part event is a function that takes listeners (OA.Trade.onSealed(fn)).
 local function listen(event, fn)
-    if type(event) == "function" then
-        event(fn)
-        return true
-    elseif type(event) == "table" then
-        table.insert(event, fn)
-        return true
-    end
-    return false
+    if type(event) ~= "function" then return false end
+    event(fn)
+    return true
 end
 
 local function subscribe()
@@ -157,10 +155,6 @@ end
 -- ---------------------------------------------------------------------------------------------------------------
 -- Commands from the windows (client -> server). The character is the one who asks; the record is theirs.
 
-OA.Server.on("story_choose", function(character, record, args)
-    Missions.choose(record, args.option)
-end)
-
 -- A command from a terminal window: the terminal it was made at must be near and powered (the trade part's own check);
 -- `fieldOnly` also wants it to be a field terminal. False, with the reason told to the player, when it is not.
 local function atTerminal(character, record, args, fieldOnly)
@@ -178,6 +172,12 @@ local function atTerminal(character, record, args, fieldOnly)
     end
     return true
 end
+
+-- One of the two options of a story mission chosen (the choice closes the other for good).
+OA.Server.on("story_choose", function(character, record, args)
+    if not atTerminal(character, record, args) then return end
+    Missions.choose(record, args.option)
+end)
 
 -- The card's 'take another': once a week, for some trust.
 OA.Server.on("story_reroll", function(character, record, args)
@@ -224,15 +224,24 @@ OA.Server.on("comms_played", function(character, record, args)
     Story.callPlayed(record, id)
 end)
 
--- A building the player has looked into (a container of it shown for the first time): no story site goes there.
+-- How far (squares) from the character the building it looked into may be: a building is no wider than this, and the
+-- character stands in it or at its door.
+local TOUCH_REACH = 120
+
+-- A building the player has looked into (a container of it shown for the first time): no story site goes there. The
+-- key is a building's corner, and a building near the character: not a place picked by the client.
 OA.Server.on("story_touched", function(character, record, args)
-    if type(args.key) == "string" and string.match(args.key, "^%-?%d+,%-?%d+$") then Story.touchBuilding(args.key) end
+    local x, y = string.match(tostring(args.key), "^(%-?%d+),(%-?%d+)$")
+    if not x or not character then return end
+    if Places.distance(tonumber(x), tonumber(y), character:getX(), character:getY()) > TOUCH_REACH then return end
+    Story.touchBuilding(args.key)
 end)
 
 -- A document was read. `variant` is the place its text was for, `extra` the number it was read with.
 OA.Server.on("story_read", function(character, record, args)
-    if type(args.doc) == "string" then
-        Story.markRead(record, args.doc, type(args.variant) == "string" and args.variant or nil, args.extra)
+    -- only a document the story has (its ids are a registry, Docs), with the place it was found at if that is a facility
+    if type(args.doc) == "string" and (Docs.kind(args.doc) or args.doc == Docs.STAKE_LOG) then
+        Story.markRead(record, args.doc, Docs.facility(args.variant) and args.variant or nil, args.extra)
         Story.clearNew(record, "d:" .. args.doc)
         -- Read whole in the viewer: the terminal's folder has it as seen to the end (an entry it kept nothing of is that).
         if Story.typedState(record, "d:" .. args.doc) then Story.saveTyped(record, "d:" .. args.doc, nil, true) end
@@ -265,9 +274,12 @@ OA.Server.on("story_stake", function(character, record, args)
     end
 end)
 
+-- How far (squares) the hallucination tells the nearest drop site: the squares the game keeps loaded round the character.
+local LOADED_NEAR = 52
+
 -- The serum with the adaptation node at its second point was taken (the upgrade part calls this on each dose): the
 -- overlay is told how long to run and where the nearest drop site is; next week's requests get one strange item.
-function Story.onSerum(character, record, kind)
+function Story.onSerum(character, record)
     local s = Story.section(record)
     s.hallucinations = (s.hallucinations or 0) + 1
     s.strangeWeek = OA.week() + 1
@@ -278,9 +290,9 @@ function Story.onSerum(character, record, kind)
         local best, bestD
         for _, site in ipairs(Sites.list()) do
             if site.state == "placed" then
-                local d = OA.Places.distance(x, y, site.x, site.y)
+                local d = Places.distance(x, y, site.x, site.y)
                 -- Only what is within the loaded squares (about six chunks around): no map, no distance told.
-                if d <= 52 and (not bestD or d < bestD) then best, bestD = site, d end
+                if d <= LOADED_NEAR and (not bestD or d < bestD) then best, bestD = site, d end
             end
         end
         if best then detail.dx, detail.dy = best.x - x, best.y - y end

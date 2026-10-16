@@ -18,7 +18,7 @@ OA.CommsData = Data
 --            handover mission: ended), "field:<id>" (that story mission's helicopter is coming), "crate:N" (the first
 --            supply crate landed at tier N), "sent:<doc>" (that 2반 paper has gone in a crate), "after:<id>:<hours>"
 --            (game hours after that scene was played), "nextday:<id>" (a game day after the one that scene was played
---            on), "handedover" (the handover's last crate opened), "say:<event>" (a field monologue, said by the mission's code)
+--            on), "handedover" (the handover's last crate opened), "say:<story id>:<event>" (a field monologue, said by the mission's code)
 --   tier     the trust tier the entry belongs to: a terminal entry not fired by the time the tier is passed is dropped
 --   mission  fired by a story mission: never dropped
 --   keep     never dropped (the scene after the handover)
@@ -90,7 +90,7 @@ Data.ENTRIES = {
 
     -- Field monologues (SCENES 4, 5): said once over the character's head and kept in the tab as field records.
     -- `say:<story id>:<event>`: enter (the circle first entered), pickup (the story's item taken), put (the sealed case
-    -- left), waited (the wait at the drop is over), plank (the last plank of the ward's door off).
+    -- left), waited (the wait at the drop is over), plank (the last plank of the cells' door off).
     { id = "P1_enter", kind = "say", trigger = "say:evidence:enter", tier = 1 },
     { id = "S1F_pickup", kind = "say", trigger = "say:evidence:pickup", tier = 1 },
     { id = "S2F_put", kind = "say", trigger = "say:clinic:put", tier = 2 },

@@ -1,6 +1,6 @@
 -- The base machines' pure logic: what a machine does with its parts, how long a job takes, how work carries over
 -- time (the ten-minute step and the catch-up when a place loads), and what comes out. No game objects here: a
--- machine is a table (kind, parts, last, carry ...) and the game side (Machines.lua) hands this the jobs through a
+-- machine is a table (kind, parts, last, lanes ...) and the game side (Machines.lua) hands this the jobs through a
 -- small interface. tests/unit/machines_*_test.lua checks it all outside the game.
 require "OperationAcorn/Machines/Data"
 local OA = OperationAcorn
@@ -66,7 +66,7 @@ end
 function Logic.effects(kind, parts)
     local def = Data.KINDS[kind]
     local fx = { stopped = false, lanes = 1, speed = 1, yield = 1, power = 1, noise = 1, worn = false,
-        shred = 1, pieces = 0, planks = 6, use = 1 }
+        shred = 1, pieces = 0, planks = Data.SAW_PLANKS, use = 1 }
     for _, slot in ipairs(def.slots) do
         local part = parts and parts[slot]
         if not part then
@@ -127,8 +127,7 @@ function Logic.wear(kind, parts, hours)
 end
 
 -- The generator load a machine puts on its generator now (NUMBERS 11: the kind's load times the motor's power
--- multiplier, while it is switched on, as the game's appliances draw while on, working or not). This is the one
--- function the extension API's power hook will read.
+-- multiplier, while it is switched on, as the game's appliances draw while on, working or not).
 function Logic.load(kind, parts, on)
     local def = Data.KINDS[kind]
     if not def or not def.load then return 0 end
@@ -172,9 +171,7 @@ function Logic.advance(state, now, io, maxJobs)
     local result = { done = 0, hours = 0 }
     local t = state.last or now
     if t > now then t = now end
-    -- (a machine saved before the lanes kept one `carry`)
-    local carries = state.lanes or { state.carry or 0 }
-    state.carry = nil
+    local carries = state.lanes or { 0 }
     state.lanes = carries
 
     local fx = Logic.effects(state.kind, state.parts)

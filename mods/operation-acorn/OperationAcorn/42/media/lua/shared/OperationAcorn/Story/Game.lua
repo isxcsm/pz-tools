@@ -21,6 +21,9 @@ OA.StoryGame = Game
 -- ---------------------------------------------------------------------------------------------------------------
 -- The map's buildings.
 
+-- The least area (squares) of a building a mission may use: no cellar, no shed.
+local MIN_AREA = 30
+
 local buildingList
 
 local function buildings()
@@ -38,7 +41,7 @@ function Game.building(i)
     local b = buildings():get(i - 1)
     local x = math.floor((b:getX() + b:getX2()) / 2)
     local y = math.floor((b:getY() + b:getY2()) / 2)
-    local ok = b:getArea() >= 30 and not b:isBasement()
+    local ok = b:getArea() >= MIN_AREA and not b:isBasement()
     return x, y, ok
 end
 
@@ -72,7 +75,7 @@ end
 -- loaded: a survivors' safehouse, a burnt one, and one a player was in).
 local function plainSite(b)
     if b:isUserDefined() or b:isHasBeenVisited() then return false end
-    local ok, stash = pcall(function() return StashSystem.isStashBuilding(b) end)
+    local ok, stash = OA.try("game: whether a building is a stash", function() return StashSystem.isStashBuilding(b) end)
     if ok and stash then return false end
     local names = {}
     local rooms = b:getRooms()
@@ -91,7 +94,7 @@ function Game.sitesInBand(ax, ay, lo, hi, skip)
         local x, y = (b:getX() + b:getX2()) / 2, (b:getY() + b:getY2()) / 2
         local dx, dy = x - ax, y - ay
         local d = math.sqrt(dx * dx + dy * dy)
-        if d >= lo and d <= hi and not b:isBasement() and b:getArea() >= 30 then
+        if d >= lo and d <= hi and not b:isBasement() and b:getArea() >= MIN_AREA then
             local key = keyOf(b)
             if not skip[key] and plainSite(b) then
                 local info = infoOf(b)
@@ -171,7 +174,7 @@ end
 -- The zombie density of the map at a square (DESIGN-terminal 7.2): the metagrid's chunk there, as the game's own spawning
 -- reads it (it follows the zombie count option). nil when the square is off the map or the game cannot say.
 function Game.zombieIntensity(x, y)
-    local ok, value = pcall(function()
+    local ok, value = OA.try("game: the zombie intensity", function()
         local chunk = getWorld():getMetaGrid():getChunkDataFromTile(x, y)
         return chunk and chunk:getZombieIntensity(false) or nil
     end)
@@ -215,10 +218,6 @@ local function missionMatch(item, id)
     return mine == id or string.sub(mine, 1, #id + 1) == id .. "#"
 end
 
-local function predicateMission(item, id)
-    return missionMatch(item, id)
-end
-
 local function anyMission(item)
     return item:hasModData() and item:getModData().OA_Mission ~= nil
 end
@@ -250,7 +249,7 @@ function Game.findItem(record, missionId)
     local key = OA.signature(inventory)
     if mem.miss == key then return nil end
     -- oa-scan: ok (a new signature, or no item kept)
-    item = inventory:getFirstEvalArgRecurse(predicateMission, missionId)
+    item = inventory:getFirstEvalArgRecurse(missionMatch, missionId)
     mem.item, mem.miss = item, (not item) and key or nil
     return item
 end
@@ -259,12 +258,7 @@ end
 function Game.holds(item, missionId)
     if missionMatch(item, missionId) then return true end
     return instanceof(item, "InventoryContainer")
-        and item:getInventory():getFirstEvalArgRecurse(predicateMission, missionId) ~= nil
-end
-
-function Game.hasItem(record, name)
-    local p = Game.character(record)
-    return p ~= nil and p:getInventory():containsTypeRecurse(Data.fullType(name))
+        and item:getInventory():getFirstEvalArgRecurse(missionMatch, missionId) ~= nil
 end
 
 local function removeFrom(container, item)
@@ -281,7 +275,7 @@ function Game.takeItem(character, name)
 end
 
 function Game.takeMissionItem(character, missionId)
-    local item = character:getInventory():getFirstEvalArgRecurse(predicateMission, missionId)
+    local item = character:getInventory():getFirstEvalArgRecurse(missionMatch, missionId)
     if not item then return false end
     removeFrom(item:getContainer(), item)
     return true
@@ -340,9 +334,17 @@ end
 -- ---------------------------------------------------------------------------------------------------------------
 -- Placing.
 
--- The pieces still waiting for a container as they fill: { { mission = id, key = key } }.
+-- The pieces still waiting for a container as they fill: { { mission = id, key = key, id = "mission/key", x1..z2 = the
+-- building's box } }. The box is kept here so that a fill outside it costs a few comparisons, not a search of the
+-- records.
 local waiting = {}
+-- id -> how many containers of its building filled without taking the piece (the chance grows with it)
 local seen = {}
+
+local function waitEntry(m, it)
+    return { mission = m.id, key = it.key, id = m.id .. "/" .. tostring(it.key),
+        x1 = it.x1, y1 = it.y1, z1 = it.z1, x2 = it.x2, y2 = it.y2, z2 = it.z2 }
+end
 
 local function findPiece(missionId, key)
     for _, record in pairs(OA.Store.players()) do
@@ -357,10 +359,7 @@ local function findPiece(missionId, key)
     return nil
 end
 
-local function cell()
-    return getCell()
-end
-
+-- Whether (x, y, z) lies in the box of a piece or of its waiting entry.
 local function inBox(it, x, y, z)
     return x >= it.x1 and x <= it.x2 and y >= it.y1 and y <= it.y2 and z >= it.z1 and z <= it.z2
 end
@@ -372,7 +371,7 @@ local function eachLoadedSquare(it, fn)
     local x1, y1, x2, y2 = it.x1, it.y1, it.x2, it.y2
     if x2 - x1 > 2 * R then x1, x2 = math.max(x1, it.x - R), math.min(x2, it.x + R) end
     if y2 - y1 > 2 * R then y1, y2 = math.max(y1, it.y - R), math.min(y2, it.y + R) end
-    local c = cell()
+    local c = getCell()
     for z = it.z1, math.min(it.z2, it.z1 + 7) do
         for x = x1, x2 do
             for y = y1, y2 do
@@ -435,7 +434,7 @@ end
 
 -- The nearest free square to a point outdoors (a stake tag lies by its stake).
 local function nearFreeSquare(x, y, z)
-    local c = cell()
+    local c = getCell()
     for r = 0, 3 do
         for dx = -r, r do
             for dy = -r, r do
@@ -450,7 +449,7 @@ end
 local function dropOnFloor(sq, item)
     local wi = sq:AddWorldInventoryItem(item, 0.2 + OA.randomFloat(0, 0.6), 0.2 + OA.randomFloat(0, 0.6), 0)
     if wi and wi.getWorldItem and wi:getWorldItem() then
-        pcall(function() wi:getWorldItem():setIgnoreRemoveSandbox(true) end)
+        OA.try("game: keeping the item in the world", function() wi:getWorldItem():setIgnoreRemoveSandbox(true) end)
     end
     return wi
 end
@@ -462,7 +461,7 @@ local function lockRoom(record, m, it, sq)
     if not room then return end
     local locked = 0
     local squares = room:getSquares()
-    local c = cell()
+    local c = getCell()
     for i = 0, squares:size() - 1 do
         local s2 = squares:get(i)
         local objects = s2:getObjects()
@@ -633,7 +632,7 @@ function Game.request(record, m, it)
     if it.placed or it.staged then return end
     if Game.tryPlace(record, m, it) then return end
     if it.mode == "container" then
-        waiting[#waiting + 1] = { mission = m.id, key = it.key }
+        waiting[#waiting + 1] = waitEntry(m, it)
     end
     local chunks = chunksOf(it)
     it.chunks = #chunks
@@ -645,7 +644,10 @@ end
 
 function Game.unregisterPiece(missionId, key)
     for i = #waiting, 1, -1 do
-        if waiting[i].mission == missionId and (key == nil or waiting[i].key == key) then table.remove(waiting, i) end
+        if waiting[i].mission == missionId and (key == nil or waiting[i].key == key) then
+            seen[waiting[i].id] = nil
+            table.remove(waiting, i)
+        end
     end
     OA.Chunks.remove(function(e)
         return e.kind == "oa_place" and e.mission == missionId and (key == nil or e.key == key)
@@ -661,11 +663,11 @@ end
 
 -- Memory of what waits for containers is not saved: rebuilt from the records when the world starts.
 function Game.rebuildWaiting()
-    waiting = {}
+    waiting, seen = {}, {}
     for _, record in pairs(OA.Store.players()) do
         for _, m in ipairs(Missions.live(record)) do
             for _, it in ipairs(m.items) do
-                if not it.placed and it.mode == "container" then waiting[#waiting + 1] = { mission = m.id, key = it.key } end
+                if not it.placed and it.mode == "container" then waiting[#waiting + 1] = waitEntry(m, it) end
             end
         end
     end
@@ -682,22 +684,25 @@ function Game.onFill(roomName, containerType, container)
     local x, y, z = sq:getX(), sq:getY(), sq:getZ()
     for i = #waiting, 1, -1 do
         local w = waiting[i]
-        local record, m, it = findPiece(w.mission, w.key)
-        if not it or it.placed then
-            table.remove(waiting, i)
-        elseif inBox(it, x, y, z) then
-            local n = (seen[w.mission .. w.key] or 0) + 1
-            seen[w.mission .. w.key] = n
-            local chance = 0.12 + 0.12 * n
-            if roomName and it.room and roomName == it.room then chance = 0.7 end
-            if it.avoidRoom and roomName == it.avoidRoom then chance = 0 end
-            if OA.randomFloat(0, 1) < chance and container:hasRoomFor(nil, weightOf(it)) then
-                local item = newItem(record, m, it)
-                if item then
-                    if it.keyId then item:setKeyId(it.keyId) end
-                    addToContainer(container, item)
-                    finish(record, m, it, sq)
-                    if it.lock then lockRoom(record, m, it, sq) end
+        if inBox(w, x, y, z) then
+            local record, m, it = findPiece(w.mission, w.key)
+            if not it or it.placed then
+                seen[w.id] = nil
+                table.remove(waiting, i)
+            else
+                local n = (seen[w.id] or 0) + 1
+                seen[w.id] = n
+                local chance = 0.12 + 0.12 * n
+                if roomName and it.room and roomName == it.room then chance = 0.7 end
+                if it.avoidRoom and roomName == it.avoidRoom then chance = 0 end
+                if OA.randomFloat(0, 1) < chance and container:hasRoomFor(nil, weightOf(it)) then
+                    local item = newItem(record, m, it)
+                    if item then
+                        if it.keyId then item:setKeyId(it.keyId) end
+                        addToContainer(container, item)
+                        finish(record, m, it, sq)
+                        if it.lock then lockRoom(record, m, it, sq) end
+                    end
                 end
             end
         end
@@ -787,7 +792,7 @@ function Game.whereNow(record, m, it)
     local signature = OA.signature(inventory)
     if missed[key] == signature then return nil end
     -- oa-scan: ok (a found piece not followed, once for each change of the player's things)
-    item = inventory:getFirstEvalArgRecurse(predicateMission, Missions.itemId(m, it.key))
+    item = inventory:getFirstEvalArgRecurse(missionMatch, Missions.itemId(m, it.key))
     if not item then
         missed[key] = signature
         return nil
@@ -799,7 +804,7 @@ end
 -- The piece of a mission in a bag the player picked up, or nil.
 function Game.pieceIn(bag, missionId)
     -- oa-scan: ok (a bag picked up while a piece is still to be found)
-    return bag:getInventory():getFirstEvalArgRecurse(predicateMission, missionId)
+    return bag:getInventory():getFirstEvalArgRecurse(missionMatch, missionId)
 end
 
 -- ---------------------------------------------------------------------------------------------------------------
@@ -842,7 +847,6 @@ end
 -- ---------------------------------------------------------------------------------------------------------------
 -- The record in the drop case.
 
--- The record appears in the case at the drop (or in the player's hands when the case is gone).
 -- Whether the player may see a swap's drop now: they are within a few squares of it or in its room, or its square is
 -- in their sight. False when they are away, or the drop's square is not loaded.
 function Game.dropSeen(record, m)
@@ -853,7 +857,7 @@ function Game.dropSeen(record, m)
     end
     local at = caseIt and caseIt.at
     if not (character and at) then return false end
-    local sq = cell():getGridSquare(at.x, at.y, at.z)
+    local sq = getCell():getGridSquare(at.x, at.y, at.z)
     if not sq then return false end
     local dx, dy = character:getX() - (at.x + 0.5), character:getY() - (at.y + 0.5)
     if math.floor(character:getZ()) == at.z and dx * dx + dy * dy <= 9 then return true end
@@ -862,6 +866,7 @@ function Game.dropSeen(record, m)
     return sq:isCanSee(character:getPlayerNum())
 end
 
+-- The record appears in the case at the drop (or in the player's hands when the case is gone).
 function Game.deliverInside(record, m, it)
     local caseIt
     for _, p in ipairs(m.items) do
@@ -869,7 +874,7 @@ function Game.deliverInside(record, m, it)
     end
     local item
     if caseIt and caseIt.at then
-        local sq = cell():getGridSquare(caseIt.at.x, caseIt.at.y, caseIt.at.z)
+        local sq = getCell():getGridSquare(caseIt.at.x, caseIt.at.y, caseIt.at.z)
         if sq then
             local objs = sq:getWorldObjects()
             for i = 0, objs:size() - 1 do
@@ -912,7 +917,7 @@ end
 function Game.markOf(object)
     local zombies, handle = zombieApi()
     if not zombies then return nil end
-    local ok, key = pcall(zombies.markOf, handle, object)
+    local ok, key = OA.try("game: the mark of a zombie", zombies.markOf, handle, object)
     return ok and key or nil
 end
 
@@ -930,7 +935,7 @@ end
 local function markedZombies(key)
     local zombies, handle = zombieApi()
     if not zombies then return {} end
-    local ok, list = pcall(zombies.marked, handle, key)
+    local ok, list = OA.try("game: the marked zombies", zombies.marked, handle, key)
     return ok and list or {}
 end
 
@@ -943,17 +948,17 @@ end
 function Game.releaseZombies(m)
     local zombies, handle = zombieApi()
     if not zombies then return end
-    pcall(zombies.release, handle, m.id)
+    OA.try("game: releasing the zombies", zombies.release, handle, m.id)
     for _, z in ipairs(markedZombies(m.id)) do
         z:removeFromWorld()
         z:removeFromSquare()
     end
-    pcall(zombies.forget, handle, m.id)
+    OA.try("game: forgetting the zombies", zombies.forget, handle, m.id)
 end
 
 -- Whether the circle's middle and its four edges are loaded.
 function Game.areaLoaded(area)
-    local c = cell()
+    local c = getCell()
     local x, y, r = area.x, area.y, area.r
     for _, p in ipairs({ { x, y }, { x + r, y }, { x - r, y }, { x, y + r }, { x, y - r } }) do
         if not c:getGridSquare(p[1], p[2], 0) then return false end
@@ -972,7 +977,7 @@ local STEPS = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } }
 -- The open squares of the circle that are joined to the one nearest its middle (a walled yard or a roof is not part of
 -- it), outdoors first: { square, ... }. Every open square of the circle when none is joined.
 local function openSquares(area, indoors)
-    local c = cell()
+    local c = getCell()
     local open, nearest, nearestD = {}, nil, nil
     local r = area.r
     for dx = -r, r do
@@ -1032,7 +1037,7 @@ function Game.spawnZombies(area, outfit, key, count, px, py)
         if n > count - i + 1 then far[j] = far[n]; far[n] = nil end
         local list = addZombiesInOutfit(sq:getX(), sq:getY(), sq:getZ(), 1, outfit, 50)
         for k = 0, (list and list:size() or 0) - 1 do
-            if pcall(zombies.mark, handle, list:get(k), key) then made = made + 1 end
+            if OA.try("game: marking a zombie", zombies.mark, handle, list:get(k), key) then made = made + 1 end
         end
     end
     return made

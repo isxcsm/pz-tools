@@ -396,10 +396,6 @@ local function thick()
     return math.max(2, floor(S * 1.25 + 0.5))
 end
 
-local function remainder(v, m)
-    return v - floor(v / m) * m
-end
-
 -- Where segment k of a bar of `total` segments from pixel x0 to x1 starts (pixels).
 local function segX(x0, x1, k, total)
     return x0 + floor((x1 - x0) * k / total + 0.5)
@@ -1290,7 +1286,8 @@ end
 function View:updateTip()
     local item = not self:asking() and self:focusItem()
     if not item or not self.sim or not self.body then return self:hideTip() end
-    if item.key ~= self.tipKey or self.tipDirty then
+    local changed = item.key ~= self.tipKey or self.tipDirty
+    if changed then
         local rows
         if item.id then rows = self:tipRows(item.id) else rows = self:buttonTipRows(item) end
         if not rows then return self:hideTip() end
@@ -1304,13 +1301,19 @@ function View:updateTip()
         self.tip.description = select(2, self:tipText(rows))
     end
     local tip = self.tip
-    if not self.tipShown then
+    local fresh = not self.tipShown
+    if fresh then
         tip:setVisible(true)
         tip:addToUIManager()
         self.tipShown = true
     end
-    tip:bringToTop()
+    -- on top when it shows or shows something else, not every frame
+    if fresh or changed then tip:bringToTop() end
     local bx, by = UI.dp(self.body:getAbsoluteX()), UI.dp(self.body:getAbsoluteY())
+    -- placed again only when the item or the window moved, or the tip changed
+    local at = self.tipAt
+    if not (fresh or changed) and at and at[1] == bx and at[2] == by and at[3] == item.x and at[4] == item.y then return end
+    self.tipAt = { bx, by, item.x, item.y }
     local screenW, screenH = UI.dp(getCore():getScreenWidth()), UI.dp(getCore():getScreenHeight())
     local x = bx + item.x + item.w + 10
     if x + tip.width > screenW then x = bx + item.x - 10 - tip.width end
@@ -1592,7 +1595,7 @@ local function drawLine(el, line, mode, c, a, t, dy, upto)
     local k = math.max(3, floor(3 * S + 0.5))
     local tip = k / S
     local period = Window.DASH + Window.DASH_GAP
-    local phase = mode == "dashes" and remainder(t * Window.FLOW, period) or 0
+    local phase = mode == "dashes" and OA.remainder(t * Window.FLOW, period) or 0
     local dist = 0
     for i = 1, #pts - 1 do
         local xa, ya = pts[i][1], pts[i][2] + dy
@@ -1605,7 +1608,7 @@ local function drawLine(el, line, mode, c, a, t, dy, upto)
             if mode == "solid" then
                 linePiece(el, xa, ya, xb, yb, len, 0, room, lw, c, a)
             else
-                local s0 = -remainder(dist - phase, period)
+                local s0 = -OA.remainder(dist - phase, period)
                 while s0 < room do
                     local a0, a1 = math.max(0, s0), math.min(room, s0 + Window.DASH)
                     if a1 > a0 then linePiece(el, xa, ya, xb, yb, len, a0, a1, lw, c, a) end
@@ -2281,7 +2284,7 @@ function View.pulseTick(panel, now)
     local held = 0
     local items = view.pulsing
     for i = 1, #items do
-        if view:pulseHeld(items[i], now) then held = remainder(held * 31 + i, 1000003) end
+        if view:pulseHeld(items[i], now) then held = OA.remainder(held * 31 + i, 1000003) end
     end
     local focus = view.hover or (view.joypad and view.cursor)
     local light = 0

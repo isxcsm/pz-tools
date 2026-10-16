@@ -21,7 +21,6 @@
 require "ISUI/ISInventoryPage"
 require "OperationAcorn/Sync"
 require "OperationAcorn/Economy/Buildings"
-require "OperationAcorn/Economy/Codex"
 local OA = OperationAcorn
 local Watch = {}
 OA.SearchWatch = Watch
@@ -86,7 +85,6 @@ end
 local function look(player, now, marked)
     local key, opened, total, complete = OA.Buildings.tick(player)
     if not key then return end
-    OA.Codex.setBuildingProgress(key, opened, total)
     local S = senses()
     local line = S and S.ledgerLook(player, key, opened, total, complete, now) or nil
     local done = complete and total > 0 and opened >= total
@@ -131,7 +129,7 @@ function Watch.refreshed(page)
         state.room = room
         if room then
             key = OA.Buildings.keyAt(square, room)
-        elseif not (square and not square:isOutside()) then
+        elseif not square or square:isOutside() then
             key = nil
         end
     end
@@ -207,8 +205,9 @@ function ISInventoryPage:refreshBackpacks(...)
     wipe(listed)
     wipe(fresh)
     listing = true
-    refreshBackpacks(self, ...)
+    local ok, err = pcall(refreshBackpacks, self, ...)
     listing = false
+    if not ok then error(err, 0) end
     Watch.refreshed(self)
 end
 

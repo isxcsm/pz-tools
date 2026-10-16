@@ -10,8 +10,7 @@ local ShopView = {}
 OA.Trade.ShopView = ShopView
 
 -- The serum shelf (DESIGN-terminal 4.1) in its fixed order: the upgrade serums (bought far more often), then the
--- treatments. An id the
--- catalog does not have is skipped; any other entry of the serum group, or that is a serum, is
+-- treatments. An id the catalog does not have is skipped; any other entry of the serum group, or that is a serum, is
 -- put after them in the catalog's order.
 ShopView.TREAT_IDS = { "cure_serum", "reversal", "delay_long", "delay_drug", "test_kit" }
 ShopView.ENHANCE_IDS = { "serum_scout", "serum_load", "serum_survival" }
@@ -175,11 +174,11 @@ function ShopView.rows(blocks)
         end
         local row
         for i, card in ipairs(block.cards) do
-            if i % 2 == 1 then
+            if OA.remainder(i, 2) == 1 then
                 row = { kind = "cards", cards = {}, h = ShopView.ROW_H }
                 rows[#rows + 1] = row
             end
-            card.col = (i - 1) % 2
+            card.col = OA.remainder(i - 1, 2)
             row.cards[#row.cards + 1] = card
         end
         if bi < #used and block.head then row.h = row.h + ShopView.BLOCK_GAP end

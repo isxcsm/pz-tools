@@ -55,7 +55,6 @@ function Heli.rewards(record)
     }
 end
 
--- What a call costs to ask for ahead of time: when it would arrive is only known when it is made.
 -- Makes a call. kind "normal" needs the active box standing in the world; kind "reissue" asks for a new box, costs
 -- BoxReissueCost credits (a short balance becomes a debt) and brings the box to a clear spot near x, y. The cart
 -- is carried on the flight. Returns true, or false and a reason.
@@ -178,7 +177,7 @@ function Heli.setDown(entry)
     end
     if entry.cargo and #entry.cargo > 0 then
         local crateSquare = Objects.findBeside(boxSquare:getX(), boxSquare:getY(), boxSquare:getZ(), 5) or boxSquare
-        local crate = Things.makeCrate(crateSquare, entry.cargo, entry.parachute)
+        Things.makeCrate(crateSquare, entry.cargo, entry.parachute)
         local cx, cy, cz = crateSquare:getX(), crateSquare:getY(), crateSquare:getZ()
         Trade.Markers.add(owner, crateSquare, "crate")
         if entry.parachute then
@@ -290,6 +289,9 @@ function Heli.arrive(record)
     return plan
 end
 
+-- A pass saved in the middle is finished once this many game hours have gone since it began.
+Heli.LANDING_STALE_HOURS = 0.5
+
 -- Every ten minutes: the helicopters whose arrival has come.
 function Heli.check()
     local now = OA.hours()
@@ -300,7 +302,7 @@ function Heli.check()
             if not ok then OA.log("arrival failed:", tostring(err)) end
         end
         -- A pass that was saved in the middle is finished.
-        if heli and heli.landing and now - (heli.landing.at or 0) > 0.5 then Heli.landNow(record.id) end
+        if heli and heli.landing and now - (heli.landing.at or 0) > Heli.LANDING_STALE_HOURS then Heli.landNow(record.id) end
     end
 end
 

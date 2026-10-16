@@ -43,6 +43,13 @@ local function key(id, n, suffix)
     return "IGUI_OA_Comms_" .. id .. "_" .. tostring(n) .. (suffix or "")
 end
 
+-- A translation for the calls' text: a key without one is empty (the tests see that every key is there).
+function Script.text(key, ...)
+    local s = getText(key, ...)
+    if s == key then return "" end
+    return s
+end
+
 -- A text's characters, one each. The game's Lua (Kahlua) keeps a string as Java's characters, so a Hangul letter is
 -- one place of it (string.byte gives its code, string.sub(s, i, i) the letter): no UTF-8 bytes to put together.
 function Script.chars(s)

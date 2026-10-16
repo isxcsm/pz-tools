@@ -21,7 +21,7 @@ Effects.POINTS = {
     carryItem = "carry.itemEfficiency",
     carryTag = "carry.containerTagMultiplier",
     maxWeightAdd = "capacity.maxWeightAdd",
-    capacityKey = "capacity.modDataKey",
+    capacityKey = OA.CAPACITY_POINT,
     storage = "capacity.effectiveMultiplier",
     limitAdd = "capacity.characterLimitAdd",
     overload = "overload.compress",
@@ -51,8 +51,8 @@ Effects.POINTS = {
     hiddenZombie = "vision.hiddenZombieFix",
 }
 local P = Effects.POINTS
--- The modData key that lifts the game's capacity caps on a container (the other packages set it to true).
-Effects.CAPACITY_KEY = "OA_Capacity"
+-- The modData key that lifts the game's capacity caps on a container (the other packages set it too).
+Effects.CAPACITY_KEY = OA.CAPACITY_KEY
 
 -- Which points each API node feeds (node id -> list of point keys). Lua-only nodes are not here.
 Effects.MAP = {
@@ -74,7 +74,7 @@ Effects.MAP = {
 for _, family in ipairs(Data.FAMILY_ORDER) do Effects.MAP["bFamily" .. family] = { "carryCategory" } end
 
 -- The cone the sight node may add at most (degrees), whatever the effect option says.
-local MAX_CONE = 90
+local MAX_CONE = Data.byId.sight.cap
 -- Night sight (PZ Extension API: the dark is lifted to the value, in grey; what a light lights keeps its colour) by the rank of
 -- 밤눈, and with 야행성 눈. Measured at 2 a.m. in an office with no light: 0.1 barely lifts it, 0.3 shows all of it
 -- (the last rank before the capstone), 0.5 shows it plainly; the capstone goes a step past that.

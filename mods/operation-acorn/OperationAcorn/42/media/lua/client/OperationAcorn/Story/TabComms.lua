@@ -48,16 +48,9 @@ end
 
 local chars = Script.chars
 
--- A translation for the calls' text: a key without one is empty (the tests see that every key is there).
-local function text(key, ...)
-    local s = getText(key, ...)
-    if s == key then return "" end
-    return s
-end
-
 -- How a call's lines are made for a record at a tier.
 local function context(record, tier)
-    return { text = text, number = OA.Story.number(record), tier = tier, late = OA.Story.lateContact(record) }
+    return { text = Script.text, number = OA.Story.number(record), tier = tier, late = OA.Story.lateContact(record) }
 end
 
 -- What goes between the parts of a head (a middle dot).
@@ -66,7 +59,7 @@ local SEP = " " .. string.char(183) .. " "
 -- The tier as the heads write it: the start, the stage's name, or after the handover.
 local function tierLabel(tier)
     if tier <= 0 then return UI.str("IGUI_OA_Comms_Start") end
-    if tier > OA.StoryData.LAST_STAGE + 3 then return UI.str("IGUI_OA_Comms_After") end
+    if tier > OA.StoryData.TRANSFER_TIER then return UI.str("IGUI_OA_Comms_After") end
     return OA.Story.tierText(tier)
 end
 

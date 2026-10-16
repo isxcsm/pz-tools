@@ -203,15 +203,7 @@ local function pickRoom(ctx, p)
     if picked and p.at and picked[p.at] then return rooms[picked[p.at]] end
     local taken = {}
     for _, i in pairs(picked or {}) do taken[i] = true end
-    local ground
-    for _, r in ipairs(rooms) do
-        if r.z == 0 then ground = 0 end
-    end
-    if not ground then
-        for _, r in ipairs(rooms) do
-            if not ground or r.z < ground then ground = r.z end
-        end
-    end
+    local ground = OA.Stage.groundFloor(rooms)
     local named = {}
     for _, n in ipairs(p.names or {}) do named[n] = true end
     local function pick(z, lit)
@@ -748,9 +740,19 @@ function StageGame.vehicle(ctx, p)
     return true
 end
 
+-- The planks a window or a door is boarded with when the piece names none ({ least, most }), and the condition a
+-- generator is put with.
+StageGame.PLANKS = { 2, 3 }
+StageGame.GENERATOR_CONDITION = 80
+
+local function planksOf(p)
+    local planks = p.planks or StageGame.PLANKS
+    return planks[1], planks[2]
+end
+
 -- Boards on the inside of the ground floor's windows.
 function StageGame.barricade(ctx, p)
-    local lo, hi = (p.planks or { 2, 3 })[1], (p.planks or { 2, 3 })[2]
+    local lo, hi = planksOf(p)
     for _, at in ipairs(ctx.layout.windows or {}) do
         local w = at.object
         if w:isBarricadeAllowed() then
@@ -797,7 +799,7 @@ end
 function StageGame.board(ctx, p)
     local room = roomOf(ctx, p)
     if not room then return nil end
-    local lo, hi = (p.planks or { 2, 3 })[1], (p.planks or { 2, 3 })[2]
+    local lo, hi = planksOf(p)
     local first
     local all = {}
     for _, d in ipairs(doorsOf(room)) do
@@ -816,8 +818,13 @@ function StageGame.board(ctx, p)
             end
         end
     end
-    if first then first.all = all end
-    return first or (not p.drop and true) or nil
+    if first then
+        first.all = all
+        return first
+    end
+    -- nothing boarded: fine for a stage that only wants the doors boarded, no use for one that drops from a plank
+    if p.drop then return nil end
+    return true
 end
 
 -- The door at a boarded place ({ x, y, z, north }), or nil.
@@ -900,7 +907,7 @@ if ISUnbarricadeAction and not ISUnbarricadeAction.OA_stage then
     ISUnbarricadeAction.OA_stage = true
     function ISUnbarricadeAction:complete()
         local result = complete(self)
-        pcall(StageGame.unbarricaded, self.character)
+        OA.try("stage: a barricade taken down", StageGame.unbarricaded, self.character)
         return result
     end
 end
@@ -985,7 +992,7 @@ function StageGame.generator(ctx, p)
     local g = IsoGenerator.new(instanceItem(p.type or "Base.Generator"), getCell(), sq)
     if not g then return nil end
     g:setFuel(g:getMaxFuel() * (p.fuel or 0))
-    g:setCondition(p.condition or 80)
+    g:setCondition(p.condition or StageGame.GENERATOR_CONDITION)
     if isServer() then g:transmitCompleteItemToClients() end
     return true
 end
@@ -1093,8 +1100,6 @@ end
 
 local AROUND = { { 0, 0 }, { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }, { 1, 1 }, { -1, -1 }, { 1, -1 }, { -1, 1 } }
 
--- Wakes what lies fake dead at the points (or a square from them: a body may have slid); with `stagger`, one after
--- another that many real seconds apart (the first at once), in a random order.
 -- Where a thing that sounds on an event stands (`call`): the nearest square about its spot with its sprite (the set
 -- put it there), as { x, y, z }; nil when the set did not go down.
 function StageGame.call(ctx, p)
@@ -1129,6 +1134,8 @@ function StageGame.sound(list)
     end
 end
 
+-- Wakes what lies fake dead at the points (or a square from them: a body may have slid); with `stagger`, one after
+-- another that many real seconds apart (the first at once), in a random order.
 function StageGame.wake(points, stagger)
     if stagger and #points > 1 then
         local order = {}

@@ -71,10 +71,6 @@ Data.FAMILIES = {
              "Electronics", "Communications", "Household", "HouseholdWeapon", "Appearance", "Security" },
 }
 Data.FAMILY_ORDER = { "Gear", "Supply", "Misc" }
--- The family nodes of the record's version 2 (one a family of ten, bFamilyA ...) and the node each went into.
-Data.OLD_FAMILIES = { bFamilyA = "bFamilySupply", bFamilyB = "bFamilyGear", bFamilyC = "bFamilyGear",
-    bFamilyD = "bFamilyMisc", bFamilyE = "bFamilyMisc", bFamilyF = "bFamilyMisc", bFamilyG = "bFamilyMisc",
-    bFamilyH = "bFamilyGear", bFamilyI = "bFamilySupply", bFamilyJ = "bFamilyGear" }
 -- The display categories the heavy-load nodes cover.
 Data.MATERIAL_CATEGORIES = { "Material", "MaterialWeapon", "Paint" }
 
@@ -238,22 +234,6 @@ function Data.capstone(tree)
         if n.tree == tree and n.capstone then return n end
     end
     return nil
-end
-
-function Data.node(id)
-    return byId[id]
-end
-
--- The family a display category belongs to, or nil (built once).
-local familyOf
-function Data.familyOfCategory(category)
-    if not familyOf then
-        familyOf = {}
-        for family, list in pairs(Data.FAMILIES) do
-            for _, c in ipairs(list) do familyOf[c] = family end
-        end
-    end
-    return familyOf[category]
 end
 
 -- The translation key of a node's text: part is "Name", "Note", "Desc" or "Rank".

@@ -113,7 +113,7 @@ Data.ANCHOR_KEY = "OA_Anchor"
 -- The anchor's modData keys the PZ Extension API reads: OA_Capacity, a number (0 here), lifts the vanilla container cap for
 -- the research storage (the API adds the number to the raw capacity and reads nothing but numbers) (the upgrades package names the key to the API); OA_Load is the machine's load multiplier (the
 -- motor's power multiplier while it is switched on, else 0), for the generator hook's per-object multiplier.
-Data.CAPACITY_KEY = "OA_Capacity"
+Data.CAPACITY_KEY = OA.CAPACITY_KEY
 Data.LOAD_KEY = "OA_Load"
 
 -- The machine kind of an item type (without the module): BulkShredder -> bulkShredder.
@@ -207,7 +207,9 @@ Data.OIL_FOOD = { ["Base.OilVegetable"] = true, ["Base.OilOlive"] = true, ["Base
 --     is on, where the picture shows it (the bin the products fall in); the anchor when not given. everyTile: every
 --     square has all its containers (the research storage's lockers).
 -- Part items are `<Name><Tier>` in module OperationAcorn, with ConditionMax 100: MotorOld, MotorNormal, MotorModern,
--- ShredBladeOld ..., FilterOld ...; the cover has one item, SoundproofCover. (The shop, P1, names the same.)
+-- ShredBladeOld ..., FilterOld ...; the cover has one item, SoundproofCover. (The shop names the same.)
+-- The planks a log gives with the worn saw blade (a better one gives more).
+Data.SAW_PLANKS = 6
 Data.TIERS = { "old", "normal", "modern" }
 Data.TIER_SUFFIX = { old = "Old", normal = "Normal", modern = "Modern" }
 Data.PARTS = {
@@ -238,9 +240,9 @@ Data.PARTS = {
     sawBlade = {
         slot = "blade", name = "SawBlade", role = "yield", kinds = { "woodSaw" },
         tiers = {
-            old = { planks = 6, wear = 2 },
-            normal = { planks = 6.5, wear = 1.5 },
-            modern = { planks = 7, wear = 1 },
+            old = { planks = Data.SAW_PLANKS, wear = 2 },
+            normal = { planks = Data.SAW_PLANKS + 0.5, wear = 1.5 },
+            modern = { planks = Data.SAW_PLANKS + 1, wear = 1 },
         },
     },
     catalyst = {

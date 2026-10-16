@@ -33,8 +33,8 @@ Value.CASH = { ["Base.Money"] = 1, ["Base.MoneyBundle"] = 100 }
 -- The mod's own goods that are taken: credits and trust for one, no market. Other goods of the mod (serums, kits,
 -- machines, parts, gear) are shop goods and not taken. A selected sample (시료 감별) is a sample bundle of a better
 -- grade. "MissionItem" is worth what its mission pays (the story part settles it); "ExpiredMission" is a mission item
--- past its time. A meteorite fragment is not sold: it goes to
--- the research team and opens a capstone (the story part tells the upgrades when it settles: Story.onSettled).
+-- past its time. A meteorite fragment is not sold: it goes to the research team and opens a capstone (the story part
+-- tells the upgrades when it settles: Story.onSettled).
 Value.OWN = {
     SampleBundle = { credits = 600, trust = 6 },
     SelectedSample = { credits = 1200, trust = 12 },
@@ -346,13 +346,11 @@ function Value.requestFills(ctx, taken)
     return { fills = fills, trust = total }
 end
 
--- One flight's settlement: `entries` is the sealed boxes' records, { info = ..., count = n } in any order. Values
--- every line at the market as it is now, sends the weight shipped to the market, uses up the request counters and
--- the new-region weights, and returns { credits (rounded once), trust, cashTrust, lines, shipped, filled }. `filled`
--- are the request lines this flight made full ({ fullType (the key), band, trust }); their trust is in `trust`. The
--- record's credits and trust are not changed: the trade part adds them with the debt.
-function Value.settle(record, entries)
-    local ctx = Value.buildContext(record)
+-- Entries ({ info, count }) valued as one flight at a context, changing nothing: { credits (not rounded), trust (with
+-- the cash's capped and the filled request lines'), cashTrust (capped), lines (one for each entry), taken (what the
+-- flight settles of each request group and region: { requests, cells }), shipped (category -> weight sent to the
+-- market), fills (the request lines the flight makes full) }. Value.settle uses it up; the estimate only shows it.
+function Value.flight(ctx, entries)
     local taken = { requests = {}, cells = {} }
     local lines = {}
     local credits, trust, cashTrust = 0, 0, 0
@@ -378,19 +376,30 @@ function Value.settle(record, entries)
     -- Cash is not a sample: its trust is capped per flight.
     cashTrust = math.min(cashTrust, Value.CASH_TRUST_CAP)
     local fills = Value.requestFills(ctx, taken)
-    for key, n in pairs(taken.requests) do
+    return { credits = credits, trust = trust + cashTrust + fills.trust, cashTrust = cashTrust, lines = lines,
+        taken = taken, shipped = shipped, fills = fills.fills }
+end
+
+-- One flight's settlement: `entries` is the sealed boxes' records, { info = ..., count = n } in any order. Values
+-- every line at the market as it is now, sends the weight shipped to the market, uses up the request counters and
+-- the new-region weights, and returns { credits (rounded once), trust, cashTrust, lines, shipped, filled }. `filled`
+-- are the request lines this flight made full ({ fullType (the key), band, trust }); their trust is in `trust`. The
+-- record's credits and trust are not changed: the trade part adds them with the debt.
+function Value.settle(record, entries)
+    local flight = Value.flight(Value.buildContext(record), entries)
+    for key, n in pairs(flight.taken.requests) do
         OA.Requests.consume(record, key, n)
     end
     local codex = OA.Store.section(record, "codex")
     codex.cells = codex.cells or {}
-    for cell, w in pairs(taken.cells) do
+    for cell, w in pairs(flight.taken.cells) do
         codex.cells[cell] = (codex.cells[cell] or 0) + w
     end
-    for cat, w in pairs(shipped) do
+    for cat, w in pairs(flight.shipped) do
         OA.Market.ship(cat, w, record)
     end
-    return { credits = OA.round(credits), trust = trust + cashTrust + fills.trust, cashTrust = cashTrust, lines = lines,
-        shipped = shipped, filled = fills.fills }
+    return { credits = OA.round(flight.credits), trust = flight.trust, cashTrust = flight.cashTrust, lines = flight.lines,
+        shipped = flight.shipped, filled = flight.fills }
 end
 
 return Value

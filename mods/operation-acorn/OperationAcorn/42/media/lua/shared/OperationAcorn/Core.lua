@@ -8,11 +8,31 @@ OA.MOD = "OperationAcorn"
 -- Every key this mod keeps in a save (global ModData, player and object modData) starts with this.
 OA.PREFIX = "OA_"
 OA.API_VERSION = 1
+-- The extension API's capacity point, and the modData key it reads on a container's holder: a number added to the raw
+-- capacity, which lifts the game's capacity caps (the delivery box, the research storage and the kits mark their holders).
+OA.CAPACITY_POINT = "capacity.modDataKey"
+OA.CAPACITY_KEY = "OA_Capacity"
 
 function OA.log(...)
     local parts = {}
     for i = 1, select("#", ...) do parts[#parts + 1] = tostring(select(i, ...)) end
     print("[OperationAcorn] " .. table.concat(parts, " "))
+end
+
+local failedSites = {}
+local function afterTry(site, ok, ...)
+    if not ok and not failedSites[site] then
+        failedSites[site] = true
+        OA.log(site, "failed:", tostring((...)))
+    end
+    return ok, ...
+end
+
+-- pcall that writes the log the first time a `site` (a short name for the call) fails, and then never again for it: for
+-- the calls that must not break their caller (a screen, a menu, a handler) and may fail on every frame or event.
+-- Returns what pcall returns.
+function OA.try(site, fn, ...)
+    return afterTry(site, pcall(fn, ...))
 end
 
 -- The extension API, or nil with the reason it is missing: PZ Extension API not installed, or another
@@ -40,6 +60,25 @@ function OA.drawCall(name)
     return type(fn) == "function" and fn or nil
 end
 
+-- Tells the API that this mod outlines objects with the game's own outline (the loot reach, the searched mark, the
+-- story's pieces, the senses): the game leaves out the objects it draws as models (doors, built furniture) and vehicles
+-- until some mod declares the formulas point outline.models. Once a game, where the game draws; returns true when the
+-- API took it. An API without the point (or without the API) leaves the outlines as the game's, said once in the log.
+local outlinesDeclared, outlinesFailed = false, false
+function OA.declareOutlines()
+    if outlinesDeclared then return true end
+    local api, handle = OA.api(), OA.handle()
+    if not (api and handle and type(api.formulas) == "table" and type(api.formulas.set) == "function") then return false end
+    local ok, err = pcall(api.formulas.set, handle, "outline.models", true)
+    if ok then
+        outlinesDeclared = true
+    elseif not outlinesFailed then
+        outlinesFailed = true
+        OA.log("outlines of models not declared:", tostring(err))
+    end
+    return ok
+end
+
 -- A sandbox option by name (media/sandbox-options.txt, page OperationAcorn...).
 function OA.option(name)
     local vars = SandboxVars and SandboxVars.OperationAcorn
@@ -59,6 +98,7 @@ OA.BALANCE = {
     reissueCost = 10000,    -- credits for a new delivery box
     callDays = 3,           -- days between helicopter calls, at the start
     arrival = { 4, 6 },     -- hours from a call to the helicopter, at the start
+    boxCapacity = 50,       -- what the delivery box holds, at the start
     noiseRadius = 100,      -- squares the helicopter is heard by zombies
 }
 
@@ -151,9 +191,20 @@ function OA.day(hours)
     return math.floor(((hours or now) + start) / 24 + 1e-6)
 end
 
+-- The world age (hours) a game day starts at.
+function OA.dayStart(day)
+    return day * 24 - OA.remainder(getGameTime():getTimeOfDay() - OA.hours(), 24)
+end
+
 -- The week a day falls in (weeks of seven days from day 0): the request list changes with it.
+OA.WEEK_DAYS = 7
 function OA.week(day)
-    return math.floor((day or OA.day()) / 7)
+    return math.floor((day or OA.day()) / OA.WEEK_DAYS)
+end
+
+-- The first day of a week.
+function OA.weekStart(week)
+    return week * OA.WEEK_DAYS
 end
 
 -- A whole random number from a to b, both included; or from 0 to a - 1 with one argument (as ZombRand).
@@ -195,6 +246,20 @@ function OA.signature(container)
     return tostring(container:getItems():size()) .. "|" .. tostring(container:getContentsWeight())
 end
 
+-- The items a right-click on the inventory works on, one per entry of the selection: the item itself, or the first item of
+-- a stack (a selection entry that holds an `items` list). ISInventoryPane.getActualItems lists every item of every
+-- stack, and a menu of a stack of thousands must not walk them: the items of a stack are of one type and name, which
+-- is what an entry of a menu reads.
+function OA.menuItems(selection)
+    local out = {}
+    for _, entry in ipairs(selection) do
+        local stack = type(entry) == "table" and entry.items
+        local item = type(stack) == "table" and stack[1] or entry
+        out[#out + 1] = item
+    end
+    return out
+end
+
 -- Whether an item is in a character's inventory, at any depth of bags: the item's container and the bag that holds
 -- that container, upward, until the inventory (a few steps; the inventory is not searched).
 function OA.inInventory(item, character)
@@ -208,6 +273,29 @@ function OA.inInventory(item, character)
         container = holder and holder:getContainer() or nil
     end
     return false
+end
+
+-- An item of a character's inventory by id (inside bags too), or nil. A search of the whole inventory: for the moment an
+-- action completes, not for the checks that run every tick (those use OA.heldItem).
+function OA.findItem(character, id)
+    if not id then return nil end
+    local inventory = character:getInventory()
+    local item = inventory:getItemWithIDRecursiv(id)
+    if item then return item end
+    return inventory:getItemById(id)
+end
+
+-- The item an action works on, for the checks that run every tick (isValid, update): the object the action was made
+-- with (in the field `field`), as long as it is in the character's inventory (a walk up from its container, no
+-- search). Only when the action has no object (made again from its ids, in `idField`) or the object left the inventory
+-- is the inventory searched, once; what that finds is kept.
+function OA.heldItem(action, field, idField)
+    local item = action[field]
+    if item and OA.inInventory(item, action.character) then return item end
+    -- oa-scan: ok (an action made from ids, or the item moved: once, and kept)
+    item = OA.findItem(action.character, action[idField])
+    action[field] = item
+    return item
 end
 
 -- Whether a table has no entries. The game's Lua has no next(), so this is a pairs loop that stops at once.

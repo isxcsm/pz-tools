@@ -15,7 +15,7 @@ Trade.Appraisal = Appraisal
 
 -- Tooltip --------------------------------------------------------------------------------------------------------------
 
--- Per item, for one day and one tier: { day, tier, text, color }. Cleared when the day changes.
+-- Per item, for one day and one tier: { text, r, g, b, tier, width }. Cleared when the day changes.
 local cache, cacheDay = {}, nil
 
 -- The line for an item: { text, r, g, b } or nil when the economy part is not there.
@@ -33,10 +33,9 @@ function Appraisal.lineFor(item, record)
     local ok, why = Value.accepts(info)
     local line
     if ok then
-        local credits = OA.round(Value.appraise(info, Value.context(record)).credits)
-        local marks = Value.appraise(info, Value.context(record)).marks
-        local text = getText("IGUI_OA_Trade_Tip_Worth", Text.credits(credits))
-        local words = Text.markText(marks)
+        local worth = Value.appraise(info, Value.context(record))
+        local text = getText("IGUI_OA_Trade_Tip_Worth", Text.credits(OA.round(worth.credits)))
+        local words = Text.markText(worth.marks)
         if words then text = text .. "  (" .. words .. ")" end
         line = { text = text, r = 0.6, g = 0.9, b = 0.6, tier = tier }
     elseif info.own or info.bought or info.cash then
@@ -44,6 +43,7 @@ function Appraisal.lineFor(item, record)
     else
         line = { text = Text.tr(why or "IGUI_OA_Trade_Tip_NotTaken"), r = 0.9, g = 0.55, b = 0.5, tier = tier }
     end
+    line.width = UI.textWidthPx(line.text, UIFont.Small)
     cache[item] = line
     return line
 end
@@ -51,18 +51,18 @@ end
 -- The tooltip draws the item's own lines through the game; the appraisal is a strip drawn under it (above it when the
 -- tooltip is at the bottom of the screen), and says how much room it took (oaAbove, oaBelow) for the lines of ItemTip.
 local originalRender = ISToolTipInv.render
-function ISToolTipInv:render()
-    originalRender(self)
+function ISToolTipInv:render(...)
+    originalRender(self, ...)
     local item = self.item
     if not item or not self:isVisible() then return end
     if ISContextMenu.instance and ISContextMenu.instance.visibleCheck then return end
     local record = OA.Client.record(getPlayer())
     if not record then return end
-    local ok, line = pcall(Appraisal.lineFor, item, record)
+    local ok, line = OA.try("appraisal line", Appraisal.lineFor, item, record)
     if not ok or not line then return end
     local font = UIFont.Small
     local h = UI.fontHeightPx(font) + 8
-    local w = math.max(self.width, UI.textWidthPx(line.text, font) + 16)
+    local w = math.max(self.width, line.width + 16)
     local y = self.height
     if self:getY() + self.height + h > getCore():getScreenHeight() then y = -h end
     -- what the item tooltip's other lines (ItemTip) find taken
@@ -77,6 +77,8 @@ end
 OAEstimatePanel = ISPanel:derive("OAEstimatePanel")
 -- The least height (pixels) the panel takes under the box's window when the right side has no room.
 OAEstimatePanel.BELOW_MIN = 160
+-- Real time between looks for the open box.
+OAEstimatePanel.LOOK_MS = 500
 
 function OAEstimatePanel:createChildren()
     local pad = UI.PAD
@@ -133,8 +135,9 @@ function OAEstimatePanel:fill(container)
 end
 
 -- Shown only while the loot window shows an open box and is not folded to its title bar: beside it on the right; where
--- the screen ends first, under it, or on its left when there is no room under it either. Its folding or closing hides the panel at once; the box is looked for twice a
--- second, the rows redone only when its contents changed.
+-- the screen ends first, under it, or on its left when there is no room under it either. Its folding or closing
+-- hides the panel at once; the box is looked for twice a second of real time, the rows redone only when its contents
+-- changed.
 function OAEstimatePanel:update()
     local page = self.page
     local folded = page.isCollapsed or not page:isVisible()
@@ -142,9 +145,7 @@ function OAEstimatePanel:update()
         self:setVisible(false)
         self.signature = nil
     end
-    self.ticks = (self.ticks or 0) + 1
-    if self.ticks < 30 then return end
-    self.ticks = 0
+    if not OA.due(self.looked, "box", getTimestampMs(), OAEstimatePanel.LOOK_MS) then return end
     local object, container = boxOf(page)
     if not object or folded then
         self:setVisible(false)
@@ -191,11 +192,12 @@ function OAEstimatePanel:new(page, character)
     o.backgroundColor = { r = 0, g = 0, b = 0, a = 0.7 }
     o.borderColor = { r = 0.4, g = 0.4, b = 0.4, a = 1 }
     o.total = ""
+    o.looked = {}
     return o
 end
 
 -- One panel for each loot page; a page made at the start of a game may be replaced, so the panel is looked up each time.
-local panels = {}
+local panels = setmetatable({}, { __mode = "k" })
 
 local function onRefresh(page, state)
     if state ~= "buttonsAdded" then return end

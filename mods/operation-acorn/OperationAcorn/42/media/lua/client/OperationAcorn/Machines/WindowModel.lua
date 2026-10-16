@@ -455,6 +455,35 @@ function Model.key(model)
     return table.concat(out)
 end
 
+-- What Model.read gave as one string, made before anything is built: while it is the same the model would be the same
+-- (it is made from the input alone), so the window does not build it. Numbers are written whole, but a job's share by
+-- the hundredth, as it shows (and whether it is due). The fields are in the order the tables hold them, which is the
+-- same for the same code path; a different order only costs one build more (Model.key then finds the model unchanged).
+local function plainKey(v, out, name)
+    if type(v) == "table" then
+        out[#out + 1] = "{"
+        for k, x in pairs(v) do
+            out[#out + 1] = tostring(k)
+            out[#out + 1] = "="
+            plainKey(x, out, k)
+            out[#out + 1] = ";"
+        end
+        out[#out + 1] = "}"
+    elseif name == "share" and type(v) == "number" then
+        out[#out + 1] = tostring(math.floor(v * 100)) .. (v >= 1 and "!" or "")
+    elseif type(v) == "number" then
+        out[#out + 1] = string.format("%.6f", v)
+    else
+        out[#out + 1] = tostring(v)
+    end
+end
+
+function Model.inputKey(input)
+    local out = {}
+    plainKey(input, out)
+    return table.concat(out)
+end
+
 -- What Model.build needs, read from the game: the status (once), the jobs in hand, the bins (their weight, capacity
 -- and count: no walk through their items), whether it can be switched on, the rain storage's fluid.
 function Model.read(object)

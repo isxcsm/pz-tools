@@ -30,10 +30,9 @@ local OA = OperationAcorn
 local Requests = {}
 OA.Requests = Requests
 
--- 2: the candidates are groups (1 had item types). 3: the ids of the groups that vanilla's name typos split are joined
--- (the saved candidates hold the old ids). 4: the scores are the availability profile's (a week's rate), ranked into
--- the bands. The table is made again too when RequestGroups.lua is (its stamp): a save holds the group ids and scores
--- of the table it was made from.
+-- The shape of the candidates table (groups with the availability profile's scores, ranked into the bands). The table
+-- is made again too when RequestGroups.lua is (its stamp): it holds the group ids and scores of the rows it was made
+-- from.
 Requests.VERSION = 4
 Requests.DUE_PICKS = 2          -- items of a category that comes back after a refusal
 
@@ -63,26 +62,20 @@ Requests.HOUSE_ROOMS = {
 -- The rows in use (RequestGroups.lua's, or a test's) and what is looked up in them, made once for the rows: byKey
 -- (key -> row) and keyOfType (member type -> key); names, member names and the dearest kind's worth are made once
 -- for a key.
-local rows, byKey, keyOfType, aliasOf
+local rows, byKey, keyOfType
 local names, memberNames, memberTypes, dearest = {}, {}, {}, {}
 
 local function index()
     local now = OA.RequestGroups or {}
     if rows ~= now then
-        rows, byKey, keyOfType, aliasOf = now, {}, {}, {}
+        rows, byKey, keyOfType = now, {}, {}
         names, memberNames, memberTypes, dearest = {}, {}, {}, {}
         for _, row in ipairs(rows) do
             byKey[row.id] = row
             for _, t in ipairs(row.items) do keyOfType[t] = row.id end
         end
-        -- The ids a group had before the table was made again (`was`), that a save may still hold.
-        for _, row in ipairs(rows) do
-            for _, old in ipairs(row.was or {}) do
-                if not byKey[old] then aliasOf[old] = row.id end
-            end
-        end
     end
-    return byKey, keyOfType, aliasOf
+    return byKey, keyOfType
 end
 
 -- Puts other rows in place of the generated ones (a test with its own item names; {} for none).
@@ -92,11 +85,10 @@ function Requests.useGroups(list)
     index()
 end
 
--- The key of the group an item type belongs to: the group's id, or the type itself. An id the table no longer has
--- (a group that was joined to another) is the key of the group that took it over.
+-- The key of the group an item type belongs to: the group's id, or the type itself.
 function Requests.keyOf(fullType)
-    local _, ofType, alias = index()
-    return ofType[fullType] or alias[fullType] or fullType
+    local _, ofType = index()
+    return ofType[fullType] or fullType
 end
 
 -- The group's row ({ id, score, wt, dc, items, name, icon }), or nil for a type no group has.
@@ -550,63 +542,9 @@ function Requests.eligible(band, stage)
     return stage >= 2
 end
 
--- The commonness score of a group (by key): from the world's table, 0 (the rarest band) for one that is no candidate
--- (a strange item the story names). The lookup table is made once for the world's table.
-local indexOf, indexFrom
-function Requests.scoreOf(key)
-    local world = Requests.data()
-    if not world or not world.types then return 0 end
-    if indexFrom ~= world.types then
-        indexOf, indexFrom = {}, world.types
-        for i = 1, world.n or #world.types do indexOf[world.types[i]] = world.score[i] end
-    end
-    return indexOf[key] or 0
-end
-
--- The lists whose keys were checked against the rows in use (a list is checked again when the table changes).
-local checked = setmetatable({}, { __mode = "k" })
-
--- Puts the keys a record holds (the week's list, what was settled, the strange item, the pinned one) in the table's
--- terms: a type becomes its group's key, an id the table dropped becomes that of the group that took it over (the
--- tool keeps these as `was`), a group named twice is kept once and its settled units add up. A list is checked once for
--- the rows in use.
-function Requests.rekey(codex)
-    index()
-    if codex.reqPin then codex.reqPin = Requests.keyOf(codex.reqPin) end
-    local rq = codex.req
-    if not rq or checked[rq] == rows then return end
-    local items, seen, used = {}, {}, {}
-    for _, t in ipairs(rq.items or {}) do
-        local key = Requests.keyOf(t)
-        if not seen[key] then
-            seen[key] = true
-            items[#items + 1] = key
-        end
-    end
-    for t, n in pairs(rq.used or {}) do
-        local key = Requests.keyOf(t)
-        used[key] = (used[key] or 0) + n
-    end
-    -- The band and quantity a line was drawn with go with it; two lines that became one keep the first one's.
-    if rq.qty then
-        local band, qty = {}, {}
-        for _, t in ipairs(rq.items or {}) do
-            local key = Requests.keyOf(t)
-            if not qty[key] and rq.qty[t] then
-                qty[key], band[key] = rq.qty[t], rq.band and rq.band[t] or nil
-            end
-        end
-        rq.band, rq.qty = band, qty
-    end
-    rq.items, rq.used = items, used
-    if rq.strange then rq.strange = Requests.keyOf(rq.strange) end
-    checked[rq] = rows
-end
-
 -- The record's request state: { week, items = { key ... }, used = { key = units this week } }.
 local function state(record)
     local codex = OA.Store.section(record, "codex")
-    Requests.rekey(codex)
     return codex, codex.req
 end
 
@@ -671,12 +609,6 @@ local function keepLines(rq)
     end
 end
 
--- A fixed item for next week's list (the story hands one over after a hallucination): its group goes on it.
-function Requests.pinNext(record, fullType)
-    local codex = OA.Store.section(record, "codex")
-    codex.reqPin = Requests.keyOf(fullType)
-end
-
 -- The record's list for this week (group keys), drawn the first time the week is asked about and topped up as the
 -- stage grows. The group of a strange item the story part names for this week (the week after a hallucination) goes
 -- on the list in addition to the normal count.
@@ -686,22 +618,16 @@ function Requests.list(record)
     if not rq or rq.week ~= week then
         rq = { week = week, items = {}, used = {}, extra = 0 }
         codex.req = rq
-        if codex.reqPin then
-            table.insert(rq.items, codex.reqPin)
-            codex.reqPin = nil
-        end
         local story = OA.Story
         local strange = story and story.strangeItem and story.strangeItem(record) or nil
         if strange then
             strange = Requests.keyOf(strange)
-            local present = false
-            for _, t in ipairs(rq.items) do if t == strange then present = true end end
-            if not present then table.insert(rq.items, strange) end
+            table.insert(rq.items, strange)
             rq.extra = 1
             rq.strange = strange
         end
         -- Categories that were refused a few weeks ago come back.
-        for _, cat in ipairs(OA.Market.dueRequests(week * 7, week * 7 + 6)) do
+        for _, cat in ipairs(OA.Market.dueRequests(OA.weekStart(week), OA.weekStart(week + 1) - 1)) do
             draw(record, rq, Requests.DUE_PICKS, cat)
         end
     end

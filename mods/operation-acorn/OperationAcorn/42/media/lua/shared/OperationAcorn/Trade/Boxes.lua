@@ -57,16 +57,6 @@ function Boxes.add(record, spec)
     return box
 end
 
-function Boxes.setActive(record, id)
-    local d = Boxes.data(record)
-    if d.list[id] then d.active = id end
-end
-
--- Whether a box stands in the world (placed or sealed), the transmitter the helicopter flies to.
-function Boxes.installed(box)
-    return box ~= nil and (box.state == "placed" or box.state == "sealed")
-end
-
 -- Whether a call can be made: the active box must stand in the world. Returns true, or false and a reason.
 function Boxes.canCall(record)
     local box = Boxes.active(record)

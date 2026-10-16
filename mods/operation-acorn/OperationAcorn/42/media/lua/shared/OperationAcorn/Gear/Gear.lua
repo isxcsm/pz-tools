@@ -33,24 +33,14 @@ Gear.VOUCHER = "OperationAcorn.KitVoucher"
 Gear.ENGINE_PART = "Engine"
 -- How near (squares) a character must be to a vehicle to fit a kit.
 Gear.REACH = 6
--- The extension API's points the kits use, and what this part declares for them when the game starts.
-Gear.POINT = "capacity.modDataKey"
+-- The extension API's points the kits use besides the capacity key (OA.CAPACITY_POINT), and what this part declares for
+-- them when the game starts.
 Gear.CARRY_POINT = "carry.efficiencyKey"
 Gear.USES_POINT = "uses.modDataKey"
 Gear.CRAFT_POINT = "craft.carryKeys"
 Gear.NAME_POINT = "item.nameKey"
 -- The keys a refilled welder keeps (the recipe makes a new torch from the one it uses up), its icon and name with them.
 Gear.CRAFT_KEYS = { K.TEAM, K.USES, K.CARRY, K.KIT_CAP, K.KIT_LIGHT, K.NAME, K.ICON }
-
-local function pointName()
-    local effects = OA.Upgrades and OA.Upgrades.Effects
-    return effects and effects.POINTS and effects.POINTS.capacityKey or Gear.POINT
-end
-
-local function keyName()
-    local effects = OA.Upgrades and OA.Upgrades.Effects
-    return effects and effects.CAPACITY_KEY or K.CAPACITY
-end
 
 -- ---- the extension API ----------------------------------------------------------------------------------------
 
@@ -62,7 +52,7 @@ local function formulas()
 end
 
 local function applied(f, point)
-    local ok, status = pcall(f.points)
+    local ok, status = OA.try("gear: the API points", f.points)
     return ok and type(status) == "table" and status[point] == "applied"
 end
 
@@ -72,14 +62,14 @@ local function declaredValue(point)
     if point == Gear.USES_POINT then return K.USES end
     if point == Gear.CRAFT_POINT then return Gear.CRAFT_KEYS end
     if point == Gear.NAME_POINT then return K.NAME end
-    return keyName()
+    return OA.CAPACITY_KEY
 end
 
 -- The points declared, per API table (a newer API that takes over is a new table, and is told again).
 local declaredBy = setmetatable({}, { __mode = "k" })
 local known = {}
 
--- Whether the extension API applies a point (Gear.POINT and the others above): its hooks went in, and this part's
+-- Whether the extension API applies a point (the points above): its hooks went in, and this part's
 -- value is declared (it declares it here once, if it has not yet; a key declared twice is the same key). Kept for a
 -- few game minutes: the question is asked often.
 function Gear.applies(point, force)
@@ -107,7 +97,7 @@ end
 
 -- Whether the extension API lifts a container held by the capacity key above the game's limits.
 function Gear.lifts(force)
-    return Gear.applies(pointName(), force)
+    return Gear.applies(OA.CAPACITY_POINT, force)
 end
 
 -- Declares the team items' keys to the API, once a game (when it starts).
@@ -123,7 +113,7 @@ function Gear.namedByKey(item)
     local f = formulas()
     if not f then return false end
     Gear.applies(Gear.NAME_POINT)
-    local ok, status = pcall(f.points)
+    local ok, status = OA.try("gear: the API points", f.points)
     return ok and type(status) == "table" and status[Gear.NAME_POINT] ~= nil
 end
 
@@ -131,34 +121,15 @@ end
 function Gear.carriedWeight(item)
     local f = formulas()
     if not f or type(f.weight) ~= "function" then return nil end
-    local ok, weight = pcall(f.weight, item)
+    local ok, weight = OA.try("gear: the API weight", f.weight, item)
     if ok and type(weight) == "number" then return weight end
     return nil
 end
 
 -- ---- finding things -------------------------------------------------------------------------------------------
 
--- An item of a character's inventory by id (inside bags too), or nil.
-function Gear.findItem(character, id)
-    if not id then return nil end
-    local inventory = character:getInventory()
-    local item = inventory:getItemWithIDRecursiv(id)
-    if item then return item end
-    return inventory:getItemById(id)
-end
-
--- The item an action works on, for the checks that run every tick (isValid): the object the action was made with (in
--- the field `field`), as long as it is in the character's inventory (a walk up from its container, no search). Only
--- when the action has no object (made again from its ids) or the object left the inventory is the inventory searched,
--- once; what that finds is kept.
-function Gear.heldItem(action, field, idField)
-    local item = action[field]
-    if item and OA.inInventory(item, action.character) then return item end
-    -- oa-scan: ok (an action made from ids, or the item moved: once, and kept)
-    item = Gear.findItem(action.character, action[idField])
-    action[field] = item
-    return item
-end
+-- An item of a character's inventory by id, and the item an action works on (OA.findItem, OA.heldItem).
+Gear.findItem, Gear.heldItem = OA.findItem, OA.heldItem
 
 -- The vehicle with an id, or nil.
 function Gear.findVehicle(id)
@@ -227,36 +198,60 @@ function Gear.targetOf(item)
     return nil
 end
 
--- Whether an item might be a target, judged cheaply (the inventory pass below asks it of every item).
+-- Whether an item might be a target, judged cheaply (the pass in refreshAll asks it of every item).
 local function maybeTarget(item)
     return item:IsInventoryContainer() or item:getModule() == OA.MOD or item:getType() == "BlowTorch"
 end
 
--- The kit targets and the kits a character carries, in any container: { key, items = { item }, kits = { [kind] =
--- { item } } }. Found in one pass through the inventory, and kept while the inventory's signature (OA.signature) is the
--- same: the menus and tooltips that need them are drawn again and again, and the inventory may hold thousands of items.
--- An item moved between two bags of the inventory changes no signature, but is still carried, and that is all this says.
-local carriedCache = setmetatable({}, { __mode = "k" })
+-- What a character carries, in any container, is asked of the game, which counts and fetches by item type and category
+-- in Java (no Lua runs per item), and only as much as is needed: a menu counts the kits, the entry the player picks
+-- fetches the first kit, and a kit's menu lists the targets it can go to.
 
-function Gear.carried(character)
+-- How many kits of a kind a character carries.
+function Gear.kitCount(character, kind)
+    local fullType = Rules.kitType(kind)
+    -- oa-scan: ok (counted in Java by item type, no Lua per item)
+    return fullType and character:getInventory():getCountTypeRecurse(fullType) or 0
+end
+
+-- The first kit of a kind a character carries, or nil. Fetched when an entry is picked, never to build a menu.
+function Gear.firstKit(character, kind)
+    local fullType = Rules.kitType(kind)
+    -- oa-scan: ok (when the player picks an entry; Java stops at the first)
+    return fullType and character:getInventory():getFirstTypeRecurse(fullType) or nil
+end
+
+-- The item types of the targets that are no bags: the fuel can, the welder, the field tools.
+local targetTypes
+local function otherTargetTypes()
+    if not targetTypes then
+        targetTypes = { Shop.TYPES.fuelCan, Shop.TYPES.welder }
+        for _, t in ipairs(Shop.FIELD_TOOLS) do targetTypes[#targetTypes + 1] = Shop.fieldType(t[1]) end
+    end
+    return targetTypes
+end
+
+-- The kit targets a character carries, in any container, in the order the game lists them: bags (found by the game's
+-- category Container), then the fuel can, the welders and the field tools. Built when a kit is right-clicked, to say
+-- where it can go.
+function Gear.targets(character)
     local inventory = character:getInventory()
-    local key = OA.signature(inventory)
-    local hit = carriedCache[character]
-    if hit and hit.key == key then return hit end
-    local found = { key = key, items = {}, kits = {} }
-    -- oa-scan: ok (the one pass for a signature that changed)
-    local list = inventory:getAllEvalRecurse(maybeTarget)
-    for i = 0, list:size() - 1 do
-        local item = list:get(i)
-        local kind = item:getModule() == OA.MOD and Gear.kindOfItem(item) or nil
-        if kind then
-            found.kits[kind] = found.kits[kind] or {}
-            table.insert(found.kits[kind], item)
-        elseif Gear.targetOf(item) then
-            table.insert(found.items, item)
+    local found, seen = {}, {}
+    local function take(list)
+        for i = 0, list:size() - 1 do
+            local item = list:get(i)
+            if not seen[item] and Gear.targetOf(item) then
+                seen[item] = true
+                found[#found + 1] = item
+            end
         end
     end
-    carriedCache[character] = found
+    -- oa-scan: ok (a kit's own menu; Java picks by category and by type, Lua sees the few that match)
+    take(inventory:getAllCategoryRecurse("Container", ArrayList.new()))
+    for _, fullType in ipairs(otherTargetTypes()) do
+        -- oa-scan: ok (as above)
+        take(inventory:getAllTypeRecurse(fullType))
+    end
     return found
 end
 
@@ -277,7 +272,7 @@ local function giveItem(character, item)
 end
 
 local function syncItem(item)
-    if item.syncItemFields then pcall(item.syncItemFields, item) end
+    if item.syncItemFields then OA.try("gear: syncing an item", item.syncItemFields, item) end
 end
 
 local function notice(character, key, args)
@@ -405,6 +400,11 @@ function Gear.refusal(kit, item)
     local kind = Gear.kindOfItem(kit)
     if not kind then return "kit" end
     if not item or item == kit then return "target" end
+    return Gear.refusalFor(kind, item)
+end
+
+-- The same for a kind of kit, before any kit is picked (the menus ask it of the kinds the character carries).
+function Gear.refusalFor(kind, item)
     local target = Gear.targetOf(item)
     if not Rules.fits(kind, target) then return "target" end
     local _, _, t = Gear.itemKits(item)
@@ -512,11 +512,12 @@ function Gear.storageInfo(part)
     return info
 end
 
--- Writes a storage part's kits into the part (see refreshBag).
+-- Writes a storage part's kits into the part (see refreshBag), and sends the part's data to the clients when it wrote
+-- anything. Returns whether it did.
 function Gear.refreshStorage(vehicle, part)
     local md = part:getModData()
     local n, base = md[K.KIT_CAP] or 0, md[K.STORAGE_BASE]
-    if not base or n == 0 then return end
+    if not base or n == 0 then return false end
     local total = Rules.capacity(base, n)
     local lifted = Gear.lifts()
     local changed = false
@@ -544,6 +545,7 @@ function Gear.refreshStorage(vehicle, part)
         end
     end
     if changed and vehicle.transmitPartModData then vehicle:transmitPartModData(part) end
+    return changed
 end
 
 -- Fits an expansion kit to one storage part of a vehicle. Returns true and the part's new capacity, or false and the
@@ -557,8 +559,8 @@ function Gear.fitStorage(character, kit, vehicle, partId)
     local md = part:getModData()
     if md[K.STORAGE_BASE] == nil then md[K.STORAGE_BASE] = nominalStorage(part) end
     md[K.KIT_CAP] = (md[K.KIT_CAP] or 0) + 1
-    Gear.refreshStorage(vehicle, part)
-    if vehicle.transmitPartModData then vehicle:transmitPartModData(part) end
+    -- (the kit count is a change of its own when the refresh found nothing else to write)
+    if not Gear.refreshStorage(vehicle, part) and vehicle.transmitPartModData then vehicle:transmitPartModData(part) end
     local total = Rules.capacity(md[K.STORAGE_BASE], md[K.KIT_CAP])
     removeItem(kit)
     notice(character, "IGUI_OA_Gear_Fitted_storage", { Gear.vehicleName(vehicle), Gear.partName(part), tostring(total) })
@@ -571,12 +573,6 @@ function Gear.partName(part)
 end
 
 -- ---- engines --------------------------------------------------------------------------------------------------
-
--- The engine kits fitted to a vehicle.
-function Gear.engineKits(vehicle)
-    local part = vehicle:getPartById(Gear.ENGINE_PART)
-    return part and part:getModData()[K.ENGINE] or 0
-end
 
 -- What an engine is worth with its kits: { kits, power, loudness } (the game's numbers: power in tenths of a
 -- horsepower as the mechanics window divides by ten, loudness as stored); nil when it has none.
@@ -604,7 +600,7 @@ function Gear.refreshEngine(vehicle)
         -- the stored loudness is off by the game's own rounding: set it as it is stored
         local part = vehicle:getPartById(Gear.ENGINE_PART)
         local engine = part and part.getVehicleEngine and part:getVehicleEngine()
-        if engine and engine.setLoudness then pcall(engine.setLoudness, engine, info.loudness) end
+        if engine and engine.setLoudness then OA.try("gear: the engine loudness", engine.setLoudness, engine, info.loudness) end
     end
     if vehicle.transmitEngine then vehicle:transmitEngine() end
     return true
@@ -693,9 +689,9 @@ end
 
 -- ---- the voucher ----------------------------------------------------------------------------------------------
 
--- Redeems a kit voucher: the voucher is used up and the character gets one kit of the kind. The kit is not bought:
--- the shop does not count it, so the price of the next kit of the kind does not rise (NUMBERS 7). Fitting it counts
--- on its target like any kit. Returns true, or false and the reason.
+-- Redeems a kit voucher: the voucher is used up and the character gets one kit of the kind (not bought: the shop's
+-- price of a kit is flat, NUMBERS 7). Fitting it counts on its target like any kit. Returns true, or false and the
+-- reason.
 function Gear.redeem(character, voucher, kind)
     if not voucher or voucher:getFullType() ~= Gear.VOUCHER then return false, "voucher" end
     local fullType = Rules.kitType(kind)

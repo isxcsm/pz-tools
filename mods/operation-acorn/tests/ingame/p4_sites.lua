@@ -10,7 +10,7 @@ local list = Sites.list()
 local sec = OA.Store.world("sites")
 P4T.check(say, "all sites decided", #list == Sites.COUNT, #list)
 local origin = sec.origin or { x = 0, y = 0 }
-say("around", origin.x, origin.y, "generation", Sites.generation())
+say("around", origin.x, origin.y)
 local worst, kinds = 99999, {}
 for i = 1, #list do
     local d = OA.Places.distance(origin.x, origin.y, list[i].x, list[i].y)

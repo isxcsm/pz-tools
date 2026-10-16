@@ -92,9 +92,9 @@ function Serums.inject(character, item, id)
     end
     -- The first dose is what the test serum's call waits for; the hallucination at the meteor site (혈청 적응 rank 2):
     -- the story part's, if it is there.
-    if OA.Story and OA.Story.onInjected then pcall(OA.Story.onInjected, record) end
+    if OA.Story and OA.Story.onInjected then OA.try("serums: the story's first dose", OA.Story.onInjected, record) end
     if Rules.rank(u, "serumAdapt") >= 2 and OA.Story and OA.Story.onSerum then
-        pcall(OA.Story.onSerum, character, record, kind == "upgrade" and tree or "shared")
+        OA.try("serums: the hallucination", OA.Story.onSerum, character, record)
     end
     OA.Sync.changed("upgrades", id, { kind = kind, tree = tree })
     return true

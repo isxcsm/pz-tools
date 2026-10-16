@@ -229,7 +229,7 @@ def export(folder):
     group('보급 명세서 비고', ['Story_Note', 'Story_Fill'],
           '보급 상자마다 붙는 명세서의 비고 칸이다. 키슬링이 쓴다. 이관 뒤(after) 비고는 관리 7 쪽 담당자가 쓰고, 먼 단계일수록 짧아진다.')
     group('임무 글', ['Story_Title', 'Story_Brief', 'Story_RegTitle', 'Story_RegBrief', 'Story_ConTitle',
-                    'Story_ConBrief', 'Story_SpecialTitle', 'Story_Meta', 'Story_Refuse', 'Story_HarvestFail'],
+                    'Story_ConBrief', 'Story_SpecialTitle', 'Story_Meta', 'Story_HarvestFail'],
           '단말 임무 탭에 뜨는 임무 이름과 설명이다. 2반이 쓴 지시문이다.')
     group('일상 혼잣말', ['Say_'],
           '이야기와 상관없이 주인공 머리 위에 뜨는 혼잣말이다 (현장 도착, 첫 효과 등). 짧은 감탄, 의문, 다음 행동.')

@@ -105,7 +105,7 @@ end
 -- The trust level's words: "신뢰도 2단계 · 분류" up to the 5th stage, the bare number after it, the handover at 8.
 function OATabStatus.levelText(tier)
     if tier <= Trust.STAGES then return getText("IGUI_OA_Terminal_Level", tier, getText(Trust.stageNameKey(tier))) end
-    if tier == Trust.STAGES + 3 then return getText("IGUI_OA_Terminal_Level", tier, getText("IGUI_OA_Terminal_LevelHandover")) end
+    if tier == M.HANDOVER then return getText("IGUI_OA_Terminal_Level", tier, getText("IGUI_OA_Terminal_LevelHandover")) end
     return getText("IGUI_OA_Terminal_LevelPlain", tier)
 end
 
@@ -143,7 +143,7 @@ function OATabStatus:prerender()
     local p = self:palette()
     local w = self.width
     local field = self.window.tier == "field"
-    local badge = getText(field and "IGUI_OA_Terminal_Field" or "IGUI_OA_Terminal_Crude")
+    local badge = UI.str(field and "IGUI_OA_Terminal_Field" or "IGUI_OA_Terminal_Crude")
     -- the badge widens for a longer name (another language), and the trust line moves right with it
     if self.badgeText ~= badge then
         self.badgeText, self.badgeW = badge, math.max(76, UI.textWidth(badge) + 12)
@@ -168,12 +168,12 @@ function OATabStatus:prerender()
     local unit = UI.creditsUnit()
     local right = w
     if t.debt then
-        UI.textRight(self, getText("IGUI_OA_Terminal_Debt"), right, 3, p.bad)
+        UI.textRight(self, UI.str("IGUI_OA_Terminal_Debt"), right, 3, p.bad)
         local uw = UI.textWidth(unit) + UI.UNIT_GAP
         UI.textRight(self, unit, right, 21, p.bad)
         UI.textRight(self, t.balance, right - uw, 21, p.bad, nf)
     else
-        UI.textRight(self, getText("IGUI_OA_Terminal_Balance"), right, 3, p.dim)
+        UI.textRight(self, UI.str("IGUI_OA_Terminal_Balance"), right, 3, p.dim)
         local uw = UI.textWidth(unit) + UI.UNIT_GAP
         if field then
             -- the big balance and its unit on one baseline

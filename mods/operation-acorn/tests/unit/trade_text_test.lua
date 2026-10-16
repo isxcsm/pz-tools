@@ -148,23 +148,24 @@ end)
 -- An economy with the counting of the real one: a request item's first 20 units a week are worth more, and the units
 -- one line takes are not available to the next.
 local function fakeValue()
-    OA.Value = {
-        CASH_TRUST_CAP = 50,
-        context = function() return {} end,
-        appraiseLine = function(info, count, ctx, taken)
-            local used = taken.requests[info.fullType] or 0
-            local units = math.max(0, math.min(count, 20 - used))
-            return { fullType = info.fullType, requestKey = info.fullType, count = count,
-                credits = 100 * count + 50 * units, trust = count,
-                cashTrust = 0, requestUnits = units, requestCredits = 150 * units, regionWeight = 0 }
-        end,
-        requestFills = function(ctx, taken)
-            if (taken.requests["Base.Rag"] or 0) >= 20 then
-                return { fills = { { fullType = "Base.Rag", band = "common", trust = 5 } }, trust = 5 }
-            end
-            return { fills = {}, trust = 0 }
-        end,
-    }
+    -- the real Value.flight over a counting of its own
+    local V = require "OperationAcorn/Economy/Value"
+    OA.Value = V
+    V.CASH_TRUST_CAP = 50
+    V.context = function() return {} end
+    V.appraiseLine = function(info, count, ctx, taken)
+        local used = taken.requests[info.fullType] or 0
+        local units = math.max(0, math.min(count, 20 - used))
+        return { fullType = info.fullType, requestKey = info.fullType, count = count,
+            credits = 100 * count + 50 * units, trust = count,
+            cashTrust = 0, requestUnits = units, requestCredits = 150 * units, regionWeight = 0 }
+    end
+    V.requestFills = function(ctx, taken)
+        if (taken.requests["Base.Rag"] or 0) >= 20 then
+            return { fills = { { fullType = "Base.Rag", band = "common", trust = 5 } }, trust = 5 }
+        end
+        return { fills = {}, trust = 0 }
+    end
 end
 
 test("the estimate follows what earlier lines of the same flight used up", function()

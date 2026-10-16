@@ -417,36 +417,6 @@ function Machines.hasPower(object)
     return object ~= nil and object:getSquare() ~= nil and object:checkObjectPowered()
 end
 
--- The generator load of a machine object now (NUMBERS 11); 0 when it is switched off. The extension API's power
--- hook reads this per machine.
-function Machines.load(object)
-    local state = Machines.state(object)
-    if not state or state.on == false then return 0 end
-    return Logic.load(state.kind, state.parts, true)
-end
-
--- The same for a state table that is not in the world (a window, the tests).
-function Machines.loadOf(state)
-    return Logic.load(state.kind, state.parts, state.on ~= false)
-end
-
--- Every machine with a load, as { object, kind, load } for the ones running on loaded squares: what the API's
--- generator hook would sum for a square's neighbours.
-function Machines.loads()
-    local found = {}
-    for id, entry in pairs(registry().list) do
-        local def = Data.KINDS[entry.kind]
-        if def.load then
-            local object = Machines.find(id)
-            if object then
-                local load = Machines.load(object)
-                if load > 0 then found[#found + 1] = { object = object, kind = entry.kind, load = load } end
-            end
-        end
-    end
-    return found
-end
-
 -- ---------------------------------------------------------------------------------------------------------------------
 -- The one who owns the products
 
@@ -575,7 +545,6 @@ local function itemInfo(item)
     if OA.Value and OA.Value.info then return OA.Value.info(item) end
     return nil
 end
-Machines.itemInfo = itemInfo
 
 -- Whether an item can be shredded (P1's rule, OA.Shred.can on the item's info): the info, or nil.
 function Machines.shreddable(item)
@@ -742,6 +711,9 @@ end
 -- done again with what is left).
 local queueMemo = setmetatable({}, { __mode = "k" })
 
+-- A queue lists this many things more than a batch takes, so that the batch is full when some are taken out meanwhile.
+local QUEUE_SLACK = 5
+
 -- The things a machine works on, in the order of its container; one taken out (done, or by a player) is skipped. The
 -- container is not walked until the first thing is asked for.
 local function newQueue(container, accept, limit, timed)
@@ -849,7 +821,7 @@ local function makeIO(object, state, record)
     local queue
 
     if kind == "bulkShredder" then
-        queue = newQueue(inC, ACCEPT.bulkShredder, Data.BATCH + 5)
+        queue = newQueue(inC, ACCEPT.bulkShredder, Data.BATCH + QUEUE_SLACK)
         io.reset = queue.reload
         io.next = function(fx, lane)
             if not record then return nil, "noOwner" end
@@ -901,7 +873,7 @@ local function makeIO(object, state, record)
     elseif kind == "propaneRefiner" or kind == "oilRefiner" then
         local propane = kind == "propaneRefiner"
         local tankC = Machines.container(object, "tank")
-        queue = newQueue(inC, ACCEPT[kind], Data.BATCH + 5, propane)
+        queue = newQueue(inC, ACCEPT[kind], Data.BATCH + QUEUE_SLACK, propane)
         io.reset = queue.reload
         io.next = function(fx, lane)
             if tankC then deposit(tankC, state, kind) end
@@ -1050,7 +1022,7 @@ function Machines.progress(object)
     local entries = inC and firstTaken(inC, state.kind, fx.lanes) or {}
     if #entries == 0 then return nil end
     local spent = Data.KINDS[state.kind].rate * fx.speed * math.max(0, OA.hours() - (state.last or 0))
-    local carries = state.lanes or { state.carry or 0 }
+    local carries = state.lanes or {}
     local list = {}
     for lane, entry in ipairs(entries) do
         list[lane] = { item = entry.item, share = ((carries[lane] or 0) + spent) / jobCost(state.kind, entry) }
@@ -1170,7 +1142,6 @@ function Machines.onChunk(chunk)
             if object then
                 local state = Machines.state(object)
                 Machines.ensureSpriteProperties()
-                Machines.addMissingContainers(object, square, rolesAt(state.kind, state.dir, 0, 0))
                 applyAccept(object, Data.KINDS[state.kind].containers)
                 if state.kind == "lure" then Machines.lureFx(object, not state.spent) end
                 Machines.light(object, state)
@@ -1370,29 +1341,6 @@ local function setupContainers(object, square, roles)
         container:setCapacity(raw)
         container:setExplored(true)
     end
-end
-
--- The containers a machine's square should hold and does not (a machine of an older save, before its kind had them):
--- made, as setupContainers makes them.
-function Machines.addMissingContainers(object, square, roles)
-    local missing = {}
-    for _, which in ipairs(roles) do
-        if not object:getContainerByType(Data.CONTAINERS[which].type) then missing[#missing + 1] = which end
-    end
-    if #missing == 0 then return end
-    if object:getContainer() then
-        for _, which in ipairs(missing) do
-            local spec = Data.CONTAINERS[which]
-            local container = ItemContainer.new(spec.type, square, object)
-            object:addSecondaryContainer(container)
-            container:setCapacity(math.min(spec.capacity, 100))
-            container:setExplored(true)
-        end
-    else
-        setupContainers(object, square, missing)
-    end
-    OA.log("machine", tostring(Machines.state(object) and Machines.state(object).id), "given its new containers:",
-        table.concat(missing, ", "))
 end
 
 -- One IsoThumpable of a machine on a square, with the sprite of its tile.
@@ -1746,7 +1694,7 @@ function Machines.shredByHand(character, record, items)
 end
 
 -- What shredding these entries by hand would give now, with nothing recorded: the sample bundles expected (each kind's
--- count climbing with each, as Shred.yieldMany) and the first-shred bonuses it would pay (credits, the sandbox's
+-- count climbing with each) and the first-shred bonuses it would pay (credits, the sandbox's
 -- multiplier in).
 function Machines.benchEstimate(record, entries)
     local extras = shredExtras(record, nil)

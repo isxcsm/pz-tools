@@ -67,6 +67,11 @@ Docs.ROSTER_NAMES = { "HARGROVE, D.", "PRUITT, R.", "LINDQVIST, M.", "OKONKWO, T
 local facilities = {}
 for _, id in ipairs(Data.FACILITIES) do facilities[id] = true end
 
+-- Whether a name is a facility a document may be found at.
+function Docs.facility(id)
+    return facilities[id] == true
+end
+
 local function placeTexts(variant)
     if variant and facilities[variant] then
         return getText("IGUI_OA_Story_Facility_" .. variant), getText("IGUI_OA_Story_FacilityNote_" .. variant)

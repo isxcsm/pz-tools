@@ -63,7 +63,7 @@ function OATabHeli:buildHero(L, x, y, w, h)
         -- On its way: from the call to the arrival, filled by the time gone (moved on by update).
         local bw = w - 20
         Draw.rect(L, x + 10, yy + 4, bw, 5, p.border, 0.30)
-        local fill = { 1, x + 10, yy + 4, 0, 5, p.panel and p.value or p.sel, 0.95 }
+        local fill = { Draw.RECT, x + 10, yy + 4, 0, 5, p.panel and p.value or p.sel, 0.95 }
         L.ops[#L.ops + 1] = fill
         Draw.frame(L, x + 9, yy + 3, bw + 2, 7, p.border)
         self.eta = { op = fill, w = bw, from = H.eta.from, to = H.eta.to }
@@ -239,13 +239,15 @@ function OATabHeli:moveEta()
     Draw.bakeOp(e.op)
 end
 
+-- Real time (ms) between the arrival bar's moves.
+OATabHeli.LOOK_MS = 1000
+
 -- Every second or so: the arrival bar moves on; the screen is worked out again once the next call is possible and
 -- every game hour (the time since the last settlement, the drug's hours left).
 function OATabHeli:update()
     ISPanel.update(self)
-    self.ticks = (self.ticks or 0) + 1
-    if self.ticks < 60 then return end
-    self.ticks = 0
+    self.looked = self.looked or {}
+    if not OA.due(self.looked, "arrival", getTimestampMs(), OATabHeli.LOOK_MS) then return end
     local d = self.data
     if not d then return end
     local now = OA.hours()

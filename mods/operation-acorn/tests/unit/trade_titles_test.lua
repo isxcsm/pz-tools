@@ -165,3 +165,13 @@ test("the first field terminal opens the record's line once, with a gold title",
     eq(Things.lineOpened(record), false, "a second field terminal opens nothing")
     eq(#told, 1)
 end)
+
+test("the helicopter's noise is a world sound at the drop, as far as the option says", function()
+    Heli.noise(10, 20, 0)
+    eq(#TEST.worldSounds, 1)
+    eq(TEST.worldSounds[1].x, 10); eq(TEST.worldSounds[1].y, 20)
+    eq(TEST.worldSounds[1].radius, OA.BALANCE.noiseRadius)
+    SandboxVars = { OperationAcorn = { HelicopterNoiseMultiplier = 0 } }
+    Heli.noise(10, 20, 0)
+    eq(#TEST.worldSounds, 1, "no sound at zero")
+end)

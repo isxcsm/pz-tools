@@ -10,6 +10,7 @@
 -- OA.Shop.nameKey. Prices and availability: OA.Shop.price, serumPrice, available (how many, why not, when).
 require "OperationAcorn/Trade/Trade"
 require "OperationAcorn/Trade/Rules"
+require "OperationAcorn/Economy/Shop"
 local OA = OperationAcorn
 local Trade = OA.Trade
 local Orders = {}
@@ -28,13 +29,10 @@ end
 local indexed, indexSize
 local function catalogIndex()
     if not (OA.Shop and OA.Shop.catalog) then return {} end
-    local list = OA.Shop.catalog() or {}
+    local list = OA.Shop.catalog()
     if indexed and indexSize == #list then return indexed end
     indexed = {}
-    for _, entry in ipairs(list) do
-        local id = entry.id or entry.key
-        if id then indexed[id] = entry end
-    end
+    for _, entry in ipairs(list) do indexed[entry.id] = entry end
     indexSize = #list
     return indexed
 end
@@ -46,19 +44,14 @@ end
 -- The player-facing name of an entry.
 function Orders.nameOf(entry)
     if not entry then return "?" end
-    if entry.name then return entry.name end
-    if OA.Shop and OA.Shop.name then return OA.Shop.name(entry) end
-    if OA.Shop and OA.Shop.nameKey then return getText(OA.Shop.nameKey(entry)) end
-    if entry.nameKey then return getText(entry.nameKey) end
-    return tostring(entry.id or "?")
+    if OA.Shop.name then return OA.Shop.name(entry) end
+    return getText(OA.Shop.nameKey(entry))
 end
 
 -- The things an entry can deliver to pick from: its `choices` (P1 finds the seeds when asked), else none.
 function Orders.choicesOf(entry)
     if not entry.choices then return nil end
-    if OA.Shop and OA.Shop.choices then return OA.Shop.choices(entry) end
-    if type(entry.choices) == "table" then return entry.choices end
-    return nil
+    return OA.Shop.choices(entry)
 end
 
 -- The picked one of an entry's choices by its type, or the first when the line picked none (or a type that is not
@@ -81,7 +74,6 @@ function Orders.shopService(record)
     return {
         entry = function(line) return Orders.entry(line.id) end,
         available = function(entry, line, delivered)
-            if not (Shop and Shop.available) then return true end
             if (delivered or 0) == 0 then
                 local n, why = Shop.available(entry, record)
                 most[line] = { n = n or 0, why = why }
@@ -91,11 +83,11 @@ function Orders.shopService(record)
             return true
         end,
         price = function(entry, line)
-            if entry.special == "serum" and Shop.serumPrice then return Shop.serumPrice(entry.tree, record) end
+            if entry.special == "serum" then return Shop.serumPrice(entry.tree, record) end
             return Shop.price(entry, record)
         end,
         bought = function(entry, line)
-            if Shop and Shop.bought then Shop.bought(entry, record, 1) end
+            Shop.bought(entry, record, 1)
         end,
         items = function(entry, line)
             return Orders.itemSpecs(entry, line)
@@ -132,7 +124,7 @@ function Orders.set(record, lines, crude)
         local id = line.id
         local count = math.floor(tonumber(line.count) or 0)
         local entry = type(id) == "string" and Orders.entry(id) or nil
-        if entry and crude and OA.Shop and OA.Shop.fieldOnly and OA.Shop.fieldOnly(entry) then
+        if entry and crude and OA.Shop.fieldOnly(entry) then
             dropped = dropped + 1
             entry = nil
         end
@@ -157,9 +149,7 @@ end
 
 -- What a line costs with a shop service: one unit's price times the count.
 function Orders.lineCost(svc, entry, line)
-    local ok, price = pcall(svc.price, entry, line)
-    if not (ok and type(price) == "number") then return 0 end
-    return OA.round(price) * (line.count or 1)
+    return OA.round(svc.price(entry, line)) * (line.count or 1)
 end
 
 -- What the cart costs at today's prices, one unit's price times the count (prices that rise as units are bought

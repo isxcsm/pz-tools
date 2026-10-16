@@ -9,6 +9,7 @@ require "ISUI/ISInventoryPaneContextMenu"
 require "ISUI/ISWorldObjectContextMenu"
 require "OperationAcorn/Client"
 require "OperationAcorn/Titles"
+require "OperationAcorn/TipLines"
 require "OperationAcorn/Upgrades/Api"
 require "OperationAcorn/Upgrades/Sense"
 require "OperationAcorn/Upgrades/Moodles"
@@ -24,7 +25,6 @@ require "OperationAcorn/Upgrades/Carry"
 require "OperationAcorn/Trade/UI"
 local OA = OperationAcorn
 local UI = OA.Trade.UI
-local Data = OA.Upgrades.Data
 local Rules = OA.Upgrades.Rules
 local Effects = OA.Upgrades.Effects
 local Serums = OA.Upgrades.Serums
@@ -246,7 +246,7 @@ end
 local function onFillInventory(playerNum, context, items)
     local player = getSpecificPlayer(playerNum)
     if not player then return end
-    local actual = ISInventoryPane.getActualItems(items)
+    local actual = OA.menuItems(items)
     local done = {}
     local adders = {}
     for _, item in ipairs(actual) do
@@ -354,7 +354,7 @@ local function carries(player, class)
     for _, anyOf in ipairs(TOOLS[class]) do
         local found = false
         for _, name in ipairs(anyOf) do
-            local ok, n = pcall(count, player, name)
+            local ok, n = OA.try("upgrades: counting the tools", count, player, name)
             if not ok then return nil end
             if n > 0 then found = true break end
         end
@@ -492,22 +492,12 @@ local function tipText(item, player)
     return getText("Tooltip_OA_Tree_CureNotOwner")
 end
 
-local originalRender = ISToolTipInv.render
-
--- The text is put on the item while its tooltip is drawn and taken off after, so nothing else sees it.
-function ISToolTipInv:render()
-    local item = self.item
+-- The lines a serum adds to its tooltip (TipLines puts them on the item while the tooltip is drawn).
+OA.TipLines.add("serums", function(item)
     local player = getPlayer()
-    if item and player and item:getModule() == OA.MOD and Serums.kind(item:getType()) then
-        local old = item:getTooltip()
-        item:setTooltip(OA.tooltipText(tipText(item, player)))
-        local ok, err = pcall(originalRender, self)
-        item:setTooltip(old)
-        if not ok then error(err, 0) end
-        return
-    end
-    originalRender(self)
-end
+    if not (player and item:getModule() == OA.MOD and Serums.kind(item:getType())) then return nil end
+    return { tipText(item, player) }
+end)
 
 -- ---- the infection, once a minute ------------------------------------------------------------------------------
 

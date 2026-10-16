@@ -269,7 +269,7 @@ test("settle uses the record's rate and the sandbox multiplier", function()
     local record = OA.Store.ensure("m", "M")
     OA.Trust.add(record, 5500)           -- stage 3
     near(OA.Trust.rewards(record).rate, 0, 1e-9, "trust alone gives no rate")
-    OA.Support.setLevel(record, "rate", 1)   -- the upgrade: rate +5%
+    TEST.setSupportLevel(record, "rate", 1)   -- the upgrade: rate +5%
     OA.Requests.install({ version = 1, types = {}, score = {}, kinds = {}, total = {}, n = 0 })
     OA.Market.state()
     for _, c in ipairs(OA.Categories.LETTERS) do OA.Market.state().M[c] = 1.0 end
@@ -342,7 +342,7 @@ test("the cached context follows the rewards: a new request price level reaches 
     local record = oneShirt()
     local shirt = info("Base.Shirt", "Clothing", 1.0)
     near(V.appraise(shirt, V.context(record)).credits, 600, 1e-9)
-    OA.Support.setLevel(record, "reqprice", 1)
+    TEST.setSupportLevel(record, "reqprice", 1)
     near(V.appraise(shirt, V.context(record)).credits, 660, 1e-9, "x1.1 the same day")
 end)
 

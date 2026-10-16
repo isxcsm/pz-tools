@@ -30,20 +30,20 @@ function Dash.cost(player, u)
     return Dash.COST * math.max(0.25, 1 - Dash.FITNESS_SHARE * fitness) * Rules.dashCost(u)
 end
 
--- The zombies in the way: on the two squares ahead, upright, not behind a wall.
+-- The zombies in the way: on the two squares ahead, upright, not behind a wall. The list is kept between looks (ten a
+-- second while sprinting): it is the answer of the last one.
+local found = {}
 local function ahead(player)
-    local found = {}
+    for i = #found, 1, -1 do found[i] = nil end
     local cell = getCell()
     local px, py, pz = player:getX(), player:getY(), math.floor(player:getZ())
     local fx, fy = player:getForwardDirectionX(), player:getForwardDirectionY()
     local from = player:getCurrentSquare()
     if not from then return found end
-    local seen = {}
     local previous = from
     for _, reach in ipairs(Dash.REACH) do
         local sq = cell:getGridSquare(math.floor(px + fx * reach), math.floor(py + fy * reach), pz)
-        if sq and sq ~= previous and not seen[sq] then
-            seen[sq] = true
+        if sq and sq ~= previous then
             if previous:isBlockedTo(sq) then break end
             local objects = sq:getMovingObjects()
             for i = 0, objects:size() - 1 do

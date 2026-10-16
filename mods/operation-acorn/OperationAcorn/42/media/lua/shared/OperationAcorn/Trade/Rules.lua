@@ -58,23 +58,16 @@ function Rules.applyGain(credits, gain)
     return credits + gain, math.min(debt, math.max(gain, 0))
 end
 
--- What stage events a trust change brings, as a list of { kind = "stage", n = ... } and { kind = "milestone", n = ... }.
--- OA.Trust.add returns the stages and milestones passed; this reads the shapes it may give: a number (a stage), a
--- table with `stage` or `milestone`, or with `kind` and `n`/`stage`/`index`.
+-- What stage events a trust change brings, as a list of { kind = "stage", n = the stage } and { kind = "milestone",
+-- n = the milestone's number }: OA.Trust.add's events ({ kind, stage } and { kind, index }) in the shape the trade part
+-- keeps.
 function Rules.stageEvents(list)
     local events = {}
     for _, e in ipairs(list or {}) do
-        if type(e) == "number" then
-            events[#events + 1] = { kind = "stage", n = e }
-        elseif type(e) == "table" then
-            local kind = e.kind
-            local n = e.n or e.stage or e.milestone or e.index or e.value
-            if not kind then
-                if e.milestone then kind = "milestone" elseif e.stage then kind = "stage" end
-            end
-            if (kind == "stage" or kind == "milestone") and type(n) == "number" then
-                events[#events + 1] = { kind = kind, n = n }
-            end
+        if e.kind == "stage" and type(e.stage) == "number" then
+            events[#events + 1] = { kind = "stage", n = e.stage }
+        elseif e.kind == "milestone" and type(e.index) == "number" then
+            events[#events + 1] = { kind = "milestone", n = e.index }
         end
     end
     return events

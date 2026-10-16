@@ -20,6 +20,7 @@ require "OperationAcorn/Trade/StatusDraw"
 require "OperationAcorn/Trade/BootSeq"
 require "OperationAcorn/Machines/Machines"
 require "OperationAcorn/Machines/Actions"
+require "OperationAcorn/Machines/Ask"
 require "OperationAcorn/Machines/WindowModel"
 require "OperationAcorn/Machines/WindowLayout"
 local OA = OperationAcorn
@@ -31,11 +32,9 @@ local Model, Layout = Machines.WindowModel, Machines.WindowLayout
 OAMachineWindow = ISCollapsableWindow:derive("OAMachineWindow")
 OAMachineWindow.windows = {}
 
--- How often (real ms) an open window reads its machine; the least time between two asks to work (a job is due); how
--- seldom an idle machine with something in it is asked (as the loot window's watch, Watch.lua).
+-- How often (real ms) an open window reads its machine (it asks it to work by the rule it shares with the loot window's
+-- watch, Ask.lua).
 OAMachineWindow.READ_MS = 250
-OAMachineWindow.ASK_MS = 400
-OAMachineWindow.IDLE_ASK_MS = 3000
 -- How long (real ms) the loot window keeps a bin chosen after [열기], while it lists the bins of the new place.
 OAMachineWindow.SELECT_MS = 1500
 -- How often the window looks whether the character is still near the machine (ms), and how near (squares from the
@@ -49,10 +48,6 @@ function OAMachineWindow.within(px, py, x, y, w, h, reach)
     local dy = math.max(y - py, 0, py - (y + h))
     return dx * dx + dy * dy <= reach * reach
 end
-
--- While the character walks to the machine and puts a part in or takes one out, the window (in the middle of the
--- screen, over the character) steps aside (the kit's UI.aside: it thins, so the action shows through it, until it is
--- done).
 
 -- The most of the screen's height the window takes; a wheel step of a body that scrolls, and its bar's width.
 OAMachineWindow.SCREEN_SHARE = 0.9
@@ -200,6 +195,10 @@ function OAMachineWindow:resizeWidgetHeight() return UI.resizeWidgetHeight() end
 function OAMachineWindow:refresh(force)
     local input = Model.read(self.object)
     if not input then return end
+    -- (an input that reads as before makes the model it made)
+    local inputKey = Model.inputKey(input)
+    if not force and inputKey == self.inputKey then return end
+    self.inputKey = inputKey
     local model = Model.build(input)
     self.model = model
     self:present(model, force, Layout.build)
@@ -228,8 +227,7 @@ end
 function OAMachineWindow:askWork(now)
     local model = self.model
     if not model then return end
-    local want = model.due or (model.idleWithInput and OA.due(self.due, "idle", now, OAMachineWindow.IDLE_ASK_MS))
-    if want and OA.due(self.due, "ask", now, OAMachineWindow.ASK_MS) then
+    if Machines.Ask.wanted(self.due, now, model.due, model.idleWithInput) then
         OA.Sync.send(self.character, "machineWork", { machine = self.machineId })
     end
 end

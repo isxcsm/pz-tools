@@ -172,14 +172,15 @@ test("the balance is not changed by free lines", function()
     eq(spent, 0)
 end)
 
-test("stage events are read from the shapes OA.Trust.add may give", function()
-    local events = Rules.stageEvents({ 2, { stage = 3 }, { milestone = 1 }, { kind = "milestone", n = 2 },
-        { kind = "stage", stage = 4 }, "junk", { foo = 1 } })
-    eq(#events, 5)
+test("stage events are read from the shapes OA.Trust.add gives", function()
+    local events = Rules.stageEvents({ { kind = "stage", stage = 2, sharedSerums = 0 },
+        { kind = "milestone", index = 1, sharedSerums = 1 }, { kind = "stage", stage = 4 }, { foo = 1 } })
+    eq(#events, 3)
     eq(events[1].kind, "stage")
     eq(events[1].n, 2)
-    eq(events[3].kind, "milestone")
-    eq(events[5].n, 4)
+    eq(events[2].kind, "milestone")
+    eq(events[2].n, 1)
+    eq(events[3].n, 4)
     eq(#Rules.stageEvents(nil), 0)
 end)
 

@@ -150,7 +150,7 @@ function Sense.voices(zombies, memo, px, py, pz, radius, floors, now, out)
             if not m then
                 memo.count = memo.count + 1
                 m = { number = memo.count, hunt = z.hunt, attack = z.attack }
-                m.due = now + (m.number * 397) % Sense.FIRST_MS
+                m.due = now + OA.remainder(m.number * 397, Sense.FIRST_MS)
                 by[z.ref] = m
             elseif z.attack and not m.attack then
                 kind = "attack"
@@ -165,7 +165,7 @@ function Sense.voices(zombies, memo, px, py, pz, radius, floors, now, out)
             if kind then
                 local every = Sense.voiceMs(math.sqrt(dx * dx + dy * dy))
                 -- a quarter of the time either way, by the zombie's number
-                m.due = now + every * (0.75 + 0.5 * ((m.number * 0.618034) % 1))
+                m.due = now + every * (0.75 + 0.5 * OA.remainder(m.number * 0.618034, 1))
                 n = n + 1
                 local e = out[n] or {}
                 out[n] = e

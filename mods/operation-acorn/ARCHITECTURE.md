@@ -62,6 +62,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
 | `shared/OperationAcorn/Sprites.lua` | 이 모드 타일 이름 (`Sprites.terminal(dir, on)`, `Sprites.machineTiles(kind, dir, running)`, `Sprites.footprint(kind, dir)` ...). 시트 자리는 바꾸지 않는다 |
 | `server/OperationAcorn/Server.lua` | 클라이언트 명령 받기: `OA.Server.on(name, function(character, record, args) ... end)`. `LoadChunk`를 `Chunks`에 잇는다 |
 | `client/OperationAcorn/Client.lua` | 서버가 보낸 것을 `Sync` 듣는 쪽으로. `OA.Client.record(character)`(이 클라이언트가 보는 내 기록), 첫 접속 때 `hello` |
+| `client/OperationAcorn/TipLines.lua` | 아이템 툴팁에 붙는 이 모드의 줄 (`OA.TipLines`): `ISToolTipInv:render`를 한 곳에서만 감싸고, 각 묶음은 `TipLines.add(이름, fn)`으로 `item -> 줄 목록` 제공자를 등록한다. 모든 제공자의 줄을 한 문자열로 모아 한 번만 이스케이프해(`OA.tooltipText`) 아이템별로 `TipLines.KEEP_MS`(실시간 0.5초) 동안 들고 있고, 프레임마다 표 하나를 찾아 글을 바꿔 끼운다 |
 | `client/OperationAcorn/Story/TabComms.lua` | 단말 교신 탭 `OATabComms` (SCENES 2장): 기록 칸(교신마다 머리와 다시 재생, 단계별 현장 혼잣말. 최근 머리만 펼치고 지난 것은 접음)과 입력 줄. 기다리는 교신을 시간표대로 재생하고, 끝나거나 건너뛰면 `comms_played`. 재생 중에는 게임을 멈추고(혼자일 때) 소리를 낮춘다. 기다리는 교신이 있으면 창이 이 탭으로 열린다 (`Terminal.opening`) |
 | `client/OperationAcorn/Story/TypedText.lua` | 수신함의 글 패널 `OATypedText`: 프레임마다 시계를 더하고 글자 수가 바뀔 때만 줄을 갱신한다. 글은 보일 때마다 같은 속도로 찍고, 클릭하면 이미 본 최대 지점(`seen`)까지 한 번에 보여 준다(처음 보는 부분은 넘기지 못한다). 항목을 떠나거나 창이 닫히면 `story_typed`(`seen`, `done`, 중간에 멈췄으면 `t`)로 서버 기록(`story.typed`)에 남기고, 끝까지 못 본 글은 교신 사본과 문서 모두 멈춘 시계에서 이어 찍는다(자리를 비운 동안 게임 시간은 치지 않는다). 다 본 글은 시계를 저장하지 않고 매번 처음부터 찍으며 클릭하면 끝까지 보인다 |
 
@@ -255,7 +256,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
   보존할 상태가 부품뿐이고 부품은 아이템으로 빠지므로, 조각에는 실을 것이 없다.
 - **거래 물건(단말·상자)에는 `IsMoveAble`이 없다.** 납품 상자의 ID와 주인을 아이템에 실어야 해서 `Trade/Moveables.lua`가 가구 도구의 확인과 떼어내기를
   이 모드의 것(`Things.take*`)으로 바꾼다. 바닐라의 한 칸 가구 규칙대로 인벤토리에 들어갈 자리가 있어야 하고, 놓기는 이 모드의 커서가 한다.
-- **기계 컨테이너의 칸:** 그림이 보여 주는 칸에 있다 (`Data.KINDS[kind].containerAt`, 남쪽 보기 기준 칸을 `Sprites.turnSquare`로 돌린다). 대량 분해기·재단기·목재 절단기의 산출함은 통·수레·판재 쪽 칸, 투입함은 다른 칸이다. 연구팀 보관함은 칸마다 보관함이 있다 (`everyTile`). `Machines.container(앵커, 역할)`이 그 칸의 것을 찾아 준다 (찾은 칸은 기억한다). 정제기는 앵커 칸에 투입함(재료)과 통 보관함(`tank`, 채울 프로판 통이나 휘발유 통)을 함께 둔다. 예전 세이브의 정제기는 청크가 불러질 때 빠진 컨테이너를 받는다 (`Machines.addMissingContainers`).
+- **기계 컨테이너의 칸:** 그림이 보여 주는 칸에 있다 (`Data.KINDS[kind].containerAt`, 남쪽 보기 기준 칸을 `Sprites.turnSquare`로 돌린다). 대량 분해기·재단기·목재 절단기의 산출함은 통·수레·판재 쪽 칸, 투입함은 다른 칸이다. 연구팀 보관함은 칸마다 보관함이 있다 (`everyTile`). `Machines.container(앵커, 역할)`이 그 칸의 것을 찾아 준다 (찾은 칸은 기억한다). 정제기는 앵커 칸에 투입함(재료)과 통 보관함(`tank`, 채울 프로판 통이나 휘발유 통)을 함께 둔다.
 - **여러 칸 기계는 루팅 창에서 한 물건이다 (`Machines/LootReach.lua`).** 기계의 어느 칸 옆에 서도 그 기계의 컨테이너가 모두 목록에 오른다 (게임은 플레이어 주변 칸의 컨테이너만 올린다; `OnRefreshInventoryWindowContainers`의 `beforeFloor`에서 더한다). 기계의 컨테이너를 고르면 컨테이너가 없는 칸도 함께 강조된다 (`updateContainerHighlight` 뒤, 고른 컨테이너가 바뀔 때만).
 - **컨테이너:** `IsoObject.new(cell, square, sprite)`로 만들면 바닐라가 `container`와 `ContainerCapacity`로 컨테이너를 만든다. 용량은 코드가 `ItemContainer:setCapacity`로 헬기 단계에 맞춰 다시 정한다
   (연구팀 보관함 300은 확장 API가 상한 100을 걷는다). 밀봉된 납품 상자(9)·봉인된 보급 상자(10)에는 컨테이너 속성이 없다 (있으면 게임이 불러올 때 컨테이너를 다시 만들어, 봉인된 상자가 루팅 창에 바닐라 '군용 보관함'으로 열렸다). 여는 코드가 컨테이너를 만든다.

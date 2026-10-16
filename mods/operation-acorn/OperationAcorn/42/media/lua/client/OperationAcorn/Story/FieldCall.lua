@@ -48,12 +48,6 @@ local COLOURS = { oak = { sign = "6E9C76", words = "8CEB99" }, me = { sign = "8C
 -- The calls this game has played and told the server of (the record may not say so yet).
 local told = {}
 
-local function text(key, ...)
-    local s = getText(key, ...)
-    if s == key then return "" end
-    return s
-end
-
 -- Whether the character is in trouble: zombies after it, or very close.
 local function danger(character)
     local stats = character:getStats()
@@ -108,7 +102,7 @@ local current   -- the call on show: { character, entry, lines, tl, t, st, line,
 local function hide(call)
     local t = OA.Titles.textApi()
     for i = 1, #call.shown do
-        if t then pcall(t.hide, OA.handle(), call.shown[i].key) end
+        if t then OA.try("field call: hiding a line", t.hide, OA.handle(), call.shown[i].key) end
     end
     call.shown = {}
 end
@@ -133,13 +127,13 @@ local function start(call, l)
     for i = 1, #shown - 1 do
         local back = #shown - i
         -- the earlier lines move up and dim, without a cursor; past the most there may be, one goes out at the top
-        pcall(t.move, OA.handle(), shown[i].key, { y = math.max(0, places[i]), alpha = FieldCall.DIM[back] or 0,
+        OA.try("field call: moving a line", t.move, OA.handle(), shown[i].key, { y = math.max(0, places[i]), alpha = FieldCall.DIM[back] or 0,
             backdrop = FieldCall.DIM_BACKDROP[back] or 0, cursor = false, time = FieldCall.MOVE })
-        if i <= going then pcall(t.hide, OA.handle(), shown[i].key) end
+        if i <= going then OA.try("field call: hiding a line", t.hide, OA.handle(), shown[i].key) end
     end
     local newest = places[#places]
     for _ = 1, math.max(0, going) do table.remove(shown, 1) end
-    local ok, key = pcall(t.show, OA.handle(), FieldCall.spec(sign, l.who, words, speed, call.character:getPlayerNum(),
+    local ok, key = OA.try("field call: showing a line", t.show, OA.handle(), FieldCall.spec(sign, l.who, words, speed, call.character:getPlayerNum(),
         newest))
     if ok then shown[#shown].key = key else table.remove(shown) end
 end
@@ -194,7 +188,7 @@ function FieldCall.check()
     local e = record and Comms.next(record, "field")
     if not e or told[e.id] then return end
     local tier = OA.Story.tier(record)
-    local lines = Script.lines(e, { text = text, number = OA.Story.number(record), tier = tier,
+    local lines = Script.lines(e, { text = Script.text, number = OA.Story.number(record), tier = tier,
         late = OA.Story.lateContact(record) })
     local tl = Script.timeline(lines, nil, FieldCall.PACE)
     current = { character = character, entry = e, lines = lines, tl = tl, t = 0, st = Script.at(tl, 0), line = 0, shown = {},

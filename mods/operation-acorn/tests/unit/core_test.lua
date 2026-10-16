@@ -123,3 +123,54 @@ test("the shared ease out", function()
     eq(OA.easeOut(-1), 0); eq(OA.easeOut(0), 0); eq(OA.easeOut(1), 1); eq(OA.easeOut(2), 1)
     near(OA.easeOut(0.5), 0.875, 1e-12)
 end)
+
+test("OA.try is pcall that writes the log once per site, and passes the results through", function()
+    local lines = {}
+    local print0 = print
+    print = function(s) lines[#lines + 1] = s end
+    local ok, a, b = OA.try("a site", function(x, y) return x + y, "two" end, 1, 2)
+    eq(ok, true)
+    eq(a, 3)
+    eq(b, "two")
+    eq(#lines, 0, "nothing to say")
+    local failed = OA.try("another site", function() error("boom", 0) end)
+    OA.try("another site", function() error("boom", 0) end)
+    OA.try("a third site", function() error("bang", 0) end)
+    print = print0
+    eq(failed, false)
+    eq(#lines, 2, "once per site")
+    truthy(string.find(lines[1], "another site failed: boom", 1, true))
+end)
+
+test("a menu works on one item per entry of the selection: a stack's first, never every item of it", function()
+    local hammer, nails = { name = "hammer" }, { name = "nails" }
+    local stack = { items = { nails, { name = "more nails" }, { name = "and more" } } }
+    local list = OA.menuItems({ hammer, stack })
+    eq(#list, 2)
+    eq(list[1], hammer)
+    eq(list[2], nails)
+end)
+
+test("the outlines of models are declared to the API once, and an API without the point is told once in the log", function()
+    local set = {}
+    local function formulas(fn) return { version = OA.API_VERSION, client = function() return { id = "h" } end, formulas = { set = fn } } end
+    PZExtAPI = nil
+    eq(OA.declareOutlines(), false, "no API: nothing to declare")
+    -- an API from before the point refuses it: logged once, tried again at the next start
+    local logged = {}
+    local log = OA.log
+    OA.log = function(...) logged[#logged + 1] = table.concat({ ... }, " ") end
+    local function refuse() error("there is no point outline.models") end
+    PZExtAPI = formulas(refuse)
+    eq(OA.declareOutlines(), false)
+    eq(OA.declareOutlines(), false)
+    OA.log = log
+    eq(#logged, 1, "told once")
+    -- one that has it takes it, true, once
+    PZExtAPI = formulas(function(handle, name, value) set[#set + 1] = { handle = handle, name = name, value = value } end)
+    eq(OA.declareOutlines(), true)
+    eq(OA.declareOutlines(), true)
+    eq(#set, 1, "declared once")
+    eq(set[1].name, "outline.models"); eq(set[1].value, true); eq(set[1].handle.id, "h")
+    PZExtAPI = nil
+end)

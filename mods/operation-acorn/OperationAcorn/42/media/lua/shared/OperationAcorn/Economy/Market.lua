@@ -24,6 +24,12 @@ Market.SUPPLY_PER_WEIGHT = 10
 Market.SUPPLY_MIN, Market.RECOVERY = 0.40, 0.03
 Market.HISTORY_DAYS = 30
 Market.MAX_CATCH_UP = 40
+-- The random events (NUMBERS 2): a demand (or, one time in GLUT_ONE_IN, a glut) every DEMAND_EVERY days that lasts
+-- EVENT_DAYS at x1.25 (x0.8 for a glut); a category refused for REFUSAL_DAYS, every REFUSAL_EVERY days, that comes back as
+-- a request REFUSAL_BACK days after the refusal ends. A request that came due is forgotten after DUE_KEEP_DAYS.
+Market.DEMAND_EVERY, Market.REFUSAL_EVERY, Market.REFUSAL_BACK = { 10, 15 }, { 20, 30 }, { 14, 21 }
+Market.EVENT_DAYS, Market.REFUSAL_DAYS, Market.DUE_KEEP_DAYS = 5, 7, 70
+Market.DEMAND_MULT, Market.GLUT_MULT, Market.GLUT_ONE_IN = 1.25, 0.8, 3
 
 -- What the team wants on entering a stage (NUMBERS 2): the categories, for 14 days at x1.3.
 Market.STAGE_WANTS = { [1] = { "B", "G" }, [2] = { "B", "G" }, [3] = { "D" }, [4] = { "I", "J" }, [5] = { "D" } }
@@ -72,26 +78,32 @@ function Market.state()
         st.history = {}
         st.totals = {}
         st.news = 0
-        st.nextDemand = day + OA.random(10, 15)
-        st.nextRefusal = day + OA.random(20, 30)
+        st.nextDemand = day + OA.random(Market.DEMAND_EVERY[1], Market.DEMAND_EVERY[2])
+        st.nextRefusal = day + OA.random(Market.REFUSAL_EVERY[1], Market.REFUSAL_EVERY[2])
     end
     return st
 end
 
--- The event factor of a category on a day: the largest raise, else the glut, else 1.
-local function eventFactor(st, cat, day)
-    local best, glut = 1.0, 1.0
+-- The events that rule a category on a day: its largest raise and its deepest glut (either may be nil).
+local function leadEvents(st, cat, day)
+    local best, glut
     for _, e in ipairs(st.events) do
         if e.cat == cat and e.ends > day then
             if e.mult > 1.0 then
-                if e.mult > best then best = e.mult end
-            elseif e.mult < glut then
-                glut = e.mult
+                if not best or e.mult > best.mult then best = e end
+            elseif e.mult < 1.0 and (not glut or e.mult < glut.mult) then
+                glut = e
             end
         end
     end
-    if best > 1.0 then return best end
-    return glut
+    return best, glut
+end
+
+-- The event factor of a category on a day: the largest raise, else the glut, else 1.
+local function eventFactor(st, cat, day)
+    local best, glut = leadEvents(st, cat, day)
+    local e = best or glut
+    return e and e.mult or 1.0
 end
 
 local function compose(m, s, e)
@@ -191,11 +203,11 @@ local function step(st, day, top, season)
         end
     end
     st.day = day
-    -- Random demand, every 10 to 15 days; one time in three the team has too much of a category instead. The
+    -- Random demand, every DEMAND_EVERY days; one time in GLUT_ONE_IN the team has too much of a category instead. The
     -- category is drawn by the season's weights; a glut never lands on one the season raises. A demand for a category
     -- the season raises is told in the team's words for the season.
     if day >= st.nextDemand then
-        local glut = OA.random(1, 3) == 1
+        local glut = OA.random(1, Market.GLUT_ONE_IN) == 1
         local c, key
         if glut then
             c = OA.Season.pickOther(letters, season, OA.random)
@@ -208,20 +220,20 @@ local function step(st, day, top, season)
                 key = "IGUI_OA_Econ_Event_Demand"
             end
         end
-        local mult = glut and 0.8 or 1.25
-        table.insert(st.events, { cat = c, mult = mult, ends = day + 5, key = key })
+        local mult = glut and Market.GLUT_MULT or Market.DEMAND_MULT
+        table.insert(st.events, { cat = c, mult = mult, ends = day + Market.EVENT_DAYS, key = key })
         news(st)
-        raise({ kind = glut and "glut" or "demand", cat = c, mult = mult, days = 5, key = key })
-        st.nextDemand = day + OA.random(10, 15)
+        raise({ kind = glut and "glut" or "demand", cat = c, mult = mult, days = Market.EVENT_DAYS, key = key })
+        st.nextDemand = day + OA.random(Market.DEMAND_EVERY[1], Market.DEMAND_EVERY[2])
     end
-    -- A category refused for a week, from the first stage on, every 20 to 30 days. It comes back as a request.
+    -- A category refused for a week, from the first stage on, every REFUSAL_EVERY days. It comes back as a request.
     if top >= 1 and day >= st.nextRefusal then
         local c = letters[OA.random(1, #letters)]
-        st.refused[c] = day + 7
-        table.insert(st.due, { cat = c, day = day + 7 + OA.random(14, 21) })
+        st.refused[c] = day + Market.REFUSAL_DAYS
+        table.insert(st.due, { cat = c, day = day + Market.REFUSAL_DAYS + OA.random(Market.REFUSAL_BACK[1], Market.REFUSAL_BACK[2]) })
         news(st)
-        raise({ kind = "refusal", cat = c, days = 7 })
-        st.nextRefusal = day + OA.random(20, 30)
+        raise({ kind = "refusal", cat = c, days = Market.REFUSAL_DAYS })
+        st.nextRefusal = day + OA.random(Market.REFUSAL_EVERY[1], Market.REFUSAL_EVERY[2])
     end
     for _, c in ipairs(letters) do
         local list = st.history[c]
@@ -293,17 +305,6 @@ function Market.dueRequests(firstDay, lastDay)
     return found
 end
 
--- The line for a category refused for a while ("start") or come back as a request ("back"): the story part's
--- words when it is there (they know the categories it has lines for), else this part's own. Returns key, args.
-function Market.refusalLine(category, phase)
-    local story = OA.Story
-    if story and story.refusalKey then
-        return story.refusalKey(category, phase), nil
-    end
-    local key = phase == "back" and "IGUI_OA_Econ_Radio_RefuseBack" or "IGUI_OA_Econ_Radio_RefuseStart"
-    return key, { getText(OA.Categories.nameKey(category)) }
-end
-
 -- What is going on in the market now, one line for each category it touches (DESIGN-terminal 5.2): the largest raise
 -- on a category, else its glut (the same rule as the index), and the categories the team does not take. Worked out
 -- from the state each time it is asked (the delivery tab asks when it is redrawn); nothing is kept.
@@ -319,16 +320,7 @@ function Market.situation()
     local day = st.day
     local lines = {}
     for _, c in ipairs(OA.Categories.LETTERS) do
-        local best, glut
-        for _, e in ipairs(st.events) do
-            if e.cat == c and e.ends > day then
-                if e.mult > 1.0 then
-                    if not best or e.mult > best.mult then best = e end
-                elseif not glut or e.mult < glut.mult then
-                    glut = e
-                end
-            end
-        end
+        local best, glut = leadEvents(st, c, day)
         local e = best or glut
         if e then
             local key = e.key or (best and "IGUI_OA_Econ_Event_Demand" or "IGUI_OA_Econ_Event_Glut")
@@ -348,11 +340,11 @@ function Market.situation()
     return lines
 end
 
--- Forgets due requests that are past (kept ten weeks).
+-- Forgets due requests that are past (kept DUE_KEEP_DAYS).
 function Market.prune(day)
     local st = Market.state()
     for i = #st.due, 1, -1 do
-        if st.due[i].day < day - 70 then table.remove(st.due, i) end
+        if st.due[i].day < day - Market.DUE_KEEP_DAYS then table.remove(st.due, i) end
     end
 end
 

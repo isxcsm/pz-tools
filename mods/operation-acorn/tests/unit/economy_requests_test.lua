@@ -180,12 +180,12 @@ test("the list grows with the stage and gains rarer items", function()
     for i, t in ipairs(R.list(record)) do first[i] = t end
     OA.Trust.add(record, 700)             -- stage 2
     eq(#R.list(record), 6, "trust alone does not lengthen it")
-    OA.Support.setLevel(record, "reqcount", 1)   -- the flight support upgrade: 8 items, all scores
+    TEST.setSupportLevel(record, "reqcount", 1)   -- the flight support upgrade: 8 items, all scores
     local list = R.list(record)
     eq(#list, 8)
     for i = 1, 6 do eq(list[i], first[i], "the first six stay") end
     OA.Trust.add(record, 5800 - 700)                     -- up to milestone 2
-    OA.Support.setLevel(record, "reqcount", 3)           -- 12 items
+    TEST.setSupportLevel(record, "reqcount", 3)           -- 12 items
     eq(#R.list(record), 12)
 end)
 
@@ -251,7 +251,7 @@ test("an item's band follows its rank: 600, 1,500 and 4,000 a unit, its quantity
     install(40, falling)
     local record = OA.Store.ensure("p", "P")
     OA.Trust.add(record, 700)            -- stage 2: every band is drawn
-    OA.Support.setLevel(record, "reqcount", 3)   -- all 12
+    TEST.setSupportLevel(record, "reqcount", 3)   -- all 12
     local seen = { common = false, normal = false, rare = false }
     for _ = 1, 20 do
         TEST.hours = (TEST.hours or 0) + 24 * 7
@@ -282,7 +282,7 @@ test("entries come by band, common first, each band in the order drawn", functio
     install(40, falling)
     local record = OA.Store.ensure("p", "P")
     OA.Trust.add(record, 700)
-    OA.Support.setLevel(record, "reqcount", 3)
+    TEST.setSupportLevel(record, "reqcount", 3)
     local rank = { common = 1, normal = 2, rare = 3 }
     local last = 0
     local list = R.entries(record)
@@ -300,7 +300,7 @@ test("the request price reward multiplies the price, to ten credits", function()
     local want = { { 1, 1.0, 600, 1500, 4000 }, { 2, 1.1, 660, 1650, 4400 }, { 3, 1.2, 720, 1800, 4800 },
         { 4, 1.3, 780, 1950, 5200 } }
     for _, w in ipairs(want) do
-        OA.Support.setLevel(record, "reqprice", w[1] - 1)
+        TEST.setSupportLevel(record, "reqprice", w[1] - 1)
         near(OA.Trust.rewards(record).requestPrice, w[2], 1e-9)
         eq(R.unitPrice(record, "common"), w[3], "common at x" .. w[2])
         eq(R.unitPrice(record, "normal"), w[4])
@@ -308,14 +308,12 @@ test("the request price reward multiplies the price, to ten credits", function()
     end
     SandboxVars.OperationAcorn.RequestPrice = 50
     OA.Trust.reset()
-    OA.Support.setLevel(record, "reqprice", 0)
+    TEST.setSupportLevel(record, "reqprice", 0)
     eq(R.unitPrice(record, "common"), 300, "the option scales the price")
 end)
 
 test("an item the house loot does not hand out is rare, at the band's usual quantity", function()
     install(10, function() return 2.0 end)
-    eq(R.scoreOf("Base.Item3"), 2.0)
-    eq(R.scoreOf("Base.Harmonica"), 0)
     eq(R.bandOf("Base.Harmonica"), "rare")
     eq(R.qtyOf("Base.Harmonica"), R.BANDS.rare.qty)
 end)
@@ -339,17 +337,6 @@ test("a refused category is left out, and comes back two to a list when due", fu
     local a = 0
     for i = 1, 2 do if tonumber(string.match(list[i], "%d+")) % 2 == 0 then a = a + 1 end end
     eq(a, 2, "the first two are the returning category")
-end)
-
-test("a pinned item leads next week's list", function()
-    install(40, function() return 2.0 end)
-    local record = OA.Store.ensure("p", "P")
-    R.list(record)
-    R.pinNext(record, "Base.Item39")
-    TEST.hours = 24 * 7 + 1
-    local list = R.list(record)
-    eq(list[1], "Base.Item39")
-    eq(#list, 6)
 end)
 
 test("the table is built once and kept in the world save", function()
@@ -419,7 +406,7 @@ test("any member of a family fills its line, and the units of all its kinds coun
     })
     R.install(R.build({}, infoOf, OA.RequestGroups))
     local record = OA.Store.ensure("p", "P")
-    OA.Support.setLevel(record, "reqcount", 3)
+    TEST.setSupportLevel(record, "reqcount", 3)
     local e = R.entry(record, "Base.CannedCarrots2")
     truthy(e, "the family is on the list")
     eq(e.key, "cans")
@@ -428,30 +415,6 @@ test("any member of a family fills its line, and the units of all its kinds coun
     R.consume(record, R.keyOf("Base.TinnedBeans"), 3)
     eq(R.entry(record, "Base.CannedCarrots2").used, 7, "peas and beans fill the same line")
     eq(R.memberNames("cans")[3], "Base.TinnedBeans", "the tooltip lists the kinds")
-    R.useGroups(REAL_GROUPS)
-end)
-
-test("a saved list holding the old variant ids moves to their family, once, the settled units summed", function()
-    R.useGroups(REAL_GROUPS)
-    R.install(R.build({}, infoOf, REAL_GROUPS))
-    local record = OA.Store.ensure("p", "P")
-    local codex = OA.Store.section(record, "codex")
-    codex.req = { week = OA.week(), extra = 0, groups = true,
-        items = { "n:Canned_Peas", "Base.Harmonica", "n:Canned_Carrots", "Base.TunaTin" },
-        used = { ["n:Canned_Peas"] = 2, ["n:Canned_Carrots"] = 3, ["Base.TunaTin"] = 1, ["Base.Harmonica"] = 1 },
-        strange = "n:Canned_Carrots" }
-    codex.reqPin = "n:Canned_Tuna"
-    local list = R.list(record)
-    eq(list[1], "cans", "the first old id's place is kept")
-    eq(list[2], "Base.Harmonica")
-    local n = 0
-    for _, key in ipairs(list) do if key == "cans" then n = n + 1 end end
-    eq(n, 1, "three old lines are one family line")
-    eq(R.used(record)["cans"], 6, "2 + 3 + 1")
-    eq(R.used(record)["n:Canned_Peas"], nil, "the old keys are gone")
-    eq(codex.req.strange, "cans")
-    eq(codex.reqPin, "cans")
-    eq(R.entry(record, "Base.CannedTomato2").used, 6, "found by any can")
     R.useGroups(REAL_GROUPS)
 end)
 
@@ -471,50 +434,9 @@ test("a group's name is the shortest name the others have inside them, else what
     getItemNameFromFullType = was
 end)
 
-test("the ids the table dropped are kept in the group that took them over", function()
-    local ids, items = {}, {}
-    for _, row in ipairs(REAL_GROUPS) do
-        ids[row.id] = true
-        for _, t in ipairs(row.items) do items[t] = true end
-    end
-    local n = 0
-    for _, row in ipairs(REAL_GROUPS) do
-        for _, old in ipairs(row.was or {}) do
-            n = n + 1
-            truthy(not ids[old], old .. " is still a group of its own")
-            truthy(not items[old], old .. " is a kind (its group is found by the kind)")
-        end
-    end
-    truthy(n > 0, "some groups were joined")
+test("an id nobody knows is its own key", function()
     R.useGroups(REAL_GROUPS)
-    eq(R.keyOf("n:Bra_Strapless_"), "underwear", "an id two tables old (the frilly strapless bras') still finds it")
-    eq(R.keyOf("n:Bra_Strapless"), "underwear", "the variant group's id finds its family")
-    eq(R.keyOf("n:Nothing_Like_It"), "n:Nothing_Like_It", "an id nobody knows stays what it is")
-end)
-
-test("a saved week's list with ids the table no longer has is moved to their groups, nothing dropped", function()
-    R.useGroups(REAL_GROUPS)
-    R.install(R.build({}, infoOf, REAL_GROUPS))
-    local record = OA.Store.ensure("p", "P")
-    local codex = OA.Store.section(record, "codex")
-    codex.req = { week = OA.week(), extra = 0, groups = true,
-        items = { "Base.Bra_Strapless_Black", "n:Bra_Strapless_", "Base.Harmonica", "n:Bra_Strapless" },
-        used = { ["Base.Bra_Strapless_Black"] = 2, ["n:Bra_Strapless_"] = 3, ["Base.Harmonica"] = 1 },
-        strange = "n:Bra_Strapless_" }
-    codex.reqPin = "n:Bra_Strapless_"
-    local list = R.list(record)
-    eq(list[1], "underwear", "the old kind's place is kept")
-    eq(list[2], "Base.Harmonica")
-    local n = 0
-    for _, key in ipairs(list) do if key == "underwear" then n = n + 1 end end
-    eq(n, 1, "the three ids are one group, once")
-    eq(R.used(record)["underwear"], 5, "what the week settled of each adds up")
-    eq(R.used(record)["Base.Harmonica"], 1)
-    eq(codex.req.strange, "underwear")
-    eq(codex.reqPin, "underwear")
-    eq(R.entry(record, "Base.Bra_Strapless_FrillyRed").used, 5, "found by any kind of the group")
-    eq(R.entry(record, "n:Bra_Strapless_").left, R.entry(record, "n:Bra_Strapless").left, "and by the old id")
-    R.useGroups(REAL_GROUPS)
+    eq(R.keyOf("n:Nothing_Like_It"), "n:Nothing_Like_It")
 end)
 
 test("what is left out is in no group: keys, maps, specimens, hollow books, newspapers, cartons", function()
@@ -593,7 +515,7 @@ test("each kind of a group is paid its own worth: a television 6,000, a radio it
     eq(line.priceMax, 6000, "the television its own worth")
     eq(R.priceOf(line, R.worthOf("Base.RadioX")), 600)
     eq(R.priceOf(line, R.worthOf("Base.TvX")), 6000)
-    OA.Support.setLevel(record, "reqprice", 1)   -- x1.1
+    TEST.setSupportLevel(record, "reqprice", 1)   -- x1.1
     line = R.line(record, "sets", {})
     eq(R.priceOf(line, 300), 660); eq(R.priceOf(line, 6000), 6600, "the reward multiplies its own worth too")
     getScriptManager = was
@@ -635,15 +557,14 @@ local function installGroups(count)
     R.install(R.build({}, infoOf, rows))
 end
 
-test("a group is on a week's list once, even when the pin and the strange item are of it", function()
+test("a group is on a week's list once, even when the strange item is of one the draw takes", function()
     installGroups(3)
     local record = OA.Store.ensure("p", "P")
     R.list(record)
-    R.pinNext(record, "Base.CharcoalCrafted")
     OA.Story = { strangeItem = function() return "Base.Charcoal" end }
     TEST.hours = 24 * 7 + 1
     local list = R.list(record)
-    eq(list[1], "base:charcoal", "the pinned kind's group leads")
+    eq(list[1], "base:charcoal", "the strange item's group leads")
     local n = 0
     for _, key in ipairs(list) do if key == "base:charcoal" then n = n + 1 end end
     eq(n, 1)
@@ -654,7 +575,7 @@ end)
 test("charcoal from the kiln is a line of the charcoal request", function()
     installGroups(10)
     local record = OA.Store.ensure("p", "P")
-    OA.Support.setLevel(record, "reqcount", 3)
+    TEST.setSupportLevel(record, "reqcount", 3)
     local e = R.entry(record, "Base.CharcoalCrafted")
     truthy(e, "the group is on the list")
     eq(e.key, "base:charcoal")

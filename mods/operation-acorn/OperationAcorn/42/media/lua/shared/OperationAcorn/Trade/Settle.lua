@@ -112,7 +112,7 @@ function Settle.run(record, svc)
     -- 2. Trust, and what passing a stage or a milestone brings (OA.Trust.add puts the shared serums into the account).
     local events = {}
     if (result.trust or 0) > 0 then
-        events = Rules.stageEvents(svc.trustAdd(record, result.trust))
+        events = svc.trustAdd(record, result.trust)
     end
 
     -- 3. The orders, in order, with what the balance allows.
