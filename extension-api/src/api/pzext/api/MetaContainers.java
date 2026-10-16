@@ -25,6 +25,8 @@ final class MetaContainers {
     /** By square: the meta entities there that hold a fluid container, each {entity, container, id}. */
     private Map<Position, List<Object[]>> index = Map.of();
     private int indexed = -1;
+    // How many times the index was made: what was read of it (which squares have containers) holds until it moves.
+    private int generation;
 
     private MetaContainers(ClassLoader loader) throws ReflectiveOperationException {
         Class<?> manager = Game.type(loader, "zombie.entity.GameEntityManager");
@@ -67,6 +69,15 @@ final class MetaContainers {
         if (count != indexed) reindex(all, count);
     }
 
+    /** The number of times the index was made. */
+    int generation() { return generation; }
+
+    /** The squares the index lists meta entities with containers at. */
+    List<Position> positions() { return List.copyOf(index.keySet()); }
+
+    /** Whether the index lists a meta entity with a container at the square (not checked as {@link #at} does). */
+    boolean has(Position at) { return index.containsKey(at); }
+
     /**
      * The fluid containers meta entities hold at the square, as last indexed, in no order: none while its objects hold
      * them. Stale entries are dropped (see the class comment).
@@ -102,5 +113,6 @@ final class MetaContainers {
         }
         index = made;
         indexed = count;
+        generation++;
     }
 }

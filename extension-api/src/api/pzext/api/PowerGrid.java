@@ -2,8 +2,8 @@ package pzext.api;
 
 import java.lang.reflect.*;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
 import java.util.function.IntUnaryOperator;
 import pzext.boot.Hooks;
 import pzext.api.Network.Away;
@@ -113,16 +113,29 @@ final class PowerGrid implements Hooks.Power {
         }
     }
 
+    /** A square that is a producer of a network (the canonical object for it: the maps keep these). */
+    private record Producing(Position at, Network network) { }
+
     /**
-     * What the hooks read. {@code supplied} holds the areas of the networks that have supply now, {@code rooms} the
-     * ids of their buildings' rooms, sorted; each object rule says whether its network has supply.
+     * What the hooks read. {@code supplied} holds the areas of the networks that have supply now ({@code suppliedCount}
+     * of them; {@code shelter} the same with their shells, for the squares they give power) and {@code withArea} those
+     * of every network that has one, {@code rooms} the ids of their buildings' rooms, sorted; each object rule says whether
+     * its network has supply. {@code producers} holds the producing squares, each to its place in {@code producing}.
      */
-    private record Snapshot(Area[] supplied, long[] rooms, List<Network> withArea, Map<Position, Network> producers,
-            Rules<Boolean> rules, Map<Network, History> histories) {
-        static final Snapshot EMPTY = new Snapshot(new Area[0], new long[0], List.of(), Map.of(), Rules.none(), Map.of());
+    private record Snapshot(AreaIndex shelter, AreaIndex supplied, int suppliedCount, AreaIndex withAreaIndex,
+            Network[] withArea, long[] rooms, SquareMap producers, Producing[] producing, Rules<Boolean> rules,
+            Map<Network, History> histories) {
+        static final Snapshot EMPTY = new Snapshot(AreaIndex.EMPTY, AreaIndex.EMPTY, 0, AreaIndex.EMPTY, new Network[0],
+            new long[0], SquareMap.EMPTY, new Producing[0], Rules.none(), Map.of());
 
         /** Whether a supplied network takes the room of that id. */
         boolean lit(long room) { return Arrays.binarySearch(rooms, room) >= 0; }
+
+        /** The producing square, or null; without allocating. */
+        Producing producer(int x, int y, int z) {
+            int at = (int)producers.get(x, y, z, -1);
+            return at < 0 ? null : producing[at];
+        }
     }
 
     private final Game game;
@@ -138,34 +151,54 @@ final class PowerGrid implements Hooks.Power {
     // Set by a definition change and a history begun: the next frame makes the snapshot again (see frame).
     private volatile boolean rebuild = true;
     private volatile Thread changer;
+    // Set when every network is to be worked out at the next frame (see changed()).
+    private volatile boolean wakeAll = true;
     // The producers the last frame left in networks: one that joins or leaves gets its surroundings worked out again.
     private Set<Position> grouped = Set.of();
     // In a frame: the hour each network's producer in use started or stopped, when it did.
     private final Map<Network, Double> supplyHours = new HashMap<>();
+    // The frames' passes, to stamp what a pass worked out (Network.affectedPass and the like).
+    private long passes;
+    // The chunks the consumers of networks are missing from, to the networks that wait for them; and those of the producers'
+    // squares of the networks that wait for nothing else (see settled).
+    private final ChunkWaits waits = new ChunkWaits(), producerWaits = new ChunkWaits();
+    // The networks the frame goes through (the others wait for a chunk, or for a hook or a definition to wake them), in the
+    // order they were defined at the pass; those woken since the last pass, from any thread; whether a pass found a member's
+    // area changed; and the version of the buildings the last pass went on.
+    private final ArrayList<Network> active = new ArrayList<>();
+    private final Queue<Network> woken = new java.util.concurrent.ConcurrentLinkedQueue<>();
+    private boolean workedArea;
+    // How many times a network was worked out, and how many the frame goes through now (for the tests).
+    private long workedCount;
+
+    long worked() { return workedCount; }
+
+    int active() { return active.size(); }
+
+    /** The next frame is a pass (for the tests, which do not wait a second). */
+    void pass() { cadence.changed(); }
+    private long seenEpoch = -1, seenVersion = -1;
     // Squares whose generators left the producers (see left), and generators the game switched on in no network (see
     // generator): the next frame takes the marks off those that are in no network, so that marks are on network
     // generators alone. The hook may come on another thread.
     private final Set<Position> leftSquares = new HashSet<>();
     private final Queue<Object> loose = new java.util.concurrent.ConcurrentLinkedQueue<>();
-    private final Field client;
+    // One hour in how many a generator's condition wears, by the item it was placed from (the scripts do not change).
+    private final Map<Object, Integer> wearChances = new ConcurrentHashMap<>();
 
-    private final Method getChunk, generatorOf, checkElectricity;
+    private final Method getChunk, checkElectricity;
     private final Field squareChunk, chunkX, chunkY;
-    private final Method removeGeneratorPos, activated, fuel, condition, setUsing, surroundings, perHour, setActivated;
+    private final Method removeGeneratorPos, surroundings;
     private final Method setFuel, setCondition;
-    // A generator's item and its ConditionLowerChanceOneIn; null for a game that has them elsewhere (WEAR_ONE_IN then).
-    private final Method itemType, scriptItem, lowerChance;
+    // A script item's ConditionLowerChanceOneIn; null for a game that has it elsewhere (WEAR_ONE_IN then).
+    private final Method scriptItem, lowerChance;
     private final Field scripts;
     private final Method optionValue, elecShut, gridExists, noPower;
     // Whether the game's grid runs, read once a second.
     private volatile boolean gridOn;
     private final Method outermost, frozen, fridgeFactor, lastAged, isFridge, isFreezer;
     private final Field sandbox, fuelRate;
-    private final Field lastHour;
-    // The getter gives the consumption times the sandbox's fuel rate; the field is what setTotalPowerUsing set.
-    private final Field itemsPowered, using, chunkRange, basePower;
-    private final Method containerPowered, switchPowered, devicePowered, battery, deviceParent;
-    private final Method squarePowered, containerParent, containerSquare;
+    private final Field itemsPowered, chunkRange;
     private final Kahlua lua;
     // IsoObject.hasModData, which reads an object's modData without making it; null for a game without it.
     private final Method modData, hasModData;
@@ -177,45 +210,34 @@ final class PowerGrid implements Hooks.Power {
         this.members = members;
         this.buildings = buildings;
         this.lua = lua;
+        PowerReach.verify();
         modData = game.objectType.getMethod("getModData");
-        client = Game.type(loader, "zombie.network.GameClient").getField("client");
         Method has;
         try { has = game.objectType.getMethod("hasModData"); }
         catch (NoSuchMethodException none) { has = null; }
         hasModData = has;
         Class<?> squareType = Game.type(loader, "zombie.iso.IsoGridSquare"), chunkType = Game.type(loader, "zombie.iso.IsoChunk");
         Class<?> generator = Game.type(loader, "zombie.iso.objects.IsoGenerator");
-        Class<?> device = Game.type(loader, "zombie.radio.devices.DeviceData");
         Class<?> container = game.container;
         getChunk = Game.type(loader, "zombie.iso.IsoCell").getMethod("getChunk", int.class, int.class);
-        generatorOf = squareType.getMethod("getGenerator");
         squareChunk = squareType.getField("chunk");
         chunkX = chunkType.getField("wx"); chunkY = chunkType.getField("wy");
         removeGeneratorPos = chunkType.getMethod("removeGeneratorPos", int.class, int.class, int.class);
         checkElectricity = game.objectType.getMethod("checkHaveElectricity");
-        activated = generator.getMethod("isActivated");
-        fuel = generator.getMethod("getFuel");
-        condition = generator.getMethod("getCondition");
-        setUsing = generator.getMethod("setTotalPowerUsing", float.class);
-        using = Game.accessible(generator.getDeclaredField("totalPowerUsing"));
         surroundings = generator.getMethod("setSurroundingElectricity");
-        perHour = generator.getMethod("getTotalPowerUsing");
-        setActivated = generator.getMethod("setActivated", boolean.class);
         setFuel = generator.getMethod("setFuel", float.class);
         setCondition = generator.getMethod("setCondition", int.class);
-        Method type = null, item = null, chance = null;
+        Method item = null, chance = null;
         Field manager = null;
         try {
-            type = generator.getMethod("getGeneratorItemType");
             Class<?> scriptManager = Game.type(loader, "zombie.scripting.ScriptManager");
             manager = scriptManager.getField("instance");
             item = scriptManager.getMethod("getItem", String.class);
             chance = item.getReturnType().getMethod("getConditionLowerChance");
         } catch (ReflectiveOperationException none) {
-            type = null;
+            item = null;
         }
-        itemType = type; scriptItem = item; lowerChance = chance; scripts = manager;
-        lastHour = Game.accessible(generator.getDeclaredField("lastHour"));
+        scriptItem = item; lowerChance = chance; scripts = manager;
         Class<?> options = Game.type(loader, "zombie.SandboxOptions");
         sandbox = options.getField("instance");
         fuelRate = options.getField("generatorFuelConsumption");
@@ -230,29 +252,43 @@ final class PowerGrid implements Hooks.Power {
         lastAged = food.getMethod("getLastAged");
         itemsPowered = Game.accessible(generator.getDeclaredField("itemsPowered"));
         chunkRange = Game.accessible(generator.getDeclaredField("generatorChunkRange"));
-        basePower = Game.accessible(generator.getDeclaredField("GeneratorBasePowerConsumption"));
-        containerPowered = container.getMethod("isObjectPowered", game.objectType, boolean.class);
-        switchPowered = Game.accessible(game.lightSwitch.getDeclaredMethod("hasElectricityAround"));
-        devicePowered = device.getMethod("canBePoweredHere");
-        squarePowered = squareType.getMethod("haveElectricity");
-        containerParent = container.getMethod("getParent");
-        containerSquare = container.getMethod("getSourceGrid");
         isFridge = container.getMethod("isFridge");
         isFreezer = container.getMethod("isFreezer");
-        battery = device.getMethod("getIsBatteryPowered");
-        deviceParent = device.getMethod("getParent");
     }
 
     /**
-     * A definition changed: the hooks know the definitions at once on the thread that changed them, the game's (a world's
+     * Every definition may have changed: the hooks know them at once on the thread that changed them, the game's (a world's
      * generators make up for the hours the world was away as they first update, which can come before the next frame),
-     * and the next frame works the rest out. Many changes in a row make one snapshot, not one each.
+     * and the next frame works every network out again. Many changes in a row make one snapshot, not one each.
      */
     void changed() {
+        wakeAll = true;
+        reshaped();
+    }
+
+    /**
+     * The definition of this network changed: only it is worked out again at the next frame (and the networks that follow
+     * from it, which the caller names as it changes them).
+     */
+    void changed(Network network) {
+        network.resolveEpoch = -1;
+        wake(network);
+        reshaped();
+    }
+
+    /** The networks' shape changed (the producers, the areas, a network defined or removed): the hooks' snapshot is made again. */
+    void reshaped() {
         changer = Thread.currentThread();
         stale = true;
         rebuild = true;
         cadence.changed();
+    }
+
+    /** The network was removed or replaced: nothing waits for it any more, and the frame leaves it. */
+    void removed(Network network) {
+        network.dead = true;
+        waits.remove(network);
+        producerWaits.remove(network);
     }
 
     /**
@@ -279,15 +315,14 @@ final class PowerGrid implements Hooks.Power {
 
     /** A square of a supplied building's rooms, or of its shell (its roof, the squares against it; see Members.Area). */
     @Override public boolean square(int x, int y, int z) {
-        for (Area area : current().supplied()) if (area.contains(x, y, z) || area.shelters(x, y, z)) return !PURE.get()[0];
-        return false;
+        return current().shelter().any(x, y, z) && !PURE.get()[0];
     }
 
     @Override public boolean object(boolean vanilla, Object object, int kind, boolean generators) {
         if (!generators || object == null) return vanilla;
         Snapshot current = current();
         // The game said no while a network has supply: a network may add to it. Its yes stands but for an exclusion.
-        boolean asked = !vanilla && current.supplied().length > 0;
+        boolean asked = !vanilla && current.suppliedCount() > 0;
         if (!asked && current.rules().isEmpty()) return vanilla;
         try {
             Object target = target(object, kind);
@@ -313,11 +348,11 @@ final class PowerGrid implements Hooks.Power {
             pure[0] = true;
             try {
                 return switch (kind) {
-                    case Hooks.APPLIANCE -> (boolean)containerPowered.invoke(null, object, true);
-                    case Hooks.LIGHT_SWITCH -> (boolean)switchPowered.invoke(object);
-                    case Hooks.DEVICE -> (boolean)devicePowered.invoke(object);
+                    case Hooks.APPLIANCE -> PowerReach.containerPowered(object, true);
+                    case Hooks.LIGHT_SWITCH -> PowerReach.switchPowered(object);
+                    case Hooks.DEVICE -> PowerReach.devicePowered(object);
                     case Hooks.ROOM_LIGHT -> squarePowered(game.squareOf(object));
-                    default -> squarePowered(containerSquare.invoke(object));
+                    default -> squarePowered(PowerReach.containerSquare(object));
                 };
             } finally { pure[0] = false; }
         } catch (ReflectiveOperationException failure) {
@@ -334,8 +369,8 @@ final class PowerGrid implements Hooks.Power {
      */
     private Object target(Object object, int kind) throws ReflectiveOperationException {
         Object target = switch (kind) {
-            case Hooks.DEVICE -> (boolean)battery.invoke(object, Game.NONE) ? null : deviceParent.invoke(object, Game.NONE);
-            case Hooks.FOOD -> containerParent.invoke(object, Game.NONE);
+            case Hooks.DEVICE -> PowerReach.battery(object) ? null : PowerReach.deviceParent(object);
+            case Hooks.FOOD -> PowerReach.containerParent(object);
             default -> object;
         };
         return game.objectType.isInstance(target) ? target : null;
@@ -351,24 +386,26 @@ final class PowerGrid implements Hooks.Power {
         int x = game.x(square), y = game.y(square), z = game.z(square);
         int[] step = buildings.homeStep(target, x, y, z);
         if (step == null) return false;
-        for (Area area : current.supplied()) if (area.contains(x + step[0], y + step[1], z + step[2])) return true;
-        return false;
+        return current.supplied().any(x + step[0], y + step[1], z + step[2]);
     }
 
     @Override public boolean generator(Object generator) {
         Snapshot current = current();
         try {
-            Position at = game.at(generator);
-            Network network = at == null || current.producers().isEmpty() ? null : current.producers().get(at);
-            if (network == null) {
+            Object square = game.squareOf(generator);
+            Producing found = square == null || current.producers().isEmpty() ? null
+                : current.producer(game.x(square), game.y(square), game.z(square));
+            if (found == null) {
                 // In service as a generator of no network: its marks go at the next frame.
-                if ((hasModData == null || (boolean)hasModData.invoke(generator, Game.NONE)) && (boolean)activated.invoke(generator))
+                if ((hasModData == null || (boolean)hasModData.invoke(generator, Game.NONE)) && PowerReach.activated(generator))
                     { loose.add(generator); cadence.changed(); }
                 return false;
             }
+            Network network = found.network();
+            Position at = found.at();
             // A generator in a network powers no square around it and lists nothing as powered.
             ((Map<?, ?>)itemsPowered.get(generator)).clear();
-            Object chunk = squareChunk.get(game.squareOf(generator)), cells = game.cell();
+            Object chunk = squareChunk.get(square), cells = game.cell();
             if (chunk != null && cells != null) {
                 int range = chunkRange.getInt(null), wx = chunkX.getInt(chunk), wy = chunkY.getInt(chunk);
                 for (int dx = -range; dx <= range; dx++)
@@ -377,7 +414,7 @@ final class PowerGrid implements Hooks.Power {
                         if (near != null) removeGeneratorPos.invoke(near, at.x(), at.y(), at.z());
                     }
             }
-            setUsing.invoke(generator, consumption(network, Producer.square(at)));
+            PowerReach.setUsing(generator, consumption(network, at));
             cadence.changed();
             return true;
         } catch (ReflectiveOperationException failure) {
@@ -394,11 +431,11 @@ final class PowerGrid implements Hooks.Power {
         if (generator == null || generator == switching) return false;
         Object outer = switching;
         try {
-            if ((boolean)activated.invoke(generator) == on) return false;
+            if (PowerReach.activated(generator) == on) return false;
             // A handler that switches the same generator again gets the game's switch alone.
             switching = generator;
             game.raise(GENERATOR_EVENT, generator, on, false);
-            setActivated.invoke(generator, on);
+            PowerReach.setActivated(generator, on);
             game.raise(GENERATOR_EVENT, generator, on, true);
             return true;
         } catch (ReflectiveOperationException failure) {
@@ -413,38 +450,51 @@ final class PowerGrid implements Hooks.Power {
         Snapshot current = current();
         try {
             int x = game.x(square), y = game.y(square), z = game.z(square);
-            for (Network network : current.withArea()) {
-                // A light switch on a south or east wall stands on the square beyond its room.
-                Area area = network.area;
-                boolean near = false;
-                for (int dx = -1; dx <= 1 && !near; dx++)
-                    for (int dy = -1; dy <= 1 && !near; dy++) near = area != null && area.contains(x + dx, y + dy, z);
-                if (near) { network.loadChanged = true; cadence.changed(); }
-            }
-            for (var rule : current.rules().at(x, y, z)) if (rule.included()) { rule.network().loadChanged = true; cadence.changed(); }
+            // A light switch on a south or east wall stands on the square beyond its room.
+            AreaIndex areas = current.withAreaIndex();
+            if (!areas.isEmpty())
+                for (int dx = -1; dx <= 1; dx++)
+                    for (int dy = -1; dy <= 1; dy++)
+                        for (int member = areas.next(x + dx, y + dy, z, -1); member >= 0; member = areas.next(x + dx, y + dy, z, member))
+                            wakeLoad(current.withArea()[member]);
+            List<Rules.Rule<Boolean>> rules = current.rules().at(x, y, z);
+            for (int index = 0; index < rules.size(); index++) if (rules.get(index).included()) wakeLoad(rules.get(index).network());
         } catch (IllegalAccessException failure) {
             throw Game.failed(failure);
         }
+    }
+
+    /** Something that uses power changed where the network's consumers are: its load is worked out again at the next frame. */
+    private void wakeLoad(Network network) {
+        network.loadChanged = true;
+        wake(network);
+        cadence.changed();
     }
 
     @Override public void generatorUpdate(Object generator) {
         Snapshot current = current();
         if (current.producers().isEmpty()) return;
         try {
-            Position at = game.at(generator);
-            Network network = at == null ? null : current.producers().get(at);
-            if (network == null) return;
+            Object square = game.squareOf(generator);
+            Producing found = square == null ? null : current.producer(game.x(square), game.y(square), game.z(square));
+            if (found == null) return;
+            Network network = found.network();
+            Position at = found.at();
             // What it ran while its square was not loaded, before the game burns those hours itself.
-            give(network, at, generator, game.hours());
-            if (!(boolean)activated.invoke(generator)) return;
-            // The getter gives what it burns an hour: its consumption times the sandbox's fuel rate.
-            network.settled.put(at, new Settled(lastHour.getInt(generator), (float)fuel.invoke(generator), (float)perHour.invoke(generator),
-                wearChance(generator)));
-            network.away.remove(at);
+            if (network.away.containsKey(at)) give(network, at, generator, game.hours());
+            if (!PowerReach.activated(generator)) return;
+            // The getter gives what it burns an hour: its consumption times the sandbox's fuel rate. Written when it changed.
+            int hour = PowerReach.lastHour(generator);
+            float fuel = PowerReach.fuel(generator), perHour = PowerReach.perHour(generator);
+            int chance = wearChance(generator);
+            Settled last = network.settled.get(at);
+            if (last == null || last.lastHour() != hour || last.fuel() != fuel || last.perHour() != perHour || last.wearChance() != chance)
+                network.settled.put(at, new Settled(hour, fuel, perHour, chance));
+            if (!network.away.isEmpty()) network.away.remove(at);
             // Running: in service, also when it is switched off again before the next frame (see service).
             network.ran.add(at);
             // Running before the API knew which producer was in use: the world was just loaded, or the player switched it on.
-            if (network.inUse == null) network.adopted = Producer.square(at);
+            if (network.inUse == null && (network.adopted == null || !at.equals(network.adopted.at()))) network.adopted = Producer.square(at);
         } catch (ReflectiveOperationException failure) {
             throw Game.failed(failure);
         }
@@ -464,13 +514,13 @@ final class PowerGrid implements Hooks.Power {
             Object container = outermost.invoke(food);
             if (container == null || (boolean)frozen.invoke(food) || !(boolean)isFridge.invoke(container) && !(boolean)isFreezer.invoke(container))
                 return vanilla;
-            Object object = containerParent.invoke(container);
+            Object object = PowerReach.containerParent(container);
             Network network = game.objectType.isInstance(object) ? consumerOf(current, object) : null;
             History history = network == null ? null : current.histories().get(network);
             if (history == null) return vanilla;
             // The game's own power now (the grid, a generator in range) chills all the hours, as in vanilla.
             pure[0] = true;
-            try { if (squarePowered(containerSquare.invoke(container))) return vanilla; }
+            try { if (squarePowered(PowerReach.containerSquare(container))) return vanilla; }
             finally { pure[0] = false; }
             float now = (float)game.hours(), last = (float)lastAged.invoke(food);
             int shut = (int)elecShut.invoke(sandbox.get(null));
@@ -487,13 +537,12 @@ final class PowerGrid implements Hooks.Power {
      */
     private Network consumerOf(Snapshot current, Object object) throws ReflectiveOperationException {
         var rules = current.rules().naming(object, game, buildings);
-        for (var rule : rules) if (rule.included()) return rule.network();
+        for (int index = 0; index < rules.size(); index++) if (rules.get(index).included()) return rules.get(index).network();
         Position at = buildings.home(object, game.at(object));
         if (at == null) return null;
-        for (Network network : current.withArea()) {
-            Area area = network.area;
-            if (area != null && area.contains(at) && !Rules.excludes(rules, network)) return network;
-        }
+        AreaIndex areas = current.withAreaIndex();
+        for (int member = areas.next(at.x(), at.y(), at.z(), -1); member >= 0; member = areas.next(at.x(), at.y(), at.z(), member))
+            if (!Rules.excludes(rules, current.withArea()[member])) return current.withArea()[member];
         return null;
     }
 
@@ -503,81 +552,222 @@ final class PowerGrid implements Hooks.Power {
     void frame(Object cells, long now) throws ReflectiveOperationException {
         if (!cadence.due(now)) return;
         unmark(cells);
-        var supplyChanged = new ArrayList<Network>();
-        var changes = new ArrayList<Change>();
-        double hours = game.hours();
-        var fresh = new HashSet<Network>();
-        var regathered = new HashSet<Network>(); // the consumers it supplies are others now
-        supplyHours.clear();
-        var totals = new HashMap<Network, Float>();
         List<Network> powered = networks.of(UTILITY);
+        double hours = game.hours();
+        int hour = (int)Math.floor(hours);
+        boolean gridWas = gridOn;
         gridOn = (boolean)gridExists.invoke(sandbox.get(null));
+        long epoch = buildings.epoch(), version = buildings.version();
+        if (wakeAll) {
+            wakeAll = false;
+            for (Network network : powered) wake(network);
+        }
+        // The grid starts or stops carrying its part as it runs or is shut off.
+        if (gridOn != gridWas) for (Network network : powered) if (network.gridFirst || network.gridLoad > 0) wake(network);
+        // The buildings are described anew (the world, setRooms): all are resolved again. The region data was swapped: those that
+        // name what players built, or a square with no building, are.
+        if (epoch != seenEpoch) {
+            seenEpoch = epoch;
+            seenVersion = version;
+            for (Network network : powered) wake(network);
+        } else if (version != seenVersion) {
+            seenVersion = version;
+            for (Network network : powered) if (network.swapSensitive) wake(network);
+        }
+        // A network whose consumers were not all loaded is worked out again as one of their chunks loads, and one that waits
+        // for the squares of its producers to load as they do.
+        waits.probe(game, cells, network -> { network.arrived = true; wake(network); });
+        producerWaits.probe(game, cells, this::wake);
         // The snapshot is made again only when what it holds changed: a definition, a member's area, a supply.
         boolean again = rebuild;
         rebuild = false;
-        var children = new HashMap<String, List<Network>>();
-        for (Network network : powered) {
-            totals.put(network, network.total);
-            Area area = network.area;
-            members.resolve(network);
-            again |= network.area != area;
-            if (network.parents.isEmpty()) producers(network, cells, hours, changes);
-            else {
-                network.inUse = null;
-                children.computeIfAbsent(network.parent(), parent -> new ArrayList<>()).add(network);
-            }
-            // A network whose consumers were not all loaded is worked out again as one of their chunks loads.
-            if (network.loadChanged || !network.loadComplete && arrived(network, cells)) {
-                if (network.loadAt == 0) fresh.add(network);
-                if (load(network, cells, now)) regathered.add(network);
-            }
-            // the grid starts or stops carrying its part as it runs or is shut off
-            if (network.gridFirst || network.gridLoad > 0) carry(network);
+        long pass = ++passes;
+        supplyHours.clear();
+        var changes = new ArrayList<Change>();
+        var worked = new ArrayList<Network>();
+        var tops = new ArrayList<Network>();
+        // Only the networks something happened to are gone through, and of those the ones one of whose producers is on a loaded
+        // square (the game changes those at any time), that changed, or that run a generator away at an hour that passed, are
+        // worked out. A network with none of that is as it was, and costs nothing until a chunk it waits for loads.
+        for (Network network; (network = woken.poll()) != null;) {
+            network.queued = false;
+            if (network.dead || network.active) continue;
+            network.active = true;
+            producerWaits.remove(network);
+            active.add(network);
         }
-        var worked = new HashMap<Network, Float>();
-        // A child has supply while its parent has, and its parent carries its load; switched off, neither.
-        for (Network network : powered) {
-            Network root = networks.root(network);
-            boolean supplied = root != null && root.inUse != null && networks.switchedOn(network);
-            if (supplied != network.supplied) {
-                network.supplied = supplied;
-                supplyChanged.add(network);
-                // When the producer in use started or stopped; for a child, when its parent's did.
-                network.suppliedAt = supplyHours.getOrDefault(root, hours);
-                changes.add(new Change(network.id, "supply", network.suppliedAt));
-            }
-            network.total = total(network, children, worked);
+        if (active.size() > 1) active.sort(BY_ORDER);
+        int kept = 0;
+        for (int index = 0; index < active.size(); index++) {
+            Network network = active.get(index);
+            if (network.dead) { network.active = false; continue; }
+            if (due(network, cells, hour)) work(network, cells, hours, hour, now, pass, changes, worked, tops);
+            if (settled(network, cells)) continue;
+            active.set(kept++, network);
         }
-        for (Network network : powered)
-            if (!fresh.contains(network) && (Math.abs(network.total - totals.get(network)) > 1e-6f || regathered.contains(network)))
-                changes.add(new Change(network.id, "load", hours));
+        active.subList(kept, active.size()).clear();
+        again |= workedArea;
+        workedArea = false;
+        var supplyChanged = new ArrayList<Network>();
+        if (!tops.isEmpty()) {
+            // The load of a network and of its children that are switched on, theirs included, times its load factor.
+            var affected = new ArrayList<Network>();
+            for (Network top : tops) {
+                for (Network network : top.tree.isEmpty() ? List.of(top) : top.tree) {
+                    network.totalBefore = network.total;
+                    float total = network.load;
+                    for (Network child : network.children) if (child.enabled) total += child.total;
+                    network.total = total * network.loadFactor;
+                    affected.add(network);
+                }
+            }
+            if (affected.size() > 1) affected.sort(BY_ORDER);
+            // A child has supply while its parent has, and its parent carries its load; switched off, neither.
+            for (Network network : affected) {
+                Network root = networks.root(network);
+                boolean supplied = root != null && root.inUse != null && networks.switchedOn(network);
+                if (supplied != network.supplied) {
+                    network.supplied = supplied;
+                    supplyChanged.add(network);
+                    network.touch();
+                    // When the producer in use started or stopped; for a child, when its parent's did.
+                    network.suppliedAt = supplyHours.getOrDefault(root, hours);
+                    changes.add(new Change(network.id, "supply", network.suppliedAt));
+                }
+            }
+            for (Network network : affected)
+                if (network.freshPass != pass && (Math.abs(network.total - network.totalBefore) > 1e-6f || network.regatheredPass == pass)) {
+                    network.touch();
+                    changes.add(new Change(network.id, "load", hours));
+                }
+        }
         if (again || rebuild || stale || !supplyChanged.isEmpty()) {
             rebuild = false;
             stale = false;
             snapshot = build();
+            regroup(cells);
         }
-        // Producers that joined or left a network: the API, or the game, works out their surroundings again.
-        Set<Position> producersNow = snapshot.producers().keySet(), producersBefore = grouped;
-        var regrouped = new HashSet<Position>(producersBefore);
-        regrouped.addAll(producersNow);
-        regrouped.removeIf(at -> producersBefore.contains(at) && producersNow.contains(at));
-        grouped = Set.copyOf(producersNow);
-        for (Position at : regrouped) {
-            Object generator = generatorAt(cells, at);
-            if (generator != null) surroundings.invoke(generator);
-        }
-        // The producer in use carries the load; the others only their own.
-        for (Network network : powered)
+        // The producer in use carries the load; the others only their own. (A network without a loaded square has none to tell.)
+        for (Network network : worked) {
+            if (network.loadedCount == 0) continue;
             for (Position producer : network.squares()) {
                 Object generator = generatorAt(cells, producer);
-                float consumption = consumption(network, Producer.square(producer));
-                if (generator != null && using.getFloat(generator) != consumption) setUsing.invoke(generator, consumption);
+                float consumption = consumption(network, producer);
+                if (generator != null && PowerReach.using(generator) != consumption) PowerReach.setUsing(generator, consumption);
             }
+        }
         // The objects that gained or lost power update what follows from it (a fridge's hum, a lamp's light).
         for (Network network : supplyChanged)
             for (var consumer : members.consumers(network, Members.POWER, new boolean[1])) checkElectricity.invoke(consumer.object());
         // Last, so that a mod that asks for the state then gets it.
         for (Change change : changes) networks.raise(change.id(), change.what(), change.hour());
+    }
+
+    private static final Comparator<Network> BY_ORDER = Comparator.comparingInt(network -> network.order);
+
+    /** Works the network out: its buildings, its producers, its load (see frame). */
+    private void work(Network network, Object cells, double hours, int hour, long now, long pass, List<Change> changes,
+            List<Network> worked, List<Network> tops) throws ReflectiveOperationException {
+        network.wake = false;
+        network.stepHour = hour;
+        workedCount++;
+        Area area = network.area;
+        members.resolve(network);
+        if (network.area != area) workedArea = true;
+        boolean unsettled = false;
+        if (network.parents.isEmpty()) unsettled = producers(network, cells, hours, changes);
+        else network.inUse = null;
+        timing(network);
+        boolean arrived = network.arrived;
+        network.arrived = false;
+        if (network.loadChanged || !network.loadComplete && arrived) {
+            if (network.loadAt == 0) network.freshPass = pass;
+            if (load(network, cells, now)) network.regatheredPass = pass;
+        }
+        if (network.gridFirst || network.gridLoad > 0) carry(network);
+        // Worked out again at the next pass: what it came to may not be settled yet.
+        if (unsettled) network.wake = true;
+        worked.add(network);
+        Network top = network.top == null ? network : network.top;
+        if (top.affectedPass != pass) { top.affectedPass = pass; tops.add(top); }
+    }
+
+    /**
+     * Whether the network needs nothing at the next pass: it is worked out as it stands, none of its producers' squares is loaded
+     * and none could load without its chunk doing so, and it runs no generator away by the hour. It leaves the networks the grid
+     * goes through, and waits for those chunks ({@link #producerWaits}) or for something to wake it.
+     */
+    private boolean settled(Network network, Object cells) throws ReflectiveOperationException {
+        if (network.wake || network.timed || network.loadedCount > 0 || members.resolveDue(network)) return false;
+        List<Position> squares = network.squares();
+        long[] chunks = new long[squares.size()];
+        for (int index = 0; index < chunks.length; index++) {
+            Position at = squares.get(index);
+            // A square that is not there in a chunk that is loaded may be there at any time (a generator put on it).
+            long chunk = game.chunkKey(at.x(), at.y());
+            if (game.square(cells, at) != null || game.chunkLoaded(cells, chunk)) return false;
+            chunks[index] = chunk;
+        }
+        network.active = false;
+        // Woken between the look and the leaving: it stays.
+        if (network.wake) { network.active = true; return false; }
+        producerWaits.set(network, distinct(chunks));
+        return true;
+    }
+
+    /** The chunks sorted, each once. */
+    static long[] distinct(long[] chunks) {
+        if (chunks.length < 2) return chunks;
+        long[] sorted = chunks.clone();
+        Arrays.sort(sorted);
+        int count = 1;
+        for (int index = 1; index < sorted.length; index++) if (sorted[index] != sorted[count - 1]) sorted[count++] = sorted[index];
+        return count == sorted.length ? sorted : Arrays.copyOf(sorted, count);
+    }
+
+    /** The network is to be gone through at the next pass (see frame); on any thread. */
+    private void wake(Network network) {
+        network.wake = true;
+        if (!network.active && !network.queued && !network.dead) {
+            network.queued = true;
+            woken.add(network);
+        }
+    }
+
+    /**
+     * Whether the network is worked out at this pass: something happened to it (its definition, a hook, a chunk its consumers
+     * wait for, the buildings it was resolved from), one of its producers' squares is loaded (or was at the last pass: the
+     * game changes a loaded generator at any time), or it runs a generator on a square that is not loaded and an hour passed.
+     */
+    private boolean due(Network network, Object cells, int hour) throws ReflectiveOperationException {
+        if (network.wake || members.resolveDue(network)) return true;
+        if (network.timed && network.stepHour != hour) return true;
+        List<Position> squares = network.squares();
+        int loaded = 0;
+        for (int index = 0; index < squares.size(); index++) if (game.square(cells, squares.get(index)) != null) loaded++;
+        return loaded > 0 || loaded != network.loadedCount;
+    }
+
+    /** Whether the network runs a generator on a square that is not loaded: then it is worked out again each hour. */
+    private static void timing(Network network) {
+        boolean timed = false;
+        for (Away away : network.away.values()) if (away.on && !away.given) { timed = true; break; }
+        network.timed = timed;
+    }
+
+    /** Producers that joined or left a network: the API, or the game, works out their surroundings again. */
+    private void regroup(Object cells) throws ReflectiveOperationException {
+        var now = new HashSet<Position>();
+        for (Producing producing : snapshot.producing()) now.add(producing.at());
+        Set<Position> before = grouped;
+        grouped = now;
+        for (Position at : now) if (!before.contains(at)) surroundings(cells, at);
+        for (Position at : before) if (!now.contains(at)) surroundings(cells, at);
+    }
+
+    private void surroundings(Object cells, Position at) throws ReflectiveOperationException {
+        Object generator = generatorAt(cells, at);
+        if (generator != null) surroundings.invoke(generator);
     }
 
     /**
@@ -598,31 +788,37 @@ final class PowerGrid implements Hooks.Power {
      * there with none other to start, the network waits for its square to load. A generator a player switches on
      * meanwhile goes back off at once, and starts first instead; so does a source its mod switches on.
      */
-    private void producers(Network network, Object cells, double hours, List<Change> changes) throws ReflectiveOperationException {
+    private boolean producers(Network network, Object cells, double hours, List<Change> changes) throws ReflectiveOperationException {
         // A multiplayer client follows the server's switches, and keeps no marks: the server owns them.
-        boolean authoritative = !client.getBoolean(null);
+        boolean authoritative = !Reach.client();
         var generators = new HashMap<Producer, Object>();
         var loaded = new HashSet<Producer>();
         var newcomers = new ArrayList<Producer>();
+        // What the pass changed of what the state tells (see Network.touch).
+        boolean touched = false;
+        int squaresLoaded = 0;
         for (Producer producer : network.producers) {
             Seen now;
             if (producer.source() != null) {
                 Source source = network.sources.get(producer.source());
                 now = new Seen(source.on, source.available ? 1 : 0, source.available ? 1 : 0);
             } else {
-                Object generator = generatorAt(cells, producer.at());
-                if (generator == null && game.square(cells, producer.at()) == null) {
-                    away(network, producer, hours);
+                Object square = game.square(cells, producer.at());
+                if (square == null) {
+                    touched |= away(network, producer, hours);
                     continue;
                 }
+                squaresLoaded++;
+                Object generator = PowerReach.generatorOf(square);
                 if (generator != null) give(network, producer.at(), generator, hours);
                 // A loaded square without the generator: it was taken away.
                 now = generator == null ? new Seen(false, 0, 0)
-                    : new Seen((boolean)activated.invoke(generator), (float)fuel.invoke(generator), (int)condition.invoke(generator));
+                    : new Seen(PowerReach.activated(generator), PowerReach.fuel(generator), PowerReach.condition(generator));
                 if (generator != null) generators.put(producer, generator);
             }
             loaded.add(producer);
             Seen last = network.seen.put(producer, now);
+            touched |= !now.equals(last);
             if (producer.source() == null) {
                 Object generator = generators.get(producer);
                 if (generator == null) network.outOfService.remove(producer);
@@ -633,6 +829,8 @@ final class PowerGrid implements Hooks.Power {
         }
         // The one in use as the API knew it, or one the game ran before the API knew which (see generatorUpdate).
         Producer before = network.inUse, current = before != null ? before : network.adopted, inUse = current;
+        boolean stoppedBefore = network.stopped;
+        Producer resumeBefore = network.resume;
         network.adopted = null;
         double at = hours;
         boolean waiting = false;
@@ -710,19 +908,21 @@ final class PowerGrid implements Hooks.Power {
             Object generator = entry.getValue();
             if (producer.equals(inUse) && !state.activated()) {
                 // Started by the API, from the hour the last one stopped.
-                setActivated.invoke(generator, true);
-                lastHour.setInt(generator, (int)Math.floor(at));
+                PowerReach.setActivated(generator, true);
+                PowerReach.setLastHour(generator, (int)Math.floor(at));
                 network.seen.put(producer, new Seen(true, state.fuel(), state.condition()));
                 mark(generator, RUNNING, true);
+                touched = true;
             } else if (!producer.equals(inUse) && state.activated()) {
                 // Switched off by the API: on standby.
-                setActivated.invoke(generator, false);
+                PowerReach.setActivated(generator, false);
                 network.seen.put(producer, new Seen(false, state.fuel(), state.condition()));
                 mark(generator, RUNNING, null);
+                touched = true;
             }
             // The one to start first as the network is switched on again, also after a world is loaded again.
             boolean resume = network.stopped && producer.equals(network.resume) && !network.outOfService.contains(producer);
-            mark(generator, RESUME, resume ? (double)lastHour.getInt(generator) : null);
+            mark(generator, RESUME, resume ? (double)PowerReach.lastHour(generator) : null);
         }
         // Sources are switched as generators are; the mod reads which is on in the state.
         for (Producer producer : network.producers) {
@@ -733,6 +933,7 @@ final class PowerGrid implements Hooks.Power {
                 source.on = on;
                 Seen state = network.seen.get(producer);
                 network.seen.put(producer, new Seen(on, state.fuel(), state.condition()));
+                touched = true;
             }
         }
         if ((before == null) != (inUse == null)) supplyHours.put(network, at);
@@ -743,14 +944,29 @@ final class PowerGrid implements Hooks.Power {
             rebuild = true;
             network.suppliedBefore = current != null || inUse != null;
             if (network.suppliedBefore && inUse == null) remember(network, at, false);
+            touched = true;
         } else if ((before == null) != (inUse == null)) remember(network, at, inUse != null);
+        network.loadedCount = squaresLoaded;
+        // Changed in the state it keeps: the pass after it finds out whether it settled (the next producer started, a switch on).
+        boolean moved = !Objects.equals(before, inUse) || stoppedBefore != network.stopped || !Objects.equals(resumeBefore, network.resume);
+        if (touched | moved) network.touch();
+        return moved;
     }
 
     /** Squares whose generators left the producers of a network; the next frame takes their marks off (see unmark). */
     void left(Collection<Position> squares) { leftSquares.addAll(squares); cadence.changed(); }
 
     /** The world was left: the squares of its generators are no longer this world's. */
-    void forget() { leftSquares.clear(); loose.clear(); }
+    void forget() {
+        leftSquares.clear();
+        loose.clear();
+        waits.clear();
+        producerWaits.clear();
+        wearChances.clear();
+        for (Network network : active) { network.dead = true; network.active = false; }
+        active.clear();
+        for (Network network; (network = woken.poll()) != null;) { network.dead = true; network.queued = false; }
+    }
 
     /**
      * Takes the marks off the loaded generators that left the producers and are in no network now, and off those the
@@ -761,7 +977,7 @@ final class PowerGrid implements Hooks.Power {
         if (leftSquares.isEmpty() && loose.isEmpty()) return;
         var listed = new HashSet<Position>();
         for (Network network : networks.of(UTILITY)) listed.addAll(network.squares());
-        boolean authoritative = !client.getBoolean(null);
+        boolean authoritative = !Reach.client();
         for (Position at : leftSquares) {
             Object generator = listed.contains(at) ? null : generatorAt(cells, at);
             if (generator != null && authoritative) for (String key : MARKS) mark(generator, key, null);
@@ -818,7 +1034,7 @@ final class PowerGrid implements Hooks.Power {
                 || now.canRun() && Boolean.TRUE.equals(mark(generator, RUNNING)));
             // Seen first, the one to start first when its network, switched off, is switched on again (see RESUME).
             if (!out && !now.activated() && !network.enabled && network.resume == null && mark(generator, RESUME) instanceof Double hour
-                    && hour.intValue() == lastHour.getInt(generator)) network.resume = producer;
+                    && hour.intValue() == PowerReach.lastHour(generator)) network.resume = producer;
         } else if (now.activated()) out = false;
         else if (last.activated() || ran) out = now.canRun();
         else out = before;
@@ -865,19 +1081,21 @@ final class PowerGrid implements Hooks.Power {
      * from then. What the API finds is the producer's last seen state; the generator takes it as its square loads (see
      * give).
      */
-    private void away(Network network, Producer producer, double hours) {
+    private boolean away(Network network, Producer producer, double hours) {
         Position at = producer.at();
         Settled settled = network.settled.get(at);
         Away away = network.away.get(at);
         if (away == null) {
             Seen seen = network.seen.get(producer);
-            if (seen == null || !seen.activated() || settled == null) return;
+            if (seen == null || !seen.activated() || settled == null) return false;
             network.away.put(at, away = new Away(settled.lastHour(), settled.fuel(), seen.condition()));
         }
-        if (away.given || !away.on || settled == null) return;
+        if (away.given || !away.on || settled == null) return false;
         int hour = away.hour;
         run(away, settled, hours);
-        if (away.hour != hour) network.seen.put(producer, new Seen(away.on, away.fuel, away.condition));
+        if (away.hour == hour) return false;
+        network.seen.put(producer, new Seen(away.on, away.fuel, away.condition));
+        return true;
     }
 
     /** Runs a generator away hour by hour up to the hour {@code hours} is in (see away). */
@@ -909,53 +1127,38 @@ final class PowerGrid implements Hooks.Power {
         if (away == null || away.given) return;
         Settled settled = network.settled.get(at);
         if (settled != null) run(away, settled, hours);
-        if (client.getBoolean(null) || !(boolean)activated.invoke(generator)) { network.away.remove(at); return; }
+        if (Reach.client() || !PowerReach.activated(generator)) { network.away.remove(at); return; }
         setFuel.invoke(generator, away.fuel);
         setCondition.invoke(generator, away.condition);
-        lastHour.setInt(generator, away.hour);
+        PowerReach.setLastHour(generator, away.hour);
         if (away.on) { network.away.remove(at); return; }
         away.given = true;
-        setActivated.invoke(generator, false);
+        PowerReach.setActivated(generator, false);
         // It stopped by itself: on standby, not out of service.
         mark(generator, RUNNING, null);
     }
 
     /** One hour in how many a generator's condition wears: its item's ConditionLowerChanceOneIn. */
     private int wearChance(Object generator) throws ReflectiveOperationException {
-        if (itemType == null) return WEAR_ONE_IN;
-        Object type = itemType.invoke(generator);
-        Object item = type == null ? null : scriptItem.invoke(scripts.get(null), type);
-        int chance = item == null ? 0 : (int)lowerChance.invoke(item);
-        return chance > 0 ? chance : WEAR_ONE_IN;
+        Object type = scriptItem == null ? null : PowerReach.itemType(generator);
+        if (type == null) return WEAR_ONE_IN;
+        Integer known = wearChances.get(type);
+        if (known != null) return known;
+        Object item = scriptItem.invoke(scripts.get(null), type);
+        if (item == null) return WEAR_ONE_IN;
+        int chance = (int)lowerChance.invoke(item);
+        int result = chance > 0 ? chance : WEAR_ONE_IN;
+        wearChances.put(type, result);
+        return result;
     }
 
     /**
      * What a producer of the network burns: its own base consumption, and the load of the network and its children when
      * it carries it and the network is switched on.
      */
-    private float consumption(Network network, Producer producer) throws IllegalAccessException {
-        return basePower.getFloat(null) + (producer.equals(network.inUse) && network.enabled ? network.total : 0f);
-    }
-
-    /**
-     * The load of the network and of its children that are switched on, theirs included, times its load factor: what it
-     * draws while it has supply. Power networks form trees (see Networks.setParents); {@code children} by parent id,
-     * {@code worked} what this frame worked out already, so that each network is added up once.
-     */
-    private static float total(Network network, Map<String, List<Network>> children, Map<Network, Float> worked) {
-        Float known = worked.get(network);
-        if (known != null) return known;
-        float total = network.load;
-        for (Network child : children.getOrDefault(network.id, List.of())) if (child.enabled) total += total(child, children, worked);
-        total *= network.loadFactor;
-        worked.put(network, total);
-        return total;
-    }
-
-    /** Whether one of the chunks a network's consumers were missing from has loaded since its load was worked out. */
-    private boolean arrived(Network network, Object cells) throws ReflectiveOperationException {
-        for (long chunk : network.waiting) if (game.chunkLoaded(cells, chunk)) return true;
-        return false;
+    private float consumption(Network network, Position producer) throws ReflectiveOperationException {
+        Producer inUse = network.inUse;
+        return PowerReach.basePower() + (inUse != null && producer.equals(inUse.at()) && network.enabled ? network.total : 0f);
     }
 
     /**
@@ -966,7 +1169,7 @@ final class PowerGrid implements Hooks.Power {
     Double fuelPerHour(Network network) throws ReflectiveOperationException {
         Network root = networks.root(network);
         if (root == null) return null;
-        return (basePower.getFloat(null) + root.total) * (double)optionValue.invoke(fuelRate.get(sandbox.get(null)));
+        return (PowerReach.basePower() + root.total) * (double)optionValue.invoke(fuelRate.get(sandbox.get(null)));
     }
 
     /**
@@ -1013,16 +1216,20 @@ final class PowerGrid implements Hooks.Power {
         }
         boolean regathered = network.regathered || !next.keySet().equals(network.consumption.keySet());
         network.regathered = false;
+        boolean differs = regathered || !next.equals(network.consumption) || complete[0] != network.loadComplete;
         network.consumption = next;
         network.onGrid = onGrid;
         carry(network);
         network.loadComplete = complete[0];
+        if (differs) network.touch();
         // A square missing from a chunk that is loaded does not come with a chunk load.
-        missing.removeIf(chunk -> {
-            try { return game.chunkLoaded(cells, chunk); }
-            catch (ReflectiveOperationException failure) { throw Game.failed(failure); }
-        });
-        network.waiting = missing.stream().mapToLong(Long::longValue).toArray();
+        for (Iterator<Long> each = missing.iterator(); each.hasNext();) if (game.chunkLoaded(cells, each.next())) each.remove();
+        long[] waiting = new long[missing.size()];
+        int at = 0;
+        for (long chunk : missing) waiting[at++] = chunk;
+        Arrays.sort(waiting);
+        network.waiting = waiting;
+        waits.set(network, waiting);
         network.loadAt = now;
         network.loadChanged = false;
         return regathered;
@@ -1039,6 +1246,7 @@ final class PowerGrid implements Hooks.Power {
             if (byGrid && network.onGrid.contains(entry.getKey())) grid += entry.getValue();
             else load += entry.getValue();
         }
+        if (load != network.load || grid != network.gridLoad) network.touch();
         network.load = load;
         network.gridLoad = grid;
     }
@@ -1047,30 +1255,40 @@ final class PowerGrid implements Hooks.Power {
     boolean gridOn() { return gridOn; }
 
     private boolean squarePowered(Object square) throws ReflectiveOperationException {
-        return square != null && (boolean)squarePowered.invoke(square);
+        return square != null && PowerReach.squarePowered(square);
     }
 
     private Snapshot build() throws ReflectiveOperationException {
         var supplied = new ArrayList<Area>();
         var rooms = new TreeSet<Long>();
         var withArea = new ArrayList<Network>();
-        var producers = new HashMap<Position, Network>();
+        var withAreas = new ArrayList<Area>();
+        var producers = new HashMap<Position, Long>();
+        var producing = new ArrayList<Producing>();
         var histories = new HashMap<Network, History>();
         List<Network> powered = networks.of(UTILITY);
         for (Network network : powered) {
             Network root = networks.root(network);
             if (root != null && root.history != null) histories.put(network, History.of(root, networks.chain(network)));
             boolean on = network.supplied;
-            if (network.area != null) { withArea.add(network); if (on) supplied.add(network.area); }
+            if (network.area != null) {
+                withArea.add(network);
+                withAreas.add(network.area);
+                if (on) supplied.add(network.area);
+            }
             if (on) for (var building : network.resolved) for (Object room : building.rooms()) rooms.add(buildings.roomId(room));
-            for (Position producer : network.squares()) producers.put(producer, network);
+            for (Position producer : network.squares()) {
+                producers.put(producer, (long)producing.size());
+                producing.add(new Producing(producer, network));
+            }
         }
-        return new Snapshot(supplied.toArray(Area[]::new), rooms.stream().mapToLong(Long::longValue).toArray(), List.copyOf(withArea),
-            Map.copyOf(producers), Rules.of(powered, network -> network.supplied), Map.copyOf(histories));
+        return new Snapshot(AreaIndex.of(supplied, true), AreaIndex.of(supplied, false), supplied.size(), AreaIndex.of(withAreas, false),
+            withArea.toArray(Network[]::new), rooms.stream().mapToLong(Long::longValue).toArray(), new SquareMap(producers),
+            producing.toArray(Producing[]::new), Rules.of(powered, network -> network.supplied), Map.copyOf(histories));
     }
 
     private Object generatorAt(Object cells, Position at) throws ReflectiveOperationException {
         Object loaded = game.square(cells, at);
-        return loaded == null ? null : generatorOf.invoke(loaded);
+        return loaded == null ? null : PowerReach.generatorOf(loaded);
     }
 }

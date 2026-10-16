@@ -83,17 +83,25 @@ final class Members {
      * described once for each version of the buildings (Buildings.observe), so each room named costs two lookups.
      */
     void resolve(Network network) throws ReflectiveOperationException {
+        // The epoch and version the buildings are at when this starts: a change meanwhile makes the next pass resolve again.
+        network.resolveEpoch = buildings.epoch();
+        network.resolveVersion = buildings.version();
+        // Whether a swap of the region data can change what it finds: a square of no building (one may be built there), or a
+        // building players built.
+        boolean sensitive = false;
         var found = new ArrayList<Buildings.Building>();
         for (Position at : network.buildings) {
             var building = buildings.buildingAt(at.x(), at.y(), at.z());
-            if (building != null && found.stream().noneMatch(other -> other.def() == building.def())) found.add(building);
+            sensitive |= building == null || building.playerBuilt();
+            if (building != null && !has(found, building)) found.add(building);
         }
         var narrowed = new ArrayList<Buildings.Building>();
         var rooms = new IdentityHashMap<Object, Set<Object>>();
         for (Position at : network.rooms) {
             Object room = buildings.roomOf(at.x(), at.y(), at.z());
             var building = room == null ? null : buildings.buildingOf(room);
-            if (building == null || found.stream().anyMatch(other -> other.def() == building.def())) continue;
+            sensitive |= building == null || building.playerBuilt();
+            if (building == null || has(found, building)) continue;
             if (!rooms.containsKey(building.def())) {
                 rooms.put(building.def(), Collections.newSetFromMap(new IdentityHashMap<>()));
                 narrowed.add(building);
@@ -105,10 +113,25 @@ final class Members {
         for (int index = 0; same && index < found.size(); index++)
             same = found.get(index).def() == network.resolved.get(index).def()
                 && found.get(index).rooms().equals(network.resolved.get(index).rooms());
+        network.swapSensitive = sensitive;
         if (same) return;
         network.resolved = List.copyOf(found);
         network.area = Area.of(found, buildings);
         network.loadChanged = true;
+    }
+
+    /**
+     * Whether the network is resolved again at this pass: its definition changed, the buildings are described anew (epoch), or a swap
+     * of the region data came and what it names can change with one (a player-built building, or a square with none yet).
+     */
+    boolean resolveDue(Network network) {
+        return network.resolveEpoch != buildings.epoch() || network.swapSensitive && network.resolveVersion != buildings.version();
+    }
+
+    /** Whether the list has a building of the same definition (by identity). */
+    private static boolean has(List<Buildings.Building> list, Buildings.Building building) {
+        for (int index = 0; index < list.size(); index++) if (list.get(index).def() == building.def()) return true;
+        return false;
     }
 
     /**

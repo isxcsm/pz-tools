@@ -31,7 +31,7 @@ final class PendingFluids {
     private final Method get, getOrCreate;
     // The ModData table the changes were read from: another one means another world (or the same one loaded again).
     private Object table;
-    private boolean read;
+    private boolean read, reread;
     private final Map<Position, List<Delta>> deltas = new LinkedHashMap<>();
     // The squares owed something, for the water hooks, which ask on the fixture's thread.
     private volatile Set<Position> squares = Set.of();
@@ -58,6 +58,7 @@ final class PendingFluids {
         Object current = get.invoke(null, KEY);
         if (read && current == table) return;
         read = true;
+        reread = true;
         table = current;
         deltas.clear();
         if (current != null) {
@@ -82,6 +83,13 @@ final class PendingFluids {
         fresh = next;
         // Written whole at the next change, without what was not a change.
         list = null;
+    }
+
+    /** Whether the changes were read again (from another table) since this was last asked; asked, it is cleared. */
+    boolean reread() {
+        boolean result = reread;
+        reread = false;
+        return result;
     }
 
     boolean isEmpty() { return deltas.isEmpty(); }
