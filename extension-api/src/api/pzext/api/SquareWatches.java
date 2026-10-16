@@ -96,7 +96,7 @@ final class SquareWatches implements Hooks.SquareChanges {
 
     /** The hook is let go (a newer API, or a failure): the game's call costs a null test again. */
     static void unhook() {
-        try { Hooks.setSquareChanges(null); } catch (LinkageError olderBootstrap) { }
+        SquareDispatch.clear();
     }
 
     private static long generation(Kahlua lua, Object meta) throws ReflectiveOperationException {
@@ -245,7 +245,7 @@ final class SquareWatches implements Hooks.SquareChanges {
         take(index);
         if (watches.isEmpty()) {
             index = null;
-            Hooks.setSquareChanges(null);
+            SquareDispatch.remove(this);
             return;
         }
         var slots = new HashMap<Position, Long>();
@@ -267,7 +267,7 @@ final class SquareWatches implements Hooks.SquareChanges {
             holders[slot] = held.get(slot).toArray(new Watch[0]);
         }
         index = new Index(new SquareMap(slots), xs, ys, zs, holders);
-        Hooks.setSquareChanges(this);
+        SquareDispatch.add(this);
     }
 
     // ---- the hook: on any thread ----
