@@ -22,7 +22,8 @@ Usage:
     python tools/pzdev.py restart                             quits the game to the desktop, then launch
     python tools/pzdev.py wait menu|loading|game|exit|error   returns when the game gets there (--timeout, default 300)
     python tools/pzdev.py watch                               prints one line per event, forever (for a background
-                                                              monitor): start, menu, loading, game, error <text>, exit
+                                                              monitor): start, menu, ready, loading, game, error <text>,
+                                                              exit
 Events come from console.txt (the game's own "STATE: exit ..." lines, a Lua "Exception thrown") and whether the game
 window is there: nothing runs in the game, so a normal game is untouched.
 Options of run/file/check: --timeout seconds (default 15); --follow seconds: then also print the Lua lines the game
@@ -78,6 +79,9 @@ STATES = {
     "STATE: exit zombie.gameStates.IngameState": "menu",
     "STATE: exit zombie.gameStates.MainScreenState": "loading",
     "STATE: exit zombie.gameStates.GameLoadingState": "game",
+    # the main menu's background film starting: the menu is built and takes a click (Continue pressed before that is
+    # lost, and the Lua of every mod is read again after a save is left, which takes a while)
+    "binkId: ": "ready",
 }
 
 
@@ -282,6 +286,17 @@ def reload():
     if name != "menu":
         print("the save was not left in 2 minutes")
         return 1
+    return continue_when_ready(start)
+
+
+# Waits for the main menu to take clicks (its film starting, after `start`: a byte offset of console.txt), then
+# continues the latest save. Without the sign in two minutes it presses Continue anyway (again while it is not taken).
+def continue_when_ready(start):
+    name, _ = wait_for({"ready", "exit"}, 120, start)
+    if name == "exit":
+        print("the game closed")
+        return 1
+    time.sleep(1.5)
     return continue_save()
 
 
@@ -353,14 +368,15 @@ def launch():
             return 0
         # the window is there, the channel silent: on the main menu (or still booting: Continue is pressed again)
         return continue_save()
+    start = console_size()
     start_game()
     print("starting the game")
-    name, _ = wait_for({"menu", "exit"}, 300)
+    name, _ = wait_for({"menu", "exit"}, 300, start)
     if name != "menu":
         print("the main menu did not come in 5 minutes" if name is None else "the game closed while starting")
         return 1
     print("on the main menu")
-    return continue_save()
+    return continue_when_ready(start)
 
 
 # Quits to the desktop (a paused game takes the command and never leaves: set going first), waits for the window to
