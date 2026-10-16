@@ -185,9 +185,74 @@ final class Network {
     /** A consumer joined or left since the load was last worked out (told as a change of load even when it used nothing). */
     volatile boolean regathered;
 
+    // Where it stands among the networks (Networks.topology), worked out when a definition that decides it changes, never per
+    // frame. Both grids and the state read these instead of going over the parents again.
+    /** Its place in the order the networks were defined. */
+    int order;
+    /** Itself and the networks above it (see Networks.chain); null when one above is missing. */
+    List<Network> chain;
+    /** The network at the top of its parents (itself at the top); null when one above is missing. */
+    Network root;
+    /** Whether it and every network above it is switched on (false when one above is missing). */
+    boolean on;
+    /** The networks that name it their (first) parent, in the order they were defined. */
+    List<Network> children = List.of();
+    /** The networks whose chain has it, itself included, in the order they were defined (water draws from the chain). */
+    List<Network> dependents = List.of();
+
+    // What the grids keep to do the work of a network only when something it depends on changed.
+    /**
+     * Set when the network has to be worked out again at the next pass of its grid: its definition changed, a square of
+     * its producers loaded or unloaded, a chunk its consumers waited for arrived, a hook saw something happen to it.
+     */
+    volatile boolean wake = true;
+    /**
+     * Whether its grid goes through it at each pass (a network that is not worked out and waits for chunks to load is not), and
+     * whether it is queued to be (a hook or a definition woke it); {@code dead}: it was removed or replaced.
+     */
+    volatile boolean active, queued, dead;
+    /** How many of its producers' squares were loaded at the last look (the grid looks at them once a second). */
+    int loadedCount;
+    /**
+     * Whether what it works out depends on the hour: a generator of it runs on a square that is not loaded, which the
+     * API runs hour by hour (PowerGrid.away).
+     */
+    boolean timed;
+    /** A chunk its consumers were missing from has loaded since its load was worked out. */
+    boolean arrived;
+    /**
+     * The buildings' epoch and version its member buildings were resolved at (Buildings), and whether they can change
+     * with the version alone: it names a square of no building, or one of a building players built.
+     */
+    long resolveEpoch = -1, resolveVersion = -1;
+    boolean swapSensitive;
+    /**
+     * The network at the top of its parents even where one above it is missing (itself at the top), and for one at the top the
+     * networks below it, itself included, children before parents (Networks.topology): what a load adds up over.
+     */
+    Network top;
+    List<Network> tree = List.of();
+    /** Stamps of the pass of its grid that worked out its tree, that found it new, and that found its consumers others. */
+    long affectedPass = -1, freshPass = -1, regatheredPass = -1;
+    /** What its total was before the pass that worked it out again. */
+    float totalBefore;
+    /** The hour the network was last worked out in while it ran a generator away (see timed). */
+    int stepHour = Integer.MIN_VALUE;
+    /** Water: whether a meta container (MetaContainers) sits on a square of its producers, as of the index {@code metaGeneration}. */
+    boolean metaWatched;
+    int metaGeneration = -1;
+    /** The number {@code networks.revision} gives (see touch): raised whenever what its state tells could have changed. */
+    long revision;
+    private static long revisions;
+    private List<Position> squaresCache;
+
     Network(String id, String owner, String utility, String policy) {
         this.id = id; this.owner = owner; this.utility = utility; this.policy = policy;
+        touch();
     }
+
+    /** What the state of the network tells changed, or may have: its revision goes past every one given. */
+    void touch() { revision = ++revisions; }
 
     /** Its first parent (a power network's only one), or null at the top. */
     String parent() { return parents.isEmpty() ? null : parents.get(0); }
@@ -198,10 +263,17 @@ final class Network {
         return false;
     }
 
-    /** The squares of its producers, in order: all but its sources. */
+    /** The squares of its producers, in order: all but its sources. Kept until the producers change ({@link #producersChanged}). */
     List<Position> squares() {
-        var result = new ArrayList<Position>();
-        for (Producer producer : producers) if (producer.at() != null) result.add(producer.at());
-        return result;
+        List<Position> kept = squaresCache;
+        if (kept == null) {
+            var result = new ArrayList<Position>();
+            for (Producer producer : producers) if (producer.at() != null) result.add(producer.at());
+            squaresCache = kept = Collections.unmodifiableList(result);
+        }
+        return kept;
     }
+
+    /** The list of producers was changed in place: the squares are read from it again. */
+    void producersChanged() { squaresCache = null; }
 }

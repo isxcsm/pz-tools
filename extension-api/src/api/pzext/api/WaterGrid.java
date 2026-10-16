@@ -56,9 +56,9 @@ final class WaterGrid implements Hooks.Water {
      * {@code unpurified}: whether a supplier does not purify its water, so that the taint questions need a look. Each
      * object rule carries its network's supplier, null while the network has no water.
      */
-    private record Snapshot(List<Supplier> suppliers, Rules<Supplier> rules, SquareMap producers, boolean unpurified, boolean mains,
-            Map<Object, Boolean> mainsReach) {
-        static final Snapshot EMPTY = new Snapshot(List.of(), Rules.none(), SquareMap.EMPTY, false, false, Map.of());
+    private record Snapshot(List<Supplier> suppliers, AreaIndex areas, Rules<Supplier> rules, SquareMap producers, boolean unpurified,
+            boolean mains, Map<Object, Boolean> mainsReach) {
+        static final Snapshot EMPTY = new Snapshot(List.of(), AreaIndex.EMPTY, Rules.none(), SquareMap.EMPTY, false, false, Map.of());
     }
 
     /**
@@ -87,6 +87,27 @@ final class WaterGrid implements Hooks.Water {
     private volatile Thread changer;
     // Set by a definition change: the next frame makes the snapshot again (see frame).
     private volatile boolean rebuild = true;
+    // Set when every network is to be worked out at the next frame (see changed()).
+    private volatile boolean wakeAll = true;
+    // The frames' passes, to stamp the networks a pass checks the supply of.
+    private long passes;
+    // The networks the frame goes through (see PowerGrid.active), those woken since the last pass, from any thread; the chunks of
+    // the producers' squares that the others wait for; and the version of the buildings and the index of the containers the game
+    // keeps running that the last pass went on.
+    private final ArrayList<Network> active = new ArrayList<>();
+    private final Queue<Network> woken = new java.util.concurrent.ConcurrentLinkedQueue<>();
+    private final ChunkWaits producerWaits = new ChunkWaits();
+    private long seenEpoch = -1, seenVersion = -1;
+    private int seenGeneration = -1;
+    // How many times a network was worked out, and how many the frame goes through now (for the tests).
+    private long workedCount;
+
+    long worked() { return workedCount; }
+
+    int active() { return active.size(); }
+
+    /** The next frame is a pass (for the tests, which do not wait a second). */
+    void pass() { cadence.changed(); }
     // Counts the frames, and the draws and fills between them: a pick holds for one value (see pick).
     private volatile long tick;
     private final Method fluidContainer, amount, capacity;
@@ -259,6 +280,19 @@ final class WaterGrid implements Hooks.Water {
      * works the networks out again. Many changes in a row make one snapshot, not one each.
      */
     void changed() {
+        wakeAll = true;
+        reshaped();
+    }
+
+    /** The definition of this network changed: it, and the networks that draw from it, are worked out again at the next frame. */
+    void changed(Network network) {
+        network.resolveEpoch = -1;
+        wake(network);
+        reshaped();
+    }
+
+    /** The networks' shape changed (producers, areas, a network defined or removed): the hooks' snapshot is made again. */
+    void reshaped() {
         changer = Thread.currentThread();
         stale = true;
         rebuild = true;
@@ -387,9 +421,10 @@ final class WaterGrid implements Hooks.Water {
             if (rules.get(index).included() && rules.get(index).data() != null) return rules.get(index).data();
         int[] step = buildings.homeStep(fixture, x, y, z);
         if (step != null) { x += step[0]; y += step[1]; z += step[2]; }
-        for (int index = 0; index < current.suppliers().size(); index++) {
-            Supplier supplier = current.suppliers().get(index);
-            if (supplier.area() != null && supplier.area().contains(x, y, z) && !Rules.excludes(rules, supplier.network())) return supplier;
+        AreaIndex areas = current.areas();
+        for (int member = areas.next(x, y, z, -1); member >= 0; member = areas.next(x, y, z, member)) {
+            Supplier supplier = current.suppliers().get(member);
+            if (!Rules.excludes(rules, supplier.network())) return supplier;
         }
         return null;
     }
@@ -563,6 +598,7 @@ final class WaterGrid implements Hooks.Water {
                 touched.add(unit.at());
             } else {
                 pending.add(unit.at(), -taken, null);
+                owedTo(unit.at());
             }
             double fluids = 0;
             for (float part : before.fluids().values()) fluids += part;
@@ -612,6 +648,7 @@ final class WaterGrid implements Hooks.Water {
                 filled += after - before;
             } else {
                 pending.add(unit.at(), gives[index], fluid);
+                owedTo(unit.at());
                 filled += gives[index];
             }
         }
@@ -837,14 +874,37 @@ final class WaterGrid implements Hooks.Water {
         game.raise(AMOUNT_CHANGE, object, before);
     }
 
-    /** Reads again what producers' squares that changed hold, loaded or kept running by the game. */
+    /**
+     * Reads again what producers' squares that changed hold, loaded or kept running by the game: those squares' networks only
+     * (each square is a producer of at most one), and the networks that draw from them are worked out again.
+     */
     private void seen(Collection<Position> squares, Object cells) throws ReflectiveOperationException {
-        if (squares.isEmpty()) return;
-        for (Network network : networks.of(UTILITY))
-            for (Position at : network.squares()) {
-                Stored stored = squares.contains(at) ? held(at, cells, network) : null;
-                if (stored != null) network.stored.put(at, stored);
-            }
+        for (Position at : squares) {
+            Network owner = ownerOf(at);
+            if (owner == null) continue;
+            Stored stored = held(at, cells, owner);
+            if (stored != null) owner.stored.put(at, stored);
+            touched(owner);
+        }
+    }
+
+    /** The water network whose producer stands on the square, or null. */
+    private Network ownerOf(Position at) {
+        Network owner = networks.ownerOf(at);
+        return owner != null && UTILITY.equals(owner.utility) ? owner : null;
+    }
+
+    /** The square is owed a change: what the networks that draw from it hold is not as they last saw. */
+    private void owedTo(Position at) {
+        Network owner = ownerOf(at);
+        if (owner != null) touched(owner);
+    }
+
+    /** What the producers of the network hold changed: it and the networks that draw from it are worked out at the next frame. */
+    private void touched(Network owner) {
+        owner.touch();
+        for (Network follower : networks.dependents(owner)) wake(follower);
+        cadence.changed();
     }
 
     /**
@@ -932,7 +992,11 @@ final class WaterGrid implements Hooks.Water {
         boolean world = moves.moved();
         applyOwed(cells, world);
         if (!cadence.due(now)) return;
-        if (metas != null) metas.refresh();
+        int generation = 0;
+        if (metas != null) {
+            metas.refresh();
+            generation = metas.generation();
+        }
         if (!world && authoritative()) { pending.refresh(); applyOwed(cells, false); }
         List<Network> watered = networks.of(UTILITY);
         // The snapshot is made again only when what it holds changed: a definition, a member's area, a supply, the mains.
@@ -943,22 +1007,83 @@ final class WaterGrid implements Hooks.Water {
             mains = running;
             again = true;
         }
-        for (Network network : watered) {
-            Area area = network.area;
-            members.resolve(network);
-            again |= network.area != area;
-            for (Position at : network.squares()) {
-                Stored stored = held(at, cells, network);
-                if (stored != null) network.stored.put(at, stored);
+        // The changes owed were read again from another table: what the squares are owed is not as it was.
+        if (pending.reread()) wakeAll = true;
+        if (wakeAll) {
+            wakeAll = false;
+            for (Network network : watered) wake(network);
+        }
+        long pass = ++passes, epoch = buildings.epoch(), version = buildings.version();
+        // The buildings are described anew (the world, setRooms): all are resolved again. The region data was swapped: those that
+        // name what players built, or a square with no building, are.
+        if (epoch != seenEpoch) {
+            seenEpoch = epoch;
+            seenVersion = version;
+            for (Network network : watered) wake(network);
+        } else if (version != seenVersion) {
+            seenVersion = version;
+            for (Network network : watered) if (network.swapSensitive) wake(network);
+        }
+        // A container the game keeps running appeared at a producer's square (one whose chunk unloaded, or the world's): its
+        // network reads it from now on.
+        if (generation != seenGeneration) {
+            seenGeneration = generation;
+            if (metas != null) for (Position at : metas.positions()) {
+                Network owner = ownerOf(at);
+                if (owner != null) wake(owner);
             }
         }
+        // A network that waits for the squares of its producers to load is worked out as they do.
+        producerWaits.probe(game, cells, this::wake);
+        // Only the networks something happened to are gone through, and of those the ones with a producer on a loaded square
+        // (the game changes those at any time), on one with a container the game keeps running, or that changed, are worked
+        // out. The rest holds what it held, and costs nothing until a chunk it waits for loads.
+        var worked = new ArrayList<Network>();
+        for (Network network; (network = woken.poll()) != null;) {
+            network.queued = false;
+            if (network.dead || network.active) continue;
+            network.active = true;
+            producerWaits.remove(network);
+            active.add(network);
+        }
+        if (active.size() > 1) active.sort(BY_ORDER);
+        int kept = 0;
+        for (int index = 0; index < active.size(); index++) {
+            Network network = active.get(index);
+            if (network.dead) { network.active = false; continue; }
+            if (due(network, cells, generation)) {
+                network.wake = false;
+                workedCount++;
+                Area area = network.area;
+                members.resolve(network);
+                again |= network.area != area;
+                int loaded = 0;
+                for (Position at : network.squares()) {
+                    if (game.square(cells, at) != null) loaded++;
+                    Stored stored = held(at, cells, network);
+                    if (stored != null && !stored.equals(network.stored.put(at, stored))) network.touch();
+                }
+                network.loadedCount = loaded;
+                worked.add(network);
+            }
+            if (settled(network, cells)) continue;
+            active.set(kept++, network);
+        }
+        active.subList(kept, active.size()).clear();
         double hours = game.hours();
         var supplyChanged = new ArrayList<Network>();
-        for (Network network : watered) {
+        // A network has water while one of the producers it draws from has: those that draw from a producer worked out.
+        var check = new ArrayList<Network>();
+        for (Network network : worked)
+            for (Network follower : network.dependents)
+                if (follower.affectedPass != pass) { follower.affectedPass = pass; check.add(follower); }
+        if (check.size() > 1) check.sort(BY_ORDER);
+        for (Network network : check) {
             boolean supplied = networks.switchedOn(network) && holds(network);
             if (supplied == network.supplied) continue;
             network.supplied = supplied;
             network.suppliedAt = hours;
+            network.touch();
             supplyChanged.add(network);
         }
         if (again || stale || !supplyChanged.isEmpty()) {
@@ -967,6 +1092,79 @@ final class WaterGrid implements Hooks.Water {
         }
         // Last, so that a mod that asks for the state then gets it.
         for (Network network : supplyChanged) networks.raise(network.id, "supply", hours);
+    }
+
+    private static final Comparator<Network> BY_ORDER = Comparator.comparingInt(network -> network.order);
+
+    /**
+     * Whether the network is worked out at this pass: something happened to it (its definition, the buildings it was resolved
+     * from, a square it is owed something on), a square of its producers is loaded (or was at the last pass), or holds a
+     * container the game keeps running (a rain collector's, filling with the rain).
+     */
+    private boolean due(Network network, Object cells, int generation) throws ReflectiveOperationException {
+        if (network.wake || members.resolveDue(network)) return true;
+        List<Position> squares = network.squares();
+        int loaded = 0;
+        for (int index = 0; index < squares.size(); index++) if (game.square(cells, squares.get(index)) != null) loaded++;
+        if (loaded > 0 || loaded != network.loadedCount) return true;
+        return metaWatched(network, generation);
+    }
+
+    /** Whether a container the game keeps running sits on a square of the network's producers (as of the index of that generation). */
+    private boolean metaWatched(Network network, int generation) {
+        if (metas == null) return false;
+        if (network.metaGeneration != generation) {
+            network.metaGeneration = generation;
+            boolean kept = false;
+            List<Position> squares = network.squares();
+            for (int index = 0; index < squares.size() && !kept; index++) kept = metas.has(squares.get(index));
+            network.metaWatched = kept;
+        }
+        return network.metaWatched;
+    }
+
+    /**
+     * Whether the network needs nothing at the next pass (as PowerGrid.settled): worked out as it stands, none of its producers'
+     * squares loaded and none able to load without its chunk doing so, and no container the game keeps running on them.
+     */
+    private boolean settled(Network network, Object cells) throws ReflectiveOperationException {
+        if (network.wake || network.loadedCount > 0 || members.resolveDue(network)
+                || metaWatched(network, metas == null ? 0 : metas.generation())) return false;
+        List<Position> squares = network.squares();
+        long[] chunks = new long[squares.size()];
+        for (int index = 0; index < chunks.length; index++) {
+            Position at = squares.get(index);
+            long chunk = game.chunkKey(at.x(), at.y());
+            if (game.square(cells, at) != null || game.chunkLoaded(cells, chunk)) return false;
+            chunks[index] = chunk;
+        }
+        network.active = false;
+        if (network.wake) { network.active = true; return false; }
+        producerWaits.set(network, PowerGrid.distinct(chunks));
+        return true;
+    }
+
+    /** The network is to be gone through at the next pass (see frame); on any thread. */
+    private void wake(Network network) {
+        network.wake = true;
+        if (!network.active && !network.queued && !network.dead) {
+            network.queued = true;
+            woken.add(network);
+        }
+    }
+
+    /** The network was removed or replaced: nothing waits for it any more, and the frame leaves it. */
+    void removed(Network network) {
+        network.dead = true;
+        producerWaits.remove(network);
+    }
+
+    /** The world was left: the networks are gone. */
+    void forget() {
+        producerWaits.clear();
+        for (Network network : active) { network.dead = true; network.active = false; }
+        active.clear();
+        for (Network network; (network = woken.poll()) != null;) { network.dead = true; network.queued = false; }
     }
 
     /**
@@ -1005,8 +1203,10 @@ final class WaterGrid implements Hooks.Water {
             suppliers.add(supplier);
             byNetwork.put(network, supplier);
         }
-        return new Snapshot(List.copyOf(suppliers), Rules.of(watered, byNetwork::get), new SquareMap(producers),
-            suppliers.stream().anyMatch(supplier -> !supplier.purify()), mains,
-            Collections.synchronizedMap(new WeakHashMap<>()));
+        var areas = new ArrayList<Area>();
+        boolean unpurified = false;
+        for (Supplier supplier : suppliers) { areas.add(supplier.area()); unpurified |= !supplier.purify(); }
+        return new Snapshot(List.copyOf(suppliers), AreaIndex.of(areas, false), Rules.of(watered, byNetwork::get),
+            new SquareMap(producers), unpurified, mains, Collections.synchronizedMap(new WeakHashMap<>()));
     }
 }

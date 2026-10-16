@@ -8,6 +8,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLongArray;
 import pzext.api.Network.Position;
+import pzext.boot.Hooks;
 
 /**
  * {@code PZExtAPI.buildings}: buildings as the game's map data (the meta grid) describes them now, and the objects in
@@ -79,8 +80,26 @@ final class Buildings {
     // each call that reads buildings starts, so a swap is never missed between two looks: one frame holds one swap.
     private static final Object UNSEEN = new Object();
     private Object seenGrid = UNSEEN, seenRoot = UNSEEN;
-    private long version;
-    private static final Building NO_ROOMS = new Building(null, List.of(), "", 0, 0, 0, 0, 0, 0);
+    private volatile long version;
+    // What of the buildings a swap of the region data leaves as it was. A map building's rooms are the same until the world
+    // is left or setRooms gives it new ones, which move epoch; a swap (version) changes what players built, the shell and
+    // the rooms built onto a building. So networks that name map buildings only resolve them again when epoch moves, and
+    // buildings.version(x, y, z) of a map building moves with it alone. Stamps number the changes in the order they came.
+    // (The descriptions are kept per version all the same, as the tests of the descriptions pin it: they are cheap to make.)
+    private volatile long epoch;
+    private long clock, epochStamp, unknownStamp;
+    // The chunks the squares recalculated since the last swap are in (the hook of the square changes: on any thread, nothing
+    // allocated), and the stamp of the swap that last followed a change in each chunk; a swap after none was seen is unknown.
+    private static final int DIRTY_SLOTS = 1 << 10;
+    private static final long MARKED = 0x1234_5678_9ABC_DEF0L;
+    private final AtomicLongArray dirty = new AtomicLongArray(DIRTY_SLOTS);
+    private volatile boolean dirtyOverflow;
+    private final Map<Long, Long> chunkStamps = new HashMap<>();
+    private boolean listening;
+    // For the tests and the curious (buildings.counters): swaps of the region data, and the swaps whose cause was not seen,
+    // which move every player-built building's version.
+    private long swaps, globalBumps, worldChanges;
+    private static final Building NO_ROOMS = new Building(null, List.of(), "", 0, 0, 0, 0, 0, 0, false);
     private final Map<Object, Building> described = new IdentityHashMap<>();
     private final Map<Object, List<Space>> spaces = new IdentityHashMap<>();
     // Its own list, told apart by identity: List.of() is the one every empty list of spaces is.
@@ -162,7 +181,14 @@ final class Buildings {
         lua.set(table, "near", lua.function(AREA + "near", arguments -> near(
             Arguments.string(arguments, 0, AREA + "near", "key"),
             Arguments.integer(arguments, 1, AREA + "near", "tiles", 0, MAX_TILES), Filter.of(arguments, 2, AREA + "near"))));
-        lua.set(table, "version", lua.function(AREA + "version", arguments -> new Object[] { (double)observe() }));
+        lua.set(table, "version", lua.function(AREA + "version", arguments -> {
+            long all = observe();
+            if (arguments.length == 0) return new Object[] { (double)all };
+            Building found = buildingAt(Arguments.integer(arguments, 0, AREA + "version", "x"),
+                Arguments.integer(arguments, 1, AREA + "version", "y"), Arguments.integer(arguments, 2, AREA + "version", "z"));
+            return new Object[] { found == null ? null : (Object)versionOf(found) };
+        }));
+        lua.set(table, "counters", lua.function(AREA + "counters", arguments -> new Object[] { counters() }));
         lua.set(table, "attached", lua.function(AREA + "attached", arguments -> new Object[] {
             attachedTable(Arguments.string(arguments, 0, AREA + "attached", "key")) }));
         lua.set(table, "producers", lua.function(AREA + "producers", arguments -> producers(
@@ -195,7 +221,7 @@ final class Buildings {
 
     /** A building as its rooms describe it. Its key is its lowest level's northernmost, then westernmost room corner. */
     record Building(Object def, List<Object> rooms, String key, int minLevel, int maxLevel,
-            int minX, int minY, int maxX, int maxY) { }
+            int minX, int minY, int maxX, int maxY, boolean playerBuilt) { }
     record Rect(int x, int y, int w, int h) { }
 
     /**
@@ -220,20 +246,142 @@ final class Buildings {
             root = regionRoot == null ? null : (Object)regionRoot.invokeExact();
         } catch (Throwable failure) { throw Game.thrown(failure); }
         if (regionRoot == null || grid != seenGrid || root != seenRoot) {
+            boolean world = regionRoot == null || grid != seenGrid;
             seenGrid = grid;
             seenRoot = root;
             version++;
-            described.clear();
             spaces.clear();
+            if (world) {
+                newEpoch();
+                worldChanges++;
+            } else {
+                swapped();
+            }
         }
         return version;
     }
 
+    /** Every building is described anew: the world is another one, or the buildings were edited. */
+    private void newEpoch() {
+        epoch++;
+        epochStamp = ++clock;
+        described.clear();
+        chunkStamps.clear();
+        drainDirty();
+    }
+
+    /**
+     * The region data was swapped: what players built is read again. A map building's description is the same; the chunks the
+     * squares recalculated since the last swap are in, if the hook of the square changes was in to see them, are stamped, and a
+     * swap after none (or after more than the hook kept) moves every player-built building's version.
+     */
+    private void swapped() {
+        swaps++;
+        long stamp = ++clock;
+        boolean seen = drainDirty();
+        if (seen) for (long chunk : drained) chunkStamps.put(chunk, stamp);
+        else {
+            unknownStamp = stamp;
+            globalBumps++;
+        }
+        // (Every building is described again, as the first to ask after a swap does; the networks, which keep what they
+        // resolved, do not read them again unless they name what a swap can change.)
+        described.clear();
+    }
+
+    // The chunks drained from the hook's table, in one array for the swap.
+    private long[] drained = new long[0];
+
+    /** Takes the chunks the hook marked; whether it saw the changes since the last swap, all of them. */
+    private boolean drainDirty() {
+        boolean complete = listening && !dirtyOverflow;
+        dirtyOverflow = false;
+        int count = 0;
+        long[] found = new long[DIRTY_SLOTS];
+        for (int slot = 0; slot < DIRTY_SLOTS; slot++) {
+            long key = dirty.getAndSet(slot, 0);
+            if (key != 0) found[count++] = key ^ MARKED;
+        }
+        drained = Arrays.copyOf(found, count);
+        return complete && count > 0;
+    }
+
+    /** The number {@link #observe} gave last, without looking: the networks resolve their buildings again when it moved. */
+    long version() { return version; }
+
+    /** The number that moves when every building is described anew (see above); networks of map buildings resolve again when it does. */
+    long epoch() { return epoch; }
+
     /** A building was given new rooms (setRooms): what was kept of the buildings is not so any more. */
     synchronized void changed() {
         version++;
-        described.clear();
         spaces.clear();
+        newEpoch();
+    }
+
+    // ---- the versions of single buildings ----
+
+    /**
+     * The hook of the square changes (SquareDispatch): the square's chunk is marked, for the next swap to stamp. On any thread,
+     * allocating nothing: a slot of a fixed table, found by the chunk's key and taken with one compare-and-set.
+     */
+    void squareChanged(int x, int y, int z) {
+        long key = game.chunkKey(x, y) ^ MARKED; // never 0, the empty slot (no chunk is as far as that)
+        int slot = (int)(key * 0x9E3779B97F4A7C15L >>> 54) & DIRTY_SLOTS - 1;
+        for (int probe = 0; probe < 8; probe++, slot = slot + 1 & DIRTY_SLOTS - 1) {
+            long held = dirty.get(slot);
+            if (held == key) return;
+            if (held == 0 && dirty.compareAndSet(slot, 0, key)) return;
+            if (held == key) return;
+        }
+        dirtyOverflow = true;
+    }
+
+    /**
+     * The version of the building: moves when the building is described anew (the world, setRooms) and, for one players built, when
+     * the region data was swapped after a change in the chunks it touches or around it, or after one whose chunk was not seen. A
+     * map building's moves with the first alone. The rooms built onto a building (attached) follow the version of all.
+     */
+    synchronized double versionOf(Building building) {
+        ensureListening();
+        long result = epochStamp;
+        if (building.playerBuilt()) {
+            result = Math.max(result, unknownStamp);
+            int size = game.chunkSize;
+            for (int cx = Math.floorDiv(building.minX() - 1, size); cx <= Math.floorDiv(building.maxX() + 1, size); cx++)
+                for (int cy = Math.floorDiv(building.minY() - 1, size); cy <= Math.floorDiv(building.maxY() + 1, size); cy++) {
+                    Long stamp = chunkStamps.get((long)cx << 32 | cy & 0xffffffffL);
+                    if (stamp != null) result = Math.max(result, stamp);
+                }
+        }
+        return result;
+    }
+
+    /** Starts to listen to the square changes (the first time a version of a player-built building is asked for). */
+    private void ensureListening() {
+        if (listening) return;
+        try {
+            SquareDispatch.add(squares);
+            listening = true;
+            // What changed before the hook was in is not known.
+            unknownStamp = ++clock;
+        } catch (LinkageError olderBootstrap) {
+            // Without the hook every swap is of unknown cause.
+        }
+    }
+
+    private final Hooks.SquareChanges squares = this::squareChanged;
+
+    /** The counters (buildings.counters). */
+    synchronized Object counters() throws ReflectiveOperationException {
+        Object result = lua.table();
+        lua.set(result, "version", (double)version);
+        lua.set(result, "epoch", (double)epoch);
+        lua.set(result, "swaps", (double)swaps);
+        lua.set(result, "globalBumps", (double)globalBumps);
+        lua.set(result, "worldChanges", (double)worldChanges);
+        lua.set(result, "listening", listening);
+        return result;
     }
 
     private Object at(int x, int y, int z) throws ReflectiveOperationException {
@@ -243,7 +391,7 @@ final class Buildings {
         if (found == null) return null;
         Object result = lua.table();
         lua.set(result, "key", found.key());
-        lua.set(result, "playerBuilt", userDefined.invoke(found.def()));
+        lua.set(result, "playerBuilt", found.playerBuilt());
         lua.set(result, "minLevel", (double)found.minLevel());
         lua.set(result, "maxLevel", (double)found.maxLevel());
         lua.set(result, "minX", (double)found.minX());
@@ -777,7 +925,9 @@ final class Buildings {
     }
 
     private Facts facts(Object object) throws ReflectiveOperationException {
-        Object sprite = objectSprite.invoke(object, Game.NONE);
+        Object sprite;
+        try { sprite = (Object)Reach.SPRITE_OF.invokeExact(object); }
+        catch (Throwable failure) { throw Game.thrown(failure); }
         if (sprite == null) return null;
         Facts known = facts.get(sprite);
         if (known != null) return known;
@@ -874,7 +1024,7 @@ final class Buildings {
         var kept = new ArrayList<Object>();
         for (Object room : whole.rooms()) if (rooms.contains(room)) kept.add(room);
         return new Building(whole.def(), List.copyOf(kept), whole.key(), whole.minLevel(), whole.maxLevel(),
-            whole.minX(), whole.minY(), whole.maxX(), whole.maxY());
+            whole.minX(), whole.minY(), whole.maxX(), whole.maxY(), whole.playerBuilt());
     }
 
     int level(Object room) throws ReflectiveOperationException {
@@ -915,7 +1065,8 @@ final class Buildings {
             }
         }
         if (minLevel == Integer.MAX_VALUE) return null; // No room has a square.
-        return new Building(def, List.copyOf(list), keyX + "," + keyY + "," + minLevel, minLevel, maxLevel, minX, minY, maxX, maxY);
+        return new Building(def, List.copyOf(list), keyX + "," + keyY + "," + minLevel, minLevel, maxLevel, minX, minY, maxX, maxY,
+            (boolean)userDefined.invoke(def));
     }
 
     List<Rect> rects(Object room) throws ReflectiveOperationException {

@@ -51,6 +51,12 @@ final class Networks {
     private final Object meta;
     private final Owners owners;
     private final Map<String, Network> networks = new LinkedHashMap<>();
+    // The network each producer square belongs to (a square is a producer of one network at most, whatever its utility).
+    private final Map<Position, Network> squareOwners = new HashMap<>();
+    // Where each network stands among the others (parents, children, order, switched on), worked out when a definition that
+    // decides it changed (define, remove, setParents, setEnabled, setProducers), not per frame; and the lists by utility.
+    private boolean topologyStale = true;
+    private List<Network> powerList = List.of(), waterList = List.of();
     private final Members members;
     private final PowerGrid grid;
     // Null in a game whose bootstrap has no water hooks: started by an install from before them.
@@ -103,9 +109,23 @@ final class Networks {
             }
         }
         dirty = false;
+        reindex();
         grid.changed();
         if (water != null) water.changed();
     }
+
+    /** The square owners and the topology made again from the networks, after they were read whole. */
+    private void reindex() {
+        squareOwners.clear();
+        for (Network network : networks.values()) {
+            network.producersChanged();
+            for (Position at : network.squares()) squareOwners.put(at, network);
+        }
+        topologyStale = true;
+    }
+
+    /** The network whose producer stands on the square, of either utility; null for none. */
+    Network ownerOf(Position at) { return squareOwners.get(at); }
 
     /**
      * Gives the game's power and water questions to these networks. Throws a LinkageError in a game whose bootstrap
@@ -168,12 +188,19 @@ final class Networks {
             Network existing = networks.get(id);
             if (existing != null) {
                 own(existing, owner, call);
+                wakeAround(existing);
                 // Children of another utility have no supply until they get another parent.
                 if (!existing.utility.equals(utility)) detachChildren(id);
                 left(existing, List.of());
+                disown(existing);
+            } else {
+                // A network that has this one's id for a parent, which was missing until now, has a parent.
+                for (Network other : networks.values()) if (other.parents.contains(id)) changed(other);
             }
-            networks.put(id, new Network(id, owner, utility, policy));
-            changed();
+            Network made = new Network(id, owner, utility, policy);
+            networks.put(id, made);
+            topologyStale = true;
+            changed(made);
             return new Object[0];
         });
         function(table, "remove", (call, arguments) -> {
@@ -181,11 +208,14 @@ final class Networks {
             Network existing = networks.get(id);
             if (existing == null) return new Object[] { false };
             own(existing, owner, call);
+            wakeAround(existing);
             networks.remove(id);
             left(existing, List.of());
+            disown(existing);
             // Its children have no supply until they get another parent.
             detachChildren(id);
-            changed();
+            topologyStale = true;
+            dirty = true;
             return new Object[] { true };
         });
         function(table, "setProducers", (call, arguments) -> {
@@ -202,16 +232,20 @@ final class Networks {
                 Producer producer = producer(item, network, call, "producers[" + index + "]");
                 String named = producer.at() != null ? producer.at().toString() : "source " + producer.source();
                 if (producers.contains(producer)) throw new IllegalArgumentException(call + ": " + named + " is listed twice");
-                if (producer.at() != null)
-                    for (Network other : networks.values())
-                        if (other != network && other.producers.contains(producer))
-                            throw new IllegalArgumentException(call + ": " + named + " is a producer of the network " + other.id);
+                if (producer.at() != null) {
+                    Network other = squareOwners.get(producer.at());
+                    if (other != null && other != network)
+                        throw new IllegalArgumentException(call + ": " + named + " is a producer of the network " + other.id);
+                }
                 producers.add(producer);
             }
             if (producers.equals(network.producers)) return new Object[0];
             left(network, producers);
+            disown(network);
             network.producers.clear();
             network.producers.addAll(producers);
+            network.producersChanged();
+            for (Position at : network.squares()) squareOwners.put(at, network);
             network.seen.keySet().retainAll(producers);
             network.outOfService.retainAll(producers);
             if (!producers.contains(network.resume)) network.resume = null;
@@ -225,7 +259,7 @@ final class Networks {
             for (Producer producer : producers) if (producer.source() != null) names.add(producer.source());
             network.sources.keySet().retainAll(names);
             for (String name : names) network.sources.computeIfAbsent(name, unused -> new Source());
-            changed();
+            changed(network);
             return new Object[0];
         });
         function(table, "setSource", (call, arguments) -> {
@@ -253,7 +287,7 @@ final class Networks {
             } else if (switchOn != null) {
                 source.on = (Boolean)switchOn;
             }
-            if (wasAvailable != source.available || wasOn != source.on || Double.compare(wasStopped, source.stoppedAt) != 0) changed();
+            if (wasAvailable != source.available || wasOn != source.on || Double.compare(wasStopped, source.stoppedAt) != 0) changed(network);
             return new Object[0];
         });
         function(table, "setExtraLoad", (call, arguments) -> {
@@ -264,7 +298,7 @@ final class Networks {
             if (network.extraLoad != load) {
                 network.extraLoad = load;
                 network.loadChanged = true;
-                changed();
+                changed(network);
             }
             return new Object[0];
         });
@@ -310,7 +344,7 @@ final class Networks {
             List<String> fluids = list == null || named.equals(Network.WATER_FLUIDS) ? Network.WATER_FLUIDS : List.copyOf(named);
             if (!fluids.equals(network.fluids)) {
                 network.fluids = fluids;
-                changed();
+                changed(network);
             }
             return new Object[0];
         });
@@ -321,7 +355,7 @@ final class Networks {
             if (network.enabled != on) {
                 network.enabled = on;
                 grid.switched(network);
-                changed();
+                topologyStale = true; changed(network);
             }
             return new Object[0];
         });
@@ -332,7 +366,7 @@ final class Networks {
             float factor = (float)Arguments.number(arguments, 2, call, "factor", 0, MAX_LOAD_FACTOR);
             if (network.loadFactor != factor) {
                 network.loadFactor = factor;
-                changed();
+                changed(network);
             }
             return new Object[0];
         });
@@ -348,7 +382,7 @@ final class Networks {
                 throw new IllegalArgumentException(call + ": water that keeps its taint is not in this game; PZExtAPI.hooks() says why");
             if (network.purify != on) {
                 network.purify = on;
-                changed();
+                changed(network);
             }
             return new Object[0];
         });
@@ -359,20 +393,20 @@ final class Networks {
             if (network.gridFirst != on) {
                 network.gridFirst = on;
                 network.loadChanged = true;
-                changed();
+                changed(network);
             }
             return new Object[0];
         });
         function(table, "addBuilding", (call, arguments) -> {
             Network network = mine(arguments, call);
             Position at = square(arguments, 2, call);
-            if (!network.buildings.contains(at)) { network.buildings.add(at); changed(); }
+            if (!network.buildings.contains(at)) { network.buildings.add(at); changed(network); }
             return new Object[] { buildings.buildingAt(at.x(), at.y(), at.z()) != null };
         });
         function(table, "addRoom", (call, arguments) -> {
             Network network = mine(arguments, call);
             Position at = square(arguments, 2, call);
-            if (!network.rooms.contains(at)) { network.rooms.add(at); changed(); }
+            if (!network.rooms.contains(at)) { network.rooms.add(at); changed(network); }
             return new Object[] { buildings.roomOf(at.x(), at.y(), at.z()) != null };
         });
         function(table, "removeRoom", (call, arguments) -> {
@@ -382,7 +416,7 @@ final class Networks {
             var named = new ArrayList<Position>();
             for (Position other : network.rooms)
                 if (other.equals(at) || room != null && buildings.roomOf(other.x(), other.y(), other.z()) == room) named.add(other);
-            if (network.rooms.removeAll(named)) changed();
+            if (network.rooms.removeAll(named)) changed(network);
             return new Object[] { !named.isEmpty() };
         });
         function(table, "removeBuilding", (call, arguments) -> {
@@ -394,7 +428,7 @@ final class Networks {
                 var otherBuilding = building == null ? null : buildings.buildingAt(other.x(), other.y(), other.z());
                 if (other.equals(at) || otherBuilding != null && otherBuilding.def() == building.def()) named.add(other);
             }
-            if (network.buildings.removeAll(named)) changed();
+            if (network.buildings.removeAll(named)) changed(network);
             return new Object[] { !named.isEmpty() };
         });
         function(table, "exclude", (call, arguments) -> {
@@ -433,6 +467,10 @@ final class Networks {
             return new Object[] { result };
         });
         function(table, "ids", (call, arguments) -> new Object[] { lua.list(new ArrayList<Object>(networks.keySet())) });
+        function(table, "revision", (call, arguments) -> {
+            Network network = networks.get(Arguments.string(arguments, 0, call, "id"));
+            return new Object[] { network == null ? null : (Object)(double)revision(network) };
+        });
         function(table, "consumers", (call, arguments) -> {
             Network network = networks.get(Arguments.string(arguments, 0, call, "id"));
             if (network == null || game.cell() == null) return new Object[] { null, false };
@@ -556,8 +594,13 @@ final class Networks {
     /** {@code handle:clear()}: removes everything the mod defined. */
     void clear(String owner, String call) throws ReflectiveOperationException {
         current(call);
-        for (Network network : networks.values()) if (network.owner.equals(owner)) left(network, List.of());
-        if (networks.values().removeIf(network -> network.owner.equals(owner))) changed();
+        for (Network network : networks.values()) if (network.owner.equals(owner)) { left(network, List.of()); disown(network); grid.removed(network); if (water != null) water.removed(network); }
+        if (networks.values().removeIf(network -> network.owner.equals(owner))) changedAll();
+    }
+
+    /** The network's squares no longer belong to it (it was replaced or removed, or its producers changed). */
+    private void disown(Network network) {
+        for (Position at : network.squares()) squareOwners.remove(at, network);
     }
 
     /** The generators of a power network that are not among {@code staying} leave it: their marks go (PowerGrid.left). */
@@ -570,6 +613,7 @@ final class Networks {
 
     private void detachChildren(String id) {
         for (Network child : networks.values()) child.parents.remove(id);
+        topologyStale = true;
     }
 
     /**
@@ -591,9 +635,17 @@ final class Networks {
             if (above(parent).contains(network)) throw new IllegalArgumentException(call + ": " + text + " is a child of " + network.id);
         }
         if (ids.equals(network.parents)) return;
+        // The tree it leaves works its loads out again without it, and the one it joins with it.
+        Network before = root(network);
+        if (before != null) changed(before);
         network.parents.clear();
         network.parents.addAll(ids);
-        changed();
+        topologyStale = true;
+        changed(network);
+        Network after = root(network);
+        if (after != null) changed(after);
+        // A water network's supply follows the networks it draws from; those that draw from it follow it.
+        for (Network dependent : network.dependents) changed(dependent);
     }
 
     /** The network and every network above it that is defined, each once. */
@@ -620,7 +672,8 @@ final class Networks {
                 // The world the networks were defined in was left; the mods define them again in the next one.
                 if (world != null && cell != world) {
                     grid.forget();
-                    if (!networks.isEmpty()) { networks.clear(); changed(); }
+                    if (water != null) water.forget();
+                    if (!networks.isEmpty()) { networks.clear(); squareOwners.clear(); changedAll(); }
                 }
                 if (cell != null && cell != world) unrestored = !(world == null && handedOver);
                 handedOver = false;
@@ -647,38 +700,120 @@ final class Networks {
     // The networks as the grids see them: one mod's networks of one utility, each below its parents (see setParents):
     // trees for power, for water any graph without loops.
 
-    /** The networks of one utility, in the order they were defined. */
+    /** The definitions changed in a way that decides how the networks stand among the others: they are read again. */
+    void topologyChanged() { topologyStale = true; }
+
+    /** The networks of one utility, in the order they were defined (a list kept until the definitions change). */
     List<Network> of(String utility) {
-        var result = new ArrayList<Network>();
-        for (Network network : networks.values()) if (network.utility.equals(utility)) result.add(network);
-        return result;
+        topology();
+        return PowerGrid.UTILITY.equals(utility) ? powerList : waterList;
+    }
+
+    /** How many times the grids worked a network out, and how many they go through at a pass (for the tests). */
+    long worked() { return grid.worked() + (water == null ? 0 : water.worked()); }
+
+    int active() { return grid.active() + (water == null ? 0 : water.active()); }
+
+    /** The next frame is a pass of both grids (for the tests, which do not wait a second). */
+    void pass() {
+        grid.pass();
+        if (water != null) water.pass();
+    }
+
+    /** The networks whose chain has this one, itself included, in the order they were defined. */
+    List<Network> dependents(Network network) {
+        topology();
+        return network.dependents;
     }
 
     /** The network at the top of a power child's parents; null when a parent is missing. */
     Network root(Network network) {
-        for (int depth = 0; network != null && depth <= networks.size(); depth++) {
-            if (network.parents.isEmpty()) return network;
-            network = networks.get(network.parent());
-        }
-        return null;
+        topology();
+        return network.root;
     }
 
     /** Whether the network and every network above it are switched on (false when one above is missing). */
     boolean switchedOn(Network network) {
-        List<Network> chain = chain(network);
-        if (chain == null) return false;
-        for (Network each : chain) if (!each.enabled) return false;
-        return true;
+        topology();
+        return network.on;
     }
 
     /**
      * The network and those above it, in the order a water network draws from them: itself, then its first parent with
      * those above that one, then its second, and so on, each once. For power, the network and its parents up to the
-     * one at the top. Null when one above is missing.
+     * one at the top. Null when one above is missing. The list is kept until the definitions change; do not change it.
      */
     List<Network> chain(Network network) {
-        var result = new ArrayList<Network>();
-        return gather(network, result, 0) ? result : null;
+        topology();
+        return network.chain;
+    }
+
+    /**
+     * Works out where each network stands among the others, when a definition that decides it changed: its chain, the
+     * network at its top, whether it and those above it are switched on, its children (power) and those that draw from it
+     * (water). Everything the grids asked of the networks' parents again and again each second.
+     */
+    private void topology() {
+        if (!topologyStale) return;
+        topologyStale = false;
+        var power = new ArrayList<Network>();
+        var water = new ArrayList<Network>();
+        int order = 0;
+        for (Network network : networks.values()) {
+            network.order = order++;
+            (PowerGrid.UTILITY.equals(network.utility) ? power : water).add(network);
+            var chain = new ArrayList<Network>();
+            network.chain = gather(network, chain, 0) ? Collections.unmodifiableList(chain) : null;
+            boolean on = network.chain != null;
+            if (on) for (Network each : network.chain) on &= each.enabled;
+            network.on = on;
+            network.root = rootOf(network);
+        }
+        var children = new HashMap<Network, ArrayList<Network>>();
+        var dependents = new HashMap<Network, ArrayList<Network>>();
+        for (Network network : networks.values()) {
+            Network parent = network.parent() == null ? null : networks.get(network.parent());
+            if (parent != null) children.computeIfAbsent(parent, unused -> new ArrayList<>()).add(network);
+            if (network.chain != null) for (Network above : network.chain) dependents.computeIfAbsent(above, unused -> new ArrayList<>()).add(network);
+        }
+        for (Network network : networks.values()) {
+            network.children = children.containsKey(network) ? List.copyOf(children.get(network)) : List.of();
+            network.dependents = dependents.containsKey(network) ? List.copyOf(dependents.get(network)) : List.of();
+            network.top = topOf(network);
+            network.tree = List.of();
+        }
+        for (Network network : networks.values()) {
+            if (network.top != network) continue;
+            var below = new ArrayList<Network>();
+            below(network, below, 0);
+            network.tree = Collections.unmodifiableList(below);
+        }
+        powerList = List.copyOf(power);
+        waterList = List.copyOf(water);
+    }
+
+    /** The network at the top of the first parents, where the parents lead to (a missing parent ends the way): itself at the top. */
+    private Network topOf(Network network) {
+        for (int depth = 0; depth <= networks.size(); depth++) {
+            Network parent = network.parent() == null ? null : networks.get(network.parent());
+            if (parent == null) return network;
+            network = parent;
+        }
+        return network;
+    }
+
+    /** The networks below this one (by their first parents) and itself, each after those below it. */
+    private void below(Network network, List<Network> result, int depth) {
+        if (depth <= networks.size()) for (Network child : network.children) below(child, result, depth + 1);
+        result.add(network);
+    }
+
+    private Network rootOf(Network network) {
+        for (int depth = 0; network != null && depth <= networks.size(); depth++) {
+            if (network.parents.isEmpty()) return network;
+            network = networks.get(network.parent());
+        }
+        return null;
     }
 
     private boolean gather(Network network, List<Network> result, int depth) {
@@ -687,6 +822,14 @@ final class Networks {
         result.add(network);
         for (String id : network.parents) if (!gather(networks.get(id), result, depth + 1)) return false;
         return true;
+    }
+
+    /** The number {@code networks.revision(id)} gives: the latest change that could show in the state of the network or of those above it. */
+    private long revision(Network network) {
+        topology();
+        long result = network.revision;
+        if (network.chain != null) for (Network above : network.chain) result = Math.max(result, above.revision);
+        return result;
     }
 
     /** Raises {@link #EVENT}, after a change the grids worked out: the network's id, what changed, and the hour it did. */
@@ -781,15 +924,40 @@ final class Networks {
         }
         network.regathered = true;
         network.loadChanged = true;
-        changed();
+        changed(network);
     }
 
     /**
-     * A definition changed: the hooks know it at once (see PowerGrid.changed), the next frame works the networks out
-     * again, and writes the mirror. A mod that defines many objects in a row so costs one of each, not one per call.
+     * A definition of one network changed: the hooks know it at once (see PowerGrid.changed), the next frame works that
+     * network out again (and the networks that follow from it), and writes the mirror. A mod that defines many objects
+     * in a row so costs one of each, not one per call; the other networks are left as they are.
      */
-    private void changed() {
+    private void changed(Network network) {
         dirty = true;
+        network.touch();
+        if (PowerGrid.UTILITY.equals(network.utility)) grid.changed(network);
+        else if (water != null) water.changed(network);
+    }
+
+    /**
+     * Before a network is replaced or removed: the networks that follow from it work themselves out again (its tree for
+     * power, those that draw from it for water, its children), as the grids' next pass finds them without it.
+     */
+    private void wakeAround(Network network) {
+        topology();
+        for (Network follower : network.dependents) if (follower != network) changed(follower);
+        for (Network child : network.children) changed(child);
+        if (network.root != null && network.root != network) changed(network.root);
+        // Its producers' squares are no longer the networks'; the grid that had them looks at the hooks' snapshot again.
+        if (PowerGrid.UTILITY.equals(network.utility)) { grid.removed(network); grid.reshaped(); }
+        else if (water != null) { water.removed(network); water.reshaped(); }
+    }
+
+    /** Networks were defined, removed or put in another order: all of them are worked out again. */
+    private void changedAll() {
+        dirty = true;
+        topologyStale = true;
+        for (Network network : networks.values()) network.touch();
         grid.changed();
         if (water != null) water.changed();
     }

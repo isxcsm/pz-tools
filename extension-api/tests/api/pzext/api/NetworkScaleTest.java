@@ -11,7 +11,8 @@ import zombie.iso.BuildingDef;
  * The networks at the scale a mod may build them to (Building Utilities' tier rework, 2e): a thousand buildings of one room
  * over the map, none loaded, each with a power network and a water network of its own and a producer each. Times the
  * frames that work the networks out (once a second, and the five-second look at loads not complete) at the game's pace,
- * a frame every 16 ms for seven seconds. Printed for the report, as the goal (half a millisecond a second) is not met yet;
+ * a frame every 16 ms for seven seconds, after three seconds that let the networks settle as they do in a running game.
+ * Printed for the report against the goal (half a millisecond a second), not held to it: a loaded machine's noise would fail it;
  * the networks are removed after.
  */
 final class NetworkScaleTest {
@@ -21,6 +22,8 @@ final class NetworkScaleTest {
     private NetworkScaleTest() { }
 
     static void run(KahluaTable api) throws Exception {
+        // What the performance work keeps true (see PerformanceTest), then the networks at scale.
+        PerformanceTest.run(api);
         var grid = IsoWorld.instance.metaGrid;
         var made = new ArrayList<RoomDef>();
         for (int i = 0; i < BUILDINGS; i++) {
@@ -42,8 +45,13 @@ final class NetworkScaleTest {
             FormulasTest.call(networks, "addBuilding", mod, "water" + i, (double)x + 1, (double)y + 1, 0.0);
         }
         try {
-            // The first frames define and look at everything; then the game's pace.
+            // The first frames define and look at everything, and a second pass settles what the first left unsettled (a
+            // network's history begun, a snapshot made); three seconds at the game's pace, then the measure.
             for (int frame = 0; frame < 3; frame++) GameApi.frame(GAME);
+            for (long end = System.nanoTime() + 3_000_000_000L; System.nanoTime() < end;) {
+                GameApi.frame(GAME);
+                Thread.sleep(16);
+            }
             var work = new ArrayList<Double>();
             long end = System.nanoTime() + 7_000_000_000L;
             while (System.nanoTime() < end) {

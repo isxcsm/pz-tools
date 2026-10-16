@@ -49,7 +49,8 @@ public final class GameApi {
     private static volatile SquareWatches squares;
     // The buildings of the Lua environment the game has now, watched each frame for what changes them (Buildings.observe).
     private static volatile Buildings buildings;
-    private static boolean buildingsReported;
+    // The modules whose frame failed (see fault), on the game's thread.
+    private static final java.util.Set<String> FAULTED = new java.util.HashSet<>();
     // What writeStatus last wrote; on the boot layer's host thread only.
     private static String written;
 
@@ -59,6 +60,9 @@ public final class GameApi {
     static Formulas formulas() { return formulas; }
 
     static Buildings buildings() { return buildings; }
+
+    /** The networks of the Lua environment the game has now, or null (for the tests of this package). */
+    static Networks networks() { return networks; }
 
     /** The text of the Lua environment the game has now, or null (for the tests of this package). */
     static Texts texts() { return texts; }
@@ -109,23 +113,33 @@ public final class GameApi {
             try { register(Class.forName("zombie.Lua.LuaManager", false, game)); }
             catch (Throwable failure) { report(failure); }
         }
+        // Each module is guarded on its own: one that fails cannot stop the others, and is reported once.
         Buildings watched = buildings;
         if (watched != null) {
+            // The calls that read buildings observe too, and fail on their own.
             try { watched.observe(); }
-            catch (Throwable failure) {
-                // Once: the calls that read buildings observe too, and fail on their own.
-                if (!buildingsReported) System.err.println("[PZExt] buildings: " + failure);
-                buildingsReported = true;
-            }
+            catch (Throwable failure) { fault("buildings", failure); }
         }
         Networks current = networks;
-        if (current != null) current.frame();
+        if (current != null) {
+            try { current.frame(); }
+            catch (Throwable failure) { fault("networks", failure); }
+        }
         Formulas declared = formulas;
-        if (declared != null) declared.frame();
+        if (declared != null) {
+            try { declared.frame(); }
+            catch (Throwable failure) { fault("formulas", failure); }
+        }
         Moodles defined = moodles;
-        if (defined != null) defined.frame();
+        if (defined != null) {
+            try { defined.frame(); }
+            catch (Throwable failure) { fault("moodles", failure); }
+        }
         Texts shown = texts;
-        if (shown != null) shown.frame();
+        if (shown != null) {
+            try { shown.frame(); }
+            catch (Throwable failure) { fault("text", failure); }
+        }
         ZombieSounds heard = sounds;
         if (heard != null) {
             try { heard.frame(); }
@@ -157,13 +171,25 @@ public final class GameApi {
             }
         }
         Timers counting = timers;
-        if (counting != null) counting.frame();
+        if (counting != null) {
+            try { counting.frame(); }
+            catch (Throwable failure) { fault("timers", failure); }
+        }
         ChunkWatches watching = chunks;
-        if (watching != null) watching.frame();
+        if (watching != null) {
+            try { watching.frame(); }
+            catch (Throwable failure) { fault("chunks", failure); }
+        }
         FloorDecals decals = floor;
-        if (decals != null) decals.frame();
+        if (decals != null) {
+            try { decals.frame(); }
+            catch (Throwable failure) { fault("floor", failure); }
+        }
         SquareWatches told = squares;
-        if (told != null) told.frame();
+        if (told != null) {
+            try { told.frame(); }
+            catch (Throwable failure) { fault("squares", failure); }
+        }
         Helicopters flying = helicopters;
         if (flying != null) {
             try { flying.frame(); }
@@ -173,6 +199,14 @@ public final class GameApi {
                 System.err.println("[PZExt] helicopter events stopped: " + failure);
             }
         }
+    }
+
+    /**
+     * A module's frame failed: reported once for the module (a fault that recurs each frame must not flood the game's log),
+     * and the frame goes on with the other modules. The module's hooks keep answering as before.
+     */
+    private static void fault(String module, Throwable failure) {
+        if (FAULTED.add(module)) System.err.println("[PZExt] " + module + ": " + failure);
     }
 
     private static void luaStarted(Class<?> luaManager) {

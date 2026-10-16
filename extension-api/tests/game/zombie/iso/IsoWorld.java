@@ -9,7 +9,12 @@ public final class IsoWorld {
     public final IsoMetaGrid metaGrid = new IsoMetaGrid();
     public IsoCell currentCell = new IsoCell();
     public final Helicopter helicopter = new Helicopter();
-    public IsoMetaGrid getMetaGrid() { return metaGrid; }
+    /** Set by a test: the meta grid cannot be read. */
+    public boolean brokenMetaGrid;
+    public IsoMetaGrid getMetaGrid() {
+        if (brokenMetaGrid) throw new IllegalStateException("the meta grid is broken");
+        return metaGrid;
+    }
     public IsoCell getCell() { return currentCell; }
     /** What init and KillCell do to the cell: store it. */
     public void setCell(IsoCell next) { currentCell = next; }

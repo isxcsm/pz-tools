@@ -12,8 +12,8 @@ public final class IsoCell {
     /** Synthetic: what the game draws a player's view with; here nothing. */
     public static final class PerPlayerRender { }
 
-    public final HashMap<String, IsoGridSquare> squares = new HashMap<>();
-    public final HashMap<String, IsoChunk> chunks = new HashMap<>();
+    public final PositionMap<IsoGridSquare> squares = new PositionMap<>();
+    public final PositionMap<IsoChunk> chunks = new PositionMap<>();
     /** The zombies the cell holds. */
     public final ArrayList<IsoZombie> zombieList = new ArrayList<>();
     /** Set by a test: the cell cannot say its zombies. */
@@ -30,17 +30,20 @@ public final class IsoCell {
     public IsoGridSquare getGridSquare(int x, int y, int z) {
         if (dense != null && x >= 0 && y >= 0 && z >= 0 && x < denseSize && y < denseSize && z < denseFloors)
             return dense[(z * denseSize + y) * denseSize + x];
-        return squares.get(x + "," + y + "," + z);
+        return squares.at(x, y, z);
     }
-    public IsoChunk getChunk(int wx, int wy) { return chunks.get(wx + "," + wy); }
+    public IsoChunk getChunk(int wx, int wy) { return chunks.at(wx, wy); }
     public IsoGridSquare load(int x, int y, int z) {
+        IsoGridSquare known = squares.at(x, y, z);
+        if (known != null) return known;
         return squares.computeIfAbsent(x + "," + y + "," + z, ignored -> {
             var square = new IsoGridSquare(x, y, z);
             square.cell = this;
             if (dense != null && x >= 0 && y >= 0 && z >= 0 && x < denseSize && y < denseSize && z < denseFloors)
                 dense[(z * denseSize + y) * denseSize + x] = square;
             int wx = Math.floorDiv(x, IsoChunk.SIZE), wy = Math.floorDiv(y, IsoChunk.SIZE);
-            square.chunk = chunks.computeIfAbsent(wx + "," + wy, key -> {
+            IsoChunk held = chunks.at(wx, wy);
+            square.chunk = held != null ? held : chunks.computeIfAbsent(wx + "," + wy, key -> {
                 var chunk = new IsoChunk(wx, wy);
                 chunk.cell = this;
                 return chunk;
