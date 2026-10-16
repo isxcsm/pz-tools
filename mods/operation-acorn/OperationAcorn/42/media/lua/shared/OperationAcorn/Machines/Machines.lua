@@ -1570,7 +1570,13 @@ end
 -- dropped, and the registry entry is forgotten.
 function Machines.forget(destroyed)
     local anchor, state = Machines.anchorOf(destroyed)
-    if not state then return end
+    if not state then
+        -- the game took the whole piece of furniture at once (a tile of it gone takes the others, the anchor too): the
+        -- registry lets go of it by the part's mark
+        local mark = Machines.anchorMark(destroyed)
+        if mark and mark.id then unregister(mark.id) end
+        return
+    end
     unregister(state.id)
     if anchor ~= destroyed then
         spill(anchor)

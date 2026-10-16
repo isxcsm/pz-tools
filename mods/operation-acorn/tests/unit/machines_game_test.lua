@@ -1358,6 +1358,21 @@ test("destroying any part takes the whole machine, dropping what it held", funct
     cleanup()
 end)
 
+test("a part destroyed after the game took the whole furniture: the registry still lets go of it", function()
+    local square = worldSetup()
+    local p = player()
+    local sq, other = square(30, 30, 0), square(31, 30, 0)
+    local anchor = Machines.place("cutter", sq, p, newItem("OperationAcorn.FabricCutter"), "S")
+    local id = Machines.state(anchor).id
+    local part = other.objects[1]
+    -- (the game's multi-tile furniture: one tile gone takes the others with it)
+    other:transmitRemoveItemFromSquare(part)
+    sq:transmitRemoveItemFromSquare(anchor)
+    Machines.forget(part)
+    eq(Machines.list()[id], nil)
+    cleanup()
+end)
+
 test("destroying the anchor takes the other parts", function()
     local square = worldSetup()
     local p = player()
