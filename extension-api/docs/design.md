@@ -911,6 +911,8 @@ hook only. `PZExtAPI.hooks()` names each by game class and method.
 | `ShaderUnit.loadShaderFile` | each return | The sources of the shaders that draw the world (the tiles, the walls cut away for the player, the models) get night sight's step, once; a source without the place it goes is left as it is. See [night sight](#night-sight). |
 | `ShaderUnit.compile` | after the one call of `GL20.glCompileShader(shader)` | A shader with the step that did not compile is compiled again without it. See [night sight](#night-sight). |
 | `ShaderUnit.compile:source` | before the one call of `GL20.glShaderSource(shader, source)`, with the unit's `fileName` | The source the GL is handed, which PZ Optimization's patches have changed since the load: the tiles' composite its pixel light makes gets night sight's step in its own place. See [night sight](#night-sight). |
+| `PixelLight$Gl.init:pass` | before PZ Optimization's one call of `AmbientOcclusion.link(vertex, fragment)` (only with PZ Optimization) | The fragment source of its pixel light's pass (`pplMode=pass`): night sight's lift goes in. See [night sight](#night-sight). |
+| `AmbientOcclusion.compile` | after PZ Optimization's one call of `GL20.glCompileShader(shader)` (only with PZ Optimization) | A shader with the lift that did not compile is compiled again without it, as `ShaderUnit.compile` does. |
 | `TileDepthShader.startRenderThread`, `CutawayAttachedShader.startRenderThread`, `TileSeamShader.startRenderThread`, `IsoGridSquare$CutawayNoDepthShader.startRenderThread`, `Shader.startRenderThread` | each return | With the shader's program bound: night sight's lift is set into every linked program that has its uniform, when the lift or the number of sources with the step changed since it was last set. |
 | `Shader.Start` (the core `Shader`, labelled `:bind`; and the models' `skinnedmodel.shader.Shader`) | each return | The same, where a shader is bound without a draw (`IndieGL.bindShader`). |
 | `Helicopter.writes:flight` | after every store of `Helicopter.state` or `Helicopter.active` (outside the constructors) | Counts the store; see [What the frame job learns from the hooks](#what-the-frame-job-learns-from-the-hooks). |
@@ -1000,8 +1002,11 @@ rooms are each drawn from their own light, and nothing reads across a wall.
   (what its `PPL_UNSEEN_AMBIENT` reads), taken only while the lift is above 0. A source without all three places is left as
   it is, one with the uniform already is not changed again, and the fallback above takes the step out of one that does not
   compile. Nothing is done without PZ Optimization's pixel light: no source defines `pplLight`, and with the option off its
-  composite is the game's. PZ Optimization's `pplMode` `pass` draws the light in a pass of its own, made without
-  `ShaderUnit`, which night sight does not reach (the default, `composite`, is the one above).
+  composite is the game's. PZ Optimization's `pplMode` `pass` (the default, `composite`, is the one above) draws the
+  light in a pass of its own, a program it links from its own source without `ShaderUnit`, and multiplies what is drawn by
+  it (its blending). The pass's source gets the light function's macro, the state and the lifting wrapper as it is linked
+  (`PixelLight$Gl.init:pass`; its compile falls back as the game's do, `AmbientOcclusion.compile`): the tiles come up from
+  the dark with the models, but in their own colour, since a factor cannot take a colour to grey.
 - **The models' light.** The game lights a model from the square's corners (`IsoGridSquare.interpolateLight`) and makes
   more light of that: a character's ambient colour (0.45 of it, in `Shader.startCharacter`) and two lights beside the
   character made from it (1.7 / 4 of it each, with a direction), a model object's the same way (1.5 / 4). A shader sees

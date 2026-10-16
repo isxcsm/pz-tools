@@ -592,6 +592,30 @@ final class FormulasTest {
             org.lwjgl.opengl.GL20.rejectsStep = false;
             zombie.core.opengl.ShaderUnit.text = tile;
         }
+        // The pixel light's pass mode: a program PZ Optimization links itself from its pass source (the same light function), whose
+        // light is multiplied over the scene. The light is lifted as the composite's is; there is no colour to take to grey.
+        String pass = pixel.substring(0, pixel.indexOf("void pzReliefInner()"))
+            + "out vec4 fragColor;\nvoid main() {\n   vec3 L = pplLight(P, dz, n);\n   if (int(pplMapC.w + 0.5) == 2) L = vec3(1.0);\n   fragColor = vec4(L, 1.0);\n}\n";
+        String lifted = Hooks.shaderPass(pass);
+        check(lifted.indexOf("uniform float PZExt_NightFloor;") > 0 && lifted.indexOf("#define pplLight pztLight0") < lifted.indexOf("vec3 pplLight(vec3 P")
+            && lifted.contains("pztLifted = l + f * dark * dark;") && lifted.indexOf("#undef pplLight") < lifted.indexOf("void main()")
+            && !lifted.contains("pztNight(c.rgb") && Hooks.sightFiles().contains("PixelLight.pass"), "The pixel light's pass has no lift, or not in its places: " + lifted);
+        check(lifted.replaceAll("(?s)/\\*PZEXT<\\*/.*?/\\*PZEXT>\\*/", "").replaceAll("\\s+", "").equals(pass.replaceAll("\\s+", ""))
+            && Hooks.shaderPass(lifted).equals(lifted) && Hooks.shaderPass(pass.replace("fragColor = vec4(L, 1.0);", "fragColor = vec4(L, 0.5);")).equals(pass.replace("fragColor = vec4(L, 1.0);", "fragColor = vec4(L, 0.5);"))
+            && Hooks.shaderPass(tile).equals(tile) && Hooks.shaderPass(null) == null, "The pixel light's pass lift cannot be taken out, went in twice, or changed another source");
+        // it goes in where PZ Optimization links the pass, and a pass that does not compile with it is compiled again without it
+        pzopt.PixelLight.PASS_FRAG = pass;
+        var passGl = new pzopt.PixelLight.Gl();
+        check(passGl.init() && org.lwjgl.opengl.GL20.sources.get(passGl.program).equals(lifted), "The pixel light's pass did not get its lift where it is linked");
+        int passFailed = Hooks.sightFailed();
+        org.lwjgl.opengl.GL20.rejectsStep = true;
+        try {
+            check(passGl.init() && Hooks.sightFailed() == passFailed + 1
+                && org.lwjgl.opengl.GL20.sources.get(passGl.program).replaceAll("\\s+", "").equals(pass.replaceAll("\\s+", "")),
+                "The pixel light's pass that did not compile with its lift was not compiled without it");
+        } finally {
+            org.lwjgl.opengl.GL20.rejectsStep = false;
+        }
         // A shader that does not compile with the step is compiled again without it (the rest of the source as the game and
         // PZ Optimization left it), once said; one that compiles keeps it, and so does one without the step.
         var unit = new zombie.core.opengl.ShaderUnit();

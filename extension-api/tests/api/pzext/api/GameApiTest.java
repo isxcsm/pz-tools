@@ -2727,9 +2727,10 @@ public final class GameApiTest {
                 "ModelSlotRenderData.initModel:light", "IsoObjectModelDrawer.renderMain:still", "ModelInstance$PlayerData.updateLights",
                 "IsoGridSquare.BurnWalls", "IsoGridSquare.load", "FBORenderCell.*:decals", "IsoGridSquare.RecalcProperties",
                 "InventoryItem.*:useDelta", "DrainableComboItem.*:useDelta", "CraftRecipeData.luaCallOnCreate",
-                "InventoryItem.getName", "InventoryItem.getDisplayName", "Food.getName", "Clothing.getName", "Moveable.getName" })
+                "InventoryItem.getName", "InventoryItem.getDisplayName", "Food.getName", "Clothing.getName", "Moveable.getName",
+                "PixelLight$Gl.init:pass", "AmbientOcclusion.compile" })
             check(Hooks.APPLIED.equals(hooks.rawget(label)), label + " is " + hooks.rawget(label));
-        check(Hooks.hookStatus().size() == 135, "The hooks are " + Hooks.hookStatus().keySet());
+        check(Hooks.hookStatus().size() == 137, "The hooks are " + Hooks.hookStatus().keySet());
         // Every hook fits the synthetic game: a gap in the synthetic game fails here, not as a line in the output.
         var misfit = new java.util.TreeMap<>(Hooks.hookStatus());
         misfit.values().removeIf(Hooks.APPLIED::equals);

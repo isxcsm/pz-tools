@@ -772,6 +772,23 @@ public final class Hooks {
                     code.aload(squares);
                     code.invokestatic(HOOKS, "bloodSquares", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_float.arrayType()));
                 })) }),
+        // PZ Optimization's pixel light in its pass mode (pplMode=pass) lights the world's tiles in a pass of its own, a program it
+        // links from its own source without ShaderUnit: the source gets night sight's lift as it is linked, and a shader that does
+        // not compile with it is compiled again without it, as the game's are. Not hooks of a point: the classes load only with
+        // PZ Optimization.
+        Map.entry("pzopt/PixelLight$Gl", new Site[] {
+            Site.edit("init", "()Z", new Edit(calls("pzopt/AmbientOcclusion", "link", "(Ljava/lang/String;Ljava/lang/String;)I"), 1, null,
+                (code, element, kind) -> {
+                    code.invokestatic(HOOKS, "shaderPass", MethodTypeDesc.of(ConstantDescs.CD_String, ConstantDescs.CD_String));
+                    code.with(element);
+                })).named("pass") }),
+        Map.entry("pzopt/AmbientOcclusion", new Site[] {
+            Site.edit("compile", "(ILjava/lang/String;)I", new Edit(calls("org/lwjgl/opengl/GL20", "glCompileShader", "(I)V"), 1, null,
+                (code, element, kind) -> {
+                    code.dup();
+                    code.with(element);
+                    code.invokestatic(HOOKS, "shaderCompiled", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_int));
+                })) }),
         // Night sight's grey: the sources of the shaders that draw the world get its step (SightShaders) as the game loads them,
         // and its uniform is set each time one starts drawing (its program bound): the tiles', the walls cut away, the models'.
         Map.entry("zombie/core/opengl/ShaderUnit", new Site[] {
@@ -2420,6 +2437,15 @@ public final class Hooks {
     }
 
     /**
+     * Put before PZ Optimization links the program of its pixel light's pass ({@code PixelLight$Gl.init}), with the fragment source:
+     * the source with night sight's lift (see {@link SightShaders#pass}).
+     */
+    public static String shaderPass(String source) {
+        try { return SightShaders.pass(source); }
+        catch (Throwable problem) { reportOnce(Call.NIGHT_SIGHT, problem); return source; }
+    }
+
+    /**
      * Put after each call of {@code GL20.glCompileShader(shader)} in {@code ShaderUnit.compile}: a shader with night sight's step that
      * did not compile is compiled again without it, so that the step can never cost the game its shader.
      */
@@ -3294,6 +3320,26 @@ public final class Hooks {
             return source.substring(0, function.start()) + OPEN + STEP + LIGHT_STATE + CLOSE + "\n" + source.substring(function.start(), end.start())
                 + OPEN + LIGHT_SEEN + CLOSE + "\n   " + source.substring(end.start(), end.end()) + OPEN + LIGHT_LIFT + CLOSE
                 + source.substring(end.end(), colour.start()) + OPEN + LIGHT_STEP + CLOSE + "\n   " + source.substring(colour.start());
+        }
+
+        private static final java.util.regex.Pattern PASS_COLOUR = java.util.regex.Pattern.compile("fragColor\\s*=\\s*vec4\\s*\\(\\s*L\\s*,\\s*1\\.0\\s*\\)\\s*;");
+
+        /**
+         * The pixel light's pass (its pplMode {@code pass}): the light is drawn over the scene as a factor (the pass's blending multiplies
+         * what is there by the colour it writes), so it cannot take the tiles' colour to grey as the composite does. The light is lifted
+         * as the corners' are (the same function and state as the composite's, {@link #LIGHT_LIFT}), so the tiles come up from the dark
+         * with the models, in their own colour. A source without the places is left as it is.
+         */
+        static String pass(String source) {
+            if (source == null || !source.contains("pplLight") || source.contains(UNIFORM)) return source;
+            var function = LIGHT_FUNCTION.matcher(source);
+            if (!function.find()) return source;
+            var end = LIGHT_RETURN.matcher(source);
+            if (!end.find(function.end())) return source;
+            if (!PASS_COLOUR.matcher(source).find(end.end())) return source;
+            counted("PixelLight.pass");
+            return source.substring(0, function.start()) + OPEN + STEP + LIGHT_STATE + CLOSE + "\n" + source.substring(function.start(), end.start())
+                + OPEN + LIGHT_SEEN + CLOSE + "\n   " + source.substring(end.start(), end.end()) + OPEN + LIGHT_LIFT + CLOSE + source.substring(end.end());
         }
 
         /**
