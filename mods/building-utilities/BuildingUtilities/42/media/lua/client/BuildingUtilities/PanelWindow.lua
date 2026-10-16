@@ -27,10 +27,11 @@ require "BuildingUtilities/ContextMenu"
 require "BuildingUtilities/PanelPlan"
 require "BuildingUtilities/PanelList"
 require "BuildingUtilities/PanelManual"
+require "BuildingUtilities/Job"
 local BU = BuildingUtilities
 local Store, Panels, Networks, Costs, Actions, Sync, Energy = BU.Store, BU.Panels, BU.Networks, BU.Costs, BU.Actions,
     BU.Sync, BU.Energy
-local Units, Ui, Geometry, Links = BU.Units, BU.PanelUi, BU.Geometry, BU.Links
+local Units, Ui, Geometry, Links, Job = BU.Units, BU.PanelUi, BU.Geometry, BU.Links, BU.Job
 local MANUAL = Ui.MANUAL
 local FONT_HGT_SMALL, ROW, PAD, REFRESH_MS, BAR_W, LOG, BATTERIES, LIST_W, MIN_LIST, MIN_PLAN, SEEN,
     ROOM_TICK_X, load2, percent, nextSchedule = Ui.FONT_HGT_SMALL, Ui.ROW,
@@ -45,6 +46,11 @@ local open = {}
 -- A change told (BU.onChanged, a notice, a network event) refreshes the window once it settles: one action often
 -- tells it twice within a few frames.
 local SETTLE_MS = 100
+-- A refresh is done a slice of so many milliseconds a frame (BU.Job), so that none takes a frame long; one answering
+-- the player's own click is given more. At least GAP_MS between the start of one and the next: a burst of changes (units
+-- installed, wired) is one refresh each time, not one for each. What a cost looks through the inventory for is kept
+-- COST_MS.
+PanelWindow.SLICE_MS, PanelWindow.URGENT_MS, PanelWindow.GAP_MS, PanelWindow.COST_MS = 3, 8, 300, 2000
 -- What the player chose, kept while the game runs: view options, folded rooms, the plan's share of the window and
 -- its legend.
 PanelWindow.options = { activeOnly = false, byLoad = false, hideUnwired = false }
@@ -105,6 +111,10 @@ function ISBUPanelWindow:new(x, y, playerObj, panel, anchor)
     o.views = {}
     -- The networks' states the last refresh read, by utility; the tabs not shown since then, filled as they open.
     o.states, o.pending = {}, {}
+    -- What the inventory said of the costs the window tells (costState).
+    o.costs = {}
+    -- The log's and the batteries' rows not made since the last refresh, as their tab is not open (fillExtra).
+    o.stale = {}
     o:setTitle(getText("IGUI_BU_TierName", Panels.name(panel), panel.tier or 1))
     return o
 end
@@ -500,7 +510,8 @@ end
 function ISBUPanelWindow:prerender()
     if self.refreshNow then
         self.refreshNow = false
-        self:refresh()
+        self:startRefresh(true)
+        self:stepJob()
     end
     -- The window's own drawing, in the palette: the background, the title bar with the title in the kit's face.
     local th = self:titleBarHeight()
@@ -523,6 +534,8 @@ function ISBUPanelWindow:prerender()
     end
     -- A tab opened that the last refresh left: its rows, before the plan shows its devices.
     if self.pending[self:activeUtility()] then self:refill(self:activeUtility()) end
+    local shown = self.tabs and self.tabs.activeView and self.tabs.activeView.view
+    if shown and self.stale[shown.utility] then self:fillExtra(shown.utility) end
     if self.plan and self.planUtility ~= self:activeUtility() then self:updatePlan() end
     if self.statusUtility ~= self:activeUtility() then self:updateStatus() end
 end
@@ -545,6 +558,8 @@ end
 function ISBUPanelWindow:measureLoad(panel, power)
     self.capacity = Panels.capacity(panel)
     local bank = Energy.bank(panel)
+    -- (false: none; the status line and the source rows take it from here)
+    self.bank = bank or false
     self.boost = Energy.boost(panel, bank)
     self.limit = self.capacity + self.boost
     self.load = nil
@@ -860,8 +875,12 @@ function ISBUPanelWindow:update()
     end
     UI.stepAside(self)
     local now = getTimestampMs()
-    if self.changedAt and now - self.changedAt >= SETTLE_MS or now - (self.refreshedAt or 0) > Ui.FULL_MS then
-        self:refresh()
+    local since = now - (self.refreshedAt or 0)
+    if self.job then
+        self:stepJob()
+    elseif self.changedAt and now - self.changedAt >= SETTLE_MS and since >= PanelWindow.GAP_MS or since > Ui.FULL_MS then
+        self:startRefresh()
+        self:stepJob()
     elseif now - (self.tickedAt or 0) > REFRESH_MS then
         self:tick()
     end
@@ -893,7 +912,7 @@ function ISBUPanelWindow:away()
     return math.min(from(self.anchor), from(self.panel))
 end
 
--- Something the window shows changed: it refreshes once that settles (SETTLE_MS), or on the next frame when the
+-- Something the window shows changed: it refreshes once that settles (SETTLE_MS), or from the next frame when the
 -- change answers the player's own click (the wait read as a sluggish click: about 170 ms).
 function ISBUPanelWindow:changed()
     self.changedAt = self.changedAt or getTimestampMs()
@@ -901,6 +920,7 @@ function ISBUPanelWindow:changed()
 end
 
 function ISBUPanelWindow:close()
+    self.job = nil
     -- What the window listed is no longer new; for a box taken down nothing is kept.
     if Store.get(self.panel.id) then
         local store = ModData.getOrCreate(SEEN)
@@ -927,74 +947,164 @@ function ISBUPanelWindow:close()
     end
 end
 
--- What the panel and its networks are now, as rows, and the plan. The tab shown is filled now (and power's, which
--- the load bar's tooltip tells), the other as it opens.
-function ISBUPanelWindow:refresh()
-    self.refreshedAt, self.tickedAt, self.changedAt = getTimestampMs(), getTimestampMs(), nil
-    -- On a client in multiplayer the data is received anew: the panel by its id.
-    local panel = Store.get(self.panel.id)
-    if not panel then return end
-    self.panel = panel
-    -- The first box this character sees powered.
-    if BU.Titles then BU.Titles.lit(self.playerObj, panel) end
-    if self.manual then self.manual:refresh(panel) end
-    -- A utility turned on or off in the sandbox, the first rack wired or the last taken away, or the log shown by an
-    -- upgrade: the window opens anew where it is, with its tabs (reopen).
-    if viewsKey(panel) ~= self.utilitiesKey then
-        self:reopen()
-        return
-    end
-    -- The highest floor of its building, for the boosters' rows.
-    local building = Panels.building(panel)
-    self.buildingTop = building and building.maxLevel or nil
-    local powerOn = BU.enabled("power")
-    local power, water = Networks.state(panel, "power"), Networks.state(panel, "water")
-    self.states = { power = power, water = water }
-    self:setTitle(getText("IGUI_BU_TierName", Panels.name(panel), panel.tier or 1))
-    self:measureLoad(panel, power)
-    self:measureWater(panel, water)
-    if self.load and math.abs((self.loadShown or 0) - self:loadShare()) > 0.002 then UI.live(self.body, bodyFrame) end
-    -- The banner: the breaker down.
-    if powerOn and panel.tripped then
-        self.banner = { text = getText("IGUI_BU_BannerTripped", load2(self.limit)), colour = { 0.6, 0.1, 0.1 }, pulse = true }
-    else
-        self.banner = nil
-    end
-    if self.banner and self.banner.pulse then UI.live(self.body, bodyFrame) end
-    local tier = panel.tier or 1
-    self.upgradeButton:setVisible(tier < BU.TIERS)
-    if tier < BU.TIERS then
-        titled(self.upgradeButton, getText("ContextMenu_BU_Upgrade", tier + 1))
-        local cost = Costs.upgrade(tier + 1)
-        self.upgradeButton:setTooltip(Panels.upgradeNote(tier + 1, true) .. "\n" .. Costs.describe(self.playerObj, cost, true))
-        self.upgradeButton:setEnable(Costs.affords(self.playerObj, cost))
-    end
-    self:placeRows()
+-- What the panel and its networks are now, as rows, and the plan, as tasks of a job (BU.Job). The tab shown is
+-- filled now (and power's, which the load bar's tooltip tells), the other as it opens.
+function ISBUPanelWindow:refreshTasks()
+    local tasks = {}
+    local function task(fn) tasks[#tasks + 1] = fn end
+    local panel, power, water
+    -- The box and its networks.
+    task(function(_, job)
+        -- On a client in multiplayer the data is received anew: the panel by its id.
+        panel = Store.get(self.panel.id)
+        if not panel then
+            Job.stop(job)
+            return
+        end
+        self.panel = panel
+        -- The first box this character sees powered.
+        if BU.Titles then BU.Titles.lit(self.playerObj, panel) end
+        if self.manual then self.manual:refresh(panel) end
+        -- A utility turned on or off in the sandbox, the first rack wired or the last taken away, or the log shown by an
+        -- upgrade: the window opens anew where it is, with its tabs (reopen).
+        if viewsKey(panel) ~= self.utilitiesKey then
+            Job.stop(job)
+            self:reopen()
+            return
+        end
+        -- The highest floor of its building, for the boosters' rows.
+        local building = Panels.building(panel)
+        self.buildingTop = building and building.maxLevel or nil
+        power, water = Networks.state(panel, "power"), Networks.state(panel, "water")
+        self.states = { power = power, water = water }
+    end)
+    -- The top: the title, the load's card, the banner.
+    task(function()
+        self:setTitle(getText("IGUI_BU_TierName", Panels.name(panel), panel.tier or 1))
+        self:measureLoad(panel, power)
+        if self.load and math.abs((self.loadShown or 0) - self:loadShare()) > 0.002 then UI.live(self.body, bodyFrame) end
+    end)
+    task(function()
+        self:measureWater(panel, water)
+        -- The banner: the breaker down.
+        if BU.enabled("power") and panel.tripped then
+            self.banner = { text = getText("IGUI_BU_BannerTripped", load2(self.limit)), colour = { 0.6, 0.1, 0.1 }, pulse = true }
+        else
+            self.banner = nil
+        end
+        if self.banner and self.banner.pulse then UI.live(self.body, bodyFrame) end
+    end)
+    -- The upgrade button, which tells what it takes (the inventory looked through: costState).
+    task(function()
+        local tier = panel.tier or 1
+        self.upgradeButton:setVisible(tier < BU.TIERS)
+        if tier < BU.TIERS then
+            titled(self.upgradeButton, getText("ContextMenu_BU_Upgrade", tier + 1))
+            local affords, described = self:costState("upgrade" .. (tier + 1), Costs.upgrade(tier + 1), true)
+            self.upgradeButton:setTooltip(Panels.upgradeNote(tier + 1, true) .. "\n" .. described)
+            self.upgradeButton:setEnable(affords)
+        end
+        self:placeRows()
+    end)
     -- The rooms of every building its zone can have (its own, and those its relays stand in): another building's
     -- named with where it is.
-    self.building = Panels.building(panel)
-    self.rooms = Panels.zoneRoomList(panel)
-    self.titles = {}
-    for _, building in ipairs(Panels.zoneBuildings(panel)) do
-        local away = not self.building or building.key ~= self.building.key
-        local where = away and Panels.where(panel, Geometry.centre(building))
-        for id, title in pairs(Panels.roomTitles(building)) do
-            self.titles[id] = away and getText("IGUI_BU_RoomAway", title, where) or title
+    task(function()
+        self.building = Panels.building(panel)
+        self.rooms = Panels.zoneRoomList(panel)
+        self.titles = {}
+        for _, building in ipairs(Panels.zoneBuildings(panel)) do
+            local away = not self.building or building.key ~= self.building.key
+            local where = away and Panels.where(panel, Geometry.centre(building))
+            for id, title in pairs(Panels.roomTitles(building)) do
+                self.titles[id] = away and getText("IGUI_BU_RoomAway", title, where) or title
+            end
         end
+    end)
+    task(function(_, job)
+        self.pending = {}
+        local active = self:activeUtility()
+        local fills = {}
+        for _, utility in ipairs(self.utilities) do
+            if utility == active or utility == "power" and self.load then
+                for _, each in ipairs(self:fillTasks(utility, self.states[utility])) do fills[#fills + 1] = each end
+            else
+                self.pending[utility] = { state = self.states[utility] }
+            end
+        end
+        Job.insert(job, fills)
+    end)
+    task(function() self:fillExtra(LOG) end)
+    task(function() self:fillExtra(BATTERIES) end)
+    task(function()
+        -- How water reaches the floors with fixtures, from the rows just filled: the status line and the plan both tell.
+        self.waterSupply = self:workOutWaterSupply()
+        self:updateStatus()
+        self.loadArea:setTooltip(self:loadBreakdown())
+    end)
+    task(function(_, job) Job.insert(job, self:planTasks()) end)
+    return tasks
+end
+
+-- Whether the character has what a cost asks and how it reads as a tooltip (Costs.affords, Costs.describe: both look
+-- through the inventory), as they were a moment ago unless COST_MS has passed (a refresh most often finds the same).
+function ISBUPanelWindow:costState(key, cost, plain)
+    local now = getTimestampMs()
+    local kept = self.costs[key]
+    if kept and not self.freshCosts and now - kept.at < PanelWindow.COST_MS then return kept.affords, kept.text end
+    kept = { at = now, affords = Costs.affords(self.playerObj, cost), text = Costs.describe(self.playerObj, cost, plain) }
+    self.costs[key] = kept
+    return kept.affords, kept.text
+end
+
+-- A refresh begun: done a slice a frame (stepJob) from now on. The one answering the player's own click (urgent) is
+-- given more time a frame.
+function ISBUPanelWindow:startRefresh(urgent)
+    local now = getTimestampMs()
+    self.refreshedAt, self.tickedAt, self.changedAt = now, now, nil
+    self.job = Job.new(self:refreshTasks())
+    self.job.urgent = urgent
+end
+
+-- The job run until the deadline (none: to its end); whether it is done. A task that fails ends the job, the failure
+-- told once.
+function ISBUPanelWindow:runJob(deadline)
+    local job = self.job
+    self.inJob = true
+    local ok, done = pcall(Job.run, job, deadline)
+    self.inJob = false
+    if not ok then
+        if self.job == job then self.job = nil end
+        error(done, 0)
     end
-    self.pending = {}
-    local active = self:activeUtility()
-    for _, utility in ipairs(self.utilities) do
-        if utility == active or utility == "power" and self.load then self:fill(utility, self.states[utility])
-        else self.pending[utility] = { state = self.states[utility] } end
+    if done and self.job == job then self.job = nil end
+    return done
+end
+
+-- One frame's slice of the refresh under way.
+function ISBUPanelWindow:stepJob()
+    if not self.job then return end
+    local budget = self.job.urgent and PanelWindow.URGENT_MS or PanelWindow.SLICE_MS
+    self:runJob(getTimestampMs() + budget)
+end
+
+-- The player's own doing (a fold, a search, a tab opened) fills a list or the plan on the spot: a refresh under way
+-- would put what it read before over it, so it is dropped and begins again once things settle.
+function ISBUPanelWindow:cancelJob()
+    if self.job and not self.inJob then
+        self.job = nil
+        self.changedAt = self.changedAt or getTimestampMs()
     end
-    if self.lists[LOG] then self:fillLog() end
-    if self.lists[BATTERIES] then self:fillBatteries() end
-    -- How water reaches the floors with fixtures, from the rows just filled: the status line and the plan both tell.
-    self.waterSupply = self:workOutWaterSupply()
-    self:updateStatus()
-    self.loadArea:setTooltip(self:loadBreakdown())
-    self:updatePlan()
+end
+
+-- The whole refresh at once (a window just opened, one opened anew, a test), not looking through the inventory
+-- twice within COST_MS.
+function ISBUPanelWindow:refresh()
+    self:cancelJob()
+    self:startRefresh()
+    self.freshCosts = true
+    local ok, err = pcall(self.runJob, self, nil)
+    self.freshCosts = nil
+    if not ok then error(err, 0) end
 end
 
 -- The window opens anew in its place, as large, with what the player had set here: the search, the room shown, the
@@ -1155,16 +1265,19 @@ local WATER_OPTIONS = { "HideUnwired" }
 
 -- Power's supply, in the order it is used: the bank's and the panels' source, then the generators (moved up and
 -- down there), then what could supply and no box has (unless the view hides it), with the view options on its header.
-function ISBUPanelWindow:supplyRows(add, state, view)
+function ISBUPanelWindow:supplyTasks(add, state, view)
     local panel = self.panel
-    add({ kind = "header", text = getText("IGUI_BU_Producers"), options = true })
     local producers = panel.power.producers
-    local source = Energy.hasSource(panel)
-    if #producers == 0 and not source then add({ kind = "note", text = getText("IGUI_BU_NoProducers_power") }) end
-    if source then
-        for _, entry in ipairs(self:sourceRows(state)) do add(entry.row, entry.tooltip) end
+    local tasks = {}
+    tasks[1] = function()
+        add({ kind = "header", text = getText("IGUI_BU_Producers"), options = true })
+        local source = Energy.hasSource(panel)
+        if #producers == 0 and not source then add({ kind = "note", text = getText("IGUI_BU_NoProducers_power") }) end
+        if source then
+            for _, entry in ipairs(self:sourceRows(state)) do add(entry.row, entry.tooltip) end
+        end
     end
-    for index, at in ipairs(producers) do
+    tasks[2] = Job.each(function() return producers end, function(at, index)
         local seen = PanelWindow.seenProducer(state, at)
         local inUse = PanelWindow.producerInUse(state, at)
         local square = getCell():getGridSquare(at.x, at.y, at.z)
@@ -1183,92 +1296,104 @@ function ISBUPanelWindow:supplyRows(add, state, view)
         add({ kind = "producer", text = text, index = index, at = at, inUse = inUse and not cut,
             out = generatorState == "out", cut = cut },
             cut and Links.reasonText(panel, ref) or getText("IGUI_BU_GeneratorTip"))
-    end
+    end)
     -- What it could take and no box has, dim, unless the view hides it: connected at the thing itself.
-    if not PanelWindow.options.hideUnwired then
-        for _, at in ipairs(view.unwired) do
-            local name = at.unit and Units.name(at.unit) or BU.displayName(at.x, at.y, at.z, at.sprite)
-            add({ kind = "producer", unwired = true, at = at,
-                text = getText("IGUI_BU_UnwiredProducerRow", name, Panels.where(panel, at.x, at.y, at.z)) },
-                getText("IGUI_BU_UnwiredProducerTip"))
-        end
-    end
+    tasks[3] = Job.each(function() return PanelWindow.options.hideUnwired and {} or view.unwired end, function(at)
+        local name = at.unit and Units.name(at.unit) or BU.displayName(at.x, at.y, at.z, at.sprite)
+        add({ kind = "producer", unwired = true, at = at,
+            text = getText("IGUI_BU_UnwiredProducerRow", name, Panels.where(panel, at.x, at.y, at.z)) },
+            getText("IGUI_BU_UnwiredProducerTip"))
+    end)
+    return tasks
 end
 
 -- A tab's rows, from the panel's devices as the API has them now, or as given (devices and whether they are
--- complete, from the last refresh).
-function ISBUPanelWindow:fill(utility, state, devices, complete)
+-- complete, from the last refresh), as tasks of a job (BU.Job): the rows are made first, and the list takes them
+-- all at once at the end, so that a window refreshed in slices changes between two frames, not along them.
+function ISBUPanelWindow:fillTasks(utility, state, devices, complete)
     local list = self.lists[utility]
-    local scroll = list:getYScroll()
-    list:unhighlight()
-    list.hovered = nil
-    list.selected = -1
-    list:clear()
-    local panel, playerObj = self.panel, self.playerObj
+    local panel = self.panel
+    local rows, view, placed, allTip, query, fixed = {}, nil, {}, nil, "", false
     local function add(row, tooltip)
         row.tip = tooltip
         -- what it stands for, as the plan knows it too (ISBUPanelWindow.rowKey)
         row.key = ISBUPanelWindow.rowKey(row)
-        list:addItem(row.text or "", row)
+        rows[#rows + 1] = row
     end
-    if not devices then
-        devices, complete = Panels.devices(panel, utility)
-        self:askAttached(devices)
-    end
-    -- The building's devices, and those outside in reach: wired to the box (at themselves), or not yet; not those
-    -- another box's line reaches.
-    local listed = {}
-    for _, device in ipairs(devices) do
-        if device.inside or device.state ~= "other" then listed[#listed + 1] = device end
-    end
-    devices = listed
-    local view = { state = state, devices = devices, complete = complete, names = {}, status = {}, totals = {},
-        producerText = {}, fresh = {} }
-    self.views[utility] = view
-    -- What it could take and no box has.
-    view.unwired = Panels.unwiredProducers(panel, utility)
+    local tasks = {}
+    local function task(fn) tasks[#tasks + 1] = fn end
+    -- The devices (found a few at a time, unless given), and what it could take and no box has.
+    task(function(_, job)
+        if devices then return end
+        local found = {}
+        local finding = Panels.deviceTasks(panel, utility, found)
+        finding[#finding + 1] = function()
+            devices, complete = found.devices, found.complete
+            self:askAttached(devices)
+        end
+        Job.insert(job, finding)
+    end)
+    task(function()
+        -- The building's devices, and those outside in reach: wired to the box (at themselves), or not yet; not those
+        -- another box's line reaches.
+        local listed = {}
+        for _, device in ipairs(devices) do
+            if device.inside or device.state ~= "other" then listed[#listed + 1] = device end
+        end
+        devices = listed
+        view = { state = state, devices = devices, complete = complete, names = {}, status = {}, totals = {},
+            producerText = {}, fresh = {} }
+    end)
+    task(function(_, job)
+        local found = {}
+        local finding = Panels.unwiredTasks(panel, utility, found)
+        finding[#finding + 1] = function() view.unwired = found.result end
+        Job.insert(job, finding)
+    end)
     -- Water has no supply list: its tanks give nearest first, in no order to set, and stand in places as its units do;
     -- they are listed under the rooms with the fixtures (ISBUPanelWindow:waterPlaced). First its pipes (with more than
     -- one: the tanks', rooms', fixtures' and units' rows show theirs) and the row putting in a new one.
-    local placed = {}
-    if utility == "water" then
-        self:pipeRows(add, state, devices)
-        self:addPipeRow(add)
-        if #panel.water.producers == 0 then add({ kind = "note", text = getText("IGUI_BU_NoProducers_water") }) end
-        placed = self:waterPlaced(state, view)
-    else
-        self:supplyRows(add, state, view)
-    end
-    self:lineRows(add, utility)
-    local seen = self:seenSet(utility, devices)
-    for _, device in ipairs(devices) do
-        if not seen[device.key] then view.fresh[device.key] = true end
-    end
-    local query = self.query or ""
-    -- Switching on every device of the building that is off: what the load would be.
-    local allTip, offPower = nil, 0
-    for _, device in ipairs(devices) do
-        if Ui.inBuilding(device) and device.state == "off" then offPower = offPower + (device.power or 0) end
-    end
-    if utility == "power" and self.load and offPower > 0 then
-        allTip = getText("IGUI_BU_PreviewAll", load2(self.load + offPower), load2(self.limit))
-    end
-    -- The devices under their own header (without it, "everything inside" read as a row of the relays above it).
-    -- Below the tier that cuts devices there is nothing to switch: no "everything inside" row, rows without ticks.
-    add({ kind = "header", text = getText(utility == "water" and "IGUI_BU_ZoneList" or "IGUI_BU_Devices"),
-        options = utility == "water" and WATER_OPTIONS or nil })
-    local fixed = not Panels.cuts(panel)
-    if not fixed then
-        add({ kind = "all", text = getText("IGUI_BU_AllInside"), state = self:allInside(devices) and "on" or "off" }, allTip)
-    end
-    if not complete then add({ kind = "note", text = getText("IGUI_BU_NotAllLoaded") }) end
-    if #devices == 0 then add({ kind = "note", text = getText("IGUI_BU_NoDevices_" .. utility) }) end
+    task(function(_, job)
+        if utility == "water" then
+            self:pipeRows(add, state, devices)
+            self:addPipeRow(add)
+            if #panel.water.producers == 0 then add({ kind = "note", text = getText("IGUI_BU_NoProducers_water") }) end
+            placed = self:waterPlaced(state, view)
+        else
+            Job.insert(job, self:supplyTasks(add, state, view))
+        end
+    end)
+    task(function() self:lineRows(add, utility) end)
+    task(function()
+        local seen = self:seenSet(utility, devices)
+        for _, device in ipairs(devices) do
+            if not seen[device.key] then view.fresh[device.key] = true end
+        end
+        query = self.query or ""
+        -- Switching on every device of the building that is off: what the load would be.
+        local offPower = 0
+        for _, device in ipairs(devices) do
+            if Ui.inBuilding(device) and device.state == "off" then offPower = offPower + (device.power or 0) end
+        end
+        if utility == "power" and self.load and offPower > 0 then
+            allTip = getText("IGUI_BU_PreviewAll", load2(self.load + offPower), load2(self.limit))
+        end
+        -- The devices under their own header (without it, "everything inside" read as a row of the relays above it).
+        -- Below the tier that cuts devices there is nothing to switch: no "everything inside" row, rows without ticks.
+        add({ kind = "header", text = getText(utility == "water" and "IGUI_BU_ZoneList" or "IGUI_BU_Devices"),
+            options = utility == "water" and WATER_OPTIONS or nil })
+        fixed = not Panels.cuts(panel)
+        if not fixed then
+            add({ kind = "all", text = getText("IGUI_BU_AllInside"), state = self:allInside(devices) and "on" or "off" }, allTip)
+        end
+        if not complete then add({ kind = "note", text = getText("IGUI_BU_NotAllLoaded") }) end
+        if #devices == 0 then add({ kind = "note", text = getText("IGUI_BU_NoDevices_" .. utility) }) end
+    end)
     -- Rooms by their id (rooms of one name stay apart), with the devices outside hung on their walls; a relay's devices
     -- under it; devices in no room after them; then those outside hung on neither, by floor (Ui.groupOf).
     local options = PanelWindow.options
     local groups, order = {}, {}
     local floorOf = {}
-    for _, room in ipairs(self.rooms or {}) do floorOf[room.id] = room.level end
     local function groupFor(id, level)
         if not groups[id] then
             groups[id] = { id = id, devices = {}, placed = {}, total = 0, on = 0, off = 0,
@@ -1279,7 +1404,10 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
     end
     self.displayNames = self.displayNames or {}
     local names = self.displayNames
-    for _, device in ipairs(devices) do
+    task(function()
+        for _, room in ipairs(self.rooms or {}) do floorOf[room.id] = room.level end
+    end)
+    task(Job.each(function() return devices end, function(device)
         local entry = device.entry
         -- its name looked up once a window (a square's objects searched, a translation read)
         local base = names[device.key]
@@ -1306,44 +1434,60 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
         local shown = (not options.activeOnly or utility ~= "power" or (device.power or 0) > 0 or device.held ~= nil)
             and not (options.hideUnwired and not device.wired)
         if shown then table.insert(g.devices, { device = device, name = name, status = status, dim = dim }) end
-    end
+    end))
     -- Water's tanks and units: under the zone's room they stand in, else the room or relay their line hangs from, else
     -- what is outside on their floor (as a device outside is).
-    local zoneRooms = #placed > 0 and Panels.zoneRooms(panel) or {}
-    for _, entry in ipairs(placed) do
-        local room = Panels.roomHaving(zoneRooms, entry.x, entry.y, entry.z)
-        local g
-        if room then
-            g = groupFor(room.id, room.level)
-        else
-            g = groupFor(Ui.groupOf({ inside = false, entry = entry,
-                hangsOn = entry.ref and Links.hangsOn(panel, entry.ref) or nil }))
+    task(function()
+        local zoneRooms = #placed > 0 and Panels.zoneRooms(panel) or {}
+        for _, entry in ipairs(placed) do
+            local room = Panels.roomHaving(zoneRooms, entry.x, entry.y, entry.z)
+            local g
+            if room then
+                g = groupFor(room.id, room.level)
+            else
+                g = groupFor(Ui.groupOf({ inside = false, entry = entry,
+                    hangsOn = entry.ref and Links.hangsOn(panel, entry.ref) or nil }))
+            end
+            g.placed[#g.placed + 1] = entry
         end
-        g.placed[#g.placed + 1] = entry
-    end
+    end)
+    -- a group's title, worked out once (the order below asks for it again and again)
+    local titles = {}
     local function title(id)
-        if Ui.isOutside(id) then return getText("IGUI_BU_Outside") end
-        if id == "" then return getText("IGUI_BU_NoRoom") end
-        if Links.isRelay(id) then
+        local text = titles[id]
+        if text then return text end
+        if Ui.isOutside(id) then
+            text = getText("IGUI_BU_Outside")
+        elseif id == "" then
+            text = getText("IGUI_BU_NoRoom")
+        elseif Links.isRelay(id) then
             local unit = Links.unitOf(id)
-            return unit and Units.name(unit) .. "  (" .. Panels.where(panel, unit.x, unit.y, unit.z) .. ")" or getText("IGUI_BU_NoRoom")
+            text = unit and Units.name(unit) .. "  (" .. Panels.where(panel, unit.x, unit.y, unit.z) .. ")" or getText("IGUI_BU_NoRoom")
+        else
+            text = self.titles[id] or getText("IGUI_BU_NoRoom")
         end
-        return self.titles[id] or getText("IGUI_BU_NoRoom")
+        titles[id] = text
+        return text
     end
     local function rank(group) return group.outside and 3 or group.id == "" and 2 or group.relay and 1 or 0 end
-    table.sort(order, function(a, b)
-        if rank(a) ~= rank(b) then return rank(a) < rank(b) end
-        if options.byLoad and a.total ~= b.total then return a.total > b.total end
-        return title(a.id) < title(b.id)
+    task(function()
+        table.sort(order, function(a, b)
+            if rank(a) ~= rank(b) then return rank(a) < rank(b) end
+            if options.byLoad and a.total ~= b.total then return a.total > b.total end
+            return title(a.id) < title(b.id)
+        end)
+        if self.roomFilter then
+            add({ kind = "filter", text = getText("IGUI_BU_FilterNote", title(self.roomFilter)) })
+        end
     end)
-    if self.roomFilter then
-        add({ kind = "filter", text = getText("IGUI_BU_FilterNote", title(self.roomFilter)) })
-    end
     local timers = (panel.tier or 1) >= BU.TIMER_TIER
-    -- Water: the pipes shown (more than one), and the layout that tells a fixture with no tank at or above it.
-    local pipesShown = utility == "water" and BU.Water.shown(panel)
-    local layout = utility == "water" and BU.Networks.waterLayout(panel) or nil
-    for _, group in ipairs(order) do
+    local pipesShown, layout
+    task(function()
+        -- Water: the pipes shown (more than one), and the layout that tells a fixture with no tank at or above it.
+        pipesShown = utility == "water" and BU.Water.shown(panel)
+        layout = utility == "water" and BU.Networks.waterLayout(panel) or nil
+    end)
+    task(Job.each(function() return order end, function(group)
         -- Water's tanks and units count and switch with the room's fixtures (as their own ticks do).
         group.units, group.producers = {}, {}
         for _, entry in ipairs(group.placed) do
@@ -1369,7 +1513,7 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
             end
             group.placed = placedKept
         end
-    end
+    end))
     local function visible(group)
         return (#group.devices > 0 or #group.placed > 0) and (not self.roomFilter or self.roomFilter == group.id)
     end
@@ -1431,25 +1575,28 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
     end
     -- Rooms on more than one floor: a header per floor, lowest first, with its rooms, relays and what is outside on it
     -- under it; a floor folded shows the header alone (ISBUPanelWindow:floorFolded). Devices in no room after the
-    -- floors.
-    local floors, levels = {}, {}
-    for _, group in ipairs(order) do
-        local level = group.level
-        if level ~= nil then
-            if not floors[level] then
-                floors[level] = { groups = {}, total = 0, on = 0, off = 0 }
-                levels[#levels + 1] = level
-            end
-            local floor = floors[level]
-            floor.groups[#floor.groups + 1] = group
-            floor.total, floor.on, floor.off = floor.total + group.total, floor.on + group.on, floor.off + group.off
-        end
-    end
-    if #levels < 2 then
+    -- floors. The rows are made a step at a time: a floor's header, a room with its devices.
+    local steps = {}
+    task(function()
+        local floors, levels = {}, {}
         for _, group in ipairs(order) do
-            if visible(group) then emit(group) end
+            local level = group.level
+            if level ~= nil then
+                if not floors[level] then
+                    floors[level] = { groups = {}, total = 0, on = 0, off = 0 }
+                    levels[#levels + 1] = level
+                end
+                local floor = floors[level]
+                floor.groups[#floor.groups + 1] = group
+                floor.total, floor.on, floor.off = floor.total + group.total, floor.on + group.on, floor.off + group.off
+            end
         end
-    else
+        if #levels < 2 then
+            for _, group in ipairs(order) do
+                if visible(group) then steps[#steps + 1] = function() emit(group) end end
+            end
+            return
+        end
         table.sort(levels)
         for _, level in ipairs(levels) do
             local floor, any = floors[level], false
@@ -1459,23 +1606,42 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
                 local folded = query == "" and not self.roomFilter and self:floorFolded(foldKey, level)
                 local count = floor.on + floor.off
                 local right = utility == "power" and load2(floor.total) or count > 0 and (floor.on .. " / " .. count) or nil
-                add({ kind = "floor", level = level, text = BU.floorName(level), right = right, folded = folded, foldKey = foldKey },
-                    getText(folded and "IGUI_BU_FloorRowOpen" or "IGUI_BU_FloorRowFold"))
+                steps[#steps + 1] = function()
+                    add({ kind = "floor", level = level, text = BU.floorName(level), right = right, folded = folded, foldKey = foldKey },
+                        getText(folded and "IGUI_BU_FloorRowOpen" or "IGUI_BU_FloorRowFold"))
+                end
                 if not folded then
                     for _, group in ipairs(floor.groups) do
-                        if visible(group) then emit(group) end
+                        if visible(group) then steps[#steps + 1] = function() emit(group) end end
                     end
                 end
             end
         end
         for _, group in ipairs(order) do
-            if group.level == nil and visible(group) then emit(group) end
+            if group.level == nil and visible(group) then steps[#steps + 1] = function() emit(group) end end
         end
-    end
-    -- The row chosen stays selected (found again by what it stands for).
-    local chosen = self.chosenRow
-    if chosen and chosen.utility == utility then self:chooseRow(utility, chosen.key, true) end
-    list:setYScroll(scroll)
+    end)
+    task(Job.each(function() return steps end, function(step) step() end))
+    -- The list takes the rows, and the row chosen stays selected (found again by what it stands for).
+    task(function()
+        self.views[utility] = view
+        local scroll = list:getYScroll()
+        list:unhighlight()
+        list.hovered = nil
+        list.selected = -1
+        list:clear()
+        for _, row in ipairs(rows) do list:addItem(row.text or "", row) end
+        local chosen = self.chosenRow
+        if chosen and chosen.utility == utility then self:chooseRow(utility, chosen.key, true) end
+        list:setYScroll(scroll)
+    end)
+    return tasks
+end
+
+-- A tab's rows at once (see fillTasks). The player's own doing (a fold, a search) takes over a refresh under way.
+function ISBUPanelWindow:fill(utility, state, devices, complete)
+    self:cancelJob()
+    Job.runAll(self:fillTasks(utility, state, devices, complete))
 end
 
 -- Whether a floor's header in the list is folded: as the player left it (PanelWindow.folded), else open only for the
@@ -1498,6 +1664,19 @@ local function ago(hours)
     if hours < 1 then return getText("IGUI_BU_AgoMinutes", math.floor(hours * 60)) end
     if hours < 24 then return getText("IGUI_BU_AgoHours", math.floor(hours)) end
     return getText("IGUI_BU_AgoDays", math.floor(hours / 24))
+end
+
+-- The log's or the batteries' rows (a refresh finds them as they were when their tab is not the one open: they are
+-- made as it opens, in the frame before it is drawn).
+function ISBUPanelWindow:fillExtra(name)
+    if not self.lists[name] then return end
+    local shown = self.tabs.activeView and self.tabs.activeView.view
+    if not (shown and shown.utility == name) then
+        self.stale[name] = true
+        return
+    end
+    self.stale[name] = nil
+    if name == LOG then self:fillLog() else self:fillBatteries() end
 end
 
 -- What happened to the box, newest first, with how long ago.

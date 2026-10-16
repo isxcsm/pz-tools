@@ -56,7 +56,10 @@ function ISBUPanelWindow:sourceRows(state)
     local output, count, snow = Energy.output(panel)
     local seen = Energy.sourceState(state)
     local inUse = Energy.inUse(state)
-    local bank = Energy.bank(panel)
+    -- the bank the window measured (measureLoad)
+    local bank = self.bank
+    if bank == nil then bank = Energy.bank(panel) end
+    bank = bank or nil
     if count > 0 then
         local status
         if Energy.sunlight() <= 0 then status = getText("IGUI_BU_SolarNight")

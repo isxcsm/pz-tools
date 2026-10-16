@@ -81,8 +81,8 @@ local function overloaded(result, panel, load, limit)
     return result
 end
 
--- A panel's power: { text, left, reason, level }.
-local function powerStatus(panel, state)
+-- A panel's power: { text, left, reason, level }. bank: the panel's bank as the caller has it (false for none), else read here.
+local function powerStatus(panel, state, given)
     -- The grid carries what it reaches (gridFirst): the box's own supply is told only while something it does not
     -- reach draws (a player-built room, the box's pumps).
     local grid = getWorld():isHydroPowerOn()
@@ -94,7 +94,7 @@ local function powerStatus(panel, state)
     if not state then return { text = getText("IGUI_BU_St_None"), level = BAD } end
     local hasSource = Energy.hasSource(panel)
     local rules = Energy.rules(panel, state)
-    local bank = hasSource and Energy.bank(panel) or nil
+    local bank = hasSource and (given == nil and Energy.bank(panel) or given) or nil
     local output = hasSource and Energy.output(panel) or 0
     if state.supplied and Energy.inUse(state) then
         local result = { level = OK }
@@ -194,11 +194,11 @@ local function waterStatus(panel, state, supply)
 end
 
 -- The status of a panel's utility. supply: how water reaches the panel's floors with fixtures
--- (ISBUPanelWindow:workOutWaterSupply), to tell of them.
-function PanelWindow.status(panel, utility, supply)
+-- (ISBUPanelWindow:workOutWaterSupply), to tell of them. bank: the panel's bank, when the caller has it (false: none).
+function PanelWindow.status(panel, utility, supply, bank)
     local state = Networks.state(panel, utility)
     if utility == "water" then return waterStatus(panel, state, supply) end
-    return powerStatus(panel, state)
+    return powerStatus(panel, state, bank)
 end
 
 -- The floors where a connected water fixture has no tank of its pipe at its floor or above (too high), from the
@@ -240,7 +240,7 @@ function ISBUPanelWindow:updateStatus()
         return
     end
     local supply = self.waterSupply
-    local status = PanelWindow.status(self.panel, self.statusUtility, supply)
+    local status = PanelWindow.status(self.panel, self.statusUtility, supply, self.bank)
     local text = status.left and status.text .. ", " .. status.left or status.text
     local textX = PAD + FONT_HGT_SMALL
     self.status = { text = text, textX = textX, colour = PanelWindow.STATUS_COLOURS[status.level] }
@@ -252,7 +252,7 @@ function ISBUPanelWindow:updateStatus()
     end
     local lines = {}
     for _, utility in ipairs(self.utilities) do
-        local each = utility == self.statusUtility and status or PanelWindow.status(self.panel, utility, supply)
+        local each = utility == self.statusUtility and status or PanelWindow.status(self.panel, utility, supply, self.bank)
         lines[#lines + 1] = " <RGB:1,1,1> " .. getText("IGUI_BU_Tab_" .. utility) .. ": " .. each.text
         if each.left then lines[#lines + 1] = " <RGB:0.8,0.8,0.8> " .. each.left end
         if each.reason then lines[#lines + 1] = " <RGB:0.7,0.7,0.7> " .. each.reason end

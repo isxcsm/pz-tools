@@ -49,6 +49,8 @@ local function install()
     wrap(BU.Overload, "check", "Overload.check")
     wrap(BU.RackWindow, "refreshAll", "RackWindow.refreshAll")
     wrap(ISBUPanelWindow, "refresh", "window.refresh")
+    -- a refresh between frames is slices (BU.Job): this is what one frame of it takes
+    wrap(ISBUPanelWindow, "stepJob", "window.slice")
     wrap(ISBUPanelWindow, "updatePlan", "window.updatePlan")
     wrap(ISBUPanelWindow, "fill", "window.fill")
     wrap(ISBUPanelWindow, "updateStatus", "window.updateStatus")

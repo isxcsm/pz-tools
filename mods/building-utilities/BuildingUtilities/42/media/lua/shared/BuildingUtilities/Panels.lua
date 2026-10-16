@@ -6,6 +6,7 @@ require "BuildingUtilities/Networks"
 require "BuildingUtilities/Geometry"
 require "BuildingUtilities/Switches"
 require "BuildingUtilities/Nearby"
+require "BuildingUtilities/Job"
 local BU = BuildingUtilities
 local Store, Networks, Geometry = BU.Store, BU.Networks, BU.Geometry
 local Panels = {}
@@ -605,32 +606,43 @@ end
 -- What a box could take that has no line, each { x, y, z, sprite } (a generator or water storage) or { x, y, z,
 -- unit }: the producers in its building and around it within its connect range (the API's buildings.producers, read in
 -- Java; none with an API from before it), and the units, that a line could hang on the box from (BU.Links.placeOn).
--- None while the utility is off.
-function Panels.unwiredProducers(panel, utility)
+-- None while the utility is off. As tasks of a job (BU.Job), one item a step (each asks where a line could hang on the
+-- box, which is the most of it): the list is put in `out` (out.result) by the last.
+function Panels.unwiredTasks(panel, utility, out)
     local result = {}
-    if not BU.enabled(utility) then return result end
+    out.result = result
+    if not BU.enabled(utility) then return {} end
     local Links = BU.Links
     local api = BU.api()
     local building = Panels.building(panel)
     local find = api and api.buildings.producers
+    local tasks = {}
+    local listed = {}
     if building and find then
-        local list = find(building.key, math.min(32, BU.connectRange(panel.tier)), utility)
-        for i = 1, list and #list or 0 do
-            local entry = list[i]
+        tasks[#tasks + 1] = function()
+            listed = find(building.key, math.min(32, BU.connectRange(panel.tier)), utility) or {}
+        end
+        tasks[#tasks + 1] = BU.Job.each(function() return listed end, function(entry)
             if not Links.get(Links.producerRef(entry.x, entry.y, entry.z)) and Panels.storageAt(utility, entry)
                     and Links.placeOn(panel, utility, entry.x, entry.y, entry.z) then
                 result[#result + 1] = { x = entry.x, y = entry.y, z = entry.z, sprite = entry.sprite }
             end
-        end
+        end)
     end
     local Units = BU.Units
-    for _, unit in ipairs(Store.unitList(nil, nil)) do
+    tasks[#tasks + 1] = BU.Job.each(function() return Store.unitList(nil, nil) end, function(unit)
         if not Links.get(Links.unitRef(unit)) and Units.utility(unit) == utility and BU.enabled(unit.kind)
                 and Units.canConnect(unit, panel) then
             result[#result + 1] = { x = unit.x, y = unit.y, z = unit.z, unit = unit }
         end
-    end
-    return result
+    end)
+    return tasks
+end
+
+function Panels.unwiredProducers(panel, utility)
+    local out = {}
+    BU.Job.runAll(Panels.unwiredTasks(panel, utility, out))
+    return out.result
 end
 
 -- Devices.
@@ -670,104 +682,125 @@ local function claimedElsewhere(panel, utility, keys)
     return false
 end
 
-function Panels.devices(panel, utility)
+-- The devices as tasks of a job (BU.Job), for a window that finds them a few at a time between frames: the list and
+-- whether it is complete are put in `out` (out.devices, out.complete) by the last task. Nothing is done until the
+-- tasks run, but the first answers the cheap questions at once (a utility that is off, no API: no tasks, out given).
+function Panels.deviceTasks(panel, utility, out)
     local api = BU.api()
     local building = Panels.building(panel)
     local result = {}
-    if not BU.enabled(utility) then return result, true end
-    if not api then return result, false end
+    out.devices, out.complete = result, true
+    if not BU.enabled(utility) then return {} end
+    if not api then
+        out.complete = false
+        return {}
+    end
     local data = panel[utility]
+    local tasks = {}
+    local function task(fn) tasks[#tasks + 1] = fn end
     -- The listed parts by object: each part's key leads to its object's group.
     local groups, order, groupOf = {}, {}, {}
+    -- What the API listed, to be grouped: { entry, inside, built }, in the order they are found.
+    local listed = {}
     local function collect(list, inside, built)
-        for i = 1, list and #list or 0 do
-            local entry = list[i]
-            -- Of the building, only the rooms of the panel's zone.
-            if not inside or Panels.inZone(panel, entry.roomId) then
-                local key = BU.thingKey(entry.x, entry.y, entry.z, entry.sprite)
-                local group = groupOf[key]
-                if not group then
-                    local object = BU.objectsWithSprite(entry.x, entry.y, entry.z, entry.sprite)[1]
-                    local keys = object and BU.partKeys(object) or { key }
-                    group = { keys = keys, entries = {}, inside = inside, built = built, object = object }
-                    for _, part in ipairs(keys) do groupOf[part] = group end
-                    groupOf[key] = group
-                    order[#order + 1] = group
-                end
-                group.entries[#group.entries + 1] = { entry = entry, key = key }
+        for i = 1, list and #list or 0 do listed[#listed + 1] = { entry = list[i], inside = inside, built = built } end
+    end
+    local function group(item)
+        local entry, inside, built = item.entry, item.inside, item.built
+        -- Of the building, only the rooms of the panel's zone.
+        if not inside or Panels.inZone(panel, entry.roomId) then
+            local key = BU.thingKey(entry.x, entry.y, entry.z, entry.sprite)
+            local found = groupOf[key]
+            if not found then
+                local object = BU.objectsWithSprite(entry.x, entry.y, entry.z, entry.sprite)[1]
+                local keys = object and BU.partKeys(object) or { key }
+                found = { keys = keys, entries = {}, inside = inside, built = built, object = object }
+                for _, part in ipairs(keys) do groupOf[part] = found end
+                groupOf[key] = found
+                order[#order + 1] = found
             end
+            found.entries[#found.entries + 1] = { entry = entry, key = key }
         end
     end
     local insideComplete, outsideComplete, builtComplete = true, true, true
-    -- The rooms of the zone in each building it has rooms of (its own; those its relays stand in).
-    for _, each in ipairs(Panels.zoneBuildings(panel)) do
-        local inside, complete = api.buildings.objects(each.key, utility)
-        insideComplete = insideComplete and complete
-        collect(inside, true)
-    end
-    if building then
-        -- The devices of built-on rooms are the API's attachedObjects, each with its space's host as its room. The
-        -- API lists them among those outside too: the others are sought within the range of the outline with the
-        -- rooms, as far as the rooms reach past the map's rooms the API counts from.
-        local reach = BU.connectRange(panel.tier)
-        local spaces = Panels.attached(building)
-        local extent = 0
-        for _, space in ipairs(spaces or {}) do extent = math.max(extent, space.extent) end
-        local listed
-        listed, outsideComplete = api.buildings.near(building.key, math.min(32, reach + extent), utility)
-        local outside, built = listed, nil
-        if extent > 0 then
-            built, builtComplete = api.buildings.attachedObjects(building.key, utility)
-            if listed then
-                local rooms = Panels.rooms(building)
-                outside = {}
-                for i = 1, #listed do
-                    local entry = listed[i]
-                    if not Panels.attachedAt(spaces, entry.x, entry.y, entry.z) then
-                        local steps = Geometry.toLevel(entry.x, entry.y, entry.z, rooms)
-                        if steps and steps <= reach then outside[#outside + 1] = entry end
+    -- What the API lists: the rooms of the zone in each building it has rooms of (its own; those its relays stand in),
+    -- the devices of built-on rooms (each with its space's host as its room), and those outside.
+    task(function()
+        for _, each in ipairs(Panels.zoneBuildings(panel)) do
+            local inside, complete = api.buildings.objects(each.key, utility)
+            insideComplete = insideComplete and complete
+            collect(inside, true)
+        end
+        if building then
+            -- The API lists the devices of built-on rooms among those outside too: the others are sought within the range
+            -- of the outline with the rooms, as far as the rooms reach past the map's rooms the API counts from.
+            local reach = BU.connectRange(panel.tier)
+            local spaces = Panels.attached(building)
+            local extent = 0
+            for _, space in ipairs(spaces or {}) do extent = math.max(extent, space.extent) end
+            local near
+            near, outsideComplete = api.buildings.near(building.key, math.min(32, reach + extent), utility)
+            local outside, built = near, nil
+            if extent > 0 then
+                built, builtComplete = api.buildings.attachedObjects(building.key, utility)
+                if near then
+                    local rooms = Panels.rooms(building)
+                    outside = {}
+                    for i = 1, #near do
+                        local entry = near[i]
+                        if not Panels.attachedAt(spaces, entry.x, entry.y, entry.z) then
+                            local steps = Geometry.toLevel(entry.x, entry.y, entry.z, rooms)
+                            if steps and steps <= reach then outside[#outside + 1] = entry end
+                        end
                     end
                 end
             end
+            collect(built, true, true)
+            collect(outside, false)
         end
-        collect(built, true, true)
-        collect(outside, false)
-    end
+    end)
+    task(BU.Job.each(function() return listed end, group))
     -- The devices whose lines are the box's, wherever they are (hung on a relay far off).
     local far = {}
-    for key in pairs(data.included) do
-        if not groupOf[key] then
-            local x, y, z, sprite = BU.parseThing(key)
-            if x then far[#far + 1] = { x = x, y = y, z = z, sprite = sprite } end
+    task(function()
+        listed = {}
+        local missing = {}
+        for key in pairs(data.included) do
+            if not groupOf[key] then
+                local x, y, z, sprite = BU.parseThing(key)
+                if x then missing[#missing + 1] = { x = x, y = y, z = z, sprite = sprite } end
+            end
         end
-    end
-    table.sort(far, function(a, b) return BU.thingKey(a.x, a.y, a.z, a.sprite) < BU.thingKey(b.x, b.y, b.z, b.sprite) end)
-    collect(far, false)
+        table.sort(missing, function(a, b) return BU.thingKey(a.x, a.y, a.z, a.sprite) < BU.thingKey(b.x, b.y, b.z, b.sprite) end)
+        collect(missing, false)
+        far = listed
+    end)
+    task(BU.Job.each(function() return far end, group))
     -- Water: the zone's rooms by id, for each device's room (BU.Water.placeDevice), made once.
     local zoneRoomsById
-    for _, group in ipairs(order) do
-        if group.built and claimedElsewhere(panel, utility, group.keys) then group.inside = false end
-        table.sort(group.entries, function(a, b) return a.key < b.key end)
-        local first = group.entries[1]
+    task(BU.Job.each(function() return order end, function(each)
+        if each.built and claimedElsewhere(panel, utility, each.keys) then each.inside = false end
+        table.sort(each.entries, function(a, b) return a.key < b.key end)
+        local first = each.entries[1]
         local power
-        for _, part in ipairs(group.entries) do
+        for _, part in ipairs(each.entries) do
             if part.entry.power then power = (power or 0) + part.entry.power end
         end
-        local device = { entry = first.entry, key = first.key, keys = group.keys, power = power, inside = group.inside,
-            roomId = group.inside and (first.entry.roomId or "") or nil }
-        if group.built and group.inside then
+        local device = { entry = first.entry, key = first.key, keys = each.keys, power = power, inside = each.inside,
+            roomId = each.inside and (first.entry.roomId or "") or nil }
+        if each.built and each.inside then
             device.attached = true
             device.pending = not (data.attached and data.attached[first.key])
         end
         -- wired: the box reaches it (one of the building always, one outside by its line); its state is whether the
         -- box supplies it ("on", "off"), or "other" when another box's line is laid to it
-        if group.inside then
+        if each.inside then
             device.wired = true
-            device.state = anyKey(data.excluded, group.keys) and "off" or "on"
+            device.state = anyKey(data.excluded, each.keys) and "off" or "on"
         else
-            local owner = inclusionOwner(utility, group.keys)
+            local owner = inclusionOwner(utility, each.keys)
             device.wired = owner == panel
-            if owner == panel then device.state = anyKey(data.excluded, group.keys) and "off" or "on"
+            if owner == panel then device.state = anyKey(data.excluded, each.keys) and "off" or "on"
             else device.state = owner and "other" or "off" end
             -- Its line supplies nothing: why (BU.Links).
             if owner == panel and data.included[first.key] then
@@ -784,7 +817,7 @@ function Panels.devices(panel, utility)
             end
             BU.Water.placeDevice(panel, device, zoneRoomsById)
         end
-        if utility == "power" and group.object then device.switchOn = BU.Switches.state(group.object) end
+        if utility == "power" and each.object then device.switchOn = BU.Switches.state(each.object) end
         if utility == "power" and device.state == "on" then
             device.schedule = data.schedule[device.key] or "always"
             -- held: on at the box, yet given nothing (its line cut, no power outside, its timer).
@@ -792,8 +825,16 @@ function Panels.devices(panel, utility)
                 or data.timed[device.key] and "timer" or nil
         end
         result[#result + 1] = device
-    end
-    return result, insideComplete and outsideComplete and builtComplete
+    end))
+    task(function() out.complete = insideComplete and outsideComplete and builtComplete end)
+    return tasks
+end
+
+-- The devices at once (see Panels.deviceTasks): the list and whether it is complete.
+function Panels.devices(panel, utility)
+    local out = {}
+    BU.Job.runAll(Panels.deviceTasks(panel, utility, out))
+    return out.devices, out.complete
 end
 
 -- A device outside as one object of a utility at a square (x, y, z, its sprite) is, for one no box lists: { entry,

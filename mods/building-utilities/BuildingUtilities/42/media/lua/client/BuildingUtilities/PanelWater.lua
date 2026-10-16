@@ -84,11 +84,9 @@ function ISBUPanelWindow:addPipeRow(add)
     local panel = self.panel
     local id = Water.nextPipe(panel)
     if not id then return end
-    local cost = Costs.addPipe()
-    local affords = Costs.affords(self.playerObj, cost)
+    local affords, described = self:costState("addPipe", Costs.addPipe())
     add({ kind = "addPipe", text = getText("IGUI_BU_AddPipe"), reason = not affords or nil },
-        getText("IGUI_BU_AddPipeTip", getText("IGUI_BU_Pipe_" .. Water.COLOUR_NAMES[id], id)) .. " <LINE> "
-            .. Costs.describe(self.playerObj, cost))
+        getText("IGUI_BU_AddPipeTip", getText("IGUI_BU_Pipe_" .. Water.COLOUR_NAMES[id], id)) .. " <LINE> " .. described)
 end
 
 -- A menu of the pipes at the mouse; the current one is not offered. back: a last option (a fixture's room's pipe).

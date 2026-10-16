@@ -7,7 +7,7 @@ local Store, Panels, Networks, Sync, Geometry, Energy, Units, Links = BU.Store, 
 local Ui = BU.PanelUi
 local load2, deviceObjects, outline, unoutline = Ui.load2, Ui.deviceObjects, Ui.outline,
     Ui.unoutline
-local PanelWindow = BU.PanelWindow
+local PanelWindow, Job = BU.PanelWindow, BU.Job
 
 -- What the generators' noise rings are of, to tell when one changed.
 local function noiseKey(noises)
@@ -20,102 +20,118 @@ end
 
 -- The plan.
 
-function ISBUPanelWindow:updatePlan()
-    if not self.plan then return end
+-- What the plan shows, as tasks of a job (BU.Job): the rooms and devices, the producers and units, the relays and
+-- lines, then the zones and the data given to the plan, which lays it out only when it differs from what it shows
+-- (ISBUPlan:setData).
+function ISBUPanelWindow:planTasks()
+    if not self.plan then return {} end
     local utility = self:activeUtility()
     local view = self.views[utility]
-    if not view then return end
-    self.planUtility = utility
+    if not view then return {} end
     local panel = self.panel
-    -- a pipe being put on rooms: each room in its pipe's colour
-    local paint = utility == "water" and self:paintingPipe() or nil
-    local pipeList = nil
-    if utility == "water" and BU.Water.shown(panel) then
-        pipeList = {}
-        for _, pipe in ipairs(BU.Water.pipes(panel)) do
-            pipeList[#pipeList + 1] = { colour = BU.Water.colour(pipe.id), name = BU.Water.pipeName(panel, pipe.id) }
-        end
+    local tasks = {}
+    local function task(fn) tasks[#tasks + 1] = fn end
+    local paint, pipeList, pipes, hide
+    -- what each part of the data is against what the plan shows, made as the part is (setData does not compare it again)
+    local shown, verified = self.plan.data, {}
+    local function check(key, value)
+        if shown then verified[key] = ISBUPlan.same(shown[key], value, 1) end
     end
-    local rooms = {}
-    for _, room in ipairs(self.rooms or {}) do
-        rooms[#rooms + 1] = { id = room.id, title = self.titles[room.id] or BU.roomName(room.name or ""), level = room.level,
-            rects = room.rects, building = room.building,
-            pipeColour = paint and BU.Water.colour(BU.Water.roomPipe(panel, room.key) or BU.Water.FIRST) or nil }
-    end
-    local devices = {}
-    local hide = PanelWindow.options.hideUnwired
-    -- Water with more than one pipe: each thing in its pipe's colour (a fixture's dot too, dark while it is off), and
-    -- the lines too.
-    local pipes = utility == "water" and BU.Water.shown(panel)
-    for _, device in ipairs(view.devices) do
-        local entry = device.entry
-        if not (hide and not device.wired) then
-            devices[#devices + 1] = { key = device.key, x = entry.x, y = entry.y, z = entry.z, roomId = device.roomId,
-                inside = device.inside, state = device.state, wired = device.wired, held = device.held, cut = device.cut,
-                power = device.power, utility = utility, name = view.names[device.key] or "",
-                status = view.status[device.key], fresh = view.fresh[device.key],
-                ref = not device.inside and device.wired and Links.deviceRef(device.key) or nil,
-                pipeColour = pipes and device.pipe and BU.Water.colour(device.pipe) or nil }
-        end
-    end
-    local producers = {}
-    local state = view.state
-    for index, at in ipairs(panel[utility].producers) do
-        local inUse = PanelWindow.producerInUse(state, at)
-        local ref = Links.producerRef(at.x, at.y, at.z)
-        local cut = Links.reason(panel, ref) ~= nil
-        local colour = pipes and BU.Water.colour(BU.Water.producerPipe(panel, at)) or nil
-        producers[#producers + 1] = { x = at.x, y = at.y, z = at.z, inUse = inUse and not cut, colour = colour, cut = cut,
-            off = at.off,
-            ref = ref, key = ISBUPanelWindow.squareKey(at), text = (view.producerText[index] or "") .. (cut and "  " .. getText("IGUI_BU_LineNotSupplied") or "") }
-    end
-    -- The units: power's as its source, water's each on its own (in its inlet's colour, a pump in its outlet's; a
-    -- filter or a booster pump between two pipes half in each, colour2 its outlet's); one whose line supplies nothing
-    -- grey.
-    local inUse = utility == "power" and Energy.inUse(state)
-    for _, unit in ipairs(Store.unitList(nil, panel.id)) do
-        if not BU.RELAY_KINDS[unit.kind] and Units.utility(unit) == utility and BU.enabled(unit.kind) then
-            local ref = Links.unitRef(unit)
-            local live = Links.live(panel, ref)
-            local text = Units.name(unit)
-            if not live then text = text .. "  " .. getText("IGUI_BU_LineNotSupplied")
-            elseif utility == "water" then text = text .. "  " .. self:waterUnitStatus(unit) end
-            local colour, colour2
-            if pipes then
-                local inlet, outlet = BU.Water.unitPipes(panel, unit)
-                colour = BU.Water.colour(inlet or outlet)
-                if inlet and outlet and outlet ~= inlet then colour2 = BU.Water.colour(outlet) end
+    local rooms, devices, producers, relays, liveRelays, lines = {}, {}, {}, {}, {}, {}
+    task(function()
+        self.planUtility = utility
+        -- a pipe being put on rooms: each room in its pipe's colour
+        paint = utility == "water" and self:paintingPipe() or nil
+        if utility == "water" and BU.Water.shown(panel) then
+            pipeList = {}
+            for _, pipe in ipairs(BU.Water.pipes(panel)) do
+                pipeList[#pipeList + 1] = { colour = BU.Water.colour(pipe.id), name = BU.Water.pipeName(panel, pipe.id) }
             end
-            -- power's units share their kind's source row
-            local key = utility == "power" and ISBUPanelWindow.sourceKey(unit.kind) or ISBUPanelWindow.squareKey(unit)
-            producers[#producers + 1] = { x = unit.x, y = unit.y, z = unit.z, unit = unit.kind, colour = colour, colour2 = colour2,
-                off = unit.off, ref = ref, key = key, cut = not live, inUse = live and (inUse or unit.running == true), text = text }
         end
-    end
-    -- What it could take and no box has: grey, as devices not connected are.
-    if not hide then
-        for _, at in ipairs(view.unwired or {}) do
-            local name = at.unit and Units.name(at.unit) or utility == "water" and getText("IGUI_BU_Legend_tank")
-                or BU.displayName(at.x, at.y, at.z, at.sprite)
-            producers[#producers + 1] = { x = at.x, y = at.y, z = at.z, unwired = true, unit = at.unit and at.unit.kind,
-                key = ISBUPanelWindow.squareKey(at), text = name .. "  " .. getText("IGUI_BU_NotWired") }
+        for _, room in ipairs(self.rooms or {}) do
+            rooms[#rooms + 1] = { id = room.id, title = self.titles[room.id] or BU.roomName(room.name or ""), level = room.level,
+                rects = room.rects, building = room.building,
+                pipeColour = paint and BU.Water.colour(BU.Water.roomPipe(panel, room.key) or BU.Water.FIRST) or nil }
         end
-    end
+        hide = PanelWindow.options.hideUnwired
+        -- Water with more than one pipe: each thing in its pipe's colour (a fixture's dot too, dark while it is off), and
+        -- the lines too.
+        pipes = utility == "water" and BU.Water.shown(panel)
+        for _, device in ipairs(view.devices) do
+            local entry = device.entry
+            if not (hide and not device.wired) then
+                devices[#devices + 1] = { key = device.key, x = entry.x, y = entry.y, z = entry.z, roomId = device.roomId,
+                    inside = device.inside, state = device.state, wired = device.wired, held = device.held, cut = device.cut,
+                    power = device.power, utility = utility, name = view.names[device.key] or "",
+                    status = view.status[device.key], fresh = view.fresh[device.key],
+                    ref = not device.inside and device.wired and Links.deviceRef(device.key) or nil,
+                    pipeColour = pipes and device.pipe and BU.Water.colour(device.pipe) or nil }
+            end
+        end
+        check("rooms", rooms)
+        check("devices", devices)
+    end)
+    task(function()
+        local state = view.state
+        for index, at in ipairs(panel[utility].producers) do
+            local inUse = PanelWindow.producerInUse(state, at)
+            local ref = Links.producerRef(at.x, at.y, at.z)
+            local cut = Links.reason(panel, ref) ~= nil
+            local colour = pipes and BU.Water.colour(BU.Water.producerPipe(panel, at)) or nil
+            producers[#producers + 1] = { x = at.x, y = at.y, z = at.z, inUse = inUse and not cut, colour = colour, cut = cut,
+                off = at.off,
+                ref = ref, key = ISBUPanelWindow.squareKey(at), text = (view.producerText[index] or "") .. (cut and "  " .. getText("IGUI_BU_LineNotSupplied") or "") }
+        end
+        -- The units: power's as its source, water's each on its own (in its inlet's colour, a pump in its outlet's; a
+        -- filter or a booster pump between two pipes half in each, colour2 its outlet's); one whose line supplies nothing
+        -- grey.
+        local inUse = utility == "power" and Energy.inUse(state)
+        for _, unit in ipairs(Store.unitList(nil, panel.id)) do
+            if not BU.RELAY_KINDS[unit.kind] and Units.utility(unit) == utility and BU.enabled(unit.kind) then
+                local ref = Links.unitRef(unit)
+                local live = Links.live(panel, ref)
+                local text = Units.name(unit)
+                if not live then text = text .. "  " .. getText("IGUI_BU_LineNotSupplied")
+                elseif utility == "water" then text = text .. "  " .. self:waterUnitStatus(unit) end
+                local colour, colour2
+                if pipes then
+                    local inlet, outlet = BU.Water.unitPipes(panel, unit)
+                    colour = BU.Water.colour(inlet or outlet)
+                    if inlet and outlet and outlet ~= inlet then colour2 = BU.Water.colour(outlet) end
+                end
+                -- power's units share their kind's source row
+                local key = utility == "power" and ISBUPanelWindow.sourceKey(unit.kind) or ISBUPanelWindow.squareKey(unit)
+                producers[#producers + 1] = { x = unit.x, y = unit.y, z = unit.z, unit = unit.kind, colour = colour, colour2 = colour2,
+                    off = unit.off, ref = ref, key = key, cut = not live, inUse = live and (inUse or unit.running == true), text = text }
+            end
+        end
+        -- What it could take and no box has: grey, as devices not connected are.
+        if not hide then
+            for _, at in ipairs(view.unwired or {}) do
+                local name = at.unit and Units.name(at.unit) or utility == "water" and getText("IGUI_BU_Legend_tank")
+                    or BU.displayName(at.x, at.y, at.z, at.sprite)
+                producers[#producers + 1] = { x = at.x, y = at.y, z = at.z, unwired = true, unit = at.unit and at.unit.kind,
+                    key = ISBUPanelWindow.squareKey(at), text = name .. "  " .. getText("IGUI_BU_NotWired") }
+            end
+        end
+        check("producers", producers)
+    end)
     -- The relays of this utility, and the lines: each from its thing to what it hangs on (its wall square, a relay, a
     -- device), grey where it supplies nothing.
-    local relays, liveRelays = {}, {}
-    for _, unit in ipairs(Panels.relaysOf(panel)) do
-        if Units.utility(unit) == utility then
-            local ref = Links.unitRef(unit)
-            local live = Links.live(panel, ref)
-            relays[#relays + 1] = { x = unit.x, y = unit.y, z = unit.z, kind = unit.kind, ref = ref, cut = not live,
-                key = ISBUPanelWindow.squareKey(unit),
-                text = Units.name(unit) .. "  " .. (live and self:relayRooms(unit) or getText("IGUI_BU_LineNotSupplied")) }
-            if live then liveRelays[#liveRelays + 1] = { x = unit.x, y = unit.y, z = unit.z } end
+    task(function()
+        for _, unit in ipairs(Panels.relaysOf(panel)) do
+            if Units.utility(unit) == utility then
+                local ref = Links.unitRef(unit)
+                local live = Links.live(panel, ref)
+                relays[#relays + 1] = { x = unit.x, y = unit.y, z = unit.z, kind = unit.kind, ref = ref, cut = not live,
+                    key = ISBUPanelWindow.squareKey(unit),
+                    text = Units.name(unit) .. "  " .. (live and self:relayRooms(unit) or getText("IGUI_BU_LineNotSupplied")) }
+                if live then liveRelays[#liveRelays + 1] = { x = unit.x, y = unit.y, z = unit.z } end
+            end
         end
-    end
-    local lines = {}
-    for _, line in ipairs(Links.of(panel)) do
+        check("relays", relays)
+    end)
+    task(Job.each(function() return Links.of(panel) end, function(line)
         if line.utility == utility then
             local tx, ty, tz = Links.endOf(line)
             if tx then
@@ -126,56 +142,73 @@ function ISBUPanelWindow:updatePlan()
                     colour2 = outlet and BU.Water.colour(outlet) or nil }
             end
         end
-    end
-    -- The zones of the rooms: this box's, the free rooms and other boxes'; a room it cannot take says why.
-    local zone, inZone = {}, 0
-    for id, entry in pairs(Panels.zoneStates(panel, self.rooms or {})) do
-        zone[id] = { state = entry.state, owner = entry.owner and Panels.name(entry.owner) }
-        if entry.state == "mine" then inZone = inZone + 1 end
-    end
-    local farLevels, takeable = {}, {}
-    for _, room in ipairs(self.rooms or {}) do
-        local entry = zone[room.id]
-        if entry.state == "far" then
-            entry.note = self:farNote(room)
-            if farLevels[room.level] == nil then farLevels[room.level] = true end
-        else
-            takeable[room.level] = true
+    end))
+    task(function() check("lines", lines) end)
+    local zone, inZone, farLevels, editable, ranges, rangeKey, boxes = {}, 0, {}, false, nil, nil, {}
+    task(function()
+        -- The zones of the rooms: this box's, the free rooms and other boxes'; a room it cannot take says why.
+        for id, entry in pairs(Panels.zoneStates(panel, self.rooms or {})) do
+            zone[id] = { state = entry.state, owner = entry.owner and Panels.name(entry.owner) }
+            if entry.state == "mine" then inZone = inZone + 1 end
         end
-    end
-    for level in pairs(takeable) do farLevels[level] = nil end
-    local editable = #(self.rooms or {}) > 0
-    if not editable then self.zoneEditing = false end
-    -- The range, while the plan shows it: from the zone's rooms (an outdoor box's square) and its relays.
-    local ranges, tier = nil, panel.tier or 1
-    local rangeKey = tier .. "|" .. Store.linkVersion() .. "|" .. tostring(panel.zone) .. "|"
-        .. Panels.attachedSize(self.building)
-    if self.rangeShown then
-        ranges = { reach = BU.connectRange(tier), relayReach = BU.relayRange(), relays = liveRelays }
-        if utility == "power" then
-            ranges.noise = self:generatorNoises()
-            rangeKey = rangeKey .. "|" .. noiseKey(ranges.noise)
+        local takeable = {}
+        for _, room in ipairs(self.rooms or {}) do
+            local entry = zone[room.id]
+            if entry.state == "far" then
+                entry.note = self:farNote(room)
+                if farLevels[room.level] == nil then farLevels[room.level] = true end
+            else
+                takeable[room.level] = true
+            end
         end
-    end
-    -- The boxes whose zones can have these rooms (this one alone where there are none).
-    local boxes, seenBox = {}, {}
-    local claimers = { panel }
-    for _, building in ipairs(Panels.zoneBuildings(panel)) do
-        for _, other in ipairs(Panels.ofBuilding(building.key)) do claimers[#claimers + 1] = other end
-    end
-    for _, other in ipairs(claimers) do
-        if not seenBox[other.id] then
-            seenBox[other.id] = true
-            boxes[#boxes + 1] = { x = other.x, y = other.y, z = other.z, own = other.id == panel.id, text = Panels.name(other) }
+        for level in pairs(takeable) do farLevels[level] = nil end
+        editable = #(self.rooms or {}) > 0
+        check("zone", zone)
+        check("farLevels", farLevels)
+        if not editable then self.zoneEditing = false end
+    end)
+    task(function()
+        -- The range, while the plan shows it: from the zone's rooms (an outdoor box's square) and its relays.
+        local tier = panel.tier or 1
+        rangeKey = tier .. "|" .. Store.linkVersion() .. "|" .. tostring(panel.zone) .. "|"
+            .. Panels.attachedSize(self.building)
+        if self.rangeShown then
+            ranges = { reach = BU.connectRange(tier), relayReach = BU.relayRange(), relays = liveRelays }
+            if utility == "power" then
+                ranges.noise = self:generatorNoises()
+                rangeKey = rangeKey .. "|" .. noiseKey(ranges.noise)
+            end
         end
-    end
-    self.plan:setData({ utility = utility, supplied = view.state and view.state.supplied, rooms = rooms, devices = devices,
-        producers = producers, relays = relays, lines = lines, box = { x = panel.x, y = panel.y, z = panel.z },
-        outdoor = panel.outdoor == true, boxes = boxes, filter = self.roomFilter,
-        zone = zone, zoneEditable = editable, zoneEdit = self.zoneEditing == true, zoneNote = getText("IGUI_BU_ZoneNote", inZone),
-        farLevels = farLevels, waterSupply = utility == "water" and self.waterSupply and self.waterSupply.byLevel or nil,
-        ranges = ranges, rangeKey = rangeKey, pipes = pipeList, pipeCombo = pipeList ~= nil,
-        pipePaint = paint and { id = paint, colour = BU.Water.colour(paint), name = BU.Water.pipeName(panel, paint) } or nil })
+        -- The boxes whose zones can have these rooms (this one alone where there are none).
+        local seenBox = {}
+        local claimers = { panel }
+        for _, building in ipairs(Panels.zoneBuildings(panel)) do
+            for _, other in ipairs(Panels.ofBuilding(building.key)) do claimers[#claimers + 1] = other end
+        end
+        for _, other in ipairs(claimers) do
+            if not seenBox[other.id] then
+                seenBox[other.id] = true
+                boxes[#boxes + 1] = { x = other.x, y = other.y, z = other.z, own = other.id == panel.id, text = Panels.name(other) }
+            end
+        end
+    end)
+    task(function(_, job)
+        Job.insert(job, self.plan:dataTasks({ utility = utility, supplied = view.state and view.state.supplied, rooms = rooms, devices = devices,
+            producers = producers, relays = relays, lines = lines, box = { x = panel.x, y = panel.y, z = panel.z },
+            outdoor = panel.outdoor == true, boxes = boxes, filter = self.roomFilter,
+            zone = zone, zoneEditable = editable, zoneEdit = self.zoneEditing == true, zoneNote = getText("IGUI_BU_ZoneNote", inZone),
+            farLevels = farLevels, waterSupply = utility == "water" and self.waterSupply and self.waterSupply.byLevel or nil,
+            ranges = ranges, rangeKey = rangeKey, pipes = pipeList, pipeCombo = pipeList ~= nil,
+            pipePaint = paint and { id = paint, colour = BU.Water.colour(paint), name = BU.Water.pipeName(panel, paint) } or nil },
+            verified))
+    end)
+    return tasks
+end
+
+-- The plan's data again, at once (see planTasks). The player's own doing takes over a refresh under way.
+function ISBUPanelWindow:updatePlan()
+    self:cancelJob()
+    Job.runAll(self:planTasks())
 end
 
 -- What a relay standing in a building takes there, for its row: how many rooms of its box's zone are about it; nothing

@@ -25,8 +25,9 @@ require "BuildingUtilities/Geometry"
 require "BuildingUtilities/PanelUi"
 require "BuildingUtilities/Relays"
 require "BuildingUtilities/PanelSchematic"
+require "BuildingUtilities/Job"
 local BU = BuildingUtilities
-local Geometry = BU.Geometry
+local Geometry, Job = BU.Geometry, BU.Job
 local UI = PZUIKit.UI
 local P = BU.PanelUi.PALETTE
 
@@ -76,6 +77,7 @@ function ISBUPlan:new(x, y, width, height, window)
     o.borderColor = { r = P.border[1], g = P.border[2], b = P.border[3], a = 1 }
     o.cells, o.labels, o.dots, o.squares, o.strip, o.legend, o.edges = {}, {}, {}, {}, {}, {}, {}
     o.rangeCache, o.lines, o.lineByRef = {}, {}, {}
+    o.outlines = {}
     return o
 end
 
@@ -319,50 +321,34 @@ local function rangeEdges(rects, range)
     return areaEdges(range > 0 and Geometry.reach(rects, range) or nil)
 end
 
-
--- data: { utility, supplied, rooms = { { id, title, level, rects, pipeColour (while a pipe is put on rooms) } }, devices = { { key, x, y, z, roomId, inside,
--- state, held, cut, power, name, status, ref, pipeColour (water with more than one pipe: its pipe's, or nil) } }, producers = { { x, y, z, inUse,
--- text, unit = its kind for a unit, colour or nil, cut, ref } }, relays = { { x, y, z, kind, cut, text, ref } }, lines =
--- { { ref, x1, y1, z1 (its thing), x2, y2, z2 (what it hangs on), way (its corners on the ground, Links.way, or nil),
--- live, colour (a water pipe's, or nil) } }, box = { x, y, z }, outdoor, boxes = { { x, y, z, own, text } } (the
--- boxes whose zones can have these rooms, this window's own), filter = room id, zone = room id to { state = "mine",
--- "free", "taken" or "far", owner = a name, note = why a far room cannot be taken }, zoneEditable, zoneEdit, zoneNote,
--- farLevels (the floors with no room the zone can take, a set), waterSupply (by floor, "dry", for water),
--- ranges = { reach = steps, relayReach = steps, relays = { { x, y, z } }, noise = for power { { x, y, z, radius,
--- running } } } while the range is shown, rangeKey (what the ranges are of), pipes = { { colour, name } } (water with
--- more than one pipe, for the legend), pipeCombo (water with more than one pipe:
--- the switch that puts a pipe on rooms), pipePaint = { id, colour, name } (the pipe a click puts on a room, or nil) }.
-function ISBUPlan:setData(data)
-    -- Another utility shown: the plan fades in anew.
-    if self.data and self.data.utility ~= data.utility then self.switchedAt = getTimestampMs() end
-    self.data = data
-    local levels = {}
-    for _, room in ipairs(data.rooms) do levels[room.level] = true end
-    -- A floor with producers, relays or lines and no rooms (a roof, an outdoor box) is shown too.
-    for _, producer in ipairs(data.producers) do levels[producer.z] = true end
-    for _, relay in ipairs(data.relays or {}) do levels[relay.z] = true end
-    for _, line in ipairs(data.lines or {}) do levels[line.z1], levels[line.z2] = true, true end
-    levels[data.box.z] = true
-    self.levels = {}
-    for level in pairs(levels) do self.levels[#self.levels + 1] = level end
-    table.sort(self.levels)
-    if not self.floor or not levels[self.floor] then
-        self.floor = levels[data.box.z] and data.box.z or self.levels[1] or 0
+-- Whether two tables hold the same by value (the data a refresh gives the plan is made anew, and most often is what it
+-- was); a table too deep to tell is not.
+local function same(a, b, depth)
+    if a == b then return true end
+    if type(a) ~= "table" or type(b) ~= "table" or depth > 8 then return false end
+    for key, value in pairs(a) do
+        if not same(value, b[key], depth + 1) then return false end
     end
-    -- What each floor's connected devices do: how many, and what they draw.
-    self.floorOn, self.floorLoad = {}, {}
-    for _, device in ipairs(data.devices) do
-        if device.state == "on" then
-            self.floorOn[device.z] = (self.floorOn[device.z] or 0) + 1
-            if not device.held then self.floorLoad[device.z] = (self.floorLoad[device.z] or 0) + (device.power or 0) end
-        end
+    for key in pairs(b) do
+        if a[key] == nil then return false end
     end
-    self:layoutFloors()
-    self:layout()
-    self:placeScheme()
-    -- What the status line says of the thing under the mouse may have changed with the data.
-    if self.status then self:onMouseMove(0, 0) end
+    return true
 end
+
+-- Whether data is what the plan shows: part by part, those the caller compared already (verified: key to whether it is the
+-- same) not again.
+local function sameData(old, data, verified)
+    for key, value in pairs(data) do
+        local known = verified[key]
+        if known == false or known == nil and not same(old[key], value, 1) then return false end
+    end
+    for key in pairs(old) do
+        if data[key] == nil then return false end
+    end
+    return true
+end
+ISBUPlan.same = same
+
 
 -- Each floor's producers' colour for the strip, worked out once for the data (a neutral one when they differ).
 function ISBUPlan:layoutFloors()
@@ -447,12 +433,11 @@ function ISBUPlan:ranges(floor)
 end
 
 -- A room's outline in squares, as the edges where its squares meet a square of no room or another room: { x, y, len,
--- across } (across: along x). The rectangles a room is made of meet without a line. Worked out once for the rooms the
--- data has.
+-- across } (across: along x). The rectangles a room is made of meet without a line. Worked out once for the
+-- rectangles a room has (each refresh makes the data anew, but a room's rectangles are the building's and stay).
 function ISBUPlan:roomOutline(room)
-    if self.outlineRooms ~= self.data.rooms then self.outlineRooms, self.outlines = self.data.rooms, {} end
-    local cached = self.outlines[room.id]
-    if cached then return cached end
+    local kept = self.outlines[room.id]
+    if kept and kept.rects == room.rects then return kept.edges end
     local inside = {}
     local function key(x, y) return x * 65536 + y end
     for _, rect in ipairs(room.rects) do
@@ -494,122 +479,234 @@ function ISBUPlan:roomOutline(room)
     end
     join(rows, true)
     join(cols, false)
-    self.outlines[room.id] = edges
+    self.outlines[room.id] = { rects = room.rects, edges = edges }
     return edges
 end
 
-function ISBUPlan:layout()
+-- What the plan is laid out into, by the plan (or a copy of it that takes the writes, dataTasks): its output fields, each
+-- made anew by every layout (some to nothing: the legend's box, the whole title) but stripFirst, the first floor the
+-- strip shows, which the layout keeps while there is no strip.
+local LAID = { "cells", "labels", "dots", "squares", "strip", "legend", "edges", "walls", "legendBox", "hoverLine", "lines",
+    "lineByRef", "grid", "map", "scale", "floorTitle", "titleX", "titleW", "titleFull", "toggles", "topH" }
+
+-- The layout as tasks of a job (BU.Job), written to `self`: a few at a time, to a copy of the plan that the plan takes
+-- once they are all done (dataTasks), or all at once to the plan itself (ISBUPlan:layout).
+function ISBUPlan:layoutTasks()
     local data = self.data
-    self.cells, self.labels, self.dots, self.squares, self.strip, self.legend, self.edges = {}, {}, {}, {}, {}, {}, {}
-    self.walls, self.legendBox, self.hoverLine = {}, nil, nil
-    self.lines, self.lineByRef = {}, {}
-    self.grid = {}
-    self:layoutTop()
-    if not data then return end
+    local tasks = {}
+    local function task(fn) tasks[#tasks + 1] = fn end
     -- One scale for every floor: the building and all that is connected around it.
     local minX, minY, maxX, maxY
     local function cover(x, y, w, h)
         minX, minY = math.min(minX or x, x), math.min(minY or y, y)
         maxX, maxY = math.max(maxX or x + w, x + w), math.max(maxY or y + h, y + h)
     end
-    for _, room in ipairs(data.rooms) do
-        for _, rect in ipairs(room.rects) do cover(rect.x, rect.y, rect.w, rect.h) end
-    end
-    for _, device in ipairs(data.devices) do cover(device.x, device.y, 1, 1) end
-    for _, producer in ipairs(data.producers) do cover(producer.x, producer.y, 1, 1) end
-    for _, relay in ipairs(data.relays or {}) do cover(relay.x, relay.y, 1, 1) end
-    for _, line in ipairs(data.lines or {}) do
-        cover(line.x1, line.y1, 1, 1)
-        cover(line.x2, line.y2, 1, 1)
-        for _, point in ipairs(line.way or {}) do cover(point[1] - 0.5, point[2] - 0.5, 1, 1) end
-    end
-    cover(data.box.x, data.box.y, 1, 1)
-    if not minX then return end
-    -- With the range shown, the plan takes in where devices outside and producers join, and where generators are heard.
-    local ranges = self:ranges(self.floor)
-    local rangeSets = ranges and { ranges.reach } or {}
-    for _, noise in ipairs(ranges and ranges.noise or {}) do rangeSets[#rangeSets + 1] = noise.edges end
-    for _, edges in ipairs(ranges and ranges.relays or {}) do rangeSets[#rangeSets + 1] = edges end
-    for _, edges in ipairs(rangeSets) do
-        for _, edge in ipairs(edges) do cover(edge.x, edge.y, edge.across and edge.len or 0, edge.across and 0 or edge.len) end
-    end
-    local left = PAD + (#self.levels > 1 and STRIP_W or 0)
-    local top = self.topH
-    -- The legend: a box above the status line, a gap from the floor strip, under a header that folds it. Its entries
-    -- in as many columns (up to three) of the widest one as fit.
-    local legendH = self:layoutLegend(left + PAD, legendEntries(data.utility, data.zoneEdit, ranges, data, self.floor))
-    local availW, availH = self.width - left - PAD, self.height - top - FONT_HGT_SMALL - PAD * 2 - legendH
-    -- The whole fits at zoom 1; zoomed, the plan centres on the place the player moved it to.
-    local fit = math.max(1, math.min(availW / (maxX - minX), availH / (maxY - minY), MAX_SCALE))
-    local zoom = self.zoom or 1
-    local scale = math.min(fit * zoom, math.max(fit, MAX_ZOOM_SCALE))
-    local baseX, baseY = (minX + maxX) / 2, (minY + maxY) / 2
-    local centreX, centreY = baseX + (self.panX or 0), baseY + (self.panY or 0)
-    local ox = left + availW / 2 - (centreX - minX) * scale
-    local oy = top + availH / 2 - (centreY - minY) * scale
-    self.map = { left = left, top = top, w = availW, h = availH, scale = scale, fit = fit, centreX = centreX, centreY = centreY,
-        baseX = baseX, baseY = baseY, ox = ox, oy = oy, minX = minX, minY = minY }
+    local ranges, left, top, availW, availH, ox, oy, scale
     local function sx(x) return math.floor(ox + (x - minX) * scale) end
     local function sy(y) return math.floor(oy + (y - minY) * scale) end
-    self.scale = scale
-    local wall = WALL_PX / (UI.S or 1)
-    -- A faint grid of the squares under the plan, as on drawing paper: every square once they are big enough to tell
-    -- apart, else every fifth; none when even those crowd.
-    local step = scale >= 7 and 1 or 5
-    self.grid = {}
-    if scale * step >= 7 then
-        local first = math.ceil((minX + (left - ox) / scale) / step) * step
-        for x = first, minX + (left + availW - ox) / scale, step do
-            self.grid[#self.grid + 1] = { x = sx(x), y = top, w = 1, h = availH, major = BU.remainder(x, 10) == 0 }
+    local wall
+    task(function(_, job)
+        self.cells, self.labels, self.dots, self.squares, self.strip, self.legend, self.edges = {}, {}, {}, {}, {}, {}, {}
+        self.walls, self.legendBox, self.hoverLine = {}, nil, nil
+        self.lines, self.lineByRef = {}, {}
+        self.grid = {}
+        self:layoutTop()
+        if not data then
+            Job.stop(job)
+            return
         end
-        first = math.ceil((minY + (top - oy) / scale) / step) * step
-        for y = first, minY + (top + availH - oy) / scale, step do
-            self.grid[#self.grid + 1] = { x = left, y = sy(y), w = availW, h = 1, major = BU.remainder(y, 10) == 0 }
+        for _, room in ipairs(data.rooms) do
+            for _, rect in ipairs(room.rects) do cover(rect.x, rect.y, rect.w, rect.h) end
         end
-    end
-    -- The range outlines, cut to the map.
-    local mapLeft, mapTop, mapRight, mapBottom = left, top, left + availW, top + availH
-    local function addEdges(edges, colour)
-        for _, edge in ipairs(edges) do
-            local x1, y1 = sx(edge.x), sy(edge.y)
-            local x2 = edge.across and sx(edge.x + edge.len) or x1 + 1
-            local y2 = edge.across and y1 + 1 or sy(edge.y + edge.len)
-            x1, y1 = math.max(x1, mapLeft), math.max(y1, mapTop)
-            x2, y2 = math.min(x2, mapRight), math.min(y2, mapBottom)
-            if x2 > x1 and y2 > y1 then
-                self.edges[#self.edges + 1] = { x = x1, y = y1, w = x2 - x1, h = y2 - y1, r = colour[1], g = colour[2], b = colour[3] }
+        for _, device in ipairs(data.devices) do cover(device.x, device.y, 1, 1) end
+        for _, producer in ipairs(data.producers) do cover(producer.x, producer.y, 1, 1) end
+        for _, relay in ipairs(data.relays or {}) do cover(relay.x, relay.y, 1, 1) end
+        for _, line in ipairs(data.lines or {}) do
+            cover(line.x1, line.y1, 1, 1)
+            cover(line.x2, line.y2, 1, 1)
+            for _, point in ipairs(line.way or {}) do cover(point[1] - 0.5, point[2] - 0.5, 1, 1) end
+        end
+        cover(data.box.x, data.box.y, 1, 1)
+        if not minX then Job.stop(job) end
+    end)
+    task(function()
+        -- With the range shown, the plan takes in where devices outside and producers join, and where generators are heard.
+        ranges = self:ranges(self.floor)
+        local rangeSets = ranges and { ranges.reach } or {}
+        for _, noise in ipairs(ranges and ranges.noise or {}) do rangeSets[#rangeSets + 1] = noise.edges end
+        for _, edges in ipairs(ranges and ranges.relays or {}) do rangeSets[#rangeSets + 1] = edges end
+        for _, edges in ipairs(rangeSets) do
+            for _, edge in ipairs(edges) do cover(edge.x, edge.y, edge.across and edge.len or 0, edge.across and 0 or edge.len) end
+        end
+        left = PAD + (#self.levels > 1 and STRIP_W or 0)
+        top = self.topH
+        -- The legend: a box above the status line, a gap from the floor strip, under a header that folds it. Its entries
+        -- in as many columns (up to three) of the widest one as fit.
+        local legendH = self:layoutLegend(left + PAD, legendEntries(data.utility, data.zoneEdit, ranges, data, self.floor))
+        availW, availH = self.width - left - PAD, self.height - top - FONT_HGT_SMALL - PAD * 2 - legendH
+        -- The whole fits at zoom 1; zoomed, the plan centres on the place the player moved it to.
+        local fit = math.max(1, math.min(availW / (maxX - minX), availH / (maxY - minY), MAX_SCALE))
+        local zoom = self.zoom or 1
+        scale = math.min(fit * zoom, math.max(fit, MAX_ZOOM_SCALE))
+        local baseX, baseY = (minX + maxX) / 2, (minY + maxY) / 2
+        local centreX, centreY = baseX + (self.panX or 0), baseY + (self.panY or 0)
+        ox = left + availW / 2 - (centreX - minX) * scale
+        oy = top + availH / 2 - (centreY - minY) * scale
+        self.map = { left = left, top = top, w = availW, h = availH, scale = scale, fit = fit, centreX = centreX, centreY = centreY,
+            baseX = baseX, baseY = baseY, ox = ox, oy = oy, minX = minX, minY = minY }
+        self.scale = scale
+        wall = WALL_PX / (UI.S or 1)
+        -- A faint grid of the squares under the plan, as on drawing paper: every square once they are big enough to tell
+        -- apart, else every fifth; none when even those crowd.
+        local step = scale >= 7 and 1 or 5
+        self.grid = {}
+        if scale * step >= 7 then
+            local first = math.ceil((minX + (left - ox) / scale) / step) * step
+            for x = first, minX + (left + availW - ox) / scale, step do
+                self.grid[#self.grid + 1] = { x = sx(x), y = top, w = 1, h = availH, major = BU.remainder(x, 10) == 0 }
+            end
+            first = math.ceil((minY + (top - oy) / scale) / step) * step
+            for y = first, minY + (top + availH - oy) / scale, step do
+                self.grid[#self.grid + 1] = { x = left, y = sy(y), w = availW, h = 1, major = BU.remainder(y, 10) == 0 }
             end
         end
-    end
-    if ranges then
-        for _, noise in ipairs(ranges.noise) do
-            addEdges(noise.edges, noise.running and COLOURS.rangeNoise or COLOURS.rangeNoiseIdle)
-        end
-        addEdges(ranges.reach, COLOURS.range)
-        for _, edges in ipairs(ranges.relays) do addEdges(edges, COLOURS.range) end
-    end
-    -- The lines with an end on this floor, the way they lie on the ground (else square middle to square middle), in
-    -- their utility's colour (a water pipe's own) or grey; each found by its thing's ref for the mouse.
-    local lineColour = data.utility == "water" and COLOURS.lineWater or COLOURS.linePower
-    for _, line in ipairs(data.lines or {}) do
-        if line.z1 == self.floor or line.z2 == self.floor then
-            local colour = line.live and (line.colour or lineColour) or COLOURS.lineCut
-            local second = line.live and line.colour2 or nil
-            local points = {}
-            for _, point in ipairs(line.way or { { line.x1 + 0.5, line.y1 + 0.5 }, { line.x2 + 0.5, line.y2 + 0.5 } }) do
-                local x, y = ox + (point[1] - minX) * scale, oy + (point[2] - minY) * scale
-                local last = points[#points]
-                if not last or last[1] ~= x or last[2] ~= y then points[#points + 1] = { x, y } end
+    end)
+    task(function()
+        -- The range outlines, cut to the map.
+        local mapLeft, mapTop, mapRight, mapBottom = left, top, left + availW, top + availH
+        local function addEdges(edges, colour)
+            for _, edge in ipairs(edges) do
+                local x1, y1 = sx(edge.x), sy(edge.y)
+                local x2 = edge.across and sx(edge.x + edge.len) or x1 + 1
+                local y2 = edge.across and y1 + 1 or sy(edge.y + edge.len)
+                x1, y1 = math.max(x1, mapLeft), math.max(y1, mapTop)
+                x2, y2 = math.min(x2, mapRight), math.min(y2, mapBottom)
+                if x2 > x1 and y2 > y1 then
+                    self.edges[#self.edges + 1] = { x = x1, y = y1, w = x2 - x1, h = y2 - y1, r = colour[1], g = colour[2], b = colour[3] }
+                end
             end
-            local drawn = { points = points, live = line.live, r = colour[1], g = colour[2], b = colour[3], second = second }
-            self.lines[#self.lines + 1] = drawn
-            self.lineByRef[line.ref] = drawn
         end
-    end
-    self:layoutRooms(sx, sy, wall)
-    self:layoutThings(sx, sy, scale)
-    self:layoutStrip()
+        if ranges then
+            for _, noise in ipairs(ranges.noise) do
+                addEdges(noise.edges, noise.running and COLOURS.rangeNoise or COLOURS.rangeNoiseIdle)
+            end
+            addEdges(ranges.reach, COLOURS.range)
+            for _, edges in ipairs(ranges.relays) do addEdges(edges, COLOURS.range) end
+        end
+        -- The lines with an end on this floor, the way they lie on the ground (else square middle to square middle), in
+        -- their utility's colour (a water pipe's own) or grey; each found by its thing's ref for the mouse.
+        local lineColour = data.utility == "water" and COLOURS.lineWater or COLOURS.linePower
+        for _, line in ipairs(data.lines or {}) do
+            if line.z1 == self.floor or line.z2 == self.floor then
+                local colour = line.live and (line.colour or lineColour) or COLOURS.lineCut
+                local second = line.live and line.colour2 or nil
+                local points = {}
+                for _, point in ipairs(line.way or { { line.x1 + 0.5, line.y1 + 0.5 }, { line.x2 + 0.5, line.y2 + 0.5 } }) do
+                    local x, y = ox + (point[1] - minX) * scale, oy + (point[2] - minY) * scale
+                    local last = points[#points]
+                    if not last or last[1] ~= x or last[2] ~= y then points[#points + 1] = { x, y } end
+                end
+                local drawn = { points = points, live = line.live, r = colour[1], g = colour[2], b = colour[3], second = second }
+                self.lines[#self.lines + 1] = drawn
+                self.lineByRef[line.ref] = drawn
+            end
+        end
+    end)
+    task(function() self:layoutRooms(sx, sy, wall) end)
+    task(function()
+        self:layoutThings(sx, sy, scale)
+        self:layoutStrip()
+    end)
+    return tasks
 end
+
+-- Laid out anew, at once (a resize, the zoom, a floor chosen).
+function ISBUPlan:layout()
+    self.epoch = (self.epoch or 0) + 1
+    Job.runAll(self:layoutTasks())
+end
+
+-- The data and its layout as tasks of a job: nothing is the plan's until all of it is made (a frame between two tasks
+-- draws what was there), unless the plan was laid out otherwise meanwhile (a floor chosen, a zoom): then it is dropped
+-- and the window asked to refresh again. Nothing at all, when the data is what the plan shows. verified: the parts of
+-- the data the caller compared already (key to whether it is the same).
+function ISBUPlan:dataTasks(data, verified)
+    local plan, epoch = self, self.epoch
+    -- a copy that takes what is written, reading the rest from the plan
+    local copy = setmetatable({}, { __index = plan })
+    local tasks = {}
+    local function task(fn) tasks[#tasks + 1] = fn end
+    task(function(_, job)
+        if plan.data and sameData(plan.data, data, verified or {}) then
+            Job.stop(job)
+            return
+        end
+        -- (the cache of ranges is the plan's own: what it was made for is told by the data)
+        if plan.rangeKey ~= data.rangeKey then plan.rangeCache, plan.rangeKey = {}, data.rangeKey end
+        copy.data = data
+        local levels = {}
+        for _, room in ipairs(data.rooms) do levels[room.level] = true end
+        -- A floor with producers, relays or lines and no rooms (a roof, an outdoor box) is shown too.
+        for _, producer in ipairs(data.producers) do levels[producer.z] = true end
+        for _, relay in ipairs(data.relays or {}) do levels[relay.z] = true end
+        for _, line in ipairs(data.lines or {}) do levels[line.z1], levels[line.z2] = true, true end
+        levels[data.box.z] = true
+        copy.levels = {}
+        for level in pairs(levels) do copy.levels[#copy.levels + 1] = level end
+        table.sort(copy.levels)
+        if not plan.floor or not levels[plan.floor] then
+            copy.floor = levels[data.box.z] and data.box.z or copy.levels[1] or 0
+        end
+        -- What each floor's connected devices do: how many, and what they draw.
+        copy.floorOn, copy.floorLoad = {}, {}
+        for _, device in ipairs(data.devices) do
+            if device.state == "on" then
+                copy.floorOn[device.z] = (copy.floorOn[device.z] or 0) + 1
+                if not device.held then copy.floorLoad[device.z] = (copy.floorLoad[device.z] or 0) + (device.power or 0) end
+            end
+        end
+        copy:layoutFloors()
+        Job.insert(job, copy:layoutTasks())
+    end)
+    task(function()
+        if plan.epoch ~= epoch then
+            if plan.window then plan.window:changed() end
+            return
+        end
+        -- Another utility shown: the plan fades in anew.
+        if plan.data and plan.data.utility ~= data.utility then plan.switchedAt = getTimestampMs() end
+        plan.data = data
+        for _, field in ipairs({ "levels", "floor", "floorOn", "floorLoad", "floorProducers" }) do
+            local value = rawget(copy, field)
+            if value ~= nil then plan[field] = value end
+        end
+        for _, field in ipairs(LAID) do plan[field] = rawget(copy, field) end
+        if rawget(copy, "stripFirst") ~= nil then plan.stripFirst = copy.stripFirst end
+        plan:placeScheme()
+        -- What the status line says of the thing under the mouse may have changed with the data.
+        if plan.status then plan:onMouseMove(0, 0) end
+    end)
+    return tasks
+end
+
+-- data: { utility, supplied, rooms = { { id, title, level, rects, pipeColour (while a pipe is put on rooms) } }, devices = { { key, x, y, z, roomId, inside,
+-- state, held, cut, power, name, status, ref, pipeColour (water with more than one pipe: its pipe's, or nil) } }, producers = { { x, y, z, inUse,
+-- text, unit = its kind for a unit, colour or nil, cut, ref } }, relays = { { x, y, z, kind, cut, text, ref } }, lines =
+-- { { ref, x1, y1, z1 (its thing), x2, y2, z2 (what it hangs on), way (its corners on the ground, Links.way, or nil),
+-- live, colour (a water pipe's, or nil) } }, box = { x, y, z }, outdoor, boxes = { { x, y, z, own, text } } (the
+-- boxes whose zones can have these rooms, this window's own), filter = room id, zone = room id to { state = "mine",
+-- "free", "taken" or "far", owner = a name, note = why a far room cannot be taken }, zoneEditable, zoneEdit, zoneNote,
+-- farLevels (the floors with no room the zone can take, a set), waterSupply (by floor, "dry", for water),
+-- ranges = { reach = steps, relayReach = steps, relays = { { x, y, z } }, noise = for power { { x, y, z, radius,
+-- running } } } while the range is shown, rangeKey (what the ranges are of), pipes = { { colour, name } } (water with
+-- more than one pipe, for the legend), pipeCombo (water with more than one pipe:
+-- the switch that puts a pipe on rooms), pipePaint = { id, colour, name } (the pipe a click puts on a room, or nil) }.
+-- The data again, laid out, at once.
+function ISBUPlan:setData(data, verified)
+    self.epoch = (self.epoch or 0) + 1
+    Job.runAll(self:dataTasks(data, verified))
+end
+
 
 -- The rooms of this floor (cells, walls, labels), placed by layout's sx and sy. Out of layout, which would otherwise
 -- be past the 200 locals a function may declare in the game's debug mode.
