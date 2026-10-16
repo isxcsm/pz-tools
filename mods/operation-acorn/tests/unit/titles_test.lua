@@ -105,6 +105,32 @@ test("a style the API does not have (an older PZ Extension API) is asked as stam
     PZExtAPI = nil
 end)
 
+test("a brief title the API does not have is a text over the character, not a big one", function()
+    local halo = world()
+    local called = {}
+    PZExtAPI = {
+        version = OA.API_VERSION,
+        client = function() return "handle" end,
+        text = {
+            status = function() return "applied" end,
+            styles = function() return { "stamp", "dust" } end,
+            title = function(_, spec) called[#called + 1] = spec.style end,
+        },
+    }
+    eq(OA.Titles.show("p1", { key = "IGUI_OA_Title_SearchedBonus", args = { "170" }, style = "brief", fallback = "good" }), "halo")
+    eq(#called, 0)
+    eq(halo[1], "good:IGUI_OA_Title_SearchedBonus 170")
+    -- (an API that has it: its styles are asked again, for another API's text)
+    PZExtAPI.text = {
+        status = function() return "applied" end,
+        styles = function() return { "stamp", "dust", "brief" } end,
+        title = function(_, spec) called[#called + 1] = spec end,
+    }
+    OA.Titles.show("p1", { key = "IGUI_OA_Title_SearchedBonus", args = { "170" }, style = "brief" })
+    eq(called[1].style, "brief")
+    PZExtAPI = nil
+end)
+
 test("the dev panel's switch lets every title go first", function()
     world()
     local called = {}

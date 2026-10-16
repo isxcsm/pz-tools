@@ -53,7 +53,8 @@ end
 Titles.textApi = textApi
 
 -- The style to ask the API for: the detail's (else "dust") when the API has it (an older PZ Extension API may not have "dust" or
--- "unveil"), else "stamp". The styles' kinds: dust anything not plainly another, discovery a thing found, unveil a thing
+-- "unveil"), else "stamp"; a brief title (a light one, low on the screen) the API does not have is not a title (nil: the
+-- text over the character instead). The styles' kinds: dust anything not plainly another, discovery a thing found, unveil a thing
 -- strange, notice word from the radio, stamp a great thing done, bleed an infection found, sink a thing lost, type a
 -- document or an order, pulse a danger passed.
 -- The API's styles are asked once (again for another API's text).
@@ -69,7 +70,9 @@ local function styleFor(t, wanted)
             for i = 0, list:size() - 1 do styles[list:get(i)] = true end
         end
     end
-    return styles[wanted] and wanted or "stamp"
+    if styles[wanted] then return wanted end
+    if wanted == "brief" then return nil end
+    return "stamp"
 end
 Titles.styleFor = styleFor
 
@@ -114,13 +117,16 @@ function Titles.show(playerId, detail, noHalo)
     if #characters == 0 then return nil end
     local t = textApi()
     local handle = t and OA.handle()
+    local style = handle and styleFor(t, detail.style)
+    if not style then handle = nil end
     if noHalo and not handle then return nil end
     local shown
-    local backdrop = handle and Titles.overWindow() and Titles.OVER_WINDOW or nil
+    -- (a brief title, low on the screen, has its own backdrop: windows are judged where the titles go)
+    local backdrop = handle and style ~= "brief" and Titles.overWindow() and Titles.OVER_WINDOW or nil
     for _, character in ipairs(characters) do
         local done = false
         if handle then
-            local spec = { text = title, subtitle = sub, style = styleFor(t, detail.style), player = character:getPlayerNum(),
+            local spec = { text = title, subtitle = sub, style = style, player = character:getPlayerNum(),
                 now = Titles.now or nil, backdrop = backdrop }
             local tone = Titles.TONES[detail.tone]
             if tone then spec.color, spec.subtitleColor = tone[1], tone[2] end
