@@ -129,7 +129,7 @@ function ISBUPanelWindow:updatePlan()
     end
     -- The zones of the rooms: this box's, the free rooms and other boxes'; a room it cannot take says why.
     local zone, inZone = {}, 0
-    for id, entry in pairs(Panels.zoneStates(panel, self.building, self.rooms or {})) do
+    for id, entry in pairs(Panels.zoneStates(panel, self.rooms or {})) do
         zone[id] = { state = entry.state, owner = entry.owner and Panels.name(entry.owner) }
         if entry.state == "mine" then inZone = inZone + 1 end
     end
@@ -301,7 +301,7 @@ function ISBUPanelWindow:roomOf(id)
 end
 
 function ISBUPanelWindow:toggleZoneRoom(id)
-    local states = Panels.zoneStates(self.panel, self.building, self.rooms or {})
+    local states = Panels.zoneStates(self.panel, self.rooms or {})
     local entry = states[id]
     if entry and entry.state == "far" then HaloTextHelper.addBadText(self.playerObj, self:farNote(self:roomOf(id))) end
     if not entry or entry.state == "taken" or entry.state == "far" then return end
@@ -314,7 +314,7 @@ end
 -- rooms of every floor the box reaches in its own building, where it does not reach them all; or the whole building.
 -- A floor it can take no room of says why.
 function ISBUPanelWindow:zoneMenu(level)
-    local states = Panels.zoneStates(self.panel, self.building, self.rooms or {})
+    local states = Panels.zoneStates(self.panel, self.rooms or {})
     local menu = Ui.UI.menu(self, Ui.PALETTE)
     menu:addHead(BU.floorName(level))
     local function floorSet(keepOthers, take)

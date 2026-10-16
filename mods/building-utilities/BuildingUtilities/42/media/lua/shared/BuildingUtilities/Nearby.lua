@@ -114,4 +114,21 @@ function Nearby.units(players)
     return result
 end
 
+-- The units of a kind within radius squares of a place (x and y each), in the order they were made.
+function Nearby.unitsAt(x, y, radius, kind)
+    index()
+    local result = {}
+    for cx = math.floor((x - radius) / CELL), math.floor((x + radius) / CELL) do
+        for cy = math.floor((y - radius) / CELL), math.floor((y + radius) / CELL) do
+            for _, unit in ipairs(unitCells[cx .. "," .. cy] or {}) do
+                if (not kind or unit.kind == kind) and math.abs(unit.x - x) <= radius and math.abs(unit.y - y) <= radius then
+                    result[#result + 1] = unit
+                end
+            end
+        end
+    end
+    table.sort(result, function(a, b) return (tonumber(a.id:sub(2)) or 0) < (tonumber(b.id:sub(2)) or 0) end)
+    return result
+end
+
 return Nearby

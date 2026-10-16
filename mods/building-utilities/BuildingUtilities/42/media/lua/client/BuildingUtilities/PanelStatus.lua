@@ -62,7 +62,7 @@ local function solarShort(output, load)
     return getText("IGUI_BU_Why_SolarShort", load2(output), load2(load))
 end
 
--- A box whose breaker is down, or whose main switch a player has off, as its own status (a sub-panel's too).
+-- A box whose breaker is down, or whose main switch a player has off, as its own status.
 local function trippedStatus(panel)
     return { text = getText("IGUI_BU_St_Tripped"), reason = getText("IGUI_BU_Why_Tripped", load2(Panels.limit(panel))),
         level = BAD }
@@ -166,7 +166,7 @@ local function supplyNote(supply)
     return getText("IGUI_BU_Why_AboveTanks", floorsText(supply.dry)), WARN
 end
 
--- A main panel's water: { text, left, reason, level }.
+-- A panel's water: { text, left, reason, level }.
 local function waterStatus(panel, state, supply)
     local available, why = BU.waterAvailable()
     if not available then

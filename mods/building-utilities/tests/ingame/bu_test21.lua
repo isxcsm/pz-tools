@@ -35,7 +35,7 @@ end
 local function put(kind)
     local square = freeSquare()
     local ok, reason = Units.canInstall(kind, square)
-    local unit = Changes.installUnit(kind, square, Units.spriteFor(kind, square, player))
+    local unit = Changes.installUnit(kind, square, Units.spriteFacing(kind, square, BuildingUtilities.sideOf(square, player)))
     Changes.connectUnit(unit, panel, {})
     say(kind, "at", unit.x, unit.y, "canInstall", ok, reason or "", "sprite", unit.sprite)
     return unit, square

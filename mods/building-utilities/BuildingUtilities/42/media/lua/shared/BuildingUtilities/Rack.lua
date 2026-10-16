@@ -1,4 +1,4 @@
--- The battery rack (a unit, BU.Units): inside a building, wired to a panel of tier 2 or more, whose bank it is part of
+-- The battery rack (a unit, BU.Units): inside a building, wired to a panel (of any tier), whose bank it is part of
 -- (BU.Energy). It is a container players put car batteries in and take them out of, as any other; the save keeps a
 -- record of each (Rack.sync), which the bank works on while the rack is not loaded. Also reconditioning a battery.
 require "BuildingUtilities/Units"
@@ -70,13 +70,6 @@ function Rack.writeBattery(item, record)
     if isServer() then sendItemStats(item) end
 end
 
--- A battery as players read it: "Car Battery (Heavy-Duty) 82%, condition 64, holds 2.4".
-function Rack.batteryText(record)
-    return getText("IGUI_BU_BatteryLine", getItemNameFromFullType(record.type),
-        getText("IGUI_VehicleType_" .. Rack.batteryKind(record.type)), BU.percent((record.charge or 0) * 100),
-        math.floor((record.condition or 0) + 0.5), string.format("%.1f", Energy.batteryCapacity(record)))
-end
-
 -- A rack's charge as a share of what its batteries hold full, for its look; 0 without batteries.
 function Rack.charge(unit)
     local sum = 0
@@ -94,7 +87,7 @@ function Rack.overlay(unit)
     if charge < 0.10 then level = 0 elseif charge < 0.35 then level = 1 elseif charge < 0.65 then level = 2
     elseif charge < 0.95 then level = 3 end
     local block = tonumber(string.match(unit.sprite or Rack.SPRITE, "_(%d+)$")) or 0
-    block = block - block % Rack.BLOCK
+    block = block - BU.remainder(block, Rack.BLOCK)
     if level == 0 then return "bu_solar_01_" .. (block + 1 + shelf) end
     return "bu_solar_01_" .. (block + 16 + (level - 1) + 4 * shelf)
 end

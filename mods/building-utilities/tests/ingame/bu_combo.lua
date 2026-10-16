@@ -73,8 +73,8 @@ generator:setConnected(true)
 generator:setFuel(generator:getMaxFuel())
 generator:setCondition(100)
 local gx, gy = generatorSquare:getX(), generatorSquare:getY()
-if not Store.producerOwner(gx, gy, 0) then Changes.connectProducer(panel, "power", gx, gy, 0, true) end
-say("generator at", gx, gy, "placed", placed, "fuel", generator:getFuel(), "owner", Store.producerOwner(gx, gy, 0))
+if not BuildingUtilities.Links.get(BuildingUtilities.Links.producerRef(gx, gy, 0)) then Changes.connectProducer(panel, "power", gx, gy, 0, true) end
+say("generator at", gx, gy, "placed", placed, "fuel", generator:getFuel(), "owner", BuildingUtilities.Links.get(BuildingUtilities.Links.producerRef(gx, gy, 0)))
 
 -- Where the squares are on the game's screen (the window's client area).
 local zoom = getCore():getZoom(0)

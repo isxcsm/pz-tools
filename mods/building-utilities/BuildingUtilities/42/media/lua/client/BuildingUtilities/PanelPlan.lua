@@ -396,7 +396,7 @@ function ISBUPlan:layoutLegend(x, entries)
     self.legendBox = { x = x, y = y, w = w, h = h, header = header, headerH = LEGEND_ROW + 4, shown = shown }
     if shown then
         for index, entry in ipairs(entries) do
-            local column, row = (index - 1) % columns, math.floor((index - 1) / columns)
+            local column, row = BU.remainder(index - 1, columns), math.floor((index - 1) / columns)
             entry.x, entry.y = x + PAD + column * columnW, y + LEGEND_ROW + 4 + row * LEGEND_ROW
             entry.w, entry.fx = columnW - PAD, "e" .. index
             self.legend[#self.legend + 1] = entry
@@ -560,11 +560,11 @@ function ISBUPlan:layout()
     if scale * step >= 7 then
         local first = math.ceil((minX + (left - ox) / scale) / step) * step
         for x = first, minX + (left + availW - ox) / scale, step do
-            self.grid[#self.grid + 1] = { x = sx(x), y = top, w = 1, h = availH, major = x % 10 == 0 }
+            self.grid[#self.grid + 1] = { x = sx(x), y = top, w = 1, h = availH, major = BU.remainder(x, 10) == 0 }
         end
         first = math.ceil((minY + (top - oy) / scale) / step) * step
         for y = first, minY + (top + availH - oy) / scale, step do
-            self.grid[#self.grid + 1] = { x = left, y = sy(y), w = availW, h = 1, major = y % 10 == 0 }
+            self.grid[#self.grid + 1] = { x = left, y = sy(y), w = availW, h = 1, major = BU.remainder(y, 10) == 0 }
         end
     end
     -- The range outlines, cut to the map.
@@ -1290,7 +1290,7 @@ function ISBUPlan:showFloor(level)
     -- The strip centres on it again.
     self.stripFirst = nil
     self:layout()
-    if self.window.planFloorChanged then self.window:planFloorChanged(level) end
+    if self.window.planFloorChanged then self.window:planFloorChanged() end
 end
 
 -- Over the floor strip the wheel scrolls the floors (up the wheel, up the building); elsewhere it zooms at the mouse

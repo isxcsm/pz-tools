@@ -35,14 +35,24 @@ function RoomWalls.sides(square)
     return code
 end
 
--- The squares of a building's rooms (the API's rooms(key)): { [place] = room index }, with each square's x, y, z, and
--- each room's size; nil past MAX_SQUARES.
+-- The squares of a building's rooms (the API's rooms(key)): { [place] = room index }, with each square's x, y, z, each
+-- room's size and the box round them (minX, minY, maxX, maxY); nil past MAX_SQUARES, which the rectangles' areas tell
+-- before any square is made.
 function RoomWalls.footprint(rooms)
+    local area = 0
+    for _, room in ipairs(rooms) do
+        for _, rect in ipairs(room.rects) do area = area + rect.w * rect.h end
+    end
+    if area > RoomWalls.MAX_SQUARES then return nil end
     local owner, squares, sizes = {}, {}, {}
+    local minX, minY, maxX, maxY
     for index, room in ipairs(rooms) do
         local z = room.level
         sizes[index] = 0
         for _, rect in ipairs(room.rects) do
+            minX, minY = math.min(minX or rect.x, rect.x), math.min(minY or rect.y, rect.y)
+            maxX = math.max(maxX or rect.x + rect.w - 1, rect.x + rect.w - 1)
+            maxY = math.max(maxY or rect.y + rect.h - 1, rect.y + rect.h - 1)
             for y = rect.y, rect.y + rect.h - 1 do
                 for x = rect.x, rect.x + rect.w - 1 do
                     local place = RoomWalls.place(x, y, z)
@@ -50,13 +60,12 @@ function RoomWalls.footprint(rooms)
                         owner[place] = index
                         sizes[index] = sizes[index] + 1
                         squares[#squares + 1] = { x = x, y = y, z = z, place = place }
-                        if #squares > RoomWalls.MAX_SQUARES then return nil end
                     end
                 end
             end
         end
     end
-    return { owner = owner, squares = squares, sizes = sizes }
+    return { owner = owner, squares = squares, sizes = sizes, minX = minX, minY = minY, maxX = maxX, maxY = maxY }
 end
 
 -- Squares of one level as rectangles: runs along x, each grown down while the next row has the same run.
@@ -158,7 +167,9 @@ function RoomWalls.partition(rooms, shape, now, before)
 end
 
 -- The building watched: { key, version, rooms, shape, before = walls when last seen, now = walls as told, watches,
--- box }; or one waiting for its squares to load ({ key, waiting = true, box }).
+-- box }; or one waiting for its squares to load ({ key, waiting = true, box, rooms, shape, version }: the rooms are kept
+-- while the API's version holds); or one that cannot be watched, its box larger than the game loads at once or its
+-- squares more than a watch holds ({ key, box }).
 local watched, dirty, anyDirty, ticks, seenBuilding = nil, {}, false, 0, nil
 
 local function api()
@@ -179,18 +190,36 @@ local function unwatch(found, handle)
     watched, dirty, anyDirty = nil, {}, false
 end
 
--- The building's rooms and walls read again (all its squares loaded), or false.
-local function read(found, key)
-    local rooms = found.buildings.rooms(key)
-    local shape = rooms and RoomWalls.footprint(rooms)
-    if not shape then return false end
+-- The chunks (CHUNK squares across) the game keeps loaded about a player, when the game does not say.
+local CHUNK, LOADED_CHUNKS = 8, 13
+
+-- The most squares across a building can have to be loaded all at once.
+local function loadedSpan()
+    local ok, width = pcall(function() return IsoChunkMap.ChunkGridWidth end)
+    return ((ok and tonumber(width) or LOADED_CHUNKS) - 1) * CHUNK
+end
+
+-- Whether every chunk the shape's box covers is loaded: a chunk each CHUNK squares of the box, asked before any
+-- square of it is.
+local function boxLoaded(shape)
+    local cell = getCell()
+    for cx = math.floor(shape.minX / CHUNK), math.floor(shape.maxX / CHUNK) do
+        for cy = math.floor(shape.minY / CHUNK), math.floor(shape.maxY / CHUNK) do
+            if not cell:getChunkForGridSquare(cx * CHUNK, cy * CHUNK, 0) then return false end
+        end
+    end
+    return true
+end
+
+-- The walls of the shape's squares as they are, or false when one is not loaded.
+local function readWalls(shape)
     local cell, walls = getCell(), {}
     for _, square in ipairs(shape.squares) do
         local loaded = cell:getGridSquare(square.x, square.y, square.z)
         if not loaded then return false end
         walls[square.place] = RoomWalls.sides(loaded)
     end
-    return rooms, shape, walls
+    return walls
 end
 
 local function copy(walls)
@@ -199,15 +228,32 @@ local function copy(walls)
     return result
 end
 
+-- Starts watching a building (info: the API's at): its rooms read, unless they are kept from a wait and the API's
+-- version holds; then it waits, nothing made of its squares, until the chunks it covers are loaded; and is not
+-- watched at all when its box is larger than the game loads.
 local function start(found, handle, info)
+    local waiting = watched and watched.waiting and watched.key == info.key and watched or nil
     unwatch(found, handle)
     local box = { info.minX - LEAVE, info.minY - LEAVE, info.maxX + LEAVE, info.maxY + LEAVE }
-    local rooms, shape, walls = read(found, info.key)
-    if not rooms then
-        watched = { key = info.key, waiting = true, box = box }
+    local version = found.buildings.version()
+    local rooms, shape
+    if waiting and waiting.version == version then
+        rooms, shape = waiting.rooms, waiting.shape
+    else
+        rooms = found.buildings.rooms(info.key)
+        shape = rooms and RoomWalls.footprint(rooms)
+    end
+    local span = loadedSpan()
+    if not shape or shape.maxX - shape.minX + 1 > span or shape.maxY - shape.minY + 1 > span then
+        watched = { key = info.key, box = box }
         return
     end
-    watched = { key = info.key, version = found.buildings.version(), rooms = rooms, shape = shape, before = walls,
+    local walls = boxLoaded(shape) and readWalls(shape)
+    if not walls then
+        watched = { key = info.key, waiting = true, box = box, rooms = rooms, shape = shape, version = version }
+        return
+    end
+    watched = { key = info.key, version = version, rooms = rooms, shape = shape, before = walls,
         now = copy(walls), watches = {}, box = box }
     local list = {}
     local function flush()
@@ -271,8 +317,11 @@ local function look(found, handle)
         return
     end
     if watched and watched.waiting and building then
-        local info = found.buildings.at(square:getX(), square:getY(), square:getZ())
-        if info and info.key == watched.key then start(found, handle, info) end
+        -- Only once its chunks are loaded (or the API's version moved on) is the building asked for.
+        if found.buildings.version() ~= watched.version or boxLoaded(watched.shape) then
+            local info = found.buildings.at(square:getX(), square:getY(), square:getZ())
+            if info and info.key == watched.key then start(found, handle, info) end
+        end
         return
     end
     if watched and not building then
@@ -290,7 +339,7 @@ local function onTick()
     local found = api()
     local handle = found and BU.handle()
     if not handle then return end
-    if anyDirty and watched and not watched.waiting then settle(found) end
+    if anyDirty and watched and watched.now then settle(found) end
     if ticks >= LOOK_EVERY then
         ticks = 0
         look(found, handle)

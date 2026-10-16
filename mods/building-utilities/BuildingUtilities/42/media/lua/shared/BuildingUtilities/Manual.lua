@@ -69,8 +69,7 @@ function Manual.anyNew(panel, character)
     return false
 end
 
--- A chapter's title and text (the document's marks: "## " heads, bullets); a tier's carries its rated load and its
--- relays.
+-- A chapter's title.
 function Manual.title(key) return getText("IGUI_BU_Manual_" .. key) end
 
 -- The recipes a chapter teaches, each { recipe, item (what it makes, for its name) }.
@@ -81,6 +80,7 @@ function Manual.teaches(panel, key)
     return Manual.RECIPES[key] ~= nil and offered(panel, key) and Manual.RECIPES[key] or {}
 end
 
+-- A chapter's text (the document's marks: "## " heads, bullets); a tier's carries its rated load and its relays.
 function Manual.text(key)
     local tier = TIER_OF[key]
     if tier then

@@ -62,12 +62,14 @@ local on = false
 local spaces = {}
 -- Text measured once: font -> text -> width (design units), and face -> text -> width (pixels), until the scale or the
 -- faces change; and the wraps and cuts made for the frames that draw the same text at the same width each time
--- (UI.wrapMemo, UI.fitMemo). A table that grows past a few thousand texts (a counter's every number) starts over.
+-- (UI.wrapMemo, UI.fitMemo). Each table counts its own texts and, past CACHE_MAX (a counter's every number), starts
+-- over alone: one that fills does not empty the others.
 local widths, pixelWidths, wrapMemos, fitMemos = {}, {}, {}, {}
-local cached = 0
+local widthCount, pixelCount, memoCount = 0, 0, { wrap = 0, fit = 0 }
 local CACHE_MAX = 4000
 local function forgetText()
-    widths, pixelWidths, wrapMemos, fitMemos, cached = {}, {}, {}, {}, 0
+    widths, pixelWidths, wrapMemos, fitMemos = {}, {}, {}, {}
+    widthCount, pixelCount, memoCount = 0, 0, { wrap = 0, fit = 0 }
 end
 local floor = math.floor
 local faceOf = Faces.face
@@ -252,14 +254,14 @@ local function faceWidth(face, str)
     end
     local w = known[str]
     if w == nil then
-        if cached >= CACHE_MAX then
-            forgetText()
+        if pixelCount >= CACHE_MAX then
+            pixelWidths, pixelCount = {}, 0
             known = {}
             pixelWidths[face] = known
         end
         w = Faces.measure(face, str)
         known[str] = w
-        cached = cached + 1
+        pixelCount = pixelCount + 1
     end
     return w
 end
@@ -598,11 +600,6 @@ function UI.baselineDrop(font, other)
     return math.floor((UI.fontHeight(font) - UI.fontHeight(other)) * UI.BASELINE + 0.5)
 end
 
--- The same in pixels (our game windows' bars, a face's lines in pixels).
-function UI.faceHeightPx(font)
-    return Faces.height(font)
-end
-
 function UI.buttonHeight()
     return UI.fontHeight(UIFont.Small) + 10
 end
@@ -636,14 +633,14 @@ function UI.textWidth(text, font)
     end
     local w = known[text]
     if w == nil then
-        if cached >= CACHE_MAX then
-            forgetText()
+        if widthCount >= CACHE_MAX then
+            widths, widthCount = {}, 0
             known = {}
             widths[key] = known
         end
         w = measureDesign(text, font)
         known[text] = w
-        cached = cached + 1
+        widthCount = widthCount + 1
     end
     return w
 end
@@ -732,7 +729,7 @@ end
 
 -- The wrap and the cut kept for a text drawn at the same width every frame: the lines are the memo's own, read, not
 -- changed. Made again when the scale changes.
-local function memoOf(memos, font, text)
+local function memoOf(memos, kind, font, text)
     local key = font or UIFont.Small
     local byFont = memos[key]
     if not byFont then
@@ -741,16 +738,20 @@ local function memoOf(memos, font, text)
     end
     local byText = byFont[text]
     if not byText then
-        if cached >= CACHE_MAX then forgetText() return nil end
+        if memoCount[kind] >= CACHE_MAX then
+            for each in pairs(memos) do memos[each] = nil end
+            memoCount[kind] = 0
+            return nil
+        end
         byText = {}
         byFont[text] = byText
-        cached = cached + 1
+        memoCount[kind] = memoCount[kind] + 1
     end
     return byText
 end
 
 function UI.wrapMemo(text, width, font)
-    local byText = memoOf(wrapMemos, font, text)
+    local byText = memoOf(wrapMemos, "wrap", font, text)
     if not byText then return UI.wrap(text, width, font) end
     local lines = byText[width]
     if not lines then
@@ -761,7 +762,7 @@ function UI.wrapMemo(text, width, font)
 end
 
 function UI.fitMemo(text, width, font)
-    local byText = memoOf(fitMemos, font, text)
+    local byText = memoOf(fitMemos, "fit", font, text)
     if not byText then return UI.fit(text, width, font) end
     local cut = byText[width]
     if not cut then
@@ -1126,6 +1127,8 @@ end
 -- once used: taking it off from inside the event would make the game skip the next handler of that frame, and with
 -- nothing registered it returns at once.
 local live, liveHooked, liveCount = {}, false, 0
+-- The entries by element and frame function, for the once of UI.live.
+local liveOf = {}
 
 -- Whether the element and every element it is in are on show.
 local function onShow(el)
@@ -1165,21 +1168,30 @@ local function liveFrame()
                 parent = parent.parent
             end
         end
-        if look == nil then table.remove(live, i) end
+        if look == nil then
+            table.remove(live, i)
+            liveOf[el][entry.frame] = nil
+        end
     end
 end
 UI.liveFrame = liveFrame
 
 -- Follows an element for a frame function from the next frame on; the same element and function once.
 function UI.live(el, frame)
-    for _, entry in ipairs(live) do
-        if entry.el == el and entry.frame == frame then return end
+    local frames = liveOf[el]
+    if not frames then
+        frames = {}
+        liveOf[el] = frames
+    elseif frames[frame] then
+        return
     end
     if not liveHooked then
         Events.OnPreUIDraw.Add(liveFrame)
         liveHooked = true
     end
-    live[#live + 1] = { el = el, frame = frame }
+    local entry = { el = el, frame = frame }
+    frames[frame] = entry
+    live[#live + 1] = entry
 end
 
 -- Fading in and out ---------------------------------------------------------------------------------------------------
@@ -1222,6 +1234,14 @@ local function wrap(el, root, going)
             if fn then override(el, name, fadedDraw(fn, at, scale)) end
         end
         if el ~= root then UI.live(el, fadeFrame) end
+        -- An element added to this one while the window fades is wrapped at the next step (not before).
+        local addChild = el.addChild
+        if addChild then
+            override(el, "addChild", function(self, ...)
+                root.uiFadeWalk = true
+                return addChild(self, ...)
+            end)
+        end
         if el.Type == "ISTextEntryBox" then
             local boxes = root.uiTextBoxes or {}
             root.uiTextBoxes = boxes
@@ -1294,7 +1314,10 @@ local function fadeStep(root, now)
     local e = t * t * (3 - 2 * t)
     root.uiFade = fade.from + (fade.to - fade.from) * e
     root.uiFadeKey = math.floor(t * 100)
-    wrap(root, root, fade.done ~= nil)
+    if root.uiFadeWalk then
+        root.uiFadeWalk = nil
+        wrap(root, root, fade.done ~= nil)
+    end
     fadeTextBoxes(root, root.uiFade)
     return root.uiFadeKey
 end

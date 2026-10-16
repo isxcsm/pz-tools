@@ -314,7 +314,7 @@ function Water.layout(panel)
         local x, y, z = BU.parseThing(key)
         local room = x and not data.excluded[owner] and not data.excluded[key] and Links.homeRoom(panel, x, y, z)
         if room then
-            store(Water.chosenPipe(panel, { owner }) or Water.roomPipe(panel, room.key) or Water.FIRST, room.building, room.level,
+            store(Water.chosenPipe(panel, { owner }) or Water.roomPipe(panel, room.key), room.building, room.level,
                 x, y, z)
         end
     end

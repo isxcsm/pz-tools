@@ -45,7 +45,7 @@ local function outdoorChecks()
         end
     end
     local beside = BUT.square(yard:getX(), yard:getY(), 0, 1, 3, function(s)
-        return s:isOutside() and s:isFree(false) and not s:getGenerator() and Store.producerOwner(s:getX(), s:getY(), 0) == nil
+        return s:isOutside() and s:isFree(false) and not s:getGenerator() and BuildingUtilities.Links.get(BuildingUtilities.Links.producerRef(s:getX(), s:getY(), 0)) == nil
     end)
     local generator
     if beside then

@@ -5,7 +5,7 @@ local Store = BU.Store
 local say = BUT.say("bu17")
 local panel = BUT.nearPanel()
 if not panel then say("no panel"); return end
-say("store version", Store.data().version, "panels fn ok", Store.panels() == Store.data().panels)
+say("panels fn ok", Store.panels() == Store.data().panels)
 
 
 -- The energy record: two made-up hours.

@@ -82,14 +82,6 @@ local function viewsKey(panel)
         .. (logShown(panel) and ",log" or "")
 end
 
--- A box's name with the floors its zone takes (Panels.zoneFloors): the boxes of a tall building tell apart.
-function PanelWindow.boxTitle(panel)
-    local name, low, high = Panels.name(panel), Panels.zoneFloors(panel)
-    if low and low ~= high then return getText("IGUI_BU_SubPanelFloors", name, BU.floorName(low), BU.floorName(high)) end
-    if low then return getText("IGUI_BU_SubPanelFloor", name, BU.floorName(low)) end
-    return name
-end
-
 -- The window is the game's (in pixels) with the kit's bars and frame in the palette; everything in it stands on its
 -- body (ISBUBody), in design units. The scale is worked out again as it opens (UI.refreshScale): a window made under
 -- another opens anew (update).
@@ -399,11 +391,10 @@ end
 -- tabs right under the card while the row has nothing (laid out again only when that changes).
 function ISBUPanelWindow:placeRows()
     local x = PAD
-    for _, shown in ipairs({ self.upgradeButton }) do
-        if shown:getIsVisible() then
-            shown:setX(x)
-            x = x + shown:getWidth() + 6
-        end
+    local shown = self.upgradeButton
+    if shown:getIsVisible() then
+        shown:setX(x)
+        x = x + shown:getWidth() + 6
     end
     self.bannerX = x
     local row = self.banner ~= nil or x > PAD
@@ -1028,8 +1019,8 @@ function ISBUPanelWindow:reopen()
     window:refresh()
 end
 
--- What makes the load, for the load bar's tooltip: the rooms that draw most, devices outside, sub-panels, what
--- the line loses, and the total against what the box carries.
+-- What makes the load, for the load bar's tooltip: the rooms that draw most and the devices outside, what the grid
+-- carries, and the total against what the box carries.
 function ISBUPanelWindow:loadBreakdown()
     if not self.load then return nil end
     local view = self.views.power
@@ -1498,16 +1489,9 @@ function ISBUPanelWindow:floorFolded(foldKey, level)
 end
 
 -- The plan shows another floor: the list opens its floor's rooms (where the player has not folded it).
-function ISBUPanelWindow:planFloorChanged(level)
+function ISBUPanelWindow:planFloorChanged()
     if self.views[self:activeUtility()] then self:refill(self:activeUtility()) end
 end
-
--- What happened to the box, newest first, with how long ago.
-local BAD = { IGUI_BU_Notice_Tripped = true, IGUI_BU_Notice_PowerLost = true, IGUI_BU_Notice_WaterEmpty = true,
-    IGUI_BU_Notice_WaterEmptyPipe = true, IGUI_BU_Notice_LowFuel = true, IGUI_BU_Notice_Shed = true,
-    IGUI_BU_Notice_Frozen = true, IGUI_BU_Notice_FilterSpent = true }
-local GOOD = { IGUI_BU_Log_Reset = true, IGUI_BU_Log_Restored = true, IGUI_BU_Log_Upgraded = true,
-    IGUI_BU_Notice_Thawed = true, IGUI_BU_Notice_SwitchedOn = true }
 
 local function ago(hours)
     if hours < 1 / 60 then return getText("IGUI_BU_AgoNow") end
@@ -1516,6 +1500,7 @@ local function ago(hours)
     return getText("IGUI_BU_AgoDays", math.floor(hours / 24))
 end
 
+-- What happened to the box, newest first, with how long ago.
 function ISBUPanelWindow:fillLog()
     local list = self.lists[LOG]
     local scroll = list:getYScroll()
@@ -1548,7 +1533,7 @@ function ISBUPanelWindow:fillLog()
         local prefix = name and tostring(name) .. ": "
         if prefix and text:sub(1, #prefix) == prefix then text = text:sub(#prefix + 1) end
         list:addItem(text, { kind = "log", text = text, right = ago(math.max(0, worldHours - (entry.hour or worldHours))),
-            bad = BAD[entry.key], good = GOOD[entry.key] })
+            bad = BU.NOTICE_BAD[entry.key], good = BU.NOTICE_GOOD[entry.key] })
     end
     list:setYScroll(scroll)
 end
@@ -1742,13 +1727,6 @@ function PanelWindow.open(playerObj, panel, anchor, still)
 end
 
 function PanelWindow.isOpen(panelId) return open[panelId] ~= nil end
-
--- The panel ids of the windows open.
-function PanelWindow.openIds()
-    local ids = {}
-    for id in pairs(open) do ids[#ids + 1] = id end
-    return ids
-end
 
 -- The window open for a panel, or nil.
 function PanelWindow.get(panelId) return open[panelId] end

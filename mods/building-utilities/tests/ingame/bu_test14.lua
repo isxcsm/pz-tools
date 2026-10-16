@@ -22,7 +22,7 @@ end
 for _ = 1, 4 do squares[#squares + 1] = BUT.square(panel.x, panel.y, 0, 1, 12, untaken) end
 local units = {}
 for _, sq in ipairs(squares) do
-    local unit = Changes.installUnit("solar", sq, Units.spriteFor("solar", sq, player))
+    local unit = Changes.installUnit("solar", sq, Units.spriteFacing("solar", sq, BuildingUtilities.sideOf(sq, player)))
     Changes.connectUnit(unit, panel, {})
     units[#units + 1] = unit
 end
@@ -31,7 +31,7 @@ local source = Energy.sourceState(state)
 say("units", #units, "hasSource", Energy.hasSource(panel), "first producer", state.producers[1] and state.producers[1].source,
     "available", source and source.available, "running", source and source.running, "supplied", state.supplied, "load", f(state.load))
 local output, count, snow = Energy.output(panel)
-say("output", f(output), count, "snow", f(snow), "per panel", f(Energy.panelOutput(units[1])))
+say("output", f(output), count, "snow", f(snow))
 
 -- The source switched on by hand: it carries the load, generators off; then not available: the next takes over.
 Networks.setSource(panel, true, true)
@@ -45,7 +45,7 @@ say("off: producer", state.producer and (state.producer.source or (state.produce
 units[1].snow = 0.5
 units[2].snow = 1
 output, count, snow = Energy.output(panel)
-say("snowy output", f(output), "avg snow", f(snow), "panel 2", f(Energy.panelOutput(units[2])))
+say("snowy output", f(output), "avg snow", f(snow))
 local before = units[1].snow
 Energy.weather(1)
 say("an hour of weather", f(before), "->", f(units[1].snow))

@@ -29,11 +29,6 @@ function Energy.sunlight()
     return math.max(0, math.min(1, getClimateManager():getDayLightStrength()))
 end
 
--- What a solar panel makes in a sun (now's if none); now: the minute, if the caller has it.
-function Energy.panelOutput(unit, sun, now)
-    return Energy.rated() * (sun or Energy.sunlight()) * (1 - Energy.snowOf(unit, now))
-end
-
 -- Whether a panel's network has the source: a panel with power units.
 function Energy.hasSource(panel)
     return #Units.of(panel.id, "power") > 0

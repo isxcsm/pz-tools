@@ -92,13 +92,6 @@ function Geometry.reached(area, x, y)
     return col >= 0 and row >= 0 and col < area.w and row < area.h and area.cells[row * area.w + col] == true
 end
 
--- Whether a square of an area is on its edge: a neighbour across a side is out of it. These are the squares the
--- range reaches exactly.
-function Geometry.onEdge(area, x, y)
-    return Geometry.reached(area, x, y) and not (Geometry.reached(area, x - 1, y) and Geometry.reached(area, x + 1, y)
-        and Geometry.reached(area, x, y - 1) and Geometry.reached(area, x, y + 1))
-end
-
 -- Steps from a square to a building's outline: its rooms on any level, as buildings.rooms lists them. 0 inside.
 function Geometry.toBuilding(x, y, rooms)
     local best
@@ -137,34 +130,6 @@ function Geometry.roomRects(rooms, level)
         end
     end
     return onLevel, all
-end
-
--- The rectangles of rooms, each once: a tall building repeats its floors' rooms on every level.
-local function outlineRects(rooms)
-    local seen, result = {}, {}
-    for _, room in ipairs(rooms) do
-        for _, rect in ipairs(room.rects) do
-            local key = rect.x .. "," .. rect.y .. "," .. rect.w .. "," .. rect.h
-            if not seen[key] then seen[key] = true; result[#result + 1] = rect end
-        end
-    end
-    return result
-end
-
--- Steps between two buildings' outlines; 0 as soon as they touch.
-function Geometry.betweenBuildings(roomsA, roomsB)
-    local best
-    local rectsB = outlineRects(roomsB)
-    for _, ra in ipairs(outlineRects(roomsA)) do
-        for _, rb in ipairs(rectsB) do
-            local dx = math.max(0, ra.x - (rb.x + rb.w - 1), rb.x - (ra.x + ra.w - 1))
-            local dy = math.max(0, ra.y - (rb.y + rb.h - 1), rb.y - (ra.y + ra.h - 1))
-            local steps = math.max(dx, dy)
-            if not best or steps < best then best = steps end
-            if best == 0 then return 0 end
-        end
-    end
-    return best
 end
 
 -- The centre of a building's lowest level, for directions.

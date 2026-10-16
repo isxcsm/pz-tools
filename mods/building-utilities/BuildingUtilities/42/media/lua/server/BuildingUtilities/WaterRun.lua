@@ -7,6 +7,7 @@
 -- these with the panel's water layout (Networks.waterLayout).
 require "BuildingUtilities/Changes"
 require "BuildingUtilities/WaterUnits"
+require "BuildingUtilities/Nearby"
 local BU = BuildingUtilities
 local Store, Networks, Changes, Water, Sync, WaterUnits = BU.Store, BU.Networks, BU.Changes, BU.Water, BU.Sync,
     BU.WaterUnits
@@ -308,14 +309,13 @@ end
 
 -- Each minute (Server): the burning squares a working fire sprinkler reaches are put out, each by the first that has
 -- the water, and those sprinklers spray a while (WaterUnits.spraying). Fires are only on loaded squares, and the game
--- keeps the burning ones in IsoFireManager.FireStack: with none, nothing is looked at. A fire sprinkler needs no power
--- (its heads open by the heat); its frozen pipes, or the feature off, put out nothing.
+-- keeps the burning ones in IsoFireManager.FireStack: with none, nothing is looked at, and a burning square asks only
+-- the heads about it (BU.Nearby). A fire sprinkler needs no power (its heads open by the heat); its frozen pipes, or
+-- the feature off, put out nothing.
 function WaterRun.fires()
     local stack = IsoFireManager.FireStack
     if not stack or stack:isEmpty() then return end
     if not BU.enabled("firesprinkler") or not BU.waterAvailable() then return end
-    local heads = Store.unitList("firesprinkler")
-    if #heads == 0 then return end
     local burning, seen = {}, {}
     for i = 0, stack:size() - 1 do
         local square = stack:get(i):getSquare()
@@ -338,7 +338,7 @@ function WaterRun.fires()
         return set[unit] == true
     end
     for _, square in ipairs(burning) do
-        for _, unit in ipairs(heads) do
+        for _, unit in ipairs(BU.Nearby.unitsAt(square:getX(), square:getY(), WaterUnits.FIRE_RADIUS, "firesprinkler")) do
             local panel = Store.get(unit.panel)
             if panel and reaches(unit, square) and not panel.water.frozen and works(panel, unit)
                 and douse(panel, unit, square) then

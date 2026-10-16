@@ -95,13 +95,14 @@ function Units.object(unit)
     local objects = square:getObjects()
     for i = 0, objects:size() - 1 do
         local object = objects:get(i)
-        if object:getModData()[Units.MODDATA] == unit.id then return object end
+        if object:hasModData() and object:getModData()[Units.MODDATA] == unit.id then return object end
     end
     return nil
 end
 
+-- The unit an object is, or nil. (An object without mod data is none: asking would make some.)
 function Units.ofObject(object)
-    local id = object and object:getModData()[Units.MODDATA]
+    local id = object and object:hasModData() and object:getModData()[Units.MODDATA]
     return id and Store.unit(id) or nil
 end
 
@@ -182,8 +183,7 @@ function Units.canInstall(kind, square)
     return true
 end
 
--- The sprite for a unit put on a square by a character (facing them), or facing a side.
-function Units.spriteFor(kind, square, character) return definitions[kind].sprite(square, BU.sideOf(square, character)) end
+-- The sprite for a unit put on a square, facing a side.
 function Units.spriteFacing(kind, square, side) return definitions[kind].sprite(square, side) end
 
 -- Whether a unit's line can be hung on a panel: the place (Links.placeOn's), or nil and a reason.

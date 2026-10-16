@@ -152,13 +152,14 @@ end
 local states = {}
 
 function Links.state(panel)
-    local api = BU.api()
-    local token = Store.linkVersion() .. "|" .. (panel.tier or 1) .. "|" .. tostring(api and api.buildings.version())
-        .. "|" .. tostring(panel.zone)
+    local links, tier, version, zone = Store.linkVersion(), panel.tier or 1, BU.buildingsVersion(), panel.zone
     local kept = states[panel.id]
-    if kept and kept.token == token then return kept end
+    if kept and kept.links == links and kept.tier == tier and kept.version == version and kept.zone == zone then
+        return kept
+    end
     local lines = Links.of(panel)
-    local state = { token = token, live = {}, reason = {}, head = {}, chained = {}, relays = 0, depth = {} }
+    local state = { links = links, tier = tier, version = version, zone = zone, live = {}, reason = {}, head = {},
+        chained = {}, relays = 0, depth = {} }
     local mine = {}
     for _, line in ipairs(lines) do mine[line.ref] = line end
     -- The first lines: those from a wall, and those whose line hangs on nothing of the box (cut).

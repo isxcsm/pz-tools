@@ -117,11 +117,9 @@ end
 -- or as often as its script says one of its special ones). The chance is worked out of the game's tables the first
 -- time a kind of container fills, the way the game's loot tool reckons it: each roll an item comes at its weight
 -- times its loot modifier, a hundredth; junk at 1.4 times its weight, unmodified. Where one is put, the container's
--- owner (its object, or the vehicle's part) is marked (BOX_MARK), so that the loot window looks only at those
+-- owner (its object, or the vehicle's part) is marked (BU.BOX_MARK), so that the loot window looks only at those
 -- (Finds.lua).
-Loot.BOX = "BuildingUtilities.BreakerBox"
 Loot.BOX_SHARE = 0.5
-Loot.BOX_MARK = "buBox"
 
 -- The game's generators: Generator and its colours (Generator_Blue, ...).
 local function isGenerator(name)
@@ -223,11 +221,11 @@ end
 -- A utility panel into a container by its chance, its owner marked.
 function Loot.fillBox(roomName, containerType, container)
     local chance = Loot.boxChance(roomName, containerType, container)
-    if chance <= 0 or ZombRandFloat(0, 1) >= chance or not container:hasRoomFor(nil, weight(Loot.BOX)) then return end
-    if not container:AddItem(Loot.BOX) then return end
+    if chance <= 0 or ZombRandFloat(0, 1) >= chance or not container:hasRoomFor(nil, weight(BU.PANEL_ITEM)) then return end
+    if not container:AddItem(BU.PANEL_ITEM) then return end
     local part = container:getVehiclePart()
     local owner = part or container:getParent()
-    if owner then owner:getModData()[Loot.BOX_MARK] = true end
+    if owner then owner:getModData()[BU.BOX_MARK] = true end
 end
 
 -- As a container fills: each table's item by its chance, if the container has room for it; a utility panel where

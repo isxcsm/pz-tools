@@ -3,13 +3,14 @@
 -- amber running dry, red with a spent filter), a battery rack's charge lights while it holds batteries. A solar panel
 -- and a sprinkler have none. A game light source on the thing's square (the cell's lamppost list), only where the game
 -- draws. The game saves none and drops one whose square leaves the loaded area (LightingJNI.checkLights): a thing sets
--- its light as it takes a look (Units.setSprite, Rack.show), and the loaded things set theirs again each game minute
--- (a few lookups; setting the light a thing already has costs a look in that list). A light goes with its thing
--- (OnObjectAboutToBeRemoved).
+-- its light as its square loads and as it takes a look (Units.setSprite, Rack.show), and the things near a player set
+-- theirs again each game minute (BU.Nearby: a thing already lit costs a look in the cell's list). A light goes with its
+-- thing (OnObjectAboutToBeRemoved).
 require "BuildingUtilities/Units"
 require "BuildingUtilities/PanelLook"
 require "BuildingUtilities/WaterUnits"
 require "BuildingUtilities/Rack"
+require "BuildingUtilities/Nearby"
 local BU = BuildingUtilities
 local Lights = {}
 BU.Lights = Lights
@@ -61,14 +62,15 @@ local function drop(key)
     if cell then cell:removeLamppost(entry.source) end
 end
 
-local function set(object, spec)
+-- verify: also look that the game still has the light it was given (it drops one as its square leaves the loaded area).
+local function set(object, spec, verify)
     local square = object:getSquare()
     local cell = getCell and getCell()
     if not (square and cell and cell.addLamppost) then return end
     local key = keyOf(square)
     local entry = lit[key]
     if entry and spec and entry.spec == spec and entry.object == object
-        and cell:getLamppostPositions():contains(entry.source) then
+        and not (verify and not cell:getLamppostPositions():contains(entry.source)) then
         return
     end
     drop(key)
@@ -87,20 +89,22 @@ function Lights.of(object)
 end
 
 -- The object gives off the light its state calls for (where the game draws).
-function Lights.refresh(object)
+function Lights.refresh(object, verify)
     if isServer() or not object then return end
-    set(object, Lights.of(object))
+    set(object, Lights.of(object), verify)
 end
 
--- Each loaded box and unit sets its light again.
+-- Each loaded box and unit near a player sets its light again.
 function Lights.everyMinute()
-    for _, panel in pairs(BU.Store.panels() or {}) do
+    local players = BU.Nearby.players()
+    local _, panels = BU.Nearby.hotPanels(players)
+    for _, panel in ipairs(panels) do
         local object = BU.Panels.object(panel)
-        if object then Lights.refresh(object) end
+        if object then Lights.refresh(object, true) end
     end
-    for _, unit in pairs(BU.Store.units() or {}) do
+    for _, unit in ipairs(BU.Nearby.units(players)) do
         local object = BU.Units.object(unit)
-        if object then Lights.refresh(object) end
+        if object then Lights.refresh(object, true) end
     end
 end
 
@@ -130,6 +134,10 @@ end
 if not isServer() then
     Events.OnObjectAboutToBeRemoved.Add(Lights.onRemoved)
     Events.EveryOneMinute.Add(Lights.everyMinute)
+    -- A square loads: what stands on it lights as it should (a thing's square may load without it taking a look).
+    local function onLoad(object) Lights.refresh(object) end
+    for sprite in pairs(spriteLights()) do MapObjects.OnLoadWithSprite(sprite, onLoad, 5) end
+    for _, sprite in ipairs(BU.Units.definition("rack").sprites) do MapObjects.OnLoadWithSprite(sprite, onLoad, 5) end
 end
 
 return Lights

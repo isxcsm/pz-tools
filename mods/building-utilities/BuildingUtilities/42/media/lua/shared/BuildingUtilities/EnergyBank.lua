@@ -93,12 +93,6 @@ end
 -- The share of a bank cold locks at its racks: by the coldest air of them. None without the option.
 function Energy.coldShare(racks) return coldOf((rackAir(racks))) end
 
--- How many times faster the batteries at racks wear: by the hottest air of them. 1 without the option.
-function Energy.heatWear(racks)
-    local _, hottest = rackAir(racks)
-    return heatOf(hottest)
-end
-
 -- A panel's bank, or nil (no batteries, or racks off: BU.enabled): racks, batteries (those it counts), bypassed (the
 -- worn ones a box of the bypass tier leaves out: they keep their charge), capacity and energy (load-hours), charge
 -- (0 to 1), weak (how many it counts are worn), cold (the share locked), drag (the share its worst battery holds back,

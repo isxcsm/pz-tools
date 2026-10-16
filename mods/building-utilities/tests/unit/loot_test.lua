@@ -75,13 +75,13 @@ test("a utility panel comes at half that, by the option, and marks its container
     SandboxVars.BuildingUtilities = {}
     local found = container("vehicle")
     Loot.fillBox("Van", "TruckBed", found)
-    eq(found.items[1], Loot.BOX)
-    eq(found.owner.data[Loot.BOX_MARK], true, "the vehicle's part marked")
+    eq(found.items[1], BU.PANEL_ITEM)
+    eq(found.owner.data[BU.BOX_MARK], true, "the vehicle's part marked")
     TEST.random = 0.99
     local missed = container("building")
     Loot.fillBox("electronicstore", "other", missed)
     eq(#missed.items, 0, "past its chance, none")
-    eq(missed.owner.data[Loot.BOX_MARK], nil)
+    eq(missed.owner.data[BU.BOX_MARK], nil)
 end)
 
 test("a zombie's inventory, which fills with no container type, gets nothing and raises nothing", function()

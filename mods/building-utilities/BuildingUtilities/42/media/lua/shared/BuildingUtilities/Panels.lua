@@ -5,6 +5,7 @@
 require "BuildingUtilities/Networks"
 require "BuildingUtilities/Geometry"
 require "BuildingUtilities/Switches"
+require "BuildingUtilities/Nearby"
 local BU = BuildingUtilities
 local Store, Networks, Geometry = BU.Store, BU.Networks, BU.Geometry
 local Panels = {}
@@ -17,18 +18,17 @@ Panels.MODDATA = "BuildingUtilitiesPanel"
 -- changed. The API changes it as the game swaps in new region data, which is how walls, doors, roofs and player-built
 -- buildings come into the map's data. So nothing is kept by time, and nothing is read again while it holds.
 local cacheVersion
-local buildingCache, roomsCache, zoneCache = {}, {}, {}
+local buildingCache, roomsCache, baseCache, zoneCache = {}, {}, {}, {}
 local NO_BUILDING = {}
 
 local function squareKey(x, y, z) return (z * 100000 + y) * 100000 + x end
 
 -- Forgets what was kept when the API's version changed; the API, or nil without it.
 local function current()
-    local api = BU.api()
+    local version, api = BU.buildingsVersion()
     if not api then return nil end
-    local version = api.buildings.version()
     if version ~= cacheVersion then
-        cacheVersion, buildingCache, roomsCache, zoneCache = version, {}, {}, {}
+        cacheVersion, buildingCache, roomsCache, baseCache, zoneCache = version, {}, {}, {}, {}
     end
     return api
 end
@@ -92,31 +92,46 @@ local function roomKey(room, count)
     return best and BU.placeKey(best.x, best.y, room.level)
 end
 
--- A building's rooms as plain tables: { id, key, name, level, building (its key), rects = { { x, y, w, h } } }, key
--- the room's square for a saved zone (roomKey). The rooms built onto the
--- building (Panels.attached) are rectangles added to the room each touches most, after the room's own (own: how
--- many), so that the first is always a square of the map's room, and the box's name is still that of the largest room
--- of the map. Kept for the API's version (above): windows, the water layout and each minute's work ask often.
+-- A building's rooms as the API lists them, as plain tables: { id, key, name, level, building (its key), size (the
+-- squares of its own rectangles), rects = { { x, y, w, h } } }, key the room's square for a saved zone (roomKey); nil
+-- when the API has none. Kept for the API's version (above); Panels.rooms adds the rooms built onto the building to
+-- these same tables, the names (Panels.autoName) need only the map's rooms.
+local function baseRooms(api, building)
+    local kept = baseCache[building.key]
+    if kept ~= nil then return kept or nil end
+    local list = api.buildings.rooms(building.key)
+    if not list then
+        baseCache[building.key] = false
+        return nil
+    end
+    local result = {}
+    for i = 1, #list do
+        local room = list[i]
+        local rects, size = {}, 0
+        for j = 1, #room.rects do
+            local rect = room.rects[j]
+            rects[#rects + 1] = { x = rect.x, y = rect.y, w = rect.w, h = rect.h }
+            size = size + rect.w * rect.h
+        end
+        result[#result + 1] = { id = room.id, name = room.name, level = room.level, rects = rects, size = size,
+            building = building.key }
+    end
+    for _, room in ipairs(result) do room.key = roomKey(room, #room.rects) end
+    baseCache[building.key] = result
+    return result
+end
+
+-- A building's rooms as baseRooms has them, with the rooms built onto the building (Panels.attached) added as rectangles
+-- to the room each touches most, after the room's own (own: how many), so that the first is always a square of the
+-- map's room. Kept for the API's version: windows, the water layout and each minute's work ask often.
 function Panels.rooms(building)
     if not building then return {} end
     local api = current()
     if not api then return {} end
     local cached = roomsCache[building.key]
     if cached then return cached.rooms end
-    local list = api.buildings.rooms(building.key)
-    local result, spaces = {}, nil
-    if list then
-        for i = 1, #list do
-            local room = list[i]
-            local rects = {}
-            for j = 1, #room.rects do
-                local rect = room.rects[j]
-                rects[#rects + 1] = { x = rect.x, y = rect.y, w = rect.w, h = rect.h }
-            end
-            result[#result + 1] = { id = room.id, name = room.name, level = room.level, rects = rects,
-                building = building.key }
-        end
-        for _, room in ipairs(result) do room.key = roomKey(room, #room.rects) end
+    local result, spaces = baseRooms(api, building), nil
+    if result then
         spaces = attachedFor(api, building)
         for _, space in ipairs(spaces or {}) do
             for _, room in ipairs(result) do
@@ -129,13 +144,10 @@ function Panels.rooms(building)
             end
         end
     end
+    result = result or {}
     roomsCache[building.key] = { rooms = result, spaces = spaces or false }
     return result
 end
-
--- What was kept of the buildings, their rooms and the rooms built onto them, forgotten: looked at again at the next
--- ask (for a check that wants a fresh look whatever the API's version says).
-function Panels.forgetRooms() buildingCache, roomsCache, zoneCache = {}, {}, {} end
 
 -- The rooms built onto a building (see above): a list of spaces (none for a building the player built), or nil when
 -- they cannot be found now.
@@ -177,13 +189,13 @@ end
 
 -- What is worked out of the boxes' buildings and relays, kept while the lines, the boxes and the API's buildings are
 -- the same (Store.linkVersion, the API's version).
-local claimToken, claimIndex, zoneBuildingsOf, zoneListOf
+local claimLinks, claimBuildings, claimIndex, zoneBuildingsOf, zoneListOf
 
 local function claims()
     current()
-    local token = Store.linkVersion() .. "|" .. tostring(cacheVersion)
-    if claimToken == token then return claimIndex end
-    claimToken, claimIndex, zoneBuildingsOf, zoneListOf = token, {}, {}, {}
+    local links = Store.linkVersion()
+    if claimLinks == links and claimBuildings == cacheVersion then return claimIndex end
+    claimLinks, claimBuildings, claimIndex, zoneBuildingsOf, zoneListOf = links, cacheVersion, {}, {}, {}
     for _, panel in ipairs(Store.list()) do
         local seen, buildings = {}, {}
         local function add(building)
@@ -425,7 +437,7 @@ end
 
 -- Each room (of the box's zone buildings, as Panels.rooms has them) to the plan: "mine", "free", "far" (free, on a
 -- floor the box does not reach) or "taken", with the panel that has it.
-function Panels.zoneStates(panel, building, rooms)
+function Panels.zoneStates(panel, rooms)
     local result = {}
     for _, room in ipairs(rooms) do
         if Panels.inZone(panel, room.id) then
@@ -446,14 +458,14 @@ function Panels.object(panel)
     local objects = square:getObjects()
     for i = 0, objects:size() - 1 do
         local object = objects:get(i)
-        if object:getModData()[Panels.MODDATA] == panel.id then return object end
+        if object:hasModData() and object:getModData()[Panels.MODDATA] == panel.id then return object end
     end
     return nil
 end
 
--- The panel a world object is the box of, or nil.
+-- The panel a world object is the box of, or nil. (An object without mod data is none: asking would make some.)
 function Panels.ofObject(object)
-    local id = object and object:getModData()[Panels.MODDATA]
+    local id = object and object:hasModData() and object:getModData()[Panels.MODDATA]
     return id and Store.get(id) or nil
 end
 
@@ -571,10 +583,6 @@ function Panels.tierReaching(range, steps)
     return nil
 end
 
--- What a box could take that has no line, each { x, y, z, sprite } (a generator or water storage) or { x, y, z,
--- unit }: the producers in its building and around it within its connect range (the API's buildings.producers, read in
--- Java; none with an API from before it), and the units, that a line could hang on the box from (BU.Links.placeOn).
--- None while the utility is off.
 -- Whether what the API lists as a producer is one a box takes: a generator; for water a storage the game fills
 -- (BU.isWaterContainer), not anything that holds a little (a cup left on a sink).
 function Panels.storageAt(utility, entry)
@@ -594,6 +602,10 @@ function Panels.waterStorage(x, y, z)
     return nil
 end
 
+-- What a box could take that has no line, each { x, y, z, sprite } (a generator or water storage) or { x, y, z,
+-- unit }: the producers in its building and around it within its connect range (the API's buildings.producers, read in
+-- Java; none with an API from before it), and the units, that a line could hang on the box from (BU.Links.placeOn).
+-- None while the utility is off.
 function Panels.unwiredProducers(panel, utility)
     local result = {}
     if not BU.enabled(utility) then return result end
@@ -791,7 +803,6 @@ function Panels.deviceAt(utility, x, y, z, sprite)
     local object = BU.objectsWithSprite(x, y, z, sprite)[1]
     if not object then return nil end
     local keys = BU.partKeys(object)
-    table.sort(keys)
     local owner = inclusionOwner(utility, keys)
     return { entry = { x = x, y = y, z = z, sprite = sprite }, key = keys[1] or BU.thingKey(x, y, z, sprite),
         keys = #keys > 0 and keys or { BU.thingKey(x, y, z, sprite) }, inside = false, wired = owner ~= nil,
@@ -885,6 +896,41 @@ function Panels.device(panel, utility, key)
     return nil
 end
 
+-- Each box by the grid cells (REACH_CELL squares) its building's rooms, grown by its connect range, cover: the boxes
+-- whose outside range can reach a square are those of its cell. Kept while the boxes, the lines and the API's buildings
+-- are the same.
+local REACH_CELL = 32
+local reachLinks, reachBuildings, reachCells
+
+local function reachIndex()
+    current()
+    local links = Store.linkVersion()
+    if reachCells and reachLinks == links and reachBuildings == cacheVersion then return reachCells end
+    reachLinks, reachBuildings, reachCells = links, cacheVersion, {}
+    for _, panel in ipairs(Store.list()) do
+        local own = Panels.building(panel)
+        local minX, minY, maxX, maxY
+        for _, room in ipairs(own and Panels.rooms(own) or {}) do
+            for _, rect in ipairs(room.rects) do
+                minX, minY = math.min(minX or rect.x, rect.x), math.min(minY or rect.y, rect.y)
+                maxX = math.max(maxX or rect.x + rect.w - 1, rect.x + rect.w - 1)
+                maxY = math.max(maxY or rect.y + rect.h - 1, rect.y + rect.h - 1)
+            end
+        end
+        if minX then
+            local range = BU.connectRange(panel.tier)
+            for cx = math.floor((minX - range) / REACH_CELL), math.floor((maxX + range) / REACH_CELL) do
+                for cy = math.floor((minY - range) / REACH_CELL), math.floor((maxY + range) / REACH_CELL) do
+                    local key = cx .. "," .. cy
+                    reachCells[key] = reachCells[key] or {}
+                    table.insert(reachCells[key], panel)
+                end
+            end
+        end
+    end
+    return reachCells
+end
+
 -- The panels a square can be a device of: those of its building, and those whose outside range reaches it. The
 -- steps are to the building's rooms on any level, never more than buildings.near counts on the square's own, so
 -- none that has it is left out; a square far from every box asks the API for no devices.
@@ -895,10 +941,13 @@ local function devicePanels(x, y, z)
         seen[panel] = true
         result[#result + 1] = panel
     end
-    for _, panel in ipairs(Store.list()) do
+    for _, panel in ipairs(reachIndex()[math.floor(x / REACH_CELL) .. "," .. math.floor(y / REACH_CELL)] or {}) do
         local own = Panels.building(panel)
         local steps = own and Geometry.toBuilding(x, y, Panels.rooms(own))
-        if not seen[panel] and steps and steps <= BU.connectRange(panel.tier) then result[#result + 1] = panel end
+        if not seen[panel] and steps and steps <= BU.connectRange(panel.tier) then
+            seen[panel] = true
+            result[#result + 1] = panel
+        end
     end
     return result
 end
@@ -997,44 +1046,95 @@ function Panels.roomTitles(building)
     return titles
 end
 
--- The panel's name: the player's, or its building's largest room and a number among panels of the same name.
-function Panels.name(panel)
-    if panel.name and panel.name ~= "" then return panel.name end
-    local base = Panels.autoName(panel)
-    local count = 0
-    for _, other in ipairs(Store.list()) do
-        if not (other.name and other.name ~= "") and Panels.autoName(other) == base then
-            count = count + 1
-            if other == panel then break end
-        end
-    end
-    return count > 1 and (base .. " " .. count) or base
-end
-
--- Kept by panel for the API's version of the buildings (as Panels.rooms) and the box's square: the tooltip over a box
--- and the windows ask for names often, and each name asks for every unnamed panel's building and rooms.
+-- What a box with no name of the player's is called, by its building's largest room: kept by panel while the API's
+-- version of the buildings holds. Across a version a map building's box keeps its name unless it is near a player
+-- (`hot`, the set of BU.Nearby.hotPanels): a map building is the same until the world is left, and its rooms change
+-- only where a player is (a wall built or taken down: BU.RoomWalls, the game's editor). One in a building the player
+-- built, or in none, is looked at again. The name asks for every unnamed box's building, so it is worked out from the
+-- rooms alone (baseRooms), not the rooms built onto the building. Without `hot` every box counts as near.
 local autoNames = {}
-function Panels.autoName(panel)
-    local api = BU.api()
-    local version = api and api.buildings.version()
+
+local function autoNameAt(panel, hot, version, api)
     local cached = autoNames[panel.id]
-    if cached and version ~= nil and cached.version == version and cached.x == panel.x and cached.y == panel.y
-            and cached.z == panel.z then
-        return cached.name
+    if cached and cached.x == panel.x and cached.y == panel.y and cached.z == panel.z and version ~= nil then
+        if cached.version == version then return cached.name end
+        if cached.map and hot and not hot[panel.id] then
+            cached.version = version
+            return cached.name
+        end
     end
     local building = Panels.building(panel)
     local best, area = nil, 0
-    for _, room in ipairs(Panels.rooms(building)) do
-        local size = 0
-        for index = 1, room.own or #room.rects do
-            local rect = room.rects[index]
-            size = size + rect.w * rect.h
-        end
-        if room.name and room.name ~= "" and size > area then best, area = room.name, size end
+    for _, room in ipairs(building and api and baseRooms(api, building) or {}) do
+        if room.name and room.name ~= "" and room.size > area then best, area = room.name, room.size end
     end
     local name = best and getText("IGUI_BU_PanelOf", BU.roomName(best)) or getText("IGUI_BU_PanelDefault")
-    autoNames[panel.id] = { version = version, x = panel.x, y = panel.y, z = panel.z, name = name }
+    autoNames[panel.id] = { version = version, x = panel.x, y = panel.y, z = panel.z, name = name,
+        map = building ~= nil and not building.playerBuilt }
     return name
+end
+
+function Panels.autoName(panel, hot)
+    local version, api = BU.buildingsVersion()
+    return autoNameAt(panel, hot, version, api)
+end
+
+-- The names of the boxes, by panel id: the player's name, else the automatic one and, among boxes of the same one,
+-- a number from the second on, in the order the boxes were made. Worked out for all together (the base name and the
+-- number of each; the text when asked), and kept while the boxes and the names are the same. When only the API's
+-- version of the buildings moved, the boxes that can have a new name are looked at (those near a player, and those not
+-- in a map building: autoNameAt), and all again only if one has.
+local namesLinks, namesBuildings, namesSeen, namesRenamed, namesOf = -1, nil, 0, 0, nil
+local baseOf, numberOf, textOf, dynamic = {}, {}, {}, {}
+
+-- A box was named or unnamed (Changes.rename).
+function Panels.renamed() namesRenamed = namesRenamed + 1 end
+
+local function nameAll(links, panels, version, api)
+    namesLinks, namesBuildings, namesSeen, namesOf = links, version, namesRenamed, panels
+    baseOf, numberOf, textOf, dynamic = {}, {}, {}, {}
+    local hot = BU.Nearby.hotPanels()
+    local count = {}
+    for _, other in ipairs(Store.ordered()) do
+        if not (other.name and other.name ~= "") then
+            local base = autoNameAt(other, hot, version, api)
+            count[base] = (count[base] or 0) + 1
+            baseOf[other.id], numberOf[other.id] = base, count[base]
+            if not autoNames[other.id].map then dynamic[#dynamic + 1] = other end
+        end
+    end
+end
+
+-- Whether a box that can have a new name has one.
+local function renamedBy(list, hot, version, api)
+    for _, other in ipairs(list) do
+        local was = baseOf[other.id]
+        if was and autoNameAt(other, hot, version, api) ~= was then return true end
+    end
+    return false
+end
+
+function Panels.name(panel)
+    if panel.name and panel.name ~= "" then return panel.name end
+    local links, panels = Store.linkVersion(), Store.panels()
+    local version, api = BU.buildingsVersion()
+    if namesLinks ~= links or namesSeen ~= namesRenamed or namesOf ~= panels or not baseOf[panel.id] then
+        nameAll(links, panels, version, api)
+    elseif namesBuildings ~= version then
+        local hot, near = BU.Nearby.hotPanels()
+        if renamedBy(dynamic, hot, version, api) or renamedBy(near, hot, version, api) then
+            nameAll(links, panels, version, api)
+        else
+            namesBuildings = version
+        end
+    end
+    local text = textOf[panel.id]
+    if text then return text end
+    local base = baseOf[panel.id]
+    if not base then return Panels.autoName(panel) end
+    text = numberOf[panel.id] > 1 and (base .. " " .. numberOf[panel.id]) or base
+    textOf[panel.id] = text
+    return text
 end
 
 -- A place relative to a panel's building (an outdoor box's square): "12 NE"; in the building, the room it is in (on

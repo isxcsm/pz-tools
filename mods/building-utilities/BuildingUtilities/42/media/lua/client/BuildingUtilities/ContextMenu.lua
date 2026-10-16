@@ -439,12 +439,16 @@ local function placedKind(item)
     return nil
 end
 
--- Takes out of the menu the game's own place option for the item (it opens the same cursor; this mod's stays).
+-- Takes out of the menu the game's own place option for the item (it opens the same cursor; this mod's stays). The
+-- game removes an option by its name, the first with it, which another item's or mod's could be: the option found is
+-- given a name of its own for that.
+local DROPPED = "BuildingUtilities.dropped"
 local function dropGamesOwn(context, item)
     local name = getText("IGUI_PlaceObject")
     for _, option in ipairs(context.options) do
         if option.name == name and option.target == item and option.onSelect == ISMoveableContextMenu.openMovableCursor then
-            context:removeOptionByName(name)
+            option.name = DROPPED
+            context:removeOptionByName(DROPPED)
             return
         end
     end

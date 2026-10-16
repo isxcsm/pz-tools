@@ -82,7 +82,7 @@ local function windowChecks()
     check("rename: a long name cut on a whole letter", wholeLetters(panel.name or ""), true)
     say("rename: kept", #(panel.name or ""), "letters")
     window:refresh()
-    check("rename: the title shows it", tostring(PanelWindow.boxTitle(panel)):find(panel.name, 1, true) ~= nil, true)
+    check("rename: the name shows", Panels.name(panel), panel.name)
     Changes.rename(panel, nameWas)
     -- The search: a device's own name finds it and leaves out the rest.
     window.tabs:activateView(window.tabs.viewList[1].name)
@@ -179,7 +179,7 @@ end
 
 -- 4. A line taken away gives back the sandbox's share of what it took.
 local function refundChecks()
-    local sq = yardSquare(function(s) return not s:getGenerator() and Store.producerOwner(s:getX(), s:getY(), 0) == nil end)
+    local sq = yardSquare(function(s) return not s:getGenerator() and BuildingUtilities.Links.get(BuildingUtilities.Links.producerRef(s:getX(), s:getY(), 0)) == nil end)
     if not sq then say("BAD no square for a line"); bad = bad + 1; return end
     local generator = IsoGenerator.new(instanceItem("Base.Generator"), getCell(), sq)
     Changes.connectProducer(panel, "power", sq:getX(), sq:getY(), 0, { [Costs.WIRE] = 4 })
@@ -328,7 +328,7 @@ steps[#steps + 1] = function()
     if not had then
         local sq = BUT.square(panel.x, panel.y, panel.z, 1, 10, function(s) return Units.canInstall("rack", s) end)
         if sq then
-            rack = Changes.installUnit("rack", sq, Units.spriteFor("rack", sq, player))
+            rack = Changes.installUnit("rack", sq, Units.spriteFacing("rack", sq, BuildingUtilities.sideOf(sq, player)))
             Changes.connectUnit(rack, panel, {})
         end
     end

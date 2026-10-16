@@ -9,32 +9,35 @@ require "BuildingUtilities/Batteries"
 require "BuildingUtilities/Finds"
 require "BuildingUtilities/Titles"
 require "BuildingUtilities/Lights"
+require "BuildingUtilities/PanelBlink"
+require "BuildingUtilities/SprinklerSpray"
 local BU = BuildingUtilities
 local Store, Panels, PanelWindow = BU.Store, BU.Panels, BU.PanelWindow
 
 -- How far from a box's building, in squares, a player hears it; one with its window open always does.
 local NOTICE_RANGE = 40
-local GOOD = { IGUI_BU_Notice_Switched = true, IGUI_BU_Notice_Thawed = true, IGUI_BU_Notice_SwitchedOn = true }
 
--- Boxes from before the summary existed get it as they come into view. (A tripped box shows it on its own lamps:
--- BU.PanelLook.)
-local function giveSummaries()
-    for _, panel in ipairs(Store.list()) do
-        local box = Panels.object(panel)
-        if box and not box:haveSpecialTooltip() then box:setSpecialTooltip(true) end
-    end
+-- The box on a square shows the summary: set as its square loads and as a box is put down. (A tripped box shows it
+-- on its own lamps: BU.PanelLook.)
+local function giveSummary(box)
+    if box and not box:haveSpecialTooltip() then box:setSpecialTooltip(true) end
 end
 
 -- The summaries over boxes (summaryOf), by panel id.
 local summaries = {}
 
-function BU.onChanged()
-    giveSummaries()
+-- Something changed: of the box given, or of none in particular (nil). Every window refreshes once that settles, as a
+-- box's change can show in another's window too (its name, a device connected to it).
+function BU.onChanged(panelId)
+    local panel = panelId and Store.get(panelId)
+    if panel then giveSummary(Panels.object(panel)) end
     PanelWindow.refreshAll()
     BU.RackWindow.refreshAll()
+    BU.PanelBlink.changed(panelId)
+    BU.SprinklerSpray.changed(panelId)
     summaries = {}
-    -- A client's data is the server's only once received (onReceiveGlobalModData).
-    if not isClient() then PanelWindow.forgetRemoved() end
+    -- A client's data is the server's only once received (onReceiveGlobalModData); a box taken down leaves its marks.
+    if not isClient() and panelId and not panel then PanelWindow.forgetRemoved() end
 end
 
 -- A sound at a box, heard where it is.
@@ -53,7 +56,7 @@ function BU.onNotice(panelId, key, args)
         if player and not player:isDead() then
             local steps = Panels.steps(panel, player:getX(), player:getY())
             if PanelWindow.isOpen(panelId) or steps and steps <= NOTICE_RANGE then
-                if GOOD[key] then HaloTextHelper.addGoodText(player, text) else HaloTextHelper.addBadText(player, text) end
+                if BU.NOTICE_GOOD[key] then HaloTextHelper.addGoodText(player, text) else HaloTextHelper.addBadText(player, text) end
             end
         end
     end
@@ -149,8 +152,11 @@ end
 local function onReceiveGlobalModData(key, data)
     if key ~= Store.KEY or type(data) ~= "table" then return end
     ModData.add(key, data)
+    Store.reload()
     BU.onChanged()
     PanelWindow.forgetRemoved()
+    -- What is lit by the data (a rack's batteries) near the player, now that it is here.
+    BU.Lights.everyMinute()
 end
 
 -- A network the API runs here changed: the windows that show it.
@@ -162,7 +168,9 @@ local listening = false
 
 local function onGameStart()
     if isClient() then ModData.request(Store.KEY) end
-    giveSummaries()
+    -- The squares loaded before this: their boxes (a box loaded later is found as its square loads).
+    local _, near = BU.Nearby.hotPanels()
+    for _, panel in ipairs(near) do giveSummary(Panels.object(panel)) end
     if not listening and BU.api() and Events.OnPZExtNetworkChange then
         Events.OnPZExtNetworkChange.Add(onNetworkChange)
         listening = true
@@ -173,5 +181,9 @@ Events.OnServerCommand.Add(onServerCommand)
 Events.OnReceiveGlobalModData.Add(onReceiveGlobalModData)
 Events.OnGameStart.Add(onGameStart)
 Events.DoSpecialTooltip.Add(onSpecialTooltip)
--- Boxes come into view as squares load.
-Events.EveryOneMinute.Add(giveSummaries)
+-- Boxes come into view as squares load. (Their mod data says what they are; the data of the save may not be here yet.)
+for _, sprite in ipairs(BU.PanelLook.ALL) do
+    MapObjects.OnLoadWithSprite(sprite, function(object)
+        if object:hasModData() and object:getModData()[Panels.MODDATA] then giveSummary(object) end
+    end, 5)
+end

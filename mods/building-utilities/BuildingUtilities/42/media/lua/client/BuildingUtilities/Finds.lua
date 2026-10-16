@@ -1,5 +1,5 @@
 -- The first utility panel a character finds: as the loot window shows a container the loot put one in (its owner
--- marked: Loot.BOX_MARK), its line is lit (the game's own blink, as the tutorial's) and the character says what it
+-- marked: BU.BOX_MARK), its line is lit (the game's own blink, as the tutorial's) and the character says what it
 -- is good for. Once for each character (FOUND, their mod data). Only the marked owners are looked into, never the
 -- containers' items as such.
 require "BuildingUtilities/Core"
@@ -8,7 +8,8 @@ local Finds = {}
 BU.Finds = Finds
 
 Finds.FOUND = "buFoundBox"
-local MARK, BOX, BOX_TYPE = "buBox", "BuildingUtilities.BreakerBox", "BreakerBox"
+local MARK, BOX = BU.BOX_MARK, BU.PANEL_ITEM
+local BOX_TYPE = BOX:match("[^%.]+$")
 -- How long the line blinks, in milliseconds.
 local BLINK_MS = 20000
 

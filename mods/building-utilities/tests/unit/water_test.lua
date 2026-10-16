@@ -122,7 +122,16 @@ local function fakeNetworks()
             end
             return drawn, mix
         end,
+        removeBuilding = function() end,
     }
+    -- The power network was defined before this fake took over: what is asked of it does nothing here.
+    for _, name in ipairs({ "setProducers", "setParents", "addRoom", "removeRoom", "include", "exclude", "reset",
+        "setEnabled", "setPurify", "setGridFirst" }) do
+        local fn = api[name]
+        api[name] = function(handle, id, ...)
+            if nets[id] then return fn(handle, id, ...) end
+        end
+    end
     TEST.api.table.networks = api
     return nets, function(x, y, z, capacity, amount, fluid)
         tanks[x .. "," .. y .. "," .. z] = { amount = amount or 0, capacity = capacity,

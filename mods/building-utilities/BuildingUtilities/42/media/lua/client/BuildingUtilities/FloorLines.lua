@@ -80,8 +80,10 @@ end
 local shown, wanted = {}, {}
 local seen, cleared = nil, false
 -- The squares watched (the API's watch ids), the squares told changed since, and the squares looked at again for a
--- while ({ key = ticks left }, nil when none).
-local watches, changed, rechecks, anyChanged, ticks = {}, {}, nil, false, 0
+-- while ({ key = ticks left }, nil when none). And what each was last seen as (looked: its floor made or not, its ground
+-- open or not): a square the game works out again only because it loaded, or for a change that came to nothing, is
+-- soon looked at again for nothing.
+local watches, changed, rechecks, anyChanged, ticks, looked = {}, {}, nil, false, 0, {}
 
 local function decals(square)
     local list, names = {}, {}
@@ -145,7 +147,7 @@ function FloorLines.refresh()
         api.floor.clear(handle)
         shown, cleared = {}, true
     end
-    wanted = FloorLines.wanted()
+    wanted, looked = FloorLines.wanted(), {}
     for key, square in pairs(wanted) do send(api, handle, key, square) end
     for key in pairs(shown) do
         if not wanted[key] then
@@ -158,12 +160,18 @@ function FloorLines.refresh()
 end
 
 -- A square of the lines that changed, or one looked at again: its look chosen again; the lines that can no longer lie
--- there laid again round it. True when a line was.
-local function recheck(api, handle, key)
+-- there laid again round it. True when a line was. again: a look after the change (not the change itself), which
+-- does nothing while the floor and the ground are as they were seen.
+local function recheck(api, handle, key, again)
     local square = wanted[key]
     if not square then return false end
+    local made = FloorLines.madeFloor(square.x, square.y, square.z)
+    local open = Links.groundOpen(square.x, square.y, square.z)
+    local seenAs = (made and 2 or 0) + (open and 1 or 0)
+    if again and looked[key] == seenAs then return false end
+    looked[key] = seenAs
     send(api, handle, key, square)
-    if Links.groundOpen(square.x, square.y, square.z) then return false end
+    if open then return false end
     local moved = false
     for _, ref in ipairs(square.lines) do
         local line = Links.get(ref)
@@ -200,7 +208,7 @@ local function onTick()
         changed, anyChanged = {}, false
         rechecks = rechecks or {}
         for key in pairs(keys) do
-            if recheck(api, handle, key) then moved = true end
+            if recheck(api, handle, key, false) then moved = true end
             rechecks[key] = RECHECK_TICKS
         end
     end
@@ -209,7 +217,7 @@ local function onTick()
         ticks = 0
         local still = nil
         for key, left in pairs(rechecks) do
-            if recheck(api, handle, key) then moved = true end
+            if recheck(api, handle, key, true) then moved = true end
             if left > RECHECK_EVERY then
                 still = still or {}
                 still[key] = left - RECHECK_EVERY

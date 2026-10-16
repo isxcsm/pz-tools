@@ -32,6 +32,19 @@ function BU.api()
     return api
 end
 
+-- The API's version of the buildings (buildings.version, a call into Java), read at most once a tick: what is kept of
+-- the buildings goes with it, and a change within a tick is seen at the next. Returns the version and the API, or nil.
+local ticks, versionTick, versionRoot, versionApi, versionKept = 0, -1, nil, nil, nil
+Events.OnTick.Add(function() ticks = ticks + 1 end)
+
+function BU.buildingsVersion()
+    if versionTick == ticks and versionRoot == PZExtAPI then return versionKept, versionApi end
+    local api = BU.api()
+    versionTick, versionRoot, versionApi = ticks, PZExtAPI, api
+    versionKept = api and api.buildings.version() or nil
+    return versionKept, api
+end
+
 -- This mod's handle: every network change goes through it.
 function BU.handle()
     local api = BU.api()
@@ -299,6 +312,9 @@ BU.PANEL_FIRST = { indoor = { 72, 88, 104, 32 }, outdoor = { 120, 136, 152, 168 
 BU.PANEL_ITEMS = { "BuildingUtilities.BreakerBox", "BuildingUtilities.BreakerBox2", "BuildingUtilities.BreakerBox3",
     "BuildingUtilities.BreakerBox4" }
 BU.PANEL_ITEM = BU.PANEL_ITEMS[1]
+-- The mod data mark on the owner of a container the loot put a box in (Loot.fillBox), which the loot window looks for
+-- (Finds).
+BU.BOX_MARK = "buBox"
 BU.PANEL_ITEM_TIER = {}
 for tier, fullType in ipairs(BU.PANEL_ITEMS) do BU.PANEL_ITEM_TIER[fullType] = tier end
 
@@ -400,13 +416,21 @@ function BU.displayName(x, y, z, sprite)
     return (object or not sprite) and getText("IGUI_BU_Name_Unknown") or sprite
 end
 
--- A notice's text (BU.Sync.notice, the box's log): its key with its arguments, at most four, each as text.
 -- A text cut to at most so many letters: a name a player typed, kept short. (The game's Lua keeps a string as Java's
 -- characters: a Hangul letter is one place of it, so a cut never splits one.)
 function BU.cutText(text, most)
     if #text <= most then return text end
     return text:sub(1, most)
 end
+
+-- A notice's text (BU.Sync.notice, the box's log): its key with its arguments, at most four, each as text.
+-- How the notices read in the log and above a player's head: the keys of those that went well, and of those that did
+-- not; the rest are neither.
+BU.NOTICE_GOOD = { IGUI_BU_Log_Reset = true, IGUI_BU_Log_Upgraded = true, IGUI_BU_Notice_Thawed = true,
+    IGUI_BU_Notice_SwitchedOn = true, IGUI_BU_Notice_Switched = true, IGUI_BU_Notice_SolarOn = true }
+BU.NOTICE_BAD = { IGUI_BU_Notice_Tripped = true, IGUI_BU_Notice_PowerLost = true, IGUI_BU_Notice_WaterEmpty = true,
+    IGUI_BU_Notice_WaterEmptyPipe = true, IGUI_BU_Notice_LowFuel = true, IGUI_BU_Notice_Frozen = true,
+    IGUI_BU_Notice_FilterSpent = true, IGUI_BU_Notice_BankLow = true, IGUI_BU_Notice_BankEmpty = true }
 
 function BU.noticeText(key, args)
     args = args or {}

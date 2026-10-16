@@ -78,7 +78,7 @@ local farRoom
 for _, room in ipairs(Panels.rooms(building)) do
     if room.level == main.z + 8 then farRoom = room break end
 end
-local states = Panels.zoneStates(main, building, Panels.rooms(building))
+local states = Panels.zoneStates(main, Panels.rooms(building))
 check("a room 8 floors up is far", farRoom and states[farRoom.id].state, "far")
 check("the floor 8 up is not reached", Panels.reachesLevel(main, main.z + 8), false)
 

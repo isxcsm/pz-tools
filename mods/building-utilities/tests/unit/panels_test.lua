@@ -101,7 +101,7 @@ test("built-on rooms the API cannot find are nil, and the rooms are still listed
     eq(Panels.attachedSize(building), 0)
 end)
 
-test("a box's automatic name is kept while the version holds", function()
+test("a box's automatic name is kept while the version holds, and across it for a map building away from the players", function()
     local api = TEST.api
     house(api)
     local panel = Store.newPanel(201, 201, 0, "box")
@@ -109,9 +109,96 @@ test("a box's automatic name is kept while the version holds", function()
     eq(name, "IGUI_BU_PanelOf Hall", "the largest room of the map's, the shed not counted")
     eq(Panels.autoName(panel), name)
     eq(calls("rooms"), 1)
+    eq(calls("attached"), 0, "the rooms built onto the building are not what a name is made of")
     api.buildingsVersion = 2
-    eq(Panels.autoName(panel), name)
-    eq(calls("rooms"), 2, "read again for the new version")
+    eq(Panels.name(panel), name)
+    eq(calls("rooms"), 1, "a map building's rooms are the same under a new version, away from the players: not read again")
+    eq(calls("at"), 1, "nor its building asked for")
+    -- A player near it: the rooms may have changed (a wall taken down), so they are read again.
+    getNumActivePlayers = function() return 1 end
+    getSpecificPlayer = function() return { getX = function() return 201 end, getY = function() return 201 end } end
+    api.buildingsByKey[KEY].rooms[2].rects = { { x = 204, y = 200, w = 2, h = 4 }, { x = 200, y = 200, w = 4, h = 4 } }
+    api.buildingsByKey[KEY].rooms[1].rects = { { x = 200, y = 200, w = 1, h = 1 } }
+    api.buildingsVersion = 3
+    eq(Panels.name(panel), "IGUI_BU_PanelOf Store", "the store is the largest room now")
+    eq(calls("rooms"), 2)
+    -- A building the player built can change with the version, wherever the player is.
+    getNumActivePlayers = function() return 0 end
+    local BUILT = "300,300,0"
+    api.buildingsByKey[BUILT] = {
+        building = { key = BUILT, playerBuilt = true, minLevel = 0, maxLevel = 0, minX = 300, minY = 300, maxX = 302,
+            maxY = 302, room = "kitchen", roomId = "800" },
+        rooms = { { id = "800", name = "kitchen", level = 0, rects = { { x = 300, y = 300, w = 3, h = 3 } } } },
+    }
+    api.squares["301,301,0"] = BUILT
+    local built = Store.newPanel(301, 301, 0, "box")
+    eq(Panels.name(built), "IGUI_BU_PanelOf Kitchen")
+    local reads = calls("rooms")
+    api.buildingsVersion = 4
+    Panels.name(built)
+    api.buildingsVersion = 5
+    Panels.name(built)
+    eq(calls("rooms"), reads + 2, "read again for each new version")
+end)
+
+test("boxes of one name are numbered in the order they were made, once for all the asks", function()
+    local api = TEST.api
+    house(api)
+    local a, b, c = Store.newPanel(201, 201, 0, "box"), Store.newPanel(202, 201, 0, "box"), Store.newPanel(900, 900, 0, "box")
+    eq(Panels.name(a), "IGUI_BU_PanelOf Hall")
+    eq(Panels.name(b), "IGUI_BU_PanelOf Hall 2")
+    eq(Panels.name(c), "IGUI_BU_PanelDefault", "a box in no building")
+    local before = calls("at")
+    for _ = 1, 20 do Panels.name(a); Panels.name(b); Panels.name(c) end
+    eq(calls("at"), before, "nothing asked of the API again")
+    eq(calls("version"), 1, "the version read once for the tick")
+    -- Named by the player: the other takes the plain name.
+    Changes.rename(a, "Main")
+    eq(Panels.name(a), "Main")
+    eq(Panels.name(b), "IGUI_BU_PanelOf Hall")
+    Changes.rename(a, nil)
+    eq(Panels.name(b), "IGUI_BU_PanelOf Hall 2")
+    -- A box taken away: the numbers close up.
+    Store.remove(a.id)
+    eq(Panels.name(b), "IGUI_BU_PanelOf Hall")
+end)
+
+test("the buildings' version is read from the API once a tick", function()
+    local api = TEST.api
+    house(api)
+    eq(BU.buildingsVersion(), 1)
+    eq(BU.buildingsVersion(), 1)
+    eq(calls("version"), 1, "once for the tick")
+    api.buildingsVersion = 5
+    eq(BU.buildingsVersion(), 5, "read again at the next tick")
+    eq(calls("version"), 2)
+end)
+
+test("the boxes that can reach a square are found by the grid, not by asking each", function()
+    local api = TEST.api
+    house(api)
+    -- A box in the house, and one far off whose building is another.
+    local KEY2 = "800,800,0"
+    api.buildingsByKey[KEY2] = {
+        building = { key = KEY2, playerBuilt = false, minLevel = 0, maxLevel = 0, minX = 800, minY = 800, maxX = 803,
+            maxY = 803, room = "hall", roomId = "900" },
+        rooms = { { id = "900", name = "hall", level = 0, rects = { { x = 800, y = 800, w = 4, h = 4 } } } },
+    }
+    api.squares["800,800,0"] = KEY2
+    local near, far = Store.newPanel(201, 201, 0, "box"), Store.newPanel(800, 800, 0, "box")
+    -- A lamp 3 squares east of the house, outside: only the box of the house can have it.
+    local lamp = { getSquare = function() return { getX = function() return 208 end, getY = function() return 201 end,
+        getZ = function() return 0 end } end, getSpriteName = function() return "lamp" end }
+    near.power.included["208,201,0,lamp"] = true
+    local found = Panels.deviceOf(lamp, "power")
+    eq(found, near, "the near box")
+    local asked = calls("objects") + calls("near")
+    near.power.included["208,201,0,lamp"] = nil
+    Store.ownersChanged()
+    far.power.included["208,201,0,lamp"] = true
+    Store.ownersChanged()
+    eq(Panels.deviceOf(lamp, "power"), nil, "the far box does not reach it, though it holds its key")
+    eq(calls("objects") + calls("near") - asked > 0, true, "the near box's devices read")
 end)
 
 test("each minute's sync reads only the built-on rooms' objects, and the building once", function()

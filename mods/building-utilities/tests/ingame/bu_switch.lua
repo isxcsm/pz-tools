@@ -214,7 +214,7 @@ local function freeSquare()
             for dy = -r, r do
                 local q = getCell():getGridSquare(p:getX() + dx, p:getY() + dy, 0)
                 if q and q:isOutside() and q:getObjects():size() == 1 and q:isFree(false) and not q:getGenerator()
-                    and q:getMovingObjects():size() == 0 and Store.producerOwner(q:getX(), q:getY(), 0) == nil then
+                    and q:getMovingObjects():size() == 0 and BuildingUtilities.Links.get(BuildingUtilities.Links.producerRef(q:getX(), q:getY(), 0)) == nil then
                     return q
                 end
             end

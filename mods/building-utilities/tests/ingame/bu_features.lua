@@ -70,7 +70,7 @@ local function freeSquare()
 end
 local function put(kind)
     local square = freeSquare()
-    local unit = Changes.installUnit(kind, square, Units.spriteFor(kind, square, player))
+    local unit = Changes.installUnit(kind, square, Units.spriteFacing(kind, square, BuildingUtilities.sideOf(square, player)))
     Changes.connectUnit(unit, panel, {})
     return unit, square
 end

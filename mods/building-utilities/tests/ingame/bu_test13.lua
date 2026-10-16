@@ -36,8 +36,8 @@ say("squares", outside and (outside:getX() .. "," .. outside:getY()) or "none", 
 say("rules: rack outside", why(Units.canInstall("rack", outside)), "solar inside", why(Units.canInstall("solar", inside)))
 
 -- Down, wired, a battery in and out.
-local solar = Changes.installUnit("solar", outside, Units.spriteFor("solar", outside, player))
-local rack = Changes.installUnit("rack", inside, Units.spriteFor("rack", inside, player))
+local solar = Changes.installUnit("solar", outside, Units.spriteFacing("solar", outside, BuildingUtilities.sideOf(outside, player)))
+local rack = Changes.installUnit("rack", inside, Units.spriteFacing("rack", inside, BuildingUtilities.sideOf(inside, player)))
 say("installed", solar.id, solar.sprite, Units.object(solar) ~= nil, rack.id, Units.object(rack) ~= nil,
     "taken", why(Units.canInstall("solar", outside)))
 local cost, other = Actions.lineCost("unit", panel, "power", solar.x, solar.y, solar.z, solar.id)
@@ -51,7 +51,7 @@ local battery = instanceItem("Base.CarBattery2")
 battery:setUsedDelta(0.62)
 battery:setCondition(41)
 local record = BU.Rack.batteryRecord(battery)
-say("record", record.type, string.format("%.2f", record.charge), record.condition, BU.Rack.batteryText(record))
+say("record", record.type, string.format("%.2f", record.charge), record.condition)
 for i = 1, 6 do BURACK.put(rack, { type = "Base.CarBattery2", charge = 0.62, condition = 41 }) end
 local object = Units.object(rack)
 local box = object:getContainer()

@@ -21,7 +21,7 @@ local REFRESH_MS, FULL_MS = 5000, 30000
 local BAR_W = 220
 local SCROLLBAR = 16
 local LOG = "log"
--- The box's battery tab's view (a main box with racks wired to it).
+-- The box's battery tab's view (a box with racks wired to it).
 local BATTERIES = "batteries"
 -- The list's width alone; with the plan, the plan takes its share of the window beside it (at least so wide each).
 local LIST_W, MIN_LIST, MIN_PLAN = 520, 470, 280
@@ -134,7 +134,7 @@ end
 
 local function nextSchedule(schedule)
     for index, name in ipairs(BU.SCHEDULES) do
-        if name == schedule then return BU.SCHEDULES[index % #BU.SCHEDULES + 1] end
+        if name == schedule then return BU.SCHEDULES[BU.remainder(index, #BU.SCHEDULES) + 1] end
     end
     return BU.SCHEDULES[1]
 end

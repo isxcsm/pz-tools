@@ -83,11 +83,11 @@ function Changes.setZone(panel, keys)
             if Panels.reachesLevel(panel, room.level) then zone[room.key] = true end
         end
     end
-    return Changes.applyZone(panel, building, zone)
+    return Changes.applyZone(panel, zone)
 end
 
 -- A zone checked as Changes.setZone does, to the save, the API and the players.
-function Changes.applyZone(panel, building, zone)
+function Changes.applyZone(panel, zone)
     local before = panel.zone
     panel.zone = zone
     Networks.setZone(panel, before)
@@ -97,7 +97,7 @@ function Changes.applyZone(panel, building, zone)
     if zone then
         for _, utility in ipairs(BU.UTILITIES) do
             local data = panel[utility]
-            local left = {}
+            local left, any = {}, false
             for _, field in ipairs({ "excluded", "schedule", "timed", "pipeOf" }) do
                 for key in pairs(data[field] or {}) do
                     if not data.included[key] then
@@ -105,12 +105,12 @@ function Changes.applyZone(panel, building, zone)
                         local at = x and Panels.buildingAt(x, y, z)
                         if at and not Panels.inZone(panel, at.roomId) then
                             data[field][key] = nil
-                            left[key] = true
+                            left[key], any = true, true
                         end
                     end
                 end
             end
-            for key in pairs(left) do Networks.apply(panel, utility, key) end
+            if any then Networks.applyKeys(panel, utility, left) end
         end
     end
     Changes.syncAttached(panel)
@@ -125,26 +125,18 @@ function Changes.fitZones()
     for _, panel in ipairs(Store.list()) do
         local zone, changed = Panels.zoneInReach(panel)
         if changed then
-            local building = Panels.building(panel)
-            Changes.applyZone(panel, building, zone)
-            local low, high = Panels.floorsInReach(panel, building)
+            Changes.applyZone(panel, zone)
+            local low, high = Panels.floorsInReach(panel, Panels.building(panel))
             BU.log("zone of", panel.id, "kept to the floors it reaches")
             Sync.notice(panel, "IGUI_BU_Notice_ZoneReach", Panels.name(panel), BU.floorName(low), BU.floorName(high))
         end
     end
 end
 
--- What lines took, added to a total.
+-- What a line took, added to a total.
 local function addPaid(total, paid)
     if type(paid) ~= "table" then return end
     for itemType, count in pairs(paid) do total[itemType] = (total[itemType] or 0) + count end
-end
-
--- Everything a panel's lines took.
-function Changes.paidFor(panel)
-    local total = {}
-    for _, line in ipairs(Links.of(panel)) do addPaid(total, line.paid) end
-    return total
 end
 
 -- What of a box goes with its item when it is taken up: its tier.
@@ -181,7 +173,7 @@ local DEVICE_FIELDS = { "excluded", "included", "attached", "schedule", "timed",
 local function forgetGone(panel)
     local count = 0
     for _, utility in ipairs(BU.UTILITIES) do
-        local data, gone = panel[utility], {}
+        local data, gone, left, any = panel[utility], {}, {}, false
         for _, field in ipairs(DEVICE_FIELDS) do
             for key in pairs(data[field] or {}) do
                 if gone[key] == nil then gone[key] = present(key) == false end
@@ -193,10 +185,12 @@ local function forgetGone(panel)
                 for _, field in ipairs(DEVICE_FIELDS) do
                     if data[field] then data[field][key] = nil end
                 end
-                Networks.apply(panel, utility, key)
+                Store.ownersChanged()
+                left[key], any = true, true
                 count = count + 1
             end
         end
+        if any then Networks.applyKeys(panel, utility, left) end
     end
     if count > 0 then
         BU.log(panel.id, "forgot", count, "devices that are gone")
@@ -296,6 +290,7 @@ local function joinBox(panel, line)
         local key = line.ref:sub(3)
         panel[line.utility].included[key] = true
         panel[line.utility].excluded[key] = nil
+        Store.ownersChanged()
     else
         local unit = Links.unitOf(line.ref)
         if unit then
@@ -318,6 +313,7 @@ local function leaveBox(panel, line)
     elseif kind == "t" then
         local key = line.ref:sub(3)
         data.included[key] = nil
+        Store.ownersChanged()
         for _, name in ipairs({ "excluded", "schedule", "timed", "pipeOf" }) do
             if data[name] then data[name][key] = nil end
         end
@@ -345,13 +341,13 @@ local function relayJoined(panel, line)
     for key in pairs(Panels.relayZone(panel, building, unit.z)) do
         if not zone[key] then zone[key], added = true, true end
     end
-    if added or not panel.zone then Changes.applyZone(panel, Panels.building(panel), zone) end
+    if added or not panel.zone then Changes.applyZone(panel, zone) end
 end
 
 -- A box's zone kept to what it reaches now (Panels.zoneInReach): after a relay went.
 function Changes.fitZone(panel)
     local zone, changed = Panels.zoneInReach(panel)
-    if changed then Changes.applyZone(panel, Panels.building(panel), zone) end
+    if changed then Changes.applyZone(panel, zone) end
 end
 
 -- What a box's lines supply changed: its producers, units and devices outside as the networks have them.
@@ -451,15 +447,6 @@ function Changes.connectUnit(unit, panel, paid, place)
     Changes.lay(panel, Links.unitRef(unit), utility, place, paid, unit.x, unit.y, unit.z)
 end
 
--- Its line taken away; returns what it took.
-function Changes.disconnectUnit(unit)
-    local panel = Store.get(unit.panel)
-    local paid = Changes.unlay(Links.unitRef(unit))
-    if unit.panel then Changes.unwire(unit) end
-    Sync.changed(panel and panel.id)
-    return paid or {}
-end
-
 function Changes.clearSnow(unit)
     unit.snow, unit.snowAt = nil, BU.Energy.minute()
     Sync.changed(unit.panel)
@@ -470,14 +457,6 @@ end
 function Changes.connectProducer(panel, utility, x, y, z, paid, place)
     place = place or placeFor(panel, utility, x, y, z)
     Changes.lay(panel, Links.producerRef(x, y, z), utility, place, paid, x, y, z)
-end
-
--- Disconnects the producer on a square; returns what its line took, or nil when it was none of the panel's.
-function Changes.disconnectProducer(panel, utility, x, y, z)
-    local ref = Links.producerRef(x, y, z)
-    local line = Links.get(ref)
-    if not line or line.panel ~= panel.id or line.utility ~= utility then return nil end
-    return Changes.unlay(ref)
 end
 
 -- Moves a producer up (-1) or down (+1) the order.
@@ -493,17 +472,18 @@ end
 -- Devices.
 
 -- A device the box reaches (of its building, or outside with its line) supplied (the default) or cut (excluded): a
--- switch at the box, free. Kept under its key; a part's key a save may have is cleared.
-local function setInside(panel, utility, device, connected)
+-- switch at the box, free. Kept under its key; a part's key a save may have is cleared. The keys it touched join
+-- `touched`, for the caller to apply (Networks.applyKeys).
+local function setInside(panel, utility, device, connected, touched)
     local data = panel[utility]
     for _, key in ipairs(device.keys) do
         if key ~= device.key and data.excluded[key] then
             data.excluded[key] = nil
-            Networks.apply(panel, utility, key)
+            touched[key] = true
         end
     end
     data.excluded[device.key] = (not connected) or nil
-    Networks.apply(panel, utility, device.key)
+    touched[device.key] = true
 end
 
 -- A device outside switched passes what hangs on its line or stops it (BU.Links "off"): the lines are worked out again.
@@ -513,21 +493,24 @@ local function pathChanged(panel)
 end
 
 function Changes.setInside(panel, utility, device, connected)
-    setInside(panel, utility, device, connected)
+    local touched = {}
+    setInside(panel, utility, device, connected, touched)
+    Networks.applyKeys(panel, utility, touched)
     if not device.inside then pathChanged(panel) end
     Sync.changed(panel.id)
 end
 
 -- Every device of the building at once, with those outside hung on its rooms' walls.
 function Changes.setAllInside(panel, utility, connected)
-    local outside = false
+    local outside, touched, any = false, {}, false
     for _, device in ipairs(Panels.devices(panel, utility)) do
         local mine = device.inside or device.wired and device.hangsOn and not Links.isRelay(device.hangsOn)
         if mine and (device.state == "on") ~= connected and device.state ~= "other" then
-            setInside(panel, utility, device, connected)
-            outside = outside or not device.inside
+            setInside(panel, utility, device, connected, touched)
+            outside, any = outside or not device.inside, true
         end
     end
+    if any then Networks.applyKeys(panel, utility, touched) end
     if outside then pathChanged(panel) end
     Sync.changed(panel.id)
 end
@@ -535,15 +518,16 @@ end
 -- Every device of one room at once ("" for those in no room), with those outside hung on its wall; or, by a relay's
 -- ref, those hung below that relay.
 function Changes.setRoomInside(panel, utility, roomId, connected)
-    local outside = false
+    local outside, touched, any = false, {}, false
     for _, device in ipairs(Panels.devices(panel, utility)) do
         local mine = device.inside and device.roomId == roomId or not device.inside and device.wired
             and device.hangsOn == roomId
         if mine and (device.state == "on") ~= connected and device.state ~= "other" then
-            setInside(panel, utility, device, connected)
-            outside = outside or not device.inside
+            setInside(panel, utility, device, connected, touched)
+            outside, any = outside or not device.inside, true
         end
     end
+    if any then Networks.applyKeys(panel, utility, touched) end
     if outside then pathChanged(panel) end
     Sync.changed(panel.id)
 end
@@ -567,7 +551,7 @@ function Changes.syncAttached(panel)
     for _, utility in ipairs(BU.utilities()) do
         local data = panel[utility]
         data.attached = data.attached or {}
-        local found = {}
+        local found, touched, any = {}, {}, false
         if #spaces > 0 then
             -- From the built-on rooms' objects alone, as a rule; the building's devices for an object with a part
             -- elsewhere (Panels.attachedKeys).
@@ -583,7 +567,8 @@ function Changes.syncAttached(panel)
             missingSince[panel.id .. "|" .. utility .. "|" .. key] = nil
             if not data.attached[key] then
                 data.attached[key] = true
-                Networks.apply(panel, utility, key)
+                Store.ownersChanged()
+                touched[key], any = true, true
                 changed = true
             end
         end
@@ -603,12 +588,14 @@ function Changes.syncAttached(panel)
         for _, key in ipairs(gone) do
             missingSince[panel.id .. "|" .. utility .. "|" .. key] = nil
             data.attached[key] = nil
+            Store.ownersChanged()
             for _, field in ipairs(LET_GO) do
                 if data[field] then data[field][key] = nil end
             end
-            Networks.apply(panel, utility, key)
+            touched[key], any = true, true
             changed = true
         end
+        if any then Networks.applyKeys(panel, utility, touched) end
     end
     if changed then Sync.changed(panel.id) end
     return changed
@@ -951,6 +938,7 @@ end
 function Changes.rename(panel, name)
     name = name and BU.cutText(tostring(name), 40) or nil
     panel.name = name ~= "" and name or nil
+    Panels.renamed()
     Sync.changed(panel.id)
 end
 

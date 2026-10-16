@@ -25,7 +25,7 @@ local outputOf, bankOf = Energy.output, Energy.bank
 local home = { x = player:getX(), y = player:getY(), z = player:getZ() }
 
 local sq = BUT.square(panel.x, panel.y, 0, 3, 12, function(s)
-    return s:isOutside() and s:isFree(false) and not s:getGenerator() and Store.producerOwner(s:getX(), s:getY(), 0) == nil
+    return s:isOutside() and s:isFree(false) and not s:getGenerator() and BuildingUtilities.Links.get(BuildingUtilities.Links.producerRef(s:getX(), s:getY(), 0)) == nil
         and not Panels.buildingAt(s:getX(), s:getY(), 0)
 end)
 if not sq then say("BAD no square for the generator"); return end

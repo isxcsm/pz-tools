@@ -7,7 +7,7 @@ BU.Store = Store
 
 local KEY = "BuildingUtilities"
 
--- { version, next, panels = { [id] = panel } }. A panel:
+-- { next, panels = { [id] = panel } }. A panel:
 --   id, x, y, z (the box's square), sprite, name (set by the player, or nil), tier (1 to BU.TIERS), tripped (its
 --   breaker is down), switchedOff (true while a player has its main switch off, else nil), zone (the rooms it takes: a
 --   set of a square of each, BU.placeKey, Panels.zoneIds; or nil for the whole building),
@@ -60,9 +60,6 @@ local KEY = "BuildingUtilities"
 Store.KEY = KEY
 Store.LOG_SIZE = 30
 Store.ENERGY_HOURS = 48
--- The save's layout. The mod is not released: a save of another layout is not carried over.
-local VERSION = 9
-
 local function utilityData()
     return { producers = {}, excluded = {}, included = {}, attached = {}, schedule = {}, timed = {} }
 end
@@ -77,10 +74,14 @@ local function waterData(data)
     data.levelLog = data.levelLog or {}
 end
 
+-- The save's table, kept: asked by every Store.get and Links.get. Read again as the game's mod data is (a world
+-- starting, a client receiving the server's: Store.reload).
+local kept
+
 function Store.data()
+    if kept then return kept end
     local data = ModData.getOrCreate(KEY)
-    if not data.version then
-        data.version = VERSION
+    if not data.panels then
         data.next = 1
         data.panels = {}
     end
@@ -92,8 +93,12 @@ function Store.data()
         data.lines = {}
         data.nextLine = 1
     end
+    kept = data
     return data
 end
+
+function Store.reload() kept = nil end
+Events.OnInitGlobalModData.Add(Store.reload)
 
 function Store.panels() return Store.data().panels end
 
@@ -129,31 +134,42 @@ function Store.panelAt(x, y, z)
     return nil
 end
 
--- The panel and utility a producer square is connected to, or nil.
-function Store.producerOwner(x, y, z)
-    for _, panel in pairs(Store.panels()) do
-        for _, utility in ipairs(BU.UTILITIES) do
-            for index, at in ipairs(panel[utility].producers) do
-                if at.x == x and at.y == y and at.z == z then return panel, utility, index end
+-- Who has a device of a utility, by the device's key: those that connected it outside (included) and those that have it
+-- in a room built onto their building (attached). Kept while the boxes, the lines and those sets are the same
+-- (Store.linkVersion, Store.ownersChanged), as the panels are the same table.
+local ownersVersion, ownersSeen, linksSeen, ownersOf, includedBy, attachedBy = 0, -1, -1, nil, nil, nil
+
+-- A box's included or attached set changed (a device joined or left it).
+function Store.ownersChanged() ownersVersion = ownersVersion + 1 end
+
+local function owners()
+    local panels = Store.panels()
+    if ownersSeen == ownersVersion and linksSeen == linkVersion and ownersOf == panels then return end
+    ownersSeen, linksSeen, ownersOf, includedBy, attachedBy = ownersVersion, linkVersion, panels, {}, {}
+    for _, utility in ipairs(BU.UTILITIES) do
+        includedBy[utility], attachedBy[utility] = {}, {}
+        for _, panel in pairs(panels) do
+            local data = panel[utility]
+            for key in pairs(data.included) do includedBy[utility][key] = panel end
+            for key in pairs(data.attached or {}) do
+                attachedBy[utility][key] = attachedBy[utility][key] or {}
+                table.insert(attachedBy[utility][key], panel)
             end
         end
     end
-    return nil
 end
 
 -- The panel that connected an outside device of a utility on its own, or nil.
 function Store.includedOwner(utility, key)
-    for _, panel in pairs(Store.panels()) do
-        if panel[utility].included[key] then return panel end
-    end
-    return nil
+    owners()
+    return includedBy[utility][key]
 end
 
 -- The panel, other than one, that has a device of a utility in a room built onto its building, or nil.
 function Store.attachedOwner(utility, key, except)
-    for _, panel in pairs(Store.panels()) do
-        local attached = panel[utility].attached
-        if panel ~= except and attached and attached[key] then return panel end
+    owners()
+    for _, panel in ipairs(attachedBy[utility][key] or {}) do
+        if panel ~= except then return panel end
     end
     return nil
 end
@@ -171,19 +187,24 @@ function Store.record(panel, key, args)
     while #panel.log > Store.LOG_SIZE do table.remove(panel.log, 1) end
 end
 
--- All panels, in the order they were made.
 -- Every panel in the order they were made; kept while the boxes are the same (Store.linkVersion: a box added or taken
 -- away) and the panels are the same table (a multiplayer client received the server's). A copy is handed out.
 local listToken, listOf, listKept = nil, nil, nil
 
-function Store.list()
+-- The list kept itself, for a caller that only reads it (not to be changed, and not kept past the next change of the
+-- boxes).
+function Store.ordered()
     local panels = Store.panels()
     if listToken ~= Store.linkVersion() or listOf ~= panels then
         listKept = Store.inOrder(panels, "p", Store.data().next)
         listToken, listOf = Store.linkVersion(), panels
     end
-    local result = {}
-    for i = 1, #listKept do result[i] = listKept[i] end
+    return listKept
+end
+
+function Store.list()
+    local kept, result = Store.ordered(), {}
+    for i = 1, #kept do result[i] = kept[i] end
     return result
 end
 

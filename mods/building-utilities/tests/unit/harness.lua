@@ -36,7 +36,15 @@ end }
 --   version: buildings.version();
 --   calls: by function name, how many times it was called.
 local function newApi()
-    local api = { version = 1, calls = {}, buildingsByKey = {}, squares = {}, buildingsVersion = 1 }
+    -- Setting buildingsVersion is a change the mod sees at the next tick (BU.buildingsVersion reads it once a tick).
+    local seen = 1
+    local api = setmetatable({ version = 1, calls = {}, buildingsByKey = {}, squares = {} }, {
+        __index = function(_, name) if name == "buildingsVersion" then return seen end end,
+        __newindex = function(t, name, value)
+            if name ~= "buildingsVersion" then return rawset(t, name, value) end
+            seen = value
+            if TEST.fire then TEST.fire("OnTick") end
+        end })
     local function count(name) api.calls[name] = (api.calls[name] or 0) + 1 end
     local function entry(key) return api.buildingsByKey[key] end
     local buildings = {
@@ -153,8 +161,14 @@ local function resetGame()
                     if square.flags then square.flags.burning = nil end
                     square.stopped = (square.stopped or 0) + 1
                 end,
-                -- a floor unless the test says none ({ noFloor = true }); flags as { water = true }
-                getFloor = function() return not square.noFloor and {} or nil end,
+                -- a floor unless the test says none ({ noFloor = true }), of a sprite when the test names one (floor); flags
+                -- as { water = true }
+                getFloor = function()
+                    if square.noFloor then return nil end
+                    return { getSprite = function()
+                        return square.floor and { getName = function() return square.floor end } or nil
+                    end }
+                end,
                 HasStairs = function() return square.stairs == true end,
                 getProperties = function() return { has = function(_, flag) return square.flags ~= nil and square.flags[flag] == true end } end,
                 isBlockedTo = function() return false end,
@@ -172,6 +186,8 @@ local function resetGame()
     getNumActivePlayers = function() return 0 end
     getSpecificPlayer = function() return nil end
     instanceof = function() return false end
+    -- Squares never load: the callbacks the mod registers are not kept.
+    MapObjects = { OnLoadWithSprite = function() end, OnNewWithSprite = function() end }
     TEST.api = newApi()
     PZExtAPI = TEST.api.table
 end

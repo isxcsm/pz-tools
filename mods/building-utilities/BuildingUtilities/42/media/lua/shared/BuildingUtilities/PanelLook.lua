@@ -46,8 +46,8 @@ end
 
 -- The look a box's state calls for: off while power is off in the sandbox; tripped while its breaker is down; off
 -- while its main switch is, also with the grid alive (the lamps tell the box's own power, which the switch cuts; the
--- grid still powers the building past the box); on while power reaches it (the grid, or its network supplied: a
--- sub-panel's is while its main panel's is), else off.
+-- grid still powers the building past the box); on while power reaches it (the grid, or its network supplied), else
+-- off.
 function PanelLook.wanted(panel)
     if not BU.enabled("power") then return "off" end
     if panel.tripped then return "tripped" end

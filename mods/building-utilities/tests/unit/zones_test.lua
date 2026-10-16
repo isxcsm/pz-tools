@@ -64,7 +64,7 @@ test("a zone keeps its rooms by their squares", function()
         { id = "11", name = "room", level = 0, rects = { { x = 303, y = 300, w = 6, h = 3 } } },
     })
     eq(zoneOf(panel), "11 6", "the part with the square")
-    eq(Panels.zoneStates(panel, Panels.building(panel), Panels.rooms(Panels.building(panel)))["10"].state, "free")
+    eq(Panels.zoneStates(panel, Panels.rooms(Panels.building(panel)))["10"].state, "free")
 
     -- The first room gone: its square leaves the zone.
     cabin(TEST.api, {
