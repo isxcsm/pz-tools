@@ -254,7 +254,7 @@ final class LooksTest {
     }
 
     /**
-     * The flare (a brief title): its picture as it stays; it burns with its ash as it leaves (3.5 s after 0.45 + 3), its ash
+     * The flare (a brief title): its picture as it stays; it burns with its ash as it leaves (3.5 s after 0.45 + 4), its ash
      * drifting on after the leave (3.5 s more); its map let go with it.
      */
     private static void flare(KahluaTable text, Object mod) {
@@ -265,12 +265,12 @@ final class LooksTest {
         up(origin, 0.5);
         quiet();
         check(modes(origin, 2.0).equals(List.of(0)), "The brief title is not its picture as it stays: " + modes(origin, 2.01));
-        check(modes(origin, 5.0).equals(List.of(1, 2)), "The brief title does not flare with its ash: " + modes(origin, 5.01));
+        check(modes(origin, 5.5).equals(List.of(1, 2)), "The brief title does not flare with its ash: " + modes(origin, 5.51));
         check(GL11.made == textures + 1, "The flare's map did not go to the card");
-        var ash = modes(origin, 3.45 + 3.5 + 1.0);
+        var ash = modes(origin, 4.45 + 3.5 + 1.0);
         check(ash.contains(2) && (Boolean)FormulasTest.call(text, "shown", mod, key).get(0), "The flare's ash did not drift on past its leave: " + ash);
         int map = GL11.made;
-        at(origin, 3.45 + 7.1);
+        at(origin, 4.45 + 7.1);
         frame();
         frame();
         check(!(Boolean)FormulasTest.call(text, "shown", mod, key).get(0) && GL11.deleted.contains(map), "The flare outlived its ash, or its map stayed");

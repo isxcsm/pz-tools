@@ -1023,7 +1023,7 @@ final class TextsTest {
         FormulasTest.call(text, "hide", mod, danger, true);
 
         // A brief title is in a queue of its own: it does not wait for a title. Another brief one waits for it, but not for its ash
-        // (a flare's leave of 3.5 s after 0.45 + 3, its ash 3.5 s more).
+        // (a flare's leave of 3.5 s after 0.45 + 4, its ash 3.5 s more).
         double stage = (Double)FormulasTest.call(text, "title", mod, table("text", "Stage 7", "style", "dust")).get(0);
         double bonus = (Double)FormulasTest.call(text, "title", mod, table("text", "+340 credits", "style", "brief")).get(0);
         double fitted = (Double)FormulasTest.call(text, "title", mod, table("text", "Bag: 30", "style", "brief")).get(0);
@@ -1034,7 +1034,7 @@ final class TextsTest {
         check(last("Stage 7") != null && brief != null && brief[1] == UIFont.SdfRegular && near((Double)brief[3], 0.8 * 900 - 45 * (0.036 * 900 / 45) / 2),
             "A brief title waited for a title, or is not low on the screen in its font");
         check(last("Bag: 30") == null, "A brief title did not wait for the one before it");
-        advance(6.6);
+        advance(7.6);
         render();
         render();
         advance(0.3);
