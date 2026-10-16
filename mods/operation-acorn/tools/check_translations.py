@@ -45,6 +45,9 @@ DEV_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'Opera
 UI_FILES = ['IG_UI.json', 'ContextMenu.json', 'Tooltip.json']
 FILES = UI_FILES + ['Sandbox.json', 'ItemName.json', 'Recipes.json', 'Moveables.json', 'Moodles.json', 'Fluids.json']
 LANGS = ['EN', 'KO']
+HANGUL = re.compile('[가-힣ㄱ-ㆎ]')
+# The keys still in Korean in English, waiting for the 7th stage's translation.
+UNTRANSLATED = ('IGUI_OA_Comms_',)
 KEY = re.compile(r'["\']((?:IGUI|ContextMenu|Tooltip)_OA_\w*|IGUI_ContainerTitle_OA\w*)["\'](?!\s*\.\.)')
 PREFIX = re.compile(r'["\']((?:IGUI|ContextMenu|Tooltip)_OA_\w+)["\']\s*\.\.')
 # Keys built in ways the patterns above cannot see (the game names a container's title itself,
@@ -436,6 +439,11 @@ def main():
                 # '%%' is the escaped sign (the game's own texts write 10%%)
                 if re.search(r'%(?!\d)', text.replace('%%', '')):
                     problems.append('bare %% in %s %s' % (lang, key))
+        # Korean in the English texts draws as '??' in the English font. The comms lines wait for their translation (7th
+        # stage) and stay Korean until then; anything else is a slip.
+        for key, text in texts['EN'].items():
+            if HANGUL.search(text) and not key.startswith(UNTRANSLATED):
+                problems.append('Korean in the English %s (%s)' % (key, name))
 
     extra = sorted(n for n in os.listdir(os.path.join(ROOT, 'shared', 'Translate', 'EN')) if n.startswith('OA_'))
     for name in extra:

@@ -48,8 +48,9 @@ function P3T.points(u, tree, n)
 end
 
 -- Takes the next rank of a node as a player would get there: a point given when the tree has none free, the rows
--- before it filled with other nodes of the tree, its prerequisites taken first, its capstone fragment counted in. A
--- node already at its last rank is fine. Returns true, or false and why it could not.
+-- before it filled with other nodes of the tree, its prerequisites taken first, its capstone fragment counted in; a
+-- board node opens the board (the three capstones) and gets shared points. A node already at its last rank is fine.
+-- Returns true, or false and why it could not.
 function P3T.buy(u, id)
     local Rules, Data = OperationAcorn.Upgrades.Rules, OperationAcorn.Upgrades.Data
     local node = Data.byId[id]
@@ -58,8 +59,16 @@ function P3T.buy(u, id)
         local why = Rules.blocked(u, id)
         if not why then return Rules.buy(u, id) end
         if why == "maxed" then return true end
-        if why == "points" or why == "treeClosed" then
-            if node.board then return false, why end
+        if why == "points" and node.board then
+            Rules.injectShared(u)
+        elseif why == "boardClosed" then
+            -- the board opens with the three capstones
+            for _, tree in ipairs(Data.TREES) do
+                local cap = Data.capstone(tree)
+                local ok, w = P3T.buy(u, cap.id)
+                if not ok then return false, "capstone " .. cap.id .. " " .. tostring(w) end
+            end
+        elseif why == "points" or why == "treeClosed" then
             Rules.inject(u, node.tree)
         elseif why == "prereq" then
             for _, need in ipairs(node.req) do

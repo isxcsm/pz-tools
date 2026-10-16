@@ -1493,7 +1493,9 @@ function View:paintStrip(el, panel, i)
     if flash > 0 then UI.fill(el, x, y, panel.w, panel.strip, tc.c, 0.32 * flash) end
     paintGrit(el, x, y, panel.w, panel.strip)
     UI.fill(el, x, y, panel.w, 2, flash > 0 and tc.light or tc.c)
-    UI.text(el, Texts.treeName(tree), x + 10, y + 5, tc.light, UIFont.Medium)
+    -- a long name (another language) ends in "..." before the reset button, never under it or past the strip
+    local room = panel.w - 20 - (self.mode == "trees" and 28 or 0)
+    UI.text(el, UI.fitMemo(Texts.treeName(tree), room, UIFont.Medium), x + 10, y + 5, tc.light, UIFont.Medium)
     if self.mode ~= "trees" then return end
     -- the reset
     local item = self.byKey["reset:" .. tree]

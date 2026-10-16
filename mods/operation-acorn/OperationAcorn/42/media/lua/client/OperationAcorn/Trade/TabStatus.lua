@@ -144,14 +144,19 @@ function OATabStatus:prerender()
     local w = self.width
     local field = self.window.tier == "field"
     local badge = getText(field and "IGUI_OA_Terminal_Field" or "IGUI_OA_Terminal_Crude")
-    if field then
-        UI.fill(self, 0, 4, 76, 20, p.tabStrip)
-        UI.textCentre(self, badge, 38, 6, p.value)
-    else
-        UI.frame(self, 0, 4, 76, 20, p.dim)
-        UI.textCentre(self, badge, 38, 6, p.dim)
+    -- the badge widens for a longer name (another language), and the trust line moves right with it
+    if self.badgeText ~= badge then
+        self.badgeText, self.badgeW = badge, math.max(76, UI.textWidth(badge) + 12)
     end
-    local x0, balW = 88, 150
+    local bw = self.badgeW
+    if field then
+        UI.fill(self, 0, 4, bw, 20, p.tabStrip)
+        UI.textCentre(self, badge, bw / 2, 6, p.value)
+    else
+        UI.frame(self, 0, 4, bw, 20, p.dim)
+        UI.textCentre(self, badge, bw / 2, 6, p.dim)
+    end
+    local x0, balW = bw + 12, 150
     UI.text(self, t.level, x0, 1, p.bright, UIFont.Medium)
     local barW = w - x0 - balW - 14
     UI.fill(self, x0, 31, barW, 7, p.dim, 0.35)

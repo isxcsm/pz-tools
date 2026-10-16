@@ -19,7 +19,7 @@ points, credits, trust, the hour, the speed, the weather, still zombies at offse
 windows and the console. `pzdev.py shot out.png` takes a picture of the game window. The channel unticks Break On
 Error at each load (a Lua error then never stops the game in the debugger); ticked again by hand, an error stops the
 game and the channel with it: `pzdev.py resume`. `pzdev.py restart` (or `launch`) closes and starts the game and returns
-once in the save; `pzdev.py watch` prints the game's events (menu, loading, game, error, exit) as they come, from the
+once in the save; `pzdev.py quit` only closes it (to change options.ini, the save's mods, the API's install); `pzdev.py watch` prints the game's events (menu, loading, game, error, exit) as they come, from the
 log alone, for a background watcher; `pzdev.py wait game` waits for one.
 
 Without the channel, define the loader in the Lua console after each save load (it reads `Zomboid\Lua\oa\<file>`):
@@ -45,6 +45,15 @@ Some checks change the save's market or the record (they say so in their header)
 | `p1_pickup.lua` | the pickup hook: floor items tagged with their cell and entered in the codex (changes the record) | none |
 | `p1_buildings.lua` | the building watch: counts and searched containers where the character stands, API against vanilla | stand in a house; open containers and run it again |
 | `p1_events.lua` | the daily and ten-minute handlers, kills, the shred yield on real items | kill a zombie, then run it |
+
+## P7 and P9: numbers, mission pieces, saves, tabs
+
+| File | What it checks | Setup |
+| --- | --- | --- |
+| `p7_values.lua` | each numeric node from nothing to its ranks, as the game answers (most carried, inventory limit and load, a crate's capacity, worn discomfort, strain, poison, endurance, fatigue, a young tree's slowdown, the heavy load moodle), the API's combined values for the rest, the board's caps and costs, a reset | PZ Extension API on, a free square 2 east; empties the inventory and the upgrades (throwaway save) |
+| `p9_items.lua` | a regular mission's piece carried, in a bag, on the floor, in a crate, in a car's trunk, gone; burnt (laid out again, the deadline kept); taking another mission once a week | a car loaded near for the trunk; changes the stage and the mission (throwaway save) |
+| `p9_state.lua` | `P9_PART` 1: an adaptation, the S8F call and a title started, then `pzdev reload`; 2: all still there after the load; 3: after fast-forwarding past the adaptation, its point and the call kept once | throwaway save; fast-forward with the game's buttons (Lua's setGameSpeed does not change the speed) and no zombies near |
+| `p9_tabs.lua` | the terminal within reach opened on `P9_TAB` (powered for the look, `P9_POWER_BACK()`), for a picture of each tab at a window size and language | a terminal within 3 squares |
 
 ## P6 gear and kits (`p6_gear.lua`)
 

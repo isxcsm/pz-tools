@@ -19,6 +19,7 @@ Usage:
                                                               game there, and the channel with it)
     python tools/pzdev.py launch                              starts the game (if not running), waits for the main
                                                               menu, continues the latest save and returns once in it
+    python tools/pzdev.py quit                                quits the game to the desktop (to change its files)
     python tools/pzdev.py restart                             quits the game to the desktop, then launch
     python tools/pzdev.py wait menu|loading|game|exit|error   returns when the game gets there (--timeout, default 300)
     python tools/pzdev.py watch                               prints one line per event, forever (for a background
@@ -379,9 +380,9 @@ def launch():
     return continue_when_ready(start)
 
 
-# Quits to the desktop (a paused game takes the command and never leaves: set going first), waits for the window to
-# go, then launch.
-def restart():
+# Quits to the desktop (a paused game takes the command and never leaves: set going first) and waits for the window
+# to go.
+def quit_game():
     if game_window():
         send("if isGamePaused() then setGameSpeed(1) end getCore():quitToDesktop()", 5, quiet=True)
         end = time.time() + 90
@@ -392,7 +393,11 @@ def restart():
             time.sleep(0.5)
         print("closed")
         time.sleep(2)
-    return launch()
+    return 0
+
+
+def restart():
+    return quit_game() or launch()
 
 
 # Brings the game window to the front (a window over it would be in the picture) and gives it time to draw again.
@@ -425,6 +430,8 @@ def main():
     timeout = float(timeout_s or "15")
     if len(sys.argv) == 2 and sys.argv[1] == "launch":
         return launch()
+    if len(sys.argv) == 2 and sys.argv[1] == "quit":
+        return quit_game()
     if len(sys.argv) == 2 and sys.argv[1] == "restart":
         return restart()
     if len(sys.argv) == 2 and sys.argv[1] == "watch":

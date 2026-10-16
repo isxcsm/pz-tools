@@ -1,7 +1,7 @@
 -- P5 (PLAN 3단계): a call played in the comms tab, to look at its pacing. P5_CALL (an entry id, else "S1") and
 -- P5_TIER (else 1). Opens a terminal within reach (else puts one down beside the character), skips its boot, plays the call as a replay (nothing
 -- is sent at its end) and logs each line's start and end with its characters; P5_VIEW is the comms view playing it.
--- P5_CLEAN() gives the terminal its real power back.
+-- P5_POWER_BACK() gives the terminal its real power back.
 RUN("p4_lib.lua")
 local OA = OperationAcorn
 local say = P4T.say("p5comms")
@@ -25,16 +25,16 @@ if not at then
         return
     end
 end
--- Without power the window closes too: this terminal counts as powered until P5_CLEAN().
+-- Without power the window closes too: this terminal counts as powered until P5_POWER_BACK().
 local powered = Objects.powered
-if not P5_CLEAN then
+if not P5_POWER_BACK then
     Objects.powered = function(square, object)
         if square == at then return true end
         return powered(square, object)
     end
-    P5_CLEAN = function()
+    P5_POWER_BACK = function()
         Objects.powered = powered
-        P5_CLEAN = nil
+        P5_POWER_BACK = nil
     end
 end
 local window = OA.Terminal.open(player, at:getX(), at:getY(), at:getZ())

@@ -75,6 +75,8 @@ end
 -- The estimate panel ---------------------------------------------------------------------------------------------------
 
 OAEstimatePanel = ISPanel:derive("OAEstimatePanel")
+-- The least height (pixels) the panel takes under the box's window when the right side has no room.
+OAEstimatePanel.BELOW_MIN = 160
 
 function OAEstimatePanel:createChildren()
     local pad = UI.PAD
@@ -130,8 +132,8 @@ function OAEstimatePanel:fill(container)
     self.weight = plan.weight
 end
 
--- Shown only while the loot window shows an open box and is not folded to its title bar: beside it on the right, on
--- its left where the screen ends first. Its folding or closing hides the panel at once; the box is looked for twice a
+-- Shown only while the loot window shows an open box and is not folded to its title bar: beside it on the right; where
+-- the screen ends first, under it, or on its left when there is no room under it either. Its folding or closing hides the panel at once; the box is looked for twice a
 -- second, the rows redone only when its contents changed.
 function OAEstimatePanel:update()
     local page = self.page
@@ -149,11 +151,23 @@ function OAEstimatePanel:update()
         self.signature = nil
         return
     end
-    local x = page:getX() + page:getWidth() + 4
-    if x + self:getWidth() > getCore():getScreenWidth() then x = math.max(0, page:getX() - self:getWidth() - 4) end
+    local x, y, h = page:getX() + page:getWidth() + 4, page:getY(), page:getHeight()
+    if x + self:getWidth() > getCore():getScreenWidth() then
+        -- no room on the right (a narrow screen): under the box's window when there is room, else on its left, where the
+        -- player's own inventory window usually is and would cover it
+        local below = page:getY() + page:getHeight() + 4
+        local room = getCore():getScreenHeight() - below - 4
+        if room >= OAEstimatePanel.BELOW_MIN then
+            x, y, h = page:getX(), below, math.min(math.max(page:getHeight(), OAEstimatePanel.BELOW_MIN), room)
+        else
+            x = math.max(0, page:getX() - self:getWidth() - 4)
+        end
+    end
     self:setX(x)
-    self:setY(page:getY())
-    self:setHeight(page:getHeight())
+    self:setY(y)
+    self:setHeight(h)
+    -- coming up, over the windows it may touch (the box's window overlaps the player's on a narrow screen)
+    if not self:isVisible() then self:bringToTop() end
     self:setVisible(true)
     local signature = container:getItems():size() .. "|" .. OA.day() .. "|" .. tostring(container:getContentsWeight())
     if signature ~= self.signature then
