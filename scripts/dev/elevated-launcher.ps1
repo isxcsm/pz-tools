@@ -16,6 +16,11 @@ Or a request for the PZ Extension API's installer (request-api-install.ps1):
 It runs <apiRoot>\pzext-install.jar (the API's release build folder fixed at registration) with the game's own Java
 on the game folder fixed at registration, and puts the installer's output in the result's message.
 
+Or a request for the app's startup loader install tool (request-startup-install.ps1):
+    { "id": "...", "startup": "install" | "uninstall" | "status" | "refresh", "build": "app-startup-18", "stopGame": false }
+It runs pztools.bridge.StartupInstall from <root>\<build>\game-bridge with that build's own Java, on the game folder
+fixed at registration, as the app (which runs elevated) does.
+
 Windows PowerShell 5.1 runs it: no PowerShell 7 syntax.
 #>
 $ErrorActionPreference = 'Stop'
@@ -82,6 +87,33 @@ try {
     }
 
     $build = [string]$request.build
+    if ($request.startup) {
+        $mode = [string]$request.startup
+        if ($mode -notin @('install', 'uninstall', 'status', 'refresh')) { throw "Not an install tool command: '$mode'." }
+        if (-not $config.game) { throw 'Registered without the game folder.' }
+        if ($build -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$' -or $build -match '\.\.') { throw "Not a build folder name: '$build'." }
+        $bridge = Join-Path (Join-Path $root $build) 'game-bridge'
+        $jar = Join-Path $bridge 'pztools-game-bridge.jar'
+        $java = Join-Path $bridge 'runtime\bin\java.exe'
+        if (-not (Test-Path -LiteralPath $jar -PathType Leaf) -or -not (Test-Path -LiteralPath $java -PathType Leaf)) {
+            throw "No game bridge in $bridge."
+        }
+        $game = [IO.Path]::GetFullPath($config.game)
+        # @(...): a single argument would otherwise be a string, which splatting takes apart.
+        $arguments = @(switch ($mode) {
+            'install' { $game, $bridge }
+            'refresh' { $bridge }
+            default { $game }
+        })
+        if ($request.stopGame -eq $true) { [void](Stop-Named @('ProjectZomboid64') 20 $true) }
+        $ErrorActionPreference = 'Continue'
+        $output = & $java -cp $jar pztools.bridge.StartupInstall $mode @arguments 2>&1 | ForEach-Object { [string]$_ } | Out-String
+        $code = $LASTEXITCODE
+        $ErrorActionPreference = 'Stop'
+        Write-Result $id ($code -eq 0) ("StartupInstall $mode (exit $code): " + $output.Trim()) $null
+        exit $code
+    }
+
     if ($build -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$' -or $build -match '\.\.') { throw "Not a build folder name: '$build'." }
     $folder = Join-Path $root $build
     $exe = Join-Path $folder 'PzTools.App.exe'

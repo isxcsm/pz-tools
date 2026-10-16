@@ -7,16 +7,16 @@ rights, for development on this computer. Run it once from an administrator Powe
 
 It copies the launcher to %ProgramData%\PzToolsDev, which only administrators (and SYSTEM) may change, with
 launcher.json naming the artifacts root, the PZ Extension API's release build folder and the game folder, and
-registers the task \PzToolsDev\ElevatedLaunch: run as this user, only
-while they are signed in (so the app's window shows on their desktop), with the highest privileges, started on
-demand only (request-elevated-launch.ps1 and request-api-install.ps1 start it with schtasks /run). Run it again
-after changing elevated-launcher.ps1: the task runs the copy.
+registers the task \PzToolsDev\ElevatedLaunch: run as this user, only while they are signed in (so the app's window
+shows on their desktop), with the highest privileges, started on demand only (request-elevated-launch.ps1,
+request-api-install.ps1 and request-startup-install.ps1 start it with schtasks /run). Run it again after changing
+elevated-launcher.ps1: the task runs the copy.
 
 What it allows: anything running as this user can start an app build from the artifacts root with administrator
 rights and no UAC prompt. The artifacts root is the user's own folder, so a program running as the user could put an
-executable there and start it that way. The same holds for the API's installer: anything running as the user can
-have pzext-install.jar from the API build folder install, uninstall or report on the API in the game folder with
-administrator rights, and could put its own jar there. Remove the task when it is not needed.
+executable there and start it that way. The same holds for the two install tools: anything running as the user can
+have pzext-install.jar from the API build folder, or a build's startup loader install tool, change the game folder
+with administrator rights, and could put its own jar there. Remove the task when it is not needed.
 #>
 param(
     [string]$ArtifactsRoot = (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'artifacts'),

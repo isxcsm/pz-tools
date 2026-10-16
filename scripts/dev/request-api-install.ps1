@@ -18,32 +18,5 @@ param(
     [int]$TimeoutSeconds = 120
 )
 $ErrorActionPreference = 'Stop'
-$exchange = Join-Path $env:LOCALAPPDATA 'PzToolsDev'
-$resultPath = Join-Path $exchange 'result.json'
-New-Item -ItemType Directory -Force -Path $exchange | Out-Null
-$id = [guid]::NewGuid().ToString('N')
-(@{ id = $id; api = $Command; stopGame = [bool]$StopGame } | ConvertTo-Json) |
-    Set-Content -LiteralPath (Join-Path $exchange 'request.json') -Encoding UTF8
-
-& schtasks.exe /Run /TN '\PzToolsDev\ElevatedLaunch' | Out-Null
-if ($LASTEXITCODE -ne 0) { throw 'Could not start the task \PzToolsDev\ElevatedLaunch. Is it registered?' }
-
-$deadline = (Get-Date).AddSeconds($TimeoutSeconds)
-while ((Get-Date) -lt $deadline) {
-    if (Test-Path -LiteralPath $resultPath) {
-        $result = $null
-        try { $result = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json } catch { }
-        if ($result -and $result.id -eq $id) {
-            Write-Host $result.message
-            if ($result.ok) { exit 0 }
-            # A launcher registered before this request existed takes it for an app restart without a build.
-            if ($result.message -like 'Not a build folder name*') {
-                Write-Host 'The registered launcher predates API requests: run register-elevated-launcher.ps1 again from an administrator PowerShell.'
-            }
-            exit 1
-        }
-    }
-    Start-Sleep -Milliseconds 500
-}
-Write-Host "No answer from the launcher within $TimeoutSeconds seconds."
-exit 1
+. (Join-Path $PSScriptRoot 'elevated-request.ps1')
+Invoke-ElevatedRequest @{ api = $Command; stopGame = [bool]$StopGame } $TimeoutSeconds 'pzext-install'

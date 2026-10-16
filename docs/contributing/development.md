@@ -286,8 +286,15 @@ It runs `extension-api/out/release/pzext-install.jar` (build it first) with the 
 game folder, both given at registration (`-ApiRoot`, `-GameDir`; by default the repository's release
 build and the Steam install), and prints the installer's output.
 
-The task lets anything running as your user start an executable from your artifacts folder, or the
-installer jar from the API build folder, with administrator rights and no UAC prompt. Remove it when you no longer need it: run the register
+And the app's startup loader install tool from a published build, as the app does from its Game
+extensions page (the install folder belongs to the administrators, so the tool refuses without them):
+
+```powershell
+powershell -NoProfile -File scripts/dev/request-startup-install.ps1 -Build app-local [-Command install|uninstall|status|refresh] [-StopGame]
+```
+
+The task lets anything running as your user start an executable from your artifacts folder, or
+either install tool, with administrator rights and no UAC prompt. Remove it when you no longer need it: run the register
 script again with `-Unregister`.
 
 ## Releases
