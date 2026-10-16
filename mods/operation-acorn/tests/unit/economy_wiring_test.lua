@@ -260,7 +260,7 @@ test("a kill by a player counts for that player", function()
         TEST.fire("OnZombieDead", { getAttackedBy = function() return killer end })
     end
     eq(record.codex.kills, 100)
-    near(record.trade.bonus, 2000)
+    near(record.trade.bonus, 10000)
     TEST.fire("OnZombieDead", { getAttackedBy = function() return nil end })
     TEST.fire("OnZombieDead", { getAttackedBy = function() return { classes = {} } end })
     eq(record.codex.kills, 100, "a death with no player behind it counts for none")

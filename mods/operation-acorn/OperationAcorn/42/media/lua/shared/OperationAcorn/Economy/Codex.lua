@@ -26,9 +26,15 @@ Codex.CATEGORY_PAY = { 50000, 150000 }
 Codex.BUILDING_BASE, Codex.BUILDING_PER_CONTAINER = 100, 10
 Codex.BUILDING_STEPS = { 25, 100, 250, 500, 1000, 2000 }
 Codex.BUILDING_PAY = { 3000, 10000, 20000, 40000, 60000, 80000 }
-Codex.KILL_STEPS = { 100, 500, 1000, 2500, 5000, 10000, 25000, 50000 }
-Codex.KILL_PAY = { 2000, 5000, 10000, 20000, 35000, 50000, 80000, 120000 }
-Codex.KILL_EVERY, Codex.KILL_EVERY_PAY = 50000, 120000   -- after the last step, every 50,000 kills
+-- The kills' milestones, worked back from a price a kill (NUMBERS 4): about 100 credits a kill to 1,000, 72 to 5,000,
+-- 50 to 10,000, 40 to 25,000, then 30 (150,000 every 5,000 kills).
+Codex.KILL_STEPS = { 50, 100, 250, 500, 750, 1000, 1500, 2000, 3000, 4000, 5000, 7500, 10000, 15000, 20000, 25000 }
+Codex.KILL_PAY = { 5000, 5000, 15000, 25000, 25000, 25000, 40000, 40000, 70000, 70000, 70000, 125000, 125000, 200000,
+    200000, 200000 }
+Codex.KILL_EVERY, Codex.KILL_EVERY_PAY = 5000, 150000   -- after the last step, every 5,000 kills
+-- The kill milestones up to this count are told by a brief title (they come every day or two at first); the ones
+-- after it by the codex's big one.
+Codex.KILL_BRIEF_UNTIL = 1000
 
 -- The codex section of a record, with its fields made.
 function Codex.section(record)
@@ -81,8 +87,10 @@ local function tell(record, events)
         key = key .. "_" .. tostring(last.index)
         args = { { key = OA.Categories.nameKey(last.letter) } }
     end
+    local style = Codex.TITLE_STYLE[last.kind]
+    if last.kind == "Kills" and (last.count or 0) <= Codex.KILL_BRIEF_UNTIL then style = "brief" end
     local ok, err = pcall(OA.Sync.title, record.id, { key = key, args = args, sub = "IGUI_OA_Title_Bonus",
-        subArgs = { math.floor(credits + 0.5) }, style = Codex.TITLE_STYLE[last.kind], fallback = "good" })
+        subArgs = { math.floor(credits + 0.5) }, style = style, fallback = "good" })
     if not ok then OA.log("title failed:", tostring(err)) end
 end
 
@@ -180,7 +188,7 @@ function Codex.buildingSearched(record, key, containers, mult)
     return credits, events
 end
 
--- The kills a milestone needs (1 is the first), past the table every 50,000.
+-- The kills a milestone needs (1 is the first), past the table every 5,000.
 function Codex.killThreshold(index)
     if index <= #Codex.KILL_STEPS then return Codex.KILL_STEPS[index] end
     return Codex.KILL_STEPS[#Codex.KILL_STEPS] + Codex.KILL_EVERY * (index - #Codex.KILL_STEPS)

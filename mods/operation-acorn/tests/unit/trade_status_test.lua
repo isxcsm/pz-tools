@@ -423,7 +423,7 @@ test("the record's texts: the codex's next bonus, the sweep, the kills, the miss
     c.cat.A = 6
     c.paid.cats.A = 1
     c.nb, c.paid.buildings = 38, 1
-    c.kills, c.paid.kills = 1284, 3
+    c.kills, c.paid.kills = 1284, 6
     r.missions = { results = { done = 3, expired = 0 }, streak = 2, bestStreak = 2 }
     local d = M.records(r)
     eq(M.plain(d.kinds), "IGUI_OA_Status_Rec_KindsLine 436 500 64")
@@ -433,8 +433,8 @@ test("the record's texts: the codex's next bonus, the sweep, the kills, the miss
     eq(d.cats[2].count, "0/0"); eq(d.cats[2].frac, 0)
     near(d.buildings.bar, (38 - 25) / (100 - 25))
     eq(M.plain(d.buildings.lines[2]), "IGUI_OA_Status_Rec_SweepNext 100 62 10,000")
-    near(d.kills.bar, (1284 - 1000) / (2500 - 1000))
-    eq(M.plain(d.kills.lines[2]), "IGUI_OA_Status_Rec_KillsNext 2,500 1,216 20,000")
+    near(d.kills.bar, (1284 - 1000) / (1500 - 1000))
+    eq(M.plain(d.kills.lines[2]), "IGUI_OA_Status_Rec_KillsNext 1,500 216 40,000")
     eq(M.plain(d.missions.lines[1]), "IGUI_OA_Status_Rec_Late 0 2")
     eq(M.plain(d.missions.lines[2]), "IGUI_OA_Status_Rec_Best 2")
     -- All paid.
@@ -453,7 +453,7 @@ test("the record's bonuses follow BonusMultiplier", function()
     local r = newRecord(1, 0)
     local c = OA.Codex.section(r)
     c.kills, c.paid.kills = 10, 0
-    eq(M.plain(M.records(r).kills.lines[2]), "IGUI_OA_Status_Rec_KillsNext 100 90 4,000")
+    eq(M.plain(M.records(r).kills.lines[2]), "IGUI_OA_Status_Rec_KillsNext 50 40 10,000")
 end)
 
 -- The field terminal's first open -------------------------------------------------------------------------------------
