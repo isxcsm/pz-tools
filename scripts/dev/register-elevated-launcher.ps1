@@ -6,16 +6,22 @@ rights, for development on this computer. Run it once from an administrator Powe
     powershell -NoProfile -ExecutionPolicy Bypass -File scripts\dev\register-elevated-launcher.ps1 -Unregister
 
 It copies the launcher to %ProgramData%\PzToolsDev, which only administrators (and SYSTEM) may change, with
-launcher.json naming the artifacts root, and registers the task \PzToolsDev\ElevatedLaunch: run as this user, only
+launcher.json naming the artifacts root, the PZ Extension API's release build folder and the game folder, and
+registers the task \PzToolsDev\ElevatedLaunch: run as this user, only
 while they are signed in (so the app's window shows on their desktop), with the highest privileges, started on
-demand only (request-elevated-launch.ps1 starts it with schtasks /run).
+demand only (request-elevated-launch.ps1 and request-api-install.ps1 start it with schtasks /run). Run it again
+after changing elevated-launcher.ps1: the task runs the copy.
 
 What it allows: anything running as this user can start an app build from the artifacts root with administrator
 rights and no UAC prompt. The artifacts root is the user's own folder, so a program running as the user could put an
-executable there and start it that way. Remove the task when it is not needed.
+executable there and start it that way. The same holds for the API's installer: anything running as the user can
+have pzext-install.jar from the API build folder install, uninstall or report on the API in the game folder with
+administrator rights, and could put its own jar there. Remove the task when it is not needed.
 #>
 param(
     [string]$ArtifactsRoot = (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'artifacts'),
+    [string]$ApiRoot = (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'extension-api\out\release'),
+    [string]$GameDir = (Join-Path ${env:ProgramFiles(x86)} 'Steam\steamapps\common\ProjectZomboid'),
     [switch]$Unregister
 )
 $ErrorActionPreference = 'Stop'
@@ -37,6 +43,9 @@ if ($Unregister) {
 
 $root = [IO.Path]::GetFullPath($ArtifactsRoot)
 if (-not (Test-Path -LiteralPath $root -PathType Container)) { throw "No artifacts folder at $root." }
+$api = [IO.Path]::GetFullPath($ApiRoot)
+$game = [IO.Path]::GetFullPath($GameDir)
+if (-not (Test-Path -LiteralPath (Join-Path $game 'ProjectZomboid64.exe') -PathType Leaf)) { throw "No ProjectZomboid64.exe in $game." }
 
 # The folder: administrators and SYSTEM change it, users only read it.
 New-Item -ItemType Directory -Force -Path $installDir | Out-Null
@@ -53,7 +62,7 @@ $acl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($user
 Set-Acl -LiteralPath $installDir -AclObject $acl
 
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'elevated-launcher.ps1') -Destination (Join-Path $installDir 'launcher.ps1') -Force
-(@{ artifactsRoot = $root } | ConvertTo-Json) | Set-Content -LiteralPath (Join-Path $installDir 'launcher.json') -Encoding UTF8
+(@{ artifactsRoot = $root; apiRoot = $api; game = $game } | ConvertTo-Json) | Set-Content -LiteralPath (Join-Path $installDir 'launcher.json') -Encoding UTF8
 
 $user = [Security.Principal.WindowsIdentity]::GetCurrent().Name
 $action = New-ScheduledTaskAction -Execute "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" `
@@ -62,6 +71,6 @@ $taskPrincipal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
     -ExecutionTimeLimit (New-TimeSpan -Minutes 5) -MultipleInstances IgnoreNew
 Register-ScheduledTask -TaskPath $taskPath -TaskName $taskName -Action $action -Principal $taskPrincipal `
-    -Settings $settings -Description 'PZ Tools development: restart the app from a build folder with administrator rights.' `
+    -Settings $settings -Description 'PZ Tools development: restart the app from a build folder, or run the extension API installer, with administrator rights.' `
     -Force | Out-Null
-Write-Host "Registered $taskPath$taskName for $user; builds from $root."
+Write-Host "Registered $taskPath$taskName for $user; builds from $root, API installer from $api for $game."

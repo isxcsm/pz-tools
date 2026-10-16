@@ -11,6 +11,11 @@ It reads one request, %LOCALAPPDATA%\PzToolsDev\request.json:
 script). It closes the running app and its worker processes, closes Project Zomboid when stopGame is true, starts
 <root>\<build>\PzTools.App.exe and writes %LOCALAPPDATA%\PzToolsDev\result.json with the request's id.
 
+Or a request for the PZ Extension API's installer (request-api-install.ps1):
+    { "id": "...", "api": "install" | "uninstall" | "status", "stopGame": false }
+It runs <apiRoot>\pzext-install.jar (the API's release build folder fixed at registration) with the game's own Java
+on the game folder fixed at registration, and puts the installer's output in the result's message.
+
 Windows PowerShell 5.1 runs it: no PowerShell 7 syntax.
 #>
 $ErrorActionPreference = 'Stop'
@@ -56,6 +61,26 @@ try {
     $request = Get-Content -LiteralPath $requestPath -Raw | ConvertFrom-Json
     Remove-Item -LiteralPath $requestPath -Force
     $id = [string]$request.id
+
+    if ($request.api) {
+        $mode = [string]$request.api
+        if ($mode -notin @('install', 'uninstall', 'status')) { throw "Not an installer command: '$mode'." }
+        if (-not $config.apiRoot -or -not $config.game) { throw 'Registered without the API build folder or the game folder.' }
+        $jar = Join-Path ([IO.Path]::GetFullPath($config.apiRoot)) 'pzext-install.jar'
+        $game = [IO.Path]::GetFullPath($config.game)
+        $java = Join-Path $game 'jre64\bin\java.exe'
+        if (-not (Test-Path -LiteralPath $jar -PathType Leaf)) { throw "No pzext-install.jar in $($config.apiRoot)." }
+        if (-not (Test-Path -LiteralPath $java -PathType Leaf)) { throw "No jre64\bin\java.exe in $game." }
+        if ($request.stopGame -eq $true) { [void](Stop-Named @('ProjectZomboid64') 20 $true) }
+        # Windows PowerShell turns a native command's stderr lines into errors, which 'Stop' would throw on.
+        $ErrorActionPreference = 'Continue'
+        $output = & $java -jar $jar $mode $game 2>&1 | ForEach-Object { [string]$_ } | Out-String
+        $code = $LASTEXITCODE
+        $ErrorActionPreference = 'Stop'
+        Write-Result $id ($code -eq 0) ("pzext-install $mode (exit $code): " + $output.Trim()) $null
+        exit $code
+    }
+
     $build = [string]$request.build
     if ($build -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$' -or $build -match '\.\.') { throw "Not a build folder name: '$build'." }
     $folder = Join-Path $root $build

@@ -276,8 +276,18 @@ closed itself left running on purpose (the cleanup pass that waits for the game 
 alone. The task runs the copy, so after a change to
 `elevated-launcher.ps1` run the register script again.
 
-The task lets anything running as your user start an executable from your artifacts folder with
-administrator rights and no UAC prompt. Remove it when you no longer need it: run the register
+The same task runs the PZ Extension API's installer, which also needs administrator rights:
+
+```powershell
+powershell -NoProfile -File scripts/dev/request-api-install.ps1 [-Command install|uninstall|status] [-StopGame]
+```
+
+It runs `extension-api/out/release/pzext-install.jar` (build it first) with the game's own Java on the
+game folder, both given at registration (`-ApiRoot`, `-GameDir`; by default the repository's release
+build and the Steam install), and prints the installer's output.
+
+The task lets anything running as your user start an executable from your artifacts folder, or the
+installer jar from the API build folder, with administrator rights and no UAC prompt. Remove it when you no longer need it: run the register
 script again with `-Unregister`.
 
 ## Releases
