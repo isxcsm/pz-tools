@@ -100,6 +100,31 @@ test("a network's state is kept for the millisecond; a change drops only that bo
     eq(asked["bu-p1-power"], 1, "nor its power's")
 end)
 
+test("a network's state is kept while the API's revision of it is the same, whatever other networks do", function()
+    local asked, revision = {}, { ["bu-p1-power"] = 1, ["bu-p2-power"] = 1 }
+    TEST.api.table.networks.state = function(id) asked[id] = (asked[id] or 0) + 1; return { load = 1 } end
+    TEST.api.table.networks.revision = function(id) return revision[id] end
+    local a, b = Store.newPanel(1, 1, 0, "box"), Store.newPanel(2, 2, 0, "box")
+    for _ = 1, 3 do
+        Networks.state(a, "power")
+        Networks.state(b, "power")
+    end
+    eq(asked["bu-p1-power"], 1, "kept across milliseconds")
+    Networks.applyEnabled(b)
+    Networks.state(a, "power")
+    Networks.state(b, "power")
+    eq(asked["bu-p2-power"], 1, "a call of this mod does not drop it: the revision tells")
+    revision["bu-p2-power"] = 5
+    Networks.state(a, "power")
+    Networks.state(b, "power")
+    eq(asked["bu-p1-power"], 1, "the other box's kept")
+    eq(asked["bu-p2-power"], 2, "this box's asked again as its revision moved")
+    revision["bu-p2-power"] = nil
+    Networks.state(b, "power")
+    Networks.state(b, "power")
+    eq(asked["bu-p2-power"], 4, "a network without a revision is asked each millisecond")
+end)
+
 test("devices set together bring the water networks to the data once", function()
     local api = TEST.api
     building(api, "A", 100, 100)

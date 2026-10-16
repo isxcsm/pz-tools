@@ -36,6 +36,7 @@ local mainsRun = false
 local function fakeNetworks()
     local nets, tanks = {}, {}
     mainsRun = false
+    TEST.fakeTanks = tanks
     local function tankOf(at) return tanks[at.x .. "," .. at.y .. "," .. at.z] end
     -- A network's tanks in the order it draws: its own, then each parent's.
     local function chain(id)
@@ -573,4 +574,142 @@ test("the schematic: each pipe's storage and use on each floor, where none reach
     eq(machine.outlet, pipe)
     eq(machine.top, Water.boostFloors())
     eq(#scheme.arrivals, 0, "one building")
+end)
+
+-- The API's revision of a network, as the fake has it: a number that moves when the network, or one it draws from,
+-- changes (a definition call, a draw or a fill that changed a tank). Counts the states asked, by network id.
+local function withRevisions(nets)
+    local api, counter, own, asked = TEST.api.table.networks, 0, {}, {}
+    local function bump(id) counter = counter + 1; own[id] = counter end
+    for _, name in ipairs({ "setProducers", "setParents", "addRoom", "removeRoom", "include", "exclude", "reset",
+        "setEnabled", "setPurify", "setGridFirst" }) do
+        local fn = api[name]
+        api[name] = function(handle, id, ...)
+            if nets[id] then bump(id) end
+            return fn(handle, id, ...)
+        end
+    end
+    -- A draw or a fill moves the networks whose producers' tanks changed (the producers' owner, as the API does).
+    for _, name in ipairs({ "draw", "fill" }) do
+        local fn = api[name]
+        api[name] = function(handle, id, ...)
+            local before = {}
+            for key, tank in pairs(TEST.fakeTanks) do before[key] = tank.amount end
+            local a, b = fn(handle, id, ...)
+            for other, net in pairs(nets) do
+                for _, at in ipairs(net.producers) do
+                    local key = at.x .. "," .. at.y .. "," .. at.z
+                    if TEST.fakeTanks[key].amount ~= before[key] then bump(other) end
+                end
+            end
+            return a, b
+        end
+    end
+    local state = api.state
+    api.state = function(id) asked[id] = (asked[id] or 0) + 1; return state(id) end
+    local function above(id)
+        local result = own[id] or 0
+        for _, parent in ipairs(nets[id].parents) do result = math.max(result, above(parent)) end
+        return result
+    end
+    api.revision = function(id)
+        if not nets[id] then return nil end
+        return above(id)
+    end
+    for id in pairs(nets) do bump(id) end
+    return asked
+end
+
+test("a water network's state is kept while the API's revision of it and of those above is the same", function()
+    local panel, nets, tank = scene(2)
+    tankAt(panel, tank, 101, 101, 0, 100, 100)
+    tankAt(panel, tank, 101, 101, 1, 100, 100)
+    local asked = withRevisions(nets)
+    local t0, t1 = idOf(panel, 1, "A", 0, "T"), idOf(panel, 1, "A", 1, "T")
+    local u0, u1 = idOf(panel, 1, "A", 0, "U"), idOf(panel, 1, "A", 1, "U")
+    local ids = { t0, t1, u0, u1 }
+    local function ask() for _, id in ipairs(ids) do Networks.waterState(id) end end
+    ask()
+    ask()
+    ask()
+    for _, id in ipairs(ids) do eq(asked[id], 1, id .. " asked once while nothing moved") end
+    -- A draw on the top floor's network takes from the top tank, which the ground floor's network draws on too.
+    eq(Networks.drawFrom(panel, { u1 }, 30), 30)
+    ask()
+    eq(asked[t0], 1, "a tank nothing drew from is kept")
+    eq(asked[t1], 2, "the tank drawn from")
+    eq(asked[u1], 2, "the network drawn on")
+    eq(asked[u0], 2, "the sibling that draws on the same tank")
+    eq(Networks.waterState(u0).amount, 170, "and its state is the new one")
+    ask()
+    eq(asked[t1], 2, "kept again")
+    -- A definition changed on one network moves it, not the others.
+    Networks.setPipePurify(panel, 1, false)
+    ask()
+    eq(asked[t0], 1, "a tank network is not purified")
+    eq(asked[u0], 3)
+    eq(asked[u1], 3)
+    -- A network taken away has no state, whatever was kept.
+    TEST.api.table.networks.remove(nil, u1)
+    eq(Networks.waterState(u1), nil, "removed")
+    eq(Networks.waterState(u1), nil, "still")
+end)
+
+test("the panel's water state is kept while no network it was built from moved", function()
+    local panel, nets, tank = scene(2)
+    tankAt(panel, tank, 101, 101, 0, 100, 100)
+    tankAt(panel, tank, 101, 101, 1, 100, 50)
+    withRevisions(nets)
+    local first = Networks.state(panel, "water")
+    eq(first.amount, 150)
+    eq(Networks.state(panel, "water"), first, "the same table while nothing moved")
+    Networks.drawFrom(panel, { idOf(panel, 1, "A", 1, "U") }, 20)
+    local second = Networks.state(panel, "water")
+    truthy(second ~= first, "built again")
+    eq(second.amount, 130)
+    eq(Networks.state(panel, "water"), second)
+    -- Frozen pipes: the networks are switched off, which the API's revisions follow.
+    panel.water.frozen = true
+    Networks.setWaterEnabled(panel, false)
+    local frozen = Networks.state(panel, "water")
+    truthy(frozen ~= second, "built again")
+    eq(frozen.enabled, false)
+    -- A tank put on the pipe is a new layout.
+    tankAt(panel, tank, 103, 101, 0, 100, 10)
+    eq(Networks.state(panel, "water").amount, 140, "the layout changed")
+end)
+
+test("without a revision of the API, water states are kept for the millisecond and a call drops the box's", function()
+    local panel, _, tank = scene(2)
+    local held = tankAt(panel, tank, 101, 101, 0, 100, 100)
+    local asked = {}
+    local state = TEST.api.table.networks.state
+    TEST.api.table.networks.state = function(id) asked[id] = (asked[id] or 0) + 1; return state(id) end
+    TEST.api.table.networks.revision = nil
+    local t0 = idOf(panel, 1, "A", 0, "T")
+    local first = Networks.state(panel, "water")
+    truthy(first ~= Networks.state(panel, "water"), "the aggregate is built each call")
+    held.amount = 40
+    eq(Networks.state(panel, "water").amount, 40, "a later millisecond reads the tank again")
+    getTimestampMs = function() return 7000 end
+    Networks.waterState(t0)
+    local before = asked[t0]
+    Networks.waterState(t0)
+    eq(asked[t0], before, "kept for the millisecond")
+    Networks.drawFrom(panel, { t0 }, 10)
+    Networks.waterState(t0)
+    eq(asked[t0], before + 1, "a draw drops it")
+end)
+
+test("a revision that fails is said once, and the states are kept as without one", function()
+    local panel, _, tank = scene(2)
+    tankAt(panel, tank, 101, 101, 0, 100, 100)
+    local failures, log = 0, BU.log
+    BU.log = function(...) if tostring((...)):find("networks.revision", 1, true) then failures = failures + 1 end end
+    TEST.api.table.networks.revision = function() error("no such thing") end
+    local t0 = idOf(panel, 1, "A", 0, "T")
+    for _ = 1, 3 do eq(Networks.waterState(t0).amount, 100) end
+    eq(Networks.state(panel, "water").amount, 100)
+    BU.log = log
+    eq(failures, 1, "said once")
 end)

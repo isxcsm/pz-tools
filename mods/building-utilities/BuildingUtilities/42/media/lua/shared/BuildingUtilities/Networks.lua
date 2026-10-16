@@ -12,10 +12,16 @@ BU.Networks = Networks
 -- The utility of one of this mod's network ids ("bu-p3-power", "bu-p3-water-c1-b100_200_0-L0-U"), or nil.
 local function utilityOf(id) return tostring(id):match("^bu%-p%d+%-(%a+)") end
 
--- The answers of the networks' state kept (stateOf), by the panel and utility whose they are ("bu-p3-water"): a call
--- on a network drops its panel's answers of that utility, as a draw or a fill changes the tanks its other networks
--- count too (the API's state of a network counts the tanks of its parents).
+-- The answers of the networks' state kept (stateOf), by network id, with the revision the API gave for it
+-- (networks.revision: it moves when the network or one above it changes, so a draw on a parent tank moves its
+-- children's too): an answer is used while the revision is the same. An API without revision (or a network it gives
+-- none for) keeps them as they were: by the panel and utility whose they are ("bu-p3-water"), for the millisecond,
+-- and a call on a network drops its panel's answers of that utility, as a draw or a fill changes the tanks its other
+-- networks count too (the API's state of a network counts the tanks of its parents).
+local revKept, revState, revisionFailed = {}, {}, false
 local stateKept, stateAt = {}, nil
+-- The water aggregates (Networks.state) by panel id: what they were built from and the result.
+local waterKept = {}
 local function forget(id)
     local owner = tostring(id):match("^(bu%-p%d+%-%a+)")
     if owner then stateKept[owner] = nil end
@@ -306,7 +312,7 @@ end
 -- Takes a panel's water networks away.
 local function removeWater(panel)
     for id in pairs(defined[panel.id] or {}) do change("remove", id) end
-    defined[panel.id], definedRules[panel.id], layouts[panel.id] = nil, nil, nil
+    defined[panel.id], definedRules[panel.id], layouts[panel.id], waterKept[panel.id] = nil, nil, nil, nil
 end
 
 -- What the box adds to its devices' load, all its parts together (BU.Changes.setExtraLoad).
@@ -437,12 +443,35 @@ end
 -- One device, as Networks.applyKeys.
 function Networks.apply(panel, utility, key) Networks.applyKeys(panel, utility, { [key] = true }) end
 
--- A network's state; nil for a utility that is off (BU.enabled). Kept while the clock reads the same millisecond and
--- this mod changed no network of the panel's utility (forget): a minute's work asks for the same network many times,
--- and each answer is a table the API makes.
+-- The API's revision of a network (a number), or nil: the API gives none (an older one), the network is not there, or
+-- the call failed (said once).
+local function revisionOf(api, id)
+    local revision = api.networks.revision
+    if revisionFailed or type(revision) ~= "function" then return nil end
+    local ok, number = pcall(revision, id)
+    if not ok then
+        revisionFailed = true
+        BU.log("networks.revision failed:", number)
+        return nil
+    end
+    return type(number) == "number" and number or nil
+end
+
+-- A network's state, and the revision it was kept at (nil without one); nil for a utility that is off (BU.enabled).
+-- Kept while the API's revision of the network is the same: a minute's work asks for the same network many times,
+-- and each answer is a table the API makes. Without a revision, kept while the clock reads the same millisecond and
+-- this mod changed no network of the panel's utility (forget).
 local function stateOf(id)
     local api = BU.api()
     if not (api and id and BU.enabled(utilityOf(id))) then return nil end
+    local revision = revisionOf(api, id)
+    if revision then
+        if revKept[id] ~= revision then
+            revKept[id], revState[id] = revision, api.networks.state(id) or false
+        end
+        return revState[id] or nil, revision
+    end
+    revKept[id], revState[id] = nil, nil
     local now = getTimestampMs()
     if stateAt ~= now then stateKept, stateAt = {}, now end
     local owner = tostring(id):match("^(bu%-p%d+%-%a+)") or ""
@@ -523,21 +552,49 @@ end
 -- pipe: { amount, capacity, supplied, foreign (tanks holding what is not water), tainted (its storage holds tainted
 -- water: what flows in it, unless a filter on it purifies it), buildings (by building key: { amount,
 -- capacity, top (its highest floor with tanks) }) }), mains (the mains run and give the fixtures they reach their water) };
--- nil for a utility that is off, or without water in this game.
+-- nil for a utility that is off, or without water in this game. The water result is kept while what it was built
+-- from is the same (waterFresh): the layout, the pipes, whether they are frozen and the revision of each network
+-- asked; without a revision of one of them, it is built again each call. Callers read it and do not change it.
 local TRACE = 0.001
+
+-- Whether a kept water result still holds: the same layout, pipes and freeze, and every network asked the same
+-- revision as then.
+local function waterFresh(kept, panel, layout)
+    local api = BU.api()
+    if not api or kept.layout ~= layout or kept.frozen ~= (panel.water.frozen and true or false) then return false end
+    local pipes = Water.pipes(panel)
+    if #pipes ~= #kept.pipes then return false end
+    for index, pipe in ipairs(pipes) do
+        if pipe.id ~= kept.pipes[index] then return false end
+    end
+    for index, id in ipairs(kept.ids) do
+        if revisionOf(api, id) ~= kept.revisions[index] then return false end
+    end
+    return true
+end
 
 function Networks.state(panel, utility)
     if utility ~= "water" then return stateOf(powerId(panel)) end
     if not waterOn() then return nil end
+    local layout = Networks.waterLayout(panel)
+    local kept = waterKept[panel.id]
+    if kept and waterFresh(kept, panel, layout) then return kept.result end
+    -- The networks asked and their revisions (false: none, so the result cannot be kept).
+    local ids, revisions, keep = {}, {}, true
+    local function ask(id)
+        local state, revision = stateOf(id)
+        ids[#ids + 1], revisions[#revisions + 1] = id, revision or false
+        if not revision then keep = false end
+        return state
+    end
     local result = { supplied = false, enabled = not panel.water.frozen, amount = 0, capacity = 0, producers = {}, pipes = {} }
     for _, pipe in ipairs(Water.pipes(panel)) do
         result.pipes[pipe.id] = { amount = 0, capacity = 0, supplied = false, foreign = 0, buildings = {} }
     end
-    local layout = Networks.waterLayout(panel)
     for _, network in ipairs(layout.networks) do
-        local state = network.kind == "T" and stateOf(network.id) or nil
+        local state = network.kind == "T" and ask(network.id) or nil
         if result.mains == nil then
-            local any = state or stateOf(network.id)
+            local any = state or ask(network.id)
             if any then result.mains = any.mains == true and any.gridFirst == true end
         end
         local pipe = state and result.pipes[network.pipe]
@@ -560,6 +617,14 @@ function Networks.state(panel, utility)
     end
     for _, pipe in pairs(result.pipes) do result.supplied = result.supplied or pipe.supplied end
     result.supplied = result.supplied and result.enabled
+    if keep and BU.api() then
+        local names = {}
+        for index, pipe in ipairs(Water.pipes(panel)) do names[index] = pipe.id end
+        waterKept[panel.id] = { layout = layout, frozen = panel.water.frozen and true or false, pipes = names, ids = ids,
+            revisions = revisions, result = result }
+    else
+        waterKept[panel.id] = nil
+    end
     return result
 end
 

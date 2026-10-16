@@ -80,11 +80,13 @@ local function newApi()
     }
     -- Network changes are counted by name and do nothing; state is nil.
     local networks = setmetatable({ state = function() return nil end }, { __index = function(t, name)
-        local fn = function() count("networks." .. name) return true end
+        local fn = function() count("networks." .. name) TEST.netChanges = (TEST.netChanges or 0) + 1 return true end
         rawset(t, name, fn)
         return fn
     end })
     networks.draw = function() return 0 end
+    -- No revision unless a test gives one: the states are kept for the millisecond, as an older API has them.
+    networks.revision = function() return nil end
     api.table = {
         version = 1,
         buildings = buildings,

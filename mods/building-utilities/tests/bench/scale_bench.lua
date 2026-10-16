@@ -91,6 +91,8 @@ local function scene(boxes, apart)
         return { load = 0.3, supplied = true, enabled = true, producers = {}, hoursLeft = 20, amount = 400,
             capacity = 800, fuelPerHour = 0.2 }
     end
+    -- The API's revision, as moving at every change the mod makes to any network (more often than the API's).
+    api.table.networks.revision = function() return TEST.netChanges or 0 end
 end
 
 -- An event fired so many times, the world's time going on by step hours before each: the average and the longest.
