@@ -25,8 +25,31 @@ public enum StartupLoaderStatus
 /// resident extensions run.</param>
 /// <param name="Game">How the loader went in the game that runs now, while installed and one game runs; null when
 /// that is not known.</param>
+/// <param name="LauncherEntry">What the game's launcher file (<c>ProjectZomboid64.json</c>) says of the loader's own class
+/// path entry, while installed; <see cref="StartupLauncherEntry.Unknown"/> when the install tool did not say.</param>
 public sealed record StartupLoaderState(StartupLoaderStatus Status, string? GameFolder = null, string? InstallFolder = null,
-    StartupGameReport? Game = null);
+    StartupGameReport? Game = null, StartupLauncherEntry LauncherEntry = StartupLauncherEntry.Unknown);
+
+/// <summary>
+/// The loader's jar in the class path of the game's launcher file. Tools that rewrite that file (PZ Optimize's AOT step
+/// drops the game's folder from the class path) keep an entry added after the game's jar, so the loader starts through
+/// the entry where the game's folder is no longer on the class path.
+/// </summary>
+public enum StartupLauncherEntry
+{
+    /// <summary>Not said: the install tool's result had no launcher field.</summary>
+    Unknown,
+    /// <summary>The class path lists the jar.</summary>
+    Listed,
+    /// <summary>The class path lacks it (a reset of the game's files put the plain file back): the next game start, or the
+    /// next refresh, adds it.</summary>
+    Absent,
+    /// <summary>There is no launcher file; the game's folder serves.</summary>
+    None,
+    /// <summary>The file has no class path list the install can edit; the game's folder serves where it is still on the
+    /// class path.</summary>
+    Unreadable,
+}
 
 /// <summary>A game process, by its identifier and the time it started.</summary>
 public readonly record struct RunningGame(int ProcessId, DateTime StartedUtc);
@@ -171,7 +194,8 @@ public sealed class StartupLoader
     /// <summary>
     /// Brings the install's copy of the bridge, and its entry in the game's folder, up to this app's, so the next game
     /// start loads the bridge of this version; an earlier version's install in the jar becomes one in the folder.
-    /// Nothing happens when nothing is installed. Not while a game runs: the bridge it started with, and the
+    /// A launcher file that lost the jar's entry (a reset of the game's files) gets it back. Nothing happens when nothing is
+    /// installed. Not while a game runs: the bridge it started with, and the
     /// extensions it runs from there, stay until it ends. False when it did not run for that.
     /// </summary>
     public Task<bool> RefreshBridgeAsync(CancellationToken cancellationToken = default) => Task.Run(async () =>
@@ -257,13 +281,25 @@ public sealed class StartupLoader
         throw new StartupLoaderException("io", $"The install tool ended with {exitCode} and no result.");
     }
 
-    /// <summary>The state a status result gives: installed results name the install folder after the entry's digest.</summary>
+    /// <summary>The state a status result gives: installed results name the install folder after the entry's digest, then
+    /// what the launcher file says of the jar's entry (<c>launcher=listed</c>).</summary>
     internal static StartupLoaderState ReadState(string result, string gameFolder)
     {
         var status = Parse(result);
         var fields = result.Split('\t');
-        return new(status, gameFolder, status == StartupLoaderStatus.Installed && fields.Length >= 3 && Path.IsPathFullyQualified(fields[2])
-            ? fields[2] : null);
+        bool installed = status == StartupLoaderStatus.Installed;
+        var launcher = installed && fields.Length >= 4 && fields[3].StartsWith("launcher=", StringComparison.Ordinal)
+            ? fields[3]["launcher=".Length..] switch
+            {
+                "listed" => StartupLauncherEntry.Listed,
+                "absent" => StartupLauncherEntry.Absent,
+                "none" => StartupLauncherEntry.None,
+                "unreadable" => StartupLauncherEntry.Unreadable,
+                _ => StartupLauncherEntry.Unknown,
+            }
+            : StartupLauncherEntry.Unknown;
+        return new(status, gameFolder, installed && fields.Length >= 3 && Path.IsPathFullyQualified(fields[2]) ? fields[2] : null,
+            LauncherEntry: launcher);
     }
 
     /// <summary>

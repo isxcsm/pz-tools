@@ -22,8 +22,9 @@ import java.util.Set;
  * How the game reaches the {@link StartupLoader} without a changed game class (docs/design/startup-loader.md). The JDK
  * creates the installed file system providers, the ones named in {@code META-INF/services} on the class path, once,
  * the first time anything asks for one; the game does that early in its main method, when it zips its last logs. The
- * install puts this class and that service entry in the game's folder, which is on the game's class path. Creating
- * the provider starts the loader; it serves no files of its own.
+ * install puts this class and that service entry in the game's folder, which is on the game's class path, and again,
+ * under the package name {@code pztools.launch}, in a jar that the launcher file's class path lists (for a launcher
+ * file that no longer lists the folder). Creating the provider starts the loader; it serves no files of its own.
  *
  * <p>Nothing may escape the constructor: a provider that fails to be created leaves the JDK unable to list file system
  * providers for the rest of the run, and the game's zip files with it. It must also not ask for a file system

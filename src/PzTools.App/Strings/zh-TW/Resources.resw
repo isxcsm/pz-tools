@@ -764,10 +764,14 @@ GC 運作：區間中垃圾回收器在工作的時間比例。它與遊戲同�
   <data name="GameMemoryNotFound" xml:space="preserve"><value>找不到遊戲資料夾。啟動一次遊戲即可找到。</value></data>
   <data name="GameMemoryUnsupported" xml:space="preserve"><value>遊戲設定檔與預期不符，因此未修改。</value></data>
   <data name="GameMemoryUnwritable" xml:space="preserve"><value>無法寫入遊戲資料夾，未做任何變更。</value></data>
-  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>遊戲更新撤銷了 {0} 的設定。再次選擇即可套用。</value></data>
+  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>遊戲更新或其他程式撤銷了 {0} 的設定。再次選擇即可套用。</value></data>
   <data name="GameMemoryRevertedTitleFormat" xml:space="preserve"><value>遊戲記憶體已恢復為 {0}</value></data>
-  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>遊戲更新撤銷了該設定。</value></data>
+  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>遊戲更新或其他程式撤銷了該設定。</value></data>
   <data name="GameMemoryReapplyFormat" xml:space="preserve"><value>重新套用 {0}</value></data>
+  <data name="GameMemoryBrokenTitle" xml:space="preserve"><value>使用此記憶體設定時遊戲無法啟動</value></data>
+  <data name="GameMemoryBrokenMessageFormat" xml:space="preserve"><value>檔案要求的初始記憶體 ({0}) 超過了可用上限 ({1})。</value></data>
+  <data name="GameMemoryMatchFormat" xml:space="preserve"><value>兩項都設為 {0}</value></data>
+  <data name="GameMemoryBrokenFormat" xml:space="preserve"><value>遊戲檔案要求的初始記憶體 ({0}) 超過了可用上限 ({1})，因此遊戲無法啟動。選擇一個大小即可修復。</value></data>
   <data name="ProfileMemoryStallsFormat" xml:space="preserve"><value>因記憶體不足停頓 {0} 次</value></data>
   <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>記憶體幾乎已滿</value></data>
   <data name="ProfileMemorySetting" xml:space="preserve"><value>記憶體設定</value></data>

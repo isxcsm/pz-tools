@@ -28,16 +28,20 @@ so extensions run whether or not the app is open. Two needs drive it:
 
 ## How it works
 
-No game file changes. The game's launcher puts the game's folder (`.`) first on the class path, and
-the install adds four files of PZ Tools' own there. They make the JDK start a small loader early in
+No game class changes. The game's launcher puts the game's folder (`.`) first on the class path, and
+the install adds files of PZ Tools' own there. They make the JDK start a small loader early in
 the game's `main`, which loads the existing bootstrap from inside the game. From there everything
-is the path that exists today.
+is the path that exists today. The one change to a game file is one entry in the class path list of
+the launcher file (see [the launch jar](#the-launch-jar)).
 
 1. **Install** writes, in the game's folder:
-   - `pztools/startup/StartupLoader.class` and `pztools/startup/BootProvider.class`;
-   - `pztools/startup/install.properties`, the install folder's path;
+   - `pztools/startup/StartupLoader.class`, `pztools/startup/Launcher.class` and
+     `pztools/startup/BootProvider.class`;
+   - `pztools/startup/install.properties`, the install folder's and the game folder's paths;
    - a line `pztools.startup.BootProvider` in `META-INF/services/java.nio.file.spi.FileSystemProvider`,
-     beside any lines of other tools.
+     beside any lines of other tools;
+   - `pztools/pztools-launch.jar`, the same loader again under another package name, and its entry
+     `"pztools/pztools-launch.jar"` in the `classpath` list of `ProjectZomboid64.json` ([below](#the-launch-jar)).
 2. **At game start** the JDK lists the installed file system providers the first time anything
    asks for one, and creates each provider named in a services file on the class path. The game
    asks early in `MainScreenState.main`, when it zips its last logs (`ZipLogs.addZipFile`, right
@@ -74,6 +78,38 @@ none of the game's.
 An install from an earlier version is turned into this one by the next install or refresh, which put
 the game's own jar back from the copy the install kept.
 
+### The launch jar
+
+The loose files work only while the launcher file keeps `.` on the class path. Tools that rewrite
+`ProjectZomboid64.json` do not always: PZ Optimize's AOT step (measured 16 October 2026) makes the
+list `pzopt/aot/pzopt.jar`, `projectzomboid.jar`, then the entries it found after them, dropping
+`.`. It copies the loose `*.class` files of other installs into its jar, but not
+`META-INF/services`, so a game started that way finds no provider and the loader never runs. A
+Steam file check or an update brings the plain file back (with `.`) and takes any added entry out.
+So the install also gives the game's folder the loader as a jar, and lists it:
+
+- **The jar** holds `pztools.launch.StartupLoader`, `Launcher` and `BootProvider` (the same sources,
+  compiled under another package name by
+  [`generate-startup-launch-sources.ps1`](../../scripts/generate-startup-launch-sources.ps1)), its own
+  services list and its own `install.properties`. The other package name keeps a stale copy of the
+  loose classes, baked into another tool's jar and found first on the class path, from taking its place.
+  The native library exports the load function under both names.
+- **The entry** is added after the game's jar, as text, by `Launcher`: every other byte of the file
+  (layout, other entries, other tools' lines such as PZ Extension API's `pzext/pzext-launch.jar`) stays,
+  and the file is replaced in one move. A tool that rewrites the list keeps an entry after the game's jar.
+  A file with no class path list of plain strings, or none, is left alone; the loose files serve where
+  `.` is still on the class path.
+- **One boot a process.** With `.` kept, both providers are created; the first to find its settings
+  boots and sets the system property `pztools.startup.loader.started`, which keeps the other from doing
+  it again. The guard is this loader's own: PZ Extension API's loader (`pzext.loader.started`) in the
+  same process boots as well.
+- **Healing.** After the boot, the loader looks at the launcher file: when the jar is there and the
+  list lacks the entry (a file check put the plain file back), it adds the entry, for the next start
+  that a rewrite of the class path would otherwise leave without it, and writes a line after the
+  boot's in `startup.log`. The app's refresh does the same sooner, when it sees `launcher=absent` in the
+  status. Neither can stop the game.
+- **Uninstall** removes the jar first, then only its own entry, then the service line and the loose files.
+
 ### What the entry must survive
 
 The JDK creates the providers inside its own lock, with a flag that marks the list as loading. A
@@ -86,7 +122,7 @@ request for a provider, the game's log zip included, fails for the rest of the r
   classes, so the line never names a class that is not there.
 - Neither the loader nor the bootstrap asks for a file system provider while it runs (the JDK would
   call that circular), and neither waits for another thread that might.
-- `StartupLoader.start` runs once per process, however many times something lists the providers.
+- `StartupLoader.start` runs once per process and per copy, however many times something lists the providers; the two copies share one boot ([the launch jar](#the-launch-jar)).
 
 The loader itself catches everything. A missing DLL, a load that fails or a bootstrap that throws
 leaves the game to start as vanilla. Measured on 6 October 2026 with the game's JRE, on a small
@@ -133,9 +169,9 @@ The install is separate from each extension's switch.
 
 | State | Means |
 | --- | --- |
-| Installed | The install folder's record, and the whole entry in the game's folder naming that install folder |
+| Installed | The install folder's record, and the whole entry in the game's folder naming that install folder. The status also says what the launcher file holds of the jar's entry (`launcher=listed`, `absent`, `none` or `unreadable`); that entry heals itself and is not part of the state. The app refreshes the install when it reads `absent`. |
 | Not installed | No record. An entry left in the game's folder by an install whose folder was deleted is still this install's own: install takes it over and uninstall removes it. |
-| Reverted | A record, and part of the entry is gone from the game's folder. Install again. |
+| Reverted | A record, and part of the entry (a loose file, the service line, the jar) is gone from the game's folder. Install again. |
 | Foreign | A loader patched into the game's jar with no record: an earlier version's whose record is gone, or another tool's. Install and uninstall refuse it; Steam's file check restores the jar. |
 
 ### The game that runs
@@ -173,7 +209,7 @@ the old one is deleted later, so a path into the app folder would break at the n
 | `original.jar` | Only while an earlier version's jar patch is in place: the game's jar as it was before it |
 | `startup.log` | One line from the loader per game start: what it loaded, or why it did not |
 
-The entry's `install.properties` holds the install folder's path. The app rewrites `current` and
+The entry's `install.properties` holds the install folder's and the game folder's paths (the jar has its own copy). The app rewrites `current` and
 `resident.tsv`; it never rewrites the entry to point somewhere new. The status the install tool
 reports names the folder, so the app writes `resident.tsv` without working out the path itself.
 
@@ -341,7 +377,7 @@ game zipped its logs as usual.
 Not tested yet:
 
 - the real game starting with the entry and no install folder (the synthetic game covers it);
-- the real game with PZ Optimize installed beside the entry.
+- the real game with PZ Optimize installed beside the entry (the synthetic game covers its launcher file: `.` dropped, stale loose classes in its jar first, no services list; the install, the healing and the one boot are tested in `StartupInstallTest`).
 
 ## Alternatives rejected
 

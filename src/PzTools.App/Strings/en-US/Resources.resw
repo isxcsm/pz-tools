@@ -763,10 +763,14 @@ Detailed: takes a reading every 0.001 to 0.0015 seconds and also records waits a
   <data name="GameMemoryNotFound" xml:space="preserve"><value>The game&apos;s folder was not found. Start the game once and it will be.</value></data>
   <data name="GameMemoryUnsupported" xml:space="preserve"><value>The game&apos;s settings file is not as expected, so it was left alone.</value></data>
   <data name="GameMemoryUnwritable" xml:space="preserve"><value>The game&apos;s folder cannot be written to, so nothing was changed.</value></data>
-  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>A game update undid the {0} setting. Choose it again to apply it.</value></data>
+  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>A game update or another program undid the {0} setting. Choose it again to apply it.</value></data>
   <data name="GameMemoryRevertedTitleFormat" xml:space="preserve"><value>Game memory back to {0}</value></data>
-  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>A game update undid the setting.</value></data>
+  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>A game update or another program undid the setting.</value></data>
   <data name="GameMemoryReapplyFormat" xml:space="preserve"><value>Apply {0} again</value></data>
+  <data name="GameMemoryBrokenTitle" xml:space="preserve"><value>The game will not start with this memory setting</value></data>
+  <data name="GameMemoryBrokenMessageFormat" xml:space="preserve"><value>The file asks to start with {0}, more than the {1} it may use.</value></data>
+  <data name="GameMemoryMatchFormat" xml:space="preserve"><value>Set both to {0}</value></data>
+  <data name="GameMemoryBrokenFormat" xml:space="preserve"><value>The game&apos;s file asks to start with {0}, more than the {1} it may use, so the game will not start. Choose a size to fix it.</value></data>
   <data name="ProfileMemoryStallsFormat" xml:space="preserve"><value>Stopped {0} times for lack of memory</value></data>
   <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>Memory nearly full</value></data>
   <data name="ProfileMemorySetting" xml:space="preserve"><value>Memory setting</value></data>

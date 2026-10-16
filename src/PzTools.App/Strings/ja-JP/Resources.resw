@@ -764,10 +764,14 @@ GC 稼働: 区間のうちメモリ整理が動いていた時間の割合です
   <data name="GameMemoryNotFound" xml:space="preserve"><value>ゲームのフォルダーが見つかりません。一度ゲームを起動すると見つかります。</value></data>
   <data name="GameMemoryUnsupported" xml:space="preserve"><value>ゲームの設定ファイルが想定と異なるため、変更しませんでした。</value></data>
   <data name="GameMemoryUnwritable" xml:space="preserve"><value>ゲームのフォルダーに書き込めないため、変更できませんでした。</value></data>
-  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>ゲームのアップデートで {0} の設定が元に戻りました。もう一度選ぶと適用されます。</value></data>
+  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>ゲームのアップデートまたは他のプログラムで {0} の設定が元に戻りました。もう一度選ぶと適用されます。</value></data>
   <data name="GameMemoryRevertedTitleFormat" xml:space="preserve"><value>ゲームのメモリが {0} に戻りました</value></data>
-  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>ゲームのアップデートで設定が元に戻りました。</value></data>
+  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>ゲームのアップデートまたは他のプログラムが設定を元に戻しました。</value></data>
   <data name="GameMemoryReapplyFormat" xml:space="preserve"><value>{0} を再適用</value></data>
+  <data name="GameMemoryBrokenTitle" xml:space="preserve"><value>このメモリ設定ではゲームが起動しません</value></data>
+  <data name="GameMemoryBrokenMessageFormat" xml:space="preserve"><value>ファイルの開始メモリ ({0}) が、使える上限 ({1}) を超えています。</value></data>
+  <data name="GameMemoryMatchFormat" xml:space="preserve"><value>両方を {0} にする</value></data>
+  <data name="GameMemoryBrokenFormat" xml:space="preserve"><value>ゲームのファイルの開始メモリ ({0}) が、使える上限 ({1}) を超えているため、ゲームが起動しません。サイズを選ぶと修正されます。</value></data>
   <data name="ProfileMemoryStallsFormat" xml:space="preserve"><value>メモリ不足で {0} 回停止</value></data>
   <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>メモリがほぼいっぱい</value></data>
   <data name="ProfileMemorySetting" xml:space="preserve"><value>メモリ設定</value></data>

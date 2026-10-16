@@ -1572,21 +1572,33 @@ public sealed partial class MainWindowShell : UserControl
 
     // ---- The game's memory ----
 
-    // The chosen heap and the file's when the card was closed: it comes back only when either changes.
-    private (int?, int?)? gameMemoryDismissed;
+    // The chosen heap and the file's two when the card was closed: it comes back only when any of them changes.
+    private (int?, int?, int?)? gameMemoryDismissed;
 
     private void GameMemory_Changed() => DispatcherQueue.Enqueue(ApplyGameMemory);
 
-    // The player chose a heap and the game's file no longer has it (a game update or Steam's file check put the game's
-    // own back): a card says so, and its button applies the choice again, for the game's next start.
+    // The game's file differs from what the player set, whoever wrote it (a game update, Steam's file check, a tool that
+    // sets the heap itself): a card says so, and its button applies the choice again, for the game's next start. A file
+    // that asks for a starting heap above the maximum keeps the game from starting at all, chosen heap or not: the card
+    // says that instead, and its button applies the choice again, or makes the starting heap the maximum.
     private void ApplyGameMemory()
     {
         var state = previewGameMemory ?? App.GameMemory?.State;
-        bool reverted = state is { Status: GameMemoryStatus.Reverted, ChosenMegabytes: not null, MaximumMegabytes: not null };
-        (int?, int?) key = (state?.ChosenMegabytes, state?.MaximumMegabytes);
-        if (!reverted) gameMemoryDismissed = null;
-        GameMemoryCard.Visibility = reverted && gameMemoryDismissed != key ? Visibility.Visible : Visibility.Collapsed;
-        if (reverted)
+        bool broken = state is { StartsTooLarge: true, InitialMegabytes: not null, MaximumMegabytes: not null };
+        bool reverted = !broken && state is { Status: GameMemoryStatus.Reverted, ChosenMegabytes: not null, MaximumMegabytes: not null };
+        (int?, int?, int?) key = (state?.ChosenMegabytes, state?.MaximumMegabytes, state?.InitialMegabytes);
+        if (!reverted && !broken) gameMemoryDismissed = null;
+        GameMemoryCard.Visibility = (reverted || broken) && gameMemoryDismissed != key ? Visibility.Visible : Visibility.Collapsed;
+        if (broken)
+        {
+            GameMemoryCard.Title = Localizer.Get("GameMemoryBrokenTitle");
+            GameMemoryCard.Message = Localizer.Format("GameMemoryBrokenMessageFormat", SettingsPage.Size(state!.InitialMegabytes!.Value),
+                SettingsPage.Size(state.MaximumMegabytes!.Value));
+            GameMemoryCard.ActionLabel = state.ChosenMegabytes is { } kept
+                ? Localizer.Format("GameMemoryReapplyFormat", SettingsPage.Size(kept))
+                : Localizer.Format("GameMemoryMatchFormat", SettingsPage.Size(state.MaximumMegabytes!.Value));
+        }
+        else if (reverted)
         {
             GameMemoryCard.Title = Localizer.Format("GameMemoryRevertedTitleFormat", SettingsPage.Size(state!.MaximumMegabytes!.Value));
             GameMemoryCard.Message = Localizer.Get("GameMemoryRevertedMessage");
@@ -1599,14 +1611,18 @@ public sealed partial class MainWindowShell : UserControl
     private void GameMemoryClose_Click(object? sender, EventArgs e)
     {
         var state = previewGameMemory ?? App.GameMemory?.State;
-        gameMemoryDismissed = (state?.ChosenMegabytes, state?.MaximumMegabytes);
+        gameMemoryDismissed = (state?.ChosenMegabytes, state?.MaximumMegabytes, state?.InitialMegabytes);
         GameMemoryCard.Visibility = Visibility.Collapsed;
         UpdateInteractiveCards();
     }
 
     private async void GameMemoryReapply_Click(object? sender, EventArgs e)
     {
-        if (App.GameMemory is not { } memory || memory.State.ChosenMegabytes is not { } chosen) return;
+        // The player's choice again; with none (a starting heap above the maximum in the game's own file), the game's
+        // own heap, which makes the starting heap the maximum.
+        if (App.GameMemory is not { } memory) return;
+        var chosen = memory.State.ChosenMegabytes;
+        if (chosen is null && !memory.State.StartsTooLarge) return;
         try { await memory.ApplyAsync(chosen); }
         catch (GameMemoryException error)
         {

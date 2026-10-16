@@ -771,10 +771,14 @@ GC ทำงาน: สัดส่วนของช่วงที่ตัว
   <data name="GameMemoryNotFound" xml:space="preserve"><value>ไม่พบโฟลเดอร์เกม เปิดเกมหนึ่งครั้งแล้วจะพบเอง</value></data>
   <data name="GameMemoryUnsupported" xml:space="preserve"><value>ไฟล์ตั้งค่าของเกมไม่เป็นไปตามที่คาด จึงไม่ได้แก้ไข</value></data>
   <data name="GameMemoryUnwritable" xml:space="preserve"><value>เขียนลงโฟลเดอร์เกมไม่ได้ จึงไม่ได้เปลี่ยนแปลงอะไร</value></data>
-  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>การอัปเดตเกมยกเลิกการตั้งค่า {0} เลือกอีกครั้งเพื่อใช้</value></data>
+  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>การอัปเดตเกมหรือโปรแกรมอื่นยกเลิกการตั้งค่า {0} เลือกอีกครั้งเพื่อใช้</value></data>
   <data name="GameMemoryRevertedTitleFormat" xml:space="preserve"><value>หน่วยความจำของเกมกลับเป็น {0}</value></data>
-  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>การอัปเดตเกมยกเลิกการตั้งค่า</value></data>
+  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>การอัปเดตเกมหรือโปรแกรมอื่นยกเลิกการตั้งค่า</value></data>
   <data name="GameMemoryReapplyFormat" xml:space="preserve"><value>ใช้ {0} อีกครั้ง</value></data>
+  <data name="GameMemoryBrokenTitle" xml:space="preserve"><value>เกมจะไม่เริ่มด้วยการตั้งค่าหน่วยความจำนี้</value></data>
+  <data name="GameMemoryBrokenMessageFormat" xml:space="preserve"><value>ไฟล์ขอหน่วยความจำเริ่มต้น {0} ซึ่งมากกว่าที่ใช้ได้สูงสุด {1}</value></data>
+  <data name="GameMemoryMatchFormat" xml:space="preserve"><value>ตั้งทั้งสองเป็น {0}</value></data>
+  <data name="GameMemoryBrokenFormat" xml:space="preserve"><value>ไฟล์ของเกมขอหน่วยความจำเริ่มต้น {0} ซึ่งมากกว่าที่ใช้ได้สูงสุด {1} เกมจึงจะไม่เริ่ม เลือกขนาดเพื่อแก้ไข</value></data>
   <data name="ProfileMemoryStallsFormat" xml:space="preserve"><value>หยุดเพราะหน่วยความจำไม่พอ {0} ครั้ง</value></data>
   <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>หน่วยความจำใกล้เต็ม</value></data>
   <data name="ProfileMemorySetting" xml:space="preserve"><value>ตั้งค่าหน่วยความจำ</value></data>

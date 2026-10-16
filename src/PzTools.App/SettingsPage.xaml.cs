@@ -680,7 +680,9 @@ public sealed partial class SettingsPage : UserControl
             var shown = state.Status == GameMemoryStatus.Applied ? state.ChosenMegabytes ?? 0 : 0;
             // Put back by the game, the list shows the game's own without selecting it: either choice is then one, the
             // game's own (letting the player's go) as much as the player's again.
-            var reverted = state.Status == GameMemoryStatus.Reverted;
+            // A starting heap above the maximum is the same: nothing shown as set, and any entry is a change, the game's
+            // own included (it makes the starting heap the maximum).
+            var reverted = state.Status == GameMemoryStatus.Reverted || state.StartsTooLarge;
             GameMemoryCombo.PlaceholderText = reverted ? (string)((ComboBoxItem)GameMemoryCombo.Items[0]).Content : "";
             GameMemoryCombo.SelectedItem = reverted ? null
                 : GameMemoryCombo.Items.OfType<ComboBoxItem>().FirstOrDefault(item => (int)item.Tag == shown) ?? GameMemoryCombo.Items[0];
@@ -692,6 +694,8 @@ public sealed partial class SettingsPage : UserControl
         {
             GameMemoryStatus.NotFound => Localizer.Get("GameMemoryNotFound"),
             GameMemoryStatus.Unsupported => Localizer.Get("GameMemoryUnsupported"),
+            _ when state is { StartsTooLarge: true, InitialMegabytes: { } initial, MaximumMegabytes: { } maximum } =>
+                Localizer.Format("GameMemoryBrokenFormat", Size(initial), Size(maximum)),
             GameMemoryStatus.Reverted when state.ChosenMegabytes is { } chosen => Localizer.Format("GameMemoryRevertedFormat", Size(chosen)),
             _ => null,
         };
@@ -736,7 +740,7 @@ public sealed partial class SettingsPage : UserControl
             return;
         var state = memory.State;
         // The list showing what the file holds already is no change; put back by the game, either choice is one.
-        if (state.Status != GameMemoryStatus.Reverted && megabytes == (state.Status == GameMemoryStatus.Applied ? state.ChosenMegabytes ?? 0 : 0))
+        if (state.Status != GameMemoryStatus.Reverted && !state.StartsTooLarge && megabytes == (state.Status == GameMemoryStatus.Applied ? state.ChosenMegabytes ?? 0 : 0))
             return;
         applyingGameMemory = true;
         gameMemoryError = null;

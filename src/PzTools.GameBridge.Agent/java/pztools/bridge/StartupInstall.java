@@ -5,8 +5,12 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.nio.file.attribute.UserPrincipal;
 import java.security.MessageDigest;
+import java.time.LocalDateTime;
 import java.util.*;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 import pztools.startup.BootProvider;
+import pztools.startup.Launcher;
 import pztools.startup.StartupLoader;
 
 /**
@@ -15,10 +19,15 @@ import pztools.startup.StartupLoader;
  * {@code refresh <bridge folder>}. Prints one line, {@code PZTOOLS-STARTUP\t<state>\t<detail>}; a failure prints
  * {@code PZTOOLS-STARTUP-FAILED\t<code>\t<message>} and exits 1.
  *
- * <p>No game file changes. The game's folder is on the game's class path, and gets four files of PZ Tools' own: the
- * {@link StartupLoader} and {@link BootProvider} classes, the install folder's path, and a line naming the provider
- * in the folder's file system provider services list. Everything else the game loads stays in the install folder,
- * which only the player's account and the administrators may change.
+ * <p>No game class changes. The game's folder is on the game's class path, and gets files of PZ Tools' own: the
+ * {@link StartupLoader}, {@link Launcher} and {@link BootProvider} classes, the install folder's and the game folder's
+ * paths, and a line naming the provider in the folder's file system provider services list. The launcher's class path
+ * may no longer list that folder (PZ Optimize's AOT step drops it and copies the loose classes, without the services
+ * list, into a jar of its own), so the game's folder gets the same loader a second time as a jar of its own,
+ * {@code pztools/pztools-launch.jar}, under another package name (a copy made by another tool can never shadow it), and
+ * the launcher file ({@code ProjectZomboid64.json}) lists the jar after the game's. Only that one entry of the file is
+ * added or removed, as text; the loader adds it back at game start when a reset took it out. Everything else the game
+ * loads stays in the install folder, which only the player's account and the administrators may change.
  *
  * <p>Earlier versions patched the game's jar instead. Other mods compare the game's classes with the ones they were
  * built for, and took the patched jar for a game update. An install of that kind is turned into this one by the next
@@ -31,6 +40,13 @@ public final class StartupInstall {
     static final String PROVIDER = BootProvider.class.getName();
     static final String LOADER_ENTRY = "pztools/startup/StartupLoader.class";
     static final String PROVIDER_ENTRY = "pztools/startup/BootProvider.class";
+    static final String LAUNCHER_ENTRY = "pztools/startup/Launcher.class";
+    static final String[] LOOSE_ENTRIES = { LOADER_ENTRY, PROVIDER_ENTRY, LAUNCHER_ENTRY };
+    /** The loader's classes and settings in the jar, under the other package name. */
+    static final String LAUNCH_PROVIDER = "pztools.launch.BootProvider";
+    static final String[] LAUNCH_CLASSES = { "pztools/launch/StartupLoader.class", "pztools/launch/BootProvider.class", "pztools/launch/Launcher.class" };
+    static final String LAUNCH_SETTINGS = "pztools/launch/install.properties";
+    static final String LAUNCH_JAR = StartupLoader.JAR;
     static final String RECORD = "install.tsv", ORIGINAL = "original.jar";
     static final String[] BRIDGE_FILES = { StartupLoader.BOOTSTRAP, StartupLoader.PAYLOAD, StartupLoader.NATIVE };
     static final String EXTENSIONS = "extensions";
@@ -87,17 +103,23 @@ public final class StartupInstall {
     // ---- state ----
 
     /**
-     * installed, not-installed, reverted (installed before, and the game no longer has all of it) or foreign (a patch in
-     * the game's jar this install has no record of).
+     * installed (with the entry's digest, the install folder and what the launcher file says of the jar's entry:
+     * {@code launcher=listed}, {@code absent}, {@code none} or {@code unreadable}), not-installed, reverted (installed
+     * before, and the game no longer has all of it) or foreign (a patch in the game's jar this install has no record of).
      */
     static String status(Path root, Path game) throws Exception {
         Map<String, String> record = readRecord(root);
         if (record == null) return foreign(game) ? "foreign" : "not-installed";
         // The folder too: the app writes there what the game's resident extensions should run.
-        if (record.containsKey("entry_sha256")) return present(game, root) ? "installed\t" + entryDigest(game) + "\t" + root : "reverted";
+        if (record.containsKey("entry_sha256"))
+            return present(game, root) ? "installed\t" + entryDigest(game) + "\t" + root + launcherState(game) : "reverted";
         // Installed by an earlier version, into the jar: works until the next refresh or install turns it into this.
         Path jar = game.resolve(GAME_JAR);
-        return sha256(jar).equals(record.get("patched_sha256")) ? "installed\t" + sha256(jar) + "\t" + root : "reverted";
+        return sha256(jar).equals(record.get("patched_sha256")) ? "installed\t" + sha256(jar) + "\t" + root + launcherState(game) : "reverted";
+    }
+
+    private static String launcherState(Path game) {
+        return "\tlauncher=" + Launcher.state(game.resolve(Launcher.FILE), LAUNCH_JAR);
     }
 
     static String install(Path root, Path game, Path bridge) throws Exception {
@@ -152,50 +174,101 @@ public final class StartupInstall {
                 writeEntry(root, folder);
                 entryChanged = true;
             }
+            // A reset of the launcher file (Steam's file check) took the jar's entry out; the loader would add it at the
+            // next game start, and this does it sooner. Nothing to add it to when the jar is not there.
+            else if (Files.isRegularFile(folder.resolve(LAUNCH_JAR), LinkOption.NOFOLLOW_LINKS)
+                    && Launcher.ensure(folder.resolve(Launcher.FILE), LAUNCH_JAR).equals("added")) entryChanged = true;
         }
         return !entryChanged && before.startsWith(copied.getFileName() + "\t") ? "unchanged" : "refreshed\t" + copied.getFileName();
     }
 
     // ---- the entry in the game's folder ----
 
-    /** The loader's files, then the service line: a line naming a class that is not there would break the JDK's list. */
+    /**
+     * The jar and the loader's files, then the service line, then the launcher file's entry: a line or an entry naming
+     * a class or a jar that is not there would break the JDK's list or the class path.
+     */
     private static void writeEntry(Path root, Path game) throws Exception {
-        writeAtomically(game.resolve(LOADER_ENTRY), ownClass(LOADER_ENTRY));
-        writeAtomically(game.resolve(PROVIDER_ENTRY), ownClass(PROVIDER_ENTRY));
-        writeAtomically(game.resolve(StartupLoader.SETTINGS), settings(root));
+        byte[] jar = launchJar(root, game);
+        Path jarFile = game.resolve(LAUNCH_JAR);
+        // A running game has the jar open: the same bytes stay.
+        if (!Files.isRegularFile(jarFile) || !Arrays.equals(Files.readAllBytes(jarFile), jar)) writeAtomically(jarFile, jar);
+        for (String name : LOOSE_ENTRIES) writeAtomically(game.resolve(name), ownClass(name));
+        writeAtomically(game.resolve(StartupLoader.SETTINGS), settings(root, game));
         var lines = serviceLines(game);
         if (!lines.contains(PROVIDER)) {
             lines.add(PROVIDER);
             writeAtomically(game.resolve(SERVICES), (String.join("\n", lines) + "\n").getBytes(StandardCharsets.UTF_8));
         }
+        // No launcher file, or none this can edit: the loose files serve, and status says so.
+        Launcher.ensure(game.resolve(Launcher.FILE), LAUNCH_JAR);
         writeRecord(root, game);
     }
 
-    /** The service line first, then the files; other tools' service lines stay. */
-    private static void removeEntry(Path game) throws IOException {
+    /**
+     * The jar first (a game that runs has it open, which refuses the uninstall before anything else changes), the
+     * launcher file's entry, the service line, then the loose files; other tools' lines and entries stay.
+     */
+    private static void removeEntry(Path game) throws Exception {
+        try { Files.deleteIfExists(game.resolve(LAUNCH_JAR)); }
+        catch (IOException inUse) { throw new Refused(GAME_RUNNING, "The loader's jar is in use. Close the game first."); }
+        Launcher.drop(game.resolve(Launcher.FILE), LAUNCH_JAR);
         var lines = serviceLines(game);
         if (lines.remove(PROVIDER)) {
             if (lines.stream().allMatch(line -> line.isBlank() || line.startsWith("#"))) Files.deleteIfExists(game.resolve(SERVICES));
             else writeAtomically(game.resolve(SERVICES), (String.join("\n", lines) + "\n").getBytes(StandardCharsets.UTF_8));
         }
-        for (String name : new String[] { LOADER_ENTRY, PROVIDER_ENTRY, StartupLoader.SETTINGS }) Files.deleteIfExists(game.resolve(name));
+        for (String name : LOOSE_ENTRIES) Files.deleteIfExists(game.resolve(name));
+        Files.deleteIfExists(game.resolve(StartupLoader.SETTINGS));
         for (String folder : new String[] { "pztools/startup", "pztools", "META-INF/services", "META-INF" }) deleteIfEmpty(game.resolve(folder));
     }
 
-    /** The entry is all there and names this install folder; it may be an earlier version's, which still loads. */
+    /**
+     * The entry is all there and names this install folder; it may be an earlier version's, which still loads. The
+     * launcher file's entry heals itself (the loader adds it at game start, refresh sooner) and is not part of it.
+     */
     private static boolean present(Path game, Path root) throws Exception {
         if (!serviceLines(game).contains(PROVIDER)) return false;
-        for (String name : new String[] { LOADER_ENTRY, PROVIDER_ENTRY, StartupLoader.SETTINGS })
+        if (!files(game)) return false;
+        return Arrays.equals(Files.readAllBytes(game.resolve(StartupLoader.SETTINGS)), settings(root, game));
+    }
+
+    /** Every file of the entry is in the game's folder. */
+    private static boolean files(Path game) {
+        for (String name : new String[] { LOADER_ENTRY, PROVIDER_ENTRY, LAUNCHER_ENTRY, StartupLoader.SETTINGS, LAUNCH_JAR })
             if (!Files.isRegularFile(game.resolve(name), LinkOption.NOFOLLOW_LINKS)) return false;
-        return Arrays.equals(Files.readAllBytes(game.resolve(StartupLoader.SETTINGS)), settings(root));
+        return true;
     }
 
     /** Present, and this version's: what install and refresh leave. */
     private static boolean current(Path game, Path root) throws Exception {
         if (!present(game, root)) return false;
-        for (String name : new String[] { LOADER_ENTRY, PROVIDER_ENTRY })
+        for (String name : LOOSE_ENTRIES)
             if (!Arrays.equals(Files.readAllBytes(game.resolve(name)), ownClass(name))) return false;
-        return true;
+        return Arrays.equals(Files.readAllBytes(game.resolve(LAUNCH_JAR)), launchJar(root, game));
+    }
+
+    /**
+     * The loader's other copy as a jar: the service list naming it, its classes under {@code pztools.launch}, its
+     * settings. The same bytes for the same inputs (fixed times), so an install of the same build leaves the jar be.
+     */
+    static byte[] launchJar(Path root, Path game) throws IOException {
+        var bytes = new ByteArrayOutputStream();
+        try (var jar = new ZipOutputStream(bytes)) {
+            add(jar, "META-INF/MANIFEST.MF", "Manifest-Version: 1.0\r\n\r\n".getBytes(StandardCharsets.US_ASCII));
+            add(jar, SERVICES, (LAUNCH_PROVIDER + "\n").getBytes(StandardCharsets.UTF_8));
+            for (String name : LAUNCH_CLASSES) add(jar, name, ownClass(name));
+            add(jar, LAUNCH_SETTINGS, settings(root, game));
+        }
+        return bytes.toByteArray();
+    }
+
+    private static void add(ZipOutputStream jar, String name, byte[] content) throws IOException {
+        var entry = new ZipEntry(name);
+        entry.setTimeLocal(LocalDateTime.of(2020, 1, 1, 0, 0));
+        jar.putNextEntry(entry);
+        jar.write(content);
+        jar.closeEntry();
     }
 
     /**
@@ -217,16 +290,30 @@ public final class StartupInstall {
     }
 
     /**
-     * {@code root} for the loader's Properties.load, written by hand without Properties.store's date line: the same
-     * install gives the same bytes, which status compares. The path is plain ASCII (see root()).
+     * {@code root} and {@code game} for the loader's Properties.load, written by hand without Properties.store's date
+     * line: the same install gives the same bytes, which status compares. The install folder's path is plain ASCII (see
+     * root()); the game's may not be (a Steam library on a Korean path), so what is not plain ASCII goes as an escape.
      */
-    private static byte[] settings(Path root) {
-        return ("root=" + root.toString().replace("\\", "\\\\").replace(":", "\\:") + "\n").getBytes(StandardCharsets.ISO_8859_1);
+    private static byte[] settings(Path root, Path game) {
+        return ("root=" + escaped(root.toString()) + "\ngame=" + escaped(game.toString()) + "\n").getBytes(StandardCharsets.ISO_8859_1);
+    }
+
+    /** A property value as Properties.load reads it back: the separators escaped, what is not plain ASCII as unicode escapes. */
+    private static String escaped(String value) {
+        var out = new StringBuilder();
+        for (int index = 0; index < value.length(); index++) {
+            char c = value.charAt(index);
+            if (c == '\\' || c == ':' || c == '=' || c == '#' || c == '!') out.append('\\').append(c);
+            else if (c == ' ') out.append(index == 0 ? "\\ " : " ");
+            else if (c < 0x20 || c > 0x7E) out.append(String.format("\\u%04x", (int) c));
+            else out.append(c);
+        }
+        return out.toString();
     }
 
     private static String entryDigest(Path game) throws Exception {
         var digest = MessageDigest.getInstance("SHA-256");
-        for (String name : new String[] { LOADER_ENTRY, PROVIDER_ENTRY, StartupLoader.SETTINGS })
+        for (String name : new String[] { LOADER_ENTRY, PROVIDER_ENTRY, LAUNCHER_ENTRY, StartupLoader.SETTINGS, LAUNCH_JAR })
             digest.update(Files.readAllBytes(game.resolve(name)));
         return HexFormat.of().formatHex(digest.digest());
     }
@@ -336,7 +423,7 @@ public final class StartupInstall {
     private static void writeRecord(Path root, Path game) throws Exception {
         Map<String, String> old = readRecord(root);
         var text = new StringBuilder("game\t" + game + "\n");
-        if (Files.isRegularFile(game.resolve(PROVIDER_ENTRY))) text.append("entry_sha256\t").append(entryDigest(game)).append('\n');
+        if (files(game)) text.append("entry_sha256\t").append(entryDigest(game)).append('\n');
         if (old != null && old.get("patched_sha256") != null && sha256(game.resolve(GAME_JAR)).equals(old.get("patched_sha256")))
             text.append("original_sha256\t").append(old.get("original_sha256")).append("\npatched_sha256\t").append(old.get("patched_sha256")).append('\n');
         writeAtomically(root.resolve(RECORD), text.toString().getBytes(StandardCharsets.UTF_8));

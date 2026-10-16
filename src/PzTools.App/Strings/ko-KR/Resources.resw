@@ -763,10 +763,14 @@ GC 작동: 구간 중 메모리 정리가 돌고 있던 시간의 비율입니�
   <data name="GameMemoryNotFound" xml:space="preserve"><value>게임 설치 폴더를 찾지 못했습니다. 게임을 실행해 두면 찾습니다.</value></data>
   <data name="GameMemoryUnsupported" xml:space="preserve"><value>게임 설정 파일이 예상과 달라 바꾸지 않았습니다.</value></data>
   <data name="GameMemoryUnwritable" xml:space="preserve"><value>게임 폴더에 쓸 수 없어 바꾸지 못했습니다.</value></data>
-  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>게임 업데이트로 {0} 설정이 풀렸습니다. 다시 고르면 적용됩니다.</value></data>
+  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>게임 업데이트나 다른 프로그램이 {0} 설정을 되돌렸습니다. 다시 고르면 적용됩니다.</value></data>
   <data name="GameMemoryRevertedTitleFormat" xml:space="preserve"><value>게임 메모리가 {0}로 돌아감</value></data>
-  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>게임 업데이트가 설정을 되돌렸습니다.</value></data>
+  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>게임 업데이트나 다른 프로그램이 설정을 되돌렸습니다.</value></data>
   <data name="GameMemoryReapplyFormat" xml:space="preserve"><value>{0}로 다시 적용</value></data>
+  <data name="GameMemoryBrokenTitle" xml:space="preserve"><value>이 메모리 설정으로는 게임이 시작되지 않음</value></data>
+  <data name="GameMemoryBrokenMessageFormat" xml:space="preserve"><value>파일의 시작 메모리({0})가 쓸 수 있는 최대({1})보다 큽니다.</value></data>
+  <data name="GameMemoryMatchFormat" xml:space="preserve"><value>둘 다 {0}로 맞춤</value></data>
+  <data name="GameMemoryBrokenFormat" xml:space="preserve"><value>게임 파일의 시작 메모리({0})가 쓸 수 있는 최대({1})보다 커서 게임이 시작되지 않습니다. 크기를 고르면 고쳐집니다.</value></data>
   <data name="ProfileMemoryStallsFormat" xml:space="preserve"><value>메모리 부족으로 {0}번 멈춤</value></data>
   <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>메모리가 거의 가득 참</value></data>
   <data name="ProfileMemorySetting" xml:space="preserve"><value>메모리 설정</value></data>

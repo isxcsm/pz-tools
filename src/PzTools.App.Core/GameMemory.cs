@@ -29,8 +29,16 @@ public enum GameMemoryStatus
 /// <param name="MaximumMegabytes">The heap the game gets at its next start, as its file says.</param>
 /// <param name="DefaultMegabytes">The game's own heap: the file's before the first change, or now while unchanged.</param>
 /// <param name="ChosenMegabytes">The heap the player chose; none while the game's own stands.</param>
+/// <param name="InitialMegabytes">The heap the game starts with (<c>-Xms</c>), as its file says; none when the file has none.</param>
 public sealed record GameMemoryState(GameMemoryStatus Status, string? ConfigPath = null, int? MaximumMegabytes = null,
-    int? DefaultMegabytes = null, int? ChosenMegabytes = null);
+    int? DefaultMegabytes = null, int? ChosenMegabytes = null, int? InitialMegabytes = null)
+{
+    /// <summary>
+    /// The file asks for a starting heap above the maximum: the Java runtime refuses to start, and the game never opens.
+    /// A tool that rewrites only one of the two options does this (PZ Optimize lowered <c>-Xmx</c> and left <c>-Xms</c>).
+    /// </summary>
+    public bool StartsTooLarge => InitialMegabytes > MaximumMegabytes;
+}
 
 /// <summary>Why the heap could not be changed: <c>not-found</c>, <c>unsupported</c> or <c>unwritable</c>.</summary>
 public sealed class GameMemoryException(string code, string message, Exception? inner = null) : Exception(message, inner)
@@ -49,8 +57,12 @@ public sealed class GameMemoryException(string code, string message, Exception? 
 /// it from the start always leaves Windows and other programs theirs.
 /// </para>
 /// <para>
-/// A game update or Steam's file check writes the file back: the choice is kept here, and a file without it is
-/// <see cref="GameMemoryStatus.Reverted"/>, for the player to apply again with one press. A separate file the launcher
+/// A game update, Steam's file check or another tool (PZ Optimize rewrites the heap options itself) changes the file:
+/// the choice is kept here, and a file without it, in either option, is <see cref="GameMemoryStatus.Reverted"/>, for the
+/// player to apply again with one press. Some tools change only one of the two options and leave a starting heap above
+/// the maximum, which the Java runtime refuses (<see cref="GameMemoryState.StartsTooLarge"/>): that is reported whether
+/// or not the player chose a heap, and is repaired by applying the choice again, or by the game default, which makes the
+/// starting heap the maximum. A separate file the launcher
 /// would read instead (<c>ProjectZomboid64.site.json</c>) would survive updates, but it replaces the whole file: after an
 /// update that changes other options, the game would start with the old ones.
 /// </para>
@@ -152,10 +164,12 @@ public sealed partial class GameMemory
         // Held for a moment (Steam writing it, a scanner): what was known stands until the next look.
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         { return state.Status == GameMemoryStatus.Unknown ? new(GameMemoryStatus.Unknown, path, ChosenMegabytes: saved.Chosen) : state; }
-        if (saved.Chosen is not { } chosen) return new(GameMemoryStatus.Default, path, heap.Maximum, heap.Maximum);
+        if (saved.Chosen is not { } chosen) return new(GameMemoryStatus.Default, path, heap.Maximum, heap.Maximum, InitialMegabytes: heap.Initial);
+        // Either option differing from the choice is a rewrite by something else: a game update, Steam's file check or
+        // another tool (PZ Optimize sets the heap itself). Which of them does not matter here.
         bool ours = heap.Maximum == chosen && heap.Initial == chosen;
         return new(ours ? GameMemoryStatus.Applied : GameMemoryStatus.Reverted, path, heap.Maximum,
-            ours ? saved.DefaultMaximum ?? heap.Maximum : heap.Maximum, chosen);
+            ours ? saved.DefaultMaximum ?? heap.Maximum : heap.Maximum, chosen, heap.Initial);
     }
 
     private GameMemoryState Change(int? megabytes)
@@ -181,17 +195,27 @@ public sealed partial class GameMemory
         if (megabytes is { } wanted)
         {
             // The game's own heap is what the file holds before it holds the player's: kept to give back.
+            // A starting heap above the maximum is a half-done rewrite by another tool, never the game's own: kept as none.
             next = ours ? saved with { Chosen = wanted }
-                : saved with { Chosen = wanted, DefaultMaximum = heap.Maximum, DefaultInitial = heap.Initial };
+                : saved with { Chosen = wanted, DefaultMaximum = heap.Maximum, DefaultInitial = heap.Initial > heap.Maximum ? null : heap.Initial };
             written = Rewrite(text, wanted, wanted);
             if (!ours) KeepOriginal(text);
         }
         else
         {
             next = saved with { Chosen = null };
-            // A file the game put back already holds its own heap.
-            written = ours && saved.DefaultMaximum is { } maximum ? Rewrite(text, maximum, saved.DefaultInitial) : null;
+            // A file the game put back already holds its own heap. One that asks for a starting heap above the maximum
+            // (another tool rewrote one option) is not startable: the starting heap is made the maximum.
+            written = ours && saved.DefaultMaximum is { } maximum ? Rewrite(text, maximum, saved.DefaultInitial)
+                : heap.Initial > heap.Maximum ? Rewrite(text, heap.Maximum!.Value, heap.Maximum) : null;
         }
+        // A mod that sets the heap itself is told the player's (its own settings file), and told no more once the game's own is
+        // back. What it had there is kept first, as the game's own heap is.
+        var folder = Path.GetDirectoryName(path)!;
+        var original = saved.Optimizer;
+        bool optimizer = megabytes is not null ? GameMemoryOptimizer.Present(folder) : original is not null;
+        if (megabytes is not null && optimizer && original is null) next = next with { Optimizer = GameMemoryOptimizer.Read(folder) };
+        else if (megabytes is null) next = next with { Optimizer = null };
         // What is kept first, and the file only once it is: the game's own heap kept nowhere could not be given back,
         // and a file holding the player's heap would then pass for the game's own.
         var before = saved;
@@ -209,6 +233,14 @@ public sealed partial class GameMemory
                 throw;
             }
         }
+        // Best effort: a file that cannot be written leaves the mod to set its own heap, which the next look reports as the
+        // setting being undone, and the player applies it again.
+        try
+        {
+            if (megabytes is { } held && optimizer) GameMemoryOptimizer.Hold(folder, held);
+            else if (megabytes is null && original is not null && before.Chosen is { } released) GameMemoryOptimizer.Release(folder, original, released);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
         return Look();
     }
 
@@ -289,11 +321,21 @@ public sealed partial class GameMemory
         }
         foreach (var (index, length, replacement) in edits.OrderByDescending(edit => edit.Index))
             text.Remove(index, length).Insert(index, replacement);
-        var result = text.ToString();
+        var result = SyncOptimizerMarker(text.ToString(), maximum, initial);
         // What was written must read back as asked, or nothing is written.
         if (ReadHeap(result) != (maximum, initial)) throw new FormatException("The rewritten file does not read back.");
         return result;
     }
+
+    [GeneratedRegex(@"""-Dpzopt\.heap=([^"",\\]*),([^"",\\]*),([^""\\]*)""")]
+    private static partial Regex OptimizerMarker();
+
+    // A mod that sets the heap itself (PZ Optimize) keeps the heap options the file had in an entry of the list, and puts them
+    // back before it sets its own at each start. An entry holding the options from before this edit would put them back over
+    // it: it is made to hold these. A file without the entry is as it was.
+    private static string SyncOptimizerMarker(string json, int maximum, int? initial) =>
+        OptimizerMarker().Replace(json, match =>
+            $"\"-Dpzopt.heap={maximum}m,{(initial is { } start ? start + "m" : "none")},{match.Groups[3].Value}\"");
 
     // An option taken out of the list with its separator: the comma after it, or before it when it is last.
     private static (int Index, int Length, string Text) Removal(string json, Match option)
@@ -469,7 +511,8 @@ public sealed partial class GameMemory
         [property: JsonPropertyName("chosen_mb")] int? Chosen = null,
         [property: JsonPropertyName("default_max_mb")] int? DefaultMaximum = null,
         [property: JsonPropertyName("default_initial_mb")] int? DefaultInitial = null,
-        [property: JsonPropertyName("config_path")] string? ConfigPath = null);
+        [property: JsonPropertyName("config_path")] string? ConfigPath = null,
+        [property: JsonPropertyName("optimizer_original")] OptimizerOriginal? Optimizer = null);
 
     private static Saved Read(string path)
     {

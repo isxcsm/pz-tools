@@ -39,11 +39,11 @@ extern "C" JNIEXPORT jint JNICALL Agent_OnAttach(JavaVM*, char*, void*) {
     return LoadFromJvm(L"jli.dll") != nullptr ? JNI_OK : JNI_ERR;
 }
 
-// The startup loader's native method (pztools.startup.StartupLoader.load), called on the game's main thread as the
+// The startup loader's native method (StartupLoader.load, below), called on the game's main thread as the
 // game starts. It does in-process what an attach does: the JRE's own instrument library loads the agent jar named
 // in the options ("<jar>=<agent options>") and calls its agentmain with an Instrumentation. Returns that library's
 // result (0 when the agent loaded), or a negative number when the library could not be reached.
-extern "C" JNIEXPORT jint JNICALL Java_pztools_startup_StartupLoader_load(JNIEnv* env, jclass, jstring options) {
+static jint Attach(JNIEnv* env, jstring options) {
     if (options == nullptr) return -1;
     if (LoadFromJvm(L"jli.dll") == nullptr) return -2;
     HMODULE instrument = LoadFromJvm(L"instrument.dll");
@@ -58,4 +58,15 @@ extern "C" JNIEXPORT jint JNICALL Java_pztools_startup_StartupLoader_load(JNIEnv
     std::string copy(text);
     env->ReleaseStringUTFChars(options, text);
     return attach(vm, copy.data(), nullptr);
+}
+
+// The loader exists in two copies under two package names (docs/design/startup-loader.md): the loose classes in the
+// game's folder (pztools.startup) and the ones in the jar the install adds to the launcher file's class path
+// (pztools.launch). Either may be the one that boots the process; the loader's guard keeps the other from calling this.
+extern "C" JNIEXPORT jint JNICALL Java_pztools_startup_StartupLoader_load(JNIEnv* env, jclass, jstring options) {
+    return Attach(env, options);
+}
+
+extern "C" JNIEXPORT jint JNICALL Java_pztools_launch_StartupLoader_load(JNIEnv* env, jclass, jstring options) {
+    return Attach(env, options);
 }

@@ -764,10 +764,14 @@ Esperas de memoria: cuántas veces un hilo se detuvo hasta que se liberó memori
   <data name="GameMemoryNotFound" xml:space="preserve"><value>No se encontró la carpeta del juego. Inicia el juego una vez y se encontrará.</value></data>
   <data name="GameMemoryUnsupported" xml:space="preserve"><value>El archivo de configuración del juego no es el esperado, así que no se modificó.</value></data>
   <data name="GameMemoryUnwritable" xml:space="preserve"><value>No se puede escribir en la carpeta del juego; no se cambió nada.</value></data>
-  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>Una actualización del juego deshizo el ajuste de {0}. Vuelve a elegirlo para aplicarlo.</value></data>
+  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>Una actualización del juego u otro programa deshizo el ajuste de {0}. Vuelve a elegirlo para aplicarlo.</value></data>
   <data name="GameMemoryRevertedTitleFormat" xml:space="preserve"><value>La memoria del juego volvió a {0}</value></data>
-  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>Una actualización del juego deshizo el ajuste.</value></data>
+  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>Una actualización del juego u otro programa deshizo el ajuste.</value></data>
   <data name="GameMemoryReapplyFormat" xml:space="preserve"><value>Aplicar {0} de nuevo</value></data>
+  <data name="GameMemoryBrokenTitle" xml:space="preserve"><value>El juego no arrancará con este ajuste de memoria</value></data>
+  <data name="GameMemoryBrokenMessageFormat" xml:space="preserve"><value>El archivo pide empezar con {0}, más de los {1} permitidos.</value></data>
+  <data name="GameMemoryMatchFormat" xml:space="preserve"><value>Poner ambos en {0}</value></data>
+  <data name="GameMemoryBrokenFormat" xml:space="preserve"><value>El archivo del juego pide empezar con {0}, más de los {1} permitidos, así que el juego no arrancará. Elige un tamaño para arreglarlo.</value></data>
   <data name="ProfileMemoryStallsFormat" xml:space="preserve"><value>Se detuvo {0} veces por falta de memoria</value></data>
   <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>Memoria casi llena</value></data>
   <data name="ProfileMemorySetting" xml:space="preserve"><value>Ajuste de memoria</value></data>

@@ -764,10 +764,14 @@ GC працює: частка відрізка, коли працював зби
   <data name="GameMemoryNotFound" xml:space="preserve"><value>Теку гри не знайдено. Запустіть гру один раз, і її буде знайдено.</value></data>
   <data name="GameMemoryUnsupported" xml:space="preserve"><value>Файл налаштувань гри не такий, як очікувалося, тому його не змінено.</value></data>
   <data name="GameMemoryUnwritable" xml:space="preserve"><value>Неможливо записати в теку гри; нічого не змінено.</value></data>
-  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>Оновлення гри скасувало налаштування {0}. Виберіть його знову, щоб застосувати.</value></data>
+  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>Оновлення гри або інша програма скасували налаштування {0}. Виберіть його знову, щоб застосувати.</value></data>
   <data name="GameMemoryRevertedTitleFormat" xml:space="preserve"><value>Пам’ять гри знову {0}</value></data>
-  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>Оновлення гри скасувало налаштування.</value></data>
+  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>Оновлення гри або інша програма скасували налаштування.</value></data>
   <data name="GameMemoryReapplyFormat" xml:space="preserve"><value>Знову застосувати {0}</value></data>
+  <data name="GameMemoryBrokenTitle" xml:space="preserve"><value>З таким налаштуванням пам’яті гра не запуститься</value></data>
+  <data name="GameMemoryBrokenMessageFormat" xml:space="preserve"><value>Файл вимагає під час запуску {0}, більше за дозволені {1}.</value></data>
+  <data name="GameMemoryMatchFormat" xml:space="preserve"><value>Задати для обох {0}</value></data>
+  <data name="GameMemoryBrokenFormat" xml:space="preserve"><value>Файл гри вимагає під час запуску {0}, більше за дозволені {1}, тож гра не запуститься. Виберіть розмір, щоб це виправити.</value></data>
   <data name="ProfileMemoryStallsFormat" xml:space="preserve"><value>Зупинок через нестачу пам’яті: {0}</value></data>
   <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>Пам’ять майже заповнена</value></data>
   <data name="ProfileMemorySetting" xml:space="preserve"><value>Налаштування пам’яті</value></data>

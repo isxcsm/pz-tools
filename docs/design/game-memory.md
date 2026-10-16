@@ -84,7 +84,7 @@ an unwritable game folder is reported under the setting.
 | `Unsupported` | The heap options are not as described above | **The game's settings file is not as expected, so it was left alone.** |
 | `Default` | No choice made | **Game default (3 GB)** selected |
 | `Applied` | Both `-Xmx` and `-Xms` equal the choice | The choice selected |
-| `Reverted` | A choice exists and the file no longer has it | Nothing selected; the game's size as placeholder |
+| `Reverted` | A choice exists and either heap option of the file differs from it, whoever wrote it | Nothing selected; the game's size as placeholder |
 
 A read that fails with an I/O or access error (Steam writing the file, a scanner) keeps the previous state until the
 next read. The file is read 3 seconds after the app starts, every 2 minutes after that (`App.WatchGameMemoryAsync`),
@@ -119,11 +119,46 @@ becomes `Reverted`. Then:
 
 - A sidebar card shows **Game memory back to 3 GB** with **Apply 8 GB again** (the file's size and the choice). Its
   button applies the choice; ✕ hides it until the choice or the file's size changes. It leaves by itself when the state
-  is no longer `Reverted`.
-- The setting shows nothing selected, the game's own size as placeholder, and **A game update undid the 8 GB setting.
+  is neither `Reverted` nor broken (below). Its text is *A game update or another program undid the setting.*
+- The setting shows nothing selected, the game's own size as placeholder, and **A game update or another program undid the 8 GB setting.
   Choose it again to apply it.** Picking any entry, the game default included, is a change.
 
+## Another tool rewrites the options
+
+A game update and Steam's file check are not the only writers of the heap options. PZ Optimize, a mod
+that tunes the game's launch, sets the heap itself at every start of the game: it moves the options
+the file has into an entry `-Dpzopt.heap=<maximum>,<starting>,<pre-touch>` of `vmArgs`, and writes its
+own heap (`gcHeap=auto` in its `pzopt.properties`, a formula of the number of mods; measured 16 October
+2026: six mods gave 4096 MB). With `gcHeapFixed=false` it left a starting heap of 16384 MB beside its
+maximum of 4096 MB, and the Java runtime refused to start (*Initial heap size set to a larger value than
+the maximum heap size*): the game never opened, with no message. The app handles both halves:
+
+- **Detection.** Any difference between the file and the choice, in either option, is `Reverted`, whoever
+  caused it; the text says *a game update or another program*. A starting heap above the maximum
+  (`GameMemoryState.StartsTooLarge`) is reported whether or not a heap was chosen, because the game cannot
+  start: the card says so (*The game will not start with this memory setting*) and the setting shows
+  nothing selected. The card's button applies the choice again, or, with no choice, makes the starting heap
+  the maximum (what **Game default** does for such a file, and what picking any entry does). Without a
+  choice, a change of the options that stays startable is not reported: there is nothing of the app's to
+  undo, and the game's own values move with its updates.
+- **Precedence.** The choice is also told to the mod, so that its next start keeps it
+  ([`GameMemoryOptimizer`](../../src/PzTools.App.Core/GameMemoryOptimizer.cs)). Only when the game's
+  folder has the mod (a `pzopt` folder or a `pzopt.properties`; no version is looked at), applying a
+  size writes `gcHeap=<size>` and `gcHeapFixed=true` (the starting heap equals the maximum) in
+  `pzopt.properties`, and sets the entry it restores the options from to the size too, since it would put
+  the earlier options back over the new ones before applying its own. The mod's file is edited line
+  by line (ISO 8859-1, as the mod reads it): other keys, comments and layout stay, and it is created
+  only for a game that has the mod. The values the two keys had are kept in `game-memory.json`
+  (`optimizer_original`), and **Game default** puts them back (a key the player has changed since is
+  left), and sets the entry to the game's options. If the file cannot be written, the mod keeps its own
+  heap and the next look reports it as above. The mod caps a heap at half of the memory Windows reports
+  rounded down to 512 MB, a little under the installed amount the choices go by, so on a PC whose half
+  is the choice (16 GB on 32 GB) it can still lower it by a step, which is reported the same way.
+- A starting heap above the maximum is never taken for the game's own heap when the app keeps that to
+  give back.
+
 ## On the Performance page
+
 
 `ProfileAnalysis.MemoryPressure` judges the whole recording short of memory when it has any allocation stall, or when
 at least a quarter of its heap readings (8 or more readings) stand at 90% of the maximum or above. The page then shows

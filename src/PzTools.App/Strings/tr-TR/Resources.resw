@@ -764,10 +764,14 @@ Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşa
   <data name="GameMemoryNotFound" xml:space="preserve"><value>Oyun klasörü bulunamadı. Oyunu bir kez başlatın, bulunacaktır.</value></data>
   <data name="GameMemoryUnsupported" xml:space="preserve"><value>Oyunun ayar dosyası beklendiği gibi değil, bu yüzden değiştirilmedi.</value></data>
   <data name="GameMemoryUnwritable" xml:space="preserve"><value>Oyun klasörüne yazılamıyor; hiçbir şey değiştirilmedi.</value></data>
-  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>Bir oyun güncellemesi {0} ayarını geri aldı. Uygulamak için yeniden seçin.</value></data>
+  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>Bir oyun güncellemesi ya da başka bir program {0} ayarını geri aldı. Uygulamak için yeniden seçin.</value></data>
   <data name="GameMemoryRevertedTitleFormat" xml:space="preserve"><value>Oyun belleği {0} değerine döndü</value></data>
-  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>Bir oyun güncellemesi ayarı geri aldı.</value></data>
+  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>Bir oyun güncellemesi ya da başka bir program ayarı geri aldı.</value></data>
   <data name="GameMemoryReapplyFormat" xml:space="preserve"><value>{0} değerini yeniden uygula</value></data>
+  <data name="GameMemoryBrokenTitle" xml:space="preserve"><value>Oyun bu bellek ayarıyla başlamaz</value></data>
+  <data name="GameMemoryBrokenMessageFormat" xml:space="preserve"><value>Dosya {0} başlangıç belleği istiyor, izin verilen {1} değerinden fazla.</value></data>
+  <data name="GameMemoryMatchFormat" xml:space="preserve"><value>İkisini de {0} yap</value></data>
+  <data name="GameMemoryBrokenFormat" xml:space="preserve"><value>Oyunun dosyası {0} başlangıç belleği istiyor, izin verilen {1} değerinden fazla, bu yüzden oyun başlamaz. Düzeltmek için bir boyut seçin.</value></data>
   <data name="ProfileMemoryStallsFormat" xml:space="preserve"><value>Bellek yetersizliğinden {0} kez durdu</value></data>
   <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>Bellek neredeyse dolu</value></data>
   <data name="ProfileMemorySetting" xml:space="preserve"><value>Bellek ayarı</value></data>

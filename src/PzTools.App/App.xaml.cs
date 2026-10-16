@@ -245,8 +245,11 @@ public partial class App : Application
                     try
                     {
                         await loader.RefreshAsync(cancellationToken);
-                        // Not while a game runs from the install's bridge: tried again on a later round.
-                        if (!bridgeRefreshed && loader.State.Status == StartupLoaderStatus.Installed)
+                        // Not while a game runs from the install's bridge: tried again on a later round. Also when the game's
+                        // launcher file lost the loader's entry (a reset of the game's files): without it a tool that
+                        // rewrites the class path leaves the loader out.
+                        if (loader.State is { Status: StartupLoaderStatus.Installed } installed
+                            && (!bridgeRefreshed || installed.LauncherEntry == StartupLauncherEntry.Absent))
                             bridgeRefreshed = await loader.RefreshBridgeAsync(cancellationToken);
                     }
                     // The install tool refused to bring the install up to date (an earlier version's jar patch whose

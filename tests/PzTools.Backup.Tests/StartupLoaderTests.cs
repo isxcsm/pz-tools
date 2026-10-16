@@ -69,6 +69,34 @@ public sealed class StartupLoaderTests
         Assert.Equal(new StartupLoaderState(StartupLoaderStatus.Installed, Folder, @"C:\ProgramData\PzTools\startup\s-1"), loader.State);
     }
 
+    [Theory]
+    [InlineData("listed", StartupLauncherEntry.Listed)]
+    [InlineData("absent", StartupLauncherEntry.Absent)]
+    [InlineData("none", StartupLauncherEntry.None)]
+    [InlineData("unreadable", StartupLauncherEntry.Unreadable)]
+    [InlineData("something-new", StartupLauncherEntry.Unknown)]
+    public void ReadState_Installed_ReadsWhatTheLauncherFileSaysOfTheJarsEntry(string said, StartupLauncherEntry expected)
+    {
+        var state = StartupLoader.ReadState(@"installed" + "\tabc\t" + @"C:\ProgramData\PzTools\startup\s-1" + "\tlauncher=" + said, Folder);
+        Assert.Equal(new StartupLoaderState(StartupLoaderStatus.Installed, Folder, @"C:\ProgramData\PzTools\startup\s-1", LauncherEntry: expected), state);
+        // An old tool's result has no such field; and no other state reads one.
+        Assert.Equal(StartupLauncherEntry.Unknown, StartupLoader.ReadState("installed\tabc\t" + @"C:\ProgramData\PzTools\startup\s-1", Folder).LauncherEntry);
+        Assert.Equal(StartupLauncherEntry.Unknown, StartupLoader.ReadState("reverted\tabc\t" + @"C:\x" + "\tlauncher=" + said, Folder).LauncherEntry);
+    }
+
+    [Fact]
+    public async Task RefreshBridge_ForAnEntryTheLauncherFileLost_RunsTheToolsRefresh()
+    {
+        // A reset of the game's files (Steam's file check) put the plain launcher file back: the refresh adds the entry again.
+        var tool = new FakeTool(arguments => (0, arguments[0] == "refresh" ? "PZTOOLS-STARTUP\trefreshed\tbridge-1"
+            : "PZTOOLS-STARTUP\tinstalled\tabc\t" + @"C:\ProgramData\PzTools\startup\s-1" + "\tlauncher=absent"));
+        var loader = new StartupLoader(@"C:\App\game-bridge", () => Folder, () => [], tool.Run);
+        await loader.RefreshAsync();
+        Assert.Equal(StartupLauncherEntry.Absent, loader.State.LauncherEntry);
+        Assert.True(await loader.RefreshBridgeAsync());
+        Assert.Equal(["status " + Folder, @"refresh C:\App\game-bridge"], tool.Calls);
+    }
+
     [Fact]
     public async Task RefreshBridge_WhileAGameRuns_WaitsForTheGameToEnd()
     {
