@@ -184,6 +184,7 @@ local function gameClasses()
 end
 
 local logged
+local kitCap   -- the kit's own cap on the screen's scale, lifted in load
 local function load(px, files)
     stubFonts(px or 16)
     gameClasses()
@@ -213,6 +214,10 @@ local function load(px, files)
     end)
     require = real
     if not ok then error(err, 0) end
+    -- the screen's scale without the kit's cap, so that these follow the scale's arithmetic up a large screen (the
+    -- cap has its own test)
+    kitCap = PZUIKit.UI.MAX_SCREEN_SCALE
+    PZUIKit.UI.MAX_SCREEN_SCALE = 4
     return OA.Trade.UI, PZUIKit.Faces
 end
 
@@ -250,6 +255,22 @@ test("the screen's scale is its height over 540 in eighths, never under 1", func
         { 1440, 2.625 }, { 2160, 4 } }) do
         eq(Faces.screenScale(case[1]), case[2], case[1] .. " px")
     end
+end)
+
+test("the screen's scale stops at the kit's cap (the windows' size on a 1600x900 screen); a larger font still wins", function()
+    local UI = load(16)
+    stubApi()
+    PZUIKit.UI.MAX_SCREEN_SCALE = kitCap
+    eq(kitCap, 1.625)
+    for _, case in ipairs({ { 720, 1.25 }, { 900, 1.625 }, { 1080, 1.625 }, { 1440, 1.625 }, { 2160, 1.625 } }) do
+        screen.h = case[1]
+        UI.refreshScale()
+        eq(UI.S, case[2], case[1] .. "p")
+    end
+    font = { S = 38, M = 45, L = 50 }
+    UI.refreshScale()
+    eq(UI.S, 38 / 16, "the game's 4K font")
+    font = { S = 16, M = 20, L = 24 }
 end)
 
 test("without the API the scale and the faces are the game font's, as before", function()

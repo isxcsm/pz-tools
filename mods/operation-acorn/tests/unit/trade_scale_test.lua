@@ -704,7 +704,7 @@ for _, screenH in ipairs({ 720, 900, 1080, 1440 }) do
                     end
                     UI.refreshScale()
                     eq(UI.facesOn, true)
-                    eq(UI.S, PZUIKit.Faces.screenScale(screenH))
+                    eq(UI.S, math.min(UI.MAX_SCREEN_SCALE, PZUIKit.Faces.screenScale(screenH)))
                     local now = statusTexts(UI, name, tier, size)
                     inside(now, size[1], size[2], what)
                     -- a bitmap font is a little larger than the design's at some sizes (33 pixels at 2x is 16.5

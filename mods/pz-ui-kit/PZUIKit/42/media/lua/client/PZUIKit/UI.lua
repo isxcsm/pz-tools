@@ -7,9 +7,10 @@
 -- Sizes: design units and one scale ------------------------------------------------------------------------------
 -- The kit's screens are laid out in DESIGN UNITS: the numbers written in the code, made for a 16 unit Small font.
 -- UI.S is the scale from them to the screen's pixels, worked out again when a window opens (UI.refreshScale):
---   * with the extension API's UI fonts (PZExtAPI.text): by the SCREEN, its height / 540 down to an eighth
---     (720p 1.25, 900p 1.625, 1080p 2, 1440p 2.625, 2160p 4), or by the game's font where that is larger, so that the
---     windows look as big at the 16 pixel font as at the 26 pixel one;
+--   * with the extension API's UI fonts (PZExtAPI.text): by the SCREEN, its height / 540 down to an eighth, up to
+--     UI.MAX_SCREEN_SCALE (720p 1.25, 900p and up 1.625: the windows keep the size they were made and tested at on a
+--     1600x900 screen, not growing with a larger one), or by the game's font where that is larger, so that our texts
+--     are never smaller than the game's;
 --   * without them: by the game's FONT, the Small font's height / 16 (the font option follows the window's height:
 --     16 pixels on a small screen, 19 at 1080p, 26 at 1440p, 38 at 4K). Never under 1.
 -- Our texts are drawn in FACES (Faces.lua): with the API, its font of the design height times the scale (Small 16,
@@ -445,10 +446,12 @@ end
 
 -- The scale for the screen and the font in use now (a window calls this as it opens): by the screen with the API's
 -- faces, by the Small font without (the rule block at the top).
+UI.MAX_SCREEN_SCALE = 1.625
+
 function UI.refreshScale()
     local byFont = math.max(1, UI.fontHeightPx(UIFont.Small) / UI.BASE_FONT)
     if Faces.available() then
-        local byScreen = Faces.screenScale(getCore():getScreenHeight())
+        local byScreen = math.min(UI.MAX_SCREEN_SCALE, Faces.screenScale(getCore():getScreenHeight()))
         if UI.setScale(math.max(byScreen, byFont), true) then return end
     end
     UI.setScale(byFont, false)

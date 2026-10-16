@@ -3,7 +3,8 @@
 A Project Zomboid (Build 42) Lua mod that other mods draw their windows with. It adds nothing to the game by itself.
 
 - **One scale for every screen.** Windows are laid out in design units made for a 16 unit Small font; the kit turns
-  them into pixels by the screen's height (with the PZ Extension API's UI fonts) or by the game's font (without).
+  them into pixels by the screen's height up to their size on a 1600x900 screen (with the PZ Extension API's UI
+  fonts; a larger screen keeps that size), or by the game's font (without, and wherever it is larger).
 - **Sharp texts.** With the [PZ Extension API](../../extension-api) installed, texts are drawn in its UI fonts at the
   pixel size the scale asks for (Noto Sans, Korean included); without it, in the game's fonts.
 - **Palettes.** Every widget draws in its window's palette (`window.palette`), a table of `{ r, g, b }` colours: `bg`,

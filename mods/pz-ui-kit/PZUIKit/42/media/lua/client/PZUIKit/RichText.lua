@@ -358,6 +358,8 @@ function PZUIRichTip.show(owner, text, palette)
         tip = PZUIRichText:new(0, 0, PZUIRichTip.MAX_W, 20)
         tip:initialise()
         tip:instantiate()
+        -- the mouse goes through a tooltip, as onto it from its owner it would take the mouse's events
+        tip.javaObject:setConsumeMouseEvents(false)
         tip:setAlwaysOnTop(true)
         tip.clip = false
         -- it goes once its owner is no longer under the mouse or on show (a tab switched, a window closed)

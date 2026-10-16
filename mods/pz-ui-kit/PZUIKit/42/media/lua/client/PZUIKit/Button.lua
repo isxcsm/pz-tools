@@ -115,6 +115,8 @@ function PZUITip.show(owner, text, palette)
         tip.background = false
         tip:initialise()
         tip:instantiate()
+        -- the mouse goes through a tooltip, as onto it from its owner it would take the mouse's events
+        tip.javaObject:setConsumeMouseEvents(false)
         tip:setAlwaysOnTop(true)
     end
     if tip.text ~= text or tip.era ~= UI.era then

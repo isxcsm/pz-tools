@@ -555,7 +555,23 @@ function OAResearchTip:setRows(rows)
     self:setHeight(h)
 end
 
+-- Whether the mouse has left the item the tooltip is about (the gamepad's cursor aside): the tooltip checks it itself
+-- each frame it shows, whatever the body's mouse events missed (a tooltip stayed up after the mouse left, seen in
+-- game).
+local function tipLeft(view)
+    if not view or not view.hover or view.joypad then return false end
+    local body, item = view.body, view:itemOf(view.hover)
+    if not (body and item and body:isReallyVisible()) then return true end
+    local mx, my = body:getMouseX(), body:getMouseY()
+    return mx < item.x or mx >= item.x + item.w or my < item.y or my >= item.y + item.h
+end
+
 function OAResearchTip:prerender()
+    if tipLeft(self.view) then
+        self.view:setHover(nil)
+        self.view:hideTip()
+        return
+    end
     UI.fill(self, 0, 0, self.width, self.height, { 0, 0, 0 }, 0.92)
     UI.frame(self, 0, 0, self.width, self.height, P.border)
     local fh = UI.fontHeight()
@@ -1293,8 +1309,12 @@ function View:updateTip()
         if not rows then return self:hideTip() end
         if not self.tip then
             self.tip = OAResearchTip:new()
+            self.tip.view = self
             self.tip:initialise()
             self.tip:instantiate()
+            -- the mouse goes through it: moved onto it from its node, it took the mouse's events, and the body never
+            -- heard the mouse leave (the node stayed lit, its tooltip up)
+            self.tip.javaObject:setConsumeMouseEvents(false)
         end
         self.tip:setRows(rows)
         self.tipKey, self.tipDirty = item.key, false
@@ -2120,8 +2140,14 @@ function View:paint(el)
         if item.id then self:paintNode(el, item) end
     end
     local fh = UI.fontHeight()
+    local boardClosed = self.mode == "board" and not Rules.boardOpen(self.sim)
     for p, panel in ipairs(self.panels) do
         local dy = RISE[p]
+        -- the board not shown yet: every row dark, its header too, so that nothing in it reads as there to take
+        if boardClosed then
+            UI.fill(el, panel.x, panel.y + dy, panel.w, panel.strip, BLACK, 0.45)
+            UI.fill(el, panel.gx, panel.gy + dy, panel.w, panel.gridH, BLACK, 0.6)
+        end
         -- a tree not opened yet: dark, with why
         if self.mode == "trees" and not Rules.treeOpen(self.u, panel.tree) then
             UI.fill(el, panel.gx, panel.gy + dy, panel.w, panel.gridH, BLACK, 0.6)
@@ -2134,7 +2160,7 @@ function View:paint(el)
         UI.frame(el, panel.x, panel.y + dy, panel.w, panel.strip + panel.gridH, P.border)
         chipFrame(el, panel.x, panel.y + dy, panel.w, panel.strip + panel.gridH, p)
     end
-    if self.mode == "board" and not Rules.boardOpen(self.sim) then self:paintBoardBanner(el) end
+    if boardClosed then self:paintBoardBanner(el) end
     if OPEN_AGE then self:paintCovers(el) end
     self:paintTop(el)
     self:paintPlanBar(el)
@@ -2590,7 +2616,15 @@ function View:drawTake(el)
 end
 
 function View:setVisible(visible, joypadData)
-    if visible then self:checkScale() end
+    if visible then
+        self:checkScale()
+        local tabs = self.parent and self.parent.blinkTabs
+        if tabs then
+            for i = #tabs, 1, -1 do
+                if tabs[i] == tabName() then table.remove(tabs, i) end
+            end
+        end
+    end
     ISPanelJoypad.setVisible(self, visible, joypadData)
     if visible then
         self:refresh()
@@ -2672,19 +2706,73 @@ end
 
 -- ---- the tab in the character info window ----------------------------------------------------------------------
 
--- Adds the tab to each character info window as the game makes it (once a player).
+-- Whether a player has the tab: from the first upgrade serum taken (its adaptation started) on. Before it the
+-- character window has no such tab; the first dose brings it, blinking (Window.reveal).
+local function earned(playerNum)
+    local player = getSpecificPlayer(playerNum)
+    local record = player and OA.Client.record(player)
+    if not record then return false end
+    local u = Rules.section(record)
+    if u.adapt or u.sharedInjected > 0 then return true end
+    for _ in pairs(u.opened) do return true end
+    return false
+end
+
+-- Puts a player's tab into the character window once it is earned (the window made, the record read): `blink`, as a
+-- serum brought it now (not when a saved game opens with it). `info`: the window, while the game is making it.
+-- Returns true when the tab is in the window.
+function Window.reveal(playerNum, blink, info)
+    local view = views[playerNum]
+    info = info or getPlayerInfoPanel(playerNum)
+    if not (view and info and info.panel) then return false end
+    if view.parent then return true end
+    if not earned(playerNum) then return false end
+    info.panel:addView(tabName(), view)
+    -- the game restores the window's layout while making it, before this tab is there (see RestoreLayout)
+    if info.oaResearchOpen then
+        info.oaResearchOpen = nil
+        info.panel:activateView(tabName())
+    elseif blink then
+        local tabs = info.panel.blinkTabs or {}
+        info.panel.blinkTabs = tabs
+        tabs[#tabs + 1] = tabName()
+    end
+    return true
+end
+
+-- Makes the tab for each character info window as the game makes it (once a player); it goes into the window when
+-- earned.
 local baseCreate = ISCharacterInfoWindow.createChildren
 function ISCharacterInfoWindow:createChildren()
     baseCreate(self)
     local ok, err = pcall(function()
         local view = View:new(self.playerNum)
         view:initialise()
-        self.panel:addView(tabName(), view)
         views[self.playerNum] = view
-        -- the game restores the window's layout while making it, before this tab is there (see RestoreLayout)
-        if self.oaResearchOpen then self.panel:activateView(tabName()) end
+        -- (a window made again in a game: its tab at once when earned)
+        Window.reveal(self.playerNum, false, self)
     end)
     if not ok then OA.log("research tab failed:", tostring(err)) end
+end
+
+-- The game's own tabs size the window to the width of its five tabs (ISCharacterInfoWindow.createChildren), so with
+-- tabs other mods and this one add the strip ran past it, behind a scroll arrow. Whenever the tabs change, the game's
+-- tabs take at least the strip's width (theirs only grows from it, as the game's code keeps a view's width).
+local TAB_MARGIN = 4
+local basePrerender = ISCharacterInfoWindow.prerender
+function ISCharacterInfoWindow:prerender()
+    local panel = self.panel
+    local count = panel and #panel.viewList or 0
+    if count ~= self.oaTabCount then
+        self.oaTabCount = count
+        local w = panel:getWidthOfAllTabs() + TAB_MARGIN
+        for _, view in ipairs({ self.charScreen, self.characterView, self.healthView, self.protectionView,
+                self.clothingView }) do
+            if view.tabtotalwidth then view.tabtotalwidth = math.max(view.tabtotalwidth, w) end
+            if view.width < w then view:setWidth(w) end
+        end
+    end
+    basePrerender(self)
 end
 
 -- The game remembers which of its own tabs was open when the game was left; this remembers the research tab too.
@@ -2739,10 +2827,11 @@ end
 
 OA.Upgrades.open = Window.open
 
--- The record changed (an approval, a reset, a serum): the tabs read it again.
+-- The record changed (an approval, a reset, a serum): a tab not earned yet may be now; the tabs read it again.
 local function onChanged(playerId, detail)
     local approved = type(detail) == "table" and detail.kind == "approve"
-    for _, view in pairs(views) do
+    for playerNum, view in pairs(views) do
+        if not view.parent then Window.reveal(playerNum, true) end
         if view:getIsVisible() then
             view:refresh()
             if approved then view:startTake() end
@@ -2752,5 +2841,10 @@ end
 OA.Sync.listen("upgrades", onChanged)
 OA.Sync.listen("trade", onChanged)
 OA.Sync.listen("all", onChanged)
+
+-- A game opened: the tab of a character who earned it before, at once and still.
+Events.OnGameStart.Add(function()
+    for playerNum in pairs(views) do Window.reveal(playerNum, false) end
+end)
 
 return Window
