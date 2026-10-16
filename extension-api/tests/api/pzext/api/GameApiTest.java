@@ -113,9 +113,11 @@ public final class GameApiTest {
         ZombieHoldsTest.run(api);
         FontsTest.run();
         OutlinesTest.run(api);
+        PerformanceTest.run(api);
         NetworkScaleTest.run(api);
         hooks(api);
         takeover(api, buildings);
+        check(pzext.boot.TestAgent.unexpected.isEmpty(), "The boot layer said a hook did not fit: " + pzext.boot.TestAgent.unexpected);
         System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, switches them off and on, multiplies their loads, takes in single rooms, runs sources its mods switch, ages food by their supply, shows the moodles mods define, draws the text mods show, tells the sounds zombies make and the hits they take, finds zombies by level, sight and state, lists containers, calls functions on timers and as chunks load, wraps and fits text, draws many shapes at once, lays pictures on floors, tells mods of the squares they watch, gives map buildings new rooms, marks zombies and holds them in areas, outlines models and vehicles, counts items through bags, says which hooks went in, and a newer API takes it over");
     }
 
@@ -2728,18 +2730,24 @@ public final class GameApiTest {
                 "InventoryItem.getName", "InventoryItem.getDisplayName", "Food.getName", "Clothing.getName", "Moveable.getName" })
             check(Hooks.APPLIED.equals(hooks.rawget(label)), label + " is " + hooks.rawget(label));
         check(Hooks.hookStatus().size() == 134, "The hooks are " + Hooks.hookStatus().keySet());
+        // Every hook fits the synthetic game: a gap in the synthetic game fails here, not as a line in the output.
+        var misfit = new java.util.TreeMap<>(Hooks.hookStatus());
+        misfit.values().removeIf(Hooks.APPLIED::equals);
+        check(misfit.isEmpty(), "These hooks do not fit the synthetic game: " + misfit);
         check(Hooks.weightTracked(), "The hooks that follow the weight are not all in");
 
         Method transform = Hooks.class.getDeclaredMethod("transform", String.class, byte[].class, ClassLoader.class);
         transform.setAccessible(true);
         String generator = "zombie/iso/objects/IsoGenerator";
         ClassLoader game = GameApiTest.class.getClassLoader();
-        byte[] changed = (byte[])transform.invoke(null, generator, generator(false, false), game);
+        byte[] changed = HookNoise.expecting(() -> (byte[])transform.invoke(null, generator, generator(false, false), game),
+            "IsoGenerator.updateGenerator", "IsoGenerator.setActivated");
         check(changed != null && Hooks.APPLIED.equals(Hooks.hookStatus().get("IsoGenerator.setSurroundingElectricity"))
             && Hooks.APPLIED.equals(Hooks.hookStatus().get("IsoGenerator.update"))
             && Hooks.hookStatus().get("IsoGenerator.updateGenerator").contains("found 0"),
             "A missing method cost the class's other hooks: " + Hooks.hookStatus());
-        changed = (byte[])transform.invoke(null, generator, generator(true, true), game);
+        changed = HookNoise.expecting(() -> (byte[])transform.invoke(null, generator, generator(true, true), game),
+            "IsoGenerator.setActivated", "IsoGenerator.update");
         check(changed != null && Hooks.APPLIED.equals(Hooks.hookStatus().get("IsoGenerator.setSurroundingElectricity"))
             && Hooks.APPLIED.equals(Hooks.hookStatus().get("IsoGenerator.updateGenerator"))
             && Hooks.hookStatus().get("IsoGenerator.update").startsWith("its code could not be built"),
@@ -2767,7 +2775,7 @@ public final class GameApiTest {
         var files = ClassFile.of();
         byte[] untainted = files.transformClass(files.parse(own), ClassTransform.dropping(element ->
             element instanceof MethodModel method && method.methodName().equalsString("isTaintedWater")));
-        check(transform.invoke(null, object, untainted, game) != null && !Hooks.waterPurifyHooked()
+        check(HookNoise.expecting(() -> transform.invoke(null, object, untainted, game), "IsoObject.isTaintedWater") != null && !Hooks.waterPurifyHooked()
             && Hooks.APPLIED.equals(Hooks.hookStatus().get("IsoObject.createSampleAndPurifyWater")),
             "Water that keeps its taint was offered with one of its two hooks");
         transform.invoke(null, object, own, game);

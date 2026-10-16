@@ -22,8 +22,6 @@ final class NetworkScaleTest {
     private NetworkScaleTest() { }
 
     static void run(KahluaTable api) throws Exception {
-        // What the performance work keeps true (see PerformanceTest), then the networks at scale.
-        PerformanceTest.run(api);
         var grid = IsoWorld.instance.metaGrid;
         var made = new ArrayList<RoomDef>();
         for (int i = 0; i < BUILDINGS; i++) {

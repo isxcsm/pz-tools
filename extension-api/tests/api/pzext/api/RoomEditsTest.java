@@ -1,8 +1,16 @@
 package pzext.api;
 
 import java.io.File;
+import java.lang.classfile.ClassFile;
+import java.lang.classfile.ClassTransform;
+import java.lang.classfile.MethodModel;
+import java.lang.classfile.instruction.InvokeInstruction;
+import java.lang.constant.ConstantDescs;
+import java.lang.constant.MethodTypeDesc;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -15,6 +23,7 @@ import zombie.buildingRooms.BREBuilding;
 import zombie.buildingRooms.BuildingRoomsEditor;
 import zombie.buildingRooms.PlayerRoomsFile;
 import zombie.core.Core;
+import zombie.debug.DebugType;
 import zombie.iso.BuildingDef;
 import zombie.iso.IsoMetaCell;
 import zombie.iso.IsoWorld;
@@ -30,37 +39,26 @@ import zombie.iso.sprite.IsoSprite;
  * that makes the editor's buildings map buildings while rooms are set and loaded, and what map_meta.bin gets for the map's rooms
  * that were replaced.
  *
- * <p>The synthetic game's meta grid has no {@code savePart} or {@code load(ByteBuffer)} (its file belongs to the performance
- * work): the hooks in them are told applied here and called as the game's transformed code calls them; the transformed code
- * itself is checked against the game's own classes (the hook audit).
+ * <p>The world's save and load are the synthetic meta grid's own {@code savePart} and {@code load(ByteBuffer)}, shaped as the
+ * game's are and changed by the hooks as the game's are: the test saves the map's data and reads it back as a world does, and the
+ * cases of a hook that is missing are classes changed on purpose, put through the boot layer's transform.
  */
 final class RoomEditsTest {
     private static final String KEY = "60,60,0";
     /** The numbers of the rooms a cell of the map holds at 60,60 and 63,60 (from their first rectangle: y << 16 | x). */
     private static final long KITCHEN = 60L << 16 | 60, LIVING = 60L << 16 | 63, SECOND = 60L << 16 | 62;
-    private static final String[] SAVE_HOOKS = { RoomEdits.SAVE_HOOK, RoomEdits.COUNT_HOOK, RoomEdits.ENTRIES_HOOK };
+    private static final String GRID = "zombie/iso/IsoMetaGrid";
+    private static final ClassLoader GAME = RoomEditsTest.class.getClassLoader();
 
     private RoomEditsTest() { }
 
     static void run(KahluaTable api) throws Exception {
-        var status = status();
-        var earlier = new LinkedHashMap<String, String>();
-        synchronized (status) {
-            for (String hook : SAVE_HOOKS) { earlier.put(hook, status.get(hook)); status.put(hook, Hooks.APPLIED); }
-        }
-        try { rooms(api); }
-        finally {
-            Hooks.roomsLoaded();
-            synchronized (status) {
-                for (var entry : earlier.entrySet()) {
-                    if (entry.getValue() == null) status.remove(entry.getKey());
-                    else status.put(entry.getKey(), entry.getValue());
-                }
-            }
-        }
+        rooms(api);
     }
 
     private static void rooms(KahluaTable api) throws Exception {
+        for (String hook : new String[] { RoomEdits.SAVE_HOOK, RoomEdits.COUNT_HOOK, RoomEdits.ENTRIES_HOOK, "IsoMetaGrid.load:complaint" })
+            check(Hooks.APPLIED.equals(Hooks.hookStatus().get(hook)), "The hook " + hook + " is " + Hooks.hookStatus().get(hook));
         check(Hooks.APPLIED.equals(Hooks.hookStatus().get(RoomEdits.HOOK)), "The editor's hook is " + Hooks.hookStatus().get(RoomEdits.HOOK));
         check(Hooks.APPLIED.equals(Hooks.hookStatus().get("BuildingRoomsEditor.load")), "The editor's load hook is " + Hooks.hookStatus().get("BuildingRoomsEditor.load"));
         // The editor's buildings are the game's unless rooms are being set or loaded.
@@ -83,6 +81,8 @@ final class RoomEditsTest {
         living.explored = true;
         grid.buildings.add(house);
         var cell = new IsoMetaCell(0, 0);
+        // A second cell beside it, which the map has no rooms in.
+        var beside = new IsoMetaCell(1, 0);
         var place = new MetaObject(64, 61, living);
         for (int x = 59; x <= 66; x++) for (int y = 59; y <= 63; y++) IsoWorld.instance.currentCell.load(x, y, 0);
         var lit = new IsoLightSwitch(new IsoSprite("switch"));
@@ -90,12 +90,13 @@ final class RoomEditsTest {
         lit.square = IsoWorld.instance.currentCell.load(64, 62, 0);
         lit.square.objects.add(lit);
         BuildingRoomsEditor.getInstance().setLuaEditor(new Object());
+        grid.setCells(0, 0, new IsoMetaCell[][] { { cell }, { beside } });
+        DebugType.errors.clear();
         try {
             // No rooms set: the world's save and load have nothing of this API's to do.
             fill(cell, grid, KEY);
-            check(Hooks.roomsOriginals(cell) == 0 && !Hooks.roomsReplaced(complaint(cell, LIVING)), "Entries were made with no rooms set");
-            Hooks.roomsSaving(0);
-            check(!Files.exists(save.toPath().resolve(RoomEdits.FILE)), "A file was written with no rooms set");
+            check(saved(grid).equals(Map.of(KITCHEN, 2, LIVING, 1)), "Entries were made with no rooms set: " + saved(grid));
+            check(complaints(grid, save(grid)).isEmpty() && !Files.exists(save.toPath().resolve(RoomEdits.FILE)), "A file was written with no rooms set");
 
             // The wall between them gone: one room. It is the kitchen (the first of the two it is as much of).
             double before = (double)FormulasTest.call(buildings, "version").get(0);
@@ -115,9 +116,9 @@ final class RoomEditsTest {
             check(new BREBuilding().def().isUserDefined(), "The editor's buildings stayed map buildings after rooms were set");
             // The file is written as the world saves, not at once.
             check(!Files.exists(save.toPath().resolve(RoomEdits.FILE)), "The file was written before the world saved");
-            Hooks.roomsSaving(1);
+            grid.savePart(ByteBuffer.allocate(4096), 1, false);
             check(!Files.exists(save.toPath().resolve(RoomEdits.FILE)), "The file was written for the part of the world's save that is not the rooms'");
-            Hooks.roomsSaving(0);
+            save(grid);
             file(save, 1, 1, 1);
             check(kept(save).equals(List.of(KITCHEN, LIVING)), "The file does not keep the map's rooms: " + kept(save));
             // The API's own file, which the game reads in place of its own: none of the game's is written.
@@ -132,32 +133,57 @@ final class RoomEditsTest {
             // map_meta.bin: the one room has the first number (the kitchen's), so the living room's number is the map's alone: it gets
             // an entry with the flags of the room over its squares, and the game's complaint of it is left out as the world loads.
             fill(cell, grid, KEY);
-            check(Hooks.roomsOriginals(cell) == 1, "The map's living room had no entry: " + Hooks.roomsOriginals(cell));
-            var entries = saved(cell);
+            byte[] saved = save(grid);
+            var entries = read(saved).get(0);
             check(entries.equals(Map.of(KITCHEN, 2, LIVING, 2)), "map_meta.bin got " + entries);
-            check(entries.size() == 2 && saved(cell).equals(entries), "The entries are not the same again");
-            check(Hooks.roomsReplaced(complaint(cell, LIVING)) && Hooks.roomsReplaced(complaint(cell, KITCHEN)), "The game complains of the map's own rooms");
-            check(!Hooks.roomsReplaced(complaint(cell, 12345)) && !Hooks.roomsReplaced(complaint(new IsoMetaCell(1, 0), LIVING))
-                && !Hooks.roomsReplaced("invalid building metaID #" + LIVING + " in cell 0,0 while reading map_meta.bin")
-                && !Hooks.roomsReplaced("something else") && !Hooks.roomsReplaced(null), "The game's other complaints were left out");
+            check(read(save(grid)).get(0).equals(entries), "The entries are not the same again");
+            // As the world loads: the game complains of nothing (the kitchen's flags are the room's, the living room's number has no room).
+            one.lightsActive = false;
+            check(complaints(grid, saved).isEmpty() && one.lightsActive, "The game complained of the map's own rooms, or did not read their flags: " + DebugType.errors);
+            // Its other complaints are left as they are: an entry no room of the API's replaced, in this cell and in another, and a building's.
+            var complained = complaints(grid, patched(saved, LIVING, 12345));
+            check(complained.equals(List.of("invalid room metaID #12345 in cell 0,0 while reading map_meta.bin")), "The game's complaint was changed: " + complained);
+            var stray = new RoomDef(900, "stray", 0, new BuildingDef(false));
+            stray.metaId = LIVING;
+            beside.roomList.add(stray);
+            complained = complaints(grid, save(grid));
+            beside.roomList.clear();
+            check(complained.equals(List.of("invalid room metaID #" + LIVING + " in cell 1,0 while reading map_meta.bin")),
+                "The game's complaint of another cell's entry was left out: " + complained);
+            var lone = new BuildingDef(false);
+            lone.metaId = LIVING;
+            cell.buildings.add(lone);
+            complained = complaints(grid, save(grid));
+            cell.buildings.clear();
+            check(complained.equals(List.of("invalid building metaID #" + LIVING + " in cell 0,0 while reading map_meta.bin")),
+                "The game's complaint of a building's entry was left out: " + complained);
 
-            // A world loaded again: the map's rooms come from the file, and the save does not change it.
-            byte[] filed = Files.readAllBytes(save.toPath().resolve(RoomEdits.FILE));
+            // A world loaded again: the map's rooms come from the file, and the save does not change it (the file is not written again).
+            Path filePath = save.toPath().resolve(RoomEdits.FILE);
+            byte[] filed = Files.readAllBytes(filePath);
+            Files.setLastModifiedTime(filePath, FileTime.fromMillis(1_000_000));
             edits.reset();
-            check(Hooks.roomsReplaced(complaint(cell, LIVING)) && saved(cell).equals(entries), "The map's rooms were not kept in the file");
-            Hooks.roomsSaving(0);
-            check(java.util.Arrays.equals(filed, Files.readAllBytes(save.toPath().resolve(RoomEdits.FILE))), "A save changed the file when the rooms did not");
+            saved = save(grid);
+            check(read(saved).get(0).equals(entries) && complaints(grid, saved).isEmpty(), "The map's rooms were not kept in the file");
+            check(java.util.Arrays.equals(filed, Files.readAllBytes(filePath)) && Files.getLastModifiedTime(filePath).toMillis() == 1_000_000,
+                "A save wrote the file when the rooms did not change");
             check(!Files.exists(save.toPath().resolve(RoomEdits.FILE + ".new")), "A file was left half written");
 
-            // The hooks of the world's save are not both in: no entries (a count with no entries would break the file), and no rooms set.
-            var statuses = status();
-            synchronized (statuses) { statuses.put(RoomEdits.ENTRIES_HOOK, "expected one place"); }
+            // The hooks of the world's save are not both in (the class is changed so that the entries are not in): no entries (a count
+            // with no entries would break the file), and the entries the file holds are the cell's own.
+            byte[] own = classBytes(GRID);
+            changed(entriesGone(), own, RoomEdits.ENTRIES_HOOK);
             edits.reset();
-            check(Hooks.roomsOriginals(cell) == 0, "Entries were counted with the hook that writes them not in");
-            synchronized (statuses) { statuses.put(RoomEdits.ENTRIES_HOOK, Hooks.APPLIED); statuses.put(RoomEdits.SAVE_HOOK, "expected one place"); }
+            check(read(save(grid)).get(0).equals(Map.of(KITCHEN, 2)), "Entries were counted with the hook that writes them not in");
+            // The world's save is not hooked at all: no rooms set.
+            changed(ClassTransform.dropping(element -> element instanceof MethodModel method && method.methodName().equalsString("savePart")), own,
+                RoomEdits.SAVE_HOOK, RoomEdits.COUNT_HOOK, RoomEdits.ENTRIES_HOOK);
             done = FormulasTest.call(buildings, "setRooms", KEY, list(room(0, null, rect(60, 60, 3, 3)), room(0, null, rect(63, 60, 3, 3))));
             check(done.get(0) == null && String.valueOf(done.get(1)).contains(RoomEdits.SAVE_HOOK), "Rooms were set with the world's save not hooked: " + done);
-            synchronized (statuses) { statuses.put(RoomEdits.SAVE_HOOK, Hooks.APPLIED); }
+            // The game's own class again: every hook is back.
+            HookNoise.expecting(() -> transform().invoke(null, GRID, own, GAME));
+            for (String hook : new String[] { RoomEdits.SAVE_HOOK, RoomEdits.COUNT_HOOK, RoomEdits.ENTRIES_HOOK })
+                check(Hooks.APPLIED.equals(Hooks.hookStatus().get(hook)), "The hook " + hook + " did not come back: " + Hooks.hookStatus().get(hook));
             edits.reset();
 
             // A wall again: two rooms, one named. The building is the editor's: no second map building taken out.
@@ -169,14 +195,12 @@ final class RoomEditsTest {
             check(lit.roomId == east.id, "The switch does not light the room on its square");
             check(grid.getRemovedBuildings().size() == 1, "A building the editor made was taken out as a map building");
             check(east.building.getKeyId() == 77, "The building's key was lost the second time");
-            Hooks.roomsSaving(0);
+            save(grid);
             file(save, 1, 1, 2);
             check(kept(save).equals(List.of(KITCHEN, LIVING)), "The map's rooms were not kept the second time: " + kept(save));
             // Both rooms have the map's numbers now: their own entries stand, and none is added.
             fill(cell, grid, KEY);
-            check(Hooks.roomsOriginals(cell) == 0, "An entry was added for a number a room has");
-            Hooks.roomsEntries(cell, ByteBuffer.allocate(0));
-            check(saved(cell).size() == 2, "The cell's entries are not its rooms' alone");
+            check(saved(grid).equals(Map.of(KITCHEN, 2, LIVING, 2)), "The cell's entries are not its rooms' alone: " + saved(grid));
 
             // The rooms it has: nothing done.
             before = (double)FormulasTest.call(buildings, "version").get(0);
@@ -209,11 +233,9 @@ final class RoomEditsTest {
             east = grid.getRoomAt(64, 61, 0);
             check(east.explored && east.lightsActive && !west.explored && west.lightsActive, "The rooms did not take the rooms they were over most of");
             fill(cell, grid, KEY);
-            check(Hooks.roomsOriginals(cell) == 1, "The living room had no entry after the wall moved");
-            entries = saved(cell);
-            check(entries.equals(Map.of(KITCHEN, 2, SECOND, 3, LIVING, 3)), "map_meta.bin got " + entries);
-            // The rooms' squares have none of the map's rooms' flags to give (no room): no entry, and the count agrees.
-            Hooks.roomsSaving(0);
+            entries = saved(grid);
+            check(entries.equals(Map.of(KITCHEN, 2, SECOND, 3, LIVING, 3)), "map_meta.bin got " + entries + ", the living room had no entry after the wall moved");
+            check(complaints(grid, save(grid)).isEmpty(), "The game complained as the wall moved: " + DebugType.errors);
             check(kept(save).equals(List.of(KITCHEN, LIVING)), "The map's rooms changed with the wall: " + kept(save));
 
             // The game loads the file again: its building is a map building; with only its own file, the game's building is its own.
@@ -225,7 +247,7 @@ final class RoomEditsTest {
             Core.noSave = true;
             Files.delete(save.toPath().resolve(RoomEdits.FILE));
             done = FormulasTest.call(buildings, "setRooms", KEY, list(room(0, null, rect(60, 60, 6, 3))));
-            Hooks.roomsSaving(0);
+            save(grid);
             check(Boolean.TRUE.equals(done.get(0)) && !Files.exists(save.toPath().resolve(RoomEdits.FILE)), "A world that saves nothing got a file");
             Core.noSave = false;
             // Without the API's file the game reads its own (a debug editor's rooms).
@@ -237,6 +259,8 @@ final class RoomEditsTest {
         } finally {
             Core.noSave = false;
             BuildingRoomsEditor.getInstance().setLuaEditor(null);
+            grid.setCells(0, 0, new IsoMetaCell[0][0]);
+            DebugType.errors.clear();
             BuildingDef now = grid.getRoomAt(60, 60, 0).building;
             grid.rooms.removeAll(now.rooms);
             grid.buildings.remove(now);
@@ -298,39 +322,95 @@ final class RoomEditsTest {
         }
     }
 
-    /**
-     * The game's {@code savePart} of the cell, as the hooks change it (the count is the rooms' and the extra entries', the extra entries
-     * follow the rooms'), read as the game's {@code load} reads it: the number of each entry and its flags. An entry with no room is one
-     * whose complaint the API leaves out.
-     */
-    private static Map<Long, Integer> saved(IsoMetaCell cell) {
+    /** The grid's save of the map's data (part 0), through the game's own {@code savePart}, as the hooks change it. */
+    private static byte[] save(zombie.iso.IsoMetaGrid grid) {
         var buffer = ByteBuffer.allocate(4096);
-        buffer.putInt(cell.getRoomCount(true) + Hooks.roomsOriginals(cell));
-        for (RoomDef room : cell.roomList) buffer.putLong(room.metaId).putShort((short)flags(room));
-        Hooks.roomsEntries(cell, buffer);
-        buffer.putInt(0);
+        grid.savePart(buffer, 0, false);
         buffer.flip();
-        var entries = new LinkedHashMap<Long, Integer>();
-        for (int count = buffer.getInt(); count > 0; count--) {
-            long id = buffer.getLong();
-            int flags = buffer.getShort();
-            check(entries.put(id, flags) == null, "map_meta.bin has the number " + id + " twice");
-            if (!cell.roomByMetaId.contains(id))
-                check(Hooks.roomsReplaced(complaint(cell, id)), "The game would complain of the entry " + id);
+        var bytes = new byte[buffer.remaining()];
+        buffer.get(bytes);
+        return bytes;
+    }
+
+    /**
+     * What the game's save of the map's data holds, read as its {@code load} reads it: for each cell, the number of each of its rooms'
+     * entries and its flags. The entries of the cell are the first, those of the cell beside it the second.
+     */
+    private static List<Map<Long, Integer>> read(byte[] bytes) {
+        var buffer = ByteBuffer.wrap(bytes);
+        check(buffer.get() == 'M' && buffer.get() == 'E' && buffer.get() == 'T' && buffer.get() == 'A', "map_meta.bin does not begin as the game's does");
+        buffer.getInt();
+        int minX = buffer.getInt(), minY = buffer.getInt(), maxX = buffer.getInt(), maxY = buffer.getInt();
+        var cells = new ArrayList<Map<Long, Integer>>();
+        for (int cell = (maxX - minX + 1) * (maxY - minY + 1); cell > 0; cell--) {
+            var entries = new LinkedHashMap<Long, Integer>();
+            for (int count = buffer.getInt(); count > 0; count--) {
+                long id = buffer.getLong();
+                check(entries.put(id, (int)buffer.getShort()) == null, "map_meta.bin has the number " + id + " twice");
+            }
+            for (int buildings = buffer.getInt(); buildings > 0; buildings--) buffer.position(buffer.position() + 8 + 1 + 4 + 1 + 1 + 4 + 4);
+            cells.add(entries);
         }
-        check(buffer.getInt() == 0 && !buffer.hasRemaining(), "The cell's entries are not as many as the count says");
-        return entries;
+        check(!buffer.hasRemaining(), "The entries are not as many as the counts say");
+        return cells;
     }
 
-    private static int flags(RoomDef room) { return (room.explored ? 1 : 0) | (room.lightsActive ? 2 : 0) | (room.doneSpawn ? 4 : 0) | (room.roofFixed ? 8 : 0); }
+    /** The cell's entries in a save of the grid. */
+    private static Map<Long, Integer> saved(zombie.iso.IsoMetaGrid grid) { return read(save(grid)).get(0); }
 
-    /** The game's complaint of an entry it has no room for. */
-    private static String complaint(IsoMetaCell cell, long id) {
-        return "invalid room metaID #" + id + " in cell " + cell.getX() + "," + cell.getY() + " while reading map_meta.bin";
+    /** What the game complains of as it loads the map's data: the complaints of its {@code load}, in order. */
+    private static List<String> complaints(zombie.iso.IsoMetaGrid grid, byte[] bytes) {
+        DebugType.errors.clear();
+        grid.load(ByteBuffer.wrap(bytes));
+        var complained = new ArrayList<>(DebugType.errors);
+        DebugType.errors.clear();
+        return complained;
     }
 
-    @SuppressWarnings("unchecked")
-    private static Map<String, String> status() throws Exception { return (Map<String, String>)field(Hooks.class, "status"); }
+    /** The save with the eight bytes of a number written as another (it must be there once). */
+    private static byte[] patched(byte[] bytes, long from, long to) {
+        var wanted = ByteBuffer.allocate(8).putLong(from).array();
+        int at = -1;
+        for (int index = 0; index + 8 <= bytes.length; index++)
+            if (java.util.Arrays.equals(bytes, index, index + 8, wanted, 0, 8)) {
+                check(at < 0, "The number " + from + " is in the save twice");
+                at = index;
+            }
+        check(at >= 0, "The number " + from + " is not in the save");
+        var result = bytes.clone();
+        ByteBuffer.wrap(result).putLong(at, to);
+        return result;
+    }
+
+    // ---- the grid's class changed on purpose, put through the boot layer as the game's classes are as they load ----
+
+    private static java.lang.reflect.Method transform() throws Exception {
+        var transform = Hooks.class.getDeclaredMethod("transform", String.class, byte[].class, ClassLoader.class);
+        transform.setAccessible(true);
+        return transform;
+    }
+
+    private static byte[] classBytes(String name) throws Exception {
+        try (var input = GAME.getResourceAsStream(name + ".class")) { return input.readAllBytes(); }
+    }
+
+    /** The grid's class with {@code transform} applied, put through the boot layer: the hooks of {@code missing} do not fit it. */
+    private static void changed(ClassTransform transform, byte[] own, String... missing) throws Exception {
+        var files = ClassFile.of();
+        byte[] changed = files.transformClass(files.parse(own), transform);
+        HookNoise.expecting(() -> transform().invoke(null, GRID, changed, GAME), missing);
+        for (String hook : missing) check(!Hooks.APPLIED.equals(Hooks.hookStatus().get(hook)), "The hook " + hook + " went in the changed class");
+    }
+
+    /** The grid's class asking the cell for its buildings in another way: the place where the entries are written is not there. */
+    private static ClassTransform entriesGone() {
+        return ClassTransform.transformingMethodBodies((builder, element) -> {
+            if (element instanceof InvokeInstruction invoke && invoke.name().equalsString("getBuildingCount") && invoke.type().equalsString("(Z)I")) {
+                builder.pop();
+                builder.invokevirtual(invoke.owner().asSymbol(), "getBuildingCount", MethodTypeDesc.of(ConstantDescs.CD_int));
+            } else builder.with(element);
+        });
+    }
 
     private static Object field(Class<?> type, String name) throws Exception {
         var field = type.getDeclaredField(name);

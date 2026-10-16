@@ -2,6 +2,7 @@ package zombie.core.skinnedmodel.model;
 
 import java.util.ArrayList;
 import java.util.List;
+import zombie.core.skinnedmodel.animation.AnimationPlayer;
 import zombie.core.textures.ColorInfo;
 import zombie.iso.SpriteModel;
 
@@ -16,6 +17,11 @@ public final class IsoObjectModelDrawer {
     }
     public static RenderStatus renderMain(SpriteModel model, float x, float y, float z, ColorInfo light, float alpha, SpriteModel parent,
             org.joml.Matrix4f attached, boolean outline, boolean world) {
+        ambientR = light.r; ambientG = light.g; ambientB = light.b;
+        return RenderStatus.Ready;
+    }
+    /** A model object drawn in an animation (a door that swings): the same light, taken for the model's ambient colour. */
+    public static RenderStatus renderMain(SpriteModel model, float x, float y, float z, ColorInfo light, float alpha, AnimationPlayer animation) {
         ambientR = light.r; ambientG = light.g; ambientB = light.b;
         return RenderStatus.Ready;
     }

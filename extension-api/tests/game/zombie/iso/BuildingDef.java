@@ -9,12 +9,15 @@ public final class BuildingDef {
     private boolean userDefined;
     /** As the game's: the door keys' number (a new building draws one), and some of its state. */
     private int keyId = (int)(Math.random() * 1_000_000);
-    public boolean alarmed, seen;
+    public boolean alarmed, seen, hasBeenVisited;
+    public long metaId;
+    public int lootRespawnHour, alarmDecay;
     public BuildingDef(boolean userDefined) { this.userDefined = userDefined; }
     /** Test: how many times the building's rooms were asked for. */
     public int asked;
     public ArrayList<RoomDef> getRooms() { asked++; return rooms; }
     public boolean isUserDefined() { return userDefined; }
+    public boolean isHasBeenVisited() { return hasBeenVisited; }
     public int getKeyId() { return keyId; }
     public void setKeyId(int value) { keyId = value; }
 }

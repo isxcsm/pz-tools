@@ -9,6 +9,8 @@ public final class RoomDef {
     public int level;
     public BuildingDef building;
     public boolean explored, doneSpawn, lightsActive, roofFixed;
+    /** As the game's: a room players built (the world's save leaves it out of map_meta.bin). */
+    public boolean userDefined;
     /** As the game's: the room's number in its cell's map_meta.bin (made from its first rectangle). */
     public long metaId;
     /** Counts every change to any room's rectangles (and levels set by copyFrom), for the index IsoMetaGrid keeps by chunk. */
@@ -38,6 +40,8 @@ public final class RoomDef {
     public ArrayList<RoomRect> getRects() { return rects; }
     public long getID() { return id; }
     public boolean isRoofFixed() { return roofFixed; }
+    public void setRoofFixed(boolean value) { roofFixed = value; }
+    public void setExplored(boolean value) { explored = value; }
     public boolean isEmptyOutside() { return "emptyoutside".equals(name); }
     public void CalculateBounds() { }
 

@@ -205,6 +205,15 @@ final class FormulasTest {
         check(Math.abs(character.ambient.r - expected.r) < 0.012f && Math.abs(character.optimized.r - expected.r) < 0.012f
             && Math.abs(character.optimized.b - expected.b) < 0.012f,
             "A character's light was not the light before the lift: " + character.ambient.r + " " + character.optimized.r + " for " + expected.r);
+        // an item drawn as a model (init of the item renderer) and a corpse (the body params' ambient colour)
+        var itemModel = new zombie.core.skinnedmodel.model.ItemModelRenderer();
+        itemModel.renderMain(null, square, square, 10.25f, 20.75f, 0f);
+        check(Math.abs(itemModel.ambientR - expected.r) < 0.012f && Math.abs(itemModel.ambientG - expected.g) < 0.012f
+            && Math.abs(itemModel.ambientB - expected.b) < 0.012f && lit.r > itemModel.ambientR + 0.005f,
+            "An item model's light was not the light before the lift: " + itemModel.ambientR + " for " + expected.r);
+        var corpse = zombie.iso.fboRenderChunk.FBORenderCorpses.corpseLight(square, 5.25f, 6.75f);
+        check(Math.abs(corpse.r - expected.r) < 0.012f && Math.abs(corpse.g - expected.g) < 0.012f && Math.abs(corpse.b - expected.b) < 0.012f
+            && lit.r > corpse.r + 0.005f, "A corpse's light was not the light before the lift: " + corpse.r + " for " + expected.r);
         // another player's frame is the game's
         zombie.iso.IsoCamera.frameState.playerIndex = 1;
         vehicleSlot.initModel(new zombie.core.skinnedmodel.ModelManager.ModelSlot());
@@ -218,6 +227,12 @@ final class FormulasTest {
         zombie.core.skinnedmodel.model.IsoObjectModelDrawer.renderMain(null, 0f, 0f, 0f, objectsLight, 1f);
         check(objectsLight.r > 0.2f && zombie.core.skinnedmodel.model.IsoObjectModelDrawer.ambientR == 0.2f,
             "A model object was not drawn with the game's light: " + zombie.core.skinnedmodel.model.IsoObjectModelDrawer.ambientR);
+        // the same for one drawn in an animation (the other renderMain of the game)
+        zombie.core.skinnedmodel.model.IsoObjectModelDrawer.ambientR = 0f;
+        zombie.core.skinnedmodel.model.IsoObjectModelDrawer.renderMain(null, 0f, 0f, 0f, objectsLight,
+            1f, new zombie.core.skinnedmodel.animation.AnimationPlayer());
+        check(zombie.core.skinnedmodel.model.IsoObjectModelDrawer.ambientR == 0.2f,
+            "An animated model object was not drawn with the game's light: " + zombie.core.skinnedmodel.model.IsoObjectModelDrawer.ambientR);
         // undone to within a step of 255 as the lift has it: the lift draws the dark together (its slope 1 - 2f at black)
         int[] table = NightLamps.unliftTable(f);
         for (int value = 0; value < 256; value++) {
@@ -1820,7 +1835,7 @@ final class FormulasTest {
         byte[] without = files.transformClass(files.parse(own), ClassTransform.dropping(element ->
             element instanceof MethodModel method && method.methodName().equalsString("hasRoomFor")
                 && method.methodType().stringValue().equals("(Lzombie/characters/IsoGameCharacter;Lzombie/inventory/InventoryItem;)Z")));
-        check(transform.invoke(null, container, without, game) != null, "The container's other hooks were lost with one");
+        check(HookNoise.expecting(() -> transform.invoke(null, container, without, game), "ItemContainer.hasRoomFor") != null, "The container's other hooks were lost with one");
         var points = (KahluaTable)call(formulas, "points").get(0);
         check(points.rawget("carry.categoryEfficiency") instanceof String text && text.startsWith("partial: ItemContainer.hasRoomFor: expected one hasRoomFor"),
             "A point with one hook missing is " + points.rawget("carry.categoryEfficiency"));

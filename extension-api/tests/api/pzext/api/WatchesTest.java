@@ -173,7 +173,7 @@ final class WatchesTest {
 
         // The helicopter's hook is not in the class (it lacks a field it needs): every frame looks, and a store nobody counted is seen.
         byte[] lacking = without(Helicopter.class, "active");
-        check(transform.invoke(null, "zombie/iso/Helicopter", lacking, GAME) == null, "A class without the field was changed");
+        check(HookNoise.expecting(() -> transform.invoke(null, "zombie/iso/Helicopter", lacking, GAME), "Helicopter.writes:flight") == null, "A class without the field was changed");
         var hooks = (KahluaTable)FormulasTest.call(api, "hooks").get(0);
         check(String.valueOf(hooks.rawget("Helicopter.events")).startsWith("polled: expected the field Helicopter.active")
             && Hooks.APPLIED.equals(hooks.rawget("IsoWorld.change")), "The status does not say the helicopter is polled: " + hooks.rawget("Helicopter.events"));
@@ -205,7 +205,8 @@ final class WatchesTest {
         Object mod = FormulasTest.call(api, "client", "watches.fallback").get(0);
         var world = IsoWorld.instance;
         IsoCell home = world.currentCell;
-        check(transform.invoke(null, "zombie/iso/IsoWorld", without(IsoWorld.class, "currentCell"), GAME) == null, "A class without the field was changed");
+        byte[] noCell = without(IsoWorld.class, "currentCell");
+        check(HookNoise.expecting(() -> transform.invoke(null, "zombie/iso/IsoWorld", noCell, GAME), "IsoWorld.writes:currentCell") == null, "A class without the field was changed");
         hooks = (KahluaTable)FormulasTest.call(api, "hooks").get(0);
         check(String.valueOf(hooks.rawget("IsoWorld.change")).startsWith("polled: expected the field IsoWorld.currentCell"),
             "The status does not say the world is polled: " + hooks.rawget("IsoWorld.change"));
