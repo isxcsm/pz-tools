@@ -42,13 +42,13 @@
                Link="game-bridge\runtime\%(_BridgeRuntime.RecursiveDir)%(_BridgeRuntime.Filename)%(_BridgeRuntime.Extension)"
                CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
       <!-- PZ Extension API is a program of its own; the app only carries a release of it, to help install it.
-           Build it first (pz-extension-api: build.ps1); without it the app says it carries none. -->
+           Build it first (extension-api/build.ps1); without it the app says it carries none. -->
       <_ExtensionApiFile Include="$(ExtensionApiRelease)\**\*" Condition="Exists('$(ExtensionApiRelease)\pzext-install.jar')" />
       <Content Include="@(_ExtensionApiFile)"
                Link="extension-api\%(_ExtensionApiFile.RecursiveDir)%(_ExtensionApiFile.Filename)%(_ExtensionApiFile.Extension)"
                CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     </ItemGroup>
     <Warning Condition="!Exists('$(ExtensionApiRelease)\pzext-install.jar')"
-             Text="No PZ Extension API release at $(ExtensionApiRelease): the app carries none. Build pz-extension-api, or pass -p:ExtensionApiRelease=..." />
+             Text="No PZ Extension API release at $(ExtensionApiRelease): the app carries none. Build extension-api (build.ps1), or pass -p:ExtensionApiRelease=..." />
   </Target>
 </Project>

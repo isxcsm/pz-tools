@@ -5,8 +5,8 @@
     <GameBridgeDirectory Condition="'$(GameBridgeDirectory)' == ''">$(GameBridgeRepositoryRoot)\artifacts\game-bridge\$(Configuration)</GameBridgeDirectory>
     <BridgeOutputPath>$([MSBuild]::NormalizePath('$(GameBridgeRepositoryRoot)', '$(GameBridgeDirectory)'))</BridgeOutputPath>
     <JdkPath Condition="'$(JdkPath)' == ''">$(JAVA_HOME)</JdkPath>
-    <!-- A release of PZ Extension API (its own repository, beside this one), carried to help install it. -->
-    <ExtensionApiRelease Condition="'$(ExtensionApiRelease)' == ''">$([System.IO.Path]::GetFullPath('$(GameBridgeRepositoryRoot)\..\pz-extension-api\out\release'))</ExtensionApiRelease>
+    <!-- A release of PZ Extension API (extension-api/, a program of its own), carried to help install it. -->
+    <ExtensionApiRelease Condition="'$(ExtensionApiRelease)' == ''">$([System.IO.Path]::GetFullPath('$(GameBridgeRepositoryRoot)\extension-api\out\release'))</ExtensionApiRelease>
   </PropertyGroup>
   <ItemGroup Condition="'$(JdkPath)' == ''">
     <_BridgeJdkRelease Include="$(GameBridgeRepositoryRoot)\artifacts\toolchains\jdk-25*\release" />
