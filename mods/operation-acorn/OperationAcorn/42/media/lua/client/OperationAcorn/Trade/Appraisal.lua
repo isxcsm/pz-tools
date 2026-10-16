@@ -57,7 +57,8 @@ function ISToolTipInv:render(...)
     if not item or not self:isVisible() then return end
     if ISContextMenu.instance and ISContextMenu.instance.visibleCheck then return end
     local record = OA.Client.record(getPlayer())
-    if not record then return end
+    -- (no worth before the team is met: the terminal not used yet)
+    if not record or not OA.Trust.contacted(record) then return end
     local ok, line = OA.try("appraisal line", Appraisal.lineFor, item, record)
     if not ok or not line then return end
     local font = UIFont.Small

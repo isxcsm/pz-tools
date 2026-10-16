@@ -17,6 +17,7 @@ local font = UIFont.Small
 local lineHeight
 
 -- The item type of an item, asked of the game once per item (weak: an item that is gone drops out).
+local NO_ROWS = {}
 local typeOf = setmetatable({}, { __mode = "k" })
 
 -- A strip of rows at the panel's y: its own background and border, as wide as the panel or its widest line.
@@ -55,7 +56,8 @@ local function draw(panel, item)
     local id = data and data.OA_Mission
     local owner = id and View.ownerOf(record, id) or nil
     local mission = owner and ItemTip.missionRows(View.color(owner.kind)) or nil
-    local rows = ItemTip.rows(record, fullType, data and data.OA_Bought)
+    -- (the codex's and the requests' lines only once the team is met: the terminal used)
+    local rows = OA.Trust.contacted(record) and ItemTip.rows(record, fullType, data and data.OA_Bought) or NO_ROWS
     if not mission and #rows == 0 then return end
     lineHeight = lineHeight or UI.fontHeightPx(font)
     local top = mission and lineHeight + 8 or 0

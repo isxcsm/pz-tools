@@ -259,7 +259,8 @@ local function onMarketEvent(event)
         subArgs = { { key = OA.Categories.nameKey(event.cat) }, event.days or 7 }, style = "notice",
         fallback = "bad" }
     for _, record in pairs(OA.Store.players()) do
-        if OA.Store.alive(record) then OA.Sync.title(record.id, title) end
+        -- (told only to who trades: a character who has not used the terminal yet knows nothing of the market)
+        if OA.Store.alive(record) and OA.Trust.contacted(record) then OA.Sync.title(record.id, title) end
     end
 end
 

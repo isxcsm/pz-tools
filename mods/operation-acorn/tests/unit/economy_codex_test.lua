@@ -15,8 +15,14 @@ local function noTable()
     OA.Requests.install({ version = 1, types = {}, score = {}, kinds = {}, total = {}, n = 0 })
 end
 
+-- A record whose character has used the terminal (the first contact): the codex pays and the kills count.
+local function contact(r)
+    OA.Trust.section(r).stage = math.max(1, OA.Trust.section(r).stage)
+    return r
+end
+
 local function record()
-    return OA.Store.ensure("c", "C")
+    return contact(OA.Store.ensure("c", "C"))
 end
 
 test("a kind pays 100 credits once", function()
@@ -95,7 +101,7 @@ test("BonusMultiplier scales the credits, not the serums", function()
     near(r.trade.bonus, (500 * 100 + 10000 + 25000 + 50000) * 0.5)
     eq(r.trade.sharedSerums, 1)
     SandboxVars.OperationAcorn.BonusMultiplier = 0
-    local r2 = OA.Store.ensure("z", "Z")
+    local r2 = contact(OA.Store.ensure("z", "Z"))
     C.acquire(r2, kind(9999))
     near(r2.trade.bonus, 0)
 end)
@@ -230,9 +236,33 @@ end)
 
 test("kills are per record", function()
     noTable()
-    local a = OA.Store.ensure("a", "A")
+    local a = contact(OA.Store.ensure("a", "A"))
     local b = OA.Store.ensure("b", "B")
     C.kill(a, 100)
     near(a.trade.bonus, 2000)
     eq(b.trade, nil)
+end)
+
+test("before the first contact the codex and the search count, nothing is paid or told, and kills do not count", function()
+    noTable()
+    local r = OA.Store.ensure("pre", "Pre")
+    local told = {}
+    OA.Sync.listen("title", function(id, detail) told[#told + 1] = detail end)
+    for i = 1, 100 do C.acquire(r, kind(i)) end
+    eq(r.codex.n, 100, "the kinds counted")
+    eq(r.codex.paid.kinds, 1, "the 100 kinds milestone passed")
+    near(r.trade.bonus, 0, 1e-9, "nothing paid")
+    local credits = C.buildingSearched(r, "b1", 5)
+    eq(credits, nil)
+    eq(r.codex.nb, 1, "the building counted")
+    C.kill(r, 150)
+    eq(r.codex.kills, 0, "the kills wait for the team")
+    eq(#told, 0, "no title")
+    -- met: the next find pays its own credits, and the milestone passed before is not paid late
+    OA.Trust.section(r).stage = 1
+    C.acquire(r, kind(101))
+    near(r.trade.bonus, 100)
+    C.kill(r, 100)
+    near(r.trade.bonus, 2100)
+    eq(#told, 1, "the kill milestone's title")
 end)

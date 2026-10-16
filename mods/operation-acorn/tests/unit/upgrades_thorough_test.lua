@@ -24,6 +24,7 @@ local function searched(id, rank)
     require "OperationAcorn/Economy"
     OA.Requests.install({ version = 1, types = {}, score = {}, kinds = {}, total = {}, n = 0 })
     local record = OA.Store.ensure(id, id)
+    OA.Trust.section(record).stage = 1
     local u = Rules.section(record)
     u.ranks.ledger = rank
     local titles = {}

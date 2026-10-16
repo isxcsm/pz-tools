@@ -38,7 +38,7 @@ end
 
 -- 1. The refusal lines.
 
-test("a refusal sends a title to every record", function()
+test("a refusal sends a title to every record that trades (the terminal used)", function()
     fakeStory()
     boot()
     OA.Economy.start()
@@ -51,16 +51,15 @@ test("a refusal sends a title to every record", function()
     OA.Sync.listen("title", function(id, detail) titles[#titles + 1] = { id = id, detail = detail } end)
     OA.Sync.listen("notice", function(id, detail) notices[#notices + 1] = { id = id, detail = detail } end)
     OA.Market.update(OA.day() + 1)
-    eq(#titles, 2, "a title for each record")
+    eq(#titles, 1, "a title for the record that trades, none for the one that has not met the team")
+    eq(titles[1].id, "a")
     eq(#notices, 0, "and nothing else is sent")
     eq(titles[1].detail.key, "IGUI_OA_Title_Refusal")
     eq(titles[1].detail.sub, "IGUI_OA_Title_RefusalSub")
     eq(titles[1].detail.style, "notice")
     local cat = titles[1].detail.subArgs[1].key
     truthy(string.find(cat, "^IGUI_"), "the category, translated on the player's side")
-    eq(titles[2].detail.subArgs[1].key, cat)
     eq(titles[1].detail.subArgs[2], 7)
-    truthy(titles[1].id ~= titles[2].id)
 end)
 
 -- 2. The meteorites.

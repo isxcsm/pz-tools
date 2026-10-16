@@ -72,6 +72,8 @@ local function onFillWorld(playerNum, context, worldobjects, test)
     if test then return end
     local player = getSpecificPlayer(playerNum)
     if not player or player:getVehicle() or not Harvest.holdsScalpel(player) then return end
+    -- (the samples are the team's: nothing to harvest for before the terminal is used)
+    if not OA.Trust.contacted(OA.Client.record(player)) then return end
     local body = ISWorldObjectContextMenu.fetchVars and ISWorldObjectContextMenu.fetchVars.body
     if not (body and instanceof(body, "IsoDeadBody") and body:isZombie()) then return end
     local why = Harvest.refusal(Harvest.describe(body), OA.hours())

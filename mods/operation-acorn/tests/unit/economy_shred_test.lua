@@ -14,7 +14,9 @@ end
 
 local function record()
     OA.Requests.install({ version = 1, types = {}, score = {}, kinds = {}, total = {}, n = 0 })
-    return OA.Store.ensure("s", "S")
+    local r = OA.Store.ensure("s", "S")
+    OA.Trust.section(r).stage = 1   -- the terminal used: the codex pays
+    return r
 end
 
 test("half a sample bundle for every weight", function()

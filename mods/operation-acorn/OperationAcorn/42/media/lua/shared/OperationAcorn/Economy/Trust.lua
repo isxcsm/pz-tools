@@ -59,6 +59,14 @@ function Trust.section(record)
     return t
 end
 
+-- Whether the record's character has met the team: the terminal used once (the first contact opens the first stage,
+-- Trade.openContact). Before it nothing of the trade shows or pays: no worth or "not seen" lines on the tooltips, no
+-- bonuses (the codex and the search still count), no kill count.
+function Trust.contacted(record)
+    local t = record and record.trade
+    return t ~= nil and (t.stage or 0) >= 1
+end
+
 -- Shop tier: 1..5 the stages (1 the start, and before the first contact too), then 5 plus the milestones. What a shop
 -- item or reward waits for.
 function Trust.tier(record)

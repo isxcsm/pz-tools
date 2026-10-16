@@ -153,6 +153,7 @@ test("a pickup from the world tags the cell and enters the codex", function()
     boot()
     OA.Economy.start()
     local record = OA.Store.ensure("p", "P")
+    OA.Trust.section(record).stage = 1   -- the terminal used
     local ch = character("p")
     local hammer = item("Base.Hammer", { display = "Tool" })
     local world = container("wardrobe", { square = square(1300, 600) })
@@ -252,6 +253,7 @@ end)
 test("a kill by a player counts for that player", function()
     boot()
     local record = OA.Store.ensure("k", "K")
+    OA.Trust.section(record).stage = 1   -- the terminal used
     local killer = character("k")
     killer.classes = { IsoPlayer = true }
     for i = 1, 100 do
@@ -560,6 +562,7 @@ test("a building all searched pays once, from the counts of the character's last
     boot()
     OA.Buildings.reset()
     local record = OA.Store.ensure("w", "W")
+    OA.Trust.section(record).stage = 1   -- the terminal used
     local boxes = { box(true), box(true), box(false) }
     local rooms = fakeBuilding({ { sq({ fakeObject({ boxes[1], boxes[2] }) }), sq({ fakeObject({ boxes[3] }) }) } })
     local w = walker(rooms[1])

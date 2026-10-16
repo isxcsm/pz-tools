@@ -87,16 +87,18 @@ local function tell(record, events)
 end
 
 -- The codex counts a kind the first time a character gets it. `info` as in ARCHITECTURE 5. Returns true when the
--- kind is new, and the milestone events it made.
+-- kind is new, and the milestone events it made. Before the first contact (Trust.contacted) the kind is counted and
+-- nothing is paid or told: a milestone passed then is passed for good (the team was not there to see it).
 function Codex.acquire(record, info)
     local events = {}
     local c = Codex.section(record)
     if not OA.Categories.isLoot(info) then return false, events end
     local key = info.baseType
     if not key or c.kinds[key] then return false, events end
+    local live = OA.Trust.contacted(record)
     c.kinds[key] = true
     c.n = c.n + 1
-    pay(record, Codex.KIND_CREDITS)
+    if live then pay(record, Codex.KIND_CREDITS) end
     -- A house loot kind counts toward its category.
     local letter = OA.Requests.kindCategory(key)
     if letter then
@@ -105,18 +107,22 @@ function Codex.acquire(record, info)
         local paid = c.paid.cats[letter] or 0
         while paid < #Codex.CATEGORY_STEPS and c.cat[letter] >= math.ceil(Codex.CATEGORY_STEPS[paid + 1] * total) do
             paid = paid + 1
-            pay(record, Codex.CATEGORY_PAY[paid])
-            milestone(events, "Category", Codex.CATEGORY_PAY[paid], { letter = letter, index = paid })
+            if live then
+                pay(record, Codex.CATEGORY_PAY[paid])
+                milestone(events, "Category", Codex.CATEGORY_PAY[paid], { letter = letter, index = paid })
+            end
         end
         c.paid.cats[letter] = paid
     end
     while c.paid.kinds < #Codex.KIND_STEPS and c.n >= Codex.KIND_STEPS[c.paid.kinds + 1] do
         c.paid.kinds = c.paid.kinds + 1
-        local step = Codex.KIND_STEPS[c.paid.kinds]
-        pay(record, Codex.KIND_PAY[c.paid.kinds])
-        local extra = Codex.KIND_SERUM[step]
-        if extra then serum(record, extra) end
-        milestone(events, "Kinds", Codex.KIND_PAY[c.paid.kinds], { count = step, sharedSerums = extra or 0 })
+        if live then
+            local step = Codex.KIND_STEPS[c.paid.kinds]
+            pay(record, Codex.KIND_PAY[c.paid.kinds])
+            local extra = Codex.KIND_SERUM[step]
+            if extra then serum(record, extra) end
+            milestone(events, "Kinds", Codex.KIND_PAY[c.paid.kinds], { count = step, sharedSerums = extra or 0 })
+        end
     end
     tell(record, events)
     return true, events
@@ -148,7 +154,8 @@ end
 -- A building whose containers were all searched (once per building): 100 credits and 10 for each container, with no
 -- cap (every container of a big one must be opened, which is cap enough), times `mult` (the search ledger's rank 3: more; 1 when left out), and the building count milestones. `key`
 -- names the building (the API's key or the map's), `containers` how many it has. Returns the credits it made (before
--- BonusMultiplier) or nil if it was counted before.
+-- BonusMultiplier) or nil if it was counted before, or before the first contact (counted, nothing paid or told, as
+-- the codex's kinds).
 function Codex.buildingSearched(record, key, containers, mult)
     local c = Codex.section(record)
     key = tostring(key)
@@ -156,16 +163,20 @@ function Codex.buildingSearched(record, key, containers, mult)
     containers = math.max(0, containers or 0)
     c.buildings[key] = containers
     c.nb = c.nb + 1
+    local live = OA.Trust.contacted(record)
     local credits = (Codex.BUILDING_BASE + Codex.BUILDING_PER_CONTAINER * containers) * (mult or 1)
-    pay(record, credits)
+    if live then pay(record, credits) end
     local events = {}
     while c.paid.buildings < #Codex.BUILDING_STEPS and c.nb >= Codex.BUILDING_STEPS[c.paid.buildings + 1] do
         c.paid.buildings = c.paid.buildings + 1
-        pay(record, Codex.BUILDING_PAY[c.paid.buildings])
-        milestone(events, "Buildings", Codex.BUILDING_PAY[c.paid.buildings],
-            { count = Codex.BUILDING_STEPS[c.paid.buildings] })
+        if live then
+            pay(record, Codex.BUILDING_PAY[c.paid.buildings])
+            milestone(events, "Buildings", Codex.BUILDING_PAY[c.paid.buildings],
+                { count = Codex.BUILDING_STEPS[c.paid.buildings] })
+        end
     end
     tell(record, events)
+    if not live then return nil, events end
     return credits, events
 end
 
@@ -180,8 +191,9 @@ function Codex.killPay(index)
     return Codex.KILL_EVERY_PAY
 end
 
--- `n` zombies killed (one by default).
+-- `n` zombies killed (one by default). Counted from the first contact on (Trust.contacted): the team's tally.
 function Codex.kill(record, n)
+    if not OA.Trust.contacted(record) then return {} end
     local c = Codex.section(record)
     c.kills = c.kills + (n or 1)
     local events = {}
