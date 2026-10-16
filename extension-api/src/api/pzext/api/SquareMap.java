@@ -47,6 +47,17 @@ final class SquareMap {
 
     boolean isEmpty() { return size == 0; }
 
+    int size() { return size; }
+
+    /** What {@link #forEach} gives for each square. */
+    @FunctionalInterface interface Visit { void at(int x, int y, int z, long value); }
+
+    /** Every square in the map and its number, in no order. */
+    void forEach(Visit visit) {
+        for (int slot = 0; slot < used.length; slot++)
+            if (used[slot]) visit.at((int)(keys[slot] >> 32), (int)keys[slot], levels[slot], values[slot]);
+    }
+
     /** The number kept for the square, or {@code missing}. */
     long get(int x, int y, int z, long missing) {
         int slot = find(x, y, z);

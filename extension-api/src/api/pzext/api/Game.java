@@ -12,13 +12,10 @@ import pzext.api.Network.Position;
  */
 final class Game {
     final Class<?> objectType, lightSwitch, container;
-    private final Field world, squareX, squareY, squareZ, switchRoom;
-    private final Method metaGrid, cell, gridSquare, objectSquare, objects, hasGrid, gridObjects;
+    // (The squares, chunks and objects' squares are read through Reach's handles.)
+    private final Field world, switchRoom;
+    private final Method metaGrid, cell, objects, hasGrid, gridObjects;
     private final Method gameTime, worldHours, addEvent, raise, raiseTwo, raiseOne, raiseFour;
-    // IsoCell.getGridSquare(int, int, int) as (Object, int, int, int)Object: called through invokeExact, it boxes nothing.
-    private final MethodHandle gridSquareExact;
-    // IsoCell.getChunk(wx, wy) as (Object, int, int)Object; IsoChunk.loaded.
-    private final MethodHandle chunkAt, chunkLoaded;
     /** The squares on a side of a chunk (IsoChunkMap.CHUNK_SIZE_IN_SQUARES). */
     final int chunkSize;
     /** The arguments of a call that takes none, for the hooks' calls: a call written without them allocates an array. */
@@ -27,7 +24,9 @@ final class Game {
     private static final ThreadLocal<ArrayList<Object>> PARTS = ThreadLocal.withInitial(ArrayList::new);
 
     Game(ClassLoader loader) throws ReflectiveOperationException {
-        Class<?> worldType = type(loader, "zombie.iso.IsoWorld"), cellType = type(loader, "zombie.iso.IsoCell");
+        Reach.Seed.set(loader);
+        Reach.verify(loader);
+        Class<?> worldType = type(loader, "zombie.iso.IsoWorld");
         Class<?> squareType = type(loader, "zombie.iso.IsoGridSquare");
         objectType = type(loader, "zombie.iso.IsoObject");
         lightSwitch = type(loader, "zombie.iso.objects.IsoLightSwitch");
@@ -35,15 +34,8 @@ final class Game {
         world = worldType.getField("instance");
         metaGrid = worldType.getMethod("getMetaGrid");
         cell = worldType.getMethod("getCell");
-        gridSquare = cellType.getMethod("getGridSquare", int.class, int.class, int.class);
-        gridSquareExact = exact(gridSquare, MethodType.methodType(Object.class, Object.class, int.class, int.class, int.class));
-        squareX = squareType.getField("x"); squareY = squareType.getField("y"); squareZ = squareType.getField("z");
         chunkSize = type(loader, "zombie.iso.IsoChunkMap").getField("CHUNK_SIZE_IN_SQUARES").getInt(null);
-        chunkAt = exact(cellType.getMethod("getChunk", int.class, int.class), MethodType.methodType(Object.class, Object.class, int.class, int.class));
-        chunkLoaded = MethodHandles.publicLookup().unreflectGetter(type(loader, "zombie.iso.IsoChunk").getField("loaded"))
-            .asType(MethodType.methodType(boolean.class, Object.class));
         objects = squareType.getMethod("getObjects");
-        objectSquare = objectType.getMethod("getSquare");
         hasGrid = objectType.getMethod("hasSpriteGrid");
         gridObjects = objectType.getMethod("getSpriteGridObjectsIncludingSelf", ArrayList.class);
         switchRoom = lightSwitch.getField("roomId");
@@ -101,7 +93,7 @@ final class Game {
     /** The loaded square, or null. */
     Object square(Object cells, int x, int y, int z) throws ReflectiveOperationException {
         if (cells == null) return null;
-        try { return (Object)gridSquareExact.invokeExact(cells, x, y, z); }
+        try { return (Object)Reach.GRID_SQUARE.invokeExact(cells, x, y, z); }
         catch (Throwable failure) { throw thrown(failure); }
     }
 
@@ -116,17 +108,38 @@ final class Game {
     boolean chunkLoaded(Object cells, long key) throws ReflectiveOperationException {
         if (cells == null) return false;
         try {
-            Object chunk = (Object)chunkAt.invokeExact(cells, (int)(key >> 32), (int)key);
-            return chunk != null && (boolean)chunkLoaded.invokeExact(chunk);
+            Object chunk = (Object)Reach.CHUNK_AT.invokeExact(cells, (int)(key >> 32), (int)key);
+            return chunk != null && (boolean)Reach.CHUNK_LOADED.invokeExact(chunk);
         } catch (Throwable failure) { throw thrown(failure); }
     }
 
     /** The square an object stands on, or null. */
-    Object squareOf(Object object) throws ReflectiveOperationException { return objectSquare.invoke(object, NONE); }
+    Object squareOf(Object object) throws ReflectiveOperationException {
+        try { return (Object)Reach.SQUARE_OF.invokeExact(object); }
+        catch (Throwable failure) { throw thrown(failure); }
+    }
 
-    int x(Object square) throws IllegalAccessException { return squareX.getInt(square); }
-    int y(Object square) throws IllegalAccessException { return squareY.getInt(square); }
-    int z(Object square) throws IllegalAccessException { return squareZ.getInt(square); }
+    int x(Object square) throws IllegalAccessException {
+        try { return (int)Reach.SQUARE_X.invokeExact(square); }
+        catch (Throwable failure) { throw read(failure); }
+    }
+
+    int y(Object square) throws IllegalAccessException {
+        try { return (int)Reach.SQUARE_Y.invokeExact(square); }
+        catch (Throwable failure) { throw read(failure); }
+    }
+
+    int z(Object square) throws IllegalAccessException {
+        try { return (int)Reach.SQUARE_Z.invokeExact(square); }
+        catch (Throwable failure) { throw read(failure); }
+    }
+
+    /** A failure reading a field through a handle, as {@link Field#getInt} gives it: the runtime errors as they are. */
+    private static IllegalAccessException read(Throwable failure) {
+        if (failure instanceof Error error) throw error;
+        if (failure instanceof RuntimeException unchecked) throw unchecked;
+        return new IllegalAccessException(failure.toString());
+    }
 
     Position position(Object square) throws IllegalAccessException {
         return square == null ? null : new Position(x(square), y(square), z(square));
