@@ -591,6 +591,7 @@ public sealed partial class ProfilerPage : UserControl
         CompareButton.IsEnabled = true;
         // Paths name functions by their number in one recording; a new recording starts with nothing highlighted.
         openPaths.Clear();
+        fittedMargin = ScaleMargin;
         luaHighlight = javaHighlight = allocationHighlight = null;
         previewGroup = null;
         viewStart = 0;
@@ -1391,18 +1392,23 @@ public sealed partial class ProfilerPage : UserControl
         FitScaleMargin();
     }
 
-    // The graphs' left margin as set in the page; wider only while a scale value or an FPS name needs it.
+    // The graphs' left margin as set in the page; wider once a scale value or an FPS name needs it.
     private const double ScaleMargin = 44;
+    // The margin the shown recording's values have needed so far: it only widens until another recording is opened.
+    private double fittedMargin = ScaleMargin;
 
     /// <summary>
     /// Widens both graphs' left margin, together so their times stay under each other, when a value standing in it is
-    /// wider than it: a value cut at the card's edge read as another ("1500 ms" as "500 ms").
+    /// wider than it: a value cut at the card's edge read as another ("1500 ms" as "500 ms"). It does not narrow again
+    /// for the same recording: the margin takes width from the graph, which then gathers its frames into other slices
+    /// and may draw a shorter top value; narrowing for that one gave the graph its width back, the wider value came
+    /// again, and the two took turns until layout gave up (a layout cycle, which ended the app).
     /// </summary>
     private void FitScaleMargin()
     {
         var overhang = GridCanvas.Children.Concat(ReferenceCanvas.Children).Concat(MemoryCanvas.Children)
             .Select(child => -Canvas.GetLeft(child)).DefaultIfEmpty(0).Max();
-        var left = Math.Max(ScaleMargin, Math.Ceiling(overhang) + 2);
+        var left = fittedMargin = Math.Max(fittedMargin, Math.Ceiling(overhang) + 2);
         foreach (var surface in new[] { ChartSurface, MemorySurface })
             if (surface.Margin.Left != left)
                 surface.Margin = new Thickness(left, surface.Margin.Top, surface.Margin.Right, surface.Margin.Bottom);
