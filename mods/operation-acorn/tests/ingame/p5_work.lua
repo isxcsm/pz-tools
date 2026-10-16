@@ -127,14 +127,16 @@ section("hand bench", function()
     check("time is 5 game minutes a weight, at least 30 seconds", minutes >= 0.5, minutes)
     local record = OperationAcorn.Store.player(player:getModData().OA_Id)
     if not check("a record exists", record ~= nil) then return end
-    -- two hammers (heavy enough for a whole bundle each; light things only add to what the record keeps)
+    -- the first two things the bench sees: what they yield is whole bundles given and a part kept on the record for
+    -- the next shred (Shred.carry), so the two together grow
     local items = {}
-    for _, e in ipairs(entries) do
-        if #items < 2 and e.item:getFullType() == "Base.Hammer" then items[#items + 1] = e.item end
-    end
+    for i = 1, math.min(2, #entries) do items[i] = entries[i].item end
+    local shred = OperationAcorn.Shred.section(record)
+    local before = shred.rest or 0
     local n = M.shredByHand(player, record, items)
-    check("hand shredding gave bundles", n > 0, n)
-    say("info minutes", minutes, "bundles", n)
+    local gained = n + (shred.rest or 0) - before
+    check("hand shredding yields (bundles and the part kept)", #items > 0 and gained > 0, n .. " + " .. gained - n)
+    say("info minutes", minutes, "bundles", n, "kept", shred.rest)
 end)
 
 section("parts: install, wear, break", function()
