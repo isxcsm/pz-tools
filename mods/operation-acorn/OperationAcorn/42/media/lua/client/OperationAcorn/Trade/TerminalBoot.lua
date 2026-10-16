@@ -97,7 +97,8 @@ function OATerminalBoot:drawPowerOn(e, open, edge, warm, loud, roll)
 end
 
 -- The rows, worked out when the panel is laid out: the words, where what the line ends with (and the cursor before
--- it) stands, and the row's place; the block is as wide as its widest row and stands in the middle.
+-- it) stands, and the row's place; the console's rows are a block as wide as the widest of them, in the middle (the
+-- welcome, larger, is centred on its own: it does not widen the block).
 function OATerminalBoot:layout()
     if self.laidW == self.width and self.laidH == self.height then return end
     local font = OATerminalBoot.FONT
@@ -107,17 +108,14 @@ function OATerminalBoot:layout()
     local rows, bw = {}, 0
     for i, line in ipairs(self.run.lines) do
         local row = { text = getText(line.key, self.number), bright = line.bright }
-        local w
         if line.bright then
-            w = UI.textWidth(row.text, UI.titleFont())
             row.h = UI.fontHeight(UI.titleFont())
         else
             row.status = line.status and getText(line.status) or nil
             row.statusX = UI.textWidth(row.text, font) + gap
-            w = row.statusX + (row.status and UI.textWidth(row.status, font) or 0)
+            bw = math.max(bw, row.statusX + (row.status and UI.textWidth(row.status, font) or 0))
             row.h = fh
         end
-        bw = math.max(bw, w)
         row.y = (i - 1) * rowH + (line.bright and OATerminalBoot.LAST_GAP or 0)
         rows[i] = row
     end
@@ -142,7 +140,7 @@ function OATerminalBoot:drawRow(row, i, y, a, age, ended)
     local bx = self.bx + self.shiftX
     if self.run.crude and not row.bright then text = Seq.garble(text, i, age) end
     if row.bright then
-        UI.textCentre(self, text, bx + self.bw / 2, y, p.bright, UI.titleFont(), a)
+        UI.textCentre(self, text, self.width / 2 + self.shiftX, y, p.bright, UI.titleFont(), a)
         return
     end
     UI.text(self, text, bx, y, p.text, OATerminalBoot.FONT, a)
