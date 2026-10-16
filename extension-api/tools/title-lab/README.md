@@ -26,7 +26,11 @@ no build).
   - `pulse` 고동: a heart that races and calms, a warm glow flaring with each beat; one more beat, a stillness, a last weak
     beat, and a breath out.
 
-  Every style holds 5 s once all of it is in (the title and its line).
+  - `brief` 짧은 소식 (a draft, not in the API yet): a light title for small news, one small line low on the screen
+    that slides up, holds 3 s and burns away in 3 s from its middle out to both ends (`sweep` "out"), its ash blown
+    outwards.
+
+  Every style but `brief` holds 5 s once all of it is in (the title and its line).
 - **The styles before them** (marked 이전), and `leave = "dust"`'s cells as `Dust.java` has them (숯불 셀, with `dustBurn`).
 
 Only the fonts' shapes, shadows and outlines are approximations (the page draws them with the browser's text).

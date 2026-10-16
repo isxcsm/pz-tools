@@ -126,6 +126,14 @@ const STYLES = {
   "dust": { label: "leave dust: 숯불 셀 (dustBurn)", y: 0.28, gap: 0.3, trail: 0.3, backdrop: 0.3,
     title: { weight: 400, size: 0.085, color: [0.97, 0.95, 0.9], outline: 0.35, enter: "fade", enterTime: 1.2, leave: "dust" },
     line: { weight: 400, size: 0.04, color: [0.86, 0.85, 0.82], delay: 0.35, enter: "fade", enterTime: 1.2, leave: "dust" } },
+  // A light title for small news (a building searched, a kit fitted): one small line low on the screen, over the hotbar,
+  // that slides up, stays a short while and burns away from its middle out to both ends, its ash blown outwards. Its own
+  // hold, burn time and sweep (sweep "out"), set as it is picked; sample: the text it is tried with.
+  "brief": { label: "brief: 짧은 소식 (가벼운 타이틀)", y: 0.74, gap: 0.3, trail: 0.15, backdrop: 0.22,
+    hold: 3, sweep: "out", leaveTime: 3, dustDrift: 2.2, dustSize: 1.6,
+    sample: { title: "다음 정산 때 +340 크레딧", sub: "" },
+    title: { weight: 500, size: 0.036, color: [0.95, 0.93, 0.88], outline: 0.4, enter: "slideup", enterTime: 0.45, leave: "paper" },
+    line: { weight: 400, size: 0.026, color: [0.84, 0.83, 0.8], outline: 0.35, delay: 0.15, enter: "slideup", enterTime: 0.45, leave: "paper" } },
   "dust-paper": { label: "dust: 종이 연소", y: 0.28, gap: 0.3, trail: 0.3, backdrop: 0.3,
     title: { weight: 400, size: 0.085, color: [0.97, 0.95, 0.9], outline: 0.35, enter: "fade", enterTime: 1.2, leave: "paper" },
     line: { weight: 400, size: 0.04, color: [0.86, 0.85, 0.82], delay: 0.35, enter: "fade", enterTime: 1.2, leave: "paper" } },
@@ -274,7 +282,8 @@ function cut(alpha, width, height, size, sweep, seed) {
     size *= Math.sqrt(count / MAX_CELLS) * 1.02;
   }
   if (count === 0 || count > MAX_CELLS) return null;
-  const byRows = sweep === "right" || sweep === "left" || diagonal(sweep);
+  // ("out": from the middle to both ends, by rows)
+  const out = sweep === "out", byRows = out || sweep === "right" || sweep === "left" || diagonal(sweep);
   const lanes = byRows ? rows : columns, steps = byRows ? columns : rows;
   const c = { size, columns, rows, lanes, count, sweep, column: new Int32Array(count), row: new Int32Array(count),
     start: new Float32Array(count), life: new Float32Array(count), side: new Float32Array(count), rise: new Float32Array(count),
@@ -290,12 +299,14 @@ function cut(alpha, width, height, size, sweep, seed) {
       const index = row * columns + column;
       if (!ink[index]) continue;
       c.column[at] = column; c.row[at] = row;
-      const along = diagonal(sweep) ? (step + 0.5 + (fromTop(sweep) ? row + 0.5 : rows - row - 0.5)) / (columns + rows) : (step + 0.5) / steps;
+      const along = out ? Math.abs(column + 0.5 - columns / 2) / (columns / 2)
+        : diagonal(sweep) ? (step + 0.5 + (fromTop(sweep) ? row + 0.5 : rows - row - 0.5)) / (columns + rows) : (step + 0.5) / steps;
       c.start[at] = start(along, grain(column, row, seed), seed, index);
       c.life[at] = life(seed, index);
       const way = unit(seed, index, 3);
       const gust = 0.7 + 0.3 * wave((lane + 0.5) / lanes, seed ^ 0x5BD1E995n);
-      const windward = diagonal(sweep) ? (fromLeft(sweep) ? -1 : 1) : sweep === "right" ? 1 : -1;
+      // (blown the way the burn goes: out, away from the middle)
+      const windward = out ? (column + 0.5 < columns / 2 ? -1 : 1) : diagonal(sweep) ? (fromLeft(sweep) ? -1 : 1) : sweep === "right" ? 1 : -1;
       c.side[at] = byRows ? windward * (0.5 * gust + 0.5 * (0.45 + 0.55 * way)) : (2 * way - 1) * 0.6;
       c.rise[at] = 0.5 + 1.0 * unit(seed, index, 4);
       const kind = unit(seed, index, 10);
@@ -885,7 +896,8 @@ function alongAt(x, y, W, H, sweep) {
   switch (sweep) {
     case "right": return x / W; case "left": return 1 - x / W; case "down": return y / H; case "up": return 1 - y / H;
     case "upright": return (x + (H - y)) / (W + H); case "upleft": return ((W - x) + (H - y)) / (W + H);
-    case "downright": return (x + y) / (W + H); default: return ((W - x) + y) / (W + H);
+    case "downright": return (x + y) / (W + H); case "out": return Math.abs(x - W / 2) / (W / 2);
+    default: return ((W - x) + y) / (W + H);
   }
 }
 // The burn map: the sweep, clumps a few cells wide (holes open ahead of the front), and fine fibres that make the edge ragged.
@@ -1919,8 +1931,10 @@ function control(key, label, kind, opts) {
     if (kind === "range") value.textContent = P[key];
     if (key === "bg") makeBackground();
     if (key === "style") {
-      const leave = STYLES[P.style].title.leave;
-      if (crumbles(STYLES[P.style].title)) { P.leaveTime = leave === "paper" ? 10 : 6; controls.leaveTime.input.value = P.leaveTime; controls.leaveTime.value.textContent = P.leaveTime; }
+      const S = STYLES[P.style], leave = S.title.leave;
+      if (crumbles(S.title)) setControl("leaveTime", S.leaveTime || (leave === "paper" ? 10 : 6));
+      for (const k of ["hold", "sweep", "dustDrift", "dustSize"]) setControl(k, S[k] ?? DEFAULTS[k]);
+      if (S.sample) { setControl("title", S.sample.title); setControl("sub", S.sample.sub); }
       t = 0; playing = true;
     }
     if (CUTS.has(key)) rebuild();
@@ -1929,6 +1943,12 @@ function control(key, label, kind, opts) {
   controls[key] = { input, value, kind };
 }
 const controls = {};
+function setControl(key, v) {
+  P[key] = v;
+  const c = controls[key]; if (!c) return;
+  if (c.kind === "check") c.input.checked = v; else c.input.value = v;
+  if (c.kind === "range") c.value.textContent = v;
+}
 heading("스타일");
 control("style", "스타일", "select", Object.entries(STYLES).map(([k, s]) => [k, s.label]));
 heading("글자");
@@ -1946,7 +1966,7 @@ side.appendChild(file);
 control("backdrop", "배경 띠", "check");
 control("zoom", "확대", "range", [1, 4, 0.25]);
 heading("머무름과 dust 사라짐");
-control("sweep", "방향", "select", SWEEPS.map(s => [s, s]));
+control("sweep", "방향", "select", [...SWEEPS.map(s => [s, s]), ["out", "out (가운데에서 양끝)"]]);
 control("leaveTime", "dust 사라지는 시간(초)", "range", [1, 20, 0.5]);
 control("hold", "본 표시(초, 등장·퇴장 제외)", "range", [1, 10, 0.5]);
 control("dustSize", "셀 크기", "range", [0.25, 4, 0.05]);
@@ -2088,6 +2108,7 @@ const effectOf = values => Object.fromEntries(Object.entries(values).filter(([k]
 const BUILT_IN = {
   "종이 연소 (dust)": effectOf(DEFAULTS),
   "숯불 셀 (leave dust)": { ...effectOf(DEFAULTS), style: "dust", leaveTime: 6, CHAR_ASH: 0.2 },
+  "짧은 소식 (brief)": { ...effectOf(DEFAULTS), style: "brief", hold: 3, sweep: "out", leaveTime: 3, dustDrift: 2.2, dustSize: 1.6 },
   "각인 (stamp)": { ...effectOf(DEFAULTS), style: "stamp-new" },
   "손전등 (discovery)": { ...effectOf(DEFAULTS), style: "discovery-new" },
   "무전 (notice)": { ...effectOf(DEFAULTS), style: "notice-new" },
@@ -2106,6 +2127,8 @@ function ownPresets() { try { return JSON.parse(localStorage.getItem(STORE)) || 
 function saveOwn(presets) { try { localStorage.setItem(STORE, JSON.stringify(presets)); return true; } catch { return false; } }
 function apply(values) {
   Object.assign(P, values);
+  const sample = STYLES[P.style].sample;
+  if (sample) { P.title = sample.title; P.sub = sample.sub; }
   for (const [key, c] of Object.entries(controls)) {
     if (c.kind === "check") c.input.checked = P[key]; else c.input.value = P[key];
     if (c.kind === "range") c.value.textContent = P[key];
