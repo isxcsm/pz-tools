@@ -234,6 +234,43 @@ public sealed class GameMemoryTests
     }
 
     [Fact]
+    public async Task TheGamesOwnHeap_IsWhatTheModsEntryHolds_NotTheModsHeapOverTheChoice()
+    {
+        using var temp = new TempDirectory();
+        var game = temp.GetPath("ProjectZomboid");
+        Directory.CreateDirectory(Path.Combine(game, "pzopt"));
+        var file = Path.Combine(game, GameMemory.ConfigFileName);
+        File.WriteAllText(file, Optimized);
+        var memory = new GameMemory(temp.GetPath("data", "game-memory.json"), () => file, 64 * Gigabyte);
+
+        // The mod's 4096 is in the options; the game's own 3072 (no starting heap) is in its entry.
+        await memory.ApplyAsync(16384);
+        // At its next start the mod put its own heap over the choice, its entry holding the choice: reverted.
+        File.WriteAllText(file, File.ReadAllText(file).Replace("\"-Xmx16384m\"", "\"-Xmx4096m\"").Replace("\"-Xms16384m\"", "\"-Xms4096m\""));
+        await memory.RefreshAsync();
+        Assert.Equal(GameMemoryStatus.Reverted, memory.State.Status);
+        // Applied again: the mod's 4096 is not taken for the game's own heap.
+        await memory.ApplyAsync(16384);
+        Assert.Equal(GameMemoryStatus.Applied, memory.State.Status);
+
+        await memory.ApplyAsync(null);
+        var back = File.ReadAllText(file);
+        Assert.Equal((3072, null), GameMemory.ReadHeap(back));
+        Assert.Contains("\"-Dpzopt.heap=3072m,none,0\"", back);
+    }
+
+    [Theory]
+    [InlineData("\"-Dpzopt.heap=3072m,none,0\"", 3072, null)]
+    [InlineData("\"-Dpzopt.heap=16g,16384m,0\"", 16384, 16384)]
+    [InlineData("\"-Dpzopt.heap=lots,none,0\"", null, null)]
+    public void TheModsEntry_IsReadInMegabytes(string entry, int? maximum, int? initial)
+    {
+        var heap = GameMemory.OptimizerHeap("{\"vmArgs\": [\"-Xmx4096m\", " + entry + "]}");
+        if (maximum is null) Assert.Null(heap);
+        else Assert.Equal((maximum.Value, initial), heap);
+    }
+
+    [Fact]
     public async Task AModsSettingsTheAppDidNotWrite_AreLeftWhenTheGamesOwnHeapIsBack()
     {
         using var temp = new TempDirectory();

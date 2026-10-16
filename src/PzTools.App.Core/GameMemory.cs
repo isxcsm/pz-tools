@@ -196,8 +196,13 @@ public sealed partial class GameMemory
         {
             // The game's own heap is what the file holds before it holds the player's: kept to give back.
             // A starting heap above the maximum is a half-done rewrite by another tool, never the game's own: kept as none.
-            next = ours ? saved with { Chosen = wanted }
-                : saved with { Chosen = wanted, DefaultMaximum = heap.Maximum, DefaultInitial = heap.Initial > heap.Maximum ? null : heap.Initial };
+            // A mod that sets the heap itself (its entry, see SyncOptimizerMarker) put its own in the options: the game's
+            // own is what its entry holds. An entry holding the choice (this app made it so) is the mod's heap over the
+            // player's, and the game's own is the one kept before.
+            var own = OptimizerHeap(text) is { } entry ? (Maximum: (int?)entry.Maximum, entry.Initial) : heap;
+            bool overridden = saved.Chosen is { } prior && saved.DefaultMaximum is not null && own.Maximum == prior;
+            next = ours || overridden ? saved with { Chosen = wanted }
+                : saved with { Chosen = wanted, DefaultMaximum = own.Maximum, DefaultInitial = own.Initial > own.Maximum ? null : own.Initial };
             written = Rewrite(text, wanted, wanted);
             if (!ours) KeepOriginal(text);
         }
@@ -336,6 +341,25 @@ public sealed partial class GameMemory
     private static string SyncOptimizerMarker(string json, int maximum, int? initial) =>
         OptimizerMarker().Replace(json, match =>
             $"\"-Dpzopt.heap={maximum}m,{(initial is { } start ? start + "m" : "none")},{match.Groups[3].Value}\"");
+
+    /// <summary>
+    /// The heap options the mod's entry holds (what it puts back before it sets its own at each start), in megabytes, the
+    /// starting heap none for <c>none</c>; null without the entry, or with a value that is not a heap.
+    /// </summary>
+    public static (int Maximum, int? Initial)? OptimizerHeap(string json)
+    {
+        var match = OptimizerMarker().Match(json);
+        if (!match.Success || Size(match.Groups[1].Value) is not { } maximum) return null;
+        var start = match.Groups[2].Value;
+        if (start == "none") return (maximum, null);
+        return Size(start) is { } initial ? (maximum, initial) : null;
+
+        static int? Size(string value)
+        {
+            var option = HeapOption().Match($"\"-Xmx{value}\"");
+            return option.Success && option.Length == value.Length + 6 ? Megabytes(option) : null;
+        }
+    }
 
     // An option taken out of the list with its separator: the comma after it, or before it when it is last.
     private static (int Index, int Length, string Text) Removal(string json, Match option)
