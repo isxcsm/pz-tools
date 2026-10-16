@@ -46,6 +46,35 @@ test("an item holds a mission's piece when it is one, or has one inside", functi
     eq(Game.holds(item({}, { item({ OA_Mission = "M2-1" }) }), "M1-1"), false)
 end)
 
+-- A mission item put into the hands is marked as newItem marks one: the mission, the record it was issued to (the one given,
+-- else the character's own), and the keep mark. Made from the game's item factory, which the test stands in for.
+test("an item given to a character carries the record it was issued to", function()
+    local made = {}
+    instanceItem = function(fullType)
+        local it = item({})
+        it.type = fullType
+        made[#made + 1] = it
+        return it
+    end
+    isServer = function() return false end
+    local added = {}
+    local inv = { AddItem = function(self, it) added[#added + 1] = it end }
+    local character = { getInventory = function() return inv end, getModData = function() return { OA_Id = "p1" } end }
+    local given = Game.giveMissionItem(character, "OperationAcorn.SoilSample", "M1-1", { OA_Stake = 3 }, { id = "p1" })
+    eq(given.data.OA_Mission, "M1-1")
+    eq(given.data.OA_Owner, "p1", "the record's id")
+    eq(given.data.OA_Stake, 3, "the extra marks")
+    eq(given.data.PZExtKeep, true)
+    eq(added[1], given, "in the inventory")
+    -- the record given wins over the character's own id; without one the character's is the record's
+    eq(Game.giveMissionItem(character, "OperationAcorn.SoilSample", "M1-2", nil, { id = "p9" }).data.OA_Owner, "p9")
+    eq(Game.giveMissionItem(character, "OperationAcorn.SoilSample", "M1-3").data.OA_Owner, "p1", "a pickup the harvest or a test gives")
+    -- an item the factory cannot make is nothing
+    instanceItem = function() return nil end
+    eq(Game.giveMissionItem(character, "No.Such", "M1-4", nil, { id = "p1" }), nil)
+    instanceItem, isServer = nil, nil
+end)
+
 -- A character whose inventory counts its searches. The items know their container, which is the inventory.
 local function carrier(items)
     local searches = 0

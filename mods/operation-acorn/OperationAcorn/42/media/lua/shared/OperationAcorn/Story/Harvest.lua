@@ -124,7 +124,7 @@ function Harvest.take(character, record, args)
     local key = Missions.game and Missions.game.markOf and Missions.game.markOf(body)
     local m, it, id = Zombies.takeTarget(record, key, body:getDeathTime())
     if m then
-        item = Missions.game and Missions.game.giveMissionItem(character, it.type, id)
+        item = Missions.game and Missions.game.giveMissionItem(character, it.type, id, nil, record)
         if item then Missions.found(record, m, it, item) end
     else
         item = give(character, Harvest.TYPES[Harvest.roll(precise)])

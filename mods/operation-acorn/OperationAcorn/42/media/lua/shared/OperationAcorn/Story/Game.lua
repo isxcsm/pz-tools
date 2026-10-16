@@ -306,11 +306,14 @@ local function newItem(record, m, it)
     return item
 end
 
-function Game.giveMissionItem(character, fullType, missionId, mods)
+-- A mission item put into a character's hands (a pickup, a sample): marked as newItem marks one, with the id of the record
+-- it was issued to (`record`; else the character's own, which is the record's id).
+function Game.giveMissionItem(character, fullType, missionId, mods, record)
     local item = instanceItem(fullType)
     if not item then return nil end
     local md = item:getModData()
     md.OA_Mission = missionId
+    md.OA_Owner = record and record.id or character:getModData().OA_Id
     md[KEEP] = true
     for k, v in pairs(mods or {}) do md[k] = v end
     local inv = character:getInventory()
@@ -890,7 +893,7 @@ function Game.deliverInside(record, m, it)
     if not item then
         local character = Game.character(record)
         if character then
-            local given = Game.giveMissionItem(character, it.type, Missions.itemId(m, it.key), it.mods)
+            local given = Game.giveMissionItem(character, it.type, Missions.itemId(m, it.key), it.mods, record)
             if given then Missions.found(record, m, it, given) end
         end
     end

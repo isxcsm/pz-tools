@@ -901,3 +901,30 @@ test("a character that died: its running missions end without a result and nothi
     eq(record.missions.results.expired or 0, 0, "no result counted")
     truthy(M.expired(m.id), "its items read as an expired mission's")
 end)
+
+test("a retired record waits for its next offer as after any ending; a record with no mission keeps its schedule", function()
+    local record = setup(1)
+    M.tick(record)
+    truthy(M.active(record))
+    TEST.hours = TEST.hours + 5
+    OA.Store.retire(record)
+    M.retire(record)
+    near(record.missions.nextAt, TEST.hours + 72, 1e-6, "the same wait as after a mission that ended")
+    -- a record the character comes back to (Server's hello revives it) gets no offer at once
+    record.dead = nil
+    M.tick(record)
+    eq(M.active(record), nil, "no offer at once")
+    TEST.hours = TEST.hours + 72 + 1
+    M.tick(record)
+    truthy(M.active(record), "the offer comes when its time has")
+    -- retiring with nothing running leaves the schedule as it was
+    local idle = OA.Store.ensure("p2", "Q")
+    idle.trade = { stage = 1, milestones = 0, credits = 0, trust = 0 }
+    local s = M.state(idle)
+    s.nextAt = 12345
+    M.retire(idle)
+    eq(s.nextAt, 12345, "nothing ended")
+    -- a new character's record starts from the first offer (CANON S19)
+    local fresh = OA.Store.ensure("p3", "R")
+    eq(M.state(fresh).nextAt, 0)
+end)

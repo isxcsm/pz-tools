@@ -890,7 +890,9 @@ function Missions.tickOne(record, m, now)
 end
 
 -- The record's character died: its running missions end without a result. Nothing waits for their pieces any more;
--- what was placed stays in the world and reads as an expired mission's (Missions.expired).
+-- what was placed stays in the world and reads as an expired mission's (Missions.expired). A slot that had a mission
+-- waits for its next offer as after any ending (a record the character comes back to, Server's hello, does not get an
+-- offer at once); a new character has a record of its own and starts from the first (CANON S19).
 function Missions.retire(record)
     local s = record.missions
     if not s then return end
@@ -898,7 +900,9 @@ function Missions.retire(record)
     for _, m in ipairs(Missions.live(record)) do
         if g and g.release then g.release(m) end
     end
+    if s.active then s.nextAt = OA.hours() + intervalHours() end
     s.active = nil
+    if s.special and s.special.mission then s.special.nextAt = OA.hours() + Rewards.hours(Rewards.SPECIAL_GAP_DAYS) end
     if s.special then s.special.mission = nil end
     OA.Sync.changed("missions", record.id)
 end
@@ -1369,7 +1373,7 @@ function Missions.soil(record, character)
     end
     local item
     if g.giveMissionItem then
-        item = g.giveMissionItem(character, Data.fullType("SoilSample"), m.id, { OA_Stake = m.soil.stake })
+        item = g.giveMissionItem(character, Data.fullType("SoilSample"), m.id, { OA_Stake = m.soil.stake }, record)
     end
     m.soil.taken = true
     m.items[1] = { key = "A", type = Data.fullType("SoilSample"), mode = "given", placed = true }

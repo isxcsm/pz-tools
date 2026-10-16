@@ -970,6 +970,20 @@ test("the slot has nothing to tell before the line, waits between two requests, 
     near(slot.nextIn, 7 * 24, 1e-6)
 end)
 
+test("a special request that ends with its character's death waits as after any ending of it", function()
+    local record = fieldRecord(3)
+    M.tick(record)
+    truthy(M.acceptSpecial(record, "a"))
+    eq(M.specialSlot(record).state, "mission")
+    TEST.hours = TEST.hours + 2
+    OA.Store.retire(record)
+    M.retire(record)
+    eq(M.special(record).mission, nil)
+    local slot = M.specialSlot(record)
+    eq(slot.state, "wait")
+    near(slot.nextIn, 7 * 24, 1e-6)
+end)
+
 test("an old save without the slot is made one when a request is offered", function()
     local record = fieldRecord(3)
     eq(record.missions, nil)
