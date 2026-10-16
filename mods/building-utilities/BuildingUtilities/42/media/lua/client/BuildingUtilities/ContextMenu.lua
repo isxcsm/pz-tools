@@ -208,21 +208,34 @@ end
 
 -- The box's line: its name (a tripped breaker told), which walks there and opens its window. The breaker, the main
 -- switch, the source, the upgrade and the lines are all in the window.
+-- A box's design, learned at it while the recipe is not known (Panels.reverseEngineerProblem): at a box's record or a
+-- bare box's place ({ x, y, z }).
+local function addLearnOption(context, playerObj, at)
+    local problem = Panels.reverseEngineerProblem(playerObj)
+    if problem == "known" then return end
+    local learn = context:addOption(getText("ContextMenu_BU_ReverseEngineer"), playerObj, onReverseEngineer, at)
+    if problem == "dark" then
+        unavailable(learn, getText("IGUI_BU_Reason_dark"))
+    else
+        costed(learn, playerObj, Costs.reverseEngineer(), getText("IGUI_BU_ReverseEngineerNote"))
+    end
+end
+
 local function addPanelOptions(context, playerObj, panel)
     -- The breaker is power's: with power off in the sandbox it is not told.
     local tripped = panel.tripped and BU.enabled("power")
     local name = tripped and getText("IGUI_BU_NameTripped", Panels.name(panel)) or Panels.name(panel)
     local option = context:addOptionOnTop(name, playerObj, onOpen, panel)
     if not BU.api() then unavailable(option, apiMissingText()) end
-    -- Its design, learned at it while the recipe is not known (Panels.reverseEngineerProblem).
-    local problem = Panels.reverseEngineerProblem(playerObj)
-    if problem == "known" then return end
-    local learn = context:addOption(getText("ContextMenu_BU_ReverseEngineer"), playerObj, onReverseEngineer, panel)
-    if problem == "dark" then
-        unavailable(learn, getText("IGUI_BU_Reason_dark"))
-    else
-        costed(learn, playerObj, Costs.reverseEngineer(), getText("IGUI_BU_ReverseEngineerNote"))
-    end
+    addLearnOption(context, playerObj, panel)
+end
+
+-- A bare box (Panels.isBare): its name, that it runs nothing where it stands, and its design to learn. It is taken up
+-- with the game's furniture tool (Moveables) and put down where it is wanted.
+local function addBareOptions(context, playerObj, object)
+    local square = object:getSquare()
+    unavailable(context:addOptionOnTop(getText("IGUI_BU_BareBox"), nil, nil), getText("IGUI_BU_BareBoxTip"))
+    addLearnOption(context, playerObj, { x = square:getX(), y = square:getY(), z = square:getZ() })
 end
 
 -- The producer among the objects (Panels.producerOn of their squares), with its square.
@@ -376,7 +389,7 @@ end
 -- Whether the menu has an option of this mod for the square, without building it: the controller's test pass.
 local function hasOptions(objects)
     for _, object in ipairs(objects) do
-        if Panels.ofObject(object) or Units.ofObject(object) then return true end
+        if Panels.ofObject(object) or Panels.isBare(object) or Units.ofObject(object) then return true end
     end
     if not BU.api() then return false end
     return producerAmong(objects) ~= nil or #squareDevices(objects) > 0
@@ -420,7 +433,8 @@ function ContextMenu.fill(player, context, worldobjects, test)
     for _, option in ipairs(context.options) do before[option] = true end
     for _, object in ipairs(objects) do
         local panel = Panels.ofObject(object)
-        if panel then addPanelOptions(context, playerObj, panel) end
+        if panel then addPanelOptions(context, playerObj, panel)
+        elseif Panels.isBare(object) then addBareOptions(context, playerObj, object) end
         local unit = Units.ofObject(object)
         if unit then addUnitOptions(context, playerObj, unit) end
     end

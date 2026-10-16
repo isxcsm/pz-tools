@@ -226,6 +226,13 @@ function Units.keepOnItem(kind, item, kept)
     end
 end
 
+-- What an item carries of a unit whose record the save lost (Moveables, a bare tile): what its kind keeps reads as
+-- spent (its definition's lost), so that a lost record never renews anything; nil for a kind that keeps nothing.
+function Units.lost(kind)
+    local definition = definitions[kind]
+    return definition and definition.lost and definition.lost() or nil
+end
+
 -- What an item carries of the unit it was: a table, or nil.
 function Units.keptOnItem(item)
     local kept = item:getModData()[Units.KEPT]

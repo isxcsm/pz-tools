@@ -11,10 +11,10 @@ if isClient() then return end
 
 -- A tile without mod data is not a box (one placed by other means).
 for _, sprite in ipairs(PanelLook.ALL) do
-    MapObjects.OnLoadWithSprite(sprite, function(object)
+    BU.onLoadSprite(sprite, function(object)
         local panel = object:hasModData() and Panels.ofObject(object)
         if panel then PanelLook.show(panel, object) end
-    end, 5)
+    end)
 end
 
 -- Each minute, the boxes near a player (BU.Nearby): a far one is not loaded, and shows as its square loads.

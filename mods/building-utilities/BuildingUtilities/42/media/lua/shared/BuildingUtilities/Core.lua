@@ -19,6 +19,25 @@ function BU.log(...)
     print("[BuildingUtilities] " .. table.concat(parts, " "))
 end
 
+-- The game keeps one function for a sprite at a priority (MapObjects.OnLoadWithSprite): one given at the same priority
+-- replaces it. Every function of this mod for a sprite's square loading goes through one, each called in turn, one
+-- failing not keeping the others from running.
+local onLoads = {}
+function BU.onLoadSprite(sprite, fn)
+    local list = onLoads[sprite]
+    if not list then
+        list = {}
+        onLoads[sprite] = list
+        MapObjects.OnLoadWithSprite(sprite, function(object)
+            for _, each in ipairs(list) do
+                local ok, err = pcall(each, object)
+                if not ok then BU.log("a square loading:", err) end
+            end
+        end, 5)
+    end
+    list[#list + 1] = fn
+end
+
 -- The extension API, or nil with the reason it is missing: PZ Extension API not installed, or another version.
 function BU.api()
     local api = PZExtAPI

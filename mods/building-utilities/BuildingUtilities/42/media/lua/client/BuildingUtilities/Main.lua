@@ -172,7 +172,7 @@ Events.OnGameStart.Add(onGameStart)
 Events.DoSpecialTooltip.Add(onSpecialTooltip)
 -- Boxes come into view as squares load. (Their mod data says what they are; the data of the save may not be here yet.)
 for _, sprite in ipairs(BU.PanelLook.ALL) do
-    MapObjects.OnLoadWithSprite(sprite, function(object)
+    BU.onLoadSprite(sprite, function(object)
         if object:hasModData() and object:getModData()[Panels.MODDATA] then giveSummary(object) end
-    end, 5)
+    end)
 end

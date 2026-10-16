@@ -470,6 +470,24 @@ function Panels.ofObject(object)
     return id and Store.get(id) or nil
 end
 
+-- A bare box: a box's tile with no record (a spawned one, BU.Spawned, or one whose record the save lost). Nothing runs
+-- for it; its design is learned at it and it is taken up as its look's tier (Moveables), to be put down as a box.
+function Panels.isBare(object)
+    if not object or Panels.ofObject(object) or not BU.PanelLook then return false end
+    local sprite = object:getSprite()
+    return sprite ~= nil and BU.PanelLook.ofSprite(sprite:getName()) ~= nil
+end
+
+-- The bare box on a square, or nil.
+function Panels.bareOn(square)
+    local objects = square:getObjects()
+    for i = 0, objects:size() - 1 do
+        local object = objects:get(i)
+        if Panels.isBare(object) then return object end
+    end
+    return nil
+end
+
 -- Whether a box can go on a square: with a utility on (BU.enabled), in a room no box's zone has (its own, or one its
 -- relay took), or outside any building (an outdoor box). Returns the building or true outdoors, or nil and a reason.
 function Panels.canInstall(square)

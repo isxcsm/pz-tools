@@ -841,6 +841,8 @@
     "IGUI_BU_Title_Tier4": "전력 관제",
     "IGUI_BU_Title_Tier4Sub": "발전·소비 그래프, 낡은 배터리 자동 우회",
     "IGUI_BU_SayFoundBox": "설비 제어반이네. 집에 달아 두면 쓸 만하겠어.",
+    "IGUI_BU_BareBox": "설비 제어반 (연결 안 됨)",
+    "IGUI_BU_BareBoxTip": "어디에도 연결되지 않은 제어반입니다. 들어서 옮겨 설치하면 쓸 수 있습니다.",
     "IGUI_BU_SayLearnedBox": "아, 이렇게 연결하는 거구나. 이 정도면 나도 만들겠는데.",
     "IGUI_BU_Reason_notOutside": "개방된 실외 지상 또는 평평한 옥상에 설치해야 합니다.",
     "IGUI_BU_Reason_blocked": "그 칸에는 설치할 수 없습니다.",

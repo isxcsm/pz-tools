@@ -136,8 +136,8 @@ if not isServer() then
     Events.EveryOneMinute.Add(Lights.everyMinute)
     -- A square loads: what stands on it lights as it should (a thing's square may load without it taking a look).
     local function onLoad(object) Lights.refresh(object) end
-    for sprite in pairs(spriteLights()) do MapObjects.OnLoadWithSprite(sprite, onLoad, 5) end
-    for _, sprite in ipairs(BU.Units.definition("rack").sprites) do MapObjects.OnLoadWithSprite(sprite, onLoad, 5) end
+    for sprite in pairs(spriteLights()) do BU.onLoadSprite(sprite, onLoad) end
+    for _, sprite in ipairs(BU.Units.definition("rack").sprites) do BU.onLoadSprite(sprite, onLoad) end
 end
 
 return Lights

@@ -81,6 +81,29 @@ local function find(kind, square, object)
     return nil
 end
 
+-- The kind's tile on the square with no record of this mod's: a spawned box (BU.Spawned), or a box or unit whose
+-- record the save lost. It is taken up as its look says, a unit holding nothing (a rack's batteries are in its
+-- container); nil when there is none.
+local function bare(kind, object)
+    local sprite = object and object:getSprite()
+    if not sprite or kindOf(sprite:getName()) ~= kind then return nil end
+    if BU.Panels.ofObject(object) or BU.Units.ofObject(object) then return nil end
+    local container = object:getContainer()
+    if container and not container:isEmpty() then return nil end
+    return object
+end
+
+local function bareOf(kind, square, object)
+    local found = bare(kind, object)
+    if found or not square then return found end
+    local objects = square:getObjects()
+    for i = 0, objects:size() - 1 do
+        found = bare(kind, objects:get(i))
+        if found then return found end
+    end
+    return nil
+end
+
 -- A kind's look for each side it can face, by side (BU.SIDES), each look once (a box's of its tier, indoors): worked
 -- out once a kind and tier.
 local facesByKind = {}
@@ -158,10 +181,10 @@ function ISMoveableSpriteProps:canPickUpMoveable(character, square, object)
     local kind = self.buKind
     if not kind then return canPickUp(self, character, square, object) end
     local found = find(kind, square, object)
-    if not found then return false end
+    if not found and not bareOf(kind, square, object) then return false end
     -- the game's rule for a piece of furniture of one tile: it must fit the inventory
     if not character:getInventory():hasRoomFor(character, self.weight) then return false end
-    return found.panel ~= nil or BU.Units.isEmpty(found.unit)
+    return not found or found.panel ~= nil or BU.Units.isEmpty(found.unit)
 end
 
 local pickUp = ISMoveableSpriteProps.pickUpMoveable
@@ -177,6 +200,11 @@ function ISMoveableSpriteProps:pickUpMoveable(character, square, createItem, for
     elseif found and BU.Units.isEmpty(found.unit) then
         kept = BU.Units.keep(found.unit)
         BU.Costs.refund(character, BU.Changes.removeUnit(found.unit))
+    elseif not found and bareOf(kind, square, self.object) then
+        -- no record: a box's tier read off its look, a unit's state as spent (Units.lost)
+        local object = bareOf(kind, square, self.object)
+        kept = kind == "panel" and { tier = spriteTier(object:getSprite():getName()) } or BU.Units.lost(kind)
+        square:transmitRemoveItemFromSquare(object)
     else
         return {}
     end

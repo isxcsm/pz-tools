@@ -347,24 +347,31 @@ function ISBUReplaceMedia:new(character, unit)
 end
 
 -- Learning the box's design at one (Panels.reverseEngineerProblem): the cover opened and the wiring looked into with
--- a screwdriver. The box stays as it is.
+-- a screwdriver. The box stays as it is. A bare box (Panels.isBare) has no record: its tile at x, y, z is looked for.
 ISBUReverseEngineer = base("ISBUReverseEngineer", 600)
 
-function ISBUReverseEngineer:isValid() return Store.get(self.panelId) ~= nil end
+local function learnedFrom(action)
+    if action.panelId then return Store.get(action.panelId) end
+    local square = getCell():getGridSquare(action.x, action.y, action.z)
+    return square and Panels.bareOn(square) or nil
+end
+
+function ISBUReverseEngineer:isValid() return learnedFrom(self) ~= nil end
 
 function ISBUReverseEngineer:start() Actions.work(self, "power") end
 
 function ISBUReverseEngineer:complete()
-    if not Store.get(self.panelId) or Panels.reverseEngineerProblem(self.character) then return false end
+    if not learnedFrom(self) or Panels.reverseEngineerProblem(self.character) then return false end
     self.character:learnRecipe(Panels.RECIPE)
     BU.giveXp(self.character, 10)
     self.character:Say(getText("IGUI_BU_SayLearnedBox"))
     return true
 end
 
+-- panel: a box's record, or a bare box's place ({ x, y, z }).
 function ISBUReverseEngineer:new(character, panel)
     local o = ISBaseTimedAction.new(self, character)
-    o.panelId, o.x, o.y = panel.id, panel.x, panel.y
+    o.panelId, o.x, o.y, o.z = panel.id, panel.x, panel.y, panel.z
     o.maxTime = o:getDuration()
     return o
 end

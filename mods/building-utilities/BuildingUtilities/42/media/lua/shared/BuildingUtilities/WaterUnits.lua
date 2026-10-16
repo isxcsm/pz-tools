@@ -269,6 +269,8 @@ Units.define("filter", {
         if WaterUnits.mediaLeft(unit) >= 1 then return nil end
         return { media = unit.media or 0 }
     end,
+    -- Its record lost (Units.lost): its media spent.
+    lost = function() return { media = 0 } end,
     keptName = function(kept, name)
         local left = math.max(0, math.min(1, (kept.media or 0) / WaterUnits.FILTER_HOURS))
         return name .. " (" .. getText("IGUI_BU_FilterMedia", BU.percent(left * 100)) .. ")"

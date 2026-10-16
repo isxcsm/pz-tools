@@ -543,10 +543,10 @@ for _, kind in ipairs(BU.Units.KINDS) do
     local definition = BU.Units.definition(kind)
     if definition.onLoad then
         for _, sprite in ipairs(definition.sprites) do
-            MapObjects.OnLoadWithSprite(sprite, function(object)
+            BU.onLoadSprite(sprite, function(object)
                 local unit = BU.Units.ofObject(object)
                 if unit then definition.onLoad(unit, object) end
-            end, 5)
+            end)
         end
     end
 end
