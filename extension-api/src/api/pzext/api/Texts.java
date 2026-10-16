@@ -287,11 +287,6 @@ final class Texts implements Hooks.Text {
     // SpriteRenderer.instance and render(texture, the four corners, a colour for each, consumer): a backdrop's shaded quads.
     private final Object sprites;
     private final MethodHandle renderShaded;
-    // UIManager.isShowPausedMessage() and setShowPausedMessage(on): the game's "- Game Paused -" label, a dark box across the
-    // middle of the screen at a sixth of its height, drawn over the interface (and so over a title there).
-    private final MethodHandle pausedShown, showPaused;
-    // Whether this hid the paused label (a text is where it goes): it is shown again once none is.
-    private boolean pauseHidden;
     /** The embedded font for large text, or null: the game's fonts draw everything (package-private for the tests). */
     EmbeddedFont.Loaded embedded;
     // Whether the embedded font's atlas was in video memory as this frame began: text.measure and text.draw choose by it, so that
@@ -377,9 +372,6 @@ final class Texts implements Hooks.Text {
         for (int index = 10; index <= 25; index++) handle[index] = float.class;
         handle[26] = Object.class;
         renderShaded = Game.exact(renderer.getMethod("render", shaded), MethodType.methodType(void.class, handle));
-        Class<?> ui = Game.type(loader, "zombie.ui.UIManager");
-        pausedShown = Game.exact(ui.getMethod("isShowPausedMessage"), MethodType.methodType(boolean.class));
-        showPaused = Game.exact(ui.getMethod("setShowPausedMessage", boolean.class), MethodType.methodType(void.class, boolean.class));
         sdfShader = manager.getField("sdfShader");
         Class<?> distance = Game.type(loader, "zombie.core.opengl.SDFShader"), shader = Game.type(loader, "zombie.core.opengl.Shader");
         threshold = Game.exact(distance.getMethod("updateThreshold", float.class), MethodType.methodType(void.class, Object.class, float.class));
@@ -1354,14 +1346,11 @@ final class Texts implements Hooks.Text {
 
     @Override public void draw() {
         Shown[] all = drawn;
-        if (all.length == 0 && dying.isEmpty() && !pauseHidden) return;
-        try {
-            if (!dying.isEmpty()) bury();
-            if (all.length == 0) { pauseLabel(false); return; }
-        }
+        if (all.length == 0 && dying.isEmpty()) return;
+        try { if (!dying.isEmpty()) bury(); }
         catch (Throwable failure) { throw Texts.<RuntimeException>sneaky(failure); }
+        if (all.length == 0) return;
         long now = clock.getAsLong();
-        boolean overLabel = false;
         Object[] local = players.all();
         boolean anyone = false;
         for (int index = 0; index < local.length && index < PLAYERS; index++) if (local[index] != null) { anyone = true; break; }
@@ -1388,10 +1377,8 @@ final class Texts implements Hooks.Text {
                     if (text.done || text.waiting || text.player >= 0 && text.player != screen) continue;
                     if (text.start == 0) { text.start = now; dirty = true; }
                     if (!draw(text, now, screen, left, top, width, height)) { text.done = true; finished = true; }
-                    else if (!overLabel) overLabel = overLabel(text, now, top, height);
                 }
             }
-            pauseLabel(overLabel);
         } catch (Throwable failure) {
             // The hook reports it, once; the game draws on.
             throw Texts.<RuntimeException>sneaky(failure);
@@ -1400,36 +1387,6 @@ final class Texts implements Hooks.Text {
             shown.removeIf(text -> text.done);
             publish();
             dirty = true;
-        }
-    }
-
-    // The paused label's box: half its height, as a share of the screen's (the game's: one and a half lines of its small font),
-    // and the least, in pixels.
-    private static final double PAUSE_LABEL_HALF = 0.016;
-    private static final int PAUSE_LABEL_HALF_MIN = 12;
-
-    /** Whether a text drawn on a screen (its top and height) is on at {@code now} where the game's paused label goes. */
-    private boolean overLabel(Shown text, long now, int top, int height) throws Throwable {
-        if ((now - text.start) / SECOND - text.delay < 0) return false;
-        int full = (int)coreHeight.invokeExact((Object)core.invokeExact());
-        double label = full / 6.0, labelHalf = Math.max(PAUSE_LABEL_HALF_MIN, full * PAUSE_LABEL_HALF);
-        double middle = top + text.atY * height, half = (text.size > 0 ? text.size : PAUSE_LABEL_HALF) * height * text.lines.length / 2;
-        return Math.abs(middle - label) < half + labelHalf;
-    }
-
-    /**
-     * Hides the game's paused label while a text is where it goes ({@code over}), and shows it again after (if nothing else
-     * hid it meanwhile: only a label this hid comes back).
-     */
-    private void pauseLabel(boolean over) throws Throwable {
-        if (over == pauseHidden) return;
-        if (over) {
-            if (!(boolean)pausedShown.invokeExact()) return;
-            showPaused.invokeExact(false);
-            pauseHidden = true;
-        } else {
-            pauseHidden = false;
-            if (!(boolean)pausedShown.invokeExact()) showPaused.invokeExact(true);
         }
     }
 
@@ -2209,8 +2166,6 @@ final class Texts implements Hooks.Text {
             for (Grave grave : dying) if (!grave.done()) destroys.add(grave.destroy);
             dying.clear();
             Dust.orphan(destroys);
-            // a paused label this hid comes back (the newer API hides it again if its texts are there)
-            try { pauseLabel(false); } catch (Throwable failure) { throw Texts.<RuntimeException>sneaky(failure); }
             return (String)lua.get(meta, MIRROR);
         } catch (ReflectiveOperationException failure) { throw Game.failed(failure); }
     }

@@ -1777,9 +1777,7 @@ which override the jar's; it overrides none of the text classes):
 `color`, `subtitleColor`, `hold` (seconds), `y`, `player`, `leave` and `leaveTime` (for the title and its line alike: any style
 can leave as dust), `backdrop` (0 for none), `dustSize`, `dustSweep`, `dustDrift` and `dustBurn` (with `leave = "dust"` or `"burn"`, the
 style's or the spec's), and `now`. The line under a title takes its look's cues from it (a torch's flicker). A title's backdrop reaches over its line: one backdrop for both. Every style stays 5 s once all of it is in (the title, and its line when it has one: its hold is
-lengthened by as much as the line comes in after the title) and has a backdrop of 0.3. The game's paused label ("- Game Paused -", a dark box
-across the middle of the screen at a sixth of its height, drawn over the interface) is hidden while any text is on where it goes
-(a title, at 0.16), and shown again once none is, unless something else hid it meanwhile. A style is a pair of `show` specs:
+lengthened by as much as the line comes in after the title) and has a backdrop of 0.3. A style is a pair of `show` specs:
 
 | Style | Title | Line under it |
 | --- | --- | --- |
