@@ -18,8 +18,8 @@ function Sync.changed(panelId)
     end
 end
 
--- Something a player near the panel should hear: a translation key and its arguments (strings or numbers). Its
--- window's log keeps it too.
+-- Something that happened at the box: a translation key and its arguments (strings or numbers), kept in its log,
+-- which its window shows.
 function Sync.notice(panel, key, ...)
     local args = { ... }
     BU.Store.record(panel, key, args)

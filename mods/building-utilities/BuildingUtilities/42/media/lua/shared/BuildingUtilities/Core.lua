@@ -443,8 +443,8 @@ function BU.cutText(text, most)
 end
 
 -- A notice's text (BU.Sync.notice, the box's log): its key with its arguments, at most four, each as text.
--- How the notices read in the log and above a player's head: the keys of those that went well, and of those that did
--- not; the rest are neither.
+-- How the notices read in the log: the keys of those that went well, and of those that did not; the rest are
+-- neither.
 BU.NOTICE_GOOD = { IGUI_BU_Log_Reset = true, IGUI_BU_Log_Upgraded = true, IGUI_BU_Notice_Thawed = true,
     IGUI_BU_Notice_SwitchedOn = true, IGUI_BU_Notice_Switched = true, IGUI_BU_Notice_SolarOn = true }
 BU.NOTICE_BAD = { IGUI_BU_Notice_Tripped = true, IGUI_BU_Notice_PowerLost = true, IGUI_BU_Notice_WaterEmpty = true,

@@ -14,9 +14,6 @@ require "BuildingUtilities/SprinklerSpray"
 local BU = BuildingUtilities
 local Store, Panels, PanelWindow = BU.Store, BU.Panels, BU.PanelWindow
 
--- How far from a box's building, in squares, a player hears it; one with its window open always does.
-local NOTICE_RANGE = 40
-
 -- The box on a square shows the summary: set as its square loads and as a box is put down. (A tripped box shows it
 -- on its own lamps: BU.PanelLook.)
 local function giveSummary(box)
@@ -47,19 +44,10 @@ function BU.onSound(panelId, name)
     if square then square:playSoundLocal(name) end
 end
 
+-- A box's notice: kept in its log (BU.Sync.notice), which its window shows; nothing over the players' heads (a
+-- generator taking over, a tripped breaker: the box's lamps and its window tell them).
 function BU.onNotice(panelId, key, args)
-    local panel = Store.get(panelId)
-    if not panel then return end
-    local text = BU.noticeText(key, args)
-    for index = 0, getNumActivePlayers() - 1 do
-        local player = getSpecificPlayer(index)
-        if player and not player:isDead() then
-            local steps = Panels.steps(panel, player:getX(), player:getY())
-            if PanelWindow.isOpen(panelId) or steps and steps <= NOTICE_RANGE then
-                if BU.NOTICE_GOOD[key] then HaloTextHelper.addGoodText(player, text) else HaloTextHelper.addBadText(player, text) end
-            end
-        end
-    end
+    if not Store.get(panelId) then return end
     PanelWindow.refreshAll()
     BU.RackWindow.refreshAll()
 end
