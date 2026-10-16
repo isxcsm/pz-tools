@@ -2923,7 +2923,7 @@ public final class Hooks {
      * as it is, and what it draws keeps its colour; a vehicle's lights are put on after the step and keep theirs.
      */
     static final class SightShaders {
-        static final String UNIFORM = "PZT_NightFloor";
+        static final String UNIFORM = "PZExt_NightFloor";
         // How many sources got the step (on the thread that loads shaders), and the files they were loaded from.
         static volatile int patched;
         static final Set<String> files = java.util.concurrent.ConcurrentHashMap.newKeySet();
@@ -2967,7 +2967,7 @@ public final class Hooks {
          */
         static final String STEP = """
 
-            uniform float PZT_NightFloor;
+            uniform float PZExt_NightFloor;
 
             float pztUnlift(float l, float f) {
             	float dark = (1.0 - sqrt(max(1.0 - 4.0 * f * (1.0 - l), 0.0))) / (2.0 * f);
@@ -2975,7 +2975,7 @@ public final class Hooks {
             }
 
             vec3 pztNight(vec3 c, vec3 light) {
-            	float f = PZT_NightFloor;
+            	float f = PZExt_NightFloor;
             	if (f <= 0.0) return c;
             	vec3 own = vec3(pztUnlift(light.r, f), pztUnlift(light.g, f), pztUnlift(light.b, f));
             	vec3 kept = c * vec3(own.r / max(light.r, 0.004), own.g / max(light.g, 0.004), own.b / max(light.b, 0.004));
@@ -2984,7 +2984,7 @@ public final class Hooks {
             }
 
             vec3 pztModel(vec3 c, vec3 base, vec3 light) {
-            	float f = PZT_NightFloor;
+            	float f = PZExt_NightFloor;
             	if (f <= 0.0) return c;
             	vec3 dark = vec3(1.0 - clamp(light.r, 0.0, 1.0), 1.0 - clamp(light.g, 0.0, 1.0), 1.0 - clamp(light.b, 0.0, 1.0));
             	return c + dot(base * dark * dark, vec3(0.299, 0.587, 0.114)) * f * vec3(0.92, 1.0, 1.18);

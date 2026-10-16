@@ -23,7 +23,7 @@ import java.lang.reflect.Field;
  * ({@link #squareStale}).
  *
  * <p>The shaders that draw the world (the tiles, the walls cut away for the player and the models: Hooks.SightShaders)
- * get {@code PZT_NightFloor} (f over 255) and work out, from the light each pixel is drawn with (the
+ * get {@code PZExt_NightFloor} (f over 255) and work out, from the light each pixel is drawn with (the
  * corners', blended across the square by the GPU as the game's own), the light it had before the lift: the lift is
  * undone exactly ({@link #unlift}, f below 0.5), the share of colour the game's light gives is kept, and what the lift
  * adds is drawn in a cold grey, as the eye's rods see. All of it is in the light each vertex carries and the pixel's own
@@ -43,7 +43,7 @@ final class NightLamps {
     /** The most lift (of 255): below half, so that the shaders can undo it. */
     static final int MOST = 115;
     /** The tile shaders' uniform: the lift, 0 to 1. */
-    static final String FLOOR = "PZT_NightFloor";
+    static final String FLOOR = "PZExt_NightFloor";
 
     private final Players players;
     // IsoGridSquare.lighting; ILighting.bSeen(); ColorInfo.r, g, b, a and set(r, g, b, a).

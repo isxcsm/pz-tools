@@ -475,18 +475,18 @@ final class FormulasTest {
         String tile = "#version 120\nuniform sampler2D DIFFUSE;\nvarying vec4 col;\nvoid main()\n{\n    vec4 c = texture2D(DIFFUSE, vec2(0.0));\n"
             + "    c *= col;\n    c.rgb *= col.a;\n    c.rgb *= col.a;\n    gl_FragColor = c;\n}\n";
         String patched = Hooks.shaderSource(tile, "media/shaders/tileWithDepth.frag");
-        check(patched.indexOf("uniform float PZT_NightFloor;") > 0 && patched.indexOf("uniform float PZT_NightFloor;") < patched.indexOf("void main()")
+        check(patched.indexOf("uniform float PZExt_NightFloor;") > 0 && patched.indexOf("uniform float PZExt_NightFloor;") < patched.indexOf("void main()")
             && patched.contains("c.rgb *= col.a;\n    c.rgb = pztNight(c.rgb, col.rgb);\n    c.rgb *= col.a;")
             && patched.split("pztNight\\(c\\.rgb", -1).length == 2, "The tile shader's step is not where the colour is lit: " + patched);
         check(Hooks.shaderSource(patched, "media/shaders/tileWithDepth.frag").equals(patched), "The step went in twice");
         for (String name : new String[] { "opaqueWithDepth.frag", "CutawayAttached.frag", "seamFix2.frag", "pzopt_sfTile.frag", "pzopt_sfOpaque.frag" })
-            check(Hooks.shaderSource(tile, "media\\shaders\\" + name).contains("PZT_NightFloor"), name + " has no step");
+            check(Hooks.shaderSource(tile, "media\\shaders\\" + name).contains("PZExt_NightFloor"), name + " has no step");
         check(Hooks.shaderSource(tile, "media/shaders/screen.frag").equals(tile) && Hooks.shaderSource(tile, "media/shaders/tileWithDepth.vert").equals(tile),
             "Another shader was changed");
         String unlit = tile.replace("c.rgb *= col.a;", "");
         check(Hooks.shaderSource(unlit, "media/shaders/tileWithDepth.frag").equals(unlit), "A tile shader with no place for the step was changed");
         zombie.core.opengl.ShaderUnit.text = tile;
-        check(new zombie.core.opengl.ShaderUnit().load("media/shaders/seamFix2.frag").contains("PZT_NightFloor"), "The loaded tile shader has no step");
+        check(new zombie.core.opengl.ShaderUnit().load("media/shaders/seamFix2.frag").contains("PZExt_NightFloor"), "The loaded tile shader has no step");
         check(!java.util.regex.Pattern.compile("clamp\\([^,()]+,\\s*vec").matcher(patched).find()
             && !java.util.regex.Pattern.compile("\\bmax\\(\\s*vec").matcher(patched).find(), "The step calls a clamp or max the game's shaders hide");
         // the walls cut away for the player: their colour goes through it where the wall's light is put in
@@ -531,7 +531,7 @@ final class FormulasTest {
         // (the one bound bound again after) when a shader that draws the world is bound or starts drawing after it changed,
         // and the readout tells it.
         var formulasObject = GameApi.formulas();
-        org.lwjgl.opengl.GL20.uniforms.put("PZT_NightFloor", 12);
+        org.lwjgl.opengl.GL20.uniforms.put("PZExt_NightFloor", 12);
         org.lwjgl.opengl.GL20.uniforms.put("DIFFUSE", 13);
         org.lwjgl.opengl.GL20.programs.add(7);
         org.lwjgl.opengl.GL20.programs.add(300);
@@ -565,14 +565,14 @@ final class FormulasTest {
             check(near(org.lwjgl.opengl.GL20.values.get(12), lift / 255.0), "A program compiled since did not take the lift");
         }
         // a program without the uniform (a shader that did not take the step) is left alone, and the readout says so
-        org.lwjgl.opengl.GL20.uniforms.remove("PZT_NightFloor");
+        org.lwjgl.opengl.GL20.uniforms.remove("PZExt_NightFloor");
         org.lwjgl.opengl.GL20.values.remove(12);
         Hooks.shaderSource(tile, "media/shaders/tileWithDepth.frag");
         new zombie.tileDepth.CutawayAttachedShader().startRenderThread(new zombie.core.textures.TextureDraw());
         state = (KahluaTable)call(formulas, "nightSight").get(0);
         check(!org.lwjgl.opengl.GL20.values.containsKey(12) && (Double)state.rawget("programs") == 0
             && String.valueOf(state.rawget("problem")).contains("uniform"), "A program without the uniform was set, or it is not told");
-        org.lwjgl.opengl.GL20.uniforms.put("PZT_NightFloor", 12);
+        org.lwjgl.opengl.GL20.uniforms.put("PZExt_NightFloor", 12);
         Hooks.shaderSource(tile, "media/shaders/tileWithDepth.frag");
         tiles.startRenderThread(new zombie.core.textures.TextureDraw());
         call(formulas, "set", mod, "vision.nightSight", 1.0);

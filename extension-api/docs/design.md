@@ -924,7 +924,7 @@ rooms are each drawn from their own light, and nothing reads across a wall.
   is followed by whether a square of the level was last read with another lift. A level still asked after 3 s has
   squares the renderer does not draw: those are let go, and read again when the native lighting next says they changed.
 - **The step.** The game loads each shader's source through `ShaderUnit.loadShaderFile`; the sources of the shaders that
-  draw the world get the uniform `PZT_NightFloor` (f) and the step before `main`, and the colour goes through it where it
+  draw the world get the uniform `PZExt_NightFloor` (f) and the step before `main`, and the colour goes through it where it
   is lit:
   - the tiles: the game's `tileWithDepth`, `opaqueWithDepth`, `CutawayAttached` and `seamFix2`, and PZ Optimization's
     from them (`pzopt_sfTile`, `pzopt_sfOpaque`), after `c.rgb *= col.a;`;
@@ -949,7 +949,7 @@ rooms are each drawn from their own light, and nothing reads across a wall.
   furniture) is drawn with the square's own light instead of its objects' lifted copy. The sprites drawn with the same
   light (a zombie far off drawn from its picture, curtains, a mannequin) are tiles to the step and keep the lift.
 - **The uniform.** PZ Optimization draws the world's tiles with programs of its own, which the game binds without its
-  hooks. So when the lift changes, or a source with the step is loaded, the bridge sets `PZT_NightFloor` into every
+  hooks. So when the lift changes, or a source with the step is loaded, the bridge sets `PZExt_NightFloor` into every
   linked program that has it (program ids from 1 to 4096, or twice the highest met), the program that was bound bound
   again after; the check runs on the render thread where the game binds a shader (`startRenderThread` of the tile and
   cutaway shaders, the core `Shader`'s, and `Start` of the core and the models' `Shader`) and costs a compare otherwise.
