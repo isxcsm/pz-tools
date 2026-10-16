@@ -154,7 +154,7 @@ the test variables. Then it runs its suites. None of it touches a real game.
 | `extensions` | `test-game-extensions.ps1`: the extension runtime, module slots, the vehicle extension and its models |
 | `control` | `ExtensionControlTest`: the extension control channel, its concurrency, the resident extensions |
 | `profiler` | `ProfileFramesTest` (no flight recorder) and `ProfileRollingTest` (a real one) |
-| `startup` | `StartupInstallTest`: install into a synthetic game's jar, start it, update, uninstall, the app attaching first |
+| `startup` | `StartupInstallTest`: install into a synthetic game, start it, update, uninstall, the app attaching first; the frozen shim (pinned bytes, a newer installer leaving it untouched, hand-off, a missing or damaged jar) |
 | `dotnet` | `GameSaveClientTests` against a synthetic JVM that imitates the game |
 
 Every suite asked for runs, whatever an earlier one did, and a table at the end gives each
@@ -179,7 +179,7 @@ For one change, run the suites that cover what it touched. A change elsewhere ne
 | `PzTools.GameExtensions.Java`, `PzTools.GameExtensions.VehicleDrivetrain`, `config/game-extensions/`, `tests/game-extensions*`, `tests/vehicle-drivetrain-fixture/` | `extensions`, `control`, `dotnet` |
 | Bridge runtime `ExtensionControl`, `ResidentExtensions`, `ExtensionHost`, `Frames`, `Leases`; `tests/extension-control/` | `control`, `dotnet` |
 | Bridge runtime `Profile*` | `profiler`, `dotnet` |
-| The bootstrap (`AgentEntry`, `ControlServer`, `GameHook`, `Payload`), `AttachMain`, `StartupInstall`, `pztools/startup/`, `PzTools.GameBridge.Native`; `tests/startup-loader/` | `startup`, `control`, `dotnet` |
+| The bootstrap (`AgentEntry`, `ControlServer`, `GameHook`, `Payload`), `AttachMain`, `StartupInstall`, `pztools/launch/`, the frozen shim `shim/pztools/startup/` (its pinned hashes), `PzTools.GameBridge.Native`; `tests/startup-loader/` | `startup`, `control`, `dotnet` |
 | The rest of the bridge runtime, `PzTools.GameBridge`, `PzTools.GameExtensions` (C#), `tests/game-bridge/` | `dotnet` |
 | `scripts/test-game-*.ps1`, the bridge build | all |
 

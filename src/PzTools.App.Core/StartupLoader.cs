@@ -101,7 +101,7 @@ public sealed class StartupLoader
     public delegate Task<(int ExitCode, string Output)> Tool(IReadOnlyList<string> arguments, CancellationToken cancellationToken);
 
     private const string Mark = "PZTOOLS-STARTUP", Failed = "PZTOOLS-STARTUP-FAILED";
-    // In the install folder: the loader's line for the last game start (pztools.startup.StartupLoader.LOG).
+    // In the install folder: the loader's line for the last game start (pztools.launch.StartupLoader.LOG).
     private const string LoaderLog = "startup.log";
     // File times against a process's start: the loader writes its line about half a second after the game starts.
     private static readonly TimeSpan StartSlack = TimeSpan.FromSeconds(2);

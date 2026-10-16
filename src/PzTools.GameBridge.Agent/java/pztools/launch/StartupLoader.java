@@ -1,4 +1,4 @@
-package pztools.startup;
+package pztools.launch;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -14,23 +14,22 @@ import java.util.HexFormat;
 import java.util.Properties;
 
 /**
- * Put in the game's folder by the startup loader install and started by {@link BootProvider}, early in the game's main
- * method, inside a handler that ignores anything thrown. It loads the PZ Tools bootstrap from the install folder the
+ * Put in the game's folder by the startup loader install, as {@code pztools/pztools-launch.jar}, and started by
+ * {@link BootProvider}, early in the game's main method, inside a handler that ignores anything thrown. It loads the PZ Tools bootstrap from the install folder the
  * way an attach would, so the game has the bridge without the app. Nothing here may stop the game from starting: every
  * failure is written to the install folder's log and the game goes on as vanilla.
  *
- * <p>The install puts this class in two places, under two package names: loose in the game's folder (found through the
- * launcher's {@code .} class path entry) and in {@code pztools/pztools-launch.jar} (an entry the install adds to the
- * launcher file, which survives tools that drop {@code .} and copy the loose classes into a jar of their own;
- * docs/design/startup-loader.md). Both may be created in one process; the first to find its settings boots, and the
- * process-wide {@link #GUARD} keeps the other from doing it again. Each reads the settings beside its own classes, so a
- * stale copy of the loose classes found elsewhere on the class path never takes the place of the jar's. The guard is
- * this loader's own: another tool's loader (PZ Extension API's) in the same process boots as well.
+ * <p>Two things start it (docs/design/startup-loader.md). The launcher file lists the jar, so the JDK finds the jar's
+ * services list and creates {@link BootProvider} (which survives tools that rewrite the class path and drop {@code .});
+ * or the frozen shim in the game's folder ({@code pztools.startup.BootProvider}, the only loose class) checks the jar's
+ * SHA-256 against the loose settings, loads it with a class loader of its own and calls {@link #start()}. The
+ * process-wide {@link #GUARD} makes whichever gets here first the only boot. It reads the settings inside the jar. The
+ * guard is this loader's own: another tool's loader (PZ Extension API's) in the same process boots as well.
  *
  * <p>Uses java.base alone: it runs before the game has set anything up.
  */
 public final class StartupLoader {
-    /** Beside this class, in the game's folder and in the jar: {@code root}, the install folder, and {@code game}. */
+    /** Inside the jar, beside this class: {@code root}, the install folder, and {@code game}. */
     public static final String SETTINGS = StartupLoader.class.getPackageName().replace('.', '/') + "/install.properties";
     /** In the install folder: the bridge folder to load, a tab, and the SHA-256 of its bootstrap jar. */
     public static final String CURRENT = "current";
@@ -38,7 +37,7 @@ public final class StartupLoader {
     public static final String BOOTSTRAP = "pztools-game-bootstrap.jar";
     public static final String PAYLOAD = "pztools-game-bridge.jar";
     public static final String NATIVE = "pztools-attach-bootstrap.dll";
-    /** The jar with the other copy of the loader, in the game's folder, and its entry in the launcher file's class path. */
+    /** The jar with the loader, in the game's folder, and its entry in the launcher file's class path. */
     public static final String JAR = "pztools/pztools-launch.jar";
     /** The system property that marks the process as booted by one copy of the loader. */
     public static final String GUARD = "pztools.startup.loader.started";

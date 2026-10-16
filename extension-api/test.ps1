@@ -41,6 +41,22 @@ $suites = [ordered]@{
         $classes = Join-Path $work 'loader'
         $classpath = @($classes, (Join-Path $Release 'pzext-install.jar'), (Join-Path $Release 'pzext-boot.jar')) -join ';'
         Invoke-Tool 'The loader test did not compile' $javac (@('--release', '25', '-encoding', 'UTF-8', '-cp', $classpath, '-d', $classes) + (Sources 'tests/loader'))
+        # The shim's bytes do not depend on where or when it is built: the sources copied elsewhere and compiled again, with the
+        # flags build.ps1 uses, give the very classes the installer carries (InstallTest pins their SHA-256).
+        $again = Join-Path $work 'shim-again'
+        Copy-Item (Join-Path $root 'src/shim') (Join-Path $again 'src') -Recurse
+        Invoke-Tool 'The shim did not compile again' $javac (@('--release', '25', '-g:none', '-proc:none', '-encoding', 'UTF-8', '-d', (Join-Path $again 'classes')) +
+            @(Get-ChildItem (Join-Path $again 'src') -Recurse -Filter '*.java' | ForEach-Object FullName))
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        $archive = [IO.Compression.ZipFile]::OpenRead((Join-Path $Release 'pzext-install.jar'))
+        try {
+            foreach ($entry in $archive.Entries | Where-Object { $_.FullName -like 'pzext/loader/*.class' }) {
+                $stream = $entry.Open(); $bytes = [IO.MemoryStream]::new(); $stream.CopyTo($bytes); $stream.Dispose()
+                $built = [BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($bytes.ToArray()))
+                $rebuilt = [BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash([IO.File]::ReadAllBytes((Join-Path $again "classes/$($entry.FullName)"))))
+                if ($built -ne $rebuilt) { throw "The shim class $($entry.FullName) is not the same when built again" }
+            }
+        } finally { $archive.Dispose() }
         Invoke-Tool 'The loader test failed' $java @('-ea', '-cp', $classpath, 'pzext.install.InstallTest', $gameJar, $Release, $java)
     }
 }

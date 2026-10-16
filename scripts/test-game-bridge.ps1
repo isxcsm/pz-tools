@@ -113,6 +113,26 @@ $suites = [ordered]@{
         $attachFirstJar = Join-Path $startupOutput 'attach-first.jar'
         & $jar --create --file $attachFirstJar --manifest (Join-Path $repositoryRoot 'tests/startup-loader/attach-first/ATTACH-FIRST.MF') -C $attachFirstClasses pztools
         if ($LASTEXITCODE -ne 0) { throw 'Attach-first agent packaging failed' }
+        # The shim's bytes do not depend on where or when it is built: the sources copied elsewhere and compiled again, with the
+        # flags the bridge project uses, give the very classes the bridge jar carries (StartupInstallTest pins their SHA-256).
+        $shimAgain = Join-Path $startupOutput 'shim-again'
+        Remove-Item -Recurse -Force $shimAgain -ErrorAction SilentlyContinue
+        Copy-Item (Join-Path $repositoryRoot 'src/PzTools.GameBridge.Agent/shim') (Join-Path $shimAgain 'src') -Recurse
+        $shimSources = @(Get-ChildItem (Join-Path $shimAgain 'src') -Recurse -Filter '*.java' | Select-Object -ExpandProperty FullName)
+        & $javac --release 25 -g:none -proc:none -encoding UTF-8 -d (Join-Path $shimAgain 'classes') @shimSources
+        if ($LASTEXITCODE -ne 0) { throw 'Startup loader shim compilation failed' }
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        $bridgeArchive = [IO.Compression.ZipFile]::OpenRead((Join-Path $bridgeRoot 'pztools-game-bridge.jar'))
+        try {
+            $shimEntries = @($bridgeArchive.Entries | Where-Object { $_.FullName -like 'pztools/startup/*.class' })
+            if ($shimEntries.Count -ne 2) { throw 'The bridge jar does not carry exactly the shim in pztools/startup' }
+            foreach ($entry in $shimEntries) {
+                $stream = $entry.Open(); $bytes = [IO.MemoryStream]::new(); $stream.CopyTo($bytes); $stream.Dispose()
+                $built = [BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($bytes.ToArray()))
+                $rebuilt = [BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash([IO.File]::ReadAllBytes((Join-Path $shimAgain "classes/$($entry.FullName)"))))
+                if ($built -ne $rebuilt) { throw "The shim class $($entry.FullName) is not the same when built again" }
+            }
+        } finally { $bridgeArchive.Dispose() }
         # The install runs on the app's own runtime, which has only the modules the bridge needs.
         & (Join-Path $bridgeRoot 'runtime/bin/java.exe') -ea -cp $startupClasspath pztools.bridge.StartupInstallTest $startupJar $bridgeRoot $java $attachFirstJar
         if ($LASTEXITCODE -ne 0) { throw 'Startup loader tests failed' }

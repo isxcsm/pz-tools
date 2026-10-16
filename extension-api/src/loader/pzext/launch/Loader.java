@@ -1,4 +1,4 @@
-package pzext.loader;
+package pzext.launch;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -20,20 +20,20 @@ import java.util.Set;
 import java.util.TreeMap;
 
 /**
- * Put in the game's folder by the install ({@code pzext.install.Install}) and started by {@link BootProvider}, early in
- * the game's main method, inside a handler that ignores anything thrown. It loads PZ Extension API's boot layer from the
- * install folder in-process, through the game's own JRE (docs/loader.md). Nothing here may stop the game from starting:
- * every failure is written to the install folder's log and the game goes on as vanilla.
+ * Put in the game's folder by the install ({@code pzext.install.Install}) as {@code pzext/pzext-launch.jar} and started by
+ * {@link BootProvider}, early in the game's main method, inside a handler that ignores anything thrown. It loads PZ Extension
+ * API's boot layer from the install folder in-process, through the game's own JRE (docs/loader.md). Nothing here may stop the
+ * game from starting: every failure is written to the install folder's log and the game goes on as vanilla.
  *
- * <p>The install puts this class in two places, under two package names: loose in the game's folder (found through the
- * launcher's {@code .} class path entry) and in {@code pzext/pzext-launch.jar} (an entry the install adds to the
- * launcher file, which survives tools that drop {@code .} and copy the loose classes into a jar of their own). Both may
- * be created in one process; the first to find its settings boots, and the process-wide {@link #GUARD} keeps the other
- * from doing it again. Each reads the settings beside its own classes, so a stale copy of the loose classes found
- * elsewhere on the class path never takes the place of the jar's.
+ * <p>Two things start it. The launcher file lists the jar, so the JDK finds the jar's services list and creates
+ * {@link BootProvider} (which survives tools that rewrite the class path and drop {@code .}); or the frozen shim in the
+ * game's folder ({@code pzext.loader.BootProvider}, the only loose class) checks the jar's SHA-256 against the loose settings,
+ * loads it with a class loader of its own and calls {@link #start()}. The process-wide {@link #GUARD} makes whichever gets
+ * here first the only boot. The settings it reads are the ones inside the jar, which the shim has verified or the class path
+ * supplies.
  *
  * <p>What it loads from the install folder it trusts only as far as the settings vouch for it: the settings, written by
- * the install into the game's folder, give the SHA-256 of every file the install put in the version folder, and the
+ * the install into the game's folder (in the jar), give the SHA-256 of every file the install put in the version folder, and the
  * loader checks the folders (owned by the administrators, writable by no one else, see {@link Trust}) and then each
  * file before it loads anything.
  *
@@ -41,7 +41,7 @@ import java.util.TreeMap;
  */
 public final class Loader {
     /**
-     * Beside this class, in the game's folder and in the jar: {@code root}, the install folder, {@code game}, {@code version},
+     * Inside the jar, beside this class: {@code root}, the install folder, {@code game}, {@code version},
      * the version folder to load, {@code sha256.<file>}, the SHA-256 of each file of the version folder, and {@code trust.<n>},
      * the accounts trusted besides the machine's administrators (none, but in the tests).
      */
@@ -51,7 +51,7 @@ public final class Loader {
     public static final String BOOT = "pzext-boot.jar";
     public static final String API = "pzext-api.jar";
     public static final String NATIVE = "pzext-loader.dll";
-    /** The jar with the other copy of the loader, in the game's folder, and its entry in the launcher file's class path. */
+    /** The jar with the loader, in the game's folder, and its entry in the launcher file's class path. */
     public static final String JAR = "pzext/pzext-launch.jar";
     /** The system property that marks the process as booted by one copy of the loader. */
     public static final String GUARD = "pzext.loader.started";

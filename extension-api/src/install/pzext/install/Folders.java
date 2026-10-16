@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
-import pzext.loader.Trust;
+import pzext.launch.Trust;
 
 /**
  * The install folder may be changed by the machine's administrators alone: what the game loads from it runs inside the

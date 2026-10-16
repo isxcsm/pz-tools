@@ -9,7 +9,7 @@ import java.util.Map;
 
 /**
  * The boot layer of PZ Extension API (docs/loader.md): loaded once per game process by the loader in the game's folder
- * ({@code pzext.loader.Loader}), early in the game's main method, and never replaced. It puts the API's hooks into the
+ * ({@code pzext.launch.Loader}), early in the game's main method, and never replaced. It puts the API's hooks into the
  * game's classes as they load ({@link Hooks}), adds one call at the start of {@code GameWindow.logic()} for the API's
  * per-frame work ({@link FrameHook}), and once the game has loaded {@code GameWindow} runs the API from its own jar
  * ({@link Host}), which a newer jar replaces in a running game only when the developer switch is on ({@link Host#DEV_RELOAD}).

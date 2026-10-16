@@ -5,7 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.nio.file.attribute.*;
 import java.util.*;
-import pzext.loader.Trust;
+import pzext.launch.Trust;
 
 /**
  * Who the loader and the install trust, without an account of its own to be another user and without an elevated

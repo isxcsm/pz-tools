@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
+import java.nio.file.attribute.FileTime;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.jar.JarEntry;
@@ -11,8 +13,8 @@ import java.util.jar.JarFile;
 import java.util.jar.JarOutputStream;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import pztools.startup.Launcher;
-import pztools.startup.StartupLoader;
+import pztools.launch.Launcher;
+import pztools.launch.StartupLoader;
 
 /**
  * The startup loader against a synthetic game: install, start the game from its folder, a broken install, a damaged
@@ -59,9 +61,13 @@ public final class StartupInstallTest {
             // file one more class path entry, as text.
             assert StartupInstall.sha256(jar).equals(vanillaDigest) : "the install changed the game's jar";
             assert Files.readAllLines(services).equals(List.of(StartupInstall.PROVIDER)) : Files.readAllLines(services);
-            for (String name : new String[] { StartupInstall.LOADER_ENTRY, StartupInstall.PROVIDER_ENTRY, StartupInstall.LAUNCHER_ENTRY,
-                    StartupLoader.SETTINGS, StartupInstall.LAUNCH_JAR })
+            for (String name : new String[] { StartupInstall.SHIM[0], StartupInstall.SHIM[1], StartupInstall.SETTINGS, StartupInstall.LAUNCH_JAR })
                 assert Files.isRegularFile(game.resolve(name)) : name;
+            // The only loose files are the shim and its settings; the loader itself is in the jar.
+            try (var loose = Files.list(game.resolve("pztools/startup"))) {
+                assert loose.map(path -> path.getFileName().toString()).sorted().toList().equals(List.of("BootProvider$Jar.class", "BootProvider.class", "install.properties"))
+                    : "loose files other than the shim";
+            }
             expect(Files.readString(launcher), PLAIN_LISTED);
             // The jar holds the same loader under another package name, with its own services list and settings.
             try (var launch = new JarFile(game.resolve(StartupInstall.LAUNCH_JAR).toFile())) {
@@ -111,11 +117,11 @@ public final class StartupInstallTest {
             assert run(root, "install", game, bridge).startsWith("installed\t");
             expect(start(java, game), loaded);
 
-            // The jar damaged: still the entry (the game's folder serves), but not this version's; a refresh writes it again.
-            // Gone: reverted, and the next install puts it back.
+            // The jar damaged: not the one the shim's settings name (the shim would not run it), so reverted; a refresh writes it
+            // again. Gone: reverted, and the next install puts it back.
             byte[] launchJar = Files.readAllBytes(game.resolve(StartupInstall.LAUNCH_JAR));
             Files.writeString(game.resolve(StartupInstall.LAUNCH_JAR), "damaged");
-            assert run(root, "status", game).startsWith("installed\t");
+            expect(run(root, "status", game), "reverted");
             assert run(root, "refresh", bridge).startsWith("refreshed\t");
             assert Arrays.equals(Files.readAllBytes(game.resolve(StartupInstall.LAUNCH_JAR)), launchJar) : "refresh left the damaged jar";
             Files.delete(game.resolve(StartupInstall.LAUNCH_JAR));
@@ -219,6 +225,9 @@ public final class StartupInstallTest {
             assert !Files.exists(launcher);
             Files.writeString(launcher, PLAIN);
 
+            shim(work, game, root, bridge, java, loaded, launcher, services);
+            Files.writeString(launcher, PLAIN);
+
             // An earlier version patched the jar and kept the original: it reads as installed until a refresh, which
             // puts the game's own jar back and makes the entry; an install does the same.
             for (String command : new String[] { "refresh", "install" }) {
@@ -238,7 +247,7 @@ public final class StartupInstallTest {
             Files.delete(root.resolve(StartupInstall.ORIGINAL));
             try { run(root, "refresh", bridge); throw new AssertionError("refreshed without the game's own jar"); }
             catch (StartupInstall.Refused refused) { assert refused.code.equals("original-missing") : refused.code; }
-            assert !Files.exists(game.resolve(StartupInstall.LOADER_ENTRY)) : "the entry was written over the patched jar";
+            assert !Files.exists(game.resolve(StartupInstall.SHIM[0])) : "the entry was written over the patched jar";
             Files.copy(vanilla, jar, StandardCopyOption.REPLACE_EXISTING);
             expect(run(root, "uninstall", game), "uninstalled");
             // An earlier patch a game update has since replaced: uninstall leaves the new jar alone.
@@ -285,7 +294,7 @@ public final class StartupInstallTest {
         Files.copy(vanilla, root.resolve(StartupInstall.ORIGINAL), StandardCopyOption.REPLACE_EXISTING);
         Files.copy(vanilla, jar, StandardCopyOption.REPLACE_EXISTING);
         try (FileSystem zip = FileSystems.newFileSystem(jar)) {
-            Path loader = zip.getPath(StartupInstall.LOADER_ENTRY);
+            Path loader = zip.getPath(StartupInstall.PATCHED_LOADER_ENTRY);
             Files.createDirectories(loader.getParent());
             Files.write(loader, new byte[] { 1 });
         }
@@ -350,10 +359,181 @@ public final class StartupInstallTest {
         assert actual.equals(expected) : "expected <" + expected + "> but was <" + actual + ">";
     }
 
+    /**
+     * The SHA-256 of the shim's built class files, pinned. They are the only loose class files in the game's folder and
+     * must be the same in every release (docs/design/startup-loader.md): changing the shim, or the way it is compiled, is a
+     * decision with consequences for every player who runs a tool that copies the folder's loose classes (PZ Optimize), and
+     * it takes a new pin here, with the reason in the commit.
+     */
+    private static final Map<String, String> SHIM_PINS = Map.of(
+        "pztools/startup/BootProvider.class", "aa7c10d6c822630d4a3b14f02dfc0b318b465d258b1a6f348b45d29592f66f87",
+        "pztools/startup/BootProvider$Jar.class", "975de7d8f1765c1f835d76cde61045e5a8f4db050dce80434c42145e49561e95");
+
+    /**
+     * The frozen shim: its bytes are the pinned ones, a newer installer leaves them (and their modification time) alone, the
+     * classes of an earlier layout are removed, the shim hands off to the jar (exactly one boot) where the jar is not on the
+     * class path and stands aside where it is, and a jar that is missing or damaged leaves a vanilla game. Starts and ends
+     * uninstalled.
+     */
+    private static void shim(Path work, Path game, Path root, Path bridge, String java, String loaded, Path launcher, Path services) throws Exception {
+        String vanilla = "STARTUP-FIXTURE\tnull\tfalse\tfalse\tfalse";
+        for (String name : StartupInstall.SHIM) {
+            String pin = SHIM_PINS.get(name);
+            assert pin != null : name;
+            expect(StartupInstall.sha256(StartupInstall.ownClass(name)), pin);
+        }
+        assert SHIM_PINS.size() == StartupInstall.SHIM.length;
+
+        // An install of the layout before the shim: its loose classes (other bytes) and the same service line, beside another
+        // tool's. Install replaces the provider, removes the rest, and leaves the service lines be.
+        Files.createDirectories(game.resolve("pztools/startup"));
+        for (String name : new String[] { "StartupLoader", "Launcher", "BootProvider" })
+            Files.write(game.resolve("pztools/startup/" + name + ".class"), new byte[] { 9, 9 });
+        Files.writeString(game.resolve(StartupInstall.SETTINGS), "root=x\ngame=y\n");
+        Files.createDirectories(services.getParent());
+        Files.writeString(services, "com.example.OtherProvider\n" + StartupInstall.PROVIDER + "\n");
+        String first = run(root, "install", game, bridge);
+        assert first.startsWith("installed\t") : first;
+        for (String name : StartupInstall.RETIRED) assert !Files.exists(game.resolve(name)) : name + " of the earlier layout stayed";
+        for (String name : StartupInstall.SHIM) assert Arrays.equals(Files.readAllBytes(game.resolve(name)), StartupInstall.ownClass(name)) : name;
+        assert Files.readAllLines(services).equals(List.of("com.example.OtherProvider", StartupInstall.PROVIDER)) : Files.readAllLines(services);
+        // (The other tool's class does not exist here, which would fail the game's provider list: the game starts without its line.)
+        Files.writeString(services, StartupInstall.PROVIDER + "\n");
+        expect(launch(java, game, List.of(), classpath(game)), loaded);
+        boots(root);
+
+        // A newer installer (another launch jar: a loader class of other bytes) leaves the shim and the services file as they
+        // were, same bytes and same modification time. The settings beside the shim follow the jar's digest. Its jar is
+        // never run here: its changed class is not one.
+        Path[] frozen = { game.resolve(StartupInstall.SHIM[0]), game.resolve(StartupInstall.SHIM[1]), services };
+        FileTime old = FileTime.from(Instant.parse("2001-01-01T00:00:00Z"));
+        var before = new ArrayList<byte[]>();
+        for (Path file : frozen) { Files.setLastModifiedTime(file, old); before.add(Files.readAllBytes(file)); }
+        Path jarFile = game.resolve(StartupInstall.LAUNCH_JAR), looseFile = game.resolve(StartupInstall.SETTINGS);
+        byte[] jarBefore = Files.readAllBytes(jarFile);
+        Path newer = Files.createDirectories(work.resolve("newer-installer")).resolve("pztools-game-bridge.jar");
+        Files.copy(bridge.resolve("pztools-game-bridge.jar"), newer);
+        try (FileSystem zip = FileSystems.newFileSystem(newer)) {
+            Files.write(zip.getPath("pztools/launch/BootProvider.class"), new byte[] { 7, 7, 7 });
+        }
+        String second;
+        try (var loader = new java.net.URLClassLoader(new java.net.URL[] { newer.toUri().toURL() }, ClassLoader.getPlatformClassLoader())) {
+            var run = loader.loadClass("pztools.bridge.StartupInstall").getDeclaredMethod("run", String[].class, Path.class);
+            run.setAccessible(true);
+            second = (String) run.invoke(null, new String[] { "install", game.toString(), bridge.toString() }, root);
+        }
+        assert second.startsWith("installed\t") : second;
+        for (int index = 0; index < frozen.length; index++) {
+            assert Arrays.equals(Files.readAllBytes(frozen[index]), before.get(index)) : frozen[index] + " changed";
+            assert Files.getLastModifiedTime(frozen[index]).equals(old) : frozen[index] + " was touched";
+        }
+        byte[] jarAfter = Files.readAllBytes(jarFile);
+        assert !Arrays.equals(jarBefore, jarAfter) : "the jar did not follow the newer installer";
+        assert Files.readString(looseFile).contains("\nsha256=" + StartupInstall.sha256(jarAfter) + "\n");
+        assert run(root, "status", game).startsWith("installed\t");
+        // The installer of this build puts its own jar back, and still leaves the shim be; the same install again touches nothing.
+        assert run(root, "install", game, bridge).startsWith("installed\t");
+        assert Arrays.equals(Files.readAllBytes(jarFile), jarBefore);
+        for (Path file : new Path[] { jarFile, looseFile }) Files.setLastModifiedTime(file, old);
+        assert run(root, "install", game, bridge).startsWith("installed\t");
+        for (Path file : new Path[] { jarFile, looseFile, frozen[0], frozen[1], frozen[2] })
+            assert Files.getLastModifiedTime(file).equals(old) : file + " was rewritten by an install of the same build";
+        expect(launch(java, game, List.of(), classpath(game)), loaded);
+        boots(root);
+
+        // The launcher file is plain again (a Steam verify): the jar is not on the class path, so only the shim can start the
+        // loader. It hands off after checking the jar; the process boots once, and the loader lists the jar again.
+        Files.writeString(launcher, PLAIN);
+        expect(launch(java, game, List.of(), classpath(game)), loaded);
+        boots(root);
+        expect(Files.readString(launcher), PLAIN_LISTED);
+        assert log(root).contains("launcher: the class path entry was missing; added") : log(root);
+        // The same where the game's folder and its jar are all there is (no launcher file at all).
+        Files.writeString(launcher, PLAIN);
+        expect(launch(java, game, List.of(), List.of(".", StartupInstall.GAME_JAR)), loaded);
+        boots(root);
+        // The jar on the class path as well as the folder: its own provider starts the loader, the shim stands aside. One boot.
+        Files.writeString(launcher, PLAIN_LISTED);
+        expect(launch(java, game, List.of(), classpath(game)), loaded);
+        boots(root);
+        // PZ Optimize's form (no folder, its jar first): the jar is the only provider and boots the game; the shim is not in play.
+        Files.writeString(launcher, aotForm(PLAIN_LISTED));
+        expect(launch(java, game, List.of(), classpath(game)), loaded);
+        boots(root);
+        assert !log(root).contains("failed:") : log(root);
+
+        // PZ Extension API's loader has booted this process: its guard is its own, and this one boots as well, once. The other
+        // way round, a process this loader booted already boots nothing again, and nothing is thrown.
+        Files.writeString(launcher, PLAIN);
+        expect(launch(java, game, List.of("-Dpzext.loader.started=loader.log"), List.of(".", StartupInstall.GAME_JAR)), loaded);
+        boots(root);
+        Files.writeString(launcher, PLAIN);
+        expect(launch(java, game, List.of("-D" + StartupLoader.GUARD + "=startup.log"), List.of(".", StartupInstall.GAME_JAR)), vanilla);
+        expect(Files.readString(launcher), PLAIN);
+
+        // The jar is missing, damaged or not the installed one: a vanilla game, its zip files working, one line in the log,
+        // and the launcher file as it was.
+        byte[] jarGood = Files.readAllBytes(jarFile);
+        Files.delete(jarFile);
+        expect(launch(java, game, List.of(), List.of(".", StartupInstall.GAME_JAR)), vanilla);
+        assert log(root).contains("the launch jar is missing") : log(root);
+        // ... also where the class path lists it (the JVM ignores an entry that is not there) ...
+        clearLog(root);
+        expect(launch(java, game, List.of(), List.of(".", StartupInstall.GAME_JAR, StartupInstall.LAUNCH_JAR)), vanilla);
+        assert log(root).contains("the launch jar is missing") : log(root);
+        // ... and where only the jar's entry is left of the class path.
+        Files.writeString(launcher, aotForm(PLAIN_LISTED));
+        expect(launch(java, game, List.of(), classpath(game)), vanilla);
+        Files.writeString(launcher, PLAIN);
+        for (byte[] damaged : new byte[][] { Arrays.copyOf(jarGood, jarGood.length / 2), Arrays.copyOf(jarGood, jarGood.length + 1), new byte[0],
+                "not a jar".getBytes(StandardCharsets.UTF_8) }) {
+            Files.write(jarFile, damaged);
+            clearLog(root);
+            expect(launch(java, game, List.of(), List.of(".", StartupInstall.GAME_JAR)), vanilla);
+            assert log(root).contains("the launch jar does not match the install") : log(root);
+            expect(Files.readString(launcher), PLAIN);
+        }
+        // The right jar with the shim's settings gone, unreadable or for another jar: nothing runs either.
+        Files.write(jarFile, jarGood);
+        byte[] looseGood = Files.readAllBytes(looseFile);
+        Files.write(looseFile, "root=x\n".getBytes(StandardCharsets.ISO_8859_1));
+        expect(launch(java, game, List.of(), List.of(".", StartupInstall.GAME_JAR)), vanilla);
+        Files.delete(looseFile);
+        expect(launch(java, game, List.of(), List.of(".", StartupInstall.GAME_JAR)), vanilla);
+        Files.write(looseFile, StartupInstall.looseSettings(root, new byte[0]));
+        clearLog(root);
+        expect(launch(java, game, List.of(), List.of(".", StartupInstall.GAME_JAR)), vanilla);
+        assert log(root).contains("does not match the install") : log(root);
+        expect(Files.readString(launcher), PLAIN);
+        // Put right again, it boots.
+        Files.write(looseFile, looseGood);
+        expect(launch(java, game, List.of(), List.of(".", StartupInstall.GAME_JAR)), loaded);
+        boots(root);
+
+        // The shim found in another tool's jar (not in the game's folder) does nothing, whatever it finds around it.
+        Path bare = Files.createDirectories(work.resolve("bare-game"));
+        Files.copy(game.resolve(StartupInstall.GAME_JAR), bare.resolve(StartupInstall.GAME_JAR));
+        Path copy = bare.resolve("other-tool.jar");
+        try (OutputStream out = Files.newOutputStream(copy); var jar = new JarOutputStream(out)) {
+            for (String name : StartupInstall.SHIM) { jar.putNextEntry(new JarEntry(name)); jar.write(StartupInstall.ownClass(name)); jar.closeEntry(); }
+            jar.putNextEntry(new JarEntry(StartupInstall.SERVICES));
+            jar.write((StartupInstall.PROVIDER + "\n").getBytes(StandardCharsets.UTF_8));
+            jar.closeEntry();
+        }
+        expect(launch(java, bare, List.of(), List.of(copy.toString(), StartupInstall.GAME_JAR)), vanilla);
+        expect(run(root, "uninstall", game), "uninstalled");
+    }
+
+    /** Empties the loader's log, so a line found afterwards is from the run after. */
+    private static void clearLog(Path root) throws Exception {
+        Files.writeString(root.resolve("startup.log"), "");
+    }
+
     /** The process booted once: the log's first line says loaded, and no later copy of the loader tried again. */
     private static void boots(Path root) throws Exception {
         String log = log(root);
         assert log.lines().findFirst().orElse("").contains(" loaded bridge-") : log;
+        assert log.lines().filter(line -> line.contains(" loaded ")).count() == 1 : log;
         assert !log.contains("did not load") && !log.contains("failed:") : log;
     }
 
@@ -369,13 +549,21 @@ public final class StartupInstallTest {
         return plain.replace("\t\t\".\",\n", "").replace("\t\"classpath\": [\n", "\t\"classpath\": [\n\t\t\"pzopt/aot/pzopt.jar\",\n");
     }
 
-    /** pzopt's jar: copies of the folder's loose classes (and nothing else, no services list), made before the folder was left out. */
+    /**
+     * pzopt's jar: copies of the folder's loose classes (and nothing else, no services list), made before the folder was left
+     * out: the shim, and the classes of an install before the shim, which nothing refers to any more.
+     */
     private static void staleJar(Path target, Path game) throws Exception {
         Files.createDirectories(target.getParent());
         try (OutputStream out = Files.newOutputStream(target); var jar = new JarOutputStream(out)) {
-            for (String name : StartupInstall.LOOSE_ENTRIES) {
+            for (String name : StartupInstall.SHIM) {
                 jar.putNextEntry(new JarEntry(name));
                 jar.write(Files.readAllBytes(game.resolve(name)));
+                jar.closeEntry();
+            }
+            for (String name : StartupInstall.RETIRED) {
+                jar.putNextEntry(new JarEntry(name));
+                jar.write(new byte[] { 1, 2, 3 });
                 jar.closeEntry();
             }
         }

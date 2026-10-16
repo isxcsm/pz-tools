@@ -60,13 +60,9 @@ static jint Attach(JNIEnv* env, jstring options) {
     return attach(vm, copy.data(), nullptr);
 }
 
-// The loader exists in two copies under two package names (docs/design/startup-loader.md): the loose classes in the
-// game's folder (pztools.startup) and the ones in the jar the install adds to the launcher file's class path
-// (pztools.launch). Either may be the one that boots the process; the loader's guard keeps the other from calling this.
-extern "C" JNIEXPORT jint JNICALL Java_pztools_startup_StartupLoader_load(JNIEnv* env, jclass, jstring options) {
-    return Attach(env, options);
-}
-
+// The loader is the one in pztools/pztools-launch.jar (docs/design/startup-loader.md), whether the launcher file's class path
+// lists the jar or the frozen shim in the game's folder loaded it: pztools.launch.StartupLoader, in whichever class loader
+// defined it, calls this.
 extern "C" JNIEXPORT jint JNICALL Java_pztools_launch_StartupLoader_load(JNIEnv* env, jclass, jstring options) {
     return Attach(env, options);
 }

@@ -4,11 +4,11 @@
     <_BridgeClasses>$(MSBuildProjectDirectory)\obj\$(Configuration)\classes</_BridgeClasses>
     <_BridgeLanguageSource>$(MSBuildProjectDirectory)\obj\$(Configuration)\generated\NoticeLanguageData.java</_BridgeLanguageSource>
     <_BridgeLanguageGenerator>$(MSBuildProjectDirectory)\..\..\scripts\generate-bridge-languages.ps1</_BridgeLanguageGenerator>
-    <_BridgeLaunchGenerator>$(MSBuildProjectDirectory)\..\..\scripts\generate-startup-launch-sources.ps1</_BridgeLaunchGenerator>
-    <_BridgeLaunchSources>$(MSBuildProjectDirectory)\obj\$(Configuration)\generated\launch</_BridgeLaunchSources>
+    <_BridgeShim>$(MSBuildProjectDirectory)\obj\$(Configuration)\shim</_BridgeShim>
   </PropertyGroup>
   <ItemGroup>
     <JavaSource Include="$(MSBuildProjectDirectory)\java\**\*.java" />
+    <ShimSource Include="$(MSBuildProjectDirectory)\shim\**\*.java" />
     <LanguageCatalog Include="$(MSBuildProjectDirectory)\..\PzTools.Process.Contracts\Localization\languages.tsv" />
     <NoticeCatalog Include="$(MSBuildProjectDirectory)\notices.tsv" />
   </ItemGroup>
@@ -23,18 +23,20 @@
              Properties="Configuration=$(Configuration);GameBridgeDirectory=$(BridgeOutputPath);JdkPath=$(BridgeJdkPath)" />
   </Target>
   <Target Name="BuildAgent" DependsOnTargets="PrepareAgent;BuildExtensions"
-          Inputs="$(MSBuildProjectFullPath);@(JavaSource);@(LanguageCatalog);@(NoticeCatalog);$(_BridgeLanguageGenerator);$(_BridgeLaunchGenerator);$(MSBuildProjectDirectory)\MANIFEST.MF;$(BridgeOutputPath)\agent-inputs.txt;$(BridgeOutputPath)\extensions\pztools-extension-runtime.jar;$(BridgeJdkPath)\release"
+          Inputs="$(MSBuildProjectFullPath);@(JavaSource);@(ShimSource);@(LanguageCatalog);@(NoticeCatalog);$(_BridgeLanguageGenerator);$(MSBuildProjectDirectory)\MANIFEST.MF;$(BridgeOutputPath)\agent-inputs.txt;$(BridgeOutputPath)\extensions\pztools-extension-runtime.jar;$(BridgeJdkPath)\release"
           Outputs="$(BridgeOutputPath)\pztools-game-bridge.jar;$(BridgeOutputPath)\pztools-game-bootstrap.jar">
     <RemoveDir Directories="$(_BridgeClasses)" />
     <MakeDir Directories="$(_BridgeClasses)" />
     <Exec Command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File &quot;$(_BridgeLanguageGenerator)&quot; -Catalog &quot;@(LanguageCatalog)&quot; -Notices &quot;@(NoticeCatalog)&quot; -OutputFile &quot;$(_BridgeLanguageSource)&quot;" />
-    <!-- The startup loader's classes again under another package name, for the jar the launcher file lists. -->
-    <Exec Command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File &quot;$(_BridgeLaunchGenerator)&quot; -SourceDirectory &quot;$(MSBuildProjectDirectory)\java\pztools\startup&quot; -OutputDirectory &quot;$(_BridgeLaunchSources)&quot;" />
-    <ItemGroup><_LaunchSource Include="$(_BridgeLaunchSources)\pztools\launch\*.java" /></ItemGroup>
-    <Exec Command="&quot;$(BridgeJdkPath)\bin\javac.exe&quot; --release 25 -encoding UTF-8 --add-modules jdk.attach -cp &quot;$(BridgeOutputPath)\extensions\pztools-extension-runtime.jar&quot; -d &quot;$(_BridgeClasses)&quot; @(JavaSource->'&quot;%(FullPath)&quot;', ' ') @(_LaunchSource->'&quot;%(FullPath)&quot;', ' ') &quot;$(_BridgeLanguageSource)&quot;" />
-    <!-- The startup loader install and the loader class it copies into the game's jar. -->
+    <!-- The startup loader's frozen shim, the only loose class files in the game's folder (docs/design/startup-loader.md). Its bytes
+         must be the same in every release and on every machine (tests pin their SHA-256): no debug information, a fixed class file version. -->
+    <RemoveDir Directories="$(_BridgeShim)" />
+    <MakeDir Directories="$(_BridgeShim)" />
+    <Exec Command="&quot;$(BridgeJdkPath)\bin\javac.exe&quot; --release 25 -g:none -proc:none -encoding UTF-8 -d &quot;$(_BridgeShim)&quot; @(ShimSource->'&quot;%(FullPath)&quot;', ' ')" />
+    <Exec Command="&quot;$(BridgeJdkPath)\bin\javac.exe&quot; --release 25 -encoding UTF-8 --add-modules jdk.attach -cp &quot;$(BridgeOutputPath)\extensions\pztools-extension-runtime.jar&quot; -d &quot;$(_BridgeClasses)&quot; @(JavaSource->'&quot;%(FullPath)&quot;', ' ') &quot;$(_BridgeLanguageSource)&quot;" />
+    <!-- The startup loader install, the loader (pztools/launch, the launch jar's classes) and the shim it puts in the game's folder. -->
     <ItemGroup><_InstallClasses Include="$(_BridgeClasses)\pztools\bridge\StartupInstall*.class" /></ItemGroup>
-    <Exec Command="&quot;$(BridgeJdkPath)\bin\jar.exe&quot; --create --date=2020-01-01T00:00:00Z --file &quot;$(BridgeOutputPath)\pztools-game-bridge.jar&quot; --manifest &quot;$(MSBuildProjectDirectory)\MANIFEST.MF&quot; -C &quot;$(_BridgeClasses)&quot; pztools/bridge/runtime -C &quot;$(_BridgeClasses)&quot; pztools/bridge/AttachMain.class -C &quot;$(_BridgeClasses)&quot; pztools/startup -C &quot;$(_BridgeClasses)&quot; pztools/launch @(_InstallClasses->'-C &quot;$(_BridgeClasses)&quot; pztools/bridge/%(Filename)%(Extension)', ' ')" />
+    <Exec Command="&quot;$(BridgeJdkPath)\bin\jar.exe&quot; --create --date=2020-01-01T00:00:00Z --file &quot;$(BridgeOutputPath)\pztools-game-bridge.jar&quot; --manifest &quot;$(MSBuildProjectDirectory)\MANIFEST.MF&quot; -C &quot;$(_BridgeClasses)&quot; pztools/bridge/runtime -C &quot;$(_BridgeClasses)&quot; pztools/bridge/AttachMain.class -C &quot;$(_BridgeShim)&quot; pztools/startup -C &quot;$(_BridgeClasses)&quot; pztools/launch @(_InstallClasses->'-C &quot;$(_BridgeClasses)&quot; pztools/bridge/%(Filename)%(Extension)', ' ')" />
     <!-- Package all stable bootstrap nested classes, but no attach/runtime classes. -->
     <ItemGroup><_BootstrapClasses Include="$(_BridgeClasses)\pztools\bridge\AgentEntry*.class;$(_BridgeClasses)\pztools\bridge\GameHook*.class;$(_BridgeClasses)\pztools\bridge\ControlServer*.class;$(_BridgeClasses)\pztools\bridge\Payload*.class;$(_BridgeClasses)\pztools\bridge\RuntimeCharacterIdentity*.class" /></ItemGroup>
     <RemoveDir Directories="$(_BridgeClasses)\bootstrap" />

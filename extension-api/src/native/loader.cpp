@@ -53,13 +53,8 @@ static jint Attach(JNIEnv* env, jstring options) {
     return attach(vm, copy.data(), nullptr);
 }
 
-// The loader exists in two copies under two package names (docs/loader.md): the loose classes in the game's folder
-// (pzext.loader) and the ones in the jar the install adds to the launcher's class path (pzext.launch). Either may be
-// the one that boots the process; the loader's guard keeps the other from calling this.
-extern "C" JNIEXPORT jint JNICALL Java_pzext_loader_Loader_load(JNIEnv* env, jclass, jstring options) {
-    return Attach(env, options);
-}
-
+// The loader is the one in pzext/pzext-launch.jar (docs/loader.md), whether the launcher file's class path lists the jar or
+// the frozen shim in the game's folder loaded it: pzext.launch.Loader, in whichever class loader defined it, calls this.
 extern "C" JNIEXPORT jint JNICALL Java_pzext_launch_Loader_load(JNIEnv* env, jclass, jstring options) {
     return Attach(env, options);
 }

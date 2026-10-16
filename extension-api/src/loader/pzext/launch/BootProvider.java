@@ -1,4 +1,4 @@
-package pzext.loader;
+package pzext.launch;
 
 import java.net.URI;
 import java.nio.channels.SeekableByteChannel;
@@ -19,12 +19,13 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * How the game reaches the {@link Loader} without a changed game class (docs/loader.md). The JDK
- * creates the installed file system providers, the ones named in {@code META-INF/services} on the class path, once,
- * the first time anything asks for one; the game does that early in its main method, when it zips its last logs. The
- * install puts this class and that service entry in the game's folder, which is on the game's class path, and again,
- * under the package name {@code pzext.launch}, in a jar that the launcher file's class path lists (for a launcher
- * file that no longer lists the folder). Creating the provider starts the loader; it serves no files of its own.
+ * How the game reaches the {@link Loader} without a changed game class (docs/loader.md). The JDK creates the installed
+ * file system providers, the ones named in {@code META-INF/services} on the class path, once, the first time anything asks
+ * for one; the game does that early in its main method, when it zips its last logs. The install gives the game's folder
+ * {@code pzext/pzext-launch.jar}, whose services list names this class, and lists the jar in the launcher file's class
+ * path; where the launcher file is plain (the game's folder still on the class path) the frozen shim in the game's folder
+ * ({@code pzext.loader.BootProvider}) loads the same jar when it is not on the class path. Creating the provider starts the
+ * loader; it serves no files of its own.
  *
  * <p>Nothing may escape the constructor: a provider that fails to be created leaves the JDK unable to list file system
  * providers for the rest of the run, and the game's zip files with it. It must also not ask for a file system

@@ -10,35 +10,61 @@ its own. The API needs no other program, no app running beside the game and no l
 
 1. **The install** ([`Install`](../src/install/pzext/install/Install.java)) writes, in the game's folder (which the
    game's launcher puts first on the class path):
-   - `pzext/loader/Loader.class`, `Launcher.class`, `Trust.class` and `BootProvider.class`;
-   - `pzext/loader/install.properties`, the loader's settings: the install folder's path, the version folder to load and
-     the SHA-256 of every file in it (below);
-   - a line `pzext.loader.BootProvider` in `META-INF/services/java.nio.file.spi.FileSystemProvider`, beside any lines
-     of other tools;
-   - `pzext/pzext-launch.jar`, the same loader again under another package name (`pzext.launch`), with a services list
-     of its own and settings of its own, and
+   - `pzext/pzext-launch.jar`, the loader ([`Loader`](../src/loader/pzext/launch/Loader.java),
+     [`Launcher`](../src/loader/pzext/launch/Launcher.java), [`Trust`](../src/loader/pzext/launch/Trust.java) and a
+     provider, package `pzext.launch`) with a services list of its own and the settings of the install: the install
+     folder's path, the version folder to load and the SHA-256 of every file in it (below);
    - one entry in the class path list of the launcher file, `ProjectZomboid64.json`: `"pzext/pzext-launch.jar"`, after
      the game's jar. The file is edited as text, that one element added (or removed) and every other byte left as it
-     was, and written whole or not at all (a temporary file moved over it). Other tools' entries stay.
+     was, and written whole or not at all (a temporary file moved over it). Other tools' entries stay;
+   - the shim, the only loose class files: `pzext/loader/BootProvider.class` and `BootProvider$Jar.class` ([source](../src/shim/pzext/loader/BootProvider.java)),
+     with `pzext/loader/install.properties` (the install folder's path, for one log line, and the SHA-256 of the jar) and a
+     line `pzext.loader.BootProvider` in `META-INF/services/java.nio.file.spi.FileSystemProvider`, beside any lines of
+     other tools. Install and uninstall also remove the loose `Loader`, `Launcher` and `Trust` classes that installs
+     before the shim put there.
 
-   The jar is there because tools that rewrite the launcher file do not keep the game's folder on the class path. PZ
-   Optimization's AOT step makes the list `pzopt/aot/pzopt.jar`, then the entries after the game's own: it drops `.`, so
-   the loose files above are no longer found, and copies the loose class files of other installs into its own jar without
-   their services lists. An entry after the game's jar is kept, and its jar has the services list the JDK looks for, so
-   the loader starts from it. The classes it carries have another package name so that the copies pzopt baked can never
-   shadow them. Both copies may be created in one process (a launcher file with `.` and our entry); the first to find its
-   settings boots, and a property of the process, `pzext.loader.started`, keeps the other from booting again.
+   **The jar is where the loader lives, and the shim is frozen.** Tools that rewrite the launcher file do not keep the
+   game's folder on the class path. PZ Optimization's AOT step makes the list `pzopt/aot/pzopt.jar`, then the entries
+   after the game's own: it drops `.`, so loose files are no longer found, and copies the loose class files of other
+   installs into its own jar (without their services lists) and rebuilds that jar whenever the set or the bytes of those
+   files differ. That rebuild cannot happen while a game runs (the JVM holds the jar open), so a loose loader that changed
+   with every release left PZ Optimization failing at every launch, stuck in its recording phase. Hence:
+   - **Nothing but the shim is loose, and the shim never changes.** Its two classes are byte-identical in every release
+     (the build compiles them with fixed flags, `--release 25 -g:none`, no debug information; a test pins the SHA-256 of
+     each, so changing the shim, or how it is built, is a deliberate decision with a new pin). The install writes a file
+     only when its bytes differ and leaves the rest untouched, modification time included, so after the first install
+     the loose set that PZ Optimization sees is fixed. Everything that changes between releases is in the jar, which
+     PZ Optimization does not copy.
+   - **The jar is found by the class path.** The launcher file lists it, and its services list names its provider. PZ
+     Optimization's list keeps an entry after the game's jar, so the jar's provider starts the loader there; the shim is
+     not involved (a copy of the shim baked into PZ Optimization's jar is not in the game's folder, so it does nothing).
+   - **The shim is the fallback.** Where the game's folder is still on the class path and the jar is not listed (Steam
+     verified the game's files and brought the plain launcher file back), the JDK creates the shim from the folder's
+     services list. It reads the jar (`pzext/pzext-launch.jar`, located from its own class file), checks its SHA-256 against
+     the `sha256` the install wrote beside it, and only then defines the jar's classes, from the bytes it hashed, in a class
+     loader of its own and calls `pzext.launch.Loader.start()`. That keeps the one boot a process, does the checks of the
+     install folder below and lists the jar in the launcher file again. A missing jar, a jar that is not the installed one,
+     missing settings or anything thrown leave a vanilla game and one line in `loader.log` (when the install folder is
+     known); nothing is ever thrown out of the provider. When the jar is on the class path too, its own provider starts
+     the loader and the shim does nothing.
+   - **One boot a process.** A property of the process, `pzext.loader.started`, set by the loader, keeps a second
+     provider (two are created when the folder and the jar are both on the class path) from booting again. Each tool
+     has a guard of its own, so PZ Tools' startup loader and this one both boot.
 
    The rest goes into the install folder, `%ProgramData%\PZExtAPI\s-<account>` (one per Windows account): a version
    folder `api-<digest>` with the boot layer, the API, the native library and the fonts, and the two files the game
    writes there, `loader.log` and `api.tsv`.
 
-   **What the loader trusts.** The game's folder is the trust root: the install wrote the settings (loose, and again
-   in the launch jar) there, and they say which version folder to load (`version=`) and the SHA-256 of each file in it
-   (`sha256.<file>=`). The loader loads nothing from the install folder that the settings do not vouch for, and it
-   does not trust the install folder itself:
+   **What the loader trusts.** The game's folder is the trust root, as before the shim: what the install wrote there is
+   believed, and nothing the shim or the loader reads outside it is. The shim runs the jar only if its bytes have the
+   SHA-256 the install wrote in the loose settings (`sha256=`), the same trust as running loose classes there, plus a
+   jar that is damaged, half written or not the installed one never runs (an attacker who can write the game's folder
+   could change the shim and its settings as well, as before; on the class path the JVM loads the jar without the check,
+   and the shim stands aside). The settings inside the jar say which version folder to load (`version=`) and the SHA-256
+   of each file in it (`sha256.<file>=`). The loader loads nothing from the install folder that the settings do not vouch
+   for, and it does not trust the install folder itself:
    - The install folder, its parent `PZExtAPI` and the version folder must be owned by the machine's administrators
-     and writable by no one else ([`Trust`](../src/loader/pzext/loader/Trust.java)). The administrators are not
+     and writable by no one else ([`Trust`](../src/loader/pzext/launch/Trust.java)). The administrators are not
      named (the names depend on the language of Windows): they are the owner of `%SystemRoot%` and the accounts its
      access list lets write there (the system, the administrators, the installer service). Whoever may change the
      Windows folder can already run code as anyone. A folder that is a link (symbolic or junction) is no install
@@ -60,11 +86,11 @@ its own. The API needs no other program, no app running beside the game and no l
    alone; the game updates them in place, since the folder itself is not writable by the player.
 2. **At game start** the JDK lists the installed file system providers the first time anything asks for one, and
    creates each provider named in a services file on the class path. The game asks early in
-   `MainScreenState.main`, when it zips its last logs. Creating
-   [`BootProvider`](../src/loader/pzext/loader/BootProvider.java) starts the
-   [`Loader`](../src/loader/pzext/loader/Loader.java). The provider serves no files; its scheme, `pzext-loader`, is its
-   own.
-3. **The loader** (whichever copy starts first) checks the install (the folders and each file's digest against its settings, above), loads the native library [`pzext-loader.dll`](../src/native/loader.cpp), which loads the game JRE's
+   `MainScreenState.main`, when it zips its last logs. Creating the jar's
+   [`BootProvider`](../src/loader/pzext/launch/BootProvider.java) (or the shim, above) starts the
+   [`Loader`](../src/loader/pzext/launch/Loader.java). The providers serve no files; their scheme, `pzext-loader`, is
+   their own.
+3. **The loader** checks the install (the folders and each file's digest against its settings, above), loads the native library [`pzext-loader.dll`](../src/native/loader.cpp), which loads the game JRE's
    `instrument.dll` and calls its `Agent_OnAttach` on the current thread with the boot jar: in-process what an agent
    attach does, so the game needs no `-javaagent` option and no attach from outside. It writes one line to
    `loader.log` in the install folder. Last, it looks at the launcher file: when the jar is there and the file's class path
@@ -91,9 +117,9 @@ The JDK creates the providers inside its own lock, with a flag that marks the li
 be created leaves the flag set, and every later request for a provider (the game's log zip among them) fails for the
 rest of the run. So:
 
-- `BootProvider` and `Loader` use `java.base` alone and catch everything. A missing or broken loader class is a
+- The shim, `BootProvider` and `Loader` use `java.base` alone and catch everything. A missing or broken loader class is a
   `NoClassDefFoundError` inside that `try`.
-- The install writes the classes before the service line, and uninstall removes the line before the classes, so the
+- The install writes the jar and the shim before the service line, and uninstall removes the line before the shim, so the
   line never names a class that is not there.
 - Neither the loader nor the boot layer asks for a file system provider while it runs, and neither waits for another
   thread that might.
@@ -121,13 +147,21 @@ Each prints one line: `PZEXT-INSTALL` and `installed <version folder> <install f
 `reverted` (installed, but the game's folder lost part of the entry; install again) or `uninstalled`; or
 `PZEXT-INSTALL-FAILED`, a code and a message, with exit code 1. `<state>` says what the launcher file holds: `listed` (the
 jar's entry is in its class path list), `absent` (it is not: the loader adds it at the next game start, or install again),
-`none` (no launcher file) or `unreadable` (a file whose class path list this cannot edit; the loose files serve where the
-game's folder is still on the class path). Installing a newer release is installing again: it copies a new version folder, writes the settings that name it and
-give its digests, and removes the older version folders. The settings change with the version, so the install waits for
-a game that runs (`game-running`: the launch jar is open).
+`none` (no launcher file) or `unreadable` (a file whose class path list this cannot edit; the shim serves where the
+game's folder is still on the class path). Installing a newer release is installing again: it copies a new version
+folder, writes the jar whose settings name it and give its digests (and the shim's settings with the jar's digest), and
+removes the older version folders. The shim, its service line and the other loose files are written only when their bytes
+differ, so a newer release leaves them as they were. The jar changes with the version, so the install waits for a game
+that runs (`game-running`: the launch jar is open).
+
+The first install over an install from before the shim replaces the loose `BootProvider` and removes the loose `Loader`,
+`Launcher` and `Trust` classes. A tool that copies the game folder's loose classes (PZ Optimization) sees that change once.
+If it is already stuck from an earlier change (its own jar `pzopt/aot/pzopt.jar` held open by the game, a rebuild that
+failed with `AccessDeniedException`), it needs one launch in which it can rebuild; delete its stale jar and temporary file
+while the game is closed.
 
 Uninstalling removes the jar first (a game that runs has it open, so the uninstall stops there with `game-running` before
-anything else changes), then the launcher file's entry, the service line and the loose files; other tools' entries and
+anything else changes), then the launcher file's entry, the service line and the shim; other tools' entries and
 lines stay. Another program (a mod manager, a
 launcher) installs the API by running the same commands; `PZEXT_GAME_ACCOUNT` names the account the game runs as when
 the install runs as another (elevated by another administrator).

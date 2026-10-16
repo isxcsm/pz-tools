@@ -9,9 +9,8 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
-import pztools.startup.BootProvider;
-import pztools.startup.Launcher;
-import pztools.startup.StartupLoader;
+import pztools.launch.Launcher;
+import pztools.launch.StartupLoader;
 
 /**
  * Installs and removes the startup loader (docs/design/startup-loader.md). Run by the app with the bundled runtime,
@@ -19,14 +18,14 @@ import pztools.startup.StartupLoader;
  * {@code refresh <bridge folder>}. Prints one line, {@code PZTOOLS-STARTUP\t<state>\t<detail>}; a failure prints
  * {@code PZTOOLS-STARTUP-FAILED\t<code>\t<message>} and exits 1.
  *
- * <p>No game class changes. The game's folder is on the game's class path, and gets files of PZ Tools' own: the
- * {@link StartupLoader}, {@link Launcher} and {@link BootProvider} classes, the install folder's and the game folder's
- * paths, and a line naming the provider in the folder's file system provider services list. The launcher's class path
- * may no longer list that folder (PZ Optimize's AOT step drops it and copies the loose classes, without the services
- * list, into a jar of its own), so the game's folder gets the same loader a second time as a jar of its own,
- * {@code pztools/pztools-launch.jar}, under another package name (a copy made by another tool can never shadow it), and
- * the launcher file ({@code ProjectZomboid64.json}) lists the jar after the game's. Only that one entry of the file is
- * added or removed, as text; the loader adds it back at game start when a reset took it out. Everything else the game
+ * <p>No game class changes. The loader ({@link StartupLoader}, {@link Launcher}, the provider) is a jar of its own,
+ * {@code pztools/pztools-launch.jar} (package {@code pztools.launch}), and the launcher file ({@code ProjectZomboid64.json})
+ * lists it after the game's jar. Only that one entry of the file is added or removed, as text; the loader adds it back at
+ * game start when a reset took it out. The game's folder is on the game's class path as well, and gets a frozen shim
+ * ({@code pztools/startup/BootProvider} and its nested loader, whose bytes never change from one release to the next: PZ
+ * Optimize's AOT step copies the folder's loose classes into a jar of its own and rebuilds that jar whenever they change),
+ * the shim's settings (the install folder's path and the jar's SHA-256) and a line naming the shim in the folder's file
+ * system provider services list. The shim loads the jar for a launcher file that does not list it. Everything else the game
  * loads stays in the install folder, which only the player's account and the administrators may change.
  *
  * <p>Earlier versions patched the game's jar instead. Other mods compare the game's classes with the ones they were
@@ -37,15 +36,22 @@ public final class StartupInstall {
     static final String MARK = "PZTOOLS-STARTUP", FAILED = "PZTOOLS-STARTUP-FAILED";
     static final String GAME_JAR = "projectzomboid.jar", LAUNCHER = "ProjectZomboid64.exe";
     static final String SERVICES = "META-INF/services/java.nio.file.spi.FileSystemProvider";
-    static final String PROVIDER = BootProvider.class.getName();
-    static final String LOADER_ENTRY = "pztools/startup/StartupLoader.class";
-    static final String PROVIDER_ENTRY = "pztools/startup/BootProvider.class";
-    static final String LAUNCHER_ENTRY = "pztools/startup/Launcher.class";
-    static final String[] LOOSE_ENTRIES = { LOADER_ENTRY, PROVIDER_ENTRY, LAUNCHER_ENTRY };
-    /** The loader's classes and settings in the jar, under the other package name. */
-    static final String LAUNCH_PROVIDER = "pztools.launch.BootProvider";
+    /** The shim's provider (loose, in the game's folder) and the jar's own (named in the jar's services list). */
+    static final String PROVIDER = "pztools.startup.BootProvider", LAUNCH_PROVIDER = "pztools.launch.BootProvider";
+    /**
+     * The frozen shim: the only loose class files. Their bytes never change from one release to the next (tests pin their
+     * SHA-256), so a tool that copies the game folder's loose classes never sees a changed set.
+     */
+    static final String[] SHIM = { "pztools/startup/BootProvider.class", "pztools/startup/BootProvider$Jar.class" };
+    /** The loose classes of earlier installs, before the shim: removed by install and uninstall. */
+    static final String[] RETIRED = { "pztools/startup/StartupLoader.class", "pztools/startup/Launcher.class" };
+    /** The loader class an earlier version patched into the game's jar. */
+    static final String PATCHED_LOADER_ENTRY = "pztools/startup/StartupLoader.class";
+    /** The loader's classes and settings in the jar. */
     static final String[] LAUNCH_CLASSES = { "pztools/launch/StartupLoader.class", "pztools/launch/BootProvider.class", "pztools/launch/Launcher.class" };
-    static final String LAUNCH_SETTINGS = "pztools/launch/install.properties";
+    static final String LAUNCH_SETTINGS = StartupLoader.SETTINGS;
+    /** The shim's settings, beside it: {@code root}, the install folder (for its log line), and {@code sha256} of the launch jar. */
+    static final String SETTINGS = "pztools/startup/install.properties";
     static final String LAUNCH_JAR = StartupLoader.JAR;
     static final String RECORD = "install.tsv", ORIGINAL = "original.jar";
     static final String[] BRIDGE_FILES = { StartupLoader.BOOTSTRAP, StartupLoader.PAYLOAD, StartupLoader.NATIVE };
@@ -185,22 +191,25 @@ public final class StartupInstall {
     // ---- the entry in the game's folder ----
 
     /**
-     * The jar and the loader's files, then the service line, then the launcher file's entry: a line or an entry naming
-     * a class or a jar that is not there would break the JDK's list or the class path.
+     * The jar, the shim's settings (which name the jar's digest), the shim, then the service line, then the launcher file's
+     * entry: a line or an entry naming a class or a jar that is not there would break the JDK's list or the class path. A
+     * file whose bytes are the ones to write is left alone, its modification time too: the shim's never change, and a tool
+     * that watches the game folder's loose classes (PZ Optimize) must not see the install touch them.
      */
     private static void writeEntry(Path root, Path game) throws Exception {
         byte[] jar = launchJar(root, game);
-        Path jarFile = game.resolve(LAUNCH_JAR);
         // A running game has the jar open: the same bytes stay.
-        if (!Files.isRegularFile(jarFile) || !Arrays.equals(Files.readAllBytes(jarFile), jar)) writeAtomically(jarFile, jar);
-        for (String name : LOOSE_ENTRIES) writeAtomically(game.resolve(name), ownClass(name));
-        writeAtomically(game.resolve(StartupLoader.SETTINGS), settings(root, game));
+        writeIfDifferent(game.resolve(LAUNCH_JAR), jar);
+        writeIfDifferent(game.resolve(SETTINGS), looseSettings(root, jar));
+        for (String name : SHIM) writeIfDifferent(game.resolve(name), ownClass(name));
         var lines = serviceLines(game);
         if (!lines.contains(PROVIDER)) {
             lines.add(PROVIDER);
             writeAtomically(game.resolve(SERVICES), (String.join("\n", lines) + "\n").getBytes(StandardCharsets.UTF_8));
         }
-        // No launcher file, or none this can edit: the loose files serve, and status says so.
+        // The loose classes of an install before the shim: the line named a class that is still there, so they go last.
+        for (String name : RETIRED) Files.deleteIfExists(game.resolve(name));
+        // No launcher file, or none this can edit: the shim serves, and status says so.
         Launcher.ensure(game.resolve(Launcher.FILE), LAUNCH_JAR);
         writeRecord(root, game);
     }
@@ -218,24 +227,45 @@ public final class StartupInstall {
             if (lines.stream().allMatch(line -> line.isBlank() || line.startsWith("#"))) Files.deleteIfExists(game.resolve(SERVICES));
             else writeAtomically(game.resolve(SERVICES), (String.join("\n", lines) + "\n").getBytes(StandardCharsets.UTF_8));
         }
-        for (String name : LOOSE_ENTRIES) Files.deleteIfExists(game.resolve(name));
-        Files.deleteIfExists(game.resolve(StartupLoader.SETTINGS));
+        for (String name : SHIM) Files.deleteIfExists(game.resolve(name));
+        for (String name : RETIRED) Files.deleteIfExists(game.resolve(name));
+        Files.deleteIfExists(game.resolve(SETTINGS));
         for (String folder : new String[] { "pztools/startup", "pztools", "META-INF/services", "META-INF" }) deleteIfEmpty(game.resolve(folder));
     }
 
     /**
-     * The entry is all there and names this install folder; it may be an earlier version's, which still loads. The
-     * launcher file's entry heals itself (the loader adds it at game start, refresh sooner) and is not part of it.
+     * The entry is all there and names this install folder: the shim, its settings (they name the jar that is there) and the
+     * jar, whose own settings name this install folder and this game. It may be an earlier version's jar, which still
+     * loads. The launcher file's entry heals itself (the loader adds it at game start, refresh sooner) and is not part of it.
      */
     private static boolean present(Path game, Path root) throws Exception {
         if (!serviceLines(game).contains(PROVIDER)) return false;
         if (!files(game)) return false;
-        return Arrays.equals(Files.readAllBytes(game.resolve(StartupLoader.SETTINGS)), settings(root, game));
+        byte[] jar = Files.readAllBytes(game.resolve(LAUNCH_JAR));
+        return Arrays.equals(Files.readAllBytes(game.resolve(SETTINGS)), looseSettings(root, jar))
+            && Arrays.equals(jarEntry(jar, LAUNCH_SETTINGS), settings(root, game));
+    }
+
+    /** One file inside the launch jar (empty when it is not there). */
+    private static byte[] jarEntry(byte[] jar, String name) throws IOException {
+        try (var zip = new java.util.zip.ZipInputStream(new ByteArrayInputStream(jar))) {
+            for (ZipEntry entry; (entry = zip.getNextEntry()) != null; ) if (entry.getName().equals(name)) return zip.readAllBytes();
+        }
+        return new byte[0];
+    }
+
+    /**
+     * What the shim reads (Properties.load): the install folder, for its one log line, and the SHA-256 of the launch jar,
+     * the only thing it checks before it runs code from the jar. The game's folder is the trust root
+     * (docs/design/startup-loader.md).
+     */
+    static byte[] looseSettings(Path root, byte[] jar) throws Exception {
+        return ("root=" + escaped(root.toString()) + "\nsha256=" + sha256(jar) + "\n").getBytes(StandardCharsets.ISO_8859_1);
     }
 
     /** Every file of the entry is in the game's folder. */
     private static boolean files(Path game) {
-        for (String name : new String[] { LOADER_ENTRY, PROVIDER_ENTRY, LAUNCHER_ENTRY, StartupLoader.SETTINGS, LAUNCH_JAR })
+        for (String name : new String[] { SHIM[0], SHIM[1], SETTINGS, LAUNCH_JAR })
             if (!Files.isRegularFile(game.resolve(name), LinkOption.NOFOLLOW_LINKS)) return false;
         return true;
     }
@@ -243,13 +273,13 @@ public final class StartupInstall {
     /** Present, and this version's: what install and refresh leave. */
     private static boolean current(Path game, Path root) throws Exception {
         if (!present(game, root)) return false;
-        for (String name : LOOSE_ENTRIES)
+        for (String name : SHIM)
             if (!Arrays.equals(Files.readAllBytes(game.resolve(name)), ownClass(name))) return false;
         return Arrays.equals(Files.readAllBytes(game.resolve(LAUNCH_JAR)), launchJar(root, game));
     }
 
     /**
-     * The loader's other copy as a jar: the service list naming it, its classes under {@code pztools.launch}, its
+     * The loader as a jar: the service list naming it, its classes ({@code pztools.launch}), its
      * settings. The same bytes for the same inputs (fixed times), so an install of the same build leaves the jar be.
      */
     static byte[] launchJar(Path root, Path game) throws IOException {
@@ -313,12 +343,12 @@ public final class StartupInstall {
 
     private static String entryDigest(Path game) throws Exception {
         var digest = MessageDigest.getInstance("SHA-256");
-        for (String name : new String[] { LOADER_ENTRY, PROVIDER_ENTRY, LAUNCHER_ENTRY, StartupLoader.SETTINGS, LAUNCH_JAR })
+        for (String name : new String[] { SHIM[0], SHIM[1], SETTINGS, LAUNCH_JAR })
             digest.update(Files.readAllBytes(game.resolve(name)));
         return HexFormat.of().formatHex(digest.digest());
     }
 
-    private static byte[] ownClass(String name) throws IOException {
+    static byte[] ownClass(String name) throws IOException {
         try (InputStream input = StartupInstall.class.getClassLoader().getResourceAsStream(name)) {
             if (input == null) throw new FileNotFoundException(name);
             return input.readAllBytes();
@@ -399,7 +429,14 @@ public final class StartupInstall {
         } finally { Files.deleteIfExists(staged); }
     }
 
+    /** The file with these bytes: written when it is not there or differs, else not touched at all (not its modification time either). */
+    private static void writeIfDifferent(Path target, byte[] bytes) throws IOException {
+        if (Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS) && Arrays.equals(Files.readAllBytes(target), bytes)) return;
+        writeAtomically(target, bytes);
+    }
+
     private static void writeAtomically(Path target, byte[] bytes) throws IOException {
+
         Files.createDirectories(target.getParent());
         Path staged = Files.createTempFile(target.getParent(), "staging", ".tmp");
         try {
@@ -431,7 +468,7 @@ public final class StartupInstall {
 
     /** An earlier version's patch: the loader class in the game's jar. */
     static boolean hasLoader(Path jar) throws IOException {
-        try (var zip = new java.util.zip.ZipFile(jar.toFile())) { return zip.getEntry(LOADER_ENTRY) != null; }
+        try (var zip = new java.util.zip.ZipFile(jar.toFile())) { return zip.getEntry(PATCHED_LOADER_ENTRY) != null; }
     }
 
     private static void deleteIfEmpty(Path folder) throws IOException {
@@ -456,7 +493,7 @@ public final class StartupInstall {
         return HexFormat.of().formatHex(digest.digest());
     }
 
-    private static String sha256(byte[] bytes) throws Exception {
+    static String sha256(byte[] bytes) throws Exception {
         return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
     }
 

@@ -1,4 +1,4 @@
-package pzext.loader;
+package pzext.launch;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -19,7 +19,7 @@ import java.util.List;
  * entry added after the game's jar, and a reset by Steam brings the plain file back; the loader adds its entry back
  * when it is missing (docs/loader.md).
  *
- * <p>Uses java.base alone, like {@link Loader}; it is part of the loader's files, in the game's folder and in the jar.
+ * <p>Uses java.base alone, like {@link Loader}; it is part of the launch jar.
  */
 public final class Launcher {
     /** The launcher file, in the game's folder. */
