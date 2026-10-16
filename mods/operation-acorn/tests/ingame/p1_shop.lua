@@ -35,8 +35,9 @@ P1T.check(say, "there are seed packets to choose from", #OA.Shop.seedChoices() >
 -- Every entry has a name in the language.
 local noName = {}
 for _, e in ipairs(catalog) do
-    local key = OA.Shop.nameKey(e)
-    if getText(key) == key then noName[#noName + 1] = e.id end
+    -- (an entry that sells one item goes by the item's name: Shop.name)
+    local name = OA.Shop.name(e)
+    if not name or name == "" or name == OA.Shop.nameKey(e) or name == e.item then noName[#noName + 1] = e.id end
 end
 P1T.check(say, "every entry has a translated name", #noName == 0, table.concat(noName, " "))
 

@@ -14,7 +14,7 @@ local record, player, u = P3T.record()
 P3T.points(u, "scout", 12)
 for _, id in ipairs({ "sixth", "sixth", "alarm", "ledger", "ledger", "ledger", "sense", "sense", "sensePlus", "sensePlus",
     "sensePlus" }) do
-    local ok, why = Rules.buy(u, id)
+    local ok, why = P3T.buy(u, id)
     if not ok then say("could not buy", id, why) end
 end
 P3T.changed(record)

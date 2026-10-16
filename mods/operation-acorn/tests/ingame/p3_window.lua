@@ -36,7 +36,7 @@ for _, mode in ipairs({ "trees", "board" }) do
             -- inside its panel, and on no other node
             local inside = false
             for _, panel in ipairs(view.panels) do
-                if item.x >= panel.x and item.x + item.w <= panel.x + view.gridW and item.y >= panel.y then inside = true end
+                if item.x >= panel.x and item.x + item.w <= panel.x + (panel.w or view.gridW) and item.y >= panel.y then inside = true end
             end
             if not inside then
                 bad = bad + 1

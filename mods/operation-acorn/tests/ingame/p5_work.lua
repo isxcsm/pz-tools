@@ -86,7 +86,8 @@ section("propane refiner", function()
     local object = P5T.place("propaneRefiner", 3, 11, "S")
     if not check("placed", object ~= nil) then return end
     local inC = M.container(object, "in")
-    local tank = inC:AddItem("Base.PropaneTank")
+    -- the tank goes in the tank container (the refiner fills tanks there; the input takes the food)
+    local tank = M.container(object, "tank"):AddItem("Base.PropaneTank")
     if tank.setUsedDelta then tank:setUsedDelta(0) end
     local weight = 0
     for _ = 1, 30 do
@@ -106,7 +107,7 @@ section("oil refiner", function()
     local object = P5T.place("oilRefiner", 7, 2, "S")
     if not check("placed", object ~= nil) then return end
     local inC = M.container(object, "in")
-    local can = inC:AddItem("Base.PetrolCan")
+    local can = M.container(object, "tank"):AddItem("Base.PetrolCan")
     local fluid = can.getFluidContainer and can:getFluidContainer()
     if fluid then fluid:Empty() end
     for _ = 1, 4 do inC:AddItem("Base.OilVegetable") end
@@ -126,8 +127,11 @@ section("hand bench", function()
     check("time is 5 game minutes a weight, at least 30 seconds", minutes >= 0.5, minutes)
     local record = OperationAcorn.Store.player(player:getModData().OA_Id)
     if not check("a record exists", record ~= nil) then return end
+    -- two hammers (heavy enough for a whole bundle each; light things only add to what the record keeps)
     local items = {}
-    for i = 1, math.min(2, #entries) do items[i] = entries[i].item end
+    for _, e in ipairs(entries) do
+        if #items < 2 and e.item:getFullType() == "Base.Hammer" then items[#items + 1] = e.item end
+    end
     local n = M.shredByHand(player, record, items)
     check("hand shredding gave bundles", n > 0, n)
     say("info minutes", minutes, "bundles", n)
@@ -149,7 +153,7 @@ section("parts: install, wear, break", function()
     for _ = 1, 4 do inC:AddItem("Base.Hammer") end
     P5T.work(object, 0.2)
     check("load with a modern motor is 0.9", near(M.load(object), 0.9, 0.01) or not state.running, M.load(object))
-    check("the anchor keeps the multiplier for the API (OA_Load 1.5 while running)", object:getModData().OA_Load == (state.running and 1.5 or 0), tostring(object:getModData().OA_Load))
+    check("the anchor keeps the multiplier for the API (OA_Load 1.5 while switched on)", object:getModData().OA_Load == (state.on ~= false and 1.5 or 0), tostring(object:getModData().OA_Load))
     -- Wear: an old shredder blade wears 2 an hour.
     -- (it wears only while it runs: give it a load that lasts)
     for _ = 1, 40 do inC:AddItem("Base.Hammer") end

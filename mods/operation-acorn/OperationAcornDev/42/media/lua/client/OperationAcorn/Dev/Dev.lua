@@ -818,10 +818,14 @@ function Dev.console(show)
     if console then console:setVisible(show == true) end
 end
 
--- Closes the character info window (where the research tab is) and the Lua console.
+-- Closes the character info window (where the research tab is), the terminal's window, the reading window and the Lua
+-- console.
 function Dev.closeWindows()
     local info = getPlayerInfoPanel(0)
     if info and info:getIsVisible() then info:close() end
+    local terminal = OATerminalWindow and OATerminalWindow.instances and OATerminalWindow.instances[0]
+    if terminal then terminal:close() end
+    if OA.StoryViewer and OA.StoryViewer.instance then OA.StoryViewer.instance:close() end
     Dev.console(false)
     say("windows closed")
 end

@@ -16,12 +16,25 @@ if s.active then OA.Missions.finish(record, s.active, "lost") end
 s.nextAt = 0
 OA.Story.setAnchor(record, math.floor(player:getX()), math.floor(player:getY()), 0)
 P4T.setStage(record, stage, 0)
+-- the stage's own story missions first, whatever the save's queue holds (missed ones, an earlier run's)
+local ss = OA.Story.section(record)
+ss.queue = {}
+local own = OA.StoryData.STAGES[stage] and OA.StoryData.STAGES[stage].stories or {}
+for i = #own, 1, -1 do
+    ss.done[own[i]] = nil
+    OA.Story.queueStory(record, own[i], true)
+end
 OA.Missions.tick(record)
 local m = OA.Missions.active(record)
 if not P4T.check(say, "a mission started", m ~= nil) then return end
 say("mission", m.id, m.kind, m.story or m.title, "level", m.level, "credits", m.credits, "trust", m.trust)
 P4T.check(say, "a story mission first at a new stage", m.kind == "story", m.story)
 P4T.check(say, "deadline set", m.deadline > OA.hours(), m.deadline)
+-- a choice of two places is an offer until one is taken: no circle and no item yet
+if m.state == "offer" then
+    say("a choice: offered; take one in the terminal, then its place and item come")
+    return
+end
 P4T.check(say, "the circle is on the record", m.area ~= nil and m.area.r >= 60, m.area and m.area.r)
 local it = m.items[1]
 if it then

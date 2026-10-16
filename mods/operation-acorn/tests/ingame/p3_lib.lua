@@ -47,6 +47,54 @@ function P3T.points(u, tree, n)
     for _ = 1, n do OperationAcorn.Upgrades.Rules.inject(u, tree) end
 end
 
+-- Takes the next rank of a node as a player would get there: a point given when the tree has none free, the rows
+-- before it filled with other nodes of the tree, its prerequisites taken first, its capstone fragment counted in. A
+-- node already at its last rank is fine. Returns true, or false and why it could not.
+function P3T.buy(u, id)
+    local Rules, Data = OperationAcorn.Upgrades.Rules, OperationAcorn.Upgrades.Data
+    local node = Data.byId[id]
+    if not node then return false, "unknown" end
+    for _ = 1, 60 do
+        local why = Rules.blocked(u, id)
+        if not why then return Rules.buy(u, id) end
+        if why == "maxed" then return true end
+        if why == "points" or why == "treeClosed" then
+            if node.board then return false, why end
+            Rules.inject(u, node.tree)
+        elseif why == "prereq" then
+            for _, need in ipairs(node.req) do
+                if Rules.rank(u, need[1]) < need[2] then
+                    local ok, w = P3T.buy(u, need[1])
+                    if not ok then return false, "prereq " .. need[1] .. " " .. tostring(w) end
+                end
+            end
+        elseif why == "row" then
+            -- a rank of another node of an earlier row (free points first)
+            local filler
+            for _, other in ipairs(Data.treeNodes(node.tree)) do
+                if not filler and other.id ~= id and other.row < node.row and not Rules.blocked(u, other.id) then
+                    filler = other.id
+                end
+            end
+            if not filler then
+                Rules.inject(u, node.tree)
+                for _, other in ipairs(Data.treeNodes(node.tree)) do
+                    if not filler and other.id ~= id and other.row < node.row and not Rules.blocked(u, other.id) then
+                        filler = other.id
+                    end
+                end
+            end
+            if not filler then return false, "row" end
+            Rules.buy(u, filler)
+        elseif why == "sealed" then
+            Rules.unseal(u, node.tree)
+        else
+            return false, why
+        end
+    end
+    return false, "too many steps"
+end
+
 -- A plan from a list of ids (one rank each); the choice goes with every step.
 function P3T.steps(ids, choice)
     local steps = {}

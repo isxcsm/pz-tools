@@ -10,7 +10,7 @@ local M = P5T.machines()
 local Data = M.Data
 
 local SIZE = { shredBench = { 2, 1 }, bulkShredder = { 2, 1 }, cutter = { 2, 1 }, woodSaw = { 2, 1 }, researchStorage = { 2, 1 },
-    propaneRefiner = { 2, 2 }, oilRefiner = { 2, 2 }, rainStorage = { 2, 2 }, lure = { 1, 1 } }
+    researchCrate = { 1, 1 }, propaneRefiner = { 2, 2 }, oilRefiner = { 2, 2 }, rainStorage = { 2, 2 }, lure = { 1, 1 } }
 
 local function checkKind(kind, column, row)
     local object, reason = P5T.place(kind, column, row, "S")
@@ -40,7 +40,16 @@ local function checkKind(kind, column, row)
         if M.container(object, which) then got = got + 1 end
     end
     check(kind .. " containers on the anchor", got == #def.containers, got .. "/" .. #def.containers)
-    if kind ~= "lure" then check(kind .. " pick up allowed when empty", M.canPickUp(object) ~= nil) end
+    if kind ~= "lure" then
+        -- a machine's parts count as contents: with them in it is not taken up, with them out it is
+        local hasParts = false
+        for _ in pairs(state.parts or {}) do hasParts = true end
+        if hasParts then
+            check(kind .. " pick up refused while its parts are in", M.canPickUp(object) == nil)
+            for slot in pairs(state.parts) do M.removePart(object, slot, getPlayer()) end
+        end
+        check(kind .. " pick up allowed when empty", M.canPickUp(object) ~= nil, select(2, M.canPickUp(object)))
+    end
 end
 
 -- two columns of kinds (x 3 and 6), three rows apart: it stays within the squares loaded around the character

@@ -21,7 +21,10 @@ for _, it in ipairs(m.items) do
             return md == id or md == m.id
         end
     end
-    local found = P4T.scan(m.id, it.x1, it.y1, it.x2, it.y2, it.z1, it.z2, match)
+    -- a piece a stage puts down (a camp, a clearing) lies on the stage around its place, not in a building's box
+    local x1, y1, x2, y2 = it.x1, it.y1, it.x2, it.y2
+    if it.staged or it.mode == "floor" then x1, y1, x2, y2 = it.x - 15, it.y - 15, it.x + 15, it.y + 15 end
+    local found = P4T.scan(m.id, x1, y1, x2, y2, it.z1, it.z2, match)
     for _, f in ipairs(found) do say("found", f.item, f.container, f.x, f.y, f.z) end
     P4T.check(say, "piece " .. it.key .. " found once", #found == 1, #found)
     P4T.check(say, "piece " .. it.key .. " marked placed", it.placed == true, tostring(it.placed))
