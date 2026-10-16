@@ -48,7 +48,6 @@ else
 end
 
 -- The room found. Kept while the API's version of the buildings holds: asked again, nothing is read again.
-Panels.forgetRooms()
 local rooms = Panels.rooms(building)
 check("the buildings' version holds while nothing changes", api.buildings.version() == api.buildings.version(), true)
 check("the rooms are kept for it", Panels.rooms(building) == rooms, true)

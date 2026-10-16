@@ -11,17 +11,16 @@ if not panel then say("no panel"); return end
 
 -- The disc: the squares within the radius, as a sound carries.
 local function count(area)
-    local cells, edges = 0, 0
+    local cells = 0
     for y = area.minY, area.minY + area.h - 1 do
         for x = area.minX, area.minX + area.w - 1 do
             if Geometry.reached(area, x, y) then cells = cells + 1 end
-            if Geometry.onEdge(area, x, y) then edges = edges + 1 end
         end
     end
-    return cells, edges
+    return cells
 end
-say("disc 20 cells, edge", count(Geometry.disc(0, 0, 20)))
-say("disc 10 cells, edge", count(Geometry.disc(0, 0, 10)))
+say("disc 20 cells", count(Geometry.disc(0, 0, 20)))
+say("disc 10 cells", count(Geometry.disc(0, 0, 10)))
 say("disc 20 reaches (20,0)", Geometry.reached(Geometry.disc(0, 0, 20), 20, 0), "(15,15)",
     Geometry.reached(Geometry.disc(0, 0, 20), 15, 15))
 
@@ -64,7 +63,7 @@ old:setActivated(false)
 window:refresh()
 
 function BU22_CLEAN()
-    Changes.disconnectProducer(panel, "power", outside:getX(), outside:getY(), 0)
+    Changes.unlay(BU.Links.producerRef(outside:getX(), outside:getY(), 0))
     old:remove()
     if plain then plain:remove() end
     window:refresh()

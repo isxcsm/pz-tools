@@ -45,8 +45,10 @@ local wire = cost and cost.items[1]
 say("solar line", cost and Store.unit(solar.id) == other, wire and wire[1] or "none", wire and wire[2] or 0)
 Changes.connectUnit(solar, panel, { ["Base.ElectricWire"] = 2 })
 Changes.connectUnit(rack, panel, { ["Base.ElectricWire"] = 1 })
+local paidWire = 0
+for _, line in ipairs(BU.Links.of(panel)) do paidWire = paidWire + (line.paid["Base.ElectricWire"] or 0) end
 say("wired", #Store.unitList(nil, panel.id), "again", why(Actions.lineCost("unit", panel, "power", solar.x, solar.y, solar.z, solar.id)),
-    "paid", Changes.paidFor(panel)["Base.ElectricWire"])
+    "paid", paidWire)
 local battery = instanceItem("Base.CarBattery2")
 battery:setUsedDelta(0.62)
 battery:setCondition(41)
@@ -78,6 +80,6 @@ back:setCondition(80)
 say("not worn", why(BU.Rack.canRevive(player, back)), "was", before)
 
 -- Then everything goes.
-say("refund solar", Changes.removeUnit(solar)["Base.ElectricWire"], "rack", Changes.disconnectUnit(rack)["Base.ElectricWire"])
+say("refund solar", Changes.removeUnit(solar)["Base.ElectricWire"], "rack", Changes.unlay(BU.Links.unitRef(rack))["Base.ElectricWire"])
 Changes.removeUnit(rack)
 say("left", #Store.unitList(), Store.unitAt(outside:getX(), outside:getY(), 0) == nil)

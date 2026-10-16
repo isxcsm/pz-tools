@@ -243,30 +243,25 @@ for i = 0, all:size() - 1 do
 end
 say(blank == 0 and given > 0 and "ok" or "BAD", "every item of the mod has its icon", given .. " items, " .. blank .. " without")
 
--- Tree node icons.
-local NODES = {
-    "OA_Node_SightCone.png", "OA_Node_Hunch.png", "OA_Node_AlarmRead.png", "OA_Node_SearchLog.png",
-    "OA_Node_RichSearch.png", "OA_Node_NightEye.png", "OA_Node_Presence.png", "OA_Node_SampleGrade.png",
-    "OA_Node_AmmoSearch.png", "OA_Node_PresenceRadar.png", "OA_Node_NocturnalEye.png", "OA_Node_Overload.png",
-    "OA_Node_TransferSpeed.png", "OA_Node_KeyRing.png", "OA_Node_FurnitureWeight.png", "OA_Node_MaterialWeight.png",
-    "OA_Node_RunSpeed.png", "OA_Node_CarryCapacity.png", "OA_Node_CombatSpeed.png", "OA_Node_MaterialWeightPlus.png",
-    "OA_Node_StorageCapacity.png", "OA_Node_ArmorBody.png", "OA_Node_SerumAdapt.png", "OA_Node_CrowbarPry.png",
-    "OA_Node_LimbStiffness.png", "OA_Node_BreakFall.png", "OA_Node_LockPick.png", "OA_Node_BrushClear.png",
-    "OA_Node_GearCare.png", "OA_Node_InfectionResist.png", "OA_Node_WalkSpeed.png",
-    "OA_Node_InfectionResistPlus.png", "OA_Node_BreakSprint.png", "OA_Node_B2HeavyLoad.png",
-    "OA_Node_B2CategoryWeight.png", "OA_Node_B2GearAdapt.png", "OA_Node_B2GearSpeed.png",
-    "OA_Node_B2OverloadPenalty.png", "OA_Node_B2TransferTime.png", "OA_Node_B2CarryLimit.png",
-    "OA_Node_B2StorageCapacity.png", "OA_Node_B2ScratchInfect.png", "OA_Node_B2SicknessRate.png",
-    "OA_Node_B2BiteCooldown.png", "OA_Node_B2LimbFatigue.png", "OA_Node_B2Stamina.png", "OA_Node_B2SleepFatigue.png",
-    "OA_Node_B2GearDamage.png", "OA_Node_B2FallDamage.png", "OA_Node_B2SprintStamina.png", "OA_Node_B2WalkSpeed.png",
-    "OA_Node_B2LootChance.png", "OA_Node_B2SelectedSample.png", "OA_Node_B2SampleBundle.png",
-    "OA_Node_B2PresenceRadius.png", "OA_Node_B2HunchRadius.png",
-}
-local noNode = 0
-for _, file in ipairs(NODES) do
-    if not Texture.getSharedTexture("media/textures/" .. file) then say("BAD node icon missing", file); noNode = noNode + 1 end
+-- Tree node icons: every node of the upgrade data has its icon and its grey one (a node not yet open), and the sealed
+-- capstones theirs; the files are those the nodes name, so that the list cannot go stale.
+local files, total, noNode = {}, 0, 0
+local function wantTexture(file, what)
+    if files[file] then return end
+    files[file] = true
+    total = total + 1
+    if not Texture.getSharedTexture(file) then say("BAD node icon missing", what, file); noNode = noNode + 1 end
 end
-say(noNode == 0 and "ok" or "BAD", "node icon textures", (#NODES - noNode) .. " of " .. #NODES)
+for _, node in ipairs(OperationAcorn.Upgrades.Data.nodes) do
+    if node.icon and node.iconGray then
+        wantTexture(node.icon, node.id)
+        wantTexture(node.iconGray, node.id)
+    else
+        say("BAD node without an icon", node.id, tostring(node.icon), tostring(node.iconGray)); noNode = noNode + 1
+    end
+end
+for tree, file in pairs(OperationAcorn.Upgrades.Data.SEALED_ICON) do wantTexture(file, "sealed " .. tree) end
+say(noNode == 0 and total > 0 and "ok" or "BAD", "node icon textures", (total - noNode) .. " of " .. total)
 
 -- The research backpack: its model script, and the item if its package exists.
 local model = ScriptManager.instance:getModelScript("OperationAcorn.OA_ResearchPack_Ground")

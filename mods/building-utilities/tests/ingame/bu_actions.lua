@@ -63,7 +63,7 @@ local function outdoorChecks()
             say("outdoor: generator row", listed)
             check("outdoor: the generator listed", listed ~= false, true)
         end
-        Changes.disconnectProducer(box, "power", beside:getX(), beside:getY(), 0)
+        Changes.unlay(BU.Links.producerRef(beside:getX(), beside:getY(), 0))
         generator:remove()
     else
         say("no square beside the outdoor box for a generator")

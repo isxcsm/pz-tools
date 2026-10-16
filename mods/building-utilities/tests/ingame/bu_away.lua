@@ -64,7 +64,7 @@ local function finish()
     moveTo(home.x, home.y, home.z)
     Energy.output, Energy.bank = outputOf, bankOf
     local g = generatorHere()
-    Changes.disconnectProducer(panel, "power", gx, gy, 0)
+    Changes.unlay(BU.Links.producerRef(gx, gy, 0))
     if g then g:setActivated(false); g:remove() end
     say("done:", bad, "BAD")
 end

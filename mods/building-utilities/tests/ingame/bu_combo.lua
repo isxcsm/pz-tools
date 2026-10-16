@@ -91,7 +91,7 @@ function BUCOMBO_CLEAN()
         if plant then system:removePlant(plant) end
     end
     well:getSquare():transmitRemoveItemFromSquare(well)
-    Changes.disconnectProducer(panel, "power", gx, gy, 0)
+    Changes.unlay(BU.Links.producerRef(gx, gy, 0))
     if placed then generator:remove() end
     say("cleaned")
 end

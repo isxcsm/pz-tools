@@ -53,7 +53,8 @@ if #barrels == 2 then
     local q = barrels[1]:getSquare()
     local building = Water.placeOf(main, q:getX(), q:getY(), 0, BU.Links.producerRef(q:getX(), q:getY(), 0))
     local lowId = Water.useId(layout, Water.FIRST, building, 0)
-    local policy = Networks.waterPolicy()
+    local state = api.networks.state(lowId)
+    local policy = state and state.policy or BU.POLICY.water
     local parents = {}
     for _, network in ipairs(layout.networks) do if network.id == lowId then parents = network.parents end end
     say("policy", policy, "ground floor use network", lowId, "parents", table.concat(parents, " "))
@@ -85,7 +86,7 @@ end
 -- Put back.
 for _, barrel in ipairs(barrels) do
     local q = barrel:getSquare()
-    Changes.disconnectProducer(main, "water", q:getX(), q:getY(), q:getZ())
+    Changes.unlay(BU.Links.producerRef(q:getX(), q:getY(), q:getZ()))
     q:transmitRemoveItemFromSquare(barrel)
 end
 main.water.producers = kept

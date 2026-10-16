@@ -59,7 +59,7 @@ if outside then
     local wasLine = Links.get(ref) ~= nil
     if not wasLine then Changes.includeOutside(panel, "power", outside, {}) end
     local hangs = Links.hangsOn(panel, ref)
-    say("hangs on", hangs, "room", hangs and Panels.roomById and "" or "")
+    say("hangs on", hangs)
     local listed
     for _, device in ipairs(Panels.devices(panel, "power")) do
         if device.key == outside.key then listed = device end

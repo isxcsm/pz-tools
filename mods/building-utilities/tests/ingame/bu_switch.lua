@@ -236,7 +236,7 @@ local function finish()
     BU.onNotice = onNotice
     if generator then
         local square = generator:getSquare()
-        Changes.disconnectProducer(panel, "power", square:getX(), square:getY(), square:getZ())
+        Changes.unlay(BU.Links.producerRef(square:getX(), square:getY(), square:getZ()))
         generator:setActivated(false)
         generator:remove()
     end
