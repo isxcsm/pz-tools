@@ -67,3 +67,17 @@ test("a tier's chapter carries its rated load and its relays", function()
     eq(Manual.text("tier2"), "IGUI_BU_Manual_tier2Text " .. string.format("%.2f", BU.capacity(2)) .. " 2")
     eq(Manual.title("water"), "IGUI_BU_Manual_water")
 end)
+
+test("the connecting chapter teaches what only works wired to a box; one off in the sandbox is left out", function()
+    local panel = Store.newPanel(40, 10, 0, "box")
+    local names = {}
+    for _, taught in ipairs(Manual.teaches(panel, "connect")) do names[#names + 1] = taught.recipe end
+    eq(table.concat(names, ","), "MakeSolarPanel,MakeBatteryRack,MakeJunctionBox,MakeYardHydrant")
+    SandboxVars.BuildingUtilities = SandboxVars.BuildingUtilities or {}
+    SandboxVars.BuildingUtilities.EnableBatteries = false
+    names = {}
+    for _, taught in ipairs(Manual.teaches(panel, "connect")) do names[#names + 1] = taught.recipe end
+    SandboxVars.BuildingUtilities.EnableBatteries = nil
+    eq(table.concat(names, ","), "MakeSolarPanel,MakeJunctionBox,MakeYardHydrant")
+    eq(#Manual.teaches(panel, "breaker"), 0)
+end)

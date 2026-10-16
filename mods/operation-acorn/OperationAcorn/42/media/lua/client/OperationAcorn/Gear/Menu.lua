@@ -203,11 +203,15 @@ local function fitVehicle(player, kind, part)
     ISTimedActionQueue.add(ISOAFitVehicleKit:new(player, kit, part))
 end
 
--- Adds the entry of one kind of kit to a part's menu: enabled with a kit of the kind the character has.
+-- Adds the entry of one kind of kit to a part's menu: enabled with a kit of the kind the character has. Without one,
+-- only on a part that has kits fitted (the entry tells them): the team's kits are not told of to a character who has
+-- none (the game's menu stays as it was).
 local function addPartEntry(context, player, part, kind, labelKey, lines)
+    local count = Gear.kitCount(player, kind)
+    if not lines and count == 0 then return end
     local option = context:addOptionOnTop(getText(labelKey), player, fitVehicle, kind, part)
     local text = lines and join(lines) or getText("Tooltip_OA_Gear_NoKits")
-    if Gear.kitCount(player, kind) == 0 then
+    if count == 0 then
         unavailable(option, getText("Tooltip_OA_Gear_NoVehicleKit", getItemNameFromFullType(Rules.kitType(kind))) ..
             " <LINE> " .. text)
     else

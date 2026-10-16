@@ -43,8 +43,8 @@ end
 
 -- The text beside the chapters, as the tab's size changes, over the recipes' buttons of the chapter open.
 function ISBUManual:layout()
-    local taught = self:taught()
-    local strip = #taught > 0 and ROW + PAD * 2 or 0
+    local buttons = self:recipeButtons()
+    local strip = #buttons > 0 and self.height - buttons[1].y + PAD or 0
     if self.laidW == self.width and self.laidH == self.height and self.laidStrip == strip then return end
     self.laidW, self.laidH, self.laidStrip = self.width, self.height, strip
     local x = ISBUManual.CHAPTER_W + PAD
@@ -54,18 +54,22 @@ end
 -- The recipes the chapter open teaches at this box.
 function ISBUManual:taught() return self.key and Manual.teaches(self.window.panel, self.key) or {} end
 
--- Each recipe's button under the text: { taught, x, y, w, text, known }.
+-- Each recipe's button under the text: { taught, x, y, w, text, known }, in rows that wrap at the tab's width (the
+-- last row at the bottom).
 function ISBUManual:recipeButtons()
     local result, character = {}, self:character()
-    local x, y = ISBUManual.CHAPTER_W + PAD * 2, self.height - ROW - PAD
+    local left = ISBUManual.CHAPTER_W + PAD * 2
+    local x, row = left, 0
     for _, taught in ipairs(self:taught()) do
         local name = getItemNameFromFullType(taught.item)
         local known = character:isRecipeKnown(taught.recipe)
         local text = getText(known and "IGUI_BU_Manual_Known" or "IGUI_BU_Manual_Learn", name)
         local w = UI.textWidth(text) + 16
-        result[#result + 1] = { taught = taught, x = x, y = y, w = w, text = text, known = known }
+        if x > left and x + w > self.width - PAD then x, row = left, row + 1 end
+        result[#result + 1] = { taught = taught, x = x, row = row, w = w, text = text, known = known }
         x = x + w + PAD
     end
+    for _, button in ipairs(result) do button.y = self.height - (row - button.row + 1) * ROW - PAD end
     return result
 end
 

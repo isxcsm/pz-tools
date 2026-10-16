@@ -4,7 +4,8 @@
 -- to it, water's once a water machine is. A chapter a character has read stays theirs to read at any box. What a
 -- character has read is in their mod data: a chapter's key -> true (read to its end) or { t = the seconds printed
 -- of a first reading left half way }. Some chapters teach recipes besides the magazines: learned at a box that offers
--- the chapter (Manual.RECIPES).
+-- the chapter (Manual.RECIPES). The connecting chapter teaches what is only of use wired to a box (the solar panel,
+-- the rack, the two relays): none of it is known before a box is found.
 require "BuildingUtilities/Core"
 require "BuildingUtilities/Store"
 require "BuildingUtilities/Units"
@@ -73,11 +74,27 @@ end
 function Manual.title(key) return getText("IGUI_BU_Manual_" .. key) end
 
 -- The recipes a chapter teaches, each { recipe, item (what it makes, for its name) }.
-Manual.RECIPES = { water = { { recipe = "MakeWaterFilter", item = "BuildingUtilities.WaterFilter" } } }
+Manual.RECIPES = {
+    connect = {
+        { recipe = "MakeSolarPanel", item = "BuildingUtilities.SolarPanel" },
+        { recipe = "MakeBatteryRack", item = "BuildingUtilities.BatteryRack" },
+        { recipe = "MakeJunctionBox", item = "BuildingUtilities.JunctionBox" },
+        { recipe = "MakeYardHydrant", item = "BuildingUtilities.YardHydrant" },
+    },
+    water = { { recipe = "MakeWaterFilter", item = "BuildingUtilities.WaterFilter" } },
+}
 
--- The recipes a box lets its reader learn from a chapter now: the chapter's while the box offers it, else none.
+-- The recipes a box lets its reader learn from a chapter now: the chapter's while the box offers it, else none; one
+-- whose thing is off in the sandbox (BU.RECIPE_FEATURES) is left out.
 function Manual.teaches(panel, key)
-    return Manual.RECIPES[key] ~= nil and offered(panel, key) and Manual.RECIPES[key] or {}
+    local recipes = Manual.RECIPES[key]
+    if not recipes or not offered(panel, key) then return {} end
+    local result = {}
+    for _, taught in ipairs(recipes) do
+        local feature = BU.RECIPE_FEATURES[taught.recipe]
+        if not feature or BU.enabled(feature) then result[#result + 1] = taught end
+    end
+    return result
 end
 
 -- A chapter's text (the document's marks: "## " heads, bullets); a tier's carries its rated load and its relays.

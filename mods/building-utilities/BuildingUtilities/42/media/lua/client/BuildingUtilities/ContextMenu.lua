@@ -14,6 +14,7 @@ require "ISUI/ISWorldObjectContextMenu"
 require "ISUI/ISMoveableContextMenu"
 require "BuildingUtilities/Actions"
 require "BuildingUtilities/Moveables"
+require "BuildingUtilities/Manual"
 require "PZUIKit/Menu"
 local BU = BuildingUtilities
 local Store, Panels, Units, Rack, Costs, Actions, Sync, Links = BU.Store, BU.Panels, BU.Units, BU.Rack, BU.Costs,
@@ -143,12 +144,22 @@ local function placeNote(panel, place)
     return getText("IGUI_BU_HangsOn_chain", place.length, (state.chained[head] or 0) + 1, BU.CHAIN_LIMIT)
 end
 
+-- Whether the character knows of the boxes: has learned their design, read a box's manual, or a box stands in the
+-- world. A box is found first: before that a generator, a rain barrel or a unit found in the loot says nothing of one.
+local function knowsBoxes(playerObj)
+    if playerObj:isRecipeActuallyKnown(Panels.RECIPE) or BU.Manual.state(playerObj, "connect") ~= nil then return true end
+    for _ in pairs(Store.panels()) do return true end
+    return false
+end
+
 -- The boxes a line could hang on (Links.offers), each an option with what its line takes and where it hangs, or why
--- not; the nearest first. kind and extra as Actions.lineCost; label(panel) the option's text; relay and except as
--- Links.placeOn. Offers worked out by the caller may be given.
+-- not; the nearest first; none in reach is told only to a character who knows of the boxes (knowsBoxes). kind and
+-- extra as Actions.lineCost; label(panel) the option's text; relay and except as Links.placeOn. Offers worked out by
+-- the caller may be given.
 local function addConnectOptions(context, playerObj, kind, utility, x, y, z, extra, label, relay, except, offers)
     offers = offers or Links.offers(utility, x, y, z, relay, except)
     if #offers == 0 then
+        if not knowsBoxes(playerObj) then return end
         unavailable(tie(context:addOption(label and label(nil) or getText("ContextMenu_BU_ConnectTo"), nil, nil)),
             getText("IGUI_BU_NoPanelInReach"))
         return

@@ -20,6 +20,7 @@ local function load()
     function body:setYScroll() end
     PZUITypedText = body
     BU.PanelUi = { UI = { rich = function(_, _, _, _, _, class) return class:new() end, place = function() end,
+        textWidth = function() return 100 end,
         scaled = function() end }, PALETTE = { text = { 1, 1, 1 }, head = { 1, 1, 0 }, dim = { 0.5, 0.5, 0.5 } },
         ROW = 22, PAD = 8, MANUAL = "manual" }
     local real = require
@@ -82,4 +83,20 @@ test("a first reading left half way goes on where it was left; one never drawn k
     eq(Manual.state(character, "breaker").t, 0.75)
     manual:show("breaker")
     eq(manual.body.run.clock, 0.75)
+end)
+
+test("the recipes' buttons wrap in rows over the tab's bottom, the last row lowest", function()
+    local manual, character = tab(Store.newPanel(40, 10, 0, "box"))
+    function character:isRecipeKnown() return false end
+    getItemNameFromFullType = function(t) return t end
+    manual.key = "connect"
+    local buttons = manual:recipeButtons()
+    eq(#buttons, 4)
+    eq(buttons[1].x, ISBUManual.CHAPTER_W + 16, "each row starts at the text's side")
+    eq(buttons[2].x, buttons[1].x, "300 wide: one a row")
+    eq(buttons[4].y, 200 - 22 - 8, "the last at the bottom")
+    eq(buttons[1].y, 200 - 4 * 22 - 8)
+    manual.width = 800
+    buttons = manual:recipeButtons()
+    eq(buttons[4].y, buttons[1].y, "wide enough: one row")
 end)
