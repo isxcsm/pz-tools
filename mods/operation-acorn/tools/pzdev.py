@@ -357,6 +357,31 @@ def until_loaded(timeout):
     return 1
 
 
+def game_process():
+    out = subprocess.run(["tasklist", "/FI", "IMAGENAME eq ProjectZomboid64.exe", "/NH"], capture_output=True,
+                         text=True, errors="replace", creationflags=0x08000000).stdout
+    return "ProjectZomboid64.exe" in out
+
+
+# Waits for the game's process to end after its window went: a game that writes a cache as it quits (PZ Optimize's
+# Java AOT recording writes some hundred MB) runs on for a while, and Steam answers a start meanwhile with "the game
+# is already running". Then a few seconds more for Steam to see it gone.
+def process_gone(timeout=600):
+    end = time.time() + timeout
+    said = False
+    while game_process():
+        if time.time() > end:
+            print("the game's process did not end in %d s" % timeout)
+            return False
+        if not said:
+            print("waiting for the game's process to end")
+            said = True
+        time.sleep(1)
+    if said:
+        time.sleep(5)
+    return True
+
+
 def start_game():
     subprocess.Popen(["cmd", "/c", "start", "", "steam://rungameid/108600"], creationflags=0x08000000)
 
@@ -369,6 +394,21 @@ def launch():
             return 0
         # the window is there, the channel silent: on the main menu (or still booting: Continue is pressed again)
         return continue_save()
+    # a process without a window: a game still quitting (wait for it to end) or one just starting (its window comes)
+    end, waited = time.time() + 600, False
+    while game_process() and not game_window():
+        if time.time() > end:
+            print("the game's process did not end in 600 s")
+            return 1
+        if not waited:
+            print("waiting for the game's process (quitting or starting)")
+            waited = True
+        time.sleep(1)
+    if game_window():
+        return launch()
+    if waited:
+        # Steam takes a few seconds to see the game gone
+        time.sleep(5)
     start = console_size()
     start_game()
     print("starting the game")
@@ -393,7 +433,7 @@ def quit_game():
             time.sleep(0.5)
         print("closed")
         time.sleep(2)
-    return 0
+    return 0 if process_gone() else 1
 
 
 def restart():
