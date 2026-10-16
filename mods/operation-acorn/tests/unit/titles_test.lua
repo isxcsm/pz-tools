@@ -22,11 +22,11 @@ end
 test("without the API's text a title is a text over the character, in its fallback's colour", function()
     local halo = world()
     PZExtAPI = nil
-    OA.Sync.title("p1", { key = "IGUI_OA_Title_Searched", sub = "IGUI_OA_Title_SearchedBonus", subArgs = { 300 },
+    OA.Sync.title("p1", { key = "IGUI_OA_Title_Paid", sub = "IGUI_OA_Title_PaidSub", subArgs = { 300 },
         style = "discovery", fallback = "good" })
     eq(#halo, 1)
-    eq(halo[1], "good:IGUI_OA_Title_Searched - IGUI_OA_Title_SearchedBonus 300")
-    OA.Sync.title("someone else", { key = "IGUI_OA_Title_Searched" })
+    eq(halo[1], "good:IGUI_OA_Title_Paid - IGUI_OA_Title_PaidSub 300")
+    OA.Sync.title("someone else", { key = "IGUI_OA_Title_Paid" })
     eq(#halo, 1, "another player's title is not shown here")
 end)
 

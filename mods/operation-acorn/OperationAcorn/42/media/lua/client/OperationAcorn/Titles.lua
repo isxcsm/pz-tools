@@ -28,6 +28,7 @@ local function text(key, args)
     end
     return getText(key, unpack(list))
 end
+Titles.text = text
 
 -- The local characters the title is for (every one for a nil playerId).
 local function charactersOf(playerId)

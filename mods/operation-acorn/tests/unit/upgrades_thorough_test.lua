@@ -1,5 +1,5 @@
 -- 철저한 수색 (the search ledger): its line on entering a building tells roughly what is left, not a count, and a
--- building searched at rank 3 pays three times its bonus, the title saying how much of it the rank added.
+-- building searched at rank 3 pays three times its bonus, the text over the character saying how much of it the rank added.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Sync"
@@ -26,26 +26,26 @@ local function searched(id, rank)
     local record = OA.Store.ensure(id, id)
     local u = Rules.section(record)
     u.ranks.ledger = rank
-    local titles = {}
-    OA.Sync.listen("title", function(_, detail) titles[#titles + 1] = detail end)
+    local notices = {}
+    OA.Sync.listen("notice", function(_, detail) notices[#notices + 1] = detail end)
     local credits = OA.Economy.searched(record, "b-" .. id, 7)
-    return credits, titles[#titles]
+    return credits, notices[#notices]
 end
 
 test("rank 1 and 2 pay the plain bonus and say so", function()
-    local credits, title = searched("t2", 2)
+    local credits, notice = searched("t2", 2)
     eq(credits, 170, "100 and 10 for each of 7 containers")
-    eq(title.sub, "IGUI_OA_Title_SearchedBonus")
-    eq(title.subArgs[1], "170")
+    eq(notice.key, "IGUI_OA_Trade_Notice_SearchedBonus")
+    eq(notice.args[1], "170")
 end)
 
-test("rank 3 pays three times the bonus and the title tells what the rank added", function()
-    local credits, title = searched("t3", 3)
+test("rank 3 pays three times the bonus and the text tells what the rank added", function()
+    local credits, notice = searched("t3", 3)
     eq(credits, 510)
-    eq(title.sub, "IGUI_OA_Title_SearchedBonusThorough")
-    eq(title.subArgs[1], "510")
-    eq(title.subArgs[2], "340", "the rank's part")
-    eq(title.subArgs[3].key, "IGUI_OA_Tree_Node_ledger_Name", "named by the node's own name")
+    eq(notice.key, "IGUI_OA_Trade_Notice_SearchedBonusThorough")
+    eq(notice.args[1], "510")
+    eq(notice.args[2], "340", "the rank's part")
+    eq(notice.args[3].key, "IGUI_OA_Tree_Node_ledger_Name", "named by the node's own name")
 end)
 
 test("a floor's search goes up by stages: half, three quarters, six left, two left, done", function()

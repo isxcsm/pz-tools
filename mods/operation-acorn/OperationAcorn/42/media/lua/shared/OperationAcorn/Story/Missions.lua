@@ -796,17 +796,17 @@ function Missions.finish(record, m, result)
     OA.Sync.changed("missions", record.id)
 end
 
--- The reward goes in, and the player sees the request done (before the title of a stage its trust may bring).
+-- The reward goes in, and the player sees the request done: its own title, or, when its trust brings a level with a
+-- title, that title with the request under it (one title for the one event).
 function Missions.pay(record, m)
     local credits, trust = m.pay and m.pay.credits or m.credits, m.pay and m.pay.trust or m.trust
     local detail = { key = "IGUI_OA_Title_Paid", sub = (Missions.keys(m)), style = "dust", fallback = "good" }
     if credits and credits > 0 then
         detail.sub, detail.subArgs = "IGUI_OA_Title_PaidSub", { { key = detail.sub }, math.floor(credits + 0.5) }
     end
-    OA.Sync.title(record.id, detail)
     -- The economy values a mission item that is in time at nothing (P1: "MissionItem"); the whole reward is paid here.
     Story.addCredits(record, credits)
-    Story.addTrust(record, trust)
+    if not Story.addTrust(record, trust, detail) then OA.Sync.title(record.id, detail) end
     if m.swap then Story.queueNote(record, "case_confirmed") end
     if m.cooler then Story.queueNote(record, "cooler_" .. (m.cooler.grade or "good")) end
     -- The team sends the delivered papers' copies back: they are in the folder from now on.

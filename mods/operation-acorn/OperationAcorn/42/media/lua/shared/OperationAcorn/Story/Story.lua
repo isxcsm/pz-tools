@@ -259,17 +259,20 @@ function Story.onSettled(record, result)
 end
 
 -- Adds trust and credits to a record at a settlement (or a field trade). The trade part's own function does the
--- debt and the stage-up handling when it has one.
-function Story.addTrust(record, trust)
-    if trust <= 0 then return end
+-- debt and the stage-up handling when it has one. With `cause` (the title of what brought the trust), returns whether
+-- a level's title took it in (Trade.addTrust).
+function Story.addTrust(record, trust, cause)
+    if not trust or trust <= 0 then return false end
     if OA.Trade and OA.Trade.addTrust then
-        OA.Trade.addTrust(record, trust, "mission")
+        local _, merged = OA.Trade.addTrust(record, trust, "mission", cause)
+        return merged
     elseif OA.Trust and OA.Trust.add then
         OA.Trust.add(record, trust)
     else
         local t = trade(record)
         t.trust = (t.trust or 0) + trust
     end
+    return false
 end
 
 -- Takes trust away (taking another mission costs some): never below where the stage or milestone the record is at

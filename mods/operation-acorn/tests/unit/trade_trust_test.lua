@@ -117,6 +117,27 @@ test("trust that passes a stage and a milestone at once has one title, the last 
     eq(heard[1].args[1], 6, "the milestone's level, 5 + 1")
 end)
 
+test("the cause of the trust (a request paid) goes under the level's title, one title for the one event", function()
+    local record = OA.Store.ensure("rec", "T")
+    fakeTrust({ { kind = "milestone", index = 1, sharedSerums = 1 } })
+    fakeStory()
+    local heard = listenTitles()
+    local cause = { key = "IGUI_OA_Title_Paid", sub = "IGUI_OA_Title_PaidSub", subArgs = { "x", 300 } }
+    local events, merged = Trade.addTrust(record, 9000, "mission", cause)
+    eq(#events, 1)
+    eq(merged, true)
+    eq(#heard, 1)
+    eq(heard[1].key, "IGUI_OA_Title_Stage")
+    eq(heard[1].sub, "IGUI_OA_Title_PaidSub", "the request under the level instead of the new items")
+    eq(heard[1].subArgs[2], 300)
+    -- a named stage has no title now (its card comes at the terminal): the cause is left to the caller
+    OA.Story.stageTitle = function() return nil end
+    fakeTrust({ { kind = "stage", stage = 2, sharedSerums = 0 } })
+    local _, alone = Trade.addTrust(record, 900, "mission", cause)
+    eq(alone, false)
+    eq(#heard, 1)
+end)
+
 test("a mission's pay and a settlement give the same events, each handled once", function()
     -- A mission pays through the story part, which calls Trade.addTrust.
     require "OperationAcorn/Story/Story"

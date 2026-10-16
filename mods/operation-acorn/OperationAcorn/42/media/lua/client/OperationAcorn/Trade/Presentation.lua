@@ -17,6 +17,9 @@ Presentation.SOUND = "Helicopter"
 -- The parts that show their own notices; this shows the trade part's and the economy's.
 local SHOWN_ELSEWHERE = { "^IGUI_OA_Machine_", "^IGUI_OA_Story_", "^IGUI_OA_Tree_", "^IGUI_OA_Gear_" }
 
+-- The notices of something gained, in the good colour (a fully searched building's bonus).
+local GOOD = { IGUI_OA_Trade_Notice_SearchedBonus = true, IGUI_OA_Trade_Notice_SearchedBonusThorough = true }
+
 local function onNotice(playerId, detail)
     if type(detail) ~= "table" or type(detail.key) ~= "string" then return end
     for _, prefix in ipairs(SHOWN_ELSEWHERE) do
@@ -27,10 +30,12 @@ local function onNotice(playerId, detail)
         OA.Titles.notice(playerId, { key = "IGUI_OA_Title_Sealed", style = "stamp" }, detail.key, args)
         return
     end
-    local text = getText(detail.key, unpack(args))
+    local text = OA.Titles.text(detail.key, args)
+    local bad = string.find(detail.key, "_Reason_", 1, true) ~= nil
     for _, character in ipairs(OA.Titles.charactersOf(playerId)) do
-        local bad = string.find(detail.key, "_Reason_", 1, true) ~= nil
-        if bad then HaloTextHelper.addBadText(character, text) else HaloTextHelper.addText(character, text) end
+        if bad then HaloTextHelper.addBadText(character, text)
+        elseif GOOD[detail.key] then HaloTextHelper.addGoodText(character, text)
+        else HaloTextHelper.addText(character, text) end
     end
 end
 OA.Sync.listen("notice", onNotice)
