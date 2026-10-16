@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
+import java.nio.file.attribute.*;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.jar.JarEntry;
@@ -11,6 +12,7 @@ import java.util.jar.JarOutputStream;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import pzext.loader.Launcher;
+import pzext.loader.Trust;
 
 /**
  * The install and the loader against a synthetic game: install, start the game from its folder (the boot layer loads,
@@ -34,7 +36,10 @@ public final class InstallTest {
         Path work = Files.createTempDirectory("pzext-install-test");
         try {
             launcherText();
-            Path game = work.resolve("game"), root = work.resolve("root"), jar = game.resolve(Install.GAME_JAR);
+            pzext.boot.BootGateTest.run();
+            TrustTest.run(work.resolve("trust"));
+            // The install folder is under a shared folder the install makes, as ProgramData's PZExtAPI.
+            Path game = work.resolve("game"), shared = work.resolve("shared"), root = shared.resolve("s-test"), jar = game.resolve(Install.GAME_JAR);
             Path services = game.resolve(Install.SERVICES), launcher = game.resolve(JSON);
             Files.createDirectories(game);
             Files.createFile(game.resolve(Install.LAUNCHER));
@@ -73,12 +78,112 @@ public final class InstallTest {
             String status = Files.readString(root.resolve("api.tsv"), StandardCharsets.UTF_8);
             assert status.startsWith("PZEXT-API\t1\npid\t") : status;
 
-            // A broken install folder: the game starts as vanilla, its zip files work, and the loader says why.
-            Files.delete(root.resolve(Install.CURRENT));
+            // The files the game writes are there and empty-or-written; the version folder's files are what the settings vouch for.
+            assert Files.isRegularFile(root.resolve("loader.log")) && Files.isRegularFile(root.resolve("api.tsv"));
+            String settings = Files.readString(game.resolve(Install.SETTINGS), StandardCharsets.ISO_8859_1);
+            assert settings.contains("\nversion=" + version + "\n") && settings.contains("\nsha256." + Install.BOOT + "=" + Install.sha256(root.resolve(version).resolve(Install.BOOT)) + "\n") : settings;
+            assert !Files.exists(root.resolve("current")) : "a current file is no longer part of the install";
+
+            // A file of the install folder changed after the install (the boot jar, the API, the native library, a font): the
+            // loader refuses it before loading anything, the game starts as vanilla with its zip files working, and the
+            // log says which. The install puts the file back.
+            Path fontFile;
+            try (var fonts = Files.list(root.resolve(version).resolve(Install.FONTS))) { fontFile = fonts.sorted().findFirst().orElseThrow(); }
+            for (Path changed : new Path[] { root.resolve(version).resolve(Install.BOOT), root.resolve(version).resolve("pzext-api.jar"),
+                root.resolve(version).resolve("pzext-loader.dll"), fontFile }) {
+                byte[] original = Files.readAllBytes(changed);
+                Files.write(changed, Arrays.copyOf(original, original.length + 1));
+                expect(start(java, game), VANILLA);
+                assert log(root).contains(root.resolve(version).relativize(changed).toString().replace('\\', '/') + " does not match the install") : log(root);
+                assert !log(root).contains("launcher:") : log(root);
+                assert run(root, release, "install", game).startsWith("installed\t");
+                assert Arrays.equals(Files.readAllBytes(changed), original) : "the install left " + changed + " changed";
+                expect(start(java, game), LOADED);
+            }
+            // A file gone, and a settings file that vouches for nothing.
+            Files.delete(root.resolve(version).resolve("pzext-api.jar"));
             expect(start(java, game), VANILLA);
-            assert log(root).contains("current file is not readable") : log(root);
-            assert !log(root).contains("launcher:") : log(root);
+            assert log(root).contains("missing pzext-api.jar") : log(root);
             assert run(root, release, "install", game).startsWith("installed\t");
+            expect(start(java, game), LOADED);
+            Path settingsFile = game.resolve(Install.SETTINGS);
+            byte[] settingsBytes = Files.readAllBytes(settingsFile);
+            Files.writeString(settingsFile, settings.replaceAll("(?m)^sha256\\..*\\R", ""), StandardCharsets.ISO_8859_1);
+            expect(start(java, game, ".", Install.GAME_JAR), VANILLA);
+            assert log(root).contains("do not vouch for") : log(root);
+            Files.write(settingsFile, settingsBytes);
+            expect(start(java, game), LOADED);
+
+            // An install folder another account may write is not trusted: not the version folder, not the install folder, not
+            // the shared folder above it. Here an entry that lets the Users group write stands for the other account.
+            var users = FileSystems.getDefault().getUserPrincipalLookupService().lookupPrincipalByName("BUILTIN\\Users");
+            for (Path folder : new Path[] { root.resolve(version), root, shared }) {
+                var view = Files.getFileAttributeView(folder, AclFileAttributeView.class);
+                var before = view.getAcl();
+                var open = new ArrayList<>(before);
+                open.add(AclEntry.newBuilder().setType(AclEntryType.ALLOW).setPrincipal(users)
+                    .setPermissions(AclEntryPermission.WRITE_DATA, AclEntryPermission.APPEND_DATA).build());
+                view.setAcl(open);
+                expect(start(java, game), VANILLA);
+                assert log(root).contains("the install folder is not trusted: ") && log(root).contains("may be changed by BUILTIN\\Users") : log(root);
+                assert !log(root).contains("launcher:") : log(root);
+                view.setAcl(before);
+                expect(start(java, game), LOADED);
+            }
+            // The install does not trust it either. A folder one of the trusted accounts made gets the right list again, in place.
+            for (Path folder : new Path[] { root, shared }) {
+                var view = Files.getFileAttributeView(folder, AclFileAttributeView.class);
+                var open = new ArrayList<>(view.getAcl());
+                open.add(AclEntry.newBuilder().setType(AclEntryType.ALLOW).setPrincipal(users)
+                    .setPermissions(AclEntryPermission.WRITE_DATA).build());
+                view.setAcl(open);
+                expect(start(java, game), VANILLA);
+                String again = run(root, release, "install", game);
+                assert again.startsWith("installed	") : again;
+                assert Trust.problem(root, Trust.with(EXTRA)) == null && Trust.problem(shared, Trust.with(EXTRA)) == null;
+                try (var aside = Files.list(folder.getParent())) {
+                    assert aside.noneMatch(path -> path.getFileName().toString().contains(".untrusted-")) : "a folder was set aside for " + folder;
+                }
+                expect(start(java, game), LOADED);
+            }
+            // A version folder whose files were changed, with the list of another account's making, is copied again.
+            Path versionFolder = root.resolve(version);
+            var versionView = Files.getFileAttributeView(versionFolder.resolve(Install.BOOT), AclFileAttributeView.class);
+            var openFile = new ArrayList<>(versionView.getAcl());
+            openFile.add(AclEntry.newBuilder().setType(AclEntryType.ALLOW).setPrincipal(users).setPermissions(AclEntryPermission.WRITE_DATA).build());
+            versionView.setAcl(openFile);
+            assert Trust.problem(versionFolder.resolve(Install.BOOT), Trust.with(EXTRA)) != null;
+            assert run(root, release, "install", game).startsWith("installed	");
+            assert Trust.problem(versionFolder.resolve(Install.BOOT), Trust.with(EXTRA)) == null : "the file kept the list of another account";
+            expect(start(java, game), LOADED);
+            // What stands in the install folder's place and is not a folder of the install's own (a file) is moved aside, whole.
+            expect(run(root, release, "uninstall", game), "uninstalled");
+            Files.writeString(root, "not a folder");
+            assert run(root, release, "install", game).startsWith("installed	");
+            try (var aside = Files.list(shared)) {
+                assert aside.anyMatch(path -> path.getFileName().toString().startsWith("s-test.untrusted-")) : "the file was not set aside";
+            }
+            expect(start(java, game), LOADED);
+            // A folder of the same name that is a link is no install folder either; nothing is written through it.
+            Path elsewhere = Files.createDirectory(work.resolve("elsewhere"));
+            expect(run(root, release, "uninstall", game), "uninstalled");
+            if (System.getProperty("os.name").startsWith("Windows")) {
+                new ProcessBuilder("cmd", "/c", "mklink", "/J", root.toString(), elsewhere.toString()).redirectErrorStream(true).start().getInputStream().readAllBytes();
+                assert Trust.isLink(root) : "no junction made";
+                String linked = run(root, release, "install", game);
+                assert linked.startsWith("installed\t") && !Trust.isLink(root) : linked;
+                assert Files.list(elsewhere).findAny().isEmpty() : "the install wrote through a link";
+                expect(start(java, game), LOADED);
+            }
+            // Without the right to own the files (here: no account trusted but the administrators', and this process is not
+            // one of them) the install is refused before it touches anything. An elevated run has the right, and no refusal.
+            if (!Trust.administrators().contains(Folders.principals()[1])) {
+                expect(run(root, release, "uninstall", game), "uninstalled");
+                try { Install.run(new String[] { "install", game.toString() }, root, release, new String[0]); throw new AssertionError("installed without the right to own the files"); }
+                catch (Install.Refused refused) { assert refused.code.equals("not-administrator") : refused.code; }
+                assert !Files.exists(game.resolve(Install.SERVICES)) && !Files.exists(game.resolve("pzext")) : "a refused install left files";
+                assert run(root, release, "install", game).startsWith("installed\t");
+            }
             expect(start(java, game), LOADED);
 
             // The launcher file as pzopt's AOT step leaves it: no "." and its own jar first, which holds copies of the
@@ -225,8 +330,19 @@ public final class InstallTest {
         }
     }
 
+    /** The accounts the tests trust besides the administrators: they do not run elevated, so they own what the install makes. */
+    static final String[] EXTRA = extra();
+
+    private static String[] extra() {
+        try {
+            var names = new LinkedHashSet<String>();
+            for (var principal : Folders.principals()) names.add(principal.getName());
+            return names.toArray(String[]::new);
+        } catch (Exception failure) { throw new ExceptionInInitializerError(failure); }
+    }
+
     private static String run(Path root, Path release, String command, Path game) throws Exception {
-        return Install.run(new String[] { command, game.toString() }, root, release);
+        return Install.run(new String[] { command, game.toString() }, root, release, EXTRA);
     }
 
     /** As the game's launcher starts it: from its folder, with the class path its launcher file gives. */

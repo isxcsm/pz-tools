@@ -141,7 +141,7 @@ final class Formulas implements Hooks.Formulas {
         live("vision.darknessRestore", Shape.REDUCTION, "LightingJNI.getLumaInverted"),
         live("vision.coneAdd", Shape.NUMBER, "LightingJNI.calculateVisionCone"),
         screen("vision.nightSight", Shape.LEVEL, "LightingJNI$JNILighting.update", "LightingJNI$JNILighting.updateFBORenderChunk",
-            "FBORenderCell.sanitizeLightInfo", "FBORenderCell.*:stale", "FBORenderCell.renderOneLevel_Blood:blood", "ShaderUnit.loadShaderFile", "ShaderUnit.compile", "TileDepthShader.startRenderThread",
+            "FBORenderCell.sanitizeLightInfo", "FBORenderCell.*:stale", "FBORenderCell.renderOneLevel_Blood:blood", "ShaderUnit.loadShaderFile", "ShaderUnit.compile", "ShaderUnit.compile:source", "TileDepthShader.startRenderThread",
             "CutawayAttachedShader.startRenderThread", "TileSeamShader.startRenderThread", "IsoGridSquare$CutawayNoDepthShader.startRenderThread",
             "Shader.startRenderThread", "Shader.Start:bind", "Shader.Start"),
         sight("vision.hiddenZombieFix", Shape.BOOLEAN),

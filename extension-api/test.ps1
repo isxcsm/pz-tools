@@ -39,7 +39,7 @@ $suites = [ordered]@{
     }
     loader = {
         $classes = Join-Path $work 'loader'
-        $classpath = @($classes, (Join-Path $Release 'pzext-install.jar')) -join ';'
+        $classpath = @($classes, (Join-Path $Release 'pzext-install.jar'), (Join-Path $Release 'pzext-boot.jar')) -join ';'
         Invoke-Tool 'The loader test did not compile' $javac (@('--release', '25', '-encoding', 'UTF-8', '-cp', $classpath, '-d', $classes) + (Sources 'tests/loader'))
         Invoke-Tool 'The loader test failed' $java @('-ea', '-cp', $classpath, 'pzext.install.InstallTest', $gameJar, $Release, $java)
     }

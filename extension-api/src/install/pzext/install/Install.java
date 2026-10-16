@@ -3,6 +3,7 @@ package pzext.install;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.UserPrincipal;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
@@ -11,6 +12,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import pzext.loader.Launcher;
 import pzext.loader.Loader;
+import pzext.loader.Trust;
 
 /**
  * Installs and removes PZ Extension API (docs/loader.md). Run with a Java 25 runtime (the game's own {@code jre64} will
@@ -26,8 +28,11 @@ import pzext.loader.Loader;
  * loader a second time as a jar of its own, {@code pzext/pzext-launch.jar}, under another package name, and the launcher
  * file ({@code ProjectZomboid64.json}) lists the jar after the game's. Only that one entry of the file is added or
  * removed, as text. Everything else the game loads stays in the install folder
- * ({@code %ProgramData%\PZExtAPI\s-<account>}), which only the player's account and the administrators may change. Each
- * version goes into its own folder, {@code api-<digest>}, and {@code current} names the one the next game start loads.
+ * ({@code %ProgramData%\PZExtAPI\s-<account>}), which only the machine's administrators may change (the install runs
+ * elevated for it; the player's account reads it, and writes the loader's log and the API's status file alone). Each
+ * version goes into its own folder, {@code api-<digest>}. The SHA-256 of every file in it, and its name, go into the
+ * loader's settings in the game's folder, which is what the loader checks the install folder against: the game's
+ * folder is the trust root.
  */
 public final class Install {
     static final String MARK = "PZEXT-INSTALL", FAILED = "PZEXT-INSTALL-FAILED";
@@ -35,13 +40,18 @@ public final class Install {
     static final String SERVICES = "META-INF/services/java.nio.file.spi.FileSystemProvider";
     static final String PROVIDER = "pzext.loader.BootProvider", LAUNCH_PROVIDER = "pzext.launch.BootProvider";
     static final String LOADER_ENTRY = "pzext/loader/Loader.class", PROVIDER_ENTRY = "pzext/loader/BootProvider.class";
-    static final String LAUNCHER_ENTRY = "pzext/loader/Launcher.class";
+    static final String LAUNCHER_ENTRY = "pzext/loader/Launcher.class", TRUST_ENTRY = "pzext/loader/Trust.class";
+    /** The loader's classes in the game's folder. */
+    static final String[] LOADER_CLASSES = { LOADER_ENTRY, PROVIDER_ENTRY, LAUNCHER_ENTRY, TRUST_ENTRY };
     static final String SETTINGS = "pzext/loader/install.properties";
     /** The loader's classes and settings in the jar, under the other package name. */
-    static final String[] LAUNCH_CLASSES = { "pzext/launch/Loader.class", "pzext/launch/BootProvider.class", "pzext/launch/Launcher.class" };
+    static final String[] LAUNCH_CLASSES = { "pzext/launch/Loader.class", "pzext/launch/BootProvider.class", "pzext/launch/Launcher.class",
+        "pzext/launch/Trust.class" };
     static final String LAUNCH_SETTINGS = "pzext/launch/install.properties";
     static final String LAUNCH_JAR = Loader.JAR;
-    static final String CURRENT = "current", RECORD = "install.tsv";
+    static final String RECORD = "install.tsv";
+    /** The files the game writes in the install folder: the install makes them, and the player's account may write them whole. */
+    static final String[] GAME_FILES = { Loader.LOG, "api.tsv" };
     static final String BOOT = "pzext-boot.jar";
     static final String[] FILES = { BOOT, "pzext-api.jar", "pzext-loader.dll" };
     static final String FONTS = "fonts";
@@ -56,7 +66,7 @@ public final class Install {
 
     public static void main(String[] args) {
         try {
-            System.out.println(MARK + "\t" + run(args, root(), release()));
+            System.out.println(MARK + "\t" + run(args, root(), release(), new String[0]));
         } catch (Refused refused) {
             System.out.println(FAILED + "\t" + refused.code + "\t" + oneLine(refused.getMessage()));
             System.exit(1);
@@ -66,14 +76,18 @@ public final class Install {
         }
     }
 
-    static String run(String[] args, Path root, Path release) throws Exception {
+    /**
+     * {@code extra} names accounts trusted besides the machine's administrators (the tests: they do not run elevated);
+     * the settings carry them to the loader.
+     */
+    static String run(String[] args, Path root, Path release, String[] extra) throws Exception {
         if (args.length != 2) throw new Refused("arguments", "Expected status, install or uninstall and the game folder");
         Path game = Path.of(args[1]).toAbsolutePath().normalize();
         if (!Files.isRegularFile(game.resolve(GAME_JAR)) || !Files.isRegularFile(game.resolve(LAUNCHER)))
             throw new Refused("game-not-found", "No game in " + game);
         return switch (args[0]) {
             case "status" -> status(root, game);
-            case "install" -> install(root, game, release);
+            case "install" -> install(root, game, release, extra);
             case "uninstall" -> uninstall(root, game);
             default -> throw new Refused("arguments", "Unknown command " + args[0]);
         };
@@ -104,19 +118,26 @@ public final class Install {
     static String status(Path root, Path game) throws Exception {
         if (!Files.isRegularFile(root.resolve(RECORD))) return present(game, root) ? "reverted" : "not-installed";
         if (!present(game, root)) return "reverted";
-        Path current = root.resolve(CURRENT);
-        String version = Files.isRegularFile(current) ? Files.readString(current, StandardCharsets.UTF_8).strip().split("\t")[0] : "";
+        String version = settingsOf(game).getProperty("version", "");
         return "installed\t" + version + "\t" + root + "\tlauncher=" + Launcher.state(game.resolve(Launcher.FILE), LAUNCH_JAR);
     }
 
-    /** Copies the release into a version folder, points current at it and writes the entry; again, an update. */
-    static String install(Path root, Path game, Path release) throws Exception {
-        UserPrincipal[] owners = Folders.principals();
-        if (!Folders.privateDirectory(root, owners))
-            throw new Refused("unsafe-folder", "The install folder " + root + " may be changed by other accounts");
-        Path copied = copyRelease(root, release, owners);
-        writeEntry(root, game);
-        return "installed\t" + copied.getFileName() + "\t" + root + "\tlauncher=" + Launcher.state(game.resolve(Launcher.FILE), LAUNCH_JAR);
+    /**
+     * Makes the install folder fit (administrators only), copies the release into a version folder, then writes the
+     * entry in the game's folder that names that version and gives the digest of each of its files; again, an update.
+     */
+    static String install(Path root, Path game, Path release, String[] extra) throws Exception {
+        UserPrincipal player = Folders.principals()[0];
+        Set<UserPrincipal> trusted = Trust.with(extra);
+        Folders.claim(root, trusted, player);
+        for (String name : GAME_FILES) Folders.gameFile(root.resolve(name), trusted, player);
+        Copied copied = copyRelease(root, release, trusted, player);
+        writeEntry(root, game, copied, extra);
+        // Folders of earlier versions go once the entry names the new one; one a running game still has open stays until a later install.
+        try (DirectoryStream<Path> entries = Files.newDirectoryStream(root, "api-*")) {
+            for (Path old : entries) if (!old.equals(copied.folder())) try { deleteTree(old); } catch (IOException inUse) { }
+        }
+        return "installed\t" + copied.folder().getFileName() + "\t" + root + "\tlauncher=" + Launcher.state(game.resolve(Launcher.FILE), LAUNCH_JAR);
     }
 
     static String uninstall(Path root, Path game) throws Exception {
@@ -132,15 +153,16 @@ public final class Install {
      * The jar and the loader's files, then the service line, then the launcher file's entry: a line or an entry naming
      * a class or a jar that is not there would break the JDK's list or the class path.
      */
-    private static void writeEntry(Path root, Path game) throws Exception {
-        byte[] jar = launchJar(root, game);
+    private static void writeEntry(Path root, Path game, Copied copied, String[] extra) throws Exception {
+        byte[] settings = settings(root, game, copied, extra);
+        byte[] jar = launchJar(settings);
         Path jarFile = game.resolve(LAUNCH_JAR);
-        // A running game has the jar open: the same bytes stay.
-        if (!Files.isRegularFile(jarFile) || !Arrays.equals(Files.readAllBytes(jarFile), jar)) writeAtomically(jarFile, jar);
-        writeAtomically(game.resolve(LOADER_ENTRY), ownResource(LOADER_ENTRY));
-        writeAtomically(game.resolve(PROVIDER_ENTRY), ownResource(PROVIDER_ENTRY));
-        writeAtomically(game.resolve(LAUNCHER_ENTRY), ownResource(LAUNCHER_ENTRY));
-        writeAtomically(game.resolve(SETTINGS), settings(root, game));
+        // A running game has the jar open, and a new version changes its settings: that install waits for the game to exit.
+        try {
+            if (!Files.isRegularFile(jarFile) || !Arrays.equals(Files.readAllBytes(jarFile), jar)) writeAtomically(jarFile, jar);
+        } catch (IOException inUse) { throw new Refused("game-running", "The loader's jar is in use. Close the game first."); }
+        for (String name : LOADER_CLASSES) writeAtomically(game.resolve(name), ownResource(name));
+        writeAtomically(game.resolve(SETTINGS), settings);
         var lines = serviceLines(game);
         if (!lines.contains(PROVIDER)) {
             lines.add(PROVIDER);
@@ -164,17 +186,26 @@ public final class Install {
             if (lines.stream().allMatch(line -> line.isBlank() || line.startsWith("#"))) Files.deleteIfExists(game.resolve(SERVICES));
             else writeAtomically(game.resolve(SERVICES), (String.join("\n", lines) + "\n").getBytes(StandardCharsets.UTF_8));
         }
-        for (String name : new String[] { LOADER_ENTRY, PROVIDER_ENTRY, LAUNCHER_ENTRY, SETTINGS }) Files.deleteIfExists(game.resolve(name));
+        for (String name : LOADER_CLASSES) Files.deleteIfExists(game.resolve(name));
+        Files.deleteIfExists(game.resolve(SETTINGS));
         for (String folder : new String[] { "pzext/loader", "pzext", "META-INF/services", "META-INF" }) deleteIfEmpty(game.resolve(folder));
     }
 
     /** The entry is all there and names this install folder (the launcher file's entry heals itself and is not part of it). */
     private static boolean present(Path game, Path root) throws Exception {
         if (!serviceLines(game).contains(PROVIDER)) return false;
-        for (String name : new String[] { LOADER_ENTRY, PROVIDER_ENTRY, LAUNCHER_ENTRY, SETTINGS, LAUNCH_JAR })
+        for (String name : new String[] { LOADER_ENTRY, PROVIDER_ENTRY, LAUNCHER_ENTRY, TRUST_ENTRY, SETTINGS, LAUNCH_JAR })
             if (!Files.isRegularFile(game.resolve(name), LinkOption.NOFOLLOW_LINKS)) return false;
-        return Arrays.equals(Files.readAllBytes(game.resolve(SETTINGS)), settings(root, game))
-            && Arrays.equals(Files.readAllBytes(game.resolve(LAUNCH_JAR)), launchJar(root, game));
+        var read = settingsOf(game);
+        return read.getProperty("root", "").equals(root.toString()) && read.getProperty("game", "").equals(game.toString())
+            && Arrays.equals(Files.readAllBytes(game.resolve(LAUNCH_JAR)), launchJar(Files.readAllBytes(game.resolve(SETTINGS))));
+    }
+
+    /** The loader's settings in the game's folder, as the loader reads them. */
+    private static Properties settingsOf(Path game) throws IOException {
+        var settings = new Properties();
+        try (InputStream input = Files.newInputStream(game.resolve(SETTINGS))) { settings.load(input); }
+        return settings;
     }
 
     private static List<String> serviceLines(Path game) throws IOException {
@@ -190,13 +221,13 @@ public final class Install {
      * The loader's other copy as a jar: the service list naming it, its classes under {@code pzext.launch}, its
      * settings. The same bytes for the same inputs (fixed times), so an install of the same build leaves the jar be.
      */
-    static byte[] launchJar(Path root, Path game) throws IOException {
+    static byte[] launchJar(byte[] settings) throws IOException {
         var bytes = new ByteArrayOutputStream();
         try (var jar = new ZipOutputStream(bytes)) {
             add(jar, "META-INF/MANIFEST.MF", "Manifest-Version: 1.0\r\n\r\n".getBytes(StandardCharsets.US_ASCII));
             add(jar, SERVICES, (LAUNCH_PROVIDER + "\n").getBytes(StandardCharsets.UTF_8));
             for (String name : LAUNCH_CLASSES) add(jar, name, ownResource(name));
-            add(jar, LAUNCH_SETTINGS, settings(root, game));
+            add(jar, LAUNCH_SETTINGS, settings);
         }
         return bytes.toByteArray();
     }
@@ -209,9 +240,17 @@ public final class Install {
         jar.closeEntry();
     }
 
-    /** {@code root} and {@code game} for the loader's Properties.load, without Properties.store's date line. */
-    private static byte[] settings(Path root, Path game) {
-        return ("root=" + escaped(root.toString()) + "\ngame=" + escaped(game.toString()) + "\n").getBytes(StandardCharsets.ISO_8859_1);
+    /**
+     * What the loader reads (Properties.load, without Properties.store's date line): the install folder, the game's folder,
+     * the version folder to load, the accounts trusted besides the administrators, and the SHA-256 of each file of the
+     * version folder. The same bytes for the same inputs.
+     */
+    static byte[] settings(Path root, Path game, Copied copied, String[] extra) {
+        var text = new StringBuilder("root=").append(escaped(root.toString())).append("\ngame=").append(escaped(game.toString()))
+            .append("\nversion=").append(copied.folder().getFileName()).append('\n');
+        for (int index = 0; index < extra.length; index++) text.append("trust.").append(index).append('=').append(escaped(extra[index])).append('\n');
+        for (var digest : copied.digests().entrySet()) text.append(Loader.DIGEST).append(digest.getKey()).append('=').append(digest.getValue()).append('\n');
+        return text.toString().getBytes(StandardCharsets.ISO_8859_1);
     }
 
     /** A property value as Properties.load reads it back: the separators escaped, what is not plain ASCII as unicode escapes. */
@@ -236,8 +275,14 @@ public final class Install {
 
     // ---- files ----
 
-    /** The release's files (and its fonts) into api-<digest>; current then names it, and older folders go. */
-    static Path copyRelease(Path root, Path release, UserPrincipal[] owners) throws Exception {
+    /** A version folder the install made, and the SHA-256 of each file in it by its name there. */
+    record Copied(Path folder, Map<String, String> digests) { }
+
+    /**
+     * The release's files (and its fonts) into api-<digest>, each checked against the release's own bytes and fit to be
+     * loaded (the trusted accounts' own). Nothing points at the folder yet: the entry in the game's folder does.
+     */
+    static Copied copyRelease(Path root, Path release, Set<UserPrincipal> trusted, UserPrincipal player) throws Exception {
         var files = new ArrayList<String>(List.of(FILES));
         Path fonts = release.resolve(FONTS);
         if (Files.isDirectory(fonts)) try (var entries = Files.list(fonts)) {
@@ -249,22 +294,27 @@ public final class Install {
         for (String name : files)
             if (!Files.isRegularFile(release.resolve(name), LinkOption.NOFOLLOW_LINKS))
                 throw new Refused("release-incomplete", "The release has no " + name + " in " + release);
-        var digests = new StringBuilder();
-        for (String name : files) digests.append(name).append('\t').append(sha256(release.resolve(name))).append('\n');
-        String id = "api-" + sha256(digests.toString().getBytes(StandardCharsets.US_ASCII)).substring(0, 16);
+        var digests = new TreeMap<String, String>();
+        for (String name : files) digests.put(name, sha256(release.resolve(name)));
+        var table = new StringBuilder();
+        for (String name : files) table.append(name).append('\t').append(digests.get(name)).append('\n');
+        String id = "api-" + sha256(table.toString().getBytes(StandardCharsets.US_ASCII)).substring(0, 16);
         Path target = root.resolve(id);
+        // A folder of this name that is not fit (the install folder is, so only a trusted account could have made it) is set aside.
+        if (Files.exists(target, LinkOption.NOFOLLOW_LINKS) && Folders.fit(target, trusted, player) != null) Folders.setAside(target, target + " is not fit to load from");
         Files.createDirectories(target.resolve(FONTS));
+        String problem = Folders.fit(target, trusted, player);
+        if (problem != null) throw new Refused("unsafe-folder", problem);
         for (String name : files) {
             Path file = target.resolve(name);
-            if (!Files.isRegularFile(file) || !sha256(file).equals(sha256(release.resolve(name)))) replace(release.resolve(name), file);
-            if (!Folders.safe(file, owners)) throw new Refused("unsafe-folder", "The copy " + file + " may be changed by other accounts");
+            // A file that is not the release's, or not fit (a copy comes out with the folder's list), is copied again.
+            if (!Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS) || !sha256(file).equals(digests.get(name)) || Folders.fit(file, trusted, player) != null)
+                replace(release.resolve(name), file);
+            if (!sha256(file).equals(digests.get(name))) throw new Refused("unsafe-folder", "The copy " + file + " is not the release's file");
+            problem = Folders.fit(file, trusted, player);
+            if (problem != null) throw new Refused("unsafe-folder", problem);
         }
-        writeAtomically(root.resolve(CURRENT), (id + "\t" + sha256(target.resolve(BOOT)) + "\n").getBytes(StandardCharsets.UTF_8));
-        // Folders of earlier versions; one a running game still has open stays until a later install.
-        try (DirectoryStream<Path> entries = Files.newDirectoryStream(root, "api-*")) {
-            for (Path old : entries) if (!old.equals(target)) try { deleteTree(old); } catch (IOException inUse) { }
-        }
-        return target;
+        return new Copied(target, digests);
     }
 
     private static void replace(Path source, Path target) throws IOException {
@@ -290,11 +340,14 @@ public final class Install {
         Files.delete(folder);
     }
 
-    static void deleteTree(Path root) throws IOException {
-        if (!Files.exists(root, LinkOption.NOFOLLOW_LINKS)) return;
-        try (var walk = Files.walk(root)) {
-            for (Path path : walk.sorted(Comparator.reverseOrder()).toList()) Files.delete(path);
-        }
+    /** The tree and nothing it links to: a link (a symbolic link or a junction) is removed itself and never entered. */
+    static void deleteTree(Path path) throws IOException {
+        BasicFileAttributes attributes;
+        try { attributes = Files.readAttributes(path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS); }
+        catch (NoSuchFileException gone) { return; }
+        if (attributes.isDirectory() && !attributes.isOther() && !attributes.isSymbolicLink())
+            try (DirectoryStream<Path> entries = Files.newDirectoryStream(path)) { for (Path entry : entries) deleteTree(entry); }
+        Files.delete(path);
     }
 
     static String sha256(Path file) throws Exception {

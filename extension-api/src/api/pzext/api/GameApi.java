@@ -681,9 +681,10 @@ public final class GameApi {
         String next = text.toString();
         if (next.equals(written)) return;
         try {
-            Path temporary = folder.resolve(STATUS + ".tmp");
-            Files.writeString(temporary, next, StandardCharsets.UTF_8);
-            Files.move(temporary, folder.resolve(STATUS), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            // In place: the install folder is writable by the administrators alone, and the install made this file writable
+            // by the player's account (a new file or a move over it would need the folder).
+            Files.write(folder.resolve(STATUS), next.getBytes(StandardCharsets.UTF_8),
+                StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE, LinkOption.NOFOLLOW_LINKS);
             written = next;
         } catch (IOException | RuntimeException unwritable) { } // Tried again on the next pass; no file reads as unknown.
     }

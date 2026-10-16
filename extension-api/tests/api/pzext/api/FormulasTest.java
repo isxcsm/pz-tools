@@ -544,6 +544,54 @@ final class FormulasTest {
         // PZ Optimization's batched horde (characters drawn together) lights its models the same way: the same place.
         for (String name : new String[] { "pzopt_horde.frag", "pzopt_hordeu.frag" })
             check(sight(model, "media/shaders/" + name).contains("col = pztModel(col, pztBase, lighting);"), name + " has no step");
+        // PZ Optimization's pixel light: the tiles are baked unlit into the chunk textures and the composite lights each pixel in
+        // pplLight, from the squares' own light, which night sight leaves as it is. Its source is made after the load (in
+        // ShaderUnit.compile), so the step goes in at the GL call: the light function is renamed by a macro and a wrapper takes its name
+        // (it lifts what it returns, for a square the player has seen), and the colour goes through the step before it is made.
+        String pixel = "#version 420\nlayout(binding = 10) uniform sampler2DArray pplConn;\nbool pplVisible(float a) { return mod(floor(a * 255.0 + 0.5), 128.0) >= 32.0; }\n"
+            + "vec3 pplSnapNormal(vec3 P, vec3 nn);\nvec3 pplLight(vec3 P, float dz, vec3 n) {\n   int cost = 0;\n   if ((cost & 8) != 0) return vec3(1.0);\n"
+            + "   ivec2 s = ivec2(1);\n   int lvl = 0;\n   vec3 L = vec3(0.1);\n#ifdef PPL_UNSEEN_AMBIENT\n   if (!pplVisible(texelFetch(pplConn, ivec3(s, lvl), 0).a)) { L = vec3(0.2); }\n#endif\n"
+            + "   return L;\n}\nvoid pzReliefInner() {\n   vec4 c = vec4(1.0);\n#ifdef PPL_BASE\n      if (c.a > 0.0) c.rgb *= pplLight(P, dz, n);\n#else\n"
+            + "      if (c.a > 0.0) c.rgb = c.rgb * pplLight(P, dz, n) + pplSpec * c.a;\n#endif\n   fragColor = c * col;\n}\nvoid main() { pzReliefInner(); }\n";
+        String lit = Hooks.shaderFinal(pixel, "media/shaders/chunkShader.frag").toString();
+        int stepAt = lit.indexOf("uniform float PZExt_NightFloor;"), functionAt = lit.indexOf("vec3 pplLight(vec3 P"), returnAt = lit.indexOf("return L;"),
+            wrapperAt = lit.indexOf("vec3 pplLight(vec3 P", functionAt + 1), innerAt = lit.indexOf("void pzReliefInner()"), colourAt = lit.indexOf("fragColor = c * col;");
+        check(stepAt > 0 && stepAt < lit.indexOf("#define pplLight pztLight0") && lit.indexOf("#define pplLight pztLight0") < functionAt
+            && lit.indexOf("pztSeen = pplVisible(texelFetch(pplConn, ivec3(s, lvl), 0).a);") > functionAt
+            && lit.indexOf("pztSeen = pplVisible(texelFetch(pplConn, ivec3(s, lvl), 0).a);") < returnAt && returnAt < lit.indexOf("#undef pplLight")
+            && lit.indexOf("#undef pplLight") < wrapperAt && wrapperAt < innerAt && lit.indexOf("pztNight(c.rgb, pztLifted)") > innerAt
+            && lit.indexOf("pztNight(c.rgb, pztLifted)") < colourAt && lit.split("#define pplLight", -1).length == 2 && lit.split("pztNight\\(c\\.rgb", -1).length == 2,
+            "The pixel light's composite has no step, or not in its places: " + lit);
+        check(lit.contains("pztLight0(P, dz, n);") && lit.contains("pztLifted = l + f * dark * dark;") && lit.contains("if (f <= 0.0 || !pztSeen) return l;"),
+            "The pixel light's wrapper does not lift what the light returns for a seen square alone");
+        check(lit.replaceAll("(?s)/\\*PZEXT<\\*/.*?/\\*PZEXT>\\*/", "").replaceAll("\\s+", "").equals(pixel.replaceAll("\\s+", "")),
+            "The pixel light's step cannot be taken out again whatever is left: " + lit);
+        check(Hooks.shaderFinal(lit, "media/shaders/chunkShader.frag").toString().equals(lit), "The pixel light's step went in twice");
+        check(Hooks.sightFiles().contains("chunkShader.frag") && !java.util.regex.Pattern.compile("clamp\\([^,()]+,\\s*vec").matcher(lit).find()
+            && !java.util.regex.Pattern.compile("\\bmax\\(\\s*vec").matcher(lit).find(), "The pixel light's file is not told, or its step calls a clamp or max the game hides");
+        for (String broken : new String[] { pixel.replace("return L;", "return vec3(L);"), pixel.replace("fragColor = c * col;", "fragColor = c;"),
+                pixel.replace("vec3 pplLight(vec3 P, float dz, vec3 n) {", "vec3 pplLight(vec3 P, float dz) {"), tile, patched })
+            check(Hooks.shaderFinal(broken, "media/shaders/chunkShader.frag").toString().equals(broken), "A source without the pixel light's places was changed");
+        int sources = Hooks.sightSources();
+        check(Hooks.shaderFinal(tile, "media/shaders/tileWithDepth.frag") == tile && Hooks.shaderFinal(null, "x") == null && Hooks.sightSources() == sources,
+            "A source that is not the pixel light's was changed or counted");
+        // it goes through the compile too (the game's call, where the GL takes the source) and falls back as the others do
+        var pixelUnit = new zombie.core.opengl.ShaderUnit();
+        pixelUnit.fileName = "media/shaders/pzopt_chunkBase.frag";
+        zombie.core.opengl.ShaderUnit.text = pixel;
+        pixelUnit.compile();
+        check(org.lwjgl.opengl.GL20.sources.get(pixelUnit.glId).equals(Hooks.shaderFinal(pixel, "media/shaders/pzopt_chunkBase.frag").toString()),
+            "The pixel light's composite did not get its step at the GL call");
+        int pixelFailed = Hooks.sightFailed();
+        org.lwjgl.opengl.GL20.rejectsStep = true;
+        try {
+            pixelUnit.compile();
+            check(Hooks.sightFailed() == pixelFailed + 1 && org.lwjgl.opengl.GL20.sources.get(pixelUnit.glId).replaceAll("\\s+", "").equals(pixel.replaceAll("\\s+", "")),
+                "The pixel light's composite that did not compile with the step was not compiled without it");
+        } finally {
+            org.lwjgl.opengl.GL20.rejectsStep = false;
+            zombie.core.opengl.ShaderUnit.text = tile;
+        }
         // A shader that does not compile with the step is compiled again without it (the rest of the source as the game and
         // PZ Optimization left it), once said; one that compiles keeps it, and so does one without the step.
         var unit = new zombie.core.opengl.ShaderUnit();

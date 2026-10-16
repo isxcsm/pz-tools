@@ -17,14 +17,24 @@ import java.util.jar.Manifest;
 
 /**
  * Runs the API from its own jar ({@link Boot#API_JAR} in the version folder), from the moment the game has loaded
- * {@code GameWindow}: the jar is read whole (the bytes hashed are the bytes loaded), its classes defined by a loader of
- * their own, and its {@code pzext.api.GameApi.start()} called, which hands the hooks their handlers. About once a second
- * the jar is looked at again: a changed one (an update copied over it in a running game) loads and starts a new API,
- * which takes the game's Lua environment over from the one before. The same pass writes which hooks the game has
- * ({@code api.tsv}, in the install folder) for whoever installed the API. Each frame runs the API's per-frame work.
+ * {@code GameWindow}: the jar is read whole (the bytes hashed are the bytes loaded, and they must be the ones the
+ * install vouched for: {@link Boot#apiDigest()}), its classes defined by a loader of their own, and its
+ * {@code pzext.api.GameApi.start()} called, which hands the hooks their handlers. With the developer switch on
+ * ({@link #DEV_RELOAD}) the jar is looked at again about once a second: a changed one (a build copied over it in a running
+ * game) loads without a digest check and starts a new API, which takes the game's Lua environment over from the one
+ * before. Without it the jar is loaded once and never looked at again: a release's jar is the one the install put there.
+ * Each pass writes which hooks the game has ({@code api.tsv}, in the install folder) for whoever installed the API. Each
+ * frame runs the API's per-frame work.
  */
 final class Host {
     private static final String NAMESPACE = "pzext.api", ENTRY = "pzext.api.GameApi", CONTRACT = "PZExt-Boot-Api";
+    /**
+     * The environment variable of the game's process that turns the API's hot reload on, for a developer building the API:
+     * set to {@code 1}, a newer jar in the version folder replaces the running API without the install's digest. Off in
+     * every other game; the loader still refuses a jar that does not match the install at the next start.
+     */
+    static final String DEV_RELOAD = "PZEXT_DEV_RELOAD";
+    private static final boolean DEV = "1".equals(System.getenv(DEV_RELOAD));
     private static final long WAKE_MILLIS = 250, STATUS_NANOS = 1_000_000_000L;
     private static final int MAX_JAR = 16 * 1024 * 1024, MAX_CLASS = 2 * 1024 * 1024, MAX_CLASSES = 2048;
 
@@ -37,6 +47,8 @@ final class Host {
     private static long seenSize, seenTime;
     private static String seenDigest;
     private static String reported;
+    // Set when the jar did not match the install: nothing is read again.
+    private static boolean refused;
     private static volatile String frameFailure;
 
     private Host() { }
@@ -85,6 +97,7 @@ final class Host {
 
     /** The API of this jar: the one running while the jar is unchanged, else a new one, started. */
     private static void load(Path jar) throws Throwable {
+        if (!wanted(api != null, refused, DEV)) return;
         var file = Files.readAttributes(jar, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
         long time = file.lastModifiedTime().toMillis();
         if (api != null && file.size() == seenSize && time == seenTime) return;
@@ -92,6 +105,8 @@ final class Host {
         try (var input = Files.newInputStream(jar, LinkOption.NOFOLLOW_LINKS)) { bytes = input.readNBytes(MAX_JAR + 1); }
         if (bytes.length > MAX_JAR) throw new IOException("The API's jar is too large");
         String digest = sha256(bytes);
+        try { verify(digest, Boot.apiDigest(), DEV); }
+        catch (IOException mismatch) { refused = true; throw mismatch; }
         seenSize = file.size();
         seenTime = time;
         if (api != null && digest.equals(seenDigest)) return;
@@ -119,6 +134,21 @@ final class Host {
         seenDigest = digest;
         api = next;
     }
+
+    /**
+     * The jar the host read must be the one the install vouched for; the developer's reload is exempt. A boot layer
+     * started without a digest (the tests start it by hand) has nothing to compare.
+     */
+    static void verify(String digest, String expected, boolean dev) throws IOException {
+        if (!dev && expected != null && !expected.equals(digest))
+            throw new IOException("The API's jar does not match the install: not loaded");
+    }
+
+    /**
+     * Whether the jar is read now: never after it was refused, and once an API runs only with the developer's reload
+     * (a release's jar is loaded the once).
+     */
+    static boolean wanted(boolean running, boolean refused, boolean dev) { return !refused && (!running || dev); }
 
     /** The API's classes by name, after its manifest says it was built for this boot layer. */
     private static Map<String, byte[]> classes(byte[] bytes) throws IOException {

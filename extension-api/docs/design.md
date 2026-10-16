@@ -72,8 +72,10 @@ How the table gets there:
 - The API's code is its own jar (`pzext-api.jar`), which the boot layer loads as the game loads
   `GameWindow` ([`Host`](../src/boot/pzext/boot/Host.java)). If the game's first Lua environment comes
   first, the call waits for the API, at most 10 seconds, once per game.
-- The boot layer looks at the jar about once a second. Only a changed jar loads a new API (an update
-  copied over it while the game runs).
+- The jar is loaded once, and only if its bytes are the ones the install vouched for (the digest the
+  loader gives the boot layer). A developer building the API sets `PZEXT_DEV_RELOAD=1` in the game's
+  environment: the boot layer then looks at the jar about once a second, and a changed one (a build copied
+  over it while the game runs) loads without the digest check. Without the switch nothing is read again.
 - An API that replaces another, or that came after the game's Lua started, sets the table on the
   next frame. It updates the table in place, so the tables a mod holds stay valid, and the mods'
   handles are kept. A function a mod copied out of the table (`local define =
@@ -87,7 +89,7 @@ started by its loader), the mod changes nothing and says why. It keeps its defin
 generators make up for the hours it was away as they first update, and the API sees that only for
 networks defined by then. Until a mod defines its networks, the game behaves as in vanilla.
 
-When the API's code is updated in a running game, the new code takes over the definitions of the
+When the API's code is updated in a running game (the developer's reload), the new code takes over the definitions of the
 old one, and what the old code knew of them: the producer in use and each producer as last seen (with
 whether it is out of service), the supply, the load of consumers that are not loaded, and the supply's history for food. Mods do not
 define anything again, and a producer running on a square that is not loaded goes on carrying its
@@ -662,7 +664,7 @@ not have is a Lua error at `set`.
 | `loot.ammoMultiplier` | 0 to 100 | multiply | Times the ammunition modifier of the loot (`ItemPickerJava.getLootModifierFromType("Ammo")`), which the chance above is worked out with. |
 | `vision.darknessRestore` | 0 to 1, a reduction | reductions | The part of the dark the local player sees in that is taken away: `LightingJNI.getLumaInverted(character)` (0 light to 1 dark, which the vision cone and the shadows read) becomes `dark x (1 - value)`. The brightness of the screen is the native lighting's and does not change. |
 | `vision.coneAdd` | -1000 to 1000, degrees | add | Degrees added to the width of the vision cone (`LightingJNI.calculateVisionCone`), where the game's traits add theirs: after its first limits (18 to 180) and before the worn items' multiplier and the last limits (18 to 360). Full-angle degrees; the cone is smoothed over time by the game as before. |
-| `vision.nightSight` | 0 to 1 | the largest | Night sight for the local player: the light every square the player has seen is drawn with is lifted, the dark the most (to `nightSight.floor` x the value of the full light, at most 0.45; a sealed room too), and what the lift adds is drawn in a cold grey, as the eye's rods see, while what the game's own light shows keeps its colour (a lamp, a fire, the day, which leaves little to lift). The tiles, the walls cut away for the player, characters, items, doors and vehicles are all drawn so. The squares' own light, which the vision cone and reading ask, is the game's; a zombie the game keeps unseen for the dark alone, on a square the player sees lifted, is shown (the light of its test lifted as the squares are, worked as [the hidden zombies](#the-hidden-zombies) are, with or without that point declared). A square the player has never seen (an unexplored room, which the game draws black) is left as the game draws it. The lift goes into the light each square's corners hand, and the shaders that draw the world undo it and grey what it added (see [night sight](#night-sight)). |
+| `vision.nightSight` | 0 to 1 | the largest | Night sight for the local player: the light every square the player has seen is drawn with is lifted, the dark the most (to `nightSight.floor` x the value of the full light, at most 0.45; a sealed room too), and what the lift adds is drawn in a cold grey, as the eye's rods see, while what the game's own light shows keeps its colour (a lamp, a fire, the day, which leaves little to lift). The tiles (also those PZ Optimization's pixel light lights per pixel), the walls cut away for the player, characters, items, doors and vehicles are all drawn so. The squares' own light, which the vision cone and reading ask, is the game's; a zombie the game keeps unseen for the dark alone, on a square the player sees lifted, is shown (the light of its test lifted as the squares are, worked as [the hidden zombies](#the-hidden-zombies) are, with or without that point declared). A square the player has never seen (an unexplored room, which the game draws black) is left as the game draws it. The lift goes into the light each square's corners hand, and the shaders that draw the world undo it and grey what it added (see [night sight](#night-sight)). |
 | `machine.baseConsumption` | table of sprite name to 0 to 1000 | add | Power use for objects of those sprites, in the game's units (a vanilla appliance is 0.03 to 0.13 and a generator's own base is 0.02): see [machines](#machines). A mod's machines are consumers of a generator in range, and of a network, with no other code. |
 | `machine.loadKey` | a name, or a list of names | join | The keys of an object's mod data (`object:getModData()`) that scale its declared consumption: each holding a number multiplies it, so that a machine at rest, at work or broken draws as its mod sets it. |
 | `machine.spriteName` | table of sprite name to sprite name | the first mod's | The name objects of a sprite are known by in `buildings.objects`, the networks and their rules, in place of the sprite's own: a machine that shows its state by changing its sprite (lit, running) gives its other looks the name of one, and stays one object, kept in the networks it was added to. One step: a name given is not looked up again. Where two mods name one sprite, the mod whose id comes first keeps it. Not tied to a hook. |
@@ -908,6 +910,7 @@ hook only. `PZExtAPI.hooks()` names each by game class and method.
 | `pzopt/BloodDecals.squares` (PZ Optimization's blood, when installed) | after its `SquareRules.fill` | The same for the colours of the squares it hands the GPU. |
 | `ShaderUnit.loadShaderFile` | each return | The sources of the shaders that draw the world (the tiles, the walls cut away for the player, the models) get night sight's step, once; a source without the place it goes is left as it is. See [night sight](#night-sight). |
 | `ShaderUnit.compile` | after the one call of `GL20.glCompileShader(shader)` | A shader with the step that did not compile is compiled again without it. See [night sight](#night-sight). |
+| `ShaderUnit.compile:source` | before the one call of `GL20.glShaderSource(shader, source)`, with the unit's `fileName` | The source the GL is handed, which PZ Optimization's patches have changed since the load: the tiles' composite its pixel light makes gets night sight's step in its own place. See [night sight](#night-sight). |
 | `TileDepthShader.startRenderThread`, `CutawayAttachedShader.startRenderThread`, `TileSeamShader.startRenderThread`, `IsoGridSquare$CutawayNoDepthShader.startRenderThread`, `Shader.startRenderThread` | each return | With the shader's program bound: night sight's lift is set into every linked program that has its uniform, when the lift or the number of sources with the step changed since it was last set. |
 | `Shader.Start` (the core `Shader`, labelled `:bind`; and the models' `skinnedmodel.shader.Shader`) | each return | The same, where a shader is bound without a draw (`IndieGL.bindShader`). |
 | `Helicopter.writes:flight` | after every store of `Helicopter.state` or `Helicopter.active` (outside the constructors) | Counts the store; see [What the frame job learns from the hooks](#what-the-frame-job-learns-from-the-hooks). |
@@ -981,6 +984,24 @@ rooms are each drawn from their own light, and nothing reads across a wall.
   taken out, wherever it is in the source the GL holds (the step is marked), and says so once in the log; every shader costs one
   query of the compile status (`ShaderUnit.compile`), which the game's own log query right after has already waited for. The
   shader then draws as the game's. `formulas.nightSight()` says how many sources did not compile with the step.
+- **PZ Optimization's pixel light.** With its option `pixelLight` PZ Optimization bakes the world's tiles unlit into the chunk
+  textures (the squares read white while a chunk is baked) and lights each pixel of the chunk's composite instead: its
+  `pplLight` blends a light texture it packs per square from `lightInfo`, the square's own light, which night sight leaves as
+  the game has it, and not from the corners the lift is in. So the tile shaders' step sees white and the composite draws the
+  dark: tiles stayed black under night sight while the models, lit from the corners, were lifted. Its source is made in
+  `ShaderUnit.compile` (its patches run between the load and the GL), so the step goes in at the GL call
+  (`ShaderUnit.compile:source`), in any source that defines `pplLight`, whatever its file (`chunkShader.frag` made by the
+  patch, `pzopt_chunkBase.frag`, the variants made from them), in three places that change none of the source around them:
+  the uniform, the step and a macro that has the game's light function called `pztLight0`, before it; after it, a function of
+  its name that lifts the light it returns as the corners are (`l + f (1 - l)^2`, each colour) and keeps it; and, before the
+  composite makes its colour (`fragColor = c * col;`), the same step as the tiles' on what the light made (`pztNight` with the
+  lifted light), so that the lift is drawn in grey and the light the square has keeps its colour, as without the pixel light.
+  A square the player has never seen is not lifted: the light function ends with the composite's own visibility of the square
+  (what its `PPL_UNSEEN_AMBIENT` reads), taken only while the lift is above 0. A source without all three places is left as
+  it is, one with the uniform already is not changed again, and the fallback above takes the step out of one that does not
+  compile. Nothing is done without PZ Optimization's pixel light: no source defines `pplLight`, and with the option off its
+  composite is the game's. PZ Optimization's `pplMode` `pass` draws the light in a pass of its own, made without
+  `ShaderUnit`, which night sight does not reach (the default, `composite`, is the one above).
 - **The models' light.** The game lights a model from the square's corners (`IsoGridSquare.interpolateLight`) and makes
   more light of that: a character's ambient colour (0.45 of it, in `Shader.startCharacter`) and two lights beside the
   character made from it (1.7 / 4 of it each, with a direction), a model object's the same way (1.5 / 4). A shader sees

@@ -487,6 +487,7 @@ public final class Hooks {
     private static final long HANDLER_WAIT_NANOS = TimeUnit.SECONDS.toNanos(10);
     private static final ClassDesc HOOKS = ClassDesc.of("pzext.boot.Hooks");
     private static final ClassDesc FILE = ClassDesc.of("java.io.File");
+    private static final ClassDesc CHAR_SEQUENCE = ClassDesc.of("java.lang.CharSequence");
     /** The save's file of the rooms PZExtAPI.buildings.setRooms gave, in the format of the game's player_buildings.bin. */
     public static final String ROOMS_FILE = "pzext_rooms.bin";
     private static final ClassDesc COLOR_INFO = ClassDesc.of("zombie.core.textures.ColorInfo");
@@ -784,7 +785,16 @@ public final class Hooks {
                 code.dup();
                 code.with(element);
                 code.invokestatic(HOOKS, "shaderCompiled", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_int));
-            })) }),
+            })),
+            // The source PZ Optimization's pixel light puts in the tiles' composite is made in this method, after the load (its patches
+            // run between the load and the GL): the source handed to the GL is the one night sight's step goes in there.
+            Site.edit("compile", "()Z", new Edit(calls("org/lwjgl/opengl/GL20", "glShaderSource", "(ILjava/lang/CharSequence;)V"), 1, null,
+                (code, element, kind) -> {
+                    code.aload(0);
+                    code.getfield(ClassDesc.of("zombie.core.opengl.ShaderUnit"), "fileName", ConstantDescs.CD_String);
+                    code.invokestatic(HOOKS, "shaderFinal", MethodTypeDesc.of(CHAR_SEQUENCE, CHAR_SEQUENCE, ConstantDescs.CD_String));
+                    code.with(element);
+                })).named("source") }),
         Map.entry("zombie/tileDepth/TileDepthShader", new Site[] { tileDraw() }),
         Map.entry("zombie/tileDepth/CutawayAttachedShader", new Site[] { tileDraw() }),
         Map.entry("zombie/tileDepth/TileSeamShader", new Site[] { tileDraw() }),
@@ -2400,6 +2410,16 @@ public final class Hooks {
     }
 
     /**
+     * Put before the call of {@code GL20.glShaderSource(shader, source)} in {@code ShaderUnit.compile}, with the unit's file name: the source
+     * the GL is handed. The composite of the world's tiles that PZ Optimization's pixel light lights per pixel is made there, from the game's
+     * (its patches run after the load), and gets night sight's step there.
+     */
+    public static CharSequence shaderFinal(CharSequence source, String fileName) {
+        try { return SightShaders.finish(source, fileName); }
+        catch (Throwable problem) { reportOnce(Call.NIGHT_SIGHT, problem); return source; }
+    }
+
+    /**
      * Put after each call of {@code GL20.glCompileShader(shader)} in {@code ShaderUnit.compile}: a shader with night sight's step that
      * did not compile is compiled again without it, so that the step can never cost the game its shader.
      */
@@ -3108,6 +3128,9 @@ public final class Hooks {
      * before the lift, keeps the colour of what that light gives and draws what the lift adds in a cold grey of the same
      * brightness. At no lift the colour is as it was. A source without the place the step goes (a newer game) is loaded
      * as it is, and what it draws keeps its colour; a vehicle's lights are put on after the step and keep theirs.
+     *
+     * <p>PZ Optimization's pixel light bakes the tiles unlit and lights the chunk composite per pixel from the squares' own light, which
+     * is not lifted: that composite's source is made after the load, so it gets the step from {@link #finish}, at the GL call.
      */
     static final class SightShaders {
         static final String UNIFORM = "PZExt_NightFloor";
@@ -3212,6 +3235,65 @@ public final class Hooks {
             counted(fileName);
             return source.substring(0, main.start()) + OPEN + STEP + CLOSE + source.substring(main.start(), lit.start()) + before + lit.group()
                 + "\n    " + OPEN + place.after() + CLOSE + source.substring(lit.end());
+        }
+
+        // PZ Optimization's pixel light: the tiles are baked unlit into the chunk textures, and the composite lights each pixel from the
+        // squares' own light (lightInfo, which night sight leaves as the game has it) in pplLight.
+        private static final java.util.regex.Pattern LIGHT_FUNCTION = java.util.regex.Pattern.compile(
+            "vec3\\s+pplLight\\s*\\(\\s*vec3\\s+P\\s*,\\s*float\\s+dz\\s*,\\s*vec3\\s+n\\s*\\)\\s*\\{");
+        private static final java.util.regex.Pattern LIGHT_RETURN = java.util.regex.Pattern.compile("return\\s+L\\s*;(\\s*\\})");
+        private static final java.util.regex.Pattern LIGHT_COLOUR = java.util.regex.Pattern.compile("fragColor\\s*=\\s*c\\s*\\*\\s*col\\s*;");
+
+        /**
+         * The tiles' composite once PZ Optimization's pixel light has made it: the light of a pixel is lifted as the corners' are, and
+         * the colour goes through the step with it. Three pieces, none changing the source around them: the step and a macro that has the
+         * game's light function called {@code pztLight0}, before it; after it, the function's own name taken by one that lifts the light it
+         * returns (not for a square the player has never seen: the composite's visibility says so) and keeps it; before the colour is
+         * made ({@code fragColor = c * col;}), the step on what the light made. A source without all the places is left as it is.
+         */
+        static final String LIGHT_STATE = """
+
+            bool pztSeen = false;
+            bool pztLit = false;
+            vec3 pztLifted = vec3(0.0);
+            #define pplLight pztLight0
+            """;
+        static final String LIGHT_SEEN = "if (PZExt_NightFloor > 0.0) pztSeen = pplVisible(texelFetch(pplConn, ivec3(s, lvl), 0).a);";
+        static final String LIGHT_LIFT = """
+
+            #undef pplLight
+            vec3 pplLight(vec3 P, float dz, vec3 n) {
+            	pztSeen = false;
+            	pztLit = false;
+            	vec3 l = pztLight0(P, dz, n);
+            	float f = PZExt_NightFloor;
+            	if (f <= 0.0 || !pztSeen) return l;
+            	vec3 dark = vec3(1.0 - clamp(l.r, 0.0, 1.0), 1.0 - clamp(l.g, 0.0, 1.0), 1.0 - clamp(l.b, 0.0, 1.0));
+            	pztLifted = l + f * dark * dark;
+            	pztLit = true;
+            	return pztLifted;
+            }
+            """;
+        static final String LIGHT_STEP = "if (pztLit) c.rgb = pztNight(c.rgb, pztLifted);";
+
+        /**
+         * The source as the GL is handed it: the pixel light's composite gets night sight's step (see {@link #LIGHT_STATE}). Any other
+         * source, one with the step already, and a composite without the places, is returned as it is.
+         */
+        static CharSequence finish(CharSequence given, String fileName) {
+            if (given == null || fileName == null) return given;
+            String source = given.toString();
+            if (!source.contains("pplLight") || source.contains(UNIFORM)) return given;
+            var function = LIGHT_FUNCTION.matcher(source);
+            if (!function.find()) return given;
+            var end = LIGHT_RETURN.matcher(source);
+            if (!end.find(function.end())) return given;
+            var colour = LIGHT_COLOUR.matcher(source);
+            if (!colour.find(end.end())) return given;
+            counted(fileName);
+            return source.substring(0, function.start()) + OPEN + STEP + LIGHT_STATE + CLOSE + "\n" + source.substring(function.start(), end.start())
+                + OPEN + LIGHT_SEEN + CLOSE + "\n   " + source.substring(end.start(), end.end()) + OPEN + LIGHT_LIFT + CLOSE
+                + source.substring(end.end(), colour.start()) + OPEN + LIGHT_STEP + CLOSE + "\n   " + source.substring(colour.start());
         }
 
         /**

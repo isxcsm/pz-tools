@@ -1,5 +1,6 @@
 package pzext.loader;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -7,11 +8,16 @@ import java.nio.file.LinkOption;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.UserPrincipal;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.Properties;
+import java.util.Set;
+import java.util.TreeMap;
 
 /**
  * Put in the game's folder by the install ({@code pzext.install.Install}) and started by {@link BootProvider}, early in
@@ -26,13 +32,21 @@ import java.util.Properties;
  * from doing it again. Each reads the settings beside its own classes, so a stale copy of the loose classes found
  * elsewhere on the class path never takes the place of the jar's.
  *
+ * <p>What it loads from the install folder it trusts only as far as the settings vouch for it: the settings, written by
+ * the install into the game's folder, give the SHA-256 of every file the install put in the version folder, and the
+ * loader checks the folders (owned by the administrators, writable by no one else, see {@link Trust}) and then each
+ * file before it loads anything.
+ *
  * <p>Uses java.base alone: it runs before the game has set anything up.
  */
 public final class Loader {
-    /** Beside this class, in the game's folder and in the jar: {@code root}, the install folder, and {@code game}. */
+    /**
+     * Beside this class, in the game's folder and in the jar: {@code root}, the install folder, {@code game}, {@code version},
+     * the version folder to load, {@code sha256.<file>}, the SHA-256 of each file of the version folder, and {@code trust.<n>},
+     * the accounts trusted besides the machine's administrators (none, but in the tests).
+     */
     public static final String SETTINGS = Loader.class.getPackageName().replace('.', '/') + "/install.properties";
-    /** In the install folder: the version folder to load, a tab, and the SHA-256 of its boot jar. */
-    public static final String CURRENT = "current";
+    public static final String DIGEST = "sha256.";
     public static final String LOG = "loader.log";
     public static final String BOOT = "pzext-boot.jar";
     public static final String API = "pzext-api.jar";
@@ -67,38 +81,77 @@ public final class Loader {
             if (!folder.isEmpty()) game = Path.of(folder);
             // One boot a process, whichever copy gets here first.
             if (System.getProperties().putIfAbsent(GUARD, LOG) != null) return;
-            boot(root);
+            boot(root, settings);
         } catch (Throwable failure) {
             if (root != null) log(root, "failed: " + failure, false);
         }
         launcher(root, game);
     }
 
-    private static void boot(Path root) throws Exception {
-        Path currentFile = root.resolve(CURRENT);
-        String[] current = Files.isRegularFile(currentFile, LinkOption.NOFOLLOW_LINKS)
-            ? Files.readString(currentFile, StandardCharsets.UTF_8).strip().split("\t", -1) : new String[0];
-        if (current.length != 2 || !current[0].matches("api-[0-9a-f]{16}") || !current[1].matches("[0-9a-f]{64}")) {
-            log(root, "the install's current file is not readable", false);
+    /**
+     * Loads the version the settings name, when the folders are what the install made (owned by the administrators,
+     * writable by no one else) and each file in the version folder has the SHA-256 the settings give. Else one line in the
+     * log says which, and the game starts without the API.
+     */
+    private static void boot(Path root, Properties settings) throws Exception {
+        String version = settings.getProperty("version", "");
+        if (!version.matches("api-[0-9a-f]{16}")) {
+            log(root, "the install's settings name no version", false);
             return;
         }
-        Path version = root.resolve(current[0]);
-        Path boot = version.resolve(BOOT), api = version.resolve(API), library = version.resolve(NATIVE);
-        for (Path file : new Path[] { boot, api, library })
-            if (!Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
-                log(root, "missing " + file.getFileName(), false);
+        var digests = new TreeMap<String, String>();
+        for (String key : settings.stringPropertyNames()) {
+            if (!key.startsWith(DIGEST)) continue;
+            String name = key.substring(DIGEST.length()), digest = settings.getProperty(key, "");
+            if (!name.matches("[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)?") || name.contains("..") || !digest.matches("[0-9a-f]{64}")) {
+                log(root, "the install's settings are not readable", false);
                 return;
             }
-        // A half-written install must not reach the JRE, which prints its errors.
-        String digest = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(boot)));
-        if (!digest.equals(current[1])) {
-            log(root, "the boot jar does not match the install", false);
-            return;
+            digests.put(name, digest);
         }
+        for (String name : new String[] { BOOT, API, NATIVE })
+            if (!digests.containsKey(name)) {
+                log(root, "the install's settings do not vouch for " + name, false);
+                return;
+            }
+        // The folders first: one that another account made or may change is not a place to load code from.
+        var extra = new ArrayList<String>();
+        for (int index = 0; settings.getProperty("trust." + index) != null; index++) extra.add(settings.getProperty("trust." + index));
+        Set<UserPrincipal> trusted = Trust.with(extra.toArray(String[]::new));
+        Path home = root.resolve(version);
+        for (Path folder : new Path[] { home, root, root.getParent() }) {
+            if (folder == null) continue;
+            String problem;
+            try { problem = Trust.problem(folder, trusted); }
+            catch (IOException unreadable) { problem = folder + " cannot be read: " + unreadable.getMessage(); }
+            if (problem != null) {
+                // A link in the install folder's place could send the log anywhere: it stays unwritten.
+                if (!Trust.isLink(root)) log(root, "the install folder is not trusted: " + problem, false);
+                return;
+            }
+        }
+        for (var entry : digests.entrySet()) {
+            Path file = home.resolve(entry.getKey());
+            // A half-written install, or one someone changed, must reach neither the JRE (which prints its errors) nor the game.
+            if (!Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
+                log(root, "missing " + entry.getKey(), false);
+                return;
+            }
+            if (!sha256(Files.readAllBytes(file)).equals(entry.getValue())) {
+                log(root, entry.getKey() + " does not match the install", false);
+                return;
+            }
+        }
+        Path boot = home.resolve(BOOT), library = home.resolve(NATIVE);
         System.load(library.toString());
-        String encoded = Base64.getEncoder().encodeToString(version.toString().getBytes(StandardCharsets.UTF_8));
-        int result = load(boot + "=" + encoded);
-        log(root, result == 0 ? "loaded " + current[0] : "the boot layer did not load (" + result + ")", false);
+        // The boot layer checks the API's jar against the digest when it loads it, not only now.
+        String encoded = Base64.getEncoder().encodeToString(home.toString().getBytes(StandardCharsets.UTF_8));
+        int result = load(boot + "=" + encoded + "," + digests.get(API));
+        log(root, result == 0 ? "loaded " + version : "the boot layer did not load (" + result + ")", false);
+    }
+
+    private static String sha256(byte[] bytes) throws NoSuchAlgorithmException {
+        return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
     }
 
     /**
@@ -120,9 +173,10 @@ public final class Loader {
     /** One line per game start: the log holds the last start only; the boot's line is the first, and later lines follow it. */
     private static void log(Path root, String line, boolean after) {
         try {
+            // Never through a link: a link in the log's place would send the line elsewhere.
             OpenOption[] options = after
-                ? new OpenOption[] { StandardOpenOption.CREATE, StandardOpenOption.APPEND }
-                : new OpenOption[] { StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE };
+                ? new OpenOption[] { StandardOpenOption.CREATE, StandardOpenOption.APPEND, LinkOption.NOFOLLOW_LINKS }
+                : new OpenOption[] { StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE, LinkOption.NOFOLLOW_LINKS };
             Files.writeString(root.resolve(LOG), Instant.now() + " " + line + System.lineSeparator(), StandardCharsets.UTF_8, options);
         } catch (Throwable ignored) { }
     }
