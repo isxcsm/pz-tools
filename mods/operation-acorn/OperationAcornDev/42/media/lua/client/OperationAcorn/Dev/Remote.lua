@@ -90,3 +90,9 @@ local function poll()
 end
 
 Events.OnTickEvenPaused.Add(poll)
+
+-- A Lua error does not stop the game in the debugger (the debug tool bar's Break On Error, ticked again at every game
+-- start): a command's error comes back as "error: ...", any other is in the log ("Exception thrown", what pzdev.py
+-- watch reports), and nothing waits on a Resume press. Tick it again in the tool bar to step through an error.
+UIManager.setShowLuaDebuggerOnError(false)
+Events.OnGameStart.Add(function() UIManager.setShowLuaDebuggerOnError(false) end)

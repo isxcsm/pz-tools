@@ -17,6 +17,14 @@ Usage:
     python tools/pzdev.py resume                            presses Resume in the game's Lua debugger (with Break On
                                                               Error, any Lua error, even one a pcall catches, stops the
                                                               game there, and the channel with it)
+    python tools/pzdev.py launch                              starts the game (if not running), waits for the main
+                                                              menu, continues the latest save and returns once in it
+    python tools/pzdev.py restart                             quits the game to the desktop, then launch
+    python tools/pzdev.py wait menu|loading|game|exit|error   returns when the game gets there (--timeout, default 300)
+    python tools/pzdev.py watch                               prints one line per event, forever (for a background
+                                                              monitor): start, menu, loading, game, error <text>, exit
+Events come from console.txt (the game's own "STATE: exit ..." lines, a Lua "Exception thrown") and whether the game
+window is there: nothing runs in the game, so a normal game is untouched.
 Options of run/file/check: --timeout seconds (default 15); --follow seconds: then also print the Lua lines the game
 logs for that long (what a check prints a few ticks later; check follows 3 s by default).
 Exit status 1 when the command failed in the game or no answer came (the game not running, not in -debug, or
@@ -24,6 +32,7 @@ still loading).
 """
 import ctypes
 import os
+import subprocess
 import sys
 import time
 
@@ -49,6 +58,93 @@ def console_size():
         return 0
 
 
+def console_has(start, text):
+    try:
+        with open(CONSOLE, "rb") as f:
+            f.seek(start)
+            return text.encode("utf-8") in f.read()
+    except OSError:
+        return False
+
+
+def game_window():
+    return bool(ctypes.windll.user32.FindWindowW(None, "Project Zomboid"))
+
+
+# The game's own state lines and what they mean here: the boot's last screen (terms of service) or a save left gives the
+# main menu; the menu left, a load; the load done, the save (the channel answers a moment later).
+STATES = {
+    "STATE: exit zombie.gameStates.TermsOfServiceState": "menu",
+    "STATE: exit zombie.gameStates.IngameState": "menu",
+    "STATE: exit zombie.gameStates.MainScreenState": "loading",
+    "STATE: exit zombie.gameStates.GameLoadingState": "game",
+}
+
+
+# The game's events from now on, one (name, detail) at a time; every `tick` seconds without one, (None, None). The log is
+# written again from the start when the game starts, and the window comes and goes with the game.
+def events(tick=0.5, start=None):
+    offset = console_size() if start is None else start
+    running = game_window()
+    partial = b""
+    while True:
+        out = []
+        now_running = game_window()
+        if now_running != running:
+            running = now_running
+            out.append(("start", "") if running else ("exit", ""))
+        size = console_size()
+        if size < offset:
+            offset, partial = 0, b""
+        if size > offset:
+            try:
+                with open(CONSOLE, "rb") as f:
+                    f.seek(offset)
+                    data = partial + f.read(size - offset)
+                offset = size
+            except OSError:
+                data = partial
+            lines = data.split(b"\n")
+            partial = lines.pop()
+            error = None
+            for raw in lines:
+                line = raw.decode("utf-8", errors="replace").rstrip("\r")
+                if error is not None:
+                    # the line after "Exception thrown" says what was thrown
+                    out.append(("error", error + " | " + line.strip()))
+                    error = None
+                    continue
+                for mark, state in STATES.items():
+                    if mark in line:
+                        out.append((state, ""))
+                if "Exception thrown" in line:
+                    error = line.split("> ", 1)[-1].strip()
+            if error is not None:
+                out.append(("error", error))
+        if not out:
+            out.append((None, None))
+        for item in out:
+            yield item
+        if out[-1][0] is None:
+            time.sleep(tick)
+
+
+# Waits for one of `names`; returns (name, detail), or (None, None) after `timeout` seconds.
+def wait_for(names, timeout, start=None):
+    end = time.time() + timeout
+    for name, detail in events(start=start):
+        if name in names:
+            return name, detail
+        if time.time() > end:
+            return None, None
+
+
+def watch():
+    for name, detail in events():
+        if name is not None:
+            print((name + " " + detail).strip(), flush=True)
+
+
 # The Lua print lines the game logged after `start` (a byte offset of console.txt), without the log prefix.
 def follow(start, seconds):
     time.sleep(seconds)
@@ -70,8 +166,18 @@ def send(code, timeout, quiet=False):
     with open(CMD, "w", encoding="utf-8", newline="\n") as f:
         f.write("--#" + cid + "\n" + code + "\n")
     end = time.time() + timeout
+    thrown, quiet_since, size = False, None, -1
     while time.time() < end:
         time.sleep(0.1)
+        # a Lua error after the command, then no answer and a silent log (the game stopped in the debugger logs nothing)
+        # for 1.5 s: no need to wait the timeout out
+        thrown = thrown or console_has(start, "Exception thrown")
+        if thrown:
+            now_size = console_size()
+            if now_size != size:
+                size, quiet_since = now_size, time.time()
+            elif time.time() - quiet_since > 1.5:
+                break
         try:
             with open(OUT, encoding="utf-8", errors="replace") as f:
                 text = f.read()
@@ -169,9 +275,13 @@ def resume():
 # textures). Returns when the channel answers in the loaded save. A paused game takes the command and never leaves (the
 # exit waits for a game frame), so the game is set going first.
 def reload():
+    start = console_size()
     if send("if isGamePaused() then setGameSpeed(1) end getCore():exitToMenu()", 15) != 0:
         return 1
-    time.sleep(25)
+    name, _ = wait_for({"menu"}, 120, start)
+    if name != "menu":
+        print("the save was not left in 2 minutes")
+        return 1
     return continue_save()
 
 
@@ -203,26 +313,70 @@ def continue_save():
     else:
         print("the game did not take Continue (is it on the main menu?)")
         return 1
-    end = time.time() + 180
-    seen = console_size()
-    while time.time() < end:
-        time.sleep(5)
-        if send('print("loaded")', 5, quiet=True) == 0:
-            print("reloaded")
-            return 0
-        # a Lua error while loading (vanilla's too) stops the load in the debugger: report it and go on
-        size = console_size()
-        if size > seen:
-            with open(CONSOLE, "rb") as f:
-                f.seek(seen)
-                new = f.read().decode("utf-8", errors="replace")
-            seen = size
-            thrown = [l.strip() for l in new.splitlines() if "Exception thrown" in l]
-            if thrown:
-                print("a Lua error stopped the load:", thrown[0])
-                click(RESUME_AT)
-    print("the save did not come back in 3 minutes")
+    return until_loaded(240)
+
+
+# Returns when the channel answers in the loaded save: the load's end comes in the log (the channel asked then; and
+# every 10 s anyway, in case the line was missed). A Lua error while loading (vanilla's too) stops the load in the
+# debugger: reported and resumed.
+def until_loaded(timeout):
+    end = time.time() + timeout
+    ask_at = time.time() + 10
+    for name, detail in events():
+        if name == "error":
+            print("a Lua error stopped the load:", detail)
+            click(RESUME_AT)
+        elif name == "exit":
+            print("the game closed while loading")
+            return 1
+        elif name == "game" or time.time() > ask_at:
+            for _ in range(10 if name == "game" else 1):
+                if send('print("loaded")', 3, quiet=True) == 0:
+                    print("loaded")
+                    return 0
+            ask_at = time.time() + 10
+        if time.time() > end:
+            break
+    print("the save did not come back in %d s" % timeout)
     return 1
+
+
+def start_game():
+    subprocess.Popen(["cmd", "/c", "start", "", "steam://rungameid/108600"], creationflags=0x08000000)
+
+
+# Starts the game when it is not running and gets into the latest save; returns when the channel answers there.
+def launch():
+    if game_window():
+        if send('print("here")', 3, quiet=True) == 0:
+            print("already in a save")
+            return 0
+        # the window is there, the channel silent: on the main menu (or still booting: Continue is pressed again)
+        return continue_save()
+    start_game()
+    print("starting the game")
+    name, _ = wait_for({"menu", "exit"}, 300)
+    if name != "menu":
+        print("the main menu did not come in 5 minutes" if name is None else "the game closed while starting")
+        return 1
+    print("on the main menu")
+    return continue_save()
+
+
+# Quits to the desktop (a paused game takes the command and never leaves: set going first), waits for the window to
+# go, then launch.
+def restart():
+    if game_window():
+        send("if isGamePaused() then setGameSpeed(1) end getCore():quitToDesktop()", 5, quiet=True)
+        end = time.time() + 90
+        while game_window():
+            if time.time() > end:
+                print("the game did not close in 90 s")
+                return 1
+            time.sleep(0.5)
+        print("closed")
+        time.sleep(2)
+    return launch()
 
 
 # Brings the game window to the front (a window over it would be in the picture) and gives it time to draw again.
@@ -251,7 +405,20 @@ def shot(path, wait, full, count=1, every=0.0):
 
 
 def main():
-    timeout = float(arg("--timeout", "15"))
+    timeout_s = arg("--timeout")
+    timeout = float(timeout_s or "15")
+    if len(sys.argv) == 2 and sys.argv[1] == "launch":
+        return launch()
+    if len(sys.argv) == 2 and sys.argv[1] == "restart":
+        return restart()
+    if len(sys.argv) == 2 and sys.argv[1] == "watch":
+        watch()
+        return 0
+    if len(sys.argv) == 3 and sys.argv[1] == "wait":
+        wanted = sys.argv[2]
+        name, detail = wait_for({wanted}, float(timeout_s or "300"))
+        print((name + " " + detail).strip() if name else "no %s in time" % wanted)
+        return 0 if name else 1
     wait = float(arg("--wait", "0"))
     follow_s = arg("--follow")
     full = "--full" in sys.argv

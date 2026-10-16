@@ -16,8 +16,11 @@ without the console: `python tools/pzdev.py check p3_window.lua` prints the chec
 any Lua, and the helpers of `OperationAcorn.Dev` (`OperationAcornDev/42/media/lua/client/OperationAcorn/Dev/Dev.lua`; the in-game dev
 panel, F8 or the "OA Dev" button, drives the same functions) set up a scene: research ranks,
 points, credits, trust, the hour, the speed, the weather, still zombies at offsets, facing, world sounds, alarms on the nearest house or car, closing the
-windows and the console. `pzdev.py shot out.png` takes a picture of the game window. With Break On Error on, a Lua
-error stops the game in the debugger (the channel too): `pzdev.py resume`.
+windows and the console. `pzdev.py shot out.png` takes a picture of the game window. The channel unticks Break On
+Error at each load (a Lua error then never stops the game in the debugger); ticked again by hand, an error stops the
+game and the channel with it: `pzdev.py resume`. `pzdev.py restart` (or `launch`) closes and starts the game and returns
+once in the save; `pzdev.py watch` prints the game's events (menu, loading, game, error, exit) as they come, from the
+log alone, for a background watcher; `pzdev.py wait game` waits for one.
 
 Without the channel, define the loader in the Lua console after each save load (it reads `Zomboid\Lua\oa\<file>`):
 
