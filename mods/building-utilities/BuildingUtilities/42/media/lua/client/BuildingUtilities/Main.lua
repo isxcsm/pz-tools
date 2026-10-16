@@ -168,6 +168,7 @@ local listening = false
 
 local function onGameStart()
     if isClient() then ModData.request(Store.KEY) end
+    BU.declareOutlines()
     -- The squares loaded before this: their boxes (a box loaded later is found as its square loads).
     local _, near = BU.Nearby.hotPanels()
     for _, panel in ipairs(near) do giveSummary(Panels.object(panel)) end

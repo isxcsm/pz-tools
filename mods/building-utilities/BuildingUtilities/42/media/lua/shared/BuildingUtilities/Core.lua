@@ -51,6 +51,25 @@ function BU.handle()
     return api and api.client(BU.MOD) or nil
 end
 
+-- Tells the API that this mod outlines devices with the game's own outline (the box window's lists): the game leaves out
+-- the objects it draws as models (3D furniture, doors) and vehicles until some mod declares the formulas point
+-- outline.models. Once a game, where the game draws; returns true when the API took it. An API without the point is
+-- said once in the log; without the API there is nothing to declare.
+local outlinesDeclared, outlinesFailed = false, false
+function BU.declareOutlines()
+    if outlinesDeclared then return true end
+    local api, handle = BU.api(), BU.handle()
+    if not (api and handle and type(api.formulas) == "table" and type(api.formulas.set) == "function") then return false end
+    local ok, err = pcall(api.formulas.set, handle, "outline.models", true)
+    if ok then
+        outlinesDeclared = true
+    elseif not outlinesFailed then
+        outlinesFailed = true
+        BU.log("outlines of models not declared:", tostring(err))
+    end
+    return ok
+end
+
 -- Water and its purification need hooks of the API in the game, by the names PZExtAPI.hooks() gives them: a
 -- game started by an older install, or whose IsoObject another mod changed, may lack them. Water needs the plumbing's
 -- questions; water that keeps its taint (only a filter purifies) also the purification's two.
