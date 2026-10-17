@@ -1838,6 +1838,9 @@ public final class Hooks {
      * not-loaded (its class has not loaded yet; most load with the first world), or why it did not go in. A question
      * whose hook is missing gets the game's own answer.
      */
+    /** The game classes the hooks go into (for the check against a game's own classes: tests/gamecheck). */
+    static Set<String> hookedClasses() { return SITES.keySet(); }
+
     public static Map<String, String> hookStatus() {
         var all = new TreeMap<String, String>();
         for (var entry : SITES.entrySet())

@@ -1,0 +1,39 @@
+# The synthetic game's members that differ from the real game's on purpose (GameCheck counts them, a new one fails).
+# One per line, as GameCheck prints it: class.method(type) or class.field type [static].
+
+# A game type given as Object or a plain list: the API reaches these by name and as Object (asType), and the synthetic game
+# need not carry the type's class.
+zombie/buildingRooms/BuildingRoomsEditor.setLuaEditor(Ljava/lang/Object;)V
+zombie/characters/IsoGameCharacter.getVehicle()Ljava/lang/Object;
+zombie/characters/IsoGameCharacter.vehicle Ljava/lang/Object;
+zombie/characters/WornItems/WornItem.getLocation()Ljava/lang/String;
+zombie/characters/WornItems/WornItems.setItem(Ljava/lang/String;Lzombie/inventory/InventoryItem;)V
+zombie/core/properties/PropertyContainer.surface I
+zombie/core/skinnedmodel/model/IsoObjectAnimations.getAnimationPlayer(Lzombie/iso/IsoObject;)Ljava/lang/Object;
+zombie/core/skinnedmodel/model/ModelSlotRenderData.modelData Ljava/util/ArrayList;
+zombie/entity/Component.getGameEntity()Ljava/lang/Object;
+zombie/entity/Component.owner Ljava/lang/Object;
+zombie/entity/Engine.getSystem(Ljava/lang/Class;)Ljava/lang/Object;
+zombie/entity/EntityBucket.entities Ljava/util/ArrayList;
+zombie/inventory/InventoryItem.setAmmoType(Ljava/lang/Object;)V
+zombie/inventory/InventoryItem.setScriptItem(Ljava/lang/Object;)V
+zombie/inventory/InventoryItem.ammoType Ljava/lang/Object;
+zombie/inventory/InventoryItem.scriptItem Ljava/lang/Object;
+zombie/iso/areas/isoregion/IsoRegions.getIsoWorldRegion(III)Lzombie/iso/areas/isoregion/regions/IsoWorldRegion;
+zombie/Lua/LuaEventManager.AddEvent(Ljava/lang/String;)Ljava/lang/Object;
+zombie/SandboxOptions.elecShutModifier I
+zombie/SandboxOptions.waterShutModifier I
+
+# A static the game keeps on an instance (or the reverse): the API asks through a method of its own (Core.isNoSave), or the
+# synthetic game's drawing keeps one light for all.
+zombie/core/Core.noSave Z static
+zombie/core/skinnedmodel/model/IsoObjectModelDrawer.ambientR F static
+zombie/core/skinnedmodel/model/IsoObjectModelDrawer.ambientG F static
+zombie/core/skinnedmodel/model/IsoObjectModelDrawer.ambientB F static
+
+# The synthetic game's own stand-ins that share a game method's name, shaped for the tests that drive them.
+zombie/core/skinnedmodel/model/ItemModelRenderer.renderMain(Lzombie/inventory/InventoryItem;Lzombie/iso/IsoGridSquare;Lzombie/iso/IsoGridSquare;FFF)V
+zombie/iso/Helicopter.update(Ljava/lang/String;FF)V
+zombie/iso/Helicopter.load(Ljava/lang/String;Z)V
+zombie/iso/IsoObject.render()V
+zombie/scripting/itemConfig/SelectorBucket.Resolve()Z

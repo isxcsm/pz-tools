@@ -1,9 +1,12 @@
 # Runs PZ Extension API's suites against a synthetic game (tests/game): "api" (the API as Lua mods see it) and "loader"
-# (the install and the loader starting the game). The release build (out/release) is built first when it is older than
+# (the install and the loader starting the game); and "game" against the real game's classes, when its folder is there
+# (-GameFolder, the Steam folder by default): every hook put into the class the game runs, and the synthetic game's members
+# held to the real ones (tests/gamecheck). The release build (out/release) is built first when it is older than
 # the sources; a -Release folder is used as it is. A failed suite's line names the first error its tool printed.
 #
-#     ./test.ps1 [-JdkPath <jdk>] [-Suite api,loader] [-Release <folder>]
-param([string] $JdkPath = $env:JAVA_HOME, [string[]] $Suite = @('api', 'loader'), [string] $Release = '')
+#     ./test.ps1 [-JdkPath <jdk>] [-Suite api,loader,game] [-Release <folder>] [-GameFolder <game folder>]
+param([string] $JdkPath = $env:JAVA_HOME, [string[]] $Suite = @('api', 'loader', 'game'), [string] $Release = '',
+    [string] $GameFolder = 'C:\Program Files (x86)\Steam\steamapps\common\ProjectZomboid')
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($JdkPath) -or -not (Test-Path -LiteralPath (Join-Path $JdkPath 'bin/javac.exe'))) {
@@ -57,6 +60,13 @@ $suites = [ordered]@{
         Invoke-Tool 'The test agent failed' $jar @('--create', '--file', $agent, '--manifest', (Join-Path $root 'tests/api/TEST-AGENT.MF'), '-C', $classes, 'pzext/boot/TestAgent.class')
         Invoke-Tool 'The API tests failed' $java @("-javaagent:$agent", '-ea', "-Dpzext.test.repository=$root",
             "-Dpzext.test.apiJar=$(Join-Path $Release 'pzext-api.jar')", '-cp', $classpath, 'pzext.api.GameApiTest')
+    }
+    game = {
+        if (-not (Test-Path -LiteralPath (Join-Path $GameFolder 'ProjectZomboid64.json'))) { Write-Host "no game at ${GameFolder}: skipped"; return }
+        $classes = Join-Path $work 'gamecheck'
+        $classpath = @($classes, (Join-Path $Release 'pzext-boot.jar')) -join ';'
+        Invoke-Tool 'The game check did not compile' $javac (@('--release', '25', '-encoding', 'UTF-8', '-cp', $classpath, '-d', $classes) + (Sources 'tests/gamecheck'))
+        Invoke-Tool 'The game does not fit' $java @('-cp', $classpath, 'pzext.boot.GameCheck', $GameFolder, $game, (Join-Path $root 'tests/gamecheck/known.txt'))
     }
     loader = {
         $classes = Join-Path $work 'loader'

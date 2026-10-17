@@ -54,7 +54,7 @@ final class FrameHook {
     /** Times the call could not be put in, for the status. */
     static long failures() { return failures.get(); }
 
-    private static byte[] transformWindow(byte[] bytes, ClassLoader loader) {
+    static byte[] transformWindow(byte[] bytes, ClassLoader loader) {
         var cf = ClassFiles.of(loader);
         var model = cf.parse(bytes);
         if (model.methods().stream().filter(m -> m.methodName().equalsString("logic")

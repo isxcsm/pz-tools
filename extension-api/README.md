@@ -18,8 +18,12 @@ Needs a Java 25 JDK and Visual Studio's x64 C++ tools (for the loader's native l
 
 ```
 ./build.ps1 -JdkPath <jdk>     # out/release: pzext-install.jar, pzext-boot.jar, pzext-api.jar, pzext-loader.dll, fonts
-./test.ps1 -JdkPath <jdk>      # the API against a synthetic game, and the install and loader
+./test.ps1 -JdkPath <jdk>      # the API against a synthetic game, the install and loader, and the real game's classes
 ```
+
+The "game" suite needs no running game: it puts every hook into the classes of the installed game (the first on its
+launcher file's class path, as the game loads them) and holds the synthetic game's members to the real ones; the
+synthetic game's deliberate differences are listed in `tests/gamecheck/known.txt`. Run it after a game update.
 
 ## Install
 
