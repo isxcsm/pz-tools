@@ -39,6 +39,35 @@ end
 function RUN(file) return runFile("oa/" .. file) end
 function RUNX(file) return runFile("oax/" .. file) end
 
+-- An in-game check in timed steps, for any mod's tests: local t = STEPS("tag"), then t.run({ { ms, fn }, ... }): each
+-- step waits its milliseconds after the one before, then runs; the frames drive it (also paused, and under the game's
+-- menu, where the ticks stand). t.say(...) prints a "[tag]" line, t.check(what, ok, got) an "ok"/"BAD" one; the run
+-- ends with "[tag] done: N BAD" (pzdev.py check/file return on that line). A step that fails ends it with "ERROR".
+local stepsFrame
+function STEPS(tag)
+    local t = { bad = 0 }
+    function t.say(...) print("[" .. tag .. "]", ...) end
+    function t.check(what, ok, got)
+        if not ok then t.bad = t.bad + 1 end
+        t.say(ok and "ok" or "BAD", what, got ~= nil and tostring(got) or "")
+    end
+    function t.run(steps)
+        local step, last = 1, getTimestampMs()
+        stepsFrame = function()
+            local due = steps[step]
+            if not due then return end
+            if getTimestampMs() - last < due[1] then return end
+            last = getTimestampMs()
+            step = step + 1
+            local ok, err = pcall(due[2])
+            if not ok then t.say("ERROR", tostring(err)) t.bad = t.bad + 1 step = #steps + 1 end
+            if step > #steps then t.say("done: " .. t.bad .. " BAD") stepsFrame = nil end
+        end
+    end
+    return t
+end
+Events.OnPostUIDraw.Add(function() if stepsFrame then stepsFrame() end end)
+
 local function firstLine(path)
     local reader = getFileReader(path, false)
     if not reader then return nil end

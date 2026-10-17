@@ -40,7 +40,8 @@ latest save are put back (the game writes its options as it quits from the main 
 Events come from console.txt (the game's own "STATE: exit ..." lines, a Lua "Exception thrown") and whether the game
 window is there: nothing runs in the game, so a normal game is untouched.
 Options of run/file/check: --timeout seconds (default 15); --follow seconds: then also print the Lua lines the game
-logs for that long (what a check prints a few ticks later; check follows 3 s by default).
+logs for that long (what a check prints a few ticks later; check follows 3 s by default). A check in steps (STEPS, or
+any that prints "done: N BAD") is followed until that line instead, --follow seconds at most (300 by default).
 Exit status 1 when the command failed in the game or no answer came (the game not running, not in -debug, or
 still loading).
 """
@@ -196,18 +197,31 @@ def watch():
             print((name + " " + detail).strip(), flush=True)
 
 
-# The Lua print lines the game logged after `start` (a byte offset of console.txt), without the log prefix.
-def follow(start, seconds):
-    time.sleep(seconds)
-    try:
-        with open(CONSOLE, "rb") as f:
-            f.seek(start)
-            text = f.read().decode("utf-8", errors="replace")
-    except OSError:
-        return
-    for line in text.splitlines():
-        if line.startswith("LOG  : Lua"):
-            print(line.split("> ", 1)[-1])
+# The Lua print lines the game logs after `start` (a byte offset of console.txt), without the log prefix, as they come,
+# for `seconds`; with `until`, only until a line that holds it (a check's "done: N BAD"). True when that line came.
+def follow(start, seconds, until=None):
+    end = time.time() + seconds
+    pending = b""
+    while True:
+        try:
+            with open(CONSOLE, "rb") as f:
+                f.seek(start)
+                chunk = f.read()
+        except OSError:
+            chunk = b""
+        start += len(chunk)
+        pending += chunk
+        *lines, pending = pending.split(b"\n")
+        for raw in lines:
+            line = raw.decode("utf-8", errors="replace").rstrip("\r")
+            if line.startswith("LOG  : Lua"):
+                text = line.split("> ", 1)[-1]
+                print(text, flush=True)
+                if until and until in text:
+                    return True
+        if time.time() > end:
+            return False
+        time.sleep(0.3)
 
 
 def send(code, timeout, quiet=False):
@@ -784,22 +798,35 @@ def main():
     what, value = sys.argv[1], sys.argv[2]
     after = float(follow_s) if follow_s else (3.0 if what == "check" else 0)
     start = console_size()
+    source = None
     if what == "run":
         code = value
     elif what == "file":
         with open(value, encoding="utf-8") as f:
-            code = f.read()
+            code = source = f.read()
     elif what == "check":
         code = 'RUN("%s")' % value
+        try:
+            with open(os.path.join(os.path.expanduser("~"), "Zomboid", "Lua", "oa", value), encoding="utf-8") as f:
+                source = f.read()
+        except OSError:
+            pass
     else:
         code = None
     if code is not None:
         status = send(code, timeout)
-        if after > 0:
-            print("-- logged in the next %ss:" % after)
+        # a check in steps (STEPS, or one that prints "done: N BAD") is followed until that line, --follow at most (300 s)
+        until = "done: " if source and ("STEPS(" in source or "done: " in source) else None
+        if until:
+            after = float(follow_s) if follow_s else 300.0
+        if status == 0 and after > 0:
+            print("-- logged" + (" until its done line:" if until else " in the next %ss:" % after))
             # the lines the command printed itself come again: only those after its answer are new
             start = console_size()
-            follow(start, after)
+            done = follow(start, after, until)
+            if until and not done:
+                print("-- no done line in %ss" % after)
+                return 1
         return status
     if what == "shot":
         return shot(value, wait, full, int(arg("--count", "1")), float(arg("--every", "0.5")))
