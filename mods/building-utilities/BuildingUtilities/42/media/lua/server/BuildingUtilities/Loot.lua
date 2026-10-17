@@ -127,9 +127,13 @@ local function isGenerator(name)
     return short == "Generator" or short ~= nil and short:sub(1, 10) == "Generator_"
 end
 
--- The chance a list of a distribution ({ rolls, items, junk }) puts a generator in.
+-- The chance a list of a distribution ({ rolls, items, junk }) puts a generator in, worked out once a list: many
+-- vehicles' and rooms' distributions share the same lists (a trunk's, a glovebox's), each long.
+local listChances = {}
 local function listChance(list)
     if type(list) ~= "table" then return 0 end
+    local known = listChances[list]
+    if known then return known end
     local miss = 1
     local function roll(part, junk)
         if type(part) ~= "table" or type(part.items) ~= "table" then return end
@@ -144,6 +148,7 @@ local function listChance(list)
     end
     roll(list, false)
     roll(list.junk, true)
+    listChances[list] = 1 - miss
     return 1 - miss
 end
 
