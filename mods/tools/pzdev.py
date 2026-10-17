@@ -38,7 +38,7 @@ Usage, from a mod's folder (python ../tools/pzdev.py <command>):
     pzdev.py log compare <a> <b>                two game logs on one time line: where b spent time a did not, or
                                                 the other way (a, b: n or a file; --min seconds, 0.5)
     pzdev.py handoff                            the end of a session: the game as the user plays it. pzdev's game
-                                                (-debug, windowed) closed, the user's display options and latest
+                                                (-debug, windowed) closed, the user's options and latest
                                                 save back, the game started from Steam (their launch options) and
                                                 left on its main menu; a game the user started is left alone
     pzdev.py api                                returns once the running game runs the PZ Extension API built
@@ -49,7 +49,7 @@ launch, restart and continue load the save --save names (a Sandbox save's folder
 neither: Continue would load the user's own latest save. latestSave.ini points at it while the main menu is built, so
 Continue loads it, and is put back once it loaded: the user's Continue stays theirs. reload loads the save it leaves
 (or --save's). The game pzdev starts is watched by a process of its own (pzdev guard): as it ends, however it ends,
-the user's display options and latest save are put back (the game writes its options as it quits from the main menu).
+the user's options and latest save are put back (the game writes its options as it quits from the main menu).
 Events come from console.txt (the game's own "STATE: exit ..." lines, a Lua "Exception thrown") and whether the game
 window is there: nothing runs in the game, so a normal game is untouched.
 Options of run/file/check: --timeout seconds (default 15); --follow seconds: then also print the Lua lines the game
@@ -72,8 +72,8 @@ GAME_DIR = os.environ.get("PZDEV_GAME", r"C:\Program Files (x86)\Steam\steamapps
 # The game as pzdev drives it: windowed at this size (the places it clicks are for it; a borderless or full screen game
 # is captured black or stale, and its menu is elsewhere).
 WINDOW = (1600, 900)
-# The user's display options while pzdev's start has them changed.
-DISPLAY_KEPT = os.path.join(os.path.expanduser("~"), "Zomboid", "pzdev-display.ini")
+# The user's options while pzdev's start has them changed (the window, pausing on focus loss).
+OPTIONS_KEPT = os.path.join(os.path.expanduser("~"), "Zomboid", "pzdev-options.ini")
 CMD = os.path.join(ZOMBOID, "cmd.lua")
 OUT = os.path.join(ZOMBOID, "out.txt")
 
@@ -569,32 +569,42 @@ def set_options(want):
     return was
 
 
-# The game's display options set to the window pzdev drives, before the game starts (it reads them only then); what the
-# user had is kept in DISPLAY_KEPT (unless an earlier start's is there still) and put back by release() once the game
-# ended (it writes its options as it quits from the main menu, the window pzdev gave it among them).
+# The game's options set for the game pzdev drives, before it starts (it reads them only then): the window, and no
+# pause when the window loses focus (a driven test runs on while another window is in front). What the user had is kept
+# in OPTIONS_KEPT (an earlier start's values stay: they are the user's) and put back by release() once the game ended
+# (it writes its options as it runs and quits, pzdev's among them).
 def windowed_options():
-    was = set_options({"fullScreen": "false", "borderless": "false", "width": str(WINDOW[0]), "height": str(WINDOW[1])})
-    if was and not os.path.exists(DISPLAY_KEPT):
-        with open(DISPLAY_KEPT, "w", encoding="utf-8") as f:
-            f.write("".join("%s=%s\n" % item for item in was.items()))
+    was = set_options({"fullScreen": "false", "borderless": "false", "width": str(WINDOW[0]), "height": str(WINDOW[1]),
+                       "focusloss": "false"})
+    if was:
+        kept = read_kept()
+        kept.update({key: value for key, value in was.items() if key not in kept})
+        with open(OPTIONS_KEPT, "w", encoding="utf-8") as f:
+            f.write("".join("%s=%s\n" % item for item in kept.items()))
     if was:
         print("options set windowed for this start (the user's, kept for after it: %s)"
               % ", ".join("%s %s" % item for item in was.items()))
 
 
-# Puts the user's display options back.
-def restore_options():
+def read_kept():
     try:
-        with open(DISPLAY_KEPT, encoding="utf-8") as f:
-            kept = dict(line.split("=", 1) for line in f.read().splitlines() if "=" in line)
+        with open(OPTIONS_KEPT, encoding="utf-8") as f:
+            return dict(line.split("=", 1) for line in f.read().splitlines() if "=" in line)
     except OSError:
+        return {}
+
+
+# Puts the user's options back.
+def restore_options():
+    if not os.path.exists(OPTIONS_KEPT):
         return
+    kept = read_kept()
     set_options(kept)
-    os.remove(DISPLAY_KEPT)
-    print("the user's display options put back:", ", ".join("%s=%s" % item for item in kept.items()))
+    os.remove(OPTIONS_KEPT)
+    print("the user's options put back:", ", ".join("%s=%s" % item for item in kept.items()))
 
 
-# With no game running: the user's display options and latest save back (what a guard missed, a reboot say).
+# With no game running: the user's options and latest save back (what a guard missed, a reboot say).
 def release():
     if game_process():
         return
@@ -751,7 +761,7 @@ def restart():
 STEAM_RUN = "steam://rungameid/108600"
 
 
-# The game handed back to the user: pzdev's own game closed (its guard and release() put the display options and the
+# The game handed back to the user: pzdev's own game closed (its guard and release() put the options and the
 # latest save back as its process ends), then the game started as the user starts it and left on the main menu.
 def handoff():
     if game_window() and "-debug" not in game_command_line():
@@ -762,7 +772,7 @@ def handoff():
         if not process_gone():
             return 1
     release()
-    if os.path.exists(DISPLAY_KEPT) or os.path.exists(LATEST_KEPT):
+    if os.path.exists(OPTIONS_KEPT) or os.path.exists(LATEST_KEPT):
         print("the user's options or latest save were not put back: not started")
         return 1
     start = console_size()
