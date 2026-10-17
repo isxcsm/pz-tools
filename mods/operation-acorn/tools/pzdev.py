@@ -329,16 +329,10 @@ def continue_when_ready(start):
     return continue_save()
 
 
-# Whether a load started after `start` (a byte offset of console.txt): it lists the map groups and loads the save's mods
-# first. (The menu logs other lines while it settles, e.g. pzopt preloading the animation sets, when it takes no click.)
+# Whether a load started after `start` (a byte offset of console.txt): the game's own state line of the main menu left.
+# (Mod and map lines are no sign: the menu logs them too as it is built again after a save is left.)
 def load_started(start):
-    try:
-        with open(CONSOLE, "rb") as f:
-            f.seek(start)
-            text = f.read().decode("utf-8", errors="replace")
-    except OSError:
-        return False
-    return any("MapGroup" in line or line.startswith("LOG  : Mod") for line in text.splitlines())
+    return console_has(start, "STATE: exit zombie.gameStates.MainScreenState")
 
 
 # Presses Continue on the main menu (again while no load starts: the menu takes no click while it settles, e.g. for the
@@ -362,22 +356,31 @@ def continue_save():
 
 # Returns when the channel answers in the loaded save: the load's end comes in the log (the channel asked then; and
 # every 10 s anyway, in case the line was missed). A Lua error while loading (vanilla's too) stops the load in the
-# debugger: reported and resumed.
+# debugger: reported and resumed. Every 10 s it says it is still waiting, and what came last; back on the main menu
+# (the load failed) it stops at once.
 def until_loaded(timeout):
-    end = time.time() + timeout
-    ask_at = time.time() + 10
+    started = time.time()
+    end = started + timeout
+    ask_at = started + 10
+    last = "loading"
     for name, detail in events():
+        if name is not None and name not in ("focused", "unfocused"):
+            last = name
         if name == "error":
-            print("a Lua error stopped the load:", detail)
+            print("a Lua error stopped the load:", detail, flush=True)
             click(RESUME_AT)
         elif name == "exit":
             print("the game closed while loading")
+            return 1
+        elif name == "menu":
+            print("back on the main menu: the load failed")
             return 1
         elif name == "game" or time.time() > ask_at:
             for _ in range(10 if name == "game" else 1):
                 if send('print("loaded")', 3, quiet=True) == 0:
                     print("loaded")
                     return 0
+            print("still loading after %d s (last: %s)" % (time.time() - started, last), flush=True)
             ask_at = time.time() + 10
         if time.time() > end:
             break
