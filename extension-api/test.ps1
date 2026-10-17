@@ -1,5 +1,6 @@
 # Runs PZ Extension API's suites against a synthetic game (tests/game): "api" (the API as Lua mods see it) and "loader"
-# (the install and the loader starting the game). Build first (build.ps1); the same -JdkPath.
+# (the install and the loader starting the game). The release build (out/release) is built first when it is older than
+# the sources; a -Release folder is used as it is. A failed suite's line names the first error its tool printed.
 #
 #     ./test.ps1 [-JdkPath <jdk>] [-Suite api,loader] [-Release <folder>]
 param([string] $JdkPath = $env:JAVA_HOME, [string[]] $Suite = @('api', 'loader'), [string] $Release = '')
@@ -8,15 +9,35 @@ $root = $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($JdkPath) -or -not (Test-Path -LiteralPath (Join-Path $JdkPath 'bin/javac.exe'))) {
     throw 'A Java 25 JDK is required: pass -JdkPath or set JAVA_HOME.'
 }
-if ([string]::IsNullOrWhiteSpace($Release)) { $Release = Join-Path $root 'out/release' }
+if ([string]::IsNullOrWhiteSpace($Release)) {
+    $Release = Join-Path $root 'out/release'
+    # The suites run the release build's jars: a build older than the sources (or none) is built again first.
+    $jars = @('pzext-api.jar', 'pzext-boot.jar', 'pzext-install.jar') | ForEach-Object { Join-Path $Release $_ }
+    $built = if (@($jars | Where-Object { -not (Test-Path -LiteralPath $_) }).Count -gt 0) { [datetime]::MinValue }
+        else { ($jars | ForEach-Object { (Get-Item -LiteralPath $_).LastWriteTimeUtc } | Measure-Object -Minimum).Minimum }
+    $changed = (Get-ChildItem (Join-Path $root 'src'), (Join-Path $root 'build'), (Join-Path $root 'build.ps1') -Recurse -File |
+        Measure-Object LastWriteTimeUtc -Maximum).Maximum
+    if ($changed -gt $built) {
+        Write-Host '== build (the release build is older than the sources)'
+        & (Join-Path $root 'build.ps1') -JdkPath $JdkPath | Out-Host
+    }
+}
 $java, $javac, $jar = (Join-Path $JdkPath 'bin/java.exe'), (Join-Path $JdkPath 'bin/javac.exe'), (Join-Path $JdkPath 'bin/jar.exe')
 $work = Join-Path $root 'out/test'
 Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $work | Out-Null
 
+# Runs a tool, its error stream through this script's output (so a log of the script has it too); a failure names the
+# tool's first line that says what went wrong (an exception, an assertion, a compile error).
 function Invoke-Tool([string] $failure, [string] $tool, [string[]] $arguments) {
-    & $tool @arguments
-    if ($LASTEXITCODE -ne 0) { throw $failure }
+    $said = $null
+    $ErrorActionPreference = 'Continue'
+    & $tool @arguments 2>&1 | ForEach-Object {
+        $line = "$_"
+        if (-not $said -and $line -match '^Exception in thread|AssertionError|: error:|^FAIL') { $said = $line.Trim() }
+        $line
+    }
+    if ($LASTEXITCODE -ne 0) { throw $(if ($said) { "${failure}: $said" } else { $failure }) }
 }
 function Sources([string] $folder) { @(Get-ChildItem (Join-Path $root $folder) -Recurse -Filter '*.java' | ForEach-Object FullName) }
 
