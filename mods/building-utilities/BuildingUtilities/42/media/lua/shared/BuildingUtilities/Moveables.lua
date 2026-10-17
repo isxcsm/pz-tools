@@ -194,6 +194,112 @@ function Moveables.letGo(character, item)
     if isServer() then sendEquip(character) end
 end
 
+-- A box let go of where it lands stands there as a generator does, not lying as an item: put down as on install,
+-- facing the character (turned to none), or bare (Spawned's look, to activate: ISBUActivateBox) when the square
+-- cannot have a box now (Panels.canInstall). One where a box stands already stays an item.
+local function hasBox(square)
+    local objects = square:getObjects()
+    for i = 0, objects:size() - 1 do
+        local sprite = objects:get(i):getSprite()
+        if sprite and kindOf(sprite:getName()) == "panel" then return true end
+    end
+    return false
+end
+
+-- The side a box set down on a square faces: the character's, from a square beside it, or back the way they look.
+local BACK = { N = "S", S = "N", E = "W", W = "E" }
+local function facingCharacter(square, character)
+    if not character then return "S" end
+    if character:getCurrentSquare() ~= square then return BU.sideOf(square, character) end
+    local forward = character:getForwardDirection()
+    local fx, fy = forward:getX(), forward:getY()
+    local ahead = math.abs(fx) > math.abs(fy) and (fx > 0 and "E" or "W") or (fy > 0 and "S" or "N")
+    return BACK[ahead]
+end
+
+-- The square a box lying as an item is on, its item taken off it (as the game does taking an item off the floor).
+local function takeOffFloor(item)
+    local world = item:getWorldItem()
+    local square = world and world:getSquare()
+    if not square then return nil end
+    square:transmitRemoveItemFromSquare(world)
+    square:removeWorldObject(world)
+    item:setWorldItem(nil)
+    return square
+end
+
+function Moveables.settle(item, character)
+    if not item or not BU.PANEL_ITEM_TIER[item:getFullType()] then return end
+    local world = item:getWorldItem()
+    local square = world and world:getSquare()
+    if not square or hasBox(square) then return end
+    takeOffFloor(item)
+    local floor = item:getContainer()
+    if floor then floor:DoRemoveItem(item) end
+    local side = facingCharacter(square, character)
+    local tier = BU.Panels.itemTier(item)
+    if BU.Panels.canInstall(square) then
+        BU.Changes.install(square, side, { tier = tier })
+    else
+        local object = IsoObject.new(square, BU.panelSprite(side, tier, square:getRoom() == nil), nil, false)
+        square:AddTileObject(object)
+        if isServer() then object:transmitCompleteItemToClients() end
+    end
+    if not isServer() and ISInventoryPage then ISInventoryPage.renderDirty = true end
+end
+
+-- Where the game lets an item go to the floor: dropped or moved there (ISTransferAction), a heavy item let go
+-- (forceDropHeavyItems, ISUnequipAction but to drop or place), out of a vehicle (ISDropVehicleItemAction). They are
+-- the game's, loaded after this file: wrapped once a game is on.
+local function wrapDrops()
+    if Moveables.dropsWrapped then return end
+    Moveables.dropsWrapped = true
+    local transfer = ISTransferAction and ISTransferAction.transferItem
+    if transfer then
+        function ISTransferAction:transferItem(character, item, srcContainer, destContainer, dropSquare)
+            local moved = transfer(self, character, item, srcContainer, destContainer, dropSquare)
+            if destContainer:getType() == "floor" then Moveables.settle(moved or item, character) end
+            return moved
+        end
+    end
+    local forceDrop = forceDropHeavyItems
+    if forceDrop then
+        function forceDropHeavyItems(character)
+            local primary = character and character:getPrimaryHandItem()
+            local secondary = character and character:getSecondaryHandItem()
+            forceDrop(character)
+            Moveables.settle(primary, character)
+            if secondary ~= primary then Moveables.settle(secondary, character) end
+        end
+    end
+    local unequip = ISUnequipAction and ISUnequipAction.complete
+    if unequip then
+        function ISUnequipAction:complete()
+            local done = unequip(self)
+            if self.reason ~= "drop" and self.reason ~= "place" then Moveables.settle(self.item, self.character) end
+            return done
+        end
+    end
+    -- The game's taking up of a heavy item moves it into the hands but leaves it lying too (its own lie as objects):
+    -- a box lying as an item is taken off the floor.
+    local takeUp = ISEquipHeavyItem and ISEquipHeavyItem.complete
+    if takeUp then
+        function ISEquipHeavyItem:complete()
+            if self.item and BU.PANEL_ITEM_TIER[self.item:getFullType()] then takeOffFloor(self.item) end
+            return takeUp(self)
+        end
+    end
+    local outOfVehicle = ISDropVehicleItemAction and ISDropVehicleItemAction.complete
+    if outOfVehicle then
+        function ISDropVehicleItemAction:complete()
+            local done = outOfVehicle(self)
+            Moveables.settle(self.item, self.character)
+            return done
+        end
+    end
+end
+Events.OnGameStart.Add(wrapDrops)
+
 local findItem = ISMoveableSpriteProps.findInInventory
 function ISMoveableSpriteProps:findInInventory(character, spriteName)
     if self.buKind == "panel" and character and spriteName then

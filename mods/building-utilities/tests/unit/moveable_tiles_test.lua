@@ -82,3 +82,69 @@ test("a filter's spent media goes with its item and comes back when put down", f
     item.modData[Units.KEPT] = "junk"
     eq(Units.keptOnItem(item), nil, "what is not a table is nothing")
 end)
+
+-- A box let go to the floor stands there as a generator does (Moveables.settle).
+local function floorBox(objects, room)
+    local square = { objects = objects or {}, removed = {} }
+    square.getObjects = function()
+        return { size = function() return #square.objects end, get = function(_, i) return square.objects[i + 1] end }
+    end
+    square.getRoom = function() return room end
+    square.transmitRemoveItemFromSquare = function(_, o) table.insert(square.removed, o) end
+    square.removeWorldObject = function(_, o) table.insert(square.removed, o) end
+    square.AddTileObject = function(_, o) table.insert(square.objects, o) end
+    square.getX = function() return 10 end
+    square.getY = function() return 20 end
+    square.getZ = function() return 0 end
+    local world = { getSquare = function() return square end }
+    local item = { world = world }
+    item.getFullType = function() return BU.PANEL_ITEMS[2] end
+    item.getWorldItem = function() return item.world end
+    item.setWorldItem = function(_, w) item.world = w end
+    item.getContainer = function() return nil end
+    return square, item, world
+end
+
+local function facingNorth(square)
+    return {
+        getCurrentSquare = function() return square end,
+        getForwardDirection = function() return { getX = function() return 0 end, getY = function() return -1 end } end,
+    }
+end
+
+test("a box let go to the floor is put down there, facing the character", function()
+    local square, item, world = floorBox()
+    local installed
+    BU.Panels.canInstall = function() return true end
+    BU.Changes.install = function(sq, side, kept) installed = { sq, side, kept.tier } end
+    BU.Moveables.settle(item, facingNorth(square))
+    eq(installed[1], square)
+    eq(installed[2], "S", "a character looking north faces it from the south")
+    eq(installed[3], 2, "its item's tier")
+    eq(square.removed[1], world, "the item no longer lies there")
+    eq(item.world, nil)
+end)
+
+test("a box let go where it cannot be installed stands bare, and one where a box stands stays an item", function()
+    IsoObject = { new = function(_, sprite) return { sprite = sprite, getSprite = function()
+        return { getName = function() return sprite end } end } end }
+    BU.Panels.canInstall = function() return nil, "roomTaken" end
+    BU.Changes.install = function() error("not installed") end
+    local square, item = floorBox({}, {})
+    BU.Moveables.settle(item, facingNorth(square))
+    eq(#square.objects, 1)
+    eq(square.objects[1].sprite, BU.panelSprite("S", 2, false), "bare, indoors")
+
+    local again, other = floorBox(square.objects)
+    BU.Moveables.settle(other, facingNorth(again))
+    eq(#again.objects, 1, "no second box on a square")
+    truthy(other.world, "left lying")
+end)
+
+test("other items let go are left alone", function()
+    local square, item = floorBox()
+    item.getFullType = function() return "Base.Generator" end
+    BU.Panels.canInstall = function() error("not asked") end
+    BU.Moveables.settle(item, facingNorth(square))
+    truthy(item.world)
+end)
