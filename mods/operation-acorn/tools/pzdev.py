@@ -12,6 +12,8 @@ Usage:
                                                               to the front; --count 6 --every 0.4: a series (out_1.png..)
     python tools/pzdev.py reload                              leaves the save to the main menu and continues it (Lua and
                                                               translations are read again; textures need a restart)
+    python tools/pzdev.py menu                                leaves the save for the main menu, returns once there (to
+                                                              change the save's files, then continue)
     python tools/pzdev.py continue                            from the main menu (after a game start), continues the
                                                               latest save and waits for it
     python tools/pzdev.py resume                            presses Resume in the game's Lua debugger (with Break On
@@ -24,7 +26,7 @@ Usage:
     python tools/pzdev.py wait menu|loading|game|exit|error   returns when the game gets there (--timeout, default 300)
     python tools/pzdev.py watch                               prints one line per event, forever (for a background
                                                               monitor): start, menu, ready, loading, game, error <text>,
-                                                              exit
+                                                              exit, paused, running, unfocused, focused
 Events come from console.txt (the game's own "STATE: exit ..." lines, a Lua "Exception thrown") and whether the game
 window is there: nothing runs in the game, so a normal game is untouched.
 Options of run/file/check: --timeout seconds (default 15); --follow seconds: then also print the Lua lines the game
@@ -73,6 +75,13 @@ def game_window():
     return bool(ctypes.windll.user32.FindWindowW(None, "Project Zomboid"))
 
 
+# Whether the game's window is the one in front (keys and clicks go to it; with the game's pause-on-focus-loss option
+# on, the game stops when it is not).
+def game_focused():
+    window = ctypes.windll.user32.FindWindowW(None, "Project Zomboid")
+    return bool(window) and ctypes.windll.user32.GetForegroundWindow() == window
+
+
 # The game's own state lines and what they mean here: the boot's last screen (terms of service) or a save left gives the
 # main menu; the menu left, a load; the load done, the save (the channel answers a moment later).
 STATES = {
@@ -83,14 +92,20 @@ STATES = {
     # the main menu's background film starting: the menu is built and takes a click (Continue pressed before that is
     # lost, and the Lua of every mod is read again after a save is left, which takes a while)
     "binkId: ": "ready",
+    # the dev channel's lines (Dev/Remote.lua): the game paused (the pause key, a menu, or the window's focus lost with
+    # the game's option on) or going again
+    "[pzdev] paused": "paused",
+    "[pzdev] running": "running",
 }
 
 
 # The game's events from now on, one (name, detail) at a time; every `tick` seconds without one, (None, None). The log is
-# written again from the start when the game starts, and the window comes and goes with the game.
+# written again from the start when the game starts, and the window comes and goes with the game; whether the window is
+# in front is told as it changes (unfocused, focused).
 def events(tick=0.5, start=None):
     offset = console_size() if start is None else start
     running = game_window()
+    focused = game_focused()
     partial = b""
     while True:
         out = []
@@ -98,6 +113,10 @@ def events(tick=0.5, start=None):
         if now_running != running:
             running = now_running
             out.append(("start", "") if running else ("exit", ""))
+        now_focused = game_focused()
+        if running and now_focused != focused:
+            out.append(("focused", "") if now_focused else ("unfocused", ""))
+        focused = now_focused
         size = console_size()
         if size < offset:
             offset, partial = 0, b""
@@ -281,13 +300,22 @@ def resume():
 # exit waits for a game frame), so the game is set going first.
 def reload():
     start = console_size()
+    if leave_save(start) != 0:
+        return 1
+    return continue_when_ready(start)
+
+
+# Leaves the save for the main menu and returns once there (its events read from `start`, a byte offset of console.txt
+# taken before: a menu reached before the wait began still counts).
+def leave_save(start):
     if send("if isGamePaused() then setGameSpeed(1) end getCore():exitToMenu()", 15) != 0:
         return 1
     name, _ = wait_for({"menu"}, 120, start)
     if name != "menu":
         print("the save was not left in 2 minutes")
         return 1
-    return continue_when_ready(start)
+    print("menu")
+    return 0
 
 
 # Waits for the main menu to take clicks (its film starting, after `start`: a byte offset of console.txt), then
@@ -491,6 +519,8 @@ def main():
         return resume()
     if len(sys.argv) == 2 and sys.argv[1] == "reload":
         return reload()
+    if len(sys.argv) == 2 and sys.argv[1] == "menu":
+        return leave_save(console_size())
     if len(sys.argv) == 2 and sys.argv[1] == "continue":
         return continue_save()
     if len(sys.argv) < 3:
