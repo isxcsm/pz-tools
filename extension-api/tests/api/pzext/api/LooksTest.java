@@ -32,6 +32,7 @@ final class LooksTest {
     static void run(KahluaTable text, Object mod) throws Exception {
         arithmetic();
         GameApi.texts().clock = () -> NOW[0];
+        GameApi.texts().frameMost = Long.MAX_VALUE;
         GL20.uniforms.put("mode", MODE);
         Looks.Gl before = GameApi.texts().looks;
         GameApi.texts().looks = Looks.Gl.open(LooksTest.class.getClassLoader());

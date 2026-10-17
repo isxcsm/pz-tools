@@ -57,7 +57,7 @@ final class DustTest {
         }
     }
 
-    private static void useClock() { GameApi.texts().clock = () -> NOW[0]; }
+    private static void useClock() { GameApi.texts().clock = () -> NOW[0]; GameApi.texts().frameMost = Long.MAX_VALUE; }
 
     private static void advance(double seconds) { NOW[0] += Math.round(seconds * SECOND); }
 

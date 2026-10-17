@@ -2,13 +2,17 @@ package zombie.ui;
 
 /**
  * Synthetic: the moodle column of each local player, by player index; and the drawing of the interface, shaped as the game's:
- * its windows, then the tooltip (asked for twice: whether there is one, and to draw it).
+ * its windows, then the tooltip (asked for twice: whether there is one, and to draw it); the black over each player's screen.
  */
 public final class UIManager {
     public static final MoodlesUI[] MoodleUI = new MoodlesUI[4];
     public static ObjectTooltip toolTip = new ObjectTooltip();
+    /** The black over each player's screen (sleep fades it to 1). */
+    public static final float[] fade = new float[4];
 
     private UIManager() { }
+
+    public static float getFadeAlpha(double player) { return fade[(int)player]; }
 
     public static MoodlesUI getMoodleUI(double index) { return MoodleUI[(int)index]; }
 

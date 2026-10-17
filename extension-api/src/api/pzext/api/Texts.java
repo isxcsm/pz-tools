@@ -23,6 +23,11 @@ import pzext.boot.Hooks;
  * A text with a look (an enter such as {@code "torch"}, a leave such as {@code "burn"}) is drawn into such a picture as soon as it
  * shows, and the picture is drawn by the API's shader over its life ({@link Looks}); without it the text fades.
  *
+ * <p>A text's time goes on only with the frames it is drawn in, so that it is not over before it was seen: a player's screen holds its
+ * texts (none starts, the time of those on it stands) while the player sleeps or the screen is dark (the black the game fades it to
+ * for sleep), and every screen holds them while the game's menu is over the game (Escape); a frame longer than {@link #FRAME_MOST}
+ * (a hitch, or no frame drawn) counts for that long. The game paused with the screen in sight holds nothing.
+ *
  * <p>What is shown belongs to the world it was shown in, and is kept in the API table's metatable for a newer API to take over,
  * as the moodles are. Everything here runs on the game's main thread: the mods' calls, the frame job and the drawing (the dust
  * queues a little for the render thread).
@@ -128,6 +133,8 @@ final class Texts implements Hooks.Text {
         // When it was first drawn (System.nanoTime), 0 before; when its mod hid it, 0 if it did not.
         long start, hidden;
         boolean done;
+        // The last frame (Texts.frames) it was drawn in: one that held it moves its times on by that frame's time.
+        long drawnIn;
         // The widths of the lines and the height of one at zoom 1, as measured with the font (AngelCodeFont) they were for: the
         // game's, or the embedded font's.
         Object measuredWith;
@@ -314,6 +321,19 @@ final class Texts implements Hooks.Text {
     private long generation;
     /** The clock the effects run on (System.nanoTime: the interface's time, which goes on while the game is paused); for the tests. */
     java.util.function.LongSupplier clock = System::nanoTime;
+    /** The most of the clock one frame counts for the texts drawn in it, in its units (a quarter of a second). */
+    static final long FRAME_MOST = 250_000_000L;
+    /** {@link #FRAME_MOST} as this one counts it; for the tests, which move the clock by more between frames. */
+    long frameMost = FRAME_MOST;
+    // The black over a player's screen (UIManager.getFadeAlpha) above which the screen is dark.
+    private static final float DARK = 0.01f;
+    // IsoGameCharacter.isAsleep, UIManager.getFadeAlpha(player) and UIElement.isVisible (the game's menu is one); null in a game
+    // without them: nothing holds the texts.
+    private final MethodHandle asleep, darkness, elementVisible;
+    private final Class<?> element;
+    // The frames drawn with a text shown, and the clock at the last; whether the last frames held a text (written once they end).
+    private long frames, lastFrame;
+    private boolean holding;
     /** The game's frame buffers and sprites for dust, or null: dust fades (package-private for the tests). */
     Dust.Gl dust;
     /** The looks' shader and drawing, or null: the looks fade (package-private for the tests). */
@@ -399,6 +419,18 @@ final class Texts implements Hooks.Text {
         core = Game.exact(coreType.getMethod("getInstance"), MethodType.methodType(Object.class));
         coreWidth = Game.exact(coreType.getMethod("getScreenWidth"), MethodType.methodType(int.class, Object.class));
         coreHeight = Game.exact(coreType.getMethod("getScreenHeight"), MethodType.methodType(int.class, Object.class));
+        MethodHandle sleeps = null, dark = null, visible = null;
+        Class<?> windows = null;
+        try {
+            sleeps = Game.exact(Game.type(loader, "zombie.characters.IsoGameCharacter").getMethod("isAsleep"), MethodType.methodType(boolean.class, Object.class));
+            dark = Game.exact(Game.type(loader, "zombie.ui.UIManager").getMethod("getFadeAlpha", double.class), MethodType.methodType(float.class, double.class));
+            windows = Game.type(loader, "zombie.ui.UIElement");
+            visible = Game.exact(windows.getMethod("isVisible"), MethodType.methodType(Object.class, Object.class));
+        } catch (NoSuchMethodException | ClassNotFoundException older) { sleeps = null; }
+        asleep = sleeps;
+        darkness = sleeps == null ? null : dark;
+        elementVisible = sleeps == null ? null : visible;
+        element = sleeps == null ? null : windows;
         // The API this one replaces writes what it shows where this one finds it.
         if (lua.get(meta, HANDOVER) instanceof Supplier<?> earlier) {
             try { earlier.get(); }
@@ -1374,13 +1406,21 @@ final class Texts implements Hooks.Text {
         catch (Throwable failure) { throw Texts.<RuntimeException>sneaky(failure); }
         if (all.length == 0) return;
         long now = clock.getAsLong();
+        // This frame's time: what a frame counts for at most; the rest of a longer one, no text was seen in.
+        long gap = lastFrame == 0 ? 0 : Math.max(0, now - lastFrame), counted = Math.min(gap, frameMost);
+        lastFrame = now;
+        long frame = ++frames;
+        boolean held = gap > counted;
+        if (held) for (Shown text : all) if (text.start != 0 && !text.done) later(text, gap - counted);
         Object[] local = players.all();
         boolean anyone = false;
         for (int index = 0; index < local.length && index < PLAYERS; index++) if (local[index] != null) { anyone = true; break; }
         boolean finished = false;
         try {
+            boolean menu = anyone && menuShown();
             for (int screen = 0; screen < PLAYERS; screen++) {
                 if (anyone ? screen >= local.length || local[screen] == null : screen > 0) continue;
+                if (menu || anyone && dark(local[screen], screen)) continue;
                 release(all, screen);
                 int left, top, width, height;
                 if (anyone) {
@@ -1399,6 +1439,7 @@ final class Texts implements Hooks.Text {
                 for (Shown text : all) {
                     if (text.done || text.waiting || text.player >= 0 && text.player != screen) continue;
                     if (text.start == 0) { text.start = now; dirty = true; }
+                    text.drawnIn = frame;
                     if (!draw(text, now, screen, left, top, width, height)) { text.done = true; finished = true; }
                 }
             }
@@ -1406,11 +1447,40 @@ final class Texts implements Hooks.Text {
             // The hook reports it, once; the game draws on.
             throw Texts.<RuntimeException>sneaky(failure);
         }
+        // A text no screen drew this frame stands: its times move on by the frame's.
+        if (counted > 0) for (Shown text : all) if (text.start != 0 && !text.done && text.drawnIn != frame) { later(text, counted); held = true; }
+        // Written for a newer API once the hold is over, not with each frame of it.
+        if (held) holding = true;
+        else if (holding) { holding = false; dirty = true; }
         if (finished) {
             shown.removeIf(text -> text.done);
             publish();
             dirty = true;
         }
+    }
+
+    /** Moves a text's times on by a time it was not seen in: where it is in its life stays. */
+    private static void later(Shown text, long by) {
+        text.start += by;
+        if (text.hidden != 0) text.hidden += by;
+        if (text.moved != 0) text.moved += by;
+    }
+
+    /** Whether the game's menu is over the game (MainScreen.instance, in game and shown). */
+    private boolean menuShown() throws Throwable {
+        if (elementVisible == null) return false;
+        Object environment = lua.environment();
+        Object screen = environment == null ? null : lua.get(environment, "MainScreen");
+        Object instance = lua.isTable(screen) ? lua.get(screen, "instance") : null;
+        if (!lua.isTable(instance) || !Boolean.TRUE.equals(lua.get(instance, "inGame"))) return false;
+        Object window = lua.get(instance, "javaObject");
+        return element.isInstance(window) && Boolean.TRUE.equals((Object)elementVisible.invokeExact(window));
+    }
+
+    /** Whether a player's screen is out of sight: they sleep, or the game darkened it (as it does for sleep). */
+    private boolean dark(Object player, int screen) throws Throwable {
+        if (asleep == null) return false;
+        return (boolean)asleep.invokeExact(player) || (float)darkness.invokeExact((double)screen) > DARK;
     }
 
     /** Lets the first waiting group of each of the screen's queues go when no text of that queue is on that screen (its ash aside). */

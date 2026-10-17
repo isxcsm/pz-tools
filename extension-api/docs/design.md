@@ -2027,7 +2027,12 @@ screen; a ninth makes the oldest waiting go. A text with `queue` waits in the sa
 own on each screen, the same way: low on the screen, they do not wait for the other titles, nor those for them.
 
 A text's time starts when it is first drawn, not when it is shown: one shown while nothing is drawn (a loading screen) comes
-on as the screen does. The time is the interface's (`System.nanoTime`), which goes on while the game is paused. A mod has at
+on as the screen does. The time is the interface's (`System.nanoTime`), which goes on while the game is paused with the screen
+in sight, and it goes on only with the frames the text is drawn in, so that a text is not over before it was seen: a player's
+screen holds its texts (none starts there, and the time of those on it stands) while the player sleeps or the screen is dark
+(`UIManager.getFadeAlpha(player)` above 0.01: the black the game fades it to for sleep), and every screen holds them while the
+game's menu is over the game (`MainScreen.instance` in game and shown: Escape); one frame counts for at most a quarter of a
+second, so a hitch, or a while with no frame drawn, does not run a text out either. A mod has at
 most 64 texts shown or waiting, all mods 256; more is a Lua error. `handle:clear()` takes the mod's texts away at once. A text
 belongs to the world it was shown in: leaving it takes the text away. A text for a player who is not there waits for them. A
 newer API takes what is shown over at the moment it was at, keys included; a function a mod copied out of the table says the

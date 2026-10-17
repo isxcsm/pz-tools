@@ -23,6 +23,7 @@ import zombie.iso.IsoCamera;
 import zombie.iso.IsoCell;
 import zombie.iso.IsoWorld;
 import zombie.ui.TextManager;
+import zombie.ui.UIElement;
 import zombie.ui.UIFont;
 import zombie.ui.UIManager;
 import pzext.boot.Hooks;
@@ -59,6 +60,7 @@ final class TextsTest {
             idle();
             shown(text, mod);
             timeline(text, mod, other);
+            holds(text, mod);
             moves(text, mod, other);
             layout(text, mod);
             fonts(text, mod);
@@ -93,7 +95,8 @@ final class TextsTest {
         }
     }
 
-    private static void useClock() { GameApi.texts().clock = () -> NOW[0]; }
+    // The tests move the clock by more than a frame counts for between frames: every frame counts in full but in holds().
+    private static void useClock() { GameApi.texts().clock = () -> NOW[0]; GameApi.texts().frameMost = Long.MAX_VALUE; }
 
     private static void advance(double seconds) { NOW[0] += Math.round(seconds * SECOND); }
 
@@ -216,6 +219,86 @@ final class TextsTest {
         FormulasTest.call(text, "hide", mod, never);
         render();
         check(draws().isEmpty(), "A text hidden before it was drawn was drawn");
+    }
+
+    /**
+     * Held where it cannot be seen: while the player sleeps or their screen is dark its time stands and none starts; while the
+     * game's menu is over the game too (not on the main menu); a long frame counts for a quarter of a second.
+     */
+    private static void holds(KahluaTable text, Object mod) {
+        IsoPlayer player = IsoPlayer.players[0];
+        KahluaTable screen = table("instance", table("inGame", true, "javaObject", new UIElement()));
+        try {
+            for (int way = 0; way < 3; way++) {
+                double key = (Double)FormulasTest.call(text, "show", mod, table("text", "Held", "hold", 1.0)).get(0);
+                render();
+                advance(0.5);
+                render();
+                check(draws().size() == 1, "A text went before its hold");
+                hold(way, screen, true);
+                advance(5);
+                render();
+                check(draws().isEmpty(), "A text was drawn while held (" + way + ")");
+                hold(way, screen, false);
+                render();
+                check(draws().size() == 1, "A held text's time went on (" + way + ")");
+                advance(0.49);
+                render();
+                check(draws().size() == 1, "A held text went early (" + way + ")");
+                advance(0.01);
+                render();
+                check(draws().isEmpty() && !(Boolean)FormulasTest.call(text, "shown", mod, key).get(0), "A held text outlived its hold (" + way + ")");
+            }
+            // Shown while asleep: its time starts as the player wakes.
+            player.asleep = true;
+            double key = (Double)FormulasTest.call(text, "show", mod, table("text", "Woken", "hold", 1.0)).get(0);
+            render();
+            advance(10);
+            render();
+            check(draws().isEmpty(), "A text started while its player slept");
+            player.asleep = false;
+            render();
+            check(draws().size() == 1, "A text shown in sleep was over before it was seen");
+            FormulasTest.call(text, "hide", mod, key, true);
+            // The main menu is the game's menu out of game: it holds nothing.
+            screen.rawset("instance", table("inGame", false, "javaObject", new UIElement()));
+            LuaManager.env.rawset("MainScreen", screen);
+            key = (Double)FormulasTest.call(text, "show", mod, table("text", "Menu", "hold", 1.0)).get(0);
+            render();
+            check(draws().size() == 1, "The main menu held a text");
+            FormulasTest.call(text, "hide", mod, key, true);
+            // A frame of 30 s (a hitch, or none drawn) counts for a quarter of a second.
+            GameApi.texts().frameMost = Texts.FRAME_MOST;
+            key = (Double)FormulasTest.call(text, "show", mod, table("text", "Hitch", "hold", 1.0)).get(0);
+            render();
+            advance(30);
+            render();
+            // Then frames of their own length: 0.25 + 3 * 0.24 + 0.02.
+            for (int frame = 0; frame < 3; frame++) { advance(0.24); render(); }
+            advance(0.02);
+            render();
+            check(draws().size() == 1, "A long frame counted for more than a quarter of a second");
+            advance(0.01);
+            render();
+            check(draws().isEmpty(), "A long frame counted for less than a quarter of a second");
+        } finally {
+            GameApi.texts().frameMost = Long.MAX_VALUE;
+            player.asleep = false;
+            UIManager.fade[0] = 0;
+            LuaManager.env.rawset("MainScreen", null);
+        }
+    }
+
+    /** Holds the screen one way (0 sleep, 1 dark, 2 the game's menu) or lets it go. */
+    private static void hold(int way, KahluaTable screen, boolean on) {
+        switch (way) {
+            case 0 -> IsoPlayer.players[0].asleep = on;
+            case 1 -> UIManager.fade[0] = on ? 1 : 0;
+            default -> {
+                ((UIElement)((KahluaTable)screen.rawget("instance")).rawget("javaObject")).visible = on;
+                LuaManager.env.rawset("MainScreen", screen);
+            }
+        }
     }
 
     /** Lines, alignment, a size as a share of the screen's height, a shadow and an outline. */
