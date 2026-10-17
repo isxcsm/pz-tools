@@ -1,11 +1,10 @@
 -- What the mod keeps up as changes are told, so that nothing is scanned on a tick, a second, a minute or a menu: the
 -- save's table, who has which device, the networks' states, the tripped boxes and spraying sprinklers, the lights, the
--- watched building waiting for its chunks, the lines' squares looked at again.
+-- lines' squares looked at again.
 require "BuildingUtilities/Changes"
 require "BuildingUtilities/PanelBlink"
 require "BuildingUtilities/SprinklerSpray"
 require "BuildingUtilities/Lights"
-require "BuildingUtilities/RoomWalls"
 require "BuildingUtilities/FloorLines"
 local BU = BuildingUtilities
 local Store, Panels, Changes, Networks, Links = BU.Store, BU.Panels, BU.Changes, BU.Networks, BU.Links
@@ -258,70 +257,6 @@ test("a thing's light is set as its square loads and when it takes a look; the g
     eq(boxes[far] ~= nil, true)
     TEST.fire("EveryOneMinute")
     eq(added, 2, "the far box is not lit by the minute")
-end)
-
--- A map building of two squares, (500, 500) and (501, 500), the player in it; the API as the watch needs it.
-local function watchWorld(width)
-    local api = TEST.api
-    local key = "500,500,0"
-    api.buildingsByKey[key] = {
-        building = { key = key, playerBuilt = false, minLevel = 0, maxLevel = 0, minX = 500, minY = 500,
-            maxX = 500 + width - 1, maxY = 500, room = "hall", roomId = "1" },
-        rooms = { { id = "1", name = "hall", level = 0, rects = { { x = 500, y = 500, w = width, h = 1 } } } },
-    }
-    for x = 500, 500 + width - 1 do api.squares[x .. ",500,0"] = key end
-    local watches = {}
-    api.table.squares = { watch = function(_, list) watches[#watches + 1] = list; return #watches end,
-        unwatch = function() end }
-    api.table.buildings.setRooms = function() return true end
-    local home = { object = true }
-    getPlayer = function()
-        return { getCurrentSquare = function()
-            return { getBuilding = function() return home end, getX = function() return 500 end,
-                getY = function() return 500 end, getZ = function() return 0 end }
-        end }
-    end
-    IsoObjectType = {}
-    local loaded = { chunks = false }
-    local base = getCell
-    getCell = function()
-        local cell = base()
-        cell.getChunkForGridSquare = function() return loaded.chunks and {} or nil end
-        return cell
-    end
-    return api, watches, loaded
-end
-
-test("a building waiting for its chunks is not read again, nor asked for, until they load", function()
-    local api, watches, loaded = watchWorld(2)
-    local function calls(name) return api.calls[name] or 0 end
-    tick(30)
-    eq(calls("rooms"), 1, "its rooms read once")
-    local asked = calls("at")
-    tick(150)
-    eq(calls("rooms"), 1, "not again while it waits")
-    eq(calls("at"), asked, "nor the building asked for")
-    eq(#watches, 0)
-    -- Chunks loaded, but a square of it not yet.
-    loaded.chunks = true
-    tick(30)
-    eq(#watches, 0, "a square missing: still waiting")
-    eq(calls("rooms"), 1, "the rooms kept")
-    TEST.squares["500,500,0"] = { objects = {} }
-    TEST.squares["501,500,0"] = { objects = {} }
-    tick(30)
-    eq(#watches, 1, "watched")
-    eq(calls("rooms"), 1, "the rooms it waited with")
-end)
-
-test("a building larger than the game loads is not watched, and never read again", function()
-    local api, watches, loaded = watchWorld(120)
-    loaded.chunks = true
-    tick(200)
-    eq(api.calls.rooms, 1)
-    eq(#watches, 0)
-    -- And one with more squares than a watch holds is not made into squares at all.
-    eq(BU.RoomWalls.footprint({ { level = 0, rects = { { x = 0, y = 0, w = 300, h = 300 } } } }), nil)
 end)
 
 test("a square looked at again after a change is not worked out again while nothing about it changed", function()

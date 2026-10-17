@@ -243,6 +243,37 @@ rooms are being set, and while the game loads the API's file, the editor's build
 buildings; at any other time (the game's own editor, used by hand) they are what the game makes
 them. `setRooms` refuses without the hooks that read and write the file in (see the hook sites).
 
+### Wall watches
+
+Which rooms the walls of a map building make, told to a mod when a wall between two of its squares goes up or comes down, for a
+mod that gives the building those rooms (`setRooms`). Working it out in Lua meant a table for each square and a Lua call for
+each wall read: entering a building of a few thousand squares cost tens of milliseconds in one tick, and a large one hundreds.
+Here the squares, their walls and the work are Java's, and Lua is called only with the rooms.
+([`WallWatches`](../src/api/pzext/api/WallWatches.java))
+
+| Call | Returns |
+| --- | --- |
+| `buildings.watchWalls(handle, key, fn)` | The watch's `id`; or `nil` and why: no building has the key, players built it (the game remakes its rooms), or it is larger than the game loads at once, or its rooms have more than 32768 squares. When the rooms the walls make are not the building's, `fn(key, rooms)` is called from the frame job, `rooms` as `setRooms` takes them (`level`, `rects`). |
+| `buildings.unwatchWalls(handle, id)` | Stops the mod's own watch; `true` when there was one. |
+
+A square's walls are its north and west sides as the game's regions tell a room's (`IsoRegions.calculateSquareFlags`): a wall or a
+window's (`cutN`, `cutW`), a door frame (`doorFrN`, `doorFrW`); a corner post (`WallSE`) leaves the west side open. The watch reads
+those of every square of the building's rooms once every chunk the building covers is loaded (until then it waits, looking every
+30 frames), and keeps them. When a square's properties are worked out again (the hook of the square watches, through
+`SquareDispatch`), the frame job reads its walls; when one differs from what was seen, the squares are grouped: two side by side
+are of one room when they were of the same room, unless a wall was built between them since; or of two rooms when the wall between
+them was taken down since. What the map has stays: two rooms open to each other stay two, and a room with a wall of its own inside
+stays one. When the groups are not the building's rooms, `fn` is told them, each made into rectangles (runs along x, grown down);
+then what was seen is what is there now, whatever the mod did. A building whose rooms another call changed is read again from its
+rooms; one whose rooms cover other squares now is read again whole, its walls as they are.
+
+Cost: the hook asks each watch's box and then the square's slot in a table indexed by place (no hash, nothing allocated; 23 ns a
+square change elsewhere, 37 ns in a watched building in the tests). Reading a building of 32400 squares (90 by 90 on four floors)
+took 5 to 8 ms in the tests once the code was warm (36 to 59 ms the first time, before the JIT), most of it the synthetic game's
+square lookup by text (the game's is by index); a wall taken down in it was worked out in about 5 ms warm. A house of a few hundred
+squares is a hundredth of that. A building has at most 32768 squares in its rooms. A mod has at most 4 watches, all mods 16. Watches belong to the
+world and are kept in the API table's metatable; a newer API takes them over and reads their walls again.
+
 ### Containers
 
 The containers that world objects hold (shelves, counters, fridges, crates; not a vehicle's trunk, which belongs to no square),

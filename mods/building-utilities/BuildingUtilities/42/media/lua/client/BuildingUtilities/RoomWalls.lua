@@ -1,305 +1,46 @@
 -- Rooms that follow the walls. A map building's rooms are the map's whatever happens to its walls (the game remakes the
 -- rooms of the buildings players build, never a map building's): a wall taken down left two rooms where one stands, a
--- wall built across a room left one. The map building the player is in is watched (PZExtAPI.squares); when a wall
--- between its squares is taken down or built, its rooms are worked out again and given to it
--- (PZExtAPI.buildings.setRooms, which the game keeps with the save). Two rooms a wall taken down opens to each other
--- become one; a room a new wall cuts in two becomes two. What the map has stays: an open kitchen beside the living room
--- stays the kitchen, and a room with a wall of its own inside stays one room.
+-- wall built across a room left one. The map building the player is in is watched (PZExtAPI.buildings.watchWalls:
+-- its walls read and its squares watched in Java, nothing of them in Lua); when a wall between its squares is taken
+-- down or built so that its rooms are not the ones the walls make, the API tells the rooms they make, and they are
+-- given to it (PZExtAPI.buildings.setRooms, which the game keeps with the save). Two rooms a wall taken down opens to
+-- each other become one; a room a new wall cuts in two becomes two. What the map has stays: an open kitchen beside the
+-- living room stays the kitchen, and a room with a wall of its own inside stays one room.
 require "BuildingUtilities/Core"
 local BU = BuildingUtilities
 local RoomWalls = {}
 BU.RoomWalls = RoomWalls
 
--- A square's walls as a code: its north side (to the square north of it) 1, its west side 2.
-local NORTH, WEST = 1, 2
--- The most squares one watch holds (the API's limit), and the most a building watched has (two watches).
-local WATCH_MAX = 16384
-RoomWalls.MAX_SQUARES = 2 * WATCH_MAX
 -- Ticks between looks at where the player is, and the squares beyond the building's box the watch is kept.
 local LOOK_EVERY, LEAVE = 30, 4
 
-local function hasNorth(code) return code == 1 or code == 3 end
-local function hasWest(code) return code >= 2 end
-
--- A square's place as one number (exact in a double): its level, row and column.
-function RoomWalls.place(x, y, z) return ((z + 64) * 65536 + y) * 65536 + x end
-
--- Which sides of a square have a wall, as the game's regions tell the walls of a room (IsoRegions.calculateSquareFlags):
--- a wall or a window's, a door frame. A corner post (WallSE) leaves the west side open, as there.
-function RoomWalls.sides(square)
-    local code = 0
-    if square:has(IsoFlagType.cutN) or square:has(IsoObjectType.doorFrN) then code = NORTH end
-    if not square:has(IsoFlagType.WallSE) and (square:has(IsoFlagType.cutW) or square:has(IsoObjectType.doorFrW)) then
-        code = code + WEST
-    end
-    return code
-end
-
--- The squares of a building's rooms (the API's rooms(key)): { [place] = room index }, with each square's x, y, z, each
--- room's size and the box round them (minX, minY, maxX, maxY); nil past MAX_SQUARES, which the rectangles' areas tell
--- before any square is made.
-function RoomWalls.footprint(rooms)
-    local area = 0
-    for _, room in ipairs(rooms) do
-        for _, rect in ipairs(room.rects) do area = area + rect.w * rect.h end
-    end
-    if area > RoomWalls.MAX_SQUARES then return nil end
-    local owner, squares, sizes = {}, {}, {}
-    local minX, minY, maxX, maxY
-    for index, room in ipairs(rooms) do
-        local z = room.level
-        sizes[index] = 0
-        for _, rect in ipairs(room.rects) do
-            minX, minY = math.min(minX or rect.x, rect.x), math.min(minY or rect.y, rect.y)
-            maxX = math.max(maxX or rect.x + rect.w - 1, rect.x + rect.w - 1)
-            maxY = math.max(maxY or rect.y + rect.h - 1, rect.y + rect.h - 1)
-            for y = rect.y, rect.y + rect.h - 1 do
-                for x = rect.x, rect.x + rect.w - 1 do
-                    local place = RoomWalls.place(x, y, z)
-                    if not owner[place] then
-                        owner[place] = index
-                        sizes[index] = sizes[index] + 1
-                        squares[#squares + 1] = { x = x, y = y, z = z, place = place }
-                    end
-                end
-            end
-        end
-    end
-    return { owner = owner, squares = squares, sizes = sizes, minX = minX, minY = minY, maxX = maxX, maxY = maxY }
-end
-
--- Squares of one level as rectangles: runs along x, each grown down while the next row has the same run.
-function RoomWalls.rects(squares)
-    local rows, minY, maxY = {}, nil, nil
-    for _, square in ipairs(squares) do
-        local row = rows[square.y]
-        if not row then
-            row = {}
-            rows[square.y] = row
-        end
-        row[#row + 1] = square.x
-        minY = minY and math.min(minY, square.y) or square.y
-        maxY = maxY and math.max(maxY, square.y) or square.y
-    end
-    local result, open = {}, {}
-    for y = minY, maxY do
-        local row, now = rows[y], {}
-        if row then
-            table.sort(row)
-            local start, last = row[1], row[1]
-            for i = 2, #row + 1 do
-                local x = row[i]
-                if x ~= last + 1 then
-                    local runKey = start .. ":" .. (last - start + 1)
-                    local rect = open[runKey]
-                    if rect and rect.y + rect.h == y then
-                        rect.h = rect.h + 1
-                    else
-                        rect = { x = start, y = y, w = last - start + 1, h = 1 }
-                        result[#result + 1] = rect
-                    end
-                    now[runKey] = rect
-                    start = x
-                end
-                last = x
-            end
-        end
-        open = now
-    end
-    return result
-end
-
--- The rooms the walls make of the building's squares, as setRooms takes them, or nil when they are the rooms it has.
--- now[place] and before[place] are each square's walls now and when last seen. Two squares side by side are one room
--- when of the same room, unless a wall was built between them since; or of two rooms when the wall between them was
--- taken down since.
-function RoomWalls.partition(rooms, shape, now, before)
-    local owner, squares, sizes = shape.owner, shape.squares, shape.sizes
-    local parent = {}
-    local function find(place)
-        local root = place
-        while parent[root] and parent[root] ~= root do root = parent[root] end
-        while place ~= root do
-            local up = parent[place]
-            parent[place] = root
-            place = up
-        end
-        return root
-    end
-    local function join(a, b)
-        local ra, rb = find(a), find(b)
-        if ra ~= rb then parent[ra] = rb end
-    end
-    local function joined(place, other, wallNow, wallBefore)
-        if owner[place] == owner[other] then return not (wallNow and not wallBefore) end
-        return wallBefore and not wallNow
-    end
-    for _, square in ipairs(squares) do
-        local place = square.place
-        parent[place] = parent[place] or place
-        local code, was = now[place] or 0, before[place] or 0
-        local north, west = place - 65536, place - 1
-        if owner[north] and joined(place, north, hasNorth(code), hasNorth(was)) then join(place, north) end
-        if owner[west] and joined(place, west, hasWest(code), hasWest(was)) then join(place, west) end
-    end
-    local groups, order = {}, {}
-    for _, square in ipairs(squares) do
-        local root = find(square.place)
-        local group = groups[root]
-        if not group then
-            group = { squares = {}, room = owner[square.place], same = true }
-            groups[root] = group
-            order[#order + 1] = group
-        end
-        group.squares[#group.squares + 1] = square
-        if owner[square.place] ~= group.room then group.same = false end
-    end
-    local changed = #order ~= #rooms
-    for _, group in ipairs(order) do
-        if not group.same or #group.squares ~= sizes[group.room] then changed = true end
-    end
-    if not changed then return nil end
-    local result = {}
-    for _, group in ipairs(order) do
-        result[#result + 1] = { level = rooms[group.room].level, rects = RoomWalls.rects(group.squares) }
-    end
-    return result
-end
-
--- The building watched: { key, version, rooms, shape, before = walls when last seen, now = walls as told, watches,
--- box }; or one waiting for its squares to load ({ key, waiting = true, box, rooms, shape, version }: the rooms are kept
--- while the API's version holds); or one that cannot be watched, its box larger than the game loads at once or its
--- squares more than a watch holds ({ key, box }).
-local watched, dirty, anyDirty, ticks, seenBuilding = nil, {}, false, 0, nil
+-- The building watched: { key, id (none when the API would not watch it), box { minX, minY, maxX, maxY } }.
+local watched, ticks, seenBuilding = nil, 0, nil
 
 local function api()
     local found = BU.api()
-    if found and found.squares and found.buildings.setRooms then return found end
+    if found and found.buildings and found.buildings.watchWalls and found.buildings.setRooms then return found end
     return nil
 end
 
-local function onChanged(_, x, y, z)
-    dirty[RoomWalls.place(x, y, z)] = { x = x, y = y, z = z }
-    anyDirty = true
-end
-
 local function unwatch(found, handle)
-    if watched and watched.watches then
-        for _, id in ipairs(watched.watches) do found.squares.unwatch(handle, id) end
-    end
-    watched, dirty, anyDirty = nil, {}, false
+    if watched and watched.id then found.buildings.unwatchWalls(handle, watched.id) end
+    watched = nil
 end
 
--- The chunks (CHUNK squares across) the game keeps loaded about a player, when the game does not say.
-local CHUNK, LOADED_CHUNKS = 8, 13
-
--- The most squares across a building can have to be loaded all at once.
-local function loadedSpan()
-    local ok, width = pcall(function() return IsoChunkMap.ChunkGridWidth end)
-    return ((ok and tonumber(width) or LOADED_CHUNKS) - 1) * CHUNK
+-- The API told the rooms the walls of the building make now.
+function RoomWalls.onWalls(key, rooms)
+    local found = api()
+    if not found or not watched or watched.key ~= key then return end
+    local done, why = found.buildings.setRooms(key, rooms)
+    if not done then BU.log("rooms not set for", key, why) end
 end
 
--- Whether every chunk the shape's box covers is loaded: a chunk each CHUNK squares of the box, asked before any
--- square of it is.
-local function boxLoaded(shape)
-    local cell = getCell()
-    for cx = math.floor(shape.minX / CHUNK), math.floor(shape.maxX / CHUNK) do
-        for cy = math.floor(shape.minY / CHUNK), math.floor(shape.maxY / CHUNK) do
-            if not cell:getChunkForGridSquare(cx * CHUNK, cy * CHUNK, 0) then return false end
-        end
-    end
-    return true
-end
-
--- The walls of the shape's squares as they are, or false when one is not loaded.
-local function readWalls(shape)
-    local cell, walls = getCell(), {}
-    for _, square in ipairs(shape.squares) do
-        local loaded = cell:getGridSquare(square.x, square.y, square.z)
-        if not loaded then return false end
-        walls[square.place] = RoomWalls.sides(loaded)
-    end
-    return walls
-end
-
-local function copy(walls)
-    local result = {}
-    for place, code in pairs(walls) do result[place] = code end
-    return result
-end
-
--- Starts watching a building (info: the API's at): its rooms read, unless they are kept from a wait and the API's
--- version holds; then it waits, nothing made of its squares, until the chunks it covers are loaded; and is not
--- watched at all when its box is larger than the game loads.
 local function start(found, handle, info)
-    local waiting = watched and watched.waiting and watched.key == info.key and watched or nil
     unwatch(found, handle)
-    local box = { info.minX - LEAVE, info.minY - LEAVE, info.maxX + LEAVE, info.maxY + LEAVE }
-    local version = found.buildings.version()
-    local rooms, shape
-    if waiting and waiting.version == version then
-        rooms, shape = waiting.rooms, waiting.shape
-    else
-        rooms = found.buildings.rooms(info.key)
-        shape = rooms and RoomWalls.footprint(rooms)
-    end
-    local span = loadedSpan()
-    if not shape or shape.maxX - shape.minX + 1 > span or shape.maxY - shape.minY + 1 > span then
-        watched = { key = info.key, box = box }
-        return
-    end
-    local walls = boxLoaded(shape) and readWalls(shape)
-    if not walls then
-        watched = { key = info.key, waiting = true, box = box, rooms = rooms, shape = shape, version = version }
-        return
-    end
-    watched = { key = info.key, version = version, rooms = rooms, shape = shape, before = walls,
-        now = copy(walls), watches = {}, box = box }
-    local list = {}
-    local function flush()
-        if #list > 0 then watched.watches[#watched.watches + 1] = found.squares.watch(handle, list, onChanged) end
-        list = {}
-    end
-    for _, square in ipairs(shape.squares) do
-        list[#list + 1] = square.x
-        list[#list + 1] = square.y
-        list[#list + 1] = square.z
-        if #list >= WATCH_MAX * 3 then flush() end
-    end
-    flush()
-end
-
--- The walls of the squares told changed; when one differs from what was last seen, the rooms worked out again.
-local function settle(found)
-    local cell, differs = getCell(), false
-    for place, at in pairs(dirty) do
-        local loaded = cell:getGridSquare(at.x, at.y, at.z)
-        if loaded and watched.now[place] ~= nil then
-            local code = RoomWalls.sides(loaded)
-            watched.now[place] = code
-            if code ~= watched.before[place] then differs = true end
-        end
-    end
-    dirty, anyDirty = {}, false
-    if not differs then return end
-    if found.buildings.version() ~= watched.version then
-        -- the building changed otherwise (another mod, the game's editor): its rooms as they are now
-        local rooms = found.buildings.rooms(watched.key)
-        local shape = rooms and RoomWalls.footprint(rooms)
-        if not shape then return unwatch(found, BU.handle()) end
-        watched.rooms, watched.shape = rooms, shape
-    end
-    local wanted = RoomWalls.partition(watched.rooms, watched.shape, watched.now, watched.before)
-    if wanted then
-        local done, why = found.buildings.setRooms(watched.key, wanted)
-        if not done then BU.log("rooms not set for", watched.key, why) end
-        local rooms = found.buildings.rooms(watched.key)
-        local shape = rooms and RoomWalls.footprint(rooms)
-        if not shape then return unwatch(found, BU.handle()) end
-        watched.rooms, watched.shape = rooms, shape
-    end
-    watched.before = copy(watched.now)
-    watched.version = found.buildings.version()
+    local id, why = found.buildings.watchWalls(handle, info.key, RoomWalls.onWalls)
+    if not id then BU.log("walls not watched for", info.key, why) end
+    watched = { key = info.key, id = id, box = { info.minX - LEAVE, info.minY - LEAVE, info.maxX + LEAVE, info.maxY + LEAVE } }
 end
 
 -- Where the player is: the map building they are in is watched; one they left far behind is not.
@@ -311,17 +52,7 @@ local function look(found, handle)
     if building and building ~= seenBuilding then
         seenBuilding = building
         local info = found.buildings.at(square:getX(), square:getY(), square:getZ())
-        if info and not info.playerBuilt and not (watched and watched.key == info.key and not watched.waiting) then
-            start(found, handle, info)
-        end
-        return
-    end
-    if watched and watched.waiting and building then
-        -- Only once its chunks are loaded (or the API's version moved on) is the building asked for.
-        if found.buildings.version() ~= watched.version or boxLoaded(watched.shape) then
-            local info = found.buildings.at(square:getX(), square:getY(), square:getZ())
-            if info and info.key == watched.key then start(found, handle, info) end
-        end
+        if info and not info.playerBuilt and not (watched and watched.key == info.key) then start(found, handle, info) end
         return
     end
     if watched and not building then
@@ -335,17 +66,19 @@ end
 
 local function onTick()
     ticks = ticks + 1
-    if not anyDirty and ticks < LOOK_EVERY then return end
+    if ticks < LOOK_EVERY then return end
+    ticks = 0
     local found = api()
     local handle = found and BU.handle()
-    if not handle then return end
-    if anyDirty and watched and watched.now then settle(found) end
-    if ticks >= LOOK_EVERY then
-        ticks = 0
-        look(found, handle)
-    end
+    if handle then look(found, handle) end
+end
+
+-- Another world: its watches are its own (the API let the last world's go).
+local function onGameStart()
+    watched, ticks, seenBuilding = nil, 0, nil
 end
 
 Events.OnTick.Add(onTick)
+Events.OnGameStart.Add(onGameStart)
 
 return RoomWalls

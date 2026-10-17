@@ -140,6 +140,24 @@ public final class IsoGridSquare {
             default -> false;
         };
     }
+    /** A corner post on the square's south-east corner (WallSE). */
+    public boolean cornerSE;
+    /** Like the game's, from the square's properties: a wall or a window's cuts its side (cutN, cutW); a corner post. */
+    public boolean has(zombie.iso.SpriteDetails.IsoFlagType flag) {
+        return switch (flag) {
+            case cutN -> northWall || northWindow;
+            case cutW -> westWall || westWindow;
+            case WallSE -> cornerSE;
+            default -> hasProperty(flag);
+        };
+    }
+    /** Like the game's: whether an object of the type stands on the square; here the door frames. */
+    public boolean has(zombie.iso.SpriteDetails.IsoObjectType type) {
+        return switch (type) {
+            case doorFrN -> northDoor;
+            case doorFrW -> westDoor;
+        };
+    }
     public boolean hasClosedDoorOnEdge(IsoDirections edge) { return !doorOpen && (edge == IsoDirections.N ? northDoor : edge == IsoDirections.W && westDoor); }
     public int getPlayerCutawayFlag(int player, long currentTimeMillis) { return cutaway[player]; }
     public PZArrayList<IsoObject> getObjects() { return objects; }

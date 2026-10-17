@@ -49,6 +49,8 @@ public final class GameApi {
     private static volatile FloorDecals floor;
     // The square watches of the Lua environment the game has now; null without one, or when the game cannot tell them.
     private static volatile SquareWatches squares;
+    // The wall watches of the Lua environment the game has now; null without one, or when the game cannot tell them.
+    private static volatile WallWatches walls;
     // The buildings of the Lua environment the game has now, watched each frame for what changes them (Buildings.observe).
     private static volatile Buildings buildings;
     // The modules whose frame failed (see fault), on the game's thread.
@@ -89,6 +91,9 @@ public final class GameApi {
 
     /** The square watches of the Lua environment the game has now, or null (for the tests of this package). */
     static SquareWatches squares() { return squares; }
+
+    /** The wall watches of the Lua environment the game has now, or null (for the tests of this package). */
+    static WallWatches walls() { return walls; }
 
     /**
      * In a game the API's loader started, once each time its jar is loaded (the boot layer's Host): the game's Lua
@@ -192,6 +197,11 @@ public final class GameApi {
             try { told.frame(); }
             catch (Throwable failure) { fault("squares", failure); }
         }
+        WallWatches seen = walls;
+        if (seen != null) {
+            try { seen.frame(); }
+            catch (Throwable failure) { fault("walls", failure); }
+        }
         Helicopters flying = helicopters;
         if (flying != null) {
             try { flying.frame(); }
@@ -239,6 +249,7 @@ public final class GameApi {
             chunks = null;
             floor = null;
             squares = null;
+            walls = null;
             Networks.unhook();
             Formulas.unhook();
             Moodles.unhook();
@@ -288,6 +299,7 @@ public final class GameApi {
             texts(lua, api, meta, handles, game, luaManager.getClassLoader());
             systems(lua, api, meta, handles, game, luaManager.getClassLoader());
             scheduled(lua, api, meta, handles, game, luaManager.getClassLoader());
+            walls(lua, buildingsTable, meta, handles, game, read, luaManager.getClassLoader());
             lua.set(env, GLOBAL, api);
         } catch (Throwable failure) {
             // The functions mods kept refuse to be called rather than change networks and formulas that no longer run.
@@ -303,8 +315,35 @@ public final class GameApi {
             ChunkWatches.retire(lua, meta);
             FloorDecals.retire(lua, meta);
             SquareWatches.retire(lua, meta);
+            WallWatches.retire(lua, meta);
             throw failure;
         }
+    }
+
+    /**
+     * {@code PZExtAPI.buildings.watchWalls} and {@code unwatchWalls}, with the watches an earlier API kept in this environment.
+     * Without them (a game this API cannot read), the buildings' table has neither.
+     */
+    private static void walls(Kahlua lua, Object table, Object meta, Object handles, Game game, Buildings read, ClassLoader loader)
+            throws ReflectiveOperationException {
+        WallWatches watched;
+        try {
+            watched = new WallWatches(lua, game, read, meta, handle -> owner(lua, handles, handle), loader);
+            watched.register(table);
+        } catch (LinkageError olderBootstrap) {
+            System.err.println("[PZExt] Wall watches are not in this game; restart it to use them: " + olderBootstrap);
+            WallWatches.retire(lua, meta);
+            lua.set(table, "watchWalls", null);
+            lua.set(table, "unwatchWalls", null);
+            watched = null;
+        } catch (ReflectiveOperationException | RuntimeException unreadable) {
+            report(unreadable);
+            WallWatches.retire(lua, meta);
+            lua.set(table, "watchWalls", null);
+            lua.set(table, "unwatchWalls", null);
+            watched = null;
+        }
+        walls = watched;
     }
 
     /**
@@ -681,6 +720,8 @@ public final class GameApi {
             if (watching != null) watching.clear(name, AREA + "client:clear");
             SquareWatches watched = squares;
             if (watched != null) watched.clear(name, AREA + "client:clear");
+            WallWatches seen = walls;
+            if (seen != null) seen.clear(name, AREA + "client:clear");
             FloorDecals decals = floor;
             if (decals != null) {
                 try { decals.clear(name, AREA + "client:clear"); }
