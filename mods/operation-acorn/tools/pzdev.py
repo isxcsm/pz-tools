@@ -52,6 +52,8 @@ GAME_DIR = os.environ.get("PZDEV_GAME", r"C:\Program Files (x86)\Steam\steamapps
 # The game as pzdev drives it: windowed at this size (the places it clicks are for it; a borderless or full screen game
 # is captured black or stale, and its menu is elsewhere).
 WINDOW = (1600, 900)
+# The user's display options while pzdev's start has them changed.
+DISPLAY_KEPT = os.path.join(os.path.expanduser("~"), "Zomboid", "pzdev-display.ini")
 CMD = os.path.join(ZOMBOID, "cmd.lua")
 OUT = os.path.join(ZOMBOID, "out.txt")
 
@@ -435,25 +437,47 @@ def process_gone(timeout=600):
     return True
 
 
-# The game's options set to the window pzdev drives (written before the game starts, which reads them then; options are
-# free in this install). Says what it changed.
-def windowed_options():
-    want = {"fullScreen": "false", "borderless": "false", "width": str(WINDOW[0]), "height": str(WINDOW[1])}
+# Sets keys of the game's options.ini; returns what they were for those it changed ({} when none or no file).
+def set_options(want):
     try:
         with open(OPTIONS, encoding="utf-8") as f:
             lines = f.read().splitlines()
     except OSError:
-        return
-    changed = []
+        return {}
+    was = {}
     for i, line in enumerate(lines):
         key, sep, value = line.partition("=")
         if sep and key in want and value != want[key]:
-            changed.append("%s %s -> %s" % (key, value, want[key]))
+            was[key] = value
             lines[i] = key + "=" + want[key]
-    if changed:
-        with open(OPTIONS, "w", encoding="utf-8", newline="\r\n") as f:
+    if was:
+        with open(OPTIONS, "w", encoding="utf-8", newline="\n") as f:
             f.write("\n".join(lines) + "\n")
-        print("options set windowed:", ", ".join(changed))
+    return was
+
+
+# The game's display options set to the window pzdev drives, before the game starts (it reads them only then); what the
+# user had is kept in DISPLAY_KEPT (unless an earlier start's is there still) and put back by restore_options once the
+# game is up, so the user's own start is as they left it.
+def windowed_options():
+    was = set_options({"fullScreen": "false", "borderless": "false", "width": str(WINDOW[0]), "height": str(WINDOW[1])})
+    if was and not os.path.exists(DISPLAY_KEPT):
+        with open(DISPLAY_KEPT, "w", encoding="utf-8") as f:
+            f.write("".join("%s=%s\n" % item for item in was.items()))
+    if was:
+        print("options set windowed for this start:", ", ".join("%s %s" % item for item in was.items()))
+
+
+# Puts the user's display options back (the running game keeps its window: it does not write them as it quits).
+def restore_options():
+    try:
+        with open(DISPLAY_KEPT, encoding="utf-8") as f:
+            kept = dict(line.split("=", 1) for line in f.read().splitlines() if "=" in line)
+    except OSError:
+        return
+    set_options(kept)
+    os.remove(DISPLAY_KEPT)
+    print("the user's display options put back:", ", ".join("%s=%s" % item for item in kept.items()))
 
 
 # Starts the game's exe with -debug (the dev channel needs it; Steam's launch no longer adds it), windowed.
@@ -542,6 +566,7 @@ def launch():
         print("the main menu did not come in 5 minutes" if name is None else "the game closed while starting")
         return 1
     print("on the main menu")
+    restore_options()
     return continue_when_ready(start)
 
 
