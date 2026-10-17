@@ -1,0 +1,6 @@
+# Text is stored with LF and checked out with LF on every machine, whatever core.autocrlf says; Windows batch files and
+# PowerShell scripts keep CRLF. The parts' own .gitattributes (extension-api, the mods) say the same for their folders.
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
