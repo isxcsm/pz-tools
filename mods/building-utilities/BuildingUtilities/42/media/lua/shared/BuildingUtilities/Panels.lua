@@ -507,12 +507,31 @@ function Panels.itemTier(item) return BU.PANEL_ITEM_TIER[item:getFullType()] or 
 -- The box's recipe: not known at first (a box is found first), learned by opening one up (ISBUReverseEngineer).
 Panels.RECIPE = "MakeBreakerBox"
 
+-- The game's rule for reading: the light of the character's square, with their worn items' sight, under this.
+local READ_LIGHT = 0.43
+
+-- Whether it is too dark for the character to see into a box: the game's rule for reading, asked again of the light
+-- night sight lifts (the extension API's vision.nightSight: c + f (1 - c)^2, f its lift of the full light), so that a
+-- room it shows bright enough is.
+function Panels.tooDark(character)
+    if not character:tooDarkToRead() then return false end
+    local api = PZExtAPI
+    local sight = type(api) == "table" and api.formulas and api.formulas.nightSight and api.formulas.nightSight()
+    local f = sight and tonumber(sight.floor) or 0
+    if f <= 0 then return true end
+    local square = character:getCurrentSquare()
+    if not square then return true end
+    local c = square:getLightLevel(character:getPlayerNum())
+    local lifted = c + f * (1 - c) * (1 - c)
+    return (lifted / character:getWornItemsVisionModifier() + lifted) / 2 < READ_LIGHT
+end
+
 -- Why a character cannot learn the box's design at one now, or nil: "known" (they know it), "tool" (no screwdriver:
--- Costs.reverseEngineer), "dark" (too dark to see inside, as to read).
+-- Costs.reverseEngineer), "dark" (too dark to see inside, as to read, night sight counted: Panels.tooDark).
 function Panels.reverseEngineerProblem(character)
     if character:isRecipeActuallyKnown(Panels.RECIPE) then return "known" end
     if not BU.Costs.affords(character, BU.Costs.reverseEngineer()) then return "tool" end
-    if character:tooDarkToRead() then return "dark" end
+    if Panels.tooDark(character) then return "dark" end
     return nil
 end
 

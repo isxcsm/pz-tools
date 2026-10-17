@@ -136,3 +136,22 @@ test("the design is learned at a box only by one who does not know it, with a sc
     character.known = true
     eq(Panels.reverseEngineerProblem(character), "known")
 end)
+
+test("night sight counts for the dark: the game's reading rule asked of the light it lifts", function()
+    local light = 0.31
+    local character = {}
+    function character:tooDarkToRead() return (light + light) / 2 < 0.43 end
+    function character:getCurrentSquare() return { getLightLevel = function() return light end } end
+    function character:getPlayerNum() return 0 end
+    function character:getWornItemsVisionModifier() return 1 end
+    PZExtAPI = PZExtAPI or {}
+    PZExtAPI.formulas = { nightSight = function() return { floor = 0 } end }
+    eq(Panels.tooDark(character), true, "no night sight: the game's rule")
+    PZExtAPI.formulas = { nightSight = function() return { floor = 0.45 } end }
+    eq(Panels.tooDark(character), false, "0.31 lifted by 0.45 is 0.52: light enough")
+    light = 0.05
+    PZExtAPI.formulas = { nightSight = function() return { floor = 0.25 } end }
+    eq(Panels.tooDark(character), true, "0.05 lifted by 0.25 is 0.28: still dark")
+    light = 0.6
+    eq(Panels.tooDark(character), false, "light enough without it")
+end)
