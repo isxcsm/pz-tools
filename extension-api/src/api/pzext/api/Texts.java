@@ -1,6 +1,7 @@
 package pzext.api;
 
 import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Field;
 import java.util.*;
@@ -73,6 +74,11 @@ final class Texts implements Hooks.Text {
     // in how many rings (each shaded from its inside to its outside by the card, between the points of a smooth step).
     private static final double BACKDROP_SIDE = 2.6, BACKDROP_END = 1.0;
     private static final int BACKDROP_RINGS = 4;
+    /**
+     * The most sprites one text puts into a frame before it is said in the log, once: the game's sprite buffer holds about 58,000
+     * a frame (128 buffers of 455 quads) and says "Buffer overrun" each frame past it, the frame's other drawing lost.
+     */
+    static final int SPRITES_MOST = 8000;
     private static final double SECOND = 1e9;
 
     /** How a text comes onto the screen (the last six are looks: {@link Looks}). */
@@ -94,6 +100,8 @@ final class Texts implements Hooks.Text {
     static final class Shown {
         final String owner;
         final long key;
+        // Whether a frame it put more than SPRITES_MOST sprites into was said (once a text).
+        boolean crowded;
         // The lines (what is drawn: markup left out), the font's name and the game's font (UIFont); the share of the screen's height a
         // line is, or the zoom.
         String[] lines;
@@ -298,6 +306,8 @@ final class Texts implements Hooks.Text {
     private final MethodHandle threshold, shaderShadow, shaderOutline, startShader, endShader;
     // IsoCamera.getScreenLeft, getScreenTop, getScreenWidth, getScreenHeight of a player; Core.getInstance(), its screen's size.
     private final MethodHandle screenLeft, screenTop, screenWidth, screenHeight, core, coreWidth, coreHeight;
+    // SpriteRenderer.states, its getPopulatingActiveState() and that state's numSprites: what a text drew, counted; null without them.
+    private final MethodHandle rendererStates, populatingState, spriteCount;
     // AngelCodeFont.drawString(x, y, zoom, text, r, g, b, a) and getWidth(text), for the embedded font; null in a game without them.
     private final MethodHandle faceDraw, faceWidth;
     // SpriteRenderer.instance and render(texture, the four corners, a colour for each, consumer): a backdrop's shaded quads.
@@ -441,6 +451,18 @@ final class Texts implements Hooks.Text {
         try { pause = Game.exact(Game.type(loader, "zombie.GameTime").getMethod("isGamePaused"), MethodType.methodType(boolean.class)); }
         catch (NoSuchMethodException | ClassNotFoundException older) { pause = null; }
         gamePaused = pause;
+        MethodHandle statesOf = null, active = null, count = null;
+        try {
+            var lookup = MethodHandles.publicLookup();
+            Class<?> statesType = Game.type(loader, "zombie.core.sprite.SpriteRendererStates");
+            Class<?> stateType = Game.type(loader, "zombie.core.sprite.GenericSpriteRenderState");
+            statesOf = lookup.findGetter(renderer, "states", statesType).asType(MethodType.methodType(Object.class, Object.class));
+            active = Game.exact(statesType.getMethod("getPopulatingActiveState"), MethodType.methodType(Object.class, Object.class));
+            count = lookup.findGetter(stateType, "numSprites", int.class).asType(MethodType.methodType(int.class, Object.class));
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError missing) { statesOf = active = count = null; }
+        rendererStates = statesOf;
+        populatingState = active;
+        spriteCount = count;
         // The API this one replaces writes what it shows where this one finds it.
         if (lua.get(meta, HANDOVER) instanceof Supplier<?> earlier) {
             try { earlier.get(); }
@@ -1461,7 +1483,7 @@ final class Texts implements Hooks.Text {
                     if (text.start == 0) { text.start = now; dirty = true; }
                     text.drawnIn = frame;
                     if (over) continue;
-                    if (!draw(text, now, screen, left, top, width, height)) { text.done = true; finished = true; }
+                    if (!counted(text, now, screen, left, top, width, height)) { text.done = true; finished = true; }
                 }
             }
         } catch (Throwable failure) {
@@ -1474,6 +1496,21 @@ final class Texts implements Hooks.Text {
         if (held) holding = true;
         else if (holding) { holding = false; dirty = true; }
         if (finished) finished();
+    }
+
+    /** {@link #draw(Shown, long, int, int, int, int, int)}, the sprites it put into the frame counted: too many are said once a text. */
+    private boolean counted(Shown text, long now, int screen, int left, int top, int width, int height) throws Throwable {
+        if (spriteCount == null || text.crowded) return draw(text, now, screen, left, top, width, height);
+        Object state = (Object)populatingState.invokeExact((Object)rendererStates.invokeExact(sprites));
+        int before = (int)spriteCount.invokeExact(state);
+        boolean on = draw(text, now, screen, left, top, width, height);
+        int put = (int)spriteCount.invokeExact((Object)populatingState.invokeExact((Object)rendererStates.invokeExact(sprites))) - before;
+        if (put > SPRITES_MOST) {
+            text.crowded = true;
+            System.out.println("[PZExt] text: a text (enter " + text.enter + ", leave " + text.leave + ", " + (text.face != null ? "embedded font" : "game font")
+                + ") put " + put + " sprites into one frame, " + (text.start == 0 ? 0 : (now - text.start) / SECOND) + " s into its life");
+        }
+        return on;
     }
 
     private void finished() {
