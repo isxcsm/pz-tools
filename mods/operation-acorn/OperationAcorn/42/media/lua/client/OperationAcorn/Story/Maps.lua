@@ -510,6 +510,7 @@ local function addMarkButton(map)
     local before = map.forgetBtn or map.printMediaBtn
     local gap = before and (close.x - before:getRight()) or 10
     local edge = map.width - panel:getRight()
+    -- oa-widget: ok (a button in the game's own world map row, drawn like its neighbours)
     local button = ISButton:new(close.x, 0, size, size, "", map, onMarkButton)
     local pin = picture(PIN)
     if pin then
