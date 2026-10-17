@@ -471,6 +471,13 @@ def continue_save():
     if full_screen():
         print("the game is full screen: Continue is not where pzdev clicks (`pzdev restart` starts it windowed)")
         return 1
+    # A window of another size (a resolution changed in game) has Continue elsewhere: said at once, not after 90 s of
+    # clicks that miss.
+    left, top, right, bottom = window_rect(False)
+    if (right - left, bottom - top) != WINDOW:
+        print("the game's window is %dx%d, not %dx%d: Continue is not where pzdev clicks (`pzdev restart`)"
+              % (right - left, bottom - top, WINDOW[0], WINDOW[1]))
+        return 1
     # The menu takes no click for some seconds after it is built (about 15 s after a save is left): pressed every 3 s
     # until a load starts (a press after that lands on the loading screen, which takes none).
     before = console_size()
