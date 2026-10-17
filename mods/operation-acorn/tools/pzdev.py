@@ -62,6 +62,15 @@ def console_size():
         return 0
 
 
+# Where the text was last logged since the game started (a byte offset of console.txt), -1 when it was not.
+def console_last(text):
+    try:
+        with open(CONSOLE, "rb") as f:
+            return f.read().rfind(text.encode("utf-8"))
+    except OSError:
+        return -1
+
+
 def console_has(start, text):
     try:
         with open(CONSOLE, "rb") as f:
@@ -423,7 +432,15 @@ def launch():
         if send('print("here")', 3, quiet=True) == 0:
             print("already in a save")
             return 0
-        # the window is there, the channel silent: on the main menu (or still booting: Continue is pressed again)
+        # the window is there, the channel silent: still booting (the menu not built yet: Continue pressed now is lost),
+        # loading a save, or on the main menu
+        menu, load = console_last("binkId: "), console_last("STATE: exit zombie.gameStates.MainScreenState")
+        if menu < 0:
+            print("the game is still starting")
+            return continue_when_ready(0)
+        if load > menu:
+            print("a save is loading")
+            return until_loaded(240)
         return continue_save()
     # a process without a window: a game still quitting (wait for it to end) or one just starting (its window comes)
     end, waited = time.time() + 600, False
