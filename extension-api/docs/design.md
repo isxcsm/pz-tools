@@ -2027,8 +2027,9 @@ screen; a ninth makes the oldest waiting go. A text with `queue` waits in the sa
 own on each screen, the same way: low on the screen, they do not wait for the other titles, nor those for them.
 
 A text's time starts when it is first drawn, not when it is shown: one shown while nothing is drawn (a loading screen) comes
-on as the screen does. The time is the interface's (`System.nanoTime`), which goes on while the game is paused with the screen
-in sight, and it goes on only with the frames the text is drawn in, so that a text is not over before it was seen: none starts
+on as the screen does. The time is the interface's (`System.nanoTime`), but it does not go on while the game is paused
+(`GameTime.isGamePaused`: its speed at 0), when what is shown stays drawn where it is (a typing stops mid-line, an effect
+stands) and nothing starts; and it goes on only with the frames the text is drawn in, so that a text is not over before it was seen: none starts
 on a player's screen while the player sleeps or the screen is dark (`UIManager.getFadeAlpha(player)` above 0.01: the black the
 game fades it to for sleep), though one already on it plays on in real time over the black, as bright as it was (drawn as the
 interface's drawing ends, `UIManager.render:textOver`; the game's speed while asleep does not touch it); every screen holds its texts (none starts, and the time of those on it stands) while the game's menu

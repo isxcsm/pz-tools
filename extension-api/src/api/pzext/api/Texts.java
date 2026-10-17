@@ -26,8 +26,8 @@ import pzext.boot.Hooks;
  * <p>A text's time goes on only with the frames it is drawn in, so that it is not over before it was seen: none starts on a player's
  * screen while the player sleeps or the screen is dark (the black the game fades it to for sleep), though one already on it plays on
  * in real time, drawn over the black ({@link #drawOver}, as the interface's drawing ends); every screen holds its texts (none starts, the time of those on it stands) while the game's menu
- * is over the game (Escape); a frame longer than {@link #FRAME_MOST} (a hitch, or no frame drawn) counts for that long. The game
- * paused with the screen in sight holds nothing.
+ * is over the game (Escape); the game paused (its speed at 0) holds them too, drawn still where they are (a typing stops mid-line),
+ * and starts none; a frame longer than {@link #FRAME_MOST} (a hitch, or no frame drawn) counts for that long.
  *
  * <p>What is shown belongs to the world it was shown in, and is kept in the API table's metatable for a newer API to take over,
  * as the moodles are. Everything here runs on the game's main thread: the mods' calls, the frame job and the drawing (the dust
@@ -331,6 +331,8 @@ final class Texts implements Hooks.Text {
     // IsoGameCharacter.isAsleep, UIManager.getFadeAlpha(player) and UIElement.isVisible (the game's menu is one); null in a game
     // without them: nothing holds the texts.
     private final MethodHandle asleep, darkness, elementVisible;
+    // GameTime.isGamePaused (the game's speed at 0); null in a game without it: a pause holds nothing.
+    private final MethodHandle gamePaused;
     private final Class<?> element;
     // The frames drawn with a text shown, and the clock at the last; whether the last frames held a text (written once they end).
     private long frames, lastFrame;
@@ -435,6 +437,10 @@ final class Texts implements Hooks.Text {
         darkness = sleeps == null ? null : dark;
         elementVisible = sleeps == null ? null : visible;
         element = sleeps == null ? null : windows;
+        MethodHandle pause;
+        try { pause = Game.exact(Game.type(loader, "zombie.GameTime").getMethod("isGamePaused"), MethodType.methodType(boolean.class)); }
+        catch (NoSuchMethodException | ClassNotFoundException older) { pause = null; }
+        gamePaused = pause;
         // The API this one replaces writes what it shows where this one finds it.
         if (lua.get(meta, HANDOVER) instanceof Supplier<?> earlier) {
             try { earlier.get(); }
@@ -1419,16 +1425,22 @@ final class Texts implements Hooks.Text {
         Object[] local = players.all();
         boolean anyone = false;
         for (int index = 0; index < local.length && index < PLAYERS; index++) if (local[index] != null) { anyone = true; break; }
-        boolean finished = false;
+        boolean finished = false, still;
         try {
             boolean menu = anyone && menuShown();
+            // Paused: what is shown stands where it is (drawn still: typing, effects and all), and nothing starts.
+            still = anyone && gamePaused != null && (boolean)gamePaused.invokeExact();
+            if (still && counted > 0) {
+                for (Shown text : all) if (text.start != 0 && !text.done) later(text, counted);
+                held = true;
+            }
             for (int screen = 0; screen < PLAYERS; screen++) {
                 if (anyone ? screen >= local.length || local[screen] == null : screen > 0) continue;
                 if (menu) continue;
                 // A dark screen (sleep) starts nothing; what it already shows plays on in real time, drawn over the black
                 // (drawOver) where that hook is in, here under it where it is not.
                 boolean dark = anyone && dark(local[screen], screen), over = dark && overHooked;
-                if (!dark) release(all, screen);
+                if (!dark && !still) release(all, screen);
                 if (over) overScreens |= 1 << screen;
                 int left, top, width, height;
                 if (anyone) {
@@ -1445,7 +1457,7 @@ final class Texts implements Hooks.Text {
                 }
                 if (width <= 0 || height <= 0) continue;
                 for (Shown text : all) {
-                    if (text.done || text.waiting || text.player >= 0 && text.player != screen || dark && text.start == 0) continue;
+                    if (text.done || text.waiting || text.player >= 0 && text.player != screen || (dark || still) && text.start == 0) continue;
                     if (text.start == 0) { text.start = now; dirty = true; }
                     text.drawnIn = frame;
                     if (over) continue;
@@ -1456,8 +1468,8 @@ final class Texts implements Hooks.Text {
             // The hook reports it, once; the game draws on.
             throw Texts.<RuntimeException>sneaky(failure);
         }
-        // A text no screen drew this frame stands: its times move on by the frame's.
-        if (counted > 0) for (Shown text : all) if (text.start != 0 && !text.done && text.drawnIn != frame) { later(text, counted); held = true; }
+        // A text no screen drew this frame stands: its times move on by the frame's (paused, they all did already).
+        if (counted > 0 && !still) for (Shown text : all) if (text.start != 0 && !text.done && text.drawnIn != frame) { later(text, counted); held = true; }
         // Written for a newer API once the hold is over, not with each frame of it.
         if (held) holding = true;
         else if (holding) { holding = false; dirty = true; }

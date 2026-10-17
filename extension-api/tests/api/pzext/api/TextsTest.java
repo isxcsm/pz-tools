@@ -12,6 +12,7 @@ import java.util.Locale;
 import se.krka.kahlua.vm.JavaFunction;
 import se.krka.kahlua.vm.KahluaTable;
 import se.krka.kahlua.vm.LuaCallFrame;
+import zombie.GameTime;
 import zombie.Lua.LuaManager;
 import zombie.ZomboidFileSystem;
 import zombie.core.Core;
@@ -223,8 +224,8 @@ final class TextsTest {
 
     /**
      * Where it cannot be seen: none starts while the player sleeps or their screen is dark, and one already shown plays on in
-     * real time over the black (drawn after the fades); while the game's menu is over the game (not on the main menu) its time
-     * stands; a long frame counts for a quarter of a second.
+     * real time over the black (drawn after the fades); paused, it is drawn still and none starts; while the game's menu is over
+     * the game (not on the main menu) its time stands; a long frame counts for a quarter of a second.
      */
     private static void holds(KahluaTable text, Object mod) {
         IsoPlayer player = IsoPlayer.players[0];
@@ -253,6 +254,27 @@ final class TextsTest {
                 FormulasTest.call(text, "hide", mod, next, true);
                 render();
             }
+            // Paused: what is shown is drawn still where it is (halfway in, here), and what comes waits for the game to go on.
+            double fading = (Double)FormulasTest.call(text, "show", mod, table("text", "Still", "enter", "fade", "enterTime", 1.0, "hold", 1.0)).get(0);
+            render();
+            advance(0.5);
+            render();
+            GameTime.paused = true;
+            advance(5);
+            render();
+            double waits = (Double)FormulasTest.call(text, "show", mod, table("text", "Comes", "hold", 1.0)).get(0);
+            advance(5);
+            render();
+            check(draws().size() == 1 && near(alpha(draws().get(0)), 0.5), "Paused, a text was not drawn still, or one started: " + draws().size());
+            GameTime.paused = false;
+            render();
+            check(draws().size() == 2 && near(alpha(last("Still")), 0.5), "A paused text did not go on from where it stood, or the one that came did not start");
+            advance(0.5);
+            render();
+            check(near(alpha(last("Still")), 1), "A paused text did not go on: " + alpha(last("Still")));
+            FormulasTest.call(text, "hide", mod, fading, true);
+            FormulasTest.call(text, "hide", mod, waits, true);
+            render();
             // The game's menu: its time stands, none drawn.
             double key = (Double)FormulasTest.call(text, "show", mod, table("text", "Held", "hold", 1.0)).get(0);
             render();
@@ -294,6 +316,7 @@ final class TextsTest {
             check(draws().isEmpty(), "A long frame counted for less than a quarter of a second");
         } finally {
             GameApi.texts().frameMost = Long.MAX_VALUE;
+            GameTime.paused = false;
             player.asleep = false;
             UIManager.fade[0] = 0;
             LuaManager.env.rawset("MainScreen", null);

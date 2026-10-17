@@ -1,8 +1,9 @@
 -- Texts where they cannot be seen (PZExtAPI.text; Texts.java). Sleep, its screen faded black: a text shown before plays on
 -- in real time over the black and goes after its 2 s; one shown while asleep starts only once the player woke and the
--- screen is light again. The game's menu (Escape): a text's time stands while it is over the game. Run in a test save with
--- `pzdev.py file` (--follow 14); a picture taken about 1.3 s in shows the first text over the black. "[textholds]" lines
--- over about 11 seconds, ending with "done: N BAD". The player wakes and the menu closes by the end.
+-- screen is light again. The game paused (speed 0) and its menu (Escape): a text's time stands. Run in a test save with
+-- `pzdev.py file` (--follow 22); a picture taken about 1.3 s in shows the first text over the black, one about 8 s in the
+-- typing stopped. "[textholds]" lines over about 18 seconds, ending with "done: N BAD". The player wakes, the game goes on
+-- and the menu closes by the end.
 local function say(...) print("[textholds]", ...) end
 local bad = 0
 local function check(what, ok, got)
@@ -15,7 +16,7 @@ local handle = PZExtAPI.client("TextHolds")
 local player = getPlayer()
 local menuKey = getCore():getKey(KeybindId.MAIN_MENU)
 if menuKey == 0 then menuKey = Keyboard.KEY_ESCAPE end
-local before, during, held
+local before, during, stood, held
 local function shown(key) return text.shown(handle, key) end
 
 -- Each step waits its milliseconds after the one before, then runs; the frames drive it (they go on in the menu, where the
@@ -42,6 +43,18 @@ local steps = {
     { 500, function() check("not started before waking", shown(during)) end },
     { 600, function()
         check("then over", not shown(during))
+        stood = text.show(handle, { text = "Paused here", enter = "type", speed = 12, hold = 2.0 })
+    end },
+    { 300, function()
+        setGameSpeed(0)
+        check("the game paused", isGamePaused())
+    end },
+    { 3000, function()
+        setGameSpeed(1)
+        check("kept through the pause", shown(stood))
+    end },
+    { 3000, function()
+        check("gone after its time unpaused", not shown(stood))
         held = text.show(handle, { text = "Menu", hold = 2.0 })
     end },
     { 500, function()
