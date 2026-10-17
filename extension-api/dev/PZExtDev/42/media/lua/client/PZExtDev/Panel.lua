@@ -208,6 +208,11 @@ local function newPage(w, h)
     p.borderColor = { r = 0, g = 0, b = 0, a = 0 }
     p:setScrollChildren(true)
     p:addScrollBars()
+    -- (its bar's place and height are the window's to set (fitPage): the game puts a child's anchors to work again a
+    -- frame after its parent is resized, which left the bar shorter than the page, drawn over a page that fits)
+    p.vscroll.anchorRight, p.vscroll.anchorBottom = false, false
+    p.vscroll.javaObject:setAnchorRight(false)
+    p.vscroll.javaObject:setAnchorBottom(false)
     return p
 end
 
