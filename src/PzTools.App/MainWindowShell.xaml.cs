@@ -2079,9 +2079,11 @@ public sealed partial class MainWindowShell : UserControl
             };
             if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
             // As for restoring: what the user confirmed is gone from view, nothing to say; anything else that
-            // changed while the question was open is a refusal, reported rather than doing nothing.
+            // changed while the question was open is a refusal, reported rather than doing nothing. The row's own
+            // button deletes that row, selected or not (a button in a row does not select it), so the row being
+            // still listed is what counts, not the selection.
             if (App.Host != host || !StringComparer.OrdinalIgnoreCase.Equals(revision.SaveId, selectedSaveId)
-                || !ReferenceEquals(RevisionList.SelectedItem, revision)) return;
+                || !RevisionItems.Contains(revision)) return;
             if (detailLoading || projectorHealth?.IsFaulted("backup") == true)
                 throw new InvalidOperationException(Localizer.Get("OperationBusy"));
             await host.Operations!.DeleteRevisionAsync(revision.SourceId.Value, revision.Revision);
