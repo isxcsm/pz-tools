@@ -10,6 +10,7 @@ require "BuildingUtilities/WaterUnits"
 require "BuildingUtilities/Networks"
 require "BuildingUtilities/Links"
 require "BuildingUtilities/Relays"
+require "BuildingUtilities/PanelLook"
 local BU = BuildingUtilities
 local Store, Networks, Panels, Units, Sync, Water, Links = BU.Store, BU.Networks, BU.Panels, BU.Units, BU.Sync, BU.Water,
     BU.Links
@@ -52,6 +53,17 @@ function Changes.install(square, side, kept)
         end
     end
     return panel
+end
+
+-- A bare box (Panels.isBare: one the map put beside a generator, or one whose record was lost) made a box where it
+-- stands, as if taken up and put down there: its tier and its side kept. The box, or nil.
+local SIDES = { "S", "E", "N", "W" }
+function Changes.activate(object)
+    local shown = BU.PanelLook.ofSprite(object:getSprite():getName())
+    local square = object:getSquare()
+    if not shown or not square then return nil end
+    square:transmitRemoveItemFromSquare(object)
+    return Changes.install(square, SIDES[shown.facing], { tier = shown.tier })
 end
 
 -- The rooms a box takes: a list of room keys of the buildings its zone can have rooms of (each room's key,

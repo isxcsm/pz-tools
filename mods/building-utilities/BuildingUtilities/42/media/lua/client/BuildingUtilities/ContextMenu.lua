@@ -105,6 +105,8 @@ local function queueAt(playerObj, x, y, z, action) ContextMenu.queueAt(playerObj
 
 local function onOpen(playerObj, panel) queueAt(playerObj, panel.x, panel.y, panel.z, ISBUOpenPanel:new(playerObj, panel)) end
 
+local function onActivate(playerObj, x, y, z) queueAt(playerObj, x, y, z, ISBUActivateBox:new(playerObj, x, y, z)) end
+
 local function onReverseEngineer(playerObj, panel)
     queueAt(playerObj, panel.x, panel.y, panel.z, ISBUReverseEngineer:new(playerObj, panel))
 end
@@ -230,12 +232,21 @@ local function addPanelOptions(context, playerObj, panel)
     addLearnOption(context, playerObj, panel)
 end
 
--- A bare box (Panels.isBare): its name, that it runs nothing where it stands, and its design to learn. It is taken up
--- with the game's furniture tool (Moveables) and put down where it is wanted.
+-- A bare box (Panels.isBare): made a box where it stands (ISBUActivateBox, where a box may be put: Panels.canInstall),
+-- and its design to learn. It can also be taken up with the game's furniture tool (Moveables) and put down elsewhere.
 local function addBareOptions(context, playerObj, object)
     local square = object:getSquare()
-    unavailable(context:addOptionOnTop(getText("IGUI_BU_BareBox"), nil, nil), getText("IGUI_BU_BareBoxTip"))
-    addLearnOption(context, playerObj, { x = square:getX(), y = square:getY(), z = square:getZ() })
+    local x, y, z = square:getX(), square:getY(), square:getZ()
+    local option = context:addOptionOnTop(getText("ContextMenu_BU_ActivateBox"), playerObj, onActivate, x, y, z)
+    local ok, reason = Panels.canInstall(square)
+    if not BU.api() then
+        unavailable(option, apiMissingText())
+    elseif not ok then
+        unavailable(option, getText("IGUI_BU_Reason_" .. (reason or "blocked")))
+    else
+        tooltip(option, getText("IGUI_BU_ActivateBoxTip"))
+    end
+    addLearnOption(context, playerObj, { x = x, y = y, z = z })
 end
 
 -- The producer among the objects (Panels.producerOn of their squares), with its square.

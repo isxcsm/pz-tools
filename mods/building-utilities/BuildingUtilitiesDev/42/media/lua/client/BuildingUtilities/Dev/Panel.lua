@@ -84,6 +84,15 @@ local function givePage(page, ui)
     local free = ui.tick(page, T("Gv_Free"), ui.PAD, ui.row(n + 3), function(on)
         Dev.setOption("BuildingUtilities.CostsEnabled", not on)
     end)
+    ui.heading(page, T("Gv_Spawned"), n + 5)
+    local spawned = ui.lines(page, n + 7, 1)
+    ui.buttons(page, n + 6, {
+        { T("Gv_FindAgain"), function() Dev.resetFind() end },
+        { T("Gv_NextSpawned"), function()
+            local index, count = Dev.nextSpawned()
+            spawned:set({ T("Gv_SpawnedAt", ui.num(index), ui.num(count)) })
+        end },
+    })
     page.refresh = function()
         free:setSelected(1, Dev.option("CostsEnabled", true) ~= true)
     end

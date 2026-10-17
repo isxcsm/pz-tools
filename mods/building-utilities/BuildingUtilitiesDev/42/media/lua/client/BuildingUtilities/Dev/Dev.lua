@@ -132,6 +132,37 @@ function Dev.goTo(panel)
     PZExtDev.Env.teleport(panel.x + 1, panel.y + 1, panel.z)
 end
 
+-- ---- spawned boxes --------------------------------------------------------------------------------------------------
+
+-- The character has found no box yet: the first find's line and outline (BU.Finds) come again.
+function Dev.resetFind()
+    player():getModData()[BU.Finds.FOUND] = nil
+end
+
+-- The spawned boxes the save keeps (BU.Spawned: the ones in the areas loaded so far), in a fixed order.
+local function spawnedPlaces()
+    local list = {}
+    for _, places in pairs(BU.Store.data().spawned or {}) do
+        for _, place in ipairs(places) do list[#list + 1] = place end
+    end
+    table.sort(list, function(a, b)
+        if a.x ~= b.x then return a.x < b.x end
+        return a.y < b.y
+    end)
+    return list
+end
+
+Dev.spawnedIndex = 0
+-- Beside the next spawned box (a step takes the first find, when it is reset); returns its number and how many.
+function Dev.nextSpawned()
+    local list = spawnedPlaces()
+    if #list == 0 then return 0, 0 end
+    Dev.spawnedIndex = Dev.spawnedIndex % #list + 1
+    local place = list[Dev.spawnedIndex]
+    PZExtDev.Env.teleport(place.x + 1, place.y + 1, place.z)
+    return Dev.spawnedIndex, #list
+end
+
 -- ---- power ----------------------------------------------------------------------------------------------------------
 
 local function freeSquareNear(dx)

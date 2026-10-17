@@ -4,9 +4,10 @@
 -- found one. It is pointed out by the UI kit's spotlight (PZUIKit.Spotlight), which ends it by itself.
 --   * In a container the loot put one in (its owner marked: BU.BOX_MARK), as the loot window shows it: its line
 --     blinks. Only the marked owners are looked into, never the containers' items as such.
---   * Standing where the map put one beside a generator (BU.Spawned), in sight within REACH squares: it is outlined
---     until a while has passed, the character has walked away or touched it, or it is taken up. Only the kept places
---     of the cells around the character are looked at; one whose box is gone is forgotten.
+--   * Standing where the map put one beside a generator (BU.Spawned), within REACH squares in the character's line of
+--     sight (dark or not): it is outlined until a while has passed, the character has walked away or touched it, or
+--     it is taken up. Only the kept places of the cells around the character are looked at; one whose box is gone is
+--     forgotten.
 require "PZUIKit/Spotlight"
 require "BuildingUtilities/Core"
 require "BuildingUtilities/Panels"
@@ -20,8 +21,10 @@ Finds.FOUND = "buFoundBox"
 Finds.REACH = 6
 local MARK, BOX = BU.BOX_MARK, BU.PANEL_ITEM
 local BOX_TYPE = BOX:match("[^%.]+$")
--- The outline goes once the character is this far from the box.
+-- The outline goes once the character is this far from the box; its colour, apart from Operation Acorn's outlines
+-- (amber, red, teal, sky blue).
 local AWAY = Finds.REACH + 2
+local OUTLINE = { 0.62, 1, 0.45, 1 }
 
 -- Whether the loot put a utility panel in a container (its object's or its vehicle part's mark).
 local function marked(container)
@@ -44,8 +47,8 @@ local function spawnedNear(playerNum, player)
         if square and not box then
             -- taken up or gone: where the world is decided, it is no longer kept
             if not isClient() then BU.Spawned.forget(place) end
-        elseif box and square:isCanSee(playerNum) then
-            Spotlight.object(playerNum, box, { reach = AWAY })
+        elseif box and square:isCouldSee(playerNum) then
+            Spotlight.object(playerNum, box, { reach = AWAY, color = OUTLINE })
             found(player)
             return
         end

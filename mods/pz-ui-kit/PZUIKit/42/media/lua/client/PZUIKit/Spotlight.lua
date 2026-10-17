@@ -13,8 +13,8 @@ PZUIKit.Spotlight = Spotlight
 -- How long a thing stays pointed out, by default, and how often the rest is looked at, in milliseconds.
 Spotlight.MS = 20000
 Spotlight.CHECK_MS = 250
--- The outline's colour by default: a warm yellow.
-Spotlight.COLOR = { 1, 0.82, 0.4, 1 }
+-- The outline's colour by default: white.
+Spotlight.COLOR = { 1, 1, 1, 1 }
 
 -- The outlines, by the player's number: object -> { untilMs, x, y, reach, square }.
 local outlines = {}

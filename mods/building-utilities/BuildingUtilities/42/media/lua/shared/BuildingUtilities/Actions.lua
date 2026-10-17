@@ -376,6 +376,32 @@ function ISBUReverseEngineer:new(character, panel)
     return o
 end
 
+-- A bare box made a box where it stands (Changes.activate), where a box may be put (Panels.canInstall): as if taken up
+-- and put down again, so nothing is needed but the time. Its tile at x, y, z is looked for.
+ISBUActivateBox = base("ISBUActivateBox", 150)
+
+local function bareAt(action)
+    local square = getCell():getGridSquare(action.x, action.y, action.z)
+    return square and Panels.bareOn(square) or nil, square
+end
+
+function ISBUActivateBox:isValid() return bareAt(self) ~= nil end
+
+function ISBUActivateBox:complete()
+    local object, square = bareAt(self)
+    if not object or not Panels.canInstall(square) then return false end
+    BU.Changes.activate(object)
+    BU.giveXp(self.character, 5)
+    return true
+end
+
+function ISBUActivateBox:new(character, x, y, z)
+    local o = ISBaseTimedAction.new(self, character)
+    o.x, o.y, o.z = x, y, z
+    o.maxTime = o:getDuration()
+    return o
+end
+
 -- Taking a box apart, as an item (Costs.takeApart): its control boards (Costs.boardsIn its tier), some wire and parts.
 ISBUTakeApartBox = ISBaseTimedAction:derive("ISBUTakeApartBox")
 ISBUTakeApartBox.getDuration = fixedDuration(300)

@@ -2,11 +2,12 @@
 -- into a generator (MOGenerator.lua, a chunk loaded the first time: server/BuildingUtilities/MapBoxes.lua), a box is
 -- rolled for on its own, as often as the generator is there (always: a map's generator is no roll) times
 -- BreakerBoxLoot, and stands beside it as a bare box (Panels.isBare): a box's tile with no record, nothing running for
--- it, learned from and taken up like any box. It takes a square next to the generator, reached from it, of the same
--- room (an outdoor one outdoors) with nothing on it but its floor and plain walls, not a doorway nor before a door;
--- indoors with a wall behind it, which it faces away from. The generator keeps another such side: with fewer than two,
--- there is no box. Where each stands is kept in the save by the cell (CELL squares) it is in, so that a character
--- coming near finds it (Finds) by looking at the cells around them only.
+-- it, learned from and taken up like any box. It takes a free square next to the generator (reached from it, of the
+-- same room, an outdoor one outdoors, with nothing on it but its floor and plain walls, not a doorway) that is not
+-- before a door. Indoors it stands on the floor (its indoor look), against a wall and facing away from it where a free
+-- square has one, else on any (shelves and bins along the walls); outdoors on its pedestal, on any. The generator
+-- keeps another free square to be reached from: with only one, there is no box. Where each stands is kept in the save by the cell (CELL squares) it
+-- is in, so that a character coming near finds it (Finds) by looking at the cells around them only.
 require "BuildingUtilities/Core"
 require "BuildingUtilities/Store"
 local BU = BuildingUtilities
@@ -112,8 +113,8 @@ local function wallFacing(square)
     return nil
 end
 
--- The squares beside the generator's a box may take, each { square, side }.
-function Spawned.places(generator)
+-- The free squares beside the generator: reached from it, of its room, clear.
+local function free(generator)
     local cell = getCell()
     local x, y, z = generator:getX(), generator:getY(), generator:getZ()
     local room = generator:getRoom()
@@ -121,13 +122,29 @@ function Spawned.places(generator)
     for _, offset in ipairs(OFFSETS) do
         local square = cell:getGridSquare(x + offset[1], y + offset[2], z)
         if square and square:getRoom() == room and not generator:isWallTo(square) and not generator:isDoorTo(square)
-            and not generator:isWindowTo(square) and clear(square) and not beforeDoor(square) then
-            local side = wallFacing(square)
-            if room == nil then side = side or "S" end
-            if side then result[#result + 1] = { square = square, side = side } end
+            and not generator:isWindowTo(square) and clear(square) then
+            result[#result + 1] = square
         end
     end
     return result
+end
+
+-- The squares beside the generator a box may take, each { square, side, outdoor }: indoors the ones against a wall
+-- where there are any. None when the generator would be left no other free square.
+function Spawned.places(generator)
+    local squares = free(generator)
+    if #squares < 2 then return {} end
+    local outdoor = generator:getRoom() == nil
+    local walled, any = {}, {}
+    for _, square in ipairs(squares) do
+        if not beforeDoor(square) then
+            local side = wallFacing(square)
+            local place = { square = square, side = side or "S", outdoor = outdoor }
+            if side and not outdoor then walled[#walled + 1] = place end
+            any[#any + 1] = place
+        end
+    end
+    return #walled > 0 and walled or any
 end
 
 -- How often a map's generator has a box: as often as the generator stands there (always), by the option.
@@ -141,10 +158,10 @@ function Spawned.beside(generator)
     local chance = Spawned.chance()
     if chance <= 0 or ZombRandFloat(0, 1) >= chance then return nil end
     local choices = Spawned.places(generator)
-    if #choices < 2 then return nil end
+    if #choices == 0 then return nil end
     local choice = choices[ZombRand(#choices) + 1]
     local square = choice.square
-    local sprite = BU.panelSprite(choice.side, 1, square:getBuilding() == nil)
+    local sprite = BU.panelSprite(choice.side, 1, choice.outdoor)
     local object = IsoObject.new(square, sprite, nil, false)
     square:AddTileObject(object)
     if isServer() then object:transmitCompleteItemToClients() end

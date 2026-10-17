@@ -24,6 +24,7 @@
     "ContextMenu_BU_Install_hydrant": "야외 수전 설치",
     "ContextMenu_BU_Rehang": "%1에 다시 연결 (%2)",
     "ContextMenu_BU_LineTakeUp": "선 걷기",
+    "ContextMenu_BU_ActivateBox": "설비 제어반 활성화",
     "ContextMenu_BU_ReverseEngineer": "제어반 만드는 법 익히기",
     "ContextMenu_BU_TakeApart": "해체"
 }
