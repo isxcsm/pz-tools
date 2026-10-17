@@ -37,6 +37,10 @@ Usage, from a mod's folder (python ../tools/pzdev.py <command>):
                                                 Zomboid/Logs, 1 the one before...; 0 by default)
     pzdev.py log compare <a> <b>                two game logs on one time line: where b spent time a did not, or
                                                 the other way (a, b: n or a file; --min seconds, 0.5)
+    pzdev.py handoff                            the end of a session: the game as the user plays it. pzdev's game
+                                                (-debug, windowed) closed, the user's display options and latest
+                                                save back, the game started from Steam (their launch options) and
+                                                left on its main menu; a game the user started is left alone
     pzdev.py api                                returns once the running game runs the PZ Extension API built
                                                 (extension-api/out/release): a game pzdev started takes its API
                                                 from there and each build in a second, no restart (a change to the
@@ -574,7 +578,8 @@ def windowed_options():
         with open(DISPLAY_KEPT, "w", encoding="utf-8") as f:
             f.write("".join("%s=%s\n" % item for item in was.items()))
     if was:
-        print("options set windowed for this start:", ", ".join("%s %s" % item for item in was.items()))
+        print("options set windowed for this start (the user's, kept for after it: %s)"
+              % ", ".join("%s %s" % item for item in was.items()))
 
 
 # Puts the user's display options back.
@@ -741,6 +746,34 @@ def quit_game():
 
 def restart():
     return quit_game() or launch()
+
+
+STEAM_RUN = "steam://rungameid/108600"
+
+
+# The game handed back to the user: pzdev's own game closed (its guard and release() put the display options and the
+# latest save back as its process ends), then the game started as the user starts it and left on the main menu.
+def handoff():
+    if game_window() and "-debug" not in game_command_line():
+        print("the game runs as the user starts it already")
+        return 0
+    if game_process():
+        quit_game()
+        if not process_gone():
+            return 1
+    release()
+    if os.path.exists(DISPLAY_KEPT) or os.path.exists(LATEST_KEPT):
+        print("the user's options or latest save were not put back: not started")
+        return 1
+    start = console_size()
+    os.startfile(STEAM_RUN)
+    print("starting the game from Steam")
+    name, _ = wait_for({"menu", "exit"}, 300, start)
+    if name != "menu":
+        print("the main menu did not come in 5 minutes" if name is None else "the game closed while starting")
+        return 1
+    print("on the main menu, as the user plays it")
+    return 0
 
 
 # Brings the game window to the front (a window over it would be in the picture) and gives it time to draw again.
@@ -986,6 +1019,8 @@ def main():
         return leave_save(console_size())
     if len(sys.argv) == 2 and sys.argv[1] == "continue":
         return continue_save()
+    if len(sys.argv) == 2 and sys.argv[1] == "handoff":
+        return handoff()
     if len(sys.argv) == 2 and sys.argv[1] == "api":
         return api_loaded()
     if len(sys.argv) >= 2 and sys.argv[1] == "profile":
