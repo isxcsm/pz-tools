@@ -403,24 +403,6 @@ function Objects.fill(container, specs)
     return added
 end
 
--- Gives a character a heavy item to carry in both hands, as a generator is carried.
-function Objects.giveHeavy(character, fullType, mod)
-    forceDropHeavyItems(character)
-    local item = instanceItem(fullType)
-    if mod then
-        local md = item:getModData()
-        for k, v in pairs(mod) do md[k] = v end
-    end
-    local inventory = character:getInventory()
-    inventory:AddItem(item)
-    character:setPrimaryHandItem(item)
-    character:setSecondaryHandItem(item)
-    sendAddItemToContainer(inventory, item)
-    sendEquip(character)
-    inventory:setDrawDirty(true)
-    return item
-end
-
 -- Takes an item that is put down away from the character.
 function Objects.consume(character, item)
     if character:getPrimaryHandItem() == item then character:setPrimaryHandItem(nil) end

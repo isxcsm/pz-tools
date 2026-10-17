@@ -69,6 +69,7 @@ function Heli.call(character, record, kind, x, y)
     else
         ok, why = Boxes.canCall(record)
         if not ok then return false, why end
+        if not Boxes.hasCargo(record) then return false, "empty" end
         local box = Boxes.active(record)
         call.x, call.y, call.z = box.x, box.y, box.z
         call.box = box.id
@@ -84,7 +85,6 @@ function Heli.call(character, record, kind, x, y)
     call.orders = Trade.copy(Orders.cart(record))
     Trade.orders(record).cart = {}
     Rules.startCall(heli, now, arrive, rewards.callInterval, call)
-    local day, h, m = Trade.clockText(arrive)
     -- (while nobody answers on the team's side the call is taken automatically: SCENES S4)
     local silent = OA.Comms and OA.Comms.silent(record)
     local key
@@ -93,7 +93,7 @@ function Heli.call(character, record, kind, x, y)
     else
         key = silent and "IGUI_OA_Trade_Notice_CalledAuto" or "IGUI_OA_Trade_Notice_Called"
     end
-    OA.Sync.notice(record.id, key, { day, string.format("%02d:%02d", h, m) })
+    OA.Sync.notice(record.id, key, { Trade.when(arrive) })
     changed(record)
     return true
 end

@@ -198,12 +198,9 @@ local function onFillInventory(player, context, items)
     local fullType = item:getFullType()
     local place = PLACE_KEY[fullType]
     if place then
-        -- Put down from where it lies (brought into the inventory first), or carried in both hands first; the
-        -- putting down on top.
-        if not character:isItemInBothHands(item) then
-            local carry = context:addOptionOnTop(getText("ContextMenu_OA_Trade_Carry"), character, ISInventoryPaneContextMenu.equipHeavyItem, item)
-            if character:getVehicle() then carry.notAvailable = true end
-        end
+        -- Put down from where it lies (brought into the inventory first), or carried in both hands first (the
+        -- game's own "equip in both hands" is off a heavy thing's menu: PZUIKit.Heavy); the putting down on top.
+        PZUIKit.Heavy.carryOption(context, character, item, getText("ContextMenu_OA_Trade_Carry"))
         local option = context:addOptionOnTop(getText(place.key), character, Menus.placeFrom, place.kind, item)
         if character:getVehicle() then option.notAvailable = true end
     elseif fullType == "OperationAcorn.SupplyManifest" then

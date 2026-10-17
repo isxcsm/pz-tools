@@ -83,7 +83,7 @@ test("a filter's spent media goes with its item and comes back when put down", f
     eq(Units.keptOnItem(item), nil, "what is not a table is nothing")
 end)
 
--- A box let go to the floor stands there as a generator does (Moveables.settle).
+-- A box let go to the floor stands there as a generator does (PZUIKit.Heavy.settle).
 local function floorBox(objects, room)
     local square = { objects = objects or {}, removed = {} }
     square.getObjects = function()
@@ -117,7 +117,7 @@ test("a box let go to the floor is put down there, facing the character", functi
     local installed
     BU.Panels.canInstall = function() return true end
     BU.Changes.install = function(sq, side, kept) installed = { sq, side, kept.tier } end
-    BU.Moveables.settle(item, facingNorth(square))
+    PZUIKit.Heavy.settle(item, facingNorth(square))
     eq(installed[1], square)
     eq(installed[2], "S", "a character looking north faces it from the south")
     eq(installed[3], 2, "its item's tier")
@@ -131,12 +131,12 @@ test("a box let go where it cannot be installed stands bare, and one where a box
     BU.Panels.canInstall = function() return nil, "roomTaken" end
     BU.Changes.install = function() error("not installed") end
     local square, item = floorBox({}, {})
-    BU.Moveables.settle(item, facingNorth(square))
+    PZUIKit.Heavy.settle(item, facingNorth(square))
     eq(#square.objects, 1)
     eq(square.objects[1].sprite, BU.panelSprite("S", 2, false), "bare, indoors")
 
     local again, other = floorBox(square.objects)
-    BU.Moveables.settle(other, facingNorth(again))
+    PZUIKit.Heavy.settle(other, facingNorth(again))
     eq(#again.objects, 1, "no second box on a square")
     truthy(other.world, "left lying")
 end)
@@ -145,6 +145,6 @@ test("other items let go are left alone", function()
     local square, item = floorBox()
     item.getFullType = function() return "Base.Generator" end
     BU.Panels.canInstall = function() error("not asked") end
-    BU.Moveables.settle(item, facingNorth(square))
+    PZUIKit.Heavy.settle(item, facingNorth(square))
     truthy(item.world)
 end)

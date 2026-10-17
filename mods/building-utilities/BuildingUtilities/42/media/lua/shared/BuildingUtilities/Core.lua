@@ -1,5 +1,6 @@
 -- Building Utilities: one breaker box powers and waters a whole building through the PZ Extension API.
 -- The rules (what joins, how far, one box per building) are this mod's; the API runs the networks.
+require "PZUIKit/Heavy"
 BuildingUtilities = BuildingUtilities or {}
 local BU = BuildingUtilities
 
@@ -374,12 +375,8 @@ for tier, fullType in ipairs(BU.PANEL_ITEMS) do BU.PANEL_ITEM_TIER[fullType] = t
 -- The sides of a square, in the order the game's building cursor turns through them (its nSprite, 1 to 4).
 BU.SIDES = { "W", "N", "E", "S" }
 
--- The side of a square a character stands on: S, E, N or W (a thing put down there faces them by it).
-function BU.sideOf(square, character)
-    local dx, dy = character:getX() - (square:getX() + 0.5), character:getY() - (square:getY() + 0.5)
-    if math.abs(dx) > math.abs(dy) then return dx > 0 and "E" or "W" end
-    return dy > 0 and "S" or "N"
-end
+-- The side of a square a character stands on: S, E, N or W (a thing put down there faces them by it): the UI kit's.
+BU.sideOf = PZUIKit.Heavy.side
 
 -- The box's sprite of a tier (1 without), indoors or out, its lamps dark, facing a side.
 local PANEL_SPRITE_OF = { S = 1, E = 2, N = 3, W = 4 }

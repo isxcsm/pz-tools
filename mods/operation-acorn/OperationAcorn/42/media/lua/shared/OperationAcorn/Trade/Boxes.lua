@@ -74,6 +74,16 @@ function Boxes.canCall(record)
     return true
 end
 
+-- Whether a call has something to carry: a sealed box to take up, or something to bring down (the cart's orders, a
+-- support request). A flight for nothing is not made.
+function Boxes.hasCargo(record)
+    if #Boxes.sealed(record) > 0 then return true end
+    local cart = record.orders and record.orders.cart
+    if cart and #cart > 0 then return true end
+    for _ in pairs(record.trade and record.trade.pendingLevels or {}) do return true end
+    return false
+end
+
 -- A box put down at x, y, z (in a world with the same box id from a taken-up item or newly made).
 function Boxes.place(record, id, x, y, z)
     local box = Boxes.get(record, id)

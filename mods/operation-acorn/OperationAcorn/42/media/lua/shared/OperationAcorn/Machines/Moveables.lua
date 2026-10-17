@@ -9,6 +9,7 @@
 -- The lure is not furniture: it is put down from its item's menu (Menu.lua).
 require "Moveables/ISMoveableSpriteProps"
 require "Fluids/ISFluidEmptyAction"
+require "PZUIKit/Furniture"
 require "OperationAcorn/Sprites"
 require "OperationAcorn/Machines/Machines"
 local OA = OperationAcorn
@@ -128,9 +129,7 @@ function ISMoveableSpriteProps:getInfoPanelDescription(square, object, player, m
     if mode == "pickup" then reason = pickUpProblem(square, object)
     elseif mode == "place" then reason = placeProblem(self, square) end
     if reason and not SAID_BY_GAME[reason] then
-        local c = ISMoveableSpriteProps.bhc
-        ISMoveableSpriteProps.addLineToInfoTable(info, "- " .. getText("IGUI_OA_Machine_Reason_" .. reason),
-            c:getR() * 255, c:getG() * 255, c:getB() * 255)
+        PZUIKit.Furniture.reasonLine(info, getText("IGUI_OA_Machine_Reason_" .. reason))
     end
     return info
 end

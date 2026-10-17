@@ -9,6 +9,9 @@ require "Moveables/ISMoveableSpriteProps"
 require "OperationAcorn/Sprites"
 require "OperationAcorn/Trade/Objects"
 require "OperationAcorn/Trade/Things"
+require "OperationAcorn/Trade/Actions"
+require "PZUIKit/Heavy"
+require "PZUIKit/Furniture"
 local OA = OperationAcorn
 local Sprites = OA.Sprites
 local Objects, Things = OA.Trade.Objects, OA.Trade.Things
@@ -46,22 +49,8 @@ function ISMoveableSpriteProps.new(sprite)
     local kind = s and s.spriteName and KIND[s.spriteName]
     if kind then
         s.oaTrade = kind
-        s.isMoveable = true
-        s.canScrap = false
-        s.type = "Object"
-        s.isMultiSprite = false
-        s.customItem, s.pickUpTool, s.placeTool, s.pickUpLevel = nil, nil, nil, 0
-        -- what the tool sets for its own moveables from tile properties these tiles do not have: no other faces (they
-        -- have a Facing property), nothing linked, no wall overlay, one item
-        s.Noffset, s.Soffset, s.Woffset, s.Eoffset = 0, 0, 0, 0
-        s.linkedOffset, s.linkedLoc, s.isClosedState, s.wallOverlay = 0, nil, false, false
-        s.ignoreSurfaceSnap, s.isGridExtensionTile, s.allowDoorFrame, s.isForceSingleItem = false, false, false, false
-        local item = itemOf(kind, FIELD[s.spriteName])
-        if item then
-            s.name = item:getName()
-            s.weight = item:getActualWeight()
-            s.rawWeight = s.weight * 10
-        end
+        -- a one-tile object the tool takes up as this mod does (no other faces: they have a Facing property)
+        PZUIKit.Furniture.oneTile(s, itemOf(kind, FIELD[s.spriteName]))
     end
     return s
 end
@@ -93,3 +82,26 @@ function ISMoveableSpriteProps:pickUpMoveable(character, square, createItem, for
     end
     return {}
 end
+
+-- Their items are the UI kit's heavy things (PZUIKit.Heavy): let go to the floor, a terminal stands up on any free
+-- square, facing the one who let it go (turned as wanted when put down with the cursor), and a delivery box where it
+-- may be put down (open ground: Objects.clearSquare), else it lies as the item.
+local Heavy, Actions = PZUIKit.Heavy, OA.Trade.Actions
+Heavy.register({ Objects.ITEMS.terminal, Objects.ITEMS.field }, {
+    canStand = function(item, character, square) return (Objects.free(square)) end,
+    stand = function(item, character, square, facing)
+        Things.placeTerminal(character, square, facing, item, Actions.recordOf(character))
+    end,
+})
+Heavy.register(Objects.ITEMS.box, {
+    -- (what placeBox would refuse, asked before the item is taken off the floor)
+    canStand = function(item, character, square)
+        if Things.boxSide(character, item:getModData()) ~= "own" or not Objects.clearSquare(square) then return false end
+        local id = item:getModData()[Objects.BOX]
+        local box = id and OA.Trade.Boxes.get(Actions.recordOf(character), id)
+        return not (box and box.state == "sealed")
+    end,
+    stand = function(item, character, square)
+        Things.placeBox(character, Actions.recordOf(character), square, item)
+    end,
+})

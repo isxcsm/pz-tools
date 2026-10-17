@@ -5,18 +5,13 @@
 -- timed action that does it.
 require "BuildingObjects/ISBuildingObject"
 require "OperationAcorn/Trade/Actions"
+require "PZUIKit/Heavy"
 local OA = OperationAcorn
 local Trade, Sprites = OA.Trade, OA.Sprites
 local Objects = Trade.Objects
 
 ISOAPlaceCursor = ISBuildingObject:derive("ISOAPlaceCursor")
 
--- The side of a square the character stands on, which a terminal faces: S, E, N or W.
-local function facingToward(character, x, y)
-    local dx, dy = character:getX() - (x + 0.5), character:getY() - (y + 0.5)
-    if math.abs(dx) > math.abs(dy) then return dx > 0 and "E" or "W" end
-    return dy > 0 and "S" or "N"
-end
 
 local function spriteFor(kind, facing, item)
     if kind == Objects.TERMINAL then
@@ -38,7 +33,8 @@ function ISOAPlaceCursor:getSprite()
         facing = FACING_OF[self.nSprite] or "S"
     else
         local square = self.square
-        facing = square and facingToward(self.character, square:getX(), square:getY()) or "S"
+        -- the side of the square the character stands on (PZUIKit.Heavy.side)
+        facing = square and PZUIKit.Heavy.side(square, self.character) or "S"
         self.nSprite = NUMBER_OF[facing]
         self.autoNumber = self.nSprite
     end

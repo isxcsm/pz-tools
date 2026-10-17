@@ -208,7 +208,16 @@ end
 test("the helicopter can be called: the call button on, the reissue off with its reason", function()
     local r = newRecord(2, 0)
     withBox(r)
+    -- a box standing with nothing sealed or ordered: a flight for nothing is not made
     local s = M.heli(r, 100, 12)
+    eq(s.state, "IGUI_OA_Status_Heli_Cannot")
+    eq(s.subs[1].text, "IGUI_OA_Trade_Heli_Empty")
+    eq(s.callable, false); eq(s.callWhy, "IGUI_OA_Trade_Reason_empty")
+    r.orders = { cart = { { id = "x", count = 1 } } }
+    eq(M.heli(r, 100, 12).callable, true, "an order alone is something to bring")
+    r.orders = nil
+    Boxes.add(r, { state = "sealed", active = false })
+    s = M.heli(r, 100, 12)
     eq(s.state, "IGUI_OA_Status_Heli_Ready"); eq(s.colour, "bright")
     eq(#s.subs, 0, "midday: no night line")
     eq(s.callable, true); eq(s.reissue, false)

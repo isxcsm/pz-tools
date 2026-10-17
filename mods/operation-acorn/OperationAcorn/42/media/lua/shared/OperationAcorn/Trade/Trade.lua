@@ -188,4 +188,17 @@ function Trade.clockText(hours)
     return day, h, m
 end
 
+-- A world age as read from now, as a text ({ key, args }, translated on the player's side): today's, tomorrow's or so
+-- many days ahead with the clock ("내일 08:39"); one before today by its day ("47일째 15:40"). A day number alone read as
+-- the time a thing takes.
+function Trade.when(hours)
+    local day, h, m = Trade.clockText(hours)
+    local clock = string.format("%02d:%02d", h, m)
+    local ahead = day - OA.day()
+    if ahead == 0 then return { key = "IGUI_OA_Trade_WhenToday", args = { clock } } end
+    if ahead == 1 then return { key = "IGUI_OA_Trade_WhenTomorrow", args = { clock } } end
+    if ahead > 1 then return { key = "IGUI_OA_Trade_WhenInDays", args = { ahead, clock } } end
+    return { key = "IGUI_OA_Trade_When", args = { day, clock } }
+end
+
 return Trade

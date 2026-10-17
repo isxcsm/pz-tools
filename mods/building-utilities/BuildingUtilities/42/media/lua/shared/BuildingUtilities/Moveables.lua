@@ -19,6 +19,8 @@ require "BuildingUtilities/Panels"
 require "BuildingUtilities/PanelLook"
 require "BuildingUtilities/Changes"
 require "BuildingUtilities/Costs"
+require "PZUIKit/Heavy"
+require "PZUIKit/Furniture"
 local BU = BuildingUtilities
 local Moveables = {}
 BU.Moveables = Moveables
@@ -157,46 +159,21 @@ function ISMoveableSpriteProps.new(sprite)
     if kind then
         s.buKind = kind
         s.buTier = kind == "panel" and spriteTier(s.spriteName) or nil
-        s.isMoveable = true
-        s.canScrap = false
-        s.type = "Object"
-        s.isMultiSprite = false
-        s.customItem, s.pickUpTool, s.placeTool, s.pickUpLevel = nil, nil, nil, 0
-        -- what the tool sets for its own moveables from tile properties these tiles do not have: no other faces, nothing
-        -- linked, no wall overlay, one item
-        s.Noffset, s.Soffset, s.Woffset, s.Eoffset = 0, 0, 0, 0
-        s.linkedOffset, s.linkedLoc, s.isClosedState, s.wallOverlay = 0, nil, false, false
-        s.ignoreSurfaceSnap, s.isGridExtensionTile, s.allowDoorFrame, s.isForceSingleItem = false, false, false, false
-        local item = itemOf(kind, s.buTier)
-        if item then
-            s.name = item:getName()
-            s.weight = item:getActualWeight()
-            s.rawWeight = s.weight * 10
-        end
+        -- a one-tile object the tool takes up as this mod does; its faces are set after (setFaces)
+        PZUIKit.Furniture.oneTile(s, itemOf(kind, s.buTier))
         setFaces(s, kind)
     end
     return s
 end
 
--- A box is a heavy item carried in both hands, as a generator is (its script: RequiresEquippedBothHands, heavyitem):
--- taken up, it is held; put down or taken apart, the hands are let go. The game drops a heavy item that leaves the
--- hands on the floor, and its own tool looks for an item to put down in the inventory but not the hands: a box is
--- looked for in the hands too.
-function Moveables.hold(character, item)
-    character:setPrimaryHandItem(item)
-    character:setSecondaryHandItem(item)
-    if isServer() then sendEquip(character) end
-end
+-- A box is a heavy item carried in both hands, as a generator is (its script: RequiresEquippedBothHands, heavyitem),
+-- one of the UI kit's heavy things (PZUIKit.Heavy): taken up, it is held; put down or taken apart, the hands are let
+-- go. Let go of where it lands, it stands there as a generator does, not lying as an item: put down as on install,
+-- facing the character (turned to none), or bare (Spawned's look, to activate: ISBUActivateBox) when the square cannot
+-- have a box now (Panels.canInstall). One where a box stands already stays an item. The game's own tool looks for an
+-- item to put down in the inventory but not the hands: a box is looked for in the hands too.
+local Heavy = PZUIKit.Heavy
 
-function Moveables.letGo(character, item)
-    if character:getPrimaryHandItem() ~= item and character:getSecondaryHandItem() ~= item then return end
-    character:removeFromHands(item)
-    if isServer() then sendEquip(character) end
-end
-
--- A box let go of where it lands stands there as a generator does, not lying as an item: put down as on install,
--- facing the character (turned to none), or bare (Spawned's look, to activate: ISBUActivateBox) when the square
--- cannot have a box now (Panels.canInstall). One where a box stands already stays an item.
 local function hasBox(square)
     local objects = square:getObjects()
     for i = 0, objects:size() - 1 do
@@ -206,99 +183,19 @@ local function hasBox(square)
     return false
 end
 
--- The side a box set down on a square faces: the character's, from a square beside it, or back the way they look.
-local BACK = { N = "S", S = "N", E = "W", W = "E" }
-local function facingCharacter(square, character)
-    if not character then return "S" end
-    if character:getCurrentSquare() ~= square then return BU.sideOf(square, character) end
-    local forward = character:getForwardDirection()
-    local fx, fy = forward:getX(), forward:getY()
-    local ahead = math.abs(fx) > math.abs(fy) and (fx > 0 and "E" or "W") or (fy > 0 and "S" or "N")
-    return BACK[ahead]
-end
-
--- The square a box lying as an item is on, its item taken off it (as the game does taking an item off the floor).
-local function takeOffFloor(item)
-    local world = item:getWorldItem()
-    local square = world and world:getSquare()
-    if not square then return nil end
-    square:transmitRemoveItemFromSquare(world)
-    square:removeWorldObject(world)
-    item:setWorldItem(nil)
-    return square
-end
-
-function Moveables.settle(item, character)
-    if not item or not BU.PANEL_ITEM_TIER[item:getFullType()] then return end
-    local world = item:getWorldItem()
-    local square = world and world:getSquare()
-    if not square or hasBox(square) then return end
-    takeOffFloor(item)
-    local floor = item:getContainer()
-    if floor then floor:DoRemoveItem(item) end
-    local side = facingCharacter(square, character)
-    local tier = BU.Panels.itemTier(item)
-    if BU.Panels.canInstall(square) then
-        BU.Changes.install(square, side, { tier = tier })
-    else
-        local object = IsoObject.new(square, BU.panelSprite(side, tier, square:getRoom() == nil), nil, false)
-        square:AddTileObject(object)
-        if isServer() then object:transmitCompleteItemToClients() end
-    end
-    if not isServer() and ISInventoryPage then ISInventoryPage.renderDirty = true end
-end
-
--- Where the game lets an item go to the floor: dropped or moved there (ISTransferAction), a heavy item let go
--- (forceDropHeavyItems, ISUnequipAction but to drop or place), out of a vehicle (ISDropVehicleItemAction). They are
--- the game's, loaded after this file: wrapped once a game is on.
-local function wrapDrops()
-    if Moveables.dropsWrapped then return end
-    Moveables.dropsWrapped = true
-    local transfer = ISTransferAction and ISTransferAction.transferItem
-    if transfer then
-        function ISTransferAction:transferItem(character, item, srcContainer, destContainer, dropSquare)
-            local moved = transfer(self, character, item, srcContainer, destContainer, dropSquare)
-            if destContainer:getType() == "floor" then Moveables.settle(moved or item, character) end
-            return moved
+Heavy.register(BU.PANEL_ITEMS, {
+    canStand = function(item, character, square) return not hasBox(square) end,
+    stand = function(item, character, square, side)
+        local tier = BU.Panels.itemTier(item)
+        if BU.Panels.canInstall(square) then
+            BU.Changes.install(square, side, { tier = tier })
+        else
+            local object = IsoObject.new(square, BU.panelSprite(side, tier, square:getRoom() == nil), nil, false)
+            square:AddTileObject(object)
+            if isServer() then object:transmitCompleteItemToClients() end
         end
-    end
-    local forceDrop = forceDropHeavyItems
-    if forceDrop then
-        function forceDropHeavyItems(character)
-            local primary = character and character:getPrimaryHandItem()
-            local secondary = character and character:getSecondaryHandItem()
-            forceDrop(character)
-            Moveables.settle(primary, character)
-            if secondary ~= primary then Moveables.settle(secondary, character) end
-        end
-    end
-    local unequip = ISUnequipAction and ISUnequipAction.complete
-    if unequip then
-        function ISUnequipAction:complete()
-            local done = unequip(self)
-            if self.reason ~= "drop" and self.reason ~= "place" then Moveables.settle(self.item, self.character) end
-            return done
-        end
-    end
-    -- The game's taking up of a heavy item moves it into the hands but leaves it lying too (its own lie as objects):
-    -- a box lying as an item is taken off the floor.
-    local takeUp = ISEquipHeavyItem and ISEquipHeavyItem.complete
-    if takeUp then
-        function ISEquipHeavyItem:complete()
-            if self.item and BU.PANEL_ITEM_TIER[self.item:getFullType()] then takeOffFloor(self.item) end
-            return takeUp(self)
-        end
-    end
-    local outOfVehicle = ISDropVehicleItemAction and ISDropVehicleItemAction.complete
-    if outOfVehicle then
-        function ISDropVehicleItemAction:complete()
-            local done = outOfVehicle(self)
-            Moveables.settle(self.item, self.character)
-            return done
-        end
-    end
-end
-Events.OnGameStart.Add(wrapDrops)
+    end,
+})
 
 local findItem = ISMoveableSpriteProps.findInInventory
 function ISMoveableSpriteProps:findInInventory(character, spriteName)
@@ -316,7 +213,7 @@ function ISMoveableSpriteProps:canPickUpMoveable(character, square, object)
     local found = find(kind, square, object)
     if not found and not bareOf(kind, square, object) then return false end
     -- the game's rule for a piece of furniture of one tile: it must fit the inventory; a box is carried in both hands
-    -- (a heavy item: Moveables.hold), as a generator is, whatever else is carried
+    -- (a heavy item: PZUIKit.Heavy.hold), as a generator is, whatever else is carried
     if kind ~= "panel" and not character:getInventory():hasRoomFor(character, self.weight) then return false end
     return not found or found.panel ~= nil or BU.Units.isEmpty(found.unit)
 end
@@ -349,7 +246,7 @@ function ISMoveableSpriteProps:pickUpMoveable(character, square, createItem, for
     if item then
         if kind ~= "panel" then BU.Units.keepOnItem(kind, item, kept) end
         sendAddItemToContainer(inventory, item)
-        if kind == "panel" then Moveables.hold(character, item) end
+        if kind == "panel" then Heavy.hold(character, item) end
     end
     return {}
 end
@@ -381,7 +278,7 @@ function ISMoveableSpriteProps:placeMoveable(character, square, origSpriteName, 
     local side = sideOf(kind, self.spriteName, self.buTier) or BU.sideOf(square, character)
     local kept = kind == "panel" and { tier = BU.Panels.itemTier(item) } or BU.Units.keptOnItem(item)
     local inventory = character:getInventory()
-    Moveables.letGo(character, item)
+    Heavy.letGo(character, item)
     inventory:Remove(item)
     sendRemoveItemFromContainer(inventory, item)
     if kind == "panel" then BU.Changes.install(square, side, kept)
@@ -403,9 +300,7 @@ function ISMoveableSpriteProps:getInfoPanelDescription(square, object, player, m
     if not self.buKind or mode ~= "place" or type(info) ~= "table" then return info end
     local reason = square and placeProblem(self.buKind, square)
     if reason then
-        local c = ISMoveableSpriteProps.bhc
-        ISMoveableSpriteProps.addLineToInfoTable(info, "- " .. getText("IGUI_BU_Reason_" .. reason),
-            c:getR() * 255, c:getG() * 255, c:getB() * 255)
+        PZUIKit.Furniture.reasonLine(info, getText("IGUI_BU_Reason_" .. reason))
     end
     return info
 end

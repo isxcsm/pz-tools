@@ -547,16 +547,10 @@ function ContextMenu.fillInventory(player, context, items)
     if kind then
         dropGamesOwn(context, item)
         local held = playerObj:getPrimaryHandItem() == item or playerObj:getSecondaryHandItem() == item
-        if kind == "panel" then
-            -- The game's own "equip in both hands" (RequiresEquippedBothHands) would say the same as ours; a
-            -- generator shows only its take option, so a box does too.
-            context:removeOptionByName(getText("ContextMenu_Equip_Two_Hands"))
-        end
+        -- (the game's own "equip in both hands" is off a heavy thing's menu: PZUIKit.Heavy)
         if kind == "panel" and not held then
-            local option = context:addOptionOnTop(getText("ContextMenu_BU_TakeBox"), playerObj,
-                ISInventoryPaneContextMenu.equipHeavyItem, item)
-            option.itemForTexture = item
-            if playerObj:getVehicle() then unavailable(option, getText("ContextMenu_NoTakeInVehicle")) end
+            PZUIKit.Heavy.carryOption(context, playerObj, item, getText("ContextMenu_BU_TakeBox"),
+                getText("ContextMenu_NoTakeInVehicle"))
         end
         if BU.enabled(kind) and item:getContainer() == playerObj:getInventory() and (kind == "panel" or not held) then
             local text = getText(kind == "panel" and "ContextMenu_BU_Install" or "ContextMenu_BU_Install_" .. kind)

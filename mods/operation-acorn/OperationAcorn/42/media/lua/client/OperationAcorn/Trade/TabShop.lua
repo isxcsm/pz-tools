@@ -160,10 +160,10 @@ end
 
 local TONE = { dim = "dim", warn = "warn", bad = "bad", timer = "warn" }
 
--- A time (world age in hours) as "day 12, 14:30".
+-- A time (world age in hours) as read from now ("tomorrow 14:30": Trade.when).
 local function whenText(hours)
-    local day, h, m = Trade.clockText(hours)
-    return getText("IGUI_OA_Trade_When", day, string.format("%02d:%02d", h, m))
+    local w = Trade.when(hours)
+    return getText(w.key, unpack(w.args))
 end
 
 function OATabShop:createChildren()

@@ -9,6 +9,7 @@ require "OperationAcorn/Chunks"
 require "OperationAcorn/Trade/Trade"
 require "OperationAcorn/Trade/Boxes"
 require "OperationAcorn/Trade/Objects"
+require "PZUIKit/Heavy"
 local OA = OperationAcorn
 local Trade, Sprites, Chunks = OA.Trade, OA.Sprites, OA.Chunks
 local Boxes, Objects = Trade.Boxes, Trade.Objects
@@ -93,7 +94,7 @@ function Things.takeTerminal(character, object)
     unwatch("trade.terminal", square:getX(), square:getY(), square:getZ())
     local upgraded = Objects.isUpgraded(object)
     Objects.remove(object)
-    Objects.giveHeavy(character, upgraded and Objects.ITEMS.field or Objects.ITEMS.terminal)
+    PZUIKit.Heavy.give(character, upgraded and Objects.ITEMS.field or Objects.ITEMS.terminal)
     return true
 end
 
@@ -153,7 +154,7 @@ function Things.takeBox(character, object)
     if owner and boxId then Boxes.carry(owner, boxId) end
     unwatch("trade.box", square:getX(), square:getY(), square:getZ())
     Objects.remove(object)
-    Objects.giveHeavy(character, Objects.ITEMS.box, { OA_Box = boxId, OA_Owner = owner and owner.id or nil })
+    PZUIKit.Heavy.give(character, Objects.ITEMS.box, { OA_Box = boxId, OA_Owner = owner and owner.id or nil })
     changed(owner)
     return true
 end

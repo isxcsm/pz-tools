@@ -333,10 +333,10 @@ end
 
 -- The helicopter (DESIGN-terminal 2.2) ------------------------------------------------------------------------------
 
--- A world age as "47일째 15:40".
+-- A world age as read from now ("내일 08:39": Trade.when).
 function M.when(hours)
-    local day, h, m = Trade.clockText(hours)
-    return tr("IGUI_OA_Trade_When", day, string.format("%02d:%02d", h, m))
+    local w = Trade.when(hours)
+    return tr(w.key, unpack(w.args))
 end
 
 -- Whether a call made now would reach the night (and so come the next morning): either end of the arrival range
@@ -357,15 +357,18 @@ function M.heli(record, now, tod)
     local rewards = Trust.rewards(record)
     local canTime, why = Rules.canCall(heli, now)
     local canBox, boxWhy = Boxes.canCall(record)
+    -- (a box standing but nothing sealed or ordered: a flight for nothing is not made)
+    local canCargo = Boxes.hasCargo(record)
     local s = { subs = {} }
     local function sub(text, colour) s.subs[#s.subs + 1] = { text = text, colour = colour } end
     if heli.call then
         s.state, s.colour = tr("IGUI_OA_Status_Heli_Coming"), "value"
         sub(tr("IGUI_OA_Status_Heli_Arrive", M.when(heli.call.arrive)), "text")
         s.eta = { from = heli.call.at or now, to = heli.call.arrive }
-    elseif not canBox or not canTime then
+    elseif not canBox or not canTime or not canCargo then
         s.state, s.colour = tr("IGUI_OA_Status_Heli_Cannot"), "warn"
-        if not canBox then sub(tr(boxWhy == "carried" and "IGUI_OA_Trade_Heli_BoxCarried" or "IGUI_OA_Trade_Heli_NoBox"), "warn") end
+        if not canBox then sub(tr(boxWhy == "carried" and "IGUI_OA_Trade_Heli_BoxCarried" or "IGUI_OA_Trade_Heli_NoBox"), "warn")
+        elseif not canCargo then sub(tr("IGUI_OA_Trade_Heli_Empty"), "warn") end
         if not canTime then
             sub(tr("IGUI_OA_Trade_Heli_Next", M.when(heli.next)), "text")
             s.nextAt = heli.next
@@ -375,10 +378,11 @@ function M.heli(record, now, tod)
         if M.nightCall(tod, rewards) then sub(tr("IGUI_OA_Status_Heli_Night"), "warn") end
     end
     if Trade.inDebt(record) then sub(tr("IGUI_OA_Status_Heli_Debt"), "bad") end
-    s.callable = not heli.call and canTime and canBox
+    s.callable = not heli.call and canTime and canBox and canCargo
     if heli.call then s.callWhy = tr("IGUI_OA_Trade_Reason_pending")
     elseif not canTime then s.callWhy = tr("IGUI_OA_Trade_Reason_" .. tostring(why))
-    elseif not canBox then s.callWhy = tr("IGUI_OA_Trade_Reason_" .. tostring(boxWhy)) end
+    elseif not canBox then s.callWhy = tr("IGUI_OA_Trade_Reason_" .. tostring(boxWhy))
+    elseif not canCargo then s.callWhy = tr("IGUI_OA_Trade_Reason_empty") end
     s.reissue = not heli.call and canTime and not canBox
     if heli.call then s.reissueWhy = tr("IGUI_OA_Trade_Reason_pending")
     elseif not canTime then s.reissueWhy = tr("IGUI_OA_Trade_Reason_wait")

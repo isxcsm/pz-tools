@@ -64,20 +64,25 @@ local function listenNotices()
     return told
 end
 
-test("a helicopter call sends a notice with the day and the time, the reissue its own", function()
+test("a helicopter call sends a notice with when it comes, read from today, the reissue its own", function()
     local record = OA.Store.ensure("c", "C")
     record.trade = { stage = 1, credits = 50000, trust = 0 }
     OA.Trade.Boxes.add(record, { x = 5, y = 6, z = 0 })
     local told = listenNotices()
     local character = { getX = function() return 5 end, getY = function() return 6 end }
+    local ok, why = Heli.call(character, record, "normal", 5, 6)
+    eq(ok, false, "nothing sealed or ordered")
+    eq(why, "empty")
+    OA.Trade.Boxes.add(record, { state = "sealed", active = false })
     truthy(Heli.call(character, record, "normal", 5, 6))
     eq(#told, 1)
     eq(told[1].id, record.id)
     eq(told[1].detail.key, "IGUI_OA_Trade_Notice_Called")
     local arrive = OA.Trade.heli(record).call.arrive
-    local day, h, m = OA.Trade.clockText(arrive)
-    eq(told[1].detail.args[1], day)
-    eq(told[1].detail.args[2], string.format("%02d:%02d", h, m))
+    local _, h, m = OA.Trade.clockText(arrive)
+    local when = told[1].detail.args[1]
+    eq(when.key, OA.Trade.when(arrive).key, "today's, tomorrow's or days ahead, not the world's day number")
+    eq(when.args[#when.args], string.format("%02d:%02d", h, m))
     eq(record.radio, nil, "no radio line is written")
     -- A second call has to wait; the reissue after the interval has its own text.
     OA.Trade.heli(record).call = nil
@@ -85,7 +90,7 @@ test("a helicopter call sends a notice with the day and the time, the reissue it
     truthy(Heli.call(character, record, "reissue", 5, 6))
     eq(#told, 2)
     eq(told[2].detail.key, "IGUI_OA_Trade_Notice_ReissueCalled")
-    eq(#told[2].detail.args, 2)
+    eq(#told[2].detail.args, 1)
 end)
 
 test("a call that is refused sends nothing", function()
@@ -174,4 +179,17 @@ test("the helicopter's noise is a world sound at the drop, as far as the option 
     SandboxVars = { OperationAcorn = { HelicopterNoiseMultiplier = 0 } }
     Heli.noise(10, 20, 0)
     eq(#TEST.worldSounds, 1, "no sound at zero")
+end)
+
+test("a time is read from today: today's, tomorrow's, so many days ahead, an earlier one by its day", function()
+    local now = OA.hours()
+    local start = OA.dayStart(OA.day())
+    eq(OA.Trade.when(start + 23).key, "IGUI_OA_Trade_WhenToday")
+    eq(OA.Trade.when(start + 24 + 8.5).key, "IGUI_OA_Trade_WhenTomorrow")
+    eq(OA.Trade.when(start + 24 + 8.5).args[1], OA.Trade.when(start + 8.5).args[1], "the clock alone")
+    local ahead = OA.Trade.when(start + 72 + 1)
+    eq(ahead.key, "IGUI_OA_Trade_WhenInDays")
+    eq(ahead.args[1], 3)
+    if OA.day() > 0 then eq(OA.Trade.when(start - 1).key, "IGUI_OA_Trade_When") end
+    truthy(now >= start)
 end)

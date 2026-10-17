@@ -458,7 +458,7 @@ function ISBUTakeApartBox:complete()
     local inventory = self.character:getInventory()
     if not inventory:contains(self.item) or not Costs.affords(self.character, Costs.takeApart()) then return false end
     local boards = Costs.boardsIn(Panels.itemTier(self.item))
-    BU.Moveables.letGo(self.character, self.item)
+    PZUIKit.Heavy.letGo(self.character, self.item)
     inventory:Remove(self.item)
     sendRemoveItemFromContainer(inventory, self.item)
     for _ = 1, boards do giveItem(self.character, Costs.BOARD) end

@@ -24,6 +24,14 @@ A Project Zomboid (Build 42) Lua mod that other mods draw their windows with. It
   tooltip that follows the mouse), `PZUISubTabs` (with a tooltip per tab), and lists of the game's
   `ISScrollingListBox` with rows drawn in design units (`UI.list`).
 - **Text that fits.** `PZUIKit.Text.wrap`, `fitText` and `cutFor` (shared, so they also run on a server and in tests).
+- **Heavy things.** `PZUIKit.Heavy`: items carried in both hands as a generator is that stand in the world as a mod's
+  object. A mod registers its types with how one stands up (`Heavy.register`); let go to the floor by any of the game's
+  ways (dropped, moved there, let go from the hands, out of a vehicle) one stands up there, one lying is taken off the
+  floor when held, and the game's own "equip in both hands" leaves its menu (`Heavy.carryOption` is the mod's take).
+  Also `hold`, `letGo`, `give`, `side` and `facing` (the side a thing set down faces). Taking any heavy item up
+  refreshes the loot window when alone (the game does it only in multiplayer).
+- **Furniture.** `PZUIKit.Furniture`: a mod's one-tile objects given to the game's furniture tool (`oneTile`: the
+  tool's own fields for such a tile, its item's name and weight) and the tool panel's reason line (`reasonLine`).
 - **Typed text.** `PZUITypedText`, a rich text panel that types its text a character at a time (by the timings of
   `PZUIKit.Markup`, the extension API's markup: pauses, speeds, colours) or prints it a row at a time, whole, as a
   teleprinter does (`PZUIKit.Typing.LINE_STEP`), with a blinking cursor; a click brings it to the furthest point seen.

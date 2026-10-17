@@ -4,7 +4,7 @@
 -- folds it). Below, the protagonist's input line. A call plays here: the team's lines come in
 -- like a signal, the protagonist's are typed on the input line (words typed and erased first) and go up into the
 -- record when sent. While a call plays the game is paused (alone; never on a server), its sound turned down under a
--- low static, and a key or the button skips it; another tab or the window closing counts as skipping. Played or
+-- low static, and its button skips it (a click: no key, which the game would also take); another tab or the window closing counts as skipping. Played or
 -- skipped, the server keeps it (comms_played) and the next waiting call follows after a beat.
 --
 -- The lines are worked out once a line starts (Story/CommsScript); a frame draws from the timeline at the clock alone.
@@ -35,8 +35,6 @@ OATabComms.DUCK = 0.5
 OATabComms.SOUND_STATIC = "RadioStatic"
 OATabComms.SOUND_IN = "RadioZap"
 OATabComms.SOUND_SEND = "RadioButton"
--- The key that skips a call (never Esc, the game menu's).
-OATabComms.SKIP_KEY = Keyboard.KEY_SPACE
 
 -- The voices' colours: the crude terminal's are its own greens; the field terminal's team line is a radio green.
 local function colours(p)
@@ -428,19 +426,6 @@ end
 
 function OATabComms.skip(self)
     self:finish()
-end
-
--- The skip key, while a call plays (the window passes its keys to the tab on show).
-function OATabComms:wantsKeys()
-    return self.play ~= nil
-end
-
-function OATabComms:consumesKey(key)
-    return self.play ~= nil and key == OATabComms.SKIP_KEY
-end
-
-function OATabComms:onKey(key)
-    if self:consumesKey(key) then self:finish() end
 end
 
 -- Another tab was chosen, or the window goes: a call playing counts as skipped.
