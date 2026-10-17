@@ -12,6 +12,10 @@ A Project Zomboid (Build 42) Lua mod that other mods draw their windows with. It
   `off`, and `tabStrip`. `PZUIKit.UI.DEFAULT_PALETTE` is used outside a window.
 - **Lights.** A thing under the mouse lights up and a click flashes (`UI.hoverLight`, `UI.flash`, `UI.placeLight`),
   followed frame by frame only while they move (`UI.live`).
+- **Spotlight.** A thing pointed out to a character for a while, as the game's tutorial does: `Spotlight.object`
+  outlines an object in the world, `Spotlight.lootLine` blinks an item's line in the loot window. Each ends by itself:
+  an outline when its time is up, the character walks off past its reach, the object leaves the world or the world
+  menu opens over its square; a line when its time is up or another takes the blink. Nothing runs once all is over.
 - **Fades.** A window fades in and out (`UI.fadeIn`, `UI.fadeOut`, `UI.fadeTo`), and steps aside while its player
   works: `UI.aside(window, action)` thins it for as long as the timed action is queued, so the game's progress bar over
   the character shows through, and `UI.stepAside(window, hold)` in the window's update brings it back.
@@ -53,7 +57,7 @@ Mod Lua holds no letters past ASCII (the game reads them as U+FFFD): texts come 
 ## Tests
 
 The kit's tests run in [operation-acorn](../operation-acorn) for now (`tests/unit/trade_faces_test.lua`,
-`trade_scale_test.lua` and the windows built on it), whose harness loads the kit from this folder beside it.
+`trade_scale_test.lua` and the windows built on it) and in [building-utilities](../building-utilities) (`spotlight_test.lua`), whose harnesses load the kit from this folder beside them.
 
 ## License
 
