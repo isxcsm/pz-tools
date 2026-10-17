@@ -37,4 +37,5 @@ folder; the Java ones with the JDK in `artifacts/toolchains` (25), LuaTest and L
   'UIManager\.getFadeAlpha'`): members, who calls a method or uses a field, what a method calls, which methods hold a
   string (where a log line comes from), a class through javap. Its index is built once per game version (seconds).
 - `pzdev.py`: drives the running game (started with `-debug` and a test save) through Operation Acorn Dev's command
-  channel: runs Lua and in-game checks, takes pictures, reloads, restarts. `python ../tools/pzdev.py` for its commands.
+  channel: runs Lua and in-game checks, takes pictures, reloads, restarts; also records it with Flight Recorder
+  (`profile`) and reads the game's logs (`log gaps`, `log compare`). `python ../tools/pzdev.py` for its commands.

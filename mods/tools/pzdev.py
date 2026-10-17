@@ -31,6 +31,12 @@ Usage, from a mod's folder (python ../tools/pzdev.py <command>):
     pzdev.py watch                              prints one line per event, forever (for a background
                                                 monitor): start, menu, ready, loading, game, error <text>,
                                                 exit, paused, running, unfocused, focused
+    pzdev.py profile [seconds]                  records the running game with Java Flight Recorder (10 s; --out
+                                                file.jfr keeps it), then prints its hottest methods and GC pauses
+    pzdev.py log gaps [n|file]                  the longest silences of a game log (n: 0 the newest DebugLog of
+                                                Zomboid/Logs, 1 the one before...; 0 by default)
+    pzdev.py log compare <a> <b>                two game logs on one time line: where b spent time a did not, or
+                                                the other way (a, b: n or a file; --min seconds, 0.5)
 launch, restart and continue load the save --save names (a Sandbox save's folder), or PZDEV_SAVE's, and refuse with
 neither: Continue would load the user's own latest save. latestSave.ini points at it while the main menu is built, so
 Continue loads it, and is put back once it loaded: the user's Continue stays theirs. reload loads the save it leaves
@@ -756,6 +762,154 @@ def shot(path, wait, full, count=1, every=0.0):
     return 0
 
 
+# The bundled JDK's bin folder (artifacts/toolchains/jdk-*), or PZDEV_JDK's: its jcmd and jfr drive a recording.
+def jdk_bin():
+    if os.environ.get("PZDEV_JDK"):
+        return os.environ["PZDEV_JDK"]
+    tools = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "artifacts",
+                         "toolchains")
+    for name in sorted(os.listdir(tools) if os.path.isdir(tools) else [], reverse=True):
+        if name.startswith("jdk-") and os.path.exists(os.path.join(tools, name, "bin", "jcmd.exe")):
+            return os.path.join(tools, name, "bin")
+    return None
+
+
+def game_pid():
+    out = subprocess.run(["tasklist", "/FI", "IMAGENAME eq ProjectZomboid64.exe", "/NH", "/FO", "CSV"],
+                         capture_output=True, text=True, errors="replace", creationflags=0x08000000).stdout
+    for line in out.splitlines():
+        cells = line.strip().strip('"').split('","')
+        if len(cells) > 1 and cells[0] == "ProjectZomboid64.exe":
+            return int(cells[1])
+    return None
+
+
+# A Flight Recorder recording of the running game (the JVM in its exe takes jcmd as any does), then its summary.
+def profile(seconds, out):
+    pid = game_pid()
+    if not pid:
+        print("the game is not running")
+        return 1
+    bin_dir = jdk_bin()
+    if not bin_dir:
+        print("no JDK: none in artifacts/toolchains, no PZDEV_JDK")
+        return 1
+    keep = out is not None
+    out = os.path.abspath(out or os.path.join(os.environ.get("TEMP", "."), "pzdev-profile.jfr"))
+    if os.path.exists(out):
+        os.remove(out)
+    started = subprocess.run([os.path.join(bin_dir, "jcmd.exe"), str(pid), "JFR.start", "name=pzdev",
+                              "settings=profile", "duration=%ds" % seconds, "filename=" + out],
+                             capture_output=True, text=True, errors="replace", timeout=60)
+    if "Started recording" not in started.stdout:
+        print("no recording:", (started.stdout + started.stderr).strip())
+        return 1
+    print("recording %d s of the game (pid %d)..." % (seconds, pid), flush=True)
+    time.sleep(seconds)
+    end = time.time() + 60
+    while time.time() < end and (not os.path.exists(out) or os.path.getsize(out) == 0):
+        time.sleep(0.5)
+    if not os.path.exists(out) or os.path.getsize(out) == 0:
+        print("the recording was not written:", out)
+        return 1
+    for view, rows in (("hot-methods", 30), ("gc-pauses", 12)):
+        shown = subprocess.run([os.path.join(bin_dir, "jfr.exe"), "view", "--width", "150", view, out],
+                               capture_output=True, text=True, errors="replace", timeout=120).stdout
+        lines = [l.rstrip() for l in shown.splitlines() if l.strip()]
+        print("\n".join(lines[:rows + 3]))
+    if keep:
+        print("-- kept %s (its other views: jfr view <view> %s; jfr view alone lists them)" % (out, out))
+    else:
+        os.remove(out)
+    return 0
+
+
+LOGS = os.path.join(os.path.expanduser("~"), "Zomboid", "Logs")
+
+
+# The game's logs with times, the newest first: Zomboid/Logs/<date>_DebugLog.txt, those of earlier starts in their
+# logs_<date> folders.
+def debug_logs():
+    found = []
+    for folder, _, files in os.walk(LOGS):
+        found += [os.path.join(folder, f) for f in files if f.endswith("DebugLog.txt")]
+    return sorted(found, key=lambda f: os.path.basename(f)[:16], reverse=True)
+
+
+def log_file(which):
+    if which.isdigit():
+        logs = debug_logs()
+        if int(which) >= len(logs):
+            print("only %d logs in %s" % (len(logs), LOGS))
+            return None
+        return logs[int(which)]
+    return which
+
+
+# A log's lines as (seconds from its first line, the text without its time and frame fields).
+def log_lines(path):
+    import datetime
+    import re
+    stamp = re.compile(r"^\[(\d\d)-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)\.(\d{3})\] (.*)$")
+    rows, t0 = [], None
+    with open(path, encoding="utf-8", errors="replace") as f:
+        for line in f:
+            m = stamp.match(line.rstrip("\n"))
+            if not m:
+                continue
+            d, mo, y, h, mi, sec, ms = map(int, m.groups()[:7])
+            t = datetime.datetime(2000 + y, mo, d, h, mi, sec, ms * 1000)
+            t0 = t0 or t
+            text = re.sub(r"\s+f:\d+(, t:\d+)?(, st:[\d,]+)?(?=>| at )", "", m.group(8))
+            rows.append(((t - t0).total_seconds(), re.sub(r"\s+", " ", text)))
+    return rows
+
+
+def log_gaps(which):
+    path = log_file(which)
+    if not path:
+        return 1
+    rows = log_lines(path)
+    print("%s: %d lines over %.1f s" % (path, len(rows), rows[-1][0] if rows else 0))
+    gaps = sorted(((b[0] - a[0], a, b) for a, b in zip(rows, rows[1:])), key=lambda g: -g[0])[:15]
+    for gap, a, b in sorted(gaps, key=lambda g: g[1][0]):
+        print("%6.1f s silent at +%.1f after: %s" % (gap, a[0], a[1][:120]))
+        print("%s then: %s" % (" " * 25, b[1][:120]))
+    return 0
+
+
+# Two logs on one time line: each line's text (numbers as #) that both have, the first time each logged it, in the
+# order of both; printed where the difference of their times moves by --min seconds or more since the line before.
+def log_compare(a_which, b_which, least):
+    import re
+    paths = [log_file(a_which), log_file(b_which)]
+    if not all(paths):
+        return 1
+    firsts = []
+    for path in paths:
+        seen = {}
+        for t, text in log_lines(path):
+            seen.setdefault(re.sub(r"\d+", "#", text)[:160], (t, text))
+        firsts.append(seen)
+    a, b = firsts
+    order = sorted((t, key) for key, (t, _) in a.items() if key in b)
+    print("a: %s\nb: %s" % tuple(paths))
+    print("%9s %9s %8s" % ("a", "b", "b-a"))
+    last_b, last_diff = 0.0, 0.0
+    for ta, key in order:
+        tb = b[key][0]
+        if tb < last_b:
+            continue  # out of order in b: not the same moment of the start
+        last_b = tb
+        diff = tb - ta
+        if abs(diff - last_diff) >= least:
+            print("%+9.1f %+9.1f %+8.1f  (%+.1f) %s" % (ta, tb, diff, diff - last_diff, a[key][1][:110]))
+            last_diff = diff
+    ends = [max((t for t, _ in f.values()), default=0) for f in firsts]
+    print("%+9.1f %+9.1f %+8.1f  the last line" % (ends[0], ends[1], ends[1] - ends[0]))
+    return 0
+
+
 def main():
     global SAVE
     if len(sys.argv) == 3 and sys.argv[1] == "guard":
@@ -791,6 +945,15 @@ def main():
         return leave_save(console_size())
     if len(sys.argv) == 2 and sys.argv[1] == "continue":
         return continue_save()
+    if len(sys.argv) >= 2 and sys.argv[1] == "profile":
+        out = arg("--out")
+        return profile(int(sys.argv[2]) if len(sys.argv) > 2 else 10, out)
+    if len(sys.argv) >= 3 and sys.argv[1] == "log":
+        least = float(arg("--min", "0.5"))
+        if sys.argv[2] == "gaps":
+            return log_gaps(sys.argv[3] if len(sys.argv) > 3 else "0")
+        if sys.argv[2] == "compare" and len(sys.argv) == 5:
+            return log_compare(sys.argv[3], sys.argv[4], least)
     if len(sys.argv) < 3:
         print(__doc__)
         return 2
