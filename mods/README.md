@@ -27,10 +27,14 @@ junction, e.g. `mklink /J "%USERPROFILE%\Zomboid\mods\BuildingUtilities" mods\bu
 ## Shared tools
 
 [tools](tools) holds what every mod (and the PZ Extension API's in-game checks) runs with, each run from a mod's
-folder with a JDK and the game's jar (`java -cp <ProjectZomboid>/projectzomboid.jar ...`):
+folder; the Java ones with the JDK in `artifacts/toolchains` (25), LuaTest and LuaCheck with the game's jar
+(`java -cp <ProjectZomboid>/projectzomboid.jar ../tools/LuaTest.java`):
 
 - `LuaTest.java`: the mod's `tests/unit` (and `tests/bench` with `"" bench`) on the game's own Kahlua.
 - `LuaCheck.java`: compiles the mod's Lua as the game does in debug mode, and flags a local used before its
   declaration and a Lua base name the game lacks.
+- `PzJar.java`: looks things up in the game's classes without the game (`java ../tools/PzJar.java callers
+  'UIManager\.getFadeAlpha'`): members, who calls a method or uses a field, what a method calls, which methods hold a
+  string (where a log line comes from), a class through javap. Its index is built once per game version (seconds).
 - `pzdev.py`: drives the running game (started with `-debug` and a test save) through Operation Acorn Dev's command
   channel: runs Lua and in-game checks, takes pictures, reloads, restarts. `python ../tools/pzdev.py` for its commands.
