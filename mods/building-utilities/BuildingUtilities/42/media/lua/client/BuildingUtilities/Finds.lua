@@ -34,7 +34,7 @@ end
 
 local function found(player)
     player:getModData()[Finds.FOUND] = true
-    BU.sayLonger(player, getText("IGUI_BU_SayFoundBox"))
+    player:Say(getText("IGUI_BU_SayFoundBox"))
 end
 
 -- A spawned box in sight near the character: outlined, and found.

@@ -842,7 +842,7 @@
     "IGUI_BU_Title_Tier4Sub": "Buildings apart, under one roof",
     "IGUI_BU_SayFoundBox": "A utility panel. That could come in handy at the base.",
     "IGUI_BU_ActivateBoxTip": "A panel left here switched off. Activated, it works as if installed here.",
-    "IGUI_BU_SayLearnedBox": "Seen how it's put together. I could build one now.",
+    "IGUI_BU_SayLearnedBox": "I get the gist of it. With the parts, I could build one.",
     "IGUI_BU_Reason_notOutside": "It goes outside under the open sky: on the ground or a flat roof.",
     "IGUI_BU_Reason_blocked": "Something is in the way.",
     "IGUI_BU_Reason_noUnit": "It is gone.",

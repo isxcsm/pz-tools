@@ -364,7 +364,7 @@ function ISBUReverseEngineer:complete()
     if not learnedFrom(self) or Panels.reverseEngineerProblem(self.character) then return false end
     self.character:learnRecipe(Panels.RECIPE)
     BU.giveXp(self.character, 10)
-    BU.sayLonger(self.character, getText("IGUI_BU_SayLearnedBox"))
+    self.character:Say(getText("IGUI_BU_SayLearnedBox"))
     return true
 end
 
