@@ -36,6 +36,25 @@ OATabComms.SOUND_STATIC = "RadioStatic"
 OATabComms.SOUND_IN = "RadioZap"
 OATabComms.SOUND_SEND = "RadioButton"
 
+-- The hail before a mission's briefing (the player started the mission, and calls the team): the line's static (ms,
+-- from the start), "<call sign> 호출 중" coming up with its dots one by one, "회선 연결", and the call itself.
+OATabComms.HAIL_STATIC_MS = 1100
+OATabComms.HAIL_TEXT_MS = 1000
+OATabComms.HAIL_DOT_MS = 300
+OATabComms.HAIL_DOTS = 3
+OATabComms.HAIL_LINKED_MS = 2200
+OATabComms.HAIL_MS = 2800
+-- The static's strength as it starts (fading to nothing), and the steps it changes in (ms).
+OATabComms.HAIL_STATIC_A, OATabComms.HAIL_STEP_MS = 0.65, 60
+-- The field terminal's line is cleaner: its static this much as strong, and the lines of interference across it.
+OATabComms.HAIL_CLEAN = { field = 0.35 }
+OATabComms.HAIL_LINES = { crude = 3, field = 1 }
+
+-- A mission's briefing: started by the player, so it opens with the hail.
+local function hailed(e)
+    return string.find(e.trigger or "", "^brief:") ~= nil
+end
+
 -- The voices' colours: the crude terminal's are its own greens; the field terminal's team line is a radio green.
 local function colours(p)
     if p.mono then
@@ -205,6 +224,19 @@ end
 function OATabComms:playRows()
     local play, st = self.play, self.st
     local rows = { self:headRow(headText(play.entry, play.tier)) }
+    if st.phase == "hail" then
+        -- the hail's one line, kept out of the record: the call sign called, then the line up
+        if st.hailKey then
+            local text = getText("IGUI_OA_Comms_Linked")
+            if not st.linked then
+                text = getText("IGUI_OA_Comms_Hail", signOf(play.entry)) .. string.rep(" " .. string.char(183), st.dots)
+            end
+            local row = self:lineRow("hail", nil, text)
+            row.linked = st.linked
+            rows[#rows + 1] = row
+        end
+        return rows
+    end
     for i = 1, st.done do self:playedRows(rows, play.entry, play.lines[i]) end
     local l = st.line and play.lines[st.line]
     if l then
@@ -336,6 +368,7 @@ OATabComms.recvCursor = recvCursor
 local function logFrame(log, now)
     local st = log.tab.play and log.tab.st
     if not st then return nil end
+    if st.phase == "hail" then return -1 - math.floor(st.hailMs / OATabComms.HAIL_STEP_MS) end
     return ((st.line or 0) * 10000 + (st.shown or 0)) * 3 + recvCursor(st, now)
 end
 
@@ -371,9 +404,12 @@ end
 function OATabComms:start(entry, tier, replay, now)
     local record = self:record()
     local lines = Script.lines(entry, context(record, tier))
-    self.play = { entry = entry, tier = tier, replay = replay, lines = lines, tl = Script.timeline(lines),
-        at = now or getTimestampMs(), line = 0 }
-    self.st = Script.at(self.play.tl, 0)
+    now = now or getTimestampMs()
+    self.play = { entry = entry, tier = tier, replay = replay, lines = lines, tl = Script.timeline(lines), at = now,
+        line = 0 }
+    -- a briefing first plays the hail: the call's own clock starts after it
+    if not replay and hailed(entry) then self.play.hailFrom, self.play.at = now, now + OATabComms.HAIL_MS end
+    self.st = self.play.hailFrom and self:hailState(0) or Script.at(self.play.tl, 0)
     self.skipButton:setVisible(true)
     self.window:setWantKeyEvents(true)
     self:hush(true)
@@ -386,6 +422,19 @@ end
 -- The clock moved: the state at it; a line that starts sounds and comes into the rows.
 function OATabComms:advance(now)
     local play = self.play
+    if play.hailFrom and now < play.at then
+        local st = self:hailState(now - play.hailFrom)
+        self.st = st
+        if st.linked and not play.linked then
+            play.linked = true
+            self:sound(OATabComms.SOUND_IN)
+        end
+        if st.hailKey ~= play.hailKey then
+            play.hailKey = st.hailKey
+            self:setRows(self:record())
+        end
+        return
+    end
     local st = Script.at(play.tl, (now - play.at) / 1000)
     self.st = st
     if not st.line then return self:finish() end
@@ -402,6 +451,21 @@ function OATabComms:advance(now)
         changed = true
     end
     if changed then self:setRows(self:record()) end
+end
+
+-- The hail at `ms` into it: no line yet; the dots shown, whether the line is up, and the static's strength.
+function OATabComms:hailState(ms)
+    local H = OATabComms
+    local st = { phase = "hail", done = 0, shown = 0, input = 0, hailMs = ms }
+    st.static = ms < H.HAIL_STATIC_MS and H.HAIL_STATIC_A * (1 - ms / H.HAIL_STATIC_MS) or 0
+    if ms >= H.HAIL_LINKED_MS then
+        st.linked = true
+        st.hailKey = "linked"
+    elseif ms >= H.HAIL_TEXT_MS then
+        st.dots = math.min(H.HAIL_DOTS, math.floor((ms - H.HAIL_TEXT_MS) / H.HAIL_DOT_MS))
+        st.hailKey = "dots" .. st.dots
+    end
+    return st
 end
 
 -- The call is over, played to its end or skipped (the same to the record). A call from the waiting ones goes to the
@@ -564,15 +628,19 @@ function OACommsLog:toFoot()
     self:setScroll(self:maxScroll())
 end
 
--- New rows: the record stays at its foot when it was there, or when `foot`.
+-- New rows: the record stays at its foot when it was there, or when `foot`. The foot is the newest call (the one
+-- playing) at the top, the older ones scrolled up above it, for as long as it is shorter than the record's height.
 function OACommsLog:setRows(rows, foot)
     local atFoot = foot or self.scroll >= self:maxScroll() - 2
     local y = 4
+    local newest
     for _, row in ipairs(rows) do
         row.y = y
         y = y + row.h
+        if row.kind == "head" then newest = row end
     end
     self.rows, self.full = rows, y
+    if newest then self.full = math.max(y, newest.y + self.height - 12) end
     if atFoot then self:toFoot() else self:setScroll(self.scroll) end
 end
 
@@ -666,6 +734,26 @@ function OACommsLog:prerender()
         local ty, th = self:thumb()
         UI.drawBar(self, w - OATabComms.BAR - 2, OATabComms.BAR - 2, h, ty, th, p.border)
     end
+    -- the hail's static over the whole record (its bar too), fading
+    local st = tab.play and tab.st
+    local tex = st and (st.static or 0) > 0 and tab.window.static and tab.window.static.tiles
+    if tex then
+        self:setStencilRect(1, 1, w - 2, h - 2)
+        local tier = tab.window.tier
+        local a = st.static * (OATabComms.HAIL_CLEAN[tier] or 1)
+        local step = math.floor(st.hailMs / OATabComms.HAIL_STEP_MS)
+        local tile = tex[OA.remainder(step, 2) + 1]
+        if tile then
+            local shift = OA.remainder(step * 37, OATerminalStatic.TILE)
+            self:drawTextureTiled(tile, 0, -shift, w, h + shift, p.text[1], p.text[2], p.text[3], a)
+        end
+        for j = 1, OATabComms.HAIL_LINES[tier] or OATabComms.HAIL_LINES.crude do
+            local seed = step * 7 + j * 13
+            UI.fill(self, 1, OA.remainder(seed * 97, math.max(1, h - 6)), w - 2, 1 + OA.remainder(seed, 3), p.text,
+                a * 0.8)
+        end
+        UI.unclip(self, 1, 1, w - 2, h - 2)
+    end
 end
 
 -- A small triangle in a box `size` square at x, y: pointing down (`open`) or right.
@@ -734,6 +822,7 @@ function OACommsLog:drawRow(row, y, p)
     local colour = c[row.kind] or c.pre
     if row.sign then UI.text(self, row.sign, pad, ly, c.pre) end
     if row.kind == "noise" then colour = c.pre end
+    if row.kind == "hail" then colour = row.linked and c.oak or c.pre end
     -- The line coming in: as many characters as have come.
     local left = math.huge
     if row.coming and tab.st then left = tab.st.shown end

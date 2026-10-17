@@ -2112,5 +2112,7 @@
     "IGUI_OA_Story_Brief_soil": "낙하 지점이나 바깥 노지에서 겉흙을 떠 오십시오. 선택 항목입니다.",
     "IGUI_OA_Story_UI_MarksShown": "임무 표시 켜기/끄기",
     "IGUI_OA_Story_OptionMapMarks": "지도 임무 표시",
-    "IGUI_OA_Story_OptionMapMarksTip": "임무 구역과 경로, 핀을 월드맵과 미니맵에 그립니다. 월드맵 아래 버튼으로도 바꿀 수 있습니다."
+    "IGUI_OA_Story_OptionMapMarksTip": "임무 구역과 경로, 핀을 월드맵과 미니맵에 그립니다. 월드맵 아래 버튼으로도 바꿀 수 있습니다.",
+    "IGUI_OA_Comms_Hail": "%1 호출 중",
+    "IGUI_OA_Comms_Linked": "회선 연결"
 }

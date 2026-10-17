@@ -2112,5 +2112,7 @@
     "IGUI_OA_Story_Brief_soil": "Take a soil sample at a drop site or from bare ground outdoors. This one is optional.",
     "IGUI_OA_Story_UI_MarksShown": "Show or hide mission marks",
     "IGUI_OA_Story_OptionMapMarks": "Mission marks on maps",
-    "IGUI_OA_Story_OptionMapMarksTip": "Draws the mission's area, the way to it and its pins on the world map and the minimap. The button under the world map switches it too."
+    "IGUI_OA_Story_OptionMapMarksTip": "Draws the mission's area, the way to it and its pins on the world map and the minimap. The button under the world map switches it too.",
+    "IGUI_OA_Comms_Hail": "Calling %1",
+    "IGUI_OA_Comms_Linked": "Line open"
 }
