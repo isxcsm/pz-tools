@@ -1,13 +1,13 @@
--- Spawned boxes: utility panels the map puts down beside its generators. As the game turns a map's generator tile
--- into a generator (MOGenerator.lua, a chunk loaded the first time: server/BuildingUtilities/MapBoxes.lua), a box is
--- rolled for on its own, as often as the generator is there (always: a map's generator is no roll) times
--- BreakerBoxLoot, and stands beside it as a bare box (Panels.isBare): a box's tile with no record, nothing running for
--- it, learned from and taken up like any box. It takes a free square next to the generator (reached from it, of the
--- same room, an outdoor one outdoors, with nothing on it but its floor and plain walls, not a doorway) that is not
--- before a door. Indoors it stands on the floor (its indoor look), against a wall and facing away from it where a free
--- square has one, else on any (shelves and bins along the walls); outdoors on its pedestal, on any. The generator
--- keeps another free square to be reached from: with only one, there is no box. Where each stands is kept in the save by the cell (CELL squares) it
--- is in, so that a character coming near finds it (Finds) by looking at the cells around them only.
+-- Spawned boxes: utility panels the world puts down as it does its generators. The game rolls for a generator in a
+-- room of a few kinds (sheds, garages, storage units, farm storage) the first time a character sees it (IsoCell's
+-- spotted rooms: OnSeeNewRoom, then one in N): a box is rolled for in the same rooms, as often, on its own
+-- (server/BuildingUtilities/RoomBoxes.lua), so a room may get either, both or none. It stands there as a bare box
+-- (Panels.isBare): a box's tile with no record, nothing running for it, learned from and taken up like any box. It
+-- takes a free square of the room (nothing on it but its floor and plain walls, nothing lying there, not stairs nor a
+-- doorway) that is not before a door, on the floor (its indoor look): against a wall and facing away from it where a
+-- free square has one, else on any (shelves and bins along the walls). Where each stands is kept in the save by the
+-- cell (CELL squares) it is in, so that a character coming near finds it (Finds) by looking at the cells around them
+-- only.
 require "BuildingUtilities/Core"
 require "BuildingUtilities/Store"
 local BU = BuildingUtilities
@@ -17,8 +17,6 @@ BU.Spawned = Spawned
 Spawned.CELL = 10
 local CELL = Spawned.CELL
 
--- The sides of the generator looked at, the straight ones first.
-local OFFSETS = { { 0, -1 }, { 1, 0 }, { 0, 1 }, { -1, 0 }, { 1, -1 }, { 1, 1 }, { -1, 1 }, { -1, -1 } }
 local WALLS = { "WallN", "WallW", "WallNW", "WallNTrans", "WallWTrans" }
 local OPENINGS = { "DoorWallN", "DoorWallW", "WindowN", "WindowW", "doorN", "doorW", "windowN", "windowW", "HoppableN",
     "HoppableW" }
@@ -113,56 +111,54 @@ local function wallFacing(square)
     return nil
 end
 
--- The free squares beside the generator: reached from it, of its room, clear.
-local function free(generator)
-    local cell = getCell()
-    local x, y, z = generator:getX(), generator:getY(), generator:getZ()
-    local room = generator:getRoom()
-    local result = {}
-    for _, offset in ipairs(OFFSETS) do
-        local square = cell:getGridSquare(x + offset[1], y + offset[2], z)
-        if square and square:getRoom() == room and not generator:isWallTo(square) and not generator:isDoorTo(square)
-            and not generator:isWindowTo(square) and clear(square) then
-            result[#result + 1] = square
-        end
-    end
-    return result
+-- The game's one in N for a generator in a room it is rolled for in, by the room's kind; and how its option
+-- (GeneratorSpawning: none, very rare .. very common) moves N.
+Spawned.ONE_IN = { garage = 7, storageunit = 7, shed = 4, garagestorage = 4, farmstorage = 4 }
+local BY_OPTION = { [2] = 20, [3] = 3, [4] = 2, [6] = -2, [7] = -3 }
+
+-- The game's N for a room of the kind, nil for a kind it rolls none for (or with its option at none).
+function Spawned.oneIn(kind)
+    local n = Spawned.ONE_IN[kind or ""]
+    if not n then return nil end
+    local option = tonumber(SandboxVars.GeneratorSpawning) or 5
+    if option == 1 then return nil end
+    n = n + (BY_OPTION[option] or 0)
+    return n > 0 and n or nil
 end
 
--- The squares beside the generator a box may take, each { square, side, outdoor }: indoors the ones against a wall
--- where there are any. None when the generator would be left no other free square.
-function Spawned.places(generator)
-    local squares = free(generator)
-    if #squares < 2 then return {} end
-    local outdoor = generator:getRoom() == nil
+-- How often a room of the kind gets a box: as often as the game gives it a generator, times BreakerBoxLoot.
+function Spawned.chance(kind)
+    if not BU.enabled("panel") then return 0 end
+    local n = Spawned.oneIn(kind)
+    if not n then return 0 end
+    return math.min(1, math.max(0, BU.sandbox("BreakerBoxLoot", 1)) / n)
+end
+
+-- The squares of the room a box may take, each { square, side }: the ones against a wall where there are any.
+function Spawned.places(room)
+    local squares = room and room:getSquares()
     local walled, any = {}, {}
-    for _, square in ipairs(squares) do
-        if not beforeDoor(square) then
+    for i = 0, squares and squares:size() - 1 or -1 do
+        local square = squares:get(i)
+        if clear(square) and not beforeDoor(square) then
             local side = wallFacing(square)
-            local place = { square = square, side = side or "S", outdoor = outdoor }
-            if side and not outdoor then walled[#walled + 1] = place end
+            local place = { square = square, side = side or "S" }
+            if side then walled[#walled + 1] = place end
             any[#any + 1] = place
         end
     end
     return #walled > 0 and walled or any
 end
 
--- How often a map's generator has a box: as often as the generator stands there (always), by the option.
-function Spawned.chance()
-    if not BU.enabled("panel") then return 0 end
-    return math.min(1, math.max(0, BU.sandbox("BreakerBoxLoot", 1)))
-end
-
--- A box beside the generator on the square, by its chance and room; the box's square, or nil.
-function Spawned.beside(generator)
-    local chance = Spawned.chance()
+-- A box in the room, by its kind's chance; the box's square, or nil.
+function Spawned.inRoom(room)
+    local chance = Spawned.chance(room and room:getName())
     if chance <= 0 or ZombRandFloat(0, 1) >= chance then return nil end
-    local choices = Spawned.places(generator)
+    local choices = Spawned.places(room)
     if #choices == 0 then return nil end
     local choice = choices[ZombRand(#choices) + 1]
     local square = choice.square
-    local sprite = BU.panelSprite(choice.side, 1, choice.outdoor)
-    local object = IsoObject.new(square, sprite, nil, false)
+    local object = IsoObject.new(square, BU.panelSprite(choice.side, 1, false), nil, false)
     square:AddTileObject(object)
     if isServer() then object:transmitCompleteItemToClients() end
     Spawned.keep(square:getX(), square:getY(), square:getZ())

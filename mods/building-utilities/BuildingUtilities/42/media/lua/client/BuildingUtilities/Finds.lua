@@ -4,7 +4,7 @@
 -- found one. It is pointed out by the UI kit's spotlight (PZUIKit.Spotlight), which ends it by itself.
 --   * In a container the loot put one in (its owner marked: BU.BOX_MARK), as the loot window shows it: its line
 --     blinks. Only the marked owners are looked into, never the containers' items as such.
---   * Standing where the map put one beside a generator (BU.Spawned), within REACH squares in the character's line of
+--   * Standing in a room the world put one down in (BU.Spawned), within REACH squares in the character's line of
 --     sight (dark or not): it is outlined until a while has passed, the character has walked away or touched it, or
 --     it is taken up. Only the kept places of the cells around the character are looked at; one whose box is gone is
 --     forgotten.
