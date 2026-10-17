@@ -1,9 +1,9 @@
 // Runs the mod's Lua unit tests outside the game, on the game's own Kahlua VM (the same number rules, the same
 // string and table libraries). The game itself is not there: tests/unit/harness.lua stubs the few game functions
 // the tested modules touch.
-//   java -cp projectzomboid.jar tools/LuaTest.java [test name filter] [bench]
-// "bench" runs tests/bench/*_bench.lua instead: the scale benches, which print their times (give "" as the filter).
-// Run it from the repository root. Exit code 0 when every test passed.
+//   java -cp projectzomboid.jar ../tools/LuaTest.java [test name filter] [bench]
+// "bench" runs tests/bench/*_bench.lua instead (where a mod has them): the scale benches, which print their times (give
+// "" as the filter). Run it from a mod's folder (mods/<mod>). Exit code 0 when every test passed.
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -14,9 +14,9 @@ import se.krka.kahlua.vm.LuaCallFrame;
 import se.krka.kahlua.vm.Platform;
 
 public class LuaTest {
-    static final Path GAME = Path.of("C:/Program Files (x86)/Steam/steamapps/common/ProjectZomboid");
-
     public static void main(String[] args) throws Exception {
+        // the game's folder: where the projectzomboid.jar given in -cp is
+        Path game = Path.of(KahluaTable.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getParent();
         Platform platform = se.krka.kahlua.j2se.J2SEPlatform.getInstance();
         KahluaTable env = platform.newTable();
         env.rawset("_G", env);
@@ -30,7 +30,7 @@ public class LuaTest {
         se.krka.kahlua.luaj.compiler.LuaCompiler.register(env);
         KahluaThread thread = new KahluaThread(System.out, platform, env);
         thread.debugOwnerThread = Thread.currentThread();
-        se.krka.kahlua.vm.KahluaUtil.setupLibraryText(env, thread, GAME.resolve("stdlib.lua").toFile());
+        se.krka.kahlua.vm.KahluaUtil.setupLibraryText(env, thread, game.resolve("stdlib.lua").toFile());
 
         // readfile(path[, "bytes"]): the file's text, or nil when it is not there.
         env.rawset("readfile", (JavaFunction) (LuaCallFrame frame, int n) -> {

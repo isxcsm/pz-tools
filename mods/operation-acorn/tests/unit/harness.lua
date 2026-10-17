@@ -1,6 +1,6 @@
 -- Unit test harness: stubs the game functions the mod's logic touches, loads the mod's files the way the game's
 -- require does, and runs every tests/unit/*_test.lua. Each test file starts from a fresh mod and a fresh save.
--- Run through tools/LuaTest.java (it gives readfile, listfiles and TEST_FILTER).
+-- Run through ../tools/LuaTest.java (it gives readfile, listfiles and TEST_FILTER).
 
 local MEDIA = "OperationAcorn/42/media/"
 local ROOTS = { MEDIA .. "lua/shared/", MEDIA .. "lua/server/", MEDIA .. "lua/client/",

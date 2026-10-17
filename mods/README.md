@@ -1,7 +1,7 @@
 # Mods
 
-Project Zomboid Build 42 mods made alongside PZ Tools. Each folder keeps its own README, design notes, tools and tests;
-none of them needs PZ Tools.
+Project Zomboid Build 42 mods made alongside PZ Tools. Each folder keeps its own README, design notes, tools and tests
+(the tools they share are in [tools](#shared-tools)); none of them needs PZ Tools.
 
 | Folder | Mod | Needs |
 | --- | --- | --- |
@@ -23,3 +23,14 @@ mode. They all add a section to one window (F8) that PZ Extension API Dev opens:
 
 To play or test a mod from here, link its folder (and its developer mod's, if wanted) into `Zomboid\mods` with a
 junction, e.g. `mklink /J "%USERPROFILE%\Zomboid\mods\BuildingUtilities" mods\building-utilities\BuildingUtilities`.
+
+## Shared tools
+
+[tools](tools) holds what every mod (and the PZ Extension API's in-game checks) runs with, each run from a mod's
+folder with a JDK and the game's jar (`java -cp <ProjectZomboid>/projectzomboid.jar ...`):
+
+- `LuaTest.java`: the mod's `tests/unit` (and `tests/bench` with `"" bench`) on the game's own Kahlua.
+- `LuaCheck.java`: compiles the mod's Lua as the game does in debug mode, and flags a local used before its
+  declaration and a Lua base name the game lacks.
+- `pzdev.py`: drives the running game (started with `-debug` and a test save) through Operation Acorn Dev's command
+  channel: runs Lua and in-game checks, takes pictures, reloads, restarts. `python ../tools/pzdev.py` for its commands.

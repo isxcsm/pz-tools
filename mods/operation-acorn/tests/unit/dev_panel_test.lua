@@ -1,5 +1,5 @@
 -- The developer sub-mod (OperationAcornDev): its "OA" section of the shared debug window (PZExtDev), its pages built
--- on a fake `ui` with every control driving a function of OperationAcorn.Dev (the panel and tools/pzdev.py run the
+-- on a fake `ui` with every control driving a function of OperationAcorn.Dev (the panel and ../tools/pzdev.py run the
 -- same code), and Dev's helpers with a fake world: the mission's scene made without the distance rule.
 isDebugEnabled = function() return true end
 require "OperationAcorn/Core"

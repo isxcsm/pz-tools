@@ -1,7 +1,7 @@
 -- Operation Acorn Dev: the "OA" section of the shared debug window (PZExtDev, F8): a page for each part of the mod,
 -- its state at the top, kept up while the page shows, and its controls below. Every control calls a function of
--- OperationAcorn.Dev (Dev.lua, Features.lua), the same functions the command channel (tools/pzdev.py) runs. The game's
--- environment (time, weather, the character, zombie spawns) is the window's own "API" section. Debug mode only.
+-- OperationAcorn.Dev (Dev.lua, Features.lua), the same functions the command channel (mods/tools/pzdev.py) runs. The
+-- game's environment (time, weather, the character, zombie spawns) is the window's own "API" section. Debug mode only.
 -- Mod Lua holds no letters past ASCII (the game reads them as U+FFFD): every text comes from IGUI_OADev_* keys.
 if not isDebugEnabled() then return end
 require "PZExtDev/Panel"

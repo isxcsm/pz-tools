@@ -1,6 +1,7 @@
-// Compiles Lua files with the game's own Kahlua compiler: a syntax check as the game would load them. Without
-// arguments it checks every .lua file of the mod, of the developer sub-mod and the tests.
-// java -cp projectzomboid.jar LuaCheck.java [<file>...]
+// Compiles Lua files with the game's own Kahlua compiler: a syntax check as the game would load them. Run it from a
+// mod's folder (mods/<mod>); without arguments it checks every .lua file there: of each mod in it (a folder with a
+// "42" folder: the mod and its developer mod) and of the tests.
+// java -cp projectzomboid.jar ../tools/LuaCheck.java [<file>...]
 //
 // It also flags a name a file reads or writes as a global while the same file declares a local of that name: almost
 // always a local used before its declaration (found in game: the research plan's iconSize was nil, so the window
@@ -44,8 +45,13 @@ public class LuaCheck {
         Set<String> read = new TreeSet<>(), written = new TreeSet<>();
         List<Path> files = new ArrayList<>();
         if (args.length == 0) {
-            for (String root : new String[] { "OperationAcorn", "OperationAcornDev", "tests" }) {
-                try (Stream<Path> walk = Files.walk(Path.of(root))) {
+            List<Path> roots = new ArrayList<>();
+            try (Stream<Path> dirs = Files.list(Path.of("."))) {
+                dirs.filter(d -> Files.isDirectory(d.resolve("42")) || d.getFileName().toString().equals("tests"))
+                    .sorted().forEach(roots::add);
+            }
+            for (Path root : roots) {
+                try (Stream<Path> walk = Files.walk(root)) {
                     walk.filter(p -> p.toString().endsWith(".lua")).sorted().forEach(files::add);
                 }
             }
@@ -74,7 +80,9 @@ public class LuaCheck {
             while (alias.find()) locals.remove(alias.group(1));
             Set<String> globals = new TreeSet<>();
             collect(closure.prototype, globals);
-            if (file.toString().replace('\\', '/').contains("OperationAcorn/")) {
+            // the mod's own files (not its developer mod's, not the tests)
+            Path top = file.normalize().getName(0);
+            if (!top.toString().equals("tests") && !top.toString().endsWith("Dev")) {
                 collectSplit(closure.prototype, read, written);
             }
             List<String> suspicious = new ArrayList<>();
@@ -92,7 +100,7 @@ public class LuaCheck {
         }
         if (globalsOut != null) {
             read.removeAll(written);
-            StringBuilder out = new StringBuilder("-- Written by tools/LuaCheck.java --globals: the globals the mod reads.\nreturn {\n");
+            StringBuilder out = new StringBuilder("-- Written by LuaCheck.java --globals: the globals the mod reads.\nreturn {\n");
             for (String name : read) out.append("    \"").append(name).append("\",\n");
             out.append("}\n");
             Files.writeString(Path.of(globalsOut), out.toString());

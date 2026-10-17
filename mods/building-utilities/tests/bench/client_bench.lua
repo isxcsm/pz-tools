@@ -1,7 +1,7 @@
 -- What the player's side asks every half second, second and minute with many boxes (the scale bench's map, 1000 boxes
 -- 100 apart, one player beside the first): a box's name for its tooltip and the windows' lists, the lights each game
 -- minute, the tripped boxes' blink each tick, a right-click's devices. The API's answers stubbed. Run:
---   java -cp projectzomboid.jar tools/LuaTest.java "" bench
+--   java -cp projectzomboid.jar ../tools/LuaTest.java "" bench
 -- Prints "[bench] client ..." lines.
 require "BuildingUtilities/Changes"
 require "BuildingUtilities/PanelBlink"

@@ -16,11 +16,11 @@ OperationAcorn/            모드 폴더 (Zomboid\mods에 정션으로 잇는다
   42/media/scripts/OA_<묶음>.txt        아이템, 레시피 (묶음마다 파일 하나, module OperationAcorn)
   42/media/sandbox-options.txt          샌드박스 옵션 (이름과 기본값은 NUMBERS.md)
 OperationAcornDev/         개발자 하위 모드 (id OperationAcornDev, OperationAcorn을 require, 배포하지 않고 시험용 저장에서만 켠다)
-  42/media/lua/client/OperationAcorn/Dev/   Dev.lua(OperationAcorn.Dev 도우미), Remote.lua(tools/pzdev.py 명령 통로), Panel.lua(게임 안 패널, F8)
+  42/media/lua/client/OperationAcorn/Dev/   Dev.lua(OperationAcorn.Dev 도우미), Remote.lua(../tools/pzdev.py 명령 통로), Panel.lua(게임 안 패널, F8)
   42/media/lua/shared/Translate/EN|KO/      패널 글 (IGUI_OADev_*)
-tests/unit/                게임 밖 단위 테스트 (tools/LuaTest.java)
+tests/unit/                게임 밖 단위 테스트 (../tools/LuaTest.java)
 tests/ingame/              게임 안 확인 스크립트 (마지막 통합 확인 때 콘솔에서 돌린다)
-tools/                     LuaTest.java, LuaCheck.java, check_translations.py, tile_art.py(에셋 묶음)
+tools/                     check_translations.py, tile_art.py(에셋 묶음); 모드 공용 도구(LuaTest, LuaCheck, pzdev)는 ../tools/
 ```
 
 ## 2. 검사
@@ -30,8 +30,8 @@ tools/                     LuaTest.java, LuaCheck.java, check_translations.py, t
 ```text
 JAVA="C:\git\pz-workspace\pz-tools\artifacts\toolchains\jdk-25.0.4.1+1\bin\java.exe"
 JAR="C:\Program Files (x86)\Steam\steamapps\common\ProjectZomboid\projectzomboid.jar"
-"$JAVA" -cp "$JAR" tools/LuaTest.java [파일 이름 일부]     # tests/unit/*_test.lua, 저장소 루트에서
-"$JAVA" -cp "$JAR" tools/LuaCheck.java <바꾼 .lua 파일들>  # 게임의 Kahlua 컴파일러로 문법 검사
+"$JAVA" -cp "$JAR" ../tools/LuaTest.java [파일 이름 일부]     # tests/unit/*_test.lua, 이 폴더에서
+"$JAVA" -cp "$JAR" ../tools/LuaCheck.java <바꾼 .lua 파일들>  # 게임의 Kahlua 컴파일러로 문법 검사
 python tools/check_translations.py                          # 번역 키, 샌드박스, 아이템 이름
 ```
 

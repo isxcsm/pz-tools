@@ -1,6 +1,6 @@
 -- Unit test harness: stubs the game functions and the PZ Extension API the tested modules touch, loads the mod's
 -- files the way the game's require does, and runs every tests/unit/*_test.lua. Each case starts from a fresh mod, a
--- fresh save and a fresh API. Run through tools/LuaTest.java (it gives readfile, listfiles and TEST_FILTER).
+-- fresh save and a fresh API. Run through ../tools/LuaTest.java (it gives readfile, listfiles and TEST_FILTER).
 
 local MEDIA = "BuildingUtilities/42/media/"
 local ROOTS = { MEDIA .. "lua/shared/", MEDIA .. "lua/server/", MEDIA .. "lua/client/",

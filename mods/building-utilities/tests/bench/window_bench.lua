@@ -5,8 +5,8 @@
 -- most SLICE_MS, the longest frame being what a player feels. The tasks a refresh is made of are timed on their own
 -- too. The Java side (the game's squares, texts, text widths, the inventory) is not in these numbers (the game's is
 -- several times slower than this VM's, where the time is mostly the Lua code's): its calls are counted.
---   java -cp projectzomboid.jar tools/LuaTest.java window bench     (the times)
---   java -cp projectzomboid.jar tools/LuaTest.java window profile   (and where the time goes, by function)
+--   java -cp projectzomboid.jar ../tools/LuaTest.java window bench     (the times)
+--   java -cp projectzomboid.jar ../tools/LuaTest.java window profile   (and where the time goes, by function)
 -- Prints "[bench] window ..." lines.
 local Scene = loadstring(readfile("tests/unit/window_scene.lua"), "window_scene.lua")()
 local BU

@@ -55,12 +55,12 @@ kept in the game's mod options. The plan's floor strip marks floors with produce
   API Dev window (F8), to bring each part of the mod to the state a test needs (needs PZExtDev). Its texts come from
   `tools/dev_strings.py`.
 - `tests/ingame/`: checks run from the game's debug console ([README](tests/ingame/README.md)).
-- `tests/unit/`: Lua unit tests on the game's Kahlua, the game and the PZ Extension API stubbed (`harness.lua`). From the
-  repository root: `java -cp <ProjectZomboid>/projectzomboid.jar tools/LuaTest.java [file name filter]` (a JDK, not the
-  game's runtime).
+- `tests/unit/`: Lua unit tests on the game's Kahlua, the game and the PZ Extension API stubbed (`harness.lua`). From this
+  folder: `java -cp <ProjectZomboid>/projectzomboid.jar ../tools/LuaTest.java [file name filter]` (a JDK, not the game's
+  runtime; [../tools](../tools) holds the tools the mods share).
 - `tests/bench/`: the scale bench, many boxes and units over the map, timing the server's minute on the same harness:
-  `tools/LuaTest.java "" bench` (or `"" profile` for where a minute goes, by function).
-- `tools/`: `LuaTest.java` (runs `tests/unit` and `tests/bench`), `check_translations.py` (texts against the code, the options and the scripts), `room_names.py` (room
+  `../tools/LuaTest.java "" bench` (or `"" profile` for where a minute goes, by function).
+- `tools/`: `check_translations.py` (texts against the code, the options and the scripts), `room_names.py` (room
   names of the game's maps against the translations), `tile_art.py` (the mod's own sprite sheet: water units, the utility panel console and snow on panels).
 
 The solar panel and battery rack art comes from Immersive Solar Arrays (Apache-2.0); see

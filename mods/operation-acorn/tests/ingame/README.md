@@ -12,7 +12,7 @@ New-Item -ItemType Junction -Path "$env:USERPROFILE\Zomboid\Lua\oa" -Target <thi
 These need the developer sub-mod `OperationAcornDev` (id `OperationAcornDev`, folder `OperationAcornDev/` in this repo; it
 requires OperationAcorn, is never published and is enabled only in test saves). With the game started with `-debug`, its
 command channel (`OperationAcornDev/42/media/lua/client/OperationAcorn/Dev/Remote.lua`) runs them
-without the console: `python tools/pzdev.py check p3_window.lua` prints the check's lines. `pzdev.py run "<lua>"` runs
+without the console: `python ../tools/pzdev.py check p3_window.lua` prints the check's lines. `pzdev.py run "<lua>"` runs
 any Lua, and the helpers of `OperationAcorn.Dev` (`OperationAcornDev/42/media/lua/client/OperationAcorn/Dev/Dev.lua`; the in-game dev
 panel, F8 or the "OA Dev" button, drives the same functions) set up a scene: research ranks,
 points, credits, trust, the hour, the speed, the weather, still zombies at offsets, facing, world sounds, alarms on the nearest house or car, closing the

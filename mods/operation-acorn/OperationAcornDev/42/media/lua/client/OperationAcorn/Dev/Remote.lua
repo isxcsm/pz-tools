@@ -1,4 +1,4 @@
--- Debug only: a command channel for driving the running game from outside (tools/pzdev.py), so a check never types
+-- Debug only: a command channel for driving the running game from outside (mods/tools/pzdev.py), so a check never types
 -- into the Lua console (whose focus and completion popup lose keys, and whose keys leak into the game when it is
 -- closed). The tool writes Zomboid/Lua/oadev/cmd.lua, its first line "--#<id>"; a new id runs once, its print lines
 -- caught, and Zomboid/Lua/oadev/out.txt gets "#<id>", the lines, then "ok" or "error: <message>". The file's first

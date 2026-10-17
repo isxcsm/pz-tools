@@ -1,5 +1,5 @@
 -- Operation Acorn Dev (a sub-mod, never published): helpers for checking each part in a running game (single player),
--- called through the command channel (Dev/Remote.lua, tools/pzdev.py), the Lua console or the debug panel
+-- called through the command channel (Dev/Remote.lua, mods/tools/pzdev.py), the Lua console or the debug panel
 -- (Dev/Panel.lua: both drive these same functions). They change the save: use a test save.
 -- Each prints what it did as "[dev] ..." lines and returns something a check can test.
 if not isDebugEnabled() then return end

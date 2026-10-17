@@ -3,40 +3,39 @@
 (OperationAcornDev/42/media/lua/client/OperationAcorn/Dev/Remote.lua): no typing into the Lua console. Single player;
 the helpers in Dev/Dev.lua (OperationAcorn.Dev, also driven by the dev panel) change the save.
 
-Usage:
-    python tools/pzdev.py run "OperationAcorn.Dev.state()"     runs Lua in the game, prints what it printed
-    python tools/pzdev.py file path/to/script.lua             runs a Lua file the same way
-    python tools/pzdev.py check p3_window.lua                 RUN()s an in-game check of tests/ingame, prints its lines
-    python tools/pzdev.py shot out.png [--wait 2] [--full]    a picture of the game window (its inside only, or the
-                                                              whole screen with --full) after waiting, the game brought
-                                                              to the front; --count 6 --every 0.4: a series (out_1.png..)
-    python tools/pzdev.py reload                              leaves the save to the main menu and continues it (Lua and
-                                                              translations are read again; textures need a restart)
-    python tools/pzdev.py menu                                leaves the save for the main menu, returns once there (to
-                                                              change the save's files, then continue)
-    python tools/pzdev.py continue                            from the main menu (after a game start), continues the
-                                                              latest save and waits for it
-    python tools/pzdev.py resume                            presses Resume in the game's Lua debugger (with Break On
-                                                              Error, any Lua error, even one a pcall catches, stops the
-                                                              game there, and the channel with it)
-    python tools/pzdev.py launch                              starts the game (if not running: its exe with -debug,
-                                                              options.ini set to a 1600x900 window first), waits for
-                                                              the main menu, continues the latest save and returns
-                                                              once in it; a game without -debug is said at once, one
-                                                              full screen on the main menu started again windowed
-    python tools/pzdev.py quit                                quits the game to the desktop (to change its files)
-    python tools/pzdev.py restart                             quits the game to the desktop (its window closed when
-                                                              the channel is silent), then launch
-    python tools/pzdev.py wait menu|loading|game|exit|error   returns when the game gets there (--timeout, default 300)
-    python tools/pzdev.py watch                               prints one line per event, forever (for a background
-                                                              monitor): start, menu, ready, loading, game, error <text>,
-                                                              exit, paused, running, unfocused, focused
+Usage, from a mod's folder (python ../tools/pzdev.py <command>):
+    pzdev.py run "OperationAcorn.Dev.state()"   runs Lua in the game, prints what it printed
+    pzdev.py file path/to/script.lua            runs a Lua file the same way
+    pzdev.py check p3_window.lua                RUN()s an in-game check of tests/ingame, prints its lines
+    pzdev.py shot out.png [--wait 2] [--full]   a picture of the game window (its inside only, or the
+                                                whole screen with --full) after waiting, the game brought
+                                                to the front; --count 6 --every 0.4: a series (out_1.png..)
+    pzdev.py reload                             leaves the save to the main menu and continues it (Lua and
+                                                translations are read again; textures need a restart)
+    pzdev.py menu                               leaves the save for the main menu, returns once there (to
+                                                change the save's files, then continue)
+    pzdev.py continue                           from the main menu (after a game start), continues the
+                                                latest save and waits for it
+    pzdev.py resume                             presses Resume in the game's Lua debugger (with Break On
+                                                Error, any Lua error, even one a pcall catches, stops the
+                                                game there, and the channel with it)
+    pzdev.py launch                             starts the game (if not running: its exe with -debug,
+                                                options.ini set to a 1600x900 window first), waits for
+                                                the main menu, continues the latest save and returns
+                                                once in it; a game without -debug is said at once, one
+                                                full screen on the main menu started again windowed
+    pzdev.py quit                               quits the game to the desktop (to change its files)
+    pzdev.py restart                            quits the game to the desktop (its window closed when
+                                                the channel is silent), then launch
+    pzdev.py wait menu|loading|game|exit|error  returns when the game gets there (--timeout, default 300)
+    pzdev.py watch                              prints one line per event, forever (for a background
+                                                monitor): start, menu, ready, loading, game, error <text>,
+                                                exit, paused, running, unfocused, focused
 launch, restart and continue load the save --save names (a Sandbox save's folder), or PZDEV_SAVE's, and refuse with
 neither: Continue would load the user's own latest save. latestSave.ini points at it while the main menu is built, so
 Continue loads it, and is put back once it loaded: the user's Continue stays theirs. reload loads the save it leaves
-(or --save's). The game pzdev
-starts is watched by a process of its own (pzdev guard): as it ends, however it ends, the user's display options and
-latest save are put back (the game writes its options as it quits from the main menu).
+(or --save's). The game pzdev starts is watched by a process of its own (pzdev guard): as it ends, however it ends,
+the user's display options and latest save are put back (the game writes its options as it quits from the main menu).
 Events come from console.txt (the game's own "STATE: exit ..." lines, a Lua "Exception thrown") and whether the game
 window is there: nothing runs in the game, so a normal game is untouched.
 Options of run/file/check: --timeout seconds (default 15); --follow seconds: then also print the Lua lines the game

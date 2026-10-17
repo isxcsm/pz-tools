@@ -4,7 +4,7 @@
 -- answers stubbed (their own cost is the API's bench), one player beside the first box (the rest are far: they run now
 -- and then, Server.lua). The goal: the minute under 1 ms, on average over six hours (2026-10-13: 2.3 ms; the table is in
 -- DESIGN.md, section 9). Run:
---   java -cp projectzomboid.jar tools/LuaTest.java "" bench
+--   java -cp projectzomboid.jar ../tools/LuaTest.java "" bench
 -- Prints "[bench] ..." lines; fails only if the minute throws.
 ISMoveableSpriteProps = {
     new = function() return {} end,

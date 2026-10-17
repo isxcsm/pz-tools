@@ -1,5 +1,5 @@
 -- Operation Acorn Dev: what the panel's pages do to each part of the mod (trade, economy, machines, gear, upgrades,
--- infection, missions, effects), as functions of OperationAcorn.Dev: the console and tools/pzdev.py call them too.
+-- infection, missions, effects), as functions of OperationAcorn.Dev: the console and mods/tools/pzdev.py call them too.
 -- Each goes through the mod's own functions, so the record stays whole and the screens follow, prints a "[dev] ..."
 -- line and returns something a check can test. Single player, debug mode only; they change the save.
 if not isDebugEnabled() then return end

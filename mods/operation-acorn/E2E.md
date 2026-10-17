@@ -9,7 +9,7 @@
 ## 0. 진행 방식
 
 - **세이브**: 버리는 세이브를 쓴다 (`OperationAcornDev` 켬, `-debug`). 기능별로 깨끗한 세이브가 필요하면 새로 만든다.
-- **도구**: `tools/pzdev.py`(run, file, check, shot, reload, continue, resume), 디버그 패널(F8), `tests/ingame/p*_*.lua`.
+- **도구**: `../tools/pzdev.py`(run, file, check, shot, reload, continue, resume), 디버그 패널(F8), `tests/ingame/p*_*.lua`.
 - **순서**: 묶음별로 정적 점검(단위 테스트, 번역 검사)을 먼저 돌리고, 게임 확인은 묶음마다 한 번에 몰아서 한다.
   1. 수치형 적응 (2장): 값이 정해져 있어 바닐라와 비교하기 쉽다.
   2. 연출 (3장): 타이틀, 교신, 창, 월드 표시.
