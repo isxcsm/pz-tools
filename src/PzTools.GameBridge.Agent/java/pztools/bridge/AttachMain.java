@@ -62,7 +62,14 @@ public final class AttachMain {
                     if (System.getProperty("os.name").startsWith("Windows"))
                         vm.loadAgentPath(attachable(payload.getParent().resolve("pztools-attach-bootstrap.dll")).toString());
                     stage = "bootstrap";
-                    vm.loadAgent(attachable(payload.getParent().resolve("pztools-game-bootstrap.jar")).toString(), "BOOTSTRAP1:" + encoded);
+                    try {
+                        vm.loadAgent(attachable(payload.getParent().resolve("pztools-game-bootstrap.jar")).toString(), "BOOTSTRAP1:" + encoded);
+                    } catch (com.sun.tools.attach.AgentInitializationException refused) {
+                        // A game started this very moment: the startup loader's bootstrap went in between the look
+                        // above and this load, and this one refuses to be a second. That one serves, as in any game
+                        // the loader started; its endpoint is waited for below.
+                        if (!bootstrapAppears(vm)) throw refused;
+                    }
                     endpoint = vm.getSystemProperties().getProperty(CONTROL_PROPERTY);
                 }
                 // A bootstrap sets its API at once and its endpoint only once the game has logged its properties
@@ -109,6 +116,16 @@ public final class AttachMain {
                 if (!status.equals("ACCEPTED"))
                     throw new IOException("Bridge rejected the connection. No save command was sent.");
             }
+        }
+    }
+
+    /** Whether a bootstrap has said it is there (its API property), or does within two seconds. */
+    private static boolean bootstrapAppears(VirtualMachine vm) throws Exception {
+        long deadline = System.nanoTime() + 2_000_000_000L;
+        while (true) {
+            if (vm.getSystemProperties().getProperty("pztools.bridge.bootstrap.api") != null) return true;
+            if (System.nanoTime() >= deadline) return false;
+            Thread.sleep(100);
         }
     }
 

@@ -20,6 +20,21 @@ public sealed class GameProcessFinderTests
     public void ClientCommandLine_IsTheGame(string? commandLine, bool game) =>
         Assert.Equal(game, GameProcessFinder.IsGameCommandLine(commandLine));
 
+    [Theory]
+    // The child the game's JVM starts to assemble its AOT cache as it exits: the launcher's path alone, unquoted.
+    [InlineData("C:\\Program Files (x86)\\Steam\\steamapps\\common\\ProjectZomboid\\jre64\\bin\\java", true)]
+    [InlineData("\"C:\\Java\\bin\\java.exe\"", true)]
+    [InlineData("D:\\jdk\\bin\\javaw.exe", true)]
+    // Anything that names something to run, and launchers that are not Java.
+    [InlineData("C:\\Java\\bin\\java -version", false)]
+    [InlineData("\"C:\\Java\\bin\\java.exe\" -cp x Main", false)]
+    [InlineData("C:\\Tools\\javafx", false)]
+    [InlineData("java", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void AotAssemblyCommandLine_IsTheLauncherAlone(string? commandLine, bool assembly) =>
+        Assert.Equal(assembly, GameProcessFinder.IsAotAssemblyCommandLine(commandLine));
+
     [JavaFact]
     public async Task JavaProcess_IsFoundOnlyWhenItStartsTheGame()
     {

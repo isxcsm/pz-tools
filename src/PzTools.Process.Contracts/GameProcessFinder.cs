@@ -27,7 +27,7 @@ public static class GameProcessFinder
         System.Text.RegularExpressions.RegexOptions.CultureInvariant);
 
     // A Java process's verdict, read once from its command line: by process instance (identifier and start time).
-    private static readonly Dictionary<(int Id, DateTime Started), bool> javaVerdicts = [];
+    private static readonly Dictionary<(int Id, DateTime Started), (bool Game, int? AssemblesFor)> javaVerdicts = [];
 
     /// <summary>The game was started by its Java runtime directly, not by its launcher, which then read nothing of
     /// the launcher's file (ProjectZomboid64.json).</summary>
@@ -57,14 +57,20 @@ public static class GameProcessFinder
         var all = DiagnosticsProcess.GetProcesses();
         var games = new List<DiagnosticsProcess>(1);
         var javas = new HashSet<(int, DateTime)>();
+        var assembling = new List<(int Parent, DateTime Started)>();
         foreach (var process in all)
         {
             bool game;
             try
             {
                 var name = process.ProcessName;
-                game = Names.Contains(name, StringComparer.OrdinalIgnoreCase)
-                    || JavaNames.Contains(name, StringComparer.OrdinalIgnoreCase) && IsJavaGame(process, javas);
+                game = Names.Contains(name, StringComparer.OrdinalIgnoreCase);
+                if (!game && JavaNames.Contains(name, StringComparer.OrdinalIgnoreCase))
+                {
+                    var verdict = JavaVerdict(process, javas);
+                    game = verdict.Game;
+                    if (verdict.AssemblesFor is { } parent) assembling.Add((parent, process.StartTime));
+                }
             }
             catch (Exception exception) when (exception is InvalidOperationException // exited during the snapshot
                 or System.ComponentModel.Win32Exception or NotSupportedException) { game = false; }
@@ -73,9 +79,42 @@ public static class GameProcessFinder
         }
         // Verdicts of Java processes gone since are forgotten.
         lock (Gate) foreach (var gone in javaVerdicts.Keys.Where(key => !javas.Contains(key)).ToArray()) javaVerdicts.Remove(gone);
+        // A game whose Java writes its AOT cache as it ends (-XX:AOTCacheOutput, which PZ Optimize sets) has left its
+        // world and its window: its process only waits, minutes long, for the child Java that assembles the cache.
+        // It is not a game to attach to or to wait for any more: the attach would fail on a JVM that is shutting down.
+        if (assembling.Count > 0)
+        {
+            games.RemoveAll(game =>
+            {
+                bool ending;
+                try { ending = assembling.Any(child => child.Parent == game.Id && child.Started >= game.StartTime); }
+                catch (Exception exception) when (exception is InvalidOperationException
+                    or System.ComponentModel.Win32Exception or NotSupportedException) { ending = false; }
+                if (ending) game.Dispose();
+                return ending;
+            });
+        }
         var found = games.ToArray();
         Remember(found);
         return found;
+    }
+
+    /// <summary>
+    /// The command line the JVM gives the child it starts to assemble an AOT cache as it exits: its own launcher's path
+    /// and nothing else (the options go in the child's environment, JAVA_TOOL_OPTIONS). A Java run by a person or a
+    /// script always names something to run.
+    /// </summary>
+    public static bool IsAotAssemblyCommandLine(string? commandLine)
+    {
+        if (string.IsNullOrWhiteSpace(commandLine)) return false;
+        // The path is given unquoted even with spaces in it (C:\Program Files (x86)\...\jre64\bin\java): the whole
+        // line is that path, which ends in the launcher's name; any argument after it would end the line instead.
+        var text = commandLine.Trim().Trim('"');
+        var slash = text.LastIndexOfAny(['\\', '/']);
+        if (slash < 0) return false;
+        var name = text[(slash + 1)..];
+        if (name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) name = name[..^4];
+        return JavaNames.Contains(name, StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -114,7 +153,9 @@ public static class GameProcessFinder
         return found.Length;
     }
 
-    private static bool IsJavaGame(DiagnosticsProcess process, HashSet<(int, DateTime)> seen)
+    // What a Java process is, read once from its command line: the game, or the AOT assembler of the process that
+    // started it (its parent's id), or neither.
+    private static (bool Game, int? AssemblesFor) JavaVerdict(DiagnosticsProcess process, HashSet<(int, DateTime)> seen)
     {
         var key = (process.Id, process.StartTime);
         seen.Add(key);
@@ -122,9 +163,27 @@ public static class GameProcessFinder
         // A command line that cannot be read (a protected process, or another user's where this runs without
         // administrator rights) is not taken for the game. As administrator another user's game is read and counts,
         // as one found by its launcher's name always has.
-        var verdict = IsGameCommandLine(CommandLine(process.Id));
+        var commandLine = CommandLine(process.Id);
+        (bool, int?) verdict = IsGameCommandLine(commandLine) ? (true, null)
+            : IsAotAssemblyCommandLine(commandLine) ? (false, ParentId(process.Id)) : (false, null);
         lock (Gate) javaVerdicts[key] = verdict;
         return verdict;
+    }
+
+    // ProcessBasicInformation: the parent's id is its sixth pointer-sized field (InheritedFromUniqueProcessId).
+    private static int? ParentId(int processId)
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+        using var handle = OpenProcess(QueryLimitedInformation, false, processId);
+        if (handle.IsInvalid) return null;
+        var size = IntPtr.Size * 6;
+        var buffer = System.Runtime.InteropServices.Marshal.AllocHGlobal(size);
+        try
+        {
+            if (NtQueryInformationProcess(handle, ProcessBasicInformation, buffer, size, out _) != 0) return null;
+            return (int)System.Runtime.InteropServices.Marshal.ReadIntPtr(buffer, IntPtr.Size * 5);
+        }
+        finally { System.Runtime.InteropServices.Marshal.FreeHGlobal(buffer); }
     }
 
     // ProcessCommandLineInformation: the process's command line as a UNICODE_STRING followed by its text.
@@ -147,7 +206,7 @@ public static class GameProcessFinder
     }
 
     private const uint QueryLimitedInformation = 0x1000;
-    private const int ProcessCommandLineInformation = 60;
+    private const int ProcessCommandLineInformation = 60, ProcessBasicInformation = 0;
 
     [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
     private static extern Microsoft.Win32.SafeHandles.SafeProcessHandle OpenProcess(uint access, bool inherit, int processId);

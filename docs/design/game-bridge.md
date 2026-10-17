@@ -45,6 +45,10 @@ starts the same way:
 1. The client finds exactly one game process (`GameProcessFinder`): `ProjectZomboid64`, `ProjectZomboid32`
    or `ProjectZomboid`, or a `java`/`javaw` process whose command line names the class
    `zombie.gameStates.MainScreenState`. None gives `game-not-running`, several give `multiple-games`.
+   A game whose Java writes its AOT cache as it ends (`-XX:AOTCacheOutput`, which PZ Optimize sets) is not one:
+   its world and window are gone, and its process only waits, minutes long, for the child Java that assembles the
+   cache (the launcher's path alone on its command line, the options in its environment). An attach to that JVM
+   fails ("access denied", "Premature EOF"), so the finder leaves out a game with such a child.
 2. It opens a TCP listener on 127.0.0.1 with a random port, makes a 64-hex-digit token and starts
    `runtime\bin\java.exe --add-modules jdk.attach -jar pztools-game-bridge.jar <pid> <jar> <port> <token> [WATCH|EXTENSIONS]`.
    The environment variable `PZTOOLS_GAME_ACCOUNT` names the account the game runs as (see below).
@@ -57,7 +61,10 @@ starts the same way:
    127.0.0.1, makes a 32-byte secret, and publishes `pztools.bridge.bootstrap.api=12` at once and
    `pztools.bridge.control.v1=2:<pid>:<port>:<secret>` once the game has loaded `GameWindow`, so that the
    secret is not in the game's list of properties
-   ([startup loader](startup-loader.md#the-control-secret-and-the-games-log)). Without the endpoint yet,
+   ([startup loader](startup-loader.md#the-control-secret-and-the-games-log)). A game started that very
+   moment can get the startup loader's bootstrap between the helper's look and its load; the helper's then refuses
+   to be a second (`AgentInitializationException`), and the helper goes on with the loader's once its API property
+   shows (within two seconds). Without the endpoint yet,
    the helper waits for it (stage `bootstrap-starting`, up to 15 seconds); a game still starting after that
    gets "try again once it shows its menu".
 5. The helper requires `pztools.bridge.bootstrap.api` to be `12`. Any other value means the game still runs a
