@@ -32,6 +32,8 @@ public final class GameApi {
     private static volatile Helicopters helicopters;
     // The moodles of the Lua environment the game has now; null without one, or when the game cannot run them.
     private static volatile Moodles moodles;
+    // The kinds of loot of the Lua environment the game has now; null without one, or when the game cannot run them.
+    private static volatile Loot loot;
     // The text of the Lua environment the game has now; null without one, or when the game cannot draw it.
     private static volatile Texts texts;
     // The zombies' sounds of the Lua environment the game has now; null without one, when the game cannot hook them, or after a fault.
@@ -228,6 +230,7 @@ public final class GameApi {
             formulas = null;
             helicopters = null;
             moodles = null;
+            loot = null;
             texts = null;
             sounds = null;
             hits = null;
@@ -239,6 +242,7 @@ public final class GameApi {
             Networks.unhook();
             Formulas.unhook();
             Moodles.unhook();
+            Loot.unhook();
             Texts.unhook();
             ZombieSounds.unhook();
             ZombieHits.unhook();
@@ -280,6 +284,7 @@ public final class GameApi {
             networks(lua, api, meta, handles, game, read, luaManager.getClassLoader());
             formulas(lua, api, meta, handles, game, luaManager.getClassLoader());
             moodles(lua, api, meta, handles, game, luaManager.getClassLoader());
+            loot(lua, api, meta, handles, luaManager.getClassLoader());
             texts(lua, api, meta, handles, game, luaManager.getClassLoader());
             systems(lua, api, meta, handles, game, luaManager.getClassLoader());
             scheduled(lua, api, meta, handles, game, luaManager.getClassLoader());
@@ -289,6 +294,7 @@ public final class GameApi {
             Networks.retire(lua, meta);
             Formulas.retire(lua, meta);
             Moodles.retire(lua, meta);
+            Loot.retire(lua, meta);
             Texts.retire(lua, meta);
             ZombieSounds.retire(lua, meta);
             ZombieHits.retire(lua, meta);
@@ -382,6 +388,31 @@ public final class GameApi {
         else {
             Moodles.retire(lua, meta);
             lua.set(api, "moodles", null);
+        }
+    }
+
+    /**
+     * {@code PZExtAPI.loot}, with the kinds an earlier API kept in this environment. Without it (a game started by an install from
+     * before the kinds of loot, or a game this API cannot read), mods find no {@code loot} and every item is of the game's kinds.
+     */
+    private static void loot(Kahlua lua, Object api, Object meta, Object handles, ClassLoader loader) throws ReflectiveOperationException {
+        Loot next;
+        try {
+            next = new Loot(lua, loader, meta, handle -> owner(lua, handles, handle));
+            next.hook();
+        } catch (LinkageError olderBootstrap) {
+            System.err.println("[PZExt] Loot kinds are not in this game; restart it to use them: " + olderBootstrap);
+            next = null;
+        } catch (ReflectiveOperationException | RuntimeException unreadable) {
+            report(unreadable);
+            Loot.unhook();
+            next = null;
+        }
+        loot = next;
+        if (next != null) next.register(table(lua, api, "loot"));
+        else {
+            Loot.retire(lua, meta);
+            lua.set(api, "loot", null);
         }
     }
 
@@ -634,6 +665,8 @@ public final class GameApi {
             if (declared != null) declared.clear(name, AREA + "client:clear");
             Moodles defined = moodles;
             if (defined != null) defined.clear(name, AREA + "client:clear");
+            Loot kinds = loot;
+            if (kinds != null) kinds.clear(name, AREA + "client:clear");
             Texts shown = texts;
             if (shown != null) shown.clear(name, AREA + "client:clear");
             ZombieSounds heard = sounds;

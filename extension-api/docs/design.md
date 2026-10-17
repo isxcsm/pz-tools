@@ -1772,6 +1772,93 @@ Not tried in the game yet: the picture drawn (the scaled copy of a texture, mipm
 a mod's JSON, a define at load and one in a running world (the player's map and the column), the registry reset going back to the
 main menu and loading another save, a second local player, and Moodle Framework's moodles stacking below.
 
+## Loot kinds (mechanism)
+
+A mod defines a kind of loot of its own, and the game rolls the mod's items as it rolls its own kinds: by a modifier a sandbox
+option sets. The game's kinds are fixed in its code, so a mod's items today fall into whichever of them the game's tests pick
+(most into "other loot") and follow that kind's option, or the mod rolls its items itself. The API holds no kind's meaning: the
+mod names its kind, its items and its option. ([`Loot`](../src/api/pzext/api/Loot.java))
+
+### How the game does it
+
+Read from the bytecode of Build 42.21 (`projectzomboid.jar`; PZ Optimize overrides none of these classes):
+
+- **The chance.** `ItemPickerJava.getActualSpawnChance(item, character, container, zombieDensity, corpse)` is
+  `(baseChance × 100 × modifier + zombieDensity) × getCurrentLootMultiplier(square)` (the last is the loot's decline over the
+  days), and 0 at once when the modifier is 0. The modifier is `getLootModifier(itemName, corpse)`: 1 for a corpse or a forced
+  roll when it is above 0.
+- **The modifier.** `getLootModifier(itemName)` finds the item's script (`ScriptManager.FindItem`, also without an `Empty`
+  suffix), gives 0 to an item on the sandbox's removal list, and otherwise `getLootModifierFromType(getLootType(item))`. Every
+  caller in the game goes through it: the containers, corpses and vehicles (`ItemPickerJava`), the zombies' attached weapons,
+  `IsoChunk` and the randomized buildings and stories; the admin panel's spawn rate checker (`LootZed/SpawnRateChecker.lua`)
+  calls it from Lua.
+- **The kind.** `getLootType(Item)` is a chain of tests on the script (its name, full type, tags, type and display category)
+  that returns one of the game's kind names: `Generator`, `Memento`, `Medical`, `Mechanics`, ..., `Other`. Besides
+  `getLootModifier`, `Item.getLootType()` and `InventoryItem.getLootType()` call it; the admin panel's item list
+  (`ISItemsListTable.lua`) shows and filters by `getText("Sandbox_" .. kind .. "LootNew")`.
+- **The kind's modifier.** `getLootModifierFromType(name)` compares the name with each kind's and returns a static field that
+  `InitSandboxLootSettings` copied from the sandbox (`SandboxOptions.foodLootNew` and the rest, each a `DoubleSandboxOption`
+  from 0 to 4, 0.6 by default); `Generator` reads `generatorSpawning` through `doSandboxSettings`; a name it does not know gets
+  the modifier of other loot.
+- **A mod's options.** `CustomSandboxOptions` reads each mod's `sandbox-options.txt` as the mods load, before their Lua;
+  `SandboxOptions.getOptionByName(name)` finds an option by its full name (`Page.Name`) in a map. The custom options are made
+  again with the mods (`removeCustomOptions`).
+
+### Calls
+
+| Call | Effect |
+| --- | --- |
+| `loot.define(handle, id, spec)` | Defines the mod's kind `id` (1 to 64 letters, digits, `_`, `.` or `-`), or changes one it defined, and returns its name, `<handle name>:<id>`. `spec` is `{ option = "MyMod.PartsLoot", items = { "MyMod.Part", ... }, requires = { ... } }`: the full name of a number option of the sandbox (type `double`, as the game's loot options are), up to 1024 full types, and optionally the boolean options of the sandbox the kind requires (below). An item another mod's kind holds is a Lua error; one of the mod's other kinds gives it up to this one. An option the sandbox does not have, an option of another type, an item that is not a full type (`Module.Name`), or a field the spec does not take, is a Lua error. |
+| `loot.kindOf(fullType)` | The name of the mod's kind that holds the item, or `nil` (the game's kinds are not told). |
+
+`handle:clear()` takes the mod's kinds back: its items are of the game's kinds again. A mod defines its kinds as its Lua loads:
+they belong to the Lua environment, as the moodles' definitions do, so they are there before the first world rolls its loot (the
+first squares load before `OnGameStart`), and the mods define them again when the game loads its Lua again. A newer API takes
+them over.
+
+`requires` is for the parts of a mod that its world switches off with a sandbox option: up to 16 entries, each the full name of a
+boolean option or a list of up to 16 names, and the kind's items are rolled at 0 (as an option at 0 rolls them) unless every
+entry is on, a list being on when one of its options is. `{ "MyMod.EnableWater", { "MyMod.EnablePumps", "MyMod.EnableSprinklers" } }`
+rolls the items while the water is on and the pumps or the sprinklers are. Like the option, the requirements are read as the game
+rolls: a mod's distribution lists cannot leave such items out, since the game merges them and raises `OnInitWorld` before it loads
+the world's sandbox options (`IsoWorld.init`: `OnPreDistributionMerge` to `OnPostDistributionMerge`, `OnInitWorld`,
+`SandboxOptions.load()`, `ItemPickerJava.Parse()`), and a change of the options in a running world counts from the next roll.
+
+### What a mod provides
+
+- **The option.** In its `sandbox-options.txt`, as the game's loot options are: `type = double, min = 0, max = 4, default = 0.6`,
+  so that 0 keeps the items out, 0.6 is the game's default and 4 the game's most.
+- **Where the items are.** The mod puts its items into the game's distribution lists (`ProceduralDistributions.list[...]`,
+  `VehicleDistributions`, `SuburbsDistributions`) with their weights, as any mod does. The kind's modifier then multiplies them
+  where the game rolls them; the API does not place items.
+- **Text.** The admin panel's item list names the kind by `Sandbox_<name>LootNew` in the mod's `Sandbox.json`, such as
+  `"Sandbox_MyMod:PartsLootNew": "Parts"`.
+
+### Hook sites
+
+| Hook | Where | What it does |
+| --- | --- | --- |
+| `ItemPickerJava.getLootType` | each return | The name of the mod's kind for an item one lists (by `Item.getFullName()`, a field); the game's answer for any other. |
+| `ItemPickerJava.getLootModifierFromType:kind` | the start | For a mod's kind, the value of its option now, returned; for any other name (NaN) the game's comparisons go on. The same method as the formulas' `ammoLootModifier` hook. |
+
+A hook that fails gives the game's answer (the item's own kind; a mod's kind name then gets the modifier of other loot), and so
+does a kind whose option the sandbox no longer has. Both hooks are asked for every item rolled, on whatever thread fills the
+container: an item no mod lists costs one map lookup; a mod's kind the sandbox's map lookup and the option's value; nothing
+allocates.
+
+### Verified
+
+In the synthetic game (the `api` suite, `LootTest`): an item no mod lists is of the game's kind and its chance unchanged; listed,
+it is of the mod's kind, its chance goes with the mod's option, the option's value now is read (0 keeps it out), and the game's
+items and kinds stay the game's; another mod cannot take the item, the mod's own moves to its other kind, and defined again a
+kind holds what it lists now; a kind's requirements roll it at 0 while one is off (every entry on, one of a list), read as the
+game rolls, and are kept for a newer API; wrong specs, requirements and handles are Lua errors; a kind whose option is gone rolls as other loot; the hooks
+allocated nothing over 100,000 rolls; a newer API takes the kinds over and a function kept from before says the API was updated;
+a handler that fails gives the game's answers; `clear` gives the items back to the game's kinds.
+
+Not tried in the game yet: the hooks in the real bytes, a mod's option found as its Lua loads, and the kinds there after the game
+loads its Lua again.
+
 ## Text (mechanism)
 
 A mod shows text on the screen: a line in a font, a colour and a size, that comes on, stays and goes with an effect; or a

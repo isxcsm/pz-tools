@@ -2,8 +2,9 @@ package zombie.inventory;
 
 import java.util.Objects;
 import zombie.characters.IsoGameCharacter;
+import zombie.scripting.objects.Item;
 
-/** Synthetic: the chance of an item in a container or on a corpse, and the modifiers of the kinds of loot. */
+/** Synthetic: the chance of an item in a container or on a corpse, the kind of loot an item is, and the modifiers of the kinds. */
 public class ItemPickerJava {
     public static float ammoLootModifier = 1.0f;
     public static float otherLootModifier = 1.0f;
@@ -20,8 +21,14 @@ public class ItemPickerJava {
         return other;
     }
 
+    public static String getLootType(Item item) {
+        if (Objects.equals(item.getFullName(), "Base.Generator")) return "Generator";
+        if (item.getFullName().startsWith("Base.Bullets")) return "Ammo";
+        return "Other";
+    }
+
     public static float getLootModifier(String itemName) {
-        return itemName.startsWith("Base.Bullets") ? getLootModifierFromType("Ammo") : getLootModifierFromType("Other");
+        return getLootModifierFromType(getLootType(new Item(itemName)));
     }
 
     public static float getActualSpawnChance(ItemPickerItem item, IsoGameCharacter character, ItemContainer container, float zombieDensity, boolean corpse) {

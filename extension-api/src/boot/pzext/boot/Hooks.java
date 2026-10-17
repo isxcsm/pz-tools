@@ -317,6 +317,18 @@ public final class Hooks {
     }
 
     /**
+     * Set by the API: the kinds of loot mods define (docs/design.md, "Loot kinds"). The game asks both for every item it rolls
+     * into a container, a corpse or a vehicle, on whatever thread fills it: quick, nothing allocated, no Lua table touched.
+     */
+    public interface Loot {
+        /** {@code ItemPickerJava.getLootType(item)}, before each return: the kind of loot the item of that full type is; {@code vanilla} for an item no mod gave a kind. */
+        default String type(String vanilla, String fullType) { return vanilla; }
+
+        /** {@code ItemPickerJava.getLootModifierFromType(type)}, at its start: the modifier of a kind a mod defined; NaN for the game's own kinds. */
+        default float modifier(String type) { return Float.NaN; }
+    }
+
+    /**
      * Set by the API: the text mods show on the screen (docs/design.md, "Text"). Called once each time the game
      * draws its interface ({@code UIManager.render}, on the main thread), after the interface's windows and before the tooltip,
      * the paused message and the fade drawn over the interface. With nothing shown it returns at once.
@@ -499,6 +511,7 @@ public final class Hooks {
     private static volatile Water water;
     private static volatile Formulas formulas;
     private static volatile Moodles moodles;
+    private static volatile Loot loot;
     private static volatile Text text;
     private static volatile ZombieSounds zombieSounds;
     private static volatile ZombieHits zombieHits;
@@ -542,7 +555,8 @@ public final class Hooks {
         HOLE("hole", Group.FORMULAS), WOUND("wound", Group.FORMULAS), BITE("bite", Group.FORMULAS),
         MACHINE("machine", Group.FORMULAS), MACHINE_LOAD("machineLoad", Group.FORMULAS), ATTACHED_ANIM("attachedAnim", Group.FORMULAS),
         ANIMATING("animating", Group.FORMULAS), MOODLE_LEVEL("moodleLevel", Group.MOODLES),
-        MOODLE_KIND("moodleKind", Group.MOODLES), MOODLE_PICTURE("moodlePicture", Group.MOODLES), TEXT("text", Group.TEXT),
+        MOODLE_KIND("moodleKind", Group.MOODLES), MOODLE_PICTURE("moodlePicture", Group.MOODLES),
+        LOOT_TYPE("lootType", Group.LOOT), LOOT_MODIFIER("lootModifier", Group.LOOT), TEXT("text", Group.TEXT),
         ZOMBIE_STATE("zombieState", Group.ZOMBIE_SOUNDS), ZOMBIE_VOICE("zombieVoice", Group.ZOMBIE_SOUNDS),
         ZOMBIE_LANDED("zombieLanded", Group.ZOMBIE_SOUNDS), ZOMBIE_HIT("zombieHit", Group.ZOMBIE_HITS),
         MODEL_OUTLINE("modelOutline", Group.OUTLINES), OUTLINE_ORDER("outlineOrder", Group.OUTLINES),
@@ -563,7 +577,7 @@ public final class Hooks {
     }
 
     /** The handler a call belongs to: a newer one of that handler reports its faults again. */
-    private enum Group { POWER, WATER, FORMULAS, MOODLES, TEXT, ZOMBIE_SOUNDS, ZOMBIE_HITS, OUTLINES, WORLD_ITEMS, FLOOR_DECALS, SQUARE_CHANGES, ZOMBIE_HOLDS, ROOMS }
+    private enum Group { POWER, WATER, FORMULAS, MOODLES, LOOT, TEXT, ZOMBIE_SOUNDS, ZOMBIE_HITS, OUTLINES, WORLD_ITEMS, FLOOR_DECALS, SQUARE_CHANGES, ZOMBIE_HOLDS, ROOMS }
 
     // Guarded by itself. A fault in a call the game makes 40,000 times a second must not flood its log.
     private static final Set<Call> reported = EnumSet.noneOf(Call.class);
@@ -1174,11 +1188,29 @@ public final class Hooks {
                     ConstantDescs.CD_Object));
             }),
             Site.watch("weight", "weightChanged", List.of("container", "weightReduction"), List.of()) }),
-        // The loot: the chance of an item, and the ammunition modifier.
+        // The loot: the chance of an item, the kind of loot an item is and its modifier, and the ammunition modifier.
         Map.entry("zombie/inventory/ItemPickerJava", new Site[] {
             Site.atReturns("getActualSpawnChance", "(Lzombie/inventory/ItemPickerJava$ItemPickerItem;Lzombie/characters/IsoGameCharacter;"
                 + "Lzombie/inventory/ItemContainer;FZ)F", 0, (code, owner) -> code.invokestatic(HOOKS, "lootChance",
                     MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_float))),
+            Site.atReturns("getLootType", "(Lzombie/scripting/objects/Item;)Ljava/lang/String;", 1, (code, owner) -> {
+                code.aload(0);
+                code.invokevirtual(ClassDesc.of("zombie.scripting.objects.Item"), "getFullName", MethodTypeDesc.of(ConstantDescs.CD_String));
+                code.invokestatic(HOOKS, "lootType", MethodTypeDesc.of(ConstantDescs.CD_String, ConstantDescs.CD_String, ConstantDescs.CD_String));
+            }),
+            // The modifier of a kind a mod defined, returned at once; NaN (the game's own kinds) goes on as the game does.
+            Site.atStart("getLootModifierFromType", "(Ljava/lang/String;)F", (code, owner) -> {
+                Label game = code.newLabel();
+                code.aload(0);
+                code.invokestatic(HOOKS, "lootModifier", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_String));
+                code.dup();
+                code.dup();
+                code.fcmpl();
+                code.ifne(game);
+                code.freturn();
+                code.labelBinding(game);
+                code.pop();
+            }).named("kind"),
             Site.edit("getLootModifierFromType", "(Ljava/lang/String;)F", new Edit(field(Opcode.GETSTATIC, "zombie/inventory/ItemPickerJava",
                 "ammoLootModifier"), 1, null, (code, element, kind) -> {
                     code.with(element);
@@ -2378,6 +2410,28 @@ public final class Hooks {
         if (current == null) return vanilla;
         try { return current.lootChance(vanilla); }
         catch (Throwable problem) { reportOnce(Call.LOOT_CHANCE, problem); return vanilla; }
+    }
+
+    /** Sets the kinds of loot, replacing an earlier API's; null leaves every kind of loot to the game. */
+    public static void setLoot(Loot next) {
+        synchronized (reported) { reported.removeIf(call -> call.group == Group.LOOT); }
+        loot = next;
+    }
+
+    /** Put before each return of {@code ItemPickerJava.getLootType(item)}, with the item's full type. */
+    public static String lootType(String vanilla, String fullType) {
+        Loot current = loot;
+        if (current == null) return vanilla;
+        try { return current.type(vanilla, fullType); }
+        catch (Throwable problem) { reportOnce(Call.LOOT_TYPE, problem); return vanilla; }
+    }
+
+    /** Put at the start of {@code ItemPickerJava.getLootModifierFromType(type)}: a mod's kind's modifier, or NaN for the game's answer. */
+    public static float lootModifier(String type) {
+        Loot current = loot;
+        if (current == null) return Float.NaN;
+        try { return current.modifier(type); }
+        catch (Throwable problem) { reportOnce(Call.LOOT_MODIFIER, problem); return Float.NaN; }
     }
 
     /** Put after the read of {@code ItemPickerJava.ammoLootModifier} in {@code getLootModifierFromType}. */

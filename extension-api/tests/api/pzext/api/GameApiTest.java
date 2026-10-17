@@ -100,6 +100,7 @@ public final class GameApiTest {
         SystemsTest.run(api);
         ZombieSoundsTest.run(api);
         MoodlesTest.run(api);
+        LootTest.run(api);
         TextsTest.run(api);
         ZombieQueriesTest.run(api);
         ZombieHitsTest.run(api);
@@ -2711,7 +2712,8 @@ public final class GameApiTest {
                 "HandWeapon.writes:weight", "HandWeapon.clearAllWeaponParts", "HandWeapon.clearWeaponPart:part", "HandWeapon.clearWeaponPart:name",
                 "HandWeapon.setWeaponPart", "HandWeapon.attachWeaponPart", "InventoryContainer.writes:weight", "Moveable.writes:weight",
                 "ItemStatsPacket.writes:weight", "FluidContainer.writes:amount", "ItemPickerJava.getActualSpawnChance",
-                "ItemPickerJava.getLootModifierFromType", "LightingJNI.getLumaInverted", "LightingJNI.calculateVisionCone",
+                "ItemPickerJava.getLootModifierFromType", "ItemPickerJava.getLootType", "ItemPickerJava.getLootModifierFromType:kind",
+                "LightingJNI.getLumaInverted", "LightingJNI.calculateVisionCone",
                 "IsoTree.getSlowFactor", "ShaderUnit.compile", "ShaderUnit.compile:source", "IsoTree.isPlayerInsideARoom", "BREBuilding.<init>", "PlayerRoomsFile.load", "BuildingRoomsEditor.load", "ZombieIdleState.execute", "WorldSoundManager.getBiggestSoundZomb",
                 "ZombiePopulationManager.removeChunkFromWorld", "ZombiePopulationManager.registerZombie", "ZombiePopulationManager.releaseZombie", "ZombiePopulationManager.virtualizeZombie",
                 "IsoZombie.removeFromWorld",
@@ -2730,7 +2732,7 @@ public final class GameApiTest {
                 "InventoryItem.getName", "InventoryItem.getDisplayName", "Food.getName", "Clothing.getName", "Moveable.getName",
                 "PixelLight$Gl.init:pass", "AmbientOcclusion.compile" })
             check(Hooks.APPLIED.equals(hooks.rawget(label)), label + " is " + hooks.rawget(label));
-        check(Hooks.hookStatus().size() == 137, "The hooks are " + Hooks.hookStatus().keySet());
+        check(Hooks.hookStatus().size() == 139, "The hooks are " + Hooks.hookStatus().keySet());
         // Every hook fits the synthetic game: a gap in the synthetic game fails here, not as a line in the output.
         var misfit = new java.util.TreeMap<>(Hooks.hookStatus());
         misfit.values().removeIf(Hooks.APPLIED::equals);
