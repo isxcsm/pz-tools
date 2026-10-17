@@ -107,6 +107,13 @@ local function onOpen(playerObj, panel) queueAt(playerObj, panel.x, panel.y, pan
 
 local function onActivate(playerObj, x, y, z) queueAt(playerObj, x, y, z, ISBUActivateBox:new(playerObj, x, y, z)) end
 
+local function onTakeBox(playerObj, x, y, z) queueAt(playerObj, x, y, z, ISBUTakeBox:new(playerObj, x, y, z)) end
+
+-- A box taken up in both hands (ISBUTakeBox), with the options that take things away at the menu's end.
+local function addTakeOption(context, playerObj, x, y, z)
+    removal(context:addOption(getText("ContextMenu_BU_TakeBox"), playerObj, onTakeBox, x, y, z))
+end
+
 local function onReverseEngineer(playerObj, panel)
     queueAt(playerObj, panel.x, panel.y, panel.z, ISBUReverseEngineer:new(playerObj, panel))
 end
@@ -230,6 +237,7 @@ local function addPanelOptions(context, playerObj, panel)
     local option = context:addOptionOnTop(name, playerObj, onOpen, panel)
     if not BU.api() then unavailable(option, apiMissingText()) end
     addLearnOption(context, playerObj, panel)
+    addTakeOption(context, playerObj, panel.x, panel.y, panel.z)
 end
 
 -- A bare box (Panels.isBare): made a box where it stands (ISBUActivateBox, where a box may be put: Panels.canInstall),
@@ -247,6 +255,7 @@ local function addBareOptions(context, playerObj, object)
         tooltip(option, getText("IGUI_BU_ActivateBoxTip"))
     end
     addLearnOption(context, playerObj, { x = x, y = y, z = z })
+    addTakeOption(context, playerObj, x, y, z)
 end
 
 -- The producer among the objects (Panels.producerOn of their squares), with its square.
@@ -522,11 +531,17 @@ function ContextMenu.fillInventory(player, context, items)
     if not instanceof(item, "InventoryItem") then item = item.items and item.items[1] end
     if not item then return end
     -- The game offers placing only from the inventory proper and not from the hands (ISMoveableContextMenu); so here.
+    -- A box is carried in both hands (a heavy item: BU.Moveables) and put down from there; one lying about (on the
+    -- floor, in a crate) is taken up into them first, as a generator is.
     local kind = placedKind(item)
     if kind then
         dropGamesOwn(context, item)
-        if BU.enabled(kind) and item:getContainer() == playerObj:getInventory()
-            and playerObj:getPrimaryHandItem() ~= item and playerObj:getSecondaryHandItem() ~= item then
+        local held = playerObj:getPrimaryHandItem() == item or playerObj:getSecondaryHandItem() == item
+        if kind == "panel" and not held then
+            context:addOptionOnTop(getText("ContextMenu_BU_TakeBox"), playerObj, ISInventoryPaneContextMenu.equipHeavyItem,
+                item).itemForTexture = item
+        end
+        if BU.enabled(kind) and item:getContainer() == playerObj:getInventory() and (kind == "panel" or not held) then
             local text = getText(kind == "panel" and "ContextMenu_BU_Install" or "ContextMenu_BU_Install_" .. kind)
             local option = context:addOptionOnTop(text, playerObj, onPlace, item)
             option.itemForTexture = item

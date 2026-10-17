@@ -10,7 +10,9 @@ module BuildingUtilities
         DisplayCategory = Electronics,
         ItemType = base:moveable,
         WorldObjectSprite = bu_water_01_72,
-        Weight = 3.0,
+        Weight = 15.0,
+        RequiresEquippedBothHands = true,
+        Tags = base:heavyitem,
         Icon = BUBreakerBox,
     }
 
@@ -19,7 +21,9 @@ module BuildingUtilities
         DisplayCategory = Electronics,
         ItemType = base:moveable,
         WorldObjectSprite = bu_water_01_88,
-        Weight = 4.0,
+        Weight = 17.0,
+        RequiresEquippedBothHands = true,
+        Tags = base:heavyitem,
         Icon = BUBreakerBox2,
     }
 
@@ -28,7 +32,9 @@ module BuildingUtilities
         DisplayCategory = Electronics,
         ItemType = base:moveable,
         WorldObjectSprite = bu_water_01_104,
-        Weight = 5.0,
+        Weight = 19.0,
+        RequiresEquippedBothHands = true,
+        Tags = base:heavyitem,
         Icon = BUBreakerBox3,
     }
 
@@ -37,7 +43,9 @@ module BuildingUtilities
         DisplayCategory = Electronics,
         ItemType = base:moveable,
         WorldObjectSprite = bu_water_01_32,
-        Weight = 7.0,
+        Weight = 22.0,
+        RequiresEquippedBothHands = true,
+        Tags = base:heavyitem,
         Icon = BUBreakerBox4,
     }
 

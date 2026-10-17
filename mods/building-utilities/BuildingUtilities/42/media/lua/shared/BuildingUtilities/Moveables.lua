@@ -20,6 +20,8 @@ require "BuildingUtilities/PanelLook"
 require "BuildingUtilities/Changes"
 require "BuildingUtilities/Costs"
 local BU = BuildingUtilities
+local Moveables = {}
+BU.Moveables = Moveables
 
 -- This mod's tiles that are objects to take up: "panel" or a unit's kind, by sprite name; worked out once the units
 -- are defined (the first time the tool asks).
@@ -176,14 +178,40 @@ function ISMoveableSpriteProps.new(sprite)
     return s
 end
 
+-- A box is a heavy item carried in both hands, as a generator is (its script: RequiresEquippedBothHands, heavyitem):
+-- taken up, it is held; put down or taken apart, the hands are let go. The game drops a heavy item that leaves the
+-- hands on the floor, and its own tool looks for an item to put down in the inventory but not the hands: a box is
+-- looked for in the hands too.
+function Moveables.hold(character, item)
+    character:setPrimaryHandItem(item)
+    character:setSecondaryHandItem(item)
+    if isServer() then sendEquip(character) end
+end
+
+function Moveables.letGo(character, item)
+    if character:getPrimaryHandItem() ~= item and character:getSecondaryHandItem() ~= item then return end
+    character:removeFromHands(item)
+    if isServer() then sendEquip(character) end
+end
+
+local findItem = ISMoveableSpriteProps.findInInventory
+function ISMoveableSpriteProps:findInInventory(character, spriteName)
+    if self.buKind == "panel" and character and spriteName then
+        local held = character:getPrimaryHandItem()
+        if instanceof(held, "Moveable") and held:getWorldSprite() == spriteName then return held end
+    end
+    return findItem(self, character, spriteName)
+end
+
 local canPickUp = ISMoveableSpriteProps.canPickUpMoveable
 function ISMoveableSpriteProps:canPickUpMoveable(character, square, object)
     local kind = self.buKind
     if not kind then return canPickUp(self, character, square, object) end
     local found = find(kind, square, object)
     if not found and not bareOf(kind, square, object) then return false end
-    -- the game's rule for a piece of furniture of one tile: it must fit the inventory
-    if not character:getInventory():hasRoomFor(character, self.weight) then return false end
+    -- the game's rule for a piece of furniture of one tile: it must fit the inventory; a box is carried in both hands
+    -- (a heavy item: Moveables.hold), as a generator is, whatever else is carried
+    if kind ~= "panel" and not character:getInventory():hasRoomFor(character, self.weight) then return false end
     return not found or found.panel ~= nil or BU.Units.isEmpty(found.unit)
 end
 
@@ -209,10 +237,13 @@ function ISMoveableSpriteProps:pickUpMoveable(character, square, createItem, for
         return {}
     end
     local inventory = character:getInventory()
+    -- (a heavy item held already is put down first, as the game does before a generator is taken up)
+    if kind == "panel" and forceDropHeavyItems then forceDropHeavyItems(character) end
     local item = inventory:AddItem(itemType(kind, kind == "panel" and kept.tier or nil))
     if item then
         if kind ~= "panel" then BU.Units.keepOnItem(kind, item, kept) end
         sendAddItemToContainer(inventory, item)
+        if kind == "panel" then Moveables.hold(character, item) end
     end
     return {}
 end
@@ -244,6 +275,7 @@ function ISMoveableSpriteProps:placeMoveable(character, square, origSpriteName, 
     local side = sideOf(kind, self.spriteName, self.buTier) or BU.sideOf(square, character)
     local kept = kind == "panel" and { tier = BU.Panels.itemTier(item) } or BU.Units.keptOnItem(item)
     local inventory = character:getInventory()
+    Moveables.letGo(character, item)
     inventory:Remove(item)
     sendRemoveItemFromContainer(inventory, item)
     if kind == "panel" then BU.Changes.install(square, side, kept)

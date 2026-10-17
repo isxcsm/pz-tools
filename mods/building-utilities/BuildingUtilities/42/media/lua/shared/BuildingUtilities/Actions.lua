@@ -402,6 +402,46 @@ function ISBUActivateBox:new(character, x, y, z)
     return o
 end
 
+-- A box taken up in both hands, as the game takes up a generator (ISTakeGenerator): the furniture tool's taking up
+-- (BU.Moveables: its record's state kept on the item, its lines cut), for a box with a record or a bare one.
+ISBUTakeBox = base("ISBUTakeBox", 100)
+
+local function boxAt(action)
+    local square = getCell():getGridSquare(action.x, action.y, action.z)
+    if not square then return nil end
+    local objects = square:getObjects()
+    for i = 0, objects:size() - 1 do
+        local object = objects:get(i)
+        if Panels.ofObject(object) or Panels.isBare(object) then return object, square end
+    end
+    return nil
+end
+
+function ISBUTakeBox:isValid() return boxAt(self) ~= nil end
+
+function ISBUTakeBox:update()
+    self.character:faceLocation(self.x, self.y)
+    self.character:setMetabolicTarget(Metabolics.HeavyWork)
+end
+
+function ISBUTakeBox:complete()
+    local object, square = boxAt(self)
+    if not object then return false end
+    local props = ISMoveableSpriteProps.fromObject(object)
+    if not props or props.buKind ~= "panel" or not props:canPickUpMoveable(self.character, square, object) then
+        return false
+    end
+    props:pickUpMoveable(self.character, square, true, true)
+    return true
+end
+
+function ISBUTakeBox:new(character, x, y, z)
+    local o = ISBaseTimedAction.new(self, character)
+    o.x, o.y, o.z = x, y, z
+    o.maxTime = o:getDuration()
+    return o
+end
+
 -- Taking a box apart, as an item (Costs.takeApart): its control boards (Costs.boardsIn its tier), some wire and parts.
 ISBUTakeApartBox = ISBaseTimedAction:derive("ISBUTakeApartBox")
 ISBUTakeApartBox.getDuration = fixedDuration(300)
@@ -418,6 +458,7 @@ function ISBUTakeApartBox:complete()
     local inventory = self.character:getInventory()
     if not inventory:contains(self.item) or not Costs.affords(self.character, Costs.takeApart()) then return false end
     local boards = Costs.boardsIn(Panels.itemTier(self.item))
+    BU.Moveables.letGo(self.character, self.item)
     inventory:Remove(self.item)
     sendRemoveItemFromContainer(inventory, self.item)
     for _ = 1, boards do giveItem(self.character, Costs.BOARD) end
