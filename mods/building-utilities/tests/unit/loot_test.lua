@@ -1,107 +1,99 @@
--- How a first utility panel is had (tier rework, 0): where the game keeps generators, at a share of its own chance
--- (Loot.generatorChance, Loot.boxChance, Loot.fillBox), and the control boards a box holds and its upgrades take
--- (Costs); its design learned at one only by who does not know it, with a screwdriver, in the light.
+-- This mod's loot (Loot.lua): its kinds of loot as the API takes them (the options a kind requires worked out of the
+-- features its items need), its items put into the game's lists, and how a found filter and box are set as the game
+-- spawns them; the control boards a box holds and its upgrades take (Costs); its design learned at one only by who
+-- does not know it, with a screwdriver, in the light.
 require "BuildingUtilities/Changes"
 require "BuildingUtilities/Loot"
 require "BuildingUtilities/Costs"
 local BU = BuildingUtilities
 local Loot, Costs, Panels = BU.Loot, BU.Costs, BU.Panels
 
-ItemPickerJava = { getLootModifier = function() return 1 end }
 ItemTag = { SCREWDRIVER = "screwdriver", PLIERS = "pliers", PIPE_WRENCH = "pipewrench" }
-getSandboxOptions = function() return { getCurrentLootMultiplier = function() return 1 end } end
-TEST.random = 0
-ZombRandFloat = function() return TEST.random end
-getScriptManager = function() return { FindItem = function() return { getActualWeight = function() return 3 end } end } end
 
--- The game's tables: a generator crate (one generator in 20 junk rolls of 10 percent), an electronics store whose
--- crates take it one time in four, and a work truck with a generator at weight 1 in four rolls.
-ProceduralDistributions = { list = {
-    CrateGenerator = { rolls = 1, items = { "Screwdriver", 10 }, junk = { rolls = 20, items = { "Generator", 10 / 1.4 } } },
-    CrateTV = { rolls = 1, items = { "TV", 10 } },
-} }
-SuburbsDistributions = {
-    electronicstore = { other = { procedural = true, procList = {
-        { name = "CrateGenerator", min = 0, max = 1, weightChance = 1 },
-        { name = "CrateTV", min = 0, max = 1, weightChance = 3 } } } },
-}
-VehicleDistributions = { {
-    Van = { Normal = { TruckBed = { rolls = 4, items = { "Generator", 1 } } },
-            Specific = { { TruckBed = { rolls = 1, items = { "Rope", 5 } } } } },
-}, }
-VehicleDistributions[1].Truck = VehicleDistributions[1].Van
-
--- A container that fills: of a building (its object) or of a vehicle's part (a vehicle of a script's special chance).
-local function container(kind, special)
-    local owner = { data = {} }
-    function owner:getModData() return self.data end
-    local vehicle = kind == "vehicle" and {
-        getSkinIndex = function() return 0 end,
-        getScript = function() return { getSpecialLootChance = function() return special or 0 end } end,
-    } or nil
-    local part = vehicle and { data = {}, getVehicle = function() return vehicle end } or nil
-    if part then function part:getModData() return self.data end end
-    local items = {}
-    return {
-        items = items, owner = part or owner,
-        getVehiclePart = function() return part end, getParent = function() return owner end,
-        getSourceGrid = function() return nil end, hasRoomFor = function() return true end,
-        AddItem = function(_, item) items[#items + 1] = item; return item end,
-    }
+local function kindOf(id)
+    for _, kind in ipairs(Loot.KINDS) do if kind.id == id then return kind end end
 end
 
-local function near(actual, expected, what)
-    if math.abs(actual - expected) > 1e-6 then
-        error((what and what .. ": " or "") .. "expected " .. tostring(expected) .. ", got " .. tostring(actual), 2)
+local function text(requires)
+    if requires == nil then return "nil" end
+    local parts = {}
+    for _, entry in ipairs(requires) do
+        parts[#parts + 1] = type(entry) == "table" and "(" .. table.concat(entry, "|"):gsub("BuildingUtilities%.", "") .. ")"
+            or (entry:gsub("BuildingUtilities%.", ""))
     end
+    return table.concat(parts, " ")
 end
 
-test("a generator's chance is worked out of the game's tables, a building's and a vehicle's", function()
-    local crate = 1 - (1 - 0.1) ^ 20
-    near(Loot.generatorChance("electronicstore", "other", container("building")), crate / 4, "one crate in four")
-    eq(Loot.generatorChance("kitchen", "counter", container("building")), 0, "no generator there")
-    local truck = 1 - (1 - 0.01) ^ 4
-    near(Loot.generatorChance("Van", "TruckBed", container("vehicle")), truck * 0.92, "its normal lists, 92 percent")
-    near(Loot.generatorChance("Truck", "TruckBed", container("vehicle", 50)), truck * 0.5, "a script's special share")
+test("a kind requires the options its features need, any of its features on", function()
+    eq(text(Loot.requires({ "solar" })), "EnableSolar EnablePower", "solar: its own and power's")
+    eq(text(Loot.requires({ "panel" })), "(EnablePower|EnableWater)", "the box: either utility")
+    eq(text(Loot.requires({ "pump", "sprinkler" })), "(EnablePumps|EnableSprinklers) EnableWater (EnablePower|EnableSprinklers)",
+        "pumps (water, power) or sprinklers (water)")
+    eq(text(Loot.requires({ "booster", "filter", "firesprinkler" })),
+        "(EnableBoosters|EnableFilters|EnableFireSprinklers) EnableWater (EnableFilters|EnableFireSprinklers|EnablePower)",
+        "boosters (water, power), filters or fire sprinklers (water)")
+    eq(text(Loot.requires({ "junction" })), "EnablePower", "a feature with no option of its own: those it needs")
+    eq(Loot.requires({ "nothing" }), nil, "a name that is no feature's needs nothing")
 end)
 
-test("a utility panel comes as often as a generator, by the option, and marks its container's owner", function()
-    local crate = 1 - (1 - 0.1) ^ 20
-    near(Loot.boxChance("electronicstore", "other", container("building")), crate / 4, "a generator's chance")
-    SandboxVars.BuildingUtilities = { BreakerBoxLoot = 2 }
-    near(Loot.boxChance("electronicstore", "other", container("building")), crate / 4 * 2, "twice")
-    SandboxVars.BuildingUtilities = { BreakerBoxLoot = 0 }
-    eq(Loot.boxChance("electronicstore", "other", container("building")), 0, "none at 0")
-    SandboxVars.BuildingUtilities = {}
-    local found = container("vehicle")
-    Loot.fillBox("Van", "TruckBed", found)
-    eq(found.items[1], BU.PANEL_ITEM)
-    eq(found.owner.data[BU.BOX_MARK], true, "the vehicle's part marked")
-    TEST.random = 0.99
-    local missed = container("building")
-    Loot.fillBox("electronicstore", "other", missed)
-    eq(#missed.items, 0, "past its chance, none")
-    eq(missed.owner.data[BU.BOX_MARK], nil)
+test("each kind is defined with the API, by its option, items and requirements", function()
+    local defined = {}
+    PZExtAPI.loot = { define = function(handle, id, spec) defined[id] = spec; return "BuildingUtilities:" .. id end }
+    eq(Loot.define(), true)
+    for _, kind in ipairs(Loot.KINDS) do truthy(defined[kind.id], kind.id) end
+    local panel = defined.Panel
+    eq(panel.option, "BuildingUtilities.BreakerBoxLoot")
+    eq(table.concat(panel.items, ","), "BuildingUtilities.BreakerBox,BuildingUtilities.ControlBoard")
+    eq(text(panel.requires), "(EnablePower|EnableWater)")
+    PZExtAPI.loot = { define = function() error("refused") end }
+    eq(Loot.define(), true, "a kind refused is said in the log; the others go on")
+    PZExtAPI.loot = nil
+    eq(Loot.define(), false, "an API without loot kinds")
 end)
 
-test("a zombie's inventory, which fills with no container type, gets nothing and raises nothing", function()
-    local corpse = container("building")
-    TEST.random = 0
-    Loot.fill("Zombie", nil, corpse)
-    eq(#corpse.items, 0)
-    TEST.random = nil
+test("its items go into the game's lists with their weights; a list the game lacks is left out", function()
+    ProceduralDistributions = { list = { GeneratorRoom = { rolls = 4, items = { "ElectricWire", 10 } } } }
+    VehicleDistributions = { ElectricianTruckBed = { rolls = 4, items = {} } }
+    local said, savedPrint = 0, print
+    print = function() said = said + 1 end
+    Loot.distribute()
+    print = savedPrint
+    truthy(said > 0, "the lists the game lacks are said")
+    local room = ProceduralDistributions.list.GeneratorRoom.items
+    local found = {}
+    for i = 1, #room, 2 do found[room[i]] = room[i + 1] end
+    eq(found.ElectricWire, 10, "the game's own stay")
+    eq(found["BuildingUtilities.BreakerBox"], 2)
+    eq(found["BuildingUtilities.ControlBoard"], 4)
+    eq(found["BuildingUtilities.FireSprinkler"], 0.5)
+    local truck = VehicleDistributions.ElectricianTruckBed.items
+    found = {}
+    for i = 1, #truck, 2 do found[truck[i]] = truck[i + 1] end
+    eq(found["BuildingUtilities.BreakerBox"], 0.5)
+    eq(found["BuildingUtilities.ControlBoard"], 2)
+    ProceduralDistributions, VehicleDistributions = nil, nil
 end)
 
-test("a bag rolled inside a container fires the event with its loot table for the container: skipped", function()
-    local saved = instanceof
-    instanceof = function(o, class) return class == "ItemContainer" and type(o) == "table" and o.AddItem ~= nil end
-    TEST.random = 0
-    Loot.fill("Container", "Bag_DuffelBag", { rolls = 1, items = {} })
-    local crate = container("building")
-    Loot.fill("electronicstore", "other", crate)
-    truthy(#crate.items > 0, "a container still fills")
-    TEST.random = nil
-    instanceof = saved
+test("a filter found has part of its media spent; a box found marks its container's owner", function()
+    local item = { data = {} }
+    function item:getModData() return self.data end
+    function item:getFullType() return "BuildingUtilities.WaterFilter" end
+    function item:setName() end
+    function item:setCustomName() end
+    getItemNameFromFullType = function() return "Water Filter" end
+    ZombRandFloat = function() return 0.5 end
+    Loot.foundFilter(item)
+    local media = item.data[BU.Units.KEPT].media
+    truthy(math.abs(media - BU.WaterUnits.FILTER_HOURS * 0.3) < 1e-9, "halfway between a tenth and a half of a charge: " .. media)
+    local owner, part = { data = {} }, { data = {} }
+    for _, each in ipairs({ owner, part }) do function each:getModData() return self.data end end
+    local inRoom = { getContainer = function() return { getVehiclePart = function() return nil end, getParent = function() return owner end } end }
+    Loot.foundBox(inRoom)
+    eq(owner.data[BU.BOX_MARK], true, "the container's object")
+    local inVehicle = { getContainer = function() return { getVehiclePart = function() return part end, getParent = function() return nil end } end }
+    Loot.foundBox(inVehicle)
+    eq(part.data[BU.BOX_MARK], true, "the vehicle's part")
+    Loot.foundBox({ getContainer = function() return nil end })
 end)
 
 test("a box holds a board, and one more for each its upgrades took: 1, 2, 4, 8", function()

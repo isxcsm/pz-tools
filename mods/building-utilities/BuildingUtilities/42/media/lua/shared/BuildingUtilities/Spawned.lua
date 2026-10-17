@@ -126,12 +126,17 @@ function Spawned.oneIn(kind)
     return n > 0 and n or nil
 end
 
--- How often a room of the kind gets a box: as often as the game gives it a generator, times BreakerBoxLoot.
+-- BreakerBoxLoot's default (the game's loot options'), at which a room gets a box as often as a generator.
+Spawned.LOOT_DEFAULT = 0.6
+
+-- How often a room of the kind gets a box: as often as the game gives it a generator, scaled by BreakerBoxLoot (twice
+-- at twice its default, none at 0), as the box's loot is.
 function Spawned.chance(kind)
     if not BU.enabled("panel") then return 0 end
     local n = Spawned.oneIn(kind)
     if not n then return 0 end
-    return math.min(1, math.max(0, BU.sandbox("BreakerBoxLoot", 1)) / n)
+    local scale = math.max(0, BU.sandbox("BreakerBoxLoot", Spawned.LOOT_DEFAULT)) / Spawned.LOOT_DEFAULT
+    return math.min(1, scale / n)
 end
 
 -- The squares of the room a box may take, each { square, side }: the ones against a wall where there are any.

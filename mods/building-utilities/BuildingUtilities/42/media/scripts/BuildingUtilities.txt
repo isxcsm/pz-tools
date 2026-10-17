@@ -14,6 +14,30 @@ module BuildingUtilities
         RequiresEquippedBothHands = true,
         Tags = base:heavyitem,
         Icon = BUBreakerBox,
+        ItemConfig = FoundBox,
+    }
+
+    /* As the game spawns one into loot (not as one is made or put down): Loot.lua. */
+    itemConfig FoundBox
+    {
+        LuaFunc
+        {
+            default
+            {
+                func=BuildingUtilities.Loot.foundBox,
+            }
+        }
+    }
+
+    itemConfig FoundFilter
+    {
+        LuaFunc
+        {
+            default
+            {
+                func=BuildingUtilities.Loot.foundFilter,
+            }
+        }
     }
 
     item BreakerBox2
@@ -119,6 +143,7 @@ module BuildingUtilities
         WorldObjectSprite = bu_water_01_6,
         Weight = 6.0,
         Icon = BUWaterFilter,
+        ItemConfig = FoundFilter,
     }
 
     item JunctionBox

@@ -170,19 +170,19 @@ option BuildingUtilities.SnowOnPanels
 
 option BuildingUtilities.SolarPanelLoot
 {
-    type = double, min = 0.0, max = 10.0, default = 1.0,
+    type = double, min = 0.0, max = 4.0, default = 0.6,
     page = BuildingUtilities, translation = BuildingUtilities_SolarPanelLoot,
 }
 
 option BuildingUtilities.BreakerBoxLoot
 {
-    type = double, min = 0.0, max = 10.0, default = 1.0,
+    type = double, min = 0.0, max = 4.0, default = 0.6,
     page = BuildingUtilities, translation = BuildingUtilities_BreakerBoxLoot,
 }
 
 option BuildingUtilities.WaterLoot
 {
-    type = double, min = 0.0, max = 10.0, default = 1.0,
+    type = double, min = 0.0, max = 4.0, default = 0.6,
     page = BuildingUtilities, translation = BuildingUtilities_WaterLoot,
 }
 

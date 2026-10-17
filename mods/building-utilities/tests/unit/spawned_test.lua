@@ -137,7 +137,7 @@ test("not a doorway, not before a door, not a square with things or items on it;
         "shelves along every wall: any free square, facing south")
 end)
 
-test("as often as the game's generator in the room's kind, by its option, times BreakerBoxLoot", function()
+test("as often as the game's generator in the room's kind, by its option, scaled by BreakerBoxLoot from its default", function()
     SandboxVars.GeneratorSpawning = nil
     eq(Spawned.chance("garage"), 1 / 7)
     eq(Spawned.chance("shed"), 1 / 4)
@@ -149,8 +149,8 @@ test("as often as the game's generator in the room's kind, by its option, times 
     SandboxVars.GeneratorSpawning = 7
     eq(Spawned.chance("shed"), 1, "one in 1")
     SandboxVars.GeneratorSpawning = 5
-    SandboxVars.BuildingUtilities = { BreakerBoxLoot = 2 }
-    eq(Spawned.chance("garage"), 2 / 7)
+    SandboxVars.BuildingUtilities = { BreakerBoxLoot = Spawned.LOOT_DEFAULT * 2 }
+    eq(Spawned.chance("garage"), 2 / 7, "twice at twice its default")
     SandboxVars.BuildingUtilities = { BreakerBoxLoot = 0 }
     eq(Spawned.chance("garage"), 0)
     SandboxVars.BuildingUtilities = {}

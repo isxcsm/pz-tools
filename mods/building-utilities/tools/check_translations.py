@@ -67,13 +67,17 @@ def code():
 
 
 def sandbox_keys():
-    """The texts the sandbox options need: each page's name, and each option's name and tooltip."""
+    """The texts the sandbox options need: each page's name, and each option's name and tooltip; and the name of each
+    kind of loot (Loot.KINDS), which the admin panel's item list shows as Sandbox_<kind>LootNew."""
     with open(os.path.join(MEDIA, 'sandbox-options.txt'), encoding='utf-8') as f:
         text = f.read()
     names = re.findall(r'translation\s*=\s*(\w+)', text)
     keys = {'Sandbox_' + page for page in re.findall(r'page\s*=\s*(\w+)', text)}
     for name in names:
         keys |= {'Sandbox_' + name, 'Sandbox_' + name + '_tooltip'}
+    with open(os.path.join(MEDIA, 'lua', 'server', 'BuildingUtilities', 'Loot.lua'), encoding='utf-8') as f:
+        for kind in re.findall(r'\{ id = "(\w+)", option =', f.read()):
+            keys.add('Sandbox_BuildingUtilities:%sLootNew' % kind)
     return keys
 
 
