@@ -45,7 +45,10 @@ public final class BootGateTest {
         assert Host.wanted(true, false, true) : "the developer's reload did not look again";
         assert !Host.wanted(true, true, true);
         // The switch is off in this process, as in every game that does not set it.
-        assert !"1".equals(System.getenv(Host.DEV_RELOAD)) : "run this test without " + Host.DEV_RELOAD;
+        assert System.getenv(Host.DEV_RELOAD) == null : "run this test without " + Host.DEV_RELOAD;
+        // the switch names a developer's jar only by an absolute path to a .jar
+        assert Host.devJar(null) == null && Host.devJar("1") == null && Host.devJar("pzext-api.jar") == null;
+        assert Host.devJar("C:\\build\\pzext-api.jar") != null && Host.devJar("C:\\build\\notes.txt") == null;
         System.out.println("BootGateTest passed");
     }
 }

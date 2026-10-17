@@ -25,6 +25,10 @@ The "game" suite needs no running game: it puts every hook into the classes of t
 launcher file's class path, as the game loads them) and holds the synthetic game's members to the real ones; the
 synthetic game's deliberate differences are listed in `tests/gamecheck/known.txt`. Run it after a game update.
 
+A game started by `mods/tools/pzdev.py` runs the API of `out/release` (`PZEXT_DEV_RELOAD`, see
+[loader](docs/loader.md)) and loads each new build within a second, no restart; `pzdev.py api` returns once it runs
+the one built. A change to the boot layer still takes an install and a restart.
+
 ## Install
 
 ```

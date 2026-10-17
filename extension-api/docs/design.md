@@ -75,7 +75,9 @@ How the table gets there:
 - The jar is loaded once, and only if its bytes are the ones the install vouched for (the digest the
   loader gives the boot layer). A developer building the API sets `PZEXT_DEV_RELOAD=1` in the game's
   environment: the boot layer then looks at the jar about once a second, and a changed one (a build copied
-  over it while the game runs) loads without the digest check. Without the switch nothing is read again.
+  over it while the game runs) loads without the digest check. Set to the full path of a built jar instead, the
+  switch has the API loaded from there, and each build loads in the running game, the install untouched (its
+  folder takes administrator rights). Without the switch nothing is read again.
 - An API that replaces another, or that came after the game's Lua started, sets the table on the
   next frame. It updates the table in place, so the tables a mod holds stay valid, and the mods'
   handles are kept. A function a mod copied out of the table (`local define =

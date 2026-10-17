@@ -37,6 +37,10 @@ Usage, from a mod's folder (python ../tools/pzdev.py <command>):
                                                 Zomboid/Logs, 1 the one before...; 0 by default)
     pzdev.py log compare <a> <b>                two game logs on one time line: where b spent time a did not, or
                                                 the other way (a, b: n or a file; --min seconds, 0.5)
+    pzdev.py api                                returns once the running game runs the PZ Extension API built
+                                                (extension-api/out/release): a game pzdev started takes its API
+                                                from there and each build in a second, no restart (a change to the
+                                                boot layer still takes an install and a restart)
 launch, restart and continue load the save --save names (a Sandbox save's folder), or PZDEV_SAVE's, and refuse with
 neither: Continue would load the user's own latest save. latestSave.ini points at it while the main menu is built, so
 Continue loads it, and is put back once it loaded: the user's Continue stays theirs. reload loads the save it leaves
@@ -608,7 +612,9 @@ def guard(pid):
 # Starts the game's exe with -debug (the dev channel needs it; Steam's launch no longer adds it), windowed.
 def start_game():
     windowed_options()
+    # PZEXT_DEV_RELOAD: the API's boot layer runs the API built here, and each new build (pzdev api)
     game = subprocess.Popen([os.path.join(GAME_DIR, "ProjectZomboid64.exe"), "-debug"], cwd=GAME_DIR,
+                            env=dict(os.environ, PZEXT_DEV_RELOAD=os.path.join(RELEASE, "pzext-api.jar")),
                             creationflags=0x00000008 | 0x00000200, close_fds=True)
     # the guard: puts the user's options and latest save back as this game ends
     subprocess.Popen([sys.executable, os.path.abspath(__file__), "guard", str(game.pid)], stdin=subprocess.DEVNULL,
@@ -824,6 +830,41 @@ def profile(seconds, out):
     return 0
 
 
+# The API's release build: a game pzdev starts runs its pzext-api.jar (PZEXT_DEV_RELOAD), a new build within a second.
+RELEASE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "extension-api",
+                       "out", "release")
+
+
+def sha256(path):
+    import hashlib
+    with open(path, "rb") as f:
+        return hashlib.sha256(f.read()).hexdigest()
+
+
+# Returns once the game runs the API built: its boot layer says "API loaded <digest>" as it starts one (the developer
+# reload only). A game not started by pzdev runs the installed API and never says it.
+def api_loaded():
+    built = os.path.join(RELEASE, "pzext-api.jar")
+    if not os.path.exists(built):
+        print("no API built: extension-api/build.ps1")
+        return 1
+    if not game_process():
+        print("the game is not running (pzdev launch starts it with the API built)")
+        return 1
+    line = "[PZExt] API loaded " + sha256(built)[:12]
+    end = time.time() + 10
+    while time.time() < end:
+        if console_last(line) >= 0:
+            print("the game runs the API built (%s)" % line.rsplit(" ", 1)[-1])
+            return 0
+        time.sleep(0.25)
+    print("the game does not run the API built (%s) after 10 s: one not started by pzdev runs the installed API"
+          " (`pzdev restart`), or the build failed to load:" % sha256(built)[:12])
+    for text in [l for l in open(CONSOLE, encoding="utf-8", errors="replace") if "[PZExt]" in l][-5:]:
+        print("  " + text.rstrip())
+    return 1
+
+
 LOGS = os.path.join(os.path.expanduser("~"), "Zomboid", "Logs")
 
 
@@ -945,6 +986,8 @@ def main():
         return leave_save(console_size())
     if len(sys.argv) == 2 and sys.argv[1] == "continue":
         return continue_save()
+    if len(sys.argv) == 2 and sys.argv[1] == "api":
+        return api_loaded()
     if len(sys.argv) >= 2 and sys.argv[1] == "profile":
         out = arg("--out")
         return profile(int(sys.argv[2]) if len(sys.argv) > 2 else 10, out)

@@ -21,8 +21,9 @@ import java.util.jar.Manifest;
  * install vouched for: {@link Boot#apiDigest()}), its classes defined by a loader of their own, and its
  * {@code pzext.api.GameApi.start()} called, which hands the hooks their handlers. With the developer switch on
  * ({@link #DEV_RELOAD}) the jar is looked at again about once a second: a changed one (a build copied over it in a running
- * game) loads without a digest check and starts a new API, which takes the game's Lua environment over from the one
- * before. Without it the jar is loaded once and never looked at again: a release's jar is the one the install put there.
+ * game, or the build itself where the switch names it) loads without a digest check and starts a new API, which takes
+ * the game's Lua environment over from the one before. Without it the jar is loaded once and never looked at again: a
+ * release's jar is the one the install put there.
  * Each pass writes which hooks the game has ({@code api.tsv}, in the install folder) for whoever installed the API. Each
  * frame runs the API's per-frame work.
  */
@@ -30,11 +31,16 @@ final class Host {
     private static final String NAMESPACE = "pzext.api", ENTRY = "pzext.api.GameApi", CONTRACT = "PZExt-Boot-Api";
     /**
      * The environment variable of the game's process that turns the API's hot reload on, for a developer building the API:
-     * set to {@code 1}, a newer jar in the version folder replaces the running API without the install's digest. Off in
+     * set to {@code 1}, a newer jar in the version folder replaces the running API without the install's digest; set to
+     * the full path of a jar ({@code ...\out\release\pzext-api.jar}), the API is that jar's from the start, and each
+     * build of it replaces the running one (no copy into the install, whose folder takes administrator rights). Off in
      * every other game; the loader still refuses a jar that does not match the install at the next start.
      */
     static final String DEV_RELOAD = "PZEXT_DEV_RELOAD";
-    private static final boolean DEV = "1".equals(System.getenv(DEV_RELOAD));
+    private static final Path DEV_JAR = devJar(System.getenv(DEV_RELOAD));
+    private static final boolean DEV = "1".equals(System.getenv(DEV_RELOAD)) || DEV_JAR != null;
+    // A jar younger than this may still be being written (a build writes it in place): read on a later pass.
+    private static final long SETTLE_MILLIS = 1000;
     private static final long WAKE_MILLIS = 250, STATUS_NANOS = 1_000_000_000L;
     private static final int MAX_JAR = 16 * 1024 * 1024, MAX_CLASS = 2 * 1024 * 1024, MAX_CLASSES = 2048;
 
@@ -81,7 +87,7 @@ final class Host {
                 if (System.nanoTime() - nextStatus >= 0) {
                     nextStatus = System.nanoTime() + STATUS_NANOS;
                     Path home = Boot.home();
-                    load(home.resolve(Boot.API_JAR));
+                    load(DEV_JAR != null ? DEV_JAR : home.resolve(Boot.API_JAR));
                     Api current = api;
                     if (current != null) current.status().invokeExact(home.getParent());
                 }
@@ -101,6 +107,7 @@ final class Host {
         var file = Files.readAttributes(jar, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
         long time = file.lastModifiedTime().toMillis();
         if (api != null && file.size() == seenSize && time == seenTime) return;
+        if (DEV && System.currentTimeMillis() - time < SETTLE_MILLIS) return;
         byte[] bytes;
         try (var input = Files.newInputStream(jar, LinkOption.NOFOLLOW_LINKS)) { bytes = input.readNBytes(MAX_JAR + 1); }
         if (bytes.length > MAX_JAR) throw new IOException("The API's jar is too large");
@@ -133,6 +140,19 @@ final class Host {
         type.getMethod("start").invoke(null);
         seenDigest = digest;
         api = next;
+        // the developer's reload says which jar runs now (pzdev.py api waits for it); a release's load says nothing
+        if (DEV) System.err.println("[PZExt] API loaded " + digest.substring(0, 12) + " (developer reload)");
+    }
+
+    /** The developer's jar the switch names: an absolute path ending in .jar, else none (a {@code 1}, or nothing). */
+    static Path devJar(String setting) {
+        if (setting == null || !setting.toLowerCase(java.util.Locale.ROOT).endsWith(".jar")) return null;
+        try {
+            Path jar = Path.of(setting);
+            return jar.isAbsolute() ? jar : null;
+        } catch (InvalidPathException bad) {
+            return null;
+        }
     }
 
     /**

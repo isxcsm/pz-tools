@@ -104,7 +104,8 @@ its own. The API needs no other program, no app running beside the game and no l
    ([`Host`](../src/boot/pzext/boot/Host.java)), which hands the hooks their handlers; the hook at the end of
    `LuaManager.init()` sets `PZExtAPI` into each Lua environment. The jar's bytes must have the digest the install gave the loader. About once
    a second the host writes `api.tsv` in the install folder: which hooks this game has. The jar is loaded once and not
-   looked at again; a developer building the API sets `PZEXT_DEV_RELOAD=1` in the game's environment, and the host then
+   looked at again; a developer building the API sets `PZEXT_DEV_RELOAD=1` (or the full path of a built jar, which is then read
+   instead of the installed one) in the game's environment, and the host then
    looks at the jar every second and a changed one loads without the digest check and takes over in the running game
    (the next game start refuses it again, unless it was installed).
 
