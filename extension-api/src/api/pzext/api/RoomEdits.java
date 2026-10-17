@@ -75,6 +75,20 @@ final class RoomEdits implements Hooks.Rooms {
     /** A room of the map that a building lost to rooms set: its number in its cell's map_meta.bin, and where it was. */
     private record Original(int cellX, int cellY, long metaId, int level, List<Rect> rects) { }
 
+    // While rooms are set: the building's part of the editor's work over the whole map (Hooks.Rooms): its box and its outside
+    // squares', with a square around it, on its levels and one above and below: { minX, minY, maxX, maxY, minZ, maxZ }. Null
+    // between sets: the editor does it all, as the game's.
+    private volatile int[] updating;
+    // The editor's numbering of one cell's buildings and rooms, and a cell of the map: null in a game without them (the editor
+    // then numbers every cell, as the game's).
+    private final Method renumber, cellData;
+    // The chunks the lighting works out again after buildings changed (Hooks.Rooms.relights): those of the buildings given
+    // rooms since, with a chunk around them, as { minX, minY, maxX, maxY } in chunks; all of them (whole) once the game changed
+    // buildings of its own. Cleared as the lighting has gone through them. A chunk's place, or null in a game without it.
+    private final List<int[]> relighting = new ArrayList<>();
+    private boolean relightAll, relightAsked;
+    private final Field chunkX, chunkY;
+
     // The map's own rooms that rooms set replaced, by cell; of the meta grid `world`. Read from the file as a world is first asked about.
     private final Map<Long, List<Original>> replacedRooms = new HashMap<>();
     private Object world;
@@ -150,6 +164,21 @@ final class RoomEdits implements Hooks.Rooms {
         roomLights = Game.accessible(room.getDeclaredField("lightsActive"));
         roomSpawned = Game.accessible(room.getDeclaredField("doneSpawn"));
         roofFixed = room.getMethod("isRoofFixed");
+        Method one = null, data = null;
+        try {
+            one = Game.accessible(editor.getDeclaredMethod("recalculateBuildingAndRoomIDs", cell));
+            data = grid.getMethod("getCellData", int.class, int.class);
+        } catch (ReflectiveOperationException | RuntimeException missing) { one = null; }
+        renumber = one;
+        cellData = data;
+        Field x = null, y = null;
+        try {
+            Class<?> chunk = Game.type(loader, "zombie.iso.IsoChunk");
+            x = chunk.getField("wx");
+            y = chunk.getField("wy");
+        } catch (ReflectiveOperationException | RuntimeException missing) { x = null; }
+        chunkX = x;
+        chunkY = y;
         // The game asks this API at the world's save and load.
         try { Hooks.setRooms(this); }
         catch (LinkageError olderBootstrap) { }
@@ -239,6 +268,7 @@ final class RoomEdits implements Hooks.Rooms {
         Object made;
         Object[] rooms = new Object[wanted.size()];
         // The editor's buildings are map buildings while it makes this one (see Hooks.playersBuilt).
+        updating = box(found);
         Hooks.roomsScope(true);
         try {
             // The editor as its debug window leaves it, for this building alone, and with no window to tell.
@@ -271,6 +301,7 @@ final class RoomEdits implements Hooks.Rooms {
             editorBefore.addAll(keptBefore);
             luaEditor.set(editor, keptLua);
             Hooks.roomsScope(false);
+            updating = null;
         }
         if (!((List<?>)gridBuildings.get(grid)).contains(made)) {
             buildings.changed();
@@ -302,6 +333,70 @@ final class RoomEdits implements Hooks.Rooms {
             catch (IllegalStateException unfit) { why = unfit.getMessage(); }
         }
         return new Object[] { true, why };
+    }
+
+    /** The building's part of the editor's work (see updating). */
+    private int[] box(Building found) throws ReflectiveOperationException {
+        int[] box = { found.minX() - 1, found.minY() - 1, found.maxX() + 1, found.maxY() + 1, found.minLevel() - 1, found.maxLevel() + 1 };
+        for (Object room : (List<?>)defOutside.get(found.def()))
+            for (Rect rect : buildings.rects(room)) {
+                box[0] = Math.min(box[0], rect.x() - 1);
+                box[1] = Math.min(box[1], rect.y() - 1);
+                box[2] = Math.max(box[2], rect.x() + rect.w());
+                box[3] = Math.max(box[3], rect.y() + rect.h());
+            }
+        return box;
+    }
+
+    @Override public boolean squares(java.util.function.Consumer<Object> work) throws Throwable {
+        int[] box = updating;
+        if (box == null) return false;
+        Object cells = game.cell();
+        if (cells == null) return false;
+        for (int z = box[4]; z <= box[5]; z++)
+            for (int y = box[1]; y <= box[3]; y++)
+                for (int x = box[0]; x <= box[2]; x++) {
+                    Object square = game.square(cells, x, y, z);
+                    if (square != null) work.accept(square);
+                }
+        return true;
+    }
+
+    @Override public boolean renumbered(Object editor) throws Throwable {
+        int[] box = updating;
+        Object grid = game.metaGrid();
+        if (box == null || renumber == null || grid == null) return false;
+        for (int x = Math.floorDiv(box[0], CELL); x <= Math.floorDiv(box[2], CELL); x++)
+            for (int y = Math.floorDiv(box[1], CELL); y <= Math.floorDiv(box[3], CELL); y++) {
+                Object cell = cellData.invoke(grid, x, y);
+                if (cell != null) renumber.invoke(editor, cell);
+            }
+        return true;
+    }
+
+    @Override public boolean checks() { return updating == null; }
+
+    @Override public synchronized void buildingsChanged() {
+        int[] box = updating;
+        if (box == null || chunkX == null) { relightAll = true; return; }
+        int size = game.chunkSize;
+        relighting.add(new int[] { Math.floorDiv(box[0], size) - 1, Math.floorDiv(box[1], size) - 1,
+            Math.floorDiv(box[2], size) + 1, Math.floorDiv(box[3], size) + 1 });
+    }
+
+    @Override public synchronized boolean relights(Object chunk) throws Throwable {
+        relightAsked = true;
+        if (relightAll || relighting.isEmpty()) return true;
+        int x = chunkX.getInt(chunk), y = chunkY.getInt(chunk);
+        for (int[] box : relighting) if (x >= box[0] && y >= box[1] && x <= box[2] && y <= box[3]) return true;
+        return false;
+    }
+
+    @Override public synchronized void relit() {
+        if (!relightAsked) return;
+        relightAsked = false;
+        relightAll = false;
+        relighting.clear();
     }
 
     /** The building's rooms as the map's own, to be kept for map_meta.bin (see the class). */

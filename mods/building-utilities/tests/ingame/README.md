@@ -32,10 +32,18 @@ look; `BU22_CLEAN()` takes them away.
   installs, recipes hidden), both utilities off together, then the plan's supply lines' switch in its three states and
   a producer's line under the mouse. Puts a pump, a sprinkler and a filter down and takes them away; each line "ok" or
   "BAD". Needs the test panel (`bu_setup.lua`) and tanks (`bu_water20.lua`) for the water and plan checks.
-- `bu_loot.lua`: solar panels as loot (`BU.Loot`): the chance by room and container, the fill hook through the game's
-  `OnFillContainer` event, nothing added with `SolarPanelLoot` at 0, Solar panels or Power off, or without room, then a
-  tool store's storeroom crate filled `BULOOT_N` times (default 4000) and the panels counted against the chance. Needs
-  no scene; each line "ok" or "BAD".
+- `bu_loot.lua`: what the mod adds to loot (`BU.Loot`): each item's kind of loot (`PZExtAPI.loot`) and its modifier,
+  the mod's option as the game reads it, at 0 while its feature is off; its items in the game's lists; then the game's
+  own roll of a technical room's list `BULOOT_N` times (default 2000), the boxes counted against the chance, their
+  container's owner marked and the filters' media spent (the items' `ItemConfig`). Needs no scene; puts the options back;
+  each line "ok" or "BAD".
+- `bu_walls.lua`: rooms that follow the walls (`BU.RoomWalls`) in a map building near the player: a plain wall between
+  two of its rooms taken down (one room) and built again (two, each with its name), the player moved inside; the ticks
+  over 40 ms of each stretch (settling, idle, after each change) and what the changes and `setRooms` took. The building
+  keeps the wall and its rooms; `BUWALLS_NOSET=true` first leaves the rooms unset (the game's own cost of a wall alone).
+- `bu_probe.lua`: where the mods' Lua time goes: every function of BU's and OA's tables wrapped with a timer until
+  `BUPROBE.report()` prints the slowest (in one call and in all) and puts them back. Event handlers kept as locals are
+  not seen: PZ Optimize's `luaEventProfile=true` (in `pzopt.properties`, printed at each load) tells those.
 - `bu_spray.lua`: a spraying sprinkler near the player, its frames read over a second and a half (the spray going
   round); `BUSPRAY_CLEAN()` takes it away. A new sprite sheet needs the game restarted, not only the save reloaded.
 - `bu_looks.lua`: the looks of the units and the box (sprites and overlays by state, an old save's box taking the

@@ -14,13 +14,15 @@ module BuildingUtilities
         RequiresEquippedBothHands = true,
         Tags = base:heavyitem,
         Icon = BUBreakerBox,
-        ItemConfig = FoundBox,
+        ItemConfig = BuildingUtilities.FoundBox,
     }
 
-    /* As the game spawns one into loot (not as one is made or put down): Loot.lua. */
+    /* As the game spawns one into loot (not as one is made or put down): Loot.lua. The LuaFunc block needs a name
+       though it takes none: the game reads a block with none as an error (BucketRootScript.load). An item names one with its module: a
+       name without one is looked for in Base. */
     itemConfig FoundBox
     {
-        LuaFunc
+        LuaFunc found
         {
             default
             {
@@ -31,7 +33,7 @@ module BuildingUtilities
 
     itemConfig FoundFilter
     {
-        LuaFunc
+        LuaFunc found
         {
             default
             {
@@ -143,7 +145,7 @@ module BuildingUtilities
         WorldObjectSprite = bu_water_01_6,
         Weight = 6.0,
         Icon = BUWaterFilter,
-        ItemConfig = FoundFilter,
+        ItemConfig = BuildingUtilities.FoundFilter,
     }
 
     item JunctionBox

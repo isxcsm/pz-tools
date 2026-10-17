@@ -209,6 +209,20 @@ old rooms (where a building's zombies stand) move to the room over their square.
 lit one of the old rooms lights the new room on its square, or else the room its old room became
 most of. The editor's debug window, if open, is not told.
 
+As it puts its buildings in, the editor goes over the whole map: every loaded square worked out again twice over (each square's
+room; then its properties, its picture and the paths over it), the buildings and rooms of every cell numbered again, and their
+numbers checked three times, a check that only logs. In game that was a quarter of a second for a house (the squares about 170 ms,
+the checks most of the rest), where rooms set change one building. While rooms are set, the API does the building's part: the
+squares of its box and its outside squares', with a square around them, on its levels and one above and below, are given to the
+editor's passes (`updateSquares`); the cells the box is in are numbered again (`recalculateBuildingAndRoomIDs`, one cell at a
+time); and the checks are left out. The editor's own use is as the game's.
+
+The editor also tells the lighting the buildings changed (`LightingJNI.buildingsChanged`, as the game does when the rooms players
+build change), and at its next update the lighting draws and lights every loaded chunk again (`checkChangedBuildings`): 70 to 120
+ms in one frame in game. For rooms set, it goes over the chunks of the building with a chunk around them; when the game changed
+buildings of its own before the lighting went through them, over every chunk, as the game does. With these, a wall taken down in a
+house and the rooms set after it cost about 10 ms in game.
+
 The rooms are written to the save's `pzext_rooms.bin`, in the format of the game's
 `player_buildings.bin` (the building editor's file), which the game reads in its place as the world
 loads (`PlayerRoomsFile.load`, before the map's data on rooms, which then gives each room its flags
@@ -253,19 +267,23 @@ Here the squares, their walls and the work are Java's, and Lua is called only wi
 
 | Call | Returns |
 | --- | --- |
-| `buildings.watchWalls(handle, key, fn)` | The watch's `id`; or `nil` and why: no building has the key, players built it (the game remakes its rooms), or it is larger than the game loads at once, or its rooms have more than 32768 squares. When the rooms the walls make are not the building's, `fn(key, rooms)` is called from the frame job, `rooms` as `setRooms` takes them (`level`, `rects`). |
+| `buildings.watchWalls(handle, key, fn)` | The watch's `id`; or `nil` and why: no building has the key, players built it (the game remakes its rooms), or it is larger than the game loads at once, or its rooms have more than 32768 squares. When the rooms the walls make are not the building's, `fn(key, rooms)` is called from the frame job, `rooms` as `setRooms` takes them (`level`, `rects`, `name`). |
 | `buildings.unwatchWalls(handle, id)` | Stops the mod's own watch; `true` when there was one. |
 
 A square's walls are its north and west sides as the game's regions tell a room's (`IsoRegions.calculateSquareFlags`): a wall or a
 window's (`cutN`, `cutW`), a door frame (`doorFrN`, `doorFrW`); a corner post (`WallSE`) leaves the west side open. The watch reads
 those of every square of the building's rooms once every chunk the building covers is loaded (until then it waits, looking every
-30 frames), and keeps them. When a square's properties are worked out again (the hook of the square watches, through
-`SquareDispatch`), the frame job reads its walls; when one differs from what was seen, the squares are grouped: two side by side
-are of one room when they were of the same room, unless a wall was built between them since; or of two rooms when the wall between
-them was taken down since. What the map has stays: two rooms open to each other stay two, and a room with a wall of its own inside
-stays one. When the groups are not the building's rooms, `fn` is told them, each made into rectangles (runs along x, grown down);
-then what was seen is what is there now, whatever the mod did. A building whose rooms another call changed is read again from its
-rooms; one whose rooms cover other squares now is read again whole, its walls as they are.
+30 frames), and keeps them with the room each square is of then. When a square's properties are worked out again (the hook of the
+square watches, through `SquareDispatch`), the frame job reads its walls; when one differs from what was last seen, the squares are
+grouped: two side by side are of one room when they were of the same room as the building was first read, unless a wall was built
+between them since; or of two rooms when the wall between them then is down. What the map has stays: two rooms open to each other
+stay two, and a room with a wall of its own inside stays one. When the groups are not the building's rooms now, `fn` is told them,
+each made into rectangles (runs along x, grown down) and named after the room most of its squares were of (a room cut in two keeps
+its name in both; two made one take the larger's). The groups are always worked out from that first reading, whatever rooms were
+set since: a wall between two rooms taken down in part makes one, and built again makes the two again, named as they were (were
+the reading moved on to the rooms set, the rest of that wall would be a wall inside one room, which parts nothing). A building whose
+rooms another call changed is compared with its rooms now; one whose rooms cover other squares now is read again whole, what its
+squares were first read as kept.
 
 Cost: the hook asks each watch's box and then the square's slot in a table indexed by place (no hash, nothing allocated; 23 ns a
 square change elsewhere, 37 ns in a watched building in the tests). Reading a building of 32400 squares (90 by 90 on four floors)
@@ -908,6 +926,11 @@ hook only. `PZExtAPI.hooks()` names each by game class and method.
 | `BREBuilding()` (the building editor's building) | the one `new BuildingDef(boolean)` | A fix: the building is a map building (`false`), not one players built, so the game does not drop it when players build in its cell, while rooms are being set and while the game loads the API's file; else the game's answer (see "Rooms set"). |
 | `PlayerRoomsFile.load()` | the one `ZomboidFileSystem.getFileInCurrentSave(String)` | The file read is the save's `pzext_rooms.bin` when there is one (the rooms `setRooms` gave), else the game's `player_buildings.bin` (see "Rooms set"). |
 | `BuildingRoomsEditor.load()` (`BuildingRoomsEditor.load`) | before each return | The editor's load of the world's rooms is done: its buildings are the game's again. |
+| `BuildingRoomsEditor.updateSquares()` (`:squares`) | before each of the two `forEachSquare(Consumer)` | While rooms are set, the pass is given the building's squares by the API and the game's pass over every loaded square is left out (see "Rooms set"); else the game's. |
+| `BuildingRoomsEditor.applyChanges(boolean)` (`:numbers`) | the one `recalculateBuildingAndRoomIDs()` | While rooms are set, the API has the editor number the cells the building is in, one at a time, in place of every cell of the map; else the game's. |
+| `BuildingRoomsEditor.applyChanges(boolean)` (`:check`) | each of the three `checkBuildingAndRoomIDs()` | Left out while rooms are set (a check of every cell's numbers that only logs); else the game's. |
+| `LightingJNI.buildingsChanged()` | the return | The API is told the buildings changed: rooms set (the chunks of the building, with a chunk around them, are kept) or the game's own (every chunk). |
+| `LightingJNI.checkChangedBuildings()` (`:chunks`, `:done`) | after the one `IsoChunkMap.getChunk(int, int)`; the return | A chunk that is not one the buildings changed in is passed over as an empty place is (see "Rooms set"); at the end, what was kept is let go once the pass went through the chunks. |
 | `IsoMetaGrid.savePart(buffer, part, flag)` (`savePart:saving`) | at its start | The world is saving its map data: for part 0 (the rooms), the API's file of the rooms is written. |
 | `IsoMetaGrid.savePart` (`savePart:rooms`, `savePart:entries`) | the one `IsoMetaCell.getRoomCount(true)`, and the one `getBuildingCount(true)` | The count of a cell's rooms is the game's and the number of entries for the map's own rooms that were replaced; those entries are written after the cell's own. The two go in together or not at all (one alone would break the file), which the API checks. |
 | `IsoMetaGrid.load(buffer)` (`load:complaint`) | the game's complaint of a room entry it has no room for (`DebugType.error`, the one that begins `invalid room metaID`) | Left out when the entry is one of the replaced rooms'. |
@@ -927,6 +950,7 @@ hook only. `PZExtAPI.hooks()` names each by game class and method.
 | `IsoGameCharacter.handleLandingImpact` (labelled `:impact`) | the call of `FallDamage.getImpactIsoSpeed()` | The speed read passes through `fall.impactMultiplier`. The same method as the load's `:overload` hooks; two hooks, one class owner. |
 | `ItemPickerJava.getActualSpawnChance` | each return | Times `loot.spawnMultiplier`. |
 | `ItemPickerJava.getLootModifierFromType` | the read of `ammoLootModifier` | Times `loot.ammoMultiplier`; the only read of that field in the method. |
+| `SelectorBucket(int[], SelectorBucketScript, SelectorBucket[], Randomizer)` (`SelectorBucket.<init>:children`) | the one write of `children` | A fix: the game makes a bucket of an item's config with no buckets under it with none (null) and reads their number as it resolves every bucket it reaches, so every config failed on every item the loot gave it; such a bucket gets an empty list. |
 | `LightingJNI.getLumaInverted` | each return | Passed through `vision.darknessRestore` (the method is private; it is found by its signature). |
 | `LightingJNI.calculateVisionCone` | before the call of `getWornItemsVisionMultiplier()` | The degrees on the stack have `vision.coneAdd` added before the worn items' multiplier. |
 | `LightingJNI$JNILighting.update:stale`, `.updateFBORenderChunk:stale` | after each call of `LightingJNI.getSquareDirty(player, x, y, z)` | Also true when night sight's lift changed since the square was read (or it has not been read since squares were lifted), so that it is read again; the call's arguments are kept in new locals. |

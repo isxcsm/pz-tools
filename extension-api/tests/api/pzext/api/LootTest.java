@@ -4,6 +4,8 @@ import se.krka.kahlua.vm.KahluaTable;
 import zombie.Lua.LuaManager;
 import zombie.SandboxOptions;
 import zombie.inventory.ItemPickerJava;
+import zombie.scripting.itemConfig.Randomizer;
+import zombie.scripting.itemConfig.SelectorBucket;
 import zombie.scripting.objects.Item;
 import pzext.boot.Hooks;
 
@@ -11,11 +13,18 @@ import pzext.boot.Hooks;
  * The kinds of loot a mod defines, against the synthetic game: an item listed is of the mod's kind, rolled by the mod's sandbox
  * option as the game rolls its own kinds by theirs; the game's own items and kinds stay the game's; the option read as the game
  * rolls; another mod's item refused, the mod's own moved; what is refused; clear; a newer API; a handler that fails; no allocation.
+ * And the config of an item the loot spawns (its script's ItemConfig), which the game's own bucket with none under it broke.
  */
 final class LootTest {
     private LootTest() { }
 
     static void run(KahluaTable api) throws Exception {
+        // An item's config: a bucket with none under it resolves (the game gives it none and reads their number).
+        var leaf = new SelectorBucket(new int[0], null, null, new Randomizer());
+        check(Hooks.APPLIED.equals(Hooks.hookStatus().get("SelectorBucket.<init>:children")), "The hook of the configs' buckets is "
+            + Hooks.hookStatus().get("SelectorBucket.<init>:children"));
+        check(new SelectorBucket(new int[0], null, new SelectorBucket[] { leaf }, null).Resolve(), "A config with a bucket with none under it failed");
+
         var loot = (KahluaTable)api.rawget("loot");
         check(loot != null, "The API has no loot");
         var parts = new SandboxOptions.DoubleSandboxOption(0.6);

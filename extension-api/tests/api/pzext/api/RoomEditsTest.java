@@ -85,6 +85,8 @@ final class RoomEditsTest {
         var beside = new IsoMetaCell(1, 0);
         var place = new MetaObject(64, 61, living);
         for (int x = 59; x <= 66; x++) for (int y = 59; y <= 63; y++) IsoWorld.instance.currentCell.load(x, y, 0);
+        // A loaded square away from the building, which the editor need not work out again.
+        var away = IsoWorld.instance.currentCell.load(90, 90, 0);
         var lit = new IsoLightSwitch(new IsoSprite("switch"));
         lit.roomId = 501;
         lit.square = IsoWorld.instance.currentCell.load(64, 62, 0);
@@ -102,6 +104,25 @@ final class RoomEditsTest {
             double before = (double)FormulasTest.call(buildings, "version").get(0);
             var done = FormulasTest.call(buildings, "setRooms", KEY, list(room(0, null, rect(60, 60, 6, 3))));
             check(Boolean.TRUE.equals(done.get(0)) && done.get(1) == null, "Two rooms were not made one: " + done);
+            // The editor's work over the whole map is the building's: its squares, its cell numbered again, and no check of every cell.
+            for (String hook : new String[] { "updateSquares:squares", "applyChanges:numbers", "applyChanges:check" })
+                check(Hooks.APPLIED.equals(Hooks.hookStatus().get("BuildingRoomsEditor." + hook)),
+                    "The editor's hook " + hook + " is " + Hooks.hookStatus().get("BuildingRoomsEditor." + hook));
+            check(BuildingRoomsEditor.updated.contains(IsoWorld.instance.currentCell.getGridSquare(61, 61, 0))
+                && BuildingRoomsEditor.updated.contains(IsoWorld.instance.currentCell.getGridSquare(66, 63, 0))
+                && !BuildingRoomsEditor.updated.contains(away), "The editor did not work out the building's squares alone");
+            check(BuildingRoomsEditor.renumbered.equals(java.util.Set.of(cell)) && BuildingRoomsEditor.everyCell == 0,
+                "The editor went over every cell: " + BuildingRoomsEditor.renumbered.size() + " numbered, " + BuildingRoomsEditor.everyCell + " passes");
+            // The lighting works out again the chunks of the building and those around it, not the one away from it; after the game
+            // changed buildings of its own, every chunk, as the game does.
+            for (String hook : new String[] { "buildingsChanged", "checkChangedBuildings:chunks", "checkChangedBuildings:done" })
+                check(Hooks.APPLIED.equals(Hooks.hookStatus().get("LightingJNI." + hook)), "The lighting's hook " + hook + " is " + Hooks.hookStatus().get("LightingJNI." + hook));
+            zombie.iso.LightingJNI.update();
+            check(zombie.iso.LightingJNI.relit.contains(IsoWorld.instance.currentCell.getGridSquare(61, 61, 0).chunk)
+                && !zombie.iso.LightingJNI.relit.contains(away.chunk), "The lighting did not work out the building's chunks alone");
+            zombie.iso.LightingJNI.buildingsChanged();
+            zombie.iso.LightingJNI.update();
+            check(zombie.iso.LightingJNI.relit.contains(away.chunk), "The game's own change of buildings did not light every chunk again");
             check((double)FormulasTest.call(buildings, "version").get(0) > before, "The buildings' version did not change");
             var rooms = (KahluaTable)FormulasTest.call(buildings, "rooms", KEY).get(0);
             check(rooms.len() == 1 && ((KahluaTable)rooms.rawget(1.0)).rawget("name").equals("kitchen"), "The room was misnamed");
@@ -256,6 +277,8 @@ final class RoomEditsTest {
             check(PlayerRoomsFile.lastRead != null && PlayerRoomsFile.lastRead.getName().equals("player_buildings.bin"),
                 "The game did not read its own file when the API had none: " + PlayerRoomsFile.lastRead);
             check(BuildingRoomsEditor.lastLoaded.def().isUserDefined(), "The building the game made from its own file is not what it makes");
+
+            walls(api, buildings);
         } finally {
             Core.noSave = false;
             BuildingRoomsEditor.getInstance().setLuaEditor(null);
@@ -267,6 +290,60 @@ final class RoomEditsTest {
             grid.getRemovedBuildings().clear();
             lit.square.objects.remove(lit);
             edits.reset();
+        }
+    }
+
+    /**
+     * Rooms that follow the walls (watchWalls, its function setting the rooms told), the building one room of 6 by 3: a wall built
+     * across it makes two, taken down one, built again two; each told once, the rooms set before the next change. Then, watched
+     * again as the two rooms named: the wall between them taken down in part makes one, built again two (the rest of the wall is
+     * the rooms' own, not a wall inside the one room), each with its name back.
+     */
+    private static void walls(KahluaTable api, KahluaTable buildings) {
+        Object mod = FormulasTest.call(api, "client", "rooms.walls").get(0);
+        var told = new ArrayList<Integer>();
+        se.krka.kahlua.vm.JavaFunction follow = (frame, count) -> {
+            var rooms = (KahluaTable)frame.get(1);
+            told.add(rooms.len());
+            var done = FormulasTest.call(buildings, "setRooms", frame.get(0), rooms);
+            check(Boolean.TRUE.equals(done.get(0)), "The rooms told were not set: " + done);
+            return 0;
+        };
+        var id = FormulasTest.call(buildings, "watchWalls", mod, KEY, follow).get(0);
+        check(id instanceof Double, "The building was not watched");
+        try {
+            for (boolean standing : new boolean[] { true, false, true }) {
+                for (int y = 60; y <= 62; y++) {
+                    var square = IsoWorld.instance.currentCell.getGridSquare(63, y, 0);
+                    square.westWall = standing;
+                    square.RecalcProperties();
+                }
+                GameApi.frame(GAME);
+                GameApi.frame(GAME);
+            }
+            check(told.equals(List.of(2, 1, 2)), "The rooms did not follow the walls after they were set: " + told);
+            check(IsoWorld.instance.metaGrid.getRoomAt(60, 60, 0) != IsoWorld.instance.metaGrid.getRoomAt(64, 61, 0), "The rooms set are not two");
+            FormulasTest.call(buildings, "unwatchWalls", mod, id);
+            FormulasTest.call(buildings, "setRooms", KEY, list(room(0, "kitchen", rect(60, 60, 3, 3)), room(0, "bathroom", rect(63, 60, 3, 3))));
+            id = FormulasTest.call(buildings, "watchWalls", mod, KEY, follow).get(0);
+            var middle = IsoWorld.instance.currentCell.getGridSquare(63, 61, 0);
+            for (boolean standing : new boolean[] { false, true }) {
+                middle.westWall = standing;
+                middle.RecalcProperties();
+                GameApi.frame(GAME);
+                GameApi.frame(GAME);
+            }
+            check(told.equals(List.of(2, 1, 2, 1, 2)), "A wall taken down in part and built again did not part the rooms again: " + told);
+            check(IsoWorld.instance.metaGrid.getRoomAt(60, 60, 0).name.equals("kitchen") && IsoWorld.instance.metaGrid.getRoomAt(64, 61, 0).name.equals("bathroom"),
+                "The rooms parted again did not get their names back: " + IsoWorld.instance.metaGrid.getRoomAt(64, 61, 0).name);
+            // The editor used as the game uses it (no rooms being set) goes over the whole map, as the game's.
+            BuildingRoomsEditor.getInstance().applyChanges(false);
+            check(BuildingRoomsEditor.everyCell == 4 && BuildingRoomsEditor.renumbered.size() == 2
+                && BuildingRoomsEditor.updated.contains(IsoWorld.instance.currentCell.getGridSquare(90, 90, 0)),
+                "The editor's own use did not go over the whole map");
+        } finally {
+            FormulasTest.call(buildings, "unwatchWalls", mod, id);
+            for (int y = 60; y <= 62; y++) IsoWorld.instance.currentCell.getGridSquare(63, y, 0).westWall = false;
         }
     }
 

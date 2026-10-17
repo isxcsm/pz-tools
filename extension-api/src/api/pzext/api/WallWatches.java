@@ -16,13 +16,14 @@ import pzext.boot.Hooks;
  * stands, a wall built across a room leaves one. What to do with the rooms told (setRooms, or nothing) is the mod's.
  *
  * <p>A watch reads the walls of every square of the building's rooms once, when every chunk the building covers is loaded (it
- * waits until they are, looking now and then), and keeps them as they were last seen. The hook of the square changes
+ * waits until they are, looking now and then), and keeps them with the room each square is of then. The hook of the square changes
  * ({@code IsoGridSquare.RecalcProperties}, through SquareDispatch: on any thread) asks each watch's box and then the square's
  * slot in it, a table indexed by place: nothing allocated, no hash. The frame job reads the walls of the squares marked; when one
  * differs from what was last seen, it works out the rooms the walls make now, and calls the function when they are not the rooms
- * the building has. Two squares side by side are of one room when they are of the same room unless a wall was built between them
- * since, or of two rooms when the wall between them was taken down since: an open kitchen beside the living room stays the
- * kitchen, and a room with a wall of its own inside stays one room. Then what was seen is what is there now.
+ * the building has. Two squares side by side are of one room when they were of the same room as the building was first read,
+ * unless a wall was built between them since, or of two rooms when the wall between them then is down: an open kitchen beside the
+ * living room stays the kitchen, and a room with a wall of its own inside stays one room. What the rooms are worked out from stays
+ * the first reading, whatever rooms are set since: a wall of two rooms taken down in part and built again parts them again.
  *
  * <p>The watches belong to the world they were made in: leaving it takes them away. They are kept in the API table's metatable,
  * where a newer API takes them over (and reads their walls again).
@@ -76,12 +77,21 @@ final class WallWatches implements Hooks.SquareChanges {
         final String owner, key;
         final Object function, record, cell;
         volatile Shape shape;
-        // The room each square is of (an index into rooms), the rooms' sizes, and the rooms these were read from.
+        // The room each square is of now (an index into rooms), the rooms' sizes, and the rooms these were read from.
         int[] roomOf;
         int[] sizes;
         List<Object> rooms = List.of();
         int[] levels;
-        byte[] before, now;
+        // What the rooms the walls make are worked out from: the room each square was of and its walls as the building was
+        // first read (the map's rooms and walls: rooms set since do not change them); and its walls as last read.
+        int[] originOf;
+        String[] originNames;
+        byte[] start, now;
+        // The reading the building's rooms moved away from (its squares, rooms first read and walls then), kept for the next.
+        Shape carried;
+        int[] carriedOrigin;
+        String[] carriedNames;
+        byte[] carriedStart;
         int waited;
         boolean cancelled, reported;
 
@@ -277,10 +287,44 @@ final class WallWatches implements Hooks.SquareChanges {
             walls[slot] = (byte)walls(square);
         }
         if (!rooms(watch, building, shape)) { remove(watch); return; }
-        watch.before = walls;
+        watch.start = walls;
         watch.now = walls.clone();
+        watch.originOf = watch.roomOf.clone();
+        watch.originNames = new String[watch.rooms.size()];
+        for (int index = 0; index < watch.originNames.length; index++) watch.originNames[index] = buildings.roomName(watch.rooms.get(index));
         watch.shape = shape;
+        boolean carried = carry(watch, shape);
         publish();
+        if (carried) tell(watch, shape);
+    }
+
+    /**
+     * The rooms first read and the walls then of the squares the last reading had too, given to this one (a square new to the
+     * building is of its room now, with its walls now); whether there was a last reading.
+     */
+    private static boolean carry(Watch watch, Shape shape) {
+        Shape old = watch.carried;
+        int[] origin = watch.carriedOrigin;
+        String[] names = watch.carriedNames;
+        byte[] start = watch.carriedStart;
+        watch.carried = null;
+        watch.carriedOrigin = null;
+        watch.carriedNames = null;
+        watch.carriedStart = null;
+        if (old == null) return false;
+        int past = names.length;
+        String[] joined = Arrays.copyOf(names, past + watch.originNames.length);
+        System.arraycopy(watch.originNames, 0, joined, past, watch.originNames.length);
+        watch.originNames = joined;
+        for (int slot = 0; slot < shape.xs.length; slot++) {
+            int was = old.slot(shape.xs[slot], shape.ys[slot], shape.zs[slot]);
+            if (was < 0) watch.originOf[slot] += past;
+            else {
+                watch.originOf[slot] = origin[was];
+                watch.start[slot] = start[was];
+            }
+        }
+        return true;
     }
 
     /** The squares of the building's rooms, in the rooms' order; null past MAX_SQUARES, which the rectangles' areas tell first. */
@@ -435,22 +479,33 @@ final class WallWatches implements Hooks.SquareChanges {
             int slot = slots[at];
             Object square = game.square(cells, shape.xs[slot], shape.ys[slot], shape.zs[slot]);
             if (square == null) continue;
-            watch.now[slot] = (byte)walls(square);
-            if (watch.now[slot] != watch.before[slot]) differs = true;
+            byte code = (byte)walls(square);
+            if (code == watch.now[slot]) continue;
+            watch.now[slot] = code;
+            differs = true;
         }
         if (!differs) return;
         Building building = buildings.resolve(watch.key);
         if (refused(building) != null) { remove(watch); return; }
         if (!same(building.rooms(), watch.rooms) && !rooms(watch, building, shape)) {
-            // The building's rooms cover other squares now: its squares and walls are read again, as they are.
+            // The building's rooms cover other squares now: its squares and walls are read again, what the squares it had
+            // were first read as kept.
+            watch.carried = shape;
+            watch.carriedOrigin = watch.originOf;
+            watch.carriedNames = watch.originNames;
+            watch.carriedStart = watch.start;
             watch.shape = null;
             watch.waited = 0;
             publish();
             start(watch, building);
             return;
         }
+        tell(watch, shape);
+    }
+
+    /** The rooms the walls make told, when they are not the building's. */
+    private void tell(Watch watch, Shape shape) throws ReflectiveOperationException {
         Object rooms = partition(watch, shape);
-        watch.before = watch.now.clone();
         if (rooms != null) call(watch, rooms);
     }
 
@@ -461,9 +516,9 @@ final class WallWatches implements Hooks.SquareChanges {
     }
 
     /**
-     * The rooms the walls make of the building's squares, as setRooms takes them ({ level, rects }), or null when they are the
-     * rooms it has. Two squares side by side are one room when of the same room, unless a wall was built between them since;
-     * or of two rooms when the wall between them was taken down since.
+     * The rooms the walls make of the building's squares, as setRooms takes them ({ level, rects, name }), or null when they are the
+     * rooms it has. Two squares side by side are one room when they were of the same room as the building was first read, unless
+     * a wall was built between them since; or of two rooms when the wall between them then is down.
      */
     private Object partition(Watch watch, Shape shape) throws ReflectiveOperationException {
         int squares = shape.xs.length;
@@ -471,7 +526,7 @@ final class WallWatches implements Hooks.SquareChanges {
         for (int slot = 0; slot < squares; slot++) parent[slot] = slot;
         for (int slot = 0; slot < squares; slot++) {
             int x = shape.xs[slot], y = shape.ys[slot], z = shape.zs[slot];
-            int now = watch.now[slot], was = watch.before[slot];
+            int now = watch.now[slot], was = watch.start[slot];
             int north = shape.slot(x, y - 1, z), west = shape.slot(x - 1, y, z);
             if (north >= 0 && joined(watch, slot, north, (now & NORTH) != 0, (was & NORTH) != 0)) join(parent, slot, north);
             if (west >= 0 && joined(watch, slot, west, (now & WEST) != 0, (was & WEST) != 0)) join(parent, slot, west);
@@ -498,6 +553,7 @@ final class WallWatches implements Hooks.SquareChanges {
         for (int group = 0; group < groups && !changed; group++)
             if (mixed[group] || sizes[group] != watch.sizes[room[group]]) changed = true;
         if (!changed) return null;
+        String[] names = names(watch, groupOf, groups);
         // Each group's squares as places (y in the high half, x in the low), together and sorted, made into rectangles.
         int[] from = new int[groups + 1];
         for (int group = 0; group < groups; group++) from[group + 1] = from[group] + sizes[group];
@@ -510,6 +566,7 @@ final class WallWatches implements Hooks.SquareChanges {
             Arrays.sort(places, from[group], from[group + 1]);
             Object entry = lua.table();
             lua.set(entry, "level", (double)watch.levels[room[group]]);
+            if (names[group] != null) lua.set(entry, "name", names[group]);
             var rects = new ArrayList<Object>();
             for (int[] rect : rects(places, from[group], from[group + 1])) {
                 Object value = lua.table();
@@ -521,6 +578,28 @@ final class WallWatches implements Hooks.SquareChanges {
             result.add(entry);
         }
         return lua.list(result);
+    }
+
+    /**
+     * Each group's name: that of the room most of its squares were of as the building was first read (a room cut in two keeps
+     * its name in both, two made one take the larger's, and a wall built again gives each its own back); none for a name
+     * setRooms would not take.
+     */
+    private static String[] names(Watch watch, int[] groupOf, int groups) {
+        int labels = watch.originNames.length;
+        var counts = new java.util.HashMap<Long, Integer>();
+        int[] best = new int[groups], most = new int[groups];
+        for (int slot = 0; slot < groupOf.length; slot++) {
+            int group = groupOf[slot], origin = watch.originOf[slot];
+            int count = counts.merge((long)group * labels + origin, 1, Integer::sum);
+            if (count > most[group]) { most[group] = count; best[group] = origin; }
+        }
+        String[] result = new String[groups];
+        for (int group = 0; group < groups; group++) {
+            String name = watch.originNames[best[group]];
+            if (name != null && !name.isEmpty() && name.length() <= 64 && !name.equals("emptyoutside")) result[group] = name;
+        }
+        return result;
     }
 
     /**
@@ -552,9 +631,9 @@ final class WallWatches implements Hooks.SquareChanges {
         return result;
     }
 
-    private static boolean joined(Watch watch, int slot, int other, boolean wallNow, boolean wallBefore) {
-        if (watch.roomOf[slot] == watch.roomOf[other]) return !(wallNow && !wallBefore);
-        return wallBefore && !wallNow;
+    private static boolean joined(Watch watch, int slot, int other, boolean wallNow, boolean wallThen) {
+        if (watch.originOf[slot] == watch.originOf[other]) return !(wallNow && !wallThen);
+        return wallThen && !wallNow;
     }
 
     private static int find(int[] parent, int slot) {

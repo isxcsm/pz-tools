@@ -40,6 +40,7 @@ final class WallWatchesTest {
             house(grid, made);
             telling(buildings, mod);
             scenes(buildings, mod, grid, made);
+            regrown(buildings, mod, grid, made);
             rectangles();
             waiting(buildings, mod);
             refusals(buildings, mod, second, grid, made);
@@ -204,6 +205,27 @@ final class WallWatchesTest {
         wall(701, 702, 0, true, false);
         frame();
         check(log.equals(List.of("stacked 700,700,0: 0 700,700,2,4; 1 700,700,2,4;")), "The rooms stacked north and south were not made one: " + log);
+        FormulasTest.call(buildings, "unwatchWalls", mod, id);
+        log.clear();
+    }
+
+    /**
+     * The building's rooms grown over other squares in the frame a wall between two of them came down: its squares are read
+     * again, and the wall is still told (the walls before of the squares it had are kept), the new room left as it is.
+     */
+    private static void regrown(KahluaTable buildings, Object mod, zombie.iso.IsoMetaGrid grid, List<RoomDef> made) {
+        log.clear();
+        var house = new BuildingDef(false);
+        made.add(room(grid, new RoomDef(931, "kitchen", 0, house), 800, 800, 3, 3));
+        made.add(room(grid, new RoomDef(932, "livingroom", 0, house), 803, 800, 3, 3));
+        load(799, 799, 808, 803, 0);
+        for (int y = 800; y <= 802; y++) IsoWorld.instance.currentCell.getGridSquare(803, y, 0).westWall = true;
+        double id = id(watch(buildings, mod, "800,800,0", record("regrown")));
+        made.add(room(grid, new RoomDef(933, "hall", 0, house), 806, 800, 2, 3));
+        GameApi.buildings().changed();
+        for (int y = 800; y <= 802; y++) wall(803, y, 0, false, false);
+        frame();
+        check(log.equals(List.of("regrown 800,800,0: 0 800,800,6,3; 0 806,800,2,3;")), "A wall that came down as the rooms grew was lost: " + log);
         FormulasTest.call(buildings, "unwatchWalls", mod, id);
         log.clear();
     }

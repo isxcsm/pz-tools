@@ -1034,6 +1034,8 @@ final class Buildings {
 
     long roomId(Object room) throws ReflectiveOperationException { return (long)roomId.invoke(room); }
 
+    String roomName(Object room) throws ReflectiveOperationException { return (String)roomName.invoke(room); }
+
     /** The building as its rooms describe it, kept for the version (see observe): the caller observed first. */
     private synchronized Building describe(Object def) throws ReflectiveOperationException {
         if (def == null) return null;

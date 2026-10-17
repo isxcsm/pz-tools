@@ -2731,9 +2731,9 @@ public final class GameApiTest {
                 "IsoGridSquare.BurnWalls", "IsoGridSquare.load", "FBORenderCell.*:decals", "IsoGridSquare.RecalcProperties",
                 "InventoryItem.*:useDelta", "DrainableComboItem.*:useDelta", "CraftRecipeData.luaCallOnCreate",
                 "InventoryItem.getName", "InventoryItem.getDisplayName", "Food.getName", "Clothing.getName", "Moveable.getName",
-                "PixelLight$Gl.init:pass", "AmbientOcclusion.compile" })
+                "PixelLight$Gl.init:pass", "AmbientOcclusion.compile", "SelectorBucket.<init>:children", "BuildingRoomsEditor.updateSquares:squares", "BuildingRoomsEditor.applyChanges:numbers", "BuildingRoomsEditor.applyChanges:check", "LightingJNI.buildingsChanged", "LightingJNI.checkChangedBuildings:chunks", "LightingJNI.checkChangedBuildings:done" })
             check(Hooks.APPLIED.equals(hooks.rawget(label)), label + " is " + hooks.rawget(label));
-        check(Hooks.hookStatus().size() == 139, "The hooks are " + Hooks.hookStatus().keySet());
+        check(Hooks.hookStatus().size() == 146, "The hooks are " + Hooks.hookStatus().keySet());
         // Every hook fits the synthetic game: a gap in the synthetic game fails here, not as a line in the output.
         var misfit = new java.util.TreeMap<>(Hooks.hookStatus());
         misfit.values().removeIf(Hooks.APPLIED::equals);

@@ -490,6 +490,34 @@ public final class Hooks {
 
         /** {@code IsoMetaGrid.load}, where the game complains of a room entry it has no room for: whether the entry is one of {@link #entries} (no complaint then). */
         boolean replaced(Object complaint) throws Throwable;
+
+        /**
+         * While rooms are set, as the building editor works out every loaded square again ({@code updateSquares}): whether the
+         * API gave {@code work} the building's squares itself (the game's pass over every one is then left out). An API that
+         * does not say leaves it to the game, as do the editor's other uses.
+         */
+        default boolean squares(java.util.function.Consumer<Object> work) throws Throwable { return false; }
+
+        /**
+         * While rooms are set, as the editor numbers the buildings and rooms of every cell of the map again: whether the API
+         * had it number those of the building's cells (the others are as they were).
+         */
+        default boolean renumbered(Object editor) throws Throwable { return false; }
+
+        /** Whether the editor checks the numbers of every cell's buildings and rooms (a check that only logs): not while rooms are set. */
+        default boolean checks() throws Throwable { return true; }
+
+        /** {@code LightingJNI.buildingsChanged}: the game is told the buildings changed (rooms set, or the game's own buildings). */
+        default void buildingsChanged() throws Throwable { }
+
+        /**
+         * As the lighting works out the loaded chunks again after buildings changed ({@code checkChangedBuildings}): whether the
+         * chunk ({@code IsoChunk}) is one to work out again. Every one, as the game does, for an API that does not say.
+         */
+        default boolean relights(Object chunk) throws Throwable { return true; }
+
+        /** The end of {@code checkChangedBuildings}: what was asked of {@link #relights} since the change is done, if anything was. */
+        default void relit() throws Throwable { }
     }
 
     /** The kinds of {@link Power#object}. */
@@ -499,6 +527,7 @@ public final class Hooks {
     private static final long HANDLER_WAIT_NANOS = TimeUnit.SECONDS.toNanos(10);
     private static final ClassDesc HOOKS = ClassDesc.of("pzext.boot.Hooks");
     private static final ClassDesc FILE = ClassDesc.of("java.io.File");
+    private static final ClassDesc CONSUMER = ClassDesc.of("java.util.function.Consumer");
     private static final ClassDesc CHAR_SEQUENCE = ClassDesc.of("java.lang.CharSequence");
     /** The save's file of the rooms PZExtAPI.buildings.setRooms gave, in the format of the game's player_buildings.bin. */
     public static final String ROOMS_FILE = "pzext_rooms.bin";
@@ -568,7 +597,9 @@ public final class Hooks {
         ZOMBIE_REGISTERED("zombieRegistered", Group.ZOMBIE_HOLDS), ZOMBIE_RELEASED("zombieReleased", Group.ZOMBIE_HOLDS),
         ZOMBIE_REMOVED("zombieRemoved", Group.ZOMBIE_HOLDS), ROOMS_SAVING("roomsSaving", Group.ROOMS),
         ROOMS_ORIGINALS("roomsOriginals", Group.ROOMS), ROOMS_ENTRIES("roomsEntries", Group.ROOMS),
-        ROOMS_REPLACED("roomsReplaced", Group.ROOMS);
+        ROOMS_REPLACED("roomsReplaced", Group.ROOMS), ROOMS_SQUARES("roomsSquares", Group.ROOMS),
+        ROOMS_RENUMBERED("roomsRenumbered", Group.ROOMS), ROOMS_CHECKED("roomsChecked", Group.ROOMS),
+        ROOMS_LIGHTING("roomsLighting", Group.ROOMS), ROOMS_RELIGHTS("roomsRelights", Group.ROOMS), ROOMS_RELIT("roomsRelit", Group.ROOMS);
 
         final String label;
         final Group group;
@@ -726,7 +757,21 @@ public final class Hooks {
                     code.swap();
                     code.invokestatic(HOOKS, "coneAdd", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_Object, ConstantDescs.CD_float));
                     code.aload(0);
-                }) }),
+                }),
+            // When buildings change (rooms set, or the rooms players build), the lighting draws and lights every loaded chunk
+            // again at its next update: a hundred milliseconds in one frame. For rooms set, the chunks of the building and those
+            // around them are the ones that changed; when the game changed buildings of its own since, every chunk, as it does.
+            Site.atReturns("buildingsChanged", "()V", 0, (code, owner) -> code.invokestatic(HOOKS, "roomsLighting",
+                MethodTypeDesc.of(ConstantDescs.CD_void))),
+            Site.edit("checkChangedBuildings", "()V", new Edit(calls("zombie/iso/IsoChunkMap", "getChunk", "(II)Lzombie/iso/IsoChunk;"), 1, null,
+                (code, element, kind) -> {
+                    // the chunk -> the chunk, or null (passed over, as an empty place is) when it is not one to work out again
+                    code.with(element);
+                    code.invokestatic(HOOKS, "roomsRelights", MethodTypeDesc.of(ConstantDescs.CD_Object, ConstantDescs.CD_Object));
+                    code.checkcast(ClassDesc.of("zombie.iso.IsoChunk"));
+                })).named("chunks"),
+            Site.atReturns("checkChangedBuildings", "()V", 0, (code, owner) -> code.invokestatic(HOOKS, "roomsRelit",
+                MethodTypeDesc.of(ConstantDescs.CD_void))).named("done") }),
         // Night sight's least light: each read of a square's lighting from the native lighting (the call hands it into an
         // int[]) is followed by squareLit with the same player, square and array, before the game reads the corners out of
         // it; and the lighting's answer whether a square changed is followed by squareStale's, so that a square raised to
@@ -1216,6 +1261,23 @@ public final class Hooks {
                     code.with(element);
                     code.invokestatic(HOOKS, "lootAmmo", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_float));
                 })) }),
+        // An item's config (the script's ItemConfig, run on an item the loot spawns): the game makes a bucket with no buckets
+        // under it with none (null), and reads their number as it resolves every bucket it reaches, so a config failed on
+        // every item it was given to. A bucket with none under it gets an empty list.
+        Map.entry("zombie/scripting/itemConfig/SelectorBucket", new Site[] {
+            Site.edit("<init>", "([ILzombie/scripting/itemConfig/script/SelectorBucketScript;[Lzombie/scripting/itemConfig/SelectorBucket;"
+                + "Lzombie/scripting/itemConfig/Randomizer;)V", new Edit(field(Opcode.PUTFIELD, "zombie/scripting/itemConfig/SelectorBucket",
+                "children"), 1, null, (code, element, kind) -> {
+                    // this, children -> this, children or an empty list
+                    Label given = code.newLabel();
+                    code.dup();
+                    code.ifnonnull(given);
+                    code.pop();
+                    code.iconst_0();
+                    code.anewarray(ClassDesc.of("zombie.scripting.itemConfig.SelectorBucket"));
+                    code.labelBinding(given);
+                    code.with(element);
+                })).named("children") }),
         Map.entry("zombie/iso/objects/IsoTree", new Site[] {
             Site.atReturns("getSlowFactor", "(Lzombie/iso/IsoMovingObject;)F", 2, (code, owner) -> {
                 code.aload(1);
@@ -1253,8 +1315,51 @@ public final class Hooks {
             })) }),
         // The end of the editor's load of the world's rooms (the game calls it as the world loads, before the map's data on rooms): the
         // buildings it made from the API's file are made.
+        // As the editor puts its buildings in, it goes over the whole map: every loaded square worked out again twice over (each
+        // square's room, then its properties, its picture and the paths over it), the buildings and rooms of every cell numbered
+        // again, and their numbers checked three times (a check that only logs). A quarter of a second in game, where rooms set
+        // change one building: while rooms are set, the API does the building's part (its squares, its cells) and the check is
+        // left out.
         Map.entry("zombie/buildingRooms/BuildingRoomsEditor", new Site[] {
-            Site.atReturns("load", "()V", 0, (code, owner) -> code.invokestatic(HOOKS, "roomsLoaded", MethodTypeDesc.of(ConstantDescs.CD_void))) }),
+            Site.atReturns("load", "()V", 0, (code, owner) -> code.invokestatic(HOOKS, "roomsLoaded", MethodTypeDesc.of(ConstantDescs.CD_void))),
+            Site.edit("updateSquares", "()V", new Edit(calls("zombie/buildingRooms/BuildingRoomsEditor", "forEachSquare",
+                "(Ljava/util/function/Consumer;)V"), 2, null, (code, element, kind) -> {
+                    // this, work -> the game's pass, unless the API gave work the building's squares
+                    Label game = code.newLabel(), done = code.newLabel();
+                    code.dup();
+                    code.invokestatic(HOOKS, "roomsSquares", MethodTypeDesc.of(ConstantDescs.CD_boolean, CONSUMER));
+                    code.ifeq(game);
+                    code.pop2();
+                    code.goto_(done);
+                    code.labelBinding(game);
+                    code.with(element);
+                    code.labelBinding(done);
+                })).named("squares"),
+            Site.edit("applyChanges", "(Z)V", new Edit(calls("zombie/buildingRooms/BuildingRoomsEditor", "recalculateBuildingAndRoomIDs",
+                "()V"), 1, null, (code, element, kind) -> {
+                    // this -> the game's numbering of every cell, unless the API had the building's cells numbered
+                    Label game = code.newLabel(), done = code.newLabel();
+                    code.dup();
+                    code.invokestatic(HOOKS, "roomsRenumbered", MethodTypeDesc.of(ConstantDescs.CD_boolean, ConstantDescs.CD_Object));
+                    code.ifeq(game);
+                    code.pop();
+                    code.goto_(done);
+                    code.labelBinding(game);
+                    code.with(element);
+                    code.labelBinding(done);
+                })).named("numbers"),
+            Site.edit("applyChanges", "(Z)V", new Edit(calls("zombie/buildingRooms/BuildingRoomsEditor", "checkBuildingAndRoomIDs",
+                "()V"), 3, null, (code, element, kind) -> {
+                    // this -> the game's check, unless rooms are being set
+                    Label skip = code.newLabel(), done = code.newLabel();
+                    code.invokestatic(HOOKS, "roomsChecked", MethodTypeDesc.of(ConstantDescs.CD_boolean));
+                    code.ifeq(skip);
+                    code.with(element);
+                    code.goto_(done);
+                    code.labelBinding(skip);
+                    code.pop();
+                    code.labelBinding(done);
+                })).named("check") }),
         // The rooms setRooms gave are the API's own file of the save (ROOMS_FILE), read where the game reads the editor's
         // player_buildings.bin: without the API the game never sees them, and the map's buildings come back as they were
         // (the game would take the editor's buildings for ones players built, drop them, and fail loading the world).
@@ -3088,6 +3193,55 @@ public final class Hooks {
      * one players built. The game's answer (it is) except while rooms are being set and while the game loads the API's file.
      */
     public static boolean playersBuilt(boolean vanilla) { return vanilla && !roomsScope; }
+
+    /** Put before each {@code forEachSquare} in {@code BuildingRoomsEditor.updateSquares}: whether the API gave the work the squares itself. */
+    @SuppressWarnings("unchecked")
+    public static boolean roomsSquares(java.util.function.Consumer<?> work) {
+        Rooms current = rooms;
+        if (current == null || !roomsScope || work == null) return false;
+        try { return current.squares((java.util.function.Consumer<Object>)work); }
+        catch (Throwable problem) { reportOnce(Call.ROOMS_SQUARES, problem); return false; }
+    }
+
+    /** Put before the editor's numbering of every cell in {@code applyChanges}: whether the API had the building's cells numbered. */
+    public static boolean roomsRenumbered(Object editor) {
+        Rooms current = rooms;
+        if (current == null || !roomsScope) return false;
+        try { return current.renumbered(editor); }
+        catch (Throwable problem) { reportOnce(Call.ROOMS_RENUMBERED, problem); return false; }
+    }
+
+    /** Put at the end of {@code LightingJNI.buildingsChanged}. */
+    public static void roomsLighting() {
+        Rooms current = rooms;
+        if (current == null) return;
+        try { current.buildingsChanged(); }
+        catch (Throwable problem) { reportOnce(Call.ROOMS_LIGHTING, problem); }
+    }
+
+    /** Put after each chunk {@code LightingJNI.checkChangedBuildings} takes: the chunk, or null when it is not one to work out again. */
+    public static Object roomsRelights(Object chunk) {
+        Rooms current = rooms;
+        if (current == null || chunk == null) return chunk;
+        try { return current.relights(chunk) ? chunk : null; }
+        catch (Throwable problem) { reportOnce(Call.ROOMS_RELIGHTS, problem); return chunk; }
+    }
+
+    /** Put at the end of {@code LightingJNI.checkChangedBuildings}. */
+    public static void roomsRelit() {
+        Rooms current = rooms;
+        if (current == null) return;
+        try { current.relit(); }
+        catch (Throwable problem) { reportOnce(Call.ROOMS_RELIT, problem); }
+    }
+
+    /** Put before each check of every cell's numbers in {@code applyChanges}: whether the game checks them. */
+    public static boolean roomsChecked() {
+        Rooms current = rooms;
+        if (current == null || !roomsScope) return true;
+        try { return current.checks(); }
+        catch (Throwable problem) { reportOnce(Call.ROOMS_CHECKED, problem); return true; }
+    }
 
     /** Put before each return of {@code BuildingRoomsEditor.load}: the editor's buildings are the game's again. */
     public static void roomsLoaded() { roomsScope = false; }

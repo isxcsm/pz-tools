@@ -15,6 +15,29 @@ public final class LightingJNI {
 
     public static void setCone(float degrees) { visionConeLerp = degrees; }
 
+    // As the game's: buildings changed, so the loaded chunks are drawn and lit again at the next update.
+    private static boolean buildingsChangedPending;
+    /** Test: the chunks the last pass after buildings changed worked out again. */
+    public static final java.util.Set<IsoChunk> relit = new java.util.HashSet<>();
+
+    public static void buildingsChanged() { buildingsChangedPending = true; }
+
+    /** As the game's, each frame: the pass over the chunks after buildings changed, if they did. */
+    public static void update() { checkChangedBuildings(); }
+
+    private static void checkChangedBuildings() {
+        if (!buildingsChangedPending) return;
+        buildingsChangedPending = false;
+        relit.clear();
+        var map = new IsoChunkMap(IsoWorld.instance.currentCell);
+        for (int y = 0; y < map.height; y++)
+            for (int x = 0; x < map.width; x++) {
+                IsoChunk chunk = map.getChunk(x, y);
+                if (chunk == null) continue;
+                relit.add(chunk);
+            }
+    }
+
     private static void checkLights() {
         boolean any = false;
         for (IsoLightSwitch light : switches) if (light.square != null && light.square.haveElectricity()) any = true;
