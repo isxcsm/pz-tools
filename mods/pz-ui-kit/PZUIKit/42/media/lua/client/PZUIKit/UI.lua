@@ -1126,20 +1126,49 @@ end
 -- up to a second late. Such an element registers here with `frame(el, now)`: it does what the element needs every frame
 -- and gives a value that changes exactly when the element's drawing does, nil once it no longer moves by itself. Every
 -- frame, before the UI draws, a changed value is written to the element (liveLook) and a count to each element it is
--- in (a window held still is replayed with all it holds). An element no longer on show is let go. The handler stays on
--- once used: taking it off from inside the event would make the game skip the next handler of that frame, and with
--- nothing registered it returns at once.
+-- in (a window held still is replayed with all it holds). An element hidden (it or one it is in) waits, its frame not
+-- asked, and goes on once shown again: the game hides every window for its pause menu (ToggleEscapeMenu) and its UI
+-- toggle, and shows them again after. An element taken out of the UI (it or one it is in: removeFromUIManager,
+-- removeChild) is let go. The handler stays on once used: taking it off from inside the event would make the game skip
+-- the next handler of that frame, and with nothing registered it returns at once.
 local live, liveHooked, liveCount = {}, false, 0
 -- The entries by element and frame function, for the once of UI.live.
 local liveOf = {}
 
--- Whether the element and every element it is in are on show.
-local function onShow(el)
+-- Whether the element is "shown" (it and every element it is in), "hidden" (one of them is) or "gone" (one of them was
+-- taken out of the UI).
+local function showing(el)
+    local hidden = false
     while el do
-        if not el:isVisible() then return false end
+        if el.uiGone then return "gone" end
+        if not hidden and not el:isVisible() then hidden = true end
         el = el.parent
     end
-    return true
+    return hidden and "hidden" or "shown"
+end
+
+-- Taken out of the UI, or put (back) in: marked for the follow above. The game's own `removed` is not cleared when a
+-- window is added again.
+if ISUIElement and not ISUIElement.pzuiGoneMarked then
+    ISUIElement.pzuiGoneMarked = true
+    local addToUI, removeFromUI = ISUIElement.addToUIManager, ISUIElement.removeFromUIManager
+    local addChildTo, removeChildFrom = ISUIElement.addChild, ISUIElement.removeChild
+    function ISUIElement:addToUIManager(...)
+        self.uiGone = nil
+        return addToUI(self, ...)
+    end
+    function ISUIElement:removeFromUIManager(...)
+        self.uiGone = true
+        return removeFromUI(self, ...)
+    end
+    function ISUIElement:addChild(child, ...)
+        if child then child.uiGone = nil end
+        return addChildTo(self, child, ...)
+    end
+    function ISUIElement:removeChild(child, ...)
+        if child then child.uiGone = true end
+        return removeChildFrom(self, child, ...)
+    end
 end
 
 -- An element may be followed for several things at once (its lights, a slide, a glide), each its own entry: one
@@ -1151,8 +1180,12 @@ local function liveFrame()
     for i = #live, 1, -1 do
         local entry = live[i]
         local el = entry.el
-        local look = onShow(el) and entry.frame(el, now) or nil
-        if look ~= entry.look then
+        local state = showing(el)
+        -- (a hidden one waits as it is: neither asked nor let go)
+        local look = entry.look
+        if state == "shown" then look = entry.frame(el, now)
+        elseif state == "gone" then look = nil end
+        if state ~= "hidden" and look ~= entry.look then
             entry.look = look
             liveCount = liveCount + 1
             el.liveTick = liveCount
@@ -1171,7 +1204,7 @@ local function liveFrame()
                 parent = parent.parent
             end
         end
-        if look == nil then
+        if state ~= "hidden" and look == nil then
             table.remove(live, i)
             liveOf[el][entry.frame] = nil
         end

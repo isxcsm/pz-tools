@@ -259,7 +259,7 @@ test("the moodles' stand-ins follow their levels and the mouse, though the eleme
     Moodles.set("untested", 0)
     eq(panel.visible, false)
     UI.liveFrame()
-    eq(panel.liveLook, nil, "none shows: let go")
+    eq(panel.liveLook, 0, "none shows: hidden, it waits")
     Moodles.set("sixth", 1)
     UI.liveFrame()
     eq(panel.liveLook, 0, "shown again: followed again")

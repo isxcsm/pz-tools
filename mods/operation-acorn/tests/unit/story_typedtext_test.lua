@@ -372,7 +372,7 @@ test("a document on its way is followed each frame before the UI draws: still wh
     eq(panel.liveLook, nil, "and let go")
 end)
 
-test("a panel off the screen is let go and the typing waits; drawn again, it is followed again", function()
+test("a panel off the screen waits, not asked, and the typing waits; shown again, it goes on", function()
     clock()
     local panel, run = panelFor("abcdef", 10)
     local on = true
@@ -383,12 +383,10 @@ test("a panel off the screen is let go and the typing waits; drawn again, it is 
     on = false
     ms = ms + 100
     UI.liveFrame()
-    eq(panel.liveLook, nil, "not on show: let go")
+    eq(panel.liveLook, 0, "not on show: it waits as it was")
     on = true
     ms = ms + 2000
     UI.liveFrame()
-    eq(panel.liveLook, nil, "not followed until it draws")
-    panel:render()
     eq(run.clock, 0, "the time away is a gap: the typing waited")
     ms = ms + 100
     UI.liveFrame()

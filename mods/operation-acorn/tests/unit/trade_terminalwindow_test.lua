@@ -299,9 +299,14 @@ test("the boot runs every frame before the UI draws, and what it shows is writte
     handler()
     eq(other.liveLook, 600)
     open = false
+    set2(1700)
     handler()
-    eq(other.liveLook, nil)
+    eq(other.liveLook, 600, "hidden (the game hides every window for its pause menu): it waits")
     open = true
+    other.uiGone = true
+    handler()
+    eq(other.liveLook, nil, "taken out of the UI: let go")
+    other.uiGone = nil
     set2(3000)
     handler()
     eq(other.liveLook, nil, "not ticked any more")

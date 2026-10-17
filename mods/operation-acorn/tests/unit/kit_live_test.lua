@@ -1,5 +1,6 @@
 -- The shared UI kit's following of elements frame by frame (PZUIKit UI.live, for PZ Optimization's retained UI): an
--- element followed for several things at once keeps each until it stops, and is let go when none goes on.
+-- element followed for several things at once keeps each until it stops, and is let go when none goes on; one hidden
+-- waits, and one taken out of the UI is let go.
 require "OperationAcorn/Core"
 
 local now
@@ -61,4 +62,32 @@ test("an element followed for two things keeps the one still going when the othe
     now = 1400
     UI.liveFrame()
     eq(window.liveCount, count, "and nothing more")
+end)
+
+test("a window hidden for the game's pause menu waits and goes on once shown; one taken out of the UI is let go", function()
+    local UI = load()
+    local shown = true
+    local window = { isVisible = function() return shown end }
+    local el = element(window)
+    local asked = 0
+    UI.live(el, function(_, t) asked = asked + 1; return t end)
+    UI.liveFrame()
+    eq(el.liveLook, 1000)
+    shown = false
+    now = 1100
+    UI.liveFrame()
+    eq(asked, 1, "hidden: not asked")
+    eq(el.liveLook, 1000, "and kept as it was")
+    shown = true
+    now = 1200
+    UI.liveFrame()
+    eq(el.liveLook, 1200, "shown again: it goes on (the static moves again after the pause menu)")
+    window.uiGone = true
+    now = 1300
+    UI.liveFrame()
+    eq(el.liveLook, nil, "taken out of the UI: let go")
+    window.uiGone = nil
+    now = 1400
+    UI.liveFrame()
+    eq(el.liveLook, nil, "and not followed again by itself")
 end)
