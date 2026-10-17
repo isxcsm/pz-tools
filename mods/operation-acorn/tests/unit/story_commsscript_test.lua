@@ -10,8 +10,8 @@ local TEXTS = {
     IGUI_OA_Comms_S1_8 = "{cut:2}NO LANDING.",
     IGUI_OA_Comms_S1_11 = "OK.",
     IGUI_OA_Comms_S1_11_x = "WHO",
-    IGUI_OA_Comms_S0_4 = "ARMY.",
-    IGUI_OA_Comms_S0_4_late = "ARMY. LATE.",
+    IGUI_OA_Comms_S0_10 = "DROP.",
+    IGUI_OA_Comms_S0_10_late = "DROP. LATE.",
     IGUI_OA_Comms_S4B_1 = "",
     IGUI_OA_Comms_s1_bedding = "%1, BEDDING.",
 }
@@ -41,8 +41,8 @@ test("a greeted line opens with the tier's greeting, from the fifth tier with th
 end)
 
 test("the late first crate has lines of its own, an erased line its erased words", function()
-    eq(Script.lines(Data.BY_ID.S0, ctx(0, true))[4].text, "ARMY. LATE.")
-    eq(Script.lines(Data.BY_ID.S0, ctx(0, false))[4].text, "ARMY.")
+    eq(Script.lines(Data.BY_ID.S0, ctx(0, true))[10].text, "DROP. LATE.")
+    eq(Script.lines(Data.BY_ID.S0, ctx(0, false))[10].text, "DROP.")
     local l = Script.lines(Data.BY_ID.S1, ctx(1))[11]
     eq(l.text, "OK.")
     eq(l.erase, "WHO")

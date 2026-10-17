@@ -30,8 +30,8 @@ OA.CommsData = Data
 --            text of its own (key _late) when the first crate came late
 Data.ENTRIES = {
     { id = "S0", kind = "scene", trigger = "first", tier = 0, sign = "oak", lines = {
-        { "noise", s = 2 }, { "oak" }, { "me" }, { "oak", late = true }, { "me" }, { "oak" }, { "me", late = true },
-        { "oak" }, { "me" }, { "oak" }, { "me" }, { "noise", s = 3 } } },
+        { "noise", s = 2 }, { "oak" }, { "mute", s = 3 }, { "oak" }, { "me", erase = true }, { "oak" }, { "me" }, { "oak" },
+        { "me", late = true }, { "oak", late = true }, { "me" }, { "oak" }, { "me", erase = true }, { "oak" }, { "me" }, { "noise", s = 3 } } },
     { id = "S1", kind = "scene", trigger = "settled", tier = 1, waits = "S0", greet = true, sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "me" }, { "oak" }, { "me" }, { "oak" },
         { "me", erase = true } } },

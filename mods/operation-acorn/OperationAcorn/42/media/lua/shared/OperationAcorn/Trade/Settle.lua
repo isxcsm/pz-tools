@@ -163,7 +163,8 @@ function Settle.run(record, svc)
         bonusKey = pick.key
     end
 
-    -- 5. The sealed boxes leave the record; an empty box comes back for the active one, to its spot.
+    -- 5. The sealed boxes leave the record; an empty box comes back for the active one, packed in the crate that comes
+    -- down at its spot (the player puts it down where they want).
     local removals, newBox, spot = {}, nil, nil
     local activeBefore = Boxes.active(record)
     local activeSealed = false
@@ -175,15 +176,16 @@ function Settle.run(record, svc)
     end
     if activeSealed and activeBefore and not reissue then
         spot = { x = activeBefore.x, y = activeBefore.y, z = activeBefore.z }
-        newBox = Boxes.add(record, { state = "placed", x = spot.x, y = spot.y, z = spot.z, active = true })
+        newBox = Boxes.add(record, { state = "carried", x = spot.x, y = spot.y, z = spot.z, active = true })
     elseif activeBefore and Boxes.get(record, activeBefore.id) then
         spot = { x = activeBefore.x, y = activeBefore.y, z = activeBefore.z }
     end
-    -- A reissue brings a new active box to a spot the physical part finds near the terminal.
+    -- A reissue brings a new active box, in a crate, to a spot the physical part finds near the terminal.
     if reissue then
-        newBox = Boxes.add(record, { state = "placed", x = call.x, y = call.y, z = call.z, active = true })
+        newBox = Boxes.add(record, { state = "carried", x = call.x, y = call.y, z = call.z, active = true })
         spot = nil
     end
+    if newBox then cargo[#cargo + 1] = Boxes.itemSpec(record, newBox) end
 
     -- 6. The receipt: its serial and the last settlement's summary.
     local receipt = {

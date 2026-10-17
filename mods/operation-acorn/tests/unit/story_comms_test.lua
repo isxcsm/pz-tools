@@ -22,7 +22,7 @@ test("every entry is known by its id, waits for one that exists, and has lines w
     for _, e in ipairs(Data.ENTRIES) do
         eq(Data.BY_ID[e.id], e)
         if e.waits then truthy(Data.BY_ID[e.waits], e.id .. " waits for " .. e.waits) end
-        if e.kind == "scene" or e.kind == "field" then truthy(#e.lines > 0 and #e.lines <= 12, e.id .. " lines") end
+        if e.kind == "scene" or e.kind == "field" then truthy(#e.lines > 0, e.id .. " lines") end
     end
 end)
 

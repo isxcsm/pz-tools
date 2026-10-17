@@ -60,3 +60,26 @@ test("another's or an abandoned box is not sealed, taken up or put down", functi
     eq(ok, false, "an own box is not dismantled")
     eq(why, "notOwner")
 end)
+
+test("a box holding nothing the team takes is not sealed: it would go up empty", function()
+    local record = OA.Store.ensure("me4", "Me")
+    local placed = OA.Trade.Boxes.add(record, { state = "placed", x = 10, y = 20, z = 0 })
+    local refusedItem = {}
+    local container = { getItems = function()
+        return { size = function() return 1 end, get = function() return refusedItem end }
+    end }
+    local object = box("me4")
+    object:getModData()[Objects.BOX] = placed.id
+    object.getContainer = function() return container end
+    object.getSquare = function() return { getX = function() return 10 end, getY = function() return 20 end } end
+    local me = character("me4")
+    me.getX, me.getY = function() return 10.5 end, function() return 21 end
+    local value = OA.Value
+    OA.Value = { info = function() return {} end, accepts = function() return false end }
+    Objects.kindOf = function(o) return o:getModData()[Objects.KIND] end
+    local ok, why = Things.seal(me, record, object)
+    OA.Value = value
+    eq(ok, false)
+    eq(why, "nothing")
+    eq(object:getModData()[Objects.SEALED], nil, "left open")
+end)

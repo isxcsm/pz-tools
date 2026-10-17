@@ -555,6 +555,7 @@ test("the stage card shows once, at the terminal, after the first call has playe
     OA.Comms.played(record, "S0", 1)
     Story.callPlayed(record, "S0")
     eq(told[#told - 1].key, "IGUI_OA_Title_Operation")
+    eq(told[#told - 1].subArgs[1], OA.Story.number(record), "under it, the call sign the call gave")
     eq(told[#told].key, "IGUI_OA_Title_StageNamed")
     eq(told[#told].args[1], 1)
     eq(Story.terminalOpened(record), false, "once")

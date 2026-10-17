@@ -54,12 +54,11 @@ function Menus.unseal(object, player)
 end
 
 
--- The words of a seal confirmation: what is in the box, what it would earn, and what the team will not take (which
--- goes back to the player's inventory).
-function Menus.sealText(character, object)
+-- The words of a seal confirmation: what is in the box, what it would earn, how full it goes (a box sealed half empty
+-- is the player's call, shown, not stopped), and what the team will not take (which goes back to the player's
+-- inventory).
+function Menus.sealText(character, plan)
     local record = OA.Client.record(character)
-    local container = object:getContainer()
-    local plan = Things.sealable(container)
     local estimate = Trade.Estimate.infos(record, plan.infos)
     local lines = {}
     if estimate then
@@ -67,6 +66,8 @@ function Menus.sealText(character, object)
     else
         lines[#lines + 1] = getText("IGUI_OA_Trade_Seal_Count", #plan.taken)
     end
+    lines[#lines + 1] = getText("IGUI_OA_Trade_Seal_Fill", string.format("%.1f", plan.weight),
+        tostring(Objects.capacityFor(record)))
     if #plan.refused > 0 then
         lines[#lines + 1] = getText("IGUI_OA_Trade_Seal_Refused", #plan.refused)
         for i = 1, math.min(#plan.refused, 4) do lines[#lines + 1] = "  " .. plan.refused[i]:getDisplayName() end
@@ -77,7 +78,15 @@ end
 
 function Menus.seal(object, player)
     local character = getSpecificPlayer(player)
-    UI.confirm(character, Menus.sealText(character, object), nil, function()
+    local container = object:getContainer()
+    if not container then return end
+    local plan = Things.sealable(container)
+    -- only what the team will not take: nothing would go up (the server refuses it too)
+    if #plan.taken == 0 then
+        OA.Sync.notice(OA.Client.id(character), "IGUI_OA_Trade_Reason_nothing")
+        return
+    end
+    UI.confirm(character, Menus.sealText(character, plan), nil, function()
         local square = object:getSquare()
         if square and luautils.walkAdj(character, square) then
             ISTimedActionQueue.add(ISOASeal:new(character, square))
@@ -126,7 +135,12 @@ local function boxOptions(context, object, player)
         tooltip(info, getText("ContextMenu_OA_Trade_BoxSealedTip"))
         return
     end
-    context:addOptionOnTop(getText("ContextMenu_OA_Trade_SealBox"), object, Menus.seal, player)
+    local seal = context:addOptionOnTop(getText("ContextMenu_OA_Trade_SealBox"), object, Menus.seal, player)
+    local container = object:getContainer()
+    if not container or container:isEmpty() then
+        seal.notAvailable = true
+        tooltip(seal, getText("IGUI_OA_Trade_Reason_nothing"))
+    end
 end
 
 local function crateOptions(context, object, player)

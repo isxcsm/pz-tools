@@ -5,7 +5,8 @@
 -- record.boxes = { seq, active = id or nil, list = { [id] = box } }
 -- box = { id, state, x, y, z, created, sealed = { at, entries, count, weight } or nil }
 --   state "placed"  standing in the world, open: filled and emptied like a chest
---   state "carried" taken up by a character (x, y, z stay the last spot it stood: the transmitter's)
+--   state "carried" an item: taken up by a character, or packed in the supply crate it came in (x, y, z the last spot
+--                   it stood, or where its crate came down)
 --   state "sealed"  fixed in the world, waiting for the helicopter
 -- entries = { { info = <OA.Value.info table>, count = n } }
 require "OperationAcorn/Store"
@@ -55,6 +56,14 @@ function Boxes.add(record, spec)
     if becomes == nil then becomes = d.active == nil or d.list[d.active] == nil end
     if becomes then d.active = id end
     return box
+end
+
+-- A box as the item it travels as: the helicopter packs a new one in its supply crate (the first supply, the empty box
+-- that comes back for a sealed one, a reissue), and the player puts it down where they want. The keys are those of
+-- Trade/Objects (BOX, OWNER), which the item keeps as a taken-up box does.
+Boxes.ITEM = "OperationAcorn.DeliveryBox"
+function Boxes.itemSpec(record, box)
+    return { type = Boxes.ITEM, count = 1, mod = { OA_Box = box.id, OA_Owner = record.id } }
 end
 
 -- Whether a call can be made: the active box must stand in the world. Returns true, or false and a reason.

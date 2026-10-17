@@ -130,7 +130,6 @@ function Things.placeBox(character, record, square, item)
         box = Boxes.add(owner, { state = "placed", x = square:getX(), y = square:getY(), z = square:getZ(), active = nil })
     end
     Boxes.place(owner, box.id, square:getX(), square:getY(), square:getZ())
-    box.pending = nil
     local object = Objects.create(square, Sprites.deliveryBox(false), Objects.DELIVERY_BOX,
         { OA_Box = box.id, OA_Owner = owner.id })
     Objects.setupBox(object, owner)
@@ -202,6 +201,8 @@ function Things.seal(character, record, object)
     if not container or not box or box.state ~= "placed" then return false, "state" end
     if not (OA.Value and OA.Value.info and OA.Value.accepts) then return false, "noEconomy" end
     local plan = Things.sealable(container)
+    -- a box with nothing the team takes would go up empty and come back as it went
+    if #plan.taken == 0 then return false, "nothing" end
     local entries = Boxes.group(plan.infos)
     -- Records first, then the things: a failure leaves the items where they were.
     local ok, why = Boxes.seal(owner, box.id, entries, plan.weight)
@@ -286,11 +287,11 @@ function Things.destroyed(thing)
 end
 
 -- Checks the boxes of a record whose squares are loaded: one gone without a trace (burnt away, say) is destroyed.
--- A box not yet put in the world (pending) or being carried is left alone.
+-- A box that is an item (carried, or in its crate) is left alone.
 function Things.reconcile(record)
     local gone = {}
     for _, box in ipairs(Boxes.all(record)) do
-        if (box.state == "placed" or box.state == "sealed") and not box.pending and box.x then
+        if (box.state == "placed" or box.state == "sealed") and box.x then
             local square = Objects.square(box.x, box.y, box.z)
             if square and not Objects.find(square, Objects.DELIVERY_BOX, box.id) then
                 gone[#gone + 1] = { kind = Objects.DELIVERY_BOX, x = box.x, y = box.y, z = box.z, box = box.id,

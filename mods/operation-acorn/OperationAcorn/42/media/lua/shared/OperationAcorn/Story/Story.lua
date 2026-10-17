@@ -505,7 +505,8 @@ end
 -- A call was played in the comms tab: after the first one, the operation's title, then the first stage's card.
 function Story.callPlayed(record, id)
     if id ~= "S0" then return end
-    OA.Sync.title(record.id, { key = "IGUI_OA_Title_Operation", style = "stamp", fallback = "good" })
+    OA.Sync.title(record.id, { key = "IGUI_OA_Title_Operation", sub = "IGUI_OA_Title_OperationSub",
+        subArgs = { Story.number(record) }, style = "stamp", fallback = "good" })
     Story.terminalOpened(record)
 end
 

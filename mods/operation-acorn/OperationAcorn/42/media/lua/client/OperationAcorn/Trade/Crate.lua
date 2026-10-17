@@ -53,3 +53,15 @@ local function onRefresh(page, state)
     end
 end
 Events.OnRefreshInventoryWindowContainers.Add(onRefresh)
+
+-- Taking a heavy thing up with both hands refreshes the loot window only in multiplayer (the game's ISEquipHeavyItem
+-- marks it dirty under isClient() alone), so the last thing taken out of a crate that way left it standing, shown
+-- empty, until the player moved. Marked here for a crate as every other way of taking does.
+local equipHeavy = ISEquipHeavyItem.complete
+function ISEquipHeavyItem:complete()
+    local source = self.item:getContainer()
+    local object = source and source:getParent()
+    local done = equipHeavy(self)
+    if object and Objects.kindOf(object) == Objects.CRATE then ISInventoryPage.renderDirty = true end
+    return done
+end

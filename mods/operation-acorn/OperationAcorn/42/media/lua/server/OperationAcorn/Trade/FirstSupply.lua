@@ -1,22 +1,22 @@
 -- The first supply (DESIGN 3): the vanilla helicopter's first flight is the research team's. When its window has passed
--- (or on the seventh day when there is none, or the next morning when the mod came late) an open delivery box with the
--- terminal, its booklet and the harvest scalpel lies on the clearest ground near the character. Lua polling version:
+-- (or on the seventh day when there is none, or the next morning when the mod came late) a supply crate with the
+-- terminal, its booklet, the harvest scalpel and the delivery box (an item, put down where the player wants) lies on
+-- the clearest ground near the character. Lua polling version:
 -- the plan is made from the vanilla schedule once, and every ten minutes the time is compared; nothing is checked after
 -- the drop.
 require "OperationAcorn/Server"
 require "OperationAcorn/Trade/Heli"
-require "OperationAcorn/Trade/Markers"
 local OA = OperationAcorn
 local Store, Trade = OA.Store, OA.Trade
 local Rules, Boxes, Objects, Heli = Trade.Rules, Trade.Boxes, Trade.Objects, Trade.Heli
 local FirstSupply = {}
 Trade.FirstSupply = FirstSupply
 
-FirstSupply.MANUAL = "OperationAcorn." .. Trade.Markers.MANUAL
--- What the box holds (DESIGN 9 '시작 꾸러미'): the terminal ready to set up, the booklet for a second one, the scalpel.
+-- What the crate holds (DESIGN 9 '시작 꾸러미'): the terminal ready to set up, the booklet for a second one, the
+-- scalpel; and the delivery box, added as it is made.
 FirstSupply.CARGO = {
     { type = "OperationAcorn.CommTerminal", count = 1 },
-    { type = FirstSupply.MANUAL, count = 1 },
+    { type = "OperationAcorn.TerminalManual", count = 1 },
     { type = "OperationAcorn.HarvestScalpel", count = 1 },
 }
 
@@ -44,14 +44,16 @@ function FirstSupply.plan(record)
     return record.first
 end
 
--- Puts the box and the manual down near the character. Returns true when it was done.
+-- Puts the crate down near the character, the new active box in it. Returns true when it was done.
 function FirstSupply.drop(record, character)
     local square = Objects.findClear(math.floor(character:getX()), math.floor(character:getY()), 30)
     if not square then return false end
-    local box = Boxes.add(record, { state = "placed", x = square:getX(), y = square:getY(), z = square:getZ(), active = true })
-    box.pending = true
-    local entry = { owner = record.id, x = square:getX(), y = square:getY(), z = square:getZ(), box = box.id,
-        boxCargo = FirstSupply.CARGO, marker = true }
+    local x, y, z = square:getX(), square:getY(), square:getZ()
+    local box = Boxes.add(record, { state = "carried", x = x, y = y, z = z, active = true })
+    local cargo = {}
+    for _, spec in ipairs(FirstSupply.CARGO) do cargo[#cargo + 1] = spec end
+    cargo[#cargo + 1] = Boxes.itemSpec(record, box)
+    local entry = { owner = record.id, x = x, y = y, z = z, search = true, cargo = cargo }
     if not Heli.setDown(entry) then
         Boxes.remove(record, box.id)
         return false

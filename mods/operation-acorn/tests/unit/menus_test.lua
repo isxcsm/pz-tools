@@ -140,8 +140,17 @@ test("a delivery box's seal option goes on top", function()
     loadFile("OperationAcorn/Trade/ContextMenu")
     local menu = newMenu()
     menu:addOption("Vanilla")
-    TEST.fire("OnFillWorldObjectContextMenu", 0, menu, { thing("box") }, false)
+    local box = thing("box")
+    local empty = true
+    box.getContainer = function() return { isEmpty = function() return empty end } end
+    TEST.fire("OnFillWorldObjectContextMenu", 0, menu, { box }, false)
     eq(menu:names(), "ContextMenu_OA_Trade_SealBox,Vanilla")
+    eq(menu.options[1].notAvailable, true, "an empty box has nothing to seal")
+    eq(menu.options[1].toolTip.description, "IGUI_OA_Trade_Reason_nothing")
+    empty = false
+    menu = newMenu()
+    TEST.fire("OnFillWorldObjectContextMenu", 0, menu, { box }, false)
+    eq(menu.options[1].notAvailable, nil, "a box with something in it")
 end)
 
 test("breaking a crate's seal is on top, its tip does not depend on a crowbar being carried", function()

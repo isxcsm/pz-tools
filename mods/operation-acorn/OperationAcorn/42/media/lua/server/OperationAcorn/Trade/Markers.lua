@@ -10,9 +10,6 @@ local Objects = Trade.Objects
 local Markers = {}
 Trade.Markers = Markers
 
--- The item whose leaving the box ends the first supply's mark.
-Markers.MANUAL = "TerminalManual"
-
 function Markers.list(record)
     local heli = Trade.heli(record)
     heli.markers = heli.markers or {}
@@ -25,7 +22,7 @@ function Markers.smoke(square)
     if not ok then OA.log("smoke failed:", tostring(err)) end
 end
 
--- Marks a square. kind "first" (the first supply's box, extra.box its id) or "crate" (a supply crate).
+-- Marks a square. kind "crate" (a supply crate); extra goes into the mark.
 function Markers.add(record, square, kind, extra)
     local list = Markers.list(record)
     local mark = { kind = kind, x = square:getX(), y = square:getY(), z = square:getZ(), at = OA.hours() }
@@ -36,16 +33,10 @@ function Markers.add(record, square, kind, extra)
     return mark
 end
 
--- Whether a mark's thing is gone from its (loaded) square: picked up, opened, destroyed.
+-- Whether a mark's crate is gone from its (loaded) square or opened.
 local function done(mark, square)
-    if mark.kind == "crate" then
-        local object = Objects.find(square, Objects.CRATE)
-        return object == nil or not object:getModData()[Objects.SEALED]
-    end
-    local object = Objects.find(square, Objects.DELIVERY_BOX, mark.box)
-    if not object then return true end
-    local container = object:getContainer()
-    return container == nil or not container:containsType(Markers.MANUAL)
+    local object = Objects.find(square, Objects.CRATE)
+    return object == nil or not object:getModData()[Objects.SEALED]
 end
 
 -- Looks at the marks of a record whose squares are loaded: the finished ones go, the others smoke again. Returns

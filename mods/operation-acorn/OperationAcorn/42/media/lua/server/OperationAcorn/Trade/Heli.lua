@@ -11,7 +11,7 @@ require "OperationAcorn/Trade/Gain"
 require "OperationAcorn/Trade/Text"
 require "OperationAcorn/Trade/Markers"
 local OA = OperationAcorn
-local Store, Chunks, Sprites = OA.Store, OA.Chunks, OA.Sprites
+local Store, Chunks = OA.Store, OA.Chunks
 local Trade = OA.Trade
 local Rules, Boxes, Settle, Orders, Objects, Things, Later = Trade.Rules, Trade.Boxes, Trade.Settle, Trade.Orders,
     Trade.Objects, Trade.Things, Trade.Later
@@ -140,8 +140,9 @@ function Heli.noise(x, y, z)
     if not ok then OA.log("noise failed:", tostring(err)) end
 end
 
--- Puts the box, the crate and the smoke down at a spot (a table of a drop): { x, y, z, owner, box, search, remove,
--- boxCargo, cargo, parachute, marker }. Returns true when it was done, false when the square is not loaded yet.
+-- Takes the sealed boxes away and puts the crate and the smoke down at a spot (a table of a drop): { x, y, z, owner,
+-- search (the crate on the clearest ground near the spot, not beside it), remove, cargo, parachute }. A delivery box
+-- comes in the crate (Boxes.itemSpec). Returns true when it was done, false when the square is not loaded yet.
 function Heli.setDown(entry)
     local owner = Store.player(entry.owner)
     if not owner then return true end
@@ -154,29 +155,13 @@ function Heli.setDown(entry)
             Objects.remove(object)
         end
     end
-    local boxSquare = square
-    if entry.box then
-        if entry.search then
-            boxSquare = Objects.findClear(entry.x, entry.y, 30)
-            if not boxSquare then
-                boxSquare = Objects.search(entry.x, entry.y, 0, 12, function(s) return Objects.free(s) end) or square
-            end
-        end
-        local bx, by, bz = boxSquare:getX(), boxSquare:getY(), boxSquare:getZ()
-        local box = Boxes.get(owner, entry.box)
-        if box then
-            Boxes.place(owner, entry.box, bx, by, bz)
-            box.pending = nil
-            local object = Objects.create(boxSquare, Sprites.deliveryBox(false), Objects.DELIVERY_BOX,
-                { OA_Box = entry.box, OA_Owner = owner.id })
-            local container = Objects.setupBox(object, owner)
-            if entry.boxCargo and container then Objects.fill(container, entry.boxCargo) end
-            Things.watch("trade.box", bx, by, bz, { box = entry.box, owner = owner.id })
-            if entry.marker then Trade.Markers.add(owner, boxSquare, "first", { box = entry.box }) end
-        end
-    end
     if entry.cargo and #entry.cargo > 0 then
-        local crateSquare = Objects.findBeside(boxSquare:getX(), boxSquare:getY(), boxSquare:getZ(), 5) or boxSquare
+        local crateSquare
+        if entry.search then
+            crateSquare = Objects.findClear(entry.x, entry.y, 30)
+                or Objects.search(entry.x, entry.y, 0, 12, function(s) return Objects.free(s) end)
+        end
+        crateSquare = crateSquare or Objects.findBeside(entry.x, entry.y, entry.z or 0, 5) or square
         Things.makeCrate(crateSquare, entry.cargo, entry.parachute)
         local cx, cy, cz = crateSquare:getX(), crateSquare:getY(), crateSquare:getZ()
         Trade.Markers.add(owner, crateSquare, "crate")
@@ -236,8 +221,8 @@ function Heli.deliver(record, plan, call)
     end
     local spot = plan.spot or { x = call.x, y = call.y, z = call.z or 0 }
     local entry = { kind = "trade.land", owner = record.id, x = spot.x, y = spot.y, z = spot.z or 0,
-        box = plan.newBox and plan.newBox.id or nil, search = plan.reissue or false,
-        cargo = needCrate and cargo or nil, remove = {}, parachute = true, receipt = receipt.id }
+        search = plan.reissue or false, cargo = needCrate and cargo or nil, remove = {}, parachute = true,
+        receipt = receipt.id }
     for _, removal in ipairs(plan.removals) do
         if plan.spot and removal.x == plan.spot.x and removal.y == plan.spot.y and removal.z == plan.spot.z then
             entry.remove[#entry.remove + 1] = removal.id
@@ -245,8 +230,7 @@ function Heli.deliver(record, plan, call)
             Heli.removeBox(record, removal)
         end
     end
-    if plan.newBox then plan.newBox.pending = true end
-    if not entry.box and not entry.cargo and #entry.remove == 0 then return end
+    if not entry.cargo and #entry.remove == 0 then return end
     if Objects.square(entry.x, entry.y, entry.z) then
         present(record, entry)
     else

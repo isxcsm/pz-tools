@@ -57,7 +57,7 @@ local function seal(record, spot, entries, active)
     return box
 end
 
-test("a delivery pays credits and trust and returns an empty box to the active spot", function()
+test("a delivery pays credits and trust and returns an empty box, packed in the crate, to the active spot", function()
     local record = newRecord(500)
     local box = seal(record, 10, nil, true)
     Trade.heli(record).call = { at = 90, arrive = 100, kind = "normal", orders = {} }
@@ -73,8 +73,14 @@ test("a delivery pays credits and trust and returns an empty box to the active s
     eq(plan.removals[1].x, 10)
     truthy(plan.newBox, "an empty box comes back")
     eq(plan.newBox.x, 10)
-    eq(plan.newBox.state, "placed")
+    eq(plan.newBox.state, "carried", "an item until the player puts it down")
+    local packed
+    for _, spec in ipairs(plan.cargo) do if spec.type == Boxes.ITEM then packed = spec end end
+    truthy(packed, "the box comes in the crate")
+    eq(packed.mod.OA_Box, plan.newBox.id)
+    eq(packed.mod.OA_Owner, record.id)
     eq(Boxes.active(record), plan.newBox)
+    eq(Boxes.canCall(record), false, "a call waits for the box to be put down")
     eq(Boxes.get(record, box.id), nil, "the sealed box left the record")
     eq(plan.spot.x, 10)
     eq(record.trade.serial, plan.receipt.id, "the receipt has the next serial")
@@ -152,7 +158,7 @@ test("a debt that stays blocks the orders", function()
     eq(plan.receipt.debtPaid, 300)
     eq(record.trade.credits, -500)
     eq(plan.receipt.orders[1].reason, "debt")
-    eq(#plan.cargo, 0)
+    eq(#plan.cargo, 1, "the returned box alone")
 end)
 
 test("the discovery bonus comes with the settlement and starts again", function()
@@ -236,6 +242,8 @@ test("a reissue brings one new active box and takes the sealed ones", function()
     eq(#plan.removals, 1)
     eq(plan.newBox.x, 40)
     eq(plan.newBox.y, 50)
+    eq(plan.newBox.state, "carried")
+    eq(plan.cargo[#plan.cargo].type, Boxes.ITEM, "the new box comes in a crate")
     eq(Boxes.active(record), plan.newBox)
     eq(plan.spot, nil, "the physical part looks for a clear spot near the terminal")
     local count = 0
@@ -296,7 +304,7 @@ test("a remark that encloses things puts them in the crate, and the chance extra
     Trade.heli(record).call = { at = 90, arrive = 100, kind = "normal", orders = {} }
     -- roll 1 would bring the chance extra, a pair of batteries in the pool's first place.
     local plan = Settle.run(record, services({ roll = 1, credits = 70, trust = 1 }))
-    eq(#plan.cargo, 1, "the batteries of the remark alone")
+    eq(#plan.cargo, 2, "the batteries of the remark and the returned box alone")
     eq(plan.cargo[1].type, "Base.Battery")
     eq(plan.cargo[1].count, 2)
     eq(plan.receipt.bonusNote, nil, "the same line is not on the paper twice")
@@ -325,7 +333,7 @@ test("the crate providers' papers go in the crate and are listed on the manifest
     Trade.addCrateProvider(function() return nil end)
     Trade.heli(record).call = { at = 90, arrive = 100, kind = "normal", orders = {} }
     local plan = Settle.run(record, services({ credits = 70, trust = 1 }))
-    eq(#plan.cargo, 1)
+    eq(#plan.cargo, 2, "the papers and the returned box")
     eq(plan.cargo[1].type, "OperationAcorn.AnalysisReply")
     eq(plan.cargo[1].mod.OA_Doc, "reply_first")
     eq(plan.cargo[1].junk, nil, "an item spec keeps its known fields only")

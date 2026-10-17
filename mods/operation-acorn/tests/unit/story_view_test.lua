@@ -45,7 +45,7 @@ end)
 test("the crates are the helicopter's marks that are left", function()
     eq(#View.crates(nil), 0)
     eq(#View.crates({ heli = {} }), 0)
-    local list = View.crates({ heli = { markers = { { kind = "crate", x = 10, y = 20, z = 0 }, { kind = "first", x = 30, y = 40 },
+    local list = View.crates({ heli = { markers = { { kind = "crate", x = 10, y = 20, z = 0 }, { kind = "crate", x = 30, y = 40 },
         { kind = "crate" } } } })
     eq(#list, 2, "a mark without a place is skipped")
     eq(list[1].kind, "crate")
