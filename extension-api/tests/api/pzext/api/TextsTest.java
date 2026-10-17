@@ -222,44 +222,55 @@ final class TextsTest {
     }
 
     /**
-     * Held where it cannot be seen: while the player sleeps or their screen is dark its time stands and none starts; while the
-     * game's menu is over the game too (not on the main menu); a long frame counts for a quarter of a second.
+     * Where it cannot be seen: none starts while the player sleeps or their screen is dark, and one already shown plays on in
+     * real time over the black (drawn after the fades); while the game's menu is over the game (not on the main menu) its time
+     * stands; a long frame counts for a quarter of a second.
      */
     private static void holds(KahluaTable text, Object mod) {
         IsoPlayer player = IsoPlayer.players[0];
         KahluaTable screen = table("instance", table("inGame", true, "javaObject", new UIElement()));
         try {
-            for (int way = 0; way < 3; way++) {
-                double key = (Double)FormulasTest.call(text, "show", mod, table("text", "Held", "hold", 1.0)).get(0);
+            // Asleep, or the screen dark: what is shown plays on, after the fades; what comes waits for the player to wake.
+            for (int way = 0; way < 2; way++) {
+                double key = (Double)FormulasTest.call(text, "show", mod, table("text", "On", "hold", 1.0)).get(0);
                 render();
                 advance(0.5);
                 render();
-                check(draws().size() == 1, "A text went before its hold");
                 hold(way, screen, true);
-                advance(5);
-                render();
-                check(draws().isEmpty(), "A text was drawn while held (" + way + ")");
-                hold(way, screen, false);
-                render();
-                check(draws().size() == 1, "A held text's time went on (" + way + ")");
+                double next = (Double)FormulasTest.call(text, "show", mod, table("text", "Woken", "hold", 1.0)).get(0);
                 advance(0.49);
                 render();
-                check(draws().size() == 1, "A held text went early (" + way + ")");
+                check(names().equals(List.of("windows", "tooltip", "post", "text")), "A text shown before the dark was not drawn over it (" + way + "): " + names());
                 advance(0.01);
                 render();
-                check(draws().isEmpty() && !(Boolean)FormulasTest.call(text, "shown", mod, key).get(0), "A held text outlived its hold (" + way + ")");
+                check(draws().isEmpty() && !(Boolean)FormulasTest.call(text, "shown", mod, key).get(0), "A text shown before the dark stood in it (" + way + ")");
+                advance(10);
+                render();
+                check(draws().isEmpty(), "A text started in the dark (" + way + ")");
+                hold(way, screen, false);
+                render();
+                check(names().equals(List.of("windows", "text", "tooltip", "post")), "A text shown in the dark was over before it was seen (" + way + "): " + names());
+                FormulasTest.call(text, "hide", mod, next, true);
+                render();
             }
-            // Shown while asleep: its time starts as the player wakes.
-            player.asleep = true;
-            double key = (Double)FormulasTest.call(text, "show", mod, table("text", "Woken", "hold", 1.0)).get(0);
+            // The game's menu: its time stands, none drawn.
+            double key = (Double)FormulasTest.call(text, "show", mod, table("text", "Held", "hold", 1.0)).get(0);
             render();
-            advance(10);
+            advance(0.5);
             render();
-            check(draws().isEmpty(), "A text started while its player slept");
-            player.asleep = false;
+            hold(2, screen, true);
+            advance(5);
             render();
-            check(draws().size() == 1, "A text shown in sleep was over before it was seen");
-            FormulasTest.call(text, "hide", mod, key, true);
+            check(draws().isEmpty(), "A text was drawn under the game's menu");
+            hold(2, screen, false);
+            render();
+            check(draws().size() == 1, "A text's time went on under the game's menu");
+            advance(0.49);
+            render();
+            check(draws().size() == 1, "A text held by the game's menu went early");
+            advance(0.01);
+            render();
+            check(draws().isEmpty() && !(Boolean)FormulasTest.call(text, "shown", mod, key).get(0), "A text held by the game's menu outlived its hold");
             // The main menu is the game's menu out of game: it holds nothing.
             screen.rawset("instance", table("inGame", false, "javaObject", new UIElement()));
             LuaManager.env.rawset("MainScreen", screen);

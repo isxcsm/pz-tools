@@ -2724,7 +2724,7 @@ public final class GameApiTest {
                 "IsoGameCharacter.addHole", "IsoPlayer.calculateInTreesSpeed", "IsoPlayer.getDeferredMovement",
                 "IsoObject.couldBePoweredByGenerator", "IsoObject.getGeneratorPowerConsumption", "IsoObject.renderAttachedSprites",
                 "IsoObject.isAnimating", "Helicopter.writes:flight", "IsoWorld.writes:currentCell", "Helicopter.events", "IsoWorld.change", "Moodle.Update:level", "Moodles.GoodBadNeutral",
-                "Moodles.<init>", "MoodlesUI.render", "UIManager.render:text",
+                "Moodles.<init>", "MoodlesUI.render", "UIManager.render:text", "UIManager.render:textOver",
                 "ParameterZombieState.setState", "ZombieVocalsManager$Slot.playSound", "IsoZombie.handleLandingImpact", "IsoZombie.Hit",
                 "FBORenderObjectOutline.render", "FBORenderObjectOutline.renderObject", "ModelSlotRenderData.initModel:outline", "ModelSlotRenderData.renderVehicle",
                 "ModelSlotRenderData.initModel:light", "IsoObjectModelDrawer.renderMain:still", "ModelInstance$PlayerData.updateLights",
@@ -2733,7 +2733,7 @@ public final class GameApiTest {
                 "InventoryItem.getName", "InventoryItem.getDisplayName", "Food.getName", "Clothing.getName", "Moveable.getName",
                 "PixelLight$Gl.init:pass", "AmbientOcclusion.compile", "SelectorBucket.<init>:children", "BuildingRoomsEditor.updateSquares:squares", "BuildingRoomsEditor.applyChanges:numbers", "BuildingRoomsEditor.applyChanges:check", "LightingJNI.buildingsChanged", "LightingJNI.checkChangedBuildings:chunks", "LightingJNI.checkChangedBuildings:done" })
             check(Hooks.APPLIED.equals(hooks.rawget(label)), label + " is " + hooks.rawget(label));
-        check(Hooks.hookStatus().size() == 146, "The hooks are " + Hooks.hookStatus().keySet());
+        check(Hooks.hookStatus().size() == 147, "The hooks are " + Hooks.hookStatus().keySet());
         // Every hook fits the synthetic game: a gap in the synthetic game fails here, not as a line in the output.
         var misfit = new java.util.TreeMap<>(Hooks.hookStatus());
         misfit.values().removeIf(Hooks.APPLIED::equals);

@@ -2,7 +2,8 @@ package zombie.ui;
 
 /**
  * Synthetic: the moodle column of each local player, by player index; and the drawing of the interface, shaped as the game's:
- * its windows, then the tooltip (asked for twice: whether there is one, and to draw it); the black over each player's screen.
+ * its windows, then the tooltip (asked for twice: whether there is one, and to draw it), then ("post") the paused message and
+ * the black over each player's screen; the black's strength on each.
  */
 public final class UIManager {
     public static final MoodlesUI[] MoodleUI = new MoodlesUI[4];

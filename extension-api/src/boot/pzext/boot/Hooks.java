@@ -336,6 +336,9 @@ public final class Hooks {
     public interface Text {
         /** Draws what is shown now. */
         void draw();
+
+        /** Called as the game's drawing of its interface ends, after the black it fades a player's screen to (sleep): draws what goes over it. */
+        default void drawOver() { }
     }
 
     /**
@@ -1220,7 +1223,10 @@ public final class Hooks {
             }, (code, element, order) -> {
                 if (order == 0) code.invokestatic(HOOKS, "uiDrawn", MethodTypeDesc.of(ConstantDescs.CD_void));
                 code.with(element);
-            })).named("text") }),
+            })).named("text"),
+            // As it ends, after the fades over each player's screen: a text that plays on over a screen faded black (sleep).
+            Site.atReturns("render", "()V", 0, (code, owner) -> code.invokestatic(HOOKS, "uiFaded",
+                MethodTypeDesc.of(ConstantDescs.CD_void))).named("textOver") }),
         // A bag clamps its capacity to what a bag can be (50 less its own weight), over the container's own.
         Map.entry("zombie/inventory/types/InventoryContainer", new Site[] {
             Site.atReturns("getCapacity", "()I", 1, (code, owner) -> {
@@ -3023,6 +3029,14 @@ public final class Hooks {
         Text current = text;
         if (current == null) return;
         try { current.draw(); }
+        catch (Throwable problem) { reportOnce(Call.TEXT, problem); }
+    }
+
+    /** Put at the returns of {@code UIManager.render}, after the fades over the players' screens: the text that goes over them. */
+    public static void uiFaded() {
+        Text current = text;
+        if (current == null) return;
+        try { current.drawOver(); }
         catch (Throwable problem) { reportOnce(Call.TEXT, problem); }
     }
 

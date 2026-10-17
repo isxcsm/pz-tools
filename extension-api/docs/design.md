@@ -2028,10 +2028,11 @@ own on each screen, the same way: low on the screen, they do not wait for the ot
 
 A text's time starts when it is first drawn, not when it is shown: one shown while nothing is drawn (a loading screen) comes
 on as the screen does. The time is the interface's (`System.nanoTime`), which goes on while the game is paused with the screen
-in sight, and it goes on only with the frames the text is drawn in, so that a text is not over before it was seen: a player's
-screen holds its texts (none starts there, and the time of those on it stands) while the player sleeps or the screen is dark
-(`UIManager.getFadeAlpha(player)` above 0.01: the black the game fades it to for sleep), and every screen holds them while the
-game's menu is over the game (`MainScreen.instance` in game and shown: Escape); one frame counts for at most a quarter of a
+in sight, and it goes on only with the frames the text is drawn in, so that a text is not over before it was seen: none starts
+on a player's screen while the player sleeps or the screen is dark (`UIManager.getFadeAlpha(player)` above 0.01: the black the
+game fades it to for sleep), though one already on it plays on in real time over the black, as bright as it was (drawn as the
+interface's drawing ends, `UIManager.render:textOver`; the game's speed while asleep does not touch it); every screen holds its texts (none starts, and the time of those on it stands) while the game's menu
+is over the game (`MainScreen.instance` in game and shown: Escape), which they would be drawn over; one frame counts for at most a quarter of a
 second, so a hitch, or a while with no frame drawn, does not run a text out either. A mod has at
 most 64 texts shown or waiting, all mods 256; more is a Lua error. `handle:clear()` takes the mod's texts away at once. A text
 belongs to the world it was shown in: leaving it takes the text away. A text for a player who is not there waits for them. A
@@ -2123,6 +2124,7 @@ typed, with no colour and no width, takes the plain path above, as it always did
 | Hook | Where | What it does |
 | --- | --- | --- |
 | `UIManager.render:text` | before the first of the method's two calls of `getToolTip()` | Draws the text: over the windows, under the tooltip, the paused message and the fade over the interface. The two calls are counted: a method with another number of them gets no hook. |
+| `UIManager.render:textOver` | at the method's returns | Draws, over the black the game fades a player's screen to (sleep), the texts that were on that screen before it went dark and play on. Without it they are drawn under the black, by the hook above. |
 
 The text is drawn as often as the interface is: with the interface drawn at a lower rate, it moves at that rate. A hook that
 is not in gives no text and `text.status()` says why; a fault while drawing is reported once in the game's log, and the

@@ -23,10 +23,11 @@ import pzext.boot.Hooks;
  * A text with a look (an enter such as {@code "torch"}, a leave such as {@code "burn"}) is drawn into such a picture as soon as it
  * shows, and the picture is drawn by the API's shader over its life ({@link Looks}); without it the text fades.
  *
- * <p>A text's time goes on only with the frames it is drawn in, so that it is not over before it was seen: a player's screen holds its
- * texts (none starts, the time of those on it stands) while the player sleeps or the screen is dark (the black the game fades it to
- * for sleep), and every screen holds them while the game's menu is over the game (Escape); a frame longer than {@link #FRAME_MOST}
- * (a hitch, or no frame drawn) counts for that long. The game paused with the screen in sight holds nothing.
+ * <p>A text's time goes on only with the frames it is drawn in, so that it is not over before it was seen: none starts on a player's
+ * screen while the player sleeps or the screen is dark (the black the game fades it to for sleep), though one already on it plays on
+ * in real time, drawn over the black ({@link #drawOver}, as the interface's drawing ends); every screen holds its texts (none starts, the time of those on it stands) while the game's menu
+ * is over the game (Escape); a frame longer than {@link #FRAME_MOST} (a hitch, or no frame drawn) counts for that long. The game
+ * paused with the screen in sight holds nothing.
  *
  * <p>What is shown belongs to the world it was shown in, and is kept in the API table's metatable for a newer API to take over,
  * as the moodles are. Everything here runs on the game's main thread: the mods' calls, the frame job and the drawing (the dust
@@ -334,6 +335,9 @@ final class Texts implements Hooks.Text {
     // The frames drawn with a text shown, and the clock at the last; whether the last frames held a text (written once they end).
     private long frames, lastFrame;
     private boolean holding;
+    // Whether the game calls drawOver (its hook is in), and the screens (bits by player) whose texts it draws this frame.
+    private boolean overHooked;
+    private int overScreens;
     /** The game's frame buffers and sprites for dust, or null: dust fades (package-private for the tests). */
     Dust.Gl dust;
     /** The looks' shader and drawing, or null: the looks fade (package-private for the tests). */
@@ -1420,8 +1424,12 @@ final class Texts implements Hooks.Text {
             boolean menu = anyone && menuShown();
             for (int screen = 0; screen < PLAYERS; screen++) {
                 if (anyone ? screen >= local.length || local[screen] == null : screen > 0) continue;
-                if (menu || anyone && dark(local[screen], screen)) continue;
-                release(all, screen);
+                if (menu) continue;
+                // A dark screen (sleep) starts nothing; what it already shows plays on in real time, drawn over the black
+                // (drawOver) where that hook is in, here under it where it is not.
+                boolean dark = anyone && dark(local[screen], screen), over = dark && overHooked;
+                if (!dark) release(all, screen);
+                if (over) overScreens |= 1 << screen;
                 int left, top, width, height;
                 if (anyone) {
                     left = (int)screenLeft.invokeExact(screen);
@@ -1437,9 +1445,10 @@ final class Texts implements Hooks.Text {
                 }
                 if (width <= 0 || height <= 0) continue;
                 for (Shown text : all) {
-                    if (text.done || text.waiting || text.player >= 0 && text.player != screen) continue;
+                    if (text.done || text.waiting || text.player >= 0 && text.player != screen || dark && text.start == 0) continue;
                     if (text.start == 0) { text.start = now; dirty = true; }
                     text.drawnIn = frame;
+                    if (over) continue;
                     if (!draw(text, now, screen, left, top, width, height)) { text.done = true; finished = true; }
                 }
             }
@@ -1452,11 +1461,39 @@ final class Texts implements Hooks.Text {
         // Written for a newer API once the hold is over, not with each frame of it.
         if (held) holding = true;
         else if (holding) { holding = false; dirty = true; }
-        if (finished) {
-            shown.removeIf(text -> text.done);
-            publish();
-            dirty = true;
+        if (finished) finished();
+    }
+
+    private void finished() {
+        shown.removeIf(text -> text.done);
+        publish();
+        dirty = true;
+    }
+
+    /** As the interface's drawing ends, over the black of the screens draw() left dark: the texts that play on there. */
+    @Override public void drawOver() {
+        overHooked = true;
+        int screens = overScreens;
+        if (screens == 0) return;
+        overScreens = 0;
+        Shown[] all = drawn;
+        long frame = frames, now = lastFrame;
+        boolean finished = false;
+        try {
+            for (int screen = 0; screen < PLAYERS; screen++) {
+                if ((screens & 1 << screen) == 0) continue;
+                int left = (int)screenLeft.invokeExact(screen), top = (int)screenTop.invokeExact(screen);
+                int width = (int)screenWidth.invokeExact(screen), height = (int)screenHeight.invokeExact(screen);
+                if (width <= 0 || height <= 0) continue;
+                for (Shown text : all) {
+                    if (text.done || text.start == 0 || text.drawnIn != frame || text.player >= 0 && text.player != screen) continue;
+                    if (!draw(text, now, screen, left, top, width, height)) { text.done = true; finished = true; }
+                }
+            }
+        } catch (Throwable failure) {
+            throw Texts.<RuntimeException>sneaky(failure);
         }
+        if (finished) finished();
     }
 
     /** Moves a text's times on by a time it was not seen in: where it is in its life stays. */
