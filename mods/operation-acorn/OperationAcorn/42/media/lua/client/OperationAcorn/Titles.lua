@@ -104,6 +104,16 @@ function Titles.overWindow()
     return false
 end
 
+-- Where a title's middle goes for detail.at, as a share of the screen's height (the API's spec.y): "center" puts the title
+-- and its line together in the middle (a big title's line hangs below it: their block's middle is about 0.035 under the
+-- title's), a number is taken as it is; nil leaves the style's place.
+Titles.CENTER, Titles.CENTER_ALONE = 0.465, 0.5
+function Titles.place(at, withLine)
+    if at == "center" then return withLine and Titles.CENTER or Titles.CENTER_ALONE end
+    if type(at) == "number" and at >= 0 and at <= 1 then return at end
+    return nil
+end
+
 -- Shows a title (detail as OA.Sync.title takes it) for the player of that id; returns how it was shown: "title",
 -- "halo" or nil. With `noHalo` a title the API cannot draw is not shown at all (the caller has its own way then).
 function Titles.show(playerId, detail, noHalo)
@@ -127,7 +137,7 @@ function Titles.show(playerId, detail, noHalo)
         local done = false
         if handle then
             local spec = { text = title, subtitle = sub, style = style, player = character:getPlayerNum(),
-                now = Titles.now or nil, backdrop = backdrop }
+                now = Titles.now or nil, backdrop = backdrop, y = Titles.place(detail.at, sub ~= nil) }
             local tone = Titles.TONES[detail.tone]
             if tone then spec.color, spec.subtitleColor = tone[1], tone[2] end
             local ok, err = pcall(t.title, handle, spec)

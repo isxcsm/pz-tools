@@ -52,6 +52,14 @@ test("with the API's text a title goes to it, in its style and tone, on the play
     eq(called[1].spec.subtitle, nil)
     eq(called[1].spec.player, 0)
     eq(called[1].spec.color, OA.Titles.TONES.gold[1])
+    eq(called[1].spec.y, nil, "the style's own place unless said")
+    -- a place: the middle (the title and its line together, or the title alone), or a share of the height
+    OA.Titles.show("p1", { key = "IGUI_OA_Title_Capstone", sub = "IGUI_OA_Title_NewItems", at = "center" })
+    eq(called[2].spec.y, OA.Titles.CENTER)
+    OA.Titles.show("p1", { key = "IGUI_OA_Title_Capstone", at = "center" })
+    eq(called[3].spec.y, OA.Titles.CENTER_ALONE)
+    OA.Titles.show("p1", { key = "IGUI_OA_Title_Capstone", at = 0.3 })
+    eq(called[4].spec.y, 0.3)
     -- a hook that is not in: the text over the character instead
     PZExtAPI.text.status = function() return "not-loaded" end
     eq(OA.Titles.show("p1", { key = "IGUI_OA_Title_Capstone" }), "halo")

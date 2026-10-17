@@ -39,7 +39,8 @@ end
 -- title's translation and its arguments), sub, subArgs (the line under it, optional), style ("dust", the default, for
 -- anything not plainly another; "discovery" a thing found; "unveil" a thing strange; "notice" word from the radio; "stamp" a
 -- great thing done: as PZExtAPI.text.title has them), tone ("gold", "green", "red" or nil for the style's own colour),
--- fallback ("good", "bad" or nil) }. An argument may itself be a text, { key, args }, translated on the player's side
+-- fallback ("good", "bad" or nil), at (where on the screen: "center", a share of its height from the top for the title's
+-- middle, or nil for the style's place near the top) }. An argument may itself be a text, { key, args }, translated on the player's side
 -- (a name the server cannot put in the player's language). Shown by client/OperationAcorn/Titles.lua; without the
 -- extension API's text, as a text over the character in the fallback's colour.
 function Sync.title(playerId, detail)
