@@ -10,6 +10,8 @@
 -- it; a circle of the world is drawn as the map shows it (on the isometric view an ellipse): the map's view is a flat
 -- projection, so the screen steps of one square east and one south shape it. Sizes are screen pixels at the UI scale,
 -- whatever the zoom.
+-- The mission's marks can be hidden: a button by the world map's own (and the mod options) switches the circles, the
+-- way and the pins off on both maps; the crates stay.
 -- What there is to draw is worked out by Story/View (pure) when a map opens and when the mission or the crates change;
 -- the dashes and the timing by Story/MapFx (pure). Each frame only places it: nothing is made, and with no map open or
 -- nothing to show nothing runs.
@@ -90,6 +92,28 @@ local BASE = getTimestampMs()
 local function whereNow()
     local game = OA.Missions and OA.Missions.game
     return game and game.whereNow or nil
+end
+
+-- Whether the mission's marks are shown (the mod option, switched by the world map's button too). On unless switched off.
+Maps.OPTION = "OA_MapMarks"
+
+local function markOption()
+    local options = PZAPI and PZAPI.ModOptions and PZAPI.ModOptions:getOptions(OA.MOD)
+    return options and options:getOption(Maps.OPTION) or nil
+end
+
+function Maps.marksShown()
+    local option = markOption()
+    if option and option.getValue then return option:getValue() ~= false end
+    return true
+end
+
+-- The world map's button: the marks on or off, kept with the mod's options.
+function Maps.toggleMarks()
+    local option = markOption()
+    if not (option and option.setValue) then return end
+    option:setValue(not Maps.marksShown())
+    if PZAPI.ModOptions.save then PZAPI.ModOptions:save() end
 end
 
 -- Worked out again for a player: when a map opens, and when the mission or the crates change.
@@ -345,6 +369,10 @@ local function draw(el, scene, character, style, since)
     local UI = OA.Trade.UI
     local s = UI and UI.S or 1
     local now = getTimestampMs() - BASE
+    if not Maps.marksShown() then
+        if style.crates then drawCrates(scene, s) end
+        return
+    end
     local circles, points = scene.circles, scene.points
     for i = 1, #circles do place(circles[i], style, s) end
     -- A piece the player carries is where the player is, this frame.
@@ -460,10 +488,53 @@ function Maps.show(character, which)
     end
 end
 
+-- The marks' button, in the world map's row of buttons before its close button: the destination pin, dim while the
+-- marks are hidden.
+local MARK_ON, MARK_OFF = 1, 0.3
+
+local function markButtonLook(button)
+    local c = View.MAP_SKY
+    button.textureColor = { r = c[1], g = c[2], b = c[3], a = Maps.marksShown() and MARK_ON or MARK_OFF }
+end
+
+local function onMarkButton(map, button)
+    Maps.toggleMarks()
+    markButtonLook(button)
+end
+
+local function addMarkButton(map)
+    local panel, close = map.buttonPanel, map.closeBtn
+    if not (panel and close) or map.oaMarkButton then return end
+    local size = close.height
+    local button = ISButton:new(close.x, 0, size, size, "", map, onMarkButton)
+    local pin = picture(PIN)
+    if pin then
+        button:setImage(pin)
+        button:forceImageSize(math.floor(size * 0.42), math.floor(size * 0.58))
+    end
+    button:setTooltip(getText("IGUI_OA_Story_UI_MarksShown"))
+    button:initialise()
+    panel:addChild(button)
+    close:setX(button:getRight() + UI_BORDER_SPACING)
+    panel:shrinkWrap(0, 0, nil)
+    panel:setX(map.width - UI_BORDER_SPACING - panel.width)
+    map.oaMarkButton = button
+    markButtonLook(button)
+end
+
+local worldCreateChildren = ISWorldMap.createChildren
+function ISWorldMap:createChildren(...)
+    worldCreateChildren(self, ...)
+    OA.try("world map marks button", addMarkButton, self)
+end
+
 -- Hooks: the world map when it is shown (its pins drop in), the minimap when it is built.
 local showWorldMap = ISWorldMap.ShowWorldMap
 local function worldMapShown(playerNum, ...)
     Maps.rebuild(playerNum)
+    -- (the option may have been switched in the mod options since)
+    local map = ISWorldMap_instance
+    if map and map.oaMarkButton then markButtonLook(map.oaMarkButton) end
     shownAt[playerNum] = getTimestampMs() - BASE
     return ...
 end
@@ -481,6 +552,15 @@ end
 ISMiniMapInner.instantiate = function(self, ...)
     return miniMapMade(self, instantiate(self, ...))
 end
+
+-- The option, in the game's mod options screen.
+local function makeOptions()
+    local options = OA.Client.options()
+    if not options then return end
+    options:addTickBox(Maps.OPTION, getText("IGUI_OA_Story_OptionMapMarks"), true, getText("IGUI_OA_Story_OptionMapMarksTip"))
+end
+
+makeOptions()
 
 OA.Sync.listen("missions", function() Maps.refresh() end)
 OA.Sync.listen("trade", function() Maps.refresh() end)

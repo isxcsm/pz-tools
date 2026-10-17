@@ -15,8 +15,10 @@ require "OperationAcorn/Story/Places"
 require "OperationAcorn/Story/Story"
 require "OperationAcorn/Story/Docs"
 require "OperationAcorn/Story/View"
+require "OperationAcorn/Story/Comms"
 local OA = OperationAcorn
 local Data, Rewards, Places, Story, Docs = OA.StoryData, OA.Rewards, OA.Places, OA.Story, OA.StoryDocs
+local View = OA.StoryView
 local Missions = {}
 OA.Missions = Missions
 
@@ -55,11 +57,12 @@ function Missions.special(record)
     return s.special
 end
 
--- The missions running now (a list: the main one, then the special request), for what works on every one of them.
+-- The missions running now (a list: the main one once it is taken, then the special request), for what works on every
+-- one of them.
 function Missions.live(record)
     local missions = record and record.missions
     local list = {}
-    if missions and missions.active then list[#list + 1] = missions.active end
+    if missions and View.taken(missions.active) then list[#list + 1] = missions.active end
     if missions and missions.special and missions.special.mission then list[#list + 1] = missions.special.mission end
     return list
 end
@@ -80,9 +83,13 @@ local function creditScale()
     return OA.option("CreditMultiplier") or 1
 end
 
--- A mission's days (7, more with the flight support's mission days), as hours.
-local function deadlineHours(record)
-    return Rewards.hours(OA.scaled(OA.Support.value(record, "mdays"), "MissionDeadlineMultiplier"))
+-- A story mission's days over a regular one's.
+Missions.STORY_EXTRA_DAYS = 7
+
+-- A mission's days (14, more with the flight support's mission days; a story's STORY_EXTRA_DAYS more), as hours.
+local function deadlineHours(record, story)
+    local days = OA.Support.value(record, "mdays") + (story and Missions.STORY_EXTRA_DAYS or 0)
+    return Rewards.hours(OA.scaled(days, "MissionDeadlineMultiplier"))
 end
 
 local function intervalHours()
@@ -137,7 +144,7 @@ local function newMission(record, kind, level, story)
         level = level,
         state = "open",
         issued = now,
-        deadline = now + deadlineHours(record),
+        deadline = now + deadlineHours(record, isStory),
         credits = credits, trust = trust,
         items = {},
     }
@@ -394,34 +401,19 @@ local function createField(record, def, id, level)
     return m
 end
 
-local function createChoice(record, def, id, level)
+-- A choice: the option it was started with (Missions.launch) becomes the mission, the other closes for good.
+local function createChoice(record, def, id, level, option)
+    local opt = def.options and def.options[option]
+    if not opt then return nil end
     local m = storyMission(record, def, id, level)
-    m.state = "offer"
-    m.options = { a = true, b = true }
-    return m
-end
-
--- The terminal chose: the picked option becomes the mission, the other closes for good.
-function Missions.choose(record, option)
-    local s = Missions.state(record)
-    local m = s.active
-    if not (m and m.state == "offer" and m.options and m.options[option]) then return false end
-    local def = Data.STORIES[m.story]
-    local opt = def and def.options and def.options[option]
-    if not opt then return false end
-    local site = storySite(record, def, m.story, m.level, opt.site)
-    if not site then return false end
+    local site = storySite(record, def, id, level, opt.site)
+    if not site then return nil end
     m.chosen = option
-    m.options = nil
-    m.state = "open"
-    m.deadline = OA.hours() + deadlineHours(record)
     m.facility = opt.facility or def.facility
     placeAtSite(m, opt.item, "A", site, { OA_Variant = m.facility })
-    m.title = m.story .. "_" .. option
-    Story.section(record).chosen[m.story] = option
-    Missions.price(record, m)
-    Missions.begin(record, m)
-    return true
+    m.title = id .. "_" .. option
+    Story.section(record).chosen[id] = option
+    return m
 end
 
 -- Two copies, one original: the original's serial is what the terminal copy shows. A contract mission, or `kind`.
@@ -516,14 +508,20 @@ local function createContract(record, level)
 end
 
 -- The soil sample (milestone choice): from a drop site the player has been to, or from any bare ground.
-local function createSoil(record, def, id, level)
-    local m = storyMission(record, def, id, level)
+-- The drop sites the player has been to.
+local function seenSites(record)
     local sites = OA.Sites
     local seen = {}
     for n in pairs(sites and sites.seenOf and sites.seenOf(record) or {}) do
         local site = sites and sites.byNumber and sites.byNumber(n)
         if site then seen[#seen + 1] = site end
     end
+    return seen
+end
+
+local function createSoil(record, def, id, level)
+    local m = storyMission(record, def, id, level)
+    local seen = seenSites(record)
     if #seen > 0 then
         local site = seen[OA.random(1, #seen)]
         m.soil = { site = site.n, stake = site.stake, x = site.x, y = site.y, variant = "site" }
@@ -684,16 +682,50 @@ local STORY_BUILDERS = {
     choice = createChoice, soil = createSoil,
 }
 
-local function createStoryMission(record, entry, level)
-    local def = Data.STORIES[entry.id] or Data.REVISITS[entry.id]
-    if not def then return nil end
-    local build = STORY_BUILDERS[def.kind]
+local function storyDef(id)
+    return Data.STORIES[id] or Data.REVISITS[id]
+end
+
+local function createStoryMission(record, id, level, option)
+    local def = storyDef(id)
+    local build = def and STORY_BUILDERS[def.kind]
     if not build then return nil end
-    return unburnt(build, record, def, entry.id, level)
+    return unburnt(build, record, def, id, level, option)
+end
+
+-- A story mission offered: what the card tells of it (its title, place and base reward) until it is started. It is
+-- made when its briefing call is over (Missions.briefed), and its site picked then. A choice offers the options not
+-- closed yet (one, when it is offered again after it was missed).
+local function storyOffer(record, entry, level)
+    local def = storyDef(entry.id)
+    if not (def and STORY_BUILDERS[def.kind]) then return nil end
+    local m = newMission(record, "story", level, entry.id)
+    m.title = entry.id
+    m.facility = def.facility
+    if def.kind == "choice" then
+        local chosen = Story.section(record).chosen[entry.id]
+        m.options = chosen and { [chosen] = true } or { a = true, b = true }
+    end
+    return m
 end
 
 -- ---------------------------------------------------------------------------------------------------------------
--- Starting, running and ending.
+-- Offering, starting, running and ending.
+
+-- The call that tells what the missions are (CommsData S1M, after the first settlement's): none is offered before it
+-- has been played.
+Missions.OPENING_CALL = "S1M"
+
+function Missions.opened(record)
+    return OA.Comms.done(record, Missions.OPENING_CALL)
+end
+
+-- A mission offered waits for the player to start it: no deadline yet, its days kept for then (`span`, hours).
+local function toWaiting(m)
+    m.state = "waiting"
+    m.span = m.deadline - m.issued
+    m.deadline = nil
+end
 
 -- The mission is on its way: kept in the record, its items waiting for their places, the map told.
 function Missions.begin(record, m)
@@ -701,13 +733,16 @@ function Missions.begin(record, m)
     s.active = m
     -- What its place will show (Story/Scene): decided once, as it begins.
     if OA.Scene then OA.Scene.begin(record, m) end
-    if m.state ~= "offer" then
-        local g = game()
-        for _, it in ipairs(m.items) do
-            if not it.placed and g and g.request then g.request(record, m, it) end
-        end
+    local g = game()
+    for _, it in ipairs(m.items) do
+        if not it.placed and g and g.request then g.request(record, m, it) end
     end
     OA.Sync.changed("missions", record.id)
+end
+
+-- The short title of a mission started: "임무 착수" over its title.
+local function launchedTitle(record, m)
+    OA.Sync.title(record.id, { key = "IGUI_OA_Title_Launched", sub = (Missions.keys(m)), style = "notice" })
 end
 
 -- The translation keys of a mission's title and brief by its kind (the title is the story id, the item or the contract
@@ -725,29 +760,98 @@ function Missions.keys(m)
     return "IGUI_OA_Story_" .. prefix .. tostring(m.title), "IGUI_OA_Story_" .. brief .. tostring(m.title)
 end
 
--- Starts the next mission if one is due. Returns it.
+-- Offers the next mission if one is due: it waits in the missions tab until the player starts it (Missions.launch).
+-- Returns it.
 function Missions.start(record)
     local stage, milestones = Story.progress(record)
     local level = Rewards.level(stage, milestones)
     if not level then return nil end
     local m
     local story = Story.nextStory(record)
-    if story then
-        m = createStoryMission(record, story, level)
-        if not m then
-            -- Could not place it now: keep it for the next time.
-            Story.queueStory(record, story.id, story.fresh)
-        end
+    if story then m = storyOffer(record, story, level) end
+    if not m then
+        m = createPlain(record, level)
+        if not m then return nil end
+        Missions.price(record, m)
     end
-    if not m then m = createPlain(record, level) end
-    if not m then return nil end
-    -- a choice is priced when it is chosen (it has no place yet)
-    if m.state ~= "offer" then Missions.price(record, m) end
-    Missions.begin(record, m)
+    toWaiting(m)
+    Missions.state(record).active = m
+    OA.Sync.changed("missions", record.id)
     OA.Sync.title(record.id, { key = "IGUI_OA_Title_NewRequest", sub = "IGUI_OA_Title_CheckTerminal",
         style = "notice" })
-    OA.log("mission", m.id, m.story or m.title, "for", record.number)
+    OA.log("mission", m.id, m.story or m.title, "offered to", record.number)
     return m
+end
+
+-- The briefing call of a story mission (CommsData.BRIEFS): by the story's id, a choice's option, the soil sample's
+-- place (a drop site the player has been to, or any bare ground).
+function Missions.briefOf(record, m, option)
+    local def = storyDef(m.story)
+    local key = m.story
+    if def and def.kind == "choice" then
+        key = m.story .. "_" .. tostring(option)
+    elseif def and def.kind == "soil" then
+        key = #seenSites(record) > 0 and "soil_site" or "soil_plain"
+    end
+    return OA.CommsData.BRIEFS[key]
+end
+
+-- A story mission is made from its offer once its briefing is over, and begins. With no place for it now (rare: no
+-- building in its band) it goes back to the queue and comes again after a regular mission.
+local function buildStory(record, offer)
+    local s = Missions.state(record)
+    local m = createStoryMission(record, offer.story, offer.level, offer.option)
+    if not m then
+        s.active = nil
+        Story.queueStory(record, offer.story, false)
+        OA.Sync.notice(record.id, "IGUI_OA_Story_LaunchFail", {})
+        OA.Sync.changed("missions", record.id)
+        return nil
+    end
+    -- the number the card was offered under (the tab's dot has seen it)
+    m.id, m.seq = offer.id, offer.seq
+    Missions.price(record, m)
+    Missions.begin(record, m)
+    launchedTitle(record, m)
+    OA.log("mission", m.id, m.title, "started by", record.number)
+    return m
+end
+
+-- The player starts the mission offered (the card's 착수 button; a choice with one of its options). A regular or
+-- contract one is on its way at once, its days from now. A story one has its briefing call fired: the terminal plays it
+-- in the comms tab, and the mission begins when the call is over or skipped (Missions.briefed). Returns true, and
+-- "brief" when a call is to play.
+function Missions.launch(record, option)
+    local s = Missions.state(record)
+    local m = s.active
+    if not (m and m.state == "waiting") then return false end
+    if m.kind ~= "story" then
+        m.state = "open"
+        m.issued = OA.hours()
+        m.deadline = m.issued + m.span
+        m.span = nil
+        Missions.begin(record, m)
+        launchedTitle(record, m)
+        OA.log("mission", m.id, m.title, "started by", record.number)
+        return true
+    end
+    if m.options and not m.options[option] then return false end
+    m.option = m.options and option or nil
+    local brief = Missions.briefOf(record, m, option)
+    -- a briefing played before (the mission went back to the queue) is not played again
+    if not brief or OA.Comms.done(record, brief) then return buildStory(record, m) ~= nil end
+    m.state = "briefing"
+    m.brief = brief
+    OA.Comms.fire(record, OA.CommsData.BY_ID[brief].trigger)
+    OA.Sync.changed("comms", record.id)
+    OA.Sync.changed("missions", record.id)
+    return true, "brief"
+end
+
+-- A call was played in the comms tab (or skipped): the briefing of the mission being started lets it begin.
+function Missions.briefed(record, id)
+    local m = Missions.state(record).active
+    if m and m.state == "briefing" and m.brief == id then buildStory(record, m) end
 end
 
 -- The streak (DESIGN-terminal 7.2): a mission done in time adds one, one past its deadline ends it; a lost one and a taken
@@ -849,7 +953,13 @@ function Missions.tick(record)
     local s = Missions.state(record)
     local m = s.active
     if not m then
-        if Rewards.level(stage, milestones) and now >= (s.nextAt or 0) then Missions.start(record) end
+        if Rewards.level(stage, milestones) and now >= (s.nextAt or 0) and Missions.opened(record) then
+            Missions.start(record)
+        end
+    elseif m.state == "waiting" and not m.story and Story.freshQueued(record) then
+        -- a stage's story mission comes before a regular one not started yet
+        s.active = nil
+        Missions.start(record)
     else
         Missions.tickOne(record, m, now)
     end
@@ -864,7 +974,7 @@ local whereLooks = {}  -- by mission id: the real time (ms) of the last look
 
 -- One running mission: its deadline, how long a sealed box may wait, and the steps that go by time.
 function Missions.tickOne(record, m, now)
-    if m.state == "offer" or m.state == "open" or m.state == "calling" then
+    if m.state == "open" or m.state == "calling" then
         if m.state ~= "calling" and now > m.deadline then
             if m.scatter then
                 Missions.settleScatter(record, m, now)
@@ -1386,10 +1496,10 @@ end
 -- Taking another mission (DESIGN-terminal 7.2).
 
 -- Whether the card offers 'take another' for a mission, and at what price: { trust = the trust it costs, left = how many
--- there are left this week (0 or 1) } or nil. Only a regular or contract mission that is open, and one of several pieces
--- only until a piece is sealed (it would be left a plain item).
+-- there are left this week (0 or 1) } or nil. Only a regular or contract mission offered or open, and one of several
+-- pieces only until a piece is sealed (it would be left a plain item).
 function Missions.rerollOffer(record, m)
-    if not m or m.special or m.state ~= "open" then return nil end
+    if not m or m.special or (m.state ~= "open" and m.state ~= "waiting") then return nil end
     if m.kind ~= "regular" and m.kind ~= "contract" then return nil end
     if Missions.sealedCount(m) > 0 then return nil end
     local s = Missions.state(record)
@@ -1398,7 +1508,8 @@ function Missions.rerollOffer(record, m)
 end
 
 -- The mission is given back for another one, once a week, for some trust. The new one is made first: when none can be
--- made nothing is lost. What the old one left in the world stays and counts as a plain item. Returns true when taken.
+-- made nothing is lost. What the old one left in the world stays and counts as a plain item. An offer not started gives
+-- another offer. Returns true when taken.
 function Missions.reroll(record)
     local s = Missions.state(record)
     local m = s.active
@@ -1415,7 +1526,13 @@ function Missions.reroll(record)
     Story.loseTrust(record, offer.trust)
     s.reroll = { week = OA.week() }
     OA.Sync.changed("trade", record.id)
-    Missions.begin(record, fresh)
+    if m.state == "waiting" then
+        toWaiting(fresh)
+        s.active = fresh
+        OA.Sync.changed("missions", record.id)
+    else
+        Missions.begin(record, fresh)
+    end
     OA.log("mission", m.id, "taken again as", fresh.id, "for", record.number)
     return true
 end
@@ -1572,7 +1689,9 @@ local function describeMission(m, now)
     info.facility = m.facility
     info.area = m.area
     info.area2 = m.area2
-    info.left = m.deadline - now
+    -- the time left once started; an offer's days for then
+    info.left = m.deadline and (m.deadline - now) or nil
+    info.span = m.span
     info.credits = (m.pay and m.pay.credits) or m.credits
     info.trust = (m.pay and m.pay.trust) or m.trust
     info.options = m.options

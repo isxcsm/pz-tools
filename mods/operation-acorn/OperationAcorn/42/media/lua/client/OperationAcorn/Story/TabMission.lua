@@ -101,6 +101,7 @@ function OATabMission:createChildren()
     local p = self:palette()
     local bh = UI.buttonHeight()
     self.mapButton = PZUIButton:new(0, 0, 120, bh, getText("IGUI_OA_Story_UI_ShowMap"), p, self, OATabMission.onMap, "strong")
+    self.launchButton = PZUIButton:new(0, 0, 88, bh, getText("IGUI_OA_Story_UI_Launch"), p, self, OATabMission.onLaunch, "strong")
     self.rerollButton = PZUIButton:new(0, 0, 88, bh, getText("IGUI_OA_Story_UI_Reroll"), p, self, OATabMission.onReroll)
     self.optionButtons = {}
     for _, option in ipairs({ "a", "b" }) do
@@ -123,7 +124,7 @@ end
 
 -- Every button of the screen (layout shows the ones the screen needs).
 function OATabMission:buttons()
-    return { self.mapButton, self.rerollButton, self.optionButtons.a, self.optionButtons.b, self.shopButton,
+    return { self.mapButton, self.launchButton, self.rerollButton, self.optionButtons.a, self.optionButtons.b, self.shopButton,
         self.acceptButton, self.specialMapButton }
 end
 
@@ -132,15 +133,22 @@ function OATabMission:onMap()
     if info and info.area then OA.StoryTabs.showOnMap(self:character()) end
 end
 
--- What cannot be taken back asks first: a choice closes the other option for good, 'take another' costs trust and the
--- week's one, a special request closes the other one offered.
-function OATabMission:onChoose(button)
-    local text = getText("IGUI_OA_Story_ChooseAsk", button.title or "")
-    UI.confirm(self:character(), string.gsub(text, "\\n", "\n"), self, OATabMission.doChoose, button.internal)
+-- What cannot be taken back asks first: a start sets the deadline going, a choice closes the other option for good,
+-- 'take another' costs trust and the week's one, a special request closes the other one offered.
+function OATabMission:onLaunch()
+    local text = getText("IGUI_OA_Story_UI_LaunchAsk", self.card and self.card.title or "")
+    UI.confirm(self:character(), string.gsub(text, "\\n", "\n"), self, OATabMission.doLaunch)
 end
 
-function OATabMission:doChoose(option)
-    self:send("story_choose", { option = option })
+function OATabMission:onChoose(button)
+    local text = getText("IGUI_OA_Story_ChooseAsk", button.title or "")
+    UI.confirm(self:character(), string.gsub(text, "\\n", "\n"), self, OATabMission.doLaunch, button.internal)
+end
+
+-- Started: a story mission's briefing plays in the comms tab (the call comes in with the record's next change).
+function OATabMission:doLaunch(option)
+    self:send("story_launch", { option = option })
+    if self.info and self.info.kind == "story" then self.window:activate("comms") end
 end
 
 function OATabMission:onReroll()
@@ -222,13 +230,23 @@ function OATabMission:buildCard(record, info)
         card.right = plain("text", getText("IGUI_OA_Story_UI_Sealed"))
     elseif info.state == "calling" then
         card.right = plain("text", getText("IGUI_OA_Story_UI_Calling"))
+    elseif info.state == "briefing" then
+        card.right = plain("text", getText("IGUI_OA_Story_UI_Briefing"))
+    elseif info.state == "waiting" then
+        -- its days once started (whole days; an urgent one's hours)
+        local span = info.span or 0
+        if span >= 24 then
+            card.right = runsOf("text", "IGUI_OA_Story_UI_Span", math.floor(span / 24 + 0.5))
+        else
+            card.right = runsOf("text", "IGUI_OA_Story_UI_SpanHours", math.max(1, math.ceil(span)))
+        end
     else
         card.right = timeRuns("text", "IGUI_OA_Story_UI_Left", "IGUI_OA_Story_UI_LeftHours", info.left or 0)
     end
     measure(card.right, p)
     local place = info.facility and getText("IGUI_OA_Story_Facility_" .. info.facility) or ""
     card.brief = getText(briefKey, place, OA.Story.number(record))
-    if info.item and info.state ~= "offer" then
+    if info.item then
         card.item = { type = Data.fullType(info.item),
             runs = join(plain("dim", getText("IGUI_OA_Story_UI_ItemLabel") .. " "), plain("text", getItemNameFromFullType(Data.fullType(info.item)))) }
         -- scattered pieces: "시료 깡통 3곳 중 1곳 회수"
@@ -241,7 +259,7 @@ function OATabMission:buildCard(record, info)
     -- The conditions at the place, as the card has always told them.
     card.lines = {}
     local function line(text) card.lines[#card.lines + 1] = text end
-    if info.state == "offer" then line(getText("IGUI_OA_Story_UI_Offer")) end
+    if info.options and info.state == "waiting" then line(getText("IGUI_OA_Story_UI_Offer")) end
     if info.swap then line(getText("IGUI_OA_Story_UI_Swap_" .. info.swap)) end
     if info.field then line(getText("IGUI_OA_Story_UI_Field_" .. info.field)) end
     if info.cooler and info.cooler.started then
@@ -449,11 +467,18 @@ function OATabMission:layout()
     end
     if card and not card.empty then
         local by = cardH - self.mapButton.height - 8
-        local x = w - 12 - self.mapButton.width
-        self.mapButton:setX(x)
-        self.mapButton:setY(by)
-        self.mapButton:setVisible(true)
-        self.mapButton.enable = self.info.area ~= nil and self.info.state ~= "sealed"
+        local x = w - 12
+        local state = self.info.state
+        -- an offer is started here (a choice by its option buttons); a mission taken has its area on the map
+        local first = state == "waiting" and (not card.options and self.launchButton) or nil
+        if state ~= "waiting" and state ~= "briefing" then first = self.mapButton end
+        if first then
+            x = x - first.width
+            first:setX(x)
+            first:setY(by)
+            first:setVisible(true)
+            self.mapButton.enable = self.info.area ~= nil and state ~= "sealed"
+        end
         self.buttonsLeft = x
         if self.info.reroll then
             x = x - 8 - self.rerollButton.width
@@ -465,7 +490,7 @@ function OATabMission:layout()
             self.buttonsLeft = x
         end
         for _, option in ipairs({ "b", "a" }) do
-            local label = card.options and card.options[option]
+            local label = state == "waiting" and card.options and card.options[option]
             if label then
                 local b = self.optionButtons[option]
                 b:setTitle(label)

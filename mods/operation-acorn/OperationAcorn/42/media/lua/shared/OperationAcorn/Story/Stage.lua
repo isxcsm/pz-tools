@@ -178,7 +178,7 @@ end
 -- The mission began: a story mission at a building gets a stage, and the pieces the stage puts are left out of the
 -- usual placing (Story/Game: it.staged).
 function Stage.begin(record, m)
-    if m.stage or m.state == "offer" then return end
+    if m.stage then return end
     local def = Stage.defOf(m)
     if not def then return end
     m.stage = { placed = false, kept = false, wake = {} }

@@ -32,6 +32,11 @@ local function done(s, id)
     return s.played[id] ~= nil or s.dropped[id] == true
 end
 
+-- Whether an entry has been played or dropped.
+function Comms.done(record, id)
+    return done(Comms.section(record), id)
+end
+
 -- Whether nobody answers on the team's side (SCENES S4): after the day the line went dead (S4) until the next call
 -- (S4B). The trade goes on by itself then: a call is taken as an automatic one.
 function Comms.silent(record)

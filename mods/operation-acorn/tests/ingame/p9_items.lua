@@ -25,8 +25,7 @@ ss.queue = {}
 for stage = 1, 2 do
     for _, id in ipairs(OA.StoryData.STAGES[stage].stories or {}) do ss.done[id] = "done" end
 end
-Missions.tick(record)
-local m = Missions.active(record)
+local m = P4T.takeMission(record)
 if not check("a regular mission started", m ~= nil and m.kind == "regular", m and m.kind) then return end
 local it = m.items[1]
 say("mission", m.id, m.form or m.title, "piece", it.type, it.mode, "deadline in", string.format("%.1f h", m.deadline - OA.hours()))

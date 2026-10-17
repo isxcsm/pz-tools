@@ -15,7 +15,7 @@ OA.CommsData = Data
 -- Fields of an entry:
 --   trigger  what fires it: "first" (the terminal is first used), "settled" (a crate's settlement), "serum" (the first
 --            enhanced serum), "tier:N" (trust tier N entered), "story:<id>" (that story mission's box was settled; the
---            handover mission: ended), "field:<id>" (that story mission's helicopter is coming), "crate:N" (the first
+--            handover mission: ended), "brief:<key>" (that story mission is being started: CommsData.BRIEFS), "field:<id>" (that story mission's helicopter is coming), "crate:N" (the first
 --            supply crate landed at tier N), "sent:<doc>" (that 2반 paper has gone in a crate), "after:<id>:<hours>"
 --            (game hours after that scene was played), "nextday:<id>" (a game day after the one that scene was played
 --            on), "handedover" (the handover's last crate opened), "say:<story id>:<event>" (a field monologue, said by the mission's code)
@@ -29,12 +29,46 @@ OA.CommsData = Data
 --            (nothing, `s` seconds); `erase` on a "me" line: words typed and deleted first (key _x); `late` on a line: a
 --            text of its own (key _late) when the first crate came late
 Data.ENTRIES = {
+    -- The briefings (SCENES 4): played as the player starts a story mission, before any other call waiting; the mission
+    -- begins when one is over. Keyed by the story (a choice's option, the soil sample's place).
+    { id = "B1", kind = "scene", trigger = "brief:evidence", tier = 1, mission = true, sign = "oak", lines = {
+        { "me" }, { "oak" }, { "me" }, { "oak" }, { "noise", s = 1 } } },
+    { id = "B2", kind = "scene", trigger = "brief:clinic", tier = 2, mission = true, sign = "oak", lines = {
+        { "me" }, { "oak" }, { "me" }, { "oak" }, { "noise", s = 1 } } },
+    { id = "B3a", kind = "scene", trigger = "brief:observation_a", tier = 3, mission = true, sign = "oak", lines = {
+        { "me" }, { "oak" }, { "me" }, { "oak" }, { "noise", s = 1 } } },
+    { id = "B3b", kind = "scene", trigger = "brief:observation_b", tier = 3, mission = true, sign = "oak", lines = {
+        { "me" }, { "oak" }, { "me" }, { "oak" }, { "noise", s = 1 } } },
+    { id = "B4", kind = "scene", trigger = "brief:cooler", tier = 4, mission = true, sign = "oak", lines = {
+        { "me" }, { "oak" }, { "me" }, { "oak" }, { "noise", s = 1 } } },
+    { id = "B5", kind = "scene", trigger = "brief:gym", tier = 5, mission = true, sign = "oak", lines = {
+        { "me" }, { "oak" }, { "me" }, { "oak" }, { "noise", s = 1 } } },
+    { id = "B6", kind = "scene", trigger = "brief:ward", tier = 6, mission = true, sign = "oak", lines = {
+        { "me" }, { "oak" }, { "me" }, { "oak" }, { "noise", s = 1 } } },
+    { id = "B7", kind = "scene", trigger = "brief:cells", tier = 7, mission = true, sign = "oak", lines = {
+        { "me" }, { "oak" }, { "me" }, { "oak" }, { "noise", s = 1 } } },
+    { id = "BS1", kind = "scene", trigger = "brief:soil_site", tier = 7, mission = true, sign = "oak", lines = {
+        { "me" }, { "oak" }, { "noise", s = 1 } } },
+    { id = "BS2", kind = "scene", trigger = "brief:soil_plain", tier = 7, mission = true, sign = "oak", lines = {
+        { "me" }, { "oak" }, { "noise", s = 1 } } },
+    { id = "B8", kind = "scene", trigger = "brief:handover", tier = 8, mission = true, sign = "oak", lines = {
+        { "me" }, { "oak" }, { "me" }, { "oak" }, { "noise", s = 1 } } },
+    { id = "BR1", kind = "scene", trigger = "brief:revisit_ledger", tier = 9, mission = true, sign = "admin", lines = {
+        { "me" }, { "oak" }, { "noise", s = 1 } } },
+    { id = "BR2", kind = "scene", trigger = "brief:revisit_roster", tier = 10, mission = true, sign = "admin", lines = {
+        { "me" }, { "oak" }, { "noise", s = 1 } } },
+    { id = "BR3", kind = "scene", trigger = "brief:revisit_police", tier = 11, mission = true, sign = "admin", lines = {
+        { "me" }, { "oak" }, { "noise", s = 1 } } },
+
     { id = "S0", kind = "scene", trigger = "first", tier = 0, sign = "oak", lines = {
         { "noise", s = 2 }, { "oak" }, { "mute", s = 3 }, { "oak" }, { "me", erase = true }, { "oak" }, { "me" }, { "oak" },
         { "me", late = true }, { "oak", late = true }, { "me" }, { "oak" }, { "me", erase = true }, { "oak" }, { "me" }, { "noise", s = 3 } } },
     { id = "S1", kind = "scene", trigger = "settled", tier = 1, waits = "S0", greet = true, sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "me" }, { "oak" }, { "me" }, { "oak" },
         { "me", erase = true } } },
+    -- what the missions are: after the first settlement's call; no mission is offered before it (Missions.opened)
+    { id = "S1M", kind = "scene", trigger = "settled", tier = 1, waits = "S1", sign = "oak", lines = {
+        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "noise", s = 1 } } },
     { id = "s1_bedding", kind = "short", trigger = "tier:1", tier = 1, waits = "S1", greet = true, sign = "oak" },
     { id = "S1F", kind = "scene", trigger = "story:evidence", tier = 1, mission = true, waits = "S1", sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "me" }, { "oak" } } },
@@ -106,9 +140,13 @@ Data.ENTRIES = {
 }
 
 Data.BY_ID = {}
+-- The briefings by the key their trigger names (Missions.briefOf).
+Data.BRIEFS = {}
 for i, e in ipairs(Data.ENTRIES) do
     e.order = i
     Data.BY_ID[e.id] = e
+    local key = string.match(e.trigger, "^brief:(.+)$")
+    if key then Data.BRIEFS[key] = e.id end
 end
 
 -- The field monologues of the story missions after the handover: one at each, on entering the circle, in turn; when

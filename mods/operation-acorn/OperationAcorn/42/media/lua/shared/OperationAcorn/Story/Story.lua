@@ -392,6 +392,14 @@ function Story.missionEnded(record, m, result)
     end
 end
 
+-- Whether a stage's story mission (a fresh one) waits in the queue.
+function Story.freshQueued(record)
+    for _, q in ipairs(Story.section(record).queue) do
+        if q.fresh then return true end
+    end
+    return false
+end
+
 -- The next story mission to start: the queue's first fresh one, or the first other one once a regular mission has
 -- come between. Removes it. Returns the queue entry or nil.
 function Story.nextStory(record)
@@ -502,8 +510,10 @@ function Story.terminalOpened(record)
     return true
 end
 
--- A call was played in the comms tab: after the first one, the operation's title, then the first stage's card.
+-- A call was played in the comms tab: a mission's briefing lets the mission begin; after the first one, the operation's title, then the first stage's card.
 function Story.callPlayed(record, id)
+    -- a mission's briefing: the mission begins
+    if OA.Missions then OA.Missions.briefed(record, id) end
     if id ~= "S0" then return end
     OA.Sync.title(record.id, { key = "IGUI_OA_Title_Operation", sub = "IGUI_OA_Title_OperationSub",
         subArgs = { Story.number(record) }, style = "stamp", fallback = "good", at = "center" })

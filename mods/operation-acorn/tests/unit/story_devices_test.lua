@@ -52,6 +52,7 @@ local function setup(stage, list)
     local record = OA.Store.ensure("p" .. recordCount, "P" .. recordCount)
     record.trade = { stage = stage, milestones = 0, credits = 0, trust = 0 }
     Story.setAnchor(record, 0, 0, 0)
+    OA.Comms.played(record, "S1M", 1)
     local s = Story.section(record)
     s.seenStage = stage
     for id in pairs(Data.STORIES) do s.done[id] = "done" end
@@ -63,6 +64,24 @@ local function setup(stage, list)
         for _, it in ipairs(items) do M.game.supply[#M.game.supply + 1] = it.type end
     end }
     return record
+end
+
+
+-- Missions wait to be started (Missions.launch); these tests look at them running: a tick starts what it offered (a
+-- choice with `option`, "a" if none), and a story's briefing is over at once.
+local function taken(record, option)
+    local m = M.active(record)
+    if m and m.state == "waiting" then
+        M.launch(record, option or "a")
+        m = M.active(record)
+        if m and m.state == "briefing" then M.briefed(record, m.brief) end
+    end
+    return M.active(record)
+end
+
+local function tick(record, option)
+    M.tick(record)
+    taken(record, option)
 end
 
 -- A generator that spreads (Park-Miller: its products stay within what a double holds): the harness's own repeats a
@@ -82,7 +101,7 @@ local function only(kind)
 end
 
 local function start(record)
-    M.tick(record)
+    tick(record)
     return M.active(record)
 end
 
@@ -196,11 +215,11 @@ test("the cooler's pay keeps the danger pay and the streak on its warming", func
     s.seenStage = 3
     M.state(record).streak = 1
     M.game.zombieIntensity = function() return 0.22 end
-    M.tick(record)
+    tick(record)
     local m = M.active(record)
     eq(m.story, "cooler")
     M.game.findItem = function() return {} end
-    M.tick(record)
+    tick(record)
     TEST.hours = TEST.hours + 2
     seal(record, m, "A")
     -- 50,000 x 1.5 x (1 + 0.15 + 0.1)
@@ -220,7 +239,7 @@ test("an urgent mission has a day and pays half again", function()
     eq(m.trust, 90)
     eq(M.describe(record).urgent, true)
     TEST.hours = TEST.hours + 25
-    M.tick(record)
+    tick(record)
     eq(M.active(record), nil, "a day later it is over")
 end)
 
@@ -420,8 +439,8 @@ test("a scattered mission whose time runs out pays the share found", function()
     local record, m = scattered()
     local total = m.scatter.total
     seal(record, m, "A", "b1")
-    TEST.hours = TEST.hours + 8 * 24
-    M.tick(record)
+    TEST.hours = TEST.hours + 15 * 24
+    tick(record)
     eq(m.state, "sealed", "what was found is paid")
     local share = 1 / total / 1.2
     eq(m.pay.credits, OA.round(12000 * share))
@@ -434,8 +453,8 @@ end)
 
 test("a scattered mission with nothing found when its time runs out is an expired mission", function()
     local record, m = scattered()
-    TEST.hours = TEST.hours + 8 * 24
-    M.tick(record)
+    TEST.hours = TEST.hours + 15 * 24
+    tick(record)
     eq(M.active(record), nil)
     eq(M.state(record).results.expired, 1)
     eq(record.trade.credits, 0)
@@ -444,7 +463,7 @@ end)
 test("a piece sealed after the deadline is a plain item and the pieces found before it are paid", function()
     local record, m = scattered()
     seal(record, m, "A", "b1")
-    TEST.hours = TEST.hours + 8 * 24
+    TEST.hours = TEST.hours + 15 * 24
     seal(record, m, "B", "b2")
     eq(m.state, "sealed")
     eq(M.scatterCount(m), 1, "the late piece does not count")
@@ -573,7 +592,7 @@ local function fieldRecord(stage)
 end
 
 local function offered(record)
-    M.tick(record)
+    tick(record)
     local sp = M.special(record)
     truthy(sp.offer, "an offer")
     return sp.offer
@@ -588,17 +607,19 @@ test("two special requests are offered once the field line is open at the second
     truthy(offer.a.form ~= offer.b.form, "of two forms")
     eq(Data.SPECIAL_BY_ID[offer.a.id].form, offer.a.form)
     truthy(offer.a.area and offer.b.area)
-    eq(told[#told].key, "IGUI_OA_Title_NewRequest")
+    local news = 0
+    for _, d in ipairs(told) do if d.key == "IGUI_OA_Title_NewRequest" then news = news + 1 end end
+    truthy(news >= 1, "the offer has its title")
     eq(OA.StoryFolder.missionSeq(record) >= offer.seq, true, "the tab's dot")
     local sealedSeq = M.state(record).seq
     eq(offer.seq, sealedSeq)
-    M.tick(record)
+    tick(record)
     eq(M.special(record).offer, offer, "not offered again")
 end)
 
 test("no special request without the field line or before the second stage", function()
     local record = setup(3)
-    M.tick(record)
+    tick(record)
     eq(M.special(record).offer, nil, "no field line")
     eq(M.specialSlot(record), nil)
     local other = OA.Store.ensure("p2", "Q")
@@ -762,7 +783,7 @@ test("the copy sent is the request's own, then the form's next, then none", func
     local m = M.special(record).mission
     M.finish(record, m, "expired")
     TEST.hours = TEST.hours + 8 * 24
-    M.tick(record)
+    tick(record)
     truthy(M.special(record).offer)
     Data.SPECIALS = { Data.SPECIAL_BY_ID.cold, Data.SPECIAL_BY_ID.can }
     M.special(record).last = {}
@@ -771,7 +792,7 @@ test("the copy sent is the request's own, then the form's next, then none", func
     local m2 = M.special(record).mission
     M.finish(record, m2, "expired")
     TEST.hours = TEST.hours + 8 * 24
-    M.tick(record)
+    tick(record)
     M.special(record).last = {}
     truthy(M.acceptSpecial(record, "a"))
     eq(#record.story.requests, 2, "both texts have been sent: no copy")
@@ -795,7 +816,7 @@ test("an exchange: the sealed case is left at the place, the item turns up, the 
     truthy(M.swap(record, {}))
     eq(m.swap.stage, "waiting")
     TEST.hours = TEST.hours + 2.5
-    M.tick(record)
+    tick(record)
     eq(m.swap.stage, "done")
     eq(M.game.delivered.type, "OperationAcorn." .. m.swap.item)
     seal(record, m, "A", "box7")
@@ -839,7 +860,7 @@ test("a field trade: the device is sent, the call is made on the spot, the helic
     truthy(ok)
     eq(m.state, "calling")
     eq(M.active(record).state, "open", "the main mission is open still")
-    for _ = 1, 80 do M.tick(record); TEST.hours = TEST.hours + 1 / 6 end
+    for _ = 1, 80 do tick(record); TEST.hours = TEST.hours + 1 / 6 end
     eq(M.special(record).mission, nil, "paid")
     eq(record.trade.credits, 70000)
     eq(M.state(record).streak, 0, "the special request does not count in the streak")
@@ -888,11 +909,11 @@ test("a request past its fourteen days is an expired one, the next offer comes s
     local m = M.special(record).mission
     M.active(record).deadline = math.huge
     TEST.hours = TEST.hours + 13 * 24
-    M.tick(record)
+    tick(record)
     eq(M.special(record).mission, m, "still open at thirteen days")
     TEST.hours = TEST.hours + 1.2 * 24
     local at = TEST.hours
-    M.tick(record)
+    tick(record)
     eq(M.special(record).mission, nil)
     eq(M.state(record).results.expired, 1)
     eq(streak.streak, 2, "the streak is left")
@@ -902,10 +923,10 @@ test("a request past its fourteen days is an expired one, the next offer comes s
     eq(expired.sub, "IGUI_OA_Story_SpecialTitle_" .. m.title)
     near(M.special(record).nextAt, at + 7 * 24)
     TEST.hours = at + 6 * 24
-    M.tick(record)
+    tick(record)
     eq(M.special(record).offer, nil, "not before the seven days")
     TEST.hours = at + 7 * 24 + 1
-    M.tick(record)
+    tick(record)
     truthy(M.special(record).offer, "the next offer")
 end)
 
@@ -916,7 +937,7 @@ test("the special request's expiry does not end the streak of the main missions"
     local special = M.special(record).mission
     special.deadline = TEST.hours - 1
     M.active(record).deadline = TEST.hours + 100
-    M.tick(record)
+    tick(record)
     eq(M.special(record).mission, nil)
     eq(M.state(record).streak, 2)
 end)
@@ -960,7 +981,7 @@ end)
 test("the slot has nothing to tell before the line, waits between two requests, and comes back after", function()
     local record = fieldRecord(3)
     eq(M.specialSlot(record).state, "wait", "nothing offered yet")
-    M.tick(record)
+    tick(record)
     eq(M.specialSlot(record).state, "offer")
     truthy(M.acceptSpecial(record, "a"))
     eq(M.specialSlot(record).state, "mission")
@@ -972,7 +993,7 @@ end)
 
 test("a special request that ends with its character's death waits as after any ending of it", function()
     local record = fieldRecord(3)
-    M.tick(record)
+    tick(record)
     truthy(M.acceptSpecial(record, "a"))
     eq(M.specialSlot(record).state, "mission")
     TEST.hours = TEST.hours + 2
@@ -987,14 +1008,14 @@ end)
 test("an old save without the slot is made one when a request is offered", function()
     local record = fieldRecord(3)
     eq(record.missions, nil)
-    M.tick(record)
+    tick(record)
     truthy(record.missions.special.offer)
 end)
 
 test("the dot of the missions tab lights for a special request offered, not for the same one again", function()
     local record = fieldRecord(3)
     local Folder = OA.StoryFolder
-    M.tick(record)
+    tick(record)
     local seq = Folder.missionSeq(record)
     truthy(seq >= M.special(record).offer.seq)
     eq(Folder.missionSeq({ missions = { active = { seq = 4 }, special = { offer = { seq = 9 } } } }), 9)

@@ -67,6 +67,13 @@ local function setup(stage, kind)
     return record
 end
 
+-- A mission offered and started at once (Missions.launch): these tests look at it running.
+local function startNow(record)
+    M.start(record)
+    M.launch(record)
+    return M.active(record)
+end
+
 -- Missions --------------------------------------------------------------------------------------------------------------
 
 test("the regular pick has the area clear and the target sample at three each", function()
@@ -79,7 +86,7 @@ end)
 test("a zombie mission is a small circle near a building of the band, its group's size by level, never urgent", function()
     for level, want in ipairs({ 12, 18, 24, 30, 40 }) do
         local record = setup(level, "clear")
-        local m = M.start(record)
+        local m = startNow(record)
         eq(m.kind, "regular")
         eq(m.title, "clear")
         eq(m.area.r, 15)
@@ -93,7 +100,7 @@ test("a zombie mission is a small circle near a building of the band, its group'
         truthy(d >= lo - 30 and d <= hi + 30, "in the band: " .. d)
     end
     local record = setup(3, "target")
-    local m = M.start(record)
+    local m = startNow(record)
     eq(m.zombies.total, 3)
     eq(m.zombies.outfit, "HospitalPatient")
     local _, brief = M.keys(m)
@@ -102,7 +109,7 @@ end)
 
 test("an area clear counts its group's deaths wherever they are, and pays at once with the last", function()
     local record = setup(1, "clear")
-    local m = M.start(record)
+    local m = startNow(record)
     for _ = 1, 11 do Z.died(m.id, TEST.hours) end
     Z.died("M0-99", TEST.hours)
     eq(m.zombies.killed, 11, "another mission's zombie is not counted")
@@ -117,9 +124,9 @@ end)
 
 test("an area clear finished after its deadline pays nothing", function()
     local record = setup(1, "clear")
-    local m = M.start(record)
+    local m = startNow(record)
     for _ = 1, 11 do Z.died(m.id, TEST.hours) end
-    TEST.hours = TEST.hours + 8 * 24
+    TEST.hours = TEST.hours + 15 * 24
     Z.died(m.id, TEST.hours)
     eq(record.trade.credits, 0)
     eq(record.missions.results.expired, 1)
@@ -127,7 +134,7 @@ end)
 
 test("a target mission takes a sample from each target and is done when all are sealed", function()
     local record = setup(1, "target")
-    local m = M.start(record)
+    local m = startNow(record)
     eq(m.zombies.total, 2)
     Z.died(m.id, TEST.hours)
     eq(#m.zombies.dead, 1)
@@ -153,7 +160,7 @@ end)
 
 test("a target dead too long is forgotten and another comes; one harvested does not come again", function()
     local record = setup(1, "target")
-    local m = M.start(record)
+    local m = startNow(record)
     eq(Z.wanted(m, TEST.hours), 2)
     Z.died(m.id, TEST.hours)
     eq(Z.wanted(m, TEST.hours), 1, "its corpse lies there")
@@ -164,7 +171,7 @@ end)
 
 test("a target sample lost in a fire is taken again from another target", function()
     local record = setup(1, "target")
-    local m = M.start(record)
+    local m = startNow(record)
     local _, it = Z.takeTarget(record, m.id, TEST.hours)
     M.replacePiece(record, m, it)
     eq(#m.items, 0)
@@ -174,7 +181,7 @@ end)
 
 test("the group is held at once, brought once a visit a look after its squares load, and comes again after the player left", function()
     local record = setup(1, "clear")
-    local m = M.start(record)
+    local m = startNow(record)
     local g = M.game
     g.px, g.py = m.area.x + 200, m.area.y
     Z.tick(TEST.hours)
@@ -211,14 +218,14 @@ test("without the API's zombie marks the zombie missions are not given", functio
     local record = setup(1, "clear")
     M.game.canMarkZombies = function() return false end
     Data.REGULAR = { { id = "clear", kind = "clear", weight = 1 }, { item = "MissionEnvelope", weight = 1 } }
-    local m = M.start(record)
+    local m = startNow(record)
     eq(m.zombies, nil)
     eq(m.items[1].type, "OperationAcorn.MissionEnvelope")
 end)
 
 test("the circle stays on the maps while a zombie mission runs, whatever was found", function()
     local record = setup(1, "target")
-    local m = M.start(record)
+    local m = startNow(record)
     local _, it = Z.takeTarget(record, m.id, TEST.hours)
     it.found = true
     eq(#OA.StoryView.circles(m), 1)
@@ -285,10 +292,10 @@ test("the samples are taken at their grade's worth; a target's sample is its mis
     eq(V.OWN.TissueAnomalous.trust, 30)
     eq(V.accepts(V.info(sample("OperationAcorn.TissueNeural"))), true)
     local record = setup(1, "target")
-    local m = M.start(record)
+    local m = startNow(record)
     local _, _, id = Z.takeTarget(record, m.id, TEST.hours)
     eq(V.info(sample("OperationAcorn.TissueTarget", { OA_Mission = id })).own, "MissionItem")
-    TEST.hours = TEST.hours + 8 * 24
+    TEST.hours = TEST.hours + 15 * 24
     eq(V.info(sample("OperationAcorn.TissueTarget", { OA_Mission = id })).own, "TissueTarget")
     eq(V.info(sample("OperationAcorn.MissionEnvelope", { OA_Mission = id })).own, "ExpiredMission")
 end)

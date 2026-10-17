@@ -31,18 +31,23 @@ function View.mapColor(kind)
     return View.MAP_TEAL
 end
 
--- The mission whose area the map shows: the record's active one, once it is taken (not while it is offered or its
--- field device is being called).
+-- Whether a mission is taken: not one waiting for the player to start it, nor one whose briefing call is playing.
+function View.taken(m)
+    return m ~= nil and m.state ~= "waiting" and m.state ~= "briefing"
+end
+
+-- The mission whose area the map shows: the record's active one, once it is taken (not while its field device is being
+-- called).
 function View.shown(record)
     local m = record and record.missions and record.missions.active
-    if not m or m.state == "offer" or m.state == "calling" then return nil end
+    if not View.taken(m) or m.state == "calling" then return nil end
     return m
 end
 
 -- The special request running beside it (DESIGN-terminal 6.3), shown on the same terms.
 function View.shownSpecial(record)
     local m = record and record.missions and record.missions.special and record.missions.special.mission
-    if not m or m.state == "offer" or m.state == "calling" then return nil end
+    if not m or m.state == "calling" then return nil end
     return m
 end
 
@@ -59,7 +64,7 @@ end
 function View.live(record)
     local list = {}
     local missions = record and record.missions
-    if missions and missions.active then list[#list + 1] = missions.active end
+    if missions and View.taken(missions.active) then list[#list + 1] = missions.active end
     if missions and missions.special and missions.special.mission then list[#list + 1] = missions.special.mission end
     return list
 end
@@ -224,7 +229,7 @@ end
 function View.ownerOf(record, id)
     local missions = record and record.missions
     if not missions or type(id) ~= "string" then return nil end
-    if View.owns(missions.active, id) then return missions.active end
+    if View.taken(missions.active) and View.owns(missions.active, id) then return missions.active end
     local special = missions.special and missions.special.mission
     if View.owns(special, id) then return special end
     return nil

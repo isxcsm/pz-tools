@@ -173,10 +173,11 @@ local function atTerminal(character, record, args, fieldOnly)
     return true
 end
 
--- One of the two options of a story mission chosen (the choice closes the other for good).
-OA.Server.on("story_choose", function(character, record, args)
+-- The mission offered started at the terminal (a choice with the option picked: the other closes for good); a story
+-- mission's briefing plays first.
+OA.Server.on("story_launch", function(character, record, args)
     if not atTerminal(character, record, args) then return end
-    Missions.choose(record, args.option)
+    Missions.launch(record, args.option)
 end)
 
 -- The card's 'take another': once a week, for some trust.

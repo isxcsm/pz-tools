@@ -41,6 +41,7 @@ local function setup(stage, milestones)
     local record = OA.Store.ensure("p1", "P")
     record.trade = { stage = stage, milestones = milestones or 0, credits = 0, trust = 0 }
     Story.setAnchor(record, 0, 0, 0)
+    OA.Comms.played(record, "S1M", 1)
     -- The plain pickup only, never an urgent one and no distance pay: the tests that follow the pay count on it. The
     -- mixed kinds, the urgent one and the distance pay have their own tests (story_devices_test).
     OA.StoryData.REGULAR = { { item = "MissionEnvelope", weight = 1 } }
@@ -56,6 +57,24 @@ local function setup(stage, milestones)
     return record
 end
 
+
+-- Missions wait to be started (Missions.launch); these tests look at them running: a tick starts what it offered (a
+-- choice with `option`, "a" if none), and a story's briefing is over at once.
+local function taken(record, option)
+    local m = M.active(record)
+    if m and m.state == "waiting" then
+        M.launch(record, option or "a")
+        m = M.active(record)
+        if m and m.state == "briefing" then M.briefed(record, m.brief) end
+    end
+    return M.active(record)
+end
+
+local function tick(record, option)
+    M.tick(record)
+    taken(record, option)
+end
+
 -- The titles the missions show the player.
 local function listenTitles()
     local told = {}
@@ -68,10 +87,16 @@ test("a new request, its pay and its expiry each have a title; the pay names it,
     record.story = nil
     local told = listenTitles()
     M.tick(record)
-    local m = M.active(record)
     eq(#told, 1)
     eq(told[1].key, "IGUI_OA_Title_NewRequest")
     eq(told[1].style, "notice")
+    eq(M.active(record).state, "waiting", "offered: no deadline before it is started")
+    eq(M.active(record).deadline, nil)
+    local m = taken(record)
+    eq(#told, 2)
+    eq(told[2].key, "IGUI_OA_Title_Launched")
+    eq(told[2].sub, (M.keys(m)))
+    table.remove(told, 1)
     M.onSealed(record, "box1", { { info = { mission = M.itemId(m, "A") }, count = 1 } })
     M.onSettled(record, { credits = 1000, trust = 5 })
     eq(told[2].key, "IGUI_OA_Title_Paid")
@@ -82,11 +107,11 @@ test("a new request, its pay and its expiry each have a title; the pay names it,
     eq(told[2].subArgs[2], 30000)
     -- the next one runs out
     TEST.hours = TEST.hours + 3 * 24 + 1
-    M.tick(record)
+    tick(record)
     local n = M.active(record)
-    eq(told[#told].key, "IGUI_OA_Title_NewRequest")
-    TEST.hours = TEST.hours + 10 * 24
-    M.tick(record)
+    eq(told[#told].key, "IGUI_OA_Title_Launched")
+    TEST.hours = TEST.hours + 22 * 24
+    tick(record)
     eq(M.active(record), nil)
     eq(told[#told].key, "IGUI_OA_Title_Expired")
     eq(told[#told].style, "sink")
@@ -101,15 +126,84 @@ test("a mission's keys follow its kind", function()
     eq((M.keys({ kind = "story", title = "clinic" })), "IGUI_OA_Story_Title_clinic")
 end)
 
+test("no mission is offered before the call that tells of them has played", function()
+    local record = setup(2)
+    record.story = nil
+    OA.Comms.section(record).played.S1M = nil
+    OA.Comms.fire(record, "settled") -- fired, not played: a passed tier does not drop it
+    M.tick(record)
+    eq(M.active(record), nil)
+    OA.Comms.section(record).dropped.S1M = true
+    M.tick(record)
+    truthy(M.active(record), "a dropped call holds nothing up")
+end)
+
+test("an offer waits without a deadline, a place asked for or a circle until it is started", function()
+    local record = setup(2)
+    for id in pairs(OA.StoryData.STORIES) do Story.section(record).done[id] = "done" end
+    M.tick(record)
+    local m = M.active(record)
+    eq(m.kind, "regular")
+    eq(m.state, "waiting")
+    eq(m.deadline, nil)
+    near(m.span, 14 * 24, 1e-6, "a regular mission's days")
+    eq(#M.game.requested, 0)
+    eq(OA.StoryView.shown(record), nil, "no circle on the map")
+    eq(#M.live(record), 0)
+    TEST.hours = TEST.hours + 40 * 24
+    M.tick(record)
+    eq(M.active(record), m, "it never runs out while it waits")
+    truthy(M.launch(record))
+    eq(m.state, "open")
+    eq(m.issued, TEST.hours)
+    near(m.deadline, TEST.hours + 14 * 24, 1e-6)
+    eq(#M.game.requested, 1)
+    eq(OA.StoryView.shown(record), m)
+    eq(M.launch(record), false, "started once")
+end)
+
+test("an offer taken again stays an offer; a stage's story mission takes the place of a regular offer", function()
+    local record = setup(2)
+    for id in pairs(OA.StoryData.STORIES) do Story.section(record).done[id] = "done" end
+    record.trade.trust = 1000
+    M.tick(record)
+    local m = M.active(record)
+    truthy(M.reroll(record))
+    local n = M.active(record)
+    truthy(n.id ~= m.id)
+    eq(n.state, "waiting")
+    eq(n.deadline, nil)
+    Story.section(record).done.cooler = nil
+    Story.queueStory(record, "cooler", true)
+    M.tick(record)
+    local c = M.active(record)
+    eq(c.story, "cooler")
+    eq(c.state, "waiting")
+    near(c.span, 21 * 24, 1e-6, "a story's days")
+    eq(c.site, nil, "its site is picked once its briefing is over")
+    local ok, brief = M.launch(record)
+    truthy(ok)
+    eq(brief, "brief")
+    eq(c.brief, "B4")
+    M.tick(record)
+    eq(M.active(record), c, "waits for its briefing")
+    OA.Comms.played(record, "B4", 4)
+    Story.callPlayed(record, "B4")
+    local made = M.active(record)
+    eq(made.state, "open")
+    eq(made.id, c.id, "the number it was offered under")
+    truthy(made.site)
+end)
+
 test("nothing starts before the first stage", function()
     local record = setup(0)
-    M.tick(record)
+    tick(record)
     eq(M.active(record), nil)
 end)
 
 test("entering stage 1 starts the evidence story first, far from the base", function()
     local record = setup(1)
-    M.tick(record)
+    tick(record)
     local m = M.active(record)
     truthy(m, "a mission")
     eq(m.story, "evidence")
@@ -134,15 +228,15 @@ end)
 
 test("a story mission that is missed comes back once a regular has come between", function()
     local record = setup(1)
-    M.tick(record)
+    tick(record)
     local m = M.active(record)
-    TEST.hours = TEST.hours + 8 * 24
-    M.tick(record)
+    TEST.hours = TEST.hours + 22 * 24
+    tick(record)
     eq(M.active(record), nil, "expired")
     eq(record.missions.results.expired, 1)
     near(record.missions.nextAt, TEST.hours + 72)
     TEST.hours = TEST.hours + 3 * 24 + 1
-    M.tick(record)
+    tick(record)
     local r = M.active(record)
     truthy(r, "next mission")
     eq(r.kind, "regular")
@@ -153,10 +247,10 @@ test("a story mission that is missed comes back once a regular has come between"
     eq(r.trust, 60)
     -- Stage 2: the clinic swap comes first, then the missed evidence waits for a regular.
     record.trade.stage = 2
-    TEST.hours = TEST.hours + 9 * 24
-    M.tick(record)  -- the regular expires and the stage is seen
+    TEST.hours = TEST.hours + 15 * 24
+    tick(record)  -- the regular expires and the stage is seen
     TEST.hours = TEST.hours + 3 * 24 + 1
-    M.tick(record)
+    tick(record)
     eq(M.active(record).story, "clinic")
     eq(record.story.queue[1].id, "evidence", "the missed one is queued, not fresh")
     eq(record.story.queue[1].fresh, false)
@@ -165,7 +259,7 @@ end)
 test("sealed in time is paid in full at the settlement", function()
     local record = setup(2)
     record.story = nil
-    M.tick(record)
+    tick(record)
     local m = M.active(record)
     truthy(m)
     -- Skip the swap for this test: any story gets sealed the same way.
@@ -184,9 +278,9 @@ end)
 
 test("sealed after the deadline is a plain item and the mission is over", function()
     local record = setup(1)
-    M.tick(record)
+    tick(record)
     local m = M.active(record)
-    TEST.hours = TEST.hours + 10 * 24
+    TEST.hours = TEST.hours + 22 * 24
     M.onSealed(record, "box1", { { info = { mission = m.id }, count = 1 } })
     eq(M.active(record), nil)
     eq(record.trade.credits, 0)
@@ -195,14 +289,14 @@ end)
 
 test("the deadline is judged at sealing, not at settlement", function()
     local record = setup(1)
-    M.tick(record)
+    tick(record)
     local m = M.active(record)
-    TEST.hours = TEST.hours + 6 * 24
+    TEST.hours = TEST.hours + 20 * 24
     M.onSealed(record, "b", { { info = { mission = m.id }, count = 1 } })
     eq(m.state, "sealed")
     -- The helicopter comes two days after the deadline: still paid.
     TEST.hours = TEST.hours + 3 * 24
-    M.tick(record)
+    tick(record)
     eq(m.state, "sealed", "tick does not expire a sealed mission")
     M.onSettled(record, { credits = 1000 })
     eq(record.missions.results.done, 1)
@@ -210,7 +304,7 @@ end)
 
 test("a mission item of another mission is not judged", function()
     local record = setup(1)
-    M.tick(record)
+    tick(record)
     local m = M.active(record)
     M.onSealed(record, "b", { { info = { mission = "M9999-1" }, count = 1 } })
     eq(m.state, "open")
@@ -225,23 +319,35 @@ test("the choice mission offers two and closes the other", function()
     M.tick(record)
     local m = M.active(record)
     eq(m.story, "observation")
-    eq(m.state, "offer")
+    eq(m.state, "waiting")
     eq(#M.game.requested, 0, "nothing is placed before the choice")
-    truthy(M.choose(record, "b"))
+    eq(M.launch(record, "c"), false, "no such option")
+    local ok, brief = M.launch(record, "b")
+    truthy(ok)
+    eq(brief, "brief")
+    eq(m.state, "briefing")
+    eq(m.brief, "B3b")
+    eq(OA.Comms.next(record, "terminal").id, "B3b", "the option's briefing plays")
+    eq(#M.game.requested, 0, "nothing placed before the briefing is over")
+    M.briefed(record, "S2")
+    eq(M.active(record), m, "another call does not start it")
+    OA.Comms.played(record, "B3b", 3)
+    Story.callPlayed(record, "B3b")
+    m = M.active(record)
     eq(m.state, "open")
     eq(m.chosen, "b")
     eq(s.chosen.observation, "b")
     eq(m.items[1].type, "OperationAcorn.FarmJournal")
     eq(#M.game.requested, 1)
-    eq(M.choose(record, "a"), false, "no second choice")
+    near(m.deadline - m.issued, 21 * 24, 1e-6, "a story's days")
+    eq(M.launch(record, "a"), false, "no second choice")
 end)
 
 test("the choice's far option is a house far in the band, at the farm facility", function()
     local record = setup(3)
     local s = Story.section(record)
     s.seenStage = 2
-    M.tick(record)
-    truthy(M.choose(record, "a"))
+    tick(record, "a")
     local m = M.active(record)
     eq(m.facility, "farm")
     eq(m.items[1].type, "OperationAcorn.WeatherLog")
@@ -262,14 +368,14 @@ test("a story site is never one used before in the world, the base's building or
         elseif i - math.floor(i / 2) * 2 == 0 then Story.useSite(all[i].key)
         else Story.touchBuilding(all[i].key) end
     end
-    M.tick(record)
+    tick(record)
     eq(M.active(record).site.key, keep)
 end)
 
 test("with no building left in the band a story site is open ground, the piece on its floor", function()
     local record = setup(1)
     M.game.list = {}
-    M.tick(record)
+    tick(record)
     local m = M.active(record)
     eq(m.story, "evidence")
     eq(m.site.ground, true)
@@ -291,7 +397,7 @@ end)
 test("a story site wanted on open ground is never a building", function()
     local record = setup(4)
     Story.section(record).seenStage = 3
-    M.tick(record)
+    tick(record)
     local m = M.active(record)
     eq(m.story, "cooler")
     eq(m.site.ground, true)
@@ -326,11 +432,11 @@ test("the cooler's reward falls with its warming", function()
     local record = setup(4)
     local s = Story.section(record)
     s.seenStage = 3
-    M.tick(record)
+    tick(record)
     local m = M.active(record)
     eq(m.story, "cooler")
     M.game.cooler = {}
-    M.tick(record)
+    tick(record)
     truthy(m.carry.start, "the clock starts when it is carried")
     TEST.hours = TEST.hours + 30
     M.onSealed(record, "b", { { info = { mission = m.id }, count = 1 } })
@@ -348,10 +454,10 @@ end)
 test("a good cooler keeps the whole reward", function()
     local record = setup(4)
     Story.section(record).seenStage = 3
-    M.tick(record)
+    tick(record)
     local m = M.active(record)
     M.game.cooler = {}
-    M.tick(record)
+    tick(record)
     TEST.hours = TEST.hours + 4
     M.onSealed(record, "b", { { info = { mission = m.id }, count = 1 } })
     eq(m.pay.credits, 75000)
@@ -361,7 +467,7 @@ end)
 test("the swap: case, wait near the place, then the record appears", function()
     local record = setup(2)
     Story.section(record).seenStage = 1
-    M.tick(record)
+    tick(record)
     local m = M.active(record)
     eq(m.story, "clinic")
     eq(m.swap.stage, "needcase")
@@ -369,9 +475,9 @@ test("the swap: case, wait near the place, then the record appears", function()
     M.game.px, M.game.py = p.x + 5, p.y
     truthy(M.swap(record, {}))
     eq(m.swap.stage, "waiting")
-    for _ = 1, 11 do M.tick(record); TEST.hours = TEST.hours + 1 / 6 end
+    for _ = 1, 11 do tick(record); TEST.hours = TEST.hours + 1 / 6 end
     eq(m.swap.stage, "waiting", "not yet two hours")
-    for _ = 1, 3 do M.tick(record); TEST.hours = TEST.hours + 1 / 6 end
+    for _ = 1, 3 do tick(record); TEST.hours = TEST.hours + 1 / 6 end
     eq(m.swap.stage, "done")
     eq(M.game.delivered.type, "OperationAcorn.ClinicRecord")
 end)
@@ -379,13 +485,13 @@ end)
 test("the swap waits only while the player stays near", function()
     local record = setup(2)
     Story.section(record).seenStage = 1
-    M.tick(record)
+    tick(record)
     local m = M.active(record)
     local p = m.site
     M.game.px, M.game.py = p.x, p.y
     M.swap(record, {})
     M.game.px, M.game.py = p.x + 5000, p.y
-    for _ = 1, 30 do M.tick(record); TEST.hours = TEST.hours + 1 / 6 end
+    for _ = 1, 30 do tick(record); TEST.hours = TEST.hours + 1 / 6 end
     eq(m.swap.stage, "waiting")
 end)
 
@@ -393,7 +499,7 @@ end)
 local function coolerMission()
     local record = setup(4)
     Story.section(record).seenStage = 3
-    M.tick(record)
+    tick(record)
     local m = M.active(record)
     eq(m.story, "cooler")
     return record, m
@@ -410,7 +516,7 @@ test("the cooler's clock starts as it is picked up, not at the next look", funct
     eq(m.carry.start, 10)
     TEST.hours = 11
     M.game.cooler = {}
-    M.tick(record)
+    tick(record)
     eq(m.carry.start, 10, "the look keeps the pickup's time")
     M.pickedUp(record, { mission = m.id, hasModData = noData })
     eq(m.carry.start, 10, "only the first pickup")
@@ -419,11 +525,11 @@ end)
 test("a cooler the pickup did not see starts from the last look that missed it", function()
     local record, m = coolerMission()
     TEST.hours = 10
-    M.tick(record)
+    tick(record)
     eq(m.carry.looked, 10)
     TEST.hours = 11.5
     M.game.cooler = {}
-    M.tick(record)
+    tick(record)
     eq(m.carry.start, 10, "never later than it could have been taken")
 end)
 
@@ -433,16 +539,16 @@ test("fast-forwarded, the look for the cooler runs at most once each CARRY_LOOK_
     M.game.findItem = function() looks = looks + 1; return M.game.cooler end
     local clock = 1760000000000
     getTimestampMs = function() return clock end
-    M.tick(record)
+    tick(record)
     eq(looks, 1)
     for _ = 1, 8 do
         clock = clock + 600
         TEST.hours = TEST.hours + 1 / 6
-        M.tick(record)
+        tick(record)
     end
     eq(looks, 1, "none within CARRY_LOOK_MS")
     clock = clock + M.CARRY_LOOK_MS
-    M.tick(record)
+    tick(record)
     eq(looks, 2)
     truthy(M.CARRY_LOOK_MS < 25000, "the default speed (25 s for ten game minutes) looks every time")
 end)
@@ -450,26 +556,26 @@ end)
 test("the swap's wait counts game time, not looks", function()
     local record = setup(2)
     Story.section(record).seenStage = 1
-    M.tick(record)
+    tick(record)
     local m = M.active(record)
     local p = m.site
     M.game.px, M.game.py = p.x, p.y
     TEST.hours = 100
     truthy(M.swap(record, {}))
     -- many looks in the same game minute (a batch) add nothing
-    for _ = 1, 30 do M.tick(record) end
+    for _ = 1, 30 do tick(record) end
     eq(m.swap.stage, "waiting", "a batch of looks is no time")
     near(m.swap.waited, 0)
     -- skipped looks: two hours in one step are two hours
     TEST.hours = 102
-    M.tick(record)
+    tick(record)
     eq(m.swap.stage, "done")
 end)
 
 test("the swap: monologues as the case is left and the wait ends; the record comes once the drop is out of sight", function()
     local record = setup(2)
     Story.section(record).seenStage = 1
-    M.tick(record)
+    tick(record)
     local m = M.active(record)
     local p = m.site
     M.game.px, M.game.py = p.x, p.y
@@ -485,20 +591,20 @@ test("the swap: monologues as the case is left and the wait ends; the record com
     local played = OperationAcorn.Comms.section(record).played
     truthy(played.S2F_put, "the case left")
     TEST.hours = 101
-    M.tick(record)
+    tick(record)
     eq(progress[#progress], "wait:0.5", "the stage follows the wait")
     TEST.hours = 102
-    M.tick(record)
+    tick(record)
     eq(m.swap.stage, "ready", "over, the drop in sight")
     truthy(played.S2F_waited, "the wait over")
     eq(M.game.delivered, nil)
     TEST.hours = 102.2
-    M.tick(record)
+    tick(record)
     eq(m.swap.stage, "ready", "still in sight")
     seen = false
     M.game.px = p.x + 5000
     TEST.hours = 102.4
-    M.tick(record)
+    tick(record)
     eq(m.swap.stage, "done", "out of sight, wherever the player is")
     eq(M.game.delivered.type, "OperationAcorn.ClinicRecord")
     M.game.dropSeen = nil
@@ -508,33 +614,33 @@ end)
 test("the swap's wait stops while the player is away and goes on when they are back", function()
     local record = setup(2)
     Story.section(record).seenStage = 1
-    M.tick(record)
+    tick(record)
     local m = M.active(record)
     local p = m.site
     M.game.px, M.game.py = p.x, p.y
     TEST.hours = 100
     M.swap(record, {})
     TEST.hours = 101
-    M.tick(record)
+    tick(record)
     near(m.swap.waited, 1)
     M.game.px = p.x + 5000
     TEST.hours = 105
-    M.tick(record)
+    tick(record)
     near(m.swap.waited, 1, 1e-9, "the away time is not counted")
     M.game.px = p.x
     TEST.hours = 106
-    M.tick(record)
+    tick(record)
     near(m.swap.waited, 1, 1e-9, "counting again from here")
     eq(m.swap.stage, "waiting")
     TEST.hours = 107
-    M.tick(record)
+    tick(record)
     eq(m.swap.stage, "done")
 end)
 
 test("the field call seals on the spot and the helicopter pays", function()
     local record = setup(5)
     Story.section(record).seenStage = 4
-    M.tick(record)
+    tick(record)
     local m = M.active(record)
     eq(m.story, "gym")
     eq(m.field.stage, "needdevice")
@@ -548,7 +654,7 @@ test("the field call seals on the spot and the helicopter pays", function()
     eq(told[1].id, record.id)
     eq(told[1].detail.key, "IGUI_OA_Story_UI_Field_calling")
     eq(record.radio, nil, "no radio line is written")
-    for _ = 1, 30 do M.tick(record); TEST.hours = TEST.hours + 1 / 6 end
+    for _ = 1, 30 do tick(record); TEST.hours = TEST.hours + 1 / 6 end
     truthy((M.game.noise_count or 0) > 0, "the helicopter's noise went out")
     eq(M.active(record), nil, "paid")
     eq(record.trade.credits, 105000)
@@ -557,7 +663,7 @@ end)
 test("the field call needs the place and the device", function()
     local record = setup(5)
     Story.section(record).seenStage = 4
-    M.tick(record)
+    tick(record)
     M.game.px, M.game.py = 99999, 99999
     local ok, why = M.fieldCall(record, {})
     eq(ok, false); eq(why, "range")
@@ -570,11 +676,11 @@ end)
 
 test("a sealed mission whose box never settles is lost after a while", function()
     local record = setup(1)
-    M.tick(record)
+    tick(record)
     local m = M.active(record)
     M.onSealed(record, "b", { { info = { mission = m.id }, count = 1 } })
     TEST.hours = TEST.hours + 15 * 24
-    M.tick(record)
+    tick(record)
     eq(M.active(record), nil)
     eq(record.missions.results.lost, 1)
 end)
@@ -586,7 +692,7 @@ test("after the handover a contract mission pool replaces the regular one", func
     s.done.ward, s.done.cells, s.done.soil, s.done.handover = "done", "done", "done", "done"
     local kinds = {}
     for i = 1, 24 do
-        M.tick(record)
+        tick(record)
         local m = M.active(record)
         truthy(m, "mission " .. i)
         eq(m.level, 6)
@@ -614,7 +720,7 @@ test("the drop site check leads to a site not yet seen while there is one", func
     local contracts = OA.StoryData.CONTRACTS
     OA.StoryData.CONTRACTS = { { id = "stake", kind = "stake", item = "StakeTag", weight = 1 } }
     local function nextStake()
-        M.tick(record)
+        tick(record)
         local m = M.active(record)
         truthy(m and m.title == "stake", "a drop site check")
         M.finish(record, m, "expired")
@@ -638,20 +744,20 @@ end)
 
 test("a mission is one at a time", function()
     local record = setup(1)
-    M.tick(record)
+    tick(record)
     local first = M.active(record)
     TEST.hours = TEST.hours + 100
-    M.tick(record)
+    tick(record)
     TEST.hours = TEST.hours + 24 * 30
     -- Expired, then a gap before the next.
-    M.tick(record)
+    tick(record)
     eq(M.active(record), nil)
     truthy(first.id ~= nil)
 end)
 
 test("the economy sees a mission item as plain once its mission is over, late, or not this character's", function()
     local record = setup(1)
-    M.tick(record)
+    tick(record)
     local m = M.active(record)
     eq(Story.missionExpired(m.id), false, "open and in time")
     eq(Story.missionExpired(m.id .. "#A"), false, "a piece of it")
@@ -667,9 +773,9 @@ end)
 
 test("a mission item past the deadline counts as plain before it is sealed", function()
     local record = setup(1)
-    M.tick(record)
+    tick(record)
     local m = M.active(record)
-    TEST.hours = TEST.hours + 8 * 24
+    TEST.hours = TEST.hours + 22 * 24
     eq(Story.missionExpired(m.id), true)
 end)
 
@@ -719,7 +825,7 @@ end)
 
 test("the delivered mission item's paper is in the folder after the settlement, as a copy, new", function()
     local record = setup(1)
-    M.tick(record)
+    tick(record)
     local m = M.active(record)
     eq(m.story, "evidence")
     local place = m.facility
@@ -735,7 +841,7 @@ end)
 
 test("a paper the player read before the settlement stays as it was read", function()
     local record = setup(1)
-    M.tick(record)
+    tick(record)
     local m = M.active(record)
     Story.markRead(record, "police_card", m.facility)
     M.onSealed(record, "box1", { { info = { mission = M.itemId(m, "A") }, count = 1 } })
@@ -747,9 +853,9 @@ end)
 
 test("a mission that ran out sends no copy", function()
     local record = setup(1)
-    M.tick(record)
-    TEST.hours = TEST.hours + 8 * 24
-    M.tick(record)
+    tick(record)
+    TEST.hours = TEST.hours + 22 * 24
+    tick(record)
     eq(M.active(record), nil)
     eq(Story.section(record).docs.police_card, nil)
 end)
@@ -761,7 +867,7 @@ test("the handover mission's item is its own paper, the revisits' items carry th
     local s = Story.section(record)
     s.seenStage = 5; s.seenMilestones = 2
     Story.queueStory(record, "handover", true)
-    M.tick(record)
+    tick(record)
     local m = M.active(record)
     eq(m.story, "handover")
     eq(m.items[1].type, "OperationAcorn.HandoverPages")
@@ -771,7 +877,7 @@ test("the handover mission's item is its own paper, the revisits' items carry th
         s.done[id] = nil
         TEST.hours = TEST.hours + 4 * 24
         Story.queueStory(record, id, true)
-        M.tick(record)
+        tick(record)
         local mission = M.active(record)
         eq(mission.story, id)
         local docs = OA.StoryDocs.forItem(record, OA.StoryData.itemName(mission.items[1].type), mission.items[1].mods)
@@ -789,7 +895,7 @@ test("a revisit goes back to the site its story had, or picks one of its facilit
     local site = { x = 1500, y = 0, z = 0, x1 = 1497, y1 = -3, x2 = 1503, y2 = 3, z1 = 0, z2 = 0, key = "1500,0" }
     s.sites.evidence = site
     Story.queueStory(record, "revisit_police", true)
-    M.tick(record)
+    tick(record)
     local m = M.active(record)
     eq(m.story, "revisit_police")
     eq(m.site, site)
@@ -797,7 +903,7 @@ test("a revisit goes back to the site its story had, or picks one of its facilit
     M.finish(record, m, "expired")
     Story.queueStory(record, "revisit_ledger", true)
     TEST.hours = TEST.hours + 4 * 24
-    M.tick(record)
+    tick(record)
     m = M.active(record)
     eq(m.story, "revisit_ledger")
     truthy(m.site and m.site.key ~= "1500,0", "a new site")
@@ -807,7 +913,7 @@ end)
 test("a piece destroyed is got again the way it was got, with as much time as the mission had", function()
     local record = setup(2)
     record.story = nil
-    M.tick(record)
+    tick(record)
     local m = M.active(record)
     local it = m.items[1]
     it.placed, it.at = true, { x = 1, y = 2, z = 0 }
@@ -856,7 +962,7 @@ end)
 
 test("a piece picked up is found and followed; a bag is looked into only while a piece is to be found", function()
     local record = setup(1)
-    M.tick(record)
+    tick(record)
     local m = M.active(record)
     local it = m.items[1]
     local tracked, bags = {}, 0
@@ -890,7 +996,7 @@ end)
 
 test("a character that died: its running missions end without a result and nothing waits for their pieces", function()
     local record = setup(1)
-    M.tick(record)
+    tick(record)
     local m = M.active(record)
     truthy(m)
     local released = M.game.released
@@ -904,7 +1010,7 @@ end)
 
 test("a retired record waits for its next offer as after any ending; a record with no mission keeps its schedule", function()
     local record = setup(1)
-    M.tick(record)
+    tick(record)
     truthy(M.active(record))
     TEST.hours = TEST.hours + 5
     OA.Store.retire(record)
@@ -912,10 +1018,10 @@ test("a retired record waits for its next offer as after any ending; a record wi
     near(record.missions.nextAt, TEST.hours + 72, 1e-6, "the same wait as after a mission that ended")
     -- a record the character comes back to (Server's hello revives it) gets no offer at once
     record.dead = nil
-    M.tick(record)
+    tick(record)
     eq(M.active(record), nil, "no offer at once")
     TEST.hours = TEST.hours + 72 + 1
-    M.tick(record)
+    tick(record)
     truthy(M.active(record), "the offer comes when its time has")
     -- retiring with nothing running leaves the schedule as it was
     local idle = OA.Store.ensure("p2", "Q")

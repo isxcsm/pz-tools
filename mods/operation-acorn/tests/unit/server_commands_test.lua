@@ -59,15 +59,15 @@ test("a building is noted as touched only when it is near the character", functi
     sendClientCommand(P, OA.MOD, "story_touched", { id = "p1", key = 5 })
 end)
 
-test("a choice between the two options is made at a terminal, like the other terminal commands", function()
+test("a mission is started (a choice with its option) at a terminal, like the other terminal commands", function()
     local record = story()
     local chosen = {}
-    OA.Missions.choose = function(r, option) chosen[#chosen + 1] = option end
+    OA.Missions.launch = function(r, option) chosen[#chosen + 1] = option end
     OA.Trade = { Handlers = { terminalFor = function() return nil, "far" end }, Objects = {} }
     local P = account("P")
-    sendClientCommand(P, OA.MOD, "story_choose", { id = "p1", option = "a" })
-    eq(#chosen, 0, "no terminal near: nothing chosen")
+    sendClientCommand(P, OA.MOD, "story_launch", { id = "p1", option = "a" })
+    eq(#chosen, 0, "no terminal near: nothing started")
     OA.Trade.Handlers.terminalFor = function() return {} end
-    sendClientCommand(P, OA.MOD, "story_choose", { id = "p1", option = "a" })
+    sendClientCommand(P, OA.MOD, "story_launch", { id = "p1", option = "a" })
     eq(chosen[1], "a")
 end)

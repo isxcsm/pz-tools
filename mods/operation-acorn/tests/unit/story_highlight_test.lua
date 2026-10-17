@@ -265,7 +265,7 @@ test("the work runs while a mission is open and stops, taking the outlines back,
 end)
 
 test("an offered mission, or none, has nothing to light", function()
-    setup(regular({ state = "offer" }))
+    setup(regular({ state = "waiting" }))
     load()
     H.update()
     local count = 0

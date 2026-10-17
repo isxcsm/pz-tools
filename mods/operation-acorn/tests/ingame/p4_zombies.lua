@@ -87,6 +87,10 @@ function P4Z_MISSION(kind)
     Data.REGULAR = { { id = kind, kind = kind, weight = 1 } }
     OA.Story.nextStory, OA.Story.handedOver = function() return nil end, function() return false end
     local ok, m = pcall(Missions.start, record)
+    if ok and m then
+        Missions.launch(record)
+        m = Missions.active(record)
+    end
     Data.REGULAR, OA.Story.nextStory, OA.Story.handedOver = regular, nextStory, handedOver
     if not (ok and m and m.zombies) then say("BAD", "mission", tostring(m), m and m.title) return end
     m.area.x, m.area.y = math.floor(player:getX()) + 50, math.floor(player:getY())

@@ -298,10 +298,9 @@ end
 -- ---------------------------------------------------------------------------------------------------------------
 -- In the course of a mission.
 
--- The mission began (Missions.begin): what it will show is decided once. An offer has no place yet; it is decided when
--- the offer is taken.
+-- The mission began (Missions.begin): what it will show is decided once.
 function Scene.begin(record, m)
-    if m.scene or m.state == "offer" then return end
+    if m.scene then return end
     OA.Stage.begin(record, m)
     local g = Scene.game
     m.scene = Scene.plan(record, m, g and g.days and g.days() or 0)

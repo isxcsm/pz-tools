@@ -24,8 +24,7 @@ OA.Story.firstContact(record, false)
 P4T.setStage(record, 1, 0)
 local comms = OA.Comms.section(record)
 P4T.check(say, "the first call waits for the terminal", comms.fired.S0 ~= nil and not comms.played.S0)
-OA.Missions.tick(record)
-local m = OA.Missions.active(record)
+local m = P4T.takeMission(record)
 if not P4T.check(say, "the evidence mission started", m ~= nil and m.story == "evidence", m and m.story) then return end
 local site = m.site
 if not P4T.check(say, "it has a site", site ~= nil) then return end

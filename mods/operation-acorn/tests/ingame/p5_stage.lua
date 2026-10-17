@@ -21,12 +21,7 @@ record.trade.stage = 0
 OA.Story.firstContact(record, false)
 for n = 1, math.min(stage, 5) do P4T.setStage(record, n, 0) end
 for k = 1, stage - 5 do P4T.setStage(record, 5, k) end
-OA.Missions.tick(record)
-local m = OA.Missions.active(record)
-if m and m.state == "offer" then
-    P4T.check(say, "the choice is offered", OA.Missions.choose(record, P5_OPTION or "a"), P5_OPTION or "a")
-    m = OA.Missions.active(record)
-end
+local m = P4T.takeMission(record, P5_OPTION or "a")
 if not P4T.check(say, "a story mission started", m ~= nil and m.story ~= nil, m and m.story) then return end
 local site = m.site
 if not P4T.check(say, "it has a site", site ~= nil) then return end

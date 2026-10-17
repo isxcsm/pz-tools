@@ -2,6 +2,7 @@
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Story/Comms"
+require "OperationAcorn/Story/Data"
 local OA = OperationAcorn
 local Comms, Data = OA.Comms, OA.CommsData
 
@@ -32,8 +33,8 @@ test("the first contact plays when the terminal is first used, the first settlem
     Comms.fire(r, "settled", 1)
     eq(Comms.next(r, "terminal"), nil, "S1 waits for S0")
     Comms.fire(r, "first", 2)
-    eq(playAll(r, 3), "S0 S1")
-    eq(#Comms.section(r).log, 2)
+    eq(playAll(r, 3), "S0 S1 S1M")
+    eq(#Comms.section(r).log, 3)
     eq(Comms.section(r).log[1].id, "S0")
 end)
 
@@ -54,7 +55,7 @@ test("a trigger fires once: a second settlement does not bring the first one's s
     local r = fresh()
     Comms.fire(r, "first", 1)
     Comms.fire(r, "settled", 1)
-    eq(playAll(r, 2), "S0 S1")
+    eq(playAll(r, 2), "S0 S1 S1M")
     eq(#Comms.fire(r, "settled", 3), 0)
     eq(Comms.next(r, "terminal"), nil)
 end)
@@ -66,7 +67,7 @@ test("the serum's scene can fire before the first settlement and waits for it", 
     Comms.fire(r, "serum", 2)
     eq(Comms.next(r, "terminal"), nil, "S2 waits for S1")
     Comms.fire(r, "settled", 3)
-    eq(playAll(r, 4), "S1 S2")
+    eq(playAll(r, 4), "S1 S1M S2")
 end)
 
 test("the temperature follows half a game day after the serum's scene, the next day's after the silent one", function()
@@ -74,7 +75,7 @@ test("the temperature follows half a game day after the serum's scene, the next 
     Comms.fire(r, "first", 0)
     Comms.fire(r, "settled", 0)
     Comms.fire(r, "serum", 0)
-    eq(playAll(r, 10), "S0 S1 S2")
+    eq(playAll(r, 10), "S0 S1 S1M S2")
     eq(#Comms.update(r, 21, day), 0, "11 hours")
     eq(Comms.update(r, 22, day)[1], "S2B")
     eq(playAll(r, 22), "S2B")
@@ -91,7 +92,7 @@ test("without the serum the stage 2 scenes are dropped when the third tier comes
     Comms.fire(r, "first", 0)
     Comms.fire(r, "settled", 0)
     Comms.enterTier(r, 2, 1)
-    eq(playAll(r, 1), "S0 S1 s1_bedding s2_filter")
+    eq(playAll(r, 1), "S0 S1 S1M s1_bedding s2_filter")
     Comms.enterTier(r, 3, 5)
     local s = Comms.section(r)
     eq(s.dropped.S2, true)
@@ -114,7 +115,7 @@ test("a story mission's scene is never dropped and holds nothing up", function()
     local r = fresh()
     Comms.fire(r, "first", 0)
     Comms.fire(r, "settled", 0)
-    eq(playAll(r, 0), "S0 S1")
+    eq(playAll(r, 0), "S0 S1 S1M")
     Comms.enterTier(r, 5, 1)
     local s = Comms.section(r)
     eq(s.dropped.S1F, nil)
@@ -182,3 +183,26 @@ test("the after-handover monologues come in turn and end", function()
     eq(Comms.afterSay(r, 12, 0), nil)
 end)
 
+
+test("every story mission has its briefing; a briefing fired plays before the calls waiting", function()
+    for id, def in pairs(OA.StoryData.STORIES) do
+        if def.kind == "choice" then
+            truthy(Data.BRIEFS[id .. "_a"] and Data.BRIEFS[id .. "_b"], id)
+        elseif def.kind == "soil" then
+            truthy(Data.BRIEFS.soil_site and Data.BRIEFS.soil_plain, id)
+        else
+            truthy(Data.BRIEFS[id], id)
+        end
+    end
+    for id in pairs(OA.StoryData.REVISITS) do truthy(Data.BRIEFS[id], id) end
+    local r = fresh()
+    Comms.fire(r, "first", 0)
+    Comms.fire(r, "settled", 0)
+    eq(playAll(r, 1), "S0 S1 S1M")
+    Comms.fire(r, "brief:evidence", 1)
+    eq(playAll(r, 1), "B1")
+    Comms.enterTier(r, 2, 2)
+    Comms.fire(r, "brief:clinic", 3)
+    eq(playAll(r, 3), "B2 s1_bedding s2_filter")
+    eq(Comms.done(r, "B2"), true)
+end)

@@ -185,7 +185,7 @@ local function mission(record, facility)
     return m
 end
 
-test("a mission begun gets its scene once; an offer only when it is taken", function()
+test("a mission begun gets its scene once; never again", function()
     local record = OA.Store.ensure("p1", "P")
     local m = mission(record, "police")
     OA.Missions.begin(record, m)
@@ -196,9 +196,6 @@ test("a mission begun gets its scene once; an offer only when it is taken", func
     local scene = m.scene
     OA.Missions.begin(record, m)
     eq(m.scene, scene, "never planned again")
-    local offer = { id = "M1-2", state = "offer", items = {} }
-    OA.Missions.begin(record, offer)
-    eq(offer.scene, nil)
     -- a drop site's stake (no building) only has its line
     local stake = { id = "M1-3", state = "open", items = { { key = "A", x = 5, y = 5, x1 = 5, y1 = 5, x2 = 5, y2 = 5 } } }
     OA.Missions.begin(record, stake)

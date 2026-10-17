@@ -26,7 +26,7 @@ Support.LIST = {
     { id = "forecast", group = "trade", base = false, steps = { { true, 3, 25000 } } },
     -- The missions: their pay on top (credits only: trust is not bought), their days, and the streak's cap.
     { id = "mpay", group = "mission", base = 0, steps = { { 0.10, 2, 30000 }, { 0.20, 4, 70000 }, { 0.30, 6, 120000 } } },
-    { id = "mdays", group = "mission", base = 7, steps = { { 8, 2, 20000 }, { 10, 5, 60000 } } },
+    { id = "mdays", group = "mission", base = 14, steps = { { 16, 2, 20000 }, { 20, 5, 60000 } } },
     { id = "mstreak", group = "mission", base = 0.3, steps = { { 0.4, 3, 40000 }, { 0.5, 6, 90000 } } },
 }
 Support.GROUPS = { "heli", "trade", "mission" }
