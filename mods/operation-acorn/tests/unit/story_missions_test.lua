@@ -93,10 +93,8 @@ test("a new request, its pay and its expiry each have a title; the pay names it,
     eq(M.active(record).state, "waiting", "offered: no deadline before it is started")
     eq(M.active(record).deadline, nil)
     local m = taken(record)
-    eq(#told, 2)
-    eq(told[2].key, "IGUI_OA_Title_Launched")
-    eq(told[2].sub, (M.keys(m)))
-    table.remove(told, 1)
+    eq(m.kind, "story")
+    eq(#told, 1, "a story mission's start is its briefing: no title")
     M.onSealed(record, "box1", { { info = { mission = M.itemId(m, "A") }, count = 1 } })
     M.onSettled(record, { credits = 1000, trust = 5 })
     eq(told[2].key, "IGUI_OA_Title_Paid")
@@ -109,7 +107,10 @@ test("a new request, its pay and its expiry each have a title; the pay names it,
     TEST.hours = TEST.hours + 3 * 24 + 1
     tick(record)
     local n = M.active(record)
-    eq(told[#told].key, "IGUI_OA_Title_Launched")
+    if n.kind ~= "story" then
+        eq(told[#told].key, "IGUI_OA_Title_Launched", "a regular one's start has its short title")
+        eq(told[#told].sub, (M.keys(n)))
+    end
     TEST.hours = TEST.hours + 22 * 24
     tick(record)
     eq(M.active(record), nil)
@@ -153,7 +154,9 @@ test("an offer waits without a deadline, a place asked for or a circle until it 
     TEST.hours = TEST.hours + 40 * 24
     M.tick(record)
     eq(M.active(record), m, "it never runs out while it waits")
+    local told = listenTitles()
     truthy(M.launch(record))
+    eq(told[#told].key, "IGUI_OA_Title_Launched", "a short title as it starts")
     eq(m.state, "open")
     eq(m.issued, TEST.hours)
     near(m.deadline, TEST.hours + 14 * 24, 1e-6)

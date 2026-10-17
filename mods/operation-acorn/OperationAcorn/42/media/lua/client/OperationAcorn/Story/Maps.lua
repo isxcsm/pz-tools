@@ -506,6 +506,10 @@ local function addMarkButton(map)
     local panel, close = map.buttonPanel, map.closeBtn
     if not (panel and close) or map.oaMarkButton then return end
     local size = close.height
+    -- the row's own spacing (vanilla keeps it in a local): between its buttons, and from the map's right edge
+    local before = map.forgetBtn or map.printMediaBtn
+    local gap = before and (close.x - before:getRight()) or 10
+    local edge = map.width - panel:getRight()
     local button = ISButton:new(close.x, 0, size, size, "", map, onMarkButton)
     local pin = picture(PIN)
     if pin then
@@ -515,9 +519,9 @@ local function addMarkButton(map)
     button:setTooltip(getText("IGUI_OA_Story_UI_MarksShown"))
     button:initialise()
     panel:addChild(button)
-    close:setX(button:getRight() + UI_BORDER_SPACING)
+    close:setX(button:getRight() + gap)
     panel:shrinkWrap(0, 0, nil)
-    panel:setX(map.width - UI_BORDER_SPACING - panel.width)
+    panel:setX(map.width - edge - panel.width)
     map.oaMarkButton = button
     markButtonLook(button)
 end

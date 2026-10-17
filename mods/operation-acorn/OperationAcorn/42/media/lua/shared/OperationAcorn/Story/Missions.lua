@@ -740,7 +740,7 @@ function Missions.begin(record, m)
     OA.Sync.changed("missions", record.id)
 end
 
--- The short title of a mission started: "임무 착수" over its title.
+-- The short title of a regular or contract mission started: "임무 착수" over its title (a story one has its briefing).
 local function launchedTitle(record, m)
     OA.Sync.title(record.id, { key = "IGUI_OA_Title_Launched", sub = (Missions.keys(m)), style = "notice" })
 end
@@ -812,7 +812,6 @@ local function buildStory(record, offer)
     m.id, m.seq = offer.id, offer.seq
     Missions.price(record, m)
     Missions.begin(record, m)
-    launchedTitle(record, m)
     OA.log("mission", m.id, m.title, "started by", record.number)
     return m
 end
