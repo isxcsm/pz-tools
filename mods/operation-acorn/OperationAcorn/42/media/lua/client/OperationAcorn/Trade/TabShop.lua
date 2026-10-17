@@ -538,10 +538,21 @@ function OATabShop:drawCart(p)
     local fh = UI.fontHeight()
     panel(self, p, r.x, r.y, r.w, r.h)
     UI.text(self, UI.str("IGUI_OA_Terminal_Shop_Cart"), r.x + 10, r.y + 6, p.head)
+    -- the balance on hand, at the head's right, cart or no cart ("잔고 12,000 크레딧"); its widths once a sum
+    local nf = p.numberFont
+    if not s.headUnitW then
+        s.headUnit = UI.creditsUnit()
+        s.headUnitW = UI.textWidth(s.headUnit) + UI.UNIT_GAP
+        s.headNumW = UI.textWidth(s.beforeText, nf)
+        s.headLabel = getText("IGUI_OA_Terminal_Balance")
+    end
+    local right = r.x + r.w - 10
+    UI.textRight(self, s.headUnit, right, r.y + 6, p.dim)
+    UI.textRight(self, s.beforeText, right - s.headUnitW, r.y + 6, s.balance < 0 and p.bad or p.value, nf)
+    UI.textRight(self, s.headLabel, right - s.headUnitW - s.headNumW - UI.UNIT_GAP, r.y + 6, p.dim)
     if #self.cartRows == 0 then
         for i, line in ipairs(self.emptyLines) do UI.text(self, line, r.x + 8, 28 + (i - 1) * fh, p.dim) end
     else
-        local nf = p.numberFont
         UI.fill(self, r.x + 8, cr.ruleY, r.w - 16, 1, p.border)
         UI.text(self, s.totalLabel, r.x + 8, cr.totalY, p.dim)
         UI.text(self, s.totalText, s.totalX, cr.totalY, p.value, nf)
