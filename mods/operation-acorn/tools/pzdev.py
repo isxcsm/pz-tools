@@ -19,10 +19,14 @@ Usage:
     python tools/pzdev.py resume                            presses Resume in the game's Lua debugger (with Break On
                                                               Error, any Lua error, even one a pcall catches, stops the
                                                               game there, and the channel with it)
-    python tools/pzdev.py launch                              starts the game (if not running), waits for the main
-                                                              menu, continues the latest save and returns once in it
+    python tools/pzdev.py launch                              starts the game (if not running: its exe with -debug,
+                                                              options.ini set to a 1600x900 window first), waits for
+                                                              the main menu, continues the latest save and returns
+                                                              once in it; a game without -debug is said at once, one
+                                                              full screen on the main menu started again windowed
     python tools/pzdev.py quit                                quits the game to the desktop (to change its files)
-    python tools/pzdev.py restart                             quits the game to the desktop, then launch
+    python tools/pzdev.py restart                             quits the game to the desktop (its window closed when
+                                                              the channel is silent), then launch
     python tools/pzdev.py wait menu|loading|game|exit|error   returns when the game gets there (--timeout, default 300)
     python tools/pzdev.py watch                               prints one line per event, forever (for a background
                                                               monitor): start, menu, ready, loading, game, error <text>,
@@ -42,6 +46,12 @@ import time
 
 ZOMBOID = os.path.join(os.path.expanduser("~"), "Zomboid", "Lua", "oadev")
 CONSOLE = os.path.join(os.path.expanduser("~"), "Zomboid", "console.txt")
+OPTIONS = os.path.join(os.path.expanduser("~"), "Zomboid", "options.ini")
+# The game's folder (PZDEV_GAME gives another): pzdev starts its exe itself, with -debug.
+GAME_DIR = os.environ.get("PZDEV_GAME", r"C:\Program Files (x86)\Steam\steamapps\common\ProjectZomboid")
+# The game as pzdev drives it: windowed at this size (the places it clicks are for it; a borderless or full screen game
+# is captured black or stale, and its menu is elsewhere).
+WINDOW = (1600, 900)
 CMD = os.path.join(ZOMBOID, "cmd.lua")
 OUT = os.path.join(ZOMBOID, "out.txt")
 
@@ -348,6 +358,9 @@ def load_started(start):
 # 20 seconds or so pzopt preloads the animation sets, and one right after the window comes to the front can be missed)
 # and returns when the channel answers in the loaded save.
 def continue_save():
+    if full_screen():
+        print("the game is full screen: Continue is not where pzdev clicks (`pzdev restart` starts it windowed)")
+        return 1
     for attempt in range(6):
         before = console_size()
         click(CONTINUE_AT)
@@ -422,8 +435,61 @@ def process_gone(timeout=600):
     return True
 
 
+# The game's options set to the window pzdev drives (written before the game starts, which reads them then; options are
+# free in this install). Says what it changed.
+def windowed_options():
+    want = {"fullScreen": "false", "borderless": "false", "width": str(WINDOW[0]), "height": str(WINDOW[1])}
+    try:
+        with open(OPTIONS, encoding="utf-8") as f:
+            lines = f.read().splitlines()
+    except OSError:
+        return
+    changed = []
+    for i, line in enumerate(lines):
+        key, sep, value = line.partition("=")
+        if sep and key in want and value != want[key]:
+            changed.append("%s %s -> %s" % (key, value, want[key]))
+            lines[i] = key + "=" + want[key]
+    if changed:
+        with open(OPTIONS, "w", encoding="utf-8", newline="\r\n") as f:
+            f.write("\n".join(lines) + "\n")
+        print("options set windowed:", ", ".join(changed))
+
+
+# Starts the game's exe with -debug (the dev channel needs it; Steam's launch no longer adds it), windowed.
 def start_game():
-    subprocess.Popen(["cmd", "/c", "start", "", "steam://rungameid/108600"], creationflags=0x08000000)
+    windowed_options()
+    subprocess.Popen([os.path.join(GAME_DIR, "ProjectZomboid64.exe"), "-debug"], cwd=GAME_DIR,
+                     creationflags=0x00000008 | 0x00000200, close_fds=True)
+
+
+# The running game's command line ("" when none or unreadable).
+def game_command_line():
+    out = subprocess.run(["powershell", "-NoProfile", "-Command",
+                          "(Get-CimInstance Win32_Process -Filter \"Name='ProjectZomboid64.exe'\").CommandLine"],
+                         capture_output=True, text=True, errors="replace", creationflags=0x08000000).stdout
+    return out.strip()
+
+
+# Whether the game's window covers the whole screen (full screen or borderless at the screen's size).
+def full_screen():
+    left, top, right, bottom = window_rect(False)
+    width, height = window_rect(True)[2:]
+    return right - left >= width and bottom - top >= height
+
+
+# Closes the game's window without the channel (a game on the main menu, or one without -debug) and waits for the process.
+def close_window():
+    user32 = ctypes.windll.user32
+    hwnd = user32.FindWindowW(None, "Project Zomboid")
+    if hwnd:
+        user32.PostMessageW(hwnd, 0x0010, 0, 0)  # WM_CLOSE
+    end = time.time() + 60
+    while game_window() and time.time() < end:
+        time.sleep(0.5)
+    if game_window():
+        subprocess.run(["taskkill", "/IM", "ProjectZomboid64.exe", "/F"], capture_output=True, creationflags=0x08000000)
+    return process_gone()
 
 
 # Starts the game when it is not running and gets into the latest save; returns when the channel answers there.
@@ -432,6 +498,11 @@ def launch():
         if send('print("here")', 3, quiet=True) == 0:
             print("already in a save")
             return 0
+        # Without -debug the channel never answers: a game the user started (from Steam). Not closed: said at once.
+        if "-debug" not in game_command_line():
+            print("the game runs without -debug (started from Steam?): the channel is off. Close it, or `pzdev restart`"
+                  " closes it and starts it with -debug")
+            return 1
         # the window is there, the channel silent: still booting (the menu not built yet: Continue pressed now is lost),
         # loading a save, or on the main menu
         menu, load = console_last("binkId: "), console_last("STATE: exit zombie.gameStates.MainScreenState")
@@ -441,6 +512,12 @@ def launch():
         if load > menu:
             print("a save is loading")
             return until_loaded(240)
+        # On the main menu at the screen's size: Continue is elsewhere; closed (no save is open) and started windowed.
+        if full_screen():
+            print("the game is full screen on the main menu: closing it to start it windowed")
+            if not close_window():
+                return 1
+            return launch()
         return continue_save()
     # a process without a window: a game still quitting (wait for it to end) or one just starting (its window comes)
     end, waited = time.time() + 600, False
@@ -472,7 +549,10 @@ def launch():
 # to go.
 def quit_game():
     if game_window():
-        send("if isGamePaused() then setGameSpeed(1) end getCore():quitToDesktop()", 5, quiet=True)
+        if send("if isGamePaused() then setGameSpeed(1) end getCore():quitToDesktop()", 5, quiet=True) != 0:
+            # no channel (no -debug, or on the main menu): the window is closed
+            print("the channel is silent: closing the window")
+            return 0 if close_window() else 1
         end = time.time() + 90
         while game_window():
             if time.time() > end:
