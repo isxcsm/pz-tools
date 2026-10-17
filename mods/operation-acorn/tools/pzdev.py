@@ -31,6 +31,12 @@ Usage:
     python tools/pzdev.py watch                               prints one line per event, forever (for a background
                                                               monitor): start, menu, ready, loading, game, error <text>,
                                                               exit, paused, running, unfocused, focused
+launch, restart and continue load the save --save names (a Sandbox save's folder), or PZDEV_SAVE's, and refuse with
+neither: Continue would load the user's own latest save. latestSave.ini points at it while the main menu is built, so
+Continue loads it, and is put back once it loaded: the user's Continue stays theirs. reload loads the save it leaves
+(or --save's). The game pzdev
+starts is watched by a process of its own (pzdev guard): as it ends, however it ends, the user's display options and
+latest save are put back (the game writes its options as it quits from the main menu).
 Events come from console.txt (the game's own "STATE: exit ..." lines, a Lua "Exception thrown") and whether the game
 window is there: nothing runs in the game, so a normal game is untouched.
 Options of run/file/check: --timeout seconds (default 15); --follow seconds: then also print the Lua lines the game
@@ -298,12 +304,21 @@ def click(at):
     user32 = ctypes.windll.user32
     left, top, _, _ = window_rect(False)
     hwnd = user32.FindWindowW(None, "Project Zomboid")
-    # a window that was not in front: the game draws a few frames a second until it is, and misses a click in one
+    # a window that was not in front: the game draws a few frames a second until it is, and misses a click in one.
+    # Windows lets a background process bring a window forward only after a key press: an Alt tap first (else the
+    # first click only activates the window, and Continue waited 12 s for its second press at every start).
     settle = 0.3 if user32.GetForegroundWindow() == hwnd else 1.5
+    if user32.GetForegroundWindow() != hwnd:
+        user32.keybd_event(0x12, 0, 0, 0)
+        user32.keybd_event(0x12, 0, 0x0002, 0)
     user32.SetForegroundWindow(hwnd)
     time.sleep(settle)
+    # the cursor there for some frames first (and moved once more): a button pressed in the frame the cursor jumps in is
+    # read at the old place, and Continue missed its first press at every start
+    user32.SetCursorPos(left + at[0] - 2, top + at[1])
+    time.sleep(0.4)
     user32.SetCursorPos(left + at[0], top + at[1])
-    time.sleep(0.15)
+    time.sleep(0.3)
     # down and up several frames apart: the game reads the mouse once a frame and misses a click within one
     user32.mouse_event(0x0002, 0, 0, 0, 0)
     time.sleep(0.25)
@@ -321,9 +336,31 @@ def resume():
 # exit waits for a game frame), so the game is set going first.
 def reload():
     start = console_size()
+    name = SAVE or current_save()
+    if not name:
+        print("the save in play is not known (no answer): not left")
+        return 1
+    point_latest(name)
     if leave_save(start) != 0:
         return 1
     return continue_when_ready(start)
+
+
+# The folder name of the save in play (through the channel), or None.
+def current_save():
+    start = console_size()
+    if send('print("pzdev-save=" .. tostring(getWorld():getWorld()))', 5, quiet=True) != 0:
+        return None
+    try:
+        with open(CONSOLE, "rb") as f:
+            f.seek(start)
+            text = f.read().decode("utf-8", errors="replace")
+    except OSError:
+        return None
+    for line in text.splitlines():
+        if "pzdev-save=" in line:
+            return line.split("pzdev-save=", 1)[1].strip().rstrip(".")
+    return None
 
 
 # Leaves the save for the main menu and returns once there (its events read from `start`, a byte offset of console.txt
@@ -356,26 +393,75 @@ def load_started(start):
     return console_has(start, "STATE: exit zombie.gameStates.MainScreenState")
 
 
+LATEST = os.path.join(os.path.expanduser("~"), "Zomboid", "latestSave.ini")
+# The user's latestSave.ini while --save points it elsewhere.
+LATEST_KEPT = os.path.join(os.path.expanduser("~"), "Zomboid", "pzdev-latest.ini")
+# The save launch, restart and continue load (--save, or PZDEV_SAVE); none: they refuse.
+SAVE = None
+NO_SAVE = "name the test save to load: --save <folder under Saves/Sandbox> (or PZDEV_SAVE); Continue alone loads the user's own"
+
+
+# Points latestSave.ini at a Sandbox save (before the main menu is built: it reads the file then); the user's own is kept
+# (unless an earlier run's is kept still) for put_latest_back.
+def point_latest(name):
+    try:
+        with open(LATEST, "rb") as f:
+            mine = f.read()
+    except OSError:
+        mine = None
+    if not os.path.exists(LATEST_KEPT):
+        with open(LATEST_KEPT, "wb") as f:
+            f.write(mine or b"")
+    with open(LATEST, "wb") as f:
+        f.write((name + "\r\nSandbox").encode("utf-8"))
+    print("Continue points at " + name + " for this load")
+
+
+# The user's latestSave.ini back (the game wrote the loaded save there).
+def put_latest_back():
+    try:
+        with open(LATEST_KEPT, "rb") as f:
+            mine = f.read()
+    except OSError:
+        return
+    if mine:
+        with open(LATEST, "wb") as f:
+            f.write(mine)
+    elif os.path.exists(LATEST):
+        os.remove(LATEST)
+    os.remove(LATEST_KEPT)
+    print("Continue points at the user's latest save again")
+
+
 # Presses Continue on the main menu (again while no load starts: the menu takes no click while it settles, e.g. for the
 # 20 seconds or so pzopt preloads the animation sets, and one right after the window comes to the front can be missed)
 # and returns when the channel answers in the loaded save.
 def continue_save():
+    if not os.path.exists(LATEST_KEPT):
+        print("Continue points at the user's own latest save (pzdev did not point it before this menu was built): not"
+              " pressed. `pzdev restart --save <test save>`")
+        return 1
     if full_screen():
         print("the game is full screen: Continue is not where pzdev clicks (`pzdev restart` starts it windowed)")
         return 1
-    for attempt in range(6):
-        before = console_size()
+    # The menu takes no click for some seconds after it is built (about 15 s after a save is left): pressed every 3 s
+    # until a load starts (a press after that lands on the loading screen, which takes none).
+    before = console_size()
+    first = time.time()
+    for attempt in range(30):
         click(CONTINUE_AT)
-        waited = time.time() + 12
+        waited = time.time() + 3
         while time.time() < waited and not load_started(before):
-            time.sleep(1)
+            time.sleep(0.25)
         if load_started(before):
             break
-        print("Continue was not taken; pressing it again")
     else:
-        print("the game did not take Continue (is it on the main menu?)")
+        print("the game did not take Continue in 90 s (is it on the main menu?)")
         return 1
-    return until_loaded(240)
+    print("Continue taken after %.0f s" % (time.time() - first))
+    status = until_loaded(240)
+    put_latest_back()
+    return status
 
 
 # Returns when the channel answers in the loaded save: the load's end comes in the log (the channel asked then; and
@@ -457,8 +543,8 @@ def set_options(want):
 
 
 # The game's display options set to the window pzdev drives, before the game starts (it reads them only then); what the
-# user had is kept in DISPLAY_KEPT (unless an earlier start's is there still) and put back by restore_options once the
-# game is up, so the user's own start is as they left it.
+# user had is kept in DISPLAY_KEPT (unless an earlier start's is there still) and put back by release() once the game
+# ended (it writes its options as it quits from the main menu, the window pzdev gave it among them).
 def windowed_options():
     was = set_options({"fullScreen": "false", "borderless": "false", "width": str(WINDOW[0]), "height": str(WINDOW[1])})
     if was and not os.path.exists(DISPLAY_KEPT):
@@ -468,7 +554,7 @@ def windowed_options():
         print("options set windowed for this start:", ", ".join("%s %s" % item for item in was.items()))
 
 
-# Puts the user's display options back (the running game keeps its window: it does not write them as it quits).
+# Puts the user's display options back.
 def restore_options():
     try:
         with open(DISPLAY_KEPT, encoding="utf-8") as f:
@@ -480,11 +566,34 @@ def restore_options():
     print("the user's display options put back:", ", ".join("%s=%s" % item for item in kept.items()))
 
 
+# With no game running: the user's display options and latest save back (what a guard missed, a reboot say).
+def release():
+    if game_process():
+        return
+    restore_options()
+    put_latest_back()
+
+
+# Waits for the game's process (its id) to end, then release(): started detached by start_game, so it outlives pzdev.
+def guard(pid):
+    kernel32 = ctypes.windll.kernel32
+    handle = kernel32.OpenProcess(0x00100000, False, pid)  # SYNCHRONIZE
+    if handle:
+        kernel32.WaitForSingleObject(handle, 0xFFFFFFFF)
+        kernel32.CloseHandle(handle)
+    time.sleep(1)
+    release()
+    return 0
+
+
 # Starts the game's exe with -debug (the dev channel needs it; Steam's launch no longer adds it), windowed.
 def start_game():
     windowed_options()
-    subprocess.Popen([os.path.join(GAME_DIR, "ProjectZomboid64.exe"), "-debug"], cwd=GAME_DIR,
-                     creationflags=0x00000008 | 0x00000200, close_fds=True)
+    game = subprocess.Popen([os.path.join(GAME_DIR, "ProjectZomboid64.exe"), "-debug"], cwd=GAME_DIR,
+                            creationflags=0x00000008 | 0x00000200, close_fds=True)
+    # the guard: puts the user's options and latest save back as this game ends
+    subprocess.Popen([sys.executable, os.path.abspath(__file__), "guard", str(game.pid)], stdin=subprocess.DEVNULL,
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=0x00000008 | 0x00000200, close_fds=True)
 
 
 # The running game's command line ("" when none or unreadable).
@@ -520,6 +629,9 @@ def close_window():
 def launch():
     if game_window():
         if send('print("here")', 3, quiet=True) == 0:
+            if SAVE and current_save() not in (None, SAVE):
+                print("in another save: loading " + SAVE)
+                return reload()
             print("already in a save")
             return 0
         # Without -debug the channel never answers: a game the user started (from Steam). Not closed: said at once.
@@ -531,14 +643,20 @@ def launch():
         # loading a save, or on the main menu
         menu, load = console_last("binkId: "), console_last("STATE: exit zombie.gameStates.MainScreenState")
         if menu < 0:
+            # whether its menu reads a latest save pzdev pointed is not known: Continue is pressed only where it did
+            if not os.path.exists(LATEST_KEPT):
+                print("the game is still starting, its Continue the user's: `pzdev restart --save <test save>`")
+                return 1
             print("the game is still starting")
             return continue_when_ready(0)
         if load > menu:
             print("a save is loading")
             return until_loaded(240)
         # On the main menu at the screen's size: Continue is elsewhere; closed (no save is open) and started windowed.
-        if full_screen():
-            print("the game is full screen on the main menu: closing it to start it windowed")
+        # With --save: the menu read its latest save already; closed and started again with it.
+        if full_screen() or SAVE:
+            print("the game is full screen on the main menu: closing it to start it windowed" if not SAVE else
+                  "the main menu read its latest save already: closing it to start it with " + SAVE)
             if not close_window():
                 return 1
             return launch()
@@ -558,7 +676,11 @@ def launch():
     if waited:
         # Steam takes a few seconds to see the game gone
         time.sleep(5)
+    if not SAVE:
+        print(NO_SAVE)
+        return 1
     start = console_size()
+    point_latest(SAVE)
     start_game()
     print("starting the game")
     name, _ = wait_for({"menu", "exit"}, 300, start)
@@ -566,7 +688,6 @@ def launch():
         print("the main menu did not come in 5 minutes" if name is None else "the game closed while starting")
         return 1
     print("on the main menu")
-    restore_options()
     return continue_when_ready(start)
 
 
@@ -577,7 +698,9 @@ def quit_game():
         if send("if isGamePaused() then setGameSpeed(1) end getCore():quitToDesktop()", 5, quiet=True) != 0:
             # no channel (no -debug, or on the main menu): the window is closed
             print("the channel is silent: closing the window")
-            return 0 if close_window() else 1
+            gone = close_window()
+            release()
+            return 0 if gone else 1
         end = time.time() + 90
         while game_window():
             if time.time() > end:
@@ -586,7 +709,9 @@ def quit_game():
             time.sleep(0.5)
         print("closed")
         time.sleep(2)
-    return 0 if process_gone() else 1
+    gone = process_gone()
+    release()
+    return 0 if gone else 1
 
 
 def restart():
@@ -619,6 +744,11 @@ def shot(path, wait, full, count=1, every=0.0):
 
 
 def main():
+    global SAVE
+    if len(sys.argv) == 3 and sys.argv[1] == "guard":
+        return guard(int(sys.argv[2]))
+    SAVE = arg("--save") or os.environ.get("PZDEV_SAVE")
+    release()
     timeout_s = arg("--timeout")
     timeout = float(timeout_s or "15")
     if len(sys.argv) == 2 and sys.argv[1] == "launch":

@@ -93,7 +93,8 @@ Events.OnTickEvenPaused.Add(poll)
 
 -- The game paused or going again, logged as it changes ("[pzdev] paused" / "[pzdev] running": pzdev.py watch reports
 -- them), looked at once a second. A driven test does not stop when the window loses focus: the option that pauses then
--- is turned off (debug only, as all of this).
+-- is turned off for this run (debug only, as all of this), not saved: saving would write the window pzdev started the
+-- game with over the user's own display options.
 local paused, pausedAt = nil, nil
 local function watchPause()
     local now = getTimestampMs()
@@ -107,10 +108,7 @@ local function watchPause()
 end
 Events.OnTickEvenPaused.Add(watchPause)
 Events.OnGameStart.Add(function()
-    if getCore():getOptionPauseOnFocusloss() then
-        getCore():setOptionPauseOnFocusloss(false)
-        getCore():saveOptions()
-    end
+    if getCore():getOptionPauseOnFocusloss() then getCore():setOptionPauseOnFocusloss(false) end
 end)
 
 -- A Lua error does not stop the game in the debugger (the debug tool bar's Break On Error, ticked again at every game
