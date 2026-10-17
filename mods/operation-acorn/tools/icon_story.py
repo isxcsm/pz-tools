@@ -569,13 +569,30 @@ def kit_voucher(I):
     return I.from_scene(s)
 
 
-def harvest_scalpel(I):
-    """The harvest scalpel, lying: a steel handle with the team's olive grip and a bright blade."""
-    s = lying(-30)
-    I.prism(s, [(0.12, 0.47), (0.6, 0.47), (0.6, 0.53), (0.12, 0.53)], 0.0, 0.035, STEEL_DARK, top=STEEL, shine=0.7)
-    I.prism(s, [(0.2, 0.465), (0.48, 0.465), (0.48, 0.535), (0.2, 0.535)], 0.035, 0.05, OD_DARK, top=OD, shine=0.2)
-    I.prism(s, [(0.6, 0.48), (0.76, 0.44), (0.9, 0.47), (0.86, 0.53), (0.6, 0.52)], 0.0, 0.02, (196, 200, 206),
+def harvest_kit(I):
+    """The sample harvest kit: the closed olive field case with a red band, its scalpel strapped on the lid, one of its
+    empty sealed jars standing beside it (the jar the tissue icons show filled)."""
+    s = Scene(0)
+    s.box(0.1, 0.24, 0.0, 0.74, 0.76, 0.3, OD, top=OD_LIGHT, shine=0.1)
+    s.box(0.095, 0.235, 0.12, 0.745, 0.765, 0.18, (150, 46, 40), top=(170, 56, 48), shine=0.15)
+    # the scalpel on the lid: steel handle, olive grip, bright blade; a strap over it
+    x0, y, z, k = 0.14, 0.5, 0.3, 0.88
+    w = 0.03 * k
+    I.prism(s, [(x0, y - w), (x0 + 0.42 * k, y - w), (x0 + 0.42 * k, y + w), (x0, y + w)], z, z + 0.03, STEEL_DARK,
+            top=STEEL, shine=0.7)
+    I.prism(s, [(x0 + 0.06 * k, y - w - 0.004), (x0 + 0.3 * k, y - w - 0.004), (x0 + 0.3 * k, y + w + 0.004),
+                (x0 + 0.06 * k, y + w + 0.004)], z + 0.03, z + 0.045, OD_DARK, top=OD, shine=0.2)
+    I.prism(s, [(x0 + 0.42 * k, y - w * 0.7), (x0 + 0.54 * k, y - w * 1.6), (x0 + 0.66 * k, y - w * 0.6),
+                (x0 + 0.62 * k, y + w), (x0 + 0.42 * k, y + w * 0.7)], z, z + 0.018, (196, 200, 206),
             top=(236, 240, 244), shine=1.0)
+    s.box(0.3, 0.44, 0.3, 0.36, 0.56, 0.36, OD_DARK, top=OD, shine=0.1)
+    # the latches
+    s.box(0.2, 0.765, 0.18, 0.28, 0.785, 0.27, STEEL_DARK, shine=0.5)
+    s.box(0.56, 0.765, 0.18, 0.64, 0.785, 0.27, STEEL_DARK, shine=0.5)
+    # the empty jar: clear glass, white screw cap
+    glass, cap = (206, 222, 220), (232, 232, 226)
+    s.tube((0.84, 0.62, 0.0), (0.84, 0.62, 0.24), 0.1, glass, cap=glass, segments=18, shine=0.9)
+    s.tube((0.84, 0.62, 0.24), (0.84, 0.62, 0.28), 0.105, cap, cap=cap, segments=18, shine=0.4)
     return I.from_scene(s)
 
 
@@ -625,7 +642,7 @@ def tissue_jar(I, grade):
 
 
 FUNCTIONS = {
-    'harvest_scalpel': harvest_scalpel, 'precision_tweezers': precision_tweezers,
+    'harvest_kit': harvest_kit, 'precision_tweezers': precision_tweezers,
     'tissue_common': lambda I: tissue_jar(I, 'common'), 'tissue_infected': lambda I: tissue_jar(I, 'infected'),
     'tissue_neural': lambda I: tissue_jar(I, 'neural'), 'tissue_anomalous': lambda I: tissue_jar(I, 'anomalous'),
     'tissue_target': lambda I: tissue_jar(I, 'target'),

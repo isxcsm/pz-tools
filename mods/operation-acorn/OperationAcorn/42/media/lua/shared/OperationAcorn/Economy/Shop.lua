@@ -43,7 +43,7 @@ Shop.TYPES = {
     filterNormal = "OperationAcorn.FilterNormal", filterModern = "OperationAcorn.FilterModern",
     muffler = "OperationAcorn.SoundproofCover",
     fieldTerminal = "OperationAcorn.FieldTerminal",
-    scalpel = "OperationAcorn.HarvestScalpel", tweezers = "OperationAcorn.PrecisionTweezers",
+    kit = "OperationAcorn.HarvestKit", tweezers = "OperationAcorn.PrecisionTweezers",
 }
 
 -- The field tools (scripts/OA_field_tools.txt, made by tools/field_tools.py: the vanilla tool of the name, a little
@@ -195,9 +195,9 @@ local function build()
         give = { vanilla("Pipe", 5) } })
     add({ id = "bu_control_board", group = "resource", tier = 2, price = 50000, week = 2, bu = "panel",
         item = BU_BOARD, give = { give(BU_BOARD) } })
-    -- The zombie sample tools (NUMBERS 4 '좀비 시료'): the scalpel to start with, the tweezers for the precise harvest.
+    -- The zombie sample tools (NUMBERS 4 '좀비 시료'): the harvest kit to start with, the tweezers for the precise harvest.
     -- Receiving the tweezers marks the character (Harvest.received): the corpse menu then offers the precise harvest.
-    add({ id = "harvest_scalpel", group = "harvest", tier = 1, price = 3000, give = { give("scalpel") } })
+    add({ id = "harvest_kit", group = "harvest", tier = 1, price = 3000, give = { give("kit") } })
     add({ id = "precision_tweezers", group = "harvest", tier = 3, price = 40000, harvest = "precise",
         give = { give("tweezers") } })
     -- Gear.

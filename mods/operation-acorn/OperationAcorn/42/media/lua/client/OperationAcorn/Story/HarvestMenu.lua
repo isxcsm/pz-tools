@@ -1,6 +1,6 @@
 -- The corpse menu of the zombie samples (Story/Harvest): 'quick harvest' on a zombie's corpse, and 'precise harvest'
--- too for a character that has received tweezers. Opening the menu looks at the mark only; the scalpel and the
--- tweezers are looked for once, when a harvest is chosen: a scalpel carried but not held is taken into the hand first
+-- too for a character that has received tweezers. Opening the menu looks at the mark only; the kit and the
+-- tweezers are looked for once, when a harvest is chosen: a kit carried but not held is taken into the hand first
 -- (the game's equipping, from a bag too). A corpse that gives nothing shows the options greyed with the reason. The
 -- action takes the time; the server gives the sample.
 require "ISUI/ISWorldObjectContextMenu"
@@ -27,7 +27,7 @@ function ISOAHarvestAction:new(character, body, precise)
 end
 
 function ISOAHarvestAction:isValid()
-    return self.body:getSquare() ~= nil and Harvest.holdsScalpel(self.character)
+    return self.body:getSquare() ~= nil and Harvest.holdsKit(self.character)
 end
 
 function ISOAHarvestAction:waitToStart()
@@ -60,9 +60,9 @@ end
 local function harvest(player, body, precise)
     local inventory = player:getInventory()
     -- oa-scan: ok (once, as a harvest is chosen)
-    local scalpel = not Harvest.holdsScalpel(player) and inventory:getFirstTypeRecurse(Harvest.SCALPEL) or nil
-    if not Harvest.holdsScalpel(player) and not scalpel then
-        HaloTextHelper.addText(player, getText("IGUI_OA_Story_HarvestFail_scalpel"))
+    local kit = not Harvest.holdsKit(player) and inventory:getFirstTypeRecurse(Harvest.KIT) or nil
+    if not Harvest.holdsKit(player) and not kit then
+        HaloTextHelper.addText(player, getText("IGUI_OA_Story_HarvestFail_kit"))
         return
     end
     -- oa-scan: ok (once, as the precise harvest is chosen)
@@ -72,7 +72,7 @@ local function harvest(player, body, precise)
     end
     local sq = body:getSquare()
     if sq and luautils.walkAdj(player, sq, true) then
-        if scalpel then ISInventoryPaneContextMenu.equipWeapon(scalpel, true, false, player:getPlayerNum()) end
+        if kit then ISInventoryPaneContextMenu.equipWeapon(kit, true, false, player:getPlayerNum()) end
         ISTimedActionQueue.add(ISOAHarvestAction:new(player, body, precise))
     end
 end

@@ -107,7 +107,7 @@ function Dev.heliReady()
     say("helicopter: next call allowed now")
 end
 
--- The first supply (its supply crate: the terminal, the manual, the scalpel and the delivery box) dropped near the
+-- The first supply (its supply crate: the terminal, the manual, the harvest kit and the delivery box) dropped near the
 -- character now; or, with `reset`, waiting again.
 function Dev.firstSupply(reset)
     local r = record()

@@ -1,5 +1,5 @@
 -- Zombie samples (DESIGN 6 '좀비 시료', NUMBERS 4): a fresh zombie corpse gives one sample, once. The quick harvest wants
--- the scalpel in a hand; the precise one takes twice as long, wants the tweezers anywhere in the inventory and rolls the
+-- the harvest kit in a hand (its scalpel); the precise one takes twice as long, wants the tweezers anywhere in the inventory and rolls the
 -- better grades more often. A character offered the precise harvest is one who has received tweezers (marked then: the
 -- corpse menu reads the mark, not the inventory). A target mission's corpse gives that mission's sample instead
 -- (Story/Zombies).
@@ -15,7 +15,7 @@ local Data, Missions, Zombies = OA.StoryData, OA.Missions, OA.ZombieMissions
 local Harvest = {}
 OA.Harvest = Harvest
 
-Harvest.SCALPEL = Data.fullType("HarvestScalpel")
+Harvest.KIT = Data.fullType("HarvestKit")
 Harvest.TWEEZERS = Data.fullType("PrecisionTweezers")
 
 -- The grades, commonest first, their items, and the chance of each (percent) for the quick and the precise harvest.
@@ -70,10 +70,10 @@ function Harvest.precise(record)
     return s ~= nil and s.precise == true
 end
 
--- Whether a hand holds the scalpel (the menu's look: the two hands only).
-function Harvest.holdsScalpel(character)
+-- Whether a hand holds the harvest kit (the menu's look: the two hands only).
+function Harvest.holdsKit(character)
     local a, b = character:getPrimaryHandItem(), character:getSecondaryHandItem()
-    return (a ~= nil and a:getFullType() == Harvest.SCALPEL) or (b ~= nil and b:getFullType() == Harvest.SCALPEL)
+    return (a ~= nil and a:getFullType() == Harvest.KIT) or (b ~= nil and b:getFullType() == Harvest.KIT)
 end
 
 -- What a corpse is, for Harvest.refusal.
@@ -108,10 +108,10 @@ local function give(character, fullType)
 end
 
 -- The harvest is done (the server): args = { x, y, z, death, precise }. Returns the sample's name, or nil and why not
--- ("scalpel", "tweezers", "gone", and Harvest.refusal's).
+-- ("kit", "tweezers", "gone", and Harvest.refusal's).
 function Harvest.take(character, record, args)
     local precise = args.precise == true
-    if not Harvest.holdsScalpel(character) then return nil, "scalpel" end
+    if not Harvest.holdsKit(character) then return nil, "kit" end
     if precise and not character:getInventory():containsTypeRecurse(Harvest.TWEEZERS) then return nil, "tweezers" end
     local x, y, z = tonumber(args.x), tonumber(args.y), tonumber(args.z)
     local body = x and y and z and corpseAt(x, y, z, tonumber(args.death))

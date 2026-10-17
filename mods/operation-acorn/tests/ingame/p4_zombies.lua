@@ -6,12 +6,12 @@
 --   P4Z_MISSION("clear")       a fresh area clear (or "target") whose circle is 50 squares east of the character
 --   P4Z_STATUS()               the mission's counts, the group loaded (how many, how far from the circle's middle)
 --   P4Z_KILL(n)                kills n of the loaded group (all when n is nil)
---   P4Z_HARVEST(precise)       harvests the nearest zombie corpse within 3 squares (gives and equips the scalpel)
+--   P4Z_HARVEST(precise)       harvests the nearest zombie corpse within 3 squares (gives and equips the harvest kit)
 --   P4Z_AWAY() / P4Z_BACK()    goes 200 squares off (the group's chunks unload: it goes), and back to the circle
 --   P4Z_MARKS()                the world's table of marks: how many zombies of the mission it keeps
 --
 -- A check by hand: walk to the circle (the group appears out of sight; P4Z_STATUS), stand far off and make noise (it
--- stays), right-click a fresh corpse with the scalpel in hand (the quick harvest; the precise one once tweezers came).
+-- stays), right-click a fresh corpse with the harvest kit in hand (the quick harvest; the precise one once tweezers came).
 RUN("p4_lib.lua")
 local OA = OperationAcorn
 local say = P4T.say("p4zombies")
@@ -25,7 +25,7 @@ local function section(name, fn)
 end
 
 section("items", function()
-    for _, name in ipairs({ "HarvestScalpel", "PrecisionTweezers", "TissueCommon", "TissueInfected", "TissueNeural",
+    for _, name in ipairs({ "HarvestKit", "PrecisionTweezers", "TissueCommon", "TissueInfected", "TissueNeural",
         "TissueAnomalous", "TissueTarget" }) do
         local script = getScriptManager():FindItem("OperationAcorn." .. name)
         check(name .. " script", script ~= nil)
@@ -33,8 +33,8 @@ section("items", function()
         check(name .. " icon", item ~= nil and item:getTex() ~= nil and item:getTex():getName() ~= "Question_On",
             item and item:getTex() and item:getTex():getName())
     end
-    local scalpel = instanceItem(Harvest.SCALPEL)
-    check("the scalpel can be equipped", scalpel:hasTag(ItemTag.EQUIPPABLE))
+    local kit = instanceItem(Harvest.KIT)
+    check("the harvest kit can be equipped", kit:hasTag(ItemTag.EQUIPPABLE))
     check("tissue worth", OA.Value.OWN.TissueAnomalous.credits == 3000)
 end)
 
@@ -50,13 +50,13 @@ section("outfits", function()
 end)
 
 section("shop and first box", function()
-    local scalpel, tweezers = OA.Shop.entry("harvest_scalpel"), OA.Shop.entry("precision_tweezers")
-    check("scalpel stocked", OA.Shop.stocked(scalpel))
+    local kit, tweezers = OA.Shop.entry("harvest_kit"), OA.Shop.entry("precision_tweezers")
+    check("harvest kit stocked", OA.Shop.stocked(kit))
     check("tweezers stocked", OA.Shop.stocked(tweezers))
     local cargo = {}
     for _, c in ipairs(OA.Trade.FirstSupply.CARGO) do cargo[c.type] = true end
-    check("first box: terminal, booklet, scalpel", cargo["OperationAcorn.CommTerminal"] and cargo["OperationAcorn.TerminalManual"]
-        and cargo[Harvest.SCALPEL])
+    check("first box: terminal, booklet, harvest kit", cargo["OperationAcorn.CommTerminal"] and cargo["OperationAcorn.TerminalManual"]
+        and cargo[Harvest.KIT])
 end)
 
 section("api", function()
@@ -139,8 +139,8 @@ end
 function P4Z_HARVEST(precise)
     local p = getPlayer()
     local inv = p:getInventory()
-    local scalpel = inv:getFirstTypeRecurse(Harvest.SCALPEL) or inv:AddItem(Harvest.SCALPEL)
-    p:setPrimaryHandItem(scalpel)
+    local kit = inv:getFirstTypeRecurse(Harvest.KIT) or inv:AddItem(Harvest.KIT)
+    p:setPrimaryHandItem(kit)
     if precise and not inv:containsTypeRecurse(Harvest.TWEEZERS) then inv:AddItem(Harvest.TWEEZERS) end
     local best, bestD
     for dx = -3, 3 do

@@ -6,17 +6,17 @@ module OperationAcorn
     }
 
     /* The zombie samples (DESIGN 6 '좀비 시료', NUMBERS 4): the two tools, the four grades a harvest rolls, and the target
-       mission's sample (Story/Harvest.lua). The tools never wear; the scalpel is held in a hand (the equippable tag gives
-       it the game's equip options), the tweezers work from anywhere in the inventory. */
-    item HarvestScalpel
+       mission's sample (Story/Harvest.lua). The tools never wear; the harvest kit (its scalpel, sealed jars) is held in a hand
+       (the equippable tag gives it the game's equip options; in the hand it shows its scalpel, on the floor a kit case), the tweezers work from anywhere in the inventory. */
+    item HarvestKit
     {
         DisplayCategory = FirstAid,
         ItemType = base:normal,
-        Weight = 0.2,
-        Icon = OA_HarvestScalpel,
-        Tooltip = Tooltip_OA_Harvest_Scalpel,
+        Weight = 0.5,
+        Icon = OA_HarvestKit,
+        Tooltip = Tooltip_OA_Harvest_Kit,
         StaticModel = Scalpel,
-        WorldStaticModel = Scalpel,
+        WorldStaticModel = FirstAidKit_Military,
         Tags = base:equippable,
     }
 
