@@ -439,13 +439,27 @@ local function placeAdded(context, before)
     PZUIKit.Menu.beforeTail(context, ends)
 end
 
+local function onPlace(playerObj, item)
+    BU.giveTile(item)
+    ISMoveableContextMenu.openMovableCursor(item, playerObj)
+end
+
+-- A box held in both hands is put down with the furniture cursor from any square's menu, as from the inventory's.
+local function addHeldBoxOption(context, playerObj)
+    local held = BU.Moveables.heldBox(playerObj)
+    if not held or not BU.enabled("panel") then return end
+    local option = context:addOption(getText("ContextMenu_BU_Install"), playerObj, onPlace, held)
+    option.itemForTexture = held
+    if not BU.api() then unavailable(option, apiMissingText()) end
+end
+
 function ContextMenu.fill(player, context, worldobjects, test)
     if test and ISWorldObjectContextMenu.Test then return true end
     local playerObj = getSpecificPlayer(player)
     local square = clickedSquare(worldobjects)
     if not playerObj or not square then return end
     if test then
-        if hasOptions(squareObjects(square)) then return ISWorldObjectContextMenu.setTest() end
+        if hasOptions(squareObjects(square)) or BU.Moveables.heldBox(playerObj) then return ISWorldObjectContextMenu.setTest() end
         return
     end
     local objects = squareObjects(square)
@@ -458,6 +472,7 @@ function ContextMenu.fill(player, context, worldobjects, test)
         local unit = Units.ofObject(object)
         if unit then addUnitOptions(context, playerObj, unit) end
     end
+    addHeldBoxOption(context, playerObj)
     if BU.api() then
         addProducerOptions(context, playerObj, objects)
         addDeviceOptions(context, playerObj, objects)
@@ -469,11 +484,6 @@ Events.OnFillWorldObjectContextMenu.Add(ContextMenu.fill)
 
 -- Putting a box or a unit down from the inventory: its item is the game's furniture (Moveables.lua), put down with the
 -- game's furniture cursor in its place mode, turned with its rotate key.
-local function onPlace(playerObj, item)
-    BU.giveTile(item)
-    ISMoveableContextMenu.openMovableCursor(item, playerObj)
-end
-
 -- What an item puts down: "panel" for a box, a unit's kind, or nil.
 local function placedKind(item)
     local fullType = item:getFullType()

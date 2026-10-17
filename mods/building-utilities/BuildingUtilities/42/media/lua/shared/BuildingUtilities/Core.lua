@@ -331,6 +331,20 @@ function BU.giveXp(character, amount)
     if multiplier > 0 and amount > 0 then addXp(character, Perks.Electricity, amount * multiplier) end
 end
 
+-- A line the character says, kept up longer than the game's (it shows a line some 5 seconds, the same for all): said
+-- again a while later, which only starts the same line's time over.
+BU.SAY_LONGER_MS = 3000
+function BU.sayLonger(character, text)
+    character:Say(text)
+    local due = getTimestampMs() + BU.SAY_LONGER_MS
+    local function again()
+        if getTimestampMs() < due then return end
+        Events.OnTick.Remove(again)
+        character:Say(text)
+    end
+    Events.OnTick.Add(again)
+end
+
 -- When a device on a timer is connected: "always" (no timer), "night" (from dusk to dawn) or "day". Dusk and dawn
 -- move with the season, as the game's own.
 BU.SCHEDULES = { "always", "night", "day" }

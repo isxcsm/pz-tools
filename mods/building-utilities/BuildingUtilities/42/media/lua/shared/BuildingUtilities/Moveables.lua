@@ -427,9 +427,37 @@ end)
 
 -- The cursor draws the tile it would put down (objectSprite); a unit of lookBySquare is drawn as the square under it
 -- makes it, for the side it is turned to. Only while putting one down; the cursor is the game's, there once a game is on.
+-- A box held in both hands, or nil.
+local function heldBox(character)
+    local held = character and character:getPrimaryHandItem()
+    if held and held == character:getSecondaryHandItem() and instanceof(held, "Moveable")
+        and BU.PANEL_ITEM_TIER[held:getFullType()] then
+        return held
+    end
+    return nil
+end
+Moveables.heldBox = heldBox
+
 local function wrapCursor()
     if not ISMoveableCursor or ISMoveableCursor.buLookBySquare then return end
     ISMoveableCursor.buLookBySquare = true
+    -- The cursor puts down what the inventory holds but not the hands (getInventoryObjectList): a box held is put down
+    -- from the hands, so it is among them, the one shown when the cursor was opened for it.
+    local list = ISMoveableCursor.getInventoryObjectList
+    function ISMoveableCursor:getInventoryObjectList()
+        local initial = self.tryInitialInvItem
+        local objects = list(self)
+        local held = heldBox(self.character)
+        local props = held and ISMoveableSpriteProps.new(held:getWorldSprite())
+        if props and props.isMoveable then
+            table.insert(objects, { object = held, moveProps = props })
+            if initial == held or self.cacheInvObjectSprite == held:getWorldSprite() then
+                self.objectIndex = #objects
+                self.cacheInvObjectSprite = held:getWorldSprite()
+            end
+        end
+        return objects
+    end
     local render = ISMoveableCursor.render
     function ISMoveableCursor:render(x, y, z, square)
         local props, shown = self.currentMoveProps, self.objectSprite
