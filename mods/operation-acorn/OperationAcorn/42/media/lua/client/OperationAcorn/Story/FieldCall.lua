@@ -146,13 +146,12 @@ local function played(call)
 end
 
 -- Each tick while a call is on: its clock moves unless a line is done and the character is in trouble, or the game is
--- paused; a new line is typed as it comes; at the end the last one stays a while, then the tick handler goes.
+-- paused; a new line is typed as it comes; at the end the last one stays a while. The handler, once added, stays (one
+-- taken off inside its event makes the game skip the next one that tick) and returns at once while no call is on.
+local hooked = false
 local function tick()
     local call = current
-    if not call then
-        Events.OnTick.Remove(tick)
-        return
-    end
+    if not call then return end
     local now = getTimestampMs()
     local dt = (now - (call.last or now)) / 1000
     call.last = now
@@ -160,7 +159,6 @@ local function tick()
         if now >= call.over then
             hide(call)
             current = nil
-            Events.OnTick.Remove(tick)
         end
         return
     end
@@ -194,8 +192,10 @@ function FieldCall.check()
     current = { character = character, entry = e, lines = lines, tl = tl, t = 0, st = Script.at(tl, 0), line = 0, shown = {},
         sign = getText(e.sign == "admin" and "IGUI_OA_Story_CallSign_Handover" or "IGUI_OA_Story_CallSign_Oak"),
         number = OA.Story.number(record) }
-    Events.OnTick.Remove(tick)
-    Events.OnTick.Add(tick)
+    if not hooked then
+        hooked = true
+        Events.OnTick.Add(tick)
+    end
 end
 
 OA.Sync.listen("comms", function() FieldCall.check() end)

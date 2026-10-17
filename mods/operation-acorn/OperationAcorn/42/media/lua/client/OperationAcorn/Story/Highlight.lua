@@ -30,7 +30,9 @@ local tinted = setmetatable({}, { __mode = "k" })
 
 -- The look runs on the extension API's timer when it has one (`slot`: OA.timerOn), else on a handler of OnTick
 -- (`ticking`) that compares the clock each frame. The look only outlines and paints: it may go on while the game is paused.
-local ticking = false
+-- The handler, once added, stays (`hooked`: one taken off inside its event makes the game skip the next one that tick)
+-- and returns at once while the look is not on it.
+local ticking, hooked = false, false
 local slot = {}
 local last = {}
 local EMPTY = {}
@@ -220,7 +222,7 @@ local function look()
 end
 
 local function tick()
-    if OA.due(last, "look", getTimestampMs(), View.EVERY_MS) then look() end
+    if ticking and OA.due(last, "look", getTimestampMs(), View.EVERY_MS) then look() end
 end
 
 -- Takes everything back (the mission ended, or the character is gone).
@@ -243,18 +245,17 @@ local function update()
     if want then
         local timed, fresh = OA.timerOn(slot, { ms = View.EVERY_MS }, look)
         if timed then
-            if ticking then
-                ticking = false
-                Events.OnTick.Remove(tick)
-            end
+            ticking = false
             -- (the first look at the next frame, as the handler's)
             if fresh then OA.timerAfter(1, look) end
         elseif not ticking then
             ticking = true
-            Events.OnTick.Add(tick)
+            if not hooked then
+                hooked = true
+                Events.OnTick.Add(tick)
+            end
         end
     elseif ticking or slot.id ~= nil then
-        if ticking then Events.OnTick.Remove(tick) end
         ticking = false
         OA.timerOff(slot)
         clear()

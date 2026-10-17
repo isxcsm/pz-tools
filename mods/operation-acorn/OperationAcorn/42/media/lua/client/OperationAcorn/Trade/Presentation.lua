@@ -38,7 +38,7 @@ OA.Sync.listen("notice", onNotice)
 -- The helicopter's pass --------------------------------------------------------------------------------------------------
 
 local passes = {}
-local ticking = false
+local hooked = false
 
 -- Where the helicopter is, `t` seconds into a pass: along a line through the drop, from far on one side to far on the
 -- other, at the drop at the loudest moment.
@@ -48,7 +48,10 @@ local function positionAt(pass, t)
     return pass.x - math.cos(pass.angle) * reach, pass.y - math.sin(pass.angle) * reach
 end
 
+-- The handler, once added, stays (one taken off inside its event makes the game skip the next one that tick) and
+-- returns at once while no helicopter passes.
 local function tick()
+    if passes[1] == nil then return end
     local now = getTimestampMs()
     for i = #passes, 1, -1 do
         local pass = passes[i]
@@ -60,10 +63,6 @@ local function tick()
             local x, y = positionAt(pass, t)
             pass.emitter:setPos(x, y, 0)
         end
-    end
-    if #passes == 0 then
-        Events.OnTick.Remove(tick)
-        ticking = false
     end
 end
 
@@ -77,8 +76,8 @@ local function onHeliPass(playerId, args)
     emitter:playSound(Presentation.SOUND)
     pass.emitter = emitter
     passes[#passes + 1] = pass
-    if not ticking then
-        ticking = true
+    if not hooked then
+        hooked = true
         Events.OnTick.Add(tick)
     end
 end

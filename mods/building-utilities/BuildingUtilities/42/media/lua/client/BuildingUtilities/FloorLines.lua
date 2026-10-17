@@ -30,6 +30,8 @@ local RECHECK_TICKS, RECHECK_EVERY = 600, 60
 local function bit(dx, dy) return SIDE[dx] and SIDE[dx][dy] or 0 end
 
 -- What each square shows: { [key] = { x, y, z, power = sides, water = sides, lines = { ref, ... } } }.
+local SIDE_BITS = { 1, 2, 4, 8 }
+
 function FloorLines.wanted()
     local squares = {}
     local function add(x, y, z, line, sides)
@@ -42,7 +44,7 @@ function FloorLines.wanted()
         local utility = line.utility
         local had = square[utility] or 0
         -- the sides' bits or'd in (Kahlua has no bit operators)
-        for _, b in ipairs({ 1, 2, 4, 8 }) do
+        for _, b in ipairs(SIDE_BITS) do
             if BU.remainder(sides, b * 2) >= b and BU.remainder(had, b * 2) < b then had = had + b end
         end
         square[utility] = had

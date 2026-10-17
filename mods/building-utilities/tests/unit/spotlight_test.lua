@@ -1,11 +1,14 @@
 -- The UI kit's spotlight (PZUIKit.Spotlight) as the first find of a box points one out: an outline that goes by its
 -- time, by the character walking off, by the object leaving the world, or by the world menu opened over its square;
 -- a loot line that blinks for a while unless another takes the blink; and nothing running once all is over.
-local now, ticks, events
+local now, ticks, events, reads
 
 local function load()
-    now = 0
-    getTimestampMs = function() return now end
+    now, reads = 0, 0
+    getTimestampMs = function()
+        reads = reads + 1
+        return now
+    end
     ticks, events = {}, {}
     Events = setmetatable({}, { __index = function(t, name)
         local e = {
@@ -27,10 +30,18 @@ local function tick()
     for _, fn in ipairs(list) do fn() end
 end
 
+-- The tick handlers that do something on a tick (read the clock): a handler stays once added, idle when nothing is
+-- pointed out; never more than one.
 local function ticking()
-    local n = 0
-    for _ in pairs(ticks) do n = n + 1 end
-    return n
+    local n, working = 0, 0
+    for fn in pairs(ticks) do
+        n = n + 1
+        local before = reads
+        fn()
+        if reads > before then working = working + 1 end
+    end
+    assert(n <= 1, "one tick handler at most")
+    return working
 end
 
 local function square(x, y) return { getX = function() return x end, getY = function() return y end } end

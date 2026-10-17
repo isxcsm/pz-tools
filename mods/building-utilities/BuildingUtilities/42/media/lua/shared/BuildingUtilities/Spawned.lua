@@ -38,11 +38,12 @@ function Spawned.keep(x, y, z)
 end
 
 -- The kept places on z within reach squares of x, y each way.
+local NONE = {}
 function Spawned.near(x, y, z, reach)
     local all, result = places(), {}
     for cx = math.floor((x - reach) / CELL), math.floor((x + reach) / CELL) do
         for cy = math.floor((y - reach) / CELL), math.floor((y + reach) / CELL) do
-            for _, place in ipairs(all[cellKey(cx, cy)] or {}) do
+            for _, place in ipairs(all[cellKey(cx, cy)] or NONE) do
                 if place.z == z and math.abs(place.x - x) <= reach and math.abs(place.y - y) <= reach then
                     result[#result + 1] = place
                 end

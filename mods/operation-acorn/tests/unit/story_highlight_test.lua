@@ -102,6 +102,19 @@ local function tick()
     for fn in pairs(state.handlers) do fn() end
 end
 
+-- The tick handlers that work on a frame (ask whether a look is due): a handler stays once added, idle while the look
+-- is off.
+local function working()
+    local due, count = OA.due, 0
+    OA.due = function(...)
+        count = count + 1
+        return due(...)
+    end
+    for fn in pairs(state.handlers) do fn() end
+    OA.due = due
+    return count
+end
+
 test("a container that holds the mission item is outlined teal when the character is near, on its floor and sees it", function()
     local m = setup(regular())
     local desk = furniture({ container({ item("M1-1") }) })
@@ -246,9 +259,7 @@ test("the work runs while a mission is open and stops, taking the outlines back,
     eq(desk.on, true)
     record.missions.active.state = "sealed"
     H.update()
-    count = 0
-    for _ in pairs(state.handlers) do count = count + 1 end
-    eq(count, 0, "no tick without an open mission")
+    eq(working(), 0, "no tick work without an open mission")
     eq(desk.on, false, "the outline is taken back")
     eq(H.lit[0], nil)
 end)

@@ -20,7 +20,9 @@ Spotlight.COLOR = { 1, 1, 1, 1 }
 local outlines = {}
 -- The loot lines, by the player's number: { untilMs, type, pane }.
 local lines = {}
-local watching = false
+-- The tick handler, once added, stays (`hooked`: one taken off inside its event makes the game skip the next one that
+-- tick) and returns at once while nothing is pointed out (`watching`).
+local watching, hooked = false, false
 local checkedAt = 0
 
 local function unlight(playerNum, object)
@@ -41,11 +43,15 @@ local function start()
     if watching then return end
     watching = true
     checkedAt = 0
-    Events.OnTick.Add(watch)
+    if not hooked then
+        hooked = true
+        Events.OnTick.Add(watch)
+    end
 end
 
 -- Ends what has had its time (each tick: a clock compared), and, every CHECK_MS, what has lost its reason.
 watch = function()
+    if not watching then return end
     local now = getTimestampMs()
     local full = now - checkedAt >= Spotlight.CHECK_MS
     if full then checkedAt = now end
@@ -78,10 +84,7 @@ watch = function()
         if line.pane.highlightItem == line.type then line.pane.highlightItem = nil end
         lines[playerNum] = nil
     end
-    if not any then
-        Events.OnTick.Remove(watch)
-        watching = false
-    end
+    if not any then watching = false end
 end
 
 -- Outlines an object for the character with this player number. opts (all optional): color { r, g, b[, a] }, ms (how

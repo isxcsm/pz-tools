@@ -114,7 +114,9 @@ end
 
 -- Whether an object is a machine's anchor or one of its other parts.
 function Machines.isMachineObject(object)
-    return Machines.state(object) ~= nil or Machines.anchorMark(object) ~= nil
+    if not object or not object:hasModData() then return false end
+    local data = object:getModData()
+    return data[Data.KEY] ~= nil or data[Data.ANCHOR_KEY] ~= nil
 end
 
 -- The anchor of a machine object (the object itself when it is the anchor). nil when it is a part whose anchor's

@@ -11,8 +11,9 @@ OA.Upgrades.Pulse = Pulse
 local jobs = {}
 local wake = 0
 local added = false
--- Whether the jobs run on the API's timers (else on the OnTick handler).
-local timed = false
+-- Whether the jobs run on the API's timers (else on the OnTick handler). The handler, once added, stays (`hooked`: one
+-- taken off inside its event makes the game skip the next one that tick) and returns at once while it is not used.
+local timed, hooked = false, false
 
 function Pulse.job(name, period, fn)
     local job = { name = name, period = period, fn = fn, due = 0, slot = {} }
@@ -25,6 +26,7 @@ local function runJob(job, now)
 end
 
 local function onTick()
+    if not added or timed then return end
     local now = getTimestampMs()
     if now < wake then return end
     local nextWake = now + 1000
@@ -77,10 +79,13 @@ function Pulse.enable(on)
         if added then return end
         added, timed = true, false
         wake = 0
-        Events.OnTick.Add(onTick)
+        if not hooked then
+            hooked = true
+            Events.OnTick.Add(onTick)
+        end
     elseif added then
         added = false
-        if timed then stopTimers() else Events.OnTick.Remove(onTick) end
+        if timed then stopTimers() end
         timed = false
     end
 end

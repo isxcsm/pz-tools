@@ -389,6 +389,17 @@ local function watch(panel, rules, bank, sunny)
     return true
 end
 
+-- The minutes (at most `minutes`) until a bank at `share` of its capacity reaches one of the TURNS, charged at `up` or
+-- drawn at `down`.
+local function soonestTurn(minutes, share, capacity, up, down)
+    for _, turn in ipairs(TURNS) do
+        local gap = (turn - share) * capacity
+        local flow = gap > 0 and up or down
+        if math.abs(gap) > 1e-6 and flow > 1e-9 then minutes = math.min(minutes, math.abs(gap) / flow * 60) end
+    end
+    return minutes
+end
+
 local function coldMinutes(panel)
     watched[panel.id] = nil
     if Panels.breaker(panel) < 1 then return COLD_MINUTES end
@@ -402,13 +413,8 @@ local function coldMinutes(panel)
     if not bank or bank.capacity <= 0 then return minutes end
     local up, down = sunny * Energy.efficiency(), rules.load
     -- Its charge for full, what it can give (above what cold and the worst battery hold back) for the rest.
-    for _, share in ipairs({ bank.charge, bank.usable / bank.capacity }) do
-        for _, turn in ipairs(TURNS) do
-            local gap = (turn - share) * bank.capacity
-            local flow = gap > 0 and up or down
-            if math.abs(gap) > 1e-6 and flow > 1e-9 then minutes = math.min(minutes, math.abs(gap) / flow * 60) end
-        end
-    end
+    minutes = soonestTurn(minutes, bank.charge, bank.capacity, up, down)
+    minutes = soonestTurn(minutes, bank.usable / bank.capacity, bank.capacity, up, down)
     return math.max(COLD_LEAST, math.floor(minutes))
 end
 
