@@ -6,6 +6,8 @@
 -- time a control is used). Debug mode only.
 if not isDebugEnabled() then return end
 require "BuildingUtilities/Changes"
+require "BuildingUtilities/PanelLook"
+require "BuildingUtilities/Spawned"
 local BU = BuildingUtilities
 local Store, Panels, Changes, Sync, Networks = BU.Store, BU.Panels, BU.Changes, BU.Sync, BU.Networks
 local Dev = {}
@@ -150,6 +152,56 @@ local function spawnedPlaces()
         return a.y < b.y
     end)
     return list
+end
+
+-- The box nearest the character on their floor, within RESPAWN_REACH squares: its object and square, or nil.
+local RESPAWN_REACH = 15
+local function nearestBox()
+    local p = player()
+    local px, py, pz = math.floor(p:getX()), math.floor(p:getY()), math.floor(p:getZ())
+    local best, bestSquare, bestDistance
+    for dx = -RESPAWN_REACH, RESPAWN_REACH do
+        for dy = -RESPAWN_REACH, RESPAWN_REACH do
+            local square = getCell():getGridSquare(px + dx, py + dy, pz)
+            local objects = square and square:getObjects()
+            for i = 0, objects and objects:size() - 1 or -1 do
+                local object = objects:get(i)
+                local sprite = object:getSprite()
+                local distance = dx * dx + dy * dy
+                if sprite and BU.PanelLook.ofSprite(sprite:getName()) and (not best or distance < bestDistance) then
+                    best, bestSquare, bestDistance = object, square, distance
+                end
+            end
+        end
+    end
+    return best, bestSquare
+end
+
+-- The box nearest the character made a spawned one again, as the map leaves it (bare, of tier 1, facing as it does,
+-- kept: BU.Spawned), and the first find reset: walking up to it shows the find again. Returns its square, or nil.
+local SIDES = { "S", "E", "N", "W" }
+function Dev.respawnNearest()
+    local object, square = nearestBox()
+    if not object then return nil end
+    local shown = BU.PanelLook.ofSprite(object:getSprite():getName())
+    local panel = BU.Panels.ofObject(object)
+    local outdoor = shown.variant > BU.TIERS
+    if panel then
+        outdoor = panel.outdoor == true
+        BU.Changes.remove(panel)
+    else
+        square:transmitRemoveItemFromSquare(object)
+    end
+    local bare = IsoObject.new(square, BU.panelSprite(SIDES[shown.facing] or "S", 1, outdoor), nil, false)
+    square:AddTileObject(bare)
+    local x, y, z = square:getX(), square:getY(), square:getZ()
+    local kept = false
+    for _, place in ipairs(BU.Spawned.near(x, y, z, 0)) do
+        if place.x == x and place.y == y then kept = true end
+    end
+    if not kept then BU.Spawned.keep(x, y, z) end
+    Dev.resetFind()
+    return square
 end
 
 Dev.spawnedIndex = 0

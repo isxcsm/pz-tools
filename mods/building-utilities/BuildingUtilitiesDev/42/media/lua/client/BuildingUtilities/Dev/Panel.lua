@@ -85,14 +85,20 @@ local function givePage(page, ui)
         Dev.setOption("BuildingUtilities.CostsEnabled", not on)
     end)
     ui.heading(page, T("Gv_Spawned"), n + 5)
-    local spawned = ui.lines(page, n + 7, 1)
-    ui.buttons(page, n + 6, {
+    local spawned
+    rows = ui.buttons(page, n + 6, {
         { T("Gv_FindAgain"), function() Dev.resetFind() end },
+        { T("Gv_Respawn"), function()
+            local square = Dev.respawnNearest()
+            spawned:set({ square and T("Gv_RespawnedAt", ui.num(square:getX()), ui.num(square:getY()))
+                or T("Gv_RespawnNone") })
+        end },
         { T("Gv_NextSpawned"), function()
             local index, count = Dev.nextSpawned()
             spawned:set({ T("Gv_SpawnedAt", ui.num(index), ui.num(count)) })
         end },
     })
+    spawned = ui.lines(page, n + 6 + rows, 1)
     page.refresh = function()
         free:setSelected(1, Dev.option("CostsEnabled", true) ~= true)
     end
