@@ -47,6 +47,10 @@ final class Texts implements Hooks.Text {
     static final String HOOK = "UIManager.render:text";
     static final int PLAYERS = 4, MAX_LINES = 8, MAX_LENGTH = 512, MAX_PER_MOD = 64, MAX_ALL = 256, MAX_WAITING = 8;
     static final double MAX_SECONDS = 30, MAX_HOLD = 3600, MAX_SCALE = 20, MAX_SIZE = 0.5, MAX_OUTLINE = 8;
+    /** A text sized as a share of the screen drawn this much shorter than the game's font, or less, takes the embedded font. */
+    static final double SHRUNK = 0.97;
+    /** How far a title's {@code scale} may take its style's sizes. */
+    static final double MIN_TITLE_SCALE = 0.4, MAX_TITLE_SCALE = 2.5;
     // Typing: the characters a second (DEFAULT_SPEED when left out), the narrowest width to fit, the longest pause, the longest a
     // text may take to type, and the time a cursor is on, and then off.
     static final double DEFAULT_SPEED = 30, MAX_SPEED = 1000, MIN_WIDTH = 0.05, MAX_PAUSE = 30, MAX_TYPING = 300, BLINK = 0.5;
@@ -1263,7 +1267,8 @@ final class Texts implements Hooks.Text {
      */
     private long title(String owner, Object spec, String call) throws ReflectiveOperationException {
         String style = "dust", line = null;
-        Object text = null, color = null, lineColor = null, hold = null, player = null, y = null, leave = null, leaveTime = null, backdrop = null;
+        Object text = null, color = null, lineColor = null, hold = null, player = null, y = null, leave = null, leaveTime = null, backdrop = null,
+            scale = null;
         var dusts = new LinkedHashMap<String, Object>();
         boolean now = false;
         for (var entry : lua.entries(spec)) {
@@ -1289,14 +1294,15 @@ final class Texts implements Hooks.Text {
                 case "leave" -> leave = value;
                 case "leaveTime" -> leaveTime = value;
                 case "backdrop" -> backdrop = value;
+                case "scale" -> scale = value;
                 case "dustSize", "dustSweep", "dustDrift", "dustBurn" -> dusts.put(field, value);
                 case "now" -> {
                     if (!(value instanceof Boolean on)) throw new IllegalArgumentException(call + ": spec.now must be true or false");
                     now = on;
                 }
                 default -> throw new IllegalArgumentException(call + ": spec has no field " + field
-                    + "; it takes text, subtitle, style, color, subtitleColor, hold, y, player, leave, leaveTime, backdrop, dustSize, dustSweep, dustDrift,"
-                    + " dustBurn and now");
+                    + "; it takes text, subtitle, style, color, subtitleColor, hold, y, player, leave, leaveTime, backdrop, scale, dustSize, dustSweep,"
+                    + " dustDrift, dustBurn and now");
             }
         }
         if (text == null) throw new IllegalArgumentException(call + ": spec.text must be a string of 1 to " + MAX_LENGTH + " characters");
@@ -1305,6 +1311,10 @@ final class Texts implements Hooks.Text {
         Object fonts = chosen.title().get("font");
         big.lines = lines(text, call, "spec.text");
         font(big, fonts, call, "spec.font");
+        // The style's sizes, the title's and its line's, times `scale` (a title that matters more, or less, than its style's).
+        double times = scale == null ? 1 : number(scale, call, "spec.scale", MIN_TITLE_SCALE, MAX_TITLE_SCALE);
+        big.size *= times;
+        if (small != null) small.size *= times;
         if (color != null) { float[] parts = color(color, call, "spec.color"); big.red = parts[0]; big.green = parts[1]; big.blue = parts[2]; big.alpha = parts[3]; }
         if (hold != null) big.hold = number(hold, call, "spec.hold", 0, MAX_HOLD);
         if (y != null) big.y = number(y, call, "spec.y", 0, 1);
@@ -2141,12 +2151,15 @@ final class Texts implements Hooks.Text {
 
     /**
      * Whether the embedded font draws the text now: it is in video memory, the line asked for is taller than the game's font the
-     * text's list picked is made at (that font would be zoomed past its size, and blur), that font is not a distance-field one
-     * (those are sharp at any size), and the embedded font has every character of the text (else the game's font draws all of
-     * it: no character is missing). Allocates nothing.
+     * text's list picked is made at (that font would be zoomed past its size, and blur), or, for a text sized as a share of the
+     * screen ({@code size}: a title and its line), shorter by more than {@link #SHRUNK} (the game's picture shrunk is soft too),
+     * that font is not a distance-field one (those are sharp at any size), and the embedded font has every character of the text
+     * (else the game's font draws all of it: no character is missing). Allocates nothing.
      */
     private boolean large(Shown text, EmbeddedFont.Loaded own, Object font, double requested) throws Throwable {
-        if (own == null || !own.ready.get() || requested <= text.gameLineHeight) return false;
+        if (own == null || !own.ready.get()) return false;
+        boolean zoomed = requested > text.gameLineHeight || text.size > 0 && requested < text.gameLineHeight * SHRUNK;
+        if (!zoomed) return false;
         if ((boolean)sdf.invokeExact(textManager, font)) return false;
         if (text.coveredBy != own) {
             text.covered = own.covers(text.lines, text.cursor, CURSOR.charAt(0));

@@ -71,6 +71,7 @@ final class TextsTest {
             effects(text, mod);
             typing(text, mod);
             titles(text, mod);
+            titleScale(text, mod);
             screens(text, mod);
             world(text, mod, other);
             rejects(api, text, mod);
@@ -429,21 +430,27 @@ final class TextsTest {
                 "The embedded font drew " + Arrays.toString(draw));
             check(near((Float)call("threshold")[1], 0.75 / 16), "The embedded font's edge is " + call("threshold")[1]);
             FormulasTest.call(text, "hide", mod, key, true);
-            // 27 high, and 33 (the tallest of Small, Medium and Large): the game's font, zoomed, outside the shader.
-            for (Object[] spec : new Object[][] { { "size", 0.03 }, { "scale", 1.0 } }) {
+            // 33 high (the tallest of Small, Medium and Large), asked by size or by scale: the game's font at its size, outside the shader.
+            for (Object[] spec : new Object[][] { { "size", 33.0 / 900 }, { "scale", 1.0 } }) {
                 key = (Double)FormulasTest.call(text, "show", mod, table("text", "수색", "font", list("SdfBold", "Large"), spec[0], spec[1])).get(0);
                 render();
                 check(draws().get(0)[1] == UIFont.Large && call("start") == null, "A line of " + spec[0] + " " + spec[1] + " was not the game's font");
                 FormulasTest.call(text, "hide", mod, key, true);
             }
-            // Medium (24) asked for 28.8 (a notice's line in Korean): the embedded font, not Medium zoomed; at 21.6, Medium.
+            // Medium (24) asked for 28.8 (a notice's line in Korean): the embedded font, not Medium zoomed; asked by size for 21.6 (a
+            // title made smaller), the embedded font too, not Medium shrunk soft; by scale at 0.9, Medium shrunk (UI text keeps the game's).
             key = (Double)FormulasTest.call(text, "show", mod, table("text", "수색", "font", list("SdfBold", "Medium"), "size", 0.032)).get(0);
             render();
             check(draws().get(0)[1] == face && near(zoom(draws().get(0)), 28.8 / 90), "A zoomed Medium was not the embedded font: " + Arrays.toString(draws().get(0)));
             FormulasTest.call(text, "hide", mod, key, true);
             key = (Double)FormulasTest.call(text, "show", mod, table("text", "수색", "font", list("SdfBold", "Medium"), "size", 0.024)).get(0);
             render();
-            check(draws().get(0)[1] == UIFont.Medium, "Medium at below its size was not the game's font");
+            check(draws().get(0)[1] == face && near(zoom(draws().get(0)), 21.6 / 90), "A shrunk Medium sized by the screen was not the embedded font: "
+                + Arrays.toString(draws().get(0)));
+            FormulasTest.call(text, "hide", mod, key, true);
+            key = (Double)FormulasTest.call(text, "show", mod, table("text", "수색", "font", list("SdfBold", "Medium"), "scale", 0.9)).get(0);
+            render();
+            check(draws().get(0)[1] == UIFont.Medium, "Medium at below its size by scale was not the game's font");
             FormulasTest.call(text, "hide", mod, key, true);
             // A zoom of 1.1 on Large: 36.3 high, the embedded font at 36.3 / 90.
             key = (Double)FormulasTest.call(text, "show", mod, table("text", "수색", "scale", 1.1)).get(0);
@@ -1077,6 +1084,23 @@ final class TextsTest {
 
     private static double showing(KahluaTable text, Object mod, Object... pairs) {
         return (Double)FormulasTest.call(text, "show", mod, table(pairs)).get(0);
+    }
+
+    /** A title's scale: its style's sizes, the title's and its line's, times it, the line still under the title; out of range refused. */
+    private static void titleScale(KahluaTable text, Object mod) {
+        FormulasTest.call(mod, "clear");
+        FormulasTest.call(text, "title", mod, table("text", "Big title", "subtitle", "its line", "style", "stamp", "scale", 1.5));
+        render();
+        advance(1.2);
+        render();
+        Object[] title = last("Big title"), line = last("its line");
+        double zoom = 0.1 * 1.5 * 900 / 45, lineZoom = 0.045 * 1.5 * 900 / 45;
+        check(title != null && near(zoom(title), zoom), "A title of scale 1.5 is not half again as tall: " + (title == null ? null : zoom(title)));
+        check(line != null && near(zoom(line), lineZoom)
+            && near((Double)line[3], (0.16 + 0.15 / 2 + 0.15 * 0.25 + 0.0675 / 2) * 900 - 45 * lineZoom / 2), "A scaled title's line is not under it");
+        FormulasTest.call(mod, "clear");
+        rejects(text, "spec.scale must be", "title", mod, table("text", "x", "scale", 3.0));
+        rejects(text, "spec.scale must be", "title", mod, table("text", "x", "scale", 0.3));
     }
 
     /** Titles: their styles, one after another, at once when asked, and a full queue. */

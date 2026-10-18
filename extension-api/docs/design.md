@@ -2005,7 +2005,8 @@ which override the jar's; it overrides none of the text classes):
 
 `title`'s spec: `text` (the title), `subtitle` (the line under it), `style` (`"dust"` when left out), and to change the style's
 `color`, `subtitleColor`, `hold` (seconds), `y`, `player`, `leave` and `leaveTime` (for the title and its line alike: any style
-can leave as dust), `backdrop` (0 for none), `dustSize`, `dustSweep`, `dustDrift` and `dustBurn` (with `leave = "dust"`, `"burn"` or `"flare"`, the
+can leave as dust), `backdrop` (0 for none), `scale` (0.4 to 2.5: the style's sizes of the title and its line times this, for a
+title that matters more or less than its style says), `dustSize`, `dustSweep`, `dustDrift` and `dustBurn` (with `leave = "dust"`, `"burn"` or `"flare"`, the
 style's or the spec's), and `now`. The line under a title takes its look's cues from it (a torch's flicker). A title's backdrop reaches over its line: one backdrop for both. Every style stays 5 s once all of it is in (the title, and its line when it has one: its hold is
 lengthened by as much as the line comes in after the title) and has a backdrop of 0.3, but `"brief"`, a light one for small news. A style is a pair of `show` specs:
 
@@ -2268,7 +2269,7 @@ through the game's distance-field shader
 
 | Condition | Why |
 | --- | --- |
-| The line asked for (`size` times the screen's height, or the game font's line times `scale`) is taller than the line of the game's font the text's list picked (for Korean at the 1x option `Small` 18, `Medium` 24, `Large` 33 pixels) | Above it that font would be zoomed past its size and blur. At or below it, the game's font is drawn at its own size or smaller: hinted, crisp, and it follows a font mod for an unofficial language. The line is measured again when the game makes its fonts again. |
+| The line asked for (`size` times the screen's height, or the game font's line times `scale`) is taller than the line of the game's font the text's list picked (for Korean at the 1x option `Small` 18, `Medium` 24, `Large` 33 pixels) | Above it that font would be zoomed past its size and blur. At or below it, the game's font is drawn at its own size or smaller: hinted, crisp, and it follows a font mod for an unofficial language. A text sized as a share of the screen (`size`: a title and its line, a title's `scale` too) is the exception below: shorter than 97% of that line, the game's picture shrunk would be soft, so the embedded font draws it. The line is measured again when the game makes its fonts again. |
 | The game's font the text's list picked is not a distance-field font | Those are sharp at any size already; `{ "SdfBold", "Large" }` keeps `SdfBold` for Latin text. |
 | The embedded font has every character of the text, and the cursor's | Otherwise the game's font draws the whole text: no character is left out or drawn as a box, and a line is never in two fonts. |
 | Its atlas is in video memory | Until then, and on a failure, the game's font draws. |
