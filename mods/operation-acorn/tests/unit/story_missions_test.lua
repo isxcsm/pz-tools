@@ -476,10 +476,13 @@ test("the swap: case, wait near the place, then the record appears", function()
     local m = M.active(record)
     eq(m.story, "clinic")
     eq(m.swap.stage, "needcase")
+    local wanted = M.describe(record).item
+    truthy(wanted and wanted:find("ClinicRecord"), "the card names the record, not the case left behind")
     local p = m.site
     M.game.px, M.game.py = p.x + 5, p.y
     truthy(M.swap(record, {}))
     eq(m.swap.stage, "waiting")
+    eq(M.describe(record).item, wanted, "still the record while waiting")
     for _ = 1, 11 do tick(record); TEST.hours = TEST.hours + 1 / 6 end
     eq(m.swap.stage, "waiting", "not yet two hours")
     for _ = 1, 3 do tick(record); TEST.hours = TEST.hours + 1 / 6 end

@@ -1759,11 +1759,15 @@ local function describeMission(m, now)
     end
     info.form = m.form
     info.request = m.request
-    local first = m.items and m.items[1]
+    -- The item to find: the first piece the player fetches (not the case a swap leaves); before there is one (an offer,
+    -- a swap waiting for its case), the item the story or the pickup is for, when there is one only.
+    local first
+    for _, it in ipairs(m.items or {}) do
+        if not first and View.fetched(m, it) then first = it end
+    end
     if first then
         info.item = Data.itemName(first.type)
-    elseif m.state == "waiting" then
-        -- an offer has no pieces yet: the item it is for, when there is one only (a story's, a regular pickup's)
+    else
         local story = m.story and Data.STORIES[m.story]
         info.item = (story and not story.options and story.item) or (Data.ITEMS[tostring(m.title)] and m.title) or nil
     end
