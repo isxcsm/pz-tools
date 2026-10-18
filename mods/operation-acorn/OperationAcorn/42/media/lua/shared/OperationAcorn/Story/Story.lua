@@ -126,8 +126,12 @@ end
 -- How the team names the collection point (LORE 6 '호칭'). Branscomb's word for it wears down with his greeting: the
 -- first stage's "채집점 0347", then the bare number. After the handover 관리 7 names it by the grade its trust has
 -- reached, on the terminal's title too, and each new grade is stamped (Story.onStage): a point it took over (or a new
--- one, for a character that came after the handover), then regular, designated and priority as the levels climb.
-Story.GRADES = { { tier = 12, grade = "priority" }, { tier = 11, grade = "designated" }, { tier = 10, grade = "regular" } }
+-- one, for a character that came after the handover), then regular, designated, priority, special and top as the levels
+-- climb. Trust has no end, so past the top grade 관리 7 designates the point again at every level: the count shows on the
+-- terminal's title and in the stamp, not in the calls.
+Story.GRADES = { { tier = 16, grade = "top" }, { tier = 14, grade = "special" }, { tier = 12, grade = "priority" },
+    { tier = 11, grade = "designated" }, { tier = 10, grade = "regular" } }
+Story.TOP_TIER = 16
 
 -- The grade 관리 7 gives the point, or nil while the team keeps it.
 function Story.grade(record)
@@ -140,10 +144,20 @@ function Story.grade(record)
     return after and "new" or "handed"
 end
 
--- The point's name on papers and the terminal: "채집점 0347", or with its grade after the handover.
-function Story.designation(record)
+-- How many times 관리 7 designated the point again past the top grade (0 below it).
+function Story.redesignations(record)
+    if Story.grade(record) ~= "top" then return 0 end
+    return Story.tier(record) - Story.TOP_TIER
+end
+
+-- The point's name on papers and the terminal: "채집점 0347", or with its grade after the handover. `full` (the
+-- terminal's title) adds the times it was designated again past the top grade.
+function Story.designation(record, full)
     local g = Story.grade(record)
-    return Story.text(g and ("IGUI_OA_Story_Grade_" .. g) or "IGUI_OA_Story_Grade_none", Story.number(record))
+    local name = Story.text(g and ("IGUI_OA_Story_Grade_" .. g) or "IGUI_OA_Story_Grade_none", Story.number(record))
+    local again = full and Story.redesignations(record) or 0
+    if again > 0 then return Story.text("IGUI_OA_Story_GradeAgain", name, again) end
+    return name
 end
 
 -- What a call calls the player: the designation at the first stage and after the handover, the number between.
@@ -448,14 +462,22 @@ function Story.onStage(record, stage, milestones)
         Story.enterMilestone(record, k)
         OA.log("story: milestone", k, "reached by", record.number)
     end
-    -- a new grade from 관리 7 is stamped; the first one comes with the handover (or the first call) unstamped
+    -- a new grade from 관리 7 is stamped; the first one comes with the handover (or the first call) unstamped; past the
+    -- top grade each level is a designation again, stamped with its count
     local grade = Story.grade(record)
+    local again = Story.redesignations(record)
     if grade and grade ~= s.grade then
         if s.grade then
             OA.Sync.title(record.id, { key = "IGUI_OA_Title_Grade", sub = "IGUI_OA_Story_Grade_" .. grade,
                 subArgs = { Story.number(record) }, style = "stamp", fallback = "good" })
         end
         s.grade = grade
+        s.again = again
+    elseif grade == "top" and again > (s.again or 0) then
+        OA.Sync.title(record.id, { key = "IGUI_OA_Title_GradeAgain", sub = "IGUI_OA_Story_GradeAgain",
+            subArgs = { { key = "IGUI_OA_Story_Grade_top", args = { Story.number(record) } }, again }, style = "stamp",
+            fallback = "good" })
+        s.again = again
     end
     local tier = s.seenStage + s.seenMilestones
     if tier > OA.Comms.section(record).tier then

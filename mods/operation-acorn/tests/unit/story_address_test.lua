@@ -34,7 +34,7 @@ test("after the handover the grade climbs with the levels and the calls use it",
     eq(Story.grade(r), "regular")
     r.trade.milestones = 6
     eq(Story.grade(r), "designated")
-    r.trade.milestones = 9
+    r.trade.milestones = 7
     eq(Story.grade(r), "priority")
     local late = record(2)
     Story.section(late).joined = { tier = 9, handover = true }
@@ -61,4 +61,29 @@ test("a new grade is stamped once; the first comes unstamped", function()
     eq(stamped, 1)
     eq(last.sub, "IGUI_OA_Story_Grade_regular")
     eq(last.style, "stamp")
+end)
+
+test("past priority come special and top; past the top every level is a designation again, counted and stamped", function()
+    local titles = {}
+    OA.Sync.title = function(_, spec) titles[#titles + 1] = spec end
+    local r = record(5, 7)
+    Story.section(r).handover = true
+    Story.onStage(r)
+    r.trade.milestones = 9
+    eq(Story.grade(r), "special")
+    r.trade.milestones = 11
+    eq(Story.grade(r), "top")
+    Story.onStage(r)
+    eq(Story.redesignations(r), 0)
+    eq(Story.designation(r, true), "IGUI_OA_Story_Grade_top 0347", "no count at the top grade itself")
+    r.trade.milestones = 13
+    eq(Story.redesignations(r), 2)
+    eq(Story.address(r), "IGUI_OA_Story_Grade_top 0347", "the calls never say the count")
+    eq(Story.designation(r, true), "IGUI_OA_Story_GradeAgain IGUI_OA_Story_Grade_top 0347 2")
+    Story.onStage(r)
+    Story.onStage(r)
+    local again = {}
+    for _, t in ipairs(titles) do if t.key == "IGUI_OA_Title_GradeAgain" then again[#again + 1] = t end end
+    eq(#again, 1, "stamped once for the count reached")
+    eq(again[1].subArgs[2], 2)
 end)
