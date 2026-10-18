@@ -381,3 +381,125 @@ test("a costs snapshot looks through the inventory once for what a menu's option
     local text = Costs.describe(character, { tools = {}, items = { { Costs.WIRE, 2 } } }, true, later)
     truthy(text:find("IGUI_BU_NeedItem", 1, true))
 end)
+
+test("each minute's sync of the built-on rooms looks again only when something it comes of changed, or after five minutes", function()
+    local api = TEST.api
+    local KEY = "200,200,0"
+    api.buildingsByKey[KEY] = {
+        building = { key = KEY, playerBuilt = false, minLevel = 0, maxLevel = 0, minX = 200, minY = 200, maxX = 205,
+            maxY = 203, room = "hall", roomId = "700" },
+        rooms = { { id = "700", name = "hall", level = 0, rects = { { x = 200, y = 200, w = 4, h = 4 } } },
+            { id = "701", name = "store", level = 0, rects = { { x = 204, y = 200, w = 2, h = 4 } } } },
+        attached = { { level = 0, host = "701", count = 6, extent = 3, rects = { { x = 206, y = 200, w = 3, h = 2 } } } },
+        attachedObjects = { power = { { x = 207, y = 201, z = 0, sprite = "lamp", type = "IsoObject", power = 0.01,
+            room = "store", roomId = "701" } }, water = {} },
+    }
+    for x = 200, 205 do
+        for y = 200, 203 do api.squares[x .. "," .. y .. ",0"] = KEY end
+    end
+    local panel = Store.newPanel(201, 201, 0, "box")
+    local now = 7000000
+    getTimestampMs = function() return now end
+    local function looks() return api.calls.attachedObjects or 0 end
+    eq(Changes.syncAttached(panel), true, "the lamp taken in")
+    local first = looks()
+    truthy(first > 0)
+    eq(Changes.syncAttached(panel), false)
+    eq(looks(), first, "the next minute: not looked at")
+    now = now + 60000
+    Changes.syncAttached(panel)
+    eq(looks(), first, "nor a minute on")
+    -- the API's buildings changed
+    api.buildingsVersion = 2
+    Changes.syncAttached(panel)
+    truthy(looks() > first, "a new buildings version")
+    local second = looks()
+    -- told changed
+    BU.Sync.changed(panel.id)
+    Changes.syncAttached(panel)
+    truthy(looks() > second, "a change told of the box")
+    local third = looks()
+    BU.Sync.changed("someone else")
+    Changes.syncAttached(panel)
+    eq(looks(), third, "a change of another box does not")
+    -- zone, owners
+    panel.zone = { ["201,201,0"] = true }
+    Changes.syncAttached(panel)
+    truthy(looks() > third, "a zone")
+    local fourth = looks()
+    Store.ownersChanged()
+    Changes.syncAttached(panel)
+    truthy(looks() > fourth, "an owner")
+    local fifth = looks()
+    -- forced, and after five minutes
+    Changes.syncAttached(panel, true)
+    truthy(looks() > fifth, "forced")
+    local sixth = looks()
+    now = now + 5 * 60 * 1000 - 1
+    Changes.syncAttached(panel)
+    eq(looks(), sixth)
+    now = now + 2
+    Changes.syncAttached(panel)
+    truthy(looks() > sixth, "five minutes on")
+end)
+
+test("a rack's minute keeps its records and writes nothing to the items when they are the same", function()
+    require "BuildingUtilities/Rack"
+    ItemTag = { CAR_BATTERY = "battery" }
+    local writes = 0
+    local function battery(id, charge, condition)
+        local item = { id = id, charge = charge, condition = condition }
+        function item:getID() return self.id end
+        function item:getFullType() return "Base.CarBattery1" end
+        function item:getCurrentUsesFloat() return self.charge end
+        function item:getCondition() return self.condition end
+        function item:getConditionMax() return 100 end
+        function item:setUsedDelta(v) writes = writes + 1; self.charge = v end
+        function item:setCondition(v) writes = writes + 1; self.condition = v end
+        return item
+    end
+    local items = { battery(1, 0.5, 80), battery(2, 0.25, 60) }
+    local container = { getAcceptItemFunction = function() return BU.Rack.ACCEPT end,
+        getAllTag = function() return TEST_javaList(items) end }
+    local overlay
+    local object = { getContainer = function() return container end, getOverlaySprite = function() return nil end,
+        setOverlaySprite = function(_, name) overlay = name end }
+    local unit = Store.newUnit("rack", 10, 10, 0, BU.Rack.SPRITE)
+    unit.batteries = {}
+    BU.Rack.sync(unit, object)
+    eq(#unit.batteries, 2, "records made")
+    local records = unit.batteries
+    BU.Rack.sync(unit, object)
+    eq(unit.batteries, records, "the same records")
+    eq(writes, 0, "nothing written to items that match")
+    -- the bank spent charge: the item takes it, once
+    records[1].charge = 0.4
+    BU.Rack.sync(unit, object)
+    eq(writes, 2, "charge and condition set on the one item")
+    BU.Rack.sync(unit, object)
+    eq(writes, 2)
+    -- a battery taken out
+    table.remove(items, 1)
+    BU.Rack.sync(unit, object)
+    eq(#unit.batteries, 1)
+    eq(unit.batteries[1], records[2], "the other keeps its record")
+end)
+
+test("the reserves' zone key is made once while the zone and its rooms are the same", function()
+    local api = TEST.api
+    twoRooms(api, "A")
+    local panel = Store.newPanel(102, 102, 0, "box")
+    local made = 0
+    local zoneRooms = Panels.zoneRooms
+    Panels.zoneRooms = function(...) made = made + 1; return zoneRooms(...) end
+    Changes.syncReserves(panel)
+    local first = made
+    truthy(first >= 1)
+    Changes.syncReserves(panel)
+    Changes.syncReserves(panel)
+    eq(made, first, "kept")
+    panel.zone = { ["101,101,0"] = true }
+    Changes.syncReserves(panel)
+    truthy(made > first, "a new zone makes it again")
+    Panels.zoneRooms = zoneRooms
+end)

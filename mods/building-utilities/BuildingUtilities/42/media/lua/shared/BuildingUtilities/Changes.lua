@@ -125,7 +125,7 @@ function Changes.applyZone(panel, zone)
             if any then Networks.applyKeys(panel, utility, left) end
         end
     end
-    Changes.syncAttached(panel)
+    Changes.syncAttached(panel, true)
     Sync.changed(panel.id)
     return true
 end
@@ -553,15 +553,29 @@ end
 -- missing from the rooms for a while, as the game's region data of a world that has just loaded may lag. Asked each
 -- minute, as the world starts, when the zone changes and by a window that sees one not added yet. Returns whether
 -- anything changed.
+-- Asked each minute, it looks again only when what it comes of changed since it last did (the API's buildings, a change
+-- told of the box, the devices' owners, its zone) or ATTACHED_EVERY_MS have passed; force looks at once (the world
+-- starting, the zone changing, a window that saw a device not added).
 local LET_GO = { "excluded", "schedule", "timed", "pipeOf" }
 local ATTACHED_GRACE_MS = 20000
+local ATTACHED_EVERY_MS = 5 * 60 * 1000
 local missingSince = {}
+-- What each box's last look was made at, by panel id.
+local attachedAt = {}
 
-function Changes.syncAttached(panel)
+function Changes.syncAttached(panel, force)
     local building = Panels.building(panel)
     local spaces = building and Panels.attached(building)
     if not spaces then return false end
     local changed, now = false, getTimestampMs()
+    local version, owners = BU.buildingsVersion(), Store.ownersVersion()
+    local mine, all = Store.touches(panel.id)
+    local last = attachedAt[panel.id]
+    if not force and last and last.panel == panel and last.version == version and last.owners == owners
+            and last.mine == mine and last.all == all and last.zone == panel.zone and now >= last.at
+            and now - last.at < ATTACHED_EVERY_MS then
+        return false
+    end
     for _, utility in ipairs(BU.utilities()) do
         local data = panel[utility]
         data.attached = data.attached or {}
@@ -612,6 +626,10 @@ function Changes.syncAttached(panel)
         if any then Networks.applyKeys(panel, utility, touched) end
     end
     if changed then Sync.changed(panel.id) end
+    -- (what it told itself of counts as seen)
+    mine, all = Store.touches(panel.id)
+    attachedAt[panel.id] = { panel = panel, version = version, owners = Store.ownersVersion(), mine = mine, all = all,
+        zone = panel.zone, at = now }
     return changed
 end
 
@@ -622,16 +640,26 @@ end
 -- whether they changed.
 local RESERVES_RETRY_MS = 10 * 60 * 1000
 local reservesTried = {}
+-- The zone's room ids (Panels.zoneIds: the same table while the zone and its rooms are) each box's zone key was made from,
+-- and that key.
+local reservesIds, reservesKey = {}, {}
 
 function Changes.syncReserves(panel)
     local api = BU.api()
     if not api or not BU.enabled("water") then return false end
     local data = panel.water
     data.reserves = data.reserves or {}
-    local keys = {}
-    for _, room in ipairs(Panels.zoneRooms(panel)) do keys[#keys + 1] = room.key end
-    table.sort(keys)
-    local zone, now = table.concat(keys, ";"), getTimestampMs()
+    local ids, zone = Panels.zoneIds(panel), nil
+    if reservesIds[panel.id] == ids then
+        zone = reservesKey[panel.id]
+    else
+        local keys = {}
+        for _, room in ipairs(Panels.zoneRooms(panel)) do keys[#keys + 1] = room.key end
+        table.sort(keys)
+        zone = table.concat(keys, ";")
+        reservesIds[panel.id], reservesKey[panel.id] = ids, zone
+    end
+    local now = getTimestampMs()
     local tried = reservesTried[panel.id]
     if data.reservesZone == zone and (data.reservesWhole or tried and now - tried < RESERVES_RETRY_MS) then return false end
     reservesTried[panel.id] = now

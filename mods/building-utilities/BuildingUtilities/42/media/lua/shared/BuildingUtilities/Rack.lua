@@ -106,11 +106,23 @@ function Rack.sync(unit, object)
     object = object or Units.object(unit)
     if not object then return end
     local items = Rack.container(object):getAllTag(ItemTag.CAR_BATTERY, ArrayList.new())
+    -- The same batteries in the same order (the usual minute): the records stay as they are, only the items take theirs
+    -- (and only when they differ: Rack.writeBattery).
+    local kept = unit.batteries
+    local same = #kept == items:size()
+    for i = 0, same and items:size() - 1 or -1 do
+        if kept[i + 1].id ~= items:get(i):getID() then same = false break end
+    end
+    if same then
+        for i = 0, items:size() - 1 do Rack.writeBattery(items:get(i), kept[i + 1]) end
+        Rack.show(unit, object)
+        return
+    end
     local known = {}
-    for _, record in ipairs(unit.batteries) do
+    for _, record in ipairs(kept) do
         if record.id then known[record.id] = record end
     end
-    local batteries, changed = {}, #unit.batteries ~= items:size()
+    local batteries, changed = {}, #kept ~= items:size()
     for i = 0, items:size() - 1 do
         local item = items:get(i)
         local record = known[item:getID()]

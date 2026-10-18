@@ -149,9 +149,17 @@ function Store.ownersVersion() return ownersVersion end
 -- A change was told (Sync.changed on the server or alone, BU.onChanged on a client) or the save's data was read again:
 -- what is worked out of a box's data without counting a link version (its devices' states, its schedules) is not kept
 -- past it (not saved).
-local dataVersion = 0
-function Store.dataChanged() dataVersion = dataVersion + 1 end
+-- Counted for the box told changed too (a change of none in particular counts for every box): Store.touches.
+local dataVersion, touchedAll, touched = 0, 0, {}
+function Store.dataChanged(panelId)
+    dataVersion = dataVersion + 1
+    if panelId then touched[panelId] = (touched[panelId] or 0) + 1 else touchedAll = touchedAll + 1 end
+end
 function Store.dataVersion() return dataVersion end
+
+-- How many changes were told of a box, and of boxes in general (not saved): what is kept for a box and may change with
+-- them is looked at again when they are not the numbers it was last made at.
+function Store.touches(panelId) return touched[panelId] or 0, touchedAll end
 
 local function owners()
     local panels = Store.panels()
