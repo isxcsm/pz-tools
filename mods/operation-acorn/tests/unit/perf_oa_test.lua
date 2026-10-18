@@ -249,3 +249,29 @@ test("the research data's lists are those the per-call functions built, in the s
     end
     eq(#Data.boardGroup("load"), 10)
 end)
+
+test("the visibility mod is looked up once for the session, and again after Effects.reset", function()
+    require "OperationAcorn/Upgrades/Effects"
+    local Effects = OA.Upgrades.Effects
+    local calls, active = 0, false
+    getActivatedMods = function()
+        calls = calls + 1
+        local mods = { active and "ZombieVisibilityFix" or "SomethingElse", "Other" }
+        return { size = function() return #mods end, get = function(_, i) return mods[i + 1] end }
+    end
+    eq(Effects.visibilityModActive(), false)
+    eq(Effects.visibilityModActive(), false)
+    eq(Effects.visibilityModActive(), false)
+    eq(calls, 1, "read once")
+    active = true
+    eq(Effects.visibilityModActive(), false, "the list cannot change under the game: the answer stands")
+    eq(calls, 1)
+    Effects.reset()
+    eq(Effects.visibilityModActive(), true, "a new game reads again")
+    eq(calls, 2)
+    eq(Effects.visibilityModActive(), true)
+    eq(calls, 2)
+    getActivatedMods = nil
+    Effects.reset()
+    eq(Effects.visibilityModActive(), false)
+end)

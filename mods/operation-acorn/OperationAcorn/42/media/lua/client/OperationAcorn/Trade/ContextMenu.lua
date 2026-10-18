@@ -229,16 +229,19 @@ Events.OnFillInventoryObjectContextMenu.Add(onFillInventory)
 -- the crate's data, not in a container, so breaking it would only lose it (a box's goods before the helicopter comes,
 -- a crate's cargo before it is opened). A box is taken up or dismantled, a crate opened; fire and the like still take
 -- them, and the record forgets them then (Things.destroyed). ISDestroyCursor loads after this file (server folder).
+-- (a game started again in the same session finds its own wrapper there and leaves it)
+local destroyWrapper = nil
 Events.OnGameStart.Add(function()
     local canDestroy = ISDestroyCursor and ISDestroyCursor.canDestroy
-    if not canDestroy then return end
-    function ISDestroyCursor:canDestroy(object)
+    if not canDestroy or canDestroy == destroyWrapper then return end
+    destroyWrapper = function(self, object)
         local kind = object and Objects.kindOf(object)
         if (kind == Objects.DELIVERY_BOX or kind == Objects.CRATE) and object:getModData()[Objects.SEALED] then
             return false
         end
         return canDestroy(self, object)
     end
+    ISDestroyCursor.canDestroy = destroyWrapper
 end)
 
 return Menus

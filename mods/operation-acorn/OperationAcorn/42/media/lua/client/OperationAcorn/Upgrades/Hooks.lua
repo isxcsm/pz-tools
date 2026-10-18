@@ -536,23 +536,31 @@ local function onBiteSurvived()
     if player then OA.Sync.send(player, "upgrades.bite", {}) end
 end
 
+-- (the event keeps its handlers across games: added once)
+local biteHooked = false
+
 local function onGameStart()
     Effects.reset()
     Hooks.refresh()
-    if Events.OnPZExtBiteSurvived then Events.OnPZExtBiteSurvived.Add(onBiteSurvived) end
+    if Events.OnPZExtBiteSurvived and not biteHooked then
+        biteHooked = true
+        Events.OnPZExtBiteSurvived.Add(onBiteSurvived)
+    end
 end
 Events.OnGameStart.Add(onGameStart)
 
 -- Real milliseconds at least between two refreshes from the ten-minute clock. Of what a refresh reads only the world
 -- age moves with game time (the bite shield's rest ends at a game time), and ten game minutes are 25 s of real time at
 -- the default day length but some 0.6 s fast-forwarded (x40) and less asleep: the shield is then ready at most this
--- late in real time. A change to the record refreshes at once, as before.
+-- late in real time. A change to the record refreshes at once, as before. The clock refreshes only when what was
+-- declared no longer fits the time (Effects.stale: the shield's rest ended, or no API yet), not every ten minutes.
 Hooks.REFRESH_MS = 5000
 
 local refreshedAt = {}
 
 Events.EveryTenMinutes.Add(function()
-    if OA.due(refreshedAt, "clock", getTimestampMs(), Hooks.REFRESH_MS) then Hooks.refresh() end
+    if not OA.due(refreshedAt, "clock", getTimestampMs(), Hooks.REFRESH_MS) then return end
+    if Effects.stale(localSection(), OA.hours()) then Hooks.refresh() end
 end)
 
 return Hooks
