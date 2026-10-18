@@ -98,7 +98,21 @@ S1~S4가 끝나면 두 모드의 사건을 전부 훑어 표로 만든다: 사�
 | BU 스위치 / 발전기 정지 | `bu.switch` / `bu.generator.stop` | LightSwitch / GeneratorStopping | 스위치는 제어반 레버라 더 무거운 소리 후보: KnobSwitch, 새 에셋(차단기 레버) |
 | BU 설명서 줄 | `bu.manual.row` | 무음 | 화면이지 프린터가 아니다: 무음 유지 |
 | 키트 선택 / 버튼 | `kit.select` / `kit.press` | UISelectListItem / UIActivateButton | 바닐라 |
-| 제목 순간 (스타일 10종 × 등장·착지·퇴장, 줄 포함) | `kit.title.*` | 무음 | 새 에셋: 도장 쿵(stamp land), 타자 제목(type: 키보드 재사용), 발견(discovery) 짧은 음 등. 스타일마다 정함 |
+| 제목 순간 (스타일 10종 × 등장·착지·퇴장, 줄 포함) | `kit.title.*` | 아래 표 | 제목은 순간마다 소리를 한 번 내고 멈추지 않는다: 스스로 끝나는 소리만 된다 |
+
+**제목 소리** (2026-10-18). 녹음은 길이를 알고, 바닐라 이벤트는 반복 여부를 FMOD 뱅크 밖에서 알 수 없다 (`CampfireLight`, `TuneIn`은 바닐라가 직접 멈춘다). 그래서 녹음과 써 본 소리만 넣고, 나머지 후보는 `tests/ingame/title_sound_probe.lua`로 게임에서 끝나는지 잰 뒤 통합 E2E에서 정한다.
+
+| 스타일 | 순간 | 소리 |
+| --- | --- | --- |
+| stamp | 착지 / 줄 착지 | `KIT_TitleStamp` (Kenney impactWood_medium 5개, 책상에 찍히는 짧은 나무 충격) / `KIT_TitleStampLine` (impactWood_light, 더 가볍게) |
+| type | 등장 / 줄 등장 / 퇴장 | `KIT_TitleType` (Erika 5 타자기 1.3초 연타 3개: 글자가 찍히는 1.3초와 같은 길이) / `KIT_TitleTypeLine` (1.5~1.6초) / `KIT_TitleFeed` (캐리지 리턴: 종이가 올라가기 시작할 때) |
+| notice | 등장 | RadioZap (신호가 잡힘) |
+| discovery | 등장 | 후보 CampfireLight·UseMatch·UseLighter (횃불이 켜짐): 끝나는지 재고 정함 |
+| dust | 퇴장 | 후보 UseMatch (종이에 불이 붙음) |
+| bleed | 등장 | 후보 WaterDrip (방울이 떨어짐) |
+| sink | 퇴장 | 후보 LureHitWater (물에 잠김) |
+| pulse | 착지 | 후보 HeartBeat (반복음일 가능성이 크다: 한 번 뛰는 심장 녹음이 필요할 수 있다) |
+| unveil, brief | | 무음: 안개는 소리가 없고, 짧은 소식은 자주 뜬다 |
 
 **타임드 액션** (2026-10-18 연결). 바닐라 액션은 시작에 캐릭터 소리를 내고 끝·중단에 `stopOrTriggerSound`로 멈춘다. 가구를 들고 놓는 것(ISMoveablesAction)은 작업 중 소리 없이 끝에 UI 소리 한 번이다. 키트의 한 지점 `Sound.timed(class, during, done)`이 같은 일을 한다: 파일 끝에서 클래스의 start/stop/perform을 감싸, `during`은 일하는 동안 캐릭터에서, `done`은 끝났을 때 화면에서 낸다. 큐 대신 액션을 받는 함수도 된다 (도구·종류에 따라 다른 소리). 코드에 쓴 큐가 표에 없으면 `build.py --check`가 잡는다.
 

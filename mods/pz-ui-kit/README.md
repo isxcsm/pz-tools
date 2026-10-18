@@ -69,4 +69,6 @@ The kit's tests run in [operation-acorn](../operation-acorn) for now (`tests/uni
 
 ## License
 
-MIT.
+MIT. The sounds are cut from others' recordings, each credited in
+[media/sound/CREDITS.txt](PZUIKit/42/media/sound/CREDITS.txt); the typewriter's is CC BY 4.0 (Work With Sounds / Konrad
+Gutkowski), the others CC0 or public domain.

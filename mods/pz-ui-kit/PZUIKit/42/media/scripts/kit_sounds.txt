@@ -121,4 +121,93 @@ module Base
         }
     }
 
+    sound KIT_TitleFeed
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_TitleFeed_1.ogg,
+        }
+    }
+
+    sound KIT_TitleStamp
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_TitleStamp_1.ogg,
+        }
+        clip
+        {
+            file = media/sound/KIT_TitleStamp_2.ogg,
+        }
+        clip
+        {
+            file = media/sound/KIT_TitleStamp_3.ogg,
+        }
+        clip
+        {
+            file = media/sound/KIT_TitleStamp_4.ogg,
+        }
+        clip
+        {
+            file = media/sound/KIT_TitleStamp_5.ogg,
+        }
+    }
+
+    sound KIT_TitleStampLine
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_TitleStampLine_1.ogg,
+        }
+        clip
+        {
+            file = media/sound/KIT_TitleStampLine_2.ogg,
+        }
+        clip
+        {
+            file = media/sound/KIT_TitleStampLine_3.ogg,
+        }
+        clip
+        {
+            file = media/sound/KIT_TitleStampLine_4.ogg,
+        }
+        clip
+        {
+            file = media/sound/KIT_TitleStampLine_5.ogg,
+        }
+    }
+
+    sound KIT_TitleType
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_TitleType_1.ogg,
+        }
+        clip
+        {
+            file = media/sound/KIT_TitleType_2.ogg,
+        }
+        clip
+        {
+            file = media/sound/KIT_TitleType_3.ogg,
+        }
+    }
+
+    sound KIT_TitleTypeLine
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_TitleTypeLine_1.ogg,
+        }
+        clip
+        {
+            file = media/sound/KIT_TitleTypeLine_2.ogg,
+        }
+    }
+
 }

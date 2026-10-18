@@ -274,5 +274,16 @@ for _, style in ipairs({ "stamp", "discovery", "notice", "unveil", "dust", "blee
         Sound.define("kit.title." .. style .. ".line." .. moment, {})
     end
 end
+-- The titles that sound (tools/sound, sounds.json; the rest wait for sounds heard to end in the game, SOUND-SYSTEM.md
+-- S6): the stamp's hit, its line's lighter; the typewriter's letters struck (a run of an old typewriter's keys as long
+-- as the strike), its line's, and its carriage thrown back as the paper is fed out; the notice tuned in as a signal.
+Sound.defineAll({
+    ["kit.title.stamp.land"] = { sound = "KIT_TitleStamp" },
+    ["kit.title.stamp.line.land"] = { sound = "KIT_TitleStampLine" },
+    ["kit.title.type.enter"] = { sound = "KIT_TitleType" },
+    ["kit.title.type.line.enter"] = { sound = "KIT_TitleTypeLine" },
+    ["kit.title.type.leave"] = { sound = "KIT_TitleFeed" },
+    ["kit.title.notice.enter"] = { sound = "RadioZap" },
+})
 
 return Sound

@@ -215,19 +215,19 @@ test("a title carries its style's sounds (the kit's title cues); an older API wi
         },
     }
     local Sound = PZUIKit.Sound
-    OA.Titles.show("p1", { key = "IGUI_OA_Title_Sealed", style = "stamp" })
+    OA.Titles.show("p1", { key = "IGUI_OA_Title_Sealed", style = "dust" })
     eq(called[1].sounds, nil, "no sound defined: none asked")
-    Sound.define("kit.title.stamp.land", { sound = "Thud" })
-    Sound.define("kit.title.stamp.line.land", { sound = "Tap" })
-    OA.Titles.show("p1", { key = "IGUI_OA_Title_Sealed", sub = "IGUI_OA_Title_Marked", style = "stamp" })
+    Sound.define("kit.title.dust.land", { sound = "Thud" })
+    Sound.define("kit.title.dust.line.land", { sound = "Tap" })
+    OA.Titles.show("p1", { key = "IGUI_OA_Title_Sealed", sub = "IGUI_OA_Title_Marked", style = "dust" })
     eq(called[2].sounds.land, "Thud")
     eq(called[2].subtitleSounds.land, "Tap")
-    OA.Titles.show("p1", { key = "IGUI_OA_Title_Sealed", style = "stamp" })
+    OA.Titles.show("p1", { key = "IGUI_OA_Title_Sealed", style = "dust" })
     eq(called[3].subtitleSounds, nil, "no line: no line's sounds")
     refuseSounds = true
-    eq(OA.Titles.show("p1", { key = "IGUI_OA_Title_Sealed", style = "stamp" }), "title")
+    eq(OA.Titles.show("p1", { key = "IGUI_OA_Title_Sealed", style = "dust" }), "title")
     eq(called[4].sounds, nil)
-    Sound.define("kit.title.stamp.land", {})
-    Sound.define("kit.title.stamp.line.land", {})
+    Sound.define("kit.title.dust.land", {})
+    Sound.define("kit.title.dust.line.land", {})
     PZExtAPI = nil
 end)

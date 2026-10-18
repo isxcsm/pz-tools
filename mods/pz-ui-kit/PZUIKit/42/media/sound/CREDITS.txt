@@ -1,0 +1,18 @@
+The kit's sounds are cut from these recordings (pz-tools/mods/tools/sound builds them).
+
+KIT_TitleType, KIT_TitleTypeLine, KIT_TitleFeed
+    "WWS Typewriter" (an Erika 5 typewriter, 1940) by Work With Sounds / Konrad Gutkowski, CC BY 4.0
+    https://commons.wikimedia.org/wiki/File:WWS_Typewriter.ogg
+    https://creativecommons.org/licenses/by/4.0/ (cut, made mono, levelled)
+
+KIT_TitleStamp, KIT_TitleStampLine
+    Impact Sounds by Kenney (www.kenney.nl), CC0
+
+KIT_Key_*, KIT_KeySpace, KIT_KeyBack
+    "Typing - Model F 122 1984" by Raymangold22, CC0 (Wikimedia Commons)
+
+KIT_KeyEnter
+    "IBM M2 sound" by Anonimski, CC0 (Wikimedia Commons)
+
+KIT_PrintRow
+    "Star-LC-10-printer-01" by Priwo, public domain (Wikimedia Commons)

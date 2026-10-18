@@ -1,0 +1,3 @@
+OA_LockPick
+    "Lockpicking Sound" by Tegurd (OpenGameArt), CC0
+    https://opengameart.org/node/159980
