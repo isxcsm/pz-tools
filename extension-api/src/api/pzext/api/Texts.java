@@ -345,6 +345,13 @@ final class Texts implements Hooks.Text {
     final SizedFonts sized;
     /** What text.wrap and text.fit measured, kept for the calls that ask again (package-private for the tests). */
     final TextFits.Cache fits = new TextFits.Cache();
+    // What a wrap or a fit was measured with, as the cache is asked: buffers (a result that is kept copies its list).
+    private final Object[] withFace = new Object[1], withSized = new Object[2];
+    // The heights of the embedded font as objects, made once: the cache's key holds one.
+    private static final Integer[] BOXED = new Integer[SizedFonts.MAX + 1];
+    static { for (int height = 0; height < BOXED.length; height++) BOXED[height] = height; }
+
+    private static Integer boxed(int height) { return BOXED[height]; }
     // What is shown, in the order it was shown: changed on the game's thread and read by the drawing, on the same thread.
     final ArrayList<Shown> shown = new ArrayList<>();
     private volatile Shown[] drawn = new Shown[0];
@@ -708,7 +715,7 @@ final class Texts implements Hooks.Text {
             key = name;
         } else if (font instanceof Double) {
             px = sizedKey(arguments, call);
-            key = px;
+            key = boxed(px);
         } else throw new IllegalArgumentException(call + ": font must be what text.font returned or one of the game's font names");
         if (!(arguments.length > 2 && arguments[2] instanceof String words) || words.length() > TextFits.MAX_TEXT)
             throw new IllegalArgumentException(call + ": text must be a string of at most " + TextFits.MAX_TEXT + " characters");
@@ -720,38 +727,48 @@ final class Texts implements Hooks.Text {
             ellipsis = given;
         }
         // What the width comes from, and what it was measured with: the choice of a height (made again when the game makes its fonts
-        // again, and with the embedded font's readiness), or the game's font object.
-        TextFits.Width width;
+        // again, and with the embedded font's readiness), or the game's font object. A call the cache has allocates nothing for any of
+        // it: the list is a buffer (copied when a result is kept), and the measure is made only for a text that is measured.
         Object[] with;
+        SizedFonts.Choice choice = null;
+        EmbeddedFont.Loaded own = null;
         if (uiFont != null) {
-            Object face = (Object)fontOf.invokeExact(textManager, uiFont);
-            Object chosen = uiFont;
-            width = text -> (int)measure.invokeExact(textManager, chosen, text);
-            with = new Object[] { face };
+            withFace[0] = (Object)fontOf.invokeExact(textManager, uiFont);
+            with = withFace;
         } else {
             if (sized == null) return new Object[] { null };
-            SizedFonts.Choice choice = sized.choice(px);
+            choice = sized.choice(px);
             if (choice == null) return new Object[] { null };
-            int height = px;
-            EmbeddedFont.Loaded own = drawable();
-            width = text -> sized.measure(height, text, own);
-            with = new Object[] { choice, own != null };
+            own = drawable();
+            withSized[0] = choice;
+            withSized[1] = own != null;
+            with = withSized;
         }
-        var id = new TextFits.Key(owner, key, limit, wrap, wrap ? null : ellipsis, words);
-        TextFits.Result kept = fits.get(id, with);
+        String ellipsisKept = wrap ? null : ellipsis;
+        TextFits.Result kept = fits.get(owner, key, limit, wrap, ellipsisKept, words, with);
         if (kept == null) {
+            TextFits.Width width;
+            if (uiFont != null) {
+                Object chosen = uiFont;
+                width = text -> (int)measure.invokeExact(textManager, chosen, text);
+            } else {
+                int height = px;
+                EmbeddedFont.Loaded drawn = own;
+                width = text -> sized.measure(height, text, drawn);
+            }
+            Object[] measuredWith = with.clone();
             if (wrap) {
                 String[] lines;
                 try { lines = TextFits.wrap(width, words, limit); }
                 catch (IllegalArgumentException tooLong) { throw new IllegalArgumentException(call + ": " + tooLong.getMessage()); }
-                kept = new TextFits.Result(with, lua.list(java.util.Arrays.asList((Object[])lines)), TextFits.widest(width, lines), false);
+                kept = TextFits.Result.wrapped(measuredWith, lua.list(java.util.Arrays.asList((Object[])lines)), TextFits.widest(width, lines));
             } else {
                 Object[] result = TextFits.fit(width, words, limit, ellipsis);
-                kept = new TextFits.Result(with, result[0], 0, (Boolean)result[1]);
+                kept = TextFits.Result.cut(measuredWith, result[0], (Boolean)result[1]);
             }
-            fits.put(id, kept);
+            fits.put(new TextFits.Key(owner, key, limit, wrap, ellipsisKept, words), kept);
         }
-        return wrap ? new Object[] { kept.value(), kept.widest() } : new Object[] { kept.value(), kept.cut() };
+        return kept.answer();
     }
 
     /** The embedded font when it can draw this frame (its atlas was in video memory as the frame began), else null. */
