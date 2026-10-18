@@ -31,6 +31,10 @@ Rules.KEY = {
                                     -- to the other side is a new item, its capacity the script's again)
     RAW = "OA_KitRaw",              -- the raw capacity the kits code last set (to see whether it must set it again)
     STORAGE_BASE = "OA_KitBase",    -- on a vehicle storage part: its capacity before the first kit
+    KIT_WDAMAGE = "OA_KitWDamage",  -- on a weapon: damage kits fitted
+    KIT_WCRIT = "OA_KitWCrit",      -- on a weapon: critical kits fitted
+    KIT_WREPAIR = "OA_KitWRepair",  -- on a weapon: repair kits used (only counted, they change nothing to work out again)
+    WEAPON_CRIT = "OA_KitBaseCrit", -- on a weapon: its critical chance before the first critical kit
     ENGINE = "OA_KitEngine",        -- on the engine part: kits fitted
     ENGINE_POWER = "OA_KitPower",   -- on the engine part: the engine power before the first kit
     ENGINE_LOUD = "OA_KitLoud",     -- on the engine part: the engine loudness before the first kit
@@ -49,6 +53,9 @@ Rules.TOUGH_STEP = 0.25         -- a field tool's most condition: of its script'
 Rules.TOUGH_MOST = 4            -- reinforcement kits a tool takes
 Rules.POWER_STEP = 0.10         -- engine power, of the original
 Rules.LOUDNESS_STEP = 0.05      -- engine loudness, of the original
+Rules.DAMAGE_STEP = 0.10        -- a weapon's least and most damage: of the original, per damage kit, no most
+Rules.CRIT_STEP = 5             -- a weapon's critical chance: points over the original, per critical kit, no most
+Rules.REPAIR_PARTS = 10          -- a repair kit puts back one such part of the weapon's most condition (1 at the least)
 
 -- The vanilla limits (ItemContainer.MAX_CAPACITY_BAG and _VEHICLE, found with javap): a bag holds at most 50 less its
 -- own weight, a vehicle's container at most 1000. The extension API lifts them for a holder with the OA_Capacity key.
@@ -70,6 +77,9 @@ Rules.TARGETS = {
     lightening = { bag = true, can = true, welder = true, tool = true },
     reinforcement = { tool = true },
     engine = { engine = true },
+    weaponDamage = { weapon = true },
+    weaponCrit = { weapon = true },
+    weaponRepair = { weapon = true },
 }
 Rules.VEHICLE_TARGETS = { storage = true, engine = true }
 
@@ -94,14 +104,36 @@ function Rules.workTicks(target, level)
     return math.floor(Rules.TICKS[target] * share)
 end
 
+-- The weapon kits (NUMBERS 7 'Weapon kits'): kinds of their own, fitted to any HandWeapon, melee or firearm. Their
+-- item types are named here (the shop sells them by these types).
+Rules.WEAPON_TYPES = {
+    weaponDamage = "OperationAcorn.KitWeaponDamage",
+    weaponCrit = "OperationAcorn.KitWeaponCrit",
+    weaponRepair = "OperationAcorn.KitWeaponRepair",
+}
+Rules.WEAPON_ORDER = { "weaponDamage", "weaponCrit", "weaponRepair" }
+
+-- Every kind of kit that is fitted to an item, in the order the menus list them: the modification kits, then the weapon
+-- kits.
+function Rules.kinds()
+    local list = {}
+    for _, kind in ipairs(OA.Shop.KIT_ORDER) do list[#list + 1] = kind end
+    for _, kind in ipairs(Rules.WEAPON_ORDER) do list[#list + 1] = kind end
+    return list
+end
+
 -- The item type of a kind's kit ("OperationAcorn.KitCapacity").
 function Rules.kitType(kind)
+    if Rules.WEAPON_TYPES[kind] then return Rules.WEAPON_TYPES[kind] end
     local k = OA.Shop.KITS[kind]
     return k and OA.Shop.TYPES[k.type] or nil
 end
 
 -- The kind a kit item type belongs to, or nil.
 function Rules.kindOf(fullType)
+    for _, kind in ipairs(Rules.WEAPON_ORDER) do
+        if Rules.WEAPON_TYPES[kind] == fullType then return kind end
+    end
     for _, kind in ipairs(OA.Shop.KIT_ORDER) do
         if Rules.kitType(kind) == fullType then return kind end
     end
@@ -116,6 +148,28 @@ end
 -- The capacity of a bag or a vehicle storage with `n` expansion kits fitted: +10% of the original per kit, rounded once.
 function Rules.capacity(base, n)
     return round(base * (1 + Rules.CAPACITY_STEP * n))
+end
+
+-- A weapon's least or most damage with `n` damage kits: +10% of the original per kit, not rounded (the game's damage is a
+-- decimal), no most.
+function Rules.damage(base, n)
+    return base * (1 + Rules.DAMAGE_STEP * n)
+end
+
+-- A weapon's critical chance with `n` critical kits: +5 points over the original per kit, no most.
+function Rules.crit(base, n)
+    return base + Rules.CRIT_STEP * n
+end
+
+-- What a repair kit puts back of a weapon with this most condition: a tenth of it, rounded up, at least 1 (worked out in
+-- whole numbers: a decimal tenth of 30 is 3.0000000000000004, which rounds up to 4).
+function Rules.repairGain(most)
+    return math.max(1, math.floor((most + Rules.REPAIR_PARTS - 1) / Rules.REPAIR_PARTS))
+end
+
+-- A weapon's condition after a repair kit: up to its most.
+function Rules.repaired(condition, most)
+    return math.min(most, condition + Rules.repairGain(most))
 end
 
 -- What the kits add to the original capacity: the number the API adds to the raw capacity.

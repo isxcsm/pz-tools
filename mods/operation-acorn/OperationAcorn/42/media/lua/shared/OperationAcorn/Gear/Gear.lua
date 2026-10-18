@@ -11,6 +11,11 @@
 --                      game does not save, so it is written again when the game starts and when the item is looked at).
 --   reinforcement kit  a field tool: its most condition (setConditionMax), saved.
 --   engine kit         the engine part: the engine's own features (BaseVehicle.setEngineFeature), saved.
+--   weapon kits        a HandWeapon, melee or firearm. Damage: its least and most damage (HandWeapon.setMinDamage and
+--                      setMaxDamage), +10% of the script's per kit; the weapon parts' damage (they add to it as they
+--                      are attached) is added on top. Critical: its critical chance (setCriticalChance), +5 points of the
+--                      chance it had before the first critical kit (the script has no getter for it, only a field) per
+--                      kit. Repair: the weapon's condition up by a tenth of its most, once; only counted.
 -- The counts of kits live in the target's modData; the values are worked out again from them (refresh*), so a game
 -- started later with or without the API gets the right value.
 --
@@ -184,7 +189,8 @@ function Gear.isKitBag(item)
     return slot ~= nil and ItemBodyLocation ~= nil and slot == ItemBodyLocation.BACK
 end
 
--- What kind of target an item is for the kits: "bag", "can", "welder", "tool", or nil.
+-- What kind of target an item is for the kits: "bag", "can", "welder", "tool", "weapon" (a HandWeapon that is no field
+-- tool), or nil.
 function Gear.targetOf(item)
     if not item then return nil end
     if Gear.isKitBag(item) then return "bag" end
@@ -195,12 +201,13 @@ function Gear.targetOf(item)
         local md = dataOf(item)
         if md and md[K.TEAM] then return "welder" end
     end
+    if item:IsWeapon() then return "weapon" end
     return nil
 end
 
 -- Whether an item might be a target, judged cheaply (the pass in refreshAll asks it of every item).
 local function maybeTarget(item)
-    return item:IsInventoryContainer() or item:getModule() == OA.MOD or item:getType() == "BlowTorch"
+    return item:IsInventoryContainer() or item:getModule() == OA.MOD or item:getType() == "BlowTorch" or item:IsWeapon()
 end
 
 -- What a character carries, in any container, is asked of the game, which counts and fetches by item type and category
@@ -233,8 +240,8 @@ end
 
 -- The kit targets a character carries, in any container, in the order the game lists them: bags (found by the game's
 -- category Container), then the fuel can, the welders and the field tools. Built when a kit is right-clicked, to say
--- where it can go.
-function Gear.targets(character)
+-- where it can go. A weapon kit's targets are the weapons (found by the game's category Weapon), no others.
+function Gear.targets(character, weapons)
     local inventory = character:getInventory()
     local found, seen = {}, {}
     local function take(list)
@@ -245,6 +252,11 @@ function Gear.targets(character)
                 found[#found + 1] = item
             end
         end
+    end
+    if weapons then
+        -- oa-scan: ok (a kit's own menu; Java picks by category, Lua sees the weapons)
+        take(inventory:getAllCategoryRecurse("Weapon", ArrayList.new()))
+        return found
     end
     -- oa-scan: ok (a kit's own menu; Java picks by category and by type, Lua sees the few that match)
     take(inventory:getAllCategoryRecurse("Container", ArrayList.new()))
@@ -286,6 +298,13 @@ function Gear.itemKits(item)
     local md = dataOf(item)
     if not md then return 0, 0, 0 end
     return md[K.KIT_CAP] or 0, md[K.KIT_LIGHT] or 0, md[K.KIT_TOUGH] or 0
+end
+
+-- The weapon kits fitted to a weapon: damage, critical, repair (used).
+function Gear.weaponKits(item)
+    local md = dataOf(item)
+    if not md then return 0, 0, 0 end
+    return md[K.KIT_WDAMAGE] or 0, md[K.KIT_WCRIT] or 0, md[K.KIT_WREPAIR] or 0
 end
 
 -- The script's weight and most condition of an item (the field tool's, before any kit).
@@ -339,11 +358,44 @@ local function refreshWeight(item, md, w)
     end
 end
 
+-- The damage the weapon parts attached to a weapon add (to the least and the most damage alike, as HandWeapon
+-- attachWeaponPart does). The part list is the game's, read here only when the weapon has damage kits.
+local function partsDamage(weapon)
+    local parts = weapon:getAllWeaponParts()
+    local sum = 0
+    for i = 0, (parts and parts:size() or 0) - 1 do sum = sum + parts:get(i):getDamage() end
+    return sum
+end
+
+-- A weapon's damage and critical kits written into it, worked out from the script's damage (getScriptItem; the script
+-- has no critical getter, so that one starts from the chance the weapon had at the first critical kit) and the counts.
+local function refreshWeapon(weapon, md)
+    local d, c = Gear.weaponKits(weapon)
+    if d > 0 then
+        local script = weapon:getScriptItem()
+        if script then
+            local parts = partsDamage(weapon)
+            local least = Rules.damage(script:getMinDamage(), d) + parts
+            local most = Rules.damage(script:getMaxDamage(), d) + parts
+            if math.abs(weapon:getMinDamage() - least) > 1e-4 then weapon:setMinDamage(least) end
+            if math.abs(weapon:getMaxDamage() - most) > 1e-4 then weapon:setMaxDamage(most) end
+        end
+    end
+    if c > 0 and md[K.WEAPON_CRIT] then
+        local chance = Rules.crit(md[K.WEAPON_CRIT], c)
+        if math.abs(weapon:getCriticalChance() - chance) > 1e-4 then weapon:setCriticalChance(chance) end
+    end
+end
+
 -- Writes an item's kits into it. Only what differs is written. Safe to call again at any time.
 function Gear.refreshItem(item)
     local target = Gear.targetOf(item)
     local md = target and dataOf(item)
     if not md then return end
+    if target == "weapon" then
+        refreshWeapon(item, md)
+        return
+    end
     local n, w, t = Gear.itemKits(item)
     if target == "bag" then
         if n > 0 or w > 0 then refreshBag(item, md, n, w) end
@@ -369,6 +421,11 @@ end
 function Gear.itemInfo(item)
     local target = Gear.targetOf(item)
     if not target then return nil end
+    if target == "weapon" then
+        local d, c, r = Gear.weaponKits(item)
+        return { target = target, damage = d, crit = c, repair = r, chance = item:getCriticalChance(),
+            condition = item:getCondition(), most = item:getConditionMax() }
+    end
     local n, w, t = Gear.itemKits(item)
     local info = { target = target, capacity = n, weight = w, tough = t }
     local md = dataOf(item)
@@ -395,7 +452,8 @@ function Gear.itemInfo(item)
 end
 
 -- Why a kit cannot be fitted to an item now, or nil when it can: "kit" (not a kit), "target" (it does not fit that
--- item), "most" (the tool has all the reinforcement it takes), "api" (the welder's uses need the extension API).
+-- item), "most" (the tool has all the reinforcement it takes), "api" (the welder's uses need the extension API), "full"
+-- (the weapon is at its most condition, a repair kit would be wasted).
 function Gear.refusal(kit, item)
     local kind = Gear.kindOfItem(kit)
     if not kind then return "kit" end
@@ -410,11 +468,19 @@ function Gear.refusalFor(kind, item)
     local _, _, t = Gear.itemKits(item)
     if kind == "reinforcement" and t >= Rules.TOUGH_MOST then return "most" end
     if kind == "capacity" and target == "welder" and not Gear.applies(Gear.USES_POINT) then return "api" end
+    if kind == "weaponRepair" and item:getCondition() >= item:getConditionMax() then return "full" end
     return nil
 end
 
 -- The notice that tells what a fitted kit made of the item: its key and the value.
 local function fittedText(kind, target, info)
+    if target == "weapon" then
+        if kind == "weaponDamage" then
+            return "IGUI_OA_Gear_Fitted_weaponDamage", "+" .. tostring(OA.round(info.damage * Rules.DAMAGE_STEP * 100)) .. "%"
+        end
+        if kind == "weaponCrit" then return "IGUI_OA_Gear_Fitted_weaponCrit", tostring(OA.round(info.chance)) .. "%" end
+        return "IGUI_OA_Gear_Fitted_weaponRepair", tostring(info.condition) .. "/" .. tostring(info.most)
+    end
     if target == "bag" then
         if kind == "capacity" then return "IGUI_OA_Gear_Fitted_bagCapacity", tostring(info.total) end
         return "IGUI_OA_Gear_Fitted_bagWeight", tostring(info.reduction) .. "%"
@@ -425,6 +491,21 @@ local function fittedText(kind, target, info)
     return "IGUI_OA_Gear_Fitted_tough", tostring(info.condition)
 end
 
+-- A weapon kit counted on the weapon: damage and critical kits are counted (the critical kit first notes the chance the
+-- weapon has now), and the values written from the counts; a repair kit puts back its part of the condition, and does
+-- not touch the count of repairs the game keeps (HaveBeenRepaired), which sets how well the weapon is repaired by hand.
+function Gear.fitWeapon(kind, weapon, md)
+    if kind == "weaponDamage" then
+        md[K.KIT_WDAMAGE] = (md[K.KIT_WDAMAGE] or 0) + 1
+    elseif kind == "weaponCrit" then
+        if md[K.WEAPON_CRIT] == nil then md[K.WEAPON_CRIT] = weapon:getCriticalChance() end
+        md[K.KIT_WCRIT] = (md[K.KIT_WCRIT] or 0) + 1
+    else
+        md[K.KIT_WREPAIR] = (md[K.KIT_WREPAIR] or 0) + 1
+        weapon:setCondition(Rules.repaired(weapon:getCondition(), weapon:getConditionMax()), false)
+    end
+end
+
 -- Fits a kit to an item the character has: counts it, writes it into the item, uses the kit up. Returns true and the
 -- item's new value (as the notice says it), or false and the reason (Gear.refusal).
 function Gear.fitItem(character, kit, item)
@@ -432,7 +513,9 @@ function Gear.fitItem(character, kit, item)
     if why then return false, why end
     local kind, target = Gear.kindOfItem(kit), Gear.targetOf(item)
     local md = item:getModData()
-    if kind == "capacity" then
+    if target == "weapon" then
+        Gear.fitWeapon(kind, item, md)
+    elseif kind == "capacity" then
         if target == "bag" and md[K.BAG_BASE_CAP] == nil then
             md[K.BAG_BASE_CAP] = item:getItemContainer():getCapacity()
         elseif target == "can" and md[K.BAG_BASE_CAP] == nil then
@@ -468,7 +551,8 @@ function Gear.refreshAll(character)
     local list = character:getInventory():getAllEvalRecurse(function(item)
         if not maybeTarget(item) then return false end
         local md = dataOf(item)
-        return md ~= nil and (md[K.KIT_CAP] or md[K.KIT_LIGHT] or md[K.KIT_TOUGH] or md[K.TEAM]) ~= nil
+        return md ~= nil and (md[K.KIT_CAP] or md[K.KIT_LIGHT] or md[K.KIT_TOUGH] or md[K.TEAM] or md[K.KIT_WDAMAGE]
+            or md[K.KIT_WCRIT]) ~= nil
     end)
     for i = 0, list:size() - 1 do Gear.refreshItem(list:get(i)) end
     return list:size()
@@ -649,6 +733,16 @@ function Gear.itemLines(item)
     if not info then return nil end
     local lines = {}
     local function add(key, ...) lines[#lines + 1] = getText(key, ...) end
+    if info.target == "weapon" then
+        if info.damage > 0 then
+            add("Tooltip_OA_Gear_WeaponDamage", tostring(info.damage), tostring(OA.round(info.damage * Rules.DAMAGE_STEP * 100)))
+        end
+        if info.crit > 0 then
+            add("Tooltip_OA_Gear_WeaponCrit", tostring(info.crit), tostring(info.crit * Rules.CRIT_STEP))
+        end
+        if info.repair > 0 then add("Tooltip_OA_Gear_WeaponRepair", tostring(info.repair)) end
+        return #lines > 0 and lines or nil
+    end
     if info.target == "bag" then
         if info.capacity > 0 and info.total then add("Tooltip_OA_Gear_BagCapacity", tostring(info.capacity), tostring(info.total)) end
         if info.weight > 0 and info.reduction then

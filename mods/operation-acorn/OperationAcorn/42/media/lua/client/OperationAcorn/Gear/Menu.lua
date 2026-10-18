@@ -44,7 +44,8 @@ end
 Menu.TEXTS = {
     TeamBackpack = "TeamBackpack", TeamWaistBagFront = "TeamWaistBag", TeamWaistBagBack = "TeamWaistBag",
     TeamFuelCan = "TeamFuelCan", KitCapacity = "KitCapacity", KitLightening = "KitLightening",
-    KitReinforcement = "KitReinforcement", KitEngine = "KitEngine",
+    KitReinforcement = "KitReinforcement", KitEngine = "KitEngine", KitWeaponDamage = "KitWeaponDamage",
+    KitWeaponCrit = "KitWeaponCrit", KitWeaponRepair = "KitWeaponRepair",
 }
 
 -- The tooltip text of an item of this mod or the team's welder, or nil.
@@ -105,7 +106,7 @@ local function addItemKitMenu(context, player, kit)
     local kind = Gear.kindOfItem(kit)
     local option = context:addOptionOnTop(getText("ContextMenu_OA_Gear_FitItem"), nil, nil)
     local fits = {}
-    for _, item in ipairs(Gear.targets(player)) do
+    for _, item in ipairs(Gear.targets(player, Rules.WEAPON_TYPES[kind] ~= nil)) do
         if Rules.fits(kind, Gear.targetOf(item)) then fits[#fits + 1] = item end
     end
     if #fits == 0 then
@@ -147,7 +148,7 @@ local function addFitKitMenu(context, player, item)
     if not item:getContainer() then return end
     local target = Gear.targetOf(item)
     local entries = {}
-    for _, kind in ipairs(OA.Shop.KIT_ORDER) do
+    for _, kind in ipairs(Rules.kinds()) do
         local count = Rules.fits(kind, target) and Gear.kitCount(player, kind) or 0
         if count > 0 then entries[#entries + 1] = { kind = kind, count = count } end
     end

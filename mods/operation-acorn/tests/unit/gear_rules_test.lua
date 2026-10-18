@@ -217,11 +217,15 @@ test("the kits are real items with their icons", function()
         truthy(icons["Item_OA_" .. icon .. ".png"], name .. " icon Item_OA_" .. icon .. ".png exists")
         count = count + 1
     end
-    eq(count, 9)
+    eq(count, 12)
     eq(item("KitCapacity").Icon, "OA_CapacityKit")
     eq(item("KitLightening").Icon, "OA_LighteningKit")
     eq(item("KitReinforcement").Icon, "OA_ReinforcementKit")
     eq(item("KitEngine").Icon, "OA_EngineTuningKit")
+    eq(item("KitWeaponDamage").ItemType, "base:normal")
+    for _, name in ipairs({ "KitWeaponDamage", "KitWeaponCrit", "KitWeaponRepair" }) do
+        eq(item(name).DisplayCategory, "Tool", name)
+    end
     eq(item("TeamBackpack").Icon, "OA_ResearchBackpack")
 end)
 
@@ -282,4 +286,47 @@ test("the work of fitting a kit: to an item a fixed time, to a vehicle faster wi
     eq(R.workTicks("engine", 10), 420)    -- 60 percent
     eq(R.workTicks("storage", 15), 200)     -- 40 percent, the least
     eq(R.workTicks("engine", nil), 700)
+end)
+
+test("weapon kits: damage a tenth of the original per kit with no most, critical five points per kit with no most", function()
+    near(R.damage(1.5, 0), 1.5, 1e-9)
+    near(R.damage(1.5, 1), 1.65, 1e-9)
+    near(R.damage(2.0, 3), 2.6, 1e-9)
+    near(R.damage(0.8, 100), 8.8, 1e-9, "no cap")
+    eq(R.crit(20, 0), 20)
+    eq(R.crit(20, 1), 25)
+    eq(R.crit(0, 4), 20)
+    eq(R.crit(35, 50), 285, "no cap")
+end)
+
+test("the repair kit puts back a tenth of the most condition rounded up, at least 1, and stops at the most", function()
+    eq(R.repairGain(10), 1)
+    eq(R.repairGain(11), 2)
+    eq(R.repairGain(30), 3, "a decimal tenth of 30 would round up to 4")
+    eq(R.repairGain(7), 1, "at least 1")
+    eq(R.repairGain(1), 1)
+    eq(R.repairGain(0), 1)
+    eq(R.repairGain(100), 10)
+    eq(R.repaired(5, 10), 6)
+    eq(R.repaired(10, 10), 10)
+    eq(R.repaired(29, 30), 30, "stops at the most")
+    eq(R.repaired(0, 25), 3)
+end)
+
+test("the weapon kits are kinds of their own: items by type, fitted to weapons only, not to a vehicle", function()
+    eq(R.kitType("weaponDamage"), "OperationAcorn.KitWeaponDamage")
+    eq(R.kitType("weaponCrit"), "OperationAcorn.KitWeaponCrit")
+    eq(R.kitType("weaponRepair"), "OperationAcorn.KitWeaponRepair")
+    eq(R.kindOf("OperationAcorn.KitWeaponCrit"), "weaponCrit")
+    eq(R.kindOf("OperationAcorn.KitCapacity"), "capacity", "the others still found")
+    for _, kind in ipairs(R.WEAPON_ORDER) do
+        truthy(R.fits(kind, "weapon"), kind)
+        truthy(not R.fits(kind, "bag"), kind)
+        truthy(R.onItems(kind), kind)
+    end
+    truthy(not R.fits("capacity", "weapon"))
+    truthy(not R.fits("reinforcement", "weapon"))
+    local kinds = R.kinds()
+    eq(#kinds, #OA.Shop.KIT_ORDER + 3)
+    eq(kinds[#kinds], "weaponRepair")
 end)

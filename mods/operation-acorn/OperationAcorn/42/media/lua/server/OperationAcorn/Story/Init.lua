@@ -14,11 +14,12 @@ require "OperationAcorn/Story/Zombies"
 require "OperationAcorn/Story/Harvest"
 require "OperationAcorn/Story/Docs"
 require "OperationAcorn/Story/Places"
+require "OperationAcorn/Story/Dense"
 local OA = OperationAcorn
 local Missions, Game, Sites, Story = OA.Missions, OA.StoryGame, OA.Sites, OA.Story
 local Zombies, Harvest = OA.ZombieMissions, OA.Harvest
 local Scene, SceneGame = OA.Scene, OA.SceneGame
-local Docs, Places = OA.StoryDocs, OA.Places
+local Docs, Places, Dense = OA.StoryDocs, OA.Places, OA.Dense
 local Init = {}
 OA.StoryInit = Init
 
@@ -94,6 +95,12 @@ local function ensureSites()
     end
 end
 
+-- The dense places are asked of the API once a world (Dense.ensure); asked again until it answers.
+local function ensureDense()
+    local ok, err = pcall(Dense.ensure)
+    if not ok then OA.log("dense places failed:", tostring(err)) end
+end
+
 local function start()
     if started then return end
     started = true
@@ -101,6 +108,7 @@ local function start()
     Scene.game = SceneGame
     OA.Stage.game = OA.StageGame
     ensureSites()
+    ensureDense()
     Game.rebuildWaiting()
     subscribe()
 end
@@ -108,6 +116,7 @@ end
 local function onTenMinutes()
     if not started then start() end
     ensureSites()
+    ensureDense()
     subscribe()
     eachRecord(function(record)
         Missions.tick(record)
@@ -125,6 +134,11 @@ end
 local function onMinute()
     if not started then return end
     eachRecord(Scene.minute)
+    -- a dense place stood at: its zombies counted, its reward given (Story/Dense; a few distances a record)
+    eachRecord(function(record)
+        local x, y = Game.playerPosition(record)
+        if x then Dense.look(record, x, y) end
+    end)
     -- a zombie mission's group held, brought when the player comes near (Story/Zombies)
     local ok, err = pcall(Zombies.tick, OA.hours())
     if not ok then OA.log("zombie missions failed:", tostring(err)) end

@@ -1,8 +1,8 @@
 /* Operation Acorn: gear and kits (the gear package).
-   The research team backpack, waist bag and fuel can, the welding mask and the four modification kits. Every property
-   is one the vanilla scripts use: the backpack is modelled on Bag_ALICEpack, the waist bag on Bag_FannyPackFront/Back
-   (media/scripts/generated/items/container.txt) and the can on PetrolCan (normal.txt). The team's welder is the vanilla
-   blowtorch with the team's mark in its modData (Gear/Gear.lua): the game checks the torch by its exact type
+   The research team backpack, waist bag and fuel can, the welding mask, the four modification kits and the three
+   weapon kits. Every property is one the vanilla scripts use: the backpack is modelled on Bag_ALICEpack, the waist bag on
+   Bag_FannyPackFront/Back (media/scripts/generated/items/container.txt) and the can on PetrolCan (normal.txt). The team's
+   welder is the vanilla blowtorch with the team's mark in its modData (Gear/Gear.lua): the game checks the torch by its exact type
    (barricading, unbarricading, scrapping metal, burnt cars), so one of another type would not work. The field tools are
    in OA_field_tools.txt.
    What scripts cannot do is in media/lua/shared/OperationAcorn/Gear: fitting a kit (a timed action that writes the
@@ -169,6 +169,36 @@ module OperationAcorn
         Weight = 2.0,
         Icon = OA_EngineTuningKit,
         WorldStaticModel = Base.EngineParts,
+    }
+
+    /* The weapon kits (NUMBERS 7 'Weapon kits'): fitted to a melee weapon or a firearm by the same timed action as the
+       others. The damage kit raises its least and most damage, the critical kit its critical chance, the repair kit
+       puts condition back. They have the modification kits' icons until their own are drawn. */
+    item KitWeaponDamage
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 1.0,
+        Icon = OA_ReinforcementKit,
+        WorldStaticModel = Base.SewingBox,
+    }
+
+    item KitWeaponCrit
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 1.0,
+        Icon = OA_LighteningKit,
+        WorldStaticModel = Base.SewingBox,
+    }
+
+    item KitWeaponRepair
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 1.0,
+        Icon = OA_CapacityKit,
+        WorldStaticModel = Base.ToolBox_Ground,
     }
 
     /* The team welding mask: the vanilla WeldingMask (clothing.txt) with a vented shell, so it is cooler and less in
