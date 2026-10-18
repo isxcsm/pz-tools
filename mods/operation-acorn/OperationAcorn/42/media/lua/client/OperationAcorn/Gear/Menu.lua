@@ -287,6 +287,16 @@ local function onGameStart()
 end
 Events.OnGameStart.Add(onGameStart)
 
+-- A weapon's critical chance is not saved by the game (its damage is), and a weapon left in a container at the start was
+-- not looked at then: its kits are written into it as it is taken in hand (one item, only one with weapon kits).
+local function onEquip(_, item)
+    if not item or not item:IsWeapon() or not item:hasModData() then return end
+    local damage, crit = Gear.weaponKits(item)
+    if damage > 0 or crit > 0 then OA.try("gear: a weapon's kits", Gear.refreshItem, item) end
+end
+Events.OnEquipPrimary.Add(onEquip)
+Events.OnEquipSecondary.Add(onEquip)
+
 -- The waist bag worn the other way is a new item with the old one's modData and the script's capacity: its kits are
 -- written into it as soon as it is put on (only the two waist bag places are looked at).
 local function onClothingUpdated(character)

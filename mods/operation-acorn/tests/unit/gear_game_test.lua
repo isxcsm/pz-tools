@@ -1118,3 +1118,21 @@ test("weapon kits are listed by category for the kit's menu, and a weapon's menu
     eq(onWeapon.options[1].name, "ContextMenu_OA_Gear_FitKit")
     eq(#onWeapon.options[1].subOption.options, 1, "the critical kit only")
 end)
+
+test("a weapon taken in hand gets its kits written again (the game does not save the critical chance)", function()
+    setup()
+    menuStubs()
+    local player = newCharacter()
+    local bat = weapon(player, { min = 1.0, max = 2.0, crit = 20 })
+    local md = bat:getModData()                     -- two critical kits fitted, the chance as a loaded game gives it back
+    md[K.WEAPON_CRIT], md[K.KIT_WCRIT] = 20, 2
+    TEST.fire("OnEquipPrimary", player, bat)
+    eq(bat.crit, 30)
+    bat.crit = 20
+    TEST.fire("OnEquipSecondary", player, bat)
+    eq(bat.crit, 30)
+    local plain = weapon(player, { min = 1.0, max = 2.0, crit = 20 })
+    TEST.fire("OnEquipPrimary", player, plain)
+    eq(plain.crit, 20, "a weapon without kits is left alone")
+    TEST.fire("OnEquipPrimary", player, nil)
+end)
