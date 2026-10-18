@@ -10,7 +10,7 @@ module BuildingUtilities
         DisplayCategory = Electronics,
         ItemType = base:moveable,
         WorldObjectSprite = bu_water_01_72,
-        Weight = 15.0,
+        Weight = 7.0,
         RequiresEquippedBothHands = true,
         Tags = base:heavyitem,
         Icon = BUBreakerBox,
@@ -42,12 +42,15 @@ module BuildingUtilities
         }
     }
 
+    /* Each tier's box weighs by its size (tools/tile_art.py, FOOT and the heights), the steps kept wide so the tiers feel
+       apart: the tier 1 box is small (7); the tier 2 box has about twice its volume (15), the tier 3 the same with the time
+       switch and its works (19); the tier 4 console stands far above them (34), under a generator's 40. */
     item BreakerBox2
     {
         DisplayCategory = Electronics,
         ItemType = base:moveable,
         WorldObjectSprite = bu_water_01_88,
-        Weight = 17.0,
+        Weight = 15.0,
         RequiresEquippedBothHands = true,
         Tags = base:heavyitem,
         Icon = BUBreakerBox2,
@@ -69,7 +72,7 @@ module BuildingUtilities
         DisplayCategory = Electronics,
         ItemType = base:moveable,
         WorldObjectSprite = bu_water_01_32,
-        Weight = 22.0,
+        Weight = 34.0,
         RequiresEquippedBothHands = true,
         Tags = base:heavyitem,
         Icon = BUBreakerBox4,

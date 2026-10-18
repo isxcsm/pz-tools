@@ -37,7 +37,8 @@ end
 say("looks", looks)
 
 -- the scripts' weights (Weight in scripts/BuildingUtilities.txt)
-local WEIGHTS = { FireSprinkler = 1.5, Sprinkler = 2.0, BoosterPump = 18.0 }
+local WEIGHTS = { FireSprinkler = 1.5, Sprinkler = 2.0, BoosterPump = 18.0, BreakerBox = 7.0, BreakerBox2 = 15.0,
+    BreakerBox3 = 19.0, BreakerBox4 = 34.0 }
 for name, want in pairs(WEIGHTS) do
     local item = instanceItem("BuildingUtilities." .. name)
     check(name .. " weight", item and math.floor(item:getActualWeight() * 10 + 0.5) / 10, want)
