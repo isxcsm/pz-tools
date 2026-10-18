@@ -38,12 +38,17 @@ end
 local function tie(option) option.buPlace = "tie"; return option end
 local function removal(option) option.buPlace = "removal"; return option end
 
+-- What the player has of tools and items, looked through the inventory once for the menu being built (fill,
+-- fillInventory), as each option asks only of what its cost needs (Costs.snapshot).
+local menuCosts = nil
+
 -- An option that lays a line or upgrades: what it needs, and not available when the player lacks it.
 local function costed(option, playerObj, cost, note)
-    local text = Costs.describe(playerObj, cost)
+    local snapshot = menuCosts or Costs.snapshot(playerObj)
+    local text = Costs.describe(playerObj, cost, false, snapshot)
     if note then text = note .. (text ~= "" and " <LINE> " .. text or "") end
     tooltip(option, text)
-    if not Costs.affords(playerObj, cost) then option.notAvailable = true end
+    if not Costs.affords(playerObj, cost, snapshot) then option.notAvailable = true end
 end
 
 local function apiMissingText()
@@ -466,6 +471,7 @@ function ContextMenu.fill(player, context, worldobjects, test)
     local objects = squareObjects(square)
     local before = {}
     for _, option in ipairs(context.options) do before[option] = true end
+    menuCosts = Costs.snapshot(playerObj, true)
     for _, object in ipairs(objects) do
         local panel = Panels.ofObject(object)
         if panel then addPanelOptions(context, playerObj, panel)
@@ -478,6 +484,7 @@ function ContextMenu.fill(player, context, worldobjects, test)
         addProducerOptions(context, playerObj, objects)
         addDeviceOptions(context, playerObj, objects)
     end
+    menuCosts = nil
     placeAdded(context, before)
 end
 
@@ -536,6 +543,7 @@ local function addTakeApart(context, playerObj, item)
 end
 
 function ContextMenu.fillInventory(player, context, items)
+    menuCosts = nil
     local playerObj = getSpecificPlayer(player)
     if not playerObj or #items ~= 1 then return end
     local item = items[1]

@@ -338,3 +338,46 @@ test("a box's devices by part key are read once for what asks within a second, a
     Panels.device(panel, "water", key)
     eq(Panels.device(panel, "power", key), Panels.device(panel, "power", key))
 end)
+
+test("a costs snapshot looks through the inventory once for what a menu's options ask, and not past a quarter second", function()
+    require "BuildingUtilities/Costs"
+    local Costs = BU.Costs
+    ItemTag = { SCREWDRIVER = "screwdriver", PIPE_WRENCH = "wrench", PLIERS = "pliers" }
+    Perks = { Electricity = 1 }
+    getItemNameFromFullType = function(itemType) return itemType end
+    local looks = 0
+    local wire = 5
+    local inventory = {
+        getFirstTagEvalRecurse = function(_, tag) looks = looks + 1; return tag == "screwdriver" and {} or nil end,
+        getCountTypeEvalArgRecurse = function(_, itemType) looks = looks + 1; return itemType == Costs.WIRE and wire or 0 end,
+    }
+    local character = { getInventory = function() return inventory end, getPlayerNum = function() return 0 end,
+        getPerkLevel = function() return 5 end }
+    local now = 9000000
+    getTimestampMs = function() return now end
+    local cost = Costs.sum({ Costs.outside("power", 4), Costs.addPipe() })
+    local snapshot = Costs.snapshot(character)
+    -- a menu of many options asking the same: each tool and item looked for once
+    for _ = 1, 10 do
+        Costs.affords(character, cost, snapshot)
+        Costs.describe(character, cost, false, snapshot)
+    end
+    local first = looks
+    eq(Costs.affords(character, cost, snapshot), false, "no wrench")
+    eq(looks, first, "asked again: no look")
+    -- without a snapshot, each is looked for again, as an action checks it
+    Costs.affords(character, cost)
+    truthy(looks > first, "no snapshot, a look")
+    -- the same snapshot within a quarter second, a new one after
+    eq(Costs.snapshot(character), snapshot)
+    now = now + 249
+    eq(Costs.snapshot(character), snapshot)
+    wire = 0
+    now = now + 2
+    local later = Costs.snapshot(character)
+    truthy(later ~= snapshot)
+    eq(Costs.snapshot(character, true) ~= later, true, "fresh asks for a new one")
+    -- its text tells what it counted
+    local text = Costs.describe(character, { tools = {}, items = { { Costs.WIRE, 2 } } }, true, later)
+    truthy(text:find("IGUI_BU_NeedItem", 1, true))
+end)

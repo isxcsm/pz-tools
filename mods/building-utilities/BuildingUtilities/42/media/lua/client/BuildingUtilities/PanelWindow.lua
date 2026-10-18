@@ -1051,7 +1051,9 @@ function ISBUPanelWindow:costState(key, cost, plain)
     local now = getTimestampMs()
     local kept = self.costs[key]
     if kept and not self.freshCosts and now - kept.at < PanelWindow.COST_MS then return kept.affords, kept.text end
-    kept = { at = now, affords = Costs.affords(self.playerObj, cost), text = Costs.describe(self.playerObj, cost, plain) }
+    local snapshot = Costs.snapshot(self.playerObj, self.freshCosts)
+    kept = { at = now, affords = Costs.affords(self.playerObj, cost, snapshot),
+        text = Costs.describe(self.playerObj, cost, plain, snapshot) }
     self.costs[key] = kept
     return kept.affords, kept.text
 end

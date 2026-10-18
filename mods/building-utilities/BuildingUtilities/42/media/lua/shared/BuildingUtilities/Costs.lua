@@ -119,17 +119,54 @@ local function hasTool(inventory, tool)
     return tag ~= nil and inventory:getFirstTagEvalRecurse(tag, notBroken) ~= nil
 end
 
+-- What a character has of the tools and items, looked through the inventory once and kept for a short while, for the
+-- UI that asks of many costs together (a menu's options, a window's buttons): { character, at, tools = { [tool] =
+-- whether }, counts = { [item type or group] = how many } }, each filled as it is first asked. Costs.affords and
+-- Costs.describe take it as their last argument; without one they look through the inventory, as an action must
+-- (what it checks as it is made and completes is not from a snapshot).
+local SNAPSHOT_MS = 250
+local snapshots = {}
+
+function Costs.snapshot(character, fresh)
+    local now = getTimestampMs()
+    local number = character:getPlayerNum()
+    local kept = snapshots[number]
+    if kept and kept.character == character and not fresh and now >= kept.at and now - kept.at < SNAPSHOT_MS then return kept end
+    kept = { character = character, at = now, tools = {}, counts = {} }
+    snapshots[number] = kept
+    return kept
+end
+
+local function toolOf(character, tool, snapshot)
+    if not snapshot then return hasTool(character:getInventory(), tool) end
+    local has = snapshot.tools[tool]
+    if has == nil then
+        has = hasTool(character:getInventory(), tool)
+        snapshot.tools[tool] = has
+    end
+    return has
+end
+
+local function countOf(character, itemType, snapshot)
+    if not snapshot then return have(character, itemType) end
+    local count = snapshot.counts[itemType]
+    if count == nil then
+        count = have(character, itemType)
+        snapshot.counts[itemType] = count
+    end
+    return count
+end
+
 -- Whether the character has what the cost asks. Always true without costs (sandbox), but for the skill of an upgrade.
-function Costs.affords(character, cost)
+function Costs.affords(character, cost, snapshot)
     if not cost then return false end
     if cost.skill and character:getPerkLevel(Perks.Electricity) < cost.skill then return false end
     if not BU.costsEnabled() then return true end
-    local inventory = character:getInventory()
     for _, tool in ipairs(cost.tools) do
-        if not hasTool(inventory, tool) then return false end
+        if not toolOf(character, tool, snapshot) then return false end
     end
     for _, item in ipairs(cost.items) do
-        if have(character, item[1]) < item[2] then return false end
+        if countOf(character, item[1], snapshot) < item[2] then return false end
     end
     return true
 end
@@ -173,10 +210,9 @@ function Costs.refund(character, paid)
 end
 
 -- The cost as tooltip lines: each need, green when the character has it, red when not. Plain: for a button's
--- tooltip, which takes no tags, a mark before what is missing.
-function Costs.describe(character, cost, plain)
+-- tooltip, which takes no tags, a mark before what is missing. snapshot: Costs.snapshot, when the caller has one.
+function Costs.describe(character, cost, plain, snapshot)
     if not cost then return "" end
-    local inventory = character:getInventory()
     local lines = {}
     local function line(ok, text)
         if plain then lines[#lines + 1] = (ok and "  " or "! ") .. text
@@ -187,9 +223,9 @@ function Costs.describe(character, cost, plain)
         line(level >= cost.skill, getText("IGUI_BU_NeedSkill", cost.skill, level))
     end
     if BU.costsEnabled() then
-        for _, tool in ipairs(cost.tools) do line(hasTool(inventory, tool), getText("IGUI_BU_Tool_" .. tool)) end
+        for _, tool in ipairs(cost.tools) do line(toolOf(character, tool, snapshot), getText("IGUI_BU_Tool_" .. tool)) end
         for _, item in ipairs(cost.items) do
-            local count = have(character, item[1])
+            local count = countOf(character, item[1], snapshot)
             local name = GROUP_NAMES[item[1]] and getText(GROUP_NAMES[item[1]]) or getItemNameFromFullType(item[1])
             line(count >= item[2], getText("IGUI_BU_NeedItem", name, item[2], count))
         end
