@@ -89,3 +89,32 @@ Some checks change the save's market or the record (they say so in their header)
 | `st_timing.lua` | the story's world work (Stage, Scene, StageGame, SceneGame, missions) timed: a call over `ST_SLOW` ms (10) printed as `[timing]` | (by story_lib) |
 | `st_walk.lua`, `st_grab.lua`, `st_take.lua`, `st_door.lua`, `st_doors.lua` | walk to `ST_TO`; pick up what lies at `ST_AT` (`ST_TYPE`); take what is of `ST_TYPE` in the containers at `ST_AT` (a fridge's freezer too); list the doors near `ST_AT` and open the nearest locked one (`ST_OPEN`); every door of the active mission's building with its two rooms, lock and key ids | |
 | `st_crate.lua`, `st_layout.lua` | the supply crates near and what is in them; the running mission's building as the stage reads it (rooms, doors, roles) | |
+
+## P10 round 3 (`p10_*.lua`, E2E.md chapter 10)
+
+For the combined round-3 session: `pzdev check p10_all.lua` runs every area below one after another (about 6 minutes; each
+prints `[p10x] <what> ok|BAD <values>` and `[p10x] end: N BAD`, the whole `[p10all] done: N BAD in M areas`), or run a file
+alone with `pzdev check p10_<area>.lua` (it ends with `done: N BAD`). Setup: the throwaway save with the Dev mod and PZ Extension
+API, the character on open ground with no zombies near. The checks that need the game to run on (a teleport, a minute, a title's
+life) go on from the frames, so the file returns at once and its lines come as it goes. Everything is done on scratch records
+(`p10_<name>_<n>`, taken away at the end) except where a file says it uses the real record (the eggs' minute event, the dense
+look held back, the radio): those put it back. The character, the time of day, the speed, the god mode and the invisibility
+are put back where a file changes them.
+
+| File | What it checks | Notes |
+| --- | --- | --- |
+| `p10_lib.lua` | helpers (areas, steps from the frames, scratch records, capture of `OA.Sync.title/notice/sound`, title tap) | none |
+| `p10_survey.lua` | the survey branch for each tree: the notice once, the call waiting, the zone after the call is played (site inside, off the middle, a dim survey circle on the map), the fragment taking it away, the handover variant (`C_<tree>_k`), a retired record keeping the zone; each drop site stood at: placed, loaded, floor, outside, no building, no water within 3, the API's land conditions, the fragment near, and whether it moved | the character goes to the three sites and back (~1 min) |
+| `p10_restock.lua` | stock `floor(tier/3)+1` at tiers 1, 3, 6, 12; the weapon kits locked below 6; prices 20,000 / 40,000 / 80,000, the cart total, sold out (reason, card key and text); the window rolled by putting its start back (10 days, 35 days), nothing carried, prices back; a town 0.9, two 0.81; the real towns index (count, sizes) and two towns searched through, a new record taking the share by coming in | the clock is not touched |
+| `p10_dense.lua` | the world list made once; the figures of the places and a grid of `min` x `chunks` for tuning `Dense.MIN` and `Dense.CHUNKS`; the maps' circles by tier and colour; a place cleared with zombies made round the character (baseline, half, 10%), the title, the kit restock +1, the second record inheriting | the character goes to the first uncleared place and back; some of the place's own zombies are removed |
+| `p10_kits.lua` | damage, critical and repair kits fitted through `Gear.fitItem` to a bat, a pistol and a rifle: min/max/critical/condition, the notice, the tooltip lines, a part attached and detached (a part given 0.5 damage too); writes `oadev/p10_kits.txt` | the weapons stay for the reload |
+| `p10_state.lua` | the record `p10_keep` and the world's `P10X` marks holding a restock window, dense marks, a survey zone and eggs; writes `oadev/p10_state.txt` | stays for the reload |
+| `p10_grades.lua` | grade, designation (with the count past the top), address and the stamps for tiers 8, 10, 11, 12, 13, 14, 16, 17, 18 after the handover; before it | `P10_SHOW_GRADES = true` shows the stamps to you |
+| `p10_eggs.lua` | the five eggs through `Eggs.settle` and the real formulas; the 07:30 radio on a scratch record, then on the real one through the game's minute event, and at the fastest speeds | the time is set to 07:29 / 07:24 and put back |
+| `p10_titles.lua` | one title of each style through `OA.Titles.show`: real times at show and when the API reports it gone, the frames, the longest one, against the design table; a title cut by one with `now`; a pause in the middle of a stamp | ~3 minutes; the moments inside a title's life cannot be read from Lua, and the sounds are heard, not measured |
+| `p10_all.lua` | the areas above in order, with `p10_state.lua` between the kits and the grades | |
+| `p10_kits_after.lua`, `p10_state_after.lua`, `p10_after.lua` | after a save and `pzdev reload`: the kit weapons and the state record against the files written before, then taken away (`p10_after.lua` runs both) | run once after `p10_all.lua` |
+
+Not scripted: how a hit or a shot damages (kits), the pictures (map circles, shop cards, title ink and timing against the lab),
+the sounds of a title, a town searched through in the game, the dense place cleared by real kills, the survey call in the
+terminal.
