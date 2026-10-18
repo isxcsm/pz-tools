@@ -65,6 +65,35 @@ test("a site that is not land is moved within the ring, and gives up after a num
     eq(site.state, "failed")
 end)
 
+-- A site's chunk loads and nothing in it fits: the fit is asked of the chunk's squares, the middle and its neighbours on
+-- land and the whole scorched footprint on open ground (a lake is not under it), and the site moves on.
+test("a site fits its scorched footprint on open ground in its chunk, and moves when nothing fits", function()
+    clearSites()
+    local list = Sites.ensure(ORIGIN, yes)
+    local site = list[2]
+    site.kind = "iron"
+    local fit
+    PZExtAPI = { version = OA.API_VERSION, client = function() return {} end,
+        squares = { fit = function(anchors, parts, options) fit = { anchors = anchors, parts = parts, options = options } end },
+        zones = { points = function(x, y, lo, hi) return { { x = x + lo + 1, y = y, zones = {} } } end } }
+    getWorld = function() return { getMetaGrid = function() return { getCellData = function() return {} end } end } end
+    local entry = { kind = "oa_site", site = 2, x = site.x, y = site.y, z = 0 }
+    local x1, y1 = math.floor(site.x / 8) * 8, math.floor(site.y / 8) * 8
+    eq(Sites.onChunk(entry, nil), true)
+    eq(fit.anchors.x1, x1); eq(fit.anchors.y2, y1 + 7); eq(fit.anchors.z, 0)
+    eq(fit.options.order, "random")
+    local middle, scorched = fit.parts[1], fit.parts[2]
+    eq(#middle.offsets, 6, "the middle and the squares east and south of it")
+    eq(middle.filter.free, true); eq(middle.filter.tree, false); eq(middle.filter.building, "none")
+    eq(middle.filter.zonesNot, Sites.NOT)
+    eq(#scorched.offsets, 2 * Sites.SCORCH.iron)
+    eq(scorched.filter.waterFlag, false); eq(scorched.filter.outside, true)
+    truthy(scorched.filter == OA.StoryGame.GROUND, "the camp's ground")
+    eq(site.state, "pending", "not placed")
+    truthy(site.tries >= 1, "moved on")
+    getWorld, PZExtAPI = nil, nil
+end)
+
 test("a player near a site has seen it", function()
     clearSites()
     local list = Sites.ensure(ORIGIN, yes)

@@ -192,10 +192,19 @@ function fails(fn, what)
     if ok then error((what or "expected an error") .. ", but it ran", 2) end
 end
 
--- A fake game's story sites (Game.sitesInBand, groundInBand, buildingKeyAt) over its building list g.list: every
--- second building a house, the rooms 1 to 5 by turn, the area 36 unless the entry has its own. The open ground is the
--- band's middle due east of the anchor; g.noGround takes it away.
+-- A fake game's buildings (Game.buildingsIn) and story sites (Game.sitesInBand, groundInBand, buildingKeyAt) over its
+-- building list g.list: every second building a house, the rooms 1 to 5 by turn, the area 36 unless the entry has its
+-- own. The open ground is the band's middle due east of the anchor; g.noGround takes it away.
 function fakeSites(g)
+    g.buildingsIn = function(x, y, lo, hi)
+        local out = {}
+        for _, b in ipairs(g.list) do
+            local dx, dy = b.x - x, b.y - y
+            local d = math.sqrt(dx * dx + dy * dy)
+            if d >= lo and d <= hi then out[#out + 1] = b end
+        end
+        return out
+    end
     g.sitesInBand = function(ax, ay, lo, hi, skip)
         local out = {}
         for i, b in ipairs(g.list) do

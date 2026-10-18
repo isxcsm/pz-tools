@@ -59,31 +59,16 @@ end
 -- The free squares in rooms of the piece's building, on its floor, within `radius` of it (loaded ones only), nearest
 -- first; those nearer than `near` (Scene.NEAR by default) to the player (px, py) left out when px is given.
 local function freeSquares(it, radius, px, py, near)
-    local c = getCell()
     local at = it.at
-    local home = c:getGridSquare(at.x, at.y, at.z)
-    local building = home and home:getBuilding()
+    local api = OA.api()
+    local building = api.buildings.at(at.x, at.y, at.z)
+    if not building then return {} end
+    local filter = { room = "any", building = building.key, free = true }
+    if px then filter.distance = { x = px, y = py, min = near or Scene.NEAR } end
+    local box = { x1 = math.max(it.x1, at.x - radius), y1 = math.max(it.y1, at.y - radius),
+        x2 = math.min(it.x2, at.x + radius), y2 = math.min(it.y2, at.y + radius), z = at.z }
     local list = {}
-    if not building then return list end
-    near = near or Scene.NEAR
-    local near2 = near * near
-    for x = math.max(it.x1, at.x - radius), math.min(it.x2, at.x + radius) do
-        for y = math.max(it.y1, at.y - radius), math.min(it.y2, at.y + radius) do
-            local sq = c:getGridSquare(x, y, at.z)
-            if sq and sq:getRoom() and sq:getBuilding() == building and sq:isFree(false) then
-                local far = true
-                if px then
-                    local dx, dy = x - px, y - py
-                    far = dx * dx + dy * dy >= near2
-                end
-                if far then
-                    local dx, dy = x - at.x, y - at.y
-                    list[#list + 1] = { sq = sq, d = dx * dx + dy * dy }
-                end
-            end
-        end
-    end
-    table.sort(list, function(a, b) return a.d < b.d end)
+    for i, sq in ipairs(api.squares.list(box, filter, { near = { x = at.x, y = at.y } })) do list[i] = { sq = sq } end
     return list
 end
 

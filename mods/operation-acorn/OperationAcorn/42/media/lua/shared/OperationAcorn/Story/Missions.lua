@@ -264,16 +264,26 @@ local function buildingPlace(info)
     }
 end
 
--- Picks a building in the band; returns its place table or nil.
+-- The far edge of a search over the whole map's buildings (squares).
+local WHOLE_MAP = 100000
+
+-- The x, y of the i-th building of a list of places, for Places.pickBuilding.
+local function placeAt(list)
+    return function(i) return list[i].x, list[i].y end
+end
+
+-- Picks a building in the band; returns its place table or nil. With none in the band, the nearest to it.
 local function pickBuildingPlace(record, level)
     local g = game()
-    if not (g and g.buildingCount) then return nil end
+    if not (g and g.buildingsIn) then return nil end
     local ax, ay = Missions.anchor(record)
     if not ax then return nil end
     local lo, hi = Rewards.band(level)
-    local idx = Places.pickBuilding(g.buildingCount(), g.building, ax, ay, lo, hi)
+    local list = g.buildingsIn(ax, ay, lo, hi)
+    if #list == 0 then list = g.buildingsIn(ax, ay, 0, WHOLE_MAP) end
+    local idx = Places.pickBuilding(#list, placeAt(list), ax, ay, lo, hi)
     if not idx then return nil end
-    return buildingPlace(g.buildingInfo(idx)), ax, ay
+    return buildingPlace(list[idx]), ax, ay
 end
 
 -- The field note an item may carry: the ones the record has not read come first, the read ones again when all are read.
@@ -581,17 +591,16 @@ local function createScatter(record, level, kind)
     local pieces = { p }
     local want = OA.random(Data.SCATTER_PIECES[1], Data.SCATTER_PIECES[2])
     local reach = Places.circleRadius(level) * SCATTER_REACH
+    local near = g.buildingsIn(p.x, p.y, 0, reach)
     local function at(i)
-        local x, y, ok = g.building(i)
-        if x and usedBuilding(pieces, x, y) then return nil end
-        return x, y, ok
+        local b = near[i]
+        if usedBuilding(pieces, b.x, b.y) then return nil end
+        return b.x, b.y
     end
     for _ = 2, want do
-        local idx = Places.pickBuilding(g.buildingCount(), at, p.x, p.y, 0, reach, 200)
-        local info = idx and g.buildingInfo(idx)
-        -- a building the search had to take from farther is not one of the area
-        if not info or Places.distance(info.x, info.y, p.x, p.y) > reach then break end
-        pieces[#pieces + 1] = buildingPlace(info)
+        local idx = Places.pickBuilding(#near, at, p.x, p.y, 0, reach, 200)
+        if not idx then break end
+        pieces[#pieces + 1] = buildingPlace(near[idx])
     end
     circleAround(m, pieces, level)
     local mods = { OA_Note = Data.ITEMS[kind.item].note and fieldNoteId(record) or nil }
