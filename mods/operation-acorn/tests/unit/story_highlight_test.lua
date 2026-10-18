@@ -503,3 +503,53 @@ test("a piece lying on the floor is spotted in the floor's words; what was spott
     truthy(OA.Say.fits("Spotted", 4, { container = true }))
     eq(OA.Say.fits("Spotted", 5, { container = true }), false)
 end)
+
+test("the shown container is walked for the names to paint once while it, its signature and the missions stay", function()
+    setup(regular())
+    local items = { item("M1-1", "Filter Case"), item(nil, "Pliers") }
+    local box = container(items, furniture({}))
+    state.squares["100,100,0"] = square({ furniture({ container({ item("M1-1") }) }) })
+    state.page.inventoryPane.inventory = box
+    load()
+    local clock = 7000000
+    getTimestampMs = function() return clock end
+    local function look()
+        clock = clock + 600
+        tick()
+    end
+    local function nameWalks()
+        local n = 0
+        for _, call in ipairs(asked) do
+            -- (the walk for the names asks for the mark of any mission, with no limit)
+            if call.match.data == "OA_Mission" then n = n + 1 end
+        end
+        return n
+    end
+    look()
+    eq(nameWalks(), 1)
+    local names = state.page.inventoryPane.oaTint
+    truthy(names and names["Filter Case"], "painted")
+    look()
+    look()
+    eq(nameWalks(), 1, "nothing changed: not walked again")
+    eq(state.page.inventoryPane.oaTint, names)
+    -- an item taken out: the signature moves
+    table.remove(items, 2)
+    look()
+    eq(nameWalks(), 2)
+    -- another container shown
+    state.page.inventoryPane.inventory = container({ item(nil, "Pliers") }, furniture({}))
+    look()
+    eq(nameWalks(), 3)
+    eq(state.page.inventoryPane.oaTint, nil, "no mission item in it")
+    -- after TINT_MS of real time it is walked again whatever
+    clock = clock + 2100
+    tick()
+    eq(nameWalks(), 4)
+    -- the window closed: nothing kept
+    state.page.isVisible = function() return false end
+    look()
+    state.page.isVisible = function() return true end
+    look()
+    eq(nameWalks(), 5)
+end)
