@@ -102,13 +102,23 @@ final class LooksTest {
         check(near(hit[1], 1.1508203125), "A line's lighter fall is not the page's");
         Looks.impact(0.3, Looks.LINE_HIT, hit);
         check(near(hit[3], 0.9975975335646583), "A line's lighter hit is not the page's");
-        // The ink map of a box 20 by 10 in a picture 40 by 20: its strokes' half width, and a spot's ink, fibre, drying and lifting.
+        // The ink map of a box 20 by 10 in a picture 40 by 20: its strokes' half width, and a spot's ink (it holds no shape: some outside the box too), fibre, drying and lifting.
         var inked = new Looks.Shape();
         float[] ink = Looks.inkMap((x, y) -> x >= 10 && x < 30 && y >= 5 && y < 15 ? 255 : 0, 40, 20, 12345, inked);
         int middle = (9 * 40 + 20) * 4, corner = (5 * 40 + 10) * 4, out = (2 * 40 + 2) * 4;
-        check(near(inked.stroke, 3.825) && near(ink[middle], 0.6949582099914551) && near(ink[middle + 1], 0.3247954845428467)
-            && near(ink[middle + 2], 0.637246310710907) && near(ink[middle + 3], 0.6082073450088501) && near(ink[corner], 0.3029586672782898)
-            && ink[out] == 0 && near(ink[out + 1], 0.4476526081562042), "The ink map is not the page's");
+        check(near(inked.stroke, 3.825) && near(ink[middle], 0.720457136631012) && near(ink[middle + 1], 0.3247954845428467)
+            && near(ink[middle + 2], 0.637246310710907) && near(ink[middle + 3], 0.6082073450088501) && near(ink[corner], 0.5853226780891418)
+            && near(ink[out], 0.5728212594985962) && near(ink[out + 1], 0.4476526081562042), "The ink map is not the page's");
+        // Ink that missed: single pixels well inside the letters (thirteen of them here), none on the box's outermost pixels.
+        int missed = 0;
+        boolean edge = false;
+        for (int y = 0; y < 20; y++)
+            for (int x = 0; x < 40; x++)
+                if (Math.abs(ink[(y * 40 + x) * 4] - Looks.SPECK_INK) < 1e-6) {
+                    missed++;
+                    edge |= x < 11 || x >= 29 || y < 6 || y >= 14;
+                }
+        check(missed == 13 && !edge, "The ink map does not miss the page's pixels, or misses at the letters' edge");
         Looks.impact(0.3, 1, hit);
         check(near(hit[1], 1) && near(hit[2], 1.0024960690237317) && near(hit[3], 0.9956318792084696) && near(hit[4] * 90, -0.1393785129067541)
             && near(hit[5], 0.0004320800003443182), "The impact's hit is not the page's");

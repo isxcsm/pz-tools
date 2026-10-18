@@ -37,9 +37,11 @@ import java.nio.FloatBuffer;
  * <li>{@code exhale} (leave): it beats with a heart (a warm glow flaring with each beat) that calms as it stays; one more
  *     beat, a stillness and a last weak one as it starts to leave, and then a breath out: it settles and fades, its glow
  *     staying on a moment after it.</li>
- * <li>{@code wash} (leave): it is inked as it shows (as it hits, after an impact): wet ink, patchy where the paper held it
- *     back, glossy and stirring a little as it stays; as it leaves it dries in blotches, its colour lifting away, the pressed
- *     shape of it left a moment (a map of each spot's ink, made once from its picture).</li>
+ * <li>{@code wash} (leave): it is inked as it shows (as it hits, after an impact): solid ink to the letters' edges, wet and
+ *     glossy for the first moments (a stir passing over it, settling within 0.6 s), then still and matte as it stays; as it
+ *     leaves its colour dries in blotches and lifts away, the pressed shape of it left a moment. The letters' edges are
+ *     those of its picture the whole time (a narrow ramp across its pixels); only the colour and the opacity of a blotch
+ *     change (a map of each spot's ink and drying, made once from its picture).</li>
  * </ul>
  * The numbers are those of tools/title-lab, where the looks are made: the page draws them with the same arithmetic and shader.
  */
@@ -103,10 +105,13 @@ final class Looks {
         LAST_PAUSE = 1.2, LAST_BEAT = ONE_MORE + BEAT_LENGTH + LAST_PAUSE, EXHALE_AFTER = LAST_BEAT + BEAT_LENGTH + 1.7;
 
     /**
-     * Wash: how patchy its ink is, how glossy while wet, how strongly its pressed shape shows as it goes, how much the wet ink
-     * stirs, how dark its shadow is. A line under a title hits with LINE_HIT of an impact's strength.
+     * Wash: how patchy and grainy the colour of its ink is (never its edges), how glossy for the first moments while wet, how strongly its
+     * pressed shape shows as it goes, how much the wet ink stirs as it settles, how dark its shadow is. A line under a title hits with
+     * LINE_HIT of an impact's strength.
      */
-    static final double INK_PATCHY = 0.35, INK_GLOSS = 0.45, INK_EMBOSS = 1, INK_RIPPLE = 1, INK_SHADOW = 1, LINE_HIT = 0.55;
+    static final double INK_PATCHY = 0.28, INK_GLOSS = 0.45, INK_EMBOSS = 1, INK_RIPPLE = 1, INK_SHADOW = 1, LINE_HIT = 0.55;
+    /** Ink that missed: a pixel at least SPECK_FROM inside a letter whose grit is over SPECK_AT (lower by up to SPECK_PATCH in some patches) is left SPECK_INK. */
+    static final double SPECK_FROM = 1.5, SPECK_AT = 0.82, SPECK_PATCH = 0.12, SPECK_INK = 0.08;
     private static final double[] FIBRE_AT = { 0.2, 1.4, 2.5 }, FIBRE_BY = { 0.4, 0.3, 0.2 };
 
     /** The looks drawn over a text's life. */
@@ -287,18 +292,18 @@ final class Looks {
 
     /**
      * A washed text's ink map, from its picture's alpha ({@code w} by {@code h}, rows from the top): four values 0 to 1 a pixel,
-     * how much ink it took (more down a stroke's middle; patchy, bare where the paper's grain and fibres held it back, a little
-     * run together), the paper's fibre there, how late it dries and when its colour lifts (blotches of the paper). The strokes'
-     * half width (their widest's, in pixels) goes into {@code shape.stroke}.
+     * how much ink it took (a little more down a stroke's middle; thinner in patches and fine grain where the paper's
+     * grain and fibres held it back, and small ragged pits of a pixel or three inside a letter missed altogether; all kept to the pixel, so
+     * the grain is as sharp as the letters), the paper's fibre there, how late it dries and when its colour lifts (blotches of
+     * the paper). It holds no shape: the letters' edge is the picture's own, so the ink is not thinned (and its colour not
+     * paled) towards it. The strokes' half width (their widest's, in pixels) goes into {@code shape.stroke}.
      */
     static float[] inkMap(Dust.Alpha alpha, int w, int h, int seed, Shape shape) {
         int n = w * h;
         boolean[] outside = new boolean[n];
-        float[] cover = new float[n];
         for (int y = 0; y < h; y++)
             for (int x = 0; x < w; x++) {
                 int a = alpha.at(x, y), index = y * w + x;
-                cover[index] = a / 255f;
                 outside[index] = a < 128;
             }
         double[] deep = distances(outside, w, h);
@@ -319,25 +324,20 @@ final class Looks {
                 double v = 0.1 * hash(x, y, seed + 9);
                 for (int k = 0; k < 3; k++) v += FIBRE_BY[k] * vnoise((x * cos[k] + y * sin[k]) / 3, (y * cos[k] - x * sin[k]) / 0.6, seed + k);
                 double fibre = clamp((v - 0.15) / 0.7, 0, 1);
-                double bare = 1 - smoothstep(0.3, 0.62, fbm(x / (r * 1.4), y / (r * 1.4), seed + 23)) + 0.6 * (1 - smoothstep(0.15, 0.55, fibre));
-                double middle = outside[index] ? 0 : smoothstep(0, r, Math.sqrt(deep[index]) - 0.5);
-                lay[index] = (float)((0.55 + 0.45 * middle) * cover[index] * (1 - Math.min(INK_PATCHY * bare, 0.95)));
+                double bare = 1 - smoothstep(0.3, 0.62, fbm(x / (r * 1.4), y / (r * 1.4), seed + 23)) + 0.3 * (1 - smoothstep(0.15, 0.55, fibre))
+                    + 0.6 * (1 - smoothstep(0.3, 0.6, vnoise(x / 3.5, y / 3.5, seed + 37)));
+                double reach = outside[index] ? 0 : Math.sqrt(deep[index]) - 0.5, middle = smoothstep(0, r, reach);
+                lay[index] = (float)((0.7 + 0.3 * middle) * (1 - Math.min(INK_PATCHY * bare, 0.95)));
+                // Where the ink missed: small ragged pits of a pixel or three (a noise of 2.4 pixels, the same every way, with grit in
+                // it; more of them in some patches of the paper), never at the letters' edge.
+                double grit = 0.7 * vnoise(x / 2.4, y / 2.4, seed + 31) + 0.3 * hash(x, y, seed + 5);
+                if (reach >= SPECK_FROM && grit > SPECK_AT - SPECK_PATCH * smoothstep(0.35, 0.7, fbm(x / (r * 1.6), y / (r * 1.6), seed + 43))) lay[index] = (float)SPECK_INK;
                 map[index * 4 + 1] = (float)fibre;
                 map[index * 4 + 2] = (float)smoothstep(0.2, 0.8, fbm(x / (r * 3.5), y / (r * 3.5), seed + 71));
                 map[index * 4 + 3] = (float)fbm(x / (r * 1.3), y / (r * 1.3), seed + 19);
             }
-        // Run together a little: across, then down.
-        float[] across = new float[n];
-        for (int y = 0; y < h; y++)
-            for (int x = 0; x < w; x++) {
-                int index = y * w + x;
-                across[index] = 0.25f * lay[x > 0 ? index - 1 : index] + 0.5f * lay[index] + 0.25f * lay[x < w - 1 ? index + 1 : index];
-            }
-        for (int y = 0; y < h; y++)
-            for (int x = 0; x < w; x++) {
-                int index = y * w + x;
-                map[index * 4] = 0.25f * across[y > 0 ? index - w : index] + 0.5f * across[index] + 0.25f * across[y < h - 1 ? index + w : index];
-            }
+        // Kept to the pixel (no running together): the grain is as sharp as the letters.
+        for (int index = 0; index < n; index++) map[index * 4] = lay[index];
         return map;
     }
 
@@ -799,14 +799,21 @@ final class Looks {
               if (p.x < 0.0 || p.y < 0.0 || p.x > 1.0 || p.y > 1.0) return vec4(0.0);
               return texture2D(tex, texRect.xy + p * texRect.zw);
             }
+            // inked: how far a spot is into its drying as it leaves (progress), blotches of the paper (its map's b) later
             float inkDry(vec4 m) { return clamp((progress - 0.08 - 0.22 * m.b) / 0.48, 0.0, 1.0); }
-            float inkSurf(vec2 uv) {
+            // the letters' picture's alpha
+            float inkAlpha(vec2 uv) { return pic(uv).a; }
+            // the letters' own shape, from the picture's alpha, through a narrow ramp (across the picture's pixels, not the map's): the ink's
+            // edge is as crisp as the letters were drawn, whatever its colour is doing
+            float inkShape(vec2 uv) { return clamp((inkAlpha(uv) - 0.5) * 1.6 + 0.5, 0.0, 1.0); }
+            // its surface: the wet ink (stirring a little while it settles), and a little relief where it has dried
+            float inkSurf(vec2 uv, float settle) {
               vec4 m = texture2D(burnMap, uv);
-              float ink = m.r * smoothstep(0.0, 0.06, clock), dried = smoothstep(0.2, 0.62, inkDry(m));
+              float ink = m.r * inkShape(uv) * smoothstep(0.0, 0.06, clock), dried = smoothstep(0.2, 0.62, inkDry(m));
               float wet = ink * (1.0 - dried), R = noiseScale;
               vec2 px = uv * picSize;
               float rip = (vn((px - vec2(clock * R * 1.1, 0.0)) / (R * 1.6)) - 0.5) * 0.18 + 0.05 * sin(px.x / (R * 1.4) - clock * 2.4);
-              return wet + 0.3 * ink * dried + inkBy.z * smoothstep(0.01, 0.15, wet) * rip * wet;
+              return wet + 0.3 * ink * dried + inkBy.z * settle * smoothstep(0.01, 0.15, wet) * rip * wet;
             }
             void main() {
               if (mode < 0.5) { gl_FragColor = pic(vUv) * vCol; return; }
@@ -863,34 +870,44 @@ final class Looks {
                 vec2 e = 1.0 / picSize;
                 vec4 m = texture2D(burnMap, vUv);
                 float R = noiseScale, fib = m.g, lv = inkDry(m), land = smoothstep(0.0, 0.06, clock);
-                float dryF = smoothstep(0.2, 0.62, lv), hw = m.r * land * (1.0 - dryF), pg = m.r * land * dryF;
-                float liftAt = 0.48 + 0.05 * smoothstep(0.1, 0.8, pg) + 0.16 * (m.a - 0.5) + 0.03 * (0.5 - fib);
+                float settle = 1.0 - smoothstep(0.0, 0.6, clock), cover = inkShape(vUv), dryF = smoothstep(0.2, 0.62, lv);
+                float liftAt = 0.48 + 0.05 * smoothstep(0.1, 0.8, m.r * dryF) + 0.16 * (m.a - 0.5) + 0.03 * (0.5 - fib);
                 float lift = smoothstep(liftAt - 0.1, liftAt + 0.14, lv);
-                float th = (hw + pg * (0.8 + 0.4 * fib)) * (1.0 - 0.45 * smoothstep(0.1, 0.45, lv)) * (1.0 - lift);
-                float cover = smoothstep(0.004, 0.03, th), wet = smoothstep(0.01, 0.15, hw);
-                vec2 d = e * 1.5;
-                float sx = inkSurf(vUv + vec2(d.x, 0.0)) - inkSurf(vUv - vec2(d.x, 0.0));
-                float sy = inkSurf(vUv + vec2(0.0, d.y)) - inkSurf(vUv - vec2(0.0, d.y));
-                vec3 N = normalize(vec3(-sx * R * 1.1 / 3.0, -sy * R * 1.1 / 3.0, 1.0));
-                vec3 L = normalize(vec3(-0.45 + 0.06 * sin(clock * 0.7), -0.62 + 0.05 * cos(clock * 0.5), 0.65));
-                vec3 H = normalize(L + vec3(0.0, 0.0, 1.0));
-                float diff = dot(N, L) - L.z, nh = max(dot(N, H), 0.0);
-                float spec = (pow(nh, 80.0) + 0.2 * pow(nh, 14.0)) * inkBy.x * wet, fres = pow(1.0 - N.z, 2.0);
-                vec3 ink = burn, wash = burn * 0.55;
-                vec3 col = mix(wash, ink, smoothstep(0.05, 0.6, th)) * (0.78 + 0.55 * diff);
+                float th = m.r * (1.0 - dryF + dryF * (0.8 + 0.4 * fib)) * (1.0 - 0.45 * smoothstep(0.1, 0.45, lv));
                 float dried = max(smoothstep(0.08, 0.45, lv), 0.75 * smoothstep(0.0, 0.3, progress));
-                col = mix(col, mix(ink, wash, 0.45) * (0.85 + 0.25 * diff), dried);
-                col += (vec3(1.0, 0.97, 0.94) * spec + vec3(0.6) * fres * 0.12 * inkBy.x * wet) * (1.0 - dried);
-                float a = cover * mix(0.35 + 0.65 * smoothstep(0.02, 0.25, th), smoothstep(0.0, 0.25, th), dried);
+                vec3 ink = burn, wash = burn * 0.55;
+                vec3 col = mix(wash, ink, smoothstep(0.1, 0.9, th));
+                col = mix(col, mix(ink, wash, 0.35), dried);
+                col = mix(col, wash, 0.5 * smoothstep(liftAt - 0.3, liftAt, lv));
+                vec3 L = normalize(vec3(-0.45, -0.62, 0.65));
+                float relief = max(settle, smoothstep(0.0, 0.3, progress));
+                if (relief > 0.001) {
+                  vec2 d = e * 1.5;
+                  float sx = inkSurf(vUv + vec2(d.x, 0.0), settle) - inkSurf(vUv - vec2(d.x, 0.0), settle);
+                  float sy = inkSurf(vUv + vec2(0.0, d.y), settle) - inkSurf(vUv - vec2(0.0, d.y), settle);
+                  vec3 N = normalize(vec3(-sx * R * 1.1 / 3.0, -sy * R * 1.1 / 3.0, 1.0));
+                  vec3 H = normalize(L + vec3(0.0, 0.0, 1.0));
+                  float diff = dot(N, L) - L.z, nh = max(dot(N, H), 0.0);
+                  float wet = smoothstep(0.01, 0.15, m.r * land * (1.0 - dryF));
+                  float spec = (pow(nh, 80.0) + 0.2 * pow(nh, 14.0)) * inkBy.x * wet * settle, fres = pow(1.0 - N.z, 2.0);
+                  col *= 1.0 + 0.45 * relief * diff;
+                  col += (vec3(1.0, 0.97, 0.94) * spec + vec3(0.6) * fres * 0.12 * inkBy.x * wet * settle) * (1.0 - dried);
+                }
+                float miss = 1.0 - smoothstep(0.12, 0.18, m.r), a = cover * (1.0 - lift) * (1.0 - 0.55 * miss);
                 vec4 outc = vec4(col * a, a);
-                float so = texture2D(burnMap, vUv - vec2(R * 0.25, R * 0.4) * e).r * land;
-                float sh = smoothstep(0.02, 0.4, so) * inkBy.w * 0.5 * (1.0 - smoothstep(0.35, 0.75, lv)) * (1.0 - 0.9 * smoothstep(0.0, 0.3, progress));
-                outc.a += sh * (1.0 - outc.a);
-                vec2 ge = e * max(1.0, R * 0.2);
-                float gx = smoothstep(0.0, 0.3, texture2D(burnMap, vUv + vec2(ge.x, 0.0)).r) - smoothstep(0.0, 0.3, texture2D(burnMap, vUv - vec2(ge.x, 0.0)).r);
-                float gy = smoothstep(0.0, 0.3, texture2D(burnMap, vUv + vec2(0.0, ge.y)).r) - smoothstep(0.0, 0.3, texture2D(burnMap, vUv - vec2(0.0, ge.y)).r);
-                float g = (-gx * L.x - gy * L.y) * 0.9 * inkBy.y * lift * (1.0 - smoothstep(0.82, 1.0, lv)) * (1.0 - cover);
-                outc += vec4(mix(ink, vec3(1.0), 0.35) * max(g, 0.0) * 0.12, max(-g, 0.0) * 0.04);
+                float shade = land * (1.0 - smoothstep(0.35, 0.75, lv)) * (1.0 - 0.9 * smoothstep(0.0, 0.3, progress));
+                if (shade > 0.001) {
+                  vec2 sp = vUv - vec2(R * 0.25, R * 0.4) * e, w = e * 1.2;
+                  float so = 0.25 * (inkAlpha(sp + vec2(-w.x, -w.y)) + inkAlpha(sp + vec2(w.x, -w.y)) + inkAlpha(sp + vec2(-w.x, w.y)) + inkAlpha(sp + vec2(w.x, w.y)));
+                  outc.a += so * inkBy.w * 0.5 * shade * (1.0 - outc.a);
+                }
+                if (lift > 0.001) {
+                  vec2 ge = e * max(1.0, R * 0.2);
+                  float gx = inkAlpha(vUv + vec2(ge.x, 0.0)) - inkAlpha(vUv - vec2(ge.x, 0.0));
+                  float gy = inkAlpha(vUv + vec2(0.0, ge.y)) - inkAlpha(vUv - vec2(0.0, ge.y));
+                  float g = (-gx * L.x - gy * L.y) * 0.9 * inkBy.y * lift * (1.0 - smoothstep(0.82, 1.0, lv)) * (1.0 - a);
+                  outc += vec4(mix(ink, vec3(1.0), 0.35) * max(g, 0.0) * 0.12, max(-g, 0.0) * 0.04);
+                }
                 gl_FragColor = outc * (1.0 - smoothstep(0.97, 1.0, progress)) * vCol.a;
                 return;
               }
@@ -1263,8 +1280,8 @@ final class Looks {
         }
 
         /**
-         * Inked: before it hits, the text; then its ink by its map (laid as it hits, wet and lit as it stays, drying in blotches and
-         * lifting as it leaves, its pressed shape left a moment), with its own shadow.
+         * Inked: before it hits, the text; then its ink by its map and its picture's shape (laid as it hits, wet and lit for the first
+         * 0.6 s, still after, drying in blotches and lifting as it leaves, its pressed shape left a moment), with its own shadow.
          */
         private void inked(Frame f) throws Throwable {
             Dust.Piece piece = f.piece;

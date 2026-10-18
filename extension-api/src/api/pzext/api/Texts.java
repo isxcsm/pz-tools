@@ -340,8 +340,9 @@ final class Texts implements Hooks.Text {
     private long generation;
     /** The clock the effects run on (System.nanoTime: the interface's time, which goes on while the game is paused); for the tests. */
     java.util.function.LongSupplier clock = System::nanoTime;
-    /** The most of the clock one frame counts for the texts drawn in it, in its units (a quarter of a second). */
-    static final long FRAME_MOST = 250_000_000L;
+    /** The most of the clock one frame counts for the texts drawn in it, in its units (a tenth of a second: a stall of the game, as a
+     * heavy moment makes, does not run a title's entrance out in a frame or two). */
+    static final long FRAME_MOST = 100_000_000L;
     /** {@link #FRAME_MOST} as this one counts it; for the tests, which move the clock by more between frames. */
     long frameMost = FRAME_MOST;
     // The black over a player's screen (UIManager.getFadeAlpha) above which the screen is dark.
@@ -1161,8 +1162,8 @@ final class Texts implements Hooks.Text {
         static final Map<String, Style> ALL = new LinkedHashMap<>();
 
         static {
-            // Stamped: big pale letters that fall onto the screen and hit, white-hot and cooling, inked as they hit (wet, patchy), a
-            // gleam passing over them once as they stay; they dry away in blotches, their pressed shape left a moment. The line is
+            // Stamped: big pale letters that fall onto the screen and hit, white-hot and cooling, inked as they hit (wet and glossy for
+            // a moment, solid to their crisp edges), a gleam passing over them once as they stay; they dry away in blotches, their pressed shape left a moment. The line is
             // struck a moment after, more lightly, and weathers away. For something done (a quest complete).
             ALL.put("stamp", new Style(
                 Map.ofEntries(Map.entry("font", List.of("SdfBold", "Large")), Map.entry("size", 0.1), Map.entry("color", List.of(0.9, 0.89, 0.86, 1.0)),
