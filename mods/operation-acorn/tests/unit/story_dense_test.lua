@@ -1,5 +1,5 @@
 -- The dense places (Story/Dense): the API's list kept once a world, a kit kind given by density order, the maps showing the
--- places from trust level 6, and the clearing: a baseline at the first look, a tenth of it to clear, never from a baseline
+-- places from trust level 6, and the clearing: a baseline of the most counted, a tenth of it to clear, never from a baseline
 -- under 20, and one reward a record, also for a place another character cleared.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
@@ -88,7 +88,7 @@ test("without the API's answer nothing is made and it is asked again; an empty a
     eq(#asked, 1)
 end)
 
-test("the maps show the places from trust level 6, in the colour of their kit, until they are cleared", function()
+test("the maps show the places from trust level 6, in the colour of their kit, until the record has the kit", function()
     setup()
     Dense.ensure()
     local low, high = record(5), record(6)
@@ -105,11 +105,14 @@ test("the maps show the places from trust level 6, in the colour of their kit, u
     eq(scene.circles[3].color, View.MAP_DENSE.repair)
     OA.Store.world("dense").cleared = { D2 = { by = "someone", at = 5 } }
     local after = View.scene(high, nil)
-    eq(#after.circles, 3, "the cleared one is gone")
-    for _, circle in ipairs(after.circles) do truthy(circle.x ~= 2000.5) end
+    eq(#after.circles, 4, "cleared by another: its kit still waits there for this one")
+    Dense.got(high).D2 = "crit"
+    local had = View.scene(high, nil)
+    eq(#had.circles, 3, "gone once the record has it")
+    for _, circle in ipairs(had.circles) do truthy(circle.x ~= 2000.5) end
 end)
 
-test("the first look is the baseline; a tenth of it clears the place, once, and gives its kit to the one who cleared it", function()
+test("the most counted is the baseline; a tenth of it clears the place, once, and gives its kit to the one who cleared it", function()
     setup()
     Dense.ensure()
     local r = record(6)
@@ -117,6 +120,9 @@ test("the first look is the baseline; a tenth of it clears the place, once, and 
     counts["1000,1000"] = 80
     stand(r, p)
     eq(OA.Store.world("dense").baseline.D1, 80, "the first count")
+    counts["1000,1000"] = 30
+    stand(r, p)
+    eq(OA.Store.world("dense").baseline.D1, 80, "a lower count leaves it")
     eq(#titles, 0)
     counts["1000,1000"] = 9
     stand(r, p)

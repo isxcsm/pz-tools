@@ -1,13 +1,13 @@
 -- The dense places (NUMBERS 7 'Dense places'): where the map puts many zombies, found once a world by the extension API
 -- (PZExtAPI.zombies.dense) and kept in the world store. Each place is given one kind of weapon kit, rotating in the order
 -- of density (the densest first): damage, critical, repair, damage ... A character gets its place's reward once, when it
--- clears the place (the zombies near its middle fall to a tenth of what they were when the place was first looked at) or
--- stands at the middle of a place that is already cleared in this world (by an earlier character); the shop reads the
--- rewards (a kind's restock is 1 plus the places of its kind a record got). Shown on the maps from trust level 6, until
--- the place is cleared.
+-- clears the place (the zombies near its middle fall to a tenth of the most counted there) or stands at the middle of a
+-- place that is already cleared in this world (by an earlier character); the shop reads the rewards (a kind's restock is
+-- 1 plus the places of its kind a record got). Shown on the maps from trust level 6, until the record has its reward (a
+-- place an earlier character cleared stays on a new one's maps: its reward waits there).
 --
--- Kept in the world, "dense": made, list = { { id, x, y, r, chunks, kind } }, baseline[id] (the zombie count at the
--- first look), cleared[id] = { by (the record's id), at (world hours) }. Kept in a record, "dense": got[id] = kind.
+-- Kept in the world, "dense": made, list = { { id, x, y, r, chunks, kind } }, baseline[id] (the most zombies counted
+-- there before it was cleared), cleared[id] = { by (the record's id), at (world hours) }. Kept in a record, "dense": got[id] = kind.
 -- The only thing that runs more than once is the look (Dense.look, a game minute's event, at most once a real second):
 -- a few distances, and only near a place the count of zombies.
 require "OperationAcorn/Core"
@@ -31,7 +31,7 @@ Dense.TIER = 6
 -- COUNT_R squares of the middle on the ground floor.
 Dense.NEAR = 20
 Dense.COUNT_R = 40
--- It is cleared when the count falls to this share of the first count, if that was at least LEAST.
+-- It is cleared when the count falls to this share of the most counted, if that was at least LEAST.
 Dense.CLEARED_SHARE = 0.10
 Dense.LEAST = 20
 -- The least real time (ms) between two looks of a record.
@@ -95,12 +95,13 @@ function Dense.cleared(id)
     return c and c[id] or nil
 end
 
--- The places the maps show a record: { { id, x, y, r, kind } }, from the trust level on, not the cleared ones.
+-- The places the maps show a record: { { id, x, y, r, kind } }, from the trust level on, those it has no reward from.
 function Dense.shown(record)
     local list = {}
     if OA.Trust.tier(record) < Dense.TIER then return list end
+    local got = Dense.got(record)
     for _, p in ipairs(Dense.list()) do
-        if not Dense.cleared(p.id) then list[#list + 1] = p end
+        if not got[p.id] then list[#list + 1] = p end
     end
     return list
 end
@@ -126,8 +127,9 @@ local function give(record, p, before)
     OA.Sync.changed("trade", record.id)
 end
 
--- A record stands near a place it has no reward from. In a place already cleared the reward is its own; else the first
--- look is the baseline (a count of none is no baseline: nothing was there to count yet), and a later one is the clearing.
+-- A record stands near a place it has no reward from. In a place already cleared the reward is its own; else the count
+-- raises the baseline (the most seen: zombies still streaming in as the character arrives would leave a first count low)
+-- or, at a tenth of it, clears the place.
 local function visit(record, p)
     local w = world()
     if Dense.cleared(p.id) then
@@ -137,9 +139,9 @@ local function visit(record, p)
     local count = Dense.countAt(p.x, p.y)
     if not count then return end
     w.baseline, w.cleared = w.baseline or {}, w.cleared or {}
-    local base = w.baseline[p.id]
-    if not base then
-        if count > 0 then w.baseline[p.id] = count end
+    local base = w.baseline[p.id] or 0
+    if count > base then
+        w.baseline[p.id] = count
         return
     end
     if base >= Dense.LEAST and count <= base * Dense.CLEARED_SHARE then
