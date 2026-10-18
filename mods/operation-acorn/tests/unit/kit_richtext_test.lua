@@ -736,6 +736,7 @@ test("render takes a font's new height at once (none is kept past the render)", 
     p:render()
     eq(#p.drawn, 3)
     FH.Small = 40
+    PZUIKit.UI.liveFrame()
     p:setScroll(0)
     p.marginTop = -45
     p.drawn = {}

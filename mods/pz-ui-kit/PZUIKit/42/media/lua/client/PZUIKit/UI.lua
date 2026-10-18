@@ -68,7 +68,11 @@ local spaces = {}
 local widths, pixelWidths, wrapMemos, fitMemos = {}, {}, {}, {}
 local widthCount, pixelCount, memoCount = 0, 0, { wrap = 0, fit = 0 }
 local CACHE_MAX = 4000
+-- A number that changes every frame (liveFrame, before the UI draws) and when the texts are forgotten: the faces' heights
+-- asked in the frame (faceHeight) are good until it does.
+local frameStamp = 0
 local function forgetText()
+    frameStamp = frameStamp + 1
     spaces = {}
     widths, pixelWidths, wrapMemos, fitMemos = {}, {}, {}, {}
     widthCount, pixelCount, memoCount = 0, 0, { wrap = 0, fit = 0 }
@@ -643,9 +647,21 @@ function UI.textWidthPx(text, font)
     return getTextManager():MeasureStringX(font or UIFont.Small, text)
 end
 
+-- A face's height in pixels, asked of the face once a font in a frame (every frame asks anew: a font's height can change
+-- under an open window, Faces.height): the widgets ask it for each of their rows and bars.
+local heightOf, heightAt = {}, {}
+local SMALL_KEY = {}
+local function faceHeight(font)
+    local key = font == nil and SMALL_KEY or font
+    if heightAt[key] == frameStamp then return heightOf[key] end
+    local h = Faces.height(font)
+    heightOf[key], heightAt[key] = h, frameStamp
+    return h
+end
+
 -- Text measured in design units in its face (the face's pixels / UI.S): what our elements draw.
 function UI.fontHeight(font)
-    local h = Faces.height(font)
+    local h = faceHeight(font)
     if S == 1 then return h end
     return h / S
 end
@@ -1145,25 +1161,25 @@ end
 
 -- The title bar's height and the resize bar's (ISCollapsableWindow's titleBarHeight and resizeWidgetHeight).
 function UI.titleBarHeight()
-    return math.max(16, Faces.height() + 1)
+    return math.max(16, faceHeight() + 1)
 end
 
 function UI.resizeWidgetHeight()
-    return (Faces.height() + 6) / 2 + 2
+    return (faceHeight() + 6) / 2 + 2
 end
 
 -- A window's title centred on its bar in our face, colour `c` ({ r, g, b }).
 function UI.windowTitle(win, title, c, a)
     if not title or title == "" then return end
     local th = win:titleBarHeight()
-    textPx(win, rawDraws(win), title, floor(win.width / 2), floor((th - Faces.height()) / 2 + 0.5), c[1], c[2], c[3],
+    textPx(win, rawDraws(win), title, floor(win.width / 2), floor((th - faceHeight()) / 2 + 0.5), c[1], c[2], c[3],
         UI.faded(win, a), nil, 1)
 end
 
 -- The close box: an "x" in our face (the game's button with its picture and title taken off), in the palette.
 local function closeBoxRender(self)
     local c = self.uiGlyphColour
-    textPx(self, rawDraws(self), "x", floor(self.width / 2), floor((self.height - Faces.height()) / 2), c[1], c[2], c[3],
+    textPx(self, rawDraws(self), "x", floor(self.width / 2), floor((self.height - faceHeight()) / 2), c[1], c[2], c[3],
         UI.faded(self, 1), nil, 1)
 end
 
@@ -1192,6 +1208,7 @@ end
 -- removeChild) is let go. The handler stays on once used: taking it off from inside the event would make the game skip
 -- the next handler of that frame, and with nothing registered it returns at once.
 local live, liveHooked, liveCount = {}, false, 0
+local hookFrame
 -- The entries by element and frame function, for the once of UI.live: { [frame function] = entry, n = how many }. An
 -- element's table goes with its last entry (a table of elements kept by element would hold every element ever followed,
 -- and the window tree each is in; a weak key would not do, the entry holds its element).
@@ -1254,6 +1271,7 @@ end
 -- that stops does not let the others go. The element's liveLook is the look of one entry still going (the last that
 -- changed), nil once none is; its liveTick changes with any.
 local function liveFrame()
+    frameStamp = frameStamp + 1
     if live[1] == nil then return end
     local now = getTimestampMs()
     UI.sceneNow()
@@ -1295,6 +1313,14 @@ local function liveFrame()
 end
 UI.liveFrame = liveFrame
 
+-- The handler is added once, at the start (the frames' stamp runs from the first frame) or at the first entry.
+hookFrame = function()
+    if liveHooked then return end
+    liveHooked = true
+    Events.OnPreUIDraw.Add(liveFrame)
+end
+if Events and Events.OnPreUIDraw then hookFrame() end
+
 -- Follows an element for a frame function from the next frame on; the same element and function once.
 function UI.live(el, frame)
     local frames = liveOf[el]
@@ -1304,10 +1330,7 @@ function UI.live(el, frame)
     elseif frames[frame] then
         return
     end
-    if not liveHooked then
-        Events.OnPreUIDraw.Add(liveFrame)
-        liveHooked = true
-    end
+    hookFrame()
     local entry = { el = el, frame = frame }
     frames[frame] = entry
     frames.n = frames.n + 1

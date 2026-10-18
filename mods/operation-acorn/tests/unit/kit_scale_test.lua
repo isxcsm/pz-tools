@@ -3,7 +3,7 @@
 -- measured texts and their faces; a change of any of them makes everything again.
 require "OperationAcorn/Core"
 
-local fonts, measured
+local fonts, measured, heightCalls
 
 local function load()
     local panel = {}
@@ -17,10 +17,10 @@ local function load()
     getTimestampMs = function() return 1000 end
     -- the game's fonts: a height each, and a width a letter (the probe's letters are wider where the font has them)
     fonts = { Small = 16, Medium = 20, Large = 24, letter = 7, wide = 7 }
-    measured = 0
+    measured, heightCalls = 0, 0
     getTextManager = function()
         return {
-            getFontHeight = function(_, f) return fonts[f] or 16 end,
+            getFontHeight = function(_, f) heightCalls = heightCalls + 1; return fonts[f] or 16 end,
             MeasureStringX = function(_, f, s)
                 if string.find(s, "^abc") then measured = measured + 1 end
                 local n = 0
@@ -112,4 +112,27 @@ test("a wrap or a cut is kept for the last width its text was asked at only", fu
     -- other texts keep theirs
     local other = UI.wrapMemo("alpha beta", 100)
     eq(UI.wrapMemo("alpha beta", 100), other)
+end)
+
+test("a font's height is asked of its face once a frame, and again the next frame", function()
+    local UI = load()
+    UI.setScale(1, false)
+    local before = heightCalls
+    for _ = 1, 10 do
+        UI.fontHeight()
+        UI.fontHeight(UIFont.Small)
+        UI.fontHeight(UIFont.Medium)
+        UI.titleBarHeight()
+        UI.resizeWidgetHeight()
+    end
+    eq(heightCalls - before, 3, "three kinds of ask, once each")
+    eq(UI.fontHeight(UIFont.Medium), 20)
+    -- the font option changes under the window: shown from the next frame
+    fonts.Medium = 25
+    eq(UI.fontHeight(UIFont.Medium), 20, "kept for the frame")
+    UI.liveFrame()
+    eq(UI.fontHeight(UIFont.Medium), 25, "asked anew in the next")
+    -- at a scale the height comes out in design units
+    UI.setScale(2, false)
+    eq(UI.fontHeight(UIFont.Medium), 12.5, "a new scale is not served from the old")
 end)
