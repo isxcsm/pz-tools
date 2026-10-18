@@ -29,7 +29,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import numpy as np  # noqa: E402
-from PIL import Image, ImageDraw, ImageEnhance, ImageFilter  # noqa: E402
+from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFilter  # noqa: E402
 
 import tile_engine as E  # noqa: E402
 from tile_engine import Scene, rotation, stencil_text, acorn_mark, font  # noqa: E402 (font: the icon modules use I.font)
@@ -137,7 +137,10 @@ def outline(icon):
 
 
 def from_scene(scene, glows=None):
-    big = scene.render()
+    return from_render(scene.render())
+
+
+def from_render(big):
     small = big.convert('RGBa').resize((E.W * 2, E.H * 2), Image.LANCZOS).convert('RGBA')
     return fit(small, source=big)
 
@@ -563,16 +566,27 @@ KIT_COLOURS = {
     'lightening': (226, 172, 64),
     'reinforcement': (90, 178, 128),
     'engine': (212, 96, 72),
+    # the weapon kits wear the map colours of their dense places (Story/View.lua View.MAP_DENSE): crimson, magenta, lime
+    'weapon_damage': (209, 46, 61),
+    'weapon_crit': (219, 77, 204),
+    'weapon_repair': (158, 214, 56),
 }
 
 
-def kit_glyph(kind, w, h, bg, ink=(26, 30, 30)):
+# The weapon kits' upright picture over the lid, in canvas px (the lid is 84 wide, 42 high; its plate 74 by 37).
+KIT_GLYPH_SIZE = (50, 35)
+
+
+def kit_glyph(kind, w, h, bg, ink=(26, 30, 30), clear=False):
     """The picture on a kit's lid, drawn bold to read at 32 px: a box with arrows out of its corners (expansion), a
-    feather (lightening), a shield with a bolt across it (reinforcement), a cog with a spark (engine tuning)."""
+    feather (lightening), a shield with a bolt across it (reinforcement), a cog with a spark (engine tuning);
+    for the weapon kits a blade with two chevrons rising beside it (damage), a crosshair (critical), a
+    wrench crossed over a blade (repair)."""
     sc = 4
-    img = Image.new('RGBA', (w * sc, h * sc), bg + (255,))
+    b = (0, 0, 0, 0) if clear else bg + (255,)   # clear: the picture alone, its cut-outs open (the weapon kits')
+    img = Image.new('RGBA', (w * sc, h * sc), b)
     d = ImageDraw.Draw(img)
-    c, b = ink + (255,), bg + (255,)
+    c = ink + (255,)
     W, H = w * sc, h * sc
     k = sc * h / 56
 
@@ -630,21 +644,80 @@ def kit_glyph(kind, w, h, bg, ink=(26, 30, 30)):
         d.ellipse([x - 9 * k, y - 9 * k, x + 9 * k, y + 9 * k], fill=b)
         d.polygon([(x + 2 * k, y - 8 * k), (x - 5 * k, y + 2 * k), (x + 1 * k, y + 2 * k), (x - 3 * k, y + 10 * k),
                    (x + 6 * k, y - 1 * k), (x, y - 1 * k)], fill=(250, 196, 40, 255))
-    return img.resize((w, h), Image.LANCZOS)
+    elif kind == 'weapon_damage':
+        # a blade point up, two chevrons rising beside it (all inside the lid plate's diamond: see kit())
+        x, y = W * 0.5, H * 0.5
+        bx = x - 14 * k
+        d.polygon([(bx, y - 19 * k), (bx + 6.5 * k, y - 11 * k), (bx + 6.5 * k, y + 5 * k), (bx - 6.5 * k, y + 5 * k),
+                   (bx - 6.5 * k, y - 11 * k)], fill=c)
+        d.rectangle([bx - 12 * k, y + 5 * k, bx + 12 * k, y + 10 * k], fill=c)
+        d.rectangle([bx - 4 * k, y + 10 * k, bx + 4 * k, y + 19 * k], fill=c)
+        for dy in (-6, 7):
+            cx, cy = x + 17 * k, y + dy * k
+            d.line([(cx - 10 * k, cy + 5 * k), (cx, cy - 5 * k), (cx + 10 * k, cy + 5 * k)], fill=c, width=int(7.5 * k),
+                   joint='curve')
+    elif kind == 'weapon_crit':
+        # a crosshair: a ring, its four ticks reaching across it, a dot in the middle
+        x, y = W * 0.5, H * 0.5
+        r = 15 * k
+        d.ellipse([x - r - 2.5 * k, y - r - 2.5 * k, x + r + 2.5 * k, y + r + 2.5 * k], fill=c)
+        d.ellipse([x - r + 2.5 * k, y - r + 2.5 * k, x + r - 2.5 * k, y + r - 2.5 * k], fill=b)
+        for sx, sy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            d.line([(x + sx * 8 * k, y + sy * 8 * k), (x + sx * 24 * k, y + sy * 24 * k)], fill=c, width=int(5.5 * k))
+        d.ellipse([x - 4 * k, y - 4 * k, x + 4 * k, y + 4 * k], fill=c)
+    elif kind == 'weapon_repair':
+        # a blade pointing up and to the right, a wrench crossed over it from the other side
+        x, y = W * 0.5, H * 0.5
+
+        def at(px, py, deg):
+            a = math.radians(deg)
+            return x + (px * math.cos(a) - py * math.sin(a)) * k, y + (px * math.sin(a) + py * math.cos(a)) * k
+
+        def box(x0, x1, y0, y1, deg):
+            return [at(x0, y0, deg), at(x1, y0, deg), at(x1, y1, deg), at(x0, y1, deg)]
+
+        # the blade (local +x is the tip): a point, the blade, the guard and the grip
+        d.polygon([at(26, 0, -45), at(17, -6.5, -45), at(-5, -6.5, -45), at(-5, 6.5, -45), at(17, 6.5, -45)], fill=c)
+        d.polygon(box(-9, -5, -12, 12, -45), fill=c)
+        d.polygon(box(-21, -8, -4, 4, -45), fill=c)
+        # the wrench (local +x up-left), a rim of the plate colour parting it from the blade; the jaw open at its end
+        for grow, col in ((2, b), (0, c)):
+            d.polygon(box(-21 - grow, 8, -4 - grow, 4 + grow, 225), fill=col)
+            hx, hy = at(11, 0, 225)
+            rr = (9.5 + grow) * k
+            d.ellipse([hx - rr, hy - rr, hx + rr, hy + rr], fill=col)
+        d.polygon(box(11, 24, -4.5, 4.5, 225), fill=b)
+    return img.resize((w, h), Image.LANCZOS) if not clear else img.convert('RGBa').resize((w, h), Image.LANCZOS).convert('RGBA')
 
 
 def kit(kind):
     """A modification kit: a low olive case with a band in the kind's colour all round and a plate of that colour over
-    most of the lid, the kit's picture on it; two latches on the front."""
+    most of the lid, the kit's picture on it; two latches on the front. The weapon kits' picture is not laid on the lid
+    (the lid shows only some 26 x 14 px at 32, and a picture lying on it is squashed to a smudge) but drawn upright over
+    the middle of it, on the shrunk render too, so the high-res copies have it as well."""
     col = KIT_COLOURS[kind]
+    weapon = kind.startswith('weapon_')
     s = Scene(0)
     s.box(0.12, 0.22, 0.0, 0.88, 0.78, 0.36, OD, top=OD_LIGHT, shine=0.1)
     s.box(0.115, 0.215, 0.09, 0.885, 0.785, 0.19, col, top=col, shine=0.15)
     plate = tuple(min(255, int(v * 1.12 + 18)) for v in col)
-    flat_decal(s, 0.16, 0.26, 0.84, 0.74, 0.361, kit_glyph(kind, 136, 96, plate), offset=0.0)
+    face = Image.new('RGBA', (136, 96), plate + (255,)) if weapon else kit_glyph(kind, 136, 96, plate)
+    flat_decal(s, 0.16, 0.26, 0.84, 0.74, 0.361, face, offset=0.0)
     s.box(0.22, 0.78, 0.22, 0.30, 0.80, 0.33, STEEL_DARK, shine=0.5)
     s.box(0.70, 0.78, 0.22, 0.78, 0.80, 0.33, STEEL_DARK, shine=0.5)
-    return from_scene(s)
+    big = s.render()
+    if weapon:
+        gw, gh = (round(v * E.SS) for v in KIT_GLYPH_SIZE)
+        glyph = kit_glyph(kind, 136, 96, plate, clear=True).resize((gw, gh), Image.LANCZOS)
+        cx, cy = E.project(0.5, 0.5, 0.361)
+        # kept inside the lid plate's outline (a diamond 74 x 37 canvas px), so it never reaches past it
+        keep = Image.new('L', (gw, gh), 0)
+        hw, hh = 37 * 0.96 * E.SS, 18.5 * 0.96 * E.SS
+        ImageDraw.Draw(keep).polygon([(gw / 2 - hw, gh / 2), (gw / 2, gh / 2 - hh), (gw / 2 + hw, gh / 2),
+                                      (gw / 2, gh / 2 + hh)], fill=255)
+        glyph.putalpha(ImageChops.multiply(glyph.getchannel('A'), keep))
+        big.alpha_composite(glyph, (round(cx - gw / 2), round(cy - gh / 2)))
+    return from_render(big)
 
 
 def backpack():
@@ -718,6 +791,9 @@ PICTURES = {
     'kit_lightening': lambda: kit('lightening'),
     'kit_reinforcement': lambda: kit('reinforcement'),
     'kit_engine': lambda: kit('engine'),
+    'kit_weapon_damage': lambda: kit('weapon_damage'),
+    'kit_weapon_crit': lambda: kit('weapon_crit'),
+    'kit_weapon_repair': lambda: kit('weapon_repair'),
     'fuel_can': jerrycan, 'waist_bag': waist_bag,
 }
 def tier_mark(image, tier):
