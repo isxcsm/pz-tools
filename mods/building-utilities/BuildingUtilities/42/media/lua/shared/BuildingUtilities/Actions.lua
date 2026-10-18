@@ -182,15 +182,13 @@ function ISBUDisconnect:connected()
     return line ~= nil and line.panel == self.panelId and line.utility == self.utility
 end
 
-function ISBUDisconnect:isValid()
-    if not Costs.affords(self.character, Actions.workCost(self.utility)) then return false end
-    return self:connected()
-end
+-- The tool is checked as the action is queued (ContextMenu) and as it completes, not each tick.
+function ISBUDisconnect:isValid() return self:connected() end
 
 function ISBUDisconnect:start() Actions.work(self, self.utility) end
 
 function ISBUDisconnect:complete()
-    if not self:connected() then return false end
+    if not self:connected() or not Costs.affords(self.character, Actions.workCost(self.utility)) then return false end
     Costs.refund(self.character, Changes.unlay(self:ref()))
     return true
 end

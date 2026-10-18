@@ -303,3 +303,84 @@ test("the box's list of what it could take, in slices, is the one made at once",
     truthy(slices > 5, "in slices: " .. slices)
     truthy(same(out.result, whole), "the same list")
 end)
+
+test("dragging the plan moves it over without laying it out again until the button is up; the wheel's steps of a frame are one layout", function()
+    local window = Scene.open()
+    frames(window)
+    local plan = window.plan
+    local laid = 0
+    local layoutTasks = ISBUPlan.layoutTasks
+    ISBUPlan.layoutTasks = function(self)
+        laid = laid + 1
+        return layoutTasks(self)
+    end
+    plan:layout()
+    truthy(plan.map, "laid out")
+    plan.zoom = 2
+    plan:layout()
+    local map = plan.map
+    local ox, oy, grid = map.ox, map.oy, plan.grid
+    -- pressed on the map and moved far enough
+    plan.pressed, plan.moved = true, 0
+    laid = 0
+    for _ = 1, 20 do plan:drag(4, 3) end
+    eq(laid, 0, "no layout along the drag")
+    eq(plan.dragX, 80)
+    eq(plan.dragY, 60)
+    truthy(plan.grid ~= grid, "the grid made for the new place")
+    -- the plan is panned all the same: what the layout at the release gives is what a layout at each move gave
+    local panX, panY = plan.panX, plan.panY
+    truthy(panX < 0 or panX > 0, "panned")
+    plan.dragged = true
+    plan:onMouseUp(0, 0)
+    eq(laid, 1, "laid out once, at the release")
+    eq(plan.dragX, 0)
+    truthy(math.abs(plan.map.ox - (ox + 80)) < 1e-6 and math.abs(plan.map.oy - (oy + 60)) < 1e-6, "the layout is where the drag left it")
+    -- the same, a layout at each move
+    local direct = plan.grid
+    plan.panX, plan.panY, plan.pressed, plan.moved = 0, 0, true, 0
+    plan:layout()
+    local from = plan.map.ox
+    for _ = 1, 20 do
+        plan.panX = plan.panX - 4 / plan.map.scale
+        plan.panY = plan.panY - 3 / plan.map.scale
+        plan:layout()
+    end
+    truthy(math.abs(plan.map.ox - (from + 80)) < 1e-6, "a layout at each move ends where the drag did")
+    -- a point is hit where it is drawn while dragged
+    plan.zoom, plan.panX, plan.panY = 1, 0, 0
+    plan:layout()
+    local dot = plan.dots[1] or plan.squares[1]
+    truthy(dot, "something on the plan")
+    if dot then
+        local x, y = dot.x + (dot.size and dot.size / 2 or 0), dot.y + (dot.size and dot.size / 2 or 0)
+        local kind = plan:hit(x, y)
+        truthy(kind == "dot" or kind == "square", "found where it was laid")
+        plan.dragX, plan.dragY = 30, 20
+        truthy(plan:hit(x + 30, y + 20) == kind, "and where it is drawn, dragged")
+        plan.dragX, plan.dragY = 0, 0
+    end
+    -- the wheel: three steps in a frame, one layout, the same zoom and pan as a layout at each step
+    plan.zoom, plan.panX, plan.panY = 1, 0, 0
+    plan:layout()
+    local steps = {}
+    local midX, midY = plan.map.left + plan.map.w / 3, plan.map.top + plan.map.h / 3
+    for _, factor in ipairs({ 1.25, 1.25, 0.8 }) do
+        plan:zoomAt(midX, midY, factor)
+        plan:layout()
+    end
+    local zoom, panX2, panY2, scale = plan.zoom, plan.panX, plan.panY, plan.map.scale
+    plan.zoom, plan.panX, plan.panY = 1, 0, 0
+    plan:layout()
+    laid = 0
+    for _, factor in ipairs({ 1.25, 1.25, 0.8 }) do plan:zoomAt(midX, midY, factor) end
+    eq(laid, 0, "not laid out along the steps")
+    eq(plan.relayout, true)
+    plan:prerender()
+    eq(laid, 1, "once for the frame")
+    eq(plan.relayout, false)
+    local near = function(a, b) return math.abs(a - b) < 1e-9 end
+    truthy(near(plan.zoom, zoom) and near(plan.panX, panX2) and near(plan.panY, panY2), "the same zoom and pan")
+    truthy(near(plan.map.scale, scale), "the same scale")
+    ISBUPlan.layoutTasks = layoutTasks
+end)

@@ -17,13 +17,27 @@ BU.WaterRun = WaterRun
 -- What a machine shows of its last run (WaterUnits): cleared while it rests.
 local SHOWN = { "running", "idle", "moved" }
 
--- A panel's units of a kind that work (BU.Units.working), after the others (of a kind that is off, or whose line is
--- cut) rested: what they show of their last run cleared. Returns those that work and whether any rested.
-local function working(panel, kind)
-    local result, live, changed = BU.Units.working(panel, kind), {}, false
-    for _, unit in ipairs(result) do live[unit] = true end
-    for _, unit in ipairs(Store.unitList(kind, panel.id)) do
-        if not live[unit] then
+-- The kinds of machine that move water (see WaterRun.machines).
+local MACHINES = { booster = true, filter = true, pump = true }
+
+-- A panel's machines that work (BU.Units.working, in one pass: the boosters, the filters and the pumps), after the
+-- others (of a kind that is off, or whose line is cut) rested: what they show of their last run cleared. Returns
+-- those that work, by kind, and whether any rested; nil when the panel has no machine at all.
+local function working(panel)
+    local mine, any = Store.panelUnits(panel.id), false
+    for _, unit in ipairs(mine) do
+        if MACHINES[unit.kind] then any = true break end
+    end
+    if not any then return nil end
+    local result = { booster = {}, filter = {}, pump = {} }
+    local live, changed = {}, false
+    for _, unit in ipairs(BU.Units.working(panel)) do
+        live[unit] = true
+        local list = result[unit.kind]
+        if list then list[#list + 1] = unit end
+    end
+    for _, unit in ipairs(mine) do
+        if MACHINES[unit.kind] and not live[unit] then
             for _, field in ipairs(SHOWN) do
                 if unit[field] then unit[field], changed = nil, true end
             end
@@ -153,12 +167,16 @@ end
 -- filters rest. While a pump's square is loaded the water beside it is looked at again. Kinds that are off
 -- (BU.enabled) stand still and draw nothing.
 function WaterRun.machines(panel, minutes)
-    local boosters, restedB = working(panel, "booster")
-    local filters, restedF = working(panel, "filter")
-    local pumps, restedP = working(panel, "pump")
-    local changed = restedB or restedF or restedP
-    local water = BU.enabled("water") and BU.waterAvailable()
+    local kinds, changed = working(panel)
     local loads = panel.extraLoads or {}
+    -- (a box with no machine: nothing to run, only the load they drew before to take off)
+    if not kinds then
+        if loads.pumps then Changes.setExtraLoad(panel, "pumps", 0) end
+        if loads.boosters then Changes.setExtraLoad(panel, "boosters", 0) end
+        return
+    end
+    local boosters, filters, pumps = kinds.booster, kinds.filter, kinds.pump
+    local water = BU.enabled("water") and BU.waterAvailable()
     if not water or (#boosters == 0 and #filters == 0 and #pumps == 0) then
         if loads.pumps then Changes.setExtraLoad(panel, "pumps", 0) end
         if loads.boosters then Changes.setExtraLoad(panel, "boosters", 0) end

@@ -78,6 +78,9 @@ function ISBUPlan:new(x, y, width, height, window)
     o.cells, o.labels, o.dots, o.squares, o.strip, o.legend, o.edges = {}, {}, {}, {}, {}, {}, {}
     o.rangeCache, o.lines, o.lineByRef = {}, {}, {}
     o.outlines = {}
+    -- how far the plan has been dragged since it was laid out (it is moved over, not laid out again, until the button is
+    -- up), and whether a layout waits for the next frame (the wheel zooms a step at a time)
+    o.dragX, o.dragY, o.relayout = 0, 0, false
     return o
 end
 
@@ -503,6 +506,30 @@ end
 local LAID = { "cells", "labels", "dots", "squares", "strip", "legend", "edges", "walls", "legendBox", "hoverLine", "lines",
     "lineByRef", "grid", "map", "scale", "floorTitle", "titleX", "titleW", "titleFull", "toggles", "topH" }
 
+-- A faint grid of the squares under the plan, as on drawing paper: every square once they are big enough to tell
+-- apart, else every fifth; none when even those crowd. For the map as laid out (self.map), moved by so much while the
+-- plan is being dragged (the lines of the grid are the squares', which the plan itself is moved over without being laid
+-- out again: ISBUPlan:drag).
+function ISBUPlan:layoutGrid(shiftX, shiftY)
+    local map, grid = self.map, {}
+    self.grid = grid
+    local scale, minX, minY, left, top = map.scale, map.minX, map.minY, map.left, map.top
+    local ox, oy = map.ox + shiftX, map.oy + shiftY
+    local step = scale >= 7 and 1 or 5
+    if scale * step >= 7 then
+        local first = math.ceil((minX + (left - ox) / scale) / step) * step
+        for x = first, minX + (left + map.w - ox) / scale, step do
+            grid[#grid + 1] = { x = math.floor(ox + (x - minX) * scale), y = top, w = 1, h = map.h,
+                major = BU.remainder(x, 10) == 0 }
+        end
+        first = math.ceil((minY + (top - oy) / scale) / step) * step
+        for y = first, minY + (top + map.h - oy) / scale, step do
+            grid[#grid + 1] = { x = left, y = math.floor(oy + (y - minY) * scale), w = map.w, h = 1,
+                major = BU.remainder(y, 10) == 0 }
+        end
+    end
+end
+
 -- The layout as tasks of a job (BU.Job), written to `self`: a few at a time, to a copy of the plan that the plan takes
 -- once they are all done (dataTasks), or all at once to the plan itself (ISBUPlan:layout).
 function ISBUPlan:layoutTasks()
@@ -570,20 +597,7 @@ function ISBUPlan:layoutTasks()
             baseX = baseX, baseY = baseY, ox = ox, oy = oy, minX = minX, minY = minY }
         self.scale = scale
         wall = WALL_PX / (UI.S or 1)
-        -- A faint grid of the squares under the plan, as on drawing paper: every square once they are big enough to tell
-        -- apart, else every fifth; none when even those crowd.
-        local step = scale >= 7 and 1 or 5
-        self.grid = {}
-        if scale * step >= 7 then
-            local first = math.ceil((minX + (left - ox) / scale) / step) * step
-            for x = first, minX + (left + availW - ox) / scale, step do
-                self.grid[#self.grid + 1] = { x = sx(x), y = top, w = 1, h = availH, major = BU.remainder(x, 10) == 0 }
-            end
-            first = math.ceil((minY + (top - oy) / scale) / step) * step
-            for y = first, minY + (top + availH - oy) / scale, step do
-                self.grid[#self.grid + 1] = { x = left, y = sy(y), w = availW, h = 1, major = BU.remainder(y, 10) == 0 }
-            end
-        end
+        self:layoutGrid(0, 0)
     end)
     task(function()
         -- The range outlines, cut to the map.
@@ -637,6 +651,7 @@ end
 -- Laid out anew, at once (a resize, the zoom, a floor chosen).
 function ISBUPlan:layout()
     self.epoch = (self.epoch or 0) + 1
+    self.dragX, self.dragY, self.relayout = 0, 0, false
     Job.runAll(self:layoutTasks())
 end
 
@@ -695,6 +710,8 @@ function ISBUPlan:dataTasks(data, verified)
             if value ~= nil then plan[field] = value end
         end
         for _, field in ipairs(LAID) do plan[field] = rawget(copy, field) end
+        -- (laid out as the plan is panned and zoomed now: nothing left of a drag to move it over)
+        plan.dragX, plan.dragY, plan.relayout = 0, 0, false
         if rawget(copy, "stripFirst") ~= nil then plan.stripFirst = copy.stripFirst end
         plan:placeScheme()
         -- What the status line says of the thing under the mouse may have changed with the data.
@@ -973,6 +990,8 @@ end
 
 function ISBUPlan:prerender()
     ISPanel.prerender(self)
+    -- (zoomed by the wheel since the last frame: laid out once for all its steps)
+    if self.relayout then self:layout() end
     if not self.floorTitle then self:layoutTop() end
     -- The top bar: the floor's name and the switches, in the window's buttons' look: on ones in the accent, the one
     -- under the mouse lit, a click flashing.
@@ -1016,8 +1035,11 @@ function ISBUPlan:inMap(x, y)
     return map ~= nil and x >= map.left and x < map.left + map.w and y >= map.top and y < map.top + map.h
 end
 
--- Zooms by a factor, keeping the square under the point where it is.
+-- Zooms by a factor, keeping the square under the point where it is. The plan is laid out once for the wheel steps of a
+-- frame (prerender); the map as laid out is moved on to what they make of it, for the step after.
 function ISBUPlan:zoomAt(x, y, factor)
+    -- (a plan dragged and not laid out yet is laid out first: the point under the mouse is known only from the layout)
+    if self.map and (self.dragX ~= 0 or self.dragY ~= 0) then self:layout() end
     local map = self.map
     if not map then return end
     local zoom = math.max(MIN_ZOOM, math.min(MAX_ZOOM, (self.zoom or 1) * factor))
@@ -1028,7 +1050,9 @@ function ISBUPlan:zoomAt(x, y, factor)
     self.zoom = zoom
     self.panX = worldX - (x - midX) / scale - map.baseX
     self.panY = worldY - (y - midY) / scale - map.baseY
-    self:layout()
+    map.scale, map.centreX, map.centreY = scale, map.baseX + self.panX, map.baseY + self.panY
+    self.epoch = (self.epoch or 0) + 1
+    self.relayout = true
 end
 
 
@@ -1170,6 +1194,8 @@ function ISBUPlan:render()
     local filter = self.data and self.data.filter
     local map = self.map
     local now = getTimestampMs()
+    -- (the plan dragged since it was laid out is drawn this much further along: ISBUPlan:drag)
+    local shiftX, shiftY = self.dragX, self.dragY
     local px = 1 / (UI.S or 1)
     local mx, my = -1, -1
     if self:isMouseOver() then mx, my = self:getMouseX(), self:getMouseY() end
@@ -1183,7 +1209,7 @@ function ISBUPlan:render()
     for _, cell in ipairs(self.cells) do
         local k = UI.hoverLight(self, cell.fx, cell.room == hoverRoom)
         local a = (cell.dim and 0.14 or 0.3) + (cell.room == filter and 0.2 or 0) + 0.25 * k
-        self:drawRect(cell.x, cell.y, cell.w, cell.h, a, cell.r, cell.g, cell.b)
+        self:drawRect(cell.x + shiftX, cell.y + shiftY, cell.w, cell.h, a, cell.r, cell.g, cell.b)
     end
     -- The rooms' outlines in a light tint of their colour; the room under the mouse or filtered drawn last, bright.
     local brightWalls = {}
@@ -1191,21 +1217,22 @@ function ISBUPlan:render()
         if wall.room == hoverRoom or wall.room == filter then
             brightWalls[#brightWalls + 1] = wall
         else
-            self:drawRect(wall.x, wall.y, wall.w, wall.h, wall.dim and 0.35 or 0.8, wall.r, wall.g, wall.b)
+            self:drawRect(wall.x + shiftX, wall.y + shiftY, wall.w, wall.h, wall.dim and 0.35 or 0.8, wall.r, wall.g, wall.b)
         end
     end
-    for _, wall in ipairs(brightWalls) do UI.fill(self, wall.x, wall.y, wall.w, wall.h, P.bright, 1) end
+    for _, wall in ipairs(brightWalls) do UI.fill(self, wall.x + shiftX, wall.y + shiftY, wall.w, wall.h, P.bright, 1) end
     for _, label in ipairs(self.labels) do
-        self:drawTextCentre(label.text, label.x, label.y, P.text[1], P.text[2], P.text[3], label.dim and 0.35 or 0.8, UIFont.Small)
+        self:drawTextCentre(label.text, label.x + shiftX, label.y + shiftY, P.text[1], P.text[2], P.text[3], label.dim and 0.35 or 0.8, UIFont.Small)
     end
-    for _, edge in ipairs(self.edges) do self:drawRect(edge.x, edge.y, edge.w, edge.h, 0.7, edge.r, edge.g, edge.b) end
+    for _, edge in ipairs(self.edges) do self:drawRect(edge.x + shiftX, edge.y + shiftY, edge.w, edge.h, 0.7, edge.r, edge.g, edge.b) end
     -- The lines, at their fixed width under the squares; the one of the thing under the mouse over a dark casing in a
     -- light tint of its colour.
     local lw, cw = LINE_PX * px, CASING_PX * px
     for _, line in ipairs(self.lines) do
         local second, p = line.second, line.points
         for i = 2, #p do
-            local x1, y1, x2, y2 = p[i - 1][1], p[i - 1][2], p[i][1], p[i][2]
+            local x1, y1 = p[i - 1][1] + shiftX, p[i - 1][2] + shiftY
+            local x2, y2 = p[i][1] + shiftX, p[i][2] + shiftY
             if second then
                 -- a machine's inlet and outlet, side by side
                 local sx, sy = BU.Links.besideOffset(x2 - x1, y2 - y1, lw * 1.5)
@@ -1220,8 +1247,12 @@ function ISBUPlan:render()
     if hover then
         local r, g, b = hover.r + (1 - hover.r) * 0.45, hover.g + (1 - hover.g) * 0.45, hover.b + (1 - hover.b) * 0.45
         local p = hover.points
-        for i = 2, #p do self:drawLine(WHITE, p[i - 1][1], p[i - 1][2], p[i][1], p[i][2], cw, 0.7, 0.02, 0.03, 0.05) end
-        for i = 2, #p do self:drawLine(WHITE, p[i - 1][1], p[i - 1][2], p[i][1], p[i][2], lw, 1, r, g, b) end
+        for i = 2, #p do
+            self:drawLine(WHITE, p[i - 1][1] + shiftX, p[i - 1][2] + shiftY, p[i][1] + shiftX, p[i][2] + shiftY, cw, 0.7, 0.02, 0.03, 0.05)
+        end
+        for i = 2, #p do
+            self:drawLine(WHITE, p[i - 1][1] + shiftX, p[i - 1][2] + shiftY, p[i][1] + shiftX, p[i][2] + shiftY, lw, 1, r, g, b)
+        end
     end
     -- The legend's entry under the mouse marks what it names.
     local marked = self.legendHover
@@ -1230,7 +1261,8 @@ function ISBUPlan:render()
     local edge, ring, frame = math.max(px, snap(1, px)), snap(3, px), snap(4, px)
     for _, square in ipairs(self.squares) do
         local size = evenSize(square.size, px)
-        local x, y = snap(square.x + square.size / 2, px) - size / 2, snap(square.y + square.size / 2, px) - size / 2
+        local x = snap(square.x + shiftX + square.size / 2, px) - size / 2
+        local y = snap(square.y + shiftY + square.size / 2, px) - size / 2
         self:drawRect(x - edge, y - edge, size + edge * 2, size + edge * 2, 0.9, 0.02, 0.03, 0.05)
         self:drawRect(x, y, size, size, 1, square.r, square.g, square.b)
         local second, half = square.second, snap(size / 2, px)
@@ -1250,7 +1282,7 @@ function ISBUPlan:render()
     local dotHalf = evenSize(DOT, px) / 2
     local dotRing, fresh = snap(DOT + 1, px), snap(3, px)
     for _, dot in ipairs(self.dots) do
-        local x, y, half = snap(dot.x, px), snap(dot.y, px), dotHalf
+        local x, y, half = snap(dot.x + shiftX, px), snap(dot.y + shiftY, px), dotHalf
         self:drawRect(x - half - edge, y - half - edge, (half + edge) * 2, (half + edge) * 2, 0.85, 0.02, 0.03, 0.05)
         self:drawRect(x - half, y - half, half * 2, half * 2, 1, dot.r, dot.g, dot.b)
         if dot.fresh then self:drawRect(x + half, y - half - fresh, fresh, fresh, 1, 0.3, 0.9, 1) end
@@ -1263,8 +1295,8 @@ function ISBUPlan:render()
     local focus = self.focus
     if focus and map and map.ox and focus.z == self.floor then
         local t = math.min(1, (now - focus.at) / FOCUS_MS)
-        local fx = map.ox + (focus.x + 0.5 - map.minX) * map.scale
-        local fy = map.oy + (focus.y + 0.5 - map.minY) * map.scale
+        local fx = map.ox + shiftX + (focus.x + 0.5 - map.minX) * map.scale
+        local fy = map.oy + shiftY + (focus.y + 0.5 - map.minY) * map.scale
         local half = snap(SQUARE + 10 * (1 - BU.PanelUi.ease(math.min(1, t * 2))), px)
         UI.frame(self, snap(fx, px) - half, snap(fy, px) - half, half * 2, half * 2, P.warn, 1 - t)
     end
@@ -1325,6 +1357,8 @@ function ISBUPlan:hit(x, y)
         if x >= cell.x and x <= cell.x + cell.w and y >= cell.y and y <= cell.y + cell.h then return "floor", cell end
     end
     if not self:inMap(x, y) then return nil end
+    -- (the map as it is drawn, dragged since it was laid out)
+    x, y = x - self.dragX, y - self.dragY
     for _, dot in ipairs(self.dots) do
         if math.abs(x - dot.x) <= HIT and math.abs(y - dot.y) <= HIT then return "dot", dot end
     end
@@ -1401,7 +1435,11 @@ function ISBUPlan:drag(dx, dy)
     self.dragged = true
     self.panX = (self.panX or 0) - dx / self.map.scale
     self.panY = (self.panY or 0) - dy / self.map.scale
-    self:layout()
+    -- The plan is moved over as it is (drawn so much further along), and laid out again once the button is up; only the
+    -- grid, which has no end to move, is made for the new place. A layout in the making is no longer of the pan.
+    self.dragX, self.dragY = (self.dragX or 0) + dx, (self.dragY or 0) + dy
+    self.epoch = (self.epoch or 0) + 1
+    self:layoutGrid(self.dragX, self.dragY)
 end
 
 function ISBUPlan:showFloor(level)
@@ -1471,10 +1509,15 @@ function ISBUPlan:onMouseUp(x, y)
     local wasPressed, dragged = self.pressed, self.dragged
     self.pressed, self.dragged = false, false
     if wasPressed and not dragged then self:click(x, y) end
+    if dragged then self:layout() end
     return true
 end
 
-function ISBUPlan:onMouseUpOutside(x, y) self.pressed, self.dragged = false, false end
+function ISBUPlan:onMouseUpOutside(x, y)
+    local dragged = self.dragged
+    self.pressed, self.dragged = false, false
+    if dragged then self:layout() end
+end
 
 function ISBUPlan:click(x, y)
     local kind, thing = self:hit(x, y)

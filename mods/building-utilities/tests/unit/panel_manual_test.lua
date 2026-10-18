@@ -100,3 +100,34 @@ test("the recipes' buttons wrap in rows over the tab's bottom, the last row lowe
     buttons = manual:recipeButtons()
     eq(buttons[4].y, buttons[1].y, "wide enough: one row")
 end)
+
+test("the recipes' buttons are kept between frames, made again when a chapter opens, the window refreshes, the tab is resized, a recipe is learned or a second passes", function()
+    local manual, character, window = tab(Store.newPanel(50, 10, 0, "box"))
+    local asked = 0
+    function character:isRecipeKnown() asked = asked + 1; return false end
+    getItemNameFromFullType = function(t) return t end
+    local now = 1000000
+    getTimestampMs = function() return now end
+    manual:refresh(window.panel)
+    local buttons = manual:recipeButtons()
+    local first = asked
+    truthy(first > 0)
+    for _ = 1, 100 do eq(manual:recipeButtons(), buttons) end
+    eq(asked, first, "no look at the recipes in a frame")
+    manual:show("breaker")
+    truthy(manual:recipeButtons() ~= buttons, "a chapter opened")
+    buttons = manual:recipeButtons()
+    manual:refresh(window.panel)
+    truthy(manual:recipeButtons() ~= buttons, "the window refreshed")
+    buttons = manual:recipeButtons()
+    manual.width = manual.width + 10
+    truthy(manual:recipeButtons() ~= buttons, "resized")
+    buttons = manual:recipeButtons()
+    manual.buttonsStale = true
+    truthy(manual:recipeButtons() ~= buttons, "learned")
+    buttons = manual:recipeButtons()
+    now = now + 999
+    eq(manual:recipeButtons(), buttons)
+    now = now + 2
+    truthy(manual:recipeButtons() ~= buttons, "a second on: what the character knows is looked at again")
+end)

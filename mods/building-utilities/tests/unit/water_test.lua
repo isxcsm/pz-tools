@@ -713,3 +713,30 @@ test("a revision that fails is said once, and the states are kept as without one
     BU.log = log
     eq(failures, 1, "said once")
 end)
+
+test("a box with no machine of water takes off the load it drew and looks at no units; one machine is looked at in one pass", function()
+    local panel = scene(1)
+    local asked = 0
+    local working = BU.Units.working
+    BU.Units.working = function(...) asked = asked + 1; return working(...) end
+    panel.extraLoads = { pumps = 0.2, boosters = 0.1 }
+    local solar = Store.newUnit("solar", 104, 102, 0, "solar")
+    Changes.connectUnit(solar, panel, {})
+    asked = 0
+    WaterRun.machines(panel, 60)
+    eq(asked, 0, "no machine: no units asked for")
+    truthy((panel.extraLoads.pumps or 0) == 0, "the pumps' load taken off")
+    truthy((panel.extraLoads.boosters or 0) == 0, "the boosters' load taken off")
+    local pump = Store.newUnit("pump", 103, 103, 0, WaterUnits.PUMP_SPRITES.E)
+    Changes.connectUnit(pump, panel, {})
+    pump.running, pump.idle, pump.moved = true, "full", 3
+    pump.off = true
+    Store.linksChanged()
+    asked = 0
+    WaterRun.machines(panel, 60)
+    eq(asked, 1, "one pass for the three kinds")
+    eq(pump.running, nil, "a machine at rest shows nothing of its last run")
+    eq(pump.idle, nil)
+    eq(pump.moved, nil)
+    BU.Units.working = working
+end)

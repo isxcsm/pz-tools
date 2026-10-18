@@ -27,6 +27,7 @@ local summaries = {}
 -- Something changed: of the box given, or of none in particular (nil). Every window refreshes once that settles, as a
 -- box's change can show in another's window too (its name, a device connected to it).
 function BU.onChanged(panelId)
+    Store.dataChanged(panelId)
     local panel = panelId and Store.get(panelId)
     if panel then giveSummary(Panels.object(panel)) end
     PanelWindow.refreshAll()

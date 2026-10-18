@@ -964,28 +964,64 @@ function Panels.breakerHoursLeft(gauge, ratio, to)
     return math.max(0, gauge - (to or 0)) / drain
 end
 
--- One device of a panel by the key of any of its parts, or nil.
-function Panels.device(panel, utility, key)
+-- A panel's devices of a utility by the key of each of their parts, as Panels.devices lists them: one device of several
+-- parts has its entry under each. Reading the API's listing and the world for them is the most of a menu's or a command's
+-- work, so they are kept while nothing they come of has changed: the boxes, the lines, the buildings, who owns which
+-- device, the box's zone and tier, and what was told changed (Store.dataChanged); and at most DEVICES_MS, for what the
+-- world changes without telling (a switch flipped, an object put down). Not to be changed by a caller.
+local DEVICES_MS = 1000
+local devicesKept = {}
+
+local function devicesByKey(panel, utility)
+    current()
+    local slot = panel.id .. "|" .. utility
+    local kept = devicesKept[slot]
+    local links, owners, data, now = Store.linkVersion(), Store.ownersVersion(), Store.dataVersion(), getTimestampMs()
+    if kept and kept.panel == panel and kept.links == links and kept.buildings == cacheVersion and kept.owners == owners
+            and kept.data == data and kept.zone == panel.zone and kept.tier == panel.tier and now - kept.at < DEVICES_MS
+            and now >= kept.at then
+        return kept.map
+    end
+    local map = {}
     for _, device in ipairs(Panels.devices(panel, utility)) do
         for _, part in ipairs(device.keys) do
-            if part == key then return device end
+            if not map[part] then map[part] = device end
         end
     end
-    return nil
+    devicesKept[slot] = { panel = panel, links = links, buildings = cacheVersion, owners = owners, data = data,
+        zone = panel.zone, tier = panel.tier, at = now, map = map }
+    return map
 end
 
+-- One device of a panel by the key of any of its parts, or nil.
+function Panels.device(panel, utility, key) return devicesByKey(panel, utility)[key] end
+
 -- Each box by the grid cells (REACH_CELL squares) its building's rooms, grown by its connect range, cover: the boxes
--- whose outside range can reach a square are those of its cell. Kept while the boxes, the lines and the API's buildings
--- are the same.
+-- whose outside range can reach a square are those of its cell. Kept while the boxes, the lines, the API's buildings
+-- and each box's tier and range (a new tier, or the sandbox's range, count no link version) are the same.
 local REACH_CELL = 32
 local reachLinks, reachBuildings, reachCells
+local reachTier, reachRange = {}, {}
+
+local function reachSame(ordered)
+    for _, panel in ipairs(ordered) do
+        local tier = panel.tier or 1
+        if reachTier[panel.id] ~= tier or reachRange[panel.id] ~= BU.connectRange(tier) then return false end
+    end
+    return true
+end
 
 local function reachIndex()
     current()
     local links = Store.linkVersion()
-    if reachCells and reachLinks == links and reachBuildings == cacheVersion then return reachCells end
-    reachLinks, reachBuildings, reachCells = links, cacheVersion, {}
-    for _, panel in ipairs(Store.list()) do
+    local ordered = Store.ordered()
+    if reachCells and reachLinks == links and reachBuildings == cacheVersion and reachSame(ordered) then
+        return reachCells
+    end
+    reachLinks, reachBuildings, reachCells, reachTier, reachRange = links, cacheVersion, {}, {}, {}
+    for _, panel in ipairs(ordered) do
+        local tier = panel.tier or 1
+        reachTier[panel.id], reachRange[panel.id] = tier, BU.connectRange(tier)
         local own = Panels.building(panel)
         local minX, minY, maxX, maxY
         for _, room in ipairs(own and Panels.rooms(own) or {}) do
@@ -1012,7 +1048,7 @@ end
 -- The panels a square can be a device of: those of its building, and those whose outside range reaches it. The
 -- steps are to the building's rooms on any level, never more than buildings.near counts on the square's own, so
 -- none that has it is left out; a square far from every box asks the API for no devices.
-local function devicePanels(x, y, z)
+function Panels.panelsReaching(x, y, z)
     local building = Panels.buildingAt(x, y, z)
     local result, seen = {}, {}
     for _, panel in ipairs(building and Panels.ofBuilding(building.key) or {}) do
@@ -1030,15 +1066,6 @@ local function devicePanels(x, y, z)
     return result
 end
 
--- A panel's devices of a utility by the key of each of their parts.
-local function devicesByKey(panel, utility)
-    local result = {}
-    for _, device in ipairs(Panels.devices(panel, utility)) do
-        for _, part in ipairs(device.keys) do result[part] = device end
-    end
-    return result
-end
-
 -- The panel and device entry for a world object, for the context menu: the panel of its building, or a panel in
 -- whose outside range it stands. Nil when it is no device of a panel. cache, a table kept for one menu, saves
 -- finding the panels near a square and their devices again for each object and utility.
@@ -1052,7 +1079,7 @@ function Panels.deviceOf(object, utility, cache)
     cache = cache or {}
     cache.near, cache.devices = cache.near or {}, cache.devices or {}
     local at = x .. "," .. y .. "," .. z
-    cache.near[at] = cache.near[at] or devicePanels(x, y, z)
+    cache.near[at] = cache.near[at] or Panels.panelsReaching(x, y, z)
     for _, panel in ipairs(cache.near[at]) do
         local slot = panel.id .. "|" .. utility
         cache.devices[slot] = cache.devices[slot] or devicesByKey(panel, utility)

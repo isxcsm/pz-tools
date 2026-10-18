@@ -208,7 +208,12 @@ local function drawGraph(c, y, width, row)
     local plotH = bottom - top
     local most = 0.05
     for _, hour in ipairs(hours) do most = math.max(most, hour.made or 0, hour.used or 0) end
-    UI.text(c, getText("IGUI_BU_GraphTitle", #hours, string.format("%.2f", most)), left, y + 2, P.text)
+    -- (its title made again only when what it tells changes)
+    if row.titleMost ~= most or row.titleCount ~= #hours then
+        row.titleMost, row.titleCount = most, #hours
+        row.title = getText("IGUI_BU_GraphTitle", #hours, string.format("%.2f", most))
+    end
+    UI.text(c, row.title, left, y + 2, P.text)
     UI.fill(c, left, top, right - left, plotH, P.inset, 0.8)
     UI.frame(c, left, top, right - left, plotH, P.border)
     local columns = Store.ENERGY_HOURS + 1
@@ -431,7 +436,7 @@ function ISBUPanelList:prerender()
     local tip = row and row.tip
     for _, button in ipairs(row and row.buttons or {}) do
         local key = ISBUPanelList.BUTTON_TIPS[button.name]
-        if key and self.mouseDX >= button.x and self.mouseDX < button.x + button.w then tip = getText(key) end
+        if key and self.mouseDX >= button.x and self.mouseDX < button.x + button.w then tip = label(key) end
     end
     if tip then PZUIRichTip.show(self, tip, P) else PZUIRichTip.hide(self) end
     local outlined = row and (row.device or row.at or row.unit or row.members) and index or nil

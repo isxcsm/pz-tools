@@ -57,8 +57,25 @@ end
 function ISBUManual:taught() return self.key and Manual.teaches(self.window.panel, self.key) or {} end
 
 -- Each recipe's button under the text: { taught, x, y, w, text, known }, in rows that wrap at the tab's width (the
--- last row at the bottom).
+-- last row at the bottom). Kept for the frames: made again when a chapter opens (show), the window refreshes
+-- (refresh: a change told), the character learns one, the tab's size changes, and what the character knows each
+-- KNOWN_MS. Not to be changed by a caller.
+local KNOWN_MS = 1000
+
 function ISBUManual:recipeButtons()
+    local now = getTimestampMs()
+    local kept = self.buttons
+    if kept and not self.buttonsStale and self.buttonsW == self.width and self.buttonsH == self.height
+            and now >= self.buttonsAt and now - self.buttonsAt < KNOWN_MS then
+        return kept
+    end
+    kept = self:makeRecipeButtons()
+    self.buttons, self.buttonsStale = kept, false
+    self.buttonsW, self.buttonsH, self.buttonsAt = self.width, self.height, now
+    return kept
+end
+
+function ISBUManual:makeRecipeButtons()
     local result, character = {}, self:character()
     local left = ISBUManual.CHAPTER_W + PAD * 2
     local x, row = left, 0
@@ -82,6 +99,7 @@ function ISBUManual:character() return self.window.playerObj end
 function ISBUManual:refresh(panel)
     local character = self:character()
     self.chapters = Manual.chapters(panel, character)
+    self.buttonsStale = true
     local open, first = nil, nil
     for _, key in ipairs(self.chapters) do
         self.titles[key] = self.titles[key] or Manual.title(key)
@@ -101,6 +119,7 @@ end
 function ISBUManual:show(key)
     self:leave()
     self.key = key
+    self.buttonsStale = true
     local character = self:character()
     local marked, styles = Typing.marks(Manual.text(key))
     local read = Markup.parse(marked)
@@ -177,6 +196,7 @@ function ISBUManual:onMouseDown(x, y)
     for _, button in ipairs(self:recipeButtons()) do
         if not button.known and x >= button.x and x < button.x + button.w and y >= button.y and y < button.y + ROW - 4 then
             UI.flash(self, "learn" .. button.taught.recipe)
+            self.buttonsStale = true
             BU.Sync.send(self:character(), "learnRecipe",
                 { panel = self.window.panel.id, chapter = self.key, recipe = button.taught.recipe })
             return true

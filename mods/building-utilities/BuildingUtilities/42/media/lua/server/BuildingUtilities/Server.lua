@@ -48,7 +48,7 @@ function commands.setRoomInside(player, panel, args)
 end
 
 -- A window saw devices in a room built onto the building that the networks do not have yet.
-function commands.syncAttached(player, panel, args) Changes.syncAttached(panel) end
+function commands.syncAttached(player, panel, args) Changes.syncAttached(panel, true) end
 
 -- The box's zone: a list of room keys (Panels.rooms), or the whole building.
 function commands.setZone(player, panel, args)
@@ -589,7 +589,7 @@ local function defineAll()
     if BU.enabled("power") then
         for _, panel in ipairs(Store.list()) do Changes.applyTimers(panel) end
     end
-    for _, panel in ipairs(Store.list()) do Changes.syncAttached(panel) end
+    for _, panel in ipairs(Store.list()) do Changes.syncAttached(panel, true) end
     BU.log("defined the networks of", #Store.list(), "panels, features on:", BU.featureKey())
 end
 

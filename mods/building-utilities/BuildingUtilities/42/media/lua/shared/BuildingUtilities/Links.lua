@@ -515,21 +515,46 @@ end
 
 -- Lines walked again this session (no way kept, or kept between other ends), by ref: { key, squares }.
 local walked = {}
+-- The squares each line's route gave last, by ref, kept while the line's way (line.path itself, not what it holds: a
+-- way is replaced, never changed in place), its ends and its thing are the same: the same table is handed out again,
+-- so that a caller can tell a line lies as before by the squares being the same. Not to be changed by a caller.
+local routes = {}
+
+-- Forgets what is kept for a ref (its line is gone).
+function Links.forget(ref)
+    walked[ref] = nil
+    routes[ref] = nil
+end
 
 function Links.route(line)
     local ex, ey, z, intoX, intoY = groundEnds(line)
     if not ex then return nil end
-    local path = line.path
-    if path and #path >= 2 and path[1] == line.x and path[2] == line.y and path[#path - 1] == ex and path[#path] == ey then
-        return squaresOf(path), z, intoX, intoY
+    local path, ref = line.path, line.ref
+    local plen = path and #path or 0
+    local kept = ref and routes[ref]
+    if kept and kept.path == path and kept.plen == plen and kept.ex == ex and kept.ey == ey and kept.z == z
+            and kept.intoX == intoX and kept.intoY == intoY and kept.x == line.x and kept.y == line.y
+            and kept.seq == line.seq then
+        return kept.squares, z, intoX, intoY
     end
-    local key = ex .. "," .. ey .. "," .. line.x .. "," .. line.y .. "," .. tostring(line.seq)
-    local memo = walked[line.ref]
-    if not memo or memo.key ~= key then
-        memo = { key = key, squares = Links.walk(line.x, line.y, ex, ey, z, intoX, intoY) or straight(line.x, line.y, ex, ey, intoX) }
-        walked[line.ref] = memo
+    local squares
+    if path and plen >= 2 and path[1] == line.x and path[2] == line.y and path[plen - 1] == ex and path[plen] == ey then
+        squares = squaresOf(path)
+    else
+        local key = ex .. "," .. ey .. "," .. line.x .. "," .. line.y .. "," .. tostring(line.seq) .. "," .. tostring(intoX)
+            .. "," .. tostring(intoY)
+        local memo = walked[ref]
+        if not memo or memo.key ~= key then
+            memo = { key = key, squares = Links.walk(line.x, line.y, ex, ey, z, intoX, intoY) or straight(line.x, line.y, ex, ey, intoX) }
+            if ref then walked[ref] = memo end
+        end
+        squares = memo.squares
     end
-    return memo.squares, z, intoX, intoY
+    if ref then
+        routes[ref] = { path = path, plen = plen, ex = ex, ey = ey, z = z, intoX = intoX, intoY = intoY, x = line.x,
+            y = line.y, seq = line.seq, squares = squares }
+    end
+    return squares, z, intoX, intoY
 end
 
 -- The corners of a line's way on the ground (Links.route), shifted off the squares' middles by shift (along the

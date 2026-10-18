@@ -52,20 +52,28 @@ function Units.utility(unit) return definitions[unit.kind].utility end
 -- (BU.enabled), not relays (they carry lines, they do no work); of a kind when given. One of a kind that is off, or
 -- whose line is cut, does nothing.
 -- Kept by panel and kind while the lines, the boxes and the units are the same (Store.linkVersion: the features
--- turned on or off count too, Changes.applyFeatures); the list kept is handed out, not to be changed.
+-- turned on or off count too, Changes.applyFeatures) and the panel's lines state is the one it was worked out from
+-- (BU.Links.state: also a new tier, zone or building, which do not count a link version); the list kept is handed out,
+-- not to be changed. With the working units' count by utility (Units.count).
 local workingToken, workingOf = nil, {}
+
+local function workingFor(panel)
+    local token = Store.linkVersion()
+    if workingToken ~= token then workingToken, workingOf = token, {} end
+    local state = BU.Links.state(panel)
+    local entry = workingOf[panel.id]
+    if not entry or entry.state ~= state then
+        entry = { state = state, byKind = {}, counts = nil }
+        workingOf[panel.id] = entry
+    end
+    return entry
+end
 
 function Units.working(panel, kind)
     if not panel then return {} end
-    local token = Store.linkVersion()
-    if workingToken ~= token then workingToken, workingOf = token, {} end
-    local byKind = workingOf[panel.id]
-    if not byKind then
-        byKind = {}
-        workingOf[panel.id] = byKind
-    end
+    local entry = workingFor(panel)
     local key = kind or ""
-    local kept = byKind[key]
+    local kept = entry.byKind[key]
     if not kept then
         kept = {}
         for _, unit in ipairs(Store.unitList(kind, panel.id)) do
@@ -74,7 +82,7 @@ function Units.working(panel, kind)
                 kept[#kept + 1] = unit
             end
         end
-        byKind[key] = kept
+        entry.byKind[key] = kept
     end
     return kept
 end
@@ -86,6 +94,24 @@ function Units.of(panelId, utility)
         if definitions[unit.kind].utility == utility then result[#result + 1] = unit end
     end
     return result
+end
+
+-- How many of them there are of a utility, with no list built (kept with the working units).
+function Units.count(panelId, utility)
+    local panel = Store.get(panelId)
+    if not panel then return 0 end
+    local entry = workingFor(panel)
+    Units.working(panel)
+    local counts = entry.counts
+    if not counts then
+        counts = {}
+        for _, unit in ipairs(entry.byKind[""]) do
+            local own = definitions[unit.kind].utility
+            counts[own] = (counts[own] or 0) + 1
+        end
+        entry.counts = counts
+    end
+    return counts[utility] or 0
 end
 
 -- The unit's object on its loaded square, or nil.
