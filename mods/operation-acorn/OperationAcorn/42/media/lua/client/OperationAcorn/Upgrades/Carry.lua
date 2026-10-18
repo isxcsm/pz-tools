@@ -15,12 +15,29 @@ local First = OA.Upgrades.First
 local Carry = {}
 OA.Upgrades.Carry = Carry
 
+-- The transfer nodes' factor of a section, worked out once until the record is told to have changed (the research
+-- tab's "upgrades" and "all" changes): section -> { revision, factor }. It follows the ranks and the effect size
+-- option, which does not change under a running game.
+local revision = 0
+local transferOf = setmetatable({}, { __mode = "k" })
+local function changed() revision = revision + 1 end
+OA.Sync.listen("upgrades", changed)
+OA.Sync.listen("all", changed)
+
 -- How much of its time an action moving `item` keeps for this character (1: unchanged).
 function Carry.timeFactor(character, item)
     local record = OA.Client.record(character)
     if not record then return 1 end
     local u = Rules.section(record)
-    local factor = Rules.transferTime(u)
+    local kept = transferOf[u]
+    if not kept then
+        kept = { revision = -1, factor = 1 }
+        transferOf[u] = kept
+    end
+    if kept.revision ~= revision then
+        kept.revision, kept.factor = revision, Rules.transferTime(u)
+    end
+    local factor = kept.factor
     if item then
         local eff = Effects.efficiencyOf(item)
         if eff > 0 then factor = factor * Rules.weightRatio(item:getActualWeight(), eff) end

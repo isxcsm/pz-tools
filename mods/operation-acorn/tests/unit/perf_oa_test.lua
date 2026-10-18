@@ -333,3 +333,66 @@ test("Machines.anyNear looks at the registry only", function()
     Machines.list().m1, Machines.list().m2 = nil, nil
     eq(Machines.anyNear(100, 100, 4), false)
 end)
+
+test("Rules.section fills a section once; assign makes it be filled again", function()
+    require "OperationAcorn/Upgrades/Rules"
+    local Rules = OA.Upgrades.Rules
+    local record = OA.Store.ensure("p", "P")
+    local u = Rules.section(record)
+    truthy(u.board and u.ranks and u.opened)
+    -- a field taken away after is not made again by the next read (the section is known to be filled)
+    u.unsealed = nil
+    eq(Rules.section(record).unsealed, nil)
+    -- but the whole fill is done again for a section assigned from a copy
+    Rules.assign(u, { ranks = {} })
+    local again = Rules.section(record)
+    eq(again, u)
+    truthy(again.board and again.unsealed and again.injected, "filled after the assign")
+    -- a record whose section was replaced is another table, filled when asked
+    record.upgrades = {}
+    truthy(Rules.section(record).board)
+    -- the explicit fill always runs
+    local bare = {}
+    Rules.fill(bare)
+    truthy(bare.board and bare.unsealed)
+end)
+
+test("the transfer factor is worked out once until the research is told to have changed", function()
+    local real = require
+    _G.ISInventoryTransferAction = { new = function(self, character, item) return { maxTime = 100 } end,
+        perform = function() end }
+    _G.ISWorldObjectContextMenu = { grabItemTime = function() return 100 end }
+    require = function(name)
+        if string.find(name, "^ISUI/") or string.find(name, "^TimedActions/") then return true end
+        return real(name)
+    end
+    local ok, err = pcall(real, "OperationAcorn/Upgrades/Carry")
+    require = real
+    if not ok then error(err, 0) end
+    local Carry, Rules = OA.Upgrades.Carry, OA.Upgrades.Rules
+    local record = OA.Store.ensure("p", "P")
+    OA.Client.record = function() return record end
+    local calls = 0
+    local transferTime = Rules.transferTime
+    Rules.transferTime = function(u) calls = calls + 1 return transferTime(u) end
+    eq(Carry.timeFactor({}, nil), 1)
+    eq(Carry.timeFactor({}, nil), 1)
+    eq(calls, 1, "worked out once")
+    local u = Rules.section(record)
+    u.ranks.moveSpeed = 3
+    eq(Carry.timeFactor({}, nil), 1, "no news of a change: the factor stands")
+    OA.Sync.changed("upgrades", record.id)
+    near(Carry.timeFactor({}, nil), 1 - Rules.cut(u, "moveSpeed"), 1e-9)
+    truthy(Carry.timeFactor({}, nil) < 1)
+    eq(calls, 2)
+    Carry.timeFactor({}, nil)
+    eq(calls, 2)
+    OA.Sync.deliver("all")
+    Carry.timeFactor({}, nil)
+    eq(calls, 3)
+    -- the record the character has now is another: its own factor
+    local other = OA.Store.ensure("q", "Q")
+    OA.Client.record = function() return other end
+    eq(Carry.timeFactor({}, nil), 1)
+    eq(calls, 4)
+end)
