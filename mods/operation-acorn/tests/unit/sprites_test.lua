@@ -314,7 +314,7 @@ test("the trade tiles keep their places", function()
     eq(places[3].Facing, "W")
 end)
 
-test("a machine's tile list is made once for a kind, direction and look, and is what a fresh build gives", function()
+test("a machine's tile list is made once for a kind, direction and look, and shared", function()
     local kinds = {}
     for kind in pairs(Sprites.FOOTPRINT) do kinds[#kinds + 1] = kind end
     truthy(#kinds > 0)
@@ -330,8 +330,8 @@ test("a machine's tile list is made once for a kind, direction and look, and is 
     end
     -- a nil look is the stopped one
     eq(Sprites.machineTiles("bulkShredder", "S", nil), Sprites.machineTiles("bulkShredder", "S", false))
-    truthy(Sprites.machineTiles("bulkShredder", "S", true) ~= Sprites.machineTiles("bulkShredder", "S", false)
-        or Sprites.machineTiles("bulkShredder", "S", true)[1].sprite == Sprites.machineTiles("bulkShredder", "S", false)[1].sprite)
+    truthy(Sprites.machineTiles("bulkShredder", "S", true)[1].sprite ~= Sprites.machineTiles("bulkShredder", "S", false)[1].sprite,
+        "running is another picture")
     eq(Sprites.rainStorageTiles(), Sprites.rainStorageTiles())
     eq(#Sprites.rainStorageTiles(), 4)
 end)
