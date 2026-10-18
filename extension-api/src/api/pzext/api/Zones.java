@@ -21,6 +21,7 @@ import java.util.random.RandomGenerator;
 final class Zones {
     /** The most points a call keeps and the most it tries: a bound on the work of one call, not a rule of play. */
     static final int MAX_COUNT = 1000, MAX_TRIES = 10_000, DEFAULT_TRIES = 300;
+    static final String KEY = "zonePointsGeneration";
     private static final String AREA = "PZExtAPI.zones.points";
     private static final double LIMIT = 1e9;
     // The eight directions a road is looked for on.
@@ -31,6 +32,7 @@ final class Zones {
 
     private final Kahlua lua;
     private final Game game;
+    private final Generation generation;
     // IsoMetaGrid.getBuildingAt(x, y), getZonesAt(x, y, z, list); Zone.getType().
     private final MethodHandle buildingAt, zonesAt, type;
     // The zones at a point, read into one list of the area's own.
@@ -39,9 +41,10 @@ final class Zones {
     /** What a call wants of a point. */
     private record Wanted(String[] not, String road, int none, int some, double spacing) { }
 
-    Zones(Kahlua lua, Game game, ClassLoader loader) throws ReflectiveOperationException {
+    Zones(Kahlua lua, Game game, Object meta, ClassLoader loader) throws ReflectiveOperationException {
         this.lua = lua;
         this.game = game;
+        generation = new Generation(lua, meta, KEY);
         Class<?> grid = Game.type(loader, "zombie.iso.IsoMetaGrid");
         buildingAt = Game.exact(grid.getMethod("getBuildingAt", int.class, int.class), MethodType.methodType(Object.class, Object.class, int.class, int.class));
         zonesAt = Game.exact(grid.getMethod("getZonesAt", int.class, int.class, int.class, ArrayList.class),
@@ -51,7 +54,11 @@ final class Zones {
 
     /** Sets the function into the zones' table. */
     void register(Object table) throws ReflectiveOperationException {
-        lua.set(table, "points", lua.function(AREA, arguments -> new Object[] { points(arguments) }));
+        generation.start();
+        lua.set(table, "points", lua.function(AREA, arguments -> {
+            generation.check(AREA);
+            return new Object[] { points(arguments) };
+        }));
     }
 
     private synchronized Object points(Object[] arguments) throws ReflectiveOperationException {

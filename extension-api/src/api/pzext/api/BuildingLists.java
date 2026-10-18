@@ -22,12 +22,14 @@ import pzext.api.Buildings.Building;
  * no room that has a square is not listed.
  */
 final class BuildingLists {
+    static final String KEY = "buildingListGeneration";
     private static final String AREA = "PZExtAPI.buildings.list";
     private static final double LIMIT = 1e9;
 
     private final Kahlua lua;
     private final Game game;
     private final Buildings buildings;
+    private final Generation generation;
     // IsoMetaGrid.getBuildings(); BuildingDef.getArea(), isBasement(), isHasBeenVisited(); StashSystem.isStashBuilding(def).
     private final MethodHandle all, area, basement, visited, stash;
 
@@ -54,10 +56,11 @@ final class BuildingLists {
     private long epoch = -1;
     private static final Facts NONE = new Facts(null, null, 0, 0, 0, false);
 
-    BuildingLists(Kahlua lua, Game game, Buildings buildings, ClassLoader loader) throws ReflectiveOperationException {
+    BuildingLists(Kahlua lua, Game game, Buildings buildings, Object meta, ClassLoader loader) throws ReflectiveOperationException {
         this.lua = lua;
         this.game = game;
         this.buildings = buildings;
+        generation = new Generation(lua, meta, KEY);
         Class<?> def = Game.type(loader, "zombie.iso.BuildingDef");
         MethodType flag = MethodType.methodType(boolean.class, Object.class);
         all = Game.exact(Game.type(loader, "zombie.iso.IsoMetaGrid").getMethod("getBuildings"), MethodType.methodType(List.class, Object.class));
@@ -69,7 +72,11 @@ final class BuildingLists {
 
     /** Sets the function into the buildings' table. */
     void register(Object table) throws ReflectiveOperationException {
-        lua.set(table, "list", lua.function(AREA, arguments -> new Object[] { list(arguments) }));
+        generation.start();
+        lua.set(table, "list", lua.function(AREA, arguments -> {
+            generation.check(AREA);
+            return new Object[] { list(arguments) };
+        }));
     }
 
     private synchronized Object list(Object[] arguments) throws ReflectiveOperationException {

@@ -292,7 +292,7 @@ public final class GameApi {
             read.register(buildingsTable);
             buildings = read;
             containers(lua, read, game, buildingsTable, luaManager.getClassLoader());
-            lists(lua, read, game, buildingsTable, luaManager.getClassLoader());
+            lists(lua, read, game, buildingsTable, meta, luaManager.getClassLoader());
             networks(lua, api, meta, handles, game, read, luaManager.getClassLoader());
             formulas(lua, api, meta, handles, game, luaManager.getClassLoader());
             items(lua, api, meta, game, luaManager.getClassLoader());
@@ -301,7 +301,7 @@ public final class GameApi {
             texts(lua, api, meta, handles, game, luaManager.getClassLoader());
             systems(lua, api, meta, handles, game, luaManager.getClassLoader());
             scheduled(lua, api, meta, handles, game, luaManager.getClassLoader());
-            maps(lua, api, game, luaManager.getClassLoader());
+            maps(lua, api, meta, game, luaManager.getClassLoader());
             walls(lua, buildingsTable, meta, handles, game, read, luaManager.getClassLoader());
             objects(lua, api, meta, game, read, luaManager.getClassLoader());
             lua.set(env, GLOBAL, api);
@@ -323,6 +323,7 @@ public final class GameApi {
             SquareQueries.retire(lua, meta);
             WallWatches.retire(lua, meta);
             ObjectQueries.retire(lua, meta);
+            for (String key : new String[] { BuildingLists.KEY, Zones.KEY, Vehicles.KEY, SquarePaths.KEY }) Generation.retire(lua, meta, key);
             throw failure;
         }
     }
@@ -724,10 +725,11 @@ public final class GameApi {
     /**
      * {@code buildings.list}. Left out, with a line in the game's log, in a game that lacks what it reads: the rest of the buildings go on.
      */
-    private static void lists(Kahlua lua, Buildings read, Game game, Object table, ClassLoader loader) throws ReflectiveOperationException {
-        try { new BuildingLists(lua, game, read, loader).register(table); }
+    private static void lists(Kahlua lua, Buildings read, Game game, Object table, Object meta, ClassLoader loader) throws ReflectiveOperationException {
+        try { new BuildingLists(lua, game, read, meta, loader).register(table); }
         catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
             report(unreadable);
+            Generation.retire(lua, meta, BuildingLists.KEY);
             lua.set(table, "list", null);
         }
     }
@@ -737,20 +739,23 @@ public final class GameApi {
      * the game's log, in a game that lacks what it reads: the others go on, and the square watches that share the squares' table with
      * the path are not touched by it.
      */
-    private static void maps(Kahlua lua, Object api, Game game, ClassLoader loader) throws ReflectiveOperationException {
-        try { new Zones(lua, game, loader).register(table(lua, api, "zones")); }
+    private static void maps(Kahlua lua, Object api, Object meta, Game game, ClassLoader loader) throws ReflectiveOperationException {
+        try { new Zones(lua, game, meta, loader).register(table(lua, api, "zones")); }
         catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
             report(unreadable);
+            Generation.retire(lua, meta, Zones.KEY);
             lua.set(api, "zones", null);
         }
-        try { new Vehicles(lua, game, loader).register(table(lua, api, "vehicles")); }
+        try { new Vehicles(lua, game, meta, loader).register(table(lua, api, "vehicles")); }
         catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
             report(unreadable);
+            Generation.retire(lua, meta, Vehicles.KEY);
             lua.set(api, "vehicles", null);
         }
-        try { new SquarePaths(lua, game, loader).register(table(lua, api, "squares")); }
+        try { new SquarePaths(lua, game, meta, loader).register(table(lua, api, "squares")); }
         catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
             report(unreadable);
+            Generation.retire(lua, meta, SquarePaths.KEY);
             Object squares = lua.get(api, "squares");
             if (lua.isTable(squares)) lua.set(squares, "path", null);
         }

@@ -21,6 +21,7 @@ import java.util.Arrays;
 final class SquarePaths {
     /** The most squares in the search box (as the other queries' bound), and the widest margin. */
     static final int MAX_SQUARES = 250_000, MAX_MARGIN = 64, DEFAULT_MARGIN = 12;
+    static final String KEY = "squarePathGeneration";
     private static final String AREA = "PZExtAPI.squares.path";
     private static final double COST_LIMIT = 1e12;
     private static final Object[] NO_WAY = { null };
@@ -31,6 +32,7 @@ final class SquarePaths {
 
     private final Kahlua lua;
     private final Game game;
+    private final Generation generation;
     private final Class<?> squareType;
     // IsoGridSquare.isBlockedTo(to); IsoMetaGrid.getRoomAt(x, y, z).
     private final MethodHandle blocked, roomAt;
@@ -46,9 +48,10 @@ final class SquarePaths {
     private Object cell, meta;
     private SquareFilter pass;
 
-    SquarePaths(Kahlua lua, Game game, ClassLoader loader) throws ReflectiveOperationException {
+    SquarePaths(Kahlua lua, Game game, Object meta, ClassLoader loader) throws ReflectiveOperationException {
         this.lua = lua;
         this.game = game;
+        generation = new Generation(lua, meta, KEY);
         squareType = Game.type(loader, "zombie.iso.IsoGridSquare");
         blocked = Game.exact(squareType.getMethod("isBlockedTo", squareType), MethodType.methodType(boolean.class, Object.class, Object.class));
         roomAt = Game.exact(Game.type(loader, "zombie.iso.IsoMetaGrid").getMethod("getRoomAt", int.class, int.class, int.class),
@@ -57,7 +60,11 @@ final class SquarePaths {
 
     /** Sets the function into the squares' table (which the square watches fill as well). */
     void register(Object table) throws ReflectiveOperationException {
-        lua.set(table, "path", lua.function(AREA, this::path));
+        generation.start();
+        lua.set(table, "path", lua.function(AREA, arguments -> {
+            generation.check(AREA);
+            return path(arguments);
+        }));
     }
 
     private synchronized Object[] path(Object[] arguments) throws ReflectiveOperationException {

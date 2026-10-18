@@ -17,19 +17,22 @@ import java.util.Set;
 final class Vehicles {
     /** The widest radius a call takes: a bound on the work of one call, not a rule of play. */
     static final double MAX_RADIUS = 10_000;
+    static final String KEY = "vehiclesNearGeneration";
     private static final String AREA = "PZExtAPI.vehicles.near";
     private static final double LIMIT = 1e9;
 
     private final Kahlua lua;
     private final Game game;
+    private final Generation generation;
     // IsoCell.getVehicles(); IsoMovingObject.getX(), getY(), getZ() of a vehicle.
     private final MethodHandle vehicles, atX, atY, atZ;
 
     private record Near(double distance, Object vehicle) { }
 
-    Vehicles(Kahlua lua, Game game, ClassLoader loader) throws ReflectiveOperationException {
+    Vehicles(Kahlua lua, Game game, Object meta, ClassLoader loader) throws ReflectiveOperationException {
         this.lua = lua;
         this.game = game;
+        generation = new Generation(lua, meta, KEY);
         Class<?> vehicle = Game.type(loader, "zombie.vehicles.BaseVehicle");
         vehicles = Game.exact(Game.type(loader, "zombie.iso.IsoCell").getMethod("getVehicles"), MethodType.methodType(Set.class, Object.class));
         MethodType coordinate = MethodType.methodType(float.class, Object.class);
@@ -40,7 +43,11 @@ final class Vehicles {
 
     /** Sets the function into the vehicles' table. */
     void register(Object table) throws ReflectiveOperationException {
-        lua.set(table, "near", lua.function(AREA, arguments -> new Object[] { near(arguments) }));
+        generation.start();
+        lua.set(table, "near", lua.function(AREA, arguments -> {
+            generation.check(AREA);
+            return new Object[] { near(arguments) };
+        }));
     }
 
     private Object near(Object[] arguments) throws ReflectiveOperationException {
