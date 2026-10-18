@@ -43,10 +43,24 @@ function ISOAPlaceCursor:getSprite()
     return self.chosenSprite
 end
 
-function ISOAPlaceCursor:isValid(square)
+-- Real milliseconds a square's answer is kept: the cursor asks every frame, and the square changes on a scale of seconds.
+ISOAPlaceCursor.VALID_MS = 200
+
+local function validNow(self, square)
     if not square or not OA.inInventory(self.item, self.character) then return false end
     if self.kind == Objects.DELIVERY_BOX then return Objects.isClear(square) end
     return Objects.isFree(square)
+end
+
+function ISOAPlaceCursor:isValid(square)
+    local now = getTimestampMs()
+    if square ~= nil and self.validSquare == square and now >= self.validAt and now - self.validAt < ISOAPlaceCursor.VALID_MS then
+        return self.valid
+    end
+    local valid = validNow(self, square)
+    -- (no square: nothing to keep it for)
+    if square ~= nil then self.validSquare, self.validAt, self.valid = square, now, valid end
+    return valid
 end
 
 -- The squares around the box's that hold a building or a tree (the clearance a helicopter needs), found once for each
@@ -90,7 +104,8 @@ end
 -- A click: the walk has been queued by the cursor; the action follows.
 function ISOAPlaceCursor:create(x, y, z, north, sprite)
     local square = getCell():getGridSquare(x, y, z)
-    if not square or not self:isValid(square) then return end
+    -- (a click asks afresh)
+    if not square or not validNow(self, square) then return end
     ISTimedActionQueue.add(ISOAPlaceThing:new(self.character, self.kind, self.item, square, self.facing or "S"))
 end
 
