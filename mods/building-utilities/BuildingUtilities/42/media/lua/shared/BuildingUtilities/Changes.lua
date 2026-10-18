@@ -391,6 +391,7 @@ function Changes.unlay(ref)
     local line = Links.get(ref)
     if not line then return nil end
     Store.data().lines[ref] = nil
+    Links.forget(ref)
     Store.linksChanged()
     local panel = Store.get(line.panel)
     if panel then

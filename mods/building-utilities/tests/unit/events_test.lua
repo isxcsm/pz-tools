@@ -292,7 +292,8 @@ test("a square looked at again after a change is not worked out again while noth
     sets = 0
     tick(480)
     truthy(sets >= 1, "a change seen by a look after the first")
-    truthy(immediate >= 2 and first >= 1)
+    eq(immediate, 1, "a change looks at the floor once: the decal is chosen from that look")
+    truthy(first >= 1)
 end)
 
 test("boxes and units gone from their loaded squares are removed, in one lookup; those on squares not loaded stay", function()

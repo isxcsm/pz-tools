@@ -91,3 +91,179 @@ test("the reach index follows the boxes' tiers", function()
     SandboxVars.BuildingUtilities = { ConnectRange = 12 }
     eq(#Panels.panelsReaching(130, 102, 0), 1, "a range from the sandbox counts too")
 end)
+
+-- A building of 5 by 5 at (100, 100) and a box in it, with a floor decal API that counts what it is given.
+local function floorScene()
+    local api = TEST.api
+    twoRooms(api, "A")
+    local panel = Store.newPanel(102, 102, 0, "box")
+    panel.tier = 3
+    local sets, watches, unwatches, onChanged = {}, 0, 0, nil
+    api.table.floor = { clear = function() end, set = function(_, x, y, z, list) sets[x .. "," .. y .. "," .. z] = list end }
+    api.table.squares.watch = function(_, _, fn) watches = watches + 1; onChanged = fn; return watches end
+    api.table.squares.unwatch = function() unwatches = unwatches + 1 end
+    for x = 100, 130 do
+        for y = 95, 125 do TEST.squares[x .. "," .. y .. ",0"] = { objects = {}, floor = "blends_natural_01_0" } end
+    end
+    return panel, sets, function() return watches, unwatches end, function(...) onChanged(...) end
+end
+
+local function setCount(sets)
+    local n = 0
+    for _ in pairs(sets) do n = n + 1 end
+    return n
+end
+
+test("a bump of the link version that changes no line sends no square and watches nothing again", function()
+    require "BuildingUtilities/FloorLines"
+    local panel, sets, watched = floorScene()
+    local a = solarAt(panel, 118, 102)
+    local b = solarAt(panel, 118, 108)
+    TEST.fire("OnTick")
+    local first = setCount(sets)
+    truthy(first > 10, "the squares of both lines")
+    local watchesBefore = watched()
+    local calls = {}
+    TEST.api.table.floor.set = function(_, x, y, z, list) calls[x .. "," .. y .. "," .. z] = list or false end
+    -- a toggle that changes no geometry
+    Store.linksChanged()
+    TEST.fire("OnTick")
+    eq(setCount(calls), 0, "nothing sent")
+    eq(watched(), watchesBefore, "nothing watched again")
+    -- one line gone: only its squares are taken away, and the other stays
+    local routeA = BU.Links.route(BU.Links.get("u:" .. a.id))
+    Changes.removeUnit(b)
+    TEST.fire("OnTick")
+    local gone = 0
+    for key, list in pairs(calls) do
+        eq(list, false, "taken away: " .. key)
+        gone = gone + 1
+    end
+    truthy(gone > 0 and gone < first, "the squares of the line taken away only")
+    eq(BU.Links.route(BU.Links.get("u:" .. a.id)), routeA, "the other line's route is the same table")
+    truthy(watched() > watchesBefore, "the squares are fewer: watched again")
+end)
+
+test("a line that lies another way sends its squares only", function()
+    require "BuildingUtilities/FloorLines"
+    local panel, sets = floorScene()
+    local a = solarAt(panel, 118, 102)
+    local b = solarAt(panel, 118, 108)
+    TEST.fire("OnTick")
+    local before = BU.Links.get("u:" .. b.id).path
+    sets = nil
+    local sent = {}
+    TEST.api.table.floor.set = function(_, x, y, z, list) sent[x .. "," .. y .. "," .. z] = list end
+    -- b laid another way round: a corner elsewhere
+    local line = BU.Links.get("u:" .. b.id)
+    local path = {}
+    for i = 1, #line.path do path[i] = line.path[i] end
+    truthy(#path >= 4, "a way of corners")
+    local fx, fy = path[1], path[2]
+    line.path = { fx, fy, fx, fy - 2, path[#path - 1], fy - 2, path[#path - 1], path[#path] }
+    Store.linksChanged()
+    TEST.fire("OnTick")
+    local n = setCount(sent)
+    truthy(n > 0, "its new squares")
+    for key in pairs(sent) do
+        local x = tonumber(key:match("^(-?%d+),"))
+        truthy(x >= 105, "only squares round the second line: " .. key)
+    end
+    local lineA = BU.Links.get("u:" .. a.id)
+    local wanted = BU.FloorLines.wanted()
+    local route = BU.Links.route(lineA)
+    for _, square in ipairs(route) do
+        truthy(wanted[square.x .. "," .. square.y .. ",0"], "the first line's squares stay wanted")
+    end
+    truthy(before ~= line.path)
+end)
+
+test("squares told changed are looked at a few a tick, and again twice (about 1 s and 10 s) unless they changed", function()
+    require "BuildingUtilities/FloorLines"
+    local panel, sets, watched, changed = floorScene()
+    solarAt(panel, 118, 102)
+    TEST.fire("OnTick")
+    local wanted = BU.FloorLines.wanted()
+    local keys = {}
+    for key, square in pairs(wanted) do keys[#keys + 1] = square end
+    truthy(#keys > 8, "a line of squares")
+    local looks = 0
+    local madeFloor = BU.FloorLines.madeFloor
+    BU.FloorLines.madeFloor = function(...) looks = looks + 1; return madeFloor(...) end
+    for _, square in ipairs(keys) do changed(1, square.x, square.y, square.z) end
+    -- the same square told twice before it is looked at is one look
+    changed(1, keys[1].x, keys[1].y, keys[1].z)
+    TEST.fire("OnTick")
+    eq(looks, #keys, "each square once, in the first tick")
+    looks = 0
+    for _ = 1, 59 do TEST.fire("OnTick") end
+    eq(looks, 0, "nothing before the first look again")
+    TEST.fire("OnTick")
+    eq(looks, #keys, "the first look again, at about a second")
+    looks = 0
+    for _ = 1, 560 do TEST.fire("OnTick") end
+    eq(looks, #keys, "the second, at about ten")
+    looks = 0
+    for _ = 1, 1200 do TEST.fire("OnTick") end
+    eq(looks, 0, "and no more")
+    -- a floor that changed between the looks starts them over
+    changed(1, keys[1].x, keys[1].y, keys[1].z)
+    TEST.fire("OnTick")
+    TEST.squares[keys[1].x .. "," .. keys[1].y .. ",0"].floor = "floors_interior_tilesandwood_01_0"
+    looks = 0
+    for _ = 1, 60 do TEST.fire("OnTick") end
+    eq(looks, 1, "its look again saw it")
+    looks = 0
+    for _ = 1, 60 do TEST.fire("OnTick") end
+    eq(looks, 1, "and looks once more after a second, then the ten")
+    BU.FloorLines.madeFloor = madeFloor
+end)
+
+test("a crowd of squares told changed is looked at 64 a tick", function()
+    require "BuildingUtilities/FloorLines"
+    local panel, sets, watched, changed = floorScene()
+    panel.tier = 6
+    for y = 94, 122, 3 do solarAt(panel, 125, y) end
+    TEST.fire("OnTick")
+    local squares = {}
+    for _, square in pairs(BU.FloorLines.wanted()) do squares[#squares + 1] = square end
+    truthy(#squares > 128, "many squares: " .. #squares)
+    local looks = 0
+    local madeFloor = BU.FloorLines.madeFloor
+    BU.FloorLines.madeFloor = function(...) looks = looks + 1; return madeFloor(...) end
+    for _, square in ipairs(squares) do changed(1, square.x, square.y, square.z) end
+    TEST.fire("OnTick")
+    eq(looks, 64, "64 in the first tick")
+    TEST.fire("OnTick")
+    eq(looks, 128, "64 more in the next")
+    for _ = 1, 10 do TEST.fire("OnTick") end
+    eq(looks, #squares, "all of them, once each")
+    BU.FloorLines.madeFloor = madeFloor
+end)
+
+test("a line's route is the same squares while its way and ends are, and walked once for each end it has", function()
+    local api = TEST.api
+    twoRooms(api, "A")
+    local panel = Store.newPanel(102, 102, 0, "box")
+    panel.tier = 3
+    local unit = solarAt(panel, 118, 102)
+    local line = BU.Links.get("u:" .. unit.id)
+    local route = BU.Links.route(line)
+    eq(BU.Links.route(line), route, "the same table")
+    -- a way replaced
+    line.path = BU.Links.pathFor(line)
+    local again = BU.Links.route(line)
+    truthy(again ~= route, "another way, other squares")
+    eq(#again, #route)
+    eq(BU.Links.route(line), again)
+    -- no way kept: walked once, then the memo
+    line.path = nil
+    local before = api.calls["squares.path"] or 0
+    local walked = BU.Links.route(line)
+    eq(BU.Links.route(line), walked)
+    eq((api.calls["squares.path"] or 0) - before, 1, "walked once")
+    -- taken away and laid again: walked afresh
+    Changes.removeUnit(unit)
+    local other = solarAt(panel, 118, 103)
+    truthy(BU.Links.get("u:" .. other.id) ~= nil)
+end)
