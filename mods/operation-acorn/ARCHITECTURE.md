@@ -63,7 +63,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
 | `server/OperationAcorn/Server.lua` | 클라이언트 명령 받기: `OA.Server.on(name, function(character, record, args) ... end)`. `LoadChunk`를 `Chunks`에 잇는다 |
 | `client/OperationAcorn/Client.lua` | 서버가 보낸 것을 `Sync` 듣는 쪽으로. `OA.Client.record(character)`(이 클라이언트가 보는 내 기록), 첫 접속 때 `hello` |
 | `client/OperationAcorn/TipLines.lua` | 아이템 툴팁에 붙는 이 모드의 줄 (`OA.TipLines`): `ISToolTipInv:render`를 한 곳에서만 감싸고, 각 묶음은 `TipLines.add(이름, fn)`으로 `item -> 줄 목록` 제공자를 등록한다. 모든 제공자의 줄을 한 문자열로 모아 한 번만 이스케이프해(`OA.tooltipText`) 아이템별로 `TipLines.KEEP_MS`(실시간 0.5초) 동안 들고 있고, 프레임마다 표 하나를 찾아 글을 바꿔 끼운다 |
-| `client/OperationAcorn/Story/TabComms.lua` | 단말 교신 탭 `OATabComms` (SCENES 2장): 기록 칸(교신마다 머리와 다시 재생, 단계별 현장 혼잣말. 최근 머리만 펼치고 지난 것은 접음)과 입력 줄. 기다리는 교신을 시간표대로 재생하고, 끝나거나 건너뛰면 `comms_played`. 재생 중에는 게임을 멈추고(혼자일 때) 소리를 낮춘다. 기다리는 교신이 있으면 창이 이 탭으로 열린다 (`Terminal.opening`) |
+| `client/OperationAcorn/Story/TabComms.lua` | 단말 교신 탭 `OATabComms` (SCENES 2장): 기록 칸(교신마다 머리와 다시 재생, 단계별 현장 혼잣말. 최근 머리만 펼치고 지난 것은 접음)과 입력 줄. 기다리는 교신을 시간표대로 재생하고, 끝나거나 건너뛰면 `comms_played`. 재생 중에는 소리를 낮춘다. 게임은 멈추지 않고, 일시정지 동안은 장면 시계(`UI.sceneNow`)가 서서 장면도 멈춘다. 기다리는 교신이 있으면 창이 이 탭으로 열린다 (`Terminal.opening`) |
 | `client/OperationAcorn/Story/TypedText.lua` | 수신함의 글 패널 `OATypedText`: 프레임마다 시계를 더하고 글자 수가 바뀔 때만 줄을 갱신한다. 글은 보일 때마다 같은 속도로 찍고, 클릭하면 이미 본 최대 지점(`seen`)까지 한 번에 보여 준다(처음 보는 부분은 넘기지 못한다). 항목을 떠나거나 창이 닫히면 `story_typed`(`seen`, `done`, 중간에 멈췄으면 `t`)로 서버 기록(`story.typed`)에 남기고, 끝까지 못 본 글은 교신 사본과 문서 모두 멈춘 시계에서 이어 찍는다(자리를 비운 동안 게임 시간은 치지 않는다). 다 본 글은 시계를 저장하지 않고 매번 처음부터 찍으며 클릭하면 끝까지 보인다 |
 
 - **변경은 서버에서만 한다.** 화면은 `OA.Sync.send`로 서버에 부탁하고, 서버 핸들러가 기록을 고친 뒤 `OA.Sync.changed`를 부른다.

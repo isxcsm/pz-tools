@@ -92,8 +92,8 @@ end
 -- Each frame, before the UI draws: the ringing of every run, the runs that are over let go, and the overlay taken off
 -- with the last one (nil then). Gives the sum of the runs' brightnesses: it changes exactly when the drawing does (it
 -- holds still while every glow holds, and moves again when one falls).
-function ISOAHallucination:tick(now)
-    local runs = self.runs
+function ISOAHallucination:tick()
+    local runs, now = self.runs, UI.sceneNow()
     local look, n = 0, 0
     for i = 1, #runs do
         local run = runs[i]
@@ -118,7 +118,7 @@ end
 local EDGES = { "left", "right", "top", "bottom" }
 
 function ISOAHallucination:prerender()
-    local now = getTimestampMs()
+    local now = UI.sceneNow()
     for _, run in ipairs(self.runs) do
         local t = now - run.start
         if t < run.total * 1.5 then
@@ -154,7 +154,7 @@ function Hallucination.start(playerNum, detail)
         UI.live(ui, ISOAHallucination.tick)
     end
     local run = {
-        start = getTimestampMs(),
+        start = UI.sceneNow(),
         total = detail.long and Hallucination.LONG_MS or Hallucination.SHORT_MS,
         edge = (detail.dx and detail.dy) and OA.Glow.edge(detail.dx, detail.dy) or nil,
     }

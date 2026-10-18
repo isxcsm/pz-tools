@@ -298,7 +298,7 @@ function Hud:render()
         local eyX, eyY = isoToScreenX(n, px, py + 1, pz) - ox, isoToScreenY(n, px, py + 1, pz) - oy
         -- screen coordinates, as isoToScreen gives them and the quads take them
         local cx, cy = ox, isoToScreenY(n, px, py, pz + BODY)
-        local now = getTimestampMs()
+        local now = UI.sceneNow()
         local ui = self.javaObject
         drawQuads = not quadsFailed and OA.drawCall("quads") or nil
         if drawQuads then
@@ -596,7 +596,7 @@ local function onWorldSound(x, y, z, radius, volume, source)
     local d2 = dx * dx + dy * dy
     local reach = radius * S.hearing
     if d2 >= reach * reach or d2 < 1 then return end
-    local now = getTimestampMs()
+    local now = UI.sceneNow()
     if now - windowAt >= SOUND_WINDOW_MS or now < windowAt then
         windowAt, windowCount = now, 0
     end
@@ -638,7 +638,7 @@ local function onZombieSound(kind, x, y, z, loudness, zombie)
     local dx, dy = x - player:getX(), y - player:getY()
     if dx * dx + dy * dy > S.radius * S.radius then return end
     if not S.extended and math.abs(z - player:getZ()) >= 0.5 then return end
-    zombieHeard(API_KIND[kind] or "zombie", zombie or (x .. "," .. y .. "," .. z), x, y, z, getTimestampMs())
+    zombieHeard(API_KIND[kind] or "zombie", zombie or (x .. "," .. y .. "," .. z), x, y, z, UI.sceneNow())
 end
 
 -- ---- alarms (once a second) --------------------------------------------------------------------------------------
@@ -1033,7 +1033,8 @@ function Senses.refresh()
     return need
 end
 
-Pulse.job("senses", 500, senseJob)
-Pulse.job("alarms", 1000, alarmJob)
+-- (the marks live on the scene clock: they stand still while the game is paused)
+Pulse.job("senses", 500, function() return senseJob(UI.sceneNow()) end)
+Pulse.job("alarms", 1000, function() return alarmJob(UI.sceneNow()) end)
 
 return Senses

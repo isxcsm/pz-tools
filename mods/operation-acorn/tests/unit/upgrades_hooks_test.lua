@@ -179,6 +179,7 @@ test("the banner is followed each frame before the UI draws: it holds still, fad
     local UI = OA.Trade.UI
     local now = 5000000
     getTimestampMs = function() return now end
+    UI.sceneNow = function() return now end
     Hooks.banner("one<LINE>two")
     local banner = made[1]
     UI.liveFrame()
@@ -204,6 +205,32 @@ test("the banner is followed each frame before the UI draws: it holds still, fad
     eq(first.removed, true)
     eq(first.liveLook, nil)
     eq(second.liveLook, 0)
+end)
+
+test("a banner stands still while the game is paused (the scene clock)", function()
+    local Hooks = loadHooks()
+    panelStandIn()
+    local UI = OA.Trade.UI
+    local now, paused = 7000000, false
+    getTimestampMs = function() return now end
+    isGamePaused = function() return paused end
+    Hooks.banner("one")
+    local banner = made[1]
+    now = now + ISOABanner.LIFETIME - ISOABanner.FADE + 100
+    UI.liveFrame()
+    eq(banner.liveLook, ISOABanner.LIFETIME - ISOABanner.FADE + 100, "fading")
+    paused = true
+    UI.liveFrame()
+    now = now + 60000
+    UI.liveFrame()
+    eq(banner.liveLook, ISOABanner.LIFETIME - ISOABanner.FADE + 100, "a minute paused: still where it was")
+    eq(banner.removed, nil)
+    paused = false
+    UI.liveFrame()
+    now = now + 50
+    UI.liveFrame()
+    eq(banner.liveLook, ISOABanner.LIFETIME - ISOABanner.FADE + 150, "and on from there")
+    isGamePaused = nil
 end)
 
 test("the senses' marks are drawn every frame while one shows, and held still with none", function()

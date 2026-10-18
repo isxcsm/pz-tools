@@ -52,7 +52,7 @@ end
 -- returns at once while no helicopter passes.
 local function tick()
     if passes[1] == nil then return end
-    local now = getTimestampMs()
+    local now = PZUIKit.UI.sceneNow()
     for i = #passes, 1, -1 do
         local pass = passes[i]
         local t = (now - pass.started) / 1000
@@ -69,7 +69,7 @@ end
 local function onHeliPass(playerId, args)
     if type(args) ~= "table" or not (args.x and args.seconds and args.path) then return end
     local pass = { x = args.x, y = args.y, seconds = args.seconds, path = args.path, angle = args.angle or 0,
-        started = getTimestampMs() }
+        started = PZUIKit.UI.sceneNow() }
     local x, y = positionAt(pass, 0)
     local emitter = getWorld():getFreeEmitter(x, y, 0)
     if not emitter then return end

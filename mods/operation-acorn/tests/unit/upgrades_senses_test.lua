@@ -122,6 +122,8 @@ local moodles
 local function standIns()
     clock = 1000000
     getTimestampMs = function() return clock end
+    -- (the marks' clock is the scene clock: here the same as the real one)
+    OA.Trade.UI.sceneNow = function() return clock end
     moodles = {}
     getPlayer = function() return nil end
     OA.Upgrades.Moodles.set = function(id, level) moodles[id] = level end

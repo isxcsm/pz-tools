@@ -96,7 +96,7 @@ function Banner:new(text)
     o.lines, o.fh = lines, fh
     o.backgroundColor = { r = 0.02, g = 0.04, b = 0.06, a = 0.85 }
     o.borderColor = { r = 0.4, g = 0.8, b = 1.0, a = 0.9 }
-    o.born = getTimestampMs()
+    o.born = UI.sceneNow()
     return o
 end
 
@@ -105,9 +105,9 @@ Banner.FADE = 2000
 
 -- Each frame: the banner taken off at the end of its life, or when another took its place (nil then); else its age
 -- while it fades, 0 while it holds still.
-function Banner.tick(el, now)
+function Banner.tick(el)
     if el ~= banner then return nil end
-    local age = now - el.born
+    local age = UI.sceneNow() - el.born
     if age >= Banner.LIFETIME then
         el:removeFromUIManager()
         banner = nil
@@ -117,7 +117,7 @@ function Banner.tick(el, now)
 end
 
 function Banner:render()
-    local age = getTimestampMs() - self.born
+    local age = UI.sceneNow() - self.born
     local a = 1
     if age > Banner.LIFETIME - Banner.FADE then a = math.max(0, (Banner.LIFETIME - age) / Banner.FADE) end
     self.backgroundColor.a = 0.85 * a

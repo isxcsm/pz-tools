@@ -365,7 +365,8 @@ OATabComms.recvCursor = recvCursor
 
 -- What the record draws by the clock while a call plays: the characters of the line coming in and its cursor. Nil
 -- once the call is over: its rows are written then.
-local function logFrame(log, now)
+local function logFrame(log)
+    local now = UI.sceneNow()
     local st = log.tab.play and log.tab.st
     if not st then return nil end
     if st.phase == "hail" then return -1 - math.floor(st.hailMs / OATabComms.HAIL_STEP_MS) end
@@ -374,7 +375,9 @@ end
 
 -- Each frame while something is going on (a call playing, one waiting to start): the clock's state, the rows as
 -- lines start, the next call after a beat; nil when there is nothing.
-local function frame(self, now)
+local function frame(self)
+    local now = UI.sceneNow()
+    self:holdSound()
     if self.play then
         self:advance(now)
         return self.st and inputLook(self.st, now) or 0
@@ -406,7 +409,7 @@ end
 function OATabComms:start(entry, tier, replay, now)
     local record = self:record()
     local lines = Script.lines(entry, context(record, tier))
-    now = now or getTimestampMs()
+    now = now or UI.sceneNow()
     self.play = { entry = entry, tier = tier, replay = replay, lines = lines, tl = Script.timeline(lines), at = now,
         line = 0 }
     -- a briefing first plays the hail: the call's own clock starts after it
@@ -475,7 +478,7 @@ end
 
 -- Whether a briefing's hail is still on (no line of the call shown yet).
 local function hailing(play, now)
-    return play.hailFrom ~= nil and (now or getTimestampMs()) < play.at
+    return play.hailFrom ~= nil and (now or UI.sceneNow()) < play.at
 end
 
 -- The call is over, played to its end or skipped (the same to the record). A call from the waiting ones goes to the
@@ -502,7 +505,7 @@ function OATabComms:finish(leaving)
         return
     end
     if play.brief then self.held = true end
-    self.nextAt = getTimestampMs() + OATabComms.NEXT_MS
+    self.nextAt = UI.sceneNow() + OATabComms.NEXT_MS
     local record = self:record()
     if record then self:setRows(record) end
     self:follow()
@@ -512,7 +515,7 @@ end
 function OATabComms.skip(self)
     local play = self.play
     if play and hailing(play) then
-        local now = getTimestampMs()
+        local now = UI.sceneNow()
         play.hailFrom, play.at = nil, now
         self.st = Script.at(play.tl, 0)
         self:setRows(self:record())
@@ -540,15 +543,11 @@ function OATabComms:replay(item)
     if e then self:start(e, item.tier, true) end
 end
 
--- The sound under a call (`on`): the game paused (alone), its sound and ambience turned down, a low static; and all
--- of it back.
+-- The sound under a call (`on`): the game's sound and ambience turned down, a low static; and all of it back. The game
+-- goes on under a call (the player pauses it as ever, and the call stands still with it: the scene clock).
 function OATabComms:hush(on)
     local sm = getSoundManager()
     if on then
-        if not isClient() and getGameSpeed() > 0 then
-            self.speed = getGameSpeed()
-            setGameSpeed(0)
-        end
         local core = getCore()
         sm:setSoundVolume(core:getOptionSoundVolume() / 10 * OATabComms.DUCK)
         sm:setAmbientVolume(core:getOptionAmbientVolume() / 10 * OATabComms.DUCK)
@@ -562,9 +561,18 @@ function OATabComms:hush(on)
     local core = getCore()
     sm:setSoundVolume(core:getOptionSoundVolume() / 10)
     sm:setAmbientVolume(core:getOptionAmbientVolume() / 10)
-    if self.speed then
-        if getGameSpeed() == 0 then setGameSpeed(self.speed) end
-        self.speed = nil
+    self.staticHeld = nil
+end
+
+-- The game paused under a call: its static stops with it, and comes back as the game goes on.
+function OATabComms:holdSound()
+    local paused = isGamePaused()
+    if paused and self.static then
+        getSoundManager():stopUISound(self.static)
+        self.static, self.staticHeld = nil, true
+    elseif not paused and self.staticHeld then
+        self.staticHeld = nil
+        if self.play then self.static = getSoundManager():playUISound(OATabComms.SOUND_STATIC) end
     end
 end
 
@@ -630,7 +638,7 @@ function OATabComms:drawInput(p)
     -- the cursor: steady while typing, blinking while it waits
     local blink = blinking(st)
     if l and l.who == "me" and st.phase ~= "read" then
-        if not blink or OA.remainder(math.floor(getTimestampMs() / OATabComms.BLINK_MS), 2) == 0 then
+        if not blink or OA.remainder(math.floor(UI.sceneNow() / OATabComms.BLINK_MS), 2) == 0 then
             UI.fill(self, x + UI.textWidth(shown) + 1, ty + 1, 7, UI.fontHeight() - 2, c.me, 0.85)
         end
     end
@@ -878,7 +886,7 @@ function OACommsLog:drawRow(row, y, p)
         cx, cy = lx + UI.textWidth(s), lyi
         left = left - row.counts[i]
     end
-    if row.coming and tab.st and tab.recvCursor(tab.st, getTimestampMs()) == 1 then
+    if row.coming and tab.st and tab.recvCursor(tab.st, UI.sceneNow()) == 1 then
         UI.fill(self, cx + 1, cy + 1, 7, fh - 2, colour, 0.85)
     end
 end

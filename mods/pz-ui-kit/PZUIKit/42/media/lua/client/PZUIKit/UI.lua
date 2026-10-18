@@ -1171,12 +1171,30 @@ if ISUIElement and not ISUIElement.pzuiGoneMarked then
     end
 end
 
+-- The clock scenes play on (ms): the interface's time, standing still while the game is paused (a call, a banner, a
+-- sound moving over the world stop with the game, as the API's titles do). The interface itself (fades, flashes, a
+-- window opening) keeps getTimestampMs, so it answers while paused as the game's own does. Counted from the last
+-- reading: each frame of UI.live reads it, so a pause is seen from its first frame.
+local sceneMs, sceneReal, scenePaused
+function UI.sceneNow()
+    local real = getTimestampMs()
+    if sceneReal == nil then
+        sceneMs, sceneReal = 0, real
+    elseif not scenePaused and real > sceneReal then
+        sceneMs = sceneMs + (real - sceneReal)
+    end
+    sceneReal = real
+    scenePaused = isGamePaused ~= nil and isGamePaused() or false
+    return sceneMs
+end
+
 -- An element may be followed for several things at once (its lights, a slide, a glide), each its own entry: one
 -- that stops does not let the others go. The element's liveLook is the look of one entry still going (the last that
 -- changed), nil once none is; its liveTick changes with any.
 local function liveFrame()
     if live[1] == nil then return end
     local now = getTimestampMs()
+    UI.sceneNow()
     for i = #live, 1, -1 do
         local entry = live[i]
         local el = entry.el
