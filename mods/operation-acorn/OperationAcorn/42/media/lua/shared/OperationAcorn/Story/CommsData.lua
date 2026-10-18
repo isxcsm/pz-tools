@@ -28,6 +28,9 @@ OA.CommsData = Data
 --   era      "admin": fires only for a character that came into the world after the handover (its first calls with
 --            관리 7, in the place of the team's); entries without one never fire for it up to TEAM_LAST_TIER
 --   waits    the entry that must have been played (or dropped) first
+--   branch   a side thread's (Story/Branches): fired by its own condition, never dropped by a tier or a join, and
+--            played in the order of the entries like the rest
+--   survey   the tree a "survey" branch call is about (Story/Survey)
 --   gift     a crate-fired entry's thing that comes in that crate (a drop spec, Trade.dropSpec): what the scene speaks
 --            of, so it comes whatever was ordered (S7's torch, SCENES.md)
 --   greet    the first line opens with the greeting of the tier it is played at (LORE 6)
@@ -150,6 +153,21 @@ Data.ENTRIES = {
         { "oak" }, { "me" } } },
     { id = "K4", kind = "scene", trigger = "tier:12", tier = 12, waits = "K3", sign = "admin", lines = {
         { "oak" }, { "me", erase = true, stop = 2.4, del = 5, after = 2.2 } } },
+
+    -- The survey branch (Story/Survey): a tree's capstone waits only for its meteorite fragment; the team's call, or
+    -- 관리 7's after the handover, and the drop site's zone on the maps as it is played.
+    { id = "C_survival", kind = "short", trigger = "survey:survival", tier = 0, branch = "survey", survey = "survival",
+        greet = true, sign = "oak" },
+    { id = "C_load", kind = "short", trigger = "survey:load", tier = 0, branch = "survey", survey = "load",
+        greet = true, sign = "oak" },
+    { id = "C_scout", kind = "short", trigger = "survey:scout", tier = 0, branch = "survey", survey = "scout",
+        greet = true, sign = "oak" },
+    { id = "C_survival_k", kind = "short", trigger = "survey:survival:admin", tier = 0, branch = "survey",
+        survey = "survival", sign = "admin" },
+    { id = "C_load_k", kind = "short", trigger = "survey:load:admin", tier = 0, branch = "survey", survey = "load",
+        sign = "admin" },
+    { id = "C_scout_k", kind = "short", trigger = "survey:scout:admin", tier = 0, branch = "survey", survey = "scout",
+        sign = "admin" },
 
     -- Field monologues (SCENES 4, 5): said once over the character's head and kept in the tab as field records.
     -- `say:<story id>:<event>`: enter (the circle first entered), pickup (the story's item taken), put (the sealed case

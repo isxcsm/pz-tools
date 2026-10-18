@@ -22,6 +22,7 @@ require "OperationAcorn/Client"
 require "OperationAcorn/Sync"
 require "OperationAcorn/Story/View"
 require "OperationAcorn/Story/MapFx"
+require "OperationAcorn/Story/Survey"
 require "OperationAcorn/Trade/UI"
 local OA = OperationAcorn
 local View, Fx = OA.StoryView, OA.StoryMapFx
@@ -569,6 +570,9 @@ makeOptions()
 
 OA.Sync.listen("missions", function() Maps.refresh() end)
 OA.Sync.listen("trade", function() Maps.refresh() end)
+-- (a survey zone marked, or gone with its fragment)
+OA.Sync.listen("story", function() Maps.refresh() end)
+OA.Sync.listen("upgrades", function() Maps.refresh() end)
 OA.Sync.listen("all", function() Maps.refresh() end)
 Events.OnCreatePlayer.Add(function() Maps.refresh() end)
 

@@ -311,6 +311,7 @@ function Story.onSettled(record, result)
             if OA.Upgrades and OA.Upgrades.fragmentReceived then OA.Upgrades.fragmentReceived(record, line.fullType) end
         end
     end
+    if OA.StoryBranches then OA.StoryBranches.look(record, "settled") end
 end
 
 -- Adds trust and credits to a record at a settlement (or a field trade). The trade part's own function does the
@@ -595,6 +596,7 @@ end
 function Story.callPlayed(record, id)
     -- a mission's briefing: the mission begins
     if OA.Missions then OA.Missions.briefed(record, id) end
+    if OA.StoryBranches then OA.StoryBranches.played(record, id) end
     if id ~= Story.firstCall(record) then return end
     OA.Sync.title(record.id, { key = "IGUI_OA_Title_Operation", sub = "IGUI_OA_Title_OperationSub", size = "major",
         subArgs = { Story.number(record) }, style = "stamp", tone = "acorn", fallback = "good", at = "center" })

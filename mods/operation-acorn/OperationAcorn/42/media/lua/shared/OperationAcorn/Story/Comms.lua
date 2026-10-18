@@ -6,7 +6,8 @@
 --
 -- The rules: an entry plays once it has fired and the entry it waits for has been played or dropped. A terminal entry
 -- that has not fired by the time its tier is passed is dropped, and dropped entries wait for nothing and hold nothing
--- up. A story mission's entries are never dropped. Entries play in the order of CommsData.ENTRIES.
+-- up. A story mission's entries are never dropped, nor a branch's (Story/Branches: a side thread that comes on a
+-- condition of its own and waits only for its own entries). Entries play in the order of CommsData.ENTRIES.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Story/CommsData"
@@ -90,7 +91,8 @@ function Comms.enterTier(record, tier, now)
     local fired = {}
     for t = s.tier + 1, tier do
         for _, e in ipairs(Data.ENTRIES) do
-            if e.kind ~= "say" and not e.mission and not e.keep and e.tier < t and not s.fired[e.id] and not done(s, e.id) then
+            if e.kind ~= "say" and not e.mission and not e.keep and not e.branch and e.tier < t and not s.fired[e.id]
+                and not done(s, e.id) then
                 s.dropped[e.id] = true
             end
         end
@@ -107,13 +109,21 @@ end
 function Comms.join(record, tier, admin)
     local s = Comms.section(record)
     for _, e in ipairs(Data.ENTRIES) do
-        if e.kind ~= "say" and not s.fired[e.id] and not done(s, e.id) then
+        if e.kind ~= "say" and not e.branch and not s.fired[e.id] and not done(s, e.id) then
             local passed = e.world ~= nil and e.world <= tier
             if admin and e.era == nil and e.tier <= Data.TEAM_LAST_TIER then passed = true end
             if passed then s.dropped[e.id] = true end
         end
     end
     if admin then s.era = "admin" end
+end
+
+-- An entry no longer wanted (a branch's call whose matter is settled before it was played): dropped, unless played.
+function Comms.drop(record, id)
+    local s = Comms.section(record)
+    if done(s, id) or not Data.BY_ID[id] then return false end
+    s.dropped[id] = true
+    return true
 end
 
 -- A short call is a word at the team's regular hour (LORE 6 '짧은 교신'), not a line after a scene: it comes no sooner

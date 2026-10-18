@@ -58,7 +58,7 @@ the game exits. Its functions are Kahlua `JavaFunction`s, so no class has to be 
 | `PZExtAPI.version` | Integer, raised on any incompatible change. A mod refuses a version it was not written for. Now 1. |
 | `PZExtAPI.hooks()` | A table of the API's hooks in this game, by game class and method (`IsoGridSquare.haveElectricity`): `"applied"`, `"not-loaded"` (its class has not loaded yet; most load with the first world), or why it did not go in. Where a hook is missing, that question gets the game's own answer. |
 | `PZExtAPI.client(name)` | A handle for one mod; everything it defines belongs to it. `handle:clear()` removes it all. The name is 1 to 64 letters, digits, `_`, `.` or `-`; the same name gives the same handle. |
-| `buildings`, `networks`, `formulas`, `moodles`, `text`, `zombies`, `helicopter`, `timers`, `chunks`, `squares`, `draw`, `floor` | The areas below. Later areas are added as fields; an area a mod does not use is ignored. `moodles`, `text`, `zombies` and `helicopter` are left out, with a line in the game's log, in a game that lacks what they read (`moodles` and `text` also in a game started by an install from before them). |
+| `buildings`, `networks`, `formulas`, `moodles`, `text`, `zombies`, `helicopter`, `timers`, `chunks`, `squares`, `draw`, `floor`, `objects`, `items`, `zones`, `vehicles` | The areas below. Later areas are added as fields; an area a mod does not use is ignored. `moodles`, `text`, `zombies` and `helicopter` are left out, with a line in the game's log, in a game that lacks what they read (`moodles` and `text` also in a game started by an install from before them). |
 
 Functions are called with a dot (`PZExtAPI.buildings.at(x, y, z)`); a handle's functions with a
 colon (`handle:clear()`). A wrong argument is a Lua error that names the function and the argument.
@@ -1705,7 +1705,8 @@ item is worth) stays in Lua, over the short list the query gives.
 
 The answers are the game's objects (`IsoGridSquare`, `IsoObject`, `InventoryItem`), so a mod acts on them at once; nothing is
 copied. All calls run on the game's thread and read loaded squares only: an unloaded square is never a match, and calls that
-must tell (`objects.byData`) say so.
+must tell (`objects.byData`) say so. A list is a Lua list from 1. The areas are `PZExtAPI.squares` (with the square
+watches), `objects`, `items`, `zones` and `vehicles`, and `buildings.list` in `buildings`.
 
 ### Conditions on a square
 
@@ -1759,7 +1760,7 @@ At most 250,000 squares are looked at by one call; more is an error that says so
 | `squares.nearest(area, filter)` | The first square of the area that meets the filter, in the area's order (rings: nearest ring first), and its ring; `nil` when none. |
 | `squares.list(area, filter, options)` | A list of the squares that meet it. `options`: `limit` (at most this many), `near = { x =, y = }` (sorted by distance from it, nearest first), `random = n` (n of them at random), `connected = { x =, y = }` (only those joined to the passing square nearest that point by steps north, south, east and west that the game does not block, `isBlockedTo`). |
 | `squares.fit(anchors, parts, options)` | The first anchor square at which a shape fits, and its index among the anchors; `nil` when none. `anchors` is an area; `parts` a list of `{ offsets = { dx1, dy1, dx2, dy2, ... }, filter = {...} }` or `{ box = { x1, y1, x2, y2, step }, filter = {...} }` (offsets from the anchor, `step` the stride); a shape fits when every square of every part is loaded and meets its part's filter. `options.order`: `"area"` (default) or `"random"` (the anchors shuffled once a call). A part's filter may use `room = "anchor"`: the anchor's own room. |
-| `squares.path(from, to, options)` | The cheapest way from one square to another, as a flat list `x1, y1, x2, y2, ...` from `from` to `to`, and its cost; `nil` when there is none. `options`: `margin` (squares round the box of the two ends that the way may use, default 12), `pass` (a filter a square of the way meets), `cost` (`{ outside =, inside =, blocked =, turn = }`: a step onto a square outdoors and indoors, more for a step the game blocks, more for each turn). |
+| `squares.path(from, to, options)` | The cheapest way from one square to another (steps north, south, east and west), as a flat list `x1, y1, x2, y2, ...` from `from` to `to`, and its cost; `nil` when there is none. `options`: `margin` (squares round the box of the two ends that the way may use, default 12), `pass` (a filter each square between the ends meets; an unloaded square passes), `cost` (`{ outside =, inside =, blocked =, turn = }`: a step onto a square of no building and of a building, as the meta grid tells it, loaded or not; `blocked` added for a step the game blocks, `isBlockedTo`; `turn` for each change of direction; the step onto `to` costs 1), `into = { dx =, dy = }` (the way enters `to` heading that way, or pays `turn` once more). |
 
 ### Objects
 
