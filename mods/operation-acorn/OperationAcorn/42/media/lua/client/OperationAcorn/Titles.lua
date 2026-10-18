@@ -13,6 +13,8 @@ Titles.TONES = {
     amber = { { 1.00, 0.70, 0.40 }, { 0.95, 0.82, 0.66 } },
     green = { { 0.62, 1.00, 0.70 }, { 0.78, 0.95, 0.82 } },
     red = { { 1.00, 0.55, 0.50 }, { 0.95, 0.75, 0.72 } },
+    -- an acorn's shell: the operation's own name
+    acorn = { { 0.88, 0.70, 0.45 }, { 0.92, 0.86, 0.74 } },
 }
 
 -- Every title goes first, the one on the screen leaving at once (the dev panel's switch for trying titles).
@@ -114,6 +116,11 @@ function Titles.place(at, withLine)
     return nil
 end
 
+-- How large a title is drawn (detail.size, times its style's size): "major" for the story's great moments (the operation
+-- named, a stage's card, the handover, a capstone, a cure), "minor" for the receipt of what the player has just done or
+-- will look at anyway (a box sealed, a drop, a mission started or its item secured, a new request); else the style's.
+Titles.SIZES = { major = 1.35, minor = 0.72 }
+
 -- Shows a title (detail as OA.Sync.title takes it) for the player of that id; returns how it was shown: "title",
 -- "halo" or nil. With `noHalo` a title the API cannot draw is not shown at all (the caller has its own way then).
 function Titles.show(playerId, detail, noHalo)
@@ -137,10 +144,16 @@ function Titles.show(playerId, detail, noHalo)
         local done = false
         if handle then
             local spec = { text = title, subtitle = sub, style = style, player = character:getPlayerNum(),
-                now = Titles.now or nil, backdrop = backdrop, y = Titles.place(detail.at, sub ~= nil) }
+                now = Titles.now or nil, backdrop = backdrop, y = Titles.place(detail.at, sub ~= nil),
+                scale = Titles.SIZES[detail.size] }
             local tone = Titles.TONES[detail.tone]
             if tone then spec.color, spec.subtitleColor = tone[1], tone[2] end
             local ok, err = pcall(t.title, handle, spec)
+            if not ok and spec.scale then
+                -- (an older PZ Extension API has no scale: the title at its style's size)
+                spec.scale = nil
+                ok, err = pcall(t.title, handle, spec)
+            end
             if ok then done = true else OA.log("title:", tostring(err)) end
         end
         if done then
@@ -157,12 +170,12 @@ function Titles.show(playerId, detail, noHalo)
 end
 
 -- Shows a notice (OA.Sync.notice: a key and its arguments, already put in the player's language) as a title, when
--- `as` names one: { key (the title), titleArgs (the title takes the notice's arguments too), style, tone, fallback
+-- `as` names one: { key (the title), titleArgs (the title takes the notice's arguments too), style, tone, size, fallback
 -- ("good" unless given), alone (no line under it: the notice's own text is the title) }. The notice's text is the
 -- line under the title.
 function Titles.notice(playerId, as, key, args)
     if type(as) ~= "table" then return end
-    local detail = { style = as.style, tone = as.tone, fallback = as.fallback or "good" }
+    local detail = { style = as.style, tone = as.tone, fallback = as.fallback or "good", size = as.size }
     if as.alone then
         detail.key, detail.args = key, args
     else

@@ -151,7 +151,7 @@ local function onNotice(playerId, detail)
     local args = detail.args or {}
     if detail.key == "IGUI_OA_Story_UI_Field_calling" then
         -- the team's word on the field caller: a radio title
-        OA.Titles.notice(playerId, { key = "IGUI_OA_Title_FieldCalling", style = "notice" }, detail.key, args)
+        OA.Titles.notice(playerId, { key = "IGUI_OA_Title_FieldCalling", style = "notice", size = "minor" }, detail.key, args)
         return
     end
     local text = getText(detail.key, args[1], args[2], args[3])

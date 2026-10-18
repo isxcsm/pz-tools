@@ -24,7 +24,7 @@ local function onNotice(playerId, detail)
     end
     local args = detail.args or {}
     if detail.key == "IGUI_OA_Trade_Notice_Sealed" then
-        OA.Titles.notice(playerId, { key = "IGUI_OA_Title_Sealed", style = "stamp" }, detail.key, args)
+        OA.Titles.notice(playerId, { key = "IGUI_OA_Title_Sealed", style = "stamp", size = "minor" }, detail.key, args)
         return
     end
     local text = OA.Titles.text(detail.key, args)

@@ -263,7 +263,7 @@ local function onNotice(playerId, detail)
         local text = getText(detail.key, getText("IGUI_OA_Gear_Reason_" .. tostring(args[1])))
         HaloTextHelper.addBadText(player, text)
     elseif detail.key == "IGUI_OA_Gear_Redeemed" then
-        OA.Titles.notice(playerId, { key = "IGUI_OA_Title_KitRedeemed" }, detail.key, args)
+        OA.Titles.notice(playerId, { key = "IGUI_OA_Title_KitRedeemed", size = "minor" }, detail.key, args)
     elseif string.find(detail.key, "^IGUI_OA_Gear_Fitted_") then
         -- a kit fitted: what it made of the target, as a brief title (a light one, low on the screen)
         OA.Titles.notice(playerId, { alone = true, style = "brief" }, detail.key, args)

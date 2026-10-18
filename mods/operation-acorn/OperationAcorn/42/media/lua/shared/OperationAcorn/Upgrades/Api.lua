@@ -50,7 +50,7 @@ end
 -- fades in and crumbles away), in gold.
 function Upgrades.capstoneTitle(node)
     return { key = Upgrades.Data.key(node.id, "Name"), sub = "IGUI_OA_Title_Capstone", style = "dust", tone = "gold",
-        fallback = "good" }
+        size = "major", fallback = "good" }
 end
 
 -- The title of the second board opening (the last capstone taken): the same quiet one, in gold.

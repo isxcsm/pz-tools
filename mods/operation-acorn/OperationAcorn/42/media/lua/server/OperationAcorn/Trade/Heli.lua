@@ -209,7 +209,7 @@ function Heli.dropped(owner, marked, settled)
             sub, subArgs = paid.key, paid.args
         end
     end
-    OA.Sync.title(owner.id, { key = "IGUI_OA_Title_Dropped", sub = sub, subArgs = subArgs, style = "notice",
+    OA.Sync.title(owner.id, { key = "IGUI_OA_Title_Dropped", sub = sub, subArgs = subArgs, style = "notice", size = "minor",
         fallback = "good" })
 end
 

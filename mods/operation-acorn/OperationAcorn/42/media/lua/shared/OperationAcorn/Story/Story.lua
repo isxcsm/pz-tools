@@ -440,7 +440,7 @@ function Story.onOpened(record, cargo)
     end
     if not last then return end
     s.handoverShown = true
-    OA.Sync.title(record.id, { key = "IGUI_OA_Title_Handover", sub = "IGUI_OA_Title_HandoverSub",
+    OA.Sync.title(record.id, { key = "IGUI_OA_Title_Handover", sub = "IGUI_OA_Title_HandoverSub", size = "major",
         subArgs = { { key = Story.callSignKey(record) } }, style = "type" })
     Story.call(record, "handedover")
     OA.Sync.changed("story", record.id)
@@ -499,7 +499,7 @@ end
 
 -- The card of a named stage (SCENES.md 2 '제목 카드'): "Trust stage 3 · Cross-check" and the shop's new items.
 function Story.stageCard(stage)
-    return { key = "IGUI_OA_Title_StageNamed", args = { stage, { key = "IGUI_OA_Econ_Stage_" .. stage } },
+    return { key = "IGUI_OA_Title_StageNamed", args = { stage, { key = "IGUI_OA_Econ_Stage_" .. stage } }, size = "major",
         sub = "IGUI_OA_Title_NewItems", style = "dust", fallback = "good" }
 end
 
@@ -521,8 +521,8 @@ function Story.callPlayed(record, id)
     -- a mission's briefing: the mission begins
     if OA.Missions then OA.Missions.briefed(record, id) end
     if id ~= "S0" then return end
-    OA.Sync.title(record.id, { key = "IGUI_OA_Title_Operation", sub = "IGUI_OA_Title_OperationSub",
-        subArgs = { Story.number(record) }, style = "stamp", fallback = "good", at = "center" })
+    OA.Sync.title(record.id, { key = "IGUI_OA_Title_Operation", sub = "IGUI_OA_Title_OperationSub", size = "major",
+        subArgs = { Story.number(record) }, style = "stamp", tone = "acorn", fallback = "good", at = "center" })
     Story.terminalOpened(record)
 end
 

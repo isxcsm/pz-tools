@@ -561,7 +561,10 @@ test("the stage card shows once, at the terminal, after the first call has playe
     eq(told[#told - 1].key, "IGUI_OA_Title_Operation")
     eq(told[#told - 1].subArgs[1], OA.Story.number(record), "under it, the call sign the call gave")
     eq(told[#told - 1].at, "center", "the operation's title in the middle of the screen")
+    eq(told[#told - 1].size, "major", "large: the story's great moment")
+    eq(told[#told - 1].tone, "acorn")
     eq(told[#told].key, "IGUI_OA_Title_StageNamed")
+    eq(told[#told].size, "major")
     eq(told[#told].args[1], 1)
     eq(Story.terminalOpened(record), false, "once")
     record.trade.stage = 3

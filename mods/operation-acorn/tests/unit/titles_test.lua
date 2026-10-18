@@ -160,3 +160,37 @@ test("the dev panel's switch lets every title go first", function()
     eq(called[2].now, nil)
     PZExtAPI = nil
 end)
+
+test("a title's size asks the API for a scale of its style's; an older API without one shows it at the style's size", function()
+    world()
+    local called = {}
+    local refuseScale = false
+    PZExtAPI = {
+        version = OA.API_VERSION,
+        client = function() return "handle" end,
+        text = {
+            status = function() return "applied" end,
+            styles = function() return { "stamp", "dust" } end,
+            title = function(_, spec)
+                if refuseScale and spec.scale then error("spec has no field scale") end
+                called[#called + 1] = spec
+            end,
+        },
+    }
+    OA.Titles.show("p1", { key = "IGUI_OA_Title_Operation", size = "major" })
+    eq(called[1].scale, OA.Titles.SIZES.major)
+    truthy(OA.Titles.SIZES.major > 1)
+    OA.Titles.show("p1", { key = "IGUI_OA_Title_Sealed", size = "minor" })
+    eq(called[2].scale, OA.Titles.SIZES.minor)
+    truthy(OA.Titles.SIZES.minor < 1)
+    OA.Titles.show("p1", { key = "IGUI_OA_Title_Paid" })
+    eq(called[3].scale, nil, "the style's size")
+    refuseScale = true
+    eq(OA.Titles.show("p1", { key = "IGUI_OA_Title_Operation", size = "major" }), "title")
+    eq(called[4].scale, nil)
+    -- a notice shown as a title carries its size
+    refuseScale = false
+    OA.Titles.notice("p1", { key = "IGUI_OA_Title_Sealed", style = "stamp", size = "minor" }, "IGUI_OA_Trade_Notice_Sealed", { 3 })
+    eq(called[5].scale, OA.Titles.SIZES.minor)
+    PZExtAPI = nil
+end)
