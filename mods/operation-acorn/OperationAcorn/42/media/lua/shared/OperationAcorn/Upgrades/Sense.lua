@@ -126,6 +126,21 @@ function Sense.heard(list, key, kind, x, y, z, now, untilMs, max)
     return list, new, found
 end
 
+-- Takes the sounds that ran out (untilMs not past `now`) out of a list, in place, keeping the order of the others.
+-- Returns how many are left. The HUD draws nothing while a list is empty, so the job that looks every half second calls it.
+function Sense.prune(list, now)
+    local n = 0
+    for i = 1, #list do
+        local s = list[i]
+        if s.untilMs > now then
+            n = n + 1
+            list[n] = s
+        end
+    end
+    for i = #list, n + 1, -1 do list[i] = nil end
+    return n
+end
+
 -- The zombie sounds told from the zombies around, without the extension API's: a zombie newly in reach makes one soon
 -- (within FIRST_MS, spread by when it came), then one every voiceMs of its distance, its time spread by its number so
 -- that a crowd does not call at once; one that takes a target ("aggro") or lunges or strikes ("attack")

@@ -500,6 +500,9 @@ local function senseJob(now)
     end
     S.ring = active
     S.sixth = false
+    -- the cues that ran out leave now, not at the next sound: the HUD draws nothing for them, and is not run for none
+    Sense.prune(S.zombies, now)
+    Sense.prune(S.sounds, now)
     if sixthR <= 0 and not active then
         updateSixth()
         showHud(false)

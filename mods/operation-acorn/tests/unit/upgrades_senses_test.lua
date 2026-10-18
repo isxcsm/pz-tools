@@ -615,3 +615,24 @@ test("the alarm job asks the API for the cars within reach and the doors and win
     PZExtAPI = nil
     OA.Upgrades.Pulse.enable(false)
 end)
+
+test("the half-second job takes the cues that ran out out of the lists", function()
+    local Senses = loadSenses()
+    standIns()
+    PZExtAPI = nearApi({}, {}).api
+    recordWith({ sixth = 2 })
+    local p = player(100, 100, 0.0)
+    getPlayer = function() return p end
+    OA.Upgrades.Pulse.enable(true)
+    advance(0)
+    local S = Senses.state
+    S.zombies = { { kind = "zombie", x = 1, y = 1, z = 0, born = 0, untilMs = clock - 10 },
+        { kind = "zombie", x = 2, y = 2, z = 0, born = 0, untilMs = clock + 5000 } }
+    S.sounds = { { kind = "noise", x = 3, y = 3, z = 0, born = 0, untilMs = clock - 1 } }
+    advance(600)
+    eq(#S.zombies, 1, "the one running out is gone")
+    eq(S.zombies[1].x, 2)
+    eq(#S.sounds, 0)
+    PZExtAPI = nil
+    OA.Upgrades.Pulse.enable(false)
+end)

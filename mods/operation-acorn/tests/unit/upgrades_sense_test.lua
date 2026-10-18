@@ -273,3 +273,16 @@ test("plan: a capstone joins the plan once its tree is unsealed", function()
     truthy(steps)
     eq(Rules.rank(Plan.simulate(u, steps), "nightEye"), 1)
 end)
+
+test("Sense.prune takes the sounds that ran out out of a list in place, keeping the order of the rest", function()
+    local list = { { key = "a", untilMs = 100 }, { key = "b", untilMs = 500 }, { key = "c", untilMs = 200 },
+        { key = "d", untilMs = 900 } }
+    eq(Sense.prune(list, 200), 2)
+    eq(#list, 2)
+    eq(list[1].key, "b")
+    eq(list[2].key, "d")
+    eq(Sense.prune(list, 0), 2, "nothing run out")
+    eq(Sense.prune(list, 1000), 0)
+    eq(#list, 0)
+    eq(Sense.prune({}, 5), 0)
+end)
