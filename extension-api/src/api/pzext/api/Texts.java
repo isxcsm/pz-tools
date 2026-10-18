@@ -1161,8 +1161,8 @@ final class Texts implements Hooks.Text {
         static final Map<String, Style> ALL = new LinkedHashMap<>();
 
         static {
-            // Stamped: big pale letters that fall onto the screen and hit, white-hot and cooling, inked as they hit (wet, patchy), a
-            // gleam passing over them once as they stay; they dry away in blotches, their pressed shape left a moment. The line is
+            // Stamped: big pale letters that fall onto the screen and hit, white-hot and cooling, inked as they hit (wet and glossy for
+            // a moment, solid to their crisp edges), a gleam passing over them once as they stay; they dry away in blotches, their pressed shape left a moment. The line is
             // struck a moment after, more lightly, and weathers away. For something done (a quest complete).
             ALL.put("stamp", new Style(
                 Map.ofEntries(Map.entry("font", List.of("SdfBold", "Large")), Map.entry("size", 0.1), Map.entry("color", List.of(0.9, 0.89, 0.86, 1.0)),

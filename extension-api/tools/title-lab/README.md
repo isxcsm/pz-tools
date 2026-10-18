@@ -10,7 +10,8 @@ no build).
   the line's delay and trail, and the backdrop, in the game's premultiplied blending with WebGL and the shader the API compiles
   in the game (`Looks.Gl`'s, a copy of this page's):
   - `stamp` 각인: falls and hits, white-hot and cooling, a streak of light and a puff of dust; a gleam passes once over its hold;
-    it weathers away in place (its colour drains, it wears off in pits from its edges).
+    its title is inked as it hits (wet and glossy for 0.6 s, then solid and still, its edges as crisp as the letters were
+    drawn) and dries away in blotches as it leaves (its colour lifts, its line weathers away in place).
   - `discovery` 손전등: a torch sways in from the left and lights the title as it passes, then opens over it; it stutters and
     dies down to embers as it leaves.
   - `notice` 무전: comes in as a radio signal tuned in (rows torn sideways, colours apart, grain), hiccups once as it stays,
