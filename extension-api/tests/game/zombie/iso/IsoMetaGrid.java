@@ -102,6 +102,14 @@ public final class IsoMetaGrid {
     }
     public ArrayList<RemovedBuilding> getRemovedBuildings() { return removedBuildings; }
 
+    /** The map's zones, as a test gives them. */
+    public final ArrayList<zombie.iso.zones.Zone> zoneList = new ArrayList<>();
+    /** As the game's: the zones at the square are added to the list given, which is returned. */
+    public ArrayList<zombie.iso.zones.Zone> getZonesAt(int x, int y, int z, ArrayList<zombie.iso.zones.Zone> result) {
+        for (int at = 0; at < zoneList.size(); at++) if (zoneList.get(at).contains(x, y, z)) result.add(zoneList.get(at));
+        return result;
+    }
+
     // ---- the map's data on rooms and buildings (map_meta.bin), as the game saves and reads it ----
 
     /** The version the file is written in; the building's alarm decay is in it from 201 on. */

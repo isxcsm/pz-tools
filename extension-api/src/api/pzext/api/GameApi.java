@@ -315,6 +315,7 @@ public final class GameApi {
             ChunkWatches.retire(lua, meta);
             FloorDecals.retire(lua, meta);
             SquareWatches.retire(lua, meta);
+            SquareQueries.retire(lua, meta);
             WallWatches.retire(lua, meta);
             throw failure;
         }
@@ -649,23 +650,38 @@ public final class GameApi {
             decals = null;
         }
         floor = decals;
+        // The squares table holds the watches and the queries. Each registers in its own try, and a failure takes out only its own
+        // functions, so that the other stays; the table itself goes only when neither is there.
+        Object squaresTable = table(lua, api, "squares");
         SquareWatches watched;
         try {
             watched = new SquareWatches(lua, game, meta, handle -> owner(lua, handles, handle));
-            watched.register(table(lua, api, "squares"));
+            watched.register(squaresTable);
         } catch (LinkageError olderBootstrap) {
             System.err.println("[PZExt] Square watches are not in this game; restart it to use them: " + olderBootstrap);
             SquareWatches.retire(lua, meta);
-            lua.set(api, "squares", null);
+            without(lua, squaresTable, "watch", "unwatch");
             watched = null;
         } catch (ReflectiveOperationException | RuntimeException unreadable) {
             report(unreadable);
             SquareWatches.unhook();
             SquareWatches.retire(lua, meta);
-            lua.set(api, "squares", null);
+            without(lua, squaresTable, "watch", "unwatch");
             watched = null;
         }
         squares = watched;
+        try { new SquareQueries(lua, game, meta).register(squaresTable); }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+            report(unreadable);
+            SquareQueries.retire(lua, meta);
+            without(lua, squaresTable, "nearest", "list", "fit");
+        }
+        if (lua.entries(squaresTable).isEmpty()) lua.set(api, "squares", null);
+    }
+
+    /** Takes the named functions out of an area's table. */
+    private static void without(Kahlua lua, Object table, String... names) throws ReflectiveOperationException {
+        for (String name : names) lua.set(table, name, null);
     }
 
     /** The mod a handle belongs to, or null when the value is not one of this environment's handles. */

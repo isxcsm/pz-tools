@@ -137,7 +137,7 @@ public final class IsoGridSquare {
             case DoorWallW -> westDoor;
             case WindowN -> northWindow;
             case WindowW -> westWindow;
-            default -> false;
+            default -> flagSet.contains(flag);
         };
     }
     /** A corner post on the square's south-east corner (WallSE). */
@@ -186,6 +186,36 @@ public final class IsoGridSquare {
     public boolean isNoPower() { return noPower; }
 
     public boolean haveElectricity() { return chunk != null && chunk.isGeneratorPoweringSquare(x, y, z); }
+
+    // ---- what the world queries ask of a square: each is what a test says of it ----
+
+    /** The flags a test gives the square besides its walls and doors (the game keeps its properties' flags). */
+    public final java.util.EnumSet<zombie.iso.SpriteDetails.IsoFlagType> flagSet = java.util.EnumSet.noneOf(zombie.iso.SpriteDetails.IsoFlagType.class);
+    /** Whether the square is free of what blocks it, a solid floor, a water square, outdoors, with stairs, a tree; a vehicle on it. */
+    public boolean freeOfObjects = true, solidFloorTreated = true, waterSquare, outdoors, stairs, tree;
+    public zombie.vehicles.BaseVehicle vehicleOn;
+    public boolean vehicleOver;
+    /** The moving objects that stand on the square. */
+    public final java.util.ArrayList<IsoMovingObject> movers = new java.util.ArrayList<>();
+    /** The square's building, when a test gives it (the game takes it from the square's room). */
+    public zombie.iso.areas.IsoBuilding building;
+    /** Squares a test lets the game block a step to. */
+    public final java.util.Set<IsoGridSquare> blocked = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+    /** How many times a step was asked about (isBlockedTo). */
+    public static int blockedAsked;
+
+    public boolean isFree(boolean onlyIfNoMovers) { return freeOfObjects && !(onlyIfNoMovers && !movers.isEmpty()); }
+    public boolean TreatAsSolidFloor() { return solidFloorTreated; }
+    public boolean isWaterSquare() { return waterSquare; }
+    public boolean isOutside() { return outdoors; }
+    public boolean HasStairs() { return stairs; }
+    public boolean HasTree() { return tree; }
+    public boolean isVehicleIntersecting() { return vehicleOver; }
+    public zombie.vehicles.BaseVehicle getVehicleContainer() { return vehicleOn; }
+    public java.util.ArrayList<IsoMovingObject> getMovingObjects() { return movers; }
+    public zombie.iso.areas.IsoBuilding getBuilding() { return building; }
+    public IsoCell getCell() { return cell != null ? cell : IsoWorld.instance.currentCell; }
+    public boolean isBlockedTo(IsoGridSquare other) { blockedAsked++; return blocked.contains(other); }
 
     /** Synthetic: the game takes the square's properties again from its objects; the API's hook goes at its end. */
     public int recalcs;
