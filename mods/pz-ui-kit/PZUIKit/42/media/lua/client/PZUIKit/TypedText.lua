@@ -173,8 +173,9 @@ end
 
 function PZUITypedText:render()
     -- The panel lays the text out again in its own render when its size changed; done first, the reveal starts over the
-    -- new rows before they are drawn.
-    if self.textDirty or self.laidW ~= self.width then self:paginate() end
+    -- new rows before they are drawn (and the rows are then drawn without asking again: a layout that waited for its time
+    -- must not come between the reveal and the drawing).
+    self:ensureLaid()
     local run = self.run
     if self.reveal and run and not run.done then
         self:advance(run)
@@ -183,7 +184,7 @@ function PZUITypedText:render()
     end
     -- (a run let go while still on its way, as its panel closes, leaves its reveal: no fresh row without the run)
     if self.rowFirst and self.reveal and run and self.cursorColor then self:drawFreshRow(run) end
-    PZUIRichText.render(self)
+    PZUIRichText.paintRows(self)
     if self.tipChunk and self.cursorColor then self:drawCursor() end
 end
 

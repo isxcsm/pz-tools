@@ -25,12 +25,16 @@ local function load()
     for _, name in ipairs({ "setStencilRect", "clearStencilRect", "repaintStencilRect", "drawRect" }) do
         panel[name] = function() end
     end
+    panel.isVisible = function() return true end
+    panel.getWidth = function(self) return self.width end
+    panel.getHeight = function(self) return self.height end
     panel.drawText = function(self, text) self.drawn[#self.drawn + 1] = text end
     panel.__index = panel
     ISPanel = panel
     UIFont = setmetatable({}, { __index = function(_, k) return k end })
     getTimestampMs = function() return now end
     heightCalls, measureLog = 0, {}
+    now = 1000
     getTextManager = function()
         return {
             getFontHeight = function(_, f) heightCalls = heightCalls + 1; return FH[f] or 16 end,
@@ -747,4 +751,92 @@ test("the chunks a layout tries are measured and not kept in the texts' cache", 
     eq(raw, UI.textWidth("The quick brown"), "the same width")
     UI.textWidthRaw("The quick brown")
     eq(measureLog["The quick brown"], before + 3, "raw is measured each time")
+end)
+
+test("a width on its way is laid out every 50 ms, and the width it stops at is laid out at last", function()
+    local P, UI = load()
+    local laid = 0
+    local paginate = P.paginate
+    P.paginate = function(self) laid = laid + 1; return paginate(self) end
+    local p = P:new(0, 0, 300, 100)
+    p:setText(TEXTS[10])
+    p:render()
+    eq(laid, 1, "the first layout at once")
+    eq(p.laidW, 300)
+    -- dragged: 5 wider or narrower every 10 ms, a frame each
+    local width = 300
+    for step = 1, 40 do
+        now = now + 10
+        width = width + (step % 2 == 0 and 7 or -5)
+        p.width = width
+        p:onResize()
+        UI.liveFrame()
+        p:render()
+    end
+    truthy(laid <= 1 + 400 / 50 + 1, "about one layout in 50 ms, not one a step: " .. laid)
+    truthy(laid >= 6, "but they are made while it goes: " .. laid)
+    -- the width stops: the layout it stops at is made within the 50 ms, with no more resizing
+    local last = p.width
+    local frames = 0
+    while p.laidW ~= p.width and frames < 20 do
+        now = now + 10
+        UI.liveFrame()
+        p:render()
+        frames = frames + 1
+    end
+    eq(p.laidW, last, "laid out for the width it stopped at")
+    truthy(frames <= 5, "within 50 ms: " .. frames)
+    local fresh = panelOf(last, TEXTS[10])
+    eq(dump(p), dump(fresh), "the same layout as one made for that width alone")
+    -- (the panel is let go once it has caught up)
+    UI.liveFrame()
+    local entries = UI.liveSize()
+    eq(entries, 0, "nothing followed once the layout stands")
+end)
+
+test("a width changed after a still time is laid out at once; the height alone lays out nothing", function()
+    local P, UI = load()
+    local laid = 0
+    local paginate = P.paginate
+    P.paginate = function(self) laid = laid + 1; return paginate(self) end
+    local p = P:new(0, 0, 300, 100)
+    p:setText(TEXTS[1])
+    p:render()
+    now = now + 5000
+    p.width = 180
+    p:onResize()
+    p:render()
+    eq(laid, 2, "at once")
+    eq(p.laidW, 180)
+    now = now + 5
+    p.height = 60
+    p:onResize()
+    p:render()
+    eq(laid, 2, "a height only is no new layout")
+    eq(p:maxScroll(), math.max(0, p.contentH - 60), "but the scroll's end follows it")
+end)
+
+test("a layout waiting for its time is made by the frame of UI.live even when nothing renders", function()
+    local P, UI = load()
+    local p = P:new(0, 0, 300, 100)
+    p:setText(TEXTS[1])
+    p:render()
+    now = now + 5000
+    p.width = 200
+    p:render()
+    eq(p.laidW, 200, "at once after a still time")
+    now = now + 10
+    p.width = 150
+    p:render()
+    eq(p.laidW, 200, "waiting")
+    now = now + 20
+    UI.liveFrame()
+    eq(p.laidW, 200, "still waiting")
+    now = now + 25
+    UI.liveFrame()
+    eq(p.laidW, 150, "laid out by the frame, with no render")
+    truthy(p.liveLook ~= nil, "and the panel told of it")
+    now = now + 10
+    UI.liveFrame()
+    eq(p.liveLook, nil, "then let go")
 end)

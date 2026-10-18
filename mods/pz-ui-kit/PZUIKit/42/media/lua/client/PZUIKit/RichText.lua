@@ -119,10 +119,17 @@ function PZUIRichText:command(cmd, x, y, lineHeight)
     return x, y
 end
 
+-- How long a layout stands before the next is made while the panel's width is being changed (a window dragged larger or
+-- smaller), in real milliseconds; the layout that fits the width it stops at is made once it has stood so long.
+PZUIRichText.RESIZE_MS = 50
+
 -- Lays the text out for the width now (the game's ISRichTextPanel:paginate, piece for piece): lines (the chunks),
--- lineX, lineY (from the text's top left inside the margins), and what each chunk is drawn in and where.
+-- lineX, lineY (from the text's top left inside the margins), and what each chunk is drawn in and where. The text is
+-- read by position (`start`: where what is not read yet begins, `from`: where the next space is looked for), not cut
+-- piece by piece.
 function PZUIRichText:paginate()
     self.textDirty, self.laidW = false, self.width
+    self.laidAt, self.laidCount = getTimestampMs(), (self.laidCount or 0) + 1
     self.font = self.defaultFont
     self.fonts, self.rgb, self.orient = {}, {}, {}
     self.rgbCurrent, self.rgbStack = WHITE, {}
@@ -131,11 +138,12 @@ function PZUIRichText:paginate()
     self.lines, self.lineX, self.lineY = lines, lineX, lineY
     local maxW = self.width - self.marginLeft - self.marginRight - PZUIRichText.BAR_ROOM
     local n, x, y = 1, 0, 0
-    local left = string.gsub(self.text or "", "\n", " <LINE> ") .. " "
-    local cur = 0
+    local text = string.gsub(self.text or "", "\n", " <LINE> ") .. " "
+    local start, from = 1, 1
     while true do
-        cur = find(left, " ", cur + 1, true)
+        local cur = find(text, " ", from, true)
         if not cur then
+            local left = sub(text, start)
             if trim(left) ~= "" then
                 lines[n] = trim(unescape(left))
                 lineX[n], lineY[n] = x, y
@@ -145,15 +153,17 @@ function PZUIRichText:paginate()
             end
             break
         end
-        local token = sub(left, 1, cur)
+        local token = sub(text, start, cur)
         local lt, gt = find(token, "<", 1, true), find(token, ">", 1, true)
         if lt and gt then
             -- a command not followed by a space ends at its ">"
-            cur = gt + 1
-            token = sub(left, 1, cur - 1)
+            token = sub(token, 1, gt)
+            start = start + gt
+        else
+            start = cur
         end
-        left = sub(left, cur)
-        cur = 1
+        -- (the first character of what is left is not looked at: it is the space, or what the command ended before)
+        from = start + 1
         if lt and gt then
             if not lines[n] then
                 lines[n] = ""
@@ -185,6 +195,24 @@ function PZUIRichText:paginate()
     self.contentH = self.marginTop + y + self.marginBottom
     self:place()
     self:setScroll(self.scroll)
+end
+
+-- Lays the text out again when its text or its width has changed. A new text at once; a new width at once too, unless
+-- the last layout is not RESIZE_MS old (a width on its way): it waits, followed each frame (PZUIRichText.settle) until
+-- it is, so that the layout the width stops at is always made.
+function PZUIRichText:ensureLaid()
+    if self.textDirty then return self:paginate() end
+    if self.laidW == self.width then return end
+    if getTimestampMs() - (self.laidAt or 0) >= PZUIRichText.RESIZE_MS then return self:paginate() end
+    UI.live(self, PZUIRichText.settle)
+end
+
+-- The frame of a layout waiting for its time (UI.live): lays out when it is there, and gives the number of layouts made
+-- as its look, which changes with each; nil when nothing waits any more.
+function PZUIRichText.settle(el, now)
+    if not (el.textDirty or el.laidW ~= el.width) then return nil end
+    if el.textDirty or now - (el.laidAt or 0) >= PZUIRichText.RESIZE_MS then el:paginate() end
+    return el.laidCount
 end
 
 -- What each chunk is drawn in (the font, the colour and the side carried on from the chunks before, as the game's
@@ -275,10 +303,11 @@ function PZUIRichText:onMouseMoveOutside(dx, dy) self:drag(dy) end
 function PZUIRichText:onMouseUp() self.dragging = false end
 function PZUIRichText:onMouseUpOutside() self.dragging = false end
 
--- The game resized it (an anchor following its window): laid out again for the new width.
+-- The game resized it (an anchor following its window): laid out again for the new width in the next render (ensureLaid:
+-- a width on its way is laid out every RESIZE_MS, not every step). The scroll is kept to what the height leaves.
 function PZUIRichText:onResize()
     self.width, self.height = self:getWidth(), self:getHeight()
-    self.textDirty = true
+    self:setScroll(self.scroll)
 end
 
 -- The line heights asked in the render now: font -> height. A font's height can change under an open window (the
@@ -301,7 +330,11 @@ end
 -- (lineY only grows), so the ones above the top are found by halving, not one by one: a row shows once its place and
 -- its font's height reach past the top, and no row is taller than the tallest font in the layout.
 function PZUIRichText:render()
-    if self.textDirty or self.laidW ~= self.width then self:paginate() end
+    self:ensureLaid()
+    self:paintRows()
+end
+
+function PZUIRichText:paintRows()
     local h = self.height
     if self.clip then self:setStencilRect(0, 0, self.width, h) end
     local lines, lineY, cX, cFont, cRGB, cOrient = self.lines, self.lineY, self.cX, self.cFont, self.cRGB, self.cOrient
