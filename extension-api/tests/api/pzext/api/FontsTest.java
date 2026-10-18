@@ -4,6 +4,8 @@ import java.awt.Font;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
+import java.nio.file.attribute.FileTime;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -78,10 +80,21 @@ final class FontsTest {
         String name = EmbeddedFont.name("latin", ttf);
         check(name.matches("latin-[0-9a-f]{16}-v" + FontBaker.VERSION + "-" + EmbeddedFont.size("latin") + "-" + EmbeddedFont.SPREAD), "The cache's name is " + name);
         check(name.equals(EmbeddedFont.name("latin", fonts.resolve("pzext-font-latin.ttf"))), "The same bytes gave another name");
+        // The name is kept per file (path, size, time of its last change): a file as it was is never read again, a changed one is.
+        FileTime stamp = Files.getLastModifiedTime(ttf);
         byte[] bytes = Files.readAllBytes(ttf);
         bytes[bytes.length - 1] ^= 1;
         Files.write(ttf, bytes);
-        check(!name.equals(EmbeddedFont.name("latin", ttf)), "Another font file gave the same name");
+        Files.setLastModifiedTime(ttf, stamp);
+        check(name.equals(EmbeddedFont.name("latin", ttf)), "An unchanged file (size and time) was read again");
+        Files.setLastModifiedTime(ttf, FileTime.fromMillis(stamp.toMillis() + 2000));
+        String changed = EmbeddedFont.name("latin", ttf);
+        check(!name.equals(changed), "Another font file gave the same name");
+        check(changed.equals(EmbeddedFont.name("latin", ttf)), "The name of a file changed twice");
+        Files.write(ttf, Arrays.copyOf(bytes, bytes.length - 1));
+        check(!changed.equals(EmbeddedFont.name("latin", ttf)), "A file of another size kept the name");
+        // The other file in between, and back: the first is read again and gives its name still.
+        check(name.equals(EmbeddedFont.name("latin", fonts.resolve("pzext-font-latin.ttf"))), "The pack file gave another name after the copy changed");
     }
 
     /** The real bake, in a process of its own on this runtime. */
