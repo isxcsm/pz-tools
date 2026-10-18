@@ -275,3 +275,27 @@ test("the visibility mod is looked up once for the session, and again after Effe
     Effects.reset()
     eq(Effects.visibilityModActive(), false)
 end)
+
+test("the API handle is asked for once for each API object and world", function()
+    local asked = 0
+    local function make(name)
+        return { version = OA.API_VERSION, client = function(mod) asked = asked + 1 return name .. mod end }
+    end
+    PZExtAPI = make("a")
+    eq(OA.handle(), "a" .. OA.MOD)
+    eq(OA.handle(), "a" .. OA.MOD)
+    eq(OA.handle(), "a" .. OA.MOD)
+    eq(asked, 1)
+    PZExtAPI = make("b")
+    eq(OA.handle(), "b" .. OA.MOD, "another API object: asked again")
+    eq(asked, 2)
+    TEST.fire("OnGameStart")
+    eq(OA.handle(), "b" .. OA.MOD)
+    eq(asked, 3, "a new world asks again")
+    PZExtAPI.client = function() asked = asked + 1 return "c" end
+    eq(OA.handle(), "c", "a replaced client function is not kept")
+    PZExtAPI.version = "other"
+    eq(OA.handle(), nil, "a different version: no handle")
+    PZExtAPI = nil
+    eq(OA.handle(), nil)
+end)

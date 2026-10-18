@@ -44,10 +44,18 @@ function OA.api()
     return api
 end
 
--- This mod's handle: every declaration to the API goes through it.
+-- This mod's handle: every declaration to the API goes through it. The API gives the same handle for a name, so it is
+-- asked once for each API object (and its `client`) and world (OA.world, counted up at each OnGameStart).
+local handleOf = { api = nil, client = nil, world = nil, handle = nil }
 function OA.handle()
     local api = OA.api()
-    return api and api.client(OA.MOD) or nil
+    if not api then return nil end
+    if handleOf.handle ~= nil and handleOf.api == api and handleOf.client == api.client and handleOf.world == OA.world then
+        return handleOf.handle
+    end
+    local handle = api.client(OA.MOD)
+    handleOf.api, handleOf.client, handleOf.world, handleOf.handle = api, api.client, OA.world, handle
+    return handle or nil
 end
 
 -- One of the API's drawing calls (PZExtAPI.draw.rects, draw.quads: many shapes from one flat list of numbers, drawn
