@@ -193,3 +193,30 @@ test("a time is read from today: today's, tomorrow's, so many days ahead, an ear
     if OA.day() > 0 then eq(OA.Trade.when(start - 1).key, "IGUI_OA_Trade_When") end
     truthy(now >= start)
 end)
+
+test("a drop's title says what the flight paid for the boxes it took, with the map's mark when there is one", function()
+    eq(Heli.settled({ boxes = 0, credits = 0, trust = 0 }), nil, "no box settled: nothing paid to say")
+    local s = Heli.settled({ boxes = 2, credits = 500, fee = 50, trust = 3 })
+    eq(s.credits, 450, "less the infection fee")
+    eq(s.trust, 3)
+    local record = OA.Store.ensure("hp", "HP")
+    local told = listenTitles()
+    local realSetDown = Heli.setDown
+    Heli.setDown = function() return true end
+    OA.Trade.heli(record).landing = { owner = record.id, x = 1, y = 2, z = 0, cargo = { { type = "Base.Axe" } },
+        settled = s }
+    Heli.landNow(record.id)
+    local d = told[#told].detail
+    eq(d.key, "IGUI_OA_Title_Dropped")
+    eq(d.sub, "IGUI_OA_Title_Join")
+    eq(d.subArgs[1].key, "IGUI_OA_Title_DroppedPaidTrust")
+    eq(d.subArgs[1].args[1], 450)
+    eq(d.subArgs[1].args[2], 3)
+    eq(d.subArgs[2].key, "IGUI_OA_Title_Marked")
+    -- no trust, no crate on the map
+    Heli.dropped(record, false, { credits = 120, trust = 0 })
+    d = told[#told].detail
+    eq(d.sub, "IGUI_OA_Title_DroppedPaid")
+    eq(d.subArgs[1], 120)
+    Heli.setDown = realSetDown
+end)

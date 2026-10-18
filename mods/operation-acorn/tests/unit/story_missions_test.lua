@@ -1039,3 +1039,57 @@ test("a retired record waits for its next offer as after any ending; a record wi
     local fresh = OA.Store.ensure("p3", "R")
     eq(M.state(fresh).nextAt, 0)
 end)
+
+test("a piece first in hands has a title over the mission's; the card then tells to seal it", function()
+    local record = setup(1)
+    tick(record)
+    local m = M.active(record)
+    local it = m.items[1]
+    local told = listenTitles()
+    local was = #told
+    M.found(record, m, it, {})
+    eq(#told, was + 1)
+    eq(told[#told].key, "IGUI_OA_Title_Secured")
+    eq(told[#told].sub, (M.keys(m)))
+    M.found(record, m, it, {})
+    eq(#told, was + 1, "only the first time")
+    local info = M.describe(record)
+    eq(info.held, true)
+    eq(info.gathered, true)
+    M.onSealed(record, "box1", { { info = { mission = M.itemId(m, it.key) }, count = 1 } })
+    info = M.describe(record)
+    eq(info.held, nil, "sealed: the card says so instead")
+    -- A mission of several: how many of how many. The comparison and a plain piece have none.
+    local several = { id = "x", kind = "regular", title = "MissionEnvelope", scatter = { total = 3, found = {} },
+        items = { { key = "A", found = true }, { key = "B" }, { key = "C" } } }
+    M.securedTitle(record, several, several.items[1])
+    eq(told[#told].sub, "IGUI_OA_Title_SecuredOf")
+    eq(told[#told].subArgs[1].key, (M.keys(several)))
+    eq(told[#told].subArgs[2], 1)
+    eq(told[#told].subArgs[3], 3)
+    local count = #told
+    M.securedTitle(record, { id = "y", kind = "regular", title = "compare", compare = { right = "A" },
+        items = { { key = "A", found = true } } }, { key = "A", found = true })
+    M.securedTitle(record, several, { key = "K", plain = true })
+    eq(#told, count)
+end)
+
+test("an open mission warns once a day before its deadline; a short one does not, a moved deadline warns again", function()
+    local record = setup(1)
+    local told = listenTitles()
+    local m = { id = "w", kind = "regular", title = "MissionEnvelope", issued = 0, deadline = 100 }
+    local was = #told
+    M.warnDeadline(record, m, 70)
+    eq(#told, was)
+    M.warnDeadline(record, m, 80)
+    eq(#told, was + 1)
+    eq(told[#told].key, "IGUI_OA_Title_DayLeft")
+    eq(told[#told].sub, (M.keys(m)))
+    M.warnDeadline(record, m, 90)
+    eq(#told, was + 1, "once")
+    m.deadline = 130
+    M.warnDeadline(record, m, 110)
+    eq(#told, was + 2, "a deadline moved later warns again")
+    M.warnDeadline(record, { id = "s", kind = "regular", title = "X", issued = 80, deadline = 100 }, 85)
+    eq(#told, was + 2, "a mission short all along")
+end)

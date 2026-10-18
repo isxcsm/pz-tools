@@ -206,3 +206,18 @@ test("every story mission has its briefing; a briefing fired plays before the ca
     eq(playAll(r, 3), "B2 s1_bedding s2_filter")
     eq(Comms.done(r, "B2"), true)
 end)
+
+test("the static of a call waiting: the first bursts at their pace, then once a game hour; a new call starts again", function()
+    require "OperationAcorn/Story/CommsAlert"
+    local Alert = OA.CommsAlert
+    local n = 7
+    eq(Alert.burstDue(n, 1, 0), true)
+    eq(Alert.burstDue(n, 1, 0.2), true)
+    eq(Alert.burstDue(n, 1, 0.4), true)
+    eq(Alert.burstDue(n, 1, 0.6), false, "after the first few, not within the hour")
+    eq(Alert.burstDue(n, 1, 1.3), false)
+    eq(Alert.burstDue(n, 1, 1.45), true, "an hour after the last")
+    eq(Alert.burstDue(n, 1, 1.6), false)
+    eq(Alert.burstDue(n, 2, 1.7), true, "a new call: the bursts start again")
+    eq(Alert.burstDue(n, 2, 1.8), true)
+end)

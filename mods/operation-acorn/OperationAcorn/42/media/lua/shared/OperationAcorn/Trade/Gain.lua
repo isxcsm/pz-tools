@@ -46,11 +46,11 @@ passed = function(record, events, source, cause)
         -- one title for the whole change: the last level reached (milestone k is level 5 + k)
         local last = events[#events]
         local level = last.kind == "milestone" and 5 + last.n or last.n
-        -- The story's title for the level (none for a named stage: its card comes at the terminal); without the story
-        -- the plain title with the new items.
+        -- The story's title for the level (a named stage's points to the card at the terminal); without the story the
+        -- plain title with the new items.
         local detail
         if OA.Story and OA.Story.stageTitle then
-            detail = OA.Story.stageTitle(record, level)
+            detail = OA.Story.stageTitle(record, level, source)
         else
             detail = { key = "IGUI_OA_Title_Stage", args = { level }, sub = "IGUI_OA_Title_NewItems", style = "dust",
                 fallback = "good" }

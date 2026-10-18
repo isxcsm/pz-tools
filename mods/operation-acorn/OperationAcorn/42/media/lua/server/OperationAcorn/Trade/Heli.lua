@@ -187,11 +187,30 @@ local function present(owner, entry)
     Later.after(Heli.LOUD_AT, function() Heli.landNow(id) end)
 end
 
--- The player is told a drop is done: a title, saying the crate is on the map when it is there
--- already (a drop on a square not loaded yet comes down, and is marked, when the square loads).
-function Heli.dropped(owner, marked)
-    OA.Sync.title(owner.id, { key = "IGUI_OA_Title_Dropped", sub = marked and "IGUI_OA_Title_Marked" or nil,
-        style = "notice", fallback = "good" })
+-- What a drop's title says it paid: the sealed boxes' credits (less the infection fee) and trust, from the receipt; nil
+-- for a flight that settled no box.
+function Heli.settled(receipt)
+    if not receipt or (receipt.boxes or 0) == 0 then return nil end
+    return { credits = math.max(0, OA.round((receipt.credits or 0) - (receipt.fee or 0))), trust = OA.round(receipt.trust or 0) }
+end
+
+-- The player is told a drop is done: a title, with what the flight paid for the boxes it took (`settled`, Heli.settled)
+-- and saying the crate is on the map when it is there already (a drop on a square not loaded yet comes down, and is
+-- marked, when the square loads).
+function Heli.dropped(owner, marked, settled)
+    local sub, subArgs = marked and "IGUI_OA_Title_Marked" or nil, nil
+    if settled then
+        local paid = settled.trust > 0
+            and { key = "IGUI_OA_Title_DroppedPaidTrust", args = { settled.credits, settled.trust } }
+            or { key = "IGUI_OA_Title_DroppedPaid", args = { settled.credits } }
+        if marked then
+            sub, subArgs = "IGUI_OA_Title_Join", { paid, { key = "IGUI_OA_Title_Marked" } }
+        else
+            sub, subArgs = paid.key, paid.args
+        end
+    end
+    OA.Sync.title(owner.id, { key = "IGUI_OA_Title_Dropped", sub = sub, subArgs = subArgs, style = "notice",
+        fallback = "good" })
 end
 
 -- The loud moment of a pass (or at once): the drop waiting in the record is done; the noise and the title follow.
@@ -208,7 +227,7 @@ function Heli.landNow(ownerId)
         Chunks.add(entry)
     end
     Heli.noise(entry.x, entry.y, entry.z or 0)
-    Heli.dropped(owner, done and entry.cargo ~= nil and #entry.cargo > 0)
+    Heli.dropped(owner, done and entry.cargo ~= nil and #entry.cargo > 0, entry.settled)
 end
 
 -- Does the physical part of an arrival.
@@ -222,7 +241,7 @@ function Heli.deliver(record, plan, call)
     local spot = plan.spot or { x = call.x, y = call.y, z = call.z or 0 }
     local entry = { kind = "trade.land", owner = record.id, x = spot.x, y = spot.y, z = spot.z or 0,
         search = plan.reissue or false, cargo = needCrate and cargo or nil, remove = {}, parachute = true,
-        receipt = receipt.id }
+        receipt = receipt.id, settled = Heli.settled(receipt) }
     for _, removal in ipairs(plan.removals) do
         if plan.spot and removal.x == plan.spot.x and removal.y == plan.spot.y and removal.z == plan.spot.z then
             entry.remove[#entry.remove + 1] = removal.id
@@ -235,7 +254,7 @@ function Heli.deliver(record, plan, call)
         present(record, entry)
     else
         Chunks.add(entry)
-        Heli.dropped(record, false)
+        Heli.dropped(record, false, entry.settled)
     end
 end
 

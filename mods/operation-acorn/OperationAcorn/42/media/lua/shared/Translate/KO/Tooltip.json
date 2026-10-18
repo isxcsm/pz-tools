@@ -17,6 +17,7 @@
     "Tooltip_OA_Machine_Part_catalyst": "정제기용 촉매·필터. 등급이 높을수록 재료를 덜 씁니다. 작동하는 동안 닳습니다.",
     "Tooltip_OA_Machine_Part_cover": "전기로 도는 기계에 씌우는 방음 덮개. 소음 반경이 절반으로 줄지만 조금 느려집니다. 작동하는 동안 닳습니다.",
     "Tooltip_OA_Tree_CureLeft": "유효 기간이 %1일 남았습니다. 발급받은 사람만 쓸 수 있습니다.",
+    "Tooltip_OA_CoolerTemp": "온도: %1℃",
     "Tooltip_OA_Tree_CureExpired": "유효 기간이 지나 효과가 없습니다.",
     "Tooltip_OA_Tree_CureNotOwner": "다른 사람에게 발급된 혈청이라 효과가 없습니다.",
     "Tooltip_OA_Tree_DelayInfo": "%1일 동안 감염 진행을 멈춥니다. 좀비에게 새로 다치면 약효가 사라집니다.",

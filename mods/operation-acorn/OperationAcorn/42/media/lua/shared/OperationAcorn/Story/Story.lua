@@ -484,9 +484,15 @@ function Story.tierText(tier)
 end
 
 -- The title of a trust level reached, as it is reached (what Sync.title takes): "Trust stage 7" and the shop's new
--- items. None for the five named stages: theirs is a card shown when the terminal is next opened (Story.stageCard).
-function Story.stageTitle(record, level)
-    if level >= 1 and level <= Data.LAST_STAGE then return nil end
+-- items. A named stage's says only that it came, and to look at the terminal: its card is shown when the terminal is
+-- next opened (Story.stageCard). None for the first stage opened by the first contact (`source` "contact"): the
+-- terminal is open then, and its card follows the first call.
+function Story.stageTitle(record, level, source)
+    if level >= 1 and level <= Data.LAST_STAGE then
+        if source == "contact" then return nil end
+        return { key = "IGUI_OA_Title_Stage", args = { level }, sub = "IGUI_OA_Title_StageCheck", style = "dust",
+            fallback = "good" }
+    end
     return { key = "IGUI_OA_Title_Stage", args = { level }, sub = "IGUI_OA_Title_NewItems", style = "dust",
         fallback = "good" }
 end

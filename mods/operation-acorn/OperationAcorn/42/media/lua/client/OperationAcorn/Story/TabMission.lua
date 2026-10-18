@@ -289,7 +289,9 @@ function OATabMission:buildCard(record, info)
         end
     end
     card.hint = nil
-    if info.item and info.state == "open" then
+    if info.held and info.gathered then
+        card.hint = getText("IGUI_OA_Story_UI_Held")
+    elseif info.item and info.state == "open" and not info.zombies then
         card.hint = getText("IGUI_OA_Story_UI_Hint", getText(card.kind == "story" and "IGUI_OA_Story_UI_ColourSky" or "IGUI_OA_Story_UI_ColourTeal"))
     end
     -- The reward, with what it is made of when the base is known: the distance and danger pay (credits and trust), the

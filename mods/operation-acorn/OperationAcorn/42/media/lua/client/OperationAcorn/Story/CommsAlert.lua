@@ -1,9 +1,9 @@
 -- The terminal tells of a call waiting (SCENES.md 2): while the comms tab has one to play, the terminal the record's
 -- requests go to (Trade.terminalPosition) has the game's outline blinking on it, and every ten game minutes a short
--- burst of static comes from it. Only the player hears it: it is played on one of the game's free emitters, and
--- zombies hear only the world's sounds (WorldSoundManager). A terminal without power says nothing. Worked out when the
--- record's calls or its terminal change and every ten game minutes, one square looked at for each player; nothing
--- per tick.
+-- burst of static comes from it; after the first few, once a game hour (a call left waiting is not a nag). Only the
+-- player hears it: it is played on one of the game's free emitters, and zombies hear only the world's sounds
+-- (WorldSoundManager). A terminal without power says nothing. Worked out when the record's calls or its terminal change
+-- and every ten game minutes, one square looked at for each player; nothing per tick.
 require "OperationAcorn/Core"
 require "OperationAcorn/Client"
 require "OperationAcorn/Sync"
@@ -20,8 +20,28 @@ Alert.COLOUR = { 0.45, 0.95, 0.55 }
 Alert.SOUND = "RadioZap"
 Alert.RANGE = 15
 
+-- After this many bursts for the calls waiting, a burst comes no more than once in this many game hours. A new call
+-- starts them again.
+Alert.EARLY_BURSTS = 3
+Alert.LATE_HOURS = 1
+
 -- The terminal lit for each player's number.
 local lit = {}
+-- The bursts played for each player's number: { count, at (game hours of the last), waiting (the calls then) }.
+local heard = {}
+
+-- Whether a burst is due for the player now that `waiting` calls wait (and it is counted when it is).
+function Alert.burstDue(n, waiting, now)
+    local h = heard[n]
+    if not h or waiting > h.waiting then
+        h = { count = 0, at = nil, waiting = waiting }
+        heard[n] = h
+    end
+    h.waiting = waiting
+    if h.count >= Alert.EARLY_BURSTS and h.at and now - h.at < Alert.LATE_HOURS then return false end
+    h.count, h.at = h.count + 1, now
+    return true
+end
 
 -- The record's terminal when it is loaded and has power: the object and its square.
 local function terminalOf(record)
@@ -46,11 +66,13 @@ end
 function Alert.update(sound)
     for n = 0, getNumActivePlayers() - 1 do
         local character = getSpecificPlayer(n)
-        local want, square
+        local want, square, waiting
         if character and not character:isDead() then
             local record = OA.Client.record(character)
-            if record and Comms.waiting(record) > 0 then want, square = terminalOf(record) end
+            waiting = record and Comms.waiting(record) or 0
+            if waiting > 0 then want, square = terminalOf(record) end
         end
+        if not want then heard[n] = nil end
         local was = lit[n]
         if was and was ~= want then
             light(was, n, false)
@@ -61,7 +83,9 @@ function Alert.update(sound)
                 light(want, n, true)
                 lit[n] = want
             end
-            if sound then getSoundManager():PlayWorldSound(Alert.SOUND, square, 0, Alert.RANGE, 1, false) end
+            if sound and Alert.burstDue(n, waiting, OA.hours()) then
+                getSoundManager():PlayWorldSound(Alert.SOUND, square, 0, Alert.RANGE, 1, false)
+            end
         end
     end
 end

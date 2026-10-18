@@ -967,6 +967,21 @@ function Missions.tick(record)
     Missions.tickSpecial(record, now)
 end
 
+-- Hours left at which an open mission warns once of its deadline ("기한 하루 남음"), and the time a mission must have had
+-- for it (a shorter one is short all along: its card says so).
+Missions.WARN_HOURS = 24
+Missions.WARN_SPAN = 48
+
+-- The deadline's warning, once for each deadline (one moved later, by a lost piece or a swap's slack, warns again).
+function Missions.warnDeadline(record, m, now)
+    if not m.deadline or m.warned == m.deadline then return end
+    local left = m.deadline - now
+    if left > Missions.WARN_HOURS or left <= 0 or m.deadline - (m.issued or now) < Missions.WARN_SPAN then return end
+    m.warned = m.deadline
+    OA.Sync.title(record.id, { key = "IGUI_OA_Title_DayLeft", sub = (Missions.keys(m)), style = "notice",
+        fallback = "bad" })
+end
+
 -- Real milliseconds at least between two looks at where the found pieces are, from the ten-minute event (it comes many
 -- times a real second fast-forwarded; the pieces move on a scale of seconds). A piece found is looked at at once.
 Missions.WHERE_MS = 2000
@@ -990,6 +1005,7 @@ function Missions.tickOne(record, m, now)
             return
         end
     end
+    if m.state == "open" then Missions.warnDeadline(record, m, now) end
     local g = game()
     if m.swap and (m.swap.stage == "waiting" or m.swap.stage == "ready") then Missions.tickSwap(record, m, now) end
     if m.carry and g and g.findItem then Missions.tickCarry(record, m, now) end
@@ -1277,6 +1293,7 @@ function Missions.found(record, m, it, item)
     if g and g.track then g.track(m, it, item) end
     if it.found then return end
     it.found = true
+    Missions.securedTitle(record, m, it)
     -- A story's item first in hands: its monologue (CommsData "say:<story>:pickup") and what waits at its stage.
     if m.story and not it.plain then
         if OA.Story then OA.Story.monologue(record, m.chosen and (m.story .. "_" .. m.chosen) or m.story, "pickup") end
@@ -1284,6 +1301,28 @@ function Missions.found(record, m, it, item)
     end
     Missions.lookWhere(record, m)
     OA.Sync.changed("missions", record.id)
+end
+
+-- How many of a mission's fetched pieces are found.
+function Missions.foundCount(m)
+    local n = 0
+    for _, it in ipairs(m.items or {}) do
+        if it.found and View.fetched(m, it) then n = n + 1 end
+    end
+    return n
+end
+
+-- The title of a piece first in hands: "요청 물품 확보" over the mission's title, with how many of how many for a mission
+-- of several. Not for a plain piece, the case a swap leaves, or the comparison (either of its two is picked up alike).
+function Missions.securedTitle(record, m, it)
+    if m.compare or not View.fetched(m, it) then return end
+    local titleKey = (Missions.keys(m))
+    local total = (m.scatter and m.scatter.total) or (m.zombies and m.zombies.kind == "target" and m.zombies.total) or nil
+    local detail = { key = "IGUI_OA_Title_Secured", sub = titleKey, style = "discovery", fallback = "good" }
+    if total then
+        detail.sub, detail.subArgs = "IGUI_OA_Title_SecuredOf", { { key = titleKey }, Missions.foundCount(m), total }
+    end
+    OA.Sync.title(record.id, detail)
 end
 
 -- An item came into the player's things: a running mission's piece, or a bag that holds one not found yet. A bag is
@@ -1722,6 +1761,16 @@ local function describeMission(m, now)
     info.request = m.request
     local first = m.items and m.items[1]
     if first then info.item = Data.itemName(first.type) end
+    -- A found piece not sealed yet (`held`), and whether every piece wanted is found (`gathered`): the card's next step.
+    -- The comparison tells neither (which of its two is the one is the player's to judge).
+    if m.state == "open" and not m.compare then
+        local sealed = Missions.sealedSet(m) or {}
+        for _, it in ipairs(m.items or {}) do
+            if it.found and View.fetched(m, it) and not sealed[it.key] then info.held = true end
+        end
+        local z = m.zombies
+        info.gathered = Missions.allFound(m) and not (z and z.kind == "target" and z.taken < z.total)
+    end
     return info
 end
 
