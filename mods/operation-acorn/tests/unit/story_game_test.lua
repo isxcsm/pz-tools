@@ -156,7 +156,7 @@ end
 
 local function building(minX, minY, rooms, more)
     local b = { x = minX + 2, y = minY + 3, distance = 50, area = 40, minX = minX, minY = minY, maxX = minX + 4,
-        maxY = minY + 6, minLevel = 0, maxLevel = 1, rooms = rooms }
+        maxY = minY + 6, minLevel = 0, maxLevel = 1, roomNames = rooms }
     for k, v in pairs(more or {}) do b[k] = v end
     return b
 end
