@@ -70,6 +70,11 @@ public class InventoryItem {
     public float getHotbarEquippedWeight() { return (getActualWeight() + getContentsWeight()) * 0.7f; }
     public boolean isItemType(ItemType type) { return itemType == type; }
     public boolean hasTag(ItemTag tag) { return tags.contains(tag); }
+    private boolean broken, favorite;
+    public boolean isBroken() { return broken; }
+    public void setBroken(boolean value) { broken = value; }
+    public boolean isFavorite() { return favorite; }
+    public void setFavorite(boolean value) { favorite = value; }
     public String getFullType() { return fullType; }
     public boolean hasTag(ItemTag... list) { for (ItemTag tag : list) if (hasTag(tag)) return true; return false; }
     public IsoGameCharacter getEquipParent() { return equipParent; }

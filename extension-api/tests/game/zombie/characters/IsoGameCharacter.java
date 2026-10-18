@@ -150,6 +150,10 @@ public class IsoGameCharacter extends IsoMovingObject {
 
     public void takeOff(InventoryItem item) { wornItems.remove(item); }
 
+    /** The items on the hotbar, for the tests (the game keeps them in its AttachedItems). */
+    public final java.util.List<InventoryItem> hotbar = new java.util.ArrayList<>();
+    public boolean isAttachedItem(InventoryItem item) { return hotbar.contains(item); }
+
     public boolean isEquipped(InventoryItem item) {
         return wornItems.contains(item) || (item != null && (leftHandItem == item || rightHandItem == item));
     }
