@@ -348,6 +348,24 @@ test("a fee from the infection part: the send line says it, the sum is named aft
     eq(w.total.amount, "28,230")
 end)
 
+test("the sealed missions' rewards: their own line, in the gain and the balance after", function()
+    local r = newRecord(3, 0, 1000)
+    withBox(r)
+    local flight = { boxes = 1, sealed = 0, net = 0, bonus = 0, fee = 0, feeRate = 0, missions = 22500 }
+    local w = M.waybill(r, flight)
+    eq(w.send[1].worth, "22,500", "what goes up earns the reward")
+    eq(#w.calc, 2, "a box of the mission's item alone: no settlement line of nothing")
+    eq(w.calc[2].label, "IGUI_OA_Status_Calc_Missions"); eq(w.calc[2].amount, "+22,500")
+    eq(w.gain, 22500)
+    eq(w.total.amount, "23,500")
+    flight.sealed, flight.net = 4000, 4000
+    w = M.waybill(r, flight)
+    eq(w.send[1].worth, "26,500")
+    eq(w.calc[2].label, "IGUI_OA_Status_Calc_Settle"); eq(w.calc[2].amount, "+4,000")
+    eq(w.calc[3].label, "IGUI_OA_Status_Calc_Missions")
+    eq(w.total.amount, "27,500")
+end)
+
 -- Infection, the tab's dot -------------------------------------------------------------------------------------------
 
 test("the infection box: infected and held, a wound not tested, nothing", function()

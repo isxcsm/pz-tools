@@ -4,10 +4,10 @@
 -- B42 calls used (checked in the jar): BuildingDef getRooms, isFullyStreamedIn, getKeyId, getX/getY/getX2/getY2;
 -- RoomDef getName, getArea, getZ, getX/getY/getX2/getY2, getIsoRoom; IsoRoom getSquares, getRandomFreeSquare,
 -- getRandomWallSquare; IsoGridSquare getBuildingDef, AddSpecialObject, RecalcProperties, RecalcAllWithNeighbours;
--- IsoObject.new and IsoRadio.new (cell, square, sprite); IsoDoor and IsoWindow getNorth; IsoDoor setLockedByKey;
+-- IsoObject.new and IsoRadio.new (cell, square, sprite); IsoDoor and IsoWindow getNorth; IsoDoor setLocked, setLockedByKey, setKeyId;
 -- IsoBarricade.AddBarricadeToObject(object, onOpposite) then addPlank(nil, nil) and transmitCompleteItemToClients (as
 -- the game's own police siege story, RBPoliceSiege, does it); RandomizedWorldBase.createRandomDeadBody(square, nil, 0, 0,
--- outfit) (nil: a random direction); addZombiesInOutfit (as Story/SceneGame); addVehicleDebug; IsoDeadBody isFakeDead
+-- outfit) (nil: a random direction); zombies by SceneGame.spawn; addVehicleDebug; IsoDeadBody isFakeDead
 -- and reanimateNow (the debug menu's own); IsoObject createContainersFromSpriteProperties and ItemContainer setExplored
 -- (as ISMoveableSpriteProps); IsoDoor IsOpen, ToggleDoorSilent, getBarricadeOnSameSquare/OppositeSquare; IsoBarricade
 -- getNumPlanks, removePlank(nil); IsoGridSquare playSound ("BreakBarricadePlank"); IsoWindow ToggleWindow(nil) (no
@@ -18,6 +18,7 @@
 require "OperationAcorn/Core"
 require "OperationAcorn/Story/Stage"
 require "OperationAcorn/Story/Game"
+require "OperationAcorn/Story/SceneGame"
 require "OperationAcorn/Trade/Later"
 require "OperationAcorn/Sounds"
 local OA = OperationAcorn
@@ -28,19 +29,24 @@ local function defAt(site)
     return getWorld():getMetaGrid():getBuildingAtRelax(math.floor(site.x), math.floor(site.y))
 end
 
--- The site's building is all loaded, or its square is and the player is `close`; open ground, when the squares out to
--- Stage.GROUND_RADIUS round it are.
-function StageGame.siteLoaded(site, close)
+-- Whether the box's four corners are loaded (the loaded squares are one block round the player: the box is too).
+local function boxLoaded(x1, y1, x2, y2, z)
     local c = getCell()
+    return c:getGridSquare(x1, y1, z) ~= nil and c:getGridSquare(x2, y2, z) ~= nil
+        and c:getGridSquare(x1, y2, z) ~= nil and c:getGridSquare(x2, y1, z) ~= nil
+end
+
+-- The site's building is all loaded, or its square is and the player is `close`; and the squares out to
+-- Stage.GROUND_RADIUS round it (open ground) or round the building's box (a vehicle outside the entrance, the yard's
+-- things).
+function StageGame.siteLoaded(site, close)
     local x, y, z = math.floor(site.x), math.floor(site.y), site.z or 0
-    if not c:getGridSquare(x, y, z) then return false end
-    if site.ground then
-        local r = OA.Stage.GROUND_RADIUS
-        return c:getGridSquare(x - r, y - r, z) ~= nil and c:getGridSquare(x + r, y + r, z) ~= nil
-            and c:getGridSquare(x - r, y + r, z) ~= nil and c:getGridSquare(x + r, y - r, z) ~= nil
-    end
+    if not getCell():getGridSquare(x, y, z) then return false end
+    local r = OA.Stage.GROUND_RADIUS
+    if site.ground then return boxLoaded(x - r, y - r, x + r, y + r, z) end
     local def = defAt(site)
     return def ~= nil and (close or def:isFullyStreamedIn())
+        and boxLoaded(def:getX() - r, def:getY() - r, def:getX2() + r, def:getY2() + r, z)
 end
 
 -- Whether a room has a floor (one of its squares has).
@@ -932,6 +938,18 @@ function StageGame.unplank(at)
     end
 end
 
+-- Unlocks the role's outer door (the entrance) when the game locked it: IsoDoor's locked flag too, as checkKeyId turns
+-- a locked door with a key id back into one locked by key.
+function StageGame.unlock(ctx, p)
+    local i = ctx.roles and ctx.roles[p.at or "entrance"]
+    local d = i and ctx.layout.doors[i]
+    local o = d and d.object
+    if not (o and instanceof(o, "IsoDoor")) then return nil end
+    o:setLocked(false)
+    o:setLockedByKey(false)
+    return true
+end
+
 -- Locks the building's outer doors but the entrance (no key: they were shut from inside).
 function StageGame.lockout(ctx, p)
     local entrance = ctx.roles and ctx.roles.entrance
@@ -998,18 +1016,22 @@ function StageGame.generator(ctx, p)
     return true
 end
 
--- Locks the room's doors with the building's key; returns the key's id.
+-- Locks the room's doors with the building's key; returns the key's id. The game gives a door a key id only between
+-- the building and outside (IsoDoor.checkKeyId): an inner door locked by key with none opens to no key, so it takes
+-- the building's here.
 function StageGame.lock(ctx, p)
     local room = roomOf(ctx, p)
     local def = roomDefOf(ctx, p)
     if not room then return nil end
     local doors = doorsOf(room)
+    if #doors == 0 then return nil end
+    local keyId = def:getBuilding():getKeyId()
     for _, d in ipairs(doors) do
         if d.door:IsOpen() then d.door:ToggleDoorSilent() end
+        d.door:setKeyId(keyId)
         d.door:setLockedByKey(true)
     end
-    if #doors == 0 then return nil end
-    return def:getBuilding():getKeyId()
+    return keyId
 end
 
 -- A body in an outfit in the room; with `key`, the building's key in its pockets. A world with no zombies makes no
@@ -1090,9 +1112,7 @@ function StageGame.zombies(ctx, p)
         end
         if not sq and best and bestD >= close * close then sq = best end
         if sq then
-            local female = p.female
-            addZombiesInOutfit(sq:getX(), sq:getY(), sq:getZ(), 1, p.outfit or nil, female or nil, false, false,
-                p.look == "fakeDead", false, false, p.look == "sitting", 1.0)
+            OA.SceneGame.spawn(sq, p.outfit, p.female, false, p.look == "fakeDead", p.look == "sitting")
             points[#points + 1] = { x = sq:getX(), y = sq:getY(), z = sq:getZ() }
         end
     end
@@ -1137,7 +1157,7 @@ function StageGame.sound(list)
     end
 end
 
--- Wakes what lies fake dead at the points (or a square from them: a body may have slid); with `stagger`, one after
+-- Wakes what lies fake dead at the points (or a square from them); with `stagger`, one after
 -- another that many real seconds apart (the first at once), in a random order.
 function StageGame.wake(points, stagger)
     if stagger and #points > 1 then

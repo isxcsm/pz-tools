@@ -18,8 +18,11 @@ end
 
 -- What stands in the building's box (one square around it for the outer wall).
 local cell = getCell()
-local found = { notice = 0, desk = 0, radio = 0, chairs = 0, barricades = 0, locked = 0, keyBodies = 0, keyFloor = 0, police = 0 }
+local found = { notice = 0, desk = 0, radio = 0, chairs = 0, barricades = 0, locked = 0, otherKey = 0, keyBodies = 0, keyFloor = 0, police = 0 }
 local radioObj
+-- the inner room the stage locked (the game locks some doors of its own: a bedroom by key, a bathroom from inside)
+local innerRoom = st.roles and st.roles.inner and layout.rooms[st.roles.inner]
+innerRoom = innerRoom and innerRoom.def:getIsoRoom()
 local keyId = OA.StageGame and getWorld():getMetaGrid():getBuildingAtRelax(site.x, site.y)
 keyId = keyId and keyId:getKeyId()
 for z = site.z1 or 0, math.min(site.z2 or 0, (site.z1 or 0) + 3) do
@@ -36,7 +39,14 @@ for z = site.z1 or 0, math.min(site.z2 or 0, (site.z1 or 0) + 3) do
                     if sprite == "appliances_com_01_50" then found.radio = found.radio + 1; radioObj = o end
                     if sprite == "furniture_seating_indoor_01_62" then found.chairs = found.chairs + 1 end
                     if instanceof(o, "IsoBarricade") then found.barricades = found.barricades + 1 end
-                    if instanceof(o, "IsoDoor") and o:isLockedByKey() then found.locked = found.locked + 1 end
+                    local other = instanceof(o, "IsoDoor") and (o:getNorth() and cell:getGridSquare(x, y - 1, z)
+                        or cell:getGridSquare(x - 1, y, z))
+                    if other and o:isLockedByKey() and innerRoom
+                        and (sq:getRoom() == innerRoom or other:getRoom() == innerRoom) then
+                        found.locked = found.locked + 1
+                        -- the key the game asks of the door (checkKeyId: what an outer door takes from the building)
+                        if o:checkKeyId() ~= keyId then found.otherKey = found.otherKey + 1 end
+                    end
                 end
                 local wobs = sq:getWorldObjects()
                 for i = 0, wobs:size() - 1 do
@@ -75,7 +85,7 @@ for x = site.x1 - 12, site.x2 + 12 do
     end
 end
 for _, v in ipairs(vehicles) do
-    if string.find(v:getScriptName() or "", "Police", 1, true) then  -- the game picks the region's police vehicle
+    if string.find(v:getScriptName() or "", "Lights", 1, true) then  -- the game picks the region's police vehicle (CarLightsPolice, PickUpVanLightsStatePolice, ...LightsMeadeSheriff)
         found.police = found.police + 1
         local door = v:getPartById("DoorFrontLeft")
         local battery = v:getPartById("Battery")
@@ -92,7 +102,13 @@ P4T.check(say, "the desk (two squares)", found.desk == 2, found.desk)
 P4T.check(say, "the walkie-talkie on it", found.radio == 1)
 say("folding chairs (the row of 4 when the room has space; the building's own count too)", found.chairs)
 P4T.check(say, "the ground floor windows boarded", found.barricades >= 1, found.barricades)
+-- the entrance stays a way in, whatever the game locked
+local entrance = layout.doors[st.roles and st.roles.entrance or 0]
+local door = entrance and entrance.object
+P4T.check(say, "the entrance door unlocked", door and not door:isLocked() and not door:isLockedByKey(),
+    entrance and (entrance.x .. "," .. entrance.y) or "no entrance")
 say("inner room doors locked", found.locked)
+P4T.check(say, "each locked door opens to the building's key", found.otherKey == 0, found.otherKey)
 -- a world with no zombies makes no bodies: the key lies on the floor there
 -- (a building's own dead may have its key too; an inner room with no door has nothing locked and no key is put)
 local noZombies = IsoWorld.getZombiesDisabled()
@@ -107,9 +123,9 @@ P4T.check(say, "the police car by the entrance", found.police == 1, found.police
 -- no other car crowds it (two cars' middles closer than 4 squares overlap)
 local closest
 for _, v in ipairs(vehicles) do
-    if not string.find(v:getScriptName() or "", "Police", 1, true) then
+    if not string.find(v:getScriptName() or "", "Lights", 1, true) then
         for _, w in ipairs(vehicles) do
-            if string.find(w:getScriptName() or "", "Police", 1, true) then
+            if string.find(w:getScriptName() or "", "Lights", 1, true) then
                 local ex, ey = v:getX() - w:getX(), v:getY() - w:getY()
                 local d = math.sqrt(ex * ex + ey * ey)
                 if not closest or d < closest then closest = d end

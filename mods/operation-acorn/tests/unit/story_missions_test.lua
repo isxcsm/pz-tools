@@ -1096,3 +1096,25 @@ test("an open mission warns once a day before its deadline; a short one does not
     M.warnDeadline(record, { id = "s", kind = "regular", title = "X", issued = 80, deadline = 100 }, 85)
     eq(#told, was + 2, "a mission short all along")
 end)
+
+test("a box about to be sealed tells its missions' reward; sealed, the reward waits for the settlement", function()
+    local record = setup(2)
+    record.story = nil
+    M.tick(record)
+    local m = taken(record)
+    local infos = { { mission = M.itemId(m, "A") }, { mission = nil } }
+    local list = M.sealing(record, infos)
+    eq(#list, 1)
+    eq(list[1].m, m); eq(list[1].credits, m.credits); eq(list[1].trust, m.trust)
+    eq(#M.sealing(record, { { mission = "M999-1#A" } }), 0, "not this record's mission")
+    eq(M.sealedPay(record), 0, "nothing sealed")
+    M.onSealed(record, "box1", { { info = { mission = M.itemId(m, "A") }, count = 1 } })
+    eq(#M.sealing(record, infos), 0, "sealed already")
+    eq(M.sealedPay(record), OA.round(m.pay.credits))
+    -- too late: no reward told
+    local record2 = setup(2)
+    record2.story = nil
+    M.tick(record2)
+    local late = taken(record2)
+    eq(#M.sealing(record2, { { mission = M.itemId(late, "A") } }, late.deadline + 1), 0)
+end)

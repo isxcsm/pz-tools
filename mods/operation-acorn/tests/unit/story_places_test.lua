@@ -90,13 +90,13 @@ local function site(dist, area, rooms, home)
     return { x = dist, y = 0, dist = dist, area = area, rooms = rooms, home = home }
 end
 
-test("a public site is a public building of a few rooms first, then any public one, then a house", function()
+test("a public site is a public building of a few rooms first, then a house, then a smaller public one", function()
     local list = { site(100, 50, 1, false), site(200, 80, 4, false), site(300, 60, 6, true) }
     local int = rng(3)
     for _ = 1, 20 do eq(P.pickSite(list, "public", int), 2) end
     list[2].rooms = 2
-    for _ = 1, 20 do eq(P.pickSite(list, "public", int) ~= 3, true, "a public one before a house") end
-    eq(P.pickSite({ site(300, 60, 6, true) }, "public", int), 1, "a house when there is no public one")
+    for _ = 1, 20 do eq(P.pickSite(list, "public", int), 3, "a house before a public one of few rooms") end
+    eq(P.pickSite({ site(100, 50, 1, false) }, "public", int), 1, "a small public one when there is no house")
     eq(P.pickSite({}, "public", int), nil)
 end)
 

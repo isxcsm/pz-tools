@@ -390,9 +390,16 @@ local function weightOf(it)
     return item and item.weight or 0.5
 end
 
--- Every container with room for the piece in the loaded part of the building: { { container, square, room } }.
+-- The containers a piece is put in only when no other has room (the game's container types): what cooks, cools or
+-- washes, and the bins.
+Game.LAST_CONTAINERS = { fridge = true, freezer = true, stove = true, microwave = true, toaster = true,
+    dishwasher = true, clothingwasher = true, clothingdryer = true, clothingdryerbasic = true, barbecue = true,
+    barbecuepropane = true, fireplace = true, woodstove = true, bin = true, dumpster = true }
+
+-- Every container with room for the piece in the loaded part of the building: { { container, square, room } }
+-- (the LAST_CONTAINERS when no other).
 local function containersFor(it)
-    local found = {}
+    local found, last = {}, {}
     local w = weightOf(it)
     eachLoadedSquare(it, function(sq)
         local objects = sq:getObjects()
@@ -403,13 +410,14 @@ local function containersFor(it)
                     local c = o:getContainerByIndex(k)
                     if c and c:hasRoomFor(nil, w) then
                         local room = sq:getRoom()
-                        found[#found + 1] = { container = c, square = sq, room = room and room:getName() or nil }
+                        local list = Game.LAST_CONTAINERS[c:getType()] and last or found
+                        list[#list + 1] = { container = c, square = sq, room = room and room:getName() or nil }
                     end
                 end
             end
         end
     end)
-    return found
+    return #found > 0 and found or last
 end
 
 local function pick(list, int)
@@ -461,7 +469,10 @@ end
 -- of the building, so that a way in always exists.
 local function lockRoom(record, m, it, sq)
     local room = sq:getRoom()
-    if not room then return end
+    -- the key opens a door of the same id: the game gives one only to a building's outer doors (IsoDoor.checkKeyId),
+    -- so these take the building def's here; IsoBuilding has no key id in B42
+    local def = sq:getBuilding() and sq:getBuilding():getDef()
+    if not (room and def) then return end
     local locked = 0
     local squares = room:getSquares()
     local c = getCell()
@@ -476,6 +487,7 @@ local function lockRoom(record, m, it, sq)
                 else other = c:getGridSquare(s2:getX() - 1, s2:getY(), s2:getZ()) end
                 local r1, r2 = s2:getRoom(), other and other:getRoom()
                 if (r1 == room) ~= (r2 == room) then
+                    o:setKeyId(def:getKeyId())
                     o:setLockedByKey(true)
                     locked = locked + 1
                 end
@@ -483,9 +495,6 @@ local function lockRoom(record, m, it, sq)
         end
     end
     if locked == 0 then return end
-    -- the key opens what the building's def names (IsoDoor.checkKeyId); IsoBuilding has no key id in B42
-    local def = sq:getBuilding() and sq:getBuilding():getDef()
-    if not def then return end
     local keyIt = {
         key = "KEY", type = "Base.Key1", mode = "container", plain = true, placed = false,
         x = it.x, y = it.y, z = it.z, x1 = it.x1, y1 = it.y1, x2 = it.x2, y2 = it.y2, z1 = it.z1, z2 = it.z2,
@@ -580,7 +589,7 @@ function Game.placeInRoom(record, m, it, roomDef, floorOnly)
     local room = roomDef and roomDef:getIsoRoom()
     if not room then return false end
     local w = weightOf(it)
-    local found = {}
+    local found, last = {}, {}
     local squares = room:getSquares()
     for i = 0, floorOnly and -1 or squares:size() - 1 do
         local sq = squares:get(i)
@@ -590,11 +599,15 @@ function Game.placeInRoom(record, m, it, roomDef, floorOnly)
             if not instanceof(o, "IsoDeadBody") then
                 for k = 0, o:getContainerCount() - 1 do
                     local c = o:getContainerByIndex(k)
-                    if c and c:hasRoomFor(nil, w) then found[#found + 1] = { container = c, square = sq } end
+                    if c and c:hasRoomFor(nil, w) then
+                        local list = Game.LAST_CONTAINERS[c:getType()] and last or found
+                        list[#list + 1] = { container = c, square = sq }
+                    end
                 end
             end
         end
     end
+    if #found == 0 then found = last end
     local item = newItem(record, m, it)
     if not item then return true end
     if it.keyId then item:setKeyId(it.keyId) end

@@ -4,6 +4,7 @@
 -- B42 calls used (checked in the game's files): addZombiesInOutfit(x, y, z, count, outfit, femaleChance, crawler,
 -- fallOnFront, fakeDead, knockedDown, invulnerable, sitting, health) (LuaManager.GlobalObject; the outfit is dressed
 -- with PersistentOutfits, whose id the zombie keeps when it leaves the loaded area and when a fake-dead body rises),
+-- IsoDeadBody.new(zombie, false) and setFakeDead (the body takes the zombie's place, outfit and things),
 -- IsoGameCharacter.getPersistentOutfitID, GameTime.getWorldAgeDaysSinceBegin, ClimateManager's season getDawn and
 -- getDusk, DrainableComboItem.setUsedDelta, and the OnZombieDead
 -- event (IsoZombie.onKilled: after DoZombieInventory, before DoDeath makes the body from the inventory).
@@ -103,12 +104,17 @@ function SceneGame.placeProps(it, props)
     end
 end
 
-local function spawn(sq, outfit, female, crawler, fakeDead, sitting)
+-- One zombie on the square. Fake dead it lies there as a fake-dead body (as the game's own lie, rising when a player
+-- comes near and sees it): a zombie made fake dead falls as a ragdoll when the game's physics hit reaction is on, and
+-- slides squares away, through walls too, before it settles.
+function SceneGame.spawn(sq, outfit, female, crawler, fakeDead, sitting)
     local list = addZombiesInOutfit(sq:getX(), sq:getY(), sq:getZ(), 1, outfit or nil, female or nil, crawler == true,
-        false, fakeDead == true, false, false, sitting == true, 1.0)
-    if list and list:size() > 0 then return list:get(0) end
-    return nil
+        false, false, false, false, sitting == true, 1.0)
+    local zombie = list and list:size() > 0 and list:get(0) or nil
+    if zombie and fakeDead then IsoDeadBody.new(zombie, false):setFakeDead(true) end
+    return zombie
 end
+local spawn = SceneGame.spawn
 
 -- The zombies already in a building (once, as the scene is made).
 local function zombiesIn(building)

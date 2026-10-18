@@ -190,10 +190,13 @@ local function present(owner, entry)
 end
 
 -- What a drop's title says it paid: the sealed boxes' credits (less the infection fee) and trust, from the receipt; nil
--- for a flight that settled no box.
+-- for a flight that settled no box, or whose boxes paid nothing (a mission's item alone: its own title told the pay).
 function Heli.settled(receipt)
     if not receipt or (receipt.boxes or 0) == 0 then return nil end
-    return { credits = math.max(0, OA.round((receipt.credits or 0) - (receipt.fee or 0))), trust = OA.round(receipt.trust or 0) }
+    local credits = math.max(0, OA.round((receipt.credits or 0) - (receipt.fee or 0)))
+    local trust = OA.round(receipt.trust or 0)
+    if credits == 0 and trust == 0 then return nil end
+    return { credits = credits, trust = trust }
 end
 
 -- The player is told a drop is done: a title, with what the flight paid for the boxes it took (`settled`, Heli.settled)

@@ -81,6 +81,15 @@ test("the inner room is one with a door when the layout counts them; with none s
     eq(Stage.roles(l, function(a) return a end).inner, 2, "no room has one: the room inside")
 end)
 
+test("the inner room is a bathroom or a closet only when no other room will do", function()
+    local l = layout()
+    l.rooms[2].name = "bathroom"
+    local roles = Stage.roles(l, function(a) return a end)
+    eq(roles.inner, 1, "the room inside is a bathroom: the farthest other one")
+    for i, r in ipairs(l.rooms) do if i ~= 2 and i ~= 3 then r.name = "closet" end end
+    eq(Stage.roles(l, function(a) return a end).inner, 2, "all of them are: the room inside")
+end)
+
 -- A story mission at a building, the stage data of its facility given by the test, and fake hands that log the pieces.
 local function setup(pieces)
     OA.StageData.evidence = { pieces = pieces }
@@ -179,6 +188,21 @@ test("the rooms a set goes to are cleared first, before any piece; not outdoors,
     Stage.begin(again, m2)
     Stage.look(again, m2, 2000, 0, 20)
     eq(#g2.calls, 0, "set up before")
+end)
+
+test("a building's entrance is unlocked first, once; not on open ground", function()
+    local record, m, g = setup(POLICE)
+    g.unlock = function(ctx, p) g.calls[#g.calls + 1] = "unlock:" .. p.at end
+    Stage.begin(record, m)
+    Stage.look(record, m, 2000, 0, 20)
+    eq(table.concat(g.calls, ","), "unlock:entrance,tile,lock,corpse:key77,piece")
+    local ground, m2, g2 = setup({ { kind = "set", at = "ground", tiles = {} } })
+    OA.StageData.evidence.ground = true
+    m2.site.ground = true
+    g2.unlock = function() g2.calls[#g2.calls + 1] = "unlock" end
+    Stage.begin(ground, m2)
+    Stage.look(ground, m2, 2000, 0, 20)
+    eq(#g2.calls, 0, "open ground")
 end)
 
 test("open ground is cleared of its trees first, its sets with it, before any piece", function()

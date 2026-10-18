@@ -32,7 +32,7 @@ for _, it in ipairs(m.items) do
         -- the doors of the room it went into are locked with the building's key (the KEY piece)
         local sq = getCell():getGridSquare(it.at.x, it.at.y, it.at.z)
         local room = sq and sq:getRoom()
-        local doors, locked = 0, 0
+        local doors, locked, otherKey = 0, 0, 0
         if room then
             local squares = room:getSquares()
             for i = 0, squares:size() - 1 do
@@ -41,11 +41,15 @@ for _, it in ipairs(m.items) do
                     local o = objects:get(j)
                     if instanceof(o, "IsoDoor") then
                         doors = doors + 1
-                        if o:isLockedByKey() then locked = locked + 1 end
+                        if o:isLockedByKey() then
+                            locked = locked + 1
+                            if o:checkKeyId() ~= sq:getBuilding():getDef():getKeyId() then otherKey = otherKey + 1 end
+                        end
                     end
                 end
             end
         end
         P4T.check(say, "the room's doors are locked", locked > 0, locked .. " of " .. doors .. " doors")
+        P4T.check(say, "each opens to the building's key", otherKey == 0, otherKey)
     end
 end

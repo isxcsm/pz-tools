@@ -560,6 +560,7 @@ function M.waybill(record, flight)
     -- What goes up.
     local sealed = flight.boxes or #Boxes.sealed(record)
     local fee = flight.fee or 0
+    local missions = flight.missions or 0
     if sealed > 0 then
         local subs = {}
         local names, sum = requestSummary(flight)
@@ -571,7 +572,7 @@ function M.waybill(record, flight)
             subs[#subs + 1] = tr("IGUI_OA_Status_SendFee", percent(flight.feeRate or 0), credits(fee))
         end
         w.send[1] = { icon = Shop.TYPES.box, name = tr("IGUI_OA_Status_SendSealed", sealed),
-            worth = credits(flight.net or (flight.sealed or 0) - fee), sub = #subs > 0 and table.concat(subs, Text.DOT) or nil }
+            worth = credits((flight.net or (flight.sealed or 0) - fee) + missions), sub = #subs > 0 and table.concat(subs, Text.DOT) or nil }
     else
         local box = Boxes.active(record)
         if box and box.state == "placed" then
@@ -613,7 +614,7 @@ function M.waybill(record, flight)
     -- the settlement as it will be paid: the infection handling fee taken off
     local gain = sealed > 0 and (flight.net or (flight.sealed or 0) - fee) or 0
     local bonus = flight.bonus or OA.round(account.bonus or 0)
-    local r = M.receipt(balance, gain + bonus, orders, prices)
+    local r = M.receipt(balance, gain + bonus + missions, orders, prices)
     -- A request the balance cannot pay waits for the next settlement (Support.settle): its line says so.
     for i, at in ipairs(plans) do
         if not r.paid[i] then w.recv[at].waits = true end
@@ -623,9 +624,13 @@ function M.waybill(record, flight)
     else
         w.calc[#w.calc + 1] = { label = tr("IGUI_OA_Status_Calc_Balance"), amount = credits(balance), colour = "text" }
     end
-    if sealed > 0 then
+    -- (a box of a mission's items alone: its reward's line says it all)
+    if sealed > 0 and (gain ~= 0 or missions == 0) then
         w.calc[#w.calc + 1] = { label = tr(fee > 0 and "IGUI_OA_Status_Calc_SettleFee" or "IGUI_OA_Status_Calc_Settle"),
             amount = "+" .. credits(gain), colour = "text" }
+    end
+    if missions > 0 then
+        w.calc[#w.calc + 1] = { label = tr("IGUI_OA_Status_Calc_Missions"), amount = "+" .. credits(missions), colour = "text" }
     end
     if bonus > 0 then
         w.calc[#w.calc + 1] = { label = tr("IGUI_OA_Status_Calc_Bonus"), amount = "+" .. credits(bonus), colour = "text" }
@@ -639,7 +644,7 @@ function M.waybill(record, flight)
     w.total = { amount = credits(r.after), colour = r.after < 0 and "bad" or "value", after = r.after }
     w.orders = r.orders
     w.boxes = sealed
-    w.gain = gain + bonus
+    w.gain = gain + bonus + missions
     return w
 end
 

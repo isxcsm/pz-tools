@@ -199,6 +199,7 @@ end)
 
 test("a drop's title says what the flight paid for the boxes it took, with the map's mark when there is one", function()
     eq(Heli.settled({ boxes = 0, credits = 0, trust = 0 }), nil, "no box settled: nothing paid to say")
+    eq(Heli.settled({ boxes = 1, credits = 0, trust = 0 }), nil, "a mission's item alone: its own title told the pay")
     local s = Heli.settled({ boxes = 2, credits = 500, fee = 50, trust = 3 })
     eq(s.credits, 450, "less the infection fee")
     eq(s.trust, 3)

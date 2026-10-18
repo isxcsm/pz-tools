@@ -128,8 +128,9 @@ end
 -- A story site among the map's buildings (SCENES.md 5 '장소 고르기'): the authorities took any building for a post, a
 -- clinic, a shelter. `list` is the buildings that may be used, all in the band: { x, y, area, rooms, home (a house: it
 -- has a bedroom), dist (from the base) }. `want`:
---   "public"  a public building (a shop, a church, a warehouse, an office) of PUBLIC_ROOMS rooms or more, else any
---             public one, else a house;
+--   "public"  a public building (a shop, a church, a warehouse, an office) of PUBLIC_ROOMS rooms or more, else a
+--             house (its rooms: an inner one to lock, a hall), else a smaller public one (a garage of one room has no
+--             room for a stage's roles);
 --   "largest" the largest public building, else the largest house;
 --   "near" / "far" a house in the inner or outer third of the band's houses by distance, else any house, else a public
 --             building.
@@ -168,7 +169,7 @@ function Places.pickSite(list, want, int)
         local from = want == "near" and 1 or #homes - third + 1
         return homes[int(from, from + third - 1)]
     end
-    return anyOf(roomy, int) or anyOf(public, int) or anyOf(homes, int)
+    return anyOf(roomy, int) or anyOf(homes, int) or anyOf(public, int)
 end
 
 -- How far the map circle's centre may be from the place, of the radius: the place is anywhere in the circle but its

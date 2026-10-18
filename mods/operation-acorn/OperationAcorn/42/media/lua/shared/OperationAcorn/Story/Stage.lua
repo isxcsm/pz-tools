@@ -44,7 +44,7 @@ Stage.PLACE_KINDS = { tile = true, set = true, item = true, vehicle = true, barr
     call = true, block = true }
 Stage.CLEAR_INNER = 6     -- open ground's trees and bushes are all cleared this far round its middle,
 Stage.CLEAR_RADIUS = 10   -- and fewer and fewer out to this (the camp's reach)
-Stage.GROUND_RADIUS = 12   -- open ground is set up once the squares this far round the site are loaded
+Stage.GROUND_RADIUS = 12   -- a site is set up once the squares this far round it (a building's box) are loaded
 Stage.READY = 40   -- the zombies are made once the player is this near the site (the mission scene's too: Scene.READY)
 Stage.ROOM_AREA = 4   -- the least area of a room with a role but the big one (a map has rooms of one square: pillars)
 Stage.ROOMY = 12      -- "other" is a room this large first; the hall falls back to the big room when it has none
@@ -75,6 +75,8 @@ end
 
 local HALL = { hall = true, hallway = true, corridor = true, entrance = true, lobby = true }
 Stage.HALL = HALL   -- the names of a way through (a hall, a corridor): read by the hands too
+-- the rooms of a house's chores (the game's room names): the inner room is one of them only when no other room will do
+local SERVICE = { bathroom = true, closet = true, laundry = true, janitor = true, pantry = true }
 
 -- The ground floor of a list of rooms: z 0, or the lowest there is (nil for no rooms).
 function Stage.groundFloor(rooms)
@@ -107,7 +109,7 @@ function Stage.roles(layout, int)
     end
     if roles.big then taken[roles.big] = true end
     -- the inner room: one away from the outline, else the one farthest from the big room; of the rooms with a door
-    -- first, when the layout counts them (a room's `doors`: one to be locked)
+    -- first, when the layout counts them (a room's `doors`: one to be locked), and of those not a SERVICE room first
     local function inner(skip)
         local list = {}
         for _, i in ipairs(ground) do
@@ -127,7 +129,8 @@ function Stage.roles(layout, int)
         return best
     end
     local function passed(i) return taken[i] or HALL[rooms[i].name or ""] end
-    roles.inner = inner(function(i) return passed(i) or (rooms[i].doors or 1) == 0 end) or inner(passed)
+    local function shut(i) return passed(i) or (rooms[i].doors or 1) == 0 end
+    roles.inner = inner(function(i) return shut(i) or SERVICE[rooms[i].name or ""] end) or inner(shut) or inner(passed)
     if roles.inner then taken[roles.inner] = true end
     -- the hall: one named so, on the ground floor
     for _, i in ipairs(ground) do
@@ -230,6 +233,9 @@ function Stage.place(record, m, layout, int)
         local ok, taken = OA.try("stage: whether the building is taken", Stage.game.occupied, ctx)
         if ok and taken then fresh = false end
     end
+    -- the story's people came in by the entrance: a door the game locked there is open to the player too (the stage may
+    -- board every window)
+    if fresh and not def.ground then run(ctx, { kind = "unlock", at = "entrance" }) end
     -- the rooms a set goes to are cleared of their furniture first (the team made room for it), open ground of its
     -- trees and bushes (the camp's ground was cleared), before any piece
     if fresh and Stage.game and Stage.game.clear then

@@ -1226,6 +1226,33 @@ function Missions.sealedOk(record, m, boxId, now)
     OA.Sync.changed("missions", record.id)
 end
 
+-- The missions a box about to be sealed has items of, open and in time (the seal confirmation tells their reward):
+-- { { m, credits, trust } }, the reward nil where the settling decides it (the cooler's state, the pieces found).
+function Missions.sealing(record, infos, now)
+    now = now or OA.hours()
+    local out, seen = {}, {}
+    for _, info in ipairs(infos or {}) do
+        local base = Missions.parseId(info.mission)
+        for _, m in ipairs(base and Missions.live(record) or {}) do
+            if m.id == base and not seen[m] and m.state == "open" and Rewards.judge(m.deadline, now) == "ok" then
+                seen[m] = true
+                local plain = not (m.carry or Missions.sealedSet(m))
+                out[#out + 1] = { m = m, credits = plain and m.credits or nil, trust = plain and m.trust or nil }
+            end
+        end
+    end
+    return out
+end
+
+-- The credits the sealed missions pay at the next settlement (Missions.pay).
+function Missions.sealedPay(record)
+    local sum = 0
+    for _, m in ipairs(Missions.live(record)) do
+        if m.state == "sealed" then sum = sum + OA.round(m.pay and m.pay.credits or m.credits or 0) end
+    end
+    return sum
+end
+
 -- The trade part settled a helicopter's delivery: every sealed mission is paid. The arrival settles all of a record's
 -- sealed boxes at once; `result.boxes` is how many it took (none: nothing sealed was in it, nothing is paid).
 function Missions.onSettled(record, result)
