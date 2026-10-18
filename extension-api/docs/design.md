@@ -2175,8 +2175,8 @@ stands) and nothing starts; and it goes on only with the frames the text is draw
 on a player's screen while the player sleeps or the screen is dark (`UIManager.getFadeAlpha(player)` above 0.01: the black the
 game fades it to for sleep), though one already on it plays on in real time over the black, as bright as it was (drawn as the
 interface's drawing ends, `UIManager.render:textOver`; the game's speed while asleep does not touch it); every screen holds its texts (none starts, and the time of those on it stands) while the game's menu
-is over the game (`MainScreen.instance` in game and shown: Escape), which they would be drawn over; one frame counts for at most a quarter of a
-second, so a hitch, or a while with no frame drawn, does not run a text out either. A mod has at
+is over the game (`MainScreen.instance` in game and shown: Escape), which they would be drawn over; one frame counts for at most a tenth of a
+second, so a stall (a heavy moment in the game), or a while with no frame drawn, does not run a text, or its entrance, out in a frame or two. A mod has at
 most 64 texts shown or waiting, all mods 256; more is a Lua error. `handle:clear()` takes the mod's texts away at once. A text
 belongs to the world it was shown in: leaving it takes the text away. A text for a player who is not there waits for them. A
 newer API takes what is shown over at the moment it was at, keys included; a function a mod copied out of the table says the

@@ -340,8 +340,9 @@ final class Texts implements Hooks.Text {
     private long generation;
     /** The clock the effects run on (System.nanoTime: the interface's time, which goes on while the game is paused); for the tests. */
     java.util.function.LongSupplier clock = System::nanoTime;
-    /** The most of the clock one frame counts for the texts drawn in it, in its units (a quarter of a second). */
-    static final long FRAME_MOST = 250_000_000L;
+    /** The most of the clock one frame counts for the texts drawn in it, in its units (a tenth of a second: a stall of the game, as a
+     * heavy moment makes, does not run a title's entrance out in a frame or two). */
+    static final long FRAME_MOST = 100_000_000L;
     /** {@link #FRAME_MOST} as this one counts it; for the tests, which move the clock by more between frames. */
     long frameMost = FRAME_MOST;
     // The black over a player's screen (UIManager.getFadeAlpha) above which the screen is dark.

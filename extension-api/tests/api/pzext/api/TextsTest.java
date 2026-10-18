@@ -303,20 +303,36 @@ final class TextsTest {
             render();
             check(draws().size() == 1, "The main menu held a text");
             FormulasTest.call(text, "hide", mod, key, true);
-            // A frame of 30 s (a hitch, or none drawn) counts for a quarter of a second.
+            // A frame of 30 s (a hitch, or none drawn) counts for a tenth of a second.
             GameApi.texts().frameMost = Texts.FRAME_MOST;
+            check(Texts.FRAME_MOST == 100_000_000L, "A frame does not count for a tenth of a second at most");
             key = (Double)FormulasTest.call(text, "show", mod, table("text", "Hitch", "hold", 1.0)).get(0);
             render();
             advance(30);
             render();
-            // Then frames of their own length: 0.25 + 3 * 0.24 + 0.02.
-            for (int frame = 0; frame < 3; frame++) { advance(0.24); render(); }
-            advance(0.02);
+            // Then frames of their own length (0.1 and under): 0.1 + 8 * 0.1 + 0.09.
+            for (int frame = 0; frame < 8; frame++) { advance(0.1); render(); }
+            advance(0.09);
             render();
-            check(draws().size() == 1, "A long frame counted for more than a quarter of a second");
+            check(draws().size() == 1, "A long frame counted for more than a tenth of a second");
             advance(0.01);
             render();
-            check(draws().isEmpty(), "A long frame counted for less than a quarter of a second");
+            check(draws().isEmpty(), "A long frame counted for less than a tenth of a second");
+            // A title coming in: a stall of 1 s between two frames moves it on by 0.1 s, frames of 16 ms by their own length.
+            key = (Double)FormulasTest.call(text, "show", mod, table("text", "Stall", "enter", "fade", "enterTime", 1.0, "hold", 3.0, "leave", "none")).get(0);
+            render();
+            for (int frame = 0; frame < 3; frame++) { advance(0.016); render(); }
+            double in = 0.048;
+            check(near(alpha(last("Stall")), in * in * (3 - 2 * in)), "Frames of 16 ms were not counted as they were: " + alpha(last("Stall")));
+            advance(1.0);
+            render();
+            in += 0.1;
+            check(near(alpha(last("Stall")), in * in * (3 - 2 * in)), "A stall of a second moved a title on by more than a tenth of a second: " + alpha(last("Stall")));
+            advance(0.016);
+            render();
+            in += 0.016;
+            check(near(alpha(last("Stall")), in * in * (3 - 2 * in)), "The frame after a stall was not counted as it was: " + alpha(last("Stall")));
+            FormulasTest.call(text, "hide", mod, key, true);
         } finally {
             GameApi.texts().frameMost = Long.MAX_VALUE;
             GameTime.paused = false;

@@ -105,10 +105,13 @@ final class Looks {
         LAST_PAUSE = 1.2, LAST_BEAT = ONE_MORE + BEAT_LENGTH + LAST_PAUSE, EXHALE_AFTER = LAST_BEAT + BEAT_LENGTH + 1.7;
 
     /**
-     * Wash: how patchy the colour of its ink is (never its edges), how glossy for the first moments while wet, how strongly its
-     * pressed shape shows as it goes, how much the wet ink stirs as it settles, how dark its shadow is. A line under a title hits with LINE_HIT of an impact's strength.
+     * Wash: how patchy and grainy the colour of its ink is (never its edges), how glossy for the first moments while wet, how strongly its
+     * pressed shape shows as it goes, how much the wet ink stirs as it settles, how dark its shadow is. A line under a title hits with
+     * LINE_HIT of an impact's strength.
      */
-    static final double INK_PATCHY = 0.1, INK_GLOSS = 0.45, INK_EMBOSS = 1, INK_RIPPLE = 1, INK_SHADOW = 1, LINE_HIT = 0.55;
+    static final double INK_PATCHY = 0.28, INK_GLOSS = 0.45, INK_EMBOSS = 1, INK_RIPPLE = 1, INK_SHADOW = 1, LINE_HIT = 0.55;
+    /** Ink that missed: a pixel at least SPECK_FROM inside a letter, by chance SPECK (and up to SPECK_FIBRE more where the fibre is thin), is left SPECK_INK. */
+    static final double SPECK_FROM = 1.5, SPECK = 0.02, SPECK_FIBRE = 0.06, SPECK_INK = 0.08;
     private static final double[] FIBRE_AT = { 0.2, 1.4, 2.5 }, FIBRE_BY = { 0.4, 0.3, 0.2 };
 
     /** The looks drawn over a text's life. */
@@ -289,9 +292,10 @@ final class Looks {
 
     /**
      * A washed text's ink map, from its picture's alpha ({@code w} by {@code h}, rows from the top): four values 0 to 1 a pixel,
-     * how much ink it took (a little more down a stroke's middle; thinner in faint patches where the paper's grain and fibres
-     * held it back, a little run together), the paper's fibre there, how late it dries and when its colour lifts (blotches of the
-     * paper). It holds no shape: the letters' edge is the picture's own, so the ink is not thinned (and its colour not
+     * how much ink it took (a little more down a stroke's middle; thinner in patches and fine grain where the paper's
+     * grain and fibres held it back, and a pixel here and there inside a letter missed altogether; all kept to the pixel, so
+     * the grain is as sharp as the letters), the paper's fibre there, how late it dries and when its colour lifts (blotches of
+     * the paper). It holds no shape: the letters' edge is the picture's own, so the ink is not thinned (and its colour not
      * paled) towards it. The strokes' half width (their widest's, in pixels) goes into {@code shape.stroke}.
      */
     static float[] inkMap(Dust.Alpha alpha, int w, int h, int seed, Shape shape) {
@@ -320,25 +324,17 @@ final class Looks {
                 double v = 0.1 * hash(x, y, seed + 9);
                 for (int k = 0; k < 3; k++) v += FIBRE_BY[k] * vnoise((x * cos[k] + y * sin[k]) / 3, (y * cos[k] - x * sin[k]) / 0.6, seed + k);
                 double fibre = clamp((v - 0.15) / 0.7, 0, 1);
-                double bare = 1 - smoothstep(0.3, 0.62, fbm(x / (r * 1.4), y / (r * 1.4), seed + 23)) + 0.6 * (1 - smoothstep(0.15, 0.55, fibre));
-                double middle = outside[index] ? 0 : smoothstep(0, r, Math.sqrt(deep[index]) - 0.5);
+                double bare = 1 - smoothstep(0.3, 0.62, fbm(x / (r * 1.4), y / (r * 1.4), seed + 23)) + 0.9 * (1 - smoothstep(0.15, 0.55, fibre));
+                double reach = outside[index] ? 0 : Math.sqrt(deep[index]) - 0.5, middle = smoothstep(0, r, reach);
                 lay[index] = (float)((0.7 + 0.3 * middle) * (1 - Math.min(INK_PATCHY * bare, 0.95)));
+                // Where the ink missed: single pixels (more where the paper's fibre is thin), never at the letters' edge.
+                if (reach >= SPECK_FROM && hash(x, y, seed + 5) < SPECK + SPECK_FIBRE * (1 - smoothstep(0.15, 0.4, fibre))) lay[index] = (float)SPECK_INK;
                 map[index * 4 + 1] = (float)fibre;
                 map[index * 4 + 2] = (float)smoothstep(0.2, 0.8, fbm(x / (r * 3.5), y / (r * 3.5), seed + 71));
                 map[index * 4 + 3] = (float)fbm(x / (r * 1.3), y / (r * 1.3), seed + 19);
             }
-        // Run together a little: across, then down.
-        float[] across = new float[n];
-        for (int y = 0; y < h; y++)
-            for (int x = 0; x < w; x++) {
-                int index = y * w + x;
-                across[index] = 0.25f * lay[x > 0 ? index - 1 : index] + 0.5f * lay[index] + 0.25f * lay[x < w - 1 ? index + 1 : index];
-            }
-        for (int y = 0; y < h; y++)
-            for (int x = 0; x < w; x++) {
-                int index = y * w + x;
-                map[index * 4] = 0.25f * across[y > 0 ? index - w : index] + 0.5f * across[index] + 0.25f * across[y < h - 1 ? index + w : index];
-            }
+        // Kept to the pixel (no running together): the grain is as sharp as the letters.
+        for (int index = 0; index < n; index++) map[index * 4] = lay[index];
         return map;
     }
 
@@ -877,7 +873,7 @@ final class Looks {
                 float th = m.r * (1.0 - dryF + dryF * (0.8 + 0.4 * fib)) * (1.0 - 0.45 * smoothstep(0.1, 0.45, lv));
                 float dried = max(smoothstep(0.08, 0.45, lv), 0.75 * smoothstep(0.0, 0.3, progress));
                 vec3 ink = burn, wash = burn * 0.55;
-                vec3 col = mix(wash, ink, smoothstep(0.05, 0.35, th));
+                vec3 col = mix(wash, ink, smoothstep(0.1, 0.9, th));
                 col = mix(col, mix(ink, wash, 0.35), dried);
                 col = mix(col, wash, 0.5 * smoothstep(liftAt - 0.3, liftAt, lv));
                 vec3 L = normalize(vec3(-0.45, -0.62, 0.65));
@@ -894,7 +890,7 @@ final class Looks {
                   col *= 1.0 + 0.45 * relief * diff;
                   col += (vec3(1.0, 0.97, 0.94) * spec + vec3(0.6) * fres * 0.12 * inkBy.x * wet * settle) * (1.0 - dried);
                 }
-                float a = cover * (1.0 - lift);
+                float miss = 1.0 - smoothstep(0.12, 0.18, m.r), a = cover * (1.0 - lift) * (1.0 - 0.55 * miss);
                 vec4 outc = vec4(col * a, a);
                 float shade = land * (1.0 - smoothstep(0.35, 0.75, lv)) * (1.0 - 0.9 * smoothstep(0.0, 0.3, progress));
                 if (shade > 0.001) {
