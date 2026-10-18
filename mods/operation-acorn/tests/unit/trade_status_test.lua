@@ -216,6 +216,9 @@ test("the helicopter can be called: the call button on, the reissue off with its
     r.orders = { cart = { { id = "x", count = 1 } } }
     eq(M.heli(r, 100, 12).callable, true, "an order alone is something to bring")
     r.orders = nil
+    r.heli = { drop = { { type = "OperationAcorn.SampleCase", count = 1 } } }
+    eq(M.heli(r, 100, 12).callable, true, "what the story sends (a mission's case) is something to bring")
+    r.heli = nil
     Boxes.add(r, { state = "sealed", active = false })
     s = M.heli(r, 100, 12)
     eq(s.state, "IGUI_OA_Status_Heli_Ready"); eq(s.colour, "bright")
@@ -314,6 +317,16 @@ test("the waybill of a placed box, an order and a request", function()
     w = M.waybill(r, OA.Trade.Estimate.flight(r))
     eq(w.recv[2].waits, true)
     eq(#w.calc, 2, "balance, orders")
+end)
+
+test("the waybill lists what the story sends down, issued without a price", function()
+    local r = newRecord(2, 0, 1000)
+    withBox(r)
+    r.heli = { drop = { { type = "OperationAcorn.SampleCase", count = 1 } } }
+    local w = M.waybill(r, OA.Trade.Estimate.flight(r))
+    eq(#w.recv, 1); eq(w.recvNone, nil)
+    eq(w.recv[1].type, "OperationAcorn.SampleCase"); eq(w.recv[1].price, "IGUI_OA_Status_RecvSent")
+    eq(w.total.amount, "1,000", "it costs nothing")
 end)
 
 test("the waybill while a call flies: its own orders, not the cart for the next", function()

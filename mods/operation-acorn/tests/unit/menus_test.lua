@@ -153,6 +153,28 @@ test("a delivery box's seal option goes on top", function()
     eq(menu.options[1].notAvailable, nil, "a box with something in it")
 end)
 
+test("a seal confirmation tells a mission item's reward; a box of it alone has no worth line of nothing", function()
+    setup()
+    loadFile("OperationAcorn/Trade/ContextMenu")
+    local Trade = OA.Trade
+    OA.Client = OA.Client or {}
+    OA.Client.record = function() return {} end
+    Trade.Objects.capacityFor = function() return 50 end
+    local worth = { credits = 0, trust = 0 }
+    Trade.Estimate.infos = function() return worth end
+    local sealing = { { credits = 42000, trust = 252 } }
+    OA.Missions = { sealing = function() return sealing end }
+    local plan = { taken = { {} }, infos = { {} }, refused = {}, weight = 0.5 }
+    local text = Trade.Menus.sealText(player, plan)
+    truthy(text:find("IGUI_OA_Trade_Seal_Count", 1, true), "the count alone")
+    eq(text:find("IGUI_OA_Trade_Seal_Worth", 1, true), nil)
+    truthy(text:find("IGUI_OA_Trade_Seal_Mission", 1, true), "the reward's line")
+    worth.credits = 1200
+    truthy(Trade.Menus.sealText(player, plan):find("IGUI_OA_Trade_Seal_Worth", 1, true), "goods with it: their worth")
+    sealing[1] = {}
+    truthy(Trade.Menus.sealText(player, plan):find("IGUI_OA_Trade_Seal_MissionLater", 1, true), "a reward the settling sets")
+end)
+
 test("breaking a crate's seal is on top, its tip does not depend on a crowbar being carried", function()
     setup()
     loadFile("OperationAcorn/Trade/ContextMenu")

@@ -1118,3 +1118,36 @@ test("a box about to be sealed tells its missions' reward; sealed, the reward wa
     local late = taken(record2)
     eq(#M.sealing(record2, { { mission = M.itemId(late, "A") } }, late.deadline + 1), 0)
 end)
+
+test("the swap's drop case: picked up empty it says nothing; with the record in it, the record is found", function()
+    local record = setup(2)
+    Story.section(record).seenStage = 1
+    tick(record)
+    local m = M.active(record)
+    local told = listenTitles()
+    M.game.pieceIn = function(bag) return bag.inner end
+    local function thing(id, inner)
+        local data = { OA_Mission = id }
+        return { inner = inner, hasModData = function() return true end, getModData = function() return data end }
+    end
+    local was = instanceof
+    instanceof = function(o, cls) return cls == "InventoryContainer" and o.inner ~= nil end
+    local played = OperationAcorn.Comms.section(record).played
+    -- the empty case before the sample is left: no pickup line, no title
+    M.lookForPiece(record, thing(M.itemId(m, "CASE")))
+    eq(played.S2F_pickup, nil)
+    eq(#told, 0)
+    -- the record swapped in: the case picked up with it inside
+    M.game.px, M.game.py = m.site.x, m.site.y
+    truthy(M.swap(record, {}))
+    TEST.hours = TEST.hours + 3
+    tick(record)
+    eq(m.swap.stage, "done")
+    local recordPiece
+    for _, it in ipairs(m.items) do if it.key == "A" then recordPiece = it end end
+    M.lookForPiece(record, thing(M.itemId(m, "CASE"), thing(M.itemId(m, "A"))))
+    eq(recordPiece.found, true)
+    truthy(played.S2F_pickup, "its line")
+    eq(told[#told].key, "IGUI_OA_Title_Secured")
+    instanceof = was
+end)

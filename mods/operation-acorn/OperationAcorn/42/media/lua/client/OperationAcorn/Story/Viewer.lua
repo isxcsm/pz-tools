@@ -32,7 +32,7 @@ function ISOAViewer:new(x, y, width, height, character)
     o.index = 1
     o.resizable = true
     o.era = UI.era
-    o.backgroundColor = { r = 0.08, g = 0.08, b = 0.07, a = 0.95 }
+    o.backgroundColor = { r = 0.08, g = 0.08, b = 0.07, a = 1 }  -- a paper: nothing behind it shows through
     return o
 end
 

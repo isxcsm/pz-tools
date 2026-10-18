@@ -1322,8 +1322,9 @@ function Missions.found(record, m, it, item)
     if it.found then return end
     it.found = true
     Missions.securedTitle(record, m, it)
-    -- A story's item first in hands: its monologue (CommsData "say:<story>:pickup") and what waits at its stage.
-    if m.story and not it.plain then
+    -- A story's item first in hands: its monologue (CommsData "say:<story>:pickup") and what waits at its stage (not
+    -- for what the player does not fetch: an exchange's drop case, the record inside it is the item).
+    if m.story and View.fetched(m, it) then
         if OA.Story then OA.Story.monologue(record, m.chosen and (m.story .. "_" .. m.chosen) or m.story, "pickup") end
         if OA.Stage then OA.Stage.event(record, m, "pickup") end
     end
@@ -1354,15 +1355,15 @@ function Missions.securedTitle(record, m, it)
     OA.Sync.title(record.id, detail)
 end
 
--- An item came into the player's things: a running mission's piece, or a bag that holds one not found yet. A bag is
--- looked into only while a piece is still to be found.
+-- An item came into the player's things: a running mission's piece, or a bag that holds one not found yet (an
+-- exchange's drop case, a piece itself, holds the record). A bag is looked into only while a piece is still to be found.
 function Missions.lookForPiece(record, item)
     local md = item:hasModData() and item:getModData() or nil
     local id = md and md.OA_Mission
     if id then
         local m, it = Missions.pieceOf(record, id)
         if it then Missions.found(record, m, it, item) end
-        return
+        if not it or View.fetched(m, it) then return end
     end
     local g = game()
     if not (g and g.pieceIn and instanceof(item, "InventoryContainer")) then return end

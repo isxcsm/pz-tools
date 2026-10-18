@@ -504,9 +504,30 @@ function StageGame.clear(ctx, p)
     return true
 end
 
+-- Whether a door or a doorway is on one of the square's edges (its own north or west, the south or east one's): a set
+-- there would stand in the way in.
+local function byDoor(s)
+    local function doorOn(sq, north)
+        if not sq then return false end
+        if sq:getProperties():has(north and IsoFlagType.DoorWallN or IsoFlagType.DoorWallW) then return true end
+        local objects = sq:getObjects()
+        for i = 0, objects:size() - 1 do
+            local o = objects:get(i)
+            if (instanceof(o, "IsoDoor") or (instanceof(o, "IsoThumpable") and o:isDoor())) and o:getNorth() == north then
+                return true
+            end
+        end
+        return false
+    end
+    local c = getCell()
+    local x, y, z = s:getX(), s:getY(), s:getZ()
+    return doorOn(s, true) or doorOn(s, false) or doorOn(c:getGridSquare(x, y + 1, z), true)
+        or doorOn(c:getGridSquare(x + 1, y, z), false)
+end
+
 -- Sprites placed together: an anchor square of the room (outdoors: about the piece's spot, within `reach`, else 3)
--- where every square of the set is free and in the room (outdoors: in none); with `more`, those too where they fit
--- with it, else the set alone. `count` sets of it, each where it fits.
+-- where every square of the set is free, by no door and in the room (outdoors: in none); with `more`, those too where
+-- they fit with it, else the set alone. `count` sets of it, each where it fits.
 function StageGame.set(ctx, p)
     local room = not outdoors(p) and roomOf(ctx, p)
     if not (room or outdoors(p)) then return nil end
@@ -527,7 +548,7 @@ function StageGame.set(ctx, p)
         end
     end
     local function fitsAt(s)
-        if not (s and s:isFree(false)) then return false end
+        if not (s and s:isFree(false)) or byDoor(s) then return false end
         if room then return s:getRoom() == room end
         return s:getRoom() == nil
     end

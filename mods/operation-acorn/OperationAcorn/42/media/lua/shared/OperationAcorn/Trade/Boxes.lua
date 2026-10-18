@@ -75,9 +75,11 @@ function Boxes.canCall(record)
 end
 
 -- Whether a call has something to carry: a sealed box to take up, or something to bring down (the cart's orders, a
--- support request). A flight for nothing is not made.
+-- support request, what the story sends: a mission's case, the field caller). A flight for nothing is not made.
 function Boxes.hasCargo(record)
     if #Boxes.sealed(record) > 0 then return true end
+    local drop = record.heli and record.heli.drop
+    if drop and #drop > 0 then return true end
     local cart = record.orders and record.orders.cart
     if cart and #cart > 0 then return true end
     for _ in pairs(record.trade and record.trade.pendingLevels or {}) do return true end

@@ -165,6 +165,28 @@ test("a pickup from the world tags the cell and enters the codex", function()
     near(record.trade.bonus, 100)
 end)
 
+test("a grab from the floor is a pickup too (the grab action moves the item itself)", function()
+    ISTransferAction = { transferItem = function(self, ch, it) return it end }
+    ISGrabItemAction = { transferItem = function(self) self.item = nil end }
+    boot()
+    OA.Economy.start()
+    local record = OA.Store.ensure("p", "P")
+    local told = {}
+    OA.Missions = { pickedUp = function(rec, it) told[#told + 1] = it end }
+    local case = item("OperationAcorn.DeadDropCase", { display = "Container" })
+    local world = { getItem = function() return case end, getSquare = function() return square(1300, 600) end }
+    local action = { character = character("p"), item = world, destContainer = container("inventory", { mine = true }) }
+    ISGrabItemAction.transferItem(action)
+    eq(case.data.OA_Cell, "5,2")
+    eq(told[1], case, "the missions are told")
+    -- into a container on the ground: no pickup
+    local other = item("Base.Hammer")
+    ISGrabItemAction.transferItem({ character = character("p"),
+        item = { getItem = function() return other end, getSquare = function() return square(1, 1) end },
+        destContainer = container("crate", {}) })
+    eq(other.data, nil)
+end)
+
 test("a pickup keeps the first cell an item was tagged with", function()
     ISTransferAction = { transferItem = function(self, ch, it) return it end }
     boot()

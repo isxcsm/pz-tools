@@ -599,6 +599,12 @@ function M.waybill(record, flight)
                 name = tr("IGUI_OA_Status_ItemCount", name, line.count), price = credits(price) }
         end
     end
+    -- what the story sends down with it (a mission's case, the field caller): no price
+    for _, spec in ipairs(heli.drop or {}) do
+        w.recv[#w.recv + 1] = { kind = "item", type = spec.type,
+            name = tr("IGUI_OA_Status_ItemCount", Text.itemName(spec.type), spec.count or 1),
+            price = tr("IGUI_OA_Status_RecvSent") }
+    end
     local prices, plans = {}, {}
     for _, r in ipairs(M.requests(record)) do
         prices[#prices + 1] = r.price

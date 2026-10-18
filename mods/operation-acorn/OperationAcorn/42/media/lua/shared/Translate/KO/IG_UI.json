@@ -1348,6 +1348,7 @@
     "IGUI_OA_Status_SendNoneSub": "재발급한 상자는 다음 편에 옵니다 · %1 크레딧",
     "IGUI_OA_Status_Count": "%1 %2개",
     "IGUI_OA_Status_ItemCount": "%1 ×%2",
+    "IGUI_OA_Status_RecvSent": "지급",
     "IGUI_OA_Status_RecvNone": "없음",
     "IGUI_OA_Status_RecvDebt": "없음 · 빚이 있는 동안은 주문할 수 없습니다",
     "IGUI_OA_Status_Support_Tag": "운항 지원",

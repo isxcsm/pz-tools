@@ -1348,6 +1348,7 @@
     "IGUI_OA_Status_SendNoneSub": "A new box comes with the next flight · %1 credits",
     "IGUI_OA_Status_Count": "%1 ×%2",
     "IGUI_OA_Status_ItemCount": "%1 ×%2",
+    "IGUI_OA_Status_RecvSent": "Issued",
     "IGUI_OA_Status_RecvNone": "Nothing",
     "IGUI_OA_Status_RecvDebt": "Nothing · no orders while in debt",
     "IGUI_OA_Status_Support_Tag": "Support",

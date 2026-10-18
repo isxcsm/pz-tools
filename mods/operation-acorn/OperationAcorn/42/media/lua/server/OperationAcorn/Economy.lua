@@ -165,16 +165,40 @@ local function afterPickup(character, item, cell)
     if OA.Missions and OA.Missions.pickedUp then OA.Missions.pickedUp(record, item) end
 end
 
-local hooked = false
+-- A grab from the floor (ISGrabItemAction): the action moves the item itself in single player, not through
+-- ISTransferAction; into what the character carries, from the square it lay on.
+local function grabCell(action)
+    local world = action.item
+    local square = world and world:getSquare()
+    local dest = action.destContainer
+    if not (square and dest and dest:isInCharacterInventory(action.character)) then return nil end
+    return OA.Value.cellKey(square:getX(), square:getY())
+end
+
+local hooked, grabHooked = false, false
 function Economy.hookTransfers()
-    if hooked or not ISTransferAction or not ISTransferAction.transferItem then return end
-    hooked = true
-    local original = ISTransferAction.transferItem
-    ISTransferAction.transferItem = function(self, character, item, src, dest, ...)
-        local ok, cell = OA.try("pickup cell", pickupCell, character, item, src, dest)
-        local result = original(self, character, item, src, dest, ...)
-        if ok and cell then OA.try("pickup bookkeeping", afterPickup, character, result or item, cell) end
-        return result
+    if not hooked and ISTransferAction and ISTransferAction.transferItem then
+        hooked = true
+        local original = ISTransferAction.transferItem
+        ISTransferAction.transferItem = function(self, character, item, src, dest, ...)
+            local ok, cell = OA.try("pickup cell", pickupCell, character, item, src, dest)
+            local result = original(self, character, item, src, dest, ...)
+            if ok and cell then OA.try("pickup bookkeeping", afterPickup, character, result or item, cell) end
+            return result
+        end
+    end
+    if not grabHooked and ISGrabItemAction and ISGrabItemAction.transferItem then
+        grabHooked = true
+        local grab = ISGrabItemAction.transferItem
+        ISGrabItemAction.transferItem = function(self, ...)
+            -- (a client in multiplayer only asks: the server moves the item)
+            local ok, cell = false, nil
+            if not isClient() then ok, cell = OA.try("grab cell", grabCell, self) end
+            local item = self.item and self.item:getItem()
+            local result = grab(self, ...)
+            if ok and cell then OA.try("pickup bookkeeping", afterPickup, self.character, item, cell) end
+            return result
+        end
     end
 end
 

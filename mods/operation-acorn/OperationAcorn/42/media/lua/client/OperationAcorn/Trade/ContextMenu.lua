@@ -60,13 +60,15 @@ end
 function Menus.sealText(character, plan)
     local record = OA.Client.record(character)
     local estimate = Trade.Estimate.infos(record, plan.infos)
+    local sealing = OA.Missions and OA.Missions.sealing(record, plan.infos) or {}
     local lines = {}
-    if estimate then
+    -- (a box of a mission's items alone: its reward's line says what it earns)
+    if estimate and (estimate.credits > 0 or estimate.trust > 0 or #sealing == 0) then
         lines[#lines + 1] = getText("IGUI_OA_Trade_Seal_Worth", #plan.taken, Text.credits(estimate.credits), Text.credits(estimate.trust))
     else
         lines[#lines + 1] = getText("IGUI_OA_Trade_Seal_Count", #plan.taken)
     end
-    for _, s in ipairs(OA.Missions and OA.Missions.sealing(record, plan.infos) or {}) do
+    for _, s in ipairs(sealing) do
         if s.credits then
             lines[#lines + 1] = getText("IGUI_OA_Trade_Seal_Mission", Text.credits(s.credits), Text.credits(s.trust))
         else
