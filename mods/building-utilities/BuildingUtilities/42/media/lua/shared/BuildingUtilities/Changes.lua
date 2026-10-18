@@ -554,14 +554,25 @@ end
 -- minute, as the world starts, when the zone changes and by a window that sees one not added yet. Returns whether
 -- anything changed.
 -- Asked each minute, it looks again only when what it comes of changed since it last did (the API's buildings, a change
--- told of the box, the devices' owners, its zone) or ATTACHED_EVERY_MS have passed; force looks at once (the world
--- starting, the zone changing, a window that saw a device not added).
+-- told of the box, the devices' owners, its zone, a thing put down in or taken from a room) or ATTACHED_EVERY_MS have
+-- passed; force looks at once (the world starting, the zone changing, a window that saw a device not added).
 local LET_GO = { "excluded", "schedule", "timed", "pipeOf" }
 local ATTACHED_GRACE_MS = 20000
 local ATTACHED_EVERY_MS = 5 * 60 * 1000
 local missingSince = {}
 -- What each box's last look was made at, by panel id.
 local attachedAt = {}
+-- Counts the things put down in a room or taken from one: a lamp set down in a built-on room is the box's within the
+-- minute.
+local roomObjects = 0
+local function roomObject(object)
+    local square = object and object.getSquare and object:getSquare()
+    if square and square:getRoom() then roomObjects = roomObjects + 1 end
+end
+if Events and Events.OnObjectAdded then
+    Events.OnObjectAdded.Add(roomObject)
+    Events.OnObjectAboutToBeRemoved.Add(roomObject)
+end
 
 function Changes.syncAttached(panel, force)
     local building = Panels.building(panel)
@@ -572,7 +583,8 @@ function Changes.syncAttached(panel, force)
     local mine, all = Store.touches(panel.id)
     local last = attachedAt[panel.id]
     if not force and last and last.panel == panel and last.version == version and last.owners == owners
-            and last.mine == mine and last.all == all and last.zone == panel.zone and now >= last.at
+            and last.mine == mine and last.all == all and last.zone == panel.zone and last.objects == roomObjects
+            and now >= last.at
             and now - last.at < ATTACHED_EVERY_MS then
         return false
     end
@@ -629,7 +641,7 @@ function Changes.syncAttached(panel, force)
     -- (what it told itself of counts as seen)
     mine, all = Store.touches(panel.id)
     attachedAt[panel.id] = { panel = panel, version = version, owners = Store.ownersVersion(), mine = mine, all = all,
-        zone = panel.zone, at = now }
+        zone = panel.zone, objects = roomObjects, at = now }
     return changed
 end
 

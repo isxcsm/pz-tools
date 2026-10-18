@@ -431,6 +431,20 @@ test("each minute's sync of the built-on rooms looks again only when something i
     Changes.syncAttached(panel)
     truthy(looks() > fourth, "an owner")
     local fifth = looks()
+    -- a thing put down in a room (a lamp), not one outside
+    local outside = { getSquare = function() return { getRoom = function() return nil end } end }
+    local inRoom = { getSquare = function() return { getRoom = function() return {} end } end }
+    TEST.fire("OnObjectAdded", outside)
+    Changes.syncAttached(panel)
+    eq(looks(), fifth, "a thing put down outside")
+    TEST.fire("OnObjectAdded", inRoom)
+    Changes.syncAttached(panel)
+    truthy(looks() > fifth, "a thing put down in a room")
+    fifth = looks()
+    TEST.fire("OnObjectAboutToBeRemoved", inRoom)
+    Changes.syncAttached(panel)
+    truthy(looks() > fifth, "a thing taken from a room")
+    fifth = looks()
     -- forced, and after five minutes
     Changes.syncAttached(panel, true)
     truthy(looks() > fifth, "forced")
