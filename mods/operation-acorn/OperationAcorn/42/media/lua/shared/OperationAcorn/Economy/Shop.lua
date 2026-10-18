@@ -540,8 +540,10 @@ function Shop.available(entry, record)
     end
     local refill
     if entry.restock then
-        local left = Shop.restockQuantity(entry, record) - Shop.restockBought(entry, record)
-        refill = Shop.restockEnd(record)
+        -- (the window is asked for once: bought and the end are read off it)
+        local r = Shop.restock(record)
+        local left = Shop.restockQuantity(entry, record) - (r.n[entry.id] or 0)
+        refill = r.start + Shop.RESTOCK_DAYS * 24 * r.factor
         if left <= 0 then return 0, "IGUI_OA_Econ_Shop_SoldOut", refill end
         most = math.min(most, left)
     end

@@ -292,3 +292,55 @@ test("the cart's bottom keeps the buttons on the floor and the list above the to
     local tight = V.cartRects(348, 2, 3, true, 16)
     truthy(tight.list.h >= 0)
 end)
+
+test("the shelf and the sections are kept for a catalog, and made again when it, the kits option or a BU feature changes", function()
+    local bu = true
+    BuildingUtilities = { enabled = function() return bu end }
+    local catalog = {
+        entry("cure_serum", "serum", { special = "cure" }),
+        entry("battery_pack", "resource"),
+        entry("bu_pump", "resource", { bu = "pump" }),
+    }
+    local shelf, sections = V.shelf(catalog), V.sections(catalog)
+    eq(V.shelf(catalog), shelf, "the same list again")
+    eq(V.sections(catalog), sections)
+    eq(#sections.byGroup.resource, 2)
+    bu = false
+    local without = V.sections(catalog)
+    truthy(without ~= sections, "a BU feature went off: made again")
+    eq(#without.byGroup.resource, 1)
+    eq(V.sections(catalog), without)
+    bu = true
+    eq(#V.sections(catalog).byGroup.resource, 2)
+    local before = V.sections(catalog)
+    catalog[#catalog + 1] = entry("cable", "resource")
+    local after = V.sections(catalog)
+    truthy(after ~= before, "an entry added: made again")
+    eq(#after.byGroup.resource, 3)
+    local other = { entry("battery_pack", "resource") }
+    eq(#V.sections(other).byGroup.resource, 1, "another catalog")
+    eq(ids(V.shelf(catalog)[2].entries), "cure_serum")
+    local was = SandboxVars.OperationAcorn.KitsForSale
+    SandboxVars.OperationAcorn.KitsForSale = not was
+    truthy(V.sections(catalog) ~= V.sections(other))
+    SandboxVars.OperationAcorn.KitsForSale = was
+    BuildingUtilities = nil
+end)
+
+test("Shop.available asks for the restock window once for a restock entry", function()
+    local Shop = OA.Shop
+    local record = OA.Store.ensure("p", "P")
+    local entry = Shop.entry("serum_shared")
+    truthy(entry and entry.restock, "a restock entry")
+    local asked = 0
+    local real = Shop.restock
+    Shop.restock = function(r) asked = asked + 1 return real(r) end
+    local n, why, reopen = Shop.available(entry, record)
+    eq(asked, 1)
+    Shop.restock = real
+    local n2, why2, reopen2 = Shop.available(entry, record)
+    eq(n2, n)
+    eq(why2, why)
+    eq(reopen2, reopen)
+    eq(reopen, Shop.restockEnd(record))
+end)
