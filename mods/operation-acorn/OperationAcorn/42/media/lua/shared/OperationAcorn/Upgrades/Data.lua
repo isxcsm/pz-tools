@@ -211,29 +211,44 @@ Data.SEALED_ICON = {
 
 -- The board's columns in order (the order of the tree tabs), and each column's nodes.
 Data.BOARD_GROUPS = { "scout", "load", "survival" }
-function Data.boardGroup(group)
-    local list = {}
-    for _, n in ipairs(nodes) do
-        if n.board and n.group == group then list[#list + 1] = n end
+
+-- The lists below are made once, here, from the nodes above (they are fixed from this point): the research window and
+-- the rules ask for them per frame and per node. The lists are shared: a caller only reads them.
+local EMPTY = {}
+local byTree, capstoneOf, byGroup = {}, {}, {}
+for _, n in ipairs(nodes) do
+    local list = byTree[n.tree]
+    if not list then
+        list = {}
+        byTree[n.tree] = list
     end
-    table.sort(list, function(a, b) return a.row < b.row end)
-    return list
+    list[#list + 1] = n
+    if n.capstone and not capstoneOf[n.tree] then capstoneOf[n.tree] = n end
+    if n.board then
+        local group = byGroup[n.group]
+        if not group then
+            group = {}
+            byGroup[n.group] = group
+        end
+        group[#group + 1] = n
+    end
+end
+for _, group in pairs(byGroup) do
+    table.sort(group, function(a, b) return a.row < b.row end)
 end
 
--- The nodes of a tree in row order (the capstone last).
+-- The nodes of a column of the board, by row. Shared: read, not changed.
+function Data.boardGroup(group)
+    return byGroup[group] or EMPTY
+end
+
+-- The nodes of a tree in the order they are written (the capstone last). Shared: read, not changed.
 function Data.treeNodes(tree)
-    local list = {}
-    for _, n in ipairs(nodes) do
-        if n.tree == tree then list[#list + 1] = n end
-    end
-    return list
+    return byTree[tree] or EMPTY
 end
 
 function Data.capstone(tree)
-    for _, n in ipairs(nodes) do
-        if n.tree == tree and n.capstone then return n end
-    end
-    return nil
+    return capstoneOf[tree]
 end
 
 -- The translation key of a node's text: part is "Name", "Note", "Desc" or "Rank".

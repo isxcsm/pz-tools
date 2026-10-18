@@ -208,3 +208,44 @@ test("Things.sealable keeps the refused items' infos and reasons, and a memo spa
     OA.Trade.Things.sealable(c)
     eq(reads, 3)
 end)
+
+test("the research data's lists are those the per-call functions built, in the same order, and are shared", function()
+    require "OperationAcorn/Upgrades/Data"
+    local Data = OA.Upgrades.Data
+    local function oldTree(tree)
+        local list = {}
+        for _, n in ipairs(Data.nodes) do
+            if n.tree == tree then list[#list + 1] = n end
+        end
+        return list
+    end
+    local function oldGroup(group)
+        local list = {}
+        for _, n in ipairs(Data.nodes) do
+            if n.board and n.group == group then list[#list + 1] = n end
+        end
+        table.sort(list, function(a, b) return a.row < b.row end)
+        return list
+    end
+    local function oldCapstone(tree)
+        for _, n in ipairs(Data.nodes) do
+            if n.tree == tree and n.capstone then return n end
+        end
+        return nil
+    end
+    local trees = { "scout", "load", "survival", Data.BOARD, "nothing" }
+    for _, tree in ipairs(trees) do
+        local a, b = Data.treeNodes(tree), oldTree(tree)
+        eq(#a, #b, tree)
+        for i = 1, #b do eq(a[i], b[i], tree .. " " .. i) end
+        eq(Data.capstone(tree), oldCapstone(tree), tree)
+        eq(Data.treeNodes(tree), a, "the same list each call")
+    end
+    for _, group in ipairs({ "scout", "load", "survival", "nothing" }) do
+        local a, b = Data.boardGroup(group), oldGroup(group)
+        eq(#a, #b, group)
+        for i = 1, #b do eq(a[i], b[i], group .. " " .. i) end
+        eq(Data.boardGroup(group), a)
+    end
+    eq(#Data.boardGroup("load"), 10)
+end)
