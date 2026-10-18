@@ -149,20 +149,29 @@ end
 Places.STORE_ROOMS = { garage = true, garagestorage = true, storage = true, storageunit = true, shed = true,
     barn = true, farmstorage = true }
 
--- Whether more than half the rooms of a building (names, a list) are STORE_ROOMS ones.
+-- The rooms the map names for no use (a barn's loft): they say nothing of what a building was.
+Places.EMPTY_ROOMS = { empty = true, emptyoutside = true }
+
+-- Whether more than half the rooms of a building (names, a list) are STORE_ROOMS ones, its EMPTY_ROOMS left out.
 function Places.mostlyStores(names)
-    local n = 0
+    local n, counted = 0, 0
     for _, name in ipairs(names) do
         if Places.STORE_ROOMS[name] then n = n + 1 end
+        if not Places.EMPTY_ROOMS[name] then counted = counted + 1 end
     end
-    return n * 2 > #names
+    return n * 2 > counted
 end
 
--- Whether a building is plain: every room of it (names, a list) is a plain one.
+-- Whether a building is plain: every room of it (names, a list) is a plain one, and it is no diner: a kitchen in a
+-- building that is no home is a place that fed people (a map may name a diner's rooms as a house's: room1, kitchen and
+-- bathrooms).
 function Places.plain(names)
+    local kitchen = false
     for _, name in ipairs(names) do
         if not Places.PLAIN_ROOMS[name] then return false end
+        if name == "kitchen" then kitchen = true end
     end
+    if kitchen and not Places.home(names) then return false end
     return #names > 0
 end
 

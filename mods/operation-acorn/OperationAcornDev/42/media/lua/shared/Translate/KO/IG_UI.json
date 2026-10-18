@@ -150,6 +150,7 @@
     "IGUI_OADev_E2E_ToMission": "임무지 밖으로",
     "IGUI_OADev_E2E_ToBase": "기지로",
     "IGUI_OADev_E2E_Morning": "낮 10시",
+    "IGUI_OADev_E2E_StageUp": "다음 단계",
     "IGUI_OADev_E2E_Timers": "타이머 (직전 = 다음 판정까지 게임 %1분)",
     "IGUI_OADev_E2E_Soon": "직전",
     "IGUI_OADev_E2E_Left": "남음 %1시간",

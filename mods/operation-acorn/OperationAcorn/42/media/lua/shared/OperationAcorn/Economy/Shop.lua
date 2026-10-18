@@ -401,6 +401,15 @@ function Shop.stocked(entry)
     return true
 end
 
+-- Whether reaching a tier puts anything new on sale (a level's title says so only then): an entry of that tier that
+-- is stocked, a kit only while kits are sold.
+function Shop.opensAt(tier)
+    for _, e in ipairs(Shop.catalog()) do
+        if e.tier == tier and Shop.stocked(e) and not (e.kits and not OA.option("KitsForSale")) then return true end
+    end
+    return false
+end
+
 -- How many of an entry a record may buy right now, why not (a translation key) when none, and the world age when
 -- it opens again, if that is known:
 --   locked (tier), debt (blocks every order but the box), kits off, the weekly limit, and how many one order may hold.

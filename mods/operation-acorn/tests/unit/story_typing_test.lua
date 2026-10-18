@@ -541,6 +541,13 @@ test("a level reached has the plain title at once, a named stage one pointing to
     eq(m1.sub, "IGUI_OA_Title_NewItems")
     eq(m1.style, "dust")
     eq(Story.stageTitle(record, 8).key, "IGUI_OA_Title_Stage")
+    -- the shop puts nothing new on sale past a level: the terminal when a call comes with it, else the level alone
+    local shop = OA.Shop
+    OA.Shop = { opensAt = function(level) return level <= 6 end }
+    eq(Story.stageTitle(record, 6).sub, "IGUI_OA_Title_NewItems")
+    eq(Story.stageTitle(record, 10).sub, "IGUI_OA_Title_StageCheck", "K2 comes with level 10")
+    eq(Story.stageTitle(record, 30).sub, nil)
+    OA.Shop = shop
     local card = Story.stageCard(3)
     eq(card.key, "IGUI_OA_Title_StageNamed")
     eq(card.args[1], 3)

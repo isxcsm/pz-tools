@@ -411,6 +411,7 @@ local function e2ePage(page, ui)
         { T("E2E_ToMission"), function() E2E.toMission() end },
         { T("E2E_ToBase"), function() E2E.toBase() end },
         { T("E2E_Morning"), function() E2E.morning() end },
+        { T("E2E_StageUp"), function() E2E.stageUp() end },
     })
     local n = 7 + rows + 1
     ui.heading(page, T("E2E_Timers", ui.num(E2E.LEAD * 60)), n)

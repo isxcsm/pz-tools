@@ -224,6 +224,17 @@ test("the handover beat: the handover over, its papers read, 관리 7's first ca
     eq(Comms.next(r, "terminal").id, "K1")
 end)
 
+test("next stage: the trust a settlement brings, the level's calls as in play", function()
+    require "OperationAcorn/Economy/Trust"
+    local r = setup()
+    E2E.set("13", { place = false })
+    Comms.played(r, "K1", 1)
+    E2E.stageUp()
+    eq(r.trade.milestones, 5)
+    eq(r.trade.trust, OA.Trust.milestoneThreshold(5))
+    eq(Comms.next(r, "terminal").id, "K2")
+end)
+
 test("the serum beat gives a serum; the X beat sets nothing", function()
     local r = setup()
     E2E.set("04", { place = false })

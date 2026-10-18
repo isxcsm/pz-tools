@@ -448,17 +448,32 @@ local function furniture(o)
     return true
 end
 
+-- Whether an object's containers hold a mission's item (one placed before its stage went up: a revisit's, in the
+-- building its story set up).
+local function holdsMission(o)
+    for k = 0, o:getContainerCount() - 1 do
+        local items = o:getContainerByIndex(k):getItems()
+        for i = 0, items:size() - 1 do
+            if items:get(i):getModData().OA_Mission then return true end
+        end
+    end
+    return false
+end
+
 -- Takes one object off its square; a piece of a furniture of several squares takes the others with it (by its
--- sprite grid, as ISMoveableSpriteProps finds them).
+-- sprite grid, as ISMoveableSpriteProps finds them). A furniture holding a mission's item stays, all of it. True when
+-- taken.
 local function takeAway(sq, o)
     local spr = o:getSprite()
     local grid = spr and spr:getSpriteGrid()
     if not grid then
+        if holdsMission(o) then return false end
         sq:transmitRemoveItemFromSquare(o)
-        return
+        return true
     end
     local c = getCell()
     local sx, sy = sq:getX() - grid:getSpriteGridPosX(spr), sq:getY() - grid:getSpriteGridPosY(spr)
+    local parts = {}
     for x = 0, grid:getWidth() - 1 do
         for y = 0, grid:getHeight() - 1 do
             local part = grid:getSprite(x, y)
@@ -466,10 +481,15 @@ local function takeAway(sq, o)
             local objects = s and s:getObjects()
             for j = (objects and objects:size() or 0) - 1, 0, -1 do
                 local other = objects:get(j)
-                if other:getSprite() == part then s:transmitRemoveItemFromSquare(other) end
+                if other:getSprite() == part then
+                    if holdsMission(other) then return false end
+                    parts[#parts + 1] = { s, other }
+                end
             end
         end
     end
+    for _, q in ipairs(parts) do q[1]:transmitRemoveItemFromSquare(q[2]) end
+    return true
 end
 
 -- Clears open ground of its trees and bushes (what the game cuts as a bush: canBeCut, as ISRemovePlantCursor) in a
@@ -505,7 +525,8 @@ local function clearGround(l)
 end
 
 -- Clears the room a set goes to of its furniture, once (Stage.place, before any piece): the team made room for it.
--- Its containers go with it, and what was in them. Open ground ("ground"): its trees and bushes (clearGround).
+-- Its containers go with it, and what was in them, but a mission's item (takeAway). Open ground ("ground"): its trees
+-- and bushes (clearGround).
 function StageGame.clear(ctx, p)
     if p.at == "ground" then
         if ctx.layout and ctx.layout.ground then clearGround(ctx.layout) end
@@ -523,10 +544,7 @@ function StageGame.clear(ctx, p)
         local taken = false
         for j = objects:size() - 1, 0, -1 do
             local o = j < objects:size() and objects:get(j)
-            if o and furniture(o) then
-                takeAway(sq, o)
-                taken = true
-            end
+            if o and furniture(o) and takeAway(sq, o) then taken = true end
         end
         if taken then
             sq:RecalcProperties()
@@ -590,16 +608,23 @@ function StageGame.set(ctx, p)
         end
         return not by
     end
+    -- An anchor where the list fits, as a list of it (none: empty). The candidates are looked at in a new random
+    -- order each time and the first that fits is it: as random as a pick among all that fit, without trying them all
+    -- (a large room has a thousand squares, and a set is tried for each of its copies).
     local function anchors(list)
-        local fits = {}
+        local n = #candidates
+        for i = n, 2, -1 do
+            local j = OA.random(1, i)
+            candidates[i], candidates[j] = candidates[j], candidates[i]
+        end
         for _, a in ipairs(candidates) do
             local ok = true
             for _, t in ipairs(list) do
-                if ok and not fitsAt(c:getGridSquare(a:getX() + t[1], a:getY() + t[2], a:getZ())) then ok = false end
+                if not fitsAt(c:getGridSquare(a:getX() + t[1], a:getY() + t[2], a:getZ())) then ok = false break end
             end
-            if ok then fits[#fits + 1] = a end
+            if ok then return { a } end
         end
-        return fits
+        return {}
     end
     local placed = false
     for _ = 1, p.count or 1 do

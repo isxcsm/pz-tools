@@ -9,6 +9,7 @@ require "OperationAcorn/Dev/Features"
 require "OperationAcorn/Story/Missions"
 require "OperationAcorn/Trade/Boxes"
 require "OperationAcorn/Trade/Objects"
+require "OperationAcorn/Trade/Gain"
 local OA = OperationAcorn
 local Dev = OA.Dev
 local say = Dev.say
@@ -405,6 +406,20 @@ function E2E.next()
     if not nextBeat then say("e2e: the last beat") return nil end
     return E2E.set(nextBeat.id)
 end
+
+-- The next stage or milestone, with the trust it takes coming in as a settlement's would (Trade.addTrust): its title,
+-- the story's and the comms' events, as in play.
+function E2E.stageUp()
+    local r = record()
+    local t = OA.Store.section(r, "trade")
+    local Trust = OA.Trust
+    local level = (t.stage or 1) + (t.milestones or 0)
+    local need = level < Trust.STAGES and Trust.stageThreshold(level + 1) or Trust.milestoneThreshold(level + 1 - Trust.STAGES)
+    local events = OA.Trade.addTrust(r, math.max(1, need - (t.trust or 0)), "settle")
+    say("e2e: stage up to level", level + 1, "events", #events)
+    return events
+end
+Dev.e2eStageUp = E2E.stageUp
 
 -- The first supply down by the character now, with its title (FirstSupply.check's).
 function E2E.firstSupply()

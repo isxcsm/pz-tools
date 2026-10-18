@@ -150,6 +150,7 @@
     "IGUI_OADev_E2E_ToMission": "Outside the mission",
     "IGUI_OADev_E2E_ToBase": "To the base",
     "IGUI_OADev_E2E_Morning": "10 AM",
+    "IGUI_OADev_E2E_StageUp": "Next stage",
     "IGUI_OADev_E2E_Timers": "Timers (soon = %1 game minutes before the next look)",
     "IGUI_OADev_E2E_Soon": "Soon",
     "IGUI_OADev_E2E_Left": "%1 h left",

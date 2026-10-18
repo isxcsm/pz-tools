@@ -82,6 +82,7 @@ test("a plain building has plain rooms only: a house, an office, a church; not a
     eq(P.plain({ "pizzawhirled", "pizzakitchen" }), false)
     eq(P.plain({ "laundry", "vacated", "bathroom" }), true, "a laundromat's rooms are a house's")
     eq(P.plain({ "cultistbedroom", "kitchen" }), false)
+    eq(P.plain({ "room1", "kitchen", "storage", "bathroom", "bathroom" }), false, "a diner named as a house")
     eq(P.plain({}), false)
 end)
 
@@ -124,6 +125,8 @@ test("a building mostly of lock-ups or sheds is taken last: no one was taken in 
     eq(P.mostlyStores({ "garage", "office" }), false)
     eq(P.mostlyStores({ "garage", "kitchen", "bedroom", "bathroom" }), false, "a house with a garage")
     eq(P.mostlyStores({}), false)
+    eq(P.mostlyStores({ "barn", "empty" }), true, "a barn and its loft")
+    eq(P.mostlyStores({ "office", "empty" }), false)
     local lockups = site(150, 900, 12, false)
     lockups.stores = true
     local list = { lockups, site(100, 50, 1, false), site(200, 300, 2, true) }

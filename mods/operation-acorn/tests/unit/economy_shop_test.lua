@@ -54,6 +54,18 @@ test("every NUMBERS 7 price is in the catalog", function()
     end
 end)
 
+test("a tier opens something on sale: the stages and the kits' milestone, while kits are sold", function()
+    eq(OA.Shop.opensAt(1), true)
+    eq(OA.Shop.opensAt(5), true)
+    eq(OA.Shop.opensAt(9), false)
+    local option = OA.option
+    OA.option = function(name) if name == "KitsForSale" then return false end return option(name) end
+    eq(OA.Shop.opensAt(6), false, "only kits at the first milestone")
+    OA.option = function(name) if name == "KitsForSale" then return true end return option(name) end
+    eq(OA.Shop.opensAt(6), true)
+    OA.option = option
+end)
+
 test("ids are unique and every entry delivers something", function()
     local seen = {}
     for _, e in ipairs(S.catalog()) do
