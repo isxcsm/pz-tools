@@ -123,7 +123,7 @@ def scene_table():
     rows = {}
     for line in open(SCENES, encoding='utf-8'):
         cells = [c.strip() for c in line.strip().strip('|').split('|')]
-        if len(cells) == 7 and re.match(r'^(S\d+\w*|K1~K4)$', cells[0]):
+        if len(cells) == 7 and re.match(r'^(S\d+\w*|K\d\w*|K1~K4)$', cells[0]):
             rows[cells[0]] = (cells[2], cells[3], cells[6])
     return rows
 
