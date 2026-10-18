@@ -446,109 +446,25 @@ function Links.groundOpen(x, y, z)
     return outside(x, y, z) and squareCost(getCell and getCell() or nil, x, y, z) ~= nil
 end
 
+-- What a square of the way meets (the API's filter, read once): the squares squareCost lets a line over.
+local PASS = { floor = true, stairs = false, waterFlag = false, noFlags = { "FloorHeightOneThird", "FloorHeightTwoThirds" } }
+local COSTS = { outside = STEP, inside = STEP + BUILDING, blocked = CROSSING, turn = TURN }
+-- The way a step into the wall runs, by its dx and dy.
+local INTO = { [1] = { [0] = { dx = 1, dy = 0 } }, [-1] = { [0] = { dx = -1, dy = 0 } },
+    [0] = { [1] = { dx = 0, dy = 1 }, [-1] = { dx = 0, dy = -1 } } }
+
 -- The cheapest way on floor z from (x, y) to (ex, ey): a step a square, more for a turn, through a building and over a
 -- wall or fence between two squares (it takes a gate or a gap near by); ending not headed into its wall (intoX,
--- intoY) costs a turn, so that the last leg runs straight in. Within MARGIN squares round its ends. The squares
--- ({ x, y } each, in order), or nil with no way there.
+-- intoY) costs a turn, so that the last leg runs straight in. Within MARGIN squares round its ends. Found by the API
+-- (squares.path). The squares ({ x, y } each, in order), or nil with no way there.
 function Links.walk(x, y, ex, ey, z, intoX, intoY)
-    local cell = getCell and getCell() or nil
-    local minX, minY = math.min(x, ex) - MARGIN, math.min(y, ey) - MARGIN
-    local maxX, maxY = math.max(x, ex) + MARGIN, math.max(y, ey) + MARGIN
-    local h = maxY - minY + 1
-    local costs = {}
-    local function costAt(sx, sy)
-        local i = (sx - minX) * h + (sy - minY) + 1
-        local c = costs[i]
-        if c == nil then
-            if sx == ex and sy == ey then c = STEP else c = squareCost(cell, sx, sy, z) or false end
-            costs[i] = c
-        end
-        return c
-    end
-    local function crossing(ax, ay, bx, by)
-        if not cell then return 0 end
-        local a, b = cell:getGridSquare(ax, ay, z), cell:getGridSquare(bx, by, z)
-        return a and b and a:isBlockedTo(b) and CROSSING or 0
-    end
-    local into = 0
-    for d, step in ipairs(NEIGHBOURS) do
-        if step[1] == intoX and step[2] == intoY then into = d end
-    end
-    -- A state is a square and the way it was entered by (0 at the start, else NEIGHBOURS' index); a heap of them by
-    -- cost.
-    local best, from, heap, heapCost, size = {}, {}, {}, {}, 0
-    local function push(s, cost)
-        size = size + 1
-        local i = size
-        while i > 1 do
-            local parent = math.floor(i / 2)
-            if heapCost[parent] <= cost then break end
-            heap[i], heapCost[i] = heap[parent], heapCost[parent]
-            i = parent
-        end
-        heap[i], heapCost[i] = s, cost
-    end
-    local function pop()
-        local s, cost = heap[1], heapCost[1]
-        local last, lastCost = heap[size], heapCost[size]
-        heap[size], heapCost[size] = nil, nil
-        size = size - 1
-        local i = 1
-        while true do
-            local child = i * 2
-            if child > size then break end
-            if child < size and heapCost[child + 1] < heapCost[child] then child = child + 1 end
-            if heapCost[child] >= lastCost then break end
-            heap[i], heapCost[i] = heap[child], heapCost[child]
-            i = child
-        end
-        if size > 0 then heap[i], heapCost[i] = last, lastCost end
-        return s, cost
-    end
-    local function state(sx, sy, d) return ((sx - minX) * h + (sy - minY)) * 5 + d end
-    local start = state(x, y, 0)
-    best[start] = 0
-    push(start, 0)
-    local goal, goalCost
-    while size > 0 do
-        local s, cost = pop()
-        if goalCost and cost >= goalCost then break end
-        if cost == best[s] then
-            local index = math.floor(s / 5)
-            local d = s - index * 5
-            local column = math.floor(index / h)
-            local sx, sy = minX + column, minY + index - column * h
-            if sx == ex and sy == ey then
-                local total = cost + ((into ~= 0 and d ~= into) and TURN or 0)
-                if not goalCost or total < goalCost then goal, goalCost = s, total end
-            else
-                for nd, step in ipairs(NEIGHBOURS) do
-                    local nx, ny = sx + step[1], sy + step[2]
-                    if nx >= minX and nx <= maxX and ny >= minY and ny <= maxY then
-                        local c = costAt(nx, ny)
-                        if c then
-                            local next = state(nx, ny, nd)
-                            local nextCost = cost + c + ((d ~= 0 and nd ~= d) and TURN or 0) + crossing(sx, sy, nx, ny)
-                            if not best[next] or nextCost < best[next] then
-                                best[next], from[next] = nextCost, s
-                                push(next, nextCost)
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-    if not goal then return nil end
-    local reversed, s = {}, goal
-    while s do
-        local index = math.floor(s / 5)
-        local column = math.floor(index / h)
-        reversed[#reversed + 1] = { x = minX + column, y = minY + index - column * h }
-        s = from[s]
-    end
+    local api = BU.api()
+    if not api then return nil end
+    local flat = api.squares.path({ x = x, y = y, z = z }, { x = ex, y = ey, z = z },
+        { margin = MARGIN, pass = PASS, cost = COSTS, into = intoX and INTO[intoX][intoY] or nil })
+    if not flat then return nil end
     local squares = {}
-    for i = #reversed, 1, -1 do squares[#squares + 1] = reversed[i] end
+    for i = 1, #flat, 2 do squares[#squares + 1] = { x = flat[i], y = flat[i + 1] } end
     return squares
 end
 

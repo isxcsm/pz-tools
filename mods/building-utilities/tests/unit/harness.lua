@@ -117,6 +117,120 @@ local function newApi()
             end
             return result
         end,
+        -- squares.path as design.md says it: A* over (square, direction entered by). A step costs cost.inside onto a
+        -- square of a building (api.squares, as buildings.at has it) else cost.outside, 1 onto `to`; cost.blocked more
+        -- over an edge between loaded squares that isBlockedTo; cost.turn for a change of direction, and once more for a
+        -- last step not along `into`. A loaded square meets `pass` (floor, stairs, waterFlag, noFlags); the ends and
+        -- unloaded squares are open. The flat list x1, y1, ... and its cost, or nil.
+        path = function(from, to, options)
+            count("squares.path")
+            local pass, cost, margin, into = options.pass or {}, options.cost or {}, options.margin or 12, options.into
+            local outside, inside, blocked, turn = cost.outside or 1, cost.inside or 1, cost.blocked or 0, cost.turn or 0
+            local minX, minY = math.min(from.x, to.x) - margin, math.min(from.y, to.y) - margin
+            local maxX, maxY = math.max(from.x, to.x) + margin, math.max(from.y, to.y) + margin
+            local z, high = from.z, maxY - minY + 1
+            local cheapest = math.min(outside, inside, 1)
+            local DX, DY = { 1, -1, 0, 0 }, { 0, 0, 1, -1 }
+            local cell, known, entering = getCell(), {}, {}
+            local function squareAt(x, y)
+                local at = (x - minX) * high + y - minY
+                if known[at] == nil then known[at] = cell:getGridSquare(x, y, z) or false end
+                return known[at] or nil
+            end
+            local function enter(x, y)
+                local at = (x - minX) * high + y - minY
+                local c = entering[at]
+                if c == nil then
+                    if x == to.x and y == to.y then c = 1
+                    else
+                        local open, square = true, squareAt(x, y)
+                        if square and not (x == from.x and y == from.y) then
+                            local props = square:getProperties()
+                            if pass.floor ~= nil and (square:getFloor() ~= nil) ~= pass.floor then open = false end
+                            if pass.stairs ~= nil and square:HasStairs() ~= pass.stairs then open = false end
+                            if pass.waterFlag ~= nil and props:has(IsoFlagType.water) ~= pass.waterFlag then open = false end
+                            for _, name in ipairs(pass.noFlags or {}) do
+                                if props:has(IsoFlagType[name]) then open = false end
+                            end
+                        end
+                        c = open and (api.squares[x .. "," .. y .. "," .. z] and inside or outside) or false
+                    end
+                    entering[at] = c
+                end
+                return c
+            end
+            local function estimate(x, y) return cheapest * (math.abs(x - to.x) + math.abs(y - to.y)) end
+            -- a binary heap of { estimate, cost, state } by estimate; a state is a square and its direction (0: none)
+            local queue = {}
+            local function push(item)
+                local i = #queue + 1
+                queue[i] = item
+                while i > 1 and queue[math.floor(i / 2)][1] > item[1] do
+                    queue[i] = queue[math.floor(i / 2)]
+                    i = math.floor(i / 2)
+                    queue[i] = item
+                end
+            end
+            local function pop()
+                local top, last = queue[1], table.remove(queue)
+                if #queue > 0 then
+                    queue[1] = last
+                    local i = 1
+                    while true do
+                        local child = i * 2
+                        if child > #queue then break end
+                        if child < #queue and queue[child + 1][1] < queue[child][1] then child = child + 1 end
+                        if queue[child][1] >= last[1] then break end
+                        queue[i], queue[child] = queue[child], last
+                        i = child
+                    end
+                end
+                return top
+            end
+            local best, via = {}, {}
+            local start = ((from.x - minX) * high + from.y - minY) * 5
+            best[start] = 0
+            push({ estimate(from.x, from.y), 0, start })
+            while #queue > 0 do
+                local item = pop()
+                local total, state = item[2], item[3]
+                if total == best[state] then
+                    local at = math.floor(state / 5)
+                    local d = state - at * 5
+                    local column = math.floor(at / high)
+                    local x, y = minX + column, minY + at - column * high
+                    if x == to.x and y == to.y then
+                        local flat, s = {}, state
+                        while s do
+                            local index = math.floor(s / 5)
+                            local col = math.floor(index / high)
+                            table.insert(flat, 1, minY + index - col * high)
+                            table.insert(flat, 1, minX + col)
+                            s = via[s]
+                        end
+                        return flat, total
+                    end
+                    for nd = 1, 4 do
+                        local nx, ny = x + DX[nd], y + DY[nd]
+                        local c = nx >= minX and nx <= maxX and ny >= minY and ny <= maxY and enter(nx, ny)
+                        if c then
+                            if d ~= 0 and nd ~= d then c = c + turn end
+                            if into and nx == to.x and ny == to.y and (DX[nd] ~= into.dx or DY[nd] ~= into.dy) then c = c + turn end
+                            if blocked > 0 then
+                                local a, b = squareAt(x, y), squareAt(nx, ny)
+                                if a and b and a:isBlockedTo(b) then c = c + blocked end
+                            end
+                            local after = ((nx - minX) * high + ny - minY) * 5 + nd
+                            if not best[after] or total + c < best[after] then
+                                best[after], via[after] = total + c, state
+                                push({ total + c + estimate(nx, ny), total + c, after })
+                            end
+                        end
+                    end
+                end
+            end
+            return nil
+        end,
     }
     networks.draw = function() return 0 end
     -- No revision unless a test gives one: the states are kept for the millisecond, as an older API has them.
