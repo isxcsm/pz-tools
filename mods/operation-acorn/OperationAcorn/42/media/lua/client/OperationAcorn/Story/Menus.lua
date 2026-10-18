@@ -98,6 +98,15 @@ local function stakeObject(worldobjects)
     return nil
 end
 
+-- Whether soil can be taken on a square: outdoors, its floor natural ground (grass, dirt, sand), as the game's own
+-- digging asks (DiggingUtil.mining_floorCanDig): not a road, a pavement or a floor someone laid.
+local function bareGround(square)
+    local floor = square:isOutside() and square:getFloor()
+    local sprite = floor and floor:getSprite()
+    local name = sprite and sprite:getName() or ""
+    return luautils.stringStarts(name, "floors_exterior_natural") or luautils.stringStarts(name, "blends_natural_01")
+end
+
 local function onFillWorld(playerNum, context, worldobjects, test)
     if test then return true end
     local player = getSpecificPlayer(playerNum)
@@ -112,7 +121,7 @@ local function onFillWorld(playerNum, context, worldobjects, test)
         for _, o in ipairs(worldobjects) do
             if o.getSquare then square = o:getSquare(); break end
         end
-        if square and square:isOutside() and square:getFloor() then
+        if square and bareGround(square) then
             local near = true
             if m.soil.variant == "site" then
                 near = Places.distance(player:getX(), player:getY(), m.soil.x, m.soil.y) <= Data.SOIL_RANGE

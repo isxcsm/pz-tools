@@ -255,7 +255,8 @@ function OATabMission:buildCard(record, info)
     card.brief = getText(briefKey, place, OA.Story.number(record))
     if info.item then
         card.item = { type = Data.fullType(info.item),
-            runs = join(plain("dim", getText("IGUI_OA_Story_UI_ItemLabel") .. " "), plain("text", getItemNameFromFullType(Data.fullType(info.item)))) }
+            runs = join(plain("dim", getText(info.takes and "IGUI_OA_Story_UI_ItemLabelTake" or "IGUI_OA_Story_UI_ItemLabel")
+                .. " "), plain("text", getItemNameFromFullType(Data.fullType(info.item)))) }
         -- scattered pieces: "시료 깡통 3곳 중 1곳 회수"
         if info.scatter then
             card.item.runs = join(card.item.runs, plain("text", " "),

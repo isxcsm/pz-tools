@@ -1813,6 +1813,9 @@ local function describeMission(m, now)
         local story = m.story and Data.STORIES[m.story]
         info.item = (story and not story.options and story.item) or (Data.ITEMS[tostring(m.title)] and m.title) or nil
     end
+    -- a sample the player takes, not finds (the soil)
+    local def = m.story and Data.STORIES[m.story]
+    info.takes = (m.soil or (def and def.kind == "soil")) and true or nil
     -- A found piece not sealed yet (`held`), and whether every piece wanted is found (`gathered`): the card's next step.
     -- The comparison tells neither (which of its two is the one is the player's to judge).
     if m.state == "open" and not m.compare then
