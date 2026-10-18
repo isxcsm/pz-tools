@@ -238,3 +238,76 @@ test("the static of a call waiting: the first bursts at their pace, then once a 
     eq(Alert.burstDue(n, 2, 1.7), true, "a new call: the bursts start again")
     eq(Alert.burstDue(n, 2, 1.8), true)
 end)
+
+-- The count worked out entry by entry, as the waiting count was before it was kept.
+local function slowWaiting(r)
+    local n = 0
+    for _, e in ipairs(Data.ENTRIES) do
+        if e.kind ~= "say" and e.kind ~= "field" and Comms.ready(r, e.id) then n = n + 1 end
+    end
+    return n
+end
+
+test("the kept waiting count follows every change of the entries and the gap of a short call", function()
+    local r = fresh()
+    local function same(what)
+        eq(Comms.waiting(r), slowWaiting(r), what)
+        eq(Comms.waiting(r), slowWaiting(r), what .. " (again)")
+    end
+    TEST.hours = 0
+    same("nothing")
+    Comms.fire(r, "first", 0)
+    same("fired")
+    Comms.played(r, "S0", 0, 0)
+    same("played")
+    Comms.fire(r, "settled", 0)
+    same("S1 ready")
+    Comms.played(r, "S1", 1, 0)
+    same("S1 played")
+    Comms.enterTier(r, 1, 0)
+    -- the short call waits its gap after the last call played (hour 0)
+    same("a short call held by the gap")
+    eq(Comms.waiting(r), 1, "S1M only")
+    TEST.hours = Comms.SHORT_GAP - 0.1
+    same("just before the gap ends")
+    eq(Comms.waiting(r), 1)
+    TEST.hours = Comms.SHORT_GAP
+    same("the gap has ended")
+    eq(Comms.waiting(r), 2, "the short call counts now")
+    Comms.drop(r, "s1_bedding")
+    same("dropped")
+    eq(Comms.waiting(r), 1)
+    Comms.played(r, "S1M", 1, TEST.hours)
+    same("S1M played")
+    Comms.fire(r, "serum", TEST.hours)
+    Comms.played(r, "S2", 2, TEST.hours)
+    TEST.hours = TEST.hours + 12
+    Comms.update(r, TEST.hours, day)
+    same("S2B fired by the timer")
+    eq(Comms.waiting(r), 1)
+    -- another record keeps its own count
+    local other = fresh()
+    Comms.fire(other, "first", 0)
+    eq(Comms.waiting(other), 1)
+    eq(Comms.waiting(r), 1)
+end)
+
+test("the timed entries are listed once with their triggers parsed", function()
+    local timed = {}
+    for _, e in ipairs(Data.ENTRIES) do
+        local ref, hours = string.match(e.trigger, "^after:(%w+):(%d+)$")
+        local nd = string.match(e.trigger, "^nextday:(%w+)$")
+        if ref or nd then
+            timed[#timed + 1] = e
+            eq(e.afterRef, ref, e.id)
+            eq(e.afterHours, hours and tonumber(hours) or nil, e.id)
+            eq(e.nextdayRef, nd, e.id)
+        else
+            eq(e.afterRef, nil, e.id)
+            eq(e.nextdayRef, nil, e.id)
+        end
+    end
+    eq(#Data.TIMED, #timed)
+    for i, e in ipairs(timed) do eq(Data.TIMED[i], e) end
+    truthy(#timed >= 2, "S2B and S4B at least")
+end)

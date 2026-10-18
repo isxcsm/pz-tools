@@ -1506,3 +1506,65 @@ test("the bench's list scrolls a row a wheel step under the mouse", function()
     eq(window.top, 12 - Machines.BenchModel.ROWS + 1, "no further than the last")
     eq(window:onWheel(1, area.x + 10, area.y + area.h + 5), false, "below the list: not the list's")
 end)
+
+test("the bench builds its model only when what it shows changed, idle or at work", function()
+    local now = 1
+    _G.getTimestampMs = function() return now end
+    local _, window, _, inventory, queue = benchWindow()
+    local builds = 0
+    local build = Machines.BenchModel.build
+    Machines.BenchModel.build = function(input)
+        builds = builds + 1
+        return build(input)
+    end
+    local function read()
+        now = now + OAMachineWindow.READ_MS
+        window:update()
+    end
+    -- idle: reads that change nothing build nothing
+    for _ = 1, 10 do read() end
+    eq(builds, 0, "idle reads")
+    -- a click is a change
+    window:onHit(hitOf(window, "row", 1))
+    eq(builds, 1)
+    for _ = 1, 5 do read() end
+    eq(builds, 1)
+    -- the list scrolled: built again
+    window.top = 1
+    window:onWheel(1, -1, -1)
+    -- (outside the list: nothing)
+    eq(builds, 1)
+    -- the bags changed: looked through and built
+    inventory.count = 11
+    read()
+    eq(builds, 2, "the signature changed")
+    read()
+    eq(builds, 2)
+    -- at work: built when the count done, the whole minutes left or the bar's hundredth moves
+    window:onHit(hitOf(window, "start"))
+    local atStart = builds
+    for _ = 1, 6 do read() end
+    eq(builds, atStart, "nothing moved")
+    queue[1].action = {}
+    queue[1].delta = 0.5
+    read()
+    eq(builds, atStart + 1, "the bar moved")
+    truthy(window.model.work.share > 0, "the bar shows it")
+    read()
+    eq(builds, atStart + 1)
+    local first = table.remove(queue, 1)
+    first.onDone(first)
+    local afterDone = builds
+    eq(window.model.work.text, getText("IGUI_OA_Bench_Progress", 1, 3), "the count follows at once")
+    read()
+    eq(builds, afterDone, "built by the done itself")
+    -- stopped: the work is over, the rows back (built once)
+    window:onHit(hitOf(window, "stop"))
+    read()
+    local over = builds
+    truthy(over > afterDone)
+    for _ = 1, 5 do read() end
+    eq(builds, over, "idle again")
+    eq(window.model.work, nil)
+    Machines.BenchModel.build = build
+end)

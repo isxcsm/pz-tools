@@ -130,16 +130,17 @@ local function onTenMinutes()
     end)
 end
 
+local function denseMinute(record)
+    Dense.minute(record, Game.playerPosition)
+end
+
 -- Every game minute: a mission's circle entered, its place shown, a drop site stood at (Story/Scene; a few distances a
 -- record, and nothing more until the player is in a circle).
 local function onMinute()
     if not started then return end
     eachRecord(Scene.minute)
     -- a dense place stood at: its zombies counted, its reward given (Story/Dense; a few distances a record)
-    eachRecord(function(record)
-        local x, y = Game.playerPosition(record)
-        if x then Dense.look(record, x, y) end
-    end)
+    eachRecord(denseMinute)
     -- a zombie mission's group held, brought when the player comes near (Story/Zombies)
     local ok, err = pcall(Zombies.tick, OA.hours())
     if not ok then OA.log("zombie missions failed:", tostring(err)) end

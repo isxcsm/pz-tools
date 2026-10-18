@@ -244,3 +244,29 @@ test("a place another character cleared is the reward of a record that stands at
     eq(Dense.got(low).D4, nil)
     eq(Dense.count(second, "damage"), 1)
 end)
+
+test("the minute's look asks for the character's position only when a look is due", function()
+    setup()
+    Dense.ensure()
+    local r, low = record(6), record(5)
+    local p = Dense.list()[1]
+    local asked = 0
+    local function position() asked = asked + 1 return p.x, p.y end
+    local now = 9000000
+    local clock = getTimestampMs
+    getTimestampMs = function() return now end
+    Dense.minute(low, position)
+    eq(asked, 0, "below level 6: no search for the character")
+    Dense.minute(r, position)
+    eq(asked, 1)
+    Dense.minute(r, position)
+    eq(asked, 1, "a look a second: not asked again within it")
+    now = now + 1500
+    Dense.minute(r, position)
+    eq(asked, 2)
+    -- a record with no character: nothing happens
+    now = now + 1500
+    Dense.minute(r, function() asked = asked + 1 return nil end)
+    eq(asked, 3)
+    getTimestampMs = clock
+end)

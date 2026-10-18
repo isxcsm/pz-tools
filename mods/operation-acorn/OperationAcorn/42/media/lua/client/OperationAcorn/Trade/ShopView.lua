@@ -45,8 +45,43 @@ local function isEnhance(entry)
     return entry.special == "serum"
 end
 
+-- The shelf and the sections of the last catalog asked about, kept while nothing they were made from changes: the catalog
+-- (the same table of the same length), the sandbox's KitsForSale, and whether each good that needs a Building Utilities
+-- feature is on (ShopView.listed). The lists are shared: callers read them, they do not change them.
+local kept = { catalog = nil, size = 0, kits = nil, buEntries = {}, bu = {}, shelf = nil, sections = nil }
+
+local function keptFor(catalog)
+    local kits = OA.option("KitsForSale")
+    if kept.catalog == catalog and kept.size == #catalog and kept.kits == kits then
+        local same = true
+        for i, e in ipairs(kept.buEntries) do
+            if OA.Shop.buOn(e.bu) ~= kept.bu[i] then
+                same = false
+                break
+            end
+        end
+        if same then return kept end
+    end
+    kept.catalog, kept.size, kept.kits = catalog, #catalog, kits
+    kept.buEntries, kept.bu = {}, {}
+    for _, e in ipairs(catalog) do
+        if e.bu then
+            kept.buEntries[#kept.buEntries + 1] = e
+            kept.bu[#kept.bu + 1] = OA.Shop.buOn(e.bu)
+        end
+    end
+    kept.shelf, kept.sections = nil, nil
+    return kept
+end
+
 -- The shelf as two blocks { { id = "enhance", entries }, { id = "treat", entries } } from a catalog (a list of entries).
 function ShopView.shelf(catalog)
+    local k = keptFor(catalog)
+    if not k.shelf then k.shelf = ShopView.makeShelf(catalog) end
+    return k.shelf
+end
+
+function ShopView.makeShelf(catalog)
     local byId, shelf = {}, {}
     for _, e in ipairs(catalog) do
         byId[e.id] = e
@@ -73,6 +108,12 @@ end
 -- The entries of the sections (everything but the shelf and the reissue) in catalog order: { groups = { id ... in the
 -- order they first appear }, byGroup = { [id] = list } }.
 function ShopView.sections(catalog)
+    local k = keptFor(catalog)
+    if not k.sections then k.sections = ShopView.makeSections(catalog) end
+    return k.sections
+end
+
+function ShopView.makeSections(catalog)
     local out = { groups = {}, byGroup = {} }
     for _, e in ipairs(catalog) do
         if ShopView.listed(e) and not ShopView.onShelf(e) then

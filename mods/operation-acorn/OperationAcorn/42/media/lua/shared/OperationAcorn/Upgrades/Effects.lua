@@ -103,8 +103,11 @@ local ARMOR_DISCOMFORT = 3
 -- oa_land_*_r<rank>.xml, written by tools/land_nodes.py): the character variable they ask for, set to the rank.
 Effects.LAND_VARIABLE = "OALandRank"
 
--- Whether the Zombie Visibility Fix mod is active: then the hidden zombie fix stands aside (DESIGN 7).
-function Effects.visibilityModActive()
+-- Whether the Zombie Visibility Fix mod is active: then the hidden zombie fix stands aside (DESIGN 7). The list of
+-- active mods does not change under a running game, so it is read once for the session (Effects.reset forgets it).
+local visibilityMod = nil
+
+local function readVisibilityMod()
     if type(getActivatedMods) ~= "function" then return false end
     local ok, result = pcall(function()
         local mods = getActivatedMods()
@@ -117,6 +120,11 @@ function Effects.visibilityModActive()
         return false
     end)
     return ok and result or false
+end
+
+function Effects.visibilityModActive()
+    if visibilityMod == nil then visibilityMod = readVisibilityMod() end
+    return visibilityMod
 end
 
 local function positive(x)
@@ -264,6 +272,20 @@ end
 function Effects.reset()
     declared = {}
     statuses = nil
+    visibilityMod = nil
+end
+
+-- Whether what was declared no longer fits the time `now` (hours) for the section `u`: nothing is declared yet (the API
+-- was not there), or the bite shield's point was declared armed or resting and the rest has since ended or begun. That
+-- point is the one value that moves with game time alone; every other changes with the record, which refreshes at once.
+function Effects.stale(u, now)
+    local any = false
+    for _ in pairs(declared) do
+        any = true
+        break
+    end
+    if not any then return true end
+    return u ~= nil and (declared[P.biteShield] == true) ~= Rules.biteReady(u, now)
 end
 
 -- Whether the hidden zombie fix should be declared: the option on and no other mod doing the same.

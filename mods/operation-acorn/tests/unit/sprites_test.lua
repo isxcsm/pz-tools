@@ -313,3 +313,25 @@ test("the trade tiles keep their places", function()
     eq(places[0].Facing, "S")
     eq(places[3].Facing, "W")
 end)
+
+test("a machine's tile list is made once for a kind, direction and look, and shared", function()
+    local kinds = {}
+    for kind in pairs(Sprites.FOOTPRINT) do kinds[#kinds + 1] = kind end
+    truthy(#kinds > 0)
+    for _, kind in ipairs(kinds) do
+        for _, dir in ipairs({ "S", "E", "N", "W" }) do
+            for _, look in ipairs({ false, true, "ready" }) do
+                local a = Sprites.machineTiles(kind, dir, look)
+                if a then
+                    eq(Sprites.machineTiles(kind, dir, look), a, kind .. dir .. tostring(look) .. ": the same list")
+                end
+            end
+        end
+    end
+    -- a nil look is the stopped one
+    eq(Sprites.machineTiles("bulkShredder", "S", nil), Sprites.machineTiles("bulkShredder", "S", false))
+    truthy(Sprites.machineTiles("bulkShredder", "S", true)[1].sprite ~= Sprites.machineTiles("bulkShredder", "S", false)[1].sprite,
+        "running is another picture")
+    eq(Sprites.rainStorageTiles(), Sprites.rainStorageTiles())
+    eq(#Sprites.rainStorageTiles(), 4)
+end)

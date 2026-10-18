@@ -50,3 +50,41 @@ test("the terminal faces the player until turned, then keeps the facing turned t
     eq(cursor.facing, "E")
     eq(cursor:getSprite(), OA.Sprites.terminal("E", false, false))
 end)
+
+test("the cursor asks whether a square is free once each VALID_MS, a click asks afresh", function()
+    load()
+    local asked, free = 0, true
+    OA.Trade.Objects.isFree = function() asked = asked + 1 return free end
+    OA.inInventory = function() return true end
+    local character = { getPlayerNum = function() return 0 end }
+    local cursor = ISOAPlaceCursor:new(character, "terminal", {})
+    local clock = 5000
+    getTimestampMs = function() return clock end
+    local a, b = square(1, 1), square(2, 2)
+    eq(cursor:isValid(a), true)
+    eq(cursor:isValid(a), true)
+    eq(asked, 1, "the second frame asks nothing")
+    free = false
+    clock = clock + ISOAPlaceCursor.VALID_MS - 1
+    eq(cursor:isValid(a), true, "kept inside the time")
+    clock = clock + 1
+    eq(cursor:isValid(a), false, "asked again after it")
+    eq(asked, 2)
+    eq(cursor:isValid(b), false, "another square is asked at once")
+    eq(asked, 3)
+    free = true
+    eq(cursor:isValid(a), true, "back to the first square: asked at once")
+    eq(asked, 4)
+    eq(cursor:isValid(nil), false)
+    -- a click: asked afresh whatever was kept
+    local queued = {}
+    ISTimedActionQueue = { add = function(action) queued[#queued + 1] = action end }
+    ISOAPlaceThing = { new = function() return { placed = true } end }
+    getCell = function() return { getGridSquare = function() return a end } end
+    free = false
+    cursor:create(1, 1, 0)
+    eq(#queued, 0, "the square was free a moment ago, not now")
+    free = true
+    cursor:create(1, 1, 0)
+    eq(#queued, 1)
+end)

@@ -29,6 +29,7 @@ end
 -- Looks through the bags for what can be shredded (the chosen counts of the kinds still there are kept).
 function OABenchWindow:scan()
     self.sig = OA.signature(self.character:getInventory())
+    self.shown = nil
     -- oa-scan: ok (the window opened, the work ended or the inventory changed: once)
     local entries = Machines.benchCandidates(self.character, Bench.LIMIT)
     self.kinds = Bench.group(entries, self.kinds)
@@ -95,6 +96,10 @@ function OABenchWindow:checkWork()
     end
 end
 
+-- What the last model was made from, in the terms the window shows (self.shown): idle, the list's first row and the
+-- bags' signature; at work, also the count done, the whole minutes left and the bar by the hundredth. While these are
+-- the same the model would be the same (it is made from them and from the kinds, which every change of goes through
+-- scan or changed), so a read neither builds it nor keys it: the window reads four times a second.
 function OABenchWindow:refresh(force)
     if not self.kinds then
         self:scan()
@@ -111,10 +116,18 @@ function OABenchWindow:refresh(force)
     end
     local work = self.work
     local progress = nil
+    local shown = self.shown
+    local minutes, hundredths
     if work then
         local left = self:workLeft()
-        progress = { done = work.done, total = work.total, minutesLeft = left,
-            share = work.minutesTotal > 0 and 1 - left / work.minutesTotal or work.done / math.max(1, work.total) }
+        local share = work.minutesTotal > 0 and 1 - left / work.minutesTotal or work.done / math.max(1, work.total)
+        minutes = left > 0 and math.max(1, OA.round(left)) or 0
+        hundredths = OA.round(OA.clamp(share, 0, 1) * 100)
+        if not force and shown and shown.work and shown.done == work.done and shown.minutes == minutes
+            and shown.hundredths == hundredths and shown.top == self.top and shown.sig == self.sig then
+            return
+        end
+        progress = { done = work.done, total = work.total, minutesLeft = left, share = share }
     elseif self.finished then
         if getTimestampMs() < self.finished.untilMs then
             progress = { done = self.finished.total, total = self.finished.total, share = 1, minutesLeft = 0, finished = true }
@@ -122,12 +135,23 @@ function OABenchWindow:refresh(force)
             self.finished = nil
         end
     end
+    if not force and not progress and shown and not shown.work and shown.top == self.top and shown.sig == self.sig then
+        return
+    end
     local state = Machines.state(self.object)
     local model = Bench.build({ id = state and state.id, kinds = self.kinds, top = self.top, first = self.first,
         firstBonus = OA.Shred.FIRST_BONUS * (OA.option("BonusMultiplier") or 1.0), estimate = self.est,
         work = progress })
     self.top = model.list.top
     self.model = model
+    if work then
+        self.shown = { work = true, done = work.done, minutes = minutes, hundredths = hundredths, top = self.top,
+            sig = self.sig }
+    elseif progress then
+        self.shown = nil
+    else
+        self.shown = { work = false, top = self.top, sig = self.sig }
+    end
     self:present(model, force, Layout.bench)
 end
 

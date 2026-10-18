@@ -16,6 +16,13 @@ local Data = OA.CommsData
 local Comms = {}
 OA.Comms = Comms
 
+-- Counts what changed the entries' states (fired, played, dropped) in this session: Comms.waiting is kept until it moves.
+-- Whatever writes a section's tables outside this file (the developer's time travel) calls Comms.changed after.
+local revision = 0
+function Comms.changed()
+    revision = revision + 1
+end
+
 -- The record's comms section: fired = id -> hours, played = id -> hours, dropped = id -> true, log = { { id, tier } }
 -- in the order played (the tab's record), afterSays = the after-handover monologues said, tier = the tier last entered,
 -- era = "admin" for a record that came into the world after the handover (Comms.join).
@@ -56,6 +63,7 @@ function Comms.fire(record, trigger, now)
             fired[#fired + 1] = e.id
         end
     end
+    if #fired > 0 then revision = revision + 1 end
     return fired
 end
 
@@ -65,15 +73,15 @@ function Comms.update(record, now, day)
     now = now or OA.hours()
     day = day or OA.day
     local fired = {}
-    for _, e in ipairs(Data.ENTRIES) do
+    for _, e in ipairs(Data.TIMED) do
         if not s.fired[e.id] and not done(s, e.id) then
-            local ref, hours = string.match(e.trigger, "^after:(%w+):(%d+)$")
             local due = false
-            if ref and s.played[ref] then
-                due = now >= s.played[ref] + tonumber(hours)
+            local at = e.afterRef and s.played[e.afterRef]
+            if at then
+                due = now >= at + e.afterHours
             else
-                ref = string.match(e.trigger, "^nextday:(%w+)$")
-                if ref and s.played[ref] then due = day(now) > day(s.played[ref]) end
+                at = e.nextdayRef and s.played[e.nextdayRef]
+                if at then due = day(now) > day(at) end
             end
             if due then
                 s.fired[e.id] = now
@@ -81,6 +89,7 @@ function Comms.update(record, now, day)
             end
         end
     end
+    if #fired > 0 then revision = revision + 1 end
     return fired
 end
 
@@ -94,6 +103,7 @@ function Comms.enterTier(record, tier, now)
             if e.kind ~= "say" and not e.mission and not e.keep and not e.branch and e.tier < t and not s.fired[e.id]
                 and not done(s, e.id) then
                 s.dropped[e.id] = true
+                revision = revision + 1
             end
         end
         for _, id in ipairs(Comms.fire(record, "tier:" .. t, now)) do fired[#fired + 1] = id end
@@ -116,6 +126,7 @@ function Comms.join(record, tier, admin)
         end
     end
     if admin then s.era = "admin" end
+    revision = revision + 1
 end
 
 -- An entry no longer wanted (a branch's call whose matter is settled before it was played): dropped, unless played.
@@ -123,6 +134,7 @@ function Comms.drop(record, id)
     local s = Comms.section(record)
     if done(s, id) or not Data.BY_ID[id] then return false end
     s.dropped[id] = true
+    revision = revision + 1
     return true
 end
 
@@ -164,12 +176,30 @@ function Comms.next(record, place, now)
     return nil
 end
 
--- How many terminal entries are ready (the comms tab's dot, the terminal's blinking light).
+-- How many terminal entries are ready (the comms tab's dot, the terminal's blinking light). Kept per section until the
+-- entries move (the revision) or the hour comes when a short call's gap after the last call ends: the answer changes
+-- by nothing else.
+local waitingKept = setmetatable({}, { __mode = "k" })
 function Comms.waiting(record)
-    local n = 0
+    local s = Comms.section(record)
+    local now = OA.hours()
+    local kept = waitingKept[s]
+    if kept and kept.revision == revision and now >= kept.at and now < kept.flipsAt then return kept.n end
+    local n, flips = 0, nil
+    local last
     for _, e in ipairs(Data.ENTRIES) do
-        if e.kind ~= "say" and e.kind ~= "field" and Comms.ready(record, e.id) then n = n + 1 end
+        if e.kind ~= "say" and e.kind ~= "field" then
+            if Comms.ready(record, e.id, now) then
+                n = n + 1
+            elseif e.kind == "short" and s.fired[e.id] and not done(s, e.id) and (e.waits == nil or done(s, e.waits)) then
+                -- held only by the gap: ready when it ends
+                last = last or lastCall(s)
+                local at = last and last + Comms.SHORT_GAP
+                if at and at > now and (not flips or at < flips) then flips = at end
+            end
+        end
     end
+    waitingKept[s] = { revision = revision, at = now, flipsAt = flips or math.huge, n = n }
     return n
 end
 
@@ -183,6 +213,7 @@ function Comms.played(record, id, tier, now)
     if s.played[id] then return false end
     s.played[id] = now or OA.hours()
     addLog(s, id, tier or s.tier)
+    revision = revision + 1
     return true
 end
 
@@ -196,6 +227,7 @@ function Comms.say(record, storyId, event, tier, now)
             if s.played[e.id] then return nil end
             s.played[e.id] = now or OA.hours()
             addLog(s, e.id, tier or s.tier)
+            revision = revision + 1
             return e.id
         end
     end
@@ -210,6 +242,7 @@ function Comms.afterSay(record, tier, now)
     s.afterSays = s.afterSays + 1
     s.played[id] = now or OA.hours()
     addLog(s, id, tier or s.tier)
+    revision = revision + 1
     return id
 end
 

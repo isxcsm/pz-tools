@@ -79,6 +79,15 @@ function Machines.list()
     return registry().list
 end
 
+-- Whether a registered machine's anchor stands within `radius` squares of x, y (on any level): a look at the registry,
+-- no square is asked for.
+function Machines.anyNear(x, y, radius)
+    for _, entry in pairs(registry().list) do
+        if math.abs(entry.x - x) <= radius and math.abs(entry.y - y) <= radius then return true end
+    end
+    return false
+end
+
 -- ---------------------------------------------------------------------------------------------------------------------
 -- Finding a machine
 
@@ -176,8 +185,18 @@ Machines.itemFullType = itemFullType
 -- The tiles of a machine facing dir, running or not: { { dx, dy, sprite } ... }, one for each square of its footprint,
 -- dx and dy counted from the anchor (the footprint's smallest x and y; always the tile at 0, 0), as Sprites has them
 -- (a lure is one tile, on or off; the rain storage 2x2, and it does not turn).
+-- The lists are shared: callers read them. A lure's two are made once.
+local lureTiles = {}
 function Machines.tiles(kind, dir, look)
-    if kind == "lure" then return { { dx = 0, dy = 0, sprite = Sprites.lure(look) } } end
+    if kind == "lure" then
+        local on = look and true or false
+        local tiles = lureTiles[on]
+        if not tiles then
+            tiles = { { dx = 0, dy = 0, sprite = Sprites.lure(look) } }
+            lureTiles[on] = tiles
+        end
+        return tiles
+    end
     if kind == "rainStorage" then return Sprites.rainStorageTiles() end
     return Sprites.machineTiles(kind, dir or "S", look)
 end

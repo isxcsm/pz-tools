@@ -115,13 +115,20 @@ function OATabStatus:topLines(record)
     local tier = Trust.tier(record)
     local pr = Trust.progress(record)
     local span = math.max(1, pr.to - pr.from)
+    local p = self:palette()
+    local nf = p.numberFont
+    local trust, to = Text.credits(pr.trust), Text.credits(pr.to)
+    local nextLevel, left = getText("IGUI_OA_Terminal_ToLevel", tier + 1), Text.credits(math.max(0, pr.to - pr.trust))
     return {
+        -- the trust line's parts as `run` draws them, made here and not every frame
+        run = { { trust, p.text, nf }, { " / ", p.dim }, { to, p.dim, nf }, { Text.DOT .. nextLevel .. " ", p.dim },
+            { left, p.text, nf } },
         level = OATabStatus.levelText(tier),
         frac = math.max(0, math.min(1, (pr.trust - pr.from) / span)),
-        trust = Text.credits(pr.trust),
-        to = Text.credits(pr.to),
-        next = getText("IGUI_OA_Terminal_ToLevel", tier + 1),
-        left = Text.credits(math.max(0, pr.to - pr.trust)),
+        trust = trust,
+        to = to,
+        next = nextLevel,
+        left = left,
         debt = account.credits < 0,
         balance = Text.credits(math.abs(account.credits)),
     }
@@ -163,8 +170,7 @@ function OATabStatus:prerender()
     UI.fill(self, x0, 31, math.floor(barW * t.frac + 0.5), 7, field and p.value or p.sel)
     UI.frame(self, x0, 31, barW, 7, p.border)
     local nf = p.numberFont
-    run(self, x0, 40, { { t.trust, p.text, nf }, { " / ", p.dim }, { t.to, p.dim, nf }, { Text.DOT .. t.next .. " ", p.dim },
-        { t.left, p.text, nf } })
+    run(self, x0, 40, t.run)
     local unit = UI.creditsUnit()
     local right = w
     if t.debt then

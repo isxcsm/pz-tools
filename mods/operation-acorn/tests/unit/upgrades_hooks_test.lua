@@ -40,6 +40,7 @@ test("fast-forwarded, the ten-minute refresh runs at most once each REFRESH_MS o
     local Hooks = loadHooks()
     local refreshes = 0
     Hooks.refresh = function() refreshes = refreshes + 1 end
+    getPlayer = function() return nil end
     local clock = 1760000000000
     getTimestampMs = function() return clock end
     TEST.fire("EveryTenMinutes")
@@ -290,4 +291,45 @@ test("the moodles' stand-ins follow their levels and the mouse, though the eleme
     Moodles.set("sixth", 1)
     UI.liveFrame()
     eq(panel.liveLook, 0, "shown again: followed again")
+end)
+
+test("the ten-minute clock refreshes only when the bite shield's rest ends or begins, or nothing is declared yet", function()
+    local Hooks = loadHooks()
+    local Effects, Rules = OA.Upgrades.Effects, OA.Upgrades.Rules
+    local refreshes = 0
+    Hooks.refresh = function() refreshes = refreshes + 1 end
+    PZExtAPI = { version = OA.API_VERSION, client = function() return "handle" end,
+        formulas = { set = function() end, points = function() return {} end } }
+    CharacterTrait = {}
+    local record = OA.Store.ensure("p", "P")
+    getPlayer = function() return { hasTrait = function() return false end } end
+    OA.Client.record = function() return record end
+    local u = Rules.section(record)
+    u.ranks.resistPlus = 2
+    local clock = 1760000000000
+    getTimestampMs = function() return clock end
+    local function tick()
+        clock = clock + Hooks.REFRESH_MS
+        TEST.fire("EveryTenMinutes")
+    end
+    Effects.reset()
+    tick()
+    eq(refreshes, 1, "nothing declared yet (no API at the start): refreshed")
+    Effects.apply(record)
+    tick()
+    eq(refreshes, 1, "declared armed, still armed: not refreshed")
+    u.biteAt = OA.hours()
+    tick()
+    eq(refreshes, 2, "the shield rests now: the point must be cleared")
+    Effects.apply(record)
+    tick()
+    tick()
+    eq(refreshes, 2, "resting as declared: not refreshed")
+    TEST.hours = TEST.hours + Rules.biteHours(u) + 1
+    tick()
+    eq(refreshes, 3, "the rest has ended: the point must be declared")
+    Effects.apply(record)
+    tick()
+    eq(refreshes, 3)
+    PZExtAPI = nil
 end)

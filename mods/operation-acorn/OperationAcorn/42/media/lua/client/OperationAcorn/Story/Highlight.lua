@@ -139,12 +139,36 @@ local function lightOnly(n, want, open)
     lit[n] = (not OA.isEmpty(want)) and want or nil
 end
 
+-- What the last tint of a character's loot window was made from, by player number: { inventory, signature (its count and
+-- weight: OA.signature), missions (the list, copied), at (ms), names }. The container is walked again only when one of
+-- these changed, or after TINT_MS of real time (so that no swap of like for like stays unseen for long).
+local tintKept = {}
+local TINT_MS = 2000
+
+local function sameMissions(kept, missions)
+    if #kept ~= #missions then return false end
+    for i = 1, #kept do
+        if kept[i] ~= missions[i] then return false end
+    end
+    return true
+end
+
 -- The names to paint in the loot window of a character: { [name] = colour } for the missions' items in the container
 -- the window shows, or nil.
-local function tintOf(page, missions, player)
+local function tintOf(page, missions, player, n)
     local pane = page and page.inventoryPane
     local inventory = pane and pane.inventory
-    if not inventory or not page:isVisible() then return pane, nil end
+    if not inventory or not page:isVisible() then
+        tintKept[n] = nil
+        return pane, nil
+    end
+    local now = getTimestampMs()
+    local signature = OA.signature(inventory)
+    local kept = tintKept[n]
+    if kept and kept.inventory == inventory and kept.signature == signature and sameMissions(kept.missions, missions)
+        and now >= kept.at and now - kept.at < TINT_MS then
+        return pane, kept.names
+    end
     local names
     for _, item in ipairs(markedIn(inventory)) do
         local id = item:getModData().OA_Mission
@@ -156,6 +180,9 @@ local function tintOf(page, missions, player)
             end
         end
     end
+    local copy = {}
+    for i, m in ipairs(missions) do copy[i] = m end
+    tintKept[n] = { inventory = inventory, signature = signature, missions = copy, at = now, names = names }
     return pane, names
 end
 
@@ -206,13 +233,14 @@ local function look()
             if seen[1] then spotted(player, seen, missions) end
             local inventory = page and page.inventoryPane and page.inventoryPane.inventory
             lightOnly(n, want or EMPTY, inventory and inventory:getParent() or nil)
-            local pane, names = tintOf(page, missions, player)
+            local pane, names = tintOf(page, missions, player, n)
             if pane then
                 pane.oaTint = names
                 tinted[pane] = true
             end
         else
             lightOnly(n, EMPTY, nil)
+            tintKept[n] = nil
             local pane = page and page.inventoryPane
             if pane then pane.oaTint = nil end
         end
@@ -230,6 +258,7 @@ local function clear()
         lit[n] = nil
     end
     for pane in pairs(tinted) do pane.oaTint = nil end
+    tintKept = {}
 end
 
 -- The work is on while a local character has a mission open.

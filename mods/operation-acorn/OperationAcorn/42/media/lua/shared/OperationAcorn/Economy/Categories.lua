@@ -74,11 +74,16 @@ function Categories.shortName(fullType)
 end
 
 -- The item's name as the codex counts kinds: no module for the base game, and a colour variant (TINT) is its base.
+local baseTypes = {}
 function Categories.baseType(fullType)
+    local hit = fullType ~= nil and baseTypes[fullType]
+    if hit then return hit end
     local name = tostring(fullType)
     if string.sub(name, 1, 5) == "Base." then name = string.sub(name, 6) end
     name = string.gsub(name, "_TINT", "")
     name = string.gsub(name, "TINT", "")
+    -- (kept for the session: an item type's name is fixed, and the codex asks it of every item it counts)
+    if fullType ~= nil then baseTypes[fullType] = name end
     return name
 end
 
@@ -88,21 +93,37 @@ function Categories.isVanilla(fullType)
     return module == nil or module == "Base"
 end
 
+-- Why an item type is never taken by its id, or false: kept by full type for the session (the lists are fixed).
+local idRejects = {}
+local function idRejectedAt(fullType)
+    -- The id lists name vanilla items: another mod's item of the same name is judged by its DisplayCategory.
+    if Categories.isVanilla(fullType) then
+        local id = Categories.shortName(fullType)
+        local why = Categories.REJECT_ID[id]
+        if why then return why end
+        for _, pair in ipairs(Categories.REJECT_PREFIX) do
+            if string.sub(id, 1, #pair[1]) == pair[1] then return pair[2] end
+        end
+    end
+    return false
+end
+local function idRejected(fullType)
+    if fullType == nil then return idRejectedAt(fullType) end
+    local why = idRejects[fullType]
+    if why == nil then
+        why = idRejectedAt(fullType)
+        idRejects[fullType] = why
+    end
+    return why
+end
+
 -- The category letter of an item, or nil and why it is not taken: a reason name ("Ammo", "Furniture", "Bought" ...)
 -- or "Cash" / "Own" for what the value rules handle before this (OA.Value). `info` as in ARCHITECTURE 5.
 function Categories.of(info)
     if info.cash then return nil, "Cash" end
     if info.own then return nil, "Own" end
-    local why
-    -- The id lists name vanilla items: another mod's item of the same name is judged by its DisplayCategory.
-    if Categories.isVanilla(info.fullType) then
-        local id = Categories.shortName(info.fullType)
-        why = Categories.REJECT_ID[id]
-        if why then return nil, why end
-        for _, pair in ipairs(Categories.REJECT_PREFIX) do
-            if string.sub(id, 1, #pair[1]) == pair[1] then return nil, pair[2] end
-        end
-    end
+    local why = idRejected(info.fullType)
+    if why then return nil, why end
     if info.bought then return nil, "Bought" end
     if info.moveable then return nil, "Furniture" end
     local display = info.displayCategory

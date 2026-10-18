@@ -169,20 +169,37 @@ end
 Things.itemsOf = itemsOf
 
 -- What would be sealed of a container's items: { taken = { item }, infos = { info }, refused = { item },
--- weight }. An item the team does not take (the manual left in, say) is `refused`: it goes back to the character.
-function Things.sealable(container)
+-- refusedInfos = { info of each refused item (nil when it could not be read) }, refusedWhys = { the translation key
+-- of why each is refused (nil when none is given) }, weight }. An item the team does not take (the manual left in,
+-- say) is `refused`: it goes back to the character.
+-- `memo` (optional: a table the caller keeps and clears, weak by item) holds { info, ok, why } of the items read before;
+-- the estimate panel gives one, since it asks again at every change of the box. A sealing reads fresh (no memo).
+-- A bag is never memoised: what is put in it or taken out of it changes whether the team takes it.
+function Things.sealable(container, memo)
     local taken, infos, refused, weight = {}, {}, {}, 0
+    local refusedInfos, refusedWhys = {}, {}
     for _, item in ipairs(itemsOf(container)) do
-        local ok, info = pcall(OA.Value.info, item)
-        if ok and info and OA.Value.accepts(info) == true then
+        local read = memo and memo[item]
+        if not read then
+            local ok, info = pcall(OA.Value.info, item)
+            local accepted, why = false, nil
+            if ok and info then accepted, why = OA.Value.accepts(info) end
+            read = { info = ok and info or nil, ok = accepted == true, why = why }
+            -- (`filled` is only given for a bag)
+            if memo and ok and info and info.filled == nil then memo[item] = read end
+        end
+        if read.ok then
             taken[#taken + 1] = item
-            infos[#infos + 1] = info
+            infos[#infos + 1] = read.info
             weight = weight + item:getActualWeight()
         else
             refused[#refused + 1] = item
+            refusedInfos[#refused] = read.info
+            refusedWhys[#refused] = read.why
         end
     end
-    return { taken = taken, infos = infos, refused = refused, weight = weight }
+    return { taken = taken, infos = infos, refused = refused, refusedInfos = refusedInfos, refusedWhys = refusedWhys,
+        weight = weight }
 end
 
 -- Seals a box: records its items by kind and count in the save, deletes them, shows the sealed tile and closes the

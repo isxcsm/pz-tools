@@ -377,15 +377,38 @@ test("the look is skipped while the pack and the bags it went into hold what the
     inBag[1] = item("Base.Pencil")
     clock = clock + OA.Economy.SWEEP_MS
     TEST.fire("EveryTenMinutes")
-    eq(walked, 1, "a thing put in the bag: walked again (the rope is a known kind: one look)")
+    eq(walked, 0, "a thing put in the bag: walked again (the rope is remembered: not read at all)")
     truthy(record.codex.kinds.Pencil, "and the pencil counted")
     clock = clock + OA.Economy.SWEEP_MS
     TEST.fire("EveryTenMinutes")
-    eq(walked, 1)
+    eq(walked, 0)
     items[3] = item("Base.Thread")
     clock = clock + OA.Economy.SWEEP_MS
     TEST.fire("EveryTenMinutes")
-    eq(walked, 2, "a thing put in the pack")
+    eq(walked, 0, "a thing put in the pack")
+    truthy(record.codex.kinds.Thread, "and counted")
+end)
+
+test("an item the look settled for one codex is counted for another one it passes to", function()
+    boot()
+    local a, b = OA.Store.ensure("a", "A"), OA.Store.ensure("b", "B")
+    local rope = item("Base.Rope", { display = "Tool" })
+    local chA, chB = character("a"), character("b")
+    local held = { a = { rope }, b = {} }
+    chA.getInventory = function() return pack(held.a) end
+    chB.getInventory = function() return pack(held.b) end
+    getOnlinePlayers = function() return list({ chA, chB }) end
+    isServer = function() return true end
+    local clock = 1760000000000
+    getTimestampMs = function() return clock end
+    TEST.fire("EveryTenMinutes")
+    truthy(a.codex.kinds.Rope)
+    eq(b.codex.kinds.Rope, nil)
+    -- the rope changes hands: the second codex is not served by the first one's memory
+    held.a, held.b = {}, { rope }
+    clock = clock + OA.Economy.SWEEP_MS
+    TEST.fire("EveryTenMinutes")
+    truthy(b.codex.kinds.Rope, "counted for B")
 end)
 
 test("each character has its own look", function()
@@ -967,4 +990,24 @@ test("a basement goes with the house above it: one key, one walk over both, its 
     local scanned = OA.Buildings.scan(cellarSquare, {})
     eq(scanned.key, "house"); eq(#scanned.containers, 2, "a scan from the basement takes the house in too")
     PZExtAPI, ArrayList, getWorld = nil, arrayList, world
+end)
+
+test("a container seen marked is answered without its object asked, until the mark is taken away", function()
+    local data, has, asked = {}, false, 0
+    local object = { classes = { IsoObject = true },
+        hasModData = function() return has end,
+        getModData = function() has = true return data end }
+    local c = { getParent = function() asked = asked + 1 return object end }
+    eq(OA.Buildings.mark(c), true, "the first look marks it")
+    eq(asked, 1)
+    for _ = 1, 5 do eq(OA.Buildings.mark(c), false) end
+    eq(asked, 1, "marked: the object is not asked again")
+    OA.Buildings.unmark(c)
+    eq(OA.Buildings.mark(c), true, "marked again after the reset")
+    -- one marked by an earlier session (the mark is on the object already)
+    local other = { getParent = function() asked = asked + 1 return object end }
+    eq(OA.Buildings.mark(other), false)
+    local seen = asked
+    eq(OA.Buildings.mark(other), false)
+    eq(asked, seen, "remembered")
 end)
