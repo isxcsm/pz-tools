@@ -303,8 +303,19 @@ API 노드는 `Effects.declared()`와 `PZExtAPI.formulas.points()`로 선언과 
 
 - **기준:**
   - 전(c0)은 성능 병합 직전 dev 커밋, 후(c1)는 이번 dev다. 같은 세이브, 같은 장소, 같은 동작으로 잰다.
-  - 도구는 `pzdev profile`, 프레임 기록, Lua 타이밍 래퍼다.
+  - 도구는 `pzdev profile`(JFR: 뜨거운 메서드와 GC 멈춤, 프레임 시간은 아니다)과 `tests/ingame/perf_r3.lua`(Lua 타이밍 래퍼와 프레임 기록: p50·p95·p99, 50ms 넘는 프레임 수)다. 경로 이름의 c0/c1 짝과 재는 방법은 `perf_r3.lua` 머리말에 있다.
   - 첫 좀비 2.6초 멈춤은 우리 것이 아니다. 세션마다 첫 좀비를 먼저 지나 보내고 잰다.
+  - 기계 10대, BU 제어반 3개와 접속함·스프링클러 선, 집·차 경보 6개씩과 경보 읽기 노드는 하네스가 직접 놓고 끝에 거둔다. 세이브에 미리 없어도 된다. 무대와 운석 터는 월드에 지어지니 끝나고 세이브를 되돌린다.
+  - 전후는 이 순서로 바꾼다. c0 작업본은 `C:\git\pz-workspace\wt-c0`(a4692230, API 빌드해 둠), c1은 본 체크아웃(dev)이다. `perf_r3.lua`는 dev에 들어가 있어야 한다(`Zomboid\Lua\oa` 정션이 본 체크아웃을 가리킨다).
+    1. 게임을 닫고(`pzdev quit`) 세이브를 보관한다: `python mods/tools/pzdev.py snapshot r3-perf --save BU_Spawn_E2E`. 되돌릴 때는 `restore r3-perf` (이미 있는 `clean`은 건드리지 않는다).
+    2. 본 체크아웃에서 API를 현재 dev로 한 번 빌드해 둔다(`extension-api/build.ps1`). 바꾸는 스크립트가 이 c1의 `pzext-api.jar`를 `out/release/pzext-api.c1.jar`로 보관한다.
+    3. c0로 바꾼다: `powershell -NoProfile -ExecutionPolicy Bypass -File mods\tools\perf-switch.ps1 -To c0 -Apply`. `Zomboid\mods`의 정션 여섯 개(BuildingUtilities, BuildingUtilitiesDev, OperationAcorn, OperationAcornDev, PZUIKit, PZExtDev)를 wt-c0로 돌리고 `out/release/pzext-api.jar`를 c0 것으로 바꾼다(c0과 c1 사이에 부트 층, 로더, 설치기는 안 바뀌어 jar 하나만 다르다). `-Apply` 없이 돌리면 하려는 일만 찍는다. pzdev로 띄운 게임은 이 jar를 바로 쓴다. 게임을 Steam으로 켤 때만 `-Install`을 붙인다(`request-api-install.ps1`, 설치 뒤 재시작).
+    4. `python mods/tools/pzdev.py launch --save BU_Spawn_E2E`. 하네스 첫 줄이 `build=c0`, 모드 폴더가 wt-c0, `objects.byData=false`인지 본다.
+    5. 처음 한 번만 자리 둘을 찍는다: 열린 땅(건물 30칸 밖, 동쪽·남쪽 20x20이 빈 곳)에 서서 `pzdev run "PERF_NAME='open' RUN('perf_r3.lua')"`, 마을 한가운데(차와 집이 많은 곳)에서 `'town'`. 두 빌드가 같은 자리를 쓴다(`Zomboid\Lua\perf_r3_spots.txt`).
+    6. `python mods/tools/pzdev.py check perf_r3.lua --follow 900 > c0.txt` (약 3분). `[perf] start cursor.frames`가 뜨면 다른 터미널에서 `pzdev profile 30`을 돌려 둔다.
+    7. `pzdev quit`, `restore r3-perf`. 그다음 `perf-switch.ps1 -To c1 -Apply`, `launch`, `build=c1`과 `objects.byData=true`를 확인하고 `check ... > c1.txt`.
+    8. `python mods/tools/perf_compare.py c0.txt c1.txt`가 비교표를 낸다(평균·p95·c1/c0, 프레임, 경로와 한 번짜리가 같은 곳을 찾았는지, 느려진 자주 도는 경로는 SLOWER). 끝나면 `restore r3-perf`로 세이브를 되돌리고, F부터는 c1 상태에서 다시 `launch`한다.
+  - 같은 방식으로 못 재는 것: 새 세계의 첫 호출과 디스크 읽기(하네스는 세계가 시작된 뒤라 모드가 이미 물은 메모리 상태만 잰다. 앞 둘은 `Zomboid\pzext\maps`를 지우고(쓰기) 두고(읽기) 새 세계를 시작해 `pzdev log gaps`로 본다), 운석 터 `Sites.ensure`(세계당 한 번, 세계 등록부를 건드려 하네스가 돌리지 않는다: 터 고르기는 `onChunk`의 맞춤만 잰다), 무대는 살아 있는 임무가 세이브에 있어야 하고, `pickSite`는 무작위라 평균만 비교한다. Lua는 밀리초 시계뿐이라 한 호출은 묶음으로 재고 p95는 묶음 평균의 p95다.
 - **자주 도는 경로 (분, 틱, 프레임):**
   - [ ] 배치 커서 clearSquare: 커서를 끌며 30초 동안의 프레임 시간 분포
   - [ ] Machines.tick (byData): 기계 10대 기지에서 1분 평균
