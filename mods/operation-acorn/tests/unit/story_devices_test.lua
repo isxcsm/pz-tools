@@ -28,9 +28,6 @@ local function fakeGame(list)
         end
     end
     g.list = list
-    g.buildingCount = function() return #g.list end
-    g.building = function(i) return g.list[i].x, g.list[i].y, true end
-    g.buildingInfo = function(i) return g.list[i] end
     fakeSites(g)
     g.playerPosition = function() return g.px or 0, g.py or 0, 0 end
     g.request = function(record, m, it) g.requested[#g.requested + 1] = { m = m.id, it = it } end
@@ -558,7 +555,7 @@ test("a mission that cannot be made keeps the old one and costs nothing", functi
     local record = setup(1)
     record.trade.trust = 1000
     local m = start(record)
-    M.game.buildingCount = function() return 0 end
+    M.game.buildingsIn = function() return {} end
     eq(M.reroll(record), false)
     eq(M.active(record), m)
     eq(record.trade.trust, 1000)

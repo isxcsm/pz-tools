@@ -2,8 +2,8 @@
 -- and puts each kind of piece (Story/StageData). Checked in the game, not by unit tests.
 --
 -- B42 calls used (checked in the jar): BuildingDef getRooms, isFullyStreamedIn, getKeyId, getX/getY/getX2/getY2;
--- RoomDef getName, getArea, getZ, getX/getY/getX2/getY2, getIsoRoom; IsoRoom getSquares, getRandomFreeSquare,
--- getRandomWallSquare; IsoGridSquare getBuildingDef, AddSpecialObject, RecalcProperties, RecalcAllWithNeighbours;
+-- RoomDef getName, getArea, getZ, getX/getY/getX2/getY2, getIsoRoom; IsoRoom getRandomFreeSquare,
+-- getRandomWallSquare; IsoGridSquare AddSpecialObject, RecalcProperties, RecalcAllWithNeighbours;
 -- IsoObject.new and IsoRadio.new (cell, square, sprite); IsoDoor and IsoWindow getNorth; IsoDoor setLocked, setLockedByKey, setKeyId;
 -- IsoBarricade.AddBarricadeToObject(object, onOpposite) then addPlank(nil, nil) and transmitCompleteItemToClients (as
 -- the game's own police siege story, RBPoliceSiege, does it); RandomizedWorldBase.createRandomDeadBody(square, nil, 0, 0,
@@ -14,7 +14,9 @@
 -- character: no barricade asked), BuildingDef isAlarmed, setAlarmed; IsoGenerator.new(item, cell, square), getMaxFuel,
 -- setFuel, setCondition (as the game's TimedActionsTests); BaseVehicle createVehicleKey (addKeyToGloveBox does nothing
 -- once the car's key was given out as it spawned; a key in the ignition needs a driver: putKeyInIgnition reads the
--- driver's inventory), VehiclePart setContainerContentAmount, getContainerCapacity, getItemContainer.
+-- driver's inventory), VehiclePart setContainerContentAmount, getContainerCapacity, getItemContainer. What was a scan of
+-- squares is asked of the extension API (squares, objects, buildings: its World queries); its condition tables are
+-- constants.
 require "OperationAcorn/Core"
 require "OperationAcorn/Story/Stage"
 require "OperationAcorn/Story/Game"
@@ -61,21 +63,24 @@ function StageGame.settle(record, m)
     return OA.StoryGame.settleGround(record, m)
 end
 
--- Whether a room has a floor (one of its squares has).
-local function hasFloor(r)
-    local room = r:getIsoRoom()
-    local squares = room and room:getSquares()
-    for i = 0, (squares and squares:size() or 0) - 1 do
-        if squares:get(i):getFloor() then return true end
-    end
-    return false
+-- A square of a room that has a floor, or nil: a tall hall's upper "rooms" are its air.
+local FLOOR = { floor = true }
+local function floorOf(r)
+    return OA.api().squares.nearest({ room = r }, FLOOR)
 end
+
+-- The doors and the windows on the edges of a building, the doorways with no door too, with the other side in no room;
+-- the doors on the edges of a room; the windows.
+local OUTER_EDGES = { class = { "IsoDoor", "IsoWindow" } }
+local OUTER = { doorways = true, outer = true }
+local DOORS = { class = { "IsoDoor" } }
+local WINDOWS = { class = { "IsoWindow" } }
 
 -- The building's layout (Story/Stage): its rooms with a floor, and its outer doors and windows on the ground floor. The
 -- RoomDefs and the objects ride along (rooms[i].def, doors[i].object, windows[i].object) for the pieces; not saved.
--- A door or a window stands on a square's north or west edge, so an outer one is often on the square outside: the
--- building's box is scanned one square wider, and one is outer when one side is in the building and the other in no
--- room. A door is a doorway, with or without a door. (IsoRoom.getWindows is empty in game: found by the scan too.)
+-- A door or a window stands on a square's north or west edge, so an outer one is often on the square outside; one is
+-- outer when one side of its edge is in the building and the other in no room (objects.edges). A door is a doorway,
+-- with or without a door. (IsoRoom.getWindows is empty in game.) `key` is the API's key of the building.
 function StageGame.layout(site)
     local layout = { rooms = {}, doors = {}, windows = {} }
     -- open ground: no rooms, its middle
@@ -85,80 +90,47 @@ function StageGame.layout(site)
     end
     local def = defAt(site)
     if not def then return layout end
+    local api = OA.api()
     local bx1, by1, bx2, by2 = def:getX(), def:getY(), def:getX2(), def:getY2()
     local list = def:getRooms()
-    local lowest, ground
-    local byDef = {}
+    local lowest, ground, key
     for i = 0, list:size() - 1 do
         local r = list:get(i)
         -- (a tall hall's upper "rooms" are its air: no floor, no room for a piece)
-        if hasFloor(r) then
+        local floor = floorOf(r)
+        if floor then
             local x, y, x2, y2 = r:getX(), r:getY(), r:getX2(), r:getY2()
             local entry = { name = r:getName(), area = r:getArea(), z = r:getZ(), x = x, y = y, x2 = x2, y2 = y2,
                 edge = x <= bx1 or y <= by1 or x2 >= bx2 or y2 >= by2, def = r, doors = 0 }
             layout.rooms[#layout.rooms + 1] = entry
-            byDef[r] = entry
+            local b = not key and api.buildings.at(floor:getX(), floor:getY(), floor:getZ())
+            key = key or (b and b.key)
             if not lowest or r:getZ() < lowest then lowest = r:getZ() end
             if r:getZ() == 0 then ground = true end
         end
     end
-    if not lowest then return layout end
+    if not (lowest and key) then return layout end
+    layout.key = key
     -- the ground floor: z 0, or the lowest there is (Stage.roles's floor; a basement is below it)
     if ground then lowest = 0 end
-    local c = getCell()
-    local function inside(sq)
-        return sq ~= nil and sq:getRoom() ~= nil and sq:getBuildingDef() == def
-    end
-    -- the square's side (north or west edge) between the building and no room: whether the square is the inside one
-    local function outerEdge(sq, x, y, north)
-        local other = north and c:getGridSquare(x, y - 1, lowest) or c:getGridSquare(x - 1, y, lowest)
-        local a, b = inside(sq), inside(other)
-        if a == b or (a and other and other:getRoom()) or (b and sq:getRoom()) then return nil end
-        return a
-    end
-    -- a doorway is the square's flag (DoorWallN/W, as IsoGridSquare.isDoorSquare reads it), with a door in it or not
-    -- (a church's open front); a door's object rides along when there is one
-    local doorAt = {}
-    local function addDoor(x, y, north, o)
-        local key = x .. "," .. y .. (north and "N" or "W")
-        local at = doorAt[key]
-        if at then
-            at.object = at.object or o
-            return
+    for _, e in ipairs(api.objects.edges({ building = key, z = lowest }, OUTER_EDGES, OUTER)) do
+        local o = e.object
+        local at = { x = e.x, y = e.y, z = e.z, north = e.north, object = o, own = e.inside }
+        if o and instanceof(o, "IsoWindow") then
+            layout.windows[#layout.windows + 1] = at
+        else
+            layout.doors[#layout.doors + 1] = at
         end
-        local own = outerEdge(c:getGridSquare(x, y, lowest), x, y, north)
-        if own == nil then return end
-        at = { x = x, y = y, z = lowest, north = north, object = o, own = own }
-        doorAt[key] = at
-        layout.doors[#layout.doors + 1] = at
     end
-    for x = bx1 - 1, bx2 + 1 do
-        for y = by1 - 1, by2 + 1 do
-            local sq = c:getGridSquare(x, y, lowest)
-            local props = sq and sq:getProperties()
-            if props and props:has(IsoFlagType.DoorWallN) then addDoor(x, y, true, nil) end
-            if props and props:has(IsoFlagType.DoorWallW) then addDoor(x, y, false, nil) end
-            local objects = sq and sq:getObjects()
-            for j = 0, (objects and objects:size() or 0) - 1 do
-                local o = objects:get(j)
-                if instanceof(o, "IsoDoor") then
-                    addDoor(x, y, o:getNorth(), o)
-                    -- the rooms on its two sides have a door (one that can be locked)
-                    local other = o:getNorth() and c:getGridSquare(x, y - 1, lowest) or c:getGridSquare(x - 1, y, lowest)
-                    for _, s in ipairs({ sq, other }) do
-                        local room = s and s:getRoom()
-                        local entry = room and byDef[room:getRoomDef()]
-                        if entry then entry.doors = entry.doors + 1 end
-                    end
-                elseif instanceof(o, "IsoWindow") then
-                    local own = outerEdge(sq, x, y, o:getNorth())
-                    if own ~= nil then
-                        layout.windows[#layout.windows + 1] = { x = x, y = y, z = lowest, north = o:getNorth(), object = o,
-                            own = own }
-                    end
-                end
-            end
-        end
+    -- (the stage keeps the roles by index into the doors: the same order whenever it is read)
+    table.sort(layout.doors, function(a, b)
+        if a.x ~= b.x then return a.x < b.x end
+        if a.y ~= b.y then return a.y < b.y end
+        return a.north and not b.north
+    end)
+    -- the rooms on the ground floor have a door (one that can be locked)
+    for _, entry in ipairs(layout.rooms) do
+        if entry.z == lowest then entry.doors = #api.objects.edges({ room = entry.def }, DOORS) end
     end
     return layout
 end
@@ -203,25 +175,9 @@ local function put(sq, sprite, on)
     return obj
 end
 
--- Whether a room has a window: on one of its squares' north or west edge, or the edge of the square east or south.
+-- Whether a room has a window on its edge.
 local function hasWindow(def)
-    local c = getCell()
-    local z = def:getZ()
-    for x = def:getX(), def:getX2() do
-        for y = def:getY(), def:getY2() do
-            local sq = c:getGridSquare(x, y, z)
-            local room = sq and sq:getRoom()
-            if room and room:getRoomDef() == def then
-                if sq:getWindow() then return true end
-                local east, south = c:getGridSquare(x + 1, y, z), c:getGridSquare(x, y + 1, z)
-                local w = east and east:getWindow()
-                if w and not w:getNorth() then return true end
-                w = south and south:getWindow()
-                if w and w:getNorth() then return true end
-            end
-        end
-    end
-    return false
+    return #OA.api().objects.edges({ room = def }, WINDOWS) > 0
 end
 
 -- The room of the layout a piece asks for by name or floor: with `up`, the largest on the floor above the ground floor
@@ -309,19 +265,9 @@ end
 
 -- A free square outdoors about (x, y): the square itself, else the nearest one out to `reach` squares that is free and
 -- in no room.
+local FREE_OUTSIDE = { room = "none", free = true }
 local function freeNear(x, y, z, reach)
-    local c = getCell()
-    for r = 0, reach or 0 do
-        for dx = -r, r do
-            for dy = -r, r do
-                if math.max(math.abs(dx), math.abs(dy)) == r then
-                    local s = c:getGridSquare(x + dx, y + dy, z)
-                    if s and not s:getRoom() and s:isFree(false) then return s end
-                end
-            end
-        end
-    end
-    return nil
+    return OA.api().squares.nearest({ x = x, y = y, z = z, to = reach or 0 }, FREE_OUTSIDE)
 end
 
 -- Whether a piece goes outdoors: on open ground ("ground") or the yard outside the entrance ("yard").
@@ -409,6 +355,9 @@ end
 
 -- Whether the site's building was taken before the stage (Stage.place): a door or a window boarded, something built
 -- in it (survivors', a player's), a square burnt out.
+local BURNT_OUT = { flags = { "burntOut" } }
+local BUILT = { class = { "IsoThumpable" } }
+local ONE = { limit = 1 }
 function StageGame.occupied(ctx)
     local l = ctx.layout
     if not l or l.ground then return false end
@@ -417,115 +366,37 @@ function StageGame.occupied(ctx)
             if at.object and at.object:isBarricaded() then return true end
         end
     end
-    for _, r in ipairs(l.rooms or {}) do
-        local room = r.def and r.def:getIsoRoom()
-        local squares = room and room:getSquares()
-        for i = 0, (squares and squares:size() or 0) - 1 do
-            local sq = squares:get(i)
-            if sq:getProperties():has(IsoFlagType.burntOut) then return true end
-            local objects = sq:getObjects()
-            for j = 0, objects:size() - 1 do
-                if instanceof(objects:get(j), "IsoThumpable") then return true end
-            end
-        end
-    end
-    return false
+    if not l.key then return false end
+    local api = OA.api()
+    local area = { building = l.key }
+    return api.squares.nearest(area, BURNT_OUT) ~= nil or #api.objects.find(area, BUILT, ONE) > 0
 end
 
--- What clearing a room leaves: the building's own fixtures (doors, windows, curtains, boards) and what a player built.
-local KEPT = { "IsoDoor", "IsoWindow", "IsoCurtain", "IsoBarricade", "IsoThumpable", "IsoGenerator" }
-
--- Whether an object is furniture a room is cleared of: a moveable standing on the floor (MoveType Object, as
--- ISMoveableSpriteProps reads it), not one on a wall or a window, a rug or a floor tile.
-local function furniture(o)
-    local spr = o:getSprite()
-    local props = spr and spr:getProperties()
-    if not (props and props:has("IsMoveAble")) then return false end
-    if props:has("MoveType") and props:get("MoveType") ~= "Object" then return false end
-    for _, class in ipairs(KEPT) do
-        if instanceof(o, class) then return false end
-    end
-    return true
-end
-
--- Whether an object's containers hold a mission's item (one placed before its stage went up: a revisit's, in the
--- building its story set up).
-local function holdsMission(o)
-    for k = 0, o:getContainerCount() - 1 do
-        local items = o:getContainerByIndex(k):getItems()
-        for i = 0, items:size() - 1 do
-            if items:get(i):getModData().OA_Mission then return true end
-        end
-    end
-    return false
-end
-
--- Takes one object off its square; a piece of a furniture of several squares takes the others with it (by its
--- sprite grid, as ISMoveableSpriteProps finds them). A furniture holding a mission's item stays, all of it. True when
--- taken.
-local function takeAway(sq, o)
-    local spr = o:getSprite()
-    local grid = spr and spr:getSpriteGrid()
-    if not grid then
-        if holdsMission(o) then return false end
-        sq:transmitRemoveItemFromSquare(o)
-        return true
-    end
-    local c = getCell()
-    local sx, sy = sq:getX() - grid:getSpriteGridPosX(spr), sq:getY() - grid:getSpriteGridPosY(spr)
-    local parts = {}
-    for x = 0, grid:getWidth() - 1 do
-        for y = 0, grid:getHeight() - 1 do
-            local part = grid:getSprite(x, y)
-            local s = part and c:getGridSquare(sx + x, sy + y, sq:getZ())
-            local objects = s and s:getObjects()
-            for j = (objects and objects:size() or 0) - 1, 0, -1 do
-                local other = objects:get(j)
-                if other:getSprite() == part then
-                    if holdsMission(other) then return false end
-                    parts[#parts + 1] = { s, other }
-                end
-            end
-        end
-    end
-    for _, q in ipairs(parts) do q[1]:transmitRemoveItemFromSquare(q[2]) end
-    return true
-end
+-- What clearing a room takes: a moveable standing on the floor (MoveType Object, as ISMoveableSpriteProps reads it), not
+-- one on a wall or a window, a rug or a floor tile; the building's own fixtures (doors, windows, curtains, boards) and
+-- what a player built stay. A furniture holding a mission's item (one placed before its stage went up: a revisit's, in
+-- the building its story set up) stays, all of it.
+local FURNITURE = { props = { "IsMoveAble" }, propIn = { MoveType = { "Object", false } },
+    notClass = { "IsoDoor", "IsoWindow", "IsoCurtain", "IsoBarricade", "IsoThumpable", "IsoGenerator" } }
+local KEEP_MISSION = { keep = { holds = { data = "OA_Mission" } } }
 
 -- Clears open ground of its trees and bushes (what the game cuts as a bush: canBeCut, as ISRemovePlantCursor) in a
 -- ragged ring round its middle: all of them out to Stage.CLEAR_INNER squares, fewer and fewer out to CLEAR_RADIUS, so
 -- the clearing runs into the woods round it. The grass stays.
+local TREES = { class = { "IsoTree" } }
+local BUSHES = { props = { "canBeCut" } }
+local OUTDOORS = { room = "none" }
 local function clearGround(l)
-    local c = getCell()
     local inner, r = OA.Stage.CLEAR_INNER, OA.Stage.CLEAR_RADIUS
-    for x = l.x - r, l.x + r do
-        for y = l.y - r, l.y + r do
-            local d = math.sqrt((x - l.x) * (x - l.x) + (y - l.y) * (y - l.y))
-            local sq = (d <= inner or (d <= r and OA.randomFloat(0, 1) < (r - d) / (r - inner)))
-                and c:getGridSquare(x, y, l.z)
-            local objects = sq and not sq:getRoom() and sq:getObjects()
-            if objects then
-                local cut = false
-                for j = objects:size() - 1, 0, -1 do
-                    local o = objects:get(j)
-                    local spr = o:getSprite()
-                    local props = spr and spr:getProperties()
-                    if instanceof(o, "IsoTree") or (props and props:has(IsoFlagType.canBeCut)) then
-                        sq:transmitRemoveItemFromSquare(o)
-                        cut = true
-                    end
-                end
-                if cut then
-                    sq:RecalcProperties()
-                    sq:RecalcAllWithNeighbours(true)
-                end
-            end
-        end
-    end
+    local area = { x = l.x, y = l.y, z = l.z, r = r }
+    local options = { squares = OUTDOORS, falloff = { x = l.x, y = l.y, inner = inner, outer = r } }
+    local objects = OA.api().objects
+    objects.remove(area, TREES, options)
+    objects.remove(area, BUSHES, options)
 end
 
 -- Clears the room a set goes to of its furniture, once (Stage.place, before any piece): the team made room for it.
--- Its containers go with it, and what was in them, but a mission's item (takeAway). Open ground ("ground"): its trees
+-- Its containers go with it, and what was in them, but a mission's item (KEEP_MISSION). Open ground ("ground"): its trees
 -- and bushes (clearGround).
 function StageGame.clear(ctx, p)
     if p.at == "ground" then
@@ -537,94 +408,39 @@ function StageGame.clear(ctx, p)
     ctx.cleared = ctx.cleared or {}
     if ctx.cleared[room] then return true end
     ctx.cleared[room] = true
-    local squares = room:getSquares()
-    for i = 0, squares:size() - 1 do
-        local sq = squares:get(i)
-        local objects = sq:getObjects()
-        local taken = false
-        for j = objects:size() - 1, 0, -1 do
-            local o = j < objects:size() and objects:get(j)
-            if o and furniture(o) and takeAway(sq, o) then taken = true end
-        end
-        if taken then
-            sq:RecalcProperties()
-            sq:RecalcAllWithNeighbours(true)
-        end
-    end
+    OA.api().objects.remove({ room = room }, FURNITURE, KEEP_MISSION)
     return true
-end
-
--- Whether a door or a doorway is on one of the square's edges (its own north or west, the south or east one's): a set
--- there would stand in the way in.
-local function byDoor(s)
-    local function doorOn(sq, north)
-        if not sq then return false end
-        if sq:getProperties():has(north and IsoFlagType.DoorWallN or IsoFlagType.DoorWallW) then return true end
-        local objects = sq:getObjects()
-        for i = 0, objects:size() - 1 do
-            local o = objects:get(i)
-            if (instanceof(o, "IsoDoor") or (instanceof(o, "IsoThumpable") and o:isDoor())) and o:getNorth() == north then
-                return true
-            end
-        end
-        return false
-    end
-    local c = getCell()
-    local x, y, z = s:getX(), s:getY(), s:getZ()
-    return doorOn(s, true) or doorOn(s, false) or doorOn(c:getGridSquare(x, y + 1, z), true)
-        or doorOn(c:getGridSquare(x + 1, y, z), false)
 end
 
 -- Sprites placed together: an anchor square of the room (outdoors: about the piece's spot, within `reach`, else 3)
 -- where every square of the set is free, by no door and in the room (outdoors: in none); with `more`, those too where
 -- they fit with it, else the set alone. `count` sets of it, each where it fits.
+local SET_INSIDE = { free = true, room = "anchor", doorEdge = false }
+local SET_OUTSIDE = { free = true, room = "none", doorEdge = false }
+local RANDOM_ORDER = { order = "random" }
 function StageGame.set(ctx, p)
     local room = not outdoors(p) and roomOf(ctx, p)
     if not (room or outdoors(p)) then return nil end
-    local c = getCell()
-    local candidates = {}
+    local area, filter
     if room then
-        local squares = room:getSquares()
-        for i = 0, squares:size() - 1 do candidates[#candidates + 1] = squares:get(i) end
+        area, filter = { room = room }, SET_INSIDE
     else
         local x, y, z = spotOf(ctx, p)
         if not x then return nil end
         local reach = p.reach or 3
-        for dx = -reach, reach do
-            for dy = -reach, reach do
-                local s = c:getGridSquare(x + dx, y + dy, z)
-                if s then candidates[#candidates + 1] = s end
-            end
-        end
+        area, filter = { x1 = x - reach, y1 = y - reach, x2 = x + reach, y2 = y + reach, z = z }, SET_OUTSIDE
     end
-    -- (whether a square is by a door does not change as the copies go down: each is asked once a set)
-    local doors = {}
-    local function fitsAt(s)
-        if not (s and s:isFree(false)) or s:getRoom() ~= (room or nil) then return false end
-        local by = doors[s]
-        if by == nil then
-            by = byDoor(s)
-            doors[s] = by
-        end
-        return not by
-    end
-    -- An anchor where the list fits, as a list of it (none: empty). The candidates are looked at in a new random
-    -- order each time and the first that fits is it: as random as a pick among all that fit, without trying them all
-    -- (a large room has a thousand squares, and a set is tried for each of its copies).
+    -- An anchor where the list fits, as a list of it (none: empty). The anchors are looked at in a new random order
+    -- each time and the first that fits is it: as random as a pick among all that fit, without trying them all (a large
+    -- room has a thousand squares, and a set is tried for each of its copies).
     local function anchors(list)
-        local n = #candidates
-        for i = n, 2, -1 do
-            local j = OA.random(1, i)
-            candidates[i], candidates[j] = candidates[j], candidates[i]
+        local offsets = {}
+        for _, t in ipairs(list) do
+            offsets[#offsets + 1] = t[1]
+            offsets[#offsets + 1] = t[2]
         end
-        for _, a in ipairs(candidates) do
-            local ok = true
-            for _, t in ipairs(list) do
-                if not fitsAt(c:getGridSquare(a:getX() + t[1], a:getY() + t[2], a:getZ())) then ok = false break end
-            end
-            if ok then return { a } end
-        end
-        return {}
+        local a = OA.api().squares.fit(area, { { offsets = offsets, filter = filter } }, RANDOM_ORDER)
+        return a and { a } or {}
     end
     local placed = false
     for _ = 1, p.count or 1 do
@@ -762,6 +578,12 @@ local function vehicleFor(p)
     return p.script
 end
 
+-- The squares of a vehicle's body: free ground outside, no vehicle on it; the margin round it: no vehicle, and free
+-- too the first time round.
+local VEHICLE_BODY = { free = true, room = "none", vehicle = false }
+local VEHICLE_ROOMY = { free = true, vehicle = false }
+local VEHICLE_MARGIN = { vehicle = false }
+
 -- A vehicle outside the entrance (or the role's door: "back"), along the wall: the first spot a few squares out (4, 3,
 -- 5, 6; straight out, then to either side) where its body (5 squares along the wall, 3 across) is free ground outside
 -- and no vehicle stands within a square of it (a parked car there already); first a spot where the square around the
@@ -783,27 +605,29 @@ function StageGame.vehicle(ctx, p)
         z = out:getZ()
     end
     local ax, ay = dy ~= 0 and 1 or 0, dx ~= 0 and 1 or 0
-    local function clear(cx, cy, roomy)
-        for l = -3, 3 do
-            for w = -2, 2 do
-                local s = c:getGridSquare(cx + ax * l + dx * w, cy + ay * l + dy * w, z)
-                if not s or s:getVehicleContainer() then return false end
-                local body = l >= -2 and l <= 2 and w >= -1 and w <= 1
-                if body and s:getRoom() then return false end
-                if (body or roomy) and not s:isFree(false) then return false end
-            end
+    -- the body's squares and the margin round it, as offsets from the spot
+    local body, margin = {}, {}
+    for l = -3, 3 do
+        for w = -2, 2 do
+            local list = (l >= -2 and l <= 2 and w >= -1 and w <= 1) and body or margin
+            list[#list + 1] = ax * l + dx * w
+            list[#list + 1] = ay * l + dy * w
         end
-        return true
     end
     local sq
     local outs = p.at == "ground" and { 0, 1, -1, 2, -2 } or { 4, 3, 5, 6 }
     for _, roomy in ipairs({ true, false }) do
+        local spots = {}
         for _, k in ipairs(outs) do
             for _, side in ipairs({ 0, 3, -3, 6, -6 }) do
-                local cx, cy = out:getX() + dx * k + ax * side, out:getY() + dy * k + ay * side
-                if not sq and clear(cx, cy, roomy) then sq = c:getGridSquare(cx, cy, z) end
+                spots[#spots + 1] = out:getX() + dx * k + ax * side
+                spots[#spots + 1] = out:getY() + dy * k + ay * side
+                spots[#spots + 1] = z
             end
         end
+        sq = OA.api().squares.fit({ list = spots }, { { offsets = body, filter = VEHICLE_BODY },
+            { offsets = margin, filter = roomy and VEHICLE_ROOMY or VEHICLE_MARGIN } })
+        if sq then break end
     end
     if not sq then return nil end
     local dir = dx ~= 0 and IsoDirections.N or IsoDirections.E
@@ -880,28 +704,12 @@ function StageGame.barricade(ctx, p)
 end
 
 -- The doors of a room: its IsoDoors with the room on one side only, each with whether its own square is the room's.
--- A door stands on a square's north or west edge, so one in the room's south or east wall is on the square outside:
--- the room's box is scanned one square wider.
+-- A door stands on a square's north or west edge, so one in the room's south or east wall is on the square outside.
 local function doorsOf(room)
     local c = getCell()
-    local def = room:getRoomDef()
-    local z = def:getZ()
     local out = {}
-    for x = def:getX() - 1, def:getX2() + 1 do
-        for y = def:getY() - 1, def:getY2() + 1 do
-            local sq = c:getGridSquare(x, y, z)
-            local objects = sq and sq:getObjects()
-            for j = 0, (objects and objects:size() or 0) - 1 do
-                local o = objects:get(j)
-                if instanceof(o, "IsoDoor") then
-                    local other = o:getNorth() and c:getGridSquare(x, y - 1, z) or c:getGridSquare(x - 1, y, z)
-                    local inRoom = sq:getRoom() == room
-                    if inRoom ~= (other ~= nil and other:getRoom() == room) then
-                        out[#out + 1] = { door = o, square = sq, inRoom = inRoom }
-                    end
-                end
-            end
-        end
+    for _, e in ipairs(OA.api().objects.edges({ room = room }, DOORS)) do
+        out[#out + 1] = { door = e.object, square = c:getGridSquare(e.x, e.y, e.z), inRoom = e.inside }
     end
     return out
 end
@@ -1081,24 +889,23 @@ function StageGame.window(ctx, p)
     if building and building:isAlarmed() then building:setAlarmed(false) end
     local c = getCell()
     local found, free = {}, {}
-    local squares = room:getSquares()
-    for i = 0, squares:size() - 1 do
-        local sq = squares:get(i)
-        -- a window stands on its square's north or west edge: this square's (the chair faces N or W), or the one east
-        -- or south of it (the chair faces E or S)
-        local sides = { { sq, nil }, { c:getGridSquare(sq:getX() + 1, sq:getY(), sq:getZ()), "E" },
-            { c:getGridSquare(sq:getX(), sq:getY() + 1, sq:getZ()), "S" } }
-        for _, side in ipairs(sides) do
-            local s = side[1]
-            local objects = s and s:getObjects()
-            for j = 0, (objects and objects:size() or 0) - 1 do
-                local o = objects:get(j)
-                if instanceof(o, "IsoWindow") and not o:IsOpen() and not o:isSmashed() and not o:isBarricaded()
-                    and (side[2] == nil or (side[2] == "S") == o:getNorth()) then
-                    local at = { window = o, square = sq, facing = side[2] or (o:getNorth() and "N" or "W") }
-                    found[#found + 1] = at
-                    if sq:isFree(false) then free[#free + 1] = at end
-                end
+    for _, e in ipairs(OA.api().objects.edges({ room = room }, WINDOWS)) do
+        local o = e.object
+        if not o:IsOpen() and not o:isSmashed() and not o:isBarricaded() then
+            -- a window stands on its square's north or west edge: the room's square is its own (the chair faces N or
+            -- W), or the one north or west of it (the chair faces S or E)
+            local sq, facing
+            if e.inside then
+                sq, facing = c:getGridSquare(e.x, e.y, e.z), e.north and "N" or "W"
+            elseif e.north then
+                sq, facing = c:getGridSquare(e.x, e.y - 1, e.z), "S"
+            else
+                sq, facing = c:getGridSquare(e.x - 1, e.y, e.z), "E"
+            end
+            if sq then
+                local at = { window = o, square = sq, facing = facing }
+                found[#found + 1] = at
+                if sq:isFree(false) then free[#free + 1] = at end
             end
         end
     end
@@ -1242,21 +1049,9 @@ local AROUND = { { 0, 0 }, { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }, { 1, 1 }, {
 function StageGame.call(ctx, p)
     local x, y, z = spotOf(ctx, p)
     if not x then return nil end
-    local c = getCell()
-    local reach = (p.reach or 1) + 1
-    for r = 0, reach do
-        for dx = -r, r do
-            for dy = -r, r do
-                local sq = (math.abs(dx) == r or math.abs(dy) == r) and c:getGridSquare(x + dx, y + dy, z)
-                local objects = sq and sq:getObjects()
-                for i = 0, objects and objects:size() - 1 or -1 do
-                    local spr = objects:get(i):getSprite()
-                    if spr and spr:getName() == p.sprite then return { x = x + dx, y = y + dy, z = z } end
-                end
-            end
-        end
-    end
-    return nil
+    local found = OA.api().objects.find({ x = x, y = y, z = z, to = (p.reach or 1) + 1 }, { sprite = { p.sprite } }, ONE)[1]
+    local sq = found and found:getSquare()
+    return sq and { x = sq:getX(), y = sq:getY(), z = z } or nil
 end
 
 -- Things sounding once ({ x, y, z, sound = a cue of OA.Sounds, secs }): each from a free emitter on its square, stopped
