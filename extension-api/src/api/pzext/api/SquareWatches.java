@@ -58,6 +58,8 @@ final class SquareWatches implements Hooks.SquareChanges {
         final boolean[] marked;
         int[] queue = new int[16];
         int queued;
+        // Set when the index was replaced, under the lock: a hook that marks nothing here any more tells the index that took its place.
+        boolean retired;
 
         Index(SquareMap slots, int[] xs, int[] ys, int[] zs, Watch[][] holders) {
             this.slots = slots; this.xs = xs; this.ys = ys; this.zs = zs; this.holders = holders;
@@ -70,6 +72,8 @@ final class SquareWatches implements Hooks.SquareChanges {
 
     private final ArrayList<Watch> watches = new ArrayList<>();
     private volatile Index index;
+    // Set when a watch was taken away: the index still holds it (it is skipped when told), and is made again at the next frame, once.
+    private boolean stale;
     // What is still to be told, in order; a long list is told over several frames.
     private final ArrayList<Call> calls = new ArrayList<>();
     private int told;
@@ -150,7 +154,7 @@ final class SquareWatches implements Hooks.SquareChanges {
             watches.add(watch);
             lua.set(kept(), (double)watch.id, record);
             lua.set(meta, NEXT, (double)next);
-            reindex();
+            added(watch);
             return new Object[] { (double)watch.id };
         });
         function(table, "unwatch", (call, arguments) -> {
@@ -161,7 +165,7 @@ final class SquareWatches implements Hooks.SquareChanges {
             for (Watch watch : watches) {
                 if (watch.id == number.longValue() && watch.owner.equals(owner)) {
                     remove(watch);
-                    reindex();
+                    removed();
                     return new Object[] { true };
                 }
             }
@@ -205,7 +209,7 @@ final class SquareWatches implements Hooks.SquareChanges {
         current(call);
         boolean any = false;
         for (Watch watch : new ArrayList<>(watches)) if (watch.owner.equals(owner)) { remove(watch); any = true; }
-        if (any) reindex();
+        if (any) removed();
     }
 
     private void remove(Watch watch) throws ReflectiveOperationException {
@@ -240,11 +244,49 @@ final class SquareWatches implements Hooks.SquareChanges {
 
     // ---- the index, built on the game's thread ----
 
+    /**
+     * A watch was added: its squares are put into the index that is (a copy of its tables with them in; an index made from every watch
+     * again for each would cost the more the more watches there were), or the index is made from the watches when there is none, or
+     * when a watch taken away is still in it.
+     */
+    private void added(Watch watch) {
+        Index old = index;
+        if (old == null || stale) { reindex(); return; }
+        // The squares the index has: the watch joins their holders; the others are new slots after the index's.
+        var more = new HashMap<Position, Long>();
+        int size = old.xs.length;
+        Watch[][] holders = java.util.Arrays.copyOf(old.holders, size + watch.xs.length);
+        int[] xs = java.util.Arrays.copyOf(old.xs, holders.length), ys = java.util.Arrays.copyOf(old.ys, holders.length), zs = java.util.Arrays.copyOf(old.zs, holders.length);
+        int count = size;
+        for (int at = 0; at < watch.xs.length; at++) {
+            long slot = old.slots.get(watch.xs[at], watch.ys[at], watch.zs[at], -1);
+            if (slot >= 0) {
+                Watch[] held = holders[(int)slot];
+                holders[(int)slot] = java.util.Arrays.copyOf(held, held.length + 1);
+                holders[(int)slot][held.length] = watch;
+            } else {
+                more.put(new Position(watch.xs[at], watch.ys[at], watch.zs[at]), (long)count);
+                xs[count] = watch.xs[at]; ys[count] = watch.ys[at]; zs[count] = watch.zs[at];
+                holders[count++] = new Watch[] { watch };
+            }
+        }
+        publish(new Index(more.isEmpty() ? old.slots : new SquareMap(old.slots, more), java.util.Arrays.copyOf(xs, count), java.util.Arrays.copyOf(ys, count),
+            java.util.Arrays.copyOf(zs, count), java.util.Arrays.copyOf(holders, count)), old);
+    }
+
+    /** A watch was taken away: with none left the index goes; otherwise it is made again at the next frame (the watch is skipped meanwhile). */
+    private void removed() {
+        if (watches.isEmpty()) reindex();
+        else stale = true;
+    }
+
     /** The index made again from the watches; what the old one marked is kept to be told; the hook set or let go. */
     private void reindex() {
-        take(index);
+        stale = false;
+        Index old = index;
         if (watches.isEmpty()) {
             index = null;
+            retire(old);
             SquareDispatch.remove(this);
             return;
         }
@@ -266,35 +308,55 @@ final class SquareWatches implements Hooks.SquareChanges {
             xs[slot] = entry.getKey().x(); ys[slot] = entry.getKey().y(); zs[slot] = entry.getKey().z();
             holders[slot] = held.get(slot).toArray(new Watch[0]);
         }
-        index = new Index(new SquareMap(slots), xs, ys, zs, holders);
+        publish(new Index(new SquareMap(slots), xs, ys, zs, holders), old);
+    }
+
+    /** The index in place of the old one, whose marks are kept to be told; the hook set. */
+    private void publish(Index next, Index old) {
+        index = next;
+        retire(old);
         SquareDispatch.add(this);
+    }
+
+    /** What an index marked is taken, and it is left: a hook still holding it marks in the index that took its place. */
+    private void retire(Index old) {
+        if (old == null) return;
+        take(old, true);
     }
 
     // ---- the hook: on any thread ----
 
     @Override
     public void changed(int x, int y, int z) {
-        Index current = index;
-        if (current == null) return;
-        long slot = current.slots.get(x, y, z, -1);
-        if (slot < 0) return;
-        synchronized (current) {
-            int at = (int)slot;
-            if (current.marked[at]) return;
-            current.marked[at] = true;
-            if (current.queued == current.queue.length) current.queue = java.util.Arrays.copyOf(current.queue, current.queued * 2);
-            current.queue[current.queued++] = at;
+        while (true) {
+            Index current = index;
+            if (current == null) return;
+            long slot = current.slots.get(x, y, z, -1);
+            if (slot < 0) return;
+            synchronized (current) {
+                // Replaced since it was read: the one in its place is asked (it holds the square too, or the square is no longer watched).
+                if (current.retired) continue;
+                int at = (int)slot;
+                if (current.marked[at]) return;
+                current.marked[at] = true;
+                if (current.queued == current.queue.length) current.queue = java.util.Arrays.copyOf(current.queue, current.queued * 2);
+                current.queue[current.queued++] = at;
+                return;
+            }
         }
     }
 
     // ---- the frame job: on the game's thread ----
 
     /** The squares an index marked, to be told to the watches that hold them. */
-    private void take(Index from) {
+    private void take(Index from) { take(from, false); }
+
+    private void take(Index from, boolean retire) {
         if (from == null) return;
         int[] slots;
         int count;
         synchronized (from) {
+            if (retire) from.retired = true;
             if (from.queued == 0) return;
             slots = java.util.Arrays.copyOf(from.queue, from.queued);
             count = from.queued;
@@ -317,9 +379,10 @@ final class SquareWatches implements Hooks.SquareChanges {
                     world = cell;
                     boolean any = false;
                     for (Watch watch : new ArrayList<>(watches)) if (watch.cell != cell) { remove(watch); any = true; }
-                    if (any) reindex();
+                    if (any) stale = true;
                 }
             }
+            if (stale) reindex();
             take(index);
             int stop = Math.min(calls.size(), told + MAX_CALLS_PER_FRAME);
             while (told < stop) {
