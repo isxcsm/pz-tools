@@ -77,6 +77,29 @@ test("chunk work runs once its chunk loads", function()
     eq(#OA.Chunks.list("probe"), 0)
 end)
 
+test("chunk work that takes out entries leaves the others waiting", function()
+    local function chunkAt(x, y)
+        return { getGridSquare = function() return { getX = function() return x end, getY = function() return y end } end }
+    end
+    local ran = {}
+    -- "own" entries take out all of their group, as a placed piece does; "keep" ones are not done
+    OA.Chunks.handle("grp", function(entry)
+        ran[#ran + 1] = entry.n
+        if entry.keep then return false end
+        OA.Chunks.remove(function(e) return e.kind == "grp" and e.group == entry.group end)
+        return true
+    end)
+    OA.Chunks.add({ kind = "grp", x = 40, y = 40, z = 0, n = 1, group = "a" })
+    OA.Chunks.add({ kind = "grp", x = 41, y = 40, z = 0, n = 2, group = "b", keep = true })
+    OA.Chunks.add({ kind = "grp", x = 42, y = 40, z = 0, n = 3, group = "a" })
+    OA.Chunks.loaded(chunkAt(40, 40))
+    eq(#ran, 2, "the group's other entry was taken out before its turn")
+    local left = OA.Chunks.list("grp")
+    eq(#left, 1)
+    eq(left[1].n, 2, "the entry not done still waits")
+    OA.Chunks.remove(function(e) return e.kind == "grp" end)
+end)
+
 test("a real-time throttle is due once each interval, per key", function()
     local last = {}
     -- getTimestampMs-sized numbers: only subtraction is used on them

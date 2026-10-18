@@ -214,6 +214,100 @@ function Game.groundInBand(ax, ay, lo, hi, tries)
     return wx, wy
 end
 
+-- Whether a square is bare ground: outdoors, no building, its floor natural ground (grass, dirt, sand) as the game's
+-- own digging asks (DiggingUtil.mining_floorCanDig): not water, a road, a pavement or a floor someone laid.
+function Game.bareGround(sq)
+    if not sq or sq:getBuilding() or not sq:isOutside() then return false end
+    local floor = sq:getFloor()
+    local sprite = floor and floor:getSprite()
+    local name = sprite and sprite:getName() or ""
+    if string.sub(name, 1, 23) ~= "floors_exterior_natural" and string.sub(name, 1, 17) ~= "blends_natural_01" then
+        return false
+    end
+    local ok, water = OA.try("game: whether the square is water", function() return sq:isWaterSquare() end)
+    return ok and not water
+end
+
+-- Whether a camp fits with its middle at x, y: the middle free, and bare ground every other square out to
+-- Game.CAMP_REACH (its tents, sandbags and truck; trees and bushes are cleared for it).
+Game.CAMP_REACH = 7
+local function campFits(c, x, y, z)
+    local mid = c:getGridSquare(x, y, z)
+    if not (Game.bareGround(mid) and mid:isFree(false)) then return false end
+    local R = Game.CAMP_REACH
+    for dx = -R, R, 2 do
+        for dy = -R, R, 2 do
+            if not Game.bareGround(c:getGridSquare(x + dx, y + dy, z)) then return false end
+        end
+    end
+    return true
+end
+
+-- An open-ground site is picked from the map's zones, which the game keeps only for the cells it has loaded: one far
+-- off may be water or a road. Once its camp is loaded, it is checked once: not bare ground for a camp, it moves to
+-- the nearest loaded spot that is (out to Game.SETTLE_REACH, inside the mission's circle), its pieces with it. None
+-- found, it stays. Its pieces waiting for their squares are asked for again (their chunks may have loaded while it was
+-- not settled). True when the site is settled (checked now or before); false while its camp's squares are not all
+-- loaded.
+Game.SETTLE_REACH = 40
+local function moveTo(record, m, nx, ny)
+    local site = m.site
+    local old = site.key
+    local sx, sy = nx - math.floor(site.x), ny - math.floor(site.y)
+    site.x, site.y = site.x + sx, site.y + sy
+    site.key = "g:" .. tostring(math.floor(site.x)) .. "," .. tostring(math.floor(site.y))
+    for _, it in ipairs(m.items or {}) do
+        if not it.placed then
+            it.x, it.y, it.x1, it.y1, it.x2, it.y2 = it.x + sx, it.y + sy, it.x1 + sx, it.y1 + sy, it.x2 + sx, it.y2 + sy
+        end
+    end
+    -- the story keeps the site for a revisit
+    for _, s in pairs(OA.Story.section(record).sites or {}) do
+        if s.key == old then s.x, s.y, s.key, s.settled = site.x, site.y, site.key, true end
+    end
+    OA.Story.useSite(site.key)
+    OA.log("ground site", old, "moved to", site.key)
+end
+
+function Game.settleGround(record, m)
+    local site = m.site
+    if not (site and site.ground) or site.settled then return true end
+    local c = getCell()
+    local x0, y0, z = math.floor(site.x), math.floor(site.y), site.z or 0
+    local R = Game.CAMP_REACH
+    if not (c:getGridSquare(x0 - R, y0 - R, z) and c:getGridSquare(x0 + R, y0 + R, z)
+        and c:getGridSquare(x0 - R, y0 + R, z) and c:getGridSquare(x0 + R, y0 - R, z)) then
+        return false
+    end
+    site.settled = true
+    local area = m.area
+    local function fits(x, y)
+        return (not area or OA.Places.distance(x, y, area.x, area.y) <= area.r * 0.85) and campFits(c, x, y, z)
+    end
+    local here = campFits(c, x0, y0, z)
+    local nx, ny
+    -- on every other square: a camp a square off makes no difference, and the search is a quarter as long
+    for d = 2, here and 0 or Game.SETTLE_REACH, 2 do
+        for i = -d, d, 2 do
+            for _, p in ipairs({ { i, -d }, { i, d }, { -d, i }, { d, i } }) do
+                if fits(x0 + p[1], y0 + p[2]) then nx, ny = x0 + p[1], y0 + p[2]; break end
+            end
+            if nx then break end
+        end
+        if nx then break end
+    end
+    if nx then moveTo(record, m, nx, ny)
+    elseif not here then OA.log("ground site", site.key, "is not bare ground; nothing near is: kept") end
+    for _, it in ipairs(m.items or {}) do
+        if not (it.placed or it.staged) then
+            Game.unregisterPiece(m.id, it.key)
+            Game.request(record, m, it)
+        end
+    end
+    OA.Sync.changed("missions", record.id)
+    return true
+end
+
 -- The zombie density of the map at a square (DESIGN-terminal 7.2): the metagrid's chunk there, as the game's own spawning
 -- reads it (it follows the zombie count option). nil when the square is off the map or the game cannot say.
 function Game.zombieIntensity(x, y)
@@ -559,7 +653,9 @@ function Game.tryPlace(record, m, it, forceFloor)
     if it.placed then return true end
     if it.mode == "inside" then return false end
     if it.mode == "floor" and not it.inBuilding then
-        -- A drop site's stake tag: by the stake.
+        -- A drop site's stake tag: by the stake. An open-ground site's piece: once the site is settled.
+        if not Game.settleGround(record, m) then return false end
+        if it.placed then return true end
         local sq = nearFreeSquare(it.x, it.y, it.z)
         if not sq then return false end
         local item = newItem(record, m, it)
@@ -678,12 +774,15 @@ function Game.placeInRoom(record, m, it, roomDef, floorOnly)
     return true
 end
 
--- The chunks a piece's building covers (up to 24, nearest to the key square first), as chunk keys with a point in them.
-local function chunksOf(it)
+-- The chunks a piece's building covers (up to 24, nearest to the key square first), as chunk keys with a point in them;
+-- `reach` squares round its square instead (an open-ground site's camp).
+local function chunksOf(it, reach)
     local S = OA.Chunks.SIZE
     local list = {}
-    local cx1, cx2 = math.floor(it.x1 / S), math.floor(it.x2 / S)
-    local cy1, cy2 = math.floor(it.y1 / S), math.floor(it.y2 / S)
+    local x1, y1, x2, y2 = it.x1, it.y1, it.x2, it.y2
+    if reach then x1, y1, x2, y2 = it.x - reach, it.y - reach, it.x + reach, it.y + reach end
+    local cx1, cx2 = math.floor(x1 / S), math.floor(x2 / S)
+    local cy1, cy2 = math.floor(y1 / S), math.floor(y2 / S)
     for cx = cx1, cx2 do
         for cy = cy1, cy2 do
             local px, py = cx * S + 1, cy * S + 1
@@ -704,7 +803,7 @@ function Game.request(record, m, it)
     if it.mode == "container" then
         waiting[#waiting + 1] = waitEntry(m, it)
     end
-    local chunks = chunksOf(it)
+    local chunks = chunksOf(it, m.site and m.site.ground and not m.site.settled and Game.CAMP_REACH or nil)
     it.chunks = #chunks
     it.misses = 0
     for _, c in ipairs(chunks) do

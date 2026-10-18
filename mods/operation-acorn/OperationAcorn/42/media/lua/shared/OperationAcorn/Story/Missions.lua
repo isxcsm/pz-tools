@@ -1265,6 +1265,23 @@ function Missions.sealedPay(record)
     return sum
 end
 
+-- A supply crate was opened (its cargo: { { type, count } }): with a field call device in it, the field missions
+-- waiting for one have it now (the card stops saying it is on its way).
+function Missions.onOpened(record, cargo)
+    local device = Data.fullType("FieldCallDevice")
+    local has = false
+    for _, spec in ipairs(cargo or {}) do
+        if spec.type == device then has = true end
+    end
+    if not has then return end
+    for _, m in ipairs(Missions.live(record)) do
+        if m.field and m.field.stage == "needdevice" then
+            m.field.stage = "device"
+            OA.Sync.changed("missions", record.id)
+        end
+    end
+end
+
 -- The trade part settled a helicopter's delivery: every sealed mission is paid. The arrival settles all of a record's
 -- sealed boxes at once; `result.boxes` is how many it took (none: nothing sealed was in it, nothing is paid).
 function Missions.onSettled(record, result)

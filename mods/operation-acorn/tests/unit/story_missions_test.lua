@@ -652,6 +652,10 @@ test("the field call seals on the spot and the helicopter pays", function()
     local m = M.active(record)
     eq(m.story, "gym")
     eq(m.field.stage, "needdevice")
+    M.onOpened(record, { { type = "Base.Plank", count = 1 } })
+    eq(m.field.stage, "needdevice", "a crate without the device")
+    M.onOpened(record, { { type = OA.StoryData.fullType("FieldCallDevice"), count = 1 } })
+    eq(m.field.stage, "device", "the crate with it opened")
     M.game.px, M.game.py = m.area.x, m.area.y
     local told = {}
     OA.Sync.listen("notice", function(id, detail) told[#told + 1] = { id = id, detail = detail } end)

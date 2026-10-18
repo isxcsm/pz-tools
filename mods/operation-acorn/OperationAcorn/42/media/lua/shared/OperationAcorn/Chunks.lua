@@ -67,25 +67,39 @@ local function chunkKey(chunk)
     return Chunks.key(square:getX(), square:getY())
 end
 
+-- Where an entry is in a chunk's list now, or nil (another entry's work took it out).
+local function indexIn(list, entry)
+    for i = 1, list and #list or 0 do
+        if list[i] == entry then return i end
+    end
+    return nil
+end
+
+-- The chunk's entries run in turn. An entry's work may add or take out entries (a piece placed takes out all of its
+-- own): the entries are run from a copy, one taken out before its turn is skipped, and one done is taken out where it
+-- is then.
 function Chunks.loaded(chunk)
     local table0 = pending()
     if OA.isEmpty(table0) then return end
     local key = chunkKey(chunk)
     local list = key and table0[key]
     if not list then return end
-    for i = #list, 1, -1 do
-        local entry = list[i]
+    local copy = {}
+    for i = 1, #list do copy[i] = list[i] end
+    for i = #copy, 1, -1 do
+        local entry = copy[i]
         local fn = handlers[entry.kind]
-        if fn then
+        if fn and indexIn(table0[key], entry) then
             local ok, done = pcall(fn, entry, chunk)
             if not ok then
                 OA.log("chunk work", entry.kind, "failed:", tostring(done))
             elseif done then
-                table.remove(list, i)
+                local at = indexIn(table0[key], entry)
+                if at then table.remove(table0[key], at) end
             end
         end
     end
-    if #list == 0 then table0[key] = nil end
+    if table0[key] and #table0[key] == 0 then table0[key] = nil end
 end
 
 return Chunks

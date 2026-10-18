@@ -56,6 +56,11 @@ function StageGame.siteLoaded(site, close)
         and boxLoaded(def:getX() - r, def:getY() - r, def:getX2() + r, def:getY2() + r, z)
 end
 
+-- An open-ground site is checked for bare ground before its stage goes up (Story/Game: settleGround).
+function StageGame.settle(record, m)
+    return OA.StoryGame.settleGround(record, m)
+end
+
 -- Whether a room has a floor (one of its squares has).
 local function hasFloor(r)
     local room = r:getIsoRoom()
@@ -161,9 +166,23 @@ end
 -- Puts a sprite on a square as the game's moveables do (ISMoveableSpriteProps): an IsoRadio for a radio's sprite (its
 -- device data made from the sprite), a plain object otherwise. Not RandomizedWorldBase.addTileObject: that clears the
 -- square first (cleanSquareForStory takes every object but the floor, walls and a desk's other half too).
+-- Outdoors, the plants of the map's natural detail tiles (d_plants, d_generic: ferns, flowers) on a square a thing is
+-- put on: it would stand in them, leaves through its top. The grass stays.
+local function clearPlants(sq)
+    if sq:getRoom() then return end
+    local objects = sq:getObjects()
+    for i = objects:size() - 1, 0, -1 do
+        local o = objects:get(i)
+        local spr = o:getSprite()
+        local name = spr and spr:getName()
+        if name and string.sub(name, 1, 2) == "d_" then sq:transmitRemoveItemFromSquare(o) end
+    end
+end
+
 local function put(sq, sprite, on)
     local spr = sq and getSprite(sprite)
     if not spr then return nil end
+    clearPlants(sq)
     local props = spr:getProperties()
     local kind = props and props:has("IsoType") and props:get("IsoType")
     local obj

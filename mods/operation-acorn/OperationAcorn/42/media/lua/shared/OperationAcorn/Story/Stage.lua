@@ -325,6 +325,7 @@ function Stage.look(record, m, px, py, near)
     local close = Places.distance(px, py, m.site.x, m.site.y) <= Stage.READY
     if not st.placed then
         if not g.siteLoaded(m.site, close) then return end
+        if g.settle and not g.settle(record, m) then return end
         Stage.place(record, m, g.layout(m.site))
     end
     if close then Stage.keep(record, m, px, py, near) end
