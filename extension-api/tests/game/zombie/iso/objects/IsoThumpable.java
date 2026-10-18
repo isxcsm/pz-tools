@@ -6,4 +6,6 @@ import zombie.iso.sprite.IsoSprite;
 /** Synthetic: an object a player built. */
 public class IsoThumpable extends IsoObject {
     public IsoThumpable(IsoSprite sprite) { super(sprite); }
+    public boolean north;
+    public boolean getNorth() { return north; }
 }

@@ -56,6 +56,10 @@ public class IsoObject {
     public float getAlpha(int player) { return alpha[player]; }
     public void setAlpha(int player, float value) { alpha[player] = value; }
     public IsoSprite getSprite() { return sprite; }
+    /** Like the game's: the sprite's properties, none without a sprite. */
+    public zombie.core.properties.PropertyContainer getProperties() { return sprite == null ? null : sprite.getProperties(); }
+    /** Like the game's: the sprite's facing. */
+    public IsoDirections getFacing() { return sprite == null ? null : sprite.getFacing(); }
     // The outline (per player), the model it is drawn as, where it is drawn, its render state.
     public final boolean[] outlined = new boolean[4], outlineBlink = new boolean[4];
     public final int[] outlineCol = new int[4];

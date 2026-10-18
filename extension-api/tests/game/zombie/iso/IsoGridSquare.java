@@ -192,6 +192,20 @@ public final class IsoGridSquare {
 
     public void RecalcProperties() { recalcs++; }
 
+    // The objects area: what a square filter asks (free, outside, water), and the removal of an object with its recalculations.
+    public boolean freeSquare = true, outsideSquare, waterFloor;
+    public int neighbourRecalcs;
+    public boolean isFree(boolean mustNotHaveMovingObjects) { return freeSquare; }
+    public boolean isOutside() { return outsideSquare; }
+    public boolean isWaterSquare() { return waterFloor; }
+    /** Like the game's: the object leaves the square's list; its place in the list, or -1. */
+    public int transmitRemoveItemFromSquare(IsoObject object) {
+        int at = objects.indexOf(object);
+        if (at >= 0) objects.remove(at);
+        return at;
+    }
+    public void RecalcAllWithNeighbours(boolean dirty) { neighbourRecalcs++; }
+
     /** Synthetic: the shader of the walls cut away for the player, as the game's: its uniforms set each time it starts drawing. */
     public static final class CutawayNoDepthShader extends zombie.core.opengl.Shader {
         @Override public int getID() { return 10; }
