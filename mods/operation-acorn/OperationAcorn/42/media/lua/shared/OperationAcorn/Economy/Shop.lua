@@ -20,6 +20,7 @@
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Economy/Trust"
+require "OperationAcorn/Economy/Eggs"
 require "OperationAcorn/Upgrades/Rules"
 local OA = OperationAcorn
 local Rules = OA.Upgrades.Rules
@@ -299,7 +300,9 @@ local function build()
     -- as many as places cleared.
     add({ id = "serum_shared", group = "serum", tier = 1, price = Shop.SHARED_SERUM_PRICE, fixed = true,
         restock = function(record) return math.floor(OA.Trust.tier(record) / 3) + 1 end,
-        priceAt = function(record, n) return OA.scaled(Shop.SHARED_SERUM_PRICE, "UpgradeSerumPriceMultiplier") * 2 ^ (n - 1) end,
+        priceAt = function(record, n)
+            return OA.scaled(Shop.SHARED_SERUM_PRICE, "UpgradeSerumPriceMultiplier") * 2 ^ (n - 1) * OA.Eggs.serumScale(record)
+        end,
         give = { give("OperationAcorn.UpgradeSerumShared") } })
     for _, k in ipairs(Shop.WEAPON_KITS) do
         add({ id = k[1], group = "kit", tier = 6, price = k[3], kits = true, fixed = true, restock = Shop.denseQuantity(k[2]),
@@ -392,15 +395,18 @@ function Shop.serumsBought(record, tree)
     return Rules.section(record).bought[tree] or 0
 end
 
--- The price of the n-th serum of a tree (n = 1 for the first): the upgrades part owns the formula.
-function Shop.serumPriceAt(n)
-    return Rules.serumPrice(n)
+-- The price of the n-th serum of a tree (n = 1 for the first): the upgrades part owns the formula. With `record`, the
+-- price it pays (the dead squirrel egg's 0.9, Eggs.serumScale, a whole number).
+function Shop.serumPriceAt(n, record)
+    local price = Rules.serumPrice(n)
+    if record then price = OA.round(price * OA.Eggs.serumScale(record)) end
+    return price
 end
 
 -- The price of the next serum of a tree for a record (`bought` overrides how many it bought).
 function Shop.serumPrice(tree, record, bought)
     if bought == nil then bought = Shop.serumsBought(record, tree) end
-    return Shop.serumPriceAt(bought + 1)
+    return Shop.serumPriceAt(bought + 1, record)
 end
 
 -- The restock window of a record (the clock in the header), rolled to now: the first look starts the first window; a

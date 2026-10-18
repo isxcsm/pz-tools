@@ -35,6 +35,15 @@ function Sync.notice(playerId, key, args)
     end
 end
 
+-- A sound for a player (a cue of Sounds.lua): their character sounds it, on their machine (client/OperationAcorn/Cues).
+function Sync.sound(playerId, cue)
+    if isServer() then
+        sendServerCommand(OA.MOD, "sound", { player = playerId, cue = cue })
+    else
+        Sync.deliver("sound", playerId, { cue = cue })
+    end
+end
+
 -- A title over a player's screen for an event (a request done, a building searched): `detail` is { key, args (the
 -- title's translation and its arguments), sub, subArgs (the line under it, optional), style ("dust", the default, for
 -- anything not plainly another; "discovery" a thing found; "unveil" a thing strange; "notice" word from the radio; "stamp" a

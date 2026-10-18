@@ -698,7 +698,14 @@ local function noteItems(id)
     local list = Data.NOTE_ITEMS[id]
     if not list then return nil end
     local items = {}
-    for i, entry in ipairs(list) do items[i] = { type = entry[1], count = entry[2] } end
+    for i, entry in ipairs(list) do
+        local mod
+        if entry[3] then
+            mod = {}
+            for k, v in pairs(entry[3]) do mod[k] = v end
+        end
+        items[i] = { type = entry[1], count = entry[2], mod = mod }
+    end
     return { items = items }
 end
 

@@ -27,6 +27,8 @@ Sounds.CUES = {
     -- a stage's things: a plank torn off a window, a radio talking
     ["oa.stage.plank"] = { sound = "BreakBarricadePlank" },
     ["oa.stage.radio"] = { sound = "RadioTalk" },
+    -- the walkie-talkie's tone at 07:30 (easter egg 5, a vanilla radio sound for now)
+    ["oa.egg.radio"] = { sound = "RadioZap" },
     -- the phone the hallucination rings
     ["oa.hallucination.ring"] = { sound = "TelevisionTestBeep" },
     -- an infection test's swab, while the result is waited for

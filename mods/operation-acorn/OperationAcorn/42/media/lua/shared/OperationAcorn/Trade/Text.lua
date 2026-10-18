@@ -161,6 +161,10 @@ function Text.receipt(receipt)
         local a = receipt.note.args or {}
         add("note", "IGUI_OA_Trade_Rc_Row", Text.formLabel(receipt, "remarks"), Text.tr(receipt.note.key, unpack(a)))
     end
+    -- the easter eggs' remarks (Eggs.settle), each in its own row
+    for _, key in ipairs(receipt.eggs or {}) do
+        add("note", "IGUI_OA_Trade_Rc_Row", Text.formLabel(receipt, "remarks"), Text.tr(key))
+    end
     add("total", "IGUI_OA_Trade_Rc_Balance", Text.credits(receipt.balanceBefore), Text.credits(receipt.balance))
     return lines
 end
