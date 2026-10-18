@@ -104,7 +104,7 @@ test("a new request, its pay and its expiry each have a title; the pay names it,
     eq(told[3].sub, "IGUI_OA_Title_PaidSub")
     eq(told[3].subArgs[1].key, (M.keys(m)))
     eq(told[3].subArgs[1].key, "IGUI_OA_Story_Title_" .. m.title)
-    eq(told[3].subArgs[2], 30000)
+    eq(told[3].subArgs[2].credits, 30000)
     -- the next one runs out
     TEST.hours = TEST.hours + 3 * 24 + 1
     tick(record)

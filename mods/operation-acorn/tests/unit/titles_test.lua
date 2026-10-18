@@ -73,6 +73,9 @@ test("an argument that is a text is translated on the player's side", function()
     OA.Sync.title("p1", { key = "IGUI_OA_Title_Paid", sub = "IGUI_OA_Title_PaidSub",
         subArgs = { { key = "IGUI_OA_Story_Title_x", args = { 2 } }, 300 } })
     eq(halo[1], "plain:IGUI_OA_Title_Paid - IGUI_OA_Title_PaidSub IGUI_OA_Story_Title_x 2 300")
+    -- an amount is written as the terminal writes credits; a plain number (a call sign) is left as it is
+    OA.Sync.title("p1", { key = "IGUI_OA_Title_Paid", sub = "IGUI_OA_Title_PaidSub", subArgs = { 1894, { credits = 1485 } } })
+    eq(halo[2], "plain:IGUI_OA_Title_Paid - IGUI_OA_Title_PaidSub 1894 1,485")
 end)
 
 test("with noHalo a title the API cannot draw is not shown, for the caller's own way", function()

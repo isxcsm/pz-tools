@@ -742,8 +742,7 @@ end
 
 -- The short title of a regular or contract mission started: "임무 착수" over its title (a story one has its briefing).
 local function launchedTitle(record, m)
-    OA.Sync.title(record.id, { key = "IGUI_OA_Title_Launched", sub = (Missions.keys(m)), style = "notice",
-        size = "minor" })
+    OA.Sync.title(record.id, { key = "IGUI_OA_Title_Launched", sub = (Missions.keys(m)), style = "notice" })
 end
 
 -- The translation keys of a mission's title and brief by its kind (the title is the story id, the item or the contract
@@ -778,8 +777,7 @@ function Missions.start(record)
     toWaiting(m)
     Missions.state(record).active = m
     OA.Sync.changed("missions", record.id)
-    OA.Sync.title(record.id, { key = "IGUI_OA_Title_NewRequest", sub = "IGUI_OA_Title_CheckTerminal", size = "minor",
-        style = "notice" })
+    OA.Sync.title(record.id, { key = "IGUI_OA_Title_NewRequest", sub = "IGUI_OA_Title_CheckTerminal", style = "notice" })
     OA.log("mission", m.id, m.story or m.title, "offered to", record.number)
     return m
 end
@@ -908,7 +906,7 @@ function Missions.pay(record, m)
     local credits, trust = m.pay and m.pay.credits or m.credits, m.pay and m.pay.trust or m.trust
     local detail = { key = "IGUI_OA_Title_Paid", sub = (Missions.keys(m)), style = "dust", fallback = "good" }
     if credits and credits > 0 then
-        detail.sub, detail.subArgs = "IGUI_OA_Title_PaidSub", { { key = detail.sub }, math.floor(credits + 0.5) }
+        detail.sub, detail.subArgs = "IGUI_OA_Title_PaidSub", { { key = detail.sub }, { credits = math.floor(credits + 0.5) } }
     end
     -- The economy values a mission item that is in time at nothing (P1: "MissionItem"); the whole reward is paid here.
     Story.addCredits(record, credits)
@@ -1637,8 +1635,7 @@ function Missions.offerSpecial(record, level)
     local s = Missions.state(record)
     s.seq = s.seq + 1
     Missions.special(record).offer = { seq = s.seq, at = OA.hours(), a = a, b = b }
-    OA.Sync.title(record.id, { key = "IGUI_OA_Title_NewRequest", sub = "IGUI_OA_Title_CheckTerminal", size = "minor",
-        style = "notice" })
+    OA.Sync.title(record.id, { key = "IGUI_OA_Title_NewRequest", sub = "IGUI_OA_Title_CheckTerminal", style = "notice" })
     OA.log("special request offered to", record.number, a.id, b.id)
     OA.Sync.changed("missions", record.id)
     return true

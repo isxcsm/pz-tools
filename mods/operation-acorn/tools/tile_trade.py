@@ -132,14 +132,26 @@ def delivery_box(sealed):
     return compose(s, ground=ground, seed=21 + (1 if sealed else 0), glows=glows)
 
 
+# The supply crate's box: its sides and its lid's top (the parachute crate hangs the same crate from its risers).
+CRATE_X0, CRATE_X1, CRATE_Y0, CRATE_Y1 = 0.12, 0.88, 0.20, 0.80
+CRATE_ZB, CRATE_ZT = 0.36, 0.46
+
+
 def supply_crate(opened):
     """The supply crate: a military crate of olive boards with steel corner brackets and rope handles, the team's mark
     and stencilled lettering on its sides. Sealed: a steel strap over the lid and a lead seal. Opened: the lid is
     propped open and the packing straw shows with a few supplies in it."""
     s = Scene(0)
     glows = []
-    x0, x1, y0, y1 = 0.12, 0.88, 0.20, 0.80
-    zb, zt = 0.36, 0.46
+    crate_parts(s, opened)
+    ground = shadow((0.5, 0.5), 0.5, 0.36, 130)
+    return compose(s, ground=ground, seed=31 + (1 if opened else 0), glows=glows)
+
+
+def crate_parts(s, opened):
+    """The supply crate's solids, added to a scene."""
+    x0, x1, y0, y1 = CRATE_X0, CRATE_X1, CRATE_Y0, CRATE_Y1
+    zb, zt = CRATE_ZB, CRATE_ZT
     s.box(x0, y0, 0.0, x1, y1, zb, OD, top=OD_DARK, shine=0.05)
     # board texture on the visible sides
     front_decal(s, x0, x1, 0.0, zb, y1 + 0.001, plank_lines(120, 40, 5, OD, lines=4, spread=9), offset=0.001)
@@ -212,42 +224,36 @@ def supply_crate(opened):
         stick(s, centre, rot, size, '-y', acorn_mark(60, STENCIL), margin=0.2, offset=0.003)
         # the strap hanging off the lid
         s.box(0.58, y1 - 0.015, zb - 0.12, 0.64, y1 + 0.0, zb, STEEL, shine=0.5)
-    ground = shadow((0.5, 0.5), 0.5, 0.36, 130)
-    return compose(s, ground=ground, seed=31 + (1 if opened else 0), glows=glows)
 
 
 def parachute_crate():
-    """The crate on its parachute for the drop: a small crate hanging from risers under an orange-and-cream canopy."""
+    """The crate on its parachute for the drop: the sealed supply crate itself (as large as it lies once landed, the
+    canopy alone goes) hanging from risers under an orange-and-cream canopy."""
     s = Scene(0)
     glows = []
-    cx, cy = 0.5, 0.5
-    # the crate
-    s.box(0.32, 0.34, 0.0, 0.68, 0.66, 0.30, OD, top=OD_LIGHT, shine=0.05)
-    s.box(0.30, 0.32, 0.0, 0.70, 0.36, 0.03, WOOD_DARK)
-    s.box(0.30, 0.64, 0.0, 0.70, 0.68, 0.03, WOOD_DARK)
-    front_decal(s, 0.34, 0.60, 0.07, 0.19, 0.661, stencil_text('SUPPLY', 60, 22, STENCIL))
-    front_decal(s, 0.60, 0.67, 0.08, 0.22, 0.661, acorn_mark(24, STENCIL))
-    side_decal(s, 0.38, 0.62, 0.07, 0.19, 0.681, stencil_text('DROP', 50, 20, STENCIL))
-    for (sx, sy) in ((0.32, 0.66), (0.68, 0.66), (0.68, 0.34)):
-        s.box(sx - 0.015, sy - 0.015, 0.0, sx + 0.015, sy + 0.015, 0.30, STEEL_DARK, shine=0.5)
-    # the risers: four straps to a ring above the crate, then the shroud lines out to the canopy's rim
-    ring = (0.5, 0.5, 0.80)
-    for (sx, sy) in ((0.32, 0.66), (0.68, 0.66), (0.68, 0.34), (0.32, 0.34)):
-        s.tube((sx, sy, 0.30), ring, 0.011, TAN, segments=6)
-    s.tube((0.5, 0.5, 0.78), (0.5, 0.5, 0.82), 0.022, STEEL, shine=0.6, segments=12)
+    crate_parts(s, False)
+    # the risers: four straps from the lid's corners to a ring above the crate, then the shroud lines out to the
+    # canopy's rim
+    x0, x1, y0, y1, zt = CRATE_X0, CRATE_X1, CRATE_Y0, CRATE_Y1, CRATE_ZT
+    ring = (0.5, 0.5, 1.02)
+    for (sx, sy) in ((x0 + 0.02, y1 - 0.02), (x1 - 0.02, y1 - 0.02), (x1 - 0.02, y0 + 0.02), (x0 + 0.02, y0 + 0.02)):
+        s.tube((sx, sy, zt), ring, 0.012, TAN, segments=6)
+    s.tube((0.5, 0.5, 1.00), (0.5, 0.5, 1.04), 0.024, STEEL, shine=0.6, segments=12)
     # the canopy: a low dome of sixteen gores in faded orange and cream (a full half sphere in clean colours read as
-    # a beach ball), its rim at z 1.24, eight shroud lines down to the ring (sixteen hair-thin ones broke into dots)
+    # a beach ball), eight shroud lines down to the ring (sixteen hair-thin ones broke into dots). As wide as the tile
+    # lets it be: a canopy narrower than the crate under it would read as a toy.
     colours = [(178, 104, 58), (186, 178, 158)]
-    centre = (0.5, 0.5, 1.22)
-    s.sphere(centre, (0.62, 0.62, 0.44), colours[0], rings=8, segments=16, z_from=4, z_to=90, colours=colours,
+    cz = 1.46
+    centre = (0.5, 0.5, cz)
+    s.sphere(centre, (0.66, 0.66, 0.46), colours[0], rings=8, segments=16, z_from=4, z_to=90, colours=colours,
              shine=0.05)
-    rim_r, rim_z = 0.62 * math.cos(math.radians(4)), 1.22 + 0.44 * math.sin(math.radians(4))
+    rim_r, rim_z = 0.66 * math.cos(math.radians(4)), cz + 0.46 * math.sin(math.radians(4))
     for i in range(8):
         a = 2 * math.pi * (i + 0.5) / 8
         px, py = 0.5 + rim_r * math.cos(a), 0.5 + rim_r * math.sin(a)
         s.tube(ring, (px, py, rim_z), 0.007, (176, 166, 140), segments=5)
-    s.tube((0.5, 0.5, 1.65), (0.5, 0.5, 1.68), 0.03, (170, 160, 136), segments=8)
-    ground = shadow((0.5, 0.5), 0.34, 0.26, 110)
+    s.tube((0.5, 0.5, cz + 0.45), (0.5, 0.5, cz + 0.48), 0.03, (170, 160, 136), segments=8)
+    ground = shadow((0.5, 0.5), 0.5, 0.36, 130)
     return compose(s, ground=ground, seed=41, glows=glows)
 
 

@@ -210,13 +210,13 @@ test("a drop's title says what the flight paid for the boxes it took, with the m
     eq(d.key, "IGUI_OA_Title_Dropped")
     eq(d.sub, "IGUI_OA_Title_Join")
     eq(d.subArgs[1].key, "IGUI_OA_Title_DroppedPaidTrust")
-    eq(d.subArgs[1].args[1], 450)
+    eq(d.subArgs[1].args[1].credits, 450)
     eq(d.subArgs[1].args[2], 3)
     eq(d.subArgs[2].key, "IGUI_OA_Title_Marked")
     -- no trust, no crate on the map
     Heli.dropped(record, false, { credits = 120, trust = 0 })
     d = told[#told].detail
     eq(d.sub, "IGUI_OA_Title_DroppedPaid")
-    eq(d.subArgs[1], 120)
+    eq(d.subArgs[1].credits, 120)
     Heli.setDown = realSetDown
 end)

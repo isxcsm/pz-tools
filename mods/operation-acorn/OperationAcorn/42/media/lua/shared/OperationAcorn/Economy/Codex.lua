@@ -90,7 +90,7 @@ local function tell(record, events)
     local style = Codex.TITLE_STYLE[last.kind]
     if last.kind == "Kills" and (last.count or 0) <= Codex.KILL_BRIEF_UNTIL then style = "brief" end
     local ok, err = pcall(OA.Sync.title, record.id, { key = key, args = args, sub = "IGUI_OA_Title_Bonus",
-        subArgs = { math.floor(credits + 0.5) }, style = style, fallback = "good" })
+        subArgs = { { credits = math.floor(credits + 0.5) } }, style = style, fallback = "good" })
     if not ok then OA.log("title failed:", tostring(err)) end
 end
 

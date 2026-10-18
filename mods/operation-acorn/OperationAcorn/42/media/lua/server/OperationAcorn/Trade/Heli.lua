@@ -201,15 +201,15 @@ function Heli.dropped(owner, marked, settled)
     local sub, subArgs = marked and "IGUI_OA_Title_Marked" or nil, nil
     if settled then
         local paid = settled.trust > 0
-            and { key = "IGUI_OA_Title_DroppedPaidTrust", args = { settled.credits, settled.trust } }
-            or { key = "IGUI_OA_Title_DroppedPaid", args = { settled.credits } }
+            and { key = "IGUI_OA_Title_DroppedPaidTrust", args = { { credits = settled.credits }, settled.trust } }
+            or { key = "IGUI_OA_Title_DroppedPaid", args = { { credits = settled.credits } } }
         if marked then
             sub, subArgs = "IGUI_OA_Title_Join", { paid, { key = "IGUI_OA_Title_Marked" } }
         else
             sub, subArgs = paid.key, paid.args
         end
     end
-    OA.Sync.title(owner.id, { key = "IGUI_OA_Title_Dropped", sub = sub, subArgs = subArgs, style = "notice", size = "minor",
+    OA.Sync.title(owner.id, { key = "IGUI_OA_Title_Dropped", sub = sub, subArgs = subArgs, style = "notice",
         fallback = "good" })
 end
 

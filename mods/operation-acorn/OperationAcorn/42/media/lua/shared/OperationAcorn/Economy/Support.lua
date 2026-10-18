@@ -195,7 +195,7 @@ function Support.appliedTitle(done)
     else
         sub = { key = "IGUI_OA_Support_JoinedMore", args = { changes[1], changes[2], changes[3], tostring(#changes - 3) } }
     end
-    return { key = "IGUI_OA_Title_SupportApplied", sub = sub.key, subArgs = sub.args, style = "notice", size = "minor" }
+    return { key = "IGUI_OA_Title_SupportApplied", sub = sub.key, subArgs = sub.args, style = "notice" }
 end
 
 return Support

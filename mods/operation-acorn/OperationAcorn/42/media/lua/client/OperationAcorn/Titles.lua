@@ -3,6 +3,7 @@
 require "OperationAcorn/Sync"
 require "OperationAcorn/Client"
 require "OperationAcorn/Markup"
+require "OperationAcorn/Trade/Text"
 local OA = OperationAcorn
 local Titles = {}
 OA.Titles = Titles
@@ -26,7 +27,14 @@ local function text(key, args)
     if type(key) ~= "string" then return nil end
     local list = {}
     for i, arg in ipairs(args or {}) do
-        if type(arg) == "table" then list[i] = text(arg.key, arg.args) or "" else list[i] = arg end
+        if type(arg) ~= "table" then
+            list[i] = arg
+        elseif arg.credits then
+            -- an amount, written as the terminal writes credits ("1,485")
+            list[i] = OA.Trade.Text.credits(arg.credits)
+        else
+            list[i] = text(arg.key, arg.args) or ""
+        end
     end
     return getText(key, unpack(list))
 end
@@ -117,8 +125,9 @@ function Titles.place(at, withLine)
 end
 
 -- How large a title is drawn (detail.size, times its style's size): "major" for the story's great moments (the operation
--- named, a stage's card, the handover, a capstone, a cure), "minor" for the receipt of what the player has just done or
--- will look at anyway (a box sealed, a drop, a mission started or its item secured, a new request); else the style's.
+-- named, a stage's card, the handover, a capstone, a cure), "minor" for the receipt, in a large style, of what the player
+-- has just done (a box sealed, a mission's item secured, a kit redeemed); else the style's. The notice style is small
+-- already and is not made smaller.
 Titles.SIZES = { major = 1.35, minor = 0.72 }
 
 -- Shows a title (detail as OA.Sync.title takes it) for the player of that id; returns how it was shown: "title",
