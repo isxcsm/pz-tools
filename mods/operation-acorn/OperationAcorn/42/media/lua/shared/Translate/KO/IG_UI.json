@@ -919,7 +919,7 @@
     "IGUI_OA_Story_UI_Prev": "이전",
     "IGUI_OA_Story_UI_Results": "지금까지: 완료 %1, 기한 경과 %2, 분실 %3",
     "IGUI_OA_Story_UI_Reward": "지급 %1 크레딧 · 신뢰도 %2",
-    "IGUI_OA_Story_UI_Sealed": "밀봉했습니다. 다음 헬기가 오면 정산됩니다.",
+    "IGUI_OA_Story_UI_Sealed": "밀봉했습니다. 헬기를 부르면 정산됩니다.",
     "IGUI_OA_Story_UI_ShowMap": "지도에서 보기",
     "IGUI_OA_Story_UI_Stake": "측량 말뚝 %1",
     "IGUI_OA_Story_UI_Swap_done": "기록철이 나왔습니다. 가져가십시오.",

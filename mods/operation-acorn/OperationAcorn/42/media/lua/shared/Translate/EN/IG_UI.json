@@ -919,7 +919,7 @@
     "IGUI_OA_Story_UI_Prev": "Previous",
     "IGUI_OA_Story_UI_Results": "So far: done %1, past deadline %2, lost %3",
     "IGUI_OA_Story_UI_Reward": "Reward %1 credits · trust %2",
-    "IGUI_OA_Story_UI_Sealed": "Sealed. Paid when the next helicopter comes.",
+    "IGUI_OA_Story_UI_Sealed": "Sealed. Paid once you call the helicopter.",
     "IGUI_OA_Story_UI_ShowMap": "Show on map",
     "IGUI_OA_Story_UI_Stake": "Survey stake %1",
     "IGUI_OA_Story_UI_Swap_done": "The record has turned up. Take it.",
