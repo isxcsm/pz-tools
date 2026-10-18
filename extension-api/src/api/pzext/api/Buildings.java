@@ -1004,6 +1004,9 @@ final class Buildings {
         return room == null ? null : describe(defOf(room));
     }
 
+    /** The building a definition (a BuildingDef) describes now, or null when it has no room with a square; the caller observed. */
+    Building describing(Object def) throws ReflectiveOperationException { return describe(def); }
+
     /** The room the square belongs to now (a RoomDef), or null. */
     Object roomOf(int x, int y, int z) throws ReflectiveOperationException { return roomAt(x, y, z); }
 

@@ -71,7 +71,7 @@ function Game.sitesInBand(ax, ay, lo, hi, skip)
     local list = {}
     for _, b in ipairs(OA.api().buildings.list(ax, ay, lo, hi, SITES)) do
         local key = keyOf(b.minX, b.minY)
-        local names = b.rooms
+        local names = b.roomNames
         if not skip[key] and OA.Places.plain(names) then
             local site = infoOf(b)
             site.key, site.dist, site.area = key, b.distance, b.area

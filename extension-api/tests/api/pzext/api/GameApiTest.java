@@ -111,6 +111,7 @@ public final class GameApiTest {
         FloorDecalsTest.run(api);
         SquareWatchesTest.run(api);
         ObjectsTest.run(api);
+        MapFactsTest.run(api);
         WallWatchesTest.run(api);
         RoomEditsTest.run(api);
         TrackedTest.run();

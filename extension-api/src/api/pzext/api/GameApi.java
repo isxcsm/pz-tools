@@ -292,6 +292,7 @@ public final class GameApi {
             read.register(buildingsTable);
             buildings = read;
             containers(lua, read, game, buildingsTable, luaManager.getClassLoader());
+            lists(lua, read, game, buildingsTable, luaManager.getClassLoader());
             networks(lua, api, meta, handles, game, read, luaManager.getClassLoader());
             formulas(lua, api, meta, handles, game, luaManager.getClassLoader());
             items(lua, api, meta, game, luaManager.getClassLoader());
@@ -300,6 +301,7 @@ public final class GameApi {
             texts(lua, api, meta, handles, game, luaManager.getClassLoader());
             systems(lua, api, meta, handles, game, luaManager.getClassLoader());
             scheduled(lua, api, meta, handles, game, luaManager.getClassLoader());
+            maps(lua, api, game, luaManager.getClassLoader());
             walls(lua, buildingsTable, meta, handles, game, read, luaManager.getClassLoader());
             objects(lua, api, meta, game, read, luaManager.getClassLoader());
             lua.set(env, GLOBAL, api);
@@ -691,16 +693,59 @@ public final class GameApi {
         } catch (LinkageError olderBootstrap) {
             System.err.println("[PZExt] Square watches are not in this game; restart it to use them: " + olderBootstrap);
             SquareWatches.retire(lua, meta);
-            lua.set(api, "squares", null);
+            withoutWatches(lua, api);
             watched = null;
         } catch (ReflectiveOperationException | RuntimeException unreadable) {
             report(unreadable);
             SquareWatches.unhook();
             SquareWatches.retire(lua, meta);
-            lua.set(api, "squares", null);
+            withoutWatches(lua, api);
             watched = null;
         }
         squares = watched;
+    }
+
+    /** The square watches are not there: the squares' table keeps what else it holds (the path). */
+    private static void withoutWatches(Kahlua lua, Object api) throws ReflectiveOperationException {
+        Object table = lua.get(api, "squares");
+        if (!lua.isTable(table)) return;
+        lua.set(table, "watch", null);
+        lua.set(table, "unwatch", null);
+    }
+
+    /**
+     * {@code buildings.list}. Left out, with a line in the game's log, in a game that lacks what it reads: the rest of the buildings go on.
+     */
+    private static void lists(Kahlua lua, Buildings read, Game game, Object table, ClassLoader loader) throws ReflectiveOperationException {
+        try { new BuildingLists(lua, game, read, loader).register(table); }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+            report(unreadable);
+            lua.set(table, "list", null);
+        }
+    }
+
+    /**
+     * {@code PZExtAPI.zones}, {@code PZExtAPI.vehicles} and {@code squares.path}: facts of the map read in Java. Each is left out, with a line in
+     * the game's log, in a game that lacks what it reads: the others go on, and the square watches that share the squares' table with
+     * the path are not touched by it.
+     */
+    private static void maps(Kahlua lua, Object api, Game game, ClassLoader loader) throws ReflectiveOperationException {
+        try { new Zones(lua, game, loader).register(table(lua, api, "zones")); }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+            report(unreadable);
+            lua.set(api, "zones", null);
+        }
+        try { new Vehicles(lua, game, loader).register(table(lua, api, "vehicles")); }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+            report(unreadable);
+            lua.set(api, "vehicles", null);
+        }
+        try { new SquarePaths(lua, game, loader).register(table(lua, api, "squares")); }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+            report(unreadable);
+            Object squares = lua.get(api, "squares");
+            if (lua.isTable(squares)) lua.set(squares, "path", null);
+        }
     }
 
     /** The mod a handle belongs to, or null when the value is not one of this environment's handles. */

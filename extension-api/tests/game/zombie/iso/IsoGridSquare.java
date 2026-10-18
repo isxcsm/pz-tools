@@ -181,6 +181,26 @@ public final class IsoGridSquare {
         return acrossX || acrossY ? LosUtil.TestResults.Blocked : LosUtil.TestResults.Clear;
     }
 
+    /** Test: the square is taken (not free), has stairs, is outdoors, is in a building the loaded square knows (getBuilding). */
+    public boolean occupied, stairsHere, outdoors = true;
+    public zombie.iso.areas.IsoBuilding inBuilding;
+    public final zombie.core.properties.PropertyContainer properties = new zombie.core.properties.PropertyContainer();
+    public boolean isFree(boolean vehicles) { return !occupied && !solid; }
+    public boolean HasStairs() { return stairsHere; }
+    public zombie.core.properties.PropertyContainer getProperties() { return properties; }
+    public boolean isOutside() { return outdoors; }
+    public zombie.iso.areas.IsoBuilding getBuilding() { return inBuilding; }
+    /**
+     * Like the game's for the four sides: the step to a square beside is blocked by a wall on the edge crossed, or by a block on
+     * either square.
+     */
+    public boolean isBlockedTo(IsoGridSquare other) {
+        if (solid || other.solid) return true;
+        int dx = other.x - x, dy = other.y - y;
+        if (dx != 0 && dy != 0 || other.z != z) return false;
+        return dx < 0 ? westWall : dx > 0 ? other.westWall : dy < 0 ? northWall : other.northWall;
+    }
+
     /** Whether the grid never powers the square (a NoPower zone, a player-built room): a test sets it. */
     public boolean noPower;
     public boolean isNoPower() { return noPower; }

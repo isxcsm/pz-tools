@@ -14,6 +14,9 @@ public final class IsoCell {
 
     public final PositionMap<IsoGridSquare> squares = new PositionMap<>();
     public final PositionMap<IsoChunk> chunks = new PositionMap<>();
+    /** The vehicles of the cell. */
+    public final java.util.Set<zombie.vehicles.BaseVehicle> vehicles = new java.util.LinkedHashSet<>();
+    public java.util.Set<zombie.vehicles.BaseVehicle> getVehicles() { return vehicles; }
     /** The zombies the cell holds. */
     public final ArrayList<IsoZombie> zombieList = new ArrayList<>();
     /** Set by a test: the cell cannot say its zombies. */
