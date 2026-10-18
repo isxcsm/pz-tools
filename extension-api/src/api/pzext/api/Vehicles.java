@@ -71,7 +71,7 @@ final class Vehicles {
         }
         found.sort(Comparator.comparingDouble(Near::distance));
         Object result = lua.table();
-        for (int index = 0; index < found.size(); index++) lua.set(result, (double)(index + 1), found.get(index).vehicle());
+        for (int index = 0; index < found.size(); index++) lua.setAt(result, index + 1, found.get(index).vehicle());
         return result;
     }
 }

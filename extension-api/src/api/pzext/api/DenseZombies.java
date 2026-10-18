@@ -287,7 +287,7 @@ final class DenseZombies {
             lua.set(entry, "peak", (double)group.peak());
             lua.set(entry, "mean", group.mean());
             lua.set(entry, "rank", (double)(at + 1));
-            lua.set(result, (double)(at + 1), entry);
+            lua.setAt(result, at + 1, entry);
         }
         return result;
     }
