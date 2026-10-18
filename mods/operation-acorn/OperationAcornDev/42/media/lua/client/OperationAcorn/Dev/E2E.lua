@@ -41,10 +41,10 @@ local STORY_OF = {
 -- as new (trust 0, the terminal not answering it); first: "drop" the first supply comes down at once, "wait" it waits
 -- (the join beats), "heli" the game's helicopter flies over first and the supply comes as it goes (E2E.HELI_SECONDS);
 -- firstMode: how the world's first supply comes (Rules.firstPlan): "window" after the game's helicopter (by default),
--- "late" the mod came after it, "none" a world without the helicopter; offer: the story mission due is offered; fill:
--- the base's delivery box is filled for a settlement; serum: an upgrade serum to inject; handover: the handover is
--- over; join: the world's tier when the record came into it (CANON S19), "H" after the handover; keep: nothing is set.
--- more: its things to see go on a second line.
+-- "late" the mod came after it (a character joining a world after it too: the join beats), "none" a world without the
+-- helicopter; offer: the story mission due is offered; fill: the base's delivery box is filled for a settlement; serum:
+-- an upgrade serum to inject; handover: the handover is over; join: the world's tier when the record came into it
+-- (CANON S19), "H" after the handover; keep: nothing is set. more: its things to see go on a second line.
 E2E.BEATS = {
     { id = "01", fresh = true, first = "heli" },
     { id = "01L", fresh = true, first = "drop", firstMode = "late" },
@@ -62,10 +62,10 @@ E2E.BEATS = {
     { id = "11S", stage = 5, milestones = 2, from = "BS1", offer = true },
     { id = "12", stage = 5, milestones = 3, from = "s8_handover", offer = true, more = true },
     { id = "13", stage = 5, milestones = 4, from = "K1", offer = true, handover = true },
-    { id = "J4", fresh = true, first = "wait", join = 4 },
-    { id = "J5", fresh = true, first = "wait", join = 5 },
-    { id = "J7", fresh = true, first = "wait", join = 7 },
-    { id = "JH", fresh = true, first = "wait", join = "H" },
+    { id = "J4", fresh = true, first = "wait", firstMode = "late", join = 4 },
+    { id = "J5", fresh = true, first = "wait", firstMode = "late", join = 5 },
+    { id = "J7", fresh = true, first = "wait", firstMode = "late", join = 7 },
+    { id = "JH", fresh = true, first = "wait", firstMode = "late", join = "H" },
     { id = "X", keep = true },
 }
 E2E.BY_ID = {}
@@ -630,10 +630,13 @@ function E2E.timers(r)
     for _, m in ipairs(Missions.live(r)) do
         local tag = m.special and "special" or "main"
         if (m.state == "open") and m.deadline then
-            -- the deadline moved keeps the time the mission had (the day-left warning wants two days of it)
+            -- the deadline moved keeps the time the mission had (the day-left warning wants two days of it), and its
+            -- day-left warning when that came already (a deadline the game moves warns again: it only moves later)
             local function moveTo(at)
+                local warned = m.warned == m.deadline
                 m.issued = at - (m.deadline - (m.issued or now))
                 m.deadline = at
+                if warned then m.warned = at end
             end
             add(tag .. "Deadline", m.deadline - now, function() moveTo(now + lead) end)
             if not m.special and m.deadline - (m.issued or now) >= Missions.WARN_SPAN and m.warned ~= m.deadline then

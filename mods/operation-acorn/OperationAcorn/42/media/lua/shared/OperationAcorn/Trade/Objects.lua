@@ -101,6 +101,19 @@ function Objects.free(square)
     return true
 end
 
+-- Whether a square can be come up to: one of the eight round it is free (a crate dropped among others, every side
+-- taken, could not be opened).
+function Objects.reachable(square)
+    local c = cell()
+    local x, y, z = square:getX(), square:getY(), square:getZ()
+    for dx = -1, 1 do
+        for dy = -1, 1 do
+            if (dx ~= 0 or dy ~= 0) and Objects.free(c:getGridSquare(x + dx, y + dy, z)) then return true end
+        end
+    end
+    return false
+end
+
 -- Whether a square holds a building or a tree.
 local function buildingOrTree(square)
     if square:getBuilding() ~= nil or square:getRoom() ~= nil then return "building" end
@@ -118,6 +131,7 @@ function Objects.clearSquare(square, radius, cache)
     if not square:isOutside() then return false, "inside" end
     local ok, why = Objects.free(square)
     if not ok then return false, why end
+    if not Objects.reachable(square) then return false, "blocked" end
     local cx, cy = square:getX(), square:getY()
     local c = cell()
     for dx = -radius, radius do
@@ -176,15 +190,17 @@ function Objects.findClear(x, y, maxRadius, empty)
     return nil
 end
 
--- A free square beside a spot for the crate to come down on, no one standing on it: nearest, outdoors if possible.
+-- A free square beside a spot for the crate to come down on, no one standing on it and one beside it free: nearest,
+-- outdoors if possible.
 function Objects.findBeside(x, y, z, maxRadius)
     local square = Objects.search(x, y, z, maxRadius or 4, function(square)
-        if not Objects.free(square) or not Objects.nobody(square) then return false end
+        if not Objects.free(square) or not Objects.nobody(square) or not Objects.reachable(square) then return false end
         return square:isOutside() and (x ~= square:getX() or y ~= square:getY())
     end)
     if square then return square end
     return Objects.search(x, y, z, maxRadius or 4, function(square)
-        return Objects.free(square) and Objects.nobody(square) and (x ~= square:getX() or y ~= square:getY())
+        return Objects.free(square) and Objects.nobody(square) and Objects.reachable(square)
+            and (x ~= square:getX() or y ~= square:getY())
     end)
 end
 

@@ -966,6 +966,7 @@
     "IGUI_OA_Title_LostSub_Soil": "같은 자리에서 다시 채취 · 기한 연장",
     "IGUI_OA_Title_LostSub_Swap": "같은 자리에서 다시 수령 · 기한 연장",
     "IGUI_OA_Title_Expired": "요청 기한 경과",
+    "IGUI_OA_Title_WrittenOff": "요청 물품 분실 처리",
     "IGUI_OA_Title_Stage": "신뢰도 %1단계",
     "IGUI_OA_Title_Operation": "도토리 작전",
     "IGUI_OA_Title_OperationSub": "호출부호 %1",

@@ -187,8 +187,11 @@ function ST.seal()
     OA.Trade.Menus.seal(object, 0)
 end
 
+-- The terminal window closes, however it opened (ST.open, or the terminal used: ST.use).
 function ST.close()
-    if ST.win then ST.win:close() ST.win = nil end
+    local win = ST.win or OATerminalWindow.instances[player:getPlayerNum()]
+    if win then win:close() end
+    ST.win = nil
     ST.say("CLOSE")
 end
 

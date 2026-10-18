@@ -897,6 +897,10 @@ function Missions.finish(record, m, result)
     if result == "expired" then
         OA.Sync.title(record.id, { key = "IGUI_OA_Title_Expired", sub = (Missions.keys(m)), style = "sink",
             fallback = "bad" })
+    elseif result == "lost" then
+        -- its sealed box never came in: the team writes the item off
+        OA.Sync.title(record.id, { key = "IGUI_OA_Title_WrittenOff", sub = (Missions.keys(m)), style = "sink",
+            fallback = "bad" })
     end
     Story.missionEnded(record, m, result)
     OA.Sync.changed("missions", record.id)

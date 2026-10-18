@@ -966,6 +966,7 @@
     "IGUI_OA_Title_LostSub_Soil": "Take the sample again · more time",
     "IGUI_OA_Title_LostSub_Swap": "Collect it there again · more time",
     "IGUI_OA_Title_Expired": "Request expired",
+    "IGUI_OA_Title_WrittenOff": "Request item written off",
     "IGUI_OA_Title_Stage": "Trust stage %1",
     "IGUI_OA_Title_Operation": "Operation Acorn",
     "IGUI_OA_Title_OperationSub": "Call sign %1",

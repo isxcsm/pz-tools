@@ -691,10 +691,12 @@ test("a sealed mission whose box never settles is lost after a while", function(
     tick(record)
     local m = M.active(record)
     M.onSealed(record, "b", { { info = { mission = m.id }, count = 1 } })
+    local told = listenTitles()
     TEST.hours = TEST.hours + 15 * 24
     tick(record)
     eq(M.active(record), nil)
     eq(record.missions.results.lost, 1)
+    eq(told[1].key, "IGUI_OA_Title_WrittenOff", "the player is told")
 end)
 
 test("after the handover a contract mission pool replaces the regular one", function()
