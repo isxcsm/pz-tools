@@ -629,6 +629,7 @@
     "IGUI_OA_Trade_Reason_locked": "아직 열리지 않았습니다",
     "IGUI_OA_Trade_Tip_Worth": "정산가 약 %1 크레딧",
     "IGUI_OA_Trade_Tip_NotTaken": "받지 않음",
+    "IGUI_OA_Trade_Tip_Mission": "임무 보수로 정산",
     "IGUI_OA_Trade_Estimate_Title": "견적",
     "IGUI_OA_Trade_Estimate_Total": "%1 크레딧, 신뢰도 +%2",
     "IGUI_OA_Trade_Seal_Worth": "%1점, 예상 %2 크레딧, 신뢰도 +%3.",

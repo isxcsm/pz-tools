@@ -32,7 +32,10 @@ function Appraisal.lineFor(item, record)
     local info = Value.info(item)
     local ok, why = Value.accepts(info)
     local line
-    if ok then
+    if info.own == "MissionItem" then
+        -- (a running mission's item is worth nothing alone: the mission pays for it)
+        line = { text = getText("IGUI_OA_Trade_Tip_Mission"), r = 0.6, g = 0.9, b = 0.6, tier = tier }
+    elseif ok then
         local worth = Value.appraise(info, Value.context(record))
         local text = getText("IGUI_OA_Trade_Tip_Worth", Text.credits(OA.round(worth.credits)))
         local words = Text.markText(worth.marks)
@@ -119,9 +122,14 @@ function OAEstimatePanel:fill(container)
     if worth then
         for i, entry in ipairs(entries) do
             local line = worth.lines[i]
-            local value = Text.credits(OA.round(line.credits))
-            local marks = Text.markText(line.marks)
-            if marks then value = value .. "  " .. marks end
+            local value
+            if entry.info.own == "MissionItem" then
+                value = getText("IGUI_OA_Trade_Tip_Mission")
+            else
+                value = Text.credits(OA.round(line.credits))
+                local marks = Text.markText(line.marks)
+                if marks then value = value .. "  " .. marks end
+            end
             self.list:addItem(entry.info.fullType, { name = Text.itemName(entry.info.fullType) .. " x" .. entry.count, value = value })
         end
     end

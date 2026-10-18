@@ -629,6 +629,7 @@
     "IGUI_OA_Trade_Reason_locked": "Not open yet",
     "IGUI_OA_Trade_Tip_Worth": "Worth about %1 credits",
     "IGUI_OA_Trade_Tip_NotTaken": "Not taken",
+    "IGUI_OA_Trade_Tip_Mission": "Paid with the mission",
     "IGUI_OA_Trade_Estimate_Title": "Estimate",
     "IGUI_OA_Trade_Estimate_Total": "%1 credits, trust +%2",
     "IGUI_OA_Trade_Seal_Worth": "%1 items, estimated %2 credits, trust +%3.",
