@@ -102,6 +102,7 @@ function OATabMission:createChildren()
     local bh = UI.buttonHeight()
     self.mapButton = PZUIButton:new(0, 0, 120, bh, getText("IGUI_OA_Story_UI_ShowMap"), p, self, OATabMission.onMap, "strong")
     self.launchButton = PZUIButton:new(0, 0, 88, bh, getText("IGUI_OA_Story_UI_Launch"), p, self, OATabMission.onLaunch, "strong")
+    self.commsButton = PZUIButton:new(0, 0, 88, bh, getText("IGUI_OA_Story_UI_ToComms"), p, self, OATabMission.onComms, "strong")
     self.rerollButton = PZUIButton:new(0, 0, 88, bh, getText("IGUI_OA_Story_UI_Reroll"), p, self, OATabMission.onReroll)
     self.optionButtons = {}
     for _, option in ipairs({ "a", "b" }) do
@@ -124,7 +125,7 @@ end
 
 -- Every button of the screen (layout shows the ones the screen needs).
 function OATabMission:buttons()
-    return { self.mapButton, self.launchButton, self.rerollButton, self.optionButtons.a, self.optionButtons.b, self.shopButton,
+    return { self.mapButton, self.launchButton, self.commsButton, self.rerollButton, self.optionButtons.a, self.optionButtons.b, self.shopButton,
         self.acceptButton, self.specialMapButton }
 end
 
@@ -149,6 +150,11 @@ end
 function OATabMission:doLaunch(option)
     self:send("story_launch", { option = option })
     if self.info and self.info.kind == "story" then self.window:activate("comms") end
+end
+
+-- A briefing not heard yet (the hail was left): back to the comms tab, where it plays.
+function OATabMission:onComms()
+    self.window:activate("comms")
 end
 
 function OATabMission:onReroll()
@@ -471,6 +477,7 @@ function OATabMission:layout()
         local state = self.info.state
         -- an offer is started here (a choice by its option buttons); a mission taken has its area on the map
         local first = state == "waiting" and (not card.options and self.launchButton) or nil
+        if state == "briefing" then first = self.commsButton end
         if state ~= "waiting" and state ~= "briefing" then first = self.mapButton end
         if first then
             x = x - first.width

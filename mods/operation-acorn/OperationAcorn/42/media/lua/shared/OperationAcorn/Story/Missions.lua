@@ -812,6 +812,8 @@ local function buildStory(record, offer)
     m.id, m.seq = offer.id, offer.seq
     Missions.price(record, m)
     Missions.begin(record, m)
+    -- the briefing is over: the title says the mission is on (it would cover the call earlier)
+    launchedTitle(record, m)
     OA.log("mission", m.id, m.title, "started by", record.number)
     return m
 end

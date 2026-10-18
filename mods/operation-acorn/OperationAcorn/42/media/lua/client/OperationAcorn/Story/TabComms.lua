@@ -381,6 +381,7 @@ local function frame(self, now)
     end
     local window = self.window
     if window.boot and not window.consoleDone then return 1 end
+    if self.held then return nil end
     if self.nextAt and now < self.nextAt then return 1 end
     self.nextAt = nil
     local record = self:record()
@@ -392,6 +393,7 @@ end
 
 -- Something may play: the tab follows the clock until it is done.
 function OATabComms:follow()
+    if self.held and not self.play then return end
     if self.play or (self:record() and self:waiting(self:record())) then UI.live(self, frame) end
 end
 
@@ -408,7 +410,10 @@ function OATabComms:start(entry, tier, replay, now)
     self.play = { entry = entry, tier = tier, replay = replay, lines = lines, tl = Script.timeline(lines), at = now,
         line = 0 }
     -- a briefing first plays the hail: the call's own clock starts after it
-    if not replay and hailed(entry) then self.play.hailFrom, self.play.at = now, now + OATabComms.HAIL_MS end
+    if not replay and hailed(entry) then
+        self.play.brief = true
+        self.play.hailFrom, self.play.at = now, now + OATabComms.HAIL_MS
+    end
     self.st = self.play.hailFrom and self:hailState(0) or Script.at(self.play.tl, 0)
     self.skipButton:setVisible(true)
     self.window:setWantKeyEvents(true)
@@ -468,8 +473,15 @@ function OATabComms:hailState(ms)
     return st
 end
 
+-- Whether a briefing's hail is still on (no line of the call shown yet).
+local function hailing(play, now)
+    return play.hailFrom ~= nil and (now or getTimestampMs()) < play.at
+end
+
 -- The call is over, played to its end or skipped (the same to the record). A call from the waiting ones goes to the
--- record; the next follows after a beat, unless the tab or the window is being left.
+-- record; the next follows after a beat, unless the tab or the window is being left. Left during the hail, nothing of
+-- the call was seen: it stays waiting and plays again. After a briefing the next call waits until the tab is left, so
+-- the orders just given stay on screen.
 function OATabComms:finish(leaving)
     local play = self.play
     if not play then return end
@@ -477,28 +489,48 @@ function OATabComms:finish(leaving)
     self:hush(false)
     self.skipButton:setVisible(false)
     if not self.window.boot then self.window:setWantKeyEvents(false) end
-    if not play.replay then
+    local unseen = leaving and hailing(play)
+    if not play.replay and not unseen then
         self.told[play.entry.id] = true
         self:send("comms_played", { entry = play.entry.id })
     end
-    if leaving then return end
+    if leaving then
+        if unseen then
+            local record = self:record()
+            if record then self:setRows(record) end
+        end
+        return
+    end
+    if play.brief then self.held = true end
     self.nextAt = getTimestampMs() + OATabComms.NEXT_MS
     local record = self:record()
     if record then self:setRows(record) end
     self:follow()
 end
 
+-- Skipping the hail goes straight to the call; skipping the call ends it.
 function OATabComms.skip(self)
+    local play = self.play
+    if play and hailing(play) then
+        local now = getTimestampMs()
+        play.hailFrom, play.at = nil, now
+        self.st = Script.at(play.tl, 0)
+        self:setRows(self:record())
+        return
+    end
     self:finish()
 end
 
--- Another tab was chosen, or the window goes: a call playing counts as skipped.
+-- Another tab was chosen, or the window goes: a call playing counts as skipped (a hail as never started), and the
+-- calls held after a briefing may come once the tab is back.
 function OATabComms:onTabLeave()
     self:finish(true)
+    self.held = nil
 end
 
 function OATabComms:onWindowClose()
     self:finish(true)
+    self.held = nil
 end
 
 -- A head's replay button: the scene plays again as it first did.
@@ -549,7 +581,9 @@ function OATabComms:prerender()
     local ty = math.floor((OATabComms.TOP_H - 4 - fh) / 2)
     UI.text(self, UI.str("IGUI_OA_Comms_Record"), 0, ty, p.head)
     if self.play then
-        UI.textRight(self, UI.str("IGUI_OA_Comms_Receiving"), self.skipButton.x - 10, ty, p.warn)
+        -- the hail is the player calling: the line is not up yet
+        local key = self.st and self.st.phase == "hail" and "IGUI_OA_Comms_Connecting" or "IGUI_OA_Comms_Receiving"
+        UI.textRight(self, UI.str(key), self.skipButton.x - 10, ty, p.warn)
     end
     self:drawInput(p)
 end
