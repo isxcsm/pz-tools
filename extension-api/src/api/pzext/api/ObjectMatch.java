@@ -3,9 +3,12 @@ package pzext.api;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodType;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -19,6 +22,8 @@ final class ObjectMatch {
     /** The levels of bags in bags {@code holds} looks into, as a floor item is looked into. */
     static final int DEPTH = 8;
     private static final int MAX_NAMES = 512;
+    // Above this many names a match looks them up in a set (as ItemMatch does), and a list of prefixes by a search.
+    private static final int LINEAR = 6;
     private static final Pattern CLASS_NAME = Pattern.compile("[A-Za-z0-9_]{1,64}");
     private static final String[] PACKAGES = { "zombie.iso.objects.", "zombie.iso.", "zombie.vehicles.", "zombie.characters." };
     private static final String[] KEYS = { "class", "notClass", "sprite", "spritePrefix", "props", "propIn", "data", "noData", "container", "holds" };
@@ -83,12 +88,15 @@ final class ObjectMatch {
         Object rawget(Object table, Object key) throws Throwable { return (Object)rawget.invokeExact(table, key); }
     }
 
-    /** A property whose value is one of some, or (with {@code absent}) none at all. */
-    private record PropIn(String name, String[] values, boolean absent) { }
+    /** A property whose value is one of some, or (with {@code absent}) none at all; the values in a set when there are many. */
+    private record PropIn(String name, String[] values, Set<String> set, boolean absent) { }
 
     private final Handles h;
     private final Class<?>[] classes, notClasses;
     private final String[] sprites, prefixes, props;
+    // The sprite names in a set, and the prefixes sorted without one that another starts with (a name has at most one of those): when many.
+    private final Set<String> spriteSet;
+    private final boolean prefixSearch;
     private final PropIn[] propIn;
     private final String[] dataKeys;
     private final Object[] dataValues;
@@ -100,7 +108,10 @@ final class ObjectMatch {
 
     private ObjectMatch(Handles h, Class<?>[] classes, Class<?>[] notClasses, String[] sprites, String[] prefixes, String[] props,
             PropIn[] propIn, String[] dataKeys, Object[] dataValues, String noData, boolean container, ItemMatch holds) {
-        this.h = h; this.classes = classes; this.notClasses = notClasses; this.sprites = sprites; this.prefixes = prefixes;
+        this.h = h; this.classes = classes; this.notClasses = notClasses; this.sprites = sprites;
+        spriteSet = sprites != null && sprites.length > LINEAR ? new HashSet<>(List.of(sprites)) : null;
+        prefixSearch = prefixes != null && prefixes.length > LINEAR;
+        this.prefixes = prefixSearch ? prefixFree(prefixes) : prefixes;
         this.props = props; this.propIn = propIn; this.dataKeys = dataKeys; this.dataValues = dataValues; this.noData = noData;
         this.container = container; this.holds = holds;
     }
@@ -193,7 +204,8 @@ final class ObjectMatch {
                 else throw new IllegalArgumentException(call + ": match.propIn." + name + " must list strings, and false for none");
             }
             if (values.isEmpty() && !absent) throw new IllegalArgumentException(call + ": match.propIn." + name + " must list at least one value");
-            found.add(new PropIn(name, values.toArray(new String[0]), absent));
+            String[] listed = values.toArray(new String[0]);
+            found.add(new PropIn(name, listed, listed.length > LINEAR ? new HashSet<>(values) : null, absent));
         }
         return found.isEmpty() ? null : found.toArray(new PropIn[0]);
     }
@@ -215,8 +227,8 @@ final class ObjectMatch {
             Object sprite = (Object)Reach.SPRITE_OF.invokeExact(object);
             String name = sprite == null ? null : (String)h.spriteName.invokeExact(sprite);
             if (name == null) return false;
-            if (sprites != null && !contains(sprites, name)) return false;
-            if (prefixes != null && !startsWith(prefixes, name)) return false;
+            if (sprites != null && !(spriteSet != null ? spriteSet.contains(name) : contains(sprites, name))) return false;
+            if (prefixes != null && !(prefixSearch ? startsWithSorted(prefixes, name) : startsWith(prefixes, name))) return false;
         }
         if ((props != null || propIn != null) && !propertiesOk(object)) return false;
         return holds == null || holds(object);
@@ -242,6 +254,26 @@ final class ObjectMatch {
         return false;
     }
 
+    /** The prefixes sorted, without one that another prefix of the list starts: a name starts with at most one of them. */
+    private static String[] prefixFree(String[] prefixes) {
+        String[] sorted = prefixes.clone();
+        Arrays.sort(sorted);
+        int kept = 0;
+        for (String prefix : sorted) if (kept == 0 || !prefix.startsWith(sorted[kept - 1])) sorted[kept++] = prefix;
+        return Arrays.copyOf(sorted, kept);
+    }
+
+    /** Whether the name starts with one of the prefixes {@link #prefixFree} made: the greatest that does not come after it, if any. */
+    private static boolean startsWithSorted(String[] prefixes, String name) {
+        int low = 0, high = prefixes.length - 1, found = -1;
+        while (low <= high) {
+            int middle = (low + high) >>> 1;
+            if (prefixes[middle].compareTo(name) <= 0) { found = middle; low = middle + 1; }
+            else high = middle - 1;
+        }
+        return found >= 0 && name.startsWith(prefixes[found]);
+    }
+
     private boolean hasData(Object object) throws Throwable {
         Object data = h.dataOf(object);
         if (data == null) return false;
@@ -263,7 +295,7 @@ final class ObjectMatch {
         if (propIn != null) {
             for (PropIn wanted : propIn) {
                 String value = all == null ? null : (String)h.get.invokeExact(all, wanted.name());
-                if (value == null ? !wanted.absent() : !contains(wanted.values(), value)) return false;
+                if (value == null ? !wanted.absent() : !(wanted.set() != null ? wanted.set().contains(value) : contains(wanted.values(), value))) return false;
             }
         }
         return true;

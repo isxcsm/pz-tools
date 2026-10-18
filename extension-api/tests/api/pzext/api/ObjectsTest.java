@@ -176,6 +176,33 @@ final class ObjectsTest {
         cached.rawset((Object)"sprite", list("door_c"));
         same(find(area, where, cached), "cached match, changed after its first use", crate);
         same(find(area, where, table("sprite", list("door_c"))), "a new table is read", door);
+        manyNames(area, where, shelf, crate, door, table, tree, chest, window);
+    }
+
+    /** A match with hundreds of names (a set and a search, not a scan) gives what a short one does; the most is 512 names. */
+    private static void manyNames(KahluaTable area, Object where, IsoObject shelf, IsoObject crate, IsoObject door, IsoObject table, IsoObject tree,
+            IsoObject chest, IsoObject window) {
+        Object[] sprites = new Object[502], prefixes = new Object[503], propValues = new Object[300];
+        for (int at = 0; at < 500; at++) { sprites[at] = "bulk_" + at; prefixes[at] = "zz_" + at; }
+        sprites[500] = "furn_b1"; sprites[501] = "door_c";
+        same(find(area, where, table("sprite", list(sprites))), "500 sprite names", crate, door);
+        sprites[500] = "furn_b"; sprites[501] = "door_";
+        same(find(area, where, table("sprite", list(sprites))), "500 sprite names, none of them whole");
+        // prefixes of prefixes, out of order: furn_a1 starts with furn_a, and w with win
+        prefixes[500] = "win"; prefixes[501] = "furn_a1"; prefixes[502] = "furn_a";
+        same(find(area, where, table("spritePrefix", list(prefixes))), "500 prefixes", shelf, table, window);
+        prefixes[500] = "furn_"; prefixes[501] = "furn_a1"; prefixes[502] = "d";
+        same(find(area, where, table("spritePrefix", list(prefixes))), "500 prefixes, one inside another", shelf, crate, door, table, chest);
+        prefixes[500] = "furn_a1"; prefixes[501] = "furn_c"; prefixes[502] = "zz_";
+        same(find(area, where, table("spritePrefix", list(prefixes))), "500 prefixes, the longer ones", shelf, chest);
+        prefixes[500] = "furn_a22"; prefixes[501] = "furn_b12"; prefixes[502] = "wi";
+        same(find(area, where, table("spritePrefix", list(prefixes))), "500 prefixes, longer than a name", window);
+        for (int at = 0; at < propValues.length; at++) propValues[at] = Integer.toString(at + 100);
+        propValues[299] = "34";
+        same(find(area, where, table("propIn", table("Surface", list(propValues)))), "300 property values", table);
+        Object[] over = new Object[513];
+        for (int at = 0; at < over.length; at++) over[at] = "over_" + at;
+        refuses("match.sprite may have at most 512 names", () -> call(area, "find", where, table("sprite", list(over))));
     }
 
     /** The options of find, and the areas it looks in. */
