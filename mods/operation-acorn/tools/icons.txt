@@ -59,6 +59,9 @@ CapacityKit	kit_capacity	expansion kit: a box with arrows out of its corners (P6
 LighteningKit	kit_lightening	lightening kit: a feather (P6)
 ReinforcementKit	kit_reinforcement	reinforcement kit: a shield with a bolt (P6)
 EngineTuningKit	kit_engine	kit (P6)
+KitWeaponDamage	kit_weapon_damage	weapon damage kit: a blade with two chevrons rising, crimson band
+KitWeaponCrit	kit_weapon_crit	weapon critical kit: a crosshair with a spark, magenta band
+KitWeaponRepair	kit_weapon_repair	weapon repair kit: a wrench crossed over a blade, lime band
 ResearchBackpack	backpack	research backpack (P6)
 TeamFuelCan	fuel_can	the team's fuel can: its model rendered (tools/fuelcan_mesh.py)
 ResearchWaistBag	waist_bag	the team's waist bag: its floor model rendered (tools/waistbag_mesh.py)

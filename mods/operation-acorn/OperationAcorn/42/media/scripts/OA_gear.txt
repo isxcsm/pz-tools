@@ -173,13 +173,13 @@ module OperationAcorn
 
     /* The weapon kits (NUMBERS 7 'Weapon kits'): fitted to a melee weapon or a firearm by the same timed action as the
        others. The damage kit raises its least and most damage, the critical kit its critical chance, the repair kit
-       puts condition back. They have the modification kits' icons until their own are drawn. */
+       puts condition back. Their icons are the kit case in the colours of the dense places on the map. */
     item KitWeaponDamage
     {
         DisplayCategory = Tool,
         ItemType = base:normal,
         Weight = 1.0,
-        Icon = OA_ReinforcementKit,
+        Icon = OA_KitWeaponDamage,
         WorldStaticModel = Base.SewingBox,
     }
 
@@ -188,7 +188,7 @@ module OperationAcorn
         DisplayCategory = Tool,
         ItemType = base:normal,
         Weight = 1.0,
-        Icon = OA_LighteningKit,
+        Icon = OA_KitWeaponCrit,
         WorldStaticModel = Base.SewingBox,
     }
 
@@ -197,7 +197,7 @@ module OperationAcorn
         DisplayCategory = Tool,
         ItemType = base:normal,
         Weight = 1.0,
-        Icon = OA_CapacityKit,
+        Icon = OA_KitWeaponRepair,
         WorldStaticModel = Base.ToolBox_Ground,
     }
 
