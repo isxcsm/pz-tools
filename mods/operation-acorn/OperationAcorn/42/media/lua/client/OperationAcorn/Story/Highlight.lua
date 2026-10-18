@@ -43,36 +43,27 @@ local slot = {}
 local last = {}
 local EMPTY = {}
 
--- The items of a container that carry a mission mark: { { item, id } ... }. Found by one walk through the container, and
--- kept while its signature (OA.signature: how many items, what they weigh) is the same, so that the half-second look
--- does not walk a container of thousands of items again and again. container -> { key, list } (weak: a container that
--- is gone drops out).
-local marked = setmetatable({}, { __mode = "k" })
+-- The items of a container that carry a mission mark, and (for one mission) whether it holds the piece: the extension
+-- API walks the container (items.find; the bags in it are not looked into), so that nothing is kept between looks.
+-- The matches are constants (the API keeps what it reads with the table), one for each piece id.
+local MARKED = { data = "OA_Mission" }
+local FIRST_ONLY = { limit = 1, depth = 0 }
+local DEPTH_NONE = { depth = 0 }
+local pieceMatch = {}
 
+-- The items of a container that carry a mission mark.
 local function markedIn(container)
-    local key = OA.signature(container)
-    local hit = marked[container]
-    if hit and hit.key == key then return hit.list end
-    local list = {}
-    -- oa-scan: ok (once for each signature of the container)
-    local items = container:getItems()
-    for i = 0, items:size() - 1 do
-        local item = items:get(i)
-        if item:hasModData() then
-            local id = item:getModData().OA_Mission
-            if id then list[#list + 1] = { item = item, id = id } end
-        end
-    end
-    marked[container] = { key = key, list = list }
-    return list
+    return (OA.api().items.find(container, MARKED, DEPTH_NONE))
 end
 
 -- Whether the container holds an item whose OA_Mission is this id.
 local function holds(container, id)
-    for _, entry in ipairs(markedIn(container)) do
-        if entry.id == id then return true end
+    local match = pieceMatch[id]
+    if not match then
+        match = { data = { OA_Mission = id } }
+        pieceMatch[id] = match
     end
-    return false
+    return #OA.api().items.find(container, match, FIRST_ONLY) > 0
 end
 
 -- Puts into `want` the objects of a square that hold a piece, with the colour to light them: the furniture whose
@@ -155,11 +146,12 @@ local function tintOf(page, missions, player)
     local inventory = pane and pane.inventory
     if not inventory or not page:isVisible() then return pane, nil end
     local names
-    for _, entry in ipairs(markedIn(inventory)) do
+    for _, item in ipairs(markedIn(inventory)) do
+        local id = item:getModData().OA_Mission
         for _, m in ipairs(missions) do
-            if View.owns(m, entry.id) then
+            if View.owns(m, id) then
                 names = names or {}
-                names[entry.item:getName(player)] = View.color(m.kind)
+                names[item:getName(player)] = View.color(m.kind)
                 break
             end
         end
