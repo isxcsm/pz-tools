@@ -76,9 +76,10 @@ local function plainWall(object)
     return props ~= nil and hasAny(props, WALLS) and not hasAny(props, OPENINGS)
 end
 
--- Nothing on it but its floor and plain walls, nothing lying there, not stairs nor a doorway.
+-- Nothing on it but its floor and plain walls, nothing lying there, not a doorway (the floor and the stairs are asked of
+-- the room's squares at once, Spawned.places).
 local function clear(square)
-    if not square:getFloor() or square:HasStairs() or square:isDoorSquare() then return false end
+    if square:isDoorSquare() then return false end
     local lying = square:getWorldObjects()
     if lying and lying:size() > 0 then return false end
     local objects = square:getObjects()
@@ -140,12 +141,14 @@ function Spawned.chance(kind)
     return math.min(1, scale / n)
 end
 
+-- The squares of a room with a floor and no stairs, as the API's list of a room's squares takes them.
+local WITH_FLOOR = { floor = true, stairs = false }
+
 -- The squares of the room a box may take, each { square, side }: the ones against a wall where there are any.
 function Spawned.places(room)
-    local squares = room and room:getSquares()
     local walled, any = {}, {}
-    for i = 0, squares and squares:size() - 1 or -1 do
-        local square = squares:get(i)
+    local squares = room and PZExtAPI.squares.list({ room = room }, WITH_FLOOR) or {}
+    for _, square in ipairs(squares) do
         if clear(square) and not beforeDoor(square) then
             local side = wallFacing(square)
             local place = { square = square, side = side or "S" }

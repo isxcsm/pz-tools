@@ -216,18 +216,19 @@ end
 function Changes.checkObjects(panels, units)
     panels, units = panels or Store.list(), units or Store.unitList()
     local kept = {}
-    for _, panel in ipairs(panels) do
-        local square = getCell():getGridSquare(panel.x, panel.y, panel.z)
-        if square and not Panels.object(panel) then
+    -- false: the square is loaded and the object is not there; "unloaded": the square is not loaded.
+    local boxes = BU.objectsByData(Panels.MODDATA, panels)
+    for i, panel in ipairs(panels) do
+        if boxes[i] == false then
             BU.log("the box of", panel.id, "is gone")
             Changes.remove(panel)
         else
             kept[#kept + 1] = panel
         end
     end
-    for _, unit in ipairs(units) do
-        local square = getCell():getGridSquare(unit.x, unit.y, unit.z)
-        if square and Store.unit(unit.id) and not Units.object(unit) then
+    local things = BU.objectsByData(Units.MODDATA, units)
+    for i, unit in ipairs(units) do
+        if things[i] == false and Store.unit(unit.id) then
             BU.log("unit", unit.id, "is gone")
             Changes.removeUnit(unit)
         end

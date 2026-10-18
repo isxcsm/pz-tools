@@ -268,7 +268,8 @@ test("a square looked at again after a change is not worked out again while noth
         entry = { x = 109, y = 102, z = 0, sprite = "lamp" } }, {})
     local sets, onChanged = 0, nil
     api.table.floor = { clear = function() end, set = function() sets = sets + 1 end }
-    api.table.squares = { watch = function(_, _, fn) onChanged = fn; return 1 end, unwatch = function() end }
+    api.table.squares.watch = function(_, _, fn) onChanged = fn; return 1 end
+    api.table.squares.unwatch = function() end
     for x = 100, 112 do
         TEST.squares[x .. ",102,0"] = { objects = {}, floor = "blends_natural_01_0" }
     end
@@ -292,4 +293,24 @@ test("a square looked at again after a change is not worked out again while noth
     tick(480)
     truthy(sets >= 1, "a change seen by a look after the first")
     truthy(immediate >= 2 and first >= 1)
+end)
+
+test("boxes and units gone from their loaded squares are removed, in one lookup; those on squares not loaded stay", function()
+    local api = TEST.api
+    local here, gone, away = Store.newPanel(10, 10, 0, "box"), Store.newPanel(20, 10, 0, "box"), Store.newPanel(900, 900, 0, "box")
+    local unitHere, unitGone, unitAway = Store.newUnit("sprinkler", 11, 10, 0, "s"), Store.newUnit("sprinkler", 21, 10, 0, "s"),
+        Store.newUnit("sprinkler", 901, 900, 0, "s")
+    TEST.squares["10,10,0"] = { objects = { thing(Panels.MODDATA, here.id, "box", 10, 10) } }
+    TEST.squares["20,10,0"] = { objects = { thing(Panels.MODDATA, "someone else", "box", 20, 10) } }
+    TEST.squares["11,10,0"] = { objects = { thing(BU.Units.MODDATA, unitHere.id, "s", 11, 10) } }
+    TEST.squares["21,10,0"] = { objects = {} }
+    api.calls = {}
+    Changes.checkObjects({ here, gone, away }, { unitHere, unitGone, unitAway })
+    eq(api.calls["objects.byData"], 2, "one lookup for the boxes, one for the units")
+    truthy(Store.get(here.id), "its object there")
+    eq(Store.get(gone.id), nil, "its square loaded, its object not on it")
+    truthy(Store.get(away.id), "its square not loaded")
+    truthy(Store.unit(unitHere.id))
+    eq(Store.unit(unitGone.id), nil)
+    truthy(Store.unit(unitAway.id))
 end)

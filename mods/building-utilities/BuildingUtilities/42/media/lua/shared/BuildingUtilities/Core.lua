@@ -49,7 +49,22 @@ function BU.api()
     -- What is kept of buildings goes with the API's version of them, and the rooms built onto a building come from it
     -- (BU.Panels: an API with buildings.version and buildings.attached).
     if not (api.buildings and api.buildings.version and api.buildings.attached) then return nil, "version" end
+    -- The world queries: the objects of boxes and units by their mod data, and the squares of a room.
+    if not (api.objects and api.objects.byData and api.squares and api.squares.list) then return nil, "version" end
     return api
+end
+
+-- The objects of things with a square and an id (boxes, units) whose mod data key holds that id, in one call to the
+-- API. In the order of things: the object; false when its square is loaded and has none (gone); "unloaded" when its
+-- square is not loaded. Callers have checked BU.api().
+function BU.objectsByData(key, things)
+    local list = {}
+    for i, thing in ipairs(things) do
+        local at = i * 4
+        list[at - 3], list[at - 2], list[at - 1], list[at] = thing.x, thing.y, thing.z, thing.id
+    end
+    if #list == 0 then return list end
+    return PZExtAPI.objects.byData(key, list)
 end
 
 -- The API's version of the buildings (buildings.version, a call into Java), read at most once a tick: what is kept of
