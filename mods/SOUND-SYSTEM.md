@@ -25,7 +25,10 @@
 ### 게임 사실 (jar·스크립트 확인)
 - 모드 소리는 `media/scripts/*.txt`의 `sound <이름> { category = ..., master = ..., loop = ..., clip { file = media/sound/x.ogg, volume = ..., pitch = ..., distanceMax = ... } }`. 바닐라도 `file =` 클립을 쓴다 (`sounds_zombie_voice_tutorial.txt`).
 - 한 소리에 `clip`이 여럿이면 재생마다 하나를 무작위로 고른다 (`GameSound.getRandomClip`). 변주는 이것으로 한다.
-- 클립마다 `volume`, `pitch`, `distanceMin/Max`, `reverbFactor`, 소리마다 `category`, `master` (Primary, Ambient, Music...), `loop`.
+- 클립마다 `volume`, `pitch`, `distanceMin/Max`, `reverbFactor`, 소리마다 `category`, `master` (Primary, Ambient, Music...), `loop`, `is3D`.
+- 소리 스크립트 파일에 `//` 주석이 있으면 파서가 그 파일을 통째로 버린다 (오류 없음). `/* */`만 쓴다. `build.py`가 만드는 머리말도 그렇다.
+- **볼륨 설정은 `file` 클립에 안 먹는다.** 옵션의 효과음·환경음·음악 크기는 FMOD VCA(`vca:/Settings_Sfx` 등)로만 줄이는데, `file` 클립은 VCA를 거치지 않는 채널 그룹(`InGameNonBank`)에 나고 볼륨은 `clip.volume × 소리별 고급 볼륨`뿐이다 (`GameSoundClip.getEffectiveVolume`). 그래서 모든 모드의 자체 소리가 효과음 0에서도 최대 음량으로 났다. API가 고친다: `getEffectiveVolume`(메뉴용 포함)의 반환에 소리 `master`의 사운드 매니저 볼륨을 곱한다 (event 클립은 VCA가 줄이므로 그대로). 사운드 매니저 값이라 덕킹도 따른다. 확인: 효과음 0에서 파일 0, 0.5에서 0.5, 바닐라 이벤트 1 그대로.
+- 바닐라 소리 이름은 3036개이고, 그 밖의 이름을 쓴 큐는 아무 소리도 나지 않는다 (경고 없음). `oa.box.latch`의 `PZ_MetalSnap`이 그랬다 (`CloseMetalToolbox`로). `build.py --check`가 세 모드의 큐 표를 바닐라·`sounds.json` 이름과 대조한다.
 
 ## 2. 만들 것
 
@@ -66,9 +69,10 @@ Sound.typed(cue, from, to)       -- 글자 from+1..to가 나왔다: gap 안에�
 
 ### S5. 에셋 파이프라인 (`pz-tools/mods/tools/sound/`)
 - `sources/`: 원본 (CC0 라이브러리, 직접 만든 것). `sources/LICENSES.csv`: 파일, 출처, 라이선스, 작성자.
-- `synth/`: 직접 만드는 소리의 생성 스크립트 (numpy·scipy: 키 클릭, 인쇄 줄, 도장 같은 짧은 소리).
+- `synth/`: 직접 만드는 소리의 생성 스크립트 (numpy: 키 클릭). 합성은 시안용이다: 음 높이가 있는 저음은 통 두드리는 소리가 되고, 바늘 연타 인쇄음은 옛 2D 게임 효과음처럼 들렸다 (둘 다 사용자 청취로 기각, 인쇄음은 지웠다). 기계 소리는 녹음(CC0)으로 한다.
 - `build.py`: 앞뒤 무음 자르기, 모노 44.1 kHz, 분류별 목표 음량(LUFS)으로 맞춤, ogg로 각 모드 `media/sound/`에. 소리 스크립트 `.txt`도 표에서 생성 (변주 클립, 볼륨, 마스터).
 - `report.py`: 소리마다 파형·스펙트로그램·음량·길이 그림 (나는 들을 수 없으므로 이것으로 검수한다. 듣는 검수는 사용자).
+- `preview.py`: 한 소리를 게임처럼 이어 친 WAV (`report/preview_<이름>.wav`: 초당 글자 수, gap, 줄 사이 쉼). 게임 밖에서 듣는 검수용.
 - 도구: ffmpeg, SoX, Audacity(사용자 청취·편집), Python scipy·soundfile·pyloudnorm·librosa·matplotlib. 설치됨.
 
 ### S6. 소리 목록

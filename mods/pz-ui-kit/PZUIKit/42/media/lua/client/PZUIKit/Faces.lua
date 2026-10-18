@@ -49,7 +49,7 @@ Faces.STEPS = 8
 Faces.on = false
 
 local handle                      -- this mod's handle (while the API is used)
-local apiFont, apiMeasure, apiHeight, apiDraw
+local apiText, apiFont, apiMeasure, apiHeight, apiDraw
 local failed = false              -- a call threw or answered nothing: the game's fonts for the session
 local drawn = false               -- a draw went through once: the next ones are called without a guard
 local keys = {}                   -- pixel height -> the API's key (false: none), kept across scales
@@ -87,8 +87,20 @@ function Faces.available()
     local h = a.client(Kit.MOD)
     if not h then return false end
     handle = h
-    apiFont, apiMeasure, apiHeight, apiDraw = t.font, t.measure, t.fontHeight, t.draw
+    apiText, apiFont, apiMeasure, apiHeight, apiDraw = t, t.font, t.measure, t.fontHeight, t.draw
     return true
+end
+
+-- Whether the API's calls can be made now. A newer API taking over in a running game (the developer's reload) puts new
+-- functions into the same table, and the ones read before refuse to run: they are read again (the keys stay: a key is
+-- its height). An API that went away, or is another version now, is given up (fail). Three lookups a call.
+local function current()
+    local a = PZExtAPI
+    local t = type(a) == "table" and a.text or nil
+    if t == apiText and t.draw == apiDraw then return true end
+    if Faces.available() then return true end
+    fail("the extension API changed under the game")
+    return false
 end
 
 -- The API's key of a font `px` pixels high (asked once a size), or nil when it has none.
@@ -165,20 +177,21 @@ end
 function Faces.height(font)
     local face = Faces.face(font)
     local key = face.key
-    if key then return apiHeight(handle, key) end
+    if key and current() then return apiHeight(handle, key) end
     return getTextManager():getFontHeight(face.font)
 end
 
 -- A text's width in pixels in a face (the game's MeasureStringX for a game font).
 function Faces.measure(face, s)
     local key = face.key
-    if key then return apiMeasure(handle, key, s) end
+    if key and current() then return apiMeasure(handle, key, s) end
     return getTextManager():MeasureStringX(face.font, s)
 end
 
 -- Draws a text in an API face at screen pixels x, y. The first draw of the session is guarded: an API that throws there
 -- is given up (fail) and the text is not drawn this frame.
 function Faces.draw(key, s, x, y, r, g, b, a)
+    if not current() then return end
     if drawn then return apiDraw(handle, key, s, x, y, r, g, b, a) end
     local ok, err = pcall(apiDraw, handle, key, s, x, y, r, g, b, a)
     if ok then drawn = true else fail(err) end

@@ -73,6 +73,7 @@ final class TextsTest {
             titles(text, mod);
             titleScale(text, mod);
             titleSounds(text, mod);
+            fileVolume();
             screens(text, mod);
             world(text, mod, other);
             rejects(api, text, mod);
@@ -1108,9 +1109,40 @@ final class TextsTest {
      * A title's sounds at its moments, once each, as its clock passes them: the stamp's as it starts, as its letters hit, as
      * it leaves; its line's as its own letters hit. A pause holds them; a newer API goes on from the moments passed.
      */
+    /**
+     * A fix of the game's: a sound file's clip (a mod's own sound) is under the volume of its sound's master, as the sound
+     * manager has it, live; an FMOD event's clip is not (the game's mixer turns it down already).
+     */
+    private static void fileVolume() {
+        var manager = (zombie.SoundManager)zombie.SoundManager.instance;
+        var sound = new zombie.audio.GameSound();
+        var file = new zombie.audio.GameSoundClip(sound);
+        file.file = "media/sound/KIT_Key_1.ogg";
+        file.volume = 0.8f;
+        var event = new zombie.audio.GameSoundClip(sound);
+        event.event = "UI/Click";
+        event.volume = 0.8f;
+        try {
+            manager.soundVolume = 0f;
+            check(file.getEffectiveVolume() == 0f, "A file sound played with the sound volume at 0: " + file.getEffectiveVolume());
+            check(file.getEffectiveVolumeInMenu() == 0f, "A file sound played in the menu with the sound volume at 0");
+            check(event.getEffectiveVolume() == 0.8f, "An event's clip was turned down twice: " + event.getEffectiveVolume());
+            manager.soundVolume = 0.5f;
+            check(Math.abs(file.getEffectiveVolume() - 0.4f) < 1e-6, "A file sound is not at half: " + file.getEffectiveVolume());
+            sound.master = zombie.audio.GameSound.MasterVolume.Ambient;
+            manager.ambientVolume = 0.25f;
+            check(Math.abs(file.getEffectiveVolume() - 0.2f) < 1e-6, "An ambient file sound is not under the ambience: " + file.getEffectiveVolume());
+            sound.master = zombie.audio.GameSound.MasterVolume.Music;
+            manager.musicVolume = 0f;
+            check(file.getEffectiveVolume() == 0f, "A music file played with the music at 0");
+        } finally {
+            manager.soundVolume = manager.ambientVolume = manager.musicVolume = manager.vehicleEngineVolume = 1f;
+        }
+    }
+
     private static void titleSounds(KahluaTable text, Object mod) {
         FormulasTest.call(mod, "clear");
-        var played = ((zombie.SoundManager)zombie.BaseSoundManager.instance).played;
+        var played = ((zombie.SoundManager)zombie.SoundManager.instance).played;
         played.clear();
         FormulasTest.call(text, "title", mod, table("text", "Done", "subtitle", "its line", "style", "stamp",
             "sounds", table("enter", "In", "land", "Hit", "leave", "Out"), "subtitleSounds", table("land", "LineHit")));

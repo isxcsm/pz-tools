@@ -1,0 +1,54 @@
+/* Made by pz-tools/mods/tools/sound/build.py from sounds.json: edit that, not this. */
+module Base
+{
+    sound KIT_Erase
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_Erase_1.ogg,
+        }
+        clip
+        {
+            file = media/sound/KIT_Erase_2.ogg,
+        }
+        clip
+        {
+            file = media/sound/KIT_Erase_3.ogg,
+        }
+        clip
+        {
+            file = media/sound/KIT_Erase_4.ogg,
+        }
+    }
+
+    sound KIT_Key
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_Key_1.ogg,
+        }
+        clip
+        {
+            file = media/sound/KIT_Key_2.ogg,
+        }
+        clip
+        {
+            file = media/sound/KIT_Key_3.ogg,
+        }
+        clip
+        {
+            file = media/sound/KIT_Key_4.ogg,
+        }
+        clip
+        {
+            file = media/sound/KIT_Key_5.ogg,
+        }
+        clip
+        {
+            file = media/sound/KIT_Key_6.ogg,
+        }
+    }
+
+}

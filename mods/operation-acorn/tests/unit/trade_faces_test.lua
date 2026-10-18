@@ -400,6 +400,34 @@ test("an API with no font for the language leaves the game's fonts", function()
     eq(UI.S, 26 / 16)
 end)
 
+test("a newer API taking over in a running game: its new functions are read and the text goes on in the faces", function()
+    local UI = load(16)
+    stubApi()
+    screen.h = 1080
+    UI.refreshScale()
+    local el = ourElement(UI, 100, 50)
+    UI.text(el, "a", 0, 0, { 1, 1, 1 })
+    -- the new code puts its functions into the same table; the old ones refuse, as the API's do
+    local text = PZExtAPI.text
+    local drawn = {}
+    local function stale() error("the API was updated since this function was read") end
+    local oldDraw, oldHeight, oldMeasure = text.draw, text.fontHeight, text.measure
+    text.draw = function(handle, key, s) drawn[#drawn + 1] = s end
+    text.fontHeight = function(handle, key) return key end
+    text.measure = function(handle, key, s) return #tostring(s) * key end
+    oldDraw, oldHeight, oldMeasure = stale, stale, stale
+    UI.text(el, "b", 0, 0, { 1, 1, 1 })
+    eq(drawn[1], "b", "drawn by the newer API")
+    eq(UI.facesOn, true)
+    eq(#texts(el), 0, "nothing in the game's font")
+    eq(#logged, 0)
+    -- the text gone from the API (a newer one without it): the game's fonts, said once
+    PZExtAPI.text = nil
+    UI.text(el, "c", 0, 0, { 1, 1, 1 })
+    eq(UI.facesOn, false)
+    eq(#logged, 1)
+end)
+
 test("a draw that throws gives the API up once: the game's fonts and the font's scale, the windows closed by the era", function()
     local UI = load(19)
     stubApi({ throwDraw = true })

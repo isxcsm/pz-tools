@@ -602,7 +602,8 @@ public final class Hooks {
         ROOMS_ORIGINALS("roomsOriginals", Group.ROOMS), ROOMS_ENTRIES("roomsEntries", Group.ROOMS),
         ROOMS_REPLACED("roomsReplaced", Group.ROOMS), ROOMS_SQUARES("roomsSquares", Group.ROOMS),
         ROOMS_RENUMBERED("roomsRenumbered", Group.ROOMS), ROOMS_CHECKED("roomsChecked", Group.ROOMS),
-        ROOMS_LIGHTING("roomsLighting", Group.ROOMS), ROOMS_RELIGHTS("roomsRelights", Group.ROOMS), ROOMS_RELIT("roomsRelit", Group.ROOMS);
+        ROOMS_LIGHTING("roomsLighting", Group.ROOMS), ROOMS_RELIGHTS("roomsRelights", Group.ROOMS), ROOMS_RELIT("roomsRelit", Group.ROOMS),
+        FILE_VOLUME("fileVolume", Group.SOUNDS);
 
         final String label;
         final Group group;
@@ -611,7 +612,7 @@ public final class Hooks {
     }
 
     /** The handler a call belongs to: a newer one of that handler reports its faults again. */
-    private enum Group { POWER, WATER, FORMULAS, MOODLES, LOOT, TEXT, ZOMBIE_SOUNDS, ZOMBIE_HITS, OUTLINES, WORLD_ITEMS, FLOOR_DECALS, SQUARE_CHANGES, ZOMBIE_HOLDS, ROOMS }
+    private enum Group { POWER, WATER, FORMULAS, MOODLES, LOOT, TEXT, ZOMBIE_SOUNDS, ZOMBIE_HITS, OUTLINES, WORLD_ITEMS, FLOOR_DECALS, SQUARE_CHANGES, ZOMBIE_HOLDS, ROOMS, SOUNDS }
 
     // Guarded by itself. A fault in a call the game makes 40,000 times a second must not flood its log.
     private static final Set<Call> reported = EnumSet.noneOf(Call.class);
@@ -622,7 +623,8 @@ public final class Hooks {
         MOODLE_TYPE = ClassDesc.of("zombie.scripting.objects.MoodleType"), TEXTURE = ClassDesc.of("zombie.core.textures.Texture"),
         ZOMBIE_STATE = ClassDesc.of("zombie.audio.parameters.ParameterZombieState"), ZOMBIE = ClassDesc.of("zombie.characters.IsoZombie"),
         ZOMBIE_STATE_VALUE = ClassDesc.of("zombie.audio.parameters.ParameterZombieState$State"),
-        SQUARE = ClassDesc.of("zombie.iso.IsoGridSquare"), ROOM = ClassDesc.of("zombie.iso.areas.IsoRoom");
+        SQUARE = ClassDesc.of("zombie.iso.IsoGridSquare"), ROOM = ClassDesc.of("zombie.iso.areas.IsoRoom"),
+        GAME_SOUND = ClassDesc.of("zombie.audio.GameSound");
     // Whether IsoObject, as last transformed, has both hooks that keep a fixture's water tainted.
     private static volatile boolean purifyHooked;
     // UIManager.getToolTip(), which render asks after it has drawn the interface's windows.
@@ -1284,6 +1286,13 @@ public final class Hooks {
                     code.labelBinding(given);
                     code.with(element);
                 })).named("children") }),
+        // A fix: the game's volume settings turn its sounds down through FMOD's mixer (its VCAs), which a sound script's
+        // `file` clip (a mod's own sound) does not go through: a mod's sounds played at full volume with the settings at 0.
+        Map.entry("zombie/audio/GameSoundClip", new Site[] {
+            Site.atReturns("getEffectiveVolume", "()F", 1, GameSoundClip_fileVolume())
+                .reading("file:Ljava/lang/String;", "event:Ljava/lang/String;", "gameSound:Lzombie/audio/GameSound;"),
+            Site.atReturns("getEffectiveVolumeInMenu", "()F", 1, GameSoundClip_fileVolume())
+                .reading("file:Ljava/lang/String;", "event:Ljava/lang/String;", "gameSound:Lzombie/audio/GameSound;") }),
         Map.entry("zombie/iso/objects/IsoTree", new Site[] {
             Site.atReturns("getSlowFactor", "(Lzombie/iso/IsoMovingObject;)F", 2, (code, owner) -> {
                 code.aload(1);
@@ -2877,6 +2886,32 @@ public final class Hooks {
         catch (Throwable problem) { reportOnce(Call.WALK, problem); return 1f; }
     }
 
+    // The clip's file, event and sound, after the volume the method returns, for fileVolume.
+    private static BiConsumer<CodeBuilder, ClassDesc> GameSoundClip_fileVolume() {
+        return (code, owner) -> {
+            code.aload(0);
+            code.getfield(owner, "file", ConstantDescs.CD_String);
+            code.aload(0);
+            code.getfield(owner, "event", ConstantDescs.CD_String);
+            code.aload(0);
+            code.getfield(owner, "gameSound", GAME_SOUND);
+            code.invokestatic(HOOKS, "fileVolume", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_float,
+                ConstantDescs.CD_String, ConstantDescs.CD_String, ConstantDescs.CD_Object));
+        };
+    }
+
+    /**
+     * Put before each return of {@code GameSoundClip.getEffectiveVolume} and {@code getEffectiveVolumeInMenu}. A fix, for
+     * every mod and none: a sound script's {@code file} clip (no FMOD {@code event}) is not under the game's mixer, which
+     * the volume settings turn down, so its volume is times the setting of its sound's master here, as the sound manager
+     * has it (the option, or what turns it down for a while). An event's clip is left to the mixer.
+     */
+    public static float fileVolume(float vanilla, String file, String event, Object sound) {
+        if (file == null || file.isEmpty() || (event != null && !event.isEmpty()) || sound == null) return vanilla;
+        try { return vanilla * Volumes.of(sound).master(sound); }
+        catch (Throwable problem) { reportOnce(Call.FILE_VOLUME, problem); return vanilla; }
+    }
+
     /** Put before each return of {@code Thermoregulator.getCatchAColdDelta}. */
     public static float cold(float vanilla, Object player) {
         Formulas current = formulas;
@@ -3600,6 +3635,42 @@ public final class Hooks {
                     lookup.findStatic(gl20, "glShaderSource", java.lang.invoke.MethodType.methodType(void.class, int.class, CharSequence.class)),
                     lookup.findStatic(gl20, "glCompileShader", java.lang.invoke.MethodType.methodType(void.class, int.class)));
             }
+        }
+    }
+
+    /**
+     * The sound manager's volume for each master ({@code GameSound.MasterVolume}: Primary, Ambient, Music, VehicleEngine),
+     * found when first needed in the game's own classes.
+     */
+    private record Volumes(java.lang.invoke.MethodHandle masterOf, java.lang.invoke.MethodHandle managerOf,
+            java.lang.invoke.MethodHandle[] byMaster) {
+        private static volatile Volumes found;
+
+        static Volumes of(Object sound) throws ReflectiveOperationException {
+            Volumes volumes = found;
+            if (volumes != null) return volumes;
+            ClassLoader loader = sound.getClass().getClassLoader();
+            Class<?> gameSound = sound.getClass();
+            Class<?> masters = Class.forName("zombie.audio.GameSound$MasterVolume", false, loader);
+            Class<?> base = Class.forName("zombie.BaseSoundManager", false, loader);
+            Class<?> soundManager = Class.forName("zombie.SoundManager", false, loader);
+            var lookup = java.lang.invoke.MethodHandles.publicLookup();
+            var getter = java.lang.invoke.MethodType.methodType(float.class);
+            java.lang.invoke.MethodHandle[] byMaster = new java.lang.invoke.MethodHandle[4];
+            String[] names = { "getSoundVolume", "getAmbientVolume", "getMusicVolume", "getVehicleEngineVolume" };
+            for (int i = 0; i < names.length; i++) byMaster[i] = lookup.findVirtual(base, names[i], getter);
+            return found = new Volumes(lookup.findGetter(gameSound, "master", masters),
+                lookup.findStaticGetter(soundManager, "instance", base), byMaster);
+        }
+
+        /** The volume (0 to 1) of the sound's master now; 1 without a sound manager or a master the API does not know. */
+        float master(Object sound) throws Throwable {
+            Object manager = managerOf.invoke();
+            Object which = masterOf.invoke(sound);
+            if (manager == null || which == null) return 1f;
+            int index = ((Enum<?>)which).ordinal();
+            if (index >= byMaster.length) return 1f;
+            return (float)byMaster[index].invoke(manager);
         }
     }
 }

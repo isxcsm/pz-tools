@@ -351,7 +351,7 @@ final class Texts implements Hooks.Text {
     private final MethodHandle asleep, darkness, elementVisible;
     // GameTime.isGamePaused (the game's speed at 0); null in a game without it: a pause holds nothing.
     private final MethodHandle gamePaused;
-    // BaseSoundManager.instance and its playUISound; null in a game without them: a title's sounds are not played.
+    // SoundManager.instance (a BaseSoundManager) and its playUISound; null in a game without them: a title's sounds are not played.
     private final MethodHandle soundManager, playSound;
     private final Class<?> element;
     // The frames drawn with a text shown, and the clock at the last; whether the last frames held a text (written once they end).
@@ -464,7 +464,8 @@ final class Texts implements Hooks.Text {
         MethodHandle sounder, play;
         try {
             Class<?> sounds = Game.type(loader, "zombie.BaseSoundManager");
-            sounder = MethodHandles.publicLookup().findStaticGetter(sounds, "instance", sounds).asType(MethodType.methodType(Object.class));
+            sounder = MethodHandles.publicLookup().findStaticGetter(Game.type(loader, "zombie.SoundManager"), "instance", sounds)
+                .asType(MethodType.methodType(Object.class));
             play = Game.exact(sounds.getMethod("playUISound", String.class), MethodType.methodType(long.class, Object.class, String.class));
         } catch (ReflectiveOperationException | RuntimeException older) { sounder = play = null; }
         soundManager = sounder;

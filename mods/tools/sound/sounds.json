@@ -1,0 +1,18 @@
+{
+  "peak": -3.0,
+  "sounds": {
+    "KIT_Key": {
+      "mod": "pz-ui-kit", "category": "UI", "peak": -12.0,
+      "clips": [
+        { "src": "synth/key_1.wav" }, { "src": "synth/key_2.wav" }, { "src": "synth/key_3.wav" },
+        { "src": "synth/key_4.wav" }, { "src": "synth/key_5.wav" }, { "src": "synth/key_6.wav" }
+      ]
+    },
+    "KIT_Erase": {
+      "mod": "pz-ui-kit", "category": "UI", "peak": -13.0,
+      "clips": [
+        { "src": "synth/erase_1.wav" }, { "src": "synth/erase_2.wav" }, { "src": "synth/erase_3.wav" }, { "src": "synth/erase_4.wav" }
+      ]
+    }
+  }
+}

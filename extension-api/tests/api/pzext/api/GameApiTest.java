@@ -2715,6 +2715,7 @@ public final class GameApiTest {
                 "ItemStatsPacket.writes:weight", "FluidContainer.writes:amount", "ItemPickerJava.getActualSpawnChance",
                 "ItemPickerJava.getLootModifierFromType", "ItemPickerJava.getLootType", "ItemPickerJava.getLootModifierFromType:kind",
                 "LightingJNI.getLumaInverted", "LightingJNI.calculateVisionCone",
+                "GameSoundClip.getEffectiveVolume", "GameSoundClip.getEffectiveVolumeInMenu",
                 "IsoTree.getSlowFactor", "ShaderUnit.compile", "ShaderUnit.compile:source", "IsoTree.isPlayerInsideARoom", "BREBuilding.<init>", "PlayerRoomsFile.load", "BuildingRoomsEditor.load", "ZombieIdleState.execute", "WorldSoundManager.getBiggestSoundZomb",
                 "ZombiePopulationManager.removeChunkFromWorld", "ZombiePopulationManager.registerZombie", "ZombiePopulationManager.releaseZombie", "ZombiePopulationManager.virtualizeZombie",
                 "IsoZombie.removeFromWorld",
@@ -2733,7 +2734,7 @@ public final class GameApiTest {
                 "InventoryItem.getName", "InventoryItem.getDisplayName", "Food.getName", "Clothing.getName", "Moveable.getName",
                 "PixelLight$Gl.init:pass", "AmbientOcclusion.compile", "SelectorBucket.<init>:children", "BuildingRoomsEditor.updateSquares:squares", "BuildingRoomsEditor.applyChanges:numbers", "BuildingRoomsEditor.applyChanges:check", "LightingJNI.buildingsChanged", "LightingJNI.checkChangedBuildings:chunks", "LightingJNI.checkChangedBuildings:done" })
             check(Hooks.APPLIED.equals(hooks.rawget(label)), label + " is " + hooks.rawget(label));
-        check(Hooks.hookStatus().size() == 147, "The hooks are " + Hooks.hookStatus().keySet());
+        check(Hooks.hookStatus().size() == 149, "The hooks are " + Hooks.hookStatus().keySet());
         // Every hook fits the synthetic game: a gap in the synthetic game fails here, not as a line in the output.
         var misfit = new java.util.TreeMap<>(Hooks.hookStatus());
         misfit.values().removeIf(Hooks.APPLIED::equals);

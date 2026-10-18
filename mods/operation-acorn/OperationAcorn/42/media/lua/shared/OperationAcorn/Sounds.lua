@@ -10,19 +10,19 @@ Sounds.CUES = {
     ["oa.comms.in"] = { sound = "RadioZap" },
     ["oa.comms.send"] = { sound = "RadioButton" },
     ["oa.comms.static"] = { sound = "RadioStatic" },
-    -- the characters of a call: the team's coming in, the protagonist's typed and erased (no sound yet)
+    -- the characters of a call: the team's coming in (no sound yet), the protagonist's typed and erased (the kit's keys)
     ["oa.comms.recv"] = { gap = 40 },
-    ["oa.comms.key"] = { gap = 40 },
-    ["oa.comms.erase"] = { gap = 40 },
-    -- the terminal printing a paper: a character typed, a row printed (no sound yet)
-    ["oa.paper.key"] = { gap = 40 },
+    ["oa.comms.key"] = { sound = "KIT_Key", gap = 40 },
+    ["oa.comms.erase"] = { sound = "KIT_Erase", gap = 40 },
+    -- the terminal printing a paper: a character typed (the kit's key), a row printed (no sound yet)
+    ["oa.paper.key"] = { sound = "KIT_Key", gap = 40 },
     ["oa.paper.row"] = {},
     -- a call waiting: a burst of static at the terminal, heard around it
     ["oa.comms.alert"] = { sound = "RadioZap" },
     -- the helicopter of a drop passing over
     ["oa.heli.pass"] = { sound = "Helicopter" },
     -- a box's or a crate's latch; one broken open
-    ["oa.box.latch"] = { sound = "PZ_MetalSnap" },
+    ["oa.box.latch"] = { sound = "CloseMetalToolbox" },
     ["oa.box.break"] = { sound = "BreakFurniture" },
     -- a stage's things: a plank torn off a window, a radio talking
     ["oa.stage.plank"] = { sound = "BreakBarricadePlank" },

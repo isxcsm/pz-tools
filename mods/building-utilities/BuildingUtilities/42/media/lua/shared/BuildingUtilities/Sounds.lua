@@ -11,7 +11,7 @@ Sounds.CUES = {
     ["bu.switch"] = { sound = "LightSwitch" },
     -- a generator behind a box stopping
     ["bu.generator.stop"] = { sound = "GeneratorStopping" },
-    -- the manual printing a row (no sound yet)
+    -- the manual showing a row on the panel's screen (no sound: a screen, not a printer)
     ["bu.manual.row"] = {},
 }
 PZUIKit.Sound.defineAll(Sounds.CUES)
