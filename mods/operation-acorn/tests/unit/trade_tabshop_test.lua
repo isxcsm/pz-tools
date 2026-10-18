@@ -58,6 +58,7 @@ local function buttonClass(P)
         o.title, o.target, o.onclick, o.enable, o.onClickArgs = title, target, onclick, true, {}
         return setmetatable(o, { __index = self })
     end
+    function B:setTitle(title) self.title = title end
     function B:onMouseDown() self.pressed = true end
     function B:onMouseUp()
         local process = self.pressed
@@ -436,6 +437,37 @@ test("the cart's small buttons change, remove and clear", function()
     tab.clearButton:onMouseDown()
     tab.clearButton:onMouseUp()
     eq(#window.sent, 4)
+end)
+
+test("an empty cart's button orders the last order again: what can be bought now, no more than is left", function()
+    local tab, window, record, notices = open("field", 700, 408, 3, 100000)
+    eq(tab.clearButton.title, "IGUI_OA_Trade_Shop_Clear", "no last order: the clear button, off")
+    eq(tab.clearButton.style, "off")
+    OA.Trade.orders(record).last = { { id = "petrol_can", count = 5 }, { id = "scrap_pack", count = 2 },
+        { id = "no_such_entry", count = 1 } }
+    tab:refresh()
+    eq(tab.clearButton.title, "IGUI_OA_Terminal_Shop_Reorder")
+    eq(tab.clearButton.style, "normal")
+    tab.clearButton:onMouseDown()
+    tab.clearButton:onMouseUp()
+    local lines = window.sent[1].args.lines
+    eq(#lines, 2)
+    eq(lines[1].id, "petrol_can")
+    eq(lines[1].count, 3, "the week's limit")
+    eq(lines[2].count, 2)
+    eq(notices[#notices].args.key, "IGUI_OA_Terminal_Shop_ReorderPart")
+    -- with lines in the cart it clears again
+    OA.Trade.Orders.set(record, lines)
+    tab:refresh()
+    eq(tab.clearButton.title, "IGUI_OA_Trade_Shop_Clear")
+    -- nothing of it can be bought: nothing is sent, the notice says so
+    OA.Trade.Orders.set(record, {})
+    OA.Trade.orders(record).last = { { id = "no_such_entry", count = 1 } }
+    tab:refresh()
+    tab.clearButton:onMouseDown()
+    tab.clearButton:onMouseUp()
+    eq(#window.sent, 1)
+    eq(notices[#notices].args.key, "IGUI_OA_Terminal_Shop_ReorderNone")
 end)
 
 test("the smallest window: the cart is narrower, the cards scroll and nothing draws outside the tab", function()

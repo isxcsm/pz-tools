@@ -82,7 +82,9 @@ function Heli.call(character, record, kind, x, y)
         account.credits = account.credits - OA.reissueCost()
     end
     -- The cart goes with this flight (and is paid on arrival); an empty cart is a flight for the delivery alone.
+    -- (kept as the last order too: the shop tab's empty cart offers it again)
     call.orders = Trade.copy(Orders.cart(record))
+    if #call.orders > 0 then Trade.orders(record).last = Trade.copy(call.orders) end
     Trade.orders(record).cart = {}
     Rules.startCall(heli, now, arrive, rewards.callInterval, call)
     -- (while nobody answers on the team's side the call is taken automatically: SCENES S4)

@@ -218,6 +218,8 @@ function OATabShop:refresh()
     self:buildCards(record, ctx, sections, shelf)
     self:buildDetail(record, ctx)
     self:buildCart(record)
+    local last = Trade.orders(record).last
+    self.lastOrder = (last and #last > 0) and last or nil
     self:styleButtons()
     self:layout()
 end
@@ -378,7 +380,10 @@ function OATabShop:styleButtons()
     local open = d and d.state.open
     self.addButton:setStyle(open and "strong" or "off")
     self.addButton.tooltip = (d and not open and d.state.reason) and getText(d.state.reason) or nil
-    self.clearButton:setStyle(#self.cartRows > 0 and "normal" or "off")
+    -- (an empty cart's button puts the last order in again, when there was one)
+    local reorder = #self.cartRows == 0 and self.lastOrder ~= nil
+    self.clearButton:setTitle(getText(reorder and "IGUI_OA_Terminal_Shop_Reorder" or "IGUI_OA_Trade_Shop_Clear"))
+    self.clearButton:setStyle((#self.cartRows > 0 or reorder) and "normal" or "off")
 end
 
 -- Sizes ---------------------------------------------------------------------------------------------------------
@@ -821,7 +826,19 @@ function OATabShop.onCartRow(tab, row, x, y)
 end
 
 function OATabShop:onClear()
-    if #self.cartRows > 0 then self:sendLines({}) end
+    if #self.cartRows > 0 then return self:sendLines({}) end
+    if not self.lastOrder then return end
+    local record, ctx = self:record(), self.ctx
+    local lines, dropped = ShopView.reorder(self.lastOrder, function(line)
+        local entry = Orders.entry(line.id)
+        if not entry then return 0 end
+        local avail = availOf(entry, record)
+        return ShopView.state(entry, avail, ctx).open and avail.n or 0
+    end)
+    if #lines > 0 then self:sendLines(lines) end
+    if dropped > 0 then
+        self:notice(#lines > 0 and "IGUI_OA_Terminal_Shop_ReorderPart" or "IGUI_OA_Terminal_Shop_ReorderNone")
+    end
 end
 
 -- The tab's dot: items a new trust level has opened, until the tab is looked at (DESIGN-terminal 1.1); the start's are

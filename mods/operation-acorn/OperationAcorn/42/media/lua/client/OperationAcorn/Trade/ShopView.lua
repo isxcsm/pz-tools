@@ -108,6 +108,21 @@ function ShopView.band(cat, entries, ctx)
     return nil
 end
 
+-- The last order put in the cart again: its lines that can be bought now, each no more than `canBuy(line)` (how many
+-- may be bought now, 0 for none). Returns the lines and how many lines were left out.
+function ShopView.reorder(last, canBuy)
+    local lines, dropped = {}, 0
+    for _, line in ipairs(last or {}) do
+        local n = canBuy(line) or 0
+        if n > 0 then
+            lines[#lines + 1] = { id = line.id, choice = line.choice, count = math.min(line.count or 1, n) }
+        else
+            dropped = dropped + 1
+        end
+    end
+    return lines, dropped
+end
+
 -- What a card says and how (DESIGN-terminal 4.2). `avail` is what the shop answers for the record: { n (how many may
 -- be bought, 0 for none), why (a translation key), reopen (the world age it opens again), serumN (which serum of its
 -- tree the next would be) }. `ctx`: { crude, tier (trust), debt, whenText(hours) }.
