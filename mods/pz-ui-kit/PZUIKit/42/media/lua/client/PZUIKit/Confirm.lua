@@ -55,6 +55,7 @@ end
 function PZUIConfirm:destroy()
     self:setVisible(false)
     self:removeFromUIManager()
+    if PZUIConfirm.open == self then PZUIConfirm.open = nil end
 end
 
 function PZUIConfirm:onYesButton()
@@ -69,8 +70,10 @@ end
 UI.scaled(PZUIConfirm, ISPanel)
 
 -- Asks yes or no; onYes(target, a, b) runs on yes. In the palette of `target`'s window, else UI.DEFAULT_PALETTE; at
--- the mouse, inside the screen.
+-- the mouse, inside the screen, above the windows opened after it. One question at a time: a new one closes the one
+-- still open, whose yes would act on what has changed since.
 function UI.confirm(character, text, target, onYes, a, b)
+    if PZUIConfirm.open then PZUIConfirm.open:destroy() end
     UI.refreshScale()
     local palette = (type(target) == "table" and UI.paletteOf(target)) or UI.DEFAULT_PALETTE
     local modal = PZUIConfirm:new(text, palette, function() onYes(target, a, b) end)
@@ -79,7 +82,9 @@ function UI.confirm(character, text, target, onYes, a, b)
     modal.y = math.max(0, math.min(UI.dp(getMouseY()) - modal.height / 2, screenH - modal.height))
     modal:initialise()
     modal:addToUIManager()
+    modal:setAlwaysOnTop(true)
     modal:bringToTop()
+    PZUIConfirm.open = modal
     return modal
 end
 

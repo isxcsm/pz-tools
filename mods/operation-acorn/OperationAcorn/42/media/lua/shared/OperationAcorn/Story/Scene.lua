@@ -434,9 +434,13 @@ function Scene.minute(record)
     local said = false
     for _, m in ipairs(OA.Missions.live(record)) do
         if m.scene and m.state == "open" then
+            -- (a stage just put in place has had its look's time: the keepers come in the next look)
+            local staged = false
             if m.stage and not m.stage.kept then
                 local d = Places.distance(x, y, m.site.x, m.site.y)
+                local before = m.stage.placed
                 OA.Stage.look(record, m, x, y, d >= Scene.NEAR and Scene.NEAR or Scene.CLOSE)
+                staged = m.stage.placed and not before
             end
             if inCircle(m.area, x, y) or inCircle(m.area2, x, y) then
                 if not m.scene.arrived then
@@ -451,7 +455,7 @@ function Scene.minute(record)
                     g.title(record, { key = "IGUI_OA_Title_Arrived", sub = (OA.Missions.keys(m)), style = "unveil" })
                     said = true
                 end
-                if not m.scene.built then Scene.build(record, m, x, y) end
+                if not m.scene.built and not staged then Scene.build(record, m, x, y) end
             end
             -- a staged building come into sight, its stage in place (a large building's waits for its far side to
             -- load): the line the circle's title left for it

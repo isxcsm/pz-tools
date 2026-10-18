@@ -117,17 +117,19 @@ for _, name in ipairs({
     "barn", "farmstorage", "shed",
 }) do Places.PLAIN_ROOMS[name] = true end
 
--- The rooms of a building only things were kept in: a row of lock-up garages, a shed, a barn. Such a building is no
--- post, clinic or shelter (Places.pickSite takes it last): no one was taken in there.
+-- The rooms of a building things were kept in: a row of lock-up garages, a self-storage's units, a shed, a barn. A
+-- building mostly of these is no post, clinic or shelter (Places.pickSite takes it last): no one was taken in there.
+-- (A self-storage has an office and a hall too; a house has a garage among more rooms.)
 Places.STORE_ROOMS = { garage = true, garagestorage = true, storage = true, storageunit = true, shed = true,
     barn = true, farmstorage = true }
 
--- Whether every room of a building (names, a list) is a STORE_ROOMS one.
-function Places.storesOnly(names)
+-- Whether more than half the rooms of a building (names, a list) are STORE_ROOMS ones.
+function Places.mostlyStores(names)
+    local n = 0
     for _, name in ipairs(names) do
-        if not Places.STORE_ROOMS[name] then return false end
+        if Places.STORE_ROOMS[name] then n = n + 1 end
     end
-    return #names > 0
+    return n * 2 > #names
 end
 
 -- Whether a building is plain: every room of it (names, a list) is a plain one.
@@ -140,7 +142,7 @@ end
 
 -- A story site among the map's buildings (SCENES.md 5 '장소 고르기'): the authorities took any building for a post, a
 -- clinic, a shelter. `list` is the buildings that may be used, all in the band: { x, y, area, rooms, home (a house: it
--- has a bedroom), stores (Places.storesOnly: lock-ups, a shed; taken last), dist (from the base) }. `want`:
+-- has a bedroom), stores (Places.mostlyStores: lock-ups, a shed; taken last), dist (from the base) }. `want`:
 --   "public"  a public building (a shop, a church, a warehouse, an office) of PUBLIC_ROOMS rooms or more, else a
 --             house (its rooms: an inner one to lock, a hall), else a smaller public one (a garage of one room has no
 --             room for a stage's roles);

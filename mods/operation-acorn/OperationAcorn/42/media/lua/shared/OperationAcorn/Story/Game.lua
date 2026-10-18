@@ -73,40 +73,77 @@ function Game.buildingKeyAt(x, y)
     return def and keyOf(def) or nil
 end
 
--- Whether a building may be a story site: plain (Places.plain: its rooms' names), not a stash's (an annotated map
--- leads there), not one a player made, not one visited (the game marks so a building its own stories set up when it
--- loaded: a survivors' safehouse, a burnt one, and one a player was in).
-local function plainSite(b)
-    if b:isUserDefined() or b:isHasBeenVisited() then return false end
-    local ok, stash = OA.try("game: whether a building is a stash", function() return StashSystem.isStashBuilding(b) end)
-    if ok and stash then return false end
-    local names = {}
-    local rooms = b:getRooms()
-    for i = 0, rooms:size() - 1 do names[#names + 1] = rooms:get(i):getName() or "" end
-    return OA.Places.plain(names), OA.Places.storesOnly(names)
+-- A building's facts that never change, kept once looked at: its centre, and when it could ever be a story site (no
+-- cellar, no shed, plain: Places.plain on its rooms' names) where it is (infoOf), its key, area, rooms, whether a home
+-- and mostly lock-ups (Places.mostlyStores). Looked at a few each tick from the start (warmFacts), so picking a site later
+-- costs little more than the distances.
+local facts, factsFor = {}, nil
+
+-- By the building's place in the map's list; kept while the list is as long (a building a player made goes in, or
+-- out, and the places move: all are looked at again).
+local function factsList()
+    local all = buildings()
+    if all:size() ~= factsFor then facts, factsFor = {}, all:size() end
+    return all
 end
 
--- The buildings in the band around ax, ay that a story site may be (Places.pickSite): not a cellar, not a shed, a
--- plain one (plainSite), none of `skip` (keys). The whole map's list, unloaded parts too (its rooms are known): the
--- distance first, the rooms only for the few in the band. Once for each story site.
+local function factsOf(i, b)
+    local f = facts[i]
+    if f then return f end
+    f = { cx = (b:getX() + b:getX2()) / 2, cy = (b:getY() + b:getY2()) / 2 }
+    if not b:isBasement() and b:getArea() >= MIN_AREA then
+        local names = {}
+        local rooms = b:getRooms()
+        for k = 0, rooms:size() - 1 do names[#names + 1] = rooms:get(k):getName() or "" end
+        if OA.Places.plain(names) then
+            f.site = infoOf(b)
+            f.key, f.area, f.rooms, f.home = keyOf(b), b:getArea(), b:getRoomsNumber(), b:containsRoom("bedroom")
+            f.stores = OA.Places.mostlyStores(names)
+        end
+    end
+    facts[i] = f
+    return f
+end
+
+Game.WARM_PER_TICK = 40
+local warmed = 0
+local function warmFacts()
+    local all = factsList()
+    local n = all:size()
+    if warmed > n then warmed = 0 end
+    for i = warmed, math.min(warmed + Game.WARM_PER_TICK, n) - 1 do factsOf(i, all:get(i)) end
+    warmed = math.min(warmed + Game.WARM_PER_TICK, n)
+    if warmed >= n then Events.OnTick.Remove(warmFacts) end
+end
+-- (where the story runs: not on a client of a server)
+local warming = false
+local function startWarming()
+    if warming or isClient() then return end
+    warming = true
+    Events.OnTick.Add(warmFacts)
+end
+Events.OnGameStart.Add(startWarming)
+Events.OnServerStarted.Add(startWarming)
+
+-- The buildings in the band around ax, ay that a story site may be (Places.pickSite): one that could (factsOf), none of
+-- `skip` (keys), not a stash's (an annotated map leads there), not one a player made, not one visited (the game marks
+-- so a building its own stories set up when it loaded: a survivors' safehouse, a burnt one, and one a player was in).
+-- The whole map's list, unloaded parts too (its rooms are known). Once for each story site.
 function Game.sitesInBand(ax, ay, lo, hi, skip)
     local list = {}
-    local all = getWorld():getMetaGrid():getBuildings()
+    local all = factsList()
     for i = 0, all:size() - 1 do
-        local b = all:get(i)
-        local x, y = (b:getX() + b:getX2()) / 2, (b:getY() + b:getY2()) / 2
-        local dx, dy = x - ax, y - ay
-        local d = math.sqrt(dx * dx + dy * dy)
-        if d >= lo and d <= hi and not b:isBasement() and b:getArea() >= MIN_AREA then
-            local key = keyOf(b)
-            local plain, stores = false, false
-            if not skip[key] then plain, stores = plainSite(b) end
-            if plain then
-                local info = infoOf(b)
-                info.key, info.dist = key, d
-                info.area, info.rooms, info.home = b:getArea(), b:getRoomsNumber(), b:containsRoom("bedroom")
-                info.stores = stores
-                list[#list + 1] = info
+        local f = facts[i] or factsOf(i, all:get(i))
+        local site = f.site
+        local dx, dy = f.cx - ax, f.cy - ay
+        local d = site and math.sqrt(dx * dx + dy * dy)
+        local b = d and d >= lo and d <= hi and not skip[f.key] and all:get(i)
+        if b and not (b:isUserDefined() or b:isHasBeenVisited()) then
+            local ok, stash = pcall(StashSystem.isStashBuilding, b)
+            if not (ok and stash) then
+                list[#list + 1] = { x = site.x, y = site.y, z = site.z, x1 = site.x1, y1 = site.y1, x2 = site.x2,
+                    y2 = site.y2, z1 = site.z1, z2 = site.z2, key = f.key, dist = d, area = f.area, rooms = f.rooms,
+                    home = f.home, stores = f.stores }
             end
         end
     end

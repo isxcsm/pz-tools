@@ -501,12 +501,18 @@ function StageGame.clear(ctx, p)
     for i = 0, squares:size() - 1 do
         local sq = squares:get(i)
         local objects = sq:getObjects()
+        local taken = false
         for j = objects:size() - 1, 0, -1 do
             local o = j < objects:size() and objects:get(j)
-            if o and furniture(o) then takeAway(sq, o) end
+            if o and furniture(o) then
+                takeAway(sq, o)
+                taken = true
+            end
         end
-        sq:RecalcProperties()
-        sq:RecalcAllWithNeighbours(true)
+        if taken then
+            sq:RecalcProperties()
+            sq:RecalcAllWithNeighbours(true)
+        end
     end
     return true
 end
@@ -554,10 +560,16 @@ function StageGame.set(ctx, p)
             end
         end
     end
+    -- (whether a square is by a door does not change as the copies go down: each is asked once a set)
+    local doors = {}
     local function fitsAt(s)
-        if not (s and s:isFree(false)) or byDoor(s) then return false end
-        if room then return s:getRoom() == room end
-        return s:getRoom() == nil
+        if not (s and s:isFree(false)) or s:getRoom() ~= (room or nil) then return false end
+        local by = doors[s]
+        if by == nil then
+            by = byDoor(s)
+            doors[s] = by
+        end
+        return not by
     end
     local function anchors(list)
         local fits = {}
@@ -1085,13 +1097,21 @@ function StageGame.lock(ctx, p)
 end
 
 -- A body in an outfit in the room; with `key`, the building's key in its pockets. A world with no zombies makes no
--- bodies (IsoWorld.getZombiesDisabled): the key is left on the floor there, so the locked room still opens.
+-- random bodies (createRandomDeadBody looks at IsoWorld.getZombiesDisabled): there the body is a zombie spawned and
+-- laid down as the fake dead are (SceneGame.spawn), only not to get up. The key is left on the floor if none is made.
+local function deadBody(sq, outfit)
+    local b = RandomizedWorldBase.createRandomDeadBody(sq, nil, 0, 0, outfit)
+    if b or not IsoWorld.getZombiesDisabled() then return b end
+    local zombie = OA.SceneGame.spawn(sq, outfit)
+    return zombie and IsoDeadBody.new(zombie, false) or nil
+end
+
 function StageGame.corpse(ctx, p)
     local made = false
     for n = 1, p.count or 1 do
         local sq = squareFor(ctx, p)
         if sq then
-            local body = RandomizedWorldBase.createRandomDeadBody(sq, nil, 0, 0, p.outfit)
+            local body = deadBody(sq, p.outfit)
             -- (the key goes with the first)
             local key = n == 1 and p.key and ctx.keyId and instanceItem("Base.Key1")
             if key then key:setKeyId(ctx.keyId) end

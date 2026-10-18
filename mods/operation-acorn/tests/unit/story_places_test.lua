@@ -106,10 +106,12 @@ test("the largest site is the largest public building, else the largest house", 
     eq(P.pickSite({ site(100, 50, 1, true), site(200, 70, 1, true) }, "largest"), 2)
 end)
 
-test("a building of lock-ups or sheds alone is taken last: no one was taken in there", function()
-    eq(P.storesOnly({ "garage", "garage", "storageunit" }), true)
-    eq(P.storesOnly({ "garage", "office" }), false)
-    eq(P.storesOnly({}), false)
+test("a building mostly of lock-ups or sheds is taken last: no one was taken in there", function()
+    eq(P.mostlyStores({ "garage", "garage", "storageunit" }), true)
+    eq(P.mostlyStores({ "storageunit", "storageunit", "storageunit", "office", "hall" }), true, "a self-storage")
+    eq(P.mostlyStores({ "garage", "office" }), false)
+    eq(P.mostlyStores({ "garage", "kitchen", "bedroom", "bathroom" }), false, "a house with a garage")
+    eq(P.mostlyStores({}), false)
     local lockups = site(150, 900, 12, false)
     lockups.stores = true
     local list = { lockups, site(100, 50, 1, false), site(200, 300, 2, true) }

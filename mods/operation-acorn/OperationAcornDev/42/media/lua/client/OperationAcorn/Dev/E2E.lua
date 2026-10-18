@@ -680,6 +680,22 @@ function E2E.timers(r)
                 end
             end
         end
+        -- a short call held only by the gap after the last call (s6_list after S6)
+        local Comms, gap, last = OA.Comms, OA.Comms.SHORT_GAP, nil
+        for id, at in pairs(c.played) do
+            local e = OA.CommsData.BY_ID[id]
+            if e and e.kind ~= "say" and (not last or at > last) then last = at end
+        end
+        for _, e in ipairs(OA.CommsData.ENTRIES) do
+            if last and e.kind == "short" and not Comms.ready(r, e.id, now) and Comms.ready(r, e.id, last + gap) then
+                add("short", last + gap - now, function()
+                    for id, at in pairs(c.played) do
+                        if at > now + lead - gap then c.played[id] = now + lead - gap end
+                    end
+                end, "call", e.id)
+                break
+            end
+        end
     end
     local u = r.upgrades
     if u and u.adapt and u.adapt.endsAt and u.adapt.endsAt > now then

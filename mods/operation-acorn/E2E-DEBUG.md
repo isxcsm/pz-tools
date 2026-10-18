@@ -111,6 +111,7 @@ F8 디버그 창 → OA → **E2E** 페이지. 모든 버튼은 `OperationAcorn.
 | 다음 임무 제안 | `missions.nextAt` | 지금 + 15분 | '새 요청' |
 | 특수 요청 제안 | `missions.special.nextAt` | 지금 + 15분 | 현장 단말 특수 요청 |
 | 교신 예약 | `after:<id>:<h>`, `nextday:<id>` (S2B, S4B) | 기준 장면의 재생 시각을 당김 | 단말 점등, 그 교신 |
+| 짧은 교신 간격 | 마지막 교신 뒤 `Comms.SHORT_GAP` (s6_list, s7_list) | 그 사이 재생 시각을 당김 | 단말 점등, 그 교신 |
 | 아이스박스 온도 | `carry.start` | 경고 온도 직전 | 온도 표시, 등급 |
 | 적응 종료 | `upgrades.adapt.endsAt` | 지금 + 15분 | 적응 완료 |
 
