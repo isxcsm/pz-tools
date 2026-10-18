@@ -687,6 +687,12 @@ function UI.textWidth(text, font)
     return w
 end
 
+-- The same measured and not kept: for the texts that are measured once and not again (a text typed a character at a
+-- time, the chunks a layout tries) and would fill the cache above with every prefix of themselves.
+function UI.textWidthRaw(text, font)
+    return measureDesign(text, font)
+end
+
 -- A space between two parts drawn apart (a label and its value), in design units: the font's space, or a quarter of
 -- the font's height where that is wider (the 26-pixel Korean font's space is 4 pixels, a sixth of its height). The
 -- font's space is measured between two letters: a text is measured to the end of its last letter's image, so a space

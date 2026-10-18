@@ -45,6 +45,7 @@ local function stubPanel()
     function c:render() self.renders = self.renders + 1 end
     function c:getYScroll() return self.yscroll end
     function c:measure(s, font) return getTextManager():MeasureStringX(font, s) end
+    c.measureRaw = c.measure
     function c:lineHeightOf(font) return getTextManager():getFontHeight(font) end
     function c:drawRect(...) self.drawn[#self.drawn + 1] = { ... } end
     function c:onMouseDown() self.mouseDown = true end

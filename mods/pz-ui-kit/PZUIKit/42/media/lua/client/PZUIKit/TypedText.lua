@@ -95,7 +95,7 @@ function PZUITypedText:advance(run)
         self.tipChunk = (c and head) and c or nil
         if self.tipChunk then
             local x = self.cX and self.cX[c] or (self.lineX[c] + self.marginLeft)
-            self.tipX = x + self:measure(self.lines[c], self.defaultFont)
+            self.tipX = x + self:measureRaw(self.lines[c], self.defaultFont)
         end
     end
     if finished then

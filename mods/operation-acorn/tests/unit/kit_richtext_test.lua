@@ -10,7 +10,7 @@ local now = 1000
 -- wide a letter, Medium 20 and 9, Large 24 and 11.
 local FH = { Small = 16, Medium = 20, Large = 24, Massive = 32 }
 local FW = { Small = 7, Medium = 9, Large = 11, Massive = 14 }
-local heightCalls
+local heightCalls, measureLog
 
 local function load()
     local panel = {}
@@ -30,11 +30,14 @@ local function load()
     ISPanel = panel
     UIFont = setmetatable({}, { __index = function(_, k) return k end })
     getTimestampMs = function() return now end
-    heightCalls = 0
+    heightCalls, measureLog = 0, {}
     getTextManager = function()
         return {
             getFontHeight = function(_, f) heightCalls = heightCalls + 1; return FH[f] or 16 end,
-            MeasureStringX = function(_, f, s) return #tostring(s) * (FW[f] or 7) end,
+            MeasureStringX = function(_, f, s)
+                measureLog[s] = (measureLog[s] or 0) + 1
+                return #tostring(s) * (FW[f] or 7)
+            end,
         }
     end
     Events.OnPreUIDraw = { Add = function() end }
@@ -725,4 +728,23 @@ test("render takes a font's new height at once (none is kept past the render)", 
     FH.Small = 16
     -- row one is at -45 and 40 high now: it shows no more; the others do
     eq(table.concat(p.drawn, ","), "two,three")
+end)
+
+test("the chunks a layout tries are measured and not kept in the texts' cache", function()
+    local P, UI = load()
+    local p = P:new(0, 0, 160, 100)
+    p:setText(TEXTS[1])
+    p:paginate()
+    eq(p.lines[1], "The quick brown")
+    -- (the layout measured "The quick brown" on its way, and the cache was not filled with it)
+    local before = measureLog["The quick brown"] or 0
+    truthy(before >= 1, "measured by the layout")
+    UI.textWidth("The quick brown")
+    eq(measureLog["The quick brown"], before + 1, "the cache had not got it")
+    UI.textWidth("The quick brown")
+    eq(measureLog["The quick brown"], before + 1, "and has it now")
+    local raw = UI.textWidthRaw("The quick brown")
+    eq(raw, UI.textWidth("The quick brown"), "the same width")
+    UI.textWidthRaw("The quick brown")
+    eq(measureLog["The quick brown"], before + 3, "raw is measured each time")
 end)

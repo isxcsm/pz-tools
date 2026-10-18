@@ -43,6 +43,8 @@ end
 
 -- Measures for the layout and the typing (design units, in the faces).
 function PZUIRichText:measure(text, font) return UI.textWidth(text, font) end
+-- (the same, not kept in the texts' cache: for what is measured once, the growing chunks of a layout, a text typed on)
+function PZUIRichText:measureRaw(text, font) return UI.textWidthRaw(text, font) end
 function PZUIRichText:lineHeightOf(font) return UI.fontHeight(font) end
 
 function PZUIRichText:setText(text)
@@ -166,13 +168,13 @@ function PZUIRichText:paginate()
             local chunk = lines[n] or ""
             local chunkX = lineX[n] or x
             if chunk == "" then chunk = token elseif token ~= "" then chunk = chunk .. " " .. token end
-            local w = self:measure(chunk, self.font)
+            local w = self:measureRaw(chunk, self.font)
             if chunkX + w > maxW + 0.001 then
                 if lines[n] and lines[n] ~= "" then n = n + 1 end
                 y = y + self:lineHeightOf(self.font)
                 lines[n] = token
                 lineX[n], lineY[n] = self.hang, y
-                x = self.hang + self:measure(token, self.font)
+                x = self.hang + self:measureRaw(token, self.font)
             else
                 if not lines[n] then lineX[n], lineY[n] = x, y end
                 lines[n] = chunk
