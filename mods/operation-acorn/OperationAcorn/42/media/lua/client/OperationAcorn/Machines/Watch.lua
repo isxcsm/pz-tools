@@ -48,6 +48,17 @@ end
 -- the rows' own job, kept while the bars are drawn (reused: this runs every frame)
 local saved, savedType, savedDelta = {}, {}, {}
 
+-- The words of a machine kind's job on a row, asked of the game once a kind.
+local jobTexts = {}
+local function jobText(kind)
+    local text = jobTexts[kind]
+    if not text then
+        text = getText("IGUI_OA_Machine_Job_" .. kind)
+        jobTexts[kind] = text
+    end
+    return text
+end
+
 local original = ISInventoryPane.renderdetails
 function ISInventoryPane:renderdetails(doDragged, ...)
     local container = self.inventory
@@ -58,7 +69,7 @@ function ISInventoryPane:renderdetails(doDragged, ...)
     local w = look(self, anchor, state)
     local shown = 0
     if w.jobs then
-        local text = getText("IGUI_OA_Machine_Job_" .. state.kind)
+        local text = jobText(state.kind)
         for _, job in ipairs(w.jobs) do
             local item = job.item
             if item:getContainer() == container then

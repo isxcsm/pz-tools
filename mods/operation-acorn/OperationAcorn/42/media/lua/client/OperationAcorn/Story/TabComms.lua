@@ -623,7 +623,9 @@ function OATabComms:drawInput(p)
     local typing = st and st.inputOf ~= nil
     if p.panel then UI.fill(self, 0, y, w, h, p.panel) else UI.fill(self, 0, y, w, h, p.text, 0.03) end
     UI.frame(self, 0, y, w, h, typing and p.sel or p.border)
-    local prompt = self.number .. " >"
+    -- (made again when the number changes)
+    if self.promptOf ~= self.number then self.promptOf, self.prompt = self.number, self.number .. " >" end
+    local prompt = self.prompt
     local ty = y + (h - UI.fontHeight()) / 2
     UI.text(self, prompt, 10, ty, c.pre)
     if not st then return end

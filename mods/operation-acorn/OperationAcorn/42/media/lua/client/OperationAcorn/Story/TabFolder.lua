@@ -350,8 +350,11 @@ function OATabFolder:prerender()
     if p.panel then UI.fill(self, rx, 0, rw, rh, p.panel) else UI.fill(self, rx, 0, rw, rh, p.text, 0.03) end
     UI.frame(self, rx, 0, rw, rh, p.border)
     if not self.content then
-        local text = getText("IGUI_OA_Story_UI_NoDocuments")
-        UI.textCentre(self, UI.fit(text, rw - 24), rx + rw / 2, rh / 2 - 8, p.dim)
+        -- (the cut text is kept for the width it was made at)
+        if self.noneFitW ~= rw then
+            self.noneFitW, self.noneFit = rw, UI.fit(UI.str("IGUI_OA_Story_UI_NoDocuments"), rw - 24)
+        end
+        UI.textCentre(self, self.noneFit, rx + rw / 2, rh / 2 - 8, p.dim)
         return
     end
     local title, meta, rule = 1, 1, 1
@@ -374,7 +377,11 @@ function OATabFolder:prerender()
     if rule < 1 and ruleW > 0 then
         UI.fill(self, rx + 12 + ruleW - math.min(ruleW, 24), self.ruleY, math.min(ruleW, 24), 1, p.head, 0.9)
     end
-    UI.text(self, self.at .. " / " .. #self.flat, self.countX, rh - UI.buttonHeight() - 8 + (UI.buttonHeight() - UI.fontHeight()) / 2,
+    local count = #self.flat
+    if self.countAt ~= self.at or self.countOf ~= count then
+        self.countAt, self.countOf, self.countText = self.at, count, self.at .. " / " .. count
+    end
+    UI.text(self, self.countText, self.countX, rh - UI.buttonHeight() - 8 + (UI.buttonHeight() - UI.fontHeight()) / 2,
         p.dim, p.numberFont)
 end
 
