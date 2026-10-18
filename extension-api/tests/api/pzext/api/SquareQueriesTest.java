@@ -476,6 +476,27 @@ final class SquareQueriesTest {
         // A 3 by 2 box of free squares first fits at (103, 102): the 24th square of the grid.
         var found = FormulasTest.call(area, "fit", whole(), list(table("box", list(0, 0, 2, 1), "filter", free)));
         check(found.get(0) == at(103, 102) && found.get(1).equals(24.0), "fit: the first anchor in the area's order, and its index: " + found);
+        // The table of parts is read once, as a filter's is: used again it gives its shape without being read; changed after its first use it is
+        // not read again (a mod makes a new one), and a new table with the new content is read.
+        var parts = list(table("offsets", list(0, 0, 1, 0, 2, 0, 0, 1, 1, 1, 2, 1), "filter", free));
+        for (int round = 0; round < 3; round++) {
+            found = FormulasTest.call(area, "fit", whole(), parts);
+            check(found.get(0) == at(103, 102), "fit by a table of parts used again: " + found);
+        }
+        ((KahluaTable)parts.rawget(1)).rawset((Object)"offsets", list(0, 0, 1, 0, 2, 0, 3, 0, 4, 0, 5, 0));
+        found = FormulasTest.call(area, "fit", whole(), parts);
+        check(found.get(0) == at(103, 102), "fit by a table of parts changed after its first use is not read again: " + found);
+        found = FormulasTest.call(area, "fit", whole(), list(table("offsets", list(0, 0, 1, 0, 2, 0, 3, 0, 4, 0, 5, 0), "filter", free)));
+        check(found.get(0) == null, "fit by a new table of parts is read: " + found);
+        // A table that was wrong is told so each time it is used; the name of the wrong value is made for the message.
+        var wrong = list(table("offsets", list(0, 0, 1), "filter", free));
+        for (int round = 0; round < 2; round++) {
+            try { FormulasTest.call(area, "fit", whole(), wrong); throw new AssertionError("Not refused"); }
+            catch (IllegalArgumentException expected) { check(expected.getMessage().contains("parts[1].offsets must be a list"), "Wrong message: " + expected.getMessage()); }
+        }
+        wrong = list(table("offsets", list(0, 0, 1, 99999), "filter", free));
+        try { FormulasTest.call(area, "fit", whole(), wrong); throw new AssertionError("Not refused"); }
+        catch (IllegalArgumentException expected) { check(expected.getMessage().contains("parts[1].offsets[4] must be a whole number"), "Wrong message: " + expected.getMessage()); }
         found = FormulasTest.call(area, "fit", whole(), list(table("offsets", list(0, 0, 1, 0, 2, 0, 0, 1, 1, 1, 2, 1), "filter", free)));
         check(found.get(0) == at(103, 102), "fit by offsets");
         found = FormulasTest.call(area, "fit", whole(), list(table("offsets", list(0, 0, 1, 0), "filter", free)), null);

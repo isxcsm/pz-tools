@@ -2,6 +2,7 @@ package pzext.api;
 
 import java.util.Arrays;
 import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -23,6 +24,8 @@ final class SquareQueries {
     private final Kahlua lua;
     private final Game game;
     private final Object meta;
+    // The shapes read from the tables of parts, by table (weakly, as the filters are): a table is read once, whatever it holds later.
+    private final Map<Object, Shape> shapes = new WeakHashMap<>();
     private long generation;
 
     SquareQueries(Kahlua lua, Game game, Object meta) throws ReflectiveOperationException {
@@ -79,11 +82,33 @@ final class SquareQueries {
 
     /** Checks that a table holds no key but the ones given. */
     private void only(Object table, String call, String name, String... allowed) throws ReflectiveOperationException {
+        Object extra = unexpected(table, allowed);
+        if (extra != null) throw notOneOf(call, name, extra, allowed);
+    }
+
+    /** As above, for the table named {@code prefix + name}: the name is made only for a message. */
+    private void onlyUnder(Object table, String call, String prefix, String name, String... allowed) throws ReflectiveOperationException {
+        Object extra = unexpected(table, allowed);
+        if (extra != null) throw notOneOf(call, prefix + name, extra, allowed);
+    }
+
+    private void only(Object table, String call, int part, String... allowed) throws ReflectiveOperationException {
+        Object extra = unexpected(table, allowed);
+        if (extra != null) throw notOneOf(call, partName(part), extra, allowed);
+    }
+
+    /** The first key of the table that is not one of the allowed, or null. */
+    private Object unexpected(Object table, String[] allowed) throws ReflectiveOperationException {
         outer:
         for (Map.Entry<Object, Object> entry : lua.entries(table)) {
             for (String key : allowed) if (key.equals(entry.getKey())) continue outer;
-            throw new IllegalArgumentException(call + ": " + name + "." + entry.getKey() + " is not one of " + String.join(", ", allowed));
+            return entry.getKey();
         }
+        return null;
+    }
+
+    private static IllegalArgumentException notOneOf(String call, String name, Object key, String[] allowed) {
+        return new IllegalArgumentException(call + ": " + name + "." + key + " is not one of " + String.join(", ", allowed));
     }
 
     // ---- nearest ----
@@ -187,9 +212,8 @@ final class SquareQueries {
         Object table = lua.get(options, name);
         if (table == null) return null;
         if (!lua.isTable(table)) throw new IllegalArgumentException(call + ": options." + name + " must be { x =, y = }");
-        only(table, call, "options." + name, "x", "y");
-        return new double[] { SquareFilter.number(lua.get(table, "x"), call, "options." + name + ".x"),
-            SquareFilter.number(lua.get(table, "y"), call, "options." + name + ".y") };
+        onlyUnder(table, call, "options.", name, "x", "y");
+        return new double[] { SquareFilter.number(lua.get(table, "x"), call, "options.", name, ".x"), SquareFilter.number(lua.get(table, "y"), call, "options.", name, ".y") };
     }
 
     /** Puts the first {@code size} chosen squares in the order of their distance from the point, the nearer first and the earlier of equals. */
@@ -260,35 +284,55 @@ final class SquareQueries {
     private record Shape(int[][] dxs, int[][] dys, SquareFilter[] filters) { }
 
     private Shape shape(Object parts, String call) throws Throwable {
+        if (lua.isTable(parts)) {
+            synchronized (shapes) {
+                Shape known = shapes.get(parts);
+                if (known != null) return known;
+            }
+        }
+        Shape made = readShape(parts, call);
+        synchronized (shapes) { shapes.put(parts, made); }
+        return made;
+    }
+
+    /** The name of a part in a message; made when one is needed. */
+    private static String partName(int part) { return "parts[" + (part + 1) + "]"; }
+
+    /** A whole number of a part's offsets or box (the {@code index}th of the field), named in the message when it is wrong. */
+    private static int offset(Object value, String call, int part, String field, int index, int min, int max) {
+        if (value instanceof Double number && number == Math.rint(number) && number >= min && number <= max) return number.intValue();
+        return Areas.whole(value, call, partName(part) + "." + field + "[" + index + "]", min, max);
+    }
+
+    private Shape readShape(Object parts, String call) throws Throwable {
         if (!lua.isTable(parts)) throw new IllegalArgumentException(call + ": parts must be a list of { offsets = {...} or box = {...}, filter = {...} }");
         int count = lua.length(parts);
         if (count == 0) throw new IllegalArgumentException(call + ": parts must hold at least one part");
         var shape = new Shape(new int[count][], new int[count][], new SquareFilter[count]);
         int total = 0;
         for (int part = 0; part < count; part++) {
-            String name = "parts[" + (part + 1) + "]";
             Object table = lua.at(parts, part + 1);
-            if (!lua.isTable(table)) throw new IllegalArgumentException(call + ": " + name + " must be a table");
-            only(table, call, name, "offsets", "box", "filter");
+            if (!lua.isTable(table)) throw new IllegalArgumentException(call + ": " + partName(part) + " must be a table");
+            only(table, call, part, "offsets", "box", "filter");
             Object offsets = lua.get(table, "offsets"), box = lua.get(table, "box");
-            if ((offsets == null) == (box == null)) throw new IllegalArgumentException(call + ": " + name + " must have offsets or box, one of them");
+            if ((offsets == null) == (box == null)) throw new IllegalArgumentException(call + ": " + partName(part) + " must have offsets or box, one of them");
             int[] dx, dy;
             if (offsets != null) {
-                if (!lua.isTable(offsets)) throw new IllegalArgumentException(call + ": " + name + ".offsets must be a list dx1, dy1, dx2, dy2, ...");
+                if (!lua.isTable(offsets)) throw new IllegalArgumentException(call + ": " + partName(part) + ".offsets must be a list dx1, dy1, dx2, dy2, ...");
                 int length = lua.length(offsets);
-                if (length == 0 || length % 2 != 0) throw new IllegalArgumentException(call + ": " + name + ".offsets must be a list dx1, dy1, dx2, dy2, ...");
+                if (length == 0 || length % 2 != 0) throw new IllegalArgumentException(call + ": " + partName(part) + ".offsets must be a list dx1, dy1, dx2, dy2, ...");
                 if (total + length / 2 > MAX_SHAPE) throw new IllegalArgumentException(call + ": the shape has more than " + MAX_SHAPE + " squares");
                 dx = new int[length / 2]; dy = new int[length / 2];
                 for (int at = 0; at < dx.length; at++) {
-                    dx[at] = Areas.whole(lua.at(offsets, at * 2 + 1), call, name + ".offsets[" + (at * 2 + 1) + "]", -MAX_OFFSET, MAX_OFFSET);
-                    dy[at] = Areas.whole(lua.at(offsets, at * 2 + 2), call, name + ".offsets[" + (at * 2 + 2) + "]", -MAX_OFFSET, MAX_OFFSET);
+                    dx[at] = offset(lua.at(offsets, at * 2 + 1), call, part, "offsets", at * 2 + 1, -MAX_OFFSET, MAX_OFFSET);
+                    dy[at] = offset(lua.at(offsets, at * 2 + 2), call, part, "offsets", at * 2 + 2, -MAX_OFFSET, MAX_OFFSET);
                 }
             } else {
-                if (!lua.isTable(box)) throw new IllegalArgumentException(call + ": " + name + ".box must be { x1, y1, x2, y2, step }");
-                int x1 = Areas.whole(lua.at(box, 1), call, name + ".box[1]", -MAX_OFFSET, MAX_OFFSET), y1 = Areas.whole(lua.at(box, 2), call, name + ".box[2]", -MAX_OFFSET, MAX_OFFSET);
-                int x2 = Areas.whole(lua.at(box, 3), call, name + ".box[3]", -MAX_OFFSET, MAX_OFFSET), y2 = Areas.whole(lua.at(box, 4), call, name + ".box[4]", -MAX_OFFSET, MAX_OFFSET);
-                int step = lua.at(box, 5) == null ? 1 : Areas.whole(lua.at(box, 5), call, name + ".box[5]", 1, MAX_OFFSET * 2);
-                if (x2 < x1 || y2 < y1) throw new IllegalArgumentException(call + ": " + name + ".box must have x2 >= x1 and y2 >= y1");
+                if (!lua.isTable(box)) throw new IllegalArgumentException(call + ": " + partName(part) + ".box must be { x1, y1, x2, y2, step }");
+                int x1 = offset(lua.at(box, 1), call, part, "box", 1, -MAX_OFFSET, MAX_OFFSET), y1 = offset(lua.at(box, 2), call, part, "box", 2, -MAX_OFFSET, MAX_OFFSET);
+                int x2 = offset(lua.at(box, 3), call, part, "box", 3, -MAX_OFFSET, MAX_OFFSET), y2 = offset(lua.at(box, 4), call, part, "box", 4, -MAX_OFFSET, MAX_OFFSET);
+                int step = lua.at(box, 5) == null ? 1 : offset(lua.at(box, 5), call, part, "box", 5, 1, MAX_OFFSET * 2);
+                if (x2 < x1 || y2 < y1) throw new IllegalArgumentException(call + ": " + partName(part) + ".box must have x2 >= x1 and y2 >= y1");
                 int columns = (x2 - x1) / step + 1, rows = (y2 - y1) / step + 1;
                 if ((long)columns * rows + total > MAX_SHAPE) throw new IllegalArgumentException(call + ": the shape has more than " + MAX_SHAPE + " squares");
                 dx = new int[columns * rows]; dy = new int[columns * rows];

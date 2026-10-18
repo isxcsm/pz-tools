@@ -105,7 +105,7 @@ final class Areas {
     }
 
     private static int coordinate(Kahlua lua, Object table, String name, String call) {
-        try { return whole(lua.get(table, name), call, "area." + name, -MAX_COORDINATE, MAX_COORDINATE); }
+        try { return whole(lua.get(table, name), call, "area.", name, -MAX_COORDINATE, MAX_COORDINATE); }
         catch (ReflectiveOperationException unreadable) { throw new IllegalStateException(unreadable); }
     }
 
@@ -113,6 +113,18 @@ final class Areas {
         if (!(value instanceof Double number) || number != Math.rint(number) || number < min || number > max)
             throw new IllegalArgumentException(call + ": " + name + " must be a whole number from " + min + " to " + max);
         return number.intValue();
+    }
+
+    /** As above, for the value {@code prefix + name}: that name is made only when the value is wrong. */
+    static int whole(Object value, String call, String prefix, String name, int min, int max) {
+        if (value instanceof Double number && number == Math.rint(number) && number >= min && number <= max) return number.intValue();
+        return whole(value, call, prefix + name, min, max);
+    }
+
+    /** As above, for the value {@code prefix + index + suffix}. */
+    static int whole(Object value, String call, String prefix, int index, String suffix, int min, int max) {
+        if (value instanceof Double number && number == Math.rint(number) && number >= min && number <= max) return number.intValue();
+        return whole(value, call, prefix + index + suffix, min, max);
     }
 
     private static IllegalArgumentException tooMany(String call) {
@@ -214,7 +226,7 @@ final class Areas {
         }
 
         private int at(int position, int min, int max) throws Throwable {
-            return whole(lua.at(list, position), call, "area.list[" + position + "]", min, max);
+            return whole(lua.at(list, position), call, "area.list[", position, "]", min, max);
         }
 
         @Override void walk(Scan scan) throws Throwable {

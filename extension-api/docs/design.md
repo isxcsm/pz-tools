@@ -1737,6 +1737,7 @@ A condition table (`filter` below) holds any of these keys; a square must meet a
 
 A mod keeps its condition tables as constants: the API reads a table once and keeps what it read with the table (weakly), so a
 table used again costs nothing to read. A table changed after its first use is not read again; a mod makes a new one.
+The `parts` list of `squares.fit` is kept the same way, with the shape read from it.
 
 ### Areas
 
