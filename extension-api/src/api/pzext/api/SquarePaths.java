@@ -112,7 +112,11 @@ final class SquarePaths {
         meta = game.metaGrid();
         try {
             prepare(cells);
-            int found = search();
+            int found;
+            // (a pass with around or clear asks neighbours again and again: kept while the search runs)
+            SquareFilter.begin();
+            try { found = search(); }
+            finally { SquareFilter.end(); }
             if (found < 0) return NO_WAY;
             return new Object[] { result(found), dist[found] };
         } catch (Throwable failure) {

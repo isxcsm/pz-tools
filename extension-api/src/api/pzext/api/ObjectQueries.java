@@ -166,17 +166,20 @@ final class ObjectQueries {
         var found = new ArrayList<Object>();
         if (limit == 0) return new Object[] { lua.list(found) };
         int most = limit;
-        area.each((square, x, y, z) -> {
-            if (squares != null && !squares.test(square)) return true;
-            List<?> objects = objectsOn(square);
-            for (int at = 0, size = objects.size(); at < size; at++) {
-                Object object = objects.get(at);
-                if (object == null || !match.test(object)) continue;
-                found.add(object);
-                if (found.size() >= most) return false;
-            }
-            return true;
-        });
+        SquareFilter.begin();
+        try {
+            area.each((square, x, y, z) -> {
+                if (squares != null && !squares.test(square)) return true;
+                List<?> objects = objectsOn(square);
+                for (int at = 0, size = objects.size(); at < size; at++) {
+                    Object object = objects.get(at);
+                    if (object == null || !match.test(object)) continue;
+                    found.add(object);
+                    if (found.size() >= most) return false;
+                }
+                return true;
+            });
+        } finally { SquareFilter.end(); }
         return new Object[] { lua.list(found) };
     }
 
@@ -394,28 +397,31 @@ final class ObjectQueries {
         // What goes, found first and taken off after: each entry is an object, or all the parts of one that covers several squares.
         var doomed = new ArrayList<Object[]>();
         var decided = new IdentityHashMap<Object, Boolean>();
-        area.each((square, x, y, z) -> {
-            if (falloff != null && !falloff.reaches(x, y)) return true;
-            if (squares != null && !squares.test(square)) return true;
-            List<?> objects = objectsOn(square);
-            for (int at = 0, size = objects.size(); at < size; at++) {
-                Object object = objects.get(at);
-                if (object == null || !match.test(object)) continue;
-                if (!(boolean)hasGrid.invokeExact(object)) {
-                    if (keep == null || !keep.test(object)) doomed.add(new Object[] { object });
-                    continue;
+        SquareFilter.begin();
+        try {
+            area.each((square, x, y, z) -> {
+                if (falloff != null && !falloff.reaches(x, y)) return true;
+                if (squares != null && !squares.test(square)) return true;
+                List<?> objects = objectsOn(square);
+                for (int at = 0, size = objects.size(); at < size; at++) {
+                    Object object = objects.get(at);
+                    if (object == null || !match.test(object)) continue;
+                    if (!(boolean)hasGrid.invokeExact(object)) {
+                        if (keep == null || !keep.test(object)) doomed.add(new Object[] { object });
+                        continue;
+                    }
+                    if (decided.containsKey(object)) continue;
+                    Object[] parts = game.partsOnThisThread(object).toArray();
+                    boolean kept = false;
+                    for (Object part : parts) {
+                        decided.put(part, Boolean.TRUE);
+                        if (keep != null && keep.test(part)) kept = true;
+                    }
+                    if (!kept) doomed.add(parts);
                 }
-                if (decided.containsKey(object)) continue;
-                Object[] parts = game.partsOnThisThread(object).toArray();
-                boolean kept = false;
-                for (Object part : parts) {
-                    decided.put(part, Boolean.TRUE);
-                    if (keep != null && keep.test(part)) kept = true;
-                }
-                if (!kept) doomed.add(parts);
-            }
-            return true;
-        });
+                return true;
+            });
+        } finally { SquareFilter.end(); }
         Set<Object> touched = Collections.newSetFromMap(new IdentityHashMap<>());
         var squaresChanged = new ArrayList<Object>();
         for (Object[] group : doomed) {
