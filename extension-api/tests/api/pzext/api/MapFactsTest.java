@@ -6,8 +6,11 @@ import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.SplittableRandom;
+import se.krka.kahlua.vm.JavaFunction;
 import se.krka.kahlua.vm.KahluaTable;
 import se.krka.kahlua.vm.KahluaTableImpl;
+import se.krka.kahlua.vm.LuaCallFrame;
+import zombie.Lua.LuaManager;
 import zombie.core.stash.StashSystem;
 import zombie.iso.BuildingDef;
 import zombie.iso.IsoCell;
@@ -46,6 +49,7 @@ final class MapFactsTest {
             points((KahluaTable)api.rawget("zones"), grid);
             vehicles((KahluaTable)api.rawget("vehicles"));
             paths((KahluaTable)api.rawget("squares"), grid);
+            takeover(api);
         } finally {
             IsoWorld.instance.setCell(home);
             GameApi.frame(GAME);
@@ -351,7 +355,33 @@ final class MapFactsTest {
         }
     }
 
-    // ---- vehicles.near ----
+// ---- a newer API takes the functions over ----
+
+/** A function a mod copied out of a table refuses to run once a newer API replaced the table's functions. */
+private static void takeover(KahluaTable api) throws Exception {
+    var buildings = (KahluaTable)api.rawget("buildings");
+    var zones = (KahluaTable)api.rawget("zones");
+    var vehicles = (KahluaTable)api.rawget("vehicles");
+    var squares = (KahluaTable)api.rawget("squares");
+    Object[] old = { buildings.rawget("list"), zones.rawget("points"), vehicles.rawget("near"), squares.rawget("path") };
+    Object[][] arguments = { { 0.0, 0.0, 0.0, 1.0 }, { 0.0, 0.0, 0.0, 1.0, table("count", 1) }, { 0.0, 0.0, 0.0, 1.0 },
+        { table("x", 0, "y", 0, "z", 0), table("x", 1, "y", 0, "z", 0) } };
+    for (int at = 0; at < old.length; at++) check(old[at] != null, "A function is missing before the takeover");
+    for (int at = 0; at < old.length; at++) FormulasTest.invoke(old[at], arguments[at]);
+    GameApi.register(LuaManager.class);
+    Object[] next = { buildings.rawget("list"), zones.rawget("points"), vehicles.rawget("near"), squares.rawget("path") };
+    for (int at = 0; at < old.length; at++) {
+        check(next[at] != null && next[at] != old[at], "The function " + at + " was not replaced");
+        try {
+            ((JavaFunction)old[at]).call(new LuaCallFrame(arguments[at]), arguments[at].length);
+            throw new AssertionError("an old function " + at + " worked");
+        } catch (IllegalArgumentException expected) { check(expected.getMessage().contains("the API was updated"), expected.getMessage()); }
+        FormulasTest.invoke(next[at], arguments[at]);
+    }
+    check(squares.rawget("watch") != null, "The watches were lost with the takeover");
+}
+
+// ---- vehicles.near ----
 
     private static BaseVehicle vehicle(float x, float y, float z) {
         var car = new BaseVehicle();
