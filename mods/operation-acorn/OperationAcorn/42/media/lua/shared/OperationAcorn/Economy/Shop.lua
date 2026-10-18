@@ -6,8 +6,17 @@
 -- choices = { { type, count ... } ... } (the player picks one), week = purchases a week (nil: none), special =
 -- "cure" | "reversal" | "test" | "delay" (with days) | "serum" | "reissue" | nil, fixed = true (no shop
 -- multiplier, no discount), allowDebt, kits = true (only with KitsForSale), item (the item it is named after),
--- descKey (a description shared with other entries), bu (the Building Utilities feature it serves), harvest (the mark receiving it gives the character, Harvest) }. A give may carry `mod`, `used` and `name` (Trade.dropSpec).
+-- descKey (a description shared with other entries), bu (the Building Utilities feature it serves), harvest (the mark receiving it gives the character, Harvest),
+-- restock (a number, or a function(record) of how many the entry restocks to; see below), priceAt (a function(record, n)
+-- of the price of the n-th purchase of the restock window) }. A give may carry `mod`, `used` and `name` (Trade.dropSpec).
 -- tier is stage + milestones (Trust.tier): 1..5 the stages (1 the start), 6 the first milestone.
+--
+-- The restock clock (NUMBERS 7, 'Restock items'): a record's shop section keeps restock = { start (world hours the window
+-- began), factor (the window's length as a share of RESTOCK_DAYS), nextFactor (the next window's: a town searched
+-- through multiplies it), n = { [entry id] = purchases this window }, towns = { [town] = true } (the towns whose share the
+-- record has taken) }. Nothing runs on a clock: the window rolls when the shop is asked (Shop.restock). The stock left of
+-- an entry is its quantity now less the purchases of the window, so a quantity that grows (a tier, a place cleared)
+-- shows at once; a refill resets the purchases and leaves nothing over.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Economy/Trust"
@@ -88,6 +97,31 @@ Shop.KITS = {
     engine = { price = 80000, type = "kitEngine" },
 }
 Shop.KIT_ORDER = { "capacity", "lightening", "reinforcement", "engine" }
+
+-- The restock items. The shared serum's first price (it doubles with each one bought in a window); the weapon kits: id,
+-- the kind of dense place whose clearing adds one (the dense section's `got`), the fixed price and the item.
+Shop.SHARED_SERUM_PRICE = 20000
+Shop.WEAPON_KITS = {
+    { "kit_weapon_damage", "damage", 60000, "OperationAcorn.KitWeaponDamage" },
+    { "kit_weapon_crit", "crit", 60000, "OperationAcorn.KitWeaponCrit" },
+    { "kit_weapon_repair", "repair", 30000, "OperationAcorn.KitWeaponRepair" },
+}
+
+-- A weapon kit's quantity: 1 and one more for each dense place the record cleared that gave this kind (the dense
+-- section, kept by the part that clears them: got = { [place id] = kind }).
+function Shop.denseQuantity(kind)
+    return function(record)
+        local dense = record.dense
+        local got = dense and dense.got
+        local n = 1
+        if type(got) == "table" then
+            for _, k in pairs(got) do
+                if k == kind then n = n + 1 end
+            end
+        end
+        return n
+    end
+end
 
 -- The team's welder: the vanilla blowtorch (the game's own code asks for a blowtorch by its type), with the team's mark
 -- and its uses (Gear/Rules.lua: USES and USES_BASE, which the extension API reads), filled to them. It is drawn with the
@@ -261,6 +295,16 @@ local function build()
         add({ id = "serum_" .. tree, group = "serum", tier = 1, price = 8000, special = "serum", tree = tree,
             fixed = true, give = { give(SERUM_TYPE[tree]) } })
     end
+    -- The restock items (NUMBERS 7): the shared serum, dearer with each one bought in a window, and the weapon kits,
+    -- as many as places cleared.
+    add({ id = "serum_shared", group = "serum", tier = 1, price = Shop.SHARED_SERUM_PRICE, fixed = true,
+        restock = function(record) return math.floor(OA.Trust.tier(record) / 3) + 1 end,
+        priceAt = function(record, n) return OA.scaled(Shop.SHARED_SERUM_PRICE, "UpgradeSerumPriceMultiplier") * 2 ^ (n - 1) end,
+        give = { give("OperationAcorn.UpgradeSerumShared") } })
+    for _, k in ipairs(Shop.WEAPON_KITS) do
+        add({ id = k[1], group = "kit", tier = 6, price = k[3], kits = true, fixed = true, restock = Shop.denseQuantity(k[2]),
+            give = { give(k[4]) } })
+    end
     return list
 end
 
@@ -359,9 +403,66 @@ function Shop.serumPrice(tree, record, bought)
     return Shop.serumPriceAt(bought + 1)
 end
 
+-- The restock window of a record (the clock in the header), rolled to now: the first look starts the first window; a
+-- window that has ended is replaced by the next one, which starts where the old one ended (and by the whole windows
+-- after it, when more than one passed), takes the next factor and finds every purchase count at 0.
+Shop.RESTOCK_DAYS = 10
+Shop.TOWN_FACTOR = 0.9      -- what a town searched through multiplies the next windows' length by
+function Shop.restock(record)
+    local shop = Shop.section(record)
+    local now = OA.hours()
+    local r = shop.restock
+    if not r then
+        r = { start = now, factor = 1.0, nextFactor = 1.0, n = {}, towns = {} }
+        shop.restock = r
+        return r
+    end
+    local length = Shop.RESTOCK_DAYS * 24 * r.factor
+    if now >= r.start + length then
+        r.start = r.start + length
+        r.factor = r.nextFactor
+        length = Shop.RESTOCK_DAYS * 24 * r.factor
+        if now >= r.start + length then r.start = r.start + math.floor((now - r.start) / length) * length end
+        r.n = {}
+    end
+    return r
+end
+
+-- The world age the record's current restock window ends at.
+function Shop.restockEnd(record)
+    local r = Shop.restock(record)
+    return r.start + Shop.RESTOCK_DAYS * 24 * r.factor
+end
+
+-- What a restock entry restocks to for a record.
+function Shop.restockQuantity(entry, record)
+    local q = entry.restock
+    if type(q) == "function" then q = q(record) end
+    return q or 0
+end
+
+-- How many of a restock entry the record bought in this window.
+function Shop.restockBought(entry, record)
+    return Shop.restock(record).n[entry.id] or 0
+end
+
+-- A town the record searched through (or came into after the world did): the windows after this one are shorter.
+-- True when the record had not taken that town's share yet.
+function Shop.townDone(record, town)
+    local r = Shop.restock(record)
+    if r.towns[town] then return false end
+    r.towns[town] = true
+    r.nextFactor = r.nextFactor * Shop.TOWN_FACTOR
+    return true
+end
+
 -- The price of an entry for a record, in credits (a whole number). Serums, the box and every fixed entry (the infection
--- medicines) ignore the shop multiplier and the discount.
-function Shop.price(entry, record)
+-- medicines) ignore the shop multiplier and the discount. A restock entry with `priceAt` is priced by the purchase it
+-- would be in the window, `ahead` more (the units of one order before this one).
+function Shop.price(entry, record, ahead)
+    if entry.priceAt then
+        return OA.round(entry.priceAt(record, Shop.restockBought(entry, record) + 1 + (ahead or 0)))
+    end
     if entry.special == "serum" then return Shop.serumPrice(entry.tree, record) end
     if entry.special == "reissue" then return OA.reissueCost() end
     local base = entry.price
@@ -411,8 +512,9 @@ function Shop.opensAt(tier)
 end
 
 -- How many of an entry a record may buy right now, why not (a translation key) when none, and the world age when
--- it opens again, if that is known:
---   locked (tier), debt (blocks every order but the box), kits off, the weekly limit, and how many one order may hold.
+-- it opens again, if that is known (a restock entry gives the age its window ends at also while it has stock):
+--   locked (tier), debt (blocks every order but the box), kits off, the weekly limit, the restock stock, and how many
+--   one order may hold.
 function Shop.available(entry, record)
     local t = record.trade or {}
     if not Shop.stocked(entry) then return 0, "IGUI_OA_Econ_Shop_NotStocked" end
@@ -430,7 +532,14 @@ function Shop.available(entry, record)
         end
         most = math.min(most, entry.week - used)
     end
-    return most
+    local refill
+    if entry.restock then
+        local left = Shop.restockQuantity(entry, record) - Shop.restockBought(entry, record)
+        refill = Shop.restockEnd(record)
+        if left <= 0 then return 0, "IGUI_OA_Econ_Shop_SoldOut", refill end
+        most = math.min(most, left)
+    end
+    return most, nil, refill
 end
 
 -- Records a purchase the trade part delivered: `count` of the entry.
@@ -445,6 +554,10 @@ function Shop.bought(entry, record, count)
             shop.week[entry.id] = w
         end
         w.n = w.n + count
+    end
+    if entry.restock then
+        local r = Shop.restock(record)
+        r.n[entry.id] = (r.n[entry.id] or 0) + count
     end
     if entry.special == "serum" then
         Rules.noteBought(Rules.section(record), entry.tree, count)

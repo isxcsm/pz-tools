@@ -66,10 +66,10 @@ test("the sections leave out the shelf and the box reissue and keep the catalog'
         end
     end
     eq(#sections.byGroup.machine, 11)
-    -- the real catalog's shelf: the five treatments and the three serums
+    -- the real catalog's shelf: the five treatments, the three serums and the shared one
     local blocks = V.shelf(OA.Shop.catalog())
     eq(ids(blocks[2].entries), "cure_serum,reversal,delay_long,delay_drug,test_kit")
-    eq(ids(blocks[1].entries), "serum_scout,serum_load,serum_survival")
+    eq(ids(blocks[1].entries), "serum_scout,serum_load,serum_survival,serum_shared")
 end)
 
 test("a section is locked on the crude terminal when all its entries are for the field terminal", function()

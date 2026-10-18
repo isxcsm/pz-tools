@@ -82,9 +82,9 @@ function Orders.shopService(record)
             if m and (delivered or 0) >= m.n then return false, m.why or "limit" end
             return true
         end,
-        price = function(entry, line)
+        price = function(entry, line, ahead)
             if entry.special == "serum" then return Shop.serumPrice(entry.tree, record) end
-            return Shop.price(entry, record)
+            return Shop.price(entry, record, ahead)
         end,
         bought = function(entry, line)
             Shop.bought(entry, record, 1)
@@ -147,9 +147,14 @@ function Orders.set(record, lines, crude)
     return cart, dropped
 end
 
--- What a line costs with a shop service: one unit's price times the count.
+-- What a line costs with a shop service: one unit's price times the count; an entry that is dearer with each unit
+-- bought in its window (priceAt) adds up the units' own prices.
 function Orders.lineCost(svc, entry, line)
-    return OA.round(svc.price(entry, line)) * (line.count or 1)
+    local count = line.count or 1
+    if not entry.priceAt then return OA.round(svc.price(entry, line)) * count end
+    local sum = 0
+    for k = 0, count - 1 do sum = sum + OA.round(svc.price(entry, line, k)) end
+    return sum
 end
 
 -- What the cart costs at today's prices, one unit's price times the count (prices that rise as units are bought

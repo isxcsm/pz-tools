@@ -304,7 +304,8 @@ function OATabShop:buildDetail(record, ctx)
         self.detail = nil
         return
     end
-    local d = { entry = entry, state = ShopView.state(entry, availOf(entry, record), ctx) }
+    local avail = availOf(entry, record)
+    local d = { entry = entry, state = ShopView.state(entry, avail, ctx) }
     d.name = Orders.nameOf(entry)
     local descKey = OA.Shop.descKey(entry)
     d.desc = getText(descKey)
@@ -312,6 +313,10 @@ function OATabShop:buildDetail(record, ctx)
     local info = {}
     if not d.state.open then info[#info + 1] = statusText(d.state) end
     if entry.week then info[#info + 1] = getText("IGUI_OA_Terminal_Shop_PerWeek", entry.week) end
+    -- a restock entry says when its stock is filled again (a sold-out card says it already)
+    if entry.restock and avail.reopen and d.state.open then
+        info[#info + 1] = getText("IGUI_OA_Terminal_Shop_RestockAt", whenText(avail.reopen))
+    end
     d.info = table.concat(info, Text.DOT)
     local options
     local choices = Orders.choicesOf(entry)

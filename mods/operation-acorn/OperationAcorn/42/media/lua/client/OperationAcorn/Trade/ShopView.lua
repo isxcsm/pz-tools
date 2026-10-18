@@ -13,7 +13,7 @@ OA.Trade.ShopView = ShopView
 -- treatments. An id the catalog does not have is skipped; any other entry of the serum group, or that is a serum, is
 -- put after them in the catalog's order.
 ShopView.TREAT_IDS = { "cure_serum", "reversal", "delay_long", "delay_drug", "test_kit" }
-ShopView.ENHANCE_IDS = { "serum_scout", "serum_load", "serum_survival" }
+ShopView.ENHANCE_IDS = { "serum_scout", "serum_load", "serum_survival", "serum_shared" }
 
 -- Sizes (DESIGN-terminal 4.1, 4.2, 1.2).
 ShopView.CAT_W = 104        -- the left column
@@ -124,8 +124,8 @@ function ShopView.reorder(last, canBuy)
 end
 
 -- What a card says and how (DESIGN-terminal 4.2). `avail` is what the shop answers for the record: { n (how many may
--- be bought, 0 for none), why (a translation key), reopen (the world age it opens again), serumN (which serum of its
--- tree the next would be) }. `ctx`: { crude, tier (trust), debt, whenText(hours) }.
+-- be bought, 0 for none), why (a translation key), reopen (the world age it opens again; a restock entry's window end),
+-- serumN (which serum of its tree the next would be) }. `ctx`: { crude, tier (trust), debt, whenText(hours) }.
 -- Returns { open, key, args, tone ("dim" | "warn" | "bad" | "timer"), lock (a padlock before the text), reason (the
 -- translation key a refused order gives), n (how many at most) }.
 function ShopView.state(entry, avail, ctx)
@@ -146,10 +146,11 @@ function ShopView.state(entry, avail, ctx)
         s.key, s.args, s.reason = "IGUI_OA_Terminal_Shop_Tier", { entry.tier }, "IGUI_OA_Econ_Shop_Locked"
     elseif why == "IGUI_OA_Econ_Shop_KitsOff" then
         s.key, s.reason = why, why
-    elseif why == "IGUI_OA_Econ_Shop_Limit" then
+    elseif why == "IGUI_OA_Econ_Shop_Limit" or why == "IGUI_OA_Econ_Shop_SoldOut" then
         s.tone, s.lock, s.reason = "timer", false, why
         if avail.reopen and ctx.whenText then
             s.key, s.args = "IGUI_OA_Terminal_Shop_LimitFrom", { ctx.whenText(avail.reopen) }
+            if why == "IGUI_OA_Econ_Shop_SoldOut" then s.key = "IGUI_OA_Terminal_Shop_SoldOutFrom" end
         else
             s.key = why
         end
@@ -157,6 +158,8 @@ function ShopView.state(entry, avail, ctx)
         s.open, s.lock, s.reason = true, false, nil
         if entry.week then
             s.key, s.args = "IGUI_OA_Terminal_Shop_WeekLeft", { n, entry.week }
+        elseif entry.restock then
+            s.key, s.args = "IGUI_OA_Terminal_Shop_StockLeft", { n }
         elseif entry.special == "serum" then
             s.key, s.args = "IGUI_OA_Terminal_Shop_Nth", { avail.serumN or 1 }
         else
