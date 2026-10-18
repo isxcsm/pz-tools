@@ -1119,6 +1119,20 @@ test("a box about to be sealed tells its missions' reward; sealed, the reward wa
     eq(#M.sealing(record2, { { mission = M.itemId(late, "A") } }, late.deadline + 1), 0)
 end)
 
+test("the sample cooler's reward is its state as it is sealed: the confirmation tells it as it will be paid", function()
+    local record = setup(2)
+    record.story = nil
+    M.tick(record)
+    local cool = taken(record)
+    local now = OA.hours()
+    cool.carry = { start = now - 3 }
+    local told = M.sealing(record, { { mission = M.itemId(cool, "A") } }, now)
+    truthy(told[1].credits, "known as it is sealed")
+    M.onSealed(record, "box1", { { info = { mission = M.itemId(cool, "A") }, count = 1 } })
+    eq(told[1].credits, cool.pay.credits)
+    eq(told[1].trust, cool.pay.trust)
+end)
+
 test("the swap's drop case: picked up empty it says nothing; with the record in it, the record is found", function()
     local record = setup(2)
     Story.section(record).seenStage = 1

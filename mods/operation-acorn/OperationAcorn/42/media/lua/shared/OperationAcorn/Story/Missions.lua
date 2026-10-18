@@ -1205,15 +1205,21 @@ function Missions.settleScatter(record, m, now)
     Missions.sealedOk(record, m, nil, now)
 end
 
+-- What the sample cooler pays sealed at `now`: its state then (the temperature's quality) with the mission's extras.
+-- Returns credits, trust and the temperature.
+function Missions.carryPay(m, now)
+    local temp = Missions.coolerTemp(m, now)
+    local credits, trust = Rewards.reward(m.level, true, Rewards.coolerQuality(temp), creditScale())
+    credits = OA.round(credits * (1 + (m.danger or 0) + (m.streakPay or 0) + (m.far or 0) + (m.support or 0)))
+    return credits, Rewards.trustWithBonus(trust, m.danger, m.far), temp
+end
+
 function Missions.sealedOk(record, m, boxId, now)
     local credits, trust = m.credits, m.trust
     if m.carry then
-        local temp = Missions.coolerTemp(m, now)
-        local q = Rewards.coolerQuality(temp)
+        local temp
+        credits, trust, temp = Missions.carryPay(m, now)
         m.cooler = { temp = temp, grade = Rewards.coolerGrade(temp) }
-        credits, trust = Rewards.reward(m.level, true, q, creditScale())
-        credits = OA.round(credits * (1 + (m.danger or 0) + (m.streakPay or 0) + (m.far or 0) + (m.support or 0)))
-        trust = Rewards.trustWithBonus(trust, m.danger, m.far)
     elseif m.scatter then
         credits, trust = Missions.scatterPay(m)
     end
@@ -1227,7 +1233,8 @@ function Missions.sealedOk(record, m, boxId, now)
 end
 
 -- The missions a box about to be sealed has items of, open and in time (the seal confirmation tells their reward):
--- { { m, credits, trust } }, the reward nil where the settling decides it (the cooler's state, the pieces found).
+-- { { m, credits, trust } }: the sample cooler's as its state now makes it, nil where pieces still to come decide it
+-- (a scattered mission's, a target mission's).
 function Missions.sealing(record, infos, now)
     now = now or OA.hours()
     local out, seen = {}, {}
@@ -1236,8 +1243,13 @@ function Missions.sealing(record, infos, now)
         for _, m in ipairs(base and Missions.live(record) or {}) do
             if m.id == base and not seen[m] and m.state == "open" and Rewards.judge(m.deadline, now) == "ok" then
                 seen[m] = true
-                local plain = not (m.carry or Missions.sealedSet(m))
-                out[#out + 1] = { m = m, credits = plain and m.credits or nil, trust = plain and m.trust or nil }
+                local credits, trust
+                if m.carry then
+                    credits, trust = Missions.carryPay(m, now)
+                elseif not Missions.sealedSet(m) then
+                    credits, trust = m.credits, m.trust
+                end
+                out[#out + 1] = { m = m, credits = credits, trust = trust }
             end
         end
     end

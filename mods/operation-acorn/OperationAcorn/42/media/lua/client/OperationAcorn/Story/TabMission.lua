@@ -315,8 +315,9 @@ function OATabMission:buildCard(record, info)
         card.bonus = measure(bonus, p)
     end
     if info.credits then
-        -- a choice not made yet has no place, so no distance pay: its base
-        local key = info.options and info.state == "waiting" and "IGUI_OA_Story_UI_RewardBase" or "IGUI_OA_Story_UI_Reward"
+        -- an offer with no place yet (a story mission's is found as it starts, a choice's as it is made) has no distance
+        -- pay yet: its base
+        local key = info.state == "waiting" and not info.area and "IGUI_OA_Story_UI_RewardBase" or "IGUI_OA_Story_UI_Reward"
         local reward = runsOf("text", key, Text.credits(info.credits), info.trust or 0)
         for _, run in ipairs(reward) do
             if run.num then run.kind = "value" end
