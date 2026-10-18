@@ -40,7 +40,7 @@ local function setup()
     getPlayer = function() return player end
     given = {}
     local r = OA.Store.ensure("p1", "P")
-    r.trade = { stage = 2, milestones = 0, credits = 500, trust = 0 }
+    r.trade = { stage = 2, milestones = 0, credits = 500, trust = 0, lastSettle = { at = 1, credits = 900, trust = 9 } }
     Story.setAnchor(r, 0, 0, 0)
     Missions.game = { release = function() end }
     Comms.played(r, "S0", 1)
@@ -91,10 +91,22 @@ test("every story beat: the calls before its first played, its own not, the leve
                 if BRIEFED[beat.from] then eq(m.story, BRIEFED[beat.from], beat.id .. ": its story") end
             else
                 eq(m, nil, beat.id .. ": nothing offered")
-                truthy(Missions.state(r).nextAt > OA.hours() + 24 * 300, beat.id .. ": no regular mission comes")
+                if Missions.opened(r) then
+                    truthy(Missions.state(r).nextAt > OA.hours() + 24 * 300, beat.id .. ": no regular mission comes")
+                else
+                    eq(Missions.state(r).nextAt, 0, beat.id .. ": the first mission comes once its scene opens them")
+                end
             end
             eq(#titles, 0, beat.id .. ": no title: " .. table.concat(titles, " "))
+            -- the stage's card: shown before the beat, or to come with the terminal opened for the stage's first call
+            local card = Story.section(r).cardStage or 0
+            if string.match(e.trigger, "^tier:") then
+                truthy(card < math.min(beat.stage, OA.StoryData.LAST_STAGE), beat.id .. ": its stage's card to come")
+            else
+                eq(card, math.min(beat.stage, OA.StoryData.LAST_STAGE), beat.id .. ": its stage's card shown")
+            end
             eq(r.first.done, true, beat.id .. ": registered")
+            eq(r.trade.lastSettle, nil, beat.id .. ": no earlier beat's settlement")
             eq(OA.Trade.registered(r), true)
         end
     end

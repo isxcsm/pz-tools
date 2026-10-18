@@ -176,7 +176,7 @@ test("E2E page: the chosen beat set, the next one, the beat's lines and a timer'
     E2E.timerSoon = function(id) done[#done + 1] = "soon(" .. id .. ")" end
     local page = build("E2E")
     local beats = all(page, "combo")[1]
-    beats:choose(3)
+    beats:choose(E2E.BY_ID["02"].index)
     button(page, "IGUI_OADev_E2E_Set"):click()
     page.refresh()
     local shown = table.concat(all(page, "lines")[1].shown, "|")

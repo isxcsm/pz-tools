@@ -3,8 +3,8 @@
 -- head, the newest at the foot; only the newest open, the others folded to their heads (a click on a head opens or
 -- folds it). Below, the protagonist's input line. A call plays here: the team's lines come in
 -- like a signal, the protagonist's are typed on the input line (words typed and erased first) and go up into the
--- record when sent. While a call plays the game is paused (alone; never on a server), its sound turned down under a
--- low static, and its button skips it (a click: no key, which the game would also take); another tab or the window closing counts as skipping. Played or
+-- record when sent. While a call plays the game goes on (paused by the player, the call stands still with it), its
+-- ambience turned down under a low static, and its button skips it (a click: no key, which the game would also take); another tab or the window closing counts as skipping. Played or
 -- skipped, the server keeps it (comms_played) and the next waiting call follows after a beat.
 --
 -- The lines are worked out once a line starts (Story/CommsScript); a frame draws from the timeline at the clock alone.

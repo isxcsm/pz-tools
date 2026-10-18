@@ -8,16 +8,33 @@ local Comms, Data = OA.Comms, OA.CommsData
 
 local function fresh() return { id = 1, number = 347 } end
 local function day(h) return math.floor(h / 24) end
+-- Every call that comes, played at `now`; the next looked for a while after (a short call waits its gap after the
+-- last call).
 local function playAll(r, now)
     local ids = {}
-    local e = Comms.next(r, "terminal")
+    local e = Comms.next(r, "terminal", now + Comms.SHORT_GAP)
     while e do
         ids[#ids + 1] = e.id
         Comms.played(r, e.id, Comms.section(r).tier, now)
-        e = Comms.next(r, "terminal")
+        e = Comms.next(r, "terminal", now + Comms.SHORT_GAP)
     end
     return table.concat(ids, " ")
 end
+
+test("a short call comes no sooner than its gap after the last call played; a scene follows at once", function()
+    local r = fresh()
+    Comms.fire(r, "first", 0)
+    eq(Comms.next(r, "terminal", 0).id, "S0")
+    Comms.played(r, "S0", 1, 0)
+    Comms.enterTier(r, 1, 0)
+    Comms.fire(r, "settled", 5)
+    eq(Comms.next(r, "terminal", 5).id, "S1")
+    Comms.played(r, "S1", 1, 5)
+    eq(Comms.next(r, "terminal", 5).id, "S1M", "the scene after it at once")
+    Comms.played(r, "S1M", 1, 5)
+    eq(Comms.next(r, "terminal", 5 + Comms.SHORT_GAP - 0.1), nil, "the short call not yet")
+    eq(Comms.next(r, "terminal", 5 + Comms.SHORT_GAP).id, "s1_bedding")
+end)
 
 test("every entry is known by its id, waits for one that exists, and has lines when it is played", function()
     for _, e in ipairs(Data.ENTRIES) do

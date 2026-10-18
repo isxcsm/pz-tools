@@ -116,10 +116,18 @@ function Say.line(state, id, ctx, now)
     return n and Say.key(id, n) or nil
 end
 
+-- What holds a line back on the character's side: functions (character, id, ctx) -> true when it would be said
+-- out of turn (a hint about a piece the character has seen already: Story/Highlight).
+Say.held = {}
+
 -- Self-talk: the character says the next line of a bundle over its head (the sandbox option 혼잣말, on by
--- default). The order is kept in the character's mod data, so it goes on after a reload. Returns the key said.
+-- default), unless something holds it (Say.held). The order is kept in the character's mod data, so it goes on after
+-- a reload. Returns the key said.
 function Say.say(character, id, ctx)
     if not character or OA.option("Monologue") == false then return nil end
+    for _, hold in ipairs(Say.held) do
+        if hold(character, id, ctx) then return nil end
+    end
     local data = character:getModData()
     data.OA_Say = data.OA_Say or {}
     local key = Say.line(data.OA_Say, id, ctx)

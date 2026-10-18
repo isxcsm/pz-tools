@@ -116,20 +116,40 @@ function Comms.join(record, tier, admin)
     if admin then s.era = "admin" end
 end
 
--- Whether an entry may play now: fired, not played, and what it waits for is done.
-function Comms.ready(record, id)
+-- A short call is a word at the team's regular hour (LORE 6 '짧은 교신'), not a line after a scene: it comes no sooner
+-- than this many game hours after the last call played.
+Comms.SHORT_GAP = 2
+
+-- When the last call (not a monologue) was played, or nil.
+local function lastCall(s)
+    local last
+    for id, at in pairs(s.played) do
+        local e = Data.BY_ID[id]
+        if e and e.kind ~= "say" and (not last or at > last) then last = at end
+    end
+    return last
+end
+
+-- Whether an entry may play now (`now` in hours, the game's by default): fired, not played, what it waits for done,
+-- and a short call SHORT_GAP after the last call.
+function Comms.ready(record, id, now)
     local s = Comms.section(record)
     local e = Data.BY_ID[id]
     if not e or not s.fired[id] or done(s, id) then return false end
-    return e.waits == nil or done(s, e.waits)
+    if e.waits ~= nil and not done(s, e.waits) then return false end
+    if e.kind == "short" then
+        local last = lastCall(s)
+        if last and (now or OA.hours()) < last + Comms.SHORT_GAP then return false end
+    end
+    return true
 end
 
--- The next entry to play at `place`: "terminal" (scenes and short calls) or "field" (the calls on the spot). nil when
--- there is none.
-function Comms.next(record, place)
+-- The next entry to play at `place`: "terminal" (scenes and short calls) or "field" (the calls on the spot), `now` as
+-- Comms.ready's. nil when there is none.
+function Comms.next(record, place, now)
     for _, e in ipairs(Data.ENTRIES) do
         local here = (place == "field") == (e.kind == "field")
-        if here and e.kind ~= "say" and Comms.ready(record, e.id) then return e end
+        if here and e.kind ~= "say" and Comms.ready(record, e.id, now) then return e end
     end
     return nil
 end

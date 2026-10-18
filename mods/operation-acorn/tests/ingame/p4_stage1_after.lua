@@ -75,7 +75,7 @@ for x = site.x1 - 12, site.x2 + 12 do
     end
 end
 for _, v in ipairs(vehicles) do
-    if string.find(v:getScriptName() or "", "CarLights", 1, true) then  -- the game picks the region's police car
+    if string.find(v:getScriptName() or "", "Police", 1, true) then  -- the game picks the region's police vehicle
         found.police = found.police + 1
         local door = v:getPartById("DoorFrontLeft")
         local battery = v:getPartById("Battery")
@@ -107,9 +107,9 @@ P4T.check(say, "the police car by the entrance", found.police == 1, found.police
 -- no other car crowds it (two cars' middles closer than 4 squares overlap)
 local closest
 for _, v in ipairs(vehicles) do
-    if not string.find(v:getScriptName() or "", "CarLights", 1, true) then
+    if not string.find(v:getScriptName() or "", "Police", 1, true) then
         for _, w in ipairs(vehicles) do
-            if string.find(w:getScriptName() or "", "CarLights", 1, true) then
+            if string.find(w:getScriptName() or "", "Police", 1, true) then
                 local ex, ey = v:getX() - w:getX(), v:getY() - w:getY()
                 local d = math.sqrt(ex * ex + ey * ey)
                 if not closest or d < closest then closest = d end

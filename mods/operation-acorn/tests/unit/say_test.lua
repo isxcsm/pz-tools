@@ -95,6 +95,11 @@ test("self-talk says the line over the head, keeps the order on the character, a
     eq(Say.say(character, "Talk"), nil)
     eq(#said, 1)
     SandboxVars.OperationAcorn.Monologue = true
+    -- held back on the character's side
+    Say.held[#Say.held + 1] = function(_, id, ctx) return id == "Talk" and ctx and ctx.seen end
+    eq(Say.say(character, "Talk", { seen = true }), nil)
+    truthy(Say.say(character, "Talk", {}))
+    Say.held[#Say.held] = nil
 end)
 
 test("self-talk the server asks for with a delay waits for it, then says the line of that moment", function()

@@ -21,6 +21,12 @@ OA.StoryHighlight = Highlight
 -- Spotted: a piece first seen lit. Line 4 for one in a container, 5 for one on the floor, the rest either.
 OA.Say.define("Spotted", { tags = { [4] = { container = true }, [5] = { container = false } } })
 
+-- A piece seen already is not hinted at after (Scene.floorHint's "hidden somewhere on this floor" once it was seen).
+table.insert(OA.Say.held, function(character, _, ctx)
+    local said = ctx and ctx.piece and character:getModData().OA_Spotted
+    return said ~= nil and said[ctx.piece] == true
+end)
+
 -- The objects lit now, by the character's number: object -> its colour. The search ledger leaves these to this part.
 local lit = {}
 Highlight.lit = lit

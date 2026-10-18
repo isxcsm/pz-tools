@@ -160,8 +160,8 @@ function Heli.setDown(entry)
     if entry.cargo and #entry.cargo > 0 then
         local crateSquare
         if entry.search then
-            crateSquare = Objects.findClear(entry.x, entry.y, 30)
-                or Objects.search(entry.x, entry.y, 0, 12, function(s) return Objects.free(s) end)
+            crateSquare = Objects.findClear(entry.x, entry.y, 30, true)
+                or Objects.search(entry.x, entry.y, 0, 12, function(s) return Objects.free(s) and Objects.nobody(s) end)
         end
         crateSquare = crateSquare or Objects.findBeside(entry.x, entry.y, entry.z or 0, 5) or square
         Things.makeCrate(crateSquare, entry.cargo, entry.parachute)

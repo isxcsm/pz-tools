@@ -107,6 +107,8 @@ local function reset(r, fresh)
     r.story, r.comms, r.missions, r.say = nil, nil, nil, nil
     local t = OA.Store.section(r, "trade")
     t.trust, t.stage, t.milestones = 0, 0, 0
+    -- the last settlement shown on the helicopter screen was an earlier beat's (02 is the first settlement)
+    t.lastSettle = nil
     local heli = OA.Trade.heli(r)
     heli.call, heli.next, heli.landing = nil, nil, nil
     heli.drop = {}
@@ -138,8 +140,9 @@ local function joinAs(r, beat)
     OA.Comms.join(r, tier, admin)
 end
 
--- The calls before the beat's first: played (in the tab's record as they were), the other of a choice dropped; the
--- story missions their briefings stand for done, with their field monologues. Returns the stories done.
+-- The calls before the beat's first: played a day before (in the tab's record as they were; a short call coming next
+-- is not held by its gap after the last), the other of a choice dropped; the story missions their briefings stand for
+-- done, with their field monologues. Returns the stories done.
 local function playBefore(r, from)
     local Data = OA.CommsData
     local s = OA.Comms.section(r)
@@ -151,7 +154,7 @@ local function playBefore(r, from)
             s.dropped[id] = true
         else
             local e = Data.BY_ID[id]
-            OA.Comms.played(r, id, math.max(1, e and e.tier or 1))
+            OA.Comms.played(r, id, math.max(1, e and e.tier or 1), OA.hours() - 24)
             if STORY_OF[id] then stories[#stories + 1] = STORY_OF[id] end
         end
     end
@@ -165,7 +168,7 @@ local function playBefore(r, from)
     for _, e in ipairs(Data.ENTRIES) do
         if e.kind == "say" then
             local head = string.match(e.trigger, "^(say:[%w_]+:)")
-            if head and says[head] then OA.Comms.played(r, e.id, e.tier) end
+            if head and says[head] then OA.Comms.played(r, e.id, e.tier, OA.hours() - 24) end
         end
     end
     return stories
@@ -344,6 +347,12 @@ function E2E.set(id, opts)
         end
         raise(r, stage, milestones)
         if readPapers then readPapers() end
+        -- the named stage's card was shown as the terminal was opened before the beat, unless the beat opens on the
+        -- stage's own first call (its card comes with that open)
+        if beat.from then
+            local opening = string.match(OA.CommsData.BY_ID[beat.from].trigger, "^tier:")
+            if not opening then OA.Story.section(r).cardStage = math.min(stage, OA.StoryData.LAST_STAGE) end
+        end
         if beat.handover then
             local s = OA.Story.section(r)
             s.handover, s.handoverShown = true, true
@@ -358,9 +367,12 @@ function E2E.set(id, opts)
         if beat.offer then
             OA.Story.section(r).regularsSince = 1
             OA.Missions.start(r)
-        else
+        elseif OA.Missions.opened(r) then
             -- no regular mission comes between either: the story's own scenes are the beat's
             missions.nextAt = OA.hours() + 24 * 365
+        else
+            -- the missions are not open yet: the scene that opens them (S1M) brings the first at the next looks
+            missions.nextAt = 0
         end
         if beat.fresh then
             -- the first supply's plan (FirstSupply.plan's), its day a year off: it comes by the move, not by itself

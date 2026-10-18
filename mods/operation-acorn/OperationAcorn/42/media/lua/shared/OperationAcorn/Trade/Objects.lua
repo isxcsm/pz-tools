@@ -157,10 +157,18 @@ function Objects.search(x, y, z, maxRadius, test)
     return nil
 end
 
--- A clear spot for a box near x, y: the full clearance first, then less (a crowded town has few wide places).
-function Objects.findClear(x, y, maxRadius)
+-- Whether no one (a player, a zombie) stands on a square: a crate coming down does not land on anyone.
+function Objects.nobody(square)
+    local moving = square:getMovingObjects()
+    return moving == nil or moving:isEmpty()
+end
+
+-- A clear spot for a box near x, y: the full clearance first, then less (a crowded town has few wide places). `empty`:
+-- only a square no one stands on (where a crate comes down).
+function Objects.findClear(x, y, maxRadius, empty)
     for _, clearance in ipairs({ Objects.CLEAR_RADIUS, 2, 1, 0 }) do
         local square, r = Objects.search(x, y, 0, maxRadius or 30, function(square, cache)
+            if empty and not Objects.nobody(square) then return false end
             return Objects.clearSquare(square, clearance, cache)
         end)
         if square then return square, clearance, r end
@@ -168,15 +176,15 @@ function Objects.findClear(x, y, maxRadius)
     return nil
 end
 
--- A free square beside a spot for the crate to come down on: nearest, outdoors if possible.
+-- A free square beside a spot for the crate to come down on, no one standing on it: nearest, outdoors if possible.
 function Objects.findBeside(x, y, z, maxRadius)
     local square = Objects.search(x, y, z, maxRadius or 4, function(square)
-        if not Objects.free(square) then return false end
+        if not Objects.free(square) or not Objects.nobody(square) then return false end
         return square:isOutside() and (x ~= square:getX() or y ~= square:getY())
     end)
     if square then return square end
     return Objects.search(x, y, z, maxRadius or 4, function(square)
-        return Objects.free(square) and (x ~= square:getX() or y ~= square:getY())
+        return Objects.free(square) and Objects.nobody(square) and (x ~= square:getX() or y ~= square:getY())
     end)
 end
 

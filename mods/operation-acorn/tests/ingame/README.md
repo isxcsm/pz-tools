@@ -79,3 +79,13 @@ Some checks change the save's market or the record (they say so in their header)
 | File | What it checks | Setup |
 | --- | --- | --- |
 | `e2e_beats.lua` | each beat of `OperationAcorn.Dev.E2E` set in order, with the character moved: 01 the game's helicopter flying for the character and the first supply as it goes, 01L and 01N the supply at once with their plan's mode; the story beats' calls behind and to come, level, mission offered, the character by the base terminal, the box standing and filled with the beat's items only, the serum; the join beats' tier; X nothing; no title from a setting but the first supply's. `E2E_BEATS = { "02", ... }` runs some | a record with a base terminal; changes the save (`pzdev snapshot`/`restore`, or the backup); about 2 minutes |
+
+## The story driven by hand (`story_lib.lua`, `st_*.lua`)
+
+| File | What it does | Setup |
+| --- | --- | --- |
+| `story_lib.lua` | logs what reaches the player as `[st]` lines (titles, notices, monologues, calls started, the record's comms kept, questions asked) and makes the player's moves as the buttons do: `ST.use()` the terminal near, `ST.tab(id)`, `ST.missions()`, `ST.launch(option)`, `ST.call()`, `ST.seal()`, `ST.unseal()`, `ST.takeAll()`, `ST.placeTerminal()`, `ST.skip()`, `ST.yes()`/`ST.no()`, `ST.close()`, `ST.state()`; runs `st_hitch.lua` and `st_timing.lua` | RUN after each load |
+| `st_hitch.lua` | a frame over `ST_HITCH` ms (400) printed as `[hitch]` with the hour and the place | (by story_lib) |
+| `st_timing.lua` | the story's world work (Stage, Scene, StageGame, SceneGame, missions) timed: a call over `ST_SLOW` ms (10) printed as `[timing]` | (by story_lib) |
+| `st_walk.lua`, `st_grab.lua`, `st_door.lua` | walk to `ST_TO`; pick up what lies at `ST_AT` (`ST_TYPE`); list the doors near `ST_AT` and open the nearest locked one (`ST_OPEN`) | |
+| `st_crate.lua`, `st_layout.lua` | the supply crates near and what is in them; the running mission's building as the stage reads it (rooms, doors, roles) | |

@@ -378,8 +378,9 @@ function Scene.touchSite(record, x, y, sites)
 end
 
 -- The floor hint: for the first piece not found yet whose building the player stands in (g.inBuildingOf), where it is
--- from the player's floor (`z`): "up", "down" or "here". The bundle and its context when that is new for the piece
--- (InBuilding the first time, then Floor), else nil. The last answer is kept with the piece, so walking out and in
+-- from the player's floor (`z`): "up", "down" or "here". The bundle and its context (`where`, and the piece's id: the
+-- character does not hint at a piece it has seen) when that is new for the piece (InBuilding the first time, then
+-- Floor), else nil. The last answer is kept with the piece, so walking out and in
 -- again on the same floor says nothing.
 function Scene.floorHint(record, m, z)
     local g = Scene.game
@@ -393,7 +394,7 @@ function Scene.floorHint(record, m, z)
             local last = hints[it.key]
             if last == where then return nil end
             hints[it.key] = where
-            return last == nil and "InBuilding" or "Floor", { where = where }
+            return last == nil and "InBuilding" or "Floor", { where = where, piece = OA.Missions.itemId(m, it.key) }
         end
     end
     return nil

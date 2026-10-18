@@ -46,7 +46,7 @@ end
 
 -- Puts the crate down near the character, the new active box in it. Returns true when it was done.
 function FirstSupply.drop(record, character)
-    local square = Objects.findClear(math.floor(character:getX()), math.floor(character:getY()), 30)
+    local square = Objects.findClear(math.floor(character:getX()), math.floor(character:getY()), 30, true)
     if not square then return false end
     local x, y, z = square:getX(), square:getY(), square:getZ()
     local box = Boxes.add(record, { state = "carried", x = x, y = y, z = z, active = true })

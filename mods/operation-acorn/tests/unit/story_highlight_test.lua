@@ -439,6 +439,15 @@ test("the first time a piece is lit the character says so, once, in a container'
     eq(#said, 1, "once")
     eq(said[1].id, "Spotted"); eq(said[1].ctx.container, true)
     truthy(state.player:getModData().OA_Spotted["M1-1"])
+    -- the floor hint about it held back after (Scene.floorHint names the piece), another piece's not
+    local held = false
+    for _, hold in ipairs(OA.Say.held) do
+        if hold(state.player, "InBuilding", { where = "here", piece = "M1-1" }) then held = true end
+    end
+    eq(held, true, "a hint about the piece seen")
+    for _, hold in ipairs(OA.Say.held) do
+        eq(hold(state.player, "InBuilding", { where = "here", piece = "M2-1" }), false)
+    end
 end)
 
 test("a piece lying on the floor is spotted in the floor's words; what was spotted for a mission no longer open is let go", function()

@@ -364,6 +364,7 @@ test("in the piece's building the character makes out its floor: once on enterin
     inside = true
     Scene.minute(record)
     eq(g.said[1].id, "InBuilding"); eq(g.said[1].ctx.where, "up", "the piece is a floor up")
+    eq(g.said[1].ctx.piece, OA.Missions.itemId(m, m.items[1].key), "which piece")
     Scene.minute(record)
     eq(#g.said, 1, "said once")
     inside = false
