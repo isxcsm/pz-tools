@@ -274,9 +274,11 @@ for _, style in ipairs({ "stamp", "discovery", "notice", "unveil", "dust", "blee
         Sound.define("kit.title." .. style .. ".line." .. moment, {})
     end
 end
--- The titles that sound (tools/sound, sounds.json; the rest wait for sounds heard to end in the game, SOUND-SYSTEM.md
--- S6): the stamp's hit, its line's lighter; the typewriter's letters struck (a run of an old typewriter's keys as long
--- as the strike), its line's, and its carriage thrown back as the paper is fed out; the notice tuned in as a signal.
+-- The titles that sound (SOUND-SYSTEM.md S6): the stamp's hit, its line's lighter; the typewriter's letters struck (a
+-- run of an old typewriter's keys as long as the strike), its line's, and its carriage thrown back as the paper is fed
+-- out (ours: tools/sound, sounds.json); the notice tuned in as a signal, the torch struck alight, the burning title set
+-- alight, the sinking one going into the water. A title plays a moment's sound once and never stops it: only sounds
+-- that end by themselves (the game's tune-in, campfire, heartbeat and dripping go on: tests/ingame/sound_e2e.lua).
 Sound.defineAll({
     ["kit.title.stamp.land"] = { sound = "KIT_TitleStamp" },
     ["kit.title.stamp.line.land"] = { sound = "KIT_TitleStampLine" },
@@ -284,6 +286,9 @@ Sound.defineAll({
     ["kit.title.type.line.enter"] = { sound = "KIT_TitleTypeLine" },
     ["kit.title.type.leave"] = { sound = "KIT_TitleFeed" },
     ["kit.title.notice.enter"] = { sound = "RadioZap" },
+    ["kit.title.discovery.enter"] = { sound = "UseMatch" },
+    ["kit.title.dust.leave"] = { sound = "UseLighter" },
+    ["kit.title.sink.leave"] = { sound = "LureHitWater" },
 })
 
 return Sound

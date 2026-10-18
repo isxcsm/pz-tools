@@ -4,7 +4,7 @@
 local hooks = PZExtAPI and PZExtAPI.hooks and PZExtAPI.hooks() or {}
 print("SOUND hook " .. tostring(hooks["GameSoundClip.getEffectiveVolume"]) .. " " .. tostring(hooks["GameSoundClip.getEffectiveVolumeInMenu"]))
 local sm, core = getSoundManager(), getCore()
-local file = GameSounds.getSound("KIT_Key"):getRandomClip()
+local file = GameSounds.getSound("KIT_Key_1"):getRandomClip()
 local event = GameSounds.getSound("UIActivateButton"):getRandomClip()
 print("SOUND option " .. core:getOptionSoundVolume() .. ": file " .. file:getEffectiveVolume() .. " event " .. event:getEffectiveVolume())
 sm:setSoundVolume(0.5)
