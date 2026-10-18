@@ -986,10 +986,11 @@ final class Buildings {
 
     /** The building a key names, or null when no building has that key now (it was rebuilt, or removed). */
     Building resolve(String key) throws ReflectiveOperationException {
-        String[] parts = key.split(",", -1);
-        if (parts.length != 3) return null;
+        // x,y,z: three whole numbers between two commas (read in place, not split into strings)
+        int first = key.indexOf(','), second = first < 0 ? -1 : key.indexOf(',', first + 1);
+        if (second < 0 || key.indexOf(',', second + 1) >= 0) return null;
         int x, y, z;
-        try { x = Integer.parseInt(parts[0]); y = Integer.parseInt(parts[1]); z = Integer.parseInt(parts[2]); }
+        try { x = Integer.parseInt(key, 0, first, 10); y = Integer.parseInt(key, first + 1, second, 10); z = Integer.parseInt(key, second + 1, key.length(), 10); }
         catch (NumberFormatException notAKey) { return null; }
         observe();
         Object room = roomAt(x, y, z);

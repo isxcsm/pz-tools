@@ -300,9 +300,9 @@ final class Containers {
         }
         Object list = walk.query.into != null ? walk.query.into : lua.table();
         List<Object> values = walk.found;
-        for (int index = 0; index < values.size(); index++) lua.set(list, (double)(index + 1), values.get(index));
+        for (int index = 0; index < values.size(); index++) lua.setAt(list, index + 1, values.get(index));
         // Taken away: what an earlier call left in a table that is used again.
-        for (int index = values.size() + 1; walk.query.into != null && lua.get(list, (double)index) != null; index++) lua.set(list, (double)index, null);
+        for (int index = values.size() + 1; walk.query.into != null && lua.getAt(list, index) != null; index++) lua.setAt(list, index, null);
         return new Object[] { list, walk.complete, (double)made, (double)walk.total, (double)walk.opened };
     }
 }

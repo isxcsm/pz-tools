@@ -118,13 +118,45 @@ final class TextFits {
     // ---- the cache ----
 
     /** What a call asked: who, the font, the limit, which of the two, the ellipsis, and the text. */
-    record Key(String owner, Object font, int limit, boolean wrap, String ellipsis, String text) { }
+    record Key(String owner, Object font, int limit, boolean wrap, String ellipsis, String text) {
+        static int hash(String owner, Object font, int limit, boolean wrap, String ellipsis, String text) {
+            int hash = owner.hashCode();
+            hash = hash * 31 + font.hashCode();
+            hash = hash * 31 + limit;
+            hash = hash * 31 + (wrap ? 1 : 0);
+            hash = hash * 31 + (ellipsis == null ? 0 : ellipsis.hashCode());
+            return hash * 31 + text.hashCode();
+        }
+
+        @Override public int hashCode() { return hash(owner, font, limit, wrap, ellipsis, text); }
+    }
+
+    /** A question put to the cache without making a {@link Key}: it equals the key of the same fields. */
+    private static final class Probe {
+        String owner, ellipsis, text;
+        Object font;
+        int limit;
+        boolean wrap;
+
+        @Override public int hashCode() { return Key.hash(owner, font, limit, wrap, ellipsis, text); }
+
+        @Override public boolean equals(Object other) {
+            return other instanceof Key key && key.limit() == limit && key.wrap() == wrap && key.owner().equals(owner) && key.font().equals(font)
+                && Objects.equals(key.ellipsis(), ellipsis) && key.text().equals(text);
+        }
+    }
 
     /**
      * A result and what it was measured with: the choices the font gave, which differ once the game makes its fonts again. A hit whose
-     * measure differs is measured again.
+     * measure differs is measured again. The answer is the function's results, the same array for every call that hits (nothing changes it).
      */
-    record Result(Object[] measuredWith, Object value, double widest, boolean cut) {
+    record Result(Object[] measuredWith, Object[] answer) {
+        /** A wrap's result: the lines and the widest of them. */
+        static Result wrapped(Object[] measuredWith, Object lines, double widest) { return new Result(measuredWith, new Object[] { lines, widest }); }
+
+        /** A fit's result: the text and whether it was cut. */
+        static Result cut(Object[] measuredWith, Object text, boolean cut) { return new Result(measuredWith, new Object[] { text, cut }); }
+
         boolean valid(Object[] now) {
             if (now.length != measuredWith.length) return false;
             for (int index = 0; index < now.length; index++) if (!Objects.equals(now[index], measuredWith[index])) return false;
@@ -137,10 +169,13 @@ final class TextFits {
         private final LinkedHashMap<Key, Result> entries = new LinkedHashMap<>(64, 0.75f, true) {
             @Override protected boolean removeEldestEntry(Map.Entry<Key, Result> eldest) { return size() > CACHE; }
         };
+        private final Probe probe = new Probe();
         long hits, misses;
 
-        Result get(Key key, Object[] measuredWith) {
-            Result found = entries.get(key);
+        /** The result kept for the question if it was measured with the same; nothing is allocated for it. */
+        Result get(String owner, Object font, int limit, boolean wrap, String ellipsis, String text, Object[] measuredWith) {
+            probe.owner = owner; probe.font = font; probe.limit = limit; probe.wrap = wrap; probe.ellipsis = ellipsis; probe.text = text;
+            Result found = entries.get(probe);
             if (found != null && found.valid(measuredWith)) { hits++; return found; }
             misses++;
             return null;

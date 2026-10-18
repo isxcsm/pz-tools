@@ -1298,6 +1298,21 @@ final class FormulasTest {
         check(bytes < 4096, "A question with nothing changed allocated " + bytes + " bytes in 200000 calls");
         check(player.getInventoryWeight() == first && sink[0] > 0, "The weight changed with nothing changed");
 
+        // A declaration that weighs nothing (a body point, the same efficiency again) makes a new snapshot and keeps
+        // the sums; one that changes what an item weighs makes them be worked out again, and putting it back gives the weight back.
+        call(formulas, "set", mod, "body.discomfortMultiplier", 1.5);
+        call(formulas, "set", mod, "carry.categoryEfficiency", table("Material", 1.0));
+        check(player.getInventoryWeight() == first, "A declaration that weighs nothing changed the weight: " + player.getInventoryWeight());
+        check(game.inventoryVisits() == visits && game.inventoryRebuilds() == rebuilds, "A declaration that weighs nothing worked the sums out again");
+        call(formulas, "set", mod, "body.discomfortMultiplier", null);
+        check(game.inventoryVisits() == visits && game.inventoryRebuilds() == rebuilds, "Taking back a declaration that weighs nothing worked the sums out again");
+        call(formulas, "set", mod, "carry.categoryEfficiency", table("Material", 3.0));
+        check(!near(player.getInventoryWeight(), first) && game.inventoryRebuilds() > rebuilds, "A declaration that weighs did not work the sums out again: " + player.getInventoryWeight());
+        call(formulas, "set", mod, "carry.categoryEfficiency", table("Material", 1.0));
+        check(near(player.getInventoryWeight(), first), "The efficiency put back did not give the weight back: " + player.getInventoryWeight());
+        visits = game.inventoryVisits();
+        rebuilds = game.inventoryRebuilds();
+
         // Items added and taken out, in the character's list, in a bag, in a bag in a bag.
         var nail = item("Material", 0.5f);
         bag.getInventory().AddItem(nail);

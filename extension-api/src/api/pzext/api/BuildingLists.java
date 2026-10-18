@@ -166,7 +166,7 @@ final class BuildingLists {
                 }
             }
             Object list = lua.table();
-            for (int index = 0; index < facts.names.length; index++) lua.set(list, (double)(index + 1), facts.names[index]);
+            for (int index = 0; index < facts.names.length; index++) lua.setAt(list, index + 1, facts.names[index]);
             lua.set(result, "roomNames", list);
         }
         return result;

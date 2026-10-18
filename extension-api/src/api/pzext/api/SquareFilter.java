@@ -29,13 +29,18 @@ final class SquareFilter {
     private static final Map<Object, SquareFilter> CACHE = new WeakHashMap<>();
     // The queries running (begin and end nest) and the number of the outermost one: what a filter remembered is of that one only.
     private static int depth, epoch;
-    private static final int MEMO = 1 << 13;
+    // What filters remember of squares, one table for all of them (valid for the epoch it was written in, and for the filter that wrote it),
+    // made when first needed and kept: a query allocates nothing for it, however many tables it reads.
+    private static final int MEMO_BITS = 14;
+    private static long[] memoKeys;
+    private static int[] memoEpochs, memoFilters;
+    private static boolean[] memoResults;
+    private static int filters;
 
     private final Check[] checks;
     private final boolean usesAnchor;
-    private long[] memoKeys;
-    private int[] memoEpochs;
-    private boolean[] memoResults;
+    // Tells this filter's memory from another's in the shared table.
+    private final int id = ++filters;
 
     private SquareFilter(Check[] checks, boolean usesAnchor) {
         this.checks = checks;
@@ -84,14 +89,17 @@ final class SquareFilter {
             Object square = (Object)Reach.GRID_SQUARE.invokeExact(cell, x, y, z);
             return square != null && test(square, anchor);
         }
-        if (memoKeys == null) { memoKeys = new long[MEMO]; memoEpochs = new int[MEMO]; memoResults = new boolean[MEMO]; }
+        if (memoKeys == null) {
+            memoKeys = new long[1 << MEMO_BITS]; memoEpochs = new int[1 << MEMO_BITS]; memoFilters = new int[1 << MEMO_BITS]; memoResults = new boolean[1 << MEMO_BITS];
+        }
         long key = (long)(x & 0xFFFFFF) << 30 | (long)(y & 0xFFFFFF) << 6 | z + 32 & 63;
-        int slot = (int)(key * 0x9E3779B97F4A7C15L >>> 51);
-        if (memoEpochs[slot] == epoch && memoKeys[slot] == key) return memoResults[slot];
+        int slot = (int)((key + id * 0x632BE59BD9B4E019L) * 0x9E3779B97F4A7C15L >>> 64 - MEMO_BITS);
+        if (memoEpochs[slot] == epoch && memoKeys[slot] == key && memoFilters[slot] == id) return memoResults[slot];
         Object square = (Object)Reach.GRID_SQUARE.invokeExact(cell, x, y, z);
         boolean met = square != null && test(square, anchor);
         memoKeys[slot] = key;
         memoEpochs[slot] = epoch;
+        memoFilters[slot] = id;
         memoResults[slot] = met;
         return met;
     }
@@ -294,9 +302,17 @@ final class SquareFilter {
         return new Check() {
             private long seen = -1;
             private Object def;
+            // The version the buildings had in the query that ran last (a query changes none): asked once for each query, not for each square.
+            private int queryEpoch = -1;
+            private long queryVersion;
 
             @Override public boolean test(Object square, Object anchor) throws Throwable {
-                long version = buildings.observe();
+                long version;
+                if (depth > 0 && queryEpoch == epoch) version = queryVersion;
+                else {
+                    version = buildings.observe();
+                    if (depth > 0) { queryEpoch = epoch; queryVersion = version; }
+                }
                 if (version != seen) {
                     seen = version;
                     Buildings.Building found = buildings.resolve(key);
@@ -349,6 +365,12 @@ final class SquareFilter {
     static double number(Object value, String call, String name) {
         if (!(value instanceof Double number) || number.isNaN() || number.isInfinite()) throw new IllegalArgumentException(call + ": " + name + " must be a number");
         return number;
+    }
+
+    /** As above, for the value {@code prefix + name + suffix}: that name is made only when the value is wrong. */
+    static double number(Object value, String call, String prefix, String name, String suffix) {
+        if (value instanceof Double number && !number.isNaN() && !number.isInfinite()) return number;
+        return number(value, call, prefix + name + suffix);
     }
 
     // ---- the conditions that look at other squares ----

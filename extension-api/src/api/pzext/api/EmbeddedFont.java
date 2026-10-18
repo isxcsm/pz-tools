@@ -8,7 +8,10 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.FileTime;
 import java.security.MessageDigest;
+import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.Locale;
 import java.util.Map;
@@ -150,8 +153,25 @@ final class EmbeddedFont {
         };
     }
 
-    /** The cache's name for a pack: its file's digest, the baker's version, the size and the spread. */
-    static String name(String pack, Path ttf) throws IOException {
+    /** The names made, each for the file it was made from (path, size and time of its last change): an unchanged file is never read again. */
+    private record NameMemo(String pack, long size, FileTime modified, String name) { }
+    private static final Map<Path, NameMemo> named = new HashMap<>();
+
+    /**
+     * The cache's name for a pack: its file's digest, the baker's version, the size and the spread. The digest is of the whole file, so
+     * it is memoised per file (path, size and time of its last change); a file that changes, even in place, is read again.
+     */
+    static synchronized String name(String pack, Path ttf) throws IOException {
+        var attributes = Files.readAttributes(ttf, BasicFileAttributes.class);
+        NameMemo memo = named.get(ttf);
+        if (memo != null && memo.pack.equals(pack) && memo.size == attributes.size() && memo.modified.equals(attributes.lastModifiedTime()))
+            return memo.name;
+        String name = digestName(pack, ttf);
+        named.put(ttf, new NameMemo(pack, attributes.size(), attributes.lastModifiedTime(), name));
+        return name;
+    }
+
+    private static String digestName(String pack, Path ttf) throws IOException {
         try {
             var digest = MessageDigest.getInstance("SHA-256");
             try (var input = Files.newInputStream(ttf)) {

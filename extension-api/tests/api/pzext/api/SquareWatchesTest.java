@@ -35,6 +35,7 @@ final class SquareWatchesTest {
             Object mod = FormulasTest.call(api, "client", "squares.mod").get(0), second = FormulasTest.call(api, "client", "squares.second").get(0);
             telling(area, mod);
             sharing(area, mod, second);
+            burst(area, mod, second);
             offThread(area, mod);
             backlog(area, mod);
             faults(area, mod);
@@ -117,6 +118,50 @@ final class SquareWatchesTest {
         check(log.size() == 3 && log.get(2).get(0).equals("b"), "A cancelled watch was told, or the other was not: " + log);
         FormulasTest.call(second, "clear");
         check(GameApi.squares().count() == 0, "The watches were not all stopped");
+    }
+
+    /**
+     * Many watches added and taken away between two frames: the index follows each add at once (a square watched this instant is told when it
+     * changes this instant), the watches taken away are not told, and the squares are told in the order they changed.
+     */
+    private static void burst(KahluaTable area, Object mod, Object second) {
+        log.clear();
+        var ids = new ArrayList<Double>();
+        for (int index = 0; index < 40; index++) {
+            // Each watch has its own square (x = 200 + index) and shares (300, 1) with the others; every second one is the second mod's.
+            ids.add(watch(area, index % 2 == 0 ? mod : second, list(200 + index, 1, 0, 300, 1, 0), record("b" + index)));
+            change(200 + index, 1, 0);
+        }
+        for (int index = 0; index < 40; index += 3) check(FormulasTest.call(area, "unwatch", index % 2 == 0 ? mod : second, ids.get(index)).get(0) == Boolean.TRUE, "unwatch " + index);
+        change(300, 1, 0);
+        for (int index = 39; index >= 0; index -= 13) change(200 + index, 1, 0);
+        frame();
+        frame();
+        // the 40 changes in order (a watch taken away is not told), then the shared square told to each of the watches that is left, then the two that changed again
+        var expected = new ArrayList<List<Object>>();
+        for (int index = 0; index < 40; index++) if (index % 3 != 0) expected.add(List.of("b" + index, ids.get(index), 200.0 + index, 1.0, 0.0));
+        for (int index = 0; index < 40; index++) if (index % 3 != 0) expected.add(List.of("b" + index, ids.get(index), 300.0, 1.0, 0.0));
+        // the squares that changed again after they were told (every add took what was marked) are told again, in the order of that change
+        expected.add(List.of("b26", ids.get(26), 226.0, 1.0, 0.0));
+        expected.add(List.of("b13", ids.get(13), 213.0, 1.0, 0.0));
+        check(log.equals(expected), "The burst was not told as it changed: " + log);
+        log.clear();
+        // after the frame the index is made again from the watches that are left, and holds them all
+        change(300, 1, 0);
+        change(203, 1, 0);
+        change(202, 1, 0);
+        frame();
+        frame();
+        int left = 0;
+        for (int index = 0; index < 40; index++) if (index % 3 != 0) left++;
+        check(log.size() == left + 1 && log.get(left).equals(List.of("b2", ids.get(2), 202.0, 1.0, 0.0)), "The index made again lost watches, or kept one taken away: " + log.size());
+        FormulasTest.call(mod, "clear");
+        FormulasTest.call(second, "clear");
+        check(GameApi.squares().count() == 0, "The burst's watches were not all stopped");
+        log.clear();
+        change(300, 1, 0);
+        frame();
+        check(log.isEmpty(), "A watch was told after it was cleared");
     }
 
     /** A chunk loads off the game's thread: its watched square is told at the next frame on the game's thread. */

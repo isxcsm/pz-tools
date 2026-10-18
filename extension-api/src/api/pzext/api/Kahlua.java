@@ -32,7 +32,7 @@ final class Kahlua {
      */
     private static final class Calls {
         static final Class<?> OWNER = seed;
-        static final MethodHandle RAWGET_AT, LENGTH, RAWSET, RAWGET, NEW_TABLE, PLATFORM, ARGUMENT, PUSH, PUSH_NIL, MAKE_FUNCTION;
+        static final MethodHandle RAWGET_AT, RAWSET_AT, LENGTH, RAWSET, RAWGET, NEW_TABLE, PLATFORM, ARGUMENT, PUSH, PUSH_NIL, MAKE_FUNCTION;
 
         static {
             try {
@@ -44,6 +44,8 @@ final class Kahlua {
                 var lookup = MethodHandles.publicLookup();
                 RAWGET_AT = lookup.unreflect(table.getMethod("rawget", int.class))
                     .asType(MethodType.methodType(Object.class, Object.class, int.class));
+                RAWSET_AT = lookup.unreflect(table.getMethod("rawset", int.class, Object.class))
+                    .asType(MethodType.methodType(void.class, Object.class, int.class, Object.class));
                 LENGTH = lookup.unreflect(table.getMethod("len")).asType(MethodType.methodType(int.class, Object.class));
                 RAWSET = lookup.unreflect(table.getMethod("rawset", Object.class, Object.class))
                     .asType(MethodType.methodType(void.class, Object.class, Object.class, Object.class));
@@ -128,6 +130,18 @@ final class Kahlua {
     /** The value at {@code index} (1 up) of a table's array part, or null: without boxing the index. */
     Object at(Object table, int index) throws Throwable { return (Object)Calls.RAWGET_AT.invokeExact(table, index); }
 
+    /** Sets the value at {@code index} of a table, without boxing the index (null takes the entry away). */
+    void setAt(Object table, int index, Object value) throws ReflectiveOperationException {
+        try { Calls.RAWSET_AT.invokeExact(table, index, value); }
+        catch (Throwable failure) { throw Game.thrown(failure); }
+    }
+
+    /** As {@link #at}, for a caller that handles only reflective failures. */
+    Object getAt(Object table, int index) throws ReflectiveOperationException {
+        try { return (Object)Calls.RAWGET_AT.invokeExact(table, index); }
+        catch (Throwable failure) { throw Game.thrown(failure); }
+    }
+
     /** The length of a table's array part ({@code #table}). */
     int length(Object table) throws Throwable { return (int)Calls.LENGTH.invokeExact(table); }
 
@@ -166,7 +180,7 @@ final class Kahlua {
     /** A Lua array (keys 1..n). */
     Object list(java.util.List<?> values) throws ReflectiveOperationException {
         Object result = table();
-        for (int index = 0; index < values.size(); index++) set(result, (double)(index + 1), values.get(index));
+        for (int index = 0; index < values.size(); index++) setAt(result, index + 1, values.get(index));
         return result;
     }
 

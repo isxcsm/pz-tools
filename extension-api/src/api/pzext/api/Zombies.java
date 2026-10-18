@@ -110,7 +110,7 @@ final class Zombies {
                 lua.set(entry, "z", (double)floor((float)ZombieReads.Handles.Z.invokeExact(nearest[index])));
                 lua.set(entry, "distance", Math.sqrt(squared[index]));
                 if (query != null) describe(query, entry, nearest[index]);
-                lua.set(result, (double)(index + 1), entry);
+                lua.setAt(result, index + 1, entry);
             }
             if (into != null) trim(into, kept);
         } catch (Exception | Error failure) {
@@ -156,7 +156,7 @@ final class Zombies {
 
     /** A table the call fills again: the entries past the ones just written are taken away. */
     private void trim(Object into, int kept) throws ReflectiveOperationException {
-        for (int index = kept + 1; lua.get(into, (double)index) != null; index++) lua.set(into, (double)index, null);
+        for (int index = kept + 1; lua.getAt(into, index) != null; index++) lua.setAt(into, index, null);
     }
 
     /**

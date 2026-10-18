@@ -20,9 +20,11 @@ final class SquareMap {
     // The box around the squares, so that most questions end without a probe.
     private final int minX, minY, minZ, maxX, maxY, maxZ;
 
+    private static int capacityFor(int size) { return Integer.highestOneBit(Math.max(1, size) * 2 - 1) << 1; }
+
     SquareMap(Map<Position, Long> entries) {
         size = entries.size();
-        int capacity = Integer.highestOneBit(Math.max(1, size) * 2 - 1) << 1;
+        int capacity = capacityFor(size);
         keys = new long[capacity];
         levels = new int[capacity];
         values = new long[capacity];
@@ -43,6 +45,45 @@ final class SquareMap {
             highX = Math.max(highX, at.x()); highY = Math.max(highY, at.y()); highZ = Math.max(highZ, at.z());
         }
         minX = lowX; minY = lowY; minZ = lowZ; maxX = highX; maxY = highY; maxZ = highZ;
+    }
+
+    /**
+     * This map and more squares: a copy of the map's tables with the squares put in (made again, wider, only when they no longer fit), not
+     * a map made from every square again. A square the map has already is not among {@code more}.
+     */
+    SquareMap(SquareMap base, Map<Position, Long> more) {
+        size = base.size + more.size();
+        int capacity = capacityFor(size);
+        if (capacity == base.keys.length) {
+            keys = base.keys.clone();
+            levels = base.levels.clone();
+            values = base.values.clone();
+            used = base.used.clone();
+        } else {
+            keys = new long[capacity];
+            levels = new int[capacity];
+            values = new long[capacity];
+            used = new boolean[capacity];
+            for (int slot = 0; slot < base.used.length; slot++) if (base.used[slot]) put(keys, levels, values, used, capacity - 1, base.keys[slot], base.levels[slot], base.values[slot]);
+        }
+        mask = capacity - 1;
+        int lowX = base.minX, lowY = base.minY, lowZ = base.minZ, highX = base.maxX, highY = base.maxY, highZ = base.maxZ;
+        for (var entry : more.entrySet()) {
+            Position at = entry.getKey();
+            put(keys, levels, values, used, mask, key(at.x(), at.y()), at.z(), entry.getValue());
+            lowX = Math.min(lowX, at.x()); lowY = Math.min(lowY, at.y()); lowZ = Math.min(lowZ, at.z());
+            highX = Math.max(highX, at.x()); highY = Math.max(highY, at.y()); highZ = Math.max(highZ, at.z());
+        }
+        minX = lowX; minY = lowY; minZ = lowZ; maxX = highX; maxY = highY; maxZ = highZ;
+    }
+
+    private static void put(long[] keys, int[] levels, long[] values, boolean[] used, int mask, long key, int z, long value) {
+        int slot = slot(key, z, mask);
+        while (used[slot]) slot = slot + 1 & mask;
+        used[slot] = true;
+        keys[slot] = key;
+        levels[slot] = z;
+        values[slot] = value;
     }
 
     boolean isEmpty() { return size == 0; }
@@ -77,7 +118,9 @@ final class SquareMap {
 
     private static long key(int x, int y) { return (long)x << 32 | y & 0xFFFFFFFFL; }
 
-    private int slot(long key, int z) {
+    private int slot(long key, int z) { return slot(key, z, mask); }
+
+    private static int slot(long key, int z, int mask) {
         long mixed = (key ^ z * 0x9E3779B97F4A7C15L) * 0xBF58476D1CE4E5B9L;
         return (int)(mixed ^ mixed >>> 31) & mask;
     }

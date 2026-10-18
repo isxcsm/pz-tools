@@ -101,6 +101,8 @@ final class WallWatches implements Hooks.SquareChanges {
     }
 
     private final ArrayList<Watch> watches = new ArrayList<>();
+    // The watches as an array the frame goes through (a watch may be added or taken away by the function it tells): made again after a change.
+    private Watch[] listed;
     // The watches whose squares are read, as the hook goes through them.
     private volatile Watch[] ready = new Watch[0];
     private long next = 1, generation, told;
@@ -185,6 +187,7 @@ final class WallWatches implements Hooks.SquareChanges {
             lua.set(record, "function", function);
             lua.set(record, "cell", watch.cell);
             watches.add(watch);
+            listed = null;
             lua.set(kept(), (double)watch.id, record);
             lua.set(meta, NEXT, (double)next);
             start(watch, building);
@@ -238,6 +241,7 @@ final class WallWatches implements Hooks.SquareChanges {
     private void remove(Watch watch) throws ReflectiveOperationException {
         watch.cancelled = true;
         if (watches.remove(watch)) lua.set(kept(), (double)watch.id, null);
+        listed = null;
         publish();
     }
 
@@ -262,6 +266,7 @@ final class WallWatches implements Hooks.SquareChanges {
             next = Math.max(next, id.longValue() + 1);
         }
         watches.sort((first, second) -> Long.compare(first.id, second.id));
+        listed = null;
     }
 
     // ---- reading a building ----
@@ -448,7 +453,9 @@ final class WallWatches implements Hooks.SquareChanges {
                     for (Watch watch : new ArrayList<>(watches)) if (watch.cell != cell) remove(watch);
                 }
             }
-            for (Watch watch : new ArrayList<>(watches)) {
+            Watch[] going = listed;
+            if (going == null) listed = going = watches.toArray(new Watch[0]);
+            for (Watch watch : going) {
                 if (watch.cancelled) continue;
                 if (watch.shape == null) {
                     if (watch.waited++ % WAIT_FRAMES == 0) start(watch, buildings.resolve(watch.key));

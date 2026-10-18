@@ -450,15 +450,15 @@ final class ZoneClusters {
             lua.set(entry, "area", (double)cluster.area());
             lua.set(entry, "zones", (double)cluster.zones());
             int[] own = cluster.rects();
-            for (int value = 0; value < own.length; value++) lua.set(rects, (double)(value + 1), (double)own[value]);
+            for (int value = 0; value < own.length; value++) lua.setAt(rects, value + 1, (double)own[value]);
             lua.set(entry, "rects", rects);
             if (withBuildings) {
                 Object keys = lua.table();
                 String[] found = answer.keys[at];
-                for (int key = 0; key < found.length; key++) lua.set(keys, (double)(key + 1), found[key]);
+                for (int key = 0; key < found.length; key++) lua.setAt(keys, key + 1, found[key]);
                 lua.set(entry, "buildings", keys);
             }
-            lua.set(result, (double)(at + 1), entry);
+            lua.setAt(result, at + 1, entry);
         }
         return result;
     }

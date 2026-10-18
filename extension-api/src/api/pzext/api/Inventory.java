@@ -31,7 +31,7 @@ import pzext.boot.Tracked;
  * list's version and the items' own hotbar slot, and settled by working out again only the items it concerns.
  *
  * <p>A question about a list nothing has changed is a few field reads. A list the account cannot follow (an operation on it
- * that does not say which items it touched, a change of the declarations) is worked out again, once, at the next question.
+ * that does not say which items it touched, a change of the declarations that weigh) is worked out again, once, at the next question.
  */
 final class Inventory {
     private final Class<?> itemType, bagType, characterType, deadBodyType, fluidType, containerType;
@@ -277,7 +277,8 @@ final class Inventory {
     static final class Kept {
         final Inventory owner;
         final Tracked list;
-        // What the entries were worked out under: the declarations, and the number the equipped weight is multiplied by.
+        // What the entries were worked out under: the declarations that weigh ({@link Formulas.Active#weights}), and the number the
+        // equipped weight is multiplied by.
         Object built;
         int epoch;
         double multiplier;
@@ -471,7 +472,7 @@ final class Inventory {
         return (Object)itemsGet.invokeExact(container) instanceof Tracked list && list.kept instanceof Kept kept && kept.owner == this ? kept : null;
     }
 
-    private boolean live(Kept kept, Formulas.Active now) { return !kept.stale && kept.built == now && kept.epoch == epoch; }
+    private boolean live(Kept kept, Formulas.Active now) { return !kept.stale && kept.built == now.weights && kept.epoch == epoch; }
 
     /** The list of worn items as a tracked one (a game that started before the hooks has a plain one). */
     private Tracked wornTracked(Object worn) throws Throwable {
@@ -514,7 +515,7 @@ final class Inventory {
         if (container == null) return null;
         Kept kept = keptOf(container);
         if (kept == null) return null;
-        if (kept.character != null || kept.stale || kept.built != now || kept.epoch != epoch) {
+        if (kept.character != null || kept.stale || kept.built != now.weights || kept.epoch != epoch) {
             kept.character = null;
             rebuild(now, kept);
         }
@@ -588,7 +589,7 @@ final class Inventory {
             }
             // The sum of a pass in order is the one a fresh pass gives.
             kept.inexact = false;
-            kept.built = now;
+            kept.built = now.weights;
             kept.epoch = seen;
             kept.stale = false;
             rebuilds++;
@@ -631,7 +632,7 @@ final class Inventory {
             return;
         }
         Kept up = kept.up;
-        if (up == null || up.stale || up.built != now || up.epoch != epoch) return;
+        if (up == null || up.stale || up.built != now.weights || up.epoch != epoch) return;
         if (up.find(kept.bag) < 0 || depth > 64) { invalidate(up); return; }
         refresh(now, up, kept.bag, depth + 1);
     }
@@ -932,7 +933,7 @@ final class Inventory {
         Object container = (Object)inventoryOf.invokeExact(character);
         if (container == null) return Float.NaN;
         if ((Object)itemsGet.invokeExact(container) instanceof Tracked list && list.kept instanceof Kept kept && kept.owner == this
-                && pendingCount == 0 && !kept.stale && kept.built == now && kept.epoch == epoch && kept.character == character
+                && pendingCount == 0 && !kept.stale && kept.built == now.weights && kept.epoch == epoch && kept.character == character
                 && kept.multiplier == (double)equippedMultiplier.invokeExact() && sameEquip(kept, character))
             return (float)kept.sum;
         lock.lock();
@@ -944,7 +945,7 @@ final class Inventory {
                 kept.character = character;
                 kept.stale = true;
             }
-            if (kept.stale || kept.built != now || kept.epoch != epoch || kept.multiplier != (double)equippedMultiplier.invokeExact()) rebuild(now, kept);
+            if (kept.stale || kept.built != now.weights || kept.epoch != epoch || kept.multiplier != (double)equippedMultiplier.invokeExact()) rebuild(now, kept);
             else if (!sameEquip(kept, character)) refreshEquip(now, kept, character);
             return (float)kept.sum;
         } finally { lock.unlock(); }

@@ -125,6 +125,7 @@ final class MoodlesTest {
             pictures(moodles, mod, player, column);
             defineAgain(api, moodles, mod, player, sense);
             rejects(api, moodles, mod);
+            names();
             cost(player, sense, column);
 
             // A world left: the levels go; the definitions stay.
@@ -191,6 +192,15 @@ final class MoodlesTest {
             MoodlesUI.option = 0;
             GameLoadingState.loader = null;
         }
+    }
+
+    /** A name a mod gives: 1 to 64 of letters, digits, underscore, dot and hyphen, as the pattern it was checked with said. */
+    private static void names() {
+        var pattern = java.util.regex.Pattern.compile("[A-Za-z0-9_.-]{1,64}");
+        String[] samples = { "", "a", "Sense", "my-mod_1.2", "a".repeat(64), "a".repeat(65), "a b", "a/b", "a:b", "" + (char)0xE9, "" + (char)0x660, "tab" + (char)9, "x" + (char)10,
+            "-", ".", "_", "Z9" };
+        for (String sample : samples) check(Arguments.isName(sample) == pattern.matcher(sample).matches(), "isName(" + sample + ") is " + Arguments.isName(sample));
+        check(!Arguments.isName(null) && !Arguments.isName(1.0), "A value that is not a string is a name");
     }
 
     /** One picture a level, a path without the size scaled, a picture the game has not read yet, and one that is not there. */

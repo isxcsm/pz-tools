@@ -179,6 +179,9 @@ final class TextFitsTest {
         long time = System.nanoTime() - start;
         bytes = allocated() - bytes;
         System.out.printf("text.wrap: a call that was made before costs %.0f ns, %d bytes (the test's own frame included)%n", time / (double)rounds, bytes / rounds);
+        // The key, the buffers of what it was measured with, the measure and the results of a call the cache has are not made again: what is left is the
+        // arguments of the call and the harness (a call allocated 272 bytes when they were).
+        check(bytes / rounds < 200, "A wrap the cache has allocated " + bytes / rounds + " bytes a call");
         // The same text measured every time it is asked: what the cache saves.
         var cache = GameApi.texts().fits;
         long m = cache.misses;
