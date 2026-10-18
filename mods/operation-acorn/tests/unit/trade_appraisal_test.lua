@@ -52,3 +52,30 @@ test("another taken item says about what it is worth", function()
     local line = Appraisal.lineFor({}, {})
     eq(line.text, getText("IGUI_OA_Trade_Tip_Worth", "660"))
 end)
+
+test("the tooltip line is worked out again after half a second, and at once when the settlement number changes", function()
+    local Appraisal = load(nil, 100)
+    local calls = 0
+    OA.Value.appraise = function() calls = calls + 1 return { credits = 100 + calls } end
+    local now = 5000
+    getTimestampMs = function() return now end
+    local item, record = {}, { trade = { serial = 7 } }
+    local first = Appraisal.lineFor(item, record)
+    eq(Appraisal.lineFor(item, record), first, "kept within the time")
+    now = now + 499
+    eq(Appraisal.lineFor(item, record), first, "kept just inside")
+    eq(calls, 1)
+    now = now + 1
+    local second = Appraisal.lineFor(item, record)
+    truthy(second ~= first, "made again at 500 ms")
+    eq(calls, 2)
+    record.trade.serial = 8
+    Appraisal.lineFor(item, record)
+    eq(calls, 3, "a settlement changes the serial: made again at once")
+    OA.Trust.tier = function() return 2 end
+    Appraisal.lineFor(item, record)
+    eq(calls, 4, "a new tier: made again at once")
+    now = now - 10000
+    Appraisal.lineFor(item, record)
+    eq(calls, 5, "a clock gone back is not a hit")
+end)

@@ -1,7 +1,7 @@
 -- Appraisal: a line on an item's tooltip with what the team would give for it (or why not), and an estimate panel
 -- beside the loot window while a delivery box is open. Nothing here changes anything; values come from the economy
--- part and are worked out once for an item a day (a tooltip never recomputes). The loot window's refresh also sets
--- the box's accept rule again on this side.
+-- part and are kept for an item half a second (a tooltip is drawn every frame it is up). The loot window's refresh
+-- also sets the box's accept rule again on this side.
 require "ISUI/ISToolTipInv"
 require "ISUI/ISPanel"
 require "OperationAcorn/Client"
@@ -15,39 +15,44 @@ Trade.Appraisal = Appraisal
 
 -- Tooltip --------------------------------------------------------------------------------------------------------------
 
--- Per item, for one day and one tier: { text, r, g, b, tier, width }. Cleared when the day changes.
-local cache, cacheDay = {}, nil
+-- Per item, kept Appraisal.KEEP_MS of real time like the other tooltip lines (TipLines): { at (ms), tier, serial, line }.
+-- The worth moves with the market (a settlement, a new region), the item's own state (food going stale, condition, a
+-- bag filled) and a mission's state, so it is worked out again soon, and at once when the tier or the settlement
+-- number changed. Weak by item: a hovered item is not held.
+Appraisal.KEEP_MS = 500
+local cache = setmetatable({}, { __mode = "k" })
 
 -- The line for an item: { text, r, g, b } or nil when the economy part is not there.
 function Appraisal.lineFor(item, record)
     local Value = OA.Value
     if not (Value and Value.info and Value.context) then return nil end
-    local day = OA.day()
-    if day ~= cacheDay then
-        cache, cacheDay = {}, day
-    end
+    local now = getTimestampMs()
+    local trade = record.trade
+    local serial = trade and trade.serial or 0
     local tier = OA.Trust and OA.Trust.tier(record) or 0
     local hit = cache[item]
-    if hit and hit.tier == tier then return hit end
+    if hit and hit.tier == tier and hit.serial == serial and now >= hit.at and now - hit.at < Appraisal.KEEP_MS then
+        return hit.line
+    end
     local info = Value.info(item)
     local ok, why = Value.accepts(info)
     local line
     if info.own == "MissionItem" then
         -- (a running mission's item is worth nothing alone: the mission pays for it)
-        line = { text = getText("IGUI_OA_Trade_Tip_Mission"), r = 0.6, g = 0.9, b = 0.6, tier = tier }
+        line = { text = getText("IGUI_OA_Trade_Tip_Mission"), r = 0.6, g = 0.9, b = 0.6 }
     elseif ok then
         local worth = Value.appraise(info, Value.context(record))
         local text = getText("IGUI_OA_Trade_Tip_Worth", Text.credits(OA.round(worth.credits)))
         local words = Text.markText(worth.marks)
         if words then text = text .. "  (" .. words .. ")" end
-        line = { text = text, r = 0.6, g = 0.9, b = 0.6, tier = tier }
+        line = { text = text, r = 0.6, g = 0.9, b = 0.6 }
     elseif info.own or info.bought or info.cash then
-        line = { text = Text.tr(why or "IGUI_OA_Trade_Tip_NotTaken"), r = 0.75, g = 0.7, b = 0.55, tier = tier }
+        line = { text = Text.tr(why or "IGUI_OA_Trade_Tip_NotTaken"), r = 0.75, g = 0.7, b = 0.55 }
     else
-        line = { text = Text.tr(why or "IGUI_OA_Trade_Tip_NotTaken"), r = 0.9, g = 0.55, b = 0.5, tier = tier }
+        line = { text = Text.tr(why or "IGUI_OA_Trade_Tip_NotTaken"), r = 0.9, g = 0.55, b = 0.5 }
     end
     line.width = UI.textWidthPx(line.text, UIFont.Small)
-    cache[item] = line
+    cache[item] = { at = now, tier = tier, serial = serial, line = line }
     return line
 end
 
