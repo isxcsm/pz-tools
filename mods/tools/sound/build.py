@@ -2,10 +2,12 @@
 
 sounds.json names each sound the game is to know (OA_..., BU_..., KIT_...): the mod it goes into, its category and master
 volume, whether it loops, and its clips (one is picked at random each time it plays). A clip is a source file (under
-sources/: a library's, or synth/'s output) with what to take of it. For each clip this
+sources/: a library's recording, or one of our own) with what to take of it. For each clip this
 
     decodes it (ffmpeg: any format), takes its stretch (start, end in seconds), makes it mono at 44.1 kHz,
-    cuts the silence before and after it (below -50 dBFS), fades its ends (5 ms, so it does not click),
+    cuts the quiet before and after it (from 2 ms before it first comes within 30 dB of its peak, to its last moment
+    within 50 dB), keeps its first `length` seconds (the clip's, else the
+    sound's: a key's press without its release), fades its ends (5 ms, so it does not click),
     brings its peak to the sound's `peak` (dBFS; -3 by default) and adds the clip's `gain` (dB),
     and writes it as Ogg Vorbis (quality 5) into <mod>/42/media/sound/<name>_<n>.ogg;
 
@@ -33,7 +35,12 @@ import soundfile as sf
 HERE = os.path.dirname(os.path.abspath(__file__))
 MODS = os.path.dirname(os.path.dirname(HERE))
 RATE = 44100
-SILENCE_DB = -50.0
+# A clip starts where it first comes within ONSET_DB of its own peak (less PRE_S, its attack's lead-in) and ends where it
+# last comes within TAIL_DB of it: below the peak, not full scale, so a quiet recording's room noise is not taken for
+# the sound.
+ONSET_DB = -30.0
+TAIL_DB = -50.0
+PRE_S = 0.002
 FADE_S = 0.005
 
 # Where each mod's game folder is, and the prefix of its sound script and its sounds.
@@ -135,20 +142,25 @@ def decode(path):
 
 
 def trim(data):
-    """Without the silence before and after it (below SILENCE_DB of full scale)."""
-    loud = np.nonzero(np.abs(data) > 10 ** (SILENCE_DB / 20))[0]
-    if len(loud) == 0:
+    """Without the quiet before and after it (ONSET_DB, TAIL_DB under its peak)."""
+    level = np.abs(data)
+    peak = float(level.max()) if len(level) else 0.0
+    if peak <= 0:
         return data[:0]
-    return data[loud[0]:loud[-1] + 1]
+    onset = np.nonzero(level > peak * 10 ** (ONSET_DB / 20))[0][0]
+    tail = np.nonzero(level > peak * 10 ** (TAIL_DB / 20))[0][-1]
+    return data[max(0, onset - int(PRE_S * RATE)):tail + 1]
 
 
-def shape(data, clip, peak_db):
+def shape(data, clip, peak_db, length=None):
     start, end = clip.get('start'), clip.get('end')
     if start is not None or end is not None:
         a = int(round((start or 0) * RATE))
         b = int(round(end * RATE)) if end is not None else len(data)
         data = data[a:b]
     data = trim(data)
+    if length:
+        data = data[:int(round(length * RATE))]
     if len(data) == 0:
         raise ValueError('the clip is silent')
     fade = min(int(FADE_S * RATE), len(data) // 4)
@@ -216,7 +228,8 @@ def build(table, only):
                 continue
             peak = sound.get('peak', table.get('peak', -3.0))
             for n, clip in enumerate(sound['clips'], 1):
-                data = shape(decode(os.path.join(HERE, 'sources', clip['src'])), clip, peak)
+                data = shape(decode(os.path.join(HERE, 'sources', clip['src'])), clip, peak,
+                             clip.get('length', sound.get('length')))
                 encode(data, os.path.join(out, '%s_%d.ogg' % (name, n)))
             # an earlier build's clips past this one's
             n = len(sound['clips']) + 1

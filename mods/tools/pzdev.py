@@ -37,10 +37,11 @@ Usage, from a mod's folder (python ../tools/pzdev.py <command>):
                                                 Zomboid/Logs, 1 the one before...; 0 by default)
     pzdev.py log compare <a> <b>                two game logs on one time line: where b spent time a did not, or
                                                 the other way (a, b: n or a file; --min seconds, 0.5)
-    pzdev.py handoff                            the end of a session: the game as the user plays it. pzdev's game
-                                                (-debug, windowed) closed, the user's options and latest
-                                                save back, the game started from Steam (their launch options) and
-                                                left on its main menu; a game the user started is left alone
+    pzdev.py close                              the end of a session: pzdev's game (-debug, windowed) closed and the
+                                                user's options and latest save back; nothing started (the user starts
+                                                the game when they want it); a game the user started is left alone
+    pzdev.py handoff                            close, then the game as the user plays it: started from Steam (their
+                                                launch options) and left on its main menu; only when asked for
     pzdev.py api                                returns once the running game runs the PZ Extension API built
                                                 (extension-api/out/release): a game pzdev started takes its API
                                                 from there and each build in a second, no restart (a change to the
@@ -770,9 +771,10 @@ STEAM_RUN = "steam://rungameid/108600"
 
 # The game handed back to the user: pzdev's own game closed (its guard and release() put the options and the
 # latest save back as its process ends), then the game started as the user starts it and left on the main menu.
-def handoff():
+# pzdev's game closed and the user's options and latest save back (0), or why not (1); a game the user started is left.
+def close():
     if game_window() and "-debug" not in game_command_line():
-        print("the game runs as the user starts it already")
+        print("the game runs as the user starts it: left alone")
         return 0
     if game_process():
         quit_game()
@@ -780,7 +782,18 @@ def handoff():
             return 1
     release()
     if os.path.exists(OPTIONS_KEPT) or os.path.exists(LATEST_KEPT):
-        print("the user's options or latest save were not put back: not started")
+        print("the user's options or latest save were not put back")
+        return 1
+    print("closed; the user's options and latest save are back")
+    return 0
+
+
+def handoff():
+    if game_window() and "-debug" not in game_command_line():
+        print("the game runs as the user starts it already")
+        return 0
+    if close() != 0:
+        print("not started")
         return 1
     start = console_size()
     os.startfile(STEAM_RUN)
@@ -1038,6 +1051,8 @@ def main():
         return continue_save()
     if len(sys.argv) == 2 and sys.argv[1] == "handoff":
         return handoff()
+    if len(sys.argv) == 2 and sys.argv[1] == "close":
+        return close()
     if len(sys.argv) == 2 and sys.argv[1] == "api":
         return api_loaded()
     if len(sys.argv) >= 2 and sys.argv[1] == "profile":

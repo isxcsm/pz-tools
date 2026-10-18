@@ -69,8 +69,8 @@ Sound.typed(cue, from, to)       -- 글자 from+1..to가 나왔다: gap 안에�
 
 ### S5. 에셋 파이프라인 (`pz-tools/mods/tools/sound/`)
 - `sources/`: 원본 (CC0 라이브러리, 직접 만든 것). `sources/LICENSES.csv`: 파일, 출처, 라이선스, 작성자.
-- `synth/`: 직접 만드는 소리의 생성 스크립트 (numpy: 키 클릭). 합성은 시안용이다: 음 높이가 있는 저음은 통 두드리는 소리가 되고, 바늘 연타 인쇄음은 옛 2D 게임 효과음처럼 들렸다 (둘 다 사용자 청취로 기각, 인쇄음은 지웠다). 기계 소리는 녹음(CC0)으로 한다.
-- `build.py`: 앞뒤 무음 자르기, 모노 44.1 kHz, 분류별 목표 음량(LUFS)으로 맞춤, ogg로 각 모드 `media/sound/`에. 소리 스크립트 `.txt`도 표에서 생성 (변주 클립, 볼륨, 마스터).
+- 합성(numpy)은 기각했다: 음 높이가 있는 저음은 통 두드리는 소리가 되고, 바늘 연타 인쇄음은 옛 2D 게임 효과음처럼 들렸다 (사용자 청취). 기계 소리는 녹음으로 한다. 키·지우기: OpenGameArt Keyboard Soundpack #1 (unicaegames, CC0, Cherry KC 1000)의 단일 키 32개를 `sources/keyboard/`에 두고 10개·4개를 골랐다. 녹음은 누름과 뗌이 함께 있어 `length` 0.07초로 누름만 쓴다 (초당 14자면 다음 글자가 71 ms 뒤). 지우기는 낮은 키에 pitch 0.94.
+- `build.py`: 앞뒤 자르기 (클립 피크 기준: 피크 -30 dB 2 ms 앞부터 -50 dB까지. 전체 눈금 기준으로 자르면 조용한 녹음의 방 소음부터 잡혔다), `length`, 모노 44.1 kHz, 피크 맞춤, ogg로 각 모드 `media/sound/`에. 소리 스크립트 `.txt`도 표에서 생성 (변주 클립, 볼륨, 마스터).
 - `report.py`: 소리마다 파형·스펙트로그램·음량·길이 그림 (나는 들을 수 없으므로 이것으로 검수한다. 듣는 검수는 사용자).
 - `preview.py`: 한 소리를 게임처럼 이어 친 WAV (`report/preview_<이름>.wav`: 초당 글자 수, gap, 줄 사이 쉼). 게임 밖에서 듣는 검수용.
 - 도구: ffmpeg, SoX, Audacity(사용자 청취·편집), Python scipy·soundfile·pyloudnorm·librosa·matplotlib. 설치됨.

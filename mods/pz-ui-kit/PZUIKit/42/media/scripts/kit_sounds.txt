@@ -7,18 +7,22 @@ module Base
         clip
         {
             file = media/sound/KIT_Erase_1.ogg,
+            pitch = 0.94,
         }
         clip
         {
             file = media/sound/KIT_Erase_2.ogg,
+            pitch = 0.94,
         }
         clip
         {
             file = media/sound/KIT_Erase_3.ogg,
+            pitch = 0.94,
         }
         clip
         {
             file = media/sound/KIT_Erase_4.ogg,
+            pitch = 0.94,
         }
     }
 
@@ -48,6 +52,22 @@ module Base
         clip
         {
             file = media/sound/KIT_Key_6.ogg,
+        }
+        clip
+        {
+            file = media/sound/KIT_Key_7.ogg,
+        }
+        clip
+        {
+            file = media/sound/KIT_Key_8.ogg,
+        }
+        clip
+        {
+            file = media/sound/KIT_Key_9.ogg,
+        }
+        clip
+        {
+            file = media/sound/KIT_Key_10.ogg,
         }
     }
 

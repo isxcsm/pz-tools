@@ -2,16 +2,20 @@
   "peak": -3.0,
   "sounds": {
     "KIT_Key": {
-      "mod": "pz-ui-kit", "category": "UI", "peak": -12.0,
+      "mod": "pz-ui-kit", "category": "UI", "peak": -12.0, "length": 0.07,
       "clips": [
-        { "src": "synth/key_1.wav" }, { "src": "synth/key_2.wav" }, { "src": "synth/key_3.wav" },
-        { "src": "synth/key_4.wav" }, { "src": "synth/key_5.wav" }, { "src": "synth/key_6.wav" }
+        { "src": "keyboard/keypress-001.wav" }, { "src": "keyboard/keypress-003.wav" },
+        { "src": "keyboard/keypress-004.wav" }, { "src": "keyboard/keypress-006.wav" },
+        { "src": "keyboard/keypress-007.wav" }, { "src": "keyboard/keypress-013.wav" },
+        { "src": "keyboard/keypress-017.wav" }, { "src": "keyboard/keypress-019.wav" },
+        { "src": "keyboard/keypress-027.wav" }, { "src": "keyboard/keypress-030.wav" }
       ]
     },
     "KIT_Erase": {
-      "mod": "pz-ui-kit", "category": "UI", "peak": -13.0,
+      "mod": "pz-ui-kit", "category": "UI", "peak": -13.0, "length": 0.07,
       "clips": [
-        { "src": "synth/erase_1.wav" }, { "src": "synth/erase_2.wav" }, { "src": "synth/erase_3.wav" }, { "src": "synth/erase_4.wav" }
+        { "src": "keyboard/keypress-012.wav", "pitch": 0.94 }, { "src": "keyboard/keypress-015.wav", "pitch": 0.94 },
+        { "src": "keyboard/keypress-016.wav", "pitch": 0.94 }, { "src": "keyboard/keypress-032.wav", "pitch": 0.94 }
       ]
     }
   }
