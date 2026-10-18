@@ -38,13 +38,16 @@ local STORY_OF = {
 
 -- The beats. stage/milestones: the level the record is at; from: its first call (all before it played); fresh: a record
 -- as new (trust 0, the terminal not answering it); first: "drop" the first supply comes down at once, "wait" it waits
--- (the join beats); late: the first supply came without the helicopter; offer: the story mission due is offered; fill:
+-- (the join beats), "heli" the game's helicopter flies over first and the supply comes as it goes (E2E.HELI_SECONDS);
+-- firstMode: how the world's first supply comes (Rules.firstPlan): "window" after the game's helicopter (by default),
+-- "late" the mod came after it, "none" a world without the helicopter; offer: the story mission due is offered; fill:
 -- the base's delivery box is filled for a settlement; serum: an upgrade serum to inject; handover: the handover is
 -- over; join: the world's tier when the record came into it (CANON S19), "H" after the handover; keep: nothing is set.
 -- more: its things to see go on a second line.
 E2E.BEATS = {
-    { id = "01", fresh = true, first = "drop" },
-    { id = "01L", fresh = true, first = "drop", late = true },
+    { id = "01", fresh = true, first = "heli" },
+    { id = "01L", fresh = true, first = "drop", firstMode = "late" },
+    { id = "01N", fresh = true, first = "drop", firstMode = "none" },
     { id = "02", stage = 1, from = "S1", fill = true },
     { id = "03", stage = 1, from = "B1", offer = true },
     { id = "04", stage = 1, from = "S2", serum = true },
@@ -246,7 +249,8 @@ local function raise(r, stage, milestones)
     OA.Story.onStage(r)
 end
 
--- n of each item in the base's delivery box, for a settlement (a box carried, or none, is said).
+-- n of each item in the base's delivery box, for a settlement (a box carried, or none, is said); what an earlier
+-- beat put in is taken out first, so the settlement is the same whichever beats came before.
 E2E.FILL = { { "Base.Sheet", 3 }, { "Base.Socks_Ankle", 2 }, { "Base.Battery", 2 } }
 function E2E.fillBox()
     local r = record()
@@ -256,6 +260,7 @@ function E2E.fillBox()
     local object = Objects.find(Objects.square(box.x, box.y, box.z or 0), Objects.DELIVERY_BOX, box.id)
     local container = object and object:getContainer()
     if not container then say("fill: the box is not loaded") return false end
+    container:removeAllItems()
     for _, entry in ipairs(E2E.FILL) do
         for _ = 1, entry[2] do container:AddItem(entry[1]) end
     end
@@ -359,7 +364,7 @@ function E2E.set(id, opts)
         end
         if beat.fresh then
             -- the first supply's plan (FirstSupply.plan's), its day a year off: it comes by the move, not by itself
-            r.first = { mode = beat.late and "late" or "window", day = OA.day(OA.hours()) + 365, hour = 9,
+            r.first = { mode = beat.firstMode or "window", day = OA.day(OA.hours()) + 365, hour = 9,
                 done = false }
         end
     end)
@@ -373,7 +378,9 @@ function E2E.set(id, opts)
             if beat.fill then E2E.fillBox() end
         end)
     end
+    E2E.cancelHeli()
     if beat.first == "drop" and opts.place ~= false then E2E.firstSupply() end
+    if beat.first == "heli" and opts.place ~= false then E2E.heliThenSupply() end
     for _, section in ipairs({ "trade", "story", "comms", "missions" }) do OA.Sync.changed(section, r.id) end
     say("e2e", beat.id, "set: stage", stage, "milestones", milestones)
     return beat
@@ -396,6 +403,37 @@ function E2E.firstSupply()
             fallback = "good" })
     end
     return ok
+end
+
+-- The world's first supply as it comes after the game's helicopter (FirstSupply: its window passed): the game's own
+-- helicopter comes for the character now (the debug's testHelicopter: it hovers and draws the zombies as on its
+-- day), goes after E2E.HELI_SECONDS of play (endHelicopter), and the supply comes down then. Setting another beat
+-- calls it off.
+E2E.HELI_SECONDS = 40
+local heliTimer
+
+function E2E.cancelHeli()
+    if heliTimer then
+        Events.OnTick.Remove(heliTimer)
+        heliTimer = nil
+        if endHelicopter then endHelicopter() end
+    end
+end
+
+function E2E.heliThenSupply()
+    E2E.cancelHeli()
+    if not testHelicopter then return E2E.firstSupply() end
+    testHelicopter()
+    local due = getTimestampMs() + E2E.HELI_SECONDS * 1000
+    say("e2e: the helicopter comes; the first supply as it goes, in", E2E.HELI_SECONDS, "s")
+    heliTimer = function()
+        if getTimestampMs() < due then return end
+        Events.OnTick.Remove(heliTimer)
+        heliTimer = nil
+        endHelicopter()
+        E2E.firstSupply()
+    end
+    Events.OnTick.Add(heliTimer)
 end
 
 -- A supply crate by the character now with what waits for the record's next one (the story's papers, the sample case,

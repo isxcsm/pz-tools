@@ -146,7 +146,39 @@ test("the first supply beats: a record the terminal does not know, its first sup
     eq(logIds(r), "")
     E2E.set("01L", { place = false })
     eq(r.first.mode, "late")
+    E2E.set("01N", { place = false })
+    eq(r.first.mode, "none", "a world without the game's helicopter")
     eq(#titles, 0)
+end)
+
+test("the first beat: the game's helicopter comes first, the supply as it goes; another beat calls it off", function()
+    setup()
+    local ms, ticks, flown, ended, dropped = 0, {}, 0, 0, 0
+    getTimestampMs = function() return ms end
+    Events.OnTick = { Add = function(fn) ticks[fn] = true end, Remove = function(fn) ticks[fn] = nil end }
+    testHelicopter = function() flown = flown + 1 end
+    endHelicopter = function() ended = ended + 1 end
+    local realSupply = E2E.firstSupply
+    E2E.firstSupply = function() dropped = dropped + 1 end
+    local function tick() for fn in pairs(ticks) do fn() end end
+    E2E.heliThenSupply()
+    eq(flown, 1)
+    ms = (E2E.HELI_SECONDS - 1) * 1000
+    tick()
+    eq(dropped, 0, "not while it flies")
+    ms = E2E.HELI_SECONDS * 1000
+    tick()
+    eq(ended, 1)
+    eq(dropped, 1, "the supply as it goes")
+    tick()
+    eq(dropped, 1, "once")
+    E2E.heliThenSupply()
+    E2E.set("01L", { place = false })
+    eq(ended, 2, "another beat sends it away")
+    ms = ms + E2E.HELI_SECONDS * 1000
+    tick()
+    eq(dropped, 1, "and no supply comes of it")
+    E2E.firstSupply = realSupply
 end)
 
 test("the join beats: the world's tier as the record came in, after the handover with 관리 7", function()

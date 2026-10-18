@@ -42,6 +42,11 @@ Usage, from a mod's folder (python ../tools/pzdev.py <command>):
                                                 the game when they want it); a game the user started is left alone
     pzdev.py handoff                            close, then the game as the user plays it: started from Steam (their
                                                 launch options) and left on its main menu; only when asked for
+    pzdev.py snapshot <name>                    keeps the save as it is now under a name (a story moment to come
+                                                back to): a save in play is left for the main menu (the game writes
+                                                it), copied, and continued; `snapshot` alone lists the kept ones
+    pzdev.py restore <name>                     puts a kept save back in place of the save (left and continued the
+                                                same way when in play)
     pzdev.py api                                returns once the running game runs the PZ Extension API built
                                                 (extension-api/out/release): a game pzdev started takes its API
                                                 from there and each build in a second, no restart (a change to the
@@ -61,6 +66,8 @@ still loading).
 """
 import ctypes
 import os
+import re
+import shutil
 import subprocess
 import sys
 import time
@@ -766,6 +773,70 @@ def restart():
     return quit_game() or launch()
 
 
+SAVES = os.path.join(os.path.expanduser("~"), "Zomboid", "Saves", "Sandbox")
+# The kept saves: <save>/<name>, each a copy of the save's folder.
+SNAPSHOTS = os.path.join(os.path.expanduser("~"), "Zomboid", "pzdev-snapshots")
+
+
+# A save kept under a name (`back` False), or put back (True). The game writes the save while it plays (and as it is
+# left): a copy taken under it is torn, so a save in play is left for the main menu first and continued after. Without
+# a save in play the files are copied as they are (--save names the save then).
+def snapshot(label, back):
+    if not re.match(r"^[A-Za-z0-9_.-]+$", label):
+        print("a snapshot's name: letters, digits, _ . -")
+        return 1
+    start = console_size()
+    playing = current_save() if game_window() else None
+    name = playing or SAVE
+    if not name:
+        print(NO_SAVE)
+        return 1
+    if SAVE and playing and SAVE != playing:
+        print("the save in play is %s, not %s" % (playing, SAVE))
+        return 1
+    if not playing and game_process() and game_window():
+        print("the game does not answer (loading, or stopped in the debugger): not copied under it")
+        return 1
+    folder = os.path.join(SAVES, name)
+    kept = os.path.join(SNAPSHOTS, name, label)
+    if back and not os.path.isdir(kept):
+        print("no snapshot %s of %s (%s)" % (label, name, ", ".join(kept_names(name)) or "none kept"))
+        return 1
+    if not back and not os.path.isdir(folder):
+        print("no save " + folder)
+        return 1
+    if playing:
+        point_latest(name)
+        if leave_save(start) != 0:
+            return 1
+    if back:
+        shutil.rmtree(folder)
+        shutil.copytree(kept, folder)
+        print("%s put back as %s" % (label, name))
+    else:
+        if os.path.isdir(kept):
+            shutil.rmtree(kept)
+        shutil.copytree(folder, kept)
+        print("%s kept as %s" % (name, label))
+    if playing:
+        return continue_when_ready(start)
+    return 0
+
+
+def kept_names(name):
+    folder = os.path.join(SNAPSHOTS, name)
+    return sorted(os.listdir(folder)) if os.path.isdir(folder) else []
+
+
+def snapshots():
+    if not os.path.isdir(SNAPSHOTS):
+        print("none kept")
+        return 0
+    for name in sorted(os.listdir(SNAPSHOTS)):
+        print(name + ": " + (", ".join(kept_names(name)) or "none"))
+    return 0
+
+
 STEAM_RUN = "steam://rungameid/108600"
 
 
@@ -1055,6 +1126,10 @@ def main():
         return close()
     if len(sys.argv) == 2 and sys.argv[1] == "api":
         return api_loaded()
+    if len(sys.argv) == 2 and sys.argv[1] == "snapshot":
+        return snapshots()
+    if len(sys.argv) == 3 and sys.argv[1] in ("snapshot", "restore"):
+        return snapshot(sys.argv[2], sys.argv[1] == "restore")
     if len(sys.argv) >= 2 and sys.argv[1] == "profile":
         out = arg("--out")
         return profile(int(sys.argv[2]) if len(sys.argv) > 2 else 10, out)

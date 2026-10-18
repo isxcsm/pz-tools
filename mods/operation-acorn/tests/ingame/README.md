@@ -73,3 +73,9 @@ Some checks change the save's market or the record (they say so in their header)
 | --- | --- | --- |
 | `p4_stage1.lua` | the first call waiting for the terminal, the evidence mission at a temporary police post picked in the band (a building, used for the world), its stage planned and the envelope left to it; puts the character 30 squares from the site | a record, standing where the terminal is; throwaway save |
 | `p4_stage1_after.lua` | the stage in the world: the notice by the entrance, the desk with the walkie-talkie (a radio?) and four chairs, boarded windows, the locked inner room, the officer's body with the key, the police car (door, battery), the envelope in the inner room, the officer lying fake dead; then `P4S_PICKUP()` and, a few seconds later, `P4S_WOKE()` (he gets up, the pickup monologue is kept) | after `p4_stage1.lua`, a few seconds for the chunks |
+
+## The E2E director (`e2e_beats.lua`, E2E-DEBUG.md)
+
+| File | What it checks | Setup |
+| --- | --- | --- |
+| `e2e_beats.lua` | each beat of `OperationAcorn.Dev.E2E` set in order, with the character moved: 01 the game's helicopter flying for the character and the first supply as it goes, 01L and 01N the supply at once with their plan's mode; the story beats' calls behind and to come, level, mission offered, the character by the base terminal, the box standing and filled with the beat's items only, the serum; the join beats' tier; X nothing; no title from a setting but the first supply's. `E2E_BEATS = { "02", ... }` runs some | a record with a base terminal; changes the save (`pzdev snapshot`/`restore`, or the backup); about 2 minutes |
