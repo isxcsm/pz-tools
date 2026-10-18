@@ -47,6 +47,8 @@ Faces.STEPS = 8
 
 -- Whether the faces are the API's (true) or the game's fonts (false).
 Faces.on = false
+-- Counts the times the faces were forgotten whole (Faces.reset): UI.setScale rebuilds them after one.
+Faces.epoch = 0
 
 local handle                      -- this mod's handle (while the API is used)
 local apiText, apiFont, apiMeasure, apiHeight, apiDraw
@@ -199,6 +201,7 @@ end
 
 -- Forgets a failure (the tests start each case over).
 function Faces.reset()
+    Faces.epoch = Faces.epoch + 1
     failed, drawn, keys, faces, small = false, false, {}, {}, nil
     Faces.on = false
     DESIGN, designed = {}, false

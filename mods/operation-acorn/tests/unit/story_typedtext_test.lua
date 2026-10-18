@@ -42,9 +42,11 @@ local function stubPanel()
             end
         end
     end
-    function c:render() self.renders = self.renders + 1 end
+    function c:ensureLaid() if self.textDirty or self.laidW ~= self.width then self:paginate() end end
+    function c:paintRows() self.renders = self.renders + 1 end
     function c:getYScroll() return self.yscroll end
     function c:measure(s, font) return getTextManager():MeasureStringX(font, s) end
+    c.measureRaw = c.measure
     function c:lineHeightOf(font) return getTextManager():getFontHeight(font) end
     function c:drawRect(...) self.drawn[#self.drawn + 1] = { ... } end
     function c:onMouseDown() self.mouseDown = true end

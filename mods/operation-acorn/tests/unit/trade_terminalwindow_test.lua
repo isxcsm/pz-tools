@@ -266,8 +266,9 @@ test("the boot runs every frame before the UI draws, and what it shows is writte
     window:startBoot()
     eq(window.added, console)
     local UI = OperationAcorn.Trade.UI
-    eq(UI.liveFrame, handler)
-    truthy(added <= 1, "the handler is added once")
+    -- (the kit adds its handler to the game's event once, as it loads: before this test's own Events)
+    handler = UI.liveFrame
+    eq(added, 0, "and no second one is added")
     setNow(1000)
     handler()
     eq(window.liveLook, 0, "the frame ticks the run and writes its look")

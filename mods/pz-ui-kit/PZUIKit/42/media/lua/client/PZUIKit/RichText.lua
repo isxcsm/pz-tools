@@ -43,6 +43,8 @@ end
 
 -- Measures for the layout and the typing (design units, in the faces).
 function PZUIRichText:measure(text, font) return UI.textWidth(text, font) end
+-- (the same, not kept in the texts' cache: for what is measured once, the growing chunks of a layout, a text typed on)
+function PZUIRichText:measureRaw(text, font) return UI.textWidthRaw(text, font) end
 function PZUIRichText:lineHeightOf(font) return UI.fontHeight(font) end
 
 function PZUIRichText:setText(text)
@@ -117,10 +119,17 @@ function PZUIRichText:command(cmd, x, y, lineHeight)
     return x, y
 end
 
+-- How long a layout stands before the next is made while the panel's width is being changed (a window dragged larger or
+-- smaller), in real milliseconds; the layout that fits the width it stops at is made once it has stood so long.
+PZUIRichText.RESIZE_MS = 50
+
 -- Lays the text out for the width now (the game's ISRichTextPanel:paginate, piece for piece): lines (the chunks),
--- lineX, lineY (from the text's top left inside the margins), and what each chunk is drawn in and where.
+-- lineX, lineY (from the text's top left inside the margins), and what each chunk is drawn in and where. The text is
+-- read by position (`start`: where what is not read yet begins, `from`: where the next space is looked for), not cut
+-- piece by piece.
 function PZUIRichText:paginate()
     self.textDirty, self.laidW = false, self.width
+    self.laidAt, self.laidCount = getTimestampMs(), (self.laidCount or 0) + 1
     self.font = self.defaultFont
     self.fonts, self.rgb, self.orient = {}, {}, {}
     self.rgbCurrent, self.rgbStack = WHITE, {}
@@ -129,11 +138,12 @@ function PZUIRichText:paginate()
     self.lines, self.lineX, self.lineY = lines, lineX, lineY
     local maxW = self.width - self.marginLeft - self.marginRight - PZUIRichText.BAR_ROOM
     local n, x, y = 1, 0, 0
-    local left = string.gsub(self.text or "", "\n", " <LINE> ") .. " "
-    local cur = 0
+    local text = string.gsub(self.text or "", "\n", " <LINE> ") .. " "
+    local start, from = 1, 1
     while true do
-        cur = find(left, " ", cur + 1, true)
+        local cur = find(text, " ", from, true)
         if not cur then
+            local left = sub(text, start)
             if trim(left) ~= "" then
                 lines[n] = trim(unescape(left))
                 lineX[n], lineY[n] = x, y
@@ -143,15 +153,17 @@ function PZUIRichText:paginate()
             end
             break
         end
-        local token = sub(left, 1, cur)
+        local token = sub(text, start, cur)
         local lt, gt = find(token, "<", 1, true), find(token, ">", 1, true)
         if lt and gt then
             -- a command not followed by a space ends at its ">"
-            cur = gt + 1
-            token = sub(left, 1, cur - 1)
+            token = sub(token, 1, gt)
+            start = start + gt
+        else
+            start = cur
         end
-        left = sub(left, cur)
-        cur = 1
+        -- (the first character of what is left is not looked at: it is the space, or what the command ended before)
+        from = start + 1
         if lt and gt then
             if not lines[n] then
                 lines[n] = ""
@@ -166,13 +178,13 @@ function PZUIRichText:paginate()
             local chunk = lines[n] or ""
             local chunkX = lineX[n] or x
             if chunk == "" then chunk = token elseif token ~= "" then chunk = chunk .. " " .. token end
-            local w = self:measure(chunk, self.font)
+            local w = self:measureRaw(chunk, self.font)
             if chunkX + w > maxW + 0.001 then
                 if lines[n] and lines[n] ~= "" then n = n + 1 end
                 y = y + self:lineHeightOf(self.font)
                 lines[n] = token
                 lineX[n], lineY[n] = self.hang, y
-                x = self.hang + self:measure(token, self.font)
+                x = self.hang + self:measureRaw(token, self.font)
             else
                 if not lines[n] then lineX[n], lineY[n] = x, y end
                 lines[n] = chunk
@@ -185,6 +197,24 @@ function PZUIRichText:paginate()
     self:setScroll(self.scroll)
 end
 
+-- Lays the text out again when its text or its width has changed. A new text at once; a new width at once too, unless
+-- the last layout is not RESIZE_MS old (a width on its way): it waits, followed each frame (PZUIRichText.settle) until
+-- it is, so that the layout the width stops at is always made.
+function PZUIRichText:ensureLaid()
+    if self.textDirty then return self:paginate() end
+    if self.laidW == self.width then return end
+    if getTimestampMs() - (self.laidAt or 0) >= PZUIRichText.RESIZE_MS then return self:paginate() end
+    UI.live(self, PZUIRichText.settle)
+end
+
+-- The frame of a layout waiting for its time (UI.live): lays out when it is there, and gives the number of layouts made
+-- as its look, which changes with each; nil when nothing waits any more.
+function PZUIRichText.settle(el, now)
+    if not (el.textDirty or el.laidW ~= el.width) then return nil end
+    if el.textDirty or now - (el.laidAt or 0) >= PZUIRichText.RESIZE_MS then el:paginate() end
+    return el.laidCount
+end
+
 -- What each chunk is drawn in (the font, the colour and the side carried on from the chunks before, as the game's
 -- render does) and its x: a centred row is centred as a whole, a row on the right ends at the text's right edge (short
 -- of the bar), their chunks side by side.
@@ -192,13 +222,19 @@ function PZUIRichText:place()
     local lines, lineX, lineY = self.lines, self.lineX, self.lineY
     local font, rgb, orient = self.defaultFont, WHITE, "left"
     local cFont, cRGB, cOrient, cX = {}, {}, {}, {}
+    local fontList, listed = {}, {}
     for c = 1, #lines do
         if self.rgb[c] then rgb = self.rgb[c] end
         if self.orient[c] then orient = self.orient[c] end
         if self.fonts[c] then font = self.fonts[c] end
         cFont[c], cRGB[c], cOrient[c] = font, rgb, orient
         cX[c] = self.marginLeft + lineX[c]
+        if not listed[font] then
+            listed[font] = true
+            fontList[#fontList + 1] = font
+        end
     end
+    self.fontList = fontList
     local inner = self.width - self.marginLeft - self.marginRight - PZUIRichText.BAR_ROOM
     local c = 1
     while c <= #lines do
@@ -267,26 +303,63 @@ function PZUIRichText:onMouseMoveOutside(dx, dy) self:drag(dy) end
 function PZUIRichText:onMouseUp() self.dragging = false end
 function PZUIRichText:onMouseUpOutside() self.dragging = false end
 
--- The game resized it (an anchor following its window): laid out again for the new width.
+-- The game resized it (an anchor following its window): laid out again for the new width in the next render (ensureLaid:
+-- a width on its way is laid out every RESIZE_MS, not every step). The scroll is kept to what the height leaves.
 function PZUIRichText:onResize()
     self.width, self.height = self:getWidth(), self:getHeight()
-    self.textDirty = true
+    self:setScroll(self.scroll)
 end
 
--- The rows on show, in their faces: a frame draws only what it reads from the layout.
+-- The line heights asked in the render now: font -> height. A font's height can change under an open window (the
+-- game's fonts made again, the API's font arriving), so none is kept past the render: the fonts set are listed, and the
+-- next render clears them (nothing is made for it).
+local heights, heightFonts, heightsSet = {}, {}, 0
+
+local function heightOf(panel, font)
+    local h = heights[font]
+    if h == nil then
+        h = panel:lineHeightOf(font)
+        heights[font] = h
+        heightsSet = heightsSet + 1
+        heightFonts[heightsSet] = font
+    end
+    return h
+end
+
+-- The rows on show, in their faces: a frame draws only what it reads from the layout. Rows go down the panel in order
+-- (lineY only grows), so the ones above the top are found by halving, not one by one: a row shows once its place and
+-- its font's height reach past the top, and no row is taller than the tallest font in the layout.
 function PZUIRichText:render()
-    if self.textDirty or self.laidW ~= self.width then self:paginate() end
+    self:ensureLaid()
+    self:paintRows()
+end
+
+function PZUIRichText:paintRows()
     local h = self.height
     if self.clip then self:setStencilRect(0, 0, self.width, h) end
     local lines, lineY, cX, cFont, cRGB, cOrient = self.lines, self.lineY, self.cX, self.cFont, self.cRGB, self.cOrient
     local top = self.marginTop - self.scroll
     local a = self.contentTransparency
-    for c = 1, #lines do
+    for i = 1, heightsSet do heights[heightFonts[i]] = nil end
+    heightsSet = 0
+    local first = 1
+    local fonts = self.fontList
+    if fonts and top < 0 then
+        local tall = 0
+        for i = 1, #fonts do tall = math.max(tall, heightOf(self, fonts[i])) end
+        local lo, hi, limit = 1, #lines + 1, -top - tall - 1
+        while lo < hi do
+            local mid = floor((lo + hi) / 2)
+            if lineY[mid] > limit then hi = mid else lo = mid + 1 end
+        end
+        first = lo
+    end
+    for c = first, #lines do
         local ly = top + lineY[c]
         if ly >= h then break end
         local v = lines[c]
         local font = cFont[c]
-        if v ~= "" and ly + self:lineHeightOf(font) > 0 then
+        if v ~= "" and ly + heightOf(self, font) > 0 then
             local rgb = cRGB[c]
             self:drawText(v, cX[c], ly, rgb[1], rgb[2], rgb[3], a, font)
         end
@@ -344,6 +417,14 @@ function PZUIRichTip.hold(owner)
     holder = owner
 end
 
+-- A colour table ({ r, g, b, a }) set to a palette colour, written only where it differs: a frame that shows the tooltip
+-- again makes no table and writes nothing while the palette stays.
+local function colourTo(c, rgb, a)
+    if c.r ~= rgb[1] or c.g ~= rgb[2] or c.b ~= rgb[3] or c.a ~= a then
+        c.r, c.g, c.b, c.a = rgb[1], rgb[2], rgb[3], a
+    end
+end
+
 local function widest(panel)
     local w = 0
     for c, line in ipairs(panel.lines) do
@@ -382,16 +463,16 @@ function PZUIRichTip.show(owner, text, palette)
         tip:setHeight(tip.contentH)
     end
     local p = palette or UI.DEFAULT_PALETTE
-    tip.backgroundColor = { r = p.bg[1], g = p.bg[2], b = p.bg[3], a = 0.97 }
-    tip.borderColor = { r = p.border[1], g = p.border[2], b = p.border[3], a = 1 }
-    tip.owner = owner
-    local screenW, screenH = UI.dp(getCore():getScreenWidth()), UI.dp(getCore():getScreenHeight())
+    colourTo(tip.backgroundColor, p.bg, 0.97)
+    colourTo(tip.borderColor, p.border, 1)
+    if tip.owner ~= owner then tip.owner = owner end
+    local screenW, screenH = UI.screenDp()
     local mx, my = UI.dp(getMouseX()), UI.dp(getMouseY())
     local x = math.max(0, math.min(mx + 14, screenW - tip.width))
     local y = my + 20
     if y + tip.height > screenH then y = math.max(0, my - tip.height - 6) end
-    tip:setX(x)
-    tip:setY(y)
+    if tip.x ~= x then tip:setX(x) end
+    if tip.y ~= y then tip:setY(y) end
     if not tip.shown then
         tip.shown = true
         tip:addToUIManager()

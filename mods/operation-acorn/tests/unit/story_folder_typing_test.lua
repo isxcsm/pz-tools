@@ -46,9 +46,11 @@ local function stubPanel()
             end
         end
     end
-    function c:render() end
+    function c:ensureLaid() if self.textDirty or self.laidW ~= self.width then self:paginate() end end
+    function c:paintRows() end
     function c:getYScroll() return self.yscroll end
     function c:measure(s, font) return getTextManager():MeasureStringX(font, s) end
+    c.measureRaw = c.measure
     function c:lineHeightOf(font) return getTextManager():getFontHeight(font) end
     function c:setYScroll(v) self.yscroll = v end
     function c:setVisible(v) self.visible = v end

@@ -68,7 +68,12 @@ local spaces = {}
 local widths, pixelWidths, wrapMemos, fitMemos = {}, {}, {}, {}
 local widthCount, pixelCount, memoCount = 0, 0, { wrap = 0, fit = 0 }
 local CACHE_MAX = 4000
+-- A number that changes every frame (liveFrame, before the UI draws) and when the texts are forgotten: the faces' heights
+-- asked in the frame (faceHeight) are good until it does.
+local frameStamp = 0
 local function forgetText()
+    frameStamp = frameStamp + 1
+    spaces = {}
     widths, pixelWidths, wrapMemos, fitMemos = {}, {}, {}, {}
     widthCount, pixelCount, memoCount = 0, 0, { wrap = 0, fit = 0 }
 end
@@ -85,6 +90,22 @@ end
 function UI.dp(v)
     if S == 1 then return v end
     return v / S
+end
+
+-- The screen's size in design units, worked out once an era (a tooltip asks for it each frame it shows) and again when
+-- the game's window is resized.
+local screenEra, screenW, screenH
+function UI.screenDp()
+    if screenEra ~= UI.era then
+        screenEra = UI.era
+        local core = getCore()
+        screenW, screenH = UI.dp(core:getScreenWidth()), UI.dp(core:getScreenHeight())
+    end
+    return screenW, screenH
+end
+
+if Events and Events.OnResolutionChange then
+    Events.OnResolutionChange.Add(function() screenEra = nil end)
 end
 
 -- A design start and length as pixels: both ends rounded, so that rectangles side by side still meet.
@@ -338,9 +359,18 @@ function SCALED:drawTextUntrimmed(str, x, y, r, g, b, a, font)
     return textPx(self, self.uiBase, str, floor(x * S + 0.5), floor(y * S + 0.5), r, g, b, a, font, 3)
 end
 
--- A texture at its own size is that many design units.
+-- A texture at its own size is that many design units. A name is a texture asked of the game once (found ones only: a
+-- missing one is asked again).
+local named = {}
 function SCALED:drawTexture(texture, x, y, a, r, g, b)
-    if type(texture) == "string" then texture = getTexture(texture) end
+    if type(texture) == "string" then
+        local found = named[texture]
+        if found == nil then
+            found = getTexture(texture)
+            if found then named[texture] = found end
+        end
+        texture = found
+    end
     if not texture then return end
     local rx, rw = span(x, texture:getWidth())
     local ry, rh = span(y, texture:getHeight())
@@ -425,21 +455,59 @@ function UI.scaled(cls, base)
     return cls
 end
 
+-- What the faces and the texts measured against were made for, to know whether UI.setScale has anything to do: the scale
+-- and the kind of faces asked for and got, the game's fonts' heights (the font option, the language), the width of a probe
+-- text with a Korean letter in it (a font made again for a language changes it where the heights stay), and our own
+-- Small face's height and the probe's width in it. Two tables, filled in place: the one kept and the one looked at now.
+local kept, looked = {}, {}
+local keptMade = true
+local probe
+
+local function lookAtFonts(into)
+    local text = getTextManager()
+    into.small = text:getFontHeight(UIFont.Small)
+    into.medium = text:getFontHeight(UIFont.Medium)
+    into.large = text:getFontHeight(UIFont.Large)
+    -- (the letters by their codes: the file holds no non-ASCII text)
+    probe = probe or ("Ag" .. string.char(0xD55C, 0xAE00))
+    into.probe = text:MeasureStringX(UIFont.Small, probe)
+    into.faceHeight = Faces.height(UIFont.Small)
+    into.faceProbe = Faces.measure(faceOf(UIFont.Small), probe)
+end
+
+-- Whether a call for scale s and the faces useApi says is for what the last one made.
+local function unchanged(s, useApi)
+    if kept.s ~= s or kept.useApi ~= useApi or kept.on ~= Faces.on or kept.epoch ~= Faces.epoch then return false end
+    local was = Faces.on
+    lookAtFonts(looked)
+    -- (a call of the API that failed in being asked has put the game's fonts in its place: this is a new call)
+    if Faces.on ~= was then return false end
+    return kept.small == looked.small and kept.medium == looked.medium and kept.large == looked.large
+        and kept.probe == looked.probe and kept.faceHeight == looked.faceHeight and kept.faceProbe == looked.faceProbe
+end
+
+local function remember(s, useApi, made)
+    kept.s, kept.useApi, kept.on, kept.epoch, keptMade = s, useApi, Faces.on, Faces.epoch, made
+    lookAtFonts(kept)
+end
+
 -- Sets the scale (1 or more) and the faces: the API's (`useApi`, once Faces.available said yes), or the game's fonts
 -- (false; nil keeps the faces' kind as it is). Returns false when the API's faces were asked for and could not be made
 -- (the game's are set). The windows open at the time keep the scale they were made with: a window closes when UI.era
--- changes under it.
+-- changes under it. Called as every window opens, and with nothing changed (the scale, the faces' kind, the fonts) it
+-- does nothing: the faces are kept, and so is every text measured for them in the windows already open.
 function UI.setScale(s, useApi)
     s = s or 1
     if useApi == nil then useApi = Faces.on end
+    if unchanged(s, useApi) then return keptMade end
     local made = Faces.build(s, useApi)
     forgetText()
+    remember(s, useApi, made)
     local now = s ~= 1 or Faces.on
     if s == S and now == on and Faces.on == UI.facesOn then return made end
     S, on = s, now
     UI.S, UI.facesOn = s, Faces.on
     UI.era = UI.era + 1
-    spaces = {}
     for _, entry in ipairs(scaledClasses) do install(entry) end
     return made
 end
@@ -588,9 +656,21 @@ function UI.textWidthPx(text, font)
     return getTextManager():MeasureStringX(font or UIFont.Small, text)
 end
 
+-- A face's height in pixels, asked of the face once a font in a frame (every frame asks anew: a font's height can change
+-- under an open window, Faces.height): the widgets ask it for each of their rows and bars.
+local heightOf, heightAt = {}, {}
+local SMALL_KEY = {}
+local function faceHeight(font)
+    local key = font == nil and SMALL_KEY or font
+    if heightAt[key] == frameStamp then return heightOf[key] end
+    local h = Faces.height(font)
+    heightOf[key], heightAt[key] = h, frameStamp
+    return h
+end
+
 -- Text measured in design units in its face (the face's pixels / UI.S): what our elements draw.
 function UI.fontHeight(font)
-    local h = Faces.height(font)
+    local h = faceHeight(font)
     if S == 1 then return h end
     return h / S
 end
@@ -646,6 +726,12 @@ function UI.textWidth(text, font)
         widthCount = widthCount + 1
     end
     return w
+end
+
+-- The same measured and not kept: for the texts that are measured once and not again (a text typed a character at a
+-- time, the chunks a layout tries) and would fill the cache above with every prefix of themselves.
+function UI.textWidthRaw(text, font)
+    return measureDesign(text, font)
 end
 
 -- A space between two parts drawn apart (a label and its value), in design units: the font's space, or a quarter of
@@ -731,7 +817,8 @@ function UI.str(key, a, b)
 end
 
 -- The wrap and the cut kept for a text drawn at the same width every frame: the lines are the memo's own, read, not
--- changed. Made again when the scale changes.
+-- changed. Only the last width a text was asked at is kept (a text drawn at a width that keeps changing, a window being
+-- dragged, would leave one entry for every width it passed through). Made again when the scale changes.
 local function memoOf(memos, kind, font, text)
     local key = font or UIFont.Small
     local byFont = memos[key]
@@ -756,23 +843,21 @@ end
 function UI.wrapMemo(text, width, font)
     local byText = memoOf(wrapMemos, "wrap", font, text)
     if not byText then return UI.wrap(text, width, font) end
-    local lines = byText[width]
-    if not lines then
-        lines = UI.wrap(text, width, font)
-        byText[width] = lines
+    if byText.width ~= width then
+        byText.value = UI.wrap(text, width, font)
+        byText.width = width
     end
-    return lines
+    return byText.value
 end
 
 function UI.fitMemo(text, width, font)
     local byText = memoOf(fitMemos, "fit", font, text)
     if not byText then return UI.fit(text, width, font) end
-    local cut = byText[width]
-    if not cut then
-        cut = UI.fit(text, width, font)
-        byText[width] = cut
+    if byText.width ~= width then
+        byText.value = UI.fit(text, width, font)
+        byText.width = width
     end
-    return cut
+    return byText.value
 end
 
 -- One dot of the small signs drawn from rectangles, in design units: round(S) pixels, so that their strokes thicken
@@ -1085,25 +1170,25 @@ end
 
 -- The title bar's height and the resize bar's (ISCollapsableWindow's titleBarHeight and resizeWidgetHeight).
 function UI.titleBarHeight()
-    return math.max(16, Faces.height() + 1)
+    return math.max(16, faceHeight() + 1)
 end
 
 function UI.resizeWidgetHeight()
-    return (Faces.height() + 6) / 2 + 2
+    return (faceHeight() + 6) / 2 + 2
 end
 
 -- A window's title centred on its bar in our face, colour `c` ({ r, g, b }).
 function UI.windowTitle(win, title, c, a)
     if not title or title == "" then return end
     local th = win:titleBarHeight()
-    textPx(win, rawDraws(win), title, floor(win.width / 2), floor((th - Faces.height()) / 2 + 0.5), c[1], c[2], c[3],
+    textPx(win, rawDraws(win), title, floor(win.width / 2), floor((th - faceHeight()) / 2 + 0.5), c[1], c[2], c[3],
         UI.faded(win, a), nil, 1)
 end
 
 -- The close box: an "x" in our face (the game's button with its picture and title taken off), in the palette.
 local function closeBoxRender(self)
     local c = self.uiGlyphColour
-    textPx(self, rawDraws(self), "x", floor(self.width / 2), floor((self.height - Faces.height()) / 2), c[1], c[2], c[3],
+    textPx(self, rawDraws(self), "x", floor(self.width / 2), floor((self.height - faceHeight()) / 2), c[1], c[2], c[3],
         UI.faded(self, 1), nil, 1)
 end
 
@@ -1132,7 +1217,12 @@ end
 -- removeChild) is let go. The handler stays on once used: taking it off from inside the event would make the game skip
 -- the next handler of that frame, and with nothing registered it returns at once.
 local live, liveHooked, liveCount = {}, false, 0
--- The entries by element and frame function, for the once of UI.live.
+-- (the order the entries were made in)
+local liveSeq = 0
+local hookFrame
+-- The entries by element and frame function, for the once of UI.live: { [frame function] = entry, n = how many }. An
+-- element's table goes with its last entry (a table of elements kept by element would hold every element ever followed,
+-- and the window tree each is in; a weak key would not do, the entry holds its element).
 local liveOf = {}
 
 -- Whether the element is "shown" (it and every element it is in), "hidden" (one of them is) or "gone" (one of them was
@@ -1188,64 +1278,114 @@ function UI.sceneNow()
     return sceneMs
 end
 
+-- The fade's frame function for the elements of a fading window (below), told apart from the others here.
+local fadeFrame
+
+-- The state of the elements of a fading window is the window's (an element hidden or taken out inside it is not looked
+-- for: the fade's entry for it only mirrors the window's step, and ends with the fade): worked out once a frame for a
+-- window, where walking up from each of its elements would be a walk for every element every frame. Its elements get one
+-- tick between them as well, and a tick set on a parent once is not set again in the frame.
+local groupRoot, groupStamp, groupState, groupTick
+
+local function stateOf(entry, el)
+    local root = entry.frame == fadeFrame and el.uiFadeRoot or nil
+    if type(root) ~= "table" then return showing(el), false end
+    if groupRoot ~= root or groupStamp ~= frameStamp then
+        groupRoot, groupStamp, groupTick = root, frameStamp, nil
+        groupState = showing(root)
+    end
+    return groupState, true
+end
+
 -- An element may be followed for several things at once (its lights, a slide, a glide), each its own entry: one
 -- that stops does not let the others go. The element's liveLook is the look of one entry still going (the last that
 -- changed), nil once none is; its liveTick changes with any.
 local function liveFrame()
+    frameStamp = frameStamp + 1
     if live[1] == nil then return end
     local now = getTimestampMs()
     UI.sceneNow()
     for i = #live, 1, -1 do
         local entry = live[i]
         local el = entry.el
-        local state = showing(el)
+        local state, grouped = stateOf(entry, el)
         -- (a hidden one waits as it is: neither asked nor let go)
         local look = entry.look
         if state == "shown" then look = entry.frame(el, now)
         elseif state == "gone" then look = nil end
         if state ~= "hidden" and look ~= entry.look then
             entry.look = look
-            liveCount = liveCount + 1
-            el.liveTick = liveCount
+            local tick
+            if grouped then
+                if groupTick == nil then
+                    liveCount = liveCount + 1
+                    groupTick = liveCount
+                end
+                tick = groupTick
+            else
+                liveCount = liveCount + 1
+                tick = liveCount
+            end
+            el.liveTick = tick
             if look ~= nil then
                 el.liveLook = look
             else
-                local other
-                for _, each in ipairs(live) do
-                    if each.el == el and each ~= entry and each.look ~= nil then other = each.look end
+                -- the look of the last entry of the element that still goes
+                local other, latest = nil, 0
+                for _, each in pairs(liveOf[el]) do
+                    if type(each) == "table" and each ~= entry and each.look ~= nil and each.seq > latest then
+                        other, latest = each.look, each.seq
+                    end
                 end
                 el.liveLook = other
             end
             local parent = el.parent
-            while parent do
-                parent.liveCount = liveCount
+            while parent and parent.liveCount ~= tick do
+                parent.liveCount = tick
                 parent = parent.parent
             end
         end
         if state ~= "hidden" and look == nil then
             table.remove(live, i)
-            liveOf[el][entry.frame] = nil
+            local frames = liveOf[el]
+            frames[entry.frame] = nil
+            frames.n = frames.n - 1
+            if frames.n == 0 then liveOf[el] = nil end
         end
     end
 end
 UI.liveFrame = liveFrame
 
+-- The handler is added once, at the start (the frames' stamp runs from the first frame) or at the first entry.
+hookFrame = function()
+    if liveHooked then return end
+    liveHooked = true
+    Events.OnPreUIDraw.Add(liveFrame)
+end
+if Events and Events.OnPreUIDraw then hookFrame() end
+
 -- Follows an element for a frame function from the next frame on; the same element and function once.
 function UI.live(el, frame)
     local frames = liveOf[el]
     if not frames then
-        frames = {}
+        frames = { n = 0 }
         liveOf[el] = frames
     elseif frames[frame] then
         return
     end
-    if not liveHooked then
-        Events.OnPreUIDraw.Add(liveFrame)
-        liveHooked = true
-    end
-    local entry = { el = el, frame = frame }
+    hookFrame()
+    liveSeq = liveSeq + 1
+    local entry = { el = el, frame = frame, seq = liveSeq }
     frames[frame] = entry
+    frames.n = frames.n + 1
     live[#live + 1] = entry
+end
+
+-- How many entries are followed, and how many elements are kept for the once of UI.live (the tests').
+function UI.liveSize()
+    local elements = 0
+    for _ in pairs(liveOf) do elements = elements + 1 end
+    return #live, elements
 end
 
 -- Fading in and out ---------------------------------------------------------------------------------------------------
@@ -1263,8 +1403,6 @@ local STILLED = { "onMouseDown", "onMouseUp", "onRightMouseDown", "onRightMouseU
     "onMouseDoubleClick", "update" }
 
 local function swallow() return true end
-
-local fadeFrame
 
 -- An instance field set over the class's, kept to be put back (false: there was none). The element's own fields are
 -- read by going over them (the game's rawget reads through to the class), once when it is wrapped.
