@@ -1760,7 +1760,13 @@ local function describeMission(m, now)
     info.form = m.form
     info.request = m.request
     local first = m.items and m.items[1]
-    if first then info.item = Data.itemName(first.type) end
+    if first then
+        info.item = Data.itemName(first.type)
+    elseif m.state == "waiting" then
+        -- an offer has no pieces yet: the item it is for, when there is one only (a story's, a regular pickup's)
+        local story = m.story and Data.STORIES[m.story]
+        info.item = (story and not story.options and story.item) or (Data.ITEMS[tostring(m.title)] and m.title) or nil
+    end
     -- A found piece not sealed yet (`held`), and whether every piece wanted is found (`gathered`): the card's next step.
     -- The comparison tells neither (which of its two is the one is the player's to judge).
     if m.state == "open" and not m.compare then

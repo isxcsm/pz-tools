@@ -38,7 +38,8 @@ function Alert.burstDue(n, waiting, now)
         heard[n] = h
     end
     h.waiting = waiting
-    if h.count >= Alert.EARLY_BURSTS and h.at and now - h.at < Alert.LATE_HOURS then return false end
+    -- (a minute's slack: the ten-minute event lands an hour on as 0.9999)
+    if h.count >= Alert.EARLY_BURSTS and h.at and now - h.at < Alert.LATE_HOURS - 1 / 60 then return false end
     h.count, h.at = h.count + 1, now
     return true
 end

@@ -21,6 +21,7 @@ OATabMission = OATab:derive("OATabMission")
 
 -- The card's height, and the height of the screen (the body under the sub-tabs) under which it is the small one.
 OATabMission.CARD_H, OATabMission.CARD_H_SMALL, OATabMission.SMALL_BELOW = 196, 172, 350
+OATabMission.CARD_H_MIN = 110
 
 
 -- Text with its numbers apart ---------------------------------------------------------------------------------------
@@ -469,6 +470,13 @@ function OATabMission:layout()
     self.laidW, self.laidH = w, h
     self.small = h < OATabMission.SMALL_BELOW
     self.cardH = self.small and OATabMission.CARD_H_SMALL or OATabMission.CARD_H
+    -- an offer (nothing at a place yet) is as tall as what it says, not a card with a hole in the middle
+    if card and not card.empty and self.info.state == "waiting" then
+        local fh = UI.fontHeight()
+        local need = 32 + #wrapLines(card.brief, w - 24) * fh + 6 + (card.item and 28 or 0) + #card.lines * fh
+            + (card.bonus and 18 or 0) + 44
+        self.cardH = math.max(OATabMission.CARD_H_MIN, math.min(self.cardH, need))
+    end
     local cardH = self.cardH
     for _, b in ipairs(self:buttons()) do
         b:setVisible(false)
@@ -564,14 +572,17 @@ function OATabMission:layout()
         if special.where then special.where.fit = UI.fit(special.where.text, w - 24 - special.where.labelW) end
         if special.link then special.link.w = UI.textWidth(special.link.text) end
     elseif special and special.locked then
-        local b = self.shopButton
-        b:setX(w - 12 - b.width)
-        b:setY(sy + sh - b.height - 4)
-        b:setVisible(true)
         special.textLines = wrapLines(special.text, w - 24)
         special.tagX = 26 + UI.textWidth(special.head) + 10
         special.bulletFits = {}
         for i, text in ipairs(special.bullets) do special.bulletFits[i] = UI.fit(text, w - 36) end
+        -- as tall as what it says (the window's height below it stays empty, not a hole inside the panel)
+        sh = math.min(sh, 26 + (#special.textLines + #special.bulletFits) * fh + 4 + 40)
+        self.slot.h = sh
+        local b = self.shopButton
+        b:setX(w - 12 - b.width)
+        b:setY(sy + sh - b.height - 4)
+        b:setVisible(true)
     end
 end
 
