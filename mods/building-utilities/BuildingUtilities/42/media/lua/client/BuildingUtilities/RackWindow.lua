@@ -28,6 +28,27 @@ RackWindow.COLUMNS = { kind = 8, condition = 140, stored = 250, output = 305 }
 RackWindow.FAIR = 50
 local SETTLE_MS = 100
 
+-- The texts the frames draw, looked up once (the translations do not change while the game runs): by key, and a
+-- battery's kind's name by its number.
+local labels, kindNames = {}, {}
+local function label(key)
+    local text = labels[key]
+    if not text then
+        text = getText(key)
+        labels[key] = text
+    end
+    return text
+end
+
+local function kindName(kind)
+    local text = kindNames[kind]
+    if not text then
+        text = getText("IGUI_VehicleType_" .. kind)
+        kindNames[kind] = text
+    end
+    return text
+end
+
 -- What a bank is built for: output (more sports batteries than heavy-duty ones), storage (the other way) or even.
 local function bankBuilt(bank)
     local sports, heavy = 0, 0
@@ -148,7 +169,7 @@ function RackWindow.drawBattery(c, y, battery, x)
     local cols = RackWindow.COLUMNS
     local textY = y + math.floor((ROW - FONT_HGT_SMALL) / 2)
     local kindColour = battery.bypassed and P.dim or battery.kind == 1 and P.text or P.value
-    UI.text(c, getText("IGUI_VehicleType_" .. battery.kind), x + cols.kind, textY, kindColour)
+    UI.text(c, kindName(battery.kind), x + cols.kind, textY, kindColour)
     local condition = math.floor(battery.condition + 0.5)
     local colour = conditionColour(battery.condition, battery.worst)
     local barW = 40
@@ -159,7 +180,7 @@ function RackWindow.drawBattery(c, y, battery, x)
     UI.frame(c, x + cols.condition, barY, barW, 4, P.border)
     UI.text(c, tostring(condition), x + cols.condition + barW + 6, textY, colour)
     if battery.bypassed then
-        UI.text(c, getText("IGUI_BU_Rack_Bypassed"), x + cols.stored, textY, P.dim)
+        UI.text(c, label("IGUI_BU_Rack_Bypassed"), x + cols.stored, textY, P.dim)
         return
     end
     UI.text(c, string.format("%.1f", battery.capacity), x + cols.stored, textY, P.text)
@@ -172,7 +193,7 @@ function RackWindow.drawSummary(c, y, view, title, x, titleX, rightX)
     local cols = RackWindow.COLUMNS
     local textY = y + math.floor((ROW - FONT_HGT_SMALL) / 2)
     UI.text(c, UI.fitMemo(title, x + cols.condition - titleX - 8), titleX, textY, P.head)
-    UI.text(c, getText(STATE_TEXT[view.state]), x + cols.condition, textY, stateColour(view.state))
+    UI.text(c, label(STATE_TEXT[view.state]), x + cols.condition, textY, stateColour(view.state))
     UI.text(c, string.format("%.1f", view.capacity), x + cols.stored, textY, P.text)
     UI.text(c, load2(view.output), x + cols.output, textY, view.output > 0 and P.text or P.dim)
     local charge = BU.percent(view.charge * 100)
@@ -293,7 +314,7 @@ function ISBURackWindow:drawBody(body)
     local chargeColour = view.panel and (view.charge < 0.15 and P.bad or P.bright) or P.dim
     UI.textRight(body, big, PAD + bigW, top, chargeColour, UIFont.Large)
     UI.text(body, "%", PAD + bigW + 1, top + UI.baselineDrop(UIFont.Large, UIFont.Small), chargeColour)
-    UI.text(body, getText("IGUI_BU_Rack_Charge"), PAD, top + UI.fontHeight(UIFont.Large), P.dim)
+    UI.text(body, label("IGUI_BU_Rack_Charge"), PAD, top + UI.fontHeight(UIFont.Large), P.dim)
     local labelX = PAD + bigW + UI.textWidth("%") + 24
     local valueX = labelX
     for _, line in ipairs(self.lines) do valueX = math.max(valueX, labelX + UI.textWidth(line[1]) + 12) end
@@ -304,14 +325,14 @@ function ISBURackWindow:drawBody(body)
     end
     -- the column titles over the list
     local cols, listX = RackWindow.COLUMNS, PAD
-    UI.text(body, getText("IGUI_BU_Rack_ColKind"), listX + cols.kind, self.columnsY, P.dim)
-    UI.text(body, getText("IGUI_BU_Rack_ColCondition"), listX + cols.condition, self.columnsY, P.dim)
-    UI.text(body, getText("IGUI_BU_Rack_ColStored"), listX + cols.stored, self.columnsY, P.dim)
-    UI.text(body, getText("IGUI_BU_Rack_ColOutput"), listX + cols.output, self.columnsY, P.dim)
+    UI.text(body, label("IGUI_BU_Rack_ColKind"), listX + cols.kind, self.columnsY, P.dim)
+    UI.text(body, label("IGUI_BU_Rack_ColCondition"), listX + cols.condition, self.columnsY, P.dim)
+    UI.text(body, label("IGUI_BU_Rack_ColStored"), listX + cols.stored, self.columnsY, P.dim)
+    UI.text(body, label("IGUI_BU_Rack_ColOutput"), listX + cols.output, self.columnsY, P.dim)
     local list = self.list
     local listY, listH = UI.dp(list:getY()), UI.dp(list:getHeight())
     if #view.batteries == 0 then
-        UI.textCentre(body, getText("IGUI_BU_Rack_Empty"), PAD + UI.dp(list:getWidth()) / 2,
+        UI.textCentre(body, label("IGUI_BU_Rack_Empty"), PAD + UI.dp(list:getWidth()) / 2,
             listY + math.floor((listH - FONT_HGT_SMALL) / 2), P.dim)
     end
     UI.text(body, self.foot, PAD, listY + listH + 4, P.dim)

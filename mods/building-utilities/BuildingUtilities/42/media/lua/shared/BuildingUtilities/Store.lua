@@ -334,24 +334,29 @@ end
 
 -- All units, in the order they were made; of one kind, or wired to one panel, when given.
 function Store.unitList(kind, panelId)
-    local list = sortedUnits()
-    if panelId then
-        if not byPanel then
-            byPanel = {}
-            for _, unit in ipairs(list) do
-                if unit.panel then
-                    byPanel[unit.panel] = byPanel[unit.panel] or {}
-                    table.insert(byPanel[unit.panel], unit)
-                end
-            end
-        end
-        list = byPanel[panelId] or {}
-    end
+    local list = panelId and Store.panelUnits(panelId) or sortedUnits()
     local result = {}
     for _, unit in ipairs(list) do
         if not kind or unit.kind == kind then result[#result + 1] = unit end
     end
     return result
+end
+
+-- The units wired to a panel, in the order they were made: the list kept itself (not to be changed, and not kept past the
+-- next change of the units), where Store.unitList hands out a copy.
+local NO_UNITS = {}
+function Store.panelUnits(panelId)
+    local list = sortedUnits()
+    if not byPanel then
+        byPanel = {}
+        for _, unit in ipairs(list) do
+            if unit.panel then
+                byPanel[unit.panel] = byPanel[unit.panel] or {}
+                table.insert(byPanel[unit.panel], unit)
+            end
+        end
+    end
+    return byPanel[panelId] or NO_UNITS
 end
 
 -- What a panel's power did this minute: summed into its hour, the hour into energyLog once it is over.
