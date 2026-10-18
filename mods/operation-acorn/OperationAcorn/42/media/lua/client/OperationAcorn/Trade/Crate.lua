@@ -6,6 +6,8 @@ require "OperationAcorn/Trade/Objects"
 require "OperationAcorn/Trade/Things"
 local OA = OperationAcorn
 local Objects, Things = OA.Trade.Objects, OA.Trade.Things
+local Crate = {}
+OA.Trade.Crate = Crate
 
 -- crate -> true once this client asked for it to break (the server answers by taking it away)
 local asked = setmetatable({}, { __mode = "k" })
@@ -28,29 +30,23 @@ local function watch()
     if getTimestampMs() - askedAt > WAIT_MS then waiting = {} end
 end
 
-local function onRefresh(page, state)
-    if state ~= "buttonsAdded" or page.onCharacter then return end
-    local character = getSpecificPlayer(page.player)
-    if not character then return end
-    for _, backpack in ipairs(page.backpacks or {}) do
-        local container = backpack.inventory
-        local object = container and container:getParent()
-        if object and Objects.kindOf(object) == Objects.CRATE then
-            -- the game does not keep the take-only rule; this client checks what it drags against it
-            if container:getAcceptItemFunction() ~= Objects.TAKE_ONLY then container:setAcceptItemFunction(Objects.TAKE_ONLY) end
-            if not asked[object] and Things.crateEmpty(object) then
-                asked[object] = true
-                local square = object:getSquare()
-                OA.Sync.send(character, "crateEmptied", { x = square:getX(), y = square:getY(), z = square:getZ() })
-                if #waiting == 0 then askedAt = getTimestampMs() end
-                if not hooked then
-                    hooked = true
-                    Events.OnTick.Add(watch)
-                end
-                waiting[#waiting + 1] = object
-            end
+-- A crate of the loot window's pages shown (the window's refresh finds it among the containers: Appraisal.lua, which
+-- looks at them once for the delivery box and the crate both).
+function Crate.refresh(character, container, object)
+    -- the game does not keep the take-only rule; this client checks what it drags against it
+    if container:getAcceptItemFunction() ~= Objects.TAKE_ONLY then container:setAcceptItemFunction(Objects.TAKE_ONLY) end
+    if not asked[object] and Things.crateEmpty(object) then
+        asked[object] = true
+        local square = object:getSquare()
+        OA.Sync.send(character, "crateEmptied", { x = square:getX(), y = square:getY(), z = square:getZ() })
+        if #waiting == 0 then askedAt = getTimestampMs() end
+        if not hooked then
+            hooked = true
+            Events.OnTick.Add(watch)
         end
+        waiting[#waiting + 1] = object
     end
 end
-Events.OnRefreshInventoryWindowContainers.Add(onRefresh)
+
+return Crate
 

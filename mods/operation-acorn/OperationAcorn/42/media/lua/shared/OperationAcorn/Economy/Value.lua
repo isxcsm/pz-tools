@@ -66,18 +66,33 @@ local function ownKind(fullType)
     return nil
 end
 
+-- What an item type fixes, for the session (an item type's name, cash value, own kind and furniture flag do not change
+-- under a running game): by full type { baseType, cash, own, moveable }. `moveable` is added by the first read of an
+-- item or script of the type. A type is parsed once; Value.info then reads only what is the item's own.
+local kinds = {}
+local function kindOf(fullType)
+    local kind = kinds[fullType]
+    if not kind then
+        kind = { baseType = Value.baseType(fullType), cash = Value.CASH[fullType], own = ownKind(fullType) }
+        kinds[fullType] = kind
+    end
+    return kind
+end
+
 -- info of an item type from its script (no item exists): weight, category, furniture. Used for the loot tables
 -- and for items found without an item in hand.
 function Value.infoFromScript(script)
     local fullType = script:getFullName()
+    local kind = kindOf(fullType)
+    if kind.moveable == nil then kind.moveable = script:isItemType(ItemType.MOVEABLE) and true or false end
     local info = {
         fullType = fullType,
-        baseType = Value.baseType(fullType),
+        baseType = kind.baseType,
         weight = script:getActualWeight(),
         displayCategory = script:getDisplayCategory(),
-        moveable = script:isItemType(ItemType.MOVEABLE) and true or false,
-        cash = Value.CASH[fullType],
-        own = ownKind(fullType),
+        moveable = kind.moveable,
+        cash = kind.cash,
+        own = kind.own,
     }
     return info
 end
@@ -97,14 +112,16 @@ function Value.info(item)
     else
         weight = item:getActualWeight()
     end
+    local kind = kindOf(fullType)
+    if kind.moveable == nil then kind.moveable = item:isItemType(ItemType.MOVEABLE) and true or false end
     local info = {
         fullType = fullType,
-        baseType = Value.baseType(fullType),
+        baseType = kind.baseType,
         weight = weight,
         displayCategory = item:getDisplayCategory() or item:getCategory(),
-        moveable = item:isItemType(ItemType.MOVEABLE) and true or false,
-        cash = Value.CASH[fullType],
-        own = ownKind(fullType),
+        moveable = kind.moveable,
+        cash = kind.cash,
+        own = kind.own,
     }
     if instanceof(item, "Food") then
         info.food = item:isRotten() and "rotten" or (item:isFresh() and "fresh" or "stale")

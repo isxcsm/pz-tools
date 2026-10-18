@@ -162,16 +162,18 @@ function Boxes.sealedEntries(record)
     return entries
 end
 
--- A key that is the same for items that settle the same: their info fields (all plain values), in name order.
+-- Every field OA.Value.info (and infoFromScript) gives, in the order the key is written. Each is a plain value. A field
+-- added to the info belongs here too: the unit test fails while one is missing, since items that differ only in it
+-- would group as one.
+Boxes.INFO_FIELDS = { "fullType", "baseType", "weight", "displayCategory", "moveable", "cash", "own", "food", "condition",
+    "filled", "bought", "cell", "mission" }
+local INFO_FIELDS = Boxes.INFO_FIELDS
+local keyParts = {}
+
+-- A key that is the same for items that settle the same: their info fields, in the fixed order.
 local function infoKey(info)
-    local names = {}
-    for k, v in pairs(info) do
-        if type(v) ~= "table" then names[#names + 1] = k end
-    end
-    table.sort(names)
-    local parts = {}
-    for _, k in ipairs(names) do parts[#parts + 1] = k .. "=" .. tostring(info[k]) end
-    return table.concat(parts, "|")
+    for i = 1, #INFO_FIELDS do keyParts[i] = tostring(info[INFO_FIELDS[i]]) end
+    return table.concat(keyParts, "|", 1, #INFO_FIELDS)
 end
 
 -- Items as infos (one per item) written into entries { info, count } by like with like, in the order first seen.

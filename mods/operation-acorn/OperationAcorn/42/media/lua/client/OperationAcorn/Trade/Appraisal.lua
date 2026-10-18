@@ -7,6 +7,7 @@ require "ISUI/ISPanel"
 require "OperationAcorn/Client"
 require "OperationAcorn/Trade/Estimate"
 require "OperationAcorn/Trade/UI"
+require "OperationAcorn/Trade/Crate"
 local OA = OperationAcorn
 local Trade, UI, Text = OA.Trade, OA.Trade.UI, OA.Trade.Text
 local Objects, Things, Estimate = Trade.Objects, Trade.Things, Trade.Estimate
@@ -95,14 +96,26 @@ function OAEstimatePanel:createChildren()
     self.list:setAnchorBottom(true)
 end
 
+local REFUSED_COLOR, TAKEN_COLOR = { 0.9, 0.55, 0.5 }, { 0.9, 0.9, 0.9 }
+
+-- A row is { name, value, refused, valueW (the value's width in pixels, measured when the row is made), cut (the name
+-- cut to what is left of the width, made at the width cutFor) }: a frame measures nothing.
 function OAEstimatePanel.drawRow(list, y, item)
     local row = item.item
     local pad = list.itemPadY
-    local c = row.refused and { 0.9, 0.55, 0.5 } or { 0.9, 0.9, 0.9 }
-    local text = row.value
-    local textX = list.width - 16 - UI.textWidthPx(text)
-    list:drawText(UI.fitPx(row.name, textX - 16, list.font), 8, y + pad, c[1], c[2], c[3], 1, list.font)
-    list:drawText(text, textX, y + pad, c[1], c[2], c[3], 1, list.font)
+    local c = row.refused and REFUSED_COLOR or TAKEN_COLOR
+    local width = list.width
+    local textX = width - 16 - row.valueW
+    if row.cutFor ~= width then
+        row.cut, row.cutFor = UI.fitPx(row.name, textX - 16, list.font), width
+    end
+    list:drawText(row.cut, 8, y + pad, c[1], c[2], c[3], 1, list.font)
+    list:drawText(row.value, textX, y + pad, c[1], c[2], c[3], 1, list.font)
+end
+
+-- The row of a name and a value.
+local function makeRow(name, value, refused)
+    return { name = name, value = value, refused = refused, valueW = UI.textWidthPx(value) }
 end
 
 -- The container of the page's pane, when it is an open delivery box: the object, or nil.
@@ -117,10 +130,27 @@ local function boxOf(page)
     return nil
 end
 
+-- Real time the infos read for the open box are kept (the memo is also dropped at a new day or settlement).
+OAEstimatePanel.MEMO_MS = 2000
+
+-- The weak memo (by item) of what Value.info said of the items of a panel's box (Things.sealable): made again once its
+-- day or settlement number has changed or MEMO_MS has passed, so that an item put in or taken out reads only what is
+-- new and the others are not read again, yet nothing of an item's state is older than that.
+local function infoMemo(panel, record, now)
+    local trade = record and record.trade
+    local day, serial = OA.day(), trade and trade.serial or 0
+    local memo = panel.memo
+    if not (memo and memo.day == day and memo.serial == serial and now >= memo.at and now - memo.at < OAEstimatePanel.MEMO_MS) then
+        memo = { day = day, serial = serial, at = now, items = setmetatable({}, { __mode = "k" }) }
+        panel.memo = memo
+    end
+    return memo.items
+end
+
 -- Writes the rows for a container's items.
 function OAEstimatePanel:fill(container)
     local record = OA.Client.record(self.character)
-    local plan = Things.sealable(container)
+    local plan = Things.sealable(container, infoMemo(self, record, getTimestampMs()))
     local entries = Trade.Boxes.group(plan.infos)
     local worth = Estimate.entries(record, entries)
     self.list:clear()
@@ -135,13 +165,12 @@ function OAEstimatePanel:fill(container)
                 local marks = Text.markText(line.marks)
                 if marks then value = value .. "  " .. marks end
             end
-            self.list:addItem(entry.info.fullType, { name = Text.itemName(entry.info.fullType) .. " x" .. entry.count, value = value })
+            self.list:addItem(entry.info.fullType, makeRow(Text.itemName(entry.info.fullType) .. " x" .. entry.count, value))
         end
     end
-    for _, item in ipairs(plan.refused) do
-        local info = OA.Value.info(item)
-        local _, why = OA.Value.accepts(info)
-        self.list:addItem(item:getFullType(), { name = item:getDisplayName(), value = Text.tr(why or "IGUI_OA_Trade_Tip_NotTaken"), refused = true })
+    for i, item in ipairs(plan.refused) do
+        self.list:addItem(item:getFullType(),
+            makeRow(item:getDisplayName(), Text.tr(plan.refusedWhys[i] or "IGUI_OA_Trade_Tip_NotTaken"), true))
     end
     self.total = worth and getText("IGUI_OA_Trade_Estimate_Total", Text.credits(worth.credits), Text.credits(worth.trust)) or ""
     self.count = #plan.taken
@@ -191,10 +220,17 @@ function OAEstimatePanel:update()
     end
 end
 
+-- The height of a line of the small font, measured once for each UI era (the fonts change with it).
+local lineH = { era = nil, h = 0 }
+local function lineHeight()
+    if lineH.era ~= UI.era then lineH.era, lineH.h = UI.era, UI.fontHeightPx() end
+    return lineH.h
+end
+
 function OAEstimatePanel:render()
     ISPanel.render(self)
-    self:drawText(getText("IGUI_OA_Trade_Estimate_Title"), 8, 4, 1, 1, 1, 1, UIFont.Small)
-    self:drawText(self.total or "", 8, 4 + UI.fontHeightPx(), 0.7, 0.95, 0.7, 1, UIFont.Small)
+    self:drawText(UI.str("IGUI_OA_Trade_Estimate_Title"), 8, 4, 1, 1, 1, 1, UIFont.Small)
+    self:drawText(self.total or "", 8, 4 + lineHeight(), 0.7, 0.95, 0.7, 1, UIFont.Small)
 end
 
 function OAEstimatePanel:new(page, character)
@@ -215,14 +251,21 @@ local panels = setmetatable({}, { __mode = "k" })
 
 local function onRefresh(page, state)
     if state ~= "buttonsAdded" then return end
-    -- The box's accept rule: the game does not keep it, and this client needs it for what it drags.
+    local onCharacter = page.onCharacter
+    local character = not onCharacter and getSpecificPlayer(page.player) or nil
+    -- One pass over the page's containers: the box's accept rule (the game does not keep it, and this client needs it
+    -- for what it drags), and the take-only rule of a supply crate.
     for _, backpack in ipairs(page.backpacks or {}) do
-        local object = backpack.inventory and backpack.inventory:getParent()
-        if object and Objects.kindOf(object) == Objects.DELIVERY_BOX then Objects.setupBoxOf(object) end
+        local container = backpack.inventory
+        local object = container and container:getParent()
+        local kind = object and Objects.kindOf(object)
+        if kind == Objects.DELIVERY_BOX then
+            Objects.setupBoxOf(object)
+        elseif kind == Objects.CRATE and character then
+            Trade.Crate.refresh(character, container, object)
+        end
     end
-    if page.onCharacter then return end
-    local character = getSpecificPlayer(page.player)
-    if not character then return end
+    if onCharacter or not character then return end
     local panel = panels[page]
     if not panel then
         panel = OAEstimatePanel:new(page, character)
