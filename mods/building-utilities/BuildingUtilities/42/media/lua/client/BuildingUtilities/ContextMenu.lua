@@ -123,6 +123,7 @@ local function onConnect(playerObj, kind, panel, utility, x, y, z, extra)
 end
 
 local function onDisconnect(playerObj, kind, panel, utility, x, y, z, extra)
+    if not Costs.affords(playerObj, Actions.workCost(utility)) then return end
     queueAt(playerObj, x, y, z, ISBUDisconnect:new(playerObj, kind, panel, utility, x, y, z, extra))
 end
 

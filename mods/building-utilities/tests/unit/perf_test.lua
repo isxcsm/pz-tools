@@ -267,3 +267,28 @@ test("a line's route is the same squares while its way and ends are, and walked 
     local other = solarAt(panel, 118, 103)
     truthy(BU.Links.get("u:" .. other.id) ~= nil)
 end)
+
+test("taking a line away checks the tool when it is queued and completed, not each tick", function()
+    TEST.gameFile("TimedActions/ISBaseTimedAction")
+    ISBaseTimedAction = {}
+    function ISBaseTimedAction:derive() local class = {}; class.__index = class; return setmetatable(class, { __index = ISBaseTimedAction }) end
+    function ISBaseTimedAction.new(self, character) return setmetatable({ character = character }, self) end
+    require "BuildingUtilities/Actions"
+    twoRooms(TEST.api, "A")
+    local panel = Store.newPanel(102, 102, 0, "box")
+    panel.tier = 3
+    local unit = solarAt(panel, 118, 102)
+    local checks, can = 0, true
+    local affords = BU.Costs.affords
+    BU.Costs.affords = function(...) checks = checks + 1; return can end
+    local character = { isTimedActionInstant = function() return false end }
+    local action = ISBUDisconnect:new(character, "unit", panel, "power", 118, 102, 0, unit.id)
+    for _ = 1, 50 do truthy(action:isValid()) end
+    eq(checks, 0, "isValid does not look at the inventory")
+    can = false
+    truthy(action:isValid(), "and does not mind the tool")
+    eq(action:complete(), false, "completing does")
+    eq(checks, 1)
+    truthy(BU.Links.get("u:" .. unit.id), "the line stays")
+    BU.Costs.affords = affords
+end)
