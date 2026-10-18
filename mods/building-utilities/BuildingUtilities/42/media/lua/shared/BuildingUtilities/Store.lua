@@ -107,6 +107,22 @@ function Store.panels() return Store.data().panels end
 
 function Store.get(id) return id and Store.panels()[id] or nil end
 
+-- Boxes and units by their square, for the furniture cursor, which asks of the square under it every frame whether it
+-- is taken: a number for the square (no string made), kept with the table of boxes or units it was made of (a
+-- multiplayer client received the server's), made again after one is taken away. A box or a unit never moves: it is
+-- taken up and put down again. An entry found is checked still to be there.
+local function squareKey(x, y, z) return (z * 100000 + y) * 100000 + x end
+local panelsAt, panelsAtOf = nil, nil
+
+local function panelIndex()
+    local panels = Store.panels()
+    if panelsAtOf ~= panels then
+        panelsAt, panelsAtOf = {}, panels
+        for _, panel in pairs(panels) do panelsAt[squareKey(panel.x, panel.y, panel.z)] = panel end
+    end
+    return panelsAt
+end
+
 function Store.newPanel(x, y, z, sprite)
     local data = Store.data()
     local id = "p" .. data.next
@@ -115,12 +131,14 @@ function Store.newPanel(x, y, z, sprite)
     for _, utility in ipairs(BU.UTILITIES) do panel[utility] = utilityData() end
     waterData(panel.water)
     data.panels[id] = panel
+    panelIndex()[squareKey(x, y, z)] = panel
     Store.linksChanged()
     return panel
 end
 
 function Store.remove(id)
     Store.panels()[id] = nil
+    panelsAtOf = nil
     Store.linksChanged()
 end
 
@@ -131,10 +149,13 @@ function Store.linksChanged() linkVersion = linkVersion + 1 end
 function Store.linkVersion() return linkVersion end
 
 function Store.panelAt(x, y, z)
-    for _, panel in pairs(Store.panels()) do
-        if panel.x == x and panel.y == y and panel.z == z then return panel end
+    local key = squareKey(x, y, z)
+    local panel = panelIndex()[key]
+    if panel and not (Store.panels()[panel.id] == panel and panel.x == x and panel.y == y and panel.z == z) then
+        panelsAtOf = nil
+        panel = panelIndex()[key]
     end
-    return nil
+    return panel
 end
 
 -- Who has a device of a utility, by the device's key: those that connected it outside (included) and those that have it
@@ -273,26 +294,42 @@ function Store.unitsChanged()
     Store.linksChanged()
 end
 
+local unitsAt, unitsAtOf = nil, nil
+
+local function unitIndex()
+    local units = Store.units()
+    if unitsAtOf ~= units then
+        unitsAt, unitsAtOf = {}, units
+        for _, unit in pairs(units) do unitsAt[squareKey(unit.x, unit.y, unit.z)] = unit end
+    end
+    return unitsAt
+end
+
 function Store.newUnit(kind, x, y, z, sprite)
     local data = Store.data()
     local id = "u" .. data.nextUnit
     data.nextUnit = data.nextUnit + 1
     local unit = { id = id, kind = kind, x = x, y = y, z = z, sprite = sprite }
     data.units[id] = unit
+    unitIndex()[squareKey(x, y, z)] = unit
     Store.unitsChanged()
     return unit
 end
 
 function Store.removeUnit(id)
     Store.units()[id] = nil
+    unitsAtOf = nil
     Store.unitsChanged()
 end
 
 function Store.unitAt(x, y, z)
-    for _, unit in pairs(Store.units()) do
-        if unit.x == x and unit.y == y and unit.z == z then return unit end
+    local key = squareKey(x, y, z)
+    local unit = unitIndex()[key]
+    if unit and not (Store.units()[unit.id] == unit and unit.x == x and unit.y == y and unit.z == z) then
+        unitsAtOf = nil
+        unit = unitIndex()[key]
     end
-    return nil
+    return unit
 end
 
 -- All units, in the order they were made; of one kind, or wired to one panel, when given.

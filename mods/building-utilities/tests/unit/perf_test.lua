@@ -503,3 +503,37 @@ test("the reserves' zone key is made once while the zone and its rooms are the s
     truthy(made > first, "a new zone makes it again")
     Panels.zoneRooms = zoneRooms
 end)
+
+test("boxes and units are found by their square from an index kept with them", function()
+    local panel = Store.newPanel(10, 20, 0, "box")
+    local upstairs = Store.newPanel(10, 20, 1, "box")
+    local unit = Store.newUnit("solar", 11, 20, 0, "solar")
+    eq(Store.panelAt(10, 20, 0), panel)
+    eq(Store.panelAt(10, 20, 1), upstairs, "another floor")
+    eq(Store.panelAt(11, 20, 0), nil)
+    eq(Store.unitAt(11, 20, 0), unit)
+    eq(Store.unitAt(10, 20, 0), nil)
+    -- taken away
+    Store.remove(panel.id)
+    eq(Store.panelAt(10, 20, 0), nil)
+    eq(Store.panelAt(10, 20, 1), upstairs, "the others stay")
+    Store.removeUnit(unit.id)
+    eq(Store.unitAt(11, 20, 0), nil)
+    -- put down again on the same square
+    local again = Store.newPanel(10, 20, 0, "box")
+    eq(Store.panelAt(10, 20, 0), again)
+    local second = Store.newUnit("solar", 11, 20, 0, "solar")
+    eq(Store.unitAt(11, 20, 0), second)
+    -- the save's data read again (a client receiving the server's): the index follows the tables
+    local data = Store.data()
+    local copy = { next = data.next, nextUnit = data.nextUnit, nextLine = data.nextLine, lines = {}, panels = {}, units = {} }
+    copy.panels[again.id] = { id = again.id, x = 30, y = 30, z = 0 }
+    ModData.add(Store.KEY, copy)
+    Store.reload()
+    eq(Store.panelAt(10, 20, 0), nil, "the old table's box is not found")
+    eq(Store.panelAt(30, 30, 0), copy.panels[again.id])
+    eq(Store.unitAt(11, 20, 0), nil)
+    -- an entry that is not there any more is not handed out
+    Store.units()[second.id] = nil
+    eq(Store.unitAt(11, 20, 0), nil)
+end)
