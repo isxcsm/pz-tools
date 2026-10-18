@@ -6,7 +6,8 @@
 -- the common ways: on the screen (ui), at a square (at), from a character (on). A sound that needs its own emitter (one
 -- that moves, one whose volume rises) asks for the name and plays it itself. A timed action's sounds (Sound.timed),
 -- typing (Sound.typed), a sound looped on the screen that stops with the game paused (Sound.loop), and the game's
--- sound turned down under a scene (Sound.duck) are here as well. What zombies hear (addSound) is a rule of the game, not a sound: not here.
+-- ambience turned down under a scene (Sound.duck) are here as well. What zombies hear (addSound) is a rule of the
+-- game, not a sound: not here.
 PZUIKit = PZUIKit or {}
 local Sound = {}
 PZUIKit.Sound = Sound
@@ -207,8 +208,10 @@ function Sound.unloop(owner)
 end
 
 -- ---------------------------------------------------------------------------------------------------------------------
--- The game's sound and ambience turned down (to `share` of the player's own settings) while any owner holds it, and
--- back to the settings once none does. Only the sound manager's volumes: the player's options are not touched.
+-- The game's ambience (wind, rain, birds) turned down (to `share` of the player's own setting) while any owner holds
+-- it, and back to the setting once none does. Only the sound manager's volume: the player's options are not touched.
+-- Not the sound effects: a scene's own sounds are sound effects (its keys, its radio: they went 6 to 14 dB down with
+-- them, heard in the game), and the game goes on under a scene, its zombies to be heard.
 
 Sound.DUCK = 0.5
 local duckers = {}
@@ -218,9 +221,7 @@ local function applyDuck()
     for _, s in pairs(duckers) do
         if s < share then share = s end
     end
-    local sm, core = getSoundManager(), getCore()
-    sm:setSoundVolume(core:getOptionSoundVolume() / 10 * share)
-    sm:setAmbientVolume(core:getOptionAmbientVolume() / 10 * share)
+    getSoundManager():setAmbientVolume(getCore():getOptionAmbientVolume() / 10 * share)
 end
 
 function Sound.duck(owner, on, share)

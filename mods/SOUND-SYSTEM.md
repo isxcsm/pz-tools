@@ -44,7 +44,7 @@ Sound.on(cue, character)         -- 캐릭터의 에미터에서. 핸들
 Sound.stop(handle)
 Sound.loop(owner, cue)           -- 화면 반복음: 게임 일시정지에 멈추고 풀리면 다시 (교신 바닥 소음)
 Sound.unloop(owner)
-Sound.duck(owner, on)            -- 게임 소리·환경음을 낮춤. 쥔 owner가 하나라도 있으면 낮춘 채, 다 놓으면 원래대로
+Sound.duck(owner, on)            -- 환경음만 낮춤 (효과음은 그대로: 장면의 키·무전도 효과음이라 같이 줄었다). 쥔 owner가 하나라도 있으면 낮춘 채, 다 놓으면 원래대로
 Sound.typed(cue, from, to)       -- 글자 from+1..to가 나왔다: gap 안에서 한 번. 한꺼번에 많이 뛰면(클릭으로 당김) 소리 없음
 ```
 - 정의가 없는 큐는 아무 소리도 내지 않고 한 번만 로그에 남긴다 (에셋이 아직 없는 큐).
@@ -100,12 +100,17 @@ S1~S4가 끝나면 두 모드의 사건을 전부 훑어 표로 만든다: 사�
 | 키트 선택 / 버튼 | `kit.select` / `kit.press` | UISelectListItem / UIActivateButton | 바닐라 |
 | 제목 순간 (스타일 10종 × 등장·착지·퇴장, 줄 포함) | `kit.title.*` | 아래 표 | 제목은 순간마다 소리를 한 번 내고 멈추지 않는다: 스스로 끝나는 소리만 된다 |
 
+**게임 녹음으로 들어 봄** (2026-10-18). 게임 출력을 루프백 장치("What U Hear")로 녹음해 바닐라 기준음과 같이 쟀다 (`tests/ingame/sound_listen.lua`: a 액션·키·프린터, b 제목, c 교신; 녹음은 `tools/sound/report/listen/`). 바닐라 UI 클릭 최대 -9~-11 dB, 평균 -28~-31 dB 기준으로:
+- 교신 덕킹이 효과음 볼륨을 낮춰 교신 자신의 키(6 dB)와 무전음(10~15 dB)까지 줄였다. 덕킹은 환경음만 낮춘다 (게임은 교신 중에도 돌고, 좀비 소리는 들려야 한다). 고친 뒤 키 최대 -16, 팀 줄 시작 RadioZap -28~-31, 바닥 잡음 평균 -51.
+- 타자기 제목 연타가 다른 제목보다 10 dB 작았다: 피크 -12 → -6 (줄 -16 → -10).
+- 액션: 자물쇠 -39 (바닐라 렌치 -38과 같다). 키 -35, 지우기 -32, 프린터 줄 -34 (UI 클릭보다 5~8 dB 아래, 연타라 맞다). 프린터 줄은 원본이 5 kHz 위로 잘린 옛 녹음이라 키보다 먹먹하다.
+
 **제목 소리** (2026-10-18). 제목은 소리를 한 번 내고 멈추지 않으므로 스스로 끝나는 소리만 된다. 바닐라 이벤트의 반복 여부는 FMOD 뱅크 밖에서 알 수 없어 게임에서 쟀다 (`tests/ingame/sound_e2e.lua`, 한 번 재생 뒤 2·5·10초): CampfireLight, TuneIn, VehicleRadioTuneIn, HeartBeat, WaterDrip은 10초 뒤에도 울린다 (못 쓴다). UseMatch, UseLighter, RadioZap은 2초 안에, LureHitWater는 5초 안에 끝난다.
 
 | 스타일 | 순간 | 소리 |
 | --- | --- | --- |
-| stamp | 착지 / 줄 착지 | `KIT_TitleStamp` (Kenney impactWood_medium 5개, 책상에 찍히는 짧은 나무 충격) / `KIT_TitleStampLine` (impactWood_light, 더 가볍게) |
-| type | 등장 / 줄 등장 / 퇴장 | `KIT_TitleType` (Erika 5 타자기 1.3초 연타 3개: 글자가 찍히는 1.3초와 같은 길이) / `KIT_TitleTypeLine` (1.5~1.6초) / `KIT_TitleFeed` (캐리지 리턴: 종이가 올라가기 시작할 때) |
+| stamp | 착지 / 줄 착지 | `KIT_TitleStamp` (Kenney impactPlank_medium 5개: 나무 "탁", 낮은 울림에 중고음 타격) / `KIT_TitleStampLine` (impactGeneric_light: 0.1초, 더 가볍게). 처음 고른 impactWood는 게임 녹음에서 500 Hz 위가 비어 멀리서 "웅" 하는 소리였다 |
+| type | 등장 / 줄 등장 / 퇴장 | `KIT_TitleType` (Erika 5 타자기 1.3초 연타 3개: 글자가 찍히는 1.3초와 같은 길이, 피크 -6) / `KIT_TitleTypeLine` (1.5~1.6초, -10) / `KIT_TitleFeed` (캐리지 리턴: 종이가 올라가기 시작할 때) |
 | notice | 등장 | RadioZap (신호가 잡힘) |
 | discovery | 등장 | UseMatch (성냥을 그어 횃불이 켜짐) |
 | dust | 퇴장 | UseLighter (종이에 불이 붙음) |

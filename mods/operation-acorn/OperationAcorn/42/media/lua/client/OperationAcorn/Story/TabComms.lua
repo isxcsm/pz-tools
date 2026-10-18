@@ -573,7 +573,7 @@ function OATabComms:replay(item)
     if e then self:start(e, item.tier, true) end
 end
 
--- The sound under a call (`on`): the game's sound and ambience turned down, a low static (stopping while the game is
+-- The sound under a call (`on`): the game's ambience turned down, a low static (stopping while the game is
 -- paused); and all of it back. The game goes on under a call (the player pauses it as ever, and the call stands still
 -- with it: the scene clock).
 function OATabComms:hush(on)

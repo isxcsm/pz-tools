@@ -42,6 +42,7 @@ for _ = 1, 20 do if window.boot then window:bootSkip() end end
 window:activate("comms")
 local view = window.views.comms
 P5_VIEW = view
+P5_WINDOW = window
 local entry = OA.CommsData.BY_ID[P5_CALL or "S1"]
 view:start(entry, P5_TIER or 1, true)
 say("cps", OA.CommsScript.readCps(), "lines", #view.play.lines, "total", string.format("%.1f", view.play.tl.total))
