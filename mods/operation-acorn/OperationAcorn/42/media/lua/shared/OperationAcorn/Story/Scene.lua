@@ -40,6 +40,9 @@ Scene.LOOK_MS = 1000         -- real milliseconds at least between two looks (th
 Scene.DRIFT = 200            -- how far from its building a dying survivor may be and still be the one
 Scene.ARRIVE_SAY = 5         -- real seconds from the circle's title to the line said on entering it: the title
                              -- ("unveil": 3.6 s, its line 1.2 + 3.0) is read by then, the line not under it
+Scene.SIGHT = 20             -- how near its building (its box) a staged story mission's own line on entering waits for:
+                             -- the line speaks of what stands there (the police car, the open window, the loaded
+                             -- pickup), and the circle is entered as far as its radius (80) away
 -- Vanilla's stage days for the survivalist outfits (ZombiesStageDefinitions.daysMid, daysLate): the _Mid look from
 -- the 30th day since the outbreak, the _Late one from the 90th.
 Scene.MID_DAYS = 30
@@ -314,15 +317,16 @@ end
 
 -- Entering the circle: a story mission's own monologue (CommsData "say:<story>:enter", the choice by its option; after
 -- the handover the revisits' few in turn), said by the story and kept in the comms tab; else a general line for the
--- hour. Returns the bundle and its context for a general line, nil when the story said its own.
-function Scene.arrivalLine(record, m, night)
+-- hour. Returns the bundle and its context for a general line, nil when the story said its own. `delay`: real seconds
+-- before the story's line (ARRIVE_SAY by default, after the circle's title).
+function Scene.arrivalLine(record, m, night, delay)
+    if delay == nil then delay = Scene.ARRIVE_SAY end
     if m.story and OA.Story then
         local said
         if Data.REVISITS[m.story] then
-            said = OA.Story.afterMonologue(record, Scene.ARRIVE_SAY)
+            said = OA.Story.afterMonologue(record, delay)
         else
-            said = OA.Story.monologue(record, m.chosen and (m.story .. "_" .. m.chosen) or m.story, "enter",
-                Scene.ARRIVE_SAY)
+            said = OA.Story.monologue(record, m.chosen and (m.story .. "_" .. m.chosen) or m.story, "enter", delay)
         end
         if said then return nil end
     end
@@ -402,6 +406,21 @@ end
 
 local looks = {}  -- by record id: the real time (ms) of the last look
 
+-- Whether a mission's line on entering waits until its building is in sight (SIGHT): a story mission's stage.
+local function waitsForSight(m)
+    return m.stage ~= nil and m.story ~= nil and not Data.REVISITS[m.story] and m.site ~= nil
+end
+
+-- How far the player is from a mission's site: from its building's box, or from its point (a stage on open ground).
+local function siteDistance(site, x, y)
+    if site.x1 and site.x2 then
+        local dx = math.max(site.x1 - x, 0, x - site.x2)
+        local dy = math.max(site.y1 - y, 0, y - site.y2)
+        return math.sqrt(dx * dx + dy * dy)
+    end
+    return Places.distance(x, y, site.x, site.y)
+end
+
 -- Every game minute (at most each LOOK_MS of real time), for each record: the circle entered (the line, and the request's
 -- name coming out of the mist), the scene put in place, the floor hint in the piece's building, a drop site stood at.
 -- Each mission running is looked at: the regular one and a special request beside it. A floor hint is said only when
@@ -423,12 +442,23 @@ function Scene.minute(record)
                 if not m.scene.arrived then
                     m.scene.arrived = true
                     if m.stage then OA.Stage.event(record, m, "enter") end
-                    local id, ctx = Scene.arrivalLine(record, m, g.isNight())
-                    if id then g.say(record, id, ctx, Scene.ARRIVE_SAY) end
+                    if waitsForSight(m) then
+                        m.scene.sight = true
+                    else
+                        local id, ctx = Scene.arrivalLine(record, m, g.isNight())
+                        if id then g.say(record, id, ctx, Scene.ARRIVE_SAY) end
+                    end
                     g.title(record, { key = "IGUI_OA_Title_Arrived", sub = (OA.Missions.keys(m)), style = "unveil" })
                     said = true
                 end
                 if not m.scene.built then Scene.build(record, m, x, y) end
+            end
+            -- a staged building come into sight: the line the circle's title left for it
+            if m.scene.sight and not said and siteDistance(m.site, x, y) <= Scene.SIGHT then
+                m.scene.sight = nil
+                local id, ctx = Scene.arrivalLine(record, m, g.isNight(), 0)
+                if id then g.say(record, id, ctx) end
+                said = true
             end
             if not said then
                 local id, ctx = Scene.floorHint(record, m, z)

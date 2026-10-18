@@ -280,8 +280,12 @@ end
 function OATabHeli:onCall()
     local d = self.data
     local W = d.waybill
-    local text = getText("IGUI_OA_Trade_Heli_ConfirmCall", W.boxes, Text.credits(W.gain), Text.credits(W.orders),
-        Text.credits(W.total.after))
+    local text = getText("IGUI_OA_Trade_Heli_ConfirmCall", W.boxes, Text.credits(W.gain))
+    -- the orders' line only when there are some
+    if (W.orders or 0) > 0 then
+        text = text .. "\n" .. getText("IGUI_OA_Trade_Heli_ConfirmOrders", Text.credits(W.orders))
+    end
+    text = text .. "\n" .. getText("IGUI_OA_Trade_Heli_ConfirmAfter", Text.credits(W.total.after))
     if d.heli.night then text = text .. "\n" .. getText("IGUI_OA_Status_Heli_Night") end
     text = string.gsub(text, "\\n", "\n")
     UI.confirm(self:character(), text, self, OATabHeli.doCall)

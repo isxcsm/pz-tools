@@ -12,9 +12,9 @@
 -- (as ISMoveableSpriteProps); IsoDoor IsOpen, ToggleDoorSilent, getBarricadeOnSameSquare/OppositeSquare; IsoBarricade
 -- getNumPlanks, removePlank(nil); IsoGridSquare playSound ("BreakBarricadePlank"); IsoWindow ToggleWindow(nil) (no
 -- character: no barricade asked), BuildingDef isAlarmed, setAlarmed; IsoGenerator.new(item, cell, square), getMaxFuel,
--- setFuel, setCondition (as the game's TimedActionsTests); BaseVehicle addKeyToGloveBox (a key in the ignition needs a
--- driver: putKeyInIgnition reads the driver's inventory), VehiclePart setContainerContentAmount, getContainerCapacity,
--- getItemContainer.
+-- setFuel, setCondition (as the game's TimedActionsTests); BaseVehicle createVehicleKey (addKeyToGloveBox does nothing
+-- once the car's key was given out as it spawned; a key in the ignition needs a driver: putKeyInIgnition reads the
+-- driver's inventory), VehiclePart setContainerContentAmount, getContainerCapacity, getItemContainer.
 require "OperationAcorn/Core"
 require "OperationAcorn/Story/Stage"
 require "OperationAcorn/Story/Game"
@@ -691,7 +691,8 @@ end
 
 -- A vehicle outside the entrance (or the role's door: "back"), along the wall: the first spot a few squares out (4, 3,
 -- 5, 6; straight out, then to either side) where its body (5 squares along the wall, 3 across) is free ground outside
--- and no vehicle stands within a square of it (a parked car there already). On open ground: about the piece's spot,
+-- and no vehicle stands within a square of it (a parked car there already); first a spot where the square around the
+-- body is free too (a long pickup's nose, a swing set, the stage's garden chairs at its side), else the body alone. On open ground: about the piece's spot,
 -- lying north to south (`across`: east to west). Doors open (`open`: a part id, or a list), the battery and the fuel
 -- as given, its key in the glove box (`key`). Which vehicle: vehicleFor (the world's own, by `zones`).
 function StageGame.vehicle(ctx, p)
@@ -709,22 +710,26 @@ function StageGame.vehicle(ctx, p)
         z = out:getZ()
     end
     local ax, ay = dy ~= 0 and 1 or 0, dx ~= 0 and 1 or 0
-    local function clear(cx, cy)
+    local function clear(cx, cy, roomy)
         for l = -3, 3 do
             for w = -2, 2 do
                 local s = c:getGridSquare(cx + ax * l + dx * w, cy + ay * l + dy * w, z)
                 if not s or s:getVehicleContainer() then return false end
-                if l >= -2 and l <= 2 and w >= -1 and w <= 1 and (s:getRoom() or not s:isFree(false)) then return false end
+                local body = l >= -2 and l <= 2 and w >= -1 and w <= 1
+                if body and s:getRoom() then return false end
+                if (body or roomy) and not s:isFree(false) then return false end
             end
         end
         return true
     end
     local sq
     local outs = p.at == "ground" and { 0, 1, -1, 2, -2 } or { 4, 3, 5, 6 }
-    for _, k in ipairs(outs) do
-        for _, side in ipairs({ 0, 3, -3, 6, -6 }) do
-            local cx, cy = out:getX() + dx * k + ax * side, out:getY() + dy * k + ay * side
-            if not sq and clear(cx, cy) then sq = c:getGridSquare(cx, cy, z) end
+    for _, roomy in ipairs({ true, false }) do
+        for _, k in ipairs(outs) do
+            for _, side in ipairs({ 0, 3, -3, 6, -6 }) do
+                local cx, cy = out:getX() + dx * k + ax * side, out:getY() + dy * k + ay * side
+                if not sq and clear(cx, cy, roomy) then sq = c:getGridSquare(cx, cy, z) end
+            end
         end
     end
     if not sq then return nil end
@@ -764,7 +769,14 @@ function StageGame.vehicle(ctx, p)
             car:transmitPartItem(bed)
         end
     end
-    if p.key then car:addKeyToGloveBox() end
+    -- its key in the glove box (the game may have given its own to a zombie or a house as the car spawned)
+    local glove = p.key and car:getPartById("GloveBox")
+    local box = glove and glove:getItemContainer()
+    local key = box and car:createVehicleKey()
+    if key then
+        box:AddItem(key)
+        car:transmitPartItem(glove)
+    end
     return true
 end
 

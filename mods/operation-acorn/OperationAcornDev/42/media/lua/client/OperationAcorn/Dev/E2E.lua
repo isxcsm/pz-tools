@@ -473,10 +473,38 @@ function E2E.heliNow()
     return Dev.heliNow()
 end
 
--- 10 in the morning (the night lines and the dark are a beat of their own).
+-- 10 in the morning (the night lines and the dark are a beat of their own), always ahead. The world's age is the nights
+-- the game counted and the hour (getWorldAgeHours), and the game counts a night as a tick takes its clock past 7 (and a
+-- day past midnight): the clock set straight to 10 from the small hours lost a day, and from the afternoon went back.
+-- So the clock is set just short of midnight (past 10) and of 7, and the game's own ticks go past them.
+local morningStep
+
 function E2E.morning()
-    getGameTime():setTimeOfDay(10.0)
-    say("time 10:00")
+    if morningStep then Events.OnTick.Remove(morningStep) end
+    local time = getGameTime()
+    local hour = time:getTimeOfDay()
+    if hour >= 7 and hour < 10 then
+        time:setTimeOfDay(10.0)
+        say("time 10:00")
+        return
+    end
+    local step = hour >= 10 and "midnight" or "seven"
+    time:setTimeOfDay(step == "midnight" and 23.995 or 6.995)
+    morningStep = function()
+        local now = getGameTime():getTimeOfDay()
+        if step == "midnight" then
+            if now < 1 then
+                step = "seven"
+                getGameTime():setTimeOfDay(6.995)
+            end
+        elseif now > 7 and now < 8 then
+            Events.OnTick.Remove(morningStep)
+            morningStep = nil
+            getGameTime():setTimeOfDay(10.0)
+            say("time 10:00, the next morning")
+        end
+    end
+    Events.OnTick.Add(morningStep)
 end
 
 -- ---------------------------------------------------------------------------------------------------------------------

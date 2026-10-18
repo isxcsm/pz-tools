@@ -249,6 +249,31 @@ test("the minute look: the line and the title on entering the circle, the scene 
     eq(list[1].mission, "M1-1")
 end)
 
+test("a staged story mission's own line waits on entering until its building is in sight", function()
+    local g = fakeWorld()
+    local record = OA.Store.ensure("p1", "P")
+    record.trade = { stage = 3, milestones = 0, credits = 0, trust = 0 }
+    local m = mission(record, "farm")
+    m.story, m.chosen = "observation", "b"
+    m.stage = { kept = true }
+    m.site = { x = 100, y = 100, x1 = 95, y1 = 95, x2 = 105, y2 = 105 }
+    m.scene = Scene.plan(record, m, 0, seq({}))
+    g.px, g.py = 150, 130
+    Scene.minute(record)
+    eq(#g.titles, 1, "the circle's title as it is entered")
+    eq(OA.Comms.section(record).played.P3b_enter, nil, "the loaded pickup cannot be seen from 50 squares")
+    eq(#g.said, 0, "and no general line in its place")
+    g.px, g.py = 126, 100
+    Scene.minute(record)
+    eq(OA.Comms.section(record).played.P3b_enter, nil, "21 squares from its box")
+    g.px, g.py = 124, 100
+    Scene.minute(record)
+    truthy(OA.Comms.section(record).played.P3b_enter, "said once the building is in sight")
+    eq(m.scene.sight, nil)
+    Scene.minute(record)
+    eq(#g.said, 0, "nothing more")
+end)
+
 test("the keepers stay away with the option off", function()
     local g = fakeWorld()
     local record = OA.Store.ensure("p1", "P")
