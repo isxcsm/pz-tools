@@ -466,16 +466,27 @@ function OATabComms:advance(now)
     if changed then self:setRows(self:record()) end
 end
 
--- The characters of the line that came since the last frame (Script.charsSince), each kind with its cue.
+-- The characters of the line that came since the last frame (Script.charsSince), each kind with its cue and the last
+-- character that came (a key's sound is that character's key): the team's line's, or the input line's being typed.
 local CHAR_CUES = { recv = "oa.comms.recv", key = "oa.comms.key", erase = "oa.comms.erase" }
+local charsLine, charsState     -- the line and the state of the frame being sounded (no closure a frame)
+local charsOf
 local function soundChars(kind, from, to)
-    Sound.typed(CHAR_CUES[kind], from, to)
+    local l, cs = charsLine, nil
+    if l and kind == "recv" then
+        cs = l.chars
+    elseif l and kind == "key" then
+        cs = charsOf((charsState.inputOf == "erase" and l.erase or l.text) or "")
+    end
+    Sound.typed(CHAR_CUES[kind], from, to, cs and cs[to])
 end
 
 function OATabComms:soundChars(st)
     local play = self.play
     play.chars = play.chars or {}
+    charsLine, charsState = play.lines[st.line], st
     Script.charsSince(play.chars, st, soundChars)
+    charsLine, charsState = nil, nil
 end
 
 -- The hail at `ms` into it: no line yet; the dots shown, whether the line is up, and the static's strength.
@@ -589,7 +600,7 @@ end
 -- The characters of a text the frames draw a part of, split once.
 local split = {}
 local splitCount = 0
-local function charsOf(s)
+function charsOf(s)
     local cs = split[s]
     if not cs then
         if splitCount > 400 then

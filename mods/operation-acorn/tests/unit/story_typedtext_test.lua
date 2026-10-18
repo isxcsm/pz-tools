@@ -424,6 +424,20 @@ test("a typed character sounds its key; the first count after a layout and a cli
     eq(#heard, 2, "the click brought the rest on at once: no typing sound")
 end)
 
+test("a keyboard's cue sounds the key of the character that came", function()
+    local panel = panelFor("a b", 10)
+    local heard = sounding(panel, { key = "t.board" })
+    PZUIKit.Sound.defineKeyboard("t.keys", { letters = { "Letter" }, space = "Space" })
+    PZUIKit.Sound.define("t.board", { keyboard = "t.keys" })
+    clock()
+    panel:render()
+    for _ = 1, 3 do
+        ms = ms + 100
+        panel:render()
+    end
+    eq(table.concat(heard, " "), "Space Letter", "the space, then the b")
+end)
+
 test("a printed document sounds a row as each row begins, once, and nothing for its characters", function()
     clock()
     local panel, run = panelFor("ab\ncd\nef", 10)

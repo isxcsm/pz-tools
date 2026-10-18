@@ -12,11 +12,11 @@ Sounds.CUES = {
     ["oa.comms.static"] = { sound = "RadioStatic" },
     -- the characters of a call: the team's coming in (no sound yet), the protagonist's typed and erased (the kit's keys)
     ["oa.comms.recv"] = { gap = 40 },
-    ["oa.comms.key"] = { sound = "KIT_Key", gap = 40 },
-    ["oa.comms.erase"] = { sound = "KIT_Erase", gap = 40 },
-    -- the terminal printing a paper: a character typed (the kit's key), a row printed (no sound yet)
-    ["oa.paper.key"] = { sound = "KIT_Key", gap = 40 },
-    ["oa.paper.row"] = {},
+    ["oa.comms.key"] = { keyboard = "kit.terminal", gap = 40 },
+    ["oa.comms.erase"] = { keyboard = "kit.terminal", erase = true, gap = 40 },
+    -- the terminal printing a paper: a character typed (the kit's keyboard), a row printed (the kit's dot-matrix line)
+    ["oa.paper.key"] = { keyboard = "kit.terminal", gap = 40 },
+    ["oa.paper.row"] = { sound = "KIT_PrintRow" },
     -- a call waiting: a burst of static at the terminal, heard around it
     ["oa.comms.alert"] = { sound = "RadioZap" },
     -- the helicopter of a drop passing over

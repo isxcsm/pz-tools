@@ -116,13 +116,16 @@ function PZUITypedText:rowsAt(n)
     return r
 end
 
--- The sound of the characters that came this frame (was+1 to n): a key's for typed ones (within its cue's gap; none
--- for a jump: a click, Sound.typed), a row's as a printed row begins (one row at a time; a jump of rows is a click).
--- The first count after a layout sounds nothing (the caller has no `was` then).
+-- The sound of the characters that came this frame (was+1 to n): a key's for typed ones, the key of the last of them
+-- (within its cue's gap; none for a jump: a click, Sound.typed), a row's as a printed row begins (one row at a time; a
+-- jump of rows is a click). The first count after a layout sounds nothing (the caller has no `was` then).
 function PZUITypedText:sound(was, n)
     local cues = self.sounds
     if not self.rowEnds then
-        if cues.key then Sound.typed(cues.key, was, n) end
+        if cues.key then
+            local plain = self.run and self.run.parse and self.run.parse.plain
+            Sound.typed(cues.key, was, n, plain and string.sub(plain, n, n))
+        end
         return
     end
     local before = self.rowsBegun or self:rowsAt(was)

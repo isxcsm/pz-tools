@@ -1,22 +1,17 @@
 {
   "peak": -3.0,
   "sounds": {
-    "KIT_Key": {
-      "mod": "pz-ui-kit", "category": "UI", "peak": -12.0, "length": 0.07,
-      "clips": [
-        { "src": "keyboard/keypress-001.wav" }, { "src": "keyboard/keypress-003.wav" },
-        { "src": "keyboard/keypress-004.wav" }, { "src": "keyboard/keypress-006.wav" },
-        { "src": "keyboard/keypress-007.wav" }, { "src": "keyboard/keypress-013.wav" },
-        { "src": "keyboard/keypress-017.wav" }, { "src": "keyboard/keypress-019.wav" },
-        { "src": "keyboard/keypress-027.wav" }, { "src": "keyboard/keypress-030.wav" }
-      ]
-    },
-    "KIT_Erase": {
-      "mod": "pz-ui-kit", "category": "UI", "peak": -13.0, "length": 0.07,
-      "clips": [
-        { "src": "keyboard/keypress-012.wav", "pitch": 0.94 }, { "src": "keyboard/keypress-015.wav", "pitch": 0.94 },
-        { "src": "keyboard/keypress-016.wav", "pitch": 0.94 }, { "src": "keyboard/keypress-032.wav", "pitch": 0.94 }
-      ]
-    }
+    "KIT_Key_1": {"mod": "pz-ui-kit", "category": "UI", "peak": -12.0, "fadeOut": 0.02, "clips": [{"src": "commons/Typing_-_Model_F_122_1984.ogg", "start": 0.582, "end": 0.645}]},
+    "KIT_Key_2": {"mod": "pz-ui-kit", "category": "UI", "peak": -12.0, "fadeOut": 0.02, "clips": [{"src": "commons/Typing_-_Model_F_122_1984.ogg", "start": 1.939, "end": 2.002}]},
+    "KIT_Key_3": {"mod": "pz-ui-kit", "category": "UI", "peak": -12.0, "fadeOut": 0.02, "clips": [{"src": "commons/Typing_-_Model_F_122_1984.ogg", "start": 2.535, "end": 2.598}]},
+    "KIT_Key_4": {"mod": "pz-ui-kit", "category": "UI", "peak": -12.0, "fadeOut": 0.02, "clips": [{"src": "commons/Typing_-_Model_F_122_1984.ogg", "start": 2.832, "end": 2.895}]},
+    "KIT_Key_5": {"mod": "pz-ui-kit", "category": "UI", "peak": -12.0, "fadeOut": 0.02, "clips": [{"src": "commons/Typing_-_Model_F_122_1984.ogg", "start": 4.756, "end": 4.819}]},
+    "KIT_Key_6": {"mod": "pz-ui-kit", "category": "UI", "peak": -12.0, "fadeOut": 0.02, "clips": [{"src": "commons/Typing_-_Model_F_122_1984.ogg", "start": 6.641, "end": 6.704}]},
+    "KIT_Key_7": {"mod": "pz-ui-kit", "category": "UI", "peak": -12.0, "fadeOut": 0.02, "clips": [{"src": "commons/Typing_-_Model_F_122_1984.ogg", "start": 7.005, "end": 7.068}]},
+    "KIT_Key_8": {"mod": "pz-ui-kit", "category": "UI", "peak": -12.0, "fadeOut": 0.02, "clips": [{"src": "commons/Typing_-_Model_F_122_1984.ogg", "start": 9.472, "end": 9.535}]},
+    "KIT_KeyBack": {"mod": "pz-ui-kit", "category": "UI", "peak": -12.0, "fadeOut": 0.02, "clips": [{"src": "commons/Typing_-_Model_F_122_1984.ogg", "start": 7.861, "end": 7.924}]},
+    "KIT_KeySpace": {"mod": "pz-ui-kit", "category": "UI", "peak": -12.0, "fadeOut": 0.04, "clips": [{"src": "commons/Typing_-_Model_F_122_1984.ogg", "start": 11.008, "end": 11.14}]},
+    "KIT_KeyEnter": {"mod": "pz-ui-kit", "category": "UI", "peak": -11.0, "fadeOut": 0.04, "clips": [{"src": "commons/IBM_M2_sound.ogg", "start": 3.778, "end": 3.911}]},
+    "KIT_PrintRow": {"mod": "pz-ui-kit", "category": "UI", "peak": -14.0, "length": 0.24, "fadeOut": 0.05, "clips": [{"src": "commons/Star-LC-10-printer-01.ogg", "start": 2.04, "end": 2.34}, {"src": "commons/Star-LC-10-printer-01.ogg", "start": 21.19, "end": 21.49}, {"src": "commons/Star-LC-10-printer-01.ogg", "start": 24.47, "end": 24.77}, {"src": "commons/Star-LC-10-printer-01.ogg", "start": 28.67, "end": 28.97}]}
   }
 }

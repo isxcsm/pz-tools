@@ -1,73 +1,123 @@
 /* Made by pz-tools/mods/tools/sound/build.py from sounds.json: edit that, not this. */
 module Base
 {
-    sound KIT_Erase
+    sound KIT_KeyBack
     {
         category = UI,
         clip
         {
-            file = media/sound/KIT_Erase_1.ogg,
-            pitch = 0.94,
-        }
-        clip
-        {
-            file = media/sound/KIT_Erase_2.ogg,
-            pitch = 0.94,
-        }
-        clip
-        {
-            file = media/sound/KIT_Erase_3.ogg,
-            pitch = 0.94,
-        }
-        clip
-        {
-            file = media/sound/KIT_Erase_4.ogg,
-            pitch = 0.94,
+            file = media/sound/KIT_KeyBack_1.ogg,
         }
     }
 
-    sound KIT_Key
+    sound KIT_KeyEnter
     {
         category = UI,
         clip
         {
-            file = media/sound/KIT_Key_1.ogg,
+            file = media/sound/KIT_KeyEnter_1.ogg,
+        }
+    }
+
+    sound KIT_KeySpace
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_KeySpace_1.ogg,
+        }
+    }
+
+    sound KIT_Key_1
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_Key_1_1.ogg,
+        }
+    }
+
+    sound KIT_Key_2
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_Key_2_1.ogg,
+        }
+    }
+
+    sound KIT_Key_3
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_Key_3_1.ogg,
+        }
+    }
+
+    sound KIT_Key_4
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_Key_4_1.ogg,
+        }
+    }
+
+    sound KIT_Key_5
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_Key_5_1.ogg,
+        }
+    }
+
+    sound KIT_Key_6
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_Key_6_1.ogg,
+        }
+    }
+
+    sound KIT_Key_7
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_Key_7_1.ogg,
+        }
+    }
+
+    sound KIT_Key_8
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_Key_8_1.ogg,
+        }
+    }
+
+    sound KIT_PrintRow
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_PrintRow_1.ogg,
         }
         clip
         {
-            file = media/sound/KIT_Key_2.ogg,
+            file = media/sound/KIT_PrintRow_2.ogg,
         }
         clip
         {
-            file = media/sound/KIT_Key_3.ogg,
+            file = media/sound/KIT_PrintRow_3.ogg,
         }
         clip
         {
-            file = media/sound/KIT_Key_4.ogg,
-        }
-        clip
-        {
-            file = media/sound/KIT_Key_5.ogg,
-        }
-        clip
-        {
-            file = media/sound/KIT_Key_6.ogg,
-        }
-        clip
-        {
-            file = media/sound/KIT_Key_7.ogg,
-        }
-        clip
-        {
-            file = media/sound/KIT_Key_8.ogg,
-        }
-        clip
-        {
-            file = media/sound/KIT_Key_9.ogg,
-        }
-        clip
-        {
-            file = media/sound/KIT_Key_10.ogg,
+            file = media/sound/KIT_PrintRow_4.ogg,
         }
     }
 

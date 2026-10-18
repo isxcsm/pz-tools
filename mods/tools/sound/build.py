@@ -7,7 +7,8 @@ sources/: a library's recording, or one of our own) with what to take of it. For
     decodes it (ffmpeg: any format), takes its stretch (start, end in seconds), makes it mono at 44.1 kHz,
     cuts the quiet before and after it (from 2 ms before it first comes within 30 dB of its peak, to its last moment
     within 50 dB), keeps its first `length` seconds (the clip's, else the
-    sound's: a key's press without its release), fades its ends (5 ms, so it does not click),
+    sound's: a key's press without its release), fades its ends (5 ms, so it does not click; `fadeOut` seconds, the
+    clip's or the sound's, for a stroke cut out of a run: its ring let go),
     brings its peak to the sound's `peak` (dBFS; -3 by default) and adds the clip's `gain` (dB),
     and writes it as Ogg Vorbis (quality 5) into <mod>/42/media/sound/<name>_<n>.ogg;
 
@@ -60,6 +61,7 @@ CUE_TABLES = [
     'building-utilities/BuildingUtilities/42/media/lua/shared/BuildingUtilities/Sounds.lua',
 ]
 CUE = re.compile(r'\["([A-Za-z0-9_.]+)"\]\s*=\s*\{[^}]*?\bsound\s*=\s*"([A-Za-z0-9_]+)"')
+OWN_NAME = re.compile(r'"((?:KIT|OA|BU)_[A-Za-z0-9_]+)"')
 
 
 def load_table():
@@ -125,9 +127,14 @@ def check_cues(table):
     problems = []
     for rel in CUE_TABLES:
         with open(os.path.join(MODS, rel), encoding='utf-8') as f:
-            for cue, sound in CUE.findall(f.read()):
+            text = f.read()
+            for cue, sound in CUE.findall(text):
                 if sound not in known:
                     problems.append('%s: cue %s names %s, a sound neither the game nor sounds.json has' % (rel, cue, sound))
+            # our own sounds named anywhere in the table (a keyboard's keys)
+            for sound in OWN_NAME.findall(text):
+                if sound not in known:
+                    problems.append('%s: names %s, a sound sounds.json has not' % (rel, sound))
     return problems
 
 
@@ -152,7 +159,7 @@ def trim(data):
     return data[max(0, onset - int(PRE_S * RATE)):tail + 1]
 
 
-def shape(data, clip, peak_db, length=None):
+def shape(data, clip, peak_db, length=None, fade_out=None):
     start, end = clip.get('start'), clip.get('end')
     if start is not None or end is not None:
         a = int(round((start or 0) * RATE))
@@ -169,6 +176,12 @@ def shape(data, clip, peak_db, length=None):
         data = data.copy()
         data[:fade] *= ramp
         data[-fade:] *= ramp[::-1]
+    if fade_out:
+        # a long fade to the end: a stroke cut out of a run of them, its ring let go before the next would come
+        tail = min(int(fade_out * RATE), len(data) // 2)
+        if tail > 0:
+            data = data.copy()
+            data[-tail:] *= np.linspace(1, 0, tail, dtype=np.float32) ** 2
     peak = float(np.max(np.abs(data)))
     gain = 10 ** ((peak_db + clip.get('gain', 0.0)) / 20) / peak
     return np.clip(data * gain, -1, 1)
@@ -229,7 +242,7 @@ def build(table, only):
             peak = sound.get('peak', table.get('peak', -3.0))
             for n, clip in enumerate(sound['clips'], 1):
                 data = shape(decode(os.path.join(HERE, 'sources', clip['src'])), clip, peak,
-                             clip.get('length', sound.get('length')))
+                             clip.get('length', sound.get('length')), clip.get('fadeOut', sound.get('fadeOut')))
                 encode(data, os.path.join(out, '%s_%d.ogg' % (name, n)))
             # an earlier build's clips past this one's
             n = len(sound['clips']) + 1

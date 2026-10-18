@@ -12,6 +12,8 @@ local Sound = {}
 PZUIKit.Sound = Sound
 
 local defs = {}     -- cue -> { sound = the game's sound name (nil: silent), gap = ms at least between two }
+                    --   or { keyboard = id (its keys by the character), erase = true (its erasing key), gap }
+local keyboards = {} -- id -> { letters = { names }, space = name, enter = name, back = name }
 local lastAt = {}   -- cue -> the real time (ms) it last sounded
 local told = {}     -- the cues asked for and not defined, said once
 
@@ -32,9 +34,30 @@ local function clock()
     return getTimestampMs()
 end
 
--- The game's sound for a cue now, `at` the real time (ms; now by default): nil when the cue is not defined (said once),
--- defined silent, or sounded less than its gap ago (a clock gone back lets it sound).
-function Sound.name(cue, at)
+-- A keyboard: each key its own sound, picked by the character typed (the same character, the same key every time; a
+-- space the space bar, a new line the return), and the one key that erases. `letters` are the game's sounds of the
+-- letter keys, `space`, `enter`, `back` the others (each falls back to a letter key, the erasing one to the first).
+function Sound.defineKeyboard(id, board)
+    keyboards[id] = board
+end
+
+-- The game's sound of the key that types `char` (a string of one character; nil: the first letter key) on a keyboard,
+-- or of its erasing key.
+function Sound.keyOf(board, char, erase)
+    local letters = board.letters
+    if erase then return board.back or letters[1] end
+    if char == " " then return board.space or letters[1] end
+    if char == "\n" then return board.enter or letters[1] end
+    local code = char and char ~= "" and string.byte(char) or 0
+    -- spread by the golden ratio: a plain remainder put most Korean syllables (0xAC00 on in steps of 28) on two keys
+    local spread = code * 0.6180339887
+    return letters[math.floor((spread - math.floor(spread)) * #letters) + 1]
+end
+
+-- The game's sound for a cue now, `at` the real time (ms; now by default), `char` the character it is for (a keyboard's
+-- cue): nil when the cue is not defined (said once), defined silent, or sounded less than its gap ago (a clock gone back
+-- lets it sound).
+function Sound.name(cue, at, char)
     local def = defs[cue]
     if not def then
         if not told[cue] then
@@ -43,19 +66,21 @@ function Sound.name(cue, at)
         end
         return nil
     end
-    if not def.sound then return nil end
+    local board = def.keyboard and keyboards[def.keyboard]
+    if not def.sound and not board then return nil end
     if def.gap then
         at = at or clock()
         local last = lastAt[cue]
         if last and at >= last and at - last < def.gap then return nil end
         lastAt[cue] = at
     end
+    if board then return Sound.keyOf(board, char, def.erase) end
     return def.sound
 end
 
--- On the screen (the game's UI sound): its id, or nil.
-function Sound.ui(cue)
-    local name = Sound.name(cue)
+-- On the screen (the game's UI sound): its id, or nil. `char`: a keyboard cue's character.
+function Sound.ui(cue, char)
+    local name = Sound.name(cue, nil, char)
     if not name then return nil end
     return getSoundManager():playUISound(name)
 end
@@ -76,12 +101,13 @@ function Sound.on(cue, character)
 end
 
 -- Characters `from`+1 to `to` came on (typed, printed, erased: counts either way): one sound for them, within the
--- cue's gap. More than TYPED_JUMP at once is a jump (a click brought the text on), not typing: no sound.
+-- cue's gap; `char` the last of them (a keyboard cue's key is that character's). More than TYPED_JUMP at once is a jump
+-- (a click brought the text on), not typing: no sound.
 Sound.TYPED_JUMP = 8
-function Sound.typed(cue, from, to)
+function Sound.typed(cue, from, to, char)
     local n = math.abs((to or 0) - (from or 0))
     if n == 0 or n > Sound.TYPED_JUMP then return nil end
-    return Sound.ui(cue)
+    return Sound.ui(cue, char)
 end
 
 -- ---------------------------------------------------------------------------------------------------------------------
@@ -199,6 +225,12 @@ end
 Sound.defineAll({
     ["kit.select"] = { sound = "UISelectListItem" },
     ["kit.press"] = { sound = "UIActivateButton" },
+})
+
+-- The kit's keyboard: an old terminal's (IBM's buckling springs of the 1980s; tools/sound, sounds.json).
+Sound.defineKeyboard("kit.terminal", {
+    letters = { "KIT_Key_1", "KIT_Key_2", "KIT_Key_3", "KIT_Key_4", "KIT_Key_5", "KIT_Key_6", "KIT_Key_7", "KIT_Key_8" },
+    space = "KIT_KeySpace", enter = "KIT_KeyEnter", back = "KIT_KeyBack",
 })
 for _, style in ipairs({ "stamp", "discovery", "notice", "unveil", "dust", "bleed", "sink", "type", "pulse", "brief" }) do
     for _, moment in ipairs(MOMENTS) do

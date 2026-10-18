@@ -69,7 +69,8 @@ Sound.typed(cue, from, to)       -- 글자 from+1..to가 나왔다: gap 안에�
 
 ### S5. 에셋 파이프라인 (`pz-tools/mods/tools/sound/`)
 - `sources/`: 원본 (CC0 라이브러리, 직접 만든 것). `sources/LICENSES.csv`: 파일, 출처, 라이선스, 작성자.
-- 합성(numpy)은 기각했다: 음 높이가 있는 저음은 통 두드리는 소리가 되고, 바늘 연타 인쇄음은 옛 2D 게임 효과음처럼 들렸다 (사용자 청취). 기계 소리는 녹음으로 한다. 키·지우기: OpenGameArt Keyboard Soundpack #1 (unicaegames, CC0, Cherry KC 1000)의 단일 키 32개를 `sources/keyboard/`에 두고 10개·4개를 골랐다. 녹음은 누름과 뗌이 함께 있어 `length` 0.07초로 누름만 쓴다 (초당 14자면 다음 글자가 71 ms 뒤). 지우기는 낮은 키에 pitch 0.94.
+- 합성(numpy)은 기각했다: 음 높이가 있는 저음은 통 두드리는 소리가 되고, 바늘 연타 인쇄음은 옛 2D 게임 효과음처럼 들렸다 (사용자 청취). 현대 키보드 녹음(Cherry KC 1000, OpenGameArt)도 기각: 옛날 키보드 소리가 아니었다. 지금은 위키미디어 공용의 CC0·퍼블릭 도메인 녹음 (`sources/commons/`, LICENSES.csv): IBM Model F 122 (1984)의 타건 8개(글자)·1개(백스페이스)·스페이스바, IBM M2의 엔터, Star LC-10 도트 프린터의 짧은 줄 출력 4개(`KIT_PrintRow`, 서류 줄). 빠른 타이핑 녹음이라 누름 뒤 40 ms 안에 뗌·다음 키가 오므로 `slice.py`로 타격 시점(국소 피크 -10 dB)을 찾아 그 앞 3 ms부터 60 ms만 쓰고 끝을 `fadeOut`으로 줄인다.
+- **키보드 (`Sound.defineKeyboard`).** 키 소리는 무작위가 아니라 글자로 정한다: 같은 글자는 늘 같은 키 (글자 코드 × 황금비의 소수부로 고르게: 단순 나머지는 받침 없는 한글 음절을 두 키에 몰았다), 띄어쓰기는 스페이스바, 줄바꿈은 엔터, 지우기는 백스페이스 한 키 (교신 지우기는 초당 10자로 일정). 큐는 `{ keyboard = "kit.terminal" }`(`erase = true`면 지우는 키), 엔진은 마지막에 나온 글자를 `Sound.typed(cue, from, to, char)`로 넘긴다 (`PZUITypedText`: `parse.plain`, 교신: 입력 줄·팀 줄의 글자). `preview.py --keyboard`가 같은 규칙으로 문장을 쳐 본다.
 - `build.py`: 앞뒤 자르기 (클립 피크 기준: 피크 -30 dB 2 ms 앞부터 -50 dB까지. 전체 눈금 기준으로 자르면 조용한 녹음의 방 소음부터 잡혔다), `length`, 모노 44.1 kHz, 피크 맞춤, ogg로 각 모드 `media/sound/`에. 소리 스크립트 `.txt`도 표에서 생성 (변주 클립, 볼륨, 마스터).
 - `report.py`: 소리마다 파형·스펙트로그램·음량·길이 그림 (나는 들을 수 없으므로 이것으로 검수한다. 듣는 검수는 사용자).
 - `preview.py`: 한 소리를 게임처럼 이어 친 WAV (`report/preview_<이름>.wav`: 초당 글자 수, gap, 줄 사이 쉼). 게임 밖에서 듣는 검수용.
@@ -77,6 +78,49 @@ Sound.typed(cue, from, to)       -- 글자 from+1..to가 나왔다: gap 안에�
 
 ### S6. 소리 목록
 S1~S4가 끝나면 두 모드의 사건을 전부 훑어 표로 만든다: 사건, 큐, 지금 소리, 원하는 소리, 공용(키트)/모드, 바닐라 재사용/새 에셋(CC0/직접). 새 에셋이 필요한 것만 S5로.
+
+2026-10-18 훑음. "바닐라" 열의 이름은 게임 스크립트에 있는 것만 적었다 (`build.py --check`가 대조). 들어 보고 정하는 것은 사용자 청취 몫.
+
+**있는 큐**
+
+| 사건 | 큐 | 지금 | 메모 |
+| --- | --- | --- | --- |
+| 교신 팀 줄 시작 / 전송 / 바닥 소음 | `oa.comms.in` / `send` / `static` | RadioZap / RadioButton / RadioStatic (반복) | 바닐라 |
+| 교신 팀 글자 들어옴 | `oa.comms.recv` | 무음 | 후보: 텔레프린터 수신음(새 에셋) 또는 무음 유지 |
+| 교신 주인공 타이핑 / 지우기 | `oa.comms.key` / `oa.comms.erase` | 키트 키보드 (Model F, 백스페이스) | 녹음 |
+| 서류 글자 / 줄 출력 | `oa.paper.key` / `oa.paper.row` | 키트 키보드 / `KIT_PrintRow` (Star LC-10) | 녹음 |
+| 교신 대기 알림 (세상) | `oa.comms.alert` | RadioZap | 바닐라 |
+| 헬기 통과 | `oa.heli.pass` | Helicopter | 바닐라 |
+| 상자·화물 걸쇠 / 부숨 | `oa.box.latch` / `oa.box.break` | CloseMetalToolbox / BreakFurniture | 걸쇠는 이름 오류로 무음이었다 (고침) |
+| 무대 판자 / 무대 무전 | `oa.stage.plank` / `oa.stage.radio` | BreakBarricadePlank / RadioTalk | 바닐라 |
+| 환각 벨 | `oa.hallucination.ring` | TelevisionTestBeep | 바닐라 |
+| 혈청 검사 | `oa.serum.test` | FirstAidApplyAlcoholWipes | 바닐라 |
+| BU 스위치 / 발전기 정지 | `bu.switch` / `bu.generator.stop` | LightSwitch / GeneratorStopping | 스위치는 제어반 레버라 더 무거운 소리 후보: KnobSwitch, 새 에셋(차단기 레버) |
+| BU 설명서 줄 | `bu.manual.row` | 무음 | 화면이지 프린터가 아니다: 무음 유지 |
+| 키트 선택 / 버튼 | `kit.select` / `kit.press` | UISelectListItem / UIActivateButton | 바닐라 |
+| 제목 순간 (스타일 10종 × 등장·착지·퇴장, 줄 포함) | `kit.title.*` | 무음 | 새 에셋: 도장 쿵(stamp land), 타자 제목(type: 키보드 재사용), 발견(discovery) 짧은 음 등. 스타일마다 정함 |
+
+**소리 없는 타임드 액션** (바닐라 액션은 시작에 소리를 내고 끝·중단에 멈춘다. 같은 방식으로 키트에 한 지점을 둔다: `Sound.startAction(action, cue)`, 끝·중단은 `ISBaseTimedAction.perform/stop`에서 한 번에 멈춤)
+
+| 액션 | 후보 (바닐라) |
+| --- | --- |
+| OA 물건·기계 놓기 (`ISOAPlaceThing`, `ISOAMachinePlace`) | UIObjectMenuObjectPlace |
+| OA 기계 줍기 (`ISOAMachinePickUp`), BU 상자 회수 (`ISBUTakeBox`) | UIObjectMenuObjectPickup |
+| OA 기계 부품 넣기·빼기 (`ISOAMachinePartIn/Out`), 장비 키트 장착 (`ISOAFitItemKit`, `ISOAFitVehicleKit`) | RepairWithWrench |
+| OA 상자 봉인 (`ISOASeal`) | FixWithTape (끝에 걸쇠 큐) |
+| OA 상자 해체 (`ISOADismantleBox`), BU 상자 분해 (`ISBUTakeApartBox`), 역설계 (`ISBUReverseEngineer`) | Dismantle |
+| OA 지렛대로 열기 (`ISOAPryOpen`) | BeginRemoveBarricadePlankCrowbar |
+| OA 자물쇠 따기·해제 (`ISOAPickLock`, `ISOADisarm`) | 바닐라 없음: 새 에셋 |
+| OA 파쇄 (`ISOAMachineShred`) | 바닐라 없음: 새 에셋 |
+| BU 배선 연결·해제 (`ISBUConnect`, `ISBUDisconnect`) | GeneratorConnect |
+| BU 제어반 단계 올림 (`ISBUUpgradePanel`) | Dismantle (전기 작업) |
+| BU 배관 추가·제거 (`ISBUAddPipe`, `ISBURemovePipe`) | RepairWithWrench |
+| BU 눈 치우기 (`ISBUClearSnow`) | Shoveling 또는 무음 (패널 위 눈을 털어냄) |
+| BU 필터 교체 (`ISBUReplaceMedia`) | RepairWithWrench |
+| BU 상자 작동 (`ISBUActivateBox`) | KnobSwitch |
+| BU 배터리 되살리기 (`ISBUReviveBattery`) | CarBatteryChargerRunning (반복) |
+| BU 제어반·랙 열기 (`ISBUOpenPanel`, `ISBUOpenRack`) | CrateMetalOpen 계열 또는 무음 (창이 열린다) |
+| OA 이야기 행동·채취 (`ISOAStoryAction`, `ISOAHarvestAction`) | ForagingPickup 또는 무음 |
 
 ## 3. 순서
 S1 → S2 → S4 (동작 동일 확인) → S3 (API) → S5 → S6 → 에셋 → 연출 템포 재조정 → 통합 E2E.
