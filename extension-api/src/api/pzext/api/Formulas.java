@@ -2,6 +2,7 @@ package pzext.api;
 
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import pzext.boot.Hooks;
 import pzext.boot.Tracked;
@@ -195,6 +196,20 @@ final class Formulas implements Hooks.Formulas {
         // damages by (the square root of the multiplier of the damage, which grows with the speed squared); the walking movement's
         // factor; the factor of the speed scale of the animation of walking through trees; night sight's strength.
         float nightSight, darkness, coneAdd, landingShift, landingScale = 1, impact = 1, walk = 1, treeAnimation = 1;
+        // What the kept weights of the inventory follow: one object for as long as the declarations that weigh an item (the efficiencies
+        // above, of categories, full types, item types and modData keys; the tags of bags) stay the same, a new one when any of them
+        // changes. A declaration of anything else makes a new Active but keeps this, so that the sums kept stay.
+        Object weights = new Object();
+
+        /** Whether the declarations that weigh an item are those of the other (the game's types and tags by identity). */
+        boolean weighsAs(Active other) {
+            if (!category.equals(other.category) || !fullTypes.equals(other.fullTypes) || !Arrays.equals(typeEfficiency, other.typeEfficiency)
+                    || !Arrays.equals(tagMultiplier, other.tagMultiplier) || !Arrays.equals(efficiencyKeys, other.efficiencyKeys)
+                    || typeObjects.length != other.typeObjects.length || tagObjects.length != other.tagObjects.length) return false;
+            for (int index = 0; index < typeObjects.length; index++) if (typeObjects[index] != other.typeObjects[index]) return false;
+            for (int index = 0; index < tagObjects.length; index++) if (tagObjects[index] != other.tagObjects[index]) return false;
+            return true;
+        }
     }
 
     /**
@@ -634,6 +649,7 @@ final class Formulas implements Hooks.Formulas {
             if (moves.moved()) {
                 Object cell = game.cell();
                 // The world the formulas were declared in was left; the mods declare them again in the next one.
+                if (world != null && cell != world) { knownTypes.clear(); knownTags.clear(); }
                 if (world != null && cell != world && !declared.isEmpty()) { declared.clear(); dirty = true; publish(); }
                 world = cell;
             }
@@ -807,12 +823,12 @@ final class Formulas implements Hooks.Formulas {
             var tags = table("carry.containerTagMultiplier");
             var typeObjects = new ArrayList<Object>(); var typeEfficiency = new ArrayList<Float>();
             for (var entry : types.entrySet()) {
-                Object type = inventory.itemTypeNamed(entry.getKey());
+                Object type = known(knownTypes, entry.getKey(), inventory::itemTypeNamed);
                 if (type != null) { typeObjects.add(type); typeEfficiency.add(entry.getValue().floatValue()); }
             }
             var tagObjects = new ArrayList<Object>(); var tagMultiplier = new ArrayList<Float>();
             for (var entry : tags.entrySet()) {
-                Object tag = inventory.itemTagNamed(entry.getKey());
+                Object tag = known(knownTags, entry.getKey(), inventory::itemTagNamed);
                 if (tag != null) { tagObjects.add(tag); tagMultiplier.add(entry.getValue().floatValue()); }
             }
             next.typeObjects = typeObjects.toArray();
@@ -822,9 +838,21 @@ final class Formulas implements Hooks.Formulas {
             if (combined(BY_NAME.get("carry.efficiencyKey")) instanceof List<?> keys) next.efficiencyKeys = keys.toArray(String[]::new);
             next.carry = !category.isEmpty() || !fullTypes.isEmpty() || next.typeObjects.length > 0 || next.tagObjects.length > 0
                 || next.efficiencyKeys.length > 0;
+            // The kept weights stay for as long as nothing that weighs an item changed; a declaration of anything else keeps them.
+            if (active.weighsAs(next)) next.weights = active.weights;
         }
         active = next;
         nightSightFloor();
+    }
+
+    // The game's item types and tags by the name a mod gave, as they resolved: a name that is not registered is looked up again each time.
+    // The registries do not change while a world is played; they are let go with the declarations when it is left.
+    private final Map<String, Object> knownTypes = new HashMap<>(), knownTags = new HashMap<>();
+
+    private static Object known(Map<String, Object> resolved, String name, Function<String, Object> lookup) {
+        Object found = resolved.get(name);
+        if (found == null && (found = lookup.apply(name)) != null) resolved.put(name, found);
+        return found;
     }
 
     // Night sight's lift for the value declared, as tuned; the zombies in the dark it lifts are seen through the same lift.
