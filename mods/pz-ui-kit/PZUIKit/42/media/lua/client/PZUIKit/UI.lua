@@ -359,9 +359,18 @@ function SCALED:drawTextUntrimmed(str, x, y, r, g, b, a, font)
     return textPx(self, self.uiBase, str, floor(x * S + 0.5), floor(y * S + 0.5), r, g, b, a, font, 3)
 end
 
--- A texture at its own size is that many design units.
+-- A texture at its own size is that many design units. A name is a texture asked of the game once (found ones only: a
+-- missing one is asked again).
+local named = {}
 function SCALED:drawTexture(texture, x, y, a, r, g, b)
-    if type(texture) == "string" then texture = getTexture(texture) end
+    if type(texture) == "string" then
+        local found = named[texture]
+        if found == nil then
+            found = getTexture(texture)
+            if found then named[texture] = found end
+        end
+        texture = found
+    end
     if not texture then return end
     local rx, rw = span(x, texture:getWidth())
     local ry, rh = span(y, texture:getHeight())
