@@ -16,12 +16,19 @@ local function squaresOf(anchor, state)
     return list
 end
 
--- Lists the containers of the machines by the player that the game did not (their squares are out of its reach).
+-- How far (squares) from the player a machine's anchor can be and still have a square within his reach: the nine squares
+-- round him, and a machine is two squares across at most.
+local REACH = 4
+
+-- Lists the containers of the machines by the player that the game did not (their squares are out of its reach). The
+-- game refreshes the window at every turn the player makes, so a player with no machine near is answered from the
+-- registry at once, without a square asked for.
 local function onRefresh(page, stage)
     if stage ~= "beforeFloor" or page.onCharacter then return end
     local playerObj = getSpecificPlayer(page.player)
     local here = playerObj and playerObj:getCurrentSquare()
     if not here then return end
+    if not Machines.anyNear(here:getX(), here:getY(), REACH) then return end
     local listed = {}
     for _, button in ipairs(page.backpacks) do listed[button.inventory] = true end
     local seen = {}

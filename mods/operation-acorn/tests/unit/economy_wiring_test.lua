@@ -991,3 +991,23 @@ test("a basement goes with the house above it: one key, one walk over both, its 
     eq(scanned.key, "house"); eq(#scanned.containers, 2, "a scan from the basement takes the house in too")
     PZExtAPI, ArrayList, getWorld = nil, arrayList, world
 end)
+
+test("a container seen marked is answered without its object asked, until the mark is taken away", function()
+    local data, has, asked = {}, false, 0
+    local object = { classes = { IsoObject = true },
+        hasModData = function() return has end,
+        getModData = function() has = true return data end }
+    local c = { getParent = function() asked = asked + 1 return object end }
+    eq(OA.Buildings.mark(c), true, "the first look marks it")
+    eq(asked, 1)
+    for _ = 1, 5 do eq(OA.Buildings.mark(c), false) end
+    eq(asked, 1, "marked: the object is not asked again")
+    OA.Buildings.unmark(c)
+    eq(OA.Buildings.mark(c), true, "marked again after the reset")
+    -- one marked by an earlier session (the mark is on the object already)
+    local other = { getParent = function() asked = asked + 1 return object end }
+    eq(OA.Buildings.mark(other), false)
+    local seen = asked
+    eq(OA.Buildings.mark(other), false)
+    eq(asked, seen, "remembered")
+end)

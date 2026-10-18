@@ -79,6 +79,15 @@ function Machines.list()
     return registry().list
 end
 
+-- Whether a registered machine's anchor stands within `radius` squares of x, y (on any level): a look at the registry,
+-- no square is asked for.
+function Machines.anyNear(x, y, radius)
+    for _, entry in pairs(registry().list) do
+        if math.abs(entry.x - x) <= radius and math.abs(entry.y - y) <= radius then return true end
+    end
+    return false
+end
+
 -- ---------------------------------------------------------------------------------------------------------------------
 -- Finding a machine
 

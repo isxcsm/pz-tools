@@ -62,7 +62,7 @@ local function load()
     end
     ISInventoryPage = page
     Events = Events or {}
-    Events.OnRefreshInventoryWindowContainers = { Add = function() end }
+    Events.OnRefreshInventoryWindowContainers = { Add = function(fn) TEST.refreshHandler = fn end }
     getCore = function()
         return { getObjectHighlitedColor = function() return CHOSEN end,
             getWorldItemHighlightColor = function() return HOVER end,
@@ -75,6 +75,7 @@ local function load()
     local squares = { A = { a1, a2 }, B = { b1, b2 }, C = { c1, c2 }, D = { d1 } }
     local kinds = { A = "refiner", B = "saw", C = "cabinet", D = "crate" }
     OA.Machines = OA.Machines or {}
+    OA.Machines.anyNear = function() return TEST.machineNear end
     OA.Machines.isMachineObject = function(o) return machineOf[o] ~= nil end
     OA.Machines.anchorOf = function(o) local m = machineOf[o]; return squares[m][1], { machine = m, kind = kinds[m] } end
     OA.Machines.Data = { KINDS = { refiner = {}, saw = {}, cabinet = { everyTile = true }, crate = {} } }
@@ -211,4 +212,27 @@ test("a collapsed window lights nothing", function()
     page.isCollapsed = true
     page:updateContainerHighlight()
     truthy(not a2.lit and not a2.outline, "the machine's other square goes dark with the window")
+end)
+
+test("the container list asks no square while no machine is near the player", function()
+    load()
+    local squaresAsked, listed = 0, 0
+    local here = { getX = function() return 10 end, getY = function() return 10 end, getZ = function() return 0 end,
+        canReachTo = function() return true end }
+    getSpecificPlayer = function() return { getCurrentSquare = function() return here end } end
+    getCell = function()
+        return { getGridSquare = function()
+            squaresAsked = squaresAsked + 1
+            return nil
+        end }
+    end
+    local page = { player = 0, backpacks = {}, addContainerButton = function() listed = listed + 1 end }
+    TEST.machineNear = false
+    TEST.refreshHandler(page, "beforeFloor")
+    eq(squaresAsked, 0, "no machine near: nothing asked")
+    TEST.machineNear = true
+    TEST.refreshHandler(page, "beforeFloor")
+    eq(squaresAsked, 9, "a machine near: the nine squares as before")
+    TEST.refreshHandler(page, "buttonsAdded")
+    eq(squaresAsked, 9, "other stages are not its")
 end)

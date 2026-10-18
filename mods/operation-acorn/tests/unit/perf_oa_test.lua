@@ -320,3 +320,16 @@ test("an item type's name is made once, and again after a new game starts", func
     name = "Found"
     eq(Text.itemName("Base.Nothing"), "Found")
 end)
+
+test("Machines.anyNear looks at the registry only", function()
+    require "OperationAcorn/Machines/Machines"
+    local Machines = OA.Machines
+    eq(Machines.anyNear(100, 100, 4), false, "no machines")
+    Machines.list().m1 = { kind = "cutter", x = 104, y = 96, z = 0 }
+    eq(Machines.anyNear(100, 100, 4), true, "at the edge")
+    eq(Machines.anyNear(100, 100, 3), false)
+    Machines.list().m2 = { kind = "cutter", x = 300, y = 300, z = 2 }
+    eq(Machines.anyNear(299, 301, 4), true, "any level")
+    Machines.list().m1, Machines.list().m2 = nil, nil
+    eq(Machines.anyNear(100, 100, 4), false)
+end)

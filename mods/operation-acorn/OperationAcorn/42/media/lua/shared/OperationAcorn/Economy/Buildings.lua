@@ -41,16 +41,26 @@ end
 -- Marks a container's object as looked into, when it is a world object (not a car, a body, a bag): true when it was
 -- not marked before. The loot window calls it for each container it shows; an object marked already is left as it is
 -- (its mod data not touched).
+-- The containers known to be marked (weak): the loot window asks for each one it shows at every turn the player makes,
+-- and a marked one is answered without the game's object asked. Only unmark takes a mark away.
+local known = setmetatable({}, { __mode = "k" })
+
 function Buildings.mark(container)
+    if known[container] then return false end
     local object = container:getParent()
     if not object or not instanceof(object, "IsoObject") or instanceof(object, "IsoMovingObject") then return false end
-    if object:hasModData() and object:getModData()[SEARCHED] ~= nil then return false end
+    if object:hasModData() and object:getModData()[SEARCHED] ~= nil then
+        known[container] = true
+        return false
+    end
     object:getModData()[SEARCHED] = true
+    known[container] = true
     return true
 end
 
 -- Takes the mark away (the dev tools' search reset).
 function Buildings.unmark(container)
+    known[container] = nil
     local object = container:getParent()
     if object and object:hasModData() then object:getModData()[SEARCHED] = nil end
 end
