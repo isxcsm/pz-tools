@@ -1561,6 +1561,7 @@
     "IGUI_OA_Story_Meta_Same": "같은 제목의 %1번째 문서",
     "IGUI_OA_Story_Request_Title": "요청서 사본 R-%1",
     "IGUI_OA_Story_Request_Head": "2반 내부 업무 요청서 (사본). 서식 AC-0041. 관리 번호 R-%1.",
+    "IGUI_OA_Story_Item_QuarlesTorch": "손전등 (쿼얼스, SPC)",
     "IGUI_OA_Story_Request_dunnigan_can": "요청인: 분석 담당 더니건 (민간 계약). 접수인: 키슬링, CW2.\n요청 품목: 밀봉 시료통 1점. 기준일 이전 봉인분에 한함.\n신청 사유: 기존 시료군과 잔류물 침착 양상 불일치. 같은 시료통으로 대조 검증 요망.\n여백 필기: 7/5인가 6인가? 봉인 일자 필히 확인할 것. 왜 이 검체만 반응이 다른가. (더니건)",
     "IGUI_OA_Story_Sign_Ordway": "ORDWAY, LTC.",
     "IGUI_OA_Story_Sign_Proxy": "대리 (전속 발령에 따름) [직인 ORDWAY]",

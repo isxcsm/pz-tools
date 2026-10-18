@@ -18,8 +18,8 @@
 -- (`stagger` seconds apart); what is spread over a span (Stage.progress: "wait", the swap's wait from 0 to 1) wakes
 -- one by one across it (`during`), and a door boarded with `drop` loses a plank at that point of it. A thing that
 -- sounds on an event (`call`: the camp's radio as the circle is entered) sounds once, even when the event came first.
--- Doors boarded with `last` make that event (and the story's monologue for it) once the player has taken their last
--- plank off (Stage.unboarded, from the game's unbarricade action).
+-- Doors boarded with `last` make that event (and the story's monologue for it) once the player has taken the last plank
+-- off one of them (Stage.unboarded, from the game's unbarricade action): the first door freed, whichever it is.
 --
 -- Where: the hands read the building's layout as it loads: its rooms ({ name, area, z, x, y, x2, y2, edge = touches the
 -- building's outline }) and its outer doors and windows on the ground floor. The rooms get roles (Stage.roles): "big"
@@ -254,9 +254,10 @@ function Stage.place(record, m, layout, int)
                 st.during = st.during or {}
                 st.during[#st.during + 1] = { name = p.drop.during, at = p.drop.at, plank = result }
             end
-            -- doors boarded so that the last plank off is an event (`last`): where they are
+            -- doors boarded so that the last plank off is an event (`last`): where they are (of every such piece)
             if p.kind == "board" and p.last and type(result) == "table" and result.all then
-                st.boarded = { event = p.last, doors = result.all }
+                st.boarded = st.boarded or { event = p.last, doors = {} }
+                for _, at in ipairs(result.all) do st.boarded.doors[#st.boarded.doors + 1] = at end
             end
             -- a thing that sounds once on an event (the camp's radio calling): where it stands
             if p.kind == "call" and type(result) == "table" then
@@ -344,8 +345,8 @@ function Stage.event(record, m, name)
     if g and g.wake then OA.try("stage: waking the zombies", g.wake, list, st.stagger and st.stagger[name]) end
 end
 
--- The player took planks off a door: a running stage whose boarded doors (a `board` with `last`) are all bare now
--- has that event, once, and its story's monologue for it.
+-- The player took planks off a door: a running stage one of whose boarded doors (a `board` with `last`) is bare now has
+-- that event, once, and its story's monologue for it.
 function Stage.unboarded(record)
     local g = Stage.game
     if not (g and g.unboardedAt and OA.Missions) then return end
@@ -353,10 +354,10 @@ function Stage.unboarded(record)
         local st = m.stage
         local b = st and st.boarded
         if b then
-            local bare = true
+            local bare = false
             for _, at in ipairs(b.doors) do
-                if not g.unboardedAt(at) then
-                    bare = false
+                if g.unboardedAt(at) then
+                    bare = true
                     break
                 end
             end

@@ -107,7 +107,21 @@ end
 -- One zombie on the square. Fake dead it lies there as a fake-dead body (as the game's own lie, rising when a player
 -- comes near and sees it): a zombie made fake dead falls as a ragdoll when the game's physics hit reaction is on, and
 -- slides squares away, through walls too, before it settles.
+-- `female`: the chance (0 to 100); left out (nil or false), the outfit's: one the game has for one sex only (a prison guard's, an
+-- inmate's) is that sex, else either (an outfit asked for a sex it has not is the game's random one).
+local onlyFor = {}
+local function femaleChance(outfit)
+    local c = onlyFor[outfit]
+    if c == nil then
+        local f, m = getAllOutfits(true):contains(outfit), getAllOutfits(false):contains(outfit)
+        c = (f and not m and 100) or (m and not f and 0) or false
+        onlyFor[outfit] = c
+    end
+    return c or nil
+end
+
 function SceneGame.spawn(sq, outfit, female, crawler, fakeDead, sitting)
+    if not female and outfit then female = femaleChance(outfit) end
     local list = addZombiesInOutfit(sq:getX(), sq:getY(), sq:getZ(), 1, outfit or nil, female or nil, crawler == true,
         false, false, false, false, sitting == true, 1.0)
     local zombie = list and list:size() > 0 and list:get(0) or nil

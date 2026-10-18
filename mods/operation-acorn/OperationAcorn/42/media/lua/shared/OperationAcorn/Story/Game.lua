@@ -74,9 +74,9 @@ function Game.buildingKeyAt(x, y)
 end
 
 -- A building's facts that never change, kept once looked at: its centre, and when it could ever be a story site (no
--- cellar, no shed, plain: Places.plain on its rooms' names) where it is (infoOf), its key, area, rooms, whether a home
--- and mostly lock-ups (Places.mostlyStores). Looked at a few each tick from the start (warmFacts), so picking a site later
--- costs little more than the distances.
+-- cellar, no shed, plain: Places.plain on its rooms' names) where it is (infoOf), its key, area, rooms
+-- (Places.mainRooms), whether a home (Places.home) and mostly lock-ups (Places.mostlyStores). Looked at a few each tick
+-- from the start (warmFacts), so picking a site later costs little more than the distances.
 local facts, factsFor = {}, nil
 
 -- By the building's place in the map's list; kept while the list is as long (a building a player made goes in, or
@@ -97,7 +97,7 @@ local function factsOf(i, b)
         for k = 0, rooms:size() - 1 do names[#names + 1] = rooms:get(k):getName() or "" end
         if OA.Places.plain(names) then
             f.site = infoOf(b)
-            f.key, f.area, f.rooms, f.home = keyOf(b), b:getArea(), b:getRoomsNumber(), b:containsRoom("bedroom")
+            f.key, f.area, f.rooms, f.home = keyOf(b), b:getArea(), OA.Places.mainRooms(names), OA.Places.home(names)
             f.stores = OA.Places.mostlyStores(names)
         end
     end

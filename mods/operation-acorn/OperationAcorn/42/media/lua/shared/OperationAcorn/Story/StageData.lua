@@ -26,7 +26,7 @@
 --   barricade { planks = { least, most } } boards on the inside of each ground floor window
 --   board     { planks, drop = { during, at }, last } boards on the outside of the room's doors; with `drop`, one
 --             plank falls at that point of the span (Stage.progress); with `last` (an event), the player taking the
---             last plank off them makes that event and the story's monologue for it (Stage.unboarded)
+--             last plank off one of them makes that event and the story's monologue for it (Stage.unboarded)
 --   block     blocks the room's ways in (to the outside or a hall) but one from inside with a hospital bed
 --   lockout   locks the outer doors but the entrance (no key)
 --   lock      locks the room's doors with the building's key: the key goes to the next corpse with `key = true`
@@ -203,12 +203,13 @@ StageData.ward = { pieces = {
     { kind = "zombies", at = "big", outfit = "HospitalPatient", count = 2 },
 } }
 
--- 7: the temporary holding facility. The hall's doors boarded from outside (taking the last plank off is the moment of
--- the monologue), a guard's body by them with the key; inside, the rooms locked with one shut in each, the intake
--- filter in the inner one.
+-- 7: the temporary holding facility. The rooms off the hall locked and boarded from the hall, one shut in each (taking
+-- the last plank off a door is the moment of the monologue), a guard's body with the key; the intake filter in the
+-- inner one.
 StageData.cells = { pieces = {
     { kind = "tile", at = "entrance", sprite = NOTICE },
-    { kind = "board", at = "hall", planks = { 2, 3 }, last = "plank" },
+    { kind = "board", at = "other", planks = { 2, 3 }, last = "plank" },
+    { kind = "board", at = "inner", planks = { 2, 3 }, last = "plank" },
     { kind = "lock", at = "other" },
     { kind = "lock", at = "inner" },
     { kind = "corpse", at = "big", outfit = "PrisonGuard", key = true },

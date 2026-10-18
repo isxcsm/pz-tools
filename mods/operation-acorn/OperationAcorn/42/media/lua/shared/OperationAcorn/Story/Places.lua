@@ -117,6 +117,32 @@ for _, name in ipairs({
     "barn", "farmstorage", "shed",
 }) do Places.PLAIN_ROOMS[name] = true end
 
+-- The rooms that serve the others: a building's count of rooms leaves them out (a block of toilets is not a building
+-- of many rooms).
+Places.SERVICE_ROOMS = { bathroom = true, closet = true, janitor = true, laundry = true, elevator = true,
+    stairwell = true, balcony = true, attic = true }
+
+-- How many of a building's rooms (names, a list) are not SERVICE_ROOMS ones: the rooms a stage has to work with.
+function Places.mainRooms(names)
+    local n = 0
+    for _, name in ipairs(names) do
+        if not Places.SERVICE_ROOMS[name] then n = n + 1 end
+    end
+    return n
+end
+
+-- The rooms only a home has: a building with one is a house (a cabin of a living room, a kitchen and a bathroom has no
+-- room the map names a bedroom).
+Places.HOME_ROOMS = { bedroom = true, bedroom4 = true, kidsbedroom = true, livingroom = true }
+
+-- Whether a building (its rooms' names, a list) is a house.
+function Places.home(names)
+    for _, name in ipairs(names) do
+        if Places.HOME_ROOMS[name] then return true end
+    end
+    return false
+end
+
 -- The rooms of a building things were kept in: a row of lock-up garages, a self-storage's units, a shed, a barn. A
 -- building mostly of these is no post, clinic or shelter (Places.pickSite takes it last): no one was taken in there.
 -- (A self-storage has an office and a hall too; a house has a garage among more rooms.)
@@ -141,8 +167,8 @@ function Places.plain(names)
 end
 
 -- A story site among the map's buildings (SCENES.md 5 '장소 고르기'): the authorities took any building for a post, a
--- clinic, a shelter. `list` is the buildings that may be used, all in the band: { x, y, area, rooms, home (a house: it
--- has a bedroom), stores (Places.mostlyStores: lock-ups, a shed; taken last), dist (from the base) }. `want`:
+-- clinic, a shelter. `list` is the buildings that may be used, all in the band: { x, y, area, rooms (Places.mainRooms), home (a house:
+-- Places.home), stores (Places.mostlyStores: lock-ups, a shed; taken last), dist (from the base) }. `want`:
 --   "public"  a public building (a shop, a church, a warehouse, an office) of PUBLIC_ROOMS rooms or more, else a
 --             house (its rooms: an inner one to lock, a hall), else a smaller public one (a garage of one room has no
 --             room for a stage's roles);

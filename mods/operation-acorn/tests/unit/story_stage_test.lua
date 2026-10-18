@@ -455,7 +455,7 @@ test("a thing that sounds on an event sounds once, also when the event came befo
     Stage.event(record, m, "enter")
 end)
 
-test("doors boarded with `last`: taking the last plank off makes the event and the monologue once", function()
+test("doors boarded with `last`: the last plank off one of them makes the event and the monologue once", function()
     local record, m, g = setup({ { kind = "board", at = "hall", last = "plank" },
         { kind = "zombies", at = "other", wake = "plank" } })
     m.story = "cells"
@@ -473,15 +473,36 @@ test("doors boarded with `last`: taking the last plank off makes the event and t
     OA.Missions.live = function() return { m } end
     Stage.unboarded(record)
     eq(#g.woke, 0, "planks left on both")
-    bare[1] = true
-    Stage.unboarded(record)
-    eq(#g.woke, 0, "one door still boarded")
     bare[2] = true
     Stage.unboarded(record)
-    eq(#g.woke, 1)
+    eq(#g.woke, 1, "one door freed")
     truthy(OA.Comms.section(record).played.S7F_plank, "the monologue")
+    bare[1] = true
     Stage.unboarded(record)
     eq(#g.woke, 1, "once")
+    OA.Missions.live = live
+end)
+
+test("two boarded rooms with `last`: a door of either freed makes the event", function()
+    local record, m, g = setup({ { kind = "board", at = "other", last = "plank" },
+        { kind = "board", at = "inner", last = "plank" }, { kind = "zombies", at = "other", wake = "plank" } })
+    m.story = "cells"
+    OA.StageData.cells = OA.StageData.evidence
+    local n = 0
+    g.board = function()
+        n = n + 1
+        return { x = n, y = 1, z = 0, all = { { x = n, y = 1, z = 0 } } }
+    end
+    local bare = {}
+    g.unboardedAt = function(at) return bare[at.x] end
+    Stage.begin(record, m)
+    Stage.look(record, m, 530, 0, 20)
+    eq(#m.stage.boarded.doors, 2, "both rooms' doors")
+    local live = OA.Missions.live
+    OA.Missions.live = function() return { m } end
+    bare[1] = true
+    Stage.unboarded(record)
+    eq(#g.woke, 1, "the first room's door")
     OA.Missions.live = live
 end)
 

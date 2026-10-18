@@ -282,15 +282,21 @@ function Story.takePaper(record)
     return { type = Data.fullType(p.type), count = 1, mod = { OA_Doc = p.doc, OA_No = record.number } }
 end
 
--- What the story puts in a crate (the trade part's crate provider): one paper, when one is ready.
+-- What the story puts in a crate (the trade part's crate provider): one paper, when one is ready, and the gifts of the
+-- scenes the crate fires (CommsData `gift`).
 function Story.crateSpecs(record)
     -- the first supply crate of a tier is what that tier's scene waits for (6 and 7)
-    Story.call(record, "crate:" .. Story.tier(record))
+    local specs = {}
+    for _, id in ipairs(Story.call(record, "crate:" .. Story.tier(record))) do
+        local gift = OA.CommsData.BY_ID[id].gift
+        if gift then specs[#specs + 1] = gift end
+    end
     -- the crates loaded since the handover: the first is the last of 2반 (Story.onOpened)
     local s = Story.section(record)
     if s.handover and not s.handoverShown then s.handoverCrates = (s.handoverCrates or 0) + 1 end
     local spec = Story.takePaper(record)
-    return spec and { spec } or nil
+    if spec then specs[#specs + 1] = spec end
+    return #specs > 0 and specs or nil
 end
 
 -- The trade part tells the story what a settlement settled: a meteorite fragment on a receipt has reached the

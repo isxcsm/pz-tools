@@ -28,6 +28,8 @@ OA.CommsData = Data
 --   era      "admin": fires only for a character that came into the world after the handover (its first calls with
 --            관리 7, in the place of the team's); entries without one never fire for it up to TEAM_LAST_TIER
 --   waits    the entry that must have been played (or dropped) first
+--   gift     a crate-fired entry's thing that comes in that crate (a drop spec, Trade.dropSpec): what the scene speaks
+--            of, so it comes whatever was ordered (S7's torch, SCENES.md)
 --   greet    the first line opens with the greeting of the tier it is played at (LORE 6)
 --   sign     the call sign: "oak" (참나무) or "admin" (관리 7)
 --   lines    { speaker, ... }: "oak" (the team), "me" (the protagonist), "noise" (static only, `s` seconds), "mute"
@@ -117,7 +119,8 @@ Data.ENTRIES = {
     { id = "s6_list", kind = "short", trigger = "tier:6", tier = 6, waits = "S6", greet = true, sign = "oak" },
     { id = "S6F", kind = "scene", trigger = "story:ward", tier = 6, mission = true, waits = "S6", sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" } } },
-    { id = "S7", kind = "scene", trigger = "crate:7", tier = 7, waits = "S6", world = 7, sign = "oak", lines = {
+    { id = "S7", kind = "scene", trigger = "crate:7", tier = 7, waits = "S6", world = 7, sign = "oak",
+      gift = { type = "Base.HandTorch", name = "IGUI_OA_Story_Item_QuarlesTorch" }, lines = {
         { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" } } },
     { id = "s7_list", kind = "short", trigger = "tier:7", tier = 7, waits = "S7", greet = true, sign = "oak" },
     { id = "S7F", kind = "scene", trigger = "story:cells", tier = 7, mission = true, waits = "S7", sign = "oak", lines = {

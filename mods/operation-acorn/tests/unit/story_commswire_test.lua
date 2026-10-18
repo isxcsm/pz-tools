@@ -86,6 +86,18 @@ test("the handover mission's call comes however it ended; the scene after the ha
     truthy(Story.handedOver(record))
 end)
 
+test("the first crate of tier 7 brings S7's named torch, once", function()
+    local record = setup("w8", 5, 2)
+    Story.onStage(record)
+    local specs = Story.crateSpecs(record)
+    truthy(Comms.section(record).fired.S7, "S7")
+    eq(specs[1].type, "Base.HandTorch")
+    eq(specs[1].name, "IGUI_OA_Story_Item_QuarlesTorch")
+    for _, spec in ipairs(Story.crateSpecs(record) or {}) do
+        eq(spec.name == nil or spec.name ~= "IGUI_OA_Story_Item_QuarlesTorch", true, "not with the next crate")
+    end
+end)
+
 test("the half day after the test serum's scene brings the next", function()
     local record = setup("w7", 1)
     Comms.fire(record, "first", 0)

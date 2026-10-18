@@ -106,6 +106,18 @@ test("the largest site is the largest public building, else the largest house", 
     eq(P.pickSite({ site(100, 50, 1, true), site(200, 70, 1, true) }, "largest"), 2)
 end)
 
+test("a building's rooms leave out the toilets and closets: a block of toilets has none", function()
+    eq(P.mainRooms({ "bathroom", "bathroom", "bathroom", "janitor", "bathroom" }), 0)
+    eq(P.mainRooms({ "office", "hall", "bathroom", "storageunit" }), 3)
+end)
+
+test("a house is one with a bedroom or a living room: a cabin without a bedroom too", function()
+    eq(P.home({ "livingroom", "kitchen", "bathroom" }), true)
+    eq(P.home({ "bedroom", "bathroom" }), true)
+    eq(P.home({ "office", "kitchen", "bathroom" }), false)
+    eq(P.home({ "church", "officechurch" }), false)
+end)
+
 test("a building mostly of lock-ups or sheds is taken last: no one was taken in there", function()
     eq(P.mostlyStores({ "garage", "garage", "storageunit" }), true)
     eq(P.mostlyStores({ "storageunit", "storageunit", "storageunit", "office", "hall" }), true, "a self-storage")
