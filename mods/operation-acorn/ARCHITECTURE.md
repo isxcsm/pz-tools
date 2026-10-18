@@ -101,7 +101,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
 
 **강화 혈청 투여 뒤 (DESIGN-terminal 19).** 투여(`Serums.inject`)는 부작용만 주고 적응을 시작한다(`Rules.startAdapt`, `Adapt.lua`): 점은 `Data.ADAPT_HOURS`(가안 0.5) 뒤에 들어오고, 그 사이 맞은 병은 시간을 함께 쓰며, 끝나는 세계 시각이 기록(`upgrades.adapt`)에 있어 저장·불러오기에도 이어진다. 클라이언트가 한 게임 분마다(`client/Upgrades/Adapting.lua`) 무들 `적응 중`을 맞추고 끝이 지났으면 `upgrades.adapt` 명령을 보내며, 서버가 `Adapt.finish`로 점을 주고 트리를 열고 안내 문서(`research_guide`, 트리 메모)를 수신함에 넣는다 (`Story.deliverDocument`). 여섯 노드의 첫 효과(`First.lua`)는 매 틱 검사 없이 이미 도는 자리에서 알린다(클라이언트는 `First.report`가 `upgrades.first` 명령을, 서버에서 도는 자리는 `First.grant`를 부른다). 연구 탭은 승인 결과가 돌아오면 계획한 마디를 차례로 켜고 `승인` 직인을 찍는다(`Plan.stamp`의 시간표). 환각에 귀울림이 한 번 울린다(`Hallucination.lua`).
 
-세계 섹션(`Store.world(name)`): `market`, `requests`(P1), `sites`(P4, 운석 낙하지), `machines`(P5), `pending`(Chunks).
+세계 섹션(`Store.world(name)`): `market`, `requests`(P1), `sites`(P4, 운석 낙하지), `machines`(P5), `pending`(Chunks), `dense`(P4, 밀집 지역: `made`, `list`(`{ id, x, y, r, chunks, kind }`, 확장 API `zombies.dense`가 알려 준 것, 밀도 순으로 공격력·치명타·내구도 키트를 돌려 가며 하나씩), `baseline[id]`(처음 센 좀비 수), `cleared[id]`(`{ by, at }`)). 기록의 `dense` 섹션은 `got[id] = 종류`(받은 보상, 상점이 종류별 1 + 개수로 읽는다). `shared/.../Story/Dense.lua`(`OA.Dense`).
 
 아이템과 오브젝트 modData 키는 모두 `OA_`로 시작한다: `OA_Bought`(상점에서 산 물건, 납품 거부), `OA_Cell`(나온 셀,
 새 지역 웃돈), `OA_Mission`(임무 ID), `OA_Box`(상자 ID), `OA_Issued`(혈청 발급 시각), `OA_Owner`(발급받은 기록 ID).
@@ -109,7 +109,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
 수를 센다(기록의 상점 섹션 `kits`). 단 개수는 대상에 적는다: 아이템 `OA_KitCap`(확장), `OA_KitWeight`(경량), `OA_KitTough`(보강);
 가방은 `OA_KitBaseCap`, `OA_KitBaseRed`, `OA_KitRaw`, `OA_KitBag`(키트를 마지막으로 쓴 아이템 ID: 허리 가방을 돌려 차면 새 아이템이다),
 기름통은 `OA_KitBaseCap`(원래 L); 차량 보관함 부품(좌석이 아닌, 짐을 담는 부품) `OA_KitCap`, `OA_KitBase`, `OA_KitRaw`; 엔진 부품
-`OA_KitEngine`, `OA_KitPower`, `OA_KitLoud`. 연구팀 용접 토치는 바닐라 `Base.BlowTorch`에 `OA_Team = true`를 붙인 것이다.
+`OA_KitEngine`, `OA_KitPower`, `OA_KitLoud`. 무기 키트(공격력, 치명타, 내구도; `HandWeapon` 모두)는 무기에 `OA_KitWDamage`, `OA_KitWCrit`, `OA_KitWRepair`(쓴 수만 센다), `OA_KitBaseCrit`(첫 치명타 키트 전의 확률)을 적는다. 연구팀 용접 토치는 바닐라 `Base.BlowTorch`에 `OA_Team = true`를 붙인 것이다.
 확장 API가 읽는 키: `OA_Capacity`(원래 용량에 더할 양), `OA_Carry`(아이템 자체의 운반 효율, 경량 키트), `OA_Uses`(사용량 배율, 용접
 토치). 셋 다 키트가 쓸 때만 숫자다.
 

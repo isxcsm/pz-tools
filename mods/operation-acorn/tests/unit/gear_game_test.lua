@@ -74,7 +74,10 @@ local function newInventory()
         return newList(matching(self, function(it) return it.fullType == fullType end))
     end
     function inv:getAllCategoryRecurse(category)
-        return newList(matching(self, function(it) return (category == "Container") == (it.bag == true) end))
+        return newList(matching(self, function(it)
+            if category == "Weapon" then return it.isWeapon == true end
+            return (category == "Container") == (it.bag == true)
+        end))
     end
     return inv
 end
@@ -87,7 +90,7 @@ local function newItem(fullType, opts)
     local item = { id = nextId, fullType = fullType, weight = opts.weight or 0.5, bag = opts.capacity ~= nil,
         slot = opts.slot or (opts.capacity ~= nil and ItemBodyLocation.BACK or nil),
         reduction = opts.reduction or 0, inner = { capacity = opts.capacity or 0 }, synced = 0, poked = 0,
-        conditionMax = opts.condition or 10, head = opts.head }
+        conditionMax = opts.condition or 10, head = opts.head, isWeapon = opts.weapon ~= nil }
     item.condition = item.conditionMax
     local script = { weight = item.weight, conditionMax = item.conditionMax }
     function script:getActualWeight() return self.weight end
@@ -110,6 +113,7 @@ local function newItem(fullType, opts)
         self.poked = self.poked + 1
     end
     function item:IsInventoryContainer() return self.bag end
+    function item:IsWeapon() return opts.weapon ~= nil end
     function item:canBeEquipped() return self.slot end
     if opts.noSlot then item.slot = nil end
     function item:getItemContainer() return self.inner end
@@ -132,6 +136,29 @@ local function newItem(fullType, opts)
     function item:hasHeadCondition() return self.head ~= nil end
     function item:getHeadCondition() return self.head end
     function item:setHeadCondition(n) self.head = math.min(n, self.conditionMax) end
+    -- a weapon (opts.weapon = { min, max, crit, parts = { damage ... } }): the damage and critical chance the game keeps in
+    -- the item and, from its script, the damage it started with (the script has no critical getter)
+    if opts.weapon then
+        local w = opts.weapon
+        item.minDamage, item.maxDamage, item.crit = w.min, w.max, w.crit
+        item.partList = w.parts or {}
+        item.repaired = 0
+        script.minDamage, script.maxDamage = w.min, w.max
+        function script:getMinDamage() return self.minDamage end
+        function script:getMaxDamage() return self.maxDamage end
+        function item:getMinDamage() return self.minDamage end
+        function item:setMinDamage(n) self.minDamage = n end
+        function item:getMaxDamage() return self.maxDamage end
+        function item:setMaxDamage(n) self.maxDamage = n end
+        function item:getCriticalChance() return self.crit end
+        function item:setCriticalChance(n) self.crit = n end
+        function item:getHaveBeenRepaired() return self.repaired end
+        function item:getAllWeaponParts()
+            local parts = {}
+            for i, damage in ipairs(self.partList) do parts[i] = { getDamage = function() return damage end } end
+            return newList(parts)
+        end
+    end
     -- the API divides the use delta by the key's number
     function item:getMaxUses() return math.floor((opts.uses or 10) * (self.md and self.md[OA.Gear.Rules.KEY.USES] or 1) + 0.5) end
     return item
@@ -945,4 +972,149 @@ test("the kit entries go on top of the inventory menu: building them counts kits
     local stackMenu = newMenu()
     TEST.fire("OnFillInventoryObjectContextMenu", 0, stackMenu, { { items = { bag, newItem("Base.Hammer") } } })
     eq(stackMenu.options[1].name, "ContextMenu_OA_Gear_FitKit")
+end)
+
+-- ---------------------------------------------------------------------------------------------------------------------
+-- Weapon kits
+
+local function weapon(player, w, opts)
+    opts = opts or {}
+    opts.weapon = w
+    local item = newItem("Base.BaseballBat", opts)
+    player.inventory:AddItem(item)
+    return item
+end
+
+test("a weapon is a target for the weapon kits only, a field tool is not", function()
+    setup()
+    local player = newCharacter()
+    local bat = weapon(player, { min = 1.0, max = 2.0, crit = 20 })
+    local hammer = newItem("OperationAcorn.FieldHammer", { weapon = { min = 0.5, max = 1.0, crit = 10 } })
+    eq(Gear.targetOf(bat), "weapon")
+    eq(Gear.targetOf(hammer), "tool", "a field tool is a tool though the game calls it a weapon")
+    eq(Gear.targetOf(newItem("Base.Apple")), nil)
+    for _, kind in ipairs(Rules.WEAPON_ORDER) do
+        eq(Gear.refusal(kitOf(player, kind), bat), kind == "weaponRepair" and "full" or nil, kind)
+        eq(Gear.refusal(kitOf(player, kind), hammer), "target", kind)
+    end
+    eq(Gear.refusal(kitOf(player, "capacity"), bat), "target")
+    eq(Gear.refusal(kitOf(player, "reinforcement"), bat), "target")
+end)
+
+test("damage kits: the least and most damage are worked out from the script's and the count, a tenth each, no most", function()
+    setup()
+    local player = newCharacter()
+    local bat = weapon(player, { min = 1.0, max = 2.0, crit = 20 })
+    for n = 1, 12 do
+        local ok, value = Gear.fitItem(player, kitOf(player, "weaponDamage"), bat)
+        truthy(ok)
+        eq(value, "+" .. (n * 10) .. "%")
+        near(bat.minDamage, 1.0 * (1 + 0.1 * n), 1e-6)
+        near(bat.maxDamage, 2.0 * (1 + 0.1 * n), 1e-6)
+    end
+    eq(bat.md[K.KIT_WDAMAGE], 12, "counted on the weapon")
+    eq(bat.crit, 20, "the critical chance is not touched")
+    eq(#bat.container.items, 1, "the kits are used up")
+    eq(bat.synced, 12)
+    eq(Gear.itemLines(bat)[1], "Tooltip_OA_Gear_WeaponDamage 12 120")
+end)
+
+test("the damage is worked out again from the script and the count when the game forgot it", function()
+    setup()
+    local player = newCharacter()
+    local bat = weapon(player, { min = 1.0, max = 2.0, crit = 20 })
+    for _ = 1, 3 do Gear.fitItem(player, kitOf(player, "weaponDamage"), bat) end
+    bat.minDamage, bat.maxDamage = 1.0, 2.0
+    Gear.refreshItem(bat)
+    near(bat.minDamage, 1.3, 1e-6)
+    near(bat.maxDamage, 2.6, 1e-6)
+    -- looked at again with nothing changed: nothing is written
+    local writes = 0
+    local set = bat.setMinDamage
+    bat.setMinDamage = function(self, n) writes = writes + 1 set(self, n) end
+    Gear.refreshItem(bat)
+    eq(writes, 0)
+    -- the game start: every weapon the character has that carries kits
+    bat.minDamage, bat.maxDamage = 1.0, 2.0
+    local plain = weapon(player, { min = 1.0, max = 2.0, crit = 20 })
+    eq(Gear.refreshAll(player), 1, "only the fitted weapon")
+    near(bat.minDamage, 1.3, 1e-6)
+    near(plain.minDamage, 1.0, 1e-6)
+end)
+
+test("the damage of the weapon parts attached is kept on top of the kits", function()
+    setup()
+    local player = newCharacter()
+    local rifle = weapon(player, { min = 4.0, max = 5.0, crit = 10, parts = { 0.5 } })
+    rifle.minDamage, rifle.maxDamage = 4.5, 5.5      -- as the game left it with the part attached
+    Gear.fitItem(player, kitOf(player, "weaponDamage"), rifle)
+    Gear.fitItem(player, kitOf(player, "weaponDamage"), rifle)
+    near(rifle.minDamage, 4.0 * 1.2 + 0.5, 1e-6)
+    near(rifle.maxDamage, 5.0 * 1.2 + 0.5, 1e-6)
+end)
+
+test("critical kits: five points over the chance the weapon had at the first kit per kit, no most, worked out again", function()
+    setup()
+    local player = newCharacter()
+    local bat = weapon(player, { min = 1.0, max = 2.0, crit = 20 })
+    for n = 1, 30 do
+        local ok = Gear.fitItem(player, kitOf(player, "weaponCrit"), bat)
+        truthy(ok)
+        eq(bat.crit, 20 + 5 * n)
+    end
+    eq(bat.md[K.WEAPON_CRIT], 20, "the original is noted once")
+    eq(bat.md[K.KIT_WCRIT], 30)
+    near(bat.minDamage, 1.0, 1e-9)
+    bat.crit = 20
+    Gear.refreshItem(bat)
+    eq(bat.crit, 170)
+    eq(Gear.itemLines(bat)[1], "Tooltip_OA_Gear_WeaponCrit 30 150")
+end)
+
+test("a repair kit puts a tenth of the most condition back, at least 1, stops at the most, and leaves the repairs alone", function()
+    setup()
+    local player = newCharacter()
+    local bat = weapon(player, { min = 1.0, max = 2.0, crit = 20 }, { condition = 30 })
+    eq(select(2, Gear.fitItem(player, kitOf(player, "weaponRepair"), bat)), "full", "nothing to repair")
+    eq(#bat.container.items, 2, "the weapon and the kit that stayed")
+    bat.condition = 10
+    local ok, value = Gear.fitItem(player, kitOf(player, "weaponRepair"), bat)
+    truthy(ok)
+    eq(bat.condition, 13, "a tenth of 30 is 3")
+    eq(value, "13/30")
+    bat.condition = 29
+    Gear.fitItem(player, kitOf(player, "weaponRepair"), bat)
+    eq(bat.condition, 30, "stops at the most")
+    eq(bat.conditionMax, 30)
+    eq(bat.repaired, 0, "the game's count of repairs is not touched")
+    eq(bat.md[K.KIT_WREPAIR], 2)
+    eq(Gear.itemLines(bat)[1], "Tooltip_OA_Gear_WeaponRepair 2")
+    local small = weapon(player, { min = 1.0, max = 2.0, crit = 20 }, { condition = 4 })
+    small.condition = 1
+    Gear.fitItem(player, kitOf(player, "weaponRepair"), small)
+    eq(small.condition, 2, "at least 1")
+    eq(Gear.itemLines(weapon(player, { min = 1, max = 2, crit = 1 })), nil, "a weapon with no kits has no lines")
+end)
+
+test("weapon kits are listed by category for the kit's menu, and a weapon's menu offers the kits the character has", function()
+    setup()
+    local newMenu = menuStubs()
+    local player = newCharacter()
+    getSpecificPlayer = function() return player end
+    local bat = weapon(player, { min = 1.0, max = 2.0, crit = 20 })
+    local bag = newItem("Base.Bag_Satchel", { capacity = 10 })
+    player.inventory:AddItem(bag)
+    local found = Gear.targets(player, true)
+    eq(#found, 1)
+    eq(found[1], bat)
+    local kit = kitOf(player, "weaponCrit")
+    local onKit = newMenu()
+    TEST.fire("OnFillInventoryObjectContextMenu", 0, onKit, { kit })
+    eq(onKit.options[1].name, "ContextMenu_OA_Gear_FitItem")
+    local entries = onKit.options[1].subOption.options
+    eq(#entries, 1, "the weapon, not the bag")
+    local onWeapon = newMenu()
+    TEST.fire("OnFillInventoryObjectContextMenu", 0, onWeapon, { bat })
+    eq(onWeapon.options[1].name, "ContextMenu_OA_Gear_FitKit")
+    eq(#onWeapon.options[1].subOption.options, 1, "the critical kit only")
 end)

@@ -23,6 +23,7 @@ require "OperationAcorn/Sync"
 require "OperationAcorn/Story/View"
 require "OperationAcorn/Story/MapFx"
 require "OperationAcorn/Story/Survey"
+require "OperationAcorn/Story/Dense"
 require "OperationAcorn/Trade/UI"
 local OA = OperationAcorn
 local View, Fx = OA.StoryView, OA.StoryMapFx
