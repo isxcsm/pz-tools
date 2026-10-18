@@ -1,0 +1,20 @@
+/* Made by pz-tools/mods/tools/sound/build.py from sounds.json: edit that, not this. */
+module Base
+{
+    sound OA_LockPick
+    {
+        category = Player,
+        loop = true,
+        clip
+        {
+            file = media/sound/OA_LockPick_1.ogg,
+            distanceMax = 10,
+        }
+        clip
+        {
+            file = media/sound/OA_LockPick_2.ogg,
+            distanceMax = 10,
+        }
+    }
+
+}

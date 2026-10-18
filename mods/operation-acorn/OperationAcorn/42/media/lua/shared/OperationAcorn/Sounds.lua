@@ -34,14 +34,14 @@ Sounds.CUES = {
     -- the timed actions (Sound.timed). Done: a thing put down, one taken up (as the game's furniture). During: a
     -- wrench's work (a machine's part, a kit fitted), a box taped shut, a thing taken apart (a box dismantled, a crate
     -- opened by hand, an item shredded at the bench), a pry bar's (a lock pried, a crate opened with one), a lock
-    -- picked (no sound yet: a recording to come), soil taken up by hand, a sample taken off a body.
+    -- picked (a recording: OA_LockPick, looped), soil taken up by hand, a sample taken off a body.
     ["oa.action.place"] = { sound = "UIObjectMenuObjectPlace" },
     ["oa.action.pickup"] = { sound = "UIObjectMenuObjectPickup" },
     ["oa.action.wrench"] = { sound = "RepairWithWrench" },
     ["oa.action.tape"] = { sound = "FixWithTape" },
     ["oa.action.dismantle"] = { sound = "Dismantle" },
     ["oa.action.pry"] = { sound = "BeginRemoveBarricadePlankCrowbar" },
-    ["oa.action.pick"] = {},
+    ["oa.action.pick"] = { sound = "OA_LockPick" },
     ["oa.action.soil"] = { sound = "DigFurrowWithHands" },
     ["oa.action.harvest"] = { sound = "FirstAidApplyAlcoholWipes" },
 }

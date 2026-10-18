@@ -110,7 +110,7 @@ S1~S4가 끝나면 두 모드의 사건을 전부 훑어 표로 만든다: 사�
 | OA 상자 봉인 (`ISOASeal`) | `oa.action.tape` | FixWithTape (끝의 걸쇠는 `oa.box.latch`) |
 | OA 상자 해체, 손으로 화물 열기, 손 파쇄 (`ISOADismantleBox`, `ISOAUnseal` 맨손, `ISOAMachineShred`) | `oa.action.dismantle` | Dismantle |
 | OA 지렛대로 열기, 지렛대로 화물 열기 (`ISOAPryOpen`, `ISOAUnseal` 지렛대) | `oa.action.pry` | BeginRemoveBarricadePlankCrowbar |
-| OA 자물쇠 따기·경보 끊기 (`ISOAPickLock`, `ISOADisarm`) | `oa.action.pick` | 무음: 바닐라에 맞는 소리가 없다. 녹음(새 에셋)이 오면 한 줄 |
+| OA 자물쇠 따기·경보 끊기 (`ISOAPickLock`, `ISOADisarm`) | `oa.action.pick` | `OA_LockPick`: 바닐라에 맞는 소리가 없어 녹음 (OpenGameArt Tegurd, CC0). 실제로 따는 33~46.5초를 두 클립으로, 액션 동안 반복 |
 | OA 검사 키트 (`ISOAUseSerum` 검사) | `oa.serum.test` | FirstAidApplyAlcoholWipes (주사·복용은 무음) |
 | OA 흙 시료 (`ISOAStoryAction` 흙; 말뚝 살펴보기는 무음) | `oa.action.soil` | DigFurrowWithHands |
 | OA 시체 시료 (`ISOAHarvestAction`) | `oa.action.harvest` | FirstAidApplyAlcoholWipes |
