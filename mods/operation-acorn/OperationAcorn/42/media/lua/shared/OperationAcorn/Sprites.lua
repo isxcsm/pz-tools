@@ -106,10 +106,34 @@ Sprites.LOOKS = { false, true, "ready" }
 -- The tiles of one machine standing in direction dir: a list of { dx =, dy =, sprite = }, one per square of its
 -- footprint, dx and dy from the anchor (the min-x, min-y square), row by row. look: false (stopped), true (running) or
 -- "ready"; a machine without a running look has only the stopped one. nil for a kind that is not a machine of this sheet.
+-- The list is made once for a kind, direction and look and shared: callers read it, they do not change it.
+local tilesKept = {}
+local makeTiles
 function Sprites.machineTiles(kind, dir, look)
     local k = KINDS[kind]
     if not k then return nil end
     if kind == "rainStorage" then return Sprites.rainStorageTiles() end
+    local keptDir = dir or "?"
+    local keptLook = look == true and true or look == "ready" and "ready" or false
+    local byDir = tilesKept[kind]
+    if not byDir then
+        byDir = {}
+        tilesKept[kind] = byDir
+    end
+    local byLook = byDir[keptDir]
+    if not byLook then
+        byLook = {}
+        byDir[keptDir] = byLook
+    end
+    local kept = byLook[keptLook]
+    if not kept then
+        kept = makeTiles(k, kind, dir, look)
+        byLook[keptLook] = kept
+    end
+    return kept
+end
+
+function makeTiles(k, kind, dir, look)
     local f = k.facings == 4 and facing(dir) or 0
     local w, h = Sprites.footprint(kind, k.facings == 4 and dir or "S")
     local first
@@ -147,7 +171,12 @@ local function rainTiles(first)
     return tiles
 end
 
-function Sprites.rainStorageTiles() return rainTiles(RAIN_BASE) end
+-- (made once and shared: read, not changed)
+local rainStorage = nil
+function Sprites.rainStorageTiles()
+    if not rainStorage then rainStorage = rainTiles(RAIN_BASE) end
+    return rainStorage
+end
 
 -- The four overlay sprites of a water level (1 to 3, higher is held to 3), { dx, dy, sprite } like the base tiles. An
 -- empty list for level 0 or less (or nil): no overlay.

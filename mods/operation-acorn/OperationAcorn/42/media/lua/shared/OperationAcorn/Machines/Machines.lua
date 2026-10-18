@@ -176,8 +176,18 @@ Machines.itemFullType = itemFullType
 -- The tiles of a machine facing dir, running or not: { { dx, dy, sprite } ... }, one for each square of its footprint,
 -- dx and dy counted from the anchor (the footprint's smallest x and y; always the tile at 0, 0), as Sprites has them
 -- (a lure is one tile, on or off; the rain storage 2x2, and it does not turn).
+-- The lists are shared: callers read them. A lure's two are made once.
+local lureTiles = {}
 function Machines.tiles(kind, dir, look)
-    if kind == "lure" then return { { dx = 0, dy = 0, sprite = Sprites.lure(look) } } end
+    if kind == "lure" then
+        local on = look and true or false
+        local tiles = lureTiles[on]
+        if not tiles then
+            tiles = { { dx = 0, dy = 0, sprite = Sprites.lure(look) } }
+            lureTiles[on] = tiles
+        end
+        return tiles
+    end
     if kind == "rainStorage" then return Sprites.rainStorageTiles() end
     return Sprites.machineTiles(kind, dir or "S", look)
 end
