@@ -10,6 +10,8 @@ local TEXTS = {
     IGUI_OA_Comms_S1_8 = "{cut:2}NO LANDING.",
     IGUI_OA_Comms_S1_11 = "OK.",
     IGUI_OA_Comms_S1_11_x = "WHO",
+    IGUI_OA_Comms_S0_13 = "BOX ONLY?",
+    IGUI_OA_Comms_S0_13_x = "JOK",
     IGUI_OA_Comms_S0_10 = "DROP.",
     IGUI_OA_Comms_S0_10_late = "DROP. LATE.",
     IGUI_OA_Comms_S4B_1 = "",
@@ -103,7 +105,8 @@ local function pieces(entry, kind)
 end
 
 test("an erased line: typed slower at its end, held, deleted a tap at a time, a beat, then the words that are sent", function()
-    local l = Script.lines(Data.BY_ID.S1, ctx(1))[11]
+    local l = Script.lines(Data.BY_ID.S0, ctx(0))[13]
+    eq(l.eraseStop, nil, "this one at the default pace")
     local tl = Script.timeline({ l })
     local typed = pieces(tl.lines[1], "erasetype")
     eq(typed[#typed].n1, 3)
@@ -123,6 +126,44 @@ test("an erased line: typed slower at its end, held, deleted a tap at a time, a 
     near(think.to - think.from, Script.ERASE_AFTER, 1e-9)
     st = Script.at(tl, pieces(tl.lines[1], "type")[1].to - 0.001)
     eq(st.inputOf, "text")
+end)
+
+test("an erased line of its own pace: the words sit longer, go slower, and the thinking after is longer", function()
+    local l = Script.lines(Data.BY_ID.S9, ctx(8))[6]
+    eq(l.eraseStop, 2.2)
+    local tl = Script.timeline({ l })
+    local stop = pieces(tl.lines[1], "erasestop")[1]
+    near(stop.to - stop.from, 2.2, 1e-9)
+    local erase = pieces(tl.lines[1], "erase")[1]
+    near(erase.to - erase.from, #Script.parse(l.erase) / 5, 1e-9)
+    local think = pieces(tl.lines[1], "hold")[1]
+    near(think.from, erase.to, 1e-9)
+    near(think.to - think.from, 2.6, 1e-9)
+end)
+
+test("a line's pause: a beat before it, after the turn, the cursor blinking on an empty input line", function()
+    local lines = Script.lines(Data.BY_ID.S1, ctx(1))
+    eq(lines[7].pause, 2)
+    local tl = Script.timeline({ lines[6], lines[7] })
+    local second = tl.lines[2]
+    eq(second.pieces[1].kind, "hold")
+    near(second.pieces[1].to - second.pieces[1].from, 2, 1e-9)
+    local st = Script.at(tl, second.pieces[1].from + 1)
+    eq(st.line, 2)
+    eq(st.input, 0)
+    eq(st.phase, "hold")
+end)
+
+test("every erased line's own pace is longer than the default, and every pause a beat of a few seconds", function()
+    for _, e in ipairs(Data.ENTRIES) do
+        for n, line in ipairs(e.lines or {}) do
+            local where = e.id .. " " .. n
+            if line.stop then truthy(line.erase and line.stop >= Script.ERASE_STOP, where) end
+            if line.after then truthy(line.erase and line.after >= Script.ERASE_AFTER, where) end
+            if line.del then truthy(line.erase and line.del <= Script.ERASE_CPS, where) end
+            if line.pause then truthy(line.pause > 0 and line.pause <= 3, where) end
+        end
+    end
 end)
 
 test("a hand's typing: a word at its own speed, a gap between words, a longer one after a clause", function()

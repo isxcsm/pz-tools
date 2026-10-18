@@ -27,8 +27,10 @@ OATabComms.INPUT_GAP = 8
 OATabComms.PAD = 10
 OATabComms.BAR = 6
 OATabComms.STEP = 48
--- A beat between one call and the next waiting one (ms).
+-- A beat between one call and the next waiting one (ms); a call that starts within CHAIN_MS after it follows the one
+-- before (no hail).
 OATabComms.NEXT_MS = 1500
+OATabComms.CHAIN_MS = 1000
 -- The game's sound and ambience under a call, as a share of the player's own setting; the sounds (가안: set in the
 -- game).
 OATabComms.DUCK = 0.5
@@ -36,8 +38,10 @@ OATabComms.SOUND_STATIC = "RadioStatic"
 OATabComms.SOUND_IN = "RadioZap"
 OATabComms.SOUND_SEND = "RadioButton"
 
--- The hail before a mission's briefing (the player started the mission, and calls the team): the line's static (ms,
--- from the start), "<call sign> 호출 중" coming up with its dots one by one, "회선 연결", and the call itself.
+-- The hail before a call the tab plays by itself (the tab is come to for it: the terminal opened on it, a mission
+-- started): the line's static (ms, from the start), "<call sign> 호출 중" (the player calling the team: a briefing) or
+-- "<call sign> 호출 수신" (the team calling) coming up with its dots one by one, "회선 연결", and the call itself. A call
+-- that follows another after the beat between them, and a replay, have none.
 OATabComms.HAIL_STATIC_MS = 1100
 OATabComms.HAIL_TEXT_MS = 1000
 OATabComms.HAIL_DOT_MS = 300
@@ -50,8 +54,8 @@ OATabComms.HAIL_STATIC_A, OATabComms.HAIL_STEP_MS = 0.65, 60
 OATabComms.HAIL_CLEAN = { field = 0.35 }
 OATabComms.HAIL_LINES = { crude = 3, field = 1 }
 
--- A mission's briefing: started by the player, so it opens with the hail.
-local function hailed(e)
+-- A mission's briefing: started by the player, who calls the team.
+local function outgoing(e)
     return string.find(e.trigger or "", "^brief:") ~= nil
 end
 
@@ -229,7 +233,8 @@ function OATabComms:playRows()
         if st.hailKey then
             local text = getText("IGUI_OA_Comms_Linked")
             if not st.linked then
-                text = getText("IGUI_OA_Comms_Hail", signOf(play.entry)) .. string.rep(" " .. string.char(183), st.dots)
+                local key = play.brief and "IGUI_OA_Comms_Hail" or "IGUI_OA_Comms_HailIn"
+                text = getText(key, signOf(play.entry)) .. string.rep(" " .. string.char(183), st.dots)
             end
             local row = self:lineRow("hail", nil, text)
             row.linked = st.linked
@@ -390,7 +395,10 @@ local function frame(self)
     local record = self:record()
     local e = record and self:waiting(record)
     if not e then return nil end
-    self:start(e, OA.Story.tier(record), false, now)
+    -- (the hail, unless the call follows the one just over: a briefing always has it)
+    local chained = self.chainUntil and now < self.chainUntil
+    self.chainUntil = nil
+    self:start(e, OA.Story.tier(record), false, now, outgoing(e) or not chained)
     return now
 end
 
@@ -405,18 +413,16 @@ function OATabComms:consoleOver()
     self:follow()
 end
 
--- A call starts: `entry` at `tier`, `replay` from the record (nothing is sent at its end).
-function OATabComms:start(entry, tier, replay, now)
+-- A call starts: `entry` at `tier`, `replay` from the record (nothing is sent at its end), `hail`: the hail first.
+function OATabComms:start(entry, tier, replay, now, hail)
     local record = self:record()
     local lines = Script.lines(entry, context(record, tier))
     now = now or UI.sceneNow()
     self.play = { entry = entry, tier = tier, replay = replay, lines = lines, tl = Script.timeline(lines), at = now,
         line = 0 }
-    -- a briefing first plays the hail: the call's own clock starts after it
-    if not replay and hailed(entry) then
-        self.play.brief = true
-        self.play.hailFrom, self.play.at = now, now + OATabComms.HAIL_MS
-    end
+    self.play.brief = outgoing(entry) or nil
+    -- the hail first: the call's own clock starts after it
+    if not replay and hail then self.play.hailFrom, self.play.at = now, now + OATabComms.HAIL_MS end
     self.st = self.play.hailFrom and self:hailState(0) or Script.at(self.play.tl, 0)
     self.skipButton:setVisible(true)
     self.window:setWantKeyEvents(true)
@@ -476,7 +482,7 @@ function OATabComms:hailState(ms)
     return st
 end
 
--- Whether a briefing's hail is still on (no line of the call shown yet).
+-- Whether a call's hail is still on (no line of the call shown yet).
 local function hailing(play, now)
     return play.hailFrom ~= nil and (now or UI.sceneNow()) < play.at
 end
@@ -506,6 +512,8 @@ function OATabComms:finish(leaving)
     end
     if play.brief then self.held = true end
     self.nextAt = UI.sceneNow() + OATabComms.NEXT_MS
+    -- a call waiting starts after the beat without a hail (OATabComms.CHAIN_MS: a frame late is still the beat)
+    self.chainUntil = self.nextAt + OATabComms.CHAIN_MS
     local record = self:record()
     if record then self:setRows(record) end
     self:follow()
@@ -528,12 +536,12 @@ end
 -- calls held after a briefing may come once the tab is back.
 function OATabComms:onTabLeave()
     self:finish(true)
-    self.held = nil
+    self.held, self.chainUntil = nil, nil
 end
 
 function OATabComms:onWindowClose()
     self:finish(true)
-    self.held = nil
+    self.held, self.chainUntil = nil, nil
 end
 
 -- A head's replay button: the scene plays again as it first did.
@@ -589,7 +597,7 @@ function OATabComms:prerender()
     local ty = math.floor((OATabComms.TOP_H - 4 - fh) / 2)
     UI.text(self, UI.str("IGUI_OA_Comms_Record"), 0, ty, p.head)
     if self.play then
-        -- the hail is the player calling: the line is not up yet
+        -- during the hail the line is not up yet
         local key = self.st and self.st.phase == "hail" and "IGUI_OA_Comms_Connecting" or "IGUI_OA_Comms_Receiving"
         UI.textRight(self, UI.str(key), self.skipButton.x - 10, ty, p.warn)
     end

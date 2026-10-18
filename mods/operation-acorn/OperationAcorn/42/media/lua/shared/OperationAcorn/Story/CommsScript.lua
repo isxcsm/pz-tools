@@ -22,11 +22,12 @@ Script.CLAUSE_PAUSE = 0.4
 Script.CLAUSE_ENDS = { [","] = true, ["."] = true, ["?"] = true, ["!"] = true }
 -- Words typed and taken back: the last letters come slower and slower (times a letter's time), the words sit whole
 -- with the cursor blinking, are deleted a tap at a time, and the cursor blinks again while the next words are thought
--- of.
+-- of. A line of the data may hold its own (`stop`, `del`, `after`): the further the feeling turns between the erased
+-- words and the sent ones, the longer they sit and the longer the thinking after.
 Script.ERASE_SLOW = { 2, 3, 4.5 }
 Script.ERASE_STOP = 1.2
 Script.ERASE_CPS = 10
-Script.ERASE_AFTER = 1.0
+Script.ERASE_AFTER = 1.4
 Script.SEND_AFTER = 0.7      -- the typed words sit whole on the input line a moment before they are sent
 -- Reading: a line is read as it comes in, so from its first character to the next line it is given its characters at
 -- the language's reading speed (subtitles' adult speeds: Korean 12 a second, Chinese and Japanese 9, the rest 17) and a
@@ -81,7 +82,7 @@ function Script.parse(src)
 end
 
 -- The lines of an entry as played: { who, text (plain), chars, marks, erase (plain, or nil), s (seconds, noise and
--- mute) }. ctx = { text = function(key, ...), number = "0347", tier = the tier it plays at, late = the first crate was
+-- mute), pause (a beat before the line, seconds), eraseStop, eraseCps, eraseAfter (the erased words' own pace) }. ctx = { text = function(key, ...), number = "0347", tier = the tier it plays at, late = the first crate was
 -- late }.
 function Script.lines(entry, ctx)
     local out = {}
@@ -101,8 +102,11 @@ function Script.lines(entry, ctx)
             local src = ctx.text(k, ctx.number)
             if n == 1 and entry.greet then src = Script.greeted(src, ctx) end
             local chars, marks = Script.parse(src)
-            local l = { who = who, text = table.concat(chars), chars = chars, marks = marks }
-            if line.erase then l.erase = ctx.text(key(entry.id, n, "_x"), ctx.number) end
+            local l = { who = who, text = table.concat(chars), chars = chars, marks = marks, pause = line.pause }
+            if line.erase then
+                l.erase = ctx.text(key(entry.id, n, "_x"), ctx.number)
+                l.eraseStop, l.eraseCps, l.eraseAfter = line.stop, line.del, line.after
+            end
             out[#out + 1] = l
         end
     end
@@ -200,6 +204,7 @@ function Script.timeline(lines, cps, pace)
         local speech = l.who ~= "noise" and l.who ~= "mute"
         if speech and last and last ~= l.who then add("hold", l.who == "me" and turn or turnIn, 0, 0) end
         if speech then last = l.who end
+        if l.pause then add("hold", l.pause, 0, 0) end
         if l.who == "noise" or l.who == "mute" then
             add("hold", l.s or 1)
         elseif l.who == "me" then
@@ -207,9 +212,9 @@ function Script.timeline(lines, cps, pace)
                 local echars = Script.parse(l.erase)
                 local ec = #echars
                 Script.typing(add, "erasetype", echars, 0, ec, meCps, true)
-                add("erasestop", Script.ERASE_STOP, ec, ec)
-                add("erase", ec / Script.ERASE_CPS, ec, 0)
-                add("hold", Script.ERASE_AFTER)
+                add("erasestop", l.eraseStop or Script.ERASE_STOP, ec, ec)
+                add("erase", ec / (l.eraseCps or Script.ERASE_CPS), ec, 0)
+                add("hold", l.eraseAfter or Script.ERASE_AFTER)
             end
             local n, typing = 0, t
             for _, m in ipairs(l.marks) do

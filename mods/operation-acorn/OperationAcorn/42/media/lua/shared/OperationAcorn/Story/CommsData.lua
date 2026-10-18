@@ -27,7 +27,10 @@ OA.CommsData = Data
 --   sign     the call sign: "oak" (참나무) or "admin" (관리 7)
 --   lines    { speaker, ... }: "oak" (the team), "me" (the protagonist), "noise" (static only, `s` seconds), "mute"
 --            (nothing, `s` seconds); `erase` on a "me" line: words typed and deleted first (key _x); `late` on a line: a
---            text of its own (key _late) when the first crate came late
+--            text of its own (key _late) when the first crate came late; `pause` on a line: a beat before it (seconds:
+--            a turn of thought between two lines of one speaker); `stop`, `del`, `after` on an erased line: how long the
+--            erased words sit, how fast they are deleted (characters a second), the thinking before the sent words
+--            (CommsScript's ERASE_ when left out): longer as the feeling turns further between them
 Data.ENTRIES = {
     -- The briefings (SCENES 4): played as the player starts a story mission, before any other call waiting; the mission
     -- begins when one is over. Keyed by the story (a choice's option, the soil sample's place).
@@ -61,19 +64,23 @@ Data.ENTRIES = {
         { "me" }, { "oak" }, { "noise", s = 1 } } },
 
     { id = "S0", kind = "scene", trigger = "first", tier = 0, sign = "oak", lines = {
-        { "noise", s = 2 }, { "oak" }, { "mute", s = 3 }, { "oak" }, { "me", erase = true }, { "oak" }, { "me" }, { "oak" },
-        { "me", late = true }, { "oak", late = true }, { "me" }, { "oak" }, { "me", erase = true }, { "oak" }, { "me" }, { "noise", s = 3 } } },
+        { "noise", s = 2 }, { "oak" }, { "mute", s = 3 }, { "oak" },
+        { "me", erase = true, stop = 1.6, after = 1.8 }, { "oak" }, { "me" }, { "oak" },
+        { "me", late = true }, { "oak", late = true }, { "me" }, { "oak" }, { "me", erase = true }, { "oak" },
+        { "me" }, { "noise", s = 3 } } },
     { id = "S1", kind = "scene", trigger = "settled", tier = 1, waits = "S0", greet = true, sign = "oak", lines = {
-        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "me" }, { "oak" }, { "me" }, { "oak" },
-        { "me", erase = true } } },
+        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "me", pause = 2 }, { "oak" }, { "me" },
+        { "oak" },
+        { "me", erase = true, stop = 1.6, after = 2.2 } } },
     -- what the missions are: after the first settlement's call; no mission is offered before it (Missions.opened)
     { id = "S1M", kind = "scene", trigger = "settled", tier = 1, waits = "S1", sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "noise", s = 1 } } },
     { id = "s1_bedding", kind = "short", trigger = "tier:1", tier = 1, waits = "S1", greet = true, sign = "oak" },
     { id = "S1F", kind = "scene", trigger = "story:evidence", tier = 1, mission = true, waits = "S1", sign = "oak", lines = {
-        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "me" }, { "oak" } } },
+        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "me", pause = 1 }, { "oak" } } },
     { id = "S2", kind = "scene", trigger = "serum", tier = 2, waits = "S1", greet = true, sign = "oak", lines = {
-        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me", erase = true }, { "oak" } } },
+        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" },
+        { "me", erase = true, stop = 1.8, after = 2 }, { "oak" } } },
     { id = "S2B", kind = "scene", trigger = "after:S2:12", tier = 2, waits = "S2", sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "noise", s = 3 } } },
     { id = "s2_filter", kind = "short", trigger = "tier:2", tier = 2, waits = "S1", greet = true, sign = "oak" },
@@ -88,16 +95,19 @@ Data.ENTRIES = {
         { "noise", s = 5 }, { "me" }, { "noise", s = 3 }, { "me" }, { "mute", s = 4 }, { "me", erase = true },
         { "noise", s = 2 } } },
     { id = "S4B", kind = "scene", trigger = "nextday:S4", tier = 4, waits = "S4", greet = true, sign = "oak", lines = {
-        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me", erase = true } } },
+        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" },
+        { "me", erase = true, stop = 1.6, after = 2 } } },
     { id = "s4_committee", kind = "short", trigger = "tier:4", tier = 4, waits = "S4B", greet = true, sign = "oak" },
     { id = "S4F", kind = "scene", trigger = "story:cooler", tier = 4, mission = true, waits = "S4B", sign = "oak", lines = {
-        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me", erase = true } } },
+        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" },
+        { "me", erase = true, stop = 1.6, after = 1.8 } } },
     { id = "S5", kind = "scene", trigger = "tier:5", tier = 5, waits = "S4B", sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" } } },
     { id = "S5F", kind = "field", trigger = "field:gym", tier = 5, mission = true, sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "oak" }, { "oak" } } },
     { id = "S6", kind = "scene", trigger = "crate:6", tier = 6, waits = "S5", sign = "oak", lines = {
-        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me", erase = true }, { "me" }, { "oak" } } },
+        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me", erase = true, stop = 1.6, after = 1.8 },
+        { "me", pause = 1.5 }, { "oak" } } },
     { id = "s6_list", kind = "short", trigger = "tier:6", tier = 6, waits = "S6", greet = true, sign = "oak" },
     { id = "S6F", kind = "scene", trigger = "story:ward", tier = 6, mission = true, waits = "S6", sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" } } },
@@ -108,19 +118,21 @@ Data.ENTRIES = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" } } },
     { id = "s8_handover", kind = "short", trigger = "tier:8", tier = 8, waits = "S7", greet = true, sign = "oak" },
     { id = "S8F", kind = "field", trigger = "field:handover", tier = 8, mission = true, sign = "oak", lines = {
-        { "oak" }, { "me", erase = true }, { "oak" } } },
+        { "oak" }, { "me", erase = true, stop = 1.8, after = 1.8 }, { "oak" } } },
     { id = "S8", kind = "scene", trigger = "story:handover", tier = 8, mission = true, waits = "S7", sign = "oak", lines = {
-        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "oak" }, { "me", erase = true }, { "oak" }, { "oak" },
-        { "oak" }, { "me" }, { "noise", s = 5 } } },
+        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "oak" },
+        { "me", erase = true, stop = 2, del = 5, after = 2.2 }, { "oak" }, { "oak" },
+        { "oak" }, { "me", pause = 1.2 }, { "noise", s = 5 } } },
     { id = "S9", kind = "scene", trigger = "handedover", tier = 8, keep = true, waits = "S8", sign = "admin", lines = {
-        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me", erase = true } } },
+        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" },
+        { "me", erase = true, stop = 2.2, del = 5, after = 2.6 } } },
     { id = "K1", kind = "scene", trigger = "tier:9", tier = 9, waits = "S9", sign = "admin", lines = { { "oak" } } },
     { id = "K2", kind = "scene", trigger = "tier:10", tier = 10, waits = "K1", sign = "admin", lines = {
         { "oak" }, { "me" }, { "oak" } } },
     { id = "K3", kind = "scene", trigger = "tier:11", tier = 11, waits = "K2", sign = "admin", lines = {
         { "oak" }, { "me" } } },
     { id = "K4", kind = "scene", trigger = "tier:12", tier = 12, waits = "K3", sign = "admin", lines = {
-        { "oak" }, { "me", erase = true } } },
+        { "oak" }, { "me", erase = true, stop = 2, del = 5, after = 2 } } },
 
     -- Field monologues (SCENES 4, 5): said once over the character's head and kept in the tab as field records.
     -- `say:<story id>:<event>`: enter (the circle first entered), pickup (the story's item taken), put (the sealed case
