@@ -2140,13 +2140,27 @@ can leave as dust), `backdrop` (0 for none), `scale` (0.4 to 2.5: the style's si
 title that matters more or less than its style says), `dustSize`, `dustSweep`, `dustDrift` and `dustBurn` (with `leave = "dust"`, `"burn"` or `"flare"`, the
 style's or the spec's), `sounds` and `subtitleSounds` (below), and `now`. The line under a title takes its look's cues from it (a torch's flicker).
 
-A title sounds at its moments when its spec names the game's sounds for them: `sounds = { enter = ..., land = ..., leave = ... }` for the title,
+A title sounds at its moments when its spec names the game's sounds for them: `sounds = { enter = ..., land = ..., hold = ..., leave = ... }` for the title,
 `subtitleSounds` (with a `subtitle`) for its line, each moment optional, each a sound's name (a vanilla one, or a mod's from its sound scripts:
 letters, digits, `_` and `.`). `enter` as it starts to come in, `land` as it has come in (an `"impact"` as its letters hit, 0.16 s in; else at
-the end of its enter), `leave` as it starts to leave. Each is played once, on the screen (the game's UI sound), with the first screen's copy
-of the title (a split screen's players share the speakers), as the title's clock passes it: a pause holds it, and a moment passed with
+the end of its enter), `leave` as it starts to leave, and `hold`, which starts where `land` does and lasts until the title is gone: a sound script
+with `loop = true` is what it is for (a one-shot plays once and ends by itself), and while the title leaves its volume follows `1 - the leave's
+progress`, down to 0 as the title is gone. Each is played once, on the screen (the game's UI sound), with the first screen's copy
+of the title (a split screen's players share the speakers), as the title's clock passes it: a pause holds it (a hold plays on at the volume it had,
+the leave's progress, and so the volume, being frozen with the clock; a frame longer than 0.1 s counts for 0.1 s of it, as the drawing does), and a moment passed with
 nothing to hear (a title hidden before it was in) is passed silently. A newer API goes on from the moments passed. The API knows no sound of
-its own: which a style sounds is the mod's. A title's backdrop reaches over its line: one backdrop for both. Every style stays 5 s once all of it is in (the title, and its line when it has one: its hold is
+its own: which a style sounds is the mod's.
+
+Every sound a title started is bound to its life. When the title is gone (it left, `hide` with `now`, its mod's `clear`, its world left), or a
+title with `now` cut it short (its `leaveTime` goes to 0.25 s, and it sounds no moment more), the sounds of it still playing fade out over 0.15 s
+of the interface's clock and are stopped; nothing outlives it. A newer API taking over stops them at once (it goes on with the title, silent from
+there: it does not know the sounds). `playUISound` gives the sound's `getRef()`: the FMOD channel of a sound script's file clip, or the event
+instance of its event clip, and 0 when nothing played (an unknown name, the UI sounds muted); the same id goes to `isPlayingUISound(id)` and
+`stopUISound(id)`, so a sound that has ended by itself is let go as it is. The volume is set through the UI emitter's `setVolume(id, level)` (the
+`SoundManager.getUIEmitter()` of the sound manager), which scales the sound under the game's own volumes (`Sound.volume`, times the clip's effective volume,
+which the fix of `GameSoundClip.getEffectiveVolume` above makes the sound master's): the volume settings stay the player's. A channel's volume set
+direct (`FMOD_Channel_SetVolume`) would be set again from those with each tick of the emitter, an event's too, so it is not used. A hold's level is set when it
+moved a hundredth, the fade's with each frame, and the frames allocate nothing. A title's backdrop reaches over its line: one backdrop for both. Every style stays 5 s once all of it is in (the title, and its line when it has one: its hold is
 lengthened by as much as the line comes in after the title) and has a backdrop of 0.3, but `"brief"`, a light one for small news. A style is a pair of `show` specs:
 
 | Style | Title | Line under it |

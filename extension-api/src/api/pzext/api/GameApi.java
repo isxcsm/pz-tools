@@ -241,7 +241,9 @@ public final class GameApi {
             helicopters = null;
             moodles = null;
             loot = null;
+            Texts failed = texts;
             texts = null;
+            if (failed != null) failed.silence();
             sounds = null;
             hits = null;
             holds = null;

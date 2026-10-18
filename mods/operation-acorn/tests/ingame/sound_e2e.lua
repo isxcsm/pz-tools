@@ -2,7 +2,7 @@
 -- timed action's sound playing from the character as it works and stopped as it is stopped (the story's soil sample,
 -- stopped midway: nothing is sent), the lock pick's sound still going past its clip (it loops) and stopped, the titles
 -- with sounds shown (stamp, type, notice; heard by the player), and the title candidates of the game measured: which
--- still play 2, 5 and 10 s after being played once (a title never stops its sounds). Prints [sounde2e] lines.
+-- still play 2, 5 and 10 s after being played once (a title stops its sounds, with a short fade, once it is gone). Prints [sounde2e] lines.
 local OA = OperationAcorn
 local Sound = PZUIKit.Sound
 local t = STEPS("sounde2e")
