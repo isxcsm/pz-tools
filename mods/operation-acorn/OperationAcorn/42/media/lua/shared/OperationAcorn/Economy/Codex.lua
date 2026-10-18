@@ -13,6 +13,7 @@ require "OperationAcorn/Economy/Categories"
 require "OperationAcorn/Economy/Trust"
 require "OperationAcorn/Economy/Requests"
 require "OperationAcorn/Economy/Value"
+require "OperationAcorn/Economy/Towns"
 local OA = OperationAcorn
 local Codex = {}
 OA.Codex = Codex
@@ -171,6 +172,8 @@ function Codex.buildingSearched(record, key, containers, mult)
     containers = math.max(0, containers or 0)
     c.buildings[key] = containers
     c.nb = c.nb + 1
+    -- (the building counts for its town, whenever it was searched: the shop's restock follows the towns done)
+    OA.try("towns searched", OA.Towns.searched, record, key)
     local live = OA.Trust.contacted(record)
     local credits = (Codex.BUILDING_BASE + Codex.BUILDING_PER_CONTAINER * containers) * (mult or 1)
     if live then pay(record, credits) end

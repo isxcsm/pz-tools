@@ -2,6 +2,8 @@
 --   every day: the market's step, the new week's request lists, the shred counts' upkeep;
 --   every ten minutes (at most each few real seconds): the codex looks over what the characters carry (crafting,
 --     foraging, trades ...);
+--   every minute (at most once a real second): a character in a town the world has searched through takes its share
+--     of the shop's restock (Towns.enter);
 --   a building all searched: asked by the player's search watch (client/OperationAcorn/Economy/Searched.lua) as the
 --     character steps away from the last containers, checked against the walk's own counts;
 --   a zombie's death: the killer's kill count;
@@ -19,6 +21,7 @@ require "OperationAcorn/Economy/Requests"
 require "OperationAcorn/Economy/Value"
 require "OperationAcorn/Economy/Codex"
 require "OperationAcorn/Economy/Shop"
+require "OperationAcorn/Economy/Towns"
 require "OperationAcorn/Economy/Shred"
 require "OperationAcorn/Economy/Buildings"
 require "OperationAcorn/Upgrades/Rules"
@@ -223,6 +226,19 @@ function Economy.tenMinutes()
     end)
 end
 
+-- Every game minute, at most once a real second: a character who has come into a town the world has searched through
+-- takes its share of the shop's faster restock (Towns.enter: nothing is looked up until the world has such a town).
+local lastMinute = {}
+function Economy.minute()
+    if not OA.due(lastMinute, "towns", getTimestampMs(), 1000) then return end
+    eachPlayer(function(character)
+        local record = recordOf(character)
+        if record and OA.Store.alive(record) then
+            OA.try("towns enter", OA.Towns.enter, record, character:getX(), character:getY())
+        end
+    end)
+end
+
 -- A building all searched by a record's character: counted once, its bonus more with 철저한 수색's rank 3 (the
 -- search ledger), and told from rank 1 by a brief title (a light one: one comes with every building): what the bonus
 -- will be (BonusMultiplier in), and at rank 3 how much of it the rank added, so the rank is seen to pay.
@@ -300,6 +316,7 @@ end
 
 Events.EveryDays.Add(Economy.daily)
 Events.EveryTenMinutes.Add(Economy.tenMinutes)
+Events.EveryOneMinute.Add(Economy.minute)
 Events.OnZombieDead.Add(onZombieDead)
 Events.OnItemFound.Add(onItemFound)
 Events.OnGameStart.Add(Economy.start)
