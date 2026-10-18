@@ -91,3 +91,35 @@ test("a window hidden for the game's pause menu waits and goes on once shown; on
     UI.liveFrame()
     eq(el.liveLook, nil, "and not followed again by itself")
 end)
+
+test("an element's entries are dropped with its last one: nothing animated stays kept", function()
+    local UI = load()
+    local window = element(nil)
+    local a, b = element(window), element(window)
+    local function until1100(_, t) return t < 1100 and t or nil end
+    local function until1200(_, t) return t < 1200 and t or nil end
+    UI.live(a, until1100)
+    UI.live(a, until1200)
+    UI.live(b, until1100)
+    local entries, kept = UI.liveSize()
+    eq(entries, 3)
+    eq(kept, 2)
+    UI.liveFrame()
+    now = 1100
+    UI.liveFrame()
+    entries, kept = UI.liveSize()
+    eq(entries, 1, "a's second entry goes on")
+    eq(kept, 1, "b is let go with its only entry")
+    -- the same function again once let go is a new entry (the once is for entries followed)
+    UI.live(b, until1100)
+    entries, kept = UI.liveSize()
+    eq(entries, 2)
+    eq(kept, 2)
+    now = 1200
+    UI.liveFrame()
+    now = 1300
+    UI.liveFrame()
+    entries, kept = UI.liveSize()
+    eq(entries, 0)
+    eq(kept, 0, "no element is kept once every entry has ended")
+end)

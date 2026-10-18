@@ -1132,7 +1132,9 @@ end
 -- removeChild) is let go. The handler stays on once used: taking it off from inside the event would make the game skip
 -- the next handler of that frame, and with nothing registered it returns at once.
 local live, liveHooked, liveCount = {}, false, 0
--- The entries by element and frame function, for the once of UI.live.
+-- The entries by element and frame function, for the once of UI.live: { [frame function] = entry, n = how many }. An
+-- element's table goes with its last entry (a table of elements kept by element would hold every element ever followed,
+-- and the window tree each is in; a weak key would not do, the entry holds its element).
 local liveOf = {}
 
 -- Whether the element is "shown" (it and every element it is in), "hidden" (one of them is) or "gone" (one of them was
@@ -1224,7 +1226,10 @@ local function liveFrame()
         end
         if state ~= "hidden" and look == nil then
             table.remove(live, i)
-            liveOf[el][entry.frame] = nil
+            local frames = liveOf[el]
+            frames[entry.frame] = nil
+            frames.n = frames.n - 1
+            if frames.n == 0 then liveOf[el] = nil end
         end
     end
 end
@@ -1234,7 +1239,7 @@ UI.liveFrame = liveFrame
 function UI.live(el, frame)
     local frames = liveOf[el]
     if not frames then
-        frames = {}
+        frames = { n = 0 }
         liveOf[el] = frames
     elseif frames[frame] then
         return
@@ -1245,7 +1250,15 @@ function UI.live(el, frame)
     end
     local entry = { el = el, frame = frame }
     frames[frame] = entry
+    frames.n = frames.n + 1
     live[#live + 1] = entry
+end
+
+-- How many entries are followed, and how many elements are kept for the once of UI.live (the tests').
+function UI.liveSize()
+    local elements = 0
+    for _ in pairs(liveOf) do elements = elements + 1 end
+    return #live, elements
 end
 
 -- Fading in and out ---------------------------------------------------------------------------------------------------
