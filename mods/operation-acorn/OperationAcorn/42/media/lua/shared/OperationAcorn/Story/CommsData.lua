@@ -169,6 +169,10 @@ Data.ENTRIES = {
     { id = "C_scout_k", kind = "short", trigger = "survey:scout:admin", tier = 0, branch = "survey", survey = "scout",
         sign = "admin" },
 
+    -- The egg branch (Story/Egg): the Furbert squirrel delivered before the handover; Branscomb's call about it, once.
+    { id = "C_egg_furbert", kind = "short", trigger = "egg:furbert", tier = 0, branch = "egg", greet = true,
+        sign = "oak" },
+
     -- Field monologues (SCENES 4, 5): said once over the character's head and kept in the tab as field records.
     -- `say:<story id>:<event>`: enter (the circle first entered), pickup (the story's item taken), put (the sealed case
     -- left), waited (the wait at the drop is over), plank (the last plank of the cells' door off).

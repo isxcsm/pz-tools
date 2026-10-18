@@ -2,6 +2,7 @@
 -- documents, the mission items, and the order of the lines each stage tells. Text lives in the translation files
 -- (IGUI_OA_Story_*), named by the ids here; only ids and numbers are kept in a save (DESIGN 12, LORE 4 and 7).
 require "OperationAcorn/Core"
+require "OperationAcorn/Economy/Eggs"
 local OA = OperationAcorn
 local Data = {}
 OA.StoryData = Data
@@ -214,7 +215,9 @@ Data.MILESTONES = {
             supply = { { "UnresolvedList", "unresolved_3", nil, true } } },
 }
 -- What a manifest remark encloses (it says "2 batteries enclosed": the crate has them), by note id: { { item, count } }.
--- A lighter stands for the lighter flints the notes used to name (the game has none).
+-- A lighter stands for the lighter flints the notes used to name (the game has none). An entry may carry a third
+-- value, the item's modData: Branscomb's walkie-talkie is marked, so that the easter egg tells it from any other
+-- (Eggs.RADIO_MARK).
 local BATTERY = { { "Base.Battery", 2 } }
 local SOCKS = { { "Base.Socks_Ankle", 1 } }
 local CARDS = { { "Base.CardDeck", 1 } }
@@ -222,7 +225,8 @@ local OPENER = { { "Base.TinOpener", 1 } }
 local LIGHTER = { { "Base.Lighter", 1 } }
 Data.NOTE_ITEMS = {
     battery = BATTERY, socks = SOCKS, cards = CARDS, dunnigan_pen = { { "Base.Pencil", 2 } },
-    m1_b = CARDS, m1_c = LIGHTER, m2_b = OPENER, last_b = { { "Base.WalkieTalkie5", 1 } },
+    m1_b = CARDS, m1_c = LIGHTER, m2_b = OPENER,
+    last_b = { { "Base.WalkieTalkie5", 1, { [OA.Eggs.RADIO_MARK] = true } } },
     after3_2 = BATTERY, after3_4 = SOCKS, after3_6 = OPENER, after3_8 = CARDS, after3_11 = LIGHTER,
     after4_2 = BATTERY, after4_4 = SOCKS, after4_6 = CARDS, after4_8 = OPENER, after4_10 = LIGHTER,
     after5_2 = BATTERY, after5_4 = SOCKS, after5_6 = CARDS, after5_8 = OPENER, after5_10 = LIGHTER,

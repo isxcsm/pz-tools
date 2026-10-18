@@ -7,6 +7,7 @@ require "OperationAcorn/Trade/Rules"
 require "OperationAcorn/Trade/Boxes"
 require "OperationAcorn/Trade/Ledger"
 require "OperationAcorn/Upgrades/Infection"
+require "OperationAcorn/Economy/Eggs"
 local OA = OperationAcorn
 local Trade = OA.Trade
 local Rules, Boxes, Ledger = Trade.Rules, Trade.Boxes, Trade.Ledger
@@ -99,7 +100,9 @@ function Settle.run(record, svc)
     if #entries > 0 then
         result = svc.settle(record, entries) or result
     end
-    local bonus = OA.round(account.bonus or 0)
+    -- The easter eggs the entries hold (the Furbert's pay is a bonus; the remarks go on the receipt).
+    local eggs = OA.Eggs.settle(record, entries)
+    local bonus = OA.round(account.bonus or 0) + eggs.credits
     account.bonus = 0
     -- The infection handling fee (a zombie wound not yet tested for, or a known infection) comes off this flight's
     -- delivery credits, the requests' among them, before a debt takes its share.
@@ -152,7 +155,7 @@ function Settle.run(record, svc)
     if needCrate then noteKey, noteArgs, noteFx = Trade.noteFor(record, draft) end
     local enclosed = false
     for _, item in ipairs(noteFx and noteFx.items or {}) do
-        cargo[#cargo + 1] = { type = item.type, count = item.count or 1 }
+        cargo[#cargo + 1] = { type = item.type, count = item.count or 1, mod = item.mod }
         enclosed = true
     end
     local bonusKey
@@ -207,6 +210,7 @@ function Settle.run(record, svc)
         orders = orderResults,
         gifts = gifts,
         bonusNote = bonusKey,
+        eggs = #eggs.notes > 0 and eggs.notes or nil,
         events = events,
         cashTrust = result.cashTrust,
         filled = result.filled and #result.filled > 0 and result.filled or nil,

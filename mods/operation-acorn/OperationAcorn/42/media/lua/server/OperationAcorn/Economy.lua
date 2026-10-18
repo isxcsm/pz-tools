@@ -4,6 +4,8 @@
 --     foraging, trades ...);
 --   every minute (at most once a real second): a character in a town the world has searched through takes its share
 --     of the shop's restock (Towns.enter);
+--   every minute, a compare of the game clock with 07:30 and nothing more until then: Branscomb's walkie-talkie, turned
+--     on and carried, is looked for (easter egg 5, Eggs.radioLook);
 --   a building all searched: asked by the player's search watch (client/OperationAcorn/Economy/Searched.lua) as the
 --     character steps away from the last containers, checked against the walk's own counts;
 --   a zombie's death: the killer's kill count;
@@ -24,6 +26,7 @@ require "OperationAcorn/Economy/Shop"
 require "OperationAcorn/Economy/Towns"
 require "OperationAcorn/Economy/Shred"
 require "OperationAcorn/Economy/Buildings"
+require "OperationAcorn/Economy/Eggs"
 require "OperationAcorn/Upgrades/Rules"
 require "OperationAcorn/Server"
 local OA = OperationAcorn
@@ -314,9 +317,22 @@ function Economy.start()
     Economy.hookTransfers()
 end
 
+-- Every game minute: at 07:30 the characters' walkie-talkies (the egg's, a record that has not had it). Not throttled,
+-- the minute is the only one of the day; the clock alone is read on every other.
+function Economy.eggMinute()
+    if not OA.Eggs.radioTime() then return end
+    eachPlayer(function(character)
+        local record = recordOf(character)
+        if record and OA.Store.alive(record) then
+            OA.try("easter egg radio", OA.Eggs.radioLook, record, character)
+        end
+    end)
+end
+
 Events.EveryDays.Add(Economy.daily)
 Events.EveryTenMinutes.Add(Economy.tenMinutes)
 Events.EveryOneMinute.Add(Economy.minute)
+Events.EveryOneMinute.Add(Economy.eggMinute)
 Events.OnZombieDead.Add(onZombieDead)
 Events.OnItemFound.Add(onItemFound)
 Events.OnGameStart.Add(Economy.start)

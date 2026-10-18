@@ -8,6 +8,7 @@
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Economy/Support"
+require "OperationAcorn/Economy/Eggs"
 local OA = OperationAcorn
 local Trust = {}
 OA.Trust = Trust
@@ -173,29 +174,34 @@ local function at(line, tier)
     return value
 end
 
+-- The easter eggs' effects (Eggs.bonuses) when there are none: nothing added, and the arrival as it is.
+local NO_EGGS = { rate = 0, box = 0, discount = 0, arrive = 1 }
+
 -- The rewards of a stage and a number of milestones with the flight support levels { id = level } (none: all at
 -- the start). No record needed; the sandbox options at the time scale the starting values, and later values keep
--- their proportion to them.
-function Trust.rewardsFor(stage, milestones, levels)
+-- their proportion to them. `eggs` (as Eggs.bonuses gives them) go on top of the levels' values, whatever the level:
+-- the conversion rate, the capacity and the discount are added to, both ends of the arrival hours are multiplied.
+function Trust.rewardsFor(stage, milestones, levels, eggs)
     milestones = milestones or 0
     levels = levels or {}
+    eggs = eggs or NO_EGGS
     local tier = stage + milestones
     local function value(id) return OA.Support.step(id, levels[id] or 0).value end
     local call = OA.scaled(1, "CallIntervalMultiplier")
     local arriveScale = OA.scaled(1, "HelicopterArrivalMultiplier")
     local priceRatio = (OA.option("RequestPrice") or 100) / 100
     local arrive = value("arrive")
-    local lo, hi = arrive[1] * arriveScale, arrive[2] * arriveScale
+    local lo, hi = arrive[1] * arriveScale * eggs.arrive, arrive[2] * arriveScale * eggs.arrive
     return {
         stage = stage, milestones = milestones, tier = tier,
-        boxCapacity = value("box"),
+        boxCapacity = value("box") + eggs.box,
         callInterval = value("call") * call,
         arrival = { min = lo, max = hi },
         nightDrop = value("night"),
-        rate = value("rate"),
+        rate = value("rate") + eggs.rate,
         requestPrice = value("reqprice") * priceRatio,
         requestCount = value("reqcount"),
-        discount = value("discount"),
+        discount = value("discount") + eggs.discount,
         trustAccel = at(ACCEL, tier),
         softerSupply = value("softer"),
         marketForecast = value("forecast"),
@@ -205,8 +211,8 @@ function Trust.rewardsFor(stage, milestones, levels)
     }
 end
 
--- The record's rewards: the table above for its stage, milestones and levels (worked out again when one of them
--- changes; Support bumps trade.levelsRev with each level).
+-- The record's rewards: the table above for its stage, milestones and levels, and its easter eggs (worked out again
+-- when one of them changes; Support bumps trade.levelsRev with each level, and Eggs with each egg).
 local cache = {}
 function Trust.rewards(record)
     local t = record.trade
@@ -217,7 +223,7 @@ function Trust.rewards(record)
     local hit = cache[key]
     if not hit or hit.stage ~= stage or hit.milestones ~= milestones or hit.rev ~= rev then
         hit = { stage = stage, milestones = milestones, rev = rev,
-            value = Trust.rewardsFor(stage, milestones, t and t.levels) }
+            value = Trust.rewardsFor(stage, milestones, t and t.levels, OA.Eggs.bonuses(record)) }
         cache[key] = hit
     end
     return hit.value

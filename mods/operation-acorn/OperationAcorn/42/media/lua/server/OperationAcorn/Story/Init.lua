@@ -15,6 +15,7 @@ require "OperationAcorn/Story/Harvest"
 require "OperationAcorn/Story/Docs"
 require "OperationAcorn/Story/Places"
 require "OperationAcorn/Story/Dense"
+require "OperationAcorn/Story/Egg"
 local OA = OperationAcorn
 local Missions, Game, Sites, Story = OA.Missions, OA.StoryGame, OA.Sites, OA.Story
 local Zombies, Harvest = OA.ZombieMissions, OA.Harvest
