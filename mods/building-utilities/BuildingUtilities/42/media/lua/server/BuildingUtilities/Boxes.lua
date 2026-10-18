@@ -19,6 +19,11 @@ end
 
 -- Each minute, the boxes near a player (BU.Nearby): a far one is not loaded, and shows as its square loads.
 Events.EveryOneMinute.Add(function()
+    if not BU.api() then return end
     local _, near = BU.Nearby.hotPanels()
-    for _, panel in ipairs(near) do PanelLook.show(panel) end
+    local objects = BU.objectsByData(Panels.MODDATA, near)
+    for i, panel in ipairs(near) do
+        local object = objects[i]
+        if object and object ~= "unloaded" then PanelLook.show(panel, object) end
+    end
 end)

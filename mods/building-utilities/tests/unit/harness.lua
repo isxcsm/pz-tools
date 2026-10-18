@@ -84,12 +84,48 @@ local function newApi()
         rawset(t, name, fn)
         return fn
     end })
+    -- The world queries the mod calls. objects.byData: the object of TEST.squares' square whose mod data key is the
+    -- value, false when the square is there with none, "unloaded" when it is not. squares.list: a room's squares
+    -- (getSquares) that have a floor (floor = true) and no stairs (stairs = false).
+    local objects = {
+        byData = function(key, list)
+            count("objects.byData")
+            local result = {}
+            for i = 1, #list, 4 do
+                local square = TEST.squares[list[i] .. "," .. list[i + 1] .. "," .. list[i + 2]]
+                local found = "unloaded"
+                if square then
+                    found = false
+                    for _, object in ipairs(square.objects or {}) do
+                        if object:hasModData() and object:getModData()[key] == list[i + 3] then found = object; break end
+                    end
+                end
+                result[#result + 1] = found
+            end
+            return result
+        end,
+    }
+    local squares = {
+        list = function(area, filter)
+            count("squares.list")
+            local result, all = {}, area.room:getSquares()
+            for i = 0, all:size() - 1 do
+                local square = all:get(i)
+                if (not filter.floor or square:getFloor() ~= nil) and (filter.stairs ~= false or not square:HasStairs()) then
+                    result[#result + 1] = square
+                end
+            end
+            return result
+        end,
+    }
     networks.draw = function() return 0 end
     -- No revision unless a test gives one: the states are kept for the millisecond, as an older API has them.
     networks.revision = function() return nil end
     api.table = {
         version = 1,
         buildings = buildings,
+        objects = objects,
+        squares = squares,
         networks = networks,
         client = function() return {} end,
         hooks = function() return {} end,

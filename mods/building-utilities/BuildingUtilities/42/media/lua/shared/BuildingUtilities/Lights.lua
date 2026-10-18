@@ -96,15 +96,19 @@ end
 
 -- Each loaded box and unit near a player sets its light again.
 function Lights.everyMinute()
+    if not BU.api() then return end
     local players = BU.Nearby.players()
     local _, panels = BU.Nearby.hotPanels(players)
-    for _, panel in ipairs(panels) do
-        local object = BU.Panels.object(panel)
-        if object then Lights.refresh(object, true) end
+    local objects = BU.objectsByData(BU.Panels.MODDATA, panels)
+    for i = 1, #panels do
+        local object = objects[i]
+        if object and object ~= "unloaded" then Lights.refresh(object, true) end
     end
-    for _, unit in ipairs(BU.Nearby.units(players)) do
-        local object = BU.Units.object(unit)
-        if object then Lights.refresh(object, true) end
+    local units = BU.Nearby.units(players)
+    objects = BU.objectsByData(BU.Units.MODDATA, units)
+    for i = 1, #units do
+        local object = objects[i]
+        if object and object ~= "unloaded" then Lights.refresh(object, true) end
     end
 end
 

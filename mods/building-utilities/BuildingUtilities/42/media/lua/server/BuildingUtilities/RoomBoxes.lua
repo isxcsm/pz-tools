@@ -21,7 +21,7 @@ local function onTick()
 end
 
 local function onSeeNewRoom(room)
-    if not room or BU.Spawned.chance(room:getName()) <= 0 then return end
+    if not room or not BU.api() or BU.Spawned.chance(room:getName()) <= 0 then return end
     pending[#pending + 1] = room
     if not hooked then
         hooked = true
