@@ -150,19 +150,39 @@ local function visit(record, p)
     end
 end
 
--- A look at where a record's character stands (x, y): the places within NEAR squares of it that the record has no reward
--- from. Called on the minute; does nothing until a real second has passed since the last look, below the trust level, or
--- with no place about.
-function Dense.look(record, x, y)
-    if not OA.due(looks, record.id, getTimestampMs(), Dense.LOOK_MS) then return end
+-- The list of places a look is to go over, or nil: not until a real second has passed since the last look, below the
+-- trust level, or with no place about.
+local function lookList(record)
+    if not OA.due(looks, record.id, getTimestampMs(), Dense.LOOK_MS) then return nil end
     local list = world().list
-    if not list or #list == 0 or OA.Trust.tier(record) < Dense.TIER then return end
+    if not list or #list == 0 or OA.Trust.tier(record) < Dense.TIER then return nil end
+    return list
+end
+
+local function lookOver(record, list, x, y)
     local got = Dense.got(record)
     local least = Dense.NEAR * Dense.NEAR
     for _, p in ipairs(list) do
         local dx, dy = p.x - x, p.y - y
         if dx * dx + dy * dy <= least and not got[p.id] then visit(record, p) end
     end
+end
+
+-- A look at where a record's character stands (x, y): the places within NEAR squares of it that the record has no reward
+-- from. Called on the minute; does nothing until a real second has passed since the last look, below the trust level, or
+-- with no place about.
+function Dense.look(record, x, y)
+    local list = lookList(record)
+    if list then lookOver(record, list, x, y) end
+end
+
+-- The same, for the minute's event: `position(record)` gives the character's x, y (nil without one) and is asked only
+-- once a look is due, so a record that would not look costs no search for its character.
+function Dense.minute(record, position)
+    local list = lookList(record)
+    if not list then return end
+    local x, y = position(record)
+    if x then lookOver(record, list, x, y) end
 end
 
 return Dense
