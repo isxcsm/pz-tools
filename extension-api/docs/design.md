@@ -1692,6 +1692,133 @@ call.)
   bag that holds one, at any depth. A mod puts the key on what must stay; nothing else is needed. The question comes in
   `IsoGridSquare.load`, on the thread that loads the chunk, only for an item the removal would take.
 
+## World queries (facts)
+
+What a mod asks of many squares, objects or items at once: the squares near a point that meet some conditions, a spot where a
+shape fits, the doors on a room's edge, the furniture to take out of a room, the items in a bag with a mark. Asked in Lua, each
+is a loop of hundreds to hundreds of thousands of game calls through Kahlua, and a Lua table per square; the mods measured
+82 ms for one stage set up, and a helicopter drop's search walks up to 15,000 squares. Here a mod states the question once, as
+data, and Java answers it in one call. Nothing is called back per square: the conditions are a fixed vocabulary of the game's
+own facts (a square's flags, its floor's sprite, its room, the classes and sprite properties of its objects, an item's type,
+tags and mod data), which is what the mods' loops test. What a mod's own rules decide (which room names make a home, what an
+item is worth) stays in Lua, over the short list the query gives.
+
+The answers are the game's objects (`IsoGridSquare`, `IsoObject`, `InventoryItem`), so a mod acts on them at once; nothing is
+copied. All calls run on the game's thread and read loaded squares only: an unloaded square is never a match, and calls that
+must tell (`objects.byData`) say so.
+
+### Conditions on a square
+
+A condition table (`filter` below) holds any of these keys; a square must meet all of them. A key left out is not tested.
+
+| Key | Meets it when |
+| --- | --- |
+| `free` | `true`: `isFree(false)`; `false`: not. |
+| `solidFloor` | `TreatAsSolidFloor()` is the value. |
+| `floor` | `true`: the square has a floor object (`getFloor()`); `false`: none. |
+| `floorPrefix` | A list of strings: the floor's sprite name starts with one of them (no floor: not met). |
+| `floorAvoid` | A list of strings: the floor's sprite name contains none of them (no floor: met). |
+| `water` | `isWaterSquare()` is the value. |
+| `waterFlag` | The square's flag `water` (`IsoFlagType.water`) is the value. |
+| `outside` | `isOutside()` is the value. |
+| `room` | `"none"`: no room (`getRoom()` nil); `"any"`: some room; a room (an `IsoRoom`, its `RoomDef`, or its id as `buildings` gives it): that one. |
+| `building` | `"none"`, `"any"`, or a building key (`buildings.at`): the square's `getBuilding()` is none, some, or that building. |
+| `stairs`, `tree` | `HasStairs()`, `HasTree()` is the value. |
+| `vehicle` | `false`: no vehicle stands on it (`isVehicleIntersecting()` false and no `getVehicleContainer()`). |
+| `moving` | `false`: no moving object (character, zombie, vehicle part) on it. |
+| `doorEdge` | `false`: no door and no doorway on any of its four edges: its own north and west edges (a `DoorWallN`/`DoorWallW` flag, or an `IsoDoor`, or a door `IsoThumpable`, facing that way) and the north edge of the square south of it and the west edge of the square east of it. |
+| `flags` / `noFlags` | Lists of `IsoFlagType` names the square has all of / none of (`burntOut`, `burning`, ...). |
+| `noObjectData` | A mod data key: no object on the square has it. |
+| `zonesNot` | A list of zone types: no zone at the square (`IsoMetaGrid.getZonesAt`) has one of them. |
+| `around` | A condition table: at least one of the 8 squares around, on the same level, meets it. |
+| `clear` | `{ r = n, filter = {...} }`: every square within `n` (a box, the square itself included) is loaded and meets the filter. |
+| `distance` | `{ x =, y =, min =, max = }`: the straight distance from that point lies in the range (either end may be left out). |
+
+A mod keeps its condition tables as constants: the API reads a table once and keeps what it read with the table (weakly), so a
+table used again costs nothing to read. A table changed after its first use is not read again; a mod makes a new one.
+
+### Areas
+
+Where a query looks (`area` below):
+
+| Form | Squares |
+| --- | --- |
+| `{ x1 =, y1 =, x2 =, y2 =, z = }` | The box, inclusive. |
+| `{ x =, y =, z =, r = }` | The squares within straight distance `r` of the point. |
+| `{ x =, y =, z =, from =, to =, step = }` | Rings round the point, nearest first: each square whose larger of `abs(dx)` and `abs(dy)` is `from`, then `from + step`, ... up to `to` (`from` 0 and `step` 1 by default). |
+| `{ room = r }` | The squares of a room (`IsoRoom`, `RoomDef` or id). |
+| `{ building = key, z = }` | The squares of the building's rooms, on level `z` (all its levels without it). |
+| `{ list = { x1, y1, z1, x2, ... } }` | Those squares, in that order. |
+
+At most 250,000 squares are looked at by one call; more is an error that says so.
+
+### Squares
+
+| Call | Returns |
+| --- | --- |
+| `squares.nearest(area, filter)` | The first square of the area that meets the filter, in the area's order (rings: nearest ring first), and its ring; `nil` when none. |
+| `squares.list(area, filter, options)` | A list of the squares that meet it. `options`: `limit` (at most this many), `near = { x =, y = }` (sorted by distance from it, nearest first), `random = n` (n of them at random), `connected = { x =, y = }` (only those joined to the passing square nearest that point by steps north, south, east and west that the game does not block, `isBlockedTo`). |
+| `squares.fit(anchors, parts, options)` | The first anchor square at which a shape fits, and its index among the anchors; `nil` when none. `anchors` is an area; `parts` a list of `{ offsets = { dx1, dy1, dx2, dy2, ... }, filter = {...} }` or `{ box = { x1, y1, x2, y2, step }, filter = {...} }` (offsets from the anchor, `step` the stride); a shape fits when every square of every part is loaded and meets its part's filter. `options.order`: `"area"` (default) or `"random"` (the anchors shuffled once a call). A part's filter may use `room = "anchor"`: the anchor's own room. |
+| `squares.path(from, to, options)` | The cheapest way from one square to another, as a flat list `x1, y1, x2, y2, ...` from `from` to `to`, and its cost; `nil` when there is none. `options`: `margin` (squares round the box of the two ends that the way may use, default 12), `pass` (a filter a square of the way meets), `cost` (`{ outside =, inside =, blocked =, turn = }`: a step onto a square outdoors and indoors, more for a step the game blocks, more for each turn). |
+
+### Objects
+
+A `match` table holds any of:
+
+| Key | Matches an object when |
+| --- | --- |
+| `class` / `notClass` | A list of the game's class names (`IsoDoor`, `IsoWindow`, `IsoThumpable`, `IsoTree`, `IsoGenerator`, `IsoBarricade`, `IsoCurtain`, `IsoDeadBody`, ...): it is an instance of one / of none. |
+| `sprite` / `spritePrefix` | A list of sprite names: its sprite's name is one of them / starts with one. |
+| `props` | A list of sprite property names it has all of (`IsMoveAble`, `canBeCut`, `IsWaterCollector`, ...). |
+| `propIn` | `{ Name = { "a", "b", false } }`: the property's value is one of these (`false`: the property is absent). |
+| `data` | A mod data key it has, or `{ key = value }`: that key with that value. |
+| `noData` | A mod data key it does not have. |
+| `container` | `true`: it has a container. |
+| `holds` | An item match (below): one of its containers holds such an item, at any depth. |
+
+| Call | Returns |
+| --- | --- |
+| `objects.find(area, match, options)` | A list of the matching objects. `options`: `squares` (a filter the object's square meets), `limit`. |
+| `objects.byData(key, list)` | For a flat list `x1, y1, z1, v1, x2, ...` of where a mod put its objects: for each, the object on that square whose mod data `key` is the value (`v`), `false` when the square is loaded and none is there, `"unloaded"` when it is not loaded. One list in the same order. |
+| `objects.edges(target, match, options)` | The matching objects on the edges of a room or a building (`target` as `area`'s `room` or `building`, with `z`), each `{ object =, x =, y =, z =, north =, inside = }`: an object on a square's north or west edge counts when one side of that edge is in the target and the other is not; `inside` tells which side its own square is on. `options.doorways = true` adds the edges flagged `DoorWallN`/`DoorWallW` with no door, `object` nil. `options.outer = true`: the other side must be in no room at all. |
+| `objects.remove(area, match, options)` | Takes the matching objects off their squares as the game does (`transmitRemoveItemFromSquare`), then works each square that lost something out again once (`RecalcProperties`, `RecalcAllWithNeighbours`). An object that spans several squares (a sprite grid) goes whole, all its parts. `options`: `squares` (a filter), `keep` (an object match: an object, or any part of one, that matches it stays, whole), `falloff = { x =, y =, inner =, outer = }` (beyond `inner`, a square is cleared with the chance `(outer - d) / (outer - inner)`). Returns how many objects went. |
+
+### Items
+
+An item `match` holds any of: `type` (a list of full types), `tag` (a list of tags it has one of), `data` (a key, or `{ key = value }`),
+`dataPrefix` (`{ key = prefix }`: a string value that is the prefix or starts with it followed by `#`), `notBroken`, `notEquippedBy`
+(a character), `notFavorite`.
+
+| Call | Returns |
+| --- | --- |
+| `items.find(source, match, options)` | A list of the matching items, and a list of the container each is in (same order). `source` is an `ItemContainer`, an item (a bag: what it holds) or a world object (all its containers). `options`: `depth` (bags in bags looked into, default 3), `limit`. |
+| `items.types(source, options)` | The distinct full types in the source, each once. `options`: `depth`, `skip` (a table whose keys are types left out). |
+
+### Map facts
+
+| Call | Returns |
+| --- | --- |
+| `buildings.list(x, y, lo, hi, filter)` | The map's buildings whose middle lies `lo` to `hi` squares from the point: each `key`, `x`, `y` (middle), `distance`, `area` (squares of its rooms), `minX`, `minY`, `maxX`, `maxY`, `minLevel`, `maxLevel`, and with `filter.roomNames` its rooms' names. `filter`: `minArea`, `basement = false`, `playerBuilt = false`, `visited = false` (`isHasBeenVisited`), `stash = false` (a stash building). Read from the meta grid; the list of a world's buildings is kept. |
+| `zones.points(x, y, lo, hi, options)` | Up to `options.count` points tried at random in the ring (`options.tries`, default 300) where no building stands, the zones at the point have none of `options.not`, and, with `options.road = { type =, none =, some = }`, no zone of that type lies within `none` squares and one lies within `some` (looked for on 8 directions every 4 squares); each `{ x =, y =, zones = { ... } }` with the types of the zones at it. `options.spacing`: points this far apart. |
+| `vehicles.near(x, y, z, r)` | The vehicles within `r` squares. |
+
+### Who uses what
+
+The two mods' loops this replaces, by where they run (the inventory of 2026-10-19):
+
+| Mod and place | When | Call |
+| --- | --- | --- |
+| OA box placement cursor and its action (`Objects.clearSquare`), helicopter and first supply drop (`Objects.findClear`, `findBeside`) | each frame and tick while placing; a drop | `squares.nearest` with `clear` and `around` |
+| OA open-ground sites (`Game.settleGround`, `campFits`), meteor drop sites (`Sites.onChunk`, `isLand`) | once a site | `squares.fit`: one ground filter both use |
+| OA stage (`StageGame`: layout, clear, set, vehicle, doors, windows, occupied) | once a site | `objects.edges`, `objects.remove`, `squares.fit`, `squares.nearest`, `objects.find` |
+| OA zombies and guards (`Game.openSquares`, `SceneGame.freeSquares`), piece placing (`containersFor`, `floorSquare`, `lockRoom`) | once a site or piece | `squares.list`, `objects.find`, `objects.edges` |
+| OA site picks (`sitesInBand`, `pickBuilding`, `groundInBand`, `Sites` ring) | each offer | `buildings.list`, `zones.points` |
+| OA machines (`Machines.tick`, `onChunk`), boxes (`Things.reconcile`) | ten minutes, chunk load | `objects.byData` |
+| OA mission pieces in bags (`findItem`, `whereNow`, `holds`, `onBurning`), codex sweep, gear | throttled, on pickup | `items.find`, `items.types` |
+| OA senses (alarm doors, cars) | each second near an alarm | `objects.find`, `vehicles.near` |
+| BU units and boxes (`Units.object`, `Panels.object`, `checkObjects`) | each minute, ten minutes | `objects.byData` |
+| BU spawned boxes (`Spawned.places`), line routes (`Links.walk`), floor lines | a room seen, a line laid | `squares.list`, `squares.path` |
+
 ## Moodles (mechanism)
 
 A mod defines a moodle of its own, and the game's moodle column draws it as it draws its own: in a slot of the column, at the
