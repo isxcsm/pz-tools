@@ -42,6 +42,9 @@ public final class IsoMetaGrid {
     public final List<RoomDef> rooms = roomList;
     public final ArrayList<BuildingDef> buildings = new ArrayList<>();
     public final ArrayList<zombie.iso.zones.Zone> zones = new ArrayList<>();
+    public List<zombie.iso.zones.Zone> getZones() { return zones; }
+    public int getMinX() { return minX; }
+    public int getMinY() { return minY; }
     public ArrayList<BuildingDef> getBuildings() { return buildings; }
     /** As the game's: the first building whose box holds the square (a box from its rooms' rectangles). */
     public BuildingDef getBuildingAt(int x, int y) {
