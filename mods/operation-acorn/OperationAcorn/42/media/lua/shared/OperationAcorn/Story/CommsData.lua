@@ -70,22 +70,23 @@ Data.ENTRIES = {
 
     { id = "S0", kind = "scene", trigger = "first", tier = 0, sign = "oak", lines = {
         { "noise", s = 2 }, { "oak" }, { "mute", s = 3 }, { "oak" },
-        { "me", erase = true, stop = 1.6, after = 1.8 }, { "oak" }, { "me" }, { "oak" },
-        { "me", late = true }, { "oak", late = true }, { "me" }, { "oak" }, { "me", erase = true }, { "oak" },
+        { "me", erase = true, stop = 1.8, del = 8, after = 2 }, { "oak" }, { "me" }, { "oak" },
+        { "me", late = true }, { "oak", late = true }, { "me" }, { "oak" },
+        { "me", erase = true, stop = 1.5, del = 8, after = 1.6 }, { "me", pause = 1.4 }, { "oak" },
         { "me" }, { "noise", s = 3 } } },
     { id = "S1", kind = "scene", trigger = "settled", tier = 1, waits = "S0", greet = true, sign = "oak", lines = {
-        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "me", pause = 2 }, { "oak" }, { "me" },
-        { "oak" },
-        { "me", erase = true, stop = 1.6, after = 2.2 } } },
+        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" },
+        { "me", pause = 2, erase = true, stop = 1.8, del = 8, after = 2.2 }, { "oak" }, { "me" }, { "oak" },
+        { "me", erase = true, stop = 2, del = 7, after = 2.6 }, { "me", pause = 1.6 } } },
     -- what the missions are: after the first settlement's call; no mission is offered before it (Missions.opened)
     { id = "S1M", kind = "scene", trigger = "settled", tier = 1, waits = "S1", sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "noise", s = 1 } } },
     { id = "s1_bedding", kind = "short", trigger = "tier:1", tier = 1, waits = "S1", greet = true, sign = "oak" },
     { id = "S1F", kind = "scene", trigger = "story:evidence", tier = 1, mission = true, waits = "S1", sign = "oak", lines = {
-        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "me", pause = 1 }, { "oak" } } },
+        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "me", pause = 1.8 }, { "oak" } } },
     { id = "S2", kind = "scene", trigger = "serum", tier = 2, waits = "S1", greet = true, sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" },
-        { "me", erase = true, stop = 1.8, after = 2 }, { "oak" } } },
+        { "me", erase = true, stop = 2, del = 7, after = 2.2 }, { "me", pause = 1.4 }, { "oak" } } },
     { id = "S2B", kind = "scene", trigger = "after:S2:12", tier = 2, waits = "S2", sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "noise", s = 3 } } },
     { id = "s2_filter", kind = "short", trigger = "tier:2", tier = 2, waits = "S1", greet = true, sign = "oak" },
@@ -97,22 +98,22 @@ Data.ENTRIES = {
     { id = "s3_meteor", kind = "short", trigger = "tier:3", tier = 3, waits = "S3", greet = true, sign = "oak" },
     { id = "s3_fragment", kind = "short", trigger = "sent:reply_fragment", tier = 3, waits = "S3", greet = true, sign = "oak" },
     { id = "S4", kind = "scene", trigger = "tier:4", tier = 4, waits = "S3", world = 4, sign = "oak", lines = {
-        { "noise", s = 5 }, { "me" }, { "noise", s = 3 }, { "me" }, { "mute", s = 4 }, { "me", erase = true },
-        { "noise", s = 2 } } },
+        { "noise", s = 5 }, { "me" }, { "noise", s = 3 }, { "me" }, { "mute", s = 4 },
+        { "me", erase = true, stop = 2.2, del = 6, after = 2.4 }, { "me", pause = 1.8 }, { "noise", s = 2 } } },
     { id = "S4B", kind = "scene", trigger = "nextday:S4", tier = 4, waits = "S4", world = 4, greet = true, sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" },
-        { "me", erase = true, stop = 1.6, after = 2 } } },
+        { "me", erase = true, stop = 2, del = 7, after = 2.4 }, { "me", pause = 1.4 } } },
     { id = "s4_committee", kind = "short", trigger = "tier:4", tier = 4, waits = "S4B", greet = true, sign = "oak" },
     { id = "S4F", kind = "scene", trigger = "story:cooler", tier = 4, mission = true, waits = "S4B", sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" },
-        { "me", erase = true, stop = 1.6, after = 1.8 } } },
+        { "me", erase = true, stop = 1.8, del = 8, after = 2.2 }, { "me", pause = 1.4 } } },
     { id = "S5", kind = "scene", trigger = "tier:5", tier = 5, waits = "S4B", world = 5, sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" } } },
     { id = "S5F", kind = "field", trigger = "field:gym", tier = 5, mission = true, sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "oak" }, { "oak" } } },
     { id = "S6", kind = "scene", trigger = "crate:6", tier = 6, waits = "S5", sign = "oak", lines = {
-        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me", erase = true, stop = 1.6, after = 1.8 },
-        { "me", pause = 1.5 }, { "oak" } } },
+        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me", erase = true, stop = 1.8, del = 8, after = 2 },
+        { "me", pause = 2 }, { "oak" } } },
     { id = "s6_list", kind = "short", trigger = "tier:6", tier = 6, waits = "S6", greet = true, sign = "oak" },
     { id = "S6F", kind = "scene", trigger = "story:ward", tier = 6, mission = true, waits = "S6", sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" } } },
@@ -123,14 +124,14 @@ Data.ENTRIES = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" } } },
     { id = "s8_handover", kind = "short", trigger = "tier:8", tier = 8, waits = "S7", greet = true, sign = "oak" },
     { id = "S8F", kind = "field", trigger = "field:handover", tier = 8, mission = true, sign = "oak", lines = {
-        { "oak" }, { "me", erase = true, stop = 1.8, after = 1.8 }, { "oak" } } },
+        { "oak" }, { "me", erase = true, stop = 2.2, del = 6, after = 2 }, { "oak" } } },
     { id = "S8", kind = "scene", trigger = "story:handover", tier = 8, mission = true, waits = "S7", sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "oak" },
-        { "me", erase = true, stop = 2, del = 5, after = 2.2 }, { "oak" }, { "oak" },
-        { "oak" }, { "me", pause = 1.2 }, { "noise", s = 5 } } },
+        { "me", erase = true, stop = 2.2, del = 5, after = 2.4 }, { "oak" }, { "oak" },
+        { "oak" }, { "me", pause = 1.2 }, { "me", pause = 0.8 }, { "noise", s = 5 } } },
     { id = "S9", kind = "scene", trigger = "handedover", tier = 8, keep = true, waits = "S8", sign = "admin", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" },
-        { "me", erase = true, stop = 2.2, del = 5, after = 2.6 } } },
+        { "me", erase = true, stop = 2.4, del = 5, after = 2.8 }, { "me", pause = 1.8 } } },
     -- A character that came into the world after the handover: 관리 7's first contact and its call after the first
     -- settlement (what the missions are), in the place of S0 and S1M.
     { id = "K0", kind = "scene", trigger = "first", tier = 0, era = "admin", sign = "admin", lines = {
@@ -145,7 +146,7 @@ Data.ENTRIES = {
     { id = "K3", kind = "scene", trigger = "tier:11", tier = 11, waits = "K2", sign = "admin", lines = {
         { "oak" }, { "me" } } },
     { id = "K4", kind = "scene", trigger = "tier:12", tier = 12, waits = "K3", sign = "admin", lines = {
-        { "oak" }, { "me", erase = true, stop = 2, del = 5, after = 2 } } },
+        { "oak" }, { "me", erase = true, stop = 2.4, del = 5, after = 2.2 } } },
 
     -- Field monologues (SCENES 4, 5): said once over the character's head and kept in the tab as field records.
     -- `say:<story id>:<event>`: enter (the circle first entered), pickup (the story's item taken), put (the sealed case

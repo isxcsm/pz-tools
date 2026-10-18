@@ -10,8 +10,8 @@ local TEXTS = {
     IGUI_OA_Comms_S1_8 = "{cut:2}NO LANDING.",
     IGUI_OA_Comms_S1_11 = "OK.",
     IGUI_OA_Comms_S1_11_x = "WHO",
-    IGUI_OA_Comms_S0_13 = "BOX ONLY?",
-    IGUI_OA_Comms_S0_13_x = "JOK",
+    IGUI_OA_Comms_K0_11 = "BOX ONLY?",
+    IGUI_OA_Comms_K0_11_x = "JOK",
     IGUI_OA_Comms_S0_10 = "DROP.",
     IGUI_OA_Comms_S0_10_late = "DROP. LATE.",
     IGUI_OA_Comms_S4B_1 = "",
@@ -105,7 +105,7 @@ local function pieces(entry, kind)
 end
 
 test("an erased line: typed slower at its end, held, deleted a tap at a time, a beat, then the words that are sent", function()
-    local l = Script.lines(Data.BY_ID.S0, ctx(0))[13]
+    local l = Script.lines(Data.BY_ID.K0, ctx(0))[11]
     eq(l.eraseStop, nil, "this one at the default pace")
     local tl = Script.timeline({ l })
     local typed = pieces(tl.lines[1], "erasetype")
@@ -130,15 +130,15 @@ end)
 
 test("an erased line of its own pace: the words sit longer, go slower, and the thinking after is longer", function()
     local l = Script.lines(Data.BY_ID.S9, ctx(8))[6]
-    eq(l.eraseStop, 2.2)
+    eq(l.eraseStop, 2.4)
     local tl = Script.timeline({ l })
     local stop = pieces(tl.lines[1], "erasestop")[1]
-    near(stop.to - stop.from, 2.2, 1e-9)
+    near(stop.to - stop.from, 2.4, 1e-9)
     local erase = pieces(tl.lines[1], "erase")[1]
     near(erase.to - erase.from, #Script.parse(l.erase) / 5, 1e-9)
     local think = pieces(tl.lines[1], "hold")[1]
     near(think.from, erase.to, 1e-9)
-    near(think.to - think.from, 2.6, 1e-9)
+    near(think.to - think.from, 2.8, 1e-9)
 end)
 
 test("a line's pause: a beat before it, after the turn, the cursor blinking on an empty input line", function()
