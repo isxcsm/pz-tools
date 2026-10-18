@@ -123,6 +123,35 @@ function Story.number(record)
     return string.format("%04d", record.number or 0)
 end
 
+-- How the team names the collection point (LORE 6 '호칭'). Branscomb's word for it wears down with his greeting: the
+-- first stage's "채집점 0347", then the bare number. After the handover 관리 7 names it by the grade its trust has
+-- reached, on the terminal's title too, and each new grade is stamped (Story.onStage): a point it took over (or a new
+-- one, for a character that came after the handover), then regular, designated and priority as the levels climb.
+Story.GRADES = { { tier = 12, grade = "priority" }, { tier = 11, grade = "designated" }, { tier = 10, grade = "regular" } }
+
+-- The grade 관리 7 gives the point, or nil while the team keeps it.
+function Story.grade(record)
+    local after = Story.joinedAfterHandover(record)
+    if not (after or Story.handedOver(record)) then return nil end
+    local tier = Story.tier(record)
+    for _, g in ipairs(Story.GRADES) do
+        if tier >= g.tier then return g.grade end
+    end
+    return after and "new" or "handed"
+end
+
+-- The point's name on papers and the terminal: "채집점 0347", or with its grade after the handover.
+function Story.designation(record)
+    local g = Story.grade(record)
+    return Story.text(g and ("IGUI_OA_Story_Grade_" .. g) or "IGUI_OA_Story_Grade_none", Story.number(record))
+end
+
+-- What a call calls the player: the designation at the first stage and after the handover, the number between.
+function Story.address(record)
+    if Story.grade(record) or Story.tier(record) <= 1 then return Story.designation(record) end
+    return Story.number(record)
+end
+
 -- Has the 3rd milestone's handover happened.
 function Story.handedOver(record)
     return Story.section(record).handover == true
@@ -418,6 +447,15 @@ function Story.onStage(record, stage, milestones)
         s.seenMilestones = k
         Story.enterMilestone(record, k)
         OA.log("story: milestone", k, "reached by", record.number)
+    end
+    -- a new grade from 관리 7 is stamped; the first one comes with the handover (or the first call) unstamped
+    local grade = Story.grade(record)
+    if grade and grade ~= s.grade then
+        if s.grade then
+            OA.Sync.title(record.id, { key = "IGUI_OA_Title_Grade", sub = "IGUI_OA_Story_Grade_" .. grade,
+                subArgs = { Story.number(record) }, style = "stamp", fallback = "good" })
+        end
+        s.grade = grade
     end
     local tier = s.seenStage + s.seenMilestones
     if tier > OA.Comms.section(record).tier then

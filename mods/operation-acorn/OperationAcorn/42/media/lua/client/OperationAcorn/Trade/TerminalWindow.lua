@@ -653,7 +653,7 @@ function OATerminalWindow:new(character, x, y, z, tier, first, locked)
     o.palette = UI.palette(tier)
     o.scanline = getTexture(SCANLINE)
     local record = OA.Client.record(character)
-    o.title = getText("IGUI_OA_Terminal_Title", string.format("%04d", record and record.number or 0))
+    o.title = getText("IGUI_OA_Terminal_Title", record and OA.Story.designation(record) or "")
     o.character = character
     o.playerNum = character:getPlayerNum()
     o.tx, o.ty, o.tz = x, y, z

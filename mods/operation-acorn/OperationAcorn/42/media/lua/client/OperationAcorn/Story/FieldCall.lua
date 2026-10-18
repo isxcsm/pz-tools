@@ -186,7 +186,7 @@ function FieldCall.check()
     local e = record and Comms.next(record, "field")
     if not e or told[e.id] then return end
     local tier = OA.Story.tier(record)
-    local lines = Script.lines(e, { text = Script.text, number = OA.Story.number(record), tier = tier,
+    local lines = Script.lines(e, { text = Script.text, number = OA.Story.address(record), tier = tier,
         late = OA.Story.lateContact(record) })
     local tl = Script.timeline(lines, nil, FieldCall.PACE)
     current = { character = character, entry = e, lines = lines, tl = tl, t = 0, st = Script.at(tl, 0), line = 0, shown = {},

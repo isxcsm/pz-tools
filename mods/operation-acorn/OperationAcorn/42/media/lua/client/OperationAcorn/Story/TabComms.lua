@@ -69,7 +69,7 @@ local chars = Script.chars
 
 -- How a call's lines are made for a record at a tier.
 local function context(record, tier)
-    return { text = Script.text, number = OA.Story.number(record), tier = tier, late = OA.Story.lateContact(record),
+    return { text = Script.text, number = OA.Story.address(record), tier = tier, late = OA.Story.lateContact(record),
         greet = OA.Story.greets(record) }
 end
 
