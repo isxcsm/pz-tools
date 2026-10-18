@@ -792,7 +792,8 @@ function UI.str(key, a, b)
 end
 
 -- The wrap and the cut kept for a text drawn at the same width every frame: the lines are the memo's own, read, not
--- changed. Made again when the scale changes.
+-- changed. Only the last width a text was asked at is kept (a text drawn at a width that keeps changing, a window being
+-- dragged, would leave one entry for every width it passed through). Made again when the scale changes.
 local function memoOf(memos, kind, font, text)
     local key = font or UIFont.Small
     local byFont = memos[key]
@@ -817,23 +818,21 @@ end
 function UI.wrapMemo(text, width, font)
     local byText = memoOf(wrapMemos, "wrap", font, text)
     if not byText then return UI.wrap(text, width, font) end
-    local lines = byText[width]
-    if not lines then
-        lines = UI.wrap(text, width, font)
-        byText[width] = lines
+    if byText.width ~= width then
+        byText.value = UI.wrap(text, width, font)
+        byText.width = width
     end
-    return lines
+    return byText.value
 end
 
 function UI.fitMemo(text, width, font)
     local byText = memoOf(fitMemos, "fit", font, text)
     if not byText then return UI.fit(text, width, font) end
-    local cut = byText[width]
-    if not cut then
-        cut = UI.fit(text, width, font)
-        byText[width] = cut
+    if byText.width ~= width then
+        byText.value = UI.fit(text, width, font)
+        byText.width = width
     end
-    return cut
+    return byText.value
 end
 
 -- One dot of the small signs drawn from rectangles, in design units: round(S) pixels, so that their strokes thicken
