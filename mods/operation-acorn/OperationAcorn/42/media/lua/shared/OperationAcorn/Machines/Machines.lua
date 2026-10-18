@@ -8,7 +8,8 @@
 --   A machine covers one or more squares (DESIGN 12: 2x1 or 2x2 for the big ones), one object on each. The anchor, at
 --     the smallest x and y, holds everything below, the containers and the rain storage's fluid; the other objects
 --     carry only modData OA_Anchor = { id, x, y, z }. Machines.at(square) gives the anchor for any of the squares.
---   The anchor's object modData OA_Machine: { id, kind, dir, x, y, z (the anchor), owner (player id), parts = { [slot] = { tier, cond } },
+--   The anchor's object modData OA_MachineId (the id alone: the API finds the object by it) and OA_Machine: { id, kind,
+--     dir, x, y, z (the anchor), owner (player id), parts = { [slot] = { tier, cond } },
 --     on, last (world hours up to which it has worked), lanes (the work done on each job in hand), idle, running, reason,
 --     buffer (a refiner's product not yet in a tank) ... }. It travels with the object when the chunk unloads, which
 --     is what lets a place catch up the time it was away (DESIGN 12, performance rules).
@@ -1084,6 +1085,18 @@ function Machines.updateRain(object, state)
     return nil
 end
 
+-- The machine objects of registered ids, in one call to the extension API (objects.byData): for each id the object on
+-- its square whose id is that, false when the square is loaded and none is there, "unloaded" when it is not. `ids` is
+-- a list of registry ids, answered in the same order.
+local function objectsOf(reg, ids)
+    local where = {}
+    for i, id in ipairs(ids) do
+        local entry, n = reg.list[id], (i - 1) * 4
+        where[n + 1], where[n + 2], where[n + 3], where[n + 4] = entry.x, entry.y, entry.z, id
+    end
+    return OA.api().objects.byData(Data.ID_KEY, where)
+end
+
 -- Real milliseconds a machine's object must stay missing from its loaded square, from the step that first found it
 -- missing to a later one, before the registry forgets the machine (destroyed). The object can come a little after its
 -- square while the game streams the chunk in, and that takes real time, not game time: two ten-minute steps are 25 s
@@ -1101,18 +1114,16 @@ function Machines.tick()
     if OA.isEmpty(reg.list) then return end
     local ids = {}
     for id in pairs(reg.list) do ids[#ids + 1] = id end
-    local cell = getCell()
+    local found = objectsOf(reg, ids)
     local now = getTimestampMs()
-    for _, id in ipairs(ids) do
-        local entry = reg.list[id]
-        local square = cell:getGridSquare(entry.x, entry.y, entry.z)
-        local object = square and findOnSquare(square, id)
-        if object then
+    for i, id in ipairs(ids) do
+        local object = found[i]
+        if object == "unloaded" then
+            missingSince[id] = nil
+        elseif object then
             missingSince[id] = nil
             local ok, err = pcall(Machines.update, object)
             if not ok then OA.log("machine", id, "failed:", tostring(err)) end
-        elseif not square then
-            missingSince[id] = nil
         else
             local since = missingSince[id]
             if not since or now < since then
@@ -1131,25 +1142,24 @@ function Machines.onChunk(chunk)
     if not reg.byChunk or OA.isEmpty(reg.byChunk) then return end
     local first = chunk:getGridSquare(0, 0, 0)
     if not first then return end
-    local ids = reg.byChunk[Chunks.key(first:getX(), first:getY())]
-    if not ids then return end
-    local copy = {}
-    for i, id in ipairs(ids) do copy[i] = id end
-    for _, id in ipairs(copy) do
-        local entry = reg.list[id]
-        if entry then
-            local square = chunk:getGridSquare(entry.x - Chunks.SIZE * math.floor(entry.x / Chunks.SIZE),
-                entry.y - Chunks.SIZE * math.floor(entry.y / Chunks.SIZE), entry.z)
-            local object = findOnSquare(square, id)
-            if object then
-                local state = Machines.state(object)
-                Machines.ensureSpriteProperties()
-                applyAccept(object, Data.KINDS[state.kind].containers)
-                if state.kind == "lure" then Machines.lureFx(object, not state.spent) end
-                Machines.light(object, state)
-                local ok, err = pcall(Machines.update, object, { catchUp = true })
-                if not ok then OA.log("machine", id, "catch-up failed:", tostring(err)) end
-            end
+    local list = reg.byChunk[Chunks.key(first:getX(), first:getY())]
+    if not list then return end
+    local ids = {}
+    for _, id in ipairs(list) do
+        if reg.list[id] then ids[#ids + 1] = id end
+    end
+    if #ids == 0 then return end
+    local found = objectsOf(reg, ids)
+    for i, id in ipairs(ids) do
+        local object = found[i]
+        if object and object ~= "unloaded" then
+            local state = Machines.state(object)
+            Machines.ensureSpriteProperties()
+            applyAccept(object, Data.KINDS[state.kind].containers)
+            if state.kind == "lure" then Machines.lureFx(object, not state.spent) end
+            Machines.light(object, state)
+            local ok, err = pcall(Machines.update, object, { catchUp = true })
+            if not ok then OA.log("machine", id, "catch-up failed:", tostring(err)) end
         end
     end
 end
@@ -1394,6 +1404,7 @@ function Machines.place(kind, square, character, item, dir, bare)
         if entry.dx == 0 and entry.dy == 0 then
             anchor = object
             object:getModData()[Data.KEY] = state
+            object:getModData()[Data.ID_KEY] = id
             if kind == "rainStorage" then
                 local script = getScriptManager():getGameEntityScript(Data.RAIN_ENTITY)
                 if script then GameEntityFactory.CreateIsoObjectEntity(object, script, true)

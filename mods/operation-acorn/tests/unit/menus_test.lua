@@ -208,7 +208,9 @@ test("the stake comes first and the soil sample second, both on top of the world
     local mission = { soil = { variant = "ground" }, state = "open" }
     OA.StoryView.live = function() return { mission } end
     OA.Client.record = function() return { missions = { active = mission } } end
-    local square = { isOutside = function() return true end, getFloor = function() return {} end }
+    -- natural ground: the floor's sprite is grass
+    local grass = { getSprite = function() return { getName = function() return "floors_exterior_natural_01_0" end } end }
+    local square = { isOutside = function() return true end, getFloor = function() return grass end }
     local stake = { getModData = function() return { OA_StakeNo = 3 } end, getSquare = function() return square end }
     local menu = newMenu()
     menu:addOption("Vanilla")

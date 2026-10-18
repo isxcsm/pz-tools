@@ -41,6 +41,22 @@ public final class IsoMetaGrid {
     private final Rooms roomList = new Rooms();
     public final List<RoomDef> rooms = roomList;
     public final ArrayList<BuildingDef> buildings = new ArrayList<>();
+    public final ArrayList<zombie.iso.zones.Zone> zones = new ArrayList<>();
+    public ArrayList<BuildingDef> getBuildings() { return buildings; }
+    /** As the game's: the first building whose box holds the square (a box from its rooms' rectangles). */
+    public BuildingDef getBuildingAt(int x, int y) {
+        for (BuildingDef building : buildings) {
+            for (RoomDef room : building.rooms) for (RoomDef.RoomRect rect : room.rects)
+                if (x >= rect.x && x < rect.x + rect.w && y >= rect.y && y < rect.y + rect.h) return building;
+        }
+        return null;
+    }
+    /** As the game's: adds the zones holding the square to the list, and gives it back. */
+    public ArrayList<zombie.iso.zones.Zone> getZonesAt(int x, int y, int z, ArrayList<zombie.iso.zones.Zone> result) {
+        for (zombie.iso.zones.Zone zone : zones)
+            if (zone.z == z && x >= zone.x && x < zone.x + zone.w && y >= zone.y && y < zone.y + zone.h) result.add(zone);
+        return result;
+    }
     private final ArrayList<RemovedBuilding> removedBuildings = new ArrayList<>();
     // The rooms by the chunk of the map their rectangles touch, in the order of the list; and the version they were made at.
     private LongTable<ArrayList<RoomDef>> byChunk = new LongTable<>();
@@ -101,14 +117,6 @@ public final class IsoMetaGrid {
         return room == null ? null : room.building;
     }
     public ArrayList<RemovedBuilding> getRemovedBuildings() { return removedBuildings; }
-
-    /** The map's zones, as a test gives them. */
-    public final ArrayList<zombie.iso.zones.Zone> zoneList = new ArrayList<>();
-    /** As the game's: the zones at the square are added to the list given, which is returned. */
-    public ArrayList<zombie.iso.zones.Zone> getZonesAt(int x, int y, int z, ArrayList<zombie.iso.zones.Zone> result) {
-        for (int at = 0; at < zoneList.size(); at++) if (zoneList.get(at).contains(x, y, z)) result.add(zoneList.get(at));
-        return result;
-    }
 
     // ---- the map's data on rooms and buildings (map_meta.bin), as the game saves and reads it ----
 

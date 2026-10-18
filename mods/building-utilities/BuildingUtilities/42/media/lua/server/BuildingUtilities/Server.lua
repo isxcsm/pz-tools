@@ -516,10 +516,14 @@ local function everyMinute()
         end
     end
     BU.WaterRun.fires()
+    local synced = {}
     for _, unit in ipairs(BU.Nearby.units(players)) do
-        local sync = BU.Units.definition(unit.kind).sync
-        local object = sync and BU.Units.object(unit)
-        if object then sync(unit, object) end
+        if BU.Units.definition(unit.kind).sync then synced[#synced + 1] = unit end
+    end
+    local objects = BU.objectsByData(BU.Units.MODDATA, synced)
+    for i, unit in ipairs(synced) do
+        local object = objects[i]
+        if object and object ~= "unloaded" then BU.Units.definition(unit.kind).sync(unit, object) end
     end
     -- The bank and the energy record change every minute; clients get them hourly (alone, the window reads them).
     if hourEnded and isServer() then ModData.transmit(Store.KEY) end

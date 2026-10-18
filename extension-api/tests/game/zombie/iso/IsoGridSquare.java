@@ -181,6 +181,23 @@ public final class IsoGridSquare {
         return acrossX || acrossY ? LosUtil.TestResults.Blocked : LosUtil.TestResults.Clear;
     }
 
+    /** Test: the square is taken (not free), has stairs, is outdoors (as the game's squares mostly are). */
+    public boolean occupied, stairsHere, outdoors = true;
+    public final zombie.core.properties.PropertyContainer properties = new zombie.core.properties.PropertyContainer();
+    public zombie.core.properties.PropertyContainer getProperties() { return properties; }
+    /**
+     * Like the game's for the four sides: the step to a square beside is blocked by a wall on the edge crossed, or by a block on
+     * either square.
+     */
+    public boolean isBlockedTo(IsoGridSquare other) {
+        blockedAsked++;
+        if (blocked.contains(other)) return true;
+        if (solid || other.solid) return true;
+        int dx = other.x - x, dy = other.y - y;
+        if (dx != 0 && dy != 0 || other.z != z) return false;
+        return dx < 0 ? westWall : dx > 0 ? other.westWall : dy < 0 ? northWall : other.northWall;
+    }
+
     /** Whether the grid never powers the square (a NoPower zone, a player-built room): a test sets it. */
     public boolean noPower;
     public boolean isNoPower() { return noPower; }
@@ -192,7 +209,7 @@ public final class IsoGridSquare {
     /** The flags a test gives the square besides its walls and doors (the game keeps its properties' flags). */
     public final java.util.EnumSet<zombie.iso.SpriteDetails.IsoFlagType> flagSet = java.util.EnumSet.noneOf(zombie.iso.SpriteDetails.IsoFlagType.class);
     /** Whether the square is free of what blocks it, a solid floor, a water square, outdoors, with stairs, a tree; a vehicle on it. */
-    public boolean freeOfObjects = true, solidFloorTreated = true, waterSquare, outdoors, stairs, tree;
+    public boolean freeOfObjects = true, solidFloorTreated = true, waterSquare, stairs, tree;
     public zombie.vehicles.BaseVehicle vehicleOn;
     public boolean vehicleOver;
     /** The moving objects that stand on the square. */
@@ -204,23 +221,35 @@ public final class IsoGridSquare {
     /** How many times a step was asked about (isBlockedTo). */
     public static int blockedAsked;
 
-    public boolean isFree(boolean onlyIfNoMovers) { return freeOfObjects && !(onlyIfNoMovers && !movers.isEmpty()); }
+    public boolean isFree(boolean onlyIfNoMovers) {
+        return freeOfObjects && freeSquare && !occupied && !solid && !(onlyIfNoMovers && !movers.isEmpty());
+    }
     public boolean TreatAsSolidFloor() { return solidFloorTreated; }
-    public boolean isWaterSquare() { return waterSquare; }
+    public boolean isWaterSquare() { return waterSquare || waterFloor; }
     public boolean isOutside() { return outdoors; }
-    public boolean HasStairs() { return stairs; }
+    public boolean HasStairs() { return stairs || stairsHere; }
     public boolean HasTree() { return tree; }
     public boolean isVehicleIntersecting() { return vehicleOver; }
     public zombie.vehicles.BaseVehicle getVehicleContainer() { return vehicleOn; }
     public java.util.ArrayList<IsoMovingObject> getMovingObjects() { return movers; }
     public zombie.iso.areas.IsoBuilding getBuilding() { return building; }
     public IsoCell getCell() { return cell != null ? cell : IsoWorld.instance.currentCell; }
-    public boolean isBlockedTo(IsoGridSquare other) { blockedAsked++; return blocked.contains(other); }
 
     /** Synthetic: the game takes the square's properties again from its objects; the API's hook goes at its end. */
     public int recalcs;
 
     public void RecalcProperties() { recalcs++; }
+
+    // The objects area: what a square filter asks (free, outside, water), and the removal of an object with its recalculations.
+    public boolean freeSquare = true, waterFloor;
+    public int neighbourRecalcs;
+    /** Like the game's: the object leaves the square's list; its place in the list, or -1. */
+    public int transmitRemoveItemFromSquare(IsoObject object) {
+        int at = objects.indexOf(object);
+        if (at >= 0) objects.remove(at);
+        return at;
+    }
+    public void RecalcAllWithNeighbours(boolean dirty) { neighbourRecalcs++; }
 
     /** Synthetic: the shader of the walls cut away for the player, as the game's: its uniforms set each time it starts drawing. */
     public static final class CutawayNoDepthShader extends zombie.core.opengl.Shader {

@@ -10,6 +10,8 @@ Machines.Data = Data
 
 -- The key a machine's state has in its anchor object's modData.
 Data.KEY = "OA_Machine"
+-- The id of the machine, beside its state: a plain value, which the extension API finds an object by (objects.byData).
+Data.ID_KEY = "OA_MachineId"
 -- The module the machine and part items are in.
 Data.MODULE = "OperationAcorn"
 

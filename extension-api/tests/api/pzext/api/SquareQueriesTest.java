@@ -64,7 +64,7 @@ final class SquareQueriesTest {
             cost(api);
         } finally {
             IsoWorld.instance.setCell(home);
-            IsoWorld.instance.metaGrid.zoneList.clear();
+            IsoWorld.instance.metaGrid.zones.clear();
         }
     }
 
@@ -93,7 +93,7 @@ final class SquareQueriesTest {
     private static IsoCell grid() {
         var cell = new IsoCell();
         IsoWorld.instance.setCell(cell);
-        for (int y = Y0; y < Y0 + SIZE; y++) for (int x = X0; x < X0 + SIZE; x++) cell.load(x, y, 0);
+        for (int y = Y0; y < Y0 + SIZE; y++) for (int x = X0; x < X0 + SIZE; x++) cell.load(x, y, 0).outdoors = false;
         return cell;
     }
 
@@ -189,10 +189,10 @@ final class SquareQueriesTest {
         at(106, 101).objects.add(new IsoObject(new IsoSprite("plain")));
         same(except(ALL, "105,101"), hits(area, table("noObjectData", "mark")), "noObjectData");
 
-        var zones = IsoWorld.instance.metaGrid.zoneList;
-        zones.add(new Zone("Forest", 107, 101, 0, 2, 1));
-        zones.add(new Zone("Farm", 108, 101, 0, 1, 1));
-        zones.add(new Zone("Forest", 100, 102, 1, 3, 1));
+        var zones = IsoWorld.instance.metaGrid.zones;
+        zones.add(new Zone("", "Forest", 107, 101, 0, 2, 1));
+        zones.add(new Zone("", "Farm", 108, 101, 0, 1, 1));
+        zones.add(new Zone("", "Forest", 100, 102, 1, 3, 1));
         same(except(ALL, "107,101", "108,101"), hits(area, table("zonesNot", list("Forest"))), "zonesNot (one level only)");
         same(except(ALL, "108,101"), hits(area, table("zonesNot", list("Farm"))), "zonesNot Farm");
         same(except(ALL, "107,101", "108,101"), hits(area, table("zonesNot", list("Farm", "Forest"))), "zonesNot either");

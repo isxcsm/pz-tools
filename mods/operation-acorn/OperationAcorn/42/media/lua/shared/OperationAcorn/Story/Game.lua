@@ -24,44 +24,34 @@ OA.StoryGame = Game
 -- The least area (squares) of a building a mission may use: no cellar, no shed.
 local MIN_AREA = 30
 
-local buildingList
+-- The buildings a mission may use; a story site's also none a player made, none visited (the game marks so a building
+-- its own stories set up when it loaded: a survivors' safehouse, a burnt one, and one a player was in) and none of a
+-- stash (an annotated map leads there), with the names of its rooms.
+local PLACES = { minArea = MIN_AREA, basement = false }
+local SITES = { minArea = MIN_AREA, basement = false, playerBuilt = false, visited = false, stash = false,
+    roomNames = true }
 
-local function buildings()
-    if not buildingList then buildingList = getWorld():getMetaGrid():getBuildings() end
-    return buildingList
-end
-
-function Game.buildingCount()
-    buildingList = nil
-    return buildings():size()
-end
-
--- Centre of the i-th building and whether a mission may use it: not a cellar, not a shed.
-function Game.building(i)
-    local b = buildings():get(i - 1)
-    local x = math.floor((b:getX() + b:getX2()) / 2)
-    local y = math.floor((b:getY() + b:getY2()) / 2)
-    local ok = b:getArea() >= MIN_AREA and not b:isBasement()
-    return x, y, ok
-end
-
+-- A building of the API's list as a place: its middle, the level its floor is on (z 0, or the lowest level when the
+-- building lies wholly above it, the highest when wholly below), its box and its levels.
 local function infoOf(b)
-    local z1, z2 = b:getMinLevel(), b:getMaxLevel()
+    local z1, z2 = b.minLevel, b.maxLevel
     local z = 0
     if z1 > 0 then z = z1 elseif z2 < 0 then z = z2 end
-    return {
-        x = math.floor((b:getX() + b:getX2()) / 2), y = math.floor((b:getY() + b:getY2()) / 2), z = z,
-        x1 = b:getX(), y1 = b:getY(), x2 = b:getX2() - 1, y2 = b:getY2() - 1, z1 = z1, z2 = z2,
-    }
+    return { x = math.floor(b.x), y = math.floor(b.y), z = z, x1 = b.minX, y1 = b.minY, x2 = b.maxX, y2 = b.maxY,
+        z1 = z1, z2 = z2 }
 end
 
-function Game.buildingInfo(i)
-    return infoOf(buildings():get(i - 1))
+-- A building's key for the world's story (the corner of its box): the sites used, the buildings searched.
+local function keyOf(x, y)
+    return tostring(x) .. "," .. tostring(y)
 end
 
--- A building's key for the world's story (the corner of its def): the sites used, the buildings searched.
-local function keyOf(def)
-    return tostring(def:getX()) .. "," .. tostring(def:getY())
+-- The buildings a regular mission may use whose middle lies lo to hi squares from x, y: { { x, y, z, x1, y1, x2, y2,
+-- z1, z2 } } (infoOf).
+function Game.buildingsIn(x, y, lo, hi)
+    local list = {}
+    for _, b in ipairs(OA.api().buildings.list(x, y, lo, hi, PLACES)) do list[#list + 1] = infoOf(b) end
+    return list
 end
 
 -- The key of the building at a square (or touching it), or nil: the one with a room on the ground floor there first (a
@@ -70,81 +60,24 @@ function Game.buildingKeyAt(x, y)
     local grid = getWorld():getMetaGrid()
     x, y = math.floor(x), math.floor(y)
     local def = grid:getBuildingAt(x, y, 0) or grid:getBuildingAtRelax(x, y)
-    return def and keyOf(def) or nil
+    return def and keyOf(def:getX(), def:getY()) or nil
 end
 
--- A building's facts that never change, kept once looked at: its centre, and when it could ever be a story site (no
--- cellar, no shed, plain: Places.plain on its rooms' names) where it is (infoOf), its key, area, rooms
--- (Places.mainRooms), whether a home (Places.home) and mostly lock-ups (Places.mostlyStores). Looked at a few each tick
--- from the start (warmFacts), so picking a site later costs little more than the distances.
-local facts, factsFor = {}, nil
-
--- By the building's place in the map's list; kept while the list is as long (a building a player made goes in, or
--- out, and the places move: all are looked at again).
-local function factsList()
-    local all = buildings()
-    if all:size() ~= factsFor then facts, factsFor = {}, all:size() end
-    return all
-end
-
-local function factsOf(i, b)
-    local f = facts[i]
-    if f then return f end
-    f = { cx = (b:getX() + b:getX2()) / 2, cy = (b:getY() + b:getY2()) / 2 }
-    if not b:isBasement() and b:getArea() >= MIN_AREA then
-        local names = {}
-        local rooms = b:getRooms()
-        for k = 0, rooms:size() - 1 do names[#names + 1] = rooms:get(k):getName() or "" end
-        if OA.Places.plain(names) then
-            f.site = infoOf(b)
-            f.key, f.area, f.rooms, f.home = keyOf(b), b:getArea(), OA.Places.mainRooms(names), OA.Places.home(names)
-            f.stores = OA.Places.mostlyStores(names)
-        end
-    end
-    facts[i] = f
-    return f
-end
-
-Game.WARM_PER_TICK = 40
-local warmed = 0
-local function warmFacts()
-    local all = factsList()
-    local n = all:size()
-    if warmed > n then warmed = 0 end
-    for i = warmed, math.min(warmed + Game.WARM_PER_TICK, n) - 1 do factsOf(i, all:get(i)) end
-    warmed = math.min(warmed + Game.WARM_PER_TICK, n)
-    if warmed >= n then Events.OnTick.Remove(warmFacts) end
-end
--- (where the story runs: not on a client of a server)
-local warming = false
-local function startWarming()
-    if warming or isClient() then return end
-    warming = true
-    Events.OnTick.Add(warmFacts)
-end
-Events.OnGameStart.Add(startWarming)
-Events.OnServerStarted.Add(startWarming)
-
--- The buildings in the band around ax, ay that a story site may be (Places.pickSite): one that could (factsOf), none of
--- `skip` (keys), not a stash's (an annotated map leads there), not one a player made, not one visited (the game marks
--- so a building its own stories set up when it loaded: a survivors' safehouse, a burnt one, and one a player was in).
--- The whole map's list, unloaded parts too (its rooms are known). Once for each story site.
+-- The buildings in the band around ax, ay that a story site may be (Places.pickSite): a plain one (Places.plain on its
+-- rooms' names), none of `skip` (keys), as SITES says. With its key, area, rooms (Places.mainRooms), whether a home
+-- (Places.home), mostly lock-ups (Places.mostlyStores) and its distance (dist). The whole map's list, unloaded parts
+-- too (its rooms are known). Once for each story site.
 function Game.sitesInBand(ax, ay, lo, hi, skip)
     local list = {}
-    local all = factsList()
-    for i = 0, all:size() - 1 do
-        local f = facts[i] or factsOf(i, all:get(i))
-        local site = f.site
-        local dx, dy = f.cx - ax, f.cy - ay
-        local d = site and math.sqrt(dx * dx + dy * dy)
-        local b = d and d >= lo and d <= hi and not skip[f.key] and all:get(i)
-        if b and not (b:isUserDefined() or b:isHasBeenVisited()) then
-            local ok, stash = pcall(StashSystem.isStashBuilding, b)
-            if not (ok and stash) then
-                list[#list + 1] = { x = site.x, y = site.y, z = site.z, x1 = site.x1, y1 = site.y1, x2 = site.x2,
-                    y2 = site.y2, z1 = site.z1, z2 = site.z2, key = f.key, dist = d, area = f.area, rooms = f.rooms,
-                    home = f.home, stores = f.stores }
-            end
+    for _, b in ipairs(OA.api().buildings.list(ax, ay, lo, hi, SITES)) do
+        local key = keyOf(b.minX, b.minY)
+        local names = b.roomNames
+        if not skip[key] and OA.Places.plain(names) then
+            local site = infoOf(b)
+            site.key, site.dist, site.area = key, b.distance, b.area
+            site.rooms, site.home, site.stores = OA.Places.mainRooms(names), OA.Places.home(names),
+                OA.Places.mostlyStores(names)
+            list[#list + 1] = site
         end
     end
     return list
@@ -154,97 +87,63 @@ end
 -- forests); by the map's zones none of a road, a town, water, a car park, thick woods or a place the game's own stories
 -- use (ZoneStory), with no building on it. Whether its squares are free is seen when they load (a prop that finds its
 -- square taken is left out). B42's woods: the forage zones (forageZones.lua).
-Game.CLOSED_ZONES = { Nav = true, ForagingNav = true, TownZone = true, WaterFlow = true, WaterZone = true, Water = true,
-    ParkingStall = true, TrailerPark = true, DeepForest = true, OrganicForest = true, PHForest = true, PRForest = true,
-    BirchForest = true, FarmForest = true, Basement = true, ZoneStory = true }
+Game.CLOSED_ZONES = { "Nav", "ForagingNav", "TownZone", "WaterFlow", "WaterZone", "Water", "ParkingStall", "TrailerPark",
+    "DeepForest", "OrganicForest", "PHForest", "PRForest", "BirchForest", "FarmForest", "Basement", "ZoneStory" }
 
--- Whether x, y is open ground, and whether it is in woods (a Forest zone of any kind, Vegitation).
-local function openAt(grid, x, y)
-    if grid:getBuildingAt(x, y) then return false end
-    local zones = grid:getZonesAt(x, y, 0)
-    local woods = false
-    for i = 0, zones:size() - 1 do
-        local t = zones:get(i):getType()
-        if Game.CLOSED_ZONES[t] then return false end
-        if t == "Vegitation" or string.find(t, "Forest", 1, true) then woods = true end
-    end
-    return true, woods
-end
-
--- Whether a road (the map's Nav zone) passes within `far` squares of x, y and none within `near`: a camp is set up off
--- a road a truck came along, not on its shoulder nor deep in the woods. Looked for on rings of eight points.
+-- A road (the map's Nav zone) passes within ROAD_FAR squares of a point and none within ROAD_NEAR: a camp is set up off
+-- a road a truck came along, not on its shoulder nor deep in the woods.
 Game.ROAD_NEAR, Game.ROAD_FAR = 8, 40
-local function roadAt(grid, x, y)
-    local zones = grid:getZonesAt(x, y, 0)
-    for i = 0, zones:size() - 1 do
-        if zones:get(i):getType() == "Nav" then return true end
-    end
-    return false
-end
-local DIRS = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }, { 0.7, 0.7 }, { -0.7, 0.7 }, { 0.7, -0.7 }, { -0.7, -0.7 } }
-local function offRoad(grid, x, y)
-    for r = 4, Game.ROAD_NEAR, 4 do
-        for _, d in ipairs(DIRS) do
-            if roadAt(grid, math.floor(x + d[1] * r), math.floor(y + d[2] * r)) then return false end
-        end
-    end
-    for r = Game.ROAD_NEAR + 4, Game.ROAD_FAR, 4 do
-        for _, d in ipairs(DIRS) do
-            if roadAt(grid, math.floor(x + d[1] * r), math.floor(y + d[2] * r)) then return true end
-        end
+local GROUND_POINTS = { count = 16, tries = 300, ["not"] = Game.CLOSED_ZONES,
+    road = { type = "Nav", none = Game.ROAD_NEAR, some = Game.ROAD_FAR } }
+
+-- Whether a point's zone types (a list) say woods (a Forest zone of any kind, Vegitation).
+local function woodsIn(zones)
+    for _, t in ipairs(zones) do
+        if t == "Vegitation" or string.find(t, "Forest", 1, true) then return true end
     end
     return false
 end
 
--- A point of open ground in the band around ax, ay, off a road (offRoad), tried at random: a field first, else the
--- first in woods; nil when none was found.
-function Game.groundInBand(ax, ay, lo, hi, tries)
-    local grid = getWorld():getMetaGrid()
+-- A point of open ground in the band around ax, ay, off a road, tried at random: a field first, else the first in
+-- woods; nil when none was found.
+function Game.groundInBand(ax, ay, lo, hi)
     local wx, wy
-    for _ = 1, tries or 300 do
-        local angle = OA.randomFloat(0, 2 * math.pi)
-        local r = OA.randomFloat(lo, hi)
-        local x, y = math.floor(ax + math.cos(angle) * r), math.floor(ay + math.sin(angle) * r)
-        local open, woods = openAt(grid, x, y)
-        if open and (not woods or not wx) and offRoad(grid, x, y) then
-            if not woods then return x, y end
-            wx, wy = x, y
-        end
+    for _, p in ipairs(OA.api().zones.points(ax, ay, lo, hi, GROUND_POINTS)) do
+        local x, y = math.floor(p.x), math.floor(p.y)
+        if not woodsIn(p.zones) then return x, y end
+        wx, wy = wx or x, wy or y
     end
     return wx, wy
 end
 
--- Whether a square is bare ground: outdoors, no building, its floor natural ground (grass, dirt, sand) as the game's
--- own digging asks (DiggingUtil.mining_floorCanDig): not water, a road, a pavement or a floor someone laid.
-function Game.bareGround(sq)
-    if not sq or sq:getBuilding() or not sq:isOutside() then return false end
-    local floor = sq:getFloor()
-    local sprite = floor and floor:getSprite()
-    local name = sprite and sprite:getName() or ""
-    if string.sub(name, 1, 23) ~= "floors_exterior_natural" and string.sub(name, 1, 17) ~= "blends_natural_01" then
-        return false
-    end
-    local ok, water = OA.try("game: whether the square is water", function() return sq:isWaterSquare() end)
-    return ok and not water
+-- Open natural ground, as a square condition: outdoors, no building, its floor natural ground (grass, dirt, sand) as the
+-- game's own digging asks (DiggingUtil.mining_floorCanDig), not water, a road, a pavement or a floor someone laid. A camp
+-- and a meteor site stand on it (Game.settleGround, Sites.onChunk).
+Game.GROUND = { building = "none", outside = true, water = false, waterFlag = false,
+    floorPrefix = { "floors_exterior_natural", "blends_natural_01" }, floorAvoid = { "street", "road", "water" } }
+
+-- A new condition table: open ground (Game.GROUND) and more. The API keeps what it read of a table with it, so one used
+-- again is made once.
+function Game.groundWith(more)
+    local f = {}
+    for k, v in pairs(Game.GROUND) do f[k] = v end
+    for k, v in pairs(more) do f[k] = v end
+    return f
 end
 
--- Whether a camp fits with its middle at x, y: the middle free, and bare ground every other square out to
--- Game.CAMP_REACH (its tents, sandbags and truck; trees and bushes are cleared for it).
+-- The camp's middle: free open ground.
+local CAMP_MIDDLE = Game.groundWith({ free = true })
+
+-- The parts of a camp that fits with its middle at an anchor: the middle (`middle` is its condition), and open ground on
+-- every other square out to Game.CAMP_REACH (its tents, sandbags and truck; trees and bushes are cleared for it).
 Game.CAMP_REACH = 7
-local function campFits(c, x, y, z)
-    local mid = c:getGridSquare(x, y, z)
-    if not (Game.bareGround(mid) and mid:isFree(false)) then return false end
+local function campParts(middle)
     local R = Game.CAMP_REACH
-    for dx = -R, R, 2 do
-        for dy = -R, R, 2 do
-            if not Game.bareGround(c:getGridSquare(x + dx, y + dy, z)) then return false end
-        end
-    end
-    return true
+    return { { offsets = { 0, 0 }, filter = middle }, { box = { -R, -R, R, R, 2 }, filter = Game.GROUND } }
 end
 
 -- An open-ground site is picked from the map's zones, which the game keeps only for the cells it has loaded: one far
--- off may be water or a road. Once its camp is loaded, it is checked once: not bare ground for a camp, it moves to
+-- off may be water or a road. Once its camp is loaded, it is checked once: not open ground for a camp, it moves to
 -- the nearest loaded spot that is (out to Game.SETTLE_REACH, inside the mission's circle), its pieces with it. None
 -- found, it stays. Its pieces waiting for their squares are asked for again (their chunks may have loaded while it was
 -- not settled). True when the site is settled (checked now or before); false while its camp's squares are not all
@@ -280,24 +179,21 @@ function Game.settleGround(record, m)
         return false
     end
     site.settled = true
-    local area = m.area
-    local function fits(x, y)
-        return (not area or OA.Places.distance(x, y, area.x, area.y) <= area.r * 0.85) and campFits(c, x, y, z)
-    end
-    local here = campFits(c, x0, y0, z)
+    local squares = OA.api().squares
+    local here = squares.fit({ x1 = x0, y1 = y0, x2 = x0, y2 = y0, z = z }, campParts(CAMP_MIDDLE)) ~= nil
     local nx, ny
-    -- on every other square: a camp a square off makes no difference, and the search is a quarter as long
-    for d = 2, here and 0 or Game.SETTLE_REACH, 2 do
-        for i = -d, d, 2 do
-            for _, p in ipairs({ { i, -d }, { i, d }, { -d, i }, { d, i } }) do
-                if fits(x0 + p[1], y0 + p[2]) then nx, ny = x0 + p[1], y0 + p[2]; break end
-            end
-            if nx then break end
+    if not here then
+        local area = m.area
+        local middle = CAMP_MIDDLE
+        if area then
+            middle = Game.groundWith({ free = true, distance = { x = area.x, y = area.y, max = area.r * 0.85 } })
         end
-        if nx then break end
+        -- on every other ring: a camp a square off makes no difference, and the search is a quarter as long
+        local a = squares.fit({ x = x0, y = y0, z = z, from = 2, to = Game.SETTLE_REACH, step = 2 }, campParts(middle))
+        if a then nx, ny = a:getX(), a:getY() end
     end
     if nx then moveTo(record, m, nx, ny)
-    elseif not here then OA.log("ground site", site.key, "is not bare ground; nothing near is: kept") end
+    elseif not here then OA.log("ground site", site.key, "is not open ground; nothing near is: kept") end
     for _, it in ipairs(m.items or {}) do
         if not (it.placed or it.staged) then
             Game.unregisterPiece(m.id, it.key)
@@ -355,8 +251,15 @@ local function missionMatch(item, id)
     return mine == id or string.sub(mine, 1, #id + 1) == id .. "#"
 end
 
-local function anyMission(item)
-    return item:hasModData() and item:getModData().OA_Mission ~= nil
+-- How many bags in bags an item search looks into; the match of any mission's piece.
+local ITEM_DEPTH = 8
+local FIRST_ITEM = { depth = ITEM_DEPTH, limit = 1 }
+local ALL_ITEMS = { depth = ITEM_DEPTH }
+local ANY_MISSION = { data = "OA_Mission" }
+
+-- The first piece of a mission (its id, or a keyed piece's: id#key) in a container, a bag or an object, or nil.
+local function firstPiece(source, id)
+    return OA.api().items.find(source, { dataPrefix = { OA_Mission = id } }, FIRST_ITEM)[1]
 end
 
 -- The API's mark on what the sandbox's world item removal must leave on the floor (PZExtAPI "World items"): a mission
@@ -385,8 +288,7 @@ function Game.findItem(record, missionId)
     local inventory = p:getInventory()
     local key = OA.signature(inventory)
     if mem.miss == key then return nil end
-    -- oa-scan: ok (a new signature, or no item kept)
-    item = inventory:getFirstEvalArgRecurse(missionMatch, missionId)
+    item = firstPiece(inventory, missionId)
     mem.item, mem.miss = item, (not item) and key or nil
     return item
 end
@@ -394,8 +296,7 @@ end
 -- Whether an item is a mission's piece or holds one (a bag with it inside).
 function Game.holds(item, missionId)
     if missionMatch(item, missionId) then return true end
-    return instanceof(item, "InventoryContainer")
-        and item:getInventory():getFirstEvalArgRecurse(missionMatch, missionId) ~= nil
+    return instanceof(item, "InventoryContainer") and firstPiece(item, missionId) ~= nil
 end
 
 local function removeFrom(container, item)
@@ -412,7 +313,7 @@ function Game.takeItem(character, name)
 end
 
 function Game.takeMissionItem(character, missionId)
-    local item = character:getInventory():getFirstEvalArgRecurse(missionMatch, missionId)
+    local item = firstPiece(character:getInventory(), missionId)
     if not item then return false end
     removeFrom(item:getContainer(), item)
     return true
@@ -504,23 +405,22 @@ local function inBox(it, x, y, z)
     return x >= it.x1 and x <= it.x2 and y >= it.y1 and y <= it.y2 and z >= it.z1 and z <= it.z2
 end
 
--- The squares of the piece's building that are loaded, around its key square (a large building is not scanned
--- whole): calls fn(square) for each.
-local function eachLoadedSquare(it, fn)
+-- The boxes to look in for a piece's building, one for each level: its box, round its key square when large (a large
+-- building is not scanned whole). What the API finds there is the loaded part of it.
+local function boxesOf(it)
     local R = 24
     local x1, y1, x2, y2 = it.x1, it.y1, it.x2, it.y2
     if x2 - x1 > 2 * R then x1, x2 = math.max(x1, it.x - R), math.min(x2, it.x + R) end
     if y2 - y1 > 2 * R then y1, y2 = math.max(y1, it.y - R), math.min(y2, it.y + R) end
-    local c = getCell()
-    for z = it.z1, math.min(it.z2, it.z1 + 7) do
-        for x = x1, x2 do
-            for y = y1, y2 do
-                local sq = c:getGridSquare(x, y, z)
-                if sq and sq:getBuilding() then fn(sq) end
-            end
-        end
-    end
+    local boxes = {}
+    for z = it.z1, math.min(it.z2, it.z1 + 7) do boxes[#boxes + 1] = { x1 = x1, y1 = y1, x2 = x2, y2 = y2, z = z } end
+    return boxes
 end
+
+-- The objects with a container, a dead body's left out; on the squares of a building; the free squares of its rooms.
+local CONTAINERS = { container = true, notClass = { "IsoDeadBody" } }
+local IN_BUILDING = { squares = { building = "any" } }
+local FREE_ROOM = { free = true, room = "any" }
 
 local function weightOf(it)
     local item = Data.ITEMS[Data.itemName(it.type) or ""]
@@ -538,22 +438,19 @@ Game.LAST_CONTAINERS = { fridge = true, freezer = true, stove = true, microwave 
 local function containersFor(it)
     local found, last = {}, {}
     local w = weightOf(it)
-    eachLoadedSquare(it, function(sq)
-        local objects = sq:getObjects()
-        for j = 0, objects:size() - 1 do
-            local o = objects:get(j)
-            if not instanceof(o, "IsoDeadBody") then
-                for k = 0, o:getContainerCount() - 1 do
-                    local c = o:getContainerByIndex(k)
-                    if c and c:hasRoomFor(nil, w) then
-                        local room = sq:getRoom()
-                        local list = Game.LAST_CONTAINERS[c:getType()] and last or found
-                        list[#list + 1] = { container = c, square = sq, room = room and room:getName() or nil }
-                    end
+    for _, box in ipairs(boxesOf(it)) do
+        for _, o in ipairs(OA.api().objects.find(box, CONTAINERS, IN_BUILDING)) do
+            for k = 0, o:getContainerCount() - 1 do
+                local c = o:getContainerByIndex(k)
+                if c and c:hasRoomFor(nil, w) then
+                    local sq = o:getSquare()
+                    local room = sq:getRoom()
+                    local list = Game.LAST_CONTAINERS[c:getType()] and last or found
+                    list[#list + 1] = { container = c, square = sq, room = room and room:getName() or nil }
                 end
             end
         end
-    end)
+    end
     return #found > 0 and found or last
 end
 
@@ -569,29 +466,22 @@ end
 -- A free square in a room of the piece's building (the preferred room first), for what lies on the floor.
 local function floorSquare(it)
     local rooms, preferred = {}, {}
-    eachLoadedSquare(it, function(sq)
-        if sq:isFree(false) and sq:getRoom() then
+    for _, box in ipairs(boxesOf(it)) do
+        for _, sq in ipairs(OA.api().squares.list(box, FREE_ROOM)) do
             rooms[#rooms + 1] = sq
             if sq:getRoom():getName() == it.room then preferred[#preferred + 1] = sq end
         end
-    end)
+    end
     if #preferred > 0 then return pick(preferred) end
     if #rooms > 0 then return pick(rooms) end
     return nil
 end
 
 -- The nearest free square to a point outdoors (a stake tag lies by its stake).
+local FREE = { free = true }
 local function nearFreeSquare(x, y, z)
-    local c = getCell()
-    for r = 0, 3 do
-        for dx = -r, r do
-            for dy = -r, r do
-                local sq = c:getGridSquare(x + dx, y + dy, z)
-                if sq and sq:isFree(false) then return sq end
-            end
-        end
-    end
-    return c:getGridSquare(x, y, z)
+    local sq = OA.api().squares.nearest({ x = x, y = y, z = z, to = 3 }, FREE)
+    return sq or getCell():getGridSquare(x, y, z)
 end
 
 local function dropOnFloor(sq, item, z)
@@ -602,6 +492,9 @@ local function dropOnFloor(sq, item, z)
     return wi
 end
 
+-- The doors on the edges of a room.
+local DOORS = { class = { "IsoDoor" } }
+
 -- Locks the doors of the room a piece went into, with the building's key: and places the key in another container
 -- of the building, so that a way in always exists.
 local function lockRoom(record, m, it, sq)
@@ -611,25 +504,10 @@ local function lockRoom(record, m, it, sq)
     local def = sq:getBuilding() and sq:getBuilding():getDef()
     if not (room and def) then return end
     local locked = 0
-    local squares = room:getSquares()
-    local c = getCell()
-    for i = 0, squares:size() - 1 do
-        local s2 = squares:get(i)
-        local objects = s2:getObjects()
-        for j = 0, objects:size() - 1 do
-            local o = objects:get(j)
-            if instanceof(o, "IsoDoor") then
-                local other
-                if o:getNorth() then other = c:getGridSquare(s2:getX(), s2:getY() - 1, s2:getZ())
-                else other = c:getGridSquare(s2:getX() - 1, s2:getY(), s2:getZ()) end
-                local r1, r2 = s2:getRoom(), other and other:getRoom()
-                if (r1 == room) ~= (r2 == room) then
-                    o:setKeyId(def:getKeyId())
-                    o:setLockedByKey(true)
-                    locked = locked + 1
-                end
-            end
-        end
+    for _, e in ipairs(OA.api().objects.edges({ room = room }, DOORS)) do
+        e.object:setKeyId(def:getKeyId())
+        e.object:setLockedByKey(true)
+        locked = locked + 1
     end
     if locked == 0 then return end
     local keyIt = {
@@ -740,20 +618,12 @@ function Game.placeInRoom(record, m, it, roomDef, floorOnly)
     if not room then return false end
     local w = weightOf(it)
     local found, last = {}, {}
-    local squares = room:getSquares()
-    for i = 0, floorOnly and -1 or squares:size() - 1 do
-        local sq = squares:get(i)
-        local objects = sq:getObjects()
-        for j = 0, objects:size() - 1 do
-            local o = objects:get(j)
-            if not instanceof(o, "IsoDeadBody") then
-                for k = 0, o:getContainerCount() - 1 do
-                    local c = o:getContainerByIndex(k)
-                    if c and c:hasRoomFor(nil, w) then
-                        local list = Game.LAST_CONTAINERS[c:getType()] and last or found
-                        list[#list + 1] = { container = c, square = sq }
-                    end
-                end
+    for _, o in ipairs(floorOnly and {} or OA.api().objects.find({ room = room }, CONTAINERS)) do
+        for k = 0, o:getContainerCount() - 1 do
+            local c = o:getContainerByIndex(k)
+            if c and c:hasRoomFor(nil, w) then
+                local list = Game.LAST_CONTAINERS[c:getType()] and last or found
+                list[#list + 1] = { container = c, square = o:getSquare() }
             end
         end
     end
@@ -960,8 +830,7 @@ function Game.whereNow(record, m, it)
     local inventory = p:getInventory()
     local signature = OA.signature(inventory)
     if missed[key] == signature then return nil end
-    -- oa-scan: ok (a found piece not followed, once for each change of the player's things)
-    item = inventory:getFirstEvalArgRecurse(missionMatch, Missions.itemId(m, it.key))
+    item = firstPiece(inventory, Missions.itemId(m, it.key))
     if not item then
         missed[key] = signature
         return nil
@@ -972,8 +841,7 @@ end
 
 -- The piece of a mission in a bag the player picked up, or nil.
 function Game.pieceIn(bag, missionId)
-    -- oa-scan: ok (a bag picked up while a piece is still to be found)
-    return bag:getInventory():getFirstEvalArgRecurse(missionMatch, missionId)
+    return firstPiece(bag, missionId)
 end
 
 -- ---------------------------------------------------------------------------------------------------------------
@@ -998,11 +866,10 @@ function Game.onBurning(container, object)
         end
     end
     if not running then return end
-    -- oa-scan: ok (a burning container, while a mission runs)
-    local found = container:getAllEvalRecurse(anyMission, ArrayList.new())
+    local found = OA.api().items.find(container, ANY_MISSION, ALL_ITEMS)
     local done = {}
-    for i = 0, found:size() - 1 do
-        local id = found:get(i):getModData().OA_Mission
+    for _, item in ipairs(found) do
+        local id = item:getModData().OA_Mission
         for _, record in pairs(OA.Store.players()) do
             local m, it = Missions.pieceOf(record, id)
             if it and not done[it] then
@@ -1135,52 +1002,15 @@ function Game.areaLoaded(area)
     return true
 end
 
--- A square a zombie may stand on: free, with a floor, not water or stairs; outdoors unless `indoors`.
-local function openSquare(sq, indoors)
-    return sq ~= nil and sq:getFloor() ~= nil and sq:isFree(false) and not sq:isWaterSquare() and not sq:HasStairs()
-        and (indoors or sq:isOutside())
-end
-
-local STEPS = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } }
+-- The squares a zombie may stand on: free, with a floor, not water or stairs; outdoors unless `indoors`.
+local OPEN_OUTSIDE = { floor = true, free = true, water = false, stairs = false, outside = true }
+local OPEN_INSIDE = { floor = true, free = true, water = false, stairs = false }
 
 -- The open squares of the circle that are joined to the one nearest its middle (a walled yard or a roof is not part of
--- it), outdoors first: { square, ... }. Every open square of the circle when none is joined.
+-- it), outdoors first: { square, ... }.
 local function openSquares(area, indoors)
-    local c = getCell()
-    local open, nearest, nearestD = {}, nil, nil
-    local r = area.r
-    for dx = -r, r do
-        for dy = -r, r do
-            local d = dx * dx + dy * dy
-            if d <= r * r then
-                local sq = c:getGridSquare(area.x + dx, area.y + dy, 0)
-                if openSquare(sq, indoors) then
-                    local key = dx .. "," .. dy
-                    open[key] = sq
-                    if not nearestD or d < nearestD then nearest, nearestD = key, d end
-                end
-            end
-        end
-    end
-    local list = {}
-    if not nearest then return list end
-    local seen, queue, head = { [nearest] = true }, { nearest }, 1
-    while head <= #queue do
-        local key = queue[head]
-        head = head + 1
-        local sq = open[key]
-        list[#list + 1] = sq
-        local dx, dy = sq:getX() - area.x, sq:getY() - area.y
-        for _, s in ipairs(STEPS) do
-            local k2 = (dx + s[1]) .. "," .. (dy + s[2])
-            local next2 = open[k2]
-            if next2 and not seen[k2] and not sq:isBlockedTo(next2) then
-                seen[k2] = true
-                queue[#queue + 1] = k2
-            end
-        end
-    end
-    return list
+    return OA.api().squares.list({ x = area.x, y = area.y, z = 0, r = area.r }, indoors and OPEN_INSIDE or OPEN_OUTSIDE,
+        { connected = { x = area.x, y = area.y } })
 end
 
 -- Brings `count` of the group into the circle in the outfit, marked with `key`, each on its own square more than

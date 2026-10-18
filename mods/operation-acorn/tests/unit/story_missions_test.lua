@@ -20,9 +20,6 @@ local function fakeGame()
         g.list[i].x1, g.list[i].y1 = g.list[i].x - 3, g.list[i].y - 3
         g.list[i].x2, g.list[i].y2 = g.list[i].x + 3, g.list[i].y + 3
     end
-    g.buildingCount = function() return #g.list end
-    g.building = function(i) return g.list[i].x, g.list[i].y, true end
-    g.buildingInfo = function(i) return g.list[i] end
     fakeSites(g)
     g.playerPosition = function() return g.px or 0, g.py or 0, 0 end
     g.request = function(record, m, it) g.requested[#g.requested + 1] = { m = m.id, it = it } end

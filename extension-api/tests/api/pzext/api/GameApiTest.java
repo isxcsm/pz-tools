@@ -96,6 +96,7 @@ public final class GameApiTest {
         food(api);
         FormulasTest.run(api);
         ItemCountsTest.run(api);
+        ItemQueriesTest.run(api);
         HiddenZombiesTest.run(api);
         SystemsTest.run(api);
         ZombieSoundsTest.run(api);
@@ -110,6 +111,8 @@ public final class GameApiTest {
         FloorDecalsTest.run(api);
         SquareWatchesTest.run(api);
         SquareQueriesTest.run(api);
+        ObjectsTest.run(api);
+        MapFactsTest.run(api);
         WallWatchesTest.run(api);
         RoomEditsTest.run(api);
         TrackedTest.run();
@@ -121,7 +124,7 @@ public final class GameApiTest {
         hooks(api);
         takeover(api, buildings);
         check(pzext.boot.TestAgent.unexpected.isEmpty(), "The boot layer said a hook did not fit: " + pzext.boot.TestAgent.unexpected);
-        System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, switches them off and on, multiplies their loads, takes in single rooms, runs sources its mods switch, ages food by their supply, shows the moodles mods define, draws the text mods show, tells the sounds zombies make and the hits they take, finds zombies by level, sight and state, lists containers, calls functions on timers and as chunks load, wraps and fits text, draws many shapes at once, lays pictures on floors, tells mods of the squares they watch, gives map buildings new rooms, marks zombies and holds them in areas, outlines models and vehicles, counts items through bags, says which hooks went in, and a newer API takes it over");
+        System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, switches them off and on, multiplies their loads, takes in single rooms, runs sources its mods switch, ages food by their supply, shows the moodles mods define, draws the text mods show, tells the sounds zombies make and the hits they take, finds zombies by level, sight and state, lists containers, calls functions on timers and as chunks load, wraps and fits text, draws many shapes at once, lays pictures on floors, tells mods of the squares they watch, gives map buildings new rooms, marks zombies and holds them in areas, outlines models and vehicles, counts and finds items through bags, says which hooks went in, and a newer API takes it over");
     }
 
     // A map building: a basement, a kitchen and a bedroom above it. A player-built shack. Another building's room.

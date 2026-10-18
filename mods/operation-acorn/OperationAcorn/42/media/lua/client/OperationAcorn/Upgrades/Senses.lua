@@ -653,8 +653,8 @@ end
 
 local ENTRY = Sense.ALARM_NEAR
 local ENTRY_OUTLINE = { 0.86, 0.40, 0.34, 0.45 }
+local ENTRY_OBJECTS = { class = { "IsoDoor", "IsoWindow" } }
 local buildingList = nil
-local vehicleList
 -- The objects outlined (object -> true) and the next second's, swapped, and the player they are outlined for.
 local lit, litNext = {}, {}
 local litFor = 0
@@ -677,23 +677,12 @@ end
 
 -- Outlines the doors and windows of alarmed houses within ENTRY squares into litNext.
 local function tintEntries(player)
-    local cell = getCell()
     local px, py, pz = math.floor(player:getX()), math.floor(player:getY()), math.floor(player:getZ())
-    for x = px - ENTRY, px + ENTRY do
-        for y = py - ENTRY, py + ENTRY do
-            local sq = cell:getGridSquare(x, y, pz)
-            local special = sq and sq:getSpecialObjects()
-            if special then
-                for i = 0, special:size() - 1 do
-                    local obj = special:get(i)
-                    if instanceof(obj, "IsoDoor") or instanceof(obj, "IsoWindow") then
-                        local building = OA.Upgrades.Actions.entryBuilding(sq, obj)
-                        local def = building and building:getDef()
-                        if def and def:isAlarmed() then tint(obj) end
-                    end
-                end
-            end
-        end
+    local area = { x1 = px - ENTRY, y1 = py - ENTRY, x2 = px + ENTRY, y2 = py + ENTRY, z = pz }
+    for _, obj in ipairs(OA.api().objects.find(area, ENTRY_OBJECTS)) do
+        local building = OA.Upgrades.Actions.entryBuilding(obj:getSquare(), obj)
+        local def = building and building:getDef()
+        if def and def:isAlarmed() then tint(obj) end
     end
 end
 
@@ -716,11 +705,9 @@ local function alarmJob(now)
     local floor = math.floor(player:getZ())
     -- the nearest alarm not told of yet within ALARM_NEAR is told this second
     local sayKey, sayD, sayCar = nil, nil, false
-    vehicleList = OA.vehicles(vehicleList)
-    -- (a car is asked whether it is alarmed only within reach: the cell may hold many)
+    -- (a car is asked whether it is alarmed only within reach: the API gives the ones there)
     local carReach = Sense.ALARM_CAR + math.max(Sense.ALARM_LEAVE, ENTRY)
-    for i = 0, vehicleList:size() - 1 do
-        local v = vehicleList:get(i)
+    for _, v in ipairs(OA.api().vehicles.near(px, py, floor, carReach)) do
         local dx, dy = v:getX() - px, v:getY() - py
         if dx * dx + dy * dy <= carReach * carReach and OA.Upgrades.Actions.carAlarmed(v) then
             local d = math.max(0, math.sqrt(dx * dx + dy * dy) - Sense.ALARM_CAR)

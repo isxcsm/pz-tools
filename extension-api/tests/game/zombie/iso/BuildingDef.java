@@ -17,6 +17,14 @@ public final class BuildingDef {
     public int asked;
     public ArrayList<RoomDef> getRooms() { asked++; return rooms; }
     public boolean isUserDefined() { return userDefined; }
+    /** As the game's: a building whose first room is below ground. */
+    public boolean isBasement() { return !rooms.isEmpty() && rooms.get(0).level < 0; }
+    /** The squares of its rooms. */
+    public int getArea() {
+        int area = 0;
+        for (RoomDef room : rooms) for (RoomDef.RoomRect rect : room.rects) area += rect.w * rect.h;
+        return area;
+    }
     public boolean isHasBeenVisited() { return hasBeenVisited; }
     public int getKeyId() { return keyId; }
     public void setKeyId(int value) { keyId = value; }

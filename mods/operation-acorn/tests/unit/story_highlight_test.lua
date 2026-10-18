@@ -35,9 +35,42 @@ local function square(objects, floor, sees)
         getWorldObjects = function() return list(floor or {}) end }
 end
 
+-- The extension API's items.find over the fake containers: the items (and the containers they are in) that have the
+-- modData key `match.data` (or have it with the value), at most options.limit. `asked` records each call's match and
+-- options.
+local asked = {}
+local function itemsFind(source, match, options)
+    asked[#asked + 1] = { match = match, options = options }
+    local found, where = {}, {}
+    local items = source:getItems()
+    for i = 0, items:size() - 1 do
+        local it = items:get(i)
+        local want, data = match.data, it:hasModData() and it:getModData() or {}
+        local meets
+        if type(want) == "table" then
+            meets = true
+            for k, v in pairs(want) do meets = meets and data[k] == v end
+        else
+            meets = data[want] ~= nil
+        end
+        if meets and not (options.limit and #found >= options.limit) then
+            found[#found + 1], where[#where + 1] = it, source
+        end
+    end
+    return found, where
+end
+
+local function api(extra)
+    local made = { version = OA.API_VERSION, client = function() return "h" end, items = { find = itemsFind } }
+    for k, v in pairs(extra or {}) do made[k] = v end
+    return made
+end
+
 local state
 local function setup(mission, where)
     state = { squares = {}, looked = 0, handlers = {} }
+    asked = {}
+    PZExtAPI = api()
     local m = mission
     m.items = m.items or {}
     local record = OA.Store.ensure("p1", "P")
@@ -367,27 +400,27 @@ test("the loot window paints the special request's item name too", function()
     near(drawn[2][2], 0.30, 1e-9)
 end)
 
-test("the container is walked once for what it holds, not at every look", function()
+test("the container is asked what it holds through the API, with the same conditions at every look", function()
     local m = setup(regular())
-    local items = { item("M1-1"), item(nil), item(nil) }
-    local reads = 0     -- items read from the container (its size is no read)
-    local box = container(items)
-    box.getItems = function()
-        local l = list(items)
-        local get = l.get
-        l.get = function(...) reads = reads + 1 return get(...) end
-        return l
-    end
+    local box = container({ item("M1-1"), item(nil), item(nil) })
     local desk = furniture({ box })
     state.squares["100,100,0"] = square({ desk })
     state.page.inventoryPane.inventory = box
     load()
     for _ = 1, 5 do tick() end
-    eq(reads, 3, "five looks (the outline and the names both ask): the three items read once")
     eq(desk.on, true)
-    items[#items + 1] = item("M1-1#B")
-    for _ = 1, 3 do tick() end
-    eq(reads, 3 + 4, "an item came: read again, once")
+    truthy(#asked >= 10, "the outline and the names both ask at each look")
+    local matches = {}
+    for _, call in ipairs(asked) do matches[call.match] = true end
+    local distinct = 0
+    for _ in pairs(matches) do distinct = distinct + 1 end
+    eq(distinct, 2, "the mark of any mission, and the piece's id: one table each, kept")
+    for _, call in ipairs(asked) do
+        if type(call.match.data) == "table" then
+            eq(call.options.limit, 1, "one is enough to know")
+        end
+        eq(call.options.depth, 0, "the bags in it are not looked into")
+    end
 end)
 
 test("with the API's timers the look is a timer, not a handler of OnTick, and goes with the mission", function()
@@ -395,13 +428,13 @@ test("with the API's timers the look is a timer, not a handler of OnTick, and go
     local desk = furniture({ container({ item("M1-1") }) })
     state.squares["100,100,0"] = square({ desk })
     local timers, cancelled = {}, 0
-    PZExtAPI = { version = 1, client = function() return "h" end, timers = {
+    PZExtAPI = api({ timers = {
         every = function(handle, spec, fn)
             timers[#timers + 1] = { spec = spec, fn = fn }
             return #timers
         end,
         cancel = function(handle, id) cancelled = cancelled + 1 timers[id].gone = true return true end,
-    } }
+    } })
     load()
     H.update()
     local handlers = 0

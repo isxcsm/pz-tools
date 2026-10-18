@@ -216,7 +216,8 @@ test("a title carries its style's sounds (the kit's title cues); an older API wi
     }
     local Sound = PZUIKit.Sound
     OA.Titles.show("p1", { key = "IGUI_OA_Title_Sealed", style = "dust" })
-    eq(called[1].sounds, nil, "no sound defined: none asked")
+    eq(called[1].sounds.land, nil, "no sound defined for a moment: none asked")
+    eq(called[1].sounds.leave, "UseLighter", "the kit's own cue")
     Sound.define("kit.title.dust.land", { sound = "Thud" })
     Sound.define("kit.title.dust.line.land", { sound = "Tap" })
     OA.Titles.show("p1", { key = "IGUI_OA_Title_Sealed", sub = "IGUI_OA_Title_Marked", style = "dust" })

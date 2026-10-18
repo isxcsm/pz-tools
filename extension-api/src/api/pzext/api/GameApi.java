@@ -292,14 +292,18 @@ public final class GameApi {
             read.register(buildingsTable);
             buildings = read;
             containers(lua, read, game, buildingsTable, luaManager.getClassLoader());
+            lists(lua, read, game, buildingsTable, luaManager.getClassLoader());
             networks(lua, api, meta, handles, game, read, luaManager.getClassLoader());
             formulas(lua, api, meta, handles, game, luaManager.getClassLoader());
+            items(lua, api, meta, game, luaManager.getClassLoader());
             moodles(lua, api, meta, handles, game, luaManager.getClassLoader());
             loot(lua, api, meta, handles, luaManager.getClassLoader());
             texts(lua, api, meta, handles, game, luaManager.getClassLoader());
             systems(lua, api, meta, handles, game, luaManager.getClassLoader());
             scheduled(lua, api, meta, handles, game, luaManager.getClassLoader());
+            maps(lua, api, game, luaManager.getClassLoader());
             walls(lua, buildingsTable, meta, handles, game, read, luaManager.getClassLoader());
+            objects(lua, api, meta, game, read, luaManager.getClassLoader());
             lua.set(env, GLOBAL, api);
         } catch (Throwable failure) {
             // The functions mods kept refuse to be called rather than change networks and formulas that no longer run.
@@ -314,10 +318,26 @@ public final class GameApi {
             Timers.retire(lua, meta);
             ChunkWatches.retire(lua, meta);
             FloorDecals.retire(lua, meta);
+            Items.retire(lua, meta);
             SquareWatches.retire(lua, meta);
             SquareQueries.retire(lua, meta);
             WallWatches.retire(lua, meta);
+            ObjectQueries.retire(lua, meta);
             throw failure;
+        }
+    }
+
+    /**
+     * {@code PZExtAPI.objects}: the objects of an area found, read by mod data, listed on the edges of a room and taken off their
+     * squares. Left out, with a line in the game's log, in a game that lacks what it reads: the rest of the API goes on.
+     */
+    private static void objects(Kahlua lua, Object api, Object meta, Game game, Buildings read, ClassLoader loader)
+            throws ReflectiveOperationException {
+        try { new ObjectQueries(lua, game, read, meta, loader).register(table(lua, api, "objects")); }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+            report(unreadable);
+            ObjectQueries.retire(lua, meta);
+            lua.set(api, "objects", null);
         }
     }
 
@@ -401,6 +421,23 @@ public final class GameApi {
             Formulas.retire(lua, meta);
             lua.set(api, "formulas", null);
             lua.set(api, "items", null);
+        }
+    }
+
+    /**
+     * {@code PZExtAPI.items.find} and {@code types}, beside the item counts of the formulas. Left out, with a line in the game's log, in a game
+     * that lacks what they read: the rest of the items table goes on.
+     */
+    private static void items(Kahlua lua, Object api, Object meta, Game game, ClassLoader loader) throws ReflectiveOperationException {
+        try { new Items(lua, game, meta, loader).register(table(lua, api, "items")); }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+            report(unreadable);
+            Items.retire(lua, meta);
+            Object table = lua.get(api, "items");
+            if (lua.isTable(table)) {
+                lua.set(table, "find", null);
+                lua.set(table, "types", null);
+            }
         }
     }
 
@@ -682,6 +719,41 @@ public final class GameApi {
     /** Takes the named functions out of an area's table. */
     private static void without(Kahlua lua, Object table, String... names) throws ReflectiveOperationException {
         for (String name : names) lua.set(table, name, null);
+    }
+
+    /**
+     * {@code buildings.list}. Left out, with a line in the game's log, in a game that lacks what it reads: the rest of the buildings go on.
+     */
+    private static void lists(Kahlua lua, Buildings read, Game game, Object table, ClassLoader loader) throws ReflectiveOperationException {
+        try { new BuildingLists(lua, game, read, loader).register(table); }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+            report(unreadable);
+            lua.set(table, "list", null);
+        }
+    }
+
+    /**
+     * {@code PZExtAPI.zones}, {@code PZExtAPI.vehicles} and {@code squares.path}: facts of the map read in Java. Each is left out, with a line in
+     * the game's log, in a game that lacks what it reads: the others go on, and the square watches that share the squares' table with
+     * the path are not touched by it.
+     */
+    private static void maps(Kahlua lua, Object api, Game game, ClassLoader loader) throws ReflectiveOperationException {
+        try { new Zones(lua, game, loader).register(table(lua, api, "zones")); }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+            report(unreadable);
+            lua.set(api, "zones", null);
+        }
+        try { new Vehicles(lua, game, loader).register(table(lua, api, "vehicles")); }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+            report(unreadable);
+            lua.set(api, "vehicles", null);
+        }
+        try { new SquarePaths(lua, game, loader).register(table(lua, api, "squares")); }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+            report(unreadable);
+            Object squares = lua.get(api, "squares");
+            if (lua.isTable(squares)) lua.set(squares, "path", null);
+        }
     }
 
     /** The mod a handle belongs to, or null when the value is not one of this environment's handles. */

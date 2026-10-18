@@ -104,7 +104,7 @@ local function bareGround(square)
     local floor = square:isOutside() and square:getFloor()
     local sprite = floor and floor:getSprite()
     local name = sprite and sprite:getName() or ""
-    return luautils.stringStarts(name, "floors_exterior_natural") or luautils.stringStarts(name, "blends_natural_01")
+    return string.sub(name, 1, 23) == "floors_exterior_natural" or string.sub(name, 1, 17) == "blends_natural_01"
 end
 
 local function onFillWorld(playerNum, context, worldobjects, test)

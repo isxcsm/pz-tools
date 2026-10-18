@@ -8,6 +8,7 @@ require "OperationAcorn/Upgrades/Api"
 require "OperationAcorn/Upgrades/Infection"
 require "OperationAcorn/Upgrades/Adapt"
 require "OperationAcorn/Upgrades/First"
+require "OperationAcorn/Story/Survey"
 local OA = OperationAcorn
 local Data = OA.Upgrades.Data
 local Rules = OA.Upgrades.Rules
@@ -48,6 +49,7 @@ function UpgradesServer.approve(character, record, rawSteps)
     UpgradesServer.titles(record.id, u, steps, wasOpen, capstones)
     -- the follow-up memo of each tree whose capstone this plan took
     Adapt.approved(record, taken)
+    OA.StoryBranches.look(record, "approved")
     return true
 end
 
