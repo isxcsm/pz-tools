@@ -294,6 +294,7 @@ public final class GameApi {
             containers(lua, read, game, buildingsTable, luaManager.getClassLoader());
             networks(lua, api, meta, handles, game, read, luaManager.getClassLoader());
             formulas(lua, api, meta, handles, game, luaManager.getClassLoader());
+            items(lua, api, meta, game, luaManager.getClassLoader());
             moodles(lua, api, meta, handles, game, luaManager.getClassLoader());
             loot(lua, api, meta, handles, luaManager.getClassLoader());
             texts(lua, api, meta, handles, game, luaManager.getClassLoader());
@@ -314,6 +315,7 @@ public final class GameApi {
             Timers.retire(lua, meta);
             ChunkWatches.retire(lua, meta);
             FloorDecals.retire(lua, meta);
+            Items.retire(lua, meta);
             SquareWatches.retire(lua, meta);
             WallWatches.retire(lua, meta);
             throw failure;
@@ -400,6 +402,23 @@ public final class GameApi {
             Formulas.retire(lua, meta);
             lua.set(api, "formulas", null);
             lua.set(api, "items", null);
+        }
+    }
+
+    /**
+     * {@code PZExtAPI.items.find} and {@code types}, beside the item counts of the formulas. Left out, with a line in the game's log, in a game
+     * that lacks what they read: the rest of the items table goes on.
+     */
+    private static void items(Kahlua lua, Object api, Object meta, Game game, ClassLoader loader) throws ReflectiveOperationException {
+        try { new Items(lua, game, meta, loader).register(table(lua, api, "items")); }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+            report(unreadable);
+            Items.retire(lua, meta);
+            Object table = lua.get(api, "items");
+            if (lua.isTable(table)) {
+                lua.set(table, "find", null);
+                lua.set(table, "types", null);
+            }
         }
     }
 
