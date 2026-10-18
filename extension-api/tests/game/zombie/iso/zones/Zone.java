@@ -1,6 +1,6 @@
 package zombie.iso.zones;
 
-/** Synthetic: a zone of the map, a box of a type. */
+/** Synthetic: a zone of the map, a box of one level with a type. */
 public class Zone {
     public String name, type;
     public int x, y, z, w, h;
@@ -9,4 +9,5 @@ public class Zone {
     }
     public String getType() { return type; }
     public String getName() { return name; }
+    public boolean contains(int px, int py, int pz) { return pz == z && px >= x && px < x + w && py >= y && py < y + h; }
 }

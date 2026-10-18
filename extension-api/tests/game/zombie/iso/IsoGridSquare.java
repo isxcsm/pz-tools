@@ -137,7 +137,7 @@ public final class IsoGridSquare {
             case DoorWallW -> westDoor;
             case WindowN -> northWindow;
             case WindowW -> westWindow;
-            default -> false;
+            default -> flagSet.contains(flag);
         };
     }
     /** A corner post on the square's south-east corner (WallSE). */
@@ -181,20 +181,17 @@ public final class IsoGridSquare {
         return acrossX || acrossY ? LosUtil.TestResults.Blocked : LosUtil.TestResults.Clear;
     }
 
-    /** Test: the square is taken (not free), has stairs, is outdoors, is in a building the loaded square knows (getBuilding). */
+    /** Test: the square is taken (not free), has stairs, is outdoors (as the game's squares mostly are). */
     public boolean occupied, stairsHere, outdoors = true;
-    public zombie.iso.areas.IsoBuilding inBuilding;
     public final zombie.core.properties.PropertyContainer properties = new zombie.core.properties.PropertyContainer();
-    public boolean isFree(boolean vehicles) { return !occupied && !solid; }
-    public boolean HasStairs() { return stairsHere; }
     public zombie.core.properties.PropertyContainer getProperties() { return properties; }
-    public boolean isOutside() { return outdoors; }
-    public zombie.iso.areas.IsoBuilding getBuilding() { return inBuilding; }
     /**
      * Like the game's for the four sides: the step to a square beside is blocked by a wall on the edge crossed, or by a block on
      * either square.
      */
     public boolean isBlockedTo(IsoGridSquare other) {
+        blockedAsked++;
+        if (blocked.contains(other)) return true;
         if (solid || other.solid) return true;
         int dx = other.x - x, dy = other.y - y;
         if (dx != 0 && dy != 0 || other.z != z) return false;
@@ -207,17 +204,45 @@ public final class IsoGridSquare {
 
     public boolean haveElectricity() { return chunk != null && chunk.isGeneratorPoweringSquare(x, y, z); }
 
+    // ---- what the world queries ask of a square: each is what a test says of it ----
+
+    /** The flags a test gives the square besides its walls and doors (the game keeps its properties' flags). */
+    public final java.util.EnumSet<zombie.iso.SpriteDetails.IsoFlagType> flagSet = java.util.EnumSet.noneOf(zombie.iso.SpriteDetails.IsoFlagType.class);
+    /** Whether the square is free of what blocks it, a solid floor, a water square, outdoors, with stairs, a tree; a vehicle on it. */
+    public boolean freeOfObjects = true, solidFloorTreated = true, waterSquare, stairs, tree;
+    public zombie.vehicles.BaseVehicle vehicleOn;
+    public boolean vehicleOver;
+    /** The moving objects that stand on the square. */
+    public final java.util.ArrayList<IsoMovingObject> movers = new java.util.ArrayList<>();
+    /** The square's building, when a test gives it (the game takes it from the square's room). */
+    public zombie.iso.areas.IsoBuilding building;
+    /** Squares a test lets the game block a step to. */
+    public final java.util.Set<IsoGridSquare> blocked = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+    /** How many times a step was asked about (isBlockedTo). */
+    public static int blockedAsked;
+
+    public boolean isFree(boolean onlyIfNoMovers) {
+        return freeOfObjects && freeSquare && !occupied && !solid && !(onlyIfNoMovers && !movers.isEmpty());
+    }
+    public boolean TreatAsSolidFloor() { return solidFloorTreated; }
+    public boolean isWaterSquare() { return waterSquare || waterFloor; }
+    public boolean isOutside() { return outdoors; }
+    public boolean HasStairs() { return stairs || stairsHere; }
+    public boolean HasTree() { return tree; }
+    public boolean isVehicleIntersecting() { return vehicleOver; }
+    public zombie.vehicles.BaseVehicle getVehicleContainer() { return vehicleOn; }
+    public java.util.ArrayList<IsoMovingObject> getMovingObjects() { return movers; }
+    public zombie.iso.areas.IsoBuilding getBuilding() { return building; }
+    public IsoCell getCell() { return cell != null ? cell : IsoWorld.instance.currentCell; }
+
     /** Synthetic: the game takes the square's properties again from its objects; the API's hook goes at its end. */
     public int recalcs;
 
     public void RecalcProperties() { recalcs++; }
 
     // The objects area: what a square filter asks (free, outside, water), and the removal of an object with its recalculations.
-    public boolean freeSquare = true, outsideSquare, waterFloor;
+    public boolean freeSquare = true, waterFloor;
     public int neighbourRecalcs;
-    public boolean isFree(boolean mustNotHaveMovingObjects) { return freeSquare; }
-    public boolean isOutside() { return outsideSquare; }
-    public boolean isWaterSquare() { return waterFloor; }
     /** Like the game's: the object leaves the square's list; its place in the list, or -1. */
     public int transmitRemoveItemFromSquare(IsoObject object) {
         int at = objects.indexOf(object);

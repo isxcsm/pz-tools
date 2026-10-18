@@ -187,8 +187,9 @@ final class ObjectsTest {
         check(items(call(area, "find", where, any, table("limit", 3))).size() == 3, "limit 3");
         check(items(call(area, "find", where, any, table("limit", 0))).isEmpty(), "limit 0");
         // squares: a filter the object's square meets.
-        cell().getGridSquare(3012, 3010, 0).outsideSquare = true;
-        cell().getGridSquare(3013, 3010, 0).outsideSquare = true;
+        for (int x = 3010; x <= 3016; x++) cell().getGridSquare(x, 3010, 0).outdoors = false;
+        cell().getGridSquare(3012, 3010, 0).outdoors = true;
+        cell().getGridSquare(3013, 3010, 0).outdoors = true;
         var found = items(call(area, "find", where, any, table("squares", table("outside", true))));
         check(found.size() == 2 && ((IsoObject)found.get(0)).square.x == 3012 && ((IsoObject)found.get(1)).square.x == 3013, "squares filter: " + found.size());
         check(items(call(area, "find", where, any, table("squares", table("outside", false), "limit", 2))).size() == 2, "squares and limit");
@@ -368,7 +369,8 @@ final class ObjectsTest {
         // squares: only those whose square meets the filter.
         IsoObject out = put(thing("junk_4"), 3220, 3200);
         IsoObject in = put(thing("junk_4"), 3221, 3200);
-        out.square.outsideSquare = true;
+        in.square.outdoors = false;
+        out.square.outdoors = true;
         check(Double.valueOf(1).equals(call(area, "remove", box(3220, 3200, 3221, 3200, 0), table("sprite", list("junk_4")),
             table("squares", table("outside", true)))), "squares filter");
         check(out.square.objects.isEmpty() && in.square.objects.size() == 1, "The wrong square was cleared");

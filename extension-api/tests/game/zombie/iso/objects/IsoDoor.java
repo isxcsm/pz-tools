@@ -3,7 +3,7 @@ package zombie.iso.objects;
 import zombie.iso.IsoObject;
 import zombie.iso.sprite.IsoSprite;
 
-/** Synthetic: a door; a double door's half (1 to 4, 0 for a single door) and its other halves. */
+/** Synthetic: a door; a double door's half (1 to 4, 0 for a single door) and its other halves; the edge of its square it stands on. */
 public final class IsoDoor extends IsoObject {
     public int doubleIndex;
     /** Whether the door stands on the north edge of its square (the west edge otherwise). */

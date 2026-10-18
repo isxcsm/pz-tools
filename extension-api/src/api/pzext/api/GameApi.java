@@ -320,6 +320,7 @@ public final class GameApi {
             FloorDecals.retire(lua, meta);
             Items.retire(lua, meta);
             SquareWatches.retire(lua, meta);
+            SquareQueries.retire(lua, meta);
             WallWatches.retire(lua, meta);
             ObjectQueries.retire(lua, meta);
             for (String key : new String[] { BuildingLists.KEY, Zones.KEY, Vehicles.KEY, SquarePaths.KEY }) Generation.retire(lua, meta, key);
@@ -687,31 +688,38 @@ public final class GameApi {
             decals = null;
         }
         floor = decals;
+        // The squares table holds the watches and the queries. Each registers in its own try, and a failure takes out only its own
+        // functions, so that the other stays; the table itself goes only when neither is there.
+        Object squaresTable = table(lua, api, "squares");
         SquareWatches watched;
         try {
             watched = new SquareWatches(lua, game, meta, handle -> owner(lua, handles, handle));
-            watched.register(table(lua, api, "squares"));
+            watched.register(squaresTable);
         } catch (LinkageError olderBootstrap) {
             System.err.println("[PZExt] Square watches are not in this game; restart it to use them: " + olderBootstrap);
             SquareWatches.retire(lua, meta);
-            withoutWatches(lua, api);
+            without(lua, squaresTable, "watch", "unwatch");
             watched = null;
         } catch (ReflectiveOperationException | RuntimeException unreadable) {
             report(unreadable);
             SquareWatches.unhook();
             SquareWatches.retire(lua, meta);
-            withoutWatches(lua, api);
+            without(lua, squaresTable, "watch", "unwatch");
             watched = null;
         }
         squares = watched;
+        try { new SquareQueries(lua, game, meta).register(squaresTable); }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+            report(unreadable);
+            SquareQueries.retire(lua, meta);
+            without(lua, squaresTable, "nearest", "list", "fit");
+        }
+        if (lua.entries(squaresTable).isEmpty()) lua.set(api, "squares", null);
     }
 
-    /** The square watches are not there: the squares' table keeps what else it holds (the path). */
-    private static void withoutWatches(Kahlua lua, Object api) throws ReflectiveOperationException {
-        Object table = lua.get(api, "squares");
-        if (!lua.isTable(table)) return;
-        lua.set(table, "watch", null);
-        lua.set(table, "unwatch", null);
+    /** Takes the named functions out of an area's table. */
+    private static void without(Kahlua lua, Object table, String... names) throws ReflectiveOperationException {
+        for (String name : names) lua.set(table, name, null);
     }
 
     /**

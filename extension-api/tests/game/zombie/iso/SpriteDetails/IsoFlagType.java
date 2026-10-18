@@ -1,4 +1,4 @@
 package zombie.iso.SpriteDetails;
 
 /** Synthetic. */
-public enum IsoFlagType { exterior, waterPiped, attachedN, attachedS, attachedE, attachedW, WallN, WallW, WallNW, DoorWallN, DoorWallW, WindowN, WindowW, cutN, cutW, WallSE, water }
+public enum IsoFlagType { exterior, waterPiped, attachedN, attachedS, attachedE, attachedW, WallN, WallW, WallNW, DoorWallN, DoorWallW, WindowN, WindowW, cutN, cutW, WallSE, solid, water, burntOut, burning }
