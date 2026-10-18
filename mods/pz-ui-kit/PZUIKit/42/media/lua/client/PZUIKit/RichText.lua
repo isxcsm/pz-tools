@@ -192,13 +192,19 @@ function PZUIRichText:place()
     local lines, lineX, lineY = self.lines, self.lineX, self.lineY
     local font, rgb, orient = self.defaultFont, WHITE, "left"
     local cFont, cRGB, cOrient, cX = {}, {}, {}, {}
+    local fontList, listed = {}, {}
     for c = 1, #lines do
         if self.rgb[c] then rgb = self.rgb[c] end
         if self.orient[c] then orient = self.orient[c] end
         if self.fonts[c] then font = self.fonts[c] end
         cFont[c], cRGB[c], cOrient[c] = font, rgb, orient
         cX[c] = self.marginLeft + lineX[c]
+        if not listed[font] then
+            listed[font] = true
+            fontList[#fontList + 1] = font
+        end
     end
+    self.fontList = fontList
     local inner = self.width - self.marginLeft - self.marginRight - PZUIRichText.BAR_ROOM
     local c = 1
     while c <= #lines do
@@ -273,7 +279,25 @@ function PZUIRichText:onResize()
     self.textDirty = true
 end
 
--- The rows on show, in their faces: a frame draws only what it reads from the layout.
+-- The line heights asked in the render now: font -> height. A font's height can change under an open window (the
+-- game's fonts made again, the API's font arriving), so none is kept past the render: the fonts set are listed, and the
+-- next render clears them (nothing is made for it).
+local heights, heightFonts, heightsSet = {}, {}, 0
+
+local function heightOf(panel, font)
+    local h = heights[font]
+    if h == nil then
+        h = panel:lineHeightOf(font)
+        heights[font] = h
+        heightsSet = heightsSet + 1
+        heightFonts[heightsSet] = font
+    end
+    return h
+end
+
+-- The rows on show, in their faces: a frame draws only what it reads from the layout. Rows go down the panel in order
+-- (lineY only grows), so the ones above the top are found by halving, not one by one: a row shows once its place and
+-- its font's height reach past the top, and no row is taller than the tallest font in the layout.
 function PZUIRichText:render()
     if self.textDirty or self.laidW ~= self.width then self:paginate() end
     local h = self.height
@@ -281,12 +305,26 @@ function PZUIRichText:render()
     local lines, lineY, cX, cFont, cRGB, cOrient = self.lines, self.lineY, self.cX, self.cFont, self.cRGB, self.cOrient
     local top = self.marginTop - self.scroll
     local a = self.contentTransparency
-    for c = 1, #lines do
+    for i = 1, heightsSet do heights[heightFonts[i]] = nil end
+    heightsSet = 0
+    local first = 1
+    local fonts = self.fontList
+    if fonts and top < 0 then
+        local tall = 0
+        for i = 1, #fonts do tall = math.max(tall, heightOf(self, fonts[i])) end
+        local lo, hi, limit = 1, #lines + 1, -top - tall - 1
+        while lo < hi do
+            local mid = floor((lo + hi) / 2)
+            if lineY[mid] > limit then hi = mid else lo = mid + 1 end
+        end
+        first = lo
+    end
+    for c = first, #lines do
         local ly = top + lineY[c]
         if ly >= h then break end
         local v = lines[c]
         local font = cFont[c]
-        if v ~= "" and ly + self:lineHeightOf(font) > 0 then
+        if v ~= "" and ly + heightOf(self, font) > 0 then
             local rgb = cRGB[c]
             self:drawText(v, cX[c], ly, rgb[1], rgb[2], rgb[3], a, font)
         end
