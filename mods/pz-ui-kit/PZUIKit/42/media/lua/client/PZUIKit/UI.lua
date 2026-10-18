@@ -69,6 +69,7 @@ local widths, pixelWidths, wrapMemos, fitMemos = {}, {}, {}, {}
 local widthCount, pixelCount, memoCount = 0, 0, { wrap = 0, fit = 0 }
 local CACHE_MAX = 4000
 local function forgetText()
+    spaces = {}
     widths, pixelWidths, wrapMemos, fitMemos = {}, {}, {}, {}
     widthCount, pixelCount, memoCount = 0, 0, { wrap = 0, fit = 0 }
 end
@@ -425,21 +426,59 @@ function UI.scaled(cls, base)
     return cls
 end
 
+-- What the faces and the texts measured against were made for, to know whether UI.setScale has anything to do: the scale
+-- and the kind of faces asked for and got, the game's fonts' heights (the font option, the language), the width of a probe
+-- text with a Korean letter in it (a font made again for a language changes it where the heights stay), and our own
+-- Small face's height and the probe's width in it. Two tables, filled in place: the one kept and the one looked at now.
+local kept, looked = {}, {}
+local keptMade = true
+local probe
+
+local function lookAtFonts(into)
+    local text = getTextManager()
+    into.small = text:getFontHeight(UIFont.Small)
+    into.medium = text:getFontHeight(UIFont.Medium)
+    into.large = text:getFontHeight(UIFont.Large)
+    -- (the letters by their codes: the file holds no non-ASCII text)
+    probe = probe or ("Ag" .. string.char(0xD55C, 0xAE00))
+    into.probe = text:MeasureStringX(UIFont.Small, probe)
+    into.faceHeight = Faces.height(UIFont.Small)
+    into.faceProbe = Faces.measure(faceOf(UIFont.Small), probe)
+end
+
+-- Whether a call for scale s and the faces useApi says is for what the last one made.
+local function unchanged(s, useApi)
+    if kept.s ~= s or kept.useApi ~= useApi or kept.on ~= Faces.on or kept.epoch ~= Faces.epoch then return false end
+    local was = Faces.on
+    lookAtFonts(looked)
+    -- (a call of the API that failed in being asked has put the game's fonts in its place: this is a new call)
+    if Faces.on ~= was then return false end
+    return kept.small == looked.small and kept.medium == looked.medium and kept.large == looked.large
+        and kept.probe == looked.probe and kept.faceHeight == looked.faceHeight and kept.faceProbe == looked.faceProbe
+end
+
+local function remember(s, useApi, made)
+    kept.s, kept.useApi, kept.on, kept.epoch, keptMade = s, useApi, Faces.on, Faces.epoch, made
+    lookAtFonts(kept)
+end
+
 -- Sets the scale (1 or more) and the faces: the API's (`useApi`, once Faces.available said yes), or the game's fonts
 -- (false; nil keeps the faces' kind as it is). Returns false when the API's faces were asked for and could not be made
 -- (the game's are set). The windows open at the time keep the scale they were made with: a window closes when UI.era
--- changes under it.
+-- changes under it. Called as every window opens, and with nothing changed (the scale, the faces' kind, the fonts) it
+-- does nothing: the faces are kept, and so is every text measured for them in the windows already open.
 function UI.setScale(s, useApi)
     s = s or 1
     if useApi == nil then useApi = Faces.on end
+    if unchanged(s, useApi) then return keptMade end
     local made = Faces.build(s, useApi)
     forgetText()
+    remember(s, useApi, made)
     local now = s ~= 1 or Faces.on
     if s == S and now == on and Faces.on == UI.facesOn then return made end
     S, on = s, now
     UI.S, UI.facesOn = s, Faces.on
     UI.era = UI.era + 1
-    spaces = {}
     for _, entry in ipairs(scaledClasses) do install(entry) end
     return made
 end
