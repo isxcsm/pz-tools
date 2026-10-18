@@ -35,13 +35,21 @@ local function vehicleClass(fullType)
     return class
 end
 
+-- The names made so far, by item type: the same few come up on every screen and refresh. Cleared at each OnGameStart (a
+-- new game may have other mods' items and another language); a name not found is not kept.
+local names = {}
+if Events and Events.OnGameStart then Events.OnGameStart.Add(function() names = {} end) end
+
 -- The name of an item type (the game's, with the vehicle class of a car part), for a receipt line.
 function Text.itemName(fullType)
     if not fullType then return "?" end
+    local kept = names[fullType]
+    if kept then return kept end
     local ok, name = pcall(getItemNameFromFullType, fullType)
     if not (ok and name and name ~= "") then return tostring(fullType) end
     local class = vehicleClass(fullType)
     if class then name = Text.tr("IGUI_OA_Item_VehicleClass", name, Text.tr("IGUI_VehicleType_" .. class)) end
+    names[fullType] = name
     return name
 end
 Text.nameOf = Text.itemName

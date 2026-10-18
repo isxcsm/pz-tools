@@ -299,3 +299,24 @@ test("the API handle is asked for once for each API object and world", function(
     PZExtAPI = nil
     eq(OA.handle(), nil)
 end)
+
+test("an item type's name is made once, and again after a new game starts", function()
+    require "OperationAcorn/Trade/Text"
+    local Text = OA.Trade.Text
+    local calls = 0
+    local name = "Hammer"
+    getItemNameFromFullType = function() calls = calls + 1 return name end
+    getScriptManager = function() return { FindItem = function() return nil end } end
+    eq(Text.itemName("Base.Hammer"), "Hammer")
+    eq(Text.itemName("Base.Hammer"), "Hammer")
+    eq(calls, 1)
+    name = "Mallet"
+    eq(Text.itemName("Base.Hammer"), "Hammer", "kept within the game")
+    TEST.fire("OnGameStart")
+    eq(Text.itemName("Base.Hammer"), "Mallet")
+    eq(calls, 2)
+    name = nil
+    eq(Text.itemName("Base.Nothing"), "Base.Nothing", "a name not found is not kept")
+    name = "Found"
+    eq(Text.itemName("Base.Nothing"), "Found")
+end)
