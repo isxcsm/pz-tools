@@ -69,7 +69,9 @@ watch = function()
             end
         end
     end
-    for _, each in ipairs(ending or {}) do unlight(each[1], each[2]) end
+    if ending then
+        for _, each in ipairs(ending) do unlight(each[1], each[2]) end
+    end
     local over
     for playerNum, line in pairs(lines) do
         if line.pane.highlightItem ~= line.type or now >= line.untilMs then
@@ -79,10 +81,12 @@ watch = function()
             any = true
         end
     end
-    for _, playerNum in ipairs(over or {}) do
-        local line = lines[playerNum]
-        if line.pane.highlightItem == line.type then line.pane.highlightItem = nil end
-        lines[playerNum] = nil
+    if over then
+        for _, playerNum in ipairs(over) do
+            local line = lines[playerNum]
+            if line.pane.highlightItem == line.type then line.pane.highlightItem = nil end
+            lines[playerNum] = nil
+        end
     end
     if not any then watching = false end
 end
