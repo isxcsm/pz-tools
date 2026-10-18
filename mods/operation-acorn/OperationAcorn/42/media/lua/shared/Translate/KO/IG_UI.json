@@ -555,7 +555,7 @@
     "IGUI_OA_Trade_Rc_SupportWait": "운항 지원: %1 · 잔고가 모자라 다음 정산으로 미룸",
     "IGUI_OA_Trade_Rc_SupportNote": "운항 지원 신청 %1건 반영.",
     "IGUI_OA_Trade_Rc_NewItems": "신규 품목 추가 (%1단계).",
-    "IGUI_OA_Trade_Rc_Balance": "정산 잔액 %1, 현재 %2.",
+    "IGUI_OA_Trade_Rc_Balance": "정산 전 잔액 %1, 정산 후 잔액 %2.",
     "IGUI_OA_Trade_Bonus_Battery": "건전지 2개 덤으로 넣음. 단말 예비용으로 쓸 것.",
     "IGUI_OA_Trade_Bonus_Socks": "양말 한 켤레 동봉. 사이즈 몰라서 그냥 보냄.",
     "IGUI_OA_Trade_Bonus_Cards": "카드 1벌 동봉. 출고 검수 시 장수 부족.",

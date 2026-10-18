@@ -894,6 +894,26 @@ end
 
 UI.scaled(OACommsLog, ISPanel)
 
+-- A call can come ready with nothing in the record changing (a short call SHORT_GAP after the last), and the window
+-- looks only when the record changes: every ten game minutes an open terminal looks again: its comms dot once for
+-- each call that has come ready, and on the comms tab the call plays.
+local toldReady = {}  -- by player number: the call an open window's dots were last redrawn for
+
+Events.EveryTenMinutes.Add(function()
+    for n, window in pairs(OATerminalWindow.instances) do
+        local record = OA.Client.record(window.character)
+        local e = record and Comms.next(record, "terminal")
+        if e then
+            if toldReady[n] ~= e.id then
+                toldReady[n] = e.id
+                window:updateMarks(record)
+            end
+            local view = window.activeId == "comms" and window.views.comms
+            if view and not view.play then view:follow() end
+        end
+    end
+end)
+
 OA.Terminal.addTab("comms", function(x, y, w, h, window)
     return OATabComms:new(x, y, w, h, window)
 end, {

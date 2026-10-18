@@ -555,7 +555,7 @@
     "IGUI_OA_Trade_Rc_SupportWait": "Flight support: %1 · not enough credits, left for the next settlement",
     "IGUI_OA_Trade_Rc_SupportNote": "%1 flight support request(s) applied.",
     "IGUI_OA_Trade_Rc_NewItems": "New items added (level %1).",
-    "IGUI_OA_Trade_Rc_Balance": "Balance %1, now %2.",
+    "IGUI_OA_Trade_Rc_Balance": "Balance before %1, after %2.",
     "IGUI_OA_Trade_Bonus_Battery": "Two batteries enclosed. Not ordered. Keep for the terminal.",
     "IGUI_OA_Trade_Bonus_Socks": "One pair of socks enclosed. Sent without confirming the size.",
     "IGUI_OA_Trade_Bonus_Cards": "One deck of cards enclosed. Count did not match at inspection.",
