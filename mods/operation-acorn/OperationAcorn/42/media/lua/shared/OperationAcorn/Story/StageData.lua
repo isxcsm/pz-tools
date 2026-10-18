@@ -14,7 +14,8 @@
 --             squares are free in the room (a desk of two squares, a radio on it); `more` (as tiles) goes with them
 --             where it fits too; `fewer` (a row): its first tiles down to that many where the row does not fit (`on`: a
 --             radio among the tiles is left on, its static playing while nothing is on air); `count` copies, each
---             where it fits. A room a set goes to is cleared of its furniture first (the team made room).
+--             where it fits; `top`: its first tile's top takes the room's `piece` with `top` (a desk). A room a set goes
+--             to is cleared of its furniture first (the team made room).
 --   line      { sprite, step = { x, y }, length } on open ground: a row of one sprite (a sandbag wall), gaps where taken
 --   item      { type | types, count } on the floor of the room (outdoors: about the spot)
 --   vehicle   { script, zones, open = a door part id or a list, battery = 0 to 1, fuel = 0 to 1, key (in the glove
@@ -36,8 +37,8 @@
 --             sound: zombies do not hear it
 --   corpse    { outfit, key, count } bodies in the room
 --   blood     { count } splats on the room's floor
---   piece     { key, floor } the mission's own item (its piece `key`) in a container of the room (`floor`: on its
---             floor), else on its floor; outdoors on the ground
+--   piece     { key, floor, top } the mission's own item (its piece `key`) in a container of the room (`floor`: on its
+--             floor; `top`: on the top of the room's set with `top`), else on its floor; outdoors on the ground
 --   zombies   { outfit, female, count, look = "fakeDead" | "sitting" | nil, wake = an event (Stage.event), stagger
 --             = seconds between the ones it wakes, during = a span (Stage.progress) they wake across } in the room,
 --             made once the player is near
@@ -174,8 +175,8 @@ StageData.gym = { pieces = {
     { kind = "item", at = "yard", count = 4, types = { "Base.Suitcase", "Base.Bag_DuffelBag", "Base.Suitcase" } },
     { kind = "item", at = "yard", count = 3, types = { "Base.Jacket_Black", "Base.JacketLong_Random", "Base.Notebook" } },
     { kind = "lockout" },
-    { kind = "set", at = "big", tiles = DESK, more = CHAIR_ROW },
-    { kind = "piece", at = "big", key = "A" },
+    { kind = "set", at = "big", tiles = DESK, more = CHAIR_ROW, top = true },
+    { kind = "piece", at = "big", key = "A", top = true },
     { kind = "set", at = "other", count = 4, tiles = STRETCHER },
     { kind = "item", at = "other", count = 4,
       types = { "Base.SleepingBag_Green", "Base.SleepingBag_BluePlaid", "Base.SleepingBag_Cheap_Blue" } },

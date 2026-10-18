@@ -25,8 +25,15 @@ local OA = OperationAcorn
 local StageGame = {}
 OA.StageGame = StageGame
 
+-- The site's building: the one whose corner is the site's key. A basement is a building of its own, under the one above
+-- it and often reaching past it: the point's building with a room on the site's ground floor first, then any whose box
+-- holds the point (getBuildingAtRelax gives the first of the list, the basement as well as the house).
 local function defAt(site)
-    return getWorld():getMetaGrid():getBuildingAtRelax(math.floor(site.x), math.floor(site.y))
+    local grid = getWorld():getMetaGrid()
+    local x, y = math.floor(site.x), math.floor(site.y)
+    local def = grid:getBuildingAt(x, y, math.max(site.z1 or 0, 0))
+    if def and (def:getX() .. "," .. def:getY()) == site.key then return def end
+    return def or grid:getBuildingAtRelax(x, y)
 end
 
 -- Whether the box's four corners are loaded (the loaded squares are one block round the player: the box is too).
@@ -565,7 +572,15 @@ function StageGame.set(ctx, p)
     end
     local placed = false
     for _ = 1, p.count or 1 do
-        if StageGame.setOnce(p, anchors) then placed = true end
+        local first = StageGame.setOnce(p, anchors)
+        if first then
+            placed = true
+            -- `top`: its first tile's top takes the room's piece asked there (the roll on the reception desk)
+            if p.top and first ~= true and not (ctx.tops and ctx.tops[p.at]) then
+                ctx.tops = ctx.tops or {}
+                ctx.tops[p.at] = first
+            end
+        end
     end
     return placed or nil
 end
@@ -595,10 +610,12 @@ function StageGame.setOnce(p, anchors)
     end
     if #fits == 0 then return nil end
     local a = fits[OA.random(1, #fits)]
+    local first
     for _, t in ipairs(tiles) do
-        put(c:getGridSquare(a:getX() + t[1], a:getY() + t[2], a:getZ()), t[3], p.on)
+        local obj = put(c:getGridSquare(a:getX() + t[1], a:getY() + t[2], a:getZ()), t[3], p.on)
+        first = first or obj
     end
-    return true
+    return first or true
 end
 
 -- A row of one sprite on open ground: from the site's middle moved by (dx, dy), `length` squares along `step`
@@ -1108,10 +1125,12 @@ function StageGame.piece(ctx, p)
     if not (def or outdoors(p)) then return nil end
     for _, it in ipairs(ctx.m.items or {}) do
         if it.key == p.key and it.staged then
-            local done
-            if def then
+            -- on the top of the room's set when it asks for it (the roll on the reception desk)
+            local top = p.top and ctx.tops and ctx.tops[p.at]
+            local done = top and OA.StoryGame.placeOnSurface(ctx.record, ctx.m, it, top)
+            if not done and def then
                 done = OA.StoryGame.placeInRoom(ctx.record, ctx.m, it, def, p.floor)
-            else
+            elseif not done then
                 done = OA.StoryGame.placeOnSquare(ctx.record, ctx.m, it, squareFor(ctx, p))
             end
             if done then it.staged = nil end

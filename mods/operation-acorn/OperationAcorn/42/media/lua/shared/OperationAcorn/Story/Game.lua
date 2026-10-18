@@ -64,9 +64,12 @@ local function keyOf(def)
     return tostring(def:getX()) .. "," .. tostring(def:getY())
 end
 
--- The key of the building at a square (or touching it), or nil.
+-- The key of the building at a square (or touching it), or nil: the one with a room on the ground floor there first (a
+-- basement under a house is a building of its own, and getBuildingAtRelax gives whichever comes first).
 function Game.buildingKeyAt(x, y)
-    local def = getWorld():getMetaGrid():getBuildingAtRelax(math.floor(x), math.floor(y))
+    local grid = getWorld():getMetaGrid()
+    x, y = math.floor(x), math.floor(y)
+    local def = grid:getBuildingAt(x, y, 0) or grid:getBuildingAtRelax(x, y)
     return def and keyOf(def) or nil
 end
 
@@ -80,7 +83,7 @@ local function plainSite(b)
     local names = {}
     local rooms = b:getRooms()
     for i = 0, rooms:size() - 1 do names[#names + 1] = rooms:get(i):getName() or "" end
-    return OA.Places.plain(names)
+    return OA.Places.plain(names), OA.Places.storesOnly(names)
 end
 
 -- The buildings in the band around ax, ay that a story site may be (Places.pickSite): not a cellar, not a shed, a
@@ -96,10 +99,13 @@ function Game.sitesInBand(ax, ay, lo, hi, skip)
         local d = math.sqrt(dx * dx + dy * dy)
         if d >= lo and d <= hi and not b:isBasement() and b:getArea() >= MIN_AREA then
             local key = keyOf(b)
-            if not skip[key] and plainSite(b) then
+            local plain, stores = false, false
+            if not skip[key] then plain, stores = plainSite(b) end
+            if plain then
                 local info = infoOf(b)
                 info.key, info.dist = key, d
                 info.area, info.rooms, info.home = b:getArea(), b:getRoomsNumber(), b:containsRoom("bedroom")
+                info.stores = stores
                 list[#list + 1] = info
             end
         end
@@ -457,8 +463,8 @@ local function nearFreeSquare(x, y, z)
     return c:getGridSquare(x, y, z)
 end
 
-local function dropOnFloor(sq, item)
-    local wi = sq:AddWorldInventoryItem(item, 0.2 + OA.randomFloat(0, 0.6), 0.2 + OA.randomFloat(0, 0.6), 0)
+local function dropOnFloor(sq, item, z)
+    local wi = sq:AddWorldInventoryItem(item, 0.2 + OA.randomFloat(0, 0.6), 0.2 + OA.randomFloat(0, 0.6), z or 0)
     if wi and wi.getWorldItem and wi:getWorldItem() then
         OA.try("game: keeping the item in the world", function() wi:getWorldItem():setIgnoreRemoveSandbox(true) end)
     end
@@ -579,6 +585,17 @@ function Game.placeOnSquare(record, m, it, sq)
     local item = newItem(record, m, it)
     if not item then return true end
     dropOnFloor(sq, item)
+    finish(record, m, it, sq)
+    return true
+end
+
+-- Puts the piece on an object's top (a desk a stage set), as the game lays a thing put on a table. True when done.
+function Game.placeOnSurface(record, m, it, object)
+    local sq = object and object:getSquare()
+    if not sq then return false end
+    local item = newItem(record, m, it)
+    if not item then return true end
+    dropOnFloor(sq, item, object:getSurfaceOffsetNoTable() / 96)
     finish(record, m, it, sq)
     return true
 end

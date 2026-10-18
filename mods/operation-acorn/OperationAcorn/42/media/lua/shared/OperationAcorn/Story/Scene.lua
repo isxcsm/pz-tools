@@ -453,8 +453,9 @@ function Scene.minute(record)
                 end
                 if not m.scene.built then Scene.build(record, m, x, y) end
             end
-            -- a staged building come into sight: the line the circle's title left for it
-            if m.scene.sight and not said and siteDistance(m.site, x, y) <= Scene.SIGHT then
+            -- a staged building come into sight, its stage in place (a large building's waits for its far side to
+            -- load): the line the circle's title left for it
+            if m.scene.sight and not said and m.stage.placed and siteDistance(m.site, x, y) <= Scene.SIGHT then
                 m.scene.sight = nil
                 local id, ctx = Scene.arrivalLine(record, m, g.isNight(), 0)
                 if id then g.say(record, id, ctx) end

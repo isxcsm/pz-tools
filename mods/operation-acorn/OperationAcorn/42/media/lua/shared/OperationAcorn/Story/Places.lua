@@ -117,6 +117,19 @@ for _, name in ipairs({
     "barn", "farmstorage", "shed",
 }) do Places.PLAIN_ROOMS[name] = true end
 
+-- The rooms of a building only things were kept in: a row of lock-up garages, a shed, a barn. Such a building is no
+-- post, clinic or shelter (Places.pickSite takes it last): no one was taken in there.
+Places.STORE_ROOMS = { garage = true, garagestorage = true, storage = true, storageunit = true, shed = true,
+    barn = true, farmstorage = true }
+
+-- Whether every room of a building (names, a list) is a STORE_ROOMS one.
+function Places.storesOnly(names)
+    for _, name in ipairs(names) do
+        if not Places.STORE_ROOMS[name] then return false end
+    end
+    return #names > 0
+end
+
 -- Whether a building is plain: every room of it (names, a list) is a plain one.
 function Places.plain(names)
     for _, name in ipairs(names) do
@@ -127,7 +140,7 @@ end
 
 -- A story site among the map's buildings (SCENES.md 5 '장소 고르기'): the authorities took any building for a post, a
 -- clinic, a shelter. `list` is the buildings that may be used, all in the band: { x, y, area, rooms, home (a house: it
--- has a bedroom), dist (from the base) }. `want`:
+-- has a bedroom), stores (Places.storesOnly: lock-ups, a shed; taken last), dist (from the base) }. `want`:
 --   "public"  a public building (a shop, a church, a warehouse, an office) of PUBLIC_ROOMS rooms or more, else a
 --             house (its rooms: an inner one to lock, a hall), else a smaller public one (a garage of one room has no
 --             room for a stage's roles);
@@ -152,16 +165,18 @@ end
 
 function Places.pickSite(list, want, int)
     int = int or randomInt
-    local public, roomy, homes = {}, {}, {}
+    local public, roomy, homes, stores = {}, {}, {}, {}
     for i, b in ipairs(list) do
         if b.home then
             homes[#homes + 1] = i
+        elseif b.stores then
+            stores[#stores + 1] = i
         else
             public[#public + 1] = i
             if (b.rooms or 0) >= Places.PUBLIC_ROOMS then roomy[#roomy + 1] = i end
         end
     end
-    if want == "largest" then return largestOf(list, public) or largestOf(list, homes) end
+    if want == "largest" then return largestOf(list, public) or largestOf(list, homes) or largestOf(list, stores) end
     if want == "near" or want == "far" then
         if #homes == 0 then return anyOf(public, int) end
         table.sort(homes, function(a, b) return list[a].dist < list[b].dist end)
@@ -169,7 +184,7 @@ function Places.pickSite(list, want, int)
         local from = want == "near" and 1 or #homes - third + 1
         return homes[int(from, from + third - 1)]
     end
-    return anyOf(roomy, int) or anyOf(homes, int) or anyOf(public, int)
+    return anyOf(roomy, int) or anyOf(homes, int) or anyOf(public, int) or anyOf(stores, int)
 end
 
 -- How far the map circle's centre may be from the place, of the radius: the place is anywhere in the circle but its

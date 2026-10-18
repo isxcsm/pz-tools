@@ -106,6 +106,20 @@ test("the largest site is the largest public building, else the largest house", 
     eq(P.pickSite({ site(100, 50, 1, true), site(200, 70, 1, true) }, "largest"), 2)
 end)
 
+test("a building of lock-ups or sheds alone is taken last: no one was taken in there", function()
+    eq(P.storesOnly({ "garage", "garage", "storageunit" }), true)
+    eq(P.storesOnly({ "garage", "office" }), false)
+    eq(P.storesOnly({}), false)
+    local lockups = site(150, 900, 12, false)
+    lockups.stores = true
+    local list = { lockups, site(100, 50, 1, false), site(200, 300, 2, true) }
+    eq(P.pickSite(list, "largest"), 2, "a smaller public one before the larger lock-ups")
+    eq(P.pickSite({ lockups, site(200, 300, 2, true) }, "largest"), 2, "a house before them")
+    eq(P.pickSite({ lockups }, "largest"), 1, "taken when there is nothing else")
+    local int = rng(3)
+    for _ = 1, 20 do eq(P.pickSite({ lockups, site(200, 300, 2, true) }, "public", int), 2) end
+end)
+
 test("the near and far houses come from the inner and outer third of the band's houses", function()
     local list = {}
     for i = 1, 9 do list[i] = site(i * 100, 50, 2, true) end

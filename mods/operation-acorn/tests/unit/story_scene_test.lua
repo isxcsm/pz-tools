@@ -255,7 +255,7 @@ test("a staged story mission's own line waits on entering until its building is 
     record.trade = { stage = 3, milestones = 0, credits = 0, trust = 0 }
     local m = mission(record, "farm")
     m.story, m.chosen = "observation", "b"
-    m.stage = { kept = true }
+    m.stage = { kept = true, placed = false }
     m.site = { x = 100, y = 100, x1 = 95, y1 = 95, x2 = 105, y2 = 105 }
     m.scene = Scene.plan(record, m, 0, seq({}))
     g.px, g.py = 150, 130
@@ -267,6 +267,9 @@ test("a staged story mission's own line waits on entering until its building is 
     Scene.minute(record)
     eq(OA.Comms.section(record).played.P3b_enter, nil, "21 squares from its box")
     g.px, g.py = 124, 100
+    Scene.minute(record)
+    eq(OA.Comms.section(record).played.P3b_enter, nil, "its stage not in place yet (its far side not loaded)")
+    m.stage.placed = true
     Scene.minute(record)
     truthy(OA.Comms.section(record).played.P3b_enter, "said once the building is in sight")
     eq(m.scene.sight, nil)
