@@ -203,6 +203,7 @@ local function addMachine(kind, x, y)
         table.insert(obj.containers, c)
     end
     obj.mod[Data.KEY] = state
+    obj.mod[Data.ID_KEY] = state.id
     table.insert(sq.objects, obj)
     local reg = OA.Store.world("machines")
     reg.next = (reg.next or 1) + 1
@@ -242,6 +243,21 @@ local function setup()
     sounds = {}
     halo = {}
     nextId = 1
+    -- the extension API's objects.byData over the fake squares: the object whose modData key is the value, false for a
+    -- loaded square without one, "unloaded" for a square that is not there
+    PZExtAPI = { version = OA.API_VERSION, client = function() return "h" end, objects = { byData = function(key, where)
+        local found = {}
+        for i = 1, #where, 4 do
+            local sq = squares[where[i] .. "," .. where[i + 1] .. "," .. where[i + 2]]
+            local hit = "unloaded"
+            if sq then hit = false end
+            for _, obj in ipairs(sq and sq.objects or {}) do
+                if obj.mod[key] == where[i + 3] then hit = obj break end
+            end
+            found[#found + 1] = hit
+        end
+        return found
+    end } }
     getCell = function()
         return { getGridSquare = function(self, x, y, z) return squares[x .. "," .. y .. "," .. z] end }
     end

@@ -541,3 +541,77 @@ test("without the API's timers the jobs run on one OnTick handler, as before", f
     eq(ran, 2)
     Pulse.enable(false)
 end)
+
+-- ---- the alarms: the cars and the entries asked of the API ---------------------------------------------------------
+
+test("the alarm job asks the API for the cars within reach and the doors and windows round the character", function()
+    local Senses = loadSenses()
+    standIns()
+    recordWith({ alarm = 1 })
+    local p = player(100.5, 100.5, 0)
+    local said = {}
+    p.Say = function(_, text) said[#said + 1] = text end
+    getPlayer = function() return p end
+    -- an alarmed car 3 squares away, one out of its reach, an alarmed house the character stands in
+    local function outlined()
+        local o = { on = false }
+        o.setOutlineHighlightCol = function() end
+        o.setOutlineHighlight = function(_, _, on) o.on = on end
+        return o
+    end
+    local car, far = outlined(), outlined()
+    car.getX, car.getY, car.getZ, car.getId = function() return 103.5 end, function() return 100.5 end,
+        function() return 0 end, function() return 7 end
+    far.getX, far.getY, far.getZ, far.getId = function() return 130.5 end, function() return 100.5 end,
+        function() return 0 end, function() return 8 end
+    local door, windowOfOther = outlined(), outlined()
+    door.getSquare, windowOfOther.getSquare = function() return "sq1" end, function() return "sq2" end
+    local def = { isAlarmed = function() return true end, getX = function() return 95 end, getY = function() return 95 end,
+        getW = function() return 10 end, getH = function() return 10 end, getID = function() return 1 end }
+    local calm = { isAlarmed = function() return false end }
+    OA.Upgrades.Actions.carAlarmed = function(v) return v == car or v == far end
+    OA.Upgrades.Actions.entryBuilding = function(sq, obj)
+        return { getDef = function() return obj == door and def or calm end }
+    end
+    getWorld = function()
+        return { getMetaGrid = function()
+            return { getBuildingsIntersecting = function(_, _, _, _, _, list) list:add(def) end }
+        end }
+    end
+    ArrayList = { new = function()
+        local items = {}
+        return { clear = function() items = {} end, add = function(_, d) items[#items + 1] = d end,
+            size = function() return #items end, get = function(_, i) return items[i + 1] end }
+    end }
+    local asked = { vehicles = {}, find = {} }
+    PZExtAPI = { version = 1, client = function() return {} end,
+        vehicles = { near = function(x, y, z, r)
+            asked.vehicles[#asked.vehicles + 1] = { x = x, y = y, z = z, r = r }
+            return { car, far }
+        end },
+        objects = { find = function(area, match)
+            asked.find[#asked.find + 1] = { area = area, match = match }
+            return { door, windowOfOther }
+        end } }
+    OA.Upgrades.Pulse.enable(true)
+    advance(0)
+    local v = asked.vehicles[1]
+    eq(v.x, 100.5); eq(v.y, 100.5); eq(v.z, 0)
+    eq(v.r, OA.Upgrades.Sense.ALARM_CAR + math.max(OA.Upgrades.Sense.ALARM_LEAVE, OA.Upgrades.Sense.ALARM_NEAR))
+    local a = asked.find[1].area
+    eq(a.x1, 96); eq(a.x2, 104); eq(a.y1, 96); eq(a.y2, 104); eq(a.z, 0)
+    eq(asked.find[1].match.class[1], "IsoDoor")
+    eq(asked.find[1].match.class[2], "IsoWindow")
+    eq(car.on, true, "a car near, alarmed, is outlined")
+    eq(far.on, false, "one beyond the reach is not")
+    eq(door.on, true, "a door of the alarmed house is outlined")
+    eq(windowOfOther.on, false, "one of a house that is not alarmed is not")
+    eq(#said, 1, "the nearest alarm is told")
+    advance(1000)
+    eq(#asked.find, 2, "asked again each second")
+    eq(#said, 2, "one a second: the house after the car")
+    advance(1000)
+    eq(#said, 2, "each told once while near")
+    PZExtAPI = nil
+    OA.Upgrades.Pulse.enable(false)
+end)

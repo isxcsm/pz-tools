@@ -45,8 +45,8 @@ end
 
 function ISOAPlaceCursor:isValid(square)
     if not square or not OA.inInventory(self.item, self.character) then return false end
-    if self.kind == Objects.DELIVERY_BOX then return Objects.clearSquare(square, nil, self.cache) end
-    return Objects.free(square)
+    if self.kind == Objects.DELIVERY_BOX then return Objects.isClear(square) end
+    return Objects.isFree(square)
 end
 
 -- The squares around the box's that hold a building or a tree (the clearance a helicopter needs), found once for each
@@ -54,7 +54,6 @@ end
 function ISOAPlaceCursor:blockersAround(square)
     if self.blockerKey == square then return self.blockers end
     self.blockerKey = square
-    self.cache = {}
     local blockers = {}
     local x0, y0 = square:getX(), square:getY()
     local r = Objects.CLEAR_RADIUS
@@ -105,7 +104,6 @@ function ISOAPlaceCursor:new(character, kind, item)
     o.kind = kind
     o.item = item
     o.facing = "S"
-    o.cache = {}
     o.skipBuildAction = true
     o.noNeedHammer = true
     o.dragNilAfterPlace = true

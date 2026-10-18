@@ -58,8 +58,8 @@ ISOAPlaceThing = base("ISOAPlaceThing", 150)
 function ISOAPlaceThing:isValid()
     local square = squareOf(self)
     if not square or not OA.inInventory(self.item, self.character) then return false end
-    if self.kind == Objects.DELIVERY_BOX then return Objects.clearSquare(square) end
-    return Objects.free(square)
+    if self.kind == Objects.DELIVERY_BOX then return Objects.isClear(square) end
+    return Objects.isFree(square)
 end
 
 function ISOAPlaceThing:complete()

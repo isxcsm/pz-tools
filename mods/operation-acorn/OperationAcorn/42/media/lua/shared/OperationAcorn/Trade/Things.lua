@@ -289,13 +289,21 @@ end
 -- A box that is an item (carried, or in its crate) is left alone.
 function Things.reconcile(record)
     local gone = {}
+    local boxes, where = {}, {}
     for _, box in ipairs(Boxes.all(record)) do
         if (box.state == "placed" or box.state == "sealed") and box.x then
-            local square = Objects.square(box.x, box.y, box.z)
-            if square and not Objects.find(square, Objects.DELIVERY_BOX, box.id) then
-                gone[#gone + 1] = { kind = Objects.DELIVERY_BOX, x = box.x, y = box.y, z = box.z, box = box.id,
-                    data = { [Objects.OWNER] = record.id, [Objects.BOX] = box.id } }
-            end
+            boxes[#boxes + 1] = box
+            local n = #where
+            where[n + 1], where[n + 2], where[n + 3], where[n + 4] = box.x, box.y, box.z, box.id
+        end
+    end
+    if #boxes == 0 then return 0 end
+    -- (for each: the object with its id, false when its square is loaded and none is there, "unloaded" when it is not)
+    local found = OA.api().objects.byData(Objects.BOX, where)
+    for i, box in ipairs(boxes) do
+        if found[i] == false then
+            gone[#gone + 1] = { kind = Objects.DELIVERY_BOX, x = box.x, y = box.y, z = box.z, box = box.id,
+                data = { [Objects.OWNER] = record.id, [Objects.BOX] = box.id } }
         end
     end
     for _, thing in ipairs(gone) do Things.destroyed(thing) end

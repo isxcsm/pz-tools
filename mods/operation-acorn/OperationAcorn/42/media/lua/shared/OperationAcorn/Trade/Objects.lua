@@ -66,14 +66,6 @@ function Objects.kindOf(object)
     return nil
 end
 
--- The objects of a square as a plain list.
-function Objects.list(square)
-    local result = {}
-    local objects = square:getObjects()
-    for i = 0, objects:size() - 1 do result[#result + 1] = objects:get(i) end
-    return result
-end
-
 -- The first object of a kind on a square (and, when given, with the box id).
 function Objects.find(square, kind, boxId)
     if not square then return nil end
@@ -87,83 +79,130 @@ function Objects.find(square, kind, boxId)
     return nil
 end
 
--- Whether a square is a place a box or a terminal can stand on: loaded, a solid floor, nothing in the way. Returns
--- true, or false and a reason (IGUI_OA_Trade_Reason_<reason>).
+-- The world queries (the extension API: squares.nearest). Their conditions are constants: the API reads a table once
+-- and keeps what it read with the table, so a table used again costs nothing to read.
+local function squares() return OA.api().squares end
+
+-- A new condition table: `base` and `more`.
+local function with(base, more)
+    local made = {}
+    for k, v in pairs(base) do made[k] = v end
+    for k, v in pairs(more) do made[k] = v end
+    return made
+end
+
+-- A square a thing can stand on: a solid floor out of the water, nothing in the way (no vehicle either), and nothing of
+-- this mod's (an object with a kind) on it.
+local FREE = { free = true, solidFloor = true, water = false, vehicle = false, noObjectData = Objects.KIND }
+-- ... and no one (a player, a zombie) on it: a crate coming down does not land on anyone.
+local FREE_EMPTY = with(FREE, { moving = false })
+-- A square that can be come up to: one of the eight round it is free (a crate dropped among others, every side
+-- taken, could not be opened).
+local REACHABLE = { around = FREE }
+-- A free, empty square beside a spot that can be come up to; outdoors if possible.
+local BESIDE = with(FREE_EMPTY, REACHABLE)
+local BESIDE_OUTSIDE = with(BESIDE, { outside = true })
+-- Squares with no building (nor a room) and no tree, and the parts of that, to tell which one fails.
+local OPEN_GROUND = { building = "none", room = "none", tree = false }
+local NO_BUILDING = { building = "none", room = "none" }
+local NO_TREE = { tree = false }
+local ANY = {}
+
+-- The clearances a box is looked for with: the full one first, then less (a crowded town has few wide places).
+local CLEARANCES = { Objects.CLEAR_RADIUS, 2, 1, 0 }
+
+-- Outdoors, free, reachable, and open ground within `radius` tiles (all of it loaded); `empty` adds that no one stands
+-- on it. By radius, made once.
+local clearing = {}
+local function clearFilter(radius, empty)
+    local made = clearing[radius]
+    if not made then
+        local base = with(FREE, { outside = true, around = FREE, clear = { r = radius, filter = OPEN_GROUND } })
+        made = { base, with(base, { moving = false }) }
+        clearing[radius] = made
+    end
+    return made[empty and 2 or 1]
+end
+
+-- The parts of a clearance by radius, made once: unloaded squares, then a building, then a tree.
+local parting = {}
+local function clearParts(radius)
+    local made = parting[radius]
+    if not made then
+        made = {
+            { why = "notLoaded", filter = { clear = { r = radius, filter = ANY } } },
+            { why = "building", filter = { clear = { r = radius, filter = NO_BUILDING } } },
+            { why = "tree", filter = { clear = { r = radius, filter = NO_TREE } } },
+        }
+        parting[radius] = made
+    end
+    return made
+end
+
+-- Whether a loaded square meets a condition table (one call).
+local function met(square, filter)
+    return squares().nearest({ list = { square:getX(), square:getY(), square:getZ() } }, filter) ~= nil
+end
+
+-- Whether a square is a place a box or a terminal can stand on: loaded, a solid floor, nothing in the way.
+function Objects.isFree(square)
+    return square ~= nil and met(square, FREE)
+end
+
+-- Why a loaded square is not free (IGUI_OA_Trade_Reason_<reason>), in the order the game would stop at it.
+local function whyNotFree(square)
+    if square:isWaterSquare() then return "water" end
+    if not square:TreatAsSolidFloor() then return "floor" end
+    if square:isVehicleIntersecting() or square:getVehicleContainer() ~= nil then return "vehicle" end
+    if not square:isFree(false) then return "blocked" end
+    return "occupied"
+end
+
+-- Like isFree: true, or false and a reason (IGUI_OA_Trade_Reason_<reason>).
 function Objects.free(square)
     if not square then return false, "notLoaded" end
-    if square:isWaterSquare() then return false, "water" end
-    if not square:TreatAsSolidFloor() then return false, "floor" end
-    if square:isVehicleIntersecting() then return false, "vehicle" end
-    if not square:isFree(false) then return false, "blocked" end
-    for _, object in ipairs(Objects.list(square)) do
-        if Objects.kindOf(object) then return false, "occupied" end
-    end
-    return true
+    if met(square, FREE) then return true end
+    return false, whyNotFree(square)
 end
 
--- Whether a square can be come up to: one of the eight round it is free (a crate dropped among others, every side
--- taken, could not be opened).
+-- Whether a square can be come up to: one of the eight round it is free.
 function Objects.reachable(square)
-    local c = cell()
-    local x, y, z = square:getX(), square:getY(), square:getZ()
-    for dx = -1, 1 do
-        for dy = -1, 1 do
-            if (dx ~= 0 or dy ~= 0) and Objects.free(c:getGridSquare(x + dx, y + dy, z)) then return true end
-        end
-    end
-    return false
+    return met(square, REACHABLE)
 end
 
--- Whether a square holds a building or a tree.
-local function buildingOrTree(square)
-    if square:getBuilding() ~= nil or square:getRoom() ~= nil then return "building" end
-    if square:HasTree() then return "tree" end
-    return nil
+-- Whether a delivery box can stand on a square: outdoors with nothing above, on the ground floor, a free square that
+-- can be come up to, and no building or tree within `radius` tiles (DESIGN 9: room for a helicopter).
+function Objects.isClear(square, radius)
+    if not square or square:getZ() ~= 0 then return false end
+    return met(square, clearFilter(radius or Objects.CLEAR_RADIUS))
 end
 
--- Whether a delivery box can stand on a square: outdoors with nothing above, on the ground floor, a free square,
--- and no building or tree within `radius` tiles (DESIGN 9: room for a helicopter). `cache` (a table the caller keeps
--- for one search) remembers what a square near held. Returns true, or false and a reason.
-function Objects.clearSquare(square, radius, cache)
+-- Like isClear: true, or false and a reason (told only once it is not clear, by the parts of the conditions).
+function Objects.clearSquare(square, radius)
     radius = radius or Objects.CLEAR_RADIUS
     if not square then return false, "notLoaded" end
     if square:getZ() ~= 0 then return false, "level" end
+    if met(square, clearFilter(radius)) then return true end
     if not square:isOutside() then return false, "inside" end
     local ok, why = Objects.free(square)
     if not ok then return false, why end
     if not Objects.reachable(square) then return false, "blocked" end
-    local cx, cy = square:getX(), square:getY()
-    local c = cell()
-    for dx = -radius, radius do
-        for dy = -radius, radius do
-            local key = (cx + dx) * 100000 + (cy + dy)
-            local near = cache and cache[key]
-            if near == nil then
-                local s = c:getGridSquare(cx + dx, cy + dy, 0)
-                if not s then
-                    near = "notLoaded"
-                else
-                    near = buildingOrTree(s) or false
-                end
-                if cache then cache[key] = near end
-            end
-            if near then return false, near end
-        end
+    for _, part in ipairs(clearParts(radius)) do
+        if not met(square, part.filter) then return false, part.why end
     end
-    return true
+    return false, "blocked"
 end
 
--- The nearest square to x, y that passes `test(square, cache)`, searching ring by ring up to maxRadius tiles. Returns
--- the square and how far it is, or nil.
+-- The nearest square to x, y that passes `test(square)`, searching ring by ring up to maxRadius tiles. Returns the
+-- square and how far it is, or nil. (For the dev tools and the in-game tests, which ask with a test of their own.)
 function Objects.search(x, y, z, maxRadius, test)
     local c = cell()
-    local cache = {}
     for r = 0, maxRadius do
         for dx = -r, r do
             for dy = -r, r do
                 if math.max(math.abs(dx), math.abs(dy)) == r then
                     local square = c:getGridSquare(x + dx, y + dy, z)
-                    if square and test(square, cache) then return square, r end
+                    if square and test(square) then return square, r end
                 end
             end
         end
@@ -171,20 +210,18 @@ function Objects.search(x, y, z, maxRadius, test)
     return nil
 end
 
--- Whether no one (a player, a zombie) stands on a square: a crate coming down does not land on anyone.
-function Objects.nobody(square)
-    local moving = square:getMovingObjects()
-    return moving == nil or moving:isEmpty()
+-- The nearest free square to x, y on level z within maxRadius tiles, no one standing on it. Returns the square and how
+-- far it is, or nil.
+function Objects.findFree(x, y, z, maxRadius)
+    return squares().nearest({ x = x, y = y, z = z, to = maxRadius }, FREE_EMPTY)
 end
 
--- A clear spot for a box near x, y: the full clearance first, then less (a crowded town has few wide places). `empty`:
--- only a square no one stands on (where a crate comes down).
+-- A clear spot for a box near x, y: the full clearance first, then less. `empty`: only a square no one stands on
+-- (where a crate comes down). Returns the square, the clearance and how far it is.
 function Objects.findClear(x, y, maxRadius, empty)
-    for _, clearance in ipairs({ Objects.CLEAR_RADIUS, 2, 1, 0 }) do
-        local square, r = Objects.search(x, y, 0, maxRadius or 30, function(square, cache)
-            if empty and not Objects.nobody(square) then return false end
-            return Objects.clearSquare(square, clearance, cache)
-        end)
+    local area = { x = x, y = y, z = 0, to = maxRadius or 30 }
+    for _, clearance in ipairs(CLEARANCES) do
+        local square, r = squares().nearest(area, clearFilter(clearance, empty))
         if square then return square, clearance, r end
     end
     return nil
@@ -193,15 +230,8 @@ end
 -- A free square beside a spot for the crate to come down on, no one standing on it and one beside it free: nearest,
 -- outdoors if possible.
 function Objects.findBeside(x, y, z, maxRadius)
-    local square = Objects.search(x, y, z, maxRadius or 4, function(square)
-        if not Objects.free(square) or not Objects.nobody(square) or not Objects.reachable(square) then return false end
-        return square:isOutside() and (x ~= square:getX() or y ~= square:getY())
-    end)
-    if square then return square end
-    return Objects.search(x, y, z, maxRadius or 4, function(square)
-        return Objects.free(square) and Objects.nobody(square) and Objects.reachable(square)
-            and (x ~= square:getX() or y ~= square:getY())
-    end)
+    local area = { x = x, y = y, z = z, from = 1, to = maxRadius or 4 }
+    return (squares().nearest(area, BESIDE_OUTSIDE)) or (squares().nearest(area, BESIDE))
 end
 
 -- Whether a terminal has power, as the game asks of any appliance (IsoObject.checkObjectPowered): a generator in
