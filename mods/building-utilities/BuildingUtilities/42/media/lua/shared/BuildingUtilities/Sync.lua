@@ -7,6 +7,7 @@ local Sync = {}
 BU.Sync = Sync
 
 function Sync.changed(panelId)
+    BU.Store.dataChanged()
     -- The box shows it in the world first (BU.PanelLook: its breaker, its power).
     local panel = panelId and BU.PanelLook and BU.Store.get(panelId)
     if panel then BU.PanelLook.show(panel) end

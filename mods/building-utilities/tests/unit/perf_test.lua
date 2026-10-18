@@ -292,3 +292,49 @@ test("taking a line away checks the tool when it is queued and completed, not ea
     truthy(BU.Links.get("u:" .. unit.id), "the line stays")
     BU.Costs.affords = affords
 end)
+
+test("a box's devices by part key are read once for what asks within a second, and again when anything they come of changes", function()
+    local api = TEST.api
+    twoRooms(api, "A")
+    api.buildingsByKey.A.objects = { power = { { x = 101, y = 101, z = 0, sprite = "lamp", type = "IsoObject", power = 0.01,
+        room = "west", roomId = "A-w" } } }
+    TEST.squares["101,101,0"] = { objects = {} }
+    local panel = Store.newPanel(102, 102, 0, "box")
+    local now = 5000000
+    getTimestampMs = function() return now end
+    local key = BU.thingKey(101, 101, 0, "lamp")
+    local function listings() return api.calls.objects or 0 end
+    local device = Panels.device(panel, "power", key)
+    truthy(device, "the lamp is the box's")
+    eq(Panels.device(panel, "power", key), device, "the same device")
+    Panels.device(panel, "power", "nothing")
+    eq(listings(), 1, "listed once")
+    -- told changed
+    Store.dataChanged()
+    Panels.device(panel, "power", key)
+    eq(listings(), 2, "a change told")
+    Store.ownersChanged()
+    Panels.device(panel, "power", key)
+    eq(listings(), 3, "an owner changed")
+    Store.linksChanged()
+    Panels.device(panel, "power", key)
+    eq(listings(), 4, "a link version")
+    panel.zone = { ["101,101,0"] = true }
+    Panels.device(panel, "power", key)
+    eq(listings(), 5, "a zone")
+    panel.tier = 2
+    Panels.device(panel, "power", key)
+    eq(listings(), 6, "a tier")
+    api.buildingsVersion = 2
+    Panels.device(panel, "power", key)
+    eq(listings(), 7, "the buildings")
+    Panels.device(panel, "power", key)
+    eq(listings(), 7, "and kept again")
+    -- and not past a second
+    now = now + 1000
+    Panels.device(panel, "power", key)
+    eq(listings(), 8, "a second later")
+    -- a device on a utility the box does not have is another list
+    Panels.device(panel, "water", key)
+    eq(Panels.device(panel, "power", key), Panels.device(panel, "power", key))
+end)

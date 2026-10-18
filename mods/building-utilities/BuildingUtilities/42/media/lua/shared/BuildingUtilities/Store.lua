@@ -97,7 +97,10 @@ function Store.data()
     return data
 end
 
-function Store.reload() kept = nil end
+function Store.reload()
+    kept = nil
+    Store.dataChanged()
+end
 Events.OnInitGlobalModData.Add(Store.reload)
 
 function Store.panels() return Store.data().panels end
@@ -141,6 +144,14 @@ local ownersVersion, ownersSeen, linksSeen, ownersOf, includedBy, attachedBy = 0
 
 -- A box's included or attached set changed (a device joined or left it).
 function Store.ownersChanged() ownersVersion = ownersVersion + 1 end
+function Store.ownersVersion() return ownersVersion end
+
+-- A change was told (Sync.changed on the server or alone, BU.onChanged on a client) or the save's data was read again:
+-- what is worked out of a box's data without counting a link version (its devices' states, its schedules) is not kept
+-- past it (not saved).
+local dataVersion = 0
+function Store.dataChanged() dataVersion = dataVersion + 1 end
+function Store.dataVersion() return dataVersion end
 
 local function owners()
     local panels = Store.panels()
