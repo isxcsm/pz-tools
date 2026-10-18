@@ -193,11 +193,25 @@ Data.ENTRIES = {
 Data.BY_ID = {}
 -- The briefings by the key their trigger names (Missions.briefOf).
 Data.BRIEFS = {}
+-- The entries timed by an earlier one, in the order of ENTRIES, each with its trigger parsed once: `afterRef` and
+-- `afterHours` ("after:<id>:<hours>"), or `nextdayRef` ("nextday:<id>"), the scene they wait on (Comms.update).
+Data.TIMED = {}
 for i, e in ipairs(Data.ENTRIES) do
     e.order = i
     Data.BY_ID[e.id] = e
     local key = string.match(e.trigger, "^brief:(.+)$")
     if key then Data.BRIEFS[key] = e.id end
+    local ref, hours = string.match(e.trigger, "^after:(%w+):(%d+)$")
+    if ref then
+        e.afterRef, e.afterHours = ref, tonumber(hours)
+        Data.TIMED[#Data.TIMED + 1] = e
+    else
+        ref = string.match(e.trigger, "^nextday:(%w+)$")
+        if ref then
+            e.nextdayRef = ref
+            Data.TIMED[#Data.TIMED + 1] = e
+        end
+    end
 end
 
 -- The field monologues of the story missions after the handover: one at each, on entering the circle, in turn; when

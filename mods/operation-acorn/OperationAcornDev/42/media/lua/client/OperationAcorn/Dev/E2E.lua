@@ -153,6 +153,7 @@ local function playBefore(r, from)
         local id = E2E.ORDER[i]
         if OTHER_OF[id] then
             s.dropped[id] = true
+            OA.Comms.changed()
         else
             local e = Data.BY_ID[id]
             OA.Comms.played(r, id, math.max(1, e and e.tier or 1), OA.hours() - 24)
@@ -688,13 +689,13 @@ function E2E.timers(r)
                 local after, h = string.match(e.trigger, "^after:(%w+):(%d+)$")
                 if after and c.played[after] then
                     h = tonumber(h)
-                    add("call_" .. e.id, c.played[after] + h - now, function() c.played[after] = now - h + lead end,
+                    add("call_" .. e.id, c.played[after] + h - now, function() c.played[after] = now - h + lead; OA.Comms.changed() end,
                         "call", e.id)
                 end
                 local nextday = string.match(e.trigger, "^nextday:(%w+)$")
                 if nextday and c.played[nextday] then
                     local left = OA.dayStart(OA.day(c.played[nextday]) + 1) - now
-                    add("call_" .. e.id, left, function() c.played[nextday] = now - 24 end, "call", e.id)
+                    add("call_" .. e.id, left, function() c.played[nextday] = now - 24; OA.Comms.changed() end, "call", e.id)
                 end
             end
         end
@@ -710,6 +711,7 @@ function E2E.timers(r)
                     for id, at in pairs(c.played) do
                         if at > now + lead - gap then c.played[id] = now + lead - gap end
                     end
+                    Comms.changed()
                 end, "call", e.id)
                 break
             end
