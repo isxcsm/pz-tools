@@ -106,10 +106,10 @@ final class LooksTest {
         var inked = new Looks.Shape();
         float[] ink = Looks.inkMap((x, y) -> x >= 10 && x < 30 && y >= 5 && y < 15 ? 255 : 0, 40, 20, 12345, inked);
         int middle = (9 * 40 + 20) * 4, corner = (5 * 40 + 10) * 4, out = (2 * 40 + 2) * 4;
-        check(near(inked.stroke, 3.825) && near(ink[middle], 0.6206623911857605) && near(ink[middle + 1], 0.3247954845428467)
-            && near(ink[middle + 2], 0.637246310710907) && near(ink[middle + 3], 0.6082073450088501) && near(ink[corner], 0.6968693137168884)
-            && near(ink[out], 0.6712638735771179) && near(ink[out + 1], 0.4476526081562042), "The ink map is not the page's");
-        // Ink that missed: single pixels well inside the letters (five of them here), none on the box's outermost pixels.
+        check(near(inked.stroke, 3.825) && near(ink[middle], 0.720457136631012) && near(ink[middle + 1], 0.3247954845428467)
+            && near(ink[middle + 2], 0.637246310710907) && near(ink[middle + 3], 0.6082073450088501) && near(ink[corner], 0.5853226780891418)
+            && near(ink[out], 0.5728212594985962) && near(ink[out + 1], 0.4476526081562042), "The ink map is not the page's");
+        // Ink that missed: single pixels well inside the letters (thirteen of them here), none on the box's outermost pixels.
         int missed = 0;
         boolean edge = false;
         for (int y = 0; y < 20; y++)
@@ -118,7 +118,7 @@ final class LooksTest {
                     missed++;
                     edge |= x < 11 || x >= 29 || y < 6 || y >= 14;
                 }
-        check(missed == 5 && !edge, "The ink map does not miss the page's pixels, or misses at the letters' edge");
+        check(missed == 13 && !edge, "The ink map does not miss the page's pixels, or misses at the letters' edge");
         Looks.impact(0.3, 1, hit);
         check(near(hit[1], 1) && near(hit[2], 1.0024960690237317) && near(hit[3], 0.9956318792084696) && near(hit[4] * 90, -0.1393785129067541)
             && near(hit[5], 0.0004320800003443182), "The impact's hit is not the page's");

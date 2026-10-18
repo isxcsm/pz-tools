@@ -110,8 +110,8 @@ final class Looks {
      * LINE_HIT of an impact's strength.
      */
     static final double INK_PATCHY = 0.28, INK_GLOSS = 0.45, INK_EMBOSS = 1, INK_RIPPLE = 1, INK_SHADOW = 1, LINE_HIT = 0.55;
-    /** Ink that missed: a pixel at least SPECK_FROM inside a letter, by chance SPECK (and up to SPECK_FIBRE more where the fibre is thin), is left SPECK_INK. */
-    static final double SPECK_FROM = 1.5, SPECK = 0.02, SPECK_FIBRE = 0.06, SPECK_INK = 0.08;
+    /** Ink that missed: a pixel at least SPECK_FROM inside a letter whose grit is over SPECK_AT (lower by up to SPECK_PATCH in some patches) is left SPECK_INK. */
+    static final double SPECK_FROM = 1.5, SPECK_AT = 0.82, SPECK_PATCH = 0.12, SPECK_INK = 0.08;
     private static final double[] FIBRE_AT = { 0.2, 1.4, 2.5 }, FIBRE_BY = { 0.4, 0.3, 0.2 };
 
     /** The looks drawn over a text's life. */
@@ -293,7 +293,7 @@ final class Looks {
     /**
      * A washed text's ink map, from its picture's alpha ({@code w} by {@code h}, rows from the top): four values 0 to 1 a pixel,
      * how much ink it took (a little more down a stroke's middle; thinner in patches and fine grain where the paper's
-     * grain and fibres held it back, and a pixel here and there inside a letter missed altogether; all kept to the pixel, so
+     * grain and fibres held it back, and small ragged pits of a pixel or three inside a letter missed altogether; all kept to the pixel, so
      * the grain is as sharp as the letters), the paper's fibre there, how late it dries and when its colour lifts (blotches of
      * the paper). It holds no shape: the letters' edge is the picture's own, so the ink is not thinned (and its colour not
      * paled) towards it. The strokes' half width (their widest's, in pixels) goes into {@code shape.stroke}.
@@ -324,11 +324,14 @@ final class Looks {
                 double v = 0.1 * hash(x, y, seed + 9);
                 for (int k = 0; k < 3; k++) v += FIBRE_BY[k] * vnoise((x * cos[k] + y * sin[k]) / 3, (y * cos[k] - x * sin[k]) / 0.6, seed + k);
                 double fibre = clamp((v - 0.15) / 0.7, 0, 1);
-                double bare = 1 - smoothstep(0.3, 0.62, fbm(x / (r * 1.4), y / (r * 1.4), seed + 23)) + 0.9 * (1 - smoothstep(0.15, 0.55, fibre));
+                double bare = 1 - smoothstep(0.3, 0.62, fbm(x / (r * 1.4), y / (r * 1.4), seed + 23)) + 0.3 * (1 - smoothstep(0.15, 0.55, fibre))
+                    + 0.6 * (1 - smoothstep(0.3, 0.6, vnoise(x / 3.5, y / 3.5, seed + 37)));
                 double reach = outside[index] ? 0 : Math.sqrt(deep[index]) - 0.5, middle = smoothstep(0, r, reach);
                 lay[index] = (float)((0.7 + 0.3 * middle) * (1 - Math.min(INK_PATCHY * bare, 0.95)));
-                // Where the ink missed: single pixels (more where the paper's fibre is thin), never at the letters' edge.
-                if (reach >= SPECK_FROM && hash(x, y, seed + 5) < SPECK + SPECK_FIBRE * (1 - smoothstep(0.15, 0.4, fibre))) lay[index] = (float)SPECK_INK;
+                // Where the ink missed: small ragged pits of a pixel or three (a noise of 2.4 pixels, the same every way, with grit in
+                // it; more of them in some patches of the paper), never at the letters' edge.
+                double grit = 0.7 * vnoise(x / 2.4, y / 2.4, seed + 31) + 0.3 * hash(x, y, seed + 5);
+                if (reach >= SPECK_FROM && grit > SPECK_AT - SPECK_PATCH * smoothstep(0.35, 0.7, fbm(x / (r * 1.6), y / (r * 1.6), seed + 43))) lay[index] = (float)SPECK_INK;
                 map[index * 4 + 1] = (float)fibre;
                 map[index * 4 + 2] = (float)smoothstep(0.2, 0.8, fbm(x / (r * 3.5), y / (r * 3.5), seed + 71));
                 map[index * 4 + 3] = (float)fbm(x / (r * 1.3), y / (r * 1.3), seed + 19);
