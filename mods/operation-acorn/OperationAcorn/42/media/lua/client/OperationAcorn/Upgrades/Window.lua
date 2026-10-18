@@ -342,6 +342,18 @@ local function glyph(el, name, cx, cy, size, c, a)
     texPx(el, tex, X(cx) - floor(px / 2), X(cy) - floor(px / 2), px, px, c, a)
 end
 
+-- A texture by its path (a node's icon, the capstones' seal), asked of the game once: the nodes draw them every frame.
+local pathTex = {}
+local function textureOf(path)
+    if path == nil then return nil end
+    local tex = pathTex[path]
+    if tex == nil then
+        tex = getTexture(path) or false
+        pathTex[path] = tex
+    end
+    return tex or nil
+end
+
 -- A node icon's pixel size for a design size: whole multiples of 8 pixels, never more than asked, from the 128 px
 -- pictures (shrunk by no more than about 2 on the screens the game runs at).
 local function iconPx(size)
@@ -1836,7 +1848,7 @@ function View:paintNode(el, item)
         local ipx = iconPx(item.w)
         if s ~= item.w then ipx = floor(ipx * s / item.w + 0.5) end
         local ix, iy = X(x + s / 2) - floor(ipx / 2), X(y + s / 2) - floor(ipx / 2)
-        texPx(el, getTexture(Data.SEALED_ICON[tree]), ix, iy, ipx, ipx, nil, 0.8)
+        texPx(el, textureOf(Data.SEALED_ICON[tree]), ix, iy, ipx, ipx, nil, 0.8)
         if hover > 0 then UI.fill(el, x, y, s, s, WHITE, Motion.HOVER_LIGHT * hover) end
         framePx(el, x, y, s, s, P.border, 0.45, 1, out)
         lockBadge(el, x, y, s)
@@ -1867,8 +1879,8 @@ function View:paintNode(el, item)
     local ipx = iconPx(item.w)
     if s ~= item.w then ipx = floor(ipx * s / item.w + 0.5) end
     local ix, iy = X(x + s / 2) - floor(ipx / 2), X(y + s / 2) - floor(ipx / 2)
-    texPx(el, getTexture((grey and node.iconGray) or node.icon), ix, iy, ipx, ipx, nil, grey and 0.8 or 1)
-    if lockA > 0 then texPx(el, getTexture(node.iconGray), ix, iy, ipx, ipx, nil, 0.8 * lockA) end
+    texPx(el, textureOf((grey and node.iconGray) or node.icon), ix, iy, ipx, ipx, nil, grey and 0.8 or 1)
+    if lockA > 0 then texPx(el, textureOf(node.iconGray), ix, iy, ipx, ipx, nil, 0.8 * lockA) end
     if hover > 0 then UI.fill(el, x, y, s, s, WHITE, Motion.HOVER_LIGHT * hover) end
     if n.treeLocked then
         framePx(el, x, y, s, s, P.border, 0.45, 1, out)
