@@ -136,9 +136,23 @@ function Dev.crateHere(parachute)
     return crate
 end
 
+-- A terminal's square counted as powered for the rest of the session (the window closes for want of power).
+local poweredAt = {}
+function Dev.powerAt(square)
+    if not square then return end
+    local Objects = OA.Trade.Objects
+    if not Dev.realPowered then
+        Dev.realPowered = Objects.powered
+        Objects.powered = function(sq, object)
+            if sq and poweredAt[sq:getX() .. "," .. sq:getY() .. "," .. sq:getZ()] then return true end
+            return Dev.realPowered(sq, object)
+        end
+    end
+    poweredAt[square:getX() .. "," .. square:getY() .. "," .. square:getZ()] = true
+end
+
 -- The terminal window opened at once: the terminal within reach (else a crude one put down beside the character),
 -- counted as powered for the rest of the session so the window does not close for want of power. Returns the window.
-local poweredAt = {}
 function Dev.openTerminal()
     local player = getPlayer()
     local Objects, Things = OA.Trade.Objects, OA.Trade.Things
@@ -157,14 +171,7 @@ function Dev.openTerminal()
             return nil
         end
     end
-    if not Dev.realPowered then
-        Dev.realPowered = Objects.powered
-        Objects.powered = function(square, object)
-            if square and poweredAt[square:getX() .. "," .. square:getY() .. "," .. square:getZ()] then return true end
-            return Dev.realPowered(square, object)
-        end
-    end
-    poweredAt[at:getX() .. "," .. at:getY() .. "," .. at:getZ()] = true
+    Dev.powerAt(at)
     say("terminal opened at", at:getX(), at:getY())
     return OA.Terminal.open(player, at:getX(), at:getY(), at:getZ())
 end

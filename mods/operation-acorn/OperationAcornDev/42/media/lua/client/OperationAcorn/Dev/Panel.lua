@@ -10,6 +10,7 @@ require "OperationAcorn/Titles"
 require "OperationAcorn/Machines/Machines"
 require "OperationAcorn/Dev/Dev"
 require "OperationAcorn/Dev/Features"
+require "OperationAcorn/Dev/E2E"
 local OA = OperationAcorn
 local Dev = OA.Dev
 local Panel = {}
@@ -385,7 +386,79 @@ local function effectsPage(page, ui)
     ui.hint(page, T("Fx_TakeHint"), n + 3)
 end
 
+-- ---- E2E (E2E-DEBUG.md) ---------------------------------------------------------------------------------------------
+
+local TIMER_ROWS = 8
+
+local function e2ePage(page, ui)
+    local E2E = Dev.E2E
+    ui.label(page, T("E2E_Beat"), ui.PAD, ui.row(1) + 2)
+    local items = {}
+    for _, b in ipairs(E2E.BEATS) do items[#items + 1] = { b.id .. "  " .. T("E2E_Name_" .. b.id), b.id } end
+    local beatBox = ui.combo(page, ui.PAD + 50, ui.row(1), 300, items)
+    local _, x = ui.button(page, T("E2E_Set"), ui.PAD + 360, ui.row(1), 0, function()
+        E2E.set(beatBox:getSelectedData())
+    end)
+    ui.button(page, T("E2E_Next"), x, ui.row(1), 0, function() E2E.next() end)
+    local info = ui.lines(page, 2, 4)
+    ui.heading(page, T("E2E_Moves"), 6)
+    local rows = ui.buttons(page, 7, {
+        { T("E2E_Terminal"), function() Dev.openTerminal() end },
+        { T("E2E_Fill"), function() E2E.fillBox() end },
+        { T("E2E_HeliNow"), function() E2E.heliNow() end },
+        { T("E2E_Supply"), function() E2E.supplyNow() end },
+        { T("E2E_First"), function() E2E.firstSupply() end },
+        { T("E2E_ToMission"), function() E2E.toMission() end },
+        { T("E2E_ToBase"), function() E2E.toBase() end },
+        { T("E2E_Morning"), function() E2E.morning() end },
+    })
+    local n = 7 + rows + 1
+    ui.heading(page, T("E2E_Timers", ui.num(E2E.LEAD * 60)), n)
+    local timerRows = {}
+    for i = 1, TIMER_ROWS do
+        local y = ui.row(n + i)
+        local label = ui.label(page, "", ui.PAD, y + 2)
+        local button = ui.button(page, T("E2E_Soon"), ui.PAD + 440, y, 70, function()
+            local t = E2E.timers()[i]
+            if t then E2E.timerSoon(t.id) end
+        end)
+        timerRows[i] = { label = label, button = button }
+    end
+
+    local shownBeat  -- the beat the combo was last put on: it follows a beat set (here, by pzdev) only once
+    page.refresh = function()
+        local lines = {}
+        local id = E2E.current
+        if id ~= shownBeat then
+            shownBeat = id
+            if id then beatBox.selected = E2E.BY_ID[id].index end
+        end
+        if id then
+            lines[1] = T("E2E_Now") .. ": " .. id .. "  " .. T("E2E_Name_" .. id)
+            lines[2] = T("E2E_Do") .. ": " .. T("E2E_Do_" .. id)
+            lines[3] = T("E2E_See") .. ": " .. T("E2E_See_" .. id)
+            if E2E.BY_ID[id].more then lines[4] = "      " .. T("E2E_See2_" .. id) end
+        else
+            lines[1] = T("E2E_None")
+        end
+        info:set(lines)
+        local ok, timers = pcall(E2E.timers)
+        if not ok then timers = {} end
+        for i, row in ipairs(timerRows) do
+            local t = timers[i]
+            if t then
+                local name = t.arg and T("E2E_Timer_" .. t.key, t.arg) or T("E2E_Timer_" .. t.key)
+                row.label:setName(name .. "   " .. T("E2E_Left", ui.num(math.max(0, t.left), 1)))
+            else
+                row.label:setName("")
+            end
+            row.button:setVisible(t ~= nil)
+        end
+    end
+end
+
 PZExtDev.section({ id = "OA", title = T("Section"), order = 30, pages = {
+    { id = "E2E", title = T("Tab_E2E"), build = e2ePage },
     { id = "Trade", title = T("Tab_Trade"), build = tradePage },
     { id = "Economy", title = T("Tab_Economy"), build = economyPage },
     { id = "Machines", title = T("Tab_Machines"), build = machinesPage },

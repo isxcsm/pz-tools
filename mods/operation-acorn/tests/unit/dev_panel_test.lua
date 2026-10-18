@@ -153,16 +153,49 @@ local function fakeDev()
     Dev.missionPlace = function() return nil end
 end
 
-test("the OA section: eight pages in order, each built and refreshed", function()
+test("the OA section: nine pages in order, each built and refreshed", function()
     fakeDev()
     eq(section.id, "OA")
     local ids = {}
     for _, def in ipairs(section.pages) do ids[#ids + 1] = def.id end
-    eq(table.concat(ids, " "), "Trade Economy Machines Gear Upgrades Infection Missions Effects")
+    eq(table.concat(ids, " "), "E2E Trade Economy Machines Gear Upgrades Infection Missions Effects")
     for _, id in ipairs(ids) do
         local page = build(id)
         if page.refresh then page.refresh() end
     end
+end)
+
+test("E2E page: the chosen beat set, the next one, the beat's lines and a timer's soon", function()
+    fakeDev()
+    local E2E = Dev.E2E
+    local set, nextBeat, timers, soon = E2E.set, E2E.next, E2E.timers, E2E.timerSoon
+    local done = {}
+    E2E.set = function(id) done[#done + 1] = "set(" .. id .. ")"; E2E.current = id end
+    E2E.next = function() done[#done + 1] = "next()"; E2E.current = "03"; return E2E.BY_ID["03"] end
+    E2E.timers = function() return { { id = "call_S2B", key = "call", arg = "S2B", left = 11.5 } } end
+    E2E.timerSoon = function(id) done[#done + 1] = "soon(" .. id .. ")" end
+    local page = build("E2E")
+    local beats = all(page, "combo")[1]
+    beats:choose(3)
+    button(page, "IGUI_OADev_E2E_Set"):click()
+    page.refresh()
+    local shown = table.concat(all(page, "lines")[1].shown, "|")
+    truthy(string.find(shown, "IGUI_OADev_E2E_Do_02", 1, true), shown)
+    button(page, "IGUI_OADev_E2E_Next"):click()
+    page.refresh()
+    eq(beats.selected, E2E.BY_ID["03"].index, "the combo follows the beat set")
+    beats.selected = 1
+    page.refresh()
+    eq(beats.selected, 1, "and leaves a pick alone")
+    local soonButtons = {}
+    for _, b in ipairs(all(page, "button")) do
+        if b.text == "IGUI_OADev_E2E_Soon" then soonButtons[#soonButtons + 1] = b end
+    end
+    eq(#soonButtons, 1, "one timer running")
+    soonButtons[1]:click()
+    eq(table.concat(done, " "), "set(02) next() soon(call_S2B)")
+    E2E.set, E2E.next, E2E.timers, E2E.timerSoon = set, nextBeat, timers, soon
+    E2E.current = nil
 end)
 
 test("trade page: credits, stages, things and the helicopter, and its state", function()
