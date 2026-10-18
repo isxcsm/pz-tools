@@ -13,6 +13,7 @@
     "ContextMenu_OA_Tree_PickPart": "Pick lock: %2 (%1)",
     "ContextMenu_OA_Tree_Disarm": "Cut the alarm (%1)",
     "ContextMenu_OA_Trade_UseTerminal": "Use the terminal",
+    "ContextMenu_OA_Trade_NoNumber": "You have no number to enter in the terminal yet.",
     "ContextMenu_OA_Trade_NeedPower": "The terminal needs electricity.",
     "ContextMenu_OA_Trade_SealBox": "Seal the delivery box...",
     "ContextMenu_OA_Trade_BoxSealed": "Sealed delivery box",

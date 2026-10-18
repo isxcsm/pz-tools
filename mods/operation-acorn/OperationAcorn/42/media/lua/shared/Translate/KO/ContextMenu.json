@@ -13,6 +13,7 @@
     "ContextMenu_OA_Tree_PickPart": "자물쇠 따기: %2 (%1)",
     "ContextMenu_OA_Tree_Disarm": "경보 끊기 (%1)",
     "ContextMenu_OA_Trade_UseTerminal": "통신 단말 사용",
+    "ContextMenu_OA_Trade_NoNumber": "단말에 입력할 번호가 아직 없습니다.",
     "ContextMenu_OA_Trade_NeedPower": "단말에는 전기가 필요합니다.",
     "ContextMenu_OA_Trade_SealBox": "납품 상자 밀봉...",
     "ContextMenu_OA_Trade_BoxSealed": "밀봉된 납품 상자",

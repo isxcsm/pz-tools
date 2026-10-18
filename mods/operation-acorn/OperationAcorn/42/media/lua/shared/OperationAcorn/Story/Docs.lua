@@ -83,6 +83,21 @@ local function statusText(code)
     return getText("IGUI_OA_Story_Status_" .. code)
 end
 
+-- The record a paper was issued to, by its collection point number (an item's OA_No, the owner of a mission's item): a
+-- paper of a character that died reads as it was written for that one (CANON S19). `record` when the number is its own,
+-- or not given, or not a record of this world's.
+function Docs.issuer(record, no)
+    if type(no) ~= "number" or (record and no == record.number) then return record end
+    local root = OA.Store.root()
+    return OA.Store.player(root.numbers and root.numbers[no]) or record
+end
+
+-- The number a paper prints: the one it was issued to.
+local function numberOf(record, no)
+    if type(no) == "number" then return string.format("%04d", no) end
+    return Story.number(record)
+end
+
 -- The roster page: names with four-digit numbers in the 'conversion' column; three numbers are ones of the status
 -- table, one is the player's own with the name smeared (LORE clue 18).
 local function rosterBody(record, variant, extra)
@@ -118,18 +133,28 @@ local function statusBody(record)
 end
 
 local DYNAMIC = { roster_page = rosterBody, status_table = statusBody }
+-- The signature on a 2반 reply ({sign} in its text): Ordway's own, or his deputy's once he was gone (Story.proxySigned).
+local function signed(text, record, id)
+    if not string.find(text, "{sign}", 1, true) then return text end
+    local key = record and Story.proxySigned(record, id) and "IGUI_OA_Story_Sign_Proxy" or "IGUI_OA_Story_Sign_Ordway"
+    local sign = string.gsub(getText(key), "%%", "%%%%")
+    return (string.gsub(text, "{sign}", sign))
+end
 -- Documents that read differently when there is no number to print (the soil slip of a plain ground sample).
 local NO_EXTRA = { soil_slip = "soil_slip_plain" }
 
 -- The text of a document for a record. `variant` is a facility id (the place's wording), `extra` a number the
--- text uses (a stake number, a serial).
-function Docs.body(record, id, variant, extra)
-    local dynamic = DYNAMIC[id] or Docs.GUIDE_BODY[id]
-    if dynamic then return dynamic(record, variant, extra) end
+-- text uses (a stake number, a serial), `no` the collection point number it was issued to (the record's own when
+-- nil): the paper reads as it was written for that one.
+function Docs.body(record, id, variant, extra, no)
+    local issuer = Docs.issuer(record, no)
+    if DYNAMIC[id] then return DYNAMIC[id](issuer, variant, extra) end
+    if Docs.GUIDE_BODY[id] then return Docs.GUIDE_BODY[id](record, variant, extra) end
     local place, note = placeTexts(variant)
     local text = id
     if NO_EXTRA[id] and (extra == nil or extra == "") then text = NO_EXTRA[id] end
-    return getText("IGUI_OA_Story_Doc_" .. text, Story.number(record), place, note, extra and tostring(extra) or "")
+    text = getText("IGUI_OA_Story_Doc_" .. text, numberOf(issuer, no), place, note, extra and tostring(extra) or "")
+    return signed(text, issuer, id)
 end
 
 -- The survey stake's own text: its number and the date on it (a document, as every date is).
@@ -145,12 +170,19 @@ function Docs.forItem(record, itemName, md)
     local def = Data.ITEMS[itemName]
     local list = {}
     local extra = md.OA_Stake or md.OA_Serial
+    -- the number it was issued to: a supply paper's, or the record whose mission placed the item
+    local no = md.OA_No
+    if no == nil and md.OA_Owner then
+        local owner = OA.Store.player(md.OA_Owner)
+        no = owner and owner.number
+    end
     if md.OA_Doc then
-        list[#list + 1] = { id = md.OA_Doc, variant = md.OA_Only and md.OA_Variant or nil, extra = md.OA_Only and extra or nil }
+        list[#list + 1] = { id = md.OA_Doc, variant = md.OA_Only and md.OA_Variant or nil, extra = md.OA_Only and extra or nil,
+            no = no }
     end
     if def and def.docs and not (md.OA_Doc and md.OA_Only) then
         for _, id in ipairs(def.docs) do
-            if id ~= md.OA_Doc then list[#list + 1] = { id = id, variant = md.OA_Variant, extra = extra } end
+            if id ~= md.OA_Doc then list[#list + 1] = { id = id, variant = md.OA_Variant, extra = extra, no = no } end
         end
     end
     if md.OA_Note and known[md.OA_Note] then list[#list + 1] = { id = md.OA_Note } end

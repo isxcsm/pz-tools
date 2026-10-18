@@ -99,9 +99,14 @@ end
 local function terminalOptions(context, object, player)
     local square = object:getSquare()
     local use = context:addOptionOnTop(getText("ContextMenu_OA_Trade_UseTerminal"), object, Menus.use, player)
+    local record = OA.Client and OA.Client.record(getSpecificPlayer(player))
     if not Objects.powered(square, object) then
         use.notAvailable = true
         tooltip(use, getText("ContextMenu_OA_Trade_NeedPower"))
+    elseif record and not Trade.registered(record) then
+        -- a terminal another character left, before this one's first supply has brought its number (CANON S19)
+        use.notAvailable = true
+        tooltip(use, getText("ContextMenu_OA_Trade_NoNumber"))
     end
     -- taken up with the game's furniture tool (Trade/Moveables.lua)
 end

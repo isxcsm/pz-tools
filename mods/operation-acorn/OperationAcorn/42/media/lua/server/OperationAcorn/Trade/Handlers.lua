@@ -78,7 +78,7 @@ end)
 -- story may show the card of a stage entered since.
 Server.on("tradeUsed", function(character, record, args)
     local object = Handlers.terminalFor(character, args)
-    if not object then return end
+    if not object or not Trade.registered(record) then return end
     local heli = Trade.heli(record)
     if not heli.greeted then
         heli.greeted = true

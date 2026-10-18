@@ -114,9 +114,10 @@ function Script.lines(entry, ctx)
 end
 
 -- A greeted line: the tier's greeting before it (1 to 4), or the text alone (5 to 8 open with the number, which the
--- text has). A line that is the greeting alone (empty) is the number without one.
+-- text has; and every tier for a record that came after the air time was cut: ctx.greet false, Story.greets). A line
+-- that is the greeting alone (empty) is the number without one.
 function Script.greeted(src, ctx)
-    local gk = Data.GREETED[ctx.tier] and ("IGUI_OA_Story_Greeting_" .. tostring(ctx.tier)) or nil
+    local gk = ctx.greet ~= false and Data.GREETED[ctx.tier] and ("IGUI_OA_Story_Greeting_" .. tostring(ctx.tier)) or nil
     if gk then
         local g = ctx.text(gk)
         if src == "" then return g end

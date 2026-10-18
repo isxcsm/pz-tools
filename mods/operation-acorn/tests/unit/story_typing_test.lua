@@ -596,7 +596,8 @@ test("every translated text with braces reads as markup, in both languages", fun
         for key, value in pairs(texts(lang)) do
             -- (the calls' lines carry the comms tab's own marks: Story/CommsScript reads them)
             if string.find(value, "[{}]") and not string.find(key, "^IGUI_OA_Comms_") then
-                local read, why = Markup.parse(value)
+                -- (a 2반 reply's {sign} is filled in by Docs.body before the text is read as markup)
+                local read, why = Markup.parse((string.gsub(value, "{sign}", "")))
                 truthy(read, lang .. " " .. key .. ": " .. tostring(why))
             end
         end

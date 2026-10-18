@@ -242,7 +242,9 @@ end)
 OA.Server.on("story_read", function(character, record, args)
     -- only a document the story has (its ids are a registry, Docs), with the place it was found at if that is a facility
     if type(args.doc) == "string" and (Docs.kind(args.doc) or args.doc == Docs.STAKE_LOG) then
-        Story.markRead(record, args.doc, Docs.facility(args.variant) and args.variant or nil, args.extra)
+        local no = tonumber(args.no)
+        if no and (no < 1000 or no > 9999) then no = nil end
+        Story.markRead(record, args.doc, Docs.facility(args.variant) and args.variant or nil, args.extra, no)
         Story.clearNew(record, "d:" .. args.doc)
         -- Read whole in the viewer: the terminal's folder has it as seen to the end (an entry it kept nothing of is that).
         if Story.typedState(record, "d:" .. args.doc) then Story.saveTyped(record, "d:" .. args.doc, nil, true) end

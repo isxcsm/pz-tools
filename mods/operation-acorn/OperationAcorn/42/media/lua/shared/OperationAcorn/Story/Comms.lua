@@ -16,7 +16,8 @@ local Comms = {}
 OA.Comms = Comms
 
 -- The record's comms section: fired = id -> hours, played = id -> hours, dropped = id -> true, log = { { id, tier } }
--- in the order played (the tab's record), afterSays = the after-handover monologues said, tier = the tier last entered.
+-- in the order played (the tab's record), afterSays = the after-handover monologues said, tier = the tier last entered,
+-- era = "admin" for a record that came into the world after the handover (Comms.join).
 function Comms.section(record)
     local s = OA.Store.section(record, "comms")
     s.fired = s.fired or {}
@@ -49,7 +50,7 @@ function Comms.fire(record, trigger, now)
     local s = Comms.section(record)
     local fired = {}
     for _, e in ipairs(Data.ENTRIES) do
-        if e.kind ~= "say" and e.trigger == trigger and not s.fired[e.id] and not done(s, e.id) then
+        if e.kind ~= "say" and e.trigger == trigger and (e.era == nil or e.era == s.era) and not s.fired[e.id] and not done(s, e.id) then
             s.fired[e.id] = now or OA.hours()
             fired[#fired + 1] = e.id
         end
@@ -97,6 +98,22 @@ function Comms.enterTier(record, tier, now)
     end
     if tier > s.tier then s.tier = tier end
     return fired
+end
+
+-- A record that comes into a world where another character has gone further (CANON S19): the team's one-time events
+-- (an entry's `world`) the world has passed are dropped, and after the handover every entry of the team's tiers is,
+-- and the record takes the entries of the after-handover era (`era`) in their place. `tier` is the furthest tier a
+-- character of the world has reached, `admin` whether the handover has happened there.
+function Comms.join(record, tier, admin)
+    local s = Comms.section(record)
+    for _, e in ipairs(Data.ENTRIES) do
+        if e.kind ~= "say" and not s.fired[e.id] and not done(s, e.id) then
+            local passed = e.world ~= nil and e.world <= tier
+            if admin and e.era == nil and e.tier <= Data.TEAM_LAST_TIER then passed = true end
+            if passed then s.dropped[e.id] = true end
+        end
+    end
+    if admin then s.era = "admin" end
 end
 
 -- Whether an entry may play now: fired, not played, and what it waits for is done.

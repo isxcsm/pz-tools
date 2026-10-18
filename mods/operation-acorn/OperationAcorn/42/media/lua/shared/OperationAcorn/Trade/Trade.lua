@@ -33,6 +33,14 @@ function Trade.inDebt(record)
     return t ~= nil and (t.credits or 0) < 0
 end
 
+-- Whether the record's number has come (its first supply crate is down, FirstSupply): before that a terminal another
+-- character left does not answer it (CANON S19). A record the team has answered keeps its number.
+function Trade.registered(record)
+    if not record then return false end
+    if record.heli and record.heli.greeted then return true end
+    return record.first ~= nil and record.first.done == true
+end
+
 -- The sections this part keeps, made empty the first time.
 function Trade.boxes(record) return Store.section(record, "boxes") end
 function Trade.heli(record) return Store.section(record, "heli") end

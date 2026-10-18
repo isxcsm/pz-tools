@@ -109,7 +109,7 @@ function ISOAViewer:show(i)
     if entry.stake then
         body = Docs.stakeBody(entry.stake, entry.date)
     else
-        body = record and Docs.body(record, entry.id, entry.variant, entry.extra) or ""
+        body = record and Docs.body(record, entry.id, entry.variant, entry.extra, entry.no) or ""
     end
     self.rich.text = formatText(title, body)
     self.rich:paginate()
@@ -120,7 +120,8 @@ function ISOAViewer:show(i)
     self.prev:setVisible(#self.docs > 1)
     self.next:setVisible(#self.docs > 1)
     if not entry.noRecord then
-        OA.Sync.send(self.character, "story_read", { doc = entry.id, variant = entry.variant, extra = entry.extra })
+        OA.Sync.send(self.character, "story_read", { doc = entry.id, variant = entry.variant, extra = entry.extra,
+            no = entry.no })
     end
 end
 
@@ -132,7 +133,7 @@ function ISOAViewer:close()
     Viewer.instance = nil
 end
 
--- Opens the window on a list of { id =, variant =, extra = }; `noRecord` entries (a survey stake, which is not a paper of
+-- Opens the window on a list of { id =, variant =, extra =, no = }; `noRecord` entries (a survey stake, which is not a paper of
 -- the folder) are not told to the server. It opens in front of the terminal's window when that is open.
 function Viewer.open(character, docs)
     if not docs or #docs == 0 then return end

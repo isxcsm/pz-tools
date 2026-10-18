@@ -22,6 +22,11 @@ OA.CommsData = Data
 --   tier     the trust tier the entry belongs to: a terminal entry not fired by the time the tier is passed is dropped
 --   mission  fired by a story mission: never dropped
 --   keep     never dropped (the scene after the handover)
+--   world    a one-time event of the team's (the line going dead, Ordway's transfer, the cut air time, the radio
+--            operator gone) at that tier: a character that comes into the world after a character has reached it never
+--            hears it (Comms.join)
+--   era      "admin": fires only for a character that came into the world after the handover (its first calls with
+--            관리 7, in the place of the team's); entries without one never fire for it up to TEAM_LAST_TIER
 --   waits    the entry that must have been played (or dropped) first
 --   greet    the first line opens with the greeting of the tier it is played at (LORE 6)
 --   sign     the call sign: "oak" (참나무) or "admin" (관리 7)
@@ -91,17 +96,17 @@ Data.ENTRIES = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" } } },
     { id = "s3_meteor", kind = "short", trigger = "tier:3", tier = 3, waits = "S3", greet = true, sign = "oak" },
     { id = "s3_fragment", kind = "short", trigger = "sent:reply_fragment", tier = 3, waits = "S3", greet = true, sign = "oak" },
-    { id = "S4", kind = "scene", trigger = "tier:4", tier = 4, waits = "S3", sign = "oak", lines = {
+    { id = "S4", kind = "scene", trigger = "tier:4", tier = 4, waits = "S3", world = 4, sign = "oak", lines = {
         { "noise", s = 5 }, { "me" }, { "noise", s = 3 }, { "me" }, { "mute", s = 4 }, { "me", erase = true },
         { "noise", s = 2 } } },
-    { id = "S4B", kind = "scene", trigger = "nextday:S4", tier = 4, waits = "S4", greet = true, sign = "oak", lines = {
+    { id = "S4B", kind = "scene", trigger = "nextday:S4", tier = 4, waits = "S4", world = 4, greet = true, sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" },
         { "me", erase = true, stop = 1.6, after = 2 } } },
     { id = "s4_committee", kind = "short", trigger = "tier:4", tier = 4, waits = "S4B", greet = true, sign = "oak" },
     { id = "S4F", kind = "scene", trigger = "story:cooler", tier = 4, mission = true, waits = "S4B", sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" },
         { "me", erase = true, stop = 1.6, after = 1.8 } } },
-    { id = "S5", kind = "scene", trigger = "tier:5", tier = 5, waits = "S4B", sign = "oak", lines = {
+    { id = "S5", kind = "scene", trigger = "tier:5", tier = 5, waits = "S4B", world = 5, sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" } } },
     { id = "S5F", kind = "field", trigger = "field:gym", tier = 5, mission = true, sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "oak" }, { "oak" } } },
@@ -111,7 +116,7 @@ Data.ENTRIES = {
     { id = "s6_list", kind = "short", trigger = "tier:6", tier = 6, waits = "S6", greet = true, sign = "oak" },
     { id = "S6F", kind = "scene", trigger = "story:ward", tier = 6, mission = true, waits = "S6", sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" } } },
-    { id = "S7", kind = "scene", trigger = "crate:7", tier = 7, waits = "S6", sign = "oak", lines = {
+    { id = "S7", kind = "scene", trigger = "crate:7", tier = 7, waits = "S6", world = 7, sign = "oak", lines = {
         { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" } } },
     { id = "s7_list", kind = "short", trigger = "tier:7", tier = 7, waits = "S7", greet = true, sign = "oak" },
     { id = "S7F", kind = "scene", trigger = "story:cells", tier = 7, mission = true, waits = "S7", sign = "oak", lines = {
@@ -126,6 +131,14 @@ Data.ENTRIES = {
     { id = "S9", kind = "scene", trigger = "handedover", tier = 8, keep = true, waits = "S8", sign = "admin", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" },
         { "me", erase = true, stop = 2.2, del = 5, after = 2.6 } } },
+    -- A character that came into the world after the handover: 관리 7's first contact and its call after the first
+    -- settlement (what the missions are), in the place of S0 and S1M.
+    { id = "K0", kind = "scene", trigger = "first", tier = 0, era = "admin", sign = "admin", lines = {
+        { "noise", s = 2 }, { "oak" }, { "mute", s = 3 }, { "oak" },
+        { "me", erase = true, stop = 1.6, after = 1.8 }, { "oak" }, { "me", late = true }, { "oak", late = true },
+        { "me" }, { "oak" }, { "me", erase = true }, { "oak" }, { "me" }, { "noise", s = 3 } } },
+    { id = "K0M", kind = "scene", trigger = "settled", tier = 1, era = "admin", waits = "K0", sign = "admin", lines = {
+        { "oak" }, { "me" }, { "oak" }, { "noise", s = 1 } } },
     { id = "K1", kind = "scene", trigger = "tier:9", tier = 9, waits = "S9", sign = "admin", lines = { { "oak" } } },
     { id = "K2", kind = "scene", trigger = "tier:10", tier = 10, waits = "K1", sign = "admin", lines = {
         { "oak" }, { "me" }, { "oak" } } },
@@ -164,6 +177,10 @@ end
 -- The field monologues of the story missions after the handover: one at each, on entering the circle, in turn; when
 -- all are said there are no more (SCENES 5).
 Data.AFTER_SAYS = { "A1", "A2", "A3", "A4" }
+
+-- The last tier of the team's own calls (the handover's): a character that comes into the world after the handover
+-- has none of them (Comms.join).
+Data.TEAM_LAST_TIER = 8
 
 -- The last tier that has a greeting of its own: 1 to 4; 5 to 8 open with the number; after the handover the long form.
 Data.GREETED = { [1] = true, [2] = true, [3] = true, [4] = true }

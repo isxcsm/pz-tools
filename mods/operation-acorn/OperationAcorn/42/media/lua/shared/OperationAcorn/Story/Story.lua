@@ -55,8 +55,53 @@ function Story.section(record)
         s.noted = {}         -- one-off remarks said: "serum", "region"
         s.cardStage = 0      -- the last named stage whose card was shown (Story.terminalOpened)
         s.sites = {}         -- the site each story mission was given: story id -> site (a revisit goes back)
+        s.sentTier = {}      -- the trust tier each paper went out at: document id -> tier (Story.proxySigned)
+        s.docNo = {}         -- a read document issued to another collection point: id -> its number (Docs.body)
+        Story.join(record, s)
     end
     return s
+end
+
+-- How far the world's story has gone (CANON S19): the furthest trust tier any character of the world has reached, the
+-- dead ones' too, and whether the handover has happened. Read from the records as they are (a section not made is a
+-- record that went nowhere).
+function Story.worldClock(except)
+    local tier, handover = 0, false
+    for _, other in pairs(OA.Store.players()) do
+        local st = other ~= except and other.story or nil
+        if st and st.version then
+            tier = math.max(tier, (st.seenStage or 0) + (st.seenMilestones or 0))
+            if st.handover then handover = true end
+        end
+    end
+    return tier, handover
+end
+
+-- A record comes into the world (its section is made): when another character has gone further, the team's events
+-- the world has passed are not told again (Comms.join), and after the handover the record deals with 관리 7 from the
+-- start: no 2반 story and none of its calls (s.joined: { tier =, handover = }).
+function Story.join(record, s)
+    local tier, handover = Story.worldClock(record)
+    if tier < 1 and not handover then return end
+    s.joined = { tier = tier, handover = handover or nil }
+    if handover then
+        s.handover = true
+        s.handoverShown = true
+    end
+    OA.Comms.join(record, tier, handover)
+    OA.log("story: collection point", record.number, "joins the world at tier", tier, handover and "after the handover" or "")
+end
+
+-- The furthest tier the world had reached when the record came into it (0 for a record that started it).
+function Story.joinedTier(record)
+    local j = Story.section(record).joined
+    return j and j.tier or 0
+end
+
+-- Did the record come into the world after the handover (it has never had the team).
+function Story.joinedAfterHandover(record)
+    local j = Story.section(record).joined
+    return j ~= nil and j.handover == true
 end
 
 -- The trade part (or the player's first mission) fixes the base's position: kept for the band (Missions.anchor).
@@ -120,6 +165,7 @@ end
 -- Something happened that a call of the team's waits for (Story/Comms: the trigger as CommsData names it): the calls it
 -- fires come into the comms tab. Returns the ids fired.
 function Story.call(record, trigger)
+    Story.section(record) -- (a record new to the world joins it before anything fires: Story.join)
     local fired = OA.Comms.fire(record, trigger)
     if #fired > 0 then OA.Sync.changed("comms", record.id) end
     return fired
@@ -127,6 +173,7 @@ end
 
 -- The calls timed by an earlier one (half a day after it, the next day): every ten minutes.
 function Story.callsDue(record)
+    Story.section(record)
     if #OA.Comms.update(record) > 0 then OA.Sync.changed("comms", record.id) end
 end
 
@@ -176,7 +223,7 @@ function Story.flushSupply(record)
     local items = {}
     for _, entry in ipairs(s.supply) do
         local mods = nil
-        if entry.doc then mods = { OA_Doc = entry.doc } end
+        if entry.doc then mods = { OA_Doc = entry.doc, OA_No = record.number } end
         items[#items + 1] = { type = Data.fullType(entry.type), count = 1, mod = mods }
     end
     local ok, err = pcall(OA.Trade.addToDrop, record, items)
@@ -228,9 +275,11 @@ function Story.takePaper(record)
     if not at then return nil end
     local p = table.remove(s.papers, at)
     s.sent[p.doc] = true
+    s.sentTier = s.sentTier or {}
+    s.sentTier[p.doc] = Story.tier(record)
     Story.call(record, "sent:" .. p.doc)
     OA.Sync.changed("story", record.id)
-    return { type = Data.fullType(p.type), count = 1, mod = { OA_Doc = p.doc } }
+    return { type = Data.fullType(p.type), count = 1, mod = { OA_Doc = p.doc, OA_No = record.number } }
 end
 
 -- What the story puts in a crate (the trade part's crate provider): one paper, when one is ready.
@@ -318,7 +367,7 @@ end
 
 function Story.enterStage(record, stage)
     local def = Data.STAGES[stage]
-    if not def then return end
+    if not def or Story.joinedAfterHandover(record) then return end
     local s = Story.section(record)
     -- A stage's own missions are fresh (an optional one waits for a regular mission between); their order is kept.
     local fresh, rest = {}, {}
@@ -333,8 +382,9 @@ end
 
 function Story.enterMilestone(record, k)
     local def = Data.MILESTONES[k]
-    local s = Story.section(record)
     if def then
+        -- 2반's milestones: a record that came after the handover has none of them
+        if Story.joinedAfterHandover(record) then return end
         enterEvents(record, def)
         if k == 2 then Story.queueStory(record, "soil", false) end
     else
@@ -454,6 +504,12 @@ end
 -- ---------------------------------------------------------------------------------------------------------------
 -- The first contact, stages and notes.
 
+-- The record's first call (S0, or 관리 7's K0 for a record that came after the handover) and the call that opens the
+-- missions (Missions.opened).
+function Story.firstCall(record)
+    return Story.joinedAfterHandover(record) and "K0" or "S0"
+end
+
 -- The first contact when the terminal is first used: 'late' when the first crate came late or without a helicopter
 -- (the first call has lines of its own then). The first call comes into the comms tab, unless
 -- `quiet` (a record that is found past the first stage without one: its tier has dropped that call).
@@ -510,7 +566,8 @@ function Story.terminalOpened(record)
     local stage = math.min(s.seenStage, Data.LAST_STAGE)
     if stage < 1 or (s.cardStage or 0) >= stage then return false end
     local comms = OA.Comms.section(record)
-    if comms.fired.S0 and not comms.played.S0 then return false end
+    local first = Story.firstCall(record)
+    if comms.fired[first] and not comms.played[first] then return false end
     s.cardStage = stage
     OA.Sync.title(record.id, Story.stageCard(stage))
     return true
@@ -520,7 +577,7 @@ end
 function Story.callPlayed(record, id)
     -- a mission's briefing: the mission begins
     if OA.Missions then OA.Missions.briefed(record, id) end
-    if id ~= "S0" then return end
+    if id ~= Story.firstCall(record) then return end
     OA.Sync.title(record.id, { key = "IGUI_OA_Title_Operation", sub = "IGUI_OA_Title_OperationSub", size = "major",
         subArgs = { Story.number(record) }, style = "stamp", tone = "acorn", fallback = "good", at = "center" })
     Story.terminalOpened(record)
@@ -597,6 +654,10 @@ end
 -- own lines one per crate. nil when the story has nothing now (the filler lines, Story.fillNoteKey, then the trade
 -- part's). `ctx` is the crate (the trade part's draft): a line that needs the crate to bear it out waits for one that
 -- does. Returns the text key, its arguments, the note id and what it encloses.
+-- The notes that tell of a change in the team's world (a seal, a form, the greeting): a record that came into the
+-- world after it does not have them, it never knew the way before. Note id -> the tier the world must have reached.
+Story.WORLD_NOTES = { proxy_signature = 4, old_form = 4, short_notice = 4, no_greeting = 5 }
+
 function Story.manifestNoteKey(record, ctx)
     local s = Story.section(record)
     local id = s.noteQueue[1]
@@ -605,6 +666,9 @@ function Story.manifestNoteKey(record, ctx)
     else
         local key, ids = notePool(record)
         local used = s.noteIndex[key] or 0
+        local joined = Story.joinedTier(record)
+        while ids[used + 1] and (Story.WORLD_NOTES[ids[used + 1]] or 99) <= joined do used = used + 1 end
+        s.noteIndex[key] = used
         if used >= #ids then return nil end
         if not noteFits(ids[used + 1], ctx) then return nil end
         s.noteIndex[key] = used + 1
@@ -695,7 +759,19 @@ end
 Story.OLD_LABELS = { serial = true, remarks = true, receivers = true, dropcheck = true, signed = true }
 function Story.oldForm(record)
     local stage = Story.progress(record)
-    return stage >= 4
+    return stage >= 4 or Story.joinedTier(record) >= 4
+end
+
+-- Do the team's calls open with a greeting: not for a record that came after the air time was cut (the 5th tier: S5).
+function Story.greets(record)
+    return Story.joinedTier(record) < 5
+end
+
+-- Is a 2반 paper of the record's signed by Ordway's deputy: it went out once he was gone (the 4th tier: S4B), or the
+-- record came into the world after that.
+function Story.proxySigned(record, docId)
+    local s = Story.section(record)
+    return Story.joinedTier(record) >= 4 or ((s.sentTier and s.sentTier[docId]) or 0) >= 4
 end
 
 -- Keeps a manifest's text in the document folder (the latest few, and all that carry a remark of the story's own), with the trust tier it came at. The trade part gives
@@ -739,13 +815,17 @@ local function cleanExtra(extra)
     return nil
 end
 
--- Marks a document as read (kept by id). `variant` is the place id its text was for, `extra` the number its text uses
--- (the folder shows the text again with them).
-function Story.markRead(record, docId, variant, extra)
+-- Marks a document as read (kept by id). `variant` is the place id its text was for, `extra` the number its text uses,
+-- `no` the collection point number it was issued to when that is another's (the folder shows the text again with them).
+function Story.markRead(record, docId, variant, extra, no)
     local s = Story.section(record)
     if s.docs[docId] == nil then
         s.docs[docId] = variant or true
         s.docExtra[docId] = cleanExtra(extra)
+        if type(no) == "number" and no ~= record.number then
+            s.docNo = s.docNo or {}
+            s.docNo[docId] = no
+        end
         local stage, milestones = Story.progress(record)
         s.docStage = s.docStage or {}
         s.docStage[docId] = stage + milestones
@@ -755,12 +835,12 @@ function Story.markRead(record, docId, variant, extra)
     return false
 end
 
--- The documents the record has read, in a stable order: { { id =, variant =, extra = }, ... }.
+-- The documents the record has read, in a stable order: { { id =, variant =, extra =, no = }, ... }.
 function Story.readDocuments(record)
     local s = Story.section(record)
     local list = {}
     for id, v in pairs(s.docs) do
-        list[#list + 1] = { id = id, variant = v ~= true and v or nil, extra = s.docExtra[id] }
+        list[#list + 1] = { id = id, variant = v ~= true and v or nil, extra = s.docExtra[id], no = s.docNo and s.docNo[id] }
     end
     table.sort(list, function(a, b) return a.id < b.id end)
     return list
@@ -896,7 +976,8 @@ function Story.addRequestCopy(record, form, prefer)
     local stage, milestones = Story.progress(record)
     local day, month = gameDate()
     s.requestNo = (s.requestNo or Data.REQUEST_FIRST - 1) + 1
-    local req = { no = s.requestNo, form = form, id = id, tier = stage + milestones, day = day, month = month }
+    local req = { no = s.requestNo, form = form, id = id, tier = stage + milestones, day = day, month = month,
+        proxy = Story.joinedTier(record) >= 4 or nil }
     s.requests[#s.requests + 1] = req
     Story.markNew(record, "r:" .. req.no)
     return req
@@ -904,7 +985,8 @@ end
 
 -- ---------------------------------------------------------------------------------------------------------------
 -- The status table (clue 20): other collection point numbers, sparse, made once. The player's number alone is
--- 'kept'; the roster page (clue 18) shares three of the numbers.
+-- 'kept'; the numbers of the world's characters that died are among the others, 'no response' (CANON S19); the
+-- roster page (clue 18) shares three of the numbers, none of those.
 local STATUS_CODES = { "none", "nodata", "excluded" }
 
 function Story.statusTable(record)
@@ -912,6 +994,18 @@ function Story.statusTable(record)
     if s.status then return s.status end
     local rows, taken = {}, { [record.number or 0] = true }
     local count = Data.STATUS_ROWS
+    local dead = {}
+    for _, other in pairs(OA.Store.players()) do
+        if other ~= record and other.dead ~= nil and other.number and not taken[other.number] then
+            dead[#dead + 1] = other.number
+        end
+    end
+    table.sort(dead)
+    for _, n in ipairs(dead) do
+        if #rows >= count - 1 then break end
+        taken[n] = true
+        rows[#rows + 1] = { n = n, c = "none", dead = true }
+    end
     while #rows < count - 1 do
         local n = OA.random(1000, 9999)
         if not taken[n] then
@@ -925,7 +1019,7 @@ function Story.statusTable(record)
     local roster = {}
     local idx = 0
     for i, row in ipairs(rows) do
-        if row.c ~= "keep" then
+        if row.c ~= "keep" and not row.dead then
             idx = idx + 1
             if OA.remainder(idx, 5) == 2 and #roster < 3 then roster[#roster + 1] = i end
         end

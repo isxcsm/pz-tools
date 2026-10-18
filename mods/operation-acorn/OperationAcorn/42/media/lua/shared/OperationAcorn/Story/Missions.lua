@@ -712,12 +712,14 @@ end
 -- ---------------------------------------------------------------------------------------------------------------
 -- Offering, starting, running and ending.
 
--- The call that tells what the missions are (CommsData S1M, after the first settlement's): none is offered before it
--- has been played.
+-- The call that tells what the missions are (CommsData S1M, after the first settlement's; 관리 7's K0M for a record
+-- that came into the world after the handover): none is offered before it has been played.
 Missions.OPENING_CALL = "S1M"
+Missions.ADMIN_OPENING_CALL = "K0M"
 
 function Missions.opened(record)
-    return OA.Comms.done(record, Missions.OPENING_CALL)
+    local id = Story.joinedAfterHandover(record) and Missions.ADMIN_OPENING_CALL or Missions.OPENING_CALL
+    return OA.Comms.done(record, id)
 end
 
 -- A mission offered waits for the player to start it: no deadline yet, its days kept for then (`span`, hours).

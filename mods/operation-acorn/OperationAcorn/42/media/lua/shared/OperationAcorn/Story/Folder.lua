@@ -161,7 +161,7 @@ function Folder.entries(record)
         local group = GROUP_OF[Docs.kind(doc.id)]
         if group then
             put(group, "d:" .. doc.id, Story.text(Docs.titleKey(doc.id)), Folder.docTier(record, doc.id), orderOf(doc.id),
-                { kind = "doc", id = doc.id, variant = doc.variant, extra = doc.extra }, s)
+                { kind = "doc", id = doc.id, variant = doc.variant, extra = doc.extra, no = doc.no }, s)
         end
     end
     if #Story.stakeLog(record) > 0 then
@@ -216,9 +216,10 @@ local function metaOf(record, entry)
     return table.concat(parts, Story.text("IGUI_OA_Story_UI_Dot"))
 end
 
--- The approval line of a request copy: Ordway's own up to the 3rd tier, then the deputy's (LORE 3).
+-- The approval line of a request copy: Ordway's own up to the 3rd tier, then the deputy's (LORE 3); the deputy's from
+-- the start for a record that came into the world after Ordway was gone (Story.addRequestCopy).
 local function approvalOf(req)
-    local key = (req.tier or 0) >= 4 and "IGUI_OA_Story_Request_Approval_b" or "IGUI_OA_Story_Request_Approval_a"
+    local key = ((req.tier or 0) >= 4 or req.proxy) and "IGUI_OA_Story_Request_Approval_b" or "IGUI_OA_Story_Request_Approval_a"
     return Story.text(key, dateText(req))
 end
 
@@ -253,7 +254,7 @@ function Folder.content(record, entry)
     elseif ref.kind == "stakes" then
         marked = Folder.stakeLog(record)
     else
-        marked = Docs.body(record, ref.id, ref.variant, ref.extra)
+        marked = Docs.body(record, ref.id, ref.variant, ref.extra, ref.no)
     end
     marked = Folder.lines(marked)
     local styles
