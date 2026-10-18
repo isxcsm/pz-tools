@@ -4,6 +4,7 @@ require "OperationAcorn/Sync"
 require "OperationAcorn/Client"
 require "OperationAcorn/Markup"
 require "OperationAcorn/Trade/Text"
+require "PZUIKit/Sound"
 local OA = OperationAcorn
 local Titles = {}
 OA.Titles = Titles
@@ -157,7 +158,14 @@ function Titles.show(playerId, detail, noHalo)
                 scale = Titles.SIZES[detail.size] }
             local tone = Titles.TONES[detail.tone]
             if tone then spec.color, spec.subtitleColor = tone[1], tone[2] end
+            spec.sounds, spec.subtitleSounds = PZUIKit.Sound.titleSounds(style)
+            if not sub then spec.subtitleSounds = nil end
             local ok, err = pcall(t.title, handle, spec)
+            if not ok and (spec.sounds or spec.subtitleSounds) then
+                -- (an older PZ Extension API has no sounds: the title silent)
+                spec.sounds, spec.subtitleSounds = nil, nil
+                ok, err = pcall(t.title, handle, spec)
+            end
             if not ok and spec.scale then
                 -- (an older PZ Extension API has no scale: the title at its style's size)
                 spec.scale = nil

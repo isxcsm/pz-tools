@@ -10,14 +10,14 @@ require "OperationAcorn/Sync"
 require "OperationAcorn/Trade/Trade"
 require "OperationAcorn/Trade/Objects"
 require "OperationAcorn/Story/Comms"
+require "OperationAcorn/Sounds"
 local OA = OperationAcorn
 local Comms, Objects = OA.Comms, OA.Trade.Objects
 local Alert = {}
 OA.CommsAlert = Alert
 
--- The outline's colour (the crude terminal's green), the static and how far it carries (가안: set in the game).
+-- The outline's colour (the crude terminal's green), and how far the static (OA.Sounds' oa.comms.alert) carries (가안: set in the game).
 Alert.COLOUR = { 0.45, 0.95, 0.55 }
-Alert.SOUND = "RadioZap"
 Alert.RANGE = 15
 
 -- After this many bursts for the calls waiting, a burst comes no more than once in this many game hours. A new call
@@ -84,8 +84,9 @@ function Alert.update(sound)
                 light(want, n, true)
                 lit[n] = want
             end
-            if sound and Alert.burstDue(n, waiting, OA.hours()) then
-                getSoundManager():PlayWorldSound(Alert.SOUND, square, 0, Alert.RANGE, 1, false)
+            local name = sound and Alert.burstDue(n, waiting, OA.hours()) and PZUIKit.Sound.name("oa.comms.alert")
+            if name then
+                getSoundManager():PlayWorldSound(name, square, 0, Alert.RANGE, 1, false)
             end
         end
     end

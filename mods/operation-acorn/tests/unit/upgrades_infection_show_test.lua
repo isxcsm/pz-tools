@@ -421,7 +421,7 @@ test("the test wait works at the kit with the game's wipe sound, and stops it wh
     local c = actor()
     local action = ISOAUseSerum:new(c, usable("InfectionTestKit"))
     action:start()
-    eq(c.played[1], Actions.TEST_SOUND)
+    eq(c.played[1], PZUIKit.Sound.def("oa.serum.test").sound)
     eq(c.vars.LootPosition, "Mid")
     action:update()
     local anims = 0

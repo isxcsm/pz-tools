@@ -6,6 +6,7 @@ require "TimedActions/ISBaseTimedAction"
 require "OperationAcorn/Upgrades/Rules"
 require "OperationAcorn/Upgrades/Serums"
 require "OperationAcorn/Upgrades/First"
+require "OperationAcorn/Sounds"
 local OA = OperationAcorn
 local Rules = OA.Upgrades.Rules
 local Serums = OA.Upgrades.Serums
@@ -28,8 +29,6 @@ Actions.PRY_FATIGUE = 0.02
 Actions.USE_TICKS = 120
 Actions.CURE_TICKS = 300
 Actions.TEST_TICKS = 90
--- The game's sound of wiping with an alcohol wipe (ISDisinfect plays it), for the wait of a test.
-Actions.TEST_SOUND = "FirstAidApplyAlcoholWipes"
 -- Picking: how long (ticks) at rank 1 (rank 2 halves it), and how quiet.
 Actions.PICK_TICKS = 300
 Actions.PICK_NOISE = { 3, 4 }
@@ -196,7 +195,7 @@ function ISOAUseSerum:start()
         self.character:SetVariable("LootPosition", "Mid")
         self.character:reportEvent("EventLootItem")
         self:setOverrideHandModels(nil, nil)
-        self.sound = self.character:playSound(Actions.TEST_SOUND)
+        self.sound = PZUIKit.Sound.on("oa.serum.test", self.character)
     elseif self.kind == "cure" and self.character:isLocalPlayer() then
         OA.Say.say(self.character, "CureStart")
     end

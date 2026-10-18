@@ -17,7 +17,7 @@
 -- never seen is typed in its time and cannot be skipped. The click is anywhere on the panel (no coordinates are read, so
 -- the font and the scroll do not matter to it).
 -- `cursorColor` ({ r, g, b }) draws the cursor and a printed row's band; `onFinished(target, run)` is called as the
--- typing ends. With PZ Optimization the panel is not drawn while its drawing holds still (the empty page while a title
+-- typing ends; `sounds` ({ key = cue, row = cue } of PZUIKit.Sound) sound the characters typed and each row printed. With PZ Optimization the panel is not drawn while its drawing holds still (the empty page while a title
 -- comes in, `hold`), and a frame drawn late would count as a gap: the typing would start late or wait. So a text on its
 -- way is also followed every frame before the UI draws (UI.live): the same frame work, and its clock as the look, which
 -- holds still while the clock does and moves as the characters come.
@@ -25,7 +25,8 @@ require "PZUIKit/RichText"
 require "PZUIKit/UI"
 require "PZUIKit/Markup"
 require "PZUIKit/Typing"
-local Markup, Typing, UI = PZUIKit.Markup, PZUIKit.Typing, PZUIKit.UI
+require "PZUIKit/Sound"
+local Markup, Typing, UI, Sound = PZUIKit.Markup, PZUIKit.Typing, PZUIKit.UI, PZUIKit.Sound
 
 PZUITypedText = PZUIRichText:derive("PZUITypedText")
 
@@ -42,7 +43,7 @@ end
 -- over the new rows.
 function PZUITypedText:paginate()
     PZUIRichText.paginate(self)
-    self.reveal, self.n, self.tipChunk, self.rowEnds, self.rowFirst = nil, nil, nil, nil, nil
+    self.reveal, self.n, self.tipChunk, self.rowEnds, self.rowFirst, self.rowsBegun = nil, nil, nil, nil, nil, nil
     local run = self.run
     if run and run.parse and not run.done then
         local chunks = {}
@@ -85,7 +86,9 @@ function PZUITypedText:advance(run)
     run.last = now
     local n, finished, head = self:countAt(run)
     if n ~= self.n or (self.tipChunk ~= nil) ~= head then
+        local was = self.n
         self.n = n
+        if was and n > was and self.sounds then self:sound(was, n) end
         if n > (run.seen or 0) then run.seen = n end
         local c = self.reveal:show(n)
         -- the cursor follows the characters as they come: typed, or a row under the print head (not between rows)
@@ -100,6 +103,30 @@ function PZUITypedText:advance(run)
         self.reveal, self.tipChunk = nil, nil
         if self.onFinished then self.onFinished(self.target, run) end
     end
+end
+
+-- The rows begun by the first n characters (a row begins as its first character comes): counted on from those of the
+-- last count, which only grows while a text is on its way.
+function PZUITypedText:rowsAt(n)
+    local ends, r = self.rowEnds, self.rowsBegun or 0
+    if r > 0 then r = r - 1 end
+    while ends[r + 1] and ends[r + 1] < n do r = r + 1 end
+    if n > 0 then r = r + 1 end
+    self.rowsBegun = r
+    return r
+end
+
+-- The sound of the characters that came this frame (was+1 to n): a key's for typed ones (within its cue's gap; none
+-- for a jump: a click, Sound.typed), a row's as a printed row begins (one row at a time; a jump of rows is a click).
+-- The first count after a layout sounds nothing (the caller has no `was` then).
+function PZUITypedText:sound(was, n)
+    local cues = self.sounds
+    if not self.rowEnds then
+        if cues.key then Sound.typed(cues.key, was, n) end
+        return
+    end
+    local before = self.rowsBegun or self:rowsAt(was)
+    if self:rowsAt(n) == before + 1 and cues.row then Sound.ui(cues.row) end
 end
 
 -- The furthest point the player has seen of this text, at once: the clock goes on to the moment that character comes

@@ -72,6 +72,7 @@ final class TextsTest {
             typing(text, mod);
             titles(text, mod);
             titleScale(text, mod);
+            titleSounds(text, mod);
             screens(text, mod);
             world(text, mod, other);
             rejects(api, text, mod);
@@ -1101,6 +1102,60 @@ final class TextsTest {
         FormulasTest.call(mod, "clear");
         rejects(text, "spec.scale must be", "title", mod, table("text", "x", "scale", 3.0));
         rejects(text, "spec.scale must be", "title", mod, table("text", "x", "scale", 0.3));
+    }
+
+    /**
+     * A title's sounds at its moments, once each, as its clock passes them: the stamp's as it starts, as its letters hit, as
+     * it leaves; its line's as its own letters hit. A pause holds them; a newer API goes on from the moments passed.
+     */
+    private static void titleSounds(KahluaTable text, Object mod) {
+        FormulasTest.call(mod, "clear");
+        var played = ((zombie.SoundManager)zombie.BaseSoundManager.instance).played;
+        played.clear();
+        FormulasTest.call(text, "title", mod, table("text", "Done", "subtitle", "its line", "style", "stamp",
+            "sounds", table("enter", "In", "land", "Hit", "leave", "Out"), "subtitleSounds", table("land", "LineHit")));
+        render();
+        check(List.of("In").equals(played), "The title did not sound as it started: " + played);
+        advance(0.1);
+        render();
+        check(List.of("In").equals(played), "The impact sounded before its hit: " + played);
+        advance(0.1);
+        render();
+        check(List.of("In", "Hit").equals(played), "The impact did not sound at its hit (0.16 s): " + played);
+        advance(0.15);
+        render();
+        check(List.of("In", "Hit", "LineHit").equals(played), "The line did not sound at its own hit (0.15 + 0.16 s): " + played);
+        render();
+        check(played.size() == 3, "A moment sounded twice");
+        // Paused, nothing moves on: then the leave, once.
+        zombie.GameTime.paused = true;
+        advance(20);
+        render();
+        zombie.GameTime.paused = false;
+        check(played.size() == 3, "A pause did not hold the sounds");
+        advance(10.6);
+        render();
+        check(List.of("In", "Hit", "LineHit", "Out").equals(played), "The title did not sound as it left: " + played);
+        advance(10);
+        render();
+        check(played.size() == 4, "The leave sounded again");
+        FormulasTest.call(mod, "clear");
+        render();
+        // A title that left before it was in: its land is not heard.
+        played.clear();
+        double gone = (Double)FormulasTest.call(text, "title", mod, table("text", "Gone", "style", "unveil", "sounds", table("land", "Hit"))).get(0);
+        render();
+        advance(0.5);
+        FormulasTest.call(text, "hide", mod, gone, true);
+        render();
+        advance(10);
+        render();
+        check(played.isEmpty(), "A title hidden before it was in sounded its land: " + played);
+        FormulasTest.call(mod, "clear");
+        render();
+        rejects(text, "spec.sounds has no moment hit", "title", mod, table("text", "x", "sounds", table("hit", "A")));
+        rejects(text, "spec.sounds.land must be a sound's name", "title", mod, table("text", "x", "sounds", table("land", "a b")));
+        rejects(text, "spec.subtitleSounds goes with spec.subtitle", "title", mod, table("text", "x", "subtitleSounds", table("land", "A")));
     }
 
     /** Titles: their styles, one after another, at once when asked, and a full queue. */

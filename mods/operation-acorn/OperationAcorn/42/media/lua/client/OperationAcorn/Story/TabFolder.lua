@@ -8,6 +8,7 @@ require "OperationAcorn/Trade/TerminalWindow"
 require "PZUIKit/Button"
 require "OperationAcorn/Story/Folder"
 require "PZUIKit/TypedText"
+require "OperationAcorn/Sounds"
 local OA = OperationAcorn
 local UI = OA.Trade.UI
 local Folder, Typing, Markup = OA.StoryFolder, OA.Typing, OA.Markup
@@ -44,6 +45,7 @@ function OATabFolder:createChildren()
     local body = UI.rich(self, 0, 0, 100, 100, PZUITypedText)
     body.target, body.onFinished = self, OATabFolder.onTyped
     body.cursorColor = p.bright
+    body.sounds = { key = "oa.paper.key", row = "oa.paper.row" }
     body.background = false
     body.palette = p
     body.marginLeft, body.marginRight, body.marginTop, body.marginBottom = 0, 0, 0, 0

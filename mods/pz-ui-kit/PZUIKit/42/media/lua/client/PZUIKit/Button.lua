@@ -5,6 +5,7 @@
 require "ISUI/ISButton"
 require "ISUI/ISPanel"
 require "PZUIKit/UI"
+require "PZUIKit/Sound"
 local UI = PZUIKit.UI
 
 PZUIButton = ISButton:derive("PZUIButton")
@@ -15,6 +16,8 @@ function PZUIButton:new(x, y, width, height, title, palette, target, onclick, st
     -- The game's button widens to its title measured in pixels; this one is in design units (UI.lua).
     o.width = math.max(width, UI.textWidth(title) + 10)
     o.palette = palette
+    -- the game's button plays its own sound by name: the kit's cue for it
+    if o.sounds then o.sounds.activate = PZUIKit.Sound.soundOf("kit.press") or o.sounds.activate end
     o.style = style or "normal"
     return o
 end

@@ -10,6 +10,7 @@ require "PZUIKit/Button"
 require "PZUIKit/Combo"
 require "OperationAcorn/Gear/Gear"
 require "OperationAcorn/Trade/StatusDraw"
+require "OperationAcorn/Sounds"
 local OA = OperationAcorn
 local Trade, UI, Orders, Text = OA.Trade, OA.Trade.UI, OA.Trade.Orders, OA.Trade.Text
 local ShopView = OA.Trade.ShopView
@@ -665,7 +666,7 @@ function OATabShop:onMouseDown(x, y)
     if at ~= self.cat then UI.placeFlash(self, at) end
     if at == "only" then
         self.onlyOpen = not self.onlyOpen
-        getSoundManager():playUISound("UISelectListItem")
+        PZUIKit.Sound.ui("kit.select")
         self.cards:setScroll(0)
         self:refresh()
     else
@@ -687,7 +688,7 @@ end
 
 function OATabShop:setCat(id)
     if id == self.cat then return end
-    getSoundManager():playUISound("UISelectListItem")
+    PZUIKit.Sound.ui("kit.select")
     self.cat, self.sel = id, nil
     self.cards:setScroll(0)
     self:refresh()
@@ -714,7 +715,7 @@ end
 function OATabShop.onCardRow(tab, row, x, y)
     local card = cardAt(tab, row, x, y)
     if card and card.id ~= tab.sel then
-        getSoundManager():playUISound("UISelectListItem")
+        PZUIKit.Sound.ui("kit.select")
         tab.sel, tab.pick = card.id, nil
         tab:refresh()
         tab:revealCards(false)

@@ -15,8 +15,10 @@ require "OperationAcorn/Trade/TerminalWindow"
 require "OperationAcorn/Story/Story"
 require "OperationAcorn/Story/Comms"
 require "OperationAcorn/Story/CommsScript"
+require "OperationAcorn/Sounds"
 local OA = OperationAcorn
 local UI, Comms, Script, Data = OA.Trade.UI, OA.Comms, OA.CommsScript, OA.CommsData
+local Sound = PZUIKit.Sound
 
 OATabComms = OATab:derive("OATabComms")
 
@@ -31,12 +33,8 @@ OATabComms.STEP = 48
 -- before (no hail).
 OATabComms.NEXT_MS = 1500
 OATabComms.CHAIN_MS = 1000
--- The game's sound and ambience under a call, as a share of the player's own setting; the sounds (가안: set in the
--- game).
+-- The game's sound and ambience under a call, as a share of the player's own setting (the sounds are OA.Sounds').
 OATabComms.DUCK = 0.5
-OATabComms.SOUND_STATIC = "RadioStatic"
-OATabComms.SOUND_IN = "RadioZap"
-OATabComms.SOUND_SEND = "RadioButton"
 
 -- The hail before a call the tab plays by itself (the tab is come to for it: the terminal opened on it, a mission
 -- started): the line's static (ms, from the start), "<call sign> 호출 중" (the player calling the team: a briefing) or
@@ -383,7 +381,6 @@ end
 -- lines start, the next call after a beat; nil when there is nothing.
 local function frame(self)
     local now = UI.sceneNow()
-    self:holdSound()
     if self.play then
         self:advance(now)
         return self.st and inputLook(self.st, now) or 0
@@ -442,7 +439,7 @@ function OATabComms:advance(now)
         self.st = st
         if st.linked and not play.linked then
             play.linked = true
-            self:sound(OATabComms.SOUND_IN)
+            Sound.ui("oa.comms.in")
         end
         if st.hailKey ~= play.hailKey then
             play.hailKey = st.hailKey
@@ -453,19 +450,32 @@ function OATabComms:advance(now)
     local st = Script.at(play.tl, (now - play.at) / 1000)
     self.st = st
     if not st.line then return self:finish() end
+    self:soundChars(st)
     local changed = false
     if st.line ~= play.line then
         play.line, play.sent = st.line, false
         local who = play.lines[st.line].who
-        if who == "oak" then self:sound(OATabComms.SOUND_IN) end
+        if who == "oak" then Sound.ui("oa.comms.in") end
         changed = true
     end
     if play.lines[st.line].who == "me" and st.phase == "read" and not play.sent then
         play.sent = true
-        self:sound(OATabComms.SOUND_SEND)
+        Sound.ui("oa.comms.send")
         changed = true
     end
     if changed then self:setRows(self:record()) end
+end
+
+-- The characters of the line that came since the last frame (Script.charsSince), each kind with its cue.
+local CHAR_CUES = { recv = "oa.comms.recv", key = "oa.comms.key", erase = "oa.comms.erase" }
+local function soundChars(kind, from, to)
+    Sound.typed(CHAR_CUES[kind], from, to)
+end
+
+function OATabComms:soundChars(st)
+    local play = self.play
+    play.chars = play.chars or {}
+    Script.charsSince(play.chars, st, soundChars)
 end
 
 -- The hail at `ms` into it: no line yet; the dots shown, whether the line is up, and the static's strength.
@@ -552,41 +562,12 @@ function OATabComms:replay(item)
     if e then self:start(e, item.tier, true) end
 end
 
--- The sound under a call (`on`): the game's sound and ambience turned down, a low static; and all of it back. The game
--- goes on under a call (the player pauses it as ever, and the call stands still with it: the scene clock).
+-- The sound under a call (`on`): the game's sound and ambience turned down, a low static (stopping while the game is
+-- paused); and all of it back. The game goes on under a call (the player pauses it as ever, and the call stands still
+-- with it: the scene clock).
 function OATabComms:hush(on)
-    local sm = getSoundManager()
-    if on then
-        local core = getCore()
-        sm:setSoundVolume(core:getOptionSoundVolume() / 10 * OATabComms.DUCK)
-        sm:setAmbientVolume(core:getOptionAmbientVolume() / 10 * OATabComms.DUCK)
-        if not self.static then self.static = sm:playUISound(OATabComms.SOUND_STATIC) end
-        return
-    end
-    if self.static then
-        sm:stopUISound(self.static)
-        self.static = nil
-    end
-    local core = getCore()
-    sm:setSoundVolume(core:getOptionSoundVolume() / 10)
-    sm:setAmbientVolume(core:getOptionAmbientVolume() / 10)
-    self.staticHeld = nil
-end
-
--- The game paused under a call: its static stops with it, and comes back as the game goes on.
-function OATabComms:holdSound()
-    local paused = isGamePaused()
-    if paused and self.static then
-        getSoundManager():stopUISound(self.static)
-        self.static, self.staticHeld = nil, true
-    elseif not paused and self.staticHeld then
-        self.staticHeld = nil
-        if self.play then self.static = getSoundManager():playUISound(OATabComms.SOUND_STATIC) end
-    end
-end
-
-function OATabComms:sound(name)
-    getSoundManager():playUISound(name)
+    Sound.duck(self, on, OATabComms.DUCK)
+    if on then Sound.loop(self, "oa.comms.static") else Sound.unloop(self) end
 end
 
 -- Drawing ----------------------------------------------------------------------------------------------------------

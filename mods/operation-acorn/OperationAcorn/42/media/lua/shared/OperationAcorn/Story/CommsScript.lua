@@ -275,6 +275,31 @@ function Script.at(tl, t)
     return { done = #lines, line = nil, shown = 0, input = 0 }
 end
 
+-- The characters of a line that came between two looks at it (Script.at's states): `was` the counts of the last look
+-- (a table kept by the caller, empty at first; updated to this look's), `emit(kind, from, to)` for each kind that
+-- moved: "recv" the team's characters coming in (not a line put up whole as it is read), "key" the protagonist's
+-- typed, "erase" erased. Counted from nothing as each line starts and as the input turns from the words erased to
+-- the words sent. The last characters of a team's line may come between two looks, the second already in its reading.
+local function coming(phase)
+    return phase == "in" or phase == "cut"
+end
+
+function Script.charsSince(was, st, emit)
+    if was.line ~= st.line then was.line, was.shown, was.input, was.inputOf, was.phase = st.line, 0, 0, nil, nil end
+    if (coming(st.phase) or st.phase == "read" and coming(was.phase)) and st.shown ~= was.shown then
+        emit("recv", was.shown, st.shown)
+    end
+    if st.inputOf then
+        local from = st.inputOf == was.inputOf and was.input or 0
+        if st.input > from then
+            emit("key", from, st.input)
+        elseif st.input < from then
+            emit("erase", st.input, from)
+        end
+    end
+    was.shown, was.input, was.inputOf, was.phase = st.shown, st.input, st.inputOf, st.phase
+end
+
 -- A line as the record keeps it: the marks of a break as "[송신 중단 N초]" (`cutText(seconds)`), the rest plain.
 function Script.recordText(l, cutText)
     local parts, n = {}, 0

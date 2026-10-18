@@ -39,7 +39,7 @@ import pzext.boot.Hooks;
  */
 final class Texts implements Hooks.Text {
     private static final String AREA = "PZExtAPI.text.";
-    private static final String MIRROR = "texts", FORMAT = "pzext-texts 6", FORMAT_BEFORE_LANE = "pzext-texts 5", FORMAT_BEFORE_BURN = "pzext-texts 4",
+    private static final String MIRROR = "texts", FORMAT = "pzext-texts 7", FORMAT_BEFORE_SOUNDS = "pzext-texts 6", FORMAT_BEFORE_LANE = "pzext-texts 5", FORMAT_BEFORE_BURN = "pzext-texts 4",
         FORMAT_BEFORE_BACKDROP = "pzext-texts 3", FORMAT_BEFORE_DUST = "pzext-texts 2",
         FORMAT_BEFORE_TYPING = "pzext-texts 1",
         GENERATION = "textsGeneration", HANDOVER = "textsHandover";
@@ -170,6 +170,10 @@ final class Texts implements Hooks.Text {
         // A dark backdrop behind it with a soft edge: its strength in the middle (0 for none), and how far it reaches below the
         // text's lines (a share of the screen's height: a title's reaches over its line).
         double backdrop, backdropBelow;
+        // The game's sounds (names) at its moments, by SOUND_ENTER, SOUND_LAND and SOUND_LEAVE (null: none, or the copy on a
+        // screen other than the first); the moments passed (bits), each sounded once.
+        String[] sounds;
+        int sounded;
 
         Shown(String owner, long key) { this.owner = owner; this.key = key; }
     }
@@ -347,6 +351,8 @@ final class Texts implements Hooks.Text {
     private final MethodHandle asleep, darkness, elementVisible;
     // GameTime.isGamePaused (the game's speed at 0); null in a game without it: a pause holds nothing.
     private final MethodHandle gamePaused;
+    // BaseSoundManager.instance and its playUISound; null in a game without them: a title's sounds are not played.
+    private final MethodHandle soundManager, playSound;
     private final Class<?> element;
     // The frames drawn with a text shown, and the clock at the last; whether the last frames held a text (written once they end).
     private long frames, lastFrame;
@@ -455,6 +461,14 @@ final class Texts implements Hooks.Text {
         try { pause = Game.exact(Game.type(loader, "zombie.GameTime").getMethod("isGamePaused"), MethodType.methodType(boolean.class)); }
         catch (NoSuchMethodException | ClassNotFoundException older) { pause = null; }
         gamePaused = pause;
+        MethodHandle sounder, play;
+        try {
+            Class<?> sounds = Game.type(loader, "zombie.BaseSoundManager");
+            sounder = MethodHandles.publicLookup().findStaticGetter(sounds, "instance", sounds).asType(MethodType.methodType(Object.class));
+            play = Game.exact(sounds.getMethod("playUISound", String.class), MethodType.methodType(long.class, Object.class, String.class));
+        } catch (ReflectiveOperationException | RuntimeException older) { sounder = play = null; }
+        soundManager = sounder;
+        playSound = play;
         MethodHandle statesOf = null, active = null, count = null;
         try {
             var lookup = MethodHandles.publicLookup();
@@ -1268,7 +1282,7 @@ final class Texts implements Hooks.Text {
     private long title(String owner, Object spec, String call) throws ReflectiveOperationException {
         String style = "dust", line = null;
         Object text = null, color = null, lineColor = null, hold = null, player = null, y = null, leave = null, leaveTime = null, backdrop = null,
-            scale = null;
+            scale = null, sounds = null, lineSounds = null;
         var dusts = new LinkedHashMap<String, Object>();
         boolean now = false;
         for (var entry : lua.entries(spec)) {
@@ -1295,14 +1309,16 @@ final class Texts implements Hooks.Text {
                 case "leaveTime" -> leaveTime = value;
                 case "backdrop" -> backdrop = value;
                 case "scale" -> scale = value;
+                case "sounds" -> sounds = value;
+                case "subtitleSounds" -> lineSounds = value;
                 case "dustSize", "dustSweep", "dustDrift", "dustBurn" -> dusts.put(field, value);
                 case "now" -> {
                     if (!(value instanceof Boolean on)) throw new IllegalArgumentException(call + ": spec.now must be true or false");
                     now = on;
                 }
                 default -> throw new IllegalArgumentException(call + ": spec has no field " + field
-                    + "; it takes text, subtitle, style, color, subtitleColor, hold, y, player, leave, leaveTime, backdrop, scale, dustSize, dustSweep,"
-                    + " dustDrift, dustBurn and now");
+                    + "; it takes text, subtitle, style, color, subtitleColor, hold, y, player, leave, leaveTime, backdrop, scale, sounds,"
+                    + " subtitleSounds, dustSize, dustSweep, dustDrift, dustBurn and now");
             }
         }
         if (text == null) throw new IllegalArgumentException(call + ": spec.text must be a string of 1 to " + MAX_LENGTH + " characters");
@@ -1320,6 +1336,9 @@ final class Texts implements Hooks.Text {
         if (y != null) big.y = number(y, call, "spec.y", 0, 1);
         if (backdrop != null) big.backdrop = number(backdrop, call, "spec.backdrop", 0, 1);
         if (player != null) big.player = player(player, call, "spec.player");
+        if (sounds != null) big.sounds = sounds(sounds, call, "spec.sounds");
+        if (lineSounds != null && small == null) throw new IllegalArgumentException(call + ": spec.subtitleSounds goes with spec.subtitle");
+        if (lineSounds != null) small.sounds = sounds(lineSounds, call, "spec.subtitleSounds");
         // The way out, for the title and its line alike.
         if (leave != null) big.leave = effect(Leave.class, leave, call, "spec.leave");
         if (leaveTime != null) big.leaveTime = number(leaveTime, call, "spec.leaveTime", 0, MAX_SECONDS);
@@ -1353,6 +1372,7 @@ final class Texts implements Hooks.Text {
         room(owner, per * (big.player < 0 ? screens() : 1), call);
         long key = next++;
         Object cell = game.cell();
+        boolean first = true;
         for (int screen : big.player >= 0 ? new int[] { big.player } : present()) {
             if (now) {
                 // The title on that screen leaves, quickly, and this one goes before those waiting.
@@ -1367,9 +1387,31 @@ final class Texts implements Hooks.Text {
             title.cell = cell;
             Shown under = small == null ? null : keyed(small, key, screen);
             if (under != null) under.lead = title;
+            // The sounds once, with the first screen's copy (the players of a split screen hear the same speakers).
+            if (!first) { title.sounds = null; if (under != null) under.sounds = null; }
+            first = false;
             enqueue(under == null ? List.of(title) : List.of(title, under), now);
         }
         return key;
+    }
+
+    /** The moments a text sounds at: as it starts to come in, as it has come in (an impact's hit), as it starts to leave. */
+    static final int SOUND_ENTER = 0, SOUND_LAND = 1, SOUND_LEAVE = 2;
+    private static final String[] SOUND_MOMENTS = { "enter", "land", "leave" };
+    private static final java.util.regex.Pattern SOUND_NAME = java.util.regex.Pattern.compile("[A-Za-z0-9_.]{1,64}");
+
+    /** A title's {@code sounds}: { enter =, land =, leave = } of the game's sound names (each optional). */
+    private String[] sounds(Object value, String call, String name) throws ReflectiveOperationException {
+        if (!lua.isTable(value)) throw new IllegalArgumentException(call + ": " + name + " must be a table such as { land = \"MySound\" }");
+        var result = new String[SOUND_MOMENTS.length];
+        for (var entry : lua.entries(value)) {
+            int moment = entry.getKey() instanceof String key ? List.of(SOUND_MOMENTS).indexOf(key) : -1;
+            if (moment < 0) throw new IllegalArgumentException(call + ": " + name + " has no moment " + entry.getKey() + "; it takes enter, land and leave");
+            if (!(entry.getValue() instanceof String sound) || !SOUND_NAME.matcher(sound).matches())
+                throw new IllegalArgumentException(call + ": " + name + "." + entry.getKey() + " must be a sound's name (letters, digits, _ and .)");
+            result[moment] = sound;
+        }
+        return result;
     }
 
     /** The local players' indexes, or 0 alone when there is none (the main menu draws on the whole screen). */
@@ -1402,6 +1444,7 @@ final class Texts implements Hooks.Text {
         to.script = from.script;
         to.dustSize = from.dustSize; to.dustDrift = from.dustDrift; to.dustSweep = from.dustSweep; to.dustBurn = from.dustBurn;
         to.backdrop = from.backdrop; to.backdropBelow = from.backdropBelow;
+        to.sounds = from.sounds;
     }
 
     /** A text with a style's fields, its text to come. */
@@ -1492,6 +1535,7 @@ final class Texts implements Hooks.Text {
                     if (text.done || text.waiting || text.player >= 0 && text.player != screen || (dark || still) && text.start == 0) continue;
                     if (text.start == 0) { text.start = now; dirty = true; }
                     text.drawnIn = frame;
+                    if (text.sounds != null) sound(text, now);
                     if (over) continue;
                     if (!counted(text, now, screen, left, top, width, height)) { text.done = true; finished = true; }
                 }
@@ -1764,6 +1808,31 @@ final class Texts implements Hooks.Text {
     }
 
     /** When the text starts to leave, in seconds from its delay: after its hold, or when its mod hid it. */
+    /**
+     * A text's sounds at its moments as its clock passes them, once each (its clock stands while the game is paused and moves on
+     * by the frames it was drawn in, so a moment is heard as it is seen). A moment passed when there was nothing to hear (it left
+     * before it was in) is passed silently.
+     */
+    private void sound(Shown text, long now) throws Throwable {
+        double t = (now - text.start) / SECOND - text.delay, leaving = leaving(text);
+        if (t < 0) return;
+        double land = text.enter == Enter.IMPACT ? Math.min(Looks.IMPACT, text.enterTime) : text.enterTime;
+        sound(text, SOUND_ENTER, t < leaving);
+        if (t >= land) sound(text, SOUND_LAND, land < leaving);
+        if (t >= leaving) sound(text, SOUND_LEAVE, text.leave != Leave.NONE && text.leaveTime > 0);
+    }
+
+    private void sound(Shown text, int moment, boolean heard) throws Throwable {
+        int bit = 1 << moment;
+        if ((text.sounded & bit) != 0) return;
+        text.sounded |= bit;
+        dirty = true;
+        String name = text.sounds[moment];
+        if (name == null || !heard || playSound == null) return;
+        Object manager = (Object)soundManager.invokeExact();
+        if (manager != null) { long played = (long)playSound.invokeExact(manager, name); }
+    }
+
     private static double leaving(Shown text) {
         double leaving = text.enterTime + text.hold;
         if (text.hidden != 0) leaving = Math.min(leaving, Math.max(0, (text.hidden - text.start) / SECOND - text.delay));
@@ -2328,10 +2397,26 @@ final class Texts implements Hooks.Text {
                 .append('\t').append(s.player).append('\t').append(s.queued).append('\t').append(s.waiting).append('\t').append(s.start)
                 .append('\t').append(s.hidden).append('\t').append(s.markup).append('\t').append(s.width).append('\t').append(s.speed)
                 .append('\t').append(s.cursor).append('\t').append(s.dustSize).append('\t').append(s.dustSweep.name()).append('\t').append(s.dustDrift)
-                .append('\t').append(s.backdrop).append('\t').append(s.backdropBelow).append('\t').append(burnText(s.dustBurn)).append('\t').append(s.lane);
+                .append('\t').append(s.backdrop).append('\t').append(s.backdropBelow).append('\t').append(burnText(s.dustBurn)).append('\t').append(s.lane)
+                .append('\t').append(soundsText(s.sounds)).append('\t').append(s.sounded);
         }
         lua.set(meta, MIRROR, text.toString());
         dirty = false;
+    }
+
+    /** A text's sounds in the kept text: the moments' names by commas ("" for none), "-" for no sounds. */
+    private static String soundsText(String[] sounds) {
+        if (sounds == null) return "-";
+        var parts = new String[sounds.length];
+        for (int index = 0; index < sounds.length; index++) parts[index] = sounds[index] == null ? "" : sounds[index];
+        return String.join(",", parts);
+    }
+
+    private static String[] soundsOf(String field) {
+        if ("-".equals(field)) return null;
+        String[] parts = field.split(",", -1), sounds = new String[SOUND_MOMENTS.length];
+        for (int index = 0; index < sounds.length && index < parts.length; index++) sounds[index] = parts[index].isEmpty() ? null : parts[index];
+        return sounds;
     }
 
     /** A burn's colour in the kept text: its parts by commas, "-" for none. */
@@ -2380,19 +2465,20 @@ final class Texts implements Hooks.Text {
         String[] lines = text.split("\n");
         // The format before typing has the fields up to hidden; the text of those has no markup, typing or width. The format
         // before dust has the fields up to cursor; its texts have no dust. The format before backdrops has none; the one before burns, no burn;
-        // the one before lanes, no lane (its titles are in the first queue).
+        // the one before lanes, no lane (its titles are in the first queue); the one before sounds, no sounds.
         boolean before = FORMAT_BEFORE_TYPING.equals(lines[0]), beforeDust = before || FORMAT_BEFORE_DUST.equals(lines[0]);
         boolean beforeBackdrop = beforeDust || FORMAT_BEFORE_BACKDROP.equals(lines[0]);
         boolean beforeBurn = beforeBackdrop || FORMAT_BEFORE_BURN.equals(lines[0]);
         boolean beforeLane = beforeBurn || FORMAT_BEFORE_LANE.equals(lines[0]);
-        if (!beforeLane && !FORMAT.equals(lines[0])) {
+        boolean beforeSounds = beforeLane || FORMAT_BEFORE_SOUNDS.equals(lines[0]);
+        if (!beforeSounds && !FORMAT.equals(lines[0])) {
             System.err.println("[PZExt] text: what was shown is kept in another format; it is not shown again");
             return;
         }
         for (int index = 1; index < lines.length; index++) {
             String[] fields = lines[index].split("\t", -1);
             if ("N".equals(fields[0])) { next = Math.max(next, Long.parseLong(fields[1])); continue; }
-            if (fields.length != (before ? 31 : beforeDust ? 35 : beforeBackdrop ? 38 : beforeBurn ? 40 : beforeLane ? 41 : 42) || !"T".equals(fields[0]))
+            if (fields.length != (before ? 31 : beforeDust ? 35 : beforeBackdrop ? 38 : beforeBurn ? 40 : beforeLane ? 41 : beforeSounds ? 42 : 44) || !"T".equals(fields[0]))
                 throw new IllegalStateException("Unknown line in the kept text: " + lines[index]);
             var s = new Shown(unescape(fields[1]), Long.parseLong(fields[2]));
             s.lines = unescape(fields[3]).split("\n", -1);
@@ -2417,6 +2503,7 @@ final class Texts implements Hooks.Text {
                 if (!beforeBackdrop) { s.backdrop = Double.parseDouble(fields[38]); s.backdropBelow = Double.parseDouble(fields[39]); }
                 if (!beforeBurn) s.dustBurn = burnOf(fields[40]);
                 if (!beforeLane) { s.lane = Integer.parseInt(fields[41]); if (s.lane < 0 || s.lane >= LANES) s.lane = 0; }
+                if (!beforeSounds) { s.sounds = soundsOf(fields[42]); s.sounded = Integer.parseInt(fields[43]); }
                 if (s.markup || s.width > 0 || s.enter == Enter.TYPE) {
                     // Read again: the script is not kept, and gives the same as when it was shown.
                     s.source = unescape(fields[3]);

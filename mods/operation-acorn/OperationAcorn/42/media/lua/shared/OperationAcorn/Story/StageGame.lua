@@ -19,6 +19,7 @@ require "OperationAcorn/Core"
 require "OperationAcorn/Story/Stage"
 require "OperationAcorn/Story/Game"
 require "OperationAcorn/Trade/Later"
+require "OperationAcorn/Sounds"
 local OA = OperationAcorn
 local StageGame = {}
 OA.StageGame = StageGame
@@ -924,7 +925,7 @@ function StageGame.unplank(at)
                 local plank = b:removePlank(nil)
                 local under = b:getSquare() or sq
                 if plank then under:AddWorldInventoryItem(plank, 0.5, 0.5, 0) end
-                under:playSound("BreakBarricadePlank")
+                PZUIKit.Sound.at("oa.stage.plank", under)
             end
             return
         end
@@ -1122,12 +1123,14 @@ function StageGame.call(ctx, p)
     return nil
 end
 
--- Things sounding once ({ x, y, z, sound, secs }): each from a free emitter on its square, stopped after its seconds.
+-- Things sounding once ({ x, y, z, sound = a cue of OA.Sounds, secs }): each from a free emitter on its square, stopped
+-- after its seconds.
 -- Only an emitter's sound: no world sound, so zombies are not drawn.
 function StageGame.sound(list)
     for _, at in ipairs(list) do
         local emitter = getWorld():getFreeEmitter(at.x + 0.5, at.y + 0.5, at.z)
-        local id = emitter and emitter:playSound(at.sound)
+        local name = emitter and PZUIKit.Sound.name(at.sound)
+        local id = name and emitter:playSound(name)
         if id and id ~= 0 and at.secs then
             OA.Trade.Later.after(at.secs, function() emitter:stopSound(id) end)
         end

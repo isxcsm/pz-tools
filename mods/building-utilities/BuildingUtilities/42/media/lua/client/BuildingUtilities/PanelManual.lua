@@ -11,6 +11,7 @@ require "PZUIKit/Markup"
 require "PZUIKit/Typing"
 require "BuildingUtilities/Manual"
 require "BuildingUtilities/PanelUi"
+require "BuildingUtilities/Sounds"
 local BU = BuildingUtilities
 local Manual, Ui = BU.Manual, BU.PanelUi
 local UI, P, ROW, PAD = Ui.UI, Ui.PALETTE, Ui.ROW, Ui.PAD
@@ -34,6 +35,7 @@ function ISBUManual:createChildren()
     local body = UI.rich(self, ISBUManual.CHAPTER_W + PAD, 0, 100, 100, PZUITypedText)
     body.target, body.onFinished = self, ISBUManual.onPrinted
     body.cursorColor = P.value
+    body.sounds = { row = "bu.manual.row" }
     body.background = false
     body.palette = P
     body.marginLeft, body.marginRight, body.marginTop, body.marginBottom = 2, 6, 6, 6

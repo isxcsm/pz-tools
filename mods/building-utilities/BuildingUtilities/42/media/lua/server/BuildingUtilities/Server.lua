@@ -232,7 +232,7 @@ local function onNetworkChange(id, what)
     if utility == "power" then Overload.check(panel) end
     if not state then return end
     -- The relay clicks over to another producer, or as power comes or goes: heard at the box.
-    if (what == "producer" or what == "supply") and utility == "power" then Sync.sound(panel, "LightSwitch") end
+    if (what == "producer" or what == "supply") and utility == "power" then Sync.sound(panel, "bu.switch") end
     if what == "producer" and Energy.inUse(state) then
         Sync.notice(panel, "IGUI_BU_Notice_SolarOn", Panels.name(panel))
     elseif what == "producer" and state.producer then

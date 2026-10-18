@@ -393,7 +393,7 @@ test("an event wakes its zombies with the stagger their piece gives", function()
 end)
 
 test("a thing that sounds on an event sounds once, also when the event came before the stage was put", function()
-    local CALL = { { kind = "call", at = "big", sprite = "radio", on = "enter", sound = "RadioTalk", secs = 6 } }
+    local CALL = { { kind = "call", at = "big", sprite = "radio", on = "enter", sound = "oa.stage.radio", secs = 6 } }
     local record, m, g = setup(CALL)
     local sounded = {}
     g.call = function() return { x = 4, y = 5, z = 0 } end
@@ -405,7 +405,7 @@ test("a thing that sounds on an event sounds once, also when the event came befo
     Stage.event(record, m, "enter")
     eq(#sounded, 1)
     eq(sounded[1][1].x, 4)
-    eq(sounded[1][1].sound, "RadioTalk")
+    eq(sounded[1][1].sound, "oa.stage.radio")
     eq(sounded[1][1].secs, 6)
     Stage.event(record, m, "enter")
     eq(#sounded, 1, "once")

@@ -10,14 +10,12 @@ require "OperationAcorn/Trade/Trade"
 require "OperationAcorn/Trade/Boxes"
 require "OperationAcorn/Trade/Objects"
 require "PZUIKit/Heavy"
+require "OperationAcorn/Sounds"
 local OA = OperationAcorn
 local Trade, Sprites, Chunks = OA.Trade, OA.Sprites, OA.Chunks
 local Boxes, Objects = Trade.Boxes, Trade.Objects
 local Things = {}
 Trade.Things = Things
-
--- The sound of a box sealing and of a crate's latch (a vanilla sound name).
-Things.LATCH_SOUND = "PZ_MetalSnap"
 
 -- A character within this many tiles of a thing can work on it.
 Things.REACH = 6
@@ -223,7 +221,7 @@ function Things.seal(character, record, object)
     Objects.closeFor(object)
     Objects.setSprite(object, Sprites.deliveryBox(true))
     if isServer() then object:transmitCompleteItemToClients() end
-    square:playSound(Things.LATCH_SOUND)
+    PZUIKit.Sound.at("oa.box.latch", square)
     Trade.fireSealed(owner, box.id, entries)
     changed(owner)
     return true, entries, plan
@@ -356,7 +354,7 @@ function Things.unseal(character, object, record)
     md[Objects.SEALED] = nil
     Objects.setSprite(object, Sprites.supplyCrate(true))
     if isServer() then object:transmitCompleteItemToClients() end
-    square:playSound(Things.LATCH_SOUND)
+    PZUIKit.Sound.at("oa.box.latch", square)
     if record and Trade.fireOpened then Trade.fireOpened(record, cargo) end
     return true
 end
@@ -369,9 +367,8 @@ function Things.crateEmpty(object)
     return container == nil or container:isEmpty()
 end
 
--- What an emptied crate leaves on the floor, and the sound it breaks with.
+-- What an emptied crate leaves on the floor.
 Things.CRATE_MATERIALS = { { "Base.Plank", 3 }, { "Base.Nails", 6 } }
-Things.BREAK_SOUND = "BreakFurniture"
 
 -- An opened crate that is empty breaks: it is taken away and its wood and nails fall where it stood. Returns whether
 -- it broke.
@@ -386,7 +383,7 @@ function Things.breakEmptyCrate(object)
             if item then square:AddWorldInventoryItem(item, 0.2 + OA.randomFloat(0, 0.6), 0.2 + OA.randomFloat(0, 0.6), 0) end
         end
     end
-    square:playSound(Things.BREAK_SOUND)
+    PZUIKit.Sound.at("oa.box.break", square)
     return true
 end
 

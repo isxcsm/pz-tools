@@ -4,6 +4,7 @@
 -- combo), a click anywhere else closes the list. In design units and the kit's faces (UI.lua). Its calls are the game's combo's: clear, addOptionWithData, selected, getSelectedData.
 require "ISUI/ISPanel"
 require "PZUIKit/UI"
+require "PZUIKit/Sound"
 local UI = PZUIKit.UI
 
 PZUICombo = ISPanel:derive("PZUICombo")
@@ -95,7 +96,7 @@ function PZUICombo:choose(i)
     self:closeList()
     if not self.options[i] then return end
     self.selected = i
-    getSoundManager():playUISound("UISelectListItem")
+    PZUIKit.Sound.ui("kit.select")
     if self.onChange then self.onChange(self.target, self) end
 end
 

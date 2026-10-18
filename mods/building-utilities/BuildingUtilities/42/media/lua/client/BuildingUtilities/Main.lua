@@ -1,6 +1,7 @@
 -- The player's side: windows that show changes, notices for players near a box, a summary when the mouse is over a
 -- box, and in multiplayer the server's data and messages. The world itself changes on the server side (server/BuildingUtilities/Server.lua).
 require "BuildingUtilities/ContextMenu"
+require "BuildingUtilities/Sounds"
 require "BuildingUtilities/PanelWindow"
 require "BuildingUtilities/PanelStatus"
 require "BuildingUtilities/RackWindow"
@@ -37,11 +38,11 @@ function BU.onChanged(panelId)
     if not isClient() and panelId and not panel then PanelWindow.forgetRemoved() end
 end
 
--- A sound at a box, heard where it is.
-function BU.onSound(panelId, name)
+-- A sound at a box (a cue of BU.Sounds), heard where it is.
+function BU.onSound(panelId, cue)
     local panel = Store.get(panelId)
     local square = panel and getCell():getGridSquare(panel.x, panel.y, panel.z)
-    if square then square:playSoundLocal(name) end
+    if square then PZUIKit.Sound.at(cue, square, true) end
 end
 
 -- A box's notice: kept in its log (BU.Sync.notice), which its window shows; nothing over the players' heads (a
@@ -133,7 +134,7 @@ local function onServerCommand(module, command, args)
     if module ~= BU.MOD then return end
     if command == "changed" then BU.onChanged(args and args.panel)
     elseif command == "notice" and args then BU.onNotice(args.panel, args.key, args.args)
-    elseif command == "sound" and args then BU.onSound(args.panel, args.name)
+    elseif command == "sound" and args then BU.onSound(args.panel, args.cue)
     elseif command == "title" and args then BU.onTitle(getPlayer(), args.kind, args.tier) end
 end
 

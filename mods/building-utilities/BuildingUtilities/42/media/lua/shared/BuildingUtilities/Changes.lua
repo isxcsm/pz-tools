@@ -969,7 +969,7 @@ function Changes.trip(panel)
     Networks.applyEnabled(panel)
     BU.log("tripped", panel.id)
     Sync.changed(panel.id)
-    Sync.sound(panel, "GeneratorStopping")
+    Sync.sound(panel, "bu.generator.stop")
     Sync.notice(panel, "IGUI_BU_Notice_Tripped", Panels.name(panel))
 end
 
@@ -978,7 +978,7 @@ function Changes.resetBreaker(panel)
     Networks.applyEnabled(panel)
     Store.record(panel, "IGUI_BU_Log_Reset")
     Sync.changed(panel.id)
-    Sync.sound(panel, "LightSwitch")
+    Sync.sound(panel, "bu.switch")
 end
 
 -- The main switch: all the box's power off or on, by a player at the box. Off, its generators stop until it is on
@@ -990,7 +990,7 @@ function Changes.setSwitchedOff(panel, off)
     Networks.applyEnabled(panel)
     BU.log(off and "switched off" or "switched on", panel.id)
     Sync.changed(panel.id)
-    Sync.sound(panel, "LightSwitch")
+    Sync.sound(panel, "bu.switch")
     Sync.notice(panel, off and "IGUI_BU_Notice_SwitchedOff" or "IGUI_BU_Notice_SwitchedOn", Panels.name(panel))
 end
 
@@ -1011,7 +1011,7 @@ function Changes.setLever(panel, up)
     elseif tripped then
         Networks.applyEnabled(panel)
         Sync.changed(panel.id)
-        Sync.sound(panel, "LightSwitch")
+        Sync.sound(panel, "bu.switch")
     end
 end
 

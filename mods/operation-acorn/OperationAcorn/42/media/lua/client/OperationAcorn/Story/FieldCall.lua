@@ -14,6 +14,7 @@ require "OperationAcorn/Titles"
 require "OperationAcorn/Story/Story"
 require "OperationAcorn/Story/Comms"
 require "OperationAcorn/Story/CommsScript"
+require "OperationAcorn/Sounds"
 local OA = OperationAcorn
 local Comms, Script = OA.Comms, OA.CommsScript
 local FieldCall = {}
@@ -40,7 +41,6 @@ FieldCall.MOVE = 0.35
 -- The call's pace: slower than the terminal's, as it is heard over the helicopter, a turn between the speakers to take a
 -- breath, the last words left a while (CommsScript.timeline's pace). (가안: set in the game.)
 FieldCall.PACE = { oak = 13, me = 9, turn = 1.2, after = 2.0 }
-FieldCall.SOUND_IN = "RadioZap"
 
 -- The speakers' colours (markup), the call sign's and the words'.
 local COLOURS = { oak = { sign = "6E9C76", words = "8CEB99" }, me = { sign = "8C9E8F", words = "EBF2EB" } }
@@ -111,7 +111,7 @@ end
 -- line that is only a pause shows nothing).
 local function start(call, l)
     if l.who ~= "oak" and l.who ~= "me" then return end
-    if l.who == "oak" then getSoundManager():playUISound(FieldCall.SOUND_IN) end
+    if l.who == "oak" then PZUIKit.Sound.ui("oa.comms.in") end
     local words = FieldCall.words(l.text)
     if words == "" then return end
     local t = OA.Titles.textApi()

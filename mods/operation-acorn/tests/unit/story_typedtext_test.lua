@@ -395,3 +395,45 @@ test("a panel off the screen waits, not asked, and the typing waits; shown again
     panel:render()
     near(run.clock, 0.1, 1e-9)
 end)
+
+-- The sounds (PZUIKit.Sound): the panel's `sounds` cues, played on the screen; recorded by name.
+local function sounding(panel, cues)
+    local heard = {}
+    getSoundManager = function() return { playUISound = function(_, name) heard[#heard + 1] = name end } end
+    PZUIKit.Sound.defineAll({ ["t.key"] = { sound = "Key" }, ["t.row"] = { sound = "Row" } })
+    panel.sounds = cues
+    return heard
+end
+
+test("a typed character sounds its key; the first count after a layout and a click's jump do not", function()
+    local panel, run = panelFor("abcdefghijklmnopqrstuvwxyz", 10)
+    local heard = sounding(panel, { key = "t.key" })
+    clock()
+    panel:render()
+    eq(#heard, 0, "the first count: no sound (it may be a text resumed far on)")
+    ms = ms + 100
+    panel:render()
+    ms = ms + 100
+    panel:render()
+    eq(#heard, 2, "a key a character")
+    eq(heard[1], "Key")
+    run.seen = 26
+    panel:onMouseDown(1, 1)
+    ms = ms + 10
+    panel:render()
+    eq(#heard, 2, "the click brought the rest on at once: no typing sound")
+end)
+
+test("a printed document sounds a row as each row begins, once, and nothing for its characters", function()
+    clock()
+    local panel, run = panelFor("ab\ncd\nef", 10)
+    local heard = sounding(panel, { key = "t.key", row = "t.row" })
+    run.step = 0.2
+    panel:paginate()
+    for _ = 1, 20 do
+        panel:render()
+        ms = ms + 50
+    end
+    eq(run.done, true)
+    eq(table.concat(heard, " "), "Row Row Row", "each row as it begins (the first count found none begun)")
+end)

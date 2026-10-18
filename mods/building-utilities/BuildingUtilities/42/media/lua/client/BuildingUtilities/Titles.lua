@@ -5,6 +5,7 @@
 -- still to come.
 require "BuildingUtilities/PanelUi"
 require "BuildingUtilities/Networks"
+require "PZUIKit/Sound"
 local BU = BuildingUtilities
 local Titles = {}
 BU.Titles = Titles
@@ -38,8 +39,15 @@ function Titles.show(character, kind, tier)
         key = "IGUI_BU_Title_Tier" .. tostring(tier)
         sub = key .. "Sub"
     end
-    local ok, failure = pcall(text.title, handle, { text = getText(key), subtitle = getText(sub),
-        style = STYLES[kind], color = BU.PanelUi.ACCENT, subtitleColor = SUBTITLE, player = character:getPlayerNum() })
+    local spec = { text = getText(key), subtitle = getText(sub), style = STYLES[kind], color = BU.PanelUi.ACCENT,
+        subtitleColor = SUBTITLE, player = character:getPlayerNum() }
+    spec.sounds, spec.subtitleSounds = PZUIKit.Sound.titleSounds(spec.style)
+    local ok, failure = pcall(text.title, handle, spec)
+    if not ok and (spec.sounds or spec.subtitleSounds) then
+        -- (an older PZ Extension API has no sounds: the title silent)
+        spec.sounds, spec.subtitleSounds = nil, nil
+        ok, failure = pcall(text.title, handle, spec)
+    end
     if not ok then
         BU.log("title:", tostring(failure))
         return false

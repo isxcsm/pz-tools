@@ -14,6 +14,7 @@ require "OperationAcorn/Sync"
 require "OperationAcorn/Story/Glow"
 require "OperationAcorn/Client"
 require "OperationAcorn/Trade/UI"
+require "OperationAcorn/Sounds"
 local OA = OperationAcorn
 local UI = OA.Trade.UI
 local Hallucination = {}
@@ -25,8 +26,7 @@ Hallucination.DEPTH = 0.16
 -- Milliseconds: the long run (first doses) and the short one, the site edge staying 1.5 times as long.
 Hallucination.LONG_MS = 14000
 Hallucination.SHORT_MS = 5000
--- The ringing: the vanilla sound, how loud it gets (0 to 1), and the milliseconds it takes to rise, to hold and to fade.
-Hallucination.RING_SOUND = "TelevisionTestBeep"
+-- The ringing (OA.Sounds' oa.hallucination.ring): how loud it gets (0 to 1), and the milliseconds it takes to rise, to hold and to fade.
 Hallucination.RING_VOLUME = 0.35
 Hallucination.RING_MS = { 400, 1200, 1800 }
 
@@ -167,7 +167,8 @@ function Hallucination.startRing(playerNum)
     local player = getSpecificPlayer(playerNum)
     local emitter = player and player:getEmitter()
     if not emitter then return nil end
-    local id = emitter:playSound(Hallucination.RING_SOUND)
+    local name = PZUIKit.Sound.name("oa.hallucination.ring")
+    local id = name and emitter:playSound(name)
     if not id or id == 0 then return nil end
     emitter:setVolume(id, 0)
     return { emitter = emitter, id = id }

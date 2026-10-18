@@ -4,13 +4,11 @@
 require "OperationAcorn/Client"
 require "OperationAcorn/Titles"
 require "OperationAcorn/Trade/Trade"
+require "OperationAcorn/Sounds"
 local OA = OperationAcorn
 local Trade = OA.Trade
 local Presentation = {}
 Trade.Presentation = Presentation
-
--- The vanilla helicopter sound (Base sound "Helicopter").
-Presentation.SOUND = "Helicopter"
 
 -- Notices ---------------------------------------------------------------------------------------------------------
 
@@ -73,7 +71,8 @@ local function onHeliPass(playerId, args)
     local x, y = positionAt(pass, 0)
     local emitter = getWorld():getFreeEmitter(x, y, 0)
     if not emitter then return end
-    emitter:playSound(Presentation.SOUND)
+    local name = PZUIKit.Sound.name("oa.heli.pass")
+    if name then emitter:playSound(name) end
     pass.emitter = emitter
     passes[#passes + 1] = pass
     if not hooked then

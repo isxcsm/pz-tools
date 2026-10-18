@@ -197,3 +197,37 @@ test("a title's size asks the API for a scale of its style's; an older API witho
     eq(called[5].scale, OA.Titles.SIZES.minor)
     PZExtAPI = nil
 end)
+
+test("a title carries its style's sounds (the kit's title cues); an older API without sounds shows it silent", function()
+    world()
+    local called = {}
+    local refuseSounds = false
+    PZExtAPI = {
+        version = OA.API_VERSION,
+        client = function() return "handle" end,
+        text = {
+            status = function() return "applied" end,
+            styles = function() return { "stamp", "dust" } end,
+            title = function(_, spec)
+                if refuseSounds and (spec.sounds or spec.subtitleSounds) then error("spec has no field sounds") end
+                called[#called + 1] = spec
+            end,
+        },
+    }
+    local Sound = PZUIKit.Sound
+    OA.Titles.show("p1", { key = "IGUI_OA_Title_Sealed", style = "stamp" })
+    eq(called[1].sounds, nil, "no sound defined: none asked")
+    Sound.define("kit.title.stamp.land", { sound = "Thud" })
+    Sound.define("kit.title.stamp.line.land", { sound = "Tap" })
+    OA.Titles.show("p1", { key = "IGUI_OA_Title_Sealed", sub = "IGUI_OA_Title_Marked", style = "stamp" })
+    eq(called[2].sounds.land, "Thud")
+    eq(called[2].subtitleSounds.land, "Tap")
+    OA.Titles.show("p1", { key = "IGUI_OA_Title_Sealed", style = "stamp" })
+    eq(called[3].subtitleSounds, nil, "no line: no line's sounds")
+    refuseSounds = true
+    eq(OA.Titles.show("p1", { key = "IGUI_OA_Title_Sealed", style = "stamp" }), "title")
+    eq(called[4].sounds, nil)
+    Sound.define("kit.title.stamp.land", {})
+    Sound.define("kit.title.stamp.line.land", {})
+    PZExtAPI = nil
+end)

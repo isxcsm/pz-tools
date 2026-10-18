@@ -2007,7 +2007,15 @@ which override the jar's; it overrides none of the text classes):
 `color`, `subtitleColor`, `hold` (seconds), `y`, `player`, `leave` and `leaveTime` (for the title and its line alike: any style
 can leave as dust), `backdrop` (0 for none), `scale` (0.4 to 2.5: the style's sizes of the title and its line times this, for a
 title that matters more or less than its style says), `dustSize`, `dustSweep`, `dustDrift` and `dustBurn` (with `leave = "dust"`, `"burn"` or `"flare"`, the
-style's or the spec's), and `now`. The line under a title takes its look's cues from it (a torch's flicker). A title's backdrop reaches over its line: one backdrop for both. Every style stays 5 s once all of it is in (the title, and its line when it has one: its hold is
+style's or the spec's), `sounds` and `subtitleSounds` (below), and `now`. The line under a title takes its look's cues from it (a torch's flicker).
+
+A title sounds at its moments when its spec names the game's sounds for them: `sounds = { enter = ..., land = ..., leave = ... }` for the title,
+`subtitleSounds` (with a `subtitle`) for its line, each moment optional, each a sound's name (a vanilla one, or a mod's from its sound scripts:
+letters, digits, `_` and `.`). `enter` as it starts to come in, `land` as it has come in (an `"impact"` as its letters hit, 0.16 s in; else at
+the end of its enter), `leave` as it starts to leave. Each is played once, on the screen (the game's UI sound), with the first screen's copy
+of the title (a split screen's players share the speakers), as the title's clock passes it: a pause holds it, and a moment passed with
+nothing to hear (a title hidden before it was in) is passed silently. A newer API goes on from the moments passed. The API knows no sound of
+its own: which a style sounds is the mod's. A title's backdrop reaches over its line: one backdrop for both. Every style stays 5 s once all of it is in (the title, and its line when it has one: its hold is
 lengthened by as much as the line comes in after the title) and has a backdrop of 0.3, but `"brief"`, a light one for small news. A style is a pair of `show` specs:
 
 | Style | Title | Line under it |

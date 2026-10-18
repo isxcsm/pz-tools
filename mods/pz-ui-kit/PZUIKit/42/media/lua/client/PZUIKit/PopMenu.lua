@@ -11,6 +11,7 @@
 --   option.swatch = { r, g, b }   -- a colour square before its text (what it stands for is told by colour)
 require "ISUI/ISPanel"
 require "PZUIKit/UI"
+require "PZUIKit/Sound"
 require "PZUIKit/RichText"
 local UI = PZUIKit.UI
 
@@ -122,7 +123,7 @@ function PZUIPopMenu:onMouseDown(x, y)
     local row = self:rowAt(y)
     if not offered(row) then return true end
     self:close()
-    getSoundManager():playUISound("UISelectListItem")
+    PZUIKit.Sound.ui("kit.select")
     if row.fn then
         local args = row.args
         row.fn(row.target, args[1], args[2], args[3], args[4])

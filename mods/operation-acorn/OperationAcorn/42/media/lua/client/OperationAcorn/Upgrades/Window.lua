@@ -52,6 +52,7 @@ require "OperationAcorn/Upgrades/Links"
 require "OperationAcorn/Upgrades/Motion"
 require "OperationAcorn/Trade/UI"
 require "PZUIKit/Confirm"
+require "OperationAcorn/Sounds"
 local OA = OperationAcorn
 local Data = OA.Upgrades.Data
 local Rules = OA.Upgrades.Rules
@@ -1028,7 +1029,7 @@ end
 function View:press(item)
     if item.id then return self:plan(item.id) end
     if not self:enabled(item) then return end
-    getSoundManager():playUISound("UIActivateButton")
+    PZUIKit.Sound.ui("kit.press")
     if item.kind == "mode" then
         self:onMode({ internal = item.mode })
     elseif item.kind == "reset" then
@@ -2592,7 +2593,7 @@ function View:drawTake(el)
     end
     if lit > take.lit then
         take.lit = lit
-        getSoundManager():playUISound("UISelectListItem")
+        PZUIKit.Sound.ui("kit.select")
     end
     -- the frame: a light runs round each column that took points, the column lighting softly behind it
     local along, line, fill = Plan.takeGlow(t - take.glowFrom)

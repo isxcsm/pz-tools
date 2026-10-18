@@ -31,12 +31,12 @@ function Sync.notice(panel, key, ...)
     end
 end
 
--- A sound at the box, for the players who hear it there.
-function Sync.sound(panel, name)
+-- A sound at the box, for the players who hear it there: a cue of BU.Sounds.
+function Sync.sound(panel, cue)
     if isServer() then
-        sendServerCommand(BU.MOD, "sound", { panel = panel.id, name = name })
+        sendServerCommand(BU.MOD, "sound", { panel = panel.id, cue = cue })
     elseif BU.onSound then
-        BU.onSound(panel.id, name)
+        BU.onSound(panel.id, cue)
     end
 end
 

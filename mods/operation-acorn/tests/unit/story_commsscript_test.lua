@@ -258,3 +258,29 @@ test("the protagonist stops typing at a mark; a call on the spot has its own pac
     truthy(per >= 1 / (2 * (1 + Script.WORD_SPREAD)) - 1e-9 and per <= 1 / (2 * (1 - Script.WORD_SPREAD)) + 1e-9,
         "the call's own typing speed")
 end)
+
+test("the characters that came between looks: the team's coming in, the protagonist's typed and erased, each once", function()
+    local lines = Script.lines(Data.BY_ID.S1, ctx(1))
+    local tl = Script.timeline(lines, 12)
+    local was, got = {}, { recv = 0, key = 0, erase = 0 }
+    local function emit(kind, from, to) got[kind] = got[kind] + math.abs(to - from) end
+    local t = 0
+    while t <= tl.total + 0.1 do
+        local st = Script.at(tl, t)
+        if st.line then Script.charsSince(was, st, emit) end
+        t = t + 1 / 60
+    end
+    local recv, key, erase = 0, 0, 0
+    for _, l in ipairs(lines) do
+        if l.who == "oak" then
+            recv = recv + #l.chars
+        elseif l.who == "me" then
+            key = key + #l.chars + (l.erase and #l.erase or 0)
+            erase = erase + (l.erase and #l.erase or 0)
+        end
+    end
+    truthy(erase > 0, "the scene has an erased line")
+    eq(got.recv, recv, "the team's characters")
+    eq(got.key, key, "the words typed, the erased ones too")
+    eq(got.erase, erase, "the erased words, deleted")
+end)
