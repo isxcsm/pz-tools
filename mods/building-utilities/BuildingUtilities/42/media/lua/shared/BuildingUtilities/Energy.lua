@@ -31,7 +31,7 @@ end
 
 -- Whether a panel's network has the source: a panel with power units.
 function Energy.hasSource(panel)
-    return #Units.of(panel.id, "power") > 0
+    return Units.count(panel.id, "power") > 0
 end
 
 -- What a panel's solar panels make in a sun (now's if none), how many there are and how much snow lies on them on

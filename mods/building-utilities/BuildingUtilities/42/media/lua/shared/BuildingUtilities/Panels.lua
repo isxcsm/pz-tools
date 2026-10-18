@@ -975,17 +975,31 @@ function Panels.device(panel, utility, key)
 end
 
 -- Each box by the grid cells (REACH_CELL squares) its building's rooms, grown by its connect range, cover: the boxes
--- whose outside range can reach a square are those of its cell. Kept while the boxes, the lines and the API's buildings
--- are the same.
+-- whose outside range can reach a square are those of its cell. Kept while the boxes, the lines, the API's buildings
+-- and each box's tier and range (a new tier, or the sandbox's range, count no link version) are the same.
 local REACH_CELL = 32
 local reachLinks, reachBuildings, reachCells
+local reachTier, reachRange = {}, {}
+
+local function reachSame(ordered)
+    for _, panel in ipairs(ordered) do
+        local tier = panel.tier or 1
+        if reachTier[panel.id] ~= tier or reachRange[panel.id] ~= BU.connectRange(tier) then return false end
+    end
+    return true
+end
 
 local function reachIndex()
     current()
     local links = Store.linkVersion()
-    if reachCells and reachLinks == links and reachBuildings == cacheVersion then return reachCells end
-    reachLinks, reachBuildings, reachCells = links, cacheVersion, {}
-    for _, panel in ipairs(Store.list()) do
+    local ordered = Store.ordered()
+    if reachCells and reachLinks == links and reachBuildings == cacheVersion and reachSame(ordered) then
+        return reachCells
+    end
+    reachLinks, reachBuildings, reachCells, reachTier, reachRange = links, cacheVersion, {}, {}, {}
+    for _, panel in ipairs(ordered) do
+        local tier = panel.tier or 1
+        reachTier[panel.id], reachRange[panel.id] = tier, BU.connectRange(tier)
         local own = Panels.building(panel)
         local minX, minY, maxX, maxY
         for _, room in ipairs(own and Panels.rooms(own) or {}) do
@@ -1012,7 +1026,7 @@ end
 -- The panels a square can be a device of: those of its building, and those whose outside range reaches it. The
 -- steps are to the building's rooms on any level, never more than buildings.near counts on the square's own, so
 -- none that has it is left out; a square far from every box asks the API for no devices.
-local function devicePanels(x, y, z)
+function Panels.panelsReaching(x, y, z)
     local building = Panels.buildingAt(x, y, z)
     local result, seen = {}, {}
     for _, panel in ipairs(building and Panels.ofBuilding(building.key) or {}) do
@@ -1052,7 +1066,7 @@ function Panels.deviceOf(object, utility, cache)
     cache = cache or {}
     cache.near, cache.devices = cache.near or {}, cache.devices or {}
     local at = x .. "," .. y .. "," .. z
-    cache.near[at] = cache.near[at] or devicePanels(x, y, z)
+    cache.near[at] = cache.near[at] or Panels.panelsReaching(x, y, z)
     for _, panel in ipairs(cache.near[at]) do
         local slot = panel.id .. "|" .. utility
         cache.devices[slot] = cache.devices[slot] or devicesByKey(panel, utility)
