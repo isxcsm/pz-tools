@@ -201,3 +201,50 @@ test("a window steps aside while the action it queued is on, not while held, and
     eq(window.uiFading.to, 1, "the action done: whole")
     eq(window.uiBusy, nil)
 end)
+
+test("a window's fade follows its elements by the window's state: one look a frame, not a walk for each element", function()
+    local UI = load()
+    local window = element(nil)
+    local panel = element(window)
+    local kids, asked, rootAsked = {}, 0, 0
+    for i = 1, 20 do
+        local k = element(panel)
+        k.isVisible = function() asked = asked + 1; return true end
+        kids[i] = k
+    end
+    panel.isVisible = function() asked = asked + 1; return true end
+    local shown = true
+    window.isVisible = function() rootAsked = rootAsked + 1; return shown end
+    UI.fadeIn(window, 100)
+    UI.liveFrame()
+    eq(asked, 0, "no element of the window was walked up from")
+    truthy(rootAsked <= 2, "the window itself looked at once for its elements and once for its own entry: " .. rootAsked)
+    local tick = kids[1].liveTick
+    truthy(tick, "followed")
+    eq(kids[20].liveTick, tick, "one tick between them")
+    eq(panel.liveCount, tick, "told to what they are in")
+    eq(kids[1].liveLook, 0)
+    now = 1050
+    UI.liveFrame()
+    eq(kids[7].liveLook, 50)
+    truthy(kids[7].liveTick > tick, "a new tick a frame")
+    -- the game hides the window for its pause menu: they wait as they are
+    shown = false
+    now = 1060
+    UI.liveFrame()
+    eq(kids[7].liveLook, 50, "hidden: not asked")
+    shown = true
+    now = 1070
+    UI.liveFrame()
+    eq(kids[7].liveLook, 70, "and on again")
+    -- the end of the fade: every entry is let go
+    now = 1100
+    UI.liveFrame()
+    now = 1110
+    UI.liveFrame()
+    local entries, kept = UI.liveSize()
+    eq(entries, 0)
+    eq(kept, 0)
+    eq(kids[7].liveLook, nil)
+    eq(window.uiFade, nil)
+end)

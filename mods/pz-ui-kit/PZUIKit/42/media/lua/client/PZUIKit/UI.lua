@@ -1208,6 +1208,8 @@ end
 -- removeChild) is let go. The handler stays on once used: taking it off from inside the event would make the game skip
 -- the next handler of that frame, and with nothing registered it returns at once.
 local live, liveHooked, liveCount = {}, false, 0
+-- (the order the entries were made in)
+local liveSeq = 0
 local hookFrame
 -- The entries by element and frame function, for the once of UI.live: { [frame function] = entry, n = how many }. An
 -- element's table goes with its last entry (a table of elements kept by element would hold every element ever followed,
@@ -1267,6 +1269,25 @@ function UI.sceneNow()
     return sceneMs
 end
 
+-- The fade's frame function for the elements of a fading window (below), told apart from the others here.
+local fadeFrame
+
+-- The state of the elements of a fading window is the window's (an element hidden or taken out inside it is not looked
+-- for: the fade's entry for it only mirrors the window's step, and ends with the fade): worked out once a frame for a
+-- window, where walking up from each of its elements would be a walk for every element every frame. Its elements get one
+-- tick between them as well, and a tick set on a parent once is not set again in the frame.
+local groupRoot, groupStamp, groupState, groupTick
+
+local function stateOf(entry, el)
+    local root = entry.frame == fadeFrame and el.uiFadeRoot or nil
+    if type(root) ~= "table" then return showing(el), false end
+    if groupRoot ~= root or groupStamp ~= frameStamp then
+        groupRoot, groupStamp, groupTick = root, frameStamp, nil
+        groupState = showing(root)
+    end
+    return groupState, true
+end
+
 -- An element may be followed for several things at once (its lights, a slide, a glide), each its own entry: one
 -- that stops does not let the others go. The element's liveLook is the look of one entry still going (the last that
 -- changed), nil once none is; its liveTick changes with any.
@@ -1278,27 +1299,40 @@ local function liveFrame()
     for i = #live, 1, -1 do
         local entry = live[i]
         local el = entry.el
-        local state = showing(el)
+        local state, grouped = stateOf(entry, el)
         -- (a hidden one waits as it is: neither asked nor let go)
         local look = entry.look
         if state == "shown" then look = entry.frame(el, now)
         elseif state == "gone" then look = nil end
         if state ~= "hidden" and look ~= entry.look then
             entry.look = look
-            liveCount = liveCount + 1
-            el.liveTick = liveCount
+            local tick
+            if grouped then
+                if groupTick == nil then
+                    liveCount = liveCount + 1
+                    groupTick = liveCount
+                end
+                tick = groupTick
+            else
+                liveCount = liveCount + 1
+                tick = liveCount
+            end
+            el.liveTick = tick
             if look ~= nil then
                 el.liveLook = look
             else
-                local other
-                for _, each in ipairs(live) do
-                    if each.el == el and each ~= entry and each.look ~= nil then other = each.look end
+                -- the look of the last entry of the element that still goes
+                local other, latest = nil, 0
+                for _, each in pairs(liveOf[el]) do
+                    if type(each) == "table" and each ~= entry and each.look ~= nil and each.seq > latest then
+                        other, latest = each.look, each.seq
+                    end
                 end
                 el.liveLook = other
             end
             local parent = el.parent
-            while parent do
-                parent.liveCount = liveCount
+            while parent and parent.liveCount ~= tick do
+                parent.liveCount = tick
                 parent = parent.parent
             end
         end
@@ -1331,7 +1365,8 @@ function UI.live(el, frame)
         return
     end
     hookFrame()
-    local entry = { el = el, frame = frame }
+    liveSeq = liveSeq + 1
+    local entry = { el = el, frame = frame, seq = liveSeq }
     frames[frame] = entry
     frames.n = frames.n + 1
     live[#live + 1] = entry
@@ -1359,8 +1394,6 @@ local STILLED = { "onMouseDown", "onMouseUp", "onRightMouseDown", "onRightMouseU
     "onMouseDoubleClick", "update" }
 
 local function swallow() return true end
-
-local fadeFrame
 
 -- An instance field set over the class's, kept to be put back (false: there was none). The element's own fields are
 -- read by going over them (the game's rawget reads through to the class), once when it is wrapped.
