@@ -301,6 +301,7 @@ public final class GameApi {
             systems(lua, api, meta, handles, game, luaManager.getClassLoader());
             scheduled(lua, api, meta, handles, game, luaManager.getClassLoader());
             walls(lua, buildingsTable, meta, handles, game, read, luaManager.getClassLoader());
+            objects(lua, api, meta, game, read, luaManager.getClassLoader());
             lua.set(env, GLOBAL, api);
         } catch (Throwable failure) {
             // The functions mods kept refuse to be called rather than change networks and formulas that no longer run.
@@ -318,7 +319,22 @@ public final class GameApi {
             Items.retire(lua, meta);
             SquareWatches.retire(lua, meta);
             WallWatches.retire(lua, meta);
+            ObjectQueries.retire(lua, meta);
             throw failure;
+        }
+    }
+
+    /**
+     * {@code PZExtAPI.objects}: the objects of an area found, read by mod data, listed on the edges of a room and taken off their
+     * squares. Left out, with a line in the game's log, in a game that lacks what it reads: the rest of the API goes on.
+     */
+    private static void objects(Kahlua lua, Object api, Object meta, Game game, Buildings read, ClassLoader loader)
+            throws ReflectiveOperationException {
+        try { new ObjectQueries(lua, game, read, meta, loader).register(table(lua, api, "objects")); }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+            report(unreadable);
+            ObjectQueries.retire(lua, meta);
+            lua.set(api, "objects", null);
         }
     }
 

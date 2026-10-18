@@ -24,6 +24,9 @@ public final class IsoSprite {
             zombie.IndieGL.depthMask });
     }
     public String getName() { return name; }
+    /** The direction the sprite faces, if it has one (a test sets it). */
+    public zombie.iso.IsoDirections facing;
+    public zombie.iso.IsoDirections getFacing() { return facing; }
     public PropertyContainer getProperties() { return properties; }
 
     /** Like the game's: the instance's frame moves by its speed (a frame's time being 1 here) and loops. */

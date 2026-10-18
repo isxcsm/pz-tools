@@ -110,6 +110,7 @@ public final class GameApiTest {
         QuadsTest.run(api);
         FloorDecalsTest.run(api);
         SquareWatchesTest.run(api);
+        ObjectsTest.run(api);
         WallWatchesTest.run(api);
         RoomEditsTest.run(api);
         TrackedTest.run();
