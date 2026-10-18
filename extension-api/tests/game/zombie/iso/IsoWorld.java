@@ -6,7 +6,7 @@ package zombie.iso;
  */
 public final class IsoWorld {
     public static IsoWorld instance = new IsoWorld();
-    public final IsoMetaGrid metaGrid = new IsoMetaGrid();
+    public IsoMetaGrid metaGrid = new IsoMetaGrid();
     public IsoCell currentCell = new IsoCell();
     public final Helicopter helicopter = new Helicopter();
     /** Set by a test: the meta grid cannot be read. */

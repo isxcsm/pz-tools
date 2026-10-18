@@ -16,7 +16,13 @@ public final class ZomboidFileSystem {
     /** The current save's folder, as a test sets it. */
     public static java.io.File save;
 
+    /** The folder the game keeps its caches in, as a test sets it. */
+    public static String cacheFolder;
+
     private ZomboidFileSystem() { }
+
+    /** As the game's: the folder it keeps its caches (saves, logs, mods' files) in. */
+    public String getCacheDir() { return cacheFolder; }
 
     /** A file of the current save, as the game's. */
     public java.io.File getFileInCurrentSave(String name) { return new java.io.File(save, name); }

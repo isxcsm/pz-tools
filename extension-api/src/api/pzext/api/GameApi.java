@@ -302,6 +302,7 @@ public final class GameApi {
             systems(lua, api, meta, handles, game, luaManager.getClassLoader());
             scheduled(lua, api, meta, handles, game, luaManager.getClassLoader());
             maps(lua, api, game, luaManager.getClassLoader());
+            mapQueries(lua, api, read, game, luaManager.getClassLoader());
             walls(lua, buildingsTable, meta, handles, game, read, luaManager.getClassLoader());
             objects(lua, api, meta, game, read, luaManager.getClassLoader());
             lua.set(env, GLOBAL, api);
@@ -745,6 +746,29 @@ public final class GameApi {
             report(unreadable);
             Object squares = lua.get(api, "squares");
             if (lua.isTable(squares)) lua.set(squares, "path", null);
+        }
+    }
+
+    /**
+     * {@code zones.clusters} and {@code zombies.dense}: facts read from the whole map, kept for the world and, on disk, for the map set
+     * ({@link MapCache}). Each is left out, with a line in the game's log, in a game that lacks what it reads: the others go on.
+     */
+    private static void mapQueries(Kahlua lua, Object api, Buildings read, Game game, ClassLoader loader) throws ReflectiveOperationException {
+        MapCache disk = null;
+        try { disk = new MapCache(loader); }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) { report(unreadable); }
+        Object zones = table(lua, api, "zones");
+        try { new ZoneClusters(lua, game, read, disk, loader).register(zones); }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+            report(unreadable);
+            lua.set(zones, "clusters", null);
+        }
+        Object zombies = lua.get(api, "zombies");
+        if (!lua.isTable(zombies)) return;
+        try { new DenseZombies(lua, game, disk, loader).register(zombies); }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+            report(unreadable);
+            lua.set(zombies, "dense", null);
         }
     }
 
