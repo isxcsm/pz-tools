@@ -239,8 +239,9 @@ end
 
 -- A title's sounds for the API's text.title (spec.sounds, spec.subtitleSounds): the game's sounds of the cues
 -- `kit.title.<style>.<moment>` and `kit.title.<style>.line.<moment>`, the moments enter (it starts to come in), land (it
--- has come in: a stamp's hit) and leave; each nil where no moment has a sound.
-local MOMENTS = { "enter", "land", "leave" }
+-- has come in: a stamp's hit), hold (it starts as the title lands and plays until the title is gone, its volume following the
+-- leave down to 0: a sound script with loop = true, though a one-shot works) and leave; each nil where no moment has a sound.
+local MOMENTS = { "enter", "land", "hold", "leave" }
 local function momentSounds(base)
     local sounds
     for _, moment in ipairs(MOMENTS) do
@@ -278,8 +279,9 @@ end
 -- The titles that sound (SOUND-SYSTEM.md S6): the stamp's hit, its line's lighter; the typewriter's letters struck (a
 -- run of an old typewriter's keys as long as the strike), its line's, and its carriage thrown back as the paper is fed
 -- out (ours: tools/sound, sounds.json); the notice tuned in as a signal, the torch struck alight, the burning title set
--- alight, the sinking one going into the water. A title plays a moment's sound once and never stops it: only sounds
--- that end by themselves (the game's tune-in, campfire, heartbeat and dripping go on: tests/ingame/sound_e2e.lua).
+-- alight, the sinking one going into the water. A title's sounds are bound to its life: the API stops every one still
+-- playing, with a short fade, when the title is gone or cut short, so a sound need not end by itself (the game's tune-in,
+-- campfire, heartbeat and dripping, which go on, are stopped with it; tests/ingame/sound_e2e.lua).
 Sound.defineAll({
     ["kit.title.stamp.land"] = { sound = "KIT_TitleStamp" },
     ["kit.title.stamp.line.land"] = { sound = "KIT_TitleStampLine" },

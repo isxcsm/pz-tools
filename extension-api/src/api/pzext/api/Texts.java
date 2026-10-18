@@ -4,6 +4,7 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.*;
 import java.util.function.Supplier;
 import pzext.boot.Hooks;
@@ -170,12 +171,26 @@ final class Texts implements Hooks.Text {
         // A dark backdrop behind it with a soft edge: its strength in the middle (0 for none), and how far it reaches below the
         // text's lines (a share of the screen's height: a title's reaches over its line).
         double backdrop, backdropBelow;
-        // The game's sounds (names) at its moments, by SOUND_ENTER, SOUND_LAND and SOUND_LEAVE (null: none, or the copy on a
-        // screen other than the first); the moments passed (bits), each sounded once.
+        // The game's sounds (names) at its moments, by SOUND_ENTER, SOUND_LAND, SOUND_LEAVE and SOUND_HOLD (null: none, or the copy
+        // on a screen other than the first); the moments passed (bits), each sounded once.
         String[] sounds;
         int sounded;
+        // The sounds it started that are still its own, by moment (null: none); not kept for a newer API, which a handover stops them for.
+        Voice[] voices;
 
         Shown(String owner, long key) { this.owner = owner; this.key = key; }
+    }
+
+    /**
+     * A sound a text started: its id (what playUISound gave), the level it plays at (a hold's follows the text's leave), and, once
+     * the text has no more use for it, the clock at which it began to fade out.
+     */
+    static final class Voice {
+        final long id;
+        float level = 1;
+        long fadeFrom;
+
+        Voice(long id) { this.id = id; }
     }
 
     /**
@@ -351,8 +366,15 @@ final class Texts implements Hooks.Text {
     private final MethodHandle asleep, darkness, elementVisible;
     // GameTime.isGamePaused (the game's speed at 0); null in a game without it: a pause holds nothing.
     private final MethodHandle gamePaused;
-    // SoundManager.instance (a BaseSoundManager) and its playUISound; null in a game without them: a title's sounds are not played.
-    private final MethodHandle soundManager, playSound;
+    // SoundManager.instance (a BaseSoundManager) and its playUISound, isPlayingUISound(id) and stopUISound(id); SoundManager.getUIEmitter()
+    // (the emitter the UI sounds play from) and its setVolume(id, level), which scales a sound under the game's own volumes (a channel's
+    // volume set direct is set again from them with each tick of the emitter); null in a game without them: a title's sounds are not played.
+    private final MethodHandle soundManager, playSound, playingSound, stopSound, uiEmitter, emitterVolume;
+    private final Class<?> managerType;
+    // The texts with sounds of their own playing, and the sounds let go that fade out (the frame ends them).
+    private final ArrayList<Shown> voiced = new ArrayList<>();
+    private final ArrayList<Voice> fading = new ArrayList<>();
+    private boolean soundReported;
     private final Class<?> element;
     // The frames drawn with a text shown, and the clock at the last; whether the last frames held a text (written once they end).
     private long frames, lastFrame;
@@ -461,15 +483,27 @@ final class Texts implements Hooks.Text {
         try { pause = Game.exact(Game.type(loader, "zombie.GameTime").getMethod("isGamePaused"), MethodType.methodType(boolean.class)); }
         catch (NoSuchMethodException | ClassNotFoundException older) { pause = null; }
         gamePaused = pause;
-        MethodHandle sounder, play;
+        MethodHandle sounder, play, playing, stop, emitter, volume;
+        Class<?> managers;
         try {
             Class<?> sounds = Game.type(loader, "zombie.BaseSoundManager");
-            sounder = MethodHandles.publicLookup().findStaticGetter(Game.type(loader, "zombie.SoundManager"), "instance", sounds)
-                .asType(MethodType.methodType(Object.class));
+            managers = Game.type(loader, "zombie.SoundManager");
+            sounder = MethodHandles.publicLookup().findStaticGetter(managers, "instance", sounds).asType(MethodType.methodType(Object.class));
             play = Game.exact(sounds.getMethod("playUISound", String.class), MethodType.methodType(long.class, Object.class, String.class));
-        } catch (ReflectiveOperationException | RuntimeException older) { sounder = play = null; }
+            playing = Game.exact(sounds.getMethod("isPlayingUISound", long.class), MethodType.methodType(boolean.class, Object.class, long.class));
+            stop = Game.exact(sounds.getMethod("stopUISound", long.class), MethodType.methodType(void.class, Object.class, long.class));
+            Method uiEmitterOf = managers.getMethod("getUIEmitter");
+            emitter = Game.exact(uiEmitterOf, MethodType.methodType(Object.class, Object.class));
+            volume = Game.exact(uiEmitterOf.getReturnType().getMethod("setVolume", long.class, float.class),
+                MethodType.methodType(void.class, Object.class, long.class, float.class));
+        } catch (ReflectiveOperationException | RuntimeException older) { sounder = play = playing = stop = emitter = volume = null; managers = null; }
         soundManager = sounder;
         playSound = play;
+        playingSound = playing;
+        stopSound = stop;
+        uiEmitter = emitter;
+        emitterVolume = volume;
+        managerType = managers;
         MethodHandle statesOf = null, active = null, count = null;
         try {
             var lookup = MethodHandles.publicLookup();
@@ -1094,6 +1128,14 @@ final class Texts implements Hooks.Text {
             Dust.Piece piece = pieces.get(index);
             if (piece.owner.done || !shown.contains(piece.owner)) letGo(piece);
         }
+        // A text gone (done, hidden at once, cleared, its world left) lets its sounds go: they fade out and stop.
+        if (!voiced.isEmpty()) {
+            long at = clock.getAsLong();
+            for (int index = voiced.size() - 1; index >= 0; index--) {
+                Shown text = voiced.get(index);
+                if (text.done || !shown.contains(text)) release(text, at);
+            }
+        }
     }
 
     // ---- dust ----
@@ -1382,6 +1424,7 @@ final class Texts implements Hooks.Text {
                     if (other.queued && other.player == screen && other.lane == big.lane && !other.waiting && other.start != 0 && !other.done) {
                         if (other.hidden == 0) other.hidden = at;
                         other.leaveTime = Math.min(other.leaveTime, 0.25);
+                        cut(other, at);
                     }
             }
             Shown title = keyed(big, key, screen);
@@ -1396,18 +1439,24 @@ final class Texts implements Hooks.Text {
         return key;
     }
 
-    /** The moments a text sounds at: as it starts to come in, as it has come in (an impact's hit), as it starts to leave. */
-    static final int SOUND_ENTER = 0, SOUND_LAND = 1, SOUND_LEAVE = 2;
-    private static final String[] SOUND_MOMENTS = { "enter", "land", "leave" };
+    /**
+     * The moments a text sounds at: as it starts to come in, as it has come in (an impact's hit), as it starts to leave, and the
+     * hold, which starts as it has come in and lasts until the text is gone (a loop; its level follows the leave down to 0). The
+     * hold is last so that a kept text of three moments (enter, land, leave) still reads.
+     */
+    static final int SOUND_ENTER = 0, SOUND_LAND = 1, SOUND_LEAVE = 2, SOUND_HOLD = 3;
+    private static final String[] SOUND_MOMENTS = { "enter", "land", "leave", "hold" };
     private static final java.util.regex.Pattern SOUND_NAME = java.util.regex.Pattern.compile("[A-Za-z0-9_.]{1,64}");
+    /** How long the sounds of a text that is gone, or cut short, fade out before they are stopped (seconds). */
+    static final double SOUND_FADE = 0.15;
 
-    /** A title's {@code sounds}: { enter =, land =, leave = } of the game's sound names (each optional). */
+    /** A title's {@code sounds}: { enter =, land =, hold =, leave = } of the game's sound names (each optional). */
     private String[] sounds(Object value, String call, String name) throws ReflectiveOperationException {
         if (!lua.isTable(value)) throw new IllegalArgumentException(call + ": " + name + " must be a table such as { land = \"MySound\" }");
         var result = new String[SOUND_MOMENTS.length];
         for (var entry : lua.entries(value)) {
             int moment = entry.getKey() instanceof String key ? List.of(SOUND_MOMENTS).indexOf(key) : -1;
-            if (moment < 0) throw new IllegalArgumentException(call + ": " + name + " has no moment " + entry.getKey() + "; it takes enter, land and leave");
+            if (moment < 0) throw new IllegalArgumentException(call + ": " + name + " has no moment " + entry.getKey() + "; it takes enter, land, hold and leave");
             if (!(entry.getValue() instanceof String sound) || !SOUND_NAME.matcher(sound).matches())
                 throw new IllegalArgumentException(call + ": " + name + "." + entry.getKey() + " must be a sound's name (letters, digits, _ and .)");
             result[moment] = sound;
@@ -1468,6 +1517,7 @@ final class Texts implements Hooks.Text {
     void frame() {
         EmbeddedFont.Loaded own = embedded;
         embeddedReady = own != null && own.ready.get();
+        if (!fading.isEmpty()) fade();
         try {
             if (moves.moved() && game.cell() != world) {
                 Object cell = game.cell();
@@ -1819,8 +1869,14 @@ final class Texts implements Hooks.Text {
         if (t < 0) return;
         double land = text.enter == Enter.IMPACT ? Math.min(Looks.IMPACT, text.enterTime) : text.enterTime;
         sound(text, SOUND_ENTER, t < leaving);
-        if (t >= land) sound(text, SOUND_LAND, land < leaving);
-        if (t >= leaving) sound(text, SOUND_LEAVE, text.leave != Leave.NONE && text.leaveTime > 0);
+        if (t >= land) {
+            sound(text, SOUND_LAND, land < leaving);
+            sound(text, SOUND_HOLD, land < leaving);
+        }
+        if (t >= leaving) {
+            sound(text, SOUND_LEAVE, text.leave != Leave.NONE && text.leaveTime > 0);
+            if (text.voices != null) ramp(text, text.leaveTime > 0 ? 1 - (t - leaving) / text.leaveTime : 0);
+        }
     }
 
     private void sound(Shown text, int moment, boolean heard) throws Throwable {
@@ -1831,7 +1887,99 @@ final class Texts implements Hooks.Text {
         String name = text.sounds[moment];
         if (name == null || !heard || playSound == null) return;
         Object manager = (Object)soundManager.invokeExact();
-        if (manager != null) { long played = (long)playSound.invokeExact(manager, name); }
+        if (manager == null) return;
+        long id = (long)playSound.invokeExact(manager, name);
+        // 0: nothing played (the sound is unknown, or the game's UI sounds are muted).
+        if (id == 0) return;
+        if (text.voices == null) { text.voices = new Voice[SOUND_MOMENTS.length]; voiced.add(text); }
+        text.voices[moment] = new Voice(id);
+    }
+
+    /** The share of its volume the text's hold sound plays at while the text leaves: 1 as it starts to, 0 as it is gone (the text's clock). */
+    private void ramp(Shown text, double share) throws Throwable {
+        Voice hold = text.voices[SOUND_HOLD];
+        if (hold == null) return;
+        float level = (float)Looks.clamp(share, 0, 1);
+        // Set when it moved a share of a hundredth, and for the last of it: a text's frame is not a sound's.
+        if (level == hold.level || level != 0 && Math.abs(level - hold.level) < 0.01f) return;
+        hold.level = level;
+        Object emitter = emitter();
+        if (emitter != null) emitterVolume.invokeExact(emitter, hold.id, level);
+    }
+
+    /** The emitter the UI sounds play from, or null (no sound manager of the game's own). */
+    private Object emitter() throws Throwable {
+        Object manager = (Object)soundManager.invokeExact();
+        return managerType.isInstance(manager) ? (Object)uiEmitter.invokeExact(manager) : null;
+    }
+
+    /**
+     * A text gone, or cut short: the sounds it started that still play fade out over {@link #SOUND_FADE} (the frame ends them), and
+     * it starts no more. A sound that has ended by itself (a one-shot) is let go as it is.
+     */
+    private void release(Shown text, long at) {
+        Voice[] voices = text.voices;
+        if (voices == null) return;
+        text.voices = null;
+        voiced.remove(text);
+        try {
+            Object manager = (Object)soundManager.invokeExact();
+            if (manager == null) return;
+            for (Voice voice : voices)
+                if (voice != null && (boolean)playingSound.invokeExact(manager, voice.id)) { voice.fadeFrom = at; fading.add(voice); }
+        } catch (Throwable failure) { soundFault(failure); }
+    }
+
+    /** A title cut short by one that came before it (now): it sounds no more, and what sounds fades out. */
+    private void cut(Shown text, long at) {
+        text.sounded = (1 << SOUND_MOMENTS.length) - 1;
+        dirty = true;
+        release(text, at);
+    }
+
+    /** The sounds let go, a step of their fade; stopped when it is over (or when they have ended already). Allocates nothing. */
+    private void fade() {
+        try {
+            long now = clock.getAsLong();
+            Object manager = (Object)soundManager.invokeExact();
+            Object emitter = managerType.isInstance(manager) ? (Object)uiEmitter.invokeExact(manager) : null;
+            for (int index = fading.size() - 1; index >= 0; index--) {
+                Voice voice = fading.get(index);
+                double gone = (now - voice.fadeFrom) / SECOND / SOUND_FADE;
+                if (manager != null && gone < 1 && (boolean)playingSound.invokeExact(manager, voice.id)) {
+                    if (emitter != null) emitterVolume.invokeExact(emitter, voice.id, (float)(voice.level * (1 - Math.max(0, gone))));
+                    continue;
+                }
+                if (manager != null) stopSound.invokeExact(manager, voice.id);
+                fading.remove(index);
+            }
+        } catch (Throwable failure) { soundFault(failure); }
+    }
+
+    /** The sounds this holds, those of the texts shown and those fading out; for the tests. */
+    int voices() {
+        int count = fading.size();
+        for (Shown text : voiced) for (Voice voice : text.voices) if (voice != null) count++;
+        return count;
+    }
+
+    /** Every sound this started stops at once (the API is taken over by a newer one, which does not know them). */
+    void silence() {
+        try {
+            Object manager = soundManager == null ? null : (Object)soundManager.invokeExact();
+            for (Shown text : voiced)
+                if (manager != null) for (Voice voice : text.voices) if (voice != null) stopSound.invokeExact(manager, voice.id);
+            for (Voice voice : fading) if (manager != null) stopSound.invokeExact(manager, voice.id);
+        } catch (Throwable failure) { soundFault(failure); }
+        for (Shown text : voiced) text.voices = null;
+        voiced.clear();
+        fading.clear();
+    }
+
+    /** Once: a fault in the game's sounds that recurs must not flood its log. Titles go on without them. */
+    private void soundFault(Throwable failure) {
+        if (!soundReported) System.err.println("[PZExt] text: sounds: " + failure);
+        soundReported = true;
     }
 
     private static double leaving(Shown text) {
@@ -2406,14 +2554,14 @@ final class Texts implements Hooks.Text {
     }
 
     /** A text's sounds in the kept text: the moments' names by commas ("" for none), "-" for no sounds. */
-    private static String soundsText(String[] sounds) {
+    static String soundsText(String[] sounds) {
         if (sounds == null) return "-";
         var parts = new String[sounds.length];
         for (int index = 0; index < sounds.length; index++) parts[index] = sounds[index] == null ? "" : sounds[index];
         return String.join(",", parts);
     }
 
-    private static String[] soundsOf(String field) {
+    static String[] soundsOf(String field) {
         if ("-".equals(field)) return null;
         String[] parts = field.split(",", -1), sounds = new String[SOUND_MOMENTS.length];
         for (int index = 0; index < sounds.length && index < parts.length; index++) sounds[index] = parts[index].isEmpty() ? null : parts[index];
@@ -2448,6 +2596,8 @@ final class Texts implements Hooks.Text {
 
     private String handover() {
         try {
+            // The newer API does not know the sounds this started: they stop (a text goes on from the moments passed, silent).
+            silence();
             write();
             // The newer API draws from now on: it lets this one's pictures go from its drawing, after this one's last frames.
             var destroys = new ArrayList<Runnable>();

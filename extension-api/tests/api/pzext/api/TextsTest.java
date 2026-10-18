@@ -73,6 +73,7 @@ final class TextsTest {
             titles(text, mod);
             titleScale(text, mod);
             titleSounds(text, mod);
+            holdSounds(api, text, mod);
             fileVolume();
             screens(text, mod);
             world(text, mod, other);
@@ -1189,6 +1190,229 @@ final class TextsTest {
         rejects(text, "spec.sounds.land must be a sound's name", "title", mod, table("text", "x", "sounds", table("land", "a b")));
         rejects(text, "spec.subtitleSounds goes with spec.subtitle", "title", mod, table("text", "x", "subtitleSounds", table("land", "A")));
     }
+
+    /**
+     * A title's sounds live and die with it: a hold starts at land and plays until the title is gone, its level following the
+     * leave down to 0; every sound a text started fades out over 0.15 s and stops when the text is done, hidden at once, cleared,
+     * cut short by a title with {@code now}, or its world is left; a newer API stops them; a pause holds the levels where they are.
+     * The notice: its signal is in at 0.7 s, it stays 5 s, and is lost over 4.5 s (so it is gone at 10.2 s).
+     */
+    private static void holdSounds(KahluaTable api, KahluaTable text, Object mod) throws Exception {
+        var manager = (zombie.SoundManager)zombie.SoundManager.instance;
+        var played = manager.played;
+        var volumes = manager.emitter.volumes;
+        // What the tests before left fading out stops first: sound ids start again from 1 below.
+        FormulasTest.call(mod, "clear");
+        render();
+        advance(1);
+        frameJob();
+        check(manager.playing.isEmpty() && GameApi.texts().voices() == 0, "Sounds of the tests before were left: " + manager.playing);
+        played.clear();
+        manager.stopped.clear();
+        volumes.clear();
+
+        // The hold starts at land (0.7 s), is at its full level through the stay, follows the leave down, and is stopped at the end.
+        FormulasTest.call(text, "title", mod, table("text", "Held", "style", "notice", "sounds", table("enter", "In", "hold", "Loop", "leave", "Out")));
+        render();
+        check(List.of("In").equals(played), "The title did not sound as it started: " + played);
+        advance(0.69);
+        render();
+        check(List.of("In").equals(played), "The hold started before the title landed: " + played);
+        advance(0.02);
+        render();
+        check(List.of("In", "Loop").equals(played), "The hold did not start as the title landed (0.7 s): " + played);
+        advance(2.29);
+        render();
+        check(volumes.isEmpty() && manager.playing.size() == 2, "The hold was not left at its full level through the stay: " + volumes);
+        advance(2.71);
+        render();
+        check(List.of("In", "Loop", "Out").equals(played), "The leave did not sound as the title left (5.7 s): " + played);
+        advance(2.24);
+        render();
+        check(volumes.size() == 1 && Math.abs(volumes.get(2L) - 0.5) < 0.011, "The hold is not at half halfway through the leave: " + volumes);
+        advance(2.2);
+        render();
+        check(volumes.get(2L) < 0.02 && !volumes.containsKey(1L) && !volumes.containsKey(3L), "The hold is not nearly out at the end of the leave, or another sound's level was set: " + volumes);
+        check(manager.playing.size() == 3 && manager.stopped.isEmpty(), "A sound stopped before the title was gone");
+        advance(0.1);
+        render();
+        check(volumes.get(2L) == 0f, "The hold is not at 0 as the title is gone: " + volumes);
+        check(manager.playing.size() == 3 && GameApi.texts().voices() == 3, "The sounds did not fade out first: " + manager.playing);
+        frameJob();
+        advance(0.075);
+        frameJob();
+        check(manager.playing.size() == 3 && Math.abs(volumes.get(1L) - 0.5) < 1e-3, "The enter sound is not at half halfway through the fade out: " + volumes);
+        advance(0.1);
+        frameJob();
+        check(manager.playing.isEmpty() && manager.stopped.containsAll(List.of(1L, 2L, 3L)) && GameApi.texts().voices() == 0,
+            "A sound was left after the title: " + manager.playing);
+        long calls = manager.emitter.volumeCalls;
+        advance(1);
+        render();
+        frameJob();
+        check(manager.emitter.volumeCalls == calls && played.size() == 3, "A title that is gone set sound levels");
+
+        // Paused, nothing changes: the hold plays on at the level it had, and the leave goes on from there.
+        played.clear();
+        manager.stopped.clear();
+        volumes.clear();
+        FormulasTest.call(text, "title", mod, table("text", "Held", "style", "notice", "sounds", table("hold", "Loop")));
+        render();
+        advance(0.71);
+        render();
+        advance(7.24);
+        render();
+        check(volumes.size() == 1 && Math.abs(volumes.get(1L) - 0.5) < 0.011, "The hold is not at half halfway through the leave: " + volumes);
+        calls = manager.emitter.volumeCalls;
+        GameTime.paused = true;
+        advance(30);
+        render();
+        frameJob();
+        GameTime.paused = false;
+        check(manager.emitter.volumeCalls == calls && manager.playing.equals(java.util.Set.of(1L)) && manager.stopped.isEmpty(),
+            "A pause changed a sound: " + volumes + ", playing " + manager.playing);
+        advance(1);
+        render();
+        check(Math.abs(volumes.get(1L) - (1 - 3.25 / 4.5)) < 0.011, "The leave did not go on from where the pause held it: " + volumes);
+        // A sound that ended by itself (a one-shot) is let go as it is: nothing to stop.
+        manager.playing.clear();
+        FormulasTest.call(mod, "clear");
+        frameJob();
+        check(GameApi.texts().voices() == 0 && manager.stopped.isEmpty(), "A sound that had ended was held, or stopped again");
+        render();
+
+        // A title with `now` cuts the sounds of the title on the screen, and its line's, with the short fade; they sound no more.
+        played.clear();
+        manager.stopped.clear();
+        volumes.clear();
+        FormulasTest.call(text, "title", mod, table("text", "First", "subtitle", "its line", "style", "notice",
+            "sounds", table("enter", "In", "hold", "Loop", "leave", "Out"), "subtitleSounds", table("hold", "LineLoop", "leave", "LineOut")));
+        render();
+        advance(1.5);
+        render();
+        check(List.of("In", "Loop", "LineLoop").equals(played), "The title and its line did not sound: " + played);
+        advance(1);
+        render();
+        FormulasTest.call(text, "title", mod, table("text", "Next", "style", "notice", "now", true, "sounds", table("enter", "BIn")));
+        check(manager.playing.size() == 3 && GameApi.texts().voices() == 3, "The cut title's sounds did not stay for their fade");
+        frameJob();
+        advance(0.075);
+        frameJob();
+        check(Math.abs(volumes.get(2L) - 0.5) < 1e-3 && Math.abs(volumes.get(3L) - 0.5) < 1e-3 && manager.playing.size() == 3,
+            "The cut title's sounds are not at half halfway through their fade out: " + volumes);
+        advance(0.1);
+        frameJob();
+        check(manager.playing.isEmpty() && manager.stopped.size() == 3 && GameApi.texts().voices() == 0, "The cut title's sounds were not stopped: " + manager.playing);
+        advance(0.4);
+        render();
+        render();
+        check(List.of("In", "Loop", "LineLoop", "BIn").equals(played), "A cut title sounded its leave, or the next did not sound: " + played);
+        FormulasTest.call(mod, "clear");
+        render();
+        advance(1);
+        frameJob();
+        check(manager.playing.isEmpty() && GameApi.texts().voices() == 0, "Sounds were left: " + manager.playing);
+
+        // The world ending takes them as it takes the title.
+        played.clear();
+        manager.stopped.clear();
+        volumes.clear();
+        IsoCell home = IsoWorld.instance.currentCell;
+        frameJob();
+        FormulasTest.call(text, "title", mod, table("text", "Held", "style", "notice", "sounds", table("enter", "In", "hold", "Loop")));
+        render();
+        advance(1);
+        render();
+        check(manager.playing.size() == 2, "The title did not sound: " + played);
+        IsoWorld.instance.setCell(new IsoCell());
+        frameJob();
+        advance(0.2);
+        frameJob();
+        check(manager.playing.isEmpty() && GameApi.texts().voices() == 0, "The world ending left sounds playing: " + manager.playing);
+        IsoWorld.instance.setCell(home);
+        frameJob();
+        render();
+
+        // A newer API stops them (it does not know them), and goes on with the title from the moments passed. What an API before the
+        // hold kept (three moments) still reads.
+        played.clear();
+        manager.stopped.clear();
+        volumes.clear();
+        double key = (Double)FormulasTest.call(text, "title", mod, table("text", "Held", "style", "notice",
+            "sounds", table("enter", "In", "land", "Hit", "hold", "Loop", "leave", "Out"))).get(0);
+        render();
+        advance(1);
+        render();
+        frameJob();
+        check(List.of("In", "Hit", "Loop").equals(played) && manager.playing.size() == 3, "The title did not sound: " + played);
+        KahluaTable meta = api.getMetatable();
+        // The API in place hands over (it writes what it shows, and stops its sounds); what it wrote is then made what an API before
+        // the hold wrote.
+        ((java.util.function.Supplier<?>)meta.rawget("textsHandover")).get();
+        String[] kept = ((String)meta.rawget("texts")).split("\n");
+        var before = new StringBuilder(kept[0]);
+        for (int row = 1; row < kept.length; row++) {
+            String[] fields = kept[row].split("\t", -1);
+            if ("T".equals(fields[0])) {
+                check(fields[42].equals("In,Hit,Out,Loop") && fields[43].equals("11"), "The kept sounds are not the four moments: " + fields[42] + " " + fields[43]);
+                fields[42] = "In,Hit,Out";
+                fields[43] = "3";
+            }
+            before.append('\n').append(String.join("\t", fields));
+        }
+        meta.rawset("texts", before.toString());
+        meta.rawset("textsHandover", null);
+        GameApi.register(LuaManager.class);
+        useClock();
+        check(manager.playing.isEmpty() && manager.stopped.size() == 3, "A newer API left the sounds of the one before it: " + manager.playing);
+        render();
+        check(List.of("In", "Hit", "Loop").equals(played), "A newer API sounded the moments passed again, or the hold: " + played);
+        check((Boolean)FormulasTest.call(text, "shown", mod, key).get(0), "The newer API does not know the title");
+        advance(4.8);
+        render();
+        check(List.of("In", "Hit", "Loop", "Out").equals(played), "The kept title (three moments) did not sound its leave: " + played);
+        FormulasTest.call(mod, "clear");
+        render();
+        advance(1);
+        frameJob();
+        check(manager.playing.isEmpty() && GameApi.texts().voices() == 0, "Sounds were left: " + manager.playing);
+
+        // A hold following a long leave costs frames nothing to allocate (its level is set when it moved a hundredth).
+        played.clear();
+        manager.stopped.clear();
+        volumes.clear();
+        FormulasTest.call(text, "title", mod, table("text", "Long", "style", "notice", "hold", 0.5, "leaveTime", 30.0, "sounds", table("hold", "Loop")));
+        render();
+        advance(1);
+        render();
+        calls = manager.emitter.volumeCalls;
+        TextManager.record = false;
+        long bytes;
+        try {
+            bytes = Allocations.median(5, () -> {
+                for (int frame = 0; frame < 100_000; frame++) {
+                    if (frame % 1000 == 0) advance(0.01);
+                    UIManager.render();
+                }
+            });
+        } finally { TextManager.record = true; }
+        check(manager.emitter.volumeCalls > calls + 5 && manager.emitter.volumeCalls < calls + 100, "The hold's level was not set as it moved: " + (manager.emitter.volumeCalls - calls) + " times");
+        check(bytes < 4096, "A title with a hold sound allocated " + bytes + " bytes in 100,000 frames");
+        FormulasTest.call(mod, "clear");
+        render();
+        advance(1);
+        frameJob();
+        check(manager.playing.isEmpty() && GameApi.texts().voices() == 0, "Sounds were left: " + manager.playing);
+
+        rejects(text, "it takes enter, land, hold and leave", "title", mod, table("text", "x", "sounds", table("loop", "A")));
+        rejects(text, "spec.sounds.hold must be a sound's name", "title", mod, table("text", "x", "sounds", table("hold", "a b")));
+        rejects(text, "spec.subtitleSounds.hold must be a sound's name", "title", mod, table("text", "x", "subtitle", "y", "subtitleSounds", table("hold", 3.0)));
+        check(Arrays.equals(new String[] { "In", "Hit", "Out", null }, Texts.soundsOf("In,Hit,Out")), "A list of three moments is not read as a list of four");
+        check(Arrays.equals(new String[] { null, null, null, "Loop" }, Texts.soundsOf(",,,Loop")), "The hold is not read");
+        check("In,,Out,Loop".equals(Texts.soundsText(new String[] { "In", null, "Out", "Loop" })), "The four moments are not written");
+    }
+
+    private static void frameJob() { GameApi.frame(TextsTest.class.getClassLoader()); }
 
     /** Titles: their styles, one after another, at once when asked, and a full queue. */
     private static void titles(KahluaTable text, Object mod) {

@@ -4,6 +4,10 @@ package zombie;
 public abstract class BaseSoundManager {
     public abstract long playUISound(String name);
 
+    public abstract boolean isPlayingUISound(long id);
+
+    public abstract void stopUISound(long id);
+
     public abstract float getSoundVolume();
 
     public abstract float getAmbientVolume();
