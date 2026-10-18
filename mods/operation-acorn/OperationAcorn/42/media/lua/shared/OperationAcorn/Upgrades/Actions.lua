@@ -181,7 +181,7 @@ end
 local JOB_TEXT = { cure = "ContextMenu_OA_Tree_UseCure", delay = "ContextMenu_OA_Tree_TakeDelay",
     reversal = "ContextMenu_OA_Tree_UseReversal", test = "ContextMenu_OA_Tree_UseTest" }
 
--- A test kit is a short wait with a swab's sound; a cure serum is a long dose, with a line of the character's at its
+-- A test kit is a short wait with a swab's sound (below); a cure serum is a long dose, with a line of the character's at its
 -- start (the same whether or not there is an infection to cure). self.kind is the item's kind (Serums.kind).
 function ISOAUseSerum:start()
     if isClient() and self.item then
@@ -195,7 +195,6 @@ function ISOAUseSerum:start()
         self.character:SetVariable("LootPosition", "Mid")
         self.character:reportEvent("EventLootItem")
         self:setOverrideHandModels(nil, nil)
-        self.sound = PZUIKit.Sound.on("oa.serum.test", self.character)
     elseif self.kind == "cure" and self.character:isLocalPlayer() then
         OA.Say.say(self.character, "CureStart")
     end
@@ -206,21 +205,12 @@ function ISOAUseSerum:update()
     if self.kind ~= "test" then self:setActionAnim(CharacterActionAnims.TakePills) end
 end
 
-function ISOAUseSerum:stopSound()
-    if self.sound and self.character:getEmitter():isPlaying(self.sound) then
-        self.character:stopOrTriggerSound(self.sound)
-    end
-    self.sound = nil
-end
-
 function ISOAUseSerum:stop()
-    self:stopSound()
     ISBaseTimedAction.stop(self)
     self.item:setJobDelta(0.0)
 end
 
 function ISOAUseSerum:perform()
-    self:stopSound()
     self.item:setJobDelta(0.0)
     ISBaseTimedAction.perform(self)
 end
@@ -404,5 +394,12 @@ end
 
 function ISOADisarm:getDuration() return pickDuration(self) end
 function ISOADisarm:new(character, target) return pickNew(self, character, target) end
+
+-- Their sounds (OA.Sounds): a test kit's swab while its result is waited for; a pry bar's; a lock picked.
+local Sound = PZUIKit.Sound
+Sound.timed(ISOAUseSerum, function(action) return action.kind == "test" and "oa.serum.test" or nil end)
+Sound.timed(ISOAPryOpen, "oa.action.pry")
+Sound.timed(ISOAPickLock, "oa.action.pick")
+Sound.timed(ISOADisarm, "oa.action.pick")
 
 return Actions

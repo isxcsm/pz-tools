@@ -4,6 +4,7 @@
 require "TimedActions/ISBaseTimedAction"
 require "OperationAcorn/Store"
 require "OperationAcorn/Trade/Things"
+require "OperationAcorn/Sounds"
 local OA = OperationAcorn
 local Trade = OA.Trade
 local Objects, Things = Trade.Objects, Trade.Things
@@ -179,8 +180,16 @@ end
 function ISOAUnseal:new(character, square, withCrowbar)
     local o = ISBaseTimedAction.new(self, character)
     o.x, o.y, o.z = square:getX(), square:getY(), square:getZ()
+    o.withCrowbar = withCrowbar
     o.maxTime = character:isTimedActionInstant() and 1 or (withCrowbar and 120 or 450)
     return o
 end
+
+-- Their sounds (OA.Sounds): a crate opened with a pry bar, or taken apart by hand.
+local Sound = PZUIKit.Sound
+Sound.timed(ISOAPlaceThing, nil, "oa.action.place")
+Sound.timed(ISOASeal, "oa.action.tape")
+Sound.timed(ISOADismantleBox, "oa.action.dismantle")
+Sound.timed(ISOAUnseal, function(action) return action.withCrowbar and "oa.action.pry" or "oa.action.dismantle" end)
 
 return Actions

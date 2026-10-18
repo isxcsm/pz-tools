@@ -6,6 +6,7 @@
 require "TimedActions/ISBaseTimedAction"
 require "BuildingUtilities/Changes"
 require "BuildingUtilities/Costs"
+require "BuildingUtilities/Sounds"
 local BU = BuildingUtilities
 local Store, Panels, Units, Changes, Costs, Links = BU.Store, BU.Panels, BU.Units, BU.Changes, BU.Costs, BU.Links
 local Actions = {}
@@ -513,5 +514,20 @@ function ISBUReviveBattery:new(character, item)
     o.maxTime = o:getDuration()
     return o
 end
+
+-- Their sounds (Sounds.lua): a line's by its utility.
+local Sound = PZUIKit.Sound
+local function lineSound(action) return action.utility == "power" and "bu.action.wire" or "bu.action.wrench" end
+Sound.timed(ISBUConnect, lineSound)
+Sound.timed(ISBUDisconnect, lineSound)
+Sound.timed(ISBUUpgradePanel, "bu.action.electric")
+Sound.timed(ISBUAddPipe, "bu.action.wrench")
+Sound.timed(ISBURemovePipe, "bu.action.wrench")
+Sound.timed(ISBUReplaceMedia, "bu.action.wrench")
+Sound.timed(ISBUReverseEngineer, "bu.action.electric")
+Sound.timed(ISBUActivateBox, nil, "bu.action.place")
+Sound.timed(ISBUTakeBox, nil, "bu.action.pickup")
+Sound.timed(ISBUTakeApartBox, "bu.action.electric")
+Sound.timed(ISBUReviveBattery, "bu.action.battery")
 
 return Actions

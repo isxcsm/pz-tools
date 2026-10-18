@@ -13,6 +13,16 @@ Sounds.CUES = {
     ["bu.generator.stop"] = { sound = "GeneratorStopping" },
     -- the manual showing a row on the panel's screen (no sound: a screen, not a printer)
     ["bu.manual.row"] = {},
+    -- the timed actions (PZUIKit.Sound.timed). During: a power line laid or taken away, a wrench's work (a water line,
+    -- a pipe, a filter's media), electrical work in a box (upgraded, its design learnt, one taken apart), a battery's
+    -- cells refilled. Done: a box made where it stands (as if put down), one taken up. Snow brushed off a panel by hand
+    -- is quiet.
+    ["bu.action.wire"] = { sound = "GeneratorConnect" },
+    ["bu.action.wrench"] = { sound = "RepairWithWrench" },
+    ["bu.action.electric"] = { sound = "Dismantle" },
+    ["bu.action.battery"] = { sound = "PourWaterIntoObject" },
+    ["bu.action.place"] = { sound = "UIObjectMenuObjectPlace" },
+    ["bu.action.pickup"] = { sound = "UIObjectMenuObjectPickup" },
 }
 PZUIKit.Sound.defineAll(Sounds.CUES)
 

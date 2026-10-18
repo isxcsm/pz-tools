@@ -100,27 +100,26 @@ S1~S4가 끝나면 두 모드의 사건을 전부 훑어 표로 만든다: 사�
 | 키트 선택 / 버튼 | `kit.select` / `kit.press` | UISelectListItem / UIActivateButton | 바닐라 |
 | 제목 순간 (스타일 10종 × 등장·착지·퇴장, 줄 포함) | `kit.title.*` | 무음 | 새 에셋: 도장 쿵(stamp land), 타자 제목(type: 키보드 재사용), 발견(discovery) 짧은 음 등. 스타일마다 정함 |
 
-**소리 없는 타임드 액션** (바닐라 액션은 시작에 소리를 내고 끝·중단에 멈춘다. 같은 방식으로 키트에 한 지점을 둔다: `Sound.startAction(action, cue)`, 끝·중단은 `ISBaseTimedAction.perform/stop`에서 한 번에 멈춤)
+**타임드 액션** (2026-10-18 연결). 바닐라 액션은 시작에 캐릭터 소리를 내고 끝·중단에 `stopOrTriggerSound`로 멈춘다. 가구를 들고 놓는 것(ISMoveablesAction)은 작업 중 소리 없이 끝에 UI 소리 한 번이다. 키트의 한 지점 `Sound.timed(class, during, done)`이 같은 일을 한다: 파일 끝에서 클래스의 start/stop/perform을 감싸, `during`은 일하는 동안 캐릭터에서, `done`은 끝났을 때 화면에서 낸다. 큐 대신 액션을 받는 함수도 된다 (도구·종류에 따라 다른 소리). 코드에 쓴 큐가 표에 없으면 `build.py --check`가 잡는다.
 
-| 액션 | 후보 (바닐라) |
-| --- | --- |
-| OA 물건·기계 놓기 (`ISOAPlaceThing`, `ISOAMachinePlace`) | UIObjectMenuObjectPlace |
-| OA 기계 줍기 (`ISOAMachinePickUp`), BU 상자 회수 (`ISBUTakeBox`) | UIObjectMenuObjectPickup |
-| OA 기계 부품 넣기·빼기 (`ISOAMachinePartIn/Out`), 장비 키트 장착 (`ISOAFitItemKit`, `ISOAFitVehicleKit`) | RepairWithWrench |
-| OA 상자 봉인 (`ISOASeal`) | FixWithTape (끝에 걸쇠 큐) |
-| OA 상자 해체 (`ISOADismantleBox`), BU 상자 분해 (`ISBUTakeApartBox`), 역설계 (`ISBUReverseEngineer`) | Dismantle |
-| OA 지렛대로 열기 (`ISOAPryOpen`) | BeginRemoveBarricadePlankCrowbar |
-| OA 자물쇠 따기·해제 (`ISOAPickLock`, `ISOADisarm`) | 바닐라 없음: 새 에셋 |
-| OA 파쇄 (`ISOAMachineShred`) | 바닐라 없음: 새 에셋 |
-| BU 배선 연결·해제 (`ISBUConnect`, `ISBUDisconnect`) | GeneratorConnect |
-| BU 제어반 단계 올림 (`ISBUUpgradePanel`) | Dismantle (전기 작업) |
-| BU 배관 추가·제거 (`ISBUAddPipe`, `ISBURemovePipe`) | RepairWithWrench |
-| BU 눈 치우기 (`ISBUClearSnow`) | Shoveling 또는 무음 (패널 위 눈을 털어냄) |
-| BU 필터 교체 (`ISBUReplaceMedia`) | RepairWithWrench |
-| BU 상자 작동 (`ISBUActivateBox`) | KnobSwitch |
-| BU 배터리 되살리기 (`ISBUReviveBattery`) | CarBatteryChargerRunning (반복) |
-| BU 제어반·랙 열기 (`ISBUOpenPanel`, `ISBUOpenRack`) | CrateMetalOpen 계열 또는 무음 (창이 열린다) |
-| OA 이야기 행동·채취 (`ISOAStoryAction`, `ISOAHarvestAction`) | ForagingPickup 또는 무음 |
+| 액션 | 큐 | 소리 |
+| --- | --- | --- |
+| OA 물건·기계 놓기 (`ISOAPlaceThing`, `ISOAMachinePlace`), BU 상자 작동 (`ISBUActivateBox`: 들었다 놓는 셈) | 끝 `oa.action.place` / `bu.action.place` | UIObjectMenuObjectPlace |
+| OA 기계·미끼 줍기 (`ISOAMachinePickUp`, `ISOAMachineTakeLure`), BU 상자 회수 (`ISBUTakeBox`) | 끝 `oa.action.pickup` / `bu.action.pickup` | UIObjectMenuObjectPickup |
+| OA 기계 부품 넣기·빼기, 장비 키트 장착 (`ISOAMachinePartIn/Out`, `ISOAFitItemKit`, `ISOAFitVehicleKit`) | `oa.action.wrench` | RepairWithWrench |
+| OA 상자 봉인 (`ISOASeal`) | `oa.action.tape` | FixWithTape (끝의 걸쇠는 `oa.box.latch`) |
+| OA 상자 해체, 손으로 화물 열기, 손 파쇄 (`ISOADismantleBox`, `ISOAUnseal` 맨손, `ISOAMachineShred`) | `oa.action.dismantle` | Dismantle |
+| OA 지렛대로 열기, 지렛대로 화물 열기 (`ISOAPryOpen`, `ISOAUnseal` 지렛대) | `oa.action.pry` | BeginRemoveBarricadePlankCrowbar |
+| OA 자물쇠 따기·경보 끊기 (`ISOAPickLock`, `ISOADisarm`) | `oa.action.pick` | 무음: 바닐라에 맞는 소리가 없다. 녹음(새 에셋)이 오면 한 줄 |
+| OA 검사 키트 (`ISOAUseSerum` 검사) | `oa.serum.test` | FirstAidApplyAlcoholWipes (주사·복용은 무음) |
+| OA 흙 시료 (`ISOAStoryAction` 흙; 말뚝 살펴보기는 무음) | `oa.action.soil` | DigFurrowWithHands |
+| OA 시체 시료 (`ISOAHarvestAction`) | `oa.action.harvest` | FirstAidApplyAlcoholWipes |
+| BU 배선 연결·해제 (`ISBUConnect`, `ISBUDisconnect`) | 전기 `bu.action.wire`, 물 `bu.action.wrench` | GeneratorConnect / RepairWithWrench |
+| BU 배관 추가·제거, 필터 교체 (`ISBUAddPipe`, `ISBURemovePipe`, `ISBUReplaceMedia`) | `bu.action.wrench` | RepairWithWrench |
+| BU 단계 올림, 역설계, 상자 분해 (`ISBUUpgradePanel`, `ISBUReverseEngineer`, `ISBUTakeApartBox`) | `bu.action.electric` | Dismantle (전기 작업) |
+| BU 배터리 되살리기 (`ISBUReviveBattery`: 베이킹소다 용액을 셀에 채움, 충전이 아니다) | `bu.action.battery` | PourWaterIntoObject |
+| BU 눈 치우기 (`ISBUClearSnow`) | 없음 | 손으로 털어냄: 무음 |
+| 창 열기 (`ISBUOpenPanel`, `ISBUOpenRack`, `ISOAMachineOpen`, `ISOAUseTerminal`) | 없음 | 0~1틱: 창이 열리는 것이 결과 |
 
 ## 3. 순서
 S1 → S2 → S4 (동작 동일 확인) → S3 (API) → S5 → S6 → 에셋 → 연출 템포 재조정 → 통합 E2E.

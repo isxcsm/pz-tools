@@ -3,6 +3,7 @@
 -- an action names machines by id and items by id, not by object.
 require "TimedActions/ISBaseTimedAction"
 require "OperationAcorn/Machines/Machines"
+require "OperationAcorn/Sounds"
 local OA = OperationAcorn
 local Machines = OA.Machines
 local Actions = {}
@@ -256,5 +257,14 @@ function ISOAMachineShred:new(character, id, x, y, z, entry)
     o.maxTime = o:getDuration()
     return o
 end
+
+-- Their sounds (OA.Sounds).
+local Sound = PZUIKit.Sound
+Sound.timed(ISOAMachinePlace, nil, "oa.action.place")
+Sound.timed(ISOAMachinePickUp, nil, "oa.action.pickup")
+Sound.timed(ISOAMachineTakeLure, nil, "oa.action.pickup")
+Sound.timed(ISOAMachinePartIn, "oa.action.wrench")
+Sound.timed(ISOAMachinePartOut, "oa.action.wrench")
+Sound.timed(ISOAMachineShred, "oa.action.dismantle")
 
 return Actions

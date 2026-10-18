@@ -4,9 +4,9 @@
 --
 -- Sound.name(cue) is the game's sound for a cue now (nil: no such cue, or still within its gap); the helpers play it
 -- the common ways: on the screen (ui), at a square (at), from a character (on). A sound that needs its own emitter (one
--- that moves, one whose volume rises) asks for the name and plays it itself. Typing (Sound.typed), a sound looped on
--- the screen that stops with the game paused (Sound.loop), and the game's sound turned down under a scene
--- (Sound.duck) are here as well. What zombies hear (addSound) is a rule of the game, not a sound: not here.
+-- that moves, one whose volume rises) asks for the name and plays it itself. A timed action's sounds (Sound.timed),
+-- typing (Sound.typed), a sound looped on the screen that stops with the game paused (Sound.loop), and the game's
+-- sound turned down under a scene (Sound.duck) are here as well. What zombies hear (addSound) is a rule of the game, not a sound: not here.
 PZUIKit = PZUIKit or {}
 local Sound = {}
 PZUIKit.Sound = Sound
@@ -98,6 +98,42 @@ function Sound.on(cue, character)
     local name = character and Sound.name(cue)
     if not name then return nil end
     return character:playSound(name)
+end
+
+-- ---------------------------------------------------------------------------------------------------------------------
+-- A timed action's sounds, as the game's own actions make theirs: `during` from the character while it works (started
+-- as it starts; stopped, or let ring out to its end, as it is done or stopped: stopOrTriggerSound), `done` on the
+-- screen once it is done (the game's furniture taken up or put down: ISMoveablesAction). Each a cue, nil, or a
+-- function of the action giving one (nil: none). Called once the class has its own start, stop and perform (at the end
+-- of its file): it wraps them.
+local function cueOf(cue, action)
+    if type(cue) == "function" then return cue(action) end
+    return cue
+end
+
+local function quiet(action)
+    local id = action.kitSound
+    action.kitSound = nil
+    if id and id ~= 0 then action.character:stopOrTriggerSound(id) end
+end
+
+function Sound.timed(class, during, done)
+    local start, stop, perform = class.start, class.stop, class.perform
+    function class:start()
+        start(self)
+        local cue = cueOf(during, self)
+        if cue then self.kitSound = Sound.on(cue, self.character) end
+    end
+    function class:stop()
+        quiet(self)
+        stop(self)
+    end
+    function class:perform()
+        quiet(self)
+        local cue = cueOf(done, self)
+        if cue then Sound.ui(cue) end
+        perform(self)
+    end
 end
 
 -- Characters `from`+1 to `to` came on (typed, printed, erased: counts either way): one sound for them, within the

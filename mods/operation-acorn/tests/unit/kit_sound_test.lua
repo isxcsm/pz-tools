@@ -154,6 +154,54 @@ test("at a square and from a character: the cue's sound, here only when asked", 
     eq(Sound.on("t.w", character), "W!")
 end)
 
+test("a timed action: its sound from the character while it works, stopped as it is stopped or done; done's on the screen", function()
+    game()
+    Sound.defineAll({ ["t.work"] = { sound = "Work" }, ["t.done"] = { sound = "Done" } })
+    local calls = {}
+    local function class()
+        local c = {}
+        function c:start() calls[#calls + 1] = "start" end
+        function c:stop() calls[#calls + 1] = "stop" end
+        function c:perform() calls[#calls + 1] = "perform" end
+        return c
+    end
+    local stoppedIds = {}
+    local function action(c, kind)
+        local a = setmetatable({ kind = kind }, { __index = c })
+        a.character = {
+            playSound = function(_, name) played[#played + 1] = name; return 7 end,
+            stopOrTriggerSound = function(_, id) stoppedIds[#stoppedIds + 1] = id end,
+        }
+        return a
+    end
+    local worked = class()
+    Sound.timed(worked, "t.work", "t.done")
+    local a = action(worked)
+    a:start()
+    eq(table.concat(played, " "), "Work")
+    a:perform()
+    eq(table.concat(played, " "), "Work Done", "done's sound once it is done")
+    eq(table.concat(stoppedIds, " "), "7", "the work's sound stopped")
+    eq(table.concat(calls, " "), "start perform", "the class's own still run")
+    -- stopped midway: the work's sound stops, no done's
+    local b = action(worked)
+    b:start()
+    b:stop()
+    eq(table.concat(played, " "), "Work Done Work")
+    eq(table.concat(stoppedIds, " "), "7 7")
+    b:stop()
+    eq(#stoppedIds, 2, "stopped once")
+    -- by the action: a function giving the cue, or none
+    local chosen = class()
+    Sound.timed(chosen, function(x) return x.kind == "loud" and "t.work" or nil end)
+    action(chosen, "quiet"):start()
+    eq(#played, 3, "no cue: no sound")
+    local c = action(chosen, "loud")
+    c:start()
+    c:perform()
+    eq(table.concat(played, " "), "Work Done Work Work", "no done's cue: nothing more")
+end)
+
 test("a title's sounds: its style's moments that have a sound, the line's apart; none when no moment has one", function()
     game()
     eq(Sound.titleSounds("stamp"), nil, "the kit's title cues are silent until their sounds come")

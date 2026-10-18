@@ -3,6 +3,7 @@
 require "TimedActions/ISBaseTimedAction"
 require "OperationAcorn/Core"
 require "OperationAcorn/Sync"
+require "OperationAcorn/Sounds"
 local OA = OperationAcorn
 
 ISOAStoryAction = ISBaseTimedAction:derive("ISOAStoryAction")
@@ -42,3 +43,6 @@ function ISOAStoryAction:perform()
     end
     ISBaseTimedAction.perform(self)
 end
+
+-- Soil taken up by hand is heard; a stake looked over is not (OA.Sounds).
+PZUIKit.Sound.timed(ISOAStoryAction, function(action) return action.kind == "soil" and "oa.action.soil" or nil end)

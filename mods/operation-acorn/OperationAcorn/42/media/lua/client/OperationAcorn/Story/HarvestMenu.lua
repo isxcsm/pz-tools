@@ -10,6 +10,7 @@ require "OperationAcorn/Core"
 require "OperationAcorn/Client"
 require "OperationAcorn/Sync"
 require "OperationAcorn/Story/Harvest"
+require "OperationAcorn/Sounds"
 local OA = OperationAcorn
 local Harvest = OA.Harvest
 
@@ -56,6 +57,8 @@ function ISOAHarvestAction:perform()
     end
     ISBaseTimedAction.perform(self)
 end
+
+PZUIKit.Sound.timed(ISOAHarvestAction, "oa.action.harvest")
 
 local function harvest(player, body, precise)
     local inventory = player:getInventory()

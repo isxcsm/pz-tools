@@ -4,6 +4,7 @@
 -- where it was.
 require "TimedActions/ISBaseTimedAction"
 require "OperationAcorn/Gear/Gear"
+require "OperationAcorn/Sounds"
 local OA = OperationAcorn
 local Gear = OA.Gear
 local Rules = Gear.Rules
@@ -124,5 +125,9 @@ function ISOAFitVehicleKit:new(character, kit, part)
     o.maxTime = o:getDuration()
     return o
 end
+
+-- Their sound (OA.Sounds).
+PZUIKit.Sound.timed(ISOAFitItemKit, "oa.action.wrench")
+PZUIKit.Sound.timed(ISOAFitVehicleKit, "oa.action.wrench")
 
 return Actions

@@ -62,6 +62,11 @@ CUE_TABLES = [
 ]
 CUE = re.compile(r'\["([A-Za-z0-9_.]+)"\]\s*=\s*\{[^}]*?\bsound\s*=\s*"([A-Za-z0-9_]+)"')
 OWN_NAME = re.compile(r'"((?:KIT|OA|BU)_[A-Za-z0-9_]+)"')
+# The cues a table defines (and its keyboards), and the code that asks for them: a cue's string on a line about sound (Sound.ui, at, on,
+# timed, a server's Sync.sound); the kit's title cues are made by style and moment.
+DEFINED = re.compile(r'\["((?:oa|bu|kit)\.[A-Za-z0-9_.]+)"\]\s*=|defineKeyboard\("([^"]+)"')
+USED = re.compile(r'"((?:oa|bu|kit)\.[a-z][A-Za-z0-9_.]*[A-Za-z0-9_])"')
+USING = ['pz-ui-kit/PZUIKit', 'operation-acorn/OperationAcorn', 'building-utilities/BuildingUtilities']
 
 
 def load_table():
@@ -135,6 +140,30 @@ def check_cues(table):
             for sound in OWN_NAME.findall(text):
                 if sound not in known:
                     problems.append('%s: names %s, a sound sounds.json has not' % (rel, sound))
+    return problems + check_used()
+
+
+def check_used():
+    """The cues the mods' code asks for (a cue's string on a line about sound) that no table defines: each plays
+    nothing, said once in the game's log only when it is asked for."""
+    defined = set()
+    for rel in CUE_TABLES:
+        with open(os.path.join(MODS, rel), encoding='utf-8') as f:
+            defined.update(cue or board for cue, board in DEFINED.findall(f.read()))
+    problems = []
+    for mod in USING:
+        for root, _, files in os.walk(os.path.join(MODS, mod)):
+            for name in files:
+                if not name.endswith('.lua'):
+                    continue
+                path = os.path.join(root, name)
+                with open(path, encoding='utf-8') as f:
+                    for n, line in enumerate(f, 1):
+                        if 'ound' not in line:
+                            continue
+                        for cue in USED.findall(line):
+                            if cue not in defined and not cue.startswith('kit.title.'):
+                                problems.append('%s:%d: cue %s is in no table' % (os.path.relpath(path, MODS), n, cue))
     return problems
 
 
