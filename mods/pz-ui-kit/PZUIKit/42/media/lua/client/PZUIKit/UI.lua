@@ -88,6 +88,22 @@ function UI.dp(v)
     return v / S
 end
 
+-- The screen's size in design units, worked out once an era (a tooltip asks for it each frame it shows) and again when
+-- the game's window is resized.
+local screenEra, screenW, screenH
+function UI.screenDp()
+    if screenEra ~= UI.era then
+        screenEra = UI.era
+        local core = getCore()
+        screenW, screenH = UI.dp(core:getScreenWidth()), UI.dp(core:getScreenHeight())
+    end
+    return screenW, screenH
+end
+
+if Events and Events.OnResolutionChange then
+    Events.OnResolutionChange.Add(function() screenEra = nil end)
+end
+
 -- A design start and length as pixels: both ends rounded, so that rectangles side by side still meet.
 local function span(a, len)
     local r = floor(a * S + 0.5)

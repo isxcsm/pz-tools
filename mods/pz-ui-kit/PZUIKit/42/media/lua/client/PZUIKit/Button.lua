@@ -130,11 +130,13 @@ function PZUITip.show(owner, text, palette)
         tip:setWidth(math.ceil(w) + 2 * PZUITip.PAD)
         tip:setHeight(#tip.lines * UI.fontHeight() + PZUITip.PAD)
     end
-    tip.owner, tip.palette = owner, palette
-    local screenW = UI.dp(getCore():getScreenWidth())
+    if tip.owner ~= owner then tip.owner = owner end
+    if tip.palette ~= palette then tip.palette = palette end
+    local screenW = UI.screenDp()
     local x = math.max(0, math.min(UI.dp(getMouseX()), screenW - tip.width))
-    tip:setX(x)
-    tip:setY(UI.dp(owner:getAbsoluteY()) + owner.height + 8)
+    local y = UI.dp(owner:getAbsoluteY()) + owner.height + 8
+    if tip.x ~= x then tip:setX(x) end
+    if tip.y ~= y then tip:setY(y) end
     if not tip.shown then
         tip.shown = true
         tip:addToUIManager()

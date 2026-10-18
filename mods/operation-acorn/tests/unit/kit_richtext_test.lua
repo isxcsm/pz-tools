@@ -26,6 +26,17 @@ local function load()
         panel[name] = function() end
     end
     panel.isVisible = function() return true end
+    panel.initialise = function() end
+    panel.instantiate = function(self) self.javaObject = { setConsumeMouseEvents = function() end, setX = function() end, setY = function() end,
+            setWidth = function() end, setHeight = function() end } end
+    panel.setAlwaysOnTop = function() end
+    panel.addToUIManager = function(self) self.inUI = true end
+    panel.removeFromUIManager = function(self) self.inUI = false end
+    panel.setVisible = function(self, v) self.visible = v end
+    panel.setWidth = function(self, w) self.width = w end
+    panel.setHeight = function(self, h) self.height = h end
+    panel.setX = function(self, v) self.x = v; self.moved = (self.moved or 0) + 1 end
+    panel.setY = function(self, v) self.y = v; self.moved = (self.moved or 0) + 1 end
     panel.getWidth = function(self) return self.width end
     panel.getHeight = function(self) return self.height end
     panel.drawText = function(self, text) self.drawn[#self.drawn + 1] = text end
@@ -839,4 +850,41 @@ test("a layout waiting for its time is made by the frame of UI.live even when no
     now = now + 10
     UI.liveFrame()
     eq(p.liveLook, nil, "then let go")
+end)
+
+test("the tooltip makes no colour tables, asks the screen once an era and moves only when its place changes", function()
+    local P, UI = load()
+    local asked = 0
+    getCore = function()
+        return { getScreenWidth = function() asked = asked + 1; return 1600 end, getScreenHeight = function() return 900 end }
+    end
+    local mouse = { 100, 100 }
+    getMouseX = function() return mouse[1] end
+    getMouseY = function() return mouse[2] end
+    local palette = { bg = { 0.1, 0.2, 0.3 }, border = { 0.4, 0.5, 0.6 } }
+    local owner = {}
+    local tip
+    local new = P.new
+    P.new = function(self, ...) tip = new(self, ...); return tip end
+    PZUIRichTip.show(owner, "hello world", palette)
+    local bg = tip.backgroundColor
+    eq(bg.r, 0.1)
+    eq(bg.a, 0.97)
+    eq(tip.borderColor.b, 0.6)
+    local moved = tip.moved
+    eq(asked, 1)
+    for _ = 1, 5 do PZUIRichTip.show(owner, "hello world", palette) end
+    eq(asked, 1, "the screen asked once")
+    eq(tip.moved, moved, "not moved while the mouse stands")
+    eq(tip.backgroundColor, bg, "the colour table is the one made")
+    mouse[1] = 130
+    PZUIRichTip.show(owner, "hello world", palette)
+    truthy(tip.moved > moved, "moved with the mouse")
+    palette.bg = { 0.9, 0.8, 0.7 }
+    PZUIRichTip.show(owner, "hello world", palette)
+    eq(tip.backgroundColor.r, 0.9, "a new palette shows")
+    eq(tip.backgroundColor, bg, "in the same table")
+    UI.setScale(2, false)
+    PZUIRichTip.show(owner, "hello world", palette)
+    eq(asked, 2, "asked again in the next era")
 end)

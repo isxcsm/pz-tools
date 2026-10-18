@@ -417,6 +417,14 @@ function PZUIRichTip.hold(owner)
     holder = owner
 end
 
+-- A colour table ({ r, g, b, a }) set to a palette colour, written only where it differs: a frame that shows the tooltip
+-- again makes no table and writes nothing while the palette stays.
+local function colourTo(c, rgb, a)
+    if c.r ~= rgb[1] or c.g ~= rgb[2] or c.b ~= rgb[3] or c.a ~= a then
+        c.r, c.g, c.b, c.a = rgb[1], rgb[2], rgb[3], a
+    end
+end
+
 local function widest(panel)
     local w = 0
     for c, line in ipairs(panel.lines) do
@@ -455,16 +463,16 @@ function PZUIRichTip.show(owner, text, palette)
         tip:setHeight(tip.contentH)
     end
     local p = palette or UI.DEFAULT_PALETTE
-    tip.backgroundColor = { r = p.bg[1], g = p.bg[2], b = p.bg[3], a = 0.97 }
-    tip.borderColor = { r = p.border[1], g = p.border[2], b = p.border[3], a = 1 }
-    tip.owner = owner
-    local screenW, screenH = UI.dp(getCore():getScreenWidth()), UI.dp(getCore():getScreenHeight())
+    colourTo(tip.backgroundColor, p.bg, 0.97)
+    colourTo(tip.borderColor, p.border, 1)
+    if tip.owner ~= owner then tip.owner = owner end
+    local screenW, screenH = UI.screenDp()
     local mx, my = UI.dp(getMouseX()), UI.dp(getMouseY())
     local x = math.max(0, math.min(mx + 14, screenW - tip.width))
     local y = my + 20
     if y + tip.height > screenH then y = math.max(0, my - tip.height - 6) end
-    tip:setX(x)
-    tip:setY(y)
+    if tip.x ~= x then tip:setX(x) end
+    if tip.y ~= y then tip:setY(y) end
     if not tip.shown then
         tip.shown = true
         tip:addToUIManager()
