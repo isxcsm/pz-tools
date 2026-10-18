@@ -90,6 +90,8 @@ final class Moodles implements Hooks.Moodles {
     private final Constructor<?> copyTexture;
     // By location (the game's name, lower case): every mod's moodles.
     private final TreeMap<String, Definition> definitions = new TreeMap<>();
+    // The definitions the mods looked up, by mod and id as written (see own).
+    private final Map<String, Map<String, Definition>> looked = new HashMap<>();
     // What the hooks read: the definitions by their type, rebuilt as one changes.
     private volatile Map<Object, Definition> byType = new IdentityHashMap<>();
     private Object world;
@@ -244,10 +246,18 @@ final class Moodles implements Hooks.Moodles {
     /** The mod's own moodle the call names (its handle, then the id). */
     private Definition own(Object[] arguments, String call) throws ReflectiveOperationException {
         String owner = owner(arguments, call);
+        // A moodle looked up before (by the mod and the id as written): its name is not checked or made again. A definition is never
+        // replaced or taken away, only cleared, which is looked at each time.
+        Map<String, Definition> mine = looked.get(owner);
+        if (mine != null && arguments.length > 1 && arguments[1] instanceof String written) {
+            Definition known = mine.get(written);
+            if (known != null && known.active) return known;
+        }
         String id = Arguments.name(arguments, 1, call, "id");
         Definition definition = definitions.get(locationOf(owner, id));
         if (definition == null || !definition.owner.equals(owner) || !definition.active)
             throw new IllegalArgumentException(call + ": the mod has no moodle " + id + "; define it first");
+        looked.computeIfAbsent(owner, key -> new HashMap<>()).put(id, definition);
         return definition;
     }
 

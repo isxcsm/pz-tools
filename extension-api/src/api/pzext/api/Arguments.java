@@ -1,12 +1,9 @@
 package pzext.api;
 
-import java.util.regex.Pattern;
-
 /** Reads a Lua call's arguments. A wrong one is the calling mod's error, named in the message it gets. */
 final class Arguments {
     /** What a name a mod gives (its handle's, a network's, a source's) must be. */
     static final String NAME_RULE = "1 to 64 letters, digits, '_', '.' or '-'";
-    private static final Pattern NAME = Pattern.compile("[A-Za-z0-9_.-]{1,64}");
 
     private Arguments() { }
 
@@ -43,5 +40,13 @@ final class Arguments {
         return text;
     }
 
-    static boolean isName(Object value) { return value instanceof String text && NAME.matcher(text).matches(); }
+    /** Whether the value is a string of 1 to 64 of A-Z, a-z, 0-9, '_', '.' and '-' (looked at letter by letter: no matcher is made per call). */
+    static boolean isName(Object value) {
+        if (!(value instanceof String text) || text.isEmpty() || text.length() > 64) return false;
+        for (int at = 0; at < text.length(); at++) {
+            char letter = text.charAt(at);
+            if (!(letter >= 'a' && letter <= 'z' || letter >= 'A' && letter <= 'Z' || letter >= '0' && letter <= '9' || letter == '_' || letter == '.' || letter == '-')) return false;
+        }
+        return true;
+    }
 }
