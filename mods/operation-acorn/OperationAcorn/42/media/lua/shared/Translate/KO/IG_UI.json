@@ -657,7 +657,7 @@
     "IGUI_OA_Trade_Seal_Fill": "무게 %1 / %2.",
     "IGUI_OA_Trade_Seal_Count": "물건 %1개.",
     "IGUI_OA_Trade_Seal_Refused": "받지 않는 물건 %1개는 소지품으로 돌아옵니다:",
-    "IGUI_OA_Trade_Seal_Final": "밀봉한 상자는 열 수도 옮길 수도 없습니다. 밀봉할까요?",
+    "IGUI_OA_Trade_Seal_Final": "밀봉한 상자는 열거나 옮길 수 없습니다. 밀봉할까요?",
     "IGUI_OA_Trade_Manifest_Title": "보급 명세서",
     "IGUI_OA_Trade_Manifest_Blank": "적힌 것이 없습니다.",
     "IGUI_OA_Trade_Manual_Title": "단말 조립 책자",
