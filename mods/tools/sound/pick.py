@@ -34,8 +34,9 @@ def main(argv):
             pick['at'] = how.get('at', parent.get('at', old.get('at', 0.0)))
         picks[cue] = pick
         print('%-16s %s' % (cue, file))
-    json.dump(picks, open(PICKS, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
-    open(PICKS, 'a', encoding='utf-8').write('\n')
+    with open(PICKS, 'w', encoding='utf-8', newline='\n') as f:
+        json.dump(picks, f, ensure_ascii=False, indent=1)
+        f.write('\n')
 
 
 if __name__ == '__main__':
