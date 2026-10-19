@@ -59,18 +59,23 @@ elseif part == "b" then
     -- the game's UI clicks first, the level the titles are set against
     add(500, function() at("ui", "UIActivateButton") sm:playUISound("UIActivateButton") end)
     add(1500, function() at("ui", "UISelectListItem") sm:playUISound("UISelectListItem") end)
-    add(2500, function()
-        local id = OA.Store.idOf(player)
-        for _, style in ipairs({ "stamp", "notice", "discovery", "unveil", "dust", "sink", "pulse", "bleed", "type" }) do
-            OA.Titles.show(id, { key = "IGUI_OA_Title_Site", sub = "IGUI_OA_Title_SiteSub", style = style })
-        end
-        at("titles queued: stamp, notice, discovery, unveil, dust, sink, pulse, bleed, type")
-    end)
-    -- the brief, in a queue of its own: over the others
-    add(6000, function()
-        OA.Titles.show(OA.Store.idOf(player), { key = "IGUI_OA_Title_SearchedBonus", args = { "1200" }, style = "brief" })
-        at("brief")
-    end)
+    -- then each title alone, the next 2 s after the last is gone (its design time: enter, 5 s held, leave), so that each
+    -- sound's time from its title's start is read off the recording
+    local LONG = { stamp = 11.6, notice = 10.2, discovery = 11.7, unveil = 13.6, dust = 16.2, sink = 15.6, pulse = 17.2,
+        bleed = 12.9, type = 12.5, brief = 11.5 }
+    local wait = 1000
+    for _, style in ipairs({ "stamp", "notice", "discovery", "unveil", "dust", "sink", "pulse", "bleed", "type", "brief" }) do
+        add(wait, function()
+            local id = OA.Store.idOf(player)
+            if style == "brief" then
+                OA.Titles.show(id, { key = "IGUI_OA_Title_SearchedBonus", args = { "1200" }, style = "brief" })
+            else
+                OA.Titles.show(id, { key = "IGUI_OA_Title_Site", sub = "IGUI_OA_Title_SiteSub", style = style })
+            end
+            at("title", style)
+        end)
+        wait = math.floor(LONG[style] * 1000) + 2000
+    end
     add(1000, function() end)
 elseif part == "c" then
     add(500, function()

@@ -381,6 +381,9 @@ final class Texts implements Hooks.Text {
     // (the emitter the UI sounds play from) and its setVolume(id, level), which scales a sound under the game's own volumes (a channel's
     // volume set direct is set again from them with each tick of the emitter); null in a game without them: a title's sounds are not played.
     private final MethodHandle soundManager, playSound, playingSound, stopSound, uiEmitter, emitterVolume;
+    // The UI emitter's tick, or null (a game without it): a sound starts as it is played, and the level it is given reaches
+    // it at the emitter's next tick, a frame on, by when a short sound's attack has played at the full level.
+    private final MethodHandle emitterTick;
     private final Class<?> managerType;
     // The texts with sounds of their own playing, and the sounds let go that fade out (the frame ends them).
     private final ArrayList<Shown> voiced = new ArrayList<>();
@@ -494,7 +497,7 @@ final class Texts implements Hooks.Text {
         try { pause = Game.exact(Game.type(loader, "zombie.GameTime").getMethod("isGamePaused"), MethodType.methodType(boolean.class)); }
         catch (NoSuchMethodException | ClassNotFoundException older) { pause = null; }
         gamePaused = pause;
-        MethodHandle sounder, play, playing, stop, emitter, volume;
+        MethodHandle sounder, play, playing, stop, emitter, volume, ticks = null;
         Class<?> managers;
         try {
             Class<?> sounds = Game.type(loader, "zombie.BaseSoundManager");
@@ -507,6 +510,8 @@ final class Texts implements Hooks.Text {
             emitter = Game.exact(uiEmitterOf, MethodType.methodType(Object.class, Object.class));
             volume = Game.exact(uiEmitterOf.getReturnType().getMethod("setVolume", long.class, float.class),
                 MethodType.methodType(void.class, Object.class, long.class, float.class));
+            try { ticks = Game.exact(uiEmitterOf.getReturnType().getMethod("tick"), MethodType.methodType(void.class, Object.class)); }
+            catch (NoSuchMethodException older) { ticks = null; }
         } catch (ReflectiveOperationException | RuntimeException older) { sounder = play = playing = stop = emitter = volume = null; managers = null; }
         soundManager = sounder;
         playSound = play;
@@ -514,6 +519,7 @@ final class Texts implements Hooks.Text {
         stopSound = stop;
         uiEmitter = emitter;
         emitterVolume = volume;
+        emitterTick = ticks;
         managerType = managers;
         MethodHandle statesOf = null, active = null, count = null;
         try {
@@ -1944,7 +1950,9 @@ final class Texts implements Hooks.Text {
         long id = (long)playSound.invokeExact(manager, name);
         if (id == 0 || level >= 1) return;
         Object emitter = emitter();
-        if (emitter != null) emitterVolume.invokeExact(emitter, id, level);
+        if (emitter == null) return;
+        emitterVolume.invokeExact(emitter, id, level);
+        if (emitterTick != null) emitterTick.invokeExact(emitter);
     }
 
     private void sound(Shown text, int moment, boolean heard) throws Throwable {

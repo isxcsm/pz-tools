@@ -16,4 +16,11 @@ public final class FMODSoundEmitter {
         volumeCalls++;
         volumes.put(id, volume);
     }
+
+    /** How many times it was ticked out of the game's own update (a level given to a sound as it starts is applied then). */
+    public int ticks;
+
+    public void tick() {
+        ticks++;
+    }
 }

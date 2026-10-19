@@ -45,21 +45,22 @@ STYLES = ['stamp', 'dust', 'notice', 'discovery', 'unveil', 'sink', 'pulse', 'bl
 MOMENTS = ['enter', 'land', 'hold', 'leave']
 
 # Each style's peak (dBFS) for its enter, land and hold sounds, by its role. The reference is the game's own UI click
-# (S6, recorded from the game): peak -9 to -11 dB, mean -28 to -31 dB. A title sound is 1 to 4.5 s of sound and not one
-# click, and these candidates' loudest 50 ms sit 6 to 9 dB under their peak (mean while sounding 13 to 17 dB under it),
-# so at the click's own peak a title is already the louder thing; -10 is therefore the middle, and the numbers follow
-# how often and how much a style matters (calls counted in S7):
+# (S6, recorded from the game): peak -9 to -11 dB, its loudest 20 ms -28 dB. A title sound is 1 to 4.5 s of sound and not
+# one click: at a peak the click's, a title sounded 7 to 11 dB louder than the click in the game (its loudest 20 ms; the
+# recording of 2026-10-19, tests/ingame/sound_listen.lua part b, each title alone). So the peaks sit under the click's, set
+# from that recording so that each title's loudest 20 ms lands where its role puts it against the click's -28 (calls
+# counted in S7):
 LEVELS = {
-    'stamp': -7.0,      # a grade, a seal, 100 acorns: a milestone met a few times a game; the one that should be felt
-    'bleed': -7.0,      # a positive infection, once: dread is the heaviest moment the mods have
-    'unveil': -8.0,     # a new phase (3 calls), a slow wide swell: rare and large, but a swell has little crest, so no more
-    'sink': -9.0,       # a loss (5): felt, but a failure should not shout
-    'discovery': -9.0,  # a find (8): an event, a little under the milestones
-    'pulse': -10.0,     # relief (5): the click's own level; relief is gentle
-    'dust': -11.0,      # progress and unlocks (10): frequent, a little under the click
-    'notice': -13.0,    # work information (9, many in a row at a dispatch): a signal, not an event
-    'brief': -17.0,     # tiny feedback (3, one per kit fitted or kill logged): well under the click, a tick
-    'type': -10.0,      # a document issued: the typewriter's run is -6 now; this is the level a pick of it would get
+    'stamp': -13.0,     # a grade, a seal, 100 acorns: a milestone met a few times a game; the one that should be felt (-23)
+    'bleed': -12.0,     # a positive infection, once: dread is the heaviest moment the mods have (-23)
+    'unveil': -12.0,    # a new phase (3 calls), a slow wide swell: rare and large (-24)
+    'sink': -13.0,      # a loss (5): felt, but a failure should not shout (-25)
+    'discovery': -13.0, # a find (8): an event, a little under the milestones (-25)
+    'pulse': -17.0,     # relief (5): the click's own level; relief is gentle (-28)
+    'dust': -16.0,      # progress and unlocks (10): frequent, a little under the click (-30)
+    'notice': -18.0,    # work information (9, many in a row at a dispatch): a signal, not an event (-31)
+    'brief': -23.0,     # tiny feedback (3, one per kit fitted or kill logged): well under the click, a tick (-34)
+    'type': -10.0,      # a document issued: its keys are the keyboard's, at the click's level; this is for a pick of it
 }
 # A leave is a tail, not an event: this much under its style's level.
 LEAVE_DB = -8.0

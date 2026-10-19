@@ -1209,6 +1209,7 @@ final class TextsTest {
         // Struck: a key for each character as it is struck (by its code: A and c the first key, b the second), the space its own,
         // the return as it is all in (its land); then the paper fed out with a return each, once each.
         played.clear();
+        int ticked = ((zombie.SoundManager)zombie.SoundManager.instance).emitter.ticks;
         FormulasTest.call(text, "title", mod, table("text", "Ab c", "style", "type",
             "sounds", table("keys", table(1.0, "K1", 2.0, "K2", 3.0, "K3"), "space", "Sp", "land", "Ret", "feed", "Feed")));
         render();
@@ -1219,6 +1220,14 @@ final class TextsTest {
         render();
         for (int step = 0; step < 80; step++) { advance(0.05); render(); }
         check(List.of("K1", "K2", "Sp", "K1", "Ret", "Feed", "Feed", "Feed", "Feed").equals(played), "The paper was not fed with a return each: " + played);
+        // each return 2 dB under the one before it, the first at its full level
+        var fed = new ArrayList<>(((zombie.SoundManager)zombie.SoundManager.instance).emitter.volumes.values());
+        java.util.Collections.sort(fed, java.util.Collections.reverseOrder());
+        check(fed.size() == 3 && Math.abs(fed.get(0) - 0.794) < 0.002 && Math.abs(fed.get(1) - 0.631) < 0.002
+            && Math.abs(fed.get(2) - 0.501) < 0.002, "The returns were not set 2 dB quieter each: " + fed);
+        // (and the emitter ticked as each was given its level: the game would apply it a frame on, past a return's attack)
+        int ticks = ((zombie.SoundManager)zombie.SoundManager.instance).emitter.ticks - ticked;
+        check(ticks == 3, "The emitter was not ticked once for each return given a level: " + ticks);
         FormulasTest.call(mod, "clear");
         render();
         // (the keys and returns are one-shots the title does not keep: they end by themselves)
