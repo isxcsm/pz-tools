@@ -376,6 +376,10 @@ test("dragging the plan moves it over without laying it out again until the butt
     for _, factor in ipairs({ 1.25, 1.25, 0.8 }) do plan:zoomAt(midX, midY, factor) end
     eq(laid, 0, "not laid out along the steps")
     eq(plan.relayout, true)
+    local m = plan.map
+    truthy(math.abs(m.ox - (m.left + m.w / 2 - (m.centreX - m.minX) * m.scale)) < 1e-9
+        and math.abs(m.oy - (m.top + m.h / 2 - (m.centreY - m.minY) * m.scale)) < 1e-9,
+        "the origin followed the scale and the centre in the step: hit tests and the focus ring read it before the layout")
     plan:prerender()
     eq(laid, 1, "once for the frame")
     eq(plan.relayout, false)

@@ -19,9 +19,11 @@ Trade.Appraisal = Appraisal
 -- Per item, kept Appraisal.KEEP_MS of real time like the other tooltip lines (TipLines): { at (ms), tier, serial, line }.
 -- The worth moves with the market (a settlement, a new region), the item's own state (food going stale, condition, a
 -- bag filled) and a mission's state, so it is worked out again soon, and at once when the tier or the settlement
--- number changed. Weak by item: a hovered item is not held.
+-- number changed. Bounded (OA.putTimed): the entries past KEEP_MS go
+-- as a new one is put, so what is held is what was hovered lately.
 Appraisal.KEEP_MS = 500
-local cache = setmetatable({}, { __mode = "k" })
+local cache = OA.bounded()
+Appraisal.cache = cache
 
 -- The line for an item: { text, r, g, b } or nil when the economy part is not there.
 function Appraisal.lineFor(item, record)
@@ -31,7 +33,7 @@ function Appraisal.lineFor(item, record)
     local trade = record.trade
     local serial = trade and trade.serial or 0
     local tier = OA.Trust and OA.Trust.tier(record) or 0
-    local hit = cache[item]
+    local hit = cache.t[item]
     if hit and hit.tier == tier and hit.serial == serial and now >= hit.at and now - hit.at < Appraisal.KEEP_MS then
         return hit.line
     end
@@ -53,7 +55,7 @@ function Appraisal.lineFor(item, record)
         line = { text = Text.tr(why or "IGUI_OA_Trade_Tip_NotTaken"), r = 0.9, g = 0.55, b = 0.5 }
     end
     line.width = UI.textWidthPx(line.text, UIFont.Small)
-    cache[item] = { at = now, tier = tier, serial = serial, line = line }
+    OA.putTimed(cache, item, { at = now, tier = tier, serial = serial, line = line }, now, Appraisal.KEEP_MS)
     return line
 end
 
@@ -133,7 +135,7 @@ end
 -- Real time the infos read for the open box are kept (the memo is also dropped at a new day or settlement).
 OAEstimatePanel.MEMO_MS = 2000
 
--- The weak memo (by item) of what Value.info said of the items of a panel's box (Things.sealable): made again once its
+-- The memo (by item) of what Value.info said of the items of a panel's box (Things.sealable): made again once its
 -- day or settlement number has changed or MEMO_MS has passed, so that an item put in or taken out reads only what is
 -- new and the others are not read again, yet nothing of an item's state is older than that.
 local function infoMemo(panel, record, now)
@@ -141,7 +143,7 @@ local function infoMemo(panel, record, now)
     local day, serial = OA.day(), trade and trade.serial or 0
     local memo = panel.memo
     if not (memo and memo.day == day and memo.serial == serial and now >= memo.at and now - memo.at < OAEstimatePanel.MEMO_MS) then
-        memo = { day = day, serial = serial, at = now, items = setmetatable({}, { __mode = "k" }) }
+        memo = { day = day, serial = serial, at = now, items = {} }
         panel.memo = memo
     end
     return memo.items
@@ -247,7 +249,7 @@ function OAEstimatePanel:new(page, character)
 end
 
 -- One panel for each loot page; a page made at the start of a game may be replaced, so the panel is looked up each time.
-local panels = setmetatable({}, { __mode = "k" })
+local panels = {}
 
 local function onRefresh(page, state)
     if state ~= "buttonsAdded" then return end

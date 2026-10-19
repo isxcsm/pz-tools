@@ -13,14 +13,14 @@ local CHECK_MS = 500    -- how often a watched machine's progress is read
 
 -- anchor -> { jobs (Machines.progress), stop (why it is not working on what is in it), count,
 --   due = { check, idle, ask = real ms each was last due (OA.due) } }
-local watched = setmetatable({}, { __mode = "k" })
+local watched = OA.bounded()
 
 local function look(pane, anchor, state)
     local now = getTimestampMs()
-    local w = watched[anchor]
+    local w = watched.t[anchor]
     if not w then
         w = { due = {} }
-        watched[anchor] = w
+        OA.put(watched, anchor, w)
     end
     if not OA.due(w.due, "check", now, CHECK_MS) then return w end
     w.jobs = Machines.progress(anchor)

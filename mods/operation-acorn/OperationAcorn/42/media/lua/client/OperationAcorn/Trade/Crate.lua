@@ -10,7 +10,7 @@ local Crate = {}
 OA.Trade.Crate = Crate
 
 -- crate -> true once this client asked for it to break (the server answers by taking it away)
-local asked = setmetatable({}, { __mode = "k" })
+local asked = OA.bounded()
 -- the crates asked for and not yet gone: the loot windows are refreshed when they go (the game does not, and would
 -- show the crate empty), looked at each tick only while there is one, and given up after WAIT_MS of real time. The tick
 -- handler, once added, stays (one taken off inside its event makes the game skip the next one that tick).
@@ -35,8 +35,8 @@ end
 function Crate.refresh(character, container, object)
     -- the game does not keep the take-only rule; this client checks what it drags against it
     if container:getAcceptItemFunction() ~= Objects.TAKE_ONLY then container:setAcceptItemFunction(Objects.TAKE_ONLY) end
-    if not asked[object] and Things.crateEmpty(object) then
-        asked[object] = true
+    if not asked.t[object] and Things.crateEmpty(object) then
+        OA.put(asked, object, true)
         local square = object:getSquare()
         OA.Sync.send(character, "crateEmptied", { x = square:getX(), y = square:getY(), z = square:getZ() })
         if #waiting == 0 then askedAt = getTimestampMs() end

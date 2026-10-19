@@ -16,9 +16,9 @@ local View, ItemTip, UI = OA.StoryView, OA.ItemTip, OA.Trade.UI
 local font = UIFont.Small
 local lineHeight
 
--- The item type of an item, asked of the game once per item (weak: an item that is gone drops out).
+-- The item type of an item, asked of the game once per item (bounded: OA.bounded).
 local NO_ROWS = {}
-local typeOf = setmetatable({}, { __mode = "k" })
+local typeOf = OA.bounded()
 
 -- A strip of rows at the panel's y: its own background and border, as wide as the panel or its widest line.
 local function strip(panel, rows, y)
@@ -47,10 +47,10 @@ local function draw(panel, item)
     local player = getPlayer()
     local record = player and OA.Client.record(player)
     if not record then return end
-    local fullType = typeOf[item]
+    local fullType = typeOf.t[item]
     if not fullType then
         fullType = item:getFullType()
-        typeOf[item] = fullType
+        OA.put(typeOf, item, fullType)
     end
     local data = item:hasModData() and item:getModData() or nil
     local id = data and data.OA_Mission

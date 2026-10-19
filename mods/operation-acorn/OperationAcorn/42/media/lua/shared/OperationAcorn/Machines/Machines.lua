@@ -473,7 +473,7 @@ end
 
 -- anchor -> { role -> the square's object that holds it }, so that a container on another square is not looked for
 -- each time (a watched window asks ten times a second). An entry is checked before it is used: still on its square.
-local held = setmetatable({}, { __mode = "k" })
+local held = OA.bounded()
 
 -- The machine's container of a role ("in", "out", "store"), or nil. `object` is any square's object: its own container
 -- of the role, or, for the anchor, the one on the square that holds it (Data containerAt).
@@ -484,14 +484,16 @@ function Machines.container(object, which)
     if own then return own end
     local state = Machines.state(object)
     if not state or not state.x then return nil end
-    local cache = held[object]
+    local cache = held.t[object]
     local holder = cache and cache[which]
     if holder and holder:getObjectIndex() >= 0 then return holder:getContainerByType(def.type) end
     for _, part in ipairs(Machines.partsOf(state)) do
         local found = part.object:getContainerByType(def.type)
         if found then
-            cache = cache or {}
-            held[object] = cache
+            if not cache then
+                cache = {}
+                OA.put(held, object, cache)
+            end
             cache[which] = part.object
             return found
         end
@@ -726,12 +728,12 @@ end
 -- ---------------------------------------------------------------------------------------------------------------------
 -- The jobs of each kind, for Logic.advance
 
--- What a machine found to take from a container at its last step: container -> { key, limit, list } (weak: a
--- container that is gone drops out). A step finds the same things again, without a walk, while the container's
--- signature (OA.signature: how many items, what they weigh) is the same and the things are all still in it; a refiner's
--- key also changes every ten game minutes (food rots into fit to take with time). A job done drops it (the walk is
--- done again with what is left).
-local queueMemo = setmetatable({}, { __mode = "k" })
+-- What a machine found to take from a container at its last step: container -> { key, limit, list } (bounded:
+-- OA.bounded). A step finds the same things again, without a walk, while the container's signature
+-- (OA.signature: how many items, what they weigh) is the same and the things are all still in it; a
+-- refiner's key also changes every ten game minutes (food rots into fit to take with time). A job done drops it (the
+-- walk is done again with what is left).
+local queueMemo = OA.bounded()
 
 -- A queue lists this many things more than a batch takes, so that the batch is full when some are taken out meanwhile.
 local QUEUE_SLACK = 5
@@ -743,7 +745,7 @@ local function newQueue(container, accept, limit, timed)
     local function load(force)
         local key = OA.signature(container)
         if timed then key = key .. "|" .. math.floor(OA.hours() * 6) end
-        local hit = not force and queueMemo[container]
+        local hit = not force and queueMemo.t[container]
         if hit and hit.key == key and hit.limit == limit then
             local all = true
             for _, entry in ipairs(hit.list) do
@@ -753,7 +755,7 @@ local function newQueue(container, accept, limit, timed)
         end
         -- oa-scan: ok (once for a signature, and for a refiner not before ten game minutes pass)
         queue.list = collect(container, accept, limit)
-        queueMemo[container] = { key = key, limit = limit, list = queue.list }
+        OA.put(queueMemo, container, { key = key, limit = limit, list = queue.list })
     end
     -- the container walked again (a step that goes on after a batch)
     function queue.reload() load(true) end
@@ -918,7 +920,7 @@ local function makeIO(object, state, record)
     -- a job done changes the container: the next step walks it again
     local finish = io.finish
     io.finish = function(job, fx)
-        queueMemo[inC] = nil
+        OA.drop(queueMemo, inC)
         return finish(job, fx)
     end
     return io
@@ -1010,13 +1012,12 @@ Machines.NOISE_EVERY = 1 / 6
 -- The first things a machine would take from its in-container, for the window that shows its jobs (asked ten times a
 -- second): found by one walk through the container, and kept while the container's signature (OA.signature: how many
 -- items, what they weigh) is the same, the things are still in it, and no more than ten game minutes have passed (an item
--- can become fit to take with time, rotten food). container -> { key, entries } (weak: a container that is gone drops
--- out).
-local takesMemo = setmetatable({}, { __mode = "k" })
+-- can become fit to take with time, rotten food). container -> { key, entries } (bounded: OA.bounded).
+local takesMemo = OA.bounded()
 
 local function firstTaken(container, kind, lanes)
     local key = OA.signature(container) .. "|" .. kind .. "|" .. lanes .. "|" .. math.floor(OA.hours() * 6)
-    local hit = takesMemo[container]
+    local hit = takesMemo.t[container]
     if hit and hit.key == key then
         local all = true
         for _, entry in ipairs(hit.entries) do
@@ -1026,7 +1027,7 @@ local function firstTaken(container, kind, lanes)
     end
     -- oa-scan: ok (once for a signature, and not before ten game minutes pass)
     local entries = collect(container, ACCEPT[kind], lanes)
-    takesMemo[container] = { key = key, entries = entries }
+    OA.put(takesMemo, container, { key = key, entries = entries })
     return entries
 end
 

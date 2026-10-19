@@ -42,6 +42,8 @@ python tools/check_translations.py                          # 번역 키, 샌드
   테스트 하나마다 모드와 저장이 새로 시작한다. 게임 객체가 필요한 부분은 얇은 어댑터 함수로 떼어 내고 로직에는 표만 넘긴다.
 - **Kahlua 주의:** `%`는 음수와 큰 수(`getTimestampMs`)에서 틀린다 (`OA.remainder`). 정수 나눗셈 연산자, `goto`, 비트 연산이
   없다. `string.format("%d")`에 소수를 넘기지 않는다.
+  약한 표(`__mode`)도 없다: 그렇게 만든 표는 그냥 표라 키를 영영 쥐고 있다. 게임 객체(아이템, 컨테이너, 칸)를 키로 쓰는 캐시는
+  `OA.bounded`/`OA.put`/`OA.putTimed`(Core.lua)로 크기를 묶는다. LuaCheck가 `__mode`를 오류로 낸다.
 
 ## 3. 공용 기반 (이미 있음)
 

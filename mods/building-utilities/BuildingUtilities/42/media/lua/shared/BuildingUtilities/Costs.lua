@@ -119,6 +119,13 @@ local function hasTool(inventory, tool)
     return tag ~= nil and inventory:getFirstTagEvalRecurse(tag, notBroken) ~= nil
 end
 
+-- The first working tool of a kind (as Costs.affords wants it) the character has, or nil. An action keeps it to see each
+-- tick that it is still carried, which looks at that item alone, not through the inventory.
+function Costs.toolItem(character, tool)
+    local tag = ItemTag[TOOL_TAGS[tool]]
+    return tag and character:getInventory():getFirstTagEvalRecurse(tag, notBroken) or nil
+end
+
 -- What a character has of the tools and items, looked through the inventory once and kept for a short while, for the
 -- UI that asks of many costs together (a menu's options, a window's buttons): { character, at, tools = { [tool] =
 -- whether }, counts = { [item type or group] = how many } }, each filled as it is first asked. Costs.affords and

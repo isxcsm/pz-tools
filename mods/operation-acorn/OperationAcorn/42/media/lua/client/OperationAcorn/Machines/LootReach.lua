@@ -69,8 +69,12 @@ Events.OnRefreshInventoryWindowContainers.Add(onRefresh)
 local elsewhere = {}
 local onHighlighted = ISInventoryPage.OnObjectHighlighted
 function ISInventoryPage.OnObjectHighlighted(playerNum, object, isHighlighted)
-    elsewhere[playerNum] = elsewhere[playerNum] or setmetatable({}, { __mode = "k" })
-    elsewhere[playerNum][object] = isHighlighted or nil
+    local mine = elsewhere[playerNum]
+    if not mine then
+        mine = OA.bounded()
+        elsewhere[playerNum] = mine
+    end
+    if isHighlighted then OA.put(mine, object, true) else OA.drop(mine, object) end
     return onHighlighted(playerNum, object, isHighlighted)
 end
 
@@ -81,7 +85,8 @@ end
 -- "hover", or nil for none.
 local function light(page, object, kind)
     local player = page.player
-    if elsewhere[player] and elsewhere[player][object] then return end
+    local mine = elsewhere[player]
+    if mine and mine.t[object] then return end
     local core = getCore()
     object:setHighlighted(player, kind == "chosen", false)
     if kind == "chosen" then object:setHighlightColor(player, core:getObjectHighlitedColor()) end
@@ -110,7 +115,7 @@ end
 -- went, the light jumping to one square when going between a machine's two bins). So the state is worked out from what
 -- the page shows, and when it changes, or when the game has switched one of its squares, every square is set again.
 -- page -> { chosen = container, hover = container, collapsed, objects = { [object] = "chosen" | "hover" }, dirty }
-local applied = setmetatable({}, { __mode = "k" })
+local applied = {}
 
 local function hoverContainer(page)
     if page.isCollapsed then return nil end

@@ -160,15 +160,17 @@ local seen, cleared = nil, false
 -- is soon looked at again for nothing.
 local watches, looked = {}, {}
 -- The squares told changed, waiting to be looked at (a queue by head and tail, keys in `queued` once each), and the
--- looks to come at them after: the first RECHECK_AFTER[1] ticks after the change, the next RECHECK_AFTER[2] after it
--- (a room the game makes of what was built there comes a little later). A look that finds the square changed starts
--- them over. At most PER_TICK squares are looked at in a tick. A look belongs to the latest change of its square
--- (turns), an older one is dropped.
-local RECHECK_AFTER = { 60, 600 }
+-- looks to come at them after: the stages of RECHECK_AFTER, each that many ticks after the change (a room the game
+-- makes of what was built there comes a little later, and when is not known: the looks thin out, with no long gap). A
+-- look that finds the square changed starts them over. At most PER_TICK squares are looked at in a tick. A look belongs
+-- to the latest change of its square (turns), an older one is dropped.
+local RECHECK_AFTER = { 60, 180, 360, 600 }
+local STAGES = #RECHECK_AFTER
 local PER_TICK = 64
 local function newQueue() return { head = 1, tail = 0, keys = {}, dues = {}, turns = {} } end
 local events, queued = newQueue(), {}
-local later = { newQueue(), newQueue() }
+local later = {}
+for stage = 1, STAGES do later[stage] = newQueue() end
 local turns, turn, clock = {}, 0, 0
 
 local function push(queue, key, due, own)
@@ -184,6 +186,14 @@ local function pop(queue)
 end
 
 local function waiting(queue) return queue.head <= queue.tail end
+
+local function anyWaiting()
+    if waiting(events) then return true end
+    for stage = 1, STAGES do
+        if waiting(later[stage]) then return true end
+    end
+    return false
+end
 
 local function decals(square, laid)
     local list = {}
@@ -310,7 +320,7 @@ end
 -- (a few at a time), and the looks to come at them.
 local function onTick()
     if seen ~= Store.linkVersion() then FloorLines.refresh() return end
-    if not (waiting(events) or waiting(later[1]) or waiting(later[2])) then return end
+    if not anyWaiting() then return end
     local api, handle = BU.api(), BU.handle()
     if not (api and api.floor and handle) then return end
     clock = clock + 1
@@ -325,7 +335,7 @@ local function onTick()
         if recheck(api, handle, key, false) then moved = true end
         push(later[1], key, clock + RECHECK_AFTER[1], turn)
     end
-    for stage = 1, 2 do
+    for stage = 1, STAGES do
         local queue = later[stage]
         while budget > 0 and waiting(queue) and queue.dues[queue.head] <= clock do
             local key, due, own = queue.keys[queue.head], queue.dues[queue.head], queue.turns[queue.head]
@@ -338,8 +348,8 @@ local function onTick()
                     turn = turn + 1
                     turns[key] = turn
                     push(later[1], key, clock + RECHECK_AFTER[1], turn)
-                elseif stage == 1 then
-                    push(later[2], key, due - RECHECK_AFTER[1] + RECHECK_AFTER[2], own)
+                elseif stage < STAGES then
+                    push(later[stage + 1], key, due - RECHECK_AFTER[stage] + RECHECK_AFTER[stage + 1], own)
                 else
                     turns[key] = nil
                 end

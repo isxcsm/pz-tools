@@ -459,6 +459,22 @@ local function addHeldBoxOption(context, playerObj)
     if not BU.api() then unavailable(option, apiMissingText()) end
 end
 
+-- The options of the clicked objects (ContextMenu.fill runs this under a pcall that puts menuCosts back whatever happens).
+local function addOptions(context, playerObj, objects)
+    for _, object in ipairs(objects) do
+        local panel = Panels.ofObject(object)
+        if panel then addPanelOptions(context, playerObj, panel)
+        elseif Panels.isBare(object) then addBareOptions(context, playerObj, object) end
+        local unit = Units.ofObject(object)
+        if unit then addUnitOptions(context, playerObj, unit) end
+    end
+    addHeldBoxOption(context, playerObj)
+    if BU.api() then
+        addProducerOptions(context, playerObj, objects)
+        addDeviceOptions(context, playerObj, objects)
+    end
+end
+
 function ContextMenu.fill(player, context, worldobjects, test)
     if test and ISWorldObjectContextMenu.Test then return true end
     local playerObj = getSpecificPlayer(player)
@@ -472,19 +488,10 @@ function ContextMenu.fill(player, context, worldobjects, test)
     local before = {}
     for _, option in ipairs(context.options) do before[option] = true end
     menuCosts = Costs.snapshot(playerObj, true)
-    for _, object in ipairs(objects) do
-        local panel = Panels.ofObject(object)
-        if panel then addPanelOptions(context, playerObj, panel)
-        elseif Panels.isBare(object) then addBareOptions(context, playerObj, object) end
-        local unit = Units.ofObject(object)
-        if unit then addUnitOptions(context, playerObj, unit) end
-    end
-    addHeldBoxOption(context, playerObj)
-    if BU.api() then
-        addProducerOptions(context, playerObj, objects)
-        addDeviceOptions(context, playerObj, objects)
-    end
+    -- (menuCosts is for this menu alone: put back if an option's building fails, which is then raised as before)
+    local ok, err = pcall(addOptions, context, playerObj, objects)
     menuCosts = nil
+    if not ok then error(err, 0) end
     placeAdded(context, before)
 end
 

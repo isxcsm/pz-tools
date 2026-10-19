@@ -31,8 +31,8 @@ end)
 local lit = {}
 Highlight.lit = lit
 
--- The loot panes whose item names are painted: pane -> true (weak: a pane that is gone drops out).
-local tinted = setmetatable({}, { __mode = "k" })
+-- The loot panes whose item names are painted: pane -> true (a few: one for each local player).
+local tinted = {}
 
 -- The look runs on the extension API's timer when it has one (`slot`: OA.timerOn), else on a handler of OnTick
 -- (`ticking`) that compares the clock each frame. The look only outlines and paints: it may go on while the game is paused.

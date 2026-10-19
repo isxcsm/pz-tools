@@ -46,9 +46,9 @@ function Rules.blank()
     return Rules.fill({})
 end
 
--- The sections known to have every field (weak): a section is filled once, when it is first asked for, and not on each
+-- The sections known to have every field: a section is filled once, when it is first asked for, and not on each
 -- of the many reads of a frame. A section made again (a record that arrived, a table replaced) is another table.
-local filled = setmetatable({}, { __mode = "k" })
+local filled = OA.bounded()
 
 -- Makes sure every field exists (a new record). Returns u.
 function Rules.fill(u)
@@ -79,14 +79,14 @@ function Rules.fill(u)
     b.fromTree = b.fromTree or perTree(0)
     fillTree(b.fromTree, 0)
     b.fromShared = b.fromShared or 0
-    filled[u] = true
+    OA.put(filled, u, true)
     return u
 end
 
 -- The section of a player's record, filled.
 function Rules.section(record)
     local u = OA.Store.section(record, "upgrades")
-    if filled[u] then return u end
+    if filled.t[u] then return u end
     return Rules.fill(u)
 end
 
@@ -103,7 +103,7 @@ function Rules.assign(u, copy)
     for k in pairs(u) do u[k] = nil end
     for k, v in pairs(copy) do u[k] = v end
     -- (filled again at the next ask: the copy may lack a field)
-    filled[u] = nil
+    OA.drop(filled, u)
     return u
 end
 

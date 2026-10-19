@@ -197,3 +197,51 @@ test("the outlines of models are declared to the API once, and an API without th
     eq(set[1].name, "outline.models"); eq(set[1].value, true); eq(set[1].handle.id, "h")
     PZExtAPI = nil
 end)
+
+test("a bounded cache holds up to its cap, then starts again; a key put again or taken away is no new key", function()
+    local c = OA.bounded(3)
+    local a, b, d, e = {}, {}, {}, {}
+    OA.put(c, a, 1)
+    OA.put(c, b, 2)
+    OA.put(c, a, 5)
+    eq(c.n, 2, "the same key again is not counted")
+    eq(c.t[a], 5)
+    OA.put(c, d, 3)
+    eq(c.n, 3)
+    OA.drop(c, b)
+    eq(c.n, 2)
+    OA.drop(c, b)
+    eq(c.n, 2, "a key that is not there is not counted down")
+    OA.put(c, b, 2)
+    eq(c.n, 3)
+    OA.put(c, e, 4)
+    eq(c.n, 1, "the cap was reached: the cache was emptied for the new key")
+    eq(c.t[e], 4)
+    eq(c.t[a], nil)
+    eq(c.t[b], nil)
+    eq(c.t[d], nil)
+    OA.put(c, a, nil)
+    eq(c.n, 1, "a nil value puts no key")
+    local many = OA.bounded()
+    eq(many.cap, OA.CACHE_CAP)
+end)
+
+test("a bounded cache of timed entries drops the expired ones as a new key is put", function()
+    local c = OA.bounded(100)
+    local keys = {}
+    for i = 1, 40 do
+        keys[i] = {}
+        OA.putTimed(c, keys[i], { at = 1000 + i }, 1000 + i, 500)
+    end
+    eq(c.n, 40, "all live")
+    -- a put after the ttl: the first sweep is due, and everything older than 500 ms goes
+    OA.putTimed(c, {}, { at = 1600 }, 1600, 500)
+    eq(c.n, 1, "only what is within the ttl is held")
+    eq(c.t[keys[1]], nil)
+    local fresh = {}
+    OA.putTimed(c, fresh, { at = 1700 }, 1700, 500)
+    eq(c.n, 2, "no sweep inside the ttl")
+    -- a clock gone back counts as expired
+    OA.putTimed(c, {}, { at = 100 }, 100, 500)
+    eq(c.n, 1, "a clock gone back: the old entries are not live")
+end)

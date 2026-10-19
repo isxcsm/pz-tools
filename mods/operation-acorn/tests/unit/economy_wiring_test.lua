@@ -1011,3 +1011,20 @@ test("a container seen marked is answered without its object asked, until the ma
     eq(OA.Buildings.mark(other), false)
     eq(asked, seen, "remembered")
 end)
+
+test("the containers known to be marked are bounded: past the cap the list starts again, and a mark still holds", function()
+    local known = OA.Buildings.known
+    local mark = {}
+    local object = { classes = { IsoObject = true }, hasModData = function() return true end,
+        getModData = function() return mark end }
+    local first = { getParent = function() return object end }
+    OA.Buildings.mark(first)
+    eq(known.t[first], true)
+    for _ = 1, known.cap do
+        OA.Buildings.mark({ getParent = function() return object end })
+    end
+    truthy(known.n <= known.cap, "never past the cap")
+    eq(known.t[first], nil, "the oldest were let go with the wipe")
+    eq(OA.Buildings.mark(first), false, "a container let go is found marked again by its object")
+    eq(known.t[first], true)
+end)

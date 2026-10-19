@@ -178,7 +178,7 @@ test("a line that lies another way sends its squares only", function()
     truthy(before ~= line.path)
 end)
 
-test("squares told changed are looked at a few a tick, and again twice (about 1 s and 10 s) unless they changed", function()
+test("squares told changed are looked at a few a tick, and again at about 1, 3, 6 and 10 s unless they changed", function()
     require "BuildingUtilities/FloorLines"
     local panel, sets, watched, changed = floorScene()
     solarAt(panel, 118, 102)
@@ -201,8 +201,20 @@ test("squares told changed are looked at a few a tick, and again twice (about 1 
     TEST.fire("OnTick")
     eq(looks, #keys, "the first look again, at about a second")
     looks = 0
-    for _ = 1, 560 do TEST.fire("OnTick") end
-    eq(looks, #keys, "the second, at about ten")
+    for _ = 1, 119 do TEST.fire("OnTick") end
+    eq(looks, 0, "nothing before the second look")
+    TEST.fire("OnTick")
+    eq(looks, #keys, "the second, at about three")
+    looks = 0
+    for _ = 1, 179 do TEST.fire("OnTick") end
+    eq(looks, 0)
+    TEST.fire("OnTick")
+    eq(looks, #keys, "the third, at about six")
+    looks = 0
+    for _ = 1, 239 do TEST.fire("OnTick") end
+    eq(looks, 0)
+    TEST.fire("OnTick")
+    eq(looks, #keys, "the fourth, at about ten")
     looks = 0
     for _ = 1, 1200 do TEST.fire("OnTick") end
     eq(looks, 0, "and no more")
@@ -268,7 +280,7 @@ test("a line's route is the same squares while its way and ends are, and walked 
     truthy(BU.Links.get("u:" .. other.id) ~= nil)
 end)
 
-test("taking a line away checks the tool when it is queued and completed, not each tick", function()
+test("taking a line away looks at its tool alone each tick (dropping it stops the action) and through the inventory when completed", function()
     TEST.gameFile("TimedActions/ISBaseTimedAction")
     ISBaseTimedAction = {}
     function ISBaseTimedAction:derive() local class = {}; class.__index = class; return setmetatable(class, { __index = ISBaseTimedAction }) end
@@ -278,16 +290,26 @@ test("taking a line away checks the tool when it is queued and completed, not ea
     local panel = Store.newPanel(102, 102, 0, "box")
     panel.tier = 3
     local unit = solarAt(panel, 118, 102)
+    ItemTag = { SCREWDRIVER = "screwdriver", PIPE_WRENCH = "wrench", PLIERS = "pliers" }
+    local carried, searches = true, 0
+    local container = { isInCharacterInventory = function() return carried end }
+    local tool = { getContainer = function() return carried and container or nil end }
+    local inventory = { getFirstTagEvalRecurse = function() searches = searches + 1; return tool end }
     local checks, can = 0, true
     local affords = BU.Costs.affords
     BU.Costs.affords = function(...) checks = checks + 1; return can end
-    local character = { isTimedActionInstant = function() return false end }
+    local character = { isTimedActionInstant = function() return false end, getInventory = function() return inventory end }
     local action = ISBUDisconnect:new(character, "unit", panel, "power", 118, 102, 0, unit.id)
+    eq(searches, 1, "the tool found once, as the action is made")
     for _ = 1, 50 do truthy(action:isValid()) end
-    eq(checks, 0, "isValid does not look at the inventory")
+    eq(searches, 1, "a tick does not search the inventory")
+    eq(checks, 0, "nor ask what the cost needs")
+    carried = false
+    eq(action:isValid(), false, "the tool dropped: the action stops")
+    carried = true
     can = false
-    truthy(action:isValid(), "and does not mind the tool")
-    eq(action:complete(), false, "completing does")
+    truthy(action:isValid(), "and does not mind what the cost asks of the rest")
+    eq(action:complete(), false, "completing looks through the inventory")
     eq(checks, 1)
     truthy(BU.Links.get("u:" .. unit.id), "the line stays")
     BU.Costs.affords = affords
@@ -307,7 +329,6 @@ test("a box's devices by part key are read once for what asks within a second, a
     local device = Panels.device(panel, "power", key)
     truthy(device, "the lamp is the box's")
     eq(Panels.device(panel, "power", key), device, "the same device")
-    Panels.device(panel, "power", "nothing")
     eq(listings(), 1, "listed once")
     -- told changed
     Store.dataChanged()
@@ -334,6 +355,11 @@ test("a box's devices by part key are read once for what asks within a second, a
     now = now + 1000
     Panels.device(panel, "power", key)
     eq(listings(), 8, "a second later")
+    -- a key the kept devices lack is looked for in fresh ones, once (a device put down meanwhile)
+    eq(Panels.device(panel, "power", "nothing"), nil)
+    eq(listings(), 9, "a miss reads fresh")
+    Panels.device(panel, "power", key)
+    eq(listings(), 9, "and what it read is kept")
     -- a device on a utility the box does not have is another list
     Panels.device(panel, "water", key)
     eq(Panels.device(panel, "power", key), Panels.device(panel, "power", key))
@@ -550,4 +576,70 @@ test("boxes and units are found by their square from an index kept with them", f
     -- an entry that is not there any more is not handed out
     Store.units()[second.id] = nil
     eq(Store.unitAt(11, 20, 0), nil)
+end)
+
+test("a device missing from the built-on rooms but still on its square is let go after the 20 s grace, not after five minutes", function()
+    local api = TEST.api
+    local KEY = "200,200,0"
+    local LAMP = "207,201,0,lamp"
+    api.buildingsByKey[KEY] = {
+        building = { key = KEY, playerBuilt = false, minLevel = 0, maxLevel = 0, minX = 200, minY = 200, maxX = 205,
+            maxY = 203, room = "hall", roomId = "700" },
+        rooms = { { id = "700", name = "hall", level = 0, rects = { { x = 200, y = 200, w = 4, h = 4 } } },
+            { id = "701", name = "store", level = 0, rects = { { x = 204, y = 200, w = 2, h = 4 } } } },
+        attached = { { level = 0, host = "701", count = 6, extent = 3, rects = { { x = 206, y = 200, w = 3, h = 2 } } } },
+        attachedObjects = { power = { { x = 207, y = 201, z = 0, sprite = "lamp", type = "IsoObject", power = 0.01,
+            room = "store", roomId = "701" } }, water = {} },
+    }
+    for x = 200, 205 do
+        for y = 200, 203 do api.squares[x .. "," .. y .. ",0"] = KEY end
+    end
+    local panel = Store.newPanel(201, 201, 0, "box")
+    local now = 9000000
+    getTimestampMs = function() return now end
+    eq(Changes.syncAttached(panel), true, "the lamp taken in")
+    eq(panel.power.attached[LAMP], true)
+    -- the lamp is still on its square, but the rooms no longer have it (the region data changed)
+    local lamp = { getSpriteName = function() return "lamp" end }
+    TEST.squares["207,201,0"] = { objects = { lamp } }
+    api.buildingsByKey[KEY].attachedObjects.power = {}
+    api.buildingsVersion = 2
+    eq(Changes.syncAttached(panel), false, "missing now: the grace begins")
+    eq(panel.power.attached[LAMP], true, "kept")
+    now = now + 19000
+    Changes.syncAttached(panel)
+    eq(panel.power.attached[LAMP], true, "kept inside the grace")
+    now = now + 2000
+    eq(Changes.syncAttached(panel), true, "the grace is over: the next look lets it go, not five minutes on")
+    eq(panel.power.attached[LAMP], nil)
+end)
+
+test("a command naming a device put down within the last second finds it", function()
+    local api = TEST.api
+    local KEY = "200,200,0"
+    local LAMP = "207,201,0,lamp"
+    api.buildingsByKey[KEY] = {
+        building = { key = KEY, playerBuilt = false, minLevel = 0, maxLevel = 0, minX = 200, minY = 200, maxX = 205,
+            maxY = 203, room = "hall", roomId = "700" },
+        rooms = { { id = "700", name = "hall", level = 0, rects = { { x = 200, y = 200, w = 4, h = 4 } } },
+            { id = "701", name = "store", level = 0, rects = { { x = 204, y = 200, w = 2, h = 4 } } } },
+        attached = { { level = 0, host = "701", count = 6, extent = 3, rects = { { x = 206, y = 200, w = 3, h = 2 } } } },
+        attachedObjects = { power = {}, water = {} },
+    }
+    for x = 200, 205 do
+        for y = 200, 203 do api.squares[x .. "," .. y .. ",0"] = KEY end
+    end
+    local panel = Store.newPanel(201, 201, 0, "box")
+    local now = 11000000
+    getTimestampMs = function() return now end
+    eq(Panels.device(panel, "power", LAMP), nil, "no lamp yet; the devices are kept")
+    -- a lamp put down in the shed 300 ms later, with nothing telling the mod
+    now = now + 300
+    api.buildingsByKey[KEY].attachedObjects.power = { { x = 207, y = 201, z = 0, sprite = "lamp", type = "IsoObject",
+        power = 0.01, room = "store", roomId = "701" } }
+    local device = Panels.device(panel, "power", LAMP)
+    truthy(device ~= nil, "found on the miss, from fresh devices")
+    eq(device.key, LAMP)
+    -- a key nobody has is looked for fresh once, and the answer is nil
+    eq(Panels.device(panel, "power", "1,1,0,none"), nil)
 end)

@@ -972,14 +972,15 @@ end
 local DEVICES_MS = 1000
 local devicesKept = {}
 
-local function devicesByKey(panel, utility)
+-- (`fresh`: not from what is kept, whatever its age. The second value tells whether the map was made by this call.)
+local function devicesByKey(panel, utility, fresh)
     current()
     local slot = panel.id .. "|" .. utility
     local kept = devicesKept[slot]
     local links, owners, data, now = Store.linkVersion(), Store.ownersVersion(), Store.dataVersion(), getTimestampMs()
-    if kept and kept.panel == panel and kept.links == links and kept.buildings == cacheVersion and kept.owners == owners
-            and kept.data == data and kept.zone == panel.zone and kept.tier == panel.tier and now - kept.at < DEVICES_MS
-            and now >= kept.at then
+    if not fresh and kept and kept.panel == panel and kept.links == links and kept.buildings == cacheVersion
+            and kept.owners == owners and kept.data == data and kept.zone == panel.zone and kept.tier == panel.tier
+            and now - kept.at < DEVICES_MS and now >= kept.at then
         return kept.map
     end
     local map = {}
@@ -990,11 +991,17 @@ local function devicesByKey(panel, utility)
     end
     devicesKept[slot] = { panel = panel, links = links, buildings = cacheVersion, owners = owners, data = data,
         zone = panel.zone, tier = panel.tier, at = now, map = map }
-    return map
+    return map, true
 end
 
--- One device of a panel by the key of any of its parts, or nil.
-function Panels.device(panel, utility, key) return devicesByKey(panel, utility)[key] end
+-- One device of a panel by the key of any of its parts, or nil. A key the kept devices lack is looked for in fresh ones
+-- once: a device put down within the last DEVICES_MS is no "not found" for a command that names it.
+function Panels.device(panel, utility, key)
+    local map, made = devicesByKey(panel, utility)
+    local device = map[key]
+    if device or made then return device end
+    return (devicesByKey(panel, utility, true))[key]
+end
 
 -- Each box by the grid cells (REACH_CELL squares) its building's rooms, grown by its connect range, cover: the boxes
 -- whose outside range can reach a square are those of its cell. Kept while the boxes, the lines, the API's buildings

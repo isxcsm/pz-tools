@@ -569,16 +569,19 @@ local function roomObject(object)
     local square = object and object.getSquare and object:getSquare()
     if square and square:getRoom() then roomObjects = roomObjects + 1 end
 end
-if Events and Events.OnObjectAdded then
-    Events.OnObjectAdded.Add(roomObject)
-    Events.OnObjectAboutToBeRemoved.Add(roomObject)
-end
+-- (A moveable placed or picked up fires both: ISMoveableSpriteProps.placeMoveableInternal triggers OnObjectAdded itself
+-- (the engine fires it only for a multiplayer client's packet), and a pickup ends in IsoGridSquare.RemoveTileObject,
+-- which fires OnObjectAboutToBeRemoved. A thing put down by other means is seen by the ATTACHED_EVERY_MS look.)
+if Events and Events.OnObjectAdded then Events.OnObjectAdded.Add(roomObject) end
+if Events and Events.OnObjectAboutToBeRemoved then Events.OnObjectAboutToBeRemoved.Add(roomObject) end
 
 function Changes.syncAttached(panel, force)
     local building = Panels.building(panel)
     local spaces = building and Panels.attached(building)
     if not spaces then return false end
     local changed, now = false, getTimestampMs()
+    -- a device missing from the rooms that is still on its square and has not been missing for the grace yet
+    local waiting = false
     local version, owners = BU.buildingsVersion(), Store.ownersVersion()
     local mine, all = Store.touches(panel.id)
     local last = attachedAt[panel.id]
@@ -621,7 +624,7 @@ function Changes.syncAttached(panel, force)
                     gone[#gone + 1] = key
                 elseif here then
                     missingSince[slot] = missingSince[slot] or now
-                    if now - missingSince[slot] >= ATTACHED_GRACE_MS then gone[#gone + 1] = key end
+                    if now - missingSince[slot] >= ATTACHED_GRACE_MS then gone[#gone + 1] = key else waiting = true end
                 end
             end
         end
@@ -638,6 +641,12 @@ function Changes.syncAttached(panel, force)
         if any then Networks.applyKeys(panel, utility, touched) end
     end
     if changed then Sync.changed(panel.id) end
+    -- (a look that left a device waiting out its grace is not noted: the next one comes at once, not after
+    -- ATTACHED_EVERY_MS, and sees the grace through)
+    if waiting then
+        attachedAt[panel.id] = nil
+        return changed
+    end
     -- (what it told itself of counts as seen)
     mine, all = Store.touches(panel.id)
     attachedAt[panel.id] = { panel = panel, version = version, owners = Store.ownersVersion(), mine = mine, all = all,

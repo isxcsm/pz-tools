@@ -600,8 +600,10 @@ function ISBUPlan:layoutTasks()
         self:layoutGrid(0, 0)
     end)
     task(function()
-        -- The range outlines, cut to the map.
-        local mapLeft, mapTop, mapRight, mapBottom = left, top, left + availW, top + availH
+        -- The range outlines, cut to the map and a map's width and height round it: the drawing is clipped to the map, and
+        -- a plan dragged before it is laid out again (ISBUPlan:drag) brings in what lay just outside, as far as a drag of a
+        -- whole map; further, the outlines are short on the leading side until the button is up.
+        local mapLeft, mapTop, mapRight, mapBottom = left - availW, top - availH, left + availW * 2, top + availH * 2
         local function addEdges(edges, colour)
             for _, edge in ipairs(edges) do
                 local x1, y1 = sx(edge.x), sy(edge.y)
@@ -1051,6 +1053,9 @@ function ISBUPlan:zoomAt(x, y, factor)
     self.panX = worldX - (x - midX) / scale - map.baseX
     self.panY = worldY - (y - midY) / scale - map.baseY
     map.scale, map.centreX, map.centreY = scale, map.baseX + self.panX, map.baseY + self.panY
+    -- (the screen origin follows the scale and the centre in the same step: hit tests and the focus ring read it)
+    map.ox = map.left + map.w / 2 - (map.centreX - map.minX) * scale
+    map.oy = map.top + map.h / 2 - (map.centreY - map.minY) * scale
     self.epoch = (self.epoch or 0) + 1
     self.relayout = true
 end

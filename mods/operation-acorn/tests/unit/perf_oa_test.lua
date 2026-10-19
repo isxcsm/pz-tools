@@ -193,7 +193,7 @@ test("Things.sealable keeps the refused items' infos and reasons, and a memo spa
     eq(plan.refused[1], ammo)
     eq(plan.refusedInfos[1].fullType, "Base.Ammo_556")
     eq(plan.refusedWhys[1], "IGUI_OA_Econ_Reject_Ammo")
-    local memo = setmetatable({}, { __mode = "k" })
+    local memo = {}
     reads = 0
     OA.Trade.Things.sealable(c, memo)
     eq(reads, 3)
