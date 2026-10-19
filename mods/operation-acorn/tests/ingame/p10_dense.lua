@@ -123,12 +123,22 @@ P10T.start("p10dense", function(a)
         world.cleared[place.id] = oldCleared
     end)
     local titles = P10T.capture(a, "title")
-    -- the real record's look is held back while this runs (the minute event would count and clear for it)
-    local realLook = Dense.look
+    -- the real record's look is held back while this runs (the minute event would count and clear for it). The event calls
+    -- Dense.minute(record, position) (not Dense.look), so both are held back; this file's own looks are Dense.look of
+    -- scratch records.
+    local realLook, realMinute = Dense.look, Dense.minute
     Dense.look = function(record, x, y)
         if P10T.isScratch(record.id) then return realLook(record, x, y) end
     end
-    a.cleanup(function() Dense.look = realLook end)
+    if realMinute then
+        Dense.minute = function(record, position)
+            if P10T.isScratch(record.id) then return realMinute(record, position) end
+        end
+    end
+    a.cleanup(function()
+        Dense.look = realLook
+        Dense.minute = realMinute
+    end)
 
     local ox, oy, oz = P10T.where()
     P10T.god(a)

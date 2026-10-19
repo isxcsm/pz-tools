@@ -18,6 +18,8 @@ RUN("p10_lib.lua")
 local OA = OperationAcorn
 
 -- The design table's times in seconds: enter (land), held, leave. A style whose row does not give all three has no total.
+-- (The "dust" title style is the API's still and leaves by "burn" over 10 s: the paper burn, "dust-paper" in the title lab.
+-- Only the leave named "dust" (the crumbling) is gone from the API and the lab; this file asks for no leave of its own.)
 local DESIGN = {
     stamp = { 0.6, 5, 6 }, discovery = { 2.2, 5, 4.5 }, notice = { 0.7, 5, 4.5 }, unveil = { 3.6, 5, 5 },
     dust = { 1.2, 5, 10 }, bleed = { 1.9, 5, 6 }, sink = { 1.6, 5, 9 }, ["type"] = { 1.3, 5, 5.5 },
