@@ -221,7 +221,7 @@ end
 
 -- Uses a test kit: the real infection is found or not, and the player knows from now on (a wound is tested for either
 -- way). A positive test is a title bleeding in, and the first one brings the handling notice to the folder; a negative
--- one is a pulsing title `음성 · 수수료 없음` and a line (DESIGN-terminal 17.6).
+-- one is a pulsing title `감염 음성 · 감염 처리 수수료 면제` and a line (DESIGN-terminal 17.6).
 function Serums.test(character, item, id)
     if Serums.kind(item:getType()) ~= "test" then return false end
     id = id or OA.Store.idOf(character)
