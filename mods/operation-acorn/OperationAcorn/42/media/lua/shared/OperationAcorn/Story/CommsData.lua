@@ -78,7 +78,7 @@ Data.ENTRIES = {
     { id = "S0", kind = "scene", trigger = "first", tier = 0, sign = "oak", lines = {
         { "noise", s = 2 }, { "oak" }, { "mute", s = 3 }, { "oak" },
         { "me", erase = true, stop = 1.8, del = 8, after = 2 }, { "oak" }, { "me" }, { "oak" },
-        { "me", late = true }, { "oak", late = true }, { "me" }, { "oak" },
+        { "me", late = true }, { "oak", late = true }, { "me", late = true }, { "oak" },
         { "me", erase = true, stop = 1.5, del = 8, after = 1.6 }, { "me", pause = 1.4 }, { "oak" },
         { "me" }, { "noise", s = 3 } } },
     -- (it asks for clothes: clothing at x2 for ten days from it, NUMBERS 2)
@@ -146,7 +146,7 @@ Data.ENTRIES = {
     { id = "K0", kind = "scene", trigger = "first", tier = 0, era = "admin", sign = "admin", lines = {
         { "noise", s = 2 }, { "oak" }, { "mute", s = 3 }, { "oak" },
         { "me", erase = true, stop = 1.6, after = 1.8 }, { "oak" }, { "me", late = true }, { "oak", late = true },
-        { "me" }, { "oak" }, { "me", erase = true }, { "oak" }, { "me" }, { "noise", s = 3 } } },
+        { "me", late = true }, { "oak" }, { "me", erase = true }, { "oak" }, { "me" }, { "noise", s = 3 } } },
     { id = "K0M", kind = "scene", trigger = "settled", tier = 1, era = "admin", waits = "K0", sign = "admin", lines = {
         { "oak" }, { "me" }, { "oak" }, { "noise", s = 1 } } },
     { id = "K1", kind = "scene", trigger = "tier:9", tier = 9, waits = "S9", sign = "admin", lines = { { "oak" } } },
