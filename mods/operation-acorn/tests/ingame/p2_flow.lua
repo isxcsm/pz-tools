@@ -13,6 +13,12 @@ if not record then say("no record") return end
 local spot = Objects.findClear(math.floor(player:getX()) + 3, math.floor(player:getY()), 25)
 if not spot then say("no clear square near the character") return end
 local item = player:getInventory():AddItem("OperationAcorn.DeliveryBox")
+-- a record whose active box is still carried (packed in a supply crate) calls only once that box stands: this item is it
+local active = Boxes.active(record)
+if active and active.state == "carried" then
+    item:getModData().OA_Box = active.id
+    item:getModData().OA_Owner = record.id
+end
 local ok, object, box = Things.placeBox(player, record, spot, item)
 P2T.check(say, "box placed", ok == true)
 if not ok then return end
@@ -33,7 +39,7 @@ P2T.check(say, "credits grew (the economy values the cloth)", after > before)
 P2T.check(say, "a receipt is in the ledger", T.Ledger.last(record) ~= nil)
 P2T.check(say, "the receipt took a serial", (record.trade.serial or 0) >= 1, record.trade.serial)
 P2T.check(say, "the sealed box is out of the record", Boxes.get(record, box.id) == nil)
-P2T.check(say, "an empty box takes its place", Boxes.active(record) ~= nil and Boxes.active(record).state == "placed")
+P2T.check(say, "an empty box comes back in the supply crate", Boxes.active(record) ~= nil and Boxes.active(record).state == "carried")
 local settled = T.Ledger.last(record)
 P2T.check(say, "the last settlement is kept as a summary", settled ~= nil and settled.credits > 0 and settled.boxes >= 1)
 P2T.check(say, "no radio log is written", record.radio == nil)
