@@ -127,7 +127,7 @@ test("the second circle is dim and the way never leads to it", function()
     eq(scene.lead, scene.circles[1])
 end)
 
-test("once its piece is found a circle goes and the item's place is shown; the carried ones are one pin", function()
+test("once its piece is found a circle goes and the item's place is shown; one the player carries has no pin", function()
     local m = mission()
     m.items = { { key = "A", found = true, where = { x = 40, y = 50, z = 1 } }, { key = "KEY", plain = true } }
     eq(#View.circles(m), 0, "the key is no piece to fetch")
@@ -148,8 +148,12 @@ test("once its piece is found a circle goes and the item's place is shown; the c
     m.items[2] = { key = "B", found = true, where = { x = 1, y = 2, z = 0, carried = true } }
     m.items[1].where.carried = true
     scene = View.scene({ missions = { active = m } })
-    eq(#scene.points, 1, "the carried pieces are one pin")
+    eq(#scene.points, 0, "no pin for what the player carries")
     eq(scene.lead, nil, "no way to what the player carries")
+    m.items[1].where.carried = nil
+    scene = View.scene({ missions = { active = m } })
+    eq(#scene.points, 1, "dropped: its pin again")
+    eq(scene.lead, scene.points[1])
     -- A piece not yet found keeps the circle.
     m.items[2].found = nil
     eq(#View.circles(m), 1)

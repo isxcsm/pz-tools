@@ -181,21 +181,15 @@ function View.scene(record, where)
             scene.circles[#scene.circles + 1] = circle
             if not scene.lead and not circle.dim then scene.lead = circle end
         end
-        local carried = false
         for _, p in ipairs(View.points(record, m, where)) do
-            -- What the player carries is one pin on the player, however many pieces.
-            if not (p.carried and carried) then
-                carried = carried or p.carried
-                scene.points[#scene.points + 1] = { x = p.x + 0.5, y = p.y + 0.5, r = 0, color = color, carried = p.carried }
+            -- What the player carries has no pin (it is with the player); dropped or left somewhere, it has one again.
+            if not p.carried then
+                scene.points[#scene.points + 1] = { x = p.x + 0.5, y = p.y + 0.5, r = 0, color = color }
             end
         end
     end
-    -- With no circle to go to, the way leads to the first piece the player does not carry.
-    if not scene.lead then
-        for _, p in ipairs(scene.points) do
-            if not p.carried then scene.lead = p; break end
-        end
-    end
+    -- With no circle to go to, the way leads to the first piece left somewhere.
+    if not scene.lead then scene.lead = scene.points[1] end
     for _, c in ipairs(View.crates(record)) do
         scene.crates[#scene.crates + 1] = { x = c.x + 0.5, y = c.y + 0.5 }
     end

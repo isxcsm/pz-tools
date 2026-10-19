@@ -1,8 +1,8 @@
 -- What this mod draws on the maps (DESIGN-terminal 6.6, 8): the mission's area as a soft disc in a ring of dashes that
 -- slowly march round it (teal; a story mission's sky blue) with a pulse running out of it, a pin dropped on its middle,
 -- the way from the player to it as thick dashes marching toward it, the player's own pin, the supply crates left
--- by the helicopter and the delivery boxes where they last stood; once a piece is found, a pin where its item is instead of the circle (on the player while the
--- player carries it); and the world map opened to show the player and the circle together. The minimap shows less of
+-- by the helicopter and the delivery boxes where they last stood; once a piece is found, a pin where its item is instead of the circle (none while the
+-- player carries it: it shows again where it is dropped or left); and the world map opened to show the player and the circle together. The minimap shows less of
 -- it, smaller: the disc, the ring, the way and the pin, still.
 -- It is drawn by this mod over the game's map every frame a map is open: after the world map's own prerender (above
 -- the map, its symbols and its darkening; below the map's panels and buttons, which are its children), and after the
@@ -385,16 +385,7 @@ local function draw(el, scene, character, style, since)
     end
     local circles, points = scene.circles, scene.points
     for i = 1, #circles do place(circles[i], style, s) end
-    -- A piece the player carries is where the player is, this frame.
-    local carried = false
-    for i = 1, #points do
-        local point = points[i]
-        if point.carried then
-            point.x, point.y = px, py
-            carried = true
-        end
-        place(point, style, s)
-    end
+    for i = 1, #points do place(points[i], style, s) end
     for i = 1, #circles do drawFill(circles[i], style, now) end
     for i = 1, #circles do drawRing(circles[i], style, s, now) end
     if scene.lead then drawPath(scene.lead, style, s, now) end
@@ -407,12 +398,12 @@ local function draw(el, scene, character, style, since)
             drawPin(circle, index, style, s, since)
         end
     end
-    -- The pieces' pins; the one the player carries stands in for the player's own pin.
+    -- The pins of the pieces left somewhere (one the player carries has none).
     for i = 1, #points do
         index = index + 1
         drawPin(points[i], index, style, s, since)
     end
-    if style.me and not carried and (#circles > 0 or #points > 0) then drawMe(s, now) end
+    if style.me and (#circles > 0 or #points > 0) then drawMe(s, now) end
 end
 
 -- After the world map's prerender (which draws over the map: its print media, stash maps and darkening).
