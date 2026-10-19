@@ -20,10 +20,9 @@ import pzext.boot.Hooks;
  * to a width. {@link Script} reads its markup once, when it is shown, and {@link Layout} breaks it into rows once for each screen's
  * size and font; each frame then only compares the clock with the time of each character.
  *
- * <p>A text that leaves as dust ({@code leave = "dust"}) is drawn once into a picture of its own as it stands still, and then
- * breaks into cells of that picture that drift away, swept across it ({@link Dust}); without the game's frame buffers it fades.
- * A text with a look (an enter such as {@code "torch"}, a leave such as {@code "burn"}) is drawn into such a picture as soon as it
- * shows, and the picture is drawn by the API's shader over its life ({@link Looks}); without it the text fades.
+ * <p>A text with a look (an enter such as {@code "torch"}, a leave such as {@code "burn"}) is drawn once into a picture of its own
+ * ({@link Dust.Piece}) as soon as it shows, and the picture is drawn by the API's shader over its life ({@link Looks}); without
+ * the game's frame buffers or the shader the text fades.
  *
  * <p>A text's time goes on only with the frames it is drawn in, so that it is not over before it was seen: none starts on a player's
  * screen while the player sleeps or the screen is dark (the black the game fades it to for sleep), though one already on it plays on
@@ -32,8 +31,8 @@ import pzext.boot.Hooks;
  * and starts none; a frame longer than {@link #FRAME_MOST} (a hitch, or no frame drawn) counts for that long.
  *
  * <p>What is shown belongs to the world it was shown in, and is kept in the API table's metatable for a newer API to take over,
- * as the moodles are. Everything here runs on the game's main thread: the mods' calls, the frame job and the drawing (the dust
- * queues a little for the render thread).
+ * as the moodles are. Everything here runs on the game's main thread: the mods' calls, the frame job and the drawing (the pictures
+ * queue a little for the render thread).
  *
  * <p>A mod also draws text of its own in its windows at a height in pixels ({@code font}, {@code fontHeight}, {@code measure},
  * {@code draw}): {@link SizedFonts} chooses and loads the language's font for the height.
@@ -41,7 +40,7 @@ import pzext.boot.Hooks;
 final class Texts implements Hooks.Text {
     private static final String AREA = "PZExtAPI.text.";
     private static final String MIRROR = "texts", FORMAT = "pzext-texts 7", FORMAT_BEFORE_SOUNDS = "pzext-texts 6", FORMAT_BEFORE_LANE = "pzext-texts 5", FORMAT_BEFORE_BURN = "pzext-texts 4",
-        FORMAT_BEFORE_BACKDROP = "pzext-texts 3", FORMAT_BEFORE_DUST = "pzext-texts 2",
+        FORMAT_BEFORE_BACKDROP = "pzext-texts 3",
         FORMAT_BEFORE_TYPING = "pzext-texts 1",
         GENERATION = "textsGeneration", HANDOVER = "textsHandover";
     /** The hook that draws, as {@code PZExtAPI.hooks()} names it. */
@@ -55,7 +54,7 @@ final class Texts implements Hooks.Text {
     // Typing: the characters a second (DEFAULT_SPEED when left out), the narrowest width to fit, the longest pause, the longest a
     // text may take to type, and the time a cursor is on, and then off.
     static final double DEFAULT_SPEED = 30, MAX_SPEED = 1000, MIN_WIDTH = 0.05, MAX_PAUSE = 30, MAX_TYPING = 300, BLINK = 0.5;
-    // Dust: the size of its cells and the reach of its drift, as shares of the default.
+    // Burn: the size of its cells and the reach of its drift, as shares of the default.
     static final double MIN_DUST_SIZE = 0.25, MAX_DUST_SIZE = 8, MAX_DUST_DRIFT = 4;
     // A move (text.move) takes this long when the mod does not say (seconds).
     static final double MOVE_TIME = 0.3;
@@ -89,8 +88,8 @@ final class Texts implements Hooks.Text {
     /** How a text comes onto the screen (the last six are looks: {@link Looks}). */
     enum Enter { NONE, FADE, POP, SLAM, SETTLE, RISE, DROP, TYPE, SLIDE, IMPACT, TORCH, SIGNAL, MIST, BLEED, STRIKE }
 
-    /** How it goes (the last nine are looks). */
-    enum Leave { NONE, FADE, RISE, SINK, GROW, SHRINK, DUST, ERODE, DIM, LOST, MIST, BURN, DRY, UNDER, FEED, EXHALE, WASH, FLARE }
+    /** How it goes (the last eleven are looks). */
+    enum Leave { NONE, FADE, RISE, SINK, GROW, SHRINK, ERODE, DIM, LOST, MIST, BURN, DRY, UNDER, FEED, EXHALE, WASH, FLARE }
 
     /** Whether a text leaves burning (as paper, or as a flare: its look's map and ash). */
     static boolean burns(Leave leave) { return leave == Leave.BURN || leave == Leave.FLARE; }
@@ -162,8 +161,8 @@ final class Texts implements Hooks.Text {
         Object face;
         Object coveredBy;
         boolean covered;
-        // Dust: its cells' size and its drift (shares of the default), the way its front goes, the colour it burns with (null:
-        // it weathers to ash instead); its piece on each screen.
+        // A burn's: its cells' size and its drift (shares of the default), the way its front goes, the colour it burns with (null:
+        // the default's); its piece on each screen.
         double dustSize = 1, dustDrift = 1;
         Dust.Sweep dustSweep = Dust.Sweep.RIGHT;
         float[] dustBurn;
@@ -390,7 +389,7 @@ final class Texts implements Hooks.Text {
     // Whether the game calls drawOver (its hook is in), and the screens (bits by player) whose texts it draws this frame.
     private boolean overHooked;
     private int overScreens;
-    /** The game's frame buffers and sprites for dust, or null: dust fades (package-private for the tests). */
+    /** The game's frame buffers for the looks' pictures, or null: the looks fade (package-private for the tests). */
     Dust.Gl dust;
     /** The looks' shader and drawing, or null: the looks fade (package-private for the tests). */
     Looks.Gl looks;
@@ -398,7 +397,7 @@ final class Texts implements Hooks.Text {
     private final double[] hit = new double[6];
     // While a washed text's picture is drawn: its letters alone (its ink is made from their shape; the look draws its own shadow).
     private boolean bare;
-    // The texts' pieces of dust that hold a picture, or will; and the pictures to let go, from the render queue at the next drawing.
+    // The texts' pieces that hold a picture, or will; and the pictures to let go, from the render queue at the next drawing.
     private final ArrayList<Dust.Piece> pieces = new ArrayList<>();
     private final ArrayList<Grave> dying = new ArrayList<>();
 
@@ -882,14 +881,14 @@ final class Texts implements Hooks.Text {
         }
         if (text.enter != Enter.TYPE && (text.speed != 0 || text.cursor))
             throw new IllegalArgumentException(call + ": " + prefix + ".speed and " + prefix + ".cursor go with " + prefix + ".enter = \"type\"");
-        if (dusty != null && text.leave != Leave.DUST && !burns(text.leave))
-            throw new IllegalArgumentException(call + ": " + prefix + "." + dusty + " goes with " + prefix + ".leave = \"dust\", \"burn\" or \"flare\"");
+        if (dusty != null && !burns(text.leave))
+            throw new IllegalArgumentException(call + ": " + prefix + "." + dusty + " goes with " + prefix + ".leave = \"burn\" or \"flare\"");
         if (text.source != null) compose(text, call, prefix);
         if (text.lines != null && text.font == null) font(text, "Large", call, prefix + ".font");
         else if (text.lines != null && text.fontName == null) font(text, text.font, call, prefix + ".font");
     }
 
-    /** One of the dust's fields: the cells' size and the drift as shares of the default, the way the front goes, its burn. */
+    /** One of a burn's fields: the cells' size and the drift as shares of the default, the way the front goes, its burn. */
     private void dust(Shown text, String field, Object value, String call, String name) throws ReflectiveOperationException {
         switch (field) {
             case "dustSize" -> text.dustSize = number(value, call, name, MIN_DUST_SIZE, MAX_DUST_SIZE);
@@ -1141,7 +1140,7 @@ final class Texts implements Hooks.Text {
 
     private void publish() {
         drawn = shown.toArray(new Shown[0]);
-        // A text gone lets its dust's pictures go.
+        // A text gone lets its pictures go.
         for (int index = pieces.size() - 1; index >= 0; index--) {
             Dust.Piece piece = pieces.get(index);
             if (piece.owner.done || !shown.contains(piece.owner)) letGo(piece);
@@ -1156,9 +1155,9 @@ final class Texts implements Hooks.Text {
         }
     }
 
-    // ---- dust ----
+    // ---- pictures ----
 
-    /** The text's piece of dust on the screen, made the first time it is asked for. */
+    /** The text's piece (its picture) on the screen, made the first time it is asked for. */
     private Dust.Piece piece(Shown text, int screen) {
         if (text.pieces == null) text.pieces = new Dust.Piece[PLAYERS];
         Dust.Piece piece = text.pieces[screen];
@@ -1404,8 +1403,8 @@ final class Texts implements Hooks.Text {
         if (leave != null) big.leave = effect(Leave.class, leave, call, "spec.leave");
         if (leaveTime != null) big.leaveTime = number(leaveTime, call, "spec.leaveTime", 0, MAX_SECONDS);
         for (var field : dusts.entrySet()) {
-            if (big.leave != Leave.DUST && !burns(big.leave))
-                throw new IllegalArgumentException(call + ": spec." + field.getKey() + " goes with leave = \"dust\", \"burn\" or \"flare\"");
+            if (!burns(big.leave))
+                throw new IllegalArgumentException(call + ": spec." + field.getKey() + " goes with leave = \"burn\" or \"flare\"");
             dust(big, field.getKey(), field.getValue(), call, "spec." + field.getKey());
         }
         if (small != null) {
@@ -1762,11 +1761,11 @@ final class Texts implements Hooks.Text {
                 alpha *= 1 - smooth(Looks.clamp((breath - 0.05) / 0.75, 0, 1));
                 shift += 0.12 * smooth(breath);
             }
-            case DUST, BURN, FLARE -> { } // Below, once the text is placed: as dust or burning, or a fade.
+            case BURN, FLARE -> { } // Below, once the text is placed: burning, or a fade.
         }
         boolean look = looked(text);
         float shownAlpha = (float)(alpha * text.atAlpha);
-        if (shownAlpha <= INVISIBLE && text.leave != Leave.DUST && !look) return true;
+        if (shownAlpha <= INVISIBLE && !look) return true;
         Object font = text.font;
         Object angel = (Object)fontOf.invokeExact(textManager, font);
         if (angel != text.gameFont) {
@@ -1804,10 +1803,10 @@ final class Texts implements Hooks.Text {
         // At rest: the place and size a look's picture is made at.
         double restLine = text.lineHeight * base, restX = left + text.atX * width, restFirst = top + text.atY * height - restLine * rowCount / 2;
         if (text.atBackdrop > 0) {
-            // As strong as the text is seen, coming in over BACKDROP_IN at most as fast; a text that crumbles or burns takes it with
-            // it over its leave. A look's stays at the text's place at rest.
+            // As strong as the text is seen, coming in over BACKDROP_IN at most as fast; a text that burns takes it with it over
+            // its leave. A look's stays at the text's place at rest.
             double seen = Math.min(smooth(Math.min(1, t / Looks.BACKDROP_IN)),
-                text.leave == Leave.DUST || burns(text.leave) ? alpha * (1 - smooth(Math.min(1, out))) : alpha);
+                burns(text.leave) ? alpha * (1 - smooth(Math.min(1, out))) : alpha);
             if (seen > INVISIBLE) {
                 if (look) backdrop(text, laid, restX, restFirst, base, restLine, rowCount, height, seen);
                 else backdrop(text, laid, anchorX, firstY, zoom, line, rowCount, height, seen);
@@ -1823,31 +1822,6 @@ final class Texts implements Hooks.Text {
                 || text.enter == Enter.STRIKE) alpha *= smooth(in);
             if (burns(text.leave)) alpha *= 1 - smooth(Math.min(1, out));
             shownAlpha = (float)(alpha * text.atAlpha);
-            if (shownAlpha <= INVISIBLE) return true;
-        }
-        if (text.leave == Leave.DUST) {
-            Dust.Gl gl = dust;
-            Dust.Piece piece = gl == null ? null : piece(text, screen);
-            if (piece != null && !piece.released && (t >= text.enterTime || t >= leaving)) {
-                // The text stands still: its picture is made, drawn into, read back and cut, a frame or so each.
-                try { dust(gl, piece, text, laid, typed, t, anchorX, firstY, zoom, line, rowCount, large, own, font, shownAlpha, alpha); }
-                catch (Throwable failure) {
-                    if (failure instanceof VirtualMachineError fatal && !(fatal instanceof OutOfMemoryError)) throw fatal;
-                    gl.report("the dust could not be made", failure);
-                    piece.phase = Dust.FAILED;
-                }
-                if (piece.phase == Dust.FAILED) letGo(piece);
-            }
-            if (out > 0) {
-                boolean usable = piece != null && !piece.released;
-                if (usable && piece.phase == Dust.CUT) {
-                    gl.draw(piece, out, 1, text.dustDrift);
-                    return true;
-                }
-                // Its picture on its way: the text as it was for a moment, then a fade.
-                if (!(usable && piece.pending() && out < Dust.PENDING)) alpha *= 1 - smooth(out);
-                shownAlpha = (float)(alpha * text.atAlpha);
-            }
             if (shownAlpha <= INVISIBLE) return true;
         }
         paintAll(text, laid, typed, t, anchorX, firstY, zoom, line, large, own, font, shownAlpha, alpha, true);
@@ -2250,42 +2224,6 @@ final class Texts implements Hooks.Text {
             (Object)null);
     }
 
-    /**
-     * A step of the text's dust once it stands still, at its place now: the picture made for its box, the text drawn into it, the
-     * picture read back cut into cells. A box that moved since (the screen's size changed) gives up the dust: the text fades.
-     */
-    private void dust(Dust.Gl gl, Dust.Piece piece, Shown text, Layout laid, int typed, double t, double anchorX, double firstY, double zoom,
-            double line, int rowCount, boolean large, EmbeddedFont.Loaded own, Object font, float shownAlpha, double alpha) throws Throwable {
-        double low = Double.POSITIVE_INFINITY, high = Double.NEGATIVE_INFINITY;
-        for (int index = 0; index < rowCount; index++) {
-            double lineWidth = (laid == null ? text.widths[index] : laid.rows[index].width) * zoom;
-            if (lineWidth <= 0) continue;
-            double x = text.align < 0 ? anchorX : text.align > 0 ? anchorX - lineWidth : anchorX - lineWidth / 2;
-            low = Math.min(low, x);
-            high = Math.max(high, x + lineWidth);
-        }
-        if (!(low <= high)) { piece.phase = Dust.FAILED; return; }
-        // Glyphs reach past their advance; the shadow and outline past the glyphs.
-        double margin = Math.ceil(line * Dust.MARGIN + text.outline + Math.max(1, Math.round(line / 24)) + 2);
-        int boxX = (int)Math.floor(low - margin), boxY = (int)Math.floor(firstY - margin);
-        int boxWidth = (int)Math.ceil(high + margin) - boxX, boxHeight = (int)Math.ceil(firstY + line * rowCount + margin) - boxY;
-        switch (piece.phase) {
-            case Dust.NEW -> { if (!gl.make(piece, boxX, boxY, boxWidth, boxHeight, line)) piece.phase = Dust.FAILED; }
-            case Dust.READY -> {
-                if (!piece.at(boxX, boxY, boxWidth, boxHeight)) { piece.phase = Dust.FAILED; return; }
-                // Drawn once more, into the picture, as it is now (no cursor): what the dust is made of.
-                Object before = gl.beginCapture(piece);
-                try { paintAll(text, laid, typed, t, anchorX, firstY, zoom, line, large, own, font, shownAlpha, alpha, false); }
-                finally { gl.endCapture(piece, before); }
-            }
-            case Dust.CAPTURED -> {
-                if (!piece.at(boxX, boxY, boxWidth, boxHeight) || !Dust.Gl.cut(piece, Dust.cell(line, text.dustSize), text.dustSweep)) piece.phase = Dust.FAILED;
-            }
-            case Dust.CUT -> { if (!piece.at(boxX, boxY, boxWidth, boxHeight)) piece.phase = Dust.FAILED; }
-            default -> { }
-        }
-    }
-
     /** The text's lines or rows as they are at {@code t}, in the shader for a distance-field font; the cursor with {@code cursor}. */
     private void paintAll(Shown text, Layout laid, int typed, double t, double anchorX, double firstY, double zoom, double line, boolean large,
             EmbeddedFont.Loaded own, Object font, float shownAlpha, double alpha, boolean cursor) throws Throwable {
@@ -2633,10 +2571,10 @@ final class Texts implements Hooks.Text {
         if (!(kept instanceof String text)) return;
         String[] lines = text.split("\n");
         // The format before typing has the fields up to hidden; the text of those has no markup, typing or width. The format
-        // before dust has the fields up to cursor; its texts have no dust. The format before backdrops has none; the one before burns, no burn;
+        // before backdrops has none; the one before burns, no burn;
         // the one before lanes, no lane (its titles are in the first queue); the one before sounds, no sounds.
-        boolean before = FORMAT_BEFORE_TYPING.equals(lines[0]), beforeDust = before || FORMAT_BEFORE_DUST.equals(lines[0]);
-        boolean beforeBackdrop = beforeDust || FORMAT_BEFORE_BACKDROP.equals(lines[0]);
+        boolean before = FORMAT_BEFORE_TYPING.equals(lines[0]);
+        boolean beforeBackdrop = before || FORMAT_BEFORE_BACKDROP.equals(lines[0]);
         boolean beforeBurn = beforeBackdrop || FORMAT_BEFORE_BURN.equals(lines[0]);
         boolean beforeLane = beforeBurn || FORMAT_BEFORE_LANE.equals(lines[0]);
         boolean beforeSounds = beforeLane || FORMAT_BEFORE_SOUNDS.equals(lines[0]);
@@ -2647,7 +2585,7 @@ final class Texts implements Hooks.Text {
         for (int index = 1; index < lines.length; index++) {
             String[] fields = lines[index].split("\t", -1);
             if ("N".equals(fields[0])) { next = Math.max(next, Long.parseLong(fields[1])); continue; }
-            if (fields.length != (before ? 31 : beforeDust ? 35 : beforeBackdrop ? 38 : beforeBurn ? 40 : beforeLane ? 41 : beforeSounds ? 42 : 44) || !"T".equals(fields[0]))
+            if (fields.length != (before ? 31 : beforeBackdrop ? 38 : beforeBurn ? 40 : beforeLane ? 41 : beforeSounds ? 42 : 44) || !"T".equals(fields[0]))
                 throw new IllegalStateException("Unknown line in the kept text: " + lines[index]);
             var s = new Shown(unescape(fields[1]), Long.parseLong(fields[2]));
             s.lines = unescape(fields[3]).split("\n", -1);
@@ -2666,9 +2604,7 @@ final class Texts implements Hooks.Text {
             if (!before) {
                 s.markup = Boolean.parseBoolean(fields[31]); s.width = Double.parseDouble(fields[32]); s.speed = Double.parseDouble(fields[33]);
                 s.cursor = Boolean.parseBoolean(fields[34]);
-                if (!beforeDust) {
-                    s.dustSize = Double.parseDouble(fields[35]); s.dustSweep = Dust.Sweep.valueOf(fields[36]); s.dustDrift = Double.parseDouble(fields[37]);
-                }
+                s.dustSize = Double.parseDouble(fields[35]); s.dustSweep = Dust.Sweep.valueOf(fields[36]); s.dustDrift = Double.parseDouble(fields[37]);
                 if (!beforeBackdrop) { s.backdrop = Double.parseDouble(fields[38]); s.backdropBelow = Double.parseDouble(fields[39]); }
                 if (!beforeBurn) s.dustBurn = burnOf(fields[40]);
                 if (!beforeLane) { s.lane = Integer.parseInt(fields[41]); if (s.lane < 0 || s.lane >= LANES) s.lane = 0; }

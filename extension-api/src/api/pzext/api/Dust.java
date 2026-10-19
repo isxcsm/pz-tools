@@ -16,25 +16,22 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import pzext.boot.Boot;
 
 /**
- * The leave effect {@code "dust"} (docs/design.md, "Dust"): a text crumbles like ash, swept across it from one
- * side or corner, as weathering: ahead of the front the text greys and wears thin, pitted in patches (a cell starts by its place
- * and a clumpy noise over the text, so holes open and spread before the front comes); each flake, a chip or a grain of dust,
- * glows faintly warm as it comes loose, sags, and is caught by the wind and taken ever faster a long way up and to the side,
- * billowing, greying as it fades.
- * The part the sweep has not reached stays as it was. A text given a burn ({@code dustBurn}) burns instead of weathering:
- * ahead of the front it glows in the burn's colour, and its flakes leave glowing and cool to dark ash of that colour.
+ * What the looks' pictures are made of (docs/design.md, "Looks"): the paper burn's schedule and cells, and a text's picture on one
+ * screen. The burn ({@code leave = "burn"} or {@code "flare"}) is swept across the text from one side or corner: ahead of the front
+ * the text scorches, glows in the burn's colour and goes out to char, pitted in patches (a cell starts by its place and a clumpy
+ * noise over the text, so holes open and spread before the front comes); each flake, a chip or a grain, leaves glowing, sags, and is
+ * caught by the wind and taken ever faster a long way up and to the side, billowing, cooling to ash. The part the sweep has not
+ * reached stays as it was.
  *
  * <p>Once the text stands still (its enter is over, or it began to leave), it is drawn once, shadow, outline and colours with it,
  * into a picture of its own: a frame buffer of the game's ({@code TextureFBO}) the size of the text's box, drawn into from the
- * game's render queue. The render thread reads that picture's alpha back once, and the main thread cuts the box into square cells,
- * keeping those with ink in them, at most {@link #MAX_CELLS}. As the text leaves, each cell is a quad of the game's sprite renderer
- * that shows its own part of the picture (texture coordinates into the one picture, so the quads go to the card in one batch),
- * moved, shrunk and faded on its own schedule; the cells not yet reached are drawn as a strip for each row. The picture is let go
+ * game's render queue. The render thread reads that picture's alpha back once, and the burn cuts the box into square cells,
+ * keeping those with ink in them, at most {@link #MAX_CELLS} ({@link Looks} draws them with its shader). The picture is let go
  * once the text has gone (or is taken away), from the render queue, after the last frame that drew it.
  *
- * <p>The schedule ({@link #start}, {@link #age}, {@link #alpha}, {@link #driftX}, {@link #driftY}) is pure arithmetic on a seed,
- * the same for the same text. Everything else here runs on the game's main thread but what is queued for its render thread
- * (the drawers and the frame buffer's making), which touches only the piece it was made for.
+ * <p>The schedule ({@link #start}, {@link #alpha}, {@link #driftX}, {@link #driftY}) is pure arithmetic on a seed, the same for
+ * the same text. Everything else here runs on the game's main thread but what is queued for its render thread (the drawers and the
+ * frame buffer's making), which touches only the piece it was made for.
  */
 final class Dust {
     // ---- the schedule, as shares of the leave ----
@@ -44,15 +41,10 @@ final class Dust {
      * little of its own), and the longest a cell lives.
      */
     static final double SWEEP = 0.35, JITTER = 0.25, LIFE = 1 - SWEEP - JITTER;
-    /**
-     * Weathering: the share of the leave a cell wears before it starts (in place, greying and thinning), how much of its colour
-     * and of its side it has lost when it starts, and the noise's patches, in cells (the larger, and a finer one over it).
-     */
-    static final double WEATHER = 0.12, WEATHERED = 0.4, THIN = 0.22, PATCH = 6, FINE_PATCH = 2.5;
+    /** The noise's patches, in cells (the larger, and a finer one over it). */
+    static final double PATCH = 6, FINE_PATCH = 2.5;
     /** The share of a flake's life it sags before the wind catches it, and how far it sags, in line heights at a drift of 1. */
     static final double CATCH = 0.12, SAG = 0.08;
-    /** The share of the leave a text waits for its picture, drawn as it was, before it fades instead. */
-    static final double PENDING = 0.15;
     /** The most cells a text breaks into: a larger text has larger cells. */
     static final int MAX_CELLS = 4500;
     /** A cell's side as a share of the line's height (4.3 pixels for a line a tenth of 1080), and the smallest, in pixels. */
@@ -61,18 +53,13 @@ final class Dust {
     static final double RISE = 2.0, SIDE = 4.5, SWIRL_X = 0.15, SWIRL_Y = 0.3;
     /** The share of a cell's life it stays whole as it goes, before it fades. */
     static final double HOLD = 0.25;
-    /** The colour a flake glows with as it comes loose (times the text's), and the share of its colour left as ash at its end. */
-    static final double EMBER_G = 0.84, EMBER_B = 0.62, ASH = 0.5;
     /**
-     * A text that burns ({@code dustBurn}) as charcoal, over the wearing before a cell goes: it scorches to {@link #SCORCHED} (times
-     * its colour) by {@link #SCORCH_END} of it; glows in the burn's colour, flickering, at its height by {@link #GLOW_PEAK} (its
-     * alpha gives up to {@link #GLOW}, its colour stays, so the light adds to what is behind it); goes out to black char,
-     * {@link #CHARRED}, by {@link #GLOW_END}; and thins as char. Its flake is char greying to {@link #CHAR_ASH}, or, for
-     * {@link #SPARKS} of the cells, a spark leaving glowing that cools over the first {@link #COOL} of its life to
-     * {@link #BURN_ASH} of the burn's colour.
+     * A text that burns ({@code dustBurn}) as charcoal: it scorches to {@link #SCORCHED} (times its colour), glows in the burn's
+     * colour, flickering (its alpha gives up to {@link #GLOW}, its colour stays, so the light adds to what is behind it), and goes
+     * out to black char, {@link #CHARRED}. Its flake is char, or, for {@link #SPARKS} of the cells, a spark leaving glowing that
+     * cools over the first {@link #COOL} of its life to {@link #BURN_ASH} of the burn's colour.
      */
-    static final double GLOW = 0.45, COOL = 0.4, BURN_ASH = 0.3, SCORCH_END = 0.4, GLOW_PEAK = 0.62, GLOW_END = 0.85,
-        SPARKS = 0.25, CHAR_ASH = 0.2;
+    static final double GLOW = 0.45, COOL = 0.4, BURN_ASH = 0.3, SPARKS = 0.25;
     static final double[] SCORCHED = { 0.34, 0.18, 0.1 }, CHARRED = { 0.07, 0.055, 0.05 };
     /** How fast a glowing cell flickers, in times over the leave, and how deep. */
     static final double FLICKER = 9, FLICKER_DEPTH = 0.3;
@@ -80,31 +67,6 @@ final class Dust {
     /** How hot a burning flake still is at its age, 1 to 0. */
     static double heat(double age) { return age <= 0 ? 1 : age >= COOL ? 0 : 1 - smooth(age / COOL); }
 
-    /**
-     * A burning cell in place at its wear: its colour (times the text's) into {@code into}, and how hot it is, 0 to 1 (the
-     * share of {@link #GLOW} its alpha gives); {@code flicker} 0 to 1 dims the glow.
-     */
-    static double burning(double wear, float[] burn, double flicker, double[] into) {
-        double from0, from1, from2, to0, to1, to2, s, hot;
-        double glow = 1 - FLICKER_DEPTH * flicker;
-        if (wear < SCORCH_END) {
-            s = wear / SCORCH_END; hot = 0;
-            from0 = 1; from1 = 1; from2 = 1; to0 = SCORCHED[0]; to1 = SCORCHED[1]; to2 = SCORCHED[2];
-        } else if (wear < GLOW_PEAK) {
-            s = smooth((wear - SCORCH_END) / (GLOW_PEAK - SCORCH_END)); hot = s * glow;
-            from0 = SCORCHED[0]; from1 = SCORCHED[1]; from2 = SCORCHED[2]; to0 = burn[0] * glow; to1 = burn[1] * glow; to2 = burn[2] * glow;
-        } else if (wear < GLOW_END) {
-            s = smooth((wear - GLOW_PEAK) / (GLOW_END - GLOW_PEAK)); hot = (1 - s) * glow;
-            from0 = burn[0] * glow; from1 = burn[1] * glow; from2 = burn[2] * glow; to0 = CHARRED[0]; to1 = CHARRED[1]; to2 = CHARRED[2];
-        } else {
-            s = 1; hot = 0;
-            from0 = to0 = CHARRED[0]; from1 = to1 = CHARRED[1]; from2 = to2 = CHARRED[2];
-        }
-        into[0] = from0 + (to0 - from0) * s;
-        into[1] = from1 + (to1 - from1) * s;
-        into[2] = from2 + (to2 - from2) * s;
-        return hot;
-    }
     /** A cell is ink when the alpha of a texel of it is at least this (of 255). */
     static final int INK = 10;
     /** The largest picture, on each side, in pixels: a larger text fades instead. */
@@ -135,9 +97,6 @@ final class Dust {
     /** A cell's side in pixels for a line {@code line} pixels high and the size option. */
     static double cell(double line, double size) { return Math.max(MIN_CELL, line * CELL * size); }
 
-    /** How far across the text the front is at {@code progress} of the leave: 0 to 1 (the cells' jitter left out). */
-    static double front(double progress) { return clamp(progress / SWEEP, 0, 1); }
-
     /**
      * When a cell starts to go, as a share of the leave: by its place {@code along} the sweep (0 at the side it starts from, 1 at
      * the other), the noise of its patch {@code grain} (0 to 1: a patch goes together, so holes open and spread) and a little of
@@ -163,32 +122,17 @@ final class Dust {
 
     private static double point(int x, int y, long seed) { return unit(seed, x * 7919 + y * 104729, 11); }
 
-    /** How far a cell has worn before it starts, 0 to 1, at {@code progress}: over the {@link #WEATHER} before its start. */
-    static double worn(double progress, double start) { return smooth(clamp((progress - start + WEATHER) / WEATHER, 0, 1)); }
-
     /** How long a cell lives, as a share of the leave: three quarters of {@link #LIFE} to all of it. */
     static double life(long seed, int index) { return LIFE * (0.75 + 0.25 * unit(seed, index, 2)); }
 
-    /** A cell's own time at {@code progress}: below 0 before it starts, 1 when it has gone. */
-    static double age(double progress, double start, double life) { return (progress - start) / life; }
-
     /** A cell's alpha at its age: whole before it starts and for {@link #HOLD} of its life, then fading, gone at 1. */
     static double alpha(double age) { return age <= 0 ? 1 : age >= 1 ? 0 : 1 - smooth(clamp((age - HOLD) / (1 - HOLD), 0, 1)); }
-
-    /** A cell's size at its age, as a share of its side as it starts (worn thin by then): it wears down to 45% of that. */
-    static double size(double age) { return 1 - 0.55 * clamp(age, 0, 1); }
 
     /** How far the wind has a flake at its age: nothing while it sags ({@link #CATCH}), then from 0 to 1. */
     static double caught(double age) { return clamp((age - CATCH) / (1 - CATCH), 0, 1); }
 
     /** How far along its path a cell is: it lifts slowly and the air takes it ever faster (ease in). */
     static double ease(double age) { double a = clamp(age, 0, 1); return a * (0.25 + 0.75 * a); }
-
-    /** How warm a flake glows at its age, 0 to 1: up over its first 8%, out by a third of its life. */
-    static double ember(double age) { return age <= 0 || age >= 1.0 / 3 ? 0 : age < 0.08 ? age / 0.08 : 1 - (age - 0.08) / (1.0 / 3 - 0.08); }
-
-    /** How much of its colour a flake keeps at its age: all at first, greying to {@link #ASH} by 70% of its life. */
-    static double ash(double age) { return 1 - (1 - ASH) * smooth(clamp(age / 0.7, 0, 1)); }
 
     /**
      * A cell's move to the side at its age, in line heights at a drift of 1: once the wind has caught it, its own way and speed,
@@ -260,8 +204,6 @@ final class Dust {
         final float[] start, life, side, rise, freq, phase, phase2, flake;
         /** The first cell of each lane, and one past the last: {@code lanes + 1} of them. */
         final int[] laneFrom;
-        /** The earliest start of a cell and of those after it in its lane: none of a lane from the first whose suffix is past the progress has started. */
-        final float[] suffix;
 
         private Cells(double size, int columns, int rows, int lanes, int count, Sweep sweep) {
             this.size = size; this.columns = columns; this.rows = rows; this.lanes = lanes; this.count = count; this.sweep = sweep;
@@ -269,7 +211,6 @@ final class Dust {
             start = new float[count]; life = new float[count]; side = new float[count]; rise = new float[count];
             freq = new float[count]; phase = new float[count]; phase2 = new float[count]; flake = new float[count];
             laneFrom = new int[lanes + 1];
-            suffix = new float[count];
         }
 
         /** The cells' place along the sweep, from 0 at the side the sweep starts from. */
@@ -281,17 +222,6 @@ final class Dust {
                 case UP -> rows - 1 - row[cell];
                 default -> (sweep.fromLeft() ? column[cell] : columns - 1 - column[cell]) + (sweep.fromTop() ? row[cell] : rows - 1 - row[cell]);
             };
-        }
-
-        /** The first cell of the lane from which none has started at {@code progress}, or the lane's end. */
-        int unreached(int lane, double progress) {
-            int low = laneFrom[lane], high = laneFrom[lane + 1];
-            while (low < high) {
-                int middle = (low + high) >>> 1;
-                if (suffix[middle] > progress) high = middle;
-                else low = middle + 1;
-            }
-            return low;
         }
 
         /**
@@ -355,8 +285,6 @@ final class Dust {
                     cells.phase2[at] = (float)unit(seed, index, 8);
                     at++;
                 }
-                float earliest = Float.POSITIVE_INFINITY;
-                for (int cell = at - 1; cell >= cells.laneFrom[lane]; cell--) earliest = cells.suffix[cell] = Math.min(earliest, cells.start[cell]);
             }
             cells.laneFrom[lanes] = at;
             return cells;
@@ -369,7 +297,7 @@ final class Dust {
     static final int NEW = 0, MAKING = 1, READY = 2, CAPTURING = 3, CAPTURED = 4, CUT = 5, FAILED = 6;
 
     /**
-     * The dust of a text on one screen: its picture, the box on the screen it was drawn from, and its cells. The render thread
+     * The picture of a text on one screen: its picture, the box on the screen it was drawn from, and its cells. The render thread
      * writes {@link #phase} (READY, CAPTURED, FAILED), {@link #fbo} and the pixels; the main thread reads them after the phase.
      */
     static final class Piece implements Runnable {
@@ -409,9 +337,6 @@ final class Dust {
 
         Piece(Texts.Shown owner, int screen, long seed) { this.owner = owner; this.screen = screen; this.seed = seed; }
 
-        /** Whether it is on its way to the dust: its picture made or being made, not yet cut. */
-        boolean pending() { int now = phase; return now >= MAKING && now <= CAPTURED; }
-
         /** Whether its picture is in video memory, or on its way there. */
         boolean holds() { return phase >= MAKING && texture != null; }
 
@@ -430,7 +355,7 @@ final class Dust {
                 if (mapTexture != 0 && looks != null) looks.deleteTexture(mapTexture);
             } catch (Throwable failure) {
                 if (failure instanceof VirtualMachineError fatal && !(fatal instanceof OutOfMemoryError)) throw fatal;
-                own.report("the dust's picture could not be let go", failure);
+                own.report("a picture could not be let go", failure);
             }
         }
     }
@@ -464,7 +389,7 @@ final class Dust {
 
     /**
      * The game's frame buffers, sprite renderer, render thread and GL calls, read once; null from {@link #open} in a game without
-     * them, where dust fades.
+     * them, where the looks fade.
      */
     static final class Gl {
         // OpenGL.
@@ -477,13 +402,13 @@ final class Dust {
         private static Class<?> drawerOf;
         private static MethodHandle drawerMaker;
 
-        private final MethodHandle renderer, states, populating, styleOf, setStyle, uiStyle, additiveStyle, quad, drawGeneric;
+        private final MethodHandle renderer, states, populating, styleOf, setStyle, uiStyle, drawGeneric;
         private final MethodHandle newTexture, textureDestroy, xStart, xEnd, yStart, yEnd;
         private final MethodHandle newFbo, fboStart, fboEnd, fboDestroy, fboSupported;
         private final MethodHandle queue;
         private final MethodHandle getIntegers, isEnabled, enable, disable, viewport, readPixels, pixelStore, getInteger, bindBuffer;
         private final MethodHandle makeDrawer;
-        private Object additive, uiFbo;
+        private Object uiFbo;
         private boolean reported;
 
         private Gl(ClassLoader game) throws ReflectiveOperationException {
@@ -497,17 +422,8 @@ final class Dust {
             populating = Game.exact(statesType.getMethod("getPopulatingActiveState"), MethodType.methodType(Object.class, Object.class));
             styleOf = lookup.findGetter(stateType, "defaultStyle", abstractStyle).asType(MethodType.methodType(Object.class, Object.class));
             setStyle = Game.exact(spriteRenderer.getMethod("setDefaultStyle", abstractStyle), MethodType.methodType(void.class, Object.class, Object.class));
-            Class<?> uiFboStyle = Game.type(game, "zombie.core.Styles.UIFBOStyle"), additiveType = Game.type(game, "zombie.core.Styles.AdditiveStyle");
+            Class<?> uiFboStyle = Game.type(game, "zombie.core.Styles.UIFBOStyle");
             uiStyle = lookup.findStaticGetter(uiFboStyle, "instance", uiFboStyle).asType(MethodType.methodType(Object.class));
-            additiveStyle = lookup.findStaticGetter(additiveType, "instance", additiveType).asType(MethodType.methodType(Object.class));
-            Class<?>[] corners = new Class<?>[21];
-            corners[0] = texture;
-            for (int index = 1; index <= 16; index++) corners[index] = double.class;
-            for (int index = 17; index <= 20; index++) corners[index] = float.class;
-            MethodType quadType = MethodType.methodType(void.class, Object.class, Object.class, double.class, double.class, double.class, double.class,
-                double.class, double.class, double.class, double.class, double.class, double.class, double.class, double.class, double.class,
-                double.class, double.class, double.class, float.class, float.class, float.class, float.class);
-            quad = Game.exact(spriteRenderer.getMethod("render", corners), quadType);
             drawGeneric = Game.exact(spriteRenderer.getMethod("drawGeneric", drawer), MethodType.methodType(Object.class, Object.class, Object.class));
             newTexture = lookup.unreflectConstructor(texture.getConstructor(int.class, int.class, int.class))
                 .asType(MethodType.methodType(Object.class, int.class, int.class, int.class));
@@ -538,11 +454,11 @@ final class Dust {
             makeDrawer = drawerMaker(drawer);
         }
 
-        /** The game's drawing, or null (reported once) in a game without what dust needs. */
+        /** The game's drawing, or null (reported once) in a game without what the pictures need. */
         static Gl open(ClassLoader game) {
             try { return new Gl(game); }
             catch (ReflectiveOperationException | RuntimeException | LinkageError missing) {
-                System.err.println("[PZExt] text: dust fades instead in this game: " + missing);
+                System.err.println("[PZExt] text: the looks fade instead in this game: " + missing);
                 return null;
             }
         }
@@ -582,7 +498,7 @@ final class Dust {
         }
 
         void report(String what, Throwable failure) {
-            if (!reported) System.err.println("[PZExt] text: " + what + "; dust fades instead: " + failure);
+            if (!reported) System.err.println("[PZExt] text: " + what + "; the text fades instead: " + failure);
             reported = true;
         }
 
@@ -619,7 +535,7 @@ final class Dust {
                 } catch (Throwable failure) {
                     if (failure instanceof VirtualMachineError fatal && !(fatal instanceof OutOfMemoryError)) throw fatal;
                     piece.phase = FAILED;
-                    report("the dust's picture could not be made", failure);
+                    report("a picture could not be made", failure);
                     if (piece.released) piece.run();
                 }
             });
@@ -665,7 +581,7 @@ final class Dust {
             } catch (Throwable failure) {
                 if (failure instanceof VirtualMachineError fatal && !(fatal instanceof OutOfMemoryError)) throw fatal;
                 piece.phase = FAILED;
-                report("the dust's picture could not be drawn", failure);
+                report("a picture could not be drawn", failure);
                 if (!piece.began) restore(piece);
             }
         }
@@ -698,7 +614,7 @@ final class Dust {
                 }
             } catch (Throwable failure) {
                 if (failure instanceof VirtualMachineError fatal && !(fatal instanceof OutOfMemoryError)) throw fatal;
-                report("the dust's picture could not be read", failure);
+                report("a picture could not be read", failure);
             } finally {
                 try { fboEnd.invokeExact(piece.fbo); } catch (Throwable failure) { report("the frame buffer could not be put back", failure); read = false; }
                 restore(piece);
@@ -713,18 +629,6 @@ final class Dust {
             } catch (Throwable failure) { report("the viewport could not be put back", failure); }
         }
 
-        /** Cuts the piece's picture into its cells, once it was read: false when it has no ink. The pixels are let go. */
-        static boolean cut(Piece piece, double size, Sweep sweep) {
-            ByteBuffer pixels = piece.pixels;
-            int width = piece.boxWidth, height = piece.boxHeight;
-            // The rows read back are from the bottom of the box.
-            Cells cells = Cells.of((x, y) -> pixels.get(((height - 1 - y) * width + x) * 4 + 3) & 0xFF, width, height, size, sweep, piece.seed, MAX_CELLS);
-            piece.pixels = null;
-            piece.cells = cells;
-            piece.phase = cells == null ? FAILED : CUT;
-            return cells != null;
-        }
-
         /** Queues the piece's letting go after what was drawn before it in the render queue. */
         void bury(Piece piece) throws Throwable {
             Object renderer = (Object)this.renderer.invokeExact();
@@ -735,108 +639,6 @@ final class Dust {
         void buryDrawer(Object drawer) throws Throwable {
             Object renderer = (Object)this.renderer.invokeExact();
             Object queued = (Object)drawGeneric.invokeExact(renderer, drawer);
-        }
-
-        /**
-         * Draws the piece at {@code progress} of its leave: each lane's unreached part as one strip, the cells before it in place or
-         * on their way, in the picture's premultiplied colours (the style the game draws its interface's buffer with). {@code fade}
-         * is the alpha of the whole; {@code drift} the text's. Allocates nothing.
-         */
-        /** A burning cell's colour, worked out into it (the frames allocate nothing). */
-        private final double[] tint = new double[3];
-
-        void draw(Piece piece, double progress, double fade, double drift) throws Throwable {
-            Cells cells = piece.cells;
-            float[] burn = piece.owner.dustBurn;
-            Object renderer = (Object)this.renderer.invokeExact();
-            Object state = (Object)populating.invokeExact((Object)states.invokeExact(renderer));
-            Object before = (Object)styleOf.invokeExact(state);
-            Object style = additive;
-            if (style == null) style = additive = (Object)additiveStyle.invokeExact();
-            setStyle.invokeExact(renderer, style);
-            try {
-                Object texture = piece.texture;
-                double size = cells.size, width = piece.boxWidth, height = piece.boxHeight, reach = piece.line * drift;
-                for (int lane = 0; lane < cells.lanes; lane++) {
-                    // The lane from its first cell not yet wearing is whole; the cells before it wear, or go.
-                    int from = cells.laneFrom[lane], unreached = cells.unreached(lane, progress + WEATHER);
-                    if (unreached < cells.laneFrom[lane + 1]) {
-                        // The lane's part the front has not reached, from its first such cell to the far side, as it was.
-                        double left, top, right, bottom;
-                        int column = cells.column[unreached], row = cells.row[unreached];
-                        switch (cells.sweep) {
-                            case RIGHT, UPRIGHT, DOWNRIGHT -> { left = column * size; right = width; top = row * size; bottom = Math.min(height, top + size); }
-                            case LEFT, UPLEFT, DOWNLEFT -> { left = 0; right = Math.min(width, (column + 1) * size); top = row * size; bottom = Math.min(height, top + size); }
-                            case DOWN -> { top = row * size; bottom = height; left = column * size; right = Math.min(width, left + size); }
-                            default -> { top = 0; bottom = Math.min(height, (row + 1) * size); left = column * size; right = Math.min(width, left + size); }
-                        }
-                        drawPart(renderer, texture, piece, left, top, right, bottom, 0, 0, 1, (float)fade, (float)fade, (float)fade, (float)fade);
-                    }
-                    for (int cell = from; cell < unreached; cell++) {
-                        double left = cells.column[cell] * size, top = cells.row[cell] * size;
-                        double right = Math.min(width, left + size), bottom = Math.min(height, top + size);
-                        double age = age(progress, cells.start[cell], cells.life[cell]);
-                        if (age <= 0) {
-                            double wear = worn(progress, cells.start[cell]);
-                            if (burn != null) {
-                                // Burning in place: scorching, glowing at its edge, going out to char that thins.
-                                double flicker = 0.5 + 0.5 * Math.sin(2 * Math.PI * (progress * FLICKER + cells.phase[cell]));
-                                double hot = burning(wear, burn, flicker, tint);
-                                double thin = wear > GLOW_END ? THIN * (wear - GLOW_END) / (1 - GLOW_END) : 0;
-                                drawPart(renderer, texture, piece, left, top, right, bottom, 0, 0, 1 - thin, (float)(fade * tint[0]),
-                                    (float)(fade * tint[1]), (float)(fade * tint[2]), (float)(fade * (1 - GLOW * hot)));
-                                continue;
-                            }
-                            // Wearing in place: greying and thinning (pitted, as its neighbours thin too).
-                            float kept = (float)(fade * (1 - WEATHERED * wear));
-                            drawPart(renderer, texture, piece, left, top, right, bottom, 0, 0, 1 - THIN * wear, kept, kept, kept, (float)fade);
-                            continue;
-                        }
-                        if (age >= 1) continue;
-                        float shown = (float)(alpha(age) * fade);
-                        if (shown <= 0.002f) continue;
-                        double dx = reach * driftX(age, cells.side[cell], cells.freq[cell], cells.phase[cell]);
-                        double dy = reach * driftY(age, cells.rise[cell], cells.freq[cell], cells.phase2[cell]);
-                        double scale = (1 - THIN) * cells.flake[cell] * size(age);
-                        if (burn != null && cells.phase2[cell] >= SPARKS) {
-                            // Char: black, greying as it goes.
-                            float grey = (float)(shown * (CHARRED[0] + (CHAR_ASH - CHARRED[0]) * smooth(clamp(age / 0.7, 0, 1))));
-                            drawPart(renderer, texture, piece, left, top, right, bottom, dx, dy, scale, grey, grey, grey, shown);
-                            continue;
-                        }
-                        if (burn != null) {
-                            // A spark: glowing as it leaves (its colour over its alpha adds light), cooling to dark ash.
-                            double hot = heat(age), keep = BURN_ASH + (1 - BURN_ASH) * hot;
-                            drawPart(renderer, texture, piece, left, top, right, bottom, dx, dy, scale, (float)(shown * burn[0] * keep),
-                                (float)(shown * burn[1] * keep), (float)(shown * burn[2] * keep), (float)(shown * (1 - GLOW * hot)));
-                            continue;
-                        }
-                        // Premultiplied: a colour below the alpha darkens the flake, warm as it comes loose, grey as it goes.
-                        double grey = (1 - WEATHERED) * ash(age), warm = ember(age);
-                        float red = (float)(shown * grey), green = (float)(red * (1 - (1 - EMBER_G) * warm)), blue = (float)(red * (1 - (1 - EMBER_B) * warm));
-                        drawPart(renderer, texture, piece, left, top, right, bottom, dx, dy, scale, red, green, blue, shown);
-                    }
-                }
-            } finally {
-                setStyle.invokeExact(renderer, before);
-            }
-        }
-
-        /**
-         * One quad: the box's part {@code left..right}, {@code top..bottom} (pixels from its top left), moved by {@code dx, dy},
-         * scaled about its middle, in a colour and an alpha (premultiplied: the colour at most the alpha).
-         */
-        private void drawPart(Object renderer, Object texture, Piece piece, double left, double top, double right, double bottom, double dx, double dy,
-                double scale, float red, float green, float blue, float alpha) throws Throwable {
-            double width = piece.boxWidth, height = piece.boxHeight;
-            double u0 = piece.uStart + (piece.uEnd - piece.uStart) * left / width, u1 = piece.uStart + (piece.uEnd - piece.uStart) * right / width;
-            // The picture's rows go up from the box's bottom.
-            double vTop = piece.vStart + (piece.vEnd - piece.vStart) * (height - top) / height;
-            double vBottom = piece.vStart + (piece.vEnd - piece.vStart) * (height - bottom) / height;
-            double halfX = (right - left) * scale / 2, halfY = (bottom - top) * scale / 2;
-            double x = piece.boxX + (left + right) / 2 + dx, y = piece.boxY + (top + bottom) / 2 + dy;
-            quad.invokeExact(renderer, texture, x - halfX, y - halfY, x + halfX, y - halfY, x + halfX, y + halfY, x - halfX, y + halfY,
-                u0, vTop, u1, vTop, u1, vBottom, u0, vBottom, red, green, blue, alpha);
         }
     }
 }

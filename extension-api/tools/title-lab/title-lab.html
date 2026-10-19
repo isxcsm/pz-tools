@@ -53,11 +53,11 @@ const P = {
   // text
   title: "2차 강화판 열림", sub: "세 트리의 마지막 강화를 모두 시험해",
   style: "dust-paper", tone: "style", sweep: "downleft", dustSize: 1, dustDrift: 1, leaveTime: 10, hold: 5, seed: 12345,
-  burnOn: true, burnR: 1.0, burnG: 0.32, burnB: 0.10, backdrop: true, bg: "night",
+  burnR: 1.0, burnG: 0.32, burnB: 0.10, backdrop: true, bg: "night",
   // schedule
-  SWEEP: 0.35, JITTER: 0.25, WEATHER: 0.12, WEATHERED: 0.4, THIN: 0.22, HOLD: 0.25,
+  SWEEP: 0.35, JITTER: 0.25, HOLD: 0.25,
   // burn
-  GLOW: 0.45, COOL: 0.4, BURN_ASH: 0.3, SCORCH_END: 0.4, GLOW_PEAK: 0.62, GLOW_END: 0.85, SPARKS: 0.25, CHAR_ASH: 0.45,
+  GLOW: 0.45, COOL: 0.4, BURN_ASH: 0.3, SPARKS: 0.25,
   SCORCH_R: 0.34, SCORCH_G: 0.18, SCORCH_B: 0.1, CHAR_R: 0.07, CHAR_G: 0.055, CHAR_B: 0.05, FLICKER: 9, FLICKER_DEPTH: 0.3,
   // paper (a new way: the text burns spot by spot, its ash shards tumbling)
   IMPACT_COOL: 4, IMPACT_GLOW: 1, IMPACT_STREAK: 0.8, IMPACT_DUST: 1, SHINE_AT: 0.8, SHINE: 0.2, ERODE_GRAIN: 9, ERODE_DRAIN: 0.8, TORCH_POOL: 1, TORCH_STUTTER: 1, RADIO_STATIC: 1, RADIO_HICCUP: 1, FOG_THICK: 1.7, FOG_DRIFT: 1.25, FOG_STAY: 0.5, TRACK: 0.07, TRACK_BLUR: 0.6, TRACK_RISE: 0.05, TRACK_STAGGER: 0.12,
@@ -91,7 +91,7 @@ const TONES = {
 // fixed ones
 const FRAME_MOST = 0.1;
 const RISE = 2.0, SIDE = 4.5, SWIRL_X = 0.15, SWIRL_Y = 0.3, CATCH = 0.12, SAG = 0.08, CELL = 0.04, MIN_CELL = 1.5,
-  MAX_CELLS = 4500, INK = 10, MARGIN = 0.2, PATCH = 6, FINE_PATCH = 2.5, EMBER_G = 0.84, EMBER_B = 0.62, ASH = 0.5;
+  MAX_CELLS = 4500, INK = 10, MARGIN = 0.2, PATCH = 6, FINE_PATCH = 2.5;
 // The API's title styles (Texts.java Styles), and new ones tried here. Sizes are shares of the screen's height, the gap
 // in the title's lines, times in seconds; the line leaves trail seconds after the title.
 const STYLES = {
@@ -133,9 +133,6 @@ const STYLES = {
   "sink-new": { label: "sink: 가라앉음", y: 0.28, gap: 0.3, trail: 0, backdrop: 0.3,
     title: { weight: 400, size: 0.08, color: [0.86, 0.88, 0.9], outline: 0.35, sink: true, enter: "settle", enterTime: 1.6, leave: "under", leaveTime: 9 },
     line: { weight: 400, size: 0.038, color: [0.74, 0.77, 0.8], sink: true, delay: 0.8, enter: "fade", enterTime: 1.4, leave: "under", leaveTime: 9 } },
-  "dust": { label: "leave dust: 숯불 셀 (dustBurn)", y: 0.28, gap: 0.3, trail: 0.3, backdrop: 0.3,
-    title: { weight: 400, size: 0.085, color: [0.97, 0.95, 0.9], outline: 0.35, enter: "fade", enterTime: 1.2, leave: "dust" },
-    line: { weight: 400, size: 0.04, color: [0.86, 0.85, 0.82], delay: 0.35, enter: "fade", enterTime: 1.2, leave: "dust" } },
   // A light title for small news (a building searched, a kit fitted): one small line low on the screen, over the hotbar,
   // that slides up, stays a short while and burns away from a spot at its middle's foot, spreading round (the letters
   // aside burning from their feet up), fast and then slowing;
@@ -178,8 +175,8 @@ const STYLES = {
 // The numbers a style may have of its own (brief's), taken as it is picked; the others go back to the defaults.
 const OWN = ["hold", "sweep", "dustDrift", "dustSize", "BURN_SHARE", "EASE", "ASH_HOLD", "ASH_BURST", "ASH_SWIRL", "ROUND_Y", "ROUND_K"];
 const ownOf = S => Object.fromEntries([...OWN, "leaveTime"].filter(k => S[k] !== undefined).map(k => [k, S[k]]));
-const crumbles = d => d.leave === "dust" || d.leave === "paper";
-const leaveTimeOf = d => crumbles(d) ? P.leaveTime : d.leaveTime;
+const burns = d => d.leave === "paper";
+const leaveTimeOf = d => burns(d) ? P.leaveTime : d.leaveTime;
 // a paper text's ash staying on past its leave (ASH_HOLD), in shares of the leave
 const ashTail = d => d.leave === "paper" && P.ASH_HOLD > 0 ? P.ASH_HOLD / P.leaveTime : 0;
 const cubicOut = p => 1 - (1 - p) ** 3;
@@ -257,28 +254,14 @@ function noise(x, y, seed) {
 const grain = (col, row, seed) => 0.7 * noise(col / PATCH, row / PATCH, seed) + 0.3 * noise(col / FINE_PATCH, row / FINE_PATCH, seed ^ 0x2545F491n);
 const start = (along, g, seed, index) => P.SWEEP * clamp(along, 0, 1) + P.JITTER * (0.75 * clamp(g, 0, 1) + 0.25 * unit(seed, index, 1));
 const life = (seed, index) => (1 - P.SWEEP - P.JITTER) * (0.75 + 0.25 * unit(seed, index, 2));
-const worn = (progress, st) => smooth(clamp((progress - st + P.WEATHER) / P.WEATHER, 0, 1));
 const alphaAt = age => age <= 0 ? 1 : age >= 1 ? 0 : 1 - smooth(clamp((age - P.HOLD) / (1 - P.HOLD), 0, 1));
-const sizeAt = age => 1 - 0.55 * clamp(age, 0, 1);
 const caught = age => clamp((age - CATCH) / (1 - CATCH), 0, 1);
 const ease = age => { const a = clamp(age, 0, 1); return a * (0.25 + 0.75 * a); };
-const ember = age => age <= 0 || age >= 1 / 3 ? 0 : age < 0.08 ? age / 0.08 : 1 - (age - 0.08) / (1 / 3 - 0.08);
-const ash = age => 1 - (1 - ASH) * smooth(clamp(age / 0.7, 0, 1));
 function wobble(turns) { const f = turns - Math.floor(turns); const t = f < 0.25 ? 4 * f : f < 0.75 ? 2 - 4 * f : 4 * f - 4; return t * (1.5 - 0.5 * t * t); }
 function driftX(age, side, freq, phase) { const a = clamp(age, 0, 1), w = caught(a); return SIDE * side * ease(w) + SWIRL_X * w * wobble(freq * a + phase); }
 function driftY(age, rise, freq, phase) { const a = clamp(age, 0, 1), w = caught(a); return SAG * smooth(clamp(a / CATCH, 0, 1)) - RISE * rise * ease(w) + SWIRL_Y * w * wobble(0.8 * freq * a + phase); }
 function wave(across, seed) { const x = clamp(across, 0, 1) * 3, at = Math.floor(x); const from = unit(seed, at, 7), to = unit(seed, at + 1, 7); return from + (to - from) * smooth(x - at); }
 const heat = age => age <= 0 ? 1 : age >= P.COOL ? 0 : 1 - smooth(age / P.COOL);
-function burning(wear, burn, flicker, into) {
-  const glow = 1 - P.FLICKER_DEPTH * flicker, S = [P.SCORCH_R, P.SCORCH_G, P.SCORCH_B], C = [P.CHAR_R, P.CHAR_G, P.CHAR_B];
-  let from, to, s, hot;
-  if (wear < P.SCORCH_END) { s = wear / P.SCORCH_END; hot = 0; from = [1, 1, 1]; to = S; }
-  else if (wear < P.GLOW_PEAK) { s = smooth((wear - P.SCORCH_END) / (P.GLOW_PEAK - P.SCORCH_END)); hot = s * glow; from = S; to = burn.map(v => v * glow); }
-  else if (wear < P.GLOW_END) { s = smooth((wear - P.GLOW_PEAK) / (P.GLOW_END - P.GLOW_PEAK)); hot = (1 - s) * glow; from = burn.map(v => v * glow); to = C; }
-  else { s = 1; hot = 0; from = C; to = C; }
-  for (let i = 0; i < 3; i++) into[i] = from[i] + (to[i] - from[i]) * s;
-  return hot;
-}
 
 const SWEEPS = ["right", "left", "up", "down", "upright", "upleft", "downright", "downleft"];
 const fromLeft = s => s === "right" || s === "upright" || s === "downright";
@@ -306,7 +289,7 @@ function cut(alpha, width, height, size, sweep, seed) {
   const c = { size, columns, rows, lanes, count, sweep, column: new Int32Array(count), row: new Int32Array(count),
     start: new Float32Array(count), life: new Float32Array(count), side: new Float32Array(count), rise: new Float32Array(count),
     freq: new Float32Array(count), phase: new Float32Array(count), phase2: new Float32Array(count), flake: new Float32Array(count),
-    laneFrom: new Int32Array(lanes + 1), suffix: new Float32Array(count) };
+    laneFrom: new Int32Array(lanes + 1) };
   let at = 0;
   for (let lane = 0; lane < lanes; lane++) {
     c.laneFrom[lane] = at;
@@ -334,15 +317,8 @@ function cut(alpha, width, height, size, sweep, seed) {
       c.phase2[at] = unit(seed, index, 8);
       at++;
     }
-    let earliest = Infinity;
-    for (let cell = at - 1; cell >= c.laneFrom[lane]; cell--) earliest = c.suffix[cell] = Math.min(earliest, c.start[cell]);
   }
   c.laneFrom[lanes] = at;
-  c.unreached = (lane, progress) => {
-    let low = c.laneFrom[lane], high = c.laneFrom[lane + 1];
-    while (low < high) { const mid = (low + high) >>> 1; if (c.suffix[mid] > progress) high = mid; else low = mid + 1; }
-    return low;
-  };
   return c;
 }
 
@@ -1013,7 +989,7 @@ function piece(text, line, colour, centreY, seed, spec) {
   g.fillStyle = `rgb(${colour.map(v => Math.round(v * 255)).join(",")})`; g.fillText(text, cx, cy);
   const p = { x: Math.round(view.width / 2 - w / 2), y: Math.round(centreY - h / 2), w, h, line, tex: texture(c), spec,
     ink: m.measureText(text).width, colour };
-  // its middle from the whole-pixel box, the same place it crumbles from (no jump as it starts to)
+  // its middle from the whole-pixel box, the same place it burns from (no jump as it starts to)
   p.cx = p.x + w / 2; p.cy = p.y + h / 2;
   // each letter's span across the picture, for a leave that moves them apart
   // (cut at the advances, the first from the picture's left side, the last to its right: no letter shows twice)
@@ -1043,7 +1019,7 @@ function piece(text, line, colour, centreY, seed, spec) {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     p.stroke = ink.stroke;
   }
-  if (!crumbles(spec)) return p;
+  if (!burns(spec)) return p;
   const data = g.getImageData(0, 0, w, h).data;
   const cellSide = Math.max(MIN_CELL, line * CELL * P.dustSize);
   const cells = p.cells = cut(data, w, h, cellSide, P.sweep, seed);
@@ -1844,68 +1820,6 @@ function drawImpact(p, st, secs, la) {
   mode = 0;
 }
 
-const tint = [0, 0, 0];
-function drawDust(p, progress, fade) {
-  const c = p.cells; if (!c) return;
-  const burn = P.burnOn ? [P.burnR, P.burnG, P.burnB] : null;
-  const size = c.size, W = p.w, H = p.h, reach = p.line * P.dustDrift;
-  const part = (left, top, right, bottom, dx, dy, scale, r, g, b, a) => {
-    const hx = (right - left) * scale / 2, hy = (bottom - top) * scale / 2;
-    const x = p.x + (left + right) / 2 + dx, y = p.y + (top + bottom) / 2 + dy;
-    quad(x - hx, y - hy, x + hx, y + hy, left / W, top / H, right / W, bottom / H, r, g, b, a);
-  };
-  for (let lane = 0; lane < c.lanes; lane++) {
-    const from = c.laneFrom[lane], unreached = c.unreached(lane, progress + P.WEATHER);
-    if (unreached < c.laneFrom[lane + 1]) {
-      const column = c.column[unreached], row = c.row[unreached];
-      let left, top, right, bottom;
-      switch (c.sweep) {
-        case "right": case "upright": case "downright": left = column * size; right = W; top = row * size; bottom = Math.min(H, top + size); break;
-        case "left": case "upleft": case "downleft": left = 0; right = Math.min(W, (column + 1) * size); top = row * size; bottom = Math.min(H, top + size); break;
-        case "down": top = row * size; bottom = H; left = column * size; right = Math.min(W, left + size); break;
-        default: top = 0; bottom = Math.min(H, (row + 1) * size); left = column * size; right = Math.min(W, left + size);
-      }
-      part(left, top, right, bottom, 0, 0, 1, fade, fade, fade, fade);
-    }
-    for (let cell = from; cell < unreached; cell++) {
-      const left = c.column[cell] * size, top = c.row[cell] * size, right = Math.min(W, left + size), bottom = Math.min(H, top + size);
-      const age = (progress - c.start[cell]) / c.life[cell];
-      if (age <= 0) {
-        const wear = worn(progress, c.start[cell]);
-        if (burn) {
-          const flicker = 0.5 + 0.5 * Math.sin(2 * Math.PI * (progress * P.FLICKER + c.phase[cell]));
-          const hot = burning(wear, burn, flicker, tint);
-          const thin = wear > P.GLOW_END ? P.THIN * (wear - P.GLOW_END) / (1 - P.GLOW_END) : 0;
-          part(left, top, right, bottom, 0, 0, 1 - thin, fade * tint[0], fade * tint[1], fade * tint[2], fade * (1 - P.GLOW * hot));
-          continue;
-        }
-        const kept = fade * (1 - P.WEATHERED * wear);
-        part(left, top, right, bottom, 0, 0, 1 - P.THIN * wear, kept, kept, kept, fade);
-        continue;
-      }
-      if (age >= 1) continue;
-      const shown = alphaAt(age) * fade;
-      if (shown <= 0.002) continue;
-      const dx = reach * driftX(age, c.side[cell], c.freq[cell], c.phase[cell]);
-      const dy = reach * driftY(age, c.rise[cell], c.freq[cell], c.phase2[cell]);
-      const scale = (1 - P.THIN) * c.flake[cell] * sizeAt(age);
-      if (burn && c.phase2[cell] >= P.SPARKS) {
-        const grey = shown * (P.CHAR_R + (P.CHAR_ASH - P.CHAR_R) * smooth(clamp(age / 0.7, 0, 1)));
-        part(left, top, right, bottom, dx, dy, scale, grey, grey, grey, shown);
-        continue;
-      }
-      if (burn) {
-        const hot = heat(age), keep = P.BURN_ASH + (1 - P.BURN_ASH) * hot;
-        part(left, top, right, bottom, dx, dy, scale, shown * burn[0] * keep, shown * burn[1] * keep, shown * burn[2] * keep, shown * (1 - P.GLOW * hot));
-        continue;
-      }
-      const grey = (1 - P.WEATHERED) * ash(age), warm = ember(age);
-      const red = shown * grey;
-      part(left, top, right, bottom, dx, dy, scale, red, red * (1 - (1 - EMBER_G) * warm), red * (1 - (1 - EMBER_B) * warm), shown);
-    }
-  }
-}
-
 // ---------------------------------------------------------------- the clock
 let t = 0, playing = true, last = performance.now(), scrubbing = false;
 const leaveStart = () => pieces[0] ? pieces[0].leaveAt : 0;
@@ -1929,7 +1843,7 @@ function frame(now) {
   const S = STYLES[P.style];
   gl.uniform3f(U("camera"), view.width / 2, P.zoom > 1 ? S.y * view.height + S.title.size * view.height * 0.6 : view.height / 2, P.zoom);
   gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-  // each text as it is now: before it, coming in, staying, leaving (as a move, or crumbling), gone
+  // each text as it is now: before it, coming in, staying, leaving (as a move, or burning), gone
   const states = pieces.map(p => {
     const d = p.spec, secs = t - p.delay, leave = p.leaveAt - p.delay;
     if (secs < 0) return null;
@@ -1938,15 +1852,15 @@ function frame(now) {
     const inn = d.enterTime > 0 ? Math.min(1, Math.min(secs, leave) / d.enterTime) : 1;
     const st = enterState(d.enter, inn, Math.min(secs, leave), p.line, hitOf(p));
     st.secs = secs; st.out = out; st.left = 1;
-    if (!crumbles(d)) { const before = st.a; leaveState(d.leave, out, st, leaveTimeOf(d)); st.left = before > 0 ? st.a / before : 0; }
+    if (!burns(d)) { const before = st.a; leaveState(d.leave, out, st, leaveTimeOf(d)); st.left = before > 0 ? st.a / before : 0; }
     return st;
   });
-  // the backdrop: over the title and its line, as strong as the title is seen (a crumbling one takes it with it)
+  // the backdrop: over the title and its line, as strong as the title is seen (a burning one takes it with it)
   const first = states[0];
   if (P.backdrop && first) {
-    // (it fades in as dust's title does, over BACKDROP_IN, whatever the title's own enter)
+    // (it fades in as the dust style's title does, over BACKDROP_IN, whatever the title's own enter)
     const tp = pieces[0], fadeIn = smooth(clamp(first.secs / BACKDROP_IN, 0, 1));
-    const seen = Math.min(fadeIn, crumbles(tp.spec) ? first.a * (1 - smooth(Math.min(1, first.out)))
+    const seen = Math.min(fadeIn, burns(tp.spec) ? first.a * (1 - smooth(Math.min(1, first.out)))
       : tp.spec.leave === "wash" ? 1 - smooth(clamp((first.out - 0.5) / 0.5, 0, 1)) : first.a);
     const low = tp.cx - Math.max(...pieces.map(p => p.ink)) / 2, high = tp.cx + Math.max(...pieces.map(p => p.ink)) / 2;
     const top = tp.cy - tp.line / 2, lastP = pieces[pieces.length - 1], bottom = lastP.cy + lastP.line / 2;
@@ -1961,8 +1875,8 @@ function frame(now) {
   pieces.forEach((p, i) => {
     const st = states[i];
     if (!st) return;
-    if (crumbles(p.spec) && st.out > 0) {
-      if (p.spec.leave === "paper") drawPaper(p, st.out, 1); else { drawDust(p, st.out, 1); flush(p.tex); }
+    if (burns(p.spec) && st.out > 0) {
+      drawPaper(p, st.out, 1);
       return;
     }
     const cx = p.cx + st.x, cy = p.cy + st.y * p.line * st.s, hw = p.w * st.s * st.sx / 2, hh = p.h * st.s * st.sy / 2;
@@ -2008,8 +1922,8 @@ function control(key, label, kind, opts) {
     if (kind === "range") value.textContent = P[key];
     if (key === "bg") makeBackground();
     if (key === "style") {
-      const S = STYLES[P.style], leave = S.title.leave;
-      if (crumbles(S.title)) setControl("leaveTime", S.leaveTime || (leave === "paper" ? 10 : 6));
+      const S = STYLES[P.style];
+      if (burns(S.title)) setControl("leaveTime", S.leaveTime || 10);
       for (const k of OWN) setControl(k, S[k] ?? DEFAULTS[k]);
       if (S.sample) { setControl("title", S.sample.title); setControl("sub", S.sample.sub); }
       t = 0; playing = true;
@@ -2051,9 +1965,6 @@ control("dustDrift", "날림 거리", "range", [0, 4, 0.05]);
 control("seed", "시드", "range", [1, 99999, 1]);
 control("SWEEP", "SWEEP", "range", [0.05, 0.7, 0.01]);
 control("JITTER", "JITTER", "range", [0, 0.4, 0.01]);
-control("WEATHER", "WEATHER", "range", [0.02, 0.4, 0.01]);
-control("THIN", "THIN", "range", [0, 0.6, 0.01]);
-control("WEATHERED", "WEATHERED", "range", [0, 1, 0.01]);
 heading("stamp: 각인");
 control("IMPACT_COOL", "달군 빛 식는 속도", "range", [1, 12, 0.5]);
 control("IMPACT_GLOW", "번짐 빛", "range", [0, 3, 0.05]);
@@ -2140,14 +2051,10 @@ control("ASH_BURST", "재 튀는 거리 (0: 바람에 날림)", "range", [0, 3, 
 control("ASH_SWIRL", "재 맴도는 폭", "range", [0, 1, 0.01]);
 control("ROUND_Y", "round: 불 시작 높이 (1: 아래 끝)", "range", [0, 1.5, 0.05]);
 control("ROUND_K", "round: 아래부터 타는 정도", "range", [1, 10, 0.1]);
-heading("leave dust: 숯불 셀 (dustBurn)");
-control("burnOn", "타기 켜기", "check");
+heading("burn: 불꽃과 숯 (dustBurn)");
 control("burnR", "불씨 R", "range", [0, 1, 0.01]);
 control("burnG", "불씨 G", "range", [0, 1, 0.01]);
 control("burnB", "불씨 B", "range", [0, 1, 0.01]);
-control("SCORCH_END", "그을림 끝", "range", [0.05, 0.9, 0.01]);
-control("GLOW_PEAK", "불씨 최고", "range", [0.1, 0.95, 0.01]);
-control("GLOW_END", "불씨 끝", "range", [0.15, 1, 0.01]);
 control("GLOW", "빛 세기", "range", [0, 1, 0.01]);
 control("SCORCH_R", "그을림 R", "range", [0, 1, 0.01]);
 control("SCORCH_G", "그을림 G", "range", [0, 1, 0.01]);
@@ -2155,7 +2062,6 @@ control("SCORCH_B", "그을림 B", "range", [0, 1, 0.01]);
 control("CHAR_R", "숯 R", "range", [0, 0.5, 0.005]);
 control("CHAR_G", "숯 G", "range", [0, 0.5, 0.005]);
 control("CHAR_B", "숯 B", "range", [0, 0.5, 0.005]);
-control("CHAR_ASH", "재 밝기", "range", [0, 0.8, 0.01]);
 control("SPARKS", "불티 비율", "range", [0, 1, 0.01]);
 control("COOL", "불티 식는 시간", "range", [0.05, 1, 0.01]);
 control("BURN_ASH", "불티 남는 색", "range", [0, 1, 0.01]);
@@ -2169,11 +2075,10 @@ const DEFAULTS = { ...P };
 copy.addEventListener("click", () => {
   const f = v => String(v);
   copyBox.value =
-`static final double GLOW = ${f(P.GLOW)}, COOL = ${f(P.COOL)}, BURN_ASH = ${f(P.BURN_ASH)}, SCORCH_END = ${f(P.SCORCH_END)}, GLOW_PEAK = ${f(P.GLOW_PEAK)}, GLOW_END = ${f(P.GLOW_END)},
-    SPARKS = ${f(P.SPARKS)}, CHAR_ASH = ${f(P.CHAR_ASH)};
+`static final double GLOW = ${f(P.GLOW)}, COOL = ${f(P.COOL)}, BURN_ASH = ${f(P.BURN_ASH)}, SPARKS = ${f(P.SPARKS)};
 static final double[] SCORCHED = { ${f(P.SCORCH_R)}, ${f(P.SCORCH_G)}, ${f(P.SCORCH_B)} }, CHARRED = { ${f(P.CHAR_R)}, ${f(P.CHAR_G)}, ${f(P.CHAR_B)} };
 static final double FLICKER = ${f(P.FLICKER)}, FLICKER_DEPTH = ${f(P.FLICKER_DEPTH)};
-static final double SWEEP = ${f(P.SWEEP)}, JITTER = ${f(P.JITTER)};  WEATHER = ${f(P.WEATHER)}, WEATHERED = ${f(P.WEATHERED)}, THIN = ${f(P.THIN)}
+static final double SWEEP = ${f(P.SWEEP)}, JITTER = ${f(P.JITTER)};
 -- OA Titles.BURN = { ${f(P.burnR)}, ${f(P.burnG)}, ${f(P.burnB)} }`;
   copyBox.select();
 });
@@ -2191,7 +2096,6 @@ const NOT_EFFECT = new Set(["title", "sub", "bg", "zoom"]);
 const effectOf = values => Object.fromEntries(Object.entries(values).filter(([k]) => !NOT_EFFECT.has(k)));
 const BUILT_IN = {
   "종이 연소 (dust)": effectOf(DEFAULTS),
-  "숯불 셀 (leave dust)": { ...effectOf(DEFAULTS), style: "dust", leaveTime: 6, CHAR_ASH: 0.2 },
   "짧은 소식 (brief)": { ...effectOf(DEFAULTS), style: "brief", ...ownOf(STYLES.brief) },
   "각인 (stamp)": { ...effectOf(DEFAULTS), style: "stamp-new" },
   "손전등 (discovery)": { ...effectOf(DEFAULTS), style: "discovery-new" },
@@ -2217,7 +2121,7 @@ function apply(values) {
     if (c.kind === "check") c.input.checked = P[key]; else c.input.value = P[key];
     if (c.kind === "range") c.value.textContent = P[key];
   }
-  makeBackground(); rebuild(); t = crumbles(STYLES[P.style].title) ? leaveStart() : 0; playing = true;
+  makeBackground(); rebuild(); t = burns(STYLES[P.style].title) ? leaveStart() : 0; playing = true;
 }
 const presetBar = document.createElement("div"); presetBar.className = "bar";
 const presetList = document.createElement("select"); presetList.style.flex = "1";
