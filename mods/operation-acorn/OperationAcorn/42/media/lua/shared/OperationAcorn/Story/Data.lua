@@ -172,7 +172,7 @@ Data.REVISITS = {
         facility = "shelter", site = { want = "largest" }, note = "revisit_roster_done" },
     revisit_police = { kind = "fetch", item = "EvidenceEnvelope", doc = "revisit_police", from = "evidence",
         facility = "police", site = { want = "public" }, note = "revisit_police_done" },
-    revisit_wreck = { kind = "fetch", item = "TransportLog", facility = "wreck", site = { ground = true },
+    revisit_wreck = { kind = "fetch", item = "TransportLog", facility = "wreck", site = { ground = true, roadside = true },
         note = "revisit_wreck_done", shared = true },
 }
 Data.REVISIT_ORDER = { "revisit_ledger", "revisit_roster", "revisit_police", "revisit_wreck" }

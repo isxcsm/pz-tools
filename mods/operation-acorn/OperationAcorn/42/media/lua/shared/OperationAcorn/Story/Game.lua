@@ -95,6 +95,11 @@ Game.CLOSED_ZONES = { "Nav", "ForagingNav", "TownZone", "WaterFlow", "WaterZone"
 Game.ROAD_NEAR, Game.ROAD_FAR = 8, 40
 local GROUND_POINTS = { count = 16, tries = 300, ["not"] = Game.CLOSED_ZONES,
     road = { type = "Nav", none = Game.ROAD_NEAR, some = Game.ROAD_FAR } }
+-- `roadside`: by the road, as a wreck towed off it is left (off the carriageway, a road in sight). Its camp is smaller
+-- (ROADSIDE_REACH), so that the ground about it never reaches the road.
+Game.ROADSIDE_NEAR, Game.ROADSIDE_FAR, Game.ROADSIDE_REACH = 5, 14, 4
+local ROADSIDE_POINTS = { count = 16, tries = 300, ["not"] = Game.CLOSED_ZONES,
+    road = { type = "Nav", none = Game.ROADSIDE_NEAR, some = Game.ROADSIDE_FAR } }
 
 -- Whether a point's zone types (a list) say woods (a Forest zone of any kind, Vegitation).
 local function woodsIn(zones)
@@ -105,14 +110,15 @@ local function woodsIn(zones)
 end
 
 -- A point of open ground in the band around ax, ay, off a road, tried at random: a field first, else the first in
--- woods; nil when none was found.
-function Game.groundInBand(ax, ay, lo, hi)
+-- woods; nil when none was found. `roadside`: by a road first (ROADSIDE), else as any open ground.
+function Game.groundInBand(ax, ay, lo, hi, roadside)
     local wx, wy
-    for _, p in ipairs(OA.api().zones.points(ax, ay, lo, hi, GROUND_POINTS)) do
+    for _, p in ipairs(OA.api().zones.points(ax, ay, lo, hi, roadside and ROADSIDE_POINTS or GROUND_POINTS)) do
         local x, y = math.floor(p.x), math.floor(p.y)
         if not woodsIn(p.zones) then return x, y end
         wx, wy = wx or x, wy or y
     end
+    if not wx and roadside then return Game.groundInBand(ax, ay, lo, hi) end
     return wx, wy
 end
 
@@ -142,6 +148,14 @@ local function campParts(middle)
 end
 -- (the API reads a parts table once and keeps the shape with it: the one for the camp's own middle is a constant)
 local CAMP_PARTS = campParts(CAMP_MIDDLE)
+-- A roadside camp: its middle with the road in sight and not within ROADSIDE_NEAR (the API's zoneNear), its ground out to
+-- ROADSIDE_REACH.
+local ROAD_NEAR = { type = "Nav", none = Game.ROADSIDE_NEAR, some = Game.ROADSIDE_FAR }
+local function roadsideParts(middle)
+    local R = Game.ROADSIDE_REACH
+    return { { offsets = { 0, 0 }, filter = middle }, { box = { -R, -R, R, R, 2 }, filter = Game.GROUND } }
+end
+local ROADSIDE_PARTS = roadsideParts(Game.groundWith({ free = true, zoneNear = ROAD_NEAR }))
 
 -- An open-ground site is picked from the map's zones, which the game keeps only for the cells it has loaded: one far
 -- off may be water or a road. Once its camp is loaded, it is checked once: not open ground for a camp, it moves to
@@ -174,23 +188,26 @@ function Game.settleGround(record, m)
     if not (site and site.ground) or site.settled then return true end
     local c = getCell()
     local x0, y0, z = math.floor(site.x), math.floor(site.y), site.z or 0
-    local R = Game.CAMP_REACH
+    local R = site.roadside and Game.ROADSIDE_REACH or Game.CAMP_REACH
+    local shape = site.roadside and roadsideParts or campParts
     if not (c:getGridSquare(x0 - R, y0 - R, z) and c:getGridSquare(x0 + R, y0 + R, z)
         and c:getGridSquare(x0 - R, y0 + R, z) and c:getGridSquare(x0 + R, y0 - R, z)) then
         return false
     end
     site.settled = true
     local squares = OA.api().squares
-    local here = squares.fit({ x1 = x0, y1 = y0, x2 = x0, y2 = y0, z = z }, CAMP_PARTS) ~= nil
+    local here = squares.fit({ x1 = x0, y1 = y0, x2 = x0, y2 = y0, z = z },
+        site.roadside and ROADSIDE_PARTS or CAMP_PARTS) ~= nil
     local nx, ny
     if not here then
         local area = m.area
-        local middle = CAMP_MIDDLE
+        local middle = site.roadside and ROADSIDE_PARTS[1].filter or CAMP_MIDDLE
         if area then
-            middle = Game.groundWith({ free = true, distance = { x = area.x, y = area.y, max = area.r * 0.85 } })
+            middle = Game.groundWith({ free = true, distance = { x = area.x, y = area.y, max = area.r * 0.85 },
+                zoneNear = site.roadside and ROAD_NEAR or nil })
         end
         -- on every other ring: a camp a square off makes no difference, and the search is a quarter as long
-        local a = squares.fit({ x = x0, y = y0, z = z, from = 2, to = Game.SETTLE_REACH, step = 2 }, campParts(middle))
+        local a = squares.fit({ x = x0, y = y0, z = z, from = 2, to = Game.SETTLE_REACH, step = 2 }, shape(middle))
         if a then nx, ny = a:getX(), a:getY() end
     end
     if nx then moveTo(record, m, nx, ny)

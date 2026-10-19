@@ -201,6 +201,20 @@ test("open ground in a band is a field first, else the first in woods", function
     PZExtAPI = nil
 end)
 
+test("roadside ground is asked by a road first, else any open ground", function()
+    local calls = 0
+    local points = { { x = 7, y = 8, zones = {} } }
+    local asked = fakeApi({ zones = { points = function()
+        calls = calls + 1
+        return calls == 1 and {} or points
+    end } })
+    local x, y = Game.groundInBand(0, 0, 100, 200, true)
+    eq(x, 7); eq(y, 8)
+    eq(asked[1][5].road.none, Game.ROADSIDE_NEAR); eq(asked[1][5].road.some, Game.ROADSIDE_FAR)
+    eq(asked[2][5].road.none, Game.ROAD_NEAR, "none by a road: any open ground")
+    PZExtAPI = nil
+end)
+
 test("a camp that does not fit where it is moves to the nearest ground that does, inside the mission's circle", function()
     local square = function(x, y) return { getX = function() return x end, getY = function() return y end } end
     getCell = function() return { getGridSquare = function(_, x, y) return square(x, y) end } end

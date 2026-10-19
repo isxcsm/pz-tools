@@ -580,7 +580,7 @@ end
 
 -- The squares of a vehicle's body: free ground outside, no vehicle on it; the margin round it: no vehicle, and free
 -- too the first time round.
-local VEHICLE_BODY = { free = true, room = "none", vehicle = false }
+local VEHICLE_BODY = { free = true, room = "none", vehicle = false, wet = false }
 local VEHICLE_ROOMY = { free = true, vehicle = false }
 local VEHICLE_MARGIN = { vehicle = false }
 

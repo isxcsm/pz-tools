@@ -300,7 +300,7 @@ end
 
 -- The site of a story mission, a special request or a contract errand (SCENES.md 5 '장소 고르기', LORE 4): a building
 -- of the band taken for a temporary facility, or open ground when the spec wants it or no building is left. `spec`:
--- { want = Places.pickSite's want, ground = true (open ground only), up = true (of more than one floor first) }. Not the base's building, not a site a story has
+-- { want = Places.pickSite's want, ground = true (open ground only), roadside = true (open ground by a road), up = true (of more than one floor first) }. Not the base's building, not a site a story has
 -- used in this world, not a building a player has searched, not the site of a special request on offer, nor `taken` (a
 -- key). No building in the band: the band's outer edge reaches further out (SITE_WIDER) before open ground. Returns { x, y, z, x1, y1, x2, y2, z1, z2, key } (a building's), { x, y, z = 0, key, ground = true } or nil (no
 -- base known, or nothing found).
@@ -340,9 +340,10 @@ function Missions.pickSite(record, level, spec, taken)
         end
     end
     if not g.groundInBand then return nil end
-    local x, y = g.groundInBand(ax, ay, lo, hi)
+    local x, y = g.groundInBand(ax, ay, lo, hi, spec.roadside)
     if not x then return nil end
-    return { x = x, y = y, z = 0, key = "g:" .. tostring(x) .. "," .. tostring(y), ground = true }
+    return { x = x, y = y, z = 0, key = "g:" .. tostring(x) .. "," .. tostring(y), ground = true,
+        roadside = spec.roadside or nil }
 end
 
 local function storyMission(record, def, id, level)
