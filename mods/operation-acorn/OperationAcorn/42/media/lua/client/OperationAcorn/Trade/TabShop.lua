@@ -359,7 +359,16 @@ end
 function OATabShop:buildCart(record)
     local rows, total = {}, 0
     local svc = Orders.shopService(record)
-    for _, line in ipairs(Orders.cart(record)) do
+    local cart = Orders.cart(record)
+    -- how many of each entry the cart holds (its choices together) and whether that is all the record may buy
+    local held, full = {}, {}
+    for _, line in ipairs(cart) do held[line.id] = (held[line.id] or 0) + line.count end
+    for id, count in pairs(held) do
+        local entry = Orders.entry(id)
+        full[id] = entry ~= nil and count >= (OA.Shop.available(entry, record) or 0)
+    end
+    self.cartFull = full
+    for _, line in ipairs(cart) do
         local entry = Orders.entry(line.id)
         if entry then
             local sum = Orders.lineCost(svc, entry, line)
@@ -368,7 +377,7 @@ function OATabShop:buildCart(record)
             rows[n + 1] = {
                 -- its three buttons' places (Trade/UI places: numbers, the same when the cart is made again)
                 keys = { n * 3 + 1, n * 3 + 2, n * 3 + 3 },
-                line = line, h = ShopView.CART_ROW, price = Text.credits(sum),
+                line = line, h = ShopView.CART_ROW, price = Text.credits(sum), full = full[line.id],
                 name = getText("IGUI_OA_Terminal_Shop_Line", self:lineName(entry, line), line.count),
             }
         end
@@ -392,8 +401,12 @@ end
 function OATabShop:styleButtons()
     local d = self.detail
     local open = d and d.state.open
-    self.addButton:setStyle(open and "strong" or "off")
-    self.addButton.tooltip = (d and not open and d.state.reason) and getText(d.state.reason) or nil
+    -- (an entry the cart already holds all of: off, and the tooltip says why; the window covers the character's
+    -- notice)
+    local full = open and self.cartFull and self.cartFull[d.entry.id]
+    self.addButton:setStyle(open and not full and "strong" or "off")
+    local reason = full and "IGUI_OA_Terminal_Shop_CartFull" or (d and not open and d.state.reason)
+    self.addButton.tooltip = reason and getText(reason) or nil
     -- (an empty cart's button puts the last order in again, when there was one)
     local reorder = #self.cartRows == 0 and self.lastOrder ~= nil
     self.clearButton:setTitle(getText(reorder and "IGUI_OA_Terminal_Shop_Reorder" or "IGUI_OA_Trade_Shop_Clear"))
@@ -650,7 +663,7 @@ function OATabShop.drawCartRow(list, row, y, p)
     UI.text(list, row.price, 8, y + fh + 1, p.value, p.numberFont)
     for k, glyph in ipairs(CART_GLYPHS) do
         local bx = list.width - 62 + 18 * (k - 1)
-        local c = glyph == "x" and p.bad or p.text
+        local c = glyph == "x" and p.bad or ((glyph == "+" and row.full) and p.dim or p.text)
         UI.fill(list, bx, y + fh + 1, 15, 15, p.panel or p.bg)
         local lk, lf = UI.placeLevels(list, row.keys[k])
         if lk > 0 or lf > 0 then UI.fill(list, bx, y + fh + 1, 15, 15, c, 0.14 * lk + 0.35 * lf) end
@@ -802,7 +815,10 @@ end
 -- A click on the add button while it is off: the reason, as the helicopter's notices give it.
 function OATabShop:refuse()
     local d = self.detail
-    if d and d.state.reason then self:notice(d.state.reason) end
+    if not d then return end
+    local full = d.state.open and self.cartFull and self.cartFull[d.entry.id]
+    local reason = full and "IGUI_OA_Terminal_Shop_CartFull" or d.state.reason
+    if reason then self:notice(reason) end
 end
 
 function OATabShop:onAdd()
