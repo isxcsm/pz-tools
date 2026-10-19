@@ -17,10 +17,13 @@ The model's output is only cut (leading silence off), moved so that its loudest 
 a fade at the end, made mono at 44.1 kHz and set to a peak. A refinement may also be darkened (a gentle low pass), lowered, or
 given a longer room (a reverb tail): what the user asked of that pick.
 
+The model is Stable Audio 3 Medium (Small-SFX scattered short broadband clicks through its sounds, heard as a scratch;
+`--small` uses it still). Medium runs on the GTX 1080 without Flash Attention, in fp32, at about 45 s a sound.
+
 Run with the Python of the Stable Audio 3 checkout (C:/git/pz-workspace/sa3, its .venv), the model's licence accepted and
 `hf auth login` done once:
 
-    ../../../../sa3/.venv/Scripts/python.exe ai_titles.py [cue ...] [--count N]
+    ../../../../sa3/.venv/Scripts/python.exe ai_titles.py [cue ...] [--count N] [--small]
 
 It writes gen/<style>_<cue>_<nn>.ogg (a pick's refinements <pick>_r<n>.ogg), gen/manifest.json and manifest.js
 ({"style:cue": [files]}, what the lab's sound panel lists, a pick first), and gen/prompts.json (each file's prompt, seed and
@@ -40,7 +43,7 @@ PICKS = os.path.join(HERE, 'title_picks.json')
 RATE = build.RATE
 PEAK_DB = -3.0
 TAIL_DB = -9.0
-CANDIDATES = 8
+CANDIDATES = 6
 
 # What every prompt is not (the model hears it only with cfg_scale > 1).
 NEGATIVE = 'voices, people talking, crowd, song, vocals, background noise, hiss, distortion, low quality, cartoon, comedic'
@@ -94,12 +97,12 @@ CUES = {
 # its prompt (and what is added to it); "move": the pick itself moved so that its loudest moment comes at `at`, lowered by
 # `db` and darkened by a low pass at `lp` Hz; "room": the pick with a reverb tail of rt60 seconds, kept `kept` long.
 REFINE = {
-    'stamp:land': [('a2a', dict(noise=n)) for n in (0.3, 0.45, 0.6)],
-    'discovery:enter': [('a2a', dict(noise=n)) for n in (0.3, 0.45, 0.6)],
-    'notice:enter': [('a2a', dict(noise=n)) for n in (0.3, 0.45, 0.6)],
-    'bleed:enter': [('a2a', dict(noise=n)) for n in (0.3, 0.45, 0.6)],
-    'pulse:enter': [('a2a', dict(noise=n)) for n in (0.3, 0.45, 0.6)],
-    'sink:enter': [('a2a', dict(noise=n)) for n in (0.3, 0.45, 0.6)],
+    'stamp:land': [('a2a', dict(noise=n)) for n in (0.35, 0.5, 0.65)],
+    'discovery:enter': [('a2a', dict(noise=n)) for n in (0.35, 0.5, 0.65)],
+    'notice:enter': [('a2a', dict(noise=n)) for n in (0.35, 0.5, 0.65)],
+    'bleed:enter': [('a2a', dict(noise=n)) for n in (0.35, 0.5, 0.65)],
+    'pulse:enter': [('a2a', dict(noise=n)) for n in (0.35, 0.5, 0.65)],
+    'sink:enter': [('a2a', dict(noise=n)) for n in (0.35, 0.5, 0.65)],
     # (a longer tail)
     'unveil:enter': [('room', dict(rt60=3.0, kept=7.0)), ('room', dict(rt60=5.0, kept=8.5)),
                      ('a2a', dict(noise=0.45, made=8.0, kept=7.5, add='with a long lingering tail slowly fading')),
@@ -195,8 +198,35 @@ def room(x, rt60, kept, wet=0.35, seed=7):
     return dry + wet * tail
 
 
+def clean(x):
+    """The model's faults taken out, nothing of the sound itself: the rumble under hearing (below 35 Hz, which only shakes
+    a speaker), the short broadband clicks it scatters in a sound (heard as a scratch: where the band above 2.5 kHz jumps
+    to more than four times its level around for a moment, that band is brought back down to its level around), and the
+    grain at the very top (a gentle low pass at 9 kHz)."""
+    from scipy import ndimage, signal
+    x = signal.sosfiltfilt(signal.butter(2, 35, 'highpass', fs=RATE, output='sos'), x)
+    lo = signal.sosfiltfilt(signal.butter(4, 2500, 'lowpass', fs=RATE, output='sos'), x)
+    hi = x - lo
+    # the high band's level, a millisecond at a time, against its median over the 60 ms around
+    ms = int(RATE / 1000)
+    n = len(hi) // ms
+    if n > 80:
+        level = np.sqrt(np.mean(hi[:n * ms].reshape(n, ms) ** 2, axis=1)) + 1e-9
+        around = ndimage.median_filter(level, size=61, mode='nearest')
+        floor = (np.sqrt(np.mean(x ** 2)) or 1.0) * 10 ** (-40 / 20)
+        gain = np.where((level > 4 * around) & (level > floor), np.minimum(1.0, 1.5 * around / level), 1.0)
+        # (a click's edges too, and no step in the gain)
+        gain = ndimage.minimum_filter1d(gain, size=3)
+        gain = ndimage.uniform_filter1d(gain, size=3)
+        g = np.repeat(gain, ms)
+        g = np.concatenate([g, np.ones(len(hi) - len(g))])
+        hi = hi * g
+    x = signal.sosfiltfilt(signal.butter(2, 9000, 'lowpass', fs=RATE, output='sos'), lo + hi)
+    return x.astype(np.float32)
+
+
 def shape(x, kept, at, peak=PEAK_DB):
-    x = lead_trim(x)
+    x = clean(lead_trim(x))
     if at is not None:
         x = place(x, at)
     x = x[:int(kept * RATE)]
@@ -210,12 +240,12 @@ def write_manifest_js(manifest):
 
 
 class Maker:
-    def __init__(self):
+    def __init__(self, name='medium'):
         import torch
         from stable_audio_3 import StableAudioModel
         self.torch = torch
         # (fp32: a GTX 1080 has no fast half precision)
-        self.model = StableAudioModel.from_pretrained('small-sfx', model_half=False)
+        self.model = StableAudioModel.from_pretrained(name, model_half=False)
         self.sr = self.model.model.sample_rate
 
     def make(self, prompt, seed, made, start=None, noise=1.0):
@@ -239,7 +269,7 @@ def main(argv):
         argv = argv[:i] + argv[i + 2:]
     picks = json.load(open(PICKS, encoding='utf-8')) if os.path.exists(PICKS) else {}
     only = [a for a in argv if not a.startswith('-')] or list(CUES) + [k for k in REFINE if k in picks]
-    maker = Maker()
+    maker = Maker('small-sfx' if '--small' in argv else 'medium')
     os.makedirs(OUT, exist_ok=True)
     manifest_path, prompts_path = os.path.join(OUT, 'manifest.json'), os.path.join(OUT, 'prompts.json')
     manifest = json.load(open(manifest_path, encoding='utf-8')) if os.path.exists(manifest_path) else {}
@@ -273,11 +303,11 @@ def main(argv):
                     write(name, y, dict(from_pick=pick['file'], prompt=prompt, seed=pick['seed'] + 100 * n, noise=s['noise'],
                                         made=made, kept=s.get('kept', pick['kept']), at=at))
                 elif how == 'move':
-                    y = place(lead_trim(base), s['at'])[:int(pick['kept'] * RATE) + int(s['at'] * RATE)]
+                    y = place(clean(lead_trim(base)), s['at'])[:int(pick['kept'] * RATE) + int(s['at'] * RATE)]
                     y = peak_to(fade(lowpass(y, s['lp']), 0.002, 0.6), PEAK_DB + s['db'])
                     write(name, y, dict(from_pick=pick['file'], at=s['at'], db=s['db'], lp=s['lp']))
                 elif how == 'room':
-                    y = peak_to(fade(room(base, s['rt60'], s['kept']), 0.0, 1.0), PEAK_DB)
+                    y = peak_to(fade(room(clean(base), s['rt60'], s['kept']), 0.0, 1.0), PEAK_DB)
                     write(name, y, dict(from_pick=pick['file'], rt60=s['rt60'], kept=s['kept']))
                 files.append(name)
             save(key, files)

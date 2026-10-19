@@ -21,7 +21,7 @@
   // The lab's styles that have title sounds, and the sound style each one is.
   const STYLE_OF = {
     "stamp-new": "stamp", "discovery-new": "discovery", "notice-new": "notice", "unveil-new": "unveil", "bleed-new": "bleed",
-    "pulse-new": "pulse", "type-new": "type", "sink-new": "sink", "dust-paper": "dust", "dust": "dust", "brief": "brief",
+    "pulse-new": "pulse", "type-new": "type", "sink-new": "sink", "dust-paper": "dust", "brief": "brief",
   };
   // The cues of each sound style: [id, label, moment, line?]. A cue's file is KIT_T_<style>_<moment>[_line]_<a|b|c>.ogg.
   const CUES = {
