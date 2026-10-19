@@ -195,8 +195,7 @@ test("the after-handover monologues come in turn and end", function()
     eq(Comms.afterSay(r, 9, 0), "A1")
     eq(Comms.afterSay(r, 9, 0), "A2")
     eq(Comms.afterSay(r, 10, 0), "A3")
-    eq(Comms.afterSay(r, 11, 0), "A4")
-    eq(Comms.afterSay(r, 12, 0), nil)
+    eq(Comms.afterSay(r, 11, 0), nil)
 end)
 
 

@@ -55,7 +55,7 @@ Data.ITEMS = {
     SerumSheet = { supply = true, docs = { "serum_sheet" }, weight = 0.1 },
     UnresolvedList = { supply = true, weight = 0.1 },
     HandoverFile = { supply = true, docs = { "handover_notice", "status_table" }, weight = 0.2 },
-    -- What the supply desk of 2반 left behind: Kiesling's list of the small extras (Admin 7 finds it: after3_12).
+    -- What 2반's supply left among the handed-over files: Kiesling's list of the small extras (Admin 7 finds it: after3_12).
     PackingMemo = { supply = true, docs = { "packing_memo" }, weight = 0.05 },
     KitVoucher = { weight = 0.05 },
     MeteorFragment = { weight = 0.5 },
@@ -176,9 +176,8 @@ Data.REVISITS = {
         note = "revisit_wreck_done", shared = true },
 }
 Data.REVISIT_ORDER = { "revisit_ledger", "revisit_roster", "revisit_police", "revisit_wreck" }
--- The soil sample's reply, by where it was taken (2반's: a soil sample delivered after the handover has Admin 7's
--- remark instead).
-Data.SOIL_REPLY = { stake = "reply_soil_site", plain = "reply_soil_plain", after = "soil_after" }
+-- 2반's reply on a soil sample, by where it was taken.
+Data.SOIL_REPLY = { stake = "reply_soil_site", plain = "reply_soil_plain" }
 
 -- The contract missions after the handover (at least six kinds): `weight` is the share of the pick. Their text:
 -- IGUI_OA_Story_ConTitle_<id>, IGUI_OA_Story_ConBrief_<id>.

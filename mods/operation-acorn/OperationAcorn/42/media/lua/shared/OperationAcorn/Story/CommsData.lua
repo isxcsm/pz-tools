@@ -225,7 +225,7 @@ end
 
 -- The field monologues of the story missions after the handover: one at each, on entering the circle, in turn; when
 -- all are said there are no more (SCENES 5).
-Data.AFTER_SAYS = { "A1", "A2", "A3", "A4" }
+Data.AFTER_SAYS = { "A1", "A2", "A3" }
 
 -- The last tier of the team's own calls (the handover's): a character that comes into the world after the handover
 -- has none of them (Comms.join).

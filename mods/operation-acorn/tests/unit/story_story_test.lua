@@ -104,6 +104,15 @@ test("milestones: the unresolved list, the soil mission at the second, the hando
     Story.missionEnded(record, { story = "handover" }, "expired")
     eq(Story.handedOver(record), true, "any ending completes it")
     eq(s.noteQueue[#s.noteQueue], "last_b")
+    -- 2반's threads end: no 2반 story mission is offered after it, no reply waiting on an event comes; the papers ready
+    -- go, and the promised correction after its reply
+    for _, q in ipairs(s.queue) do truthy(OA.StoryData.STORIES[q.id] == nil, "no 2반 story left: " .. q.id) end
+    local docs = {}
+    for _, p in ipairs(s.papers) do docs[p.doc] = true end
+    truthy(docs.reply_first and docs.reply_correction, "the reply and the correction its call promised")
+    eq(docs.reply_evidence, nil, "the evidence was never delivered")
+    eq(docs.reply_fragment, nil, "no fragment was sent")
+    eq(docs.reply_logs, nil)
     local types = {}
     for _, it in ipairs(TEST.drop) do types[it.type] = true end
     truthy(types["OperationAcorn.HandoverFile"] and types["OperationAcorn.KitVoucher"], "the last crate")

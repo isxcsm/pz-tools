@@ -327,9 +327,12 @@ function Scene.arrivalLine(record, m, night, delay)
     if delay == nil then delay = Scene.ARRIVE_SAY end
     if m.story and OA.Story then
         local said
-        -- a revisit going back to a place the player knew has the few lines in turn; one to a new place, its own
-        if Data.REVISITS[m.story] and Data.REVISITS[m.story].from then
-            said = OA.Story.afterMonologue(record, delay)
+        -- a revisit going back to a place this record knew has the few lines in turn; one to a place nobody sent it
+        -- before (the wreck), its own; one to a place it never saw (it came after the handover), the hour's line
+        local revisit = Data.REVISITS[m.story]
+        if revisit and revisit.from then
+            local knew = OA.Story.section(record).sites[revisit.from]
+            said = knew and OA.Story.afterMonologue(record, delay) or false
         else
             said = OA.Story.monologue(record, m.chosen and (m.story .. "_" .. m.chosen) or m.story, "enter", delay)
         end

@@ -129,6 +129,6 @@ test("a story monologue is said once and kept; the after-handover ones run out",
     eq(delays[#delays], 5, "after the wait it is given")
     local after = setup("w9", 5, 4)
     local ids = {}
-    for _ = 1, 5 do ids[#ids + 1] = Story.afterMonologue(after) or "-" end
-    eq(table.concat(ids, " "), "A1 A2 A3 A4 -")
+    for _ = 1, 4 do ids[#ids + 1] = Story.afterMonologue(after) or "-" end
+    eq(table.concat(ids, " "), "A1 A2 A3 -")
 end)

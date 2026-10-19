@@ -983,9 +983,6 @@ test("what the team makes of a delivery: Admin 7's remark on a revisit, the repl
     eq(s.papers[#s.papers].doc, "reply_soil_site")
     M.answer(record, { story = "soil", soil = {} })
     eq(s.papers[#s.papers].doc, "reply_soil_plain")
-    s.handover = true
-    M.answer(record, { story = "soil", soil = {} })
-    eq(s.noteQueue[#s.noteQueue], "soil_after", "after the handover a remark, no reply")
     local n = #s.noteQueue
     M.answer(record, { story = "evidence" })
     eq(#s.noteQueue, n, "a story of 2반's has its own scene")

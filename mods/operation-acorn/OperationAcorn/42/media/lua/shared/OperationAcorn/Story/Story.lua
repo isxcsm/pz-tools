@@ -574,6 +574,22 @@ function Story.completeHandover(record)
     local s = Story.section(record)
     if s.handover then return end
     s.handover = true
+    -- 2반's threads end with it: its story missions still waiting (their briefs use the call sign that ends now) and its
+    -- papers still waiting on an event that can no longer come (a delivery, a fragment: a reply 2반 can no longer send).
+    -- The papers ready now go in the last crates, and one waiting only for another of them to go (the promised
+    -- correction) goes after it.
+    for i = #s.queue, 1, -1 do
+        if Data.STORIES[s.queue[i].id] then table.remove(s.queue, i) end
+    end
+    local kept = {}
+    for _, p in ipairs(s.papers) do
+        if Story.paperReady(record, p) then kept[p.doc] = true end
+    end
+    for i = #s.papers, 1, -1 do
+        local p = s.papers[i]
+        local after = p.when and string.match(p.when, "^sent:(.+)$")
+        if not kept[p.doc] and not (after and kept[after]) then table.remove(s.papers, i) end
+    end
     s.noteQueue[#s.noteQueue + 1] = "last_b"
     Story.queueSupply(record, "HandoverFile", nil)
     Story.queueSupply(record, "KitVoucher", nil)

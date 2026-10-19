@@ -935,16 +935,12 @@ function Missions.finish(record, m, result)
 end
 
 -- What the team makes of a delivered story mission, beyond the pay: Admin 7's remark on a revisit (the next manifest),
--- the reply on a soil sample (2반's paper by where it was taken; after the handover a remark).
+-- 2반's reply on a soil sample, by where it was taken (a 2반 story is never delivered after the handover: it ends them).
 function Missions.answer(record, m)
     local revisit = Data.REVISITS[m.story]
     if revisit and revisit.note then Story.queueNote(record, revisit.note) end
     if m.soil then
-        if Story.handedOver(record) then
-            Story.queueNote(record, Data.SOIL_REPLY.after)
-        else
-            Story.queuePaper(record, { "AnalysisReply", m.soil.stake and Data.SOIL_REPLY.stake or Data.SOIL_REPLY.plain })
-        end
+        Story.queuePaper(record, { "AnalysisReply", m.soil.stake and Data.SOIL_REPLY.stake or Data.SOIL_REPLY.plain })
     end
 end
 
