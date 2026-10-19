@@ -231,6 +231,7 @@ test("the stake comes first and the soil sample second, both on top of the world
     -- natural ground: the floor's sprite is grass
     local grass = { getSprite = function() return { getName = function() return "floors_exterior_natural_01_0" end } end }
     local square = { isOutside = function() return true end, getFloor = function() return grass end }
+    PZExtAPI = { version = OA.API_VERSION, client = function() return "h" end, squares = TEST.squareApi() }
     local stake = { getModData = function() return { OA_StakeNo = 3 } end, getSquare = function() return square end }
     local menu = newMenu()
     menu:addOption("Vanilla")

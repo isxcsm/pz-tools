@@ -122,13 +122,13 @@ OA(도토리 작전), BU(건물 설비), PZUIKit, PZExtAPI를 함께 읽고 같�
   - OA Trade/Objects `FREE`: API 조건. `free`, `solidFloor`, `water`, `vehicle`, `noObjectData`. 이유 판별은 Lua로 다시 한다.
   - OA Machines `squareProblem`: Lua. `TreatAsSolidFloor`, `isSolid`/`isSolidTrans`, 계단, 나무, `isFree`, 차량, 물 플래그.
   - BU Units `blocked`: Lua. 물 플래그, `getFloor`, `isFree`.
-    - **계단, 나무, 막힌 칸은 보지 않는다.**
+    - (정정: 게임의 `isFree(false)`가 이미 막힌 칸, 나무, 계단, 단단한 바닥 없음을 거른다. 차량은 보지 않았다.)
   - BU Links `squareCost`: Lua. `getFloor`, 계단, 물 플래그, 높인 바닥(1/3, 2/3).
   - OA StageGame 곳곳: 바로 `isFree(false)`.
 - **문제:**
   - 물을 보는 방법이 둘이다: `isWaterSquare`와 `IsoFlagType.water`.
   - 바닥을 보는 방법이 둘이다: `getFloor`와 `TreatAsSolidFloor`.
-  - BU 유닛은 OA 기계가 거절하는 칸(계단 위 등)에 설치될 수 있다.
+  - BU 유닛은 차량이 걸친 칸, 바닥 재질만 물인 칸에 설치될 수 있었다.
   - 거절 이유 이름도 모드마다 다르다.
     - OA Trade: water, floor, vehicle, blocked, occupied.
     - OA Machine: noFloor, blocked, water, taken.

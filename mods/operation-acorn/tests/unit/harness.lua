@@ -49,6 +49,10 @@ end }
 
 -- Game stubs. TEST holds what a test sets: the world age, the time of day.
 TEST = {}
+-- The API's square conditions as a fake API answers squares.test and squares.why (mods/tools/FakeSquareFilter.lua).
+TEST.squareFilter = loadstring(readfile("../tools/FakeSquareFilter.lua"), "FakeSquareFilter")()
+-- A fake API's squares.test and squares.why (a test puts them in its PZExtAPI.squares).
+function TEST.squareApi() return { test = TEST.squareFilter.test, why = TEST.squareFilter.why } end
 
 -- Sets a flight support level of a record outright, as buying it would leave it (Support.levels, the revision that
 -- makes what is worked out from the levels be worked out again).

@@ -87,7 +87,7 @@ test("a site fits its scorched footprint on open ground in its chunk, and moves 
     eq(middle.filter.free, true); eq(middle.filter.tree, false); eq(middle.filter.building, "none")
     eq(middle.filter.zonesNot, Sites.NOT)
     eq(#scorched.offsets, 2 * Sites.SCORCH.iron)
-    eq(scorched.filter.waterFlag, false); eq(scorched.filter.outside, true)
+    eq(scorched.filter.wet, false); eq(scorched.filter.natural, true); eq(scorched.filter.outside, true)
     truthy(scorched.filter == OA.StoryGame.GROUND, "the camp's ground")
     eq(site.state, "pending", "not placed")
     truthy(site.tries >= 1, "moved on")

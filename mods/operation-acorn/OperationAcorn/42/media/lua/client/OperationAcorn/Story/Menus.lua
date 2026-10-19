@@ -98,13 +98,11 @@ local function stakeObject(worldobjects)
     return nil
 end
 
--- Whether soil can be taken on a square: outdoors, its floor natural ground (grass, dirt, sand), as the game's own
--- digging asks (DiggingUtil.mining_floorCanDig): not a road, a pavement or a floor someone laid.
+-- Whether soil can be taken on a square: outdoors, its floor natural ground (grass, dirt, sand: the API's `natural`, as
+-- the game's own digging asks it): not a road, a pavement or a floor someone laid.
+local BARE = { outside = true, natural = true }
 local function bareGround(square)
-    local floor = square:isOutside() and square:getFloor()
-    local sprite = floor and floor:getSprite()
-    local name = sprite and sprite:getName() or ""
-    return string.sub(name, 1, 23) == "floors_exterior_natural" or string.sub(name, 1, 17) == "blends_natural_01"
+    return OA.api().squares.test(square, BARE)
 end
 
 local function onFillWorld(playerNum, context, worldobjects, test)

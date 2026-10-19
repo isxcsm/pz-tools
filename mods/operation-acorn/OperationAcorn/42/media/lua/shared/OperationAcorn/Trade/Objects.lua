@@ -93,7 +93,7 @@ end
 
 -- A square a thing can stand on: a solid floor out of the water, nothing in the way (no vehicle either), and nothing of
 -- this mod's (an object with a kind) on it.
-local FREE = { free = true, solidFloor = true, water = false, vehicle = false, noObjectData = Objects.KIND }
+local FREE = { free = true, solidFloor = true, wet = false, vehicle = false, noObjectData = Objects.KIND }
 -- ... and no one (a player, a zombie) on it: a crate coming down does not land on anyone.
 local FREE_EMPTY = with(FREE, { moving = false })
 -- A square that can be come up to: one of the eight round it is free (a crate dropped among others, every side
@@ -141,7 +141,7 @@ end
 
 -- Whether a loaded square meets a condition table (one call).
 local function met(square, filter)
-    return squares().nearest({ list = { square:getX(), square:getY(), square:getZ() } }, filter) ~= nil
+    return squares().test(square, filter)
 end
 
 -- Whether a square is a place a box or a terminal can stand on: loaded, a solid floor, nothing in the way.
@@ -149,13 +149,12 @@ function Objects.isFree(square)
     return square ~= nil and met(square, FREE)
 end
 
--- Why a loaded square is not free (IGUI_OA_Trade_Reason_<reason>), in the order the game would stop at it.
+-- Why a loaded square is not free (IGUI_OA_Trade_Reason_<reason>): the first condition it fails (the API's squares.why,
+-- in the order the game would stop at it), by its key.
+local WHY_FREE = { wet = "water", solidFloor = "floor", vehicle = "vehicle", free = "blocked", noObjectData = "occupied" }
 local function whyNotFree(square)
-    if square:isWaterSquare() then return "water" end
-    if not square:TreatAsSolidFloor() then return "floor" end
-    if square:isVehicleIntersecting() or square:getVehicleContainer() ~= nil then return "vehicle" end
-    if not square:isFree(false) then return "blocked" end
-    return "occupied"
+    -- (none failed now: the square was taken as it was asked)
+    return WHY_FREE[squares().why(square, FREE)] or "occupied"
 end
 
 -- Like isFree: true, or false and a reason (IGUI_OA_Trade_Reason_<reason>).

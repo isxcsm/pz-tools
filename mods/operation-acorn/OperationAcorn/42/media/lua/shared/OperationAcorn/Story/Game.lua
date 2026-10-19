@@ -116,11 +116,10 @@ function Game.groundInBand(ax, ay, lo, hi)
     return wx, wy
 end
 
--- Open natural ground, as a square condition: outdoors, no building, its floor natural ground (grass, dirt, sand) as the
--- game's own digging asks (DiggingUtil.mining_floorCanDig), not water, a road, a pavement or a floor someone laid. A camp
--- and a meteor site stand on it (Game.settleGround, Sites.onChunk).
-Game.GROUND = { building = "none", outside = true, water = false, waterFlag = false,
-    floorPrefix = { "floors_exterior_natural", "blends_natural_01" }, floorAvoid = { "street", "road", "water" } }
+-- Open natural ground, as a square condition: outdoors, no building, its floor natural ground (grass, dirt, sand: the
+-- API's `natural`, as the game's own digging asks it), not water, a road, a pavement or a floor someone laid. A camp and
+-- a meteor site stand on it (Game.settleGround, Sites.onChunk).
+Game.GROUND = { building = "none", outside = true, wet = false, natural = true }
 
 -- A new condition table: open ground (Game.GROUND) and more. The API keeps what it read of a table with it, so one used
 -- again is made once.

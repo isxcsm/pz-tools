@@ -433,7 +433,7 @@ local function squareCost(cell, x, y, z)
     if not square then return cost end
     if not square:getFloor() or square:HasStairs() then return nil end
     local props = square:getProperties()
-    if props:has(IsoFlagType.water) or props:has(IsoFlagType.FloorHeightOneThird)
+    if square:isWaterSquare() or props:has(IsoFlagType.water) or props:has(IsoFlagType.FloorHeightOneThird)
             or props:has(IsoFlagType.FloorHeightTwoThirds) then
         return nil
     end

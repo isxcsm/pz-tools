@@ -245,7 +245,8 @@ local function setup()
     nextId = 1
     -- the extension API's objects.byData over the fake squares: the object whose modData key is the value, false for a
     -- loaded square without one, "unloaded" for a square that is not there
-    PZExtAPI = { version = OA.API_VERSION, client = function() return "h" end, objects = { byData = function(key, where)
+    PZExtAPI = { version = OA.API_VERSION, client = function() return "h" end, squares = TEST.squareApi(),
+        objects = { byData = function(key, where)
         local found = {}
         for i = 1, #where, 4 do
             local sq = squares[where[i] .. "," .. where[i + 1] .. "," .. where[i + 2]]

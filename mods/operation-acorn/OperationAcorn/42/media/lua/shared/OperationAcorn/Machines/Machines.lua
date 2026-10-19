@@ -1300,18 +1300,20 @@ local function stacksOn(kind, square)
     return stackHeight(square) + surface <= STACK_HEIGHT
 end
 
+-- Where a tile of a machine can stand (the API's square conditions): a solid floor out of the water, nothing in the
+-- way (the game's isFree: no wall, stairs or tree), no vehicle; and the reason for each condition a square fails
+-- (squares.why, in the order the game would stop at it).
+local PLACE = { solidFloor = true, wet = false, free = true, vehicle = false }
+local WHY_PLACE = { solidFloor = "noFloor", wet = "water", free = "blocked", vehicle = "blocked" }
+
 -- Why a square cannot take a tile of a machine: nil when it can, else the reason.
 local function squareProblem(kind, square)
     if not square then return "noSquare" end
     if Data.KINDS[kind].stack and stacksOn(kind, square) then return nil end
     -- A machine's own tiles are solid: say "taken", which tells the player more than "blocked".
     if occupied(square) then return "taken" end
-    if not square:TreatAsSolidFloor() then return "noFloor" end
-    if square:isSolid() or square:isSolidTrans() or square:HasStairs() or square:HasTree() then return "blocked" end
-    if not square:isFree(false) then return "blocked" end
-    if square:isVehicleIntersecting() then return "blocked" end
-    local properties = square:getProperties()
-    if properties and properties:has(IsoFlagType.water) then return "water" end
+    local why = OA.api().squares.why(square, PLACE)
+    if why then return WHY_PLACE[why] or "blocked" end
     if kind == "rainStorage" and not square:isOutside() then return "notOutside" end
     return nil
 end

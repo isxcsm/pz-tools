@@ -216,7 +216,7 @@ test("a camp that does not fit where it is moves to the nearest ground that does
     eq(#fits, 2, "first where it is, then round it")
     local here, ring = fits[1], fits[2]
     eq(here.anchors.x1, 100); eq(here.anchors.x2, 100)
-    eq(here.parts[1].filter.free, true); eq(here.parts[1].filter.building, "none"); eq(here.parts[1].filter.waterFlag, false)
+    eq(here.parts[1].filter.free, true); eq(here.parts[1].filter.building, "none"); eq(here.parts[1].filter.wet, false)
     eq(here.parts[2].box[1], -Game.CAMP_REACH); eq(here.parts[2].box[5], 2)
     truthy(here.parts[2].filter == Game.GROUND)
     eq(ring.anchors.from, 2); eq(ring.anchors.to, Game.SETTLE_REACH); eq(ring.anchors.step, 2)

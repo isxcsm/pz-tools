@@ -144,14 +144,14 @@ function FloorLines.wanted()
     return wanted
 end
 
--- Whether a square's floor is made (tiles, paving, boards): a line lies on it, not in it. Soil, grass and sand are
--- the game's natural blends; a square not loaded counts as soil until it loads.
+-- Whether a square's floor is made (tiles, paving, boards): a line lies on it, not in it. Soil, grass and sand are the
+-- game's natural ground (the API's `natural`, as its digging asks it: its natural floors and its natural blends); a
+-- square not loaded, or with no floor, counts as soil until it loads.
+local MADE = { floor = true, natural = false }
 function FloorLines.madeFloor(x, y, z)
     local square = getCell():getGridSquare(x, y, z)
-    local floor = square and square:getFloor()
-    local sprite = floor and floor:getSprite()
-    local name = sprite and sprite:getName()
-    return name ~= nil and string.sub(name, 1, 14) ~= "blends_natural"
+    local api = square and BU.api()
+    return api ~= nil and api.squares.test(square, MADE)
 end
 
 -- What the floor shows now, by square: the sides of each utility and whether the floor is made, as last sent (a number;

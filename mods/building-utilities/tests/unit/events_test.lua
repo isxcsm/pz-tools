@@ -315,3 +315,16 @@ test("boxes and units gone from their loaded squares are removed, in one lookup;
     eq(Store.unit(unitGone.id), nil)
     truthy(Store.unit(unitAway.id))
 end)
+
+test("a line lies in natural ground of every kind the game digs, on any floor laid", function()
+    local made = BU.FloorLines.madeFloor
+    TEST.squares["120,120,0"] = { objects = {}, floor = "blends_natural_01_16" }
+    TEST.squares["121,120,0"] = { objects = {}, floor = "floors_exterior_natural_01_12" }
+    TEST.squares["122,120,0"] = { objects = {}, floor = "floors_exterior_street_01_1" }
+    TEST.squares["123,120,0"] = { objects = {}, floor = "floors_interior_tilesandwood_01_0" }
+    eq(made(120, 120, 0), false, "grass")
+    eq(made(121, 120, 0), false, "the game's natural floors are soil too")
+    eq(made(122, 120, 0), true, "a street")
+    eq(made(123, 120, 0), true, "a floor laid")
+    eq(made(124, 120, 0), false, "a square not loaded counts as soil")
+end)

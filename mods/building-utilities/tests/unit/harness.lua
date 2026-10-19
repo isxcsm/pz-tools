@@ -106,6 +106,9 @@ local function newApi()
         end,
     }
     local squares = {
+        -- one square against the conditions, as the API answers it (mods/tools/FakeSquareFilter.lua)
+        test = function(square, filter) return TEST.squareFilter.test(square, filter) end,
+        why = function(square, filter) return TEST.squareFilter.why(square, filter) end,
         list = function(area, filter)
             count("squares.list")
             local result, all = {}, area.room:getSquares()
@@ -249,6 +252,8 @@ end
 
 -- Game stubs. TEST holds what a test sets.
 TEST = {}
+-- The API's square conditions as the fake API answers squares.test and squares.why (mods/tools/FakeSquareFilter.lua).
+TEST.squareFilter = loadstring(readfile("../tools/FakeSquareFilter.lua"), "FakeSquareFilter")()
 local function resetGame()
     SandboxVars = {}
     local store = {}
@@ -313,14 +318,15 @@ local function resetGame()
                     if square.flags then square.flags.burning = nil end
                     square.stopped = (square.stopped or 0) + 1
                 end,
-                -- a floor unless the test says none ({ noFloor = true }), of a sprite when the test names one (floor); flags
-                -- as { water = true }
+                -- a floor unless the test says none ({ noFloor = true }), of a sprite when the test names one (floor; else
+                -- the game's grass, natural ground); flags as { water = true }; water by its floor's material (waterSquare)
                 getFloor = function()
                     if square.noFloor then return nil end
                     return { getSprite = function()
-                        return square.floor and { getName = function() return square.floor end } or nil
+                        return { getName = function() return square.floor or "blends_natural_01_16" end }
                     end }
                 end,
+                isWaterSquare = function() return square.waterSquare == true end,
                 HasStairs = function() return square.stairs == true end,
                 getProperties = function() return { has = function(_, flag) return square.flags ~= nil and square.flags[flag] == true end } end,
                 isBlockedTo = function() return false end,

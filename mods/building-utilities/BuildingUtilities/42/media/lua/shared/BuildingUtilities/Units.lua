@@ -189,12 +189,14 @@ function Units.showLook(object, looks, look, lookOf)
     if shown then Units.setSprite(object, looks[look][shown.facing]) end
 end
 
+-- Where a unit can stand (the API's square conditions): a floor out of the water, nothing in the way (the game's isFree:
+-- no wall, stairs or tree), no vehicle.
+local PLACE = { floor = true, wet = false, free = true, vehicle = false }
+
 local function blocked(square)
     if Store.unitAt(square:getX(), square:getY(), square:getZ()) then return true end
     if Store.panelAt(square:getX(), square:getY(), square:getZ()) then return true end
-    local properties = square:getProperties()
-    if properties and properties:has(IsoFlagType.water) then return true end
-    return not square:getFloor() or not square:isFree(false)
+    return not BU.api().squares.test(square, PLACE)
 end
 
 -- Whether a unit of a kind can go on a square: of a kind that is on, where its kind may stand, on a free floor. True,

@@ -9,7 +9,8 @@ local Objects, Things, Boxes = OA.Trade.Objects, OA.Trade.Things, OA.Trade.Boxes
 
 local calls, answer, byData
 
--- `reply(area, filter)` gives the square (and ring) the fake nearest finds, or nil.
+-- `reply(area, filter)` gives the square (and ring) the fake nearest finds, or nil; a test of one square is answered
+-- by it too (the square's own place its area); why is the API's order (TEST.squareFilter) over the fake square.
 local function api(reply)
     calls = {}
     answer = reply
@@ -17,7 +18,11 @@ local function api(reply)
         squares = { nearest = function(area, filter)
             calls[#calls + 1] = { area = area, filter = filter }
             return answer(area, filter)
-        end },
+        end, test = function(square, filter)
+            local area = { list = { square:getX(), square:getY(), square:getZ() } }
+            calls[#calls + 1] = { area = area, filter = filter, square = square }
+            return answer(area, filter) ~= nil
+        end, why = function(square, filter) return TEST.squareFilter.why(square, filter) end },
         objects = { byData = function(key, where) return byData(key, where) end } }
 end
 
@@ -50,7 +55,7 @@ test("a square is free when the API finds it among its own: one call, the free c
     local f = calls[1].filter
     eq(f.free, true)
     eq(f.solidFloor, true)
-    eq(f.water, false)
+    eq(f.wet, false)
     eq(f.vehicle, false)
     eq(f.noObjectData, Objects.KIND)
     truthy(calls[1].filter == calls[2].filter, "the same table every time")
