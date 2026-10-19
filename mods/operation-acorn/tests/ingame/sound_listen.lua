@@ -56,12 +56,20 @@ if part == "a" then
     end
     add(1500, function() at("end") end)
 elseif part == "b" then
-    add(500, function()
+    -- the game's UI clicks first, the level the titles are set against
+    add(500, function() at("ui", "UIActivateButton") sm:playUISound("UIActivateButton") end)
+    add(1500, function() at("ui", "UISelectListItem") sm:playUISound("UISelectListItem") end)
+    add(2500, function()
         local id = OA.Store.idOf(player)
-        for _, style in ipairs({ "stamp", "notice", "discovery", "unveil", "sink", "pulse", "bleed", "type" }) do
+        for _, style in ipairs({ "stamp", "notice", "discovery", "unveil", "dust", "sink", "pulse", "bleed", "type" }) do
             OA.Titles.show(id, { key = "IGUI_OA_Title_Site", sub = "IGUI_OA_Title_SiteSub", style = style })
         end
-        at("titles queued: stamp, notice, discovery, unveil, sink, pulse, bleed, type")
+        at("titles queued: stamp, notice, discovery, unveil, dust, sink, pulse, bleed, type")
+    end)
+    -- the brief, in a queue of its own: over the others
+    add(6000, function()
+        OA.Titles.show(OA.Store.idOf(player), { key = "IGUI_OA_Title_SearchedBonus", args = { "1200" }, style = "brief" })
+        at("brief")
     end)
     add(1000, function() end)
 elseif part == "c" then

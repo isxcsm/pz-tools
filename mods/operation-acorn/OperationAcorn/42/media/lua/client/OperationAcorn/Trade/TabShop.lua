@@ -247,11 +247,19 @@ local function statusText(state)
     return getText(state.key, unpack(state.args))
 end
 
+-- The price a card and the detail show: the next unit's, but a sold-out restock entry's is the first unit's, which its
+-- restock brings back (the next unit's would be one no window sells).
+local function shownPrice(entry, record, avail)
+    if avail.why == "IGUI_OA_Econ_Shop_SoldOut" and entry.priceAt then return Text.credits(OA.round(entry.priceAt(record, 1))) end
+    return Text.credits(OA.Shop.price(entry, record))
+end
+
 function OATabShop:makeCard(entry, record, ctx)
-    local state = ShopView.state(entry, availOf(entry, record), ctx)
+    local avail = availOf(entry, record)
+    local state = ShopView.state(entry, avail, ctx)
     return {
         id = entry.id, entry = entry, state = state, name = Orders.nameOf(entry),
-        price = Text.credits(OA.Shop.price(entry, record)), status = statusText(state),
+        price = shownPrice(entry, record, avail), status = statusText(state),
     }
 end
 
@@ -334,7 +342,7 @@ function OATabShop:buildDetail(record, ctx)
         self.pick = options[picked].data
         d.picked = picked
     end
-    d.price = Text.credits(OA.Shop.price(entry, record))
+    d.price = shownPrice(entry, record, avail)
     self.detail = d
     self:fillCombo(d)
 end

@@ -75,6 +75,45 @@ test("the list is asked of the API once a world, with the constants, in the dens
     eq(#OA.Store.world("dense").list, 4)
 end)
 
+test("places whose circles overlap are made one: weighted middle, a circle round both, the denser's place in the order", function()
+    setup({
+        { x = 1000, y = 1000, r = 40, chunks = 30 },
+        { x = 5000, y = 5000, r = 30, chunks = 25 },
+        { x = 1060, y = 1000, r = 30, chunks = 10 },
+        { x = 1120, y = 1000, r = 40, chunks = 20 },
+        { x = 9000, y = 9000, r = 30, chunks = 20 },
+        { x = 5060, y = 5000, r = 30, chunks = 20 },
+    })
+    local list = Dense.ensure()
+    -- 1 and 3 overlap (60 apart, 40 + 30); the one made of them (40 chunks, middle 1015, round both: 75) and 4 then
+    -- (105 apart, 75 + 40)
+    eq(#list, 4)
+    eq(list[1].chunks, 60)
+    eq(list[1].x, 1050)
+    eq(list[1].y, 1000)
+    eq(list[1].r, 110, "round all three: 960 to 1160")
+    eq(list[1].kind, "damage")
+    -- 2 and 6 touch, not overlap (60 apart, 30 + 30): kept apart
+    eq(list[2].x, 5000); eq(list[2].kind, "crit")
+    eq(list[3].x, 9000); eq(list[3].kind, "repair")
+    eq(list[4].x, 5060); eq(list[4].kind, "damage")
+end)
+
+test("the zombies are counted within the place's circle, at least COUNT_R", function()
+    setup({ { x = 1000, y = 1000, r = 90, chunks = 40 }, { x = 3000, y = 3000, r = 20, chunks = 20 } })
+    Dense.ensure()
+    local radii = {}
+    PZExtAPI.zombies.near = function(x, y, z, r)
+        radii[#radii + 1] = r
+        return 0, {}
+    end
+    local r = record(6)
+    stand(r, Dense.list()[1])
+    stand(record(6), Dense.list()[2])
+    eq(radii[1], 90)
+    eq(radii[2], Dense.COUNT_R)
+end)
+
 test("without the API's answer nothing is made and it is asked again; an empty answer is an answer", function()
     setup()
     PZExtAPI = nil

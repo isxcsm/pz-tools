@@ -319,6 +319,20 @@ test("a weekly limit shows what is left and a week with none left shows when it 
     eq(tab.byId.petrol_can.state.open, false)
 end)
 
+test("a sold-out restock card shows the price its restock brings back, not the next unit's", function()
+    local tab = open("field", 700, 408, 3)
+    local record = tab.window.record
+    local entry = OA.Shop.entry("serum_shared")
+    local first = tab.byId.serum_shared.price
+    while (OA.Shop.available(entry, record)) > 0 do OA.Shop.bought(entry, record, 1) end
+    tab:refresh()
+    eq(tab.byId.serum_shared.state.open, false)
+    eq(tab.byId.serum_shared.price, first)
+    truthy(clickCard(tab, "serum_shared"))
+    eq(tab.detail.price, first)
+    truthy(OA.Shop.price(entry, record) > OA.round(entry.priceAt(record, 1)), "the next unit's would be dearer")
+end)
+
 test("a seed packet has a combo box of kinds; the order carries the kind picked", function()
     local tab, window = open("crude", 700, 408, 2)
     tab:setCat("resource")

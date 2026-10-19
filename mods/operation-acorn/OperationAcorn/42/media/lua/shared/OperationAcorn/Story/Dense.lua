@@ -21,7 +21,8 @@ OA.Dense = Dense
 -- The data. A place is a group of at least CHUNKS map chunks of a zombie intensity of at least MIN (as the map has it: B42's
 -- vanilla map runs 0 to 10). Tuned in the game on the vanilla map (2026-10-19): 7 and 20 give 24 places spread over the towns
 -- (Louisville's many, West Point, Rosewood and March Ridge, Brandenburg, Irvington, Ekron); 8 gave 14, nearly all in
--- Louisville; 7 with 6 chunks gave 49, too many circles. The list is made once a world, so a change is for new worlds.
+-- Louisville; 7 with 6 chunks gave 49, too many circles. The overlapping ones made one (Dense.merge), the 24 are 20
+-- (Louisville's four in its middle one). The list is made once a world, so a change is for new worlds.
 Dense.MIN = 7
 Dense.CHUNKS = 20
 -- The kinds of reward, in the order the places take them.
@@ -29,7 +30,7 @@ Dense.KINDS = { "damage", "crit", "repair" }
 -- Trust level from which the places are shown and cleared.
 Dense.TIER = 6
 -- A place is looked at when the character stands within NEAR squares of its middle; the zombies counted are those within
--- COUNT_R squares of the middle on the ground floor.
+-- its circle (at least COUNT_R squares) of the middle on the ground floor.
 Dense.NEAR = 20
 Dense.COUNT_R = 40
 -- It is cleared when the count falls to this share of the most counted, if that was at least LEAST.
@@ -65,8 +66,39 @@ function Dense.kindAt(i)
     return Dense.KINDS[OA.remainder(i - 1, #Dense.KINDS) + 1]
 end
 
--- The places of this world: the API's, asked once and kept. Nil while the API has no answer (asked again then). The ids
--- are "D1", "D2" ... in the API's order, which is the density order.
+-- The API's places with those whose circles overlap made one (two groups of chunks a street apart would show as circles
+-- of two kits over each other): its middle the chunk-weighted one, its circle round both, in the place of the denser
+-- (the earlier). { { x, y, r, chunks } } in the density order.
+function Dense.merge(found)
+    local list = {}
+    for i, p in ipairs(found) do
+        list[i] = { x = p.x, y = p.y, r = p.r or 0, chunks = p.chunks or 1 }
+    end
+    local merged = true
+    while merged do
+        merged = false
+        for i = 1, #list do
+            for j = i + 1, #list do
+                local a, b = list[i], list[j]
+                local dx, dy = b.x - a.x, b.y - a.y
+                if dx * dx + dy * dy < (a.r + b.r) * (a.r + b.r) then
+                    local n = a.chunks + b.chunks
+                    local x, y = (a.x * a.chunks + b.x * b.chunks) / n, (a.y * a.chunks + b.y * b.chunks) / n
+                    local function reach(p) return math.sqrt((p.x - x) * (p.x - x) + (p.y - y) * (p.y - y)) + p.r end
+                    list[i] = { x = x, y = y, r = math.max(reach(a), reach(b)), chunks = n }
+                    table.remove(list, j)
+                    merged = true
+                    break
+                end
+            end
+            if merged then break end
+        end
+    end
+    return list
+end
+
+-- The places of this world: the API's (overlapping ones made one: Dense.merge), asked once and kept. Nil while the API
+-- has no answer (asked again then). The ids are "D1", "D2" ... in the density order.
 function Dense.ensure()
     local w = world()
     if w.made then return w.list end
@@ -76,8 +108,8 @@ function Dense.ensure()
     local ok, found = OA.try("dense: the API's dense places", zombies.dense, { min = Dense.MIN, minChunks = Dense.CHUNKS })
     if not ok or type(found) ~= "table" then return nil end
     w.list, w.baseline, w.cleared = {}, w.baseline or {}, w.cleared or {}
-    for i, p in ipairs(found) do
-        w.list[i] = { id = "D" .. i, x = math.floor(p.x + 0.5), y = math.floor(p.y + 0.5), r = math.ceil(p.r or 0),
+    for i, p in ipairs(Dense.merge(found)) do
+        w.list[i] = { id = "D" .. i, x = math.floor(p.x + 0.5), y = math.floor(p.y + 0.5), r = math.ceil(p.r),
             chunks = p.chunks, kind = Dense.kindAt(i) }
     end
     w.made = true
@@ -107,13 +139,13 @@ function Dense.shown(record)
     return list
 end
 
--- The zombies on the ground floor within COUNT_R of a place's middle, or nil when the API cannot say. (The game adapter:
--- a test sets another.)
-function Dense.countAt(x, y)
+-- The zombies on the ground floor within r squares (COUNT_R when not given) of x, y, or nil when the API cannot say. (The
+-- game adapter: a test sets another.)
+function Dense.countAt(x, y, r)
     local api = OA.api()
     local zombies = api and api.zombies
     if type(zombies) ~= "table" or type(zombies.near) ~= "function" then return nil end
-    local ok, count = OA.try("dense: the API's zombie count", zombies.near, x, y, 0, Dense.COUNT_R, 0)
+    local ok, count = OA.try("dense: the API's zombie count", zombies.near, x, y, 0, r or Dense.COUNT_R, 0)
     if ok and type(count) == "number" then return count end
     return nil
 end
@@ -137,7 +169,7 @@ local function visit(record, p)
         give(record, p, true)
         return
     end
-    local count = Dense.countAt(p.x, p.y)
+    local count = Dense.countAt(p.x, p.y, math.max(Dense.COUNT_R, p.r or 0))
     if not count then return end
     w.baseline, w.cleared = w.baseline or {}, w.cleared or {}
     local base = w.baseline[p.id] or 0

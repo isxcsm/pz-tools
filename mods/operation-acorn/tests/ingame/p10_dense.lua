@@ -47,8 +47,20 @@ P10T.start("p10dense", function(a)
     local ok, found = pcall(api.zombies.dense, { min = Dense.MIN, minChunks = Dense.CHUNKS })
     a.check("the API answers at the numbers in use", ok and type(found) == "table", ok and ((found and #found) or 0) or tostring(found))
     if ok and type(found) == "table" then
-        a.say("zombies.dense at", Dense.MIN, Dense.CHUNKS, "->", #found, "places in", getTimestampMs() - t0, "ms")
-        a.check("the world list is what the numbers in use give", #found == #list, #found .. " vs " .. #list)
+        local merged = Dense.merge(found)
+        a.say("zombies.dense at", Dense.MIN, Dense.CHUNKS, "->", #found, "places in", getTimestampMs() - t0, "ms;", #merged,
+            "once the overlapping ones are made one")
+        a.check("the world list is what the numbers in use give, overlapping places made one", #merged == #list,
+            #merged .. " vs " .. #list)
+        local apart = true
+        for i = 1, #list do
+            for j = i + 1, #list do
+                local p, q = list[i], list[j]
+                local dx, dy = p.x - q.x, p.y - q.y
+                if dx * dx + dy * dy < (p.r + q.r - 2) * (p.r + q.r - 2) then apart = false end
+            end
+        end
+        a.check("no two circles overlap", apart)
         local peak, mean = 0, 0
         for i, p in ipairs(found) do
             peak, mean = math.max(peak, p.peak or 0), mean + (p.mean or 0)
@@ -65,9 +77,10 @@ P10T.start("p10dense", function(a)
         for _, m in ipairs(mins) do
             local started = getTimestampMs()
             local good, res = pcall(api.zombies.dense, { min = m, minChunks = c })
-            row[#row + 1] = m .. ":" .. (good and type(res) == "table" and #res or "err") .. "(" .. (getTimestampMs() - started) .. "ms)"
+            row[#row + 1] = m .. ":" .. (good and type(res) == "table" and (#res .. "/" .. #Dense.merge(res)) or "err")
+                .. "(" .. (getTimestampMs() - started) .. "ms)"
         end
-        a.say("tuning: chunks >=", c, "| min:places", table.concat(row, " "))
+        a.say("tuning: chunks >=", c, "| min:places/merged", table.concat(row, " "))
     end
     a.check("the tuning grid was read", true)
 
@@ -183,7 +196,7 @@ P10T.start("p10dense", function(a)
     -- Takes zombies away (ours first) so that the API should count `target`: the count is read at the next step, when
     -- the game has taken the removed ones out of its lists. Returns how many were taken.
     local function removeTo(target)
-        local count = Dense.countAt(place.x, place.y) or 0
+        local count = Dense.countAt(place.x, place.y, math.max(Dense.COUNT_R, place.r)) or 0
         local drop = count - target
         if drop <= 0 then return 0 end
         local list2 = around()
@@ -201,7 +214,7 @@ P10T.start("p10dense", function(a)
         ready = function() return getCell():getGridSquare(place.x, place.y, 0) ~= nil end,
         run = function(_, timedOut)
             if not a.check("the place's square is loaded", not timedOut, place.x .. "," .. place.y) then return end
-            real0 = Dense.countAt(place.x, place.y) or 0
+            real0 = Dense.countAt(place.x, place.y, math.max(Dense.COUNT_R, place.r)) or 0
             a.say("the place holds", real0, "zombies of its own now")
             local n = math.min(150, math.max(30, 9 * real0 + 10))
             local px, py, pz = P10T.where()
@@ -219,7 +232,7 @@ P10T.start("p10dense", function(a)
             a.say("zombies made", #mine, "of", n, "wanted; standing at", px, py)
         end }
     steps[#steps + 1] = { after = 1500, name = "baseline", run = function()
-        local count = Dense.countAt(place.x, place.y)
+        local count = Dense.countAt(place.x, place.y, math.max(Dense.COUNT_R, place.r))
         a.say("counted now", count, "(the API's zombies.near within", Dense.COUNT_R, ")")
         Dense.look(A, place.x, place.y)
         base = world.baseline[place.id]
@@ -234,7 +247,7 @@ P10T.start("p10dense", function(a)
     end }
     steps[#steps + 1] = { after = 1300, name = "half", run = function()
         if not base then return end
-        local count = Dense.countAt(place.x, place.y)
+        local count = Dense.countAt(place.x, place.y, math.max(Dense.COUNT_R, place.r))
         Dense.look(A, place.x, place.y)
         a.check("half the zombies gone: still not cleared", Dense.cleared(place.id) == nil and Dense.got(A)[place.id] == nil,
             tostring(count) .. " of " .. base)
@@ -253,7 +266,7 @@ P10T.start("p10dense", function(a)
     end }
     steps[#steps + 1] = { after = 1300, name = "tenth", run = function()
         if not base then return end
-        local count = Dense.countAt(place.x, place.y)
+        local count = Dense.countAt(place.x, place.y, math.max(Dense.COUNT_R, place.r))
         a.check("the count is at 10% of the baseline", count ~= nil and count <= base * Dense.CLEARED_SHARE, tostring(count) .. " of " .. base)
         local before = #titles
         Dense.look(A, place.x, place.y)
