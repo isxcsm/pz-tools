@@ -19,7 +19,7 @@ module Base
 
     /* terminal picks begin: written by tools/sound/install_terminal_picks.py from terminal_picks.json, not by build.py */
 
-    /* OA_Term_Field_Power: field_power.ogg 6f508ab8 -16 dB */
+    /* OA_Term_Field_Power: field_power.ogg 7863e4ca -22 dB */
     sound OA_Term_Field_Power
     {
         category = UI,
@@ -29,7 +29,7 @@ module Base
         }
     }
 
-    /* OA_Term_Field_Hum: field_hum.ogg 58cf2c69 -33 dB */
+    /* OA_Term_Field_Hum: field_hum.ogg ccd6e94a -24 dB */
     sound OA_Term_Field_Hum
     {
         category = UI,
@@ -40,7 +40,7 @@ module Base
         }
     }
 
-    /* OA_Term_Field_Line: field_line.ogg 36440308 -26 dB */
+    /* OA_Term_Field_Line: field_line.ogg 340f5255 -28 dB */
     sound OA_Term_Field_Line
     {
         category = UI,
@@ -50,7 +50,7 @@ module Base
         }
     }
 
-    /* OA_Term_Field_Ready: field_ready.ogg a06fd39c -18 dB */
+    /* OA_Term_Field_Ready: field_ready.ogg 5b5dfc52 -19 dB */
     sound OA_Term_Field_Ready
     {
         category = UI,
@@ -60,7 +60,7 @@ module Base
         }
     }
 
-    /* OA_Term_Field_Off: field_off.ogg 9eb6b3c0 -21 dB */
+    /* OA_Term_Field_Off: field_off.ogg f39f865d -25 dB */
     sound OA_Term_Field_Off
     {
         category = UI,
@@ -70,7 +70,7 @@ module Base
         }
     }
 
-    /* OA_Term_Field_Work: field_work.ogg 5e848440 -25 dB */
+    /* OA_Term_Field_Work: field_work.ogg 5724f559 -27 dB */
     sound OA_Term_Field_Work
     {
         category = UI,
@@ -80,7 +80,7 @@ module Base
         }
     }
 
-    /* OA_Term_Crude_Power: crude_power.ogg 9873ce7c -15 dB */
+    /* OA_Term_Crude_Power: crude_power.ogg a94aabd4 -22 dB */
     sound OA_Term_Crude_Power
     {
         category = UI,
@@ -90,7 +90,7 @@ module Base
         }
     }
 
-    /* OA_Term_Crude_Hum: crude_hum.ogg 8b930b4d -32 dB */
+    /* OA_Term_Crude_Hum: crude_hum.ogg 2ae065b1 -24 dB */
     sound OA_Term_Crude_Hum
     {
         category = UI,
@@ -101,7 +101,7 @@ module Base
         }
     }
 
-    /* OA_Term_Crude_Jolt: crude_jolt.ogg 4e0d7919 -21 dB */
+    /* OA_Term_Crude_Jolt: crude_jolt.ogg b98aafa1 -24 dB */
     sound OA_Term_Crude_Jolt
     {
         category = UI,
@@ -111,7 +111,7 @@ module Base
         }
     }
 
-    /* OA_Term_Crude_Line: crude_line.ogg e62b34ae -26 dB */
+    /* OA_Term_Crude_Line: crude_line.ogg 8548a3f7 -28 dB */
     sound OA_Term_Crude_Line
     {
         category = UI,
@@ -121,7 +121,7 @@ module Base
         }
     }
 
-    /* OA_Term_Crude_Ready: crude_ready.ogg e90a59e5 -18 dB */
+    /* OA_Term_Crude_Ready: crude_ready.ogg 3415cf89 -19 dB */
     sound OA_Term_Crude_Ready
     {
         category = UI,
@@ -131,7 +131,7 @@ module Base
         }
     }
 
-    /* OA_Term_Crude_Off: crude_off.ogg e72078b6 -20 dB */
+    /* OA_Term_Crude_Off: crude_off.ogg d0db17cc -25 dB */
     sound OA_Term_Crude_Off
     {
         category = UI,
@@ -141,7 +141,7 @@ module Base
         }
     }
 
-    /* OA_Term_Crude_Work: crude_work.ogg daaedaaf -25 dB */
+    /* OA_Term_Crude_Work: crude_work.ogg b5a35be4 -27 dB */
     sound OA_Term_Crude_Work
     {
         category = UI,

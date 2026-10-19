@@ -197,24 +197,24 @@ function tinted(im, c) {
 const SOUNDS = "../../../operation-acorn/OperationAcorn/42/media/sound/";
 const cap = w => w[0].toUpperCase() + w.slice(1);
 const fileOf = (tier, cue) => "OA_Term_" + cap(tier) + "_" + cap(cue) + ".ogg";
-// The cues of each terminal: [id, label, what it is on the picture, level (dBFS: a beat's loudest 20 ms, a loop's mean)].
+// The cues of each terminal: [id, label, what it is on the picture, level (LUFS: a beat's loudest 400 ms, a loop's mean; the spell dBFS, its mean RMS)].
 const CUES = {
   field: [
-    ["power", "켜짐", "전원이 들어오고 화면이 가운데서 열린다 (0.1초부터)", -16],
-    ["hum", "부팅 바탕 (반복)", "부팅 내내 작게. 화면이 열릴 때 크고 곧 가라앉는다 (정적의 세기를 따라감)", -33],
-    ["work", "처리 중", "점검 줄이 뜨고 커서가 깜박이는 동안 (0.9초) 드라이브가 일한다", -25],
-    ["line", "줄 결과", "각 점검 줄의 '정상·확인'이 뜰 때", -26],
-    ["ready", "환영", "밝은 마지막 줄 '환영합니다'가 뜰 때. 두 음 올라가는 확인음", -18],
-    ["off", "꺼짐", "글이 한 줄로 접혀 점이 되고 탭이 나타날 때. 창을 닫을 때도", -21],
+    ["power", "켜짐", "전원이 들어오고 화면이 가운데서 열린다 (0.1초부터)", -22],
+    ["hum", "부팅 바탕 (반복)", "부팅 내내. 화면이 열릴 때 크고 곧 가라앉는다 (정적의 세기를 따라감)", -24],
+    ["work", "처리 중", "점검 줄이 뜨고 커서가 깜박이는 동안 (0.9초) 드라이브가 일한다", -27],
+    ["line", "줄 결과", "각 점검 줄의 '정상·확인'이 뜰 때", -28],
+    ["ready", "환영", "밝은 마지막 줄 '환영합니다'가 뜰 때. 두 음 올라가는 확인음", -19],
+    ["off", "꺼짐", "글이 한 줄로 접혀 점이 되고 탭이 나타날 때. 창을 닫을 때도", -25],
   ],
   crude: [
-    ["power", "켜짐", "덜컥 켜지고 잡음이 치솟았다 가라앉는다 (정적 2.2배에서 1까지)", -15],
-    ["hum", "부팅 바탕 (반복)", "부팅 내내. 지글거리는 잡음, 화면이 열릴 때 크다", -32],
-    ["jolt", "덜컥임", "부팅 중 화면이 흔들리는 순간 (0.24초)", -21],
-    ["work", "처리 중", "점검 줄이 뜨고 커서가 깜박이는 동안 (0.9초) 낡은 테이프 드라이브가 일한다", -25],
-    ["line", "줄 결과", "각 점검 줄의 결과가 뜰 때", -26],
-    ["ready", "환영", "'환영합니다'가 뜰 때. 싸구려 스피커로 두 음", -18],
-    ["off", "꺼짐", "한 줄로 접혀 점이 될 때. 창을 닫을 때도", -20],
+    ["power", "켜짐", "덜컥 켜지고 잡음이 치솟았다 가라앉는다 (정적 2.2배에서 1까지)", -22],
+    ["hum", "부팅 바탕 (반복)", "부팅 내내. 지글거리는 잡음, 화면이 열릴 때 크다", -24],
+    ["jolt", "덜컥임", "부팅 중 화면이 흔들리는 순간 (0.24초)", -24],
+    ["work", "처리 중", "점검 줄이 뜨고 커서가 깜박이는 동안 (0.9초) 낡은 테이프 드라이브가 일한다", -27],
+    ["line", "줄 결과", "각 점검 줄의 결과가 뜰 때", -28],
+    ["ready", "환영", "'환영합니다'가 뜰 때. 싸구려 스피커로 두 음", -19],
+    ["off", "꺼짐", "한 줄로 접혀 점이 될 때. 창을 닫을 때도", -25],
     ["spell", "약신호 (반복)", "창이 열려 있는 동안 14초마다 0.5~1.1초 화면이 흐려지고 잡음이 낀다. 흐려지는 만큼 소리도", -34],
   ],
 };
@@ -539,7 +539,7 @@ function build() {
     for (const [id, label, what, level] of CUES[tier]) {
       const row = document.createElement("div");
       row.className = "cue";
-      row.innerHTML = `<b>${label}</b><span>${fileOf(tier, id)}</span><button title="이것만 듣기">▶</button><span class="db">${level} dB${LOOP_CUES.has(id) ? " RMS" : ""}</span><div class="what">${what}</div>`;
+      row.innerHTML = `<b>${label}</b><span>${fileOf(tier, id)}</span><button title="이것만 듣기">▶</button><span class="db">${level} ${id === "spell" ? "dB RMS" : "LUFS"}</span><div class="what">${what}</div>`;
       row.querySelector("button").onclick = async () => {
         if (id === "hum" || id === "spell") { const l = await loop(tier, id); if (l) { l.set(1); setTimeout(() => l.stop(), 3000); } }
         else shot(tier, id);

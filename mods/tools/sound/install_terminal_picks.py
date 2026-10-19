@@ -2,7 +2,7 @@
 
 ai_terminal.py makes candidates into gen/term (outside git); pick_terminal.py chooses one a cue by what can be measured and
 hands it here (tier:cue=file on the command line), kept in terminal_picks.json; then for each pick this takes the
-file from gen/term, brings its peak to its cue's level (LEVELS below) and fades its ends 5 ms (install_title_picks.leveled:
+file from gen/term, brings it to its cue's loudness (LEVELS below) and fades its ends 5 ms (install_title_picks.leveled:
 not trimmed again), and writes it as OA's media/sound/OA_Term_<Tier>_<Cue>.ogg; then the delimited blocks of OA's sound
 script (oa_sounds.txt: `sound OA_Term_...`, category UI, a loop for a bed or a spell; build.py keeps the block) and of OA's
 cue table (OperationAcorn/Sounds.lua: every terminal cue, `oa.term.<tier>.<cue>`, the picked ones with their sound, the
@@ -29,23 +29,21 @@ CUES = os.path.join(OA, 'media', 'lua', 'shared', 'OperationAcorn', 'Sounds.lua'
 PICKS = os.path.join(HERE, 'terminal_picks.json')
 DEFAULT_GEN = os.path.join(HERE, 'gen', 'term')
 
-# Each cue's level (dBFS), by its role: a beat's loudest 20 ms, a loop's mean (RMS; its loudest 20 ms at most
-# LOOP_OVER above: a crackle's spikes at a mean level sounded over the click). Not the peak: a candidate whose
-# peak is one click's spike sounded 20 dB under another of the same peak in the game (2026-10-19, each alone against the
-# kit's click, whose loudest 20 ms is -26 there; a beat's loudest 20 ms here comes out 6 to 9 dB lower in the game). The
-# boot plays on every open of a terminal: its switch about 7 dB under the click, the welcome and the switch-off under
-# it, a line's tick well under; the beds are a quiet floor (their volume follows the picture as well: the console's is
-# 1 / 2.2 of the opening's); a weak signal spell comes every 14 s while the window is open, under the beats. The lab
-# (lab/terminal.html) plays them at these levels, measured the same way.
-# 2026-10-20: the user could barely hear the boot ("들리는지도 모를 정도"): every beat raised 8 to 11 dB, the switch and the
-# welcome now at the click's level in the game, a line's result and its work (the drive busy while the cursor blinks)
-# just under; the beds 6 to 7 dB up. The weak signal spell was right: kept.
+# Each cue's level, by its role, as loudness (LUFS: K-weighted, BS.1770, mono): a beat's loudest 400 ms (momentary
+# loudness), a loop's mean. Not the peak, nor the loudest 20 ms: a short spike reads loud there and is not heard so
+# (2026-10-20: set by the loudest 20 ms to the click's level, the boot's lines, work and bed were -38 to -41 LUFS in the
+# game's output, the click -31: the user heard them "배경에 미세하게 깔리는"). The titles' enters, the moments the user
+# hears as presentation, are -24 to -29 LUFS (KIT_T_*), the printer's rows -28, a key -35. The boot is a presentation:
+# its switch and welcome at the titles' loudest, each line's work and result at the printer's rows, the bed at the
+# titles' level as the screen opens (the console plays it at 1 / 2.2 of that, -7 dB). The weak signal spell was right:
+# kept at its old level (dBFS, its mean), the one cue in KEPT_DBFS.
 LEVELS = {
-    'field:power': -16.0, 'field:hum': -33.0, 'field:line': -26.0, 'field:ready': -18.0, 'field:off': -21.0,
-    'field:work': -25.0,
-    'crude:power': -15.0, 'crude:hum': -32.0, 'crude:jolt': -21.0, 'crude:line': -26.0, 'crude:ready': -18.0,
-    'crude:off': -20.0, 'crude:work': -25.0, 'crude:spell': -34.0,
+    'field:power': -22.0, 'field:hum': -24.0, 'field:line': -28.0, 'field:ready': -19.0, 'field:off': -25.0,
+    'field:work': -27.0,
+    'crude:power': -22.0, 'crude:hum': -24.0, 'crude:jolt': -24.0, 'crude:line': -28.0, 'crude:ready': -19.0,
+    'crude:off': -25.0, 'crude:work': -27.0, 'crude:spell': -34.0,
 }
+KEPT_DBFS = {'crude:spell'}
 LOOPS = {'field:hum', 'crude:hum', 'crude:spell'}
 # Whatever the level, the peak is kept under this.
 PEAK_CAP = -1.0
@@ -61,16 +59,52 @@ def loudest20(data):
     return float(np.sqrt(np.max(c[n:] - c[:-n]) / n)) or 1e-9
 
 
+def _biquad(kind, fc, gain_db, q):
+    w = 2 * np.pi * fc / build.RATE
+    cos, alpha, a = np.cos(w), np.sin(w) / (2 * q), 10 ** (gain_db / 40)
+    if kind == 'shelf':
+        r = 2 * np.sqrt(a) * alpha
+        b = [a * ((a + 1) + (a - 1) * cos + r), -2 * a * ((a - 1) + (a + 1) * cos), a * ((a + 1) + (a - 1) * cos - r)]
+        d = [(a + 1) - (a - 1) * cos + r, 2 * ((a - 1) - (a + 1) * cos), (a + 1) - (a - 1) * cos - r]
+    else:
+        b = [(1 + cos) / 2, -(1 + cos), (1 + cos) / 2]
+        d = [1 + alpha, -2 * cos, 1 - alpha]
+    return np.array(b) / d[0], np.array(d) / d[0]
+
+
+def k_weighted(data):
+    """data through BS.1770's K filter (its high shelf, then its high pass)."""
+    from scipy.signal import lfilter
+    for kind, fc, g, q in (('shelf', 1681.97, 4.0, 0.7072), ('pass', 38.14, 0.0, 0.5003)):
+        b, a = _biquad(kind, fc, g, q)
+        data = lfilter(b, a, data)
+    return data
+
+
+def loudness(data, loop=False):
+    """LUFS: a loop's mean, else the loudest 400 ms (100 ms steps; a shorter sound counted over 400 ms with silence)."""
+    k = k_weighted(np.concatenate([data.astype(np.float64), np.zeros(int(0.4 * build.RATE))]))
+    if loop:
+        k = k[:len(data)]
+        return -0.691 + 10 * np.log10(np.mean(k * k) + 1e-12)
+    n, hop = int(0.4 * build.RATE), int(0.1 * build.RATE)
+    c = np.concatenate([[0.0], np.cumsum(k * k)])
+    sums = [c[i + n] - c[i] for i in range(0, len(k) - n + 1, hop)]
+    return -0.691 + 10 * np.log10(max(sums) / n + 1e-12)
+
+
 def leveled(data, key):
     """The candidate at its cue's level: a loop by its mean (not faded: its end runs into its start), a beat by its
-    loudest 20 ms, its ends faded 5 ms; the peak kept under PEAK_CAP."""
+    loudest 400 ms, its ends faded 5 ms; the peak kept under PEAK_CAP. A KEPT_DBFS cue by its old measure (a loop's
+    mean RMS, its loudest 20 ms at most LOOP_OVER above)."""
     level = LEVELS[key]
-    if key in LOOPS:
+    if key in KEPT_DBFS:
         gain = min(10 ** (level / 20) / (float(np.sqrt(np.mean(data * data))) or 1e-9),
                    10 ** ((level + LOOP_OVER) / 20) / loudest20(data))
     else:
-        data = titles.leveled(data, -3.0)
-        gain = 10 ** (level / 20) / loudest20(data)
+        if key not in LOOPS:
+            data = titles.leveled(data, -3.0)
+        gain = 10 ** ((level - loudness(data, key in LOOPS)) / 20)
     gain = min(gain, 10 ** (PEAK_CAP / 20) / (float(np.max(np.abs(data))) or 1.0))
     return np.clip(data * gain, -1, 1)
 
