@@ -1,5 +1,5 @@
 -- The dense places (Story/Dense): the API's list kept once a world, a kit kind given by density order, the maps showing the
--- places from trust level 6, and the clearing: a baseline of the most counted, a tenth of it to clear, never from a baseline
+-- places a record has found from trust level 6, and the clearing: a baseline of the most counted, a tenth of it to clear, never from a baseline
 -- under 20, and one reward a record, also for a place another character cleared.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
@@ -17,16 +17,16 @@ local PLACES = {
     { x = 4000, y = 4000, r = 25, chunks = 6, peak = 170, mean = 165 },
 }
 
-local asked, titles, changes, counts
+local asked, titles, changes, counts, founds, stories, steps, says
 local n = 0
 
 -- A fresh world's dense section and an API that answers `places` and counts the zombies set in `counts` (by "x,y").
 local function setup(places)
     asked = {}
-    titles, changes = {}, {}
+    titles, changes, founds, stories, steps, says = {}, {}, {}, {}, {}, {}
     counts = {}
     local world = OA.Store.world("dense")
-    world.made, world.list, world.baseline, world.cleared = nil, nil, nil, nil
+    world.made, world.list, world.baseline, world.cleared, world.told = nil, nil, nil, nil, nil
     PZExtAPI = {
         version = OA.API_VERSION,
         client = function() return { name = OA.MOD } end,
@@ -40,8 +40,28 @@ local function setup(places)
             end,
         },
     }
-    OA.Sync.title = function(id, detail) titles[#titles + 1] = { id = id, detail = detail } end
-    OA.Sync.changed = function(what, id) changes[#changes + 1] = { what = what, id = id } end
+    -- a place found and a step on the way have their own titles, kept apart from the clearing's
+    OA.Sync.title = function(id, detail)
+        local into = titles
+        if detail.key == "IGUI_OA_Title_DenseFound" then into = founds end
+        if string.find(detail.key, "IGUI_OA_Title_DenseProgress", 1, true) then into = steps end
+        into[#into + 1] = { id = id, detail = detail }
+    end
+    OA.Say.tell = function(id, bundle, ctx, delay) says[#says + 1] = { id = id, bundle = bundle, delay = delay } end
+    OA.Sync.changed = function(what, id)
+        if what == "story" then stories[#stories + 1] = id else changes[#changes + 1] = { what = what, id = id } end
+    end
+end
+
+-- A record finds every place (a look from each one's middle, a real second apart).
+local function findAll(r)
+    local clock, now = getTimestampMs, 7000000
+    getTimestampMs = function() return now end
+    for _, p in ipairs(Dense.list()) do
+        now = now + 2000
+        Dense.look(r, p.x + p.r + Dense.SEEN, p.y)
+    end
+    getTimestampMs = clock
 end
 
 local function record(tier)
@@ -127,10 +147,68 @@ test("without the API's answer nothing is made and it is asked again; an empty a
     eq(#asked, 1)
 end)
 
-test("the maps show the places from trust level 6, in the colour of their kit, until the record has the kit", function()
+test("a place is found from SEEN squares outside its circle, once, told in a title, from level 6", function()
+    setup()
+    Dense.ensure()
+    local r, low = record(6), record(5)
+    local p = Dense.list()[2]
+    local clock, now = getTimestampMs, 8000000
+    getTimestampMs = function() return now end
+    Dense.look(r, p.x + p.r + Dense.SEEN + 1, p.y)
+    eq(Dense.seen(r).D2, nil, "a square too far")
+    eq(#founds, 0)
+    now = now + 2000
+    Dense.look(r, p.x + p.r + Dense.SEEN, p.y)
+    eq(Dense.seen(r).D2, true)
+    eq(#founds, 1)
+    eq(founds[1].id, r.id)
+    eq(founds[1].detail.sub, "IGUI_OA_Title_DenseFoundSub")
+    eq(founds[1].detail.style, "discovery")
+    eq(#says, 1)
+    eq(says[1].id, r.id); eq(says[1].bundle, "DenseFound"); eq(says[1].delay, Dense.FOUND_SAY)
+    eq(stories[1], r.id, "the maps asked to look again")
+    eq(#changes, 0, "not the shop")
+    eq(#View.scene(r, nil).circles, 1)
+    now = now + 2000
+    Dense.look(r, p.x, p.y)
+    eq(#founds, 1, "found once")
+    now = now + 2000
+    Dense.look(low, p.x, p.y)
+    eq(Dense.seen(low).D2, nil, "not below level 6")
+    getTimestampMs = clock
+end)
+
+test("two places in sight at once are one title", function()
+    setup({ { x = 1000, y = 1000, r = 20, chunks = 30 }, { x = 1100, y = 1000, r = 20, chunks = 20 } })
+    Dense.ensure()
+    local r = record(6)
+    Dense.look(r, 1050, 1000)
+    truthy(Dense.seen(r).D1 and Dense.seen(r).D2)
+    eq(#founds, 1)
+    eq(#stories, 1)
+end)
+
+test("a place found in the look that gives its reward has the reward's title only", function()
+    setup()
+    Dense.ensure()
+    local first, second = record(6), record(6)
+    local p = Dense.list()[4]
+    OA.Store.world("dense").cleared = { D4 = { by = first.id, at = 1 } }
+    Dense.look(second, p.x, p.y)
+    eq(Dense.seen(second).D4, true)
+    eq(Dense.got(second).D4, "repair")
+    eq(#founds, 0)
+    eq(#titles, 1)
+    eq(titles[1].detail.sub, "IGUI_OA_Title_DenseHadSub")
+end)
+
+test("the maps show the places found from trust level 6, all in one colour, until the record has the kit", function()
     setup()
     Dense.ensure()
     local low, high = record(5), record(6)
+    eq(#View.scene(high, nil).circles, 0, "nothing found yet")
+    findAll(low)
+    findAll(high)
     eq(#View.scene(low, nil).circles, 0, "not below level 6")
     local scene = View.scene(high, nil)
     eq(#scene.circles, 4)
@@ -139,10 +217,7 @@ test("the maps show the places from trust level 6, in the colour of their kit, u
     local c = scene.circles[2]
     eq(c.dim, true)
     eq(c.x, 2000.5); eq(c.y, 2000.5); eq(c.r, 40)
-    eq(c.color, View.MAP_DENSE.crit)
-    eq(scene.circles[1].color, View.MAP_DENSE.damage)
-    eq(scene.circles[3].color, View.MAP_DENSE.critDamage)
-    eq(scene.circles[4].color, View.MAP_DENSE.repair)
+    for _, circle in ipairs(scene.circles) do eq(circle.color, View.MAP_DENSE) end
     -- a world without zombies: no place can be cleared, so none is shown
     SandboxVars = { Zombies = Dense.NO_ZOMBIES }
     eq(#View.scene(high, nil).circles, 0)
@@ -195,6 +270,53 @@ test("the most counted is the baseline; a tenth of it clears the place, once, an
     eq(#titles, 1, "once")
     eq(#changes, 1)
     eq(Dense.count(r, "damage"), 1)
+end)
+
+test("on the way the count's fall to a half and a quarter of the baseline is told (a brief title, self-talk), each once", function()
+    setup()
+    Dense.ensure()
+    local r = record(6)
+    local p = Dense.list()[1]
+    local function at(count)
+        counts["1000,1000"] = count
+        stand(r, p)
+    end
+    at(80)
+    at(41)
+    eq(#steps, 0, "41 is more than half")
+    at(40)
+    eq(#steps, 1)
+    eq(steps[1].id, r.id)
+    eq(steps[1].detail.key, "IGUI_OA_Title_DenseProgress1")
+    eq(steps[1].detail.style, "brief")
+    eq(says[#says].bundle, "DenseHalf"); eq(says[#says].delay, Dense.PROGRESS_SAY)
+    at(45)
+    at(39)
+    eq(#steps, 1, "a half is told once, zombies coming back or not")
+    at(20)
+    eq(#steps, 2)
+    eq(steps[2].detail.key, "IGUI_OA_Title_DenseProgress2")
+    eq(says[#says].bundle, "DenseNearly")
+    at(15)
+    eq(#steps, 2)
+    at(8)
+    eq(#steps, 2, "the clearing has its title")
+    eq(#titles, 1)
+    -- a fall past both steps at once is the further one alone
+    local q = Dense.list()[2]
+    counts["2000,2000"] = 100
+    stand(r, q)
+    counts["2000,2000"] = 20
+    stand(r, q)
+    eq(#steps, 3)
+    eq(steps[3].detail.key, "IGUI_OA_Title_DenseProgress2")
+    -- under the least baseline nothing is told
+    local s = Dense.list()[3]
+    counts["3000,3000"] = 19
+    stand(r, s)
+    counts["3000,3000"] = 4
+    stand(r, s)
+    eq(#steps, 3)
 end)
 
 test("a baseline under 20 never clears; none is taken of an empty count", function()

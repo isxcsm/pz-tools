@@ -92,15 +92,15 @@ P10T.start("p10dense", function(a)
     local low = P10T.scratch(a, "dense_low", 5, 0)
     local high = P10T.scratch(a, "dense_high", 5, 1)
     a.check("below tier 6 no place is shown", #Dense.shown(low) == 0 and View ~= nil, #Dense.shown(low))
-    a.check("from tier 6 every place is shown", #Dense.shown(high) == #list, #Dense.shown(high))
+    a.check("from tier 6 nothing is shown before it is found", #Dense.shown(high) == 0, #Dense.shown(high))
+    for _, p in ipairs(list) do Dense.seen(high)[p.id] = true end
+    a.check("from tier 6 every place found is shown", #Dense.shown(high) == #list, #Dense.shown(high))
     if View then
         local sceneLow, sceneHigh = View.scene(low, nil), View.scene(high, nil)
         local function dense(scene)
             local n = 0
             for _, c in ipairs(scene.circles) do
-                for _, color in pairs(View.MAP_DENSE) do
-                    if c.color == color then n = n + 1 end
-                end
+                if c.color == View.MAP_DENSE then n = n + 1 end
             end
             return n
         end
@@ -110,11 +110,11 @@ P10T.start("p10dense", function(a)
         for _, p in ipairs(list) do
             local hit = false
             for _, c in ipairs(sceneHigh.circles) do
-                if c.x == p.x + 0.5 and c.y == p.y + 0.5 and c.r == p.r and c.color == View.MAP_DENSE[p.kind] and c.dim then hit = true end
+                if c.x == p.x + 0.5 and c.y == p.y + 0.5 and c.r == p.r and c.color == View.MAP_DENSE and c.dim then hit = true end
             end
             if not hit then right = false end
         end
-        a.check("each circle in its kit's colour, dim, at the place", right)
+        a.check("each circle in the one colour, dim, at the place", right)
     end
     for _, k in ipairs(Shop.WEAPON_KITS) do
         local entry = Shop.entry(k[1])
@@ -294,7 +294,10 @@ P10T.start("p10dense", function(a)
             local n = Shop.available(kitEntry, A)
             a.check("the shop offers 2 of it", n == 2, n)
         end
-        a.check("the place is off that record's map", #Dense.shown(A) == #list - 1)
+        a.check("the place was found on the way in", Dense.seen(A)[place.id] == true)
+        local listed = false
+        for _, p in ipairs(Dense.shown(A)) do listed = listed or p.id == place.id end
+        a.check("the place is off that record's map", not listed)
         if View then
             local scene = View.scene(A, nil)
             local still = false

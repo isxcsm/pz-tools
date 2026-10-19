@@ -3,17 +3,22 @@
 -- of density (the densest first): damage, critical, repair, damage ... A character gets its place's reward once, when it
 -- clears the place (the zombies in its circle fall to a tenth of the most counted there) or stands in the circle of a
 -- place that is already cleared in this world (by an earlier character); the shop reads the rewards (a kind's restock is
--- the places of its kind a record got, and none is sold before the first). Shown on the maps from trust level 6, until the record has its reward (a
--- place an earlier character cleared stays on a new one's maps: its reward waits there).
+-- the places of its kind a record got, and none is sold before the first). From trust level 6 a place is found when the
+-- character comes within SEEN squares of its circle (a title and a line of self-talk) and from then on shown on the maps, in one
+-- colour whatever its kit, until the record has its reward (a place an earlier character cleared is found and shown the
+-- same way: its reward waits there).
 --
 -- Kept in the world, "dense": made, list = { { id, x, y, r, chunks, kind } }, baseline[id] (the most zombies counted
--- there before it was cleared), cleared[id] = { by (the record's id), at (world hours) }. Kept in a record, "dense": got[id] = kind.
+-- there before it was cleared), told[id] (the last step of PROGRESS told there), cleared[id] = { by (the record's id),
+-- at (world hours) }. Kept in a record, "dense":
+-- got[id] = kind, seen[id] = true.
 -- The only thing that runs more than once is the look (Dense.look, a game minute's event, at most once a real second):
 -- a few distances, and only near a place the count of zombies.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Sync"
 require "OperationAcorn/Economy/Trust"
+require "OperationAcorn/Say"
 local OA = OperationAcorn
 local Dense = {}
 OA.Dense = Dense
@@ -34,9 +39,24 @@ Dense.TIER = 6
 -- the middle on the ground floor.
 Dense.NEAR = 20
 Dense.COUNT_R = 40
+-- A place is found from this many squares outside its circle (about where its crowd comes into sight).
+Dense.SEEN = 40
 -- It is cleared when the count falls to this share of the most counted, if that was at least LEAST.
 Dense.CLEARED_SHARE = 0.10
 Dense.LEAST = 20
+-- On the way there the player is told (a brief title and a line of self-talk, once a step a place) when the count falls
+-- to these shares.
+Dense.PROGRESS = { 0.50, 0.25 }
+-- Real seconds from a title to its line of self-talk: a place found waits as a discovery's title is read (Scene.ARRIVE_SAY);
+-- a step on the way, in the fight, only a moment after its brief title.
+Dense.FOUND_SAY = 5
+Dense.PROGRESS_SAY = 1.5
+
+-- The self-talk (Say.lua bundles): a place come in sight of, its zombies down to a half, nearly clear.
+OA.Say.define("DenseFound", {})
+OA.Say.define("DenseHalf", {})
+OA.Say.define("DenseNearly", {})
+local PROGRESS_LINES = { "DenseHalf", "DenseNearly" }
 -- The least real time (ms) between two looks of a record.
 Dense.LOOK_MS = 1000
 
@@ -51,6 +71,13 @@ function Dense.got(record)
     local s = OA.Store.section(record, "dense")
     s.got = s.got or {}
     return s.got
+end
+
+-- The places a record has found: { [place id] = true }.
+function Dense.seen(record)
+    local s = OA.Store.section(record, "dense")
+    s.seen = s.seen or {}
+    return s.seen
 end
 
 -- How many places of a kind a record got (the shop's restock of that kind).
@@ -137,13 +164,14 @@ function Dense.zombieless()
     return SandboxVars ~= nil and SandboxVars.Zombies == Dense.NO_ZOMBIES
 end
 
--- The places the maps show a record: { { id, x, y, r, kind } }, from the trust level on, those it has no reward from.
+-- The places the maps show a record: { { id, x, y, r, kind } }, from the trust level on, those it has found and has no
+-- reward from.
 function Dense.shown(record)
     local list = {}
     if OA.Trust.tier(record) < Dense.TIER or Dense.zombieless() then return list end
-    local got = Dense.got(record)
+    local got, seen = Dense.got(record), Dense.seen(record)
     for _, p in ipairs(Dense.list()) do
-        if not got[p.id] then list[#list + 1] = p end
+        if seen[p.id] and not got[p.id] then list[#list + 1] = p end
     end
     return list
 end
@@ -171,7 +199,7 @@ end
 
 -- A record stands near a place it has no reward from. In a place already cleared the reward is its own; else the count
 -- raises the baseline (the most seen: zombies still streaming in as the character arrives would leave a first count low)
--- or, at a tenth of it, clears the place.
+-- or, at a tenth of it, clears the place; on the way the steps of PROGRESS are told.
 local function visit(record, p)
     local w = world()
     if Dense.cleared(p.id) then
@@ -186,9 +214,21 @@ local function visit(record, p)
         w.baseline[p.id] = count
         return
     end
-    if base >= Dense.LEAST and count <= base * Dense.CLEARED_SHARE then
+    if base < Dense.LEAST then return end
+    if count <= base * Dense.CLEARED_SHARE then
         w.cleared[p.id] = { by = record.id, at = OA.hours() }
         give(record, p, false)
+        return
+    end
+    w.told = w.told or {}
+    local step = 0
+    for i, share in ipairs(Dense.PROGRESS) do
+        if count <= base * share then step = i end
+    end
+    if step > (w.told[p.id] or 0) then
+        w.told[p.id] = step
+        OA.Sync.title(record.id, { key = "IGUI_OA_Title_DenseProgress" .. step, style = "brief" })
+        OA.Say.tell(record.id, PROGRESS_LINES[step], nil, Dense.PROGRESS_SAY)
     end
 end
 
@@ -202,15 +242,30 @@ local function lookList(record)
 end
 
 local function lookOver(record, list, x, y)
-    local got = Dense.got(record)
+    local got, seen = Dense.got(record), Dense.seen(record)
+    local found
     for _, p in ipairs(list) do
-        local dx, dy, near = p.x - x, p.y - y, math.max(Dense.NEAR, p.r or 0)
-        if dx * dx + dy * dy <= near * near and not got[p.id] then visit(record, p) end
+        if not got[p.id] then
+            local dx, dy, near = p.x - x, p.y - y, math.max(Dense.NEAR, p.r or 0)
+            local d2, sight = dx * dx + dy * dy, (p.r or 0) + Dense.SEEN
+            if not seen[p.id] and d2 <= sight * sight then
+                seen[p.id] = true
+                found = found or p
+            end
+            if d2 <= near * near then visit(record, p) end
+        end
     end
+    -- one title however many are found at once; none when the place's reward came in the same look (its own title)
+    if found and not got[found.id] then
+        OA.Sync.title(record.id, { key = "IGUI_OA_Title_DenseFound", sub = "IGUI_OA_Title_DenseFoundSub",
+            style = "discovery", fallback = "good" })
+        OA.Say.tell(record.id, "DenseFound", nil, Dense.FOUND_SAY)
+    end
+    if found then OA.Sync.changed("story", record.id) end
 end
 
--- A look at where a record's character stands (x, y): the places whose circle it stands in (NEAR at least) that the
--- record has no reward from. Called on the minute; does nothing until a real second has passed since the last look, below the trust level, or
+-- A look at where a record's character stands (x, y): the places it comes in sight of are found, and those whose circle
+-- it stands in (NEAR at least) that the record has no reward from are looked at. Called on the minute; does nothing until a real second has passed since the last look, below the trust level, or
 -- with no place about.
 function Dense.look(record, x, y)
     local list = lookList(record)

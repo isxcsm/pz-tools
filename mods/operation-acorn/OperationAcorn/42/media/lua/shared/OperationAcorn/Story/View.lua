@@ -27,11 +27,9 @@ View.MAP_CRATE = { 1.0, 0.58, 0.12 }
 View.MAP_ME = { 1.0, 0.36, 0.38 }
 -- A drop site's survey zone (Story/Survey): the capstones' gold.
 View.MAP_SURVEY = { 0.92, 0.74, 0.26 }
--- A dense place's circle (Story/Dense), by the weapon kit it gives: crimson for the damage kit, magenta for the
--- critical kit, lime for the repair kit; none is near the missions' teal and sky blue, the crates' orange or the survey zone's
--- gold.
-View.MAP_DENSE = { damage = { 0.82, 0.18, 0.24 }, crit = { 0.86, 0.30, 0.80 }, critDamage = { 0.93, 0.56, 0.24 },
-    repair = { 0.62, 0.84, 0.22 } }
+-- A dense place's circle (Story/Dense), one crimson whatever kit it gives (the kit is learnt by clearing it): not near the
+-- missions' teal and sky blue, the crates' orange or the survey zone's gold.
+View.MAP_DENSE = { 0.82, 0.18, 0.24 }
 
 function View.mapColor(kind)
     if kind == "story" then return View.MAP_SKY end
@@ -178,7 +176,7 @@ function View.scene(record, where)
         scene.circles[#scene.circles + 1] = { x = z.x + 0.5, y = z.y + 0.5, r = z.r, color = View.MAP_SURVEY, dim = true }
     end
     for _, d in ipairs(OA.Dense and OA.Dense.shown(record) or {}) do
-        scene.circles[#scene.circles + 1] = { x = d.x + 0.5, y = d.y + 0.5, r = d.r, color = View.MAP_DENSE[d.kind],
+        scene.circles[#scene.circles + 1] = { x = d.x + 0.5, y = d.y + 0.5, r = d.r, color = View.MAP_DENSE,
             dim = true }
     end
     scene.empty = #scene.circles == 0 and #scene.crates == 0 and #scene.points == 0
