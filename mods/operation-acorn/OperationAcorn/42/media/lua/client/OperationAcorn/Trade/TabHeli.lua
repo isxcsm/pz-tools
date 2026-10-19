@@ -27,6 +27,7 @@ function OATabHeli:model(record)
         heli = M.heli(record, now, getGameTime():getTimeOfDay()),
         spec = M.spec(record),
         last = M.lastSettle(record, now),
+        box = M.box(record, c:getX(), c:getY()),
         crates = M.crates(record.heli and record.heli.markers, c:getX(), c:getY()),
         infection = M.infection(M.infectionState(record)),
         guide = Folder.newGuide(record),
@@ -52,7 +53,7 @@ function OATabHeli:buildHero(L, x, y, w, h)
         for _, line in ipairs(Draw.wrap(s.text, w - 20)) do subs[#subs + 1] = { line, p[s.colour] or p.text } end
     end
     local top = #subs * fh + (H.eta and 14 or 0) + (d.infection and 46 or 0)
-    local roomy, gap, showSpec, showFacts = M.heroSpacing(h, top, 2, d.guide ~= nil)
+    local roomy, gap, showSpec, showFacts = M.heroSpacing(h, top, 3, d.guide ~= nil)
     local yy = y + 46
     for _, s in ipairs(subs) do
         Draw.text(L, s[1], x + 10, yy, s[2])
@@ -101,7 +102,7 @@ function OATabHeli:buildHero(L, x, y, w, h)
         H.reissue and "strong" or "disabled", nil, "reissue", not H.reissue and H.reissueWhy and Draw.tip(p, { H.reissueWhy }) or nil)
 end
 
--- The last settlement and the crates under a rule from yy: a label line and a value line each, or one line each when
+-- The last settlement, the delivery box and the crates under a rule from yy: a label line and a value line each, or one line each when
 -- short.
 function OATabHeli:buildFacts(L, x, yy, w, roomy)
     local d, p, fh = self.data, L.p, L.fh
@@ -111,6 +112,8 @@ function OATabHeli:buildFacts(L, x, yy, w, roomy)
         { getText("IGUI_OA_Status_LastSettle"), d.last and Draw.styled(L, d.last, p.text, p.value,
             { [1] = { p.text, UIFont.Small }, [3] = { p.text, p.numberFont } })
             or { { s = getText("IGUI_OA_Status_LastSettleNone"), c = p.dim } } },
+        { getText("IGUI_OA_Status_Box"), d.box and { { s = d.box, c = p.text } }
+            or { { s = getText("IGUI_OA_Status_BoxNone"), c = p.dim } } },
         { getText("IGUI_OA_Status_Crates"), d.crates and { { s = d.crates, c = p.text } }
             or { { s = getText("IGUI_OA_Status_CratesNone"), c = p.dim } } },
     }

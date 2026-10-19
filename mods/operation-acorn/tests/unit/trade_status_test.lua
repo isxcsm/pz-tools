@@ -293,6 +293,22 @@ test("the four values of the helicopter now, the last settlement, the crates", f
     truthy(string.find(text, "IGUI_OA_Place_Dir_E", 1, true), "the nearest one, to the east")
 end)
 
+test("the delivery box's line: where the active box stands, sealed, carried off, or still in its crate", function()
+    local Boxes = OA.Trade.Boxes
+    local r = { id = 1, number = 1 }
+    eq(M.box(r, 0, 0), nil, "none")
+    local box = Boxes.add(r, { state = "placed", x = 400, y = 0, z = 0 })
+    local text = M.box(r, 0, 0)
+    truthy(string.find(text, "^IGUI_OA_Place_Metres"), text)
+    truthy(string.find(text, "IGUI_OA_Place_Dir_E", 1, true), "to the east")
+    box.state = "sealed"
+    truthy(string.find(M.box(r, 0, 0), "^IGUI_OA_Status_BoxSealed"))
+    box.state = "carried"
+    truthy(string.find(M.box(r, 0, 0), "^IGUI_OA_Status_BoxCarried"), "where it last stood")
+    r.heli = { markers = { { kind = "crate", x = 400, y = 0 } } }
+    truthy(string.find(M.box(r, 0, 0), "^IGUI_OA_Status_BoxInCrate"), "packed in the crate on its spot")
+end)
+
 test("the waybill's sums: the gain repays a debt first, orders wait while it is a debt", function()
     local r = M.receipt(48200, 31400, 25000, {})
     eq(r.after, 54600); eq(r.orders, 25000); eq(r.support, 0)

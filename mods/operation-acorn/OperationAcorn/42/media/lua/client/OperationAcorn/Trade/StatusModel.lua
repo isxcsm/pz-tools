@@ -450,6 +450,22 @@ function M.crates(markers, px, py)
     return text
 end
 
+-- Where the active delivery box is, from the player (DESIGN 9 '위치 추적': where it last stood; the maps mark it too):
+-- standing, sealed, carried off from there, or still in the supply crate it came in. nil when there is none.
+function M.box(record, px, py)
+    local box = Boxes.active(record)
+    if not (box and box.x and box.y) then return nil end
+    local where = OA.Places.whereText(px, py, box.x, box.y)
+    if box.state == "sealed" then return tr("IGUI_OA_Status_BoxSealed", where) end
+    if box.state == "carried" then
+        for _, m in ipairs(record.heli and record.heli.markers or {}) do
+            if m.x == box.x and m.y == box.y then return tr("IGUI_OA_Status_BoxInCrate", where) end
+        end
+        return tr("IGUI_OA_Status_BoxCarried", where)
+    end
+    return where
+end
+
 -- A number of hours as "4일 6시간" or "6시간".
 function M.duration(hours)
     hours = math.max(0, math.floor(hours or 0))
