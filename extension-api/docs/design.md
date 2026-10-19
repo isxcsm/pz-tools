@@ -2122,23 +2122,23 @@ which override the jar's; it overrides none of the text classes):
 | `delay` | 0 to 30 seconds | Before it comes on. |
 | `enter`, `enterTime` | `"none"`, `"fade"`, `"pop"`, `"slam"`, `"settle"`, `"rise"`, `"drop"`, `"slide"`, `"type"`, and the looks `"impact"`, `"torch"`, `"signal"`, `"mist"`, `"bleed"`, `"strike"`; 0 to 30 seconds | How it comes on: fades in; pops from half its size past its size and back; slams down from 2.5 times its size; settles, coming down from 0.3 of a line above its place as it fades in (`0.3 (1 - in)^3`, at its size throughout); rises, or drops, three quarters of a line into its place as it fades in; slides up 0.4 of a line into its place as it fades in; or types (see [typing](#typing-markup-and-fitting-a-width)), which takes as long as its text and speed do, so it takes no `enterTime`. The looks are drawn by the API's shader (see [looks](#looks)): it falls and hits, a torch sways in over it, it is tuned in as a radio signal, the mist clears off it, drops bleed into it, or its letters are struck on a typewriter. |
 | `hold` | 0 to 3600 seconds | How long it stays once on; left out, until the mod hides it. |
-| `leave`, `leaveTime` | `"none"`, `"fade"`, `"rise"`, `"sink"`, `"grow"`, `"shrink"`, `"dust"`, and the looks `"erode"`, `"dim"`, `"lost"`, `"mist"`, `"burn"`, `"flare"`, `"dry"`, `"under"`, `"feed"`, `"exhale"`, `"wash"`; 0 to 30 seconds | How it goes: fades; drifts half a line up, or down; swells by 30%, or shrinks by half; each as it fades. `"dust"` crumbles it like ash that the wind takes a long way, swept across it from one side (see [dust](#dust)). The looks (see [looks](#looks)): it weathers away in place, the torch on it dies down to embers, the signal is lost into the static, it sinks back into the mist, it burns away like paper, it flares away from its foot, its ash drifting a while after, it dries dark and flakes away, it sinks into still water, its paper is fed out, it breathes out after a last heartbeat, or its ink dries away in blotches. `"none"` goes at once. |
+| `leave`, `leaveTime` | `"none"`, `"fade"`, `"rise"`, `"sink"`, `"grow"`, `"shrink"`, and the looks `"erode"`, `"dim"`, `"lost"`, `"mist"`, `"burn"`, `"flare"`, `"dry"`, `"under"`, `"feed"`, `"exhale"`, `"wash"`; 0 to 30 seconds | How it goes: fades; drifts half a line up, or down; swells by 30%, or shrinks by half; each as it fades. The looks (see [looks](#looks)): it weathers away in place, the torch on it dies down to embers, the signal is lost into the static, it sinks back into the mist, it burns away like paper, it flares away from its foot, its ash drifting a while after, it dries dark and flakes away, it sinks into still water, its paper is fed out, it breathes out after a last heartbeat, or its ink dries away in blotches. `"none"` goes at once. |
 | `player` | 0 to 3 | The local player whose screen it is on; left out, every local player's. |
 | `queue` | boolean | It waits for the titles and queued texts before it on its screen (see titles). |
 | `markup` | boolean | The text has [markup](#typing-markup-and-fitting-a-width): pauses, speed changes and colours (false when left out: braces are braces). |
 | `width` | 0.05 to 1 | The longest a line may be, as a share of the player's screen's width: longer lines are broken at spaces. Left out, a line is as long as it is. |
 | `speed` | 1 to 1000 | With `enter = "type"`: the characters a second (30 when left out). |
 | `cursor` | boolean | With `enter = "type"`: a blinking underscore after the last character typed. |
-| `backdrop` | 0 to 1 | A dark backdrop behind the text, this strong in its middle (0, when left out: none), so that it reads over a busy screen: a box over its lines whose edge fades out over 2.6 line heights to the sides and a line up and down as a smooth step: one layer, the box and four rings round it, each ring's quads shaded by the card from the inside's darkness to the outside's (a colour for each corner, at the text's own place, not whole pixels), so that it fades and moves as smoothly as the text (layers stacked each a little smaller rounded together to the screen's levels and stepped as they faded). It is as strong as the text is seen, and comes in over 1.2 s at most as fast (a look's enter is whole from the start); a text that leaves as dust or burns takes it with it over its leave. Under a look it stays at the text's place at rest. |
-| `dustSize` | 0.25 to 8 | With `leave = "dust"`, `"burn"` or `"flare"`: the size of the dust's cells, as a share of the usual (1: 4% of the line's height, 4.3 pixels for a line a tenth of a 1080-pixel screen). |
-| `dustSweep` | `"right"`, `"left"`, `"up"`, `"down"`, `"upright"`, `"upleft"`, `"downright"`, `"downleft"` | With `leave = "dust"` or `"burn"`: the way the front goes (`"right"` when left out: the text breaks from its left side first; `"downleft"` from its top right corner, the front at 45 degrees in cells). A side's flakes go the front's way; a corner's go back towards the corner, away from what is left. |
-| `dustDrift` | 0 to 4 | With `leave = "dust"` or `"burn"`: how far the dust drifts, as a share of the usual (1: about two lines up, and up to four and a half lines to the side; 0: the cells fade where they are). |
-| `dustBurn` | a colour `{ r, g, b }` or `{ r, g, b, a }` | With `leave = "dust"`: it burns as charcoal instead of weathering: ahead of the front it scorches, glows in this colour at its edge and goes out to black char that crumbles to dark ash, a few sparks of the colour among it (see [dust](#dust)). Left out, it weathers to grey ash. With `leave = "burn"` or `"flare"`: the colour of its flame's edge and sparks ((1, 0.32, 0.1) when left out). |
+| `backdrop` | 0 to 1 | A dark backdrop behind the text, this strong in its middle (0, when left out: none), so that it reads over a busy screen: a box over its lines whose edge fades out over 2.6 line heights to the sides and a line up and down as a smooth step: one layer, the box and four rings round it, each ring's quads shaded by the card from the inside's darkness to the outside's (a colour for each corner, at the text's own place, not whole pixels), so that it fades and moves as smoothly as the text (layers stacked each a little smaller rounded together to the screen's levels and stepped as they faded). It is as strong as the text is seen, and comes in over 1.2 s at most as fast (a look's enter is whole from the start); a text that burns takes it with it over its leave. Under a look it stays at the text's place at rest. |
+| `dustSize` | 0.25 to 8 | With `leave = "burn"` or `"flare"`: the size of the burn's cells, as a share of the usual (1: 4% of the line's height, 4.3 pixels for a line a tenth of a 1080-pixel screen). |
+| `dustSweep` | `"right"`, `"left"`, `"up"`, `"down"`, `"upright"`, `"upleft"`, `"downright"`, `"downleft"` | With `leave = "burn"` or `"flare"`: the way the front goes (`"right"` when left out: the text burns from its left side first; `"downleft"` from its top right corner, the front at 45 degrees in cells). A side's flakes go the front's way; a corner's go back towards the corner, away from what is left. |
+| `dustDrift` | 0 to 4 | With `leave = "burn"` or `"flare"`: how far the ash drifts, as a share of the usual (1: about two lines up, and up to four and a half lines to the side; 0: the cells fade where they are). |
+| `dustBurn` | a colour `{ r, g, b }` or `{ r, g, b, a }` | With `leave = "burn"` or `"flare"`: the colour of its flame's edge and sparks ((1, 0.32, 0.1) when left out; see [pictures](#pictures)). |
 
 `title`'s spec: `text` (the title), `subtitle` (the line under it), `style` (`"dust"` when left out), and to change the style's
 `color`, `subtitleColor`, `hold` (seconds), `y`, `player`, `leave` and `leaveTime` (for the title and its line alike: any style
-can leave as dust), `backdrop` (0 for none), `scale` (0.4 to 2.5: the style's sizes of the title and its line times this, for a
-title that matters more or less than its style says), `dustSize`, `dustSweep`, `dustDrift` and `dustBurn` (with `leave = "dust"`, `"burn"` or `"flare"`, the
+can leave burning), `backdrop` (0 for none), `scale` (0.4 to 2.5: the style's sizes of the title and its line times this, for a
+title that matters more or less than its style says), `dustSize`, `dustSweep`, `dustDrift` and `dustBurn` (with `leave = "burn"` or `"flare"`, the
 style's or the spec's), `sounds` and `subtitleSounds` (below), and `now`. The line under a title takes its look's cues from it (a torch's flicker).
 
 A title sounds at its moments when its spec names the game's sounds for them: `sounds = { enter = ..., land = ..., hold = ..., leave = ... }` for the title,
@@ -2291,7 +2291,7 @@ interface goes on being drawn (the tooltip and what follows it).
 ### Looks
 
 A look is an enter or a leave the API draws with a shader of its own over a picture of the text
-([`Looks`](../src/api/pzext/api/Looks.java)): the dust's picture ([below](#dust)), made as soon as the text shows (once typed, for a
+([`Looks`](../src/api/pzext/api/Looks.java)): the text's picture ([below](#pictures)), made as soon as the text shows (once typed, for a
 typed text) at its place and size at rest. Each frame the main thread hands the render queue a frame of the look, a few numbers
 (the text's place, scale, squash and move, the shares of its enter and leave, its clocks); the render thread draws it from them
 in the queue's order: the game's state saved (`glPushAttrib`, `glPushClientAttrib`, the program bound), the API's program
@@ -2308,7 +2308,7 @@ them with the same arithmetic and shader.
 | `"signal"` (enter), `"lost"` (leave) | The text as a radio signal: as it is weak its rows tear sideways, its colours come apart, grain eats it, scan lines and specks of static show. It is tuned in over its enter (a hiccup on the way), hiccups once 2.6 s after, and as it leaves cuts out twice and sinks into the grain. |
 | `"mist"` (enter and leave) | Drifting mist (two layers drifting their own ways) over a band round the text, drawn behind it: the text clears from blurred and faint, its colour grey, as the mist thins to a veil that drifts on as it stays; as it leaves the mist thickens again and the text sinks back into it, the mist then thinning away itself. |
 | `"erode"` (leave) | The text weathers away in place: its colour drains, it wears off in pits from its edges (a noise of its grain over how much ink is round each point), and the last of it fades. |
-| `"burn"` (leave) | The text burns away like paper, spot by spot: a map of when each pixel burns (the sweep of `dustSweep`, 52% of the leave to cross it, clumps a few cells wide that open holes ahead of the front, fibres that make its edge ragged, a warp that curls it); at each spot a flame's edge (a hot core, then the burn's colour, `dustBurn`), char behind it and scorch ahead of it. The dust's cells leave as their middle burns: half of the rest as shards of ash that tumble on the wind (char greying fast, their rim glowing a moment), a quarter as sparks of the burn's colour cooling to dark ash. |
+| `"burn"` (leave) | The text burns away like paper, spot by spot: a map of when each pixel burns (the sweep of `dustSweep`, 52% of the leave to cross it, clumps a few cells wide that open holes ahead of the front, fibres that make its edge ragged, a warp that curls it); at each spot a flame's edge (a hot core, then the burn's colour, `dustBurn`), char behind it and scorch ahead of it. The burn's cells leave as their middle burns: half of the rest as shards of ash that tumble on the wind (char greying fast, their rim glowing a moment), a quarter as sparks of the burn's colour cooling to dark ash. |
 | `"flare"` (leave) | The text burns as `"burn"` does, but from a spot at its middle's foot (85% down its picture), spreading round, a spot's height counting four times its place across, so that the letters aside burn from their feet up; the burn is done by 90% of the leave, fast at first and slowing (`1 - (1 - u)^1.5` of the way to its last spot). Its ash and sparks are thrown out from that spot as their spots burn, slowing (`1 - e^(-7a)`), and then drift round in the air, a little up, the circle 0.3 lines wide; they fly 3.5 s (from 75% of that), apart from the leave: the text is shown until the last is gone, but the next in its queue starts as soon as its leave is over. |
 | `"bleed"` (enter), `"dry"` (leave) | Drops land on the text one after another in a shuffled order across it (a title's fall onto it, flecks flying as each hits; a line's seep in, sooner), and each spreads with a ragged edge, soaking the letters in with a wet front (a title's blots a little past its letters too). As a title stays, a drop runs down from under its first, a bead at its end. As it leaves it dries dark and flakes away in patches. The text's own colour is the blood's. |
 | `"under"` (leave) | Still water at the text's foot (the lowest row of its ink): its mirror in it comes up over 3.5 s, swaying in fine streaks letter by letter; 1.5 s after, the text sinks into it, slowly at first and faster and faster (`u^2.5`), fading with it; what has gone under is not seen. The line under a title has its own water at its own foot, and they sink together. In a leave shorter than 9 s these times are shorter alike. |
@@ -2327,17 +2327,15 @@ made away from the main thread (some tens of milliseconds for a title, as the ti
 
 **The cost.** On the main thread a frame of a look is a few numbers: 0.7 us a frame for a torch-lit title and its line in the
 synthetic game, nothing allocated over 20,000 frames. On the render thread a few quads and the shader over the text's box; a burn's
-shards are a draw of their own (at most one for each of the dust's cells).
+shards are a draw of their own (at most one for each of the burn's cells).
 
-### Dust
+### Pictures
 
-`leave = "dust"` crumbles the text like ash as it goes: a front crosses it from one side (`dustSweep`), and where it has passed
-the text comes apart, as weathering: ahead of the front it greys and wears thin, pitted in patches that open and spread before
-the front comes; then its flakes, chips and grains of dust, glow faintly warm as they come loose, sag, and are caught by the wind
-and taken ever faster a long way up and to the side, billowing, wearing down and greying as they fade. The part the front has not
-reached and that does not wear yet stays as it was. The cells are pieces of the text as it was drawn, shadow, outline and colours with
-them, not copies of its letters
-([`Dust`](../src/api/pzext/api/Dust.java)).
+A look's text is drawn once into a picture of its own, and the burn cuts that picture into cells: a front crosses the text from one
+side or corner (`dustSweep`), and where it has passed the text burns and its flakes, chips and grains of ash, are caught by the
+wind and taken ever faster a long way up and to the side, billowing, as they fade. The cells are pieces of the text as it was
+drawn, shadow, outline and colours with them, not copies of its letters
+([`Dust`](../src/api/pzext/api/Dust.java)). The shader that draws them is the burn's ([looks](#looks)).
 
 **How the game draws into a picture.** Read from the bytecode of Build 42 (the jar's classes, and PZ Optimize's loose
 `TextureFBO`, `TextureDraw`, `RenderThread` and `SpriteRendererStates`, which keep the same members):
@@ -2350,14 +2348,12 @@ them, not copies of its letters
   before it (a stack). Both are GL calls: they run on the render thread.
 - The main thread does not draw: `SpriteRenderer` keeps what it is given for the render thread, which draws it a frame later.
   `SpriteRenderer.drawGeneric(GenericDrawer)` puts a drawer of one's own in that queue, run on the render thread in order with
-  the sprites around it, as the game's atlases and model views do. `render(texture, the four corners, their texture coordinates,
-  r, g, b, a)` puts a quad that shows any part of a texture.
+  the sprites around it, as the game's atlases and model views do.
 - How sprites blend is the style each is queued with, the queue state's `defaultStyle`: `UIFBOStyle` blends the colours as
-  usual and adds the alpha (the interface's buffer is drawn in it, its colours premultiplied by their alpha), and
-  `AdditiveStyle` (one, one minus the source's alpha) is how the game draws that buffer onto the screen.
+  usual and adds the alpha (the interface's buffer is drawn in it, its colours premultiplied by their alpha).
 
-**What the API does.** A text that leaves as dust is drawn as before until it stands still: its enter is over, or it began to
-leave. Then, a frame or so apart, on each screen it is on:
+**What the API does.** A text with a look is drawn as before until its picture is made: at once, or, for a typed text, once it is
+typed. Then, a frame or so apart, on each screen it is on:
 
 1. Its box is worked out: its lines' or rows' extent at their place, and a margin of a fifth of a line, the outline and the
    shadow's offset, and 2 pixels, in whole pixels. A box larger than 4096 pixels on a side, or a game without frame buffers
@@ -2370,44 +2366,30 @@ leave. Then, a frame or so apart, on each screen it is on:
    box's pixels back (`glReadPixels`, once, with the pack state saved and put back), ends the frame buffer and puts the
    viewport and the scissor test back. The style queued before is put back. The text is also drawn on the screen as usual in
    that frame.
-3. The next frame, the main thread cuts the picture into square cells of `4% of the line's height times dustSize` (at least
-   1.5 pixels) and keeps those with a texel of an alpha of 10 or more (of 255). With more than 4,500 of them, the cells are
-   made larger until there are at most 4,500. The pixels read back are let go.
+3. For a burn, away from the main thread, the picture is cut into square cells of `4% of the line's height times dustSize` (at
+   least 1.5 pixels), keeping those with a texel of an alpha of 10 or more (of 255). With more than 4,500 of them, the cells
+   are made larger until there are at most 4,500. The pixels read back are let go.
 
-As it leaves, the text is drawn from the picture, in `AdditiveStyle`, with nothing else of the text drawn: in each lane
-across the sweep (a row of cells, or a column for `"up"` and `"down"`), the part from the first cell the front has not reached
-to the far side is one quad, the cells before it that have not started are each a quad in place, and the cells on their way are
-each a quad at their place on their path. Every quad is a part of the one texture, so the game sends them to the card together.
-At the start of the leave the text is a quad for each lane and looks as it did.
-
-**The schedule**, in shares of `leaveTime`, the same for the same text (a seed from its key, screen and lines):
+**The burn's schedule**, in shares of `leaveTime`, the same for the same text (a seed from its key, screen and lines):
 
 | Part | Value |
 | --- | --- |
 | The front | Crosses the box in 0.35 of the leave (from a corner: the cells' distance from it across and down, or up, alike, as a share of the box's columns and rows). A cell starts as the front reaches its place (its column, or row, in the box's grid), later by up to 0.25: 75% of that from a clumpy noise over the text (value noise in patches of 6 cells, 70%, and of 2.5 cells, 30%), so that patches go together and holes open and spread, and 25% its own. |
-| Wearing | Over the 0.12 of the leave before it starts, a cell wears in place: its colour to 60% and its side to 78% (smoothly), so that the text greys and thins, pitted, ahead of the front. |
 | A cell's life | 0.3 to 0.4 of the leave, its own, from its start; every cell has gone by the end of the leave. |
 | Its path | At its age `a` (0 to 1): for its first 12% it sags `0.08` line heights (smoothly) as it comes loose; then the wind catches it (`w`, 0 to 1 over the rest), eased in as `w (0.25 + 0.75 w)`: up by `2 x (0.5 to 1.5)` line heights and to the side (the sweep's way, or back towards a corner's; either way for `"up"` and `"down"`) by `4.5 x` (half a gust that changes slowly across the sweep, 0.7 to 1, and half its own, 0.45 to 1) of that ease, times `dustDrift`; and a billow of `0.15 w` line heights to the side and `0.3 w` up and down, 0.5 to 1.1 turns over its life. |
-| Its size and alpha | As a flake it is a chip (three in five: 80% to 100% of its worn side) or a grain of dust (40% to 60%), wearing down to 45% of that; it stays whole for a quarter of its life, then fades: `1 - smooth((a - 0.25) / 0.75)`. |
-| Its colour | Drawn premultiplied, its colour below its alpha darkens it: it glows warm as it comes loose (green times 0.84 and blue times 0.62 at most, up over 8% of its life and out by a third), and greys to half its worn colour by 70% of its life (smoothly). |
-| Burning (`dustBurn`) | In place of the wearing's grey and the flakes' colour, as charcoal. Over the 0.12 before it starts (its wear, smoothed), a cell scorches to (0.34, 0.18, 0.1) times its colour by 40% of it; glows by 62%: the burn's colour, its alpha down to 55% while its colour stays (smoothly), so that the light adds to what is behind it, flickering 9 times over the leave (dimming by up to 30%, each cell at its own phase); goes out to black char, (0.07, 0.055, 0.05), by 85%; and thins as char, by up to 22%. Its flake is char, greying to 0.2 by 70% of its life; one cell in four is a spark instead: it leaves glowing and cools over its first 40% (smoothly) to 30% of the burn's colour, its alpha back to its own. |
-
-**When it cannot.** Dust fades as `"fade"` does when the game has no frame buffers, the box is too large or has no ink, a step
-fails (once in the game's log), or the text's box moved after its picture was made (the screen's size changed). While the
-picture is on its way (it comes a frame or two after the text stands still), the text is drawn as it was, for at most 15% of
-the leave: a text that leaves at once is held whole that long, and fades if the picture has not come by then.
+| Its size and alpha | As a flake it is a chip (three in five: 80% to 100% of its side) or a grain (40% to 60%); it stays whole for a quarter of its life, then fades: `1 - smooth((a - 0.25) / 0.75)`. |
+| Sparks | One cell in four is a spark: it leaves glowing and cools over its first 40% (smoothly) to 30% of the burn's colour. |
 
 **Letting the picture go.** A piece's picture goes when its text has gone, is hidden or taken away (`hide`, `clear`, the world
-left), or gives up the dust: at the start of the next drawing of the interface, a drawer queued after everything drawn before it
-lets the frame buffer and its texture go (`TextureFBO.destroy`) on the render thread, so no frame that still draws it is behind
-it. Should the queue never run it, it is let go on the render thread's own turn 120 frames later. A newer API lets the pictures
-of the one it replaces go from its own drawing, the same way. A picture let go before its frame buffer was made is not made.
+left), or gives up its picture (its box moved): at the start of the next drawing of the interface, a drawer queued after
+everything drawn before it lets the frame buffer and its texture go (`TextureFBO.destroy`) on the render thread, so no frame
+that still draws it is behind it. Should the queue never run it, it is let go on the render thread's own turn 120 frames later. A
+newer API lets the pictures of the one it replaces go from its own drawing, the same way. A picture let go before its frame buffer
+was made is not made.
 
-**The cost.** Nothing while no text is shown, and nothing more than before while a dust text comes on or holds but the one
-frame that draws it into its picture (its strings twice) and the one that cuts it (a pass over the box's texels: about 47,000
-for a title a tenth of a 1080-pixel screen high). While it leaves, a frame is a pass over its cells (a few multiplications each,
-no sine) and a quad for each lane and each cell on its way, up to 4,500; nothing is allocated. Video memory: a texture the box's
-size (rounded up to powers of two), for one text, from when it stands still until it has gone.
+**The cost.** The one frame that draws the text into its picture (its strings twice) and the one that reads it back (a pass over
+the box's texels: about 47,000 for a title a tenth of a 1080-pixel screen high). Video memory: a texture the box's size (rounded
+up to powers of two), for one text, from when its picture is made until it has gone.
 
 ### The embedded font
 
@@ -2665,7 +2647,7 @@ local function onSearchComplete(found)
     })
 end
 
--- A chapter's end: the quiet style, burning away, in the mod's own colour; or any style, crumbling from the right.
+-- A chapter's end: the quiet style, burning away, in the mod's own colour; or any style, burning from the right.
 local function onChapterEnd(chapterName)
     local text = textApi()
     if not text then return end
@@ -2675,7 +2657,7 @@ local function onChapterEnd(chapterName)
         subtitle = getText("IGUI_MyQuests_ChapterEnd"),
         color = { 1, 0.84, 0.45 },
     })
-    -- text.title(PZExtAPI.client("MyQuests"), { text = chapterName, style = "notice", leave = "dust", leaveTime = 2, dustSweep = "left" })
+    -- text.title(PZExtAPI.client("MyQuests"), { text = chapterName, style = "notice", leave = "burn", leaveTime = 2, dustSweep = "left" })
 end
 
 -- A text of its own: a counter at the top right that stays until the mod hides it.
@@ -2748,26 +2730,16 @@ fonts in `media/fonts` alone has the closest of its two, 40 pixels the taller zo
 width or drawing; wrong arguments are Lua errors; measuring and drawing allocate nothing over 100,000 rounds, and a measure
 with its draw took about 80 ns in the synthetic game.
 
-Dust: against the installed game (11 October 2026, Build 42, PZ Optimize's loose classes before the jar), every member `Dust`
+Pictures: against the installed game (11 October 2026, Build 42, PZ Optimize's loose classes before the jar), every member `Dust`
 reads was found with the types it uses, and its drawer class was defined beside `TextureDraw.GenericDrawer` in the game's class
 loader, made and run (a second API finds it there and does not define it again). In the synthetic game (`DustTest`, with a
 sprite renderer, frame buffers, a render thread and a picture read back of its own): the schedule is bounded, ordered along the
 sweep by the sweep's share alone, the same twice and another for another seed; every cell has gone by the end of the leave; the
-alpha, size, ease, glow, grey and path are as computed, the cells rise and go their sweep's way, and the swirl's wave is within 3% of a sine;
-a picture is cut into the cells with ink, by lanes in the sweep's order for each of the four ways, with the starts' suffix
-ordered, larger cells for a picture that would have more than the most, and none without ink. The `"dust"` title left as dust fades in (at
-alpha 0.5 after 0.6 s), its picture is made once it stands still (the frame buffer on the render thread), drawn into from the
-render queue in `UIFBOStyle` with the style put back, in a box of 382 by 122 pixels with the viewport moved to its corner and
-put back, and read back; it holds as itself, then turns into strips of its picture that show the parts of it where they are
-(their texture coordinates checked corner by corner), and at 0.4 of the leave what is whole is past the front and cells fade,
-rise and glow warm (their colour at most their alpha, warm or grey); the line under it stays text until 0.3 s after the title and then crumbles from its own picture; each picture is let go
-from the render queue the frame after its text has gone. A sweep from the right keeps the left whole, and with no drift no cell
-leaves its place. Without the dust's drawing, and without frame buffers, the text fades (alpha 0.5 halfway) and nothing is made;
-a picture that is late holds the text whole for 15% of the leave and then fades it, and one hidden before its frame buffer was made
-is not made; a text hidden or cleared as it crumbles, and one whose screen changed size, lets its picture go (the last fades);
-wrong dust fields are Lua errors, and a stamp title takes `leave = "dust"`; a newer API takes the fields over and lets the older
-one's picture go. A title and its line crumbling (3,426 quads) took about 160 us a frame to place in the synthetic game (the game's own work for each quad
-comes on top) and allocated nothing over 20,000 frames. (The `"dust"` title's own leave burns now; these are with `leave = "dust"`.)
+alpha, ease, heat and path are as computed, the cells rise and go their sweep's way, and the swirl's wave is within 3% of a sine;
+a picture is cut into the cells with ink, by lanes in the sweep's order for each of the four ways, larger cells for a picture that would have more than the most, and none without ink. Without the drawing of the
+pictures, and without frame buffers, a burning text fades (alpha 0.5 halfway) and nothing is made; wrong fields are Lua errors,
+and `leave = "dust"` is none (it is not one of the leaves); a newer API takes the fields over and lets the older one's picture go.
+The pictures drawn and let go are `LooksTest`'s.
 
 Looks: in the synthetic game (`LooksTest`, its GL recording the arrays drawn and the program's mode): the arithmetic is the title
 lab's, to the digit where it is integers (the hash) and to a millionth elsewhere (the noise, the burn map, the torch, the signal,
@@ -2792,9 +2764,9 @@ colour runs as the game's fonts measure them, with kerning if they have it, the 
 log and `console.txt`'s lines for the read and the send to video memory, the swizzle in the game's OpenGL context, how sharp a
 Hangul title is at 1080p and 4K, the switch at 33 pixels, the frame time when a title first shows, the video memory); split
 screen; the interface's lower frame rate option; whether hiding the interface (the key that hides the HUD) hides
-the text too; and the text over the main menu. Dust has not been seen in the game yet: the picture drawn and read back on a real
+the text too; and the text over the main menu. The pictures have not been seen in the game yet: the picture drawn and read back on a real
 card (its blending, the viewport moved, with the interface drawn into its own buffer and without), how fine the cells look at 1080p
-and 4K, the frame time while 4,500 cells go, a window resized or the game left while a text crumbles, and a newer API taking over
+and 4K, the frame time while 4,500 cells go, a window resized or the game left while a text burns, and a newer API taking over
 then.
 
 ## How the game is answered

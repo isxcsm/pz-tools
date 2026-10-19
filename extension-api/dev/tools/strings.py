@@ -90,7 +90,7 @@ S = {
     'Bd_Producer': ('In use %1  producers %2  all loaded %3', '사용 중 %1  공급원 %2개  전부 불러옴 %3'),
     'Tx_Korean': ('Korean sample', '한국어 예문'),
     'Tx_English': ('English sample', '영어 예문'),
-    'Tx_Dust': ('Leave as dust', '재로 흩어지며 퇴장'),
+    'Tx_Burn': ('Leave burning', '불타며 퇴장'),
     'Tx_Title': ('Show the title', '타이틀 표시'),
     'Tx_Typed': ('Typed text', '타자 효과 텍스트'),
     'Tx_Hide': ('Hide now', '바로 숨기기'),

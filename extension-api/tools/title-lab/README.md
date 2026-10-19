@@ -33,7 +33,7 @@ no build).
     (`ASH_BURST`, `ASH_SWIRL`, `ASH_HOLD`).
 
   Every style but `brief` (4 s) holds 5 s once all of it is in (the title and its line).
-- **The styles before them** (marked 이전), and `leave = "dust"`'s cells as `Dust.java` has them (숯불 셀, with `dustBurn`).
+- **The styles before them** (marked 이전).
 
 Only the fonts' shapes, shadows and outlines are approximations (the page draws them with the browser's text).
 
@@ -44,7 +44,7 @@ Only the fonts' shapes, shadows and outlines are approximations (the page draws 
 - **확대** zooms on the title. **배경 이미지** takes a screenshot of the game as the scene.
 - **프리셋** keeps a style with its numbers. Saved ones go to the browser's storage; where that is blocked (some
   embedded viewers), **현재 상태 저장** puts the values in the box below, to be added to `BUILT_IN` in the page.
-- **Java 상수 만들기** writes the dust's numbers as `Dust.java` constants.
+- **Java 상수 만들기** writes the burn's numbers as `Dust.java` constants.
 
 ## Taking a change into the game
 

@@ -299,13 +299,13 @@ local function textPage(page, ui)
     local styleBox = ui.combo(page, ui.PAD, ui.row(3), 200, styles)
     local sampleBox = ui.combo(page, ui.PAD + 210, ui.row(3), 200,
         { { T("Tx_Korean"), 1 }, { T("Tx_English"), 2 } })
-    local dust = ui.tick(page, T("Tx_Dust"), ui.PAD + 420, ui.row(3), function() end)
+    local burn = ui.tick(page, T("Tx_Burn"), ui.PAD + 420, ui.row(3), function() end)
     local lastKey = nil
     ui.buttons(page, 4, {
         { T("Tx_Title"), function()
             local sample = SAMPLES[sampleBox:getSelectedData() or 1]
             lastKey = api().text.title(mine(), { text = T("Tx_" .. sample[1]), subtitle = T("Tx_" .. sample[2]),
-                style = styleBox:getSelectedData(), leave = dust:isSelected(1) and "dust" or nil, now = true })
+                style = styleBox:getSelectedData(), leave = burn:isSelected(1) and "burn" or nil, now = true })
         end },
         { T("Tx_Typed"), function()
             lastKey = api().text.show(mine(), { text = T("Tx_TypedText"), font = { "SdfRegular", "Medium" }, size = 0.03,
