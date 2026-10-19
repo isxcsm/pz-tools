@@ -18,7 +18,7 @@ a fade at the end, made mono at 44.1 kHz and set to a peak. A refinement may als
 given a longer room (a reverb tail): what the user asked of that pick.
 
 The model is Stable Audio 3 Medium (Small-SFX scattered short broadband clicks through its sounds, heard as a scratch;
-`--small` uses it still). Medium runs on the GTX 1080 without Flash Attention, in fp32, at about 45 s a sound.
+`--small` uses it still). Medium runs on the GTX 1080 without Flash Attention, in fp32, in parts (Maker), at about 5 to 8 s a sound.
 
 Run with the Python of the Stable Audio 3 checkout (C:/git/pz-workspace/sa3, its .venv), the model's licence accepted and
 `hf auth login` done once:
@@ -44,9 +44,6 @@ RATE = build.RATE
 PEAK_DB = -3.0
 TAIL_DB = -9.0
 CANDIDATES = 6
-
-# What every prompt is not (the model hears it only with cfg_scale > 1).
-NEGATIVE = 'voices, people talking, crowd, song, vocals, background noise, hiss, distortion, low quality, cartoon, comedic'
 
 # Said of every sound, so that the styles are one family.
 FAMILY = 'restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail'
@@ -240,22 +237,60 @@ def write_manifest_js(manifest):
 
 
 class Maker:
+    """The model, in parts that fit the GTX 1080's 8 GB (Medium is 9.3 GB with its decoder; what does not fit spills to shared
+    memory and runs ten times slower): the text encoder stays in RAM (it reads a prompt once), the generator is on the GPU for
+    the diffusion, and is swapped out for the decoder to decode (2 s a swap). Several prompts at once are one batch."""
+
     def __init__(self, name='medium'):
+        # (the compile that fails here without triton, tried again for every new length, is skipped)
+        os.environ.setdefault('TORCHDYNAMO_DISABLE', '1')
         import torch
         from stable_audio_3 import StableAudioModel
-        self.torch = torch
+        self.torch, self.SAM = torch, StableAudioModel
         # (fp32: a GTX 1080 has no fast half precision)
-        self.model = StableAudioModel.from_pretrained(name, model_half=False)
-        self.sr = self.model.model.sample_rate
+        self.model = StableAudioModel.from_pretrained(name, device='cpu', model_half=False)
+        self.parts = self.model.model
+        self.model.device = 'cuda'
+        self.sr = self.parts.sample_rate
+        # an init sound is encoded in RAM (the decoder's encoder is not on the GPU then) and handed over
+        encode = self.model._encode_audio_input
 
-    def make(self, prompt, seed, made, start=None, noise=1.0):
-        """The model's sound for prompt (from `start`, a sound at RATE, at that noise, when given) as mono at RATE."""
-        self.torch.manual_seed(seed)
+        def encode_in_ram(audio_input, size, mask=None):
+            self.model.device = 'cpu'
+            try:
+                latents, mask = encode(audio_input, size, mask)
+            finally:
+                self.model.device = 'cuda'
+            return latents.to('cuda'), (mask.to('cuda') if mask is not None else None)
+        self.model._encode_audio_input = encode_in_ram
+
+    def _on(self, gpu, ram):
+        gpu.to('cuda')
+        ram.to('cpu')
+        self.torch.cuda.empty_cache()
+
+    def make(self, prompts, seed, made, start=None, noise=1.0):
+        """The model's sounds for the prompts (a list: one batch; from `start`, a sound at RATE, at that noise, when given),
+        each mono at RATE, `made` seconds long."""
+        torch = self.torch
+        n = len(prompts)
+        self._on(self.parts.model, self.parts.pretransform)
+        cond, _ = self.SAM._build_conditioning_dicts(prompts, None, [made] * n, n)
+        with torch.inference_mode():
+            told = self.parts.conditioner(cond, 'cpu')
+        on_gpu = lambda v: v.to('cuda') if torch.is_tensor(v) else v
+        told = {k: tuple(on_gpu(x) for x in v) if isinstance(v, (list, tuple)) else on_gpu(v) for k, v in told.items()}
         kw = {}
         if start is not None:
-            kw = dict(init_audio=(RATE, self.torch.from_numpy(np.ascontiguousarray(start))[None, :]), init_noise_level=noise)
-        audio = self.model.generate(prompt=prompt, negative_prompt=NEGATIVE, duration=made, seed=seed, **kw)
-        return decode_model_audio(audio, self.sr)
+            kw = dict(init_audio=(RATE, torch.from_numpy(np.ascontiguousarray(start))[None, :]), init_noise_level=noise)
+        torch.manual_seed(seed)
+        latents = self.model.generate(conditioning=cond, conditioning_tensors=told, duration=[made] * n, seed=seed,
+                                      batch_size=n, duration_padding_sec=1.0, return_latents=True, **kw)
+        self._on(self.parts.pretransform, self.parts.model)
+        with torch.inference_mode():
+            audio = self.parts.pretransform.decode(latents).float().clamp(-1, 1)
+        audio = audio[:, :, :int(made * self.sr)]
+        return [decode_model_audio(audio[i], self.sr) for i in range(n)]
 
 
 def main(argv):
@@ -298,7 +333,7 @@ def main(argv):
                 if how == 'a2a':
                     prompt = pick['prompt'] + (', ' + s['add'] if s.get('add') else '')
                     made = s.get('made', pick['made'])
-                    x = maker.make(prompt, pick['seed'] + 100 * n, made, start=base, noise=s['noise'])
+                    x = maker.make([prompt], pick['seed'] + 100 * n, made, start=base, noise=s['noise'])[0]
                     y = shape(x, s.get('kept', pick['kept']), at, s.get('peak', PEAK_DB))
                     write(name, y, dict(from_pick=pick['file'], prompt=prompt, seed=pick['seed'] + 100 * n, noise=s['noise'],
                                         made=made, kept=s.get('kept', pick['kept']), at=at))
@@ -321,17 +356,22 @@ def main(argv):
                 print('no candidates of', parent, 'to make', key, 'from; skipped')
                 continue
         files = []
-        for i in range(count):
-            prompt, seed = c['prompts'][i % len(c['prompts'])] + ', ' + FAMILY, 1000 + i
-            start, noise, src = None, 1.0, None
-            if parents:
+        prompts = [c['prompts'][i % len(c['prompts'])] + ', ' + FAMILY for i in range(count)]
+        if parents:
+            # (each from its own sound: one at a time)
+            made = []
+            for i in range(count):
                 src = parents[i % len(parents)]
-                start, noise = build.decode(os.path.join(OUT, src)), c['noise']
-            x = maker.make(prompt, seed, c['made'], start=start, noise=noise)
+                x = maker.make([prompts[i]], 1000 + i, c['made'], start=build.decode(os.path.join(OUT, src)), noise=c['noise'])[0]
+                made.append((x, dict(prompt=prompts[i], seed=1000 + i, from_sound=src, noise=c['noise'])))
+        else:
+            # (all at once: item i of a batch of `count` at seed 1000)
+            made = [(x, dict(prompt=prompts[i], seed=1000, batch=count, item=i))
+                    for i, x in enumerate(maker.make(prompts, 1000, c['made']))]
+        for i, (x, how) in enumerate(made):
             y = shape(x, c['kept'], c['at'], c.get('peak', PEAK_DB))
             name = '%s_%02d.ogg' % (key.replace(':', '_'), i + 1)
-            write(name, y, dict(prompt=prompt, seed=seed, made=c['made'], kept=c['kept'], at=c['at'], from_sound=src,
-                                noise=noise if src else None))
+            write(name, y, dict(how, made=c['made'], kept=c['kept'], at=c['at']))
             files.append(name)
         save(key, files)
 
