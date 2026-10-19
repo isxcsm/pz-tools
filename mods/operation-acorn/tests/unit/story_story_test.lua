@@ -164,8 +164,8 @@ test("the manifest notes go out in the stage's order, one per crate, queued rema
     eq(Story.manifestNoteKey(record), nil, "the pool is used up: the trade part's general lines")
     local second = setup(2)
     local key2, _, nid = Story.manifestNoteKey(second)
-    eq(nid, "bedding_back")
-    eq(key2, "IGUI_OA_Story_Note_bedding_back")
+    eq(nid, "socks")
+    eq(key2, "IGUI_OA_Story_Note_socks")
 end)
 
 test("after the handover the notes come from the milestone's pool, shorter the further", function()

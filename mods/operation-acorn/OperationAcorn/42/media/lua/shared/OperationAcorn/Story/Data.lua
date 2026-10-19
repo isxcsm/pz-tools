@@ -194,7 +194,7 @@ Data.TRANSFER_TIER = Data.LAST_STAGE + 3
 Data.STAGES = {
     [1] = { stories = { "evidence" }, notes = { "battery", "appendix_missing", "leave_site" },
             supply = { { "SerumSheet", "serum_sheet" } } },
-    [2] = { stories = { "clinic" }, notes = { "bedding_back", "socks", "box_corner" },
+    [2] = { stories = { "clinic" }, notes = { "socks", "box_corner" },
             supply = { { "AnalysisReply", "reply_first" }, { "AnalysisReply", "reply_correction", "sent:reply_first" },
                        { "AnalysisReply", "reply_evidence", "done:evidence" } } },
     [3] = { stories = { "observation" }, notes = { "cards", "count_off", "dunnigan_pen" },

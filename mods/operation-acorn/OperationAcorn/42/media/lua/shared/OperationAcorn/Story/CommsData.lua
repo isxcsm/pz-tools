@@ -91,7 +91,6 @@ Data.ENTRIES = {
         { "me", erase = true, stop = 2, del = 7, after = 2.6 }, { "me", pause = 1.6 },
         -- and in the same call, what the missions are: none is offered before it is over (Missions.opened)
         { "oak", pause = 2, cue = "missions" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "noise", s = 1 } } },
-    { id = "s1_bedding", kind = "short", trigger = "tier:1", tier = 1, waits = "S1", greet = true, sign = "oak" },
     { id = "S1F", kind = "scene", trigger = "story:evidence", tier = 1, mission = true, waits = "S1", sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "me", pause = 1.8 }, { "oak" } } },
     { id = "S2", kind = "scene", trigger = "serum", tier = 2, waits = "S1", greet = true, sign = "oak", lines = {

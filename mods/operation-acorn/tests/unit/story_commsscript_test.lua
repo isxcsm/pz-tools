@@ -15,7 +15,7 @@ local TEXTS = {
     IGUI_OA_Comms_S0_10 = "DROP.",
     IGUI_OA_Comms_S0_10_late = "DROP. LATE.",
     IGUI_OA_Comms_S4B_1 = "",
-    IGUI_OA_Comms_s1_bedding = "%1, BEDDING.",
+    IGUI_OA_Comms_s2_filter = "%1, FILTER.",
 }
 local function text(key, ...)
     local s = TEXTS[key] or key
@@ -48,7 +48,7 @@ test("the late first crate has lines of its own, an erased line its erased words
     local l = Script.lines(Data.BY_ID.S1, ctx(1))[11]
     eq(l.text, "OK.")
     eq(l.erase, "WHO")
-    eq(Script.lines(Data.BY_ID.s1_bedding, ctx(6))[1].text, "0347, BEDDING.")
+    eq(Script.lines(Data.BY_ID.s2_filter, ctx(6))[1].text, "0347, FILTER.")
 end)
 
 test("the timeline: a team line comes in, breaks up at its mark, and is left to be read", function()

@@ -40,7 +40,6 @@ test("the tiers entered fire their calls and drop the ones of the tiers passed",
     record.trade.stage = 1
     Story.onStage(record)
     eq(Comms.section(record).tier, 1)
-    truthy(Comms.section(record).fired.s1_bedding)
     record.trade.stage = 3
     Story.onStage(record)
     eq(Comms.section(record).tier, 3)

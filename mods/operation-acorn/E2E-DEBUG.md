@@ -92,7 +92,7 @@ F8 디버그 창 → OA → **E2E** 페이지. 모든 버튼은 `OperationAcorn.
 7. **자리.** 단말이 필요한 구간은 기지 단말 옆에 세운다 (`heli.terminal`; 없으면 곁에 둔다). 단말에 전기를 준다(세션 동안). 기지에 서 있는 상자가 활성 상자가 되고, 없으면 단말 옆에 새 상자를 내려놓는다 (`Things.placeBox`, 플레이어가 놓는 길).
 8. **소음 켜기**, 바뀐 구역 알림(`Sync.changed`), 패널 줄 갱신.
 
-교신 순서표 (팀 시대): S0, S1, s1_bedding, B1, S1F, S2, S2B, s2_filter, s2_correction, B2, S2F, S3, s3_meteor, s3_fragment, B3a, B3b, S4, S4B, s4_committee, B4, S4F, S5, B5, S5F, S6, s6_list, B6, S6F, S7, s7_list, B7, S7F, BS1, BS2, s8_handover, B8, S8F, S8, S9, K1, BR1, K2, BR2, K3, BR3, K4. 현장 혼잣말(say)은 해당 임무를 지난 것으로 할 때 같이 '재생됨'으로 둔다.
+교신 순서표 (팀 시대): S0, S1, B1, S1F, S2, S2B, s2_filter, s2_correction, B2, S2F, S3, s3_meteor, s3_fragment, B3a, B3b, S4, S4B, s4_committee, B4, S4F, S5, B5, S5F, S6, s6_list, B6, S6F, S7, s7_list, B7, S7F, BS1, BS2, s8_handover, B8, S8F, S8, S9, K1, BR1, K2, BR2, K3, BR3, K4. 현장 혼잣말(say)은 해당 임무를 지난 것으로 할 때 같이 '재생됨'으로 둔다.
 
 ## 7. 타이머
 
