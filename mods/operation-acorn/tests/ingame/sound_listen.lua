@@ -59,7 +59,7 @@ elseif part == "b" then
     add(500, function()
         local id = OA.Store.idOf(player)
         for _, style in ipairs({ "stamp", "notice", "discovery", "unveil", "sink", "pulse", "bleed", "type" }) do
-            OA.Titles.show(id, { key = "IGUI_OA_Title_Sealed", sub = "IGUI_OA_Title_Marked", style = style })
+            OA.Titles.show(id, { key = "IGUI_OA_Title_Site", sub = "IGUI_OA_Title_SiteSub", style = style })
         end
         at("titles queued: stamp, notice, discovery, unveil, sink, pulse, bleed, type")
     end)

@@ -94,9 +94,9 @@ t.run({
         player:setInvisible(wasInvisible)
         player:setGhostMode(wasGhost)
         local id = OA.Store.idOf(player)
-        t.check("a stamp title with its sounds", OA.Titles.show(id, { key = "IGUI_OA_Title_Sealed", sub = "IGUI_OA_Title_Marked",
+        t.check("a stamp title with its sounds", OA.Titles.show(id, { key = "IGUI_OA_Title_Site", sub = "IGUI_OA_Title_SiteSub",
             style = "stamp" }) ~= nil)
-        t.check("a typewriter title with its sounds", OA.Titles.show(id, { key = "IGUI_OA_Title_Sealed", sub = "IGUI_OA_Title_Marked",
+        t.check("a typewriter title with its sounds", OA.Titles.show(id, { key = "IGUI_OA_Title_Site", sub = "IGUI_OA_Title_SiteSub",
             style = "type" }) ~= nil)
         t.check("a notice title with its sound", OA.Titles.show(id, { key = "IGUI_OA_Title_Sealed", style = "notice" }) ~= nil)
     end },

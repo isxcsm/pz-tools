@@ -295,7 +295,7 @@ function Things.destroyed(thing)
     if not box then return end
     OA.log("box", id, "was destroyed", box.state == "sealed" and "(sealed, its items are lost)" or "")
     if box.state == "sealed" or wasActive then
-        OA.Sync.title(owner.id, { key = "IGUI_OA_Trade_Notice_BoxLost",
+        OA.Sync.title(owner.id, { key = "IGUI_OA_Title_BoxLost",
             sub = box.state == "sealed" and "IGUI_OA_Title_BoxLostSealedSub" or "IGUI_OA_Title_BoxLostSub",
             style = "dust", tone = "red", fallback = "bad" })
     end

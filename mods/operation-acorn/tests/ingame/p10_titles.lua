@@ -19,11 +19,12 @@ local OA = OperationAcorn
 
 -- The design table's times in seconds: enter (land), held, leave. A style whose row does not give all three has no total.
 -- (The "dust" title style is the API's still and leaves by "burn" over 10 s: the paper burn, "dust-paper" in the title lab.
--- Only the leave named "dust" (the crumbling) is gone from the API and the lab; this file asks for no leave of its own.)
+-- Only the leave named "dust" (the crumbling) is gone from the API and the lab; this file asks for no leave of its own.
+-- The brief's leave is its flare, 3.5 s, and the ash drifting 3.5 s more.)
 local DESIGN = {
     stamp = { 0.6, 5, 6 }, discovery = { 2.2, 5, 4.5 }, notice = { 0.7, 5, 4.5 }, unveil = { 3.6, 5, 5 },
     dust = { 1.2, 5, 10 }, bleed = { 1.9, 5, 6 }, sink = { 1.6, 5, 9 }, ["type"] = { 1.3, 5, 5.5 },
-    pulse = { 0.9 }, brief = { 0.45, 4, 3.5 },
+    pulse = { 0.9 }, brief = { 0.45, 4, 7 },
 }
 local ORDER = { "stamp", "discovery", "notice", "unveil", "dust", "bleed", "sink", "type", "pulse", "brief" }
 
@@ -61,7 +62,7 @@ P10T.start("p10titles", function(a)
     local function showTitle(style)
         local before = #P10T.titleKeys
         local t0 = getTimestampMs()
-        local how = Titles.show(id, { key = "IGUI_OA_Title_Sealed", sub = "IGUI_OA_Title_Marked", style = style })
+        local how = Titles.show(id, { key = "IGUI_OA_Title_Site", sub = "IGUI_OA_Title_SiteSub", style = style })
         local entry = P10T.titleKeys[before + 1]
         a.check(style .. " is shown through OA.Titles.show", how == "title" and entry ~= nil and entry.key ~= nil,
             tostring(how) .. " keys " .. (#P10T.titleKeys - before))
