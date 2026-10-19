@@ -159,6 +159,13 @@ test("a story mission's circle has the story's own monologue, once; a regular on
     truthy(OA.Comms.section(record).played.P3b_enter)
     eq(OA.Comms.section(record).played.P3a_enter, nil)
     eq(OA.Say.fits("Arrive", 1, { night = false }), false, "a night line by day")
+    -- after the handover: a revisit to a known place has the few lines in turn, the wreck (a new place) its own
+    record.trade.stage, record.trade.milestones = 5, 7
+    eq(Scene.arrivalLine(record, { story = "revisit_ledger" }, false), nil)
+    truthy(OA.Comms.section(record).played.A1)
+    eq(Scene.arrivalLine(record, { story = "revisit_wreck" }, false), nil)
+    truthy(OA.Comms.section(record).played.PW_enter)
+    eq(OA.Comms.section(record).played.A2, nil, "not one of the lines for a known place")
 end)
 
 -- A fake world: where the player is, what is loaded, what was made.

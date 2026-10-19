@@ -475,10 +475,9 @@ function Story.enterMilestone(record, k)
         enterEvents(record, def)
         if k == 2 then Story.queueStory(record, "soil", false) end
     else
-        -- From the 4th milestone on: one revisit story per milestone, in turn.
-        local order = Data.REVISIT_ORDER
-        local id = order[OA.remainder(k - 4, #order) + 1]
-        Story.queueStory(record, id, true)
+        -- From the 4th milestone on: one revisit story per milestone, each once (a place is not sent to twice).
+        local id = Data.REVISIT_ORDER[k - 3]
+        if id then Story.queueStory(record, id, true) end
     end
 end
 

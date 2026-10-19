@@ -667,12 +667,24 @@ function StageGame.vehicle(ctx, p)
         end
     end
     -- its key in the glove box (the game may have given its own to a zombie or a house as the car spawned)
-    local glove = p.key and car:getPartById("GloveBox")
+    local glove = (p.key or p.piece) and car:getPartById("GloveBox")
     local box = glove and glove:getItemContainer()
-    local key = box and car:createVehicleKey()
+    local key = p.key and box and car:createVehicleKey()
     if key then
         box:AddItem(key)
         car:transmitPartItem(glove)
+    end
+    -- a wreck: its parts battered, some taken out, glass on the ground (the API's one call over all its parts)
+    local vehicles = p.wreck and OA.api().vehicles
+    if vehicles and vehicles.damage then vehicles.damage(car, p.wreck) end
+    -- the mission's piece it holds, in the glove box
+    if p.piece and box then
+        for _, it in ipairs(ctx.m.items or {}) do
+            if it.key == p.piece and it.staged and OA.StoryGame.placeInContainer(ctx.record, ctx.m, it, box, sq) then
+                it.staged = nil
+                car:transmitPartItem(glove)
+            end
+        end
     end
     return true
 end

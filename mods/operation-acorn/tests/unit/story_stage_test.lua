@@ -316,7 +316,7 @@ test("every piece of the stage data has hands in the game and goes to a place th
         end
         -- the stage belongs to a story (or a choice's option) whose site is of its kind
         local story, option = id:match("^(.-)_(%a)$")
-        local sdef = OA.StoryData.STORIES[option and story or id]
+        local sdef = OA.StoryData.STORIES[option and story or id] or OA.StoryData.REVISITS[id]
         truthy(sdef, id .. " is a story's")
         local site = option and sdef.options[option].site or sdef.site
         eq(def.ground == true, site.ground == true, id .. ": open ground as its site")

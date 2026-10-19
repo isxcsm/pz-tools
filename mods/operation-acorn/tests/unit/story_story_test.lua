@@ -137,18 +137,19 @@ test("the last crate encloses Branscomb's walkie-talkie; a crate loaded after it
     eq(#told, 1, "a crate loaded after the last one")
 end)
 
-test("from the fourth milestone each milestone has one revisit story, in turn", function()
+test("from the fourth milestone each milestone has one revisit story, in order, each once", function()
     local record = setup(5, 4)
     Story.section(record).seenStage = 5
     Story.section(record).seenMilestones = 3
     Story.section(record).handover = true
     Story.onStage(record)
     eq(Story.section(record).queue[1].id, "revisit_ledger")
-    record.trade.milestones = 5
+    record.trade.milestones = 10
     Story.onStage(record)
-    local ids = {}
-    for _, q in ipairs(Story.section(record).queue) do ids[#ids + 1] = q.id end
-    truthy(string.find(table.concat(ids, ","), "revisit_roster", 1, true))
+    local seen = {}
+    for _, q in ipairs(Story.section(record).queue) do seen[q.id] = (seen[q.id] or 0) + 1 end
+    for _, id in ipairs(Data.REVISIT_ORDER) do eq(seen[id], 1, id) end
+    eq(#Story.section(record).queue, #Data.REVISIT_ORDER, "no place is sent to twice")
 end)
 
 test("the manifest notes go out in the stage's order, one per crate, queued remarks first", function()

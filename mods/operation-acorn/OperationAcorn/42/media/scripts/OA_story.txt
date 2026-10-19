@@ -340,6 +340,16 @@ module OperationAcorn
         WorldStaticModel = SheetOfPaper,
     }
 
+    item TransportLog
+    {
+        DisplayCategory = Literature,
+        ItemType = base:normal,
+        Weight = 0.1,
+        Icon = OA_HandoverFile,
+        Tooltip = Tooltip_OA_Story_TransportLog,
+        WorldStaticModel = SheetOfPaper,
+    }
+
     item PackingMemo
     {
         DisplayCategory = Literature,

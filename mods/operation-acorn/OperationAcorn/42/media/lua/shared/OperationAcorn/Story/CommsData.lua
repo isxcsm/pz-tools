@@ -77,6 +77,8 @@ Data.ENTRIES = {
         { "me" }, { "oak" }, { "noise", s = 1 } } },
     { id = "BR3", kind = "scene", trigger = "brief:revisit_police", tier = 11, mission = true, sign = "admin", lines = {
         { "me" }, { "oak" }, { "noise", s = 1 } } },
+    { id = "BR4", kind = "scene", trigger = "brief:revisit_wreck", tier = 12, mission = true, sign = "admin", lines = {
+        { "me" }, { "oak" }, { "noise", s = 1 } } },
 
     { id = "S0", kind = "scene", trigger = "first", tier = 0, sign = "oak", lines = {
         { "noise", s = 2 }, { "oak" }, { "mute", s = 3 }, { "oak" },
@@ -194,6 +196,7 @@ Data.ENTRIES = {
     { id = "P5_enter", kind = "say", trigger = "say:gym:enter", tier = 5 },
     { id = "S6F_pickup", kind = "say", trigger = "say:ward:pickup", tier = 6 },
     { id = "S7F_plank", kind = "say", trigger = "say:cells:plank", tier = 7 },
+    { id = "PW_enter", kind = "say", trigger = "say:revisit_wreck:enter", tier = 12 },
 }
 
 Data.BY_ID = {}

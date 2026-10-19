@@ -269,6 +269,9 @@ local function uiKeys()
         for i = 1, n do add("Fill_" .. id .. "_" .. i) end
     end
     for _, id in ipairs({ "case_confirmed", "cooler_good", "cooler_warm", "cooler_bad", "serum" }) do add("Note_" .. id) end
+    -- What the team makes of a delivered revisit or soil sample (Missions.answer).
+    for _, def in pairs(Data.REVISITS) do if def.note then add("Note_" .. def.note) end end
+    add("Note_" .. Data.SOIL_REPLY.after)
     -- The remarks on the last flight's boxes (Story.tookFacts).
     for _, id in ipairs({ "cash", "refused", "low", "many" }) do add("Took_" .. id) end
     for _, letter in ipairs(OA.Categories.LETTERS) do add("Took_cat_" .. letter) end

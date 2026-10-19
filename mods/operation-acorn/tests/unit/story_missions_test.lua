@@ -950,6 +950,47 @@ test("a revisit goes back to the site its story had, or picks one of its facilit
     eq(m.facility, "medical")
 end)
 
+test("the wreck: a site of open ground for the whole world, its log the log's own paper", function()
+    local record = setup(5, 7)
+    local s = Story.section(record)
+    s.seenStage = 5; s.seenMilestones = 7
+    Story.queueStory(record, "revisit_wreck", true)
+    tick(record)
+    local m = M.active(record)
+    eq(m.story, "revisit_wreck")
+    eq(m.facility, "wreck")
+    truthy(m.site and m.site.ground, "open ground")
+    local docs = OA.StoryDocs.forItem(record, OA.StoryData.itemName(m.items[1].type), m.items[1].mods)
+    eq(docs[1].id, "transport_log", "the truck's own log, no form of the new office")
+    eq(Story.world().shared.revisit_wreck, m.site)
+    local site = m.site
+    M.finish(record, m, "expired")
+    -- sent again (a later character in the same world): the same truck
+    s.sites.revisit_wreck, s.done.revisit_wreck, s.queue = nil, nil, {}
+    TEST.hours = TEST.hours + 4 * 24
+    Story.queueStory(record, "revisit_wreck", true)
+    tick(record)
+    eq(M.active(record).story, "revisit_wreck")
+    eq(M.active(record).site, site)
+end)
+
+test("what the team makes of a delivery: Admin 7's remark on a revisit, the reply on a soil sample", function()
+    local record = setup(5, 4)
+    local s = Story.section(record)
+    M.answer(record, { story = "revisit_roster" })
+    eq(s.noteQueue[#s.noteQueue], "revisit_roster_done")
+    M.answer(record, { story = "soil", soil = { stake = 412 } })
+    eq(s.papers[#s.papers].doc, "reply_soil_site")
+    M.answer(record, { story = "soil", soil = {} })
+    eq(s.papers[#s.papers].doc, "reply_soil_plain")
+    s.handover = true
+    M.answer(record, { story = "soil", soil = {} })
+    eq(s.noteQueue[#s.noteQueue], "soil_after", "after the handover a remark, no reply")
+    local n = #s.noteQueue
+    M.answer(record, { story = "evidence" })
+    eq(#s.noteQueue, n, "a story of 2반's has its own scene")
+end)
+
 test("a piece destroyed is got again the way it was got, with as much time as the mission had", function()
     local record = setup(2)
     record.story = nil

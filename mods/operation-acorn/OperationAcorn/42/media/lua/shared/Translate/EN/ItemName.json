@@ -49,6 +49,7 @@
     "OperationAcorn.FieldCallDevice": "Field Call Device",
     "OperationAcorn.FilterBundle": "Filter Bundle",
     "OperationAcorn.HandoverFile": "Handover File",
+    "OperationAcorn.TransportLog": "Transport Log",
     "OperationAcorn.PackingMemo": "Supply Memo",
     "OperationAcorn.KitVoucher": "Kit Voucher",
     "OperationAcorn.MeteorFragment": "Stony Meteorite Fragment",

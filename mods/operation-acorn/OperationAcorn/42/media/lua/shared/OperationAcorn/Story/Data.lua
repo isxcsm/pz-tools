@@ -12,7 +12,7 @@ Data.ITEM_MODULE = "OperationAcorn"
 -- The temporary facilities (LORE 4: the authorities took any building for a post, a clinic, a shelter). A story place
 -- is a site picked in the band (Missions.pickSite), named by its facility: IGUI_OA_Story_Facility_<id> in the mission
 -- card and the documents. The staging (Story/Scene) is by facility too.
-Data.FACILITIES = { "police", "medical", "farm", "army", "shelter", "hospital", "prison" }
+Data.FACILITIES = { "police", "medical", "farm", "army", "shelter", "hospital", "prison", "wreck" }
 
 -- The mission items: the full type of each is OperationAcorn.<name>. `docs` is what reading the item shows (document
 -- ids, with the place's variant in the text); `note` means a regular mission item may carry a field note (OA_Note).
@@ -35,6 +35,7 @@ Data.ITEMS = {
     RosterPage = { docs = { "roster_page" }, weight = 0.1 },
     HandoverPages = { docs = { "handover_pages" }, weight = 0.1 },
     ReviewMemo = { docs = { "review_memo" }, weight = 0.1 },
+    TransportLog = { docs = { "transport_log" }, weight = 0.1 },
     WardFilter = { docs = { "ward_record" }, weight = 2.0 },
     CellFilter = { docs = { "cell_log" }, weight = 1.8 },
     SoilSample = { docs = { "soil_slip" }, weight = 0.8 },
@@ -158,19 +159,26 @@ Data.STORIES = {
         facility = "army", site = { ground = true },
     },
 }
--- After the handover (the 4th milestone on) each milestone has one story mission, a new purpose at a place the
--- player knew: these in turn. `from` is the story whose site it goes back to (a new one of the facility when that story
--- had none); `doc` is the paper the item carries (the new office's form: it takes the place of the item's own old
--- paper).
+-- After the handover (the 4th milestone on) each milestone has one story mission, these in order, each once: three go
+-- back to a place the player knew with a new purpose, the last to a place nobody sent the player before. `from` is the
+-- story whose site it goes back to (a new one of the facility when that story had none); `doc` is the paper the item
+-- carries (the new office's form: it takes the place of the item's own old paper); `note` the remark the next manifest
+-- carries once it is delivered (what Admin 7 made of it); `shared`: one site for the whole world (the one truck of the
+-- 7/3 accident: a later character is sent to where the first one was).
 Data.REVISITS = {
     revisit_ledger = { kind = "fetch", item = "PharmacyLedger", doc = "revisit_ledger", from = "clinic",
-        facility = "medical", site = { want = "public" } },
+        facility = "medical", site = { want = "public" }, note = "revisit_ledger_done" },
     revisit_roster = { kind = "fetch", item = "RosterLostPage", doc = "revisit_roster", from = "gym",
-        facility = "shelter", site = { want = "largest" } },
+        facility = "shelter", site = { want = "largest" }, note = "revisit_roster_done" },
     revisit_police = { kind = "fetch", item = "EvidenceEnvelope", doc = "revisit_police", from = "evidence",
-        facility = "police", site = { want = "public" } },
+        facility = "police", site = { want = "public" }, note = "revisit_police_done" },
+    revisit_wreck = { kind = "fetch", item = "TransportLog", facility = "wreck", site = { ground = true },
+        note = "revisit_wreck_done", shared = true },
 }
-Data.REVISIT_ORDER = { "revisit_ledger", "revisit_roster", "revisit_police" }
+Data.REVISIT_ORDER = { "revisit_ledger", "revisit_roster", "revisit_police", "revisit_wreck" }
+-- The soil sample's reply, by where it was taken (2반's: a soil sample delivered after the handover has Admin 7's
+-- remark instead).
+Data.SOIL_REPLY = { stake = "reply_soil_site", plain = "reply_soil_plain", after = "soil_after" }
 
 -- The contract missions after the handover (at least six kinds): `weight` is the share of the pick. Their text:
 -- IGUI_OA_Story_ConTitle_<id>, IGUI_OA_Story_ConBrief_<id>.
@@ -201,7 +209,7 @@ Data.STAGES = {
                        { "AnalysisReply", "reply_evidence", "done:evidence" } } },
     [3] = { stories = { "observation" }, notes = { "cards", "count_off", "dunnigan_pen" },
             supply = { { "AnalysisReply", "reply_nomatch" }, { "AnalysisReply", "reply_fragment", "fragment" },
-                       { "AnalysisReply", "reply_relapse" } } },
+                       { "AnalysisReply", "reply_relapse" }, { "AnalysisReply", "reply_logs", "done:observation" } } },
     [4] = { stories = { "cooler" }, notes = { "proxy_signature", "old_form", "short_notice" },
             supply = { { "Appendix", "pending_list" } } },
     [5] = { stories = { "gym" }, notes = { "late_appendix", "no_greeting", "empty_slot" },

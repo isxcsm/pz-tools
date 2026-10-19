@@ -369,10 +369,20 @@ local function storySite(record, def, id, level, spec)
     local s = Story.section(record)
     local back = def.from and s.sites[def.from]
     if back then return back end
+    -- one site for the world (Data.REVISITS `shared`): the one a character before was sent to
+    local world = def.shared and Story.world()
+    if world then
+        world.shared = world.shared or {}
+        if world.shared[id] then
+            s.sites[id] = world.shared[id]
+            return world.shared[id]
+        end
+    end
     local site = Missions.pickSite(record, level, spec or def.site or {})
     if not site then return nil end
     Story.useSite(site.key)
     s.sites[id] = site
+    if world then world.shared[id] = site end
     return site
 end
 
@@ -924,6 +934,20 @@ function Missions.finish(record, m, result)
     OA.Sync.changed("missions", record.id)
 end
 
+-- What the team makes of a delivered story mission, beyond the pay: Admin 7's remark on a revisit (the next manifest),
+-- the reply on a soil sample (2반's paper by where it was taken; after the handover a remark).
+function Missions.answer(record, m)
+    local revisit = Data.REVISITS[m.story]
+    if revisit and revisit.note then Story.queueNote(record, revisit.note) end
+    if m.soil then
+        if Story.handedOver(record) then
+            Story.queueNote(record, Data.SOIL_REPLY.after)
+        else
+            Story.queuePaper(record, { "AnalysisReply", m.soil.stake and Data.SOIL_REPLY.stake or Data.SOIL_REPLY.plain })
+        end
+    end
+end
+
 -- The reward goes in, and the player sees the request done: its own title, or, when its trust brings a level with a
 -- title, that title with the request under it (one title for the one event).
 function Missions.pay(record, m)
@@ -937,6 +961,7 @@ function Missions.pay(record, m)
     if not Story.addTrust(record, trust, detail) then OA.Sync.title(record.id, detail) end
     if m.swap then Story.queueNote(record, "case_confirmed") end
     if m.cooler then Story.queueNote(record, "cooler_" .. (m.cooler.grade or "good")) end
+    Missions.answer(record, m)
     -- The team sends the delivered papers' copies back: they are in the folder from now on.
     Story.returnCopies(record, Missions.documentsOf(m))
     Missions.finish(record, m, "done")

@@ -15,10 +15,11 @@ OA.StoryDocs = Docs
 -- the short field notes of regular missions, "stake" is a drop site's survey stake.
 Docs.FOUND = { "police_card", "clinic_log", "weather_log", "farm_journal", "cooler_front", "cooler_back", "review_memo",
                "roster_page", "ward_record", "cell_log", "soil_slip", "handover_pages", "con_stake", "con_roster",
-               "con_filters", "con_ledger", "con_compare", "revisit_ledger", "revisit_roster", "revisit_police" }
+               "con_filters", "con_ledger", "con_compare", "revisit_ledger", "revisit_roster", "revisit_police",
+               "transport_log" }
 Docs.SUPPLY = { "serum_sheet", "reply_first", "reply_evidence", "reply_correction", "reply_nomatch", "reply_fragment",
                 "reply_relapse", "pending_list", "appendix_2", "unresolved_1", "unresolved_2", "unresolved_3",
-                "handover_notice", "status_table", "packing_memo" }
+                "handover_notice", "status_table", "packing_memo", "reply_logs", "reply_soil_site", "reply_soil_plain" }
 Docs.STAKE = "stake"
 -- The stakes the player has read, kept in the folder as one record (the folder makes its text: Folder.stakeLog).
 Docs.STAKE_LOG = "stake_log"

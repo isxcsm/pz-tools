@@ -19,7 +19,8 @@
 --   line      { sprite, step = { x, y }, length } on open ground: a row of one sprite (a sandbag wall), gaps where taken
 --   item      { type | types, count } on the floor of the room (outdoors: about the spot)
 --   vehicle   { script, zones, open = a door part id or a list, battery = 0 to 1, fuel = 0 to 1, key (in the glove
---             box), load = item types } `zones`: the game's vehicle zone lists (VehicleZoneDistribution) it may be one
+--             box), load = item types, piece = the mission's piece in the glove box, wreck = the API's
+--             vehicles.damage spec } `zones`: the game's vehicle zone lists (VehicleZoneDistribution) it may be one
 --             of: the first's while the world spawns `script`, else (a mod's vehicles in place of vanilla's) the first
 --             of them with one that has the parts asked for
 --             outside by the entrance (or the role's door), or about the spot on open ground (`across`: east to west)
@@ -217,6 +218,19 @@ StageData.cells = { pieces = {
     { kind = "blood", at = "hall", count = 1 },
     { kind = "zombies", at = "other", outfit = "Inmate", count = 2 },
     { kind = "zombies", at = "inner", outfit = "InmateKhaki" },
+} }
+
+-- After the handover, the last revisit: the army truck of the 7/3 accident (LORE clue 16), towed off the road and
+-- left on open ground, on its wheels again: windshield and two tires gone, its body battered, glass on the ground; the
+-- transport log in the glove box; crates thrown down beside it; two soldiers about. Nobody says why it is there.
+StageData.revisit_wreck = { ground = true, pieces = {
+    { kind = "vehicle", at = "ground", dx = 0, dy = 0, script = "Base.PickUpTruck_Camo",
+      zones = { "military", "farm", "trades" }, open = "DoorFrontRight", battery = 0, fuel = 0, piece = "A",
+      wreck = { condition = { 5, 35 }, parts = { DoorFrontLeft = 0, EngineDoor = 8 },
+                remove = { "Windshield", "TireFrontLeft", "TireRearRight" }, glass = true } },
+    { kind = "set", at = "ground", dx = 4, dy = 2, reach = 2, count = 3, tiles = { { 0, 0, "location_military_generic_01_0" } } },
+    { kind = "set", at = "ground", dx = -3, dy = 3, reach = 2, tiles = { { 0, 0, "location_military_generic_01_8" } } },
+    { kind = "zombies", at = "ground", dx = 0, dy = 0, reach = 6, outfit = "ArmyCamoGreen", count = 2 },
 } }
 
 -- 8: the handover, on open ground at the far band: as the reception's trade on the spot, a small stage, one tent and

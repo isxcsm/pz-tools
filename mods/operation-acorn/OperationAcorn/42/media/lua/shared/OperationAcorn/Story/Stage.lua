@@ -190,9 +190,11 @@ function Stage.begin(record, m)
         OA.try("stage: claiming the site", Stage.game.claim, m.site)
     end
     for _, p in ipairs(def.pieces) do
-        if p.kind == "piece" then
+        -- the pieces the stage puts: its own, and one a vehicle holds (`piece`: in its glove box)
+        local key = p.kind == "piece" and p.key or p.kind == "vehicle" and p.piece
+        if key then
             for _, it in ipairs(m.items or {}) do
-                if it.key == p.key and not it.placed then it.staged = true end
+                if it.key == key and not it.placed then it.staged = true end
             end
         end
     end

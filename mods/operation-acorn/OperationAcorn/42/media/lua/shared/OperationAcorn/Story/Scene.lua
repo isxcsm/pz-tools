@@ -89,8 +89,8 @@ Scene.PROPS = {
 
 -- The props of a facility (Data.FACILITIES; a regular mission's building has none and gets things that fit anywhere).
 Scene.KIND_PROPS = {
-    police = "police", medical = "medical", hospital = "medical", farm = "records", army = "army", shelter = "travel",
-    prison = "prison",
+    police = "police", medical = "medical", hospital = "medical", farm = "records", army = "army", wreck = "army",
+    shelter = "travel", prison = "prison",
 }
 -- The keepers of a facility: vanilla outfits (media/clothing/clothing.xml) and the chance in 100 of a woman (0 or 100
 -- for an outfit only one has). A facility not here, and a regular mission, gets the game's own outfit for the place.
@@ -100,6 +100,7 @@ Scene.GUARDS = {
     hospital = { { "Nurse", 70 }, { "Doctor", 50 }, { "HospitalPatient", 50 } },
     farm = { { "Farmer", 30 } },
     army = { { "ArmyCamoGreen", 10 } },
+    wreck = { { "ArmyCamoGreen", 10 } },
     prison = { { "Inmate", 0 }, { "PrisonGuard", 0 } },
 }
 
@@ -326,7 +327,8 @@ function Scene.arrivalLine(record, m, night, delay)
     if delay == nil then delay = Scene.ARRIVE_SAY end
     if m.story and OA.Story then
         local said
-        if Data.REVISITS[m.story] then
+        -- a revisit going back to a place the player knew has the few lines in turn; one to a new place, its own
+        if Data.REVISITS[m.story] and Data.REVISITS[m.story].from then
             said = OA.Story.afterMonologue(record, delay)
         else
             said = OA.Story.monologue(record, m.chosen and (m.story .. "_" .. m.chosen) or m.story, "enter", delay)

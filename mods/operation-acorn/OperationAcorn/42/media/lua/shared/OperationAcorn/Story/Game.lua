@@ -601,6 +601,16 @@ function Game.placeOnSquare(record, m, it, sq)
     return true
 end
 
+-- Puts the piece in a container a stage chose (a vehicle's glove box), `sq` where it stands. True when done.
+function Game.placeInContainer(record, m, it, container, sq)
+    if not (container and sq) then return false end
+    local item = newItem(record, m, it)
+    if not item then return true end
+    addToContainer(container, item)
+    finish(record, m, it, sq)
+    return true
+end
+
 -- Puts the piece on an object's top (a desk a stage set), as the game lays a thing put on a table. True when done.
 function Game.placeOnSurface(record, m, it, object)
     local sq = object and object:getSquare()
