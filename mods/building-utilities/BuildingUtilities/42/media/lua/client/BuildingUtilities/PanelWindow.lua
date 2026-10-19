@@ -244,6 +244,7 @@ function ISBULever:prerender()
     UI.fill(self, hx + 3, gripY + 2, hw - 6, 1, P.inset, 0.5)
 end
 
+-- (sound: the lever's own in the world, bu.switch, as the box changes)
 function ISBULever:onMouseUp()
     self.window:onLever()
     return true

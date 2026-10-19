@@ -61,6 +61,7 @@ function PZUICombo:prerender()
     arrowDown(self, w - 15, math.floor((h - 4 * UI.dot()) / 2), p.text)
 end
 
+-- (sound: the choice's, PZUICombo:choose; opening the list is silent, as the game's)
 function PZUICombo:onMouseDown(x, y)
     local closed = self.closedAt
     self.closedAt = nil
@@ -96,7 +97,7 @@ function PZUICombo:choose(i)
     self:closeList()
     if not self.options[i] then return end
     self.selected = i
-    PZUIKit.Sound.ui("kit.select")
+    UI.clickSound()
     if self.onChange then self.onChange(self.target, self) end
 end
 
@@ -164,6 +165,7 @@ function PZUIComboList:rowAt(y)
     return self.first + k
 end
 
+-- (sound: PZUICombo:choose)
 function PZUIComboList:onMouseDown(x, y)
     local i = self:rowAt(y)
     if i then self.combo:choose(i) end

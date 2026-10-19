@@ -728,12 +728,15 @@ function OACommsLog:onMouseDown(x, y)
     end
     local row = self:replayAt(x, y)
     if row then
-        UI.placeFlash(self, row.replay)
+        UI.placeClick(self, row.replay)
         self.tab:replay(row.replay)
         return true
     end
     row = self:headAt(y)
-    if row then self.tab:toggle(row) end
+    if row then
+        UI.clickSound()
+        self.tab:toggle(row)
+    end
     return true
 end
 

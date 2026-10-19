@@ -123,7 +123,7 @@ function PZUIPopMenu:onMouseDown(x, y)
     local row = self:rowAt(y)
     if not offered(row) then return true end
     self:close()
-    PZUIKit.Sound.ui("kit.select")
+    UI.clickSound()
     if row.fn then
         local args = row.args
         row.fn(row.target, args[1], args[2], args[3], args[4])

@@ -110,7 +110,10 @@ end
 
 function OAMachineBody:onMouseDown(x, y)
     local hit = Draw.hitAt(self.list, x, y + self.scroll)
-    if hit and hit.id and hit.enabled then self.window:onHit(hit) end
+    if hit and hit.id and hit.enabled then
+        UI.clickSound("kit.press")
+        self.window:onHit(hit)
+    end
     return true
 end
 
@@ -152,7 +155,10 @@ function OAMachinePicker:onMouseDown(x, y)
     local hit = Draw.hitAt(self.list, x, y)
     if hit and hit.id == "pick" then
         local entry = self.entries[hit.index]
-        if entry then self.window:doInstall(self.slot, entry.item) end
+        if entry then
+            UI.clickSound()
+            self.window:doInstall(self.slot, entry.item)
+        end
     end
     self:close()
     return true

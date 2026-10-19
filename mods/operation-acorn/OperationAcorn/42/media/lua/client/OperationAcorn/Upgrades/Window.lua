@@ -455,6 +455,7 @@ function OAResearchBody:itemAtMouse()
     return self.view:itemAt(self:getMouseX(), self:getMouseY())
 end
 
+-- (sound: View:press and View:rightClick)
 function OAResearchBody:onMouseDown(x, y)
     return true
 end
@@ -468,7 +469,10 @@ end
 -- A right click takes a selected rank back (the flow over the body passes it on: OAResearchFlow).
 function View:rightClick(x, y)
     local item = self:itemAt(x, y)
-    if item and item.id then self:unplan(item.id) end
+    if item and item.id then
+        UI.clickSound()
+        self:unplan(item.id)
+    end
     return true
 end
 
@@ -503,7 +507,7 @@ function OAResearchFlow:createChildren()
 end
 
 -- The game hands a right click to the element on top whether or not it takes mouse events: the flow passes it on to
--- the body's (the same place: their coordinates are the same).
+-- the body's (the same place: their coordinates are the same). (sound: View:rightClick)
 function OAResearchFlow:onRightMouseDown(x, y)
     return true
 end
@@ -1039,9 +1043,12 @@ end
 
 -- A press on an item: a node selects a rank, a button does its job (when it can).
 function View:press(item)
-    if item.id then return self:plan(item.id) end
+    if item.id then
+        UI.clickSound()
+        return self:plan(item.id)
+    end
     if not self:enabled(item) then return end
-    PZUIKit.Sound.ui("kit.press")
+    UI.clickSound("kit.press")
     if item.kind == "mode" then
         self:onMode({ internal = item.mode })
     elseif item.kind == "reset" then

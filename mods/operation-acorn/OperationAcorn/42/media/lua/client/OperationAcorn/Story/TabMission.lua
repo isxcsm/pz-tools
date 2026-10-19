@@ -197,9 +197,13 @@ function OATabMission:onMouseDown(x, y)
     local function inside(r) return r and x >= r.x and x < r.x + r.w and y >= r.y and y < r.y + r.h end
     if special and special.kind == "offer" and special.cells then
         for _, key in ipairs({ "a", "b" }) do
-            if inside(special.cells[key]) then self.pick = key end
+            if inside(special.cells[key]) and self.pick ~= key then
+                self.pick = key
+                UI.clickSound()
+            end
         end
     elseif special and special.kind == "mission" and special.link and inside(special.linkRect) then
+        UI.clickSound()
         OA.StoryTabs.openDocument(self.window, special.link.key)
     end
     return true

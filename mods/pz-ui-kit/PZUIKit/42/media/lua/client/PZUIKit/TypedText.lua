@@ -155,6 +155,7 @@ function PZUITypedText:hurry(run)
     if at and at > run.clock then run.clock = at end
 end
 
+-- (silent: hurrying the text on is no choice)
 function PZUITypedText:onMouseDown(x, y)
     PZUIRichText.onMouseDown(self, x, y)
     local run = self.run

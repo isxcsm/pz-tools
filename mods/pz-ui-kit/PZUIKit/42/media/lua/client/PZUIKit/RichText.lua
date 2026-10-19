@@ -285,6 +285,7 @@ function PZUIRichText:thumb()
     return UI.thumb(self.height, self.contentH, self.scroll, self:maxScroll())
 end
 
+-- (silent: its scroll bar, or the owner's onmousedown, which sounds as its click asks)
 function PZUIRichText:onMouseDown(x, y)
     if self:maxScroll() > 0 and x >= self:barX() - 1 then
         UI.barPress(self, y)

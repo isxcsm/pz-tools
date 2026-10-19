@@ -1159,7 +1159,7 @@ function ISBUPlan:toggleLegend()
     self.legendAnim = box and { at = getTimestampMs(), fromH = box.top and box.y + box.h - box.top or box.h,
         fromW = box.drawnW or box.w, entries = shown and self.legend or {} } or nil
     BU.PanelWindow.legendShown = not shown
-    UI.flash(self, "legend")
+    UI.click(self, "legend")
     self:layout()
     if self.legendAnim then UI.live(self, legendFrame) end
 end
@@ -1477,7 +1477,7 @@ end
 
 function ISBUPlan:onMouseDown(x, y)
     local toggle = self:toggleAt(x, y)
-    if toggle and toggle ~= "title" then UI.flash(self, "t" .. toggle) end
+    if toggle and toggle ~= "title" then UI.click(self, "t" .. toggle) end
     if self:onLegendHeader(x, y) then
         self:toggleLegend()
         return true
@@ -1526,6 +1526,7 @@ end
 
 function ISBUPlan:click(x, y)
     local kind, thing = self:hit(x, y)
+    if kind ~= nil then UI.clickSound() end
     if self.data and self.data.zoneEdit and kind ~= "floor" then
         -- Editing the zone: a room, or the room of a dot, goes in or out.
         if thing and thing.room then self.window:toggleZoneRoom(thing.room) end
@@ -1551,7 +1552,7 @@ function ISBUPlan:click(x, y)
     return true
 end
 
--- A right click: what the list's row would offer, for a dot or a room.
+-- A right click: what the list's row would offer, for a dot or a room. (silent: a menu opens, as the game's)
 function ISBUPlan:onRightMouseDown(x, y)
     local kind, thing = self:hit(x, y)
     if self.data and self.data.zoneEdit then

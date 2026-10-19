@@ -297,7 +297,10 @@ end
 
 function OAStatusBoot:onMouseDown(x, y)
     local hit = Draw.hitAt(self.list, x, y)
-    if hit and hit.id == "ok" then self.tab:bootDone() end
+    if hit and hit.id == "ok" then
+        UI.clickSound("kit.press")
+        self.tab:bootDone()
+    end
     return true
 end
 

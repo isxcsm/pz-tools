@@ -956,7 +956,7 @@ end
 function PZUISubTabs:onMouseDown(x, y)
     for _, slot in ipairs(self.slots) do
         if x >= slot.x and x < slot.x + slot.w then
-            UI.flash(self, slot.id)
+            UI.click(self, slot.id)
             if self.onSelect then self.onSelect(self.target, slot.id) end
             return true
         end
@@ -1108,7 +1108,7 @@ function UI.list(parent, x, y, width, height, drawRow, target, onclick)
     end
     list.onMouseDown = function(self, x, y)
         local row = self:rowAt(x, y)
-        if row and row > 0 then UI.placeFlash(self, row) end
+        if row and row > 0 then UI.placeClick(self, row) end
         return baseMouseDown(self, x, y)
     end
     list.doDrawItem = function(self, rowY, item, alt)
@@ -1636,19 +1636,26 @@ function UI.hoverLight(el, key, on)
     return fxLevel(f, now)
 end
 
--- The sound of a click that flashes: every drawn control (a button, a card, a tab, a row) that flashes on a click sounds
--- with it, so that a mod's own controls sound as the kit's. `cue`: nil for kit.select (a choice), "kit.press" for a
--- button, false for none (a control that sounds otherwise, as the game's button plays its own).
-local function clickSound(cue)
-    if cue == false then return end
+-- Clicks: every drawn control (a button, a card, a tab, a row, a node) answers a click through UI.click, UI.placeClick
+-- or, with no flash of its own, UI.clickSound, so that a mod's controls sound as the kit's (a unit test holds every
+-- mouse handler of the mods to it). UI.flash and UI.placeFlash only light (a row shown from elsewhere).
+
+-- The sound of a click. `cue`: nil for kit.select (a choice: a tab, a row, a card), "kit.press" for a button, or a cue
+-- of the mod's own.
+function UI.clickSound(cue)
     PZUIKit.Sound.ui(cue or "kit.select")
 end
 
--- A click's flash on `el` (its `key`): full now, dying out; with its sound (clickSound: `cue`).
-function UI.flash(el, key, cue)
+-- A flash on `el` (its `key`): full now, dying out.
+function UI.flash(el, key)
     fxOf(el, "fxFlash")[key] = { from = 1, to = 0, at = getTimestampMs(), dur = UI.FLASH_MS }
     UI.live(el, fxFrame)
-    clickSound(cue)
+end
+
+-- A click on `el`'s `key`: its flash and its sound (UI.clickSound: `cue`).
+function UI.click(el, key, cue)
+    UI.flash(el, key)
+    UI.clickSound(cue)
 end
 
 -- The flash's level now, 0 to 1.
@@ -1684,10 +1691,15 @@ function UI.placeLight(el, over, data)
     UI.live(el, fxFrame)
 end
 
-function UI.placeFlash(el, place, data, cue)
+function UI.placeFlash(el, place, data)
     fxOf(el, "fxFlash").press = { place = place, data = data, from = 1, to = 0, at = getTimestampMs(), dur = UI.FLASH_MS }
     UI.live(el, fxFrame)
-    clickSound(cue)
+end
+
+-- A click on a place: its flash and its sound (UI.clickSound: `cue`).
+function UI.placeClick(el, place, data, cue)
+    UI.placeFlash(el, place, data)
+    UI.clickSound(cue)
 end
 
 -- How lit a place is now: its hover's level and its flash's, 0 to 1 each.

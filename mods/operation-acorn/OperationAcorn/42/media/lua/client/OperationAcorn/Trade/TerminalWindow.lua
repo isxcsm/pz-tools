@@ -150,7 +150,7 @@ end
 function OATerminalTabs:onMouseDown(x, y)
     for _, slot in ipairs(self.slots) do
         if x >= slot.x and x < slot.x + slot.w then
-            UI.flash(self, slot.id)
+            UI.click(self, slot.id)
             self.window:activate(slot.id)
             return true
         end

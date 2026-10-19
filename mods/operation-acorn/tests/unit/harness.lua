@@ -76,6 +76,8 @@ end
 local function resetGame()
     TEST.hours = 0
     TEST.random = 1
+    -- the game's UI sounds answered, silently (a click sounds: PZUIKit UI.clickSound)
+    getSoundManager = function() return { playUISound = function() end } end
     -- the player a test stands in: none unless it gives one (a file's own must not reach the next)
     getPlayer = nil
     TEST.sent = {}

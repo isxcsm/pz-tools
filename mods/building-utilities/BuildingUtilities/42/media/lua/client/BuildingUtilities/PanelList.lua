@@ -495,10 +495,12 @@ function ISBUPanelList:onMouseDown(x, y)
             if dx >= button.x and dx < button.x + button.w then pressed = button end
         end
         -- (one sound a click: a row's button's press, else the row's choice)
-        if not STILL[item.item.kind] then UI.placeFlash(self, index, nil, pressed and false or nil) end
+        if not STILL[item.item.kind] then
+            if pressed then UI.placeFlash(self, index) else UI.placeClick(self, index) end
+        end
         -- the row clicked is the one chosen now (none, for a row that stands for no thing)
         self.window:chooseRow(self.utility, item.item.key, true)
-        if pressed then UI.flash(self, index .. pressed.name, "kit.press") end
+        if pressed then UI.click(self, index .. pressed.name, "kit.press") end
         self.window:onRow(self.utility, item.item, dx, width)
     end
     return true
@@ -633,7 +635,7 @@ function ISBUTabs:onMouseDown(x, y)
     if y >= self.tabHeight then return false end
     for index, slot in ipairs(self.slots) do
         if x >= slot.x and x < slot.x + slot.w then
-            UI.flash(self, index)
+            UI.click(self, index)
             self:activateView(slot.name)
             return true
         end
@@ -661,6 +663,7 @@ function ISBUSplitter:render()
     for i = -2, 2 do UI.fill(self, w / 2 - 1, middle - 1 + i * 5, 2, 2, k > 0.5 and P.sel or P.dim) end
 end
 
+-- (silent: a drag)
 function ISBUSplitter:onMouseDown(x, y)
     self.dragging = true
     return true

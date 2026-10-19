@@ -199,7 +199,7 @@ function OATerminalBoot:prerender()
     end
 end
 
--- The console is all there is to click on: a click anywhere skips it.
+-- The console is all there is to click on: a click anywhere skips it. (silent: the boot's own sounds go on, faded)
 function OATerminalBoot:onMouseDown()
     self.window:bootSkip()
     return true
