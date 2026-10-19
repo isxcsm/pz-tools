@@ -302,7 +302,7 @@ test("the ten-minute clock refreshes only when the bite shield's rest ends or be
         formulas = { set = function() end, points = function() return {} end } }
     CharacterTrait = {}
     local record = OA.Store.ensure("p", "P")
-    getPlayer = function() return { hasTrait = function() return false end } end
+    getPlayer = function() return { hasTrait = function() return false end, getVariableString = function() return "" end } end
     OA.Client.record = function() return record end
     local u = Rules.section(record)
     u.ranks.resistPlus = 2
@@ -331,5 +331,56 @@ test("the ten-minute clock refreshes only when the bite shield's rest ends or be
     Effects.apply(record)
     tick()
     eq(refreshes, 3)
+    PZExtAPI = nil
+end)
+
+test("the ten-minute clock also refreshes when an input of the values besides the record changed", function()
+    local Hooks = loadHooks()
+    local Effects, Rules = OA.Upgrades.Effects, OA.Upgrades.Rules
+    local refreshes = 0
+    Hooks.refresh = function() refreshes = refreshes + 1 end
+    PZExtAPI = { version = OA.API_VERSION, client = function() return "handle" end,
+        formulas = { set = function() end, points = function() return {} end } }
+    CharacterTrait = { NIGHT_VISION = "NV", EAGLE_EYED = "EE" }
+    local traits, variable = {}, ""
+    local record = OA.Store.ensure("p", "P")
+    getPlayer = function()
+        return { hasTrait = function(_, t) return traits[t] == true end, getVariableString = function() return variable end }
+    end
+    OA.Client.record = function() return record end
+    local u = Rules.section(record)
+    local clock = 1760000000000
+    getTimestampMs = function() return clock end
+    local function tick()
+        clock = clock + Hooks.REFRESH_MS
+        TEST.fire("EveryTenMinutes")
+    end
+    Effects.reset()
+    Effects.apply(record)
+    tick()
+    eq(refreshes, 0, "declared, nothing moved: not refreshed")
+    SandboxVars.OperationAcorn.HiddenZombieFix = not SandboxVars.OperationAcorn.HiddenZombieFix
+    tick()
+    eq(refreshes, 1, "the hidden zombie fix option changed")
+    Effects.apply(record)
+    tick()
+    eq(refreshes, 1, "declared again with it")
+    traits.NV = true
+    tick()
+    eq(refreshes, 2, "Night Vision given")
+    Effects.apply(record)
+    traits.EE = true
+    tick()
+    eq(refreshes, 3, "Eagle Eyed given")
+    Effects.apply(record)
+    tick()
+    eq(refreshes, 3)
+    u.ranks.fall = 1
+    tick()
+    eq(refreshes, 4, "the landing variable is not what the record's rank says (the game cleared it)")
+    variable = "1"
+    tick()
+    eq(refreshes, 4, "as it says")
+    SandboxVars.OperationAcorn.HiddenZombieFix = not SandboxVars.OperationAcorn.HiddenZombieFix
     PZExtAPI = nil
 end)

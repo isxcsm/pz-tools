@@ -553,14 +553,22 @@ Events.OnGameStart.Add(onGameStart)
 -- age moves with game time (the bite shield's rest ends at a game time), and ten game minutes are 25 s of real time at
 -- the default day length but some 0.6 s fast-forwarded (x40) and less asleep: the shield is then ready at most this
 -- late in real time. A change to the record refreshes at once, as before. The clock refreshes only when what was
--- declared no longer fits the time (Effects.stale: the shield's rest ended, or no API yet), not every ten minutes.
+-- declared no longer fits (Effects.stale: the shield's rest ended, no API yet, or an input besides the record changed:
+-- the hidden zombie fix option, the vision traits) or the character's landing variable is not what the record says
+-- (landStale), not every ten minutes.
 Hooks.REFRESH_MS = 5000
 
 local refreshedAt = {}
 
+-- Whether the character's landing variable (OALandRank) is not what the record says: the game may have cleared it.
+function Hooks.landStale(u, player)
+    return u ~= nil and player ~= nil and player:getVariableString(Effects.LAND_VARIABLE) ~= (Effects.landRank(u) or "")
+end
+
 Events.EveryTenMinutes.Add(function()
     if not OA.due(refreshedAt, "clock", getTimestampMs(), Hooks.REFRESH_MS) then return end
-    if Effects.stale(localSection(), OA.hours()) then Hooks.refresh() end
+    local u, player = localSection()
+    if Effects.stale(u, OA.hours(), player) or Hooks.landStale(u, player) then Hooks.refresh() end
 end)
 
 return Hooks

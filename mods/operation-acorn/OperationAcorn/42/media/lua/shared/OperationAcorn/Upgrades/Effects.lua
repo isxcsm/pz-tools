@@ -252,6 +252,8 @@ end
 
 local declared = {}
 local statuses = nil
+-- the inputs (Effects.inputs) the last apply worked from
+local appliedInputs = nil
 
 local function same(a, b)
     if type(a) ~= type(b) then return false end
@@ -272,19 +274,38 @@ end
 function Effects.reset()
     declared = {}
     statuses = nil
+    appliedInputs = nil
     visibilityMod = nil
 end
 
--- Whether what was declared no longer fits the time `now` (hours) for the section `u`: nothing is declared yet (the API
--- was not there), or the bite shield's point was declared armed or resting and the rest has since ended or begun. That
--- point is the one value that moves with game time alone; every other changes with the record, which refreshes at once.
-function Effects.stale(u, now)
+-- The inputs of the values besides the record and the time, as one number: the hidden zombie fix being on (the option, no
+-- other mod doing it) and the character's two vision traits. They change under a running game (an option changed, a trait
+-- given), without the record telling. nil character: none of its traits.
+local function readInputs(player)
+    return Effects.hiddenZombieFix(), player and player:hasTrait(CharacterTrait.NIGHT_VISION) or false,
+        player and player:hasTrait(CharacterTrait.EAGLE_EYED) or false
+end
+
+local function packed(hidden, night, eagle)
+    return (hidden and 1 or 0) + (night and 2 or 0) + (eagle and 4 or 0)
+end
+
+function Effects.inputs(player)
+    return packed(readInputs(player))
+end
+
+-- Whether what was declared no longer fits the time `now` (hours) for the section `u` (and, when given, the inputs of
+-- `player`): nothing is declared yet (the API was not there), the inputs have changed since the last apply, or the bite
+-- shield's point was declared armed or resting and the rest has since ended or begun. The shield is the one value that
+-- moves with game time alone; every other changes with the record, which refreshes at once, or with the inputs.
+function Effects.stale(u, now, player)
     local any = false
     for _ in pairs(declared) do
         any = true
         break
     end
     if not any then return true end
+    if player ~= nil and Effects.inputs(player) ~= appliedInputs then return true end
     return u ~= nil and (declared[P.biteShield] == true) ~= Rules.biteReady(u, now)
 end
 
@@ -303,9 +324,9 @@ function Effects.apply(record)
     if type(formulas) ~= "table" or type(formulas.set) ~= "function" or not handle then return nil, "formulas" end
     local u = record and Rules.section(record) or Rules.blank()
     local player = getPlayer and getPlayer()
-    local values = Effects.compute(u, OA.hours(), { hiddenZombieFix = Effects.hiddenZombieFix(),
-        nightVision = player and player:hasTrait(CharacterTrait.NIGHT_VISION) or false,
-        eagleEyed = player and player:hasTrait(CharacterTrait.EAGLE_EYED) or false })
+    local hidden, night, eagle = readInputs(player)
+    appliedInputs = packed(hidden, night, eagle)
+    local values = Effects.compute(u, OA.hours(), { hiddenZombieFix = hidden, nightVision = night, eagleEyed = eagle })
     local count = 0
     for _, name in pairs(P) do
         local value = values[name]
