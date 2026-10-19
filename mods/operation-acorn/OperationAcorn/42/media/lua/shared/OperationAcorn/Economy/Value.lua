@@ -36,8 +36,8 @@ Value.CASH = { ["Base.Money"] = 1, ["Base.MoneyBundle"] = 100 }
 -- past its time. A meteorite fragment is not sold: it goes to the research team and opens a capstone (the story part
 -- tells the upgrades when it settles: Story.onSettled).
 Value.OWN = {
-    SampleBundle = { credits = 600, trust = 6 },
-    SelectedSample = { credits = 1200, trust = 12 },
+    SampleBundle = { credits = 600, trust = 6, event = "samples" },
+    SelectedSample = { credits = 1200, trust = 12, event = "samples" },
     MeteorFragment = { credits = 0, trust = 10, fragment = true },
     MeteorFragmentIron = { credits = 0, trust = 10, fragment = true },
     MeteorFragmentStonyIron = { credits = 0, trust = 10, fragment = true },
@@ -202,7 +202,9 @@ function Value.appraiseLine(info, count, ctx, taken)
     if info.own then
         local def = Value.OWN[info.own]
         if def then
-            line.credits = def.credits * count * rate
+            -- the market's events on the team's own goods (`event`: S6's call for samples) raise their credits
+            local index = def.event and ctx.index and ctx.index[def.event] or 1.0
+            line.credits = def.credits * count * rate * index
             line.trust = def.trust * count * (ctx.trustAccel or 1.0)
         end
         line.own = info.own

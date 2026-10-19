@@ -35,8 +35,8 @@ OA.CommsData = Data
 --            of, so it comes whatever was ordered (S7's torch, SCENES.md)
 --   greet    the first line opens with the greeting of the tier it is played at (LORE 6)
 --   market   what the team asked for in it, as the market's event once it has been played: { cat, mult, days, key }
---            (Market.addEvent; the call's words are then borne out by the delivery tab and the prices; cat "*" is
---            every category, Market.ALL)
+--            (Market.addEvent; the call's words are then borne out by the delivery tab and the prices; cat may name
+--            the team's own goods, Value.OWN `event`: "samples")
 --   sign     the call sign: "oak" (참나무) or "admin" (관리 7)
 --   lines    { speaker, ... }: "oak" (the team), "me" (the protagonist), "noise" (static only, `s` seconds), "mute"
 --            (nothing, `s` seconds); `erase` on a "me" line: words typed and deleted first (key _x); `late` on a line: a
@@ -122,7 +122,7 @@ Data.ENTRIES = {
     { id = "S5F", kind = "field", trigger = "field:gym", tier = 5, mission = true, sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "oak" }, { "oak" } } },
     { id = "S6", kind = "scene", trigger = "crate:6", tier = 6, waits = "S5", sign = "oak",
-      market = { cat = "*", mult = 1.25, days = 7, key = "IGUI_OA_Econ_Event_SerumStock" }, lines = {
+      market = { cat = "samples", mult = 1.25, days = 7, key = "IGUI_OA_Econ_Event_SerumStock" }, lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me", erase = true, stop = 1.8, del = 8, after = 2 },
         { "me", pause = 2 }, { "oak" } } },
     { id = "s6_list", kind = "short", trigger = "tier:6", tier = 6, waits = "S6", greet = true, sign = "oak" },

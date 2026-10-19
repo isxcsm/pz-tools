@@ -84,14 +84,13 @@ function Market.state()
     return st
 end
 
--- An event's category may be Market.ALL: it is on every category (the story's "send all you can", S6).
-Market.ALL = "*"
-
--- The events that rule a category on a day: its largest raise and its deepest glut (either may be nil).
+-- The events that rule a category on a day: its largest raise and its deepest glut (either may be nil). An event may
+-- be on something other than a category: a name the price of the team's own goods asks by (Value.OWN `event`: the
+-- story's "send all the samples you can", S6, is on "samples", the shredder's bundles).
 local function leadEvents(st, cat, day)
     local best, glut
     for _, e in ipairs(st.events) do
-        if (e.cat == cat or e.cat == Market.ALL) and e.ends > day then
+        if e.cat == cat and e.ends > day then
             if e.mult > 1.0 then
                 if not best or e.mult > best.mult then best = e end
             elseif e.mult < 1.0 and (not glut or e.mult < glut.mult) then
@@ -113,11 +112,11 @@ local function compose(m, s, e)
     return OA.clamp(m * s * e, Market.MIN, Market.MAX)
 end
 
--- The index now of a category (1.0 for one the market does not know).
+-- The index now of a category; for any other name, the factor of the events on it (1.0 with none).
 function Market.index(category)
     local st = Market.state()
     local m = st.M[category]
-    if not m then return 1.0 end
+    if not m then return eventFactor(st, category, st.day) end
     return compose(m, st.S[category], eventFactor(st, category, st.day))
 end
 
@@ -322,18 +321,21 @@ function Market.situation()
     local st = Market.state()
     local day = st.day
     local lines = {}
-    local allShown = {}
+    -- the events on the team's own goods: a line for each name (its text names what it is on)
+    local others = {}
+    for _, e in ipairs(st.events) do
+        if not st.M[e.cat] and e.ends > day and not others[e.cat] then
+            others[e.cat] = true
+            local best, glut = leadEvents(st, e.cat, day)
+            local lead = best or glut
+            lines[#lines + 1] = { kind = best and "raise" or "glut", cat = e.cat, mult = lead.mult,
+                left = lead.ends - day, key = lead.key or "IGUI_OA_Econ_Event_Demand", withCat = false }
+        end
+    end
     for _, c in ipairs(OA.Categories.LETTERS) do
         local best, glut = leadEvents(st, c, day)
         local e = best or glut
-        -- an event on every category is one line (its text names no category), however many it leads
-        if e and e.cat == Market.ALL then
-            if not allShown[e] then
-                allShown[e] = true
-                lines[#lines + 1] = { kind = best and "raise" or "glut", cat = Market.ALL, mult = e.mult,
-                    left = e.ends - day, key = e.key or "IGUI_OA_Econ_Event_Demand", withCat = false }
-            end
-        elseif e then
+        if e then
             local key = e.key or (best and "IGUI_OA_Econ_Event_Demand" or "IGUI_OA_Econ_Event_Glut")
             lines[#lines + 1] = { kind = best and "raise" or "glut", cat = c, mult = e.mult, left = e.ends - day,
                 key = key, withCat = not OA.Season.isLineKey(key) }

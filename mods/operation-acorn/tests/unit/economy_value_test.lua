@@ -59,6 +59,17 @@ test("a box of sample bundles: 50 of them are 30,000 credits and 300 trust", fun
     near(line.trust, 300, 1e-6)
 end)
 
+test("the call for samples (an event on \"samples\") raises the bundles' credits, not their trust", function()
+    local c = ctx({ index = { samples = 1.25 } })
+    local line = V.appraiseLine(info("OperationAcorn.SampleBundle", "Junk", 1.0, { own = "SampleBundle" }), 2, c)
+    near(line.credits, 1500, 1e-6)
+    near(line.trust, 12, 1e-6)
+    line = V.appraiseLine(info("OperationAcorn.SelectedSample", "Material", 0.5, { own = "SelectedSample" }), 1, c)
+    near(line.credits, 1500, 1e-6)
+    line = V.appraiseLine(info("OperationAcorn.TissueCommon", "Junk", 0.1, { own = "TissueCommon" }), 1, c)
+    near(line.credits, 200, 1e-6, "a zombie sample is not what the call asks for")
+end)
+
 test("a selected sample is worth two sample bundles", function()
     local line = V.appraiseLine(info("OperationAcorn.SelectedSample", "Material", 0.5, { own = "SelectedSample" }), 3,
         ctx())
