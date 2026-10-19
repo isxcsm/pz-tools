@@ -55,25 +55,15 @@ FAMILY = 'restrained cinematic game UI sound, warm, clean, high quality, short n
 # moment in the title (enter: as it begins to come in; land: the stamp's impact; leave: as it begins to go); `at` is when,
 # from there, its loudest moment should come (the title fully in, the torch opening), None to leave it where the model put it.
 # A cue with a parent is made from it.
-CUES = {
-    # a call ending: the transmission's own tone, going, as long as the title takes to go (3.7 s to its last tenth)
-    'notice:leave': dict(made=4.0, at=None, peak=TAIL_DB, parent='notice:enter', noise=0.75, prompts=[
-        'Transmission ends, the same soft electronic tone gently stepping down and slowly fading',
-        'End of message, the same tone softly closing and fading away, quiet',
-    ]),
-}
+# (all picked: what the user asks next of a cue goes here)
+CUES = {}
 
 # What the user asked of a pick, as its refinements: each (how, settings). "a2a": the model again from the pick, at a noise,
 # its prompt (and what is added to it); "move": the pick itself moved so that its loudest moment comes at `at`, lowered by
 # `db` and darkened by a low pass at `lp` Hz; "room": the pick with a reverb tail of rt60 seconds, kept `kept` long;
 # "fit": a leave made as long as its title's leave (from a longer room, or the model again from the pick asked for that
 # length) and faded as the title fades (fit_envelope). A cue picked and not here is decided: the lab lists its pick alone.
-REFINE = {
-    # (its tail ended while the paper was still burning: as long as the paper takes to burn and blow away)
-    'dust:leave': [('fit', dict(src='room', rt60=4.0)),
-                   ('fit', dict(src='a2a', noise=0.35, add='slowly fading over a long time')),
-                   ('fit', dict(src='a2a', noise=0.5, add='slowly fading over a long time'))],
-}
+REFINE = {}
 
 
 def decode_model_audio(audio, sr):
@@ -392,7 +382,17 @@ def main(argv):
             if not parents:
                 print('no candidates of', parent, 'to make', key, 'from; skipped')
                 continue
-        files = []
+        pick = picks.get(key)
+        stem = key.replace(':', '_')
+        keep = [pick['file']] if pick else []
+        for f in manifest.get(key, []):
+            if f not in keep and os.path.exists(os.path.join(OUT, f)):
+                os.remove(os.path.join(OUT, f))
+                told.pop(f, None)
+        names = [n for n in ('%s_%02d.ogg' % (stem, i) for i in range(1, 100)) if n not in keep][:count]
+        env = fit_envelope(key.split(':')[0]) if c.get('fit') else None
+        c = dict(c, made=len(env) / RATE) if env is not None else c
+        files = list(keep)
         prompts = [c['prompts'][i % len(c['prompts'])] + ', ' + FAMILY for i in range(count)]
         if parents:
             # (each from its own sound: one at a time)
@@ -406,8 +406,13 @@ def main(argv):
             made = [(x, dict(prompt=prompts[i], seed=1000, batch=count, item=i))
                     for i, x in enumerate(maker.make(prompts, 1000, c['made']))]
         for i, (x, how) in enumerate(made):
-            y = shape(x, c['at'], c.get('peak', PEAK_DB))
-            name = '%s_%02d.ogg' % (key.replace(':', '_'), i + 1)
+            if env is not None:
+                x = clean(lead_trim(x))
+                x = np.pad(x, (0, max(0, len(env) - len(x))))[:len(env)] * env
+                y = peak_to(fade(x, 0.005, 0.05), c.get('peak', PEAK_DB))
+            else:
+                y = shape(x, c['at'], c.get('peak', PEAK_DB))
+            name = names[i]
             write(name, y, dict(how, made=c['made'], at=c['at']))
             files.append(name)
         save(key, files)

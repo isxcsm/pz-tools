@@ -166,7 +166,8 @@
       const times = { enter: p.delay, land, hold: land, leave: p.leaveAt };
       lifeEnd = Math.max(lifeEnd, p.leaveAt + p.leaveTime * (1 + p.ash));
       if (p.strikes) p.strikes.forEach((k, n) => events.push({ key: "key" + i + "." + n, file: keyFile(k.ch), moment: "key", at: p.delay + k.at, db: isLine ? -3 : 0 }));
-      if (p.strikes && i > 0) events.push({ key: "return" + i, file: RETURN, moment: "return", at: p.delay - 0.2, db: -3 });
+      // (the return as the title is all in: its land, as the kit sounds it; its line is typed after it)
+      if (p.strikes && i === 0) events.push({ key: "return", file: RETURN, moment: "land", at: p.delay + p.enterTime, db: -3 });
       if (p.feeds && i === 0) p.feeds.forEach((f, n) => events.push({ key: "feed" + n, file: RETURN, moment: "feed", at: p.leaveAt + f, db: -2 * n }));
       for (const cue of cues) {
         const own = !!cue[3];
@@ -330,7 +331,7 @@
         const list = candidatesOf(style, cue), picked = PICKED[id], stem = picked ? picked.slice(0, -4) + "_r" : null;
         list.forEach((f, i) => {
           const r = stem && f.startsWith(stem) ? f.slice(stem.length).match(/^(\d+)\.ogg$/) : null;
-          opts.push([f, f === picked ? "선택" : r ? "다듬음 " + r[1] : String(i + 1)]);
+          opts.push([f, f === picked ? "선택" : r ? "다듬음 " + r[1] : String(+((f.match(/_(\d+)\.ogg$/) || [0, i + 1])[1]))]);
         });
         if (NOW[id]) opts.push(["now", hasCandidates(style, cue) ? "지금 게임" : "지금"]);
         const row = document.createElement("div");

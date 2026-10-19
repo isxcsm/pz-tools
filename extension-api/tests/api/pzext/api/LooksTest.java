@@ -146,11 +146,14 @@ final class LooksTest {
         Looks.drops(shape, 300, 30, 330, 45, 99, false);
         check(shape.dropCount == 3 && near(shape.drops[0], 153.76388690434396) && near(shape.drops[4], 23.00425645778887) && near(shape.drops[8], 0.45),
             "The line's drops are not the page's");
-        double[] keys = new double[5];
-        Looks.keys(new boolean[] { false, false, true, false, false }, 5, 1.3, 4242, keys);
-        check(keys[0] == 0 && near(keys[1], 0.25517569873644264) && near(keys[2], 0.8115553633901342) && near(keys[3], 0.9662789374534235) && near(keys[4], 1.17),
-            "The typewriter's keys are not the page's: " + java.util.Arrays.toString(keys));
-        check(near(Looks.fed(0, 5.5), 0) && near(Looks.fed(0.2, 5.5), 1) && near(Looks.fed(1, 5.5), 3), "The paper is not fed a line at a time");
+        // (the lab's typeKeys and typedTime for "Ab c,de" at seed 4242: a space pressed after b, a clause's pause after the comma)
+        var typed = new Looks.Typed("Ab c,de", 4242);
+        check(java.util.Arrays.equals(typed.codes, new int[] { 'A', 'b', ' ', 'c', ',', 'd', 'e' }) && typed.letters.length == 6
+            && typed.letters[0] == 0 && near(typed.letters[1], 0.07567114212797042) && near(typed.strikes[2], 0.15134228425594085)
+            && near(typed.letters[2], 0.3470134263839113) && near(typed.letters[3], 0.42766021683357647) && near(typed.letters[4], 0.9083070072832417)
+            && near(typed.letters[5], 0.9889537977329068) && near(typed.time, 1.0603823691614782),
+            "The typewriter's keys are not the page's: " + java.util.Arrays.toString(typed.strikes));
+        check(near(Looks.fed(0), 0) && near(Looks.fed(0.5), 1) && near(Looks.fed(3), 4), "The paper is not fed a line with each return");
         // Three letters, the last on a row of its own: the first's foot (a row of ink) reaches past its advance (20) to 22, the
         // second starts at 25; the cut goes through the light foot to the empty column nearest the gap (23), and none is made
         // across rows.

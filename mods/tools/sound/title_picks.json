@@ -85,17 +85,24 @@
   "at": null
  },
  "dust:enter": {
-  "file": "dust_enter_02.ogg",
-  "prompt": "Soft warm breath of air swelling into a calm low tone, subtle and reflective, understated, restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail",
+  "file": "dust_enter_03.ogg",
+  "prompt": "A soft warm swell with a faint papery texture, like a page quietly turned, calm and understated, restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail",
   "seed": 1000,
-  "made": 4.0,
-  "at": 1.0
+  "made": 3.0,
+  "at": 0.9
  },
  "dust:leave": {
-  "file": "dust_leave_03.ogg",
-  "prompt": "The same warm tone very softly fading away for a long time, faint, gentle, airy, restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail",
-  "seed": 1002,
-  "made": 5.0,
+  "file": "dust_leave_01.ogg",
+  "prompt": "Paper softly catching fire with a gentle low crackle, embers dying down into a faint airy whisper of ash drifting away, very quiet, intimate, restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail",
+  "seed": 1000,
+  "made": 9.0,
+  "at": null
+ },
+ "notice:leave": {
+  "file": "notice_leave_01.ogg",
+  "prompt": "Faint radio static crackle as a weak signal is slowly lost, a soft hiss, gentle and quiet with a lingering tail, restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail",
+  "seed": 1000,
+  "made": 4.333333333333333,
   "at": null
  }
 }
