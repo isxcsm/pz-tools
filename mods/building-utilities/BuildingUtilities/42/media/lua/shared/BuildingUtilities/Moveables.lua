@@ -322,13 +322,10 @@ end)
 
 -- The cursor draws the tile it would put down (objectSprite); a unit of lookBySquare is drawn as the square under it
 -- makes it, for the side it is turned to. Only while putting one down; the cursor is the game's, there once a game is on.
--- A box held in both hands, or nil.
+-- A box held in both hands (the kit's heavy thing held, of a box's type), or nil.
 local function heldBox(character)
-    local held = character and character:getPrimaryHandItem()
-    if held and held == character:getSecondaryHandItem() and instanceof(held, "Moveable")
-        and BU.PANEL_ITEM_TIER[held:getFullType()] then
-        return held
-    end
+    local held = Heavy.held(character)
+    if held and BU.PANEL_ITEM_TIER[held:getFullType()] then return held end
     return nil
 end
 Moveables.heldBox = heldBox
