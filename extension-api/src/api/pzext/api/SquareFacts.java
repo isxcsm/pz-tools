@@ -28,7 +28,7 @@ final class SquareFacts {
     // IsoDoor.getNorth(), IsoThumpable.isDoor() and getNorth().
     static final MethodHandle DOOR_NORTH, THUMP_IS_DOOR, THUMP_NORTH;
     // IsoWorld.instance, getMetaGrid(); IsoMetaGrid.getRoomDefByID(id), getZonesAt(x, y, z, list); Zone.getType().
-    static final MethodHandle WORLD, META_GRID, ROOM_BY_ID, ZONES_AT, ZONE_TYPE;
+    static final MethodHandle WORLD, META_GRID, ROOM_BY_ID, ZONES_AT, ZONES_INTERSECTING, ZONE_TYPE, ZONE_CONTAINS;
     /** IsoDoor, IsoThumpable, IsoFlagType, IsoRoom, RoomDef, IsoGridSquare. */
     static final Class<?> DOOR, THUMPABLE, FLAG, ROOM_TYPE, ROOM_DEF_TYPE, SQUARE;
 
@@ -76,7 +76,12 @@ final class SquareFacts {
             ROOM_BY_ID = Reach.handle(lookup, grid.getMethod("getRoomDefByID", long.class), MethodType.methodType(Object.class, Object.class, long.class));
             ZONES_AT = Reach.handle(lookup, grid.getMethod("getZonesAt", int.class, int.class, int.class, ArrayList.class),
                 MethodType.methodType(ArrayList.class, Object.class, int.class, int.class, int.class, ArrayList.class));
+            ZONES_INTERSECTING = Reach.handle(lookup, grid.getMethod("getZonesIntersecting", int.class, int.class, int.class, int.class,
+                int.class, ArrayList.class), MethodType.methodType(ArrayList.class, Object.class, int.class, int.class, int.class, int.class,
+                int.class, ArrayList.class));
             ZONE_TYPE = Reach.handle(lookup, zone.getMethod("getType"), OBJECT_OF);
+            ZONE_CONTAINS = Reach.handle(lookup, zone.getMethod("contains", int.class, int.class, int.class),
+                MethodType.methodType(boolean.class, Object.class, int.class, int.class, int.class));
         } catch (ReflectiveOperationException failure) {
             throw new ExceptionInInitializerError(failure);
         }

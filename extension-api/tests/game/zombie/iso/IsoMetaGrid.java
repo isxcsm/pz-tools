@@ -60,6 +60,12 @@ public final class IsoMetaGrid {
             if (zone.z == z && x >= zone.x && x < zone.x + zone.w && y >= zone.y && y < zone.y + zone.h) result.add(zone);
         return result;
     }
+    /** As the game's: adds the zones whose box touches the rectangle (each once) to the list, and gives it back. */
+    public ArrayList<zombie.iso.zones.Zone> getZonesIntersecting(int x, int y, int z, int w, int h, ArrayList<zombie.iso.zones.Zone> result) {
+        for (zombie.iso.zones.Zone zone : zones)
+            if (zone.z == z && zone.x < x + w && x < zone.x + zone.w && zone.y < y + h && y < zone.y + zone.h && !result.contains(zone)) result.add(zone);
+        return result;
+    }
     private final ArrayList<RemovedBuilding> removedBuildings = new ArrayList<>();
     // The rooms by the chunk of the map their rectangles touch, in the order of the list; and the version they were made at.
     private LongTable<ArrayList<RoomDef>> byChunk = new LongTable<>();

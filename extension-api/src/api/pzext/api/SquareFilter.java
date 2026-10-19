@@ -411,7 +411,9 @@ final class SquareFilter {
      * {@code { type = "Nav", none = n, some = m }}: no zone of the type at the square or at the eight points (along the rows and
      * the diagonals) each square out to {@code none}; and, when {@code some} is further, one at those points beyond {@code none}
      * out to {@code some}. A road in sight but not under foot, as {@code zones.points}' {@code road} asks it (a road one square
-     * wide is not stepped over). Asked last: the cheaper conditions turn most squares away first.
+     * wide is not stepped over). The zones of the type touching the box out to the further of the two are asked once (the map
+     * keeps them by chunk), and the points are asked of those alone: no zone of the type near, one question in all. Asked
+     * last: the cheaper conditions turn most squares away first.
      */
     private static Check zoneNear(Kahlua lua, Object value, String call, String name) throws Throwable {
         String shape = call + ": " + name + " must be { type = \"...\", none = n, some = n }";
@@ -422,32 +424,39 @@ final class SquareFilter {
         Object noneValue = lua.get(value, "none"), someValue = lua.get(value, "some");
         int none = noneValue == null ? 0 : whole(noneValue, call, name + ".none", 0, MAX_NEAR);
         int some = someValue == null ? 0 : whole(someValue, call, name + ".some", 0, MAX_NEAR);
-        var zones = new ArrayList<Object>();
-        return (s, a) -> {
+        int reach = Math.max(none, some);
+        var touching = new ArrayList<Object>();
+        var near = new ArrayList<Object>();
+        @SuppressWarnings({ "unchecked", "rawtypes" })
+        Check check = (s, a) -> {
             Object grid = metaGrid();
             if (grid == null) return true;
             int x = (int)Reach.SQUARE_X.invokeExact(s), y = (int)Reach.SQUARE_Y.invokeExact(s), z = (int)Reach.SQUARE_Z.invokeExact(s);
-            if (zoneAt(grid, zones, type, x, y, z)) return false;
-            for (int r = 1; r <= none; r++) if (zoneRing(grid, zones, type, x, y, z, r)) return false;
+            touching.clear();
+            near.clear();
+            ArrayList list = touching;
+            ArrayList<?> found = (ArrayList<?>)ZONES_INTERSECTING.invokeExact(grid, x - reach, y - reach, z, 2 * reach + 1, 2 * reach + 1, list);
+            for (int index = 0, size = found.size(); index < size; index++)
+                if (type.equals((Object)ZONE_TYPE.invokeExact(found.get(index)))) near.add(found.get(index));
+            if (near.isEmpty()) return some <= none;
+            if (zoneAt(near, x, y, z)) return false;
+            for (int r = 1; r <= none; r++) if (zoneRing(near, x, y, z, r)) return false;
             if (some <= none) return true;
-            for (int r = none + 1; r <= some; r++) if (zoneRing(grid, zones, type, x, y, z, r)) return true;
+            for (int r = none + 1; r <= some; r++) if (zoneRing(near, x, y, z, r)) return true;
             return false;
         };
+        return check;
     }
 
     private static final int[] RING = { 1, 0, 1, 1, 0, 1, -1, 1, -1, 0, -1, -1, 0, -1, 1, -1 };
 
-    private static boolean zoneRing(Object grid, ArrayList<Object> zones, String type, int x, int y, int z, int r) throws Throwable {
-        for (int at = 0; at < RING.length; at += 2) if (zoneAt(grid, zones, type, x + RING[at] * r, y + RING[at + 1] * r, z)) return true;
+    private static boolean zoneRing(ArrayList<Object> near, int x, int y, int z, int r) throws Throwable {
+        for (int at = 0; at < RING.length; at += 2) if (zoneAt(near, x + RING[at] * r, y + RING[at + 1] * r, z)) return true;
         return false;
     }
 
-    @SuppressWarnings({ "unchecked", "rawtypes" })
-    private static boolean zoneAt(Object grid, ArrayList<Object> zones, String type, int x, int y, int z) throws Throwable {
-        zones.clear();
-        ArrayList list = zones;
-        ArrayList<?> at = (ArrayList<?>)ZONES_AT.invokeExact(grid, x, y, z, list);
-        for (int index = 0, size = at.size(); index < size; index++) if (type.equals((Object)ZONE_TYPE.invokeExact(at.get(index)))) return true;
+    private static boolean zoneAt(ArrayList<Object> near, int x, int y, int z) throws Throwable {
+        for (int index = 0, size = near.size(); index < size; index++) if ((boolean)ZONE_CONTAINS.invokeExact(near.get(index), x, y, z)) return true;
         return false;
     }
 
