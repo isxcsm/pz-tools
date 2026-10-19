@@ -71,6 +71,13 @@ test("the delivery boxes are shown where they last stood; one packed in a crate 
     eq(scene.boxes[1].x, 10.5); eq(scene.boxes[1].y, 20.5)
     eq(View.scene({ boxes = { list = { a = { id = "a", state = "placed", x = 1, y = 2 } } } }).empty, false,
         "a box alone is shown")
+    -- a crate that came down beside the spot asked for: its mark names the box packed in it
+    local beside = { heli = { markers = { { kind = "crate", x = 91, y = 90, box = "2-1" } } }, boxes = { list = {
+        ["2-1"] = { id = "2-1", state = "carried", x = 88, y = 90 } } } }
+    eq(#View.boxes(beside), 0, "one mark for the crate and the box in it")
+    truthy(View.inCrate(beside, beside.boxes.list["2-1"]))
+    beside.heli.markers = {}
+    eq(#View.boxes(beside), 1, "taken out of the crate: the box's own mark")
 end)
 
 test("the maps show the circle, the way's end and the crates, from the middles of their squares", function()

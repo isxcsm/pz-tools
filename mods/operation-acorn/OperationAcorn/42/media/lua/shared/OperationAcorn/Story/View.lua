@@ -130,15 +130,25 @@ function View.points(record, m, where)
     return list
 end
 
--- The crates and boxes the helicopter left that are not picked up (record.heli.markers): { { x, y, kind } }.
+-- The crates and boxes the helicopter left that are not picked up (record.heli.markers): { { x, y, kind, box } }
+-- (`box`: the delivery box packed in it).
 function View.crates(record)
     local list = {}
     local marks = record and record.heli and record.heli.markers
     for i = 1, marks and #marks or 0 do
         local mark = marks[i]
-        if mark.x and mark.y then list[#list + 1] = { x = mark.x, y = mark.y, kind = mark.kind } end
+        if mark.x and mark.y then list[#list + 1] = { x = mark.x, y = mark.y, kind = mark.kind, box = mark.box } end
     end
     return list
+end
+
+-- Whether a carried box is still packed in a crate the helicopter left (the crate's mark stands for it).
+function View.inCrate(record, box)
+    if not (box and box.state == "carried") then return false end
+    for _, c in ipairs(View.crates(record)) do
+        if c.box == box.id or (c.x == box.x and c.y == box.y) then return true end
+    end
+    return false
 end
 
 -- The record's delivery boxes where they last stood (DESIGN 9 '위치 추적': standing, sealed, or carried off from
@@ -147,10 +157,8 @@ function View.boxes(record)
     local list = {}
     local d = record and record.boxes
     if not (d and d.list) then return list end
-    local crates = {}
-    for _, c in ipairs(View.crates(record)) do crates[c.x .. "," .. c.y] = true end
     for _, box in pairs(d.list) do
-        if box.x and box.y and not (box.state == "carried" and crates[box.x .. "," .. box.y]) then
+        if box.x and box.y and not View.inCrate(record, box) then
             list[#list + 1] = { x = box.x, y = box.y, id = box.id }
         end
     end

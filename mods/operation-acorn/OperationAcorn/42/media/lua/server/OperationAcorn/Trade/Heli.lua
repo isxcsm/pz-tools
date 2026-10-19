@@ -166,7 +166,17 @@ function Heli.setDown(entry)
         crateSquare = crateSquare or Objects.findBeside(entry.x, entry.y, entry.z or 0, 5) or square
         Things.makeCrate(crateSquare, entry.cargo, entry.parachute)
         local cx, cy, cz = crateSquare:getX(), crateSquare:getY(), crateSquare:getZ()
-        Trade.Markers.add(owner, crateSquare, "crate")
+        -- a delivery box packed in it is where the crate came down (not the spot asked for: the crate may go beside it),
+        -- and the crate's mark stands for it on the maps and the helicopter tab
+        local packed
+        for _, spec in ipairs(entry.cargo) do
+            local box = spec.mod and Boxes.get(owner, spec.mod.OA_Box)
+            if box and box.state == "carried" then
+                box.x, box.y, box.z = cx, cy, cz
+                packed = box.id
+            end
+        end
+        Trade.Markers.add(owner, crateSquare, "crate", packed and { box = packed } or nil)
         if entry.parachute then
             Later.after(Heli.PARACHUTE_SECONDS, function()
                 local object = Objects.find(Objects.square(cx, cy, cz), Objects.CRATE)

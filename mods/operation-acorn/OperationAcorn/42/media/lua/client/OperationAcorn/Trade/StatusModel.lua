@@ -10,6 +10,7 @@ require "OperationAcorn/Core"
 require "OperationAcorn/Economy/Trust"
 require "OperationAcorn/Economy/Support"
 require "OperationAcorn/Economy/Shop"
+require "OperationAcorn/Story/View"
 require "OperationAcorn/Economy/Codex"
 require "OperationAcorn/Economy/Categories"
 require "OperationAcorn/Trade/Terminal"
@@ -458,9 +459,7 @@ function M.box(record, px, py)
     local where = OA.Places.whereText(px, py, box.x, box.y)
     if box.state == "sealed" then return tr("IGUI_OA_Status_BoxSealed", where) end
     if box.state == "carried" then
-        for _, m in ipairs(record.heli and record.heli.markers or {}) do
-            if m.x == box.x and m.y == box.y then return tr("IGUI_OA_Status_BoxInCrate", where) end
-        end
+        if OA.StoryView.inCrate(record, box) then return tr("IGUI_OA_Status_BoxInCrate", where) end
         return tr("IGUI_OA_Status_BoxCarried", where)
     end
     return where
