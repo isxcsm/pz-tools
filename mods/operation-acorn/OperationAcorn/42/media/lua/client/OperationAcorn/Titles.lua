@@ -4,7 +4,7 @@ require "OperationAcorn/Sync"
 require "OperationAcorn/Client"
 require "OperationAcorn/Markup"
 require "OperationAcorn/Trade/Text"
-require "PZUIKit/Sound"
+require "PZUIKit/Titles"
 local OA = OperationAcorn
 local Titles = {}
 OA.Titles = Titles
@@ -52,81 +52,11 @@ local function charactersOf(playerId)
 end
 Titles.charactersOf = charactersOf
 
--- The extension API's text, when its drawing hook is in.
-local function textApi()
-    local api = OA.api()
-    local t = api and api.text
-    if type(t) ~= "table" or type(t.title) ~= "function" then return nil end
-    local ok, status = pcall(t.status)
-    if not ok or status ~= "applied" then return nil end
-    return t
-end
-Titles.textApi = textApi
-
--- The style to ask the API for: the detail's (else "dust") when the API has it (an older PZ Extension API may not have "dust" or
--- "unveil"), else "stamp"; a brief title (a light one, low on the screen) the API does not have is not a title (nil: the
--- character says it instead). The styles' kinds: dust anything not plainly another, discovery a thing found, unveil a thing
--- strange, notice word from the radio, stamp a great thing done, bleed an infection found, sink a thing lost, type a
--- document or an order, pulse a danger passed.
--- The API's styles are asked once (again for another API's text).
-local styles, stylesOf
-local function styleFor(t, wanted)
-    wanted = wanted or "dust"
-    if stylesOf ~= t then
-        styles, stylesOf = {}, t
-        local ok, list = pcall(t.styles)
-        if ok and type(list) == "table" then
-            for _, name in ipairs(list) do styles[name] = true end
-        elseif ok and list ~= nil and list.size then
-            for i = 0, list:size() - 1 do styles[list:get(i)] = true end
-        end
-    end
-    if styles[wanted] then return wanted end
-    if wanted == "brief" then return nil end
-    return "stamp"
-end
-Titles.styleFor = styleFor
-
--- A title over a window (the adaptation tab, the terminal: busy, bright panels) gets this dark band behind it, so that
--- it reads; over the world the style's own (if any) is enough. A window counts when it is at least WINDOW_W by WINDOW_H
--- and crosses the middle of the screen across, between WINDOW_TOP and WINDOW_BOTTOM of its height (where titles go); a
--- window filling the screen (the game's own layers) does not. A brief title is judged where it goes, low on the screen
--- (BRIEF_TOP to BRIEF_BOTTOM): its own faint backdrop is lost on a window's panel and its line read as the panel's.
-Titles.OVER_WINDOW = 0.75
-local WINDOW_W, WINDOW_H, WINDOW_TOP, WINDOW_BOTTOM = 300, 200, 0.08, 0.6
-local BRIEF_TOP, BRIEF_BOTTOM = 0.74, 0.86
-local NO_TABLE = {}
-
--- Whether a window is open where a title goes (looked at once a title, not on a clock); `brief` for a brief title's place.
-function Titles.overWindow(brief)
-    local ui = UIManager and UIManager.getUI and UIManager.getUI()
-    if not ui then return false end
-    local sw, sh = getCore():getScreenWidth(), getCore():getScreenHeight()
-    local mid = sw / 2
-    local top, bottom = sh * (brief and BRIEF_TOP or WINDOW_TOP), sh * (brief and BRIEF_BOTTOM or WINDOW_BOTTOM)
-    for i = 0, ui:size() - 1 do
-        local el = ui:get(i)
-        local t = el and el:isVisible() and (el:getTable() or NO_TABLE)
-        -- (a collapsed window, such as the inventory folded to its bar, keeps its open height)
-        if t and not t.isCollapsed then
-            local x, y, w, h = el:getX(), el:getY(), el:getWidth(), el:getHeight()
-            if w >= WINDOW_W and h >= WINDOW_H and w < sw and x < mid and x + w > mid and y < bottom and y + h > top then
-                return true
-            end
-        end
-    end
-    return false
-end
-
--- Where a title's middle goes for detail.at, as a share of the screen's height (the API's spec.y): "center" puts the title
--- and its line together in the middle (a big title's line hangs below it: their block's middle is about 0.035 under the
--- title's), a number is taken as it is; nil leaves the style's place.
-Titles.CENTER, Titles.CENTER_ALONE = 0.465, 0.5
-function Titles.place(at, withLine)
-    if at == "center" then return withLine and Titles.CENTER or Titles.CENTER_ALONE end
-    if type(at) == "number" and at >= 0 and at <= 1 then return at end
-    return nil
-end
+-- The drawing is the UI kit's (PZUIKit.Titles): the API's text, the style it has, the band over a window, the place.
+local Kit = PZUIKit.Titles
+function Titles.textApi() return Kit.textApi(OA.api()) end
+Titles.styleFor, Titles.overWindow, Titles.place = Kit.styleFor, Kit.overWindow, Kit.place
+Titles.OVER_WINDOW, Titles.CENTER, Titles.CENTER_ALONE = Kit.OVER_WINDOW, Kit.CENTER, Kit.CENTER_ALONE
 
 -- How large a title is drawn (detail.size, times its style's size): "major" for the story's great moments (the operation
 -- named, a stage's card, the handover, a capstone, a cure), "minor" for the receipt, in a large style, of what the player
@@ -146,37 +76,17 @@ function Titles.show(playerId, detail, noSay)
     if sub then sub = OA.Markup.strip(sub) end
     local characters = charactersOf(playerId)
     if #characters == 0 then return nil end
-    local t = textApi()
-    local handle = t and OA.handle()
-    local style = handle and styleFor(t, detail.style)
-    if not style then handle = nil end
+    local api = OA.api()
+    local handle = Kit.textApi(api) and OA.handle()
+    if handle and not Kit.styleFor(Kit.textApi(api), detail.style) then handle = nil end
     if noSay and not handle then return nil end
     local shown
-    local backdrop = handle and Titles.overWindow(style == "brief") and Titles.OVER_WINDOW or nil
     for _, character in ipairs(characters) do
-        local done = false
-        if handle then
-            local spec = { text = title, subtitle = sub, style = style, player = character:getPlayerNum(),
-                now = Titles.now or nil, backdrop = backdrop, y = Titles.place(detail.at, sub ~= nil),
-                scale = Titles.SIZES[detail.size] }
-            local tone = Titles.TONES[detail.tone]
-            if tone then spec.color, spec.subtitleColor = tone[1], tone[2] end
-            spec.sounds, spec.subtitleSounds = PZUIKit.Sound.titleSounds(style)
-            if not sub then spec.subtitleSounds = nil end
-            local ok, err = pcall(t.title, handle, spec)
-            if not ok and (spec.sounds or spec.subtitleSounds) then
-                -- (an older PZ Extension API has no sounds: the title silent)
-                spec.sounds, spec.subtitleSounds = nil, nil
-                ok, err = pcall(t.title, handle, spec)
-            end
-            if not ok and spec.scale then
-                -- (an older PZ Extension API has no scale: the title at its style's size)
-                spec.scale = nil
-                ok, err = pcall(t.title, handle, spec)
-            end
-            if ok then done = true else OA.log("title:", tostring(err)) end
-        end
-        if done then
+        local spec = { text = title, subtitle = sub, style = detail.style, player = character:getPlayerNum(),
+            now = Titles.now or nil, y = Titles.place(detail.at, sub ~= nil), scale = Titles.SIZES[detail.size] }
+        local tone = Titles.TONES[detail.tone]
+        if tone then spec.color, spec.subtitleColor = tone[1], tone[2] end
+        if handle and Kit.show(api, handle, spec, OA.log) then
             shown = "title"
         elseif not noSay then
             character:Say(sub and (title .. " - " .. sub) or title)

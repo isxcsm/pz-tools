@@ -5,7 +5,7 @@
 -- still to come.
 require "BuildingUtilities/PanelUi"
 require "BuildingUtilities/Networks"
-require "PZUIKit/Sound"
+require "PZUIKit/Titles"
 local BU = BuildingUtilities
 local Titles = {}
 BU.Titles = Titles
@@ -14,15 +14,8 @@ Titles.SEEN = "buTitles"
 local STYLES = { lit = "unveil", tier = "notice" }
 local SUBTITLE = { 0.78, 0.9, 1 }
 
--- The API's text, when its drawing hook is in.
-local function textApi()
-    local api = BU.api()
-    local text = api and api.text
-    if type(text) ~= "table" or type(text.title) ~= "function" then return nil end
-    local ok, status = pcall(text.status)
-    if not ok or status ~= "applied" then return nil end
-    return text
-end
+-- The drawing is the UI kit's (PZUIKit.Titles): the API's text, the style it has, the band over a window, the sounds.
+local Kit = PZUIKit.Titles
 
 -- Shows a title to a character unless they have seen it: kind "lit", or "tier" with the tier reached. True when shown.
 function Titles.show(character, kind, tier)
@@ -31,8 +24,8 @@ function Titles.show(character, kind, tier)
     local data = character:getModData()
     local seen = data[Titles.SEEN] or {}
     if seen[mark] then return false end
-    local text = textApi()
-    local handle = text and BU.handle()
+    local api = BU.api()
+    local handle = Kit.textApi(api) and BU.handle()
     if not handle then return false end
     local key, sub = "IGUI_BU_Title_Lit", "IGUI_BU_Title_LitSub"
     if kind == "tier" then
@@ -41,17 +34,7 @@ function Titles.show(character, kind, tier)
     end
     local spec = { text = getText(key), subtitle = getText(sub), style = STYLES[kind], color = BU.PanelUi.ACCENT,
         subtitleColor = SUBTITLE, player = character:getPlayerNum() }
-    spec.sounds, spec.subtitleSounds = PZUIKit.Sound.titleSounds(spec.style)
-    local ok, failure = pcall(text.title, handle, spec)
-    if not ok and (spec.sounds or spec.subtitleSounds) then
-        -- (an older PZ Extension API has no sounds: the title silent)
-        spec.sounds, spec.subtitleSounds = nil, nil
-        ok, failure = pcall(text.title, handle, spec)
-    end
-    if not ok then
-        BU.log("title:", tostring(failure))
-        return false
-    end
+    if not Kit.show(api, handle, spec, BU.log) then return false end
     seen[mark] = true
     data[Titles.SEEN] = seen
     return true
@@ -72,22 +55,10 @@ end
 Titles.REFUSED = { 1.00, 0.55, 0.50 }
 function Titles.refuse(character, line)
     if not character or not line then return end
-    local text = textApi()
-    local handle = text and BU.handle()
-    local brief = false
-    if handle then
-        local ok, styles = pcall(text.styles)
-        if ok and type(styles) == "table" then
-            for _, name in ipairs(styles) do brief = brief or name == "brief" end
-        elseif ok and styles ~= nil and styles.size then
-            for i = 0, styles:size() - 1 do brief = brief or styles:get(i) == "brief" end
-        end
-    end
-    if brief then
-        local spec = { text = line, style = "brief", color = Titles.REFUSED, player = character:getPlayerNum() }
-        spec.sounds = PZUIKit.Sound.titleSounds("brief")
-        if pcall(text.title, handle, spec) then return end
-    end
+    local api = BU.api()
+    local handle = Kit.textApi(api) and BU.handle()
+    local spec = { text = line, style = "brief", color = Titles.REFUSED, player = character:getPlayerNum() }
+    if handle and Kit.show(api, handle, spec, BU.log) then return end
     character:Say(line)
 end
 

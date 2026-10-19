@@ -12,8 +12,10 @@ local Titles, Networks = BU.Titles, BU.Networks
 local shown = {}
 local function withText()
     shown = {}
+    -- (the API's styles: the kit draws a style the API has, else a stamp)
     PZExtAPI.text = {
         status = function() return "applied" end,
+        styles = function() return { "stamp", "notice", "unveil", "brief" } end,
         title = function(_, spec) shown[#shown + 1] = spec end,
     }
 end
@@ -81,9 +83,11 @@ test("a refused click is a brief red title, or the character says it; never the 
     eq(shown[1].text, "too far")
     eq(shown[1].color, Titles.REFUSED)
     eq(#said, 0)
+    -- (an API without the brief style: the kit asks a text's styles once)
+    withText()
     PZExtAPI.text.styles = function() return { "notice" } end
     Titles.refuse(one, "no brief style")
-    eq(#shown, 1)
+    eq(#shown, 0)
     eq(said[1], "no brief style")
     PZExtAPI.text = nil
     Titles.refuse(one, "no API")
