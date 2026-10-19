@@ -21,11 +21,24 @@ final class SquareFilter {
     /** One condition. {@code anchor} is the square a shape is placed at, or null (see {@code room = "anchor"}). */
     @FunctionalInterface private interface Check { boolean test(Object square, Object anchor) throws Throwable; }
 
-    /** A check and how dear it is: the cheap ones go first, so that most squares fail early. */
-    private record Ranked(int rank, Check check) { }
+    /** A check and how dear it is: the cheap ones go first, so that most squares fail early; its condition's key (for {@link #why}). */
+    private record Ranked(int rank, Check check, String key) {
+        Ranked(int rank, Check check) { this(rank, check, null); }
+    }
+
+    /**
+     * The order {@link #why} asks the conditions in, by key: as the game would stop at them (water, no floor, stairs, a tree, a
+     * vehicle, the square taken), then the rest. A key not here comes after these, in the order it is checked.
+     */
+    static final List<String> WHY_ORDER = List.of("wet", "water", "waterFlag", "floor", "solidFloor", "natural", "floorPrefix",
+        "floorAvoid", "stairs", "tree", "vehicle", "free", "moving", "noObjectData", "outside", "room", "building", "doorEdge",
+        "flags", "noFlags", "zonesNot", "distance", "around", "clear");
+
+    /** The game's own natural ground (DiggingUtil.mining_floorCanDig: the floors a shovel digs): grass, dirt, sand. */
+    static final String[] NATURAL = { "floors_exterior_natural", "blends_natural_01" };
 
     static final int MAX_CLEAR = 32;
-    private static final SquareFilter ALL = new SquareFilter(new Check[0], false);
+    private static final SquareFilter ALL = new SquareFilter(new Check[0], new String[0], false);
     private static final Map<Object, SquareFilter> CACHE = new WeakHashMap<>();
     // The queries running (begin and end nest) and the number of the outermost one: what a filter remembered is of that one only.
     private static int depth, epoch;
@@ -38,13 +51,36 @@ final class SquareFilter {
     private static int filters;
 
     private final Check[] checks;
+    // Each check's condition key, and the checks' places in the order why asks them.
+    private final String[] keys;
+    private final int[] whyOrder;
     private final boolean usesAnchor;
     // Tells this filter's memory from another's in the shared table.
     private final int id = ++filters;
 
-    private SquareFilter(Check[] checks, boolean usesAnchor) {
+    private SquareFilter(Check[] checks, String[] keys, boolean usesAnchor) {
         this.checks = checks;
+        this.keys = keys;
         this.usesAnchor = usesAnchor;
+        Integer[] order = new Integer[checks.length];
+        for (int at = 0; at < order.length; at++) order[at] = at;
+        java.util.Arrays.sort(order, (a, b) -> Integer.compare(whyRank(keys[a]), whyRank(keys[b])));
+        whyOrder = new int[order.length];
+        for (int at = 0; at < order.length; at++) whyOrder[at] = order[at];
+    }
+
+    private static int whyRank(String key) {
+        int at = key == null ? -1 : WHY_ORDER.indexOf(key);
+        return at < 0 ? WHY_ORDER.size() : at;
+    }
+
+    /**
+     * The key of the first condition the loaded square does not meet, in {@link #WHY_ORDER}; null when it meets them all. (For a
+     * mod telling the player why not: its own text for each key.)
+     */
+    String why(Object square) throws Throwable {
+        for (int at : whyOrder) if (!checks[at].test(square, null)) return keys[at];
+        return null;
     }
 
     /** A query starts: what filters remember of squares is kept until {@link #end}. Always paired, in a finally. */
@@ -113,6 +149,7 @@ final class SquareFilter {
             if (!(entry.getKey() instanceof String key)) throw new IllegalArgumentException(call + ": " + path + " has a key that is not a name");
             Object value = entry.getValue();
             String name = path + "." + key;
+            int before = found.size();
             switch (key) {
                 case "free" -> {
                     boolean want = bool(value, call, name);
@@ -149,6 +186,17 @@ final class SquareFilter {
                 case "water" -> {
                     boolean want = bool(value, call, name);
                     found.add(new Ranked(0, (s, a) -> (boolean)WATER_SQUARE.invokeExact(s) == want));
+                }
+                case "wet" -> {
+                    // either of the game's two ways of telling water: the floor's material, the square's flag (rivers,
+                    // ponds and pools alike)
+                    boolean want = bool(value, call, name);
+                    Object flag = flag("water", call, name);
+                    found.add(new Ranked(0, (s, a) -> ((boolean)WATER_SQUARE.invokeExact(s) || (boolean)HAS_FLAG.invokeExact(s, flag)) == want));
+                }
+                case "natural" -> {
+                    boolean want = bool(value, call, name);
+                    found.add(new Ranked(2, (s, a) -> natural(s) == want));
                 }
                 case "waterFlag" -> {
                     boolean want = bool(value, call, name);
@@ -224,12 +272,23 @@ final class SquareFilter {
                 case "distance" -> found.add(new Ranked(0, distance(lua, value, call, name)));
                 default -> throw new IllegalArgumentException(call + ": " + name + " is not a condition");
             }
+            for (int at = before; at < found.size(); at++) found.set(at, new Ranked(found.get(at).rank(), found.get(at).check(), key));
         }
         if (found.isEmpty()) return ALL;
         found.sort((first, second) -> Integer.compare(first.rank(), second.rank()));
         Check[] checks = new Check[found.size()];
-        for (int at = 0; at < checks.length; at++) checks[at] = found.get(at).check();
-        return new SquareFilter(checks, anchored[0]);
+        String[] keys = new String[found.size()];
+        for (int at = 0; at < checks.length; at++) { checks[at] = found.get(at).check(); keys[at] = found.get(at).key(); }
+        return new SquareFilter(checks, keys, anchored[0]);
+    }
+
+    /** Whether a square's floor is natural ground ({@link #NATURAL}). */
+    static boolean natural(Object square) throws Throwable {
+        Object floor = (Object)FLOOR.invokeExact(square);
+        String sprite = floor == null ? null : spriteName(floor);
+        if (sprite == null) return false;
+        for (String prefix : NATURAL) if (sprite.startsWith(prefix)) return true;
+        return false;
     }
 
     private static SquareFilter nested(Kahlua lua, Object table, String call, String name) throws Throwable {

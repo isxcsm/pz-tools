@@ -29,13 +29,13 @@ final class SquareFacts {
     static final MethodHandle DOOR_NORTH, THUMP_IS_DOOR, THUMP_NORTH;
     // IsoWorld.instance, getMetaGrid(); IsoMetaGrid.getRoomDefByID(id), getZonesAt(x, y, z, list); Zone.getType().
     static final MethodHandle WORLD, META_GRID, ROOM_BY_ID, ZONES_AT, ZONE_TYPE;
-    /** IsoDoor, IsoThumpable, IsoFlagType, IsoRoom, RoomDef. */
-    static final Class<?> DOOR, THUMPABLE, FLAG, ROOM_TYPE, ROOM_DEF_TYPE;
+    /** IsoDoor, IsoThumpable, IsoFlagType, IsoRoom, RoomDef, IsoGridSquare. */
+    static final Class<?> DOOR, THUMPABLE, FLAG, ROOM_TYPE, ROOM_DEF_TYPE, SQUARE;
 
     static {
         try {
             var lookup = MethodHandles.publicLookup();
-            Class<?> square = Reach.type("zombie.iso.IsoGridSquare"), object = Reach.type("zombie.iso.IsoObject");
+            Class<?> square = SQUARE = Reach.type("zombie.iso.IsoGridSquare"), object = Reach.type("zombie.iso.IsoObject");
             Class<?> room = ROOM_TYPE = Reach.type("zombie.iso.areas.IsoRoom"), def = ROOM_DEF_TYPE = Reach.type("zombie.iso.RoomDef");
             Class<?> building = Reach.type("zombie.iso.areas.IsoBuilding"), sprite = Reach.type("zombie.iso.sprite.IsoSprite");
             Class<?> flag = FLAG = Reach.type("zombie.iso.SpriteDetails.IsoFlagType"), world = Reach.type("zombie.iso.IsoWorld");

@@ -49,6 +49,7 @@ final class SquareQueriesTest {
             check(area != null && area.rawget("nearest") != null && area.rawget("list") != null && area.rawget("fit") != null
                 && area.rawget("watch") != null, "PZExtAPI.squares lacks the queries or the watches");
             conditions(area);
+            oneSquare(area);
             doorEdges(area);
             around(area);
             areas(area);
@@ -162,6 +163,8 @@ final class SquareQueriesTest {
         same(set("105,100"), hits(area, table("water", true)), "water");
         same(set("106,100"), hits(area, table("waterFlag", true)), "waterFlag");
         same(except(ALL, "106,100"), hits(area, table("waterFlag", false)), "waterFlag = false");
+        same(set("105,100", "106,100"), hits(area, table("wet", true)), "wet: either way of telling water");
+        same(except(ALL, "105,100", "106,100"), hits(area, table("wet", false)), "wet = false");
         at(107, 100).outdoors = true;
         same(set("107,100"), hits(area, table("outside", true)), "outside");
         at(108, 100).stairs = true;
@@ -248,6 +251,39 @@ final class SquareQueriesTest {
         same(where((x, y) -> x > X0 && x < X0 + SIZE - 1 && y > Y0 && y < Y0 + SIZE - 1), hits(area, table("clear", table("r", 1))), "clear without a filter needs loaded squares");
         same(ALL, hits(area, table("clear", table("r", 0))), "clear r = 0");
         same(set("105,105"), hits(area, table("clear", table("r", 0, "filter", table("free", false)))), "clear r = 0 with a filter");
+    }
+
+    /** test and why: one square against a filter; why names the first condition it fails, in the game's order. */
+    private static void oneSquare(KahluaTable area) {
+        // natural: the game's digging rule (floors_exterior_natural, blends_natural_01); no floor is not ground
+        grid();
+        for (int y = Y0; y < Y0 + SIZE; y++) for (int x = X0; x < X0 + SIZE; x++) at(x, y).floor = new IsoObject(new IsoSprite("blends_natural_01_0"));
+        at(101, 100).floor = new IsoObject(new IsoSprite("floors_exterior_natural_01_12"));
+        at(102, 100).floor = new IsoObject(new IsoSprite("blends_natural_02_0"));
+        at(103, 100).floor = new IsoObject(new IsoSprite("floors_exterior_street_01_1"));
+        at(104, 100).floor = null;
+        same(except(ALL, "102,100", "103,100", "104,100"), hits(area, table("natural", true)), "natural");
+        same(set("102,100", "103,100", "104,100"), hits(area, table("natural", false)), "natural = false");
+        grid();
+        var place = table("free", true, "wet", false, "vehicle", false, "solidFloor", true, "noObjectData", "mark");
+        check(Boolean.TRUE.equals(FormulasTest.call(area, "test", at(100, 100), place).get(0)), "test: a plain square meets the filter");
+        check(FormulasTest.call(area, "why", at(100, 100), place).get(0) == null, "why: nil for a square that meets it");
+        at(101, 100).waterSquare = true;
+        at(101, 100).freeOfObjects = false;
+        check(Boolean.FALSE.equals(FormulasTest.call(area, "test", at(101, 100), place).get(0)), "test: water fails");
+        check("wet".equals(FormulasTest.call(area, "why", at(101, 100), place).get(0)), "why: water before blocked");
+        at(102, 100).solidFloorTreated = false;
+        at(102, 100).vehicleOver = true;
+        check("solidFloor".equals(FormulasTest.call(area, "why", at(102, 100), place).get(0)), "why: no floor before a vehicle");
+        at(103, 100).vehicleOver = true;
+        at(103, 100).freeOfObjects = false;
+        check("vehicle".equals(FormulasTest.call(area, "why", at(103, 100), place).get(0)), "why: a vehicle before blocked");
+        var marked = new IsoObject(new IsoSprite("crate"));
+        marked.getModData().rawset("mark", true);
+        at(104, 100).objects.add(marked);
+        check("noObjectData".equals(FormulasTest.call(area, "why", at(104, 100), place).get(0)), "why: taken");
+        error(area, "test", "square must be a loaded square", 1.0, place);
+        error(area, "why", "square must be a loaded square", null, place);
     }
 
     /** doorEdge = false: no door or doorway on any of the four edges (the square's north and west, the south square's north, the east square's west). */

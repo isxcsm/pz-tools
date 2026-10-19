@@ -67,6 +67,8 @@ final class SquareQueries {
         function(table, "nearest", this::nearest);
         function(table, "list", this::list);
         function(table, "fit", this::fit);
+        function(table, "test", this::test);
+        function(table, "why", this::why);
     }
 
     private static Object argument(Object[] arguments, int at) { return at < arguments.length ? arguments[at] : null; }
@@ -109,6 +111,28 @@ final class SquareQueries {
 
     private static IllegalArgumentException notOneOf(String call, String name, Object key, String[] allowed) {
         return new IllegalArgumentException(call + ": " + name + "." + key + " is not one of " + String.join(", ", allowed));
+    }
+
+    // ---- one square ----
+
+    private static Object square(Object[] arguments, String call) {
+        Object square = argument(arguments, 0);
+        if (!SquareFacts.SQUARE.isInstance(square)) throw new IllegalArgumentException(call + ": square must be a loaded square (IsoGridSquare)");
+        return square;
+    }
+
+    /** test(square, filter): whether the square meets the filter. */
+    private Object[] test(String call, Object[] arguments) throws Throwable {
+        Object square = square(arguments, call);
+        SquareFilter filter = plain(SquareFilter.read(lua, game, argument(arguments, 1), call), call);
+        return new Object[] { filter.test(square) ? Boolean.TRUE : Boolean.FALSE };
+    }
+
+    /** why(square, filter): the key of the first condition the square does not meet (SquareFilter.WHY_ORDER), or nil. */
+    private Object[] why(String call, Object[] arguments) throws Throwable {
+        Object square = square(arguments, call);
+        SquareFilter filter = plain(SquareFilter.read(lua, game, argument(arguments, 1), call), call);
+        return new Object[] { filter.why(square) };
     }
 
     // ---- nearest ----
