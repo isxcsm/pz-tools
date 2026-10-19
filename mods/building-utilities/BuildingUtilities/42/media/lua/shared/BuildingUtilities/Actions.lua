@@ -4,6 +4,7 @@
 -- Each names panels and squares, not objects, and checks again as it completes, where the world is decided
 -- (BU.Changes).
 require "TimedActions/ISBaseTimedAction"
+require "PZUIKit/Action"
 require "BuildingUtilities/Changes"
 require "BuildingUtilities/Costs"
 require "BuildingUtilities/Sounds"
@@ -92,30 +93,9 @@ local function lineDuration(character, steps)
 end
 
 -- A getDuration of so many ticks; one for a character whose actions are instant.
-local function fixedDuration(ticks)
-    return function(self)
-        if self.character:isTimedActionInstant() then return 1 end
-        return ticks
-    end
-end
-
--- The common part: the character faces the square the action is at, and loots low; it takes so many ticks, when
--- given (else the action has its own getDuration).
-local function base(name, ticks)
-    local action = ISBaseTimedAction:derive(name)
-    if ticks then action.getDuration = fixedDuration(ticks) end
-    function action:waitToStart()
-        self.character:faceLocation(self.x, self.y)
-        return self.character:shouldBeTurning()
-    end
-    function action:update() self.character:faceLocation(self.x, self.y) end
-    function action:start()
-        self:setActionAnim("Loot")
-        self.character:SetVariable("LootPosition", "Low")
-    end
-    function action:perform() ISBaseTimedAction.perform(self) end
-    return action
-end
+-- The common part (the UI kit's): the character faces the square the action is at, and loots low; it takes so
+-- many ticks, when given (else the action has its own getDuration).
+local base, fixedDuration = PZUIKit.Action.base, PZUIKit.Action.fixedDuration
 
 -- Laying a line: a producer, an outside device, a unit, or a cut branch's first line hung on again (see
 -- Actions.lineCost). The cost is worked out as the action is made; each tick only checks that nothing took the place
@@ -430,7 +410,7 @@ end
 function ISBUTakeBox:isValid() return boxAt(self) ~= nil end
 
 function ISBUTakeBox:update()
-    self.character:faceLocation(self.x, self.y)
+    self.character:faceLocation(self.x + 0.5, self.y + 0.5)
     self.character:setMetabolicTarget(Metabolics.HeavyWork)
 end
 

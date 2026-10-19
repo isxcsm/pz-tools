@@ -2,6 +2,7 @@
 -- box, dismantling an abandoned one and opening a sealed crate. Each names squares and kinds, not objects, and checks
 -- again as it completes, where the world is decided (Trade.Things).
 require "TimedActions/ISBaseTimedAction"
+require "PZUIKit/Action"
 require "OperationAcorn/Store"
 require "OperationAcorn/Trade/Things"
 require "OperationAcorn/Sounds"
@@ -24,29 +25,8 @@ local function refuse(character, reason)
     OA.Sync.notice(OA.Store.idOf(character), "IGUI_OA_Trade_Reason_" .. tostring(reason))
 end
 
-local function fixedDuration(ticks)
-    return function(self)
-        if self.character:isTimedActionInstant() then return 1 end
-        return ticks
-    end
-end
-
--- The common part: the character faces the square and works low; ticks of the action.
-local function base(name, ticks, anim)
-    local action = ISBaseTimedAction:derive(name)
-    if ticks then action.getDuration = fixedDuration(ticks) end
-    function action:waitToStart()
-        self.character:faceLocation(self.x, self.y)
-        return self.character:shouldBeTurning()
-    end
-    function action:update() self.character:faceLocation(self.x, self.y) end
-    function action:start()
-        self:setActionAnim(anim or "Loot")
-        self.character:SetVariable("LootPosition", "Low")
-    end
-    function action:perform() ISBaseTimedAction.perform(self) end
-    return action
-end
+-- The common part (the UI kit's): the character faces the square and works low.
+local base = PZUIKit.Action.base
 
 local function squareOf(self)
     return getCell():getGridSquare(self.x, self.y, self.z)

@@ -2,6 +2,7 @@
 -- shredding by hand at the bench. The work is done in complete(), where the world is decided (on a server, there);
 -- an action names machines by id and items by id, not by object.
 require "TimedActions/ISBaseTimedAction"
+require "PZUIKit/Action"
 require "OperationAcorn/Machines/Machines"
 require "OperationAcorn/Sounds"
 local OA = OperationAcorn
@@ -24,29 +25,8 @@ function Actions.heldItem(action)
     return OA.heldItem(action, "item", "itemId")
 end
 
-local function fixedDuration(ticks)
-    return function(self)
-        if self.character:isTimedActionInstant() then return 1 end
-        return ticks
-    end
-end
-
--- The common part: the character faces the square the action is at, and loots low; it takes `ticks` (when given).
-local function base(name, ticks)
-    local action = ISBaseTimedAction:derive(name)
-    if ticks then action.getDuration = fixedDuration(ticks) end
-    function action:waitToStart()
-        self.character:faceLocation(self.x + 0.5, self.y + 0.5)
-        return self.character:shouldBeTurning()
-    end
-    function action:update() self.character:faceLocation(self.x + 0.5, self.y + 0.5) end
-    function action:start()
-        self:setActionAnim("Loot")
-        self.character:SetVariable("LootPosition", "Low")
-    end
-    function action:perform() ISBaseTimedAction.perform(self) end
-    return action
-end
+-- The common part (the UI kit's): the character faces the square the action is at, and loots low.
+local base = PZUIKit.Action.base
 
 local function removeFromInventory(item)
     local container = item:getContainer()
