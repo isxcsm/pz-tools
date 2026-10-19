@@ -322,7 +322,7 @@ API 노드는 `Effects.declared()`와 `PZExtAPI.formulas.points()`로 선언과 
   - [ ] BU 분 단위 byData와 squares.list 조회: 1분 평균
   - [ ] Senses 경보 (vehicles.near, objects.find): 차량과 경보가 많은 마을 한가운데서
   - [ ] BU FloorLines, Links.walk (squares.path): 선 깔기 경로 계산 시간. 고정 경로 세 개(벽, 연못·구멍·계단 우회, 건물 B 우회)가 c0과 같은 길인지도 본다
-  - [ ] Dense.look, Towns.enter (분 이벤트): 마굴·마을 밖에서 거리 비교만 하는지 (0에 가까움), 마굴 안에서 zombies.near 한 번
+  - [ ] Dense.minute(c0은 Dense.look), Towns.enter (분 이벤트): 마굴·마을 밖에서 거리 비교만 하는지 (0에 가까움), 마굴 안에서 zombies.near 한 번
 - **무거운 한 번짜리:**
   - [ ] findClear, settleGround, 무대 세우기, pickSite, 운석 지점 고르기: 걸린 시간과 그 순간의 프레임 멈춤
   - [ ] zones.clusters, zombies.dense: 새 세계의 첫 호출(디스크 쓰기), 같은 맵 두 번째 세계(디스크 읽기, 구역·청크를 다시 읽지 않음), 같은 세션의 반복 호출(메모리)
