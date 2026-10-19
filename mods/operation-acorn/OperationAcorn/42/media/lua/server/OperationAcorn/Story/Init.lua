@@ -224,14 +224,11 @@ OA.Server.on("story_soil", function(character, record, args)
     if not Missions.soil(record, character) then OA.Sync.notice(record.id, "IGUI_OA_Story_SoilFail", {}) end
 end)
 
--- A zombie's corpse was harvested (Story/Harvest): the sample it gave, or why none.
+-- A zombie's corpse was harvested (Story/Harvest): why none, when none. A sample taken says nothing: it is in the
+-- inventory, and a title on each of a frequent task is noise.
 OA.Server.on("story_harvest", function(character, record, args)
     local name, why = Harvest.take(character, record, args)
-    if name then
-        OA.Sync.notice(record.id, "IGUI_OA_Story_Harvested", { name })
-    else
-        OA.Sync.notice(record.id, "IGUI_OA_Story_HarvestFail_" .. tostring(why), {})
-    end
+    if not name then OA.Sync.notice(record.id, "IGUI_OA_Story_HarvestFail_" .. tostring(why), {}) end
 end)
 
 -- A call of the team's was played in the comms tab, to the end or skipped (it counts the same): it goes into the

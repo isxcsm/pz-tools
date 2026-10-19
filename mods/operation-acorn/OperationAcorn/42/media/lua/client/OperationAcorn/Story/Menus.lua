@@ -170,8 +170,6 @@ local function onNotice(playerId, detail)
     elseif TERMINAL[detail.key] then
         -- what the terminal could not do: a brief title, over its window
         OA.Titles.brief(playerId, detail.key, args, TERMINAL[detail.key])
-    elseif detail.key == "IGUI_OA_Story_Harvested" then
-        OA.Titles.brief(playerId, detail.key, args)
     else
         -- the character's own tries (a field call, a sample, a case): said, as the texts are written
         OA.Titles.say(playerId, detail.key, args)
