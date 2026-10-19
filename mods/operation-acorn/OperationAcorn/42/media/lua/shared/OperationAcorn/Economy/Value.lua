@@ -223,7 +223,7 @@ function Value.appraiseLine(info, count, ctx, taken)
     line.category = cat
     local w = math.max(info.weight or 0, 0)
     line.weight = w * count
-    local unit = Categories.UNIT[cat]
+    local unit = Categories.unitOf(cat, info.displayCategory)
     local index = ctx.index and ctx.index[cat] or 1.0
     local state = Value.state(info)
     line.marks.high = index >= Value.HIGH

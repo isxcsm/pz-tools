@@ -15,6 +15,9 @@ local function info(fullType, display, weight, extra)
     return t
 end
 
+-- The rules below are shown on a thing of category B at B's own unit, 400 (an accessory; worn clothes have their own
+-- unit, and their test).
+
 -- A plain context: index 1 everywhere, no premiums.
 local function ctx(extra)
     local c = { rate = 1.0, trustAccel = 1.0, index = {}, refused = {}, requests = {},
@@ -23,7 +26,7 @@ local function ctx(extra)
     return c
 end
 
-test("the example box: 20 clothing, 10 documents, 10 household, 10 food is 18,500 credits and 185 trust", function()
+test("the example box: 20 clothing, 10 documents, 10 household, 10 food is 12,500 credits and 125 trust", function()
     local entries = {
         { info = info("Base.Shirt", "Clothing", 1.0), count = 20 },
         { info = info("Base.Book", "Literature", 0.5), count = 20 },
@@ -36,8 +39,18 @@ test("the example box: 20 clothing, 10 documents, 10 household, 10 food is 18,50
         credits = credits + line.credits
         trust = trust + line.trust
     end
-    near(credits, 8000 + 4500 + 3500 + 2500, 1e-6)
-    near(trust, 185, 1e-6)
+    near(credits, 2000 + 4500 + 3500 + 2500, 1e-6)
+    near(trust, 125, 1e-6)
+end)
+
+test("worn clothes go at 100 a weight; the rest of their category (accessories, protective gear) at B's 400", function()
+    near(V.appraiseLine(info("Base.Shirt", "Clothing", 1.0), 1, ctx()).credits, 100, 1e-9)
+    near(V.appraiseLine(info("Base.Shirt", "Clothing", 1.0), 1, ctx()).trust, 1, 1e-9)
+    near(V.appraiseLine(info("Base.Hat_GasMask", "ProtectiveGear", 1.0), 1, ctx()).credits, 400, 1e-9)
+    near(V.appraiseLine(info("Base.Necklace", "Accessory", 1.0), 1, ctx()).credits, 400, 1e-9)
+    -- the market's index is the category's (B) for both
+    local c = ctx({ index = { B = 2.0 } })
+    near(V.appraiseLine(info("Base.Shirt", "Clothing", 1.0), 1, c).credits, 200, 1e-9)
 end)
 
 test("a box of sample bundles: 50 of them are 30,000 credits and 300 trust", function()
@@ -55,13 +68,13 @@ end)
 
 test("the market index multiplies credits and never trust", function()
     local c = ctx({ index = { B = 1.5 } })
-    local a = V.appraise(info("Base.Shirt", "Clothing", 1.0), c)
+    local a = V.appraise(info("Base.Shirt", "Accessory", 1.0), c)
     near(a.credits, 600, 1e-9)
     near(a.trust, 4.0, 1e-9)
     eq(a.category, "B")
     truthy(a.marks.high)
     c.index.B = 0.5
-    a = V.appraise(info("Base.Shirt", "Clothing", 1.0), c)
+    a = V.appraise(info("Base.Shirt", "Accessory", 1.0), c)
     truthy(a.marks.low); truthy(not a.marks.high)
 end)
 
@@ -78,7 +91,7 @@ end)
 
 test("the exchange rate and the trust acceleration", function()
     local c = ctx({ rate = 1.15, trustAccel = 1.2 })
-    local a = V.appraise(info("Base.Shirt", "Clothing", 1.0), c)
+    local a = V.appraise(info("Base.Shirt", "Accessory", 1.0), c)
     near(a.credits, 400 * 1.15, 1e-9)
     near(a.trust, 4 * 1.2, 1e-9)
 end)
@@ -103,7 +116,7 @@ test("cash trust is capped at 50 for a whole flight", function()
     near(result.credits, 1000000, 1e-9)
     near(result.cashTrust, 50, 1e-9)
     near(result.trust, 50, 1e-9, "100 bundles are $10,000: 200 trust uncapped, 50 capped")
-    local shirt = info("Base.Shirt", "Clothing", 1.0)
+    local shirt = info("Base.Shirt", "Accessory", 1.0)
     result = V.settle(record, { { info = bundle, count = 100 }, { info = shirt, count = 10 } })
     near(result.trust, 50 + 40, 1e-9, "the cap is on cash only")
 end)
@@ -117,7 +130,7 @@ end
 
 test("a request item is bought at its fixed price for the first units of the week", function()
     local c = ctx({ requests = { ["Base.Shirt"] = request() } })
-    local shirt = info("Base.Shirt", "Clothing", 1.0)
+    local shirt = info("Base.Shirt", "Accessory", 1.0)
     local one = V.appraise(shirt, c)
     near(one.credits, 600, 1e-9, "not the 400 of its weight")
     truthy(one.marks.request)
@@ -167,7 +180,7 @@ test("each kind of a group on the list is paid its own worth, not the dearest ki
         items = { "Base.TvBlack", "Base.Shirt" } } })
     local c = ctx({ requests = { mixed = request({ price = 660, base = 600, mult = 1.1 }) } })
     local taken = { requests = {}, cells = {} }
-    local shirt = V.appraiseLine(info("Base.Shirt", "Clothing", 1.0), 2, c, taken)
+    local shirt = V.appraiseLine(info("Base.Shirt", "Accessory", 1.0), 2, c, taken)
     eq(shirt.requestUnits, 2)
     near(shirt.requestCredits, 2 * 660, 1e-9, "the shirt at the line's price, not the television's")
     eq(shirt.requestPrice, 660)
@@ -177,7 +190,7 @@ test("each kind of a group on the list is paid its own worth, not the dearest ki
     c.index.G = 1.5
     near(V.appraiseLine(info("Base.TvBlack", "Communications", 10.0), 1, c, taken).requestCredits, 9000, 1e-9,
         "never less than unrequested at the day's index")
-    near(V.appraiseLine(info("Base.Shirt", "Clothing", 1.0), 1, c, taken).requestCredits, 660, 1e-9,
+    near(V.appraiseLine(info("Base.Shirt", "Accessory", 1.0), 1, c, taken).requestCredits, 660, 1e-9,
         "the shirt's own 400 stays under the line's price")
 end)
 
@@ -197,7 +210,7 @@ end)
 
 test("an item that is not on the list gets no request price", function()
     local c = ctx({ requests = { ["Base.Pan"] = request() } })
-    local a = V.appraise(info("Base.Shirt", "Clothing", 1.0), c)
+    local a = V.appraise(info("Base.Shirt", "Accessory", 1.0), c)
     near(a.credits, 400, 1e-9)
     truthy(not a.marks.request)
 end)
@@ -222,7 +235,7 @@ end)
 
 test("a new region pays +25% on the first 30 weight of a cell", function()
     local c = ctx()
-    local shirt = info("Base.Shirt", "Clothing", 1.0, { cell = "3,4" })
+    local shirt = info("Base.Shirt", "Accessory", 1.0, { cell = "3,4" })
     local line = V.appraiseLine(shirt, 20, c)
     near(line.credits, 400 * 20 * 1.25, 1e-6, "20 weight, all inside 30")
     near(line.regionWeight, 20, 1e-9)
@@ -252,7 +265,7 @@ end)
 
 test("the request units get no new-region premium, the other units do", function()
     local c = ctx({ requests = { ["Base.Shirt"] = request() } })
-    local shirt = info("Base.Shirt", "Clothing", 1.0, { cell = "9,9" })
+    local shirt = info("Base.Shirt", "Accessory", 1.0, { cell = "9,9" })
     local a = V.appraise(shirt, c)
     near(a.credits, 600, 1e-9, "no premium on a request unit")
     local line = V.appraiseLine(shirt, 40, c)
@@ -274,7 +287,7 @@ test("settle uses the record's rate and the sandbox multiplier", function()
     OA.Market.state()
     for _, c in ipairs(OA.Categories.LETTERS) do OA.Market.state().M[c] = 1.0 end
     local index = OA.Market.index("B")
-    local result = V.settle(record, { { info = info("Base.Shirt", "Clothing", 1.0), count = 1 } })
+    local result = V.settle(record, { { info = info("Base.Shirt", "Accessory", 1.0), count = 1 } })
     near(result.credits, 400 * 1.05 * 2.0 * index, 0.5, "rate")
 end)
 
@@ -294,7 +307,7 @@ end
 test("settle sends the weight to the market and uses up the premiums", function()
     local record = oneShirt()
     eq(OA.Requests.list(record)[1], "Base.Shirt")
-    local shirt = info("Base.Shirt", "Clothing", 1.0, { cell = "1,1" })
+    local shirt = info("Base.Shirt", "Accessory", 1.0, { cell = "1,1" })
     local before = OA.Market.index("B")
     local result = V.settle(record, { { info = shirt, count = 30 }, { info = shirt, count = 10 } })
     -- 40 shirts: 10 are the week's request at 600 (no premium); the other 30 all take the region's +25%.
@@ -315,7 +328,7 @@ end)
 
 test("a line filled over two flights gives its trust on the second", function()
     local record = oneShirt()
-    local shirt = info("Base.Shirt", "Clothing", 1.0)
+    local shirt = info("Base.Shirt", "Accessory", 1.0)
     local first = V.settle(record, { { info = shirt, count = 6 } })
     eq(#first.filled, 0); near(first.trust, 24, 1e-9)
     local price = 400 * OA.Market.index("B")
@@ -327,7 +340,7 @@ end)
 
 test("a new week starts the request counters again", function()
     local record = oneShirt()
-    local shirt = info("Base.Shirt", "Clothing", 1.0)
+    local shirt = info("Base.Shirt", "Accessory", 1.0)
     V.settle(record, { { info = shirt, count = 10 } })
     eq(OA.Requests.entry(record, "Base.Shirt").left, 0)
     TEST.hours = 24 * 7 + 2
@@ -340,7 +353,7 @@ end)
 
 test("the cached context follows the rewards: a new request price level reaches the next appraisal", function()
     local record = oneShirt()
-    local shirt = info("Base.Shirt", "Clothing", 1.0)
+    local shirt = info("Base.Shirt", "Accessory", 1.0)
     near(V.appraise(shirt, V.context(record)).credits, 600, 1e-9)
     TEST.setSupportLevel(record, "reqprice", 1)
     near(V.appraise(shirt, V.context(record)).credits, 660, 1e-9, "x1.1 the same day")

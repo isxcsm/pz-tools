@@ -287,7 +287,7 @@ function Requests.worthOf(fullType)
         if script and OA.Value then
             local info = OA.Value.infoFromScript(script)
             local cat = OA.Categories.of(info)
-            if cat then hit = math.max(info.weight or 0, 0) * OA.Categories.UNIT[cat] end
+            if cat then hit = math.max(info.weight or 0, 0) * OA.Categories.unitOf(cat, info.displayCategory) end
         end
         worths[fullType] = hit
     end

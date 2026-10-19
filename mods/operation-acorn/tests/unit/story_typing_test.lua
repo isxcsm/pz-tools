@@ -582,6 +582,23 @@ test("the stage card shows once, at the terminal, after the first call has playe
     eq(told[#told].args[1], 3, "only the first call brings the operation's title")
 end)
 
+test("the first settlement's call asks for clothes, and once it is played the market bears it out", function()
+    require "OperationAcorn/Economy/Market"
+    local record = setup(0)
+    local function clothes()
+        for _, l in ipairs(OA.Market.situation()) do
+            if l.key == "IGUI_OA_Econ_Event_ClothesWanted" then return l end
+        end
+        return nil
+    end
+    eq(clothes(), nil)
+    Story.callPlayed(record, "S1")
+    local l = clothes()
+    truthy(l, "the delivery tab's line")
+    eq(l.cat, "B"); eq(l.mult, 2.0); eq(l.left, 10)
+    eq(OA.Market.index("B") >= 2.0 * OA.Market.M_MIN * 0.99, true, "the index raised")
+end)
+
 -- The markup in the translation files -----------------------------------------------------------------------------
 
 -- A language's texts as the game would read them from its file.

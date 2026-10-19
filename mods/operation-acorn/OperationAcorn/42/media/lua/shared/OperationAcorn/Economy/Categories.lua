@@ -16,6 +16,16 @@ Categories.UNIT = {
     A = 250, B = 400, C = 300, D = 450, E = 350, F = 350, G = 600, H = 300, I = 500, J = 250, K = 150,
 }
 
+-- A DisplayCategory's own unit inside its category (NUMBERS 1): worn clothes are the commonest thing there is (every
+-- zombie wears three or four of weight 1, and they come back), so they go at the lowest unit of all; the rest of B
+-- (accessories, protective gear: the filters) keeps B's.
+Categories.UNIT_BY_DISPLAY = { Clothing = 100 }
+
+-- Credits per unit of weight of a thing of category `cat` and DisplayCategory `display`.
+function Categories.unitOf(cat, display)
+    return display and Categories.UNIT_BY_DISPLAY[display] or Categories.UNIT[cat]
+end
+
 -- The translation key of a category's name.
 function Categories.nameKey(letter)
     return "IGUI_OA_Econ_Cat_" .. tostring(letter)

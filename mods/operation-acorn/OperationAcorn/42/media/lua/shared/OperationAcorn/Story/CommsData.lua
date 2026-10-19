@@ -34,6 +34,8 @@ OA.CommsData = Data
 --   gift     a crate-fired entry's thing that comes in that crate (a drop spec, Trade.dropSpec): what the scene speaks
 --            of, so it comes whatever was ordered (S7's torch, SCENES.md)
 --   greet    the first line opens with the greeting of the tier it is played at (LORE 6)
+--   market   what the team asked for in it, as the market's event once it has been played: { cat, mult, days, key }
+--            (Market.addEvent; the call's words are then borne out by the delivery tab and the prices)
 --   sign     the call sign: "oak" (참나무) or "admin" (관리 7)
 --   lines    { speaker, ... }: "oak" (the team), "me" (the protagonist), "noise" (static only, `s` seconds), "mute"
 --            (nothing, `s` seconds); `erase` on a "me" line: words typed and deleted first (key _x); `late` on a line: a
@@ -79,7 +81,9 @@ Data.ENTRIES = {
         { "me", late = true }, { "oak", late = true }, { "me" }, { "oak" },
         { "me", erase = true, stop = 1.5, del = 8, after = 1.6 }, { "me", pause = 1.4 }, { "oak" },
         { "me" }, { "noise", s = 3 } } },
-    { id = "S1", kind = "scene", trigger = "settled", tier = 1, waits = "S0", greet = true, sign = "oak", lines = {
+    -- (it asks for clothes: clothing at x2 for ten days from it, NUMBERS 2)
+    { id = "S1", kind = "scene", trigger = "settled", tier = 1, waits = "S0", greet = true, sign = "oak",
+      market = { cat = "B", mult = 2.0, days = 10, key = "IGUI_OA_Econ_Event_ClothesWanted" }, lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" },
         { "me", pause = 2, erase = true, stop = 1.8, del = 8, after = 2.2 }, { "oak" }, { "me" }, { "oak" },
         { "me", erase = true, stop = 2, del = 7, after = 2.6 }, { "me", pause = 1.6 },

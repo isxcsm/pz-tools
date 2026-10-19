@@ -655,6 +655,10 @@ function Story.callPlayed(record, id)
     -- a mission's briefing: the mission begins
     if OA.Missions then OA.Missions.briefed(record, id) end
     if OA.StoryBranches then OA.StoryBranches.played(record, id) end
+    -- what the team asked for in it, in the prices
+    local entry = OA.CommsData.BY_ID[id]
+    local ev = entry and entry.market
+    if ev and OA.Market then OA.Market.addEvent(ev.cat, ev.mult, ev.days, ev.key, "story") end
     if id ~= Story.firstCall(record) then return end
     OA.Sync.title(record.id, { key = "IGUI_OA_Title_Operation", sub = "IGUI_OA_Title_OperationSub",
         subArgs = { Story.number(record) }, style = "seal" })
