@@ -170,10 +170,14 @@ final class Texts implements Hooks.Text {
         // A dark backdrop behind it with a soft edge: its strength in the middle (0 for none), and how far it reaches below the
         // text's lines (a share of the screen's height: a title's reaches over its line).
         double backdrop, backdropBelow;
-        // The game's sounds (names) at its moments, by SOUND_ENTER, SOUND_LAND, SOUND_LEAVE and SOUND_HOLD (null: none, or the copy
-        // on a screen other than the first); the moments passed (bits), each sounded once.
+        // The game's sounds (names) at its moments, by SOUND_ENTER, SOUND_LAND, SOUND_LEAVE and SOUND_HOLD, then a struck text's
+        // space (SOUND_SPACE), each feed of its leave (SOUND_FEED) and its keys (SOUND_KEYS on; null: none, or the copy on a screen
+        // other than the first); the moments passed (bits), each sounded once; the keys and feeds sounded (-2: not counted yet:
+        // none, or, for a text whose enter or leave had sounded before (a handover), as many as had passed).
         String[] sounds;
-        int sounded;
+        int sounded, struck = -2, fedOut = -2;
+        // A struck text's typing (its letters' and keys' times, its keys' characters), from its lines; null for another.
+        Looks.Typed typed;
         // The sounds it started that are still its own, by moment (null: none); not kept for a newer API, which a handover stops them for.
         Voice[] voices;
 
@@ -884,6 +888,7 @@ final class Texts implements Hooks.Text {
         if (dusty != null && !burns(text.leave))
             throw new IllegalArgumentException(call + ": " + prefix + "." + dusty + " goes with " + prefix + ".leave = \"burn\" or \"flare\"");
         if (text.source != null) compose(text, call, prefix);
+        if (text.enter == Enter.STRIKE && text.lines != null) text.enterTime = typed(text);
         if (text.lines != null && text.font == null) font(text, "Large", call, prefix + ".font");
         else if (text.lines != null && text.fontName == null) font(text, text.font, call, prefix + ".font");
     }
@@ -1407,6 +1412,7 @@ final class Texts implements Hooks.Text {
                 throw new IllegalArgumentException(call + ": spec." + field.getKey() + " goes with leave = \"burn\" or \"flare\"");
             dust(big, field.getKey(), field.getValue(), call, "spec." + field.getKey());
         }
+        if (big.enter == Enter.STRIKE) big.enterTime = typed(big);
         if (small != null) {
             if (leave != null) small.leave = big.leave;
             if (leaveTime != null) small.leaveTime = big.leaveTime;
@@ -1417,6 +1423,10 @@ final class Texts implements Hooks.Text {
             small.player = big.player;
             // Under the title: its block, a gap, then the line's block, as shares of the screen's height.
             small.y = Math.min(1, big.y + big.size * big.lines.length / 2 + big.size * chosen.gap() + small.size * small.lines.length / 2);
+            if (small.enter == Enter.STRIKE) {
+                small.enterTime = typed(small);
+                if (big.enter == Enter.STRIKE) small.delay = big.enterTime + Looks.RETURN_PAUSE;
+            }
             // The title stays its hold once all of it is in, its line too; the line goes as the title goes, or the style's moment
             // after it.
             big.hold += Math.max(0, small.delay + small.enterTime - big.enterTime);
@@ -1461,24 +1471,52 @@ final class Texts implements Hooks.Text {
      * hold, which starts as it has come in and lasts until the text is gone (a loop; its level follows the leave down to 0). The
      * hold is last so that a kept text of three moments (enter, land, leave) still reads.
      */
-    static final int SOUND_ENTER = 0, SOUND_LAND = 1, SOUND_LEAVE = 2, SOUND_HOLD = 3;
+    static final int SOUND_ENTER = 0, SOUND_LAND = 1, SOUND_LEAVE = 2, SOUND_HOLD = 3, SOUND_SPACE = 4, SOUND_FEED = 5, SOUND_KEYS = 6;
+    /** A struck text's key for a character: its code times the golden ratio's fraction spreads the codes evenly over the keys. */
+    private static final double GOLDEN = 0.6180339887498949;
+    /** How much quieter each feed of a leave sounds than the one before (decibels): the paper going, its returns going too. */
+    private static final double FEED_QUIETER = 2;
     private static final String[] SOUND_MOMENTS = { "enter", "land", "leave", "hold" };
     private static final java.util.regex.Pattern SOUND_NAME = java.util.regex.Pattern.compile("[A-Za-z0-9_.]{1,64}");
     /** How long the sounds of a text that is gone, or cut short, fade out before they are stopped (seconds). */
     static final double SOUND_FADE = 0.15;
 
-    /** A title's {@code sounds}: { enter =, land =, hold =, leave = } of the game's sound names (each optional). */
+    /**
+     * A title's {@code sounds}: { enter =, land =, hold =, leave = } of the game's sound names (each optional); with a struck enter
+     * also {@code keys} (a list of names: a character's key is picked by its code, the same character the same key), {@code space}
+     * and {@code feed} (each return of a feed leave).
+     */
     private String[] sounds(Object value, String call, String name) throws ReflectiveOperationException {
         if (!lua.isTable(value)) throw new IllegalArgumentException(call + ": " + name + " must be a table such as { land = \"MySound\" }");
-        var result = new String[SOUND_MOMENTS.length];
+        var result = new ArrayList<String>(java.util.Collections.nCopies(SOUND_KEYS, (String)null));
         for (var entry : lua.entries(value)) {
-            int moment = entry.getKey() instanceof String key ? List.of(SOUND_MOMENTS).indexOf(key) : -1;
-            if (moment < 0) throw new IllegalArgumentException(call + ": " + name + " has no moment " + entry.getKey() + "; it takes enter, land, hold and leave");
-            if (!(entry.getValue() instanceof String sound) || !SOUND_NAME.matcher(sound).matches())
-                throw new IllegalArgumentException(call + ": " + name + "." + entry.getKey() + " must be a sound's name (letters, digits, _ and .)");
-            result[moment] = sound;
+            Object key = entry.getKey();
+            if ("keys".equals(key)) {
+                if (!lua.isTable(entry.getValue())) throw new IllegalArgumentException(call + ": " + name + ".keys must be a list of sounds' names");
+                int size;
+                try { size = lua.length(entry.getValue()); } catch (Throwable failure) { throw Texts.<RuntimeException>sneaky(failure); }
+                for (int index = 1; index <= size; index++) result.add(soundName(lua.getAt(entry.getValue(), index), call, name + ".keys[" + index + "]"));
+                continue;
+            }
+            int moment = "space".equals(key) ? SOUND_SPACE : "feed".equals(key) ? SOUND_FEED
+                : key instanceof String text ? List.of(SOUND_MOMENTS).indexOf(text) : -1;
+            if (moment < 0) throw new IllegalArgumentException(call + ": " + name + " has no moment " + key + "; it takes enter, land, hold, leave, keys, space and feed");
+            result.set(moment, soundName(entry.getValue(), call, name + "." + key));
         }
-        return result;
+        return result.toArray(new String[0]);
+    }
+
+    private static String soundName(Object value, String call, String name) {
+        if (!(value instanceof String sound) || !SOUND_NAME.matcher(sound).matches())
+            throw new IllegalArgumentException(call + ": " + name + " must be a sound's name (letters, digits, _ and .)");
+        return sound;
+    }
+
+    /** A struck text's typing, made from its lines (by them: the same text is typed the same); how long it takes. */
+    private static double typed(Shown text) {
+        String plain = String.join("\n", text.lines);
+        text.typed = new Looks.Typed(plain, plain.hashCode());
+        return text.typed.time;
     }
 
     /** The local players' indexes, or 0 alone when there is none (the main menu draws on the whole screen). */
@@ -1512,6 +1550,7 @@ final class Texts implements Hooks.Text {
         to.dustSize = from.dustSize; to.dustDrift = from.dustDrift; to.dustSweep = from.dustSweep; to.dustBurn = from.dustBurn;
         to.backdrop = from.backdrop; to.backdropBelow = from.backdropBelow;
         to.sounds = from.sounds;
+        to.typed = from.typed;
     }
 
     /** A text with a style's fields, its text to come. */
@@ -1859,6 +1898,8 @@ final class Texts implements Hooks.Text {
     private void sound(Shown text, long now) throws Throwable {
         double t = (now - text.start) / SECOND - text.delay, leaving = leaving(text);
         if (t < 0) return;
+        // (whether its enter and leave had sounded before this frame: a text first heard part way through goes on from there)
+        boolean heard = (text.sounded & 1 << SOUND_ENTER) != 0, left = (text.sounded & 1 << SOUND_LEAVE) != 0;
         double land = text.enter == Enter.IMPACT ? Math.min(Looks.IMPACT, text.enterTime) : text.enterTime;
         sound(text, SOUND_ENTER, t < leaving);
         if (t >= land) {
@@ -1869,6 +1910,41 @@ final class Texts implements Hooks.Text {
             sound(text, SOUND_LEAVE, text.leave != Leave.NONE && text.leaveTime > 0);
             if (text.voices != null) ramp(text, text.leaveTime > 0 ? 1 - (t - leaving) / text.leaveTime : 0);
         }
+        if (text.typed != null && text.sounds.length > SOUND_KEYS) keys(text, Math.min(t, leaving), heard);
+        if (text.leave == Leave.FEED && t >= leaving && text.sounds[SOUND_FEED] != null) feeds(text, t - leaving, left);
+    }
+
+    /** A struck text's keys as its clock passes them, each once (a text first heard part way through, from where it is: a handover). */
+    private void keys(Shown text, double t, boolean heard) throws Throwable {
+        double[] strikes = text.typed.strikes;
+        int passed = 0;
+        while (passed < strikes.length && strikes[passed] <= t) passed++;
+        if (text.struck == -2) text.struck = heard ? passed : 0;
+        int keys = text.sounds.length - SOUND_KEYS;
+        while (text.struck < passed) {
+            int code = text.typed.codes[text.struck++];
+            double spread = code * GOLDEN;
+            play(code == 32 ? text.sounds[SOUND_SPACE] : text.sounds[SOUND_KEYS + (int)((spread - Math.floor(spread)) * keys)], 1);
+        }
+    }
+
+    /** A feed leave's returns as its clock passes them, each a little quieter than the last. */
+    private void feeds(Shown text, double out, boolean left) throws Throwable {
+        int passed = 0;
+        while (passed < Looks.FEEDS.length && Looks.FEEDS[passed] <= out) passed++;
+        if (text.fedOut == -2) text.fedOut = left ? passed : 0;
+        while (text.fedOut < passed) play(text.sounds[SOUND_FEED], (float)Math.pow(10, -FEED_QUIETER * text.fedOut++ / 20));
+    }
+
+    /** A short sound of a text's, not kept (a key, a return): it ends by itself before a cut text's fade would matter. */
+    private void play(String name, float level) throws Throwable {
+        if (name == null || playSound == null) return;
+        Object manager = (Object)soundManager.invokeExact();
+        if (manager == null) return;
+        long id = (long)playSound.invokeExact(manager, name);
+        if (id == 0 || level >= 1) return;
+        Object emitter = emitter();
+        if (emitter != null) emitterVolume.invokeExact(emitter, id, level);
     }
 
     private void sound(Shown text, int moment, boolean heard) throws Throwable {
@@ -1925,6 +2001,7 @@ final class Texts implements Hooks.Text {
     /** A title cut short by one that came before it (now): it sounds no more, and what sounds fades out. */
     private void cut(Shown text, long at) {
         text.sounded = (1 << SOUND_MOMENTS.length) - 1;
+        text.struck = text.fedOut = Integer.MAX_VALUE;
         dirty = true;
         release(text, at);
     }
@@ -2100,7 +2177,6 @@ final class Texts implements Hooks.Text {
         if (look == Looks.BLEED) Looks.drops(shape, ink, line, piece.boxWidth, piece.boxHeight, seed, text.lead == null);
         if (look != Looks.STRIKE) return shape;
         var glyphs = new ArrayList<double[]>();
-        var spaced = new ArrayList<Boolean>();
         for (int index = 0; index < rowCount; index++) {
             String words = laid == null ? text.lines[index] : text.script.plain.substring(laid.rows[index].from, laid.rows[index].to);
             double lineWidth = (laid == null ? text.widths[index] : laid.rows[index].width) * zoom;
@@ -2113,7 +2189,6 @@ final class Texts implements Hooks.Text {
                 double after = advance(text, words.substring(0, next)) * zoom;
                 if (!Character.isWhitespace(words.codePointAt(at))) {
                     glyphs.add(new double[] { at == 0 ? 0 : x + before, next >= words.length() ? piece.boxWidth : x + after, x + (before + after) / 2, v0, v1 });
-                    spaced.add(at > 0 ? Character.isWhitespace(words.charAt(at - 1)) : index > 0);
                 }
                 before = after;
                 at = next;
@@ -2122,13 +2197,12 @@ final class Texts implements Hooks.Text {
         int count = glyphs.size();
         shape.glyphs = new double[count * 5];
         shape.keys = new double[count];
-        boolean[] space = new boolean[count];
-        for (int index = 0; index < count; index++) {
-            System.arraycopy(glyphs.get(index), 0, shape.glyphs, index * 5, 5);
-            space[index] = spaced.get(index);
-        }
+        for (int index = 0; index < count; index++) System.arraycopy(glyphs.get(index), 0, shape.glyphs, index * 5, 5);
         if (piece.pixels != null) Looks.cuts(piece.pixels, piece.boxWidth, piece.boxHeight, shape.glyphs, count, Math.max(2, line * STRIKE_REACH));
-        Looks.keys(space, count, text.enterTime, seed, shape.keys);
+        // (its letters in order are its typing's: the same characters, white space aside)
+        double[] letters = text.typed != null ? text.typed.letters : new double[0];
+        for (int index = 0; index < count; index++)
+            shape.keys[index] = index < letters.length ? letters[index] : letters.length > 0 ? letters[letters.length - 1] : 0;
         shape.glyphCount = count;
         return shape;
     }
@@ -2512,14 +2586,17 @@ final class Texts implements Hooks.Text {
     /** A text's sounds in the kept text: the moments' names by commas ("" for none), "-" for no sounds. */
     static String soundsText(String[] sounds) {
         if (sounds == null) return "-";
-        var parts = new String[sounds.length];
-        for (int index = 0; index < sounds.length; index++) parts[index] = sounds[index] == null ? "" : sounds[index];
+        // (the moments always; a struck text's space, feed and keys only when it has them: as an older API kept them)
+        int length = sounds.length;
+        while (length > SOUND_MOMENTS.length && sounds[length - 1] == null) length--;
+        var parts = new String[length];
+        for (int index = 0; index < length; index++) parts[index] = sounds[index] == null ? "" : sounds[index];
         return String.join(",", parts);
     }
 
     static String[] soundsOf(String field) {
         if ("-".equals(field)) return null;
-        String[] parts = field.split(",", -1), sounds = new String[SOUND_MOMENTS.length];
+        String[] parts = field.split(",", -1), sounds = new String[Math.max(SOUND_KEYS, parts.length)];
         for (int index = 0; index < sounds.length && index < parts.length; index++) sounds[index] = parts[index].isEmpty() ? null : parts[index];
         return sounds;
     }
@@ -2609,6 +2686,7 @@ final class Texts implements Hooks.Text {
                 if (!beforeBurn) s.dustBurn = burnOf(fields[40]);
                 if (!beforeLane) { s.lane = Integer.parseInt(fields[41]); if (s.lane < 0 || s.lane >= LANES) s.lane = 0; }
                 if (!beforeSounds) { s.sounds = soundsOf(fields[42]); s.sounded = Integer.parseInt(fields[43]); }
+                if (s.enter == Enter.STRIKE && s.lines != null) typed(s);
                 if (s.markup || s.width > 0 || s.enter == Enter.TYPE) {
                     // Read again: the script is not kept, and gives the same as when it was shown.
                     s.source = unescape(fields[3]);

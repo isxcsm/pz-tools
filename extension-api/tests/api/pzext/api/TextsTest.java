@@ -1205,6 +1205,24 @@ final class TextsTest {
         rejects(text, "spec.sounds has no moment hit", "title", mod, table("text", "x", "sounds", table("hit", "A")));
         rejects(text, "spec.sounds.land must be a sound's name", "title", mod, table("text", "x", "sounds", table("land", "a b")));
         rejects(text, "spec.subtitleSounds goes with spec.subtitle", "title", mod, table("text", "x", "subtitleSounds", table("land", "A")));
+        rejects(text, "spec.sounds.keys must be a list of sounds' names", "title", mod, table("text", "x", "sounds", table("keys", "A")));
+        // Struck: a key for each character as it is struck (by its code: A and c the first key, b the second), the space its own,
+        // the return as it is all in (its land); then the paper fed out with a return each, once each.
+        played.clear();
+        FormulasTest.call(text, "title", mod, table("text", "Ab c", "style", "type",
+            "sounds", table("keys", table(1.0, "K1", 2.0, "K2", 3.0, "K3"), "space", "Sp", "land", "Ret", "feed", "Feed")));
+        render();
+        check(List.of("K1").equals(played), "The first key was not struck as the title started: " + played);
+        for (int step = 0; step < 20; step++) { advance(0.05); render(); }
+        check(List.of("K1", "K2", "Sp", "K1", "Ret").equals(played), "The keys were not struck one by one, then the return: " + played);
+        advance(4.2);
+        render();
+        for (int step = 0; step < 80; step++) { advance(0.05); render(); }
+        check(List.of("K1", "K2", "Sp", "K1", "Ret", "Feed", "Feed", "Feed", "Feed").equals(played), "The paper was not fed with a return each: " + played);
+        FormulasTest.call(mod, "clear");
+        render();
+        // (the keys and returns are one-shots the title does not keep: they end by themselves)
+        ((zombie.SoundManager)zombie.SoundManager.instance).playing.clear();
     }
 
     /**
@@ -1420,11 +1438,11 @@ final class TextsTest {
         frameJob();
         check(manager.playing.isEmpty() && GameApi.texts().voices() == 0, "Sounds were left: " + manager.playing);
 
-        rejects(text, "it takes enter, land, hold and leave", "title", mod, table("text", "x", "sounds", table("loop", "A")));
+        rejects(text, "it takes enter, land, hold, leave, keys, space and feed", "title", mod, table("text", "x", "sounds", table("loop", "A")));
         rejects(text, "spec.sounds.hold must be a sound's name", "title", mod, table("text", "x", "sounds", table("hold", "a b")));
         rejects(text, "spec.subtitleSounds.hold must be a sound's name", "title", mod, table("text", "x", "subtitle", "y", "subtitleSounds", table("hold", 3.0)));
-        check(Arrays.equals(new String[] { "In", "Hit", "Out", null }, Texts.soundsOf("In,Hit,Out")), "A list of three moments is not read as a list of four");
-        check(Arrays.equals(new String[] { null, null, null, "Loop" }, Texts.soundsOf(",,,Loop")), "The hold is not read");
+        check(Arrays.equals(new String[] { "In", "Hit", "Out", null, null, null }, Texts.soundsOf("In,Hit,Out")), "A list of three moments is not read as the four and a struck text's two");
+        check(Arrays.equals(new String[] { null, null, null, "Loop", null, null }, Texts.soundsOf(",,,Loop")), "The hold is not read");
         check("In,,Out,Loop".equals(Texts.soundsText(new String[] { "In", null, "Out", "Loop" })), "The four moments are not written");
     }
 

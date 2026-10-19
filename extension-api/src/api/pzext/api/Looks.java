@@ -32,8 +32,10 @@ import java.nio.FloatBuffer;
  *     dry dark and flake away in patches as it leaves;</li>
  * <li>{@code under} (leave): still water shows under it, its mirror in it coming up swaying in fine streaks; then it sinks
  *     into that water, slowly at first, fading as it goes;</li>
- * <li>{@code strike} (enter) and {@code feed} (leave): its letters struck one by one at a typist's uneven pace, a little off
- *     their line and unevenly inked; the paper fed up a line at a time as it leaves;</li>
+ * <li>{@code strike} (enter) and {@code feed} (leave): its letters struck one by one by hand (TYPE_CPS a second, each word a
+ *     little faster or slower, a pause after a word and a longer one after a clause: it takes as long as its text does, and a
+ *     title's line is struck after its title, a return between), a little off their line and unevenly inked; the paper fed up
+ *     with each return pressed as it leaves (FEEDS);</li>
  * <li>{@code exhale} (leave): it beats with a heart (a warm glow flaring with each beat) that calms as it stays; one more
  *     beat, a stillness and a last weak one as it starts to leave, and then a breath out: it settles and fades, its glow
  *     staying on a moment after it.</li>
@@ -92,10 +94,16 @@ final class Looks {
     static final double SINK_DEPTH = 0.75, SINK_SWELL = 1, SINK_MIRROR = 1, MIRROR_IN = 3.5, MIRROR_STAY = 1.5, SINK_LEAVE = 9;
     /**
      * Strike: how far its letters stray off their line, how unevenly they are inked, how far the paper is fed; when each feed
-     * starts (shares of the leave), how long it takes (seconds) and how far it goes (in the title's lines).
+     * starts (seconds into the leave), how long it takes (seconds) and how far it goes (in the title's lines).
      */
-    static final double TYPE_JITTER = 1, TYPE_INK = 1, TYPE_FEED = 1, FEED_TIME = 0.22, FEED_STEP = 0.2;
-    static final double[] FEEDS = { 0.08, 0.34, 0.6 };
+    static final double TYPE_JITTER = 1, TYPE_INK = 1, TYPE_FEED = 1, FEED_TIME = 0.16, FEED_STEP = 0.45;
+    static final double[] FEEDS = { 0, 0.9, 1.8, 2.7 };
+    /**
+     * Strike's hand (the pace of OperationAcorn's comms, where the player types): characters a second, how much faster or slower
+     * a word may go, the pause after a word and after a clause (seconds); and the pause for the return between a title and its
+     * line.
+     */
+    static final double TYPE_CPS = 14, WORD_SPREAD = 0.2, WORD_PAUSE = 0.12, CLAUSE_PAUSE = 0.4, RETURN_PAUSE = 0.35;
     /**
      * Pulse: how bright its glow is, how strong its beats, how much it calms. In seconds into a leave of PULSE_LEAVE (a shorter
      * one has them shorter alike): how long a beat takes to die down, when one more beat comes, how long the stillness is before
@@ -536,23 +544,55 @@ final class Looks {
     static double swell(double into) { return SINK_SWELL * (0.35 + 0.65 * smooth(clamp(into / 0.3, 0, 1)) * Math.exp(-into / 3.2)); }
 
     /**
-     * When each of a struck text's letters is struck, into {@code keys}, in seconds from its start: at a typist's uneven pace,
-     * pausing after a space ({@code spaced}: the letter follows one), all within the first nine tenths of its enter.
+     * A struck text typed by hand: when each of its letters (its characters but white space, in order) is struck, and every key
+     * pressed (a space too: the code 32), in seconds from its start. A word's speed is its own (by the seed), a space is pressed
+     * and then a word's pause kept, and a clause's end (,.:;!?) is followed by a longer one.
      */
-    static void keys(boolean[] spaced, int count, double enterTime, int seed, double[] keys) {
-        double at = 0;
-        for (int index = 0; index < count; index++) {
-            if (index > 0) at += 0.7 + 0.6 * hash(index, 1, seed) + (spaced[index] ? 1.6 : 0);
-            keys[index] = at;
+    static final class Typed {
+        final double[] letters, strikes;
+        final int[] codes;
+        final double time;
+
+        Typed(String text, int seed) {
+            var letters = new java.util.ArrayList<Double>();
+            var strikes = new java.util.ArrayList<Double>();
+            var codes = new java.util.ArrayList<Integer>();
+            double at = 0;
+            int word = 0, prev = -1;
+            boolean spaced = false;
+            double speed = TYPE_CPS * (1 + WORD_SPREAD * (2 * hash(0, 3, seed) - 1));
+            for (int index = 0; index < text.length(); ) {
+                int code = text.codePointAt(index);
+                index += Character.charCount(code);
+                if (Character.isWhitespace(code)) { spaced = prev >= 0; continue; }
+                if (prev >= 0) {
+                    at += 1 / speed;
+                    if (spaced) {
+                        strikes.add(at);
+                        codes.add(32);
+                        at += 1 / speed + WORD_PAUSE;
+                        word++;
+                        speed = TYPE_CPS * (1 + WORD_SPREAD * (2 * hash(word, 3, seed) - 1));
+                    }
+                    if (",.:;!?".indexOf(prev) >= 0) at += CLAUSE_PAUSE;
+                }
+                letters.add(at);
+                strikes.add(at);
+                codes.add(code);
+                prev = code;
+                spaced = false;
+            }
+            this.letters = letters.stream().mapToDouble(Double::doubleValue).toArray();
+            this.strikes = strikes.stream().mapToDouble(Double::doubleValue).toArray();
+            this.codes = codes.stream().mapToInt(Integer::intValue).toArray();
+            time = (prev >= 0 ? at : 0) + 1 / TYPE_CPS;
         }
-        double last = at > 0 ? at : 1;
-        for (int index = 0; index < count; index++) keys[index] = 0.9 * enterTime * keys[index] / last;
     }
 
-    /** How many lines its paper has been fed at share {@code out} of a leave of {@code leaveTime}: each a quick jerk, a little past and back. */
-    static double fed(double out, double leaveTime) {
+    /** How many lines its paper has been fed {@code seconds} into its leave: each a quick jerk, a little past and back. */
+    static double fed(double seconds) {
         double fed = 0;
-        for (double from : FEEDS) fed += backOut(clamp((out - from) * leaveTime / FEED_TIME, 0, 1));
+        for (double from : FEEDS) fed += backOut(clamp((seconds - from) / FEED_TIME, 0, 1));
         return fed;
     }
 
@@ -1464,7 +1504,7 @@ final class Looks {
             double a = f.alpha;
             if (a <= 0.002 || shape == null || shape.glyphs == null) return;
             double s = f.s, w = piece.boxWidth, h = piece.boxHeight, line = f.line, cx = f.cx + f.dx, cy = f.cy + f.dy;
-            double lift = -TYPE_FEED * FEED_STEP * f.titleLine * fed(f.out, f.leaveTime);
+            double lift = -TYPE_FEED * FEED_STEP * f.titleLine * fed(f.out * f.leaveTime);
             double[] glyphs = shape.glyphs;
             mode = PICTURE;
             for (int index = 0; index < shape.glyphCount; index++) {

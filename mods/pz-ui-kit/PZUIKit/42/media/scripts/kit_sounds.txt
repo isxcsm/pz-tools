@@ -121,93 +121,148 @@ module Base
         }
     }
 
-    sound KIT_TitleFeed
+    /* title picks begin: written by tools/sound/install_title_picks.py from title_picks.json, not by build.py */
+
+    /* KIT_T_Stamp_Land: stamp_land_06_r2.ogg 094e6dd0 -7 dB */
+    sound KIT_T_Stamp_Land
     {
         category = UI,
         clip
         {
-            file = media/sound/KIT_TitleFeed_1.ogg,
+            file = media/sound/KIT_T_Stamp_Land.ogg,
         }
     }
 
-    sound KIT_TitleStamp
+    /* KIT_T_Dust_Enter: dust_enter_03.ogg 77953e4a -11 dB */
+    sound KIT_T_Dust_Enter
     {
         category = UI,
         clip
         {
-            file = media/sound/KIT_TitleStamp_1.ogg,
-        }
-        clip
-        {
-            file = media/sound/KIT_TitleStamp_2.ogg,
-        }
-        clip
-        {
-            file = media/sound/KIT_TitleStamp_3.ogg,
-        }
-        clip
-        {
-            file = media/sound/KIT_TitleStamp_4.ogg,
-        }
-        clip
-        {
-            file = media/sound/KIT_TitleStamp_5.ogg,
+            file = media/sound/KIT_T_Dust_Enter.ogg,
         }
     }
 
-    sound KIT_TitleStampLine
+    /* KIT_T_Dust_Leave: dust_leave_01.ogg 2e8dd8bd -19 dB */
+    sound KIT_T_Dust_Leave
     {
         category = UI,
         clip
         {
-            file = media/sound/KIT_TitleStampLine_1.ogg,
-        }
-        clip
-        {
-            file = media/sound/KIT_TitleStampLine_2.ogg,
-        }
-        clip
-        {
-            file = media/sound/KIT_TitleStampLine_3.ogg,
-        }
-        clip
-        {
-            file = media/sound/KIT_TitleStampLine_4.ogg,
-        }
-        clip
-        {
-            file = media/sound/KIT_TitleStampLine_5.ogg,
+            file = media/sound/KIT_T_Dust_Leave.ogg,
         }
     }
 
-    sound KIT_TitleType
+    /* KIT_T_Notice_Enter: notice_enter_07_r2.ogg 20dd79b3 -13 dB */
+    sound KIT_T_Notice_Enter
     {
         category = UI,
         clip
         {
-            file = media/sound/KIT_TitleType_1.ogg,
-        }
-        clip
-        {
-            file = media/sound/KIT_TitleType_2.ogg,
-        }
-        clip
-        {
-            file = media/sound/KIT_TitleType_3.ogg,
+            file = media/sound/KIT_T_Notice_Enter.ogg,
         }
     }
 
-    sound KIT_TitleTypeLine
+    /* KIT_T_Notice_Leave: notice_leave_01.ogg 869a1c74 -21 dB */
+    sound KIT_T_Notice_Leave
     {
         category = UI,
         clip
         {
-            file = media/sound/KIT_TitleTypeLine_1.ogg,
-        }
-        clip
-        {
-            file = media/sound/KIT_TitleTypeLine_2.ogg,
+            file = media/sound/KIT_T_Notice_Leave.ogg,
         }
     }
+
+    /* KIT_T_Discovery_Enter: discovery_enter_06_r1.ogg 5665c73c -9 dB */
+    sound KIT_T_Discovery_Enter
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_T_Discovery_Enter.ogg,
+        }
+    }
+
+    /* KIT_T_Discovery_Leave: discovery_leave_02.ogg b27f82bb -17 dB */
+    sound KIT_T_Discovery_Leave
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_T_Discovery_Leave.ogg,
+        }
+    }
+
+    /* KIT_T_Unveil_Enter: unveil_enter_07_r2.ogg 12603972 -8 dB */
+    sound KIT_T_Unveil_Enter
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_T_Unveil_Enter.ogg,
+        }
+    }
+
+    /* KIT_T_Unveil_Leave: unveil_leave_06_r4.ogg f167a1f5 -16 dB */
+    sound KIT_T_Unveil_Leave
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_T_Unveil_Leave.ogg,
+        }
+    }
+
+    /* KIT_T_Sink_Enter: sink_enter_01_r2.ogg fb19406e -9 dB */
+    sound KIT_T_Sink_Enter
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_T_Sink_Enter.ogg,
+        }
+    }
+
+    /* KIT_T_Pulse_Enter: pulse_enter_04_r3.ogg 7f99d071 -10 dB */
+    sound KIT_T_Pulse_Enter
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_T_Pulse_Enter.ogg,
+        }
+    }
+
+    /* KIT_T_Bleed_Enter: bleed_enter_04_r2.ogg 500bad28 -7 dB */
+    sound KIT_T_Bleed_Enter
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_T_Bleed_Enter.ogg,
+        }
+    }
+
+    /* KIT_T_Brief_Enter: brief_enter_03.ogg 4790752d -17 dB */
+    sound KIT_T_Brief_Enter
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_T_Brief_Enter.ogg,
+        }
+    }
+
+    /* KIT_T_Brief_Leave: brief_leave_01.ogg 299e8cfe -25 dB */
+    sound KIT_T_Brief_Leave
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_T_Brief_Leave.ogg,
+        }
+    }
+
+    /* title picks end */
 
 }
