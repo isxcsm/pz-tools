@@ -647,6 +647,8 @@
     "IGUI_OA_Trade_Reason_locked": "아직 열리지 않음",
     "IGUI_OA_Trade_Tip_Worth": "정산가 약 %1 크레딧",
     "IGUI_OA_Trade_Tip_NotTaken": "받지 않음",
+    "IGUI_OA_Trade_Drop_Some": "%1개는 넣지 못했습니다.",
+    "IGUI_OA_Trade_Drop_Abandoned": "버려진 상자에는 넣을 수 없습니다.",
     "IGUI_OA_Trade_Tip_Mission": "임무 보수로 정산",
     "IGUI_OA_Trade_Estimate_Title": "견적",
     "IGUI_OA_Trade_Estimate_Credits": "%1 크레딧",
