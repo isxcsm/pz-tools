@@ -280,7 +280,13 @@ end
 -- search watch keeps, so nothing is walked here): counted once, with its bonus and title. Returns the credits, or nil.
 function Economy.checkSearched(character, record, key)
     local searched, total, complete = OA.Buildings.counts(character, key)
-    if not searched or not complete or total <= 0 or searched < total then return nil end
+    if not searched or not complete then return nil end
+    -- a building with no container is searched by coming into it: it counts for its town, with no bonus (nothing opened)
+    if total == 0 then
+        OA.try("towns searched", OA.Towns.searched, record, key)
+        return nil
+    end
+    if total < 0 or searched < total then return nil end
     return Economy.searched(record, key, total)
 end
 

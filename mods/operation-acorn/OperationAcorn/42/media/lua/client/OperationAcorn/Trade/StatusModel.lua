@@ -361,6 +361,15 @@ function M.heli(record, now, tod)
     local canCargo = Boxes.hasCargo(record)
     local s = { subs = {} }
     local function sub(text, colour) s.subs[#s.subs + 1] = { text = text, colour = colour } end
+    -- a record whose first supply has not come (a new character at a terminal left standing): its box comes in that
+    -- crate, and nothing can be called or reissued before it
+    if not Trade.registered(record) then
+        local why = tr("IGUI_OA_Trade_Heli_FirstWait")
+        s.state, s.colour = tr("IGUI_OA_Status_Heli_Cannot"), "warn"
+        sub(why, "text")
+        s.callable, s.callWhy, s.reissue, s.reissueWhy, s.night = false, why, false, why, false
+        return s
+    end
     if heli.call then
         s.state, s.colour = tr("IGUI_OA_Status_Heli_Coming"), "value"
         sub(tr("IGUI_OA_Status_Heli_Arrive", M.when(heli.call.arrive)), "text")
@@ -579,6 +588,9 @@ function M.waybill(record, flight)
             w.send[1] = { icon = Shop.TYPES.box, name = tr("IGUI_OA_Status_SendPlaced") }
         elseif box and box.state == "carried" then
             w.send[1] = { icon = Shop.TYPES.box, name = tr("IGUI_OA_Status_SendCarried") }
+        elseif not Trade.registered(record) then
+            -- (before the first supply: the box comes in it)
+            w.send[1] = { name = tr("IGUI_OA_Status_SendNone"), sub = tr("IGUI_OA_Status_SendFirst") }
         else
             w.send[1] = { name = tr("IGUI_OA_Status_SendNone"), warn = true,
                 sub = tr("IGUI_OA_Status_SendNoneSub", credits(reissueCost)) }

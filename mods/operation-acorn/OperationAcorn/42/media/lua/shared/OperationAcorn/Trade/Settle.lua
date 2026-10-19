@@ -59,8 +59,27 @@ local function sharedSerumSpecs(account, record, now)
 end
 
 -- Plain lines of a settlement kept for the receipt: what the team said about each kind.
+-- What a line is, apart from how many and what they paid: the same thing with the same marks reads as one line (boxes
+-- of the same things otherwise list each thing once a box, which reads as a line written twice).
+local SUMMED = { count = true, credits = true, trust = true }
+local function lineKind(line)
+    if not line.fullType then return nil end
+    local parts = {}
+    for k, v in pairs(line) do
+        if not SUMMED[k] then
+            if k == "marks" then
+                for mk in pairs(v) do parts[#parts + 1] = "m:" .. mk end
+            else
+                parts[#parts + 1] = k .. "=" .. tostring(v)
+            end
+        end
+    end
+    table.sort(parts)
+    return table.concat(parts, ";")
+end
+
 local function receiptLines(lines)
-    local out = {}
+    local out, byKind = {}, {}
     for _, line in ipairs(lines or {}) do
         local keep = {}
         for k, v in pairs(line) do
@@ -71,7 +90,16 @@ local function receiptLines(lines)
                 for mk, mv in pairs(v) do if mv then keep.marks[mk] = true end end
             end
         end
-        out[#out + 1] = keep
+        local kind = lineKind(keep)
+        local same = kind and byKind[kind]
+        if same then
+            for k in pairs(SUMMED) do
+                if keep[k] or same[k] then same[k] = (same[k] or 0) + (keep[k] or 0) end
+            end
+        else
+            out[#out + 1] = keep
+            if kind then byKind[kind] = keep end
+        end
     end
     return out
 end

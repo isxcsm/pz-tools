@@ -8,8 +8,9 @@
 --   found = { [town] = how many of them }, done = { [town] = true }, ndone, told = { [town] = the last step of
 --   PROGRESS told }.
 -- A building's key is the API's (buildings.at) as text, which is the key the codex keeps (Codex.buildingSearched).
--- A basement is a building of its own to the API, so it counts in its town's total but is never searched under its own
--- key: the share of 90% leaves room for it.
+-- A basement is a building of its own to the API (its key's level below 0) but is searched as part of the house above
+-- it (Buildings.group), never under its own key: it is left out of its town (a town with many found none done at 90%).
+-- A building with no container is searched by coming into it (Economy.checkSearched).
 --
 -- A town is done for the world when its searched buildings reach SHARE of its buildings. A record takes the town's
 -- share (Shop.townDone: the windows after the current one shorter) once: when its own search is the one that completes
@@ -41,6 +42,12 @@ function Towns.reset()
     failed, grid, gridOf = false, nil, nil
 end
 
+-- Whether a building's key is a basement's ("x,y,z" with z below 0).
+function Towns.basement(key)
+    local z = string.match(tostring(key), ",(%-?%d+)$")
+    return z ~= nil and tonumber(z) < 0
+end
+
 -- The world's towns section, with the index read from the API the first time: nil when it cannot be read.
 function Towns.index()
     local w = OA.Store.world("towns")
@@ -60,7 +67,10 @@ function Towns.index()
     end
     w.list, w.of, w.seen, w.found, w.done, w.ndone = {}, {}, {}, {}, {}, 0
     for _, c in ipairs(clusters) do
-        local keys = c.buildings or {}
+        local keys = {}
+        for _, key in ipairs(c.buildings or {}) do
+            if not Towns.basement(key) then keys[#keys + 1] = key end
+        end
         if #keys >= Towns.MIN_BUILDINGS then
             local town = #w.list + 1
             local rects = {}
@@ -170,6 +180,8 @@ end
 function Towns.enter(record, x, y)
     local w = OA.Store.world("towns")
     if not w.built or (w.ndone or 0) == 0 then return false end
+    -- (a record that has not met the team takes nothing yet: it would come untold, its title kept for the contacted)
+    if not OA.Trust.contacted(record) then return false end
     local town = Towns.at(w, x, y)
     if not town or not w.done[town] then return false end
     local r = record.shop and record.shop.restock

@@ -124,3 +124,17 @@ are put back where a file changes them.
 Not scripted: how a hit or a shot damages (kits), the pictures (map circles, shop cards, title ink and timing against the lab),
 the sounds of a title, a town searched through in the game, the dense place cleared by real kills, the survey call in the
 terminal.
+
+## The user's play pass (`u_*.lua`, E2E.md 11.1)
+
+The flows a player goes through, driven by the same handlers the buttons, menus and the loot window call; walking is a
+move of the character and waiting is the clock put forward. Story moves come from `story_lib.lua` (`ST.use`, `ST.call`,
+`ST.seal` ...). Each prints its own tag and ends with an `end` or `done` line, so a caller waits for that line rather than
+a fixed time.
+
+| File | What it does | Setup |
+| --- | --- | --- |
+| `u_kits.lua` | a bat swung by the game's own attack (`IsoPlayer.pressedAttack`) at a zombie set where the mouse points (the swing turns to the mouse; the cursor is not moved), `UK_SWINGS` times before and after the damage, critical and critical damage kits; the median of the health lost a hit (a zombie put down at once left out), and the game's crit chance and critical hit for the bat and a pistol | god mode while it runs; a zombie made and taken away |
+| `u_grades.lua` | after the handover (`OperationAcorn.Dev.E2E.set("13")`), trust added as a settlement adds it, a tier every `U_GRADES_GAP` seconds: grade, designation, the terminal's title; the stamps come as `[st]` lines | changes the record's trust |
+| `u_town.lua` | a town (`U_TOWN`) searched through the loot window: the character stands by each container of each building in turn and the window shows it; lingers in a building once done (the watch's look again counts it whole) | changes the world's search marks |
+| `u_town_left.lua`, `u_town_finish.lua` | the buildings of a town not counted yet, their containers loaded and marked; then each one finished the way the ledger points: the containers the watch still lists, a floor at a time (a house's basement is part of it) | after `u_town.lua` |

@@ -88,13 +88,15 @@ local function look(player, now, marked)
     local S = senses()
     local line = S and S.ledgerLook(player, key, opened, total, complete, now) or nil
     local done = complete and total > 0 and opened >= total
+    -- (a building with no container is searched by coming into it: the economy counts it for its town)
+    local empty = complete and total == 0
     if marked then
         if done or line then
             local near = {}
             for i = 1, #fresh do near[fresh[i]] = true end
             state.pending = { key = key, done = done, line = not done and line or nil, near = near }
         end
-    elseif done and state.asked ~= key then
+    elseif (done or empty) and state.asked ~= key then
         -- all searched before the character came in (it stepped away from the last container in another session):
         -- the economy knows whether it was counted
         state.asked = key

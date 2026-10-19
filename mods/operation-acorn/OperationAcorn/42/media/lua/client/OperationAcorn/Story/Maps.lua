@@ -121,7 +121,9 @@ end
 -- Worked out again for a player: when a map opens, and when the mission or the crates change.
 function Maps.rebuild(playerNum)
     local character = getSpecificPlayer(playerNum)
-    scenes[playerNum] = character and View.scene(OA.Client.record(character), whereNow()) or nil
+    -- (a character just made has no record for a moment: nothing to show until it has)
+    local record = character and OA.Client.record(character)
+    scenes[playerNum] = record and View.scene(record, whereNow()) or nil
 end
 
 function Maps.refresh()

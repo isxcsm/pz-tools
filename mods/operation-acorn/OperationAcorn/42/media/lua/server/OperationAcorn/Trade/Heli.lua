@@ -215,6 +215,8 @@ function Heli.dropped(owner, marked, settled)
         end
     end
     OA.Sync.title(owner.id, { key = "IGUI_OA_Title_Dropped", sub = sub, subArgs = subArgs, style = "notice" })
+    -- the eggs the flight's boxes held follow what it paid
+    if OA.Eggs then OA.Eggs.release(owner) end
 end
 
 -- The loud moment of a pass (or at once): the drop waiting in the record is done; the noise and the title follow.

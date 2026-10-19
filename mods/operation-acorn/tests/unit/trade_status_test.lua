@@ -16,6 +16,8 @@ local function newRecord(stage, milestones, credits)
     local r = OA.Store.ensure("st", "Tester")
     r.trade = { credits = credits or 50000, trust = 0, stage = stage or 0, milestones = milestones or 0, bonus = 0,
         sharedSerums = 0, levels = {} }
+    -- (its first supply came: the terminal is its own)
+    r.first = { done = true }
     OA.Trust.reset()
     return r
 end
@@ -553,4 +555,18 @@ test("the layouts at the default and the smallest window", function()
     roomy, gap, spec, facts = M.heroSpacing(252, 16 + 14, 2, true)
     eq(facts, true, "flying with the card, they still fit")
     eq(select(4, M.heroSpacing(252, 16 + 14 + 46, 2)), true, "without the card the facts stay as before")
+end)
+
+test("before its first supply a record calls nothing and is told the box comes in that crate", function()
+    local r = newRecord(0, 0)
+    r.first = { mode = "late", day = 3, hour = 8 }
+    r.heli = nil
+    local s = M.heli(r, 100, 12)
+    eq(s.state, "IGUI_OA_Status_Heli_Cannot")
+    eq(s.subs[1].text, "IGUI_OA_Trade_Heli_FirstWait")
+    eq(#s.subs, 1)
+    eq(s.callable, false); eq(s.callWhy, "IGUI_OA_Trade_Heli_FirstWait")
+    eq(s.reissue, false); eq(s.reissueWhy, "IGUI_OA_Trade_Heli_FirstWait")
+    r.first.done = true
+    eq(M.heli(r, 100, 12).subs[1].text, "IGUI_OA_Trade_Heli_NoBox", "once it came, the box's own state")
 end)

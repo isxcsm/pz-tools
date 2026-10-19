@@ -321,8 +321,9 @@ function OATabShop:buildDetail(record, ctx)
     local info = {}
     if not d.state.open then info[#info + 1] = statusText(d.state) end
     if entry.week then info[#info + 1] = getText("IGUI_OA_Terminal_Shop_PerWeek", entry.week) end
-    -- a restock entry says when its stock is filled again (a sold-out card says it already)
-    if entry.restock and avail.reopen and d.state.open then
+    -- a restock entry says when its stock is filled again once some of it was bought (a sold-out card says it already; a
+    -- full stock has nothing to fill)
+    if entry.restock and avail.reopen and d.state.open and (OA.Shop.restock(record).n[entry.id] or 0) > 0 then
         info[#info + 1] = getText("IGUI_OA_Terminal_Shop_RestockAt", whenText(avail.reopen))
     end
     d.info = table.concat(info, Text.DOT)

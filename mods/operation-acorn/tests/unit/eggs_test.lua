@@ -55,7 +55,12 @@ local function settle(record, items)
     end
     Boxes.seal(record, box.id, entries)
     Trade.heli(record).call = { at = 90, arrive = 100, kind = "normal", orders = {} }
-    return Settle.run(record, services())
+    local plan = Settle.run(record, services())
+    -- an egg's title waits for the drop's (Heli.dropped releases it)
+    local before = titles and #titles or 0
+    Eggs.release(record)
+    plan.titledBeforeDrop = before
+    return plan
 end
 
 local function hasNote(plan, key)
@@ -67,6 +72,8 @@ test("the Furbert pays 100,000 once, with its remark and title; the second pays 
     listen()
     local record = newRecord({}, 500)
     local plan = settle(record, { { "Base.FurbertSquirrel" } })
+    eq(plan.titledBeforeDrop, 0, "no title before the drop's")
+    eq(record.eggs.held, nil, "released")
     eq(record.trade.credits, 500 + 100000)
     eq(plan.receipt.bonus, 100000)
     truthy(hasNote(plan, "IGUI_OA_Trade_Egg_1"), "the remark before the handover")

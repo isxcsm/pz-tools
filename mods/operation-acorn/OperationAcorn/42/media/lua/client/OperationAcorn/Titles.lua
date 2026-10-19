@@ -90,17 +90,20 @@ Titles.styleFor = styleFor
 -- A title over a window (the adaptation tab, the terminal: busy, bright panels) gets this dark band behind it, so that
 -- it reads; over the world the style's own (if any) is enough. A window counts when it is at least WINDOW_W by WINDOW_H
 -- and crosses the middle of the screen across, between WINDOW_TOP and WINDOW_BOTTOM of its height (where titles go); a
--- window filling the screen (the game's own layers) does not.
+-- window filling the screen (the game's own layers) does not. A brief title is judged where it goes, low on the screen
+-- (BRIEF_TOP to BRIEF_BOTTOM): its own faint backdrop is lost on a window's panel and its line read as the panel's.
 Titles.OVER_WINDOW = 0.75
 local WINDOW_W, WINDOW_H, WINDOW_TOP, WINDOW_BOTTOM = 300, 200, 0.08, 0.6
+local BRIEF_TOP, BRIEF_BOTTOM = 0.74, 0.86
 local NO_TABLE = {}
 
--- Whether a window is open where a title goes (looked at once a title, not on a clock).
-function Titles.overWindow()
+-- Whether a window is open where a title goes (looked at once a title, not on a clock); `brief` for a brief title's place.
+function Titles.overWindow(brief)
     local ui = UIManager and UIManager.getUI and UIManager.getUI()
     if not ui then return false end
     local sw, sh = getCore():getScreenWidth(), getCore():getScreenHeight()
-    local mid, top, bottom = sw / 2, sh * WINDOW_TOP, sh * WINDOW_BOTTOM
+    local mid = sw / 2
+    local top, bottom = sh * (brief and BRIEF_TOP or WINDOW_TOP), sh * (brief and BRIEF_BOTTOM or WINDOW_BOTTOM)
     for i = 0, ui:size() - 1 do
         local el = ui:get(i)
         local t = el and el:isVisible() and (el:getTable() or NO_TABLE)
@@ -149,8 +152,7 @@ function Titles.show(playerId, detail, noSay)
     if not style then handle = nil end
     if noSay and not handle then return nil end
     local shown
-    -- (a brief title, low on the screen, has its own backdrop: windows are judged where the titles go)
-    local backdrop = handle and style ~= "brief" and Titles.overWindow() and Titles.OVER_WINDOW or nil
+    local backdrop = handle and Titles.overWindow(style == "brief") and Titles.OVER_WINDOW or nil
     for _, character in ipairs(characters) do
         local done = false
         if handle then

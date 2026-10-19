@@ -27,6 +27,12 @@ local function fakeApi()
             { x1 = 500, y1 = 500, x2 = 550, y2 = 550, area = 2500, zones = 1, rects = { 500, 500, 50, 50 }, buildings = keys(100, 19) },
             { x1 = 1000, y1 = 1000, x2 = 1299, y2 = 1099, area = 9000, zones = 2,
               rects = { 1000, 1000, 200, 100, 1200, 1000, 100, 50 }, buildings = keys(200, 30) },
+            -- 22 buildings of which 4 are basements (their key's level below 0): 18 left, under the 20
+            { x1 = 2000, y1 = 2000, x2 = 2099, y2 = 2099, area = 10000, zones = 1, rects = { 2000, 2000, 100, 100 },
+              buildings = { "2000,2000,0", "2010,2000,0", "2020,2000,0", "2030,2000,0", "2040,2000,0", "2050,2000,0",
+                  "2060,2000,0", "2070,2000,0", "2080,2000,0", "2090,2000,0", "2000,2010,0", "2010,2010,0", "2020,2010,0",
+                  "2030,2010,0", "2040,2010,0", "2050,2010,0", "2060,2010,0", "2070,2010,0",
+                  "2000,2000,-1", "2010,2000,-1", "2020,2000,-1", "2030,2000,-1" } },
         }
     end } }
 end
@@ -57,6 +63,8 @@ test("the index keeps the towns of 20 buildings or more, once a world", function
     eq(#w.list, 2)
     eq(w.list[1].n, 20); eq(w.list[2].n, 30)
     eq(w.of["5"], 1); eq(w.of["100"], nil); eq(w.of["230"], nil); eq(w.of["229"], 2)
+    eq(w.of["2000,2000,0"], nil, "a town short of 20 once its basements are left out")
+    eq(T.basement("2000,2000,-1"), true); eq(T.basement("2000,2000,0"), false); eq(T.basement(5), false)
     T.index(); T.index()
     eq(calls, 1)
     -- a later session reads the world's copy, not the API
@@ -203,4 +211,20 @@ test("the searched town shortens the next restock window of the shop", function(
     eq(OA.Shop.restockEnd(a), 240)
     TEST.hours = 250
     near(OA.Shop.restockEnd(a), 240 + 216, 1e-9)
+end)
+
+test("a character that has not met the team takes no town yet; once it has, the share comes with its title", function()
+    fakeApi()
+    local told = listen()
+    local a = record("a")
+    for key = 1, 18 do T.searched(a, tostring(key)) end
+    local fresh = OA.Store.ensure("fresh", "fresh")
+    OA.Trust.section(fresh).stage = 0
+    eq(T.enter(fresh, 50, 50), false, "before the first contact")
+    eq(fresh.shop, nil, "no share taken untold")
+    OA.Trust.section(fresh).stage = 1
+    eq(T.enter(fresh, 50, 50), true)
+    eq(fresh.shop.restock.nextFactor, 0.9)
+    eq(told[#told].id, "fresh")
+    eq(told[#told].detail.sub, "IGUI_OA_Title_TownSearchedSubKnown")
 end)

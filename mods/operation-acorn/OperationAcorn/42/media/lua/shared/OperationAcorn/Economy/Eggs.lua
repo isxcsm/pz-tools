@@ -108,6 +108,23 @@ local function title(record, egg)
     OA.Sync.title(record.id, { key = def.key, sub = def.sub, style = def.style })
 end
 
+-- A delivered egg's title waits for its flight's drop title (Heli.dropped): the settlement is made as the helicopter comes,
+-- and the eggs read as part of what the drop paid, not before it. Kept in the section (`held`) until then.
+local function hold(record, egg)
+    local s = Eggs.section(record)
+    s.held = s.held or {}
+    s.held[#s.held + 1] = egg
+end
+
+-- The held titles shown, after the drop's own (Heli.dropped).
+function Eggs.release(record)
+    local s = record and record.eggs
+    local held = s and s.held
+    if not held then return end
+    s.held = nil
+    for _, egg in ipairs(held) do title(record, egg) end
+end
+
 -- Whether the record has been handed over to the management (its remarks are theirs then).
 local function handedOver(record)
     return OA.Story ~= nil and OA.Story.handedOver ~= nil and OA.Story.handedOver(record)
@@ -134,7 +151,7 @@ function Eggs.settle(record, entries)
         if not after then s.furbertCall = true end
         out.credits = Eggs.CREDITS
         out.notes[#out.notes + 1] = after and Eggs.NOTES.furbertAfter or Eggs.NOTES.furbert
-        title(record, "furbert")
+        hold(record, "furbert")
     end
     if seen.acorns then
         s.acorns = (s.acorns or 0) + seen.acorns
@@ -142,7 +159,7 @@ function Eggs.settle(record, entries)
         if s.acorns >= Eggs.ACORN_GOAL and not s.acornsDone then
             s.acornsDone = true
             changed = true
-            title(record, "acorns")
+            hold(record, "acorns")
         end
     end
     for _, egg in ipairs({ "squirrel", "spiffo" }) do
@@ -150,7 +167,7 @@ function Eggs.settle(record, entries)
             s[egg] = true
             changed = true
             out.notes[#out.notes + 1] = Eggs.NOTES[egg]
-            title(record, egg)
+            hold(record, egg)
         end
     end
     if changed then refresh(record) end

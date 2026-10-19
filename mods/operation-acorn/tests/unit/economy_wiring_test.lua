@@ -1028,3 +1028,21 @@ test("the containers known to be marked are bounded: past the cap the list start
     eq(OA.Buildings.mark(first), false, "a container let go is found marked again by its object")
     eq(known.t[first], true)
 end)
+
+test("a building with no container counts for its town by coming into it, with no bonus", function()
+    boot()
+    OA.Buildings.reset()
+    local record = OA.Store.ensure("w", "W")
+    OA.Trust.section(record).stage = 1
+    local rooms = fakeBuilding({ { sq({}), sq({}) } })
+    local w = walker(rooms[1])
+    local told = {}
+    local searched = OA.Towns.searched
+    OA.Towns.searched = function(r, key) told[#told + 1] = key end
+    OA.Buildings.tick(w)
+    eq(OA.Economy.checkSearched(w, record, "v:700,800"), nil, "no bonus")
+    OA.Towns.searched = searched
+    eq(#told, 1)
+    eq(told[1], "v:700,800")
+    eq(record.codex and record.codex.nb or 0, 0, "not in the codex's buildings")
+end)

@@ -491,3 +491,22 @@ test("the fee is the same before and after a test shows the infection, so the re
     eq(planA.receipt.fee, planB.receipt.fee)
     eq(a.trade.credits, b.trade.credits)
 end)
+
+test("the receipt lists a thing once however many boxes held it; marks keep lines apart", function()
+    local lines = Settle.receiptLines({
+        { fullType = "Base.Hammer", count = 1, credits = 411, trust = 2 },
+        { fullType = "Base.Saw", count = 1, credits = 274 },
+        { fullType = "Base.Hammer", count = 2, credits = 822, trust = 4 },
+        { fullType = "Base.Hammer", count = 1, credits = 300, marks = { worn = true } },
+        { other = 3, count = 5, credits = 10 },
+    })
+    eq(#lines, 4)
+    eq(lines[1].fullType, "Base.Hammer")
+    eq(lines[1].count, 3)
+    eq(lines[1].credits, 1233)
+    eq(lines[1].trust, 6)
+    eq(lines[2].fullType, "Base.Saw")
+    eq(lines[3].marks.worn, true, "a marked one stays its own line")
+    eq(lines[3].count, 1)
+    eq(lines[4].other, 3, "the folded line is left as it is")
+end)
