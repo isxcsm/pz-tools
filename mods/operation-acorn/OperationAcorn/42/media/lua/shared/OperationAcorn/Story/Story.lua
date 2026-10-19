@@ -469,14 +469,13 @@ function Story.onStage(record, stage, milestones)
     if grade and grade ~= s.grade then
         if s.grade then
             OA.Sync.title(record.id, { key = "IGUI_OA_Title_Grade", sub = "IGUI_OA_Story_Grade_" .. grade,
-                subArgs = { Story.number(record) }, style = "stamp", fallback = "good" })
+                subArgs = { Story.number(record) }, style = "stamp" })
         end
         s.grade = grade
         s.again = again
     elseif grade == "top" and again > (s.again or 0) then
         OA.Sync.title(record.id, { key = "IGUI_OA_Title_GradeAgain", sub = "IGUI_OA_Story_GradeAgain",
-            subArgs = { { key = "IGUI_OA_Story_Grade_top", args = { Story.number(record) } }, again }, style = "stamp",
-            fallback = "good" })
+            subArgs = { { key = "IGUI_OA_Story_Grade_top", args = { Story.number(record) } }, again }, style = "stamp" })
         s.again = again
     end
     local tier = s.seenStage + s.seenMilestones
@@ -623,19 +622,18 @@ end
 function Story.stageTitle(record, level, source)
     if level >= 1 and level <= Data.LAST_STAGE then
         if source == "contact" then return nil end
-        return { key = "IGUI_OA_Title_Stage", args = { level }, sub = "IGUI_OA_Title_StageCheck", style = "dust",
-            fallback = "good" }
+        return { key = "IGUI_OA_Title_Stage", args = { level }, sub = "IGUI_OA_Title_StageCheck", style = "dust" }
     end
     local sub
     if not (OA.Shop and OA.Shop.opensAt) or OA.Shop.opensAt(level) then sub = "IGUI_OA_Title_NewItems"
     elseif callAt(level) then sub = "IGUI_OA_Title_StageCheck" end
-    return { key = "IGUI_OA_Title_Stage", args = { level }, sub = sub, style = "dust", fallback = "good" }
+    return { key = "IGUI_OA_Title_Stage", args = { level }, sub = sub, style = "dust" }
 end
 
 -- The card of a named stage (SCENES.md 2 '제목 카드'): "Trust stage 3 · Cross-check" and the shop's new items.
 function Story.stageCard(stage)
     return { key = "IGUI_OA_Title_StageNamed", args = { stage, { key = "IGUI_OA_Econ_Stage_" .. stage } }, size = "major",
-        sub = "IGUI_OA_Title_NewItems", style = "dust", fallback = "good" }
+        sub = "IGUI_OA_Title_NewItems", style = "dust" }
 end
 
 -- The terminal was opened (its window shows): the card of the last named stage entered that has not had one. Not
@@ -659,7 +657,7 @@ function Story.callPlayed(record, id)
     if OA.StoryBranches then OA.StoryBranches.played(record, id) end
     if id ~= Story.firstCall(record) then return end
     OA.Sync.title(record.id, { key = "IGUI_OA_Title_Operation", sub = "IGUI_OA_Title_OperationSub", size = "major",
-        subArgs = { Story.number(record) }, style = "stamp", tone = "acorn", fallback = "good", at = "center" })
+        subArgs = { Story.number(record) }, style = "stamp", tone = "acorn", at = "center" })
     Story.terminalOpened(record)
 end
 

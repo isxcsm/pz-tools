@@ -106,8 +106,7 @@ end
 -- Tells the record its town came sooner restocking (told once a town, to a record that has met the team).
 local function tell(record, sub)
     if not OA.Trust.contacted(record) then return end
-    local ok, err = pcall(OA.Sync.title, record.id, { key = "IGUI_OA_Title_TownSearched", sub = sub, style = "discovery",
-        fallback = "good" })
+    local ok, err = pcall(OA.Sync.title, record.id, { key = "IGUI_OA_Title_TownSearched", sub = sub, style = "discovery" })
     if not ok then OA.log("title failed:", tostring(err)) end
 end
 

@@ -1751,7 +1751,7 @@ end
 function ISBUPanelWindow:switchDevice(utility, device)
     if device.state == "other" then return end
     if not device.wired then
-        HaloTextHelper.addBadText(self.playerObj, getText("IGUI_BU_ConnectAtDevice"))
+        BU.Titles.refuse(self.playerObj, getText("IGUI_BU_ConnectAtDevice"))
         return
     end
     Sync.send(self.playerObj, "setInside", { panel = self.panel.id, utility = utility, key = device.key, on = device.state ~= "on" })
@@ -1784,7 +1784,7 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
                 if row.useSourceReady then
                     Sync.send(playerObj, "useSource", { panel = panel.id })
                 else
-                    HaloTextHelper.addBadText(playerObj, row.useSourceReason)
+                    BU.Titles.refuse(playerObj, row.useSourceReason)
                 end
             end
         end

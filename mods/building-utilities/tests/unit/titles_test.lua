@@ -68,3 +68,24 @@ test("the first box seen powered: by its own supplies, its breaker up and its sw
     Titles.lit(one, panel)
     eq(#shown, 1, "once")
 end)
+
+test("a refused click is a brief red title, or the character says it; never the small text over it", function()
+    withText()
+    local one = character()
+    local said = {}
+    function one:Say(text) said[#said + 1] = text end
+    PZExtAPI.text.styles = function() return { "notice", "brief" } end
+    Titles.refuse(one, "too far")
+    eq(#shown, 1)
+    eq(shown[1].style, "brief")
+    eq(shown[1].text, "too far")
+    eq(shown[1].color, Titles.REFUSED)
+    eq(#said, 0)
+    PZExtAPI.text.styles = function() return { "notice" } end
+    Titles.refuse(one, "no brief style")
+    eq(#shown, 1)
+    eq(said[1], "no brief style")
+    PZExtAPI.text = nil
+    Titles.refuse(one, "no API")
+    eq(said[2], "no API")
+end)

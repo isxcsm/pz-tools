@@ -193,7 +193,7 @@ local function give(record, p, before)
     Dense.got(record)[p.id] = p.kind
     OA.Sync.title(record.id, { key = "IGUI_OA_Title_DenseCleared",
         sub = before and "IGUI_OA_Title_DenseHadSub" or "IGUI_OA_Title_DenseClearedSub",
-        subArgs = { { key = "IGUI_OA_Dense_Kit_" .. p.kind } }, style = "discovery", fallback = "good" })
+        subArgs = { { key = "IGUI_OA_Dense_Kit_" .. p.kind } }, style = "discovery" })
     OA.Sync.changed("trade", record.id)
 end
 
@@ -258,7 +258,7 @@ local function lookOver(record, list, x, y)
     -- one title however many are found at once; none when the place's reward came in the same look (its own title)
     if found and not got[found.id] then
         OA.Sync.title(record.id, { key = "IGUI_OA_Title_DenseFound", sub = "IGUI_OA_Title_DenseFoundSub",
-            style = "discovery", fallback = "good" })
+            style = "discovery" })
         OA.Say.tell(record.id, "DenseFound", nil, Dense.FOUND_SAY)
     end
     if found then OA.Sync.changed("story", record.id) end

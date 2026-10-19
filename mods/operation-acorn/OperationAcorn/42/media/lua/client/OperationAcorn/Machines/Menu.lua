@@ -8,6 +8,7 @@ require "ISUI/ISInventoryPane"
 require "ISUI/ISMoveableContextMenu"
 require "OperationAcorn/Core"
 require "OperationAcorn/Sync"
+require "OperationAcorn/Titles"
 require "OperationAcorn/Machines/Machines"
 require "OperationAcorn/Machines/Actions"
 require "OperationAcorn/Machines/Window"
@@ -211,14 +212,15 @@ end
 
 Events.OnFillInventoryObjectContextMenu.Add(Menu.fillInventory)
 
--- The notes the machines send (worn and broken parts): shown over the character they are for.
+-- The notes the machines send (worn and broken parts): a brief title for the character they are for, wherever it is
+-- (amber for a part worn, red for one broken).
 OA.Sync.listen("notice", function(playerId, detail)
     if type(detail) ~= "table" or type(detail.key) ~= "string" then return end
     if not string.find(detail.key, "^IGUI_OA_Machine_") then return end
     local player = getPlayer()
     if not player or OA.Store.idOf(player) ~= playerId then return end
     local args = detail.args or {}
-    player:setHaloNote(getText(detail.key, args[1], args[2]))
+    OA.Titles.brief(playerId, detail.key, args, detail.key == "IGUI_OA_Machine_PartBroken" and "red" or "amber")
 end)
 
 return Menu

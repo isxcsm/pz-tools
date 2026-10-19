@@ -1,4 +1,4 @@
--- The trade part's notices over the character: its own and the economy's, not the ones other parts show themselves.
+-- The trade part's notices as titles: its own and the economy's, not the ones other parts show themselves.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Sync"
@@ -8,18 +8,16 @@ local OA = OperationAcorn
 test("a notice another part shows itself is not shown twice", function()
     local shown = {}
     local data = { OA_Id = "p1" }
-    local character = { getModData = function() return data end }
-    HaloTextHelper = {
-        addText = function(_, text) shown[#shown + 1] = text end,
-        addBadText = function(_, text) shown[#shown + 1] = text end,
-        addGoodText = function(_, text) shown[#shown + 1] = text end,
-    }
+    -- (without the API's text a title is said by the character)
+    local character = { getModData = function() return data end, getPlayerNum = function() return 0 end,
+        Say = function(_, text) shown[#shown + 1] = text end }
+    HaloTextHelper = nil
     getNumActivePlayers = function() return 1 end
     getSpecificPlayer = function() return character end
     local id = OA.Client.id(character)
     OA.Sync.deliver("notice", id, { key = "IGUI_OA_Trade_Notice_Sealed", args = { "3" } })
     eq(#shown, 1, "the trade's own notice")
-    -- a sealed box is a title (here, without the API's text, a text over the head: the title, then its line)
+    -- a sealed box is a title (here, without the API's text, said: the title, then its line)
     eq(string.sub(shown[1], 1, #"IGUI_OA_Title_Sealed"), "IGUI_OA_Title_Sealed", shown[1])
     for _, key in ipairs({ "IGUI_OA_Gear_Fitted_storage", "IGUI_OA_Gear_Failed", "IGUI_OA_Machine_PartWorn",
                            "IGUI_OA_Story_SwapFail", "IGUI_OA_Tree_CureExpired" }) do

@@ -886,8 +886,7 @@ local function finishSpecial(record, m, result)
     sp.nextAt = OA.hours() + Rewards.hours(Rewards.SPECIAL_GAP_DAYS)
     s.results[result] = (s.results[result] or 0) + 1
     if result == "expired" then
-        OA.Sync.title(record.id, { key = "IGUI_OA_Title_Expired", sub = (Missions.keys(m)), style = "sink",
-            fallback = "bad" })
+        OA.Sync.title(record.id, { key = "IGUI_OA_Title_Expired", sub = (Missions.keys(m)), style = "sink" })
     end
     OA.Sync.changed("missions", record.id)
 end
@@ -904,12 +903,10 @@ function Missions.finish(record, m, result)
     s.last = { id = m.id, story = m.story, result = result, at = OA.hours() }
     countStreak(s, result)
     if result == "expired" then
-        OA.Sync.title(record.id, { key = "IGUI_OA_Title_Expired", sub = (Missions.keys(m)), style = "sink",
-            fallback = "bad" })
+        OA.Sync.title(record.id, { key = "IGUI_OA_Title_Expired", sub = (Missions.keys(m)), style = "sink" })
     elseif result == "lost" then
         -- its sealed box never came in: the team writes the item off
-        OA.Sync.title(record.id, { key = "IGUI_OA_Title_WrittenOff", sub = (Missions.keys(m)), style = "sink",
-            fallback = "bad" })
+        OA.Sync.title(record.id, { key = "IGUI_OA_Title_WrittenOff", sub = (Missions.keys(m)), style = "sink" })
     end
     Story.missionEnded(record, m, result)
     OA.Sync.changed("missions", record.id)
@@ -919,7 +916,7 @@ end
 -- title, that title with the request under it (one title for the one event).
 function Missions.pay(record, m)
     local credits, trust = m.pay and m.pay.credits or m.credits, m.pay and m.pay.trust or m.trust
-    local detail = { key = "IGUI_OA_Title_Paid", sub = (Missions.keys(m)), style = "dust", fallback = "good" }
+    local detail = { key = "IGUI_OA_Title_Paid", sub = (Missions.keys(m)), style = "dust" }
     if credits and credits > 0 then
         detail.sub, detail.subArgs = "IGUI_OA_Title_PaidSub", { { key = detail.sub }, { credits = math.floor(credits + 0.5) } }
     end
@@ -992,8 +989,7 @@ function Missions.warnDeadline(record, m, now)
     local left = m.deadline - now
     if left > Missions.WARN_HOURS or left <= 0 or m.deadline - (m.issued or now) < Missions.WARN_SPAN then return end
     m.warned = m.deadline
-    OA.Sync.title(record.id, { key = "IGUI_OA_Title_DayLeft", sub = (Missions.keys(m)), style = "notice",
-        fallback = "bad" })
+    OA.Sync.title(record.id, { key = "IGUI_OA_Title_DayLeft", sub = (Missions.keys(m)), style = "notice" })
 end
 
 -- Real milliseconds at least between two looks at where the found pieces are, from the ten-minute event (it comes many
@@ -1113,7 +1109,7 @@ function Missions.replacePiece(record, m, it)
         m.carry.start, m.carry.looked = nil, nil
     end
     OA.log("mission", m.id, "piece", tostring(it.key), "destroyed: replaced")
-    OA.Sync.title(record.id, { key = "IGUI_OA_Title_Lost", sub = sub, style = "sink", fallback = "bad" })
+    OA.Sync.title(record.id, { key = "IGUI_OA_Title_Lost", sub = sub, style = "sink" })
     OA.Sync.changed("missions", record.id)
 end
 
@@ -1389,8 +1385,7 @@ function Missions.securedTitle(record, m, it)
     if m.compare or not View.fetched(m, it) then return end
     local titleKey = (Missions.keys(m))
     local total = (m.scatter and m.scatter.total) or (m.zombies and m.zombies.kind == "target" and m.zombies.total) or nil
-    local detail = { key = "IGUI_OA_Title_Secured", sub = titleKey, style = "discovery", size = "minor",
-        fallback = "good" }
+    local detail = { key = "IGUI_OA_Title_Secured", sub = titleKey, style = "discovery", size = "minor" }
     if total then
         detail.sub, detail.subArgs = "IGUI_OA_Title_SecuredOf", { { key = titleKey }, Missions.foundCount(m), total }
     end

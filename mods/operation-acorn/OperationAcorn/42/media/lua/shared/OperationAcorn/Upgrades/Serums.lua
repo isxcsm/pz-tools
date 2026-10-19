@@ -164,7 +164,7 @@ function Serums.cure(character, item, id)
     Infection.cured(record)
     OA.Sync.changed("infection", id, { kind = "cured" })
     OA.Sync.title(id, { key = "IGUI_OA_Title_Cured", size = "major", sub = doses > 0 and "IGUI_OA_Title_CuredSubDrugs" or "IGUI_OA_Title_CuredSub",
-        subArgs = { days, doses }, style = "pulse", tone = "green", fallback = "good" })
+        subArgs = { days, doses }, style = "pulse", tone = "green" })
     OA.Say.tell(id, "Cured", { length = length }, Serums.CURED_SAY_DELAY)
     local sent, paper = Guides.certify(record, length, days, doses)
     if sent then Guides.title(id, paper) end
@@ -214,7 +214,7 @@ function Serums.reverse(character, item, id)
         Infection.reversed(record)
         OA.Sync.changed("infection", id, { kind = "reversed" })
     end
-    OA.Sync.title(id, { key = "IGUI_OA_Title_Reversal", style = "pulse", fallback = "good" })
+    OA.Sync.title(id, { key = "IGUI_OA_Title_Reversal", style = "pulse" })
     OA.Say.tell(id, "Reversal")
     return true
 end
@@ -231,12 +231,11 @@ function Serums.test(character, item, id)
     local positives = Infection.tested(record, infected, infected and Serums.progress(character) or nil, OA.hours())
     OA.Sync.changed("infection", id, { kind = "tested" })
     if infected then
-        OA.Sync.title(id, { key = "IGUI_OA_Title_TestPositive", style = "bleed", fallback = "bad" })
+        OA.Sync.title(id, { key = "IGUI_OA_Title_TestPositive", style = "bleed" })
         OA.Say.tell(id, "TestPositive", { first = positives == 1 })
         if Guides.deliver(record, Guides.NOTICE) then Guides.title(id, Guides.NOTICE) end
     else
-        OA.Sync.title(id, { key = "IGUI_OA_Title_TestNegative", sub = "IGUI_OA_Title_TestNegativeSub", style = "pulse",
-            fallback = "good" })
+        OA.Sync.title(id, { key = "IGUI_OA_Title_TestNegative", sub = "IGUI_OA_Title_TestNegativeSub", style = "pulse" })
         OA.Say.tell(id, "TestNegative")
     end
     return true

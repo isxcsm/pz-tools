@@ -50,13 +50,12 @@ end
 -- fades in and crumbles away), in gold.
 function Upgrades.capstoneTitle(node)
     return { key = Upgrades.Data.key(node.id, "Name"), sub = "IGUI_OA_Title_Capstone", style = "dust", tone = "gold",
-        size = "major", fallback = "good" }
+        size = "major" }
 end
 
 -- The title of the second board opening (the last capstone taken): the same quiet one, in gold.
 function Upgrades.boardTitle()
-    return { key = "IGUI_OA_Title_BoardOpened", sub = "IGUI_OA_Title_BoardOpenedSub", style = "dust", tone = "gold",
-        fallback = "good" }
+    return { key = "IGUI_OA_Title_BoardOpened", sub = "IGUI_OA_Title_BoardOpenedSub", style = "dust", tone = "gold" }
 end
 
 -- Sample bundles the shredder adds to its yield, as an expected count (the board).

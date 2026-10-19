@@ -1,4 +1,4 @@
--- What the player sees and hears of the trade: a short text over the character for the server's notices, the sound
+-- What the player sees and hears of the trade: a brief title for the server's notices, the sound
 -- of the helicopter passing over a drop (the vanilla helicopter sound, moved along its path; the crate appears at the
 -- loudest moment on the server's side). What the helicopter left is marked on the world map by Story/Maps.
 require "OperationAcorn/Client"
@@ -25,11 +25,9 @@ local function onNotice(playerId, detail)
         OA.Titles.notice(playerId, { key = "IGUI_OA_Title_Sealed", style = "stamp", size = "minor" }, detail.key, args)
         return
     end
-    local text = OA.Titles.text(detail.key, args)
-    local bad = string.find(detail.key, "_Reason_", 1, true) ~= nil
-    for _, character in ipairs(OA.Titles.charactersOf(playerId)) do
-        if bad then HaloTextHelper.addBadText(character, text) else HaloTextHelper.addText(character, text) end
-    end
+    -- a refusal (the trade's reasons, flight support's) in red, news in the style's own colour
+    local refused = string.find(detail.key, "_Reason_", 1, true) ~= nil or string.find(detail.key, "^IGUI_OA_Support_Why_") ~= nil
+    OA.Titles.brief(playerId, detail.key, args, refused and "red" or nil)
 end
 OA.Sync.listen("notice", onNotice)
 

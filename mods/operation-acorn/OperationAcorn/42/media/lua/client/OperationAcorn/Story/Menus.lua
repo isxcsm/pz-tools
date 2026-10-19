@@ -153,6 +153,9 @@ end
 -- ---------------------------------------------------------------------------------------------------------------
 -- What the server says about the story's own tries (a device with no signal, a case too far from its place).
 
+-- The notices of the terminal's own buttons (a brief title's tone: red for a refusal).
+local TERMINAL = { IGUI_OA_Story_RerollFail = "red", IGUI_OA_Story_SpecialFail = "red", IGUI_OA_Story_LaunchFail = "amber" }
+
 local function onNotice(playerId, detail)
     if not (detail and type(detail.key) == "string" and string.find(detail.key, "^IGUI_OA_Story_") ~= nil) then return end
     local player = getPlayer()
@@ -163,11 +166,17 @@ local function onNotice(playerId, detail)
         OA.Titles.notice(playerId, { key = "IGUI_OA_Title_FieldCalling", style = "notice" }, detail.key, args)
         return
     end
-    local text = getText(detail.key, args[1], args[2], args[3])
-    if HaloTextHelper and HaloTextHelper.addText then
-        HaloTextHelper.addText(player, text)
+    if detail.key == "IGUI_OA_Story_Notice_BranchCall" then
+        -- word on the terminal: a radio title
+        OA.Titles.notice(playerId, { alone = true, style = "notice" }, detail.key, args)
+    elseif TERMINAL[detail.key] then
+        -- what the terminal could not do: a brief title, over its window
+        OA.Titles.brief(playerId, detail.key, args, TERMINAL[detail.key])
+    elseif detail.key == "IGUI_OA_Story_Harvested" then
+        OA.Titles.brief(playerId, detail.key, args)
     else
-        player:Say(text)
+        -- the character's own tries (a field call, a sample, a case): said, as the texts are written
+        OA.Titles.say(playerId, detail.key, args)
     end
 end
 

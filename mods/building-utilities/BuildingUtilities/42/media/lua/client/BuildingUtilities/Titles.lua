@@ -66,6 +66,31 @@ function Titles.lit(character, panel)
     if state and state.supplied then Titles.show(character, "lit") end
 end
 
+-- A click the window refuses (a cost not met, a room out of reach): a brief title (light, low on the screen, over the
+-- window), red; without the API's text, or one without the brief style, the character says it. Never the small text
+-- over the character.
+Titles.REFUSED = { 1.00, 0.55, 0.50 }
+function Titles.refuse(character, line)
+    if not character or not line then return end
+    local text = textApi()
+    local handle = text and BU.handle()
+    local brief = false
+    if handle then
+        local ok, styles = pcall(text.styles)
+        if ok and type(styles) == "table" then
+            for _, name in ipairs(styles) do brief = brief or name == "brief" end
+        elseif ok and styles ~= nil and styles.size then
+            for i = 0, styles:size() - 1 do brief = brief or styles:get(i) == "brief" end
+        end
+    end
+    if brief then
+        local spec = { text = line, style = "brief", color = Titles.REFUSED, player = character:getPlayerNum() }
+        spec.sounds = PZUIKit.Sound.titleSounds("brief")
+        if pcall(text.title, handle, spec) then return end
+    end
+    character:Say(line)
+end
+
 -- What the box's side says: a title for a local character.
 function BU.onTitle(character, kind, tier) Titles.show(character, kind, tier) end
 

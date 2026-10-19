@@ -305,7 +305,7 @@ function ISBUPanelWindow:sendZone(set)
         if set[room.id] then keys[#keys + 1] = room.key end
     end
     if #keys == 0 then
-        HaloTextHelper.addBadText(self.playerObj, getText("IGUI_BU_ZoneEmpty"))
+        BU.Titles.refuse(self.playerObj, getText("IGUI_BU_ZoneEmpty"))
         return
     end
     table.sort(keys)
@@ -336,7 +336,7 @@ end
 function ISBUPanelWindow:toggleZoneRoom(id)
     local states = Panels.zoneStates(self.panel, self.rooms or {})
     local entry = states[id]
-    if entry and entry.state == "far" then HaloTextHelper.addBadText(self.playerObj, self:farNote(self:roomOf(id))) end
+    if entry and entry.state == "far" then BU.Titles.refuse(self.playerObj, self:farNote(self:roomOf(id))) end
     if not entry or entry.state == "taken" or entry.state == "far" then return end
     local set = self:zoneSet()
     set[id] = entry.state == "free" or nil

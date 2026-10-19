@@ -105,7 +105,7 @@ end
 
 local function title(record, egg)
     local def = Eggs.TITLES[egg]
-    OA.Sync.title(record.id, { key = def.key, sub = def.sub, style = def.style, fallback = "good" })
+    OA.Sync.title(record.id, { key = def.key, sub = def.sub, style = def.style })
 end
 
 -- Whether the record has been handed over to the management (its remarks are theirs then).

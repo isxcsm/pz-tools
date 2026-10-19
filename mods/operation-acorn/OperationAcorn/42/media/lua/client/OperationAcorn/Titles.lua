@@ -65,7 +65,7 @@ Titles.textApi = textApi
 
 -- The style to ask the API for: the detail's (else "dust") when the API has it (an older PZ Extension API may not have "dust" or
 -- "unveil"), else "stamp"; a brief title (a light one, low on the screen) the API does not have is not a title (nil: the
--- text over the character instead). The styles' kinds: dust anything not plainly another, discovery a thing found, unveil a thing
+-- character says it instead). The styles' kinds: dust anything not plainly another, discovery a thing found, unveil a thing
 -- strange, notice word from the radio, stamp a great thing done, bleed an infection found, sink a thing lost, type a
 -- document or an order, pulse a danger passed.
 -- The API's styles are asked once (again for another API's text).
@@ -132,8 +132,9 @@ end
 Titles.SIZES = { major = 1.35, minor = 0.72 }
 
 -- Shows a title (detail as OA.Sync.title takes it) for the player of that id; returns how it was shown: "title",
--- "halo" or nil. With `noHalo` a title the API cannot draw is not shown at all (the caller has its own way then).
-function Titles.show(playerId, detail, noHalo)
+-- "said" (the API cannot draw it: the character says it) or nil. With `noSay` a title the API cannot draw is not shown
+-- at all (the caller has its own way then). The small text over the character is never used.
+function Titles.show(playerId, detail, noSay)
     if type(detail) ~= "table" then return nil end
     local title = text(detail.key, detail.args)
     if not title then return nil end
@@ -146,7 +147,7 @@ function Titles.show(playerId, detail, noHalo)
     local handle = t and OA.handle()
     local style = handle and styleFor(t, detail.style)
     if not style then handle = nil end
-    if noHalo and not handle then return nil end
+    if noSay and not handle then return nil end
     local shown
     -- (a brief title, low on the screen, has its own backdrop: windows are judged where the titles go)
     local backdrop = handle and style ~= "brief" and Titles.overWindow() and Titles.OVER_WINDOW or nil
@@ -175,24 +176,20 @@ function Titles.show(playerId, detail, noHalo)
         end
         if done then
             shown = "title"
-        elseif not noHalo then
-            local line = sub and (title .. " - " .. sub) or title
-            if detail.fallback == "good" then HaloTextHelper.addGoodText(character, line)
-            elseif detail.fallback == "bad" then HaloTextHelper.addBadText(character, line)
-            else HaloTextHelper.addText(character, line) end
-            shown = shown or "halo"
+        elseif not noSay then
+            character:Say(sub and (title .. " - " .. sub) or title)
+            shown = shown or "said"
         end
     end
     return shown
 end
 
 -- Shows a notice (OA.Sync.notice: a key and its arguments, already put in the player's language) as a title, when
--- `as` names one: { key (the title), titleArgs (the title takes the notice's arguments too), style, tone, size, fallback
--- ("good" unless given), alone (no line under it: the notice's own text is the title) }. The notice's text is the
--- line under the title.
+-- `as` names one: { key (the title), titleArgs (the title takes the notice's arguments too), style, tone, size, alone
+-- (no line under it: the notice's own text is the title) }. The notice's text is the line under the title.
 function Titles.notice(playerId, as, key, args)
     if type(as) ~= "table" then return end
-    local detail = { style = as.style, tone = as.tone, fallback = as.fallback or "good", size = as.size }
+    local detail = { style = as.style, tone = as.tone, size = as.size }
     if as.alone then
         detail.key, detail.args = key, args
     else
@@ -200,6 +197,19 @@ function Titles.notice(playerId, as, key, args)
         detail.sub, detail.subArgs = key, args
     end
     Titles.show(playerId, detail)
+end
+
+-- A notice as a brief title (light, low on the screen, over a window as over the world): its own text the title.
+-- `tone`: "red" for a refusal, "amber" for a warning, nil for news.
+function Titles.brief(playerId, key, args, tone)
+    Titles.notice(playerId, { alone = true, style = "brief", tone = tone }, key, args)
+end
+
+-- A notice the character says: what it tried did not work (its text is written as the character's own words).
+function Titles.say(playerId, key, args)
+    local line = text(key, args)
+    if not line then return end
+    for _, character in ipairs(charactersOf(playerId)) do character:Say(line) end
 end
 
 OA.Sync.listen("title", Titles.show)

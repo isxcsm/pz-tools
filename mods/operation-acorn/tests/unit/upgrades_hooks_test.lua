@@ -81,12 +81,12 @@ test("a tree opened is a title with the folder line under it when a memo came, o
     local character = { getModData = function() return data end, getPlayerNum = function() return 0 end }
     getNumActivePlayers = function() return 1 end
     getSpecificPlayer = function() return character end
-    HaloTextHelper = { addText = function(_, t) halo[#halo + 1] = t end }
+    character.Say = function(_, t) halo[#halo + 1] = t end
     PZExtAPI = nil
     Hooks.treeOpened("p1", "scout", true)
     eq(#banners, 1)
     eq(banners[1], "IGUI_OA_Title_TreeOpened IGUI_OA_Tree_Name_scout<LINE>IGUI_OA_Title_GuideSub")
-    eq(#halo, 0, "the banner, not a text over the character")
+    eq(#halo, 0, "the banner, not a line said")
     PZExtAPI = {
         version = OA.API_VERSION,
         client = function() return "handle" end,
@@ -105,7 +105,7 @@ test("a tree opened is a title with the folder line under it when a memo came, o
     PZExtAPI = nil
 end)
 
-test("an adaptation is a title with the tree's name under it; a first effect is said over the head", function()
+test("an adaptation is a title with the tree's name under it; a first effect is a brief title", function()
     local Hooks = loadHooks()
     local banners, good, opened = {}, {}, {}
     Hooks.banner = function(text) banners[#banners + 1] = text end
@@ -115,11 +115,11 @@ test("an adaptation is a title with the tree's name under it; a first effect is 
     getPlayer = function() return character end
     getNumActivePlayers = function() return 1 end
     getSpecificPlayer = function() return character end
-    HaloTextHelper = { addGoodText = function(_, t) good[#good + 1] = t end, addBadText = function() end,
-                       addText = function() end }
+    character.Say = function(_, t) good[#good + 1] = t end
+    HaloTextHelper = nil
     OA.Sync.deliver("notice", "p1", { key = "IGUI_OA_Tree_Adapted", args = { "scout", 2 } })
     -- (the test's getText adds a "nil" for each argument the call leaves out; without the API's text a title is
-    -- shown over the head as its title, then its line)
+    -- said by the character: its title, then its line)
     local function said(text, prefix) return string.sub(text, 1, #prefix) == prefix end
     truthy(said(good[1], "IGUI_OA_Title_Adapted"), good[1])
     truthy(string.find(good[1], "IGUI_OA_Tree_Adapted IGUI_OA_Tree_Name_scout 2", 1, true), good[1])
@@ -130,7 +130,7 @@ test("an adaptation is a title with the tree's name under it; a first effect is 
     eq(#opened, 1)
     eq(opened[1][1], "load")
     eq(opened[1][2], true)
-    eq(#good, 2, "an opening is a title, not a text over the head")
+    eq(#good, 2, "an opening is a title of its own")
     OA.Sync.deliver("notice", "p1", { key = "IGUI_OA_Tree_Opened", args = { "survival", "" } })
     eq(opened[2][2], false)
     OA.Sync.deliver("notice", "p1", { key = "IGUI_OA_Tree_FirstEffect", args = { "sense", 1 } })

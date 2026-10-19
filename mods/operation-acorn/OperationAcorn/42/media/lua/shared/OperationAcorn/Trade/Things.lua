@@ -70,7 +70,7 @@ function Things.lineOpened(record)
     if heli.line then return false end
     heli.line = true
     OA.Sync.title(record.id, { key = "IGUI_OA_Title_LineOpened", sub = "IGUI_OA_Title_LineOpenedSub", style = "unveil",
-        tone = "gold", fallback = "good" })
+        tone = "gold" })
     return true
 end
 
@@ -297,7 +297,7 @@ function Things.destroyed(thing)
     if box.state == "sealed" or wasActive then
         OA.Sync.title(owner.id, { key = "IGUI_OA_Title_BoxLost",
             sub = box.state == "sealed" and "IGUI_OA_Title_BoxLostSealedSub" or "IGUI_OA_Title_BoxLostSub",
-            style = "dust", tone = "red", fallback = "bad" })
+            style = "dust", tone = "red" })
     end
     changed(owner)
 end

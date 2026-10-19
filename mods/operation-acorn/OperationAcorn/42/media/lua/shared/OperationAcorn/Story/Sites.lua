@@ -193,8 +193,7 @@ function Sites.visit(record, x, y, range)
         end
     end
     if changed then
-        OA.Sync.title(record.id, { key = "IGUI_OA_Title_Site", sub = "IGUI_OA_Title_SiteSub", style = "discovery",
-            fallback = "good" })
+        OA.Sync.title(record.id, { key = "IGUI_OA_Title_Site", sub = "IGUI_OA_Title_SiteSub", style = "discovery" })
     end
     return changed
 end

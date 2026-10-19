@@ -54,7 +54,7 @@ passed = function(record, events, source, cause)
         else
             local opens = not (OA.Shop and OA.Shop.opensAt) or OA.Shop.opensAt(level)
             detail = { key = "IGUI_OA_Title_Stage", args = { level }, sub = opens and "IGUI_OA_Title_NewItems" or nil,
-                style = "dust", fallback = "good" }
+                style = "dust" }
         end
         if detail and cause then
             detail.sub, detail.subArgs = cause.sub, cause.subArgs

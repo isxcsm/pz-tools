@@ -74,7 +74,6 @@ local function loadFile(name, skip)
     end
     getMouseX = function() return 0 end
     getMouseY = function() return 0 end
-    HaloTextHelper = { addBadText = function(_, text) TEST.halo = text end }
     local real = require
     require = function(file)
         if string.find(file, "^ISUI/") or string.find(file, "^XpSystem/") or string.find(file, "^TimedActions/")
@@ -98,6 +97,7 @@ local function character(id)
     function c:getY() return 10.5 end
     function c:getZ() return 0 end
     function c:getPrimaryHandItem() return nil end
+    function c:Say(text) TEST.said = text end
     function c:getSecondaryHandItem() return nil end
     c.inventory = setmetatable({}, { __index = function(_, key)
         return function() error("the inventory was searched: " .. tostring(key)) end
@@ -108,7 +108,7 @@ end
 
 local player
 local function setup()
-    TEST.halo, TEST.opened, TEST.cursor = nil, nil, nil
+    TEST.said, TEST.opened, TEST.cursor = nil, nil, nil
     player = character("p1")
     getSpecificPlayer = function() return player end
     getPlayer = function() return player end
@@ -291,7 +291,7 @@ test("the pry and pick options go on top in that order and do not search the inv
     truthy(not menu.options[1].notAvailable, "a missing tool is not known by the menu")
 end)
 
-test("picking the pry option without a pry bar says what is missing", function()
+test("picking the pry option without a pry bar has the character say what is missing", function()
     setup()
     loadFile("OperationAcorn/Upgrades/Hooks")
     local record = OA.Store.ensure("p1", "P")
@@ -309,7 +309,7 @@ test("picking the pry option without a pry bar says what is missing", function()
     ItemTag = { CROWBAR = "crowbar", PRY_BAR = "prybar", SCREWDRIVER = "screwdriver" }
     local pry = menu.options[1]
     pry.onSelect(pry.target, pry.param1, pry.param2)
-    eq(TEST.halo, "Tooltip_OA_Tree_NeedPryBar")
+    eq(TEST.said, "IGUI_OA_Tree_SayNeedPryBar")
 end)
 
 -- ---------------------------------------------------------------------------------------------------------------------

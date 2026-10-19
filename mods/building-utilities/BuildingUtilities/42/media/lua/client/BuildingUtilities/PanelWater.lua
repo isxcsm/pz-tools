@@ -114,7 +114,7 @@ end
 function ISBUPanelWindow:onPipeRow(row, x, width)
     if row.kind == "addPipe" then
         if not Costs.affords(self.playerObj, Costs.addPipe()) then
-            return HaloTextHelper.addBadText(self.playerObj, getText("IGUI_BU_Reason_cantAfford"))
+            return BU.Titles.refuse(self.playerObj, getText("IGUI_BU_Reason_cantAfford"))
         end
         return self:work(ISBUAddPipe:new(self.playerObj, self.panel))
     end
@@ -129,7 +129,7 @@ end
 function ISBUPanelWindow:askRemovePipe(id)
     local panel = self.panel
     if not Costs.affords(self.playerObj, Costs.removePipe()) then
-        return HaloTextHelper.addBadText(self.playerObj, getText("IGUI_BU_Reason_cantAfford"))
+        return BU.Titles.refuse(self.playerObj, getText("IGUI_BU_Reason_cantAfford"))
     end
     UI.confirm(self.playerObj, getText("IGUI_BU_RemovePipeConfirm", Water.pipeName(panel, id),
         Water.pipeName(panel, Water.FIRST)), self, function(window)

@@ -214,8 +214,7 @@ function Heli.dropped(owner, marked, settled)
             sub, subArgs = paid.key, paid.args
         end
     end
-    OA.Sync.title(owner.id, { key = "IGUI_OA_Title_Dropped", sub = sub, subArgs = subArgs, style = "notice",
-        fallback = "good" })
+    OA.Sync.title(owner.id, { key = "IGUI_OA_Title_Dropped", sub = sub, subArgs = subArgs, style = "notice" })
 end
 
 -- The loud moment of a pass (or at once): the drop waiting in the record is done; the noise and the title follow.
@@ -286,7 +285,7 @@ function Heli.arrive(record)
     heli.last = { at = OA.hours(), receipt = plan.receipt.id, kind = call.kind }
     if record.trade.credits < 0 then
         OA.Sync.title(record.id, { key = "IGUI_OA_Title_Debt", sub = "IGUI_OA_Title_DebtSub", style = "notice",
-            tone = "red", fallback = "bad" })
+            tone = "red" })
     end
     local applied = OA.Support and OA.Support.appliedTitle(plan.support)
     if applied then OA.Sync.title(record.id, applied) end

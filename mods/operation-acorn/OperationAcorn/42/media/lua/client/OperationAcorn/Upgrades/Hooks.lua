@@ -175,6 +175,7 @@ end
 local SAID = {
     IGUI_OA_Tree_PrySuccess = true, IGUI_OA_Tree_PryFail = true, IGUI_OA_Tree_PickSuccess = true,
     IGUI_OA_Tree_PickFail = true, IGUI_OA_Tree_PickDisarmed = true, IGUI_OA_Tree_Disarmed = true,
+    IGUI_OA_Tree_CureExpired = true, IGUI_OA_Tree_CureNotOwner = true,
 }
 
 -- Notices that are events, shown as titles (Titles.notice) with the notice's text under them.
@@ -183,7 +184,7 @@ local TITLED = {
     IGUI_OA_Tree_AdaptedShared = { key = "IGUI_OA_Title_Adapted", tone = "gold" },
     IGUI_OA_Tree_ResetDone = { key = "IGUI_OA_Title_Reset", titleArgs = true, tone = "amber" },
     IGUI_OA_Tree_DelayDone = { key = "IGUI_OA_Title_DelayDone", style = "pulse" },
-    IGUI_OA_Tree_DrugLost = { key = "IGUI_OA_Title_DrugLost", style = "sink", fallback = "bad" },
+    IGUI_OA_Tree_DrugLost = { key = "IGUI_OA_Title_DrugLost", style = "sink" },
     IGUI_OA_Tree_GuideSent = { alone = true, style = "type" },
 }
 
@@ -208,11 +209,11 @@ local function onNotice(playerId, detail)
         OA.Titles.notice(playerId, TITLED[detail.key], detail.key, args)
     elseif SAID[detail.key] then
         player:Say(text)
-    elseif string.find(detail.key, "Failed$") or string.find(detail.key, "Fail$") or string.find(detail.key, "Expired$")
-        or string.find(detail.key, "NotOwner$") or string.find(detail.key, "Lost$") then
-        HaloTextHelper.addBadText(player, text)
+    elseif string.find(detail.key, "Failed$") then
+        -- the adaptation tab's buttons: a brief title, red, over its window
+        OA.Titles.brief(playerId, detail.key, args, "red")
     else
-        HaloTextHelper.addGoodText(player, text)
+        OA.Titles.brief(playerId, detail.key, args)
     end
 end
 OA.Sync.listen("notice", onNotice)
@@ -287,16 +288,16 @@ local function onFillInventory(playerNum, context, items)
 end
 Events.OnFillInventoryObjectContextMenu.Add(onFillInventory)
 
--- What the lock options need in the character's things, by the action: whether it is there and the words that say what
--- is missing. They are looked for here, when the option is picked, not when the menu is built (that would search the
+-- What the lock options need in the character's things, by the action: whether it is there and the line the character
+-- says when it is missing. They are looked for here, when the option is picked, not when the menu is built (that would search the
 -- whole inventory at every right-click on a locked door).
 local NEEDS = {
     [ISOAPryOpen] = { have = function(player) return Actions.pryBar(player) ~= nil end,
-        missing = "Tooltip_OA_Tree_NeedPryBar" },
+        missing = "IGUI_OA_Tree_SayNeedPryBar" },
     [ISOAPickLock] = { have = function(player)
         local clip, driver = Actions.pickTools(player)
         return clip ~= nil and driver ~= nil
-    end, missing = "Tooltip_OA_Tree_NeedPickTools" },
+    end, missing = "IGUI_OA_Tree_SayNeedPickTools" },
 }
 NEEDS[ISOADisarm] = NEEDS[ISOAPickLock]
 
@@ -316,7 +317,7 @@ end
 local function startLock(player, target, class)
     local needs = NEEDS[class]
     if needs and not needs.have(player) then
-        HaloTextHelper.addBadText(player, getText(needs.missing))
+        player:Say(getText(needs.missing))
         return
     end
     if instanceof(target, "VehiclePart") then
@@ -508,8 +509,7 @@ local function biteShield(player, u, now)
     local level = Rules.biteLevel(u, now)
     OA.Upgrades.Moodles.set("biteShield", level)
     if level == 0 and lastBiteLevel and lastBiteLevel > 0 and Rules.rank(u, "resistPlus") >= 2 then
-        OA.Titles.show(OA.Client.id(player), { key = "IGUI_OA_Title_BiteReady", style = "dust", tone = "green",
-            fallback = "good" })
+        OA.Titles.show(OA.Client.id(player), { key = "IGUI_OA_Title_BiteReady", style = "dust", tone = "green" })
     end
     lastBiteLevel = level
 end

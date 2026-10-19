@@ -76,7 +76,7 @@ function FirstSupply.check()
                 elseif done then
                     plan.done = true
                     OA.Sync.title(record.id, { key = "IGUI_OA_Title_FirstSupply", sub = "IGUI_OA_Title_Marked",
-                        style = "unveil", fallback = "good" })
+                        style = "unveil" })
                 end
             end
         end

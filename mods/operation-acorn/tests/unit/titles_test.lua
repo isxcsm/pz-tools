@@ -1,4 +1,5 @@
--- Titles of events: through the extension API's text when its hook is in, else a text over the character.
+-- Titles of events: through the extension API's text when its hook is in, else said by the character (never a small
+-- text over it).
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Sync"
@@ -6,32 +7,29 @@ require "OperationAcorn/Titles"
 local OA = OperationAcorn
 
 local function world()
-    local halo = {}
+    local said = {}
     local data = { OA_Id = "p1" }
-    local character = { getModData = function() return data end, getPlayerNum = function() return 0 end }
-    HaloTextHelper = {
-        addText = function(_, t) halo[#halo + 1] = "plain:" .. t end,
-        addGoodText = function(_, t) halo[#halo + 1] = "good:" .. t end,
-        addBadText = function(_, t) halo[#halo + 1] = "bad:" .. t end,
-    }
+    local character = { getModData = function() return data end, getPlayerNum = function() return 0 end,
+        Say = function(_, t) said[#said + 1] = t end }
+    HaloTextHelper = nil
     getNumActivePlayers = function() return 1 end
     getSpecificPlayer = function() return character end
-    return halo
+    return said
 end
 
-test("without the API's text a title is a text over the character, in its fallback's colour", function()
-    local halo = world()
+test("without the API's text a title is said by the character", function()
+    local said = world()
     PZExtAPI = nil
     OA.Sync.title("p1", { key = "IGUI_OA_Title_Paid", sub = "IGUI_OA_Title_PaidSub", subArgs = { 300 },
-        style = "discovery", fallback = "good" })
-    eq(#halo, 1)
-    eq(halo[1], "good:IGUI_OA_Title_Paid - IGUI_OA_Title_PaidSub 300")
+        style = "discovery" })
+    eq(#said, 1)
+    eq(said[1], "IGUI_OA_Title_Paid - IGUI_OA_Title_PaidSub 300")
     OA.Sync.title("someone else", { key = "IGUI_OA_Title_Paid" })
-    eq(#halo, 1, "another player's title is not shown here")
+    eq(#said, 1, "another player's title is not shown here")
 end)
 
 test("with the API's text a title goes to it, in its style and tone, on the player's screen", function()
-    local halo = world()
+    local said = world()
     local called = {}
     PZExtAPI = {
         version = OA.API_VERSION,
@@ -43,7 +41,7 @@ test("with the API's text a title goes to it, in its style and tone, on the play
         },
     }
     eq(OA.Titles.show("p1", { key = "IGUI_OA_Title_Capstone", args = { "x" }, tone = "gold" }), "title")
-    eq(#halo, 0)
+    eq(#said, 0)
     eq(called[1].handle, "handle")
     eq(called[1].spec.style, "dust", "dust unless said")
     eq(called[1].spec.dustBurn, nil, "the API burns in its own colour")
@@ -60,36 +58,36 @@ test("with the API's text a title goes to it, in its style and tone, on the play
     eq(called[3].spec.y, OA.Titles.CENTER_ALONE)
     OA.Titles.show("p1", { key = "IGUI_OA_Title_Capstone", at = 0.3 })
     eq(called[4].spec.y, 0.3)
-    -- a hook that is not in: the text over the character instead
+    -- a hook that is not in: the character says it instead
     PZExtAPI.text.status = function() return "not-loaded" end
-    eq(OA.Titles.show("p1", { key = "IGUI_OA_Title_Capstone" }), "halo")
-    eq(halo[1], "plain:IGUI_OA_Title_Capstone")
+    eq(OA.Titles.show("p1", { key = "IGUI_OA_Title_Capstone" }), "said")
+    eq(said[1], "IGUI_OA_Title_Capstone")
     PZExtAPI = nil
 end)
 
 test("an argument that is a text is translated on the player's side", function()
-    local halo = world()
+    local said = world()
     PZExtAPI = nil
     OA.Sync.title("p1", { key = "IGUI_OA_Title_Paid", sub = "IGUI_OA_Title_PaidSub",
         subArgs = { { key = "IGUI_OA_Story_Title_x", args = { 2 } }, 300 } })
-    eq(halo[1], "plain:IGUI_OA_Title_Paid - IGUI_OA_Title_PaidSub IGUI_OA_Story_Title_x 2 300")
+    eq(said[1], "IGUI_OA_Title_Paid - IGUI_OA_Title_PaidSub IGUI_OA_Story_Title_x 2 300")
     -- an amount is written as the terminal writes credits; a plain number (a call sign) is left as it is
     OA.Sync.title("p1", { key = "IGUI_OA_Title_Paid", sub = "IGUI_OA_Title_PaidSub", subArgs = { 1894, { credits = 1485 } } })
-    eq(halo[2], "plain:IGUI_OA_Title_Paid - IGUI_OA_Title_PaidSub 1894 1,485")
+    eq(said[2], "IGUI_OA_Title_Paid - IGUI_OA_Title_PaidSub 1894 1,485")
 end)
 
 test("with noHalo a title the API cannot draw is not shown, for the caller's own way", function()
-    local halo = world()
+    local said = world()
     PZExtAPI = nil
     eq(OA.Titles.show("p1", { key = "IGUI_OA_Title_TreeOpened" }, true), nil)
-    eq(#halo, 0)
+    eq(#said, 0)
     PZExtAPI = {
         version = OA.API_VERSION,
         client = function() return "handle" end,
         text = { status = function() return "applied" end, title = function() error("broken") end },
     }
     eq(OA.Titles.show("p1", { key = "IGUI_OA_Title_TreeOpened" }, true), nil, "a failed draw is not a title")
-    eq(#halo, 0)
+    eq(#said, 0)
     PZExtAPI = nil
 end)
 
@@ -116,8 +114,8 @@ test("a style the API does not have (an older PZ Extension API) is asked as stam
     PZExtAPI = nil
 end)
 
-test("a brief title the API does not have is a text over the character, not a big one", function()
-    local halo = world()
+test("a brief title the API does not have is said by the character, not a big one", function()
+    local said = world()
     local called = {}
     PZExtAPI = {
         version = OA.API_VERSION,
@@ -128,9 +126,9 @@ test("a brief title the API does not have is a text over the character, not a bi
             title = function(_, spec) called[#called + 1] = spec.style end,
         },
     }
-    eq(OA.Titles.show("p1", { key = "IGUI_OA_Title_SearchedBonus", args = { "170" }, style = "brief", fallback = "good" }), "halo")
+    eq(OA.Titles.show("p1", { key = "IGUI_OA_Title_SearchedBonus", args = { "170" }, style = "brief" }), "said")
     eq(#called, 0)
-    eq(halo[1], "good:IGUI_OA_Title_SearchedBonus 170")
+    eq(said[1], "IGUI_OA_Title_SearchedBonus 170")
     -- (an API that has it: its styles are asked again, for another API's text)
     PZExtAPI.text = {
         status = function() return "applied" end,
@@ -236,4 +234,31 @@ test("a title carries its style's sounds (the kit's title cues); an older API wi
     Sound.define("kit.title.dust.hold", {})
     Sound.define("kit.title.dust.line.hold", {})
     PZExtAPI = nil
+end)
+
+test("a notice as a brief title in its tone, or said; a refusal of the character's own said", function()
+    local said = world()
+    local called = {}
+    PZExtAPI = {
+        version = OA.API_VERSION,
+        client = function() return "handle" end,
+        text = {
+            status = function() return "applied" end,
+            styles = function() return { "stamp", "brief" } end,
+            title = function(_, spec) called[#called + 1] = spec end,
+        },
+    }
+    OA.Titles.brief("p1", "IGUI_OA_Trade_Reason_far", nil, "red")
+    eq(#called, 1)
+    eq(called[1].style, "brief")
+    eq(called[1].text, "IGUI_OA_Trade_Reason_far")
+    eq(called[1].subtitle, nil)
+    eq(called[1].color, OA.Titles.TONES.red[1])
+    eq(#said, 0)
+    OA.Titles.say("p1", "IGUI_OA_Story_FieldFail_device")
+    eq(said[1], "IGUI_OA_Story_FieldFail_device")
+    eq(#called, 1)
+    PZExtAPI = nil
+    OA.Titles.brief("p1", "IGUI_OA_Trade_Notice_Called", { "3" })
+    eq(said[2], "IGUI_OA_Trade_Notice_Called 3")
 end)

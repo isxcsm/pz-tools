@@ -261,15 +261,15 @@ local function onNotice(playerId, detail)
     if playerId and OA.Client.id(player) ~= playerId then return end
     local args = detail.args or {}
     if detail.key == "IGUI_OA_Gear_Failed" or detail.key == "IGUI_OA_Gear_RedeemFailed" then
-        local text = getText(detail.key, getText("IGUI_OA_Gear_Reason_" .. tostring(args[1])))
-        HaloTextHelper.addBadText(player, text)
+        -- the character's own try: said, as the texts are written
+        player:Say(getText(detail.key, getText("IGUI_OA_Gear_Reason_" .. tostring(args[1]))))
     elseif detail.key == "IGUI_OA_Gear_Redeemed" then
         OA.Titles.notice(playerId, { key = "IGUI_OA_Title_KitRedeemed", size = "minor" }, detail.key, args)
     elseif string.find(detail.key, "^IGUI_OA_Gear_Fitted_") then
         -- a kit fitted: what it made of the target, as a brief title (a light one, low on the screen)
         OA.Titles.notice(playerId, { alone = true, style = "brief" }, detail.key, args)
     else
-        HaloTextHelper.addGoodText(player, getText(detail.key, args[1], args[2], args[3]))
+        OA.Titles.brief(playerId, detail.key, args)
     end
 end
 OA.Sync.listen("notice", onNotice)

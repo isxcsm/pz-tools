@@ -266,7 +266,7 @@ function Economy.searched(record, key, total)
         local scale = OA.option("BonusMultiplier") or 1.0
         local bonus = math.floor(credits * scale + 0.5)
         local added = math.floor(credits * (mult - 1) / mult * scale + 0.5)
-        local title = { key = "IGUI_OA_Title_SearchedBonus", args = { tostring(bonus) }, style = "brief", fallback = "good" }
+        local title = { key = "IGUI_OA_Title_SearchedBonus", args = { tostring(bonus) }, style = "brief" }
         if added > 0 then
             title.key = "IGUI_OA_Title_SearchedBonusThorough"
             title.args = { tostring(bonus), tostring(added), { key = "IGUI_OA_Tree_Node_ledger_Name" } }
@@ -310,8 +310,7 @@ end
 local function onMarketEvent(event)
     if event.kind ~= "refusal" then return end
     local title = { key = "IGUI_OA_Title_Refusal", sub = "IGUI_OA_Title_RefusalSub",
-        subArgs = { { key = OA.Categories.nameKey(event.cat) }, event.days or 7 }, style = "notice",
-        fallback = "bad" }
+        subArgs = { { key = OA.Categories.nameKey(event.cat) }, event.days or 7 }, style = "notice" }
     for _, record in pairs(OA.Store.players()) do
         -- (told only to who trades: a character who has not used the terminal yet knows nothing of the market)
         if OA.Store.alive(record) and OA.Trust.contacted(record) then OA.Sync.title(record.id, title) end

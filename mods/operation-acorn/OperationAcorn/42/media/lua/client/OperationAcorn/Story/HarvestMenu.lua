@@ -65,12 +65,12 @@ local function harvest(player, body, precise)
     -- oa-scan: ok (once, as a harvest is chosen)
     local kit = not Harvest.holdsKit(player) and inventory:getFirstTypeRecurse(Harvest.KIT) or nil
     if not Harvest.holdsKit(player) and not kit then
-        HaloTextHelper.addText(player, getText("IGUI_OA_Story_HarvestFail_kit"))
+        player:Say(getText("IGUI_OA_Story_HarvestFail_kit"))
         return
     end
     -- oa-scan: ok (once, as the precise harvest is chosen)
     if precise and not inventory:containsTypeRecurse(Harvest.TWEEZERS) then
-        HaloTextHelper.addText(player, getText("IGUI_OA_Story_HarvestFail_tweezers"))
+        player:Say(getText("IGUI_OA_Story_HarvestFail_tweezers"))
         return
     end
     local sq = body:getSquare()
