@@ -77,14 +77,14 @@ P10T.start("p10grades", function(a)
             a.check(label .. ": the first grade is not stamped", fresh == 0, P10T.keys(titles))
         elseif tier > 16 then
             local t = titles[#titles]
-            a.check(label .. ": one redesignation stamp with the count", fresh == 1 and t.detail.key == "IGUI_OA_Title_GradeAgain"
-                and t.detail.style == "stamp" and t.detail.subArgs[2] == again and t.detail.subArgs[1].key == "IGUI_OA_Story_Grade_top"
-                and t.detail.subArgs[1].args[1] == num and t.detail.sub == "IGUI_OA_Story_GradeAgain",
+            a.check(label .. ": one redesignation stamp with the count", fresh == 1 and t.detail.sub == "IGUI_OA_Title_GradeAgain"
+                and t.detail.style == "stamp" and t.detail.subArgs[1] == again and t.detail.key == "IGUI_OA_Story_Grade_top"
+                and t.detail.args[1] == num,
                 fresh .. " " .. P10T.keys(titles))
         elseif stamps then
             local t = titles[#titles]
-            a.check(label .. ": one regrade stamp", fresh == 1 and t.detail.key == "IGUI_OA_Title_Grade" and t.detail.style == "stamp"
-                and t.detail.sub == "IGUI_OA_Story_Grade_" .. grade and t.detail.subArgs[1] == num, fresh .. " " .. P10T.keys(titles))
+            a.check(label .. ": one regrade stamp", fresh == 1 and t.detail.sub == "IGUI_OA_Title_Grade" and t.detail.style == "stamp"
+                and t.detail.key == "IGUI_OA_Story_Grade_" .. grade and t.detail.args[1] == num, fresh .. " " .. P10T.keys(titles))
         else
             a.check(label .. ": a tier that changes no grade stamps nothing", fresh == 0, fresh)
         end

@@ -498,20 +498,20 @@ function Story.onStage(record, stage, milestones)
         Story.enterMilestone(record, k)
         OA.log("story: milestone", k, "reached by", record.number)
     end
-    -- a new grade from 관리 7 is stamped; the first one comes with the handover (or the first call) unstamped; past the
-    -- top grade each level is a designation again, stamped with its count
+    -- a new grade from 관리 7 is stamped (the new name large, who did it under it); the first one comes with the handover
+    -- (or the first call) unstamped; past the top grade each level is a designation again, stamped with its count
     local grade = Story.grade(record)
     local again = Story.redesignations(record)
     if grade and grade ~= s.grade then
         if s.grade then
-            OA.Sync.title(record.id, { key = "IGUI_OA_Title_Grade", sub = "IGUI_OA_Story_Grade_" .. grade,
-                subArgs = { Story.number(record) }, style = "stamp" })
+            OA.Sync.title(record.id, { key = "IGUI_OA_Story_Grade_" .. grade, args = { Story.number(record) },
+                sub = "IGUI_OA_Title_Grade", style = "stamp" })
         end
         s.grade = grade
         s.again = again
     elseif grade == "top" and again > (s.again or 0) then
-        OA.Sync.title(record.id, { key = "IGUI_OA_Title_GradeAgain", sub = "IGUI_OA_Story_GradeAgain",
-            subArgs = { { key = "IGUI_OA_Story_Grade_top", args = { Story.number(record) } }, again }, style = "stamp" })
+        OA.Sync.title(record.id, { key = "IGUI_OA_Story_Grade_top", args = { Story.number(record) },
+            sub = "IGUI_OA_Title_GradeAgain", subArgs = { again }, style = "stamp" })
         s.again = again
     end
     local tier = s.seenStage + s.seenMilestones

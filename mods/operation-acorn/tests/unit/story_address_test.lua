@@ -48,7 +48,7 @@ test("a new grade is stamped once; the first comes unstamped", function()
     Story.section(r).handover = true
     Story.onStage(r)
     local stamped = 0
-    for _, t in ipairs(titles) do if t.key == "IGUI_OA_Title_Grade" then stamped = stamped + 1 end end
+    for _, t in ipairs(titles) do if t.sub == "IGUI_OA_Title_Grade" then stamped = stamped + 1 end end
     eq(stamped, 0, "the handover's grade is not stamped")
     r.trade.milestones = 5
     Story.onStage(r)
@@ -56,10 +56,11 @@ test("a new grade is stamped once; the first comes unstamped", function()
     local last
     stamped = 0
     for _, t in ipairs(titles) do
-        if t.key == "IGUI_OA_Title_Grade" then stamped = stamped + 1; last = t end
+        if t.sub == "IGUI_OA_Title_Grade" then stamped = stamped + 1; last = t end
     end
     eq(stamped, 1)
-    eq(last.sub, "IGUI_OA_Story_Grade_regular")
+    eq(last.key, "IGUI_OA_Story_Grade_regular", "the new name large, who did it under it")
+    eq(last.args[1], "0347")
     eq(last.style, "stamp")
 end)
 
@@ -83,7 +84,8 @@ test("past priority come special and top; past the top every level is a designat
     Story.onStage(r)
     Story.onStage(r)
     local again = {}
-    for _, t in ipairs(titles) do if t.key == "IGUI_OA_Title_GradeAgain" then again[#again + 1] = t end end
+    for _, t in ipairs(titles) do if t.sub == "IGUI_OA_Title_GradeAgain" then again[#again + 1] = t end end
     eq(#again, 1, "stamped once for the count reached")
-    eq(again[1].subArgs[2], 2)
+    eq(again[1].key, "IGUI_OA_Story_Grade_top")
+    eq(again[1].subArgs[1], 2)
 end)
