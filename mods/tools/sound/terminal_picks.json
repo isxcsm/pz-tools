@@ -1,1 +1,38 @@
-{}
+{
+ "crude:hum": {
+  "file": "crude_hum.ogg"
+ },
+ "crude:jolt": {
+  "file": "crude_jolt.ogg"
+ },
+ "crude:line": {
+  "file": "crude_line.ogg"
+ },
+ "crude:off": {
+  "file": "crude_off.ogg"
+ },
+ "crude:power": {
+  "file": "crude_power.ogg"
+ },
+ "crude:ready": {
+  "file": "crude_ready.ogg"
+ },
+ "crude:spell": {
+  "file": "crude_spell.ogg"
+ },
+ "field:hum": {
+  "file": "field_hum.ogg"
+ },
+ "field:line": {
+  "file": "field_line.ogg"
+ },
+ "field:off": {
+  "file": "field_off.ogg"
+ },
+ "field:power": {
+  "file": "field_power.ogg"
+ },
+ "field:ready": {
+  "file": "field_ready.ogg"
+ }
+}

@@ -1,7 +1,7 @@
-"""The terminal sounds the user picked, into the game (SOUND-SYSTEM.md S8).
+"""The terminal sounds chosen, into the game (SOUND-SYSTEM.md S8).
 
-ai_terminal.py makes candidates into gen/term (outside git); the user hears them in the terminal lab (lab/terminal.html) and
-picks. Picks given on the command line (tier:cue=file) are kept in terminal_picks.json; then for each pick this takes the
+ai_terminal.py makes candidates into gen/term (outside git); pick_terminal.py chooses one a cue by what can be measured and
+hands it here (tier:cue=file on the command line), kept in terminal_picks.json; then for each pick this takes the
 file from gen/term, brings its peak to its cue's level (LEVELS below) and fades its ends 5 ms (install_title_picks.leveled:
 not trimmed again), and writes it as OA's media/sound/OA_Term_<Tier>_<Cue>.ogg; then the delimited blocks of OA's sound
 script (oa_sounds.txt: `sound OA_Term_...`, category UI, a loop for a bed or a spell; build.py keeps the block) and of OA's

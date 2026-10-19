@@ -32,18 +32,18 @@ Sounds.CUES = {
     -- the terminal window (Trade/TerminalSound): each terminal's boot beats (the switch, a line's result, the welcome, the
     -- switch-off; the crude one's jolts), the bed under its boot and the crude one's weak signal spells (loops)
     -- terminal picks begin (written by tools/sound/install_terminal_picks.py from terminal_picks.json: edit that, not this)
-    ["oa.term.field.power"] = {},
-    ["oa.term.field.hum"] = {},
-    ["oa.term.field.line"] = {},
-    ["oa.term.field.ready"] = {},
-    ["oa.term.field.off"] = {},
-    ["oa.term.crude.power"] = {},
-    ["oa.term.crude.hum"] = {},
-    ["oa.term.crude.jolt"] = {},
-    ["oa.term.crude.line"] = {},
-    ["oa.term.crude.ready"] = {},
-    ["oa.term.crude.off"] = {},
-    ["oa.term.crude.spell"] = {},
+    ["oa.term.field.power"] = { sound = "OA_Term_Field_Power" },
+    ["oa.term.field.hum"] = { sound = "OA_Term_Field_Hum" },
+    ["oa.term.field.line"] = { sound = "OA_Term_Field_Line" },
+    ["oa.term.field.ready"] = { sound = "OA_Term_Field_Ready" },
+    ["oa.term.field.off"] = { sound = "OA_Term_Field_Off" },
+    ["oa.term.crude.power"] = { sound = "OA_Term_Crude_Power" },
+    ["oa.term.crude.hum"] = { sound = "OA_Term_Crude_Hum" },
+    ["oa.term.crude.jolt"] = { sound = "OA_Term_Crude_Jolt" },
+    ["oa.term.crude.line"] = { sound = "OA_Term_Crude_Line" },
+    ["oa.term.crude.ready"] = { sound = "OA_Term_Crude_Ready" },
+    ["oa.term.crude.off"] = { sound = "OA_Term_Crude_Off" },
+    ["oa.term.crude.spell"] = { sound = "OA_Term_Crude_Spell" },
     -- terminal picks end
     -- the phone the hallucination rings
     ["oa.hallucination.ring"] = { sound = "TelevisionTestBeep" },

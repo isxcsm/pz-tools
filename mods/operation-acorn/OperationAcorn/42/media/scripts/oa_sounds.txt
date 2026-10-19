@@ -19,6 +19,129 @@ module Base
 
     /* terminal picks begin: written by tools/sound/install_terminal_picks.py from terminal_picks.json, not by build.py */
 
+    /* OA_Term_Field_Power: field_power.ogg eaa09e1d -26 dB */
+    sound OA_Term_Field_Power
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/OA_Term_Field_Power.ogg,
+        }
+    }
+
+    /* OA_Term_Field_Hum: field_hum.ogg 755cfa16 -40 dB */
+    sound OA_Term_Field_Hum
+    {
+        category = UI,
+        loop = true,
+        clip
+        {
+            file = media/sound/OA_Term_Field_Hum.ogg,
+        }
+    }
+
+    /* OA_Term_Field_Line: field_line.ogg c2ba813b -36 dB */
+    sound OA_Term_Field_Line
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/OA_Term_Field_Line.ogg,
+        }
+    }
+
+    /* OA_Term_Field_Ready: field_ready.ogg 204fe797 -29 dB */
+    sound OA_Term_Field_Ready
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/OA_Term_Field_Ready.ogg,
+        }
+    }
+
+    /* OA_Term_Field_Off: field_off.ogg 1ea44ab6 -31 dB */
+    sound OA_Term_Field_Off
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/OA_Term_Field_Off.ogg,
+        }
+    }
+
+    /* OA_Term_Crude_Power: crude_power.ogg f94427f7 -25 dB */
+    sound OA_Term_Crude_Power
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/OA_Term_Crude_Power.ogg,
+        }
+    }
+
+    /* OA_Term_Crude_Hum: crude_hum.ogg 7e8df8d5 -38 dB */
+    sound OA_Term_Crude_Hum
+    {
+        category = UI,
+        loop = true,
+        clip
+        {
+            file = media/sound/OA_Term_Crude_Hum.ogg,
+        }
+    }
+
+    /* OA_Term_Crude_Jolt: crude_jolt.ogg 30db242c -30 dB */
+    sound OA_Term_Crude_Jolt
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/OA_Term_Crude_Jolt.ogg,
+        }
+    }
+
+    /* OA_Term_Crude_Line: crude_line.ogg 3adb21bb -36 dB */
+    sound OA_Term_Crude_Line
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/OA_Term_Crude_Line.ogg,
+        }
+    }
+
+    /* OA_Term_Crude_Ready: crude_ready.ogg be42e21d -29 dB */
+    sound OA_Term_Crude_Ready
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/OA_Term_Crude_Ready.ogg,
+        }
+    }
+
+    /* OA_Term_Crude_Off: crude_off.ogg 4b81d95f -30 dB */
+    sound OA_Term_Crude_Off
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/OA_Term_Crude_Off.ogg,
+        }
+    }
+
+    /* OA_Term_Crude_Spell: crude_spell.ogg 3eecaa68 -34 dB */
+    sound OA_Term_Crude_Spell
+    {
+        category = UI,
+        loop = true,
+        clip
+        {
+            file = media/sound/OA_Term_Crude_Spell.ogg,
+        }
+    }
+
     /* terminal picks end */
 
 }

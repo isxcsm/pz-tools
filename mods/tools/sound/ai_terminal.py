@@ -1,28 +1,36 @@
-"""The terminal window's sound candidates made by Stable Audio 3 (SOUND-SYSTEM.md S8), for the user to hear in the terminal lab
-(lab/terminal.html) and pick.
+"""The terminal window's sounds made by Stable Audio 3 (SOUND-SYSTEM.md S8): one sound a cue, made for its moment.
 
 The two terminals are two pieces of equipment, and sound like it. The field terminal (정식 단말) is the team's issued set: a solid
 switch, a clean tube, a proper beep. The crude terminal (조립 단말) is put together from salvaged parts on a weak signal: a
-clunky toggle, a crackling surge, a buzzing transformer, a cheap speaker, and now and then the signal drops (the window's weak
-signal spells, Trade/BootSeq.weakSignal). Each cue is one big beat of the picture (Trade/BootSeq: the screen coming on, the
-welcome, the switch-off; the crude one's jolts and spells), never its flickers; a bed loops under the boot and follows the
-static's loudness. The boot plays on every open, so all of it is short and quiet.
+loose toggle, a crackling surge, a buzzing transformer, a cheap speaker, and now and then the signal breaks up (the window's
+weak signal spells). Each cue is one big beat of the picture (Trade/BootSeq), never its flickers.
 
-A cue is new (its prompts at several seeds, one batch) and is shaped as ai_titles does (its leading silence off, its loudest
-moment moved to `at`, its tail's silence off, a peak) with two differences: a noise cue (static, crackle) is not cleaned of
-clicks (they are the sound), and a loop (`loop`) is made `made` long and its end laid over its start, so that it repeats
-without a seam.
+Each sound is made for its moment, not picked from a spread:
+- its prompt says that moment alone, the length asked is the picture's (BootSeq's times: the switch's dark beat 0.1 s, the
+  raster opening 0.35 s, the static settling by 1 s; the switch-off's collapse 0.28 s; a jolt's 0.24 s);
+- its target is a level curve over time (dB, points it passes through) set by the picture's beats: where the sound is
+  loudest and how it dies with the picture (a first draft that followed the screen's brightness literally asked a 0.35 s
+  plateau that no switch-on sounds like: a switch-on is a burst and a settling tail); of the model's tries (seeds) the one
+  whose level (each 20 ms, against its loudest) is nearest to it is kept, less a second event after its first beat (the
+  model often ends a sound with one more click);
+- one terminal is one machine: its switch-off is made from its switch-on (the model from that sound, audio to audio), its
+  bed from the settled whine of its switch-on, the crude one's jolt from its surge and its weak signal from its bed;
+- a bed is made long and its steadiest stretch kept (a bed that swells or stops is heard as an event), its end laid over
+  its start so that it loops without a seam;
+- the shaping is the least: the leading silence off, a fade where the picture ends; a noise cue (static, crackle) is not
+  cleaned of clicks (they are its sound).
 
 Run with the Python of the Stable Audio 3 checkout, the game closed (the model needs the GPU's memory):
 
-    ../../../../sa3/.venv/Scripts/python.exe ai_terminal.py [cue ...] [--count N]
+    ../../../../sa3/.venv/Scripts/python.exe ai_terminal.py [tier:cue ...] [--tries N]
 
-It writes gen/term/<tier>_<cue>_<nn>.ogg, gen/term/manifest.js ({"tier:cue": [files]}, what the terminal lab lists, a pick
-first) and gen/term/prompts.json (each file's prompt and seed). Picks go to terminal_picks.json (pick_terminal.py); a picked cue
-keeps its pick when made again.
+It writes gen/term/<tier>_<cue>.ogg (the sound kept), gen/term/tries/ (every try, for a look), gen/term/made.json (each
+kept sound's prompt, seed, source and fit) and installs the kept sounds (install_terminal_picks.py). A cue named alone is
+made again from the sounds of its terminal already there.
 """
 import json
 import os
+import subprocess
 import sys
 
 import numpy as np
@@ -32,86 +40,143 @@ import build
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, 'gen', 'term')
-PICKS = os.path.join(HERE, 'terminal_picks.json')
+TRIES_DIR = os.path.join(OUT, 'tries')
 RATE = build.RATE
-CANDIDATES = 6
+TRIES = 16
+STEP = 0.01   # the targets' step (s)
 
-# Said of every sound of a tier, so that its cues are one machine.
-FAMILY = {
-    'field': 'military field computer terminal from the 1980s, CRT monitor, close-miked, dry room, high quality recording',
-    'crude': 'improvised computer terminal built from salvaged parts, old CRT monitor, cheap wiring, close-miked, dry room, '
+# Said of every sound of a terminal, so that its cues are one machine.
+MACHINE = {
+    'field': 'military field computer terminal from the 1980s in a solid metal case, CRT monitor, close-miked, dry room, '
              'high quality recording',
+    'crude': 'improvised computer terminal built from salvaged parts, old CRT monitor, loose cheap wiring, close-miked, dry '
+             'room, high quality recording',
 }
 
-# tier:cue -> dict(made, at, prompts[, loop][, noise]). made: seconds asked of the model (a loop: its length); at: when its
-# loudest moment comes (None: where the model put it); noise: static or crackle, not cleaned of clicks.
+# BootSeq's numbers (s).
+CLICK, OPEN, POWER = 0.10, 0.35, 1.0
+COLLAPSE, SPLIT = 0.28, 0.6
+SHAKE = 0.24
+
+
+# The targets: (seconds, dB under the loudest) the level passes through, straight between.
+# the switch-on: its beat is the switch (the screen opens on it), then the tube's settling under it to the bed (the
+# picture's loud static is the picture's: the sound does not copy it, SOUND-SYSTEM.md S7's rule)
+TARGET_POWER = [(0.0, -3), (0.05, 0), (0.2, -18), (POWER, -35), (1.3, -45)]
+TARGET_OFF = [(0.0, 0), (COLLAPSE * SPLIT, -10), (COLLAPSE, -20), (0.6, -45)]  # the picture falling, the line, the dot out
+TARGET_JOLT = [(0.0, 0), (SHAKE / 2, -6), (SHAKE, -20), (0.32, -45)]           # the shake dying out
+TARGET_READY = [(0.0, 0), (0.15, -2), (0.3, -20), (0.4, -45)]                 # a beep held a moment
+TARGET_LINE = [(0.0, 0), (0.08, -30), (0.15, -45)]                             # a tick
+
+
+def target_db(points, t):
+    for (t0, d0), (t1, d1) in zip(points, points[1:]):
+        if t <= t1:
+            return d0 + (d1 - d0) * (t - t0) / (t1 - t0)
+    return points[-1][1]
+
+
+# tier:cue -> how it is made. made: seconds asked; target: its curve (one-shots); end: where the picture is done with it
+# (cut there after a fade of `fade` s, 0.05 by default: a switch-on's tube whine hands over to the bed over 0.3 s); loop: a bed (made long, its steadiest `keep` seconds kept); src: the cue it is made from, with `cut`
+# (the part of it, seconds) and `noise`; tonal / noisy: its timbre (spectral flatness held against it, or for it).
 CUES = {
-    'field:power': dict(made=1.6, at=0.12, prompts=[
-        'a solid power switch clicks on, then a cathode ray tube warms up with a short soft rising whine that settles',
-        'heavy relay clunk, CRT monitor powering on, brief degauss hum fading to quiet',
-    ]),
-    'field:hum': dict(made=4.0, at=None, loop=True, prompts=[
-        'steady quiet high pitched CRT monitor whine and soft electrical hum, constant, no changes',
-        'faint constant hum of a running computer terminal, gentle tube whine, steady',
-    ]),
-    'field:ready': dict(made=1.0, at=0.0, prompts=[
-        'one short clean electronic beep from a computer terminal speaker, system ready',
-        'short two tone confirmation beep, computer terminal, clean',
-    ]),
-    'field:off': dict(made=0.9, at=0.15, prompts=[
-        'CRT monitor switching off, a soft thump and a short falling whine',
-        'old television screen turning off, quick soft electric pop collapsing to silence',
-    ]),
-    'field:line': dict(made=0.35, at=0.0, prompts=[
-        'a tiny soft electronic tick, computer terminal, very short',
-        'very short quiet relay tick',
-    ]),
-    'crude:power': dict(made=1.8, at=0.12, noise=True, prompts=[
-        'a clunky toggle switch flipped on, then a surge of crackling static and a buzzing transformer that settles down',
-        'loose power switch snaps on, electrical buzz and loud static burst from an old CRT, fading to a crackling hiss',
-    ]),
-    'crude:hum': dict(made=4.0, at=None, loop=True, noise=True, prompts=[
-        'steady soft static hiss with occasional small crackles and a low mains buzz, constant',
-        'constant faint electrical hiss and crackle of a badly shielded old monitor, low buzz underneath',
-    ]),
-    'crude:jolt': dict(made=0.45, at=0.0, noise=True, prompts=[
-        'short sharp electrical crackle from a loose connection',
-        'brief burst of static and a small electric zap, bad contact',
-    ]),
-    'crude:ready': dict(made=1.0, at=0.0, prompts=[
-        'one short electronic beep through a cheap rattling speaker, slightly distorted',
-        'short buzzy beep from a small cheap speaker, a little off pitch',
-    ]),
-    'crude:off': dict(made=0.9, at=0.15, noise=True, prompts=[
-        'old CRT monitor switching off with a crackling pop and a short falling whine',
-        'television turning off, electric snap and a burst of static collapsing to silence',
-    ]),
-    'crude:line': dict(made=0.35, at=0.0, noise=True, prompts=[
-        'a tiny dry electrical tick with a little crackle, very short',
-        'very short click of a cheap relay',
-    ]),
-    'crude:spell': dict(made=3.0, at=None, loop=True, noise=True, prompts=[
-        'radio signal breaking up, rushing static with fluttering dropouts and interference',
-        'weak signal interference, white noise swelling and stuttering, analog dropout',
-    ]),
+    'field:power': dict(made=1.3, target=TARGET_POWER, end=1.3, fade=0.3, tonal=True, prompt=
+        'a CRT monitor powering on: a soft switch thump, then a swelling rush of electrostatic charge and a bright rising '
+        'tube whine that peaks after half a second and settles to quiet within one second'),
+    'field:off': dict(made=0.7, target=TARGET_OFF, end=0.6, src='field:power', cut=(0.0, 0.7), noise=0.8, prompt=
+        'the same CRT monitor switched off: a soft electric thump and a quick falling whine collapsing to silence'),
+    'field:hum': dict(made=8.0, loop=True, keep=4.0, src='field:power', cut=(0.45, 1.0), noise=0.85, tonal=True, prompt=
+        'the same CRT monitor running: a steady quiet high pitched whine and soft transformer hum, constant level, no clicks'),
+    'field:ready': dict(made=0.5, target=TARGET_READY, end=0.4, tonal=True, prompt=
+        'a single short clean square wave beep from the terminal\'s internal speaker, one beep'),
+    'field:line': dict(made=0.3, target=TARGET_LINE, end=0.15, prompt=
+        'a single very short soft relay tick inside the terminal'),
+    'crude:power': dict(made=1.4, target=TARGET_POWER, end=1.3, fade=0.3, noisy=True, noise_cue=True, prompt=
+        'an old CRT monitor powering on through loose wiring: a toggle snap, then a loud swelling burst of crackling static '
+        'and electrical buzz that peaks after half a second and settles to a faint hiss within one second'),
+    'crude:off': dict(made=0.7, target=TARGET_OFF, end=0.6, src='crude:power', cut=(0.0, 0.7), noise=0.8, noise_cue=True,
+        prompt='the same old CRT monitor switching off with a crackling electric pop and a short falling whine'),
+    'crude:hum': dict(made=8.0, loop=True, keep=4.0, src='crude:power', cut=(0.45, 1.1), noise=0.85, noisy=True,
+        noise_cue=True, prompt='the same badly shielded old monitor running: a constant faint static hiss with sparse '
+        'small crackles and a low mains buzz, steady level'),
+    'crude:jolt': dict(made=0.4, target=TARGET_JOLT, end=0.32, src='crude:power', cut=(0.1, 0.5), noise=0.85, noisy=True,
+        noise_cue=True, prompt='a single short burst of electrical crackle from a loose wire contact in the same machine'),
+    'crude:ready': dict(made=0.5, target=TARGET_READY, end=0.4, prompt=
+        'a single short beep through a small cheap rattling speaker, slightly distorted, one beep'),
+    'crude:line': dict(made=0.3, target=TARGET_LINE, end=0.15, noise_cue=True, prompt=
+        'a single tiny dry electrical tick with a little crackle'),
+    'crude:spell': dict(made=6.0, loop=True, keep=3.0, src='crude:hum', cut=None, noise=0.85, noisy=True, noise_cue=True,
+        prompt='the same monitor\'s signal breaking up: rushing static with fluttering dropouts and radio interference'),
 }
+# The order a terminal's sounds are made in (each from the ones before it).
+ORDER = ['field:power', 'field:off', 'field:hum', 'field:ready', 'field:line',
+         'crude:power', 'crude:off', 'crude:hum', 'crude:jolt', 'crude:ready', 'crude:line', 'crude:spell']
 
-# How long the end of a loop is laid over its start.
 LOOP_XFADE = 0.25
 
 
 def clean_noise(x):
-    """A noise cue's cleaning: only the rumble under hearing (below 35 Hz) and the grain at the very top (above 12 kHz); its
-    clicks and crackle stay."""
+    """A noise cue's cleaning: only the rumble under hearing and the grain at the very top; its clicks stay."""
     from scipy import signal
     x = signal.sosfiltfilt(signal.butter(2, 35, 'highpass', fs=RATE, output='sos'), x)
     x = signal.sosfiltfilt(signal.butter(2, 12000, 'lowpass', fs=RATE, output='sos'), x)
     return x.astype(np.float32)
 
 
+def envelope(x, step=STEP):
+    n = int(step * RATE)
+    k = max(1, len(x) // n)
+    return np.sqrt(np.mean(np.pad(x, (0, max(0, k * n - len(x))))[:k * n].reshape(k, n) ** 2, axis=1))
+
+
+FIT_STEP, FLOOR = 0.02, -50.0
+
+
+def fit(x, c):
+    """How near x's level (each 20 ms, dB under its loudest, nothing under FLOOR) is to its target: minus the mean distance
+    (per 10 dB), less half a point for each second event after its first 0.15 s (a rise of 12 dB over the lowest of the
+    100 ms before)."""
+    target = np.array([target_db(c['target'], i * FIT_STEP) for i in range(int(c['end'] / FIT_STEP) + 1)])
+    env = envelope(x, FIT_STEP)
+    db = np.maximum(FLOOR, 20 * np.log10(env / (env.max() or 1.0) + 1e-9))
+    db = np.pad(db, (0, max(0, len(target) - len(db))), constant_values=FLOOR)[:len(target)]
+    distance = float(np.mean(np.abs(db - np.maximum(FLOOR, target)))) / 10
+    events = sum(1 for i in range(int(0.15 / FIT_STEP), len(db)) if db[i] - db[max(0, i - 5):i].min() > 12)
+    return -distance - 0.5 * events
+
+
+def flatness(x):
+    seg = x[:min(len(x), RATE)]
+    if len(seg) < 1024:
+        seg = np.pad(seg, (0, 1024 - len(seg)))
+    f = np.fft.rfftfreq(len(seg), 1 / RATE)
+    spec = (np.abs(np.fft.rfft(seg * np.hanning(len(seg)))) + 1e-9)[(f > 100) & (f < 8000)]
+    return float(np.exp(np.mean(np.log(spec))) / np.mean(spec))
+
+
+def timbre(x, c):
+    if c.get('tonal'):
+        return -0.5 * flatness(x)
+    if c.get('noisy'):
+        return 0.5 * flatness(x)
+    return 0.0
+
+
+def steadiest(x, keep, frame):
+    """The stretch of x `keep` seconds long whose level (each `frame` s) varies least; its spread (dB)."""
+    n = int(keep * RATE)
+    best = None
+    for start in range(int(0.3 * RATE), max(int(0.3 * RATE) + 1, len(x) - n - int(LOOP_XFADE * RATE)), int(0.25 * RATE)):
+        seg = x[start:start + n + int(LOOP_XFADE * RATE)]
+        if len(seg) < n:
+            break
+        spread = float(np.std(20 * np.log10(envelope(seg[:n], frame) + 1e-9)))
+        if best is None or spread < best[0]:
+            best = (spread, seg)
+    return best
+
+
 def looped(x, seconds):
-    """x as a loop `seconds` long: its first LOOP_XFADE laid under its end's last (equal power), so that the end runs into
-    the start."""
     n, k = int(seconds * RATE), int(LOOP_XFADE * RATE)
     x = np.pad(x, (0, max(0, n + k - len(x))))
     body, over = x[:n].copy(), x[n:n + k]
@@ -120,63 +185,77 @@ def looped(x, seconds):
     return body
 
 
-def shape(c, x):
-    clean = clean_noise if c.get('noise') else T.clean
+def tile(x, seconds):
+    """x repeated (each join laid over the last) to `seconds`: a source for a long sound made from a short one."""
+    out = x.copy()
+    k = min(int(0.05 * RATE), len(x) // 4)
+    while len(out) < seconds * RATE:
+        t = np.linspace(0, 1, k, dtype=np.float32)
+        out = np.concatenate([out[:-k], out[-k:] * (1 - t) + x[:k] * t, x[k:]])
+    return out[:int(seconds * RATE)]
+
+
+def shape(x, c):
+    """The least shaping: cleaned, a one-shot from its first sound with a fade where the picture ends; a bed's steadiest
+    stretch, looped."""
+    x = (clean_noise if c.get('noise_cue') else T.clean)(x)
     if c.get('loop'):
-        # (from 0.3 s in: past whatever the model starts with)
-        y = clean(x)[int(0.3 * RATE):]
-        return T.peak_to(looped(y, c['made']), T.PEAK_DB)
-    y = clean(T.lead_trim(x))
-    if c['at'] is not None:
-        y = T.place(y, c['at'])
-    return T.peak_to(T.tail_trim(y), T.PEAK_DB)
+        spread, seg = steadiest(x, c['keep'], 0.25 if c.get('noisy') else 0.1)
+        return T.peak_to(looped(seg, c['keep']), T.PEAK_DB), -spread
+    x = T.lead_trim(x)
+    n, f = int(c['end'] * RATE), int(c.get('fade', 0.05) * RATE)
+    x = x[:n].copy()
+    f = min(f, len(x))
+    x[len(x) - f:] *= np.linspace(1, 0, f, dtype=np.float32) ** 2
+    return T.peak_to(x, T.PEAK_DB), fit(x, c)
 
 
 def main(argv):
-    count = CANDIDATES
-    if '--count' in argv:
-        i = argv.index('--count')
-        count = int(argv[i + 1])
+    tries = TRIES
+    if '--tries' in argv:
+        i = argv.index('--tries')
+        tries = int(argv[i + 1])
         argv = argv[:i] + argv[i + 2:]
-    only = [a for a in argv if not a.startswith('-')] or list(CUES)
-    os.makedirs(OUT, exist_ok=True)
-    picks = json.load(open(PICKS, encoding='utf-8')) if os.path.exists(PICKS) else {}
-    manifest_path, prompts_path = os.path.join(OUT, 'manifest.json'), os.path.join(OUT, 'prompts.json')
-    manifest = json.load(open(manifest_path, encoding='utf-8')) if os.path.exists(manifest_path) else {}
-    told = json.load(open(prompts_path, encoding='utf-8')) if os.path.exists(prompts_path) else {}
-
-    def save():
-        json.dump(manifest, open(manifest_path, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
-        json.dump(told, open(prompts_path, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
-        with open(os.path.join(OUT, 'manifest.js'), 'w', encoding='utf-8', newline='\n') as f:
-            f.write('window.TERMINAL_SOUND_CANDIDATES = ' + json.dumps(manifest, indent=1) + ';\n')
-            f.write('window.TERMINAL_SOUND_PICKS = ' + json.dumps({k: v['file'] for k, v in picks.items()}, indent=1) + ';\n')
-
+    only = [a for a in argv if not a.startswith('-')] or ORDER
+    os.makedirs(TRIES_DIR, exist_ok=True)
+    made_path = os.path.join(OUT, 'made.json')
+    made = json.load(open(made_path, encoding='utf-8')) if os.path.exists(made_path) else {}
     maker = T.Maker('medium')
-    for key in only:
+    for key in [k for k in ORDER if k in only]:
         c = CUES[key]
         tier = key.split(':')[0]
-        pick = picks.get(key)
-        keep = [pick['file']] if pick else []
-        for f in manifest.get(key, []):
-            if f not in keep and os.path.exists(os.path.join(OUT, f)):
-                os.remove(os.path.join(OUT, f))
-                told.pop(f, None)
+        prompt = c['prompt'] + ', ' + MACHINE[tier]
         stem = key.replace(':', '_')
-        names = [n for n in ('%s_%02d.ogg' % (stem, i) for i in range(1, 100)) if n not in keep][:count]
-        prompts = [c['prompts'][i % len(c['prompts'])] + ', ' + FAMILY[tier] for i in range(count)]
-        # (a loop is asked for a little more than its length: the part laid over its start, and the start skipped)
-        made = c['made'] + (LOOP_XFADE + 0.5 if c.get('loop') else 0)
-        files = list(keep)
-        for i, x in enumerate(maker.make(prompts, 1000, made)):
-            y = shape(c, x)
-            build.encode(y, os.path.join(OUT, names[i]))
-            told[names[i]] = dict(prompt=prompts[i], seed=1000, batch=count, item=i, made=made, at=c['at'],
-                                  loop=bool(c.get('loop')), noise=bool(c.get('noise')))
-            files.append(names[i])
-            print(names[i], '%.2fs' % (len(y) / RATE), flush=True)
-        manifest[key] = files
-        save()
+        results = []
+        if c.get('src'):
+            src = build.decode(os.path.join(OUT, c['src'].replace(':', '_') + '.ogg'))
+            if c.get('cut'):
+                src = src[int(c['cut'][0] * RATE):int(c['cut'][1] * RATE)]
+            start = tile(src, c['made']) if c.get('loop') or len(src) < c['made'] * RATE else src[:int(c['made'] * RATE)]
+            for i in range(tries):
+                x = maker.make([prompt], 1000 + i, c['made'], start=start, noise=c['noise'])[0]
+                results.append((x, 1000 + i))
+        else:
+            for i, x in enumerate(maker.make([prompt] * tries, 1000, c['made'])):
+                results.append((x, 'batch 1000 item %d' % i))
+        scored = []
+        for n, (x, seed) in enumerate(results):
+            y, score = shape(x, c)
+            score += timbre(y, c)
+            name = '%s_try%d.ogg' % (stem, n + 1)
+            build.encode(y, os.path.join(TRIES_DIR, name))
+            scored.append((score, y, seed, name))
+            print('  %-12s try %d  %.3f' % (key, n + 1, score), flush=True)
+        scored.sort(key=lambda r: -r[0])
+        score, y, seed, name = scored[0]
+        build.encode(y, os.path.join(OUT, stem + '.ogg'))
+        made[key] = dict(prompt=prompt, seed=seed, made=c['made'], src=c.get('src'), noise=c.get('noise'), fit=round(score, 3),
+                         tried=len(scored), kept=name)
+        json.dump(made, open(made_path, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+        print('%s: kept %s (%.3f; the others %s)' % (key, name, score, ', '.join('%.2f' % r[0] for r in scored[1:])), flush=True)
+    picks = ['%s=%s.ogg' % (k, k.replace(':', '_')) for k in ORDER if os.path.exists(os.path.join(OUT, k.replace(':', '_') + '.ogg'))]
+    subprocess.run([sys.executable, '-X', 'utf8', os.path.join(HERE, 'install_terminal_picks.py')] + picks, check=True,
+                   stdin=subprocess.DEVNULL)
 
 
 if __name__ == '__main__':
