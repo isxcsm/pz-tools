@@ -20,7 +20,7 @@ game plays Sound.name's answer: a cue of the mods' tables (OA.Sounds, BU.Sounds,
                                             game has not, vanilla or ours, is a problem: it plays nothing, silently)
 
 A sound's files of an earlier build that it no longer has (fewer clips) are removed; nothing else in media/sound is
-touched. The sources' licences are in sources/LICENSES.csv (one row a file): a source without a row is refused.
+touched (the title sounds are install_title_picks.py's: KIT_T_*, and the block of the kit's script it writes is kept). The sources' licences are in sources/LICENSES.csv (one row a file): a source without a row is refused.
 """
 import csv
 import json
@@ -53,6 +53,10 @@ MOD_FOLDERS = {
 CATEGORIES = {'UI', 'Object', 'Item', 'Player', 'World'}
 MASTERS = {'Primary', 'Ambient', 'Music', 'VehicleEngine'}
 MADE = '/* Made by'
+# The block of the kit's sound script that install_title_picks.py writes (the picked title sounds); a rewrite of the
+# script keeps it.
+TITLE_BEGIN = '    /* title picks begin: written by tools/sound/install_title_picks.py from title_picks.json, not by build.py */'
+TITLE_END = '    /* title picks end */'
 GAME_DIR = os.environ.get('PZDEV_GAME', r'C:\Program Files (x86)\Steam\steamapps\common\ProjectZomboid')
 # The mods' cue tables: each cue's sound is to be one the game knows (a vanilla one or one of sounds.json's).
 CUE_TABLES = [
@@ -123,12 +127,24 @@ def game_sounds():
     return names
 
 
+def declared_sounds():
+    """The sounds the mods' sound scripts declare (the table's, and the kit's picked title sounds)."""
+    names = set()
+    block = re.compile(r'^\s*sound\s+([A-Za-z0-9_]+)\s*$', re.M)
+    for folder, prefix in MOD_FOLDERS.values():
+        path = os.path.join(MODS, folder, 'media', 'scripts', '%s_sounds.txt' % prefix)
+        if os.path.exists(path):
+            with open(path, encoding='utf-8') as f:
+                names.update(block.findall(f.read()))
+    return names
+
+
 def check_cues(table):
     """The cues of the mods' tables whose sound the game would not know (a list of lines)."""
     vanilla = game_sounds()
     if vanilla is None:
         return []
-    known = vanilla | set(table['sounds'])
+    known = vanilla | set(table['sounds']) | declared_sounds()
     problems = []
     for rel in CUE_TABLES:
         with open(os.path.join(MODS, rel), encoding='utf-8') as f:
@@ -224,8 +240,21 @@ def encode(data, path):
                        check=True, stdin=subprocess.DEVNULL)
 
 
-def script(mod, sounds):
-    """The sound script of a mod's sounds (module Base: the game finds a sound by its name alone)."""
+def kept_block(path):
+    """The title picks' block of the sound script already at `path` ('' when it has none)."""
+    if not os.path.exists(path):
+        return ''
+    with open(path, encoding='utf-8') as f:
+        text = f.read()
+    start = text.find(TITLE_BEGIN)
+    end = text.find(TITLE_END)
+    if start < 0 or end < start:
+        return ''
+    return text[start:end + len(TITLE_END)]
+
+
+def script(mod, sounds, kept=''):
+    """The sound script of a mod's sounds (module Base: the game finds a sound by its name alone), then `kept`."""
     # (a /* */ comment: the game's script parser drops a file that has a // one, silently)
     lines = [MADE + ' pz-tools/mods/tools/sound/build.py from sounds.json: edit that, not this. */', 'module Base', '{']
     for name in sorted(sounds):
@@ -245,6 +274,8 @@ def script(mod, sounds):
                 lines.append('            distanceMax = %g,' % sound['distanceMax'])
             lines += ['        }']
         lines += ['    }', '']
+    if kept:
+        lines += [kept, '']
     lines += ['}', '']
     return '\n'.join(lines)
 
@@ -281,8 +312,10 @@ def build(table, only):
             print('built %s (%d clips) -> %s' % (name, len(sound['clips']), os.path.relpath(out, MODS)))
         scripts = os.path.join(MODS, folder, 'media', 'scripts')
         os.makedirs(scripts, exist_ok=True)
-        with open(os.path.join(scripts, '%s_sounds.txt' % prefix), 'w', encoding='utf-8', newline='\n') as f:
-            f.write(script(mod, sounds))
+        path = os.path.join(scripts, '%s_sounds.txt' % prefix)
+        text = script(mod, sounds, kept_block(path))
+        with open(path, 'w', encoding='utf-8', newline='\n') as f:
+            f.write(text)
 
 
 def main(args):

@@ -254,8 +254,25 @@ local function momentSounds(base)
     return sounds
 end
 
+-- A style typed on a keyboard (the API's strike enter: its characters struck by hand) sounds that keyboard: a key for each
+-- character as it is struck (by the character, as Sound.keyOf), the space bar, and the return as the title is all in (its
+-- land; its line is typed after it) and with each feed of its leave.
+Sound.TITLE_KEYBOARDS = { type = "kit.terminal" }
+local function typedOn(sounds, board, title)
+    sounds = sounds or {}
+    sounds.keys, sounds.space = board.letters, board.space or board.letters[1]
+    if title then
+        sounds.land = sounds.land or board.enter
+        sounds.feed = board.enter
+    end
+    return sounds
+end
+
 function Sound.titleSounds(style)
-    return momentSounds("kit.title." .. style .. "."), momentSounds("kit.title." .. style .. ".line.")
+    local title, line = momentSounds("kit.title." .. style .. "."), momentSounds("kit.title." .. style .. ".line.")
+    local board = keyboards[Sound.TITLE_KEYBOARDS[style] or ""]
+    if board then title, line = typedOn(title, board, true), typedOn(line, board, false) end
+    return title, line
 end
 
 -- The kit's own cues: a list's item chosen (a combo's, a menu's), a button pressed; the titles' moments by the API's
@@ -276,22 +293,29 @@ for _, style in ipairs({ "stamp", "discovery", "notice", "unveil", "dust", "blee
         Sound.define("kit.title." .. style .. ".line." .. moment, {})
     end
 end
--- The titles that sound (SOUND-SYSTEM.md S6): the stamp's hit, its line's lighter; the typewriter's letters struck (a
--- run of an old typewriter's keys as long as the strike), its line's, and its carriage thrown back as the paper is fed
--- out (ours: tools/sound, sounds.json); the notice tuned in as a signal, the torch struck alight, the burning title set
--- alight, the sinking one going into the water. A title's sounds are bound to its life: the API stops every one still
--- playing, with a short fade, when the title is gone or cut short, so a sound need not end by itself (the game's tune-in,
--- campfire, heartbeat and dripping, which go on, are stopped with it; tests/ingame/sound_e2e.lua).
+-- The titles that sound (SOUND-SYSTEM.md S7): one sound a title, at its big beat; the subtitle line is silent (its cues
+-- are defined and have no sound). The sounds are the user's picks from the title lab, Stable Audio 3 candidates installed
+-- by tools/sound/install_title_picks.py into the block below (KIT_T_<Style>_<Moment>, levelled by their style's role;
+-- a style:moment with no pick has no sound). The typed style sounds the kit's keyboard instead (TITLE_KEYBOARDS). A
+-- title's sounds are bound to its life: the API stops every one still playing, with a short fade, when the title is gone or
+-- cut short, so a sound need not end by itself (tests/ingame/sound_e2e.lua).
+-- title picks begin (written by tools/sound/install_title_picks.py from title_picks.json: edit that, not this)
 Sound.defineAll({
-    ["kit.title.stamp.land"] = { sound = "KIT_TitleStamp" },
-    ["kit.title.stamp.line.land"] = { sound = "KIT_TitleStampLine" },
-    ["kit.title.type.enter"] = { sound = "KIT_TitleType" },
-    ["kit.title.type.line.enter"] = { sound = "KIT_TitleTypeLine" },
-    ["kit.title.type.leave"] = { sound = "KIT_TitleFeed" },
-    ["kit.title.notice.enter"] = { sound = "RadioZap" },
-    ["kit.title.discovery.enter"] = { sound = "UseMatch" },
-    ["kit.title.dust.leave"] = { sound = "UseLighter" },
-    ["kit.title.sink.leave"] = { sound = "LureHitWater" },
+    ["kit.title.stamp.land"] = { sound = "KIT_T_Stamp_Land" },
+    ["kit.title.dust.enter"] = { sound = "KIT_T_Dust_Enter" },
+    ["kit.title.dust.leave"] = { sound = "KIT_T_Dust_Leave" },
+    ["kit.title.notice.enter"] = { sound = "KIT_T_Notice_Enter" },
+    ["kit.title.notice.leave"] = { sound = "KIT_T_Notice_Leave" },
+    ["kit.title.discovery.enter"] = { sound = "KIT_T_Discovery_Enter" },
+    ["kit.title.discovery.leave"] = { sound = "KIT_T_Discovery_Leave" },
+    ["kit.title.unveil.enter"] = { sound = "KIT_T_Unveil_Enter" },
+    ["kit.title.unveil.leave"] = { sound = "KIT_T_Unveil_Leave" },
+    ["kit.title.sink.enter"] = { sound = "KIT_T_Sink_Enter" },
+    ["kit.title.pulse.enter"] = { sound = "KIT_T_Pulse_Enter" },
+    ["kit.title.bleed.enter"] = { sound = "KIT_T_Bleed_Enter" },
+    ["kit.title.brief.enter"] = { sound = "KIT_T_Brief_Enter" },
+    ["kit.title.brief.leave"] = { sound = "KIT_T_Brief_Leave" },
 })
+-- title picks end
 
 return Sound

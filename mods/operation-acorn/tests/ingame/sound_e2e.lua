@@ -9,8 +9,11 @@ local t = STEPS("sounde2e")
 local player = getPlayer()
 local sm = getSoundManager()
 
-local OWN = { "KIT_Key_1", "KIT_Key_8", "KIT_KeySpace", "KIT_KeyEnter", "KIT_KeyBack", "KIT_PrintRow", "KIT_TitleStamp",
-    "KIT_TitleStampLine", "KIT_TitleType", "KIT_TitleTypeLine", "KIT_TitleFeed", "OA_LockPick" }
+-- (ours: the keyboard, the printer, the lock pick, and every installed title pick, whatever is picked)
+local OWN = { "KIT_Key_1", "KIT_Key_8", "KIT_KeySpace", "KIT_KeyEnter", "KIT_KeyBack", "KIT_PrintRow", "OA_LockPick" }
+for _, style in ipairs({ "stamp", "dust", "notice", "discovery", "unveil", "sink", "pulse", "bleed", "brief" }) do
+    for _, name in pairs(Sound.titleSounds(style) or {}) do OWN[#OWN + 1] = name end
+end
 local PROBE = { "CampfireLight", "UseMatch", "UseLighter", "TuneIn", "VehicleRadioTuneIn", "HeartBeat", "WaterDrip",
     "LureHitWater", "RadioZap" }
 local action, lockId, probeIds, probeAt = nil, nil, {}, nil
@@ -36,10 +39,18 @@ t.run({
         t.check("the mods' own sounds known", #unknown == 0, table.concat(unknown, ","))
         local missing, count = {}, 0
         local kitCues = {}
-        for _, style in ipairs({ "stamp", "type", "notice", "discovery", "dust", "sink" }) do
+        for _, style in ipairs({ "stamp", "dust", "notice", "discovery", "unveil", "sink", "pulse", "bleed", "brief", "type" }) do
             local title, line = Sound.titleSounds(style)
-            for moment, name in pairs(title or {}) do kitCues[style .. "." .. moment] = { sound = name } end
-            for moment, name in pairs(line or {}) do kitCues[style .. ".line." .. moment] = { sound = name } end
+            -- (a typed style's keys are a list: each its own)
+            for prefix, sounds in pairs({ [style .. "."] = title or {}, [style .. ".line."] = line or {} }) do
+                for moment, name in pairs(sounds) do
+                    if type(name) == "table" then
+                        for n, key in ipairs(name) do kitCues[prefix .. moment .. n] = { sound = key } end
+                    else
+                        kitCues[prefix .. moment] = { sound = name }
+                    end
+                end
+            end
         end
         for _, cues in ipairs({ OA.Sounds.CUES, BuildingUtilities.Sounds.CUES, kitCues }) do
             for cue, def in pairs(cues) do

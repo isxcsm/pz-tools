@@ -47,7 +47,6 @@
   const RETURN = KIT + "KIT_KeyEnter_1.ogg";
   // What the game has now, to compare with: a cue's single option (or an extra one beside a, b, c).
   const NOW = {
-    "stamp:land": "KIT_TitleStamp_1.ogg",
   };
   // The candidates of each cue ({ "style:cue": [files in gen/] }, gen/manifest.js); type has only what it has now.
   let MADE = {}, PICKED = {};
