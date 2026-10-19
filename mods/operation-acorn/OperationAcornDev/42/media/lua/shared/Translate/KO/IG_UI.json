@@ -212,7 +212,7 @@
     "IGUI_OADev_E2E_See_01": "바닐라 헬기, 첫 보급 제목, 호출 연출, S0, 도토리 작전, 1단계 카드",
     "IGUI_OADev_E2E_See_01L": "S0의 늦은 판 두 줄",
     "IGUI_OADev_E2E_See_01N": "S0의 늦은 판 두 줄 (바닐라 헬기 없음)",
-    "IGUI_OADev_E2E_See_02": "투하 정산 제목, S1, S1M, 새 요청",
+    "IGUI_OADev_E2E_See_02": "투하 정산 제목, S1 (임무 안내까지 한 교신), 새 요청",
     "IGUI_OADev_E2E_See_03": "B1, 임무 착수, 원 진입 혼잣말, 무대(죽은 척 좀비), S1F_pickup, 확보, 정산, S1F",
     "IGUI_OADev_E2E_See_04": "S2, 반나절 뒤 S2B",
     "IGUI_OADev_E2E_See_05": "s2_filter, B2, S2F_put, S2F_waited, S2F_pickup, S2F, 회신서",
