@@ -79,3 +79,22 @@ test("the tooltip line is worked out again after half a second, and at once when
     Appraisal.lineFor(item, record)
     eq(calls, 5, "a clock gone back is not a hit")
 end)
+
+test("the tooltip lines kept are those of the last half second: the items hovered before are let go", function()
+    local Appraisal = load(nil, 100)
+    local now = 9000
+    getTimestampMs = function() return now end
+    local record = { trade = { serial = 1 } }
+    local items = {}
+    for i = 1, 300 do
+        items[i] = {}
+        Appraisal.lineFor(items[i], record)
+        now = now + 1
+    end
+    eq(Appraisal.cache.n, 300)
+    now = now + Appraisal.KEEP_MS
+    local last = {}
+    Appraisal.lineFor(last, record)
+    eq(Appraisal.cache.n, 1, "the expired entries went")
+    eq(Appraisal.cache.t[items[1]], nil)
+end)

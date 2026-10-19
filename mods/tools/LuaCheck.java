@@ -10,6 +10,9 @@
 // And it flags, outside the tests, a name of Lua 5.1's base library that the game's Lua does not have (next: found in
 // game, the alarm reading failed on its first run).
 //
+// And it flags a weak table (a metatable with a mode field): Kahlua has no weak tables (that string is nowhere in its
+// classes), so such a table holds its keys for good and a cache keyed by game objects behind one only grows. Use a bounded cache.
+//
 // It compiles as the game does in debug mode: there a function holds at most 200 locals declared in it in all, not
 // only 200 at a time (found in game: the panel plan failed to load with an index 200 the plain compile passed).
 import java.io.Reader;
@@ -31,6 +34,7 @@ public class LuaCheck {
         "ipairs", "load", "loadfile", "loadstring", "next", "pairs", "pcall", "print", "rawequal", "rawget", "rawset", "select",
         "setfenv", "setmetatable", "tonumber", "tostring", "type", "unpack", "xpcall", "coroutine", "string", "table", "math", "os",
         "io", "debug");
+    private static final Pattern WEAK_TABLE = Pattern.compile("__mode");
     private static final Pattern ALIAS = Pattern.compile("\\blocal\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*\\1\\b");
     private static final Pattern LOCAL = Pattern.compile("\\blocal\\s+(?:function\\s+)?([A-Za-z_][A-Za-z0-9_]*(?:\\s*,\\s*[A-Za-z_][A-Za-z0-9_]*)*)");
 
@@ -86,6 +90,12 @@ public class LuaCheck {
                 collectSplit(closure.prototype, read, written);
             }
             List<String> suspicious = new ArrayList<>();
+            for (String line : source.split("\\R")) {
+                if (!line.stripLeading().startsWith("--") && WEAK_TABLE.matcher(line).find()) {
+                    suspicious.add("weak table (Kahlua has no weak tables; use a bounded cache)");
+                    break;
+                }
+            }
             for (String name : globals) if (locals.contains(name) && !ALLOWED.contains(name)) suspicious.add(name);
             // the tests run in LuaTest's Lua, not the game's
             boolean inGame = !file.normalize().startsWith("tests");
@@ -95,7 +105,7 @@ public class LuaCheck {
                 if (args.length > 0) System.out.println("ok   " + file.getFileName());
             } else {
                 failed++;
-                System.out.println("FAIL " + file + ": used as a global but declared local in the file (used before its declaration?), or missing from Kahlua: " + suspicious);
+                System.out.println("FAIL " + file + ": used as a global but declared local in the file (used before its declaration?), missing from Kahlua, or a weak table: " + suspicious);
             }
         }
         if (globalsOut != null) {

@@ -75,25 +75,25 @@ local function bought(item)
     return item:hasModData() and item:getModData().OA_Bought ~= nil
 end
 
--- The items the codex has settled: by item (weak), the `kinds` table of the codex it was settled for. An item whose kind
+-- The items the codex has settled: by item (bounded: OA.bounded), the `kinds` table of the codex it was settled for. An item whose kind
 -- is known, that is no loot or that is the shop's is that for good (a kind is never taken out of a codex but with the
 -- whole table, a new one), so a look at it again costs one lookup here, none of its own reads.
-local counted = setmetatable({}, { __mode = "k" })
+local counted = OA.bounded()
 
 -- The codex looks at one item (and the items in it, to a depth of three bags). Known kinds, types that are no loot and
 -- the shop's goods cost a lookup or two; only a kind not known yet is read whole (Value.info). `bags`, when given,
 -- collects the bags whose items were looked at.
 local function acquireItem(record, kinds, item, depth, bags)
-    if counted[item] ~= kinds then
+    if counted.t[item] ~= kinds then
         local fullType = item:getFullType()
         if not kinds[baseOf(fullType)] and not notLoot[fullType] and not bought(item) then
             local info = OA.Value.info(item)
             OA.Codex.acquire(record, info)
             if not info.bought and not OA.Categories.isLoot(info) then notLoot[fullType] = true end
             -- (a kind the codex did not take, nor ruled out, is looked at again next time)
-            if kinds[baseOf(fullType)] or notLoot[fullType] then counted[item] = kinds end
+            if kinds[baseOf(fullType)] or notLoot[fullType] then OA.put(counted, item, kinds) end
         else
-            counted[item] = kinds
+            OA.put(counted, item, kinds)
         end
     end
     if depth < 3 and instanceof(item, "InventoryContainer") then

@@ -71,7 +71,7 @@ local function declaredValue(point)
 end
 
 -- The points declared, per API table (a newer API that takes over is a new table, and is told again).
-local declaredBy = setmetatable({}, { __mode = "k" })
+local declaredBy = {}
 local known = {}
 
 -- Whether the extension API applies a point (the points above): its hooks went in, and this part's

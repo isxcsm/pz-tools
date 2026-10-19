@@ -15,7 +15,9 @@ TipLines.KEEP_MS = 500
 
 local providers = {}    -- { name, fn }: fn(item) gives an array of lines (already translated) or nil
 local failed = {}       -- by provider name: whether its failure was told
-local kept = setmetatable({}, { __mode = "k" })     -- by item: { at (ms), text (a string, or false for none) }
+-- by item: { at (ms), text (a string, or false for none) }; bounded (OA.putTimed): what is past KEEP_MS goes as a new one is put
+local kept = OA.bounded()
+TipLines.kept = kept
 
 -- Adds a part's lines. `fn(item)` gives an array of translated lines, or nil when the item has none of this part's.
 function TipLines.add(name, fn)
@@ -47,10 +49,10 @@ end
 -- The text for an item now (made again once KEEP_MS has passed).
 function TipLines.textFor(item)
     local now = getTimestampMs()
-    local hit = kept[item]
+    local hit = kept.t[item]
     if hit and now >= hit.at and now - hit.at < TipLines.KEEP_MS then return hit.text end
     local text = make(item)
-    kept[item] = { at = now, text = text }
+    OA.putTimed(kept, item, { at = now, text = text }, now, TipLines.KEEP_MS)
     return text
 end
 

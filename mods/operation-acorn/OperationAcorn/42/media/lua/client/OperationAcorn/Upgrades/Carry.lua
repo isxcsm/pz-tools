@@ -19,7 +19,7 @@ OA.Upgrades.Carry = Carry
 -- tab's "upgrades" and "all" changes): section -> { revision, factor }. It follows the ranks and the effect size
 -- option, which does not change under a running game.
 local revision = 0
-local transferOf = setmetatable({}, { __mode = "k" })
+local transferOf = {}
 local function changed() revision = revision + 1 end
 OA.Sync.listen("upgrades", changed)
 OA.Sync.listen("all", changed)

@@ -179,7 +179,7 @@ end
 -- How many terminal entries are ready (the comms tab's dot, the terminal's blinking light). Kept per section until the
 -- entries move (the revision) or the hour comes when a short call's gap after the last call ends: the answer changes
 -- by nothing else.
-local waitingKept = setmetatable({}, { __mode = "k" })
+local waitingKept = {}
 function Comms.waiting(record)
     local s = Comms.section(record)
     local now = OA.hours()

@@ -131,6 +131,59 @@ function OA.due(last, key, now, ms)
     return true
 end
 
+-- ---- bounded caches ----------------------------------------------------------------------------------------------
+-- The game's Lua (Kahlua) has no weak tables: a table given a weak-keys metatable is an ordinary table that holds
+-- its keys for good (LuaCheck refuses the metatable's mode field). A table keyed by game objects (items, containers,
+-- squares) would only grow in a long session, so such a cache is a bounded one: { t = the table (read c.t[key]), n = how
+-- many keys were put since it was last emptied, cap }. A cache is only a spare of work done, so a full one is emptied
+-- and filled again.
+OA.CACHE_CAP = 2000
+
+function OA.bounded(cap)
+    return { t = {}, n = 0, cap = cap or OA.CACHE_CAP }
+end
+
+-- c.t[key] = value. A new key in a full cache starts the cache again (every key it held is dropped).
+function OA.put(c, key, value)
+    local t = c.t
+    if t[key] == nil then
+        if value == nil then return end
+        if c.n >= c.cap then
+            t = {}
+            c.t, c.n = t, 0
+        end
+        c.n = c.n + 1
+    end
+    t[key] = value
+end
+
+-- c.t[key] = nil.
+function OA.drop(c, key)
+    if c.t[key] ~= nil then
+        c.t[key] = nil
+        c.n = c.n - 1
+    end
+end
+
+-- OA.put for entries that carry `at` (the real ms they were made) and are good for `ttl` ms: once in a `ttl`, before a
+-- key is put, the entries past it are dropped (the table is made again from the live ones: Kahlua has no next(), and
+-- clearing fields inside a pairs loop is not safe), so what is held is what was used lately, whatever was looked at.
+function OA.putTimed(c, key, entry, now, ttl)
+    local sweptAt = c.sweptAt
+    if not sweptAt or now < sweptAt or now - sweptAt >= ttl then
+        c.sweptAt = now
+        local live, n = {}, 0
+        for k, e in pairs(c.t) do
+            if now >= e.at and now - e.at < ttl then
+                live[k] = e
+                n = n + 1
+            end
+        end
+        c.t, c.n = live, n
+    end
+    OA.put(c, key, entry)
+end
+
 -- ---- the API's timers ------------------------------------------------------------------------------------------
 -- A function called every so many milliseconds of real time (PZExtAPI.timers.every), counted in Java: a frame with
 -- nothing due costs the API a clock read, where a handler of OnTick wakes Lua every frame to compare the clock. Unlike

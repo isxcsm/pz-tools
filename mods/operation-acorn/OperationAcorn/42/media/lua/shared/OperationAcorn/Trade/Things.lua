@@ -172,7 +172,7 @@ Things.itemsOf = itemsOf
 -- refusedInfos = { info of each refused item (nil when it could not be read) }, refusedWhys = { the translation key
 -- of why each is refused (nil when none is given) }, weight }. An item the team does not take (the manual left in,
 -- say) is `refused`: it goes back to the character.
--- `memo` (optional: a table the caller keeps and clears, weak by item) holds { info, ok, why } of the items read before;
+-- `memo` (optional: a table the caller keeps and clears, by item) holds { info, ok, why } of the items read before;
 -- the estimate panel gives one, since it asks again at every change of the box. A sealing reads fresh (no memo).
 -- A bag is never memoised: what is put in it or taken out of it changes whether the team takes it.
 function Things.sealable(container, memo)

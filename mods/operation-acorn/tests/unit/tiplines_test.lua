@@ -71,3 +71,22 @@ test("a part that fails is told once and does not break the tooltip", function()
     eq(#lines, 1)
     truthy(string.find(lines[1], "broken", 1, true))
 end)
+
+test("the texts kept are those of the last KEEP_MS: a hovered item that is not hovered again is let go", function()
+    local clock = 50000
+    getTimestampMs = function() return clock end
+    OA.TipLines.add("any", function() return { "x" } end)
+    local first = {}
+    for i = 1, 200 do
+        first[i] = newItem(nil)
+        draw(first[i])
+        clock = clock + 1
+    end
+    eq(TipLines.kept.n, 200, "all within the time")
+    clock = clock + TipLines.KEEP_MS
+    local later = newItem(nil)
+    draw(later)
+    eq(TipLines.kept.n, 1, "the expired ones went as a new text was kept")
+    eq(TipLines.kept.t[first[1]], nil)
+    truthy(TipLines.kept.t[later] ~= nil)
+end)
