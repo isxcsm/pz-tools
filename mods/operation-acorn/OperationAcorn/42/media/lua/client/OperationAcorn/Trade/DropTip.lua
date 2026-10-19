@@ -78,9 +78,13 @@ local function dropped(container, dragging)
     if lines then DropTip.show(lines) end
 end
 
+-- The game's functions below are left as they are while the mod is off (OA.off).
+if OA.off then return DropTip end
+
 -- A drop on an inventory pane (the box's window), and on a container's button at the side: what was dragged is
 -- known only before the game's handler clears it.
 local paneUp = ISInventoryPane.onMouseUp
+-- (silent: the game's own handler sounds the drop, as it did)
 function ISInventoryPane:onMouseUp(x, y)
     local dragging = self.player == 0 and ISMouseDrag.dragging
     local onto = dragging and ISMouseDrag.draggingFocus and ISMouseDrag.draggingFocus ~= self and self.inventory
