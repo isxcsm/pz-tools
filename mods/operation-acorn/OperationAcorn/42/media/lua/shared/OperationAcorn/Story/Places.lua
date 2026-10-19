@@ -305,21 +305,31 @@ function Places.bearing(ax, ay, x, y)
     return POINTS[sector + 1]
 end
 
--- Where a place is from the player, in words (DESIGN-terminal 6.5): "현재 위치에서 북동쪽 약 2.4km". A square counts as
--- a metre. Inside `radius` (a mission's area) the player is told so; under 100 m it is "close by"; then 50 m steps up to
--- a kilometre, 0.1 km steps up to 10 km, whole kilometres beyond. Returns the translation key and its arguments: the
--- compass point's key (translated by the caller) and the distance as a string.
+-- A whole number with its thousands grouped: "12,400".
+function Places.grouped(n)
+    local s = tostring(math.floor(n))
+    local out = s
+    while true do
+        local k
+        out, k = string.gsub(out, "^(%d+)(%d%d%d)", "%1,%2")
+        if k == 0 then break end
+    end
+    return out
+end
+
+-- Where a place is from the player, in words (DESIGN-terminal 6.5): "현재 위치에서 북동쪽 약 2,400". Told in squares as
+-- a bare number: a square is no metre, and 칸 is the game's word, not the world's (2026-10-20). Inside `radius` (a mission's area) the
+-- player is told so; under 100 squares it is "close by"; then steps of 50 squares up to 1,000, of 100 up to 10,000,
+-- of 1,000 beyond. Returns the translation key and its arguments: the compass point's key (translated by the caller)
+-- and the distance as a string.
 function Places.whereKey(px, py, x, y, radius)
     local dx, dy = x - px, y - py
     local d = math.sqrt(dx * dx + dy * dy)
     if radius and d <= radius then return "IGUI_OA_Place_Inside", {} end
     if d < 100 then return "IGUI_OA_Place_Near", {} end
     local point = "IGUI_OA_Place_Dir_" .. Places.bearing(px, py, x, y)
-    local metres = math.floor(d / 50 + 0.5) * 50
-    if metres < 1000 then return "IGUI_OA_Place_Metres", { point, tostring(metres) } end
-    local tenths = math.floor(d / 100 + 0.5)
-    if tenths < 100 then return "IGUI_OA_Place_Km", { point, string.format("%.1f", tenths / 10) } end
-    return "IGUI_OA_Place_Km", { point, tostring(math.floor(d / 1000 + 0.5)) }
+    local step = d < 975 and 50 or (d < 9950 and 100 or 1000)
+    return "IGUI_OA_Place_Squares", { point, Places.grouped(math.floor(d / step + 0.5) * step) }
 end
 
 -- The same as a text (the compass point translated too).

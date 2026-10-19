@@ -299,7 +299,7 @@ test("the delivery box's line: where the active box stands, sealed, carried off,
     eq(M.box(r, 0, 0), nil, "none")
     local box = Boxes.add(r, { state = "placed", x = 400, y = 0, z = 0 })
     local text = M.box(r, 0, 0)
-    truthy(string.find(text, "^IGUI_OA_Place_Metres"), text)
+    truthy(string.find(text, "^IGUI_OA_Place_Squares"), text)
     truthy(string.find(text, "IGUI_OA_Place_Dir_E", 1, true), "to the east")
     box.state = "sealed"
     truthy(string.find(M.box(r, 0, 0), "^IGUI_OA_Status_BoxSealed"))
