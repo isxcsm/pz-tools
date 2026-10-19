@@ -646,6 +646,7 @@
     "IGUI_OA_Trade_Seal_Worth": "물건 %1개, 예상 %2 크레딧, 신뢰도 +%3.",
     "IGUI_OA_Trade_Seal_Mission": "임무 물건: 헬기 정산 때 보상 %1 크레딧, 신뢰도 +%2.",
     "IGUI_OA_Trade_Seal_MissionLater": "임무 물건: 보상은 헬기 정산 때 정해집니다.",
+    "IGUI_OA_Trade_Seal_Fragment": "운석 파편: 헬기 정산 때 연구팀에 넘어갑니다.",
     "IGUI_OA_Trade_Seal_Fill": "무게 %1 / %2.",
     "IGUI_OA_Trade_Seal_Count": "물건 %1개.",
     "IGUI_OA_Trade_Seal_Refused": "받지 않는 물건 %1개는 소지품으로 돌아옵니다:",

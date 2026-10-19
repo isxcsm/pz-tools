@@ -164,7 +164,8 @@ test("a seal confirmation tells a mission item's reward; a box of it alone has n
     Trade.Estimate.infos = function() return worth end
     local sealing = { { credits = 42000, trust = 252 } }
     OA.Missions = { sealing = function() return sealing end }
-    local plan = { taken = { {} }, infos = { {} }, refused = {}, weight = 0.5 }
+    local plan = { taken = { { getFullType = function() return "Base.Sheet" end } }, infos = { {} }, refused = {},
+        weight = 0.5 }
     local text = Trade.Menus.sealText(player, plan)
     truthy(text:find("IGUI_OA_Trade_Seal_Count", 1, true), "the count alone")
     eq(text:find("IGUI_OA_Trade_Seal_Worth", 1, true), nil)
@@ -173,6 +174,25 @@ test("a seal confirmation tells a mission item's reward; a box of it alone has n
     truthy(Trade.Menus.sealText(player, plan):find("IGUI_OA_Trade_Seal_Worth", 1, true), "goods with it: their worth")
     sealing[1] = {}
     truthy(Trade.Menus.sealText(player, plan):find("IGUI_OA_Trade_Seal_MissionLater", 1, true), "a reward the settling sets")
+end)
+
+test("a seal confirmation says a meteorite fragment goes to the research team, once however many", function()
+    setup()
+    loadFile("OperationAcorn/Trade/ContextMenu")
+    local Trade = OA.Trade
+    OA.Client = OA.Client or {}
+    OA.Client.record = function() return {} end
+    Trade.Objects.capacityFor = function() return 50 end
+    Trade.Estimate.infos = function() return { credits = 0, trust = 10 } end
+    OA.Missions = { sealing = function() return {} end }
+    local trees = { ["OperationAcorn.MeteorFragment"] = "survival", ["OperationAcorn.MeteorFragmentIron"] = "load" }
+    OA.Upgrades = { Data = { treeOfFragment = function(fullType) return trees[fullType] end } }
+    local function item(fullType) return { getFullType = function() return fullType end } end
+    local plan = { taken = { item("Base.Sheet") }, infos = { {} }, refused = {}, weight = 0.5 }
+    eq(Trade.Menus.sealText(player, plan):find("IGUI_OA_Trade_Seal_Fragment", 1, true), nil)
+    plan.taken = { item("Base.Sheet"), item("OperationAcorn.MeteorFragment"), item("OperationAcorn.MeteorFragmentIron") }
+    local _, n = Trade.Menus.sealText(player, plan):gsub("IGUI_OA_Trade_Seal_Fragment", "")
+    eq(n, 1)
 end)
 
 test("breaking a crate's seal is on top, its tip does not depend on a crowbar being carried", function()

@@ -646,6 +646,7 @@
     "IGUI_OA_Trade_Seal_Worth": "%1 items, estimated %2 credits, trust +%3.",
     "IGUI_OA_Trade_Seal_Mission": "Mission item: %1 credits and trust +%2 at the helicopter settlement.",
     "IGUI_OA_Trade_Seal_MissionLater": "Mission item: its reward is set at the helicopter settlement.",
+    "IGUI_OA_Trade_Seal_Fragment": "Meteorite fragment: it goes to the research team at the helicopter settlement.",
     "IGUI_OA_Trade_Seal_Fill": "Weight %1 / %2.",
     "IGUI_OA_Trade_Seal_Count": "%1 items.",
     "IGUI_OA_Trade_Seal_Refused": "%1 items are not taken and go back to your inventory:",

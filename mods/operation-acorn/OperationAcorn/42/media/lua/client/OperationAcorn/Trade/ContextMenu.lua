@@ -75,6 +75,14 @@ function Menus.sealText(character, plan)
             lines[#lines + 1] = getText("IGUI_OA_Trade_Seal_MissionLater")
         end
     end
+    -- a meteorite fragment goes to the research team (its worth line alone reads as worth nothing)
+    local Upgrades = OA.Upgrades
+    for _, item in ipairs(plan.taken) do
+        if Upgrades and Upgrades.Data.treeOfFragment(item:getFullType()) then
+            lines[#lines + 1] = getText("IGUI_OA_Trade_Seal_Fragment")
+            break
+        end
+    end
     lines[#lines + 1] = getText("IGUI_OA_Trade_Seal_Fill", string.format("%.1f", plan.weight),
         tostring(Objects.capacityFor(record)))
     if #plan.refused > 0 then
