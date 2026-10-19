@@ -147,11 +147,12 @@ function Say.tell(playerId, id, ctx, delay)
 end
 
 -- A story monologue (SCENES.md 2): a line of the story's own (a translation key, not a bundle) that the server asks the
--- player's client to say, held about twice as long as self-talk. It is said again just before its halo starts to fade:
--- the game keeps one line for a text said again while it shows and sets that line's clock back. STORY_AGAIN is the
--- halo's real seconds before its fade (the game's line time, 314, less its last quarter, at 1.25 a thirtieth of a
--- second; at a faster game speed it is shorter). `delay` is real seconds to wait first, as Say.tell's.
-Say.STORY_AGAIN = 6.3
+-- player's client to say, held about twice as long as self-talk: it is said again halfway through its halo, and the new
+-- line takes the old one's place (a character shows one line), its clock full again. The halo's clock is the game's:
+-- STORY_CLOCK, less 1.25 times the game's multiplier each update, so it runs out sooner at a faster game speed; the
+-- second saying is counted on that same clock (OnTick), never on real seconds (at a faster speed the first had gone
+-- and the line came back as if said twice). `delay` is real seconds to wait first, as Say.tell's.
+Say.STORY_CLOCK, Say.STORY_AGAIN_AT = 314, 0.5
 
 function Say.story(playerId, key, delay)
     if isServer() then
@@ -161,29 +162,37 @@ function Say.story(playerId, key, delay)
     end
 end
 
+-- The line to say again: { player, line, clock } (one at a time: a newer line takes its place over the head too).
+local again
+local function tickAgain()
+    if not again then return end
+    again.clock = again.clock + 1.25 * getGameTime():getMultiplier()
+    if again.clock < Say.STORY_CLOCK * Say.STORY_AGAIN_AT then return end
+    local it = again
+    again = nil
+    local now = getPlayer and getPlayer()
+    if now == it.player and not now:isDead() then now:Say(it.line) end
+end
+OA.on("OnTick", tickAgain)
+
+local function sayStory(player, line)
+    player:Say(line)
+    again = { player = player, line = line, clock = 0 }
+end
+
 OA.Sync.listen("storySay", function(playerId, detail)
     local player = getPlayer and getPlayer()
     if not (player and detail and type(detail.key) == "string") or OA.Store.idOf(player) ~= playerId then return end
     if OA.option("Monologue") == false then return end
     local line = getText(detail.key)
-    local function again()
-        OA.Trade.Later.after(Say.STORY_AGAIN, function()
-            local now = getPlayer and getPlayer()
-            if now == player and not now:isDead() then now:Say(line) end
-        end)
-    end
     if type(detail.delay) == "number" and detail.delay > 0 then
         OA.Trade.Later.after(detail.delay, function()
             local now = getPlayer and getPlayer()
-            if now == player and not now:isDead() then
-                now:Say(line)
-                again()
-            end
+            if now == player and not now:isDead() then sayStory(now, line) end
         end)
         return
     end
-    player:Say(line)
-    again()
+    sayStory(player, line)
 end)
 
 OA.Sync.listen("say", function(playerId, detail)
