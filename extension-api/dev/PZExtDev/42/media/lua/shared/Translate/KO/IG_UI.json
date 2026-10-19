@@ -80,7 +80,7 @@
     "IGUI_PZExtDev_Bd_Producer": "사용 중 %1  공급원 %2개  전부 불러옴 %3",
     "IGUI_PZExtDev_Tx_Korean": "한국어 예문",
     "IGUI_PZExtDev_Tx_English": "영어 예문",
-    "IGUI_PZExtDev_Tx_Dust": "재로 흩어지며 퇴장",
+    "IGUI_PZExtDev_Tx_Burn": "불타며 퇴장",
     "IGUI_PZExtDev_Tx_Title": "타이틀 표시",
     "IGUI_PZExtDev_Tx_Typed": "타자 효과 텍스트",
     "IGUI_PZExtDev_Tx_Hide": "바로 숨기기",
