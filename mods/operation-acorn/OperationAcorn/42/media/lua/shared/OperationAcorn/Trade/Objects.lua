@@ -243,6 +243,12 @@ function Objects.powered(square, object)
     return square:haveElectricity() or square:hasGridPower()
 end
 
+-- The loot window takes a container that came or went at once (the game's own event for it, as its furniture tool
+-- sends): else it showed the floor alone until the character moved. On the side that shows it.
+local function containersChanged(object)
+    if not isServer() and triggerEvent then triggerEvent("OnContainerUpdate", object) end
+end
+
 -- Makes an object of a kind on a square and tells the clients: sprite = the tile name; data = modData to put on it.
 function Objects.create(square, sprite, kind, data)
     -- The tile gives the object its container when it names one (delivery box and supply crate tiles do).
@@ -253,6 +259,7 @@ function Objects.create(square, sprite, kind, data)
     square:AddTileObject(object)
     Objects.markExplored(object)
     if isServer() then object:transmitCompleteItemToClients() end
+    containersChanged(object)
     return object
 end
 
@@ -274,6 +281,7 @@ function Objects.remove(object)
     local ok, err = pcall(function() square:transmitRemoveItemFromSquare(object) end)
     Objects.removing = false
     if not ok then OA.log("remove failed:", tostring(err)) end
+    containersChanged(object)
 end
 
 -- Changes an object's tile and tells the clients.
