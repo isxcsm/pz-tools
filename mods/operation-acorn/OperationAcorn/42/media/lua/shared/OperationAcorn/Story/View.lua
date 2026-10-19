@@ -24,6 +24,8 @@ end
 View.MAP_TEAL = { 0.08, 0.84, 0.76 }
 View.MAP_SKY = { 0.30, 0.62, 1.0 }
 View.MAP_CRATE = { 1.0, 0.58, 0.12 }
+-- The delivery boxes: the box's own olive green, lit up (apart from the missions' teal and the survey's gold).
+View.MAP_BOX = { 0.62, 0.86, 0.22 }
 View.MAP_ME = { 1.0, 0.36, 0.38 }
 -- A drop site's survey zone (Story/Survey): the capstones' gold.
 View.MAP_SURVEY = { 0.92, 0.74, 0.26 }
@@ -139,6 +141,23 @@ function View.crates(record)
     return list
 end
 
+-- The record's delivery boxes where they last stood (DESIGN 9 '위치 추적': standing, sealed, or carried off from
+-- there; one packed in a supply crate is the crate's mark): { { x, y } }.
+function View.boxes(record)
+    local list = {}
+    local d = record and record.boxes
+    if not (d and d.list) then return list end
+    local crates = {}
+    for _, c in ipairs(View.crates(record)) do crates[c.x .. "," .. c.y] = true end
+    for _, box in pairs(d.list) do
+        if box.x and box.y and not (box.state == "carried" and crates[box.x .. "," .. box.y]) then
+            list[#list + 1] = { x = box.x, y = box.y, id = box.id }
+        end
+    end
+    table.sort(list, function(a, b) return tostring(a.id) < tostring(b.id) end)
+    return list
+end
+
 -- What the maps show for a record (8): the circles of the missions shown, each { x, y, r, color, dim } (the second
 -- circle of a swap mission dim, a drop site's survey zone, Story/Survey, dim in gold, and the dense places not yet cleared,
 -- Story/Dense, dim in the colour of the kit they give), the circle the way from the player leads to (`lead`: the main mission's first one,
@@ -146,7 +165,7 @@ end
 -- nothing then). Places are the middles of their squares. Worked out when a map opens and when the mission or the
 -- crates change; the maps draw it every frame (the way from where the player stands then).
 function View.scene(record, where)
-    local scene = { circles = {}, crates = {}, points = {} }
+    local scene = { circles = {}, crates = {}, boxes = {}, points = {} }
     for _, m in ipairs(View.shownList(record)) do
         local color = View.mapColor(m.kind)
         for _, c in ipairs(View.circles(m)) do
@@ -172,6 +191,9 @@ function View.scene(record, where)
     for _, c in ipairs(View.crates(record)) do
         scene.crates[#scene.crates + 1] = { x = c.x + 0.5, y = c.y + 0.5 }
     end
+    for _, b in ipairs(View.boxes(record)) do
+        scene.boxes[#scene.boxes + 1] = { x = b.x + 0.5, y = b.y + 0.5 }
+    end
     for _, z in ipairs(OA.StorySurvey and OA.StorySurvey.zones(record) or {}) do
         scene.circles[#scene.circles + 1] = { x = z.x + 0.5, y = z.y + 0.5, r = z.r, color = View.MAP_SURVEY, dim = true }
     end
@@ -179,7 +201,7 @@ function View.scene(record, where)
         scene.circles[#scene.circles + 1] = { x = d.x + 0.5, y = d.y + 0.5, r = d.r, color = View.MAP_DENSE,
             dim = true }
     end
-    scene.empty = #scene.circles == 0 and #scene.crates == 0 and #scene.points == 0
+    scene.empty = #scene.circles == 0 and #scene.crates == 0 and #scene.boxes == 0 and #scene.points == 0
     return scene
 end
 

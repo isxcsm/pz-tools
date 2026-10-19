@@ -1,7 +1,7 @@
 -- What this mod draws on the maps (DESIGN-terminal 6.6, 8): the mission's area as a soft disc in a ring of dashes that
 -- slowly march round it (teal; a story mission's sky blue) with a pulse running out of it, a pin dropped on its middle,
--- the way from the player to it as thick dashes marching toward it, the player's own pin, and the supply crates left
--- by the helicopter; once a piece is found, a pin where its item is instead of the circle (on the player while the
+-- the way from the player to it as thick dashes marching toward it, the player's own pin, the supply crates left
+-- by the helicopter and the delivery boxes where they last stood; once a piece is found, a pin where its item is instead of the circle (on the player while the
 -- player carries it); and the world map opened to show the player and the circle together. The minimap shows less of
 -- it, smaller: the disc, the ring, the way and the pin, still.
 -- It is drawn by this mod over the game's map every frame a map is open: after the world map's own prerender (above
@@ -304,17 +304,23 @@ local function drawPath(circle, style, s, now)
     drawDashes(count, style.path_thick * s, circle.color, 1)
 end
 
-local function drawCrates(scene, s)
+local function drawMarks(list, color, s)
     local w = CRATE_W * s
-    for i = 1, #scene.crates do
-        local crate = scene.crates[i]
-        local x, y = screen(crate.x, crate.y)
+    for i = 1, #list do
+        local mark = list[i]
+        local x, y = screen(mark.x, mark.y)
         if x > -w and x < viewW + w and y > -w and y < viewH + w then
             flat(SHADOW, x, y + s, 9 * s, 9 * s, WHITE, 0.3)
             quad(CRATE, x - w / 2, y - w / 2, x + w / 2, y - w / 2, x + w / 2, y + w / 2, x - w / 2, y + w / 2,
-                View.MAP_CRATE, 1)
+                color, 1)
         end
     end
+end
+
+-- The supply crates left, and the delivery boxes where they last stood (the same box picture, in their colours).
+local function drawCrates(scene, s)
+    drawMarks(scene.boxes, View.MAP_BOX, s)
+    drawMarks(scene.crates, View.MAP_CRATE, s)
 end
 
 -- A destination pin on the middle of a circle: the `index`th (they drop one after another). `since` is how long the

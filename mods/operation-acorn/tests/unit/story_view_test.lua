@@ -53,6 +53,26 @@ test("the crates are the helicopter's marks that are left", function()
     eq(list[2].x, 30)
 end)
 
+test("the delivery boxes are shown where they last stood; one packed in a crate is the crate's mark", function()
+    eq(#View.boxes(nil), 0)
+    eq(#View.boxes({ boxes = { list = {} } }), 0)
+    local record = { heli = { markers = { { kind = "crate", x = 50, y = 60 } } }, boxes = { list = {
+        ["1-1"] = { id = "1-1", state = "placed", x = 10, y = 20 },
+        ["1-2"] = { id = "1-2", state = "sealed", x = 30, y = 40 },
+        ["1-3"] = { id = "1-3", state = "carried", x = 70, y = 80 },
+        ["1-4"] = { id = "1-4", state = "carried", x = 50, y = 60 },
+        ["1-5"] = { id = "1-5", state = "carried" },
+    } } }
+    local list = View.boxes(record)
+    eq(#list, 3, "standing, sealed, carried off from its last spot; not the one in its crate, nor one with no spot")
+    eq(list[1].x, 10); eq(list[2].x, 30); eq(list[3].x, 70)
+    local scene = View.scene(record)
+    eq(#scene.boxes, 3)
+    eq(scene.boxes[1].x, 10.5); eq(scene.boxes[1].y, 20.5)
+    eq(View.scene({ boxes = { list = { a = { id = "a", state = "placed", x = 1, y = 2 } } } }).empty, false,
+        "a box alone is shown")
+end)
+
 test("the maps show the circle, the way's end and the crates, from the middles of their squares", function()
     local record = { missions = { active = mission() }, heli = { markers = { { kind = "crate", x = 7, y = 8, z = 0 } } } }
     local scene = View.scene(record)
