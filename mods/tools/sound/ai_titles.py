@@ -6,18 +6,25 @@ how big its sound is, are in SOUND-SYSTEM.md S7. All of them are one family (res
 meet the picture only on its big beats: the sting's peak lands on the moment the title is fully in (`at`); a leave gets at
 most a quiet tail.
 
-Each cue gets CANDIDATES sounds: its prompts at several seeds. The model's output is only cut (leading silence off), moved
-so that its loudest moment lands on `at`, cut to its length with a fade at the end, made mono at 44.1 kHz and set to one
-peak. Nothing is layered or bent.
+Three kinds of cue:
+- new: its prompts at several seeds;
+- from another cue (a leave's tail from its enter): the n-th candidate made from the other cue's n-th (or from its pick),
+  the model asked for the tail with that sound as its start (audio to audio), so that the two are one sound;
+- a picked cue (title_picks.json, what the user chose): the pick, and versions of it refined by the model (audio to audio at
+  a low noise, the pick's own prompt) or moved and softened as the user asked.
+
+The model's output is only cut (leading silence off), moved so that its loudest moment lands on `at`, cut to its length with
+a fade at the end, made mono at 44.1 kHz and set to a peak. A refinement may also be darkened (a gentle low pass), lowered, or
+given a longer room (a reverb tail): what the user asked of that pick.
 
 Run with the Python of the Stable Audio 3 checkout (C:/git/pz-workspace/sa3, its .venv), the model's licence accepted and
 `hf auth login` done once:
 
     ../../../../sa3/.venv/Scripts/python.exe ai_titles.py [cue ...] [--count N]
 
-It writes gen/<style>_<cue>_<nn>.ogg, gen/manifest.json and manifest.js ({"style:cue": [files]}, what the lab's sound panel
-lists), and gen/prompts.json (each file's prompt and seed, to make a picked one again). `--manifest` only writes manifest.js
-again from manifest.json.
+It writes gen/<style>_<cue>_<nn>.ogg (a pick's refinements <pick>_r<n>.ogg), gen/manifest.json and manifest.js
+({"style:cue": [files]}, what the lab's sound panel lists, a pick first), and gen/prompts.json (each file's prompt, seed and
+how it was made, to make a picked one again). `--manifest` only writes manifest.js again from manifest.json.
 """
 import json
 import os
@@ -29,8 +36,10 @@ import build
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, 'gen')
+PICKS = os.path.join(HERE, 'title_picks.json')
 RATE = build.RATE
 PEAK_DB = -3.0
+TAIL_DB = -9.0
 CANDIDATES = 8
 
 # What every prompt is not (the model hears it only with cfg_scale > 1).
@@ -39,72 +48,66 @@ NEGATIVE = 'voices, people talking, crowd, song, vocals, background noise, hiss,
 # Said of every sound, so that the styles are one family.
 FAMILY = 'restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail'
 
-# style:cue -> (seconds made, seconds kept, at, prompts). The sound starts at its moment in the title (enter: as it begins to
-# come in; land: the stamp's impact; leave: as it begins to go); `at` is when, from there, its loudest moment should come (the
-# title fully in, the torch opening), None to leave it where the model put it.
+# style:cue -> dict(made, kept, at, prompts[, peak][, parent, noise]). The sound starts at its moment in the title (enter: as it
+# begins to come in; land: the stamp's impact; leave: as it begins to go); `at` is when, from there, its loudest moment should
+# come (the title fully in, the torch opening), None to leave it where the model put it. A cue with a parent is made from it.
 CUES = {
-    # achievement, a grade, a sealed delivery: official recognition
-    'stamp:land': (4.0, 2.5, 0.0, [
-        'Achievement sting: a deep warm low impact with a resonant shimmering tail',
-        'Satisfying confirmation hit for an achievement, solid low boom and a soft bright ring that fades',
-        'Seal of approval sound, a heavy confident thump followed by a warm resonant tone',
+    # a stage, an unlock, a tree or a board opened, a reward paid: something done, a page turned; quiet, not a game's level up
+    'dust:enter': dict(made=4.0, kept=3.0, at=1.0, prompts=[
+        'Quiet reflective swell, a soft warm low pad rising gently and settling, understated, a chapter quietly closing',
+        'Soft warm breath of air swelling into a calm low tone, subtle and reflective, understated',
+        'Gentle muted rise into a warm hollow resonance, calm, understated, quietly meaningful',
     ]),
-    # a stage, an unlock, a reward paid: progress
-    'dust:enter': (4.0, 3.0, 1.0, [
-        'Reward unlocked sting, a soft rising swell that resolves into a warm glowing chime',
-        'Level up sound, a gentle airy rise blooming into a bright warm resolve',
-        'Progress reward, a smooth swelling whoosh opening into a soft warm shimmer',
+    'dust:leave': dict(made=6.0, kept=5.0, at=None, peak=TAIL_DB, parent='dust:enter', noise=0.8, prompts=[
+        'The same warm tone very softly fading away for a long time, faint, gentle, airy',
     ]),
-    'dust:leave': (4.0, 3.0, None, [
-        'Very quiet soft airy shimmer fading away, gentle dissolve',
-        'Faint warm breathy whoosh slowly fading out, very soft',
+    # a kit fitted, a search bonus, a kill count: dust's small sibling, frequent
+    'brief:enter': dict(made=2.0, kept=1.0, at=0.25, prompts=[
+        'Tiny soft warm swell, a brief quiet glint, subtle and small, understated',
+        'Very short soft warm rise into a faint calm tone, minimal, quiet',
     ]),
-    # a call, a drop, a mission begun, a deadline: work information, often
-    'notice:enter': (2.0, 1.2, 0.05, [
-        'Short subtle incoming transmission alert, soft two-tone electronic blip, military radio interface',
-        'Brief quiet radio message received tone, muted electronic chirp',
-        'Soft message received ping with a faint analog warmth, short and unobtrusive',
+    'brief:leave': dict(made=3.0, kept=2.5, at=None, peak=TAIL_DB, parent='brief:enter', noise=0.8, prompts=[
+        'The same small warm tone softly fading out, faint and short',
     ]),
-    # a site found, a town searched through, a nest cleared, a mission secured, an easter egg: discovery
-    'discovery:enter': (4.0, 3.0, 1.9, [
-        'Discovery sting, a mysterious soft swell that opens into a warm revealing tone',
-        'Something important found, a gentle rising whoosh blooming into a curious resonant chime',
-        'Reveal sound, a low airy build releasing into a warm glowing tone',
+    # a call ending: the transmission's own tone, going
+    'notice:leave': dict(made=3.0, kept=2.0, at=None, peak=TAIL_DB, parent='notice:enter', noise=0.75, prompts=[
+        'Transmission ends, the same soft electronic tone gently stepping down and fading, short',
+        'End of message, the same blip softly closing, quiet and brief',
     ]),
-    'discovery:leave': (4.0, 3.0, None, [
-        'Very quiet warm tone slowly fading away, soft dissolve',
-        'Faint low airy swell receding into silence, very soft',
+    # the discovery's tail: its warm tone lingering as the torch dies down
+    'discovery:leave': dict(made=5.0, kept=4.0, at=None, peak=TAIL_DB, parent='discovery:enter', noise=0.8, prompts=[
+        'The same warm glowing tone lingering very softly and slowly fading out, faint',
+        'A faint soft resonance left from the same sound, gently dying away',
     ]),
-    # the first supply, arrival on the scene, a line opened: a new chapter
-    'unveil:enter': (5.0, 4.5, 3.0, [
-        'Opening swell, a slow deep airy rise like a wide space opening up, warm low drone resolving',
-        'A new chapter begins, soft atmospheric whoosh building into a wide warm pad',
+    # a guide sent, a call sign given: an official document issued
+    'type:enter': dict(made=3.0, kept=2.0, at=0.3, prompts=[
+        'Official document issued, a short soft muted mechanical cue settling into a calm low tone',
+        'Briefing received, a subtle quiet clack and a warm low confirming tone, restrained',
+        'Classified file delivered, soft muted mechanism and a calm warm resolve',
     ]),
-    'unveil:leave': (4.0, 3.0, None, [
-        'Soft wide atmospheric pad slowly fading out, quiet',
-        'Gentle airy whoosh drawing away into silence, very soft',
+    'type:leave': dict(made=4.0, kept=3.0, at=None, peak=TAIL_DB, parent='type:enter', noise=0.8, prompts=[
+        'The same calm tone softly fading away, faint',
     ]),
-    # a mission failed, written off, lost; a drug lost: loss
-    'sink:enter': (4.0, 3.5, 0.25, [
-        'Mission failed sting, a low somber descending tone with a muffled dull impact',
-        'Loss notification, a deep soft downward whoosh into a dark low hum fading out',
-        'Somber low boom with a falling muted tone, quiet and sad',
-    ]),
-    # a serum's reversal, a negative test, a bite's delay over: the body, tension then relief
-    'pulse:enter': (4.0, 3.0, 0.5, [
-        'Medical relief sting, a tense low pulse that softens and resolves into a calm warm tone',
-        'Body status turning to relief, a soft low thump followed by a gentle calm swell',
-    ]),
-    # an infection confirmed: dread
-    'bleed:enter': (5.0, 4.0, 0.3, [
-        'Ominous dread sting, a deep dark low impact with an unsettling dissonant swell, horror',
-        'Grim confirmation, a heavy muffled low hit and a creeping dark drone that fades',
-    ]),
-    # a kit fitted, a search bonus, a kill count: small and frequent feedback
-    'brief:enter': (1.5, 0.6, 0.02, [
-        'Tiny subtle UI tick, a soft short click, very quiet',
-        'Minimal short soft notification blip, quick and unobtrusive',
-    ]),
+}
+
+# What the user asked of a pick, as its refinements: each (how, settings). "a2a": the model again from the pick, at a noise,
+# its prompt (and what is added to it); "move": the pick itself moved so that its loudest moment comes at `at`, lowered by
+# `db` and darkened by a low pass at `lp` Hz; "room": the pick with a reverb tail of rt60 seconds, kept `kept` long.
+REFINE = {
+    'stamp:land': [('a2a', dict(noise=n)) for n in (0.3, 0.45, 0.6)],
+    'discovery:enter': [('a2a', dict(noise=n)) for n in (0.3, 0.45, 0.6)],
+    'notice:enter': [('a2a', dict(noise=n)) for n in (0.3, 0.45, 0.6)],
+    'bleed:enter': [('a2a', dict(noise=n)) for n in (0.3, 0.45, 0.6)],
+    'pulse:enter': [('a2a', dict(noise=n)) for n in (0.3, 0.45, 0.6)],
+    'sink:enter': [('a2a', dict(noise=n)) for n in (0.3, 0.45, 0.6)],
+    # (a longer tail)
+    'unveil:enter': [('room', dict(rt60=3.0, kept=7.0)), ('room', dict(rt60=5.0, kept=8.5)),
+                     ('a2a', dict(noise=0.45, made=8.0, kept=7.5, add='with a long lingering tail slowly fading')),
+                     ('a2a', dict(noise=0.6, made=8.0, kept=7.5, add='with a long lingering tail slowly fading'))],
+    # (it came too early and too strong: later, quieter, darker)
+    'unveil:leave': [('move', dict(at=2.0, db=-5, lp=3000)), ('move', dict(at=2.8, db=-5, lp=3000)),
+                     ('move', dict(at=2.0, db=-9, lp=2000)), ('move', dict(at=2.8, db=-9, lp=2000)),
+                     ('a2a', dict(noise=0.5, at=2.4, peak=TAIL_DB, add='very soft, gentle and quiet'))],
 }
 
 
@@ -149,7 +152,7 @@ def place(x, at):
 
 def fade(x, fade_in, fade_out):
     y = x.copy()
-    a, b = int(fade_in * RATE), int(fade_out * RATE)
+    a, b = min(int(fade_in * RATE), len(y)), min(int(fade_out * RATE), len(y))
     if a:
         y[:a] *= np.linspace(0, 1, a, dtype=np.float32)
     if b:
@@ -162,18 +165,67 @@ def peak_to(x, db):
     return (x * (10 ** (db / 20) / p)).astype(np.float32)
 
 
-def shape(x, kept, at):
+def lowpass(x, hz):
+    """A gentle low pass (two one-pole stages, 12 dB an octave)."""
+    a = float(np.exp(-2 * np.pi * hz / RATE))
+    y = x.astype(np.float64)
+    for _ in range(2):
+        out = np.empty_like(y)
+        s = 0.0
+        for i, v in enumerate(y):
+            s = (1 - a) * v + a * s
+            out[i] = s
+        y = out
+    return y.astype(np.float32)
+
+
+def room(x, rt60, kept, wet=0.35, seed=7):
+    """x with a reverb tail of rt60 seconds (a dark decaying noise response), let ring to `kept` seconds."""
+    rng = np.random.default_rng(seed)
+    n = int(rt60 * RATE)
+    t = np.arange(n) / RATE
+    ir = rng.standard_normal(n).astype(np.float32) * np.exp(-6.9 * t / rt60).astype(np.float32)
+    ir = lowpass(ir, 2500)
+    ir /= np.sqrt(np.sum(ir ** 2)) or 1.0
+    total = int(kept * RATE)
+    dry = np.concatenate([x, np.zeros(max(0, total - len(x)), dtype=np.float32)])[:total]
+    size = 1 << int(np.ceil(np.log2(len(dry) + n)))
+    tail = np.fft.irfft(np.fft.rfft(dry, size) * np.fft.rfft(ir, size), size)[:total].astype(np.float32)
+    tail *= np.max(np.abs(dry)) / (np.max(np.abs(tail)) or 1.0)
+    return dry + wet * tail
+
+
+def shape(x, kept, at, peak=PEAK_DB):
     x = lead_trim(x)
     if at is not None:
         x = place(x, at)
     x = x[:int(kept * RATE)]
-    return peak_to(fade(x, 0.002, min(0.6, kept * 0.25)), PEAK_DB)
+    return peak_to(fade(x, 0.002, min(0.6, kept * 0.25)), peak)
 
 
 def write_manifest_js(manifest):
     """The lab's list of the candidates, as a script (the lab opened from a file cannot fetch a json)."""
     with open(os.path.join(OUT, 'manifest.js'), 'w', encoding='utf-8', newline='\n') as f:
         f.write('window.TITLE_SOUND_CANDIDATES = ' + json.dumps(manifest, indent=1) + ';\n')
+
+
+class Maker:
+    def __init__(self):
+        import torch
+        from stable_audio_3 import StableAudioModel
+        self.torch = torch
+        # (fp32: a GTX 1080 has no fast half precision)
+        self.model = StableAudioModel.from_pretrained('small-sfx', model_half=False)
+        self.sr = self.model.model.sample_rate
+
+    def make(self, prompt, seed, made, start=None, noise=1.0):
+        """The model's sound for prompt (from `start`, a sound at RATE, at that noise, when given) as mono at RATE."""
+        self.torch.manual_seed(seed)
+        kw = {}
+        if start is not None:
+            kw = dict(init_audio=(RATE, self.torch.from_numpy(np.ascontiguousarray(start))[None, :]), init_noise_level=noise)
+        audio = self.model.generate(prompt=prompt, negative_prompt=NEGATIVE, duration=made, seed=seed, **kw)
+        return decode_model_audio(audio, self.sr)
 
 
 def main(argv):
@@ -185,35 +237,73 @@ def main(argv):
         i = argv.index('--count')
         count = int(argv[i + 1])
         argv = argv[:i] + argv[i + 2:]
-    only = [a for a in argv if not a.startswith('-')] or list(CUES)
-    import torch
-    from stable_audio_3 import StableAudioModel
-    # (fp32: a GTX 1080 has no fast half precision)
-    model = StableAudioModel.from_pretrained('small-sfx', model_half=False)
-    sr = model.model.sample_rate
+    picks = json.load(open(PICKS, encoding='utf-8')) if os.path.exists(PICKS) else {}
+    only = [a for a in argv if not a.startswith('-')] or list(CUES) + [k for k in REFINE if k in picks]
+    maker = Maker()
     os.makedirs(OUT, exist_ok=True)
     manifest_path, prompts_path = os.path.join(OUT, 'manifest.json'), os.path.join(OUT, 'prompts.json')
     manifest = json.load(open(manifest_path, encoding='utf-8')) if os.path.exists(manifest_path) else {}
-    # (only the cues there are now)
-    manifest = {k: v for k, v in manifest.items() if k in CUES}
     told = json.load(open(prompts_path, encoding='utf-8')) if os.path.exists(prompts_path) else {}
-    for key in only:
-        made, kept, at, prompts = CUES[key]
-        files = []
-        for i in range(count):
-            prompt, seed = prompts[i % len(prompts)] + ', ' + FAMILY, 1000 + i
-            torch.manual_seed(seed)
-            audio = model.generate(prompt=prompt, negative_prompt=NEGATIVE, duration=made, seed=seed)
-            y = shape(decode_model_audio(audio, sr), kept, at)
-            name = '%s_%02d.ogg' % (key.replace(':', '_'), i + 1)
-            build.encode(y, os.path.join(OUT, name))
-            files.append(name)
-            told[name] = {'prompt': prompt, 'seed': seed, 'made': made, 'kept': kept, 'at': at}
-            print(key, name, '%.2fs' % (len(y) / RATE), flush=True)
+
+    def save(key, files):
         manifest[key] = files
         json.dump(manifest, open(manifest_path, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
         json.dump(told, open(prompts_path, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
         write_manifest_js(manifest)
+
+    def write(name, y, how):
+        build.encode(y, os.path.join(OUT, name))
+        told[name] = how
+        print(name, '%.2fs' % (len(y) / RATE), flush=True)
+
+    for key in only:
+        if key in picks and key in REFINE:
+            pick = picks[key]
+            base = build.decode(os.path.join(OUT, pick['file']))
+            files = [pick['file']]
+            stem = pick['file'][:-4]
+            for n, (how, s) in enumerate(REFINE[key], 1):
+                name = '%s_r%d.ogg' % (stem, n)
+                at = s.get('at', pick['at'])
+                if how == 'a2a':
+                    prompt = pick['prompt'] + (', ' + s['add'] if s.get('add') else '')
+                    made = s.get('made', pick['made'])
+                    x = maker.make(prompt, pick['seed'] + 100 * n, made, start=base, noise=s['noise'])
+                    y = shape(x, s.get('kept', pick['kept']), at, s.get('peak', PEAK_DB))
+                    write(name, y, dict(from_pick=pick['file'], prompt=prompt, seed=pick['seed'] + 100 * n, noise=s['noise'],
+                                        made=made, kept=s.get('kept', pick['kept']), at=at))
+                elif how == 'move':
+                    y = place(lead_trim(base), s['at'])[:int(pick['kept'] * RATE) + int(s['at'] * RATE)]
+                    y = peak_to(fade(lowpass(y, s['lp']), 0.002, 0.6), PEAK_DB + s['db'])
+                    write(name, y, dict(from_pick=pick['file'], at=s['at'], db=s['db'], lp=s['lp']))
+                elif how == 'room':
+                    y = peak_to(fade(room(base, s['rt60'], s['kept']), 0.0, 1.0), PEAK_DB)
+                    write(name, y, dict(from_pick=pick['file'], rt60=s['rt60'], kept=s['kept']))
+                files.append(name)
+            save(key, files)
+            continue
+        c = CUES[key]
+        parents = None
+        if c.get('parent'):
+            parent = c['parent']
+            parents = [picks[parent]['file']] * count if parent in picks else manifest.get(parent, [])
+            if not parents:
+                print('no candidates of', parent, 'to make', key, 'from; skipped')
+                continue
+        files = []
+        for i in range(count):
+            prompt, seed = c['prompts'][i % len(c['prompts'])] + ', ' + FAMILY, 1000 + i
+            start, noise, src = None, 1.0, None
+            if parents:
+                src = parents[i % len(parents)]
+                start, noise = build.decode(os.path.join(OUT, src)), c['noise']
+            x = maker.make(prompt, seed, c['made'], start=start, noise=noise)
+            y = shape(x, c['kept'], c['at'], c.get('peak', PEAK_DB))
+            name = '%s_%02d.ogg' % (key.replace(':', '_'), i + 1)
+            write(name, y, dict(prompt=prompt, seed=seed, made=c['made'], kept=c['kept'], at=c['at'], from_sound=src,
+                                noise=noise if src else None))
+            files.append(name)
+        save(key, files)
 
 
 if __name__ == '__main__':

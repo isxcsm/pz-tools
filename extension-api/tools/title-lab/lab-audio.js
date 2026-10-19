@@ -33,13 +33,13 @@
     sink: [["enter", "등장", "enter"]],
     pulse: [["enter", "등장", "enter"]],
     bleed: [["enter", "등장", "enter"]],
-    brief: [["enter", "등장", "enter"]],
-    type: [["enter", "등장", "enter"], ["enter_line", "줄 등장", "enter", true], ["leave", "퇴장", "leave"]],
+    brief: [["enter", "등장", "enter"], ["leave", "퇴장 (여운)", "leave"]],
+    type: [["enter", "등장", "enter"], ["leave", "퇴장 (여운)", "leave"]],
   };
   // What the game has now, to compare with: a cue's single option (or an extra one beside a, b, c).
   const NOW = {
     "stamp:land": "KIT_TitleStamp_1.ogg",
-    "type:enter": "KIT_TitleType_1.ogg", "type:enter_line": "KIT_TitleTypeLine_1.ogg", "type:leave": "KIT_TitleFeed_1.ogg",
+    "type:enter": "KIT_TitleType_1.ogg", "type:leave": "KIT_TitleFeed_1.ogg",
   };
   // The candidates of each cue ({ "style:cue": [files in gen/] }, gen/manifest.js); type has only what it has now.
   let MADE = {};
@@ -309,7 +309,12 @@
       for (const cue of CUES[style]) {
         const id = style + ":" + cue[0];
         const opts = [["none", "없음"]];
-        candidatesOf(style, cue).forEach((f, i) => opts.push([f, String(i + 1)]));
+        // (a pick and its refinements (<pick>_r<n>) read as such; fresh candidates by number)
+        const list = candidatesOf(style, cue), refined = list.some(f => /_r\d+\.ogg$/.test(f));
+        list.forEach((f, i) => {
+          const r = f.match(/_r(\d+)\.ogg$/);
+          opts.push([f, r ? "다듬음 " + r[1] : refined ? "선택" : String(i + 1)]);
+        });
         if (NOW[id]) opts.push(["now", hasCandidates(style, cue) ? "지금 게임" : "지금"]);
         const row = document.createElement("div");
         row.className = "cue";

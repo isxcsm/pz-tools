@@ -1,0 +1,66 @@
+{
+ "stamp:land": {
+  "file": "stamp_land_06.ogg",
+  "prompt": "Seal of approval sound, a heavy confident thump followed by a warm resonant tone, restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail",
+  "seed": 1005,
+  "made": 4.0,
+  "kept": 2.5,
+  "at": 0.0
+ },
+ "discovery:enter": {
+  "file": "discovery_enter_06.ogg",
+  "prompt": "Reveal sound, a low airy build releasing into a warm glowing tone, restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail",
+  "seed": 1005,
+  "made": 4.0,
+  "kept": 3.0,
+  "at": 1.9
+ },
+ "notice:enter": {
+  "file": "notice_enter_07.ogg",
+  "prompt": "Short subtle incoming transmission alert, soft two-tone electronic blip, military radio interface, restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail",
+  "seed": 1006,
+  "made": 2.0,
+  "kept": 1.2,
+  "at": 0.05
+ },
+ "unveil:enter": {
+  "file": "unveil_enter_07.ogg",
+  "prompt": "Opening swell, a slow deep airy rise like a wide space opening up, warm low drone resolving, restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail",
+  "seed": 1006,
+  "made": 5.0,
+  "kept": 4.5,
+  "at": 3.0
+ },
+ "unveil:leave": {
+  "file": "unveil_leave_06.ogg",
+  "prompt": "Gentle airy whoosh drawing away into silence, very soft, restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail",
+  "seed": 1005,
+  "made": 4.0,
+  "kept": 3.0,
+  "at": null
+ },
+ "bleed:enter": {
+  "file": "bleed_enter_04.ogg",
+  "prompt": "Grim confirmation, a heavy muffled low hit and a creeping dark drone that fades, restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail",
+  "seed": 1003,
+  "made": 5.0,
+  "kept": 4.0,
+  "at": 0.3
+ },
+ "pulse:enter": {
+  "file": "pulse_enter_04.ogg",
+  "prompt": "Body status turning to relief, a soft low thump followed by a gentle calm swell, restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail",
+  "seed": 1003,
+  "made": 4.0,
+  "kept": 3.0,
+  "at": 0.5
+ },
+ "sink:enter": {
+  "file": "sink_enter_01.ogg",
+  "prompt": "Mission failed sting, a low somber descending tone with a muffled dull impact, restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail",
+  "seed": 1000,
+  "made": 4.0,
+  "kept": 3.5,
+  "at": 0.25
+ }
+}
