@@ -3,8 +3,8 @@
 ai_titles.py makes candidates into a gen folder (outside git); the user hears them in the title lab and picks, and the lab's
 picks are title_picks.json: { "style:moment": { "file": "<name>.ogg", ... } }. For each pick this
 
-    takes the file from the gen folder (--gen, else tools/sound/gen), brings its peak to the level of its style's role
-    (LEVELS below; a leave is a quiet tail) the way build.py brings a clip to its sound's peak, fades its ends 5 ms (the
+    takes the file from the gen folder (--gen, else tools/sound/gen), brings it to the loudness of its style's role
+    (LOUD below; a leave is a quiet tail), fades its ends 5 ms (the
     candidate is already cut and shaped by ai_titles.py: not trimmed again, so a swell's lead-in and its peak keep the
     time the title lab showed), and writes it as Ogg Vorbis (build.encode) to the kit's
     media/sound/KIT_T_<Style>_<Moment>.ogg (KIT_T_Stamp_Land);
@@ -47,31 +47,26 @@ MOMENTS = ['enter', 'land', 'hold', 'leave']
 # A title's line sounds only where its style's line is struck as a thing of its own (the seal's tag): line.<moment>.
 MOMENTS += ['line.' + m for m in MOMENTS]
 
-# Each style's peak (dBFS) for its enter, land and hold sounds, by its role. The reference is the game's own UI click
-# (S6, recorded from the game): peak -9 to -11 dB, its loudest 20 ms -28 dB. A title sound is 1 to 4.5 s of sound and not
-# one click: at a peak the click's, a title sounded 7 to 11 dB louder than the click in the game (its loudest 20 ms; the
-# recording of 2026-10-19, tests/ingame/sound_listen.lua part b, each title alone). So the peaks sit under the click's, set
-# from that recording so that each title's loudest 20 ms lands where its role puts it against the click's -28 (calls
-# counted in S7):
-LEVELS = {
-    'stamp': -13.0,     # a grade, a box sealed: a milestone met a few times a game; the one that should be felt (-23)
-    'seal': -12.0,      # (by loudness: LOUD below)
-    'bleed': -12.0,     # a positive infection, once: dread is the heaviest moment the mods have (-23)
-    'unveil': -12.0,    # a new phase (3 calls), a slow wide swell: rare and large (-24)
-    'sink': -13.0,      # a loss (5): felt, but a failure should not shout (-25)
-    'discovery': -13.0, # a find (8): an event, a little under the milestones (-25)
-    'pulse': -17.0,     # relief (5): the click's own level; relief is gentle (-28)
-    'dust': -16.0,      # progress and unlocks (10): frequent, a little under the click (-30)
-    'notice': -18.0,    # work information (9, many in a row at a dispatch): a signal, not an event (-31)
-    'brief': -23.0,     # tiny feedback (3, one per kit fitted or kill logged): well under the click, a tick (-34)
-    'type': -10.0,      # a document issued: its keys are the keyboard's, at the click's level; this is for a pick of it
+# Each style's loudness (LUFS: its loudest 400 ms, build.loudness) for its enter, land and hold sounds, by its role. Not
+# the peak: these are a hit over a swell, or a swell, 1 to 9 s long, and at a peak level they read quiet (2026-10-20: set
+# by their peaks from the recording of 2026-10-19 they were -24 to -38 LUFS, the notice and the brief under the click,
+# and the user, after the terminal's boot was made heard, heard the titles' sounds "거의 안들리긴하네"). The ladder, by
+# how big and how rare the moment is, against the game's click (about -31 here) and the terminal's boot (its switch -22,
+# its welcome -19, a line -28: install_terminal_picks.py); calls counted in S7:
+LOUD = {
+    'seal': -17.0,      # the operation named, 100 acorns: once a game each, the biggest moment the mods have
+    'bleed': -19.0,     # a positive infection, once: dread, the heaviest moment after it
+    'unveil': -20.0,    # a new phase (3 calls), a slow wide swell: rare and large
+    'stamp': -20.0,     # a grade, a box sealed: a milestone met a few times a game
+    'sink': -21.0,      # a loss (5): felt, but a failure should not shout
+    'discovery': -21.0, # a find (8): an event, a little under the milestones
+    'pulse': -23.0,     # relief (5): gentle
+    'dust': -23.0,      # progress and unlocks (10): frequent
+    'notice': -25.0,    # work information (9, many in a row at a dispatch): a signal, not an event
+    'brief': -27.0,     # tiny feedback (one per kit fitted or kill logged): a tick, a terminal line's level
+    'type': -22.0,      # a document issued: its keys are the keyboard's; this is for a pick of it
 }
-# The styles levelled by loudness (LUFS: their loudest 400 ms, build.loudness) instead of their peak: a style whose sound
-# is a sharp hit over a long swell reads quiet at a peak level. The seal (the operation named, 100 acorns: once a game
-# each, the biggest moment the mods have) at its peak's -12 was -25 LUFS, under the terminal's boot (its switch -22, its
-# welcome -19), and the user heard it small (2026-10-20): its land now over the boot's loudest, its line's (the tag's
-# thump) LINE_LOUD_DB under it, as the two picks stood in the lab.
-LOUD = {'seal': -17.0}
+# A title's line's own sound (the seal's tag's thump) this much under its title's, as the two picks stood in the lab.
 LINE_LOUD_DB = -3.0
 # A leave is a tail, not an event: this much under its style's level.
 LEAVE_DB = -8.0
@@ -88,15 +83,11 @@ def sound_name(style, moment):
 
 
 def level_of(style, moment):
-    if style in LOUD:
-        return LOUD[style] + (LINE_LOUD_DB if moment.startswith('line.') else 0.0) + (LEAVE_DB if moment.endswith('leave') else 0.0)
-    return LEVELS[style] + (LEAVE_DB if moment.endswith('leave') else 0.0)
+    return LOUD[style] + (LINE_LOUD_DB if moment.startswith('line.') else 0.0) + (LEAVE_DB if moment.endswith('leave') else 0.0)
 
 
 def leveled_as(data, style, level):
-    """The candidate at its level: a LOUD style's by its loudness (the peak kept under -1 dBFS), else by its peak."""
-    if style not in LOUD:
-        return leveled(data, level)
+    """The candidate at its loudness `level`, its ends faded 5 ms (leveled at -3 dBFS first), the peak kept under -1 dBFS."""
     data = leveled(data, -3.0)
     gain = min(10 ** ((level - build.loudness(data)) / 20), 10 ** (-1.0 / 20) / float(np.max(np.abs(data))))
     return np.clip(data * gain, -1, 1)
@@ -205,7 +196,7 @@ def main(args):
     for key in sorted(picks, key=lambda k: (STYLES.index(k.split(':')[0]) if k.split(':')[0] in STYLES else 99, k)):
         style, _, moment = key.partition(':')
         pick = picks[key]
-        if style not in STYLES or moment not in MOMENTS:
+        if style not in STYLES or style not in LOUD or moment not in MOMENTS:
             problems.append('%s: not a style:moment (styles %s; moments %s): skipped' % (key, ', '.join(STYLES), ', '.join(MOMENTS)))
             continue
         name = sound_name(style, moment)
@@ -214,8 +205,10 @@ def main(args):
         if not os.path.exists(source):
             if name in present and name in before:
                 old = before[name]
-                problems.append('%s: %s is not in %s: kept as installed (%s)' % (key, pick['file'], opts.gen, old[0]))
-                entries.append((name, moment, old[0], old[1], old[2], style))
+                # (its source gone from the gen folder: a new level is put on the installed sound itself)
+                if old[2] != level:
+                    problems.append('%s: %s is not in %s: the installed sound levelled again' % (key, pick['file'], opts.gen))
+                entries.append((name, moment, old[0], old[1], level, style))
             else:
                 problems.append('%s: %s is not in %s: skipped' % (key, pick['file'], opts.gen))
             continue
@@ -236,8 +229,9 @@ def main(args):
         if opts.dry:
             continue
         source = os.path.join(opts.gen, file)
-        if not os.path.exists(source):   # kept as installed, but its hash is not the file's: nothing to redo
-            continue
+        if not os.path.exists(source):
+            # its source gone: the installed sound (decoded whole before it is written over) at the new level
+            source = out
         build.encode(leveled_as(build.decode(source), style, level), out)
 
     if opts.dry:

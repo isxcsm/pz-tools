@@ -123,7 +123,7 @@ module Base
 
     /* title picks begin: written by tools/sound/install_title_picks.py from title_picks.json, not by build.py */
 
-    /* KIT_T_Stamp_Land: stamp_land_06_r2.ogg a7334a9a -13 dB */
+    /* KIT_T_Stamp_Land: stamp_land_06_r2.ogg a7334a9a -20 dB */
     sound KIT_T_Stamp_Land
     {
         category = UI,
@@ -153,7 +153,7 @@ module Base
         }
     }
 
-    /* KIT_T_Dust_Enter: dust_enter_03.ogg 1fcd87d0 -16 dB */
+    /* KIT_T_Dust_Enter: dust_enter_03.ogg 1fcd87d0 -23 dB */
     sound KIT_T_Dust_Enter
     {
         category = UI,
@@ -163,7 +163,7 @@ module Base
         }
     }
 
-    /* KIT_T_Dust_Leave: dust_leave_01.ogg 94c75eb1 -24 dB */
+    /* KIT_T_Dust_Leave: dust_leave_01.ogg 94c75eb1 -31 dB */
     sound KIT_T_Dust_Leave
     {
         category = UI,
@@ -173,7 +173,7 @@ module Base
         }
     }
 
-    /* KIT_T_Notice_Enter: notice_enter_07_r2.ogg 7a288f87 -18 dB */
+    /* KIT_T_Notice_Enter: notice_enter_07_r2.ogg 7a288f87 -25 dB */
     sound KIT_T_Notice_Enter
     {
         category = UI,
@@ -183,7 +183,7 @@ module Base
         }
     }
 
-    /* KIT_T_Notice_Leave: notice_leave_01.ogg f62198c6 -26 dB */
+    /* KIT_T_Notice_Leave: notice_leave_01.ogg f62198c6 -33 dB */
     sound KIT_T_Notice_Leave
     {
         category = UI,
@@ -193,7 +193,7 @@ module Base
         }
     }
 
-    /* KIT_T_Discovery_Enter: discovery_enter_06_r1.ogg efcc0521 -13 dB */
+    /* KIT_T_Discovery_Enter: discovery_enter_06_r1.ogg efcc0521 -21 dB */
     sound KIT_T_Discovery_Enter
     {
         category = UI,
@@ -203,7 +203,7 @@ module Base
         }
     }
 
-    /* KIT_T_Discovery_Leave: discovery_leave_02.ogg 7f28e7dc -21 dB */
+    /* KIT_T_Discovery_Leave: discovery_leave_02.ogg 7f28e7dc -29 dB */
     sound KIT_T_Discovery_Leave
     {
         category = UI,
@@ -213,7 +213,7 @@ module Base
         }
     }
 
-    /* KIT_T_Unveil_Enter: unveil_enter_07_r2.ogg e6230690 -12 dB */
+    /* KIT_T_Unveil_Enter: unveil_enter_07_r2.ogg e6230690 -20 dB */
     sound KIT_T_Unveil_Enter
     {
         category = UI,
@@ -223,7 +223,7 @@ module Base
         }
     }
 
-    /* KIT_T_Unveil_Leave: unveil_leave_06_r4.ogg 07a1683e -20 dB */
+    /* KIT_T_Unveil_Leave: unveil_leave_06_r4.ogg 07a1683e -28 dB */
     sound KIT_T_Unveil_Leave
     {
         category = UI,
@@ -233,7 +233,7 @@ module Base
         }
     }
 
-    /* KIT_T_Sink_Enter: sink_enter_01_r2.ogg 8a004695 -13 dB */
+    /* KIT_T_Sink_Enter: sink_enter_01_r2.ogg 8a004695 -21 dB */
     sound KIT_T_Sink_Enter
     {
         category = UI,
@@ -243,7 +243,7 @@ module Base
         }
     }
 
-    /* KIT_T_Pulse_Enter: pulse_enter_04_r3.ogg aa0b3ae4 -17 dB */
+    /* KIT_T_Pulse_Enter: pulse_enter_04_r3.ogg aa0b3ae4 -23 dB */
     sound KIT_T_Pulse_Enter
     {
         category = UI,
@@ -253,7 +253,7 @@ module Base
         }
     }
 
-    /* KIT_T_Bleed_Enter: bleed_enter_04_r2.ogg 060fe504 -12 dB */
+    /* KIT_T_Bleed_Enter: bleed_enter_04_r2.ogg 060fe504 -19 dB */
     sound KIT_T_Bleed_Enter
     {
         category = UI,
@@ -263,7 +263,7 @@ module Base
         }
     }
 
-    /* KIT_T_Brief_Enter: brief_enter_03.ogg 1892068e -23 dB */
+    /* KIT_T_Brief_Enter: brief_enter_03.ogg 1892068e -27 dB */
     sound KIT_T_Brief_Enter
     {
         category = UI,
@@ -273,7 +273,7 @@ module Base
         }
     }
 
-    /* KIT_T_Brief_Leave: brief_leave_01.ogg 23fdd3f4 -31 dB */
+    /* KIT_T_Brief_Leave: brief_leave_01.ogg 23fdd3f4 -35 dB */
     sound KIT_T_Brief_Leave
     {
         category = UI,
