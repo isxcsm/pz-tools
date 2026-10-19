@@ -20,6 +20,9 @@
  "crude:spell": {
   "file": "crude_spell.ogg"
  },
+ "crude:work": {
+  "file": "crude_work.ogg"
+ },
  "field:hum": {
   "file": "field_hum.ogg"
  },
@@ -34,5 +37,8 @@
  },
  "field:ready": {
   "file": "field_ready.ogg"
+ },
+ "field:work": {
+  "file": "field_work.ogg"
  }
 }

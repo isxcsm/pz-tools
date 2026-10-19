@@ -2,8 +2,9 @@
 -- one part at a time by LISTEN_PART: "a" the game's reference sounds, then the timed actions' sounds from the character
 -- (each 3 s, then stopped as an action stops them), a thing put down and taken up, the kit's keys typed at the comms'
 -- pace and the printer's rows; "b" the titles that sound, queued; "c" a call (p5_comms.lua, LISTEN_CALL, else S0);
--- "d" the folder's first printed document and first typed note shown as new. The ambience is turned down while it
--- runs (the option is not touched). Prints [listen] lines with each sound's time from the part's start (ms).
+-- "d" the folder's first printed document and first typed note shown as new; "e" the terminal's boot, field then crude.
+-- The ambience is turned down while it runs (the option is not touched). Prints [listen] lines with each sound's time
+-- from the part's start (ms).
 local OA = OperationAcorn
 local Sound = PZUIKit.Sound
 local part = LISTEN_PART or "a"
@@ -133,6 +134,39 @@ elseif part == "d" then
         OA.Trade.Objects.powered = LISTEN_FOLDER.powered
         at("end")
     end)
+elseif part == "e" then
+    -- the terminal's boot, the field terminal's (its first open: the long one) and then the crude one's, each to its
+    -- end and closed, after the game's two clicks for a reference
+    add(500, function() at("ui", "UIActivateButton") sm:playUISound("UIActivateButton") end)
+    add(1500, function() at("ui", "UISelectListItem") sm:playUISound("UISelectListItem") end)
+    local Objects = OA.Trade.Objects
+    local square, window
+    local isUpgraded, powered = Objects.isUpgraded, Objects.powered
+    local function open(tier)
+        local px, py, pz = math.floor(player:getX()), math.floor(player:getY()), math.floor(player:getZ())
+        for dy = -3, 3 do
+            for dx = -3, 3 do
+                local s = getCell():getGridSquare(px + dx, py + dy, pz)
+                if not square and s and Objects.find(s, Objects.TERMINAL) then square = s end
+            end
+        end
+        if not square then at("no terminal within reach: run part c first") return end
+        Objects.isUpgraded = function() return tier == "field" end
+        Objects.powered = function() return true end
+        window = OA.Terminal.open(player, square:getX(), square:getY(), square:getZ())
+        at("open", tier, window and window.tier)
+    end
+    local function close(tier)
+        if window then window:close() end
+        window = nil
+        Objects.isUpgraded, Objects.powered = isUpgraded, powered
+        at("closed", tier)
+    end
+    add(1500, function() open("field") end)
+    add(20000, function() close("field") end)
+    add(1500, function() open("crude") end)
+    add(24000, function() close("crude") end)
+    add(1000, function() at("end") end)
 end
 add(0, restore)
 t.run(steps)

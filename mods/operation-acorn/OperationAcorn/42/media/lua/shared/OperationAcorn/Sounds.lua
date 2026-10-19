@@ -37,12 +37,14 @@ Sounds.CUES = {
     ["oa.term.field.line"] = { sound = "OA_Term_Field_Line" },
     ["oa.term.field.ready"] = { sound = "OA_Term_Field_Ready" },
     ["oa.term.field.off"] = { sound = "OA_Term_Field_Off" },
+    ["oa.term.field.work"] = { sound = "OA_Term_Field_Work" },
     ["oa.term.crude.power"] = { sound = "OA_Term_Crude_Power" },
     ["oa.term.crude.hum"] = { sound = "OA_Term_Crude_Hum" },
     ["oa.term.crude.jolt"] = { sound = "OA_Term_Crude_Jolt" },
     ["oa.term.crude.line"] = { sound = "OA_Term_Crude_Line" },
     ["oa.term.crude.ready"] = { sound = "OA_Term_Crude_Ready" },
     ["oa.term.crude.off"] = { sound = "OA_Term_Crude_Off" },
+    ["oa.term.crude.work"] = { sound = "OA_Term_Crude_Work" },
     ["oa.term.crude.spell"] = { sound = "OA_Term_Crude_Spell" },
     -- terminal picks end
     -- the phone the hallucination rings

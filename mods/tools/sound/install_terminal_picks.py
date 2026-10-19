@@ -37,10 +37,14 @@ DEFAULT_GEN = os.path.join(HERE, 'gen', 'term')
 # it, a line's tick well under; the beds are a quiet floor (their volume follows the picture as well: the console's is
 # 1 / 2.2 of the opening's); a weak signal spell comes every 14 s while the window is open, under the beats. The lab
 # (lab/terminal.html) plays them at these levels, measured the same way.
+# 2026-10-20: the user could barely hear the boot ("들리는지도 모를 정도"): every beat raised 8 to 11 dB, the switch and the
+# welcome now at the click's level in the game, a line's result and its work (the drive busy while the cursor blinks)
+# just under; the beds 6 to 7 dB up. The weak signal spell was right: kept.
 LEVELS = {
-    'field:power': -26.0, 'field:hum': -40.0, 'field:line': -36.0, 'field:ready': -29.0, 'field:off': -31.0,
-    'crude:power': -25.0, 'crude:hum': -38.0, 'crude:jolt': -30.0, 'crude:line': -36.0, 'crude:ready': -29.0,
-    'crude:off': -30.0, 'crude:spell': -34.0,
+    'field:power': -16.0, 'field:hum': -33.0, 'field:line': -26.0, 'field:ready': -18.0, 'field:off': -21.0,
+    'field:work': -25.0,
+    'crude:power': -15.0, 'crude:hum': -32.0, 'crude:jolt': -21.0, 'crude:line': -26.0, 'crude:ready': -18.0,
+    'crude:off': -20.0, 'crude:work': -25.0, 'crude:spell': -34.0,
 }
 LOOPS = {'field:hum', 'crude:hum', 'crude:spell'}
 # Whatever the level, the peak is kept under this.
@@ -74,6 +78,9 @@ def leveled(data, key):
 BEGIN_CUES = '    -- terminal picks begin'
 END_CUES = '    -- terminal picks end'
 NAME = re.compile(r'^OA_Term_[A-Z][a-z]+_[A-Z][a-z]+$')
+# A sound's line in the script block (the titles' FINGERPRINT, for the terminal's names: with the titles' one no sound was
+# known as installed, and every run wrote every sound again).
+FINGERPRINT = re.compile(r'/\* (OA_Term_[A-Za-z_]+): (\S+) ([0-9a-f]{8}) (-?[0-9.]+) dB \*/')
 
 
 def sound_name(key):
@@ -86,7 +93,7 @@ def installed_block(text):
     end = text.find(build.TERMINAL_END)
     if start < 0 or end < start:
         return {}
-    return {m[0]: (m[1], m[2], float(m[3])) for m in titles.FINGERPRINT.findall(text[start:end])}
+    return {m[0]: (m[1], m[2], float(m[3])) for m in FINGERPRINT.findall(text[start:end])}
 
 
 def script_block(entries):

@@ -1,7 +1,7 @@
 -- The terminal window's sounds (SOUND-SYSTEM.md S8), each terminal its own (cues oa.term.<tier>.<name>: the field
 -- terminal a solid issued set, the crude one salvaged parts on a weak signal). Only the picture's big beats sound
--- (Trade/BootSeq): the switch as the screen comes on, each check line's result, the welcome, the switch-off (also when the
--- window goes); the crude console's jolts. A bed loops under the boot, its volume following the static's loudness (loud
+-- (Trade/BootSeq): the switch as the screen comes on, each check line's work while its cursor blinks (the drive busy)
+-- and its result, the welcome, the switch-off (also when the window goes); the crude console's jolts. A bed loops under the boot, its volume following the static's loudness (loud
 -- as the screen opens, its own level through the console, falling with the switch-off), and the crude terminal's weak
 -- signal spells (Seq.weakSignal) loop their noise at the spell's fade. The loops are silent while the game is paused
 -- (SOUND-SYSTEM.md 4: a loop stops with the pause; the picture goes on). A cue with no sound is silent.
@@ -67,6 +67,7 @@ function TS.bootFrame(window, run, phase, t, e)
     local jump = from >= 0 and e - from > TS.JUMP_MS
     if not jump and from < run.consoleEnd then
         for i, line in ipairs(run.lines) do
+            if line.status and run.at[i] > from and run.at[i] <= e then Sound.ui(cue(window, "work")) end
             if line.status and run.statusAt[i] > from and run.statusAt[i] <= e then Sound.ui(cue(window, "line")) end
             if line.bright and run.at[i] > from and run.at[i] <= e then Sound.ui(cue(window, "ready")) end
         end
