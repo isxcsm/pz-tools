@@ -45,6 +45,7 @@ final class DenseZombiesTest {
             var zombies = (KahluaTable)api.rawget("zombies");
             check(zombies.rawget("dense") != null && zombies.rawget("near") != null, "zombies.dense is missing or took zombies.near away");
             groups(zombies);
+            wide(zombies);
             mistakes(zombies);
             disk(zombies, work);
             cost(zombies, work);
@@ -57,6 +58,23 @@ final class DenseZombiesTest {
             GameApi.frame(GAME);
             try (Stream<Path> walk = Files.walk(work)) { walk.sorted(Comparator.reverseOrder()).forEach(path -> path.toFile().delete()); }
         }
+    }
+
+    /**
+     * B42's grid: the cells a map may use run from -250 to 250 on a side (501 by 501, too many chunks for one raster), whatever the map
+     * has. Only the cells with a map's data are read: one cell here, at (10, 12), two dense chunks side by side in it.
+     */
+    private static void wide(KahluaTable zombies) {
+        var cells = new IsoMetaCell[501][501];
+        cells[260][262] = new IsoMetaCell(10, 12);
+        var grid = new IsoMetaGrid();
+        grid.setCells(-250, -250, cells);
+        IsoWorld.instance.metaGrid = grid;
+        set(grid, 260 - 280, 262 - 275, 3, 4, 200);
+        set(grid, 260 - 280, 262 - 275, 4, 4, 180);
+        List<Object> found = dense(zombies, "min", 100);
+        check(found.size() == 1 && number(found.get(0), "chunks") == 2 && number(found.get(0), "peak") == 200,
+            "A map on B42's wide grid is not read by its cells: " + found);
     }
 
     // ---- helpers ----

@@ -128,9 +128,23 @@ final class DenseZombies {
     // ---- reading: the disk, or the grid ----
 
     private Group[] read(Object meta, Wanted wanted) throws Throwable {
-        int firstX = (int)minX.invokeExact(meta), firstY = (int)minY.invokeExact(meta);
-        int cellsX = (int)gridX.invokeExact(meta), cellsY = (int)gridY.invokeExact(meta);
-        if (cellsX <= 0 || cellsY <= 0) return new Group[0];
+        int gridFirstX = (int)minX.invokeExact(meta), gridFirstY = (int)minY.invokeExact(meta);
+        int gridCellsX = (int)gridX.invokeExact(meta), gridCellsY = (int)gridY.invokeExact(meta);
+        // The grid is the cells a map may use (B42's runs -250 to 250 on a side, 501 by 501, whatever the map); the raster is only
+        // as large as the cells that have a map's data (a header).
+        int lowX = Integer.MAX_VALUE, lowY = Integer.MAX_VALUE, highX = Integer.MIN_VALUE, highY = Integer.MIN_VALUE;
+        for (int y = 0; y < gridCellsY; y++) {
+            for (int x = 0; x < gridCellsX; x++) {
+                Object cell = (Object)cellAt.invokeExact(meta, gridFirstX + x, gridFirstY + y);
+                if (cell == null || (Object)info.invokeExact(cell) == null) continue;
+                lowX = Math.min(lowX, x);
+                lowY = Math.min(lowY, y);
+                highX = Math.max(highX, x);
+                highY = Math.max(highY, y);
+            }
+        }
+        if (lowX > highX) return new Group[0];
+        int firstX = gridFirstX + lowX, firstY = gridFirstY + lowY, cellsX = highX - lowX + 1, cellsY = highY - lowY + 1;
         if ((long)cellsX * cellsY * CELL * CELL > MAX_RASTER)
             throw new IllegalArgumentException(AREA + ": the map is " + cellsX + " by " + cellsY + " cells; too large to read");
         String question = null, stamp = null;

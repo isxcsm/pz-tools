@@ -1,5 +1,5 @@
--- P10 dense: the dense places (Story/Dense, NUMBERS 7 'Dense places'), for tuning DENSE_MIN (Dense.MIN 160) and
--- DENSE_CHUNKS (Dense.CHUNKS 6) and for the clearing end to end.
+-- P10 dense: the dense places (Story/Dense, NUMBERS 7 'Dense places'), for tuning DENSE_MIN (Dense.MIN 7: B42 maps run 0 to 10) and
+-- DENSE_CHUNKS (Dense.CHUNKS 20) and for the clearing end to end.
 --   1. the world's list made once: the count, the first places' x, y, r, chunks and kind, the same table asked again,
 --      the kinds rotating damage / crit / repair in the density order;
 --   2. the tuning data: how many places the map gives (the vanilla map unless a map mod is on) and each place's peak and
@@ -59,7 +59,7 @@ P10T.start("p10dense", function(a)
         end
         if #found > 0 then a.say("highest peak", peak, "mean of the means", string.format("%.1f", mean / #found)) end
     end
-    local mins, chunks = { 100, 120, 140, 160, 180, 200, 220, 240 }, { 3, 4, 6, 8, 12, 20 }
+    local mins, chunks = { 5, 6, 7, 8, 9, 10 }, { 3, 6, 10, 20, 30 }
     for _, c in ipairs(chunks) do
         local row = {}
         for _, m in ipairs(mins) do

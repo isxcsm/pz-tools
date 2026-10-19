@@ -18,11 +18,12 @@ local OA = OperationAcorn
 local Dense = {}
 OA.Dense = Dense
 
--- The data. A place is a group of at least CHUNKS map chunks of a zombie intensity of at least MIN (0 to 255, as the map
--- has it). Both need tuning in the game: how many places a map gives, and whether they are dense enough to be worth the
--- trip. The list is made once a world, so a change is for new worlds.
-Dense.MIN = 160
-Dense.CHUNKS = 6
+-- The data. A place is a group of at least CHUNKS map chunks of a zombie intensity of at least MIN (as the map has it: B42's
+-- vanilla map runs 0 to 10). Tuned in the game on the vanilla map (2026-10-19): 7 and 20 give 24 places spread over the towns
+-- (Louisville's many, West Point, Rosewood and March Ridge, Brandenburg, Irvington, Ekron); 8 gave 14, nearly all in
+-- Louisville; 7 with 6 chunks gave 49, too many circles. The list is made once a world, so a change is for new worlds.
+Dense.MIN = 7
+Dense.CHUNKS = 20
 -- The kinds of reward, in the order the places take them.
 Dense.KINDS = { "damage", "crit", "repair" }
 -- Trust level from which the places are shown and cleared.
