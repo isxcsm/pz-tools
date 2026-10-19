@@ -220,9 +220,10 @@ local function onFillWorldHeld(player, context, worldobjects, test)
     local item = PZUIKit.Heavy.held(character)
     local place = item and PLACE_KEY[item:getFullType()]
     if not place then return end
-    local option = context:addOption(getText(place.key), character, Menus.place, place.kind, item)
+    -- (what is held comes first: putting it down, then dropping it)
+    PZUIKit.Heavy.dropOption(context, character, item, true)
+    local option = context:addOptionOnTop(getText(place.key), character, Menus.place, place.kind, item)
     option.itemForTexture = item
-    PZUIKit.Heavy.dropOption(context, character, item)
 end
 OA.on("OnFillWorldObjectContextMenu", onFillWorldHeld)
 

@@ -191,9 +191,11 @@ function Heavy.held(character)
 end
 
 -- The game's "Drop" for a held heavy thing on any square's menu, as for a generator held: let go where the character
--- stands, it stands up there (Heavy.settle). A mod puts it after its own putting down. Returns the option.
-function Heavy.dropOption(context, character, item)
-    local option = context:addOption(getText("ContextMenu_Drop"), { item }, ISInventoryPaneContextMenu.onDropItems,
+-- stands, it stands up there (Heavy.settle). A mod puts it after its own putting down (onTop: at the menu's top, its
+-- putting down then put on top of it). Returns the option.
+function Heavy.dropOption(context, character, item, onTop)
+    local add = onTop and context.addOptionOnTop or context.addOption
+    local option = add(context, getText("ContextMenu_Drop"), { item }, ISInventoryPaneContextMenu.onDropItems,
         character:getPlayerNum())
     option.itemForTexture = item
     return option
