@@ -1,2 +1,5 @@
 report/
 __pycache__/
+candidates/
+lab/ref/
+lab/manifest.js

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>소리 실험실</title>
+<style>
+  :root { --bg: #f4f5f7; --panel: #ffffff; --line: #d5d9df; --text: #1d2228; --dim: #68717d; --accent: #b86a12;
+          --ours: #1f7a46; --vanilla: #8a5a2a; --silent: #68717d; --field: #f0f2f5; --btn: #e9ecf0; --on: #fbe8cc; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #15171a; --panel: #1e2125; --line: #33373d; --text: #d9dde2; --dim: #8a9099; --accent: #e0a050;
+            --ours: #5fc88a; --vanilla: #d9a066; --silent: #8a9099; --field: #121417; --btn: #2a2e34; --on: #4a3520; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.5 "Noto Sans KR", "Malgun Gothic", sans-serif; }
+  header { position: sticky; top: 0; z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line); padding: 8px 14px; }
+  header h1 { margin: 0 14px 0 0; font-size: 16px; display: inline-block; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-top: 4px; }
+  main { max-width: 1100px; margin: 0 auto; padding: 12px 14px 60px; }
+  button { background: var(--btn); color: var(--text); border: 1px solid var(--line); border-radius: 5px; padding: 3px 10px; font: inherit; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.on { background: var(--on); border-color: var(--accent); }
+  button.play { min-width: 34px; }
+  input[type=text], input[type=number], input[type=search], textarea, select { background: var(--field); color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 3px 6px; font: inherit; }
+  input[type=number] { width: 64px; }
+  textarea { width: 100%; resize: vertical; }
+  h2 { font-size: 15px; margin: 22px 0 6px; padding-bottom: 3px; border-bottom: 2px solid var(--accent); }
+  details.group { margin: 6px 0; }
+  details.group > summary { cursor: pointer; font-weight: 700; padding: 4px 0; color: var(--accent); }
+  .cue { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; margin: 6px 0; }
+  .head { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+  code, .mono { font-family: Consolas, "D2Coding", monospace; font-size: 12px; }
+  .id { font-size: 13px; font-weight: 700; }
+  .badge { font-size: 11px; padding: 0 6px; border-radius: 9px; border: 1px solid currentColor; }
+  .badge.ours { color: var(--ours); } .badge.vanilla { color: var(--vanilla); } .badge.silent { color: var(--silent); }
+  .dim { color: var(--dim); font-size: 12px; }
+  .desc { margin: 2px 0; }
+  .methods, .params, .src { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; margin: 4px 0; }
+  .src { margin: 2px 0; padding: 2px 6px; border-radius: 4px; }
+  .src:hover { background: var(--field); }
+  .src label { display: flex; gap: 6px; align-items: center; min-width: 260px; cursor: pointer; }
+  .src.picked { outline: 1px solid var(--accent); }
+  .typed { font-family: "Malgun Gothic", monospace; color: var(--accent); min-height: 1.4em; white-space: pre-wrap; flex-basis: 100%; }
+  details.uses > summary { cursor: pointer; color: var(--dim); font-size: 12px; }
+  .refs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .note { margin-top: 4px; }
+  .note textarea { height: 26px; }
+  #exportBox { display: none; margin: 8px 0; }
+  #exportBox textarea { height: 200px; font: 12px/1.4 Consolas, monospace; }
+  .problems { color: var(--accent); }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>소리 실험실</h1>
+  <span class="dim" id="gen"></span>
+  <div class="bar">
+    <label>음량 <input type="range" id="vol" min="0" max="1" step="0.01" value="1"></label>
+    <input type="search" id="find" placeholder="큐, 소리, 설명 찾기">
+    <label><input type="checkbox" id="showVanilla" checked> 바닐라 줄 보이기</label>
+    <button id="stopAll">모두 정지</button>
+    <button id="export">선택 내보내기</button>
+    <a id="titleLab" class="dim" href="#">제목 소리는 타이틀랩</a>
+  </div>
+</header>
+<main>
+  <div id="exportBox">
+    <div class="dim">바뀐 선택과 메모만 담깁니다. 이 JSON을 복사해서 붙여 주세요.</div>
+    <textarea id="exportText" readonly></textarea>
+    <button id="copy">복사</button> <span class="dim" id="copied"></span>
+  </div>
+  <details class="group" id="refsBox" open>
+    <summary>레벨 기준 (게임 녹음)</summary>
+    <div class="dim">게임에서 바닐라 소리를 녹음한 것입니다. 우리 소리와 번갈아 들어 음량을 맞춰 보세요. 숫자는 dBFS (피크 / 가장 큰 50 ms).</div>
+    <div class="refs" id="refs"></div>
+  </details>
+  <div id="root"></div>
+  <div id="foot" class="dim"></div>
+</main>
+<script src="manifest.js"></script>
+<script src="lab.js"></script>
+</body>
+</html>
