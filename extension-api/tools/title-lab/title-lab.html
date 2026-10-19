@@ -96,32 +96,20 @@ const RISE = 2.0, SIDE = 4.5, SWIRL_X = 0.15, SWIRL_Y = 0.3, CATCH = 0.12, SAG =
 // The API's title styles (Texts.java Styles), and new ones tried here. Sizes are shares of the screen's height, the gap
 // in the title's lines, times in seconds; the line leaves trail seconds after the title.
 const STYLES = {
-  "stamp": { label: "stamp (이전)", y: 0.28, gap: 0.25, trail: 0, backdrop: 0.3,
-    title: { weight: 700, size: 0.1, color: [1, 1, 1], outline: 0.45, enter: "slam", enterTime: 0.22, leave: "grow", leaveTime: 0.7 },
-    line: { weight: 400, size: 0.045, color: [0.88, 0.88, 0.88], delay: 0.2, enter: "fade", enterTime: 0.35, leave: "fade", leaveTime: 0.7 } },
   // (its title inked as it hits by its ink map, drying away in blotches, its pressed shape left a moment; its line struck
   // a moment after, more lightly)
   "stamp-new": { label: "stamp: 각인", y: 0.28, gap: 0.25, trail: 0.4, backdrop: 0.3,
     title: { weight: 700, size: 0.1, color: [0.9, 0.89, 0.86], inked: true, enter: "impact", enterTime: 0.6, leave: "wash", leaveTime: 6 },
     line: { weight: 400, size: 0.045, color: [0.9, 0.9, 0.88], delay: 0.15, enter: "impact", enterTime: 0.6, leave: "erode", leaveTime: 5.6 } },
-  "discovery": { label: "discovery (이전)", y: 0.28, gap: 0.3, trail: 0, backdrop: 0.3,
-    title: { weight: 700, italic: true, size: 0.08, color: [1, 0.8, 0.38], enter: "rise", enterTime: 0.6, leave: "rise", leaveTime: 0.9 },
-    line: { weight: 400, size: 0.042, color: [1, 0.93, 0.78], delay: 0.25, enter: "rise", enterTime: 0.6, leave: "rise", leaveTime: 0.9 } },
   "discovery-new": { label: "discovery: 손전등", y: 0.28, gap: 0.3, trail: 0.15, backdrop: 0.3,
     title: { weight: 700, size: 0.08, color: [1, 0.8, 0.38], outline: 0.35, lit: true, enter: "torch", enterTime: 2.2, leave: "dim", leaveTime: 4.5 },
     line: { weight: 400, size: 0.042, color: [1, 0.93, 0.78], lit: true, delay: 1.5, enter: "slideup", enterTime: 0.8, leave: "dim", leaveTime: 4.3 } },
   "notice-new": { label: "notice: 무전", y: 0.2, gap: 0.3, trail: 0.1, backdrop: 0.3,
     title: { weight: 700, size: 0.04, color: [0.88, 0.93, 1], radio: true, enter: "signal", enterTime: 0.7, leave: "lost", leaveTime: 4.5 },
     line: { weight: 400, size: 0.028, color: [0.76, 0.82, 0.9], radio: true, delay: 0.25, enter: "signal", enterTime: 0.7, leave: "lost", leaveTime: 4.3 } },
-  "notice": { label: "notice (이전)", y: 0.2, gap: 0.3, trail: 0, backdrop: 0.3,
-    title: { weight: 700, size: 0.036, color: [0.92, 0.95, 1], enter: "drop", enterTime: 0.35, leave: "fade", leaveTime: 0.6 },
-    line: { weight: 400, size: 0.026, color: [0.8, 0.84, 0.9], delay: 0.1, enter: "fade", enterTime: 0.35, leave: "fade", leaveTime: 0.6 } },
   "unveil-new": { label: "unveil: 안개 걷힘", y: 0.28, gap: 0.35, trail: 0.3, backdrop: 0.3,
     title: { weight: 400, size: 0.075, color: [0.96, 0.93, 0.86], outline: 0.35, fog: true, enter: "mist", enterTime: 3.6, leave: "mistin", leaveTime: 5 },
     line: { weight: 400, size: 0.036, color: [0.84, 0.83, 0.8], fog: true, delay: 1.2, enter: "mist", enterTime: 3.0, leave: "mistin", leaveTime: 4.8 } },
-  "unveil": { label: "unveil (이전)", y: 0.28, gap: 0.35, trail: 0, backdrop: 0.3,
-    title: { weight: 400, size: 0.075, color: [0.96, 0.93, 0.86], outline: 0.35, enter: "settle", enterTime: 1.4, leave: "fade", leaveTime: 1.0 },
-    line: { weight: 400, size: 0.036, color: [0.84, 0.83, 0.8], delay: 0.6, enter: "fade", enterTime: 1.0, leave: "fade", leaveTime: 1.0 } },
   "bleed-new": { label: "bleed: 번짐", y: 0.28, gap: 0.3, trail: 0.2, backdrop: 0.3,
     title: { weight: 700, size: 0.085, color: [0.72, 0.08, 0.07], outline: 0.4, bleed: true, enter: "bleed", enterTime: 1.9, leave: "dry", leaveTime: 6 },
     line: { weight: 400, size: 0.04, color: [0.86, 0.8, 0.78], bleed: true, delay: 1.3, enter: "bleed", enterTime: 1.2, leave: "dry", leaveTime: 5.6 } },
@@ -2214,6 +2202,8 @@ function ownPresets() { try { return JSON.parse(localStorage.getItem(STORE)) || 
 function saveOwn(presets) { try { localStorage.setItem(STORE, JSON.stringify(presets)); return true; } catch { return false; } }
 function apply(values) {
   Object.assign(P, values);
+  // (a preset saved with a style the lab no longer has keeps its other values on the default style)
+  if (!STYLES[P.style]) P.style = DEFAULTS.style;
   const sample = STYLES[P.style].sample;
   if (sample) { P.title = sample.title; P.sub = sample.sub; }
   for (const [key, c] of Object.entries(controls)) {
