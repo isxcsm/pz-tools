@@ -19,6 +19,9 @@ Usage, from a mod's folder (python ../tools/pzdev.py <command>):
     pzdev.py resume                             presses Resume in the game's Lua debugger (with Break On
                                                 Error, any Lua error, even one a pcall catches, stops the
                                                 game there, and the channel with it)
+    pzdev.py open                               starts the game (its exe with -debug, windowed, as launch does) and
+                                                stops on its main menu: no save chosen or continued, Continue left
+                                                the user's (for the user's own E2E); a game running is left as it is
     pzdev.py launch                             starts the game (if not running: its exe with -debug,
                                                 options.ini set to a 1600x900 window first), waits for
                                                 the main menu, continues the latest save and returns
@@ -750,6 +753,25 @@ def launch():
     return continue_when_ready(start)
 
 
+# The debug game started and left on its main menu: no save pointed or continued (the user picks one, for their E2E).
+def open_game():
+    if game_window():
+        print("the game is running already: left as it is")
+        return 0
+    if game_process():
+        print("the game's process is there without a window (quitting or starting): try again once it settles")
+        return 1
+    start = console_size()
+    start_game()
+    print("starting the game")
+    name, _ = wait_for({"menu", "exit"}, 300, start)
+    if name != "menu":
+        print("the main menu did not come in 5 minutes" if name is None else "the game closed while starting")
+        return 1
+    print("on the main menu (no save opened)")
+    return 0
+
+
 # Quits to the desktop (a paused game takes the command and never leaves: set going first) and waits for the window
 # to go.
 def quit_game():
@@ -1099,6 +1121,8 @@ def main():
     timeout = float(timeout_s or "15")
     if len(sys.argv) == 2 and sys.argv[1] == "launch":
         return launch()
+    if len(sys.argv) == 2 and sys.argv[1] == "open":
+        return open_game()
     if len(sys.argv) == 2 and sys.argv[1] == "quit":
         return quit_game()
     if len(sys.argv) == 2 and sys.argv[1] == "restart":
