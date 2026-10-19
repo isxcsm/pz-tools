@@ -141,6 +141,8 @@ local function campParts(middle)
     local R = Game.CAMP_REACH
     return { { offsets = { 0, 0 }, filter = middle }, { box = { -R, -R, R, R, 2 }, filter = Game.GROUND } }
 end
+-- (the API reads a parts table once and keeps the shape with it: the one for the camp's own middle is a constant)
+local CAMP_PARTS = campParts(CAMP_MIDDLE)
 
 -- An open-ground site is picked from the map's zones, which the game keeps only for the cells it has loaded: one far
 -- off may be water or a road. Once its camp is loaded, it is checked once: not open ground for a camp, it moves to
@@ -180,7 +182,7 @@ function Game.settleGround(record, m)
     end
     site.settled = true
     local squares = OA.api().squares
-    local here = squares.fit({ x1 = x0, y1 = y0, x2 = x0, y2 = y0, z = z }, campParts(CAMP_MIDDLE)) ~= nil
+    local here = squares.fit({ x1 = x0, y1 = y0, x2 = x0, y2 = y0, z = z }, CAMP_PARTS) ~= nil
     local nx, ny
     if not here then
         local area = m.area
