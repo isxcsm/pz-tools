@@ -104,5 +104,19 @@
   "seed": 1000,
   "made": 4.333333333333333,
   "at": null
+ },
+ "seal:land": {
+  "file": "seal_land_01.ogg",
+  "prompt": "Operation commencement sting, a deep heavy authoritative impact with a low cinematic boom and a warm brass swell that settles slowly, restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail",
+  "seed": 1000,
+  "made": 5.0,
+  "at": 0.0
+ },
+ "seal:tag": {
+  "file": "seal_tag_06_r1.ogg",
+  "prompt": "A brief soft low drum tap, muted and warm, one hit, restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail",
+  "seed": 1000,
+  "made": 2.0,
+  "at": 0.0
  }
 }

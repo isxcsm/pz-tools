@@ -56,7 +56,21 @@ FAMILY = 'restrained cinematic game UI sound, warm, clean, high quality, short n
 # from there, its loudest moment should come (the title fully in, the torch opening), None to leave it where the model put it.
 # A cue with a parent is made from it.
 # (all picked: what the user asks next of a cue goes here)
-CUES = {}
+CUES = {
+    # Operation Acorn's seal plate (the lab's "seal"): the operation's own name, once a game, the biggest stamp there is:
+    # an opening's weight, not a stamp's thud; its call sign struck a beat later, a small accent of the same family.
+    'seal:land': dict(made=5.0, at=0.0, prompts=[
+        'Operation commencement sting, a deep heavy authoritative impact with a low cinematic boom and a warm brass swell '
+        'that settles slowly',
+        'A grand official seal pressed with great weight, a deep resonant thud and a low orchestral hit with a warm '
+        'sustained tone',
+        'Military operation title reveal, a heavy low impact with a deep drum and a short warm brass chord fading out',
+    ]),
+    'seal:tag': dict(made=2.0, at=0.0, prompts=[
+        'A short firm low percussive accent, a single muted thump with a little warmth',
+        'A brief soft low drum tap, muted and warm, one hit',
+    ]),
+}
 
 # What the user asked of a pick, as its refinements: each (how, settings). "a2a": the model again from the pick, at a noise,
 # its prompt (and what is added to it); "move": the pick itself moved so that its loudest moment comes at `at`, lowered by

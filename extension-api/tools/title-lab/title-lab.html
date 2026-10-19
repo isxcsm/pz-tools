@@ -101,6 +101,16 @@ const STYLES = {
   "stamp-new": { label: "stamp: 각인", y: 0.28, gap: 0.25, trail: 0.4, backdrop: 0.3,
     title: { weight: 700, size: 0.1, color: [0.9, 0.89, 0.86], inked: true, enter: "impact", enterTime: 0.6, leave: "wash", leaveTime: 6 },
     line: { weight: 400, size: 0.045, color: [0.9, 0.9, 0.88], delay: 0.15, enter: "impact", enterTime: 0.6, leave: "erode", leaveTime: 5.6 } },
+  // Operation Acorn's own title (the operation's name, once a game, at the screen's middle): a seal plate. The title is
+  // cut into a plate with a double frame and the acorn's emblem, all inked as one (its ink map), struck hard and a
+  // little askew; a beat later its line (the call sign) is struck under it as a small framed tag. Both dry away as the
+  // stamp's do.
+  "seal": { label: "seal: 도토리 작전 인장판", y: 0.43, gap: 0.42, trail: 0.4, backdrop: 0.38,
+    sample: { title: "도토리 작전", sub: "호출부호 7" },
+    title: { weight: 900, size: 0.13, color: [0.88, 0.70, 0.45], inked: true, plate: "seal", tilt: -0.045, hit: 1.35,
+      enter: "impact", enterTime: 0.7, leave: "wash", leaveTime: 6.5 },
+    line: { weight: 700, size: 0.05, color: [0.92, 0.86, 0.74], inked: true, plate: "tag", tilt: 0.02, hit: 0.75,
+      delay: 0.65, enter: "impact", enterTime: 0.55, leave: "wash", leaveTime: 6 } },
   "discovery-new": { label: "discovery: 손전등", y: 0.28, gap: 0.3, trail: 0.15, backdrop: 0.3,
     title: { weight: 700, size: 0.08, color: [1, 0.8, 0.38], outline: 0.35, lit: true, enter: "torch", enterTime: 2.2, leave: "dim", leaveTime: 4.5 },
     line: { weight: 400, size: 0.042, color: [1, 0.93, 0.78], lit: true, delay: 1.5, enter: "slideup", enterTime: 0.8, leave: "dim", leaveTime: 4.3 } },
@@ -218,7 +228,7 @@ function leaveState(kind, o, st, leaveTime) {
   return st;
 }
 const IMPACT = 0.16, LINE_HIT = 0.55;
-const hitOf = p => p === pieces[0] ? 1 : LINE_HIT;
+const hitOf = p => p.spec.hit !== undefined ? p.spec.hit : p === pieces[0] ? 1 : LINE_HIT;
 // The backdrop's fade in, in seconds from the title's start: dust's fade, for every style.
 const BACKDROP_IN = 1.2;
 
@@ -963,21 +973,86 @@ function makeBand() {
   bandTex = texture(c);
 }
 
+// An acorn, the operation's emblem, in one colour, `E` across, its middle at x, y: its cap (scaled, the scales cut out of
+// it) over its nut (a stripe of light cut down its side), a stem on top, in a ring.
+function acorn(g, x, y, E, ring) {
+  g.save();
+  g.lineWidth = ring; g.beginPath(); g.arc(x, y, E / 2 - ring / 2, 0, 2 * Math.PI); g.stroke();
+  const cy = y - 0.06 * E;
+  g.beginPath();
+  g.moveTo(x - 0.2 * E, cy + 0.02 * E);
+  g.bezierCurveTo(x - 0.21 * E, cy + 0.2 * E, x - 0.07 * E, cy + 0.33 * E, x, cy + 0.37 * E);
+  g.bezierCurveTo(x + 0.07 * E, cy + 0.33 * E, x + 0.21 * E, cy + 0.2 * E, x + 0.2 * E, cy + 0.02 * E);
+  g.closePath(); g.fill();
+  g.beginPath(); g.ellipse(x, cy, 0.26 * E, 0.15 * E, 0, Math.PI, 2 * Math.PI); g.lineTo(x + 0.26 * E, cy + 0.035 * E);
+  g.lineTo(x - 0.26 * E, cy + 0.035 * E); g.closePath(); g.fill();
+  g.fillRect(x - 0.022 * E, cy - 0.25 * E, 0.044 * E, 0.11 * E);
+  g.globalCompositeOperation = "destination-out";
+  g.lineWidth = 0.028 * E;
+  g.beginPath(); g.moveTo(x - 0.27 * E, cy + 0.06 * E); g.lineTo(x + 0.27 * E, cy + 0.06 * E); g.stroke();
+  g.save(); g.beginPath(); g.ellipse(x, cy, 0.26 * E, 0.15 * E, 0, Math.PI, 2 * Math.PI); g.closePath(); g.clip();
+  g.lineWidth = 0.018 * E;
+  for (let k = -5; k <= 5; k++) {
+    g.beginPath(); g.moveTo(x + k * 0.07 * E - 0.2 * E, cy + 0.05 * E); g.lineTo(x + k * 0.07 * E + 0.1 * E, cy - 0.2 * E); g.stroke();
+    g.beginPath(); g.moveTo(x + k * 0.07 * E + 0.2 * E, cy + 0.05 * E); g.lineTo(x + k * 0.07 * E - 0.1 * E, cy - 0.2 * E); g.stroke();
+  }
+  g.restore();
+  g.lineWidth = 0.03 * E; g.lineCap = "round";
+  g.beginPath(); g.moveTo(x - 0.11 * E, cy + 0.11 * E); g.quadraticCurveTo(x - 0.13 * E, cy + 0.22 * E, x - 0.06 * E, cy + 0.29 * E); g.stroke();
+  g.restore();
+}
+// A plate's size around a text `tw` across (spec.plate: "seal", the operation's plate with its emblem; "tag", a line's
+// small frame) and its drawing, its middle at the canvas's (turned by spec.tilt).
+function plateOf(kind, tw, line) {
+  if (kind === "seal") {
+    const bw = line * 0.075, gapB = line * 0.065, iw = line * 0.03, pad = line * 0.3, E = line * 1.1;
+    const inW = pad + E + pad * 0.9 + iw + pad * 0.9 + tw + pad * 1.1, inH = Math.max(E, line) + pad * 1.1;
+    const frame = bw + gapB + iw;
+    return { kind, bw, gapB, iw, pad, E, inW, inH, W: inW + 2 * frame, H: inH + 2 * frame };
+  }
+  const iw = line * 0.075, pad = line * 0.32;
+  return { kind, iw, pad, W: tw + 2 * pad + 2 * iw, H: line * 1.05 + 2 * iw };
+}
+function drawPlate(g, pl, text, line, cx, cy, tilt) {
+  g.save();
+  g.translate(cx, cy); g.rotate(tilt || 0);
+  const box = (w, h, lw, r) => { g.lineWidth = lw; g.beginPath(); g.roundRect(-w / 2 + lw / 2, -h / 2 + lw / 2, w - lw, h - lw, r); g.stroke(); };
+  if (pl.kind === "seal") {
+    box(pl.W, pl.H, pl.bw, line * 0.1);
+    const inset = 2 * (pl.bw + pl.gapB);
+    box(pl.W - inset, pl.H - inset, pl.iw, line * 0.04);
+    const left = -pl.inW / 2, ex = left + pl.pad + pl.E / 2;
+    acorn(g, ex, 0, pl.E, pl.iw * 1.4);
+    const rx = left + pl.pad + pl.E + pl.pad * 0.9;
+    g.fillRect(rx, -pl.inH / 2 + pl.pad * 0.35, pl.iw, pl.inH - pl.pad * 0.7);
+    g.textAlign = "left"; g.fillText(text, rx + pl.iw + pl.pad * 0.9, line * 0.02);
+  } else {
+    box(pl.W, pl.H, pl.iw, line * 0.12);
+    g.textAlign = "center"; g.fillText(text, 0, line * 0.02);
+  }
+  g.restore();
+}
 // A text's picture: drawn with its shadow and outline into a box with the margin, cut into cells.
 function piece(text, line, colour, centreY, seed, spec) {
   const fontPx = line * 0.78, margin = MARGIN * line;
   const m = document.createElement("canvas").getContext("2d");
   m.font = `${spec.italic ? "italic " : ""}${spec.weight} ${fontPx}px "Noto Sans KR", "Malgun Gothic", sans-serif`;
-  const w = Math.ceil(m.measureText(text).width + 2 * margin), h = Math.ceil(line + 2 * margin);
+  const plate = spec.plate ? plateOf(spec.plate, m.measureText(text).width, line) : null;
+  // (a plate turned takes a little more room)
+  const turn = plate ? Math.abs(spec.tilt || 0) : 0;
+  const w = Math.ceil(plate ? plate.W + turn * plate.H + 2 * margin : m.measureText(text).width + 2 * margin),
+    h = Math.ceil(plate ? plate.H + turn * plate.W + 2 * margin : line + 2 * margin);
   const c = document.createElement("canvas"); c.width = w; c.height = h;
   const g = c.getContext("2d");
   g.font = m.font; g.textAlign = "center"; g.textBaseline = "middle";
   const cx = w / 2, cy = h / 2, sh = Math.max(1, line * 0.025);
   if (!spec.inked) { g.fillStyle = "rgba(0,0,0,0.75)"; g.fillText(text, cx + sh, cy + sh); }
   if (spec.outline) { g.lineJoin = "round"; g.lineWidth = Math.max(2, line * 0.025); g.strokeStyle = `rgba(0,0,0,${spec.outline})`; g.strokeText(text, cx, cy); }
-  g.fillStyle = `rgb(${colour.map(v => Math.round(v * 255)).join(",")})`; g.fillText(text, cx, cy);
+  g.fillStyle = `rgb(${colour.map(v => Math.round(v * 255)).join(",")})`;
+  if (plate) { g.strokeStyle = g.fillStyle; drawPlate(g, plate, text, line, cx, cy, spec.tilt); }
+  else g.fillText(text, cx, cy);
   const p = { x: Math.round(view.width / 2 - w / 2), y: Math.round(centreY - h / 2), w, h, line, tex: texture(c), spec,
-    ink: m.measureText(text).width, colour };
+    ink: plate ? plate.W : m.measureText(text).width, high: plate ? plate.H : line, colour };
   // its middle from the whole-pixel box, the same place it burns from (no jump as it starts to)
   p.cx = p.x + w / 2; p.cy = p.y + h / 2;
   // each letter's span across the picture, for a leave that moves them apart
@@ -1399,6 +1474,8 @@ function drawPaper(p, progress, fade) {
   mode = 0;
 }
 
+// How high a text stands (its plate's height, or its line).
+const plateHigh = (spec, line) => spec.plate ? plateOf(spec.plate, 0, line).H : line;
 function rebuild() {
   dirty = true;
   for (const p of pieces) { gl.deleteTexture(p.tex); if (p.burnTex) gl.deleteTexture(p.burnTex); if (p.inkTex) gl.deleteTexture(p.inkTex); if (p.inkMap) { gl.deleteTexture(p.inkMap.tmap); gl.deleteTexture(p.inkMap.sdf); }
@@ -1410,7 +1487,7 @@ function rebuild() {
   title.delay = 0;
   pieces = [title];
   if (P.sub) {
-    const line = piece(P.sub, sl, tone[1], anchor + tl / 2 + S.gap * tl + sl / 2, seed ^ 0x1234567n, S.line);
+    const line = piece(P.sub, sl, tone[1], anchor + title.high / 2 + S.gap * tl + plateHigh(S.line, sl) / 2, seed ^ 0x1234567n, S.line);
     line.delay = S.line.delay;
     pieces.push(line);
   }
@@ -1879,7 +1956,7 @@ function frame(now) {
     const seen = Math.min(fadeIn, burns(tp.spec) ? first.a * (1 - smooth(Math.min(1, first.out)))
       : tp.spec.leave === "wash" ? 1 - smooth(clamp((first.out - 0.5) / 0.5, 0, 1)) : first.a);
     const low = tp.cx - Math.max(...pieces.map(p => p.ink)) / 2, high = tp.cx + Math.max(...pieces.map(p => p.ink)) / 2;
-    const top = tp.cy - tp.line / 2, lastP = pieces[pieces.length - 1], bottom = lastP.cy + lastP.line / 2;
+    const top = tp.cy - tp.high / 2, lastP = pieces[pieces.length - 1], bottom = lastP.cy + lastP.high / 2;
     const side = 2.6 * tp.line, endH = 1.0 * tp.line;
     gl.uniform2f(U("inner"), (high - low) / (high - low + 2 * side), (bottom - top) / (bottom - top + 2 * endH));
     mode = 6;
@@ -2114,6 +2191,7 @@ const BUILT_IN = {
   "종이 연소 (dust)": effectOf(DEFAULTS),
   "짧은 소식 (brief)": { ...effectOf(DEFAULTS), style: "brief", ...ownOf(STYLES.brief) },
   "각인 (stamp)": { ...effectOf(DEFAULTS), style: "stamp-new" },
+  "도토리 작전 인장판 (seal)": { ...effectOf(DEFAULTS), style: "seal" },
   "손전등 (discovery)": { ...effectOf(DEFAULTS), style: "discovery-new" },
   "무전 (notice)": { ...effectOf(DEFAULTS), style: "notice-new" },
   "안개 걷힘 (unveil)": { ...effectOf(DEFAULTS), style: "unveil-new" },

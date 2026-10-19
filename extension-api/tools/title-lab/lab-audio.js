@@ -21,11 +21,13 @@
   // The lab's styles that have title sounds, and the sound style each one is.
   const STYLE_OF = {
     "stamp-new": "stamp", "discovery-new": "discovery", "notice-new": "notice", "unveil-new": "unveil", "bleed-new": "bleed",
-    "pulse-new": "pulse", "type-new": "type", "sink-new": "sink", "dust-paper": "dust", "brief": "brief",
+    "pulse-new": "pulse", "type-new": "type", "sink-new": "sink", "dust-paper": "dust", "brief": "brief", "seal": "seal",
   };
   // The cues of each sound style: [id, label, moment, line?]. A cue's file is KIT_T_<style>_<moment>[_line]_<a|b|c>.ogg.
   const CUES = {
     stamp: [["land", "착지", "land"]],
+    // the operation's plate: its land, and its call sign's tag struck a beat later (the line's own)
+    seal: [["land", "착지", "land"], ["tag", "호출부호", "land", true]],
     notice: [["enter", "등장", "enter"], ["leave", "퇴장 (여운)", "leave"]],
     dust: [["enter", "등장", "enter"], ["leave", "퇴장 (여운)", "leave"]],
     discovery: [["enter", "등장", "enter"], ["leave", "퇴장 (여운)", "leave"]],
