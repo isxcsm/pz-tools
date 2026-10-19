@@ -201,6 +201,16 @@ final class SquareQueriesTest {
         same(except(ALL, "107,101", "108,101"), hits(area, table("zonesNot", list("Farm", "Forest"))), "zonesNot either");
         zones.clear();
 
+        // a road one square wide along x = 110: none within 2, one within 6 (or 4)
+        zones.add(new Zone("", "Nav", 110, 90, 0, 1, 30));
+        same(where((x, y) -> x >= 104 && x <= 107), hits(area, table("zoneNear", table("type", "Nav", "none", 2, "some", 6))),
+            "zoneNear: a road in sight, not within none");
+        same(where((x, y) -> x >= 106 && x <= 107), hits(area, table("zoneNear", table("type", "Nav", "none", 2, "some", 4))),
+            "zoneNear: some is the edge");
+        same(where((x, y) -> x <= 107), hits(area, table("zoneNear", table("type", "Nav", "none", 2))), "zoneNear: none alone");
+        same(ALL, hits(area, table("zoneNear", table("type", "Farm", "none", 3))), "zoneNear: no zone of the type");
+        zones.clear();
+
         var inRoom = new IsoRoom(100, 103, 2, 1);
         inRoom.def = new RoomDef(9001, "den");
         at(100, 103).room = inRoom;

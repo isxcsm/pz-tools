@@ -1733,6 +1733,7 @@ A condition table (`filter` below) holds any of these keys; a square must meet a
 | `flags` / `noFlags` | Lists of `IsoFlagType` names the square has all of / none of (`burntOut`, `burning`, ...). |
 | `noObjectData` | A mod data key: no object on the square has it. |
 | `zonesNot` | A list of zone types: no zone at the square (`IsoMetaGrid.getZonesAt`) has one of them. |
+| `zoneNear` | `{ type =, none = n, some = m }` (whole numbers to 64): no zone of the type at the square or at the eight points (rows and diagonals) each square out to `none`; and, when `some` is further, one at those points beyond `none` out to `some` (a road in sight but not under foot, as `zones.points`' `road`). Asked after the cheaper conditions. |
 | `around` | A condition table: at least one of the 8 squares around, on the same level, meets it. |
 | `clear` | `{ r = n, filter = {...} }`: every square within `n` (a box, the square itself included) is loaded and meets the filter. |
 | `distance` | `{ x =, y =, min =, max = }`: the straight distance from that point lies in the range (either end may be left out). |

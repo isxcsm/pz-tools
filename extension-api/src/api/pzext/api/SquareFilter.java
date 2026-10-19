@@ -32,12 +32,14 @@ final class SquareFilter {
      */
     static final List<String> WHY_ORDER = List.of("wet", "water", "waterFlag", "floor", "solidFloor", "natural", "floorPrefix",
         "floorAvoid", "stairs", "tree", "vehicle", "free", "moving", "noObjectData", "outside", "room", "building", "doorEdge",
-        "flags", "noFlags", "zonesNot", "distance", "around", "clear");
+        "flags", "noFlags", "zonesNot", "distance", "zoneNear", "around", "clear");
 
     /** The game's own natural ground (DiggingUtil.mining_floorCanDig: the floors a shovel digs): grass, dirt, sand. */
     static final String[] NATURAL = { "floors_exterior_natural", "blends_natural_01" };
 
     static final int MAX_CLEAR = 32;
+    /** The furthest {@code zoneNear} looks. */
+    static final int MAX_NEAR = 64;
     private static final SquareFilter ALL = new SquareFilter(new Check[0], new String[0], false);
     private static final Map<Object, SquareFilter> CACHE = new WeakHashMap<>();
     // The queries running (begin and end nest) and the number of the outermost one: what a filter remembered is of that one only.
@@ -253,6 +255,7 @@ final class SquareFilter {
                     }));
                 }
                 case "zonesNot" -> found.add(new Ranked(3, zonesNot(strings(lua, value, call, name))));
+                case "zoneNear" -> found.add(new Ranked(4, zoneNear(lua, value, call, name)));
                 case "around" -> {
                     SquareFilter inner = nested(lua, value, call, name);
                     if (inner.usesAnchor) anchored[0] = true;
@@ -402,6 +405,50 @@ final class SquareFilter {
             return true;
         };
         return check;
+    }
+
+    /**
+     * {@code { type = "Nav", none = n, some = m }}: no zone of the type at the square or at the eight points (along the rows and
+     * the diagonals) each square out to {@code none}; and, when {@code some} is further, one at those points beyond {@code none}
+     * out to {@code some}. A road in sight but not under foot, as {@code zones.points}' {@code road} asks it (a road one square
+     * wide is not stepped over). Asked last: the cheaper conditions turn most squares away first.
+     */
+    private static Check zoneNear(Kahlua lua, Object value, String call, String name) throws Throwable {
+        String shape = call + ": " + name + " must be { type = \"...\", none = n, some = n }";
+        if (!lua.isTable(value) || !(lua.get(value, "type") instanceof String type)) throw new IllegalArgumentException(shape);
+        for (Map.Entry<Object, Object> option : lua.entries(value))
+            if (!"type".equals(option.getKey()) && !"none".equals(option.getKey()) && !"some".equals(option.getKey()))
+                throw new IllegalArgumentException(call + ": " + name + "." + option.getKey() + " is not type, none or some");
+        Object noneValue = lua.get(value, "none"), someValue = lua.get(value, "some");
+        int none = noneValue == null ? 0 : whole(noneValue, call, name + ".none", 0, MAX_NEAR);
+        int some = someValue == null ? 0 : whole(someValue, call, name + ".some", 0, MAX_NEAR);
+        var zones = new ArrayList<Object>();
+        return (s, a) -> {
+            Object grid = metaGrid();
+            if (grid == null) return true;
+            int x = (int)Reach.SQUARE_X.invokeExact(s), y = (int)Reach.SQUARE_Y.invokeExact(s), z = (int)Reach.SQUARE_Z.invokeExact(s);
+            if (zoneAt(grid, zones, type, x, y, z)) return false;
+            for (int r = 1; r <= none; r++) if (zoneRing(grid, zones, type, x, y, z, r)) return false;
+            if (some <= none) return true;
+            for (int r = none + 1; r <= some; r++) if (zoneRing(grid, zones, type, x, y, z, r)) return true;
+            return false;
+        };
+    }
+
+    private static final int[] RING = { 1, 0, 1, 1, 0, 1, -1, 1, -1, 0, -1, -1, 0, -1, 1, -1 };
+
+    private static boolean zoneRing(Object grid, ArrayList<Object> zones, String type, int x, int y, int z, int r) throws Throwable {
+        for (int at = 0; at < RING.length; at += 2) if (zoneAt(grid, zones, type, x + RING[at] * r, y + RING[at + 1] * r, z)) return true;
+        return false;
+    }
+
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    private static boolean zoneAt(Object grid, ArrayList<Object> zones, String type, int x, int y, int z) throws Throwable {
+        zones.clear();
+        ArrayList list = zones;
+        ArrayList<?> at = (ArrayList<?>)ZONES_AT.invokeExact(grid, x, y, z, list);
+        for (int index = 0, size = at.size(); index < size; index++) if (type.equals((Object)ZONE_TYPE.invokeExact(at.get(index)))) return true;
+        return false;
     }
 
     private static Check distance(Kahlua lua, Object value, String call, String name) throws Throwable {
