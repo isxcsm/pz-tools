@@ -482,13 +482,15 @@ local function onPlace(playerObj, item)
     ISMoveableContextMenu.openMovableCursor(item, playerObj)
 end
 
--- A box held in both hands is put down with the furniture cursor from any square's menu, as from the inventory's.
+-- A box held in both hands is put down with the furniture cursor from any square's menu, as from the inventory's, or
+-- dropped where the character stands (PZUIKit.Heavy).
 local function addHeldBoxOption(context, playerObj)
     local held = BU.Moveables.heldBox(playerObj)
     if not held or not BU.enabled("panel") then return end
     local option = context:addOption(getText("ContextMenu_BU_Install"), playerObj, onPlace, held)
     option.itemForTexture = held
     if not BU.api() then unavailable(option, apiMissingText()) end
+    if not playerObj:getVehicle() then PZUIKit.Heavy.dropOption(context, playerObj, held) end
 end
 
 -- The options of the clicked objects (ContextMenu.fill runs this under a pcall that puts menuCosts back whatever happens).

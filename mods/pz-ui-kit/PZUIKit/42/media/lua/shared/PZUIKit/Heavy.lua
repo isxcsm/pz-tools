@@ -183,6 +183,22 @@ function Heavy.carryOption(context, character, item, text, vehicleTip)
     return option
 end
 
+-- The registered item a character holds in both hands, or nil.
+function Heavy.held(character)
+    local item = character and character:getPrimaryHandItem()
+    if Heavy.isHeavy(item) and character:isItemInBothHands(item) then return item end
+    return nil
+end
+
+-- The game's "Drop" for a held heavy thing on any square's menu, as for a generator held: let go where the character
+-- stands, it stands up there (Heavy.settle). A mod puts it after its own putting down. Returns the option.
+function Heavy.dropOption(context, character, item)
+    local option = context:addOption(getText("ContextMenu_Drop"), { item }, ISInventoryPaneContextMenu.onDropItems,
+        character:getPlayerNum())
+    option.itemForTexture = item
+    return option
+end
+
 -- The game's "equip in both hands" off a registered item's menu.
 Events.OnFillInventoryObjectContextMenu.Add(function(player, context, items)
     for _, entry in ipairs(items or {}) do

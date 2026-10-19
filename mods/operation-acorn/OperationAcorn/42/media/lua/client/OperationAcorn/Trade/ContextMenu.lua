@@ -211,6 +211,21 @@ function Menus.placeFrom(character, kind, item)
     Menus.place(character, kind, item)
 end
 
+-- A terminal or a delivery box held in both hands, on any square's menu: put down with the cursor, as from the
+-- inventory's menu, or dropped where the character stands (PZUIKit.Heavy).
+local function onFillWorldHeld(player, context, worldobjects, test)
+    if test then return end
+    local character = getSpecificPlayer(player)
+    if not character or character:getVehicle() then return end
+    local item = PZUIKit.Heavy.held(character)
+    local place = item and PLACE_KEY[item:getFullType()]
+    if not place then return end
+    local option = context:addOption(getText(place.key), character, Menus.place, place.kind, item)
+    option.itemForTexture = item
+    PZUIKit.Heavy.dropOption(context, character, item)
+end
+OA.on("OnFillWorldObjectContextMenu", onFillWorldHeld)
+
 local function onFillInventory(player, context, items)
     local character = getSpecificPlayer(player)
     if not character then return end
