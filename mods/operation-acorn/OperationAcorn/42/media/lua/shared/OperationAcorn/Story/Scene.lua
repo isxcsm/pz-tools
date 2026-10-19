@@ -38,6 +38,7 @@ Scene.CLOSE = 10             -- how far from the player things are made when the
 Scene.SITE_TOUCH = 4         -- how close to a drop site's middle counts as being at it
 Scene.LOOK_MS = 1000         -- real milliseconds at least between two looks (the minute fires fast when fast-forwarded)
 Scene.DRIFT = 200            -- how far from its building a dying survivor may be and still be the one
+Scene.STAKE_SAY = 6          -- real seconds from a drop site's first line to the one about its stake (the first read)
 Scene.ARRIVE_SAY = 5         -- real seconds from the circle's title to the line said on entering it: the title
                              -- ("unveil": 3.6 s, its line 1.2 + 3.0) is read by then, the line not under it
 Scene.SIGHT = 20             -- how near its building (its box) a staged story mission's own line on entering waits for:
@@ -111,6 +112,8 @@ OA.Say.define("Arrive", { tags = {
 } })
 OA.Say.define("Survivor", {})
 OA.Say.define("SiteFirst", {})
+-- SiteStake: the site's survey stake, said after SiteFirst while its tag has not been read.
+OA.Say.define("SiteStake", {})
 -- InBuilding: the building that holds a piece not found yet, first entered: the character makes out where in it the
 -- piece is. Floor: the floor changed that. Lines 1-2 the floor above, 3-4 this one, 5-6 below.
 local whereTags = {
@@ -381,6 +384,13 @@ function Scene.touchSite(record, x, y, sites)
     return nil
 end
 
+-- Whether a drop site's survey stake has not been read by the record yet (Story.noteStake keeps the ones read).
+function Scene.stakeUnread(record, site)
+    if not (site and site.stake) then return false end
+    local read = OA.Store.section(record, "story").sitesSearched
+    return not (read and read[site.stake])
+end
+
 -- The floor hint: for the first piece not found yet whose building the player stands in (g.inBuildingOf), where it is
 -- from the player's floor (`z`): "up", "down" or "here". The bundle and its context (`where`, and the piece's id: the
 -- character does not hint at a piece it has seen) when that is new for the piece (InBuilding the first time, then
@@ -474,7 +484,11 @@ function Scene.minute(record)
             end
         end
     end
-    if OA.Sites and Scene.touchSite(record, x, y, OA.Sites.list()) then g.say(record, "SiteFirst", nil) end
+    local n = OA.Sites and Scene.touchSite(record, x, y, OA.Sites.list())
+    if n then
+        g.say(record, "SiteFirst", nil)
+        if Scene.stakeUnread(record, OA.Sites.byNumber(n)) then g.say(record, "SiteStake", nil, Scene.STAKE_SAY) end
+    end
 end
 
 -- A zombie died with this outfit id at x, y: the record and the survivor it was (taken off the list), or nil.

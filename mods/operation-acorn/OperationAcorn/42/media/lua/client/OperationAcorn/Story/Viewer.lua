@@ -131,11 +131,15 @@ function ISOAViewer:onNext() self:show(self.index + 1) end
 function ISOAViewer:close()
     UI.fadeOut(self)
     Viewer.instance = nil
+    local after = self.afterClose
+    self.afterClose = nil
+    if after then after() end
 end
 
 -- Opens the window on a list of { id =, variant =, extra =, no = }; `noRecord` entries (a survey stake, which is not a paper of
--- the folder) are not told to the server. It opens in front of the terminal's window when that is open.
-function Viewer.open(character, docs)
+-- the folder) are not told to the server. It opens in front of the terminal's window when that is open. `afterClose` runs
+-- once the window is closed (a line the character says once the paper is put away, not under it).
+function Viewer.open(character, docs, afterClose)
     if not docs or #docs == 0 then return end
     if Viewer.instance then Viewer.instance:close() end
     local core = getCore()
@@ -148,6 +152,7 @@ function Viewer.open(character, docs)
     ui:bringToTop()
     UI.fadeIn(ui)
     ui.docs = docs
+    ui.afterClose = afterClose
     ui:show(1)
     Viewer.instance = ui
 end

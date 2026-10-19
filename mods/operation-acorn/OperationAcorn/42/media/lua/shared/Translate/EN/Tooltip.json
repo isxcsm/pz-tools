@@ -75,7 +75,7 @@
     "Tooltip_OA_Gear_FieldTool": "Team issue tool, lighter and longer lasting than the plain one. Lightening and reinforcement kits improve it further.",
     "Tooltip_OA_Gear_KitCapacity": "Fit it to a bag, the team gas can or the team welding torch: a bag holds 10%% more of its original capacity, the can 2 L more, the torch 20%% more of a plain torch's uses. A vehicle's storage takes it from the mechanics window.",
     "Tooltip_OA_Gear_KitLightening": "Fit it to a bag, the team gas can, the team welding torch or a field tool. A bag takes more weight off what it holds, up to 95%%; the rest weigh less, 12%% with the first kit and a little less with each after.",
-    "Tooltip_OA_Gear_KitReinforcement": "Fit it to a field tool: it lasts 25%% longer of its original condition. A tool takes up to four. A 10%% chance to reset its repair count.",
+    "Tooltip_OA_Gear_KitReinforcement": "Fit it to a field tool: it lasts 25%% longer of its original condition. A tool takes up to four. A tool repaired before has a 10%% chance to have its repair count reset.",
     "Tooltip_OA_Gear_KitWeaponDamage": "Fits a melee weapon or a firearm: its minimum and maximum damage rise by 10%% of the original.",
     "Tooltip_OA_Gear_KitWeaponCrit": "Fits a melee weapon or a firearm: its critical chance rises by 5 points.",
     "Tooltip_OA_Gear_KitWeaponCritDamage": "Fits a melee weapon or a firearm: its critical damage multiplier rises by 10%% of the original.",

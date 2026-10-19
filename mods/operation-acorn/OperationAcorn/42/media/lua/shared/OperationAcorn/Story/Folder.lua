@@ -231,9 +231,15 @@ function Folder.requestBody(request)
         .. Folder.lines(Story.text("IGUI_OA_Story_Request_" .. request.id, no)) .. "\n" .. approvalOf(request)
 end
 
--- The survey stake record's text: a line for each stake read, by number, with the date on it.
+-- The survey stake record's text: a line for each stake read, by number, with the date on it; above them, once the team's
+-- first analysis reply has come in a crate, the date the replies put the fall on (and its correction, once that came).
 function Folder.stakeLog(record)
     local lines = {}
+    local sent = Story.section(record).sent or {}
+    if sent.reply_first then
+        lines[1] = Story.text(sent.reply_correction and "IGUI_OA_Story_StakeLog_BaseFixed" or "IGUI_OA_Story_StakeLog_Base")
+        lines[2] = ""
+    end
     for _, row in ipairs(Story.stakeLog(record)) do
         lines[#lines + 1] = Story.text("IGUI_OA_Story_StakeLog_Line", tostring(row.stake),
             Story.text("IGUI_OA_Story_StakeDate_" .. tostring(row.date)))

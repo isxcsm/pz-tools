@@ -337,6 +337,11 @@ test("a drop site stood at says its line once", function()
     eq(Scene.touchSite(record, 2, 3, sites), 1)
     eq(Scene.touchSite(record, 0, 0, sites), nil, "once")
     eq(Scene.touchSite(record, 50, 50, sites), nil, "a site not yet put down")
+    -- the stake of a site is unread until the story keeps it as read
+    eq(Scene.stakeUnread(record, { n = 1, stake = 12 }), true)
+    OA.Store.section(record, "story").sitesSearched = { [12] = 3 }
+    eq(Scene.stakeUnread(record, { n = 1, stake = 12 }), false)
+    eq(Scene.stakeUnread(record, { n = 3 }), false, "a site with no stake")
 end)
 
 test("a drop site gets 2 or 3 different things round it, and the second stake another date", function()

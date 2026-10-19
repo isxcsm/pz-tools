@@ -449,6 +449,13 @@ test("the stakes read are one record in the field papers, a line each with the d
         .. T("IGUI_OA_Story_StakeLog_Line", "412", T("IGUI_OA_Story_StakeDate_3")))
     Story.markRead(record, "clinic_log")
     eq(#groupOf(Folder.entries(record), "field").entries, 2, "among the other field papers")
+    -- once the first analysis reply came, the date it puts the fall on heads the record; then its correction
+    local lines = T("IGUI_OA_Story_StakeLog_Line", "87", T("IGUI_OA_Story_StakeDate_6")) .. "\n"
+        .. T("IGUI_OA_Story_StakeLog_Line", "412", T("IGUI_OA_Story_StakeDate_3"))
+    Story.section(record).sent.reply_first = true
+    eq(Folder.content(record, entries[1]).body, T("IGUI_OA_Story_StakeLog_Base") .. "\n\n" .. lines)
+    Story.section(record).sent.reply_correction = true
+    eq(Folder.content(record, entries[1]).body, T("IGUI_OA_Story_StakeLog_BaseFixed") .. "\n\n" .. lines)
 end)
 
 test("a manifest with the story's remark stays in the folder after the usual few have gone", function()

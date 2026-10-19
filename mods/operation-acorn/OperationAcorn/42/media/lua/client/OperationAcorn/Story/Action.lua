@@ -3,6 +3,7 @@
 require "TimedActions/ISBaseTimedAction"
 require "OperationAcorn/Core"
 require "OperationAcorn/Sync"
+require "OperationAcorn/Say"
 require "OperationAcorn/Sounds"
 local OA = OperationAcorn
 
@@ -32,13 +33,34 @@ function ISOAStoryAction:stop()
     ISBaseTimedAction.stop(self)
 end
 
+-- A stake's date read by the character (its mod data keeps the dates read): true the first time one is unlike a date
+-- read before (the character remarks on it once).
+OA.Say.define("StakeDiff", {})
+function ISOAStoryAction.stakeDate(character, date)
+    if type(date) ~= "number" then return false end
+    local md = character:getModData()
+    md.OA_StakeDates = md.OA_StakeDates or {}
+    local dates = md.OA_StakeDates
+    local unlike = false
+    for d in pairs(dates) do
+        if d ~= date then unlike = true end
+    end
+    dates[date] = true
+    if not unlike or md.OA_StakeDiffSaid then return false end
+    md.OA_StakeDiffSaid = true
+    return true
+end
+
 function ISOAStoryAction:perform()
     if self.kind == "soil" then
         OA.Sync.send(self.character, "story_soil", {})
     elseif self.kind == "stake" then
         OA.Sync.send(self.character, "story_stake", { stake = self.detail.stake })
+        local unlike = ISOAStoryAction.stakeDate(self.character, self.detail.date)
         if OA.StoryViewer then
-            OA.StoryViewer.open(self.character, { { stake = self.detail.stake, date = self.detail.date, id = "stake", noRecord = true } })
+            local character = self.character
+            OA.StoryViewer.open(character, { { stake = self.detail.stake, date = self.detail.date, id = "stake", noRecord = true } },
+                unlike and function() OA.Say.say(character, "StakeDiff") end or nil)
         end
     end
     ISBaseTimedAction.perform(self)
