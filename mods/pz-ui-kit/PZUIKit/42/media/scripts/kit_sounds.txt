@@ -130,56 +130,6 @@ module Base
         }
     }
 
-    sound KIT_TitleStamp
-    {
-        category = UI,
-        clip
-        {
-            file = media/sound/KIT_TitleStamp_1.ogg,
-        }
-        clip
-        {
-            file = media/sound/KIT_TitleStamp_2.ogg,
-        }
-        clip
-        {
-            file = media/sound/KIT_TitleStamp_3.ogg,
-        }
-        clip
-        {
-            file = media/sound/KIT_TitleStamp_4.ogg,
-        }
-        clip
-        {
-            file = media/sound/KIT_TitleStamp_5.ogg,
-        }
-    }
-
-    sound KIT_TitleStampLine
-    {
-        category = UI,
-        clip
-        {
-            file = media/sound/KIT_TitleStampLine_1.ogg,
-        }
-        clip
-        {
-            file = media/sound/KIT_TitleStampLine_2.ogg,
-        }
-        clip
-        {
-            file = media/sound/KIT_TitleStampLine_3.ogg,
-        }
-        clip
-        {
-            file = media/sound/KIT_TitleStampLine_4.ogg,
-        }
-        clip
-        {
-            file = media/sound/KIT_TitleStampLine_5.ogg,
-        }
-    }
-
     sound KIT_TitleType
     {
         category = UI,
@@ -197,17 +147,88 @@ module Base
         }
     }
 
-    sound KIT_TitleTypeLine
+    /* title picks begin: written by tools/sound/install_title_picks.py from title_picks.json, not by build.py */
+
+    /* KIT_T_Stamp_Land: stamp_land_06.ogg 46fa5fcb -7 dB */
+    sound KIT_T_Stamp_Land
     {
         category = UI,
         clip
         {
-            file = media/sound/KIT_TitleTypeLine_1.ogg,
-        }
-        clip
-        {
-            file = media/sound/KIT_TitleTypeLine_2.ogg,
+            file = media/sound/KIT_T_Stamp_Land.ogg,
         }
     }
+
+    /* KIT_T_Notice_Enter: notice_enter_07.ogg 6f37117b -13 dB */
+    sound KIT_T_Notice_Enter
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_T_Notice_Enter.ogg,
+        }
+    }
+
+    /* KIT_T_Discovery_Enter: discovery_enter_06.ogg 7f12ea8f -9 dB */
+    sound KIT_T_Discovery_Enter
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_T_Discovery_Enter.ogg,
+        }
+    }
+
+    /* KIT_T_Unveil_Enter: unveil_enter_07.ogg 6ce68d62 -8 dB */
+    sound KIT_T_Unveil_Enter
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_T_Unveil_Enter.ogg,
+        }
+    }
+
+    /* KIT_T_Unveil_Leave: unveil_leave_06.ogg 9f1222f5 -16 dB */
+    sound KIT_T_Unveil_Leave
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_T_Unveil_Leave.ogg,
+        }
+    }
+
+    /* KIT_T_Sink_Enter: sink_enter_01.ogg 0b1c0e3c -9 dB */
+    sound KIT_T_Sink_Enter
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_T_Sink_Enter.ogg,
+        }
+    }
+
+    /* KIT_T_Pulse_Enter: pulse_enter_04.ogg ce5c0e1c -10 dB */
+    sound KIT_T_Pulse_Enter
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_T_Pulse_Enter.ogg,
+        }
+    }
+
+    /* KIT_T_Bleed_Enter: bleed_enter_04.ogg 185aab16 -7 dB */
+    sound KIT_T_Bleed_Enter
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_T_Bleed_Enter.ogg,
+        }
+    }
+
+    /* title picks end */
 
 }

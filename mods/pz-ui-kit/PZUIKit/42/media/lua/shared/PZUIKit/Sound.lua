@@ -276,22 +276,29 @@ for _, style in ipairs({ "stamp", "discovery", "notice", "unveil", "dust", "blee
         Sound.define("kit.title." .. style .. ".line." .. moment, {})
     end
 end
--- The titles that sound (SOUND-SYSTEM.md S6): the stamp's hit, its line's lighter; the typewriter's letters struck (a
--- run of an old typewriter's keys as long as the strike), its line's, and its carriage thrown back as the paper is fed
--- out (ours: tools/sound, sounds.json); the notice tuned in as a signal, the torch struck alight, the burning title set
--- alight, the sinking one going into the water. A title's sounds are bound to its life: the API stops every one still
--- playing, with a short fade, when the title is gone or cut short, so a sound need not end by itself (the game's tune-in,
--- campfire, heartbeat and dripping, which go on, are stopped with it; tests/ingame/sound_e2e.lua).
+-- The titles that sound (SOUND-SYSTEM.md S7): one sound a title, at its big beat; the subtitle line is silent (its cues
+-- are defined and have no sound). The sounds are the user's picks from the title lab, Stable Audio 3 candidates installed
+-- by tools/sound/install_title_picks.py into the block below (KIT_T_<Style>_<Moment>, levelled by their style's role;
+-- a style:moment with no pick has no sound). The typewriter's keeps its recordings until a pick of it comes: its letters
+-- struck, its carriage thrown back as the paper is fed out (ours: tools/sound, sounds.json; a pick of it in the block
+-- below takes over, and then these two lines go). A title's sounds are bound
+-- to its life: the API stops every one still playing, with a short fade, when the title is gone or cut short, so a
+-- sound need not end by itself (tests/ingame/sound_e2e.lua).
 Sound.defineAll({
-    ["kit.title.stamp.land"] = { sound = "KIT_TitleStamp" },
-    ["kit.title.stamp.line.land"] = { sound = "KIT_TitleStampLine" },
     ["kit.title.type.enter"] = { sound = "KIT_TitleType" },
-    ["kit.title.type.line.enter"] = { sound = "KIT_TitleTypeLine" },
     ["kit.title.type.leave"] = { sound = "KIT_TitleFeed" },
-    ["kit.title.notice.enter"] = { sound = "RadioZap" },
-    ["kit.title.discovery.enter"] = { sound = "UseMatch" },
-    ["kit.title.dust.leave"] = { sound = "UseLighter" },
-    ["kit.title.sink.leave"] = { sound = "LureHitWater" },
 })
+-- title picks begin (written by tools/sound/install_title_picks.py from title_picks.json: edit that, not this)
+Sound.defineAll({
+    ["kit.title.stamp.land"] = { sound = "KIT_T_Stamp_Land" },
+    ["kit.title.notice.enter"] = { sound = "KIT_T_Notice_Enter" },
+    ["kit.title.discovery.enter"] = { sound = "KIT_T_Discovery_Enter" },
+    ["kit.title.unveil.enter"] = { sound = "KIT_T_Unveil_Enter" },
+    ["kit.title.unveil.leave"] = { sound = "KIT_T_Unveil_Leave" },
+    ["kit.title.sink.enter"] = { sound = "KIT_T_Sink_Enter" },
+    ["kit.title.pulse.enter"] = { sound = "KIT_T_Pulse_Enter" },
+    ["kit.title.bleed.enter"] = { sound = "KIT_T_Bleed_Enter" },
+})
+-- title picks end
 
 return Sound

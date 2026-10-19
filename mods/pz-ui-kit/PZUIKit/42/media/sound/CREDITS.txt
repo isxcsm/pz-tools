@@ -1,12 +1,13 @@
 The kit's sounds are cut from these recordings (pz-tools/mods/tools/sound builds them).
 
-KIT_TitleType, KIT_TitleTypeLine, KIT_TitleFeed
+KIT_TitleType, KIT_TitleFeed
     "WWS Typewriter" (an Erika 5 typewriter, 1940) by Work With Sounds / Konrad Gutkowski, CC BY 4.0
     https://commons.wikimedia.org/wiki/File:WWS_Typewriter.ogg
     https://creativecommons.org/licenses/by/4.0/ (cut, made mono, levelled)
 
-KIT_TitleStamp, KIT_TitleStampLine
-    Impact Sounds by Kenney (www.kenney.nl), CC0
+KIT_T_* (the title sounds)
+    Made with Stable Audio 3 Small-SFX (Stability AI, Stability AI Community License), prompts and seeds in
+    pz-tools/mods/tools/sound/title_picks.json; cut, levelled and encoded by install_title_picks.py
 
 KIT_Key_*, KIT_KeySpace, KIT_KeyBack
     "Typing - Model F 122 1984" by Raymangold22, CC0 (Wikimedia Commons)

@@ -9,8 +9,8 @@ local t = STEPS("sounde2e")
 local player = getPlayer()
 local sm = getSoundManager()
 
-local OWN = { "KIT_Key_1", "KIT_Key_8", "KIT_KeySpace", "KIT_KeyEnter", "KIT_KeyBack", "KIT_PrintRow", "KIT_TitleStamp",
-    "KIT_TitleStampLine", "KIT_TitleType", "KIT_TitleTypeLine", "KIT_TitleFeed", "OA_LockPick" }
+local OWN = { "KIT_Key_1", "KIT_Key_8", "KIT_KeySpace", "KIT_KeyEnter", "KIT_KeyBack", "KIT_PrintRow", "KIT_TitleType",
+    "KIT_TitleFeed", "KIT_T_Stamp_Land", "KIT_T_Bleed_Enter", "OA_LockPick" }
 local PROBE = { "CampfireLight", "UseMatch", "UseLighter", "TuneIn", "VehicleRadioTuneIn", "HeartBeat", "WaterDrip",
     "LureHitWater", "RadioZap" }
 local action, lockId, probeIds, probeAt = nil, nil, {}, nil
@@ -36,7 +36,7 @@ t.run({
         t.check("the mods' own sounds known", #unknown == 0, table.concat(unknown, ","))
         local missing, count = {}, 0
         local kitCues = {}
-        for _, style in ipairs({ "stamp", "type", "notice", "discovery", "dust", "sink" }) do
+        for _, style in ipairs({ "stamp", "dust", "notice", "discovery", "unveil", "sink", "pulse", "bleed", "brief", "type" }) do
             local title, line = Sound.titleSounds(style)
             for moment, name in pairs(title or {}) do kitCues[style .. "." .. moment] = { sound = name } end
             for moment, name in pairs(line or {}) do kitCues[style .. ".line." .. moment] = { sound = name } end

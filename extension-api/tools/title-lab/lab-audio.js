@@ -38,7 +38,6 @@
   };
   // What the game has now, to compare with: a cue's single option (or an extra one beside a, b, c).
   const NOW = {
-    "stamp:land": "KIT_TitleStamp_1.ogg",
     "type:enter": "KIT_TitleType_1.ogg", "type:leave": "KIT_TitleFeed_1.ogg",
   };
   // The candidates of each cue ({ "style:cue": [files in gen/] }, gen/manifest.js); type has only what it has now.
