@@ -51,3 +51,20 @@ Only the fonts' shapes, shadows and outlines are approximations (the page draws 
 A change made here goes into the API with the same numbers: the constants in `Looks.java` (and `Dust.java`), the shader's
 source in `Looks.Gl` (this page's, its picture read through `pic()`), the styles in `Texts.java`; with `LooksTest`'s numbers
 (the page's functions run in node for the same inputs) and `docs/design.md`. The page and the game then look alike.
+
+## Sound (`lab-audio.js`)
+
+The lab plays the title sound candidates (`mods/tools/sound/gen/`, made by `mods/tools/sound/ai_titles.py` with Stable Audio 3
+Small-SFX, listed by `gen/manifest.js`; SOUND-SYSTEM.md S7) on its own timeline, as the game will:
+
+- **enter** starts when the title (or its line, with the line's delay) starts to come in, **land** at the end of the enter (the
+  impact's moment for the stamp, 0.16 s in), **leave** when it starts to leave; a **hold** loops from the land to the end of the
+  title and follows 1 - the leave's progress down to nothing; what is left is cut in 0.15 s when the title is gone.
+- It has no clock of its own: it follows the lab's time `t` (pause, speed, the scrubber, "바로 사라지기", "처음부터 재생"). A jump of
+  the timeline sets what should be sounding at that point again.
+- The **소리** panel under the timeline: for each cue of the style on show, 없음, the candidates 1 to 8 (stamp and type also "지금
+  게임"), each with a ▶ that plays it alone; the master volume, "자막도 같은 소리" (a line plays its title's sounds, 6 dB lower, holds
+  excepted) and, for pulse, "유지를 퇴장 시작에 끊음". The picks are kept in the browser's storage.
+- The browser starts sound after the first click or key. Open the lab from a server (`python -m http.server` in the repository
+  root, then `/extension-api/tools/title-lab/title-lab.html`) for gapless loops; from a file the oggs play through `<audio>`
+  elements (a small gap at a loop's join). `LabAudio.log` and `LabAudio.debug()` in the console show what was started.

@@ -46,6 +46,7 @@
   </div>
   <div class="side" id="side"></div>
 </div>
+<script src="lab-audio.js"></script>
 <script>
 "use strict";
 // ---------------------------------------------------------------- parameters (Dust.java's constants, editable)
@@ -1918,6 +1919,8 @@ function frame(now) {
   const dt = Math.min((now - last) / 1000, FRAME_MOST); last = now;
   const end = timeline();
   if (playing && !scrubbing) { t += dt * Number(document.getElementById("speed").value); if (t > end) t = end; }
+  if (window.LabAudio) LabAudio.frame({ t, live: playing && !scrubbing, speed: Number(document.getElementById("speed").value), style: P.style,
+    pieces: pieces.map(p => ({ delay: p.delay, leaveAt: p.leaveAt, enterTime: p.spec.enterTime, impact: p.spec.enter === "impact", leaveTime: leaveTimeOf(p.spec), ash: ashTail(p.spec) })) });
   if (!dirty && t === drawnAt) { requestAnimationFrame(frame); return; }
   drawnAt = t; dirty = false;
   gl.viewport(0, 0, view.width, view.height);
