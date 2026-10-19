@@ -88,7 +88,7 @@ end
 local function setAttached(on)
     if on and not attached then
         attached = true
-        Events.OnPlayerUpdate.Add(onPlayerUpdate)
+        OA.on("OnPlayerUpdate", onPlayerUpdate)
     elseif not on and attached then
         attached = false
         Events.OnPlayerUpdate.Remove(onPlayerUpdate)

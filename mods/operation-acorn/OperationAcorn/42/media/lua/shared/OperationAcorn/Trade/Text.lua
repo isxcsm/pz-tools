@@ -38,7 +38,7 @@ end
 -- The names made so far, by item type: the same few come up on every screen and refresh. Cleared at each OnGameStart (a
 -- new game may have other mods' items and another language); a name not found is not kept.
 local names = {}
-if Events and Events.OnGameStart then Events.OnGameStart.Add(function() names = {} end) end
+if Events and Events.OnGameStart then OA.on("OnGameStart", function() names = {} end) end
 
 -- The name of an item type (the game's, with the vehicle class of a car part), for a receipt line.
 function Text.itemName(fullType)

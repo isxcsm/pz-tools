@@ -410,36 +410,39 @@ local function draw(el, scene, character, style, since)
 end
 
 -- After the world map's prerender (which draws over the map: its print media, stash maps and darkening).
-local worldPrerender = ISWorldMap.prerender
-function ISWorldMap:prerender(...)
-    worldPrerender(self, ...)
-    local playerNum = self.playerNum or 0
-    local scene = scenes[playerNum]
-    if not scene or scene.empty or not self.mapAPI then return end
-    local character = getSpecificPlayer(playerNum)
-    if not character then return end
-    OA.try("world map overlay", draw, self, scene, character, WORLD, getTimestampMs() - BASE - (shownAt[playerNum] or -1e9))
-end
+-- The game's functions below are left as they are while the mod is off (OA.off).
+if not OA.off then
+    local worldPrerender = ISWorldMap.prerender
+    function ISWorldMap:prerender(...)
+        worldPrerender(self, ...)
+        local playerNum = self.playerNum or 0
+        local scene = scenes[playerNum]
+        if not scene or scene.empty or not self.mapAPI then return end
+        local character = getSpecificPlayer(playerNum)
+        if not character then return end
+        OA.try("world map overlay", draw, self, scene, character, WORLD, getTimestampMs() - BASE - (shownAt[playerNum] or -1e9))
+    end
 
--- After the minimap's prerender, clipped to it (the game's own clip of the minimap ends before its prerender). A
--- failure is told once and the clip is taken off whatever happens: left on, it would hide the rest of the screen.
-local miniPrerender = ISMiniMapInner.prerender
-local miniFailed = false
-function ISMiniMapInner:prerender(...)
-    miniPrerender(self, ...)
-    local playerNum = self.playerNum or 0
-    local scene = scenes[playerNum]
-    if not scene or scene.empty or not self.mapAPI then return end
-    local character = getSpecificPlayer(playerNum)
-    if not character then return end
-    self:setStencilRect(0, 0, self.width, self.height)
-    local ok, err = pcall(draw, self, scene, character, MINI, nil)
-    -- taken back fully: inside another clip the game leaves it a level up (Trade.UI.unclip)
-    self:clearStencilRect()
-    self:repaintStencilRect(0, 0, self.width, self.height)
-    if not ok and not miniFailed then
-        miniFailed = true
-        OA.log("minimap overlay failed:", tostring(err))
+    -- After the minimap's prerender, clipped to it (the game's own clip of the minimap ends before its prerender). A
+    -- failure is told once and the clip is taken off whatever happens: left on, it would hide the rest of the screen.
+    local miniPrerender = ISMiniMapInner.prerender
+    local miniFailed = false
+    function ISMiniMapInner:prerender(...)
+        miniPrerender(self, ...)
+        local playerNum = self.playerNum or 0
+        local scene = scenes[playerNum]
+        if not scene or scene.empty or not self.mapAPI then return end
+        local character = getSpecificPlayer(playerNum)
+        if not character then return end
+        self:setStencilRect(0, 0, self.width, self.height)
+        local ok, err = pcall(draw, self, scene, character, MINI, nil)
+        -- taken back fully: inside another clip the game leaves it a level up (Trade.UI.unclip)
+        self:clearStencilRect()
+        self:repaintStencilRect(0, 0, self.width, self.height)
+        if not ok and not miniFailed then
+            miniFailed = true
+            OA.log("minimap overlay failed:", tostring(err))
+        end
     end
 end
 
@@ -531,35 +534,38 @@ local function addMarkButton(map)
     markButtonLook(button)
 end
 
-local worldCreateChildren = ISWorldMap.createChildren
-function ISWorldMap:createChildren(...)
-    worldCreateChildren(self, ...)
-    OA.try("world map marks button", addMarkButton, self)
-end
+-- The game's functions below are left as they are while the mod is off (OA.off).
+if not OA.off then
+    local worldCreateChildren = ISWorldMap.createChildren
+    function ISWorldMap:createChildren(...)
+        worldCreateChildren(self, ...)
+        OA.try("world map marks button", addMarkButton, self)
+    end
 
--- Hooks: the world map when it is shown (its pins drop in), the minimap when it is built.
-local showWorldMap = ISWorldMap.ShowWorldMap
-local function worldMapShown(playerNum, ...)
-    Maps.rebuild(playerNum)
-    -- (the option may have been switched in the mod options since)
-    local map = ISWorldMap_instance
-    if map and map.oaMarkButton then markButtonLook(map.oaMarkButton) end
-    shownAt[playerNum] = getTimestampMs() - BASE
-    return ...
-end
+    -- Hooks: the world map when it is shown (its pins drop in), the minimap when it is built.
+    local showWorldMap = ISWorldMap.ShowWorldMap
+    local function worldMapShown(playerNum, ...)
+        Maps.rebuild(playerNum)
+        -- (the option may have been switched in the mod options since)
+        local map = ISWorldMap_instance
+        if map and map.oaMarkButton then markButtonLook(map.oaMarkButton) end
+        shownAt[playerNum] = getTimestampMs() - BASE
+        return ...
+    end
 
-ISWorldMap.ShowWorldMap = function(playerNum, ...)
-    return worldMapShown(playerNum, showWorldMap(playerNum, ...))
-end
+    ISWorldMap.ShowWorldMap = function(playerNum, ...)
+        return worldMapShown(playerNum, showWorldMap(playerNum, ...))
+    end
 
-local instantiate = ISMiniMapInner.instantiate
-local function miniMapMade(self, ...)
-    Maps.rebuild(self.playerNum or 0)
-    return ...
-end
+    local instantiate = ISMiniMapInner.instantiate
+    local function miniMapMade(self, ...)
+        Maps.rebuild(self.playerNum or 0)
+        return ...
+    end
 
-ISMiniMapInner.instantiate = function(self, ...)
-    return miniMapMade(self, instantiate(self, ...))
+    ISMiniMapInner.instantiate = function(self, ...)
+        return miniMapMade(self, instantiate(self, ...))
+    end
 end
 
 -- The option, in the game's mod options screen.
@@ -577,6 +583,6 @@ OA.Sync.listen("trade", function() Maps.refresh() end)
 OA.Sync.listen("story", function() Maps.refresh() end)
 OA.Sync.listen("upgrades", function() Maps.refresh() end)
 OA.Sync.listen("all", function() Maps.refresh() end)
-Events.OnCreatePlayer.Add(function() Maps.refresh() end)
+OA.on("OnCreatePlayer", function() Maps.refresh() end)
 
 return Maps

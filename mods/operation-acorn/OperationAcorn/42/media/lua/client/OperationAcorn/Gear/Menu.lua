@@ -191,7 +191,7 @@ local function onFillInventory(playerNum, context, items)
     end
     for i = #adders, 1, -1 do adders[i]() end
 end
-Events.OnFillInventoryObjectContextMenu.Add(onFillInventory)
+OA.on("OnFillInventoryObjectContextMenu", onFillInventory)
 
 -- ---- the mechanics window -------------------------------------------------------------------------------------
 
@@ -239,6 +239,9 @@ local function addPartOptions(window, part)
     if before == 1 and context.numOptions > 1 then context:setVisible(true) end
 end
 
+-- The game's functions below are left as they are while the mod is off (OA.off).
+if OA.off then return Menu end
+
 local originalPartMenu = ISVehicleMechanics.doPartContextMenu
 
 local function partOptionsAdded(self, part, ...)
@@ -285,7 +288,7 @@ local function onGameStart()
     if not player then return end
     OA.try("gear: refreshing the kits", Gear.refreshAll, player)
 end
-Events.OnGameStart.Add(onGameStart)
+OA.on("OnGameStart", onGameStart)
 
 -- A weapon's critical chance and multiplier are not saved by the game (its damage is), and a weapon left in a container
 -- at the start was not looked at then: its kits are written into it as it is taken in hand (one item, only one with
@@ -295,8 +298,8 @@ local function onEquip(_, item)
     local damage, crit, _, critDamage = Gear.weaponKits(item)
     if damage > 0 or crit > 0 or critDamage > 0 then OA.try("gear: a weapon's kits", Gear.refreshItem, item) end
 end
-Events.OnEquipPrimary.Add(onEquip)
-Events.OnEquipSecondary.Add(onEquip)
+OA.on("OnEquipPrimary", onEquip)
+OA.on("OnEquipSecondary", onEquip)
 
 -- The waist bag worn the other way is a new item with the old one's modData and the script's capacity: its kits are
 -- written into it as soon as it is put on (only the two waist bag places are looked at).
@@ -309,7 +312,7 @@ local function onClothingUpdated(character)
         end
     end
 end
-Events.OnClothingUpdated.Add(onClothingUpdated)
+OA.on("OnClothingUpdated", onClothingUpdated)
 
 -- A vehicle the character gets into is written again from its kits (cheap, and once per getting in).
 local function onEnterVehicle(character)
@@ -317,6 +320,6 @@ local function onEnterVehicle(character)
     local vehicle = character:getVehicle()
     if vehicle then OA.try("gear: refreshing a vehicle", Gear.refreshVehicle, vehicle) end
 end
-Events.OnEnterVehicle.Add(onEnterVehicle)
+OA.on("OnEnterVehicle", onEnterVehicle)
 
 return Menu

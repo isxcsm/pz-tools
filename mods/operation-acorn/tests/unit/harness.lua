@@ -250,7 +250,8 @@ for _, file in ipairs(listfiles("tests/unit")) do
             local function fresh()
                 cases = {}
                 loaded = {}
-                OperationAcorn = nil
+                -- (the mod as with the API: a test that wants it missing clears PZExtAPI, and OA.off stays as set here)
+                OperationAcorn = { off = false }
                 resetGame()
                 chunk()
             end

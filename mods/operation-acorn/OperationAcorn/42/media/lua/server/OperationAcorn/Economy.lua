@@ -194,6 +194,7 @@ end
 
 local hooked, grabHooked = false, false
 function Economy.hookTransfers()
+    if OA.off then return end
     if not hooked and ISTransferAction and ISTransferAction.transferItem then
         hooked = true
         local original = ISTransferAction.transferItem
@@ -345,13 +346,13 @@ function Economy.eggMinute()
     end)
 end
 
-Events.EveryDays.Add(Economy.daily)
-Events.EveryTenMinutes.Add(Economy.tenMinutes)
-Events.EveryOneMinute.Add(Economy.minute)
-Events.EveryOneMinute.Add(Economy.eggMinute)
-Events.OnZombieDead.Add(onZombieDead)
-Events.OnItemFound.Add(onItemFound)
-Events.OnGameStart.Add(Economy.start)
-Events.OnServerStarted.Add(Economy.start)
+OA.on("EveryDays", Economy.daily)
+OA.on("EveryTenMinutes", Economy.tenMinutes)
+OA.on("EveryOneMinute", Economy.minute)
+OA.on("EveryOneMinute", Economy.eggMinute)
+OA.on("OnZombieDead", onZombieDead)
+OA.on("OnItemFound", onItemFound)
+OA.on("OnGameStart", Economy.start)
+OA.on("OnServerStarted", Economy.start)
 
 return Economy

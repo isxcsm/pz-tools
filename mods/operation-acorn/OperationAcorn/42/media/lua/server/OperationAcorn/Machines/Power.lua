@@ -16,7 +16,7 @@ local function onGeneratorPower(_, _, after)
     if not ok then OA.log("terminals on a generator's change failed:", tostring(err)) end
 end
 
-if Events.OnPZExtGeneratorPower then Events.OnPZExtGeneratorPower.Add(onGeneratorPower) end
+if Events.OnPZExtGeneratorPower then OA.on("OnPZExtGeneratorPower", onGeneratorPower) end
 
 -- A network of the API changed (any mod's: supply started or stopped, another producer, a consumer joined or left and
 -- its load moved): the terminals show the power they have now. The API raises it after the change, never per frame.
@@ -25,4 +25,4 @@ local function onNetworkChange()
     if not ok then OA.log("terminals on a network's change failed:", tostring(err)) end
 end
 
-if Events.OnPZExtNetworkChange then Events.OnPZExtNetworkChange.Add(onNetworkChange) end
+if Events.OnPZExtNetworkChange then OA.on("OnPZExtNetworkChange", onNetworkChange) end

@@ -62,7 +62,10 @@ local function onRefresh(page, stage)
         end
     end
 end
-Events.OnRefreshInventoryWindowContainers.Add(onRefresh)
+OA.on("OnRefreshInventoryWindowContainers", onRefresh)
+
+-- The game's functions below are left as they are while the mod is off (OA.off).
+if OA.off then return end
 
 -- player number -> the objects other code lights (the game keeps its own record local to ISInventoryPage, given to it
 -- through OnObjectHighlighted; the same is kept here): those are left as they are, as the game leaves them

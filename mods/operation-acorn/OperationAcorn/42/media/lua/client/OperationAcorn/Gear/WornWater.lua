@@ -6,10 +6,15 @@ require "ISUI/ISWorldObjectContextMenu"
 require "TimedActions/ISAddFluidFromItemAction"
 require "TimedActions/ISDrinkFluidAction"
 require "Fluids/ISFluidEmptyAction"
+require "OperationAcorn/Core"
+local OA = OperationAcorn
 
 local function worn(character, item)
     return item ~= nil and instanceof(item, "InventoryItem") and character:isEquippedClothing(item)
 end
+
+-- The game's functions below are left as they are while the mod is off (OA.off).
+if OA.off then return end
 
 local onAddFluidFromItem = ISWorldObjectContextMenu.onAddFluidFromItem
 ISWorldObjectContextMenu.onAddFluidFromItem = function(worldobjects, fluidObject, fluidItem, playerObj, ...)

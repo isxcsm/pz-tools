@@ -42,7 +42,7 @@ function Crate.refresh(character, container, object)
         if #waiting == 0 then askedAt = getTimestampMs() end
         if not hooked then
             hooked = true
-            Events.OnTick.Add(watch)
+            OA.on("OnTick", watch)
         end
         waiting[#waiting + 1] = object
     end

@@ -103,4 +103,4 @@ local function onFillWorld(playerNum, context, worldobjects, test)
     add("ContextMenu_OA_Harvest_Quick", false)
 end
 
-Events.OnFillWorldObjectContextMenu.Add(onFillWorld)
+OA.on("OnFillWorldObjectContextMenu", onFillWorld)

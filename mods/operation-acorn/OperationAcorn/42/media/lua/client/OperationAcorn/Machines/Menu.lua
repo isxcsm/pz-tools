@@ -118,7 +118,7 @@ function Menu.fill(player, context, worldobjects, test)
     if object then addMachineOptions(context, playerObj, object) end
 end
 
-Events.OnFillWorldObjectContextMenu.Add(Menu.fill)
+OA.on("OnFillWorldObjectContextMenu", Menu.fill)
 
 local function addOnce(list, object)
     for _, v in ipairs(list) do
@@ -140,7 +140,7 @@ function Menu.preFill(player, context, worldobjects, test)
     if anchor:hasFluid() and fetch.storeWater then addOnce(fetch.storeWater, anchor) end
 end
 
-Events.OnPreFillWorldObjectContextMenu.Add(Menu.preFill)
+OA.on("OnPreFillWorldObjectContextMenu", Menu.preFill)
 
 -- ---------------------------------------------------------------------------------------------------------------------
 -- Installing, from the item in the inventory
@@ -210,7 +210,7 @@ function Menu.fillInventory(player, context, items)
     end
 end
 
-Events.OnFillInventoryObjectContextMenu.Add(Menu.fillInventory)
+OA.on("OnFillInventoryObjectContextMenu", Menu.fillInventory)
 
 -- The notes the machines send (worn and broken parts): a brief title for the character they are for, wherever it is
 -- (amber for a part worn, red for one broken).

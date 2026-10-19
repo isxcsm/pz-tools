@@ -188,7 +188,7 @@ local function onFillWorld(player, context, worldobjects, test)
         end
     end
 end
-Events.OnFillWorldObjectContextMenu.Add(onFillWorld)
+OA.on("OnFillWorldObjectContextMenu", onFillWorld)
 
 -- The inventory menu ------------------------------------------------------------------------------------------------
 
@@ -231,7 +231,7 @@ local function onFillInventory(player, context, items)
         context:addOptionOnTop(getText("ContextMenu_OA_Trade_LastPage"), character, Trade.Reader.lastPage)
     end
 end
-Events.OnFillInventoryObjectContextMenu.Add(onFillInventory)
+OA.on("OnFillInventoryObjectContextMenu", onFillInventory)
 
 -- The game's sledgehammer passes over a sealed delivery box or supply crate: what is in it lives in the record or on
 -- the crate's data, not in a container, so breaking it would only lose it (a box's goods before the helicopter comes,
@@ -239,7 +239,7 @@ Events.OnFillInventoryObjectContextMenu.Add(onFillInventory)
 -- them, and the record forgets them then (Things.destroyed). ISDestroyCursor loads after this file (server folder).
 -- (a game started again in the same session finds its own wrapper there and leaves it)
 local destroyWrapper = nil
-Events.OnGameStart.Add(function()
+OA.on("OnGameStart", function()
     local canDestroy = ISDestroyCursor and ISDestroyCursor.canDestroy
     if not canDestroy or canDestroy == destroyWrapper then return end
     destroyWrapper = function(self, object)

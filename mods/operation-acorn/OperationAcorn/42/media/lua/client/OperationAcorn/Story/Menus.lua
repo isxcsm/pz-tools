@@ -181,7 +181,7 @@ local function onNotice(playerId, detail)
 end
 
 OA.Sync.listen("notice", onNotice)
-Events.OnFillInventoryObjectContextMenu.Add(onFillInventory)
-Events.OnFillWorldObjectContextMenu.Add(onFillWorld)
+OA.on("OnFillInventoryObjectContextMenu", onFillInventory)
+OA.on("OnFillWorldObjectContextMenu", onFillWorld)
 
 return Menus

@@ -52,7 +52,7 @@ local function onUpdate(player)
         OA.Sync.send(player, "infection.wound", { kind = kind })
     end
 end
-Events.OnPlayerUpdate.Add(onUpdate)
+OA.on("OnPlayerUpdate", onUpdate)
 
 local function onCreatePlayer(index, player)
     if index == 0 then
@@ -60,7 +60,7 @@ local function onCreatePlayer(index, player)
         Infection.resetWatch()
     end
 end
-Events.OnCreatePlayer.Add(onCreatePlayer)
+OA.on("OnCreatePlayer", onCreatePlayer)
 
 local function onGameStart()
     me = getPlayer()
@@ -69,7 +69,7 @@ local function onGameStart()
     local record = player and OA.Client.record(player)
     if record then Watch.moodles(record, OA.hours()) end
 end
-Events.OnGameStart.Add(onGameStart)
+OA.on("OnGameStart", onGameStart)
 
 -- The record changed (a wound, a test, a drug, a cure): the moodles follow at once.
 local function onChanged()

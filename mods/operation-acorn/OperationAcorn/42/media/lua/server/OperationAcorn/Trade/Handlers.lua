@@ -160,7 +160,7 @@ local function everyTenMinutes()
     throttled("lost boxes", Handlers.BOXES_MS, reconcileAll, now)
     throttled("terminal light", Handlers.TERMINALS_MS, refreshTerminals, now)
 end
-Events.EveryTenMinutes.Add(everyTenMinutes)
+OA.on("EveryTenMinutes", everyTenMinutes)
 
 -- A box or terminal that is taken out of the world by something other than us (a sledgehammer): the record forgets it.
 -- Our own removals set Objects.removing. The event fires on the side that decides (the server, or the game alone).
@@ -171,7 +171,7 @@ local function onRemoved(object)
         guarded("destroyed", function() Things.destroyed(object) end)
     end
 end
-Events.OnObjectAboutToBeRemoved.Add(onRemoved)
+OA.on("OnObjectAboutToBeRemoved", onRemoved)
 
 -- Chunk work ------------------------------------------------------------------------------------------------------
 

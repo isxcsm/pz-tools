@@ -194,12 +194,12 @@ function FieldCall.check()
         number = OA.Story.number(record) }
     if not hooked then
         hooked = true
-        Events.OnTick.Add(tick)
+        OA.on("OnTick", tick)
     end
 end
 
 OA.Sync.listen("comms", function() FieldCall.check() end)
 OA.Sync.listen("all", function() FieldCall.check() end)
-Events.OnGameStart.Add(function() FieldCall.check() end)
+OA.on("OnGameStart", function() FieldCall.check() end)
 
 return FieldCall

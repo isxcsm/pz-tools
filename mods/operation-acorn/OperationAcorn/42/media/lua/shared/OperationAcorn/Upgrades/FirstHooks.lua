@@ -7,6 +7,9 @@ require "OperationAcorn/Store"
 require "OperationAcorn/Upgrades/First"
 local OA = OperationAcorn
 
+-- The game's functions below are left as they are while the mod is off (OA.off).
+if OA.off then return end
+
 local originalNew = ISMoveablesAction.new
 
 function ISMoveablesAction:new(character, square, mode, ...)

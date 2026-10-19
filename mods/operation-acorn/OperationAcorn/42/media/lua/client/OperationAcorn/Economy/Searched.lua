@@ -189,6 +189,9 @@ local function touched(container, playerObj)
     OA.Sync.send(playerObj, "story_touched", { key = key })
 end
 
+-- The game's functions below are left as they are while the mod is off (OA.off).
+if OA.off then return Watch end
+
 local checkExplored = ISInventoryPage.checkExplored
 function ISInventoryPage:checkExplored(container, playerObj, ...)
     checkExplored(self, container, playerObj, ...)

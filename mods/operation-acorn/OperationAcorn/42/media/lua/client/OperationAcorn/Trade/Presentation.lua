@@ -75,7 +75,7 @@ local function onHeliPass(playerId, args)
     passes[#passes + 1] = pass
     if not hooked then
         hooked = true
-        Events.OnTick.Add(tick)
+        OA.on("OnTick", tick)
     end
 end
 OA.Sync.listen("heliPass", onHeliPass)

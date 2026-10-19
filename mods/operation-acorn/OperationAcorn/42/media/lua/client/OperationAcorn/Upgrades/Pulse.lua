@@ -81,7 +81,7 @@ function Pulse.enable(on)
         wake = 0
         if not hooked then
             hooked = true
-            Events.OnTick.Add(onTick)
+            OA.on("OnTick", onTick)
         end
     elseif added then
         added = false

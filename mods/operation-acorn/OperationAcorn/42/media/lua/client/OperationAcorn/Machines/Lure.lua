@@ -21,4 +21,4 @@ local function leftLines(item)
 end
 OA.TipLines.add("lure", leftLines)
 
-Events.OnGameStart.Add(Machines.declareAnim)
+OA.on("OnGameStart", Machines.declareAnim)

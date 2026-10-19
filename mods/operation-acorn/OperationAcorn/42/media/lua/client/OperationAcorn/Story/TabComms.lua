@@ -901,7 +901,7 @@ UI.scaled(OACommsLog, ISPanel)
 -- each call that has come ready, and on the comms tab the call plays.
 local toldReady = {}  -- by player number: the call an open window's dots were last redrawn for
 
-Events.EveryTenMinutes.Add(function()
+OA.on("EveryTenMinutes", function()
     for n, window in pairs(OATerminalWindow.instances) do
         local record = OA.Client.record(window.character)
         local e = record and Comms.next(record, "terminal")

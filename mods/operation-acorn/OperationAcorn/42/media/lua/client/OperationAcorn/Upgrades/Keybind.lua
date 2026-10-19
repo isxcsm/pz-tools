@@ -15,4 +15,4 @@ local function onKeyPressed(key)
     OA.Upgrades.open(player:getPlayerNum())
 end
 
-Events.OnKeyPressed.Add(onKeyPressed)
+OA.on("OnKeyPressed", onKeyPressed)

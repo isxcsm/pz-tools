@@ -50,9 +50,9 @@ local function onClientCommand(module, command, character, args)
     if not ok then OA.log("command", command, "failed:", tostring(err)) end
 end
 
-Events.OnClientCommand.Add(onClientCommand)
-Events.LoadChunk.Add(OA.Chunks.loaded)
+OA.on("OnClientCommand", onClientCommand)
+OA.on("LoadChunk", OA.Chunks.loaded)
 
-Events.OnPlayerDeath.Add(onPlayerDeath)
+OA.on("OnPlayerDeath", onPlayerDeath)
 
 return Server

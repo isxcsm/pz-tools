@@ -43,44 +43,47 @@ local function objectOf(square, kind, object)
     return square and Objects.find(square, kind) or nil
 end
 
-local new = ISMoveableSpriteProps.new
-function ISMoveableSpriteProps.new(sprite)
-    local s = new(sprite)
-    local kind = s and s.spriteName and KIND[s.spriteName]
-    if kind then
-        s.oaTrade = kind
-        -- a one-tile object the tool takes up as this mod does (no other faces: they have a Facing property)
-        PZUIKit.Furniture.oneTile(s, itemOf(kind, FIELD[s.spriteName]))
+-- The game's functions below are left as they are while the mod is off (OA.off).
+if not OA.off then
+    local new = ISMoveableSpriteProps.new
+    function ISMoveableSpriteProps.new(sprite)
+        local s = new(sprite)
+        local kind = s and s.spriteName and KIND[s.spriteName]
+        if kind then
+            s.oaTrade = kind
+            -- a one-tile object the tool takes up as this mod does (no other faces: they have a Facing property)
+            PZUIKit.Furniture.oneTile(s, itemOf(kind, FIELD[s.spriteName]))
+        end
+        return s
     end
-    return s
-end
 
-local canPickUp = ISMoveableSpriteProps.canPickUpMoveable
-function ISMoveableSpriteProps:canPickUpMoveable(character, square, object)
-    local kind = self.oaTrade
-    if not kind then return canPickUp(self, character, square, object) end
-    local thing = objectOf(square, kind, object)
-    if not thing then return false end
-    -- the game's rule for a piece of furniture of one tile: it must fit the inventory
-    if not character:getInventory():hasRoomFor(character, self.weight) then return false end
-    if kind == Objects.TERMINAL then return true end
-    if thing:getModData()[Objects.SEALED] then return false end
-    -- another's box, or an abandoned one (that is dismantled instead), is not taken up
-    if Things.boxSide(character, thing:getModData()) ~= "own" then return false end
-    local container = thing:getContainer()
-    return container == nil or container:isEmpty()
-end
-
-local pickUp = ISMoveableSpriteProps.pickUpMoveable
-function ISMoveableSpriteProps:pickUpMoveable(character, square, createItem, forceAllow)
-    local kind = self.oaTrade
-    if not kind then return pickUp(self, character, square, createItem, forceAllow) end
-    local thing = objectOf(square, kind, self.object)
-    if thing then
-        if kind == Objects.TERMINAL then Things.takeTerminal(character, thing)
-        else Things.takeBox(character, thing) end
+    local canPickUp = ISMoveableSpriteProps.canPickUpMoveable
+    function ISMoveableSpriteProps:canPickUpMoveable(character, square, object)
+        local kind = self.oaTrade
+        if not kind then return canPickUp(self, character, square, object) end
+        local thing = objectOf(square, kind, object)
+        if not thing then return false end
+        -- the game's rule for a piece of furniture of one tile: it must fit the inventory
+        if not character:getInventory():hasRoomFor(character, self.weight) then return false end
+        if kind == Objects.TERMINAL then return true end
+        if thing:getModData()[Objects.SEALED] then return false end
+        -- another's box, or an abandoned one (that is dismantled instead), is not taken up
+        if Things.boxSide(character, thing:getModData()) ~= "own" then return false end
+        local container = thing:getContainer()
+        return container == nil or container:isEmpty()
     end
-    return {}
+
+    local pickUp = ISMoveableSpriteProps.pickUpMoveable
+    function ISMoveableSpriteProps:pickUpMoveable(character, square, createItem, forceAllow)
+        local kind = self.oaTrade
+        if not kind then return pickUp(self, character, square, createItem, forceAllow) end
+        local thing = objectOf(square, kind, self.object)
+        if thing then
+            if kind == Objects.TERMINAL then Things.takeTerminal(character, thing)
+            else Things.takeBox(character, thing) end
+        end
+        return {}
+    end
 end
 
 -- Their items are the UI kit's heavy things (PZUIKit.Heavy): let go to the floor, a terminal stands up on any free

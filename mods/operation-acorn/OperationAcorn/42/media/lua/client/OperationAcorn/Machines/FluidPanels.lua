@@ -5,7 +5,8 @@
 require "Fluids/ISFluidInfoUI"
 require "Fluids/ISFluidTransferUI"
 require "OperationAcorn/Machines/Machines"
-local Machines = OperationAcorn.Machines
+local OA = OperationAcorn
+local Machines = OA.Machines
 
 local FluidPanels = {}
 Machines.FluidPanels = FluidPanels
@@ -53,6 +54,9 @@ function FluidPanels.around(panel, container, fn, ...)
     ISFluidUtil.isoMaxPanelDist = dist + math.max(b[3] - b[1], b[4] - b[2])
     return restored(dist, pcall(fn, panel, ...))
 end
+
+-- The game's functions below are left as they are while the mod is off (OA.off).
+if OA.off then return FluidPanels end
 
 local infoUpdate = ISFluidInfoUI.update
 function ISFluidInfoUI:update(...)

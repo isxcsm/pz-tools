@@ -59,6 +59,9 @@ local function jobText(kind)
     return text
 end
 
+-- The game's functions below are left as they are while the mod is off (OA.off).
+if OA.off then return end
+
 local original = ISInventoryPane.renderdetails
 function ISInventoryPane:renderdetails(doDragged, ...)
     local container = self.inventory

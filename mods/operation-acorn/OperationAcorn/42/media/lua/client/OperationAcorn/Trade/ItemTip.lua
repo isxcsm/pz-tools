@@ -68,6 +68,9 @@ local function draw(panel, item)
     if bottomY then strip(panel, rows, bottomY) end
 end
 
+-- The game's functions below are left as they are while the mod is off (OA.off).
+if OA.off then return end
+
 local originalRender = ISToolTipInv.render
 function ISToolTipInv:render(...)
     self.oaAbove, self.oaBelow = 0, 0

@@ -155,18 +155,18 @@ local function onZombieDead(zombie)
     if not ok then OA.log("zombie mission kill failed:", tostring(err)) end
 end
 
-Events.EveryTenMinutes.Add(onTenMinutes)
-Events.EveryOneMinute.Add(onMinute)
-Events.OnZombieDead.Add(SceneGame.zombieDied)
-Events.OnZombieDead.Add(onZombieDead)
-Events.OnGameStart.Add(start)
-Events.OnServerStarted.Add(start)
-Events.OnFillContainer.Add(function(roomName, containerType, container)
+OA.on("EveryTenMinutes", onTenMinutes)
+OA.on("EveryOneMinute", onMinute)
+OA.on("OnZombieDead", SceneGame.zombieDied)
+OA.on("OnZombieDead", onZombieDead)
+OA.on("OnGameStart", start)
+OA.on("OnServerStarted", start)
+OA.on("OnFillContainer", function(roomName, containerType, container)
     if Game then Game.onFill(roomName, containerType, container) end
 end)
 -- A fire empties a container (the API's event; without the API a burnt piece waits for the deadline).
 if Events.OnPZExtContainerBurning then
-    Events.OnPZExtContainerBurning.Add(function(container, object)
+    OA.on("OnPZExtContainerBurning", function(container, object)
         if Game then Game.onBurning(container, object) end
     end)
 end

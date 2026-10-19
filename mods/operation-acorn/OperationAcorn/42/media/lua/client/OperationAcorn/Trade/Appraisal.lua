@@ -61,27 +61,30 @@ end
 
 -- The tooltip draws the item's own lines through the game; the appraisal is a strip drawn under it (above it when the
 -- tooltip is at the bottom of the screen), and says how much room it took (oaAbove, oaBelow) for the lines of ItemTip.
-local originalRender = ISToolTipInv.render
-function ISToolTipInv:render(...)
-    originalRender(self, ...)
-    local item = self.item
-    if not item or not self:isVisible() then return end
-    if ISContextMenu.instance and ISContextMenu.instance.visibleCheck then return end
-    local record = OA.Client.record(getPlayer())
-    -- (no worth before the team is met: the terminal not used yet)
-    if not record or not OA.Trust.contacted(record) then return end
-    local ok, line = OA.try("appraisal line", Appraisal.lineFor, item, record)
-    if not ok or not line then return end
-    local font = UIFont.Small
-    local h = UI.fontHeightPx(font) + 8
-    local w = math.max(self.width, line.width + 16)
-    local y = self.height
-    if self:getY() + self.height + h > getCore():getScreenHeight() then y = -h end
-    -- what the item tooltip's other lines (ItemTip) find taken
-    if y < 0 then self.oaAbove = h else self.oaBelow = h end
-    self:drawRect(0, y, w, h, self.backgroundColor.a, self.backgroundColor.r, self.backgroundColor.g, self.backgroundColor.b)
-    self:drawRectBorder(0, y, w, h, self.borderColor.a, self.borderColor.r, self.borderColor.g, self.borderColor.b)
-    self:drawText(line.text, 8, y + 4, line.r, line.g, line.b, 1, font)
+-- The game's functions below are left as they are while the mod is off (OA.off).
+if not OA.off then
+    local originalRender = ISToolTipInv.render
+    function ISToolTipInv:render(...)
+        originalRender(self, ...)
+        local item = self.item
+        if not item or not self:isVisible() then return end
+        if ISContextMenu.instance and ISContextMenu.instance.visibleCheck then return end
+        local record = OA.Client.record(getPlayer())
+        -- (no worth before the team is met: the terminal not used yet)
+        if not record or not OA.Trust.contacted(record) then return end
+        local ok, line = OA.try("appraisal line", Appraisal.lineFor, item, record)
+        if not ok or not line then return end
+        local font = UIFont.Small
+        local h = UI.fontHeightPx(font) + 8
+        local w = math.max(self.width, line.width + 16)
+        local y = self.height
+        if self:getY() + self.height + h > getCore():getScreenHeight() then y = -h end
+        -- what the item tooltip's other lines (ItemTip) find taken
+        if y < 0 then self.oaAbove = h else self.oaBelow = h end
+        self:drawRect(0, y, w, h, self.backgroundColor.a, self.backgroundColor.r, self.backgroundColor.g, self.backgroundColor.b)
+        self:drawRectBorder(0, y, w, h, self.borderColor.a, self.borderColor.r, self.borderColor.g, self.borderColor.b)
+        self:drawText(line.text, 8, y + 4, line.r, line.g, line.b, 1, font)
+    end
 end
 
 -- The estimate panel ---------------------------------------------------------------------------------------------------
@@ -277,6 +280,6 @@ local function onRefresh(page, state)
         panels[page] = panel
     end
 end
-Events.OnRefreshInventoryWindowContainers.Add(onRefresh)
+OA.on("OnRefreshInventoryWindowContainers", onRefresh)
 
 return Appraisal

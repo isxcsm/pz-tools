@@ -245,3 +245,54 @@ test("a bounded cache of timed entries drops the expired ones as a new key is pu
     OA.putTimed(c, {}, { at = 100 }, 100, 500)
     eq(c.n, 1, "a clock gone back: the old entries are not live")
 end)
+
+test("without the API the mod is off: OA.on registers nothing", function()
+    local calls = 0
+    OA.off = true
+    OA.on("OnTestOff", function() calls = calls + 1 end)
+    TEST.fire("OnTestOff")
+    eq(calls, 0, "off: not registered")
+    OA.off = false
+    OA.on("OnTestOff", function() calls = calls + 1 end)
+    TEST.fire("OnTestOff")
+    eq(calls, 1, "on: registered")
+end)
+
+-- Every .lua file under a folder of the mod, with its path.
+local function luaFiles(dir, out)
+    for _, name in ipairs(listfiles(dir)) do
+        local path = dir .. "/" .. name
+        if string.match(name, "%.lua$") then out[#out + 1] = path
+        elseif not string.find(name, ".", 1, true) then luaFiles(path, out) end
+    end
+    return out
+end
+
+test("the mod hooks the game only through OA.on and behind OA.off (it changes nothing without the API)", function()
+    local files = luaFiles("OperationAcorn/42/media/lua", {})
+    assert(#files > 100, "the mod's files found")
+    local bad = {}
+    for _, path in ipairs(files) do
+        local text = readfile(path)
+        local guarded, named = false, false
+        local n = 0
+        for line in string.gmatch(text, "([^\n]*)\n?") do
+            n = n + 1
+            if string.match(line, "^local OA = OperationAcorn") then named = true end
+            if string.find(line, "OA.off", 1, true) and not string.match(line, "^%s*%-%-") then
+                guarded = true
+                -- (a file the tests do not load fails here, not first in the game)
+                if not named then bad[#bad + 1] = path .. ":" .. n .. " OA.off before local OA" end
+            end
+            if string.match(line, "^%s*Events%.[%w_]+%.Add%(") and not string.find(path, "NoApi.lua", 1, true) then
+                bad[#bad + 1] = path .. ":" .. n .. " Events.Add (OA.on)"
+            end
+            -- a game function changed: function ISFoo:bar / ISFoo.bar = function (the mod's own ISOA classes aside)
+            local class = string.match(line, "^%s*function (IS%w+)[.:]") or string.match(line, "^%s*(IS%w+)%.[%w_]+ = function")
+            if class and not string.match(class, "^ISOA") and not guarded then
+                bad[#bad + 1] = path .. ":" .. n .. " " .. class .. " changed before any OA.off"
+            end
+        end
+    end
+    eq(table.concat(bad, "\n"), "")
+end)

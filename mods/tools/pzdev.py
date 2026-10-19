@@ -56,6 +56,7 @@ neither: Continue would load the user's own latest save. latestSave.ini points a
 Continue loads it, and is put back once it loaded: the user's Continue stays theirs. reload loads the save it leaves
 (or --save's). The game pzdev starts is watched by a process of its own (pzdev guard): as it ends, however it ends,
 the user's options and latest save are put back (the game writes its options as it quits from the main menu).
+PZDEV_NO_API=1 starts the game with no extension API (its boot layer finds no jar), to see what the mods do without it.
 Events come from console.txt (the game's own "STATE: exit ..." lines, a Lua "Exception thrown") and whether the game
 window is there: nothing runs in the game, so a normal game is untouched.
 Options of run/file/check: --timeout seconds (default 15); --follow seconds: then also print the Lua lines the game
@@ -642,9 +643,12 @@ def guard(pid):
 # Starts the game's exe with -debug (the dev channel needs it; Steam's launch no longer adds it), windowed.
 def start_game():
     windowed_options()
-    # PZEXT_DEV_RELOAD: the API's boot layer runs the API built here, and each new build (pzdev api)
+    # PZEXT_DEV_RELOAD: the API's boot layer runs the API built here, and each new build (pzdev api). With PZDEV_NO_API
+    # set it names a jar that is not there: the boot layer loads no API, so the mods run as in a game without it (the
+    # check of what a mod does with no API, without uninstalling it from the game's folder)
+    jar = "pzext-api-none.jar" if os.environ.get("PZDEV_NO_API") else "pzext-api.jar"
     game = subprocess.Popen([os.path.join(GAME_DIR, "ProjectZomboid64.exe"), "-debug"], cwd=GAME_DIR,
-                            env=dict(os.environ, PZEXT_DEV_RELOAD=os.path.join(RELEASE, "pzext-api.jar")),
+                            env=dict(os.environ, PZEXT_DEV_RELOAD=os.path.join(RELEASE, jar)),
                             creationflags=0x00000008 | 0x00000200, close_fds=True)
     # the guard: puts the user's options and latest save back as this game ends
     subprocess.Popen([sys.executable, os.path.abspath(__file__), "guard", str(game.pid)], stdin=subprocess.DEVNULL,

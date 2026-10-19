@@ -823,7 +823,8 @@ function StageGame.unbarricaded(character)
     if record and OA.Stage then OA.Stage.unboarded(record) end
 end
 
-if ISUnbarricadeAction and not ISUnbarricadeAction.OA_stage then
+-- (not while the mod is off: OA.off)
+if not OA.off and ISUnbarricadeAction and not ISUnbarricadeAction.OA_stage then
     local complete = ISUnbarricadeAction.complete
     ISUnbarricadeAction.OA_stage = true
     function ISUnbarricadeAction:complete()

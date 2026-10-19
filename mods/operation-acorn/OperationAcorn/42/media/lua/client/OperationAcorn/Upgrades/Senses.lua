@@ -992,7 +992,7 @@ local function listenZombies(want, u)
             radius = 0
         end
     end
-    if radius > 0 and zombiesListened == 0 then Events.OnPZExtZombieSound.Add(onZombieSound) end
+    if radius > 0 and zombiesListened == 0 then OA.on("OnPZExtZombieSound", onZombieSound) end
     if radius == 0 and zombiesListened > 0 then Events.OnPZExtZombieSound.Remove(onZombieSound) end
     zombiesListened = radius
 end
@@ -1007,7 +1007,7 @@ function Senses.refresh()
     local wantSound = Rules.rank(u, "sense") > 0
     if wantSound and not soundHooked then
         soundHooked = true
-        Events.OnWorldSound.Add(onWorldSound)
+        OA.on("OnWorldSound", onWorldSound)
     elseif not wantSound and soundHooked then
         soundHooked = false
         Events.OnWorldSound.Remove(onWorldSound)

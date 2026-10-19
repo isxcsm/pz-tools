@@ -45,6 +45,21 @@ function Carry.timeFactor(character, item)
     return factor
 end
 
+-- Whether the character carries more than the game's limit, told when the weight of what it carries has changed (a
+-- transfer is done): reports 과적 적응's first effect, once. Reads nothing once the node has told it or is not taken.
+function Carry.checkOverload(character)
+    local record = OA.Client.record(character)
+    if not record then return end
+    local u = Rules.section(record)
+    if u.firstEffect.overload or Rules.rank(u, "overload") < 1 then return end
+    if character:getInventory():getCapacityWeight() > character:getMaxWeight() then
+        First.report("overload", character)
+    end
+end
+
+-- The game's functions below are left as they are while the mod is off (OA.off).
+if OA.off then return Carry end
+
 local originalNew = ISInventoryTransferAction.new
 
 function ISInventoryTransferAction:new(character, item, srcContainer, destContainer, time, ...)
@@ -57,18 +72,6 @@ function ISInventoryTransferAction:new(character, item, srcContainer, destContai
         if o.queueList and o.queueList[1] then o.queueList[1].time = o.maxTime end
     end
     return o
-end
-
--- Whether the character carries more than the game's limit, told when the weight of what it carries has changed (a
--- transfer is done): reports 과적 적응's first effect, once. Reads nothing once the node has told it or is not taken.
-function Carry.checkOverload(character)
-    local record = OA.Client.record(character)
-    if not record then return end
-    local u = Rules.section(record)
-    if u.firstEffect.overload or Rules.rank(u, "overload") < 1 then return end
-    if character:getInventory():getCapacityWeight() > character:getMaxWeight() then
-        First.report("overload", character)
-    end
 end
 
 local originalPerform = ISInventoryTransferAction.perform

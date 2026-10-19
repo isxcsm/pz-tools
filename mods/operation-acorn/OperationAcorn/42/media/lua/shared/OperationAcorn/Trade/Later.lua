@@ -33,7 +33,7 @@ function Later.after(seconds, fn)
     queue[#queue + 1] = { at = getTimestampMs() + seconds * 1000, fn = fn }
     if not hooked then
         hooked = true
-        Events.OnTick.Add(tick)
+        OA.on("OnTick", tick)
     end
 end
 

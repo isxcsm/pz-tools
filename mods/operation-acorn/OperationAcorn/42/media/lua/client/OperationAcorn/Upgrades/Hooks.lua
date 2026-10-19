@@ -68,7 +68,7 @@ local function onChanged() Hooks.refresh() end
 OA.Sync.listen("upgrades", onChanged)
 OA.Sync.listen("all", onChanged)
 -- A new character (one that died is replaced in the world): its own record's effects at once, none of the last one's.
-Events.OnCreatePlayer.Add(onChanged)
+OA.on("OnCreatePlayer", onChanged)
 
 -- ---- notices and the banner ------------------------------------------------------------------------------------
 
@@ -286,7 +286,7 @@ local function onFillInventory(playerNum, context, items)
     end
     onTop(adders)
 end
-Events.OnFillInventoryObjectContextMenu.Add(onFillInventory)
+OA.on("OnFillInventoryObjectContextMenu", onFillInventory)
 
 -- What the lock options need in the character's things, by the action: whether it is there and the line the character
 -- says when it is missing. They are looked for here, when the option is picked, not when the menu is built (that would search the
@@ -468,7 +468,7 @@ local function onFillWorld(playerNum, context, worldobjects, test)
         if door then addLockOptions(context, player, door, partName(door)) end
     end
 end
-Events.OnFillWorldObjectContextMenu.Add(onFillWorld)
+OA.on("OnFillWorldObjectContextMenu", onFillWorld)
 
 -- ---- the serums' tooltips ---------------------------------------------------------------------------------------
 
@@ -528,7 +528,7 @@ local function onMinute()
         end
     end
 end
-Events.EveryOneMinute.Add(onMinute)
+OA.on("EveryOneMinute", onMinute)
 
 -- A bite the API's shield saved: the shield rests.
 local function onBiteSurvived()
@@ -544,10 +544,10 @@ local function onGameStart()
     Hooks.refresh()
     if Events.OnPZExtBiteSurvived and not biteHooked then
         biteHooked = true
-        Events.OnPZExtBiteSurvived.Add(onBiteSurvived)
+        OA.on("OnPZExtBiteSurvived", onBiteSurvived)
     end
 end
-Events.OnGameStart.Add(onGameStart)
+OA.on("OnGameStart", onGameStart)
 
 -- Real milliseconds at least between two refreshes from the ten-minute clock. Of what a refresh reads only the world
 -- age moves with game time (the bite shield's rest ends at a game time), and ten game minutes are 25 s of real time at
@@ -565,7 +565,7 @@ function Hooks.landStale(u, player)
     return u ~= nil and player ~= nil and player:getVariableString(Effects.LAND_VARIABLE) ~= (Effects.landRank(u) or "")
 end
 
-Events.EveryTenMinutes.Add(function()
+OA.on("EveryTenMinutes", function()
     if not OA.due(refreshedAt, "clock", getTimestampMs(), Hooks.REFRESH_MS) then return end
     local u, player = localSection()
     if Effects.stale(u, OA.hours(), player) or Hooks.landStale(u, player) then Hooks.refresh() end

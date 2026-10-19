@@ -44,6 +44,17 @@ function OA.api()
     return api
 end
 
+-- Whether the mod is off for this game: the extension API was missing (or another version) when this file ran. The API
+-- is set when the game's Lua starts, before any mod file runs, so this holds for the session. Off, the mod hooks
+-- nothing (no handler, no change to the game's functions) and only says why once a game (NoApi.lua): it cannot drop
+-- its first crate without the API. The test harness sets it before the mod loads.
+if OA.off == nil then OA.off = OA.api() == nil end
+
+-- Events[name].Add for this mod's handlers: nothing while the mod is off.
+function OA.on(name, fn)
+    if not OA.off then Events[name].Add(fn) end
+end
+
 -- This mod's handle: every declaration to the API goes through it. The API gives the same handle for a name, so it is
 -- asked once for each API object (and its `client`) and world (OA.world, counted up at each OnGameStart).
 local handleOf = { api = nil, client = nil, world = nil, handle = nil }
@@ -193,7 +204,7 @@ end
 -- world is made again by the next OA.timerOn.
 OA.world = 0
 if Events and Events.OnGameStart then
-    Events.OnGameStart.Add(function() OA.world = OA.world + 1 end)
+    OA.on("OnGameStart", function() OA.world = OA.world + 1 end)
 end
 
 -- The API's timers when it has them and this mod has its handle, else nil.

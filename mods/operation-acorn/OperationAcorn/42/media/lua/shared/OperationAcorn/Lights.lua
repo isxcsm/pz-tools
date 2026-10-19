@@ -61,6 +61,6 @@ function Lights.onRemoved(object)
     if entry and entry.object == object then drop(key) end
 end
 
-if not isServer() then Events.OnObjectAboutToBeRemoved.Add(Lights.onRemoved) end
+if not isServer() then OA.on("OnObjectAboutToBeRemoved", Lights.onRemoved) end
 
 return Lights

@@ -54,9 +54,9 @@ local function onGameStart()
     OA.declareOutlines()
 end
 
-Events.OnServerCommand.Add(onServerCommand)
-Events.OnCreatePlayer.Add(onCreatePlayer)
-Events.OnReceiveGlobalModData.Add(onReceiveGlobalModData)
-Events.OnGameStart.Add(onGameStart)
+OA.on("OnServerCommand", onServerCommand)
+OA.on("OnCreatePlayer", onCreatePlayer)
+OA.on("OnReceiveGlobalModData", onReceiveGlobalModData)
+OA.on("OnGameStart", onGameStart)
 
 return Client

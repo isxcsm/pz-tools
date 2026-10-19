@@ -279,7 +279,7 @@ local function update()
             ticking = true
             if not hooked then
                 hooked = true
-                Events.OnTick.Add(tick)
+                OA.on("OnTick", tick)
             end
         end
     elseif ticking or slot.id ~= nil then
@@ -289,6 +289,9 @@ local function update()
     end
 end
 Highlight.update = update
+
+-- The game's functions below are left as they are while the mod is off (OA.off).
+if OA.off then return Highlight end
 
 -- The loot window's item names: the pane draws each name through drawText, so for the frames of a pane that has names
 -- to paint, drawText is this (set on the pane, and put back as it was after); the other panes are not touched.
@@ -312,6 +315,6 @@ end
 
 OA.Sync.listen("missions", update)
 OA.Sync.listen("all", update)
-Events.OnGameStart.Add(update)
+OA.on("OnGameStart", update)
 
 return Highlight

@@ -45,8 +45,8 @@ local done, asked = {}, {}
 local function forget()
     done, asked = {}, {}
 end
-if Events and Events.OnGameStart then Events.OnGameStart.Add(forget) end
-if Events and Events.OnCreatePlayer then Events.OnCreatePlayer.Add(forget) end
+if Events and Events.OnGameStart then OA.on("OnGameStart", forget) end
+if Events and Events.OnCreatePlayer then OA.on("OnCreatePlayer", forget) end
 
 -- A node did its work for the local character: asks the server to note it, unless it is noted or was asked a moment ago.
 -- Cheap to call from a place that runs often: once the node is noted it is a table read.

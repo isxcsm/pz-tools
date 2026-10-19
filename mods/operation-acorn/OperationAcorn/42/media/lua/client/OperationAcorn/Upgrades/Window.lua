@@ -2755,51 +2755,54 @@ end
 
 -- Makes the tab for each character info window as the game makes it (once a player); it goes into the window when
 -- earned.
-local baseCreate = ISCharacterInfoWindow.createChildren
-function ISCharacterInfoWindow:createChildren()
-    baseCreate(self)
-    local ok, err = pcall(function()
-        local view = View:new(self.playerNum)
-        view:initialise()
-        views[self.playerNum] = view
-        -- (a window made again in a game: its tab at once when earned)
-        Window.reveal(self.playerNum, false, self)
-    end)
-    if not ok then OA.log("research tab failed:", tostring(err)) end
-end
-
--- The game's own tabs size the window to the width of its five tabs (ISCharacterInfoWindow.createChildren), so with
--- tabs other mods and this one add the strip ran past it, behind a scroll arrow. Whenever the tabs change, the game's
--- tabs take at least the strip's width (theirs only grows from it, as the game's code keeps a view's width).
-local TAB_MARGIN = 4
-local basePrerender = ISCharacterInfoWindow.prerender
-function ISCharacterInfoWindow:prerender()
-    local panel = self.panel
-    local count = panel and #panel.viewList or 0
-    if count ~= self.oaTabCount then
-        self.oaTabCount = count
-        local w = panel:getWidthOfAllTabs() + TAB_MARGIN
-        for _, view in ipairs({ self.charScreen, self.characterView, self.healthView, self.protectionView,
-                self.clothingView }) do
-            if view.tabtotalwidth then view.tabtotalwidth = math.max(view.tabtotalwidth, w) end
-            if view.width < w then view:setWidth(w) end
-        end
+-- The game's functions below are left as they are while the mod is off (OA.off).
+if not OA.off then
+    local baseCreate = ISCharacterInfoWindow.createChildren
+    function ISCharacterInfoWindow:createChildren()
+        baseCreate(self)
+        local ok, err = pcall(function()
+            local view = View:new(self.playerNum)
+            view:initialise()
+            views[self.playerNum] = view
+            -- (a window made again in a game: its tab at once when earned)
+            Window.reveal(self.playerNum, false, self)
+        end)
+        if not ok then OA.log("research tab failed:", tostring(err)) end
     end
-    basePrerender(self)
-end
 
--- The game remembers which of its own tabs was open when the game was left; this remembers the research tab too.
-local baseSave = ISCharacterInfoWindow.SaveLayout
-function ISCharacterInfoWindow:SaveLayout(name, layout)
-    baseSave(self, name, layout)
-    local view = views[self.playerNum]
-    layout.oaResearch = (view and view.parent == self.panel and self.panel:getActiveView() == view) and "true" or nil
-end
+    -- The game's own tabs size the window to the width of its five tabs (ISCharacterInfoWindow.createChildren), so with
+    -- tabs other mods and this one add the strip ran past it, behind a scroll arrow. Whenever the tabs change, the game's
+    -- tabs take at least the strip's width (theirs only grows from it, as the game's code keeps a view's width).
+    local TAB_MARGIN = 4
+    local basePrerender = ISCharacterInfoWindow.prerender
+    function ISCharacterInfoWindow:prerender()
+        local panel = self.panel
+        local count = panel and #panel.viewList or 0
+        if count ~= self.oaTabCount then
+            self.oaTabCount = count
+            local w = panel:getWidthOfAllTabs() + TAB_MARGIN
+            for _, view in ipairs({ self.charScreen, self.characterView, self.healthView, self.protectionView,
+                    self.clothingView }) do
+                if view.tabtotalwidth then view.tabtotalwidth = math.max(view.tabtotalwidth, w) end
+                if view.width < w then view:setWidth(w) end
+            end
+        end
+        basePrerender(self)
+    end
 
-local baseRestore = ISCharacterInfoWindow.RestoreLayout
-function ISCharacterInfoWindow:RestoreLayout(name, layout)
-    baseRestore(self, name, layout)
-    self.oaResearchOpen = layout.oaResearch == "true"
+    -- The game remembers which of its own tabs was open when the game was left; this remembers the research tab too.
+    local baseSave = ISCharacterInfoWindow.SaveLayout
+    function ISCharacterInfoWindow:SaveLayout(name, layout)
+        baseSave(self, name, layout)
+        local view = views[self.playerNum]
+        layout.oaResearch = (view and view.parent == self.panel and self.panel:getActiveView() == view) and "true" or nil
+    end
+
+    local baseRestore = ISCharacterInfoWindow.RestoreLayout
+    function ISCharacterInfoWindow:RestoreLayout(name, layout)
+        baseRestore(self, name, layout)
+        self.oaResearchOpen = layout.oaResearch == "true"
+    end
 end
 
 -- Shows the research tab of a local player's character info window (the first player when not named), or hides it
@@ -2856,7 +2859,7 @@ OA.Sync.listen("trade", onChanged)
 OA.Sync.listen("all", onChanged)
 
 -- A game opened: the tab of a character who earned it before, at once and still.
-Events.OnGameStart.Add(function()
+OA.on("OnGameStart", function()
     for playerNum in pairs(views) do Window.reveal(playerNum, false) end
 end)
 

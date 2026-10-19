@@ -498,6 +498,8 @@
     "IGUI_OA_Tree_CapstoneHidden": "A line of research not yet known.",
     "IGUI_OA_Tree_NeedsApi": "Needs PZ Extension API to take effect.",
     "IGUI_OA_Tree_NeedsPoint": "The installed PZ Extension API does not support this effect yet. Update it.",
+    "IGUI_OA_NoApi_Missing": "Operation Acorn needs PZ Extension API to work.\nThe mod is off for this game.",
+    "IGUI_OA_NoApi_Version": "The installed PZ Extension API does not match this version of Operation Acorn.\nUpdate both to their latest versions.\nThe mod is off for this game.",
     "IGUI_OA_Tree_ApproveFailed": "Could not apply: %1",
     "IGUI_OA_Tree_ResetDone": "-%2 credits",
     "IGUI_OA_Tree_ResetFailed": "Reset failed: %1",
