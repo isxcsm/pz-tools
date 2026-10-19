@@ -13,16 +13,43 @@
 --   bu.lights_everyMinute, bu.checkObjects  the same functions, those lookups inside
 --   bu.spawned_places             Spawned.places: room:getSquares loop with floor and stairs tests / squares.list
 --   bu.links_walk, bu.route       Links.walk: Dijkstra in Lua / squares.path (the same costs; bu.route lines tell if the ways match)
---   bu.floorlines_wanted, bu.connect  the same functions over routes found by the above
+--   bu.floorlines_wanted, bu.connect  the same functions over routes found by the above (see the caches below for wanted)
+--   bu.floorlines_rebuild         n/a / FloorLines.wanted() after Links.forget of every line: each line worked out again
 --   alarm.job                     the Senses alarm job (Pulse "alarms") as that build has it: vehicles from OA.vehicles + a grid of
 --                                 getSpecialObjects / vehicles.near + objects.find
 --   alarm.vehicles, alarm.entries  those two scans alone, as that build does them
---   dense.look.*, towns.enter.*, api.*  n/a / OA.Dense.look, OA.Towns.enter, PZExtAPI.zombies.dense, zones.clusters
+--   dense.look.*, towns.enter.*, api.*  n/a / OA.Dense.minute (the minute event's call; Dense.look where a build has no minute),
+--                                 OA.Towns.enter, PZExtAPI.zombies.dense, zones.clusters
 --   heavy.findClear               Objects.findClear: rings of Objects.search with clearSquare / rings of squares.nearest
 --   heavy.settleGround            StoryGame.settleGround: campFits Lua loops / squares.fit
 --   heavy.pickSite                Missions.pickSite: Game.sitesInBand and groundInBand (Lua, 5 args) / buildings.list and zones.points
 --   heavy.meteor_onChunk          Sites.onChunk: a Lua walk of the chunk's squares / squares.fit
 --   heavy.stage_build             Dev.buildScene: Scene.build with StageGame's Lua loops / its objects.edges, remove, fit, nearest
+--
+-- Caches that c1 has now (the perf/api, perf/bu, perf/oa and perf/uikit branches came after c0, and c1 is dev as it is).
+-- The rule: a cache the game's own callers hit is left on (that is the path as the player has it), one that only this
+-- harness's repeated calls on the same input would hit is taken off, so that the line stays the real path:
+--   cursor.hover        ISOAPlaceCursor:isValid keeps its answer per square for 200 ms. Each isValid here is made on a cleared
+--                       cursor (c.validSquare = nil), so the hover's three isValid are three real asks on c1 as on c0 (no such
+--                       field on c0: harmless). blockersAround keeps its list per square on both builds; the squares differ.
+--   cursor.frames       the cache stays on: this is the cursor's frames as the player has them (c1 asks Objects.isClear once in
+--                       200 ms of a square, c0 on every frame), so the frames' line and the mean are not like for like by design.
+--   alarm.entries       objects.find is given one match table for all calls, as Senses does (ENTRY_OBJECTS): the API keeps what
+--                       it read from a table (weakly), so a table made anew for each call would time the reading every time.
+--   alarm.job           the real job, with its own constants (the same ENTRY_OBJECTS); Rules.section is kept per section, as in the game.
+--   dense.look.*        c1 goes through Dense.minute(record, position) with a stub position (no search for the character is
+--                       timed); the fake record's id is new each call, so the one-a-second throttle does not hold it back.
+--   bu.floorlines_wanted  c1: FloorLines.wanted() works from what it kept (Links.route kept per line, a line that lies as it did
+--                       is not worked out again), so with the lines as they are this is one pass comparing them: the cost of
+--                       a refresh with nothing changed. c0 builds the squares again on every call.
+--   bu.floorlines_rebuild  the work c0 does on every call, on c1: Links.forget of each line first, then wanted() (c1 only).
+--   bu.event_EveryOneMinute  (minuteEvent only) c1: Changes.syncAttached looks again only when something changed or after 5
+--                       min, and Dense.minute asks for the character only when a look is due: a run of 20 mostly hits what
+--                       the game's minutes hit too (the first of the run is the full one).
+--   machines.*, bu.lookup.*, bu.lights, bu.checkObjects, bu.links_walk, bu.spawned_places, towns.enter.*: no cache of c1's in
+--                       the path (Machines.tiles and Sprites.machineTiles lists are made once on c1: a part of the path).
+--   frames.idle and every frames line: each build runs the PZUIKit of its own checkout (the switch script points the mod too;
+--                       the 'PZUIKit=' line says where): c1's is hooked at OnPreUIDraw at load and skips setScale when unchanged.
 --
 -- How it times: Lua has only a millisecond clock (getTimestampMs is System.currentTimeMillis; os.time is the same
 -- clock), so no single call of tens of microseconds can be timed. A batch of g calls is timed and divided (g grows until
@@ -368,10 +395,12 @@ end
 
 -- cursor.* (the delivery box's placing cursor, Objects.clearSquare / isClear):
 --   cursor.hover        ISOAPlaceCursor isValid, blockersAround, isValid, isValid on a square (one hover; c0 asks
---                       Objects.clearSquare with the cursor's cache, c1 Objects.isClear)
+--                       Objects.clearSquare with the cursor's cache, c1 Objects.isClear); on c1 the cursor's 200 ms answer
+--                       (validSquare) is cleared before each isValid, so each one is a real ask
 --   objects.clearSquare Objects.clearSquare(sq) alone, no cache (both)
 --   objects.isClear     c1 only
---   cursor.frames       one hover's logic over two frames a square, for cursorSeconds: the frames' line is the point
+--   cursor.frames       one hover's logic over two frames a square, for cursorSeconds: the frames' line is the point (the
+--                       200 ms answer stays on: the second frame of a square hits it on c1)
 local function groupCursor()
     P.go("cursor", "open")
     P.add("cursor", "cursor setup", function()
@@ -392,13 +421,17 @@ local function groupCursor()
         say("cursor squares=" .. #list)
         return true
     end, "setup")
+    -- (c1's isValid keeps its answer per square for 200 ms: cleared before each ask, so that each is the real work, as c0's is)
     P.bench("cursor", "cursor.hover", function(i)
         local sq, c = nth(P.squares, i), P.cursor
+        c.validSquare = nil
         c:isValid(sq)
         c:blockersAround(sq)
+        c.validSquare = nil
         c:isValid(sq)
+        c.validSquare = nil
         c:isValid(sq)
-    end, { n = 441 * 3, warm = 1 })
+    end, { n = 441 * 3, warm = 1, note = isC1 and "isValid asked afresh each time (the 200 ms cache cleared)" or "" })
     P.bench("cursor", "objects.clearSquare", function(i) Objects.clearSquare(nth(P.squares, i)) end, { n = 441 * 3, warm = 1 })
     if Objects.isClear then
         P.bench("cursor", "objects.isClear", function(i) Objects.isClear(nth(P.squares, i)) end, { n = 441 * 3, warm = 1 })
@@ -412,7 +445,8 @@ local function groupCursor()
             c:blockersAround(sq)
         end
         c:isValid(sq)
-    end, { g = 1, seconds = cfg.cursorSeconds or 30, frames = true, warm = 0, note = "one cursor render's logic a frame" })
+    end, { g = 1, seconds = cfg.cursorSeconds or 30, frames = true, warm = 0, note = isC1 and "one cursor render's logic a frame (c1: the 200 ms answer kept)"
+        or "one cursor render's logic a frame" })
     P.add("cursor", "cursor cleanup", function() P.unwind("cursor") P.cursor = nil return true end, "cleanup")
 end
 
@@ -463,7 +497,8 @@ end
 --   bu.spawned_places       BU.Spawned.places(room) over rooms round the town spot (c1 squares.list)
 --   bu.links_walk           Links.walk over fixed routes (c1 squares.path); bu.route lines give each route's length
 --                           and a hash of its squares, to tell the same way on both builds
---   bu.floorlines_wanted    BU.FloorLines.wanted() with the lines laid
+--   bu.floorlines_wanted    BU.FloorLines.wanted() with the lines laid (c1 keeps what it worked out)
+--   bu.floorlines_rebuild   c1 only: the same after Links.forget of every line, each worked out again
 --   bu.connect              Changes.connectUnit of each unit laid, a route found each (a one-off, set up)
 --   bu.event_EveryOneMinute the whole event (cfg.minuteEvent only)
 local function groupBU()
@@ -620,12 +655,22 @@ local function groupBU()
         end
         return true
     end)
-    P.bench("bu", "bu.floorlines_wanted", function() BU.FloorLines.wanted() end, { n = 400, warm = 3 })
+    P.bench("bu", "bu.floorlines_wanted", function() BU.FloorLines.wanted() end,
+        { n = 400, warm = 3, note = BU.Links.forget and "impl=kept (the lines unchanged: one pass comparing them)" or "impl=built on every call" })
+    -- (c1: each line's kept route forgotten first, as c0 builds on every call; a line with no way kept is walked again too)
+    P.bench("bu", "bu.floorlines_rebuild", function()
+        for ref in pairs(BU.Links.all()) do BU.Links.forget(ref) end
+        BU.FloorLines.wanted()
+    end, { n = 200, warm = 3, note = "every line worked out again",
+        skipIf = function() if BU.Links.forget then return false end P.na("bu.floorlines_rebuild", "c1 only (Links.forget)") return true end })
     if cfg.minuteEvent then
         P.bench("bu", "bu.event_EveryOneMinute", function() triggerEvent("EveryOneMinute") end, { n = 20, g = 1, warm = 1 })
     end
     P.add("bu", "bu cleanup", function() P.unwind("bu") P.panels, P.units = nil, nil return true end, "cleanup")
 end
+
+-- The match objects.find is given in the alarm job (Senses' ENTRY_OBJECTS): one table, which the API reads once.
+local ENTRY_OBJECTS = { class = { "IsoDoor", "IsoWindow" } }
 
 -- alarm.*: the Senses alarm job (a Pulse job, once a second in the game), its closure taken from the Pulse's timer and
 -- run in batches here, with alarms on the 6 nearest houses and cars of the town spot and the alarm research node at
@@ -727,8 +772,8 @@ local function groupAlarms()
         local px, py, pz = math.floor(p:getX()), math.floor(p:getY()), math.floor(p:getZ())
         local e = P.entry
         if isC1 then
-            P.entries = #PZExtAPI.objects.find({ x1 = px - e, y1 = py - e, x2 = px + e, y2 = py + e, z = pz },
-                { class = { "IsoDoor", "IsoWindow" } })
+            -- (the area is made anew, as Senses does; the match is one table, as Senses' ENTRY_OBJECTS is)
+            P.entries = #PZExtAPI.objects.find({ x1 = px - e, y1 = py - e, x2 = px + e, y2 = py + e, z = pz }, ENTRY_OBJECTS)
         else
             local cell = getCell()
             local n = 0
@@ -755,8 +800,8 @@ local function groupAlarms()
 end
 
 -- api.* and dense/towns (c1 only): the API's map reads (kept in memory after the first; this run's first may already be
--- the second, the mod asked at its world start), Dense.look and Towns.enter on fake records (a record of its own each
--- call, so Dense.look's one-a-second throttle does not hide the work).
+-- the second, the mod asked at its world start), Dense.minute (Dense.look) and Towns.enter on fake records (a record of
+-- its own each call, so Dense's one-a-second throttle does not hide the work).
 local function groupDense()
     local ids = { "api.zombies.dense", "api.zones.clusters", "dense.look.far", "dense.look.near", "towns.enter.idle",
         "towns.enter.out", "towns.enter.town", "towns.enter.done" }
@@ -822,12 +867,23 @@ local function groupDense()
         end
         return true
     end, "setup")
-    P.bench("dense", "dense.look.far", function() OA.Dense.look(P.fake(), P.far[1], P.far[2]) end,
-        { n = 4000, warm = 3, note = "no place within 20: distances only" })
+    -- The minute event asks Dense.minute(record, position); position is a stub here (asked once a look is due, as in the game).
+    local here = { 0, 0 }
+    local function position() return here[1], here[2] end
+    local function look(record, x, y)
+        if OA.Dense.minute then
+            here[1], here[2] = x, y
+            return OA.Dense.minute(record, position)
+        end
+        return OA.Dense.look(record, x, y)
+    end
+    local impl = OA.Dense.minute and "impl=Dense.minute (stub position)" or "impl=Dense.look"
+    P.bench("dense", "dense.look.far", function() look(P.fake(), P.far[1], P.far[2]) end,
+        { n = 4000, warm = 3, note = "no place within 20: distances only; " .. impl })
     P.bench("dense", "dense.look.near", function()
         local p = P.nearPlace
-        OA.Dense.look(P.fake(), p.x + 3, p.y + 3)
-    end, { n = 600, warm = 3, note = "a place within 20: its zombies.near count",
+        look(P.fake(), p.x + 3, p.y + 3)
+    end, { n = 600, warm = 3, note = "a place within 20: its zombies.near count; " .. impl,
         skipIf = function() if P.nearPlace then return false end P.na("dense.look.near", "no uncleared dense place") return true end })
     P.bench("dense", "towns.enter.idle", function()
         OA.Towns.enter(P.fake({ shop = { restock = { towns = {} } } }), P.spots.town.x, P.spots.town.y)
