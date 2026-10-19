@@ -678,6 +678,8 @@ final class Looks {
         boolean title;
         /** The impact's strength (1: a title's). */
         double hit;
+        /** How far it is turned about its middle (radians, clockwise on the screen): all its look draws turns with it. */
+        double tilt;
         double drift;
         float burnRed, burnGreen, burnBlue;
 
@@ -704,7 +706,7 @@ final class Looks {
             linkProgram, programValue, programLog, useProgram, uniformAt, uniform1f, uniform2f, uniform3f, uniform4f, uniform1i, uniformMatrix,
             attribPointer, enableAttrib, disableAttrib;
         private final MethodHandle textureId, lastTexture, ringBuffer, restoreVbos, restore;
-        private final MethodHandle core, projection, modelView, peek, empty, mul, matrixGet;
+        private final MethodHandle core, projection, modelView, peek, empty, mul, matrixGet, translate, rotateZ;
         private final Object product;
         /** Set once the program does not compile or a draw fails: the main thread's texts fade from then on. */
         volatile boolean failed;
@@ -785,6 +787,9 @@ final class Looks {
             empty = Game.exact(stack.getMethod("isEmpty"), MethodType.methodType(boolean.class, Object.class));
             mul = Game.exact(matrixType.getMethod("mul", matrixLike, matrixType), MethodType.methodType(Object.class, Object.class, Object.class, Object.class));
             matrixGet = Game.exact(matrixType.getMethod("get", FloatBuffer.class), MethodType.methodType(FloatBuffer.class, Object.class, FloatBuffer.class));
+            translate = Game.exact(matrixType.getMethod("translate", float.class, float.class, float.class),
+                MethodType.methodType(Object.class, Object.class, float.class, float.class, float.class));
+            rotateZ = Game.exact(matrixType.getMethod("rotateZ", float.class), MethodType.methodType(Object.class, Object.class, float.class));
             product = matrixType.getConstructor().newInstance();
         }
 
@@ -1168,6 +1173,13 @@ final class Looks {
                 Object projectionStack = (Object)projection.invokeExact(instance), viewStack = (Object)modelView.invokeExact(instance);
                 if ((boolean)empty.invokeExact(projectionStack) || (boolean)empty.invokeExact(viewStack)) return;
                 Object made = (Object)mul.invokeExact((Object)peek.invokeExact(projectionStack), (Object)peek.invokeExact(viewStack), product);
+                if (f.tilt != 0) {
+                    // Turned about its middle as it is now (the interface's pixels: y down, so a positive angle turns it clockwise).
+                    float cx = (float)(f.cx + f.dx), cy = (float)(f.cy + f.dy);
+                    made = (Object)translate.invokeExact(product, cx, cy, 0f);
+                    made = (Object)rotateZ.invokeExact(product, (float)f.tilt);
+                    made = (Object)translate.invokeExact(product, -cx, -cy, 0f);
+                }
                 matrix.clear();
                 FloatBuffer floats = (FloatBuffer)matrixGet.invokeExact(product, matrix);
                 uniformMatrix.invokeExact(uMvp, false, matrix);

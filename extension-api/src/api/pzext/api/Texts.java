@@ -39,7 +39,7 @@ import pzext.boot.Hooks;
  */
 final class Texts implements Hooks.Text {
     private static final String AREA = "PZExtAPI.text.";
-    private static final String MIRROR = "texts", FORMAT = "pzext-texts 7", FORMAT_BEFORE_SOUNDS = "pzext-texts 6", FORMAT_BEFORE_LANE = "pzext-texts 5", FORMAT_BEFORE_BURN = "pzext-texts 4",
+    private static final String MIRROR = "texts", FORMAT = "pzext-texts 8", FORMAT_BEFORE_PLATE = "pzext-texts 7", FORMAT_BEFORE_SOUNDS = "pzext-texts 6", FORMAT_BEFORE_LANE = "pzext-texts 5", FORMAT_BEFORE_BURN = "pzext-texts 4",
         FORMAT_BEFORE_BACKDROP = "pzext-texts 3",
         FORMAT_BEFORE_TYPING = "pzext-texts 1",
         GENERATION = "textsGeneration", HANDOVER = "textsHandover";
@@ -90,6 +90,15 @@ final class Texts implements Hooks.Text {
 
     /** How it goes (the last eleven are looks). */
     enum Leave { NONE, FADE, RISE, SINK, GROW, SHRINK, ERODE, DIM, LOST, MIST, BURN, DRY, UNDER, FEED, EXHALE, WASH, FLARE }
+
+    /**
+     * A plate a text is cut into with a look (its picture): a frame around it in its colour, one line or two, and for a double one,
+     * room for an emblem (a mod's texture, in the text's colour) and a rule before the text.
+     */
+    enum Border { NONE, SINGLE, DOUBLE }
+
+    /** How far a text may be turned (radians), and the strongest impact (1: a title's). */
+    static final double MAX_TILT = 0.5, MAX_HIT = 3;
 
     /** Whether a text leaves burning (as paper, or as a flare: its look's map and ash). */
     static boolean burns(Leave leave) { return leave == Leave.BURN || leave == Leave.FLARE; }
@@ -176,6 +185,12 @@ final class Texts implements Hooks.Text {
         // none, or, for a text whose enter or leave had sounded before (a handover), as many as had passed).
         String[] sounds;
         int sounded, struck = -2, fedOut = -2;
+        // Its plate (a look's: a frame, and a double one's emblem, the texture's path and the game's texture, null for none); how far
+        // its look turns it (radians); an impact's strength (0: the default, a title's 1 and its line's Looks.LINE_HIT).
+        Border border = Border.NONE;
+        String emblem;
+        Object emblemTexture;
+        double tilt, hit;
         // A struck text's typing (its letters' and keys' times, its keys' characters), from its lines; null for another.
         Looks.Typed typed;
         // The sounds it started that are still its own, by moment (null: none); not kept for a newer API, which a handover stops them for.
@@ -339,6 +354,11 @@ final class Texts implements Hooks.Text {
     // SpriteRenderer.instance and render(texture, the four corners, a colour for each, consumer): a backdrop's shaded quads.
     private final Object sprites;
     private final MethodHandle renderShaded;
+    // Texture.getSharedTexture(path, flags), isReady(), isFailure(): an emblem's texture.
+    private final MethodHandle sharedTexture, textureReady, textureFailed;
+    private static final int EMBLEM_FLAGS = 64;
+    // The steps of a plate's rounded corner.
+    private static final int CORNER_STEPS = 6;
     /** The embedded font for large text, or null: the game's fonts draw everything (package-private for the tests). */
     EmbeddedFont.Loaded embedded;
     // Whether the embedded font's atlas was in video memory as this frame began: text.measure and text.draw choose by it, so that
@@ -462,6 +482,10 @@ final class Texts implements Hooks.Text {
         for (int index = 10; index <= 25; index++) handle[index] = float.class;
         handle[26] = Object.class;
         renderShaded = Game.exact(renderer.getMethod("render", shaded), MethodType.methodType(void.class, handle));
+        sharedTexture = Game.exact(texture.getMethod("getSharedTexture", String.class, int.class),
+            MethodType.methodType(Object.class, String.class, int.class));
+        textureReady = Game.exact(texture.getMethod("isReady"), MethodType.methodType(boolean.class, Object.class));
+        textureFailed = Game.exact(texture.getMethod("isFailure"), MethodType.methodType(boolean.class, Object.class));
         sdfShader = manager.getField("sdfShader");
         Class<?> distance = Game.type(loader, "zombie.core.opengl.SDFShader"), shader = Game.type(loader, "zombie.core.opengl.Shader");
         threshold = Game.exact(distance.getMethod("updateThreshold", float.class), MethodType.methodType(void.class, Object.class, float.class));
@@ -884,19 +908,52 @@ final class Texts implements Hooks.Text {
                 case "cursor" -> text.cursor = flag(value, call, name);
                 case "backdrop" -> text.backdrop = number(value, call, name, 0, 1);
                 case "dustSize", "dustSweep", "dustDrift", "dustBurn" -> { dust(text, field, value, call, name); dusty = field; }
+                case "frame" -> text.border = effect(Border.class, value, call, name);
+                case "emblem" -> emblem(text, value, call, name);
+                case "tilt" -> text.tilt = number(value, call, name, -MAX_TILT, MAX_TILT);
+                case "hit" -> text.hit = number(value, call, name, 0, MAX_HIT);
                 default -> throw new IllegalArgumentException(call + ": " + prefix + " has no field " + field + "; it takes text, font, scale, size,"
                     + " color, x, y, align, shadow, outline, outlineColor, delay, enter, enterTime, hold, leave, leaveTime, player, queue,"
-                    + " markup, width, speed, cursor, backdrop, dustSize, dustSweep, dustDrift and dustBurn");
+                    + " markup, width, speed, cursor, backdrop, dustSize, dustSweep, dustDrift, dustBurn, frame, emblem, tilt and hit");
             }
         }
         if (text.enter != Enter.TYPE && (text.speed != 0 || text.cursor))
             throw new IllegalArgumentException(call + ": " + prefix + ".speed and " + prefix + ".cursor go with " + prefix + ".enter = \"type\"");
         if (dusty != null && !burns(text.leave))
             throw new IllegalArgumentException(call + ": " + prefix + "." + dusty + " goes with " + prefix + ".leave = \"burn\" or \"flare\"");
+        if (text.emblem != null && text.border != Border.DOUBLE)
+            throw new IllegalArgumentException(call + ": " + prefix + ".emblem goes with " + prefix + ".frame = \"double\"");
         if (text.source != null) compose(text, call, prefix);
         if (text.enter == Enter.STRIKE && text.lines != null) text.enterTime = typed(text);
         if (text.lines != null && text.font == null) font(text, "Large", call, prefix + ".font");
         else if (text.lines != null && text.fontName == null) font(text, text.font, call, prefix + ".font");
+    }
+
+    /** An emblem: a texture's path (a mod's file, as the game's textures are named), its texture asked for now (it loads meanwhile). */
+    private void emblem(Shown text, Object value, String call, String name) {
+        if (!(value instanceof String path) || path.isEmpty() || path.length() > 256)
+            throw new IllegalArgumentException(call + ": " + name + " must be a texture's path of 1 to 256 characters");
+        text.emblem = path;
+        text.emblemTexture = texture(path);
+    }
+
+    /** The game's texture of a path, or null (said once) when it cannot be had. */
+    private Object texture(String path) {
+        try { return (Object)sharedTexture.invokeExact(path, EMBLEM_FLAGS); }
+        catch (Throwable failure) {
+            if (failure instanceof VirtualMachineError fatal && !(fatal instanceof OutOfMemoryError)) throw fatal;
+            if (!reported) System.err.println("[PZExt] text: the emblem " + path + " could not be had: " + failure);
+            reported = true;
+            return null;
+        }
+    }
+
+    /** Whether a text's emblem is as loaded as it will be (ready, failed, or none): its picture waits for it until then. */
+    private boolean emblemSettled(Shown text) throws Throwable {
+        Object texture = text.emblemTexture;
+        if (texture == null) return true;
+        if ((boolean)textureFailed.invokeExact(texture)) { text.emblemTexture = null; return true; }
+        return (boolean)textureReady.invokeExact(texture);
     }
 
     /** One of a burn's fields: the cells' size and the drift as shares of the default, the way the front goes, its burn. */
@@ -1242,6 +1299,18 @@ final class Texts implements Hooks.Text {
                     Map.entry("shadow", true), Map.entry("delay", 0.15), Map.entry("enter", "impact"), Map.entry("enterTime", 0.6),
                     Map.entry("leave", "erode"), Map.entry("leaveTime", 5.6)),
                 0.25, 0.4));
+            // Sealed: a seal plate struck hard and a little askew: the title cut into a plate with a double frame (and the emblem the mod
+            // gives, with a rule before the text), all inked as one, white-hot and cooling; a beat later its line is struck under it, more
+            // lightly, as a small framed tag askew the other way. Both dry away as the stamp's do. For a name to remember (an
+            // operation's), once.
+            ALL.put("seal", new Style(
+                Map.ofEntries(Map.entry("font", List.of("SdfBold", "Large")), Map.entry("size", 0.13), Map.entry("color", List.of(0.88, 0.7, 0.45, 1.0)),
+                    Map.entry("y", 0.43), Map.entry("enter", "impact"), Map.entry("enterTime", 0.7), Map.entry("hold", 5.0), Map.entry("backdrop", 0.38),
+                    Map.entry("leave", "wash"), Map.entry("leaveTime", 6.5), Map.entry("frame", "double"), Map.entry("tilt", -0.045), Map.entry("hit", 1.35)),
+                Map.ofEntries(Map.entry("font", List.of("SdfBold", "Medium")), Map.entry("size", 0.05), Map.entry("color", List.of(0.92, 0.86, 0.74, 1.0)),
+                    Map.entry("delay", 0.65), Map.entry("enter", "impact"), Map.entry("enterTime", 0.55), Map.entry("leave", "wash"), Map.entry("leaveTime", 6.0),
+                    Map.entry("frame", "single"), Map.entry("tilt", 0.02), Map.entry("hit", 0.75)),
+                0.42, 0.4));
             // Found: warm amber letters a torch sways in over and lights, flickering once as they stay; it dies down to embers as
             // they go. For something found (a search complete).
             ALL.put("discovery", new Style(
@@ -1353,7 +1422,7 @@ final class Texts implements Hooks.Text {
     private long title(String owner, Object spec, String call) throws ReflectiveOperationException {
         String style = "dust", line = null;
         Object text = null, color = null, lineColor = null, hold = null, player = null, y = null, leave = null, leaveTime = null, backdrop = null,
-            scale = null, sounds = null, lineSounds = null;
+            scale = null, sounds = null, lineSounds = null, emblem = null;
         var dusts = new LinkedHashMap<String, Object>();
         boolean now = false;
         for (var entry : lua.entries(spec)) {
@@ -1382,6 +1451,7 @@ final class Texts implements Hooks.Text {
                 case "scale" -> scale = value;
                 case "sounds" -> sounds = value;
                 case "subtitleSounds" -> lineSounds = value;
+                case "emblem" -> emblem = value;
                 case "dustSize", "dustSweep", "dustDrift", "dustBurn" -> dusts.put(field, value);
                 case "now" -> {
                     if (!(value instanceof Boolean on)) throw new IllegalArgumentException(call + ": spec.now must be true or false");
@@ -1389,7 +1459,7 @@ final class Texts implements Hooks.Text {
                 }
                 default -> throw new IllegalArgumentException(call + ": spec has no field " + field
                     + "; it takes text, subtitle, style, color, subtitleColor, hold, y, player, leave, leaveTime, backdrop, scale, sounds,"
-                    + " subtitleSounds, dustSize, dustSweep, dustDrift, dustBurn and now");
+                    + " subtitleSounds, emblem, dustSize, dustSweep, dustDrift, dustBurn and now");
             }
         }
         if (text == null) throw new IllegalArgumentException(call + ": spec.text must be a string of 1 to " + MAX_LENGTH + " characters");
@@ -1406,6 +1476,11 @@ final class Texts implements Hooks.Text {
         if (hold != null) big.hold = number(hold, call, "spec.hold", 0, MAX_HOLD);
         if (y != null) big.y = number(y, call, "spec.y", 0, 1);
         if (backdrop != null) big.backdrop = number(backdrop, call, "spec.backdrop", 0, 1);
+        if (emblem != null) {
+            if (big.border != Border.DOUBLE)
+                throw new IllegalArgumentException(call + ": spec.emblem goes with a style whose title has a double frame (" + framed() + ")");
+            emblem(big, emblem, call, "spec.emblem");
+        }
         if (player != null) big.player = player(player, call, "spec.player");
         if (sounds != null) big.sounds = sounds(sounds, call, "spec.sounds");
         if (lineSounds != null && small == null) throw new IllegalArgumentException(call + ": spec.subtitleSounds goes with spec.subtitle");
@@ -1427,8 +1502,8 @@ final class Texts implements Hooks.Text {
             font(small, chosen.line().get("font"), call, "spec.font");
             if (lineColor != null) { float[] parts = color(lineColor, call, "spec.subtitleColor"); small.red = parts[0]; small.green = parts[1]; small.blue = parts[2]; small.alpha = parts[3]; }
             small.player = big.player;
-            // Under the title: its block, a gap, then the line's block, as shares of the screen's height.
-            small.y = Math.min(1, big.y + big.size * big.lines.length / 2 + big.size * chosen.gap() + small.size * small.lines.length / 2);
+            // Under the title: its block (its plate's, when it has one), a gap, then the line's block, as shares of the screen's height.
+            small.y = Math.min(1, big.y + tall(big) / 2 + big.size * chosen.gap() + tall(small) / 2);
             if (small.enter == Enter.STRIKE) {
                 small.enterTime = typed(small);
                 if (big.enter == Enter.STRIKE) small.delay = big.enterTime + Looks.RETURN_PAUSE;
@@ -1439,7 +1514,7 @@ final class Texts implements Hooks.Text {
             small.hold = Math.max(0, big.enterTime + big.hold - small.delay - small.enterTime + chosen.trail());
             // The title's backdrop reaches over its line: one backdrop for both.
             small.backdrop = 0;
-            big.backdropBelow = Math.max(0, small.y + small.size * small.lines.length / 2 - big.y - big.size * big.lines.length / 2);
+            big.backdropBelow = Math.max(0, small.y + tall(small) / 2 - big.y - tall(big) / 2);
         }
         big.queued = true;
         big.lane = chosen.lane();
@@ -1537,6 +1612,42 @@ final class Texts implements Hooks.Text {
         return result;
     }
 
+    /** The styles whose title has a double frame (that takes an emblem), by commas. */
+    private static String framed() {
+        var names = new StringJoiner(", ");
+        for (var style : Styles.ALL.entrySet()) if ("double".equals(style.getValue().title().get("frame"))) names.add(style.getKey());
+        return names.toString();
+    }
+
+    /** How tall a title's text stands, a share of the screen's height: its lines, or its plate. */
+    static double tall(Shown text) {
+        int rows = text.lines.length;
+        return text.border == Border.NONE ? text.size * rows : plate(text, 0, text.size, rows).height();
+    }
+
+    /**
+     * A plate's measures around a text's ink, {@code ink} across in {@code rows} lines of {@code line} (pixels, or any one unit):
+     * its size; how far right of the plate's middle the text's middle is (an emblem's room); the frame's width (a double one's outer
+     * line, the gap and its inner line), the room inside it, the emblem's side, the corners' radius (the outer line's middle).
+     * The title lab's (tools/title-lab, plateOf) to the pixel.
+     */
+    record Plate(double width, double height, double shift, double outer, double gap, double inner, double pad, double emblem, double radius,
+            double innerRadius, double inW, double inH) { }
+
+    static Plate plate(Shown text, double ink, double line, int rows) {
+        double tall = line * (rows - 1);
+        if (text.border == Border.SINGLE) {
+            double inner = line * 0.075, pad = line * 0.32;
+            return new Plate(ink + 2 * pad + 2 * inner, line * 1.05 + tall + 2 * inner, 0, 0, 0, inner, pad, 0, line * 0.12, 0, ink + 2 * pad,
+                line * 1.05 + tall);
+        }
+        double outer = line * 0.075, gap = line * 0.065, inner = line * 0.03, pad = line * 0.3, emblem = text.emblem != null ? line * 1.1 : 0;
+        double inW = emblem > 0 ? pad + emblem + pad * 0.9 + inner + pad * 0.9 + ink + pad * 1.1 : pad * 1.1 + ink + pad * 1.1;
+        double inH = Math.max(emblem, line + tall) + pad * 1.1, frame = outer + gap + inner;
+        double shift = emblem > 0 ? pad * 0.85 + (emblem + inner) / 2 : 0;
+        return new Plate(inW + 2 * frame, inH + 2 * frame, shift, outer, gap, inner, pad, emblem, line * 0.1, line * 0.04, inW, inH);
+    }
+
     private static Shown keyed(Shown text, long key, int player) {
         var keyed = new Shown(text.owner, key);
         copy(text, keyed);
@@ -1557,6 +1668,7 @@ final class Texts implements Hooks.Text {
         to.backdrop = from.backdrop; to.backdropBelow = from.backdropBelow;
         to.sounds = from.sounds;
         to.typed = from.typed;
+        to.border = from.border; to.emblem = from.emblem; to.emblemTexture = from.emblemTexture; to.tilt = from.tilt; to.hit = from.hit;
     }
 
     /** A text with a style's fields, its text to come. */
@@ -1784,7 +1896,7 @@ final class Texts implements Hooks.Text {
             case DROP -> { alpha = cubicOut(in); shift = -RISE * (1 - cubicOut(in)); }
             case SLIDE -> { alpha = cubicOut(in); shift = SLIDE * (1 - cubicOut(in)); }
             case IMPACT -> {
-                Looks.impact(Math.min(t, leaving), text.lead == null ? 1 : Looks.LINE_HIT, hit);
+                Looks.impact(Math.min(t, leaving), hitOf(text), hit);
                 alpha = hit[0]; scale = hit[1]; squashX = hit[2]; squashY = hit[3]; across = hit[4]; shift = hit[5];
             }
         }
@@ -1853,8 +1965,8 @@ final class Texts implements Hooks.Text {
             double seen = Math.min(smooth(Math.min(1, t / Looks.BACKDROP_IN)),
                 burns(text.leave) ? alpha * (1 - smooth(Math.min(1, out))) : alpha);
             if (seen > INVISIBLE) {
-                if (look) backdrop(text, laid, restX, restFirst, base, restLine, rowCount, height, seen);
-                else backdrop(text, laid, anchorX, firstY, zoom, line, rowCount, height, seen);
+                if (look) backdrop(text, laid, restX, restFirst, base, restLine, rowCount, height, seen, true);
+                else backdrop(text, laid, anchorX, firstY, zoom, line, rowCount, height, seen, false);
             }
         }
         if (look) {
@@ -2059,6 +2171,9 @@ final class Texts implements Hooks.Text {
         soundReported = true;
     }
 
+    /** An impact's strength: the text's own, else a title's 1 and its line's {@link Looks#LINE_HIT}. */
+    static double hitOf(Shown text) { return text.hit > 0 ? text.hit : text.lead == null ? 1 : Looks.LINE_HIT; }
+
     private static double leaving(Shown text) {
         double leaving = text.enterTime + text.hold;
         if (text.hidden != 0) leaving = Math.min(leaving, Math.max(0, (text.hidden - text.start) / SECOND - text.delay));
@@ -2087,16 +2202,30 @@ final class Texts implements Hooks.Text {
         }
         if (!(low <= high)) { letGo(piece); return false; }
         double margin = Math.ceil(line * Dust.MARGIN + text.outline + Math.max(1, Math.round(line / 24)) + 2);
-        int boxX = (int)Math.floor(low - margin), boxY = (int)Math.floor(firstY - margin);
-        int boxWidth = (int)Math.ceil(high + margin) - boxX, boxHeight = (int)Math.ceil(firstY + line * rowCount + margin) - boxY;
+        // A plate's text stands in its plate (its middle on the text's, the text moved right for the emblem's room).
+        Plate plate = text.border == Border.NONE ? null : plate(text, high - low, line, rowCount);
+        double middleX = (low + high) / 2, middleY = firstY + line * rowCount / 2, ink = high - low;
+        double top = firstY, bottom = firstY + line * rowCount;
+        if (plate != null) {
+            low = middleX - plate.width() / 2; high = middleX + plate.width() / 2;
+            top = middleY - plate.height() / 2; bottom = middleY + plate.height() / 2;
+        }
+        int boxX = (int)Math.floor(low - margin), boxY = (int)Math.floor(top - margin);
+        int boxWidth = (int)Math.ceil(high + margin) - boxX, boxHeight = (int)Math.ceil(bottom + margin) - boxY;
         try {
             switch (piece.phase) {
                 case Dust.NEW -> { if (!gl.make(piece, boxX, boxY, boxWidth, boxHeight, line)) piece.phase = Dust.FAILED; }
                 case Dust.READY -> {
                     if (!piece.at(boxX, boxY, boxWidth, boxHeight)) { piece.phase = Dust.FAILED; break; }
+                    // (a plate's emblem is in its picture: it waits for its texture)
+                    if (plate != null && !emblemSettled(text)) break;
                     Object before = gl.beginCapture(piece);
                     bare = text.leave == Leave.WASH;
-                    try { paintAll(text, laid, typed, t, anchorX, firstY, zoom, line, large, own, font, text.atAlpha, 1, false); }
+                    try {
+                        double moved = plate == null ? 0 : plate.shift();
+                        paintAll(text, laid, typed, t, anchorX + moved, firstY, zoom, line, large, own, font, text.atAlpha, 1, false);
+                        if (plate != null) drawPlate(text, plate, middleX, middleY, line);
+                    }
                     finally {
                         bare = false;
                         gl.endCapture(piece, before);
@@ -2141,7 +2270,8 @@ final class Texts implements Hooks.Text {
         f.cx = piece.boxX + piece.boxWidth / 2.0;
         f.cy = piece.boxY + piece.boxHeight / 2.0;
         f.line = line;
-        f.ink = high - low;
+        f.ink = plate != null ? plate.width() : ink;
+        f.tilt = text.tilt;
         f.s = scale; f.sx = squashX; f.sy = squashY;
         f.dx = across * line;
         f.dy = shift * line * scale;
@@ -2160,7 +2290,7 @@ final class Texts implements Hooks.Text {
         f.titleLeaves = lead.delay + (lead == text ? leaving : leaving(lead));
         f.titleLine = lead == text || lead.size <= 0 ? line : lead.size * height;
         f.title = text.lead == null;
-        f.hit = f.title ? 1 : Looks.LINE_HIT;
+        f.hit = hitOf(text);
         f.drift = text.dustDrift;
         if (f.look == Looks.BLEED || f.look == Looks.INK) { f.burnRed = text.red; f.burnGreen = text.green; f.burnBlue = text.blue; }
         else {
@@ -2268,8 +2398,8 @@ final class Texts implements Hooks.Text {
      * round it each shaded by the card from its inside to its outside between the points of a smooth step, at the text's own
      * place (not whole pixels), so that it fades and moves as smoothly as the text. Allocates nothing.
      */
-    private void backdrop(Shown text, Layout laid, double anchorX, double firstY, double zoom, double line, int rowCount, int height, double seen)
-            throws Throwable {
+    private void backdrop(Shown text, Layout laid, double anchorX, double firstY, double zoom, double line, int rowCount, int height, double seen,
+            boolean looked) throws Throwable {
         double low = Double.POSITIVE_INFINITY, high = Double.NEGATIVE_INFINITY;
         for (int index = 0; index < rowCount; index++) {
             double lineWidth = (laid == null ? text.widths[index] : laid.rows[index].width) * zoom;
@@ -2279,7 +2409,15 @@ final class Texts implements Hooks.Text {
             high = Math.max(high, x + lineWidth);
         }
         if (!(low <= high)) return;
-        double top = firstY, bottom = firstY + line * rowCount + text.backdropBelow * height;
+        double top = firstY, bottom = firstY + line * rowCount;
+        if (looked && text.border != Border.NONE) {
+            // (over its plate, which only a look's picture has)
+            Plate plate = plate(text, high - low, line, rowCount);
+            double middle = (low + high) / 2, rows = (top + bottom) / 2;
+            low = middle - plate.width() / 2; high = middle + plate.width() / 2;
+            top = rows - plate.height() / 2; bottom = rows + plate.height() / 2;
+        }
+        bottom += text.backdropBelow * height;
         double side = BACKDROP_SIDE * line, end = BACKDROP_END * line, strength = text.atBackdrop * seen;
         shade(low, top, high, top, high, bottom, low, bottom, (float)strength, (float)strength, (float)strength, (float)strength);
         for (int ring = 0; ring < BACKDROP_RINGS; ring++) {
@@ -2297,6 +2435,59 @@ final class Texts implements Hooks.Text {
             shade(ix1, iy1, ox1, iy1, ox1, oy1, ix1, oy1, inner, outer, outer, outer);
             shade(ox0, iy1, ix0, iy1, ix0, oy1, ox0, oy1, outer, inner, outer, outer);
         }
+    }
+
+    /**
+     * A text's plate into its picture, in its colour (title lab: drawPlate): the frame (a double one's outer line, then its inner
+     * line), and a double one's emblem and the rule after it, the plate's middle at {@code x}, {@code y}.
+     */
+    private void drawPlate(Shown text, Plate plate, double x, double y, double line) throws Throwable {
+        float r = text.red, g = text.green, b = text.blue, a = text.atAlpha;
+        double left = x - plate.width() / 2, top = y - plate.height() / 2, right = x + plate.width() / 2, bottom = y + plate.height() / 2;
+        if (text.border == Border.SINGLE) {
+            stroke(left, top, right, bottom, plate.inner(), plate.radius(), r, g, b, a);
+            return;
+        }
+        stroke(left, top, right, bottom, plate.outer(), plate.radius(), r, g, b, a);
+        double in = plate.outer() + plate.gap();
+        stroke(left + in, top + in, right - in, bottom - in, plate.inner(), plate.innerRadius(), r, g, b, a);
+        if (plate.emblem() <= 0) return;
+        double inLeft = x - plate.inW() / 2, e = plate.emblem(), ex = inLeft + plate.pad() + e / 2;
+        Object texture = text.emblemTexture;
+        if (texture != null) {
+            double h = e / 2;
+            renderShaded.invokeExact(sprites, texture, ex - h, y - h, ex + h, y - h, ex + h, y + h, ex - h, y + h, r, g, b, a, r, g, b, a, r, g, b, a,
+                r, g, b, a, (Object)null);
+        }
+        double rx = inLeft + plate.pad() + e + plate.pad() * 0.9, rt = y - plate.inH() / 2 + plate.pad() * 0.35, rb = y + plate.inH() / 2 - plate.pad() * 0.35;
+        fill(rx, rt, rx + plate.inner(), rt, rx + plate.inner(), rb, rx, rb, r, g, b, a);
+    }
+
+    /** A rounded box's line {@code width} wide inside the box, its corners' radius {@code radius} at the line's middle. */
+    private void stroke(double left, double top, double right, double bottom, double width, double radius, float r, float g, float b, float a)
+            throws Throwable {
+        double outer = Math.min(radius + width / 2, Math.min(right - left, bottom - top) / 2), inner = Math.max(0, outer - width);
+        // the sides between the corners
+        fill(left + outer, top, right - outer, top, right - outer, top + width, left + outer, top + width, r, g, b, a);
+        fill(left + outer, bottom - width, right - outer, bottom - width, right - outer, bottom, left + outer, bottom, r, g, b, a);
+        fill(left, top + outer, left + width, top + outer, left + width, bottom - outer, left, bottom - outer, r, g, b, a);
+        fill(right - width, top + outer, right, top + outer, right, bottom - outer, right - width, bottom - outer, r, g, b, a);
+        // the corners, each a ring's quarter in CORNER_STEPS
+        double[][] centres = { { left + outer, top + outer, Math.PI }, { right - outer, top + outer, 1.5 * Math.PI },
+            { right - outer, bottom - outer, 0 }, { left + outer, bottom - outer, 0.5 * Math.PI } };
+        for (double[] c : centres)
+            for (int step = 0; step < CORNER_STEPS; step++) {
+                double a0 = c[2] + 0.5 * Math.PI * step / CORNER_STEPS, a1 = c[2] + 0.5 * Math.PI * (step + 1) / CORNER_STEPS;
+                double c0 = Math.cos(a0), s0 = Math.sin(a0), c1 = Math.cos(a1), s1 = Math.sin(a1);
+                fill(c[0] + c0 * outer, c[1] + s0 * outer, c[0] + c1 * outer, c[1] + s1 * outer, c[0] + c1 * inner, c[1] + s1 * inner,
+                    c[0] + c0 * inner, c[1] + s0 * inner, r, g, b, a);
+            }
+    }
+
+    /** A quad of one colour, its corners in order. */
+    private void fill(double x1, double y1, double x2, double y2, double x3, double y3, double x4, double y4, float r, float g, float b, float a)
+            throws Throwable {
+        renderShaded.invokeExact(sprites, (Object)null, x1, y1, x2, y2, x3, y3, x4, y4, r, g, b, a, r, g, b, a, r, g, b, a, r, g, b, a, (Object)null);
     }
 
     /** A black quad, its corners clockwise from the top left, each with its alpha. */
@@ -2585,7 +2776,9 @@ final class Texts implements Hooks.Text {
                 .append('\t').append(s.hidden).append('\t').append(s.markup).append('\t').append(s.width).append('\t').append(s.speed)
                 .append('\t').append(s.cursor).append('\t').append(s.dustSize).append('\t').append(s.dustSweep.name()).append('\t').append(s.dustDrift)
                 .append('\t').append(s.backdrop).append('\t').append(s.backdropBelow).append('\t').append(burnText(s.dustBurn)).append('\t').append(s.lane)
-                .append('\t').append(soundsText(s.sounds)).append('\t').append(s.sounded);
+                .append('\t').append(soundsText(s.sounds)).append('\t').append(s.sounded)
+                .append('\t').append(s.border.name()).append('\t').append(s.emblem == null ? "-" : escape(s.emblem)).append('\t').append(s.tilt)
+                .append('\t').append(s.hit);
         }
         lua.set(meta, MIRROR, text.toString());
         dirty = false;
@@ -2657,20 +2850,22 @@ final class Texts implements Hooks.Text {
         String[] lines = text.split("\n");
         // The format before typing has the fields up to hidden; the text of those has no markup, typing or width. The format
         // before backdrops has none; the one before burns, no burn;
-        // the one before lanes, no lane (its titles are in the first queue); the one before sounds, no sounds.
+        // the one before lanes, no lane (its titles are in the first queue); the one before sounds, no sounds; the one before
+        // plates, no plate, tilt or hit of its own.
         boolean before = FORMAT_BEFORE_TYPING.equals(lines[0]);
         boolean beforeBackdrop = before || FORMAT_BEFORE_BACKDROP.equals(lines[0]);
         boolean beforeBurn = beforeBackdrop || FORMAT_BEFORE_BURN.equals(lines[0]);
         boolean beforeLane = beforeBurn || FORMAT_BEFORE_LANE.equals(lines[0]);
         boolean beforeSounds = beforeLane || FORMAT_BEFORE_SOUNDS.equals(lines[0]);
-        if (!beforeSounds && !FORMAT.equals(lines[0])) {
+        boolean beforePlate = beforeSounds || FORMAT_BEFORE_PLATE.equals(lines[0]);
+        if (!beforePlate && !FORMAT.equals(lines[0])) {
             System.err.println("[PZExt] text: what was shown is kept in another format; it is not shown again");
             return;
         }
         for (int index = 1; index < lines.length; index++) {
             String[] fields = lines[index].split("\t", -1);
             if ("N".equals(fields[0])) { next = Math.max(next, Long.parseLong(fields[1])); continue; }
-            if (fields.length != (before ? 31 : beforeBackdrop ? 38 : beforeBurn ? 40 : beforeLane ? 41 : beforeSounds ? 42 : 44) || !"T".equals(fields[0]))
+            if (fields.length != (before ? 31 : beforeBackdrop ? 38 : beforeBurn ? 40 : beforeLane ? 41 : beforeSounds ? 42 : beforePlate ? 44 : 48) || !"T".equals(fields[0]))
                 throw new IllegalStateException("Unknown line in the kept text: " + lines[index]);
             var s = new Shown(unescape(fields[1]), Long.parseLong(fields[2]));
             s.lines = unescape(fields[3]).split("\n", -1);
@@ -2694,6 +2889,11 @@ final class Texts implements Hooks.Text {
                 if (!beforeBurn) s.dustBurn = burnOf(fields[40]);
                 if (!beforeLane) { s.lane = Integer.parseInt(fields[41]); if (s.lane < 0 || s.lane >= LANES) s.lane = 0; }
                 if (!beforeSounds) { s.sounds = soundsOf(fields[42]); s.sounded = Integer.parseInt(fields[43]); }
+                if (!beforePlate) {
+                    s.border = Border.valueOf(fields[44]);
+                    if (!"-".equals(fields[45])) { s.emblem = unescape(fields[45]); s.emblemTexture = texture(s.emblem); }
+                    s.tilt = Double.parseDouble(fields[46]); s.hit = Double.parseDouble(fields[47]);
+                }
                 if (s.enter == Enter.STRIKE && s.lines != null) typed(s);
                 if (s.markup || s.width > 0 || s.enter == Enter.TYPE) {
                     // Read again: the script is not kept, and gives the same as when it was shown.

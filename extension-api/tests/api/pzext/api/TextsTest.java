@@ -55,7 +55,7 @@ final class TextsTest {
             check(text != null, "The API has no text");
             UIManager.getToolTip();
             check(Hooks.APPLIED.equals(FormulasTest.call(text, "status").get(0)), "The text hook is " + FormulasTest.call(text, "status").get(0));
-            check(List.of("stamp", "discovery", "notice", "unveil", "dust", "bleed", "sink", "type", "pulse", "brief").equals(list(FormulasTest.call(text, "styles").get(0))), "The styles are wrong");
+            check(List.of("stamp", "seal", "discovery", "notice", "unveil", "dust", "bleed", "sink", "type", "pulse", "brief").equals(list(FormulasTest.call(text, "styles").get(0))), "The styles are wrong");
             useClock();
             Object mod = FormulasTest.call(api, "client", "text.mod").get(0), other = FormulasTest.call(api, "client", "other.mod").get(0);
             idle();
@@ -72,6 +72,7 @@ final class TextsTest {
             typing(text, mod);
             titles(text, mod);
             titleScale(text, mod);
+            plates(text, mod);
             titleSounds(text, mod);
             holdSounds(api, text, mod);
             fileVolume();
@@ -1130,6 +1131,53 @@ final class TextsTest {
      * A fix of the game's: a sound file's clip (a mod's own sound) is under the volume of its sound's master, as the sound
      * manager has it, live; an FMOD event's clip is not (the game's mixer turns it down already).
      */
+    /**
+     * A plate (the seal's): its measures as the title lab's (plateOf), its title standing as tall as its plate (the line under the
+     * plate's foot, under its own tag's middle); the emblem's texture asked for at once; the plate, tilt and hit kept for a newer API.
+     */
+    private static void plates(KahluaTable text, Object mod) throws Exception {
+        var seal = new Texts.Shown("m", 0);
+        seal.border = Texts.Border.DOUBLE;
+        seal.emblem = "media/textures/x.png";
+        Texts.Plate plate = Texts.plate(seal, 500, 100, 1);
+        check(near(plate.width(), 764) && near(plate.height(), 177) && near(plate.shift(), 82), "The seal's plate is wrong: " + plate);
+        seal.emblem = null;
+        plate = Texts.plate(seal, 500, 100, 1);
+        check(near(plate.width(), 500 + 66 + 34) && near(plate.height(), 100 + 33 + 34) && plate.shift() == 0, "A plate without an emblem is wrong: " + plate);
+        var tag = new Texts.Shown("m", 0);
+        tag.border = Texts.Border.SINGLE;
+        plate = Texts.plate(tag, 300, 100, 1);
+        check(near(plate.width(), 379) && near(plate.height(), 120) && plate.shift() == 0, "The tag's plate is wrong: " + plate);
+        zombie.core.textures.Texture.FILES.put("media/textures/x.png", new zombie.core.textures.Texture("media/textures/x.png", 64, 64));
+        FormulasTest.call(text, "title", mod, table("text", "Operation", "subtitle", "Call sign 7", "style", "seal", "emblem", "media/textures/x.png", "hold", 100.0));
+        render();
+        advance(2);
+        render();
+        // (no picture here: the render thread does not run; the text is drawn as it is, where it stands)
+        Object[] line = last("Call sign 7");
+        double lineZoom = 0.05 * 900 / 45, middle = (0.43 + 0.13 * 1.77 / 2 + 0.13 * 0.42 + 0.05 * 1.2 / 2) * 900;
+        check(line != null && near((Double)line[3], middle - 45 * lineZoom / 2), "The seal's line does not stand under its plate");
+        Texts.Shown big = null;
+        for (Texts.Shown shown : GameApi.texts().shown) if (shown.lines != null && "Operation".equals(shown.lines[0])) big = shown;
+        check(big != null && big.border == Texts.Border.DOUBLE && big.emblemTexture != null && near(big.tilt, -0.045) && near(big.hit, 1.35),
+            "The seal's title has not its plate, emblem, tilt or hit");
+        GameApi.frame(TextsTest.class.getClassLoader());
+        GameApi.register(LuaManager.class);
+        useClock();
+        render();
+        Texts.Shown kept = null, keptLine = null;
+        for (Texts.Shown shown : GameApi.texts().shown) {
+            if (shown.lines != null && "Operation".equals(shown.lines[0])) kept = shown;
+            if (shown.lines != null && "Call sign 7".equals(shown.lines[0])) keptLine = shown;
+        }
+        check(kept != null && kept.border == Texts.Border.DOUBLE && "media/textures/x.png".equals(kept.emblem) && kept.emblemTexture != null
+            && near(kept.tilt, -0.045) && near(kept.hit, 1.35) && keptLine != null && keptLine.border == Texts.Border.SINGLE && near(keptLine.tilt, 0.02),
+            "A newer API lost the plate, emblem, tilt or hit");
+        FormulasTest.call(mod, "clear");
+        render();
+        zombie.core.textures.Texture.FILES.remove("media/textures/x.png");
+    }
+
     private static void fileVolume() {
         var manager = (zombie.SoundManager)zombie.SoundManager.instance;
         var sound = new zombie.audio.GameSound();
@@ -1637,7 +1685,14 @@ final class TextsTest {
         rejects(text, "spec.player must be a player index", "show", mod, table("text", "x", "player", 4.0));
         rejects(text, "spec.size must be a number from", "show", mod, table("text", "x", "size", 2.0));
         rejects(text, "the first argument must be a handle", "show", table("name", "text.mod"), table("text", "x"));
-        rejects(text, "spec.style must be one of stamp, discovery, notice", "title", mod, table("text", "x", "style", "loud"));
+        rejects(text, "spec.style must be one of stamp, seal, discovery, notice", "title", mod, table("text", "x", "style", "loud"));
+        rejects(text, "spec.emblem goes with a style whose title has a double frame (seal)", "title", mod,
+            table("text", "x", "style", "stamp", "emblem", "media/textures/x.png"));
+        rejects(text, "spec.emblem goes with spec.frame = \"double\"", "show", mod, table("text", "x", "frame", "single", "emblem", "media/textures/x.png"));
+        rejects(text, "spec.emblem must be a texture's path", "show", mod, table("text", "x", "frame", "double", "emblem", 3.0));
+        rejects(text, "spec.frame must be one of \"none\", \"single\", \"double\"", "show", mod, table("text", "x", "frame", "triple"));
+        rejects(text, "spec.tilt must be a number from", "show", mod, table("text", "x", "tilt", 1.0));
+        rejects(text, "spec.hit must be a number from", "show", mod, table("text", "x", "hit", -1.0));
         rejects(text, "spec has no field font", "title", mod, table("text", "x", "font", "Large"));
         rejects(text, "key must be", "hide", mod, "a");
         rejects(text, "spec.markup must be true or false", "show", mod, table("text", "x", "markup", "yes"));

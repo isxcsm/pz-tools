@@ -39,6 +39,7 @@ final class LooksTest {
         GL11.ink = (x, y) -> 255;
         try {
             stamp(text, mod);
+            seal(text, mod);
             discovery(text, mod);
             notice(text, mod);
             unveil(text, mod);
@@ -211,6 +212,35 @@ final class LooksTest {
         state();
         check(modes(origin, 8.6).equals(List.of(17, 8)), "The stamp does not dry away and its line weather away: " + modes(origin, 8.61));
         gone(origin, 12.2, key, text, mod);
+    }
+
+    /**
+     * The seal: the stamp's look on a plate (its frame, the emblem in the text's colour and its rule drawn into its picture), turned
+     * as it is drawn: the title one way, its tag the other.
+     */
+    private static void seal(KahluaTable text, Object mod) {
+        long origin = NOW[0];
+        var emblem = new Texture("media/textures/seal.png", 64, 64);
+        Texture.FILES.put("media/textures/seal.png", emblem);
+        try {
+            SpriteRenderer.shaded.clear();
+            double key = (Double)FormulasTest.call(text, "title", mod, table("text", "Operation", "subtitle", "Call sign 7", "style", "seal",
+                "emblem", "media/textures/seal.png")).get(0);
+            up(origin, 0);
+            quiet();
+            boolean drawnIn = false;
+            for (Object[] quad : SpriteRenderer.shaded) drawnIn |= quad[0] == emblem;
+            check(drawnIn, "The seal's emblem is not in its picture");
+            org.joml.Matrix4f.turns = 0;
+            check(modes(origin, 0.1).equals(List.of(0)), "The seal is not its picture as it falls: " + modes(origin, 0.11));
+            check(org.joml.Matrix4f.turns > 0 && Math.abs(org.joml.Matrix4f.lastTurn + 0.045f) < 1e-6, "The seal is not turned: " + org.joml.Matrix4f.lastTurn);
+            up(origin, 1.3);
+            quiet();
+            modes(origin, 1.4);
+            check(Math.abs(org.joml.Matrix4f.lastTurn - 0.02f) < 1e-6, "The seal's tag is not turned the other way: " + org.joml.Matrix4f.lastTurn);
+            state();
+            gone(origin, 13.6, key, text, mod);
+        } finally { Texture.FILES.remove("media/textures/seal.png"); }
     }
 
     /** The torch: its light thrown behind the title and the title lit; the line lit by it all over; both as it dies down. */
