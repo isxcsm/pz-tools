@@ -177,6 +177,42 @@ function ISOAUnseal:complete()
     return true
 end
 
+-- The loot window on a crate just opened, as a click on it opens it (ISObjectClickHandler): its container chosen, the
+-- window shown and unfolded. For the character's own player only. The crate may be opened (complete) just after this
+-- side's perform, or come from the server a moment later: while it is still sealed, looked at again once shortly.
+local SHOW_AGAIN_MS = 150
+
+function Actions.showCrate(character, x, y, z, again)
+    if isServer() or not (character and character:isLocalPlayer() and getPlayerLoot) then return end
+    local square = getCell():getGridSquare(x, y, z)
+    local object = square and Objects.find(square, Objects.CRATE)
+    if not object then return end
+    local container = object:getContainer()
+    if not container or object:getModData()[Objects.SEALED] then
+        if not again then
+            OA.timerAfter(SHOW_AGAIN_MS, function() Actions.showCrate(character, x, y, z, true) end)
+        end
+        return
+    end
+    local page = getPlayerLoot(character:getPlayerNum())
+    if not page then return end
+    page:setNewContainer(container)
+    -- (kept chosen while the character still turns to it, as the game's transfers keep theirs)
+    page:setForceSelectedContainer(container)
+    page:setVisible(true)
+    page.collapseCounter = 0
+    if page.isCollapsed then
+        page.isCollapsed = false
+        page:clearMaxDrawHeight()
+        page.collapseCounter = -30
+    end
+end
+
+function ISOAUnseal:perform()
+    ISBaseTimedAction.perform(self)
+    OA.try("unseal: the loot window", Actions.showCrate, self.character, self.x, self.y, self.z)
+end
+
 function ISOAUnseal:new(character, square, withCrowbar)
     local o = ISBaseTimedAction.new(self, character)
     o.x, o.y, o.z = square:getX(), square:getY(), square:getZ()
