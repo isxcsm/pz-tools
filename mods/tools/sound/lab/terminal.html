@@ -1,0 +1,603 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>단말 소리 랩</title>
+<!--
+The terminal window's sounds (SOUND-SYSTEM.md S8) heard with its picture: the boot of Trade/BootSeq.lua and
+Trade/TerminalBoot.lua ported as they are (the same times, the same garble, flicker, jolts and weak-signal spells, the
+game's static tiles), the crude terminal (조립 단말) and the field terminal (정식 단말) side by side, and for each cue of a
+terminal its candidates (gen/term/manifest.js, made by ai_terminal.py) played on the picture's beats: the screen coming on,
+each line's result, the welcome, the switch-off, the crude one's jolts, the bed under the boot (following the static's
+loudness) and the weak signal's spells (following their fade). Opened from a server (sound-lab: pz-tools on 8773).
+-->
+<style>
+:root { --bg: #111412; --panel: #1b1f1c; --text: #dfe6df; --dim: #8a968c; --line: #2c342e; --accent: #8fe39d; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --bg: #f2f3f0; --panel: #ffffff; --text: #1d221e; --dim: #5f6b61; --line: #d5dad5; --accent: #2f7d3c; } }
+:root[data-theme="dark"] { --bg: #111412; --panel: #1b1f1c; --text: #dfe6df; --dim: #8a968c; --line: #2c342e; --accent: #8fe39d; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 "Malgun Gothic", system-ui, sans-serif; }
+main { max-width: 1500px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 18px; margin: 0 0 4px; }
+p.note { color: var(--dim); margin: 0 0 12px; }
+.tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 640px), 1fr)); gap: 16px; }
+.tier { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+.tier h2 { font-size: 16px; margin: 0 0 8px; }
+canvas { width: 100%; height: auto; display: block; background: #000; border-radius: 4px; cursor: pointer; }
+.bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; }
+button { background: transparent; color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 4px 10px; font: inherit; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+.cue { display: grid; grid-template-columns: 150px 1fr auto auto; gap: 6px; align-items: center; padding: 4px 0; border-top: 1px solid var(--line); }
+.cue .what { color: var(--dim); font-size: 12px; grid-column: 1 / -1; margin-top: -4px; }
+select { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 3px; font: inherit; min-width: 0; width: 100%; }
+.db { color: var(--dim); font-variant-numeric: tabular-nums; width: 64px; text-align: right; }
+.global { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+#picks { font-family: Consolas, monospace; font-size: 12px; color: var(--dim); white-space: pre-wrap; word-break: break-all; }
+</style>
+</head>
+<body>
+<main>
+<h1>단말 소리 랩</h1>
+<p class="note">게임의 부팅 연출(BootSeq) 그대로입니다. 큐마다 후보를 바꿔 가며 '열기'로 연출과 함께 들어 보세요. ▶는 그 소리만 들려줍니다. 조립 단말은 부팅 뒤 창이 열려 있는 동안 14초마다 신호가 약해집니다 ('약신호 바로'로 다음 것을 바로 봅니다). 화면을 클릭하면 게임처럼 부팅을 건너뜁니다.</p>
+<div class="global">
+  <label>전체 볼륨 <input id="master" type="range" min="-30" max="6" value="0"> <span id="masterDb" class="db">0 dB</span></label>
+  <label><input id="first" type="checkbox"> 정식 단말 첫 열기 (긴 판)</label>
+  <span id="status" class="note"></span>
+</div>
+<div class="tiers" id="tiers"></div>
+<h2 style="font-size:15px;margin:16px 0 4px">고른 것</h2>
+<div id="picks"></div>
+</main>
+<script src="../gen/term/manifest.js"></script>
+<script>
+"use strict";
+// ---- Trade/BootSeq.lua, as it is ----------------------------------------------------------------------------------
+const Seq = {
+  POWER_MS: 1000, CLICK_MS: 100, OPEN_MS: 350, EDGE: 0.35, WARM: 0.10, LOUD: 2.2,
+  SHORT: { black: 500, hold: 3000 }, LONG: { black: 600, hold: 3000 },
+  WAIT_MS: 900, WEAK_WAIT_MS: 2400, GAP_MS: 1100, WELCOME_MS: 800, BLINK_MS: 280,
+  COLLAPSE_MS: 280, FADE_MS: 350, SPLIT: 0.6,
+  SETTLE_MS: 300, GARBLE_MAX: 3, GARBLE_STEP_MS: 60,
+  SHAKE_EVERY_MS: 1600, SHAKE_MS: 240, SHAKE_STEP_MS: 40, SHAKE_UNITS: 7,
+  WEAK_EVERY_MS: 14000, WEAK_FADE: 0.6, WEAK_STEP_MS: 60, WEAK_IN_MS: 80, WEAK_OUT_MS: 220,
+};
+const R = (a, b) => ((a % b) + b) % b;
+const floor = Math.floor, ceil = Math.ceil, min = Math.min, max = Math.max;
+const NUMBER = "0347";
+const LINES = {
+  check: { text: "시스템 점검", status: "정상" },
+  storage: { text: "저장 장치 점검", status: "정상" },
+  clock: { text: "시계 동기화", status: "확인" },
+  weak: { text: "신호 약함 · 재시도", status: "확인", weak: true },
+  link: { text: "회선 연결", status: "확인" },
+  server: { text: "연구팀 서버 응답", status: "확인" },
+  point: { text: "채집점 " + NUMBER + " 인증", status: "확인" },
+  welcome: { text: "환영합니다. 채집점 " + NUMBER + ".", bright: true },
+};
+Seq.lines = (first, crude) => {
+  const out = [];
+  const add = id => out.push(LINES[id]);
+  add("check");
+  if (first) { add("storage"); add("clock"); }
+  if (crude) add("weak");
+  add("link");
+  if (first) add("server");
+  add("point");
+  add("welcome");
+  return out;
+};
+Seq.new = (first, crude) => {
+  const run = { first, crude };
+  const t = first ? Seq.LONG : Seq.SHORT;
+  run.lines = Seq.lines(first, crude);
+  run.at = []; run.statusAt = [];
+  let now = Seq.POWER_MS + t.black;
+  run.lines.forEach((line, i) => {
+    if (line.status) {
+      run.at[i] = now;
+      run.statusAt[i] = now + (line.weak ? Seq.WEAK_WAIT_MS : Seq.WAIT_MS);
+      now = run.statusAt[i] + Seq.GAP_MS;
+    } else {
+      run.at[i] = now - Seq.GAP_MS + Seq.WELCOME_MS;
+      run.statusAt[i] = run.at[i];
+      now = run.at[i];
+    }
+  });
+  run.consoleEnd = run.at[run.lines.length - 1] + t.hold;
+  run.fadeAt = run.consoleEnd + Seq.COLLAPSE_MS;
+  run.endAt = run.fadeAt + Seq.FADE_MS;
+  return run;
+};
+Seq.cursorOn = age => R(floor(age / Seq.BLINK_MS), 2) === 0;
+Seq.state = (run, e) => {
+  e = max(0, e);
+  const n = run.lines.length;
+  if (e < run.consoleEnd) { let shown = 0; while (shown < n && run.at[shown] <= e) shown++; return ["console", shown, 0, e]; }
+  if (e < run.fadeAt) return ["collapse", n, (e - run.consoleEnd) / Seq.COLLAPSE_MS, e];
+  if (e < run.endAt) return ["fade", n, (e - run.fadeAt) / Seq.FADE_MS, e];
+  return ["done", n, 1, e];
+};
+Seq.powerOn = e => {
+  if (e >= Seq.POWER_MS) return null;
+  if (e < Seq.CLICK_MS) return [0, 0, 0, 0, null];
+  e -= Seq.CLICK_MS;
+  if (e < Seq.OPEN_MS) { const u = e / Seq.OPEN_MS, v = 1 - u; return [1 - v * v * v, Seq.EDGE * (1 - u * 0.5), Seq.WARM * u, Seq.LOUD, null]; }
+  const t = (e - Seq.OPEN_MS) / (Seq.POWER_MS - Seq.CLICK_MS - Seq.OPEN_MS), v = 1 - t;
+  return [1, Seq.EDGE * 0.5 * v * v * v, Seq.WARM * v * v, 1 + (Seq.LOUD - 1) * v * v, t];
+};
+Seq.switchOff = t => {
+  const a = min(1, t / Seq.SPLIT), u = max(0, (t - Seq.SPLIT) / (1 - Seq.SPLIT)), k = (1 - a) * (1 - a);
+  return [k, 1 - u * u, min(1, a * 3) * (1 - u * u * u)];
+};
+const GLYPHS = "#%&*+=?/<>";
+Seq.garble = (text, line, age) => {
+  if (age < 0 || age >= Seq.SETTLE_MS) return text;
+  const parts = Array.from(text), count = parts.length;
+  const step = floor(age / Seq.GARBLE_STEP_MS), wrong = max(1, ceil(Seq.GARBLE_MAX * (1 - age / Seq.SETTLE_MS)));
+  for (let j = 1; j <= wrong; j++) {
+    const at = R(line * 7 + step * 13 + j * 5 + line * j, count);
+    if (parts[at] !== " ") parts[at] = GLYPHS[R(line * 3 + step * 11 + j * 7, GLYPHS.length)];
+  }
+  return parts.join("");
+};
+Seq.flicker = e => { const r = R(floor(e / 45) * 7 + 3, 11); return r === 0 ? 0.6 : r === 1 ? 0.8 : 1; };
+// (the burst's start in its slot, or null: what the jolt sound is timed by)
+Seq.shakeStart = slot => R(slot * 5 + 2, 3) !== 0 ? null : slot * Seq.SHAKE_EVERY_MS + R(slot * 389, Seq.SHAKE_EVERY_MS - Seq.SHAKE_MS);
+Seq.shake = e => {
+  const slot = floor(e / Seq.SHAKE_EVERY_MS), s = Seq.shakeStart(slot);
+  if (s === null) return [0, 0];
+  const t = e - s;
+  if (t < 0 || t >= Seq.SHAKE_MS) return [0, 0];
+  const step = floor(t / Seq.SHAKE_STEP_MS), k = Seq.SHAKE_UNITS * (1 - t / Seq.SHAKE_MS);
+  const dx = (R(slot * 7 + step * 13, 7) - 3) / 3, dy = (R(slot * 11 + step * 5, 5) - 2) / 2;
+  return [floor(dx * k + 0.5), floor(dy * k * 0.6 + 0.5)];
+};
+Seq.weakSignal = e => {
+  const every = Seq.WEAK_EVERY_MS, slot = floor(e / every), length = 500 + R(slot * 331 + 120, 601);
+  const t = e - slot * every - R(slot * 7919 + 3000, every - length);
+  if (t < 0 || t >= length) return null;
+  const env = min(1, t / Seq.WEAK_IN_MS, (length - t) / Seq.WEAK_OUT_MS), step = floor(t / Seq.WEAK_STEP_MS);
+  const flick = 0.75 + 0.25 * R(slot * 3 + step * 7, 5) / 4;
+  let jolt = 0;
+  if (step < 4 || R(step, 7) === 3) jolt = R(slot * 5 + step * 3, 5) - 2;
+  return [Seq.WEAK_FADE * env * flick, slot * 64 + step, jolt, t / length];
+};
+Seq.nextSpell = e => {
+  for (let slot = floor(e / Seq.WEAK_EVERY_MS); ; slot++) {
+    const length = 500 + R(slot * 331 + 120, 601);
+    const s = slot * Seq.WEAK_EVERY_MS + R(slot * 7919 + 3000, Seq.WEAK_EVERY_MS - length);
+    if (s > e) return s;
+  }
+};
+
+// ---- the palettes (Trade/UI.lua) and the static (Trade/TerminalStatic.lua) ----------------------------------------
+const PALETTES = {
+  crude: { bg: [0.02, 0.05, 0.03], text: [0.45, 0.95, 0.55], dim: [0.25, 0.55, 0.30], bright: [0.78, 1.0, 0.82], value: [0.78, 1.0, 0.82], border: [0.20, 0.50, 0.25], scanlines: true },
+  field: { bg: [0.10, 0.11, 0.08], text: [0.92, 0.90, 0.82], dim: [0.62, 0.60, 0.52], bright: [1, 0.98, 0.92], value: [1, 0.82, 0.25], border: [0.42, 0.45, 0.30], panel: [0.15, 0.16, 0.12], scanlines: false },
+};
+const STATIC = { TILE: 256, ALPHAS: { crude: 0.2, field: 0.08 }, BOOT: 1.5, SPEED: 40, SWAP_MS: 90 };
+const TEX = "../../../operation-acorn/OperationAcorn/42/media/textures/";
+const rgb = (c, a = 1) => `rgba(${c.map(v => Math.round(v * 255)).join(",")},${a})`;
+const images = {};
+function loadImage(name) {
+  return new Promise(ok => { const im = new Image(); im.onload = () => ok(im); im.onerror = () => ok(null); im.src = TEX + name; });
+}
+// the tiles tinted in a palette's text colour (the game's drawTextureTiled with its colour)
+function tinted(im, c) {
+  if (!im) return null;
+  const cv = document.createElement("canvas");
+  cv.width = im.width; cv.height = im.height;
+  const g = cv.getContext("2d");
+  g.drawImage(im, 0, 0);
+  g.globalCompositeOperation = "source-in";
+  g.fillStyle = rgb(c);
+  g.fillRect(0, 0, cv.width, cv.height);
+  return cv;
+}
+
+// ---- sound --------------------------------------------------------------------------------------------------------
+const GEN = "../gen/term/";
+const MADE = window.TERMINAL_SOUND_CANDIDATES || {};
+const PICKED = window.TERMINAL_SOUND_PICKS || {};
+// The cues of each terminal: [id, label, what it is on the picture, level (peak dB in the game)].
+const CUES = {
+  field: [
+    ["power", "켜짐", "전원이 들어오고 화면이 가운데서 열린다 (0.1초부터)", -26],
+    ["hum", "부팅 바탕 (반복)", "부팅 내내 아주 작게. 화면이 열릴 때 크고 곧 가라앉는다 (정적의 세기를 따라감)", -40],
+    ["line", "줄 결과", "각 점검 줄의 '정상·확인'이 뜰 때 (없음도 고를 수 있음)", -36],
+    ["ready", "환영", "밝은 마지막 줄 '환영합니다'가 뜰 때", -29],
+    ["off", "꺼짐", "글이 한 줄로 접혀 점이 되고 탭이 나타날 때. 창을 닫을 때도", -31],
+  ],
+  crude: [
+    ["power", "켜짐", "덜컥 켜지고 잡음이 치솟았다 가라앉는다 (정적 2.2배에서 1까지)", -25],
+    ["hum", "부팅 바탕 (반복)", "부팅 내내. 지글거리는 잡음, 화면이 열릴 때 크다", -38],
+    ["jolt", "덜컥임", "부팅 중 화면이 흔들리는 순간 (0.24초)", -30],
+    ["line", "줄 결과", "각 점검 줄의 결과가 뜰 때 (없음도 고를 수 있음)", -36],
+    ["ready", "환영", "'환영합니다'가 뜰 때. 싸구려 스피커", -29],
+    ["off", "꺼짐", "한 줄로 접혀 점이 될 때. 창을 닫을 때도", -30],
+    ["spell", "약신호 (반복)", "창이 열려 있는 동안 14초마다 0.5~1.1초 화면이 흐려지고 잡음이 낀다. 흐려지는 만큼 소리도", -34],
+  ],
+};
+// A cue's level is a beat's loudest 20 ms, a loop's mean (RMS), as install_terminal_picks.py sets them (the peak kept under
+// -1 dB): the gain of a file is worked out from its own samples.
+const LOOP_CUES = new Set(["hum", "spell"]);
+const PEAK_CAP = -1, LOOP_OVER = 6;   // a loop's loudest 20 ms at most this over its mean level
+const levelGain = new Map();
+function gainOf(buf, cue, level) {
+  const key = buf;
+  if (!levelGain.has(key)) {
+    const x = buf.getChannelData(0);
+    let peak = 0, sum = 0;
+    const n = Math.round(0.02 * buf.sampleRate), c = new Float64Array(x.length + 1);
+    for (let i = 0; i < x.length; i++) { const v = Math.abs(x[i]); if (v > peak) peak = v; sum += x[i] * x[i]; c[i + 1] = c[i] + x[i] * x[i]; }
+    let loud = 0;
+    for (let i = n; i <= x.length; i++) loud = Math.max(loud, c[i] - c[i - n]);
+    loud = x.length > n ? Math.sqrt(loud / n) : Math.sqrt(sum / x.length);
+    levelGain.set(key, { peak: peak || 1, rms: Math.sqrt(sum / x.length) || 1e-9, loud: loud || 1e-9 });
+  }
+  const m = levelGain.get(key);
+  const g = LOOP_CUES.has(cue) ? Math.min(dbGain(level) / m.rms, dbGain(level + LOOP_OVER) / m.loud) : dbGain(level) / m.loud;
+  return Math.min(g, dbGain(PEAK_CAP) / m.peak);
+}
+let ctx = null, masterGain = null;
+const buffers = {};
+function audio() {
+  if (!ctx) {
+    ctx = new AudioContext();
+    masterGain = ctx.createGain();
+    masterGain.connect(ctx.destination);
+    setMaster();
+  }
+  if (ctx.state === "suspended") ctx.resume();
+  return ctx;
+}
+async function buffer(file) {
+  if (!(file in buffers)) {
+    buffers[file] = fetch(GEN + file).then(r => r.arrayBuffer()).then(b => audio().decodeAudioData(b)).catch(() => null);
+  }
+  return buffers[file];
+}
+const dbGain = db => Math.pow(10, db / 20);
+const picks = {};
+function choiceOf(tier, cue) { return picks[tier + ":" + cue] ?? (MADE[tier + ":" + cue] || [])[0] ?? "none"; }
+function cueLevel(tier, cue) { return CUES[tier].find(c => c[0] === cue)[3]; }
+// A one-shot, `delay` seconds from now; returns its stop.
+async function shot(tier, cue, delay = 0, gain = 1) {
+  const file = choiceOf(tier, cue);
+  if (file === "none") return null;
+  const buf = await buffer(file);
+  if (!buf) return null;
+  const a = audio(), src = a.createBufferSource(), g = a.createGain();
+  src.buffer = buf;
+  g.gain.value = gainOf(buf, cue, cueLevel(tier, cue)) * gain;
+  src.connect(g).connect(masterGain);
+  src.start(a.currentTime + max(0, delay));
+  return src;
+}
+// A loop whose level the frames set (0 to 1 of its own); returns { set(v), stop() }.
+async function loop(tier, cue) {
+  const file = choiceOf(tier, cue);
+  if (file === "none") return null;
+  const buf = await buffer(file);
+  if (!buf) return null;
+  const a = audio(), src = a.createBufferSource(), g = a.createGain();
+  src.buffer = buf; src.loop = true;
+  const base = gainOf(buf, cue, cueLevel(tier, cue));
+  g.gain.value = 0;
+  src.connect(g).connect(masterGain);
+  src.start();
+  return {
+    set(v) { g.gain.setTargetAtTime(base * v, a.currentTime, 0.01); },
+    stop() { try { g.gain.setTargetAtTime(0, a.currentTime, 0.03); src.stop(a.currentTime + 0.15); } catch (e) {} },
+  };
+}
+function setMaster() {
+  const db = +document.getElementById("master").value;
+  document.getElementById("masterDb").textContent = db + " dB";
+  if (masterGain) masterGain.gain.value = dbGain(db);
+}
+
+// ---- a terminal: its picture and its sounds -------------------------------------------------------------------------
+const W = 960, H = 540, TOP = 34;
+class Terminal {
+  constructor(tier, el) {
+    this.tier = tier;
+    this.p = PALETTES[tier];
+    this.canvas = el.querySelector("canvas");
+    this.canvas.width = W; this.canvas.height = H;
+    this.g = this.canvas.getContext("2d");
+    this.run = null;
+    this.open = false;
+    this.signalFrom = 0;
+    this.sounds = [];
+    this.canvas.addEventListener("click", () => this.skip());
+  }
+  now() { return performance.now(); }
+  start() {
+    this.stopSounds();
+    audio();
+    const first = this.tier === "field" && document.getElementById("first").checked;
+    this.run = Seq.new(first, this.tier === "crude");
+    this.run.start = this.now();
+    this.open = true;
+    this.signalFrom = null;
+    this.played = {};
+    this.lastE = -1;
+    shot(this.tier, "power", 0);
+    loop(this.tier, "hum").then(l => { if (this.run && !this.run.ended) { this.hum = l; this.sounds.push(l); } else if (l) l.stop(); });
+  }
+  close() {
+    if (!this.open) return;
+    this.stopSounds();
+    shot(this.tier, "off", 0);
+    this.open = false;
+    this.run = null;
+  }
+  skip() {
+    const run = this.run;
+    if (!run || run.locked) return;
+    const [phase] = Seq.state(run, this.now() - run.start);
+    if (phase === "console" || phase === "collapse") {
+      run.start = this.now() - run.fadeAt;
+      run.skipped = true;
+      this.endBoot();
+      shot(this.tier, "off", 0);
+    }
+  }
+  nextSpell() {
+    if (this.tier !== "crude" || !this.open || this.run && !this.run.ended) return;
+    const e = this.now() - this.signalFrom;
+    this.signalFrom -= Seq.nextSpell(e) - e - 300;
+  }
+  stopSounds() { this.sounds.forEach(s => s && s.stop()); this.sounds = []; this.hum = null; this.spell = null; }
+  endBoot() {
+    if (this.hum) { this.hum.stop(); this.hum = null; }
+  }
+  // The beats crossed between the last frame and this one (each sound once).
+  beats(e) {
+    const run = this.run, from = this.lastE, once = (k, fn) => { if (!this.played[k]) { this.played[k] = true; fn(); } };
+    if (run.skipped) return;
+    run.lines.forEach((line, i) => {
+      if (line.status && run.statusAt[i] > from && run.statusAt[i] <= e) once("line" + i, () => shot(this.tier, "line"));
+      if (line.bright && run.at[i] > from && run.at[i] <= e) once("ready", () => shot(this.tier, "ready"));
+    });
+    if (this.tier === "crude" && e < run.consoleEnd) {
+      const slot = floor(e / Seq.SHAKE_EVERY_MS), s = Seq.shakeStart(slot);
+      if (s !== null && s > from && s <= e && s >= Seq.POWER_MS) once("jolt" + slot, () => shot(this.tier, "jolt"));
+    }
+    if (run.consoleEnd > from && run.consoleEnd <= e) once("off", () => { this.endBoot(); shot(this.tier, "off"); });
+  }
+  frame() {
+    const g = this.g, p = this.p;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
+    if (!this.open) {
+      g.fillStyle = "#555"; g.font = "16px 'Malgun Gothic'"; g.textAlign = "center";
+      g.fillText("꺼져 있음 · '열기'를 누르세요", W / 2, H / 2);
+      return;
+    }
+    const run = this.run;
+    if (run && !run.ended) {
+      const e = this.now() - run.start;
+      if (this.lastE < 0) this.lastE = -1;
+      this.beats(e);
+      this.lastE = e;
+      const [phase, shown, t] = Seq.state(run, e);
+      // the bed follows the static's loudness: loud as the screen opens, its level through the console, falling with the switch-off
+      if (this.hum) {
+        const po = Seq.powerOn(e);
+        let v = po ? po[3] / Seq.LOUD : 1 / Seq.LOUD;
+        if (po && e < Seq.CLICK_MS) v = 0;
+        if (phase === "collapse") v *= Seq.switchOff(t)[0];
+        if (phase === "fade" || phase === "done") v = 0;
+        this.hum.set(v);
+      }
+      if (phase === "done") { run.ended = true; this.endBoot(); this.signalFrom = this.now(); }
+      this.drawWindow(phase === "fade" ? t : phase === "done" ? 1 : 0);
+      if (phase === "fade") { g.fillStyle = `rgba(0,0,0,${1 - t})`; g.fillRect(0, TOP, W, H - TOP); }
+      if (phase === "console" || phase === "collapse") this.drawBoot(phase, shown, t, e);
+      return;
+    }
+    this.drawWindow(1);
+  }
+  // The window after the boot: a strip of tabs and a body of rows, the static behind (crude) or over (field), and the crude
+  // one's weak signal.
+  drawWindow(alpha) {
+    const g = this.g, p = this.p;
+    let jx = 0, ws = null;
+    if (this.tier === "crude" && this.run && this.run.ended) {
+      ws = Seq.weakSignal(this.now() - this.signalFrom);
+      if (ws) jx = floor(ws[2] * 0.75 + 0.5);
+      if (ws && !this.spell && !this.spellStarting) {
+        this.spellStarting = true;
+        loop("crude", "spell").then(l => { this.spellStarting = false; if (l && this.open) { this.spell = l; this.sounds.push(l); } else if (l) l.stop(); });
+      }
+      if (this.spell) {
+        if (ws) this.spell.set(ws[0] / Seq.WEAK_FADE);
+        else { this.spell.stop(); this.sounds = this.sounds.filter(s => s !== this.spell); this.spell = null; }
+      }
+    }
+    g.save();
+    g.translate(jx, 0);
+    g.fillStyle = rgb(p.panel || p.bg); g.fillRect(0, 0, W, TOP);
+    g.font = "15px 'Malgun Gothic'"; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillStyle = rgb(p.bright); g.fillText((this.tier === "crude" ? "통신 단말" : "통신 단말") + " · 채집점 " + NUMBER, W / 2, TOP / 2);
+    g.fillStyle = rgb(p.bg); g.fillRect(0, TOP, W, H - TOP);
+    const t = this.now();
+    if (this.tier === "crude") this.drawStatic(t, TOP, H - TOP, STATIC.ALPHAS.crude);
+    if (p.scanlines && images.scan) { g.globalAlpha = 0.07; g.fillStyle = g.createPattern(images.scan, "repeat"); g.fillRect(0, TOP, W, H - TOP); g.globalAlpha = 1; }
+    const tabs = ["상태", "주문", "납품", "임무", "교신"];
+    g.font = "16px 'Malgun Gothic'";
+    tabs.forEach((name, i) => {
+      const x = 14 + i * 92;
+      g.strokeStyle = rgb(p.border); g.strokeRect(x + 0.5, TOP + 8.5, 86, 30);
+      g.fillStyle = rgb(i === 0 ? p.bright : p.dim); g.fillText(name, x + 43, TOP + 24);
+    });
+    g.textAlign = "left";
+    const rows = ["보급 상황", "다음 헬기 호출 가능", "보유 크레딧 12,400", "이번 주 요청 3건", "신뢰 단계 4"];
+    rows.forEach((r, i) => { g.fillStyle = rgb(i === 0 ? p.value : p.text); g.fillText(r, 30, TOP + 80 + i * 34); });
+    if (this.tier === "field") this.drawStatic(t, TOP, H - TOP, STATIC.ALPHAS.field);
+    if (ws) this.drawWeak(ws);
+    g.restore();
+  }
+  drawStatic(t, y, h, a) {
+    const tex = this.tiles && this.tiles[R(floor(t / STATIC.SWAP_MS), 2)];
+    if (!tex || a <= 0 || h <= 0) return;
+    const g = this.g, off = R(floor(t * STATIC.SPEED / 1000), STATIC.TILE) - STATIC.TILE;
+    g.save();
+    g.beginPath(); g.rect(0, y, W, h); g.clip();
+    g.globalAlpha = min(1, a);
+    for (let ty = y + off; ty < y + h; ty += STATIC.TILE) for (let tx = 0; tx < W; tx += STATIC.TILE) g.drawImage(tex, tx, ty);
+    g.restore();
+  }
+  // TerminalWindow:drawWeakSignal
+  drawWeak([fade, step, , through]) {
+    const g = this.g, p = this.p, bodyH = H - TOP, n = 9, k = fade / Seq.WEAK_FADE;
+    for (let b = 0; b < n; b++) {
+      const y0 = floor(b * bodyH / n), y1 = floor((b + 1) * bodyH / n), depth = 0.55 + 0.45 * R(step * 7 + b * 13, 5) / 4;
+      g.fillStyle = rgb(p.bg, fade * depth); g.fillRect(0, TOP + y0, W, y1 - y0);
+    }
+    const tex = this.tiles && this.tiles[R(step, 2)];
+    if (tex) {
+      const shift = R(step * 37, STATIC.TILE);
+      g.save(); g.beginPath(); g.rect(0, TOP, W, bodyH); g.clip(); g.globalAlpha = 0.32 * k;
+      for (let ty = TOP - shift; ty < H; ty += STATIC.TILE) for (let tx = 0; tx < W; tx += STATIC.TILE) g.drawImage(tex, tx, ty);
+      g.restore();
+    }
+    const rollH = max(8, floor(bodyH / 7)), rollY = floor(through * (bodyH + rollH)) - rollH;
+    if (rollY < bodyH) { const top = max(0, rollY); g.fillStyle = rgb(p.text, 0.05 * k); g.fillRect(0, TOP + top, W, min(bodyH, rollY + rollH) - top); }
+    for (let j = 1; j <= 3; j++) {
+      const seed = step * 7 + j * 13, a = (0.16 + 0.08 * R(seed, 3)) * k;
+      g.fillStyle = rgb(p.text, a); g.fillRect(0, TOP + R(seed * 97, max(1, bodyH - 6)), W, 1 + R(seed, 3));
+    }
+  }
+  // TerminalBoot:prerender, over the body (under the title bar)
+  drawBoot(phase, shown, t, e) {
+    const g = this.g, p = this.p, run = this.run, y0 = TOP, h = H - TOP;
+    g.save(); g.translate(0, y0);
+    g.fillStyle = "#000"; g.fillRect(0, 0, W, h);
+    const screen = (y, hh) => {
+      if (hh <= 0) return;
+      g.fillStyle = rgb(p.bg); g.fillRect(0, y, W, hh);
+      if (p.scanlines && images.scan) { g.globalAlpha = 0.07; g.fillStyle = g.createPattern(images.scan, "repeat"); g.fillRect(0, y, W, hh); g.globalAlpha = 1; }
+    };
+    const stat = (y, hh, k) => { g.save(); g.translate(0, y0); g.restore(); this.drawStaticIn(e, y, hh, STATIC.ALPHAS[this.tier] * STATIC.BOOT * k); };
+    const po = Seq.powerOn(e);
+    if (po) {
+      const [open, edge, warm, loud, roll] = po, band = open * h;
+      if (band > 0) {
+        const top = (h - band) / 2;
+        screen(top, band); stat(top, band, loud);
+        if (warm > 0) { g.fillStyle = rgb(p.text, warm); g.fillRect(0, top, W, band); }
+        if (roll !== null) { const rh = h / 5, ry = roll * (h + rh) - rh, a0 = max(top, ry), a1 = min(top + band, ry + rh); if (a1 > a0) { g.fillStyle = rgb(p.text, 0.05 * (1 - roll * 0.5)); g.fillRect(0, a0, W, a1 - a0); } }
+        if (edge > 0) {
+          const n = 5, row = max(1, min(3, band / (2 * n)));
+          for (let i = 0; i < n; i++) { g.fillStyle = rgb(p.text, edge * (1 - i / n) * (1 - i / n)); g.fillRect(0, top + i * row, W, row); g.fillRect(0, top + band - (i + 1) * row, W, row); }
+        }
+      }
+      g.restore(); return;
+    }
+    const a = run.crude ? Seq.flicker(e) : 1;
+    let sx = 0, sy = 0;
+    if (run.crude && phase === "console") [sx, sy] = Seq.shake(e);
+    g.font = "22px 'Malgun Gothic'";
+    const fh = 26, rowH = fh + 6, big = "28px 'Malgun Gothic'";
+    let bw = 0, wel = 0;
+    run.lines.forEach(l => { if (l.bright) { g.font = big; wel = g.measureText(l.text).width; g.font = "22px 'Malgun Gothic'"; } else bw = max(bw, g.measureText(l.text + " " + l.status).width); });
+    const last = run.lines.length - 1, blockH = last * rowH + 16 + 32;
+    const bx = max(20, floor((W - (bw + max(wel, bw)) / 2) / 2)), by = max(0, floor((h - blockH) / 2)), cy = by + blockH / 2;
+    const drawRow = (l, i, y, al, age, ended) => {
+      g.globalAlpha = al; g.textBaseline = "top";
+      if (l.bright) { g.font = big; g.textAlign = "center"; g.fillStyle = rgb(p.bright); g.fillText(l.text, W / 2 + sx, y); g.textAlign = "left"; g.globalAlpha = 1; return; }
+      g.font = "22px 'Malgun Gothic'"; g.textAlign = "left";
+      const text = run.crude ? Seq.garble(l.text, i + 1, age) : l.text;
+      g.fillStyle = rgb(p.text); g.fillText(text, bx + sx, y);
+      const sxp = g.measureText(l.text + " ").width;
+      if (ended) { g.fillStyle = rgb(p.value); g.fillText(l.status, bx + sx + sxp, y); }
+      else if (Seq.cursorOn(age)) { g.fillStyle = rgb(p.text); g.fillRect(bx + sx + sxp, y + fh * 0.12, max(2, floor(fh * 0.45)), fh * 0.76); }
+      g.globalAlpha = 1;
+    };
+    const rowY = i => i * rowH + (run.lines[i].bright ? 16 : 0);
+    if (phase === "collapse") {
+      const [k, lineW, lineA] = Seq.switchOff(t), band = max(2, blockH * k), sc = h * k;
+      screen(cy - sc / 2, sc); stat(cy - sc / 2, sc, k);
+      g.save(); g.beginPath(); g.rect(0, cy - band / 2, W, band); g.clip();
+      for (let i = 0; i < shown; i++) { const rh = run.lines[i].bright ? 32 : fh, y = cy + (by + rowY(i) + rh / 2 - cy) * k - rh / 2; drawRow(run.lines[i], i, y, a * k, 1e9, true); }
+      g.restore();
+      const w = max(4, W * lineW);
+      g.fillStyle = rgb(p.bright, lineA); g.fillRect((W - w) / 2, cy - 1, w, 2);
+      g.restore(); return;
+    }
+    screen(0, h); stat(0, h, a);
+    for (let i = 0; i < shown; i++) drawRow(run.lines[i], i, by + sy + rowY(i), a, e - run.at[i], e >= run.statusAt[i]);
+    if (!run.locked) { g.font = "14px 'Malgun Gothic'"; g.textAlign = "right"; g.fillStyle = rgb(p.dim, a); g.fillText("클릭하면 건너뜁니다", W - 8, h - 22); g.textAlign = "left"; }
+    g.restore();
+  }
+  drawStaticIn(e, y, h, a) {
+    const tex = this.tiles && this.tiles[R(floor(e / STATIC.SWAP_MS), 2)];
+    if (!tex || a <= 0 || h <= 0) return;
+    const g = this.g, off = R(floor(e * STATIC.SPEED / 1000), STATIC.TILE) - STATIC.TILE;
+    g.save(); g.beginPath(); g.rect(0, y, W, h); g.clip(); g.globalAlpha = min(1, a);
+    for (let ty = y + off; ty < y + h; ty += STATIC.TILE) for (let tx = 0; tx < W; tx += STATIC.TILE) g.drawImage(tex, tx, ty);
+    g.restore();
+  }
+}
+
+// ---- the page ---------------------------------------------------------------------------------------------------------
+const NAMES = { crude: "조립 단말", field: "정식 단말" };
+const terminals = {};
+function build() {
+  const host = document.getElementById("tiers");
+  for (const tier of ["crude", "field"]) {
+    const el = document.createElement("section");
+    el.className = "tier";
+    el.innerHTML = `<h2>${NAMES[tier]}</h2><canvas></canvas>
+      <div class="bar"><button data-a="open">열기</button><button data-a="close">닫기</button>${tier === "crude" ? '<button data-a="spell">약신호 바로</button>' : ""}</div>
+      <div class="cues"></div>`;
+    host.appendChild(el);
+    const term = new Terminal(tier, el);
+    terminals[tier] = term;
+    el.querySelector('[data-a="open"]').onclick = () => term.start();
+    el.querySelector('[data-a="close"]').onclick = () => term.close();
+    const sp = el.querySelector('[data-a="spell"]');
+    if (sp) sp.onclick = () => term.nextSpell();
+    const list = el.querySelector(".cues");
+    for (const [id, label, what, level] of CUES[tier]) {
+      const key = tier + ":" + id, files = MADE[key] || [];
+      if (PICKED[key]) picks[key] = PICKED[key];
+      const row = document.createElement("div");
+      row.className = "cue";
+      const opts = ['<option value="none">없음</option>'].concat(files.map((f, i) => `<option value="${f}">${PICKED[key] === f ? "고른 것 · " : ""}${String.fromCharCode(97 + i)} · ${f}</option>`));
+      row.innerHTML = `<b>${label}</b><select>${opts.join("")}</select><button title="이것만 듣기">▶</button><span class="db">${level} dB${LOOP_CUES.has(id) ? " RMS" : ""}</span><div class="what">${what}${files.length ? "" : " · 후보 없음 (아직 만드는 중이면 새로고침)"}</div>`;
+      const sel = row.querySelector("select");
+      sel.value = choiceOf(tier, id);
+      sel.onchange = () => { picks[key] = sel.value; showPicks(); };
+      row.querySelector("button").onclick = async () => {
+        if (id === "hum" || id === "spell") { const l = await loop(tier, id); if (l) { l.set(1); setTimeout(() => l.stop(), 3000); } }
+        else shot(tier, id);
+      };
+      list.appendChild(row);
+    }
+  }
+  showPicks();
+}
+function showPicks() {
+  const lines = [];
+  for (const tier of ["crude", "field"]) for (const [id] of CUES[tier]) lines.push(tier + ":" + id + "=" + choiceOf(tier, id));
+  document.getElementById("picks").textContent = lines.join("\n");
+}
+async function main() {
+  build();
+  document.getElementById("master").oninput = setMaster;
+  const [s1, s2, scan] = await Promise.all([loadImage("OA_Static_1.png"), loadImage("OA_Static_2.png"), loadImage("OA_Scanline.png")]);
+  images.scan = scan;
+  for (const tier of ["crude", "field"]) terminals[tier].tiles = [tinted(s1, PALETTES[tier].text), tinted(s2, PALETTES[tier].text)];
+  const n = Object.values(MADE).reduce((a, f) => a + f.length, 0);
+  document.getElementById("status").textContent = n ? `후보 ${n}개` : "후보가 아직 없습니다 (gen/term/manifest.js)";
+  const tick = () => { for (const t of Object.values(terminals)) t.frame(); requestAnimationFrame(tick); };
+  tick();
+}
+main();
+</script>
+</body>
+</html>

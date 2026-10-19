@@ -12,6 +12,7 @@ require "OperationAcorn/Trade/UI"
 require "OperationAcorn/Trade/BootSeq"
 require "OperationAcorn/Trade/TerminalBoot"
 require "OperationAcorn/Trade/TerminalStatic"
+require "OperationAcorn/Trade/TerminalSound"
 local OA = OperationAcorn
 local Trade, Terminal, UI = OA.Trade, OA.Terminal, OA.Trade.UI
 local Objects, Things = Trade.Objects, Trade.Things
@@ -150,6 +151,7 @@ function OATerminalTabs:onMouseDown(x, y)
     for _, slot in ipairs(self.slots) do
         if x >= slot.x and x < slot.x + slot.w then
             UI.flash(self, slot.id)
+            if slot.id ~= self.window.activeId then PZUIKit.Sound.ui("kit.select") end
             self.window:activate(slot.id)
             return true
         end
@@ -206,6 +208,7 @@ local function ownFrame(window, now)
     window.signalFrom = window.signalFrom or now
     local fade, step, jolt, through = Seq.weakSignal(now - window.signalFrom)
     window.signalFade, window.signalStep, window.signalThrough = fade, step, through
+    OA.Trade.TerminalSound.weakFrame(window, fade)
     -- the jolt moves the window itself a pixel or two, and back; never while the player drags it (a jolt then is
     -- forgotten: at most a pixel or two off, once)
     if window.moving then
@@ -306,6 +309,7 @@ function OATerminalWindow:startBoot()
     if not run then return end
     UI.live(self, liveFrame)
     if #run.lines == 0 then return end
+    OA.Trade.TerminalSound.bootStart(self)
     local top = UI.dp(self:titleBarHeight())
     local bottom = UI.dp(self:resizeWidgetHeight())
     local overlay = OATerminalBoot:new(0, top, UI.dp(self.width), UI.dp(self.height) - top - bottom, self, run)
@@ -323,6 +327,7 @@ end
 function OATerminalWindow:bootTick(now)
     local run = self.boot
     local phase, shown, t, e = Seq.state(run, now or getTimestampMs())
+    OA.Trade.TerminalSound.bootFrame(self, run, phase, t, e)
     if phase == "console" or phase == "collapse" then
         local look = Seq.look(run, phase, shown, e)
         if self.bootOverlay then self.bootOverlay.look = look end
@@ -602,6 +607,7 @@ function OATerminalWindow:close()
         if view.onWindowClose then view:onWindowClose() end
     end
     OATerminalWindow.instances[self.playerNum] = nil
+    OA.Trade.TerminalSound.close(self)
     UI.fadeOut(self)
 end
 

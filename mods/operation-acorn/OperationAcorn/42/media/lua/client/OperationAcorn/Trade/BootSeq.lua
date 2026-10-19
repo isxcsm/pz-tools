@@ -220,11 +220,17 @@ end
 -- The offset (design units, whole) at `elapsed` ms, the same every time; 0, 0 between bursts.
 Seq.SHAKE_EVERY_MS, Seq.SHAKE_MS, Seq.SHAKE_STEP_MS, Seq.SHAKE_UNITS = 1600, 240, 40, 7
 
+-- When the burst of a stretch starts (ms from the start), nil for a stretch without one.
+function Seq.shakeStart(slot)
+    if R(slot * 5 + 2, 3) ~= 0 then return nil end
+    return slot * Seq.SHAKE_EVERY_MS + R(slot * 389, Seq.SHAKE_EVERY_MS - Seq.SHAKE_MS)
+end
+
 function Seq.shake(elapsed)
-    local every = Seq.SHAKE_EVERY_MS
-    local slot = floor(elapsed / every)
-    if R(slot * 5 + 2, 3) ~= 0 then return 0, 0 end
-    local t = elapsed - slot * every - R(slot * 389, every - Seq.SHAKE_MS)
+    local slot = floor(elapsed / Seq.SHAKE_EVERY_MS)
+    local start = Seq.shakeStart(slot)
+    if not start then return 0, 0 end
+    local t = elapsed - start
     if t < 0 or t >= Seq.SHAKE_MS then return 0, 0 end
     local step = floor(t / Seq.SHAKE_STEP_MS)
     local k = Seq.SHAKE_UNITS * (1 - t / Seq.SHAKE_MS)

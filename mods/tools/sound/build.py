@@ -53,10 +53,14 @@ MOD_FOLDERS = {
 CATEGORIES = {'UI', 'Object', 'Item', 'Player', 'World'}
 MASTERS = {'Primary', 'Ambient', 'Music', 'VehicleEngine'}
 MADE = '/* Made by'
-# The block of the kit's sound script that install_title_picks.py writes (the picked title sounds); a rewrite of the
-# script keeps it.
+# The blocks of a sound script that the picks' installers write (install_title_picks.py: the kit's picked title sounds;
+# install_terminal_picks.py: OA's picked terminal sounds); a rewrite of the script keeps them.
 TITLE_BEGIN = '    /* title picks begin: written by tools/sound/install_title_picks.py from title_picks.json, not by build.py */'
 TITLE_END = '    /* title picks end */'
+TERMINAL_BEGIN = ('    /* terminal picks begin: written by tools/sound/install_terminal_picks.py from terminal_picks.json, '
+                  'not by build.py */')
+TERMINAL_END = '    /* terminal picks end */'
+PICK_BLOCKS = [(TITLE_BEGIN, TITLE_END), (TERMINAL_BEGIN, TERMINAL_END)]
 GAME_DIR = os.environ.get('PZDEV_GAME', r'C:\Program Files (x86)\Steam\steamapps\common\ProjectZomboid')
 # The mods' cue tables: each cue's sound is to be one the game knows (a vanilla one or one of sounds.json's).
 CUE_TABLES = [
@@ -241,16 +245,18 @@ def encode(data, path):
 
 
 def kept_block(path):
-    """The title picks' block of the sound script already at `path` ('' when it has none)."""
+    """The picks' blocks of the sound script already at `path` ('' when it has none)."""
     if not os.path.exists(path):
         return ''
     with open(path, encoding='utf-8') as f:
         text = f.read()
-    start = text.find(TITLE_BEGIN)
-    end = text.find(TITLE_END)
-    if start < 0 or end < start:
-        return ''
-    return text[start:end + len(TITLE_END)]
+    kept = []
+    for begin, end_line in PICK_BLOCKS:
+        start = text.find(begin)
+        end = text.find(end_line)
+        if start >= 0 and end > start:
+            kept.append(text[start:end + len(end_line)])
+    return '\n\n'.join(kept)
 
 
 def script(mod, sounds, kept=''):

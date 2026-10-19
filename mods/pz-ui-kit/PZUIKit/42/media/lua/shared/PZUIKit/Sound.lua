@@ -86,6 +86,32 @@ function Sound.ui(cue, char)
     return getSoundManager():playUISound(name)
 end
 
+-- On the screen with its volume in the caller's hands (a bed under a picture, following it; a loop of the sound
+-- scripts runs until stopped): { emitter, id } or nil. The volume (0 to 1 of the sound's own) goes in at once: the UI
+-- emitter is ticked, else a volume waits for its next tick and the sound's first frame plays at its full level.
+function Sound.uiHeld(cue, volume)
+    local name = Sound.name(cue)
+    if not name then return nil end
+    local manager = getSoundManager()
+    local id = manager:playUISound(name)
+    local emitter = manager:getUIEmitter()
+    if not id or id == 0 or not emitter then return nil end
+    local held = { emitter = emitter, id = id }
+    Sound.setHeld(held, volume or 1)
+    return held
+end
+
+function Sound.setHeld(held, volume)
+    if held.volume == volume then return end
+    held.volume = volume
+    held.emitter:setVolume(held.id, volume)
+    held.emitter:tick()
+end
+
+function Sound.stopHeld(held)
+    getSoundManager():stopUISound(held.id)
+end
+
 -- At a square, heard where it is; `here` only on this machine (a sound a server already sent each player).
 function Sound.at(cue, square, here)
     local name = square and Sound.name(cue)

@@ -29,6 +29,22 @@ Sounds.CUES = {
     ["oa.stage.radio"] = { sound = "RadioTalk" },
     -- the walkie-talkie's tone at 07:30 (easter egg 5, a vanilla radio sound for now)
     ["oa.egg.radio"] = { sound = "RadioZap" },
+    -- the terminal window (Trade/TerminalSound): each terminal's boot beats (the switch, a line's result, the welcome, the
+    -- switch-off; the crude one's jolts), the bed under its boot and the crude one's weak signal spells (loops)
+    -- terminal picks begin (written by tools/sound/install_terminal_picks.py from terminal_picks.json: edit that, not this)
+    ["oa.term.field.power"] = {},
+    ["oa.term.field.hum"] = {},
+    ["oa.term.field.line"] = {},
+    ["oa.term.field.ready"] = {},
+    ["oa.term.field.off"] = {},
+    ["oa.term.crude.power"] = {},
+    ["oa.term.crude.hum"] = {},
+    ["oa.term.crude.jolt"] = {},
+    ["oa.term.crude.line"] = {},
+    ["oa.term.crude.ready"] = {},
+    ["oa.term.crude.off"] = {},
+    ["oa.term.crude.spell"] = {},
+    -- terminal picks end
     -- the phone the hallucination rings
     ["oa.hallucination.ring"] = { sound = "TelevisionTestBeep" },
     -- an infection test's swab, while the result is waited for

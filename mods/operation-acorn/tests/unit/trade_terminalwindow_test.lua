@@ -148,6 +148,7 @@ local function bootWindow(first, crude)
     local now = 1000
     _G.getTimestampMs = function() return now end
     window.boot = Seq.new(first, crude)
+    window.tier = crude and "crude" or "field"
     window.views = {}
     local heard = 0
     window.views.status = { consoleOver = function() heard = heard + 1 end }

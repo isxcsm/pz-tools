@@ -243,3 +243,28 @@ test("a title's sounds: its style's moments that have a sound, the line's apart;
     eq(line.land, nil, "the line's return is the title's")
     eq(line.feed, nil, "the paper is fed once, by the title")
 end)
+
+test("a held sound: played with its volume at once (the emitter ticked), a volume set again only when it changes, stopped", function()
+    game()
+    local set, ticks = {}, 0
+    local real = getSoundManager
+    getSoundManager = function()
+        local m = real()
+        m.getUIEmitter = function()
+            return { setVolume = function(_, id, v) set[#set + 1] = { id, v } end, tick = function() ticks = ticks + 1 end }
+        end
+        return m
+    end
+    Sound.defineAll({ ["t.bed"] = { sound = "Bed" }, ["t.quiet"] = {} })
+    local held = Sound.uiHeld("t.bed", 0)
+    eq(played[1], "Bed")
+    eq(set[1][1], held.id); eq(set[1][2], 0, "silent from its first frame")
+    eq(ticks, 1, "the volume goes in at once")
+    Sound.setHeld(held, 0)
+    eq(#set, 1, "the same volume is not set again")
+    Sound.setHeld(held, 0.5)
+    eq(set[2][2], 0.5); eq(ticks, 2)
+    Sound.stopHeld(held)
+    eq(stopped[1], held.id)
+    eq(Sound.uiHeld("t.quiet"), nil, "a cue with no sound plays nothing")
+end)

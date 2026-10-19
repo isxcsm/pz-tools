@@ -17,4 +17,8 @@ module Base
         }
     }
 
+    /* terminal picks begin: written by tools/sound/install_terminal_picks.py from terminal_picks.json, not by build.py */
+
+    /* terminal picks end */
+
 }
