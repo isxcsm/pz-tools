@@ -12,6 +12,7 @@ import se.krka.kahlua.vm.KahluaTableImpl;
 import se.krka.kahlua.vm.LuaCallFrame;
 import zombie.Lua.LuaManager;
 import zombie.core.stash.StashSystem;
+import zombie.inventory.InventoryItem;
 import zombie.iso.BuildingDef;
 import zombie.iso.IsoCell;
 import zombie.iso.IsoGridSquare;
@@ -48,6 +49,7 @@ final class MapFactsTest {
             lists((KahluaTable)api.rawget("buildings"), grid);
             points((KahluaTable)api.rawget("zones"), grid);
             vehicles((KahluaTable)api.rawget("vehicles"));
+            damage((KahluaTable)api.rawget("vehicles"));
             paths((KahluaTable)api.rawget("squares"), grid);
             takeover(api);
         } finally {
@@ -416,6 +418,53 @@ private static void takeover(KahluaTable api) throws Exception {
             best = Math.min(best, System.nanoTime() - start);
         }
         System.out.println("COST: vehicles.near over 200 vehicles: best " + best / 1000 + " us");
+    }
+
+// ---- vehicles.damage ----
+
+    private static void damage(KahluaTable area) {
+        var car = new BaseVehicle();
+        var square = new IsoGridSquare(10, 10, 0);
+        car.square = square;
+        var door = car.add("DoorFrontLeft", new InventoryItem("VehiclePart", 1f), -1);
+        var glass = car.add("Windshield", new InventoryItem("VehiclePart", 1f), -1);
+        var tire = car.add("TireFrontLeft", new InventoryItem("VehiclePart", 1f), 0);
+        var seat = car.add("SeatFrontLeft", new InventoryItem("VehiclePart", 1f), -1);
+        var bare = car.add("Chassis", null, -1);
+        var spec = table("condition", list(10.0, 30.0), "parts", table("DoorFrontLeft", 0.0, "NoSuchPart", 5.0),
+            "remove", list("Windshield", "TireFrontLeft", "NoSuchPart"), "glass", true);
+        double changed = (double)FormulasTest.call(area, "damage", car, spec).get(0);
+        check(changed == 4 + 1 + 2, "The part changes counted were wrong: " + changed);
+        check(seat.condition >= 10 && seat.condition <= 30 && seat.statsDone == 1, "A part with an item was not put in the range: " + seat.condition);
+        check(bare.condition == 100 && bare.statsDone == 0, "A part with no item was changed");
+        check(door.condition == 0 && door.statsDone == 2, "The exact condition did not come after the range");
+        check(glass.item == null && glass.condition == 0 && glass.wheel < 0 && !glass.models.containsKey("InflatedTirePlusWheel"),
+            "A removed window kept its glass or was treated as a wheel");
+        check(tire.item == null && Boolean.FALSE.equals(tire.models.get("InflatedTirePlusWheel")) && car.tireRemoved[0],
+            "A removed tire still showed or the wheel kept it");
+        check(car.sentItems.equals(List.of("Windshield", "TireFrontLeft")), "The removed items were not sent: " + car.sentItems);
+        check(car.sentConditions.size() == 4 + 1 + 2, "The conditions were not all sent: " + car.sentConditions);
+        check(square.glassAdded == 1, "No broken glass on the vehicle's square");
+        var fixed = new BaseVehicle();
+        var one = fixed.add("Hood", new InventoryItem("VehiclePart", 1f), -1);
+        FormulasTest.call(area, "damage", fixed, table("condition", list(40.0, 40.0)));
+        check(one.condition == 40, "A range of one value was not that value");
+        rejects("vehicle must be a vehicle", area, "damage", "car", table());
+        rejects("spec must be a table", area, "damage", car, 1.0);
+        rejects("must be a whole number from 0 to 100", area, "damage", car, table("condition", list(-1.0, 20.0)));
+        rejects("must not be above", area, "damage", car, table("condition", list(50.0, 20.0)));
+        rejects("parts.Hood must be a whole number", area, "damage", car, table("parts", table("Hood", 0.5)));
+        var many = new BaseVehicle();
+        for (int at = 0; at < 40; at++) many.add("Part" + at, new InventoryItem("VehiclePart", 1f), at < 4 ? at : -1);
+        var all = list("Part0", "Part1", "Part2", "Part3");
+        long best = Long.MAX_VALUE;
+        for (int round = 0; round < 50; round++) {
+            for (var part : many.parts.list) part.item = new InventoryItem("VehiclePart", 1f);
+            long start = System.nanoTime();
+            FormulasTest.call(area, "damage", many, table("condition", list(5.0, 40.0), "remove", all));
+            best = Math.min(best, System.nanoTime() - start);
+        }
+        System.out.println("COST: vehicles.damage over 40 parts: best " + best / 1000 + " us");
     }
 
     // ---- squares.path ----

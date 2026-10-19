@@ -118,6 +118,9 @@ public final class IsoGridSquare {
     public boolean isInARoom() { return inRoom; }
     public zombie.iso.areas.IsoRoom getRoom() { return room; }
     public IsoGridSquare(int x, int y, int z) { this.x = x; this.y = y; this.z = z; }
+    /** The broken glass put on the square (counted). */
+    public int glassAdded;
+    public zombie.iso.objects.IsoBrokenGlass addBrokenGlass() { glassAdded++; return new zombie.iso.objects.IsoBrokenGlass(); }
     /** The square's floor object, as a test sets it (none: the square has no floor). */
     public IsoObject floor;
     public IsoObject getFloor() { return floor; }
