@@ -291,6 +291,28 @@ test("a line lies on the ground one axis then the other, to the square outside i
     eq(route[#route - 1].x .. "," .. route[#route - 1].y, "104,106", "straight on into the wall")
 end)
 
+test("with no way found (or no squares.path) a line lies straight: one axis then the other, into its wall", function()
+    building(TEST.api, "A", 100, 100)
+    local path = TEST.api.table.squares.path
+    TEST.api.table.squares.path = function() return nil end
+    local route, z, intoX, intoY = Links.route({ x = 106, y = 112, z = 0, length = 10, wall = "104,104,0" })
+    TEST.api.table.squares.path = path
+    eq(z, 0)
+    eq(intoY, -1, "into the wall to the north")
+    eq(route[1].x .. "," .. route[1].y, "106,112", "from its own square")
+    eq(route[#route].x .. "," .. route[#route].y, "104,105", "to the square outside the wall")
+    eq(#route, 10, "two across, seven along, and its own square")
+    local turns = 0
+    for i = 2, #route do
+        local a, b = route[i - 1], route[i]
+        eq(math.abs(b.x - a.x) + math.abs(b.y - a.y), 1, "a step a square")
+        local c = route[i + 1]
+        if c and (b.x - a.x ~= c.x - b.x or b.y - a.y ~= c.y - b.y) then turns = turns + 1 end
+    end
+    eq(turns, 1, "one turn")
+    eq(route[3].x .. "," .. route[3].y, "104,112", "across first: then straight into the wall")
+end)
+
 test("a line goes round water, a square with no floor and stairs, and is laid again when one comes over it", function()
     building(TEST.api, "A", 100, 100)
     local panel = Store.newPanel(102, 102, 0, "box")
