@@ -90,8 +90,11 @@ end
 -- The estimate panel ---------------------------------------------------------------------------------------------------
 
 OAEstimatePanel = ISPanel:derive("OAEstimatePanel")
--- The least height (pixels) the panel takes under the box's window when the right side has no room.
-OAEstimatePanel.BELOW_MIN = 160
+-- The least height (pixels) the panel takes, and the rows it leaves room for at least.
+OAEstimatePanel.MIN_H = 120
+OAEstimatePanel.MIN_ROWS = 3
+-- Pixels between the box's window and the panel.
+OAEstimatePanel.GAP = 4
 -- Real time between looks for the open box.
 OAEstimatePanel.LOOK_MS = 500
 
@@ -182,10 +185,52 @@ function OAEstimatePanel:fill(container)
     self.weight = plan.weight
 end
 
--- Shown only while the loot window shows an open box and is not folded to its title bar: beside it on the right; where
--- the screen ends first, under it, or on its left when there is no room under it either. Its folding or closing
--- hides the panel at once; the box is looked for twice a second of real time, the rows redone only when its contents
--- changed.
+-- The character on the screen, as a box round them (feet at its bottom) the panel keeps off; nil when it cannot be told.
+local function characterBox(character)
+    local n = character:getPlayerNum()
+    local x, y, z = character:getX(), character:getY(), character:getZ()
+    local sx, feet, head = isoToScreenX(n, x, y, z), isoToScreenY(n, x, y, z), isoToScreenY(n, x, y, z + 1)
+    if not (sx and feet and head) then return nil end
+    local half = math.max(24, (feet - head) / 3)
+    return { sx - half, head, sx + half, feet + 8 }
+end
+
+local function overlaps(box, x, y, w, h)
+    return box ~= nil and x < box[3] and x + w > box[1] and y < box[4] and y + h > box[2]
+end
+
+-- Where the panel goes beside the box's window (page): on its right, its left, under it or over it, the first that is
+-- on the screen and leaves the character seen; with none, the first on the screen; with none at all, on the right
+-- pushed inside the screen.
+function OAEstimatePanel:place(page, h)
+    local w, gap = self:getWidth(), OAEstimatePanel.GAP
+    local px, py, pw, ph = page:getX(), page:getY(), page:getWidth(), page:getHeight()
+    local sw, sh = getCore():getScreenWidth(), getCore():getScreenHeight()
+    local spots = { { px + pw + gap, py }, { px - w - gap, py }, { px, py + ph + gap }, { px, py - h - gap } }
+    local box = characterBox(self.character)
+    local onScreen
+    for _, spot in ipairs(spots) do
+        local x, y = spot[1], spot[2]
+        if x >= 0 and y >= 0 and x + w <= sw and y + h <= sh then
+            if not overlaps(box, x, y, w, h) then return x, y end
+            onScreen = onScreen or spot
+        end
+    end
+    if onScreen then return onScreen[1], onScreen[2] end
+    return math.max(0, math.min(px + pw + gap, sw - w)), math.max(0, math.min(py, sh - h))
+end
+
+-- The panel's height for its rows: what they take, at least MIN_ROWS of them and MIN_H, at most the box's window's.
+function OAEstimatePanel:fitHeight(page)
+    local list = self.list
+    local rows = math.max(#list.items, OAEstimatePanel.MIN_ROWS)
+    local h = UI.fontHeightPx() * 2 + UI.PAD + rows * list.itemheight + 4
+    return math.min(math.max(h, OAEstimatePanel.MIN_H), math.max(page:getHeight(), OAEstimatePanel.MIN_H))
+end
+
+-- Shown only while the loot window shows an open box and is not folded to its title bar: beside it, as tall as its
+-- rows, where it leaves the character seen (OAEstimatePanel.place). Its folding or closing hides the panel at once;
+-- the box is looked for twice a second of real time, the rows redone only when its contents changed.
 function OAEstimatePanel:update()
     local page = self.page
     local folded = page.isCollapsed or not page:isVisible()
@@ -200,29 +245,19 @@ function OAEstimatePanel:update()
         self.signature = nil
         return
     end
-    local x, y, h = page:getX() + page:getWidth() + 4, page:getY(), page:getHeight()
-    if x + self:getWidth() > getCore():getScreenWidth() then
-        -- no room on the right (a narrow screen): under the box's window when there is room, else on its left, where the
-        -- player's own inventory window usually is and would cover it
-        local below = page:getY() + page:getHeight() + 4
-        local room = getCore():getScreenHeight() - below - 4
-        if room >= OAEstimatePanel.BELOW_MIN then
-            x, y, h = page:getX(), below, math.min(math.max(page:getHeight(), OAEstimatePanel.BELOW_MIN), room)
-        else
-            x = math.max(0, page:getX() - self:getWidth() - 4)
-        end
+    local signature = container:getItems():size() .. "|" .. OA.day() .. "|" .. tostring(container:getContentsWeight())
+    if signature ~= self.signature then
+        self.signature = signature
+        self:fill(container)
     end
+    local h = self:fitHeight(page)
+    local x, y = self:place(page, h)
     self:setX(x)
     self:setY(y)
     self:setHeight(h)
     -- coming up, over the windows it may touch (the box's window overlaps the player's on a narrow screen)
     if not self:isVisible() then self:bringToTop() end
     self:setVisible(true)
-    local signature = container:getItems():size() .. "|" .. OA.day() .. "|" .. tostring(container:getContentsWeight())
-    if signature ~= self.signature then
-        self.signature = signature
-        self:fill(container)
-    end
 end
 
 -- The height of a line of the small font, measured once for each UI era (the fonts change with it).
