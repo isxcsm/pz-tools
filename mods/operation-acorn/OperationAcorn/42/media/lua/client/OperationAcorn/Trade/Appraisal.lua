@@ -104,26 +104,32 @@ function OAEstimatePanel:createChildren()
     self.list:setAnchorBottom(true)
 end
 
-local REFUSED_COLOR, TAKEN_COLOR = { 0.9, 0.55, 0.5 }, { 0.9, 0.9, 0.9 }
+local REFUSED_COLOR, TAKEN_COLOR, NOTE_COLOR = { 0.9, 0.55, 0.5 }, { 0.9, 0.9, 0.9 }, { 0.6, 0.6, 0.6 }
 
--- A row is { name, value, refused, valueW (the value's width in pixels, measured when the row is made), cut (the name
--- cut to what is left of the width, made at the width cutFor) }: a frame measures nothing.
+-- A row is { name, value (on the right), note (what marks the value, dim, left of it), refused, valueW and noteW (their
+-- widths in pixels, measured when the row is made), cut (the name cut to what is left of the width, made at the
+-- width cutFor) }: a frame measures nothing.
 function OAEstimatePanel.drawRow(list, y, item)
     local row = item.item
     local pad = list.itemPadY
     local c = row.refused and REFUSED_COLOR or TAKEN_COLOR
     local width = list.width
     local textX = width - 16 - row.valueW
+    local noteX = row.note and textX - 10 - row.noteW or textX
     if row.cutFor ~= width then
-        row.cut, row.cutFor = UI.fitPx(row.name, textX - 16, list.font), width
+        row.cut, row.cutFor = UI.fitPx(row.name, noteX - 16, list.font), width
     end
     list:drawText(row.cut, 8, y + pad, c[1], c[2], c[3], 1, list.font)
+    if row.note then
+        list:drawText(row.note, noteX, y + pad, NOTE_COLOR[1], NOTE_COLOR[2], NOTE_COLOR[3], 1, list.font)
+    end
     list:drawText(row.value, textX, y + pad, c[1], c[2], c[3], 1, list.font)
 end
 
--- The row of a name and a value.
-local function makeRow(name, value, refused)
-    return { name = name, value = value, refused = refused, valueW = UI.textWidthPx(value) }
+-- The row of a name and a value, with the value's note when it has one.
+local function makeRow(name, value, refused, note)
+    return { name = name, value = value, refused = refused, valueW = UI.textWidthPx(value), note = note,
+        noteW = note and UI.textWidthPx(note) or 0 }
 end
 
 -- The container of the page's pane, when it is an open delivery box: the object, or nil.
@@ -165,15 +171,17 @@ function OAEstimatePanel:fill(container)
     if worth then
         for i, entry in ipairs(entries) do
             local line = worth.lines[i]
-            local value
+            local value, note
             if entry.info.own == "MissionItem" then
                 value = getText("IGUI_OA_Trade_Tip_Mission")
             else
-                value = Text.credits(OA.round(line.credits))
-                local marks = Text.markText(line.marks)
-                if marks then value = value .. "  " .. marks end
+                -- the credits with their unit, and what raised them (new area sample...) beside, dim: a bare number
+                -- before the words read as part of them
+                value = getText("IGUI_OA_Trade_Estimate_Credits", Text.credits(OA.round(line.credits)))
+                note = Text.markText(line.marks)
             end
-            self.list:addItem(entry.info.fullType, makeRow(Text.itemName(entry.info.fullType) .. " x" .. entry.count, value))
+            self.list:addItem(entry.info.fullType,
+                makeRow(Text.itemName(entry.info.fullType) .. " x" .. entry.count, value, false, note))
         end
     end
     for i, item in ipairs(plan.refused) do

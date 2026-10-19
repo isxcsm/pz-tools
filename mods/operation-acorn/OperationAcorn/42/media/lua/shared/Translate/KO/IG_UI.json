@@ -648,6 +648,7 @@
     "IGUI_OA_Trade_Tip_NotTaken": "받지 않음",
     "IGUI_OA_Trade_Tip_Mission": "임무 보수로 정산",
     "IGUI_OA_Trade_Estimate_Title": "견적",
+    "IGUI_OA_Trade_Estimate_Credits": "%1 크레딧",
     "IGUI_OA_Trade_Estimate_Total": "%1 크레딧, 신뢰도 +%2",
     "IGUI_OA_Trade_Seal_Worth": "물건 %1개, 예상 %2 크레딧, 신뢰도 +%3.",
     "IGUI_OA_Trade_Seal_Mission": "임무 물건: 헬기 정산 때 보상 %1 크레딧, 신뢰도 +%2.",

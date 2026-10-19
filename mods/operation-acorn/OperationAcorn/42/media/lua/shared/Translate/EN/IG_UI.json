@@ -648,6 +648,7 @@
     "IGUI_OA_Trade_Tip_NotTaken": "Not taken",
     "IGUI_OA_Trade_Tip_Mission": "Paid with the mission",
     "IGUI_OA_Trade_Estimate_Title": "Estimate",
+    "IGUI_OA_Trade_Estimate_Credits": "%1 credits",
     "IGUI_OA_Trade_Estimate_Total": "%1 credits, trust +%2",
     "IGUI_OA_Trade_Seal_Worth": "%1 items, estimated %2 credits, trust +%3.",
     "IGUI_OA_Trade_Seal_Mission": "Mission item: %1 credits and trust +%2 at the helicopter settlement.",
