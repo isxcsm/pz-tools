@@ -138,6 +138,35 @@ test("no mission is offered before the call that tells of them has played", func
     truthy(M.active(record), "a dropped call holds nothing up")
 end)
 
+test("the call's line that says the missions are sent offers the first at once, with no title over the call", function()
+    local record = setup(1)
+    record.story = nil
+    OA.Comms.section(record).played.S1 = nil
+    local titles = 0
+    OA.Sync.listen("title", function() titles = titles + 1 end)
+    eq(M.opened(record), false)
+    truthy(M.openByCall(record, true), "offered as the line starts")
+    truthy(M.active(record))
+    eq(M.opened(record), true, "open before the call has ended")
+    eq(titles, 0, "the call says it")
+    eq(M.openByCall(record, true), nil, "once")
+end)
+
+test("a skipped or played opening call offers the first at once if its line has not, with the title", function()
+    local record = setup(1)
+    record.story = nil
+    OA.Comms.section(record).played.S1 = nil
+    local titles = 0
+    OA.Sync.listen("title", function(_, d) if d.key == "IGUI_OA_Title_NewRequest" then titles = titles + 1 end end)
+    OA.Comms.played(record, "S1", 1)
+    Story.callPlayed(record, "S1")
+    truthy(M.active(record))
+    eq(titles, 1)
+    local cued = false
+    for _, line in ipairs(OA.CommsData.BY_ID.S1.lines) do cued = cued or line.cue == "missions" end
+    truthy(cued, "S1 carries the cue"); eq(OA.CommsData.BY_ID.K0M.lines[1].cue, "missions")
+end)
+
 test("an offer waits without a deadline, a place asked for or a circle until it is started", function()
     local record = setup(2)
     for id in pairs(OA.StoryData.STORIES) do Story.section(record).done[id] = "done" end

@@ -42,7 +42,9 @@ OA.CommsData = Data
 --            text of its own (key _late) when the first crate came late; `pause` on a line: a beat before it (seconds:
 --            a turn of thought between two lines of one speaker); `stop`, `del`, `after` on an erased line: how long the
 --            erased words sit, how fast they are deleted (characters a second), the thinking before the sent words
---            (CommsScript's ERASE_ when left out): longer as the feeling turns further between them
+--            (CommsScript's ERASE_ when left out): longer as the feeling turns further between them; `cue` on a
+--            line: what happens in the world as it starts ("missions": the missions open, the first offered then, as
+--            the team says it is sent; the tab tells the server, comms_cue)
 Data.ENTRIES = {
     -- The briefings (SCENES 4): played as the player starts a story mission, before any other call waiting; the mission
     -- begins when one is over. Keyed by the story (a choice's option, the soil sample's place).
@@ -88,7 +90,7 @@ Data.ENTRIES = {
         { "me", pause = 2, erase = true, stop = 1.8, del = 8, after = 2.2 }, { "oak" }, { "me" }, { "oak" },
         { "me", erase = true, stop = 2, del = 7, after = 2.6 }, { "me", pause = 1.6 },
         -- and in the same call, what the missions are: none is offered before it is over (Missions.opened)
-        { "oak", pause = 2 }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "noise", s = 1 } } },
+        { "oak", pause = 2, cue = "missions" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "noise", s = 1 } } },
     { id = "s1_bedding", kind = "short", trigger = "tier:1", tier = 1, waits = "S1", greet = true, sign = "oak" },
     { id = "S1F", kind = "scene", trigger = "story:evidence", tier = 1, mission = true, waits = "S1", sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "me", pause = 1.8 }, { "oak" } } },
@@ -148,7 +150,7 @@ Data.ENTRIES = {
         { "me", erase = true, stop = 1.6, after = 1.8 }, { "oak" }, { "me", late = true }, { "oak", late = true },
         { "me", late = true }, { "oak" }, { "me", erase = true }, { "oak" }, { "me" }, { "noise", s = 3 } } },
     { id = "K0M", kind = "scene", trigger = "settled", tier = 1, era = "admin", waits = "K0", sign = "admin", lines = {
-        { "oak" }, { "me" }, { "oak" }, { "noise", s = 1 } } },
+        { "oak", cue = "missions" }, { "me" }, { "oak" }, { "noise", s = 1 } } },
     { id = "K1", kind = "scene", trigger = "tier:9", tier = 9, waits = "S9", sign = "admin", lines = { { "oak" } } },
     { id = "K2", kind = "scene", trigger = "tier:10", tier = 10, waits = "K1", sign = "admin", lines = {
         { "oak" }, { "me" }, { "oak" } } },

@@ -457,6 +457,9 @@ function OATabComms:advance(now)
         local who = play.lines[st.line].who
         if who == "oak" then Sound.ui("oa.comms.in") end
         self:staticFor(who)
+        -- what the line sets going in the world, as it starts (a replay sets nothing)
+        local cue = play.lines[st.line].cue
+        if cue and not play.replay then self:send("comms_cue", { entry = play.entry.id, cue = cue }) end
         changed = true
     end
     if play.lines[st.line].who == "me" and st.phase == "read" and not play.sent then

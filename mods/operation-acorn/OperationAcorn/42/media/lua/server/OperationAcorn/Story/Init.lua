@@ -241,6 +241,20 @@ OA.Server.on("comms_played", function(character, record, args)
     Story.callPlayed(record, id)
 end)
 
+-- A line of a call the comms tab is playing has started, and it sets something going (CommsData `cue`): only a
+-- line the call has, while the call has not been played.
+OA.Server.on("comms_cue", function(character, record, args)
+    local id, cue = args.entry, args.cue
+    if type(id) ~= "string" or type(cue) ~= "string" or not OA.Comms.ready(record, id) then return end
+    local entry = OA.CommsData.BY_ID[id]
+    local has = false
+    for _, line in ipairs(entry and entry.lines or {}) do
+        if line.cue == cue then has = true end
+    end
+    if not has then return end
+    if cue == "missions" then Missions.openByCall(record, true) end
+end)
+
 -- How far (squares) from the character the building it looked into may be: a building is no wider than this, and the
 -- character stands in it or at its door.
 local TOUCH_REACH = 120

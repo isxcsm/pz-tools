@@ -160,7 +160,7 @@ test("a running cutter: rate in weight an hour with no unit, times the old motor
     eq(m.perf.cells[2].value, "Power load 0.6")
     eq(m.perf.cells[2].sub, "about 5 fridges")
     truthy(string.find(m.perf.cells[2].tip[3], "On a generator it burns about 0.06 L of fuel an hour (load 0.6 ", 1, true), "the fuel in the tip")
-    eq(m.perf.cells[3].value, "Noise 40 tiles")
+    eq(m.perf.cells[3].value, "Noise radius 40")
     eq(m.perf.cells[3].sub, "generator: 20")
     eq(m.perf.right, nil, "no 'while running' note while it runs")
     truthy(not string.find(texts(m), "kg", 1, true), "no weight unit anywhere")
@@ -307,7 +307,7 @@ test("the lure: hours left, the next noise, take back while it works and clear o
     near(m.lure.left, 16.35, 1e-9)
     -- 7.65 hours in: the last noise at 7.5, the next at 7.75
     eq(m.lure.rows[1][2], "in about 6 min (every 15 min)")
-    eq(m.lure.rows[2][2], "60 tiles (a noise trap: 17)")
+    eq(m.lure.rows[2][2], "60 (a noise trap: 17)")
     eq(m.lure.button.id, "lure:take")
     eq(m.parts, nil); eq(m.perf, nil); eq(m.rain, nil)
     m = Model.build(SCENES.spent())

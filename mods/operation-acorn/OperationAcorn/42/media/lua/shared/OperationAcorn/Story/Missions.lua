@@ -727,8 +727,18 @@ Missions.OPENING_CALL = "S1"
 Missions.ADMIN_OPENING_CALL = "K0M"
 
 function Missions.opened(record)
+    if Story.section(record).missionsOpen then return true end
     local id = Story.joinedAfterHandover(record) and Missions.ADMIN_OPENING_CALL or Missions.OPENING_CALL
     return OA.Comms.done(record, id)
+end
+
+-- The opening call opened the missions: as its line saying so starts (`quiet`: the call tells it, no title over it),
+-- or once it has been played or skipped. The first mission is offered at once, not at the next look.
+function Missions.openByCall(record, quiet)
+    Story.section(record).missionsOpen = true
+    local s = Missions.state(record)
+    if s.active then return nil end
+    return Missions.start(record, quiet)
 end
 
 -- A mission offered waits for the player to start it: no deadline yet, its days kept for then (`span`, hours).
@@ -772,8 +782,8 @@ function Missions.keys(m)
 end
 
 -- Offers the next mission if one is due: it waits in the missions tab until the player starts it (Missions.launch).
--- Returns it.
-function Missions.start(record)
+-- `quiet`: no title (a call is saying it). Returns it.
+function Missions.start(record, quiet)
     local stage, milestones = Story.progress(record)
     local level = Rewards.level(stage, milestones)
     if not level then return nil end
@@ -788,7 +798,9 @@ function Missions.start(record)
     toWaiting(m)
     Missions.state(record).active = m
     OA.Sync.changed("missions", record.id)
-    OA.Sync.title(record.id, { key = "IGUI_OA_Title_NewRequest", sub = "IGUI_OA_Title_CheckTerminal", style = "notice" })
+    if not quiet then
+        OA.Sync.title(record.id, { key = "IGUI_OA_Title_NewRequest", sub = "IGUI_OA_Title_CheckTerminal", style = "notice" })
+    end
     OA.log("mission", m.id, m.story or m.title, "offered to", record.number)
     return m
 end

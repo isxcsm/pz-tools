@@ -102,7 +102,8 @@ function Script.lines(entry, ctx)
             local src = ctx.text(k, ctx.number)
             if n == 1 and entry.greet then src = Script.greeted(src, ctx) end
             local chars, marks = Script.parse(src)
-            local l = { who = who, text = table.concat(chars), chars = chars, marks = marks, pause = line.pause }
+            local l = { who = who, text = table.concat(chars), chars = chars, marks = marks, pause = line.pause,
+                cue = line.cue }
             if line.erase then
                 l.erase = ctx.text(key(entry.id, n, "_x"), ctx.number)
                 l.eraseStop, l.eraseCps, l.eraseAfter = line.stop, line.del, line.after

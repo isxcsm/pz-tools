@@ -659,6 +659,11 @@ function Story.callPlayed(record, id)
     local entry = OA.CommsData.BY_ID[id]
     local ev = entry and entry.market
     if ev and OA.Market then OA.Market.addEvent(ev.cat, ev.mult, ev.days, ev.key, "story") end
+    -- the call that opens the missions, played or skipped: the first is offered now if its line has not done it
+    if OA.Missions and not Story.section(record).missionsOpen then
+        local opening = Story.joinedAfterHandover(record) and OA.Missions.ADMIN_OPENING_CALL or OA.Missions.OPENING_CALL
+        if id == opening then OA.Missions.openByCall(record, false) end
+    end
     if id ~= Story.firstCall(record) then return end
     OA.Sync.title(record.id, { key = "IGUI_OA_Title_Operation", sub = "IGUI_OA_Title_OperationSub",
         subArgs = { Story.number(record) }, style = "seal" })
