@@ -372,6 +372,7 @@ local function fillLanguage(counts)
     getTextOrNull = function(key)
         local id, n = string.match(key, "^IGUI_OA_Story_Fill_(%w+)_(%d+)$")
         if id and counts[id] and tonumber(n) <= counts[id] then return key end
+        if counts.took and string.find(key, "^IGUI_OA_Story_Took_") then return key end
         return nil
     end
 end
@@ -495,6 +496,60 @@ test("the filler remark for what the crate is: orders cut short by their reason,
     eq(Story.fillNoteKey(record, region), "IGUI_OA_Story_Note_region")
     TEST.hours = 4100
     truthy(string.find(Story.fillNoteKey(record, region), "Fill_s3_", 1, true), "said once")
+end)
+
+test("the batteries' wrapping is remarked on only in a crate that has batteries", function()
+    fillLanguage({ s3 = 5 })
+    local record = setup(3)
+    Story.onStage(record)
+    for i = 1, 12 do
+        TEST.hours = i * 100
+        eq(Story.fillNoteKey(record, {}) == "IGUI_OA_Story_Fill_s3_3", false, "no batteries, no line on them")
+    end
+    local said = false
+    for i = 13, 30 do
+        TEST.hours = i * 100
+        local crate = { cargo = { { type = "Base.Battery", count = 2 } } }
+        if Story.fillNoteKey(record, crate) == "IGUI_OA_Story_Fill_s3_3" then said = true end
+    end
+    truthy(said, "a crate with batteries can have it")
+end)
+
+test("the remark on the last flight's boxes: the next crate's, each once, resting between, 2반's only", function()
+    fillLanguage({ s2 = 5, took = true })
+    local record = setup(2)
+    Story.onStage(record)
+    local s = Story.section(record)
+    local function settle(lines, boxes)
+        Story.onSettled(record, { lines = lines, boxes = boxes or 1 })
+    end
+    local food = { category = "A", count = 4, credits = 300, marks = {} }
+    local tools = { category = "H", count = 1, credits = 900, marks = {} }
+    -- The facts of a flight, in order: the special ones, then the categories by what they fetched.
+    local facts = Story.tookFacts({ boxes = 3, lines = { food, tools, { cashTrust = 2, count = 5, marks = {} },
+        { category = "B", count = 2, credits = 50, marks = { refused = true } },
+        { category = "K", count = 2, credits = 10, marks = { low = true } } } })
+    eq(table.concat(facts, ","), "cash,refused,low,many,cat_H,cat_A,cat_K")
+    TEST.hours = 1000
+    settle({ food, tools })
+    eq(Story.fillNoteKey(record, {}), "IGUI_OA_Story_Took_cat_H", "the next crate says the first")
+    TEST.hours = 1200
+    truthy(string.find(Story.fillNoteKey(record, {}), "Fill_s2_", 1, true), "the facts waited for one crate only")
+    TEST.hours = 1300
+    settle({ food, tools })
+    eq(Story.fillNoteKey(record, {}), "IGUI_OA_Story_Took_cat_A", "one said is not said again")
+    TEST.hours = 1310
+    settle({ { category = "G", count = 1, credits = 100, marks = {} } })
+    TEST.hours = 1320
+    local key = Story.fillNoteKey(record, {})
+    eq(key ~= "IGUI_OA_Story_Took_cat_G", true, "it rests after one")
+    TEST.hours = 1400
+    settle({ food, tools })
+    eq(string.find(Story.fillNoteKey(record, {}) or "", "Took_", 1, true), nil, "nothing left to say of these")
+    TEST.hours = 1500
+    settle({ { category = "G", count = 1, credits = 100, marks = {} } })
+    s.handover = true
+    eq(string.find(Story.fillNoteKey(record, {}) or "", "Took_", 1, true), nil, "Admin 7 does not write them")
 end)
 
 test("the filler remark is nothing in a language that has no lines for the bundle", function()

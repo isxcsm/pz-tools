@@ -54,6 +54,8 @@ Data.ITEMS = {
     SerumSheet = { supply = true, docs = { "serum_sheet" }, weight = 0.1 },
     UnresolvedList = { supply = true, weight = 0.1 },
     HandoverFile = { supply = true, docs = { "handover_notice", "status_table" }, weight = 0.2 },
+    -- What the supply desk of 2반 left behind: Kiesling's list of the small extras (Admin 7 finds it: after3_12).
+    PackingMemo = { supply = true, docs = { "packing_memo" }, weight = 0.05 },
     KitVoucher = { weight = 0.05 },
     MeteorFragment = { weight = 0.5 },
     MeteorFragmentIron = { weight = 0.8 },
@@ -223,13 +225,15 @@ local SOCKS = { { "Base.Socks_Ankle", 1 } }
 local CARDS = { { "Base.CardDeck", 1 } }
 local OPENER = { { "Base.TinOpener", 1 } }
 local LIGHTER = { { "Base.Lighter", 1 } }
+local BANDAGE = { { "Base.Bandage", 2 } }
 Data.NOTE_ITEMS = {
     battery = BATTERY, socks = SOCKS, cards = CARDS, dunnigan_pen = { { "Base.Pencil", 2 } },
     m1_b = CARDS, m1_c = LIGHTER, m2_b = OPENER,
     last_b = { { "Base.WalkieTalkie5", 1, { [OA.Eggs.RADIO_MARK] = true } } },
-    after3_2 = BATTERY, after3_4 = SOCKS, after3_6 = OPENER, after3_8 = CARDS, after3_11 = LIGHTER,
-    after4_2 = BATTERY, after4_4 = SOCKS, after4_6 = CARDS, after4_8 = OPENER, after4_10 = LIGHTER,
-    after5_2 = BATTERY, after5_4 = SOCKS, after5_6 = CARDS, after5_8 = OPENER, after5_10 = LIGHTER,
+    after3_2 = BATTERY, after3_3 = BANDAGE, after3_4 = SOCKS, after3_6 = OPENER, after3_8 = CARDS,
+    after3_11 = LIGHTER, after3_12 = { { Data.fullType("PackingMemo"), 1, { OA_Doc = "packing_memo" } } },
+    after4_2 = BATTERY, after4_3 = BANDAGE, after4_4 = SOCKS, after4_6 = CARDS, after4_8 = OPENER, after4_10 = LIGHTER,
+    after5_2 = BATTERY, after5_3 = BANDAGE, after5_4 = SOCKS, after5_6 = CARDS, after5_8 = OPENER, after5_10 = LIGHTER,
 }
 -- Notes that are said only when the crate bears them out: "gap" the manifest number is not the one after the last
 -- (count_off says it is not), "orders" an order was loaded (the note counts them: %2).

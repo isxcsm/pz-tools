@@ -52,7 +52,7 @@ function Story.section(record)
         s.sent = {}          -- the papers that have gone in a crate: document id -> true
         s.copies = {}        -- documents that came back as copies of what was delivered: id -> true
         s.docExtra = {}      -- the number a read document was read with (a stake, a serial): id -> value
-        s.noted = {}         -- one-off remarks said: "serum", "region"
+        s.noted = {}         -- one-off remarks said: "serum", "region", "took_<id>" (Story.tookFacts)
         s.cardStage = 0      -- the last named stage whose card was shown (Story.terminalOpened)
         s.sites = {}         -- the site each story mission was given: story id -> site (a revisit goes back)
         s.sentTier = {}      -- the trust tier each paper went out at: document id -> tier (Story.proxySigned)
@@ -354,7 +354,44 @@ function Story.onSettled(record, result)
             if OA.Upgrades and OA.Upgrades.fragmentReceived then OA.Upgrades.fragmentReceived(record, line.fullType) end
         end
     end
+    s.took = not Story.handedOver(record) and Story.tookFacts(result) or nil
     if OA.StoryBranches then OA.StoryBranches.look(record, "settled") end
+end
+
+-- What the team made of a flight's boxes: by the time the next crate is packed they have been unpacked, and Kiesling's
+-- remark on that crate may say where a kind of thing went (Story.fillNoteKey). The facts of one flight wait for the
+-- next crate only (s.took). One such remark a crate, each said once in a record's story (s.noted["took_<id>"]), none
+-- within TOOK_REST game hours of the last. Only 2반 writes them: Admin 7's manifests say nothing of the sort. Ids, in the
+-- order they are said: cash (money among the boxes), refused (a kind the team was not taking), low (a kind it has too
+-- much of), many (TOOK_MANY boxes or more), then cat_<letter> by what each category fetched, the most first.
+Story.TOOK_REST, Story.TOOK_MANY = 48, 3
+function Story.tookFacts(result)
+    local cash, refused, low = false, false, false
+    local byCat, cats = {}, {}
+    for _, line in ipairs(result and result.lines or {}) do
+        local marks = line.marks or {}
+        if (line.cashTrust or 0) > 0 then cash = true end
+        if line.category and (line.count or 0) > 0 then
+            if marks.refused then
+                refused = true
+            else
+                if marks.low then low = true end
+                if not byCat[line.category] then cats[#cats + 1] = line.category end
+                byCat[line.category] = (byCat[line.category] or 0) + (line.credits or 0)
+            end
+        end
+    end
+    local facts = {}
+    if cash then facts[#facts + 1] = "cash" end
+    if refused then facts[#facts + 1] = "refused" end
+    if low then facts[#facts + 1] = "low" end
+    if (result and result.boxes or 0) >= Story.TOOK_MANY then facts[#facts + 1] = "many" end
+    table.sort(cats, function(a, b)
+        if byCat[a] ~= byCat[b] then return byCat[a] > byCat[b] end
+        return a < b
+    end)
+    for _, cat in ipairs(cats) do facts[#facts + 1] = "cat_" .. cat end
+    return facts
 end
 
 -- Adds trust and credits to a record at a settlement (or a field trade). The trade part's own function does the
@@ -784,7 +821,11 @@ end
 -- (by the reason), a serum aboard. Each bundle is drawn from in turn (Say) and rests for a while after a line (game
 -- hours); the first serum and the first new-region sample have a remark of their own, said once.
 local FILL = "IGUI_OA_Story_Fill_"
-for stage = 1, Data.LAST_STAGE do OA.Say.define("s" .. stage, { prefix = FILL, cooldown = 72 }) end
+-- A line that tells of what the crate holds waits for a crate that holds it (s3_3: the batteries' wrapping).
+local STAGE_TAGS = { [3] = { [3] = { battery = true } } }
+for stage = 1, Data.LAST_STAGE do
+    OA.Say.define("s" .. stage, { prefix = FILL, cooldown = 72, tags = STAGE_TAGS[stage] })
+end
 OA.Say.define("m", { prefix = FILL, cooldown = 72 })
 OA.Say.define("a", { prefix = FILL, cooldown = 72 })
 OA.Say.define("partial", { prefix = FILL, cooldown = 144, tags = {
@@ -796,6 +837,36 @@ local function hasSerum(ctx)
         if string.find(spec.type or "", "Serum", 1, true) then return true end
     end
     return false
+end
+
+local function hasBattery(ctx)
+    for _, spec in ipairs(ctx and ctx.cargo or {}) do
+        if spec.type == "Base.Battery" then return true end
+    end
+    return false
+end
+
+local function hasText(key)
+    if getTextOrNull then return getTextOrNull(key) ~= nil end
+    return getText(key) ~= key
+end
+
+-- The remark on the last flight's boxes (Story.tookFacts), or nil.
+local function tookNote(record, s)
+    local facts = s.took
+    s.took = nil
+    if not facts or Story.handedOver(record) then return nil end
+    local now = OA.hours()
+    if s.tookAt and now - s.tookAt < Story.TOOK_REST then return nil end
+    for _, id in ipairs(facts) do
+        local key = "IGUI_OA_Story_Took_" .. id
+        if not s.noted["took_" .. id] and hasText(key) then
+            s.noted["took_" .. id] = true
+            s.tookAt = now
+            return key
+        end
+    end
+    return nil
 end
 
 local function hasNewRegion(ctx)
@@ -832,6 +903,8 @@ function Story.fillNoteKey(record, ctx)
             local key = line("partial", { reason = cut })
             if key then return key, args end
         end
+        local took = tookNote(record, s)
+        if took then return took, args end
         if serum then
             local key = line("serum")
             if key then return key, args end
@@ -839,7 +912,7 @@ function Story.fillNoteKey(record, ctx)
     end
     local id = "s" .. math.min(stage, Data.LAST_STAGE)
     if Story.handedOver(record) then id = "a" elseif milestones >= 1 then id = "m" end
-    return line(id)
+    return line(id, { battery = hasBattery(ctx) })
 end
 
 -- Does a manifest remark mean the manifest is kept in the folder past the usual few: the story's own ordered notes

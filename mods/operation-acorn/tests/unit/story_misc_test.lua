@@ -5,6 +5,7 @@ require "OperationAcorn/Story/Story"
 require "OperationAcorn/Story/Docs"
 require "OperationAcorn/Story/Sites"
 require "OperationAcorn/Story/Glow"
+require "OperationAcorn/Economy/Categories"
 local OA = OperationAcorn
 local Data, Story, Docs, Sites = OA.StoryData, OA.Story, OA.StoryDocs, OA.Sites
 
@@ -268,6 +269,9 @@ local function uiKeys()
         for i = 1, n do add("Fill_" .. id .. "_" .. i) end
     end
     for _, id in ipairs({ "case_confirmed", "cooler_good", "cooler_warm", "cooler_bad", "serum" }) do add("Note_" .. id) end
+    -- The remarks on the last flight's boxes (Story.tookFacts).
+    for _, id in ipairs({ "cash", "refused", "low", "many" }) do add("Took_" .. id) end
+    for _, letter in ipairs(OA.Categories.LETTERS) do add("Took_cat_" .. letter) end
     for m, pool in pairs(Data.AFTER) do
         for i = 1, pool.notes do add("Note_after" .. m .. "_" .. i) end
     end

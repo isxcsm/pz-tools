@@ -340,6 +340,16 @@ module OperationAcorn
         WorldStaticModel = SheetOfPaper,
     }
 
+    item PackingMemo
+    {
+        DisplayCategory = Literature,
+        ItemType = base:normal,
+        Weight = 0.05,
+        Icon = OA_ReviewMemo,
+        Tooltip = Tooltip_OA_Story_PackingMemo,
+        WorldStaticModel = SheetOfPaper,
+    }
+
     item HandoverPages
     {
         DisplayCategory = Literature,
