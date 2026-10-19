@@ -2,7 +2,8 @@
 -- one part at a time by LISTEN_PART: "a" the game's reference sounds, then the timed actions' sounds from the character
 -- (each 3 s, then stopped as an action stops them), a thing put down and taken up, the kit's keys typed at the comms'
 -- pace and the printer's rows; "b" the titles that sound, queued; "c" a call (p5_comms.lua, LISTEN_CALL, else S0);
--- "d" the folder's first printed document and first typed note shown as new; "e" the terminal's boot, field then crude.
+-- "d" the folder's first printed document and first typed note shown as new; "e" the terminal's boot, field then crude
+-- (a terminal within reach, else one put down).
 -- The ambience is turned down while it runs (the option is not touched). Prints [listen] lines with each sound's time
 -- from the part's start (ms).
 local OA = OperationAcorn
@@ -150,7 +151,16 @@ elseif part == "e" then
                 if not square and s and Objects.find(s, Objects.TERMINAL) then square = s end
             end
         end
-        if not square then at("no terminal within reach: run part c first") return end
+        if not square then
+            -- none within reach: one put down beside the character, as p5_comms.lua does
+            square = Objects.findClear(px + 1, py, 4)
+            if not square or not OA.Trade.Things.placeTerminal(player, square, "S",
+                player:getInventory():AddItem("OperationAcorn.CommTerminal")) then
+                square = nil
+                at("no square for a terminal")
+                return
+            end
+        end
         Objects.isUpgraded = function() return tier == "field" end
         Objects.powered = function() return true end
         window = OA.Terminal.open(player, square:getX(), square:getY(), square:getZ())
