@@ -63,8 +63,8 @@ Small-SFX, listed by `gen/manifest.js`; SOUND-SYSTEM.md S7) on its own timeline,
 - It has no clock of its own: it follows the lab's time `t` (pause, speed, the scrubber, "바로 사라지기", "처음부터 재생"). A jump of
   the timeline sets what should be sounding at that point again.
 - The **소리** panel under the timeline: for each cue of the style on show, 없음, the candidates 1 to 8 (stamp and type also "지금
-  게임"), each with a ▶ that plays it alone; the master volume, "자막도 같은 소리" (a line plays its title's sounds, 6 dB lower, holds
-  excepted) and, for pulse, "유지를 퇴장 시작에 끊음". The picks are kept in the browser's storage.
+  게임"), each with a ▶ that plays it alone; the master volume and "자막도 같은 소리" (a line plays its title's sounds, 6 dB
+  lower). The picks are kept in the browser's storage.
 - The browser starts sound after the first click or key. Open the lab from a server (`python -m http.server` in the repository
   root, then `/extension-api/tools/title-lab/title-lab.html`) for gapless loops; from a file the oggs play through `<audio>`
   elements (a small gap at a loop's join). `LabAudio.log` and `LabAudio.debug()` in the console show what was started.

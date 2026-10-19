@@ -25,20 +25,20 @@
   };
   // The cues of each sound style: [id, label, moment, line?]. A cue's file is KIT_T_<style>_<moment>[_line]_<a|b|c>.ogg.
   const CUES = {
-    stamp: [["land", "착지", "land", false], ["land_line", "줄 착지", "land", true]],
-    notice: [["enter", "등장", "enter"], ["hold", "유지 (반복)", "hold"], ["leave", "퇴장", "leave"]],
-    dust: [["leave", "퇴장 (10 s)", "leave"]],
-    discovery: [["enter", "등장", "enter"], ["hold", "유지 (반복)", "hold"], ["leave", "퇴장", "leave"]],
-    unveil: [["enter", "등장", "enter"], ["leave", "퇴장", "leave"]],
-    sink: [["leave", "퇴장 (9 s)", "leave"]],
-    pulse: [["hold", "유지 (반복)", "hold"], ["leave", "퇴장", "leave"]],
+    stamp: [["land", "착지", "land"]],
+    notice: [["enter", "등장", "enter"]],
+    dust: [["enter", "등장", "enter"], ["leave", "퇴장 (여운)", "leave"]],
+    discovery: [["enter", "등장", "enter"], ["leave", "퇴장 (여운)", "leave"]],
+    unveil: [["enter", "등장", "enter"], ["leave", "퇴장 (여운)", "leave"]],
+    sink: [["enter", "등장", "enter"]],
+    pulse: [["enter", "등장", "enter"]],
     bleed: [["enter", "등장", "enter"]],
-    brief: [["enter", "등장", "enter"], ["leave", "퇴장", "leave"]],
+    brief: [["enter", "등장", "enter"]],
     type: [["enter", "등장", "enter"], ["enter_line", "줄 등장", "enter", true], ["leave", "퇴장", "leave"]],
   };
   // What the game has now, to compare with: a cue's single option (or an extra one beside a, b, c).
   const NOW = {
-    "stamp:land": "KIT_TitleStamp_1.ogg", "stamp:land_line": "KIT_TitleStampLine_1.ogg",
+    "stamp:land": "KIT_TitleStamp_1.ogg",
     "type:enter": "KIT_TitleType_1.ogg", "type:enter_line": "KIT_TitleTypeLine_1.ogg", "type:leave": "KIT_TitleFeed_1.ogg",
   };
   // The candidates of each cue ({ "style:cue": [files in gen/] }, gen/manifest.js); type has only what it has now.
@@ -53,8 +53,8 @@
     return GEN + pick;
   };
 
-  const KEY = "labAudio.v2";
-  const state = { picks: {}, master: 0.7, lineToo: false, stopPulse: true };
+  const KEY = "labAudio.v3";
+  const state = { picks: {}, master: 0.7, lineToo: false };
   try { Object.assign(state, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch (e) { }
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { } };
 
@@ -167,7 +167,6 @@
 
   const holdGain = (ev, t) => {
     if (t < ev.leaveAt) return 1;
-    if (state.stopPulse && STYLE_OF[curStyle] === "pulse") return Math.max(0, 1 - (t - ev.leaveAt) / 0.15);   // a heart: its beats are the leave's
     return 1 - Math.min(1, Math.max(0, (t - ev.leaveAt) / Math.max(ev.leaveTime, 1e-6)));
   };
 
@@ -293,22 +292,19 @@
     root.innerHTML = `<div class="top"><b>소리</b>
       <label>볼륨 <input type="range" id="laVol" min="0" max="1" step="0.01"> <span id="laVolV"></span></label>
       <label><input type="checkbox" id="laLine"> 자막도 같은 소리 (−6 dB, 유지는 제외)</label>
-      <label id="laPulseWrap"><input type="checkbox" id="laPulse"> 맥동: 유지를 퇴장 시작에 끊음</label>
       <span class="status" id="laStatus"></span></div><div id="laCues"></div>`;
     const stage = document.querySelector(".stage") || document.body;
     stage.appendChild(root);
     const $ = id => root.querySelector("#" + id);
-    const vol = $("laVol"), volV = $("laVolV"), line = $("laLine"), pulse = $("laPulse"), cues = $("laCues"), status = $("laStatus");
+    const vol = $("laVol"), volV = $("laVolV"), line = $("laLine"), cues = $("laCues"), status = $("laStatus");
     vol.value = state.master; volV.textContent = Math.round(state.master * 100) + "%";
-    line.checked = state.lineToo; pulse.checked = state.stopPulse;
+    line.checked = state.lineToo;
     vol.addEventListener("input", () => { state.master = Number(vol.value); volV.textContent = Math.round(state.master * 100) + "%"; if (master) master.gain.value = state.master; for (const v of voices) if (fromFile) v.voice.gain(v.nominal); save(); });
     line.addEventListener("change", () => { state.lineToo = line.checked; needSeek = true; save(); });
-    pulse.addEventListener("change", () => { state.stopPulse = pulse.checked; save(); });
     let shown = null;
     function show(style) {
       shown = style;
       cues.innerHTML = "";
-      $("laPulseWrap").style.display = style === "pulse" ? "" : "none";
       if (!style) { cues.innerHTML = '<div class="status">이 스타일에는 소리 후보가 없습니다 (스타일 목록의 "…: 이름" 항목이나 dust, brief에 있습니다).</div>'; return; }
       for (const cue of CUES[style]) {
         const id = style + ":" + cue[0];
