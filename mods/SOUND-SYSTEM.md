@@ -74,6 +74,7 @@ Sound.typed(cue, from, to)       -- 글자 from+1..to가 나왔다: gap 안에�
 - `build.py`: 앞뒤 자르기 (클립 피크 기준: 피크 -30 dB 2 ms 앞부터 -50 dB까지. 전체 눈금 기준으로 자르면 조용한 녹음의 방 소음부터 잡혔다), `length`, 모노 44.1 kHz, 피크 맞춤, ogg로 각 모드 `media/sound/`에. 소리 스크립트 `.txt`도 표에서 생성 (변주 클립, 볼륨, 마스터).
 - `report.py`: 소리마다 파형·스펙트로그램·음량·길이 그림 (나는 들을 수 없으므로 이것으로 검수한다. 듣는 검수는 사용자).
 - `preview.py`: 한 소리를 게임처럼 이어 친 WAV (`report/preview_<이름>.wav`: 초당 글자 수, gap, 줄 사이 쉼). 게임 밖에서 듣는 검수용.
+- `lab.py` + `lab/index.html` (소리 실험실): 모드 Lua의 큐를 전부 읽어(`Sound.defineAll/define/defineKeyboard/timed`, 손으로 쓴 목록 없음) `lab/manifest.js`를 만들고, 페이지가 게임처럼 재생한다. 모드별(PZUIKit, OA, BU)·종류별(UI, 교신·서류, 액션, 월드)로 큐, 사건(S6 표), 우리/바닐라, 정의 위치, 쓰는 곳을 보여 준다. 우리 소리는 클립을 무작위로 골라 스크립트 볼륨으로 내고, 큐의 gap 연타, 액션 길이만큼 반복하다 멈추는 "액션 중", 줄 출력, 키보드 타이핑(`Sound.keyOf` 그대로, 초당 글자 수와 지우기)을 한다. 바닐라 소리는 FMOD 뱅크 안이라 재생하지 못한다. 실행: `python -X utf8 lab.py [--listen report/listen]`, 저장소 루트를 정적 서버로 열고(`.claude/launch.json`의 `sound-lab`, 포트 8773) `mods/tools/sound/lab/index.html`. `--listen`에 게임 녹음(`a.wav` + `a_events.txt`)이 있으면 `ref` 줄(바닐라 UI 클릭)을 `lab/ref/`로 잘라 레벨 기준으로, 바닐라 큐의 게임 녹음(`act`/`done`)을 같은 큐 줄에 붙인다. 후보는 `candidates/<큐 이름 또는 소리 이름>/*.ogg` (하위 폴더 하나는 변주 묶음 하나): 큐마다 현재/후보 라디오와 ▶, 메모가 있고, "선택 내보내기"가 바뀐 선택과 메모를 JSON으로 보여 준다(브라우저 localStorage에 저장). `candidates/`, `lab/ref/`, `lab/manifest.js`는 git에 없다.
 - 도구: ffmpeg, SoX, Audacity(사용자 청취·편집), Python scipy·soundfile·pyloudnorm·librosa·matplotlib. 설치됨.
 
 ### S6. 소리 목록
