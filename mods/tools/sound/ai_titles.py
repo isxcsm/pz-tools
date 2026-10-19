@@ -13,8 +13,9 @@ Three kinds of cue:
 - a picked cue (title_picks.json, what the user chose): the pick, and versions of it refined by the model (audio to audio at
   a low noise, the pick's own prompt) or moved and softened as the user asked.
 
-The model's output is only cut (leading silence off), moved so that its loudest moment lands on `at`, cut to its length with
-a fade at the end, made mono at 44.1 kHz and set to a peak. A refinement may also be darkened (a gentle low pass), lowered, or
+The model is asked for the sound's whole length and shapes its sound to end within it; its output is not cut: only its
+leading and trailing silence go, it is moved so that its loudest moment lands on `at` (its start shortened by a quarter
+second at most), cleaned (clean), made mono at 44.1 kHz and set to a peak. A refinement may also be darkened (a gentle low pass), lowered, or
 given a longer room (a reverb tail): what the user asked of that pick.
 
 The model is Stable Audio 3 Medium (Small-SFX scattered short broadband clicks through its sounds, heard as a scratch;
@@ -48,44 +49,46 @@ CANDIDATES = 6
 # Said of every sound, so that the styles are one family.
 FAMILY = 'restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail'
 
-# style:cue -> dict(made, kept, at, prompts[, peak][, parent, noise]). The sound starts at its moment in the title (enter: as it
-# begins to come in; land: the stamp's impact; leave: as it begins to go); `at` is when, from there, its loudest moment should
-# come (the title fully in, the torch opening), None to leave it where the model put it. A cue with a parent is made from it.
+# style:cue -> dict(made, at, prompts[, peak][, parent, noise]). `made` is the sound's whole length: the model is asked for it
+# and shapes its sound to end within it, so nothing it makes is cut afterwards (a cut ending is heard). The sound starts at its
+# moment in the title (enter: as it begins to come in; land: the stamp's impact; leave: as it begins to go); `at` is when,
+# from there, its loudest moment should come (the title fully in, the torch opening), None to leave it where the model put it.
+# A cue with a parent is made from it.
 CUES = {
     # a stage, an unlock, a tree or a board opened, a reward paid: something done, a page turned; quiet, not a game's level up
-    'dust:enter': dict(made=4.0, kept=3.0, at=1.0, prompts=[
+    'dust:enter': dict(made=4.0, at=1.0, prompts=[
         'Quiet reflective swell, a soft warm low pad rising gently and settling, understated, a chapter quietly closing',
         'Soft warm breath of air swelling into a calm low tone, subtle and reflective, understated',
         'Gentle muted rise into a warm hollow resonance, calm, understated, quietly meaningful',
     ]),
-    'dust:leave': dict(made=6.0, kept=5.0, at=None, peak=TAIL_DB, parent='dust:enter', noise=0.8, prompts=[
+    'dust:leave': dict(made=5.0, at=None, peak=TAIL_DB, parent='dust:enter', noise=0.8, prompts=[
         'The same warm tone very softly fading away for a long time, faint, gentle, airy',
     ]),
     # a kit fitted, a search bonus, a kill count: dust's small sibling, frequent
-    'brief:enter': dict(made=2.0, kept=1.0, at=0.25, prompts=[
+    'brief:enter': dict(made=1.5, at=0.25, prompts=[
         'Tiny soft warm swell, a brief quiet glint, subtle and small, understated',
         'Very short soft warm rise into a faint calm tone, minimal, quiet',
     ]),
-    'brief:leave': dict(made=3.0, kept=2.5, at=None, peak=TAIL_DB, parent='brief:enter', noise=0.8, prompts=[
+    'brief:leave': dict(made=2.5, at=None, peak=TAIL_DB, parent='brief:enter', noise=0.8, prompts=[
         'The same small warm tone softly fading out, faint and short',
     ]),
     # a call ending: the transmission's own tone, going
-    'notice:leave': dict(made=3.0, kept=2.0, at=None, peak=TAIL_DB, parent='notice:enter', noise=0.75, prompts=[
+    'notice:leave': dict(made=2.5, at=None, peak=TAIL_DB, parent='notice:enter', noise=0.75, prompts=[
         'Transmission ends, the same soft electronic tone gently stepping down and fading, short',
         'End of message, the same blip softly closing, quiet and brief',
     ]),
     # the discovery's tail: its warm tone lingering as the torch dies down
-    'discovery:leave': dict(made=5.0, kept=4.0, at=None, peak=TAIL_DB, parent='discovery:enter', noise=0.8, prompts=[
+    'discovery:leave': dict(made=4.5, at=None, peak=TAIL_DB, parent='discovery:enter', noise=0.8, prompts=[
         'The same warm glowing tone lingering very softly and slowly fading out, faint',
         'A faint soft resonance left from the same sound, gently dying away',
     ]),
     # a guide sent, a call sign given: an official document issued
-    'type:enter': dict(made=3.0, kept=2.0, at=0.3, prompts=[
+    'type:enter': dict(made=3.0, at=0.3, prompts=[
         'Official document issued, a short soft muted mechanical cue settling into a calm low tone',
         'Briefing received, a subtle quiet clack and a warm low confirming tone, restrained',
         'Classified file delivered, soft muted mechanism and a calm warm resolve',
     ]),
-    'type:leave': dict(made=4.0, kept=3.0, at=None, peak=TAIL_DB, parent='type:enter', noise=0.8, prompts=[
+    'type:leave': dict(made=3.5, at=None, peak=TAIL_DB, parent='type:enter', noise=0.8, prompts=[
         'The same calm tone softly fading away, faint',
     ]),
 }
@@ -102,8 +105,8 @@ REFINE = {
     'sink:enter': [('a2a', dict(noise=n)) for n in (0.35, 0.5, 0.65)],
     # (a longer tail)
     'unveil:enter': [('room', dict(rt60=3.0, kept=7.0)), ('room', dict(rt60=5.0, kept=8.5)),
-                     ('a2a', dict(noise=0.45, made=8.0, kept=7.5, add='with a long lingering tail slowly fading')),
-                     ('a2a', dict(noise=0.6, made=8.0, kept=7.5, add='with a long lingering tail slowly fading'))],
+                     ('a2a', dict(noise=0.45, made=8.0, add='with a long lingering tail slowly fading')),
+                     ('a2a', dict(noise=0.6, made=8.0, add='with a long lingering tail slowly fading'))],
     # (it came too early and too strong: later, quieter, darker)
     'unveil:leave': [('move', dict(at=2.0, db=-5, lp=3000)), ('move', dict(at=2.8, db=-5, lp=3000)),
                      ('move', dict(at=2.0, db=-9, lp=2000)), ('move', dict(at=2.8, db=-9, lp=2000)),
@@ -140,14 +143,28 @@ def loudest_at(x):
     return float(np.argmax(level)) / RATE
 
 
+# The most a sound's start may be shortened to bring its loudest moment earlier: more would cut into its opening.
+SHORTEN_MOST = 0.25
+
+
 def place(x, at):
-    """x moved so that its loudest moment comes `at` seconds in: silence put before it, or its start cut (with a short
-    fade in) when the peak came later."""
+    """x moved so that its loudest moment comes `at` seconds in: silence put before it; when the peak came later, its start
+    shortened (with a short fade in) by SHORTEN_MOST at most, the rest left late."""
     shift = at - loudest_at(x)
     n = int(round(abs(shift) * RATE))
     if shift >= 0:
         return np.concatenate([np.zeros(n, dtype=np.float32), x])
+    n = min(n, int(SHORTEN_MOST * RATE))
     return fade(x[n:], 0.03, 0.0)
+
+
+def tail_trim(x, floor_db=-60.0):
+    """x without the silence after it (below floor_db under its peak), with a short fade on what is left."""
+    peak = float(np.max(np.abs(x))) or 1.0
+    above = np.nonzero(np.abs(x) > peak * 10 ** (floor_db / 20))[0]
+    if len(above):
+        x = x[:int(above[-1]) + int(0.01 * RATE)]
+    return fade(x, 0.0, 0.03)
 
 
 def fade(x, fade_in, fade_out):
@@ -222,12 +239,13 @@ def clean(x):
     return x.astype(np.float32)
 
 
-def shape(x, kept, at, peak=PEAK_DB):
+def shape(x, at, peak=PEAK_DB):
+    """The model's sound cleaned, its leading silence off, moved to `at`, and set to `peak`; it is not cut: only the silence
+    after it goes."""
     x = clean(lead_trim(x))
     if at is not None:
         x = place(x, at)
-    x = x[:int(kept * RATE)]
-    return peak_to(fade(x, 0.002, min(0.6, kept * 0.25)), peak)
+    return peak_to(tail_trim(x), peak)
 
 
 def write_manifest_js(manifest):
@@ -334,12 +352,12 @@ def main(argv):
                     prompt = pick['prompt'] + (', ' + s['add'] if s.get('add') else '')
                     made = s.get('made', pick['made'])
                     x = maker.make([prompt], pick['seed'] + 100 * n, made, start=base, noise=s['noise'])[0]
-                    y = shape(x, s.get('kept', pick['kept']), at, s.get('peak', PEAK_DB))
+                    y = shape(x, at, s.get('peak', PEAK_DB))
                     write(name, y, dict(from_pick=pick['file'], prompt=prompt, seed=pick['seed'] + 100 * n, noise=s['noise'],
-                                        made=made, kept=s.get('kept', pick['kept']), at=at))
+                                        made=made, at=at))
                 elif how == 'move':
-                    y = place(clean(lead_trim(base)), s['at'])[:int(pick['kept'] * RATE) + int(s['at'] * RATE)]
-                    y = peak_to(fade(lowpass(y, s['lp']), 0.002, 0.6), PEAK_DB + s['db'])
+                    y = place(clean(lead_trim(base)), s['at'])
+                    y = peak_to(tail_trim(lowpass(y, s['lp'])), PEAK_DB + s['db'])
                     write(name, y, dict(from_pick=pick['file'], at=s['at'], db=s['db'], lp=s['lp']))
                 elif how == 'room':
                     y = peak_to(fade(room(clean(base), s['rt60'], s['kept']), 0.0, 1.0), PEAK_DB)
@@ -369,9 +387,9 @@ def main(argv):
             made = [(x, dict(prompt=prompts[i], seed=1000, batch=count, item=i))
                     for i, x in enumerate(maker.make(prompts, 1000, c['made']))]
         for i, (x, how) in enumerate(made):
-            y = shape(x, c['kept'], c['at'], c.get('peak', PEAK_DB))
+            y = shape(x, c['at'], c.get('peak', PEAK_DB))
             name = '%s_%02d.ogg' % (key.replace(':', '_'), i + 1)
-            write(name, y, dict(how, made=c['made'], kept=c['kept'], at=c['at']))
+            write(name, y, dict(how, made=c['made'], at=c['at']))
             files.append(name)
         save(key, files)
 
