@@ -278,8 +278,8 @@ function OATabShop:buildCards(record, ctx, sections, shelf)
     for _, block in ipairs(blocks) do
         block.cards = {}
         for _, entry in ipairs(block.entries) do
-            local card = self:makeCard(entry, record, ctx)
-            if card.state.open or not self.onlyOpen then
+            local card = not OA.Shop.hidden(entry, record) and self:makeCard(entry, record, ctx)
+            if card and (card.state.open or not self.onlyOpen) then
                 block.cards[#block.cards + 1] = card
                 self.byId[card.id] = card
                 self.order[#self.order + 1] = card

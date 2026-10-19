@@ -119,8 +119,8 @@ P10T.start("p10dense", function(a)
     for _, k in ipairs(Shop.WEAPON_KITS) do
         local entry = Shop.entry(k[1])
         local r6 = P10T.scratch(a, "dense_shop_" .. k[2], 5, 1)
-        a.check("the " .. k[2] .. " kit restocks to 1 before any place is cleared", Shop.restockQuantity(entry, r6) == 1,
-            Shop.restockQuantity(entry, r6))
+        a.check("the " .. k[2] .. " kit has none and is not shown before any place is cleared",
+            Shop.restockQuantity(entry, r6) == 0 and Shop.hidden(entry, r6), Shop.restockQuantity(entry, r6))
     end
 
     -- 4. the clearing
@@ -284,10 +284,10 @@ P10T.start("p10dense", function(a)
         if t and #titles == before + 1 then
             a.say("title reads:", getText(t.detail.key), "|", getText(t.detail.sub, getText(t.detail.subArgs[1].key)))
         end
-        a.check("the shop restocks the kit to 2", Shop.restockQuantity(kitEntry, A) == 2, Shop.restockQuantity(kitEntry, A))
+        a.check("the shop restocks the kit to 1", Shop.restockQuantity(kitEntry, A) == 1, Shop.restockQuantity(kitEntry, A))
         for _, k in ipairs(Shop.WEAPON_KITS) do
             if k[2] ~= place.kind then
-                a.check("the " .. k[2] .. " kit stays 1", Shop.restockQuantity(Shop.entry(k[1]), A) == 1)
+                a.check("the " .. k[2] .. " kit stays 0", Shop.restockQuantity(Shop.entry(k[1]), A) == 0)
             end
         end
         if OA.option("KitsForSale") then
@@ -318,7 +318,7 @@ P10T.start("p10dense", function(a)
             a.say("title reads:", getText(t.detail.key), "|", getText(t.detail.sub, getText(t.detail.subArgs[1].key)))
         end
         a.check("the cleared mark is still the first one's", Dense.cleared(place.id).by == A.id)
-        a.check("its shop restocks the kit to 2 too", Shop.restockQuantity(kitEntry, B) == 2)
+        a.check("its shop restocks the kit to 1 too", Shop.restockQuantity(kitEntry, B) == 1)
         before = #titles
         Dense.look(C, place.x, place.y)
         a.check("a record below tier 6 gets nothing", Dense.got(C)[place.id] == nil and #titles == before)

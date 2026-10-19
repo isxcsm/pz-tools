@@ -3,7 +3,7 @@
 -- of density (the densest first): damage, critical, repair, damage ... A character gets its place's reward once, when it
 -- clears the place (the zombies in its circle fall to a tenth of the most counted there) or stands in the circle of a
 -- place that is already cleared in this world (by an earlier character); the shop reads the rewards (a kind's restock is
--- 1 plus the places of its kind a record got). Shown on the maps from trust level 6, until the record has its reward (a
+-- the places of its kind a record got, and none is sold before the first). Shown on the maps from trust level 6, until the record has its reward (a
 -- place an earlier character cleared stays on a new one's maps: its reward waits there).
 --
 -- Kept in the world, "dense": made, list = { { id, x, y, r, chunks, kind } }, baseline[id] (the most zombies counted
@@ -53,7 +53,7 @@ function Dense.got(record)
     return s.got
 end
 
--- How many places of a kind a record got (the shop's restock of that kind is 1 plus this).
+-- How many places of a kind a record got (the shop's restock of that kind).
 function Dense.count(record, kind)
     local n = 0
     for _, k in pairs(Dense.got(record)) do

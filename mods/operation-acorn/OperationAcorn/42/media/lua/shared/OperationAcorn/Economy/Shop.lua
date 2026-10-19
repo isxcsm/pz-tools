@@ -108,13 +108,14 @@ Shop.WEAPON_KITS = {
     { "kit_weapon_repair", "repair", 30000, "OperationAcorn.KitWeaponRepair" },
 }
 
--- A weapon kit's quantity: 1 and one more for each dense place the record cleared that gave this kind (the dense
--- section, kept by the part that clears them: got = { [place id] = kind }).
+-- A weapon kit's quantity: one for each dense place the record cleared that gave this kind (the dense section, kept by
+-- the part that clears them: got = { [place id] = kind }); none before the first, and the shop does not show it then
+-- (Shop.hidden).
 function Shop.denseQuantity(kind)
     return function(record)
         local dense = record.dense
         local got = dense and dense.got
-        local n = 1
+        local n = 0
         if type(got) == "table" then
             for _, k in pairs(got) do
                 if k == kind then n = n + 1 end
@@ -306,7 +307,7 @@ local function build()
         give = { give("OperationAcorn.UpgradeSerumShared") } })
     for _, k in ipairs(Shop.WEAPON_KITS) do
         add({ id = k[1], group = "kit", tier = 6, price = k[3], kits = true, fixed = true, restock = Shop.denseQuantity(k[2]),
-            give = { give(k[4]) } })
+            dense = true, give = { give(k[4]) } })
     end
     return list
 end
@@ -441,6 +442,11 @@ function Shop.restockEnd(record)
 end
 
 -- What a restock entry restocks to for a record.
+-- Whether the shop leaves an entry out for a record: a weapon kit whose dense places it has not cleared any of.
+function Shop.hidden(entry, record)
+    return entry.dense == true and Shop.restockQuantity(entry, record) <= 0
+end
+
 function Shop.restockQuantity(entry, record)
     local q = entry.restock
     if type(q) == "function" then q = q(record) end

@@ -119,7 +119,7 @@ test("an order of the shared serum is charged by the window's own prices, one un
     eq(S.price(serum, r), 20000 * 8)
 end)
 
-test("the weapon kits: tier 6, kits only, fixed prices, one more for each place cleared that gave their kind", function()
+test("the weapon kits: tier 6, kits only, fixed prices, one for each place cleared that gave their kind, hidden at none", function()
     local damage, crit, repair = find("kit_weapon_damage"), find("kit_weapon_crit"), find("kit_weapon_repair")
     for _, e in ipairs({ damage, crit, repair }) do
         eq(e.tier, 6); eq(e.kits, true); eq(e.group, "kit"); eq(e.fixed, true)
@@ -128,11 +128,14 @@ test("the weapon kits: tier 6, kits only, fixed prices, one more for each place 
     eq(crit.give[1].type, "OperationAcorn.KitWeaponCrit")
     eq(repair.give[1].type, "OperationAcorn.KitWeaponRepair")
     local r = atTier(6)
-    eq(S.restockQuantity(damage, r), 1, "no dense section")
+    eq(S.restockQuantity(damage, r), 0, "no dense section")
+    eq(S.hidden(damage, r), true, "none to sell: not shown")
     r.dense = { got = { a = "damage", b = "damage", c = "crit", d = "repair", e = "repair", f = "repair" } }
-    eq(S.restockQuantity(damage, r), 3)
-    eq(S.restockQuantity(crit, r), 2)
-    eq(S.restockQuantity(repair, r), 4)
+    eq(S.restockQuantity(damage, r), 2)
+    eq(S.restockQuantity(crit, r), 1)
+    eq(S.restockQuantity(repair, r), 3)
+    eq(S.hidden(crit, r), false)
+    eq(S.hidden(find("serum_shared"), atTier(6)), false, "only the weapon kits hide")
     local option = OA.option
     OA.option = function(name)
         if name == "ShopPriceMultiplier" then return 2 end
@@ -141,7 +144,7 @@ test("the weapon kits: tier 6, kits only, fixed prices, one more for each place 
     eq(S.price(damage, r), 60000); eq(S.price(crit, r), 60000); eq(S.price(repair, r), 30000)
     OA.option = option
     S.available(damage, r)
-    S.bought(damage, r, 3)
+    S.bought(damage, r, 2)
     eq((S.available(damage, r)), 0)
     r.dense.got.g = "damage"
     eq((S.available(damage, r)), 1, "a place cleared mid-window adds one at once")

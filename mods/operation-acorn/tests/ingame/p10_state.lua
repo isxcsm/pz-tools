@@ -46,11 +46,12 @@ P10T.start("p10state", function(a)
     world.baseline, world.cleared = world.baseline or {}, world.cleared or {}
     world.baseline.P10X = 77
     world.cleared.P10X = { by = r.id, at = OA.hours() }
+    local critBefore = Shop.restockQuantity(Shop.entry("kit_weapon_crit"), r)
     Dense.got(r).P10X = "crit"
     put("dense.baseline", world.baseline.P10X)
     put("dense.cleared", world.cleared.P10X.by)
     put("dense.critKit", Shop.restockQuantity(Shop.entry("kit_weapon_crit"), r))
-    a.check("the critical kit restocks to 2", Shop.restockQuantity(Shop.entry("kit_weapon_crit"), r) == 2)
+    a.check("the critical kit restocks to one more", Shop.restockQuantity(Shop.entry("kit_weapon_crit"), r) == critBefore + 1)
 
     -- the survey zone
     if Survey.siteOf("scout") then
