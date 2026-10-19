@@ -656,8 +656,8 @@ function Story.callPlayed(record, id)
     if OA.Missions then OA.Missions.briefed(record, id) end
     if OA.StoryBranches then OA.StoryBranches.played(record, id) end
     if id ~= Story.firstCall(record) then return end
-    OA.Sync.title(record.id, { key = "IGUI_OA_Title_Operation", sub = "IGUI_OA_Title_OperationSub", size = "major",
-        subArgs = { Story.number(record) }, style = "stamp", tone = "acorn", at = "center" })
+    OA.Sync.title(record.id, { key = "IGUI_OA_Title_Operation", sub = "IGUI_OA_Title_OperationSub",
+        subArgs = { Story.number(record) }, style = "seal" })
     Story.terminalOpened(record)
 end
 

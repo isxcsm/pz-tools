@@ -66,7 +66,7 @@ CUES = {
         'sustained tone',
         'Military operation title reveal, a heavy low impact with a deep drum and a short warm brass chord fading out',
     ]),
-    'seal:tag': dict(made=2.0, at=0.0, prompts=[
+    'seal:line.land': dict(made=2.0, at=0.0, prompts=[
         'A short firm low percussive accent, a single muted thump with a little warmth',
         'A brief soft low drum tap, muted and warm, one hit',
     ]),

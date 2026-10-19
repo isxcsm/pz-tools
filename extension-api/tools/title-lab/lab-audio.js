@@ -27,7 +27,7 @@
   const CUES = {
     stamp: [["land", "착지", "land"]],
     // the operation's plate: its land, and its call sign's tag struck a beat later (the line's own)
-    seal: [["land", "착지", "land"], ["tag", "호출부호", "land", true]],
+    seal: [["land", "착지", "land"], ["line.land", "호출부호", "land", true]],
     notice: [["enter", "등장", "enter"], ["leave", "퇴장 (여운)", "leave"]],
     dust: [["enter", "등장", "enter"], ["leave", "퇴장 (여운)", "leave"]],
     discovery: [["enter", "등장", "enter"], ["leave", "퇴장 (여운)", "leave"]],

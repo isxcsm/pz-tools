@@ -13,8 +13,9 @@ then writes a delimited block in each of two files, so a rerun replaces it and n
     the kit's sound script (media/scripts/kit_sounds.txt): a `sound KIT_T_...` for each pick, category UI, a loop for a hold;
         build.py keeps this block when it rewrites the script;
     the kit's cue table (PZUIKit/Sound.lua): `kit.title.<style>.<moment>` -> that sound.
-A pick that is gone from title_picks.json loses its file and its entries; a style:moment with no pick has no sound (the
-subtitle line has none at all: one sound a title). A rerun with the same picks, files and levels writes nothing
+A pick that is gone from title_picks.json loses its file and its entries; a style:moment with no pick has no sound (a
+title's line has none but where its style strikes it as a thing of its own: "seal:line.land", the cue kit.title.seal.line.land,
+KIT_T_Seal_LineLand). A rerun with the same picks, files and levels writes nothing
 (each sound's source file, a hash of it and its level are in the script's block).
 
     python -X utf8 install_title_picks.py [--gen PATH] [--dry]
@@ -41,8 +42,10 @@ CUES = os.path.join(KIT, 'media', 'lua', 'shared', 'PZUIKit', 'Sound.lua')
 PICKS = os.path.join(HERE, 'title_picks.json')
 DEFAULT_GEN = os.path.join(HERE, 'gen')
 
-STYLES = ['stamp', 'dust', 'notice', 'discovery', 'unveil', 'sink', 'pulse', 'bleed', 'brief', 'type']
+STYLES = ['stamp', 'seal', 'dust', 'notice', 'discovery', 'unveil', 'sink', 'pulse', 'bleed', 'brief', 'type']
 MOMENTS = ['enter', 'land', 'hold', 'leave']
+# A title's line sounds only where its style's line is struck as a thing of its own (the seal's tag): line.<moment>.
+MOMENTS += ['line.' + m for m in MOMENTS]
 
 # Each style's peak (dBFS) for its enter, land and hold sounds, by its role. The reference is the game's own UI click
 # (S6, recorded from the game): peak -9 to -11 dB, its loudest 20 ms -28 dB. A title sound is 1 to 4.5 s of sound and not
@@ -51,7 +54,9 @@ MOMENTS = ['enter', 'land', 'hold', 'leave']
 # from that recording so that each title's loudest 20 ms lands where its role puts it against the click's -28 (calls
 # counted in S7):
 LEVELS = {
-    'stamp': -13.0,     # a grade, a seal, 100 acorns: a milestone met a few times a game; the one that should be felt (-23)
+    'stamp': -13.0,     # a grade, a box sealed: a milestone met a few times a game; the one that should be felt (-23)
+    'seal': -12.0,      # the operation named, 100 acorns: once a game each, the heaviest stamp there is (-23); its tag's
+                        # thump at the same peak (the user's pick, heard in the lab at the land's)
     'bleed': -12.0,     # a positive infection, once: dread is the heaviest moment the mods have (-23)
     'unveil': -12.0,    # a new phase (3 calls), a slow wide swell: rare and large (-24)
     'sink': -13.0,      # a loss (5): felt, but a failure should not shout (-25)
@@ -66,18 +71,18 @@ LEVELS = {
 LEAVE_DB = -8.0
 FADE_S = build.FADE_S
 
-NAME = re.compile(r'^KIT_T_[A-Z][a-z]+_[A-Z][a-z]+$')
+NAME = re.compile(r'^KIT_T_[A-Z][a-z]+_(Line)?[A-Z][a-z]+$')
 BEGIN_CUES = '-- title picks begin'
 END_CUES = '-- title picks end'
 FINGERPRINT = re.compile(r'/\* (KIT_T_[A-Za-z_]+): (\S+) ([0-9a-f]{8}) (-?[0-9.]+) dB \*/')
 
 
 def sound_name(style, moment):
-    return 'KIT_T_%s_%s' % (style.capitalize(), moment.capitalize())
+    return 'KIT_T_%s_%s' % (style.capitalize(), ''.join(part.capitalize() for part in moment.split('.')))
 
 
 def level_of(style, moment):
-    return LEVELS[style] + (LEAVE_DB if moment == 'leave' else 0.0)
+    return LEVELS[style] + (LEAVE_DB if moment.endswith('leave') else 0.0)
 
 
 def read(path):

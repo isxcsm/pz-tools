@@ -313,14 +313,14 @@ Sound.defineKeyboard("kit.terminal", {
     letters = { "KIT_Key_1", "KIT_Key_2", "KIT_Key_3", "KIT_Key_4", "KIT_Key_5", "KIT_Key_6", "KIT_Key_7", "KIT_Key_8" },
     space = "KIT_KeySpace", enter = "KIT_KeyEnter", back = "KIT_KeyBack",
 })
-for _, style in ipairs({ "stamp", "discovery", "notice", "unveil", "dust", "bleed", "sink", "type", "pulse", "brief" }) do
+for _, style in ipairs({ "stamp", "seal", "discovery", "notice", "unveil", "dust", "bleed", "sink", "type", "pulse", "brief" }) do
     for _, moment in ipairs(MOMENTS) do
         Sound.define("kit.title." .. style .. "." .. moment, {})
         Sound.define("kit.title." .. style .. ".line." .. moment, {})
     end
 end
 -- The titles that sound (SOUND-SYSTEM.md S7): one sound a title, at its big beat; the subtitle line is silent (its cues
--- are defined and have no sound). The sounds are the user's picks from the title lab, Stable Audio 3 candidates installed
+-- are defined and have no sound) but the seal's, whose tag is struck as a thing of its own (kit.title.seal.line.land). The sounds are the user's picks from the title lab, Stable Audio 3 candidates installed
 -- by tools/sound/install_title_picks.py into the block below (KIT_T_<Style>_<Moment>, levelled by their style's role;
 -- a style:moment with no pick has no sound). The typed style sounds the kit's keyboard instead (TITLE_KEYBOARDS). A
 -- title's sounds are bound to its life: the API stops every one still playing, with a short fade, when the title is gone or
@@ -328,6 +328,8 @@ end
 -- title picks begin (written by tools/sound/install_title_picks.py from title_picks.json: edit that, not this)
 Sound.defineAll({
     ["kit.title.stamp.land"] = { sound = "KIT_T_Stamp_Land" },
+    ["kit.title.seal.land"] = { sound = "KIT_T_Seal_Land" },
+    ["kit.title.seal.line.land"] = { sound = "KIT_T_Seal_LineLand" },
     ["kit.title.dust.enter"] = { sound = "KIT_T_Dust_Enter" },
     ["kit.title.dust.leave"] = { sound = "KIT_T_Dust_Leave" },
     ["kit.title.notice.enter"] = { sound = "KIT_T_Notice_Enter" },

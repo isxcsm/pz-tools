@@ -230,6 +230,10 @@ test("a title's sounds: its style's moments that have a sound, the line's apart;
         for moment, name in pairs(styleTitle or {}) do eq(name, "KIT_T_" .. cap(style) .. "_" .. cap(moment), style .. "." .. moment) end
         eq(styleLine, nil, style .. ": the subtitle line is silent")
     end
+    -- the seal's tag is struck as a thing of its own: its line sounds as it lands
+    local sealTitle, sealLine = Sound.titleSounds("seal")
+    eq(sealTitle.land, "KIT_T_Seal_Land")
+    eq(sealLine.land, "KIT_T_Seal_LineLand")
     -- typed on the kit's keyboard: its keys and space bar as its characters are struck, title and line alike; the return
     -- as the title is all in and with each feed of its leave
     title, line = Sound.titleSounds("type")

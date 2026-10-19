@@ -133,6 +133,26 @@ module Base
         }
     }
 
+    /* KIT_T_Seal_Land: seal_land_05.ogg d63e9dff -12 dB */
+    sound KIT_T_Seal_Land
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_T_Seal_Land.ogg,
+        }
+    }
+
+    /* KIT_T_Seal_LineLand: seal_tag_06.ogg a28167e8 -12 dB */
+    sound KIT_T_Seal_LineLand
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/KIT_T_Seal_LineLand.ogg,
+        }
+    }
+
     /* KIT_T_Dust_Enter: dust_enter_03.ogg 1fcd87d0 -16 dB */
     sound KIT_T_Dust_Enter
     {

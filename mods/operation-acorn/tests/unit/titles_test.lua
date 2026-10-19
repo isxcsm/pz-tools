@@ -114,6 +114,34 @@ test("a style the API does not have (an older PZ Extension API) is asked as stam
     PZExtAPI = nil
 end)
 
+test("a seal title carries the operation's emblem; drawn as a stamp (an older API) it goes without it", function()
+    world()
+    local specs = {}
+    local function api(styles)
+        PZExtAPI = {
+            version = OA.API_VERSION,
+            client = function() return "handle" end,
+            text = {
+                status = function() return "applied" end,
+                styles = function() return styles end,
+                title = function(_, spec) specs[#specs + 1] = { style = spec.style, emblem = spec.emblem } end,
+            },
+        }
+    end
+    api({ "stamp", "seal" })
+    OA.Titles.show("p1", { key = "IGUI_OA_Title_Operation", sub = "IGUI_OA_Title_OperationSub", subArgs = { 7 }, style = "seal" })
+    eq(specs[1].style, "seal")
+    eq(specs[1].emblem, OA.Titles.EMBLEM)
+    api({ "stamp" })
+    OA.Titles.show("p1", { key = "IGUI_OA_Title_Operation", style = "seal" })
+    eq(specs[2].style, "stamp")
+    eq(specs[2].emblem, nil, "a stamp has no plate")
+    api({ "stamp", "seal" })
+    OA.Titles.show("p1", { key = "IGUI_OA_Title_Capstone", style = "stamp" })
+    eq(specs[3].emblem, nil, "only a seal's")
+    PZExtAPI = nil
+end)
+
 test("a brief title the API does not have is said by the character, not a big one", function()
     local said = world()
     local called = {}

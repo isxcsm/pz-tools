@@ -116,7 +116,7 @@ test("acorns add up across settlements, a remark each time, and the hundredth st
     eq(#titles, 1)
     eq(titles[1].key, "IGUI_OA_Title_Egg_2")
     eq(titles[1].sub, "IGUI_OA_Title_Egg_2Sub")
-    eq(titles[1].style, "stamp")
+    eq(titles[1].style, "seal")
     truthy(Eggs.has(record, "acorns"))
     eq(Trust.rewards(record).boxCapacity, 150, "50 more than the upgrade's")
     local fourth = settle(record, { { "Base.Acorn", 5 } })

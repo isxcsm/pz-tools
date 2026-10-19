@@ -84,6 +84,8 @@ function Titles.show(api, handle, spec, log)
     if not (t and handle and spec and spec.text) then return false end
     local style = Titles.styleFor(t, spec.style)
     if not style then return false end
+    -- (an emblem is its style's plate's: a style the API lacks goes without it)
+    if style ~= spec.style then spec.emblem = nil end
     spec.style = style
     if spec.backdrop == nil and Titles.overWindow(style == "brief") then spec.backdrop = Titles.OVER_WINDOW end
     spec.sounds, spec.subtitleSounds = PZUIKit.Sound.titleSounds(style)

@@ -58,7 +58,7 @@ Eggs.NOTES = {
 }
 Eggs.TITLES = {
     furbert = { key = "IGUI_OA_Title_Egg_1", sub = "IGUI_OA_Title_Egg_1Sub", style = "discovery" },
-    acorns = { key = "IGUI_OA_Title_Egg_2", sub = "IGUI_OA_Title_Egg_2Sub", style = "stamp" },
+    acorns = { key = "IGUI_OA_Title_Egg_2", sub = "IGUI_OA_Title_Egg_2Sub", style = "seal" },
     squirrel = { key = "IGUI_OA_Title_Egg_3", sub = "IGUI_OA_Title_Egg_3Sub", style = "discovery" },
     spiffo = { key = "IGUI_OA_Title_Egg_4", sub = "IGUI_OA_Title_Egg_4Sub", style = "discovery" },
     radio = { key = "IGUI_OA_Title_Egg_5", sub = "IGUI_OA_Title_Egg_5Sub", style = "discovery" },

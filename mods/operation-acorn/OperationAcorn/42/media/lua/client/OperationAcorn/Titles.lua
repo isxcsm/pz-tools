@@ -19,6 +19,9 @@ Titles.TONES = {
     acorn = { { 0.88, 0.70, 0.45 }, { 0.92, 0.86, 0.74 } },
 }
 
+-- The operation's emblem on a seal title's plate (PZExtAPI text, style "seal": the acorn, tools/seal_emblem.py).
+Titles.EMBLEM = "media/textures/OA_SealEmblem.png"
+
 -- Every title goes first, the one on the screen leaving at once (the dev panel's switch for trying titles).
 Titles.now = false
 
@@ -86,6 +89,7 @@ function Titles.show(playerId, detail, noSay)
             now = Titles.now or nil, y = Titles.place(detail.at, sub ~= nil), scale = Titles.SIZES[detail.size] }
         local tone = Titles.TONES[detail.tone]
         if tone then spec.color, spec.subtitleColor = tone[1], tone[2] end
+        if detail.style == "seal" then spec.emblem = Titles.EMBLEM end
         if handle and Kit.show(api, handle, spec, OA.log) then
             shown = "title"
         elseif not noSay then
