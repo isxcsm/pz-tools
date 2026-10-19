@@ -988,7 +988,7 @@ function piece(text, line, colour, centreY, seed, spec) {
   for (let i = 0; i < chars.length; i++) {
     const after = m.measureText(chars.slice(0, i + 1).join("")).width;
     if (chars[i].trim()) p.glyphs.push({ x0: i === 0 ? 0 : left + before, x1: i === chars.length - 1 ? w : left + after, mid: left + (before + after) / 2,
-      space: i > 0 && !chars[i - 1].trim() });
+      space: i > 0 && !chars[i - 1].trim(), ch: chars[i] });
     before = after;
   }
   // a sinking one's foot: the lowest row its ink (the shadow too) reaches, in its pixels
@@ -1406,17 +1406,24 @@ function rebuild() {
   const S = STYLES[P.style], H = view.height, tl = S.title.size * H, sl = S.line.size * H, anchor = S.y * H;
   const tone = P.tone === "style" ? [S.title.color, S.line.color] : TONES[P.tone];
   const seed = BigInt(P.seed) * 0x9E3779B97F4A7C15n & M64;
-  // (it stays its hold once all of it is in: the title, and its line if it has one)
-  const leaving = Math.max(S.title.enterTime, P.sub ? S.line.delay + S.line.enterTime : 0) + P.hold;
   const title = piece(P.title, tl, tone[0], anchor, seed, S.title);
-  title.delay = 0; title.leaveAt = leaving;
+  title.delay = 0;
   pieces = [title];
   if (P.sub) {
     const line = piece(P.sub, sl, tone[1], anchor + tl / 2 + S.gap * tl + sl / 2, seed ^ 0x1234567n, S.line);
-    line.delay = S.line.delay; line.leaveAt = leaving + S.trail;
+    line.delay = S.line.delay;
     pieces.push(line);
   }
-  for (const p of pieces) if (p.spec.typed) p.keys = typeKeys(p, P.seed + (p === title ? 0 : 7));
+  // (a typed piece comes in as long as its typing takes, its line typed after it)
+  for (const p of pieces) {
+    p.enterTime = p.spec.enterTime;
+    if (p.spec.typed) { p.keys = typeKeys(p, P.seed + (p === title ? 0 : 7)); p.enterTime = typedTime(p); }
+  }
+  if (pieces[1] && title.spec.typed) pieces[1].delay = title.enterTime + RETURN_PAUSE;
+  // (it stays its hold once all of it is in: the title, and its line if it has one)
+  const leaving = Math.max(...pieces.map(p => p.delay + p.enterTime)) + P.hold;
+  title.leaveAt = leaving;
+  if (pieces[1]) pieces[1].leaveAt = leaving + S.trail;
   for (const p of pieces) if (p.spec.bleed) p.drops = bleedDrops(p, P.seed + (p === title ? 0 : 7), p === title);
   for (const p of pieces) if (p.spec.sim) buildSim(p, P.seed + (p === title ? 0 : 7));
   // the impact's puff of dust: kicked out from under the letters to the sides (fewer for a lighter hit)
@@ -1697,17 +1704,34 @@ function drawPulse(p, st) {
 // Typed: its letters are struck one by one at a typist's uneven pace (a longer pause after a space), each a little off
 // its line and inked a little unevenly, struck hard (a touch big and bright, settling at once). As it leaves the paper
 // is fed out: it jerks up a line at a time, a pause between, fading.
-// When each letter is struck, in seconds from its start: uneven, paused at spaces, all within the first nine tenths
-// of its enter.
+// When each letter is struck, in seconds from its start: typed by hand as the comms' protagonist types (OA CommsScript:
+// TYPE_CPS a second, each word up to WORD_SPREAD faster or slower, a pause after a word, a longer one after a clause), so a
+// longer title takes longer. Its line is typed after it, a return between (RETURN_PAUSE).
+const TYPE_CPS = 14, WORD_SPREAD = 0.2, WORD_PAUSE = 0.12, CLAUSE_PAUSE = 0.4, RETURN_PAUSE = 0.35;
 function typeKeys(p, seed) {
-  const gaps = p.glyphs.map((g, i) => i === 0 ? 0 : 0.7 + 0.6 * hash(i, 1, seed) + (g.space ? 1.6 : 0));
-  let at = 0;
-  const keys = gaps.map(g => at += g), last = at || 1;
-  return keys.map(k => 0.9 * p.spec.enterTime * k / last);
+  const keys = [], strikes = [];
+  let at = 0, word = 0, speed = TYPE_CPS * (1 + WORD_SPREAD * (2 * hash(0, 3, seed) - 1));
+  p.glyphs.forEach((g, i) => {
+    if (i > 0) {
+      at += 1 / speed;
+      if (g.space) {
+        strikes.push({ at, ch: " " });
+        at += 1 / speed + WORD_PAUSE;
+        word++;
+        speed = TYPE_CPS * (1 + WORD_SPREAD * (2 * hash(word, 3, seed) - 1));
+      }
+      if (/[,.:;!?]/.test(p.glyphs[i - 1].ch)) at += CLAUSE_PAUSE;
+    }
+    keys.push(at);
+    strikes.push({ at, ch: g.ch });
+  });
+  p.strikes = strikes;   // (every key struck, the spaces' too: what the lab's sound plays)
+  return keys;
 }
-// The line feeds as it leaves: when each starts (its share of the leave), how long it takes, and how far it goes up (in
-// lines).
-const FEEDS = [0.08, 0.34, 0.6], FEED_TIME = 0.22, FEED_STEP = 0.2;
+const typedTime = p => (p.keys.length ? p.keys[p.keys.length - 1] : 0) + 1 / TYPE_CPS;
+// The paper fed out as it leaves, as a terminal's return pressed: a line up with each (seconds into the leave), each a
+// quick jerk a little past and back; it fades over the rest of the leave.
+const FEEDS = [0, 0.9, 1.8, 2.7], FEED_TIME = 0.16, FEED_STEP = 0.45;
 function drawType(p, st) {
   const o = st.out, a = st.a, s = st.s, top = p.cy - p.h * s / 2, seed = P.seed + (p === pieces[0] ? 0 : 7);
   if (a <= 0.002) return;
@@ -1715,7 +1739,7 @@ function drawType(p, st) {
   const leaveTime = leaveTimeOf(p.spec);
   let fed = 0;
   for (const f of FEEDS) {
-    const k = clamp((o - f) * leaveTime / FEED_TIME, 0, 1);
+    const k = clamp((o * leaveTime - f) / FEED_TIME, 0, 1);
     fed += backOut(k);
   }
   const lift = -P.TYPE_FEED * FEED_STEP * pieces[0].line * fed;
@@ -1822,7 +1846,8 @@ function frame(now) {
   const end = timeline();
   if (playing && !scrubbing) { t += dt * Number(document.getElementById("speed").value); if (t > end) t = end; }
   if (window.LabAudio) LabAudio.frame({ t, live: playing && !scrubbing, speed: Number(document.getElementById("speed").value), style: P.style,
-    pieces: pieces.map(p => ({ delay: p.delay, leaveAt: p.leaveAt, enterTime: p.spec.enterTime, impact: p.spec.enter === "impact", leaveTime: leaveTimeOf(p.spec), ash: ashTail(p.spec) })) });
+    pieces: pieces.map(p => ({ delay: p.delay, leaveAt: p.leaveAt, enterTime: p.enterTime, impact: p.spec.enter === "impact", leaveTime: leaveTimeOf(p.spec), ash: ashTail(p.spec),
+      strikes: p.strikes, feeds: p.spec.leave === "feed" ? FEEDS : null })) });
   if (!dirty && t === drawnAt) { requestAnimationFrame(frame); return; }
   drawnAt = t; dirty = false;
   gl.viewport(0, 0, view.width, view.height);

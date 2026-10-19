@@ -28,7 +28,8 @@ Run with the Python of the Stable Audio 3 checkout (C:/git/pz-workspace/sa3, its
 
 It writes gen/<style>_<cue>_<nn>.ogg (a pick's refinements <pick>_r<n>.ogg), gen/manifest.json and manifest.js
 ({"style:cue": [files]}, what the lab's sound panel lists, a pick first), and gen/prompts.json (each file's prompt, seed and
-how it was made, to make a picked one again). `--manifest` only writes manifest.js again from manifest.json.
+how it was made, to make a picked one again). `--manifest` only writes manifest.js again from manifest.json; `--clean` only clears: a decided
+cue (picked, nothing more asked of it) keeps its pick alone, and the files no cue lists are deleted.
 """
 import json
 import os
@@ -55,62 +56,23 @@ FAMILY = 'restrained cinematic game UI sound, warm, clean, high quality, short n
 # from there, its loudest moment should come (the title fully in, the torch opening), None to leave it where the model put it.
 # A cue with a parent is made from it.
 CUES = {
-    # a stage, an unlock, a tree or a board opened, a reward paid: something done, a page turned; quiet, not a game's level up
-    'dust:enter': dict(made=4.0, at=1.0, prompts=[
-        'Quiet reflective swell, a soft warm low pad rising gently and settling, understated, a chapter quietly closing',
-        'Soft warm breath of air swelling into a calm low tone, subtle and reflective, understated',
-        'Gentle muted rise into a warm hollow resonance, calm, understated, quietly meaningful',
-    ]),
-    'dust:leave': dict(made=5.0, at=None, peak=TAIL_DB, parent='dust:enter', noise=0.8, prompts=[
-        'The same warm tone very softly fading away for a long time, faint, gentle, airy',
-    ]),
-    # a kit fitted, a search bonus, a kill count: dust's small sibling, frequent
-    'brief:enter': dict(made=1.5, at=0.25, prompts=[
-        'Tiny soft warm swell, a brief quiet glint, subtle and small, understated',
-        'Very short soft warm rise into a faint calm tone, minimal, quiet',
-    ]),
-    'brief:leave': dict(made=2.5, at=None, peak=TAIL_DB, parent='brief:enter', noise=0.8, prompts=[
-        'The same small warm tone softly fading out, faint and short',
-    ]),
-    # a call ending: the transmission's own tone, going
-    'notice:leave': dict(made=2.5, at=None, peak=TAIL_DB, parent='notice:enter', noise=0.75, prompts=[
-        'Transmission ends, the same soft electronic tone gently stepping down and fading, short',
-        'End of message, the same blip softly closing, quiet and brief',
-    ]),
-    # the discovery's tail: its warm tone lingering as the torch dies down
-    'discovery:leave': dict(made=4.5, at=None, peak=TAIL_DB, parent='discovery:enter', noise=0.8, prompts=[
-        'The same warm glowing tone lingering very softly and slowly fading out, faint',
-        'A faint soft resonance left from the same sound, gently dying away',
-    ]),
-    # a guide sent, a call sign given: an official document issued
-    'type:enter': dict(made=3.0, at=0.3, prompts=[
-        'Official document issued, a short soft muted mechanical cue settling into a calm low tone',
-        'Briefing received, a subtle quiet clack and a warm low confirming tone, restrained',
-        'Classified file delivered, soft muted mechanism and a calm warm resolve',
-    ]),
-    'type:leave': dict(made=3.5, at=None, peak=TAIL_DB, parent='type:enter', noise=0.8, prompts=[
-        'The same calm tone softly fading away, faint',
+    # a call ending: the transmission's own tone, going, as long as the title takes to go (3.7 s to its last tenth)
+    'notice:leave': dict(made=4.0, at=None, peak=TAIL_DB, parent='notice:enter', noise=0.75, prompts=[
+        'Transmission ends, the same soft electronic tone gently stepping down and slowly fading',
+        'End of message, the same tone softly closing and fading away, quiet',
     ]),
 }
 
 # What the user asked of a pick, as its refinements: each (how, settings). "a2a": the model again from the pick, at a noise,
 # its prompt (and what is added to it); "move": the pick itself moved so that its loudest moment comes at `at`, lowered by
-# `db` and darkened by a low pass at `lp` Hz; "room": the pick with a reverb tail of rt60 seconds, kept `kept` long.
+# `db` and darkened by a low pass at `lp` Hz; "room": the pick with a reverb tail of rt60 seconds, kept `kept` long;
+# "fit": a leave made as long as its title's leave (from a longer room, or the model again from the pick asked for that
+# length) and faded as the title fades (fit_envelope). A cue picked and not here is decided: the lab lists its pick alone.
 REFINE = {
-    'stamp:land': [('a2a', dict(noise=n)) for n in (0.35, 0.5, 0.65)],
-    'discovery:enter': [('a2a', dict(noise=n)) for n in (0.35, 0.5, 0.65)],
-    'notice:enter': [('a2a', dict(noise=n)) for n in (0.35, 0.5, 0.65)],
-    'bleed:enter': [('a2a', dict(noise=n)) for n in (0.35, 0.5, 0.65)],
-    'pulse:enter': [('a2a', dict(noise=n)) for n in (0.35, 0.5, 0.65)],
-    'sink:enter': [('a2a', dict(noise=n)) for n in (0.35, 0.5, 0.65)],
-    # (a longer tail)
-    'unveil:enter': [('room', dict(rt60=3.0, kept=7.0)), ('room', dict(rt60=5.0, kept=8.5)),
-                     ('a2a', dict(noise=0.45, made=8.0, add='with a long lingering tail slowly fading')),
-                     ('a2a', dict(noise=0.6, made=8.0, add='with a long lingering tail slowly fading'))],
-    # (it came too early and too strong: later, quieter, darker)
-    'unveil:leave': [('move', dict(at=2.0, db=-5, lp=3000)), ('move', dict(at=2.8, db=-5, lp=3000)),
-                     ('move', dict(at=2.0, db=-9, lp=2000)), ('move', dict(at=2.8, db=-9, lp=2000)),
-                     ('a2a', dict(noise=0.5, at=2.4, peak=TAIL_DB, add='very soft, gentle and quiet'))],
+    # (its tail ended while the paper was still burning: as long as the paper takes to burn and blow away)
+    'dust:leave': [('fit', dict(src='room', rt60=4.0)),
+                   ('fit', dict(src='a2a', noise=0.35, add='slowly fading over a long time')),
+                   ('fit', dict(src='a2a', noise=0.5, add='slowly fading over a long time'))],
 }
 
 
@@ -249,9 +211,36 @@ def shape(x, at, peak=PEAK_DB):
 
 
 def write_manifest_js(manifest):
-    """The lab's list of the candidates, as a script (the lab opened from a file cannot fetch a json)."""
+    """The lab's list of the candidates and the user's picks, as a script (the lab opened from a file cannot fetch a json)."""
+    picks = json.load(open(PICKS, encoding='utf-8')) if os.path.exists(PICKS) else {}
     with open(os.path.join(OUT, 'manifest.js'), 'w', encoding='utf-8', newline='\n') as f:
         f.write('window.TITLE_SOUND_CANDIDATES = ' + json.dumps(manifest, indent=1) + ';\n')
+        f.write('window.TITLE_SOUND_PICKS = ' + json.dumps({k: v['file'] for k, v in picks.items()}, indent=1) + ';\n')
+
+
+# The titles' pictures over time, measured in the lab (title_curves.json: per style, its pieces' timings and, at `fps`, how
+# much of it shows (vis) and moves (motion), summed over the frame).
+CURVES = os.path.join(HERE, 'title_curves.json')
+
+
+def fit_envelope(style):
+    """How much of the title is left from the moment its first piece starts to go (1 there, to 0 when nothing shows or moves),
+    at RATE: the gain that makes a leave's sound go as the picture goes."""
+    c = json.load(open(CURVES, encoding='utf-8'))
+    s, fps = c['styles'][style], c['fps']
+    at = int(round(s['pieces'][0]['leaveAt'] * fps))
+    parts = []
+    for ch in ('vis', 'motion'):
+        v = np.asarray(s.get(ch) or [0], dtype=np.float64)[at:]
+        top = v.max() if len(v) else 0
+        if top > 0:
+            parts.append(v / top)
+    env = np.max(np.vstack([np.pad(p, (0, max(map(len, parts)) - len(p))) for p in parts]), axis=0)
+    env = np.minimum(1.0, env / max(env[0], 1e-9))
+    last = np.nonzero(env >= 0.02)[0]
+    env = env[:last[-1] + 2] if len(last) else env[:1]
+    t = np.arange(int(len(env) / fps * RATE)) / RATE * fps
+    return np.interp(t, np.arange(len(env)), env).astype(np.float32)
 
 
 class Maker:
@@ -322,14 +311,16 @@ def main(argv):
         argv = argv[:i] + argv[i + 2:]
     picks = json.load(open(PICKS, encoding='utf-8')) if os.path.exists(PICKS) else {}
     only = [a for a in argv if not a.startswith('-')] or list(CUES) + [k for k in REFINE if k in picks]
-    maker = Maker('small-sfx' if '--small' in argv else 'medium')
+    if '--clean' in argv:
+        only = []
     os.makedirs(OUT, exist_ok=True)
     manifest_path, prompts_path = os.path.join(OUT, 'manifest.json'), os.path.join(OUT, 'prompts.json')
     manifest = json.load(open(manifest_path, encoding='utf-8')) if os.path.exists(manifest_path) else {}
     told = json.load(open(prompts_path, encoding='utf-8')) if os.path.exists(prompts_path) else {}
 
     def save(key, files):
-        manifest[key] = files
+        if key:
+            manifest[key] = files
         json.dump(manifest, open(manifest_path, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
         json.dump(told, open(prompts_path, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
         write_manifest_js(manifest)
@@ -339,6 +330,22 @@ def main(argv):
         told[name] = how
         print(name, '%.2fs' % (len(y) / RATE), flush=True)
 
+    for key, pick in picks.items():
+        if key not in CUES:
+            stem = pick['file'][:-4] + '_r'
+            manifest[key] = [pick['file']] + ([f for f in manifest.get(key, []) if f.startswith(stem)] if key in REFINE else [])
+    for key in [k for k in manifest if k not in picks and k not in CUES]:
+        del manifest[key]
+    listed = {f for files in manifest.values() for f in files} | {p['file'] for p in picks.values()}
+    for f in os.listdir(OUT):
+        if f.endswith('.ogg') and f not in listed:
+            os.remove(os.path.join(OUT, f))
+            told.pop(f, None)
+    save(None, None)
+    if '--clean' in argv:
+        return
+
+    maker = Maker('small-sfx' if '--small' in argv else 'medium')
     for key in only:
         if key in picks and key in REFINE:
             pick = picks[key]
@@ -359,6 +366,18 @@ def main(argv):
                     y = place(clean(lead_trim(base)), s['at'])
                     y = peak_to(tail_trim(lowpass(y, s['lp'])), PEAK_DB + s['db'])
                     write(name, y, dict(from_pick=pick['file'], at=s['at'], db=s['db'], lp=s['lp']))
+                elif how == 'fit':
+                    env = fit_envelope(key.split(':')[0])
+                    seconds = len(env) / RATE
+                    if s['src'] == 'room':
+                        x = room(clean(base), s['rt60'], seconds)
+                    else:
+                        prompt = pick['prompt'] + (', ' + s['add'] if s.get('add') else '')
+                        x = clean(maker.make([prompt], pick['seed'] + 100 * n, seconds, start=base, noise=s['noise'])[0])
+                    x = np.pad(x, (0, max(0, len(env) - len(x))))[:len(env)] * env
+                    y = peak_to(fade(x, 0.005, 0.05), pick.get('peak', TAIL_DB))
+                    write(name, y, dict(from_pick=pick['file'], fit=seconds, **{k: v for k, v in s.items() if k != 'add'},
+                                        **({'prompt': prompt, 'seed': pick['seed'] + 100 * n} if s['src'] == 'a2a' else {})))
                 elif how == 'room':
                     y = peak_to(fade(room(clean(base), s['rt60'], s['kept']), 0.0, 1.0), PEAK_DB)
                     write(name, y, dict(from_pick=pick['file'], rt60=s['rt60'], kept=s['kept']))

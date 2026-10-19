@@ -1,66 +1,101 @@
 {
  "stamp:land": {
-  "file": "stamp_land_06.ogg",
+  "file": "stamp_land_06_r2.ogg",
   "prompt": "Seal of approval sound, a heavy confident thump followed by a warm resonant tone, restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail",
-  "seed": 1005,
+  "seed": 1205,
   "made": 4.0,
   "kept": 2.5,
   "at": 0.0
  },
  "discovery:enter": {
-  "file": "discovery_enter_06.ogg",
+  "file": "discovery_enter_06_r1.ogg",
   "prompt": "Reveal sound, a low airy build releasing into a warm glowing tone, restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail",
-  "seed": 1005,
+  "seed": 1105,
   "made": 4.0,
   "kept": 3.0,
   "at": 1.9
  },
  "notice:enter": {
-  "file": "notice_enter_07.ogg",
+  "file": "notice_enter_07_r2.ogg",
   "prompt": "Short subtle incoming transmission alert, soft two-tone electronic blip, military radio interface, restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail",
-  "seed": 1006,
+  "seed": 1206,
   "made": 2.0,
   "kept": 1.2,
   "at": 0.05
  },
  "unveil:enter": {
-  "file": "unveil_enter_07.ogg",
+  "file": "unveil_enter_07_r2.ogg",
   "prompt": "Opening swell, a slow deep airy rise like a wide space opening up, warm low drone resolving, restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail",
   "seed": 1006,
   "made": 5.0,
-  "kept": 4.5,
+  "kept": 8.5,
   "at": 3.0
  },
  "unveil:leave": {
-  "file": "unveil_leave_06.ogg",
+  "file": "unveil_leave_06_r4.ogg",
   "prompt": "Gentle airy whoosh drawing away into silence, very soft, restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail",
   "seed": 1005,
   "made": 4.0,
   "kept": 3.0,
-  "at": null
+  "at": 2.8
  },
  "bleed:enter": {
-  "file": "bleed_enter_04.ogg",
+  "file": "bleed_enter_04_r2.ogg",
   "prompt": "Grim confirmation, a heavy muffled low hit and a creeping dark drone that fades, restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail",
-  "seed": 1003,
+  "seed": 1203,
   "made": 5.0,
   "kept": 4.0,
   "at": 0.3
  },
  "pulse:enter": {
-  "file": "pulse_enter_04.ogg",
+  "file": "pulse_enter_04_r3.ogg",
   "prompt": "Body status turning to relief, a soft low thump followed by a gentle calm swell, restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail",
-  "seed": 1003,
+  "seed": 1303,
   "made": 4.0,
   "kept": 3.0,
   "at": 0.5
  },
  "sink:enter": {
-  "file": "sink_enter_01.ogg",
+  "file": "sink_enter_01_r2.ogg",
   "prompt": "Mission failed sting, a low somber descending tone with a muffled dull impact, restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail",
-  "seed": 1000,
+  "seed": 1200,
   "made": 4.0,
   "kept": 3.5,
   "at": 0.25
+ },
+ "discovery:leave": {
+  "file": "discovery_leave_02.ogg",
+  "prompt": "A faint soft resonance left from the same sound, gently dying away, restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail",
+  "seed": 1001,
+  "made": 4.5,
+  "at": null
+ },
+ "brief:enter": {
+  "file": "brief_enter_03.ogg",
+  "prompt": "Tiny soft warm swell, a brief quiet glint, subtle and small, understated, restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail",
+  "seed": 1000,
+  "made": 1.5,
+  "at": 0.25
+ },
+ "brief:leave": {
+  "file": "brief_leave_01.ogg",
+  "prompt": "The same small warm tone softly fading out, faint and short, restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail",
+  "seed": 1000,
+  "made": 2.5,
+  "at": null
+ },
+ "dust:enter": {
+  "file": "dust_enter_02.ogg",
+  "prompt": "Soft warm breath of air swelling into a calm low tone, subtle and reflective, understated, restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail",
+  "seed": 1000,
+  "made": 4.0,
+  "at": 1.0
+ },
+ "dust:leave": {
+  "file": "dust_leave_03.ogg",
+  "prompt": "The same warm tone very softly fading away for a long time, faint, gentle, airy, restrained cinematic game UI sound, warm, clean, high quality, short natural reverb tail",
+  "seed": 1002,
+  "made": 5.0,
+  "at": null
  }
 }

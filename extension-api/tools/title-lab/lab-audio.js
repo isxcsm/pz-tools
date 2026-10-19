@@ -26,7 +26,7 @@
   // The cues of each sound style: [id, label, moment, line?]. A cue's file is KIT_T_<style>_<moment>[_line]_<a|b|c>.ogg.
   const CUES = {
     stamp: [["land", "착지", "land"]],
-    notice: [["enter", "등장", "enter"]],
+    notice: [["enter", "등장", "enter"], ["leave", "퇴장 (여운)", "leave"]],
     dust: [["enter", "등장", "enter"], ["leave", "퇴장 (여운)", "leave"]],
     discovery: [["enter", "등장", "enter"], ["leave", "퇴장 (여운)", "leave"]],
     unveil: [["enter", "등장", "enter"], ["leave", "퇴장 (여운)", "leave"]],
@@ -34,18 +34,31 @@
     pulse: [["enter", "등장", "enter"]],
     bleed: [["enter", "등장", "enter"]],
     brief: [["enter", "등장", "enter"], ["leave", "퇴장 (여운)", "leave"]],
-    type: [["enter", "등장", "enter"], ["leave", "퇴장 (여운)", "leave"]],
+    type: [],
   };
+  // The kit's keyboard (PZUIKit.Sound "kit.terminal", the sound lab's): a typed title strikes a key for each character (the
+  // same character, the same key: Sound.keyOf), and presses the return with each feed of its leave.
+  const KEYS = ["KIT_Key_1", "KIT_Key_2", "KIT_Key_3", "KIT_Key_4", "KIT_Key_5", "KIT_Key_6", "KIT_Key_7", "KIT_Key_8"];
+  const keyFile = ch => {
+    if (ch === " ") return KIT + "KIT_KeySpace_1.ogg";
+    const spread = (ch ? ch.charCodeAt(0) : 0) * 0.6180339887;
+    return KIT + KEYS[Math.floor((spread - Math.floor(spread)) * KEYS.length)] + "_1.ogg";
+  };
+  const RETURN = KIT + "KIT_KeyEnter_1.ogg";
   // What the game has now, to compare with: a cue's single option (or an extra one beside a, b, c).
   const NOW = {
     "stamp:land": "KIT_TitleStamp_1.ogg",
-    "type:enter": "KIT_TitleType_1.ogg", "type:leave": "KIT_TitleFeed_1.ogg",
   };
   // The candidates of each cue ({ "style:cue": [files in gen/] }, gen/manifest.js); type has only what it has now.
-  let MADE = {};
+  let MADE = {}, PICKED = {};
   const candidatesOf = (style, cue) => MADE[style + ":" + cue[0]] || [];
   const hasCandidates = (style, cue) => candidatesOf(style, cue).length > 0;
   const firstPick = (style, cue) => hasCandidates(style, cue) ? candidatesOf(style, cue)[0] : "now";
+  // The choice on the panel: what was chosen, unless its file is gone (a pick made, the rest cleared), then the first.
+  const chosen = (style, cue) => {
+    const p = state.picks[style + ":" + cue[0]];
+    return p && (p === "none" || p === "now" || candidatesOf(style, cue).includes(p)) ? p : firstPick(style, cue);
+  };
   // A pick is "none", "now" or a candidate's file name; the url it plays.
   const fileOf = (style, cue, pick) => {
     if (pick === "now") return NOW[style + ":" + cue[0]] ? KIT + NOW[style + ":" + cue[0]] : null;
@@ -152,10 +165,13 @@
       const land = p.delay + (p.impact ? Math.min(0.16, p.enterTime) : p.enterTime);
       const times = { enter: p.delay, land, hold: land, leave: p.leaveAt };
       lifeEnd = Math.max(lifeEnd, p.leaveAt + p.leaveTime * (1 + p.ash));
+      if (p.strikes) p.strikes.forEach((k, n) => events.push({ key: "key" + i + "." + n, file: keyFile(k.ch), moment: "key", at: p.delay + k.at, db: isLine ? -3 : 0 }));
+      if (p.strikes && i > 0) events.push({ key: "return" + i, file: RETURN, moment: "return", at: p.delay - 0.2, db: -3 });
+      if (p.feeds && i === 0) p.feeds.forEach((f, n) => events.push({ key: "feed" + n, file: RETURN, moment: "feed", at: p.leaveAt + f, db: -2 * n }));
       for (const cue of cues) {
         const own = !!cue[3];
         if (own !== isLine && !(isLine && state.lineToo && !own && cue[2] !== "hold")) continue;
-        const pick = state.picks[style + ":" + cue[0]] || firstPick(style, cue);
+        const pick = chosen(style, cue);
         const file = fileOf(style, cue, pick);
         if (!file) continue;
         events.push({ key: style + ":" + cue[0] + (isLine && !own ? ":line" : ""), file, moment: cue[2], at: times[cue[2]], hold: cue[2] === "hold",
@@ -305,21 +321,22 @@
     function show(style) {
       shown = style;
       cues.innerHTML = "";
+      if (style === "type") { cues.innerHTML = '<div class="status">글자마다 키보드 녹음 (사운드랩의 kit.terminal), 줄 바꿈과 종이 올라갈 때마다 엔터</div>'; return; }
       if (!style) { cues.innerHTML = '<div class="status">이 스타일에는 소리 후보가 없습니다 (스타일 목록의 "…: 이름" 항목이나 dust, brief에 있습니다).</div>'; return; }
       for (const cue of CUES[style]) {
         const id = style + ":" + cue[0];
         const opts = [["none", "없음"]];
-        // (a pick and its refinements (<pick>_r<n>) read as such; fresh candidates by number)
-        const list = candidatesOf(style, cue), refined = list.some(f => /_r\d+\.ogg$/.test(f));
+        // (the user's pick (title_picks.json) and its refinements (<pick>_r<n>) read as such; fresh candidates by number)
+        const list = candidatesOf(style, cue), picked = PICKED[id], stem = picked ? picked.slice(0, -4) + "_r" : null;
         list.forEach((f, i) => {
-          const r = f.match(/_r(\d+)\.ogg$/);
-          opts.push([f, r ? "다듬음 " + r[1] : refined ? "선택" : String(i + 1)]);
+          const r = stem && f.startsWith(stem) ? f.slice(stem.length).match(/^(\d+)\.ogg$/) : null;
+          opts.push([f, f === picked ? "선택" : r ? "다듬음 " + r[1] : String(i + 1)]);
         });
         if (NOW[id]) opts.push(["now", hasCandidates(style, cue) ? "지금 게임" : "지금"]);
         const row = document.createElement("div");
         row.className = "cue";
         row.innerHTML = `<span class="name">${cue[1]}</span>`;
-        const cur = state.picks[id] || firstPick(style, cue);
+        const cur = chosen(style, cue);
         for (const [val, label] of opts) {
           const l = document.createElement("label");
           l.innerHTML = `<input type="radio" name="la_${id}" value="${val}"${cur === val ? " checked" : ""}> ${label}`;
@@ -358,7 +375,7 @@
   (function loadManifest() {
     const el = document.createElement("script");
     el.src = GEN + "manifest.js?" + Date.now();
-    el.onload = () => { MADE = window.TITLE_SOUND_CANDIDATES || {}; needSeek = true; panel.show(STYLE_OF[curStyle] || null); preload(STYLE_OF[curStyle]); };
+    el.onload = () => { MADE = window.TITLE_SOUND_CANDIDATES || {}; PICKED = window.TITLE_SOUND_PICKS || {}; needSeek = true; panel.show(STYLE_OF[curStyle] || null); preload(STYLE_OF[curStyle]); };
     el.onerror = () => panel.setStatus("후보 목록(mods/tools/sound/gen/manifest.js)이 없습니다: ai_titles.py로 만드세요");
     document.head.appendChild(el);
   })();
