@@ -182,8 +182,17 @@ function ISBUDisconnect:connected()
     return line ~= nil and line.panel == self.panelId and line.utility == self.utility
 end
 
--- The tool is checked as the action is queued (ContextMenu) and as it completes, not each tick.
-function ISBUDisconnect:isValid() return self:connected() end
+-- The tool is checked as the action is queued (ContextMenu) and as it completes (what it takes is looked for through the
+-- inventory then), and each tick that the one it was made with is still carried: dropping it stops the action, as the
+-- game's own actions stop when their tool goes (that item alone is looked at, not the inventory).
+function ISBUDisconnect:isValid()
+    local tool = self.tool
+    if tool then
+        local container = tool:getContainer()
+        if not (container and container:isInCharacterInventory(self.character)) then return false end
+    end
+    return self:connected()
+end
 
 function ISBUDisconnect:start() Actions.work(self, self.utility) end
 
@@ -197,6 +206,8 @@ end
 function ISBUDisconnect:new(character, kind, panel, utility, x, y, z, extra)
     local o = ISBaseTimedAction.new(self, character)
     o.kind, o.panelId, o.utility, o.x, o.y, o.z, o.extra = kind, panel and panel.id, utility, x, y, z, extra
+    -- (none when the tools cost nothing, or the character has none: complete still asks)
+    if BU.costsEnabled() then o.tool = Costs.toolItem(character, Actions.workCost(utility).tools[1]) end
     o.maxTime = o:getDuration()
     return o
 end
