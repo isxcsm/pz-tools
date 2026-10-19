@@ -490,12 +490,15 @@ function ISBUPanelList:onMouseDown(x, y)
     local item = index and index > 0 and self.items[index]
     if item then
         local dx, width = UI.dp(x), UI.dp(self:getWidth())
-        if not STILL[item.item.kind] then UI.placeFlash(self, index) end
+        local pressed
+        for _, button in ipairs(item.item.buttons or {}) do
+            if dx >= button.x and dx < button.x + button.w then pressed = button end
+        end
+        -- (one sound a click: a row's button's press, else the row's choice)
+        if not STILL[item.item.kind] then UI.placeFlash(self, index, nil, pressed and false or nil) end
         -- the row clicked is the one chosen now (none, for a row that stands for no thing)
         self.window:chooseRow(self.utility, item.item.key, true)
-        for _, button in ipairs(item.item.buttons or {}) do
-            if dx >= button.x and dx < button.x + button.w then UI.flash(self, index .. button.name) end
-        end
+        if pressed then UI.flash(self, index .. pressed.name, "kit.press") end
         self.window:onRow(self.utility, item.item, dx, width)
     end
     return true

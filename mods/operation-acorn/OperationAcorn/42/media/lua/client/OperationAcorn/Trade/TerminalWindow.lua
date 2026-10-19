@@ -151,7 +151,6 @@ function OATerminalTabs:onMouseDown(x, y)
     for _, slot in ipairs(self.slots) do
         if x >= slot.x and x < slot.x + slot.w then
             UI.flash(self, slot.id)
-            if slot.id ~= self.window.activeId then PZUIKit.Sound.ui("kit.select") end
             self.window:activate(slot.id)
             return true
         end

@@ -34,6 +34,7 @@
 require "ISUI/ISPanel"
 require "ISUI/ISScrollingListBox"
 require "PZUIKit/Text"
+require "PZUIKit/Sound"
 require "PZUIKit/Faces"
 local Kit = PZUIKit
 local Faces = Kit.Faces
@@ -1635,10 +1636,19 @@ function UI.hoverLight(el, key, on)
     return fxLevel(f, now)
 end
 
--- A click's flash on `el` (its `key`): full now, dying out.
-function UI.flash(el, key)
+-- The sound of a click that flashes: every drawn control (a button, a card, a tab, a row) that flashes on a click sounds
+-- with it, so that a mod's own controls sound as the kit's. `cue`: nil for kit.select (a choice), "kit.press" for a
+-- button, false for none (a control that sounds otherwise, as the game's button plays its own).
+local function clickSound(cue)
+    if cue == false then return end
+    PZUIKit.Sound.ui(cue or "kit.select")
+end
+
+-- A click's flash on `el` (its `key`): full now, dying out; with its sound (clickSound: `cue`).
+function UI.flash(el, key, cue)
     fxOf(el, "fxFlash")[key] = { from = 1, to = 0, at = getTimestampMs(), dur = UI.FLASH_MS }
     UI.live(el, fxFrame)
+    clickSound(cue)
 end
 
 -- The flash's level now, 0 to 1.
@@ -1674,9 +1684,10 @@ function UI.placeLight(el, over, data)
     UI.live(el, fxFrame)
 end
 
-function UI.placeFlash(el, place, data)
+function UI.placeFlash(el, place, data, cue)
     fxOf(el, "fxFlash").press = { place = place, data = data, from = 1, to = 0, at = getTimestampMs(), dur = UI.FLASH_MS }
     UI.live(el, fxFrame)
+    clickSound(cue)
 end
 
 -- How lit a place is now: its hover's level and its flash's, 0 to 1 each.

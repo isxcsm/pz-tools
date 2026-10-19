@@ -28,7 +28,8 @@ end
 
 function PZUIButton:onMouseDown(x, y)
     if self.style ~= "off" then
-        if self.enable then UI.flash(self, "press") end
+        -- (the game's button plays its own sound: sounds.activate)
+        if self.enable then UI.flash(self, "press", false) end
         return ISButton.onMouseDown(self, x, y)
     end
 end

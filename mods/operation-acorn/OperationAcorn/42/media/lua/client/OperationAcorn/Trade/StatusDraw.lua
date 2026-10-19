@@ -469,7 +469,7 @@ end
 function OAStatusView:onMouseDown(x, y)
     local hit = Draw.hitAt(self.list, x, y)
     if hit and hit.id and hit.enabled then
-        if lights(hit) then UI.placeFlash(self, hit.key, hit) end
+        if lights(hit) then UI.placeFlash(self, hit.key, hit, hit.button and "kit.press" or nil) end
         if self.onHit then self:onHit(hit) end
     end
     return true

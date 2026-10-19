@@ -195,7 +195,7 @@ end
 function ISBUManual:onMouseDown(x, y)
     for _, button in ipairs(self:recipeButtons()) do
         if not button.known and x >= button.x and x < button.x + button.w and y >= button.y and y < button.y + ROW - 4 then
-            UI.flash(self, "learn" .. button.taught.recipe)
+            UI.flash(self, "learn" .. button.taught.recipe, "kit.press")
             self.buttonsStale = true
             BU.Sync.send(self:character(), "learnRecipe",
                 { panel = self.window.panel.id, chapter = self.key, recipe = button.taught.recipe })

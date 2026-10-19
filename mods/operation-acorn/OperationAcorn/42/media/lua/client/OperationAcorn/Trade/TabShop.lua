@@ -690,7 +690,8 @@ end
 function OATabShop:onMouseDown(x, y)
     local at = self:leftAt(x, y)
     if at == nil then return true end
-    if at ~= self.cat then UI.placeFlash(self, at) end
+    -- (the sound comes with the change: setCat, the box's switch)
+    if at ~= self.cat then UI.placeFlash(self, at, nil, false) end
     if at == "only" then
         self.onlyOpen = not self.onlyOpen
         PZUIKit.Sound.ui("kit.select")
@@ -742,7 +743,6 @@ end
 function OATabShop.onCardRow(tab, row, x, y)
     local card = cardAt(tab, row, x, y)
     if card and card.id ~= tab.sel then
-        PZUIKit.Sound.ui("kit.select")
         tab.sel, tab.pick = card.id, nil
         tab:refresh()
         tab:revealCards(false)
