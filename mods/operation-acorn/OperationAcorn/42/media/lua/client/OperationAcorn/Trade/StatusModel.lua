@@ -79,18 +79,25 @@ end
 M.LEVELS = 9
 M.HANDOVER = Trust.STAGES + 3
 
--- "3 대조", "6단계", "8 이관", "9단계~": a node's label on the road.
-function M.nodeName(t)
+-- Whether the handover is named at level `t` for a player at level `cur`: only once reached (it is the story's turn:
+-- named ahead it spoils it). Before it, level 8 is a milestone like 6 and 7.
+local function handoverAt(t, cur)
+    return t == M.HANDOVER and (cur or 0) >= M.HANDOVER
+end
+M.handoverAt = handoverAt
+
+-- "3 대조", "6단계", "8 이관" (reached), "9단계~": a node's label on the road (`cur`: the player's level).
+function M.nodeName(t, cur)
     if t <= Trust.STAGES then return tr("IGUI_OA_Status_Node", t, tr(Trust.stageNameKey(t))) end
-    if t == M.HANDOVER then return tr("IGUI_OA_Status_Node", t, tr("IGUI_OA_Terminal_LevelHandover")) end
+    if handoverAt(t, cur) then return tr("IGUI_OA_Status_Node", t, tr("IGUI_OA_Terminal_LevelHandover")) end
     if t >= M.LEVELS then return tr("IGUI_OA_Status_NodeLast", t) end
     return tr(Trust.MILESTONE_NAME_KEY, t)
 end
 
--- "3단계 대조", "6단계", "8단계 이관", "9단계부터": a level's full name.
-function M.levelName(t)
+-- "3단계 대조", "6단계", "8단계 이관" (reached), "9단계부터": a level's full name.
+function M.levelName(t, cur)
     if t <= Trust.STAGES then return tr("IGUI_OA_Status_LevelName", t, tr(Trust.stageNameKey(t))) end
-    if t == M.HANDOVER then return tr("IGUI_OA_Status_LevelName", t, tr("IGUI_OA_Terminal_LevelHandover")) end
+    if handoverAt(t, cur) then return tr("IGUI_OA_Status_LevelName", t, tr("IGUI_OA_Terminal_LevelHandover")) end
     if t >= M.LEVELS then return tr("IGUI_OA_Status_LevelFrom", t) end
     return tr(Trust.MILESTONE_NAME_KEY, t)
 end
@@ -109,9 +116,11 @@ end
 -- What each level opens (DESIGN-terminal 2.3.1) ---------------------------------------------------------------------
 
 -- The shop's goods a screen lists: not the upgrade serums (their own section), not the box (the reissue button), not
--- what the shop hides (kits when they are off, goods whose item is not defined).
-function M.listed(entry)
+-- what the shop hides (kits when they are off, goods whose item is not defined; for a `record`, the weapon kits whose
+-- dense places it has not cleared: a level does not open those, a clearing does).
+function M.listed(entry, record)
     if entry.group == "serum" or entry.group == "box" or entry.special == "reissue" then return false end
+    if record and Shop.hidden(entry, record) then return false end
     if entry.kits and not OA.option("KitsForSale") then return false end
     return Shop.stocked(entry)
 end
@@ -120,13 +129,13 @@ end
 M.TOOLS = "tool"
 
 -- The goods each level opens, in one pass over the catalog: [level] = { all (on every terminal), field (only on the
--- field terminal) }.
-function M.lanes()
+-- field terminal) } (for a `record`: what its shop would show).
+function M.lanes(record)
     local out = {}
     for t = 1, M.LEVELS do out[t] = { all = {}, field = {} } end
     for _, e in ipairs(Shop.catalog()) do
         local lane = out[e.tier]
-        if lane and M.listed(e) then
+        if lane and M.listed(e, record) then
             local list = Shop.fieldOnly(e) and lane.field or lane.all
             list[#list + 1] = e
         end
@@ -144,8 +153,8 @@ end
 M.ACCEL = { [6] = 10, [8] = 20 }
 
 -- The short words under a node's icons on every terminal: missions and the request bands (Requests.eligible: the
--- common band at 1, the rare at 2), the handover, the acceleration, the serum, the endless levels.
-function M.chipsA(t)
+-- common band at 1, the rare at 2), the handover (reached), the acceleration, the serum, the endless levels.
+function M.chipsA(t, cur)
     local out = {}
     if t == 1 then
         out[#out + 1] = tr("IGUI_OA_Status_Chip_missions")
@@ -153,7 +162,7 @@ function M.chipsA(t)
     elseif t == 2 then
         out[#out + 1] = tr("IGUI_OA_Status_Chip_rare")
     end
-    if t == M.HANDOVER then out[#out + 1] = tr("IGUI_OA_Status_Chip_handover") end
+    if handoverAt(t, cur) then out[#out + 1] = tr("IGUI_OA_Status_Chip_handover") end
     if M.ACCEL[t] then out[#out + 1] = tr("IGUI_OA_Status_Chip_accel", M.ACCEL[t]) end
     if M.serumsAt(t) > 0 then out[#out + 1] = tr("IGUI_OA_Status_Chip_serum") end
     if t >= M.LEVELS then out[#out + 1] = tr("IGUI_OA_Status_Chip_endless") end
@@ -161,7 +170,7 @@ function M.chipsA(t)
 end
 
 -- The same as whole lines, for the chosen level's list.
-function M.moreA(t)
+function M.moreA(t, cur)
     local out = {}
     if t >= M.LEVELS then
         out[#out + 1] = tr("IGUI_OA_Status_More_serumEach")
@@ -174,7 +183,7 @@ function M.moreA(t)
     elseif t == 2 then
         out[#out + 1] = tr("IGUI_OA_Status_More_rare")
     end
-    if t == M.HANDOVER then out[#out + 1] = tr("IGUI_OA_Status_More_handover") end
+    if handoverAt(t, cur) then out[#out + 1] = tr("IGUI_OA_Status_More_handover") end
     if M.ACCEL[t] then out[#out + 1] = tr("IGUI_OA_Status_More_accel", M.ACCEL[t]) end
     if t == M.HANDOVER then out[#out + 1] = tr("IGUI_OA_Status_More_kitVoucher") end
     if M.serumsAt(t) > 0 then out[#out + 1] = tr("IGUI_OA_Status_More_serum") end
@@ -738,7 +747,7 @@ function M.news(record)
     local open, later = {}, 0
     local tools, toolsAt, toolsLater = 0, nil, false
     for _, e in ipairs(Shop.catalog()) do
-        if Shop.fieldOnly(e) and M.listed(e) then
+        if Shop.fieldOnly(e) and M.listed(e, record) then
             if e.tier > tier then
                 -- the field tools still to come count as one
                 if e.group ~= M.TOOLS then

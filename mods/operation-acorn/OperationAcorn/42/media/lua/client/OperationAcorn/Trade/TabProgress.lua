@@ -42,12 +42,12 @@ end
 function OATabProgress:model(record)
     local cur, frac = M.roadPosition(record)
     local levels = {}
-    local lanes = M.lanes()
+    local lanes = M.lanes(record)
     for t = 1, M.LEVELS do
         levels[t] = {
-            t = t, node = M.nodeName(t), name = M.levelName(t),
+            t = t, node = M.nodeName(t, cur), name = M.levelName(t, cur),
             itemsA = goods(lanes[t].all, record), itemsB = goods(lanes[t].field, record),
-            chipsA = M.chipsA(t), chipsB = M.chipsB(t), moreA = M.moreA(t), ups = M.upgradeLines(t),
+            chipsA = M.chipsA(t, cur), chipsB = M.chipsB(t), moreA = M.moreA(t, cur), ups = M.upgradeLines(t),
             nUps = #M.upgradesOpening(t), note = M.detailNote(record, t),
         }
     end
@@ -63,20 +63,20 @@ function OATabProgress:model(record)
     }
 end
 
--- One lane's cell: icons as many as fit (the rest counted), then the short words under them.
-local function cell(L, x, y, w, h, items, chips, a, locked, highlight)
+-- One lane's cell: icons as many as fit (the rest counted; `first`, a good's id, put first), then the short words
+-- under them.
+local function cell(L, x, y, w, h, items, chips, a, locked, first)
     local p = L.p
     local per = math.max(1, math.floor((w + 2) / 18))
     local list = items
-    if highlight then
+    if first then
         list = {}
-        for _, it in ipairs(items) do if it.id == highlight then table.insert(list, 1, it) else list[#list + 1] = it end end
+        for _, it in ipairs(items) do if it.id == first then table.insert(list, 1, it) else list[#list + 1] = it end end
     end
     local shown = #list <= per and #list or per - 1
     local ix = x
     for i = 1, shown do
         local it = list[i]
-        if highlight and it.id == highlight then Draw.frame(L, ix - 2, y - 2, 20, 20, p.warn) end
         Draw.item(L, it.type, ix, y, 16, a)
         ix = ix + 18
     end
