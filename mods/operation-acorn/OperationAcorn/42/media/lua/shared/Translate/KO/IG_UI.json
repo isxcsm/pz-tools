@@ -1109,6 +1109,7 @@
     "IGUI_OA_Terminal_Shop_SoldOutFrom": "재고 없음 · %1 재입고",
     "IGUI_OA_Terminal_Shop_StockLeft": "재고 %1",
     "IGUI_OA_Terminal_Shop_RestockAt": "%1 재입고",
+    "IGUI_OA_Terminal_Shop_CartFull": "살 수 있는 만큼 담았습니다.",
     "IGUI_OA_Terminal_Shop_PerWeek": "주당 %1개",
     "IGUI_OA_Terminal_Shop_PickKind": "종류 고르기",
     "IGUI_OA_Terminal_Shop_Add": "장바구니에 담기",

@@ -142,6 +142,12 @@ test("the maps show the places from trust level 6, in the colour of their kit, u
     eq(c.color, View.MAP_DENSE.crit)
     eq(scene.circles[1].color, View.MAP_DENSE.damage)
     eq(scene.circles[3].color, View.MAP_DENSE.repair)
+    -- a world without zombies: no place can be cleared, so none is shown
+    SandboxVars = { Zombies = Dense.NO_ZOMBIES }
+    eq(#View.scene(high, nil).circles, 0)
+    SandboxVars = { Zombies = 4 }
+    eq(#View.scene(high, nil).circles, 4)
+    SandboxVars = nil
     OA.Store.world("dense").cleared = { D2 = { by = "someone", at = 5 } }
     local after = View.scene(high, nil)
     eq(#after.circles, 4, "cleared by another: its kit still waits there for this one")

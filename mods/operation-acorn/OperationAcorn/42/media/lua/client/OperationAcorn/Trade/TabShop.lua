@@ -769,8 +769,22 @@ function OATabShop:sendLines(lines)
     self:send("tradeCart", { lines = lines })
 end
 
+-- Whether `count` more of an entry fit what the record may buy (its stock or weekly limit, every choice together) with
+-- the cart's lines; else the notice says the cart holds all it can (the helicopter would refuse the rest).
+function OATabShop:fits(entry, lines, count)
+    local most = OA.Shop.available(entry, self:record())
+    local held = 0
+    for _, line in ipairs(lines) do
+        if line.id == entry.id then held = held + line.count end
+    end
+    if held + count <= (most or 0) then return true end
+    self:notice("IGUI_OA_Terminal_Shop_CartFull")
+    return false
+end
+
 function OATabShop:addLine(entry, choice, count)
     local lines = self:linesCopy()
+    if not self:fits(entry, lines, count) then return end
     for _, line in ipairs(lines) do
         if line.id == entry.id and line.choice == choice then
             line.count = line.count + count
@@ -804,6 +818,8 @@ end
 
 function OATabShop:change(line, delta)
     local lines = self:linesCopy()
+    local entry = delta > 0 and OA.Shop.entry(line.id)
+    if entry and not self:fits(entry, lines, delta) then return end
     for _, l in ipairs(lines) do
         if same(l, line) then l.count = l.count + delta end
     end

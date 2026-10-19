@@ -1109,6 +1109,7 @@
     "IGUI_OA_Terminal_Shop_SoldOutFrom": "Out of stock · back %1",
     "IGUI_OA_Terminal_Shop_StockLeft": "%1 in stock",
     "IGUI_OA_Terminal_Shop_RestockAt": "Restocks %1",
+    "IGUI_OA_Terminal_Shop_CartFull": "The cart holds all you can buy.",
     "IGUI_OA_Terminal_Shop_PerWeek": "%1 a week",
     "IGUI_OA_Terminal_Shop_PickKind": "Pick a kind",
     "IGUI_OA_Terminal_Shop_Add": "Add to cart",

@@ -25,6 +25,10 @@ P10T.start("p10dense", function(a)
     local api = OA.api()
     if not a.check("the API has the dense places call", api and api.zombies and type(api.zombies.dense) == "function"
         and type(api.zombies.near) == "function") then return end
+    -- (the test save has no zombie population; this check makes its own crowds, so the world counts as having zombies)
+    local realZombieless = Dense.zombieless
+    Dense.zombieless = function() return false end
+    a.cleanup(function() Dense.zombieless = realZombieless end)
 
     -- 1. the world list
     local list = Dense.ensure()

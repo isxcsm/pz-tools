@@ -129,10 +129,18 @@ function Dense.cleared(id)
     return c and c[id] or nil
 end
 
+-- The sandbox's zombie population that means none (SandboxVars.Zombies, 1 insane to 6 none).
+Dense.NO_ZOMBIES = 6
+
+-- Whether the world has no zombies: its places never reach a baseline to clear, so they are neither shown nor looked at.
+function Dense.zombieless()
+    return SandboxVars ~= nil and SandboxVars.Zombies == Dense.NO_ZOMBIES
+end
+
 -- The places the maps show a record: { { id, x, y, r, kind } }, from the trust level on, those it has no reward from.
 function Dense.shown(record)
     local list = {}
-    if OA.Trust.tier(record) < Dense.TIER then return list end
+    if OA.Trust.tier(record) < Dense.TIER or Dense.zombieless() then return list end
     local got = Dense.got(record)
     for _, p in ipairs(Dense.list()) do
         if not got[p.id] then list[#list + 1] = p end
@@ -189,7 +197,7 @@ end
 local function lookList(record)
     if not OA.due(looks, record.id, getTimestampMs(), Dense.LOOK_MS) then return nil end
     local list = world().list
-    if not list or #list == 0 or OA.Trust.tier(record) < Dense.TIER then return nil end
+    if not list or #list == 0 or OA.Trust.tier(record) < Dense.TIER or Dense.zombieless() then return nil end
     return list
 end
 
