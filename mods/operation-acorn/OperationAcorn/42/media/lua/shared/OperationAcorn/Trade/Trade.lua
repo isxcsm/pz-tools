@@ -191,9 +191,10 @@ end
 function Trade.clockText(hours)
     local day = OA.day(hours)
     local tod = OA.remainder(hours + OA.remainder(getGameTime():getTimeOfDay() - OA.hours(), 24), 24)
-    local h = math.floor(tod)
-    local m = math.floor((tod - h) * 60)
-    return day, h, m
+    -- (a hair's slack: an arrival put on 07:20 and read back as 07:19.99999 says 07:20)
+    local minutes = OA.remainder(math.floor(tod * 60 + 1e-3), 24 * 60)
+    local h = math.floor(minutes / 60)
+    return day, h, minutes - h * 60
 end
 
 -- A world age as read from now, as a text ({ key, args }, translated on the player's side): today's, tomorrow's or so

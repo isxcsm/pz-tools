@@ -27,6 +27,20 @@ test("a night arrival comes the next morning between 07 and 09", function()
     near(Rules.arrival(0, 16, 4, false, -3), 4 + 11)
 end)
 
+test("an arrival is put on the clock's next ten minutes, as the arrivals are looked at", function()
+    -- 06:58 plus 15 minutes is 07:13: it comes at 07:20, and that is the time said.
+    local tod = 6 + 58 / 60
+    local arrive = Rules.arrival(100, tod, 0.25, false, 0)
+    near(Rules.timeOfDayAfter(tod, arrive - 100), 7 + 20 / 60, 1e-9, "07:13 to 07:20")
+    -- on the tens already: kept
+    near(Rules.arrival(0, 9, 5, false, 1), 5)
+    near(Rules.onStep(0, 9, 5 + 1e-9), 5, 1e-6, "a hair past a step is that step")
+    -- the morning's spread too: 07:00 plus 0.3 hours is 07:18, put on 07:20
+    near(Rules.timeOfDayAfter(23, Rules.arrival(0, 23, 4, false, 0.3)), 7 + 20 / 60)
+    -- half a minute early counts as come; a minute early does not
+    eq(Rules.arrived(5 - 0.4 / 60, 5), true); eq(Rules.arrived(5 - 1 / 60, 5), false)
+end)
+
 test("the night drop reward lets the helicopter come at night", function()
     near(Rules.arrival(0, 16, 6, true, 1), 6)
 end)

@@ -306,7 +306,7 @@ function Heli.check()
     local now = OA.hours()
     for _, record in pairs(Store.players()) do
         local heli = record.heli
-        if heli and heli.call and now >= heli.call.arrive then
+        if heli and heli.call and Rules.arrived(now, heli.call.arrive) then
             local ok, err = pcall(Heli.arrive, record)
             if not ok then OA.log("arrival failed:", tostring(err)) end
         end

@@ -15,16 +15,34 @@ function Rules.timeOfDayAfter(tod, delay)
     return OA.remainder(tod + delay, 24)
 end
 
+-- The arrivals are looked at every ten game minutes (on the clock's tens), so an arrival is put on the next of them:
+-- the time the terminal says is the time the helicopter comes (07:13 said and 07:20 come was a wrong promise).
+Rules.STEP_MINUTES = 10
+
+-- `arrive` (world hours) moved up to the next ten minutes of the clock; `now` is at time of day `tod`.
+function Rules.onStep(now, tod, arrive)
+    local minutes = Rules.timeOfDayAfter(tod, arrive - now) * 60
+    local up = math.ceil(minutes / Rules.STEP_MINUTES - 1e-6) * Rules.STEP_MINUTES - minutes
+    return arrive + math.max(0, up) / 60
+end
+
+-- Whether an arrival has come at `now`: half a minute early counts (the ten-minute look may fall a hair before the
+-- step its arrival was put on).
+function Rules.arrived(now, arrive)
+    return now >= arrive - 0.5 / 60
+end
+
 -- When a call made at world age `now` (hours), at time of day `tod`, arrives. `delay` is the hours the call takes (a
 -- number between the rewards' arrival range); `extra` is 0 up to 2 hours added when it moves to the morning. With
--- the night drop reward the arrival stays as it is; without it a night arrival comes the next morning.
+-- the night drop reward the arrival stays as it is; without it a night arrival comes the next morning. Either way on
+-- the clock's tens (Rules.onStep).
 function Rules.arrival(now, tod, delay, nightDrop, extra)
     local arrive = now + delay
     local at = Rules.timeOfDayAfter(tod, delay)
-    if nightDrop or (at >= Rules.DAY_START and at < Rules.DAY_END) then return arrive end
+    if nightDrop or (at >= Rules.DAY_START and at < Rules.DAY_END) then return Rules.onStep(now, tod, arrive) end
     local wait
     if at >= Rules.DAY_END then wait = (24 - at) + Rules.DAY_START else wait = Rules.DAY_START - at end
-    return arrive + wait + OA.clamp(extra or 0, 0, Rules.MORNING_SPREAD)
+    return Rules.onStep(now, tod, arrive + wait + OA.clamp(extra or 0, 0, Rules.MORNING_SPREAD))
 end
 
 -- How many hours a call takes: a number from the rewards' range (min, max in hours), picked by `rnd(a, b)`.

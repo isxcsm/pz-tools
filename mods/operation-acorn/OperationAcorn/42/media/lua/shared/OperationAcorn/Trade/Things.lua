@@ -392,8 +392,9 @@ function Things.crateEmpty(object)
     return container == nil or container:isEmpty()
 end
 
--- What an emptied crate leaves on the floor.
-Things.CRATE_MATERIALS = { { "Base.Plank", 3 }, { "Base.Nails", 6 } }
+-- What an emptied crate leaves on the floor: a plank, a sign of the crate rather than a reward (it breaks after every
+-- flight; three planks and six nails each time were a supply of their own, the nails above all).
+Things.CRATE_MATERIALS = { { "Base.Plank", 1 } }
 
 -- An opened crate that is empty breaks: it is taken away and its wood and nails fall where it stood. Returns whether
 -- it broke.
