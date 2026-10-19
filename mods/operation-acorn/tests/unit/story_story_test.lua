@@ -178,6 +178,8 @@ test("after the handover the notes come from the milestone's pool, shorter the f
     local n = 0
     while Story.manifestNoteKey(record) do n = n + 1 end
     eq(n, 11, "twelve notes in a pool")
+    record.trade.milestones = 7
+    eq(Story.manifestNoteKey(record), nil, "the last pool is said once: later milestones get the general lines")
 end)
 
 test("the old form comes at the fourth stage", function()

@@ -27,6 +27,7 @@
     "IGUI_OA_Econ_Event_Glut": "Enough %1 samples for now.",
     "IGUI_OA_Econ_Event_StageWant": "%1 samples first.",
     "IGUI_OA_Econ_Event_ClothesWanted": "Fabric samples wanted first: %1.",
+    "IGUI_OA_Econ_Event_SerumStock": "Serum stock needed urgently: every category.",
     "IGUI_OA_Econ_Event_FilterSamples": "Filter samples urgently requested: %1.",
     "IGUI_OA_Econ_Shop_Locked": "Not open yet.",
     "IGUI_OA_Econ_Shop_KitsOff": "Kits are not on sale in this world.",

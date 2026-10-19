@@ -84,11 +84,14 @@ function Market.state()
     return st
 end
 
+-- An event's category may be Market.ALL: it is on every category (the story's "send all you can", S6).
+Market.ALL = "*"
+
 -- The events that rule a category on a day: its largest raise and its deepest glut (either may be nil).
 local function leadEvents(st, cat, day)
     local best, glut
     for _, e in ipairs(st.events) do
-        if e.cat == cat and e.ends > day then
+        if (e.cat == cat or e.cat == Market.ALL) and e.ends > day then
             if e.mult > 1.0 then
                 if not best or e.mult > best.mult then best = e end
             elseif e.mult < 1.0 and (not glut or e.mult < glut.mult) then
@@ -319,10 +322,18 @@ function Market.situation()
     local st = Market.state()
     local day = st.day
     local lines = {}
+    local allShown = {}
     for _, c in ipairs(OA.Categories.LETTERS) do
         local best, glut = leadEvents(st, c, day)
         local e = best or glut
-        if e then
+        -- an event on every category is one line (its text names no category), however many it leads
+        if e and e.cat == Market.ALL then
+            if not allShown[e] then
+                allShown[e] = true
+                lines[#lines + 1] = { kind = best and "raise" or "glut", cat = Market.ALL, mult = e.mult,
+                    left = e.ends - day, key = e.key or "IGUI_OA_Econ_Event_Demand", withCat = false }
+            end
+        elseif e then
             local key = e.key or (best and "IGUI_OA_Econ_Event_Demand" or "IGUI_OA_Econ_Event_Glut")
             lines[#lines + 1] = { kind = best and "raise" or "glut", cat = c, mult = e.mult, left = e.ends - day,
                 key = key, withCat = not OA.Season.isLineKey(key) }

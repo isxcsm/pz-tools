@@ -239,8 +239,8 @@ Data.NOTE_ITEMS = {
 -- (count_off says it is not), "orders" an order was loaded (the note counts them: %2).
 Data.NOTE_WHEN = { count_off = "gap", after3_2 = "orders", after4_1 = "orders" }
 
--- After the handover each milestone has a pool, from the 3rd milestone (index 3) on; further milestones use the last
--- pool again. The manifest notes of each.
+-- After the handover each milestone has a pool, from the 3rd milestone (index 3) on; further milestones draw on the last
+-- pool where it was left (each note is said once: when it is used up the general lines follow). The notes of each.
 Data.AFTER = {
     [3] = { notes = 12 },
     [4] = { notes = 12 },
