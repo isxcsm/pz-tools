@@ -190,7 +190,10 @@ P10T.start("p10survey", function(a)
                 local label = "site " .. n .. " (" .. tostring(s.kind) .. ")"
                 a.check(label .. " placed", s.state == "placed" and not timedOut, s.state .. (timedOut and " timed out" or ""))
                 local was = first[n]
-                a.check(label .. " kept the place it was decided at", was.x == s.x and was.y == s.y,
+                -- (decided from the map's data, it settles on a fitting square of its chunk as the chunk loads: Sites.onChunk)
+                local size = OA.Chunks.SIZE
+                a.check(label .. " stayed in the chunk it was decided in",
+                    math.floor(was.x / size) == math.floor(s.x / size) and math.floor(was.y / size) == math.floor(s.y / size),
                     was.x .. "," .. was.y .. " -> " .. s.x .. "," .. s.y .. " (the zone follows the site)")
                 local sq = getCell():getGridSquare(s.x, s.y, 0)
                 if not a.check(label .. " its square is loaded", sq ~= nil, s.x .. "," .. s.y) then return end
