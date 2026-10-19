@@ -175,9 +175,10 @@ end
 
 -- ---------------------------------------------------------------------------------------------------------------------
 -- A sound looped on the screen while its owner wants it (the static under a call): it stops while the game is paused
--- and comes back as the game goes on (the game's own pause stops what it plays; ours must not go on over it).
+-- and comes back as the game goes on (the game's own pause stops what it plays; ours must not go on over it). Its
+-- level (0 to 1 of its own) may change as it plays (Sound.loopLevel: the static swelling, or cut, with the line).
 
-local loops = {}    -- owner -> { cue, id (nil while held) }
+local loops = {}    -- owner -> { cue, id (nil while held), level }
 local looping = false
 
 -- Whether the game is paused now (the game's own answer; a test sets Sound.paused).
@@ -185,9 +186,20 @@ function Sound.paused()
     return isGamePaused()
 end
 
+-- Its level into the playing sound, at once (the UI emitter's volume, ticked so that it is not heard a frame at 1).
+local function level(loop)
+    if not loop.id or loop.level == 1 then return end
+    local emitter = getSoundManager():getUIEmitter()
+    if not emitter then return end
+    emitter:setVolume(loop.id, loop.level)
+    emitter:tick()
+end
+
 local function start(loop)
     local name = Sound.name(loop.cue)
     loop.id = name and getSoundManager():playUISound(name) or nil
+    if loop.id == 0 then loop.id = nil end
+    level(loop)
 end
 
 local function halt(loop)
@@ -215,14 +227,28 @@ function Sound.follow()
     end
 end
 
-function Sound.loop(owner, cue)
+function Sound.loop(owner, cue, startLevel)
     if loops[owner] then return end
-    local loop = { cue = cue }
+    local loop = { cue = cue, level = startLevel or 1 }
     loops[owner] = loop
     if Sound.paused() then loop.held = true else start(loop) end
     if not looping then
         looping = true
         Events.OnPreUIDraw.Add(Sound.follow)
+    end
+end
+
+-- An owner's loop at another level (kept while it is held for a pause; set only when it changes).
+function Sound.loopLevel(owner, to)
+    local loop = loops[owner]
+    if not loop or loop.level == to then return end
+    loop.level = to
+    if loop.id then
+        local emitter = getSoundManager():getUIEmitter()
+        if emitter then
+            emitter:setVolume(loop.id, to)
+            emitter:tick()
+        end
     end
 end
 

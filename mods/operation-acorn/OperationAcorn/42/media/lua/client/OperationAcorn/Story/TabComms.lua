@@ -456,6 +456,7 @@ function OATabComms:advance(now)
         play.line, play.sent = st.line, false
         local who = play.lines[st.line].who
         if who == "oak" then Sound.ui("oa.comms.in") end
+        self:staticFor(who)
         changed = true
     end
     if play.lines[st.line].who == "me" and st.phase == "read" and not play.sent then
@@ -573,12 +574,22 @@ function OATabComms:replay(item)
     if e then self:start(e, item.tier, true) end
 end
 
+-- The static's level (of its own) by what the line is: under the hail and a noise line the open channel's hiss in full,
+-- under the voices the carrier holding it down, and a mute line dead air (the line cut: nothing).
+OATabComms.STATIC = { hail = 1, noise = 1, voice = 0.4, mute = 0 }
+
 -- The sound under a call (`on`): the game's ambience turned down, a low static (stopping while the game is
 -- paused); and all of it back. The game goes on under a call (the player pauses it as ever, and the call stands still
 -- with it: the scene clock).
 function OATabComms:hush(on)
     Sound.duck(self, on, OATabComms.DUCK)
-    if on then Sound.loop(self, "oa.comms.static") else Sound.unloop(self) end
+    if on then Sound.loop(self, "oa.comms.static", OATabComms.STATIC.hail) else Sound.unloop(self) end
+end
+
+-- The static as the line `who` speaks ("noise", "mute", else a voice).
+function OATabComms:staticFor(who)
+    local s = OATabComms.STATIC
+    Sound.loopLevel(self, who == "noise" and s.noise or who == "mute" and s.mute or s.voice)
 end
 
 -- Drawing ----------------------------------------------------------------------------------------------------------

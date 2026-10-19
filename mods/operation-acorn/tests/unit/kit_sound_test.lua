@@ -126,6 +126,39 @@ test("a loop plays while its owner wants it, stops while the game is paused and 
     Sound.unloop("other")
 end)
 
+test("a loop's level: set as it starts, changed as it plays (only when it changes), kept over a pause", function()
+    game()
+    local set = {}
+    local real = getSoundManager
+    getSoundManager = function()
+        local m = real()
+        m.getUIEmitter = function()
+            return { setVolume = function(_, id, v) set[#set + 1] = { id, v } end, tick = function() end }
+        end
+        return m
+    end
+    Sound.define("t.loop", { sound = "L" })
+    local paused = false
+    Sound.paused = function() return paused end
+    Sound.loop("owner", "t.loop", 0.4)
+    eq(set[1][2], 0.4, "at its level from its first frame")
+    Sound.loopLevel("owner", 0.4)
+    eq(#set, 1, "the same level is not set again")
+    Sound.loopLevel("owner", 0)
+    eq(set[2][2], 0)
+    paused = true
+    Sound.follow()
+    Sound.loopLevel("owner", 1)
+    eq(#set, 2, "held for the pause: nothing playing to set")
+    paused = false
+    Sound.follow()
+    eq(#set, 2, "back at 1: the sound's own volume")
+    Sound.loopLevel("owner", 0.4)
+    eq(set[3][2], 0.4)
+    Sound.unloop("owner")
+    Sound.follow()
+end)
+
 test("the game's ambience is turned down while any owner holds it, to the lowest share, and back after the last; its sound effects not", function()
     game()
     Sound.duck("a", true, 0.5)
