@@ -94,7 +94,7 @@ local SERUM_TYPE = { scout = "serumScout", load = "serumLoad", survival = "serum
 Shop.KITS = {
     capacity = { price = 50000, type = "kitCapacity" },
     lightening = { price = 50000, type = "kitLightening" },
-    reinforcement = { price = 40000, type = "kitReinforcement" },
+    reinforcement = { price = 60000, type = "kitReinforcement" },
     engine = { price = 80000, type = "kitEngine" },
 }
 Shop.KIT_ORDER = { "capacity", "lightening", "reinforcement", "engine" }
@@ -105,6 +105,7 @@ Shop.SHARED_SERUM_PRICE = 20000
 Shop.WEAPON_KITS = {
     { "kit_weapon_damage", "damage", 60000, "OperationAcorn.KitWeaponDamage" },
     { "kit_weapon_crit", "crit", 60000, "OperationAcorn.KitWeaponCrit" },
+    { "kit_weapon_critdamage", "critDamage", 60000, "OperationAcorn.KitWeaponCritDamage" },
     { "kit_weapon_repair", "repair", 30000, "OperationAcorn.KitWeaponRepair" },
 }
 

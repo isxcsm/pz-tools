@@ -45,7 +45,7 @@ Menu.TEXTS = {
     TeamBackpack = "TeamBackpack", TeamWaistBagFront = "TeamWaistBag", TeamWaistBagBack = "TeamWaistBag",
     TeamFuelCan = "TeamFuelCan", KitCapacity = "KitCapacity", KitLightening = "KitLightening",
     KitReinforcement = "KitReinforcement", KitEngine = "KitEngine", KitWeaponDamage = "KitWeaponDamage",
-    KitWeaponCrit = "KitWeaponCrit", KitWeaponRepair = "KitWeaponRepair",
+    KitWeaponCrit = "KitWeaponCrit", KitWeaponCritDamage = "KitWeaponCritDamage", KitWeaponRepair = "KitWeaponRepair",
 }
 
 -- The tooltip text of an item of this mod or the team's welder, or nil.
@@ -287,12 +287,13 @@ local function onGameStart()
 end
 Events.OnGameStart.Add(onGameStart)
 
--- A weapon's critical chance is not saved by the game (its damage is), and a weapon left in a container at the start was
--- not looked at then: its kits are written into it as it is taken in hand (one item, only one with weapon kits).
+-- A weapon's critical chance and multiplier are not saved by the game (its damage is), and a weapon left in a container
+-- at the start was not looked at then: its kits are written into it as it is taken in hand (one item, only one with
+-- weapon kits).
 local function onEquip(_, item)
     if not item or not item:IsWeapon() or not item:hasModData() then return end
-    local damage, crit = Gear.weaponKits(item)
-    if damage > 0 or crit > 0 then OA.try("gear: a weapon's kits", Gear.refreshItem, item) end
+    local damage, crit, _, critDamage = Gear.weaponKits(item)
+    if damage > 0 or crit > 0 or critDamage > 0 then OA.try("gear: a weapon's kits", Gear.refreshItem, item) end
 end
 Events.OnEquipPrimary.Add(onEquip)
 Events.OnEquipSecondary.Add(onEquip)

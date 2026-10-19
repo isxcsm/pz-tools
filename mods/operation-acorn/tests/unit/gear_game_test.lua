@@ -136,13 +136,15 @@ local function newItem(fullType, opts)
     function item:hasHeadCondition() return self.head ~= nil end
     function item:getHeadCondition() return self.head end
     function item:setHeadCondition(n) self.head = math.min(n, self.conditionMax) end
+    item.repaired = opts.repaired or 0
+    function item:getHaveBeenRepaired() return self.repaired end
+    function item:setHaveBeenRepaired(n) self.repaired = n end
     -- a weapon (opts.weapon = { min, max, crit, parts = { damage ... } }): the damage and critical chance the game keeps in
     -- the item and, from its script, the damage it started with (the script has no critical getter)
     if opts.weapon then
         local w = opts.weapon
-        item.minDamage, item.maxDamage, item.crit = w.min, w.max, w.crit
+        item.minDamage, item.maxDamage, item.crit, item.times = w.min, w.max, w.crit, w.times or 2
         item.partList = w.parts or {}
-        item.repaired = 0
         script.minDamage, script.maxDamage = w.min, w.max
         function script:getMinDamage() return self.minDamage end
         function script:getMaxDamage() return self.maxDamage end
@@ -152,7 +154,8 @@ local function newItem(fullType, opts)
         function item:setMaxDamage(n) self.maxDamage = n end
         function item:getCriticalChance() return self.crit end
         function item:setCriticalChance(n) self.crit = n end
-        function item:getHaveBeenRepaired() return self.repaired end
+        function item:getCriticalDamageMultiplier() return self.times end
+        function item:setCriticalDamageMultiplier(n) self.times = n end
         function item:getAllWeaponParts()
             local parts = {}
             for i, damage in ipairs(self.partList) do parts[i] = { getDamage = function() return damage end } end
@@ -603,6 +606,30 @@ test("a field tool: the reinforcement kit raises its most condition, the conditi
     eq(Gear.itemLines(tool)[2], "Tooltip_OA_Gear_ToughKits 4 24")
 end)
 
+test("a reinforcement kit now and then clears the count of repairs a field tool has had", function()
+    setup()
+    local roll = Gear.roll
+    local player = newCharacter()
+    local tool = newItem("OperationAcorn.FieldHammer", { weight = 1.28, condition = 12, repaired = 3 })
+    player.inventory:AddItem(tool)
+    Gear.roll = function() return 0.5 end
+    truthy(Gear.fitItem(player, kitOf(player, "reinforcement"), tool))
+    eq(tool.repaired, 3, "a missed roll keeps the count")
+    eq(notices[1].key, "IGUI_OA_Gear_Fitted_tough")
+    Gear.roll = function() return Rules.RESET_CHANCE - 0.01 end
+    truthy(Gear.fitItem(player, kitOf(player, "reinforcement"), tool))
+    eq(tool.repaired, 0)
+    eq(notices[2].key, "IGUI_OA_Gear_Fitted_toughReset")
+    local fresh = newItem("OperationAcorn.FieldHammer", { weight = 1.28, condition = 12 })
+    player.inventory:AddItem(fresh)
+    local rolled = false
+    Gear.roll = function() rolled = true; return 0 end
+    truthy(Gear.fitItem(player, kitOf(player, "reinforcement"), fresh))
+    truthy(not rolled, "a tool never repaired does not roll")
+    eq(notices[3].key, "IGUI_OA_Gear_Fitted_tough")
+    Gear.roll = roll
+end)
+
 -- ---------------------------------------------------------------------------------------------------------------------
 -- Vehicle storage
 
@@ -727,7 +754,7 @@ test("an engine kit adds a tenth of the power and a twentieth of the loudness, f
     eq(power, 154)
     eq(car.power, 154)
     eq(car.loud, 39)
-    eq(car.quality, 80, "the quality is kept")
+    eq(car.quality, 100, "the quality rises by a step, to the most")
     eq(car.transmitted, 1)
     local md = car.parts.Engine.md
     eq(md[K.ENGINE], 1); eq(md[K.ENGINE_POWER], 140); eq(md[K.ENGINE_LOUD], 37)
@@ -736,7 +763,25 @@ test("an engine kit adds a tenth of the power and a twentieth of the loudness, f
     eq(car.loud, 41)
     eq(md[K.ENGINE_POWER], 140, "the original is not overwritten")
     eq(md[K.ENGINE], 2)
+    eq(notices[1].key, "IGUI_OA_Gear_Fitted_engineQuality")
+    eq(notices[1].args[3], "100")
+    eq(notices[2].key, "IGUI_OA_Gear_Fitted_engine", "at the most quality the notice is the power alone")
     eq(notices[2].args[2], "16.8")
+    eq(car.quality, 100)
+end)
+
+test("an engine kit raises a worn engine's quality by a step each", function()
+    setup()
+    local player = newCharacter()
+    local car = newVehicle({ power = 140, loud = 37, parts = { newPart("Engine") } })
+    car.quality = 35
+    truthy(Gear.fitEngine(player, kitOf(player, "engine"), car))
+    eq(car.quality, 55)
+    truthy(Gear.fitEngine(player, kitOf(player, "engine"), car))
+    eq(car.quality, 75)
+    eq(car.power, 168, "the power is the kits' all the same")
+    eq(Gear.refreshEngine(car), false, "a refresh keeps the quality")
+    eq(car.quality, 75)
 end)
 
 test("the engine survives the game putting the script's values back, and refresh is not a write when it is right", function()

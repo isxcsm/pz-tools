@@ -9,13 +9,17 @@
 --   lightening kit     a bag: its weight reduction, saved. A team item (the fuel can, the welder, a field tool): what
 --                      it weighs carried (OA_Carry, which the extension API reads; without the API its weight, which the
 --                      game does not save, so it is written again when the game starts and when the item is looked at).
---   reinforcement kit  a field tool: its most condition (setConditionMax), saved.
---   engine kit         the engine part: the engine's own features (BaseVehicle.setEngineFeature), saved.
+--   reinforcement kit  a field tool: its most condition (setConditionMax), saved; at times (RESET_CHANCE) it also
+--                      clears the count of repairs the game keeps, which makes repairs by hand weaker each time.
+--   engine kit         the engine part: the engine's own features (BaseVehicle.setEngineFeature), saved; it also
+--                      raises the engine quality, the wear the game never repairs (starts, hotwiring, fuel).
 --   weapon kits        a HandWeapon, melee or firearm. Damage: its least and most damage (HandWeapon.setMinDamage and
 --                      setMaxDamage), +10% of the script's per kit; the weapon parts' damage (they add to it as they
 --                      are attached) is added on top. Critical: its critical chance (setCriticalChance), +5 points of the
 --                      chance it had before the first critical kit (the script has no getter for it, only a field) per
---                      kit. Repair: the weapon's condition up by a tenth of its most, once; only counted.
+--                      kit. Critical damage: its critical damage multiplier (setCriticalDamageMultiplier), +10% of the
+--                      multiplier it had before the first such kit, per kit. Repair: the weapon's condition up by a
+--                      tenth of its most, once; only counted.
 -- The counts of kits live in the target's modData; the values are worked out again from them (refresh*), so a game
 -- started later with or without the API gets the right value.
 --
@@ -300,11 +304,11 @@ function Gear.itemKits(item)
     return md[K.KIT_CAP] or 0, md[K.KIT_LIGHT] or 0, md[K.KIT_TOUGH] or 0
 end
 
--- The weapon kits fitted to a weapon: damage, critical, repair (used).
+-- The weapon kits fitted to a weapon: damage, critical, repair (used), critical damage.
 function Gear.weaponKits(item)
     local md = dataOf(item)
-    if not md then return 0, 0, 0 end
-    return md[K.KIT_WDAMAGE] or 0, md[K.KIT_WCRIT] or 0, md[K.KIT_WREPAIR] or 0
+    if not md then return 0, 0, 0, 0 end
+    return md[K.KIT_WDAMAGE] or 0, md[K.KIT_WCRIT] or 0, md[K.KIT_WREPAIR] or 0, md[K.KIT_WCRITDMG] or 0
 end
 
 -- The script's weight and most condition of an item (the field tool's, before any kit).
@@ -368,9 +372,10 @@ local function partsDamage(weapon)
 end
 
 -- A weapon's damage and critical kits written into it, worked out from the script's damage (getScriptItem; the script
--- has no critical getter, so that one starts from the chance the weapon had at the first critical kit) and the counts.
+-- has no critical getters, so those start from the chance and the multiplier the weapon had at the first kit of each)
+-- and the counts.
 local function refreshWeapon(weapon, md)
-    local d, c = Gear.weaponKits(weapon)
+    local d, c, _, cd = Gear.weaponKits(weapon)
     if d > 0 then
         local script = weapon:getScriptItem()
         if script then
@@ -384,6 +389,10 @@ local function refreshWeapon(weapon, md)
     if c > 0 and md[K.WEAPON_CRIT] then
         local chance = Rules.crit(md[K.WEAPON_CRIT], c)
         if math.abs(weapon:getCriticalChance() - chance) > 1e-4 then weapon:setCriticalChance(chance) end
+    end
+    if cd > 0 and md[K.WEAPON_CRITDMG] then
+        local times = Rules.critDamage(md[K.WEAPON_CRITDMG], cd)
+        if math.abs(weapon:getCriticalDamageMultiplier() - times) > 1e-4 then weapon:setCriticalDamageMultiplier(times) end
     end
 end
 
@@ -422,8 +431,9 @@ function Gear.itemInfo(item)
     local target = Gear.targetOf(item)
     if not target then return nil end
     if target == "weapon" then
-        local d, c, r = Gear.weaponKits(item)
-        return { target = target, damage = d, crit = c, repair = r, chance = item:getCriticalChance(),
+        local d, c, r, cd = Gear.weaponKits(item)
+        return { target = target, damage = d, crit = c, repair = r, critDamage = cd, chance = item:getCriticalChance(),
+            times = item:getCriticalDamageMultiplier(),
             condition = item:getCondition(), most = item:getConditionMax() }
     end
     local n, w, t = Gear.itemKits(item)
@@ -479,6 +489,9 @@ local function fittedText(kind, target, info)
             return "IGUI_OA_Gear_Fitted_weaponDamage", "+" .. tostring(OA.round(info.damage * Rules.DAMAGE_STEP * 100)) .. "%"
         end
         if kind == "weaponCrit" then return "IGUI_OA_Gear_Fitted_weaponCrit", tostring(OA.round(info.chance)) .. "%" end
+        if kind == "weaponCritDamage" then
+            return "IGUI_OA_Gear_Fitted_weaponCritDamage", (string.format("%.2f", info.times):gsub("%.?0+$", ""))
+        end
         return "IGUI_OA_Gear_Fitted_weaponRepair", tostring(info.condition) .. "/" .. tostring(info.most)
     end
     if target == "bag" then
@@ -500,10 +513,18 @@ function Gear.fitWeapon(kind, weapon, md)
     elseif kind == "weaponCrit" then
         if md[K.WEAPON_CRIT] == nil then md[K.WEAPON_CRIT] = weapon:getCriticalChance() end
         md[K.KIT_WCRIT] = (md[K.KIT_WCRIT] or 0) + 1
+    elseif kind == "weaponCritDamage" then
+        if md[K.WEAPON_CRITDMG] == nil then md[K.WEAPON_CRITDMG] = weapon:getCriticalDamageMultiplier() end
+        md[K.KIT_WCRITDMG] = (md[K.KIT_WCRITDMG] or 0) + 1
     else
         md[K.KIT_WREPAIR] = (md[K.KIT_WREPAIR] or 0) + 1
         weapon:setCondition(Rules.repaired(weapon:getCondition(), weapon:getConditionMax()), false)
     end
+end
+
+-- A roll in [0, 1) (a test sets another).
+function Gear.roll()
+    return OA.randomFloat(0, 1)
 end
 
 -- Fits a kit to an item the character has: counts it, writes it into the item, uses the kit up. Returns true and the
@@ -513,6 +534,7 @@ function Gear.fitItem(character, kit, item)
     if why then return false, why end
     local kind, target = Gear.kindOfItem(kit), Gear.targetOf(item)
     local md = item:getModData()
+    local cleared = false
     if target == "weapon" then
         Gear.fitWeapon(kind, item, md)
     elseif kind == "capacity" then
@@ -535,11 +557,17 @@ function Gear.fitItem(character, kit, item)
         local gain = most - before
         item:setCondition(math.min(most, item:getCondition() + gain), false)
         if item:hasHeadCondition() then item:setHeadCondition(item:getHeadCondition() + gain) end
+        -- now and then the repairs the tool has had are forgotten (only a tool that had some rolls)
+        if item:getHaveBeenRepaired() > 0 and Gear.roll() < Rules.RESET_CHANCE then
+            item:setHaveBeenRepaired(0)
+            cleared = true
+        end
     end
     Gear.refreshItem(item)
     removeItem(kit)
     syncItem(item)
     local key, value = fittedText(kind, target, Gear.itemInfo(item))
+    if cleared then key = "IGUI_OA_Gear_Fitted_toughReset" end
     notice(character, key, { item:getDisplayName(), value })
     return true, value
 end
@@ -552,7 +580,7 @@ function Gear.refreshAll(character)
         if not maybeTarget(item) then return false end
         local md = dataOf(item)
         return md ~= nil and (md[K.KIT_CAP] or md[K.KIT_LIGHT] or md[K.KIT_TOUGH] or md[K.TEAM] or md[K.KIT_WDAMAGE]
-            or md[K.KIT_WCRIT]) ~= nil
+            or md[K.KIT_WCRIT] or md[K.KIT_WCRITDMG]) ~= nil
     end)
     for i = 0, list:size() - 1 do Gear.refreshItem(list:get(i)) end
     return list:size()
@@ -674,12 +702,14 @@ function Gear.engineInfo(vehicle)
 end
 
 -- Writes an engine's kits into the vehicle's engine features, when they differ (the game saves them with the
--- vehicle; a repair of the engine part by a debug tool puts the script's values back).
-function Gear.refreshEngine(vehicle)
+-- vehicle; a repair of the engine part by a debug tool puts the script's values back). `quality`, when given, is
+-- written as the engine quality too.
+function Gear.refreshEngine(vehicle, quality)
     local info = Gear.engineInfo(vehicle)
     if not info then return false end
-    if vehicle:getEnginePower() == info.power and vehicle:getEngineLoudness() == info.loudness then return false end
-    vehicle:setEngineFeature(vehicle:getEngineQuality(), Rules.loudnessArgument(info.loudness), info.power)
+    if (quality == nil or quality == vehicle:getEngineQuality())
+        and vehicle:getEnginePower() == info.power and vehicle:getEngineLoudness() == info.loudness then return false end
+    vehicle:setEngineFeature(quality or vehicle:getEngineQuality(), Rules.loudnessArgument(info.loudness), info.power)
     if vehicle:getEngineLoudness() ~= info.loudness then
         -- the stored loudness is off by the game's own rounding: set it as it is stored
         local part = vehicle:getPartById(Gear.ENGINE_PART)
@@ -703,11 +733,18 @@ function Gear.fitEngine(character, kit, vehicle)
         md[K.ENGINE_LOUD] = vehicle:getEngineLoudness()
     end
     md[K.ENGINE] = (md[K.ENGINE] or 0) + 1
-    Gear.refreshEngine(vehicle)
+    local before = vehicle:getEngineQuality()
+    local quality = math.max(before, math.min(Rules.QUALITY_MOST, before + Rules.QUALITY_STEP))
+    Gear.refreshEngine(vehicle, quality)
     if vehicle.transmitPartModData then vehicle:transmitPartModData(part) end
     removeItem(kit)
     local info = Gear.engineInfo(vehicle)
-    notice(character, "IGUI_OA_Gear_Fitted_engine", { Gear.vehicleName(vehicle), tostring(info.power / 10) })
+    local name, power = Gear.vehicleName(vehicle), tostring(info.power / 10)
+    if vehicle:getEngineQuality() > before then
+        notice(character, "IGUI_OA_Gear_Fitted_engineQuality", { name, power, tostring(vehicle:getEngineQuality()) })
+    else
+        notice(character, "IGUI_OA_Gear_Fitted_engine", { name, power })
+    end
     return true, info.power
 end
 
@@ -739,6 +776,10 @@ function Gear.itemLines(item)
         end
         if info.crit > 0 then
             add("Tooltip_OA_Gear_WeaponCrit", tostring(info.crit), tostring(info.crit * Rules.CRIT_STEP))
+        end
+        if info.critDamage > 0 then
+            add("Tooltip_OA_Gear_WeaponCritDamage", tostring(info.critDamage),
+                tostring(OA.round(info.critDamage * Rules.CRIT_DAMAGE_STEP * 100)))
         end
         if info.repair > 0 then add("Tooltip_OA_Gear_WeaponRepair", tostring(info.repair)) end
         return #lines > 0 and lines or nil

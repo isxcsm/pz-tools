@@ -26,7 +26,7 @@ OA.Dense = Dense
 Dense.MIN = 7
 Dense.CHUNKS = 20
 -- The kinds of reward, in the order the places take them.
-Dense.KINDS = { "damage", "crit", "repair" }
+Dense.KINDS = { "damage", "crit", "critDamage", "repair" }
 -- Trust level from which the places are shown and cleared.
 Dense.TIER = 6
 -- A place is looked at when the character stands in its circle (within NEAR squares of its middle at least: a place made

@@ -44,7 +44,7 @@ test("every NUMBERS 7 price is in the catalog", function()
         shred_blade_modern = { 40000, 5 }, cut_blade_normal = { 10000, 3 }, cut_blade_modern = { 25000, 5 },
         saw_blade_normal = { 15000, 3 }, saw_blade_modern = { 40000, 5 }, filter_normal = { 20000, 3 },
         filter_modern = { 50000, 5 }, soundproof_cover = { 30000, 3 },
-        kit_capacity = { 50000, 6 }, kit_lightening = { 50000, 6 }, kit_reinforcement = { 40000, 6 },
+        kit_capacity = { 50000, 6 }, kit_lightening = { 50000, 6 }, kit_reinforcement = { 60000, 6 },
         kit_engine = { 80000, 6 },
     }
     for id, want in pairs(expect) do

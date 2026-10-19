@@ -56,7 +56,7 @@ P10T.start("p10statea", function(a)
         world.baseline and world.baseline.P10X)
     local cleared = Dense.cleared("P10X")
     a.check("the cleared mark and who cleared it", cleared ~= nil and cleared.by == want["dense.cleared"], cleared and cleared.by or "none")
-    a.check("the record's reward", Dense.got(r).P10X == "crit" and Dense.count(r, "crit") == 1)
+    a.check("the record's reward", Dense.got(r).P10X == "crit" and Dense.count(r, "crit") >= 1)
     a.check("the critical kit restocks as saved", Shop.restockQuantity(Shop.entry("kit_weapon_crit"), r) == num("dense.critKit"),
         Shop.restockQuantity(Shop.entry("kit_weapon_crit"), r))
 

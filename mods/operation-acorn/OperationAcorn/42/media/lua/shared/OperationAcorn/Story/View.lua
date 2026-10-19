@@ -30,7 +30,8 @@ View.MAP_SURVEY = { 0.92, 0.74, 0.26 }
 -- A dense place's circle (Story/Dense), by the weapon kit it gives: crimson for the damage kit, magenta for the
 -- critical kit, lime for the repair kit; none is near the missions' teal and sky blue, the crates' orange or the survey zone's
 -- gold.
-View.MAP_DENSE = { damage = { 0.82, 0.18, 0.24 }, crit = { 0.86, 0.30, 0.80 }, repair = { 0.62, 0.84, 0.22 } }
+View.MAP_DENSE = { damage = { 0.82, 0.18, 0.24 }, crit = { 0.86, 0.30, 0.80 }, critDamage = { 0.93, 0.56, 0.24 },
+    repair = { 0.62, 0.84, 0.22 } }
 
 function View.mapColor(kind)
     if kind == "story" then return View.MAP_SKY end

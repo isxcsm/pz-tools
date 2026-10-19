@@ -33,8 +33,10 @@ Rules.KEY = {
     STORAGE_BASE = "OA_KitBase",    -- on a vehicle storage part: its capacity before the first kit
     KIT_WDAMAGE = "OA_KitWDamage",  -- on a weapon: damage kits fitted
     KIT_WCRIT = "OA_KitWCrit",      -- on a weapon: critical kits fitted
+    KIT_WCRITDMG = "OA_KitWCritDmg", -- on a weapon: critical damage kits fitted
     KIT_WREPAIR = "OA_KitWRepair",  -- on a weapon: repair kits used (only counted, they change nothing to work out again)
     WEAPON_CRIT = "OA_KitBaseCrit", -- on a weapon: its critical chance before the first critical kit
+    WEAPON_CRITDMG = "OA_KitBaseCritDmg", -- on a weapon: its critical damage multiplier before the first such kit
     ENGINE = "OA_KitEngine",        -- on the engine part: kits fitted
     ENGINE_POWER = "OA_KitPower",   -- on the engine part: the engine power before the first kit
     ENGINE_LOUD = "OA_KitLoud",     -- on the engine part: the engine loudness before the first kit
@@ -51,10 +53,14 @@ Rules.LIGHT_FLOOR = 0.4         -- a team item's weight: the share of its script
 Rules.LIGHT_KEEP = 0.8          -- of what is left above that share, kept per kit
 Rules.TOUGH_STEP = 0.25         -- a field tool's most condition: of its script's, per kit
 Rules.TOUGH_MOST = 4            -- reinforcement kits a tool takes
+Rules.RESET_CHANCE = 0.10       -- and the chance one clears the tool's count of repairs (the game's HaveBeenRepaired)
 Rules.POWER_STEP = 0.10         -- engine power, of the original
 Rules.LOUDNESS_STEP = 0.05      -- engine loudness, of the original
+Rules.QUALITY_STEP = 20         -- engine quality (the game's 0..100, set when the car spawns and never raised by it), per kit
+Rules.QUALITY_MOST = 100
 Rules.DAMAGE_STEP = 0.10        -- a weapon's least and most damage: of the original, per damage kit, no most
 Rules.CRIT_STEP = 5             -- a weapon's critical chance: points over the original, per critical kit, no most
+Rules.CRIT_DAMAGE_STEP = 0.10   -- a weapon's critical damage multiplier: of the original, per critical damage kit, no most
 Rules.REPAIR_PARTS = 10          -- a repair kit puts back one such part of the weapon's most condition (1 at the least)
 
 -- The vanilla limits (ItemContainer.MAX_CAPACITY_BAG and _VEHICLE, found with javap): a bag holds at most 50 less its
@@ -79,6 +85,7 @@ Rules.TARGETS = {
     engine = { engine = true },
     weaponDamage = { weapon = true },
     weaponCrit = { weapon = true },
+    weaponCritDamage = { weapon = true },
     weaponRepair = { weapon = true },
 }
 Rules.VEHICLE_TARGETS = { storage = true, engine = true }
@@ -109,9 +116,10 @@ end
 Rules.WEAPON_TYPES = {
     weaponDamage = "OperationAcorn.KitWeaponDamage",
     weaponCrit = "OperationAcorn.KitWeaponCrit",
+    weaponCritDamage = "OperationAcorn.KitWeaponCritDamage",
     weaponRepair = "OperationAcorn.KitWeaponRepair",
 }
-Rules.WEAPON_ORDER = { "weaponDamage", "weaponCrit", "weaponRepair" }
+Rules.WEAPON_ORDER = { "weaponDamage", "weaponCrit", "weaponCritDamage", "weaponRepair" }
 
 -- Every kind of kit that is fitted to an item, in the order the menus list them: the modification kits, then the weapon
 -- kits.
@@ -159,6 +167,12 @@ end
 -- A weapon's critical chance with `n` critical kits: +5 points over the original per kit, no most.
 function Rules.crit(base, n)
     return base + Rules.CRIT_STEP * n
+end
+
+-- A weapon's critical damage multiplier with `n` critical damage kits: +10% of the original per kit, not rounded, no
+-- most.
+function Rules.critDamage(base, n)
+    return base * (1 + Rules.CRIT_DAMAGE_STEP * n)
 end
 
 -- What a repair kit puts back of a weapon with this most condition: a tenth of it, rounded up, at least 1 (worked out in

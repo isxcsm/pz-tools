@@ -66,7 +66,7 @@ test("the list is asked of the API once a world, with the constants, in the dens
     local list = Dense.list()
     eq(#list, 4)
     eq(list[1].id, "D1"); eq(list[4].id, "D4")
-    eq(list[1].kind, "damage"); eq(list[2].kind, "crit"); eq(list[3].kind, "repair"); eq(list[4].kind, "damage")
+    eq(list[1].kind, "damage"); eq(list[2].kind, "crit"); eq(list[3].kind, "critDamage"); eq(list[4].kind, "repair")
     eq(list[2].x, 2000); eq(list[2].r, 40)
     Dense.ensure()
     Dense.ensure()
@@ -95,8 +95,8 @@ test("places whose circles overlap are made one: weighted middle, a circle round
     eq(list[1].kind, "damage")
     -- 2 and 6 touch, not overlap (60 apart, 30 + 30): kept apart
     eq(list[2].x, 5000); eq(list[2].kind, "crit")
-    eq(list[3].x, 9000); eq(list[3].kind, "repair")
-    eq(list[4].x, 5060); eq(list[4].kind, "damage")
+    eq(list[3].x, 9000); eq(list[3].kind, "critDamage")
+    eq(list[4].x, 5060); eq(list[4].kind, "repair")
 end)
 
 test("the zombies are counted within the place's circle, at least COUNT_R", function()
@@ -141,7 +141,8 @@ test("the maps show the places from trust level 6, in the colour of their kit, u
     eq(c.x, 2000.5); eq(c.y, 2000.5); eq(c.r, 40)
     eq(c.color, View.MAP_DENSE.crit)
     eq(scene.circles[1].color, View.MAP_DENSE.damage)
-    eq(scene.circles[3].color, View.MAP_DENSE.repair)
+    eq(scene.circles[3].color, View.MAP_DENSE.critDamage)
+    eq(scene.circles[4].color, View.MAP_DENSE.repair)
     -- a world without zombies: no place can be cleared, so none is shown
     SandboxVars = { Zombies = Dense.NO_ZOMBIES }
     eq(#View.scene(high, nil).circles, 0)
@@ -217,7 +218,7 @@ test("a baseline under 20 never clears; none is taken of an empty count", functi
     counts["3000,3000"] = 2
     stand(r, q)
     eq(#titles, 1, "20 is enough, and 2 is a tenth of it")
-    eq(Dense.got(r).D3, "repair")
+    eq(Dense.got(r).D3, "critDamage")
 end)
 
 test("only in its circle (60 squares here), no more than once a real second, and not below level 6", function()
@@ -269,7 +270,7 @@ test("a place another character cleared is the reward of a record that stands at
     stand(first, p)
     counts["4000,4000"] = 3
     stand(first, p)
-    eq(Dense.got(first).D4, "damage")
+    eq(Dense.got(first).D4, "repair")
     eq(#titles, 1)
     -- the second one never counted anything there: standing is enough
     counts["4000,4000"] = 50
@@ -277,8 +278,8 @@ test("a place another character cleared is the reward of a record that stands at
     eq(#titles, 2)
     eq(titles[2].id, second.id)
     eq(titles[2].detail.sub, "IGUI_OA_Title_DenseHadSub")
-    eq(titles[2].detail.subArgs[1].key, "IGUI_OA_Dense_Kit_damage")
-    eq(Dense.got(second).D4, "damage")
+    eq(titles[2].detail.subArgs[1].key, "IGUI_OA_Dense_Kit_repair")
+    eq(Dense.got(second).D4, "repair")
     eq(Dense.cleared("D4").by, first.id, "the clearing stays the first one's")
     eq(changes[#changes].id, second.id)
     stand(second, p)
@@ -287,7 +288,7 @@ test("a place another character cleared is the reward of a record that stands at
     local low = record(4)
     stand(low, p)
     eq(Dense.got(low).D4, nil)
-    eq(Dense.count(second, "damage"), 1)
+    eq(Dense.count(second, "repair"), 1)
 end)
 
 test("the minute's look asks for the character's position only when a look is due", function()
