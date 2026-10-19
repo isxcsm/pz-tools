@@ -721,9 +721,9 @@ end
 -- ---------------------------------------------------------------------------------------------------------------
 -- Offering, starting, running and ending.
 
--- The call that tells what the missions are (CommsData S1M, after the first settlement's; 관리 7's K0M for a record
--- that came into the world after the handover): none is offered before it has been played.
-Missions.OPENING_CALL = "S1M"
+-- The call that tells what the missions are (CommsData S1, the first settlement's, at its end; 관리 7's K0M for a
+-- record that came into the world after the handover): none is offered before it has been played.
+Missions.OPENING_CALL = "S1"
 Missions.ADMIN_OPENING_CALL = "K0M"
 
 function Missions.opened(record)

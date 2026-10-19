@@ -49,7 +49,7 @@ local function setup(stage, list)
     local record = OA.Store.ensure("p" .. recordCount, "P" .. recordCount)
     record.trade = { stage = stage, milestones = 0, credits = 0, trust = 0 }
     Story.setAnchor(record, 0, 0, 0)
-    OA.Comms.played(record, "S1M", 1)
+    OA.Comms.played(record, "S1", 1)
     local s = Story.section(record)
     s.seenStage = stage
     for id in pairs(Data.STORIES) do s.done[id] = "done" end

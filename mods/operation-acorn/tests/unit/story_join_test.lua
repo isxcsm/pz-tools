@@ -177,7 +177,7 @@ test("a character of the team's time never gets Control 7's first calls", functi
     local record = newcomer()
     Story.firstContact(record, false)
     Story.call(record, "settled")
-    eq(playAll(record), "S0 S1 S1M")
+    eq(playAll(record), "S0 S1")
     eq(Comms.section(record).fired.K0, nil)
     eq(Comms.section(record).fired.K0M, nil)
 end)

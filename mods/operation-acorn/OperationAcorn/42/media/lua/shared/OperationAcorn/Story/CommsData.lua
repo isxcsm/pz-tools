@@ -82,10 +82,9 @@ Data.ENTRIES = {
     { id = "S1", kind = "scene", trigger = "settled", tier = 1, waits = "S0", greet = true, sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" },
         { "me", pause = 2, erase = true, stop = 1.8, del = 8, after = 2.2 }, { "oak" }, { "me" }, { "oak" },
-        { "me", erase = true, stop = 2, del = 7, after = 2.6 }, { "me", pause = 1.6 } } },
-    -- what the missions are: after the first settlement's call; no mission is offered before it (Missions.opened)
-    { id = "S1M", kind = "scene", trigger = "settled", tier = 1, waits = "S1", sign = "oak", lines = {
-        { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "noise", s = 1 } } },
+        { "me", erase = true, stop = 2, del = 7, after = 2.6 }, { "me", pause = 1.6 },
+        -- and in the same call, what the missions are: none is offered before it is over (Missions.opened)
+        { "oak", pause = 2 }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "noise", s = 1 } } },
     { id = "s1_bedding", kind = "short", trigger = "tier:1", tier = 1, waits = "S1", greet = true, sign = "oak" },
     { id = "S1F", kind = "scene", trigger = "story:evidence", tier = 1, mission = true, waits = "S1", sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "me", pause = 1.8 }, { "oak" } } },
@@ -139,7 +138,7 @@ Data.ENTRIES = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" },
         { "me", erase = true, stop = 2.4, del = 5, after = 2.8 }, { "me", pause = 1.8 } } },
     -- A character that came into the world after the handover: 관리 7's first contact and its call after the first
-    -- settlement (what the missions are), in the place of S0 and S1M.
+    -- settlement (what the missions are), in the place of S0 and S1.
     { id = "K0", kind = "scene", trigger = "first", tier = 0, era = "admin", sign = "admin", lines = {
         { "noise", s = 2 }, { "oak" }, { "mute", s = 3 }, { "oak" },
         { "me", erase = true, stop = 1.6, after = 1.8 }, { "oak" }, { "me", late = true }, { "oak", late = true },

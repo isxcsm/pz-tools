@@ -24,7 +24,7 @@ E2E.AROUND = 10
 
 -- The team's calls in the order the play meets them (SCENES 3): everything before a beat's first call has been played.
 -- The pairs of a choice (B3a/B3b, BS1/BS2) are played on their first and dropped on the other.
-E2E.ORDER = { "S0", "S1", "S1M", "s1_bedding", "B1", "S1F", "S2", "S2B", "s2_filter", "s2_correction", "B2", "S2F", "S3",
+E2E.ORDER = { "S0", "S1", "s1_bedding", "B1", "S1F", "S2", "S2B", "s2_filter", "s2_correction", "B2", "S2F", "S3",
     "s3_meteor", "s3_fragment", "B3a", "B3b", "S4", "S4B", "s4_committee", "B4", "S4F", "S5", "B5", "S5F", "S6",
     "s6_list", "B6", "S6F", "S7", "s7_list", "B7", "S7F", "BS1", "BS2", "s8_handover", "B8", "S8F", "S8", "S9", "K1",
     "BR1", "K2", "BR2", "K3", "BR3", "K4" }
@@ -373,7 +373,7 @@ function E2E.set(id, opts)
             -- no regular mission comes between either: the story's own scenes are the beat's
             missions.nextAt = OA.hours() + 24 * 365
         else
-            -- the missions are not open yet: the scene that opens them (S1M) brings the first at the next looks
+            -- the missions are not open yet: the scene that opens them (S1, at its end) brings the first at the next looks
             missions.nextAt = 0
         end
         if beat.fresh then

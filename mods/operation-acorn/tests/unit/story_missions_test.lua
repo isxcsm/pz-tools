@@ -38,7 +38,7 @@ local function setup(stage, milestones)
     local record = OA.Store.ensure("p1", "P")
     record.trade = { stage = stage, milestones = milestones or 0, credits = 0, trust = 0 }
     Story.setAnchor(record, 0, 0, 0)
-    OA.Comms.played(record, "S1M", 1)
+    OA.Comms.played(record, "S1", 1)
     -- The plain pickup only, never an urgent one and no distance pay: the tests that follow the pay count on it. The
     -- mixed kinds, the urgent one and the distance pay have their own tests (story_devices_test).
     OA.StoryData.REGULAR = { { item = "MissionEnvelope", weight = 1 } }
@@ -129,11 +129,11 @@ end)
 test("no mission is offered before the call that tells of them has played", function()
     local record = setup(2)
     record.story = nil
-    OA.Comms.section(record).played.S1M = nil
+    OA.Comms.section(record).played.S1 = nil
     OA.Comms.fire(record, "settled") -- fired, not played: a passed tier does not drop it
     M.tick(record)
     eq(M.active(record), nil)
-    OA.Comms.section(record).dropped.S1M = true
+    OA.Comms.section(record).dropped.S1 = true
     M.tick(record)
     truthy(M.active(record), "a dropped call holds nothing up")
 end)
