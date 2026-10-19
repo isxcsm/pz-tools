@@ -38,9 +38,16 @@ local function record(id)
     return r
 end
 
+-- The titles told: the town done in `told`, the steps on the way in `steps`; the lines of self-talk in `says`.
+local steps, says = {}, {}
 local function listen()
     local told = {}
-    OA.Sync.listen("title", function(id, detail) told[#told + 1] = { id = id, detail = detail } end)
+    steps, says = {}, {}
+    OA.Sync.listen("title", function(id, detail)
+        local into = string.find(detail.key, "IGUI_OA_Title_TownProgress", 1, true) and steps or told
+        into[#into + 1] = { id = id, detail = detail }
+    end)
+    OA.Say.tell = function(id, bundle, ctx, delay) says[#says + 1] = { id = id, bundle = bundle, delay = delay } end
     return told
 end
 
@@ -97,6 +104,39 @@ test("a town is done at 90% of its buildings, once, and the one who completes it
     -- a building outside every town, and one of a village, do not count
     T.searched(a, "999"); T.searched(a, "100")
     eq(T.index().ndone, 1)
+end)
+
+test("on the way a town tells its half and three quarters of what it takes, once each, to the one who searched", function()
+    fakeApi()
+    T.reset()
+    local w = OA.Store.world("towns")
+    w.built = nil
+    local told = listen()
+    local a, b = record("a"), record("b")
+    -- town A takes 18: the half at 9, three quarters at 14
+    for key = 1, 8 do T.searched(a, tostring(key)) end
+    eq(#steps, 0)
+    T.searched(b, "9")
+    eq(#steps, 1)
+    eq(steps[1].id, "b")
+    eq(steps[1].detail.key, "IGUI_OA_Title_TownProgress1")
+    eq(steps[1].detail.style, "brief")
+    eq(says[1].bundle, "TownHalf"); eq(says[1].delay, T.PROGRESS_SAY)
+    for key = 10, 13 do T.searched(a, tostring(key)) end
+    eq(#steps, 1)
+    T.searched(a, "14")
+    eq(#steps, 2)
+    eq(steps[2].detail.key, "IGUI_OA_Title_TownProgress2")
+    eq(says[2].bundle, "TownNearly")
+    for key = 15, 18 do T.searched(a, tostring(key)) end
+    eq(#steps, 2, "the town done has its own title")
+    eq(#told, 1)
+    -- a record that has not met the team is not told, and the step is gone for the world
+    local quiet = OA.Store.ensure("q", "q")
+    for key = 200, 213 do T.searched(quiet, tostring(key)) end
+    eq(#steps, 2)
+    T.searched(a, "214")
+    eq(#steps, 2, "the half of town C was reached (by one not told)")
 end)
 
 test("the codex hands each building it counts for the first time to its town", function()

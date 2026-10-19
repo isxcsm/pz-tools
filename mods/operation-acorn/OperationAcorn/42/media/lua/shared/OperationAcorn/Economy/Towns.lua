@@ -5,7 +5,8 @@
 -- zones.clusters, read once a world and kept in the world store). The world's `towns` section:
 --   built (the index was read), list = { [town] = { n (its buildings), x1, y1, x2, y2, rects = { x, y, w, h ... } } },
 --   of = { [building key] = town }, seen = { [key] = true } (the town buildings searched through, by any character),
---   found = { [town] = how many of them }, done = { [town] = true }, ndone.
+--   found = { [town] = how many of them }, done = { [town] = true }, ndone, told = { [town] = the last step of
+--   PROGRESS told }.
 -- A building's key is the API's (buildings.at) as text, which is the key the codex keeps (Codex.buildingSearched).
 -- A basement is a building of its own to the API, so it counts in its town's total but is never searched under its own
 -- key: the share of 90% leaves room for it.
@@ -13,17 +14,22 @@
 -- A town is done for the world when its searched buildings reach SHARE of its buildings. A record takes the town's
 -- share (Shop.townDone: the windows after the current one shorter) once: when its own search is the one that completes
 -- the town, or later by coming into a town the world has done already (Towns.enter, asked about a position).
+-- On the way the search that brings a town to a step of PROGRESS (of what it takes to be done) tells it, once a step a
+-- town: a brief title and a line of self-talk.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Sync"
 require "OperationAcorn/Economy/Trust"
 require "OperationAcorn/Economy/Shop"
+require "OperationAcorn/Say"
 local OA = OperationAcorn
 local Towns = {}
 OA.Towns = Towns
 
 Towns.MIN_BUILDINGS = 20
 Towns.SHARE = 0.9
+Towns.PROGRESS = { 0.50, 0.75 }   -- the steps told on the way, as shares of what the town takes to be done
+Towns.PROGRESS_SAY = 1.5          -- real seconds from a step's brief title to its line of self-talk
 Towns.CELL = 100        -- the coarse grid's cell, in squares
 Towns.COLS = 4096       -- more cells than a map has in a row
 
@@ -110,6 +116,26 @@ local function tell(record, sub)
     if not ok then OA.log("title failed:", tostring(err)) end
 end
 
+-- The self-talk of the steps (Say.lua bundles).
+OA.Say.define("TownHalf", {})
+OA.Say.define("TownNearly", {})
+local STEP_LINES = { "TownHalf", "TownNearly" }
+
+-- A town not done yet had one more building searched: the step of PROGRESS it reached, told once a town (to a record
+-- that has met the team, as the title of the town done).
+local function progress(w, record, town, need)
+    local step = 0
+    for i, share in ipairs(Towns.PROGRESS) do
+        if w.found[town] >= math.ceil(need * share) then step = i end
+    end
+    w.told = w.told or {}
+    if step <= (w.told[town] or 0) then return end
+    w.told[town] = step
+    if not OA.Trust.contacted(record) then return end
+    OA.Sync.title(record.id, { key = "IGUI_OA_Title_TownProgress" .. step, style = "brief" })
+    OA.Say.tell(record.id, STEP_LINES[step], nil, Towns.PROGRESS_SAY)
+end
+
 -- The record takes the town's share; true when it was new to it.
 local function take(record, town, sub)
     if not OA.Shop.townDone(record, town) then return false end
@@ -127,12 +153,15 @@ function Towns.searched(record, key)
     if not town or w.seen[key] then return end
     w.seen[key] = true
     w.found[town] = (w.found[town] or 0) + 1
+    local need = math.ceil(Towns.SHARE * w.list[town].n)
     if w.done[town] then
         take(record, town, "IGUI_OA_Title_TownSearchedSubKnown")
-    elseif w.found[town] >= math.ceil(Towns.SHARE * w.list[town].n) then
+    elseif w.found[town] >= need then
         w.done[town] = true
         w.ndone = w.ndone + 1
         take(record, town, "IGUI_OA_Title_TownSearchedSub")
+    else
+        progress(w, record, town, need)
     end
 end
 
