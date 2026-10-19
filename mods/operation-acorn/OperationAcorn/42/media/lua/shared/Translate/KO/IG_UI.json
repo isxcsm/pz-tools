@@ -1379,7 +1379,7 @@
     "IGUI_OA_ReqGroup_petfood": "사료",
     "IGUI_OA_ReqGroup_guitars": "기타 (악기)",
     "IGUI_OA_ReqGroup_backpacks": "배낭",
-    "IGUI_OA_Terminal_Del_Sit": "이번 주 사정 · %1",
+    "IGUI_OA_Terminal_Del_Sit": "시료 수요 동향 · %1",
     "IGUI_OA_Terminal_Del_SitNone": "이번 주는 특별한 사정이 없습니다.",
     "IGUI_OA_Terminal_Del_SitMult": "×%1",
     "IGUI_OA_Terminal_Del_SitLeft": "%1일 더",

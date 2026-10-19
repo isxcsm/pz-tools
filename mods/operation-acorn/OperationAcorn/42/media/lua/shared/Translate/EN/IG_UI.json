@@ -1379,7 +1379,7 @@
     "IGUI_OA_ReqGroup_petfood": "Pet Food",
     "IGUI_OA_ReqGroup_guitars": "Guitars",
     "IGUI_OA_ReqGroup_backpacks": "Backpacks",
-    "IGUI_OA_Terminal_Del_Sit": "This week's situation · %1",
+    "IGUI_OA_Terminal_Del_Sit": "Sample demand · %1",
     "IGUI_OA_Terminal_Del_SitNone": "Nothing out of the ordinary this week.",
     "IGUI_OA_Terminal_Del_SitMult": "×%1",
     "IGUI_OA_Terminal_Del_SitLeft": "%1 d more",
