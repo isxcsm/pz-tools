@@ -70,7 +70,7 @@ test("each level's goods split into every terminal's and the field terminal's la
     eq(string.find(ids(lanes[1].all), "serum_", 1, true), nil, "the upgrade serums have their own section")
     eq(string.find(ids(lanes[1].all), "box_reissue", 1, true), nil, "the box is the reissue button's")
     eq(ids(lanes[9].all), ""); eq(ids(lanes[9].field), "")
-    eq(#lanes[6].field, 7, "the kits at the first level after the stages (the weapon kits too)")
+    eq(#lanes[6].field, 8, "the kits at the first level after the stages (the weapon kits too)")
     SandboxVars.OperationAcorn.KitsForSale = false
     eq(#M.lanes()[6].field, 0, "not when kits are off")
 end)
@@ -503,10 +503,10 @@ test("the new board counts the team's goods open now and later, and the upgrades
     -- the field tools open now are one name of the board, where the first of them stands
     eq(news[1].lines[1], "IGUI_OA_Status_News_TeamNow 6 IGUI_OA_Status_News_TeamRest IGUI_OA_Econ_Shop_Item_team_fuel_can, "
         .. "IGUI_OA_Econ_Shop_Item_team_locker, IGUI_OA_Econ_Shop_Item_team_crate, IGUI_OA_Econ_Shop_Item_fabric_cutter 2")
-    eq(news[1].lines[2], "IGUI_OA_Status_News_TeamMore 27", "the field tools still to come one of them")
+    eq(news[1].lines[2], "IGUI_OA_Status_News_TeamMore 28", "the field tools still to come one of them")
     eq(news[3].lines[2], "IGUI_OA_Status_News_SupportNow 4")
     news = M.news(newRecord(3, 0))
-    eq(news[1].lines[2], "IGUI_OA_Status_News_TeamMore 15")
+    eq(news[1].lines[2], "IGUI_OA_Status_News_TeamMore 16")
     -- a late stage: four names and the rest counted
     news = M.news(newRecord(5, 0))
     local first = news[1].lines[1]

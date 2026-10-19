@@ -32,6 +32,12 @@ local function loadWindow()
             MeasureStringX = function(_, font, text) return #text * 2 end,
         }
     end
+    -- the terminal's sounds play through the game's UI emitter: stand-ins that play nothing, the game never paused
+    local emitter = { setVolume = function() end, tick = function() end }
+    local manager = { playUISound = function() return 7 end, getUIEmitter = function() return emitter end,
+        stopUISound = function() end }
+    _G.getSoundManager = function() return manager end
+    _G.isGamePaused = function() return false end
     OA.Client = OA.Client or {}
     local real = require
     require = function(name)
