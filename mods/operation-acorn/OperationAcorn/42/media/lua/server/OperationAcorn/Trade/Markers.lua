@@ -1,5 +1,5 @@
--- Finding what the helicopter left: smoke over the drop for a while and a mark in the record, until the thing is picked
--- up (DESIGN 9 and 3). The marks are kept in the record (heli.markers); the clients list them (the helicopter tab's
+-- Finding what the helicopter left: a mark in the record, until the thing is picked up (DESIGN 9 and 3). (No smoke:
+-- the game's own came and went at once, with no fading, and could not be kept going.) The marks are kept in the record (heli.markers); the clients list them (the helicopter tab's
 -- crates, the maps by Story/View). Only a loaded square can be looked at, so a mark lives until its square is seen
 -- without the thing.
 require "OperationAcorn/Server"
@@ -16,19 +16,12 @@ function Markers.list(record)
     return heli.markers
 end
 
--- A little smoke over a square (best effort: the game's own call for it).
-function Markers.smoke(square)
-    local ok, err = pcall(function() IsoFireManager.StartSmoke(getCell(), square, true, 100, 500) end)
-    if not ok then OA.log("smoke failed:", tostring(err)) end
-end
-
 -- Marks a square. kind "crate" (a supply crate); extra goes into the mark.
 function Markers.add(record, square, kind, extra)
     local list = Markers.list(record)
     local mark = { kind = kind, x = square:getX(), y = square:getY(), z = square:getZ(), at = OA.hours() }
     for k, v in pairs(extra or {}) do mark[k] = v end
     list[#list + 1] = mark
-    Markers.smoke(square)
     OA.Sync.changed("trade", record.id)
     return mark
 end
@@ -39,8 +32,7 @@ local function done(mark, square)
     return object == nil or not object:getModData()[Objects.SEALED]
 end
 
--- Looks at the marks of a record whose squares are loaded: the finished ones go, the others smoke again. Returns
--- how many were removed.
+-- Looks at the marks of a record whose squares are loaded: the finished ones go. Returns how many were removed.
 function Markers.check(record)
     local list = Markers.list(record)
     local removed = 0
@@ -51,8 +43,6 @@ function Markers.check(record)
             if done(mark, square) then
                 table.remove(list, i)
                 removed = removed + 1
-            else
-                Markers.smoke(square)
             end
         end
     end

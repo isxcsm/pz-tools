@@ -5,7 +5,7 @@
 -- choices and kit targets, the confirm dialogs), the placement cursor (green and red squares around a box, the
 -- terminal turning to face you), carrying with both hands, the right-click menus, the tooltip line on items, the
 -- estimate panel beside an open box, the unseal action with and without a crowbar, the helicopter sound passing over,
--- the crate falling on its parachute, the smoke and the world map mark, reading the manifest and the manual, a
+-- the crate falling on its parachute, the world map mark, reading the manifest and the manual, a
 -- sledgehammer on a box, a generator turning the terminal's screen on.
 local files = { "p2_objects.lua", "p2_first.lua", "p2_flow.lua" }
 RUN("p2_lib.lua")

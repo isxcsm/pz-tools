@@ -142,7 +142,7 @@ function Heli.noise(x, y, z)
     if not ok then OA.log("noise failed:", tostring(err)) end
 end
 
--- Takes the sealed boxes away and puts the crate and the smoke down at a spot (a table of a drop): { x, y, z, owner,
+-- Takes the sealed boxes away and puts the crate down at a spot (a table of a drop): { x, y, z, owner,
 -- search (the crate on the clearest ground near the spot, not beside it), remove, cargo, parachute }. A delivery box
 -- comes in the crate (Boxes.itemSpec). Returns true when it was done, false when the square is not loaded yet.
 function Heli.setDown(entry)

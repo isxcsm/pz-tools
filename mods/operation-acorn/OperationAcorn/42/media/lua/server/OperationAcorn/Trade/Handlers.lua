@@ -139,8 +139,7 @@ end
 -- before. The arrivals and the first supply compare game times and stay every ten minutes.
 --   TERMINALS_MS: the terminal's light follows its power (a generator running dry while fast-forwarded shows soon).
 --   BOXES_MS: the lost-box look is only a fallback to OnObjectAboutToBeRemoved; a few seconds late costs nothing.
---   MARKS_MS: a mark goes when its thing is gone, and its smoke is lit again (the game lights none on a square that
---     already smokes, so smoke did not pile up; the look was only wasted).
+--   MARKS_MS: a mark goes when its thing is gone; a few seconds late costs nothing.
 Handlers.TERMINALS_MS = 5000
 Handlers.BOXES_MS = 10000
 Handlers.MARKS_MS = 10000
@@ -206,7 +205,7 @@ Chunks.handle("trade.removeBox", function(entry)
     return entry.tries >= 3
 end)
 
--- A drop that waited for its place: the box, the crate and the smoke are set down.
+-- A drop that waited for its place: the box and the crate are set down.
 Chunks.handle("trade.land", function(entry)
     return Heli.setDown(entry)
 end)
