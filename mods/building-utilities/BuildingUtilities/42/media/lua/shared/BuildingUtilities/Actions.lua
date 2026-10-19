@@ -464,24 +464,61 @@ end
 
 function ISBUTakeApartBox:perform() ISBaseTimedAction.perform(self) end
 
-function ISBUTakeApartBox:complete()
-    local inventory = self.character:getInventory()
-    if not inventory:contains(self.item) or not Costs.affords(self.character, Costs.takeApart()) then return false end
-    local boards = Costs.boardsIn(Panels.itemTier(self.item))
-    PZUIKit.Heavy.letGo(self.character, self.item)
-    inventory:Remove(self.item)
-    sendRemoveItemFromContainer(inventory, self.item)
-    for _ = 1, boards do giveItem(self.character, Costs.BOARD) end
+-- The box item, carried, goes for its control boards (Costs.boardsIn its tier), some wire and parts.
+local function takeApart(character, item)
+    local inventory = character:getInventory()
+    local boards = Costs.boardsIn(Panels.itemTier(item))
+    PZUIKit.Heavy.letGo(character, item)
+    inventory:Remove(item)
+    sendRemoveItemFromContainer(inventory, item)
+    for _ = 1, boards do giveItem(character, Costs.BOARD) end
     for _, part in ipairs(Costs.TAKE_APART) do
-        for _ = 1, part[2] do giveItem(self.character, part[1]) end
+        for _ = 1, part[2] do giveItem(character, part[1]) end
     end
-    BU.giveXp(self.character, 5)
+    BU.giveXp(character, 5)
+end
+
+function ISBUTakeApartBox:complete()
+    if not self.character:getInventory():contains(self.item) or not Costs.affords(self.character, Costs.takeApart()) then
+        return false
+    end
+    takeApart(self.character, self.item)
     return true
 end
 
 function ISBUTakeApartBox:new(character, item)
     local o = ISBaseTimedAction.new(self, character)
     o.item = item
+    o.maxTime = o:getDuration()
+    return o
+end
+
+-- Taking apart a box where it stands (one with a record or a bare one), as the item's taking apart: taken up as
+-- ISBUTakeBox takes it (its lines stay laid, cut), then gone for its parts.
+ISBUTakeApartPlaced = base("ISBUTakeApartPlaced", 300)
+
+function ISBUTakeApartPlaced:isValid() return boxAt(self) ~= nil end
+
+function ISBUTakeApartPlaced:start() Actions.work(self, "power") end
+
+function ISBUTakeApartPlaced:complete()
+    local object, square = boxAt(self)
+    if not object or not Costs.affords(self.character, Costs.takeApart()) then return false end
+    local props = ISMoveableSpriteProps.fromObject(object)
+    if not props or props.buKind ~= "panel" or not props:canPickUpMoveable(self.character, square, object) then
+        return false
+    end
+    props:pickUpMoveable(self.character, square, true, true)
+    -- (the box taken up is held in both hands: PZUIKit.Heavy.hold)
+    local item = self.character:getPrimaryHandItem()
+    if not (item and BU.PANEL_ITEM_TIER[item:getFullType()]) then return false end
+    takeApart(self.character, item)
+    return true
+end
+
+function ISBUTakeApartPlaced:new(character, x, y, z)
+    local o = ISBaseTimedAction.new(self, character)
+    o.x, o.y, o.z = x, y, z
     o.maxTime = o:getDuration()
     return o
 end
@@ -537,6 +574,7 @@ Sound.timed(ISBUReverseEngineer, "bu.action.electric")
 Sound.timed(ISBUActivateBox, nil, "bu.action.place")
 Sound.timed(ISBUTakeBox, nil, "bu.action.pickup")
 Sound.timed(ISBUTakeApartBox, "bu.action.electric")
+Sound.timed(ISBUTakeApartPlaced, "bu.action.electric")
 Sound.timed(ISBUReviveBattery, "bu.action.battery")
 
 return Actions

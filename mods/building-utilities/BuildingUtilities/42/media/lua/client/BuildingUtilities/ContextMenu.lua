@@ -16,6 +16,7 @@ require "BuildingUtilities/Actions"
 require "BuildingUtilities/Moveables"
 require "BuildingUtilities/Manual"
 require "PZUIKit/Menu"
+require "PZUIKit/Confirm"
 local BU = BuildingUtilities
 local Store, Panels, Units, Rack, Costs, Actions, Sync, Links = BU.Store, BU.Panels, BU.Units, BU.Rack, BU.Costs,
     BU.Actions, BU.Sync, BU.Links
@@ -236,6 +237,34 @@ local function addLearnOption(context, playerObj, at)
     end
 end
 
+-- What taking a box of a tier apart gives back, by the items' names: its control boards (Costs.boardsIn) and the wire
+-- and parts (Costs.TAKE_APART). The option's tooltip and the question say the same.
+local function takeApartGets(tier)
+    local parts = { getText("IGUI_BU_TakeApartPart", getItemNameFromFullType(Costs.BOARD), Costs.boardsIn(tier)) }
+    for _, part in ipairs(Costs.TAKE_APART) do
+        parts[#parts + 1] = getText("IGUI_BU_TakeApartPart", getItemNameFromFullType(part[1]), part[2])
+    end
+    return getText("IGUI_BU_TakeApartGets", table.concat(parts, ", "))
+end
+
+-- The question before a box is taken apart (it cannot be undone), with what comes back as its note (UI.confirm).
+local function takeApartQuestion(tier)
+    return { getText("IGUI_BU_TakeApartConfirm"), takeApartGets(tier) }
+end
+
+-- Taking a box apart where it stands (ISBUTakeApartPlaced), asked first.
+local function onTakeApartPlaced(playerObj, x, y, z, tier)
+    PZUIKit.UI.confirm(playerObj, takeApartQuestion(tier), nil,
+        function() queueAt(playerObj, x, y, z, ISBUTakeApartPlaced:new(playerObj, x, y, z)) end)
+end
+
+local function addTakeApartPlaced(context, playerObj, x, y, z, tier)
+    if not BU.enabled("panel") then return end
+    local option = removal(context:addOption(getText("ContextMenu_BU_TakeApart"), playerObj, onTakeApartPlaced, x, y, z,
+        tier))
+    costed(option, playerObj, Costs.takeApart(), takeApartGets(tier))
+end
+
 local function addPanelOptions(context, playerObj, panel)
     -- The breaker is power's: with power off in the sandbox it is not told.
     local tripped = panel.tripped and BU.enabled("power")
@@ -244,6 +273,7 @@ local function addPanelOptions(context, playerObj, panel)
     if not BU.api() then unavailable(option, apiMissingText()) end
     addLearnOption(context, playerObj, panel)
     addTakeOption(context, playerObj, panel.x, panel.y, panel.z)
+    addTakeApartPlaced(context, playerObj, panel.x, panel.y, panel.z, panel.tier or 1)
 end
 
 -- A bare box (Panels.isBare): made a box where it stands (ISBUActivateBox, where a box may be put: Panels.canInstall),
@@ -262,6 +292,8 @@ local function addBareOptions(context, playerObj, object)
     end
     addLearnOption(context, playerObj, { x = x, y = y, z = z })
     addTakeOption(context, playerObj, x, y, z)
+    local look = BU.PanelLook.ofSprite(object:getSprite():getName())
+    addTakeApartPlaced(context, playerObj, x, y, z, look and look.tier or 1)
 end
 
 -- The producer among the objects (Panels.producerOn of their squares), with its square.
@@ -538,15 +570,16 @@ local function onRevive(playerObj, item)
 end
 
 local function onTakeApart(playerObj, item)
-    ISInventoryPaneContextMenu.transferIfNeeded(playerObj, item)
-    ISTimedActionQueue.add(ISBUTakeApartBox:new(playerObj, item))
+    PZUIKit.UI.confirm(playerObj, takeApartQuestion(Panels.itemTier(item)), nil, function()
+        ISInventoryPaneContextMenu.transferIfNeeded(playerObj, item)
+        ISTimedActionQueue.add(ISBUTakeApartBox:new(playerObj, item))
+    end)
 end
 
 -- Taking a box apart for its control boards (Costs.takeApart), from the inventory.
 local function addTakeApart(context, playerObj, item)
     local option = context:addOption(getText("ContextMenu_BU_TakeApart"), playerObj, onTakeApart, item)
-    costed(option, playerObj, Costs.takeApart(),
-        getText("IGUI_BU_TakeApartNote", Costs.boardsIn(Panels.itemTier(item))))
+    costed(option, playerObj, Costs.takeApart(), takeApartGets(Panels.itemTier(item)))
 end
 
 function ContextMenu.fillInventory(player, context, items)

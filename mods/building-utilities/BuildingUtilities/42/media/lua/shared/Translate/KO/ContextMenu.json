@@ -27,5 +27,5 @@
     "ContextMenu_BU_TakeBox": "설비 제어반 들기",
     "ContextMenu_BU_ActivateBox": "설비 제어반 활성화",
     "ContextMenu_BU_ReverseEngineer": "제어반 만드는 법 익히기",
-    "ContextMenu_BU_TakeApart": "해체"
+    "ContextMenu_BU_TakeApart": "제어반 해체"
 }
