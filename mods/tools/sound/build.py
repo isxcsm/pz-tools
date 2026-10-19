@@ -236,6 +236,41 @@ def shape(data, clip, peak_db, length=None, fade_out=None):
     return np.clip(data * gain, -1, 1)
 
 
+# Loudness (LUFS, BS.1770, mono), for the installers that level by what is heard rather than by the peak.
+def _biquad(kind, fc, gain_db, q):
+    w = 2 * np.pi * fc / RATE
+    cos, alpha, a = np.cos(w), np.sin(w) / (2 * q), 10 ** (gain_db / 40)
+    if kind == 'shelf':
+        r = 2 * np.sqrt(a) * alpha
+        b = [a * ((a + 1) + (a - 1) * cos + r), -2 * a * ((a - 1) + (a + 1) * cos), a * ((a + 1) + (a - 1) * cos - r)]
+        d = [(a + 1) - (a - 1) * cos + r, 2 * ((a - 1) - (a + 1) * cos), (a + 1) - (a - 1) * cos - r]
+    else:
+        b = [(1 + cos) / 2, -(1 + cos), (1 + cos) / 2]
+        d = [1 + alpha, -2 * cos, 1 - alpha]
+    return np.array(b) / d[0], np.array(d) / d[0]
+
+
+def k_weighted(data):
+    """data through BS.1770's K filter (its high shelf, then its high pass)."""
+    from scipy.signal import lfilter
+    for kind, fc, g, q in (('shelf', 1681.97, 4.0, 0.7072), ('pass', 38.14, 0.0, 0.5003)):
+        b, a = _biquad(kind, fc, g, q)
+        data = lfilter(b, a, data)
+    return data
+
+
+def loudness(data, loop=False):
+    """LUFS: a loop's mean, else the loudest 400 ms (100 ms steps; a shorter sound counted over 400 ms with silence)."""
+    k = k_weighted(np.concatenate([data.astype(np.float64), np.zeros(int(0.4 * RATE))]))
+    if loop:
+        k = k[:len(data)]
+        return -0.691 + 10 * np.log10(np.mean(k * k) + 1e-12)
+    n, hop = int(0.4 * RATE), int(0.1 * RATE)
+    c = np.concatenate([[0.0], np.cumsum(k * k)])
+    sums = [c[i + n] - c[i] for i in range(0, len(k) - n + 1, hop)]
+    return -0.691 + 10 * np.log10(max(sums) / n + 1e-12)
+
+
 def encode(data, path):
     with tempfile.TemporaryDirectory() as tmp:
         wav = os.path.join(tmp, 'out.wav')

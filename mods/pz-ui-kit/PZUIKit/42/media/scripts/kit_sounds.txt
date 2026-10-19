@@ -133,7 +133,7 @@ module Base
         }
     }
 
-    /* KIT_T_Seal_Land: seal_land_05.ogg d63e9dff -12 dB */
+    /* KIT_T_Seal_Land: seal_land_05.ogg 9995b6b5 -17 dB */
     sound KIT_T_Seal_Land
     {
         category = UI,
@@ -143,7 +143,7 @@ module Base
         }
     }
 
-    /* KIT_T_Seal_LineLand: seal_tag_06.ogg a28167e8 -12 dB */
+    /* KIT_T_Seal_LineLand: seal_tag_06.ogg 0c4202ab -20 dB */
     sound KIT_T_Seal_LineLand
     {
         category = UI,

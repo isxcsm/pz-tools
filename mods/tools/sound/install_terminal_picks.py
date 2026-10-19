@@ -59,40 +59,6 @@ def loudest20(data):
     return float(np.sqrt(np.max(c[n:] - c[:-n]) / n)) or 1e-9
 
 
-def _biquad(kind, fc, gain_db, q):
-    w = 2 * np.pi * fc / build.RATE
-    cos, alpha, a = np.cos(w), np.sin(w) / (2 * q), 10 ** (gain_db / 40)
-    if kind == 'shelf':
-        r = 2 * np.sqrt(a) * alpha
-        b = [a * ((a + 1) + (a - 1) * cos + r), -2 * a * ((a - 1) + (a + 1) * cos), a * ((a + 1) + (a - 1) * cos - r)]
-        d = [(a + 1) - (a - 1) * cos + r, 2 * ((a - 1) - (a + 1) * cos), (a + 1) - (a - 1) * cos - r]
-    else:
-        b = [(1 + cos) / 2, -(1 + cos), (1 + cos) / 2]
-        d = [1 + alpha, -2 * cos, 1 - alpha]
-    return np.array(b) / d[0], np.array(d) / d[0]
-
-
-def k_weighted(data):
-    """data through BS.1770's K filter (its high shelf, then its high pass)."""
-    from scipy.signal import lfilter
-    for kind, fc, g, q in (('shelf', 1681.97, 4.0, 0.7072), ('pass', 38.14, 0.0, 0.5003)):
-        b, a = _biquad(kind, fc, g, q)
-        data = lfilter(b, a, data)
-    return data
-
-
-def loudness(data, loop=False):
-    """LUFS: a loop's mean, else the loudest 400 ms (100 ms steps; a shorter sound counted over 400 ms with silence)."""
-    k = k_weighted(np.concatenate([data.astype(np.float64), np.zeros(int(0.4 * build.RATE))]))
-    if loop:
-        k = k[:len(data)]
-        return -0.691 + 10 * np.log10(np.mean(k * k) + 1e-12)
-    n, hop = int(0.4 * build.RATE), int(0.1 * build.RATE)
-    c = np.concatenate([[0.0], np.cumsum(k * k)])
-    sums = [c[i + n] - c[i] for i in range(0, len(k) - n + 1, hop)]
-    return -0.691 + 10 * np.log10(max(sums) / n + 1e-12)
-
-
 def leveled(data, key):
     """The candidate at its cue's level: a loop by its mean (not faded: its end runs into its start), a beat by its
     loudest 400 ms, its ends faded 5 ms; the peak kept under PEAK_CAP. A KEPT_DBFS cue by its old measure (a loop's
@@ -104,7 +70,7 @@ def leveled(data, key):
     else:
         if key not in LOOPS:
             data = titles.leveled(data, -3.0)
-        gain = 10 ** ((level - loudness(data, key in LOOPS)) / 20)
+        gain = 10 ** ((level - build.loudness(data, key in LOOPS)) / 20)
     gain = min(gain, 10 ** (PEAK_CAP / 20) / (float(np.max(np.abs(data))) or 1.0))
     return np.clip(data * gain, -1, 1)
 

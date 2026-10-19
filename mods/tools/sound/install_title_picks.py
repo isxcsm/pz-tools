@@ -55,8 +55,7 @@ MOMENTS += ['line.' + m for m in MOMENTS]
 # counted in S7):
 LEVELS = {
     'stamp': -13.0,     # a grade, a box sealed: a milestone met a few times a game; the one that should be felt (-23)
-    'seal': -12.0,      # the operation named, 100 acorns: once a game each, the heaviest stamp there is (-23); its tag's
-                        # thump at the same peak (the user's pick, heard in the lab at the land's)
+    'seal': -12.0,      # (by loudness: LOUD below)
     'bleed': -12.0,     # a positive infection, once: dread is the heaviest moment the mods have (-23)
     'unveil': -12.0,    # a new phase (3 calls), a slow wide swell: rare and large (-24)
     'sink': -13.0,      # a loss (5): felt, but a failure should not shout (-25)
@@ -67,6 +66,13 @@ LEVELS = {
     'brief': -23.0,     # tiny feedback (3, one per kit fitted or kill logged): well under the click, a tick (-34)
     'type': -10.0,      # a document issued: its keys are the keyboard's, at the click's level; this is for a pick of it
 }
+# The styles levelled by loudness (LUFS: their loudest 400 ms, build.loudness) instead of their peak: a style whose sound
+# is a sharp hit over a long swell reads quiet at a peak level. The seal (the operation named, 100 acorns: once a game
+# each, the biggest moment the mods have) at its peak's -12 was -25 LUFS, under the terminal's boot (its switch -22, its
+# welcome -19), and the user heard it small (2026-10-20): its land now over the boot's loudest, its line's (the tag's
+# thump) LINE_LOUD_DB under it, as the two picks stood in the lab.
+LOUD = {'seal': -17.0}
+LINE_LOUD_DB = -3.0
 # A leave is a tail, not an event: this much under its style's level.
 LEAVE_DB = -8.0
 FADE_S = build.FADE_S
@@ -82,7 +88,18 @@ def sound_name(style, moment):
 
 
 def level_of(style, moment):
+    if style in LOUD:
+        return LOUD[style] + (LINE_LOUD_DB if moment.startswith('line.') else 0.0) + (LEAVE_DB if moment.endswith('leave') else 0.0)
     return LEVELS[style] + (LEAVE_DB if moment.endswith('leave') else 0.0)
+
+
+def leveled_as(data, style, level):
+    """The candidate at its level: a LOUD style's by its loudness (the peak kept under -1 dBFS), else by its peak."""
+    if style not in LOUD:
+        return leveled(data, level)
+    data = leveled(data, -3.0)
+    gain = min(10 ** ((level - build.loudness(data)) / 20), 10 ** (-1.0 / 20) / float(np.max(np.abs(data))))
+    return np.clip(data * gain, -1, 1)
 
 
 def read(path):
@@ -221,7 +238,7 @@ def main(args):
         source = os.path.join(opts.gen, file)
         if not os.path.exists(source):   # kept as installed, but its hash is not the file's: nothing to redo
             continue
-        build.encode(leveled(build.decode(source), level), out)
+        build.encode(leveled_as(build.decode(source), style, level), out)
 
     if opts.dry:
         print('(dry: %d sounds, no file written)' % len(entries))
