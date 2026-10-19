@@ -1,7 +1,7 @@
 -- The dense places (NUMBERS 7 'Dense places'): where the map puts many zombies, found once a world by the extension API
 -- (PZExtAPI.zombies.dense) and kept in the world store. Each place is given one kind of weapon kit, rotating in the order
 -- of density (the densest first): damage, critical, repair, damage ... A character gets its place's reward once, when it
--- clears the place (the zombies near its middle fall to a tenth of the most counted there) or stands at the middle of a
+-- clears the place (the zombies in its circle fall to a tenth of the most counted there) or stands in the circle of a
 -- place that is already cleared in this world (by an earlier character); the shop reads the rewards (a kind's restock is
 -- 1 plus the places of its kind a record got). Shown on the maps from trust level 6, until the record has its reward (a
 -- place an earlier character cleared stays on a new one's maps: its reward waits there).
@@ -29,8 +29,9 @@ Dense.CHUNKS = 20
 Dense.KINDS = { "damage", "crit", "repair" }
 -- Trust level from which the places are shown and cleared.
 Dense.TIER = 6
--- A place is looked at when the character stands within NEAR squares of its middle; the zombies counted are those within
--- its circle (at least COUNT_R squares) of the middle on the ground floor.
+-- A place is looked at when the character stands in its circle (within NEAR squares of its middle at least: a place made
+-- of two may have an empty street there); the zombies counted are those within its circle (at least COUNT_R squares) of
+-- the middle on the ground floor.
 Dense.NEAR = 20
 Dense.COUNT_R = 40
 -- It is cleared when the count falls to this share of the most counted, if that was at least LEAST.
@@ -194,15 +195,14 @@ end
 
 local function lookOver(record, list, x, y)
     local got = Dense.got(record)
-    local least = Dense.NEAR * Dense.NEAR
     for _, p in ipairs(list) do
-        local dx, dy = p.x - x, p.y - y
-        if dx * dx + dy * dy <= least and not got[p.id] then visit(record, p) end
+        local dx, dy, near = p.x - x, p.y - y, math.max(Dense.NEAR, p.r or 0)
+        if dx * dx + dy * dy <= near * near and not got[p.id] then visit(record, p) end
     end
 end
 
--- A look at where a record's character stands (x, y): the places within NEAR squares of it that the record has no reward
--- from. Called on the minute; does nothing until a real second has passed since the last look, below the trust level, or
+-- A look at where a record's character stands (x, y): the places whose circle it stands in (NEAR at least) that the
+-- record has no reward from. Called on the minute; does nothing until a real second has passed since the last look, below the trust level, or
 -- with no place about.
 function Dense.look(record, x, y)
     local list = lookList(record)

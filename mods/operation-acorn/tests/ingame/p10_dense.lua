@@ -319,7 +319,7 @@ P10T.start("p10dense", function(a)
         Dense.look(C, place.x, place.y)
         a.check("a record below tier 6 gets nothing", Dense.got(C)[place.id] == nil and #titles == before)
         local far = P10T.scratch(a, "dense_far", 5, 1)
-        Dense.look(far, place.x + Dense.NEAR * 3, place.y)
+        Dense.look(far, place.x + math.max(Dense.NEAR, place.r) + Dense.NEAR * 3, place.y)
         a.check("a record far from the place gets nothing", Dense.got(far)[place.id] == nil and #titles == before)
     end }
     steps[#steps + 1] = { after = 500, name = "back", run = function()

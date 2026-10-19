@@ -214,7 +214,7 @@ test("a baseline under 20 never clears; none is taken of an empty count", functi
     eq(Dense.got(r).D3, "repair")
 end)
 
-test("only within 20 squares of the middle, no more than once a real second, and not below level 6", function()
+test("only in its circle (60 squares here), no more than once a real second, and not below level 6", function()
     setup()
     Dense.ensure()
     local r = record(6)
@@ -226,10 +226,10 @@ test("only within 20 squares of the middle, no more than once a real second, and
         return real(x, y)
     end
     counts["1000,1000"] = 50
-    stand(r, p, 21)
-    eq(asks, 0, "21 squares away")
-    stand(r, p, 20)
-    eq(asks, 1, "20 squares away")
+    stand(r, p, 61)
+    eq(asks, 0, "61 squares away, out of its circle")
+    stand(r, p, 60)
+    eq(asks, 1, "60 squares away, on its edge")
     local now = 5000000
     local clock = getTimestampMs
     getTimestampMs = function() return now end
