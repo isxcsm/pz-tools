@@ -6,7 +6,10 @@
 -- (when their pieces are not the ones shown). Their squares are watched (PZExtAPI.squares): when
 -- one changes (something built on it or taken away, its floor changed, or it loaded) its look is chosen again, and a
 -- line that can no longer lie there (water, no floor, stairs, a room built over it) is laid again round it.
+-- The mod option (BU.Options.floorLinesShown) hides them: nothing is sent and what was shown is taken away, while the
+-- lines are still laid again round what is built over them.
 require "BuildingUtilities/Links"
+require "BuildingUtilities/Options"
 local BU = BuildingUtilities
 local Store, Links = BU.Store, BU.Links
 local FloorLines = {}
@@ -155,6 +158,8 @@ end
 -- the pieces follow from them).
 local shown = {}
 local seen, cleared = nil, false
+-- The lines not drawn (the mod option).
+local hidden = false
 -- The squares watched (the API's watch ids), and what each was last seen as (looked: its floor made or not, its
 -- ground open or not): a square the game works out again only because it loaded, or for a change that came to nothing,
 -- is soon looked at again for nothing.
@@ -216,6 +221,7 @@ end
 -- The pieces a square shows, sent when they are not the ones it shows already; made: whether its floor is made, when
 -- the caller has looked.
 local function send(api, handle, key, square, made)
+    if hidden then return end
     if made == nil then made = FloorLines.madeFloor(square.x, square.y, square.z) end
     local look = ((square.power or 0) * 16 + (square.water or 0)) * 2 + (made and 1 or 0)
     if shown[key] == look then return end
@@ -259,6 +265,7 @@ function FloorLines.refresh()
     if not cleared then
         api.floor.clear(handle)
         shown, cleared = {}, true
+        hidden = not BU.Options.floorLinesShown()
         wanted, infos, touching, pending = {}, {}, {}, {}
         watchDirty = true
     end
@@ -276,6 +283,22 @@ function FloorLines.refresh()
     end
     pending = {}
     if watchDirty then watch(api, handle) end
+end
+
+-- The lines drawn or not (the mod option switched): hidden, the floor is cleared; shown again, every square of the lines
+-- is sent.
+function FloorLines.setShown(on)
+    if hidden == not on then return end
+    hidden = not on
+    local api, handle = BU.api(), BU.handle()
+    if not (cleared and api and api.floor and handle) then return end
+    if hidden then
+        api.floor.clear(handle)
+        shown = {}
+    else
+        for key in pairs(wanted) do pending[key] = true end
+        FloorLines.refresh()
+    end
 end
 
 -- A square of the lines that changed, or one looked at again: its look chosen again; the lines that can no longer lie

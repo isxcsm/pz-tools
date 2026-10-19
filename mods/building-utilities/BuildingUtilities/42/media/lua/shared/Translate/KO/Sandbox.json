@@ -1,5 +1,5 @@
 {
-    "Sandbox_BuildingUtilities": "건물 유틸리티",
+    "Sandbox_BuildingUtilities": "건물 설비",
     "Sandbox_BuildingUtilities_ConnectRange": "연결 거리",
     "Sandbox_BuildingUtilities_ConnectRange_tooltip": "1단계 설비 제어반이 건물 외벽에서 몇 칸 안의 실외 설비(발전기, 물 저장소, 태양광 패널, 배터리 랙, 양수 펌프, 스프링클러, 정수 필터, 가압 펌프)와 기기까지 연결할 수 있는지 정합니다. 그보다 먼 곳은 분기함·야외 수전이나 이미 선에 달린 기기를 거쳐 잇습니다. 제어반 단계가 오르면 거리가 늘어나며, 32칸을 넘지 않습니다.",
     "Sandbox_BuildingUtilities_CostsEnabled": "연결에 재료 필요",
@@ -64,7 +64,7 @@
     "Sandbox_BuildingUtilities_WaterFromAboveOnly_tooltip": "바닐라 배관 원리와 동일하게 소비 설비보다 상층에 위치한 물 저장소의 용수만 공급받는 옵션입니다. 비활성화(기본값) 시 동일 층에 설치된 물 저장소의 용수도 정상 공급됩니다. 어떤 설정이든 하층부 물 저장소의 용수는 가압 펌프 없이는 공급받을 수 없습니다.",
     "Sandbox_BuildingUtilities_RiskPipesFreeze": "위험: 배관 동파",
     "Sandbox_BuildingUtilities_RiskPipesFreeze_tooltip": "설비 제어반 자리 기온이 -5°C 아래로 6시간 이어지면 배관이 얼어 물이 멈춥니다(난방된 건물은 덜 춥습니다). 0°C 위로 2시간이면 다시 나옵니다. (기본값: 꺼짐)",
-    "Sandbox_BuildingUtilitiesFeatures": "건물 유틸리티: 기능",
+    "Sandbox_BuildingUtilitiesFeatures": "건물 설비: 기능",
     "Sandbox_BuildingUtilities_EnablePower": "전기",
     "Sandbox_BuildingUtilities_EnablePower_tooltip": "설비 제어반이 연결된 발전기, 태양광 패널, 배터리 랙으로 건물에 전기를 댑니다. 차단기, 타이머 등 전기 쪽 기능이 모두 여기에 속합니다. (기본값: 켜짐) 끄면 제어반이 전기를 대지 않고 전기 쪽 설비를 만들거나 연결할 수 없으며, 발전기와 기기는 이 모드가 없을 때처럼 동작합니다. 연결해 둔 것은 그대로 남아, 다시 켜면 다시 동작합니다.",
     "Sandbox_BuildingUtilities_EnableWater": "물",
