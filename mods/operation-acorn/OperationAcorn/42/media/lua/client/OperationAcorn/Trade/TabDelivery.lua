@@ -236,7 +236,7 @@ function OATabDelivery:layout()
     local noteH = #d.noteLines * fh + 4
     local expectH = d.expect and fh + 4 or 0
     d.expectFit = d.expect and UI.fit(d.expect, w) or nil
-    -- The situation panel at the bottom.
+    -- The situation panel at the bottom (taller when the list is short, below).
     m.sitH = 24 + fh * #d.sit + 52
     for i, line in ipairs(d.sit) do
         line.fit = UI.fit(line.text, w - 170)
@@ -256,6 +256,10 @@ function OATabDelivery:layout()
     m.listW = w - 8
     m.noteY = m.listY + listH + 4
     m.expectY = m.noteY + noteH
+    -- A short list leaves room: the situation panel starts under the settlement line and takes it (its chips stay at
+    -- its foot), so the tab has no hole between the list and the panel.
+    local top = m.expectY + expectH + 6
+    if top < m.sitY then m.sitY, m.sitH = top, h - top end
     UI.place(self.list, nil, m.listY, w, listH)
     self.list:setVisible(#d.rows > 0)
     -- The index chips, six and five in two rows.
