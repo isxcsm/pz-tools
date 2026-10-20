@@ -735,6 +735,8 @@ function OATerminalWindow:close()
     OATerminalWindow.instances[self.playerNum] = nil
     OA.Trade.TerminalSound.close(self)
     UI.fadeOut(self)
+    -- (what follows the window coming and going, another part's: OA.terminalWatchers, fn(playerNum, open))
+    for _, fn in ipairs(OA.terminalWatchers or {}) do OA.try("terminal: closed", fn, self.playerNum, false) end
 end
 
 -- The window's default and smallest sizes in pixels: the design sizes times the scale, kept to a share of the screen.
@@ -819,6 +821,7 @@ function Terminal.open(character, x, y, z)
     window:setVisible(true)
     OATerminalWindow.instances[playerNum] = window
     OA.Sync.send(character, "tradeUsed", { x = x, y = y, z = z })
+    for _, fn in ipairs(OA.terminalWatchers or {}) do OA.try("terminal: opened", fn, playerNum, true) end
     return window
 end
 

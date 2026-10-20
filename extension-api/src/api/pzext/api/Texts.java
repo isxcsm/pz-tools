@@ -1412,7 +1412,7 @@ final class Texts implements Hooks.Text {
             ALL.put("brief", new Style(
                 Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Medium")), Map.entry("size", 0.036), Map.entry("color", List.of(0.95, 0.93, 0.88, 1.0)),
                     Map.entry("shadow", true), Map.entry("outline", 1.0), Map.entry("outlineColor", List.of(0.0, 0.0, 0.0, 0.4)),
-                    Map.entry("y", 0.8), Map.entry("enter", "slide"), Map.entry("enterTime", 0.45), Map.entry("hold", 4.0), Map.entry("backdrop", 0.22),
+                    Map.entry("y", 0.8), Map.entry("enter", "slide"), Map.entry("enterTime", 0.45), Map.entry("hold", 4.0), Map.entry("backdrop", 0.36),
                     Map.entry("leave", "flare"), Map.entry("leaveTime", 3.5)),
                 Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Small")), Map.entry("size", 0.026), Map.entry("color", List.of(0.84, 0.83, 0.8, 1.0)),
                     Map.entry("shadow", true), Map.entry("outline", 1.0), Map.entry("outlineColor", List.of(0.0, 0.0, 0.0, 0.35)),

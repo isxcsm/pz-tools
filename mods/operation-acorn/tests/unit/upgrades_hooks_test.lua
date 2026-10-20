@@ -165,7 +165,33 @@ test("the first point's hint waits for the tree's opening title to have left (th
     eq(drawn[2].style, "brief")
     eq(drawn[2].after, 1, "after the opening title")
     eq(drawn[1].after, nil)
-    PZExtAPI = nil
+    -- the terminal opened (the opening title told of a memo): the hint steps aside, and comes as it closes
+    local hidden = {}
+    PZExtAPI.text.hide = function(handle, key, now) hidden[#hidden + 1] = key; return true end
+    local function terminal(open)
+        OATerminalWindow = { instances = { [0] = open and {} or nil } }
+        for _, fn in ipairs(OA.terminalWatchers) do fn(0, open) end
+    end
+    terminal(true)
+    eq(hidden[1], 2, "the hint taken away")
+    terminal(false)
+    eq(#drawn, 3, "again as the terminal closed")
+    eq(drawn[3].text, "IGUI_OA_Tree_WhereHint")
+    eq(drawn[3].after, nil)
+    -- shown to its end before the terminal opened: not again
+    PZExtAPI.text.hide = function() return false end
+    terminal(true)
+    terminal(false)
+    eq(#drawn, 3)
+    -- the point came while the terminal was open: the hint waits for it to close
+    data.OA_ResearchHint = nil
+    OATerminalWindow = { instances = { [0] = {} } }
+    OA.Sync.deliver("notice", "p1", { key = "IGUI_OA_Tree_Adapted", args = { "load", 1 } })
+    eq(#drawn, 4, "the point's own brief title")
+    terminal(false)
+    eq(#drawn, 5)
+    eq(drawn[5].text, "IGUI_OA_Tree_WhereHint")
+    OATerminalWindow, PZExtAPI = nil, nil
 end)
 
 -- ---- with PZ Optimization's retained UI (Trade/UI live) ------------------------------------------------------------

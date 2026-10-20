@@ -229,20 +229,53 @@ local function onNotice(playerId, detail)
     else
         OA.Titles.brief(playerId, detail.key, args)
     end
-    -- the first research point: where the plan is made, once a character, a brief title after the point's own (the
-    -- brief titles' queue) and after a tree's opening title has left (the API's `after`: one place to look at a time),
-    -- none when the tab is on the screen already
+    -- the first research point: where the plan is made, once a character (Hooks.hint)
     local opened = Hooks.openedTitle
     Hooks.openedTitle = nil
     if POINTS[detail.key] and not player:getModData().OA_ResearchHint then
         player:getModData().OA_ResearchHint = true
-        local Window = OA.Upgrades.Window
-        if not (Window and Window.onScreen(0)) then
-            OA.Titles.brief(playerId, "IGUI_OA_Tree_WhereHint", nil, nil, opened)
-        end
+        Hooks.hint = { playerId = playerId, after = opened }
+        Hooks.showHint()
     end
 end
 OA.Sync.listen("notice", onNotice)
+
+-- The first point's hint, where the plan is made: a brief title after the point's own (the brief titles' queue) and
+-- after a tree's opening title has left (the API's `after`: one place to look at a time). The opening title says a memo
+-- came to the terminal, and the player may go there at once: while the terminal is open the hint steps aside (taken
+-- away, waiting or on the screen) and comes as it closes. None once the tab is on the screen. Hooks.hint = { playerId,
+-- after (the opening title's key), key (the hint's own, drawn), aside (taken away for the terminal) }.
+function Hooks.showHint()
+    local hint = Hooks.hint
+    if not hint then return end
+    local Window = OA.Upgrades.Window
+    if Window and Window.onScreen(0) then
+        Hooks.hint = nil
+        return
+    end
+    local terminal = OATerminalWindow and OATerminalWindow.instances and OATerminalWindow.instances[0]
+    if terminal then
+        hint.aside = true
+        return
+    end
+    local _, key = OA.Titles.brief(hint.playerId, "IGUI_OA_Tree_WhereHint", nil, nil, hint.after)
+    hint.key, hint.after, hint.aside = key, nil, nil
+end
+
+local function onTerminal(playerNum, open)
+    local hint = Hooks.hint
+    if not hint or playerNum ~= 0 then return end
+    if open then
+        if hint.key and OA.Titles.hide(hint.key) then hint.aside = true end
+        hint.key = nil
+        if not hint.aside then Hooks.hint = nil end
+    elseif hint.aside then
+        Hooks.showHint()
+    end
+end
+-- (the terminal window tells its watchers as it opens and closes, whichever file loads first)
+OA.terminalWatchers = OA.terminalWatchers or {}
+table.insert(OA.terminalWatchers, onTerminal)
 
 -- ---- the menus -------------------------------------------------------------------------------------------------
 

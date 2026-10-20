@@ -117,13 +117,18 @@ function Titles.notice(playerId, as, key, args)
         detail.key, detail.args = as.key, as.titleArgs and args or nil
         detail.sub, detail.subArgs = key, args
     end
-    Titles.show(playerId, detail)
+    return Titles.show(playerId, detail)
 end
 
 -- A notice as a brief title (light, low on the screen, over a window as over the world): its own text the title.
 -- `tone`: "red" for a refusal, "amber" for a warning, nil for news. `after`: a title's key it waits to have left.
 function Titles.brief(playerId, key, args, tone, after)
-    Titles.notice(playerId, { alone = true, style = "brief", tone = tone, after = after }, key, args)
+    return Titles.notice(playerId, { alone = true, style = "brief", tone = tone, after = after }, key, args)
+end
+
+-- Takes a title Titles.show drew away at once (its key), one still waiting too. True when there was one.
+function Titles.hide(key)
+    return key ~= nil and Kit.hide(OA.api(), OA.handle(), key)
 end
 
 -- A notice the character says: what it tried did not work (its text is written as the character's own words).
