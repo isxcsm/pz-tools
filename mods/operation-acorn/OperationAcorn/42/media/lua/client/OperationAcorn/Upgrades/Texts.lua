@@ -77,22 +77,25 @@ local function shown(node, value)
     return v
 end
 
--- The numbers a rank line is built from, as strings: %1, %2 ... of the node's rank text. u is the section (for the
--- board nodes, whose numbers follow what is bought).
+-- The numbers a rank line is built from, as strings: %1, %2 ... of the node's rank text. u is the section (the bite
+-- shield's wait of 상처 감염 저항).
 function Texts.args(node, rank, u)
     local args = {}
     if node.board then
-        local amount = Rules.boardAmount(u, node.id)
+        local amount = Rules.boardAmount(u, node.id, rank)
         if node.form == "divide" and efficiency(node) then
             -- a carrying efficiency, as it is set (the weight is divided by 1 + it)
             args[1] = Texts.percent(amount * 100)
         elseif node.form == "divide" then
             -- what the reduction takes off, as the player meets it (a value divided by 1 + sum)
             args[1] = Texts.percent(lighter(amount))
-            if node.id == "bBite" then args[2] = Texts.number(Rules.biteHours(u) / 24) end
+            if node.id == "bBite" then args[2] = Texts.number(Data.BITE_DAYS * Rules.divide(amount)) end
         elseif node.form == "add" then
             if node.unit == "pct100" then
                 args[1] = Texts.percent(amount * 100)
+            elseif node.unit == "every" then
+                -- a fraction of a thing each, read as one for every so many
+                args[1] = Texts.number(amount > 0 and math.floor(1 / amount + 0.5) or 0)
             else
                 args[1] = Texts.number(amount)
             end

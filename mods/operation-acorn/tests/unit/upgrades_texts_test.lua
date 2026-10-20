@@ -117,6 +117,13 @@ test("board numbers read what is bought", function()
     local bite = Texts.args(Data.byId.bBite, 3, u)
     eq(bite[1], "23%")
     eq(bite[2], "5.4")
+    -- the next rank reads its own numbers, bought or not
+    eq(Texts.args(Data.byId.bBite, 4, u)[1], "29%")
+    eq(Texts.args(Data.byId.bWalk, 11, u)[2], "40%")
+    -- the bundle node: a fiftieth a thing reads as one for every 50
+    eq(Texts.args(Data.byId.bBundle, 1, u)[1], "50")
+    eq(Texts.args(Data.byId.bBundle, 3, u)[1], "17")
+    eq(Texts.lines(Data.byId.bBundle, 1, u)[1] ~= nil, true)
 end)
 
 test("the conditions list what a node needs, each with its state", function()

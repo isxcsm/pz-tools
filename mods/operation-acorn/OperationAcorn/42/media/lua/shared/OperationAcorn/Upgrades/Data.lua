@@ -168,7 +168,7 @@ board("bDash", "survival", 9, "divide", 0.10, "lua")
 board("bWalk", "survival", 10, "approach", 0.10, "api", { limit = 0.40 })
 board("bLoot", "scout", 1, "approach", 0.10, "api", { limit = 1.00 })
 board("bShard", "scout", 2, "approach", 0.10, "lua", { limit = 0.30 })
-board("bBundle", "scout", 3, "add", 0.02, "lua", { unit = "num" })
+board("bBundle", "scout", 3, "add", 0.02, "lua", { unit = "every" })
 
 -- Node icons (media/textures, made by the assets part; the file name is OA_Node_<slug>.png).
 local ICONS = {

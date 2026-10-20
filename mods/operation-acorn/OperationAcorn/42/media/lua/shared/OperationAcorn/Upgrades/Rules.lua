@@ -562,10 +562,10 @@ function Rules.cutFull(u, id)
 end
 
 -- The 2nd board node's amount, by its form: the reduction sum (divide), the added amount (add) or the bonus
--- (approach). 0 with no ranks.
-function Rules.boardAmount(u, id)
+-- (approach). 0 with no ranks. r overrides the bought rank (a tooltip reading the next one).
+function Rules.boardAmount(u, id, r)
     local node = Data.byId[id]
-    local r = Rules.rank(u, id)
+    r = r or Rules.rank(u, id)
     if not node or not node.board or r < 1 then return 0 end
     local m = Rules.mult()
     if node.form == "approach" then

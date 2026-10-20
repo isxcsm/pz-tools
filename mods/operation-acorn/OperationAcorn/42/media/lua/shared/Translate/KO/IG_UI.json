@@ -438,7 +438,7 @@
     "IGUI_OA_Tree_Node_bShard_Name": "선별 시료",
     "IGUI_OA_Tree_Node_bShard_Rank": "선별 시료가 나올 확률이 %1 높아집니다. 최대 %2까지 오릅니다.",
     "IGUI_OA_Tree_Node_bBundle_Name": "시료 묶음",
-    "IGUI_OA_Tree_Node_bBundle_Rank": "분해하는 물건 하나마다 시료 묶음이 %1개 더 나옵니다.",
+    "IGUI_OA_Tree_Node_bBundle_Rank": "물건을 %1개 분해할 때마다 시료 묶음이 하나 더 나옵니다.",
     "IGUI_OA_Tree_Name_scout": "현장 탐지",
     "IGUI_OA_Tree_Name_load": "하중 적응",
     "IGUI_OA_Tree_Name_survival": "생존 적응",

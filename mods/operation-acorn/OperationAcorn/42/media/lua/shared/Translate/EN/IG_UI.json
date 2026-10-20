@@ -438,7 +438,7 @@
     "IGUI_OA_Tree_Node_bShard_Name": "Selected Samples",
     "IGUI_OA_Tree_Node_bShard_Rank": "Selected samples come %1 more often, up to %2.",
     "IGUI_OA_Tree_Node_bBundle_Name": "Sample Bundles",
-    "IGUI_OA_Tree_Node_bBundle_Rank": "Each thing dismantled yields %1 more sample bundles.",
+    "IGUI_OA_Tree_Node_bBundle_Rank": "One more sample bundle for every %1 things dismantled.",
     "IGUI_OA_Tree_Name_scout": "Field Detection Enhancement",
     "IGUI_OA_Tree_Name_load": "Load Adaptation Enhancement",
     "IGUI_OA_Tree_Name_survival": "Survival Adaptation Enhancement",
