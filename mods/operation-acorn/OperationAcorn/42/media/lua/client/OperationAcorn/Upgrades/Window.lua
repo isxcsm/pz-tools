@@ -2360,7 +2360,8 @@ function View:paintOver(el)
         -- a tree not opened yet: dark, with why
         if self.mode == "trees" and not Rules.treeOpen(self.u, panel.tree) then
             UI.fill(el, panel.gx, panel.gy + dy, panel.w, panel.gridH, BLACK, 0.6)
-            local doses = adapting(self.u, panel.tree)
+            -- (a shared dose adapting opens it too)
+            local doses = adapting(self.u, panel.tree) + adapting(self.u, "shared")
             local why = doses > 0 and "IGUI_OA_Tree_AdaptingClosed" or "IGUI_OA_Tree_TreeClosed"
             local lines = UI.wrapMemo(UI.str(why), panel.w - 2 * L.GRID_PAD)
             local cx = panel.gx + panel.w / 2

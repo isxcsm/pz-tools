@@ -4,7 +4,7 @@
 --
 -- The section u:
 --   injected[tree]  serums of the tree injected (each is a point in that tree), sharedInjected for shared serums
---   opened[tree]    the tree has been opened by its first serum
+--   opened[tree]    the tree has been opened by its first serum (or by a shared one, which opens them all)
 --   bought[tree]    serums bought in the tree: only grows, the price follows it. spend[tree]: credits paid for them
 --   ranks[id]       the rank of each tree node (the capstone's is 1 once approved)
 --   unsealed[tree]  the tree's capstone may be taken: its meteorite fragment reached the research team. Kept for good
@@ -391,8 +391,9 @@ function Rules.adaptDone(u, now)
     return u.adapt ~= nil and now >= (u.adapt.endsAt or 0)
 end
 
--- The adaptation is over: every dose becomes its point (the first of a tree opens it). Returns { trees = { [tree] = n },
--- shared = n, opened = { tree... } } in the trees' order, or nil when there was no adaptation.
+-- The adaptation is over: every dose becomes its point (the first of a tree opens it; a shared dose opens every tree
+-- still closed, with no point of their own). Returns { trees = { [tree] = n }, shared = n, opened = { tree... } (by
+-- their own doses), sharedOpened = { tree... } } in the trees' order, or nil when there was no adaptation.
 function Rules.finishAdapt(u)
     local a = u.adapt
     if not a then return nil end
@@ -406,6 +407,15 @@ function Rules.finishAdapt(u)
     end
     for _ = 1, a.doses.shared or 0 do Rules.injectShared(u) end
     result.shared = a.doses.shared or 0
+    result.sharedOpened = {}
+    if result.shared > 0 then
+        for _, tree in ipairs(Data.TREES) do
+            if not u.opened[tree] then
+                u.opened[tree] = true
+                result.sharedOpened[#result.sharedOpened + 1] = tree
+            end
+        end
+    end
     u.adapt = nil
     return result
 end

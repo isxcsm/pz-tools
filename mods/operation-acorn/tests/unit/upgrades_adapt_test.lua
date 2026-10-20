@@ -189,17 +189,61 @@ test("a tree opening brings its memo once; the notice says whether it came", fun
     eq(told.say[#told.say].ctx.tree, "scout")
 end)
 
-test("a shared serum has no tree to open and no self-talk, only its line", function()
+local function find(told, key)
+    for _, n in ipairs(told.notices) do
+        if n.key == key then return n end
+    end
+    return nil
+end
+
+test("a shared serum opens every tree still closed: one opening for them all, their memos, the self-talk", function()
     local c = character()
     local record = OA.Store.ensure("s1", "tester")
+    local u = Rules.section(record)
     local told = listen()
     TEST.hours = 10
     Serums.inject(c, serum("UpgradeSerumShared"), "s1")
+    for _, tree in ipairs(Data.TREES) do eq(Rules.treeOpen(u, tree), false, "not before the adaptation ends") end
     Adapt.finish(record, 11)
-    truthy(has(keys(told), "IGUI_OA_Tree_AdaptedShared"))
-    eq(has(keys(told), "IGUI_OA_Tree_Opened"), false)
-    eq(#told.say, 0)
-    eq(Rules.sharedPool(Rules.section(record)), 1)
+    for _, tree in ipairs(Data.TREES) do
+        truthy(Rules.treeOpen(u, tree))
+        eq(Rules.ownPool(u, tree), 0, "an opening by a shared dose gives the tree no point of its own")
+        truthy(OA.Story.section(record).docs[Adapt.memoId(tree, "open")])
+    end
+    eq(Rules.sharedPool(u), 1)
+    local n = find(told, "IGUI_OA_Tree_OpenedShared")
+    truthy(n, "told once, as an opening")
+    eq(n.args[1], "", "more than one tree: no tree's name")
+    eq(n.args[2], "guide")
+    eq(n.args[3], 1, "the shared point told with it")
+    eq(find(told, "IGUI_OA_Tree_AdaptedShared"), nil, "not told twice")
+    eq(find(told, "IGUI_OA_Tree_Opened"), nil)
+    eq(told.say[#told.say].id, "Adapted")
+    -- the next shared dose finds them open: its point only
+    Serums.inject(c, serum("UpgradeSerumShared"), "s1")
+    Adapt.finish(record, 12)
+    eq(find(told, "IGUI_OA_Tree_AdaptedShared").args[1], 1)
+    eq(Rules.sharedPool(u), 2)
+end)
+
+test("a shared dose with a tree's own: that tree opens by its own, the shared one opens the rest", function()
+    local c = character()
+    local record = OA.Store.ensure("s2", "tester")
+    local u = Rules.section(record)
+    local told = listen()
+    TEST.hours = 10
+    Serums.inject(c, serum("UpgradeSerumScout"), "s2")
+    Adapt.finish(record, 11)
+    told.notices = {}
+    Serums.inject(c, serum("UpgradeSerumLoad"), "s2")
+    Serums.inject(c, serum("UpgradeSerumShared"), "s2")
+    Adapt.finish(record, 12)
+    eq(find(told, "IGUI_OA_Tree_Opened").args[1], "load")
+    eq(find(told, "IGUI_OA_Tree_OpenedShared").args[1], "survival", "one tree left: its name")
+    truthy(Rules.treeOpen(u, "survival"))
+    eq(Rules.ownPool(u, "load"), 1)
+    eq(Rules.ownPool(u, "survival"), 0)
+    eq(told.say[#told.say].ctx.tree, "load", "the self-talk is the tree that opened by its own dose")
 end)
 
 test("a capstone approved brings the tree's follow-up memo, once", function()

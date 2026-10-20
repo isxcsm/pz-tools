@@ -143,14 +143,21 @@ function Hooks.banner(text)
 end
 
 -- A tree opened (its first serum adapted to): a title, with the points that came under it and, with `guide`, that its
--- memo came to the terminal's folder; or the banner when the API cannot draw it.
-function Hooks.treeOpened(playerId, tree, guide, points)
-    local name = "IGUI_OA_Tree_Name_" .. tree
-    local line = guide and "IGUI_OA_Title_OpenedSubGuide" or "IGUI_OA_Title_OpenedSub"
-    local detail = { key = "IGUI_OA_Title_TreeOpened", args = { { key = name } }, sub = line,
-        subArgs = { points or 1 }, style = "dust" }
+-- memo came to the terminal's folder; or the banner when the API cannot draw it. `shared`: a shared dose opened it, or
+-- with no tree (tree "") the trees still closed, all at once; its points are shared ones.
+function Hooks.treeOpened(playerId, tree, guide, points, shared)
+    local key, args, title = "IGUI_OA_Title_TreeOpened", nil, nil
+    if tree ~= "" then
+        local name = "IGUI_OA_Tree_Name_" .. tree
+        args, title = { { key = name } }, getText(key, getText(name))
+    else
+        key = "IGUI_OA_Title_TreesOpened"
+        args, title = {}, getText(key)
+    end
+    local line = (shared and "IGUI_OA_Title_OpenedSubShared" or "IGUI_OA_Title_OpenedSub") .. (guide and "Guide" or "")
+    local detail = { key = key, args = args, sub = line, subArgs = { points or 1 }, style = "dust" }
     if OA.Titles.show(playerId, detail, true) == "title" then return end
-    Hooks.banner(getText("IGUI_OA_Title_TreeOpened", getText(name)) .. "<LINE>" .. getText(line, points or 1))
+    Hooks.banner(title .. "<LINE>" .. getText(line, points or 1))
 end
 
 local function localizedArgs(detail)
@@ -188,7 +195,8 @@ local TITLED = {
 -- The notices that bring research points, and when the first one's hint comes (real ms: after its title).
 Hooks.HINT_MS = 6500
 -- The notices that bring research points.
-local POINTS = { IGUI_OA_Tree_Adapted = true, IGUI_OA_Tree_AdaptedShared = true, IGUI_OA_Tree_Opened = true }
+local POINTS = { IGUI_OA_Tree_Adapted = true, IGUI_OA_Tree_AdaptedShared = true, IGUI_OA_Tree_Opened = true,
+    IGUI_OA_Tree_OpenedShared = true }
 
 local function onNotice(playerId, detail)
     if type(detail) ~= "table" or type(detail.key) ~= "string" then return end
@@ -201,6 +209,9 @@ local function onNotice(playerId, detail)
     if detail.key == "IGUI_OA_Tree_Opened" then
         local raw = detail.args or {}
         Hooks.treeOpened(playerId, tostring(raw[1]), raw[2] == "guide", tonumber(raw[3]))
+    elseif detail.key == "IGUI_OA_Tree_OpenedShared" then
+        local raw = detail.args or {}
+        Hooks.treeOpened(playerId, tostring(raw[1] or ""), raw[2] == "guide", tonumber(raw[3]), true)
     elseif TITLED[detail.key] then
         OA.Titles.notice(playerId, TITLED[detail.key], detail.key, args)
     elseif SAID[detail.key] then
