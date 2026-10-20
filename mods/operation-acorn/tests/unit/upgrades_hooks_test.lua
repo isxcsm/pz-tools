@@ -105,7 +105,7 @@ test("a tree opened is a title with the folder line under it when a memo came, o
     PZExtAPI = nil
 end)
 
-test("an adaptation is a title with the tree's name under it; a first effect is a brief title", function()
+test("points that came are a brief title (doses are many), an opening a title of its own; a first effect is a brief title", function()
     local Hooks = loadHooks()
     local banners, good, opened = {}, {}, {}
     Hooks.banner = function(text) banners[#banners + 1] = text end
@@ -121,8 +121,7 @@ test("an adaptation is a title with the tree's name under it; a first effect is 
     -- (the test's getText adds a "nil" for each argument the call leaves out; without the API's text a title is
     -- said by the character: its title, then its line)
     local function said(text, prefix) return string.sub(text, 1, #prefix) == prefix end
-    truthy(said(good[1], "IGUI_OA_Title_Adapted"), good[1])
-    truthy(string.find(good[1], "IGUI_OA_Tree_Adapted IGUI_OA_Tree_Name_scout 2", 1, true), good[1])
+    truthy(said(good[1], "IGUI_OA_Tree_Adapted IGUI_OA_Tree_Name_scout 2"), good[1])
     truthy(said(good[2], "IGUI_OA_Tree_WhereHint"), "the first point tells where the plan is made, after its title")
     eq(#banners, 0, "a brief title, not the banner")
     OA.Sync.deliver("notice", "p1", { key = "IGUI_OA_Tree_AdaptedShared", args = { 1 } })

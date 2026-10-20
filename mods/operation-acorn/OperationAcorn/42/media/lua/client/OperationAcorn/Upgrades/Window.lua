@@ -2693,6 +2693,8 @@ function View:setVisible(visible, joypadData)
     if visible then
         self:refresh()
         self:startOpen()
+        -- the points that came are seen: the sidebar heart's light goes out
+        if OA.Upgrades.Sidebar then OA.Upgrades.Sidebar.seen(self.playerNum) end
     else
         self:hideTip()
         self.take, self.approved = nil, nil
@@ -2805,11 +2807,23 @@ function Window.reveal(playerNum, blink, info)
     return true
 end
 
--- The tab blinks in the character window (points came to choose with), unless it is the one shown.
+-- Whether a player's tab is on the screen: the one shown of a character window that shows, or its own window shown
+-- (torn off). (The tab's own visibility stays on while it is the window's chosen tab, the window hidden.)
+function Window.onScreen(playerNum)
+    local view = views[playerNum]
+    if not (view and view.parent and view:getIsVisible()) then return false end
+    local info = getPlayerInfoPanel(playerNum)
+    if info and view.parent == info.panel then
+        return info:getIsVisible() and info.panel:getActiveView() == view
+    end
+    return view.parent:getIsVisible()
+end
+
+-- The tab blinks in the character window (points came to choose with), unless it is on the screen.
 function Window.blink(playerNum)
     local view = views[playerNum]
     local info = getPlayerInfoPanel(playerNum)
-    if not (view and info and info.panel and view.parent == info.panel) or view:getIsVisible() then return false end
+    if not (view and info and info.panel and view.parent == info.panel) or Window.onScreen(playerNum) then return false end
     local tabs = info.panel.blinkTabs or {}
     info.panel.blinkTabs = tabs
     for _, name in ipairs(tabs) do
@@ -2928,21 +2942,21 @@ local function onChanged(playerId, detail)
     local kind = type(detail) == "table" and detail.kind or nil
     for playerNum, view in pairs(views) do
         if not view.parent then Window.reveal(playerNum, false) end
+        local onScreen = Window.onScreen(playerNum)
         if view:getIsVisible() then
             local before = view.nodes
             view:refresh()
             if kind == "approve" then view:startTake() end
-            if kind == "adapted" then view:unlockSince(before, getTimestampMs()) end
-        elseif kind == "adapted" then
-            Window.blink(playerNum)
+            if kind == "adapted" and onScreen then view:unlockSince(before, getTimestampMs()) end
         end
+        if kind == "adapted" and not onScreen then Window.blink(playerNum) end
     end
 end
 
 -- A game minute while doses adapt: a tab on the screen draws the time adapted again.
 function Window.adaptMinute()
-    for _, view in pairs(views) do
-        if view:getIsVisible() then view:changed() end
+    for playerNum, view in pairs(views) do
+        if Window.onScreen(playerNum) then view:changed() end
     end
 end
 OA.Sync.listen("upgrades", onChanged)

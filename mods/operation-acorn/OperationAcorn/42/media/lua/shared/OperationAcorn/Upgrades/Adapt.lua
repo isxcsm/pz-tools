@@ -55,8 +55,9 @@ function Adapt.start(record, key, now)
 end
 
 -- The adaptation is over (the time of the record's end has passed): the points come, the trees that opened bring their
--- memo, and the player is told once for each tree: a tree that opened now by its opening (its points with it), any
--- other by its points; the shared points by theirs. Returns true when it ended now.
+-- memo, and the player is told once for each tree: a tree that opened now by its opening (its points with it, and the
+-- character's self-talk), any other by its points (a brief title: doses are many); the shared points by theirs.
+-- Returns true when it ended now.
 function Adapt.finish(record, now)
     local u = Rules.section(record)
     if not Rules.adaptDone(u, now or OA.hours()) then return false end
@@ -71,10 +72,10 @@ function Adapt.finish(record, now)
             if opened[tree] then
                 local sent = Adapt.deliver(record, Adapt.memoId(tree, "open"))
                 OA.Sync.notice(id, "IGUI_OA_Tree_Opened", { tree, sent and "guide" or "", n })
+                if n > most then talk, most = tree, n end
             else
                 OA.Sync.notice(id, "IGUI_OA_Tree_Adapted", { tree, n })
             end
-            if n > most then talk, most = tree, n end
         end
     end
     if result.shared > 0 then OA.Sync.notice(id, "IGUI_OA_Tree_AdaptedShared", { result.shared }) end

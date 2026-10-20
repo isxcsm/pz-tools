@@ -96,8 +96,8 @@ local function forgetFirstDose(record)
 end
 
 -- Takes every rank away and empties the points: the research as before the first serum (what was bought stays, for the
--- shop's prices). The first dose plays as the first again: its papers and calls are forgotten and the tab leaves the
--- character window.
+-- shop's prices). The first dose plays as the first again: its papers and calls are forgotten, the tab leaves the
+-- character window, and the hint where the plan is made and the heart's light come again.
 function Dev.clearResearch()
     local u, record = upgrades()
     local bought, spend = u.bought, u.spend
@@ -106,6 +106,8 @@ function Dev.clearResearch()
     OA.Upgrades.Rules.fill(u)
     forgetFirstDose(record)
     if OA.Upgrades.Window and OA.Upgrades.Window.hide then OA.Upgrades.Window.hide(0) end
+    if OA.Upgrades.Sidebar then OA.Upgrades.Sidebar.forget(0) end
+    getPlayer():getModData().OA_ResearchHint = nil
     OA.Sync.changed("upgrades", record.id)
     if OA.Upgrades.Effects then OA.Upgrades.Effects.apply(record) end
     say("research cleared")

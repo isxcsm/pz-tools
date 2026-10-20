@@ -179,8 +179,6 @@ local SAID = {
 
 -- Notices that are events, shown as titles (Titles.notice) with the notice's text under them.
 local TITLED = {
-    IGUI_OA_Tree_Adapted = { key = "IGUI_OA_Title_Adapted", tone = "gold" },
-    IGUI_OA_Tree_AdaptedShared = { key = "IGUI_OA_Title_Adapted", tone = "gold" },
     IGUI_OA_Tree_ResetDone = { key = "IGUI_OA_Title_Reset", titleArgs = true, tone = "amber" },
     IGUI_OA_Tree_DelayDone = { key = "IGUI_OA_Title_DelayDone", style = "pulse" },
     IGUI_OA_Tree_DrugLost = { key = "IGUI_OA_Title_DrugLost", style = "sink" },
@@ -219,8 +217,7 @@ local function onNotice(playerId, detail)
         player:getModData().OA_ResearchHint = true
         local function hint()
             local Window = OA.Upgrades.Window
-            local view = Window and Window.view(0)
-            if view and view:getIsVisible() then return end
+            if Window and Window.onScreen(0) then return end
             OA.Titles.brief(playerId, "IGUI_OA_Tree_WhereHint")
         end
         if not OA.timerAfter(Hooks.HINT_MS, hint) then hint() end
