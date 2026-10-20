@@ -422,6 +422,16 @@ test("the dev reset of the fragment calls: a dropped call forgotten, the capston
     eq(Comms.section(r).dropped.C_scout, nil)
     eq(fired[1], "C_scout", "the call at once")
     eq(notices[#notices], "IGUI_OA_Story_Notice_BranchCall")
+    -- its fragment delivered, then the survey reset: the team's note of the kind goes too, so the search comes again
+    local fullType = OA.Upgrades.Data.FRAGMENTS.scout
+    OA.Story.onSettled(r, { lines = { { marks = { fragment = true }, fullType = fullType } } })
+    truthy(Rules.unsealed(u, "scout") and Sites.received(fullType))
+    Dev.resetSurvey(r)
+    eq(Rules.unsealed(u, "scout"), false)
+    eq(Sites.received(fullType), false, "the world's note of the kind forgotten")
+    eq((OA.Story.section(r).fragmentsGot or {}).scout, nil)
+    eq(Comms.section(r).fired.C_had_scout, nil, "not opened again as a fragment had")
+    truthy(Comms.section(r).fired.C_scout ~= nil, "the search's call again")
     PZExtDev = nil
 end)
 

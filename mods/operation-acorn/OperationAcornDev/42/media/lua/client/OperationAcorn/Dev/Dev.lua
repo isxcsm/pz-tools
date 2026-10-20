@@ -85,22 +85,30 @@ local function forgetCalls(record, ids)
 end
 
 -- The capstones' fragment calls as never heard: the survey calls (C_<tree>, dropped for good once a capstone opened)
--- forgotten, their map zones gone, and a capstone opened but not taken sealed again. A capstone that waits for its
+-- forgotten, their map zones gone, and a capstone opened but not taken sealed again, with all that its fragment left:
+-- the team's word on it (C_got_, C_had_), the record's fragmentsGot, and the world's note that the team has that kind
+-- (Sites.received: else the next plan opens it again at once, as a fragment had before). A capstone that waits for its
 -- fragment now brings its call at once (the branch looked at as after a plan applied).
 function Dev.resetSurvey(record)
     record = record or select(2, upgrades())
+    local u = OA.Upgrades.Rules.section(record)
+    local story = OA.Story.section(record)
+    local received = OA.Store.world("sites").received
     local ids = {}
     for _, tree in ipairs(OA.Upgrades.Data.TREES) do
         ids["C_" .. tree], ids["C_" .. tree .. "_k"] = true, true
+        local cap = OA.Upgrades.Data.capstone(tree)
+        if cap and OA.Upgrades.Rules.rank(u, cap.id) == 0 then
+            u.unsealed[tree] = nil
+            for _, k in ipairs({ "C_got_", "C_had_" }) do ids[k .. tree], ids[k .. tree .. "_k"] = true, true end
+            if story.fragmentsGot then story.fragmentsGot[tree] = nil end
+            local kind = OA.Sites.kindOf(OA.Upgrades.Data.FRAGMENTS[tree])
+            if received and kind then received[kind] = nil end
+        end
     end
     forgetCalls(record, ids)
-    OA.Story.section(record).surveys = nil
-    OA.Story.section(record).surveysStage = nil
-    local u = OA.Upgrades.Rules.section(record)
-    for _, tree in ipairs(OA.Upgrades.Data.TREES) do
-        local cap = OA.Upgrades.Data.capstone(tree)
-        if cap and OA.Upgrades.Rules.rank(u, cap.id) == 0 then u.unsealed[tree] = nil end
-    end
+    story.surveys = nil
+    story.surveysStage = nil
     OA.Sync.changed("upgrades", record.id)
     OA.Sync.changed("story", record.id)
     local fired = OA.StoryBranches.look(record, "approved")
