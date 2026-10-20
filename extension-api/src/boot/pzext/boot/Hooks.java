@@ -3,7 +3,6 @@ package pzext.boot;
 import java.lang.classfile.*;
 import java.lang.classfile.instruction.ConstantInstruction;
 import java.lang.classfile.instruction.FieldInstruction;
-import java.lang.classfile.instruction.OperatorInstruction;
 import java.lang.classfile.instruction.InvokeInstruction;
 import java.lang.classfile.instruction.LineNumber;
 import java.lang.classfile.instruction.LoadInstruction;
@@ -144,17 +143,18 @@ public final class Hooks {
         default void fluidChanged(Object fluid) { }
 
         /**
-         * The weight an item adds to a container when {@code ItemContainer.hasRoomFor(character, item)} asks whether
-         * it fits; {@code asker} is that character (or null). {@code viaBag} when the container is a worn bag and it is the
-         * carrying character's inventory the item is weighed against.
+         * What an item weighs as it is carried: {@code InventoryItem.getUnequippedWeight()} ({@code how} 0),
+         * {@code getEquippedWeight()} (1, {@code InventoryContainer}'s too) and {@code getHotbarEquippedWeight()} (2), with
+         * the game's answer. Every reckoning of a load, a room or a sum of contents the game makes reads these.
          */
-        default float incoming(Object item, float vanilla, Object container, Object asker, boolean viaBag) { return vanilla; }
+        default float carried(float vanilla, Object item, int how) { return vanilla; }
+
+        /** {@code ItemContainer.getContentsWeight()}: what the items weigh, or NaN for the game's own sum. Asked at the start. */
+        default float contents(Object container) { return Float.NaN; }
 
         /** {@code IsoGameCharacter.getMaxWeight()}. */
         default int maxWeight(int vanilla, Object character) { return vanilla; }
 
-        /** {@code ItemContainer.getCapacityWeight()}: the weight the room left in a container is counted from. */
-        default float capacityWeight(float vanilla, Object container) { return vanilla; }
 
         /** {@code ItemContainer.getEffectiveCapacity(character)}. */
         default int effectiveCapacity(int vanilla, Object container, Object character) { return vanilla; }
@@ -575,7 +575,7 @@ public final class Hooks {
         ITEM_REMOVED("itemRemoved", Group.FORMULAS), LIST_CLEARED("listCleared", Group.FORMULAS),
         LIST_CHANGED("listChanged", Group.FORMULAS), ITEMS_REPLACING("itemsReplacing", Group.FORMULAS),
         WEIGHT_CHANGED("weightChanged", Group.FORMULAS), FLUID_CHANGED("fluidChanged", Group.FORMULAS),
-        INCOMING("incoming", Group.FORMULAS), MAX_WEIGHT("maxWeight", Group.FORMULAS), CAPACITY_WEIGHT("capacityWeight", Group.FORMULAS),
+        CARRIED("carried", Group.FORMULAS), CONTENTS("contents", Group.FORMULAS), MAX_WEIGHT("maxWeight", Group.FORMULAS),
         EFFECTIVE_CAPACITY("effectiveCapacity", Group.FORMULAS), CAPACITY("capacity", Group.FORMULAS),
         BAG_CAPACITY("bagCapacity", Group.FORMULAS), BAG_EFFECTIVE_CAPACITY("bagEffectiveCapacity", Group.FORMULAS),
         OVERLOAD("overload", Group.FORMULAS), RUN_PENALTY("runPenalty", Group.FORMULAS),
@@ -677,24 +677,19 @@ public final class Hooks {
             Site.atReturns("isObjectPowered", "(Lzombie/iso/IsoObject;Z)Z", 2, (code, owner) -> {
                 code.aload(0); code.iconst_0(); code.iload(1); objectPowered(code);
             }),
-            // Whether an item fits: each weight the method reads of the item. The first read of a worn bag's is weighed against
-            // the character's inventory (it is followed by an addition); the others against this container (they are
-            // followed by the call that asks whether it fits).
-            Site.edit("hasRoomFor", "(Lzombie/characters/IsoGameCharacter;Lzombie/inventory/InventoryItem;)Z", new Edit(
-                calls("zombie/inventory/InventoryItem", "getUnequippedWeight", "()F"), -1, (elements, index) -> {
-                    CodeElement next = Edit.after(elements, index);
-                    if (next instanceof OperatorInstruction add && add.opcode() == Opcode.FADD) return 1;
-                    if (next instanceof InvokeInstruction invoke && invoke.name().equalsString("hasRoomFor")) return 0;
-                    throw new IllegalArgumentException("an item's weight is read for something other than a comparison or a room question");
-                }, (code, element, viaBag) -> {
-                    code.dup();
-                    code.with(element);
-                    code.aload(0);
-                    code.aload(1);
-                    code.loadConstant(viaBag);
-                    code.invokestatic(HOOKS, "incoming", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_Object, ConstantDescs.CD_float,
-                        ConstantDescs.CD_Object, ConstantDescs.CD_Object, ConstantDescs.CD_int));
-                })),
+            // What the items weigh: the API keeps the sum and answers at once, or NaN for the game's own walk.
+            Site.atStart("getContentsWeight", "()F", (code, owner) -> {
+                Label known = code.newLabel();
+                code.aload(0);
+                code.invokestatic(HOOKS, "contents", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_Object));
+                code.dup();
+                code.dup();
+                code.fcmpl();
+                code.ifne(known);
+                code.freturn();
+                code.labelBinding(known);
+                code.pop();
+            }),
             Site.atReturns("getEffectiveCapacity", "(Lzombie/characters/IsoGameCharacter;)I", 2, (code, owner) -> {
                 code.aload(0); code.aload(1);
                 code.invokestatic(HOOKS, "effectiveCapacity", MethodTypeDesc.of(ConstantDescs.CD_int, ConstantDescs.CD_int, ConstantDescs.CD_Object,
@@ -703,11 +698,6 @@ public final class Hooks {
             Site.atReturns("getCapacity", "()I", 1, (code, owner) -> {
                 code.aload(0);
                 code.invokestatic(HOOKS, "capacity", MethodTypeDesc.of(ConstantDescs.CD_int, ConstantDescs.CD_int, ConstantDescs.CD_Object));
-            }),
-            Site.atReturns("getCapacityWeight", "()F", 1, (code, owner) -> {
-                code.aload(0);
-                code.invokestatic(HOOKS, "capacityWeight", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_float,
-                    ConstantDescs.CD_Object));
             }),
             // The list of items is a Tracked list wherever the game makes it; setItems and emptyIt replace it.
             Site.track("items", ARRAY_LIST, Tracked.ITEMS),
@@ -720,6 +710,10 @@ public final class Hooks {
                 "fullType", "name", "replaceOnUse", "replaceOnUseFullType", "scriptItem", "cooked", "burnt", "attachedSlot",
                 "displayCategory", "itemType"), List.of()),
             Site.atReturns("addExtraItem", "(Ljava/lang/String;)V", 1, (code, owner) -> thisCall(code, "weightChanged")),
+            // What the item weighs as it is carried: every load, room and sum of contents the game reckons reads these.
+            Site.atReturns("getUnequippedWeight", "()F", 1, (code, owner) -> carriedCall(code, 0)),
+            Site.atReturns("getEquippedWeight", "()F", 1, (code, owner) -> carriedCall(code, 1)),
+            Site.atReturns("getHotbarEquippedWeight", "()F", 1, (code, owner) -> carriedCall(code, 2)),
             Site.everywhere(useDeltaEdit("zombie/inventory/InventoryItem")).named("useDelta"),
             // The name an item is shown by: getName (getName() calls it), getDisplayName, and the overrides of the kinds that
             // dress the name (food, clothing, furniture), each read of the field.
@@ -1249,6 +1243,7 @@ public final class Hooks {
                 code.invokestatic(HOOKS, "bagEffectiveCapacity", MethodTypeDesc.of(ConstantDescs.CD_int, ConstantDescs.CD_int, ConstantDescs.CD_Object,
                     ConstantDescs.CD_Object));
             }),
+            Site.atReturns("getEquippedWeight", "()F", 1, (code, owner) -> carriedCall(code, 1)),
             Site.watch("weight", "weightChanged", List.of("container", "weightReduction"), List.of()) }),
         // The loot: the chance of an item, the kind of loot an item is and its modifier, and the ammunition modifier.
         Map.entry("zombie/inventory/ItemPickerJava", new Site[] {
@@ -1673,6 +1668,13 @@ public final class Hooks {
         });
     }
 
+    private static void carriedCall(CodeBuilder code, int how) {
+        code.aload(0);
+        code.loadConstant(how);
+        code.invokestatic(HOOKS, "carried", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_float, ConstantDescs.CD_Object,
+            ConstantDescs.CD_int));
+    }
+
     private static void objectPowered(CodeBuilder code) {
         code.invokestatic(HOOKS, "objectPowered", MethodTypeDesc.of(ConstantDescs.CD_boolean, ConstantDescs.CD_boolean,
             ConstantDescs.CD_Object, ConstantDescs.CD_int, ConstantDescs.CD_boolean));
@@ -1884,13 +1886,6 @@ public final class Hooks {
             for (int index = 0; index < elements.size(); index++)
                 if (matcher.test(elements.get(index))) found.add(kinds == null ? 0 : kinds.kind(elements, index));
             return found.stream().mapToInt(Integer::intValue).toArray();
-        }
-
-        /** The next instruction after the one at {@code index} that is not a constant being pushed, or null. */
-        static CodeElement after(List<CodeElement> elements, int index) {
-            for (int next = index + 1; next < elements.size(); next++)
-                if (elements.get(next) instanceof Instruction && !(elements.get(next) instanceof ConstantInstruction)) return elements.get(next);
-            return null;
         }
     }
 
@@ -2464,20 +2459,20 @@ public final class Hooks {
         catch (Throwable problem) { reportOnce(Call.FLUID_CHANGED, problem); }
     }
 
-    /** Put after each read of the item's weight in {@code ItemContainer.hasRoomFor(character, item)}. */
-    public static float incoming(Object item, float vanilla, Object container, Object asker, int viaBag) {
+    /** Put before each return of {@code InventoryItem.getUnequippedWeight()}, {@code getEquippedWeight()}, {@code getHotbarEquippedWeight()}. */
+    public static float carried(float vanilla, Object item, int how) {
         Formulas current = formulas;
         if (current == null) return vanilla;
-        try { return current.incoming(item, vanilla, container, asker, viaBag != 0); }
-        catch (Throwable problem) { reportOnce(Call.INCOMING, problem); return vanilla; }
+        try { return current.carried(vanilla, item, how); }
+        catch (Throwable problem) { reportOnce(Call.CARRIED, problem); return vanilla; }
     }
 
-    /** Put before each return of {@code ItemContainer.getCapacityWeight()}. */
-    public static float capacityWeight(float vanilla, Object container) {
+    /** Put at the start of {@code ItemContainer.getContentsWeight()}: NaN for the game's own walk. */
+    public static float contents(Object container) {
         Formulas current = formulas;
-        if (current == null) return vanilla;
-        try { return current.capacityWeight(vanilla, container); }
-        catch (Throwable problem) { reportOnce(Call.CAPACITY_WEIGHT, problem); return vanilla; }
+        if (current == null) return Float.NaN;
+        try { return current.contents(container); }
+        catch (Throwable problem) { reportOnce(Call.CONTENTS, problem); return Float.NaN; }
     }
 
     /** Put before each return of {@code IsoGameCharacter.getMaxWeight()}. */

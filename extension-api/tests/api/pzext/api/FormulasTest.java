@@ -1068,19 +1068,20 @@ final class FormulasTest {
         float vanilla = player.getInventoryWeight();
         check(near(vanilla, 30) && other.getInventoryWeight() == vanilla, "The game's weight is not 30: " + vanilla);
         call(formulas, "set", mod, "carry.categoryEfficiency", table("Material", 1.0));
-        check(near(player.getInventoryWeight(), 27.5) && other.getInventoryWeight() == vanilla,
-            "Material at +100% did not halve the plank and the nails, or another character's weight changed: " + player.getInventoryWeight());
-        // A bag's room counts its items as the load does (the nails halved, the ring as it is), wherever the bag is; what comes in
-        // is weighed the same way. What the bag weighs where it lies stays the game's.
+        check(near(player.getInventoryWeight(), 27.5) && near(other.getInventoryWeight(), 27.5),
+            "Material at +100% did not halve the plank and the nails (for every character of this game): " + player.getInventoryWeight()
+            + ", " + other.getInventoryWeight());
+        // The items weigh as carried wherever they are: a bag's room (the nails halved, the ring as it is), what comes in, the
+        // bag itself, worn, carried or put down.
         var bag = (InventoryContainer)mine[4];
-        check(near(bag.getInventory().getCapacityWeight(), 1.5), "A bag's room did not count the nails at +100%: "
-            + bag.getInventory().getCapacityWeight());
+        check(near(bag.getInventory().getCapacityWeight(), 1.5) && near(bag.getInventory().getContentsWeight(), 1.5),
+            "A bag's room did not count the nails at +100%: " + bag.getInventory().getCapacityWeight());
         check(bag.getInventory().hasRoomFor(player, item("Material", 57f)) && !bag.getInventory().hasRoomFor(player, item("Material", 58f)),
             "What comes into a bag is not weighed as its room counts");
-        check(near(bag.getUnequippedWeight(), 3.5), "The bag itself weighs other than the game's: " + bag.getUnequippedWeight());
+        check(near(bag.getUnequippedWeight(), 2.5), "The bag does not weigh its items as carried: " + bag.getUnequippedWeight());
         player.inventory.Remove(bag);
-        check(near(bag.getInventory().getCapacityWeight(), 1.5) && near(bag.getUnequippedWeight(), 3.5),
-            "A bag put down counts its room otherwise: " + bag.getInventory().getCapacityWeight());
+        check(near(bag.getInventory().getCapacityWeight(), 1.5) && near(bag.getUnequippedWeight(), 2.5),
+            "A bag put down counts otherwise: " + bag.getInventory().getCapacityWeight() + ", " + bag.getUnequippedWeight());
         put(player, bag);
         check(near(player.inventory.getCapacityWeight(), player.getInventoryWeight()), "A character's own room is not its load");
         // An item's efficiencies add: its category's and its type's.
@@ -1298,9 +1299,9 @@ final class FormulasTest {
         check(game.inventoryRebuilds() - rebuilds == 3 && game.inventoryVisits() - visits == 13,
             "The first question worked out the inventory, the bag and the ring: " + (game.inventoryRebuilds() - rebuilds) + " lists, "
             + (game.inventoryVisits() - visits) + " items");
+        check(near(other.getInventoryWeight(), 27.35), "Another character of this game is not counted as carried: " + other.getInventoryWeight());
         visits = game.inventoryVisits();
         rebuilds = game.inventoryRebuilds();
-        check(near(other.getInventoryWeight(), 30), "Another character's weight is not the game's: " + other.getInventoryWeight());
 
         // A question with nothing changed is a few field reads: no item looked at, nothing allocated.
         float[] sink = { 0 };
@@ -1517,13 +1518,14 @@ final class FormulasTest {
         player.inventory.Remove(late);
 
         // The character's own list replaced, and a character that is not the player's.
-        check(near(other.getInventoryWeight(), 30), "Another character's weight is not the game's: " + other.getInventoryWeight());
+        check(near(other.getInventoryWeight(), 27.35), "Another character of this game is not counted as carried: " + other.getInventoryWeight());
         check(near(player.getInventoryWeight(), 27.35), "The weight changed after the late bag was taken out: " + player.getInventoryWeight());
         call(mod, "clear");
         check(near(player.getInventoryWeight(), 30), "Clearing the formulas left the weight changed: " + player.getInventoryWeight());
 
         random(formulas, mod, player);
         moves(formulas, mod, player);
+        huge(formulas, mod, player);
         call(mod, "clear");
         player.inventory.removeAllItems();
         other.inventory.removeAllItems();
@@ -1535,27 +1537,42 @@ final class FormulasTest {
     private static float factorOf(InventoryItem item) { return item.getDisplayCategory().equals("Material") ? 0.5f : 1f; }
 
     /** The weight an item adds to its list with nothing equipped: the formulas applied the way the load defines them, by a pass over the items. */
-    private static float freshPlain(InventoryItem item) {
-        if (!(item instanceof InventoryContainer bag)) return item.getUnequippedWeight() * factorOf(item);
+    // The fresh pass works from the raw fields (the getters carry the formulas now), in the arithmetic the formulas use.
+    private static float freshContents(ItemContainer container) {
         double inner = 0;
-        for (InventoryItem each : bag.getInventory().items) inner += freshPlain(each);
-        float own = bag.getActualWeight() * factorOf(bag);
-        return (float)(own + inner * (bag.hasTag(ItemTag.KEY_RING) ? 0.5f : 1f));
+        for (InventoryItem each : container.items) inner += freshPlain(each);
+        return (float)inner;
+    }
+
+    private static float tagOf(InventoryItem bag) { return bag.hasTag(ItemTag.KEY_RING) ? 0.5f : 1f; }
+
+    private static float freshPlain(InventoryItem item) {
+        if (!(item instanceof InventoryContainer bag)) {
+            float raw = item.getActualWeight() + item.getContentsWeight(), factor = factorOf(item);
+            return factor == 1f ? raw : raw * factor;
+        }
+        float contents = freshContents(bag.getInventory());
+        if (factorOf(bag) == 1f && tagOf(bag) == 1f) return bag.getActualWeight() + contents;
+        return bag.getActualWeight() * factorOf(bag) + contents * tagOf(bag);
     }
 
     private static float freshBody(IsoGameCharacter character, InventoryItem item) {
         boolean equipped = character.isEquipped(item);
         boolean hotbar = item.getAttachedSlot() > -1 && !equipped;
         if (!hotbar && !equipped) return freshPlain(item);
-        float vanilla = hotbar ? item.getHotbarEquippedWeight() : item.getEquippedWeight();
-        if (!(item instanceof InventoryContainer bag)) return factorOf(item) == 1f ? vanilla : vanilla * factorOf(item);
-        float whole = freshPlain(bag);
-        if (whole == bag.getUnequippedWeight()) return vanilla;
-        if (hotbar) return bag.getUnequippedWeight() == 0f ? vanilla : whole * (vanilla / bag.getUnequippedWeight());
-        float own = bag.getActualWeight() * factorOf(bag);
+        float own = item.getActualWeight(), multiplier = (float)zombie.ZomboidGlobals.equippedOrWornEncumbranceMultiplier;
+        if (!(item instanceof InventoryContainer bag)) {
+            float raw = own + item.getContentsWeight(), vanilla = hotbar ? raw * 0.7f : raw * multiplier, factor = factorOf(item);
+            return factor == 1f ? vanilla : vanilla * factor;
+        }
+        float contents = freshContents(bag.getInventory()), factor = factorOf(bag), tag = tagOf(bag);
         int reduction = bag.getWeightReduction();
-        float taken = reduction > 0 ? 1 - reduction / 100f : 1f;
-        return own * (float)zombie.ZomboidGlobals.equippedOrWornEncumbranceMultiplier + (whole - own) * taken;
+        float kept = reduction > 0 ? 1.0f - reduction / 100.0f : 1.0f;
+        float vanilla = hotbar ? (own + contents) * 0.7f : own * multiplier + contents * kept;
+        if (factor == 1f && tag == 1f) return vanilla;
+        if (!hotbar) return own * factor * multiplier + contents * tag * kept;
+        float whole = own + contents;
+        return whole == 0f ? vanilla : vanilla * ((own * factor + contents * tag) / whole);
     }
 
     private static float freshTotal(IsoGameCharacter character) {
@@ -1722,6 +1739,89 @@ final class FormulasTest {
         player.inventory.removeAllItems();
     }
 
+    /**
+     * A hoard: 300,000 items (100,000 in the inventory, 200,000 in a worn bag). What the game asks every frame (the load, what
+     * the worn bag holds for the run speed, whether an item fits the bag) looks at no item and allocates nothing; an item put in
+     * or taken out works out a few; a change of the declarations works the lists out once.
+     */
+    private static void huge(KahluaTable formulas, Object mod, IsoPlayer player) throws Exception {
+        Formulas game = formulasObject();
+        player.inventory.removeAllItems();
+        clearEquipment(player);
+        call(formulas, "set", mod, "carry.categoryEfficiency", table("Material", 1.0));
+        var bag = new InventoryContainer("Bag", 1f, 50);
+        put(player, bag);
+        bag.equipParent = player;
+        player.wear(bag);
+        for (int index = 0; index < 300000; index++) {
+            var each = item(index % 3 == 0 ? "Tool" : "Material", 0.0001f);
+            each.container = index < 100000 ? player.inventory : bag.getInventory();
+            each.container.items.add(each);
+        }
+        long built = System.nanoTime();
+        float load = player.getInventoryWeight();
+        float held = bag.getInventory().getContentsWeight();
+        built = System.nanoTime() - built;
+        check(Math.abs(load - freshTotal(player)) < 1e-2 && Math.abs(held - freshContents(bag.getInventory())) < 1e-2,
+            "The hoard's weight: " + load + " against " + freshTotal(player) + ", the bag's " + held);
+        var probe = item("Material", 1f);
+        long visits = game.inventoryVisits(), rebuilds = game.inventoryRebuilds();
+        float[] sink = { 0 };
+        // (hasRoomFor is asked as an item moves, not each frame: the game's own check that the carrier does not hold the item
+        // already walks the inventory.)
+        check(bag.getInventory().hasRoomFor(player, probe), "An item did not fit the hoard's bag");
+        Runnable frame = () -> {
+            sink[0] += player.getInventoryWeight();
+            sink[0] += bag.getContentsWeight();
+            sink[0] += bag.getInventory().getCapacityWeight();
+        };
+        for (int index = 0; index < 20000; index++) frame.run();
+        long start = System.nanoTime();
+        for (int index = 0; index < 100000; index++) frame.run();
+        double perFrame = (System.nanoTime() - start) / 100000.0;
+        long bytes = Allocations.median(5, () -> { for (int index = 0; index < 100000; index++) frame.run(); });
+        check(game.inventoryVisits() == visits && game.inventoryRebuilds() == rebuilds, "A frame's questions looked at the hoard's items");
+        check(bytes < 4096, "A frame's questions allocated " + bytes + " bytes in 100000 frames");
+        // One item's carried weight, as a loop over items reads it (the inventory window, a mod's sum): no list involved.
+        var plank = item("Material", 3f);
+        var wrench = item("Tool", 1f);
+        for (int index = 0; index < 2000000; index++) sink[0] += plank.getUnequippedWeight() + wrench.getUnequippedWeight();
+        long reads = System.nanoTime();
+        for (int index = 0; index < 5000000; index++) sink[0] += plank.getUnequippedWeight() + wrench.getUnequippedWeight();
+        double perRead = (System.nanoTime() - reads) / 10000000.0;
+        check(plank.getUnequippedWeight() == 1.5f && wrench.getUnequippedWeight() == 1f, "One item's carried weight");
+        // Items put in and taken out of the full bag, a question after each.
+        long worked = game.inventoryWorked();
+        long moving = System.nanoTime();
+        var added = new ArrayList<InventoryItem>();
+        for (int index = 0; index < 1000; index++) {
+            added.add(bag.getInventory().AddItem(item("Material", 0.0001f)));
+            frame.run();
+        }
+        for (InventoryItem each : added) { bag.getInventory().Remove(each); frame.run(); }
+        moving = System.nanoTime() - moving;
+        worked = game.inventoryWorked() - worked;
+        check(game.inventoryRebuilds() == rebuilds && worked <= 2000 * 4, "2000 changes of the full bag worked out " + worked + " item weights, "
+            + (game.inventoryRebuilds() - rebuilds) + " lists");
+        check(Math.abs(player.getInventoryWeight() - load) < 1e-2, "The weight did not come back: " + player.getInventoryWeight());
+        // A change of the declarations: every list once.
+        long again = System.nanoTime();
+        call(formulas, "set", mod, "carry.categoryEfficiency", table("Material", 2.0));
+        float changed = player.getInventoryWeight();
+        bag.getContentsWeight();
+        again = System.nanoTime() - again;
+        check(changed < load, "A stronger efficiency did not lighten the hoard");
+        System.out.printf("[formulas] a hoard of 300,000 items: first question %.1f ms; a frame's questions %.0f ns, nothing looked at; "
+            + "an item in or out of the full bag %.2f us with the list's own remove, %d item weights worked out; a change of the declarations %.1f ms%n",
+            built / 1e6, perFrame, moving / 1000.0 / 2000, worked, again / 1e6);
+        System.out.printf("[formulas] an item's carried weight read alone: %.1f ns a read%n", perRead);
+        check(perFrame < 1000, "A frame's questions took " + perFrame + " ns");
+        player.inventory.removeAllItems();
+        bag.getInventory().removeAllItems();
+        clearEquipment(player);
+        call(mod, "clear");
+    }
+
     /** Whether an item fits: what it adds is counted by the same efficiency, against the character who would carry it. */
     private static void room(KahluaTable api, KahluaTable formulas, IsoPlayer player, IsoGameCharacter other) {
         Object mod = call(api, "client", "room.mod").get(0);
@@ -1734,7 +1834,7 @@ final class FormulasTest {
         check(!player.inventory.hasRoomFor(player, incoming) && !other.inventory.hasRoomFor(other, incoming), "10 more than 45 of 50 fit");
         call(formulas, "set", mod, "carry.categoryEfficiency", table("Material", 1.0));
         check(player.inventory.hasRoomFor(player, incoming), "An item at half its weight did not fit");
-        check(!other.inventory.hasRoomFor(other, incoming), "An item fit another character at half its weight");
+        check(other.inventory.hasRoomFor(other, incoming), "An item did not fit another character of this game at half its weight");
         // A worn bag: against the carrier's inventory and against the bag's own room by efficiency (a bag's room counts its items as
         // the load does, wherever it is).
         player.inventory.items.clear();
@@ -1747,11 +1847,11 @@ final class FormulasTest {
         check(!bag.getInventory().hasRoomFor(player, item("Material", 61f)), "An item fit a bag by less than half its weight");
         check(bag.getInventory().hasRoomFor(player, item("Tool", 30f)) && !bag.getInventory().hasRoomFor(player, item("Tool", 31f)),
             "An item with no efficiency did not fit a bag by its real weight");
-        // Another character's question (a bag of the player's it puts into): the real weight.
+        // Not worn, the same: whoever asks in this game.
         player.takeOff(bag);
         bag.equipParent = null;
-        check(!bag.getInventory().hasRoomFor(other, item("Material", 31f)), "An item fit a bag at another character's question by its efficiency");
-        check(bag.getInventory().hasRoomFor(player, item("Material", 60f)), "A bag not worn did not count what the player puts in by efficiency");
+        check(bag.getInventory().hasRoomFor(other, item("Material", 60f)) && !bag.getInventory().hasRoomFor(other, item("Material", 61f)),
+            "A bag not worn did not count what comes in by efficiency");
         bag.equipParent = player;
         player.wear(bag);
         player.inventory.items.clear();
@@ -1760,14 +1860,20 @@ final class FormulasTest {
         check(bag.getInventory().hasRoomFor(player, incoming), "Half an item did not fit the carrier's inventory");
         call(formulas, "set", mod, "carry.categoryEfficiency", null);
         check(!bag.getInventory().hasRoomFor(player, incoming), "The whole item fit the carrier's inventory");
-        // A container that is not a character's: the real weight.
+        // A crate counts as carried too, what it holds and what comes in: a room is the same in every container.
         call(formulas, "set", mod, "carry.categoryEfficiency", table("Material", 1.0));
         var crate = new ItemContainer(new IsoObject(null));
         crate.capacity = 9;
-        check(!crate.hasRoomFor(player, incoming), "A crate counted an item at its efficiency");
+        crate.AddItem(item("Material", 8f));
+        check(near(crate.getCapacityWeight(), 4) && crate.hasRoomFor(player, incoming) && !crate.hasRoomFor(player, item("Material", 12f)),
+            "A crate did not count what it holds and what comes in at their efficiency: " + crate.getCapacityWeight());
         crate.worldItem = true;
         incoming.onGround = true;
-        check(!crate.hasRoomFor(player, incoming), "A crate on the ground counted an item at its efficiency");
+        check(crate.hasRoomFor(player, incoming), "A crate on the ground did not count an item at its efficiency");
+        // The efficiency taken away: the real weights, and what is in stays in.
+        call(formulas, "set", mod, "carry.categoryEfficiency", null);
+        check(near(crate.getCapacityWeight(), 8) && !crate.hasRoomFor(player, item("Material", 2f)) && crate.items.size() == 1,
+            "A crate without the efficiency: " + crate.getCapacityWeight());
         call(mod, "clear");
         player.inventory.items.clear();
         other.inventory.items.clear();
@@ -1943,11 +2049,10 @@ final class FormulasTest {
         try (var input = game.getResourceAsStream(container + ".class")) { own = input.readAllBytes(); }
         var files = ClassFile.of();
         byte[] without = files.transformClass(files.parse(own), ClassTransform.dropping(element ->
-            element instanceof MethodModel method && method.methodName().equalsString("hasRoomFor")
-                && method.methodType().stringValue().equals("(Lzombie/characters/IsoGameCharacter;Lzombie/inventory/InventoryItem;)Z")));
-        check(HookNoise.expecting(() -> transform.invoke(null, container, without, game), "ItemContainer.hasRoomFor") != null, "The container's other hooks were lost with one");
+            element instanceof MethodModel method && method.methodName().equalsString("getContentsWeight")));
+        check(HookNoise.expecting(() -> transform.invoke(null, container, without, game), "ItemContainer.getContentsWeight") != null, "The container's other hooks were lost with one");
         var points = (KahluaTable)call(formulas, "points").get(0);
-        check(points.rawget("carry.categoryEfficiency") instanceof String text && text.startsWith("partial: ItemContainer.hasRoomFor: expected one hasRoomFor"),
+        check(points.rawget("carry.categoryEfficiency") instanceof String text && text.startsWith("partial: ItemContainer.getContentsWeight"),
             "A point with one hook missing is " + points.rawget("carry.categoryEfficiency"));
         check(Hooks.APPLIED.equals(points.rawget("capacity.characterLimitAdd")), "A point of another hook of the class: " + points.rawget("capacity.characterLimitAdd"));
         transform.invoke(null, container, own, game);

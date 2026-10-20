@@ -95,8 +95,9 @@ final class Formulas implements Hooks.Formulas {
     private static Point anim(String name, Shape shape, String... hooks) { return new Point(name, shape, Names.ANY, List.of(hooks), Needs.ANIMATIONS); }
 
     // The load needs the game's weight to be followed exactly (see Inventory): every hook that tells the API of a change.
-    private static final String[] CARRIED = { "IsoGameCharacter.getInventoryWeight", "ItemContainer.hasRoomFor",
-        "ItemContainer.getCapacityWeight", "ItemContainer.items:tracked",
+    private static final String[] CARRIED = { "IsoGameCharacter.getInventoryWeight", "InventoryItem.getUnequippedWeight",
+        "InventoryItem.getEquippedWeight", "InventoryItem.getHotbarEquippedWeight", "InventoryContainer.getEquippedWeight",
+        "ItemContainer.getContentsWeight", "ItemContainer.items:tracked",
         "ItemContainer.emptyIt", "ItemContainer.setItems", "WornItems.items:tracked", "InventoryItem.writes:weight", "InventoryItem.addExtraItem",
         "Food.writes:weight", "HandWeapon.writes:weight", "HandWeapon.clearAllWeaponParts", "HandWeapon.clearWeaponPart:part",
         "HandWeapon.clearWeaponPart:name", "HandWeapon.setWeaponPart", "HandWeapon.attachWeaponPart", "InventoryContainer.writes:weight",
@@ -425,7 +426,7 @@ final class Formulas implements Hooks.Formulas {
         });
         function(table, "weight", (call, arguments) -> {
             Object item = item(arguments, call);
-            try { return new Object[] { (double)inventory.unequipped(active, item) }; }
+            try { return new Object[] { (double)inventory.unequipped(item) }; }
             catch (Throwable failure) { throw Game.failed(Game.thrown(failure)); }
         });
         function(table, "tune", (call, arguments) -> {
@@ -1051,17 +1052,17 @@ final class Formulas implements Hooks.Formulas {
         catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
     }
 
-    @Override public float incoming(Object item, float vanilla, Object container, Object asker, boolean viaBag) {
+    @Override public float carried(float vanilla, Object item, int how) {
         Active now = active;
-        if (!now.carry) return vanilla;
-        try { return inventory.incoming(now, item, vanilla, container, asker, viaBag, players); }
+        if (!now.carry || inventory == null) return vanilla;
+        try { return inventory.carried(now, vanilla, item, how); }
         catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
     }
 
-    @Override public float capacityWeight(float vanilla, Object container) {
+    @Override public float contents(Object container) {
         Active now = active;
-        if (!now.carry) return vanilla;
-        try { return inventory.bagWeight(now, vanilla, container); }
+        if (!now.carry || inventory == null) return Float.NaN;
+        try { return inventory.contents(now, container, players); }
         catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
     }
 

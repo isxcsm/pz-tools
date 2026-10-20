@@ -685,7 +685,7 @@ not have is a Lua error at `set`.
 | `body.enduranceDrainMultiplier` | 0 to 100 | multiply | Times every drop of the endurance stat (`Stats.add` of a negative amount, which `Stats.remove` is). What recovers it is not scaled. |
 | `body.poisonMultiplier` | 0 to 100 | multiply | Times every rise of the poison stat (`Stats.add` of a positive amount). What lowers it is not scaled. |
 | `carry.categoryEfficiency` | table: display category to -0.9 to 100 | add per name | A carrying efficiency for every item whose `getDisplayCategory()` is the name: `1` carries it as if it weighed half, `-0.5` as if twice. |
-| `carry.itemEfficiency` | table: item type to -0.9 to 100 | add per name | The same by the item's type (`isItemType`), e.g. `base:moveable`. An item's efficiencies (its category's, its full type's and its types') add; its own weight is divided by 1 plus the sum. The room left in a bag counts its items so too, wherever the bag is (worn, carried, on the floor, in a car): a bag the player filled holds the same when it is put down or worn again, and what the player puts in is weighed the same way. What a bag weighs in the container it is in (the floor, a car, a crate) stays its real weight, and another character's question takes the real weight. A bag whose items count heavier than when it was filled (an efficiency taken away) is over its room: nothing more goes in, nothing falls out. |
+| `carry.itemEfficiency` | table: item type to -0.9 to 100 | add per name | The same by the item's type (`isItemType`), e.g. `base:moveable`. An item's efficiencies (its category's, its full type's and its types') add; its own weight is divided by 1 plus the sum. The weight is the item's carried weight wherever it is (see below the table). |
 | `carry.fullTypeEfficiency` | table: full type to -0.9 to 100 | add per name | The same for the items of one full type (`getFullType`, `Module.Name`), e.g. one mod's own can. The name is checked for its form only: items load with their scripts, after a mod may declare. An item's own weight includes what a fluid container holds (the game counts a litre as 1). |
 | `carry.efficiencyKey` | name or list of names | join | A carrying efficiency an item holds itself: each key of its `modData` that holds a number adds it to the item's efficiencies above (-0.9 to 100 each), so one item of a type can be lighter than the rest. The load reads the key when the item's weight is counted again; a mod that changes the number tells the game the weight changed (`item:setActualWeight(item:getActualWeight())`). |
 | `uses.modDataKey` | name or list of names | join | Uses an item holds itself: each key of its `modData` that holds a number (0.1 to 100) divides the item's use delta (`getUseDelta`, and every read of the field in `InventoryItem` and `DrainableComboItem`: `getMaxUses`, the current uses), so `2` gives a blowtorch twice its uses at the same fill. Its number of uses saved stays; a save loaded without the key fills it past its most until used. |
@@ -723,11 +723,19 @@ not have is a Lua error at `set`.
 | `outline.models` | boolean | any | While any mod declares it true, the game's own object outline is drawn on what the game leaves out: objects drawn as models (doors, built furniture) and vehicles; until one does, the game's passes are its own. See [outlines](#outlines). |
 | `vision.hiddenZombieFix` | boolean | any | While any mod declares it true, the zombies the player sees and the game does not draw (the shadow vision's bug: a zombie in the cone with nothing between it and the player, on a square the game finds unseen) are drawn, as long as the game's own light test would let it be seen. Worked each frame from the game's list, not by a hook: see [the hidden zombies](#the-hidden-zombies). |
 
-The load counts an item of the character's inventory as the game does (unequipped, equipped, or on the hotbar, with a worn
-bag's weight reduction on what is inside it), and a formula only changes the weight the game reads: the efficiencies above,
-item by item, and a bag by what is inside it. The same weight is what `hasRoomFor` adds when the local player's inventory
-is asked whether an item fits, whether directly or through a worn bag; a bag's own room still takes the item's real
-weight. Another character, a crate, a vehicle and the floor count weight as vanilla.
+The carry points change what an item weighs as it is carried, where the game reads it: `getUnequippedWeight`,
+`getEquippedWeight` and `getHotbarEquippedWeight` (a bag's own weight by its efficiency, what it holds by its tags), and
+`ItemContainer.getContentsWeight`, the sum of those. Every reckoning the game and the mods make of a weight that is carried
+reads them: the load and its moodle, the run speed a worn bag costs, whether an item fits (a character's inventory, a bag,
+a crate, a car's trunk, the floor), the room shown in the inventory window, the tooltip, the mass a vehicle's containers
+add, a wheelie bin pushed, the sums the inventory window makes of a drag. So the same item weighs the same everywhere: a
+bag filled while worn holds the same put down, in a crate or worn again, and a container whose items count heavier than
+when it was filled (an efficiency taken away) is over its room: nothing more goes in, nothing falls out. The item's own
+weight (`getActualWeight`, `getWeight`) is not changed: it is what the game saves, sends over the network, builds a craft's
+output from and swings as a weapon.
+
+The declarations are this game's: on a machine every item counts by its player's carry points, another character's too
+(the character's own machine counts its load); a server, which declares nothing, counts the real weights.
 
 The survival points change the local player's answers only (the loot points are not tied to a character); another character,
 a zombie and a player of another machine get the game's. Every one is read from a field when asked and calls no Lua.
@@ -904,9 +912,9 @@ hook only. `PZExtAPI.hooks()` names each by game class and method.
 | `IsoGameCharacter.addStiffness` | the start | Times `body.stiffnessMultiplier` on the amount, which is the method's own argument, when it is above 0. |
 | `IsoGameCharacter.getFatiqueMultiplier` | each return | Times `body.fatigueMultiplier`. |
 | `Stats.add` | the start | Times `body.enduranceDrainMultiplier` or `body.poisonMultiplier` on the amount (the argument) for the endurance or poison stat of a local player's `Stats`. `remove` calls `add`, so it is covered. |
-| `IsoGameCharacter.getInventoryWeight` | the start | For a local player's character with a carry point declared, the method returns the kept weight (below) at once; for anything else, or when the API cannot answer, the game's own method runs. Found by its signature. |
-| `ItemContainer.hasRoomFor(IsoGameCharacter, InventoryItem)` | each read of the item's weight | An item's weight read for a comparison with the carrier's inventory (the worn-bag branch, followed by an addition) or for the room question of this container passes through the carry points when the character whose body the weight would be on is a local player, or when the container is the inside of a bag and the character asking is a local player. A read followed by anything else makes the hook not go in. |
-| `ItemContainer.getCapacityWeight` | each return | For the inside of a bag, with a carry point declared: the bag's items as the load counts them (the kept account of the bag). Any other container keeps the game's answer. |
+| `IsoGameCharacter.getInventoryWeight` | the start | For a local player's character with a carry point declared, the method returns the kept weight (below) at once; for anything else, or when the API cannot answer, the game's own method runs (which reads the carried weights). Found by its signature. |
+| `InventoryItem.getUnequippedWeight`, `getEquippedWeight`, `getHotbarEquippedWeight`; `InventoryContainer.getEquippedWeight` | each return | With a carry point declared, the game's answer times the item's efficiency; a bag's, its own weight by its efficiency and what it holds by its tags, counted as the game counts a bag unequipped, worn (its weight reduction) or on the hotbar. |
+| `ItemContainer.getContentsWeight` | the start | With a carry point declared, the kept account of the container's list (below) at once: what the items weigh as carried. A local player's inventory gives its kept load with what is worn and held counted unequipped. The game's own walk answers on another thread than the one that asks the load (when the list has no live account), for the floor, and when the lists cannot be followed. |
 | `IsoGameCharacter.getMaxWeight` | each return | Adds `capacity.maxWeightAdd`. |
 | `ItemContainer.getEffectiveCapacity` | each return | Times `capacity.effectiveMultiplier`, or adds `capacity.characterLimitAdd` to a character's inventory. |
 | `ItemContainer.getCapacity` | each return | The raw capacity plus the keys' numbers for a container that declares one. |
@@ -1084,14 +1092,18 @@ The lift is one number for the machine: split-screen players share it.
 
 #### The weight kept
 
-`getInventoryWeight` used to walk the inventory, every bag and every item in it, on each question, and the question is
-asked many times a frame (the inventory pane, the moodle, `hasRoomFor`, the path speed). With a carry point declared the
-API keeps the answer instead, and a question on nothing that changed is a field read: no walk, no allocation, no clock.
-Nothing in the game keeps a sum of the inventory's weight (it computes it on each question), so there is none to reuse.
+`getInventoryWeight` and `getContentsWeight` used to walk the items, every bag and every item in it, on each question,
+and the questions are asked many times a frame (the moodle, the path speed, the run speed a worn bag costs, the inventory
+window, `hasRoomFor`, a vehicle's mass). With a carry point declared the API keeps the answers instead, and a question on
+nothing that changed is a field read: no walk, no allocation, no clock. With 300,000 items (the synthetic game) the
+questions of a frame take about 0.1 us, an item in or out works out one or two weights, and a change of the declarations
+works every list out once (some 30 ms). Nothing in the game keeps a sum (it computes it on each question), so there is
+none to reuse. An account is made on the thread that asks the load (the game's), for a container that is asked about.
 
 - Each list of items (a container's, and what a character wears) has a kept account: a sum, in a `double`, of what each
-  item adds, and what each added is kept per item, so that taking an item out subtracts exactly what was added. A bag adds
-  its own weight under the carry points plus the sum of its container times the bag's tag factor; the account of a bag's
+  item adds (the item's carried weight, from its own getter), and what each added is kept per item, so that taking an item
+  out subtracts exactly what was added. A bag adds its own weight under the carry points plus the sum of its container times
+  the bag's tag factor; the account of a bag's
   container knows its parent, so a change inside a nested bag adds its difference up the chain, bag by bag (the depth of the
   nesting, not the size of the inventory). The sum is kept exact: after each addition the API checks that the rounding error
   of the sum is zero and drops the account (to be built again once) when it is not, so the returned value is the fresh walk's,
@@ -1129,7 +1141,7 @@ Against the installed game (7 October 2026, Build 42) and with PZ Optimize's loo
 put into the real bytes of `IsoGameCharacter`, `IsoPlayer`, `Stats` (the jar's and PZ Optimize's), and `Moodle`,
 `ItemContainer` and `InventoryContainer` (the jar's; PZ Optimize does not override them), and the resulting classes
 verified by the JVM. Behavior is tested against synthetic game classes of the same shape (the `api` suite): each point
-changes the local player's answer and no other character's, several mods combine by the rules above, a declaration
+changes the local player's answer and no other character's (a carry point, every item this game counts), several mods combine by the rules above, a declaration
 goes with the world, survives a newer API and never makes the game fail. The kept weight is checked against a fresh
 walk: after each of 10000 random operations (items made, taken out, moved between any two containers, bags nested,
 weights, ammunition and fluid amounts changed, what is worn, held or on the hotbar changed, filters and clears) the answer

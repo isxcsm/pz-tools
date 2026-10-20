@@ -38,7 +38,7 @@ final class Inventory {
     // InventoryItem.getFullType(), for the counts.
     private final MethodHandle fullType;
     // InventoryItem, as (Object)...
-    private final MethodHandle displayCategory, unequippedWeight, actualWeight, equipParent, itemHasModData, itemModData;
+    private final MethodHandle displayCategory, unequippedWeight, actualWeight, itemContents, itemHasModData, itemModData;
     // InventoryItem.isItemType(ItemType) and hasTag(ItemTag) as (Object, Object)boolean.
     private final MethodHandle isItemType, hasTag;
     // InventoryContainer: its container, and the part of its weight a worn bag takes away.
@@ -83,7 +83,7 @@ final class Inventory {
         actualWeight = Game.exact(itemType.getMethod("getActualWeight"), onItem);
         equippedWeight = Game.exact(itemType.getMethod("getEquippedWeight"), onItem);
         hotbarWeight = Game.exact(itemType.getMethod("getHotbarEquippedWeight"), onItem);
-        equipParent = Game.exact(itemType.getMethod("getEquipParent"), onObject);
+        itemContents = Game.exact(itemType.getMethod("getContentsWeight"), onItem);
         itemHasModData = Game.exact(itemType.getMethod("hasModData"), MethodType.methodType(boolean.class, Object.class));
         itemModData = Game.exact(itemType.getMethod("getModData"), onObject);
         isItemType = Game.exact(itemType.getMethod("isItemType", typeClass), MethodType.methodType(boolean.class, Object.class, Object.class));
@@ -444,6 +444,9 @@ final class Inventory {
     private final ArrayList<WeakReference<Kept>> looseKept = new ArrayList<>();
     // True while this API reads the game: the writes its reads make (a fluid container working out its amount) are not changes.
     private boolean computing;
+    // The thread that first asked the load (the game's, which asks it every frame): only it works a container's account out
+    // (contents), so the threads that load the world do not make one for every container they fill.
+    private volatile Thread asker;
     // How many lists are known to hold an item whose container is another (read without the lock).
     private volatile int looseCount;
     /** Items looked at while working lists out, lists worked out, changes settled, and weights worked out for one item: for the tests. */
@@ -526,16 +529,30 @@ final class Inventory {
         return kept;
     }
 
-    /** An item's weight with nothing equipped, as the load counts it: a bag's own times its factor, plus its items' times its tags'. */
-    private float plain(Formulas.Active now, Object item, Kept parent) throws Throwable {
-        if (!bagType.isInstance(item)) return (float)unequippedWeight.invokeExact(item) * factor(now, item);
-        Kept contents = inner(now, item, parent);
-        float own = (float)actualWeight.invokeExact(item) * factor(now, item);
-        return (float)(own + (contents == null ? 0 : contents.sum * tagFactor(now, item)));
+    /**
+     * What an item weighs as it is carried, the game's answer {@code vanilla} of the getter {@code how} names: times the item's
+     * efficiency. A bag's own weight takes its efficiency, and what it holds (as it is carried: {@link #contents}) the
+     * multiplier of its tags, each counted as the game counts them: equipped, its own weight times the worn multiplier and
+     * what it holds less its weight reduction; on the hotbar, the same part of its whole as the game takes.
+     */
+    float carried(Formulas.Active now, float vanilla, Object item, int how) throws Throwable {
+        float factor = factor(now, item);
+        if (!bagType.isInstance(item)) return factor == 1f ? vanilla : vanilla * factor;
+        float tag = tagFactor(now, item);
+        if (factor == 1f && tag == 1f) return vanilla;
+        float own = (float)actualWeight.invokeExact(item), contents = (float)itemContents.invokeExact(item);
+        if (how == UNEQUIPPED) return own * factor + contents * tag;
+        if (how == EQUIPPED) {
+            int reduction = (int)bagReduction.invokeExact(item);
+            float kept = reduction > 0 ? 1.0f - reduction / 100.0f : 1.0f;
+            return own * factor * (float)(double)equippedMultiplier.invokeExact() + contents * tag * kept;
+        }
+        float whole = own + contents;
+        return whole == 0f ? vanilla : vanilla * ((own * factor + contents * tag) / whole);
     }
 
     /** What an item of a character's inventory weighs as the game counts it for the character: unequipped, equipped or on the hotbar. */
-    private float body(Formulas.Active now, Kept kept, Object item) throws Throwable {
+    private float body(Kept kept, Object item) throws Throwable {
         Object character = kept.character;
         boolean equipped = (boolean)characterEquipped.invokeExact(character, item);
         int how;
@@ -543,26 +560,22 @@ final class Inventory {
         else if (equipped || (boolean)fakeEquipped.invokeExact(item, character)) how = EQUIPPED;
         else how = UNEQUIPPED;
         kept.special(item, how != UNEQUIPPED);
-        if (how == UNEQUIPPED) return plain(now, item, kept);
-        float vanilla = how == EQUIPPED ? (float)equippedWeight.invokeExact(item) : (float)hotbarWeight.invokeExact(item);
-        if (!bagType.isInstance(item)) {
-            float factor = factor(now, item);
-            return factor == 1f ? vanilla : vanilla * factor;
-        }
-        float unequipped = (float)unequippedWeight.invokeExact(item), whole = plain(now, item, kept);
-        if (whole == unequipped) return vanilla;
-        // The game counts an item on the hotbar a fixed part of its whole weight.
-        if (how == HOTBAR) return unequipped == 0f ? vanilla : whole * (vanilla / unequipped);
-        // The game takes the weight reduction of a worn bag off its items, not off the bag itself.
-        float own = (float)actualWeight.invokeExact(item) * factor(now, item);
-        int reduction = (int)bagReduction.invokeExact(item);
-        float taken = reduction > 0 ? 1 - reduction / 100f : 1f;
-        return own * (float)(double)equippedMultiplier.invokeExact() + (whole - own) * taken;
+        if (how == UNEQUIPPED) return (float)unequippedWeight.invokeExact(item);
+        return how == EQUIPPED ? (float)equippedWeight.invokeExact(item) : (float)hotbarWeight.invokeExact(item);
     }
 
+    /**
+     * What the item adds to the list: the game's own getter (which the formulas are in, {@link #carried}), as the game
+     * counts a character's items for the load or a container's for its contents. A bag's list follows into this one.
+     */
     private float value(Formulas.Active now, Kept kept, Object item) throws Throwable {
         worked++;
-        return kept.character == null ? plain(now, item, kept) : body(now, kept, item);
+        boolean outer = computing;
+        computing = true;
+        try {
+            if (bagType.isInstance(item)) inner(now, item, kept);
+            return kept.character == null ? (float)unequippedWeight.invokeExact(item) : body(kept, item);
+        } finally { computing = outer; }
     }
 
     // ---- keeping the account ----
@@ -938,17 +951,24 @@ final class Inventory {
             return (float)kept.sum;
         lock.lock();
         try {
-            Kept kept = keptOf(container);
-            if (kept == null) return Float.NaN;
-            settle(now);
-            if (kept.character != character) {
-                kept.character = character;
-                kept.stale = true;
-            }
-            if (kept.stale || kept.built != now.weights || kept.epoch != epoch || kept.multiplier != (double)equippedMultiplier.invokeExact()) rebuild(now, kept);
-            else if (!sameEquip(kept, character)) refreshEquip(now, kept, character);
-            return (float)kept.sum;
+            if (asker == null) asker = Thread.currentThread();
+            Kept kept = load(now, container, character);
+            return kept == null ? Float.NaN : (float)kept.sum;
         } finally { lock.unlock(); }
+    }
+
+    /** The account of the character's inventory as its load counts it, worked out as far as it must be. Under the lock. */
+    private Kept load(Formulas.Active now, Object container, Object character) throws Throwable {
+        Kept kept = keptOf(container);
+        if (kept == null) return null;
+        if (!computing) settle(now);
+        if (kept.character != character) {
+            kept.character = character;
+            kept.stale = true;
+        }
+        if (kept.stale || kept.built != now.weights || kept.epoch != epoch || kept.multiplier != (double)equippedMultiplier.invokeExact()) rebuild(now, kept);
+        else if (!sameEquip(kept, character)) refreshEquip(now, kept, character);
+        return kept;
     }
 
     /** What the character wears and holds changed: the items it concerns are worked out again. */
@@ -969,80 +989,60 @@ final class Inventory {
         } finally { computing = outer; }
     }
 
-    /** An item's weight with nothing equipped, as the load counts it. */
-    float unequipped(Formulas.Active now, Object item) throws Throwable {
-        lock.lock();
-        try {
-            settle(now);
-            boolean outer = computing;
-            computing = true;
-            try { return plain(now, item, null); }
-            finally { computing = outer; }
-        } finally { lock.unlock(); }
-    }
-
     /**
-     * The weight an item adds when the game asks whether it fits in a container, for the character whose body it
-     * would be on; {@code vanilla} is the game's, the item's weight with nothing equipped. A bag's own room (the
-     * container is the inside of a bag) counts what comes in as the load does when this game's player asks (bagWeight
-     * counts its items so); another character's question, the real weight.
+     * What a container's items weigh as they are carried ({@code ItemContainer.getContentsWeight}): the kept account of its
+     * list, or NaN for the game's own walk, which reads the items' carried weights and so gives the same item by item. The
+     * walk answers on another thread than the one that asks the load (a list without a live account is not worked out
+     * there), for the floor (a list the inventory window makes again at each refresh) and when the lists cannot be followed.
+     * A local player's inventory is kept for the load, which counts what is worn and held as it is carried: those few are
+     * counted again unequipped.
      */
-    float incoming(Formulas.Active now, Object item, float vanilla, Object container, Object asker, boolean viaBag, Players players)
-            throws Throwable {
-        Object character = viaBag ? wornBy(container) : characterOf(container);
-        boolean bagRoom = !viaBag && character == null && bagOf(container) != null && asker != null && players.local(asker);
-        if (!bagRoom && (character == null || !players.local(character))) return vanilla;
-        if (!bagType.isInstance(item)) {
-            float factor = factor(now, item);
-            return factor == 1f ? vanilla : vanilla * factor;
-        }
-        float whole = unequipped(now, item);
-        return whole == vanilla ? vanilla : whole;
-    }
-
-    /** The bag a container is the inside of, or null (a character's inventory, an object's, the floor, a vehicle part's). */
-    private Object bagOf(Object container) throws Throwable {
-        Object item = (Object)containingItem.invokeExact(container);
-        return bagType.isInstance(item) ? item : null;
-    }
-
-    /**
-     * The weight the room left in a bag is counted from ({@code ItemContainer.getCapacityWeight}): its items as the load
-     * of this game's player counts them (the declarations are this game's), wherever the bag is (worn, carried, on the
-     * floor, in a car), so that a bag the player filled holds the same when it is put down, and what the player puts in is
-     * weighed the same way ({@link #incoming}; another character's question takes the real weight). What the bag itself weighs in
-     * the container it is in stays the game's (its own weight and its items' as they are): the floor, a car or a crate
-     * holds a bag by what it really weighs. Any other container keeps the game's answer. A bag whose items count heavier
-     * than when it was filled (the efficiencies taken away) is over its room: nothing more goes in, nothing falls out.
-     */
-    float bagWeight(Formulas.Active now, float vanilla, Object container) throws Throwable {
-        Object bag = bagOf(container);
-        if (bag == null) return vanilla;
+    float contents(Formulas.Active now, Object container, Players players) throws Throwable {
         if ((Object)itemsGet.invokeExact(container) instanceof Tracked list && list.kept instanceof Kept kept && kept.owner == this
-                && pendingCount == 0 && live(kept, now) && kept.character == null)
+                && kept.character == null && pendingCount == 0 && live(kept, now))
             return (float)kept.sum;
+        if (Thread.currentThread() != asker || !Hooks.weightTracked() || "floor".equals((String)containerKind.invokeExact(container)))
+            return Float.NaN;
+        Object character = characterOf(container);
+        if (character != null && !players.local(character)) character = null;
         lock.lock();
         try {
-            settle(now);
-            boolean outer = computing;
-            computing = true;
-            try {
-                Kept kept = inner(now, bag, null);
-                return kept == null ? vanilla : (float)kept.sum;
-            } finally { computing = outer; }
+            if (character != null) {
+                Kept kept = load(now, container, character);
+                return kept == null ? Float.NaN : unequippedSum(kept);
+            }
+            Kept kept = keptOf(container);
+            if (kept == null) return Float.NaN;
+            if (!computing) settle(now);
+            if (kept.character != null || !live(kept, now)) {
+                kept.character = null;
+                rebuild(now, kept);
+            }
+            return (float)kept.sum;
         } finally { lock.unlock(); }
     }
+
+    /** The sum of a character's list with its worn, held and hotbar items counted unequipped. Under the lock. */
+    private float unequippedSum(Kept kept) throws Throwable {
+        double sum = kept.sum;
+        boolean outer = computing;
+        computing = true;
+        try {
+            for (int index = 0; index < kept.specials; index++) {
+                int slot = kept.find(kept.special[index]);
+                if (slot >= 0) sum += ((double)(float)unequippedWeight.invokeExact(kept.special[index]) - kept.values[slot]) * kept.counts[slot];
+            }
+        } finally { computing = outer; }
+        return (float)sum;
+    }
+
+    /** An item's weight with nothing equipped, as it is carried (the game's getter, which the formulas are in). */
+    float unequipped(Object item) throws Throwable { return (float)unequippedWeight.invokeExact(item); }
 
     /** The character whose inventory the container is, or null. */
     Object characterOf(Object container) throws Throwable {
         Object owner = (Object)parent.invokeExact(container);
         return characterType.isInstance(owner) ? owner : null;
-    }
-
-    /** The character wearing the bag the container belongs to, or null. */
-    private Object wornBy(Object container) throws Throwable {
-        Object bag = (Object)containingItem.invokeExact(container);
-        return bag == null ? null : (Object)equipParent.invokeExact(bag);
     }
 
     // ---- what a container may hold ----
