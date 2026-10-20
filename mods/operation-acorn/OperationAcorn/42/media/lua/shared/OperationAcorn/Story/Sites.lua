@@ -181,9 +181,10 @@ function Sites.ensure(origin, accept, int)
     return sec.list
 end
 
--- A point NEAR_LO to NEAR_HI squares from x, y that may hold a site, or nil.
+-- A point NEAR_LO to NEAR_HI squares from x, y that may hold a site, or nil. A draw (the API's) tries hundreds of
+-- points itself: asked once.
 local function nearPoint(x, y, accept, draw, int)
-    for _ = 1, 20 do
+    for _ = 1, draw and 1 or 20 do
         local px, py
         if draw then
             px, py = draw(x, y, Sites.NEAR_LO, Sites.NEAR_HI)

@@ -226,6 +226,13 @@ test("a ring with no land widens outward, up to three times its edge", function(
     eq(#P.ringSites(START, 3, 500, 1500, 400, function() return false end, nil, rng(9)), 0, "gives up")
 end)
 
+test("a draw that finds none (the API tried hundreds of points) is not asked again", function()
+    local asked = 0
+    local function draw() asked = asked + 1; return nil end
+    eq(#P.ringSites(START, 3, 500, 1500, 400, function() return true end, nil, rng(9), draw), 0)
+    eq(asked, 1, "once")
+end)
+
 test("existing sites stay and new ones keep apart from them", function()
     local first = P.ringSites(START, 1, 500, 1500, 400, nil, nil, rng(9))
     local more = P.ringSites(START, 3, 500, 1500, 400, nil, first, rng(13))

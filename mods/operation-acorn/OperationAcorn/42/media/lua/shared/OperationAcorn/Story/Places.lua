@@ -256,7 +256,7 @@ end
 -- `existing` points stay. Where the ring is too crowded (water, town, the map's edge) the spacing relaxes by a tenth
 -- every few hundred misses, down to a third, and then the ring widens outward, up to three times `hi`; past that it
 -- gives up with what it has. Returns the list (existing + new). `draw(x, y, lo, hi)`, when given, makes the candidate
--- (x, y, or nil: a miss) in place of the random one.
+-- (x, y) in place of the random one; its nil (it found none) ends the search.
 function Places.ringSites(origin, count, lo, hi, spacing, accept, existing, int, draw)
     int = int or randomInt
     local sites = {}
@@ -268,6 +268,9 @@ function Places.ringSites(origin, count, lo, hi, spacing, accept, existing, int,
         local x, y
         if draw then
             x, y = draw(origin.x, origin.y, lo, hi)
+            -- (a draw tries hundreds of points itself: none means the ring has none, and drawing again would only
+            -- repeat that work; the caller falls back to the plain ring)
+            if not x then break end
         else
             local a = math.rad(int(0, 359))
             local r = int(lo, math.floor(hi))
