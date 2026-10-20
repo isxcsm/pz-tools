@@ -114,7 +114,7 @@ test("a wrap or a cut is kept for the last width its text was asked at only", fu
     eq(UI.wrapMemo("alpha beta", 100), other)
 end)
 
-test("a font's height is asked of its face once a frame, and again the next frame", function()
+test("a font's height is asked of its face once, again before each frame draws, and kept", function()
     local UI = load()
     UI.setScale(1, false)
     local before = heightCalls
@@ -130,8 +130,12 @@ test("a font's height is asked of its face once a frame, and again the next fram
     -- the font option changes under the window: shown from the next frame
     fonts.Medium = 25
     eq(UI.fontHeight(UIFont.Medium), 20, "kept for the frame")
+    before = heightCalls
     UI.liveFrame()
-    eq(UI.fontHeight(UIFont.Medium), 25, "asked anew in the next")
+    eq(heightCalls - before, 3, "each kind asked again before the frame draws")
+    eq(UI.fontHeight(UIFont.Medium), 25, "the new height in the next")
+    UI.fontHeight()
+    eq(heightCalls - before, 3, "and none asked as it draws")
     -- at a scale the height comes out in design units
     UI.setScale(2, false)
     eq(UI.fontHeight(UIFont.Medium), 12.5, "a new scale is not served from the old")

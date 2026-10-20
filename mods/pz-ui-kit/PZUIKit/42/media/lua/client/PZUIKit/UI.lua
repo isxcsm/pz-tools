@@ -36,6 +36,7 @@ require "ISUI/ISScrollingListBox"
 require "PZUIKit/Text"
 require "PZUIKit/Sound"
 require "PZUIKit/Faces"
+require "PZUIKit/Tape"
 local Kit = PZUIKit
 local Faces = Kit.Faces
 local KitText = Kit.Text
@@ -69,11 +70,14 @@ local spaces = {}
 local widths, pixelWidths, wrapMemos, fitMemos = {}, {}, {}, {}
 local widthCount, pixelCount, memoCount = 0, 0, { wrap = 0, fit = 0 }
 local CACHE_MAX = 4000
--- A number that changes every frame (liveFrame, before the UI draws) and when the texts are forgotten: the faces' heights
--- asked in the frame (faceHeight) are good until it does.
+-- A number that changes every frame (liveFrame, before the UI draws) and when the texts are forgotten.
 local frameStamp = 0
+-- The faces' heights in pixels by font (faceHeight), asked again each frame (freshHeights): a font's height can change
+-- under an open window.
+local heightOf = {}
 local function forgetText()
     frameStamp = frameStamp + 1
+    heightOf = {}
     spaces = {}
     widths, pixelWidths, wrapMemos, fitMemos = {}, {}, {}, {}
     widthCount, pixelCount, memoCount = 0, 0, { wrap = 0, fit = 0 }
@@ -565,21 +569,24 @@ end
 -- elements, the widget itself.
 function UI.designCanvas(el)
     if not designParent(el.parent) then return el end
-    local c = el.uiCanvas
+    -- (kept on the table itself: a tape's stand-in of the widget has a canvas of its own, PZUIKit.Tape)
+    local c = rawget(el, "uiCanvas")
     if not c then
         c = setmetatable({ uiBase = UI.rawDraws(el), uiDesign = true }, { __index = el })
         for _, name in ipairs(DRAWS) do
             local at = FADED[name]
             c[name] = at and fadedDraw(SCALED[name], at, UI.faded) or SCALED[name]
         end
-        el.uiCanvas = c
+        rawset(el, "uiCanvas", c)
     end
     c.width, c.height = el.width / S, el.height / S
     return c
 end
 
--- Whether a row of a game list at pixel y (from the list's top, before its scroll) is outside what shows.
+-- Whether a row of a game list at pixel y (from the list's top, before its scroll) is outside what shows. While a tape
+-- records the list's rows (UI.tapeRows) none is: the tape holds them all, the list's scroll moving them as it plays.
 local function rowHidden(list, y, h)
+    if Kit.taping then return false end
     local at = y + list:getYScroll()
     return at + h < 0 or at >= list.height
 end
@@ -591,6 +598,57 @@ function UI.rowPainter(drawRow)
         if rowHidden(list, y, item.height) then return y + item.height end
         local c = UI.designCanvas(list)
         drawRow(c, c == list and y or y / S, item, alt)
+        return y + item.height
+    end
+end
+
+-- A game list's rows (drawn by UI.rowPainter, UI.list or a doDrawItem of the owner's) kept on a tape (PZUIKit.Tape):
+-- all of them, recorded when the items, the selection, the width or the scale change, or `keyOf(list)` (what else
+-- the rows show: a value that is another when it changes; nil for none); played at the first row, the list's scroll
+-- moving them, the rest of its rows then drawn by nothing. The rows that light (a part each, keyed by the row's index:
+-- UI.list's) are drawn as they are over it: those `lit(list, index)` says (UI.placeLit by default). While the window
+-- fades, the rows are drawn as they are.
+function UI.tapeRows(list, keyOf, lit)
+    lit = lit or UI.placeLit
+    local Tape = Kit.Tape
+    local drawItem = list.doDrawItem
+    local function drawAll(self)
+        local y, alt = 0, false
+        for i, item in ipairs(self.items) do
+            item.index = i
+            item.height = item.height or self.itemheight
+            y = drawItem(self, y, item, alt)
+            alt = not alt
+        end
+    end
+    local function drawPart(self, _, d) drawItem(self, d.y, d.item, d.alt) end
+    list.doDrawItem = function(self, y, item, alt)
+        if item.index ~= 1 then
+            if self.rowsPlayed then return y + item.height end
+            return drawItem(self, y, item, alt)
+        end
+        self.rowsPlayed = false
+        local tape = self.rowsTape
+        if tape == false or UI.faded(self, 1) ~= 1 then return drawItem(self, y, item, alt) end
+        local items, k = self.items, self.rowsKey
+        local key = keyOf and keyOf(self)
+        if not (tape and k.items == items and k.n == #items and k.w == self.width and k.S == S
+                and k.sel == self.selected and k.key == key) then
+            tape = tape or Tape.new()
+            if not Tape.record(self, tape, drawAll) then
+                Kit.log("a list's rows are not kept, drawn each time (" .. tostring(tape.bad) .. ")")
+                self.rowsTape = false
+                return drawItem(self, y, item, alt)
+            end
+            self.rowsTape = tape
+            self.rowsKey = { items = items, n = #items, w = self.width, S = S, sel = self.selected, key = key }
+        end
+        if not Tape.playRound(self, tape, lit, drawPart) then
+            -- (a tape the API lost: recorded again next time)
+            self.rowsKey = {}
+            return drawItem(self, y, item, alt)
+        end
+        self.rowsPlayed = true
         return y + item.height
     end
 end
@@ -627,11 +685,39 @@ function UI.unclip(el, x, y, w, h)
     el:repaintStencilRect(x, y, w, h)
 end
 
+-- A rectangle filled, and one outlined, in colour `c` ({ r, g, b }). On a scaled element drawing through the scaled
+-- class's own draws (no fade's wrappers, no draw of its own), straight to the game's call with the pixels SCALED's
+-- drawRect and ISUIElement's would give it: the same rectangles at a third of the Lua (a board draws hundreds).
+local function plainRects(el)
+    return el.drawRect == SCALED.drawRect and ISUIElement and el.uiBase.drawRect == ISUIElement.drawRect
+        and not el.isCollapsed
+end
+
 function UI.fill(el, x, y, w, h, c, a)
+    local jo = el.javaObject
+    if jo and plainRects(el) then
+        local rx, ry = floor(x * S + 0.5), floor(y * S + 0.5)
+        jo:DrawTextureScaledColor(nil, rx, ry, floor((x + w) * S + 0.5) - rx, floor((y + h) * S + 0.5) - ry, c[1], c[2],
+            c[3], a or 1)
+        return
+    end
     el:drawRect(x, y, w, h, a or 1, c[1], c[2], c[3])
 end
 
 function UI.frame(el, x, y, w, h, c, a)
+    local jo = el.javaObject
+    if jo and el.drawRectBorder == SCALED.drawRectBorder and plainRects(el)
+        and el.uiBase.drawRectBorder == ISUIElement.drawRectBorder then
+        local rx, ry = floor(x * S + 0.5), floor(y * S + 0.5)
+        local rw, rh = floor((x + w) * S + 0.5) - rx, floor((y + h) * S + 0.5) - ry
+        local r, g, b = c[1], c[2], c[3]
+        a = a or 1
+        jo:DrawTextureScaledColor(nil, rx, ry, 1, rh, r, g, b, a)
+        jo:DrawTextureScaledColor(nil, rx + 1, ry, rw - 2, 1, r, g, b, a)
+        jo:DrawTextureScaledColor(nil, rx + rw - 1, ry, 1, rh, r, g, b, a)
+        jo:DrawTextureScaledColor(nil, rx + 1, ry + rh - 1, rw - 2, 1, r, g, b, a)
+        return
+    end
     el:drawRectBorder(x, y, w, h, a or 1, c[1], c[2], c[3])
 end
 
@@ -657,16 +743,24 @@ function UI.textWidthPx(text, font)
     return getTextManager():MeasureStringX(font or UIFont.Small, text)
 end
 
--- A face's height in pixels, asked of the face once a font in a frame (every frame asks anew: a font's height can change
--- under an open window, Faces.height): the widgets ask it for each of their rows and bars.
-local heightOf, heightAt = {}, {}
+-- A face's height in pixels, asked of the face once a font and kept (the widgets ask it for each of their rows and
+-- bars). Each frame the heights kept are asked again and written only where one changed (freshHeights): a drawing reads
+-- the same number frame after frame, as PZ Optimization's retained interface needs to keep it.
 local SMALL_KEY = {}
 local function faceHeight(font)
     local key = font == nil and SMALL_KEY or font
-    if heightAt[key] == frameStamp then return heightOf[key] end
-    local h = Faces.height(font)
-    heightOf[key], heightAt[key] = h, frameStamp
+    local h = heightOf[key]
+    if h then return h end
+    h = Faces.height(font)
+    heightOf[key] = h
     return h
+end
+
+local function freshHeights()
+    for key, h in pairs(heightOf) do
+        local now = Faces.height(key ~= SMALL_KEY and key or nil)
+        if now ~= h then heightOf[key] = now end
+    end
 end
 
 -- Text measured in design units in its face (the face's pixels / UI.S): what our elements draw.
@@ -896,60 +990,89 @@ function PZUISubTabs:setItems(items, active)
     self.items, self.active = items, active
 end
 
-function PZUISubTabs:prerender()
+-- One box at its slot (x, w; the label's and the badge's widths).
+local function drawSubTab(self, item, slot)
     local p = self.palette
     local fh = UI.fontHeight()
     local h = self.height
+    local x, bw = slot.x, slot.w
+    local on = item.id == self.active
+    -- one under the mouse lights up, a clicked one flashes (the hover and press lights below)
+    local k = UI.hoverLight(self, item.id, not on and slot == self.overSlot)
+    local f = UI.flashLevel(self, item.id)
+    if on then
+        UI.fill(self, x, 0, bw, h, p.sel, 0.2)
+        UI.frame(self, x, 0, bw, h, p.sel)
+    else
+        if p.panel then UI.fill(self, x, 0, bw, h, p.panel) end
+        if k > 0 then UI.fill(self, x, 0, bw, h, p.sel, 0.1 * k) end
+        UI.frame(self, x, 0, bw, h, p.border)
+        if k > 0 then UI.frame(self, x, 0, bw, h, p.sel, 0.6 * k) end
+    end
+    if f > 0 then UI.fill(self, x, 0, bw, h, p.sel, 0.3 * f) end
+    local lx = x + 16
+    if item.lock then
+        UI.lock(self, lx, (h - 9) / 2, p.warn, 0.9)
+        lx = lx + 12
+    end
+    UI.text(self, item.label, lx, (h - fh) / 2, on and p.bright or p.text)
+    if item.badge then
+        local bx = lx + slot.lw + 8
+        UI.fill(self, bx, 4, slot.badgeW, h - 8, p.sel, 0.85)
+        UI.textCentre(self, item.badge, bx + slot.badgeW / 2, (h - fh) / 2, p.dark)
+    end
+    if item.dot then UI.fill(self, x + bw - 8, 4, 4, 4, item.dot == "bad" and p.bad or p.warn) end
+end
+
+-- The boxes' places (self.slots), worked out when the items or the scale change.
+local function laySubTabs(self)
     local x = 0
-    local mx = self:isMouseOver() and self:getMouseX() or -1
-    local slots, n = self.slots, 0
-    local tipped = nil
-    for _, item in ipairs(self.items) do
-        local on = item.id == self.active
+    local slots = {}
+    for i, item in ipairs(self.items) do
         local lw = UI.textWidth(item.label)
         local bw = lw + 32
         if item.lock then bw = bw + 12 end
         local badgeW = item.badge and UI.textWidth(item.badge) + 10 or 0
         if item.badge then bw = bw + badgeW + 4 end
-        -- one under the mouse lights up, a clicked one flashes (the hover and press lights below)
-        local over = mx >= x and mx < x + bw
-        if over and item.tip then tipped = item.tip end
-        local k = UI.hoverLight(self, item.id, not on and over)
-        local f = UI.flashLevel(self, item.id)
-        if on then
-            UI.fill(self, x, 0, bw, h, p.sel, 0.2)
-            UI.frame(self, x, 0, bw, h, p.sel)
-        else
-            if p.panel then UI.fill(self, x, 0, bw, h, p.panel) end
-            if k > 0 then UI.fill(self, x, 0, bw, h, p.sel, 0.1 * k) end
-            UI.frame(self, x, 0, bw, h, p.border)
-            if k > 0 then UI.frame(self, x, 0, bw, h, p.sel, 0.6 * k) end
-        end
-        if f > 0 then UI.fill(self, x, 0, bw, h, p.sel, 0.3 * f) end
-        local lx = x + 16
-        if item.lock then
-            UI.lock(self, lx, (h - 9) / 2, p.warn, 0.9)
-            lx = lx + 12
-        end
-        UI.text(self, item.label, lx, (h - fh) / 2, on and p.bright or p.text)
-        if item.badge then
-            local bx = lx + lw + 8
-            UI.fill(self, bx, 4, badgeW, h - 8, p.sel, 0.85)
-            UI.textCentre(self, item.badge, bx + badgeW / 2, (h - fh) / 2, p.dark)
-        end
-        if item.dot then UI.fill(self, x + bw - 8, 4, 4, 4, item.dot == "bad" and p.bad or p.warn) end
-        n = n + 1
-        local slot = slots[n]
-        if not slot then
-            slot = {}
-            slots[n] = slot
-        end
-        slot.id, slot.x, slot.w = item.id, x, bw
+        slots[i] = { id = item.id, item = item, x = x, w = bw, lw = lw, badgeW = badgeW }
         x = x + bw + 4
     end
-    for i = #slots, n + 1, -1 do slots[i] = nil end
+    self.slots, self.laidItems, self.laidS = slots, self.items, S
+end
+
+local function drawSubTabs(self)
+    for _, slot in ipairs(self.slots) do
+        Kit.Tape.part(slot.id, slot)
+        drawSubTab(self, slot.item, slot)
+        Kit.Tape.partEnd()
+    end
+end
+
+-- Whether a box moves now: its light under the mouse (coming, held or going) or a click's flash.
+local function subTabMoves(self, id)
+    local f = self.fx and self.fx[id]
+    -- (a light heading down read without turning it: hoverLight leaves a light going its way alone)
+    if f and (f.to == 1 or UI.hoverLight(self, id, false) > 0) then return true end
+    return UI.flashLevel(self, id) > 0
+end
+
+local function drawSubTabPart(self, _, slot) drawSubTab(self, slot.item, slot) end
+
+-- Kept on a tape (PZUIKit.Tape) until the items or the one chosen change; a box that moves is drawn as it is over
+-- it. The lights under the mouse are set off here (a tape keeps none).
+function PZUISubTabs:prerender()
+    if self.laidItems ~= self.items or self.laidS ~= S then laySubTabs(self) end
+    local mx = self:isMouseOver() and self:getMouseX() or -1
+    local over = nil
+    for _, slot in ipairs(self.slots) do
+        if mx >= slot.x and mx < slot.x + slot.w then over = slot end
+        UI.hoverLight(self, slot.id, slot.id ~= self.active and mx >= slot.x and mx < slot.x + slot.w)
+    end
+    self.overSlot = over
+    Kit.Tape.keep(self, drawSubTabs, nil, self.items, self.active, subTabMoves, drawSubTabPart)
     if PZUITip then
-        if tipped then PZUITip.show(self, tipped, p) else PZUITip.hide(self) end
+        local tip = over and over.item.tip
+        if tip then PZUITip.show(self, tip, self.palette) else PZUITip.hide(self) end
     end
 end
 
@@ -1113,6 +1236,8 @@ function UI.list(parent, x, y, width, height, drawRow, target, onclick)
     end
     list.doDrawItem = function(self, rowY, item, alt)
         if rowHidden(self, rowY, item.height) then return rowY + item.height end
+        -- (a part that lights, on a tape of the rows: UI.tapeRows)
+        Kit.Tape.part(item.index, Kit.taping and { y = rowY, item = item, alt = alt } or nil)
         if self.selected == item.index then
             self:drawSelection(0, rowY, self:getWidth(), item.height - 1)
         end
@@ -1123,6 +1248,7 @@ function UI.list(parent, x, y, width, height, drawRow, target, onclick)
         end
         local canvas = UI.designCanvas(self)
         drawRow(canvas, canvas == self and rowY or rowY / S, item, alt)
+        Kit.Tape.partEnd()
         return rowY + item.height
     end
     if onclick then list:setOnMouseDownFunction(target, onclick) end
@@ -1305,6 +1431,7 @@ end
 -- changed), nil once none is; its liveTick changes with any.
 local function liveFrame()
     frameStamp = frameStamp + 1
+    freshHeights()
     if live[1] == nil then return end
     local now = getTimestampMs()
     UI.sceneNow()
@@ -1593,6 +1720,7 @@ end
 -- where it set off from, where it goes, when); its level is worked out from the
 -- element's frame time when drawn (UI.frameNow; a light set off as the element draws, from the clock). While one moves the element is followed each frame (UI.live: PZ Optimization draws the steps);
 -- once they are all still it is let go. Made only when a light changes; nothing is kept for an element never hovered.
+-- While a tape records (PZUIKit.Tape) every light reads dark and none is set off: a tape keeps no light.
 UI.HOVER_IN_MS, UI.HOVER_OUT_MS, UI.FLASH_MS = 90, 220, 260
 
 local function fxLevel(f, now)
@@ -1633,6 +1761,7 @@ end
 
 -- The light `key` of `el` heading up (`on`) or down: its level now, 0 to 1. Called as the element draws.
 function UI.hoverLight(el, key, on)
+    if PZUIKit.taping then return 0 end
     local f = el.fx and el.fx[key]
     if not f and not on then return 0 end
     local to = on and 1 or 0
@@ -1671,6 +1800,7 @@ end
 
 -- The flash's level now, 0 to 1.
 function UI.flashLevel(el, key)
+    if PZUIKit.taping then return 0 end
     local f = el.fxFlash and el.fxFlash[key]
     if not f then return 0 end
     return fxLevel(f, UI.frameNow(el))
@@ -1717,7 +1847,7 @@ end
 function UI.placeLevels(el, place)
     local k, f = 0, 0
     local fx, flashes = el.fx, el.fxFlash
-    if not (fx or flashes) then return 0, 0 end
+    if not (fx or flashes) or PZUIKit.taping then return 0, 0 end
     local now = UI.frameNow(el)
     if fx then
         local cur, fade = fx.cur, fx.fade
@@ -1730,6 +1860,16 @@ function UI.placeLevels(el, place)
     local press = flashes and flashes.press
     if press and press.place == place then f = fxLevel(press, now) end
     return k, f
+end
+
+-- Whether a place is lit now, or about to be (the mouse just come onto it): drawn as it is over a tape
+-- (Tape.playRound).
+function UI.placeLit(el, place)
+    local fx = el.fx
+    local cur = fx and fx.cur
+    if cur and cur.place == place then return true end
+    local k, f = UI.placeLevels(el, place)
+    return k > 0 or f > 0
 end
 
 return UI

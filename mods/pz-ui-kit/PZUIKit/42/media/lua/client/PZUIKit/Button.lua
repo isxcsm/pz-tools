@@ -6,7 +6,8 @@ require "ISUI/ISButton"
 require "ISUI/ISPanel"
 require "PZUIKit/UI"
 require "PZUIKit/Sound"
-local UI = PZUIKit.UI
+require "PZUIKit/Tape"
+local UI, Tape = PZUIKit.UI, PZUIKit.Tape
 
 PZUIButton = ISButton:derive("PZUIButton")
 
@@ -40,13 +41,14 @@ function PZUIButton:onMouseUp(x, y)
     if self.onOff then self.onOff(self.target) end
 end
 
--- The mouse over it brings a light up (UI.hoverLight) and a click flashes it (UI.flash), both eased.
-function PZUIButton:prerender()
+-- The box and its title (a button has no children: the title drawn with the box), lit by self.lightK and flashing by
+-- self.lightF; unlit while a tape records.
+local function drawButton(self)
     local p = self.palette
     local w, h = self.width, self.height
     local live = self.enable and self.style ~= "off"
-    local k = UI.hoverLight(self, "hover", live and (self.mouseOver or self.pressed) and self:isMouseOver())
-    local f = UI.flashLevel(self, "press")
+    local k, f = 0, 0
+    if not PZUIKit.taping then k, f = self.lightK or 0, self.lightF or 0 end
     if not live then
         if p.panel then UI.fill(self, 0, 0, w, h, p.panel, 0.6) end
         UI.frame(self, 0, 0, w, h, p.border, 0.5)
@@ -59,20 +61,33 @@ function PZUIButton:prerender()
         UI.frame(self, 0, 0, w, h, p.border)
         if k > 0 then UI.frame(self, 0, 0, w, h, p.sel, 0.7 * k) end
     end
-    self:updateTooltip()
-end
-
-function PZUIButton:render()
-    local p = self.palette
-    local fh = UI.fontHeight()
     local c, a = p.text, 1
-    if not self.enable or self.style == "off" then
+    if not live then
         c, a = p.dim, 0.6
     elseif self.style == "strong" then
         c = p.bright
     end
-    UI.textCentre(self, self.title, self.width / 2, (self.height - fh) / 2, c, nil, a)
+    UI.textCentre(self, self.title, w / 2, (h - UI.fontHeight()) / 2, c, nil, a)
 end
+
+local STYLES = { normal = 0, strong = 2, off = 4 }
+
+-- The mouse over it brings a light up (UI.hoverLight) and a click flashes it (UI.flash), both eased. Unlit, it is kept
+-- on a tape (until its title, its style or whether it is enabled change; its palette is its own for good).
+function PZUIButton:prerender()
+    local live = self.enable and self.style ~= "off"
+    local k = UI.hoverLight(self, "hover", live and (self.mouseOver or self.pressed) and self:isMouseOver())
+    local f = UI.flashLevel(self, "press")
+    self.lightK, self.lightF = k, f
+    if k > 0 or f > 0 then
+        drawButton(self)
+    else
+        Tape.keep(self, drawButton, nil, self.title, (STYLES[self.style] or 6) + (self.enable and 1 or 0))
+    end
+    self:updateTooltip()
+end
+
+function PZUIButton:render() end
 
 -- The tooltip: ours, under the button where the mouse is (the game's ISToolTip would draw in the game's font).
 function PZUIButton:updateTooltip()

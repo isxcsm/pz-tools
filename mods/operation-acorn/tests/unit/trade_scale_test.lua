@@ -32,8 +32,13 @@ local function stubFonts(px)
 end
 
 -- The Java object of an element: its place and size in pixels, and what the game was asked to draw.
-local function javaObject()
+local function javaObject(owner)
     local j = { x = 0, y = 0, w = 0, h = 0 }
+    -- (the kit's straight rectangles: logged as the element's drawRect logs them)
+    function j.DrawTextureScaledColor(_, _, x, y, w, h, r, g, b, a)
+        owner.drawn = owner.drawn or {}
+        owner.drawn[#owner.drawn + 1] = { "rect", x, y, w, h, a, r, g, b }
+    end
     function j:setX(v) self.x = v end
     function j:setY(v) self.y = v end
     function j:setWidth(v) self.w = v end
@@ -78,7 +83,7 @@ local function gameClasses()
     end
     function E:initialise() self.children = {} end
     function E:instantiate()
-        local j = javaObject()
+        local j = javaObject(self)
         self.javaObject = j
         j:setX(self.x); j:setY(self.y); j:setHeight(self.height); j:setWidth(self.width)
         self:createChildren()
@@ -140,7 +145,7 @@ local function gameClasses()
     _G.ISUIElement, _G.ISPanel, _G.ISButton, _G.ISScrollingListBox = E, Panel, Button, List
     _G.ISLabel, _G.ISRichTextPanel, _G.ISComboBox, _G.ISCollapsableWindow = Panel:derive("ISLabel"),
         Panel:derive("ISRichTextPanel"), Panel:derive("ISComboBox"), Panel:derive("ISCollapsableWindow")
-    _G.UIElement = { new = function() return javaObject() end }
+    _G.UIElement = { new = function(o) return javaObject(o) end }
 end
 
 local function loadUI(px)
