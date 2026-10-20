@@ -11,8 +11,9 @@ import java.util.function.Consumer;
  * {@code PZExtAPI.draw.rects} and {@code draw.quads}: many rectangles, or many quads of one picture, drawn by one call from a flat
  * array of numbers (docs/design.md, "Drawing many shapes"), for the interface that draws hundreds of them each frame
  * (a ring of dashes, a graph, a grid) and would call {@code drawRect} or {@code DrawTexture} for each. {@code draw.keep},
- * {@code draw.clear} and {@code draw.play}: a window's own draws of pictures and rectangles, kept by a mod as it makes them (a drawing
- * recorded) on a tape that belongs to a Lua table of the mod's, and played back by one call.
+ * {@code draw.clear} and {@code draw.play}: a window's own draws (pictures and rectangles, texts in the game's fonts and in those
+ * {@code text.font} made, lines and clips), kept by a mod as it makes them (a drawing recorded) on a tape that belongs to a Lua table of
+ * the mod's, and played back by one call.
  *
  * <p>The shapes are drawn as the game draws them from a window's {@code prerender}, {@code render} or {@code postrender}: a rectangle
  * as {@code UIElement.DrawTextureScaledColor} does ({@code SpriteRenderer.renderi} with no texture at the element's place plus its
@@ -23,8 +24,13 @@ import java.util.function.Consumer;
 final class Quads {
     /** The numbers a shape takes in its array. */
     static final int RECT = 8, QUAD = 12;
-    /** A tape's kinds of draws: a picture scaled and coloured (a rectangle without one), tiled, scaled keeping its aspect. */
-    static final int SCALED = 1, TILED = 2, ASPECT = 3;
+    /**
+     * A tape's kinds of draws: a picture scaled and coloured (a rectangle without one), tiled, scaled keeping its aspect; a text in a
+     * font {@code text.font} made; a text in one of the game's fonts from its left, its centre, its right, untrimmed; a clip set, taken
+     * off, painted back; a line. {@link #KINDS}, the last, is told to the mods ({@code draw.kinds}).
+     */
+    static final int SCALED = 1, TILED = 2, ASPECT = 3, FACE = 4, TEXT = 5, CENTRE = 6, RIGHT = 7, UNTRIMMED = 8, CLIP = 9, UNCLIP = 10,
+        RECLIP = 11, LINE = 12, KINDS = 12;
     /** The most draws a tape keeps. */
     static final int TAPE_MAX = 65536;
     /** The most shapes a call draws. */
@@ -34,13 +40,19 @@ final class Quads {
     private static final String AREA = "PZExtAPI.draw.";
 
     private final Kahlua lua;
-    private final Class<?> element, texture;
+    private final Class<?> element, texture, font;
     // UIElement.isVisible(), getAbsoluteX(), getAbsoluteY(), getXScroll(), getYScroll(); the element's javaObject in a Lua window.
     private final MethodHandle visible, absoluteX, absoluteY, scrollX, scrollY;
     // UIElement.DrawTexture(texture, x1, y1, x2, y2, x3, y3, x4, y4, r, g, b, a).
     private final MethodHandle drawQuad;
     // UIElement.DrawTextureScaledCol, DrawTextureTiled, DrawTextureScaledAspect (texture, x, y, w, h, r, g, b, a): what a tape draws.
     private final MethodHandle drawScaled, drawTiled, drawAspect;
+    // UIElement.DrawText, DrawTextCentre, DrawTextRight, DrawTextUntrimmed (font, text, x, y, r, g, b, a).
+    private final MethodHandle drawText, drawCentre, drawRight, drawUntrimmed;
+    // UIElement.setStencilRect(x, y, w, h), clearStencilRect(), repaintStencilRect(x, y, w, h).
+    private final MethodHandle clip, unclip, reclip;
+    // UIElement.DrawLine(texture, x, y, x2, y2, thickness, r, g, b, a).
+    private final MethodHandle drawLine;
     // SpriteRenderer.instance and renderi(texture, x, y, w, h, r, g, b, a, consumer).
     private final Object sprites;
     private final MethodHandle renderRect;
@@ -49,6 +61,7 @@ final class Quads {
         this.lua = lua;
         element = Game.type(loader, "zombie.ui.UIElement");
         texture = Game.type(loader, "zombie.core.textures.Texture");
+        font = Game.type(loader, "zombie.ui.UIFont");
         visible = Game.exact(element.getMethod("isVisible"), MethodType.methodType(Boolean.class, Object.class));
         absoluteX = Game.exact(element.getMethod("getAbsoluteX"), MethodType.methodType(Double.class, Object.class));
         absoluteY = Game.exact(element.getMethod("getAbsoluteY"), MethodType.methodType(Double.class, Object.class));
@@ -66,6 +79,20 @@ final class Quads {
             double.class, double.class, double.class, double.class), eight);
         drawAspect = Game.exact(element.getMethod("DrawTextureScaledAspect", texture, double.class, double.class, double.class, double.class,
             double.class, double.class, double.class, double.class), eight);
+        MethodType text = MethodType.methodType(void.class, Object.class, Object.class, String.class, double.class, double.class, double.class,
+            double.class, double.class, double.class);
+        Class<?>[] textArguments = { font, String.class, double.class, double.class, double.class, double.class, double.class, double.class };
+        drawText = Game.exact(element.getMethod("DrawText", textArguments), text);
+        drawCentre = Game.exact(element.getMethod("DrawTextCentre", textArguments), text);
+        drawRight = Game.exact(element.getMethod("DrawTextRight", textArguments), text);
+        drawUntrimmed = Game.exact(element.getMethod("DrawTextUntrimmed", textArguments), text);
+        MethodType four = MethodType.methodType(void.class, Object.class, double.class, double.class, double.class, double.class);
+        clip = Game.exact(element.getMethod("setStencilRect", double.class, double.class, double.class, double.class), four);
+        unclip = Game.exact(element.getMethod("clearStencilRect"), MethodType.methodType(void.class, Object.class));
+        reclip = Game.exact(element.getMethod("repaintStencilRect", double.class, double.class, double.class, double.class), four);
+        drawLine = Game.exact(element.getMethod("DrawLine", texture, double.class, double.class, double.class, double.class, float.class,
+            double.class, double.class, double.class, double.class), MethodType.methodType(void.class, Object.class, Object.class, double.class,
+            double.class, double.class, double.class, float.class, double.class, double.class, double.class, double.class));
         Class<?> renderer = Game.type(loader, "zombie.core.SpriteRenderer");
         sprites = renderer.getField("instance").get(null);
         renderRect = Game.exact(renderer.getMethod("renderi", texture, int.class, int.class, int.class, int.class, float.class, float.class, float.class,
@@ -97,6 +124,7 @@ final class Quads {
             if (tape != null) tape.clear();
             return Game.NONE;
         }));
+        lua.set(table, "kinds", (double)KINDS);
         lua.set(table, "play", lua.function(play, arguments -> {
             try { return new Object[] { play(arguments, play) }; }
             catch (RuntimeException | Error mine) { throw mine; }
@@ -178,27 +206,34 @@ final class Quads {
                 values[at + 6], values[at + 7], values[at + 8], values[at + 9], values[at + 10], values[at + 11]);
     }
 
-    /** The draws kept for one Lua table: their kinds, pictures (null for a rectangle) and eight numbers each, grown as they come. */
+    /**
+     * The draws kept for one Lua table: their kinds, pictures (null for a rectangle; a text's font), eight numbers each and a text's
+     * words (a line's thickness), grown as they come.
+     */
     private static final class Tape {
         int count;
         int[] kinds = new int[16];
         Object[] pictures = new Object[16];
+        Object[] words = new Object[16];
         double[] numbers = new double[16 * RECT];
 
         void clear() {
             Arrays.fill(pictures, 0, count, null);
+            Arrays.fill(words, 0, count, null);
             count = 0;
         }
 
-        void add(int kind, Object picture, double[] eight) {
+        void add(int kind, Object picture, double[] eight, Object more) {
             if (count == kinds.length) {
                 int size = kinds.length * 2;
                 kinds = Arrays.copyOf(kinds, size);
                 pictures = Arrays.copyOf(pictures, size);
+                words = Arrays.copyOf(words, size);
                 numbers = Arrays.copyOf(numbers, size * RECT);
             }
             kinds[count] = kind;
             pictures[count] = picture;
+            words[count] = more;
             System.arraycopy(eight, 0, numbers, count * RECT, RECT);
             count++;
         }
@@ -217,35 +252,55 @@ final class Quads {
     }
 
     /**
-     * {@code draw.keep(tape, kind, picture, x, y, w, h, r, g, b, a)}: one draw more on the tape of the Lua table {@code tape} (made
-     * at its first): the kind (1 a picture scaled and coloured, or a rectangle with {@code false} for the picture; 2 tiled; 3 scaled
-     * keeping its aspect), the picture, {@code x, y, w, h} in the element's own pixels and {@code r, g, b, a}.
+     * {@code draw.keep(tape, kind, picture, x, y, w, h, r, g, b, a, more)}: one draw more on the tape of the Lua table {@code tape}
+     * (made at its first): its kind ({@link #SCALED} to {@link #LINE}), then {@code x, y, w, h} in the element's own pixels and
+     * {@code r, g, b, a}, with: a picture (a rectangle: {@code false}, kind 1), tiled, scaled keeping its aspect; a text in a font
+     * {@code text.font} made (4): {@code false} for the picture, {@code w} the font's key and the words as {@code more}; a text in one of
+     * the game's fonts (5 from its left, 6 centred, 7 from its right, 8 untrimmed): the font for the picture, the words as {@code more};
+     * a clip set (9) or painted back (11) at {@code x, y, w, h}, or taken off (10), {@code false} for the picture; a line (12) from
+     * {@code x, y} to {@code w, h}, its picture or {@code false}, its thickness as {@code more}.
      */
     private void keep(Object[] arguments, String call) {
         Object owner = owner(arguments, call);
         Object kind = arguments.length > 1 ? arguments[1] : null;
-        if (!(kind instanceof Double k) || (k != SCALED && k != TILED && k != ASPECT))
-            throw new IllegalArgumentException(call + ": kind must be 1, 2 or 3");
+        if (!(kind instanceof Double value) || value != Math.rint(value) || value < SCALED || value > KINDS)
+            throw new IllegalArgumentException(call + ": kind must be a whole number from 1 to " + KINDS);
+        int k = (int)(double)value;
         Object picture = arguments.length > 2 ? arguments[2] : null;
-        if (Boolean.FALSE.equals(picture) && k == SCALED) picture = null;
-        else if (!texture.isInstance(picture)) throw new IllegalArgumentException(call + ": picture must be a texture" + (k == SCALED ? " or false" : ""));
+        Object more = arguments.length > 11 ? arguments[11] : null;
+        boolean none = k == SCALED || k == LINE || k == FACE || k >= CLIP;
+        if (Boolean.FALSE.equals(picture) && none) picture = null;
+        if (k <= ASPECT || k == LINE) {
+            if (picture == null ? !none : !texture.isInstance(picture))
+                throw new IllegalArgumentException(call + ": picture must be a texture" + (none ? " or false" : ""));
+        } else if (k >= TEXT && k <= UNTRIMMED) {
+            if (!font.isInstance(picture)) throw new IllegalArgumentException(call + ": picture must be one of the game's fonts (UIFont)");
+        } else if (picture != null) throw new IllegalArgumentException(call + ": picture must be false");
+        if (k >= FACE && k <= UNTRIMMED && !(more instanceof String))
+            throw new IllegalArgumentException(call + ": more must be the text, a string");
+        if (k == LINE && !(more instanceof Double thick && Double.isFinite(thick)))
+            throw new IllegalArgumentException(call + ": more must be the line's thickness, a number");
+        if (k < FACE || k > UNTRIMMED && k != LINE) more = null;
         for (int index = 0; index < RECT; index++) {
-            Object value = 3 + index < arguments.length ? arguments[3 + index] : null;
-            if (!(value instanceof Double number) || !Double.isFinite(number))
+            Object number = 3 + index < arguments.length ? arguments[3 + index] : null;
+            if (!(number instanceof Double n) || !Double.isFinite(n))
                 throw new IllegalArgumentException(call + ": " + NAMES[index] + " must be a number");
-            eight[index] = number;
+            eight[index] = n;
         }
+        if (k == FACE && (eight[2] != Math.rint(eight[2]) || eight[2] < 1 || eight[2] > SizedFonts.MAX))
+            throw new IllegalArgumentException(call + ": w must be a font's key, what text.font returned");
         Tape tape = tapes.computeIfAbsent(owner, any -> new Tape());
         if (tape.count >= TAPE_MAX) throw new IllegalArgumentException(call + ": a tape keeps at most " + TAPE_MAX + " draws");
-        tape.add((int)(double)k, picture, eight);
+        tape.add(k, picture, eight, more);
     }
 
     private static final String[] NAMES = { "x", "y", "w", "h", "r", "g", "b", "a" };
 
     /**
      * {@code draw.play(element, tape, count, start)}: draws {@code count} of the tape's draws from its draw {@code start} (1 when left
-     * out; all from there when {@code count} is) in the element, as its {@code DrawTextureScaledCol}, {@code DrawTextureTiled} and
-     * {@code DrawTextureScaledAspect} draw them, in order. Returns the number of draws the tape holds, or false for a table this API
+     * out; all from there when {@code count} is) in the element, as its {@code DrawTextureScaledCol}, {@code DrawTextureTiled},
+     * {@code DrawTextureScaledAspect}, {@code DrawText} (and its others), {@code setStencilRect} (and its others) and {@code DrawLine}
+     * draw them, and a text in a font {@code text.font} made as {@code text.draw} does at the element's place, in order. Returns the number of draws the tape holds, or false for a table this API
      * keeps no tape of (never kept, or kept by an API a newer one took over from): nothing is drawn then.
      */
     private Object play(Object[] arguments, String call) throws Throwable {
@@ -261,14 +316,37 @@ final class Quads {
         if (count > available) throw new IllegalArgumentException(call + ": count is " + count + " but the tape holds only " + available + " draws from draw " + start);
         if (count > 0 && Boolean.TRUE.equals((Boolean)visible.invokeExact(window))) {
             int[] kinds = tape.kinds;
-            Object[] pictures = tape.pictures;
+            Object[] pictures = tape.pictures, words = tape.words;
             double[] values = tape.numbers;
+            double left = Double.NaN, top = 0;
             for (int draw = start - 1, end = draw + count; draw < end; draw++) {
                 int at = draw * RECT;
-                int kind = kinds[draw];
-                MethodHandle how = kind == SCALED ? drawScaled : kind == TILED ? drawTiled : drawAspect;
-                how.invokeExact(window, pictures[draw], values[at], values[at + 1], values[at + 2], values[at + 3], values[at + 4], values[at + 5],
-                    values[at + 6], values[at + 7]);
+                Object picture = pictures[draw];
+                double x = values[at], y = values[at + 1], w = values[at + 2], h = values[at + 3];
+                double r = values[at + 4], g = values[at + 5], b = values[at + 6], a = values[at + 7];
+                switch (kinds[draw]) {
+                    case SCALED -> drawScaled.invokeExact(window, picture, x, y, w, h, r, g, b, a);
+                    case TILED -> drawTiled.invokeExact(window, picture, x, y, w, h, r, g, b, a);
+                    case ASPECT -> drawAspect.invokeExact(window, picture, x, y, w, h, r, g, b, a);
+                    case FACE -> {
+                        // (at the screen's pixels: the element's place and scroll, asked once for the call)
+                        Texts texts = GameApi.texts();
+                        if (texts == null) break;
+                        if (Double.isNaN(left)) {
+                            left = (double)(Double)absoluteX.invokeExact(window) + (double)(Double)scrollX.invokeExact(window);
+                            top = (double)(Double)absoluteY.invokeExact(window) + (double)(Double)scrollY.invokeExact(window);
+                        }
+                        texts.drawSized((int)w, (String)words[draw], left + x, top + y, (float)r, (float)g, (float)b, (float)a);
+                    }
+                    case TEXT -> drawText.invokeExact(window, picture, (String)words[draw], x, y, r, g, b, a);
+                    case CENTRE -> drawCentre.invokeExact(window, picture, (String)words[draw], x, y, r, g, b, a);
+                    case RIGHT -> drawRight.invokeExact(window, picture, (String)words[draw], x, y, r, g, b, a);
+                    case UNTRIMMED -> drawUntrimmed.invokeExact(window, picture, (String)words[draw], x, y, r, g, b, a);
+                    case CLIP -> clip.invokeExact(window, x, y, w, h);
+                    case UNCLIP -> unclip.invokeExact(window);
+                    case RECLIP -> reclip.invokeExact(window, x, y, w, h);
+                    default -> drawLine.invokeExact(window, picture, x, y, w, h, (float)(double)(Double)words[draw], r, g, b, a);
+                }
             }
         }
         return (double)tape.count;

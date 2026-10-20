@@ -807,6 +807,11 @@ final class Texts implements Hooks.Text {
     /** The embedded font when it can draw this frame (its atlas was in video memory as the frame began), else null. */
     private EmbeddedFont.Loaded drawable() { return embeddedReady ? embedded : null; }
 
+    /** A text in a font {@code text.font} made (its height {@code px}), as {@code text.draw} draws it: for a tape played (Quads). */
+    void drawSized(int px, String words, double x, double y, float red, float green, float blue, float alpha) throws Throwable {
+        if (sized != null) sized.draw(px, words, x, y, red, green, blue, alpha, drawable());
+    }
+
     /** A key text.font gave: the height in pixels it was asked for. */
     private static int sizedKey(Object[] arguments, String call) {
         Object value = arguments.length > 1 ? arguments[1] : null;

@@ -6,12 +6,14 @@ import zombie.Lua.LuaManager;
 import zombie.core.SpriteRenderer;
 import zombie.core.textures.Texture;
 import zombie.ui.UIElement;
+import zombie.ui.UIFont;
 
 /**
  * {@code draw.rects} and {@code draw.quads}: many shapes from a flat array of numbers, drawn as the game draws them from a window
  * (placed by the window's place and scroll, asked once for the call), the numbers checked before anything is drawn, the count
  * given or the whole list, and what a call costs beside the stub's own recording. {@code draw.keep}, {@code draw.clear} and
- * {@code draw.play}: a window's own draws kept on the tape of a Lua table and played in order, from a start and for a count.
+ * {@code draw.play}: a window's own draws (shapes, texts, clips, lines) kept on the tape of a Lua table and played in order, from a
+ * start and for a count.
  */
 final class QuadsTest {
     private QuadsTest() { }
@@ -91,7 +93,8 @@ final class QuadsTest {
         FormulasTest.call(draw, "play", window, tape, 1.0, 100.0);
         check(window.draws.size() == 1 && window.draws.get(0)[2].equals(99.0), "The hundredth draw: " + window.draws.size());
         rejects(draw, "keep", "tape must be a table", 5.0, 1.0, false, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
-        rejects(draw, "keep", "kind must be 1, 2 or 3", tape, 4.0, false, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
+        rejects(draw, "keep", "kind must be a whole number from 1 to 12", tape, 13.0, false, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
+        rejects(draw, "keep", "kind must be a whole number from 1 to 12", tape, 1.5, false, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
         rejects(draw, "keep", "picture must be a texture or false", tape, 1.0, "x", 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
         rejects(draw, "keep", "picture must be a texture", tape, 2.0, false, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
         rejects(draw, "keep", "w must be a number", tape, 1.0, false, 0.0, 0.0, Double.NaN, 1.0, 1.0, 1.0, 1.0, 1.0);
@@ -100,6 +103,61 @@ final class QuadsTest {
         rejects(draw, "play", "count is 200 but the tape holds only 100 draws from draw 1", window, tape, 200.0);
         rejects(draw, "play", "start must be a whole number", window, tape, 1.0, 0.0);
         check(Double.valueOf(100).equals(FormulasTest.call(draw, "play", window, tape, 0.0).get(0)), "A refused keep changed the tape");
+        texts(draw, window);
+    }
+
+    private static void keepMore(KahluaTable draw, KahluaTable tape, Object kind, Object picture, Object more, double... eight) {
+        var arguments = new Object[12];
+        arguments[0] = tape;
+        arguments[1] = kind;
+        arguments[2] = picture;
+        for (int index = 0; index < eight.length; index++) arguments[3 + index] = eight[index];
+        arguments[11] = more;
+        FormulasTest.call(draw, "keep", arguments);
+    }
+
+    /** Texts in the game's fonts and in a font text.font made, clips and lines: kept and played between the shapes, in order. */
+    private static void texts(KahluaTable draw, UIElement window) {
+        check(Double.valueOf(12).equals(draw.rawget("kinds")), "draw.kinds does not say 12");
+        var tape = LuaManager.platform.newTable();
+        var line = new Texture("line", 1, 1);
+        keep(draw, tape, 1.0, false, 1, 2, 3, 4, 1, 1, 1, 1);
+        keepMore(draw, tape, 5.0, UIFont.Small, "left", 10, 11, 0, 0, 0.1, 0.2, 0.3, 0.4);
+        keepMore(draw, tape, 6.0, UIFont.Medium, "mid", 12, 13, 0, 0, 1, 1, 1, 1);
+        keepMore(draw, tape, 7.0, UIFont.Small, "right", 14, 15, 0, 0, 1, 1, 1, 1);
+        keepMore(draw, tape, 8.0, UIFont.Small, "whole", 16, 17, 0, 0, 1, 1, 1, 1);
+        keepMore(draw, tape, 9.0, false, null, 0, 1, 50, 60, 0, 0, 0, 0);
+        keepMore(draw, tape, 10.0, false, null, 0, 0, 0, 0, 0, 0, 0, 0);
+        keepMore(draw, tape, 11.0, false, null, 2, 3, 40, 30, 0, 0, 0, 0);
+        keepMore(draw, tape, 12.0, line, 2.0, 1, 2, 30, 40, 0.5, 0.6, 0.7, 0.8);
+        keepMore(draw, tape, 12.0, false, 1.0, 0, 0, 5, 5, 1, 1, 1, 1);
+        keepMore(draw, tape, 4.0, false, "face", 3, 4, 16, 0, 1, 1, 1, 1);
+        window.draws.clear();
+        check(Double.valueOf(11).equals(FormulasTest.call(draw, "play", window, tape).get(0)), "Eleven draws were not kept");
+        var calls = new StringBuilder();
+        for (Object[] one : window.draws) calls.append(one[0]).append(' ');
+        check(calls.toString().equals("scaled text centre right untrimmed clip unclip reclip line line "),
+            "Not in order, as kept: " + calls);
+        Object[] text = window.draws.get(1), clip = window.draws.get(5), drawn = window.draws.get(8), plain = window.draws.get(9);
+        check(text[1] == UIFont.Small && text[2].equals("left") && text[3].equals(10.0) && text[8].equals(0.4), "A text: " + java.util.Arrays.toString(text));
+        check(window.draws.get(2)[1] == UIFont.Medium, "A centred text's font");
+        check(clip[1].equals(0.0) && clip[2].equals(1.0) && clip[3].equals(50.0) && clip[4].equals(60.0), "A clip: " + java.util.Arrays.toString(clip));
+        check(drawn[1] == line && drawn[4].equals(30.0) && drawn[5].equals(40.0) && drawn[6].equals(2.0f) && drawn[10].equals(0.8),
+            "A line: " + java.util.Arrays.toString(drawn));
+        check(plain[1] == null && plain[6].equals(1.0f), "A line without a picture: " + java.util.Arrays.toString(plain));
+        // From a start, for a count: the texts in the count as the shapes are.
+        window.draws.clear();
+        FormulasTest.call(draw, "play", window, tape, 2.0, 2.0);
+        check(window.draws.size() == 2 && window.draws.get(0)[0].equals("text") && window.draws.get(1)[0].equals("centre"),
+            "A text from a start: " + window.draws.size());
+        rejects(draw, "keep", "picture must be one of the game's fonts (UIFont)", tape, 5.0, false, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, "x");
+        rejects(draw, "keep", "more must be the text, a string", tape, 5.0, UIFont.Small, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
+        rejects(draw, "keep", "more must be the text, a string", tape, 4.0, false, 0.0, 0.0, 16.0, 1.0, 1.0, 1.0, 1.0, 1.0, 3.0);
+        rejects(draw, "keep", "w must be a font's key, what text.font returned", tape, 4.0, false, 0.0, 0.0, 0.5, 1.0, 1.0, 1.0, 1.0, 1.0, "x");
+        rejects(draw, "keep", "more must be the line's thickness, a number", tape, 12.0, false, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, "x");
+        rejects(draw, "keep", "picture must be false", tape, 9.0, UIFont.Small, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
+        rejects(draw, "keep", "picture must be a texture or false", tape, 12.0, "x", 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
+        check(Double.valueOf(11).equals(FormulasTest.call(draw, "play", window, tape, 0.0).get(0)), "A refused keep changed the tape");
     }
 
     private static void rects(KahluaTable draw, UIElement window) {
