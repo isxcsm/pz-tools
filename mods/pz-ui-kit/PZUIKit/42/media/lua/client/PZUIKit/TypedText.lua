@@ -43,6 +43,8 @@ end
 -- over the new rows.
 function PZUITypedText:paginate()
     PZUIRichText.paginate(self)
+    -- (the layout keeps the scroll to the new height: not the player's scrolling)
+    if self.followAt then self.followAt = self.scroll end
     self.reveal, self.n, self.tipChunk, self.rowEnds, self.rowFirst, self.rowsBegun = nil, nil, nil, nil, nil, nil
     local run = self.run
     if run and run.parse and not run.done then
@@ -97,12 +99,32 @@ function PZUITypedText:advance(run)
             local x = self.cX and self.cX[c] or (self.lineX[c] + self.marginLeft)
             self.tipX = x + self:measureRaw(self.lines[c], self.defaultFont)
         end
+        self:keepInView(run, c)
     end
     if finished then
         run.done = true
         self.reveal, self.tipChunk = nil, nil
         if self.onFinished then self.onFinished(self.target, run) end
     end
+end
+
+-- The panel scrolls down with a text on its way, so that the row the newest character is on stays in view, until the
+-- player scrolls it elsewhere (the wheel, the bar); the next showing (a new run) is followed again.
+function PZUITypedText:keepInView(run, c)
+    if self.followRun ~= run then
+        self.followRun, self.followAt, self.unfollowed = run, nil, false
+    end
+    if self.followAt and self.scroll ~= self.followAt then self.unfollowed = true end
+    if self.unfollowed or not (c and self.lineY[c]) then return end
+    local h = self:lineHeightOf(self.cFont and self.cFont[c] or self.defaultFont)
+    local bottom = self.lineY[c] + self.marginTop + h + self.marginBottom
+    if bottom > self.scroll + self.height then self:setScroll(bottom - self.height) end
+    self.followAt = self.scroll
+end
+
+function PZUITypedText:onResize()
+    PZUIRichText.onResize(self)
+    if self.followAt then self.followAt = self.scroll end
 end
 
 -- The rows begun by the first n characters (a row begins as its first character comes): counted on from those of the

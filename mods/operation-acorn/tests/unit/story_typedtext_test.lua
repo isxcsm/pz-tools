@@ -15,7 +15,8 @@ local function stubPanel()
     function c:derive() local d = {}; d.__index = d; setmetatable(d, { __index = c }); return d end
     function c:new(x, y, w, h)
         return setmetatable({ x = x, y = y, width = w, height = h, marginLeft = 4, marginTop = 2, defaultFont = "Font",
-            lines = {}, lineX = {}, lineY = {}, text = "", drawn = {}, yscroll = 0, renders = 0 }, self)
+            lines = {}, lineX = {}, lineY = {}, text = "", drawn = {}, yscroll = 0, renders = 0, scroll = 0,
+            marginBottom = 0 }, self)
     end
     function c:paginate()
         self.laidW = self.width
@@ -45,6 +46,7 @@ local function stubPanel()
     function c:ensureLaid() if self.textDirty or self.laidW ~= self.width then self:paginate() end end
     function c:paintRows() self.renders = self.renders + 1 end
     function c:getYScroll() return self.yscroll end
+    function c:setScroll(v) self.scroll = v end
     function c:measure(s, font) return getTextManager():MeasureStringX(font, s) end
     c.measureRaw = c.measure
     function c:lineHeightOf(font) return getTextManager():getFontHeight(font) end
@@ -452,4 +454,25 @@ test("a printed document sounds a row as each row begins, once, and nothing for 
     end
     eq(run.done, true)
     eq(table.concat(heard, " "), "Row Row Row", "each row as it begins (the first count found none begun)")
+end)
+
+test("the panel scrolls down with the newest row until the player scrolls it elsewhere; a new showing follows again", function()
+    local panel, run = panelFor("a\nb\nc\nd\ne", 10)
+    panel.height = 30
+    clock()
+    panel:render()
+    eq(panel.scroll, 0, "the first row fits")
+    for _ = 1, 2 do ms = ms + 100; panel:render() end
+    eq(shown(panel), "a|b|c||")
+    eq(panel.scroll, 28, "the cursor's row (the fourth: the line end takes no time) at the foot: 2 + 42 + 14 - 30")
+    panel.scroll = 0   -- the wheel
+    for _ = 1, 4 do ms = ms + 100; panel:render() end
+    eq(shown(panel), "a|b|c|d|e")
+    eq(panel.scroll, 0, "left where the player put it")
+    panel.run = { parse = run.parse, clock = 0, done = false }
+    panel:paginate()
+    ms = ms + 100
+    panel:render()
+    for _ = 1, 8 do ms = ms + 100; panel:render() end
+    eq(panel.scroll, 2 + 56 + 14 - 30, "the next showing follows to the last row")
 end)

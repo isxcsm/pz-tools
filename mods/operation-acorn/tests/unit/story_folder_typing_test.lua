@@ -21,7 +21,7 @@ local function stubPanel()
     function c:derive() local d = {}; d.__index = d; setmetatable(d, { __index = c }); return d end
     function c:new(x, y, w, h)
         return setmetatable({ x = x, y = y, width = w, height = h, marginLeft = 0, marginTop = 0, defaultFont = "Medium",
-            lines = {}, lineX = {}, lineY = {}, text = "", drawn = {}, yscroll = 0 }, self)
+            lines = {}, lineX = {}, lineY = {}, text = "", drawn = {}, yscroll = 0, scroll = 0, marginBottom = 0 }, self)
     end
     function c:paginate()
         self.laidW = self.width
@@ -53,6 +53,7 @@ local function stubPanel()
     c.measureRaw = c.measure
     function c:lineHeightOf(font) return getTextManager():getFontHeight(font) end
     function c:setYScroll(v) self.yscroll = v end
+    function c:setScroll(v) self.scroll = v end
     function c:setVisible(v) self.visible = v end
     function c:drawRect(...) end
     function c:onMouseDown() end
