@@ -64,7 +64,7 @@
     "IGUI_OADev_Up_State": "적응 남은 시간 %1  30칸 안 경보: 집 %2, 차 %3",
     "IGUI_OADev_Up_NightSight": "야간 시야 (밤눈 3 + 야행성 눈 1)",
     "IGUI_OADev_Up_Tree": "계열",
-    "IGUI_OADev_Up_Points": "포인트 지급",
+    "IGUI_OADev_Up_Points": "여력 지급",
     "IGUI_OADev_Up_Shared": "공용",
     "IGUI_OADev_Up_Reset": "적응 초기화",
     "IGUI_OADev_Up_EndAdapt": "적응 바로 끝내기",
