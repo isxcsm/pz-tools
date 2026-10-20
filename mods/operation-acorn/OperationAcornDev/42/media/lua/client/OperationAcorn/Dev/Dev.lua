@@ -67,11 +67,45 @@ function Dev.ranks(list)
     return u
 end
 
--- Takes every rank away and empties the points (a fresh research record).
+-- The first dose's traces outside the research record: the research papers (the plan, the trees' memos) out of the
+-- folder, and the test serum's calls (S2, S2B) as never fired, so that the next dose brings them again.
+local FIRST_DOSE_CALLS = { S2 = true, S2B = true }
+local function forgetFirstDose(record)
+    local Adapt = OA.Upgrades.Adapt
+    local ids = { Adapt.GUIDE }
+    for _, tree in ipairs(OA.Upgrades.Data.TREES) do
+        for _, which in ipairs(Adapt.MEMOS) do ids[#ids + 1] = Adapt.memoId(tree, which) end
+    end
+    local s = OA.Story.section(record)
+    for _, id in ipairs(ids) do
+        s.docs[id], s.docExtra[id] = nil, nil
+        if s.docStage then s.docStage[id] = nil end
+        if s.unread then s.unread["d:" .. id] = nil end
+        if s.typed then s.typed["d:" .. id] = nil end
+    end
+    local c = OA.Comms.section(record)
+    for id in pairs(FIRST_DOSE_CALLS) do c.fired[id], c.played[id], c.dropped[id] = nil, nil, nil end
+    local log = {}
+    for _, line in ipairs(c.log) do
+        if not FIRST_DOSE_CALLS[line.id] then log[#log + 1] = line end
+    end
+    c.log = log
+    OA.Comms.changed()
+    OA.Sync.changed("story", record.id)
+    OA.Sync.changed("comms", record.id)
+end
+
+-- Takes every rank away and empties the points: the research as before the first serum (what was bought stays, for the
+-- shop's prices). The first dose plays as the first again: its papers and calls are forgotten and the tab leaves the
+-- character window.
 function Dev.clearResearch()
     local u, record = upgrades()
+    local bought, spend = u.bought, u.spend
     for k in pairs(u) do u[k] = nil end
+    u.bought, u.spend = bought, spend
     OA.Upgrades.Rules.fill(u)
+    forgetFirstDose(record)
+    if OA.Upgrades.Window and OA.Upgrades.Window.hide then OA.Upgrades.Window.hide(0) end
     OA.Sync.changed("upgrades", record.id)
     if OA.Upgrades.Effects then OA.Upgrades.Effects.apply(record) end
     say("research cleared")

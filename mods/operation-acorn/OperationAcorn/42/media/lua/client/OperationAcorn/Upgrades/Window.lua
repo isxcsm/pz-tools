@@ -2760,6 +2760,18 @@ function Window.reveal(playerNum, blink, info)
     return true
 end
 
+-- Takes a player's tab out of the character window (the developer's research reset): the next first dose brings it
+-- again, blinking.
+function Window.hide(playerNum)
+    local view = views[playerNum]
+    local info = getPlayerInfoPanel(playerNum)
+    if not (view and view.parent and info and info.panel and view.parent == info.panel) then return false end
+    info.panel:removeView(view)
+    view.parent = nil
+    view:setVisible(false)
+    return true
+end
+
 -- Makes the tab for each character info window as the game makes it (once a player); it goes into the window when
 -- earned.
 -- The game's functions below are left as they are while the mod is off (OA.off).
