@@ -1,8 +1,11 @@
--- The mod's moodles (육감, 물림 내성 회복 중, 억제 중, 검사 전, 적응 중): in the game's own column through the extension API (PZExtAPI.moodles):
--- the game draws them, places them, wiggles them and shows their tooltips (Translate/<lang>/Moodles.json, a name and
--- a text for each level). In a game without the API's moodle hooks they are drawn as stand-ins left of the game's
--- column instead, one under the other, on the game's moodle background tinted as the game tints it, with the name and
--- text when the mouse is over one. A moodle is set only when its level changes.
+-- The mod's moodles (육감, 물림 내성 회복 중, 억제 중, 검사 전, 적응 중). With MoodleFramework (MF) active, they are MF's:
+-- the moodle library other mods build on (ETW), which the mods that draw the moodle column themselves follow
+-- (PlainMoodles), so they show wherever those mods' moodles do; MF draws them under the game's column. Without MF, in
+-- the game's own column through the extension API (PZExtAPI.moodles): the game draws them, places them, wiggles them
+-- and shows their tooltips (Translate/<lang>/Moodles.json, a name and a text for each level). In a game without the
+-- API's moodle hooks they are drawn as stand-ins left of the game's column instead, one under the other, on the game's
+-- moodle background tinted as the game tints it, with the name and text when the mouse is over one. A moodle is set
+-- only when its level changes.
 require "ISUI/ISPanel"
 require "OperationAcorn/Client"
 require "OperationAcorn/Trade/UI"
@@ -30,10 +33,15 @@ Moodles.DEFS = {
 local byId = {}
 for _, def in ipairs(Moodles.DEFS) do byId[def.id] = def end
 
-local how = nil          -- nil until decided, "api" or "draw"
+local how = nil          -- nil until decided, "mf", "api" or "draw"
 local levels = {}        -- id -> the level shown
 local inColumn = {}      -- id -> true when the game's column shows it (defined through the API)
 local types = {}         -- id -> the game's MoodleType the API registered for it
+
+-- Whether a moodle shown is one of the stand-ins: neither MF's nor in the game's column.
+local function standIn(id)
+    return how ~= "mf" and not inColumn[id]
+end
 
 -- Whether the hooks the API's moodles need went in: true, false, or nil while their classes have not loaded.
 local function hooksIn(api)
@@ -43,19 +51,6 @@ local function hooksIn(api)
     if level == "applied" and picture == "applied" then return true end
     if level == "not-loaded" or picture == "not-loaded" then return nil end
     return false
-end
-
-local function decide()
-    if how then return how end
-    local api, handle = OA.api(), OA.handle()
-    if not (api and handle and type(api.moodles) == "table") then
-        how = "draw"
-    else
-        local hooked = hooksIn(api)
-        if hooked == nil then return nil end
-        how = hooked and "api" or "draw"
-    end
-    return how
 end
 
 -- ---- the stand-ins ---------------------------------------------------------------------------------------------
@@ -131,7 +126,7 @@ function Panel:place()
     local hover, at = 0, 0
     if mx >= x and mx < x + size and my >= y then
         for _, def in ipairs(Moodles.DEFS) do
-            if (levels[def.id] or 0) > 0 and not inColumn[def.id] then
+            if (levels[def.id] or 0) > 0 and standIn(def.id) then
                 at = at + 1
                 local top = y + (at - 1) * (size + 4)
                 if my >= top and my < top + size then hover = at end
@@ -149,7 +144,7 @@ function Panel:render()
     local at = 0
     for _, def in ipairs(Moodles.DEFS) do
         local level = levels[def.id] or 0
-        if level > 0 and not inColumn[def.id] then
+        if level > 0 and standIn(def.id) then
             at = at + 1
             local r, g, b = tint(def.kind, level)
             if back then self:drawTextureScaled(back, x, y, size, size, 0.9, r, g, b) end
@@ -177,7 +172,7 @@ local panel = nil
 local function standIns()
     local any = false
     for _, def in ipairs(Moodles.DEFS) do
-        if (levels[def.id] or 0) > 0 and not inColumn[def.id] then any = true end
+        if (levels[def.id] or 0) > 0 and standIn(def.id) then any = true end
     end
     if any and not panel then
         panel = Panel:new(0)
@@ -193,6 +188,95 @@ local function standIns()
         -- followed each frame while it shows (a hidden panel was let go)
         if any then UI.live(panel, Panel.place) end
     end
+end
+
+-- ---- MoodleFramework -----------------------------------------------------------------------------------------
+
+-- MF has good and bad moodles only (a neutral value hides one): ours that are neutral (육감, 억제 중, 적응 중: the
+-- character's own good) are good ones. A level is MF's value past its default thresholds (bad 0.1 to 0.4, good 0.6 to
+-- 0.9); 0.5 hides it. Its name is the prefix and the id.
+Moodles.MF_PREFIX = "OperationAcorn_"
+local GOOD, BAD = 1, 2
+local MF_VALUES = { [GOOD] = { 0.65, 0.75, 0.85, 0.95 }, [BAD] = { 0.35, 0.25, 0.15, 0.05 } }
+
+local function sideOf(def)
+    return def.kind == "bad" and BAD or GOOD
+end
+
+-- Whether MF is active: its table, or its mod on (its file read now when ours came first). The mod list does not
+-- change under a running game.
+local function mfActive()
+    local mf = rawget(_G, "MF")
+    if type(mf) ~= "table" and type(getActivatedMods) == "function" then
+        local ok, on = pcall(function()
+            local mods = getActivatedMods()
+            for i = 0, mods:size() - 1 do
+                if string.find(string.lower(tostring(mods:get(i))), "moodleframework", 1, true) then return true end
+            end
+            return false
+        end)
+        if ok and on then pcall(require, "MF_ISMoodle") end
+        mf = rawget(_G, "MF")
+    end
+    return type(mf) == "table" and type(mf.createMoodle) == "function" and type(mf.getMoodle) == "function"
+        and type(mf.ISMoodle) == "table"
+end
+
+-- A level's text of ours (Moodles.json): the level's, else the nearest one under it that has one.
+local function levelText(key, level)
+    for l = level, 1, -1 do
+        local t = getTextOrNull(key .. "_lvl" .. l)
+        if t then return t end
+    end
+    return ""
+end
+
+-- The local player's MF moodle for a def, made (and given our names, texts and pictures) the first time.
+local function mfMoodle(def)
+    local name = Moodles.MF_PREFIX .. def.id
+    local moodle = MF.getMoodle(name, 0)
+    if not moodle then
+        local player = getSpecificPlayer(0)
+        if not player then return nil end
+        moodle = MF.ISMoodle:new(name, player)
+    end
+    if not moodle.oaReady then
+        moodle.oaReady = true
+        local side = sideOf(def)
+        local size = MF.getSize and MF.getSize() or 48
+        local key = "Moodles_" .. OA.MOD .. ":" .. def.id
+        for level = 1, 4 do
+            moodle:setTitle(side, level, levelText(key, level))
+            moodle:setDescription(side, level, levelText(key .. "_desc", level))
+            local picture = pictureOf(def, level, size)
+            if picture then moodle:setPicture(side, level, picture) end
+        end
+    end
+    return moodle
+end
+
+-- MF makes a moodle for each character as it is made: ours are named to it once, before (and made at once for the
+-- character there is).
+local function mfStart()
+    for _, def in ipairs(Moodles.DEFS) do MF.createMoodle(Moodles.MF_PREFIX .. def.id) end
+end
+
+local function decide()
+    if how then return how end
+    if mfActive() then
+        how = "mf"
+        mfStart()
+        return how
+    end
+    local api, handle = OA.api(), OA.handle()
+    if not (api and handle and type(api.moodles) == "table") then
+        how = "draw"
+    else
+        local hooked = hooksIn(api)
+        if hooked == nil then return nil end
+        how = hooked and "api" or "draw"
+    end
+    return how
 end
 
 -- ---- a moodle mod that draws the column itself -------------------------------------------------------------------
@@ -246,6 +330,13 @@ function Moodles.set(id, level)
     if (levels[id] or 0) == level then return end
     local way = decide()
     if way == nil then return end          -- the API's classes not loaded yet: the next call decides
+    if way == "mf" then
+        local moodle = mfMoodle(def)
+        if not moodle then return end      -- no character yet: the next call
+        moodle:setValue(level > 0 and MF_VALUES[sideOf(def)][math.min(level, 4)] or 0.5)
+        levels[id] = level
+        return
+    end
     if way == "api" and inColumn[id] == nil then
         local ok, err = pcall(PZExtAPI.moodles.define, OA.handle(), id, { kind = def.kind, picture = def.picture })
         inColumn[id] = ok
