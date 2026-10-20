@@ -869,6 +869,20 @@ test("every motion paints, frame after frame, with strengths between 0 and 1 and
     truthy(runs > 0, "a taken node's light has a way up")
     frames(300)
     Motion.comet = comet
+    -- a padlock come off slowly (a capstone shown): its film still steps twelve times a second, the motion slowed
+    local unlock, ages = Motion.unlock, {}
+    Motion.unlock = function(age)
+        ages[age] = true
+        return unlock(age)
+    end
+    View.addUnlock(view, steps[1], clock.now, View.REVEAL_SLOW)
+    View.animate(view)
+    local span = Motion.UNLOCK_MS * View.REVEAL_SLOW
+    frames(math.ceil(span / 16))
+    Motion.unlock = unlock
+    local seen = 0
+    for _ in pairs(ages) do seen = seen + 1 end
+    truthy(seen >= span / Window.FILM_MS - 2, "film steps of a slow unlock: " .. seen)
     eq(#bad, 0, table.concat(bad, "; "))
     truthy(rects > 0)
     truthy(comets > 0 and arrivals > 0, "a lit line's light drawn, arriving at its node")

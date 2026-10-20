@@ -1979,8 +1979,9 @@ function View:paintNode(el, item)
     local openStep = 0
     if opening then
         local slow = self.unlockSlow and self.unlockSlow[item.id] or 1
-        openStep = filmStep((NOW - opening) / slow)
-        lockA, flashA, unlockRing = Motion.unlock(film((NOW - opening) / slow))
+        -- the film steps on real time (twelve a second however slow the reveal), the motion on the slowed one
+        openStep = filmStep(NOW - opening)
+        lockA, flashA, unlockRing = Motion.unlock(film(NOW - opening) / slow)
         if not lockA then
             lockA, flashA, unlockRing = 0, 0, 0
         elseif lockA >= 1 then
