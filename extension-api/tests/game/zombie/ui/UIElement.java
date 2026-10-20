@@ -17,6 +17,8 @@ public class UIElement {
     public int placeAsks;
     /** The quads drawn: the texture, the eight coordinates and the four colour parts. */
     public final List<Object[]> quads = new ArrayList<>();
+    /** The pictures and rectangles drawn by DrawTextureScaledCol, DrawTextureTiled and DrawTextureScaledAspect: the call, the texture, x, y, w, h, r, g, b, a. */
+    public final List<Object[]> draws = new ArrayList<>();
 
     public Boolean isVisible() { return visible; }
     public Double getAbsoluteX() { placeAsks++; return x + (parent == null ? 0 : parent.getAbsoluteX()); }
@@ -27,5 +29,17 @@ public class UIElement {
     public void DrawTexture(Texture texture, double x1, double y1, double x2, double y2, double x3, double y3, double x4, double y4,
             double r, double g, double b, double a) {
         quads.add(new Object[] { texture, x1, y1, x2, y2, x3, y3, x4, y4, r, g, b, a });
+    }
+
+    public void DrawTextureScaledCol(Texture texture, double x, double y, double w, double h, double r, double g, double b, double a) {
+        draws.add(new Object[] { "scaled", texture, x, y, w, h, r, g, b, a });
+    }
+
+    public void DrawTextureTiled(Texture texture, double x, double y, double w, double h, double r, double g, double b, double a) {
+        draws.add(new Object[] { "tiled", texture, x, y, w, h, r, g, b, a });
+    }
+
+    public void DrawTextureScaledAspect(Texture texture, double x, double y, double w, double h, double r, double g, double b, double a) {
+        draws.add(new Object[] { "aspect", texture, x, y, w, h, r, g, b, a });
     }
 }

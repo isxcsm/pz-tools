@@ -1579,6 +1579,9 @@ a window's `prerender`, `render` or `postrender`.
 | --- | --- |
 | `draw.rects(element, list, count)` | Draws `count` rectangles (as many as `list` holds when `count` is left out; at most 16,384): 8 numbers each, `x, y, w, h, r, g, b, a`, in the element's own pixels, as `drawRect` takes them (the colour parts 0 to 1). |
 | `draw.quads(element, texture, list, count)` | Draws `count` quads of the texture: 12 numbers each, the four corners `x1, y1, x2, y2, x3, y3, x4, y4` in the screen's pixels and `r, g, b, a`, as `UIElement:DrawTexture` takes them. |
+| `draw.keep(tape, kind, picture, x, y, w, h, r, g, b, a)` | Keeps one draw more on the tape of the Lua table `tape` (made at its first draw, gone with the table): the kind (`1` a picture scaled and coloured, or a rectangle with `false` for the picture; `2` tiled; `3` scaled keeping its aspect), the picture, `x, y, w, h` in an element's own pixels and `r, g, b, a`. For a drawing a mod records as it makes it and plays back: the draws are kept in the API's arrays, not in Lua's. At most 65,536 draws a tape. |
+| `draw.clear(tape)` | Empties the tape of `tape`. |
+| `draw.play(element, tape, count, start)` | Draws `count` of the tape's draws from draw `start` (1 when left out; all from there when `count` is) in the element, as its `DrawTextureScaledCol`, `DrawTextureTiled` and `DrawTextureScaledAspect` draw them, in order; nothing for a hidden element. Returns the number of draws the tape holds, or `false` for a table the API keeps no tape of (never kept, or kept by an API a newer one took over from), with nothing drawn: the mod records it again. |
 
 `element` is a window of the game's interface (or its `javaObject`). A rectangle is placed like `DrawTextureScaledColor`: at the
 element's place plus its scroll, in whole pixels (cut), skipped when above the screen or below 4096 pixels; nothing is drawn for a

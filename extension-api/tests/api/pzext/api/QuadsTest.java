@@ -10,14 +10,15 @@ import zombie.ui.UIElement;
 /**
  * {@code draw.rects} and {@code draw.quads}: many shapes from a flat array of numbers, drawn as the game draws them from a window
  * (placed by the window's place and scroll, asked once for the call), the numbers checked before anything is drawn, the count
- * given or the whole list, and what a call costs beside the stub's own recording.
+ * given or the whole list, and what a call costs beside the stub's own recording. {@code draw.keep}, {@code draw.clear} and
+ * {@code draw.play}: a window's own draws kept on the tape of a Lua table and played in order, from a start and for a count.
  */
 final class QuadsTest {
     private QuadsTest() { }
 
     static void run(KahluaTable api) throws Exception {
         var draw = (KahluaTable)api.rawget("draw");
-        check(draw != null && draw.rawget("rects") != null && draw.rawget("quads") != null, "PZExtAPI.draw is missing");
+        check(draw != null && draw.rawget("rects") != null && draw.rawget("quads") != null && draw.rawget("keep") != null && draw.rawget("play") != null && draw.rawget("clear") != null, "PZExtAPI.draw is missing");
         var window = new UIElement();
         window.parent = new UIElement();
         window.parent.x = 10;
@@ -28,6 +29,7 @@ final class QuadsTest {
         window.yScroll = -3.0;
         rects(draw, window);
         quads(draw, window);
+        tapes(draw, window);
         rejects(draw, window);
         cost(draw, window);
     }
@@ -39,6 +41,66 @@ final class QuadsTest {
     }
 
     private static List<Object[]> rects() { return SpriteRenderer.rects; }
+
+    private static void keep(KahluaTable draw, KahluaTable tape, Object kind, Object picture, double... eight) {
+        var arguments = new Object[3 + eight.length];
+        arguments[0] = tape;
+        arguments[1] = kind;
+        arguments[2] = picture;
+        for (int index = 0; index < eight.length; index++) arguments[3 + index] = eight[index];
+        FormulasTest.call(draw, "keep", arguments);
+    }
+
+    private static void tapes(KahluaTable draw, UIElement window) {
+        var picture = new Texture("test", 8, 8);
+        var grain = new Texture("grain", 4, 4);
+        var tape = LuaManager.platform.newTable();
+        // A table never kept: false, nothing drawn.
+        window.draws.clear();
+        check(Boolean.FALSE.equals(FormulasTest.call(draw, "play", window, tape).get(0)), "A table with no tape was played");
+        keep(draw, tape, 1.0, false, 1, 2, 3, 4, 0.1, 0.2, 0.3, 0.4);
+        keep(draw, tape, 2.0, grain, 0, 0, 50, 60, 1, 1, 1, 0.5);
+        keep(draw, tape, 3.0, picture, 5, 6, 7, 8, 1, 1, 1, 1);
+        check(Double.valueOf(3).equals(FormulasTest.call(draw, "play", window, tape).get(0)), "The tape's count was not given");
+        check(window.draws.size() == 3, "Three draws were not drawn: " + window.draws.size());
+        Object[] first = window.draws.get(0), second = window.draws.get(1), third = window.draws.get(2);
+        check(first[0].equals("scaled") && first[1] == null && first[2].equals(1.0) && first[5].equals(4.0) && first[9].equals(0.4),
+            "A rectangle: " + java.util.Arrays.toString(first));
+        check(second[0].equals("tiled") && second[1] == grain && second[4].equals(50.0) && second[9].equals(0.5), "Tiled: " + java.util.Arrays.toString(second));
+        check(third[0].equals("aspect") && third[1] == picture && third[2].equals(5.0), "Its aspect kept: " + java.util.Arrays.toString(third));
+        // From a start, for a count; a Lua window is its javaObject.
+        window.draws.clear();
+        var lua = LuaManager.platform.newTable();
+        lua.rawset("javaObject", window);
+        FormulasTest.call(draw, "play", lua, tape, 1.0, 2.0);
+        check(window.draws.size() == 1 && window.draws.get(0)[0].equals("tiled"), "The start and count were not used: " + window.draws.size());
+        FormulasTest.call(draw, "play", window, tape, null, 3.0);
+        check(window.draws.size() == 2 && window.draws.get(1)[0].equals("aspect"), "From a start to the end");
+        FormulasTest.call(draw, "play", window, tape, 0.0);
+        check(window.draws.size() == 2, "None drawn as something");
+        // Hidden: nothing.
+        window.visible = false;
+        FormulasTest.call(draw, "play", window, tape);
+        check(window.draws.size() == 2, "A hidden window was drawn in");
+        window.visible = true;
+        // Cleared: empty, kept again from the start; a tape grows past its first arrays.
+        FormulasTest.call(draw, "clear", tape);
+        check(Double.valueOf(0).equals(FormulasTest.call(draw, "play", window, tape).get(0)), "A cleared tape still held draws");
+        for (int n = 0; n < 100; n++) keep(draw, tape, 1.0, false, n, 0, 1, 1, 1, 1, 1, 1);
+        window.draws.clear();
+        FormulasTest.call(draw, "play", window, tape, 1.0, 100.0);
+        check(window.draws.size() == 1 && window.draws.get(0)[2].equals(99.0), "The hundredth draw: " + window.draws.size());
+        rejects(draw, "keep", "tape must be a table", 5.0, 1.0, false, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
+        rejects(draw, "keep", "kind must be 1, 2 or 3", tape, 4.0, false, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
+        rejects(draw, "keep", "picture must be a texture or false", tape, 1.0, "x", 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
+        rejects(draw, "keep", "picture must be a texture", tape, 2.0, false, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
+        rejects(draw, "keep", "w must be a number", tape, 1.0, false, 0.0, 0.0, Double.NaN, 1.0, 1.0, 1.0, 1.0, 1.0);
+        rejects(draw, "keep", "a must be a number", tape, 1.0, false, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0);
+        rejects(draw, "play", "tape must be a table", window, 5.0);
+        rejects(draw, "play", "count is 200 but the tape holds only 100 draws from draw 1", window, tape, 200.0);
+        rejects(draw, "play", "start must be a whole number", window, tape, 1.0, 0.0);
+        check(Double.valueOf(100).equals(FormulasTest.call(draw, "play", window, tape, 0.0).get(0)), "A refused keep changed the tape");
+    }
 
     private static void rects(KahluaTable draw, UIElement window) {
         // A window is at (110, 70) with its parent's place; scrolled 5 across and -3 down (the game scrolls the rows, not the columns' top).

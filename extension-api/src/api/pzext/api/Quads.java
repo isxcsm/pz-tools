@@ -2,12 +2,17 @@ package pzext.api;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodType;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.function.Consumer;
 
 /**
  * {@code PZExtAPI.draw.rects} and {@code draw.quads}: many rectangles, or many quads of one picture, drawn by one call from a flat
  * array of numbers (docs/design.md, "Drawing many shapes"), for the interface that draws hundreds of them each frame
- * (a ring of dashes, a graph, a grid) and would call {@code drawRect} or {@code DrawTexture} for each.
+ * (a ring of dashes, a graph, a grid) and would call {@code drawRect} or {@code DrawTexture} for each. {@code draw.keep},
+ * {@code draw.clear} and {@code draw.play}: a window's own draws of pictures and rectangles, kept by a mod as it makes them (a drawing
+ * recorded) on a tape that belongs to a Lua table of the mod's, and played back by one call.
  *
  * <p>The shapes are drawn as the game draws them from a window's {@code prerender}, {@code render} or {@code postrender}: a rectangle
  * as {@code UIElement.DrawTextureScaledColor} does ({@code SpriteRenderer.renderi} with no texture at the element's place plus its
@@ -18,6 +23,10 @@ import java.util.function.Consumer;
 final class Quads {
     /** The numbers a shape takes in its array. */
     static final int RECT = 8, QUAD = 12;
+    /** A tape's kinds of draws: a picture scaled and coloured (a rectangle without one), tiled, scaled keeping its aspect. */
+    static final int SCALED = 1, TILED = 2, ASPECT = 3;
+    /** The most draws a tape keeps. */
+    static final int TAPE_MAX = 65536;
     /** The most shapes a call draws. */
     static final int MAX = 16384;
     /** The game keeps a rectangle that starts below this many pixels off the screen (UIElement does the same). */
@@ -30,6 +39,8 @@ final class Quads {
     private final MethodHandle visible, absoluteX, absoluteY, scrollX, scrollY;
     // UIElement.DrawTexture(texture, x1, y1, x2, y2, x3, y3, x4, y4, r, g, b, a).
     private final MethodHandle drawQuad;
+    // UIElement.DrawTextureScaledCol, DrawTextureTiled, DrawTextureScaledAspect (texture, x, y, w, h, r, g, b, a): what a tape draws.
+    private final MethodHandle drawScaled, drawTiled, drawAspect;
     // SpriteRenderer.instance and renderi(texture, x, y, w, h, r, g, b, a, consumer).
     private final Object sprites;
     private final MethodHandle renderRect;
@@ -47,6 +58,14 @@ final class Quads {
             double.class, double.class, double.class, double.class, double.class, double.class, double.class, double.class);
         drawQuad = Game.exact(element.getMethod("DrawTexture", texture, double.class, double.class, double.class, double.class, double.class,
             double.class, double.class, double.class, double.class, double.class, double.class, double.class), quad);
+        MethodType eight = MethodType.methodType(void.class, Object.class, Object.class, double.class, double.class, double.class, double.class,
+            double.class, double.class, double.class, double.class);
+        drawScaled = Game.exact(element.getMethod("DrawTextureScaledCol", texture, double.class, double.class, double.class, double.class,
+            double.class, double.class, double.class, double.class), eight);
+        drawTiled = Game.exact(element.getMethod("DrawTextureTiled", texture, double.class, double.class, double.class, double.class,
+            double.class, double.class, double.class, double.class), eight);
+        drawAspect = Game.exact(element.getMethod("DrawTextureScaledAspect", texture, double.class, double.class, double.class, double.class,
+            double.class, double.class, double.class, double.class), eight);
         Class<?> renderer = Game.type(loader, "zombie.core.SpriteRenderer");
         sprites = renderer.getField("instance").get(null);
         renderRect = Game.exact(renderer.getMethod("renderi", texture, int.class, int.class, int.class, int.class, float.class, float.class, float.class,
@@ -56,7 +75,7 @@ final class Quads {
 
     /** Sets this area's functions into its table, replacing those of an earlier API. */
     void register(Object table) throws ReflectiveOperationException {
-        String rects = AREA + "rects", quads = AREA + "quads";
+        String rects = AREA + "rects", quads = AREA + "quads", keep = AREA + "keep", clear = AREA + "clear", play = AREA + "play";
         lua.set(table, "rects", lua.function(rects, arguments -> {
             try { drawRects(arguments, rects); }
             catch (RuntimeException | Error mine) { throw mine; }
@@ -68,6 +87,20 @@ final class Quads {
             catch (RuntimeException | Error mine) { throw mine; }
             catch (Throwable failure) { throw Game.thrown(failure); }
             return Game.NONE;
+        }));
+        lua.set(table, "keep", lua.function(keep, arguments -> {
+            keep(arguments, keep);
+            return Game.NONE;
+        }));
+        lua.set(table, "clear", lua.function(clear, arguments -> {
+            Tape tape = tapes.get(owner(arguments, clear));
+            if (tape != null) tape.clear();
+            return Game.NONE;
+        }));
+        lua.set(table, "play", lua.function(play, arguments -> {
+            try { return new Object[] { play(arguments, play) }; }
+            catch (RuntimeException | Error mine) { throw mine; }
+            catch (Throwable failure) { throw Game.thrown(failure); }
         }));
     }
 
@@ -143,5 +176,101 @@ final class Quads {
         for (int shape = 0, at = 0; shape < count; shape++, at += QUAD)
             drawQuad.invokeExact(window, picture, values[at], values[at + 1], values[at + 2], values[at + 3], values[at + 4], values[at + 5],
                 values[at + 6], values[at + 7], values[at + 8], values[at + 9], values[at + 10], values[at + 11]);
+    }
+
+    /** The draws kept for one Lua table: their kinds, pictures (null for a rectangle) and eight numbers each, grown as they come. */
+    private static final class Tape {
+        int count;
+        int[] kinds = new int[16];
+        Object[] pictures = new Object[16];
+        double[] numbers = new double[16 * RECT];
+
+        void clear() {
+            Arrays.fill(pictures, 0, count, null);
+            count = 0;
+        }
+
+        void add(int kind, Object picture, double[] eight) {
+            if (count == kinds.length) {
+                int size = kinds.length * 2;
+                kinds = Arrays.copyOf(kinds, size);
+                pictures = Arrays.copyOf(pictures, size);
+                numbers = Arrays.copyOf(numbers, size * RECT);
+            }
+            kinds[count] = kind;
+            pictures[count] = picture;
+            System.arraycopy(eight, 0, numbers, count * RECT, RECT);
+            count++;
+        }
+    }
+
+    /** The tapes, by the Lua table each belongs to: gone with it. A newer API starts with none (its play says so). */
+    private final Map<Object, Tape> tapes = new WeakHashMap<>();
+    // The eight numbers of the draw being kept, checked before it is.
+    private final double[] eight = new double[RECT];
+
+    /** The Lua table a tape call names. */
+    private Object owner(Object[] arguments, String call) {
+        Object owner = arguments.length > 0 ? arguments[0] : null;
+        if (!lua.isTable(owner)) throw new IllegalArgumentException(call + ": tape must be a table");
+        return owner;
+    }
+
+    /**
+     * {@code draw.keep(tape, kind, picture, x, y, w, h, r, g, b, a)}: one draw more on the tape of the Lua table {@code tape} (made
+     * at its first): the kind (1 a picture scaled and coloured, or a rectangle with {@code false} for the picture; 2 tiled; 3 scaled
+     * keeping its aspect), the picture, {@code x, y, w, h} in the element's own pixels and {@code r, g, b, a}.
+     */
+    private void keep(Object[] arguments, String call) {
+        Object owner = owner(arguments, call);
+        Object kind = arguments.length > 1 ? arguments[1] : null;
+        if (!(kind instanceof Double k) || (k != SCALED && k != TILED && k != ASPECT))
+            throw new IllegalArgumentException(call + ": kind must be 1, 2 or 3");
+        Object picture = arguments.length > 2 ? arguments[2] : null;
+        if (Boolean.FALSE.equals(picture) && k == SCALED) picture = null;
+        else if (!texture.isInstance(picture)) throw new IllegalArgumentException(call + ": picture must be a texture" + (k == SCALED ? " or false" : ""));
+        for (int index = 0; index < RECT; index++) {
+            Object value = 3 + index < arguments.length ? arguments[3 + index] : null;
+            if (!(value instanceof Double number) || !Double.isFinite(number))
+                throw new IllegalArgumentException(call + ": " + NAMES[index] + " must be a number");
+            eight[index] = number;
+        }
+        Tape tape = tapes.computeIfAbsent(owner, any -> new Tape());
+        if (tape.count >= TAPE_MAX) throw new IllegalArgumentException(call + ": a tape keeps at most " + TAPE_MAX + " draws");
+        tape.add((int)(double)k, picture, eight);
+    }
+
+    private static final String[] NAMES = { "x", "y", "w", "h", "r", "g", "b", "a" };
+
+    /**
+     * {@code draw.play(element, tape, count, start)}: draws {@code count} of the tape's draws from its draw {@code start} (1 when left
+     * out; all from there when {@code count} is) in the element, as its {@code DrawTextureScaledCol}, {@code DrawTextureTiled} and
+     * {@code DrawTextureScaledAspect} draw them, in order. Returns the number of draws the tape holds, or false for a table this API
+     * keeps no tape of (never kept, or kept by an API a newer one took over from): nothing is drawn then.
+     */
+    private Object play(Object[] arguments, String call) throws Throwable {
+        Object window = element(arguments.length > 0 ? arguments[0] : null, call);
+        Object owner = arguments.length > 1 ? arguments[1] : null;
+        if (!lua.isTable(owner)) throw new IllegalArgumentException(call + ": tape must be a table");
+        Tape tape = tapes.get(owner);
+        if (tape == null) return Boolean.FALSE;
+        int start = arguments.length > 3 && arguments[3] != null ? Arguments.integer(arguments, 3, call, "start", 1, TAPE_MAX + 1) : 1;
+        int available = Math.max(0, tape.count - (start - 1));
+        Object value = arguments.length > 2 ? arguments[2] : null;
+        int count = value == null ? available : Arguments.integer(arguments, 2, call, "count", 0, TAPE_MAX);
+        if (count > available) throw new IllegalArgumentException(call + ": count is " + count + " but the tape holds only " + available + " draws from draw " + start);
+        if (count > 0 && Boolean.TRUE.equals((Boolean)visible.invokeExact(window))) {
+            int[] kinds = tape.kinds;
+            Object[] pictures = tape.pictures;
+            double[] values = tape.numbers;
+            for (int draw = start - 1, end = draw + count; draw < end; draw++) {
+                int at = draw * RECT;
+                int kind = kinds[draw];
+                MethodHandle how = kind == SCALED ? drawScaled : kind == TILED ? drawTiled : drawAspect;
+                how.invokeExact(window, pictures[draw], values[at], values[at + 1], values[at + 2], values[at + 3], values[at + 4], values[at + 5],
+                    values[at + 6], values[at + 7]);
+            }
+        }
+        return (double)tape.count;
     }
 }
