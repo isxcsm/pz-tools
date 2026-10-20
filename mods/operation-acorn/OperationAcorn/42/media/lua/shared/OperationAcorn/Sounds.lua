@@ -47,6 +47,10 @@ Sounds.CUES = {
     ["oa.term.crude.work"] = { sound = "OA_Term_Crude_Work" },
     ["oa.term.crude.spell"] = { sound = "OA_Term_Crude_Spell" },
     -- terminal picks end
+    -- the research tab: the body taking an applied selection (Plan's take), its first node bursting and the columns'
+    -- light running round (made: tools/sound/ai_research.py)
+    ["oa.research.take"] = { sound = "OA_Research_Take" },
+    ["oa.research.glow"] = { sound = "OA_Research_Glow" },
     -- an infection test's swab, while the result is waited for
     ["oa.serum.test"] = { sound = "FirstAidApplyAlcoholWipes" },
     -- the timed actions (Sound.timed). Done: a thing put down, one taken up (as the game's furniture). During: a

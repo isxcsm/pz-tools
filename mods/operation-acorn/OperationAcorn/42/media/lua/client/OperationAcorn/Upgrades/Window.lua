@@ -899,17 +899,17 @@ end
 
 -- The doses of a tree (or "shared") adapting in u now, 0 when none.
 local function adapting(u, key)
-    local a = u and u.adapt
-    return a and a.doses[key] or 0
+    return u and Rules.adapting(u, key) or 0
 end
 
--- How far the adaptation has come (0 to 1) at the world's hour now.
-local function adaptShare(u)
-    local left = Rules.adaptLeft(u, OA.hours())
-    if not left then return 1 end
-    local total = Rules.adaptHours(u)
-    if total <= 0 then return 1 end
-    return math.max(0, math.min(1, 1 - left / total))
+-- How far each closed tree's adaptation has come (0 to 1) at the world's hour now: the first of the doses that open it
+-- (its own and the shared ones) to end. { [tree] = share }, only for the trees with one.
+local function adaptShares(u)
+    local shares = {}
+    if not (u and u.adapt) then return shares end
+    local now = OA.hours()
+    for _, tree in ipairs(Data.TREES) do shares[tree] = Rules.adaptShare(u, { tree, "shared" }, now) end
+    return shares
 end
 
 -- What the body shows changed (the nodes, the hover, the cursor, a refusal): the tooltip is made again, and a count
@@ -927,7 +927,7 @@ function View:changed(part)
     self.tipDirty = true
     -- (how far an adapting tree has come, read here and not as the body draws: the game's clock is no value PZ
     -- Optimization can check; Window.adaptMinute calls this each minute)
-    self.adaptShare = self.u and adaptShare(self.u) or 0
+    self.adaptShares = adaptShares(self.u)
     local body = self.body
     if body then body.rev = (body.rev or 0) + 1 end
     self:lightFocus()
@@ -2502,7 +2502,7 @@ function View:paintOver(el)
                 local bw = panel.w - 4 * L.GRID_PAD
                 local bx = panel.gx + (panel.w - bw) / 2
                 UI.fill(el, bx, ty, bw, bh, P.inset)
-                UI.fill(el, bx, ty, bw * (self.adaptShare or 0), bh, tc.c)
+                UI.fill(el, bx, ty, bw * (self.adaptShares and self.adaptShares[panel.tree] or 0), bh, tc.c)
             else
                 local ty = panel.gy + dy + (panel.gridH - #lines * fh) / 2
                 for i, line in ipairs(lines) do UI.textCentre(el, line, cx, ty + (i - 1) * fh, CLOSED_TEXT) end
@@ -2613,6 +2613,10 @@ function View.tick(body, now)
     if take then
         if now - take.start < take.ends then
             moving = true
+            if not take.glowed and now - take.start >= take.glowFrom then
+                take.glowed = true
+                take.sounds[#take.sounds + 1] = PZUIKit.Sound.uiHeld("oa.research.glow")
+            end
         else
             view.take = nil
             if take.board then
@@ -2789,6 +2793,13 @@ end
 -- Milliseconds an applied selection may take to come back and still be played.
 View.TAKE_WAIT_MS = 10000
 
+-- A take's sounds, its two big beats: the first node bursting (as it starts) and the columns' light (View.tick). They
+-- ring out after it, but stop with the tab put away or a take started over it.
+local function hushTake(take)
+    if not take then return end
+    for _, held in pairs(take.sounds) do PZUIKit.Sound.stopHeld(held) end
+end
+
 -- The picture of a column's soft light (tools/glow_art.py: a soft band, stretched over the column), found once; its
 -- strength at the most, the frame's line (design units) and the size of the running light's head (design units: its
 -- glow, and the bright core in it).
@@ -2865,6 +2876,7 @@ function View:startTake()
     local approved = self.approved
     self.approved = nil
     if not approved or not self:getIsVisible() or not self.sim then return end
+    hushTake(self.take)
     if getTimestampMs() - approved.at > View.TAKE_WAIT_MS then return end
     local shown = {}
     for _, item in ipairs(self.items) do
@@ -2890,7 +2902,8 @@ function View:startTake()
     self.take = { order = order, start = start, lit = 0, index = index, step = step, ways = ways, arrive = arrive,
         first = first, cols = cols, gained = Plan.counts(approved.steps), points = approved.spent or {},
         glowFrom = Plan.takeGlowAt(n, last), ends = Plan.takeEnd(n, last),
-        board = approved.boardWas == false and Rules.boardOpen(self.u) }
+        board = approved.boardWas == false and Rules.boardOpen(self.u),
+        sounds = { PZUIKit.Sound.uiHeld("oa.research.take") } }
     -- the nodes it opens stay locked to the eye until it is over, then their padlocks come off (those still locked
     -- then are drawn locked anyway); not the ones it took ranks of, which it lights itself
     if approved.locked then
@@ -3020,6 +3033,7 @@ function View:setVisible(visible, joypadData)
         if OA.Upgrades.Sidebar then OA.Upgrades.Sidebar.seen(self.playerNum) end
     else
         self:hideTip()
+        hushTake(self.take)
         self.take, self.approved = nil, nil
         self.fx, self.openAt, self.bump = nil, nil, nil
         self.unlocks, self.unlockFrom, self.unlockEnd, self.flashTapes = nil, nil, nil, nil

@@ -204,6 +204,20 @@ end)
 
 test("an applied selection's take is followed each frame before the UI draws, and let go once it is over", function()
     local UI = OA.Trade.UI
+    -- the game's UI sounds: what played, and what was stopped
+    local played, stopped = {}, {}
+    local emitter = { setVolume = function() end, tick = function() end }
+    local realManager = getSoundManager
+    getSoundManager = function()
+        return {
+            playUISound = function(_, name)
+                played[#played + 1] = name
+                return #played
+            end,
+            getUIEmitter = function() return emitter end,
+            stopUISound = function(_, id) stopped[#stopped + 1] = played[id] end,
+        }
+    end
     local view = laidOut("trees")
     local body = { view = view, isVisible = function() return true end }
     view.body, view.sim = body, {}
@@ -220,11 +234,19 @@ test("an applied selection's take is followed each frame before the UI draws, an
     local start = now
     local ends = view.take.ends
     truthy(ends > 0)
+    eq(table.concat(played, " "), "OA_Research_Take", "its first node bursting sounds as it starts")
     UI.liveFrame()
     eq(body.liveLook, 0, "the first node is taken")
-    now = start + 300
+    local glow = view.take.glowFrom
+    now = start + glow - 1
     UI.liveFrame()
-    eq(body.liveLook, 300, "every frame while it plays")
+    eq(#played, 1, "the columns' light not yet")
+    now = start + glow
+    UI.liveFrame()
+    eq(body.liveLook, glow, "every frame while it plays")
+    eq(table.concat(played, " "), "OA_Research_Take OA_Research_Glow", "the columns' light sounds as it starts")
+    UI.liveFrame()
+    eq(#played, 2, "once")
     now = start + ends - 1
     UI.liveFrame()
     eq(body.liveLook, ends - 1, "the wave to its end")
@@ -232,6 +254,13 @@ test("an applied selection's take is followed each frame before the UI draws, an
     UI.liveFrame()
     eq(body.liveLook, nil, "over: let go")
     eq(view.take, nil, "and the take gone, with no frame drawn")
+    eq(#stopped, 0, "its sounds ring out")
+    -- put away in the middle of one: its sounds stop with it
+    view.approved = { steps = ids, at = now }
+    View.startTake(view)
+    View.setVisible(view, false)
+    eq(table.concat(stopped, " "), "OA_Research_Take", "the tab put away stops them")
+    getSoundManager = realManager
 end)
 
 -- ---- motion (Motion.lua's timing, followed by View.tick) -----------------------------------------------------------
@@ -397,7 +426,7 @@ test("the pulses, dashes and lights keep only their panels followed: the body is
     eq(body.liveCount, nil, "the body still untouched: a sibling, not the panel's parent")
     truthy(view.liveCount ~= nil, "the tab marked (its own drawing is light)")
     -- a take: the pulses hold still (the take draws its own lights)
-    view.take = { order = {}, start = clock.now, ends = 1000 }
+    view.take = { order = {}, start = clock.now, ends = 1000, glowFrom = 1000, sounds = {} }
     clock.now = clock.now + 16
     UI.liveFrame()
     eq(pulse.liveLook, -1)
@@ -428,7 +457,7 @@ test("a lit line's light is followed each frame by the flow, and the take holds 
     clock.now = clock.now + 16
     UI.liveFrame()
     truthy(flow.liveLook ~= first and flow.liveLook ~= nil, "the flow moves each frame")
-    view.take = { order = {}, start = clock.now, ends = 1000 }
+    view.take = { order = {}, start = clock.now, ends = 1000, glowFrom = 1000, sounds = {} }
     clock.now = clock.now + 16
     UI.liveFrame()
     eq(flow.liveLook, -1)
@@ -746,7 +775,6 @@ test("every motion paints, frame after frame, with strengths between 0 and 1 and
         if tex.path then drawn[tex.path] = (drawn[tex.path] or 0) + 1 end
     end }
     getTexture = function(path) return { path = path } end
-    getSoundManager = function() return { playUISound = function() end } end
     -- the body: its own fields set, the game's drawing answered by stand-ins
     local el = view.body
     el.drawRect, el.uiBase, el.uiScaled, el.uiDesign = rect, false, false, false

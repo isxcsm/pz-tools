@@ -270,9 +270,9 @@ def main(argv):
             if c.get('cut'):
                 src = src[int(c['cut'][0] * RATE):int(c['cut'][1] * RATE)]
             start = tile(src, c['made']) if c.get('loop') or len(src) < c['made'] * RATE else src[:int(c['made'] * RATE)]
-            for i in range(tries):
-                x = maker.make([prompt], 1000 + i, c['made'], start=start, noise=c['noise'])[0]
-                results.append((x, 1000 + i))
+            # (one batch: 8 from a sound took 34 s, one at a time 12 s each, the model swapped for its decoder each time)
+            for i, x in enumerate(maker.make([prompt] * tries, 1000, c['made'], start=start, noise=c['noise'])):
+                results.append((x, 'batch 1000 item %d' % i))
         else:
             for i, x in enumerate(maker.make([prompt] * tries, 1000, c['made'])):
                 results.append((x, 'batch 1000 item %d' % i))

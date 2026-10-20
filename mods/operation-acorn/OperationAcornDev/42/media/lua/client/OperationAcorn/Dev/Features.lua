@@ -317,12 +317,12 @@ end
 
 -- ---- upgrades ----------------------------------------------------------------------------------------------------
 
--- The adaptation of the serums taken ends now: the points come.
+-- The adaptation of every serum taken ends now: the points come.
 function Dev.endAdapt()
     local r = record()
     local u = OA.Upgrades.Rules.section(r)
     if not u.adapt then say("adapt: nothing adapting") return false end
-    u.adapt.endsAt = OA.hours()
+    for _, d in ipairs(u.adapt.doses) do d.endsAt = math.min(d.endsAt, OA.hours()) end
     local ok = OA.Upgrades.Adapt.finish(r)
     say("adapt finished", tostring(ok))
     return ok
@@ -352,8 +352,7 @@ end
 function Dev.adaptLeft()
     local r = Dev.record()
     local u = r and OA.Upgrades.Rules.section(r)
-    local a = u and u.adapt
-    return a and a.endsAt and math.max(0, a.endsAt - OA.hours()) or nil
+    return u and OA.Upgrades.Rules.adaptLeft(u, OA.hours())
 end
 
 -- ---- infection ---------------------------------------------------------------------------------------------------

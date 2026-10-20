@@ -18,7 +18,7 @@ for tree, item in pairs(OA.Upgrades.Data.SERUM_ITEM) do
         local ok = Serums.use(player, serum, id)
         P3T.check(say, item .. " used", ok)
         P3T.check(say, item .. " gives no point before the adaptation is over", Rules.ownPool(u, tree) == before)
-        P3T.check(say, item .. " is adapting", u.adapt ~= nil and (u.adapt.doses[tree] or 0) >= 1)
+        P3T.check(say, item .. " is adapting", Rules.adapting(u, tree) >= 1)
         OA.Upgrades.Adapt.finish(record, OA.hours() + OA.Upgrades.Data.ADAPT_HOURS + 0.01)
         P3T.check(say, item .. " gave a point", Rules.ownPool(u, tree) == before + 1)
         P3T.check(say, item .. " opened the tree", Rules.treeOpen(u, tree), "was open: " .. tostring(opened))

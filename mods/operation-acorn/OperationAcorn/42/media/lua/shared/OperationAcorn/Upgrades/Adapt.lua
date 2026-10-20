@@ -56,15 +56,15 @@ function Adapt.start(record, key, now)
     return Adapt.deliver(record, Adapt.GUIDE)
 end
 
--- The adaptation is over (the time of the record's end has passed): the points come, the trees that opened bring their
--- memo, and the player is told once for each tree: a tree that opened now by its opening (its points with it, and the
+-- The doses whose adaptation is over (their end has passed) are adapted to: their points come, the trees that opened
+-- bring their memo, and the player is told once for each tree: a tree that opened now by its opening (its points with it, and the
 -- character's self-talk), any other by its points (a brief title: doses are many); the shared points by theirs, or,
 -- when a shared dose opened the trees still closed, by one opening for all of them (the tree's name when it was one).
--- Returns true when it ended now.
+-- Returns true when any was over now.
 function Adapt.finish(record, now)
     local u = Rules.section(record)
-    if not Rules.adaptDone(u, now or OA.hours()) then return false end
-    local result = Rules.finishAdapt(u)
+    local result = Rules.finishAdapt(u, now or OA.hours())
+    if not result then return false end
     local id = record.id
     local talk, most = nil, 0
     local opened = {}

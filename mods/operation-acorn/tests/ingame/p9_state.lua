@@ -22,13 +22,14 @@ if part == 1 then
     comms.fired.S8F, comms.played.S8F, comms.dropped.S8F = OA.hours(), nil, nil
     OA.FieldCall.check()
     OA.Dev.title("capstone", "scout")
-    record.p9 = { endsAt = u.adapt.endsAt, points = Rules.ownPool(u, "scout") }
+    record.p9 = { endsAt = u.adapt.doses[#u.adapt.doses].endsAt, points = Rules.ownPool(u, "scout") }
     OA.Sync.changed("upgrades", record.id)
-    say("started: adaptation to", string.format("%.3f", u.adapt.endsAt), "the S8F call, a title; now pzdev reload")
+    say("started: adaptation to", string.format("%.3f", record.p9.endsAt), "the S8F call, a title; now pzdev reload")
 elseif part == 2 then
     local p9 = record.p9 or {}
-    check("the adaptation is still running", u.adapt ~= nil and u.adapt.endsAt == p9.endsAt,
-        u.adapt and string.format("%.3f", u.adapt.endsAt))
+    local last = u.adapt and u.adapt.doses[#u.adapt.doses]
+    check("the adaptation is still running", last ~= nil and last.endsAt == p9.endsAt,
+        last and string.format("%.3f", last.endsAt))
     check("its moodle shows", Rules.adaptLevel(u, OA.hours()) > 0, Rules.adaptLevel(u, OA.hours()))
     check("the cut-off call was not kept as played", comms.played.S8F == nil)
     check("it is the next call on the spot", OA.Comms.next(record, "field") ~= nil and OA.Comms.next(record, "field").id == "S8F")

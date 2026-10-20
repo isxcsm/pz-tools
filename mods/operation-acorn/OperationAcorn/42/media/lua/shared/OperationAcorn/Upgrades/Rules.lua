@@ -15,8 +15,9 @@
 --                   ranks now), fromTree[tree], fromShared (where the board's points came from, so the pools stay
 --                   right when the board closes and gives them back as "points left")
 --   biteAt          the world age hour the bite shield last saved a bite
---   adapt           doses injected and not yet adapted to: { endsAt = world age hour, doses = { [tree or "shared"] = n } },
---                   gone when the adaptation ends and the points come (nil when there is none)
+--   adapt           doses injected and not yet adapted to, each on its own time: { doses = { { key = tree or "shared",
+--                   from = world age hour taken, endsAt = world age hour adapted }, ... } } in the order taken; a
+--                   dose's point comes at its own end, and adapt goes with the last (nil when there is none)
 --   firstEffect     [id] = true for each node that has told its first effect (once each)
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
@@ -69,7 +70,7 @@ function Rules.fill(u)
     fillTree(u.sharedUsed, 0)
     u.firstEffect = u.firstEffect or {}
     u.unsealed = u.unsealed or {}
-    if type(u.adapt) ~= "table" or type(u.adapt.doses) ~= "table" then u.adapt = nil end
+    if type(u.adapt) ~= "table" or type(u.adapt.doses) ~= "table" or #u.adapt.doses == 0 then u.adapt = nil end
     local b = u.board
     if not b then
         b = {}
@@ -374,26 +375,48 @@ end
 function Rules.dosesToBonus(u)
     local every = Rules.DOSE_BONUS[Rules.rank(u, "serumAdapt")]
     if not every then return nil end
-    local taken = Rules.dosesAdapted(u)
-    for _, n in pairs(u.adapt and u.adapt.doses or {}) do taken = taken + n end
+    local taken = Rules.dosesAdapted(u) + (u.adapt and #u.adapt.doses or 0)
     return every - OA.remainder(taken, every)
 end
 
 -- A dose of an upgrade serum of a tree (or "shared") is taken at world age hour `now`: it adapts for Rules.adaptHours,
--- and doses taken meanwhile share the time (the end is the latest dose's, not a sum). The point comes at the end
+-- on its own time (a dose taken meanwhile does not hold back one taken before it). Its point comes at its end
 -- (finishAdapt).
 function Rules.startAdapt(u, key, now)
     local a = u.adapt
     if not a then
-        a = { endsAt = 0, doses = {} }
+        a = { doses = {} }
         u.adapt = a
     end
-    a.doses[key] = (a.doses[key] or 0) + 1
-    a.endsAt = math.max(a.endsAt or 0, now + Rules.adaptHours(u))
+    a.doses[#a.doses + 1] = { key = key, from = now, endsAt = now + Rules.adaptHours(u) }
 end
 
--- The level of the moodle 적응 중 for the time left (hours): 4 above 20 game minutes, 3 above 10, 2 above 5, 1 within
--- the last 5 (its text says about how long is left); 0 when nothing adapts.
+-- The doses of a tree (or "shared") adapting in u now, 0 when none.
+function Rules.adapting(u, key)
+    local n = 0
+    for _, d in ipairs(u.adapt and u.adapt.doses or {}) do
+        if d.key == key then n = n + 1 end
+    end
+    return n
+end
+
+-- How far (0 to 1) the first of the doses of these keys (a list) to end has come at `now`; nil when none adapts.
+function Rules.adaptShare(u, keys, now)
+    local first
+    for _, d in ipairs(u.adapt and u.adapt.doses or {}) do
+        for _, key in ipairs(keys) do
+            if d.key == key and (not first or d.endsAt < first.endsAt) then first = d end
+        end
+    end
+    if not first then return nil end
+    local total = first.endsAt - first.from
+    if total <= 0 then return 1 end
+    return math.max(0, math.min(1, (now - first.from) / total))
+end
+
+-- The level of the moodle 적응 중 for the time left (hours, of the dose that ends last: the body is still at it): 4 above
+-- 20 game minutes, 3 above 10, 2 above 5, 1 within the last 5 (its text says about how long is left); 0 when nothing
+-- adapts.
 function Rules.adaptLevel(u, now)
     local left = Rules.adaptLeft(u, now)
     if not left then return 0 end
@@ -404,34 +427,49 @@ function Rules.adaptLevel(u, now)
     return 1
 end
 
--- Hours of adaptation left at `now` (0 when it is over), or nil when no dose is adapting.
+-- Hours of adaptation left at `now` until the last dose is adapted to (0 when that is over), or nil when no dose is
+-- adapting.
 function Rules.adaptLeft(u, now)
     if not u.adapt then return nil end
-    return math.max(0, (u.adapt.endsAt or 0) - now)
+    local last = 0
+    for _, d in ipairs(u.adapt.doses) do last = math.max(last, d.endsAt) end
+    return math.max(0, last - now)
 end
 
+-- Whether a dose's adaptation is over at `now` (its point is due).
 function Rules.adaptDone(u, now)
-    return u.adapt ~= nil and now >= (u.adapt.endsAt or 0)
+    for _, d in ipairs(u.adapt and u.adapt.doses or {}) do
+        if now >= d.endsAt then return true end
+    end
+    return false
 end
 
--- The adaptation is over: every dose becomes its point (the first of a tree opens it; a shared dose opens every tree
--- still closed, with no point of their own), and with 혈청 적응 each multiple of its count the doses pass gives a
--- shared point. Returns { trees = { [tree] = n }, shared = n, opened = { tree... } (by their own doses),
--- sharedOpened = { tree... }, bonus = n } in the trees' order, or nil when there was no adaptation.
-function Rules.finishAdapt(u)
-    local a = u.adapt
-    if not a then return nil end
+-- The doses whose adaptation is over at `now` are adapted to: each becomes its point (the first of a tree opens it; a
+-- shared dose opens every tree still closed, with no point of their own), and with 혈청 적응 each multiple of its count
+-- the doses pass gives a shared point; the others go on. Returns { trees = { [tree] = n }, shared = n, opened =
+-- { tree... } (by their own doses), sharedOpened = { tree... }, bonus = n } in the trees' order, or nil when none was
+-- due.
+function Rules.finishAdapt(u, now)
+    if not Rules.adaptDone(u, now) then return nil end
+    local due, left = {}, {}
+    for _, d in ipairs(u.adapt.doses) do
+        if now >= d.endsAt then
+            due[d.key] = (due[d.key] or 0) + 1
+        else
+            left[#left + 1] = d
+        end
+    end
     local result = { trees = {}, shared = 0, opened = {}, bonus = 0 }
     local before = Rules.dosesAdapted(u)
     for _, tree in ipairs(Data.TREES) do
-        local n = a.doses[tree] or 0
+        local n = due[tree] or 0
         for _ = 1, n do
             if Rules.inject(u, tree) then result.opened[#result.opened + 1] = tree end
         end
         if n > 0 then result.trees[tree] = n end
     end
-    for _ = 1, a.doses.shared or 0 do Rules.injectShared(u) end
-    result.shared = a.doses.shared or 0
+    for _ = 1, due.shared or 0 do Rules.injectShared(u) end
+    result.shared = due.shared or 0
     result.sharedOpened = {}
     if result.shared > 0 then
         for _, tree in ipairs(Data.TREES) do
@@ -446,7 +484,7 @@ function Rules.finishAdapt(u)
         result.bonus = math.floor(Rules.dosesAdapted(u) / every) - math.floor(before / every)
         u.sharedBonus = u.sharedBonus + result.bonus
     end
-    u.adapt = nil
+    u.adapt = #left > 0 and { doses = left } or nil
     return result
 end
 

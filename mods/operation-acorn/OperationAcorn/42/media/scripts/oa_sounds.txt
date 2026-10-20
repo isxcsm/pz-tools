@@ -17,6 +17,24 @@ module Base
         }
     }
 
+    sound OA_Research_Glow
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/OA_Research_Glow_1.ogg,
+        }
+    }
+
+    sound OA_Research_Take
+    {
+        category = UI,
+        clip
+        {
+            file = media/sound/OA_Research_Take_1.ogg,
+        }
+    }
+
     /* terminal picks begin: written by tools/sound/install_terminal_picks.py from terminal_picks.json, not by build.py */
 
     /* OA_Term_Field_Power: field_power.ogg 7863e4ca -22 dB */

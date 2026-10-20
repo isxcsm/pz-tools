@@ -717,9 +717,17 @@ function E2E.timers(r)
             end
         end
     end
+    -- the adaptation: the next dose to end; brought on, every dose comes as much sooner (the gaps between them kept)
     local u = r.upgrades
-    if u and u.adapt and u.adapt.endsAt and u.adapt.endsAt > now then
-        add("adapt", u.adapt.endsAt - now, function() u.adapt.endsAt = now + lead end)
+    local first
+    for _, d in ipairs(u and u.adapt and u.adapt.doses or {}) do
+        if d.endsAt > now and (not first or d.endsAt < first) then first = d.endsAt end
+    end
+    if first then
+        add("adapt", first - now, function()
+            local by = first - (now + lead)
+            for _, d in ipairs(u.adapt and u.adapt.doses or {}) do d.from, d.endsAt = d.from - by, d.endsAt - by end
+        end)
     end
     return list
 end

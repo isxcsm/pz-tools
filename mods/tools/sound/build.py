@@ -9,7 +9,9 @@ sources/: a library's recording, or one of our own) with what to take of it. For
     within 50 dB), keeps its first `length` seconds (the clip's, else the
     sound's: a key's press without its release), fades its ends (5 ms, so it does not click; `fadeOut` seconds, the
     clip's or the sound's, for a stroke cut out of a run: its ring let go),
-    brings its peak to the sound's `peak` (dBFS; -3 by default) and adds the clip's `gain` (dB),
+    brings its peak to the sound's `peak` (dBFS; -3 by default), or, a sound with `lufs`, its loudness there (its
+    loudest 400 ms, what is heard: a slow swell or a long ring is quiet at a peak that a click is loud at; its peak
+    kept under LUFS_PEAK_CAP), and adds the clip's `gain` (dB),
     and writes it as Ogg Vorbis (quality 5) into <mod>/42/media/sound/<name>_<n>.ogg;
 
 then writes each mod's sound script (<mod>/42/media/scripts/<prefix>_sounds.txt, module Base) from the table, so that the
@@ -43,6 +45,7 @@ ONSET_DB = -30.0
 TAIL_DB = -50.0
 PRE_S = 0.002
 FADE_S = 0.005
+LUFS_PEAK_CAP = -1.0
 
 # Where each mod's game folder is, and the prefix of its sound script and its sounds.
 MOD_FOLDERS = {
@@ -208,7 +211,7 @@ def trim(data):
     return data[max(0, onset - int(PRE_S * RATE)):tail + 1]
 
 
-def shape(data, clip, peak_db, length=None, fade_out=None):
+def shape(data, clip, peak_db, length=None, fade_out=None, lufs=None, loop=False):
     start, end = clip.get('start'), clip.get('end')
     if start is not None or end is not None:
         a = int(round((start or 0) * RATE))
@@ -232,7 +235,11 @@ def shape(data, clip, peak_db, length=None, fade_out=None):
             data = data.copy()
             data[-tail:] *= np.linspace(1, 0, tail, dtype=np.float32) ** 2
     peak = float(np.max(np.abs(data)))
-    gain = 10 ** ((peak_db + clip.get('gain', 0.0)) / 20) / peak
+    if lufs is None:
+        gain = 10 ** ((peak_db + clip.get('gain', 0.0)) / 20) / peak
+    else:
+        gain = min(10 ** ((lufs + clip.get('gain', 0.0) - loudness(data, loop)) / 20),
+                   10 ** (LUFS_PEAK_CAP / 20) / peak)
     return np.clip(data * gain, -1, 1)
 
 
@@ -343,7 +350,8 @@ def build(table, only):
             peak = sound.get('peak', table.get('peak', -3.0))
             for n, clip in enumerate(sound['clips'], 1):
                 data = shape(decode(os.path.join(HERE, 'sources', clip['src'])), clip, peak,
-                             clip.get('length', sound.get('length')), clip.get('fadeOut', sound.get('fadeOut')))
+                             clip.get('length', sound.get('length')), clip.get('fadeOut', sound.get('fadeOut')),
+                             sound.get('lufs'), bool(sound.get('loop')))
                 encode(data, os.path.join(out, '%s_%d.ogg' % (name, n)))
             # an earlier build's clips past this one's
             n = len(sound['clips']) + 1
