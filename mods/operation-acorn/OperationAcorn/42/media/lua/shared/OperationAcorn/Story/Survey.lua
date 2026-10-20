@@ -3,8 +3,8 @@
 -- comes once about the fragment, and as it is played the maps mark a wide zone the tree's drop site lies in, away from
 -- its middle: the last stretch is the player's to search. Once the player comes within NEAR of the site, or into the
 -- inner part of the zone (INNER of its radius round its middle: the middle is where the map says to go), the zone
--- narrows to a small one round it (NEAR_R, as far off its middle), with a title. The character says a line on first
--- walking into the zone (SurveyIn) and after the title of its narrowing (SurveyNear). The zone stays until the fragment
+-- narrows to a small one round it (NEAR_R, as far off its middle), with a title. First walking into the zone has its
+-- title as a mission's circle has ("unveil"), and each title its line after it (SurveyIn, SurveyNear). The zone stays until the fragment
 -- reaches the team. Before
 -- the handover the team calls, after it 관리 7 (each its own call; one fired before the handover and not yet played
 -- gives way to the other).
@@ -28,11 +28,11 @@ Survey.OFFSET = 0.5
 Survey.NEAR = 80
 Survey.NEAR_R = 30
 Survey.INNER = 0.5
--- Real seconds from the narrowing's title to its line (the title is read first, as Scene.ARRIVE_SAY).
-Survey.NEAR_SAY = 5
+-- Real seconds from a title to its line (the title is read first, as Scene.ARRIVE_SAY).
+Survey.SAY = 5
 
--- The self-talk. SurveyIn: lines 1-2 at night, 3 by day, 4 for a site the character has stood near before, the rest
--- any time. SurveyNear: line 1 at night, 2 by day, the rest any time.
+-- The self-talk. SurveyIn (each line first takes in that this is the place): lines 1-2 at night, 3 by day, 4 for a
+-- site the character has stood near before, the rest any time. SurveyNear: line 1 at night, 2 by day, the rest any time.
 OA.Say.define("SurveyIn", { tags = {
     [1] = { night = true }, [2] = { night = true }, [3] = { night = false }, [4] = { seen = true },
 } })
@@ -127,12 +127,14 @@ function Survey.minute(record, x, y, isNight)
                 narrowed(record)[tree], entered(record)[tree] = site.n, site.n
                 if seen then seen[site.n] = true end
                 OA.Sync.title(record.id, { key = "IGUI_OA_Title_Site", sub = "IGUI_OA_Title_SurveyNear", style = "discovery" })
-                OA.Say.tell(record.id, "SurveyNear", { night = isNight() == true }, Survey.NEAR_SAY)
+                OA.Say.tell(record.id, "SurveyNear", { night = isNight() == true }, Survey.SAY)
                 OA.Sync.changed("story", record.id)
             elseif entered(record)[tree] ~= site.n then
                 if OA.Places.distance(x, y, wide.x, wide.y) <= wide.r then
                     entered(record)[tree] = site.n
-                    OA.Say.tell(record.id, "SurveyIn", { night = isNight() == true, seen = (seen and seen[site.n]) == true })
+                    OA.Sync.title(record.id, { key = "IGUI_OA_Title_SurveyIn", sub = "IGUI_OA_Title_SurveyInSub", style = "unveil" })
+                    OA.Say.tell(record.id, "SurveyIn", { night = isNight() == true, seen = (seen and seen[site.n]) == true },
+                        Survey.SAY)
                 end
             end
         end
